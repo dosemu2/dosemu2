@@ -219,7 +219,7 @@ static u_short os_allow=1;
 
 /* FIXME -- inline function */
 #define CLEAR_HANDLE_NAME(nameptr) \
-	bzero((nameptr), 9);
+	memset((nameptr), 0, 9);
 
 #define SET_HANDLE_NAME(nameptr, name) \
 	{ memmove((nameptr), (name), 8); nameptr[8]=0; }

@@ -69,9 +69,9 @@ w_tmp; })
   {
     char tmp[256];
 
-    bzero(tmp, 256);
+    memset(tmp, 0, 256);
 
-    pos += WRITE(STDOUT_FILENO, bzero, header_size - pos);
+    pos += WRITE(STDOUT_FILENO, tmp, header_size - pos);
     fprintf(stderr, "Pos now is %d\n", pos);
   }
 

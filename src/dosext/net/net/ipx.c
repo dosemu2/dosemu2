@@ -454,7 +454,7 @@ IPXOpenSocket(u_short port, u_short * newPort)
   ipxs.sipx_family = AF_IPX;
   ipxs.sipx_network = *((unsigned int *)&MyAddress[0]);
 /*  ipxs.sipx_network = htonl(MyNetwork); */
-  bzero(ipxs.sipx_node, 6);	/* Please fill in my node name */
+  memset(ipxs.sipx_node, 0, 6);	/* Please fill in my node name */
   ipxs.sipx_port = htons(port);
 
   /* now bind to this port */

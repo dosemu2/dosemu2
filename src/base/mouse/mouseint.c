@@ -57,10 +57,10 @@ void DOSEMUSetMouseSpeed();
 void
 DOSEMUSetupMouse(void)
 {
-  mouse_t *mice = &config.mouse;
-  m_printf("MOUSE: DOSEMUSetupMouse called\n");
-  if ( ! config.usesX ){
-      tcgetattr(mice->fd, &mice->oldset);
+      mouse_t *mice = &config.mouse;
+      m_printf("MOUSE: DOSEMUSetupMouse called\n");
+      mice->oldset = malloc(sizeof(*mice->oldset));
+      tcgetattr(mice->fd, mice->oldset);
       if (mice->type == MOUSE_MOUSEMAN)
         {
           DOSEMUSetMouseSpeed(1200, 1200, mice->flags);
@@ -163,15 +163,6 @@ DOSEMUSetupMouse(void)
         }
 #endif
 #endif
-    /* this is only to try to get the initial internal driver two/three
-    	button mode state correct; user can override it later. */
-    if (mice->type == MOUSE_MICROSOFT || mice->type == MOUSE_MS3BUTTON ||
-    	mice->type == MOUSE_BUSMOUSE ||	mice->type == MOUSE_PS2)
-	mice->has3buttons = FALSE;
-    else
-    	mice->has3buttons = TRUE;
-  }
-  m_printf("MOUSE: INIT complete\n");
 }
  
 int

@@ -115,7 +115,7 @@ static int tty_lock(char *path, int mode)
   pid_t ime;
   int cwrote;
 
-  bzero(dev_nam, sizeof(dev_nam));
+  memset(dev_nam, 0, sizeof(dev_nam));
   sprintf(saved_path, "%s/%s%s", config.tty_lockdir, config.tty_lockfile, 
          (strrchr(path, '/')+1));
   strcpy(dev_nam, path);

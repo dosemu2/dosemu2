@@ -93,4 +93,7 @@ echo "mkpluginhooks enable $PLUGIN"
 
 echo ". ./configure $STRING $SUFFIX"
 export DOSEMU_DEFAULT_CONFIGURE=1
+if [ -f Makefile.conf ]; then
+  make distclean
+fi
 exec ./configure $STRING $SUFFIX

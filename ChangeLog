@@ -1,3 +1,18 @@
+2003/01/24 ver 1.1.4.8 unofficial pre-release
+	From Bart
+	- upgrade autoconf & friends + some top level makefile
+	  simplifications
+	- remove leftover base-configure
+	- fixed "tap" typo in global.conf
+	- simplify dosemu.users parsing in parser.y.in and reintroduced
+	  "nosuidroot" (which now simply drops privileges)
+	- mouse: open r/o if it's a FIFO (like /dev/gpmdata), a PS/2 mouse
+	  or a bus mouse. This solves a few permission problems.
+	- replace bzero with memset
+	- port server should always be started if config.pci = 1.
+	- fix S3 graphics card driver high port problem reported by 
+	  Reinhard Karcher
+	- Fix coopthreads problem (inserted spaces too often)
 2003/01/21 ver 1.1.4.7 unofficial pre-release
 	From Andy Shevchenko <andriy@asplinux.ru> and Grigory Batalov
 	- Add Russian manual page translations.

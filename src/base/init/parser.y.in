@@ -2306,14 +2306,6 @@ parse_dosemu_users(void)
 
   if (!exists_file(DOSEMU_USERS_FILE)) {
     DOSEMU_USERS_FILE = ALTERNATE_ETC "/" DOSEMU_USERS;
-    if (!exists_file(DOSEMU_USERS_FILE)) {
-      if (!can_do_root_stuff || under_root_login) {
-        /* simply ignore -- we're not suid-root */
-        lax_user_checking();
-        after_secure_check = 1;
-        return;
-      }
-    }
     DOSEMU_LOGLEVEL_FILE = ALTERNATE_ETC "/" DOSEMU_LOGLEVEL;
     setenv("DOSEMU_CONF_DIR", ALTERNATE_ETC, 1);
   }
@@ -2389,9 +2381,9 @@ parse_dosemu_users(void)
     }
   }
 
-  /* We want to test if the _user_ is allowed to run Dosemu,             */
-  /* so check if the username connected to the get_orig_uid() is in the  */
-  /* DOSEMU_USERS_FILE file (usually /etc/dosemu.users).                  */
+  /* We want to test if the _user_ is allowed to do certain privileged    */
+  /* things, o check if the username connected to the get_orig_uid() is   */
+  /* in the DOSEMU_USERS_FILE file (usually /etc/dosemu.users).           */
    
   uid = get_orig_uid();
 
@@ -2406,6 +2398,13 @@ parse_dosemu_users(void)
        exit(1);
      }
 
+  if (!can_do_root_stuff || under_root_login) {
+     /* simply ignore -- we're not suid-root */
+     lax_user_checking();
+     after_secure_check = 1;
+     return;
+  }
+
   /* preset DOSEMU_*USER env, such that a user can't fake it */
   setenv("DOSEMU_USER", "unknown", 1);
   setenv("DOSEMU_REAL_USER", pwd->pw_name, 1);
@@ -2413,19 +2412,7 @@ parse_dosemu_users(void)
   {
        int can_have_privsetup = 0;
        fp = open_dosemu_users();
-       if (!fp) {
-	   if (!is_console(0)) {
-             fprintf(stderr, "Dropping root privileges: restricted user not on console.\n");
-	     priv_drop();
-	     lax_user_checking();
-             after_secure_check = 1;
-	     return;
-	   }
-	   userok = 1;
-	   have_vars = 1;
-	   define_config_variable("c_all");
-	   define_config_variable("restricted");
-       } else {
+       if (fp) {
 	   for(userok=0; fgets(buf, PBUFLEN, fp) != NULL && !userok; ) {
 	     int l = strlen(buf);
 	     if (l && (buf[l-1] == '\n')) buf[l-1] = 0;
@@ -2445,25 +2432,14 @@ parse_dosemu_users(void)
                      can_have_privsetup = 1;
                    }
 		 }
-		 if (!have_vars) {
-		   define_config_variable("c_all");
-		   if (uid) {
-		     if (!is_console(0)) {
-		       fprintf(stderr, "Dropping root privileges: restricted user not on console.\n");
-	     	       priv_drop();
-	     	       lax_user_checking();
-             	       after_secure_check = 1;
-		       return;
-	   	     }
-		     define_config_variable("restricted");
-		   }
-		   have_vars = 1;
-		 }
+	         if (!have_vars)
+		   define_config_variable("restricted");
 	       }
 	     }
 	   }
            fclose(fp);
        }
+       
 
        if (can_have_privsetup
               && (   get_config_variable("unrestricted")
@@ -2481,30 +2457,16 @@ parse_dosemu_users(void)
        }
   }
 
-  if (uid == 0) {
-     if (!have_vars) define_config_variable("c_all");
-     userok=1;  /* This must be root, so always allow DOSEMU start */
-  }
-
+  define_config_variable("c_all");
   if(userok==0) {
-       fprintf(stderr,
-	       "Sorry %s. You are not allowed to use DOSEMU. Contact System Admin.\n",
-	       pwd->pw_name);
-       if(log_syslog>=1) {
-	   fprintf(stderr, "This event will be logged!\n");
-           sprintf(buf, "Illegal DOSEMU start attempt by %s (uid=%i)", 
-           pwd->pw_name, uid);
-	   write_to_syslog(buf);
-       }
-       exit(1);
+    define_config_variable("restricted");
   }
-  else {
-    if(log_syslog>=2) {
-       sprintf(buf, "DOSEMU started%s by %s (uid/euid=%i/%i)",
-            (can_do_root_stuff && !under_root_login)? " suid root" : "",
-            pwd->pw_name, uid, get_orig_euid());
-       write_to_syslog(buf);
-    }
+  if (get_config_variable("nosuidroot") || (get_config_variable("restricted") && !is_console(0))) {
+    fprintf(stderr, "Dropping root privileges: guest or a restricted user not on console.\n");
+    priv_drop();
+    lax_user_checking();
+    after_secure_check = 1;
+    return;
   }
 
   /* now we setup up our local DOSEMU home directory, where we

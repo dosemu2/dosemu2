@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(DOSEMU, `cat VERSION`, http://sourceforge.net/tracker/?atid=457447&group_id=49784&func=browse)
+AC_INIT([DOSEMU],[`cat VERSION`],[http://sourceforge.net/tracker/?atid=457447&group_id=49784&func=browse],dosemu)
 AC_CONFIG_SRCDIR(src/base/misc/dosio.c)
-AC_PREREQ(2.52)
+AC_PREREQ(2.57)
 
 # first check if we are called from default-configure and if not,
 # execute that to parse compiletime settings
@@ -11,7 +11,7 @@ fi
 
 AC_CONFIG_HEADER(src/include/config.h)
 
-AC_CANONICAL_SYSTEM
+AC_CANONICAL_TARGET([])
 
 dnl Checks for programs.
 AC_PROG_CC
@@ -54,32 +54,26 @@ AC_TYPE_PID_T
 AC_TYPE_SIGNAL
 AC_TYPE_SIZE_T
 AC_TYPE_UID_T
-AC_STRUCT_ST_RDEV
+AC_CHECK_MEMBERS([struct stat.st_rdev])
 AC_STRUCT_TM
 
 AC_CACHE_CHECK(if C compiler has \"__FILE__\" macro,
 ac_cv_c_has_file_macro,
-[AC_TRY_COMPILE([#include <stdio.h>],[printf("%s", __FILE__);],
-  ac_cv_c_has_file_macro=yes,
-  ac_cv_c_has_file_macro=no) ] )
+[AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>]], [[printf("%s", __FILE__);]])],[ac_cv_c_has_file_macro=yes],[ac_cv_c_has_file_macro=no]) ] )
 if test "$ac_cv_c_has_file_macro" = "no" ; then
   AC_DEFINE(__FILE__, "")
 fi
 
 AC_CACHE_CHECK(if C compiler has \"__LINE__\" macro,
 ac_cv_c_has_line_macro,
-[AC_TRY_COMPILE([#include <stdio.h>],[printf("%s", __LINE__);],
-  ac_cv_c_has_line_macro=yes,
-  ac_cv_c_has_line_macro=no) ] )
+[AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>]], [[printf("%s", __LINE__);]])],[ac_cv_c_has_line_macro=yes],[ac_cv_c_has_line_macro=no]) ] )
 if test "$ac_cv_c_has_line_macro" = "no" ; then
   AC_DEFINE(__LINE__, "")
 fi
 
 AC_CACHE_CHECK(if C compiler has \"__FUNCTION__\" macro,
 ac_cv_c_has_function_macro,
-[AC_TRY_COMPILE([#include <stdio.h>],[printf("%s", __FUNCTION__);],
-  ac_cv_c_has_function_macro=yes,
-  ac_cv_c_has_function_macro=no) ] )
+[AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>]], [[printf("%s", __FUNCTION__);]])],[ac_cv_c_has_function_macro=yes],[ac_cv_c_has_function_macro=no]) ] )
 if test "$ac_cv_c_has_function_macro" = "no" ; then
   AC_DEFINE(__FUNCTION__, "")
 fi
@@ -166,10 +160,10 @@ LNKOPTS="-Wl,-warn-common"
 
 AC_ARG_ENABLE(linkstatic,
               [  --enable-linkstatic     make statically linked binaries],
-              [AC_CHECKING("Linking statically")
+              [AS_MESSAGE(checking "Linking statically"...)
                LNKOPTS="${LNKOPTS} -static"
 	       CFLAGS="-static $CFLAGS"],
-	      [AC_CHECKING("Linking for shared libraries")])
+	      [AS_MESSAGE(checking "Linking for shared libraries"...)])
 
 dnl Do check wether we have svgalib and whether to use it
 
@@ -180,12 +174,12 @@ if test "$use_svgalib" = "yes"; then
   AC_CHECK_LIB(vga, vga_simple_init, , use_svgalib="no", -lm)
 fi
 if test "$use_svgalib" = "yes"; then
-  AC_CHECKING("compiling with svgalib support")
-  AC_DEFINE(USE_SVGALIB)
+  AS_MESSAGE(checking "compiling with svgalib support"...)
+  AC_DEFINE_UNQUOTED(USE_SVGALIB)
   USE_SVGALIB="USE_SVGALIB=1"
   AC_SUBST(USE_SVGALIB)
 else
-  AC_CHECKING("compiling without svgalib support")
+  AS_MESSAGE(checking "compiling without svgalib support"...)
 fi
 
 dnl Do check wether we have pthreads and whether to use it
@@ -196,18 +190,19 @@ if test "$use_pthreads" = "yes"; then
   AC_CHECK_LIB(pthread, pthread_create, , use_pthreads="no", -lm)
 fi
 if test "$use_pthreads" = "yes"; then
-  AC_CHECKING("compiling with pthreads support")
+  AS_MESSAGE(checking "compiling with pthreads support"...)
   AC_DEFINE(USE_PTHREADS)
   USE_PTHREADS="USE_PTHREADS=1"
   AC_SUBST(USE_PTHREADS)
 # pthreads causes stability problems so ordinary users shouldn't know about it
 #else
-#  AC_CHECKING("compiling without pthreads support")
+#  AS_MESSAGE(checking "compiling without pthreads support"...)
 fi
 
 #S-Lang directory checking -- thanks to mutt's configure script.
 AC_ARG_WITH(slangdir, [  --with-slangdir=dir     Specify S-Lang directory],
   AC_MSG_CHECKING(for S-Lang)
+  SLANGINC=""
   if test "$withval" = "default"; then
     if test -d $srcdir/../slang; then
       SLANGINC="-I ${srcdir}/../slang/src"
@@ -234,14 +229,14 @@ AC_ARG_WITH(slangdir, [  --with-slangdir=dir     Specify S-Lang directory],
       SLANGLIB="-L${withval}/lib"
     fi
   fi
-  CFLAGS="$CFLAGS $SLANGINC $SLANGLIB -lm"
+  CFLAGS="$CFLAGS $SLANGINC"
   dnl --- now that we've found it, check the link
   AC_CHECK_LIB(slang, SLtt_get_terminfo,
-                [SLANGLIB="$SLANGLIB -lslang -lm"],
+                [-lslang],
                 [AC_MSG_ERROR(unable to compile.  install slang-devel or check config.log)], -lm)
+  SLANGLIB="$SLANGLIB -lslang -lm"
+  AC_SUBST(SLANGLIB)
 )
-
-AC_SUBST(SLANGLIB)
 
 dnl check for X. This was reproduced from TKined
 
@@ -258,7 +253,7 @@ elif test "$x_includes" != "NONE"; then
     XINCLUDES="-I$x_includes"
 fi
 if test "$XINCLUDES" = nope; then
-  AC_WARN(Couldn't find any X11 include files)
+  AC_MSG_WARN([Couldn't find any X11 include files])
   XINCLUDES="# no include files found"
 fi
 if test "$XINCLUDES" = "-I"; then
@@ -274,7 +269,7 @@ if test "$x_libraries" = /usr/lib; then
 elif test "$x_libraries" != "NONE"; then
     XLIBSWD="-L$x_libraries"
 else
-    AC_CHECKING(for X11 library archive)
+    AS_MESSAGE(checking for X11 library archive...)
     AC_CHECK_LIB(X11, main, XLIBSWL="-lX11", XLIBSWL=nope)
     if test "$XLIBSWL" = nope; then
 	dirs="/usr/unsupported/lib /usr/local/lib /usr/X386/lib /usr/lib/X11R4 /usr/X11R5/lib /usr/lib/X11R5 /usr/openwin/lib /usr/X11/lib"
@@ -299,11 +294,10 @@ if test "$with_x" = "no"; then
   XLIBSWL=nope
 fi
 if test "$XLIBSWL" = nope ; then
-    AC_WARN(Couldn't find the X11 library archive.)
-    AC_CHECKING(Compiling without X support)
+    AC_MSG_WARN([Couldn't find the X11 library archive.])
+    AS_MESSAGE(checking Compiling without X support...)
     XLIBSWL=""
     XLIBSWD=""
-    X_SUPPORT=""
     AC_SUBST(X_SUPPORT)
     X_GRAPHICS=""
     AC_SUBST(X_GRAPHICS)
@@ -312,14 +306,13 @@ if test "$XLIBSWL" = nope ; then
     X2CEXE=""
     AC_SUBST(X2CEXE)
 else
-    AC_CHECKING(Compiling with X support)
-    X_SUPPORT="X_SUPPORT=1"
+    AS_MESSAGE(checking Compiling with X support...)
     AC_DEFINE_UNQUOTED(X_SUPPORT) 
+    X_SUPPORT="X_SUPPORT=1"
     AC_SUBST(X_SUPPORT)
-    X_GRAPHICS="X_GRAPHICS=1"
     AC_DEFINE_UNQUOTED(X_GRAPHICS)
+    X_GRAPHICS="X_GRAPHICS=1"
     AC_SUBST(X_GRAPHICS)
-    
 
 dnl All the X2 specs
     AC_DEFINE_UNQUOTED(X2_SUPPORT) 
@@ -342,7 +335,8 @@ AC_ARG_ENABLE(nomitshm,
               [forced_nomitshm="yes"],[forced_nomitshm="no"])
 
 if test "$forced_mitshm" = "no" -a "$forced_nomitshm" = "no" ; then
-  AC_CHECK_HEADER(X11/extensions/XShm.h,have_mitshm="yes",have_mitshm="no")
+  AC_CHECK_HEADER(X11/extensions/XShm.h,have_mitshm="yes",have_mitshm="no",
+                  [#include <X11/Xlib.h>])
 else
   if test "$forced_mitshm" = "yes" -a "$forced_nomitshm" = "no" ; then
     have_mitshm="yes"
@@ -368,7 +362,8 @@ AC_SUBST(XLIBSW)
 AC_SUBST(x_libraries)
 
 REALTOPDIR=`nolinks=1; pwd`
-VV=`cat VERSION`
+PACKAGE_VERSION=`cat VERSION`
+VV=$PACKAGE_VERSION
 VERSION=${VV%%.*}
 VV=${VV#*.}
 SUBLEVEL=${VV%%.*}
@@ -418,9 +413,9 @@ dnl enable EXPERIMENTAL stuff
                [  --enable-experimental   enable configuration of EXPERIMENTAL stuff],
                [experimental="yes"],[experimental="no"])
   if test "$experimental" = "yes"; then
-   AC_CHECKING("allowing EXPERIMENTAL stuff to be configured");
+   AS_MESSAGE(checking "allowing EXPERIMENTAL stuff to be configured"...);
   else
-   AC_CHECKING("EXPERIMENTAL stuff disabled");
+   AS_MESSAGE(checking "EXPERIMENTAL stuff disabled"...);
   fi
 
 if test "$CONFIG_HOST" = "linux"; then
@@ -443,17 +438,17 @@ if test -x ./mkpluginhooks; then
   ./mkpluginhooks
   if test -f ./plugin_libdirs; then
     PLUGINSUBDIRS=`cat ./plugin_libdirs`
-    AC_CHECKING("Including plugins: $PLUGINSUBDIRS");
+    AS_MESSAGE(checking "Including plugins: $PLUGINSUBDIRS"...);
     if test -f ./plugin_incdirs; then
       for i in `cat ./plugin_incdirs`; do
         PLUGININC="$PLUGININC -I\${SRCPATH}/${i}"
       done
     fi
   else
-    AC_CHECKING("Compiling without plug-ins")
+    AS_MESSAGE(checking "Compiling without plug-ins"...)
   fi
 else
-  AC_CHECKING("Compiling without plug-ins")
+  AS_MESSAGE(checking "Compiling without plug-ins"...)
 fi
 
 dnl Setup to run plugin configure scripts
@@ -464,9 +459,9 @@ dnl Do compilation for GDB
                [  --enable-dodebug        do compile for with debug info],
                [dodebug="yes"],[dodebug="no"])
   if test "$dodebug" = "yes"; then
-   AC_CHECKING("Compiling with debug info");
+   AS_MESSAGE(checking "Compiling with debug info"...);
   else
-   AC_CHECKING("Compiling without debug info");
+   AS_MESSAGE(checking "Compiling without debug info"...);
   fi
 
 dnl Compile with ASPI support
@@ -474,23 +469,21 @@ dnl Compile with ASPI support
                [  --enable-aspi           do compile with ASPI support],
 	       [aspi="yes"],[aspi="no"])
   if test "$aspi" = "yes"; then
-   AC_CHECKING("Compiling with ASPI support");
-   ASPI_SUPPORT="ASPI_SUPPORT=1"
-   AC_DEFINE_UNQUOTED(ASPI_SUPPORT)
-   AC_SUBST(ASPI_SUPPORT)
+   AS_MESSAGE(checking "Compiling with ASPI support"...);
+   AC_SUBST(ASPI_SUPPORT,"ASPI_SUPPORT=1")
   else
-   AC_CHECKING("Compiling without ASPI support");
+   AS_MESSAGE(checking "Compiling without ASPI support"...);
   fi
  
 dnl Do SB emulation
  AC_ARG_ENABLE(nosbemu,
                [  --enable-nosbemu        do NOT use SoundBlaster emulator],
-               [AC_CHECKING("Compiling without SB Emulation")],
-               [AC_CHECKING("Compiling with SB Emulation")
+               [AS_MESSAGE(checking "Compiling without SB Emulation"...)],
+               [AS_MESSAGE(checking "Compiling with SB Emulation"...)
                 AC_DEFINE(USE_SBEMU)
                 USE_SBEMU="USE_SBEMU=1"
 		AC_CHECK_LIB(gus, gus_close,
-			[AC_CHECKING("Compiling Midid with Ultra support")
+			[AS_MESSAGE(checking "Compiling Midid with Ultra support"...)
 			USE_ULTRA="USE_ULTRA=1"
 			AC_DEFINE(USE_ULTRA)
 			AC_SUBST(USE_ULTRA)],)
@@ -499,9 +492,7 @@ dnl Do SB emulation
 
 dnl DPMI requirements
 
-AC_DEFINE_UNQUOTED(WANT_WINDOWS)
-WANT_WINDOWS="WANT_WINDOWS=-DWANT_WINDOWS"
-AC_SUBST(WANT_WINDOWS)
+AC_SUBST(WANT_WINDOWS,"WANT_WINDOWS=-DWANT_WINDOWS")
 
 AC_SUBST(OPTIONALSUBDIRS)
 AC_SUBST(REQUIRED)
@@ -536,12 +527,12 @@ dnl CPU emulator
                [  --enable-cpuemu         EXPERIMENTAL, compile with optional x86 emulation code],
 	       [cpuemu="yes"],[cpuemu="no"])
   if test "$cpuemu" = "yes" -a "$experimental" = "yes"; then
-   AC_CHECKING("Compiling with optional 386 emulation code");
-   X86_EMULATOR="X86_EMULATOR=1"
+   AS_MESSAGE(checking "Compiling with optional 386 emulation code"...);
    AC_DEFINE_UNQUOTED(X86_EMULATOR)
+   X86_EMULATOR="X86_EMULATOR=1"
    AC_SUBST(X86_EMULATOR)
   else
-   AC_CHECKING("Compiling for native x86");
+   AS_MESSAGE(checking "Compiling for native x86"...);
   fi
 
 
@@ -569,16 +560,16 @@ OPT="$OPT -MMD" # this should give painless dependencies
 
 # OPT=-fno-inline
 if test "$CONFIG_HOST" = "linux"; then
- AC_CHECKING("Linux Specific build options")
+ AS_MESSAGE(checking "Linux Specific build options"...)
  dnl Linux net code
   AC_ARG_ENABLE(nonet,
                [  --enable-nonet          do NOT use Linux net code],
                [nonet="yes"],[nonet="no"])
   if test "$nonet" = "yes"; then
-    AC_CHECKING("Compiling without network support");
+    AS_MESSAGE(checking "Compiling without network support"...);
     USING_NET=""
   else
-    AC_CHECKING("Compiling with network support");
+    AS_MESSAGE(checking "Compiling with network support"...);
     USING_NET="-DUSING_NET"
   fi
  PIPE=-pipe
@@ -688,7 +679,8 @@ AC_SUBST(LDFLAGS)
 
 dnl Create output files. If you add new ones, please do it in order.
 
-AC_OUTPUT([Makefile.conf])
+AC_CONFIG_FILES([Makefile.conf])
+AC_OUTPUT
 
 dnl Print some warnings (if neccessary)
 

@@ -61,7 +61,7 @@ typedef struct  {
   int lastButtons;
   int chordMiddle;
 
-  struct termios oldset;
+  struct termios *oldset;
 
 } mouse_t;
 

@@ -260,10 +260,19 @@ static void s3_save_ext_regs(u_char xregs[], u_short xregs16[])
 
 	xregs[2] = port_in(0x102);
 	port_out(1, 0x102);
-	xregs16[0] = std_port_inw(0x8000 | s3_8514_base);	/* CUR_Y */
-	xregs16[1] = std_port_inw(0x8400 | s3_8514_base);	/* CUR_X */
-	xregs16[2] = std_port_inw(0x8800 | s3_8514_base);
-	xregs16[3] = std_port_inw(0x8c00 | s3_8514_base);
+	if (can_do_root_stuff) {
+		priv_iopl(3);
+		xregs16[0] = port_in_w(0x8000 | s3_8514_base);	/* CUR_Y */
+		xregs16[1] = port_in_w(0x8400 | s3_8514_base);	/* CUR_X */
+		xregs16[2] = port_in_w(0x8800 | s3_8514_base);
+		xregs16[3] = port_in_w(0x8c00 | s3_8514_base);
+		priv_iopl(0);
+	} else {
+		xregs16[0] = std_port_inw(0x8000 | s3_8514_base);	/* CUR_Y */
+		xregs16[1] = std_port_inw(0x8400 | s3_8514_base);	/* CUR_X */
+		xregs16[2] = std_port_inw(0x8800 | s3_8514_base);
+		xregs16[3] = std_port_inw(0x8c00 | s3_8514_base);
+	}
 	port_out(xregs[2], 0x102);
 	emu_video_retrace_on();
 
@@ -351,10 +360,19 @@ static void s3_restore_ext_regs(u_char xregs[], u_short xregs16[])
 	out_crt(0x39, xregs[1]);
 
 	port_out(1, 0x102);
-	std_port_outw(xregs16[0], 0x8000 | s3_8514_base);
-	std_port_outw(xregs16[1], 0x8400 | s3_8514_base);
-	std_port_outw(xregs16[2], 0x8800 | s3_8514_base);
-	std_port_outw(xregs16[3], 0x8c00 | s3_8514_base);
+	if (can_do_root_stuff) {
+		priv_iopl(3);
+		port_out_w(xregs16[0], 0x8000 | s3_8514_base);
+		port_out_w(xregs16[1], 0x8400 | s3_8514_base);
+		port_out_w(xregs16[2], 0x8800 | s3_8514_base);
+		port_out_w(xregs16[3], 0x8c00 | s3_8514_base);
+		priv_iopl(0);
+	} else {
+		std_port_outw(xregs16[0], 0x8000 | s3_8514_base);
+		std_port_outw(xregs16[1], 0x8400 | s3_8514_base);
+		std_port_outw(xregs16[2], 0x8800 | s3_8514_base);
+		std_port_outw(xregs16[3], 0x8c00 | s3_8514_base);
+	}
 	port_out(xregs[2], 0x102);
 	emu_video_retrace_on();
 }
@@ -518,6 +536,7 @@ unsigned char s3InBtStatReg()
 
 void vga_init_s3(void)
 {
+	emu_iodev_t io_device;
 	int mode, mode2, subtype;
 	char *name = NULL;
 
@@ -711,6 +730,28 @@ void vga_init_s3(void)
 	}
 
 	v_printf("S3 base address: 0x%x\n", s3_8514_base);
+
+	/* register high S3 video ports */
+	io_device.irq = EMU_NO_IRQ;
+	io_device.fd = -1;	  
+	io_device.handler_name = "std port io";
+
+	io_device.start_addr = 0x8000 | s3_8514_base;
+	io_device.end_addr = (0x8000 | s3_8514_base) + 1;
+	port_register_handler(io_device, 0);
+
+	io_device.start_addr = 0x8400 | s3_8514_base;
+	io_device.end_addr = (0x8400 | s3_8514_base) + 1;
+	port_register_handler(io_device, 0);
+
+	io_device.start_addr = 0x8800 | s3_8514_base;
+	io_device.end_addr = (0x8800 | s3_8514_base) + 1;
+	port_register_handler(io_device, 0);
+
+	io_device.start_addr = 0x8c00 | s3_8514_base;
+	io_device.end_addr = (0x8c00 | s3_8514_base) + 1;
+	port_register_handler(io_device, 0);
+
 	v_printf("S3 memory size : %d kbyte\n", s3_memsize);
 
 	config.gfxmemsize = s3_memsize;

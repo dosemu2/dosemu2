@@ -17,6 +17,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #include <errno.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -1849,8 +1850,16 @@ dosemu_mouse_init(void)
   
   if ( mice->type != MOUSE_X ){
     if (mice->intdrv) {
+      struct stat buf;
+      int mode = O_RDWR | O_NONBLOCK;
+
       m_printf("Opening internal mouse: %s\n", mice->dev);
-      mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK));
+      stat(mice->dev, &buf);
+      if (S_ISFIFO(buf.st_mode) || mice->type == MOUSE_BUSMOUSE || mice->type == MOUSE_PS2) {
+	/* no write permission is necessary for FIFO's (eg., gpm) */
+        mode = O_RDONLY | O_NONBLOCK;
+      }
+      mice->fd = DOS_SYSCALL(open(mice->dev, mode));
       if (mice->fd == -1) {
 	error("Cannot open internal mouse device %s\n",mice->dev);
  	mice->intdrv = FALSE;
@@ -1860,7 +1869,15 @@ dosemu_mouse_init(void)
       }
       /* want_sigio causes problems with internal mouse driver */
       add_to_io_select(mice->fd, mice->add_to_io_select);
-      DOSEMUSetupMouse();
+      if (!S_ISFIFO(buf.st_mode) && mice->type != MOUSE_BUSMOUSE && mice->type != MOUSE_PS2)
+        DOSEMUSetupMouse();
+      /* this is only to try to get the initial internal driver two/three
+         button mode state correct; user can override it later. */ 
+      if (mice->type == MOUSE_MICROSOFT || mice->type == MOUSE_MS3BUTTON ||
+        mice->type == MOUSE_BUSMOUSE || mice->type == MOUSE_PS2)
+        mice->has3buttons = FALSE;
+      else
+        mice->has3buttons = TRUE;
       memcpy(p,mouse_ver,sizeof(mouse_ver));
       iodev_add_device(mice->dev);
     }
@@ -1903,6 +1920,7 @@ dosemu_mouse_init(void)
   
   /* We set the defaults at the end so that we can test the mouse type */
   mouse_reset(1);		/* Let's set defaults now ! */
+  m_printf("MOUSE: INIT complete\n");
 }
 
 void mouse_post_boot(void)
@@ -1971,12 +1989,14 @@ dosemu_mouse_close(void)
   if (mice->type == MOUSE_X) return;   
   
   if (mice->intdrv && mice->fd != -1 ) {
-    m_printf("mouse_close: calling tcsetattr\n");
-    result=tcsetattr(mice->fd, TCSANOW, &mice->oldset);
-    if (result==0)
-       m_printf("mouse_close: tcsetattr ok\n");
-    else
-       m_printf("mouse_close: tcsetattr failed: %s\n",strerror(errno));
+    if (mice->oldset) {
+      m_printf("mouse_close: calling tcsetattr\n");
+      result=tcsetattr(mice->fd, TCSANOW, mice->oldset);
+      if (result==0)
+        m_printf("mouse_close: tcsetattr ok\n");
+      else
+        m_printf("mouse_close: tcsetattr failed: %s\n",strerror(errno));
+    }
     m_printf("mouse_close: closing mouse device, fd=%d\n",mice->fd);
     close(mice->fd);
     m_printf("mouse_close: ok\n");

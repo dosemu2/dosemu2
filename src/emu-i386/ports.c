@@ -982,8 +982,9 @@ int extra_port_init(void)
 
         if (can_do_root_stuff) {
                 for (i = 0; i < sizeof(port_handle_table); i++) {
-                        if (port_handle_table[i] >= HANDLE_STD_IO &&
-                            port_handle_table[i] <= HANDLE_STD_WR) {
+                        if (config.pci || (
+			    port_handle_table[i] >= HANDLE_STD_IO &&
+                            port_handle_table[i] <= HANDLE_STD_WR)) {
                                 /* fork the privileged port server */
                                 g_printf("starting port server\n");
                                 pipe(port_fd_out);

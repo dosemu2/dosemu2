@@ -13,10 +13,34 @@ SHELL=/bin/bash
 
 # exporting some './configure-independend' variables
 #
-export VERSION=$(shell cut -d. -f1 VERSION)
-export SUBLEVEL=$(shell cut -d. -f2 VERSION)
-PATCHLEVEL1=$(shell cut -d. -f3 VERSION)
-PATCHLEVEL2=$(shell cut -d. -f4 VERSION)
+export REALTOPDIR=$(shell pwd -P)
+export SRCPATH=$(REALTOPDIR)/src
+export TOPDIR=$(SRCPATH)
+export BINPATH=$(REALTOPDIR)/$(THISVERSION)
+
+all: default configure src/include/config.h.in
+
+#automatic autoconf tool rebuilds
+configure: configure.ac
+	autoreconf
+
+src/include/config.h.in: configure.ac
+	autoreconf
+
+Makefile.conf: configure default-configure
+	@echo "You chose not to run ./default-configure, doing it now"
+	touch Makefile.conf
+	./default-configure
+
+# Here we come when either when the user or we ourselves did run ./configure
+# We now can be sure that Makefile.conf exists, hence we include it
+#
+-include Makefile.conf
+
+export VERSION=$(shell echo $(PACKAGE_VERSION) | cut -d. -f1)
+export SUBLEVEL=$(shell echo $(PACKAGE_VERSION) | cut -d. -f2)
+PATCHLEVEL1=$(shell echo $(PACKAGE_VERSION) | cut -d. -f3)
+PATCHLEVEL2=$(shell echo $(PACKAGE_VERSION) | cut -d. -f4)
 ifeq "$(PATCHLEVEL2)" ""
   PATCHLEVEL2=0
   export PATCHLEVEL=$(PATCHLEVEL1).0
@@ -28,31 +52,6 @@ endif
 export THISVERSION=$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
 export EMUVER=$(VERSION).$(SUBLEVEL)
 
-export REALTOPDIR=$(shell pwd -P)
-export SRCPATH=$(REALTOPDIR)/src
-export TOPDIR=$(SRCPATH)
-export BINPATH=$(REALTOPDIR)/$(THISVERSION)
-
-
-ifeq "$(shell if test -f Makefile.conf; then echo 1; else echo 0;fi)" "0"
-
-# Here we come, when ./configure wasn't yet run
-# we do it ourselves and then invoke make with the proper target
-#
-default .DEFAULT:
-	@echo "You choose not to run ./default-configure, doing it now"
-	./default-configure
-	@echo "Now resuming make"
-	@$(MAKE) $@
-
-else
-
-
-# Here we come when either when the user or we ourselves did run ./configure
-# We now can be sure that Makefile.conf exists, hence we include it
-#
-include Makefile.conf
-
 CFLAGS += $(XXXCFLAGS)
 export CFLAGS
 
@@ -61,12 +60,8 @@ export WAIT=yes
 endif
 export do_DEBUG=no
 
-
-default clean realclean echo help depend version install:
+default clean realclean echo help depend version install: config.status
 	@$(MAKE) -C src $@
-
-all:
-	@$(MAKE) -C src default
 
 dosbin:
 	@$(MAKE) -C src/commands dosbin
@@ -90,6 +85,7 @@ dosemu_script:
 	@$(MAKE) -C src dosemu_script
 
 pristine distclean mrproper:  docsclean mididclean
+	rm -f Makefile.conf
 	@$(MAKE) -C src pristine
 	rm -f core `find . -name config.cache`
 	rm -f core `find . -name config.status`
@@ -104,10 +100,6 @@ pristine distclean mrproper:  docsclean mididclean
 	(cd setup/demudialog; make clean)
 	(cd setup/parser; make clean)
 	rm -rf ./dist/tmp
-	rm -f Makefile.conf
 	./mkpluginhooks clean
-
-endif
-
 
 # the below targets do not require ./configure
