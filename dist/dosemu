@@ -8,6 +8,7 @@
 # the below line gets patched, when a systemwide install is done
 SYSTEM_INSTALL_PATH=NOT_SYSTEM_WIDE
 SYSTEM_CONF_PATH=NOT_SYSTEM_WIDE
+SYSTEM_XFONTS_PATH=NOT_SYSTEM_WIDE
 test "$SYSTEM_INSTALL_PATH" != "NOT_SYSTEM_WIDE" && IS_SYSTEM_WIDE=1
 
 function usage {
@@ -147,7 +148,10 @@ if [ ! -f $HOME/.dosemurc ]; then
     fi
     BOOT_DIR_PATH=$THISDIR
     mkdir -p ~/.dosemu
-    cat $BOOT_DIR_PATH > $BPATH_FILE
+    cat $BOOT_DIR_PATH/conf/dosemurc.example | \
+       sed -e "s#\#\([[:space:]]*\$_hdimage[[:space:]]*=[[:space:]]*\"\)freedos#\1$BOOT_DIR_PATH/freedos#" \
+	  > $HOME/.dosemurc
+    echo $BOOT_DIR_PATH > $BPATH_FILE
 
   else
 
@@ -261,6 +265,10 @@ if [ -n "$XFLAG" ]; then
         fi
         xset +fp $BOOT_DIR_PATH/Xfonts 2>/dev/null
      fi
+  else
+     if [ "`xlsfonts -fn $FONT 2>/dev/null`" = "" ]; then
+        xset +fp $SYSTEM_XFONTS_PATH 2>/dev/null
+     fi
   fi
   if [ "`xlsfonts -fn $FONT 2>/dev/null`" = "" ]; then
      echo "
@@ -335,36 +343,11 @@ if [ -n "$IS_SYSTEM_WIDE" ] ; then
 else
   BINARY=$BOOT_DIR_PATH/bin/dosemu.bin
 fi
-LOG=$HOME/.dosemu/boot.log
 
-if [ -z "$STRING_I" ]; then
-  $BINARY 2>$LOG $XFLAG -O "${par[@]}"
+if [ -n "$STRING_I" ] ; then
+  $BINARY $XFLAG "-I $STRING_I" "${par[@]}"
 else
-  $BINARY 2>$LOG $XFLAG -I "$STRING_I" -O "${par[@]}"
-fi
-
-if [ -n "XFLAG" ]; then
- if grep -E '^Xlib.*refused by server' $LOG>/dev/null 2>&1; then
-   echo "
-    ERROR:
-    You seem not to have enough rights to connect to your Xserver.
-    Force brut counter mesure (not recommended):
-
-       xhost +
-
-    on the machine you just are sitting in front of ...
-    ... but better read the X documentation for a more secure solution.
- "
-   exit 1
- fi
- if grep -E "^ERROR: X: Can't open display" $LOG>/dev/null 2>&1; then
-   echo "
-    ERROR:
-    There is something wrong with the contents of your DISPLAY variable,
-    the defined X server cannot be reached. Please re-check it.
- "
-   exit 1
- fi
+  $BINARY $XFLAG "${par[@]}"
 fi
 
 umask 077

@@ -7,7 +7,7 @@
 <title> Using The DOSEMU Sound System (SBEMU)</title>
 
 <author>
-<firstname> Alistair MacDonald,
+<firstname> Alistair MacDonald, updated by Stas Sergeev.
 </firstname>
 
 <authorblurb>
@@ -72,7 +72,7 @@ separately.
 The FM driver is the least complete. Most of the chip functions are
 there, but no audio output occurs. This means that software which uses 
 the presence/operation of the timer should detect the timer presence,
-but if the audio needs/uses FM you will hear nothing.
+but if the audio needs or uses FM you will hear nothing.
 </para>
 
 </sect2>
@@ -83,9 +83,8 @@ but if the audio needs/uses FM you will hear nothing.
 <para>
 This is the MIDI emulation. This should be fairly complete.
 For using with OSS you need either an external daemon 'midid'
-(this is supplied and can be built easily), or your sound
-card must have a Wave Table synthesizer and /dev/midi
-configured and working.
+(this is supplied), or your sound card must have a Wave Table 
+synthesizer and /dev/midi configured and working.
 Note that if you use ALSA, you don't need a Wave Table.
 It is possible to use TiMidity++ instead.
 </para>
@@ -115,11 +114,6 @@ run-time. Then your DOS applications need to be configured to use the
 emulation. (Just as they need to be configured to use the real Sound
 Blaster card). The basic steps are given below.
 </para>
-
-<sect2>
-<title> DOSEMU Compile-time Configuration</title>
-<para></para>
-</sect2>
 
 <sect2>
 <title> DOSEMU Run-time Configuration</title>
@@ -152,7 +146,7 @@ The DOSEMU Sound settings are controlled by the following entries in
 <para>
 Note that there is some overlap
 here with the configuration notes in the README. This will be
-addressed at a later stage
+addressed at a later stage.
 </para>
 
 </FOOTNOTE>
@@ -168,7 +162,7 @@ $_sb_irq = (5)
 $_sb_dma = (1)
 $_sb_dsp = "/dev/dsp"
 $_sb_mixer = ""
-$_mpu_base = "0x330"
+$_mpu_base = (0x330)
 </screen>
 
 </para>
@@ -177,10 +171,10 @@ $_mpu_base = "0x330"
 Note that these are the default values. <literal remap="tt">$_sb_dsp</literal>
 and <literal remap="tt">$_sb_mixer</literal> are pre-configured to work with
 the standard OSS-Free driver. You are unlikely to need to change these values
-unless you have multiple drivers in your kernel.( eg such
+unless you have multiple drivers in your kernel (such
 as the Ultra project drivers).
 Note: <literal remap="tt">$_sb_mixer</literal> can be set to "/dev/mixer"
-if you want dosemu to be able to change the volume on your sound card,
+if you want DOSEMU to be able to change the volume on your sound card,
 but most people don't like that, so it is disabled by default.
 </para>
 
@@ -202,25 +196,9 @@ configuration. Details about this are given below.
 <title> Using Midid</title>
 
 <para>
-This is the preferred method of producing MIDI output. The
-<literal remap="tt">midid</literal> is <emphasis>NOT</emphasis> built at the same time as DOSEMU,
-but it is simple to build:
-</para>
-
-<para>
-
-<screen>
-% make midid
-</screen>
-
-</para>
-
-<para>
-This will create
-<literal remap="tt">src/arch/linux/dosext/sound/midid/midid</literal>. You will
-probably want to copy this somewhere on your path, such as
-<literal remap="tt">/usr/bin</literal>. Next you will need to create the output pipe
-for the SBEMU driver:
+This is the preferred method of producing MIDI output. This daemon is
+built by default and lives in the same directory as your other DOSEMU
+binaries. You will need to create the output pipe for the SBEMU driver:
 </para>
 
 <para>
@@ -290,9 +268,11 @@ Here is an explanation from Robert Komar:
 
 <para>
 The kernel-side basics for getting it working
-are described at www.midi-howto.com.  For ALSA, I load the snd-seq-oss
+are described at <ulink
+url="http://www.midi-howto.com">http://www.midi-howto.com</ulink>. 
+For ALSA, I load the snd-seq-oss
 and snd-virmidi kernel modules along with the usual ones started by
-alsasound.  I then start timidity as a daemon as follows
+alsasound.  I then start timidity as a daemon as follows:
 </para>
 
 <para>

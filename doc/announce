@@ -1,7 +1,7 @@
 
 ANNOUNCEMENT
 ~~~~~~~~~~~~
-The DOSEMU team is proud to announce DOSEMU 1.1.2,
+The DOSEMU team is proud to announce DOSEMU 1.1.4,
 the PC Emulator for x86 based *nix.
 
 SPECIAL HIGHLIGHT starting from 1.0.2
@@ -29,12 +29,12 @@ worth noting:
   - Runs several 32-bit DPMI-compliant video games (including those based
     on DOS/4GW) at the Linux console (suid-root) and on X (non-suid).
   - integrated (command line) instruction level debugger, various break
-    points, single stepping e.t.c.
+    points, single stepping etc.
   - integrated EMS driver
   - integrated packet driver
   - integrated mouse driver
   - CDROM support.
-  - ASPI driver support (CD writers, scanners, tapes e.t.c)
+  - ASPI driver support (CD writers, scanners, tapes etc.)
     (requires access rigths to /dev/sgX)
   - support for redirected drives (any Linux directory can be 'mounted'
     as DOS drive as ,ong as the DOS support redirection.
@@ -82,28 +82,29 @@ at least (sorted by first name):
   Andrew.Tridgell	Andries			Antonio Larrosa
   Arjan Filius		Arne de Bruijn		Bart Oldeman
   Bernd Paysan		Bernd Schueler		Christoph Niemann
-  Corey Sweeney		Daniel R. Barrlow	David Brauman
-  David Etherton 	David Hansen		David Hindman
-  David Hodges		David Pinson		Derek Fawcus
-  DJ Delorie		Dong Liu		Egbert Eich
-  Eric W. Biederman	Erik Mouw		Florian La Roche
-  George K.Bronnikov	Grant R. Guenther	Hans Lermen
-  James Maclean		Jason E Gorden		Jochen Hein
-  John Davis		John Kohl 		Jon Tombs            
-  Josef Pavlik		Julia A. Case		Kang-Jin Lee
-  Karl Kiniger		Karl-Max Wagner		Kenneth Corbin
-  Kevin P Lawton 	Lam Lai Yin, Savio	Larry Stephan
-  Lawrence K Mao	Linus Torvalds		Lutz Molgedey
-  Marcus Better		Mark Rejhon		Marty Leisner
-  Matthew Grant 	Maxim Ruchko		Michael E. Deisher
-  Michael Karcher	Oleg V. Zhirov		Pablo Saratxaga
-  Pasi Eronen		Pat Villani		Rainer Zimmermann
-  Reinhard Karcher	Rob Clark		Robert de Bath
-  Rod May		Ronnie			Rutger Nijlunsing
-  Scott Buchholz	Sergey Suleymanov	Stas Sergeev
-  Steffen Winterfeld	Theodore T'so		Tim Van der Linden
-  Ulrich Weigand	Uwe Bonnes		Urban Widmark
-  Vinod G Kulkarni	Wayne P Meissner	Wojtek Pilorz
+  Clarence Dang		Corey Sweeney		Daniel R. Barrlow	
+  David Brauman		David Etherton 		David Hansen		
+  David Hindman		David Hodges		David Pinson		
+  Derek Fawcus		DJ Delorie		Dong Liu		
+  Egbert Eich		Eric W. Biederman	Erik Mouw		
+  Florian La Roche	George K.Bronnikov	Grant R. Guenther	
+  Hans Lermen		James Maclean		Jason E Gorden		
+  Jochen Hein		John Davis		John Kohl 		
+  Jon Tombs             Josef Pavlik		Julia A. Case		
+  Kang-Jin Lee		Karl Kiniger		Karl-Max Wagner		
+  Kenneth Corbin	Kevin P Lawton 		Lam Lai Yin, Savio	
+  Larry Stephan		Lawrence K Mao		Linus Torvalds		
+  Lutz Molgedey		Marcus Better		Mark Rejhon		
+  Marty Leisner		Matthew Grant 		Maxim Ruchko		
+  Michael E. Deisher    Michael Karcher		Oleg V. Zhirov		
+  Pablo Saratxaga	Pasi Eronen		Pat Villani		
+  Rainer Zimmermann	Reinhard Karcher	Rob Clark		
+  Robert de Bath	Rod May			Ronnie			
+  Rutger Nijlunsing	Scott Buchholz		Sergey Suleymanov	
+  Stas Sergeev		Steffen Winterfeld	Theodore T'so		
+  Tim Van der Linden	Ulrich Weigand		Uwe Bonnes		
+  Urban Widmark		Vinod G Kulkarni	Wayne P Meissner	
+  Wojtek Pilorz
 
   ... and others too important to mention.
 

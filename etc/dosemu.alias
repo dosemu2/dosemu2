@@ -1,3 +1,4 @@
 vga          -dosemu-vga-medium-r-normal--17-160-75-75-p-80-ibm-cp437
+vga11x19     -dosemu-vga-medium-r-normal--19-190-75-75-c-100-ibm-cp437
 vgacyr       -dosemu-vga-medium-r-normal--17-160-75-75-p-80-ibm-cp866
 vga10x20     -dosemu-vga-medium-r-normal--20-200-75-75-c-100-ibm-cp866

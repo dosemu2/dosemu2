@@ -461,14 +461,14 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    {
 		unsigned short segment =
 		    DPMI_private_data_segment+DPMI_private_paragraphs;
-		void *p;
+		char *p;
 		unsigned short sel,off;
 		
 		if ( !is_dos_selector(_ds)) {
 		    /* must copy command line */
 		    REG(ds) = segment;
 		    REG(edx) = 0;
-		    p = (void *)GetSegmentBaseAddress(_ds) +
+		    p = (char *)GetSegmentBaseAddress(_ds) +
 			(DPMIclient_is_32 ? _edx : (_LWORD(edx)));
 		    snprintf((char *)(REG(ds)<<4), MAX_DOS_PATH, "%s", p);
 		    segment += strlen((char *)(REG(ds)>>4)) + 1;
@@ -655,8 +655,8 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		if ( !is_dos_selector(_ds)) {
 		    REG(ds) = seg;
 		    REG(edx) = 0;
-		    snprintf((void *)(REG(ds)<<4), MAX_DOS_PATH, "%s",
-			     (void *)GetSegmentBaseAddress(_ds) +
+		    snprintf((char *)(REG(ds)<<4), MAX_DOS_PATH, "%s",
+			     (char *)GetSegmentBaseAddress(_ds) +
 			     (DPMIclient_is_32 ? _edx : (_LWORD(edx))));
 		    seg += 200;
                 } else {
@@ -664,9 +664,9 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		}
 		if ( !is_dos_selector(_es)) {
 		    REG(es) = seg;
-		    snprintf((void *)((REG(es)<<4) + _LWORD(edi)),
+		    snprintf((char *)((REG(es)<<4) + _LWORD(edi)),
                              MAX_DOS_PATH, "%s",
-			     (void *)GetSegmentBaseAddress(_es) +
+			     (char *)GetSegmentBaseAddress(_es) +
 			     (DPMIclient_is_32 ? _edi : (_LWORD(edi))));
                 } else {
                     REG(es) = (long) GetSegmentBaseAddress(_es) >> 4;
@@ -1033,11 +1033,11 @@ msdos_post_extender(int intr)
 	    if (LWORD(eflags) & CF)
 		break;
 	    if (READ_DS_COPIED)
-		snprintf((void *)(GetSegmentBaseAddress
+		snprintf((char *)(GetSegmentBaseAddress
 				(dpmi_stack_frame[current_client].ds) +
 			(DPMIclient_is_32 ? S_REG(esi) : (S_LWORD(esi)))),
                          0x40, "%s", 
-		        (void *)((REG(ds) << 4) + LWORD(esi)));
+		        (char *)((REG(ds) << 4) + LWORD(esi)));
 	    READ_DS_COPIED = 0;
 	    break;
 #if 0	    

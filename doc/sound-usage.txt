@@ -1,7 +1,7 @@
 
 Using The DOSEMU Sound System (SBEMU)
 
-Alistair MacDonald,
+Alistair MacDonald, updated by Stas Sergeev.
 
    dosemu-1.0
 
@@ -19,18 +19,17 @@ Alistair MacDonald,
 
    3. Using SBEMU
 
-        3.1. DOSEMU Compile-time Configuration
-        3.2. DOSEMU Run-time Configuration
+        3.1. DOSEMU Run-time Configuration
 
-              3.2.1. Changing the SBEMU settings
-              3.2.2. Configuring Midi
+              3.1.1. Changing the SBEMU settings
+              3.1.2. Configuring Midi
 
-        3.3. Configuring DOS
-        3.4. Configuring the Applications
+        3.2. Configuring DOS
+        3.3. Configuring the Applications
 
-              3.4.1. Midi with Digital Audio
-              3.4.2. SB Music with SB Audio
-              3.4.3. Midi Music, No Audio
+              3.3.1. Midi with Digital Audio
+              3.3.2. SB Music with SB Audio
+              3.3.3. Midi Music, No Audio
 
    4. Debugging SBEMU
 
@@ -61,17 +60,16 @@ Alistair MacDonald,
    The FM driver is the least complete. Most of the chip functions are
    there, but no audio output occurs. This means that software which uses
    the presence/operation of the timer should detect the timer presence,
-   but if the audio needs/uses FM you will hear nothing.
+   but if the audio needs or uses FM you will hear nothing.
      _________________________________________________________________
 
 2.2. MPU-401
 
    This is the MIDI emulation. This should be fairly complete. For using
-   with OSS you need either an external daemon 'midid' (this is supplied
-   and can be built easily), or your sound card must have a Wave Table
-   synthesizer and /dev/midi configured and working. Note that if you use
-   ALSA, you don't need a Wave Table. It is possible to use TiMidity++
-   instead.
+   with OSS you need either an external daemon 'midid' (this is
+   supplied), or your sound card must have a Wave Table synthesizer and
+   /dev/midi configured and working. Note that if you use ALSA, you don't
+   need a Wave Table. It is possible to use TiMidity++ instead.
      _________________________________________________________________
 
 2.3. SB (Digital)
@@ -89,10 +87,7 @@ Alistair MacDonald,
    given below.
      _________________________________________________________________
 
-3.1. DOSEMU Compile-time Configuration
-     _________________________________________________________________
-
-3.2. DOSEMU Run-time Configuration
+3.1. DOSEMU Run-time Configuration
 
    The default settings are:
         Base Address:   220
@@ -103,7 +98,7 @@ Alistair MacDonald,
    Note that these do NOT need to be the same as your real sound card.
      _________________________________________________________________
 
-3.2.1. Changing the SBEMU settings
+3.1.1. Changing the SBEMU settings
 
    The DOSEMU Sound settings are controlled by the following entries in
    /etc/dosemu.conf [1] :
@@ -114,18 +109,18 @@ Alistair MacDonald,
     $_sb_dma = (1)
     $_sb_dsp = "/dev/dsp"
     $_sb_mixer = ""
-    $_mpu_base = "0x330"
+    $_mpu_base = (0x330)
 
    Note that these are the default values. $_sb_dsp and $_sb_mixer are
    pre-configured to work with the standard OSS-Free driver. You are
    unlikely to need to change these values unless you have multiple
-   drivers in your kernel.( eg such as the Ultra project drivers). Note:
-   $_sb_mixer can be set to "/dev/mixer" if you want dosemu to be able to
+   drivers in your kernel (such as the Ultra project drivers). Note:
+   $_sb_mixer can be set to "/dev/mixer" if you want DOSEMU to be able to
    change the volume on your sound card, but most people don't like that,
    so it is disabled by default.
      _________________________________________________________________
 
-3.2.2. Configuring Midi
+3.1.2. Configuring Midi
 
    The midi driver can be used in two way. It is possible to direct the
    output of the SBEMU midi driver directly to a sound card, or through
@@ -135,16 +130,12 @@ Alistair MacDonald,
    this are given below.
      _________________________________________________________________
 
-3.2.2.1. Using Midid
+3.1.2.1. Using Midid
 
-   This is the preferred method of producing MIDI output. The midid is
-   NOT built at the same time as DOSEMU, but it is simple to build:
-
-       % make midid
-
-   This will create src/arch/linux/dosext/sound/midid/midid. You will
-   probably want to copy this somewhere on your path, such as /usr/bin.
-   Next you will need to create the output pipe for the SBEMU driver:
+   This is the preferred method of producing MIDI output. This daemon is
+   built by default and lives in the same directory as your other DOSEMU
+   binaries. You will need to create the output pipe for the SBEMU
+   driver:
 
     % mkdir -p ~/.dosemu/run
     % rm -f ~/.dosemu/run/dosemu-midi
@@ -162,7 +153,7 @@ Alistair MacDonald,
    terminates.
      _________________________________________________________________
 
-3.2.2.2. Sending Midi direct to a device
+3.1.2.2. Sending Midi direct to a device
 
    To use this method with OSS, you simply need to link the SBEMU midi
    output file to the input of your MIDI device. The simplest method of
@@ -180,9 +171,9 @@ Alistair MacDonald,
    Robert Komar:
 
    The kernel-side basics for getting it working are described at
-   www.midi-howto.com. For ALSA, I load the snd-seq-oss and snd-virmidi
-   kernel modules along with the usual ones started by alsasound. I then
-   start timidity as a daemon as follows
+   http://www.midi-howto.com. For ALSA, I load the snd-seq-oss and
+   snd-virmidi kernel modules along with the usual ones started by
+   alsasound. I then start timidity as a daemon as follows:
 
 
     % timidity -iA -A100 -B2,8 -Os -EFreverb=0 -EFchorus=0 > /dev/null 2>&1 &
@@ -246,7 +237,7 @@ Alistair MacDonald,
    with sound and VESA video modes).
      _________________________________________________________________
 
-3.3. Configuring DOS
+3.2. Configuring DOS
 
    You should set your BLASTER environment variable to match your DOSEMU
    settings. Note that these don't need to correspond to your real sound
@@ -269,7 +260,7 @@ Alistair MacDonald,
    work well.
      _________________________________________________________________
 
-3.4. Configuring the Applications
+3.3. Configuring the Applications
 
    Bearing in mind what was stated above, the following are the
    recommended methods for configuring applications to use SBEMU. The
@@ -277,20 +268,20 @@ Alistair MacDonald,
    parameters remember to use those you configured DOSEMU with.
      _________________________________________________________________
 
-3.4.1. Midi with Digital Audio
+3.3.1. Midi with Digital Audio
 
    Configure the applications to use 'General Midi' for Music, and 'SB'
    for Digital Audio. This will work if your card have a Wave Table
    (/dev/midi) or hardware mixing ability (TiMidity++).
      _________________________________________________________________
 
-3.4.2. SB Music with SB Audio
+3.3.2. SB Music with SB Audio
 
    Configure the application with 'SB' for Music & Audio. Note that if
    the system plans to use FM for the music you will not get music.
      _________________________________________________________________
 
-3.4.3. Midi Music, No Audio
+3.3.3. Midi Music, No Audio
 
    Configure the application with 'General Midi' for Music and no Audio.
      _________________________________________________________________
@@ -316,4 +307,4 @@ Alistair MacDonald,
    [1]
 
    Note that there is some overlap here with the configuration notes in
-   the README. This will be addressed at a later stage
+   the README. This will be addressed at a later stage.

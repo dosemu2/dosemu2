@@ -678,7 +678,14 @@ int X_init()
   display_name = config.X_display ? config.X_display : getenv("DISPLAY");
   display = XKBOpenDisplay(display_name);
   if(display == NULL) {
-    error("X: Can't open display \"%s\"\n", display_name ? display_name : "");
+    error("X: Can't open display \"%s\".\n"
+    "Either the connection was refused and you do not have enough\n"
+    "access rights to connect to your X server or there is\n"
+    "something wrong with the contents of your DISPLAY variable.\n"
+    "If the connection was refused then please consult your system\n"
+    "administator or read the X documentation for a solution\n"
+    "(use xauth, xhost, or ssh -X).\n",
+        display_name ? display_name : "");
     leavedos(99);
   }
 

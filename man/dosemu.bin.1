@@ -144,7 +144,7 @@ use VGA specific video optimizations
 use RAW console Keyboard (must be at the console)
 .TP
 .I -F
-Parse this config-script instead of DOSEMU_LIB_DIR/global.conf
+Parse this config-script instead of the built-in global.conf file
 (you need to run as root on suid DOSEMU for this)
 .TP
 .I --Fusers
@@ -163,7 +163,7 @@ is
 suid-root).
 .TP
 .I --Fimagedir
-Bypass the default directory for bootdirectory and hdimages (DOSEMU_LIB_DIR)
+Bypass the default directory for bootdirectory and hdimages (DOSEMU_HDIMAGE_DIR)
 and use this directory instead (only accepted when
 .B dosemu.bin
 is
@@ -177,7 +177,7 @@ Parse this config-file instead of .dosemurc
 set a user configuration variable. An
 .B u_
 is prefixed to the name to avoid name clashes. This variable then can be
-checked in dosemu.conf or DOSEMU_LIB_DIR/global.conf to do some special
+checked in dosemu.conf or global.conf to do some special
 configuration.
 .TP
 .I -L
@@ -548,9 +548,11 @@ the incarnation of
 with which this man page was originally distributed. During about 4 years
 James B. MacLean <macleajb@ednet.ns.ca> was the restless leader of the
 dosemu team, implementation of DPMI (which made Windows-3.1, dos4gw, djgpp,
-e.t.c running) happened during his 'governement' and brought the project
+etc. running) happened during his 'governement' and brought the project
 near to Beta-state.
-Now Hans Lermen <lermen@fgan.de> is maintaining this funny software.
+Now Hans Lermen <lermen@fgan.de> is maintaining the stable branch of this
+funny software, and Bart Oldeman <bart@dosemu.org>
+the development branch.
 
 .SH BUGS
 There are too many to count, much less list.  

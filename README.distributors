@@ -1,32 +1,23 @@
-
-Linux Distributors, listen to this !
+Notes about system-wide installation
 ====================================
 
-This Information is not intended for 'Joe User' but for Linux distributors.
-
-As of DOSEMU-1.0.2 there will be no further efforts by the DOSEMU-team to
-support a systemwide suid-root DOSEMU installation, hence "/var/lib/dosemu"
-and "/etc/dosemu*" are no longer created, though a compiled DOSEMU will still
-honor them, when the s-bit is set.
+As of DOSEMU-1.0.2 DOSEMU is not longer installed suid-root by default.
 Running DOSEMU suid-root is not (and never was) recommended on net-connected
 machines, hence, whoever really wants to do it should fiddle with the problems
 himself.
 
-DOSEMU now will _always_ install directly into the users $HOME, every
-user will have its own copy/instance 'somewhere' (default is $HOME/dosemu).
-There are no good reasons to share hdimages, boot directories and other
-DOSish resources, because you need write access to them anyway.
+By default, every user has its own copy/instance of DOS 'somewhere' 
+(default is $HOME/dosemu/freedos), which consists of symbolic links 
+to shared DOS files or is completely private. THis way each user has 
+full write access to the C: drive, which is what is normally expected 
+in a DOSish environment.
 
-As 'installing' the DOSEMU distributed binary release reduces to just
-untarring two tarballs to some place the user likes, there is no need
-for RPM'ing such simple thing and therefore the DOSEMU team will not
-support or supply .spec files any more.
-
-However, there is a new kind of systemwide install, which will keep the
-DOSEMU binaries, the docs and the templates to generate the user's private
+The systemwide install, "make install" keeps the DOSEMU binaries, 
+the docs and the templates to generate the user's private
 DOSEMU instance on demand. Whenever a the script [x]dosemu (of such a
 systemwide install) is called by a user who has no private instance yet,
-the script does the install before it launches DOS. 
+the script does the install (essentially, it unpacks tarballs which
+consist of symbolic links and a few small files) before it launches DOS. 
 
 This systemwide installation can be created as follows:
 
@@ -34,46 +25,29 @@ This systemwide installation can be created as follows:
     to download at least the file dosemu-freedos-bin.tgz from dosemu.org
     (this contains a bootable collection of suitable FreeDos binaries).
 
-  - compile the DOSEMU source such as
+  - adjust the paths in compiletime-settings and compile the DOSEMU 
+    source as follows: 
 
     $ cd /where/you/unpacked/the/dosemu/source/dosemu-<version>
     $ make
-    $ make dosbin
-
-  - now build a full tree of the systemwide install to an auxiliary 'root'
-    directory (in this case /tmp/root). You need not to be root for this,
-    but then you may need to 'chown' afterwards.
-
     $ su -
-    # cd /where/you/unpacked/the/dosemu/source/dosemu-<version>
-    # ./install_systemwide -fd dosemu-freedos-bin.tgz -r /tmp/root
+    # make install
     
-After this you'll have under /tmp/root
+where you can also pack the result into a RPM or what ever package format 
+you like.
 
-     usr/bin/*
-     opt/dosemu/*
+If you upgrade an existing DOSEMU or dosemu-freedos tarball then this
+this change will have an immediate effect on all users,
+because the user's private instances will have symlinks to the
+commonly used DOS binaries.
 
-which you can pack into a RPM or what ever package format you like.
-If you don't like the default paths /usr/bin and /opt/dosemu, you can
-change them with options -b and -i to ./install_systemwide such as
-
-   # ./install_systemwide ... -b /usr/local/bin -i /usr/share/dosemu
-
-You also can install directly to the final destination of the system
-by omitting the '-i /tmp/root' option, you even may omit the -fd option
-in which case the dosemu-freedos tarball is expected to exist already at its
-final location. The latter makes sense if you just want to update an
-existing systemwide install after you changed and recompiled the DOSEMU
-source. Because the user's private instances will have symlinks to the
-commonly used binaries, this change will have an immediate effect on all users.
-
-Some final note: It is recommended to link static. Keep in mind, that DOSEMU
-runs _much_ better when linked statically, this (among other) has to do
+Some final note: It may be better to link static. Keep in mind, that DOSEMU
+can run much better when linked statically, this (among other) has to do
 with the more compact address space spanned by statically linked binaries
 (more TLB hits, less reloads) and the enormous number of kernel-/user-
 space transitions DOSEMU needs to do. Hence, even if static binaries
 under glibc >= 2.2 are no longer strictly portable between systems,
-you'll get a far better performing DOSEMU. You may argue performance
+you may get a better performing DOSEMU. You may argue performance
 not to be important, maybe, but DOSEMU's dynamic behavior can change
 dramatically when missing to 'hit the slot', resulting in malfunction
 of the DOS application, which expects to 'own' the whole machine'.
@@ -84,3 +58,4 @@ system.
  
 
 			--Hans <lermen@fgan.de>, 2001/05/30
+			--Bart Oldeman, 2002/12/17

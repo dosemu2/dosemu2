@@ -789,7 +789,7 @@ static void config_post_process(void)
 	if (!config.X_keycode) {
 	    extern void keyb_layout(int layout);
 	    keyb_layout(-1);
-	    c_printf("CONF: Forceing neutral Keyboard-layout, X-server will translate\n");
+	    c_printf("CONF: Forcing neutral Keyboard-layout, X-server will translate\n");
 	}
 #endif
 	config.console_video = config.vga = config.graphics = 0;
@@ -804,6 +804,11 @@ static void config_post_process(void)
 	    config.mapped_bios = 0;
 	    fprintf(stderr, "no console on low feature (non-suid root) DOSEMU\n");
 	}
+    }
+    if ((config.vga || config.X) && config.mem_size > 640) {
+	error("$_dosmem = (%d) not allowed for X and VGA console graphics, "
+              "restricting to 640K\n", config.mem_size);
+        config.mem_size = 640;
     }
 
     /* UID scrub */
@@ -1030,13 +1035,6 @@ config_init(int argc, char **argv)
 	    break;
 	case 'o':
 	    config.debugout = strdup(optarg);
-	    enter_priv_off();
-	    dbg_fd = fopen(config.debugout, "w");
-	    leave_priv_setting();
-	    if (!dbg_fd) {
-		fprintf(stderr, "can't open \"%s\" for writing\n", config.debugout);
-		exit(1);
-	    }
 	    break;
 	case '2': case '3': case '4': case '5': case '6':
 #if 1
@@ -1066,6 +1064,27 @@ config_init(int argc, char **argv)
 	    }
 	    break;
 	}
+    }
+
+    if (dbg_fd == 0) {
+        if (config.debugout == NULL) {
+            char *home = getenv("HOME");
+            if (home) {
+                const static char *debugout = "/.dosemu/boot.log";
+                config.debugout = malloc(strlen(home) + strlen(debugout) + 1);
+                strcpy(config.debugout, home);
+                strcat(config.debugout, debugout);
+            }
+        }
+        if (config.debugout != NULL) {
+            enter_priv_off();
+            dbg_fd = fopen(config.debugout, "w");
+            leave_priv_setting();
+            if (!dbg_fd) {
+                fprintf(stderr, "can't open \"%s\" for writing\n", config.debugout);
+                leavedos(1);
+            }
+        }
     }
 
     if (config_check_only) set_debug_level('c',1);
@@ -1318,8 +1337,8 @@ usage(char *basename)
 	"    -M set memory size to SIZE kilobytes (!)\n"
 	"    -m enable mouse support (!#)\n"
 	"    -N No boot of DOS\n"
-	"    -O write debugmessages to stderr\n"
-	"    -o FILE put debugmessages in file\n"
+	"    -O write debug messages to stderr\n"
+	"    -o FILE put debug messages in file\n"
 	"    -P copy debugging output to FILE\n"
 	"    -t try new timer code (#)\n"
 	"    -u set user configuration variable 'confvar' prefixed by 'u_'.\n"

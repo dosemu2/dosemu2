@@ -285,7 +285,7 @@ sub convertToHTML {
 sub convertToText {
   my ($theFile) = @_;
   my ($theOutputFile) = &dirname($theFile) ."/" .&basename($theFile, ('.sgml', '.xml')) .".txt";
-  my ($theHTMLFile);
+  my ($theHTMLFile) = "";
 
   my ($command);
 
@@ -328,7 +328,9 @@ sub convertToText {
       print "Cleaning up temporary HTML file\n";
     }
     
-    unlink ($theHTMLFile);
+    if (length($theHTMLFile)) {
+      unlink ($theHTMLFile);
+    }
   }
 }
 

@@ -9,13 +9,21 @@ IDEST=/var/lib
 
 SRC=hdinfo.c bootsect.S mkhdimage.c putrom.c mkfatimage.c mkfatimage16.c \
     dexeconfig.c scsicheck.c dosctrl.c vbioscheck.c
-OBJ=hdinfo bootsect mkhdimage putrom mkfatimage mkfatimage16 dexeconfig \
-    scsicheck dosctrl vbioscheck $(D)/hdimage.dist
+OBJ1=hdinfo mkhdimage putrom dexeconfig scsicheck dosctrl vbioscheck 
+OBJ=$(OBJ1) bootsect $(D)/hdimage.dist \
+    $(BINPATH)/bin/mkfatimage $(BINPATH)/bin/mkfatimage16
 SCRIPT=getrom
 
 all: $(OBJ)
 
-$(SRC):	bootsect.h
+$(BINPATH)/bin/mkfatimage: mkfatimage
+	cp -p $< $@
+
+$(BINPATH)/bin/mkfatimage16: mkfatimage16
+	cp -p $< $@
+
+$(OBJ1): %: %.c bootsect.h
+	$(CC) $(CFLAGS) $(<F) -o $@
 
 bootsect.h:	bootsect.S
 	$(LD) -x assembler -Wa,-a -Wl,-Ttext,7c40,-e,_start16,--oformat,binary -nostdlib -s -o $@.tmp $< > $<.out
@@ -45,7 +53,7 @@ checkout:
 	-co -M -l keyboard.c.diff $(SRC) $(SCRIPT) Makefile
 
 clean:
-	rm -f $(OBJ) *.o
+	rm -f $(OBJ) *.o mkfatimage mkfatimage16
 	rm -f *.out bootsect.h
 
 realclean: clean

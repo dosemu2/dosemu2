@@ -88,6 +88,9 @@ There is also a new debug flag 'X' for X-related messages.
 To exit xdosemu, use 'exitemu' or select 'Close' aka 'Delete' 
 (better not 'Destroy') from the 'Window' menu. It is also save to use
 &#60;Ctrl&#62;&#60;Alt&#62;&#60;PgDn&#62; within the window to exit DOSEMU.
+Use &#60;Ctrl&#62;&#60;Alt&#62;&#60;Pause&#62 to pause and unpause
+the DOSEMU session, which is useful if you want it to sit silently
+in the background when it is eating too much CPU time.
 </para>
 </listitem>
 <listitem>
@@ -95,13 +98,6 @@ To exit xdosemu, use 'exitemu' or select 'Close' aka 'Delete'
 <para>
  there are some X-related configuration options for dosemu.conf.
 See ./etc/dosemu.conf for details.
-</para>
-</listitem>
-<listitem>
-
-<para>
- starting xdosemu in the background (like from a window manager menu)
-appears not to work for some reason.
 </para>
 </listitem>
 <listitem>

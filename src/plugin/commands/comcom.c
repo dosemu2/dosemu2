@@ -1238,7 +1238,7 @@ static int cmd_echo(int argc, char **argv) {
 }
 
 static int cmd_pause(int argc, char **argv) {
-	CMD_LINKAGE;
+	/*CMD_LINKAGE;*/
 	char tx[] = "Press any key to continue ...\n";
 	int c;
 

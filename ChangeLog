@@ -1,3 +1,19 @@
+2002/12/17 ver 1.1.4 released
+	From Bart
+	- Fix X font handling and misc other things in the dosemu script 
+	  and make install.
+	- add vga11x19 font
+	- some minor manpage and documentation fixes
+	- fix Makefiles: data.c dependencies and src/tools/periph
+	- verbose make install
+	- debug output goes to ~/.dosemu/boot.log by default for dosemu.bin
+	  too
+	- allow $_dosmem in ~/.dosemurc and warn if more than 640K is used
+	  for X or console graphics.
+	- install midid by default
+	- fix compiler warnings in msdos.h and comcom.c.
+	From Stas
+	- fix DOSEMU freeze (from ctrl+alt+pause) when $_rdtsc=(off)
 2002/12/15 ver 1.1.3.9 unofficial pre-release
 	From Stas
 	- protect against stack overflows in dpmi.c.
@@ -17,8 +33,7 @@
 	  supposed to be in charge of them.
 	- don't allow HW interrupts in the dosdebug force trace mode.
 	- config update for sound (Bart: organized a little differently).
-	- Check for a tty before using virtual comports.
-	- Another fix for the Insert key.
+	- Temporary fix for the Insert key (the real fix will be post 1.1.4)
 	From Bart
 	- Some more global.conf adjustments to get the terminal and keyboard
 	  working correctly by default.
@@ -80,6 +95,8 @@
 	- Fixed some shell problems for make install.
 	From Robert Komar and Stas
 	- major midid update
+	From Matthew Sullivan 
+	- Check for a tty before using virtual comports.
 2002/12/14 ver 1.1.3.8 unofficial pre-release
 	From Bart
 	- revive "make install" - this uses a private boot directory setup

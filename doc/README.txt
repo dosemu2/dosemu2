@@ -17,21 +17,24 @@ Alistair MacDonald
    1. Introduction
    2. Runtime Configuration Options
 
-        2.1. Format of dosemu.conf
+        2.1. Format of dosemu.conf and ~/.dosemurc
 
-              2.1.1. Controling amount of debug output
-              2.1.2. Basic emulaton settings
-              2.1.3. Code page and character set
-              2.1.4. Terminals
-              2.1.5. Keyboard settings
-              2.1.6. X Support settings
-              2.1.7. Video settings ( console only )
-              2.1.8. Disks, boot directories and floppies
+              2.1.1. Disks, boot directories and floppies
+              2.1.2. Controling amount of debug output
+              2.1.3. Basic emulaton settings
+              2.1.4. Code page and character set
+              2.1.5. Terminals
+              2.1.6. Keyboard settings
+              2.1.7. X Support settings
+              2.1.8. Builtin ASPI SCSI Driver
               2.1.9. COM ports and mices
               2.1.10. Printers
-              2.1.11. Networking under DOSEMU
-              2.1.12. Sound
-              2.1.13. Builtin ASPI SCSI Driver
+              2.1.11. Sound
+              2.1.12. Joystick
+              2.1.13. Networking under DOSEMU
+              2.1.14. Security settings
+              2.1.15. Settings for enabling direct hardware access
+              2.1.16. Video settings ( console only )
 
    3. Security
    4. Sound
@@ -118,18 +121,18 @@ Alistair MacDonald
 2. Runtime Configuration Options
 
    This section of the document by Hans, <lermen@fgan.de>. Last updated
-   on June 2, 2001.
+   on Dec 17, 2002, by Bart Oldeman.
 
    Before you even continue to read further -- especially if you have
    never tried DOSEMU -- I strongly recommend starting with the ready to
    use DOSEMU binary distribution. This comes in 2 packages:
 
-     * ftp://ftp.dosemu.org/dosemu/dosemu-1.0.2-bin.tgz
+     * dosemu-1.0.2.1-bin.tgz
        A tarball containing the recent DOSEMU binaries together with a
        user local configuration setup. This installation fits into any
        user HOME directory and can be used and installed without root
        permissions.
-     * ftp://ftp.dosemu.org/dosemu/dosemu-freedos-bin.tgz
+     * dosemu-freedos-bin.tgz
        A tarball containing a collection of suitable FreeDos binaries,
        eventually patched to fit DOSEMU needs together with some GNU
        tools you may find useful.
@@ -137,8 +140,9 @@ Alistair MacDonald
    You have to unpack both tarballs (as normal user, NOT as root) into
    the same directory , `cd' into the directory `dosemu' and execute
    `./xdosemu' or `./dosemu'. After you have played with this for a while
-   and have looked into the files under `dosemu/conf', you will be much
-   better prepared to understand the rest of this chapter.
+   and have looked into the file `~/.dosemurc' or the files in
+   `dosemu/conf', you will be much better prepared to understand the rest
+   of this chapter.
 
    Note: The DOSEMU installation described above may also come from a
    systemwide installation, which you or your Linux distributor has
@@ -147,21 +151,21 @@ Alistair MacDonald
    systemwide installation, look at the file README.distributors in the
    DOSEMU source distribution.
 
-   Also note: The following description was written for the older type of
-   systemwide installation (configuration under /etc). Though this type
-   of installation still works for suid-root DOSEMU runs, the new
-   non-suid type of installation has no dosemu.users and all
-   configuration files are normally kept under $HOME/dosemu/conf/*. The
-   contents of these configuration files are compatible with the below
-   described, so most of what is written also is valid for these private
-   configuration files.
-
    Most of DOSEMU configuration is done during runtime and per default it
-   expects the system wide configuration file dosemu.conf optionally
+   can use the system wide configuration file dosemu.conf optionally
    followed by the users ~/.dosemurc and additional configurations
    statements on the commandline (-I option). The builtin configuration
    file of a DEXE file is passed using the -I technique, hence the rules
    of -I apply.
+
+   The default dosemu.conf and ~/.dosemurc have all settings commented
+   out for documentation purposes; the commented out values are the ones
+   that DOSEMU uses by default. Note that a non-suid type of installation
+   does not need the dosemu.users and dosemu.conf files, and the main
+   per-user configuration file is $HOME/.dosemurc. However, for security
+   reasons, a suid-root installation will not run without dosemu.users,
+   and in that case certain dosemu.conf settings are ignored by
+   ~/.dosemurc.
 
    In fact dosemu.conf and ~/.dosemurc (which have identical syntax) are
    included by the systemwide configuration script global.conf which, by
@@ -181,8 +185,9 @@ Alistair MacDonald
 
    The first file expected (and interpreted) before any other
    configuration (such as global.conf, dosemu.conf and ~/.dosemurc) is
-   /etc/dosemu.users. Within /etc/dosemu.users the general permissions
-   are set:
+   /etc/dosemu.users or /etc/dosemu/dosemu.users. As mentioned above,
+   this file is entirely optional for non-suid-root (default)
+   installations. Within this file the general permissions are set:
 
      * which users are allowed to use DOSEMU.
      * which users are allowed to use DOSEMU suid root.
@@ -222,7 +227,7 @@ Alistair MacDonald
    Giving the keyword `private_setup' to a user means he/she can have a
    private DOSEMU lib under $HOME/.dosemu/lib. If this directory is
    existing, DOSEMU will expect all normally under DOSEMU_LIB_DIR within
-   that directory. As this would be a security risc, it only will be
+   that directory. As this would be a security risk, it only will be
    allowed, if the used DOSEMU binary is non-suid-root. If you realy
    trust a user you may additionally give the keyword `unrestricted',
    which will allow this user to execute a suid-root binary even on a
@@ -252,9 +257,12 @@ Alistair MacDonald
    to allow everybody all weird things. For more details on security
    issues have a look at README-tech.txt chapter 2.
 
-   After /etc/dosemu.users dosemu.conf (via global.conf) is interpreted,
-   and only during global.conf parsing access to all configuration
-   options is allowed. Your personal ~/.dosemurc is included directly
+   After the file dosemu.users, the file dosemu.conf (via global.conf,
+   which may be built-in) is interpreted, and only during global.conf
+   parsing the access to all configuration options is allowed.
+   dosemu.conf normally lives in the same directory as dosemu.users, for
+   instance /etc/dosemu or /etc (that is, sysconfdir in
+   compiletime-settings). Your personal ~/.dosemurc is included directly
    after dosemu.conf, but has less access rights (in fact the lowest
    level), all variables you define within ~/.dosemurc transparently are
    prefixed with `dosemu_' such that the normal namespace cannot be
@@ -264,10 +272,10 @@ Alistair MacDonald
    defined in dosemu.conf.
 
    The dosemu.conf (global.conf) may check for the configuration
-   variables, that are set in /etc/dosemu.users and optionaly include
-   further configuration files. But once dosemu.conf (global.conf) has
-   finished interpretation, the access to secure relevant configurations
-   is (class-wise) restricted while the following interpretation of (old)
+   variables, that are set in dosemu.users and optionaly include further
+   configuration files. But once dosemu.conf (global.conf) has finished
+   interpretation, the access to secure relevant configurations is
+   (class-wise) restricted while the following interpretation of (old)
    .dosrc and -I statements.
 
    For more details on security settings/issues look at README-tech.txt,
@@ -275,10 +283,9 @@ Alistair MacDonald
    description of dosemu.conf (~/.dosemurc)
      _________________________________________________________________
 
-2.1. Format of dosemu.conf
+2.1. Format of dosemu.conf and ~/.dosemurc
 
-   All settings in dosemu.conf are just variables, that are interpreted
-   in global.conf and have the form of
+   All settings are variables, and have the form of
 
          $_xxx = (n)
 
@@ -295,12 +302,128 @@ Alistair MacDonald
    Hence a comma separated list of strings is concatenated.
      _________________________________________________________________
 
-2.1.1. Controling amount of debug output
+2.1.1. Disks, boot directories and floppies
+
+   The parameter settings are tailored to fit the recommended usage of
+   disk and floppy access. There are other methods too, but for these you
+   have to look at README-tech.txt (and you may need to modify
+   global.conf). We strongly recommend that you use the proposed
+   techique. Here the normal setup:
+
+      $_hdimage = "freedos" # list of hdimages or boot directories
+                            # under DOSEMU_HDIMAGE_DIR assigned in this order
+                            # such as "hdimage_c hdimage_d hdimage_e"
+      $_hdimage_r = $_hdimage # hdimages for 'restricted access (if different)
+      $_vbootfloppy = ""    # if you want to boot from a virtual floppy:
+                            # file name of the floppy image under DOSEMU_LIB_DI
+R
+                            # e.g. "floppyimage" disables $_hdimage
+                            #      "floppyimage +hd" does _not_ disable $_hdima
+ge
+      $_floppy_a ="threeinch" # or "fiveinch" or empty, if not existing
+      $_floppy_b = ""       # dito for B:
+
+   A hdimage is a file containing a virtual image of a DOS-FAT
+   filesystem. Once you have booted it, you (or autoexec.bat) can use
+   `lredir' to access any directory in your Linux tree as DOS drive (a -t
+   msdos mounted too). Look at chapter 6 (Using Lredir) and for more
+   details on creating your own hdimage look at chapter 4.3 of this
+   README (Making a bootable hdimage for general purpose). Chapter 4.4
+   also describes how to import/export files from/to a hdimage.
+
+   Starting with dosemu-0.99.8, there is a more convenient method
+   available: you just can have a Linux directory containing all what you
+   want to have under your DOS C:. Copy your IO.SYS, MSDOS.SYS or what
+   ever to that directory (e.g. DOSEMU_LIB_DIR/bootdir), set
+          $_hdimage = "bootdir"
+
+   and up it goes. Alternatively you can specify an absolute path such as
+   "/dos" or "/home/username/dosemu/freedos". DOSEMU makes a lredir'ed
+   drive out of it and can boot from it. You can edit the config.sys and
+   the autoexec.bat within this directory before you start dosemu.
+   Further more, you may have a more sohisticated setup. Given you want
+   to run the same DOS drive as you normal have when booting into native
+   DOS, then you just mount you DOS partition under Linux (say to /dos)
+   and put links to its subdirectories into the boot dir. This way you
+   can decide which files/directories have to be visible under DOSEMU and
+   which have to be different. Here a small and not complete example
+   bootdir setup:
+      config.sys
+      autoexec.bat
+      command.com -> /dos/command.com
+      io.sys -> /dos/io.sys
+      msdos.sys -> /dos/msdos.sys
+      dos -> /dos/dos
+      bc -> /dos/bc
+      windows -> /dos/windows
+
+   As a further enhancement of your drives setup you may even use the
+   following strategie: Given you have the following directory structure
+   under DOSEMU_LIB_DIR
+      DOSEMU_LIB_DIR/drives/C
+      DOSEMU_LIB_DIR/drives/D
+      DOSEMU_LIB_DIR/drives/E
+
+   and the C, D, E are symlinks to appropriate DOS useable directories,
+   then the following single statement
+         $_hdimage = "drives/*"
+
+   will assign all these directories to drive C:, D:, E: respectively.
+   Note, however, that the order in which the directories under drives/*
+   are assigned comes from the order given by /bin/ls. Hence the folling
+      DOSEMU_LIB_DIR/drives/x
+      DOSEMU_LIB_DIR/drives/a
+
+   will assign C: to drives/a and D: to drives/x, keep that in mind.
+
+   Now, what does the above `vbootfloppy' mean? Instead of booting from a
+   virtual `disk' you may have an image of a virtual `floppy' which you
+   just created such as `dd if=/dev/fd0 of=floppy_image'. If this floppy
+   contains a bootable DOS, then
+
+         $_vbootfloppy = "floppy_image"
+
+   will boot that floppy. Once running in DOS you can make the floppy
+   available by (virtually) removing the `media' via `bootoff.com'. If
+   want the disk access specified via `$_hdimage' anyway, you may add the
+   keyword `+hd' such as
+
+         $_vbootfloppy = "floppy_image +hd"
+
+   In some rare cases you may have problems accessing Lredir'ed drives
+   (especially when your DOS application refuses to run on a 'network
+   drive'), though I personally never happened to fall into one of this.
+   For this to overcome you may need to use socalled `partition access'.
+   The odd with this kind of access is, that you never should have those
+   partition mounted in the Linux file system at the same time as you use
+   it in DOSEMU (which is quite uncomfortable and dangerous on a
+   multitasking OS such as Linux ). Though global.conf checks for mounted
+   partitions, there may be races that are not caught. In addition, when
+   your DOSEMU crashes, it may leave some FAT sectors unflushed to the
+   disk, hence destroying the partition. Anyway, if you think you need
+   it, here is how you `assign' real DOS partitions to DOSEMU:
+
+         $_hdimage = "hdimage.first /dev/hda1 /dev/sdc4:ro"
+
+   The above will have `hdimage.first' as booted drive C:, /dev/hda1 as
+   D: (read/write) and /dev/sdc4 as E: (readonly). You may have any kind
+   of order within `$_hdimage', hence
+
+         $_hdimage = "/dev/hda1 hdimage.first /dev/sdc4:ro"
+
+   would have /dev/hda1 as booted drive C:. Note that the access to the
+   /dev/* devices must be exclusive (no other process should use it)
+   except for `:ro'.
+     _________________________________________________________________
+
+2.1.2. Controling amount of debug output
 
    DOSEMU will help you finding problems, when you enable its debug
    messages. These will go into the file, that you defined via the `-o
-   file' or `-O' commandline option (the later prints to stderr). In
-   dosemu.conf you can preset this via
+   file' or `-O' commandline option (the later prints to stderr). If you
+   do not specify any -O or -o switch, then the log output will be
+   written to ~/.dosemu/boot.log. You can preset the kind of debug output
+   via
 
          $_debug = "-a"
 
@@ -308,7 +431,7 @@ Alistair MacDonald
    commandline option (look at the man page for details).
      _________________________________________________________________
 
-2.1.2. Basic emulaton settings
+2.1.3. Basic emulaton settings
 
    To enable INT08 type timer interrupts set the below on or off
          $_timint = (on)
@@ -377,10 +500,10 @@ Alistair MacDonald
    `66904064' being 64 Mbytes in this example.
 
    Defining the memory layout, which DOS should see:
-      $_xms = (1024)          # in Kbyte
-      $_ems = (1024)          # in Kbyte
+      $_xms = (8192)          # in Kbyte
+      $_ems = (2048)          # in Kbyte
       $_ems_frame = (0xe000)
-      $_dpmi = (off)          # in Kbyte
+      $_dpmi = (0x4000)       # in Kbyte (default is 0 if running suid-root)
       $_dosmem = (640)        # in Kbyte, < 640
 
    Note that (other as in native DOS) each piece of mem is separate,
@@ -389,37 +512,6 @@ Alistair MacDonald
    either not give access to dosemu for normal users (via
    /etc/dosemu.users) or give those users the `restricted' attribute (see
    above).
-
-   There are some features in DOSEMU, that may violate system security
-   and which you should not use on machines, which are `net open'. To
-   have atleast a minimum of protection against intruders, use the
-   folling:
-      $_secure ="ngd"  # secure for: n (normal users), g (guest), d (dexe)
-                       # empty string: depending on 'restricted'
-
-   The above is a string of which may be given or not, hence
-         $_secure ="d"
-
-   would only effect execution of DEXEs. If you are not a `restricted'
-   user (as given via /etc/dosemu.users) the above settings won't apply.
-   To disable security checking atall set
-         $_secure ="0"
-
-   NOTE: `$_secure' can not be overwritten by ~/.dosemurc.
-
-   For the similar reasons you may `backout' some host, which you don't
-   like to have access to dosemu
-      $_odd_hosts = ""    # black list such as
-                          #      "lucifer.hell.com billy.the.cat"
-      $_diskless_hosts="" # black list such as "hacker1 newbee gateway1"
-
-   The items in the lists are blank separated, `odd_hosts' checks for
-   remote logins, `diskless_hosts' are meant to be maschines, that mount
-   a complete tree, hence the checked host is the host DOSEMU is running
-   on (not the remote host). However, read README-tech,txt for more
-   details on what actually is disabled.
-
-   NOTE: `$_*_hosts' can not be overwritten by ~/.dosemurc.
 
    If you want mixed operation on the filesystem, from which you boot
    DOSEMU (native and via DOSEMU), it may be necessary to have two
@@ -442,30 +534,9 @@ Alistair MacDonald
       $_hogthreshold = (1)   # 0 == all CPU power to DOSEMU
                              # 1 == max power for Linux
                              # >1   the higher, the faster DOSEMU will be
-
-   If you have hardware, that is not supported under Linux but you have a
-   DOS driver for, it may be necessary to enable IRQ passing to DOS.
-      $_irqpassing = ""  # list of IRQ number (2-15) to pass to DOS such as
-                         # "3 8 10"
-
-   Here you tell DOSEMU what to do when DOS wants let play the speaker:
-         $_speaker = ""     # or "native" or "emulated"
-
-   And with the below may gain control over real ports on you machine.
-   But:
-
-   WARNING: GIVING ACCESS TO PORTS IS BOTH A SECURITY CONCERN AND SOME
-   PORTS ARE DANGEROUS TO USE. PLEASE SKIP THIS SECTION, AND DON'T FIDDLE
-   WITH THIS SECTION UNLESS YOU KNOW WHAT YOU'RE DOING.
-
-      $_ports = ""  # list of portnumbers such as "0x1ce 0x1cf 0x238"
-                    # or "0x1ce range 0x280,0x29f 310"
-                    # or "range 0x1a0,(0x1a0+15)"
-
-   NOTE: `$_ports' can not be overwritten by ~/.dosemurc.
      _________________________________________________________________
 
-2.1.3. Code page and character set
+2.1.4. Code page and character set
 
    To select the character set and code page for use with DOSEMU you have
          $_term_char_set = "XXX"
@@ -539,7 +610,7 @@ Alistair MacDonald
        bios keyboard translation services.
      _________________________________________________________________
 
-2.1.4. Terminals
+2.1.5. Terminals
 
    This section applies whenever you run DOSEMU remotely or in an xterm.
    Color terminal support is now built into DOSEMU. Skip this section for
@@ -559,7 +630,7 @@ Alistair MacDonald
       For online help, press 'Ctrl-^h' or 'Ctrl-^?'.
      _________________________________________________________________
 
-2.1.5. Keyboard settings
+2.1.6. Keyboard settings
 
    When running DOSEMU from console (also remote from console) or X you
    may need to define a proper keyboard layout. Its possible to let
@@ -623,7 +694,7 @@ Alistair MacDonald
    crash).
      _________________________________________________________________
 
-2.1.6. X Support settings
+2.1.7. X Support settings
 
    If DOSEMU is running in its own X-window (not xterm), you may need to
    tailor it to your needs. Here a summary of the settings and a brief
@@ -656,269 +727,7 @@ Alistair MacDonald
                             # SPACE separated "xres,yres" pairs
      _________________________________________________________________
 
-2.1.7. Video settings ( console only )
-
-   !!WARNING!!: IF YOU ENABLE GRAPHICS ON AN INCOMPATIBLE ADAPTOR, YOU
-   COULD GET A BLANK SCREEN OR MESSY SCREEN EVEN AFTER EXITING DOSEMU.
-   Read doc/README-tech.txt (Recovering the console after a crash).
-
-   Start with only text video using the following setup in dosemu.conf
-
-      $_video = "vga"         # one of: plainvga, vga, ega, mda, mga, cga
-      $_console = (0)         # use 'console' video
-      $_graphics = (0)        # use the cards BIOS to set graphics
-      $_videoportaccess = (1) # allow videoportaccess when 'graphics' enabled
-      $_vbios_seg = (0xc000)  # set the address of your VBIOS (e.g. 0xe000)
-      $_vbios_size = (0x10000)# set the size of your BIOS (e.g. 0x8000)
-      $_vmemsize = (1024)     # size of regen buffer
-      $_chipset = ""
-      $_dualmon = (0)         # if you have one vga _plus_ one hgc (2 monitors)
-
-   After you get it `somehow' working and you have one of the DOSEMU
-   supported graphic cards you may switch to graphics mode changing the
-   below
-
-         $_graphics = (1)        # use the cards BIOS to set graphics
-
-   If you have a 100% compatible standard VGA card that may work,
-   however, you get better results, if your card has one of the DOSEMU
-   supported video chips and you tell DOSEMU to use it such as
-
-      $_chipset = "s3"        # one of: plainvga, trident, et4000, diamond, s3,
-                              # avance, cirrus, matrox, wdvga, paradise, ati, s
-is,
-                          # svgalib
-
-   Note, `s3' is only an example, you must set the correct video chip
-   else it most like will crash your screen.
-
-   The 'svgalib' setting uses svgalib 1.4.2 or greater for determining
-   the correct video chip. It should work with all svgalib drivers,
-   except for "vesa" and "ati", which are dangerous with respect to
-   opening IO-ports.
-
-   NOTE: `video setting' can not be overwritten by ~/.dosemurc.
-     _________________________________________________________________
-
-2.1.8. Disks, boot directories and floppies
-
-   The parameter settings via dosemu.conf are tailored to fit the
-   recommended usage of disk and floppy access. There are other methods
-   too, but for these you have to look at README-tech.txt (and you may
-   need to modify global.conf). We strongly recommend that you use the
-   proposed techique. Here the normal setup:
-
-      $_vbootfloppy = ""    # if you want to boot from a virtual floppy:
-                            # file name of the floppy image under DOSEMU_LIB_DI
-R
-                            # e.g. "floppyimage" disables $_hdimage
-                            #      "floppyimage +hd" does _not_ disable $_hdima
-ge
-      $_floppy_a ="threeinch" # or "fiveinch" or empty, if not existing
-      $_floppy_b = ""       # dito for B:
-
-      $_hdimage = "freedos" # list of hdimages or boot directories
-                            # under DOSEMU_LIB_DIR assigned in this order
-                            # such as "hdimage_c hdimage_d hdimage_e"
-      $_hdimage_r = $_hdimage # hdimages for 'restricted access (if different)
-
-   A hdimage is a file containing a virtual image of a DOS-FAT
-   filesystem. Once you have booted it, you (or autoexec.bat) can use
-   `lredir' to access any directory in your Linux tree as DOS drive (a -t
-   msdos mounted too). Look at chapter 6 (Using Lredir) and for more
-   details on creating your own hdimage look at chapter 4.3 of this
-   README (Making a bootable hdimage for general purpose). Chapter 4.4
-   also describes how to import/export files from/to a hdimage.
-
-   Starting with dosemu-0.99.8, there is a more convenient method
-   available: you just can have a Linux directory containing all what you
-   want to have under your DOS C:. Copy your IO.SYS, MSDOS.SYS or what
-   ever to that directory (e.g. DOSEMU_LIB_DIR/bootdir), put
-          $_hdimage = "bootdir"
-
-   into your dosemu.conf, and up it goes. DOSEMU makes a lredir'ed drive
-   out of it and can boot from it. You can edit the config.sys and the
-   autoexec.bat within this directory before you start dosemu. Further
-   more, you may have a more sohisticated setup. Given you want to run
-   the same DOS drive as you normal have when booting into native DOS,
-   then you just mount you DOS partition under Linux (say to /dos) and
-   put links to its subdirectories into the boot dir. This way you can
-   decide which files/directories have to be visible under DOSEMU and
-   which have to be different. Here a small and not complete example
-   bootdir setup:
-      config.sys
-      autoexec.bat
-      command.com -> /dos/command.com
-      io.sys -> /dos/io.sys
-      msdos.sys -> /dos/msdos.sys
-      dos -> /dos/dos
-      bc -> /dos/bc
-      windows -> /dos/windows
-
-   As a further enhancement of your drives setup you may even use the
-   following strategie: Given you have the following directory structure
-   under DOSEMU_LIB_DIR
-      DOSEMU_LIB_DIR/drives/C
-      DOSEMU_LIB_DIR/drives/D
-      DOSEMU_LIB_DIR/drives/E
-
-   and the C, D, E are symlinks to appropriate DOS useable directories,
-   then the following single statement in dosemu.conf
-         $_hdimage = "drives/*"
-
-   will assign all these directories to drive C:, D:, E: respectively.
-   Note, however, that the order in which the directories under drives/*
-   are assigned comes from the order given by /bin/ls. Hence the folling
-      DOSEMU_LIB_DIR/drives/x
-      DOSEMU_LIB_DIR/drives/a
-
-   will assign C: to drives/a and D: to drives/x, keep that in mind.
-
-   Now, what does the above `vbootfloppy' mean? Instead of booting from a
-   virtual `disk' you may have an image of a virtual `floppy' which you
-   just created such as `dd if=/dev/fd0 of=floppy_image'. If this floppy
-   contains a bootable DOS, then
-
-         $_vbootfloppy = "floppy_image"
-
-   will boot that floppy. Once running in DOS you can make the floppy
-   available by (virtually) removing the `media' via `bootoff.com'. If
-   want the disk access specified via `$_hdimage' anyway, you may add the
-   keyword `+hd' such as
-
-         $_vbootfloppy = "floppy_image +hd"
-
-   In some rare cases you may have problems accessing Lredir'ed drives
-   (especially when your DOS application refuses to run on a 'network
-   drive'), though I personally never happened to fall into one of this.
-   For this to overcome you may need to use socalled `partition access'.
-   The odd with this kind of access is, that you never should have those
-   partition mounted in the Linux file system at the same time as you use
-   it in DOSEMU (which is quite uncomfortable and dangerous on a
-   multitasking OS such as Linux ). Though global.conf checks for mounted
-   partitions, there may be races that are not caught. In addition, when
-   your DOSEMU crashes, it may leave some FAT sectors unflushed to the
-   disk, hence destroying the partition. Anyway, if you think you need
-   it, here is how you `assign' real DOS partitions to DOSEMU:
-
-         $_hdimage = "hdimage.first /dev/hda1 /dev/sdc4:ro"
-
-   The above will have `hdimage.first' as booted drive C:, /dev/hda1 as
-   D: (read/write) and /dev/sdc4 as E: (readonly). You may have any kind
-   of order within `$_hdimage', hence
-
-         $_hdimage = "/dev/hda1 hdimage.first /dev/sdc4:ro"
-
-   would have /dev/hda1 as booted drive C:. Note that the access to the
-   /dev/* devices must be exclusive (no other process should use it)
-   except for `:ro'.
-     _________________________________________________________________
-
-2.1.9. COM ports and mices
-
-   We have simplified the configuration for mice and serial ports and
-   check for depencies between them. If all strings in the below example
-   are empty, then no mouse and/or COM port is available. Note. that you
-   need no mouse.com driver installed in your DOS environment, DOSEMU has
-   the mousedriver builtin. The below example is such a setup
-
-      $_com1 = ""           # e.g. "/dev/mouse" or "/dev/cua0"
-      $_com2 = "/dev/modem" # e.g. "/dev/modem" or "/dev/cua1"
-
-      $_mouse = "microsoft" # one of: microsoft, mousesystems, logitech,
-                            # mmseries, mouseman, hitachi, busmouse, ps2
-      $_mouse_dev = "/dev/mouse" # one of: com1, com2 or /dev/mouse
-      $_mouse_flags = ""        # list of none or one or more of:
-                        # "emulate3buttons cleardtr"
-      $_mouse_baud = (0)        # baudrate, 0 == don't set
-
-   The above example lets you have your modem on COM2, COM1 is spare (as
-   you may have your mouse under native DOS there and don't want to
-   change the configuration of your modem software between boots of
-   native DOS and Linux)
-
-   However, you may use your favorite DOS mousedriver and directly let it
-   drive COM1 by changing the below variables (rest of variables
-   unchanged)
-
-      $_com1 = "/dev/mouse"
-      $_mouse_dev = "com1"
-
-   And finaly, when you have a PS2 mouse on your machine you use the
-   builtin mousedriver (not your mouse.com) to get it work: ( again
-   leaving the rest of variables unchanged)
-
-      $_mouse = "ps2"
-      $_mouse_dev = "/dev/mouse"
-
-   When using a PS2 mouse or when having more then 2 serial ports you may
-   of course assign _any_ free serialdevice to COM1, COM2. The order
-   doesn't matter:
-
-      $_com1 = "/dev/cua2"
-      $_com2 = "/dev/cua0"
-     _________________________________________________________________
-
-2.1.10. Printers
-
-   Printer is emulated by piping printer data to your normal Linux
-   printer. The belows tells DOSEMU which printers to use. The `timeout'
-   tells DOSEMU how long to wait after the last output to LPTx before
-   considering the print job as `done' and to to spool out the data to
-   the printer.
-
-    $_printer = "lp"        # list of (/etc/printcap) printer names to appear a
-s
-                            # LPT1 ... LPT3 (not all are needed, empty for none
-)
-    $_printer_timeout = (20)# idle time in seconds before spooling out
-     _________________________________________________________________
-
-2.1.11. Networking under DOSEMU
-
-   Turn the following option `on' if you require IPX/SPX emulation, there
-   is no need to load IPX.COM within the DOS session. ( the option does
-   not emulate LSL.COM, IPXODI.COM, etc. ) And NOTE: You must have IPX
-   protocol configured into the kernel.
-
-         $_ipxsupport = (on)
-
-   Enable Novell 8137->raw 802.3 translation hack in new packet driver.
-
-         $_novell_hack = (on)
-
-   If you make use of the dosnet device driver, you may turn on 'multi'
-   packet driver support via
-
-         $_vnet = (on)
-
-   But if you just need 'single' packet driver support that talks to, for
-   instance, your ethernet card eth0 then you need to set
-
-         $_netdev = "eth0"
-
-   Note that this requires raw packet access, and hence (suid)-root. If
-   $_vnet = (on), the $_netdev will default to "dsn0". For more on this
-   look at chapter 15 (Net code).
-     _________________________________________________________________
-
-2.1.12. Sound
-
-   The sound driver is more or less likely to be broken at the moment.
-   Anyway, here are the settings you would need to emulate a SB-sound
-   card by passing the control to the Linux soundrivers.
-
-    $_sound = (off)           # sound support on/off
-    $_sb_base = (0x220)       # base IO-address (HEX)
-    $_sb_irq = (5)            # IRQ
-    $_sb_dma = (1)            # DMA channel
-    $_sb_dsp = "/dev/dsp"     # Path the sound device
-    $_sb_mixer = "/dev/mixer" # path to the mixer control
-    $_mpu_base = "0x330"      # base address for the MPU-401 chip (HEX)
-                              # (not yet implemented)
-     _________________________________________________________________
-
-2.1.13. Builtin ASPI SCSI Driver
+2.1.8. Builtin ASPI SCSI Driver
 
    The builtin ASPI driver (a SCSI interface protocol defined by Adaptec)
    can be used to run DOS based SCSI drivers that use this standard (most
@@ -928,16 +737,16 @@ s
    Dat-streamers, EXABYTE tapedrives, JAZ drives (from iomega) and CD
    writers. To make it work under DOSEMU you need
 
-     * to configure $_aspi in dosemu.conf to define which of the /dev/sgX
-       devices you want to show up in DOSEMU.
+     * to configure $_aspi to define which of the /dev/sgX devices you
+       want to show up in DOSEMU.
      * to load the DOSEMU aspi.sys stub driver within config.sys (e.g.
        DEVICE=ASPI.SYS) before any ASPI using driver.
 
-   The $_aspi variable in dosemu.conf takes strings listing all generic
-   SCSI devices, that you want give to DOSEMU. NOTE: You should make
-   sure, that they are not used by Linux elsewhere, else you would come
-   into much trouble. To help you not doing the wrong thing, DOSEMU can
-   check the devicetype of the SCSI device such as
+   The $_aspi variable takes strings listing all generic SCSI devices,
+   that you want give to DOSEMU. NOTE: You should make sure, that they
+   are not used by Linux elsewhere, else you would come into much
+   trouble. To help you not doing the wrong thing, DOSEMU can check the
+   devicetype of the SCSI device such as
        $_aspi = "sg2:WORM"
 
    in which case you define /dev/sg2 being a CD writer device. If you
@@ -1012,6 +821,236 @@ s
 
    though, CD writers are reported to work with 64Kb and the `Iomega
    guest' driver happily works with the default size of 32k.
+     _________________________________________________________________
+
+2.1.9. COM ports and mices
+
+   We have simplified the configuration for mice and serial ports and
+   check for depencies between them. If all strings in the below example
+   are empty, then no mouse and/or COM port is available. Note. that you
+   need no mouse.com driver installed in your DOS environment, DOSEMU has
+   the mousedriver builtin. The below example is such a setup
+
+      $_com1 = ""           # e.g. "/dev/mouse" or "/dev/cua0"
+      $_com2 = "/dev/modem" # e.g. "/dev/modem" or "/dev/cua1"
+
+      $_mouse = "microsoft" # one of: microsoft, mousesystems, logitech,
+                            # mmseries, mouseman, hitachi, busmouse, ps2
+      $_mouse_dev = "/dev/mouse" # one of: com1, com2 or /dev/mouse
+      $_mouse_flags = ""        # list of none or one or more of:
+                        # "emulate3buttons cleardtr"
+      $_mouse_baud = (0)        # baudrate, 0 == don't set
+
+   The above example lets you have your modem on COM2, COM1 is spare (as
+   you may have your mouse under native DOS there and don't want to
+   change the configuration of your modem software between boots of
+   native DOS and Linux)
+
+   However, you may use your favorite DOS mousedriver and directly let it
+   drive COM1 by changing the below variables (rest of variables
+   unchanged)
+
+      $_com1 = "/dev/mouse"
+      $_mouse_dev = "com1"
+
+   And finaly, when you have a PS2 mouse on your machine you use the
+   builtin mousedriver (not your mouse.com) to get it work: ( again
+   leaving the rest of variables unchanged)
+
+      $_mouse = "ps2"
+      $_mouse_dev = "/dev/mouse"
+
+   When using a PS2 mouse or when having more then 2 serial ports you may
+   of course assign _any_ free serialdevice to COM1, COM2. The order
+   doesn't matter:
+
+      $_com1 = "/dev/cua2"
+      $_com2 = "/dev/cua0"
+     _________________________________________________________________
+
+2.1.10. Printers
+
+   Printer is emulated by piping printer data to your normal Linux
+   printer. The belows tells DOSEMU which printers to use. The `timeout'
+   tells DOSEMU how long to wait after the last output to LPTx before
+   considering the print job as `done' and to to spool out the data to
+   the printer.
+
+    $_printer = "lp"        # list of (/etc/printcap) printer names to appear a
+s
+                            # LPT1 ... LPT3 (not all are needed, empty for none
+)
+    $_printer_timeout = (20)# idle time in seconds before spooling out
+     _________________________________________________________________
+
+2.1.11. Sound
+
+   Here are the settings for SBPro sound card emulation by passing the
+   control to the Linux soundrivers. For more information see
+   sound-usage.txt.
+
+    $_sound = (on)            # sound support on/off
+    $_sb_base = (0x220)       # base IO-address (HEX)
+    $_sb_irq = (5)            # IRQ
+    $_sb_dma = (1)            # DMA channel
+    $_sb_dsp = "/dev/dsp"     # Path the sound device
+    $_sb_mixer = ""       # path to the mixer control
+    $_mpu_base = (0x330)      # base address for the MPU-401 chip (HEX)
+     _________________________________________________________________
+
+2.1.12. Joystick
+
+   Here are the settings for Joystick emulation.
+
+    $_joy_device = "/dev/js0 /dev/js1"
+                          # 1st and 2nd joystick device
+                              # e.g. "/dev/js0" or "/dev/js0 /dev/js1"
+                              #      (or "" if you don't want joystick support)
+                          #
+    $_joy_dos_min = (1)   # range for joystick axis readings, must be > 0
+    $_joy_dos_max = (150)         # avoid setting this to > 250
+    $_joy_granularity = (1)   # the higher, the less sensitive -
+                          # useful if you have a wobbly joystick
+                              #
+    $_joy_latency = (0)       # delay between nonblocking linux joystick reads
+                              # increases performance if >0 and processor>=Pent
+ium
+                              # recommended: 1-50ms or 0 if unsure
+     _________________________________________________________________
+
+2.1.13. Networking under DOSEMU
+
+   Turn the following option `on' if you require IPX/SPX emulation, there
+   is no need to load IPX.COM within the DOS session. ( the option does
+   not emulate LSL.COM, IPXODI.COM, etc. ) And NOTE: You must have IPX
+   protocol configured into the kernel.
+
+         $_ipxsupport = (on)
+
+   Enable Novell 8137->raw 802.3 translation hack in new packet driver.
+
+         $_novell_hack = (on)
+
+   If you make use of the dosnet device driver, you may turn on 'multi'
+   packet driver support via
+
+         $_vnet = (on)
+
+   But if you just need 'single' packet driver support that talks to, for
+   instance, your ethernet card eth0 then you need to set
+
+         $_netdev = "eth0"
+
+   Note that this requires raw packet access, and hence (suid)-root. If
+   $_vnet = (on), the $_netdev will default to "dsn0". For more on this
+   look at chapter 15 (Net code).
+     _________________________________________________________________
+
+2.1.14. Security settings
+
+   There are some features in DOSEMU, that may violate system security
+   and which you should not use on machines, which are `net open'. To
+   have atleast a minimum of protection against intruders, use the
+   folling:
+      $_secure ="ngd"  # secure for: n (normal users), g (guest), d (dexe)
+                       # empty string: depending on 'restricted'
+
+   The above is a string of which may be given or not, hence
+         $_secure ="d"
+
+   would only effect execution of DEXEs. If you are not a `restricted'
+   user (as given via /etc/dosemu.users) the above settings won't apply.
+   To disable security checking atall set
+         $_secure ="0"
+
+   NOTE: `$_secure' can not be overwritten by ~/.dosemurc.
+
+   For the similar reasons you may `backout' some host, which you don't
+   like to have access to dosemu
+      $_odd_hosts = ""    # black list such as
+                          #      "lucifer.hell.com billy.the.cat"
+      $_diskless_hosts="" # black list such as "hacker1 newbee gateway1"
+
+   The items in the lists are blank separated, `odd_hosts' checks for
+   remote logins, `diskless_hosts' are meant to be maschines, that mount
+   a complete tree, hence the checked host is the host DOSEMU is running
+   on (not the remote host). However, read README-tech,txt for more
+   details on what actually is disabled.
+
+   NOTE: `$_*_hosts' can not be overwritten by ~/.dosemurc.
+     _________________________________________________________________
+
+2.1.15. Settings for enabling direct hardware access
+
+   The following settings (together with the direct console video
+   settings below make it possible for DOSEMU to access your real
+   (non-emulated) computer hardware directly. Because Linux does not
+   permit this for ordinary users, DOSEMU needs to be run as root or
+   suid-root to be able to use these settings. They can NOT be
+   overwritten by the user configuration file ~/.dosemurc.
+
+   Here you tell DOSEMU what to do when DOS wants let play the speaker:
+         $_speaker = ""     # or "native" or "emulated"
+
+   And with the below may gain control over real ports on you machine.
+   But:
+
+   WARNING: GIVING ACCESS TO PORTS IS BOTH A SECURITY CONCERN AND SOME
+   PORTS ARE DANGEROUS TO USE. PLEASE SKIP THIS SECTION, AND DON'T FIDDLE
+   WITH THIS SECTION UNLESS YOU KNOW WHAT YOU'RE DOING.
+
+      $_ports = ""  # list of portnumbers such as "0x1ce 0x1cf 0x238"
+                    # or "0x1ce range 0x280,0x29f 310"
+                    # or "range 0x1a0,(0x1a0+15)"
+
+   If you have hardware, that is not supported under Linux but you have a
+   DOS driver for, it may be necessary to enable IRQ passing to DOS.
+      $_irqpassing = ""  # list of IRQ number (2-15) to pass to DOS such as
+                         # "3 8 10"
+     _________________________________________________________________
+
+2.1.16. Video settings ( console only )
+
+   !!WARNING!!: IF YOU ENABLE GRAPHICS ON AN INCOMPATIBLE ADAPTOR, YOU
+   COULD GET A BLANK SCREEN OR MESSY SCREEN EVEN AFTER EXITING DOSEMU.
+   Read doc/README-tech.txt (Recovering the console after a crash).
+
+   Start with only text video using the following setup
+
+      $_video = "vga"         # one of: plainvga, vga, ega, mda, mga, cga
+      $_console = (0)         # use 'console' video
+      $_graphics = (0)        # use the cards BIOS to set graphics
+      $_videoportaccess = (1) # allow videoportaccess when 'graphics' enabled
+      $_vbios_seg = (0xc000)  # set the address of your VBIOS (e.g. 0xe000)
+      $_vbios_size = (0x10000)# set the size of your BIOS (e.g. 0x8000)
+      $_vmemsize = (1024)     # size of regen buffer
+      $_chipset = ""
+      $_dualmon = (0)         # if you have one vga _plus_ one hgc (2 monitors)
+
+   After you get it `somehow' working and you have one of the DOSEMU
+   supported graphic cards you may switch to graphics mode changing the
+   below
+
+         $_graphics = (1)        # use the cards BIOS to set graphics
+
+   If you have a 100% compatible standard VGA card that may work,
+   however, you get better results, if your card has one of the DOSEMU
+   supported video chips and you tell DOSEMU to use it such as
+
+      $_chipset = "s3"        # one of: plainvga, trident, et4000, diamond, s3,
+                              # avance, cirrus, matrox, wdvga, paradise, ati, s
+is,
+                          # svgalib
+
+   Note, `s3' is only an example, you must set the correct video chip
+   else it most like will crash your screen.
+
+   The 'svgalib' setting uses svgalib 1.4.2 or greater for determining
+   the correct video chip. It should work with all svgalib drivers,
+   except for "vesa" and "ati", which are dangerous with respect to
+   opening IO-ports.
+
+   NOTE: `video setting' can not be overwritten by ~/.dosemurc.
      _________________________________________________________________
 
 3. Security
@@ -1402,10 +1441,11 @@ s
        messages. To exit xdosemu, use 'exitemu' or select 'Close' aka
        'Delete' (better not 'Destroy') from the 'Window' menu. It is also
        save to use <Ctrl><Alt><PgDn> within the window to exit DOSEMU.
+       Use <Ctrl><Alt><Pause> to pause and unpause the DOSEMU session,
+       which is useful if you want it to sit silently in the background
+       when it is eating too much CPU time.
      * there are some X-related configuration options for dosemu.conf.
        See ./etc/dosemu.conf for details.
-     * starting xdosemu in the background (like from a window manager
-       menu) appears not to work for some reason.
      * Keyboard support of course depends on your X keyboard mappings
        (xmodmap). If certain keys don't work (like Pause, Backspace,...),
        it *might* be because you haven't defined them in your xmodmap, or
