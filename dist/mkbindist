@@ -72,8 +72,8 @@ mkdir -p $TMP/freedos/dosemu
 cp -p ../etc/vga.pcf $TMP/Xfonts
 cp -p ../etc/dosemu.alias $TMP/Xfonts/fonts.alias
 
-cp -p ../etc/dosemu.conf $TMP/conf/dosemurc.example
-cp -p ../etc/global.conf $TMP/conf/global.conf.example
+cp -p ../etc/dosemu.conf $TMP/conf/dosemurc
+cp -p ../etc/global.conf $TMP/conf/global.conf
 
 for i in $BLIST; do
   cp -p $BIN/$i $TMP/bin

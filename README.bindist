@@ -90,7 +90,7 @@ dosemu-freedos*sources.tgz tarball.
 CONFIGURATION
 -------------
 
-Optional configuration is possible by editing the file conf/dosemurc.example
+Optional configuration is possible by editing the file conf/dosemurc
 and copying it to ~/.dosemurc. Advanced configuration can be accomplished
 using global.conf in combination with the -F option.
 
@@ -111,4 +111,4 @@ POLICIES
                                   -- Hans <lermen@fgan.de>
 				     2001/06/10
 				  -- Bart Oldeman
-				     2003/10/01
+				     2004/01/11

@@ -138,7 +138,7 @@ installnew: doslib
 	$(MAKE) install
 
 install:
-	rm -rf $(TMP)
+	rm -rf ../tmp
 	mkdir -p -m 0755 $(TMP)/dosemu/freedos/dosemu
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)
 	for i in `find $(SYS)/* -type f`; do \
@@ -156,7 +156,7 @@ install:
 	done
 	tar -cf- -C $(TMP) dosemu/freedos | gzip -9 > $(TMP)/dosemu/dosemu-bin.tgz
 	$(INSTALL) -m 0644 $(TMP)/dosemu/dosemu-bin.tgz $(DESTDIR)$(dosemudir)
-	rm -rf $(TMP)
+	rm -rf ../tmp
 	mkdir -p -m 0755 $(TMP)/dosemu/freedos/dosemu
 	cd $(REALTOPDIR); if [ -f $(fdtarball) ]; then \
 	  tar -C $(DESTDIR)$(dosemudir)/.. --no-same-owner -xpzf $(fdtarball); \
@@ -179,8 +179,9 @@ install:
 	fi
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)
 	if [ ! -f $(DESTDIR)$(sysconfdir)/dosemu.conf ]; then \
-	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.conf $(REALTOPDIR)/etc/dosemu.users.example $(DESTDIR)$(sysconfdir); \
-	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/global.conf $(DESTDIR)$(sysconfdir)/global.conf.example; \
+	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.conf $(DESTDIR)$(sysconfdir); \
+	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.users.example $(DESTDIR)$(sysconfdir)/dosemu.users; \
+	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/global.conf $(DESTDIR)$(sysconfdir); \
 	fi
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)/keymap
 	for i in $(REALTOPDIR)/etc/keymap/*; do \
@@ -228,7 +229,7 @@ ifdef X_SUPPORT
 		mkfontdir; \
 	fi;
 endif
-	/bin/rm -rf $(TMP)
+	/bin/rm -rf ../tmp
 	$(MAKE) -C ../man install
 	@cd $(REALTOPDIR); if test $(fdtarball) != none -a ! -f $(fdtarball); then \
 	  echo ; \
@@ -247,16 +248,16 @@ endif
 	  if [ -f $(DESTDIR)/etc/dosemu.users ]; then \
 	    echo ; \
 	    echo /etc/dosemu.users exists but you did not set sysconfdir=/etc; \
-	    echo Deprecated: saving backup as /etc/dosemu.users.save; \
-	    echo mv /etc/dosemu.users /etc/dosemu.users.save; \
-	    mv /etc/dosemu.users /etc/dosemu.users.save; \
+	    echo Deprecated: moving to /etc/dosemu/dosemu.users; \
+	    echo mv /etc/dosemu.users /etc/dosemu/dosemu.users; \
+	    mv /etc/dosemu.users /etc/dosemu/dosemu.users; \
 	  fi; \
 	  if [ -f $(DESTDIR)/etc/dosemu.conf ]; then \
 	    echo ; \
 	    echo /etc/dosemu.conf exists but you did not set sysconfdir=/etc; \
-	    echo Deprecated: saving backup as /etc/dosemu.conf.save; \
-	    echo mv /etc/dosemu.conf /etc/dosemu.conf.save; \
-	    mv /etc/dosemu.conf /etc/dosemu.conf.save; \
+	    echo Deprecated: moving to /etc/dosemu/dosemu.conf; \
+	    echo mv /etc/dosemu.conf /etc/dosemu/dosemu.conf; \
+	    mv /etc/dosemu.conf /etc/dosemu/dosemu.conf; \
 	  fi \
 	fi
 	@echo ""; \

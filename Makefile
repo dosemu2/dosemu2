@@ -19,12 +19,8 @@ top_builddir=.
 -include Makefile.conf
 
 Makefile.conf: $(srcdir)/Makefile.conf.in $(srcdir)/configure $(srcdir)/default-configure
-	@echo "Running $(srcdir)/default-configure ...";
-	@if [ -f config.status ]; then \
-	  ./config.status --recheck; ./config.status; \
-	else \
-	  $(srcdir)/default-configure; \
-	fi
+	@echo "Running $(srcdir)/default-configure ..."
+	$(srcdir)/default-configure
 
 default clean realclean install: config.status
 	@$(MAKE) -C src $@

@@ -28,18 +28,16 @@ mkdir -p $RPM_BUILD_ROOT%{_bindir}
 make DESTDIR=$RPM_BUILD_ROOT install
 %clean
 rm -rf $RPM_BUILD_ROOT
-%post
-if test %{_sysconfdir} != /etc; then
-  if [ -f /etc/dosemu.users ]; then
-    echo /etc/dosemu.users exists but you did not set sysconfdir=/etc
-    echo Deprecated: saving backup as /etc/dosemu.users.save
-    mv /etc/dosemu.users /etc/dosemu.users.save
-  fi
-  if [ -f /etc/dosemu.conf ]; then
-    echo /etc/dosemu.conf exists but you did not set sysconfdir=/etc
-    echo Deprecated: saving backup as /etc/dosemu.conf.save
-    mv /etc/dosemu.conf /etc/dosemu.conf.save
-  fi
+%pre
+if [ -f /etc/dosemu.users ]; then
+  echo "Deprecating /etc/dosemu.users: moving to /etc/dosemu/dosemu.users"
+  echo "Please use /etc/dosemu/dosemu.users instead (if necessary)."
+  mv /etc/dosemu.users /etc/dosemu/dosemu.users
+fi
+if [ -f /etc/dosemu.conf ]; then
+  echo "Deprecating /etc/dosemu.conf: moving to /etc/dosemu/dosemu.conf"
+  echo "Please use /etc/dosemu/dosemu.conf instead."
+  mv /etc/dosemu.conf /etc/dosemu/dosemu.conf
 fi
 %files
 %defattr(-,root,root)
@@ -76,7 +74,7 @@ fi
 %doc %{_datadir}/doc/dosemu/NOVELL-HOWTO.txt
 %doc %{_datadir}/doc/dosemu/README.gdb
 %doc %{_datadir}/doc/dosemu/DANG.txt
-%config %{_sysconfdir}/dosemu/dosemu.conf
-%config %{_sysconfdir}/dosemu/drives/c
-%{_sysconfdir}/dosemu/dosemu.users.example
-%{_sysconfdir}/dosemu/global.conf.example
+%config(noreplace) %{_sysconfdir}/dosemu/dosemu.conf
+%config(noreplace) %{_sysconfdir}/dosemu/drives/c
+%config(noreplace) %{_sysconfdir}/dosemu/dosemu.users
+%config(noreplace) %{_sysconfdir}/dosemu/global.conf
