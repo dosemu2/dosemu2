@@ -475,7 +475,7 @@ int mfs_lfn(void)
 			if (!find_file(fpath, &st))
 				return lfn_error(PATH_NOT_FOUND);
 			strcat(fpath, fpath2);
-			if ((_DX & 0x10) && !find_file(fpath, &st)) {
+			if (!find_file(fpath, &st) && (_DX & 0x10)) {
 				int fd = open(fpath, (O_RDWR | O_CREAT),
 					      get_unix_attr(0664, _CL |
 							    ARCHIVE_NEEDED));
