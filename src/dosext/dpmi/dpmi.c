@@ -735,21 +735,32 @@ static void FreeAllDescriptors(void)
     }
 }
 
-int ConvertSegmentToDescriptor(unsigned short segment)
+static int ConvertSegmentToDescriptor32(unsigned short segment, int limit_is_32)
 {
   unsigned long baseaddr = segment << 4;
+  unsigned long limit = limit_is_32 ? 0xffffffff : 0xffff;
   unsigned short selector;
   int i;
   D_printf("DPMI: convert seg %#x to desc\n", segment);
   for (i=1;i<MAX_SELECTORS;i++)
-    if ((Segments[i].base_addr==baseaddr) && (Segments[i].limit==0xffff) &&
+    if ((Segments[i].base_addr==baseaddr) && (Segments[i].limit==limit) &&
 	(Segments[i].type==MODIFY_LDT_CONTENTS_DATA) && Segments[i].used)
       return (i<<3) | 0x0007;
   D_printf("DPMI: SEG at base=%#lx not found, allocate a new one\n", baseaddr);
   if (!(selector = AllocateDescriptors(1))) return 0;
-  if (SetSelector(selector, baseaddr, 0xffff, DPMIclient_is_32,
+  if (SetSelector(selector, baseaddr, limit, DPMIclient_is_32,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   return selector;
+}
+
+int ConvertSegmentToDescriptor(unsigned short segment)
+{
+  return ConvertSegmentToDescriptor32(segment, DPMIclient_is_32);
+}
+
+static int ConvertSegmentToDescriptor16(unsigned short segment)
+{
+  return ConvertSegmentToDescriptor32(segment, 0);
 }
 
 static inline unsigned short GetNextSelectorIncrementValue(void)
@@ -1356,7 +1367,7 @@ static void do_int31(struct sigcontext_struct *scp)
 #endif    
     break;
   case 0x0002:
-    if (!(_LWORD(eax)=ConvertSegmentToDescriptor(_LWORD(ebx)))) {
+    if (!(_LWORD(eax)=ConvertSegmentToDescriptor16(_LWORD(ebx)))) {
       _LWORD(eax) = 0x8011;
       _eflags |= CF;
     }
