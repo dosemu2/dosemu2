@@ -1022,7 +1022,8 @@ void port_exit(void)
 	struct portreq pr;
 	if (!portserver_pid) return;
         pr.type = TYPE_EXIT;
-        if (port_fd_out[1]) write(port_fd_out[1], &pr, sizeof(pr));
+	write(port_fd_out[1], &pr, sizeof(pr));
+	portserver_pid = 0;
 }
 
 void release_ports (void)
