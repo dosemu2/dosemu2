@@ -129,10 +129,18 @@ static void InitMFS(void)
 {
     FAR_PTR LOL;
     FAR_PTR SDA;
+    unsigned char _osmajor;
+    unsigned char _osminor;
     struct REGPACK preg = REGPACK_INIT;
 
     LOL = GetListOfLists();
     SDA = GetSDAPointer();
+
+    /* now get the DOS version */
+    HI(ax) = 0x30;
+    call_msdos();
+    _osmajor = LO(ax);
+    _osminor = HI(ax);
 
     /* get DOS version into CX */
     preg.r_cx = _osmajor | (_osminor <<8);

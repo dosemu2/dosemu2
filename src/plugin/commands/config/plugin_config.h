@@ -13,8 +13,15 @@
  *
  */
 
-#define DOS_HELPER_COMMANDS         0xc0
+/* Increment this when the interface changes */
+#define BUILTINS_PLUGIN_VERSION     2
 
+#define DOS_HELPER_COMMANDS         0xc0
+#define DOS_HELPER_COMMANDS_DONE    0xc1
+
+#ifndef __ASSEMBLER__
 extern void commands_plugin_init(void);
 extern int commands_plugin_inte6(void);
+extern int commands_plugin_inte6_done(void);
 extern void commands_plugin_close(void);
+#endif

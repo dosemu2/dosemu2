@@ -25,6 +25,7 @@ int com_errno;
 
 static MemPool mp;
 static char *lowmem_pool;
+static int pool_used = 0;
 
 int com_vsprintf(char *str, char *format, va_list ap)
 {
@@ -240,13 +241,12 @@ static char * com_dosallocmem(int size)
 	call_msdos();    /* call MSDOS */
 	if (LWORD(eflags) & CF) {
 		com_errno = LWORD(eax);
-		error("lowmem_alloc failed for %i\n", size);
+		error("dos_alloc failed for %i\n", size);
 		return NULL;
 	}
 	return (char *)SEG2LINEAR(LWORD(eax));
 }
 
-#ifdef NEED_DOSFREEMEM
 static void com_dosfreemem(char *p)
 {
 	if (!p) {
@@ -261,12 +261,11 @@ static void com_dosfreemem(char *p)
 	HI(ax) = 0x49;
 	call_msdos();    /* call MSDOS */
 	if (LWORD(eflags) & CF) {
-		error("lowmem_free failed for %p\n", p);
+		error("dos_free failed for %p\n", p);
 		com_errno = LWORD(eax);
 	}
 	return;
 }
-#endif
 
 char * lowmem_alloc(int size)
 {
@@ -554,29 +553,33 @@ int commands_plugin_inte6(void)
 	struct com_program_entry *com;
 	int argc;
 
+	if (HI(ax) != BUILTINS_PLUGIN_VERSION) {
+	    error("builtins plugin version mismatch: found %i, required %i\n",
+		HI(ax), BUILTINS_PLUGIN_VERSION);
+	    error("You should upgrade your generic.com, isemu.com and other utilities"
+		  "from the latest dosemu package\n");
+	    return 0;
+	}
+
 	psp = COM_PSP_ADDR;
 	mcb = SEG2LINEAR(COM_PSP_SEG - 1);
 
-	if (!(lowmem_pool = com_dosallocmem(LOWMEM_POOL_SIZE))) {
+	if (!pool_used) {
+	    if (!(lowmem_pool = com_dosallocmem(LOWMEM_POOL_SIZE))) {
 		error("Unable to allocate memory pool\n");
-		error("You should upgrade generic.com, lredir.com and so on\n");
 		return 0;
-	}
-	zinitPool(&mp, "lowmem_pool", zpanic, znot,
+	    }
+	    zinitPool(&mp, "lowmem_pool", zpanic, znot,
 		lowmem_pool, LOWMEM_POOL_SIZE);
-	zclearPool(&mp);
+	    zclearPool(&mp);
+	}
+	pool_used++;
 
 	/* first parse commandline */
 	args[0] = strlower(com_strdup(com_getarg0()));
 	argc = com_argparse(&psp->cmdline_len, &args[1], MAX_ARGS - 1) + 1;
 	builtin_name = strlower(com_strdup(mcb->name));
 	builtin_name[8] = 0;
-
-	/* now set the DOS version */
-	HI(ax) = 0x30;
-	call_msdos();
-	_osmajor = LO(ax);
-	_osminor = HI(ax);
 
 	com = find_com_program(builtin_name);
 	if (com) {
@@ -591,5 +594,17 @@ int commands_plugin_inte6(void)
 	 * generic.S exits.
 	 */
 
+	return 1;
+}
+
+int commands_plugin_inte6_done(void)
+{
+	if (!pool_used)
+		return 0;
+	pool_used--;
+	if (!pool_used) {
+		zclearPool(&mp);
+		com_dosfreemem(lowmem_pool);
+	}
 	return 1;
 }

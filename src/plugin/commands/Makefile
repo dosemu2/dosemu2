@@ -55,7 +55,7 @@ $(STUBFULL): $(D)/generic.com ./mkcomstub
 	./mkcomstub $(D)/generic.com $@ $(basename $(@F))
 
 $(D)/%.com:	%.S detect.h
-	$(CC) -traditional -Wa,-a -Wl,-Ttext,0x100,-e,_start16,--oformat,binary \
+	$(CC) ${INCDIR} -traditional -Wa,-a -Wl,-Ttext,0x100,-e,_start16,--oformat,binary \
 		-nostdlib -s -o $@ $< > $*.s.out
 
 install: all

@@ -79,8 +79,6 @@ char *skip_white_and_delim(char *s, int delim);
 struct REGPACK regs_to_regpack(struct vm86_regs *regs);
 struct vm86_regs regpack_to_regs(struct REGPACK *regpack);
 
-extern unsigned char _osmajor;
-extern unsigned char _osminor;
 extern int com_errno;
 
 #endif
