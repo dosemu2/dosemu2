@@ -19,13 +19,13 @@ CFLAGS=-O2 # -Wall # -Wmissing-prototypes \
 
 # ANSI isn't possible right now, because some header-file aren't ANSI
 
-CFILES = ipxbind.c ipxroute.c
-OBJS   = ipxbind   ipxroute  
+CFILES = ipx_configure.c ipx_internal_net.c ipx_interface.c
+OBJS   = ipx_configure   ipx_internal_net   ipx_interface  
 HFILES = 
 
 # Insert all source- and header-files here.
 
-ALL = $(CFILES) $(HFILES) ipxbind ipxroute startipx README
+ALL = $(CFILES) $(HFILES) startipx README
 
 # All object-files are included here.
 

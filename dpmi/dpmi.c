@@ -154,6 +154,8 @@ static u_char DPMIclient_is_32 = 0;
 static us DPMI_private_data_segment;
 int in_dpmi_dos_int = 0;
 int in_dpmi_pm_int = 0;
+int in_dpmi_pm_ex = 0;
+int in_dpmi_sw_to_pm_ex = 0;
 us PMSTACK_SEL = 0;		/* protected mode stack selector */
 unsigned long PMSTACK_ESP = 0;	/* protected mode stack descriptor */
 us DPMI_SEL = 0;
@@ -162,6 +164,8 @@ extern int fatalerr;
 
 static struct sigcontext_struct dpmi_stack_frame[5]; /* used to store the dpmi client registers */
 static struct sigcontext_struct emu_stack_frame;  /* used to store emulator registers */
+/* used to store emulator  registers when calling client\'s exception handler    */
+static struct sigcontext_struct exception_stack_frame;
 static int current_client=0;
 
 _syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
@@ -433,6 +437,7 @@ static inline unsigned char SetSegmentLimit(unsigned short selector, unsigned lo
     Segments[ldt_entry].limit = limit;
     Segments[ldt_entry].is_big = 0;
   }
+
   return set_ldt_entry(ldt_entry , Segments[ldt_entry].base_addr,
 	Segments[ldt_entry].limit, Segments[ldt_entry].is_32,
 	Segments[ldt_entry].type, Segments[ldt_entry].readonly, Segments[ldt_entry].is_big);
@@ -589,6 +594,7 @@ static inline void restore_rm_regs()
 }
 
 
+#include <sys/mman.h>
 void do_int31(struct sigcontext_struct *scp, int inumber)
 {
   _eflags &= ~CF;
@@ -725,7 +731,9 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
       REG(ecx) = rmreg->ecx;
       REG(eax) = rmreg->eax;
       REG(eflags) = (long) rmreg->flags;
+#if 0      
       if (REG(eflags)&IF) REG(eflags)|=VIF;
+#endif      
       REG(es) = rmreg->es;
       REG(ds) = rmreg->ds;
       REG(fs) = rmreg->fs;
@@ -756,7 +764,11 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
       else {
 	LWORD(esp) -= 6;
 	pushw(rm_ssp, rm_sp, LWORD(eflags));
+#if 0
 	REG(eflags) &= ~(IF|TF|VIF);
+#else
+	REG(eflags) &= ~(IF|TF);
+#endif
       }
       pushw(rm_ssp, rm_sp, DPMI_SEG);
       pushw(rm_ssp, rm_sp, DPMI_OFF + HLT_OFF(DPMI_return_from_realmode));
@@ -765,6 +777,8 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 #ifdef SHOWREGS
     show_regs(__FILE__, __LINE__);
 #endif
+    D_printf("DPMI: from pm 0x%04X:0x%08x call rm proc at 0x%04x:0x%04x\n",
+               _cs,_eip, REG(cs), REG(eip));
     break;
   case 0x0305:	/* Get State Save/Restore Adresses */
       _LWORD(ebx) = DPMI_SEG;
@@ -819,8 +833,8 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
       D_printf("DPMI: Realloc to size %x\n", (_LWORD(ebx)<<16 | _LWORD(ecx)));
       D_printf("DPMI: Free Mem Blk. esi     0x%08lx\n", _LWORD(esi));
       D_printf("                    edi     0x%08lx\n", _LWORD(edi));
-      free((void *)( (_LWORD(esi))<<16 | (_LWORD(edi)) ));
-      ptr = malloc( (_LWORD(ebx)<<16 | _LWORD(ecx)));
+      ptr = realloc((_LWORD(esi))<<16 | (_LWORD(edi)),
+	  (_LWORD(ebx)<<16 | _LWORD(ecx)));
       D_printf("DPMI: malloc attempt for siz 0x%08lx\n", (_LWORD(ebx))<<16 | (_LWORD(ecx)));
       D_printf("      malloc returns address 0x%08lx\n", ptr);
       if (ptr==NULL) {
@@ -920,7 +934,13 @@ inline void do_dpmi_int(struct sigcontext_struct *scp, int i)
   if ((i == 0x21) && (_HI(ax) == 0x4c)) {
     D_printf("DPMI: leaving DPMI with error code 0x%02x\n",_LO(ax));
     quit_dpmi(_LO(ax));
-  } else if (i == 0x31) {
+  }
+  else if ((i == 0x21) && ((_HI(ax) == 0x51) || (_HI(ax) == 0x62))) {/* get psp */
+    D_printf("DPMI: client get current PSP\n");
+    _LWORD(ebx) = dpmi_stack_frame[current_client].es;
+    return;
+  }
+  else if (i == 0x31) {
     D_printf("DPMI: int31, ax=%04x\n", _LWORD(eax));
     return do_int31(scp, _LWORD(eax));
   } else {
@@ -938,7 +958,7 @@ inline void do_dpmi_int(struct sigcontext_struct *scp, int i)
     REG(cs) = DPMI_SEG;
     REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint);
     in_dpmi_dos_int = 1;
-    D_printf("DPMI: calling real mode interrupt 0x%02x\n",i);
+    D_printf("DPMI: calling real mode interrupt 0x%02x,eax = %X\n",i,_eax);
     return (void) do_int(i);
   }
 }
@@ -992,6 +1012,7 @@ inline void run_pm_int(int i)
   dpmi_stack_frame[current_client].esp = PMSTACK_ESP;
   in_dpmi_dos_int = 0;
   in_dpmi_pm_int = 1;
+  dpmi_control();
 }
 
 inline void run_dpmi(void)
@@ -1003,6 +1024,8 @@ inline void run_dpmi(void)
 
   if (int_queue_running || in_dpmi_dos_int) {
     in_vm86 = 1;
+    D_printf("DPMI: going to vm86 mode at 0x%04x:0x%08x\n",
+	     REG(cs), REG(eip));
     switch VM86_TYPE({retval=vm86(&vm86s); in_vm86=0; retval;}) {
 	case VM86_UNKNOWN:
 		vm86_GP_fault();
@@ -1012,7 +1035,7 @@ inline void run_dpmi(void)
 		REG(eflags) &=~VIP;
 		break;
 	case VM86_INTx:
-		D_printf("Return from vm86() for interrupt\n");
+		D_printf("Return from vm86() for interrupt %X\n",VM86_ARG(retval));
     show_regs(__FILE__, __LINE__);
 		switch (VM86_ARG(retval)) {
 		  case 0x1c:	/* ROM BIOS timer tick interrupt */
@@ -1046,6 +1069,77 @@ inline void run_dpmi(void)
     do_queued_ioctl();
 }
 
+/* DANG_BEGIN_FUNCTION run_pm_exception
+ *
+ * This routine is used for running protected mode hardware
+ * interrupts and software exceptions
+ * run_pm_exception() switches to the locked protected mode stack
+ * and calls the handler.
+ *
+ * This needs some speed optimize if no handler is installed
+ *
+ * DANG_END_FUNCTION
+ */
+
+inline void run_pm_exception(int i, struct sigcontext_struct *scp)
+{
+  us *ssp;
+  D_printf("DPMI: run_pm_exception(0x%02x) called, in_dpmi_dos_int=0x%02x\n",i,in_dpmi_dos_int);
+
+  memcpy(&exception_stack_frame, &dpmi_stack_frame[current_client],
+	 sizeof(struct sigcontext_struct));  
+  memcpy(&dpmi_stack_frame[current_client], scp ,
+	 sizeof(struct sigcontext_struct)); 
+  if (dpmi_stack_frame[current_client].ss == PMSTACK_SEL)
+      PMSTACK_ESP = dpmi_stack_frame[current_client].esp;
+  ssp = (us *) SEL_ADR(PMSTACK_SEL, PMSTACK_ESP);
+  if (DPMIclient_is_32) {
+    *(--((int *) ssp)) = in_dpmi_dos_int;
+    *--ssp = (us) 0;
+    *--ssp = _ss;
+    *(--((unsigned long *) ssp)) = _esp;
+    *(--((unsigned long *) ssp)) = _eflags;
+    *--ssp = (us) 0;
+    *--ssp = _cs;
+    *(--((unsigned long *) ssp)) = _eip;
+    *(--((unsigned long *) ssp)) = scp -> err;
+    *--ssp = (us) 0;
+    *--ssp = DPMI_SEL; 
+    *(--((unsigned long *) ssp)) = DPMI_OFF + HLT_OFF(DPMI_return_from_pm_eh);
+    PMSTACK_ESP -= 36;
+  } else {
+    *(--((int *) ssp)) = in_dpmi_dos_int;
+    *--ssp = _ss;
+    *--ssp = _LWORD(esp);
+    *--ssp = _LWORD(eflags);
+    *--ssp = _cs;
+    *--ssp = _LWORD(eip);
+    *--ssp = (unsigned short) scp->err;
+    *--ssp = DPMI_SEL; 
+    *--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_pm_eh);
+    PMSTACK_ESP -= 20;
+  }
+  dpmi_stack_frame[current_client].cs = Exception_Table[i].selector;
+  dpmi_stack_frame[current_client].eip = Exception_Table[i].offset;
+  dpmi_stack_frame[current_client].ss = PMSTACK_SEL;
+  dpmi_stack_frame[current_client].esp = PMSTACK_ESP;
+  in_dpmi_dos_int = 0;
+  in_dpmi_pm_ex = 1;
+  in_dpmi_sw_to_pm_ex = 1;
+  for (; (!fatalerr && in_dpmi_pm_ex) ;) {
+    dpmi_control();
+    handle_signals();
+/*  trigger any hardware interrupts requested */
+/*  These MUST be reflected to protected mode first */
+    if (1 /*!in_dpmi_dos_int*/) {
+      run_irqs();
+      serial_run();
+      int_queue_run();
+    }
+  }
+  error("DPMI pm ex: shouldn't be here\n");
+}
+
 void dpmi_init()
 {
   /* Holding spots for REGS and Return Code */
@@ -1066,7 +1160,7 @@ void dpmi_init()
 
   ssp = (unsigned char *) (REG(ss) << 4);
   sp = (unsigned long) LWORD(esp);
-
+      
   my_ip = popw(ssp, sp);
   my_cs = popw(ssp, sp);
 
@@ -1148,7 +1242,7 @@ void dpmi_init()
     Interrupt_Table[i].selector = DPMI_SEL;
   }
   for (i=0;i<0x20;i++) {
-    Exception_Table[i].offset = DPMI_OFF + HLT_OFF(DPMI_exception);
+    Exception_Table[i].offset = DPMI_OFF + HLT_OFF(DPMI_exception) + i;
     Exception_Table[i].selector = DPMI_SEL;
   }
 
@@ -1171,6 +1265,17 @@ void dpmi_init()
   if (!(ES = AllocateDescriptors(1))) return;
   if (SetSelector(ES, (unsigned long) (LWORD(ebx) << 4), 0x00ff, DPMIclient_is_32,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0 )) return;
+
+{/* convert environment pointer to a descriptor*/
+      unsigned short envp, envpd;
+      envp = *(unsigned short *)(((char *)(LWORD(ebx)<<4))+0x2c);
+      if(!(envpd = AllocateDescriptors(1))) return;
+      if (SetSelector(envpd, (unsigned long) (envp << 4), 0x03ff,
+		      DPMIclient_is_32, MODIFY_LDT_CONTENTS_DATA, 0,
+		      0 )) return;
+      *(unsigned short *)(((char *)(LWORD(ebx)<<4))+0x2c) = envpd;
+      D_printf("DPMI: env segement %X converted to descriptor %X\n", envp,envpd);
+  }
 
   print_ldt();
   D_printf("LDT_ALIAS=%x DPMI_SEL=%x CS=%x DS=%x SS=%x ES=%x\n", LDT_ALIAS, DPMI_SEL, CS, DS, SS, ES);
@@ -1210,7 +1315,7 @@ void dpmi_init()
     run_dpmi();
 /*  trigger any hardware interrupts requested */
 /*  These MUST be reflected to protected mode first */
-    if (!in_dpmi_dos_int) {
+    if (1 /* !in_dpmi_dos_int */) {
       run_irqs();
       serial_run();
       int_queue_run();
@@ -1230,8 +1335,10 @@ void dpmi_sigio(struct sigcontext_struct *scp)
   us *ssp;
 
   if (_cs != UCODESEL){
-    D_printf("DPMI: sigio\n");
-    Return_to_dosemu_code(scp);
+    D_printf("DPMI: signal at 0x%04x:0x%08x\n", _cs, _eip);
+    if (!in_dpmi_pm_ex)
+	Return_to_dosemu_code(scp);
+    D_printf("DPMI: switch to 0x%04x:0x%08x to handler signal\n", _cs, _eip);
   }
 }
 
@@ -1246,7 +1353,7 @@ void dpmi_sigio(struct sigcontext_struct *scp)
  * DANG_END_FUNCTION
  */
 
-inline void do_default_cpu_exception(int trapno)
+inline void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
 { 
   save_rm_regs();
   REG(cs) = DPMI_SEG;
@@ -1259,13 +1366,64 @@ inline void do_default_cpu_exception(int trapno)
     case 0x04: /* overflow */
     case 0x05: /* bounds */
     case 0x07: /* device_not_available */
-	       return (void) do_int(trapno);
+    case 0x0c: 
+	      return (void) do_dpmi_int(scp, trapno);
     default:
 	       p_dos_str("DPMI: Unhandled Execption %02x - Terminating Client\n"
 			 "It is likely that dosemu is unstable now and should be rebooted\n",
 			 trapno);
 	       quit_dpmi(0xff);
   }
+}
+
+static DPMI_show_state1(struct sigcontext_struct *scp)
+{
+    u_char *csp2, *ssp2;
+    int i;
+    D_printf("eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n" \
+	     "trapno: 0x%02lx  errorcode: 0x%08lx  cr2: 0x%08lx\n" \
+	     "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x  fs: 0x%04x  gs: 0x%04x\n",
+	     _eip, _esp, _eflags, _trapno, scp->err, scp->cr2, _cs, _ds, _es, _ss, _fs, _gs);
+    D_printf("EAX: %08lx  EBX: %08lx  ECX: %08lx  EDX: %08lx\n",
+	     _eax, _ebx, _ecx, _edx);
+    D_printf("ESI: %08lx  EDI: %08lx  EBP: %08lx\n",
+	     _esi, _edi, _ebp);
+    /* display the 10 bytes before and after CS:EIP.  the -> points
+     * to the byte at address CS:EIP
+     */ \
+    if (!((_cs) & 0x0004)) {
+      /* GTD */
+      csp2 = (unsigned char *) _eip - 10;
+    } 
+    else { 
+      /* LDT */ 
+      csp2 = (unsigned char *) (GetSegmentBaseAddress(_cs) + _eip) - 10; 
+    } 
+    D_printf("OPS  : ");
+    for (i = 0; i < 10; i++) 
+      D_printf("%02x ", *csp2++); 
+    D_printf("-> "); 
+    for (i = 0; i < 10; i++) 
+      D_printf("%02x ", *csp2++); 
+    D_printf("\n"); 
+    if (!((_ss) & 0x0004)) { 
+      /* GTD */ 
+      ssp2 = (unsigned char *) _esp - 10; 
+    } 
+    else { 
+      /* LDT */ 
+      if (Segments[_ss>>3].is_32) 
+	ssp2 = (unsigned char *) (GetSegmentBaseAddress(_ss) + _esp ) - 10; 
+      else 
+	ssp2 = (unsigned char *) (GetSegmentBaseAddress(_ss) + _LWORD(esp) ) - 10; 
+    } 
+    D_printf("STACK: "); 
+    for (i = 0; i < 10; i++) 
+      D_printf("%02x ", *ssp2++); 
+    D_printf("-> "); 
+    for (i = 0; i < 10; i++) 
+      D_printf("%02x ", *ssp2++); 
+    D_printf("\n");
 }
 
 /*
@@ -1284,9 +1442,36 @@ inline void do_cpu_exception(struct sigcontext_struct *scp)
  */
   error("DPMI: Unhandled Execption 0x%02x\n", _trapno);
   print_ldt();
-
-  return do_default_cpu_exception(_trapno);
+  DPMI_show_state1(scp);
+  if ((_cs != UCODESEL)&&(Exception_Table[_trapno].selector!=DPMI_SEL)) {
+      D_printf("DPMI call user\'s exception handler at %X:%X\n",
+	       Exception_Table[_trapno].selector,
+	       Exception_Table[_trapno].offset);
+      return  run_pm_exception(_trapno, scp);
+  }
+  else
+      do_default_cpu_exception(scp,_trapno);
 }
+
+inline void * segment_to_address(unsigned short seg, unsigned reg)
+{
+    unsigned long __res;
+    if (!((seg) & 0x0004)) { 
+	/* GTD */ \
+	__res = (unsigned long) reg; 
+    } else { 
+	/* LDT */
+	if (Segments[seg>>3].is_32)
+	    __res = (unsigned long) (GetSegmentBaseAddress(seg) + reg );
+	else 
+	    __res = (unsigned long) (GetSegmentBaseAddress(seg)
+				     + *((unsigned short *)&(reg)) );
+    }
+    return (void *)__res;
+}
+/* this is used like: SEG_ADR((char *), _ss, _esp) */
+#undef SEG_ADR
+#define SEG_ADR(type, seg, reg) (type(segment_to_address(seg,reg)))
 
 /*
  * DANG_BEGIN_FUNCTION dpmi_fault
@@ -1314,7 +1499,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
   if (!(_cs==UCODESEL))
 #endif
   {
-    D_printf("DPMI: CPU Exception!\n");
+    D_printf("DPMI: CPU Exception at 0x%04x:0x%08x!\n", _cs, _eip);
     DPMI_show_state;
   }
 #endif /* 1 */
@@ -1355,16 +1540,22 @@ void dpmi_fault(struct sigcontext_struct *scp)
 
     case 0xf4:			/* hlt */
       _eip += 1;
-
-      if (_cs==UCODESEL || in_dpmi_pm_int) {
+/*      D_printf("DPMI: hlt at %X:%X\n", _cs,_eip); */
+      if (_cs==UCODESEL || in_dpmi_pm_int || in_dpmi_sw_to_pm_ex) {
 	/* HLT in dosemu code - must in dpmi_control() */
-	memcpy(&emu_stack_frame, scp, sizeof(struct sigcontext_struct)); /* backup the registers */
-	memcpy(scp, &dpmi_stack_frame[current_client], sizeof(struct sigcontext_struct)); /* switch the stack */
-#if 1
-	D_printf("DPMI: now jumping to dpmi client code\n");
-	DPMI_show_state;
-#endif
-	in_dpmi_pm_int=0;
+	if (in_dpmi_sw_to_pm_ex) {
+	    memcpy(scp, &dpmi_stack_frame[current_client], sizeof(struct sigcontext_struct)); /* switch the stack */
+	    D_printf("DPMI: jump to user's ex handler at 0x%04x:0x%08x\n",
+		     _cs, _eip);
+	    in_dpmi_sw_to_pm_ex =0;
+	} else {
+	    memcpy(&emu_stack_frame, scp, sizeof(struct sigcontext_struct)); /* backup the registers */
+	    memcpy(scp, &dpmi_stack_frame[current_client], sizeof(struct sigcontext_struct)); /* switch the stack */
+	    D_printf("DPMI: now jumping to dpmi client code at 0x%04x:0x%08x\n",
+		     _cs, _eip);
+	    DPMI_show_state;
+	    in_dpmi_pm_int=0;
+	}
 	return;
       }
       if (_cs==DPMI_SEL)
@@ -1420,13 +1611,54 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	    _ss = *ssp++;
 	  }
 	  pic_iret();
-
+	  D_printf("DPMI: Return from protected mode int. back to 0x%04x:0x%08x\n", _cs, _eip);
+        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_pm_eh)) {
+          D_printf("DPMI: Return from protected mode exception hander\n");
+	  if (DPMIclient_is_32) {
+	    PMSTACK_ESP = _esp + 28;
+	    ssp++; ssp++;	/* pop error code */
+	    _eip = *(((unsigned long *) ssp)++);
+	    _cs = *ssp++;
+	    ssp++;
+	    _eflags = (int) *(((unsigned long *) ssp)++);
+	    _esp = *(((unsigned long *) ssp)++);
+	    _ss = *ssp++;
+	    ssp++;
+	    in_dpmi_dos_int = (int) *ssp++;
+	  } else {
+	    PMSTACK_ESP = _esp + 16;
+	    ssp++;		/* pop error code */
+	    _LWORD(eip) = *ssp++;
+	    _cs = *ssp++;
+	    _LWORD(eflags) = (int) *ssp++;
+	    _LWORD(esp) = *ssp++;
+	    _ss = *ssp++;
+	    in_dpmi_dos_int = (int) *ssp++;
+	  }
+	  DPMI_show_state1(scp);
+	  memcpy(&dpmi_stack_frame[current_client], &exception_stack_frame,
+		 sizeof(struct sigcontext_struct));
+	  in_dpmi_pm_ex = 0;
+	  return;
 	} else if ((_eip>=DPMI_OFF+1+HLT_OFF(DPMI_exception)) && (_eip<=DPMI_OFF+32+HLT_OFF(DPMI_exception))) {
-	  D_printf("DPMI: default exception handler called\n");
 	  /*
 	   * DANG_FIXTHIS not yet implemented 
 	   */
-	  do_default_cpu_exception(_eip-1-DPMI_OFF-HLT_OFF(DPMI_exception));
+	  int excp=_eip-1-DPMI_OFF-HLT_OFF(DPMI_exception);
+	  D_printf("DPMI: default exception handler called for 0x%x\n", excp);
+	  if (DPMIclient_is_32) {
+	    _eip = *(((unsigned long *) ssp)++);
+	    _cs = *ssp++;
+	    ssp++;
+	    _eflags = *((unsigned long *) ssp);
+	    _esp += 12;
+	  } else {
+	    _LWORD(eip) = *ssp++;
+	    _cs = *ssp++;
+	    _LWORD(eflags) = *ssp;
+	    _esp += 6;
+	  }
+	  do_default_cpu_exception(scp, excp);
 
 	} else if ((_eip>=DPMI_OFF+1+HLT_OFF(DPMI_interrupt)) && (_eip<=DPMI_OFF+256+HLT_OFF(DPMI_interrupt))) {
 	  int intr = _eip-1-DPMI_OFF-HLT_OFF(DPMI_interrupt);
@@ -1448,6 +1680,140 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	} else
 	  return;
         break;
+    case 0x6c:                    /* insb */
+      *(SEG_ADR((unsigned char *),_es,_edi)) = inb((int) _LWORD(edx));
+      D_printf("DPMI: insb(0x%04x) value %02x\n",
+	       _LWORD(edx),*(SEG_ADR((unsigned char *),_es,_edi)));   
+      if(LWORD(eflags) & DF) _LWORD(edi)--;
+      else _LWORD(edi)++;
+      _eip++;
+      break;
+
+    case 0x6d:			/* insw */
+      *(SEG_ADR((unsigned short *),_es,_edi)) =inw((int) _LWORD(edx));
+      D_printf("insw(0x%04x) value %04x \n",
+	       _LWORD(edx),*(SEG_ADR((unsigned short *),_es,_edi)));
+      if(_LWORD(eflags) & DF) _LWORD(edi) -= 2;
+      else _LWORD(edi) +=2;
+      _eip++;
+      break;
+      
+
+    case 0x6e:			/* outsb */
+      fprintf(stderr,"untested: outsb port 0x%04x value %02x\n",
+            _LWORD(edx),*(SEG_ADR((unsigned char *),_ds,_esi)));
+      outb(_LWORD(edx), *(SEG_ADR((unsigned char *),_ds,_esi)));
+      if(_LWORD(eflags) & DF) _LWORD(esi)--;
+      else _LWORD(esi)++;
+      _eip++;
+      break;
+
+
+    case 0x6f:			/* outsw */
+      fprintf(stderr,"untested: outsw port 0x%04x value %04x\n",
+	      _LWORD(edx), *(SEG_ADR((unsigned short *),_ds,_esi)));
+      outw(_LWORD(edx), *(SEG_ADR((unsigned short *),_ds,_esi)));
+      if(_LWORD(eflags) & DF ) _LWORD(esi) -= 2;
+      else _LWORD(esi) +=2; 
+      _eip++;
+      break;
+
+    case 0xe5:			/* inw xx */
+      _LWORD(eax) = inw((int) csp[0]);
+      _eip += 2;
+      break;
+    case 0xe4:			/* inb xx */
+      _LWORD(eax) &= ~0xff;
+      _LWORD(eax) |= inb((int) csp[0]);
+      _eip += 2;
+      break;
+
+    case 0xed:			/* inw dx */
+      _LWORD(eax) = inw(_LWORD(edx));
+      _eip++;
+      break;
+    case 0xec:			/* inb dx */
+      _LWORD(eax) &= ~0xff;
+      _LWORD(eax) |= inb(_LWORD(edx));
+      _eip += 1;
+      break;
+
+    case 0xe7:			/* outw xx */
+      outb((int) csp[0], _LO(ax));
+      outb((int) csp[0] + 1, _HI(ax));
+      _eip += 2;
+      break;
+    case 0xe6:			/* outb xx */
+      outb((int) csp[0], _LO(ax));
+      _eip += 2;
+      break;
+
+    case 0xef:			/* outw dx */
+      outb(_edx, _LO(ax));
+      outb(_edx + 1, _HI(ax));
+      _eip += 1;
+      break;
+    case 0xee:			/* outb dx */
+      outb(_LWORD(edx), _LO(ax));
+      _eip += 1;
+      break;
+
+    case 0xf3:                    /* rep */
+	switch(csp[0] & 0xff) {                
+        case 0x6c: {             /* rep insb */
+	    int delta = 1;
+	    if(_LWORD(eflags) &DF ) delta = -1;
+	    D_printf("Doing REP F3 6C (rep insb) %04x bytes, DELTA %d\n",
+		     _LWORD(ecx),delta);
+	    while (_LWORD(ecx))  {
+		*(SEG_ADR((unsigned char *),_es,_edi)) = inb((int) _LWORD(edx));
+		_LWORD(edi) += delta;
+		_LWORD(ecx)--;
+	    }
+	    _eip+=2;
+	    break;
+	}
+	case  0x6d: {           /* rep insw */
+	    int delta =2;
+	    if(_LWORD(eflags) & DF) delta = -2;
+	    i_printf("REP F3 6D (rep insw) %04x words, DELTA %d\n",
+		     _LWORD(ecx),delta);
+	    while(_LWORD(ecx)) {
+		*(SEG_ADR((unsigned short *),_es,_edi))=inw(_LWORD(edx));
+		_LWORD(edi) += delta;
+		_LWORD(ecx)--;
+	    }
+	    _eip +=2;
+	    break;
+	}
+	case 0x6e: {           /* rep outsb */
+	    int delta = 1;
+	    fprintf(stderr,"untested: rep outsb\n");
+	    if(_LWORD(eflags) & DF) delta = -1;
+	    while(_LWORD(ecx)) {
+		outb(_LWORD(edx), *(SEG_ADR((unsigned char *),_ds,_esi)));
+		_esi += delta;
+		_LWORD(ecx)--;
+	    }
+	    _eip +=2;
+	    break;
+	}
+	case 0x6f: { 
+	    int delta = 2;
+	    fprintf(stderr,"untested: rep outsw\n");
+	    if(_LWORD(eflags) & DF) delta = -2;
+	    while(_LWORD(ecx)) {
+		outw(_LWORD(edx), *(SEG_ADR((unsigned short *),_ds,_esi)));
+		_esi += delta;
+		_LWORD(ecx)--;
+	    }
+	    _eip+=2;
+	    break;
+	}
+	default:
+	    fprintf(stderr, "Nope REP F3,CSP[1] = 0x%04x\n", csp[1]);
+	}
+      break;        
 
     default:
 #ifdef WIN31

@@ -121,4 +121,14 @@
 #define KBDFLAG_ADDR (unsigned short *)BIOS_DATA_PTR(0x17)
 #define KEYFLAG_ADDR (unsigned short *)BIOS_DATA_PTR(0x96)
 
+#ifndef __ASM__
+/* memcheck memory conflict finder definitions */
+int  memcheck_addtype(char map_char, char *name);
+void memcheck_reserve(char map_char, int addr_start, int size);
+void memcheck_init(void);
+int  memcheck_isfree(int addr_start, int size);
+int  memcheck_findhole(int *start_addr, int min_size, int max_size);
+void memcheck_dump(void);
+#endif
+
 #endif /* MEMORY_H */

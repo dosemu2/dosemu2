@@ -1,5 +1,5 @@
-/* dos emulator, Matthias Lautner */
-/* Extensions by Robert Sanders, 1992-93
+/* dos emulator, Matthias Lautner 
+ * Extensions by Robert Sanders, 1992-93
  *
  * DANG_BEGIN_MODULE
  * 
@@ -17,51 +17,6 @@
  * $Revision: 2.8 $
  * $State: Exp $
  *
- * $Log: dos.c,v $
- * Revision 2.8  1995/01/14  15:28:03  root
- * New Year checkin.
- *
- * Revision 2.7  1994/11/03  11:43:26  root
- * Checkin Prior to Jochen's Latest.
- *
- * Revision 2.6  1994/09/26  23:10:13  root
- * Prep for pre53_22.
- *
- * Revision 2.5  1994/09/23  01:29:36  root
- * Prep for pre53_21.
- *
- * Revision 2.4  1994/09/20  01:53:26  root
- * Prep for pre53_21.
- *
- * Revision 2.3  1994/08/25  00:49:34  root
- * HJ's patches for new linking (Actually new dos.c)
- *
- * Revision 2.2  1994/07/14  23:19:20  root
- * Jochen's Patches
- *
- * Revision 2.1  1994/06/12  23:15:37  root
- * Wrapping up prior to release of DOSEMU0.52.
- *
- * Revision 1.6  1994/04/13  00:07:09  root
- * Jochen's patches.
- *
- * Revision 1.5  1994/03/04  15:23:54  root
- * Run through indent.
- *
- * Revision 1.4  1994/03/04  14:46:13  root
- * Jochen patches.
- *
- * Revision 1.3  1994/01/25  20:02:44  root
- * Exchange stderr <-> stdout
- *
- * Revision 1.2  1994/01/20  21:14:24  root
- * Indent update.
- *
- * Revision 1.1  1993/11/12  12:32:17  root
- * Initial revision
- *
- * Revision 1.2  1993/07/07  01:34:29  root
- * removed outdated message about video buffer
  *
  * DANG_END_CHANGELOG
  *
@@ -92,20 +47,12 @@
  */
 static void (*dosemu) (int argc, char **argv);
 
-#ifndef STATIC
-char buf [1088 * 1024];	/* ensure that the lower 1MB+64K is unused */
+static char buf [1088 * 1024];	/* ensure that the lower 1MB+64K is unused */
 
-#endif
 
 int
 main(int argc, char **argv)
 {
-#ifdef STATIC
-	/* just run this function */
-  int emulate(int, char **);
-
-  emulate(argc, argv);
-#else
   struct exec header;
   FILE *f;
   char *libpath = LIBDOSEMU; 
@@ -119,8 +66,10 @@ main(int argc, char **argv)
   f = fopen(libpath, "r");
   if (f == NULL)
   {
-    fprintf(stderr, "%s: cannot open shared library: %s", argv [0],
+    fprintf(stderr, "%s: cannot open shared library: %s\n", argv [0],
 	libpath, strerror(errno));
+    fprintf(stderr, "Check the LIBDOSEMU variable, default is %s\n",
+		LIBDOSEMU);
     exit(1);
   }
 
@@ -141,6 +90,7 @@ main(int argc, char **argv)
   if (uselib(libpath) != 0) {
     fprintf (stderr, "%s: cannot load shared library: %s\n", argv [0],
 	libpath, strerror(errno));
+    fprintf(stderr, "Try setting LIBDOSEMU\n");
     exit(1);
   }
   setlocale(LC_CTYPE,"");
@@ -148,6 +98,5 @@ main(int argc, char **argv)
   dosemu = (void *) header.a_entry;
 
   (* dosemu)(argc, argv);
-#endif
 
 }

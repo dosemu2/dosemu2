@@ -1,61 +1,72 @@
-# CC   = gcc
-AS86 = as86 -0 -a
-LD86 = ld86 -0
+SUBDIR= clients
 
-CFILES= ncurses.c
-HFILES= ncurses.h
+OBJS=keyboard.o video.o get_info.o
+CFILES= keyboard.c video.c get_info.c
+DEPENDS= keyboard.d video.d get_info.d
+HFILES= get_info.h
+ALL=$(CFILES) $(HFILES)
 
-INCDIR := $(INCDIR) -I$(NCURSES_INC)
-LDFLAGS = -lncurses
+all:	keyboard video
 
-%.com: %.S
-	$(AS86) -0 -j -o $*.o $<
-	$(LD86) -T 0 -s -o $*.tmp $*.o
-	dd if=$*.tmp of=$@ bs=1 skip=288
-	rm -f $*.tmp $*.o
+keyboard: keyboard.c
+	$(CC) $(CFLAGS) -o $@ $< get_info.c
 
-ALL = $(CFILES) $(HFILES)
+video: video.c
+	$(CC) $(CFLAGS) -o $@ $< get_info.c
 
-all:
+.PHONY:	clean realclean 
 
-# In one of the latest Slackware distributions the include-files for
-# ncurses are in /usr/include/ncurses. So we need to include this
-# path in the search-path for include-files to compile them clean
-# even under Slackare. Standard seems to bee in /usr/local/include;
-# this is what's in the Makefile of ncurses.
+realclean clean::
+	-rm $(OBJS) keyboard video
 
-ncurses.o:
-	$(CC) $(INCDIR) -O2 -o ncurses $(LDFLAGS) $< $(LDFLAGS)
-#	$(CC) $(INCDIR) -N -O6 -c -o $@ $<
+realclean::
+	-rm *.d
 
-checkin:
+checkin::
 	-ci $(ALL) Makefile
-checkout:
+
+checkout::
 	-co -M -l $(ALL) Makefile
 
-clean:
-	rm -f *.o
+dist:: $(ALL) Makefile
+	install -d $(DISTPATH)/$(SUBDIR)
+	cp -a $(ALL) Makefile $(DISTPATH)/$(SUBDIR)
 
-realclean: clean
-	rm -f .depend
+depend dep: $(DEPENDS)	
 
-client:
-	$(CC) $(INCDIR) -O2 -o ncurses ncurses.c $(LDFLAGS)
 
-install:
+%.o:	 %.c
+	$(CC) -c $(CFLAGS) -o $@ $<
 
-dist: $(ALL) Makefile
-	install -d $(DISTPATH)/clients
-	install -m 0644 $(ALL) Makefile $(DISTPATH)/clients
+# Use -M for everything  or -MM for local
+TYPE_DEPEND=-MM
 
-depend dep: $(CFILES) $(HFILES)
-	$(CPP) -MM $(CFLAGS) *.c $(INCDIR) > .depend
+%.d: %.c
 
-dummy:
 
-#
-# include a dependency file if one exists
-#
-ifeq (.depend,$(wildcard .depend))
-include .depend
+ifeq '$(findstring -n,$(MAKEFLAGS))' '-n'
+# this is only set on the top level makefile
+export CLEANING=true  # don't do depends
 endif
+
+ifndef CLEANING
+%.depend.tmp: %.c
+	$(CC) $(TYPE_DEPEND) $(CFLAGS) $< -o $@
+
+%.d:  %.depend.tmp
+	sh -c 'sed '\''s/$*\\.o[ :]*/& $@/g'\'' <$^ > $@'
+	@rm $^
+endif
+
+ifdef notdef
+	$(SHELL) -ec '$(CC) $(TYPE_DEPEND) $(CFLAGS) $< \
+        | sed '\''s/$*\\.o[ :]*/& $@/g'\'' > $@'
+endif
+
+ifdef DEPENDS
+ifneq "$(wildcard *.d)" ""
+include $(wildcard  *.d)
+endif
+endif
+
+install: all

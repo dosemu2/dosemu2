@@ -1,6 +1,7 @@
 #ifndef VIDEO_H
 #define VIDEO_H
 
+#include "extern.h"
 typedef unsigned char byte;
 
 typedef struct { byte end, start; } cshape;
@@ -136,23 +137,33 @@ extern struct video_system *Video;
 
 extern struct video_system Video_graphics,  Video_X, Video_console, Video_hgc, Video_term;
 
-extern ushort *screen_adr;   /* pointer to video memory of current page */
-extern ushort *prev_screen;  /* pointer to currently displayed screen   */
+EXTERN ushort *screen_adr;   /* pointer to video memory of current page */
+/* currently displayed page (was scrbuf) */
+EXTERN ushort *prev_screen;  /* pointer to currently displayed screen   */
                              /* used&updated by Video->update_screen    */
 
-extern int video_mode, video_page, char_blink;
-extern int co,li;
-extern int cursor_col, cursor_row, cursor_blink;
-extern ushort cursor_shape;
-extern unsigned int screen_mask;
-extern int font_height;
+EXTERN int video_mode INIT(0);
+EXTERN int video_page INIT(0); 
+EXTERN int char_blink INIT(0);
+EXTERN int co INIT(80);
+EXTERN int li INIT(25);
 
-extern int vga_font_height;  /* current EMULATED setting for vga font height */
-extern int std_font_height;  /* font height set by int10,0 mode 3 */
-extern int text_scanlines;   /* # of scan lines in textmodes */
+EXTERN int cursor_col INIT(0);
+EXTERN int cursor_row INIT(0);
+extern int cursor_blink;
+EXTERN ushort cursor_shape INIT(0xe0f);
+/* bit mask for testing vm86s.screen_bitmap */
+EXTERN unsigned int screen_mask;
+
+EXTERN int font_height INIT(16);
+
+EXTERN int vga_font_height INIT(16);  /* current EMULATED setting for vga font height */
+
+EXTERN int std_font_height INIT(16);  /* font height set by int10,0 mode 3 */
+EXTERN int text_scanlines INIT(400);   /* # of scan lines in textmodes */
                              /* these have effect only on video mode sets! */
 
-extern unsigned char video_initialized;
+EXTERN unsigned char video_initialized INIT(0);
 extern int vga_initialize(void);
 extern void mda_initialize(void);
 extern void install_int_10_handler(void);
@@ -163,11 +174,13 @@ extern void Scroll(us *sadr,int x0,int y0,int x1,int y1,int n,int attr);
 #define scrolldn(x0,y0,x1,y1,l,att) Scroll(x0,y0,x1,y1,-(l),att)
 
 /* Values are set by video_config_init depending on video-card defined in config */
+/* Values are set from emu.c depending on video-config */
 
-extern int virt_text_base;
-extern int phys_text_base;
-extern int video_combo;
-extern int video_subsys;
+
+EXTERN int virt_text_base INIT(0);
+EXTERN int phys_text_base INIT(0);
+EXTERN int video_combo INIT(0);
+EXTERN int video_subsys;
 
 /* The following defines are for terminal (curses) mode */
 

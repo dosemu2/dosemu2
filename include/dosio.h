@@ -19,7 +19,4 @@ void memory_setup(void), set_a20(int);
 extern void do_irq1(void);
 #endif
 
-extern void set_keyboard_bios(void);
-extern void insert_into_keybuffer(void);
-
 #endif /* DOSIPC_H */

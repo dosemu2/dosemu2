@@ -18,6 +18,7 @@
 #include <sys/ioctl.h>
 #include <linux/sockios.h>
 #include <linux/ipx.h>
+#include <linux/route.h>
 #include <netinet/in.h>
 
 #include "emu.h"
@@ -38,16 +39,19 @@ typedef struct
 int AddRoute( unsigned long targetNet, unsigned network,
         unsigned char node[] )
 {
-	struct ipx_route_def rt;
+	struct rtentry rt;
+	struct sockaddr_ipx	*st = (struct sockaddr_ipx *)&rt.rt_dst;
+	struct sockaddr_ipx	*sr = (struct sockaddr_ipx *)&rt.rt_gateway;
 	int sock;
 	int i;
 	
-	rt.ipx_network = targetNet;
-        rt.ipx_router_network = network;
+	rt.rt_flags = RTF_GATEWAY;
+	st->sipx_network = targetNet;
+        sr->sipx_network = network;
 	for( i=0; i<6; i++ ) {
-		rt.ipx_router_node[i] = node[i];
+		sr->sipx_node[i] = node[i];
 	}	
-	rt.ipx_flags=IPX_RT_8022;
+	sr->sipx_family = st->sipx_family = AF_IPX;
 	
 	sock=socket(AF_IPX,SOCK_DGRAM,PF_IPX);
 	if(sock==-1) {
@@ -166,6 +170,7 @@ RepeatSelect:
                         continue;
                 }
 		if (FD_ISSET(sock, &fds)) {
+			sz = sizeof(ipxs);
         		size=recvfrom(sock,(char *)&RipResponse,
                                 sizeof(RipResponse),0,
                                 (struct sockaddr *)&ipxs,&sz);

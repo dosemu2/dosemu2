@@ -330,7 +330,7 @@ static int do_43(boolean_t in_out, int val)
  *
  * DANG_END_FUNCTION
  */
-static int
+int
 inb(int port)
 {
 
@@ -500,7 +500,7 @@ inb(int port)
   return r;    /* Return with port read value */
 }
 
-static inline int
+inline int
 inw(int port)
 {
   if ((config.chipset == S3) && ((port & 0x03ff) == s3_8514_base) && (port & 0xfc00)) {
@@ -515,7 +515,7 @@ inw(int port)
   return( read_port_w(port) );
 }
 
-static void
+void
 outb(int port, int byte)
 {
   static int timer_beep = 0;

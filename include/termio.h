@@ -176,4 +176,7 @@ extern void set_leds(void);
    I set keepkey to reflect CF */
 EXTERN u_char keepkey INIT(1);
 
+extern void insert_into_keybuffer(void);
+extern void set_keyboard_bios(void);
+
 #endif /* TERMIO_H */

@@ -88,7 +88,6 @@ struct RealModeCallStructure {
   unsigned short ss;
 };
 
-#ifdef SHOWREGS
 #define DPMI_show_state \
     D_printf("eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n" \
 	     "trapno: 0x%02lx  errorcode: 0x%08lx  cr2: 0x%08lx\n" \
@@ -134,8 +133,16 @@ struct RealModeCallStructure {
     for (i = 0; i < 10; i++) \
       D_printf("%02x ", *ssp2++); \
     D_printf("\n");
-#else
-#define DPMI_show_state 
-#endif
+
+#define DPMI_show_stack \
+	D_printf("DPMI: Stack:\n"); \
+	D_printf("DPMI: +07 = 0x%08x\n", *(unsigned long *) (GetSegmentBaseAddress(_ss) + _esp + 32)); \
+	D_printf("DPMI: +06 = 0x%08x\n", *(unsigned long *) (GetSegmentBaseAddress(_ss) + _esp + 28)); \
+	D_printf("DPMI: +05 = 0x%08x\n", *(unsigned long *) (GetSegmentBaseAddress(_ss) + _esp + 24)); \
+	D_printf("DPMI: +04 = 0x%08x\n", *(unsigned long *) (GetSegmentBaseAddress(_ss) + _esp + 16)); \
+	D_printf("DPMI: +03 = 0x%08x\n", *(unsigned long *) (GetSegmentBaseAddress(_ss) + _esp + 12)); \
+	D_printf("DPMI: +02 = 0x%08x\n", *(unsigned long *) (GetSegmentBaseAddress(_ss) + _esp + 8)); \
+	D_printf("DPMI: +01 = 0x%08x\n", *(unsigned long *) (GetSegmentBaseAddress(_ss) + _esp + 4)); \
+	D_printf("DPMI:  00 = 0x%08x\n", *(unsigned long *) (GetSegmentBaseAddress(_ss) + _esp + 0));
 
 #endif /* DPMI_H */

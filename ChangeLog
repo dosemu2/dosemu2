@@ -1,3 +1,28 @@
+Fri Jan	 27	1995
+
+-	Another week, and quite a few goodies. IPX updates
+	from Greg Page. Many mouse updates from Alan. Some
+	DPMI changes from Dong so that jed386 will run.
+
+-	Renamed termio.* to keyboard.c. Attempted to move all
+	keyboard functions into the keyboard subdir.
+
+-	Well, for better or worse, watch out world, I've started
+	back again on some of the client/server aspect. Remeber
+	that :-)? At this time, dosemu now creates a file:
+	/tmp/dosemu.<PID> with basic info and SHM id's. To
+	see how amazing this is (pun is intended!), 
+	cd clients and make. Then you'll have 2 programs:
+	video - To just dump the dos processes 80x25 video screen
+		(Must NOT be in graphics or console mode)
+	keyboard - To dump what is in the DOSEMU keyboard buffer.
+		   (NOT the DOS 40:?? buffer)
+	Both programs require a pid as parrameter 1.
+
+Fri Jan	 20	1995
+
+-	Additions by Denis Julitovto make ctrl-alt-del stuff work.
+
 Fri Jan	 16	1995
 
 -	Release pl40

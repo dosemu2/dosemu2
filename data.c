@@ -1,5 +1,5 @@
 #define EXTERN 
-#define INIT(x)		= x
+#define INIT(x...)		=  ## x
 
 #include <sys/types.h>
 #include "emu.h"
@@ -9,3 +9,8 @@
 #include "int.h"
 #include "dosio.h"
 #include "termio.h"
+#include "machcompat.h"
+#include "vc.h"
+#include "video.h"
+#include "mouse.h"
+#include "dpmi/dpmi.h"

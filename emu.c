@@ -19,12 +19,15 @@
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
- * $Date: 1995/01/14 15:28:03 $
- * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 2.32 $
+ * $Date: 1995/01/19 02:20:11 $
+ * $Source: /fs3/src/dosemu/dosemu0.53pl40/emu.c,v $
+ * $Revision: 2.33 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 2.33  1995/01/19  02:20:11  root
+ * Testing for Marty.
+ *
  * Revision 2.32  1995/01/14  15:28:03  root
  * New Year checkin.
  *
@@ -445,6 +448,10 @@
  * DANG_END_CHANGELOG
  */
 
+#ifndef EMU_C
+#define EMU_C
+#endif
+
 /*
  * DANG_BEGIN_REMARK
    DOSEMU must not work within the 1 meg DOS limit, so start of code
@@ -453,9 +460,6 @@
    libs), and org instruction is used to provide the jump above 1 meg.
  * DANG_END_REMARK
 */
-#ifdef STATIC
-__asm__(".org 0x110000");
-#endif
 
 /*
  * DANG_BEGIN_FUNCTION jmp_emulate
@@ -522,12 +526,14 @@ __asm__("___START___: jmp _emulate\n");
 #include "cpu.h"
 #include "int.h"
 
+extern void shared_memory_init(void);
+extern void shared_keyboard_init(void);
+extern void shared_memory_exit(void);
 extern void restore_vt (unsigned short);
 extern void disallocate_vt (void);
 
 extern void vm86_GP_fault();
 
-char *cstack[16384];
 
 /* DANG_BEGIN_FUNCTION DBGTIME 
  *
@@ -561,7 +567,6 @@ extern void video_config_init(void);
 extern int keyboard_init(void);
 extern void keyboard_close(void);
 
-int card_init = 0;		/* VGAon exectuted flag */
 unsigned long precard_eip, precard_cs;	/* Save state at VGAon */
 
 /* this holds all the configuration information, set in config_init() */
@@ -577,6 +582,7 @@ extern int open_kmem();		/* Get access to physical memory */
 
 void hardware_init(void);	/* Initialize info on hardware */
 void init_vga_card(void);	/* Function to set VM86 regs to run VGA initialation */
+void memory_init(void);
 
 #ifndef NEW_PIC
 /* Programmable Interrupt Controller, 8259 */
@@ -594,25 +600,12 @@ struct pic {
 
 pics[2];
 #endif
-int special_nowait = 0;
+static int special_nowait = 0;
 
-struct ioctlq iq =
-{0, 0, 0, 0};			/* one-entry queue :-( for ioctl's */
-char *tmpdir;
-u_char in_ioctl = 0;
-struct ioctlq curi =
-{0, 0, 0, 0};
 
-/* this is DEBUGGING code! */
-int sizes = 0;
 
 static int poll_io = 1;		/* polling io, default on */
 
-/*
-   This flag will be set when doing video routines so that special
-   access can be given
-*/
-u_char in_video = 0;
 
 static void
 setup_low_mem (void)
@@ -714,6 +707,8 @@ dos_ctrl_alt_del(void)
   clear_screen(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), 7);
   special_nowait = 0;
   p_dos_str("Rebooting DOS.  Be careful...this is partially implemented\r\n");
+  disk_init();
+  memory_init();
   boot();
 }
 
@@ -1055,8 +1050,23 @@ void
  emulate(int argc, char **argv) {
   struct sigaction sa;
   struct stat statout, staterr;
-  extern void map_hardware_ram(void);
 
+  /* start running as real, not effecitve user */
+  exchange_uids();	
+
+  /* try to go to fd-3 -- if its there, do an fdopen to it, 
+   * otherwise use /dev/null for fd3 
+   */
+  if(!fstat(3, &statout)) {
+	dbg_fd = fdopen(3, "w");
+  } else {
+	dbg_fd = fopen("/dev/null", "w");
+  }
+  if(!dbg_fd) {
+	fprintf(stderr, "can't open fd3\n");
+	exit(1);
+   }
+#if 0
  /* DANG_BEGIN_REMARK
   * If DOSEMU starts up with stderr == stdout, then stderr gets 
   * redirected to '/dev/null'.
@@ -1071,6 +1081,7 @@ void
     }
   }
 
+#endif
   iq.queued = 0;
   in_sighandler = 0;
   sync();			/* for safety */
@@ -1089,6 +1100,8 @@ void
   }
 #endif
 
+  memcheck_init();
+
   setup_low_mem();
 
   /* Set up hard interrupt array */
@@ -1104,9 +1117,7 @@ void
   setbuf(stdout, NULL);
 
   /* create tmpdir */
-  exchange_uids();
   mkdir(tmpdir, S_IREAD | S_IWRITE | S_IEXEC);
-  exchange_uids();
 
   /* do time stuff - necessary for initial time setting */
   {
@@ -1170,25 +1181,9 @@ void
   version_init();
 
   /* 
-   * Setup DOS emulated memory, HMA, EMS, XMS . Also clear all
-   * low memory, so this must be called prior to setting up
-   * low memory.
-   */
-  memory_setup();
-
-  /* 
-   * map in some ram locations we need for some adapter's memory mapped IO 
-   * (those, who are defined via hardware_ram config)
-   */
-  map_hardware_ram();  
-
-  serial_init();
-  mouse_init();
-  printer_init();
-
-  /* 
-   * Verify that Keyboard is OK as well as turn off some
-   * options if not at a console
+   * Verify that Keyboard is OK as well as turn off some options if not
+   * at a console -- note:  this must be done before memory_setup to
+   * enable HMA to find UMB holes
    */
   if (keyboard_init() != 0) {
     error("ERROR: can't open keyboard\n");
@@ -1196,6 +1191,17 @@ void
   }
   if (!config.vga)
     config.allowvideoportaccess = 0;
+
+  /* 
+   * Setup DOS emulated memory, HMA, EMS, XMS . Also clear all
+   * low memory, so this must be called prior to setting up
+   * low memory.
+   */
+  memory_setup();
+
+  serial_init();
+  mouse_init();
+  printer_init();
 
   /* initialize some video config variables, possibly map video bios,
      get graphics chars
@@ -1213,6 +1219,8 @@ void
 
   /* Setup specific memory addresses */
   memory_init();
+  shared_memory_init();
+  shared_keyboard_init();
 
   boot();
 
@@ -1316,6 +1324,8 @@ void
   fflush(stdout);
   keyboard_close();
 
+  g_printf("calling shared memory exit\n");
+  shared_memory_exit();
    if (config.detach) {
      restore_vt(config.detach);
      disallocate_vt ();
@@ -1337,7 +1347,7 @@ void
 
   /* PIC init */
 #ifdef NEW_PIC
-   pic_seti(PIC_IRQ0, do_irq, 0);  /* only dos code to run */
+   pic_seti(PIC_IRQ0, do_irq0, 0);  /* do_irq0 in pic.c */
    pic_unmaski(PIC_IRQ0);
    pic_seti(PIC_IRQ1, do_irq1, 0); /* do_irq1 in dosio.c   */
    pic_unmaski(PIC_IRQ1);
@@ -1505,7 +1515,7 @@ int
  * DANG_END_FUNCTION
  */
 void add_to_io_select(int new_fd, u_char want_sigio) {
-  if (use_sigio && want_sigio) {
+  if ( use_sigio && want_sigio ) {
     int flags;
     flags = fcntl(new_fd, F_GETFL);
     fcntl(new_fd, F_SETOWN,  getpid());

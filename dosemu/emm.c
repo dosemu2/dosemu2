@@ -201,7 +201,7 @@
 
 extern struct config_info config;
 
-inline boolean_t unmap_page(int);
+static inline boolean_t unmap_page(int);
 
 #else
 #include "base.h"
@@ -309,22 +309,21 @@ inline boolean_t unmap_page(int);
 #define EMM_NOT_FOUND	0xa1
 
 #define EMM_ERROR -1
-u_char emm_error;
+static u_char emm_error;
 
-extern struct config_info config;
 
 #define EMM_TOTAL	MAX_EMM
 
-int handle_total = 0;
-int emm_allocated = 0;
+static int handle_total = 0;
+static int emm_allocated = 0;
 
-struct emm_record {
+static struct emm_record {
   int handle;
   int logical_page;
 } 
 emm_map[EMM_MAX_PHYS];
 
-struct handle_record {
+static struct handle_record {
   u_char active;
   int numpages;
   mach_port_t object;
@@ -342,15 +341,18 @@ handle_info[MAX_HANDLES];
 #define OS_PAGES	(OS_SIZE / (16*1024))
 
 /* For OS use of EMM */
-u_char  os_inuse=0;
-u_short os_key1=0xffee;
-u_short os_key2=0xddcc;
-u_short os_allow=1;
+static u_char  os_inuse=0;
+static u_short os_key1=0xffee;
+static u_short os_key2=0xddcc;
+static u_short os_allow=1;
 
+/* FIXME -- inline function */
 #define CHECK_OS_HANDLE(handle) \
       if ((handle) == OS_HANDLE) \
 	Kdebug0((dbg_fd,"trying to use OS handle in MAP_UNMAP!\n"));
 
+
+/* FIXME -- inline function */
 #define CLEAR_HANDLE_NAME(nameptr) \
 	bzero((nameptr), 9);
 
@@ -439,7 +441,7 @@ ems_helper(void) {
 }
 
 void
-bios_emm_init()
+ems_init(void)
 {
   int sh_base;
   int j;
@@ -503,7 +505,7 @@ bios_emm_init()
 }
 
 #ifdef __linux__
-mach_port_t
+static mach_port_t
 new_memory_object(size_t bytes)
 {
 #if 0
@@ -526,7 +528,7 @@ new_memory_object(size_t bytes)
   return (addr);		/* allocate on a PAGE boundary */
 }
 
-void
+static inline void
 destroy_memory_object(mach_port_t object)
 {
   E_printf("EMS: destroyed EMS object @ %p\n", (void *) object);
@@ -535,7 +537,7 @@ destroy_memory_object(mach_port_t object)
 
 #endif /* __linux__ */
 
-inline int
+static int
 allocate_handle(pages_needed)
      int pages_needed;
 {
@@ -581,7 +583,7 @@ allocate_handle(pages_needed)
   return (EMM_ERROR);
 }
 
-boolean_t
+static boolean_t
 deallocate_handle(handle)
      int handle;
 {
@@ -608,7 +610,7 @@ deallocate_handle(handle)
   return (TRUE);
 }
 
-inline boolean_t
+static boolean_t
 __map_page(physical_page)
      int physical_page;
 {
@@ -645,7 +647,7 @@ __map_page(physical_page)
   return (TRUE);
 }
 
-inline boolean_t
+static boolean_t
 __unmap_page(physical_page)
      int physical_page;
 {
@@ -687,7 +689,7 @@ __unmap_page(physical_page)
   return (TRUE);
 }
 
-inline boolean_t
+static inline boolean_t
 unmap_page(physical_page)
      int physical_page;
 {
@@ -702,7 +704,7 @@ unmap_page(physical_page)
       return (FALSE);
 }
 
-inline boolean_t
+static inline boolean_t
 reunmap_page(physical_page)
      int physical_page;
 {
@@ -710,7 +712,7 @@ reunmap_page(physical_page)
    return __unmap_page(physical_page);
 }
 
-inline boolean_t
+static boolean_t
 map_page(handle, physical_page, logical_page)
      int handle;
      int physical_page;
@@ -783,7 +785,7 @@ map_page(handle, physical_page, logical_page)
   return (TRUE);
 }
 
-inline boolean_t
+static inline boolean_t
 remap_page(physical_page)
      int physical_page;
 {
@@ -793,14 +795,14 @@ remap_page(physical_page)
 }
 
 
-inline int
+static inline int
 handle_pages(handle)
      int handle;
 {
   return (handle_info[handle].numpages);
 }
 
-inline int
+static int
 save_handle_state(handle)
      int handle;
 {
@@ -822,7 +824,7 @@ save_handle_state(handle)
   return 0;
 }
 
-inline int
+static int
 restore_handle_state(handle)
      int handle;
 {
@@ -846,7 +848,7 @@ restore_handle_state(handle)
   return 0;
 }
 
-void
+static void
 test_handle(handle, numpages)
      int handle, numpages;
 {
@@ -865,7 +867,7 @@ test_handle(handle, numpages)
   }
 }
 
-inline int
+static int
 do_map_unmap(state_t * state, int handle, int physical_page, int logical_page)
 {
 
@@ -905,7 +907,7 @@ do_map_unmap(state_t * state, int handle, int physical_page, int logical_page)
   return (TRUE);
 }
 
-inline int
+static inline int
 SEG_TO_PHYS(int segaddr)
 {
   Kdebug0((dbg_fd, "SEG_TO_PHYS: segment: %x\n", segaddr));
@@ -932,7 +934,7 @@ SEG_TO_PHYS(int segaddr)
 }
 
 /* EMS 4.0 functions start here */
-int
+static inline int
 partial_map_registers(state_t * state)
 {
   Kdebug0((dbg_fd, "partial_map_registers %d called\n",
@@ -940,7 +942,7 @@ partial_map_registers(state_t * state)
   return 0;
 }
 
-inline void
+static void
 map_unmap_multiple(state_t * state)
 {
 
@@ -1011,7 +1013,7 @@ map_unmap_multiple(state_t * state)
   }
 }
 
-inline void
+static void
 reallocate_pages(state_t * state)
 {
   u_char i;
@@ -1080,7 +1082,7 @@ reallocate_pages(state_t * state)
   }
 }
 
-int
+static int
 handle_attribute(state_t * state)
 {
   switch (LOW(state->eax)) {
@@ -1117,7 +1119,7 @@ handle_attribute(state_t * state)
   }
 }
 
-void
+static void
 handle_name(state_t * state)
 {
   switch (LOW(state->eax)) {
@@ -1161,7 +1163,7 @@ handle_name(state_t * state)
   }
 }
 
-void
+static void
 handle_dir(state_t * state)
 {
   Kdebug0((dbg_fd, "handle_dir %d called\n", (int) LOW(state->eax)));
@@ -1224,14 +1226,15 @@ handle_dir(state_t * state)
   }
 }
 
-int
+/* what do these do? */
+static inline int
 alter_map_and_jump(state_t * state)
 {
   Kdebug0((dbg_fd, "alter_map_and_jump %d called\n", (int) LOW(state->eax)));
   return 0;
 }
 
-int
+static inline int
 alter_map_and_call(state_t * state)
 {
   Kdebug0((dbg_fd, "alter_map_and_call %d called\n", (int) LOW(state->eax)));
@@ -1250,7 +1253,7 @@ struct mem_move_struct {
   u_short dest_segment;
 };
 
-void
+static void
 show_move_struct(struct mem_move_struct *mem_move)
 {
 
@@ -1269,7 +1272,7 @@ show_move_struct(struct mem_move_struct *mem_move)
 
 }
 
-inline void
+static inline void
 load_move_mem(u_char * mem, struct mem_move_struct *mem_move)
 {
 
@@ -1303,7 +1306,7 @@ load_move_mem(u_char * mem, struct mem_move_struct *mem_move)
   mem_move->dest_segment = *(u_short *) mem;
 }
 
-inline int
+static int
 move_memory_region(state_t * state)
 {
   struct mem_move_struct *mem_move=NULL;
@@ -1387,7 +1390,7 @@ move_memory_region(state_t * state)
   return (0);
 }
 
-inline int
+static int
 exchange_memory_region(state_t * state)
 {
   struct mem_move_struct *mem_move=NULL;
@@ -1447,7 +1450,7 @@ exchange_memory_region(state_t * state)
   return (0);
 }
 
-int
+static int
 get_mpa_array(state_t * state)
 {
   switch (LOW(state->eax)) {
@@ -1483,7 +1486,7 @@ get_mpa_array(state_t * state)
   }
 }
 
-int
+static int
 get_ems_hardinfo(state_t * state)
 {
   if (os_allow) 
@@ -1536,7 +1539,7 @@ get_ems_hardinfo(state_t * state)
   }	
 }
 
-int
+static int
 allocate_std_pages(state_t * state)
 {
   int pages_needed = WORD(state->ebx);
@@ -1557,10 +1560,10 @@ allocate_std_pages(state_t * state)
   return 0;
 }
 
-int save_es=0;
-int save_di=0;
+static int save_es=0;
+static int save_di=0;
 
-void
+static void
 alternate_map_register(state_t * state)
 {
   if (!os_allow) {
@@ -1700,7 +1703,7 @@ alternate_map_register(state_t * state)
   return;
 }
      
-void
+static void
 os_set_function(state_t * state)
 {
   switch (LOW(state->eax)) {
@@ -1775,7 +1778,7 @@ os_set_function(state_t * state)
 /* end of EMS 4.0 functions */
 
 boolean_t
-bios_emm_fn(state)
+ems_fn(state)
      state_t *state;
 {
   switch (HIGH(state->eax)) {

@@ -221,8 +221,6 @@
  * Initial revision
  *
  */
-#define DOS_IO
-
 #define DBGTIME(x) {\
                         struct timeval tv;\
                         gettimeofday(&tv,NULL);\
@@ -245,6 +243,15 @@
 #include <unistd.h>
 #include <time.h>
 #include <string.h>
+#ifdef WHY_DONT_PEOPLE_HAVE_THIS
+#include <sys/mman.h>
+#else
+#define MAP_ANON MAP_ANONYMOUS
+extern caddr_t mmap __P ((caddr_t __addr, size_t __len,
+			  int __prot, int __flags, int __fd, off_t __off));
+extern int munmap __P ((caddr_t __addr, size_t __len));
+#include <linux/mman.h>
+#endif
 
 #include "memory.h"
 #include "emu.h"
@@ -261,8 +268,8 @@
 extern void DOSEMUMouseEvents(void);
 
 inline void scan_to_buffer(void);
-extern void bios_emm_init(void);
 extern void xms_init(void);
+extern void video_memory_setup(void);
 extern void dump_kbuffer(void);
 extern int_count[];
 extern int in_readkeyboard, keybint;
@@ -287,11 +294,42 @@ sharedmem;
 #define HMAAREA (u_char *)0x100000
 
 /* Used for all IPC HMA activity */
-u_char *HMAkeepalive; /* Use this to keep shm_hma_alive */
-int shm_hma_id;
-int shm_wrap_id;
-int shm_video_id;
-caddr_t ipc_return;
+static u_char *HMAkeepalive; /* Use this to keep shm_hma_alive */
+static int shm_hma_id;
+static int shm_wrap_id;
+static int shm_video_id;
+static caddr_t ipc_return;
+
+static void 
+map_hardware_ram (void)
+{
+  int i, j;
+  unsigned int addr, size;
+  if (!config.must_spare_hardware_ram)
+    return;
+  open_kmem ();
+  i = 0;
+  do
+    {
+      if (config.hardware_pages[i++])
+	{
+	  j = i - 1;
+	  while (config.hardware_pages[i])
+	    i++;		/* NOTE: last byte is always ZERO */
+	  addr = HARDWARE_RAM_START + (j << 12);
+	  size = (i - j) << 12;
+	  if (mmap ((caddr_t) addr, (size_t) size,
+	  PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, mem_fd, addr) < 0)
+	    {
+	      error ("ERROR: mmap error in map_hardware_ram %s\n", strerror (errno));
+	      return;
+	    }
+	  g_printf ("mapped hardware ram at 0x%05x .. 0x%05x\n", addr, addr + size - 1);
+	}
+    }
+  while (i < sizeof (config.hardware_pages) - 1);
+  close_kmem ();
+}
 
 void HMA_MAP(int HMA)
 {
@@ -335,7 +373,8 @@ set_a20(int enableHMA)
  * DANG_BEGIN_FUNCTION memory_setup
  *
  * description:
- *  Setup HMA area via IPC. Call EMS and XMS initialization routines.
+ *  Setup HMA area via IPC. Call video memory size, direct hardware
+ *  mapping, EMS, and XMS initialization routines.
  *
  * DANG_END_FUNCTION
  */
@@ -350,6 +389,8 @@ memory_setup(void)
 
   if ((shm_hma_id = shmget(IPC_PRIVATE, HMASIZE, 0755)) < 0) {
     E_printf("HMA: Initial HMA mapping unsuccessful: %s\n", strerror(errno));
+    E_printf("HMA: Do you have IPC in the kernel?\n");
+
     leavedos(43);
   }
   if ((shm_wrap_id = shmget(IPC_PRIVATE, HMASIZE, 0755)) < 0) {
@@ -404,9 +445,6 @@ memory_setup(void)
   }
 #endif
 
-  /* for EMS */
-  bios_emm_init();
-
   /* dirty all pages */
   ignore_segv++;
   for (ptr = 0; ptr < (unsigned char *) (1024 * 1024); ptr += 4096)
@@ -418,15 +456,20 @@ memory_setup(void)
   memset(NULL, 0, 640 * 1024);
 #endif
 
+  /* 
+   * map in some ram locations we need for some adapter's memory mapped IO 
+   * (those, who are defined via hardware_ram config)
+   */
+  map_hardware_ram();  
+
+  /* for EMS */
+  ems_init();
+
+  /* reserve VGA memory (so XMS can find free UMB blocks...) */
+  video_memory_setup();
+
   xms_init();
 }
-
-#define SCANQ_LEN 100
-static u_short scan_queue[SCANQ_LEN];
-static int scan_queue_start = 0;
-static int scan_queue_end = 0;
-extern int convKey();
-extern int InsKeyboard();
 
 void
 io_select(fd_set fds)
@@ -483,7 +526,7 @@ io_select(fd_set fds)
       }
 #endif
 #endif
-      if (mice->intdrv)
+      if (mice->intdrv || mice->type == MOUSE_PS2)
 	if (FD_ISSET(mice->fd, &fds)) {
 		m_printf("MOUSE: We have data\n");
 	  DOSEMUMouseEvents();
@@ -500,168 +543,6 @@ io_select(fd_set fds)
       break;
     }
 
-}
-
-#ifdef NEW_PIC
-/* This is used to run the keyboard interrupt */
-void
-do_irq1(void) {
-   parent_nextscan();
-   do_irq(); /* do dos interrupt */
-   keys_ready = 0;	/* flag *LASTSCAN_ADDR empty	*/
-}
-#endif
-
-void
-DOS_setscan(u_short scan)
-{
-  k_printf("DOS got set scan %04x, startq=%d, endq=%d\n", scan, scan_queue_start, scan_queue_end);
-  scan_queue[scan_queue_end] = scan;
-  scan_queue_end = (scan_queue_end + 1) % SCANQ_LEN;
-  if (config.keybint) {
-    k_printf("Hard queue\n");
-#ifdef NEW_PIC
-    pic_request(PIC_IRQ1);
-#else
-    do_hard_int(9);
-#endif
-  }
-  else {
-    k_printf("NOT Hard queue\n");
-    parent_nextscan();
-    scan_to_buffer();
-#ifdef NEW_PIC
- /*   *LASTSCAN_ADD=1; */
-    keys_ready = 0;
-#endif
-  }
-  if (!config.console_keyb && !config.X) {
-    static u_short tmp_scan;
-    tmp_scan = scan & 0xff00;
-    if (tmp_scan < 0x8000 && tmp_scan > 0) {
-      k_printf("Adding Key-Release\n");
-      DOS_setscan(scan | 0x8000);
-    }
-  }
-
-}
-
-static int lastchr;
-int inschr;
-
-inline void
-set_keyboard_bios(void)
-{
-  int scan;
-
-  if (config.console_keyb) {
-    if (config.keybint) {
-      keepkey = 1;
-      inschr = convKey(HI(ax));
-    }
-    else
-      inschr = convKey(*LASTSCAN_ADD);
-#ifdef NEW_PIC
- /*     *LASTSCAN_ADD=1;   /* flag character as read */
-      keys_ready = 0;	/* flag character as read	*/
-#endif
-  } else if (config.X) {
-	  if (config.keybint) {
-		  keepkey = 1;
-		  if (config.X_keycode)
-			  inschr = convKey(HI(ax));
-		  else {
-			  /* check, if we have to store the key in the keyboard buffer */
-			  if ((scan=convKey(HI(ax))) || ((lastchr>>8) && !(lastchr&0x80)) )
-				  /* xdos gives us the char-code, so use it.
-					  We'd get into trouble, if we would try to convert the
-					  scan code into a char while using a non-US keyboard! */
-				  inschr = (lastchr>>8) | (scan&0xff00);
-			  else
-				  inschr = 0;
-		  }
-	  } else
-		  inschr = convKey(*LASTSCAN_ADD);
-#ifdef NEW_PIC
-/*                  *LASTSCAN_ADD=1;   /* flag character as read */
-                  keys_ready = 0;	/* flag character as read	*/
-#endif
-  } else {
-    inschr = lastchr;
-    if (inschr > 0x7fff) {
-      inschr = 0;
-    }
-  }
-#ifdef NEW_PIC
-  /* reschedule if queue not empty */
-  if (scan_queue_start!=scan_queue_end) { 
-    k_printf("KBD: Requesting next keyboard interrupt startstop %d:%d\n", 
-      scan_queue_start, scan_queue_end);
-    pic_request(PIC_IRQ1); 
-  /*  *LASTSCAN_ADD=1; */
-    keys_ready = 0;
-  }
-#endif
-  k_printf("set keybaord bios inschr=0x%04x, lastchr = 0x%04x, *LASTSCAN_ADD = 0x%04x\n", inschr, lastchr, *LASTSCAN_ADD);
-  k_printf("MOVING   key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
-	   *(u_char *)KEYFLAG_ADDR , *(u_char *)(KEYFLAG_ADDR +1), *(u_char *)KBDFLAG_ADDR, *(u_char *)(KBDFLAG_ADDR+1));
-}
-
-inline void
-insert_into_keybuffer(void)
-{
-  /* int15 fn=4f will reset CF if scan key is not to be used */
-  if (!config.keybint || LWORD(eflags) & CF)
-    keepkey = 1;
-  else
-    keepkey = 0;
-
-  k_printf("KBD: Finishing up call\n");
-
-  if (inschr && keepkey) {
-    k_printf("IPC/KBD: (child) putting key in buffer\n");
-    if (InsKeyboard(inschr))
-      dump_kbuffer();
-    else
-      error("ERROR: InsKeyboard could not put key into buffer!\n");
-  }
-}
-
-inline void
-parent_nextscan()
-{
-#ifndef NEW_PIC
-  keys_ready = 0;
-#else
-  if(!keys_ready) { /* make sure last character has been read */
-#endif
-  if (scan_queue_start != scan_queue_end) {
-    keys_ready = 1;
-    lastchr = scan_queue[scan_queue_start];
-    if (scan_queue_start != scan_queue_end)
-      scan_queue_start = (scan_queue_start + 1) % SCANQ_LEN;
-    if (!config.console_keyb && !config.X) {
-       *LASTSCAN_ADD = lastchr >> 8;
-    }
-    else {
-       *LASTSCAN_ADD = lastchr;
-    }
-  }
-#ifdef NEW_PIC
-  }
-#endif
-  else
-    k_printf("Parent Nextscan Key not Read!\n");
-  k_printf("Parent Nextscan key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
-	   *(u_char *) 0x496, *(u_char *) 0x497, *(u_char *) 0x417, *(u_char *) 0x418);
-  k_printf("start=%d, end=%d, LASTSCAN=%x\n", scan_queue_start, scan_queue_end, *LASTSCAN_ADD);
-}
-
-inline void
-scan_to_buffer() {
-  k_printf("scan_to_buffer LASTSCAN_ADD = 0x%04x\n", *LASTSCAN_ADD);
-  set_keyboard_bios();
-  insert_into_keybuffer();
 }
 
 inline void
@@ -683,4 +564,3 @@ process_interrupt(SillyG_t *sg)
 #endif
   }
 }
-#undef DOS_IO

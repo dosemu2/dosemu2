@@ -1,7 +1,5 @@
-/* dos emulator, Matthias Lautner */
-#ifndef EMU_H
-#define EMU_H
-/* Extensions by Robert Sanders, 1992-93
+/* dos emulator, Matthias Lautner 
+ * Extensions by Robert Sanders, 1992-93
  *
  * $Date: 1995/01/14 15:31:55 $
  * $Source: /home/src/dosemu0.60/include/RCS/emu.h,v $
@@ -27,196 +25,11 @@
  * Revision 2.17  1994/09/26  23:10:13  root
  * Prep for pre53_22.
  *
- * Revision 2.16  1994/09/23  01:29:36  root
- * Prep for pre53_21.
- *
- * Revision 2.15  1994/09/20  01:53:26  root
- * Prep for pre53_21.
- *
- * Revision 2.14  1994/09/11  01:01:23  root
- * Prep for pre53_19.
- *
- * Revision 2.13  1994/08/25  00:49:34  root
- * prep for pre53_16
- *
- * Revision 2.12  1994/08/17  02:08:22  root
- * Mods to Rain's patches to get all modes back on the road.
- *
- * Revision 2.11  1994/08/14  02:52:04  root
- * Rain's latest CLEANUP and MOUSE for X additions.
- *
- * Revision 2.10  1994/08/05  22:29:31  root
- * Prep dir pre53_10.
- *
- * Revision 2.8  1994/08/01  14:58:59  root
- * Added detach (-d) option from Karl Hakimian.
- *
- * Revision 2.7  1994/08/01  14:26:23  root
- * Prep for pre53_7  with Markks latest, EMS patch, and Makefile changes.
- *
- * Revision 2.6  1994/07/14  23:19:20  root
- * Markkk's patches.
- *
- * Revision 2.5  1994/07/05  21:59:13  root
- * NCURSES IS HERE.
- *
- * Revision 2.4  1994/07/04  23:59:23  root
- * Prep for Markkk's NCURSES patches.
- *
- * Revision 2.3  1994/06/24  14:51:06  root
- * Markks's patches plus.
- *
- * Revision 2.2  1994/06/14  21:34:25  root
- * Second series of termcap patches.
- *
- * Revision 2.1  1994/06/12  23:15:37  root
- * Wrapping up prior to release of DOSEMU0.52.
- *
- * Revision 1.32  1994/06/03  00:58:55  root
- * pre51_23 prep, Daniel's fix for scrbuf malloc().
- *
- * Revision 1.31  1994/05/26  23:15:01  root
- * Prep. for pre51_21.
- *
- * Revision 1.30  1994/05/21  23:39:19  root
- * PRE51_19.TGZ with Lutz's latest updates.
- *
- * Revision 1.29  1994/05/10  23:08:10  root
- * pre51_14.
- *
- * Revision 1.28  1994/05/09  23:35:11  root
- * pre51_13.
- *
- * Revision 1.27  1994/05/04  21:56:55  root
- * Prior to Alan's mouse patches.
- *
- * Revision 1.26  1994/04/27  21:34:15  root
- * Jochen's Latest.
- *
- * Revision 1.25  1994/04/23  20:51:40  root
- * Get new stack over/underflow working in VM86 mode.
- *
- * Revision 1.24  1994/04/18  22:52:19  root
- * Ready pre51_7.
- *
- * Revision 1.23  1994/04/16  01:28:47  root
- * Prep for pre51_6.
- *
- * Revision 1.22  1994/04/13  00:07:09  root
- * Lutz's patches
- *
- * Revision 1.21  1994/04/07  00:18:41  root
- * Pack up for pre52_4.
- *
- * Revision 1.20  1994/03/23  23:24:51  root
- * Prepare to split out do_int.
- *
- * Revision 1.19  1994/03/15  01:38:20  root
- * DPMI,serial, other changes.
- *
- * Revision 1.18  1994/03/13  01:07:31  root
- * Poor attempt to optimize.
- *
- * Revision 1.17  1994/03/10  02:49:27  root
- * Back to 1 process.
- *
- * Revision 1.16  1994/03/04  15:23:54  root
- * Run through indent.
- *
- * Revision 1.15  1994/03/04  14:46:13  root
- * Jochen's patches.
- *
- * Revision 1.14  1994/03/04  00:01:58  root
- * Getting ready for 0.50
- *
- * Revision 1.13  1994/02/10  20:41:14  root
- * Last cleanup prior to release of pl4.
- *
- * Revision 1.12  1994/02/09  20:10:24  root
- * Added dosbanner config option for optionally displaying dosemu bannerinfo.
- * Added allowvideportaccess config option to deal with video ports.
- *
- * Revision 1.11  1994/02/05  21:45:55  root
- * Minor bugfixes [2.
- *
- * Revision 1.10  1994/02/01  20:57:31  root
- * With unlimited thanks to gorden@jegnixa.hsc.missouri.edu (Jason Gorden),
- * here's a packet driver to compliment Tim_R_Bird@Novell.COM's IPX work.
- *
- * Revision 1.9  1994/01/31  18:27:21  root
- * Mods for first round of terminfo intergration.
- *
- * Revision 1.8  1994/01/27  21:47:09  root
- * Patches by Tim_R_Bird@Novell.COM in preparation for IPX under DOSEMU.
- *
- * Revision 1.7  1994/01/27  19:43:54  root
- * Prepare for Tim's IPX implementation.
- *
- * Revision 1.6  1994/01/25  20:02:44  root
- * Added D_printf for DPMI debug messages.
- * Exchange stderr <-> stdout.
- *
- * Revision 1.5  1994/01/20  21:14:24  root
- * Indent.
- *
- * Revision 1.4  1993/12/30  11:18:32  root
- * Theadore T'so's changes to allow booting from a bootdisk and returning
- * the floppy for dosemu to use.
- *
- * Revision 1.3  1993/11/30  21:26:44  root
- * Chips First set of patches, WOW!
- *
- * Revision 1.2  1993/11/23  22:24:53  root
- * Work on serial to 9600
- *
- * Revision 1.1  1993/11/12  12:32:17  root
- * Initial revision
- *
- * Revision 1.2  1993/07/07  21:42:04  root
- * minor changes for -Wall
- *
- * Revision 1.1  1993/07/07  00:49:06  root
- * Initial revision
- *
- * Revision 1.13  1993/05/04  05:29:22  root
- * added console switching, new parse commands, and serial emulation
- *
- * Revision 1.12  1993/04/05  17:25:13  root
- * big pre-49 checkit; EMS, new MFS redirector, etc.
- *
- * Revision 1.11  1993/03/02  03:06:42  root
- * somewhere between 0.48pl1 and 0.49 (with IPC).  added virtual IOPL
- * and AC support (for 386/486 tests), -3 and -4 flags for choosing.
- * Split dosemu into 2 processes; the child select()s on the keyboard,
- * and signals the parent when a key is received (also sends it on a
- * UNIX domain socket...this might not work well for non-console keyb).
- *
- * Revision 1.10  1993/02/24  11:33:24  root
- * some general cleanups, fixed the key-repeat bug.
- *
- * Revision 1.9  1993/02/18  19:35:58  root
- * just added newline so diff wouldn't barf
- *
- * Revision 1.8  1993/02/13  23:37:20  root
- * latest version, no time to document!
- *
- * Revision 1.7  1993/02/10  20:56:45  root
- * for the circa-Wp dosemu
- *
- * Revision 1.6  1993/02/08  04:17:56  root
- * dosemu 0.47.7
- *
- * Revision 1.5  1993/02/05  02:54:24  root
- * this is for 0.47.6
- *
- * Revision 1.4  1993/02/04  01:16:57  root
- * version 0.47.5
- *
- * Revision 1.3  1993/01/28  02:19:59  root
- * for emu.c 1.12
- * THIS IS THE DOSEMU47 DISTRIBUTION EMU.H
  *
  */
+
+#ifndef EMU_H
+#define EMU_H
 
 #include <sys/types.h>
 #include <signal.h> 
@@ -262,7 +75,18 @@ EXTERN unsigned int use_sigio INIT(0);
 EXTERN unsigned int not_use_sigio INIT(0);
 EXTERN int terminal_pipe;
 EXTERN int terminal_fd INIT(-1);
-extern int screen, max_page, screen_mode;
+
+EXTERN char *cstack[16384];
+
+/* this is DEBUGGING code! */
+EXTERN int sizes INIT(0);
+
+EXTERN char *tmpdir;
+extern int screen, screen_mode;
+
+/* number of highest vid page - 1 */
+EXTERN int max_page INIT(7);
+
 
 extern char *cl,		/* clear screen */
 *le,				/* cursor left */
@@ -300,7 +124,6 @@ int ext_fs(int, char *, char *, int);
 #if 0 /* Not used anymore */
 int outch(int c);
 #endif
-void termioInit(void);
 extern void run_vm86(void);
 
 #define NOWAIT  0
@@ -414,12 +237,13 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
      int set_ioperm(int, int, int);
 
      extern struct debug_flags d;
-     extern int gfx_mode;	/* flag for in gxf mode or not */
      extern u_char in_sighandler, in_ioctl;
-     extern struct ioctlq iq, curi;
-#ifndef EMU_C
+/* one-entry queue ;-( for ioctl's */
+EXTERN struct ioctlq iq INIT({0, 0, 0, 0}); 
+EXTERN u_char in_ioctl INIT(0);
+EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
 
-#endif
+
 
      /* int 11h config single bit tests
  */
@@ -557,14 +381,14 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 
        unsigned int hogthreshold;
 
-       int mem_size, xms_size, ems_size, dpmi_size;
-
-       int sillyint;            /* IRQ numbers for Silly Interrupt Generator 
-       				   (bitmask, bit3..15 ==> IRQ3 .. IRQ15) */
+       int mem_size, xms_size, ems_size, dpmi_size, max_umb;
        unsigned int ems_frame;
        char must_spare_hardware_ram;
        char hardware_pages[ ((HARDWARE_RAM_STOP-HARDWARE_RAM_START) >> 12)+1 ];
 
+
+       int sillyint;            /* IRQ numbers for Silly Interrupt Generator 
+       				   (bitmask, bit3..15 ==> IRQ3 .. IRQ15) */
 
        int keyboard;
        unsigned char *key_map;     /* pointer to the correct keyboard-map */
@@ -650,7 +474,7 @@ extern void init_all_printers(void);
 extern int mfs_inte6(void);
 extern void pkt_helper(void);
 extern short pop_word(struct vm86_regs *);
-extern boolean_t bios_emm_fn(state_t *);
+extern void ems_init(void);
 extern int GetDebugFlagsHelper(char *);
 extern int SetDebugFlagsHelper(char *);
 extern void leavedos(int) NORETURN;

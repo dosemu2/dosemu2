@@ -474,7 +474,6 @@ typedef int boolean_t;
 typedef caddr_t vm_address_t;
 typedef size_t vm_size_t;
 
-#define dbg_fd stderr		/* for KdebugX */
 
 /* this is used for memory objects (pointer to malloc()ed memory */
 #define mach_port_t caddr_t
@@ -498,6 +497,7 @@ typedef size_t vm_size_t;
 
 #define Fprintf(args)	reset_tty();fprintf args;set_tty()
 
+EXTERN FILE *dbg_fd;
 #ifndef __linux__
 
 #define MAX_IO_PORTS	128
@@ -507,7 +507,6 @@ extern u_char io_ports[MAX_IO_PORTS];
 #define PORT_DISABLE(x)	io_ports[(x)/8] &= (u_char)!(1 << ((x) % 8))
 #define PORT_OK(x)	(io_ports[(x)/8] & (1 << ((x) % 8)))
 
-extern FILE *dbg_fd;
 extern int dd_fd;
 extern FILE *dd_stream;
 extern int iopl_fd;

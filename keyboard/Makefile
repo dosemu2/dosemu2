@@ -10,8 +10,8 @@ XFILES = Xkeyb.c
 XOBJS  = Xkeyb.o
 endif
 
-CFILES = keymaps.c termio.c 
-DEPENDS= keymaps.d termio.d
+CFILES = keymaps.c keyboard.c 
+DEPENDS= keymaps.d keyboard.d
 HFILES = 
 # XSRC   = XKeyb.c
 
@@ -19,11 +19,11 @@ CFLAGS+= $(USE_SLANG)
 
 # Insert all source- and header-files here.
 
-ALL = $(CFILES) $(HFILES) $(XFILES) slang-termio.c
+ALL = $(CFILES) $(HFILES) $(XFILES) slang-keyboard.c
 
 # All object-files are included here.
 
-OBJS = keymaps.o termio.o $(XOBJS)
+OBJS = keymaps.o keyboard.o $(XOBJS)
 
 
 all: lib

@@ -6,7 +6,7 @@
  */
 
 #ifndef INIT
-#define INIT(x)
+#define INIT(x...)
 #endif
 
 #ifndef EXTERN

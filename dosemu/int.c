@@ -16,14 +16,17 @@
 #include "bios.h"
 #include "xms.h"
 #include "int.h"
+#include "../include/ipx.h"
 
 #ifdef DPMI
 #include "../dpmi/dpmi.h"
 #endif
 
 extern unsigned long precard_eip, precard_cs;
+#if 0
 extern int card_init;
-extern u_char in_video;
+#endif
+u_char in_video;
 extern int check_date;
 extern time_t start_time;
 extern unsigned long last_ticks;
@@ -116,7 +119,9 @@ dos_helper(void)
       LWORD(cs) = config.vbios_seg;
       LWORD(eip) = 3;
       show_regs(__FILE__, __LINE__);
+#if 0
       card_init = 1;
+#endif
     }
 
   case 5:			/* show banner */
@@ -195,7 +200,7 @@ dos_helper(void)
       LWORD(esp) += 2;
       E_printf("EMS: in 0xe6,0x22 handler! ax=0x%04x, bx=0x%04x, dx=0x%04x, cx=0x%04x\n", LWORD(eax), LWORD(ebx), LWORD(edx), LWORD(ecx));
       if (config.ems_size)
-	bios_emm_fn(&REGS);
+	ems_fn(&REGS);
       else
 	error("EMS: not running bios_em_fn!\n");
       break;
@@ -260,6 +265,13 @@ int15(u_char i)
 {
   struct timeval wait_time;
   int num;
+#if 0
+  unsigned char *ssp;
+  unsigned long sp;
+
+  ssp = (unsigned char *)(REG(ss)<<4);
+  sp = (unsigned long)LWORD(esp);
+#endif
 
   if (HI(ax) != 0x4f)
     NOCARRY;
@@ -378,19 +390,71 @@ int15(u_char i)
         switch (REG(eax) &= 0x00FF)
         {
                 case 0x0000:                    
+			mouse.ps2.state = HI(bx);
+			if (mouse.ps2.state == 0) mice->intdrv = FALSE;
+					else	  mice->intdrv = TRUE;
 			HI(ax) = 0;
-			NOCARRY;		/* We are ignoring state for now */
+			NOCARRY;		
                         break;
                 case 0x0001:
                         HI(ax) = 0;
                         LWORD(ebx) = 0xAAAA;    /* we have a ps2 mouse */
 			NOCARRY;
                         break;
+		case 0x0003:
+			if (HI(bx) != 0) {
+				CARRY;
+				HI(ax) = 1;
+			} else {
+				NOCARRY;
+				HI(ax) = 0;
+			}
+			break;
 		case 0x0004:
 			HI(bx) = 0xAA;
 			HI(ax) = 0;
 			NOCARRY;
 			break;
+		case 0x0005:			/* Initialize ps2 mouse */
+			HI(ax) = 0;
+			mouse.ps2.pkg = HI(bx);
+			NOCARRY;
+			break;
+		case 0x0006:
+			switch (HI(bx)) {
+			  case 0x00:
+			    LO(bx)  = (mouse.rbutton ? 1 : 0);
+			    LO(bx) |= (mouse.lbutton ? 4 : 0);
+			    LO(bx) |= 0; 	/* scaling 1:1 */
+			    LO(bx) |= 0x20;	/* device enabled */
+			    LO(bx) |= 0;	/* stream mode */
+			    LO(cx) = 0;		/* resolution, one count */
+			    LO(dx) = 0;		/* sample rate */
+			    HI(ax) = 0;
+		  	    NOCARRY;
+			    break;
+			  case 0x01:
+			    HI(ax) = 0;
+			    NOCARRY;
+			    break;
+			  case 0x02:
+			    HI(ax) = 1;
+			    CARRY;
+			    break;
+			}
+			break;
+#if 0
+	 	case 0x0007:
+			pushw(ssp, sp, 0x000B);
+			pushw(ssp, sp, 0x0001);
+			pushw(ssp, sp, 0x0001);
+			pushw(ssp, sp, 0x0000);
+			REG(cs) = REG(es);
+			REG(eip) = REG(ebx);
+			HI(ax) = 0;
+			NOCARRY;
+			break;
+#endif
                 default:
 			HI(ax) = 1;
                         g_printf("PS2MOUSE: Unknown call ax=0x%04x\n", LWORD(eax));
@@ -585,7 +649,7 @@ int1a(u_char i)
  * uses int 10h.  for the moment, ANSI.SYS won't work anyway, so it's
  * no problem.
  */
-static int inline
+static int 
 ms_dos(int nr)
 { /* returns 1 if emulated, 0 if internal handling */
 
@@ -765,10 +829,10 @@ can_revector(int i)
   case 0x2f:			/* needed for XMS, redirector, and idle interrupt */
     return 0;
   case 0x74:			/* needed for PS/2 Mouse */
-    if ((mice->type == MOUSE_PS2) || (mice->intdrv)) {
+    if ((mice->type == MOUSE_PS2) || (mice->intdrv)) 
       return 0;
-    }
-    else return 1;
+    else 
+      return 1;
   case 0xe6:			/* for redirector and helper (was 0xfe) */
   case 0xe7:			/* for mfs FCB helper */
   case 0xe8:			/* for int_queue_run return */
@@ -918,6 +982,7 @@ static void int33(u_char i) {
   }
 }
 
+#ifdef USING_NET
 /* new packet driver interface */
 static void int_pktdrvr(u_char i) {
     if (pkt_int())
@@ -925,6 +990,7 @@ static void int_pktdrvr(u_char i) {
     default_interrupt(i);
     return;
 }
+#endif
 
 /* dos helper and mfs startup (was 0xfe) */
 static void inte6(u_char i) {
@@ -1090,7 +1156,9 @@ void setup_interrupts(void) {
   interrupt_function[0x29] = int29;
   interrupt_function[0x2f] = int2fcaller;
   interrupt_function[0x33] = int33;
+#ifdef USING_NET
   interrupt_function[0x60] = int_pktdrvr;
+#endif
   interrupt_function[0xe6] = inte6;
   interrupt_function[0xe7] = inte7;
   interrupt_function[0xe8] = inte8;

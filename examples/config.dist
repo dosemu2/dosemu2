@@ -71,13 +71,13 @@ timint on
 keyboard {  layout us  keybint on  rawkeyboard on  }
 # keyboard {  layout de-latin1  keybint on  rawkeyboard on  }
 #
-#    If DOSEMU speed is unimportant, and CPU time is very valuable to you,
-#    you may want to set HogThreshold to a non-zero value.  This means
-#    the number of keypress requests in a row before CPU time is given
-#    away from DOSEMU.  A good value to use could be 10000.  
-#    A zero disables CPU hogging detection via keyboard requests. 
+#    The HogThreshold value determines how nice Dosemu will be about
+#    giving other Linux processes a chance to run.  Setting the HogThreshold
+#    value to approximately half of you BogoMips value will slightly
+#    degrade Dosemu performance, but significantly increase overall
+#    system idle time.  A zero value runs Dosemu at full tilt.
 #
-HogThreshold 0
+HogThreshold 10
 
  
 #**************************** SERIAL ************************************
@@ -339,21 +339,23 @@ bootA               # Startup drive valid values:  bootA  bootC
 #    If you have adapters, which have memory mapped IO, you may now
 #    map those regions with hardware_ram { .. }. You can only map in
 #    entities of 4k, you give the address, not the segment.
-# 
-xms 1024            # XMS size in K,  or "off"
+#
+#    umb_max is a new parameter which tells DOSEMU to be more aggressive
+#    about finding upper memory blocks.  The default is 'off'.
+#
+ 
+#umb_max on		# be more aggressive about finding XMS UMB blocks
 
-ems 1024            # EMS size in K,  or "off"
-# or:
-#ems { 1024 ems_frame 0xe000 }
-#ems { ems_size 2048 emsframe 0xd000 }
+dpmi off		# DPMI size in K, or "off"  Be careful with DPMI!
+xms 1024		# XMS size in K,  or "off"
+ems 1024		# EMS size in K,  or "off"
+#ems { ems_size 1024 ems_frame 0xe000 }
+#ems { ems_size 2048 ems_frame 0xd000 }
 
 #hardware_ram { 0xc8000 range 0xcc000 0xcffff }
-#             the above mappes 0xc8000..0xc8fff and 0xcc000..0xcffff
-  
-dpmi off            # DPMI size in K, or "off"  Be careful with DPMI!
+			# maps 0xc8000..0xc8fff and 0xcc000..0xcffff
 
-# Maximum conventional RAM to show apps
-# dosmem 640
+#dosmem 640		# Maximum conventional RAM to show apps
 
 #*********************** IRQ ******************************************
 #

@@ -819,6 +819,7 @@ init_all_drives(void)
   int dd;
 
   if (!drives_initialized) {
+    Debug0((dbg_fd, "Inside initialization\n"));
     drives_initialized = TRUE;
     for (dd = 0; dd < MAX_DRIVE; dd++) {
       dos_roots[dd] = NULL;
@@ -960,9 +961,9 @@ init_drive(int dd, char *path, char *options)
   read_onlys[dd] = (options && (toupper(options[0]) == 'R'));
   Debug0((dbg_fd, "initialised drive %d as %s\n  with access of %s\n", dd, dos_roots[dd],
 	  read_onlys[dd] ? "READ_ONLY" : "READ_WRITE"));
-  /*
+#if 0  
   calculate_drive_pointers (dd);
-*/
+#endif
   return (1);
 }
 
@@ -1192,7 +1193,8 @@ _get_dir(char *name, char *mname, char *mext)
 */
   boolean_t compare();
 
-  (void) find_file(name, &sbuf);
+  if(!find_file(name, &sbuf))
+     return NULL;
 
   if ((cur_dir = opendir(name)) == NULL) {
     extern int errno;
@@ -1669,6 +1671,7 @@ dos_fs_dev(state)
     /* if we've never set our first free drive, set it now, and */
     /* initialize our drive tables */
     if (first_free_drive == 0) {
+      Debug0((dbg_fd, "Initializing all drives\n"));
       first_free_drive = drive_to_redirect;
       init_all_drives();
     }

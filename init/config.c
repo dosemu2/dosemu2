@@ -1,3 +1,6 @@
+/*
+ * $Id$ 
+ */
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -14,10 +17,8 @@
 #include "mouse.h"
 #include "keymaps.h"
 #include "memory.h"
-
-extern int sizes;
-extern char *tmpdir;
-extern unsigned int configuration;
+#include "bios.h"
+#include "kversion.h"
 
 /* XXX - the mem size of 734 is much more dangerous than 704.
  * 704 is the bottom of 0xb0000 memory.  use that instead?
@@ -70,7 +71,7 @@ config_init(void)
  * DANG_END_FUNCTION
  *
  */
-void
+static void
 config_defaults(void)
 {
   config.hdiskboot = 1;		/* default hard disk boot */
@@ -79,6 +80,7 @@ config_defaults(void)
   config.ems_size = 0;
   config.ems_frame = 0xd000;
   config.xms_size = 0;
+  config.max_umb = 0;
   config.dpmi_size = 0;
   config.mathco = 1;
   config.mouse_flag = 0;
@@ -165,42 +167,7 @@ config_defaults(void)
   mice->chordMiddle= 0;
 }
 
-/*
- * DANG_BEGIN_FUNCTION check_special_mapping
- *
- * description:
- *  This is called after all configuration stuff is done to make sure
- *  that no mapped areas are overlapping.
- *  It checks EMS, VBIOS, HARDWARE_RAM
- *  and exits with "false", if any of it overlapp. 
- * DANG_END_FUNCTION
- *
- */
-static int check_special_mapping()
-{
-  #define _I_ ((i-0xc0000) >> 12)
-  char map[(0x100000 - 0xc0000) >> 12];
-  int i;
-  memset(map,0,sizeof(map));
-  if (config.ems_size) {
-    for (i=EMM_BASE_ADDRESS; i<(EMM_BASE_ADDRESS+0x10000); i+=0x1000) map[_I_]=1;
-  }
-  for (i=VBIOS_START; i < (VBIOS_START+VBIOS_SIZE); i+=0x1000) {
-    if (map[_I_]) return 0;
-    map[_I_]=1;
-  }
-  if (config.must_spare_hardware_ram) {
-    for (i=HARDWARE_RAM_START; i < HARDWARE_RAM_STOP; i+=0x1000) {
-      if (config.hardware_pages[_I_ - ((HARDWARE_RAM_START-0xc0000)>>12)]) {
-        if (map[_I_]) return 0;
-      }
-    }
-  }
-  return 1;
-  #undef _I_
-}
-
-void open_terminal_pipe(char *path)
+static void open_terminal_pipe(char *path)
 {
   terminal_fd = DOS_SYSCALL(open(path, O_RDWR));
   if (terminal_fd == -1) {
@@ -212,7 +179,7 @@ void open_terminal_pipe(char *path)
     terminal_pipe = 1;
 }
 
-void open_Xkeyboard_pipe(char *path)
+static void open_Xkeyboard_pipe(char *path)
 {
   keypipe = DOS_SYSCALL(open(path, O_RDWR));
   if (keypipe == -1) {
@@ -223,7 +190,7 @@ void open_Xkeyboard_pipe(char *path)
   return;
 }
 
-void open_Xmouse_pipe(char *path)
+static void open_Xmouse_pipe(char *path)
 {
   mousepipe = DOS_SYSCALL(open(path, O_RDWR));
   if (mousepipe == -1) {
@@ -267,7 +234,7 @@ void config_setup(int argc, char **argv)
 #endif
      
   opterr = 0;
-  confname = NULL;
+  confname = CONFIG_FILE;
   while ((c = getopt(argc, argv, "ABCcF:kM:D:P:VNtsgx:Km234e:dXY:Z:")) != EOF) {
 	  switch (c) {
 	  case 'F':
@@ -433,10 +400,6 @@ void config_setup(int argc, char **argv)
   if (config.X) {
     config.console_video = config.vga = config.graphics = 0;
   }
-
-  if (!check_special_mapping()) {
-    error("ERROR: You have overlapping mappings (EMS,VBIOS,HARDWARE_RAM)\n");
-  }
 }
 
 /* 
@@ -462,7 +425,7 @@ void config_setup(int argc, char **argv)
  *
  * DANG_END_FUNCTION
  */
-void
+static void
 parse_debugflags(const char *s)
 {
   char c;
@@ -609,6 +572,7 @@ void version_init(void) {
   struct new_utsname unames;
   uname(&unames);
   fprintf(stderr, "DOSEMU%spl%s is coming up on %s version %s\n", VERSTR, PATCHSTR, unames.sysname, unames.release);  
+  fprintf(stderr, "Built for %d\n", KERNEL_VERSION);
   if (unames.release[0] > 0 ) {
     if ((unames.release[2] == 1  && unames.release[3] > 1 ) ||
          unames.release[2] > 1 ) {

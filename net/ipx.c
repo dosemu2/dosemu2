@@ -898,6 +898,7 @@ IPXReceivePacket(ipx_socket_t * s)
   int size, sz;
   int ESRFired = 0;
 
+  sz = sizeof(ipxs);
   size = recvfrom(s->fd, buffer, sizeof(buffer), 0,
 		  (struct sockaddr *) &ipxs, &sz);
   n_printf("IPX: received %d bytes of data\n", size);

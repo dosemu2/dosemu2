@@ -1,7 +1,4 @@
 /* dosmemulator, Matthias Lautner */
-
-#define TERMIO_C 1
-
 /*
  * DANG_BEGIN_MODULE
  *
@@ -191,10 +188,12 @@
 #ifdef NEW_PIC
 #include "../timer/pic.h"
 #endif
+#include "../include/shared.h"
 
 
 inline void child_set_flags(int);
 
+static void keyboard_handling_init(void);
 void clear_raw_mode();
 extern void clear_console_video();
 extern void clear_consoleX_video();
@@ -221,7 +220,7 @@ unsigned int queue;
 
 #define put_queue(psc) (queue = psc)
 
-static void gettermcap(void), sysreq(unsigned int), ctrl(unsigned int),
+static void sysreq(unsigned int), ctrl(unsigned int),
  alt(unsigned int), Unctrl(unsigned int), unalt(unsigned int), lshift(unsigned int),
  unlshift(unsigned int), rshift(unsigned int), unrshift(unsigned int),
  caps(unsigned int), uncaps(unsigned int), ScrollLock(unsigned int), unscroll(unsigned int),
@@ -576,16 +575,6 @@ unsigned char highscan[256] =
 
 #endif /* NOT USE_SLANG_KEYS */
 
-#if 0 /* Not used anymore */
-int
-outch(int c)
-{
-  addch((u_char) c);
-  refresh();
-  return 1;
-}
-#endif
-
 static void
 gettermcap(void)
 {
@@ -609,18 +598,6 @@ gettermcap(void)
   else
     v_printf("VID: Setting windows size to li=%d, co=%d\n", li, co);
    
-#ifndef USE_SLANG_KEYS
-  /* This won't work with NCURSES version 1.8. */
-  /* These routines have been tested with NCURSES version 1.8.5 */
-  /* Can someone make this compatible with 1.8? */
-  for (fkp = funkey; fkp->code; fkp++) {
-    if (fkp->tce != NULL) {
-      fkp->esc = tigetstr(fkp->tce);
-      k_printf("TERMINFO string %s = %s\n", fkp->tce, fkp->esc);
-      /*if (!fkp->esc) error("ERROR: can't get terminfo %s\n", fkp->tce);*/
-    }
-  }
-#endif
 }
 
 void
@@ -777,6 +754,8 @@ keyboard_init(void)
   WRITE_WORD(KEYFLAG_ADDR, 0);
   /*key_flags = 0;*/
 
+  keyboard_handling_init();
+
   dbug_printf("TERMIO: $Header: /home/src/dosemu0.60/keyboard/RCS/termio.c,v 1.2 1995/01/14 15:31:03 root Exp root $\n");
 
   return 0;
@@ -848,7 +827,7 @@ tty_raw(int fd)
 
 
 #ifdef USE_SLANG_KEYS
-#include "slang-termio.c"
+#include "slang-keyboard.c"
 #endif
 
 
@@ -1188,6 +1167,7 @@ keybuf_clear(void)
   ignore_segv--;
   dump_kbuffer();
 }
+
 #ifndef USE_SLANG_KEYS
 static int
 fkcmp(const void *a, const void *b)
@@ -1195,8 +1175,9 @@ fkcmp(const void *a, const void *b)
   return strcmp(((struct funkeystruct *) a)->esc, ((struct funkeystruct *) b)->esc);
 }
 #endif
-void
-termioInit()
+
+static void
+keyboard_handling_init(void)
 {
 #ifndef USE_SLANG_KEYS
   int numkeys;
@@ -1214,17 +1195,22 @@ termioInit()
      return;
 #ifndef USE_SLANG_KEYS
   setupterm(NULL, 1, (int *) 0);
-#endif
-  gettermcap();
-  li = 25;
-  co = 80;
-#ifndef USE_SLANG_KEYS
+
+  /* This won't work with NCURSES version 1.8. */
+  /* These routines have been tested with NCURSES version 1.8.5 */
+  /* Can someone make this compatible with 1.8? */
+  for (fkp = funkey; fkp->code; fkp++) {
+    if (fkp->tce != NULL) {
+      fkp->esc = tigetstr(fkp->tce);
+      k_printf("TERMINFO string %s = %s\n", fkp->tce, fkp->esc);
+      /*if (!fkp->esc) error("ERROR: can't get terminfo %s\n", fkp->tce);*/
+    }
+  }
   numkeys = 0;
   for (fkp = funkey; fkp->code; fkp++) 
     numkeys++;
   qsort(funkey, numkeys, sizeof(struct funkeystruct), &fkcmp);
-#endif
-#ifdef USE_SLANG_KEYS
+#else
   if (-1 == init_slang_keymaps ())
     {
        error ("ERROR: Unable to initialize S-Lang keymaps.\n");
@@ -1997,4 +1983,179 @@ key_flag(int flag)
 
 /************* end of key-related functions *************/
 
-#undef TERMIO_C
+#define SCANQ_LEN 100
+extern u_char *shared_qf_memory;
+static u_short *scan_queue;
+static int *scan_queue_start;
+static int *scan_queue_end;
+extern int InsKeyboard();
+
+void shared_keyboard_init(void) {
+  (u_char *)scan_queue = shared_qf_memory+SHARED_KEYBOARD_OFFSET + 8;
+  (u_char *)scan_queue_start = shared_qf_memory+SHARED_KEYBOARD_OFFSET;
+  (u_char *)scan_queue_end = shared_qf_memory+SHARED_KEYBOARD_OFFSET + 4;
+  *scan_queue_start = 0;
+  *scan_queue_end = 0;
+}
+
+#ifdef NEW_PIC
+/* This is used to run the keyboard interrupt */
+void
+do_irq1(void) {
+   parent_nextscan();
+   do_irq(); /* do dos interrupt */
+   keys_ready = 0;	/* flag *LASTSCAN_ADDR empty	*/
+}
+#endif
+
+inline void
+scan_to_buffer() {
+  k_printf("scan_to_buffer LASTSCAN_ADD = 0x%04x\n", *LASTSCAN_ADD);
+  set_keyboard_bios();
+  insert_into_keybuffer();
+}
+
+void
+DOS_setscan(u_short scan)
+{
+  k_printf("DOS got set scan %04x, startq=%d, endq=%d\n", scan, *scan_queue_start, *scan_queue_end);
+  scan_queue[*scan_queue_end] = scan;
+  *scan_queue_end = (*scan_queue_end + 1) % SCANQ_LEN;
+  if (config.keybint) {
+    k_printf("Hard queue\n");
+#ifdef NEW_PIC
+    pic_request(PIC_IRQ1);
+#else
+    do_hard_int(9);
+#endif
+  }
+  else {
+    k_printf("NOT Hard queue\n");
+    parent_nextscan();
+    scan_to_buffer();
+#ifdef NEW_PIC
+ /*   *LASTSCAN_ADD=1; */
+    keys_ready = 0;
+#endif
+  }
+  if (!config.console_keyb && !config.X) {
+    static u_short tmp_scan;
+    tmp_scan = scan & 0xff00;
+    if (tmp_scan < 0x8000 && tmp_scan > 0) {
+      k_printf("Adding Key-Release\n");
+      DOS_setscan(scan | 0x8000);
+    }
+  }
+
+}
+
+static int lastchr;
+int inschr;
+
+void
+set_keyboard_bios(void)
+{
+  int scan;
+
+  if (config.console_keyb) {
+    if (config.keybint) {
+      keepkey = 1;
+      inschr = convKey(HI(ax));
+    }
+    else
+      inschr = convKey(*LASTSCAN_ADD);
+#ifdef NEW_PIC
+ /*     *LASTSCAN_ADD=1;   /* flag character as read */
+      keys_ready = 0;	/* flag character as read	*/
+#endif
+  } else if (config.X) {
+	  if (config.keybint) {
+		  keepkey = 1;
+		  if (config.X_keycode)
+			  inschr = convKey(HI(ax));
+		  else {
+			  /* check, if we have to store the key in the keyboard buffer */
+			  if ((scan=convKey(HI(ax))) || ((lastchr>>8) && !(lastchr&0x80)) )
+				  /* xdos gives us the char-code, so use it.
+					  We'd get into trouble, if we would try to convert the
+					  scan code into a char while using a non-US keyboard! */
+				  inschr = (lastchr>>8) | (scan&0xff00);
+			  else
+				  inschr = 0;
+		  }
+	  } else
+		  inschr = convKey(*LASTSCAN_ADD);
+#ifdef NEW_PIC
+/*                  *LASTSCAN_ADD=1;   /* flag character as read */
+                  keys_ready = 0;	/* flag character as read	*/
+#endif
+  } else {
+    inschr = lastchr;
+    if (inschr > 0x7fff) {
+      inschr = 0;
+    }
+  }
+#ifdef NEW_PIC
+  /* reschedule if queue not empty */
+  if (*scan_queue_start!=*scan_queue_end) { 
+    k_printf("KBD: Requesting next keyboard interrupt startstop %d:%d\n", 
+      *scan_queue_start, *scan_queue_end);
+    pic_request(PIC_IRQ1); 
+  /*  *LASTSCAN_ADD=1; */
+    keys_ready = 0;
+  }
+#endif
+  k_printf("set keybaord bios inschr=0x%04x, lastchr = 0x%04x, *LASTSCAN_ADD = 0x%04x\n", inschr, lastchr, *LASTSCAN_ADD);
+  k_printf("MOVING   key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
+	   *(u_char *)KEYFLAG_ADDR , *(u_char *)(KEYFLAG_ADDR +1), *(u_char *)KBDFLAG_ADDR, *(u_char *)(KBDFLAG_ADDR+1));
+}
+
+void
+insert_into_keybuffer(void)
+{
+  /* int15 fn=4f will reset CF if scan key is not to be used */
+  if (!config.keybint || LWORD(eflags) & CF)
+    keepkey = 1;
+  else
+    keepkey = 0;
+
+  k_printf("KBD: Finishing up call\n");
+
+  if (inschr && keepkey) {
+    k_printf("IPC/KBD: (child) putting key in buffer\n");
+    if (InsKeyboard(inschr))
+      dump_kbuffer();
+    else
+      error("ERROR: InsKeyboard could not put key into buffer!\n");
+  }
+}
+
+inline void
+parent_nextscan()
+{
+#ifndef NEW_PIC
+  keys_ready = 0;
+#else
+  if(!keys_ready) { /* make sure last character has been read */
+#endif
+  if (*scan_queue_start != *scan_queue_end) {
+    keys_ready = 1;
+    lastchr = scan_queue[*scan_queue_start];
+    if (*scan_queue_start != *scan_queue_end)
+      *scan_queue_start = (*scan_queue_start + 1) % SCANQ_LEN;
+    if (!config.console_keyb && !config.X) {
+       *LASTSCAN_ADD = lastchr >> 8;
+    }
+    else {
+       *LASTSCAN_ADD = lastchr;
+    }
+  }
+#ifdef NEW_PIC
+  }
+#endif
+  else
+    k_printf("Parent Nextscan Key not Read!\n");
+  k_printf("Parent Nextscan key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
+	   *(u_char *) 0x496, *(u_char *) 0x497, *(u_char *) 0x417, *(u_char *) 0x418);
+  k_printf("start=%d, end=%d, LASTSCAN=%x\n", *scan_queue_start, *scan_queue_end, *LASTSCAN_ADD);
+}

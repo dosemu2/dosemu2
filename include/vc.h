@@ -13,6 +13,8 @@
 #include <sys/types.h>
 #include "emu.h"
 
+#include "extern.h"
+
 typedef unsigned char uchar;
 
 #define TEXT         0
@@ -128,7 +130,7 @@ struct video_save_struct {
   unsigned char release_video;
   unsigned char *textmem;	/* for saving page 0 memory */
 };
-extern struct video_save_struct linux_regs, dosemu_regs;
+EXTERN struct video_save_struct linux_regs, dosemu_regs;
 extern void save_vga_state(struct video_save_struct *save_regs);
 extern void restore_vga_state(struct video_save_struct *save_regs);
 extern void load_vga_font(unsigned char);
@@ -191,10 +193,12 @@ extern int vga_dumpregs(void);
 extern u_char video_port_in(int port);
 extern void video_port_out(u_char value, int port);
 
-extern int CRT_I, CRT_D, IS1_R, FCR_W, color_text;
+EXTERN int CRT_I, CRT_D, IS1_R, FCR_W;
 extern u_char att_d_index;
-extern u_char permissions;
-extern struct screen_stat scr_state;
+EXTERN u_char permissions;
+EXTERN struct screen_stat scr_state;
+
+EXTERN int gfx_mode INIT(TEXT);
 
 
 #endif 

@@ -57,6 +57,7 @@ cpu			return(CPU);
 bootA			return(BOOTA);
 bootC			return(BOOTC);
 xms			return(L_XMS);
+umb_max			return(L_UMB);
 ems			return(L_EMS);
 dpmi			return(L_DPMI);
 dosmem			return(DOSMEM);
@@ -83,7 +84,6 @@ emulated		return(EMULATED);
 native			return(NATIVE);
 
 	/* disk keywords */
-
 hdimage			return(HDIMAGE);
 image			return(HDIMAGE);
 partition		return(L_PARTITION);

@@ -14,9 +14,9 @@
 VERSION=""
 
 function zeropad() {
-  if [ $(($1)) -lt 10 ]; then VERSION="${VERSION}00$1"
+  if [ $1 -lt 10 ]; then VERSION="${VERSION}00$1"
   else
-    if [ $(($1)) -lt 100 ]; then VERSION="${VERSION}0$1"
+    if [ $1 -lt 100 ]; then VERSION="${VERSION}0$1"
     else VERSION="${VERSION}$1"; fi
   fi
 }

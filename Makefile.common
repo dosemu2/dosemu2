@@ -36,7 +36,6 @@ realclean clean::
 	-rm $(LIB)
 
 realclean::
-	-rm .depend
 	-rm *.d
 
 checkin::
@@ -47,7 +46,7 @@ checkout::
 
 dist:: $(ALL) Makefile
 	install -d $(DISTPATH)/$(SUBDIR)
-	install -m 0644 $(ALL) Makefile $(DISTPATH)/$(SUBDIR)
+	cp -a $(ALL) Makefile $(DISTPATH)/$(SUBDIR)
 
 depend dep: $(DEPENDS)	
 
@@ -59,8 +58,26 @@ depend dep: $(DEPENDS)
 TYPE_DEPEND=-MM
 
 %.d: %.c
+
+
+ifeq '$(findstring -n,$(MAKEFLAGS))' '-n'
+# this is only set on the top level makefile
+export CLEANING=true  # don't do depends
+endif
+
+ifndef CLEANING
+%.depend.tmp: %.c
+	$(CC) $(TYPE_DEPEND) $(CFLAGS) $< -o $@
+
+%.d:  %.depend.tmp
+	sh -c 'sed '\''s/$*\\.o[ :]*/& $@/g'\'' <$^ > $@'
+	@rm $^
+endif
+
+ifdef notdef
 	$(SHELL) -ec '$(CC) $(TYPE_DEPEND) $(CFLAGS) $< \
         | sed '\''s/$*\\.o[ :]*/& $@/g'\'' > $@'
+endif
 
 ifdef DEPENDS
 ifneq "$(wildcard *.d)" ""
@@ -69,9 +86,11 @@ endif
 endif
 
 # this is mainly for debugging the makefile
-echo:
+echo::
 	@echo LIB=$(LIB)
 	@echo DEPENDS=$(DEPENDS)
 	@echo OBJS=$(OBJS)
 	@echo CFILES = $(wildcard *.c)
 	@echo DEPENDS FOUND= $(wildcard *.d)
+	@echo MAKEFLAGS=$(MAKEFLAGS)
+	@echo CLEANING=$(CLEANING)

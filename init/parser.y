@@ -1,3 +1,7 @@
+/* $Id$ 
+ *
+ * $Log$
+ */
 %{
 #include <stdlib.h>
 #include <sys/types.h>
@@ -22,35 +26,34 @@
 #include "timers.h"
 #include "keymaps.h"
 
-serial_t *sptr;
-serial_t nullser;
-mouse_t *mptr;
-mouse_t nullmouse;
-int c_ser = 0;
-int c_mouse = 0;
+static serial_t *sptr;
+static serial_t nullser;
+static mouse_t *mptr;
+static mouse_t nullmouse;
+static int c_ser = 0;
+static int c_mouse = 0;
 
-struct disk *dptr;
-struct disk nulldisk;
-int c_hdisks = 0;
-int c_fdisks = 0;
+static struct disk *dptr;
+static struct disk nulldisk;
+static int c_hdisks = 0;
+static int c_fdisks = 0;
 
 extern struct printer lpt[NUM_PRINTERS];
-struct printer *pptr;
-struct printer nullptr;
-int c_printers = 0;
+static struct printer *pptr;
+static struct printer nullptr;
+static int c_printers = 0;
 
-int ports_permission = IO_RDWR;
-unsigned int ports_ormask = 0;
-unsigned int ports_andmask = 0xFFFF;
+static int ports_permission = IO_RDWR;
+static unsigned int ports_ormask = 0;
+static unsigned int ports_andmask = 0xFFFF;
 
-int errors = 0;
-int warnings = 0;
+static int errors = 0;
+static int warnings = 0;
 
-extern struct config_info config;  /* Configuration information */
+static int priv_lvl = 0;
 
 	/* external procedures */
 
-void die(char *reason) NORETURN;
 extern int allow_io(int, int, int, int, int);
 extern int exchange_uids(void);
 extern char* strdup(const char *); /* Not defined in string.h :-( */
@@ -60,25 +63,26 @@ extern int yylex(); /* exact argument types depend on the way you call bison */
 
 void yyerror(char *, ...);
 void yywarn(char *, ...);
-void keyb_layout(int value);
-void start_ports(void);
-void start_mouse(void);
-void stop_mouse(void);
-void start_debug(void);
-void stop_video(void);
-void start_serial(void);
-void stop_serial(void);
-void start_printer(void);
-void stop_printer(void);
-void stop_terminal(void);
-void start_disk(void);
-void do_part(char *);
-void start_bootdisk(void);
-void start_floppy(void);
-void stop_disk(int token);
-FILE* open_file(char* filename);
-void close_file(FILE* file);
-void parse_dosemu_users(void);
+static void die(char *reason) NORETURN;
+static void keyb_layout(int value);
+static void start_ports(void);
+static void start_mouse(void);
+static void stop_mouse(void);
+static void start_debug(void);
+static void stop_video(void);
+static void start_serial(void);
+static void stop_serial(void);
+static void start_printer(void);
+static void stop_printer(void);
+static void stop_terminal(void);
+static void start_disk(void);
+static void do_part(char *);
+static void start_bootdisk(void);
+static void start_floppy(void);
+static void stop_disk(int token);
+static FILE* open_file(char* filename);
+static void close_file(FILE* file);
+static void parse_dosemu_users(void);
 static int set_hardware_ram(int addr);
 static void set_irq_value(int bits, int i1);
 static void set_irq_range(int bits, int i1, int i2);
@@ -104,7 +108,7 @@ extern void yyrestart(FILE *input_file);
 %token DOSBANNER FASTFLOPPY TIMINT HOGTHRESH SPEAKER IPXSUPPORT NOVELLHACK
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO ALLOWVIDEOPORT TIMER
 %token MATHCO CPU BOOTA BOOTB BOOTC L_XMS L_DPMI PORTS DISK DOSMEM PRINTER
-%token L_EMS EMS_SIZE EMS_FRAME
+%token L_EMS L_UMB EMS_SIZE EMS_FRAME
 %token BOOTDISK L_FLOPPY EMUSYS EMUBAT L_X
 	/* speaker */
 %token EMULATED NATIVE
@@ -174,9 +178,24 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 			c_printf("CONF: fastfloppy = %d\n", config.fastfloppy);
 			}
 		| CPU INTEGER		{ vm86s.cpu_type = ($2/100)%10; }
-		| BOOTA			{ config.hdiskboot = 0; }
-		| BOOTC			{ config.hdiskboot = 1; }
-		| BOOTB			{ config.hdiskboot = 2; }
+		| BOOTA
+                    {
+		      if (priv_lvl)
+			yyerror("bootA is illegal in user config file");
+		      config.hdiskboot = 0;
+		    }
+		| BOOTC
+                    {
+		      if (priv_lvl)
+			yyerror("bootC is illegal in user config file");
+		      config.hdiskboot = 1;
+		    }
+		| BOOTB
+                    {
+		      if (priv_lvl)
+			yyerror("bootB is illegal in user config file\n");
+		      config.hdiskboot = 2;
+		    }
 		| TIMINT bool
 		    {
 		    config.timers = $2;
@@ -194,6 +213,8 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    }
 		| ALLOWVIDEOPORT bool
 		    {
+		    if ($2 && !config.allowvideoportaccess && priv_lvl)
+		      yyerror("Can not enable video port access in use config file");
 		    config.allowvideoportaccess = $2;
 		    c_printf("CONF: allowvideoportaccess %s\n", ($2) ? "on" : "off");
 		    }
@@ -207,6 +228,11 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    {
 		    config.xms_size = $2;
 		    if ($2 > 0) c_printf("CONF: %dk bytes XMS memory\n", $2);
+		    }
+		| L_UMB bool
+		    {
+		    config.max_umb = $2;
+		    if ($2 > 0) c_printf("CONF: maximize umb's %s\n", ($2) ? "on" : "off");
 		    }
 		| L_DPMI mem_bool
 		    {
@@ -268,13 +294,16 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		  '{' printer_flags '}'
 		    { stop_printer(); }
 		| L_X '{' x_flags '}'
-		| SILLYINT { config.sillyint=0; }  '{' sillyint_flags '}'
-		| SILLYINT irq_bool	{ config.sillyint = 1 << $2; }
-		| HARDWARE_RAM 
-                   { 
-                     config.must_spare_hardware_ram=0;
-                      memset(config.hardware_pages,0,sizeof(config.hardware_pages)); 
-                   }  
+		| SILLYINT
+                    { config.sillyint=0; }
+                  '{' sillyint_flags '}'
+		| SILLYINT irq_bool
+                    { config.sillyint = 1 << $2; }
+		| HARDWARE_RAM
+                    {
+		    if (priv_lvl)
+		      yyerror("Can not change hardware ram access settings in user config file");
+		    }
                    '{' hardware_ram_flags '}'
 		| STRING
 		    { yyerror("unrecognized command '%s'", $1); free($1); }
@@ -324,7 +353,6 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		| VBIOS_MMAP		{ config.vbios_file = NULL;
 					  config.mapped_bios = 1;
 					  config.vbios_copy = 1; }
-
 		| VBIOS_SEG INTEGER
 		   {
 		   config.vbios_seg = $2;
@@ -637,11 +665,17 @@ ems_flag	: INTEGER
 		   }
 		| EMS_FRAME INTEGER
 		   {
+/* is there a technical reason why the EMS frame can't be at 0xC0000 or
+   0xA0000 if there's space? */
+#if 0
 		     if ( (($2 & 0xfc00)>=0xc800) && (($2 & 0xfc00)<=0xe000) ) {
 		       config.ems_frame = $2 & 0xfc00;
 		       c_printf("CONF: EMS-frame = 0x%04x\n", config.ems_frame);
 		     }
 		     else yyerror("wrong EMS-frame: 0x%04x", $2);
+#endif
+	             config.ems_frame = $2 & 0xfc00;
+		     c_printf("CONF: EMS-frame = 0x%04x\n", config.ems_frame);
 		   }
 		| STRING
 		    { yyerror("unrecognized ems command '%s'", $1);
@@ -731,7 +765,7 @@ speaker		: L_OFF		{ $$ = SPKR_OFF; }
 
 	/* mouse */
 
-void start_mouse(void)
+static void start_mouse(void)
 {
   if (c_mouse >= MAX_MOUSE)
     mptr = &nullmouse;
@@ -741,7 +775,7 @@ void start_mouse(void)
   }
 }
 
-void stop_mouse(void)
+static void stop_mouse(void)
 {
   if (c_mouse >= MAX_MOUSE) {
     c_printf("MOUSE: too many mice, ignoring %s\n", mptr->dev);
@@ -755,8 +789,10 @@ void stop_mouse(void)
 
 	/* debug */
 
-void start_ports(void)
+static void start_ports(void)
 {
+  if (priv_lvl)
+    yyerror("Can not change port privileges in user config file");
   ports_permission = IO_RDWR;
   ports_ormask = 0;
   ports_andmask = 0xFFFF;
@@ -764,7 +800,7 @@ void start_ports(void)
 
 	/* debug */
 
-void start_debug(void)
+static void start_debug(void)
 {
   int flag = 0;                 /* Default is no debugging output at all */
 
@@ -792,7 +828,7 @@ void start_debug(void)
 
 	/* video */
 
-void stop_video(void)
+static void stop_video(void)
 {
   if ((config.cardtype != CARD_VGA) || !config.console_video) {
     config.graphics = 0;
@@ -809,7 +845,7 @@ void stop_video(void)
 
 	/* serial */
 
-void start_serial(void)
+static void start_serial(void)
 {
   if (c_ser >= MAX_SER)
     sptr = &nullser;
@@ -828,7 +864,7 @@ void start_serial(void)
 }
 
 
-void stop_serial(void)
+static void stop_serial(void)
 {
   if (c_ser >= MAX_SER) {
     c_printf("SER: too many ports, ignoring %s\n", sptr->dev);
@@ -842,7 +878,7 @@ void stop_serial(void)
 
 	/* terminal */
 
-void stop_terminal(void)
+static void stop_terminal(void)
 {
   if (config.term_updatefreq > 100) {
     yywarn("terminal updatefreq too large (too slow)!");
@@ -852,7 +888,7 @@ void stop_terminal(void)
 
 	/* printer */
 
-void start_printer(void)
+static void start_printer(void)
 {
   if (c_printers >= NUM_PRINTERS)
     pptr = &nullptr;
@@ -873,7 +909,7 @@ void start_printer(void)
   }
 }
 
-void stop_printer(void)
+static void stop_printer(void)
 {
   c_printf("CONF(LPT%d) f: %s   c: %s  o: %s  t: %d\n",
 	   c_printers, pptr->dev, pptr->prtcmd, pptr->prtopt, pptr->delay);
@@ -883,8 +919,11 @@ void stop_printer(void)
 
 	/* disk */
 
-void start_bootdisk(void)
+static void start_bootdisk(void)
 {
+  if (priv_lvl)
+    yyerror("Can not change disk settings in user config file");
+
   if (config.bootdisk)           /* Already a bootdisk configured ? */
     yyerror("There is already a bootdisk configured");
       
@@ -901,8 +940,11 @@ void start_bootdisk(void)
   dptr->header = 0;
 }
 
-void start_floppy(void)
+static void start_floppy(void)
 {
+  if (priv_lvl)
+    yyerror("Can not change disk settings in user config file");
+
   if (c_fdisks >= MAX_FDISKS)
     {
     yyerror("There are too many floppy disks defined");
@@ -922,8 +964,11 @@ void start_floppy(void)
   dptr->header = 0;
 }
 
-void start_disk(void)
+static void start_disk(void)
 {
+  if (priv_lvl)
+    yyerror("Can not change the disk settings in the user config file\n");
+
   if (c_hdisks >= MAX_HDISKS) 
     {
     yyerror("There are too many hard disks defined");
@@ -942,8 +987,11 @@ void start_disk(void)
   dptr->header = 0;
 }
 
-void do_part(char *dev)
+static void do_part(char *dev)
 {
+  if (priv_lvl)
+    yyerror("Can not change disk settings in user config file");
+
   if (dptr->dev_name != NULL)
     yyerror("Two names for a partition given.");
   dptr->type = PARTITION;
@@ -954,7 +1002,7 @@ void do_part(char *dev)
    	    dptr->dev_name);
 }
 
-void stop_disk(int token)
+static void stop_disk(int token)
 {
   if (dptr == &nulldisk)              /* is there any disk? */
     return;                           /* no, nothing to do */
@@ -1002,7 +1050,7 @@ void stop_disk(int token)
 
 	/* keyboard */
 
-void keyb_layout(int layout)
+static void keyb_layout(int layout)
 {
   switch (layout) {
   case KEYB_FINNISH:
@@ -1180,6 +1228,7 @@ void keyb_layout(int layout)
 
 static int set_hardware_ram(int addr)
 {
+  memcheck_reserve('h', addr, 4096);
   if ((addr<0xc8000) || (addr>=0xf0000)) return 0;
   config.must_spare_hardware_ram=1;
   config.hardware_pages[(addr-0xc8000) >> 12]=1;
@@ -1214,7 +1263,7 @@ static void set_irq_range(int bits, int i1, int i2) {
 
 	/* errors & warnings */
 
-void yywarn(char* string, ...)
+static void yywarn(char* string, ...)
 {
   va_list vars;
   va_start(vars, string);
@@ -1225,7 +1274,7 @@ void yywarn(char* string, ...)
   warnings++;
 }
 
-void yyerror(char* string, ...)
+static void yyerror(char* string, ...)
 {
   va_list vars;
   va_start(vars, string);
@@ -1236,7 +1285,7 @@ void yyerror(char* string, ...)
   errors++;
 }
 
-void die(char *reason)
+static void die(char *reason)
 {
   error("ERROR: par dead: %s\n", reason);
   leavedos(0);
@@ -1247,7 +1296,7 @@ void die(char *reason)
  *             a file-pointer. The error/warning-counters are reset to zero.
  */
 
-FILE *open_file(char *filename)
+static FILE *open_file(char *filename)
 {
   errors   = 0;                  /* Reset error counter */
   warnings = 0;                  /* Reset counter for warnings */
@@ -1261,7 +1310,7 @@ FILE *open_file(char *filename)
  *              flag early-exit is that, so dosemu won't really.
  */
 
-void close_file(FILE * file)
+static void close_file(FILE * file)
 {
   fclose(file);                  /* Close the config-file */
 
@@ -1279,7 +1328,7 @@ void close_file(FILE * file)
 }
 
 /* Parse Users for DOSEMU, by Alan Hourihane, alanh@fairlite.demon.co.uk */
-void
+static void
 parse_dosemu_users(void)
 {
 #define ALL_USERS "all"
@@ -1328,7 +1377,7 @@ parse_dosemu_users(void)
 int
 parse_config(char *confname)
 {
-  FILE *volatile fd;
+  FILE *fd;
 #if YYDEBUG != 0
   extern int yydebug;
 
@@ -1355,27 +1404,26 @@ parse_config(char *confname)
       if (!exchange_uids()) die("Cannot changeback uids\n");
     }
 
-    if(confname) {
-      if(!(fd = open_file(confname))) {
-        fprintf(stderr, "Cannot open -F config file %s, Aborting DOSEMU.\n",confname);
-           exit(1);
-      }
-    } else {
-
-      if (!(fd = open_file(name))) {
-/*        fprintf(stderr, "Cannot open user config file %s, Trying default.\n",name); */
-        if (!(fd = open_file(CONFIG_FILE))) {
-          fprintf(stderr, "Cannot open default config file %s, Aborting DOSEMU.\n",CONFIG_FILE);
-          exit(1);
-        }
-      }
+    priv_lvl = 0;
+    if (!(fd = open_file(confname))) {
+      fprintf(stderr, "Cannot open base config file %s, Aborting DOSEMU.\n",confname);
+      exit(1);
     }
-
     yyin = fd;
     line_count = 1;
     if (yyparse())
-      yyerror("error in user's configuration file");
+      yyerror("error in configuration file %s", confname);
     close_file(fd);
+
+    priv_lvl = 1;
+    if ((fd = open_file(name)) != 0) {
+      yyin = fd;
+      line_count = 1;
+      yyrestart(fd);
+      if (yyparse())
+	yyerror("error in user's configuration file %s", name);
+      close_file(fd);
+    }
   }
 
 #ifdef TESTING

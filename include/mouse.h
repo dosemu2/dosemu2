@@ -5,7 +5,7 @@
 #define MOUSE_H
 
 #define MOUSE_BASE_VERSION	0x0700	/* minimum driver version 7.00 */
-#define MOUSE_EMU_VERSION	0x0001	/* my driver version 0.01 */
+#define MOUSE_EMU_VERSION	0x0000	/* my driver version 0.00 */
 /* this is the version returned to DOS programs */
 #define MOUSE_VERSION	  (MOUSE_BASE_VERSION + MOUSE_EMU_VERSION)
 
@@ -42,7 +42,7 @@
 #define MAX_MOUSE 1
 #define HEIGHT 16
 
-typedef struct mouse_structure {
+typedef struct  {
   char dev[255];
   int fd;
   int type;
@@ -56,7 +56,7 @@ typedef struct mouse_structure {
   int chordMiddle;
 } mouse_t;
 
-extern struct mouse_struct {
+EXTERN struct  {
   unsigned char lbutton, mbutton, rbutton;
   unsigned char oldlbutton, oldmbutton, oldrbutton;
 
@@ -73,10 +73,15 @@ extern struct mouse_struct {
   int x, y;
   int points;
   int minx, maxx, miny, maxy;
-  int speed_x, speed_y;
+  float speed_x, speed_y;
 
   /* these are for CURSOR position */
   int cx, cy;
+
+  /* these are for GRAPHIC cursor stuff */
+  boolean gfx_cursor;
+  unsigned short gfx_width, gfx_height;
+  unsigned short gfx_segment, gfx_offset;
 
   /* these are for sensitivity options */
   int threshold;
@@ -93,22 +98,26 @@ extern struct mouse_struct {
   unsigned short *csp, *ipp;
   unsigned short mask;
 
-  unsigned short hidchar;
+  unsigned short hidchar, newchar;
   unsigned int hidx, hidy;
 
   boolean mode;
+
+  int display_page;
+
+  boolean ignorexy;
+
+  struct ps2_struct {
+    boolean state;
+    unsigned short pkg;
+  } ps2;
 } mouse;
 
 void mouse_keyboard(int), mouse_curtick(void), mouse_sethandler(void *, unsigned short *, unsigned short *);
 
-extern mouse_t mice[MAX_MOUSE] ;
+EXTERN mouse_t mice[MAX_MOUSE] ;
 
-#ifndef MOUSE_C
-#define MEX extern
-#else
-#define MEX
-#endif
-MEX int keyboard_mouse;
+EXTERN int keyboard_mouse;
 
 extern void mouse_init(void);
 extern void mouse_int(void);

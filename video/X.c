@@ -588,17 +588,12 @@ void m_setpos(int x,int y) {
    /* XXX - this works in text mode only */
    x = x*8/font_width;
    y = y*8/font_height;
-#if 0
-   if (x!=mouse.x) mouse.x=x;
-   if (y!=mouse.y) mouse.y=y;
-   if (x!=mouse.x || y!=mouse.y) mouse_move();
-#else
    if (x!=mouse.x || y!=mouse.y) {
       mouse.x=x; 
       mouse.y=y;
+      update_cursor_reg();
       mouse_move();
    }
-#endif
 }   
 
 void m_setbuttons(int state) {

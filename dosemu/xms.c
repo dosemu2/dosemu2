@@ -184,9 +184,14 @@ static int FindFreeHandle(int);
 
 /* beginning of quote from Mach */
 
+/* technically, UMBS needs to be UMB_SIZE/16 since some fool could allocate
+   a million 16 byte entries.  In reality, there's usually about 128K of
+   UMB's tops and people tend to allocate it in large chunks.  UMBS is
+   currently 512 (as opposed to UMB_SIZE/16 or 16K entries) which is
+   probably still insanely high.  Ah linear table searching... -- scottb */
 #define UMB_BASE (caddr_t)0xc0000
 #define UMB_SIZE 0x40000
-#define UMBS (UMB_SIZE/16)
+#define UMBS 512
 #define UMB_PAGE 4096
 #define UMB_NULL -1
 
@@ -239,7 +244,9 @@ umb_memory_empty(addr, size)
       return FALSE;
     }
   }
+#if 0
   Debug0((dbg_fd, "Found free UMB region: %p\n", (void *) addr));
+#endif
   return (TRUE);
 }
 
@@ -247,72 +254,91 @@ static int
 umb_setup(void)
 {
   int i;
-  int umb,tumb;
-  vm_address_t addr;
 
   for (i = 0; i < UMBS; i++) {
     umbs[i].in_use = FALSE;
   }
 
-  if (config.ems_size) {
-    /* set up EMS page frame */
-    umb = umb_find_unused();
+  if (config.max_umb) {
+    int addr_start, size, umb;
 
-    umbs[umb].in_use = TRUE;
-    umbs[umb].free = FALSE;
-    umbs[umb].addr = (caddr_t) EMM_BASE_ADDRESS;
-    umbs[umb].size = 0x10000;
-  }
+    memcheck_addtype('U', "Upper Memory Block (UMB, XMS 3.0)");
 
-  /* set up DOSEMU trampolines */
-  umb = umb_find_unused();
-  tumb=umb;
-  umbs[umb].in_use = TRUE;
-  umbs[umb].free = FALSE;
-  umbs[umb].addr = (caddr_t) (BIOSSEG * 16);
-  umbs[umb].size = 0x10000;
+    addr_start = 0x00000;     /* start address */
+    while ((size = memcheck_findhole(&addr_start, 1024, 0x100000)) != 0) {
+      Debug0((dbg_fd, "findhole - from 0x%5.5X, %dKb\n", addr_start, size/1024));
+      memcheck_reserve('U', addr_start, size);
 
-  /* set up 32K VGA BIOS mem if necessary */
-  if (config.mapped_bios) {
-    umb = umb_find_unused();
-
-    umbs[umb].in_use = TRUE;
-    umbs[umb].free = FALSE;
-    umbs[umb].addr = (caddr_t) VBIOS_START;
-    umbs[umb].size = 0x8000;
-
-    if (config.vbios_seg == 0xe000) {
-      Debug0((dbg_fd, "Fixing UMB for E000\n"));
       umb = umb_find_unused();
       umbs[umb].in_use = TRUE;
-      umbs[umb].free = FALSE;
-      umbs[umb].addr = (caddr_t) 0xc0000;
-      umbs[umb].size = 0x8000;
+      umbs[umb].free = TRUE;
+      umbs[umb].addr = (vm_address_t) addr_start;
+      umbs[umb].size = size;
     }
-
   }
-  umb=tumb;
-  for (addr = UMB_BASE; addr < (vm_address_t) (UMB_BASE + UMB_SIZE);
-       addr += UMB_PAGE) {
-    if (IN_EMM_SPACE(addr) || IN_EMU_SPACE(addr) || IN_HARDWARE_PAGES(addr)) {
-#if 1
-      Debug0((dbg_fd, "skipped UMB region: %p EMM-%d EMU=%d hardw=%d\n",(void *) addr, 
-               IN_EMM_SPACE(addr),IN_EMU_SPACE(addr),IN_HARDWARE_PAGES(addr)));
-#endif
-      continue;
+  else {
+    int umb,tumb;
+    vm_address_t addr;
+
+    if (config.ems_size) {
+      /* set up EMS page frame */
+      umb = umb_find_unused();
+      
+      umbs[umb].in_use = TRUE;
+      umbs[umb].free = FALSE;
+      umbs[umb].addr = (caddr_t) EMM_BASE_ADDRESS;
+      umbs[umb].size = 0x10000;
     }
-    if (umb_memory_empty(addr, UMB_PAGE)) {
-      if ((umbs[umb].addr + umbs[umb].size) == addr) {
-	umbs[umb].size += UMB_PAGE;
-      }
-      else {
+    
+    /* set up DOSEMU trampolines */
+    umb = umb_find_unused();
+    tumb=umb;
+    umbs[umb].in_use = TRUE;
+    umbs[umb].free = FALSE;
+    umbs[umb].addr = (caddr_t) (BIOSSEG * 16);
+    umbs[umb].size = 0x10000;
+    
+    /* set up 32K VGA BIOS mem if necessary */
+    if (config.mapped_bios) {
+      umb = umb_find_unused();
+      
+      umbs[umb].in_use = TRUE;
+      umbs[umb].free = FALSE;
+      umbs[umb].addr = (caddr_t) VBIOS_START;
+      umbs[umb].size = 0x8000;
+      
+      if (config.vbios_seg == 0xe000) {
+	Debug0((dbg_fd, "Fixing UMB for E000\n"));
 	umb = umb_find_unused();
 	umbs[umb].in_use = TRUE;
-	umbs[umb].free = TRUE;
-	umbs[umb].addr = addr;
-	umbs[umb].size = UMB_PAGE;
-	Debug0((dbg_fd, "New UMB region: %p\n",
-		(void *) addr));
+	umbs[umb].free = FALSE;
+	umbs[umb].addr = (caddr_t) 0xc0000;
+	umbs[umb].size = 0x8000;
+      }
+    }
+
+    umb=tumb;
+    for (addr = UMB_BASE; addr < (vm_address_t) (UMB_BASE + UMB_SIZE);
+	 addr += UMB_PAGE) {
+      if (IN_EMM_SPACE(addr) || IN_EMU_SPACE(addr) || IN_HARDWARE_PAGES(addr)) {
+#if 0
+	Debug0((dbg_fd, "skipped UMB region: %p EMM-%d EMU=%d hardw=%d\n",(void *) addr, 
+		IN_EMM_SPACE(addr),IN_EMU_SPACE(addr),IN_HARDWARE_PAGES(addr)));
+#endif
+	continue;
+      }
+      if (umb_memory_empty(addr, UMB_PAGE)) {
+	if ((umbs[umb].addr + umbs[umb].size) == addr) {
+	  umbs[umb].size += UMB_PAGE;
+	}
+	else {
+	  umb = umb_find_unused();
+	  umbs[umb].in_use = TRUE;
+	  umbs[umb].free = TRUE;
+	  umbs[umb].addr = addr;
+	  umbs[umb].size = UMB_PAGE;
+	  Debug0((dbg_fd, "New UMB region: %p\n", (void *) addr));
+	}
       }
     }
   }
@@ -321,7 +347,6 @@ umb_setup(void)
     if (umbs[i].in_use && umbs[i].free) {
       vm_address_t addr = umbs[i].addr;
       vm_size_t size = umbs[i].size;
-
 #if 0
       MACH_CALL((vm_deallocate(mach_task_self(),
 			       (vm_address_t) addr,
@@ -336,6 +361,7 @@ umb_setup(void)
 #endif
     }
   }
+
   return 0;
 }
 
@@ -371,6 +397,9 @@ static vm_address_t
 umb_allocate(int size)
 {
   int i;
+
+  if (size == 0)
+    return ((vm_address_t) 0);
 
   for (i = 0; i < UMBS; i++) {
     if (umbs[i].in_use && umbs[i].free) {

@@ -1,13 +1,18 @@
 # Makefile for Linux DOSEMU
 #
 # $Date: 1995/01/14 15:27:32 $
-# $Source: /home/src/dosemu0.60/RCS/Makefile,v $
+# $Source: /fs3/src/dosemu/dosemu0.53pl40/Makefile,v $
 # $Revision: 2.38 $
 # $State: Exp $
 #
 # You should do a "make doeverything" or a "make most" (excludes TeX)
 # if you are doing the first compile.
 #
+
+# Set do_DEBUG to skip these steps
+# Set STATIC to produce one static binary (instead of the binary/library
+# combination
+
 
 # Want to try SLANG?
 USE_SLANG=-DUSE_SLANG
@@ -95,14 +100,12 @@ endif
 OBJS	= dos.o 
 DEPENDS = dos.d emu.d
 
-# set if you want one excutable
-# STATIC=1
 
 # dosemu version
 EMUVER  =   0.53
 export EMUVER
 VERNUM  =   0x53
-PATCHL  =   40
+PATCHL  =   41
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -111,13 +114,13 @@ LIBSTART = 0x20000000
 
 ENDOFDOSMEM = 0x110000     # 1024+64 Kilobytes
 
-CFILES=emu.c dos.c $(X2CFILES)
+CFILES=emu.c dos.c $(X2CFILES) data.c dosstatic.c
 
 # For testing the internal IPX code
 # IPX = ipxutils
 
 # Change USING_NET to 0 and set NET to nothing to remove all net code.
-export USING_NET = 1
+export USING_NET = -DUSING_NET
 export NET = net
 
 # SYNC_ALOT
@@ -132,6 +135,7 @@ DOSEMU_USERS_FILE = -DDOSEMU_USERS_FILE=\"/etc/dosemu.users\"
 # Uncomment for DPMI support
 # it is for the makefile and also for the C compiler
 DPMI=-DDPMI
+# ???
 ifndef NEW_PIC	# I need PIC for DPMI
 DPMI=
 endif
@@ -146,12 +150,13 @@ CLIENTSSUB=clients
 
 OPTIONALSUBDIRS =examples v-net syscallmgr emumod
 
-LIBSUBDIRS=dosemu timer mfs video init keyboard mouse $(NET) $(IPX) drivers
+LIBSUBDIRS= dosemu timer mfs video init keyboard mouse $(NET) $(IPX) drivers
+
 ifdef DPMI
-LIBSUBDIRS+=dpmi
+LIBSUBDIRS+= dpmi
 endif
 
-SUBDIRS= periph include boot \
+SUBDIRS= include boot \
 	$(CLIENTSSUB) kernel
 
 REQUIRED=tools bios periph commands
@@ -196,11 +201,11 @@ CONFIGINFO = $(CONFIGS) $(OPTIONAL) $(DEBUG) \
 TOPDIR  := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
 INCDIR     = -I$(TOPDIR)/include  -I$(LINUX_INCLUDE)
 ifndef USE_SLANG
-INCDIR  := $(INCDIR) -I$(NCURSES_INC)
+INCDIR  += -I$(NCURSES_INC)
 endif
  
 ifdef X11LIBDIR
-INCDIR  := $(INCDIR) -I$(X11INCDIR)
+INCDIR  +=  -I$(X11INCDIR)
 endif
 export INCDIR
 
@@ -208,12 +213,12 @@ export INCDIR
 
 # if NEWPIC is there, use it
 # if DPMI is there, use it
-export CFLAGS     = -N -s -O2 -DUSING_NET=$(USING_NET) $(NEW_PIC) $(DPMI) $(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
-EMU_CFLAGS=-Idosemu $(CFLAGS)
+OPT= -O # -fno-inline
+PIPE=-pipe
+export CFLAGS     = $(OPT) $(PIPE) $(USING_NET)
+CFLAGS+=$(NEW_PIC) $(DPMI) $(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
+CFLAGS+=$(USE_SLANG)
 export ASFLAGS    = $(NEW_PIC)
-ifdef STATIC
-CFLAGS+=-DSTATIC
-endif
 
 
 LDFLAGS    = $(LNKOPTS) # exclude symbol information
@@ -235,16 +240,11 @@ export DISTBASE DISTNAME DISTPATH DISTFILE
 ifdef do_DEBUG
 # first target for debugging build
 ifneq (include/config.h,$(wildcard include/config.h))
-firstsimple:	include/config.h dep simple
+firstsimple:	include/config.h version dep simple
 endif
 
-ifdef STATIC
-simple:	dossubdirs dos
-else
-simple:	dossubdirs libdosemu dos
+simple:	dossubdirs dosstatic libdosemu dos
 endif
-endif
-
 
 warning: warning2
 	@echo "To compile DOSEMU, type 'make doeverything'"
@@ -287,7 +287,7 @@ itall: warning2 config dep optionalsubdirs $(DOCS) installnew
 
 most: warning2 config dep installnew
 
-all:	warnconf warning3 dos $(LIBDOSEMU) $(X2CEXE)
+all:	warnconf warning3 dos libdosemu $(X2CEXE)
 
 
 debug:
@@ -312,15 +312,12 @@ dos.o: include/config.h
 x2dos.o: include/config.h x2dos.c
 	$(CC) $(CFLAGS) -I/usr/openwin/include -c x2dos.c
 
-ifdef STATIC
-dos::	dos.o emu.o bios/bios.o
-	$(LD) $(LDFLAGS) -o $@ $^ bios/bios.o $(addprefix -L,$(LIBPATH)) -L. \
-		$(addprefix -l, $(LIBS)) $(TCNTRL) $(XLIBS)
-else
+dosstatic:	dosstatic.o emu.o data.o bios/bios.o
+	$(LD) $(LDFLAGS) -o $@ $^ $(addprefix -L,$(LIBPATH)) -L. \
+		$(addprefix -l, $(LIBS))  $(TCNTRL) $(XLIBS)
 dos:	dos.o
 	$(LD) $(LDFLAGS) -N -o $@ $^ $(addprefix -L,$(LIBPATH)) -L. \
 		$(TCNTRL) $(XLIBS)
-endif
 
 x2dos: x2dos.o
 	@echo "Including x2dos.o "
@@ -343,27 +340,28 @@ xinstallvgafont:	xinstallvgafont.sh
 
 
 
-$(LIBDOSEMU): 	emu.o dossubdirs
+$(LIBDOSEMU): 	emu.o data.o # dossubdirs
 	$(LD) $(LDFLAGS) $(MAGIC) -Ttext $(LIBSTART) -o $(LIBDOSEMU) \
-	   -nostdlib $< $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
-	    $(addprefix -l, $(LIBS)) bios/bios.o $(XLIBS) $(TCNTRL) -lc
+	   -nostdlib $^ $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
+	    $(addprefix -l, $(LIBS)) bios/bios.o $(XLIBS) $(TCNTRL) -lc 
 
-libdosemu:	$(LIBDOSEMU)
+libdosemu:	dossubdirs $(LIBDOSEMU)
 
 .PHONY:	dossubdirs optionalsubdirs docsubdirs
 .PHONY: $(LIBSUBDIRS) $(OPTIONALSUBDIRS) $(DOCS) $(REQUIRED)
 
 # ?
 dossubdirs:	$(LIBSUBDIRS) $(REQUIRED)
+	-rm -f $(LIBDOSEMU)
 
 optionalsubdirs:	$(OPTIONALSUBDIRS)
-
 
 docsubdirs:	$(DOCS)
 
 $(DOCS) $(OPTIONALSUBDIRS) $(LIBSUBDIRS) $(REQUIRED):
 	$(MAKE) -C $@ 
 
+version:	include/kversion.h
 
 include/kversion.h:
 	$(SHELL) ./tools/kversion.sh $(LINUX_KERNEL) ./
@@ -425,7 +423,7 @@ ifdef X_SUPPORT
 	@echo "		xmodmap -e \"key 108 = Return\"  [Return = 0xff0d]"	
 	@echo ""
 endif
-	@echo "  - Try the ./commands/mouse.com if your INTERNAL mouse won't work"
+	@echo "  - Try the ./commands/mouse.exe if your INTERNAL mouse won't work"
 	@echo "  - Try ./commands/unix.com to run a Unix command under DOSEMU"
 	@echo "  - Try the ./garrot02/garrot02.com for better CPU use under Linux"
 	@echo ""
@@ -452,24 +450,22 @@ checkout::
 dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
 	install -d $(DISTPATH)
 	install -d $(DISTPATH)/lib
-	install -m 0644 dosemu.xpm libslang.a $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) $(DISTPATH)
-	cp TODO $(DISTPATH)/.todo
-	cp TODO.JES $(DISTPATH)/.todo.jes
-	cp .indent.pro $(DISTPATH)/.indent.pro
-	install -m 0644 hdimages/hdimage.dist $(DISTPATH)/hdimage.dist
+	cp -a dosemu.xpm libslang.a $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) $(DISTPATH)
+	cp -a TODO $(DISTPATH)/.todo
+	cp -a TODO.JES $(DISTPATH)/.todo.jes
+	cp -a .indent.pro $(DISTPATH)/.indent.pro
+	cp -a hdimages/hdimage.dist $(DISTPATH)/hdimage.dist
 	@for i in $(REQUIRED) $(LIBS) $(SUBDIRS) $(DOCS) ipxutils $(OPTIONALSUBDIRS) ipxbridge; do \
 	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \
 	done
-	install -d $(DISTPATH)/garrot02
-	install -m 0644 garrot02/* $(DISTPATH)/garrot02
 	(cd $(DISTBASE); tar cf - $(DISTNAME) | gzip -9 >$(DISTFILE))
 	rm -rf $(DISTPATH)
 	@echo "FINAL .tgz FILE:"
 	@ls -l $(DISTFILE) 
 
 local_clean:
-	-rm -f $(OBJS) $(X2CEXE) x2dos.o dos.o dos libdosemu0.* *.s core \
-	  dosconfig dosconfig.o *.tmp dosemu.map emu.o
+	-rm -f $(OBJS) $(X2CEXE) x2dos.o dos libdosemu0.* *.s core \
+	  dosstatic dosconfig  *.tmp dosemu.map *.o
 
 local_realclean:	
 	-rm -f include/config.h include/kversion.h
@@ -478,10 +474,22 @@ clean::	local_clean
 
 realclean::   local_realclean local_clean
 
-clean realclean::
-	-@for i in $(REQUIRED) $(DOCS) $(LIBS) $(SUBDIRS) $(OPTIONALSUBDIRS); do \
-	  $(MAKE) -C $$i $@; \
-	done
+DIRLIST=$(REQUIRED) $(DOCS) $(LIBS) $(SUBDIRS) $(OPTIONALSUBDIRS)
+CLEANDIRS=$(addsuffix .clean, $(DIRLIST))
+REALCLEANDIRS=$(addsuffix .realclean, $(DIRLIST))
+clean:: $(CLEANDIRS)
+
+realclean:: $(REALCLEANDIRS)
+
+.PHONY: $(CLEANDIRS)
+$(CLEANDIRS):
+	$(MAKE) -C $(subst .clean,,$@) clean CLEANING=true
+
+.PHONY: $(REALCLEANDIRS)
+$(REALCLEANDIRS):
+	$(MAKE) -C $(subst .realclean,,$@) realclean CLEANING=true
+
+
 
 pristine:	realclean
 	-rm lib/*
@@ -506,12 +514,6 @@ size:
 $(DEPENDDIRS):
 	$(MAKE) -C $(subst .depend,,$@) depend
 
-emu.o:	emu.c
-	$(CC) -c $(EMU_CFLAGS) -o $@ $<
-
-emu.d:	emu.c
-	$(SHELL) -ec '$(CC) $(TYPE_DEPEND) $(EMU_CFLAGS) $< \
-                           | sed '\''s/$*\\.o[ :]*/& $@/g'\'' > $@'
 
 .PHONY: help
 help:
@@ -524,3 +526,9 @@ help:
 	@echo "    " $(LIBSUBDIRS)
 	@echo
 	echo "To clean a directory, do make -C <dirname> clean|realclean"
+
+echo::
+	for i in $(LIBSUBDIRS); do \
+		$(MAKE) -C $$i $@  || exit 1; \
+	done
+

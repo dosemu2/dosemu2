@@ -138,8 +138,8 @@
 #include "serial.h"
 #include "mouse.h"
 #if NEW_PIC==2   /*  add includes for NEW_PIC */
-#include "timer/bitops.h"
-#include "timer/pic.h"
+#include "../timer/bitops.h"
+#include "../timer/pic.h"
 #else
 extern void queue_hard_int(int i, void (*), void (*));
 #endif

@@ -65,6 +65,7 @@ unsigned long pic_irr,          /* interrupt request register */
               pic_smm,          /* 32=>special mask mode, 0 otherwise */
               pic_icount,       /* iret counter (to avoid filling stack) */
               pic_pirr,         /* pending requests: ->irr when icount==0 */
+              pic_wirr,		/* watchdog timer for pic_pirr */
 #ifdef IN_PIC
               pic_imr=0xfff8,   /* interrupt mask register, enable irqs 0,1 */
               pice_imr=-1,      /* interrupt mask register, dos emulator */
@@ -126,6 +127,8 @@ int do_irq();                                /* run dos portion of irq code */
 void pic_request(int inum);                            /* interrupt trigger */
 void pic_creq(int inum);                   /* conditional interrupt trigger */
 void pic_iret();                             /* interrupt completion notify */
+void pic_watch();		       /* interrupt pendiong watchdog timer */
+void do_irq0();						 /* timer interrupt */
 
 /* The following are too simple to be anything but in-line */
 

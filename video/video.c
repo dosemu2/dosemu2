@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
 
 #include "emu.h"
 #include "bios.h"
@@ -27,26 +28,9 @@ extern void set_consoleX_video();
 extern int
 dosemu_sigaction(int sig, struct sigaction *, struct sigaction *);
 
-int video_mode = 0;		/* Init Screen Mode in emu.c     */
-
-int video_page=0;
-int char_blink=1;
-int font_height=16;
-int co=80, li=25;
-
-ushort *screen_adr;       /* pointer to current video mem page */
-ushort *prev_screen;      /* currently displayed page (was scrbuf) */
 
 struct video_system *Video = NULL;
 
-int cursor_col=0, cursor_row=0;
-ushort cursor_shape=0x0E0F;
-
-unsigned int screen_mask;  /* bit mask for testing vm86s.screen_bitmap */    
-
-int vga_font_height = 16;  /* current font height */
-int std_font_height = 16;  /* font height set by int10,0 mode 3 */
-int text_scanlines = 400;
 
 /* 
  * DANG_BEGIN_FUNCTION video_init
@@ -90,8 +74,6 @@ int video_init()
     init_dualmon();
   }
 #endif
-
-  termioInit();            /* kludge! */
 
   Video->init();              /* call the specific init routine */
 
@@ -166,9 +148,130 @@ load_file(char *name, int foffset, char *mstart, int msize)
   return 0;
 }
 
+void
+video_memory_setup(void)
+{
+  memcheck_addtype('v', "Video memory");
+
+/* 
+ * DANG_BEGIN_REMARK
+ * video_memory_setup()
+ *
+ * This procedure is trying to eke out all the UMB blocks possible to
+ * maximize your memory under DOSEMU.  If you know about dual monitor
+ * setups, you can contribute by putting in the correct graphics page
+ * address values.
+ * DANG_END_REMARK
+ */
+
+#if USE_DUALMON
+  if (!config.max_umb || config.dualmon) {
+#else
+  if (!config.max_umb) {
+#endif
+    if (config.dualmon)
+      c_printf("CONF: Unable to maximize UMB's due to dual monitor setup\n");
+    if (config.mem_size > 640) {
+      int addr_start = config.mem_size * 1024;
+      memcheck_reserve('v', addr_start, 0xC0000 - addr_start);
+    }
+    else
+      memcheck_reserve('v', GRAPH_BASE, GRAPH_SIZE);
+  } else {
+    int graph_base, graph_size;
+
+    /* Okay, the usual procedure would be to reserve 128K of memory for
+       video unconditionally.  Clearly this is insane.  If you're running
+       in an x-term or across the network, you're wasting memory. */
+
+    c_printf("CONF: Trying to set minimum video memory to maximize UMB's\n");
+
+    if (config.usesX) {
+      graph_base = 0xB0000;
+      graph_size = 64*1024;
+      c_printf("CONF: X-Windows.  Assuming %uKB video memory @ 0x%5.5X\n",
+	       graph_size/1024, graph_base);
+    }
+    else if (!config.console_video) {
+      graph_base = 0xB0000;
+      graph_size = 64*1024;
+      c_printf("CONF: remote session.  Assuming %uKB video memory @ 0x%5.5X\n",
+	       graph_size/1024, graph_base);
+    }
+    else {
+      switch (config.cardtype) {
+      case CARD_MDA:
+	graph_base = 0xB0000;
+	graph_size = 64*1024;
+	c_printf("CONF: MDA video card w/%uKB video memory @ 0x%5.5X\n",
+		 graph_size/1024, graph_base);
+	break;
+      case CARD_CGA:
+	graph_base = 0xB8000;
+	graph_size = 32*1024;
+	c_printf("CONF: CGA video card w/%uKB video memory @ 0x%5.5X\n",
+		 graph_size/1024, graph_base);
+	break;
+      case CARD_EGA:
+	graph_base = 0xB0000;
+	graph_size = 64*1024;
+	c_printf("CONF: EGA video card w/%uKB video memory @ 0x%5.5X\n",
+		 graph_size/1024, graph_base);
+	break;
+      case CARD_VGA:
+	graph_base = 0xA0000;
+	graph_size = 128*1024;
+	c_printf("CONF: VGA video card w/%uKB video memory @ 0x%5.5X\n",
+		 graph_size/1024, graph_base);
+	break;
+      default:
+	graph_base = 0xA0000;
+	graph_size = 128*1024;
+	c_printf("CONF: default video, guessing %uKB video memory @ 0x%5.5X\n",
+		 graph_size/1024, graph_base);
+	break;
+      }
+    }
+
+    memcheck_reserve('v', graph_base, graph_size);
+  }
+
+  if (config.mapped_bios) {
+    memcheck_addtype('V', "Video BIOS");
+    memcheck_reserve('V', VBIOS_START, VBIOS_SIZE);
+  }
+}
+
+static void
+gettermcap(void)
+{
+  char *garb;
+  struct winsize ws;		/* buffer for TIOCSWINSZ */
+
+  li = LI;
+  co = CO;
+  if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) >= 0) {
+    li = ws.ws_row;
+    co = ws.ws_col;
+  }
+
+  if (li == 0 || co == 0) {
+    error("ERROR: unknown window sizes li=%d  co=%d, setting to 80x25\n", li, co);
+    li = 25;
+    co = 80;
+  }
+  else
+    v_printf("VID: Setting windows size to li=%d, co=%d\n", li, co);
+}
 
 void
 video_config_init(void) {
+
+  gettermcap();
+#if 0
+  li = 25;
+  co = 80;
+#endif
 
   switch (config.cardtype) {
   case CARD_MDA:

@@ -355,12 +355,6 @@ void run_irqs()
 void run_irqs()
 {
 
- static int in_run_irqs=0;
-
- if (in_run_irqs) {
-   return;
- }
- in_run_irqs = 1;
 
 #ifdef DPMI
  if (in_dpmi)
@@ -400,8 +394,6 @@ void run_irqs()
    :                                 /* no input                        */ 
    :"eax","ebx","ecx");              /* registers eax, ebx, ecx used    */
 
- in_run_irqs = 0;
-
  } 
 #endif
                
@@ -439,12 +431,10 @@ int do_irq()
 
      pic_cli();
 #ifdef DPMI
-     if (in_dpmi && !in_dpmi_dos_int) {
+     if (in_dpmi) {
       run_pm_int(intr);
      } 
-#if 1
      else
-#endif
 #endif
        run_int(intr);
       pic_icount++;
@@ -527,7 +517,9 @@ int inum;
  * (set by do_irq()).  If the count is then zero, pic_iret moves all queued
  * interrupts to the interrupt request register.  It is possible for pic_iret
  * to be fooled by dos code; for this reason active interrupts are checked,
- * any queued interrupts that are also active will remain queued.
+ * any queued interrupts that are also active will remain queued.  Also,
+ * some programs fake an iret, so that it is possible for pic_iret to fail.
+ * See pic_watch for the watchdog timer that catches and fixes this event.
  *
  * DANG_END_FUNCTION
  */
@@ -544,6 +536,7 @@ unsigned short * tmp;
       if(!(--pic_icount)) {
         pic_irr|=(pic_pirr&~pic_isr);
         pic_pirr&=~pic_irr;
+        pic_wirr&=~pic_irr;
       } 
   return;
   }
@@ -556,12 +549,45 @@ tmp = SEG_ADR((short *),ss,sp)-3;
       if(!(--pic_icount)) {
         pic_irr|=(pic_pirr&~pic_isr);
         pic_pirr&=~pic_irr;
+        pic_wirr&=~pic_irr;		/* clear watchdog timer */
         REG(eflags)&=~(VIP);
    } 
  return;
 }
-    
- 
+/* DANG_BEGIN_FUNCTION pic_watch
+ *
+ * pic_watch is a watchdog timer for pending interrupts.  If pic_iret
+ * somehow fails to activate a pending interrupt request for 2 consecutive 
+ * timer ticks, pic_watch will activate them anyway.  pic_watch is called
+ * by do_irq0, the timer interrupt routine.
+ *
+ * DANG_END_FUNCTION
+ */
+  
+
+
+inline void 
+pic_watch()
+{
+        pic_irr|=(pic_wirr&~pic_isr);	/* activate anything still pending */
+        pic_pirr&=~pic_irr;
+        pic_wirr&=~pic_irr;
+        pic_wirr|=pic_pirr;   	/* set a new pending list for next time    */
+}      
+
+/* DANG_BEGIN_FUNCTION do_irq0
+ *
+ * This is the routine for timer interrupts.  It simply calls pic_watch(),
+ * then triggers IRQ0 via do_irq().
+ *
+ * DANG_END_FUNCTION
+ */
+void
+do_irq0()
+{
+	pic_watch();
+	do_irq();
+} 
    
 
 #undef set_pic0_imr(x)

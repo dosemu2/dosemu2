@@ -295,11 +295,11 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 	  
 	/*
 	 * calculate the new values for buttons, dx and dy
+  	 * Ensuring that speed is calculated from current values.
 	 */
-	mouse.x = mouse.x + dx;
-	mouse.y = mouse.y + dy;
-	mouse.cx = mouse.x / 8;
-	mouse.cy = mouse.y / 8;
+	mouse.x = mouse.x + (dx * (mouse.speed_x / 8));
+	mouse.y = mouse.y + (dy * (mouse.speed_y / 8));
+	update_cursor_reg();
 	mouse.oldlbutton = mouse.lbutton;
 	mouse.oldmbutton = mouse.mbutton;
 	mouse.oldrbutton = mouse.rbutton;

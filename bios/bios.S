@@ -20,7 +20,7 @@
 /* $Id$
 /*************************************************************************/
 
-
+#define __ASM__
 #include "memory.h"
 #include "macros86.h"
 
@@ -521,6 +521,9 @@ _DPMI_API_extension:
 	retf
 	.globl	_DPMI_return_from_pm
 _DPMI_return_from_pm:
+	hlt
+	.globl	_DPMI_return_from_pm_eh
+_DPMI_return_from_pm_eh:
 	hlt
 	.globl	_DPMI_exception
 _DPMI_exception:

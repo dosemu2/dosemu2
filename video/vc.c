@@ -13,9 +13,8 @@
  * option.
  *
  * DANG_END_MODULE
- */
-
-/* vc.c - for the Linux DOS emulator
+ *
+ * vc.c - for the Linux DOS emulator
  *  Robert Sanders, gt8134b@prism.gatech.edu
  *
  * DANG_BEGIN_CHANGELOG
@@ -89,8 +88,9 @@
  *
  * DANG_END_CHANGELOG
  */
-#define VC_C 1
 
+
+/* why ?? */
 #define VGA_SAVE_PAGE0
 
 #include <stdio.h>
@@ -129,6 +129,7 @@ extern int munmap __P ((caddr_t __addr, size_t __len));
 #include "bios.h"
 #include "port.h"
 
+#include "video.h"
 #include "vc.h"
 #include "vga.h"
 #include "s3.h"
@@ -140,47 +141,30 @@ extern void child_open_mouse ();
 extern struct config_info config;
 extern void clear_screen (int, int);
 extern inline void console_update_cursor (int, int, int, int);
-void set_dos_video ();
+static void set_dos_video ();
 void put_video_ram ();
 
-extern char *cstack[4096];
 
 extern int
   dosemu_sigaction (int sig, struct sigaction *, struct sigaction *);
-void SIGRELEASE_call (void);
-void SIGACQUIRE_call (void);
+static void SIGRELEASE_call (void);
+static void SIGACQUIRE_call (void);
 
 void dump_video_regs (void);
 void dump_video ();
 void dump_video_linux ();
-u_char video_type = PLAINVGA;
+static u_char video_type = PLAINVGA;
 
-struct video_save_struct linux_regs, dosemu_regs;
 
-int CRT_I, CRT_D, IS1_R, FCR_W, color_text;
+static int  color_text;
 
 #define MAXDOSINTS 032
 #define MAXMODES 34
 
-u_char permissions;
-u_char video_initialized = 0;
 
-/* flags from dos.c */
-
-struct screen_stat scr_state;	/* main screen status variables */
-void release_vt (int sig, struct sigcontext_struct context), acquire_vt (int sig, struct sigcontext_struct context);
+static void release_vt (int sig, struct sigcontext_struct context), acquire_vt (int sig, struct sigcontext_struct context);
 void get_video_ram (int), open_kmem ();
-extern int mem_fd;
 
-int gfx_mode = TEXT;
-int max_page = 7;		/* number of highest vid page - 1*/
-
-/* Values are set from emu.c depending on video-config */
-
-int phys_text_base = 0;
-int virt_text_base = 0;
-int video_combo = 0;
-int video_subsys = 0;
 
 #if 1
 #undef SETSIG
@@ -190,14 +174,14 @@ int video_subsys = 0;
 				sigaction(sig, &sa, NULL);
 #endif
 
-inline void
-forbid_switch ()
+static inline void
+forbid_switch (void)
 {
   scr_state.vt_allow = 0;
 }
 
-inline void
-allow_switch ()
+void
+allow_switch (void)
 {
   scr_state.vt_allow = 1;
   if (scr_state.vt_requested)
@@ -207,7 +191,7 @@ allow_switch ()
     }
 }
 
-void
+static void
 parent_close_mouse (void)
 {
   if (mice->intdrv)
@@ -224,7 +208,7 @@ parent_close_mouse (void)
     child_close_mouse ();
 }
 
-void
+static void
 parent_open_mouse (void)
 {
   if (mice->intdrv)
@@ -245,7 +229,7 @@ parent_open_mouse (void)
     child_open_mouse ();
 }
 
-void
+static inline void
 SIGACQUIRE_call (void)
 {
   if (config.console_video)
@@ -257,7 +241,7 @@ SIGACQUIRE_call (void)
   parent_open_mouse ();
 }
 
-void
+static void
 acquire_vt (int sig, struct sigcontext_struct context)
 {
   v_printf ("VID: Acquiring VC\n");
@@ -269,20 +253,20 @@ acquire_vt (int sig, struct sigcontext_struct context)
   scr_state.current = 1;
 }
 
-void
-get_permissions ()
+static inline void
+get_permissions (void)
 {
   DOS_SYSCALL (set_ioperm (0x3b0, 0x3df - 0x3b0 + 1, 1));
 }
 
-void
-giveup_permissions ()
+static inline void
+giveup_permissions (void)
 {
   DOS_SYSCALL (set_ioperm (0x3b0, 0x3df - 0x3b0 + 1, 0));
 }
 
-void
-set_dos_video ()
+static void
+set_dos_video (void)
 {
   if (!config.vga)
     return;
@@ -304,7 +288,7 @@ set_dos_video ()
 }
 
 void
-set_linux_video ()
+set_linux_video (void)
 {
   if (!config.vga)
     return;
@@ -331,7 +315,7 @@ set_linux_video ()
     }
 }
 
-void
+static void
 SIGRELEASE_call (void)
 {
 
@@ -393,7 +377,7 @@ wait_vc_active (void)
     return 0;
 }
 
-void
+static inline void
 release_vt (int sig, struct sigcontext_struct context)
 {
   SIGNAL_save (SIGRELEASE_call);
@@ -601,7 +585,7 @@ put_video_ram (void)
 
 /* this puts the VC under process control */
 void
-set_process_control ()
+set_process_control (void)
 {
   struct vt_mode vt_mode;
   struct sigaction sa;
@@ -624,7 +608,7 @@ set_process_control ()
 }
 
 void
-clear_process_control ()
+clear_process_control (void)
 {
   struct vt_mode vt_mode;
 
@@ -634,10 +618,12 @@ clear_process_control ()
   signal (SIG_ACQUIRE, SIG_IGN);
 }
 
-u_char kmem_open_count = 0;
+
+/* why count ??? */
+static u_char kmem_open_count = 0;
 
 void
-open_kmem ()
+open_kmem (void)
 {
   /* as I understad it, /dev/kmem is the kernel's view of memory,
      * and /dev/mem is the identity-mapped (i.e. physical addressed)
@@ -648,7 +634,10 @@ open_kmem ()
 
   if (mem_fd != -1)
     return;
-  if ((mem_fd = open ("/dev/kmem", O_RDWR)) < 0)
+  exchange_uids();
+  mem_fd = open("/dev/kmem", O_RDWR);
+  exchange_uids();
+  if (mem_fd < 0)
     {
       error ("ERROR: can't open /dev/kmem: errno=%d, %s \n",
 	     errno, strerror (errno));
@@ -659,7 +648,7 @@ open_kmem ()
 }
 
 void
-close_kmem ()
+close_kmem (void)
 {
 
   if (kmem_open_count)
@@ -672,95 +661,6 @@ close_kmem ()
       v_printf ("Kmem closed successfully\n");
     }
 }
-
-
-void
-map_bios (void)
-{
-  char *video_bios_mem;
-
-  /* assume VGA BIOS size of 32k here and in bios_emm.c */
-  open_kmem ();
-  video_bios_mem =
-    (char *) mmap (
-		    (caddr_t) VBIOS_START,
-		    VBIOS_SIZE,
-		    PROT_READ | PROT_EXEC,
-		    MAP_PRIVATE | MAP_FIXED,
-		    mem_fd,
-		    VBIOS_START
-    );
-  close_kmem ();
-
-  if ((long) video_bios_mem < 0)
-    {
-      error ("ERROR: mmap error in map_bios %s\n", strerror (errno));
-      return;
-    }
-  else
-    g_printf ("VIDEO BIOS address: %p\n", (void *) video_bios_mem);
-
-#if MAP_SYSTEM_BIOS
-
-  open_kmem ();
-  system_bios_mem =
-    (char *) mmap (
-		    (caddr_t) 0xf0000,
-		    64 * 1024,
-		    PROT_READ | PROT_EXEC,
-		    MAP_PRIVATE | MAP_FIXED,
-		    mem_fd,
-		    0xf0000
-    );
-  close_kmem ();
-
-  if ((long) system_bios_mem < 0)
-    {
-      error ("ERROR: mmap error in map_bios %s\n", strerror (errno));
-      return;
-    }
-  else
-    g_printf ("SYSTEM BIOS address: 0x%x\n", system_bios_mem);
-#endif
-}
-
-
-/*
- * ... I know, I know, this is not the right place for this piece of software
- * but I didn't found some place appropriate, so here it is along with its
- * needed subroutines.
- */
-void 
-map_hardware_ram ()
-{
-  int i, j;
-  unsigned int addr, size;
-  if (!config.must_spare_hardware_ram)
-    return;
-  open_kmem ();
-  i = 0;
-  do
-    {
-      if (config.hardware_pages[i++])
-	{
-	  j = i - 1;
-	  while (config.hardware_pages[i])
-	    i++;		/* NOTE: last byte is always ZERO */
-	  addr = HARDWARE_RAM_START + (j << 12);
-	  size = (i - j) << 12;
-	  if (mmap ((caddr_t) addr, (size_t) size,
-	  PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, mem_fd, addr) < 0)
-	    {
-	      error ("ERROR: mmap error in map_hardware_ram %s\n", strerror (errno));
-	      return;
-	    }
-	  g_printf ("mapped hardware ram at 0x%05x .. 0x%05x\n", addr, addr + size - 1);
-	}
-    }
-  while (i < sizeof (config.hardware_pages) - 1);
-  close_kmem ();
-}
-
 
 int
 vc_active (void)
@@ -788,11 +688,10 @@ set_vc_screen_page (int page)
   allow_switch ();
 }
 
-extern unsigned int configuration;
 
 /* get ioperms to allow havoc to occur */
 int
-get_perm ()
+get_perm (void)
 {
   permissions = permissions + 1;
   if (permissions > 1)
@@ -849,7 +748,7 @@ get_perm ()
 
 /* Stop io to card */
 int
-release_perm ()
+release_perm (void)
 {
   if (permissions > 0)
     {
@@ -954,8 +853,8 @@ v_printf("SEQI=0x%02x\n",dosemu_regs.regs[SEQI]); */
 
 
 /* Reset Attribute registers */
-inline void
-reset_att ()
+static inline void
+reset_att (void)
 {
   port_in (IS1_R);
 }
@@ -1158,7 +1057,7 @@ video_port_out (u_char value, int port)
    received and fix the differences */
 
 /* Dump what's in the dosemu_regs */
-void
+static void
 dump_video (void)
 {
   u_short i;
@@ -1300,4 +1199,3 @@ install_int_10_handler (void)
 #endif
 }
 
-#undef VC_C
