@@ -8,9 +8,7 @@
 
 #define CONFIG_SELECTION 1
 
-extern RemapObject remap_obj;
 extern Boolean have_focus;
-extern unsigned dac_bits;
 extern int use_bitmap_font;
 
 struct text_system
@@ -30,7 +28,9 @@ int register_text_system(struct text_system *text_system);
 void blink_cursor(void);
 void reset_redraw_text_screen(void);
 void update_cursor(void);
-int update_text_screen(void);
+RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
+			       Bit8u attr, RemapObject *remap_obj);
+int update_text_screen(RemapObject *remap_obj);
 void redraw_text_screen(void);
 void text_gain_focus(void);
 void text_lose_focus(void);

@@ -438,7 +438,7 @@ static Boolean have_shmap = FALSE;
 static unsigned long text_colors[16];
 static int text_col_stats[16] = {0};
 
-RemapObject remap_obj;
+static RemapObject remap_obj;
 static ColorSpaceDesc X_csd;
 static int have_true_color;
 unsigned dac_bits;			/* the bits visible to the dosemu app, not the real number */
@@ -2934,7 +2934,8 @@ int X_update_screen()
   if(vga.reconfig.re_init) X_setmode(0, 0, 0, 0);
 
   if(!is_mapped) return 0;       /* no need to do anything... */
-  return vga.mode_class == TEXT ? update_text_screen() : X_update_graphics_screen();
+  return vga.mode_class == TEXT ? update_text_screen(&remap_obj) :
+    X_update_graphics_screen();
 }
 
 
@@ -3052,97 +3053,11 @@ static void X_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr
  */
 static void bitmap_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
 {
-    unsigned src, height, xx, yy, cc, srcp, srcp2, bits;
-    unsigned long fgX;
-    unsigned long bgX;
-    static int last_redrawn_line = -1;
-    RectArea ra;
-
-    if (y >= vga.text_height) return;                /* clip */
-    if (x >= vga.text_width)  return;                /* clip */
-    if (x+len > vga.text_width) len = vga.text_width - x;  /* clip */
-
-    /* fgX = text_colors[ATTR_FG(attr)]; */ /* if no remapper used */
-    /* bgX = text_colors[ATTR_BG(attr)]; */ /* if no remapper used */
-    fgX = ATTR_FG(attr);
-    bgX = ATTR_BG(attr);
-  
-    /* we could set fgX = bgX: vga.attr.data[0x10] & 0x08 enables  */
-    /* blinking to be triggered by (attr & 0x80) - but the third   */
-    /* condition would need to be periodically and having to redo  */
-    /* all blinking chars again each time that they blink sucks.   */
-    /* so we ALWAYS interpret blinking as bright background, which */
-    /* is what also happens when not vga.attr.data[0x10] & 0x08... */
-    /* An IDEA would be to have palette animation and use special  */
-    /* colors for the bright-or-blinking background, although the  */
-    /* official blink would be the foreground, not the background. */
-
-    /* Eric: What type is our remap_obj.src_mode at this moment??? */
-    /* not sure if I use the remap object at least roughly correct */
-    /* basically, it is like two Ximages, linked by remapping...   */
-
-
-    height = vga.char_height; /* not font_height - should start to */
-                              /* remove font_height completely. It */
-                              /* holds the X font's size...        */
-    font_width = vga.char_width; /* for similar reasons...  */
-    src = vga.seq.fontofs[(attr & 8) >> 3];
-
-    if (y != last_redrawn_line) /* have some less output */
-      X_printf(
-        "X_draw_string(x=%d y=%d len=%d attr=%d %dx%d @ 0x%04x)\n",
-        x, y, len, attr, font_width, height, src);
-    last_redrawn_line = y;
-
-    if ( ((y+1) * height) > vga.height ) {
-      v_printf("Tried to print below scanline %d (row %d)\n",
-          remap_obj.src_height, y);
-      return;
-    }
-    if ( ((x+len) * font_width) > vga.width ) {
-      v_printf("Tried to print past right margin\n");
-      v_printf("x=%d len=%d font_width=%d width=%d\n",
-               x, len, font_width, remap_obj.src_width);
-      len = vga.width / font_width - x;
-    }
-    
-    /* would use vgaemu_xy2ofs, but not useable for US, NOW! */
-    srcp = remap_obj.src_scan_len * y * height;
-    srcp += x * font_width;
-    
-    /* vgaemu -> vgaemu_put_char would edit the vga.mem.base[...] */
-    /* but as vga memory is used as text buffer at this moment... */
-    for (yy = 0; yy < height; yy++) {
-      srcp2 = srcp;
-      for (cc = 0; cc < len; cc++) {
-        bits = vga.mem.base[0x20000 + src + (32 * (unsigned char)text[cc])];
-        for (xx = 0; xx < 8; xx++) {
-          remap_obj.src_image[srcp2++]
-            = (bits & 0x80) ? fgX : bgX;
-          bits <<= 1;
-        }
-        if (font_width >= 9) { /* copy 8th->9th for line gfx */
-          /* (only if enabled by bit... */
-          if ( (vga.attr.data[0x10] & 0x04) &&
-               ((text[cc] & 0xc0) == 0xc0) ) {
-            remap_obj.src_image[srcp2] = remap_obj.src_image[srcp2-1];
-            srcp2++;
-          } else {             /* ...or fill with background */
-            remap_obj.src_image[srcp2++] = bgX;
-          }
-          srcp2 += (font_width - 9);
-        }   /* (pixel-x has reached on next char now) */
-      }
-      srcp += remap_obj.src_scan_len;      /* next line */
-      src++;  /* globally shift to the next font row!!! */
-    }
-    
-    ra = remap_obj.remap_rect(&remap_obj, font_width * x, height * y,
-                              font_width * len, height);
-    
-    /* put_ximage uses display, mainwindow, gc, ximage       */
-    X_printf("image at %d %d %d %d %d %d\n", shift_x+ra.x, shift_y+ra.y,
-             ra.width - shift_x, ra.height, ra.x, ra.y);
+  RectArea ra = convert_bitmap_string(x, y, text, len, attr, &remap_obj);
+  /* put_ximage uses display, mainwindow, gc, ximage       */
+  X_printf("image at %d %d %d %d %d %d\n", shift_x+ra.x, shift_y+ra.y,
+	   ra.width - shift_x, ra.height, ra.x, ra.y);
+  if (ra.width)
     put_ximage(ra.x, ra.y, ra.x, ra.y, ra.width, ra.height);
 }
 

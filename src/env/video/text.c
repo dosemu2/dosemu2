@@ -190,7 +190,7 @@ void reset_redraw_text_screen(void)
  *
  * Note: Redraws the *entire* screen if at least one color has changed.
  */
-static void refresh_text_palette(void)
+static void refresh_text_palette(RemapObject *remap_obj)
 {
   DAC_entry col[16];
   int j, k;
@@ -205,8 +205,8 @@ static void refresh_text_palette(void)
   for(k = 0; k < j; k++) {
     Text->SetPalette(col[k]);
     if (use_bitmap_font)
-      remap_obj.palette_update(&remap_obj, col[k].index, dac_bits,
-                               col[k].r, col[k].g, col[k].b);
+      remap_obj->palette_update(remap_obj, col[k].index, vga.dac.bits,
+				col[k].r, col[k].g, col[k].b);
   }
 
   if(j) redraw_text_screen();
@@ -326,10 +326,102 @@ void blink_cursor()
   }
 }
 
+RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
+			       Bit8u attr, RemapObject *remap_obj)
+{
+  unsigned src, height, xx, yy, cc, srcp, srcp2, bits;
+  unsigned long fgX;
+  unsigned long bgX;
+  static int last_redrawn_line = -1;
+  RectArea ra;
+  ra.width = 0;
+
+  if (y >= vga.text_height) return ra;                /* clip */
+  if (x >= vga.text_width)  return ra;                /* clip */
+  if (x+len > vga.text_width) len = vga.text_width - x;  /* clip */
+
+  /* fgX = text_colors[ATTR_FG(attr)]; */ /* if no remapper used */
+  /* bgX = text_colors[ATTR_BG(attr)]; */ /* if no remapper used */
+  fgX = ATTR_FG(attr);
+  bgX = ATTR_BG(attr);
+
+  /* we could set fgX = bgX: vga.attr.data[0x10] & 0x08 enables  */
+  /* blinking to be triggered by (attr & 0x80) - but the third   */
+  /* condition would need to be periodically and having to redo  */
+  /* all blinking chars again each time that they blink sucks.   */
+  /* so we ALWAYS interpret blinking as bright background, which */
+  /* is what also happens when not vga.attr.data[0x10] & 0x08... */
+  /* An IDEA would be to have palette animation and use special  */
+  /* colors for the bright-or-blinking background, although the  */
+  /* official blink would be the foreground, not the background. */
+
+  /* Eric: What type is our remap_obj.src_mode at this moment??? */
+  /* not sure if I use the remap object at least roughly correct */
+  /* basically, it is like two Ximages, linked by remapping...   */
+
+
+  height = vga.char_height; /* not font_height - should start to */
+                            /* remove font_height completely. It */
+                            /* holds the X font's size...        */
+  src = vga.seq.fontofs[(attr & 8) >> 3];
+
+  if (y != last_redrawn_line) /* have some less output */
+    X_printf(
+	     "X_draw_string(x=%d y=%d len=%d attr=%d %dx%d @ 0x%04x)\n",
+	     x, y, len, attr, vga.char_width, height, src);
+  last_redrawn_line = y;
+
+  if ( ((y+1) * height) > vga.height ) {
+    v_printf("Tried to print below scanline %d (row %d)\n",
+	     remap_obj->src_height, y);
+    return ra;
+  }
+  if ( ((x+len) * vga.char_width) > vga.width ) {
+    v_printf("Tried to print past right margin\n");
+    v_printf("x=%d len=%d vga.char_width=%d width=%d\n",
+	     x, len, vga.char_width, remap_obj->src_width);
+    len = vga.width / vga.char_width - x;
+  }
+
+  /* would use vgaemu_xy2ofs, but not useable for US, NOW! */
+  srcp = remap_obj->src_scan_len * y * height;
+  srcp += x * vga.char_width;
+
+  /* vgaemu -> vgaemu_put_char would edit the vga.mem.base[...] */
+  /* but as vga memory is used as text buffer at this moment... */
+  for (yy = 0; yy < height; yy++) {
+    srcp2 = srcp;
+    for (cc = 0; cc < len; cc++) {
+      bits = vga.mem.base[0x20000 + src + (32 * (unsigned char)text[cc])];
+      for (xx = 0; xx < 8; xx++) {
+	remap_obj->src_image[srcp2++]
+	  = (bits & 0x80) ? fgX : bgX;
+	bits <<= 1;
+      }
+      if (vga.char_width >= 9) { /* copy 8th->9th for line gfx */
+	/* (only if enabled by bit... */
+	if ( (vga.attr.data[0x10] & 0x04) &&
+	     ((text[cc] & 0xc0) == 0xc0) ) {
+	  remap_obj->src_image[srcp2] = remap_obj->src_image[srcp2-1];
+	  srcp2++;
+	} else {             /* ...or fill with background */
+	  remap_obj->src_image[srcp2++] = bgX;
+	}
+	srcp2 += (vga.char_width - 9);
+      }   /* (pixel-x has reached on next char now) */
+    }
+    srcp += remap_obj->src_scan_len;      /* next line */
+    src++;  /* globally shift to the next font row!!! */
+  }
+
+  return remap_obj->remap_rect(remap_obj, vga.char_width * x, height * y,
+			       vga.char_width * len, height);    
+}
+
 /*
  * Update the text screen.
  */
-int update_text_screen()
+int update_text_screen(RemapObject *remap_obj)
 {
   Bit16u *sp, *oldsp;
   u_char charbuff[MAX_COLUMNS], *bp;
@@ -347,14 +439,14 @@ int update_text_screen()
     co = vga.text_width;
   }
   
-  refresh_text_palette();
+  refresh_text_palette(remap_obj);
 
   if(vga.reconfig.display) {
     Text->Resize_text_screen();
     vga.reconfig.display = 0;
   }
   if(vga.reconfig.mem) {
-    remap_obj.src_resize(&remap_obj, vga.width, vga.height, vga.width);
+    remap_obj->src_resize(remap_obj, vga.width, vga.height, vga.width);
     redraw_text_screen();
     vga.reconfig.mem = 0;
   }
