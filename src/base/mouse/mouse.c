@@ -1624,6 +1624,7 @@ mouse_delta(int event)
 {
 	mouse_events |= event;
 	pic_request(PIC_IMOUSE);
+	reset_idle(0);
 }
 
 /*
