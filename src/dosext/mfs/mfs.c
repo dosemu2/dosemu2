@@ -213,10 +213,9 @@ struct kernel_dirent {
   char		  d_name[256]; /* We must not include limits.h! */
 };
 #define VFAT_IOCTL_READDIR_BOTH	 _IOR('r', 1, struct kernel_dirent [2])
-#endif
-
-#ifndef PAGE_SIZE
-#define PAGE_SIZE	4096
+#define VFAT_IOCTL_READDIR_SHORT _IOR('r', 2, struct kernel_dirent [2])
+/* vfat_ioctl to use is short for int2f/ax=11xx, both for int21/ax=71xx */
+static int vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
 #endif
 
 /* these universal globals defined here (externed in dos.h) */
@@ -734,13 +733,15 @@ init_drive(int dd, char *path, char *options)
   if (new_len != 1) {
     new_path[new_len - 1] = 0;
     drives[dd].root_len = 1;
-    drives[dd].root = "/";
+    drives[dd].root = strdup("/");
     if (!find_file(new_path, &st, dd)) {
       error("MFS: couldn't find root path %s\n", new_path);
+      free(new_path);
       return (0);
     }
     if (!(st.st_mode & S_IFDIR)) {
       error("MFS: root path is not a directory %s\n", new_path);
+      free(new_path);
       return (0);
     }
     new_path[new_len - 1] = '/';
@@ -771,9 +772,11 @@ mfs_redirector(void)
 {
   int ret;
 
+  vfat_ioctl = VFAT_IOCTL_READDIR_SHORT;
   sigalarm_block(1);
   ret = dos_fs_redirect(&REGS);
   sigalarm_block(0);
+  vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
 
   Debug0((dbg_fd, "Finished dos_fs_redirect\n"));
 
@@ -1407,7 +1410,7 @@ struct mfs_dir *dos_opendir(const char *name)
   fd = open(name, O_RDONLY|O_DIRECTORY);
   if (fd == -1)
     return NULL;
-  if (ioctl(fd, VFAT_IOCTL_READDIR_BOTH, (long)&de) == -1) {
+  if (ioctl(fd, vfat_ioctl, (long)&de) == -1) {
     /* not a VFAT filesystem */
     close(fd);
     d = opendir(name);
@@ -1432,13 +1435,13 @@ struct mfs_dirent *dos_readdir(struct mfs_dir *dir)
     dir->de.d_name = dir->de.d_long_name = de->d_name;
   } else {
     static struct kernel_dirent de[2];
-    int ret = (int)RPT_SYSCALL(
-            ioctl(dir->fd, VFAT_IOCTL_READDIR_BOTH, (long)&de));
+    int ret = (int)RPT_SYSCALL(ioctl(dir->fd, vfat_ioctl, (long)&de));
     if (ret == -1 || de[0].d_reclen == 0)
       return NULL;
     dir->de.d_name = de[0].d_name;
     dir->de.d_long_name = de[1].d_name;
-    if (dir->de.d_long_name[0] == '\0') {
+    if (dir->de.d_long_name[0] == '\0' ||
+	vfat_ioctl == VFAT_IOCTL_READDIR_SHORT) {
         dir->de.d_long_name = dir->de.d_name;
     }
   }
@@ -1784,6 +1787,9 @@ scan_dir(char *path, char *name, int drive)
 {
   struct mfs_dir *cur_dir;
   struct mfs_dirent *cur_ent;
+  size_t len;
+  int is_8_3;
+  char dosname[strlen(name)+1];
 
   /* handle null paths */
   if (*path == 0)
@@ -1797,29 +1803,41 @@ scan_dir(char *path, char *name, int drive)
     return (FALSE);
   }
 
+  len = strlen(path);
+
+  /* check if the name is an LFN or not; if it's 8.3 then dosname
+     contains the uppercased name */
+  is_8_3 = name_convert(dosname, name, 0, NULL);
+
   /* now scan for matching names */
   while ((cur_ent = dos_readdir(cur_dir))) {
-    char tmpname[256];
+    char tmpname[NAME_MAX + 1];
+ 
+    if (cur_ent->d_name[0] == '.' && len == drives[drive].root_len)
+      continue;
 
-    if (strcasecmpDOS(name, cur_ent->d_name) != 0) {
-            
+    if (is_8_3) {
+
       if (!name_convert(tmpname,cur_ent->d_name,MANGLE,NULL))
-        continue;
+	continue;
 
-      if (cur_ent->d_name[0] == '.' && strlen(path) == drives[drive].root_len)
-        continue;
+      if (strcmp(dosname, tmpname) != 0) {
+	if (cur_ent->d_long_name == cur_ent->d_name)
+	  continue;
 
-      if (strcasecmpDOS(name, tmpname) != 0) {
-        if (cur_ent->d_name == cur_ent->d_long_name)
-          continue;
-        
-        if (!name_ufs_to_dos(tmpname,cur_ent->d_long_name,0))
-          if (!name_convert(tmpname,cur_ent->d_long_name,MANGLE,NULL))
-            continue;
-
-        if (strcasecmpDOS(name, tmpname) != 0)
-          continue;
+	/* check if the long name variety of the current name
+	   can be represented in DOS; otherwise it is mangled.
+	   only used for the LFN code on VFAT partitions.
+	*/
+	if (!name_ufs_to_dos(tmpname,cur_ent->d_long_name,0)) {
+	  if (!name_convert(tmpname,cur_ent->d_long_name,MANGLE,NULL))
+	    continue;
+	  if (strcmp(dosname, tmpname) != 0)
+	    continue;
+	}
       }
+    } else if (strcasecmpDOS(name, cur_ent->d_long_name) != 0) {
+      continue;
     }
 
     Debug0((dbg_fd, "scan_dir found %s\n",cur_ent->d_name));
