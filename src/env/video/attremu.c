@@ -270,24 +270,14 @@ unsigned char Attr_get_entry(unsigned char index)
  */
 void Attr_set_entry(unsigned char index, unsigned char value)
 {
-  unsigned i;
-
   attr_deb("Attr_set_entry: data[0x%02x] = 0x%02x\n", (unsigned) index, (unsigned) value);
 
   if(index > ATTR_MAX_INDEX) return;
 
-  value = clear_undef_bits(index, value);
-
-  if(vga.attr.data[index] != value) {
-    vga.attr.data[index] = value;
-    vga.attr.dirty[index] = True;
-    vga.color_modified = True;
-    if(index == ATTR_MODE_CTL || index == ATTR_COL_SELECT) {
-      for(i = 0; i < 16; i++) vga.attr.dirty[i] = True;
-    }
-  }
+  vga.attr.index = index;
+  vga.attr.flipflop = ATTR_DATA_FLIPFLOP;
+  Attr_write_value(value);
 }
-
 
 /*
  * DANG_BEGIN_FUNCTION Attr_read_value
@@ -354,15 +344,25 @@ void Attr_write_value(unsigned char data)
     vga.attr.flipflop = ATTR_INDEX_FLIPFLOP;
 
     i = vga.attr.index;
-
+    data = clear_undef_bits(i, data);
     if(i <= ATTR_MAX_INDEX && (vga.attr.cpu_video == 0 || i > 15)) {
-      vga.attr.data[i] = clear_undef_bits(i, data);
-      vga.attr.dirty[i] = True;
-      vga.color_modified = True;
+      if (vga.attr.data[i] != data) {
+        vga.attr.data[i] = data;
+        vga.attr.dirty[i] = True;
+        vga.color_modified = True;
+      }
       if(i == ATTR_MODE_CTL || i == ATTR_COL_SELECT) {
         for(j = 0; j < 16; j++) vga.attr.dirty[j] = True;
       }
-
+      /* bits: 0x04 - line graphics copy 8th->9th column...    */
+      /*       0x02 - mono mode  /  0x01 - graphics mode       */
+      /*       0x20 - use line compare pixel panning...        */
+      /*       0x40 - VGA 8bit colors (not 4bit)               */
+      /*       0x80 - VGA 16*16 attribs*pages (not 64*4)       */
+      if ((i == ATTR_MODE_CTL) && (data & 0x20))
+        v_printf("Horizontal panning with line compare NOT IMPLEMENTED\n");
+      if ((i == ATTR_MODE_CTL) && (data & 0x08))
+        v_printf("Blinking ignored, will use 16 color background\n");
       attr_deb("Attr_write_value: attr[0x%02x] = 0x%02x\n", i, (unsigned) data);
     }
     else {
