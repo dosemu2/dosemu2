@@ -77,7 +77,8 @@ static int dos_helper(void)
   switch (LO(ax)) {
   case 0:			/* Linux dosemu installation test */
     LWORD(eax) = 0xaa55;
-    LWORD(ebx) = VERNUM;	/* major version 0.49 -> 0x0049 */
+    LWORD(ebx) = VERSION * 0x100 + SUBLEVEL; /* major version 0.49 -> 0049 */
+    LWORD(ecx) = PATCHLEVEL;
     g_printf("WARNING: dosemu installation check\n");
     show_regs(__FILE__, __LINE__);
     break;
@@ -145,7 +146,7 @@ static int dos_helper(void)
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR "." PATCHSTR " $Date: 1995/02/25 22:37:48 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: 1995/02/25 22:37:48 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */

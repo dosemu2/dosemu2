@@ -509,6 +509,9 @@ ems_init(void)
 
   handle_total++;
   SET_HANDLE_NAME(handle_info[OS_HANDLE].name, "SYSTEM  ");
+
+  memcheck_addtype('E', "EMS page frame");
+  memcheck_reserve('E', EMM_BASE_ADDRESS, EMM_MAX_PHYS * EMM_PAGE_SIZE);
 }
 
 #ifdef __linux__

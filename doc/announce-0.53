@@ -21,8 +21,6 @@ many DOS applications.  These are capabilities of DOSEMU worth noting:
      includes DOOM2, Heretic, Descent, MK2, OMF2097, ROTT, and WarCraft!
   - Games runs *MUCH* faster in dosemu due to improved timer emulation
   - FreeBSD verison of DOSEMU under development, contact jtk@atria.com
-  - Windows 3.1 capability under development, will now run a basic
-     Windows 3.1 setup using a kernel patch and an OS/2-style preloader.
   - CDROM support
 
 
@@ -60,8 +58,8 @@ The DOSEMU PC Emulator can be downloaded from the following FTP sites
 when version 0.60.0 arrives on April the 1st:
 
   tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.60.tgz
-  sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.60.tgz
   dspsun.eas.asu.edu:/pub/dosemu/dosemu0.60.tgz
+  sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.60.tgz
 
 We expect to see DOSEMU being included as an extra with many Linux 
 Distribution packages.

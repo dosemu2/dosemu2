@@ -21,6 +21,7 @@ enum { ES_INDEX = 0, CS_INDEX = 1, SS_INDEX = 2,  DS_INDEX = 3,
 
 static struct vm86_regs SAVED_REGS;
 static struct vm86_regs MOUSE_SAVED_REGS;
+static struct vm86_regs VIDEO_SAVED_REGS;
 
 #define S_REG(reg) (SAVED_REGS.##reg)
 
@@ -38,16 +39,16 @@ static void * DTA_under_1MB;
 
 static inline unsigned long GetSegmentBaseAddress(unsigned short seg);
 static inline int ConvertSegmentToDescriptor(unsigned short seg);
-static inline int SetSegmentBaseAddress(unsigned short selector,
+static int SetSegmentBaseAddress(unsigned short selector,
 					unsigned long baseaddr);
-static inline int SetSegmentLimit(unsigned short, unsigned int);
-static inline int SetSelector(unsigned short, unsigned long,
+static int SetSegmentLimit(unsigned short, unsigned int);
+static int SetSelector(unsigned short, unsigned long,
                               unsigned int, unsigned char, unsigned char,
                               unsigned char, unsigned char,
                               unsigned char, unsigned char);
 static inline void save_pm_regs();
 static inline void restore_pm_regs();
-static inline unsigned short AllocateDescriptors(int);
+static unsigned short AllocateDescriptors(int);
 
 /* We use static varialbes because DOS in non-reentrant, but maybe a */
 /* better way? */
@@ -59,7 +60,7 @@ static unsigned short CURRENT_ENV_SEL;
 static unsigned short PARENT_PSP;
 static unsigned short PARENT_ENV_SEL;
 static int in_dos_21 = 0;
-static inline int old_dos_terminate(struct sigcontext_struct *scp)
+static int old_dos_terminate(struct sigcontext_struct *scp)
 {
     REG(cs)  = CURRENT_PSP;
     REG(eip) = 0x100;
@@ -132,15 +133,25 @@ static int inline is_dos_selector(unsigned short sel)
  * DANG_END_FUNCTION
  */
 
-static inline int
+static int
 msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 {
-    /* only consider DOS services */
+    /* only consider DOS and some BIOS services */
     switch (intr) {
+    case 0x10:
     case 0x20 ... 0x21:
     case 0x25 ... 0x26:
     case 0x33:			/* mouse function */
 	break;
+    case 0x2f:
+	if (_LWORD(eax) == 0x1684) {
+	    D_printf("DPMI: Get VxD entry point BX = 0x%04x\n",
+		     _LWORD(ebx));
+	    /* no entry point */
+	    _es = _edi = 0;
+	    return 1;
+	}
+	return 0;
     default:
 	return 0;
     }
@@ -159,6 +170,47 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
     DS_MAPPED = 0;
     ES_MAPPED = 0;
     switch (intr) {
+    case 0x10:			/* video */
+	VIDEO_SAVED_REGS = REGS;
+	switch (_HI(ax)) {
+	case 0x10:		/* Set/Get Palette Registers (EGA/VGA) */
+	    switch(_LO(ax)) {
+	    case 0x2:		/* set all palette registers and border */
+	    case 0x09:		/* ead palette registers and border (PS/2) */
+	    case 0x12:		/* set block of DAC color registers */
+	    case 0x17:		/* read block of DAC color registers */
+		ES_MAPPED = 1;
+		break;
+	    default:
+		return 0;
+	    }
+	    break;
+	case 0x11:		/* Character Generator Routine (EGA/VGA) */
+	    switch (_LO(ax)) {
+	    case 0x0:		/* user character load */
+	    case 0x10:		/* user specified character definition table */
+	    case 0x20 ... 0x21:
+		ES_MAPPED = 1;
+		break;
+	    default:
+		return 0;
+	    }
+	    break;
+	case 0x13:		/* Write String */
+	case 0x15:		/*  Return Physical Display Parms */
+	case 0x1b:
+	    ES_MAPPED = 1;
+	    break;
+	case 0x1c:
+	    if (_LO(ax) == 1 || _LO(ax) == 2)
+		ES_MAPPED = 1;
+	    else
+		return 0;
+	    break;
+	default:
+	    return 0;
+	}
+	break;
     case 0x20:			/* DOS terminate */
 	return old_dos_terminate(scp);
     case 0x21:
@@ -544,7 +596,7 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    return 0;
 	case 0x0c:		/* set call back */
 	case 0x14:		/* swap call back */
-	    if ( _es != 0 || _edx != 0) {
+	    if ( _es && _edx ) {
 		D_printf("DPMI: set mouse callback\n");
 		mouseCallBack.selector = _es;
 		mouseCallBack.offset = (DPMIclient_is_32 ? _edx : (_LWORD(edx))); 
@@ -580,8 +632,8 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 
     if (ES_MAPPED) {
 	if ( !is_dos_selector(_es)) {
-	    DS_MAPPED = _es;
-	    REG(ds) =   DPMI_private_data_segment+DPMI_private_paragraphs;
+	    ES_MAPPED = _es;
+	    REG(es) =   DPMI_private_data_segment+DPMI_private_paragraphs;
 	    memcpy ((void *)(REG(es)<<4), (void *)GetSegmentBaseAddress(_es),
 		    (Segments[_es >> 3].limit > 0xffff) ?
 		    0xffff : Segments[_es >> 3].limit);
@@ -591,7 +643,7 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
     return 0;
 }
 
-static inline
+static 
 msdos_post_exec()
 {
     /* restore parent\'s context */
@@ -627,12 +679,20 @@ msdos_post_exec()
  * DANG_END_FUNCTION
  */
 
-static inline void
+static  void
 msdos_post_extender(int intr)
 {
     switch (intr) {
+    case 0x10:			/* video */
+	if ((VIDEO_SAVED_REGS.eax & 0xffff) == 0x1130) {
+	    /* get current character generator infor */
+	    dpmi_stack_frame[current_client].es =
+		ConvertSegmentToDescriptor(REG(es));
+	    return;
+	} else
+	    break;
     case 0x15:
-      switch(S_HI(ax)) {
+      switch(HI(ax)) {
         case 0xc0:      /* Get Configuartion */
                 if (REG(eflags)&CF)
                         return;
@@ -858,7 +918,7 @@ msdos_post_extender(int intr)
 
 static char decode_use_16bit;
 static char use_prefix;
-static inline unsigned char *
+static  unsigned char *
 decode_8e_index(struct sigcontext_struct *scp, unsigned char *prefix,
 		int rm)
 {
@@ -914,7 +974,7 @@ decode_8e_index(struct sigcontext_struct *scp, unsigned char *prefix,
     }
 }
 
-static inline unsigned char *
+static  unsigned char *
 check_prefix (struct sigcontext_struct *scp)
 {
     unsigned char *prefix, *csp;
@@ -955,7 +1015,7 @@ check_prefix (struct sigcontext_struct *scp)
  * the length of the instructon.
  */
 
-static inline int
+static int
 decode_8e(struct sigcontext_struct *scp, unsigned short *src,
 	  unsigned  char * sreg)
 {
@@ -1038,7 +1098,7 @@ decode_8e(struct sigcontext_struct *scp, unsigned short *src,
     return len;
 }
 
-static inline int
+static  int
 decode_load_descriptor(struct sigcontext_struct *scp, unsigned short
 		       *segment, unsigned char * sreg)
 {
@@ -1138,7 +1198,7 @@ decode_load_descriptor(struct sigcontext_struct *scp, unsigned short
  * decode_modify_segreg_insn tries to decode instructions which would modify a
  * segment register, return the length of the insn.
  */
-static inline int
+static  int
 decode_modify_segreg_insn(struct sigcontext_struct *scp, unsigned
 			  short *segment, unsigned char *sreg)
 {
@@ -1226,7 +1286,7 @@ decode_modify_segreg_insn(struct sigcontext_struct *scp, unsigned
 }
 	
     
-static inline int msdos_fix_cs_prefix (struct sigcontext_struct *scp)
+static  int msdos_fix_cs_prefix (struct sigcontext_struct *scp)
 {
     unsigned char *csp;
 
@@ -1247,7 +1307,7 @@ static inline int msdos_fix_cs_prefix (struct sigcontext_struct *scp)
     return 0;
 }
 
-static  inline int msdos_fault(struct sigcontext_struct *scp)
+static int msdos_fault(struct sigcontext_struct *scp)
 {
     unsigned char reg;
     unsigned short segment, desc;

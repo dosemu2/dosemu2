@@ -116,11 +116,11 @@ E_printf("SHM: Client request area set to %04d\n", *(int *)(shared_qf_memory + C
  */
   pid = getpid();
   sprintf(devname, "%s%d", TMPFILE, pid);
-  
+
   if ((tmpfile_fd = open(devname, O_WRONLY|O_CREAT)) < 1) {
     E_printf("SHM: Unable to open %s%d for sending client data: %s\n",TMPFILE, pid, strerror(errno));
   }
-  sprintf(info, "dosemu%spl%s\n", VERSTR , PATCHSTR);
+  sprintf(info, "dosemu-%s\n", VERSTR);
   write(tmpfile_fd, info, strlen(info));
 
   sprintf(info, "SQF=%08d\n", shm_qf_id);

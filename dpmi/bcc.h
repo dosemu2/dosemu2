@@ -11,7 +11,7 @@
 /* fortunately when dpmiload.exe calling dpmi_get_entry_point, ES=PSP */
 /* so, we check the enviroment segment to see if it is real dpmiload.exe*/
 
-static inline int bcc_check_dpmiload(unsigned short old_es)
+static int bcc_check_dpmiload(unsigned short old_es)
 {
     char *env;
     char *dpmiload = "dpmiload.exe";

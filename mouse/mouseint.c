@@ -66,8 +66,16 @@ DOSEMUSetupMouse()
 
 	  if (mice->type == MOUSE_LOGITECH)
 	    {
+	      m_printf("MOUSEINT: Switching to MM-SERIES protocol...\n");
+
+	      /* Switch the mouse into MM series mode; actually, chances
+	      	are, if you have an older logitech mouse (like I do), you
+	      	were already *in* MM series mode. */
 	      RPT_SYSCALL(write(mice->fd, "S", 1));
-	      DOSEMUSetMouseSpeed(mice->baudRate, mice->baudRate, mice->flags);
+
+	      /* Need to use flags for MM series, not Logitech */
+	      DOSEMUSetMouseSpeed(mice->baudRate, mice->baudRate,
+	      	CS8 | PARENB | PARODD | CREAD | CLOCAL | HUPCL);
 	    }
 
 	  if (mice->type == MOUSE_HITACHI)

@@ -511,7 +511,7 @@ void version_init(void) {
   struct new_utsname unames;
 
   uname(&unames);
-  warn("DOSEMU%s.%s is coming up on %s version %s\n", VERSTR, PATCHSTR, unames.sysname, unames.release);
+  warn("DOSEMU-%s is coming up on %s version %s\n", VERSTR, unames.sysname, unames.release);
   warn("Built for %d\n", KERNEL_VERSION);
   if (unames.release[0] > 0 ) {
     if ((unames.release[2] == 1  && unames.release[3] > 1 ) ||

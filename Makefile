@@ -5,8 +5,8 @@
 # $Revision: 2.39 $
 # $State: Exp $
 #
-# You should do a "make doeverything" or a "make most" (excludes TeX)
-# if you are doing the first compile.
+# You should do a "make" to compile and a "make install" as root to
+# install DOSEMU.
 #
 
 # Uncomment REQUIRES_EMUMODULE, if you you need the emumodules special features
@@ -121,18 +121,20 @@ COPTFLAGS	=  -g -Wall
 endif
 
 export LD=$(CC)
-OBJS	= dos.o 
+OBJS	= dos.o
 DEPENDS = dos.d emu.d
 
 
 # dosemu version
-EMUVER  =   0.53
-export EMUVER
-VERNUM  =   0x53
-PATCHL  =   58
-LIBDOSEMU = libdosemu$(EMUVER).$(PATCHL)
+VERSION = 0
+SUBLEVEL = 53
+PATCHLEVEL = 59
+LIBDOSEMU = libdosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
 
-# DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
+EMUVER = $(VERSION).$(SUBLEVEL)
+export EMUVER
+
+# DON'T CHANGE THIS: this makes libdosemu start high enough to be safe.
 # should be okay at...0x20000000 for .5 GB mark.
 LIBSTART = 0x20000000
 
@@ -209,10 +211,10 @@ BFILES=
 F_DOC=dosemu.texinfo Makefile dos.1 wp50
 F_DRIVERS=emufs.S emufs.sys
 F_COMMANDS=exitemu.S exitemu.com vgaon.S vgaon.com vgaoff.S vgaoff.com \
-            lredir.exe lredir.c makefile.mak dosdbg.exe dosdbg.c
+           lredir.com lredir.c makefile.mak dosdbg.com dosdbg.c
 F_EXAMPLES=config.dist
-F_PERIPH=debugobj.S getrom hdinfo.c mkhdimage.c mkpartition putrom.c 
- 
+F_PERIPH=debugobj.S getrom hdinfo.c mkhdimage.c mkpartition putrom.c
+
 
 ###################################################################
 
@@ -222,11 +224,12 @@ LIBPATH=lib
 OPTIONAL   = # -DDANGEROUS_CMOS=1
 CONFIGS    = $(CONFIG_FILE) $(DOSEMU_USERS_FILE)
 DEBUG      = $(SYNC_ALOT)
-CONFIGINFO = $(CONFIGS) $(OPTIONAL) $(DEBUG) \
-	     -DLIBSTART=$(LIBSTART) -DVERNUM=$(VERNUM) -DVERSTR=\"$(EMUVER)\" \
-	     -DPATCHSTR=\"$(PATCHL)\"
+CONFIGINFO = $(CONFIGS) $(OPTIONAL) $(DEBUG) -DLIBSTART=$(LIBSTART) \
+	     -DVERSION=$(VERSION) -DSUBLEVEL=$(SUBLEVEL) \
+	     -DPATCHLEVEL=$(PATCHLEVEL) \
+	     -DVERSTR=\"$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)\"
 
- 
+
 # does this work if you do make -C <some dir>
 TOPDIR  := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
 INCDIR     = -I$(TOPDIR)/include  -I$(LINUX_INCLUDE)
@@ -287,12 +290,12 @@ AS86 = as86
 LD86 = ld86 -0
 
 DISTBASE=/tmp
-DISTNAME=dosemu$(EMUVER).$(PATCHL)
+DISTNAME=dosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
 DISTPATH=$(DISTBASE)/$(DISTNAME)
 ifdef RELEASE
 DISTFILE=$(DISTBASE)/$(DISTNAME).tgz
 else
-DISTFILE=$(DISTBASE)/pre$(EMUVER).$(PATCHL).tgz
+DISTFILE=$(DISTBASE)/pre$(VERSION).$(SUBLEVEL).$(PATCHLEVEL).tgz
 endif
 export DISTBASE DISTNAME DISTPATH DISTFILE
 
@@ -337,11 +340,9 @@ warning2:
 	else \
 		echo "  -> No kernel-support for Windows 3.1." ; \
 	fi
-	@echo "  -> Type 'make most' instead of 'make doeverything' if you don't have TeX."
 	@echo "  -> Hit Ctrl-C now to abort if you forgot something!"
 	@echo ""
-	@echo -n "Hit Enter to continue..."
-	@read
+	@sleep 10
 
 #	@echo "  -> You need to edit XWINDOWS SUPPORT accordingly in Makefile if you"
 #	@echo "     don't have Xwindows installed!" 
@@ -534,8 +535,8 @@ ifdef X_SUPPORT
 	@echo "		xmodmap -e \"key 108 = 0xff0d\"  [Return = 0xff0d]"	
 	@echo ""
 endif
-	@echo "  - Try the ./commands/mouse.exe if your INTERNAL mouse won't work"
-	@echo "  - Try ./commands/unix.exe to run a Unix command under DOSEMU"
+	@echo "  - Try the ./commands/mouse.com if your INTERNAL mouse won't work"
+	@echo "  - Try ./commands/unix.com to run a Unix command under DOSEMU"
 	@echo ""
 ifdef REQUIRES_EMUMODULE
 	@echo "  - DO NOT FORGET TO LOAD EMUMODULE"
@@ -574,14 +575,14 @@ dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
 	(cd $(DISTBASE); tar cf - $(DISTNAME) | gzip -9 >$(DISTFILE))
 	rm -rf $(DISTPATH)
 	@echo "FINAL .tgz FILE:"
-	@ls -l $(DISTFILE) 
+	@ls -l $(DISTFILE)
 
 local_clean:
-	-rm -f $(OBJS) $(X2CEXE) x2dos.o dos libdosemu0.* *.s core \
+	-rm -f $(OBJS) $(X2CEXE) x2dos.o dos libdosemu-0.* *.s core \
 	  dosstatic dosconfig  *.tmp dosemu.map *.o
 
-local_realclean:	
-	-rm -f include/config.h include/kversion.h
+local_realclean:
+	-rm -f include/config.h include/kversion.h tools/tools86 .depend
 
 clean::	local_clean
 

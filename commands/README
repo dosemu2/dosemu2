@@ -1,14 +1,56 @@
 This are some utitlies to assist in using dosemu.
 
-dosdbg.com -- change the debug seeting
-	dosdbg -- show current state	
-	dosdsb <string>
-	dosdbg help -- show usage information
+bootoff.com  : ???
 
-chdir.exe -- change the Unix directory  for dosemu (use chdir(2))
+booton.com   : ???
 
-getcwd.exe -- get the Unix directory for dosemu (use getcwd(2))
+chdir.exe    : change the Unix directory  for dosemu (use chdir(2))
 
+dosdbg.com   : change the debug seeting from within dosemu
+               dosdbg -- show current state
+               dosdsb <string>
+               dosdbg help -- show usage information
 
-system.exe -- interface to system(2)...
+dumpconf.exe : ???
 
+eject.com    : eject cdrom from drive
+
+exitemu.com  : terminate Dosemu
+
+getcwd.exe   : get the Unix directory for dosemu (use getcwd(2))
+
+isemu.com    : detects dosemu version and returns greater 0 if running under
+               Dosemu
+
+lancheck.exe : ???
+
+lredir.com   : redirect Linux directory to Dosemu
+               lredir -- show current redirections
+               lredir D: LINUX\FS\tmp -- redirects /tmp to drive D:
+               lredir help -- display help screen
+
+mgarrot.com  : give up cpu time when Dosemu is idle
+
+mouse.com    : fine tune internal mousedriver of Dosemu
+               mouse h -- display help screen
+
+system.exe   : interface to system(2)...
+
+unix.com     : execute Linux commands from Dosemu
+               unix -- display help screen
+               unix ls -al -- list current Linux directory
+               caution! try "unix" and read the help screen
+
+vgaoff.com   : disable vga option
+
+vgaon.com    : enable vga option
+
+-----------------------------------------------------
+
+This are useful drivers for Dosemu
+
+cdrom.sys    : allows to access cdrom drives from Dosemu
+
+ems.sys      : enables EMM in dosemu
+
+emufs.sys    : redirect Linux directory to Dosemu

@@ -284,6 +284,10 @@ int pit_inp(int port)
 {
   int ret = 0;
 
+  if (port == 2 && config.speaker == SPKR_NATIVE) {
+    return safe_port_in_byte(0x42);
+  }
+
   if (port == 1)
     i_printf("PORT:  someone is reading the CMOS refresh time?!?");
 
@@ -323,6 +327,7 @@ void pit_outp(int port, int val)
     i_printf("PORT: someone is writing the CMOS refresh time?!?");
   else if (port == 2 && config.speaker == SPKR_NATIVE) {
     safe_port_out_byte(0x42, val);
+    return;
   }
 
   switch (pit[port].write_state) {
@@ -379,33 +384,31 @@ int pit_control_inp()
 
 void pit_control_outp(int val)
 {
-  int mode, latch, state;
+  int latch = (val >> 6) & 0x03;
 
 #if 0
   i_printf("PORT: outp(43, 0x%x)\n",val);
 #endif
 
-  mode  = (val >> 1) & 0x07;
-  state = (val >> 4) & 0x03;
-  latch = (val >> 6) & 0x03;
-
   switch (latch) {
+    case 2:
+      if (config.speaker == SPKR_NATIVE) {
+        safe_port_out_byte(0x43, val);
+	break;
+      }
+      /* nobreak; */
     case 0:
     case 1:
-    case 2:
-      if (state == 0)
+      if ((val & 0x30) == 0)
 	pit_latch(latch);
       else {
-	pit[latch].read_state  = state;
-	pit[latch].write_state = state;
-	pit[latch].mode        = mode;
+	pit[latch].read_state  = (val >> 4) & 0x03;
+	pit[latch].write_state = (val >> 4) & 0x03;
+	pit[latch].mode        = (val >> 1) & 0x07;
       }
-      if (latch == 2 && config.speaker == SPKR_NATIVE) {
-        safe_port_out_byte(0x43, val);
 #if 0
-        i_printf("PORT: writing outp(0x43, 0x%x)\n", val);
+      i_printf("PORT: writing outp(0x43, 0x%x)\n", val);
 #endif
-      }
       break;
     case 3:
       /* I think this code is more or less correct */

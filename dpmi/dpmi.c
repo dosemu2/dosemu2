@@ -143,7 +143,7 @@
 #define RM_AFFECT_IF
 #endif
 
-#if 1
+#if 0
 #undef inline /*for gdb*/
 #define inline
 #endif
@@ -166,9 +166,19 @@ SEGDESC Segments[MAX_SELECTORS];
 static RealModeCallBack realModeCallBack[DPMI_MAX_CLIENTS][0x10];
 
 /* For protected mode mouse call back support */
-#define mouseCallBackQueueSize 50
+typedef struct {
+    unsigned short ax;
+    unsigned short cx;
+    unsigned short dx;
+    unsigned short si;
+    unsigned short di;
+    unsigned short bx;
+} MouseEvent;
+    
+#define mouseCallBackQueueSize 6       /* hope it is enough */
 static RealModeCallBack mouseCallBack; /* user\'s mouse routine */
-static struct vm86_regs mouseCallBackQueue[mouseCallBackQueueSize];
+static MouseEvent mouseCallBackQueue[mouseCallBackQueueSize];
+static MouseEvent LastMouse;
 static unsigned short mouseCallBackHead = 0;
 static unsigned short mouseCallBackTail = 0;
 static short mouseCallBackCount;
@@ -444,7 +454,7 @@ void dpmi_get_entry_point(void)
 
 }
 
-static inline int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int limit,
+static int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int limit,
                        unsigned char is_32, unsigned char type, unsigned char readonly,
                        unsigned char is_big, unsigned char seg_not_present, unsigned char useable)
 {
@@ -472,7 +482,7 @@ static inline int SetSelector(unsigned short selector, unsigned long base_addr, 
   return 0;
 } 
 
-static inline unsigned short AllocateDescriptors(int number_of_descriptors)
+static unsigned short AllocateDescriptors(int number_of_descriptors)
 {
   int next_ldt=0x10, i;		/* first 0x10 descriptors are reserved */
   unsigned char isfree=1;
@@ -498,7 +508,7 @@ static inline unsigned short AllocateDescriptors(int number_of_descriptors)
   return (next_ldt<<3) | 0x0007;
 }
 
-static inline int FreeDescriptor(unsigned short selector)
+static int FreeDescriptor(unsigned short selector)
 {
   unsigned short ldt_entry = selector >> 3;
   unsigned long *lp;
@@ -559,7 +569,7 @@ static inline unsigned long GetSegmentBaseAddress(unsigned short selector)
   return Segments[selector >> 3].base_addr;
 }
 
-static inline int SetSegmentBaseAddress(unsigned short selector, unsigned long baseaddr)
+static int SetSegmentBaseAddress(unsigned short selector, unsigned long baseaddr)
 {
   unsigned short ldt_entry = selector >> 3;
   D_printf("DPMI: SetSegmentBaseAddress[0x%04lx;0x%04lx] 0x%08lx\n", ldt_entry, selector, baseaddr);
@@ -578,7 +588,7 @@ static inline int SetSegmentBaseAddress(unsigned short selector, unsigned long b
 );
 }
 
-static inline int SetSegmentLimit(unsigned short selector, unsigned int limit)
+static int SetSegmentLimit(unsigned short selector, unsigned int limit)
 {
   unsigned short ldt_entry = selector >> 3;
   D_printf("DPMI: SetSegmentLimit[0x%04lx;0x%04lx] 0x%08lx\n", ldt_entry, selector, limit);
@@ -603,7 +613,7 @@ static inline int SetSegmentLimit(unsigned short selector, unsigned int limit)
 );
 }
 
-static inline int SetDescriptorAccessRights(unsigned short selector, unsigned short type_byte)
+static int SetDescriptorAccessRights(unsigned short selector, unsigned short type_byte)
 {
   unsigned short ldt_entry = selector >> 3;
   D_printf("DPMI: SetDescriptorAccessRights[0x%04lx;0x%04lx] 0x%04lx\n", ldt_entry, selector, type_byte);
@@ -638,7 +648,7 @@ static inline int SetDescriptorAccessRights(unsigned short selector, unsigned sh
 );
 }
 
-static inline unsigned short CreateCSAlias(unsigned short selector)
+static unsigned short CreateCSAlias(unsigned short selector)
 {
   us ds_selector;
   us cs_ldt= selector >> 3;
@@ -651,13 +661,13 @@ static inline unsigned short CreateCSAlias(unsigned short selector)
   return ds_selector;
 }
 
-static inline void GetDescriptor(us selector, unsigned long *lp)
+static void GetDescriptor(us selector, unsigned long *lp)
 {
   memcpy(lp, &ldt_buffer[selector & 0xfff8], 8);
   D_printf("DPMI: GetDescriptor[0x%04lx;0x%04lx]: 0x%08lx%08lx\n", selector>>3, selector, *(lp+1), *lp);
 }
 
-static inline int SetDescriptor(unsigned short selector, unsigned long *lp)
+static int SetDescriptor(unsigned short selector, unsigned long *lp)
 {
   unsigned long base_addr, limit;
   D_printf("DPMI: SetDescriptor[0x%04lx;0x%04lx] 0x%08lx%08lx\n", selector>>3, selector, *(lp+1), *lp);
@@ -676,7 +686,7 @@ static inline int SetDescriptor(unsigned short selector, unsigned long *lp)
 			(*lp >> 23) & 1, ((*lp >> 15) & 1) ^1, (*lp >> 20) & 1);
 }
 
-static inline int AllocateSpecificDescriptor(us selector)
+static int AllocateSpecificDescriptor(us selector)
 {
   int ldt_entry = selector >> 3;
   if (ldt_entry >= MAX_SELECTORS)
@@ -690,7 +700,7 @@ static inline int AllocateSpecificDescriptor(us selector)
   return 0;
 }
 
-static inline void GetFreeMemoryInformation(unsigned int *lp)
+static  void GetFreeMemoryInformation(unsigned int *lp)
 {
   struct meminfo *mi = readMeminfo();
 
@@ -783,7 +793,7 @@ static inline void dpmi_sti()
 /* I don\'t think these function will ever become bottleneck, so just */
 /* keep it simple, --dong */
 /* alloc_pm_block allocate a dpmi_pm_block struct and add it to the list */
-static inline dpmi_pm_block * alloc_pm_block()
+static dpmi_pm_block * alloc_pm_block()
 {
     dpmi_pm_block *p = malloc(sizeof(dpmi_pm_block));
     if(!p)
@@ -793,7 +803,7 @@ static inline dpmi_pm_block * alloc_pm_block()
     return p;
 }
 /* free_pm_block free a dpmi_pm_block struct and delete it from list */
-static inline int free_pm_block(dpmi_pm_block *p)
+static int free_pm_block(dpmi_pm_block *p)
 {
     dpmi_pm_block *tmp;
     if (!p) return -1;
@@ -811,7 +821,7 @@ static inline int free_pm_block(dpmi_pm_block *p)
     return 0;
 }
 /* lookup_pm_block returns a dpmi_pm_block struct from its handle */
-static inline dpmi_pm_block *lookup_pm_block(unsigned long h)
+static  dpmi_pm_block *lookup_pm_block(unsigned long h)
 {
     dpmi_pm_block *tmp;
     for(tmp = pm_block_root[current_client]; tmp; tmp = tmp -> next)
@@ -1271,7 +1281,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     D_printf("DPMI: dpmi function failed, CF=1\n");
 }
 
-inline void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
+static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
 {
   { 
   /* We can't free selectors here, may be a kernel problem? */
@@ -1311,7 +1321,7 @@ inline void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
   return (void) do_int(0x21);
 }
 
-inline void do_dpmi_int(struct sigcontext_struct *scp, int i)
+static void do_dpmi_int(struct sigcontext_struct *scp, int i)
 {
   us *ssp;
 
@@ -1363,7 +1373,7 @@ inline void do_dpmi_int(struct sigcontext_struct *scp, int i)
  * DANG_END_FUNCTION
  */
 
-inline void run_pm_int(int i)
+void run_pm_int(int i)
 {
   us *ssp;
 
@@ -1416,7 +1426,7 @@ inline void run_pm_int(int i)
   in_dpmi_dos_int = 0;
 }
 
-inline void run_dpmi(void)
+void run_dpmi(void)
 {
    static int retval;
   /* always invoke vm86() with this call.  all the messy stuff will
@@ -1741,7 +1751,7 @@ void dpmi_sigio(struct sigcontext_struct *scp)
  * DANG_END_FUNCTION
  */
 
-static inline void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
+static  void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
 { 
   switch (trapno) {
     case 0x00: /* divide_error */
@@ -1775,7 +1785,7 @@ static inline void do_default_cpu_exception(struct sigcontext_struct *scp, int t
  * DANG_END_FUNCTION
  */
 
-static inline void do_cpu_exception(struct sigcontext_struct *scp)
+static void do_cpu_exception(struct sigcontext_struct *scp)
 {
   us *ssp;
   unsigned char *csp2, *ssp2;
@@ -1784,7 +1794,7 @@ static inline void do_cpu_exception(struct sigcontext_struct *scp)
   /* My log file grows to 2MB, I have to turn off dpmi debugging,
      so this log excptions even dpmi debug is off */
   unsigned char dd = d.dpmi;
-  d.dpmi = 1;
+/*  d.dpmi = 1;*/
   D_printf("DPMI: do_cpu_exception(0x%02x) called\n",_trapno);
   DPMI_show_state;
   if ( _trapno == 0xe)
@@ -2092,12 +2102,12 @@ if ((_ss & 7) == 7) {
 	      unsigned short *ssp;
 	      D_printf("DPMI: %d events in mouse queue\n", mouseCallBackCount);
 	      /* we have queued mouse event, call it again */
-	     _eax = mouseCallBackQueue[mouseCallBackHead].eax;
-	     _ebx = mouseCallBackQueue[mouseCallBackHead].ebx;
-	     _ecx = mouseCallBackQueue[mouseCallBackHead].ecx;
-	     _edx = mouseCallBackQueue[mouseCallBackHead].edx;
-	     _esi = mouseCallBackQueue[mouseCallBackHead].esi;
-	     _edi = mouseCallBackQueue[mouseCallBackHead].edi;
+	     _eax = mouseCallBackQueue[mouseCallBackHead].ax;
+	     _ebx = mouseCallBackQueue[mouseCallBackHead].bx;
+	     _ecx = mouseCallBackQueue[mouseCallBackHead].cx;
+	     _edx = mouseCallBackQueue[mouseCallBackHead].dx;
+	     _esi = mouseCallBackQueue[mouseCallBackHead].si;
+	     _edi = mouseCallBackQueue[mouseCallBackHead].di;
 	     _cs  = mouseCallBack.selector;
 	     _eip = mouseCallBack.offset;
 	     ssp = (unsigned short *) SEL_ADR(_ss, _esp);
@@ -2116,12 +2126,20 @@ if ((_ss & 7) == 7) {
 		 (mouseCallBackHead+1)%mouseCallBackQueueSize;
 	     mouseCallBackCount --;
 	  } else {
+	      /* pop up in_dpmi_dos_int */
+	     if (DPMIclient_is_32) {
+		 in_dpmi_dos_int = (int) *(((unsigned long *) ssp)++);
+		 _esp += 4;
+	     } else {
+		 in_dpmi_dos_int = (int) *ssp++;
+		 _esp += 2;
+	     }
 	     PMSTACK_ESP = _esp;
 	     /* dpmi_stack_frame[current_client], will be saved in */
 	     /* Returo_To_Dosemu                                   */
 	     restore_pm_regs();
 	     *scp = dpmi_stack_frame[current_client];
-	     in_dpmi_dos_int = 1;
+	     /*in_dpmi_dos_int = 1;*/
 	     in_mouse_callback = 0;
 	     /* dpmi_sti(); */
 	  }
@@ -2302,6 +2320,131 @@ if ((_ss & 7) == 7) {
   }
 }
 
+void run_pm_mouse()
+{
+    unsigned char press, release;
+    unsigned char insert;
+    unsigned short *ssp;
+    
+    REG(eip) += 1;            /* skip halt to point to FAR RET */
+    if(!in_dpmi) {
+       D_printf("DPMI: mouse Callback while no dpmi clint running\n");
+       return;
+    }
+    /*
+     * Internal mouse driver and mouse under X does not understand pic yet,
+     * so to prevent stack overflow, we queue mouse callback events  here.
+     * To improve performance, motion events are compacted.
+     */
+
+
+    /*
+     * It seems that both serial and internal mouse driver are not
+     * reliable to deliver mouse event. Missing events are inserted
+     * here. These code should be deleted when mouse driver becomes
+     * reliabe.
+     */
+    press = release = 0;
+    insert = (LastMouse.bx & 0x7) ^ (LO(bx) & 0x7);
+    if (insert && LO(ax) == 1)	{ /* buttons changes but only a motion */
+				  /* event, some envent is missed      */
+	if (insert & 1) {
+	    if (LastMouse.bx & 1)
+		release |= 0x4;
+	    else
+		press |= 0x2;
+	}
+	if (insert & 2) {
+	    if (LastMouse.bx & 2)
+		release |= 0x10;
+	    else
+		press |= 0x8;
+	}
+	if (insert & 4) {
+	    if (LastMouse.bx & 4)
+		release |= 0x40;
+	    else
+		press |= 0x20;
+	}
+    }
+    if (press && mouseCallBackCount < mouseCallBackQueueSize) {
+	D_printf("insert missing press event 0x%02x\n", press);
+	mouseCallBackQueue[mouseCallBackTail] = LastMouse;
+	mouseCallBackQueue[mouseCallBackTail].ax = press;
+	mouseCallBackQueue[mouseCallBackTail].bx = LWORD(ebx);
+	mouseCallBackTail = (mouseCallBackTail + 1) % mouseCallBackQueueSize;
+	mouseCallBackCount++;
+    }
+    if ((mouseCallBackCount==0) ||
+	((LO(ax) & 0x1e) && mouseCallBackCount < mouseCallBackQueueSize)) {
+	D_printf("mouse event AL=0x%02x\n", LO(ax));
+	mouseCallBackQueue[mouseCallBackTail].ax = LWORD(eax);
+	mouseCallBackQueue[mouseCallBackTail].bx = LWORD(ebx);
+	mouseCallBackQueue[mouseCallBackTail].cx = LWORD(ecx);
+	mouseCallBackQueue[mouseCallBackTail].dx = LWORD(edx);
+	mouseCallBackQueue[mouseCallBackTail].di = LWORD(edi);
+	mouseCallBackQueue[mouseCallBackTail].si = LWORD(esi);
+	mouseCallBackTail = (mouseCallBackTail + 1) % mouseCallBackQueueSize;
+	mouseCallBackCount++;
+    }
+    if (release && mouseCallBackCount < mouseCallBackQueueSize) {
+	D_printf("insert missing release event 0x%02x\n", release);
+	mouseCallBackQueue[mouseCallBackTail] = LastMouse;
+	mouseCallBackQueue[mouseCallBackTail].ax = release;
+	mouseCallBackQueue[mouseCallBackTail].bx = LWORD(ebx);
+	mouseCallBackTail = (mouseCallBackTail + 1) % mouseCallBackQueueSize;
+	mouseCallBackCount++;
+    }
+    LastMouse.ax = LWORD(eax);
+    LastMouse.bx = LWORD(ebx);
+    LastMouse.cx = LWORD(ecx);
+    LastMouse.dx = LWORD(edx);
+    LastMouse.di = LWORD(edi);
+    LastMouse.si = LWORD(esi);
+
+    if (in_mouse_callback && mouseCallBackCount == 0)
+      return;
+
+    in_mouse_callback = 1;
+    save_pm_regs();
+    dpmi_stack_frame[current_client].eflags = 0x0202 | (0x0dd5 & REG(eflags));
+    dpmi_stack_frame[current_client].eax = mouseCallBackQueue[mouseCallBackHead].ax;
+    dpmi_stack_frame[current_client].ebx = mouseCallBackQueue[mouseCallBackHead].bx;
+    dpmi_stack_frame[current_client].ecx = mouseCallBackQueue[mouseCallBackHead].cx;
+    dpmi_stack_frame[current_client].edx = mouseCallBackQueue[mouseCallBackHead].dx;
+    dpmi_stack_frame[current_client].esi = mouseCallBackQueue[mouseCallBackHead].si;
+    dpmi_stack_frame[current_client].edi = mouseCallBackQueue[mouseCallBackHead].di;
+    mouseCallBackHead  = (mouseCallBackHead+1)%mouseCallBackQueueSize;
+    mouseCallBackCount --;
+    dpmi_stack_frame[current_client].ds = ConvertSegmentToDescriptor(REG(ds));
+    dpmi_stack_frame[current_client].cs = mouseCallBack.selector;
+    dpmi_stack_frame[current_client].eip = mouseCallBack.offset;
+
+    /* mouse call back rountine should return by an lret */
+    /* do we need use locked pm_stack_here? */
+    if (dpmi_stack_frame[current_client].ss == PMSTACK_SEL)
+	PMSTACK_ESP = dpmi_stack_frame[current_client].esp;
+    ssp = (unsigned short *) SEL_ADR(PMSTACK_SEL, PMSTACK_ESP);
+    if (DPMIclient_is_32) {
+	*(--((unsigned long *) ssp)) = in_dpmi_dos_int;
+	*--ssp = (us) 0;
+	*--ssp = DPMI_SEL; 
+	*(--((unsigned long *) ssp)) =
+	     DPMI_OFF + HLT_OFF(DPMI_return_from_mouse_callback);
+	PMSTACK_ESP -= 12;
+    } else {
+	*--ssp = in_dpmi_dos_int;
+	*--ssp = DPMI_SEL; 
+	*--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_mouse_callback);
+	PMSTACK_ESP -= 6;
+    }
+    dpmi_stack_frame[current_client].ss = PMSTACK_SEL;
+    dpmi_stack_frame[current_client].esp = PMSTACK_ESP;
+
+    /*dpmi_cli();*/
+    in_dpmi_dos_int = 0;
+
+}
 void dpmi_realmode_hlt(unsigned char * lina)
 {
   unsigned short *ssp;
@@ -2516,71 +2659,7 @@ done:
 
   } else if (lina ==(unsigned char *)(DPMI_ADD +
 				      HLT_OFF(DPMI_mouse_callback))) {
-    REG(eip) += 1;            /* skip halt to point to FAR RET */
-    if(!in_dpmi) {
-       D_printf("DPMI: mouse Callback while no dpmi clint running\n");
-       return;
-    }
-    /*
-     * Internal mouse driver and mouse under X does not understand pic yet,
-     * so to prevent stack overflow, we queue mouse callback events  here.
-     * To improve performance, motion events are compacted.
-     */
-    if (in_mouse_callback) {
-	unsigned short old = mouseCallBackTail ? (mouseCallBackTail-1) :
-	                                         (mouseCallBackQueueSize-1);
-	if (mouseCallBackCount &&
-	    (mouseCallBackQueue[old].ebx & 0xff) == LO(bx)) {/* motion event */
-	    D_printf("DPMI: mouse: only a motion envent\n");
-	    mouseCallBackQueue[old] = REGS;
-	}else if (mouseCallBackCount <= mouseCallBackQueueSize) {
-	    D_printf("DPMI: mouse, put envent in queue BL=0x%02x\n", LO(bx));
-	    mouseCallBackQueue[mouseCallBackTail] = REGS;
-	    mouseCallBackTail = (mouseCallBackTail + 1) % mouseCallBackQueueSize;
-	    mouseCallBackCount++;
-	}
-	return;
-    }
-    in_mouse_callback = 1;
-    D_printf("DPMI: mouse Callback called.\n");
-
-    save_pm_regs();
-    dpmi_stack_frame[current_client].eflags = 0x0202 | (0x0dd5 & REG(eflags));
-    dpmi_stack_frame[current_client].eax = REG(eax);
-    dpmi_stack_frame[current_client].ebx = REG(ebx);
-    dpmi_stack_frame[current_client].ecx = REG(ecx);
-    dpmi_stack_frame[current_client].edx = REG(edx);
-    dpmi_stack_frame[current_client].esi = REG(esi);
-    dpmi_stack_frame[current_client].edi = REG(edi);
-    dpmi_stack_frame[current_client].ebp = REG(ebp);
-    dpmi_stack_frame[current_client].ds = ConvertSegmentToDescriptor(REG(ds));
-    dpmi_stack_frame[current_client].cs =
-	mouseCallBack.selector;
-    dpmi_stack_frame[current_client].eip =
-	mouseCallBack.offset;
-
-    /* mouse call back rountine should return by an lret */
-    /* do we need use locked pm_stack_here? */
-    if (dpmi_stack_frame[current_client].ss == PMSTACK_SEL)
-	PMSTACK_ESP = dpmi_stack_frame[current_client].esp;
-    ssp = (unsigned short *) SEL_ADR(PMSTACK_SEL, PMSTACK_ESP);
-    if (DPMIclient_is_32) {
-	*--ssp = (us) 0;
-	*--ssp = DPMI_SEL; 
-	*(--((unsigned long *) ssp)) =
-	     DPMI_OFF + HLT_OFF(DPMI_return_from_mouse_callback);
-	PMSTACK_ESP -= 8;
-    } else {
-	*--ssp = DPMI_SEL; 
-	*--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_mouse_callback);
-	PMSTACK_ESP -= 4;
-    }
-    dpmi_stack_frame[current_client].ss = PMSTACK_SEL;
-    dpmi_stack_frame[current_client].esp = PMSTACK_ESP;
-
-    /*dpmi_cli();*/
-    in_dpmi_dos_int = 0;
-
+      run_pm_mouse();
   } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_raw_mode_switch))) {
     D_printf("DPMI: switching from real to protected mode\n");
 #ifdef SHOWREGS

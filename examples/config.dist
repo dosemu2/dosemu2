@@ -1,4 +1,4 @@
-# Linux dosemu 0.53 configuration file. 
+# Linux dosemu 0.53 configuration file.
 # Updated to include QuickStart documentation 5/10/94 by Mark Rejhon
 # James MacLean, jmaclean@fox.nstn.ns.ca, 12/31/93
 # Robert Sanders, gt8134b@prism.gatech.edu, 5/16/93
@@ -80,7 +80,7 @@ keyboard {  layout us  keybint on  rawkeyboard off  }
 #
 HogThreshold 10
 
- 
+
 #**************************** SERIAL ************************************
 #
 # QuickStart:
@@ -113,13 +113,13 @@ HogThreshold 10
 #serial { com 4  device /dev/modem }
 #serial { com 3  base 0x03E8  irq 5  device /dev/cua2 }
 #
-#    If you have a non-PS/2 mouse, uncomment/modify one of the following. 
+#    If you have a non-PS/2 mouse, uncomment/modify one of the following.
 #serial { mouse  com 1  device /dev/mouse }
 #serial { mouse  com 2  device /dev/mouse }
 #
 #    What type is your mouse?  Uncomment one of the following.
-#    Use the 'internaldriver' option with ps2 and busmouse options.
-#    Use the 'emulate3buttons' for 3button emulation on 2 button mice.
+#    Use the 'internaldriver' option to try Dosemu internaldriver.
+#    Use the 'emulate3buttons' for 3button mice.
 #mouse { microsoft }
 #mouse { logitech }
 #mouse { mmseries }
@@ -128,7 +128,6 @@ HogThreshold 10
 #mouse { mousesystems }
 #mouse { busmouse }
 #mouse { ps2  device /dev/mouse internaldriver emulate3buttons }
-#    The following line won't run for now, but I hope it will sometimes
 #mouse { mousesystems device /dev/mouse internaldriver cleardtr }
 
 # For tty locking capabilities:
@@ -149,7 +148,7 @@ ipxsupport off
 #************************** TERMINALS *************************************
 #
 # This section applies whenever you run DOSEMU remotely or in an xterm.
-# Color terminal suport is now built into DOSEMU.  Skip this section for 
+# Color terminal support is now built into DOSEMU.  Skip this section for 
 # now to use terminal defaults, until you get DOSEMU to work.
 #
 # QuickStart: 
@@ -173,13 +172,13 @@ ipxsupport off
 #       'Ctrl-^ h'.
 @
 #    Use the following to enable the IBM character set.
-#terminal { charset ibm  color on}
+#terminal { charset ibm  color on }
 #
 #    Use this for color xterms or rxvt's with no IBM font, with only 8 colors.
-#terminal { charset latin  color on}
+#terminal { charset latin  color on }
 #
 #    Use this for color xterms or rxvt's with IBM font, with only 8 colors.
-#terminal { charset ibm  color on}
+#terminal { charset ibm  color on }
 #
 #    More detailed line for user configuration:
 terminal { charset latin  updatefreq 4  color on }
@@ -239,7 +238,7 @@ video { vga }          # Use this line, if you are using VGA
 #   - If your VBios size is only 32K you set it with  vbios_size 0x8000,
 #     you then gain some space for UMB or hardware ram locations.
 #   - Set "allowvideoportaccess on" earlier in this configuration file
-#     if DOSEMU wont boot properly, such as hanging with a blank screen,
+#     if DOSEMU won't boot properly, such as hanging with a blank screen,
 #     beeping, leaving Linux video in a bad state, or the video card 
 #     bootup message seems to stick.
 #   - Video BIOS shadowing (in your CMOS setup) at C000-CFFF must be disabled. 
@@ -258,7 +257,7 @@ video { vga }          # Use this line, if you are using VGA
 #     and can be used on a xterm and the console, but of course not, if you
 #     have the MDA as your primary display. 
 #     You also must set USE_DUALMON 1 in include/video.h.
-#     NOTE: Make shure no more then one process is using this feature !
+#     NOTE: Make sure no more then one process is using this feature !
 #           ( you will get funny garbage on your MDA display. ) 
 #           Also, you must NOT have the dualmon-patches for kernel applied
 #           ( having the MDA as Linux console ) 
@@ -266,7 +265,7 @@ video { vga }          # Use this line, if you are using VGA
 #   It may be necessary to set this to "on" if DOSEMU can't boot up properly
 #   on your system when it's set "off" and when graphics are enabled.
 #   Note: May interfere with serial ports when using certain video boards.
-# allowvideoportaccess on
+#allowvideoportaccess on
 #
 #   Any 100% compatible standard VGA card _MAY_ work with this:
 #video { vga  console  graphics }
@@ -283,7 +282,7 @@ video { vga }          # Use this line, if you are using VGA
 #   ET4000 SVGA card with 1 megabyte on board:
 #video { vga  console  graphics  chipset et4000  memsize 1024 }
 # or
-#video { vga  console  graphics  chipset et4000  memsize 1024 vbios_size=0x8000 }
+#video { vga  console  graphics  chipset et4000  memsize 1024 vbios_size 0x8000 }
 #
 #   S3-based SVGA video card with 1 megabyte on board:
 #video { vga  console  graphics  chipset s3  memsize 1024 }
@@ -312,7 +311,7 @@ bootA               # Startup drive valid values:  bootA  bootC
 #    These are memory parameters, stated in number of kilobytes.
 #    If you get lots of disk swapping while DOSEMU runs, you should 
 #    reduce these values.  Also, DPMI is still somewhat unstable,
-#    (as of early April 1994) so be careful with DPMI paramters.
+#    (as of early April 1994) so be careful with DPMI parameters.
 #
 #    For ems, you now can set the frame to any 16K between 0xc800..0xe000
 #
@@ -369,7 +368,7 @@ sillyint off    # this disables IRQ monitoring
 
 #******************* SPEAKER *********************************************
 # 
-# These keywoards are allowable on the "speaker" line:
+# These keywords are allowable on the "speaker" line:
 #   native      Enable DOSEMU direct access to the speaker ports.
 #   emulated    Enable simple beeps at the terminal.
 #   off         Disable speaker emulation.
@@ -409,11 +408,11 @@ speaker native         # or "off" or "emulated"
 #    "wholedisk" specifies full access to entire hard drive.
 #    "readonly" for read only access.  A good idea to set up with.
 #
-#disk { image "/var/lib/dosemu/hdimage" }    # use diskimage file.
-#disk { partition "/dev/hda1" 1 readonly }   # 1st partition on 1st IDE.
-#disk { partition "/dev/hda6" 6 readonly }   # 6th logical partition.
-#disk { partition "/dev/sda2" 1 readonly }   # 1st partition on 2nd SCSI.
-#disk { wholedisk "/dev/hda" }               # Entire disk drive unit
+#disk { image "/var/lib/dosemu/hdimage" }      # use diskimage file.
+#disk { partition "/dev/hda1" readonly }       # 1st partition on 1st IDE.
+#disk { partition "/dev/hda6" readonly }       # 6th logical partition.
+#disk { partition "/dev/sdb1" readonly }       # 1st partition on 2nd SCSI.
+#disk { wholedisk "/dev/hda" }                 # Entire disk drive unit
 
 
 #******************* DOSEMU BOOT *******************************************
@@ -452,7 +451,7 @@ floppy { device /dev/fd0 threeinch }
 #    If floppy disk speed is very important, uncomment the following
 #    line.  However, this makes the floppy drive a bit unstable.  This 
 #    is best used if the floppies are write-protected.
-#    Use an interger value to set the time bewteen floppy updates.
+#    Use an integer value to set the time between floppy updates.
 #
 #FastFloppy 8
 
@@ -498,4 +497,3 @@ floppy { device /dev/fd0 threeinch }
 #    that continue to use the standard bios calls.  These applications will
 #    continue to send the output piped to the file or unix command.
 #
-

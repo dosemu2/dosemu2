@@ -12,7 +12,7 @@ The purpose of the DOSEMU project register is to prevent redundant
 work on DOSEMU, as well as to give developers ideas for new things to
 do.
 
-        If you are currently working on something and i do not have
+        If you are currently working on something and I do not have
 you in the register, or if you see something here and would like to
 start working on it please send me mail to corey@amiganet.chi.il.us
 (often mail must be sent several times becuase of flakey servers),
@@ -28,7 +28,7 @@ you into the register right away.
 -----------------------------------------------------------
 A special welcome to all the new members of the dosemu team!
 
-        The following projects are activly being worked on by thier
+        The following projects are activly being worked on by their
 respective participants:
 
 General architecture, building,  debugging: - Marty Leisner
@@ -36,6 +36,16 @@ General architecture, building,  debugging: - Marty Leisner
 	Marty has many goals with DOSEMU. He currently has totally
 restructured the Makefile setup, sent in numerous patches, and is
 constantly testing new ideas.
+
+
+General architecture, building, debugging: - Scott Buchholz
+
+	Scott occasionally wanders through the DOSEMU code, wreaking
+mischief and mayhem.  He is often working to clean up code, clarify
+functionality, fix bugs, and make improvements.  It is rumored that he
+is in charge of the init directory and the PIT code (among other things)
+since he wrote them.
+
 
 Bug fix collection & distribution: - James B. MacLean
 
@@ -64,6 +74,9 @@ Redirector maintaince: - (formerly Tim Bird(& hopefully again)) & James
 {into Linux file locks) are currently just stubs.
 
 
+Speed.com 	Tim Van der Linden	- timvdl@innet.be
+	Program to change HogThreshold value on the fly
+
 EMS & XMS maintaince: - James MacLean
 
         This is mainly bug fixing the DOSEMU EMS driver & XMS memory
@@ -80,7 +93,7 @@ Video maintaince: - James MacLean (again, dosen't he ever rest :)
         This is mainly bug fixing the DOSEMU video routines.
 
 
-*Xwindows color/graphics support: - Jason E Gorden - marky
+*Xwindows color/graphics support: - Jason E Gorden, marky
 
         Xwindows support needs to be added.  Ideally dosemu, when run
 would open a color xterm, then run color text dos programs.  When a
@@ -213,13 +226,8 @@ to include the programmable interrupt controller, programmable interval timer,
 real-time clock, a dos clock, and an interval timer for use by dosemu itself.
 Which makes it a little bigger than I can handle quickly.
 
-The PIC code is written, but not yet integrated with dosemu.  You can find
-it in the timer directory.  The rest of the code is getting there, but if
-someone wants to help speed it up, please let me know.  I'm sure there are
-plenty of pieces to keep a few people people busy.
- 
 
-*DPMI support: - Lutz Dong
+*DPMI support: - Lutz, Dong
 
 Lutz (molgedey@solid.theo-physik.uni-kiel.de) is the champion of the DPMI
 code propegating into DOSEMU. He's is already able to run emtex386.
@@ -267,20 +275,6 @@ would call out to the posix equivalant, run the calculations in the
 programmer efforts & development time, the interupt redirection might
 be able to be stolen from the wine (wabi clone) project.
 
-[Quote from tim]
-
-{Performance -
-{I have been examining performance of DOSEMU, examining code paths for 
-{problem areas.  My current area of focus is the sigsegv() handler.  It 
-{appears from rudimentary samplings that this is called between 500 and 
-{1000 times a second during normal DOSEMU usage.  Specifically, I have 
-{been researching the feasibility of moving a portion of the emulation 
-{performed by this routine (and its sub-routines) into the Linux kernel.  
-{This would be in the form of a DOSEMU driver, which would catch the 
-{segment violation trap directly for the DOSEMU process, and handle some 
-{instruction emulations right in the kernel (avoiding signal handling and 
-{ring transition overhead, as well as avoiding a potential re-schedule).
-
 {Charlie Brady <charlieb@tplrd.tpl.oz.au> says:
 {Linux should already have profiling capabilities - check  for  profil(2),
 {monitor(3), and prof(1)
@@ -288,7 +282,7 @@ be able to be stolen from the wine (wabi clone) project.
 
 *Debian distribution: - Michael E. Deisher
 
-        Write instalation scripts & make sure that the dosemu system
+        Write installation scripts & make sure that the dosemu system
 comforms to the debian instalation standard.  It would probably be a
 good idea for him to make james start following the FFSSTTD.
 
@@ -298,7 +292,7 @@ dynamic setup: - mike
 
         this should allow you to change the dosemu configureation
 while it is running. (example turn off the speaker after it gets
-annoying). I have no idea how this is going allong.
+annoying). I have no idea how this is going along.
 
 
 
@@ -306,11 +300,9 @@ Name: LEXEC - Amit Margalt & Oren Tirosh
 
 Description: 
 
-LEXEC enables the user to run Linux programs from within DOSEMU, piping the I/O
-
-through DOSEMU itself between the Linux program and the DOS "console"...
-Our ideize the memory
-pools of every dosemu session running at the same time.
+LEXEC enables the user to run Linux programs from within DOSEMU, piping the
+I/O through DOSEMU itself between the Linux program and the DOS "console"...
+Our idea is to memory pools of every dosemu session running at the same time.
 
 I checked the way that this works right now.  And it appears that the
 memory is allocated at run time, but when the dos program gives it up,
@@ -413,7 +405,7 @@ dosemu .52+ - should be able to run many programs, actually work, and
 performace should go off the scale!  (Let's see... 'fair'...or just 
 maybe even 'good' is more like it)
 
-dosemu .60 - (when released later in 1994) Current hopeful plans to make 
+dosemu .60 - (when released in April 1995) Current hopeful plans to make 
 it support Microsoft Windows 3.1 and real games like DOOM, SimCity 2000, 
 Xwing, and Flight Simulator at satisfactory speed!  We need your HELP
 to make them work well - if you know how VCPI works, please contact us!
@@ -432,7 +424,7 @@ Performance standards:
 Current dosemu information:
 
 Latest release: 0.52
-Development version: 0.51pl28
+Development version: 0.53pl58
 
 Note:  Don't look for the development version unless you are planning
 on doing development work, because often certain features can be
@@ -458,7 +450,8 @@ Lutz Molgedey           - molgedey@solid.theo-physik.uni-kiel.de
 Amit Margalt            - amit@tavis.enet.dec.com
 Marty Leisner		- leisner@sdsp.mc.xerox.com
 Dong Liu		- dliu@faraday-gw.njit.edu
-
+Scott Buchholz          - scottb@eecs.nwu.edu
+Tim Van der Linden	- timvdl@innet.be
 
 Corey Sweeney
 corey@bbs.xnet.com

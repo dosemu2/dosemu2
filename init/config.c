@@ -565,31 +565,31 @@ usage(void)
     fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
     fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
     fprintf(stdout, "    -C boot from first defined hard disk (C)\n");
-    fprintf(stdout, "    -c use PC console video (kernel 0.99pl3+) (!%%)\n");
-    fprintf(stdout, "    -k use PC console keyboard (kernel 0.99pl3+) (!)\n");
+    fprintf(stdout, "    -c use PC console video (!%)\n");
+    fprintf(stdout, "    -k use PC console keyboard (!)\n");
 #ifdef X_SUPPORT
     fprintf(stdout, "    -X run in X Window (#)\n");
     fprintf(stdout, "    -X NAME use MDA direct and FIFO NAME for keyboard (only with x2dos!)\n");
     fprintf(stdout, "    -Y NAME use FIFO NAME for mouse (only with x2dos!)\n");
-    fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDvXk?is#pgwhxmIEcn01)\n");
+    fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDvXkism#pgcwhIExMnP01)\n");
 #else				/* X_SUPPORT */
-    fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDvk?is#pgwhxmIEcn01)\n");
+    fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDvkism#pgcwhIExMnP01)\n");
 #endif				/* X_SUPPORT */
     fprintf(stdout, "    -M set memory size to SIZE kilobytes (!)\n");
     fprintf(stdout, "    -P copy debugging output to FILE\n");
-    fprintf(stdout, "    -b map BIOS into emulator RAM (%%)\n");
+    fprintf(stdout, "    -b map BIOS into emulator RAM (%)\n");
     fprintf(stdout, "    -F use config-file File\n");
-    fprintf(stdout, "    -V use BIOS-VGA video modes (!#%%)\n");
+    fprintf(stdout, "    -V use BIOS-VGA video modes (!#%)\n");
     fprintf(stdout, "    -N No boot of DOS\n");
     fprintf(stdout, "    -t try new timer code (#)\n");
     fprintf(stdout, "    -s try new screen size code (#)\n");
-    fprintf(stdout, "    -g enable graphics modes (!%%#)\n");
+    fprintf(stdout, "    -g enable graphics modes (!%#)\n");
     fprintf(stdout, "    -x SIZE enable SIZE K XMS RAM\n");
     fprintf(stdout, "    -e SIZE enable SIZE K EMS RAM\n");
     fprintf(stdout, "    -m enable mouse support (!#)\n");
     fprintf(stdout, "    -2,3,4 choose 286, 386 or 486 CPU\n");
     fprintf(stdout, "    -K Do int9 (!#)\n\n");
     fprintf(stdout, "    (!) BE CAREFUL! READ THE DOCS FIRST!\n");
-    fprintf(stdout, "    (%%) require dos be run as root (i.e. suid)\n");
+    fprintf(stdout, "    (%) require dos be run as root (i.e. suid)\n");
     fprintf(stdout, "    (#) options do not fully work yet\n");
 }
