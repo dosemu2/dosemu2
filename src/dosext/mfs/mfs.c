@@ -2650,24 +2650,21 @@ dos_fs_redirect(state)
 	  /* return unit = 512-byte blocks @ 1 spc, std for floppy */
 	  int spc = 1;
 	  int bps = 512;
-	  unsigned long tmpf, tmpt;
 
-	  if ((tot > 65535) || (free > 65535)) {
+	  while ((spc<32) && ((tot > 65535) || (free > 65535))) {
 	    /* we're on an HD here! */
-	    bps = 1024;
-	    free /= 2;			/* try 1024-byte sectors */
-	    tot  /= 2;
-
-	    while ((tot > 65535) || (free > 65535)) {
-	      tmpf = free * spc;
-	      tmpt = tot  * spc;
-
-	      spc <<= 1;		/* try bigger clusters */
-
-	      free = tmpf / spc;
-	      tot =  tmpt / spc;
+	    if (bps==512) {
+	      bps = 1024;	/* try 1024-byte sectors first */
 	    }
+	    else
+	      spc *= 2;		/* try bigger clusters, up to 32 */
+	    free /= 2;
+	    tot  /= 2;
 	  }
+	  /* report no more than 32*1024*64K = 2G, even if some
+	     DOS version 7 can see more */
+	  if (tot>65535) tot=65535;
+	  if (free>65535) free=65535;
 
 	  /* Ralf Brown says: AH=media ID byte - can we let it at 0 here? */
 	  SETWORD(&(state->eax), spc);
