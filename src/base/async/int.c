@@ -1879,6 +1879,7 @@ static int int33(void) {
  * Do we need/have we got post_interrupt (IRET) handlers? 
  */
 /* We have post_interrupt handlers in dpmi --EB 28 Oct 1997 */
+#if 0
   if (IS_REDIRECTED(0x33)) {
     /* avoid recursion */
     interrupt_function[0x33] = mouse_int;
@@ -1886,6 +1887,7 @@ static int int33(void) {
     interrupt_function[0x33] = int33;
   }
   else
+#endif
     mouse_int();
 
 /* It seems that the only mouse sub-function that could be plausibly used to 
