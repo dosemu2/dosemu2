@@ -2175,9 +2175,6 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
 
   /* If the API Translator handled the request itself, return to PM */
   if (msdos_ret & MSDOS_DONE) {
-    if (DPMI_CLIENT.ems_frame_mapped) {
-      error("BUG in pre_extender, int=%x ax=%x\n", i, LWORD(eax));
-    }
     restore_rm_regs();
     return;
   }
