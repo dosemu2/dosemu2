@@ -188,9 +188,10 @@ int i;
     FD_ZERO(&fds_no_sigio);
     for (i = 0; i < MAX_FD; i++)
       io_callback_func[i] = NULL;
-    /* block SIGIO until it is set to a function later in signal_init() */
+    /* block SIGIO/SIGALRM/SIG_ACQUIRE/SIG_RELEASE until they are set to
+       functions later in signal_init() and device_init() */
     sigemptyset(&set);
-    sigaddset(&set, SIGIO);
+    ADDSET_SIGNALS_THAT_QUEUE(&set);
     sigprocmask(SIG_BLOCK, &set, NULL);
 }
 

@@ -277,9 +277,9 @@ signal_init(void)
   NEWSETSIG(SIGSEGV, dosemu_fault);
   SETSIG(SIGCHLD, cleanup_child);
 
-  /* unblock SIGIO */
+  /* unblock SIGIO, SIGALRM, SIG_ACQUIRE, SIG_RELEASE */
   sigemptyset(&set);
-  sigaddset(&set, SIGIO);
+  ADDSET_SIGNALS_THAT_QUEUE(&set);
   sigprocmask(SIG_UNBLOCK, &set, NULL);
 
   SIG_init();			/* silly int generator support */
