@@ -64,6 +64,8 @@
 
 #undef  DEBUG_INT1A
 
+#define WINDOWS_HACKS 1
+
 static void dos_post_boot(void);
 static int int33(void);
 
@@ -1218,14 +1220,44 @@ static int int21(void)
 
   case 0x4B: {			/* program load */
       char *ptr, *tmp_ptr;
-      char cmdname[TITLE_APPNAME_MAXLEN];
+      char cmdname[256], tmpname[256];
       char *str = SEG_ADR((char*), ds, dx);
-      
+      struct param4a *pa4 = SEG_ADR((struct param4a *), es, bx);
+      struct lowstring *args = FARt_PTR(pa4->cmdline);
+
       dos_post_boot();
+
+#if WINDOWS_HACKS
+      if ((ptr = strstr(str, "\\system\\dosx.exe")) ||
+	  (ptr = strstr(str, "\\system\\win386.exe"))) {
+        int have_args = 0;
+        strncpy(cmdname, args->s, args->len);
+        cmdname[args->len] = 0;
+        tmp_ptr = strstr(cmdname, "krnl386");
+        if (!tmp_ptr)
+          tmp_ptr = strstr(cmdname, "krnl286");
+        if (!tmp_ptr)
+          tmp_ptr = (ptr[8] == 'd' ? "krnl286" : "krnl386");
+        else
+          have_args = 1;
+        memcpy(ptr+8, tmp_ptr, 7);
+        strcpy(ptr+8+7, ".exe");
+        sprintf(tmpname, "Windows 3.1 in %c86 mode", tmp_ptr[4]);
+        str = tmpname;
+        if (have_args) {
+          tmp_ptr = strchr(tmp_ptr, ' ');
+          if (tmp_ptr) {
+            strcpy(args->s, tmp_ptr);
+            args->len -= tmp_ptr - cmdname;
+          }
+        }
+      }
+#endif
 
       if (!Video->change_config)
         return 0;
-      if (!title_hint[0] || strcmp(title_current, title_hint) != 0)
+      if ((!title_hint[0] || strcmp(title_current, title_hint) != 0) &&
+          str != tmpname)
         return 0;
 
       ptr = strrchr(str, '\\');
@@ -1242,7 +1274,7 @@ static int int21(void)
       strncpy(cmdname, ptr, TITLE_APPNAME_MAXLEN-1);
       cmdname[TITLE_APPNAME_MAXLEN-1] = 0;
       ptr = strchr(cmdname, '.');
-      if (ptr) *ptr = 0;
+      if (ptr && str!=tmpname) *ptr = 0;
       /* change the title */
       strcpy(title_current, cmdname);
       change_window_title(title_current);
@@ -1751,13 +1783,13 @@ static int int2f(void)
       case 0x0a:			/* IDENTIFY WINDOWS VERSION AND TYPE */
     if(in_dpmi && in_win31) {
       D_printf ("WIN: WINDOWS VERSION AND TYPE\n");
-      LWORD(eax) =0;
+      LWORD(eax) = 0;
       LWORD(ebx) = 0x030a;	/* 3.10 */
-#if 1      
+#if 1
       LWORD(ecx) = 0x0003;	/* let\'s try enhaced mode */
 #else
       LWORD(ecx) = 0x0002;	/* standard mode */
-#endif      
+#endif
       return 1;
         }
       break;
