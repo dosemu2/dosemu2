@@ -94,6 +94,7 @@ Keymap_Scan_Type;
 #define STICKY_ALTGR_MASK		0x00800000
 #define KEYPAD_MASK			0x01000000
 #define MOVE_MASK			0x02000000
+#define WAIT_MASK			0x04000000
 
 #define ALT_KEY_SCAN_CODE		0x80000000
 #define STICKY_ALT_KEY_SCAN_CODE	0x80000001
@@ -255,6 +256,38 @@ static Keymap_Scan_Type Esc_ALT[] =
   {"", 0}
 };
 
+static Keymap_Scan_Type CTRL[] =
+{
+  /* don't define ctrl for Tab = ^I, Enter == ^M, Esc = ^[, Ctrl-break ~ ^C
+     and (potentially) Backspace = ^H */
+  {"^Q", KEY_Q | CTRL_MASK },
+  {"^W", KEY_W | CTRL_MASK },
+  {"^E", KEY_E | CTRL_MASK },
+  {"^R", KEY_R | CTRL_MASK },
+  {"^T", KEY_T | CTRL_MASK },
+  {"^Y", KEY_Y | CTRL_MASK },
+  {"^U", KEY_U | CTRL_MASK },
+  {"^O", KEY_O | CTRL_MASK },
+  {"^P", KEY_P | CTRL_MASK },
+  {"^A", KEY_A | CTRL_MASK },
+  {"^S", KEY_S | CTRL_MASK },
+  {"^D", KEY_D | CTRL_MASK },
+  {"^F", KEY_F | CTRL_MASK },
+  {"^G", KEY_G | CTRL_MASK },
+  {"^J", KEY_J | CTRL_MASK },
+  {"^K", KEY_K | CTRL_MASK },
+  {"^L", KEY_L | CTRL_MASK },
+  {"^Z", KEY_Z | CTRL_MASK },
+  {"^X", KEY_X | CTRL_MASK },
+  {"^V", KEY_V | CTRL_MASK },
+  {"^B", KEY_B | CTRL_MASK },
+  {"^\\",KEY_BACKSLASH | CTRL_MASK },
+  {"^]", KEY_RBRACK | CTRL_MASK },
+  {"^^", KEY_6 | CTRL_MASK },
+  {"^_", KEY_DASH | CTRL_MASK | SHIFT_MASK },
+  {"", 0}
+};
+
 static Keymap_Scan_Type Linux_Keypad[] =
 {
 /* Keypad keys */
@@ -313,16 +346,50 @@ static Keymap_Scan_Type Xterm_Xkeys[] =
   {"\033Ow",   KEY_END },		/* End    (rxvt) */
   {"\033[e",   KEY_END },		/* End    (color_xterm) */
   {"\033[K",   KEY_END },		/* End  - Where does this come from ? */
+  {"\033[F",   KEY_END },		/* End  - another xterm */
   {"\033[5~",  KEY_PGUP },		/* PgUp */
   {"\033[6~",  KEY_PGDN },		/* PgDn */
 
   {"\033[7~",  KEY_HOME },		/* Ho     (xterm) */
   {"\033[8~",  KEY_END },		/* End    (xterm) */
+  {"\033[1~",  KEY_HOME },		/* Ho     (putty) */
+  {"\033[4~",  KEY_END },		/* End    (putty) */
 
   {"\033[A",   KEY_UP },		/* Up */
   {"\033[B",   KEY_DOWN },		/* Dn */
   {"\033[C",   KEY_RIGHT },		/* Ri */
   {"\033[D",   KEY_LEFT },		/* Le */
+  {"\033[G",   KEY_PAD_5 },             /* 5 (putty) */
+  {"\033OA",   KEY_UP | CTRL_MASK },    /* Up (putty) */
+  {"\033OB",   KEY_DOWN | CTRL_MASK },  /* Dn (putty) */
+  {"\033OC",   KEY_RIGHT | CTRL_MASK }, /* Ri (putty) */
+  {"\033OD",   KEY_LEFT | CTRL_MASK },  /* Le (putty) */
+  {"\033OG",   KEY_PAD_5 | CTRL_MASK }, /* 5 (putty) */
+
+  /* some modern varieties of xterm recognize shift and ctrl (+ some others
+     but these are the most important) */
+  {"\033[2A",   KEY_UP | SHIFT_MASK },  /* Up */
+  {"\033[2B",   KEY_DOWN | SHIFT_MASK },/* Dn */
+  {"\033[2C",   KEY_RIGHT | SHIFT_MASK },/* Ri */
+  {"\033[2D",   KEY_LEFT | SHIFT_MASK }, /* Le */
+  {"\033[2H",   KEY_HOME | SHIFT_MASK }, /* Ho  */
+  {"\033[2F",   KEY_END | SHIFT_MASK },  /* End */
+  {"\033[2;2~", KEY_INS | SHIFT_MASK },  /* Ins */
+  {"\033[3;2~", KEY_DEL | SHIFT_MASK },  /* Del */
+  {"\033[5;2~", KEY_PGUP | SHIFT_MASK },/* PgUp */
+  {"\033[6;2~", KEY_PGDN | SHIFT_MASK },/* PgDn */
+
+  {"\033[5A",   KEY_UP | CTRL_MASK },   /* Up */
+  {"\033[5B",   KEY_DOWN | CTRL_MASK }, /* Dn */
+  {"\033[5C",   KEY_RIGHT | CTRL_MASK },/* Ri */
+  {"\033[5D",   KEY_LEFT | CTRL_MASK }, /* Le */
+  {"\033[5H",   KEY_HOME | CTRL_MASK }, /* Ho  */
+  {"\033[5F",   KEY_END | CTRL_MASK },  /* End */
+  {"\033[2;5~", KEY_INS | CTRL_MASK },  /* Ins */
+  {"\033[3;5~", KEY_DEL | CTRL_MASK },  /* Del */
+  {"\033[5;5~", KEY_PGUP | CTRL_MASK },/* PgUp */
+  {"\033[6;5~", KEY_PGDN | CTRL_MASK },/* PgDn */
+  
   {"", 0}
 };
 
@@ -355,6 +422,26 @@ static Keymap_Scan_Type Xterm_fkeys[] =
   {"\033[13~", KEY_F3 },		/* F3 */
   {"\033[14~", KEY_F4 },		/* F4 */
   {"\033[15~", KEY_F5 },		/* F5 */
+  {"\033OP", KEY_F1 },			/* F1 */
+  {"\033OQ", KEY_F2 },			/* F2 */
+  {"\033OR", KEY_F3 },			/* F3 */
+  {"\033OS", KEY_F4 },			/* F4 */
+  {"\033[11;2~", KEY_F1 | SHIFT_MASK }, /* Shift F1 */
+  {"\033[12;2~", KEY_F2 | SHIFT_MASK }, /* Shift F2 */
+  {"\033[13;2~", KEY_F3 | SHIFT_MASK }, /* Shift F3 */
+  {"\033[14;2~", KEY_F4 | SHIFT_MASK }, /* Shift F4 */
+  {"\033O2P", KEY_F1 | SHIFT_MASK },    /* Shift F1 */
+  {"\033O2Q", KEY_F2 | SHIFT_MASK },    /* Shift F2 */
+  {"\033O2R", KEY_F3 | SHIFT_MASK },    /* Shift F3 */
+  {"\033O2S", KEY_F4 | SHIFT_MASK },    /* Shift F4 */
+  {"\033[15;2~", KEY_F5  | SHIFT_MASK },/* Shift F5 */
+  {"\033[17;2~", KEY_F6  | SHIFT_MASK },/* Shift F6 */
+  {"\033[18;2~", KEY_F7  | SHIFT_MASK },/* Shift F7 */
+  {"\033[19;2~", KEY_F8  | SHIFT_MASK },/* Shift F8 */
+  {"\033[20;2~", KEY_F9  | SHIFT_MASK },/* Shift F9 */
+  {"\033[21;2~", KEY_F10 | SHIFT_MASK },/* Shift F10 */
+  {"\033[23;2~", KEY_F11 | SHIFT_MASK },/* Shift F11 */
+  {"\033[24;2~", KEY_F12 | SHIFT_MASK },/* Shift F12 */
   {"", 0}
 };
 
@@ -551,7 +638,8 @@ static Keymap_Scan_Type Dosemu_Ctrl_keys[] =
 # define SLang_define_key1(s,f,t,m) SLkm_define_key((s), (FVOID_STAR)(f), (m))
 #endif
 
-
+/* shift state from previous keypress */
+static unsigned long old_flags = 0;
 
 static const unsigned char *define_key_keys = 0;
 static int define_key_keys_length =0;
@@ -715,6 +803,7 @@ static int init_slang_keymaps(void)
 	
 	/* Keypad in a special way */
 	define_keyset(Dosemu_Xkeys, m);
+	define_keyset(CTRL, m);
 	
 	term = getenv("TERM");
 	if( term && !strncmp("xterm", term, 5) ) {
@@ -1011,26 +1100,10 @@ static void slang_send_scancode(unsigned long ls_flags, unsigned long lscan)
 		move_key(PRESS,   lscan);
 		move_key(RELEASE, lscan);
 	}
-	
-	if (flags & SHIFT_MASK) {
-		move_key(RELEASE, KEY_L_SHIFT);
-		keyb_state.Shift_Flags &= ~SHIFT_MASK;
-	}
-	if (flags & CTRL_MASK) {
-		move_key(RELEASE, KEY_L_CTRL);
-		keyb_state.Shift_Flags &= ~CTRL_MASK;
-	}
-	if (flags & ALT_MASK) {
-		move_key(RELEASE, KEY_L_ALT);
-		keyb_state.Shift_Flags &= ~ALT_MASK;
-	}
-	if (flags & ALTGR_MASK) {
-		move_key(RELEASE, KEY_R_ALT);
-		keyb_state.Shift_Flags &= ~ALTGR_MASK;
-	}
-	if (flags & KEYPAD_MASK) {
-		keyb_state.Shift_Flags &= ~KEYPAD_MASK;
-	}
+
+	/* set shift release in a "queue" to wait for two SIGALRMs */
+	if (flags) flags |= WAIT_MASK;
+	old_flags = flags;
 }
 
 void handle_slang_keys(Boolean make, t_keysym key)
@@ -1240,9 +1313,37 @@ static void do_slang_special_keys(unsigned long scan)
 static void do_slang_getkeys(void)
 {
 	SLang_Key_Type *key;
+	int cc;
 
 	k_printf("KBD: do_slang_getkeys()\n");
-	if (-1 == read_some_keys())
+
+	cc = read_some_keys();
+	if (-1 == cc && (old_flags == 0 || (old_flags & WAIT_MASK))) {
+		old_flags &= ~WAIT_MASK;
+		return;
+	}
+	/* restore shift-state from previous keypress */
+	if (old_flags & SHIFT_MASK) {
+		move_key(RELEASE, KEY_L_SHIFT);
+		keyb_state.Shift_Flags &= ~SHIFT_MASK;
+	}
+	if (old_flags & CTRL_MASK) {
+		move_key(RELEASE, KEY_L_CTRL);
+		keyb_state.Shift_Flags &= ~CTRL_MASK;
+	}
+	if (old_flags & ALT_MASK) {
+		move_key(RELEASE, KEY_L_ALT);
+		keyb_state.Shift_Flags &= ~ALT_MASK;
+	}
+	if (old_flags & ALTGR_MASK) {
+		move_key(RELEASE, KEY_R_ALT);
+		keyb_state.Shift_Flags &= ~ALTGR_MASK;
+	}
+	if (old_flags & KEYPAD_MASK) {
+		keyb_state.Shift_Flags &= ~KEYPAD_MASK;
+	}
+	old_flags = 0;
+	if (-1 == cc)
 		return;
 	
 	k_printf("KBD: do_slang_getkeys() found %d bytes\n", keyb_state.kbcount);

@@ -395,7 +395,12 @@ static void SIGALRM_call(void)
       */
      keyb_client_run();
   }
+  else
 #endif
+  /* for the SLang terminal we'll delay the release of shift, ctrl, ...
+     keystrokes a bit */
+  if (!config.console_keyb)
+    keyb_client_run();
 
   /* for other front-ends, keyb_client_run() is called from ioctl.c if data is
    * available, so we don't need to do it here.
