@@ -354,6 +354,7 @@ int sda_user_stack_off = 0x250;
 int lol_cdsfarptr_off = 0x16;
 int lol_last_drive_off = 0x21;
 int lol_nuldev_off = 0x22;
+int lol_njoined_off = 0x34;
 
 /*
  * These offsets only meaningful for DOS 4 or greater:
@@ -1257,6 +1258,7 @@ init_dos_offsets(int ver)
       lol_cdsfarptr_off = 0x16;
       lol_last_drive_off = 0x21;
       lol_nuldev_off = 0x22;      
+      lol_njoined_off = 0x34;
       break;
     }
   case DOSVER_50:
@@ -1317,6 +1319,7 @@ init_dos_offsets(int ver)
       /* same */ lol_cdsfarptr_off = 0x16;
       lol_last_drive_off = 0x21;
       lol_nuldev_off = 0x22;      
+      lol_njoined_off = 0x34;
 
       break;
     }
@@ -1380,6 +1383,7 @@ init_dos_offsets(int ver)
       /* same */ lol_cdsfarptr_off = 0x16;
       lol_last_drive_off = 0x21;
       lol_nuldev_off = 0x22;      
+      lol_njoined_off = 0x34;
 
       break;
     }

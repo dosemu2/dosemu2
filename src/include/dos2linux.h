@@ -144,6 +144,7 @@ extern int sda_cur_drive_off;
 #define lol_cdsfarptr(lol)		(*(far_t *)&lol[lol_cdsfarptr_off])
 #define lol_last_drive(lol)		(*(u_char *)&lol[lol_last_drive_off])
 #define lol_nuldev(lol)		        (&lol[lol_nuldev_off])
+#define lol_njoined(lol)		(&lol[lol_njoined_off])
 
 extern int sdb_drive_letter_off;
 extern int sdb_template_name_off;
@@ -199,6 +200,7 @@ extern int sda_user_stack_off;
 extern int lol_cdsfarptr_off;
 extern int lol_last_drive_off;
 extern int lol_nuldev_off;
+extern int lol_njoined_off;
 
 /*
  * These offsets only meaningful for DOS 4 or greater:

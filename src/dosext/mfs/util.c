@@ -337,6 +337,36 @@ BOOL strhasupperDOS(char *s)
   cleanup_charset_state(&dos_state);
   return(result != -1 && iswupper(symbol));
 }
+
+void strupperDOS(char *src)
+{
+  struct char_set_state dos_state;
+  t_unicode symbol;
+  char *d, *s = src, *dest;
+  size_t len = strlen(s), dlen = 4 * len;
+  int result = -1;
+
+  dest = d = malloc(dlen);
+  init_charset_state(&dos_state, trconfig.dos_charset);
+
+  while (*s) {
+    result = charset_to_unicode(&dos_state, &symbol, s, len);
+    if (result == -1)
+      break;
+    len -= result;
+    s += result;
+    symbol = towupper(symbol);
+    result = unicode_to_charset(&dos_state, symbol, d, dlen);
+    if (result == -1)
+      break;
+    dlen -= result;
+    d += result;
+  }
+  cleanup_charset_state(&dos_state);
+  *d = '\0';
+  strcpy(src, dest);
+  free(dest);
+}
 #else
 int strcasecmpDOS(char *s1, char *s2)
 { char *p1,*p2;
