@@ -127,7 +127,7 @@ static void start_dsp_dma(void);
 static void restart_dsp_dma(void);
 static void pause_dsp_dma(void);
 
-void sb_irq_trigger(int);
+int sb_irq_trigger(int);
 
 static void sb_enable_speaker (void);
 static void sb_disable_speaker(void);
@@ -186,7 +186,6 @@ static int mixer_emu_regs[255];
 #define SB_IN_STEREO_MODE (SB_dsp.is_sb16_command ? SB_dsp.stereo : \
     SB_PRO_STEREO_MODE)
 
-static int into_irq = 0;
 static int DSP_busy_hack = 0;
 static int byte_skipped = 0;
 static int word_skipped = 0;
@@ -2417,7 +2416,7 @@ char fill[2];
   return amount_done ;
 }
 
-void sb_irq_trigger(int ilevel)
+int sb_irq_trigger(int ilevel)
 {
   S_printf ("SB: Interrupt activated.\n");
 
@@ -2437,9 +2436,7 @@ void sb_irq_trigger(int ilevel)
   SB_info.irq.active |= SB_info.irq.pending;
   SB_info.irq.pending = 0;
 
-  into_irq = 1;
-  do_irq(ilevel);
-  into_irq = 0;
+  return 1;	/* run IRQ */
 }
 
 static void sb_check_complete (void)
@@ -2475,7 +2472,7 @@ static void sb_check_complete (void)
     }
 
     if(SB_dsp.empty_state & DREQ_AT_EOI) {
-      if (!into_irq && !SB_info.irq.pending) {
+      if (/*!into_irq && */!SB_info.irq.pending) {
 	S_printf("SB: Warning: program doesn't ACK the interrupt, enjoy clicking.\n");  
 	if(!SB_dsp.pause_state)
           dma_assert_DREQ(CURRENT_DMA_CHANNEL);

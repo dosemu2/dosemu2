@@ -65,13 +65,14 @@ int cmos_date(int reg)
 /* @@@ MOVE_END @@@ 32768 */
 
 
-void rtc_int8(int ilevel)	/* int70 */
+int rtc_int8(int ilevel)	/* int70 */
 {
   r_printf("RTC: interrupt\n");
-  do_irq(ilevel);
+  /* XXX - FIXTHIS! where this supposed to be? */
   LOCK_CMOS;
   SET_CMOS(CMOS_STATUSC, GET_CMOS(CMOS_STATUSC)&~0x80);
   UNLOCK_CMOS;
+  return 1;
 }
 
 

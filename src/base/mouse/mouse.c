@@ -2019,11 +2019,10 @@ struct mouse_client Mouse_none =  {
   NULL
 };
 
-void DOSEMUMouseEvents(int ilevel)
+int DOSEMUMouseEvents(int ilevel)
 {
   if (Mouse->run) Mouse->run();
-  /* we must always acknowledge EOI now, with int74 */
-  do_irq(ilevel);
+  return 1;
 }
 
 /* TO DO LIST: (in no particular order)

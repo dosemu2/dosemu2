@@ -710,10 +710,11 @@ static int pkt_receive(void)
     return 0;
 }
 
-void pkt_check_receive(int ilevel)
+int pkt_check_receive(int ilevel)
 {
   if (pkt_receive())
-    do_irq(ilevel);
+    return 1;	/* run IRQ */
+  return 0;
 }
 
 /*  Find_Handle does type demultiplexing. 

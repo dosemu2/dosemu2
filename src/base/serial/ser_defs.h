@@ -301,7 +301,7 @@ void serial_int_engine(int, int);
 void serial_timer_update(void);
 void uart_fill(int);
 void uart_clear_fifo(int, int);
-void pic_serial_run(int);
+int pic_serial_run(int);
 void fossil_int14(int);
 void ser_termios(int num);
 void modstat_engine(int num);

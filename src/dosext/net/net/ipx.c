@@ -786,7 +786,7 @@ static int IPXReceivePacket(ipx_socket_t * s)
   return 0;
 }
 
-void IPXCheckForAESReady(int ilevel)
+int IPXCheckForAESReady(int ilevel)
 {
   ipx_socket_t *s;
   far_t ECBPtr;
@@ -807,15 +807,14 @@ void IPXCheckForAESReady(int ilevel)
 	  if (rcode == RCODE_SUCCESS) {
 	    ECBp->CompletionCode = CC_SUCCESS;
 	  }
-	  do_irq(ilevel);
-	  return;
+	  return 1;	/* run IRQ */
 	}
 	ECBPtr = ECBp->Link;
       }
-    }
-    
+    }    
     s = s->next;
   }
+  return 0;
 }
 
 static ipx_socket_t *check_ipx_ready(fd_set * set)
@@ -837,7 +836,7 @@ static void IPXRelinquishControl(void)
   idle(0, 5, 0, INT2F_IDLE_USECS, "IPX");
 }
 
-void ipx_receive(int ilevel)
+int ipx_receive(int ilevel)
 {
   /* DOS program has given us a time slice */
   /* let's use this as an opportunity to poll outstanding listens */
@@ -871,12 +870,13 @@ void ipx_receive(int ilevel)
       if (IPXReceivePacket(s)) {
         if (FARt_PTR(ECBp->ESRAddress)) {
           recvECB = ECBPtr;
-          do_irq(ilevel);
+          return 1;	/* run IRQ */
         }
       }
     }
     break;
   }
+  return 0;
 }
 
 int ipx_int7a(void)

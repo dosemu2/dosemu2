@@ -369,7 +369,7 @@ void keyb_io_write(ioport_t port, Bit8u value)
  * if more scancode bytes are waiting in the queue.
  */
 
-void do_irq1(int ilevel) {
+int do_irq1(int ilevel) {
 
    /* k_printf("KBD: do_irq1() running!\n"); */
    
@@ -377,7 +377,7 @@ void do_irq1(int ilevel) {
 	    (REG(eflags)|VIF)!=0);
 
    int9_running++;
-   do_irq(ilevel);            /* run the int09 handler */
+   return 1;	/* run IRQ */
 }
 
 

@@ -185,7 +185,7 @@ void hardware_setup(void)
   pic_request(PIC_IRQ0);  /* start timer */
   pic_seti(PIC_IRQ1, do_irq1, 0, NULL); /* do_irq1 in dosio.c   */
   pic_seti(PIC_IRQ8, rtc_int8, 0, NULL);
-  pic_seti(PIC_IRQ13, do_irq, 0, NULL);
+  pic_seti(PIC_IRQ13, NULL, 0, NULL);
 #ifdef USING_NET
 #ifdef IPX
   pic_seti(PIC_IPX, ipx_receive, 0, ipx_recv_esr_call);

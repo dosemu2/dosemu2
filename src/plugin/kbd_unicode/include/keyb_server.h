@@ -86,7 +86,7 @@ void keyb_server_run(void);
 void backend_run(void);
 void backend_reset(void);
 
-void do_irq1(int);
+int do_irq1(int);
 
 #endif  /* not __ASM__ */
 

@@ -408,12 +408,9 @@ void serial_int_engine(int num, int int_requested)
     transmit_engine(num);
   }
   
-  /* reset the served requests */
-  com[num].int_request &= (com[num].int_condition & com[num].IER);
-
   check_and_update_uart_status(num);
 
-  /* and just to be sure... */
+  /* reset the served requests */
   com[num].int_request &= (com[num].int_condition & com[num].IER);
    
   /* Update the IIR status immediately */
@@ -484,8 +481,7 @@ void serial_int_engine(int num, int int_requested)
  *
  * DANG_END_FUNCTION
  */
-void
-pic_serial_run(int ilevel)
+int pic_serial_run(int ilevel)
 {
 /*  static u_char*/ int tmp;
 /*  static u_char*/ int num;
@@ -508,14 +504,6 @@ pic_serial_run(int ilevel)
    * still cases where the UART emulation can be tricked to pic_request()
    * an interrupt, and then the interrupt condition is satisfied *before*
    * the interrupt code even executes!
-   *
-   * Also, in some cases, do_irq() does not execute the interrupt code 
-   * right away. (Maybe it exits back to vm86 before end of interrupt?).
-   * The X00 fossil driver exhibits this type of problem, and it sometimes
-   * has side effects, such as scrambling the order of received characters
-   * because somehow, it is processing the next character sometimes,
-   * maybe because serial interrupts are interrupting the serial
-   * interrupt handler(???) before it is done.
    */
    
   tmp = com[num].int_condition & com[num].IER;
@@ -546,16 +534,15 @@ pic_serial_run(int ilevel)
   }
 
   if (com[num].int_request)
-    do_irq(ilevel);
+    return 1;	/* run IRQ */
   else {				/* What?  We can't be this far! */
     s_printf("SER%d: Interrupt Error: cancelled serial interrupt!\n",num);  
     /* No interrupt flagged?  Then the interrupt was cancelled sometime
      * after the interrupt was flagged, but before pic_serial_run executed.
-     * But we must execute do_irq() anyway at this point, or serial will 
-     * crash.  
      * DANG_FIXTHIS how do we cancel a PIC interrupt, when we have come this far?
      */
   }
+  return 0;
 }
 
 

@@ -108,7 +108,7 @@ extern hitimer_t pic_itime[33];
    changed by the ICW2 command from dos. (Some dos extenders do this.) */
    
 struct lvldef {
-       void (*func)(int);
+       int (*func)(int);
        void (*callback)(void);
        int    ivec;
 };
@@ -120,11 +120,10 @@ void write_pic0(ioport_t port, Bit8u value); /* write to PIC 0 */
 void write_pic1(ioport_t port, Bit8u value); /* write to PIC 1 */
 Bit8u read_pic0(ioport_t port);             /* read from PIC 0 */
 Bit8u read_pic1(ioport_t port);             /* read from PIC 1 */
-void pic_seti(unsigned int, void (*)(int), unsigned int, void (*)(void)); 
+void pic_seti(unsigned int, int (*)(int), unsigned int, void (*)(void)); 
                                        /* set function and interrupt vector */
 void run_irqs(void);                                  /* run requested irqs */
 #define pic_run() if(pic_irr)run_irqs()   /* the right way to call run_irqs */
-void do_irq(int);                            /* run dos portion of irq code */
 
 #define PIC_REQ_NOP	0
 #define PIC_REQ_OK	1
@@ -151,7 +150,7 @@ void pic_sched(int ilevel, int interval);          /* schedule an interrupt */
     (pic_sys_time > pic_dos_time)))
 
 /* Experimental TIMER-IRQ CHAIN code */
-extern void timer_int_engine(int);
+extern int timer_int_engine(int);
 
 extern void pic_reset(void);
 extern void pic_init(void);

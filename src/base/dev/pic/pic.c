@@ -204,6 +204,8 @@ static struct lvldef pic_iinfo[32] = {
 {PNULL,PNULL,0x00}, {PNULL,PNULL,0x00}, {PNULL,PNULL,0x00}, {PNULL,PNULL,0x00}
 };
 
+static void do_irq(int ilevel);
+
 /*
  * run_irq()       checks for and runs any interrupts requested in pic_irr
  * do_irq()        runs the dos interrupt for the current irq
@@ -550,14 +552,10 @@ Bit8u read_pic1(ioport_t port)
  *
  * DANG_END_FUNCTION
  */
-void pic_seti(unsigned int level, void (*func)(int), unsigned int ivec,
+void pic_seti(unsigned int level, int (*func)(int), unsigned int ivec,
   void (*callback)(void))
 {
   if(level>=32) return;
-  if(!func) {
-    error("pic_seti() called with no function for IRQ level %i\n", level);
-    leavedos(1);
-  }
   if(pic_iinfo[level].func) {
     if(pic_iinfo[level].func != func) {
       error("Attempt to register more than one handler for IRQ level %i (%p %p)\n",
@@ -633,7 +631,7 @@ void run_irqs(void)
         * since dos code won't necessarily run.
         */
        while((int_request = pic_irr & ~(pic_isr | pic_imr)) != 0) { /* while something to do*/
-               int local_pic_ilevel, old_ilevel;
+               int local_pic_ilevel, old_ilevel, ret;
 
 	       if (!isset_IF())
 	    	       return;                      /* exit if ints are disabled */
@@ -651,7 +649,11 @@ void run_irqs(void)
 
                clear_bit(local_pic_ilevel, &pic_irr);
 	       /* pic_isr bit is set in do_irq() */
-               pic_iinfo[local_pic_ilevel].func(local_pic_ilevel);      /* run the function */
+               ret = (pic_iinfo[local_pic_ilevel].func ?
+	    	      pic_iinfo[local_pic_ilevel].func(local_pic_ilevel) : 1);      /* run the function */
+	       if (ret) {
+		       do_irq(local_pic_ilevel);
+	       }
        }
 }
 
@@ -683,7 +685,7 @@ void run_irqs(void)
  *
  * DANG_END_FUNCTION
  */
-void do_irq(int ilevel)
+static void do_irq(int ilevel)
 {
  int intr;
  unsigned char * ssp;
