@@ -497,7 +497,7 @@ leavedos(int sig)
     /* try to notify dosdebug */
 #ifdef USE_MHPDBG
     if (fault_cnt > 0)
-      error("leavedos() called from within a signal context!\n");
+      dbug_printf("leavedos() called from within a signal context!\n");
     else
       mhp_exit_intercept(sig);
 #endif
