@@ -170,7 +170,6 @@ static int open_mapping_file(int cap)
   }
 #endif
 
-  mappingdriver_self.close(MAPPING_ALL);
   return 1;
 }
 

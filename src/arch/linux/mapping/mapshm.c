@@ -228,7 +228,6 @@ static int open_mapping_shm(int cap)
   }
 #endif
 
-  mappingdriver_self.close(MAPPING_ALL);
   return 1;
 }
 
