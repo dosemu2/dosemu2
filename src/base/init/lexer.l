@@ -25,6 +25,45 @@
 #include "parser.h"
 int line_count;
 
+static int __active__=1, __next_ITEM_for_me__=0;
+#define __active_max 15
+static int __active_stack[__active_max+1]={1,0};
+static int __active_i=1;
+
+static void push__active();
+static void pop__active();
+static void enter_includefile(char * fname);
+extern char *get_config_variable(char *name);
+
+#if 0 /* this just to test the conditional code */
+  #define TESTACTIVE (({if(__active__)fprintf(stderr,">>>%s<<<\n", yytext);}),__active__)
+#else
+  #define TESTACTIVE __active__
+#endif
+
+#define RETURN if (TESTACTIVE) return
+#define MAY_BE  if (TESTACTIVE)
+
+#define MAY_BEFORME if (__next_ITEM_for_me__) { \
+  if (get_config_variable(yytext)) { \
+    __active__= (__next_ITEM_for_me__ > 0); \
+  } \
+  else __active__= (__next_ITEM_for_me__ < 0); \
+  __next_ITEM_for_me__=0; \
+} \
+else if (TESTACTIVE)
+
+#define MAY_BEINCLUDE(other_stuff) if (TESTACTIVE) { \
+  if (__next_ITEM_for_me__ == 2) { \
+    __next_ITEM_for_me__=0; \
+    yytext[strlen(yytext)-1] = '\0'; \
+    enter_includefile(&yytext[1]); \
+  } \
+  else other_stuff \
+}
+
+
+
 extern char* strdup(const char *); /* Not defined in string.h :-( */
 extern void yyerror(char* string, ...);
 
@@ -67,286 +106,302 @@ char *yy_vbuffer=0;
 
 	/* special characters */
 
-"{"|"}"			return(yytext[0]);
+"{"|"}"			RETURN(yytext[0]);
+
+
+	/* conditionals */
+
+"ifdef"			{ push__active(); if (__active__) __next_ITEM_for_me__=1; }
+"ifndef"		{ push__active(); if (__active__) __next_ITEM_for_me__=-1; }
+"else"			{ 
+			  if (__active__) __active__=0;
+			  else if (__active_stack[__active_i-1] ) __active__=1;
+			}
+"endif"			pop__active();
+"include"		MAY_BE __next_ITEM_for_me__=2;
+
+	/* config variable settings */
+"define"		RETURN(DEFINE);
+"undef"			RETURN(UNDEF);
 
 	/* keywords */
 
-x			return(L_X);
-dosbanner		return(DOSBANNER);
-fastfloppy		return(FASTFLOPPY);
-timint			return(TIMINT);
-hogthreshold		return(HOGTHRESH);
-speaker			return(SPEAKER);
-ipxsupport		return(IPXSUPPORT);
-pktdriver		return(PKTDRIVER);
-debug			return(DEBUG);
-mouse			return(MOUSE);
-serial			return(SERIAL);
-keyboard		return(KEYBOARD);
-keystroke		return(PRESTROKE);
-terminal		return(TERMINAL);
-video			return(VIDEO);
-allowvideoportaccess	return(ALLOWVIDEOPORT);
-mathco			return(MATHCO);
-cpu			return(CPU);
-bootA			return(BOOTA);
-bootC			return(BOOTC);
-xms			return(L_XMS);
-umb_max			return(L_UMB);
-secure			return(L_SECURE);
-ems			return(L_EMS);
-dpmi			return(L_DPMI);
-dosmem			return(DOSMEM);
-ports			return(PORTS);
-sillyint		return(SILLYINT);
-irqpassing		return(SILLYINT);
-hardware_ram		return(HARDWARE_RAM);
-disk			return(DISK);
-bootdisk		return(BOOTDISK);
-bootfile		return(BOOTFILE);
-printer			return(PRINTER);
-emusys                  return(EMUSYS);
-emubat                  return(EMUBAT);
-emuini                  return(EMUINI);
-ttylocks		return(TTYLOCKS);
-sound_emu               return(L_SOUND);
-dosemumap               return(DOSEMUMAP);
-logbufsize              return(LOGBUFSIZE);
+x			RETURN(L_X);
+dosbanner		RETURN(DOSBANNER);
+fastfloppy		RETURN(FASTFLOPPY);
+timint			RETURN(TIMINT);
+hogthreshold		RETURN(HOGTHRESH);
+speaker			RETURN(SPEAKER);
+ipxsupport		RETURN(IPXSUPPORT);
+pktdriver		RETURN(PKTDRIVER);
+debug			RETURN(DEBUG);
+mouse			RETURN(MOUSE);
+serial			RETURN(SERIAL);
+keyboard		RETURN(KEYBOARD);
+keystroke		RETURN(PRESTROKE);
+terminal		RETURN(TERMINAL);
+video			RETURN(VIDEO);
+allowvideoportaccess	RETURN(ALLOWVIDEOPORT);
+mathco			RETURN(MATHCO);
+cpu			RETURN(CPU);
+bootA			RETURN(BOOTA);
+bootC			RETURN(BOOTC);
+xms			RETURN(L_XMS);
+umb_max			RETURN(L_UMB);
+secure			RETURN(L_SECURE);
+ems			RETURN(L_EMS);
+dpmi			RETURN(L_DPMI);
+dosmem			RETURN(DOSMEM);
+ports			RETURN(PORTS);
+sillyint		RETURN(SILLYINT);
+irqpassing		RETURN(SILLYINT);
+hardware_ram		RETURN(HARDWARE_RAM);
+disk			RETURN(DISK);
+bootdisk		RETURN(BOOTDISK);
+bootfile		RETURN(BOOTFILE);
+printer			RETURN(PRINTER);
+emusys                  RETURN(EMUSYS);
+emubat                  RETURN(EMUBAT);
+emuini                  RETURN(EMUINI);
+ttylocks		RETURN(TTYLOCKS);
+sound_emu               RETURN(L_SOUND);
+dosemumap               RETURN(DOSEMUMAP);
+logbufsize              RETURN(LOGBUFSIZE);
 
 	/* sillyint values */
-use_sigio		return(USE_SIGIO);
+use_sigio		RETURN(USE_SIGIO);
 
 	/* ems values */
-ems_size		return(EMS_SIZE);
-ems_frame		return(EMS_FRAME);
+ems_size		RETURN(EMS_SIZE);
+ems_frame		RETURN(EMS_FRAME);
 
 	/* speaker values */
 
-emulated		return(EMULATED);
-native			return(NATIVE);
+emulated		RETURN(EMULATED);
+native			RETURN(NATIVE);
 
 	/* disk keywords */
-hdimage			return(HDIMAGE);
-image			return(HDIMAGE);
-partition		return(L_PARTITION);
-wholedisk		return(WHOLEDISK);
-readonly		return(READONLY);
-threeinch		return(THREEINCH);
-fiveinch		return(FIVEINCH);
-sectors			return(SECTORS);
-cylinders		return(CYLINDERS);
-tracks			return(TRACKS);
-heads			return(HEADS);
-offset			return(OFFSET);
-floppy			return(L_FLOPPY);
+hdimage			RETURN(HDIMAGE);
+image			RETURN(HDIMAGE);
+partition		RETURN(L_PARTITION);
+wholedisk		RETURN(WHOLEDISK);
+readonly		RETURN(READONLY);
+threeinch		RETURN(THREEINCH);
+fiveinch		RETURN(FIVEINCH);
+sectors			RETURN(SECTORS);
+cylinders		RETURN(CYLINDERS);
+tracks			RETURN(TRACKS);
+heads			RETURN(HEADS);
+offset			RETURN(OFFSET);
+floppy			RETURN(L_FLOPPY);
 
 	/* keyboard - !!conflict between 'no' and boolean 'no' */
 
-layout			return(LAYOUT);
-keybint			return(KEYBINT);
-rawkeyboard		return(RAWKEYBOARD);
+layout			RETURN(LAYOUT);
+keybint			RETURN(KEYBINT);
+rawkeyboard		RETURN(RAWKEYBOARD);
 
-finnish			{ yylval->i_value = KEYB_FINNISH;
+finnish			MAY_BE { yylval->i_value = KEYB_FINNISH;
 			  return(KEYB_LAYOUT); }
-finnish-latin1		{ yylval->i_value = KEYB_FINNISH_LATIN1;
+finnish-latin1		MAY_BE { yylval->i_value = KEYB_FINNISH_LATIN1;
 			  return(KEYB_LAYOUT); }
-us			{ yylval->i_value = KEYB_US; return(KEYB_LAYOUT); }
-uk			{ yylval->i_value = KEYB_UK; return(KEYB_LAYOUT); }
-de			{ yylval->i_value = KEYB_DE; return(KEYB_LAYOUT); }
-de-latin1		{ yylval->i_value = KEYB_DE_LATIN1;
+us			MAY_BE { yylval->i_value = KEYB_US; return(KEYB_LAYOUT); }
+uk			MAY_BE { yylval->i_value = KEYB_UK; return(KEYB_LAYOUT); }
+de			MAY_BE { yylval->i_value = KEYB_DE; return(KEYB_LAYOUT); }
+de-latin1		MAY_BE { yylval->i_value = KEYB_DE_LATIN1;
 			  return(KEYB_LAYOUT); }
-fr			{ yylval->i_value = KEYB_FR; return(KEYB_LAYOUT); }
-fr-latin1		{ yylval->i_value = KEYB_FR_LATIN1;
+fr			MAY_BE { yylval->i_value = KEYB_FR; return(KEYB_LAYOUT); }
+fr-latin1		MAY_BE { yylval->i_value = KEYB_FR_LATIN1;
 			  return(KEYB_LAYOUT); }
-dk			{ yylval->i_value = KEYB_DK; return(KEYB_LAYOUT); }
-dk-latin1		{ yylval->i_value = KEYB_DK_LATIN1;
+dk			MAY_BE { yylval->i_value = KEYB_DK; return(KEYB_LAYOUT); }
+dk-latin1		MAY_BE { yylval->i_value = KEYB_DK_LATIN1;
 			  return(KEYB_LAYOUT); }
-no			{ yylval->i_value = KEYB_NO; return(KEYB_LAYOUT); }
-no-latin1		{ yylval->i_value = KEYB_NO_LATIN1;
+no			MAY_BE { yylval->i_value = KEYB_NO; return(KEYB_LAYOUT); }
+no-latin1		MAY_BE { yylval->i_value = KEYB_NO_LATIN1;
 			  return(KEYB_LAYOUT); }
-dvorak			{ yylval->i_value = KEYB_DVORAK; return(KEYB_LAYOUT); }
-sg			{ yylval->i_value = KEYB_SG; return(KEYB_LAYOUT); }
-sg-latin1		{ yylval->i_value = KEYB_SG_LATIN1;
+dvorak			MAY_BE { yylval->i_value = KEYB_DVORAK; return(KEYB_LAYOUT); }
+sg			MAY_BE { yylval->i_value = KEYB_SG; return(KEYB_LAYOUT); }
+sg-latin1		MAY_BE { yylval->i_value = KEYB_SG_LATIN1;
 			  return(KEYB_LAYOUT); }
-sf			{ yylval->i_value = KEYB_SF; return(KEYB_LAYOUT); }
-sf-latin1		{ yylval->i_value = KEYB_SF_LATIN1;
+sf			MAY_BE { yylval->i_value = KEYB_SF; return(KEYB_LAYOUT); }
+sf-latin1		MAY_BE { yylval->i_value = KEYB_SF_LATIN1;
 			  return(KEYB_LAYOUT); }
-es			{ yylval->i_value = KEYB_ES; return(KEYB_LAYOUT); }
-es-latin1		{ yylval->i_value = KEYB_ES_LATIN1;
+es			MAY_BE { yylval->i_value = KEYB_ES; return(KEYB_LAYOUT); }
+es-latin1		MAY_BE { yylval->i_value = KEYB_ES_LATIN1;
 			  return(KEYB_LAYOUT); }
-be			{ yylval->i_value = KEYB_BE; return(KEYB_LAYOUT); }
-po                      { yylval->i_value = KEYB_PO; return(KEYB_LAYOUT); }
-it                      { yylval->i_value = KEYB_IT; return(KEYB_LAYOUT); }
-sw			{ yylval->i_value = KEYB_SW; return(KEYB_LAYOUT); }
-hu			{ yylval->i_value = KEYB_HU; return(KEYB_LAYOUT); }
-hu-cwi			{ yylval->i_value = KEYB_HU_CWI; return(KEYB_LAYOUT); }
-hu-latin2		{ yylval->i_value = KEYB_HU_LATIN2;
+be			MAY_BE { yylval->i_value = KEYB_BE; return(KEYB_LAYOUT); }
+po			MAY_BE { yylval->i_value = KEYB_PO; return(KEYB_LAYOUT); }
+it			MAY_BE { yylval->i_value = KEYB_IT; return(KEYB_LAYOUT); }
+sw			MAY_BE { yylval->i_value = KEYB_SW; return(KEYB_LAYOUT); }
+hu			MAY_BE { yylval->i_value = KEYB_HU; return(KEYB_LAYOUT); }
+hu-cwi			MAY_BE { yylval->i_value = KEYB_HU_CWI; return(KEYB_LAYOUT); }
+hu-latin2		MAY_BE { yylval->i_value = KEYB_HU_LATIN2;
 			  return(KEYB_LAYOUT); }
 
 	/* serial stuff */
 
-base			return(BASE);
-irq			return(IRQ);
-interrupt		return(INTERRUPT);
-baudrate		return(BAUDRATE);
-device			return(DEVICE);
-com                     return(COM);
+base			RETURN(BASE);
+irq			RETURN(IRQ);
+interrupt		RETURN(INTERRUPT);
+baudrate		RETURN(BAUDRATE);
+device			RETURN(DEVICE);
+com                     RETURN(COM);
 
 	/* lock file stuff */
-directory              return(DIRECTORY);
-namestub               return(NAMESTUB);
-binary                 return(BINARY);
+directory              RETURN(DIRECTORY);
+namestub               RETURN(NAMESTUB);
+binary                 RETURN(BINARY);
 
 	/* terminal stuff */
 
-charset			return(CHARSET);
-updatefreq		return(UPDATEFREQ);
-	/* updatelines		return(UPDATELINES); */
-color			return(COLOR);
-escchar			return(ESCCHAR);
-	/* corner			return(CORNER); */
-	/* method			return(METHOD); */
-	/* normal			return(NORMAL); */
-	/* xterm			return(XTERM); */
-	/* fast			return(FAST); */
-	/* ncurses			return(NCURSES); */
-latin			{ yylval->i_value = CHARSET_LATIN;
+charset			RETURN(CHARSET);
+updatefreq		RETURN(UPDATEFREQ);
+	/* updatelines		RETURN(UPDATELINES); */
+color			RETURN(COLOR);
+escchar			RETURN(ESCCHAR);
+	/* corner			RETURN(CORNER); */
+	/* method			RETURN(METHOD); */
+	/* normal			RETURN(NORMAL); */
+	/* xterm			RETURN(XTERM); */
+	/* fast			RETURN(FAST); */
+	/* ncurses			RETURN(NCURSES); */
+latin			MAY_BE { yylval->i_value = CHARSET_LATIN;
 			  return(CHARSET_TYPE); }
-ibm			{ yylval->i_value = CHARSET_IBM;
+ibm			MAY_BE { yylval->i_value = CHARSET_IBM;
 			  return(CHARSET_TYPE); }
-fullibm			{ yylval->i_value = CHARSET_FULLIBM;
+fullibm			MAY_BE { yylval->i_value = CHARSET_FULLIBM;
 			  return(CHARSET_TYPE); }
 
 	/* mouse types */
 
-microsoft		return(MICROSOFT);
-logitech		return(LOGITECH);
-mmseries		return(MMSERIES);
-mouseman		return(MOUSEMAN);
-hitachi			return(HITACHI);
-mousesystems		return(MOUSESYSTEMS);
-busmouse		return(BUSMOUSE);
-ps2			return(PS2);
-internaldriver		return(INTERNALDRIVER);
-emulate3buttons		return(EMULATE3BUTTONS);
-cleardtr		return(CLEARDTR);
+microsoft		RETURN(MICROSOFT);
+logitech		RETURN(LOGITECH);
+mmseries		RETURN(MMSERIES);
+mouseman		RETURN(MOUSEMAN);
+hitachi			RETURN(HITACHI);
+mousesystems		RETURN(MOUSESYSTEMS);
+busmouse		RETURN(BUSMOUSE);
+ps2			RETURN(PS2);
+internaldriver		RETURN(INTERNALDRIVER);
+emulate3buttons		RETURN(EMULATE3BUTTONS);
+cleardtr		RETURN(CLEARDTR);
 
 	/* video stuff */
 
-vga			return(VGA);
-ega			return(EGA);
-cga			return(CGA);
-mga			return(MGA);
-mda			return(MGA);
-console			return(CONSOLE);
-graphics		return(GRAPHICS);
-chipset			return(CHIPSET);
-memsize			return(MEMSIZE);
-fullrestore		return(FULLREST);
-partialrestore		return(PARTREST);
-vbios_file		return(VBIOS_FILE);
-vbios_copy		return(VBIOS_COPY);
-vbios_mmap		return(VBIOS_MMAP);
-vbios_seg		return(VBIOS_SEG);
-vbios_size		return(VBIOS_SIZE_TOK);
-dualmon			return(DUALMON);
-forcevtswitch		return(FORCE_VT_SWITCH);
-plainvga		{ yylval->i_value = 0; return(CHIPSET_TYPE); }
-trident			{ yylval->i_value = 1; return(CHIPSET_TYPE); }
-et4000			{ yylval->i_value = 2; return(CHIPSET_TYPE); }
-diamond			{ yylval->i_value = 3; return(CHIPSET_TYPE); }
-s3			{ yylval->i_value = 4; return(CHIPSET_TYPE); }
-avance			{ yylval->i_value = 5; return(CHIPSET_TYPE); }
-ati			{ yylval->i_value = 6; return(CHIPSET_TYPE); }
-cirrus			{ yylval->i_value = 7; return(CHIPSET_TYPE); }
+vga			RETURN(VGA);
+ega			RETURN(EGA);
+cga			RETURN(CGA);
+mga			RETURN(MGA);
+mda			RETURN(MGA);
+console			RETURN(CONSOLE);
+graphics		RETURN(GRAPHICS);
+chipset			RETURN(CHIPSET);
+memsize			RETURN(MEMSIZE);
+fullrestore		RETURN(FULLREST);
+partialrestore		RETURN(PARTREST);
+vbios_file		RETURN(VBIOS_FILE);
+vbios_copy		RETURN(VBIOS_COPY);
+vbios_mmap		RETURN(VBIOS_MMAP);
+vbios_seg		RETURN(VBIOS_SEG);
+vbios_size		RETURN(VBIOS_SIZE_TOK);
+dualmon			RETURN(DUALMON);
+forcevtswitch		RETURN(FORCE_VT_SWITCH);
+plainvga		MAY_BE { yylval->i_value = 0; return(CHIPSET_TYPE); }
+trident			MAY_BE { yylval->i_value = 1; return(CHIPSET_TYPE); }
+et4000			MAY_BE { yylval->i_value = 2; return(CHIPSET_TYPE); }
+diamond			MAY_BE { yylval->i_value = 3; return(CHIPSET_TYPE); }
+s3			MAY_BE { yylval->i_value = 4; return(CHIPSET_TYPE); }
+avance			MAY_BE { yylval->i_value = 5; return(CHIPSET_TYPE); }
+ati			MAY_BE { yylval->i_value = 6; return(CHIPSET_TYPE); }
+cirrus			MAY_BE { yylval->i_value = 7; return(CHIPSET_TYPE); }
 
 	/* xwindows stuff */
 
-display			return(L_DISPLAY);
-title			return(L_TITLE);
-icon_name		return(ICON_NAME);
-keycode			return(X_KEYCODE);
-blinkrate		return(X_BLINKRATE);
-sharecmap		return(X_SHARECMAP);
-mitshm                  return(X_MITSHM);
-font			return(X_FONT);
+display			RETURN(L_DISPLAY);
+title			RETURN(L_TITLE);
+icon_name		RETURN(ICON_NAME);
+keycode			RETURN(X_KEYCODE);
+blinkrate		RETURN(X_BLINKRATE);
+sharecmap		RETURN(X_SHARECMAP);
+mitshm                  RETURN(X_MITSHM);
+font			RETURN(X_FONT);
 
         /* Sound stuff */
 
-sb_base                 return(SB_BASE);
-sb_irq                  return(SB_IRQ);
-sb_dma                  return(SB_DMA);
-sb_dsp                  return(SB_DSP);
-sb_mixer                return(SB_MIXER);
-mpu_base                return(MPU_BASE);
+sb_base                 RETURN(SB_BASE);
+sb_irq                  RETURN(SB_IRQ);
+sb_dma                  RETURN(SB_DMA);
+sb_dsp                  RETURN(SB_DSP);
+sb_mixer                RETURN(SB_MIXER);
+mpu_base                RETURN(MPU_BASE);
 
 	/* packet driver */
 	/* NOTE: we need 'no' _before_ 'novell_hack', else the rule will not match */
-no			{ yylval->i_value = 0; return(L_NO); }
-novell_hack		return(NOVELLHACK);
+no			MAY_BE { yylval->i_value = 0; return(L_NO); }
+novell_hack		RETURN(NOVELLHACK);
 
 	/* debug flags */
 
-io			return(IO);
-port			return(PORT);
-config			return(CONFIG);
-read			return(READ);
-write			return(WRITE);
-keyb			return(KEYB);
-warning			return(WARNING);
-general			return(GENERAL);
-hardware		return(HARDWARE);
-ipc			return(L_IPC);
-network			return(NETWORK);
-sound			return(SOUND);
+io			RETURN(IO);
+port			RETURN(PORT);
+config			RETURN(CONFIG);
+read			RETURN(READ);
+write			RETURN(WRITE);
+keyb			RETURN(KEYB);
+warning			RETURN(WARNING);
+general			RETURN(GENERAL);
+hardware		RETURN(HARDWARE);
+ipc			RETURN(L_IPC);
+network			RETURN(NETWORK);
+sound			RETURN(SOUND);
 
 	/* printer stuff */
 
-command			return(COMMAND);
-timeout			return(TIMEOUT);
-options			return(OPTIONS);
-file			return(L_FILE);
+command			RETURN(COMMAND);
+timeout			RETURN(TIMEOUT);
+options			RETURN(OPTIONS);
+file			RETURN(L_FILE);
 
 	/* port/io stuff */
 
-ormask			return(ORMASK);
-andmask			return(ANDMASK);
-rdonly			return(RDONLY);
-wronly			return(WRONLY);
-rdwr			return(RDWR);
-range			return(RANGE);
-fast			return(FAST);
+ormask			RETURN(ORMASK);
+andmask			RETURN(ANDMASK);
+rdonly			RETURN(RDONLY);
+wronly			RETURN(WRONLY);
+rdwr			RETURN(RDWR);
+range			RETURN(RANGE);
+fast			RETURN(FAST);
 
 	/* dexe stuff */
-dexe			return(DEXE);
-allowdisk		return(ALLOWDISK);
-forcexdos		return(FORCEXDOS);
+dexe			RETURN(DEXE);
+allowdisk		RETURN(ALLOWDISK);
+forcexdos		RETURN(FORCEXDOS);
 
 	/* boolean values */
 
-on			{ yylval->i_value = 1; return(L_ON); }
-off			{ yylval->i_value = 0; return(L_OFF); }
-yes			{ yylval->i_value = 1; return(L_YES); }
-	/*no			{ yylval->i_value = 0; return(L_NO); } */
+on			MAY_BE { yylval->i_value = 1; return(L_ON); }
+off			MAY_BE { yylval->i_value = 0; return(L_OFF); }
+yes			MAY_BE { yylval->i_value = 1; return(L_YES); }
+	/*no			MAY_BE { yylval->i_value = 0; return(L_NO); } */
 
 	/* integers */
 
-[0-9]+			{ yylval->i_value = atoi(yytext); return(INTEGER); }
-0x[0-9a-f]+		{ char *end;
+[0-9]+			MAY_BE { yylval->i_value = atoi(yytext); return(INTEGER); }
+0x[0-9a-f]+		MAY_BE { char *end;
 			  yylval->i_value = strtol(yytext, &end, 0);
 			  return(INTEGER); }
 
 	/* strings */
 
-\"[^\"]*\"		{ yytext[strlen(yytext)-1] = '\0';
+\"[^\"]*\"		MAY_BEINCLUDE ( { yytext[strlen(yytext)-1] = '\0';
+			  yylval->s_value = strdup(&yytext[1]);
+			  return(STRING); } )
+\'[^\']*\'		MAY_BE { yytext[strlen(yytext)-1] = '\0';
 			  yylval->s_value = strdup(&yytext[1]);
 			  return(STRING); }
-\'[^\']*\'		{ yytext[strlen(yytext)-1] = '\0';
-			  yylval->s_value = strdup(&yytext[1]);
+[a-z0-9/\~@-_\+=:,\.]+	MAY_BEFORME { yylval->s_value = strdup(yytext);
 			  return(STRING); }
-[a-z0-9/\~@-_\+=:,\.]+  { yylval->s_value = strdup(yytext);
-			  return(STRING); }
-$[a-z0-9/\~@-_\+=:,\.]+ { yylval->s_value = strdup(getenv(&yytext[1]));
+$[a-z0-9/\~@-_\+=:,\.]+	MAY_BE { yylval->s_value = strdup(getenv(&yytext[1]));
 			  return(STRING); }
 
 	/* comments & whitespace */
@@ -360,9 +415,89 @@ $[a-z0-9/\~@-_\+=:,\.]+ { yylval->s_value = strdup(getenv(&yytext[1]));
 
 %%
 
-#ifndef yywrap
-  int yywrap(void)    /* do this to avoid needing to do -lfl */
-     {
-     return(1);
-     }
+#define MAX_INCLUDE_DEPTH 10
+static YY_BUFFER_STATE include_stack[MAX_INCLUDE_DEPTH] ={0};
+int include_stack_ptr = 0;
+char * include_fnames[MAX_INCLUDE_DEPTH] = {0};
+static int include_lines[MAX_INCLUDE_DEPTH] = {0};
+
+static void enter_includefile(char * fname)
+{
+  FILE * new_yyin;
+  char fname_[256];
+  if ( include_stack_ptr >= MAX_INCLUDE_DEPTH ) {
+    yyerror("Includes nested too deeply" );
+    return;
+  }
+  /* we want to have the include files in the same directory as
+   * the main config file, if we have no leading  '/'
+   */
+  if (fname[0] != '/')  {
+    int i;
+    strcpy(fname_,include_fnames[0]);
+    i=strlen(fname_);
+    while (i && (fname_[i] != '/')) i--;
+    if (i) {
+      i++;
+      strcpy(fname_+i,fname);
+      fname=fname_;
+    }
+  }
+  if (get_config_variable("c_system")) enter_priv_on();
+  else enter_priv_off();
+  new_yyin = fopen( fname, "r" );
+  leave_priv_setting();
+  if ( ! new_yyin ) {
+    yyerror("cannot open includefile %s", fname);
+    return;
+  }
+  c_printf("CONF: opened include file %s\n", fname);
+  include_lines[include_stack_ptr] = line_count;
+  include_stack[include_stack_ptr] = YY_CURRENT_BUFFER;
+  include_stack_ptr++;
+  include_fnames[include_stack_ptr] = strdup(fname);
+  line_count = 1;
+  yyin = new_yyin;
+  include_stack[include_stack_ptr] = yy_create_buffer( yyin, YY_BUF_SIZE );
+  yy_switch_to_buffer(include_stack[include_stack_ptr]);
+}
+
+
+#ifdef yywrap
+  error "yywrap defined elsewere, need our own one"
 #endif
+
+int yywrap(void)    /* this gets called at EOF of a parsed file */
+{
+  if (include_stack_ptr <= 0 ) return(1);
+  yy_switch_to_buffer(include_stack[include_stack_ptr-1] );
+  fclose(include_stack[include_stack_ptr]->yy_input_file);
+  yy_delete_buffer(include_stack[include_stack_ptr]);
+  c_printf("CONF: closed include file %s\n", include_fnames[include_stack_ptr]);
+  free(include_fnames[include_stack_ptr]);
+  include_stack_ptr--;
+  line_count=include_lines[include_stack_ptr];
+  return(0);
+}
+
+
+extern void yyerror(char* string, ...);
+
+static void push__active()
+{
+  __active_stack[__active_i++]=__active__;
+  if (__active_i > __active_max) {
+    __active_i = __active_max;
+    yyerror("Lexer block stack overflow, unmatching #if..#else..#endif");
+  }
+}
+
+static void pop__active()
+{
+  if (__active_i <=0) {
+    yyerror("Lexer block stack underflow, unmatching #if..#else..#endif");
+    return;
+  }
+  __active__=__active_stack[--__active_i];
+}
+

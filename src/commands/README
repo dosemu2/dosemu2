@@ -45,6 +45,19 @@ unix.com     : execute Unix commands from Dosemu
                unix ls -al -- list current Linux directory
                caution! try "unix" and read the help screen
 
+cmdline.exe  : Read /proc/self/cmdline and put strings such as "var=xxx"
+               found on the commandline into the DOS enviroment.
+               Example having this as the dos commandine:
+
+                 dos "autoexec=echo This is a test..."
+
+               then doing
+ 
+                 C:\cmdline < D:\proc\self\cmdline
+                 %autoexec%
+
+               would display "This is a test..." on the DOS-Terminal
+
 vgaoff.com   : disable vga option
 
 vgaon.com    : enable vga option

@@ -233,9 +233,15 @@ inb(unsigned int port)
     r = read_pic1((u_int)port);
     return r;
   case 0x60:
-  case 0x61:
   case 0x64:
     r = keyb_io_read((u_int)port);
+    return r;
+  case 0x61:
+#ifndef NEW_KBD_CODE
+    r = keyb_io_read((u_int)port);
+#else
+    r = spkr_io_read((u_int)port);
+#endif
     return r;
   case 0x70:
   case 0x71:
@@ -546,8 +552,14 @@ outb(unsigned int port, unsigned int byte)
     break;
   case 0x60:
   case 0x64:
-  case 0x61:
     keyb_io_write((u_int)port, byte);
+    break;
+  case 0x61:
+#ifndef NEW_KBD_CODE
+    keyb_io_write((u_int)port, byte);
+#else
+    spkr_io_write((u_int)port, byte);
+#endif
     break;
   case 0x70:
   case 0x71:

@@ -249,7 +249,7 @@ config_init(int argc, char **argv)
 
     opterr = 0;
     confname = CONFIG_FILE;
-    while ((c = getopt(argc, argv, "ABCcF:I:kM:D:P:VNtsgx:KL:m234e:E:dXY:Z:o:O")) != EOF) {
+    while ((c = getopt(argc, argv, "ABCcF:I:kM:D:P:VNtsgx:KL:m234e:E:dXY:Z:o:Ou:")) != EOF) {
 	switch (c) {
 	case 'F':
 	    if (get_orig_uid()) {
@@ -293,6 +293,14 @@ config_init(int argc, char **argv)
 		exit(1);
 	    }
 	    break;
+	case 'u': {
+		extern int define_config_variable(char *name);
+		char *s=malloc(strlen(optarg)+3);
+		s[0]='u'; s[1]='_';
+		strcpy(s+2,optarg);
+		define_config_variable(s);
+	    }
+	    break;
 	}
     }
 
@@ -326,7 +334,7 @@ config_init(int argc, char **argv)
     optind = 0;
 #endif
     opterr = 0;
-    while ((c = getopt(argc, argv, "ABCcF:I:kM:D:P:v:VNtT:sgx:KLm2345e:dXY:Z:E:o:O")) != EOF) {
+    while ((c = getopt(argc, argv, "ABCcF:I:kM:D:P:v:VNtT:sgx:KLm2345e:dXY:Z:E:o:Ou:")) != EOF) {
 	switch (c) {
 	case 'F':		/* previously parsed config file argument */
 	case 'I':
@@ -334,6 +342,7 @@ config_init(int argc, char **argv)
 	case 'o':
 	case 'O':
 	case 'L':
+	case 'u':
 	    break;
 	case 'A':
 	    config.hdiskboot = 0;

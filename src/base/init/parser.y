@@ -92,7 +92,7 @@ extern int yylex(); /* exact argument types depend on the way you call bison */
 
 	/* local procedures */
 
-static void yyerror(char *, ...);
+void yyerror(char *, ...);
 static void yywarn(char *, ...);
 void keyb_layout(int value);
 static void start_ports(void);
@@ -124,6 +124,33 @@ static int set_hardware_ram(int addr);
 static void set_irq_value(int bits, int i1);
 static void set_irq_range(int bits, int i1, int i2);
 extern void append_pre_strokes(unsigned char *s);
+char *get_config_variable(char *name);
+int define_config_variable(char *name);
+static int undefine_config_variable(char *name);
+
+	/* class stuff */
+#define IFCLASS(m) if (is_in_allowed_classes(m))
+
+#define CL_ALL			-1
+#define CL_NICE		    0x100
+#define CL_VAR		    0x200
+#define CL_FILEEXT	    0x400
+#define CL_FLOPPY	    0x800
+#define CL_BOOT		   0x1000
+#define CL_VPORT	   0x2000
+#define CL_SECURE	   0x4000
+#define CL_DPMI		   0x8000
+#define CL_VIDEO	  0x10000
+#define CL_PORT		  0x20000
+#define CL_DISK		  0x40000
+#define CL_X		  0x80000
+#define CL_SOUND	 0x100000
+#define CL_IRQ		 0x200000
+#define CL_DEXE		 0x400000
+#define CL_PRINTER	 0x800000
+#define CL_HARDRAM	0x1000000
+
+static int is_in_allowed_classes(int mask);
 
 	/* variables in lexer.l */
 
@@ -143,6 +170,7 @@ extern void yyrestart(FILE *input_file);
 %token <i_value> CHARSET_TYPE KEYB_LAYOUT
 %token <s_value> STRING
 	/* main options */
+%token DEFINE UNDEF
 %token DOSBANNER FASTFLOPPY TIMINT HOGTHRESH SPEAKER IPXSUPPORT NOVELLHACK
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO ALLOWVIDEOPORT TIMER
 %token MATHCO CPU BOOTA BOOTB BOOTC L_XMS L_DPMI PORTS DISK DOSMEM PRINTER
@@ -200,17 +228,19 @@ lines		: line
 		| lines line
 		;
 
-line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
+line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
+		| DEFINE STRING		{ IFCLASS(CL_VAR){ define_config_variable($2); free($2); }}
+		| UNDEF STRING		{ IFCLASS(CL_VAR){ undefine_config_variable($2); free($2); }}
  		| EMUSYS STRING
-		    {
+		    { IFCLASS(CL_FILEEXT){
 		    config.emusys = $2;
 		    c_printf("CONF: config.emusys = '%s'\n", $2);
-		    }
+		    }}
 		| EMUSYS '{' STRING '}'
-		    {
+		    { IFCLASS(CL_FILEEXT){
 		    config.emusys = $3;
 		    c_printf("CONF: config.emusys = '%s'\n", $3);
-		    }
+		    }}
 		| DOSEMUMAP STRING
 		    {
 #ifdef USE_MHPDBG
@@ -221,49 +251,49 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    free($2);
 		    }
  		| EMUBAT STRING
-		    {
+		    { IFCLASS(CL_FILEEXT){
 		    config.emubat = $2;
 		    c_printf("CONF: config.emubat = '%s'\n", $2);
-                    }
+                    }}
                 | EMUINI STRING
-                    {
+                    { IFCLASS(CL_FILEEXT){
                     config.emuini = $2;
                     c_printf("CONF: config.emuini = '%s'\n", $2);
-                    }
+                    }}
                 | EMUINI '{' STRING '}'
-                    {
+                    { IFCLASS(CL_FILEEXT){
                     config.emuini = $3;
                     c_printf("CONF: config.emuini = '%s'\n", $3);
-		    }
+		    }}
 		| EMUBAT '{' STRING '}'
-		    {
+		    { IFCLASS(CL_FILEEXT){
 		    config.emubat = $3;
 		    c_printf("CONF: config.emubat = '%s'\n", $3);
-		    }
+		    }}
 		| FASTFLOPPY floppy_bool
-			{ 
+			{ IFCLASS(CL_FLOPPY){ 
 			config.fastfloppy = $2;
 			c_printf("CONF: fastfloppy = %d\n", config.fastfloppy);
-			}
+			}}
 		| CPU INTEGER		{ vm86s.cpu_type = ($2/100)%10; }
 		| BOOTA
-                    {
+                    { IFCLASS(CL_BOOT){
 		      if (priv_lvl)
 			yyerror("bootA is illegal in user config file");
 		      config.hdiskboot = 0;
-		    }
+		    }}
 		| BOOTC
-                    {
+                    { IFCLASS(CL_BOOT){
 		      if (priv_lvl)
 			yyerror("bootC is illegal in user config file");
 		      config.hdiskboot = 1;
-		    }
+		    }}
 		| BOOTB
-                    {
+                    { IFCLASS(CL_BOOT){
 		      if (priv_lvl)
 			yyerror("bootB is illegal in user config file\n");
 		      config.hdiskboot = 2;
-		    }
+		    }}
 		| TIMINT bool
 		    {
 		    config.timers = $2;
@@ -295,12 +325,12 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    c_printf("CONF: dosbanner %s\n", ($2) ? "on" : "off");
 		    }
 		| ALLOWVIDEOPORT bool
-		    {
+		    { IFCLASS(CL_VPORT){
 		    if ($2 && !config.allowvideoportaccess && priv_lvl)
 		      yyerror("Can not enable video port access in use config file");
 		    config.allowvideoportaccess = $2;
 		    c_printf("CONF: allowvideoportaccess %s\n", ($2) ? "on" : "off");
-		    }
+		    }}
 		| L_EMS { config.ems_size=0; }  '{' ems_flags '}'
 		| L_EMS mem_bool
 		    {
@@ -318,17 +348,17 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    if ($2 > 0) c_printf("CONF: maximize umb's %s\n", ($2) ? "on" : "off");
 		    }
 		| L_SECURE bool
-		    {
+		    { IFCLASS(CL_SECURE){
 		    if (priv_lvl && config.secure && (! $2))
 			yyerror("secure option is illegal in user config file");
 		    config.secure = $2;
 		    if (config.secure > 0) c_printf("CONF: security %s\n", ($2) ? "on" : "off");
-		    }
+		    }}
 		| L_DPMI mem_bool
-		    {
+		    { IFCLASS(CL_DPMI){
 		    config.dpmi = $2;
 		    c_printf("CONF: DPMI-Server %s\n", ($2) ? "on" : "off");
-		    }
+		    }}
 		| DOSMEM mem_bool	{ config.mem_size = $2; }
 		| MATHCO bool		{ config.mathco = $2; }
 		| IPXSUPPORT bool	{ config.ipxsup = $2; }
@@ -351,7 +381,7 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    config.speaker = $2;
 		    }
 		| VIDEO
-		    { start_video(); }
+		    { IFCLASS(CL_VIDEO) start_video(); }
 		  '{' video_flags '}'
 		    { stop_video(); }
 		| TERMINAL
@@ -383,38 +413,38 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    c_printf("CONF: appending pre-strokes '%s'\n", $2);
 		    }
 		| PORTS
-		    { start_ports(); }
+		    { IFCLASS(CL_PORT) start_ports(); }
 		  '{' port_flags '}'
 		| DISK
-		    { start_disk(); }
+		    { IFCLASS(CL_DISK) start_disk(); }
 		  '{' disk_flags '}'
 		    { stop_disk(DISK); }
 		| BOOTDISK
-		    { start_bootdisk(); }
+		    { IFCLASS(CL_BOOT) start_bootdisk(); }
 		  '{' disk_flags '}'
 		    { stop_disk(BOOTDISK); }
 		| L_FLOPPY
-		    { start_floppy(); }
+		    { IFCLASS(CL_FLOPPY) start_floppy(); }
 		  '{' disk_flags '}'
 		    { stop_disk(L_FLOPPY); }
 		| PRINTER
-		    { start_printer(); }
+		    { IFCLASS(CL_PRINTER) start_printer(); }
 		  '{' printer_flags '}'
 		    { stop_printer(); }
-		| L_X '{' x_flags '}'
+		| L_X { IFCLASS(CL_X); } '{' x_flags '}'
 		| L_SOUND bool	{ if (! $2) config.sb_irq = 0; }
-                | L_SOUND '{' sound_flags '}'
+                | L_SOUND { IFCLASS(CL_SOUND); } '{' sound_flags '}'
 		| SILLYINT
-                    { config.sillyint=0; }
+                    { IFCLASS(CL_IRQ) config.sillyint=0; }
                   '{' sillyint_flags '}'
 		| SILLYINT irq_bool
-                    {
+                    { IFCLASS(CL_IRQ)
 		      config.sillyint = 1 << $2;
 		      c_printf("CONF: IRQ %d for irqpassing\n", $2); 
 		    }
-		| DEXE '{' dexeflags '}'
+		| DEXE { IFCLASS(CL_DEXE); } '{' dexeflags '}'
 		| HARDWARE_RAM
-                    {
+                    { IFCLASS(CL_HARDRAM);
 		    if (priv_lvl)
 		      yyerror("Can not change hardware ram access settings in user config file");
 		    }
@@ -556,6 +586,7 @@ debug_flags	: debug_flag
 		| debug_flags debug_flag
 		;
 debug_flag	: VIDEO bool		{ d.video = $2; }
+		| L_OFF			{ memset(&d, 0, sizeof(d)); }
 		| SERIAL bool		{ d.serial = $2; }
 		| CONFIG bool		{ if (!d.config) d.config = $2; }
 		| DISK bool		{ d.disk = $2; }
@@ -1625,7 +1656,7 @@ static void yywarn(char* string, ...)
   warnings++;
 }
 
-static void yyerror(char* string, ...)
+void yyerror(char* string, ...)
 {
   va_list vars;
   va_start(vars, string);
@@ -1703,10 +1734,11 @@ parse_dosemu_users(void)
   struct passwd *pwd;
   char buf[PBUFLEN];
   int userok = 0;
-  char ustr[PBUFLEN];
+  char *ustr;
   int log_mail=0;
   int log_syslog=0;
   int uid;
+  int have_vars=0;
 
   /* Get the log level*/
   if((fp = open_file(DOSEMU_LOGLEVEL_FILE)))
@@ -1747,21 +1779,34 @@ parse_dosemu_users(void)
        exit(1);
      }
 
-  if (uid != 0)
      {
        enter_priv_on();
        fp = open_file(DOSEMU_USERS_FILE);
        leave_priv_setting();
        if (fp)
 	 {
-	   for(userok=0; fgets(buf, PBUFLEN, fp) != NULL && !userok; ) 
-	     {
-	       sscanf(buf,"%s",ustr);   /* cut off newline at end */
+	   for(userok=0; fgets(buf, PBUFLEN, fp) != NULL && !userok; ) {
+	     if (buf[0] != '#') {
+	       int l = strlen(buf);
+	       if (l && (buf[l-1] == '\n')) buf[l-1] = 0;
+		ustr = strtok(buf, " \t\n,;:");
 	       if (strcmp(ustr, pwd->pw_name)== 0) 
 		 userok = 1;
 	       else if (strcmp(ustr, ALL_USERS)== 0)
 		 userok = 1;
+	       if (userok) {
+		 while ((ustr=strtok(0, " \t,;:")) !=0) {
+		   define_config_variable(ustr);
+		   have_vars = 1;
+		 }
+		 if (!have_vars) {
+		   if (uid) define_config_variable("c_normal");
+		   else define_config_variable("c_all");
+		   have_vars = 1;
+		 }
+	       }
 	     }
+	   }
 	 } 
        else 
 	 {
@@ -1774,8 +1819,10 @@ parse_dosemu_users(void)
 	 }
        fclose(fp);
      }
-   else
+  if (uid == 0) {
+     if (!have_vars) define_config_variable("c_all");
      userok=1;  /* This must be root, so always allow DOSEMU start */
+  }
 
   if(userok==0) 
      {
@@ -1942,9 +1989,19 @@ parse_config(char *confname)
   yydebug  = 1;
 #endif
 
+  {
+    /* preset the 'include-stack', so files without '/' can be found */
+    extern char * include_fnames[];
+    include_fnames[0]=strdup("/etc/dosemu.conf");
+  }
 
   /* Parse valid users who can execute DOSEMU */
   parse_dosemu_users();
+  if (get_config_variable("c_strict") && strcmp(confname, CONFIG_FILE)) {
+     c_printf("CONF: use of option -F %s forbidden by /etc/dosemu.users\n",confname);
+     c_printf("CONF: using " CONFIG_FILE " instead\n");
+     confname = CONFIG_FILE;
+  }
 
   /* Let's try confname if not null, and fail if not found */
   /* Else try the user's own .dosrc */
@@ -1967,6 +2024,10 @@ parse_config(char *confname)
       exit(1);
     }
 
+    if (priv_lvl) define_config_variable("c_user");
+    else define_config_variable("c_system");
+    if (dexe_running) define_config_variable("c_dexerun");
+
     if (strcmp(confname, "none")) {
       enter_priv_on();
       fd = open_file(confname);
@@ -1980,7 +2041,7 @@ parse_config(char *confname)
       else {
         yyin = fd;
         line_count = 1;
-        c_printf("Parsing %s file.\n", confname);
+        c_printf("CONF: Parsing %s file.\n", confname);
         file_being_parsed = malloc(strlen(confname) + 1);
         strcpy(file_being_parsed, confname);
         if (yyparse())
@@ -1988,9 +2049,13 @@ parse_config(char *confname)
         close_file(fd);
       }
     }
+    if (priv_lvl) undefine_config_variable("c_user");
+    else undefine_config_variable("c_system");
 
     /* privileged options allowed for user's config? */
     priv_lvl = uid != 0;
+    if (priv_lvl) define_config_variable("c_user");
+    define_config_variable("c_dosrc");
     if ((fd = open_file(name)) != 0) {
       c_printf("Parsing %s file.\n", name);
       free(file_being_parsed);
@@ -2004,6 +2069,7 @@ parse_config(char *confname)
       close_file(fd);
     }
     free(file_being_parsed);
+    undefine_config_variable("c_dosrc");
 
     /* Now we parse any commandline statements from option '-I'
      * We do this under priv_lvl set above, so we have the same secure level
@@ -2013,6 +2079,7 @@ parse_config(char *confname)
     if (commandline_statements) {
       #define XX_NAME "commandline"
       extern char *yy_vbuffer;
+      define_config_variable("c_comline");
       c_printf("Parsing " XX_NAME  " statements.\n");
       file_being_parsed = malloc(strlen(XX_NAME) + 1);
       strcpy(file_being_parsed, XX_NAME);
@@ -2023,6 +2090,7 @@ parse_config(char *confname)
       if (yyparse())
 	yyerror("error in user's %s statement", XX_NAME);
       free(file_being_parsed);
+      undefine_config_variable("c_comline");
     }
   }
 
@@ -2034,6 +2102,14 @@ parse_config(char *confname)
     if (dexe_secure && get_orig_uid())
       config.secure = 1;
   }
+  else {
+    if (get_config_variable("c_dexeonly")) {
+       c_printf("CONF: only execution of DEXE files allowed\n");
+       fprintf(stderr, "only execution of DEXE files allowed\n");
+       leavedos(99);
+    }
+  }
+
 
 #ifdef TESTING
   error("TESTING: parser is terminating program\n");
@@ -2042,6 +2118,129 @@ parse_config(char *confname)
 
   return 1;
 }
+
+#define MAX_CONFIGVARIABLES 128
+char *config_variables[MAX_CONFIGVARIABLES+1] = {0};
+static int config_variables_count = 0;
+static int config_variables_last = 0;
+static int allowed_classes = -1;
+
+
+
+static int is_in_allowed_classes(int mask)
+{
+  if (!(allowed_classes & mask)) {
+    yyerror("unsufficient class privilege to use this configuration option\n");
+    leavedos(99);
+  }
+  return 1;
+}
+
+struct config_classes {
+	char *class;
+	int mask;
+} config_classes[] = {
+	{"c_all", CL_ALL},
+	{"c_normal", CL_ALL & (~(CL_VAR | CL_BOOT | CL_VPORT | CL_SECURE | CL_IRQ | CL_HARDRAM))},
+	{"c_fileext", CL_FILEEXT},
+	{"c_var", CL_VAR},
+	{"c_system", CL_VAR},
+	{"c_nice", CL_NICE},
+	{"c_floppy", CL_FLOPPY},
+	{"c_boot", CL_BOOT},
+	{"c_secure", CL_SECURE},
+	{"c_vport", CL_VPORT},
+	{"c_dpmi", CL_DPMI},
+	{"c_video", CL_VIDEO},
+	{"c_port", CL_PORT},
+	{"c_disk", CL_DISK},
+	{"c_x", CL_X},
+	{"c_sound", CL_SOUND},
+	{"c_irq", CL_IRQ},
+	{"c_dexe", CL_DEXE},
+	{"c_printer", CL_PRINTER},
+	{"c_hardram", CL_HARDRAM},
+	{0,0}
+};
+
+static int get_class_mask(char *name)
+{
+  struct config_classes *p = &config_classes[0];
+  while (p->class) {
+    if (!strcmp(p->class,name)) return p->mask;
+    p++;
+  }
+  return 0;
+}
+
+static void update_class_mask(void)
+{
+  int i, m;
+  allowed_classes = 0;
+  for (i=0; i< config_variables_count; i++) {
+    if ((m=get_class_mask(config_variables[i])) != 0) {
+      allowed_classes |= m;
+    }
+  }
+}
+
+char *get_config_variable(char *name)
+{
+  int i;
+  for (i=0; i< config_variables_count; i++) {
+    if (!strcmp(name, config_variables[i])) {
+      config_variables_last = i;
+      return config_variables[i];
+    }
+  }
+  return 0;
+}
+
+int define_config_variable(char *name)
+{
+  if (priv_lvl) {
+    if (strncmp(name, "u_", 2)) {
+      c_printf("CONF: not enough privilege to define config variable %s\n", name);
+      return 0;
+    }
+  }
+  if (!get_config_variable(name)) {
+    if (config_variables_count < MAX_CONFIGVARIABLES) {
+      config_variables[config_variables_count++] = strdup(name);
+      update_class_mask();
+    }
+    else {
+      c_printf("CONF: overflow on config variable list\n");
+      return 0;
+    }
+  }
+  c_printf("CONF: config variable %s set\n", name);
+  return 1;
+}
+
+static int undefine_config_variable(char *name)
+{
+  if (priv_lvl) {
+    if (strncmp(name, "u_", 2)) {
+      c_printf("CONF: not enough privilege to undefine config variable %s\n", name);
+      return 0;
+    }
+  }
+  if (get_config_variable(name)) {
+    int i;
+    free(config_variables[config_variables_last]);
+    for (i=config_variables_last; i<(config_variables_count-1); i++) {
+      config_variables[i] = config_variables[i+1];
+    }
+    config_variables_count--;
+    update_class_mask();
+    c_printf("CONF: config variable %s unset\n", name);
+    return 1;
+  }
+  return 0;
+}
+
+
 
 #ifdef TESTING_MAIN
 

@@ -40,6 +40,7 @@ You may want to instantaneously start dosemu. We supply a ready to boot
 hdimage with a tiny FreeDos installation (just the kernel). This may
 be booted via
 
+- become root
 - ./first-test
 
 FreeDos kernel will show up, and you can leave it via
@@ -54,11 +55,19 @@ or
 --------------------------------------------------------------------------
 
 - Copy etc/config.dist to /etc/dosemu.conf if you are installing for
-  the first time. Modify it by using the info in the file.
+  the first time.
+  Modify it by using the info in the file ./doc/README.config
 
 - Create a file /etc/dosemu.users which contains a list of users who are
   privileged to use dosemu.  The user "all" will allow anyone to run
-  dosemu. For a more detailed decription on 'running as user' have a look
+  dosemu. example /etc/dosemu.users:
+
+    root c_all
+    all c_all
+
+  Note that the above example is _insecure_, because it allows all to any
+  user. For a more sophisticated configuration see ./doc/README.config.
+  For a more detailed decription on 'running as user' have a look
   at ./doc/README.runasuser.
 
 - Copy etc/hdimage.dist as /var/lib/dosemu/hdimage.  The first disk
@@ -152,12 +161,14 @@ more:
   DOSEMU, you will have to configure /etc/dosemu.conf for partition access.
 
 - From here you are on your own. Please read the documentation in the
-  ./examples/config.dist file, the "DOSEMU-HOWTO" file, and the files
+  ./doc/README.config file, the "DOSEMU-HOWTO" file, and the other files
   in the ./doc subdirectory.
 
 --------------------------------------------------------------------------
 6.  Something's not right!!!
 --------------------------------------------------------------------------
+
+- Check your /etc/dosemu.users file (maybe insufficient privileges set)
 
 - Read your /etc/dosemu.conf file carefully and make corrections.
 
@@ -217,10 +228,16 @@ more:
 	Special hints on how to setup for running dosemu as normal user.
 ./doc/README.vm86plus
 	Specials of vm86plus (kernel patches and emumodule)
+./doc/README.config
+	Detailed description of the DOSEMU configuration files.
 ./README.bugreports
+	How to report bug via gnats
 ./README.configuration
+	How to use the menu driven configuration tools
 ./contrib/dosC/readme.dosemu
-./dexe  tools to make directly bootable DOS-apps and hdimages
+	Usage of FreeDos kernel within DOSEMU
+./dexe/*
+	Tools to make directly bootable DOS-apps and hdimages
 
 --------------------------------------------------------------------------
 8.  DOSEMU code browsers

@@ -1,3 +1,22 @@
+97/05/03 ver. 0.67.0.3 unofficial pre-release
+	From Doug Dougherty, Chicago, IL
+	- cmdline DOS tool to feed in info from the commandline
+	  into the DOS-environement.
+	  (see src/command/README)
+	From Eric
+	- Enabled the speaker/timer code of the NEW_KBD_CODE in
+	  src/emu-i386/ports.c (inb) (outb)
+	- Unconditionally remove the original copy of dos before relinking.
+	  in src/arch/linux/Makefile.main.in (dossubdirs)
+	From Hans ( ... and some ideas from Alistair ;-)
+	- new cool configuration stuff. Dosemu.conf can now parse
+	  conditionally and include files.
+	- In dosemu.users variables can be set, which you later can test in
+	  dosemu.conf. For more see ./doc/README.config.
+	- can define a variable also on the commandline (option -u). You
+	  then may check it in dosemu.conf and behave differently.
+	- removed all comments in etc/config.dist and moved the information
+	  into ./doc/README.config.
 97/05/02 ver. 0.67.0.2 unofficial pre-release
 	From Alistair
 	- fixes and enhancements to gnats/send-pr

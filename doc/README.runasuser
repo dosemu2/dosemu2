@@ -6,7 +6,15 @@ Some hints for running dosemu as a normal user.
    run 'make install'.
 
 2. Have the users that are allow to execute dosmu in /etc/dosemu.user
-   (format: one login name per line)
+   Format:
+
+     loginname [ c_strict ] [ classes ...] [ c_dexeonly ] [ other ]
+
+   For details see ./doc/README.config. For a first time _easy_ installation
+   you may set it as follows (but don't to enhance it later !!!):
+
+     root c_all
+     all c_all
 
 3. The msdos partitions, that you want to be accessable per 'lredir' should
    be mounted with proper permissions. I recommend to do this via 'group',

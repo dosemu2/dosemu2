@@ -308,6 +308,7 @@ endif
 # ?
 dossubdirs:	$(LIBSUBDIRS)
 	-rm -f $(LIBDOSEMU)
+	-rm -f $(BINPATH)/bin/dos
 
 optionalsubdirs:	$(OPTIONALSUBDIRS)
 

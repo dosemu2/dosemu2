@@ -1,5 +1,5 @@
 .\" -*- nroff -*-  (This is for Emacs)
-.TH DOS 1 "April 20, 1997" "Version ALPHA 0.66.3" "MS-DOS Emulation"
+.TH DOS 1 "May 4, 1997" "Version ALPHA 0.66.4" "MS-DOS Emulation"
 .SH NAME
 dos, xdos, dosexec, dosdebug \- run MS-DOS and MS-DOS programs under Linux
 .SH SYNOPSIS
@@ -14,6 +14,10 @@ dos, xdos, dosexec, dosdebug \- run MS-DOS and MS-DOS programs under Linux
 [
 .B \-L
 .I dexefile
+]
+[
+.B \-u
+.I confvar
 ]
 [
 .B \-D
@@ -55,6 +59,10 @@ dos, xdos, dosexec, dosdebug \- run MS-DOS and MS-DOS programs under Linux
 [
 .B \-F
 .I file
+]
+[
+.B \-u
+.I confvar
 ]
 [
 .B \-D
@@ -99,6 +107,14 @@ dexefile
 .I file
 ]
 [
+.B \-L
+.I dexefile
+]
+[
+.B \-u
+.I confvar
+]
+[
 .B \-D
 .I flags
 ]
@@ -140,6 +156,14 @@ dexefile
 [
 .B \-F
 .I file
+]
+[
+.B \-L
+.I dexefile
+]
+[
+.B \-u
+.I confvar
 ]
 [
 .B \-D
@@ -287,6 +311,12 @@ use RAW console Keyboard (must be at the console)
 .I -F
 Parse this config-file instead of /etc/dosemu.conf
 (you need to run as root for this)
+.TP
+.I -u
+set a user configuation variable. An
+.B u_
+is prefixed to the name to avoid name clashes. This variable then can be
+checked in /etc/dosemu.conf to do some special configuration.
 .TP
 .I -L
 Load and start a DEXE file (special preconfigured bootable hdimage
