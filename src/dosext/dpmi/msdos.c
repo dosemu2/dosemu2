@@ -557,14 +557,12 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		REG(edx) = 0;
 		snprintf((char *)(REG(ds)<<4), MAX_DOS_PATH, "%s",
 			     (char *)GetSegmentBaseAddress(_ds) + D_16_32(_edx));
-		seg += 200;
+		seg += 0x20;
 
 		REG(es) = seg;
 		REG(edi) = 0;
-		snprintf((char *)((REG(es)<<4) + _LWORD(edi)),
-                             MAX_DOS_PATH, "%s",
-			     (char *)GetSegmentBaseAddress(_es) +
-			     D_16_32(_edi));
+		snprintf((char *)(REG(es)<<4), MAX_DOS_PATH, "%s",
+			     (char *)GetSegmentBaseAddress(_es) + D_16_32(_edi));
 	    }
 	    in_dos_21++;
 	    return 0;
