@@ -29,6 +29,7 @@
 #include "matrox.h"
 #include "wdvga.h"
 #include "sis.h"
+#include "vbe.h"
 #include "pci.h"
 #include "dpmi.h"
 #include "lowmem.h"
@@ -188,7 +189,7 @@ static inline void enable_vga_card(void)
 #define RM_STACK_SIZE 0x200
 static void *rm_stack = NULL;
 
-static void do_int10_callback(struct vm86_regs *regs)
+void do_int10_callback(struct vm86_regs *regs)
 {
   struct vm86plus_struct saved_vm86;
   char *p;
@@ -272,11 +273,14 @@ static void store_vga_regs(char regs[])
 static void store_vga_mem(u_char * mem, int banks)
 {
   int cbank, plane, planar;
+  char *vmem = (char *)GRAPH_BASE;
 
 #if 0
   dump_video_regs();
 #endif
-  if (config.chipset == ET4000) {
+  if (config.chipset == VESA && banks > 1)
+    vmem = vesa_get_lfb();
+  else if (config.chipset == ET4000) {
 /*
  * The following is from the X files
  * we need this here , cause we MUST disable the ROM SYNC feature
@@ -289,22 +293,37 @@ static void store_vga_mem(u_char * mem, int banks)
     temp2 = port_in(0x3cd);
     port_out(0x00, 0x3cd);
   }
-  port_out(0x4, SEQ_I);
-   /* check whether we are using packed or planar mode;
-    for standard VGA modes we set 640x480x16 colors  */
-  planar = !(port_in(SEQ_D) & 8) || banks == 1;
-  if (banks == 1) set_regs((u_char *) vregs, 1);
+  planar = 1;
+  if (vmem != (char *)GRAPH_BASE) {
+    planar = 0;
+    vmem -= PLANE_SIZE;
+  } else if (banks > 1) {
+    port_out(0x4, SEQ_I);
+    /* check whether we are using packed or planar mode;
+       for standard VGA modes we set 640x480x16 colors  */
+    if (port_in(SEQ_D) & 8) planar = 0;
+  } else {
+    set_regs((u_char *) vregs, 1);
+  }
   for (cbank = 0; cbank < banks; cbank++) {
-    if (planar) set_bank_read(cbank);
+    if (planar && banks > 1) set_bank_read(cbank);
     for (plane = 0; plane < 4; plane++) {
+      /* reading video memory can be very slow: 16384MB takes
+	 1.5 seconds here using a linear frame buffer. So we'll
+	 have lots of SIGALRMs coming by. Another solution to
+	 this problem would be to use a thread */
+      while (signal_pending)
+	handle_signals_force_reentry();
       if (planar) {
         /* Store planes */
 	port_out(0x04, GRA_I);
         port_out(plane, GRA_D);
-      } else
+      } else if (vmem == (char *)GRAPH_BASE)
 	set_bank_read(cbank * 4 + plane);
-      MEMCPY_2UNIX(mem, GRAPH_BASE, PLANE_SIZE);
-      v_printf("BANK READ Bank=%d, plane=0x%02x, mem=%08x\n", cbank, plane, *(int *) GRAPH_BASE);
+      else
+	vmem += PLANE_SIZE;
+      MEMCPY_2UNIX(mem, vmem, PLANE_SIZE);
+      v_printf("BANK READ Bank=%d, plane=0x%02x, mem=%08x\n", cbank, plane, *(int *) vmem);
       mem += PLANE_SIZE;
     }
   }
@@ -318,33 +337,47 @@ static void store_vga_mem(u_char * mem, int banks)
 static void restore_vga_mem(u_char * mem, int banks)
 {
   int plane, cbank, planar;
+  char *vmem = (char *)GRAPH_BASE;
 
 #if 0
   dump_video_regs();
 #endif
 
-  if (config.chipset == ET4000)
+  if (config.chipset == VESA && banks > 1)
+    vmem = vesa_get_lfb();
+  else if (config.chipset == ET4000)
     port_out(0x00, 0x3cd);
-  port_out(0x4, SEQ_I);
-     /* check whether we are using packed or planar mode;
-    for standard VGA modes we set 640x480x16 colors  */
-  planar = !(port_in(SEQ_D) & 8) || banks == 1;
-  if (banks == 1) set_regs((u_char *) vregs, 1);
+  planar = 1;
+  if (vmem != (char *)GRAPH_BASE) {
+    planar = 0;
+    vmem -= PLANE_SIZE;
+  } else if (banks > 1) {
+    port_out(0x4, SEQ_I);
+    /* check whether we are using packed or planar mode;
+       for standard VGA modes we set 640x480x16 colors  */
+    if (port_in(SEQ_D) & 8) planar = 0;
+  } else {
+    set_regs((u_char *) vregs, 1);
+  }
   if (planar) {
       /* disable Set/Reset Register */
       port_out(0x01, GRA_I);
       port_out(0x00, GRA_D);
   }
   for (cbank = 0; cbank < banks; cbank++) {
-    if (planar) set_bank_write(cbank);
+    if (planar && banks > 1) set_bank_write(cbank);
     for (plane = 0; plane < 4; plane++) {
+      while (signal_pending)
+	handle_signals_force_reentry();
       if (planar) {
         /* Store planes */
         port_out(0x02, SEQ_I);
         port_out(1 << plane, SEQ_D);
-      } else
-	set_bank_write((cbank * 4) + plane);
-      MEMCPY_2DOS(GRAPH_BASE, mem, PLANE_SIZE);
+      } else if (vmem == (char *)GRAPH_BASE)
+	set_bank_write(cbank * 4 + plane);
+      else
+	vmem += PLANE_SIZE;
+      MEMCPY_2DOS(vmem, mem, PLANE_SIZE);
       v_printf("BANK WRITE Bank=%d, plane=0x%02x, mem=%08x\n", cbank, plane, *(int *)mem);
       mem += PLANE_SIZE;
     }
@@ -355,8 +388,8 @@ static void restore_vga_mem(u_char * mem, int banks)
 /* Restore EGA/VGA regs */
 static void restore_vga_regs(char regs[], u_char xregs[], u_short xregs16[])
 {
-  set_regs(regs, 0);
   restore_ext_regs(xregs, xregs16);
+  set_regs(regs, 0);
   v_printf("Restore_vga_regs completed!\n");
 }
 
@@ -377,7 +410,7 @@ void save_vga_state(struct video_save_struct *save_regs)
     /* text mode */
     v_printf("ALPHA mode save being performed\n");
   }
-  else if (save_regs->video_mode > 0x13 && config.chipset)
+  else if (save_regs->video_mode > 0x13 && config.chipset && save_regs != &linux_regs)
         /*not standard VGA modes*/      /* not plainvga */
     save_regs->banks = (config.gfxmemsize + (4 * PLANE_SIZE / 1024) - 1) /
       (4 * PLANE_SIZE / 1024);
@@ -405,7 +438,7 @@ void restore_vga_state(struct video_save_struct *save_regs)
   /* do a BIOS setmode to the original mode before restoring registers.
      This helps if we don't restore all registers ourselves or if the
      VESA BIOS is buggy */
-  if (config.chipset == PLAINVGA) {
+  if (config.chipset == PLAINVGA || config.chipset == VESA) {
     char bios_data_area[0x100];
     memcpy(bios_data_area, (void *)BIOS_DATA_SEG, 0x100);
     do_int10_setmode(save_regs->video_mode);
@@ -548,6 +581,10 @@ int vga_initialize(void)
     error("svgalib support is not compiled in, \"plainvga\" will be used.\n");
 #endif
     break;
+  case VESA:
+    v_printf("Using the VESA BIOS for save/restore\n");
+    /* init done later */
+    break;
 
   default:
     v_printf("Unspecific VIDEO selected = 0x%04x\n", config.chipset);
@@ -682,8 +719,13 @@ void init_vga_card(void)
     return;
   }
 
-  if (config.chipset == PLAINVGA)
+  if (config.chipset == PLAINVGA || config.chipset == VESA)
     rm_stack = lowmem_heap_alloc(RM_STACK_SIZE);
+  if (config.chipset == VESA) {
+    port_enter_critical_section(__FUNCTION__);
+    vesa_init();
+    port_leave_critical_section();
+  }
 
   save_vga_state(&linux_regs);
   dosemu_vga_screenon();

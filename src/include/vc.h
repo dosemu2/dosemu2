@@ -127,11 +127,7 @@ extern void open_vga_mem(void);
 extern void close_vga_mem(void);
 
 #define MAX_S_REGS	71
-#ifdef USE_SVGALIB
-  #define MAX_X_REGS	4096 /* some svgalib drivers require a lot */
-#else
-  #define MAX_X_REGS	100
-#endif
+#define MAX_X_REGS	32768 /* some svgalib drivers and VESA require a lot */
 #define MAX_X_REGS16	10
 
 /* Struct to hold necessary elements during a save/restore */

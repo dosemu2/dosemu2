@@ -179,18 +179,6 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
 #define RPT_SYSCALL(sc) (sc)
 #endif
 
-#define RPT_SYSCALL2(sc) ({ int s_tmp; \
-   do { \
-	  s_tmp = sc; \
-	  s_err = errno; \
-	  if (errno == EINTR) {\
-	    g_printf("Recursive run_irqs() RPT_SYSCALL2()\n"); \
-	    handle_signals(); \
-	/*    run_irqs(); */ \
-	  } \
-      } while ((s_tmp == -1) ); \
-  s_tmp; })
-
 /* would like to have this in memory.h (but emu.h is included before memory.h !) */
 #define HARDWARE_RAM_START 0xc8000
 #define HARDWARE_RAM_STOP  0xf0000
@@ -444,7 +432,8 @@ EXTERN unsigned long int stack_init_bot INIT(0xffffffff);
 #define SIG_ACQUIRE     SIGUSR2
 
 EXTERN inline void SIGNAL_save( void (*signal_call)(void) );
-EXTERN inline void handle_signals(void);
+extern void handle_signals(void);
+extern void handle_signals_force_reentry(void);
 
 extern void addset_signals_that_queue(sigset_t *x);
 extern void newsetqsig(int sig, void *handler);

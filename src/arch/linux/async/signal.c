@@ -380,10 +380,11 @@ signal_init(void)
  * DANG_END_FUNCTION
  *
  */
-void handle_signals(void) {
+static void handle_signals_force(int force_reentry) {
   static int in_handle_signals = 0;
+  void (*signal_handler)(void);
 
-  if (in_handle_signals++)
+  if (in_handle_signals++ && !force_reentry)
     error("BUG: handle_signals() re-entered!\n");
 
   if ( SIGNAL_head != SIGNAL_tail ) {
@@ -392,8 +393,9 @@ void handle_signals(void) {
       {e_printf("EMU86: SIGNAL at %d\n",SIGNAL_head);}
 #endif
     signal_pending = 0;
-    signal_queue[SIGNAL_head].signal_handler();
+    signal_handler = signal_queue[SIGNAL_head].signal_handler;
     SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
+    signal_handler();
 /* 
  * If more SIGNALS need to be dealt with, make sure we request interruption
  * by the kernel ASAP.
@@ -414,6 +416,14 @@ void handle_signals(void) {
   }
 
   in_handle_signals--;
+}
+
+void handle_signals(void) {
+  handle_signals_force(0);
+}
+
+void handle_signals_force_reentry(void) {
+  handle_signals_force(1);
 }
 
 /* ==============================================================

@@ -21,6 +21,7 @@ EXTERN u_char(*ext_video_port_in) (ioport_t port);
 
 void save_vga_state(struct video_save_struct *save_regs);
 void restore_vga_state(struct video_save_struct *save_regs);
+void do_int10_callback(struct vm86_regs *regs);
 int vga_initialize(void);
 
 #endif

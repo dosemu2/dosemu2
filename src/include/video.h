@@ -227,19 +227,22 @@ EXTERN int v_8514_base INIT(0);
 /* #define BASE_CRTC               0x3d4  currently not used */
 
 
-#define PLAINVGA	0
-#define TRIDENT		1
-#define ET4000		2
-#define DIAMOND		3
-#define S3		4
-#define AVANCE		5
-#define ATI		6
-#define CIRRUS		7
-#define MATROX		8
-#define WDVGA		9
-#define SIS		10
-#define SVGALIB	11
-#define MAX_CARDTYPE	SVGALIB
+enum {
+    PLAINVGA,
+    TRIDENT,
+    ET4000,
+    DIAMOND,
+    S3,
+    AVANCE,
+    ATI,
+    CIRRUS,
+    MATROX,
+    WDVGA,
+    SIS,
+    SVGALIB,
+    VESA,
+};
+#define MAX_CARDTYPE	VESA
 
 /* title and change config definitions */
 #define TITLE_EMUNAME_MAXLEN 128
