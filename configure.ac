@@ -648,6 +648,7 @@ AH_TOP([
 #define  DEFAULT_CONFIG_SCRIPT "builtin"      /* main configuration script */
 #define  DOSEMU_LOGLEVEL    "dosemu.loglevel" /* logging configuration file */
 #define  DOSEMU_MIDI        "dosemu-midi"     /* fifo for midi daemon */
+#define  DOSEMU_MIDI_IN     "dosemu-midi_in"  /* fifo for midi input */
 
 EXTERN char *config_script_name INIT(DEFAULT_CONFIG_SCRIPT);
 EXTERN char *config_script_path INIT(0);
@@ -669,6 +670,7 @@ EXTERN char *tty_locks_name_path INIT("LCK..");
 EXTERN char *dexe_load_path INIT(dosemuhdimage_default);
 EXTERN char *ipx_dos_ini_path INIT(ALTERNATE_ETC "/dos.ini");
 EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
+EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI_IN);
 
 #define    DOSEMU_USERS_FILE     dosemu_users_file_path
 #define    DOSEMU_LOGLEVEL_FILE  dosemu_loglevel_file_path
@@ -682,6 +684,7 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 #define    IPX_DOS_INI_PATH      ipx_dos_ini_path
 #define    DOSEMU_MAP_PATH       dosemu_map_file_name
 #define    DOSEMU_MIDI_PATH      dosemu_midi_path
+#define    DOSEMU_MIDI_IN_PATH   dosemu_midi_in_path
 
 #endif /* not __ASM__ */
 ])
