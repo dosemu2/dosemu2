@@ -63,13 +63,13 @@ int booton_main(int argc, char **argv)
 
 int ecpuon_main(int argc, char **argv)
 {
-	do_doshelper(0x91, 0);
+	do_doshelper(DOS_HELPER_CPUEMUON, 0);
 	return 0;
 }
 
 int ecpuoff_main(int argc, char **argv)
 {
-	do_doshelper(0x91, 1);
+	do_doshelper(DOS_HELPER_CPUEMUOFF, 1);
 	return 0;
 }
 
@@ -107,6 +107,11 @@ int system_main(int argc, char **argv)
 	struct com_starter_seg  *ctcb = owntcb->params;
 	char *c = lowmem_alloc(256);
 	int i;
+
+	if (argc <= 1) {
+		com_printf("Run system command_to_execute\n");
+		return 1;
+	}
 
 	c[0] = 0;
 	strcat(c, argv[1]);

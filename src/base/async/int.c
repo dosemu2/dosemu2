@@ -27,6 +27,7 @@
 #include "disks.h"
 #include "bios.h"
 #include "iodev.h"
+#include "lpt.h"
 #include "bitops.h"
 #include "xms.h"
 #include "int.h"
@@ -320,6 +321,7 @@ static int dos_helper(void)
      * provided they were not previously enabled by SPKR_NATIVE - AV
      * DANG_END_REMARK
      */
+#if 0
     if (config.allowvideoportaccess) {
       if (config.speaker != SPKR_NATIVE) {
 	v_printf("Giving temporary access to PIT#2\n");
@@ -328,6 +330,7 @@ static int dos_helper(void)
       }
       in_video = 1;
     }
+#endif
     /* DANG_BEGIN_REMARK
      * Many video BIOSes use hi interrupt vector locations as
      * scratchpad area - this is because they come before DOS and feel
@@ -343,6 +346,7 @@ static int dos_helper(void)
 
   case DOS_HELPER_VIDEO_INIT_DONE:
     v_printf("Finished with Video initialization\n");
+#if 0
     if (config.allowvideoportaccess) {
       if (config.speaker != SPKR_NATIVE) {
         v_printf("Removing temporary access to PIT#2\n");
@@ -351,6 +355,7 @@ static int dos_helper(void)
       }
       in_video = 0;
     }
+#endif
     v_printf("Restore hi vector area\n");
     MEMCPY_2DOS(0x380,save_hi_ints,128);
     config.emuretrace <<= 1;
@@ -1483,6 +1488,21 @@ static int can_revector_int21(int i)
   }
 }
 
+static void do_print_screen() {
+int x_pos, y_pos;
+ushort *base=SCREEN_ADR(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+    g_printf("PrintScreen: base=%p, lines=%i columns=%i\n", base, li, co);
+    printer_open(1);
+    for (y_pos=0; y_pos < li; y_pos++) {
+	for (x_pos=0; x_pos < co; x_pos++) 
+	    printer_write(1, READ_BYTE(base + y_pos*co + x_pos));
+	printer_write(1, 0x0d);
+	printer_write(1, 0x0a);
+    }
+    printer_flush(1);
+    printer_close(1);
+}
+
 static void int05(u_char i) 
 {
      /* FIXME does this test actually catch an unhandled bound exception */
@@ -1491,6 +1511,8 @@ static void int05(u_char i)
 	    error("Unhandled BOUND exception!\n");
 	    leavedos(54);
     }
+    g_printf("INT 5: PrintScreen\n");
+    do_print_screen();
     return;
 }
 

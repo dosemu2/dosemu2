@@ -75,7 +75,7 @@ all:
 	@$(MAKE) -C src default
 
 dosbin:
-	@$(MAKE) -C src/commands
+	@$(MAKE) -C src/commands dosbin
 
 docs:
 	@$(MAKE) -C src/doc all

@@ -3683,10 +3683,10 @@ cat >> confdefs.h <<EOF
 EOF
 
 
-#OPTIONALSUBDIRS="dosext/net/v-net"
-OPTIONALSUBDIRS="dosext/net/v-net commands"
-#REQUIRED="tools commands tools/periph"
-REQUIRED="tools tools/periph"
+OPTIONALSUBDIRS="dosext/net/v-net"
+#OPTIONALSUBDIRS="dosext/net/v-net commands"
+REQUIRED="tools commands tools/periph"
+#REQUIRED="tools tools/periph"
 
  # Check whether --enable-experimental or --disable-experimental was given.
 if test "${enable_experimental+set}" = set; then
@@ -3712,10 +3712,10 @@ EOF
    USE_MHPDBG="-DUSE_MHPDBG"
    
    DEBUGGER="arch/$CONFIG_HOST/debugger"
-#   OPTIONALSUBDIRS="dosext/net/v-net"
-   OPTIONALSUBDIRS="dosext/net/v-net commands"
-#   REQUIRED="tools commands tools/periph"
-   REQUIRED="tools tools/periph"
+   OPTIONALSUBDIRS="dosext/net/v-net"
+#   OPTIONALSUBDIRS="dosext/net/v-net commands"
+   REQUIRED="tools commands tools/periph"
+#   REQUIRED="tools tools/periph"
 fi
 
 

@@ -2486,7 +2486,15 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       u = vga.crtc.data[0x17] & 0x40 ? 0 : 1;
       u = vga.crtc.data[0x14] & 0x40 ? 2 : u;
       vga.crtc.addr_mode = u;
-      vga.scan_len = vga.crtc.data[0x13] << (vga.crtc.addr_mode + 1); 
+      vga.display_start = (vga.crtc.data[0x0d] + (vga.crtc.data[0x0c] << 8)) << 
+	      vga.crtc.addr_mode;
+      /* this shift should really be a rotation, depending on mode control bit 5 */
+      screen_adr = SCREEN_ADR(0) + vga.display_start;
+      vga.crtc.cursor_location =  (vga.crtc.data[0x0f] + (vga.crtc.data[0x0e] << 8)) <<
+              vga.crtc.addr_mode;
+      cursor_row = (vga.crtc.cursor_location - vga.display_start) / vga.scan_len;
+      cursor_col = ((vga.crtc.cursor_location - vga.display_start) % vga.scan_len) / 2;
+      vga.scan_len = vga.crtc.data[0x13] << (vga.crtc.addr_mode + 1);
       if (u1 != vga.scan_len) vga.reconfig.mem = 1;
       if(msg || u != u0) vga_msg("vgaemu_adj_cfg: crtc.addr_mode = %s, 
 	scan_len = %d\n", txt2[u], vga.scan_len);

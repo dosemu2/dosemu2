@@ -935,6 +935,14 @@ static char buf[81];
   return ret;
 }
 
+void pic_untrigger(inum)
+{
+    if ((pic_irr | pic_pirr) & (1<<inum)) {
+      pic_print(2,"Requested irq lvl ", inum, " untriggered");
+    }
+    pic_pirr &= ~(1<<inum);
+    pic_irr &= ~(1<<inum);
+}
 
 /* DANG_BEGIN_FUNCTION pic_iret
  *
@@ -1032,7 +1040,7 @@ unsigned long pic_newirr;
 /*  calculate new sys_time
  *  values are kept modulo 2^32 (exactly 1 hour)
  */
-  t_time = UStoTICK(s_time->td);
+  t_time = s_time->td;
 
   /* check for any freshly initiated timers, and sync them to s_time */
   pic_print(2,"pic_itime[1]= ",pic_itime[1]," ");

@@ -116,7 +116,7 @@ static struct keyboard_client *keyb_clients[] =
  *
  * DANG_END_FUNCTION
  */
-int keyb_client_init()
+int keyb_client_init(void)
 {
 	int i;
 	int ok;

@@ -60,6 +60,7 @@
 #include "config.h"
 #include "emu.h"
 #include "vgaemu.h"
+#include "video.h"
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -174,26 +175,31 @@ void CRTC_write_value(unsigned char data)
       break;
 
     case 0x0c:		/* Start Address High */
-      vga.display_start = (vga.display_start & 0xff) | (u << 8);
-      crtc_deb("CRTC_write_value: Start Address = 0x%04x\n", vga.display_start);
+      /* these shifts involving vga.crtc.addr_mode should really be rotations, 
+         depending on mode control bit 5 */
+      vga.display_start = (vga.crtc.data[0x0d] + (u << 8)) << vga.crtc.addr_mode;
+      screen_adr = SCREEN_ADR(0) + vga.display_start/2;
+      crtc_deb("CRTC_write_value: Start Address = 0x%04x, high changed\n", vga.display_start);
       break;
 
     case 0x0d:		/* Start Address Low */
-      vga.display_start = (vga.display_start & 0xff00) | u;
-      crtc_deb("CRTC_write_value: Start Address = 0x%04x\n", vga.display_start);
+      vga.display_start = (u + (vga.crtc.data[0x0c] << 8)) << vga.crtc.addr_mode;
+      /* this shift should really be a rotation, depending on mode control bit 5 */
+      screen_adr = SCREEN_ADR(0) + vga.display_start/2;
+      crtc_deb("CRTC_write_value: Start Address = 0x%04x, low changed\n", vga.display_start);
       break;
 
     case 0x0e:		/* Cursor Location High */
-      vga.crtc.cursor_location = (vga.crtc.cursor_location & 0xff) | (u << 8);
-      cursor_row = vga.crtc.cursor_location / (vga.scan_len/2);
-      cursor_col = vga.crtc.cursor_location % (vga.scan_len/2);
+      vga.crtc.cursor_location = (vga.crtc.data[0x0f] + (u << 8)) << vga.crtc.addr_mode; 
+      cursor_row = (vga.crtc.cursor_location - vga.display_start) / vga.scan_len;
+      cursor_col = ((vga.crtc.cursor_location - vga.display_start) % vga.scan_len) / 2;
       crtc_deb("CRTC_write_value: Cursor Location = 0x%04x\n", vga.crtc.cursor_location);
       break;
 
     case 0x0f:		/* Cursor Location  Low */
-      vga.crtc.cursor_location = (vga.crtc.cursor_location & 0xff00) | u;
-      cursor_row = vga.crtc.cursor_location / (vga.scan_len/2);
-      cursor_col = vga.crtc.cursor_location % (vga.scan_len/2);
+      vga.crtc.cursor_location = (u + (vga.crtc.data[0x0e] << 8)) << vga.crtc.addr_mode;
+      cursor_row = (vga.crtc.cursor_location - vga.display_start) / vga.scan_len;
+      cursor_col = ((vga.crtc.cursor_location - vga.display_start) % vga.scan_len) / 2;
       crtc_deb("CRTC_write_value: Cursor Location = 0x%04x\n", vga.crtc.cursor_location);
       break;
 

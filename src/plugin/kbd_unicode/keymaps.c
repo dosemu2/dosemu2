@@ -23,7 +23,6 @@
 static int is_a_console(int);
 static int open_a_console(char *);
 static int getfd(void);
-static char *dosemu_val(unsigned, t_keysym *);
 static int read_kbd_table(struct keytable_entry *);
 
 
@@ -1908,7 +1907,7 @@ struct keytable_entry keytable_list[] = {
   {"cz-qwertz", KEYB_CZ_QWERTZ, 0, CT(key_map_cz_qwertz), CT(num_table_comma),
     key_map_cz_qwertz, shift_map_cz_qwertz, alt_map_cz_qwertz,
     num_table_comma,},                                       
-  {"keyb-user", KEYB_USER, 0, CT(key_map_user), CT(num_table_comma),
+  {"keyb-user", KEYB_USER, 0, CT(key_map_user), CT(num_table_dot),
     key_map_user, shift_map_user, alt_map_user,
     num_table_dot,},
   {0},
@@ -1952,14 +1951,32 @@ static int getfd()
   return -1;
 }
 
+static char* pretty_keysym(t_keysym d)
+{
+	static char b[100];
+	char *s = b;
+
+	if(d < 0x20 || d == 0x7f || d >= 0x80) {
+		sprintf(b, "0x%02x", d);
+	}
+	else if (d >= 0x80) {
+		sprintf(b, "0x%04x", d);
+	}
+	else {
+		sprintf(b, "'%c' ", (char) d);
+	}
+	
+	if(d == '\'') s = "'\\''";
+	if(d == KEY_VOID) s = " -- ";
+	
+	return s;
+}
 /*
  * Try to translate a keycode to a DOSEMU keycode...
  */
 
-static char *dosemu_val(unsigned k, t_keysym *dv)
+static t_keysym dosemu_val(unsigned k)
 {
-	static char b[100];
-	char *s = b;
 	unsigned t = KTYP(k), v = KVAL(k);
 	t_keysym d;
 	
@@ -2022,16 +2039,16 @@ static char *dosemu_val(unsigned k, t_keysym *dv)
 		
 	case KT_PAD:
 		switch(k) {
-		case K_P0:	d = KEY_PAD_0; break;
-		case K_P1:	d = KEY_PAD_1; break;
-		case K_P2:	d = KEY_PAD_2; break;
-		case K_P3:	d = KEY_PAD_3; break;
-		case K_P4:	d = KEY_PAD_4; break;
-		case K_P5:	d = KEY_PAD_5; break;
-		case K_P6:	d = KEY_PAD_6; break;
-		case K_P7:	d = KEY_PAD_7; break;
-		case K_P8:	d = KEY_PAD_8; break;
-		case K_P9:	d = KEY_PAD_9; break;
+		case K_P0:	d = KEY_PAD_INS; break;
+		case K_P1:	d = KEY_PAD_END; break;
+		case K_P2:	d = KEY_PAD_DOWN; break;
+		case K_P3:	d = KEY_PAD_PGDN; break;
+		case K_P4:	d = KEY_PAD_LEFT; break;
+		case K_P5:	d = KEY_PAD_CENTER; break;
+		case K_P6:	d = KEY_PAD_RIGHT; break;
+		case K_P7:	d = KEY_PAD_HOME; break;
+		case K_P8:	d = KEY_PAD_UP; break;
+		case K_P9:	d = KEY_PAD_PGUP; break;
 		case K_PPLUS:	d = KEY_PAD_PLUS; break;
 		case K_PMINUS:	d = KEY_PAD_MINUS; break;
 		case K_PSTAR:	d = KEY_PAD_AST; break;
@@ -2044,6 +2061,17 @@ static char *dosemu_val(unsigned k, t_keysym *dv)
 		break;
 		
 	case KT_SHIFT:
+		switch(k) {
+		case K_SHIFT:	d = KEY_L_SHIFT; break;
+		case K_SHIFTL:	d = KEY_L_SHIFT; break;
+		case K_SHIFTR:	d = KEY_R_SHIFT; break;
+		case K_CTRL:	d = KEY_L_CTRL; break;
+		case K_CTRLL:	d = KEY_L_CTRL; break;
+		case K_CTRLR:	d = KEY_R_CTRL; break;
+		case K_ALT:	d = KEY_L_ALT; break;
+		case K_ALTGR:	d = KEY_MODE_SWITCH; break;
+		}
+		break;
 	case KT_META:
 		d = KEY_VOID;
 		break;
@@ -2062,25 +2090,8 @@ static char *dosemu_val(unsigned k, t_keysym *dv)
 	default:
 		break;
 	}
-
-	if(dv) *dv = d;
-
-	sprintf(b, "%04x", k);
 	
-	if(d < 0x20 || d == 0x7f || d >= 0x80) {
-		sprintf(b, "0x%02x", d);
-	}
-	else if (d >= 0x80) {
-		sprintf(b, "0x%04x", d);
-	}
-	else {
-		sprintf(b, "'%c' ", (char) d);
-	}
-	
-	if(d == '\'') s = "'\\''";
-	if(d == KEY_VOID) s = " -- ";
-	
-	return s;
+	return d;
 }
 
 
@@ -2205,9 +2216,8 @@ static const struct keycode_map dosemu_to_kernel[] =
 static int read_kbd_table(struct keytable_entry *kt)
 {
 	int fd, i, j = -1;
-	t_keysym k;
 	struct kbentry ke;
-	unsigned v, vs, va, vc;
+	int altgr_present;
 	
 	fd = getfd();
 	if(fd < 0) {
@@ -2215,7 +2225,10 @@ static int read_kbd_table(struct keytable_entry *kt)
 		return 1;
 	}
 	
+	altgr_present = 0;
 	for(i = 0; i < sizeof(dosemu_to_kernel)/sizeof(dosemu_to_kernel[0]); i++) {
+		unsigned vp, vs, va, vc;
+		t_keysym kp, ks, ka, kc;
 		int kernel, dosemu;
 		kernel = dosemu_to_kernel[i].kernel;
 		dosemu = dosemu_to_kernel[i].dosemu;
@@ -2223,7 +2236,7 @@ static int read_kbd_table(struct keytable_entry *kt)
 		
 		ke.kb_table = 0;
 		if ((j = ioctl(fd, KDGKBENT, (unsigned long) &ke))) break;
-		v = ke.kb_value;
+		vp = ke.kb_value;
 		
 		ke.kb_table = 1 << KG_SHIFT;
 		if ((j = ioctl(fd, KDGKBENT, (unsigned long) &ke))) break;
@@ -2237,21 +2250,43 @@ static int read_kbd_table(struct keytable_entry *kt)
 		if ((j = ioctl(fd, KDGKBENT, (unsigned long) &ke))) break;
 		vc = ke.kb_value;
 		
-		if(va == v) va = 0;
-		
-		dosemu_val(v, &k); kt->key_map[dosemu] = k;
-		dosemu_val(vs, &k); kt->shift_map[dosemu] = k;
-		dosemu_val(va, &k); kt->alt_map[dosemu] = k;
-		dosemu_val(vc, &k); kt->ctrl_map[dosemu] = k;
-		
+		kp = dosemu_val(vp);
+		ks = dosemu_val(vs);
+		ka = dosemu_val(va);
+		kc = dosemu_val(vc);
+		if ((kp == KEY_MODE_SWITCH) || (ks == KEY_MODE_SWITCH) ||
+			(ka == KEY_MODE_SWITCH) || (kc == KEY_MODE_SWITCH)) {
+			printf("mode_switch\n");
+			altgr_present = 1;
+		}
+		if (ka == kp) {
+			ka = U_VOID;
+		}
+		/* Only allow control characters in the ctrl plane */
+		if ((kc > 0x1f) && (kc != 0x7f)) {
+			kc = U_VOID;
+		}
+		/* As a special case filter [ctrl][tab] */
+		if ((dosemu = NUM_TAB) && (kc == 0x09)) {
+			kc = U_VOID;
+		}
+		kt->key_map[dosemu]   = kp;
+		kt->shift_map[dosemu] = ks;
+		kt->alt_map[dosemu]   = ka;
+		kt->ctrl_map[dosemu]  = kc;
 #if 0
-		printf("%3d: %04x %04x %04x %04x   ", i, v, vs, va, vc);
-		
-		printf("%s ", dosemu_val(v, &k));
-		printf("%s ", dosemu_val(vs, &k));
-		printf("%s\n", dosemu_val(va, &k));
-		printf("%s\n", dosemu_val(vc, &k));
+		printf("%02x: ", dosemu);
+		printf("p: %04x->%-6s ", vp, pretty_keysym(kp));
+		printf("s: %04x->%-6s ", vs, pretty_keysym(ks));
+		printf("a: %04x->%-6s ", va, pretty_keysym(ka));
+		printf("c: %04x->%-6s ", vc, pretty_keysym(kc));
+		printf("\n");
 #endif
+	}
+	if (!altgr_present) {
+		for(i = 0; i < sizeof(kt->alt_map)/sizeof(kt->alt_map[0]); i++) {
+			kt->alt_map = U_VOID;
+		}
 	}
 
 	/* look for numpad ',' or '.' */
@@ -2287,7 +2322,7 @@ int setup_default_keytable()
 	  shift_alt_map[NUM_KEY_NUMS],
 	  ctrl_alt_map[NUM_KEY_NUMS];
   struct keytable_entry *kt;
-  int idx;
+  int i, idx;
 
   idx = sizeof keytable_list / sizeof *keytable_list - 2;
 
@@ -2308,40 +2343,27 @@ int setup_default_keytable()
   kt->shift_alt_map = shift_alt_map;
   kt->ctrl_alt_map = ctrl_alt_map;
 
-  memcpy(num_map, num_table_comma, sizeof num_map);
+  /* Initialize everything to unknown */
+  for(i = 0; i < NUM_KEY_NUMS; i++) {
+    plain_map[i] = U_VOID;
+    shift_map[i] = U_VOID;
+    alt_map[i] = U_VOID;
+    ctrl_map[i] = U_VOID;
+    shift_alt_map[i] = U_VOID;
+    ctrl_alt_map[i] = U_VOID;
+  }
+  /* Copy in the us keymap for a default */
+  memcpy(plain_map, key_map_us, sizeof(plain_map));
+  memcpy(shift_map, shift_map_us, sizeof(shift_map));
+  memcpy(alt_map, alt_map_us, sizeof(alt_map));
+  memcpy(num_map, num_table_dot, sizeof(num_map));
+  memcpy(ctrl_map, ctrl_map_us, sizeof(ctrl_map));
 
+  /* Now copy parameters for the linux kernel keymap */
   if(read_kbd_table(kt)) {
     k_printf("setup_default_keytable: failed\n");
     return -1;
   }
-
-#if 0
-  {
-    int i;
-
-    kt = keytable_list;
-    i = 0; while(kt->name) {
-      printf(
-        "%2d: name \"%s\", keyboard %d, flags 0x%x, sizemap %d, sizepad %d\n",
-        i, kt->name, kt->keyboard, kt->flags, kt->sizemap, kt->sizepad
-      );
-      i++, kt++;
-    }
-  }
-#endif
-
-#if 0
-  {
-    int i;
-
-    kt = keytable_list + KEYB_DE;
-    for(i = 0; i < kt->sizemap; i++) {
-      printf("%3d: %04x %04x %04x\n",
-        i, kt->key_map[i], kt->shift_map[i], kt->alt_map[i]
-      );
-    }
-  }
-#endif
 
   return KEYB_AUTO;
 }

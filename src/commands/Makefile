@@ -48,7 +48,9 @@ PD=precompiled
 
 INDIR=-I../include
 
-all: $(COM) $(SYS)
+all: $(SYS)
+
+dosbin: $(COM) $(SYS)
 
 $(D)/%.sys: %.S detect.h
 	$(LD) $(INDIR) -traditional -Wa,-a -Wl,-Ttext,0,-e,_start16,--oformat,binary -nostdlib -s -o $@ $< > $*.s.out

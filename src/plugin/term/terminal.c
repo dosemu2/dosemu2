@@ -116,7 +116,9 @@ static void set_char_set (void)
 	struct char_set_state term_state;
 	struct char_set_state display_state;
 	int i;
-   
+
+	/* Initial don't allow the high control characters. */
+	SLsmg_Display_Eight_Bit = 0xA0;
 	/* Build the translate tables */
 	v_printf("mapping internal characters to terminal characters:\n");
 	for(i= 0; i <= 0xff; i++) {
@@ -132,47 +134,29 @@ static void set_char_set (void)
 		result = unicode_to_charset(&term_state, uni, The_Charset + i, 1);
 		v_printf("mapping: %c -> %04x -> %c\n", i, uni, The_Charset[i]);
 
+		/* If we have any non control charcters in 0x80 - 0x9f
+		 * set up  the slang code up so we can send them. 
+		 */
+		if ((The_Charset[i] >= 0x80) && ((The_Charset[i] <= 0x9F)) &&
+			(((uni >= 0x20) && (uni < 0x80)) || (uni > 0x9f))) {
+			/* Allow us to use chars 0x80 to 0x9F */
+			SLsmg_Display_Eight_Bit = 0x80;
+		}
+
 		cleanup_charset_state(&term_state);
 		cleanup_charset_state(&display_state);
 	}
-
-	/* Now see if we have any non control charcters in 0x80 - 0x9f
-	 * if so set the slang code up so we can send them. 
+	/* Slang should filter out the control sequences for us... 
+	 * So don't worry about characters 0x00 - 0x1f && 0x80 - 0x9f
 	 */
-	for(i = 0xa0; i < 0x9f; i++) {
-		int c = The_Charset[i];
-		if (	((c <= 0x00) || (c >= 0x20)) &&
-			((c <= 0x80) || (c >= 0xA0))) {
-			Use_IBM_Codes = 1;
-			break;
-		}
-	}
-	
-	if (!Use_IBM_Codes) {
-		/* The fact is that this code is used to talk to a terminal.  Control 
-		 * sequences 0x00-0x1f and 0x80-0x9F are reserved for the terminal.  Here I fixup 
-		 * the character set map to reflect this fact (only if not ibmpc codes).
-		 */
-		for (i = 0; i < 256; i++) {
-			if ((The_Charset[i] & 0x7F) < 32) {
-				The_Charset[i] |= 32;
-			}
-		}
-		/* Don't allow slang to use 8 bit control characters */
-		SLsmg_Display_Eight_Bit = 0xA0;
-	}
-	else /* USE_IBM_CODES */
-	{
+	if (trconfig.output_charset == lookup_charset("cp437")) {
+		Use_IBM_Codes = 1;
+		/* Should we be testing TERM here??? */
 		/* The following turns on the IBM character set mode of virtual console
 		 * The same code is echoed twice, then just in case the escape code
 		 * not recognized and was printed, erase it with spaces.
 		 */
-#if 0
-		SLtt_write_string ("\n\033(B\033(B\r         \r");
-#endif
 		SLtt_write_string ("\033(U\033(U\r        \r");
-		/* Allow us to use chars 0x80 to 0x9F */
-		SLsmg_Display_Eight_Bit = 0x80;
 	}
 }
 

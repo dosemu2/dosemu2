@@ -1599,6 +1599,12 @@ stack_return_from_vm86:
 			    else
 				EFLAGS = (EFLAGS&amask) |
 					 ((temp&(eTSSMASK|0xfd7))&~amask);
+			    if (in_dpmi) {
+				if (EFLAGS_IF)
+				    dpmi_sti();
+				else
+				    dpmi_cli();
+			    }
 			    if (debug_level('e')>1)
 				e_printf("Popped flags %08lx->{r=%08lx v=%08x}\n",temp,EFLAGS,dpmi_eflags);
 			}

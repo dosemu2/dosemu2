@@ -729,11 +729,11 @@ static void init_active_keyboard_state(
 {
 	memset(state, 0, sizeof(*state));
 	state->rules = rules;
-/* for now, we just assume that NumLock=on, Caps=off, Scroll=off. If the raw frontend
+/* for now, we just assume that NumLock=off, Caps=off, Scroll=off. If the raw frontend
  * is running, it'll tell us the actual shiftstate later, otherwise we'll have to
  * live with this.
  */
-	state->shiftstate = NUM_LOCK;
+	state->shiftstate = 0;
 	state->alt_num_buffer = 0;
 	state->accent = KEY_VOID;
 	state->raw_state.rawprefix = 0;

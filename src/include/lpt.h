@@ -30,6 +30,12 @@ struct printer {
 
 };
 
+/* public functions */
+int printer_open(int prnum);
+int printer_close(int prnum);
+int printer_flush(int prnum);
+int printer_write(int prnum, int outchar);
+
 /* status bits */
 #define LPT_TIMEOUT	0x1
 #define LPT_IOERR	0x8

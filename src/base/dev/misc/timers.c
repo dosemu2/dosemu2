@@ -136,19 +136,19 @@ void timer_tick(void)
     return;
   }
 
-  /* Get system time in usec */
-  tp.td = GETusTIME(0);
+  /* Get system time in ticks */
+  tp.td = GETtickTIME(0);
 #ifdef ONE_MINUTE_TEST
   if (++dbug_count > 6000) leavedos(0);
 #endif
 
-  /* compute the number of 100usecs since we started */
+  /* compute the number of 100ticks since we started */
   time_curr  = (tp.td - pit[0].time.td) / 100;
   
   /* Reset old timer value to 0 if time_curr wrapped around back to 0 */
   if (time_curr < time_old) time_old = 0;
   
-  /* Compute number of 100usec ticks since the last time this function ran */
+  /* Compute number of 100ticks ticks since the last time this function ran */
   ticks_accum += (time_curr - time_old);
   
   /* Save old value of the timer */

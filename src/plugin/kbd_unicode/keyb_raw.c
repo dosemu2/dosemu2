@@ -141,7 +141,7 @@ static inline void set_raw_mode(void)
  * 
  * DANG_END_FUNCTION
  */
-int raw_keyboard_init(void)
+static int raw_keyboard_init(void)
 {
   k_printf("KBD(raw): raw_keyboard_init()\n");
    
@@ -181,6 +181,20 @@ int raw_keyboard_init(void)
   }
    
   return TRUE;
+}
+
+/*
+ * DANG_BEGIN_FUNCTION raw_keyboard_reset
+ * 
+ * Reset the keyboard shiftstate to match the keyboard LED's
+ * 
+ * DANG_END_FUNCTION
+ */
+static void raw_keyboard_reset(void)
+{
+  /* initialise the server's shift state to the current keyboard state */ 
+  set_shiftstate(get_kbd_flags());
+	
 }
 
 /* something like this oughta be defined in linux/kd.h but isn't... */
@@ -226,7 +240,7 @@ struct keyboard_client Keyboard_raw =  {
    "raw",                      /* name */
    raw_keyboard_probe,	       /* probe */
    raw_keyboard_init,          /* init */
-   NULL,                       /* reset */
+   raw_keyboard_reset,         /* reset */
    raw_keyboard_close,         /* close */
    do_raw_getkeys,             /* run */
    set_kbd_leds,       	       /* set_leds */

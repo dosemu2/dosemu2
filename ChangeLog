@@ -1,3 +1,33 @@
+2002/01/23 ver 1.1.2.8 unofficial pre-release
+	From Bart
+	- The addresses in crtcemu need to be shifted by the current value
+	  of vga.crtc.addr_mode. Also enabled hardware scrolling for
+	  textmodes. This enables some games and 8086-Minix to display 
+	  properly.
+	- make .sys files (not created from coopthreads) also by default, not just
+	  with make dosbin. 
+        From Stas
+	- as pit[0].time.td is initialized with GETtickTIME, we have to initialize
+	  tp.td with GETtickTIME also, else time_curr contains garbage and sometimes
+	  goes beyond zero.
+	- update dosemu flags on popf under CPUemu	
+	  This allows doom to work with sound.
+	- Don't allow direct access to speaker's ports when $_speaker is not "native"
+	  This breaks some kernel stuff (pc-speaker driver in particular) and we
+	  have an emulated PIT anyway.
+	  Eric confirmed that this doesn't break his Matrox.
+	- pic_untrigger() implemented.
+	  This is for SB detection.
+	- PrintScreen implemented.
+	  I hope this is now what Eric wanted it to be.
+	- Fixes for ecpuon, ecpuoff and system commands
+	From Eric
+	- Add cp858 support cp850 + EURO
+	- Add koi8-r support for the russion hackers
+	- Fix comment in keyb_raw.c
+	- keymaps.c Corrected $_layout="auto" rename this to $_layout="kernel"
+	- terminal.c Improve handling of charcter sets that use 0x80 - 0x9f
+	- Fix incorrect initial numlock state with new keyboard code
 2002/01/12 ver 1.1.2.7 unofficial pre-release
 	From Stas
 	- set VIP on pic_request() to activate the int ASAP.

@@ -131,6 +131,7 @@ int do_irq();                                /* run dos portion of irq code */
 #define PIC_REQ_LOST	(-2)
 #define PIC_REQ_PEND	(-1)
 int pic_request(int inum);                            /* interrupt trigger */
+void pic_untrigger(int inum);                          /* interrupt untrigger */
 
 void pic_iret();                             /* interrupt completion notify */
 void pic_watch();		       /* interrupt pending watchdog timer */
