@@ -34,10 +34,10 @@ AS86=@AS86@
 
 TOPDIR=@SRCPATH@
 
-CFILES = video.c vc.c vga.c et4000.c s3.c trident.c avance.c ati.c console.c \
+CFILES = video.c vc.c vga.c et4000.c s3.c trident.c avance.c ati.c cirrus.c console.c \
          $(XCFILES) hgc.c dualmon.c terminal.c
-HFILES = vga.h et4000.h s3.h trident.h avance.h ati.h terminal.h $(XHDRS)
-OFILES = video.o vc.o vga.o et4000.o s3.o avance.o trident.o ati.c console.o \
+HFILES = vga.h et4000.h s3.h trident.h avance.h ati.h cirrus.h terminal.h $(XHDRS)
+OFILES = video.o vc.o vga.o et4000.o s3.o avance.o trident.o ati.o cirrus.o console.o \
          int10.o $(XOBJS) hgc.o dualmon.o terminal.o
 #OBJS = $(OFILES)
 

@@ -115,9 +115,6 @@ static int fake201 = 50;	/* for diagnostic loops, do not run games
 */ 
 #define PORT_DEBUG 3
 
-extern void set_leds(void);
-/* FIXME -- move to common header */
-extern int s3_8514_base;
 
 /*                              3b0         3b4         3b8         3bc                     */
 const unsigned char ATIports[]={ 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, /* 3b0-3bf */
@@ -205,13 +202,13 @@ inb(unsigned int port)
     }
   }
 #if 1
-  else if (config.chipset && port > 0x3b3 && port < 0x3df && config.mapped_bios)
+  if (config.chipset && (port > 0x3b3) && (port < 0x3df) && config.mapped_bios)
     r = (video_port_in((u_int)port));
-  else if ((config.chipset == S3) && ((port & 0x03fe) == s3_8514_base) && (port & 0xfc00)) {
+  else if (v_8514_base && ((port & 0x03fe) == v_8514_base) && (port & 0xfc00)) {
     iopl(3);
     r = port_in((u_int)port) & 0xff;
     iopl(0);
-    v_printf("S3 inb [0x%04x] = 0x%02x\n", port, r);
+    v_printf("8514 inb [0x%04x] = 0x%02x\n", port, r);
   }
   else if ((config.chipset == ATI) && isATIport(port) && (port & 0xfc00)) {
     iopl(3);
@@ -330,13 +327,13 @@ inb(unsigned int port)
 unsigned int
 inw(int port)
 {
-  if ((config.chipset == S3) && ((port & 0x03ff) == s3_8514_base) && (port & 0xfc00)) {
+  if (v_8514_base && ((port & 0x03fd) == v_8514_base) && (port & 0xfc00)) {
     int value;
 
     iopl(3);
     value = port_in_w(port) & 0xffff;
     iopl(0);
-    v_printf("S3 inw [0x%04x] = 0x%04x\n", port, value);
+    v_printf("8514 inw [0x%04x] = 0x%04x\n", port, value);
     return value;
   }
   else if ((config.chipset == ATI) && isATIport(port) && (port & 0xfc00)) {
@@ -480,14 +477,15 @@ outb(unsigned int port, unsigned int byte)
     }
   }
 
-#if 1
-  if (port > 0x3b3 && port < 0x3df && config.chipset && config.mapped_bios)
+  if (port > 0x3b3 && port < 0x3df && config.chipset && config.mapped_bios) {
     video_port_out(byte, port);
-  if ((config.chipset == S3) && ((port & 0x03fe) == s3_8514_base) && (port & 0xfc00)) {
+    return;
+  }
+  if (v_8514_base && ((port & 0x03fe) == v_8514_base) && (port & 0xfc00)) {
     iopl(3);
     port_out(byte, port);
     iopl(0);
-    v_printf("S3 outb [0x%04x] = 0x%02x\n", port, byte);
+    v_printf("8514 outb [0x%04x] = 0x%02x\n", port, byte);
     return;
   }
   if ((config.chipset == ATI) && isATIport(port) && (port & 0xfc00)) {
@@ -497,7 +495,6 @@ outb(unsigned int port, unsigned int byte)
     v_printf("ATI outb [0x%04x] = 0x%02x\n", port, byte);
     return;
   }
-#endif
 
   /* The diamond bug */
   if (config.chipset == DIAMOND && (port >= 0x23c0) && (port <= 0x23cf)) {
@@ -601,11 +598,11 @@ outb(unsigned int port, unsigned int byte)
 void
 outw(unsigned int port, unsigned int value)
 {
-  if ((config.chipset == S3) && ((port & 0x03ff) == s3_8514_base) && (port & 0xfc00)) {
+  if (v_8514_base && ((port & 0x03fd) == v_8514_base) && (port & 0xfc00)) {
     iopl(3);
     port_out_w(value, port);
     iopl(0);
-    v_printf("S3 outw [0x%04x] = 0x%04x\n", port, value);
+    v_printf("8514 outw [0x%04x] = 0x%04x\n", port, value);
     return;
   }
   if ((config.chipset == ATI) && isATIport(port) && (port & 0xfc00)) {

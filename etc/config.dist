@@ -303,6 +303,9 @@ video { vga }          # Use this line, if you are using VGA
 #   Diamond SVGA
 #video { vga  console  graphics  chipset diamond }
 #
+#   Cirrus SVGA
+#video { vga  console  graphics  chipset cirrus }
+#
 #   ET4000 SVGA card with 1 megabyte on board:
 #video { vga  console  graphics  chipset et4000  memsize 1024 }
 # or

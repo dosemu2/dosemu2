@@ -727,9 +727,10 @@ get_perm (void)
 	  v_printf ("VGA: can't get I/O permissions \n");
 	  exit (-1);
 	}
-      if (config.chipset == S3 && (set_ioperm (0x102, 1, 1) || set_ioperm (0x2ea, 4, 1)))
+      if (((config.chipset==S3) || (config.chipset==CIRRUS)) &&
+		(set_ioperm (0x102, 1, 1) || set_ioperm (0x2ea, 4, 1)))
 	{
-	  v_printf ("S3: can't get I/O permissions \n");
+	  v_printf ("S3/CIRRUS: can't get I/O permissions \n");
 	  exit (-1);
 	}
       if (config.chipset == ATI && (set_ioperm (0x102, 1, 1) || set_ioperm (0x1ce, 2, 1) || set_ioperm (0x2ec, 4, 1)))
@@ -792,9 +793,10 @@ release_perm (void)
 	      v_printf ("VGA: can't release I/O permissions \n");
 	      leavedos (-1);
 	    }
-	  if (config.chipset == S3 && (set_ioperm (0x102, 1, 0) || set_ioperm (0x2ea, 4, 0)))
+	  if (((config.chipset==S3) || (config.chipset==CIRRUS)) && 
+		(set_ioperm (0x102, 1, 0) || set_ioperm (0x2ea, 4, 0)))
 	    {
-	      v_printf ("S3: can't release I/O permissions\n");
+	      v_printf ("S3/CIRRUS: can't release I/O permissions\n");
 	      leavedos (-1);
 	    }
 	  if (config.chipset == ATI && 

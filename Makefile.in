@@ -21,4 +21,5 @@ pristine:
 	rm -f `find . -name '*~'`
 	rm -f `find . -name '*.d'`
 	rm -f `find . -name '*[\.]orig'`
+	rm -f `find . -name '*[\.]rej'`
 	rm -vf `find . -size 0`

@@ -40,11 +40,8 @@ static int s3_chiprev = 0;
 static int s3_memsize = 0;
 static int s3_series = 0;
 static int s3_Ramdac = 0;
-int s3_8514_base = 0;
+static int s3_8514_base = BASE_8514_1;
 static unsigned short s3BtLowBits[] = { 0x3C8, 0x3C9, 0x3C6, 0x3C7 };
-
-#define BASE_8514_1	0x2e8
-#define BASE_8514_2	0x148
 
 static void out_crt(const int index, const int value)
 {
@@ -669,6 +666,8 @@ void vga_init_s3(void)
 	v_printf("S3 base address: 0x%x\n", s3_8514_base);
 	v_printf("S3 memory size : %d kbyte\n", s3_memsize);
 
+	config.gfxmemsize = s3_memsize;
+	v_8514_base = s3_8514_base;
 	out_crt(0x38, mode);
 }
 

@@ -19,6 +19,7 @@
 #include "ati.h"
 #include "trident.h"
 #include "avance.h"
+#include "cirrus.h"
 #if 0
 #include "hgc.h"
 #endif
@@ -485,6 +486,10 @@ int vga_initialize(void)
   case ATI:
     vga_init_ati();
     v_printf("ATI CARD in use\n");
+    break;
+  case CIRRUS:
+    vga_init_cirrus();
+    v_printf("Cirrus CARD in use\n");
     break;
 
   default:

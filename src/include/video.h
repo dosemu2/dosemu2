@@ -183,6 +183,7 @@ EXTERN int virt_text_base INIT(0);
 EXTERN int phys_text_base INIT(0);
 EXTERN int video_combo INIT(0);
 EXTERN int video_subsys;
+EXTERN int v_8514_base INIT(0);
 
 /* The following defines are for terminal (curses) mode */
 
@@ -246,6 +247,8 @@ EXTERN int video_subsys;
 #define S3		4
 #define AVANCE		5
 #define ATI		6
+#define CIRRUS		7
+
 
 EXTERN void get_screen_size (void);
 EXTERN void set_video_bios_size(void);
@@ -253,5 +256,9 @@ EXTERN void X_handle_events(void);
 EXTERN void X_blink_cursor(void);
 EXTERN void init_vga_card(void);
 EXTERN void scr_state_init(void);
+
+/* moved here from s3.c --AV  */
+#define BASE_8514_1	0x2e8
+#define BASE_8514_2	0x148
 
 #endif

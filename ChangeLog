@@ -1,3 +1,8 @@
+97/02/21 ver. 0.65.99.3 unofficial pre-release
+	From Alberto
+	- Support for CIRRUS chipsets (some code comon with S3: v_8514)
+	From Hans
+	- fixed typos (mine) for ATI: in Makefile.in and lexer.l
 97/02/20 ver. 0.65.99.2 unofficial pre-release
 	From Josef Pavlik <jetset@ibm.net>
 	- Added ATI support (untested --Hans)
