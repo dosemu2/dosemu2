@@ -338,6 +338,9 @@ typedef struct {
   unsigned char mode;
   unsigned char index;
   unsigned char data[SEQ_MAX_INDEX + 1];
+  /* Helpful offsets for font processing    */
+  /* depends on map_select which is data[3] */
+  unsigned fontofs[2];
 } vga_seq_type;
 
 

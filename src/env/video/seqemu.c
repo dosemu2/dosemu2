@@ -101,16 +101,16 @@
 #define True 1
 #endif
 
-#define seq_msg(x...) v_printf("VGAEmu: " x)
+#define seq_msg(x...) v_printf("VGAEmu: Seq: " x)
 
 #if DEBUG_SEQ >= 1
-#define seq_deb(x...) v_printf("VGAEmu: " x)
+#define seq_deb(x...) v_printf("VGAEmu: Seq: " x)
 #else
 #define seq_deb(x...)
 #endif
 
 #if DEBUG_SEQ >= 2
-#define seq_deb2(x...) v_printf("VGAEmu: " x)
+#define seq_deb2(x...) v_printf("VGAEmu: Seq: " x)
 #else
 #define seq_deb2(x...)
 #endif
@@ -149,6 +149,22 @@ static unsigned char seq_ival[16][5] = {
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+/* calculate font bank offsets from map select value */
+static void seq_map_select(unsigned data)
+{
+  /* map select processing: prepare font mem offsets */
+  /* actually, the single "8k" bit should be ignored on EGA! */
+  vga.seq.fontofs[0] = ((data & 3) << 1) + /* 16k bits */
+    ((data & 0x10) >> 4); /* 8k bit */
+  vga.seq.fontofs[1] = ((data & 0x0c) >> 1) + /* 16k bits */
+    ((data & 0x20) >> 5); /* 8k bit */
+  vga.seq.fontofs[0] <<= 13; /* factor is 8k */
+  vga.seq.fontofs[1] <<= 13; /* factor is 8k */
+  seq_msg("Setting font offsets to 0x%04x/0x%04x (0x%02x)\n",
+          vga.seq.fontofs[0], vga.seq.fontofs[1], data);
+  vga.reconfig.display = 1;
+}
+
 void Seq_init()
 {
   unsigned i, j = 15;
@@ -161,6 +177,8 @@ void Seq_init()
   for(i = 0; i < 5; i++) {
     vga.seq.data[i] = seq_ival[j][i];
   }
+  /* font offset processing, see below: */
+  seq_map_select(vga.seq.data[3]);
   while(i <= SEQ_MAX_INDEX) vga.seq.data[i++] = 0;
   vga.seq.data[0x0b] = CHIP_ID;
 
@@ -292,6 +310,8 @@ void Seq_write_value(unsigned char data)
       break;
 
     case 0x03:		/* Character Map Select */
+      if (NEWBITS(0xff))
+        seq_map_select(data);
       break;
 
 

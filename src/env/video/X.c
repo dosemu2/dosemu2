@@ -156,6 +156,16 @@
  *             Extension example.
  *  -- Bart Oldeman
  *
+ * 2002/11/30: Began "VRAM" user font processing (X_draw_string...)
+ *  Probably not nicely integrated into the remapper -> no resizing!
+ *  Experimental FONT_LAB define available, too, to override int 0x43
+ *  in graphics mode. Bonus: Colorable OVERSCAN area in text mode.
+ *  Changed int10, vgaemu, seqemu, vgaemu.h, attremu, X. Sigh!
+ *  TODO: Code clean-up... And probably some optimizations.
+ *  TODO: Use video RAM instead of vga_font_ram -> more compatibility!
+ *  Introduded X_textscroll (see also vgaemu.h, int10.c).
+ *  -- Eric (eric@coli.uni-sb.de) (activate: #define FONT_LAB2 1)
+ *
  * DANG_END_CHANGELOG
  */
 
@@ -542,6 +552,7 @@ static void X_modify_mode(void);
 static void X_resize_text_screen(void);
 static void toggle_fullscreen_mode(void);
 static void X_vidmode(int w, int h, int *new_width, int *new_height);
+static void lock_window_size(unsigned wx_res, unsigned wy_res);
 
 /* screen update/redraw functions */
 static void X_reset_redraw_text_screen(void);
@@ -786,9 +797,14 @@ int X_init()
 
   load_cursor_shapes();
 
-  gcv.font = vga_font;
-  normalgc = gc = XCreateGC(display, mainwindow, GCFont, &gcv);
-  fullscreengc = XCreateGC(display, fullscreenwindow, GCFont, &gcv);
+  if (font) {
+    gcv.font = vga_font;
+    normalgc = gc = XCreateGC(display, mainwindow, GCFont, &gcv);
+    fullscreengc = XCreateGC(display, fullscreenwindow, GCFont, &gcv);
+  } else {
+    normalgc = gc = XCreateGC(display, mainwindow, 0, &gcv);
+    fullscreengc = XCreateGC(display, fullscreenwindow, 0, &gcv);
+  }
 
   attr.event_mask =
     KeyPressMask | KeyReleaseMask | KeymapStateMask |
@@ -909,7 +925,7 @@ void X_close()
   X_xf86vm_done();
 #endif
 
-  XUnloadFont(display, vga_font);
+  if (font) XUnloadFont(display, vga_font);
   if(our_window) {
     XDestroyWindow(display, normalwindow);
     XDestroyWindow(display, fullscreenwindow);
@@ -984,7 +1000,7 @@ void X_get_screen_info()
     }
   }
 
-  xi = XCreateImage(
+  xi = XCreateImage( /* this is just generated to allow measurements */
     display,
     visual,
     DefaultDepth(display, DefaultScreen(display)),
@@ -1301,7 +1317,16 @@ int X_change_config(unsigned item, void *buf)
     case X_CHG_FONT:
       xfont = XLoadQueryFont(display, (char *) buf);
       if(xfont == NULL) {
-        X_printf("X: X_change_config: font \"%s\" not found\n", (char *) buf);
+        if(font != NULL) XFreeFont(display, font);
+        font = xfont;
+        X_printf("X: X_change_config: font \"%s\" not found, "
+                 "using builtin\n", (char *) buf);
+        X_printf("X: NOT loading a font. Using EGA/VGA builtin/RAM fonts.\n");
+        X_printf("X: EGA/VGA font size is %d x %d\n",
+              vga.char_width, vga.char_height);
+        font_width = vga.char_width;
+        font_height = vga.char_height;
+        if(vga.mode_class == TEXT) X_resize_text_screen();
       }
       else {
         if(xfont->min_bounds.width != xfont->max_bounds.width) {
@@ -1488,7 +1513,7 @@ void X_set_mouse_cursor(int yes, int mx, int my, int x_range, int y_range)
 			else
 				return;
 		}
-		if (!mouse_really_left_window)
+		if (have_focus)
 			XWarpPointer(display, None, mainwindow, 0, 0, 0, 0,
 				     shift_x + (w_x_res * mx)/x_range,
 				     shift_y + (w_y_res * my)/y_range);
@@ -1516,7 +1541,7 @@ static void toggle_fullscreen_mode(void)
     mainwindow = fullscreenwindow;
     gc = fullscreengc;
     XCopyGC(display, normalgc, -1, gc);
-    if (vga.mode_class == GRAPH)
+    if (vga.mode_class == GRAPH || font == NULL)
       XResizeWindow(display, mainwindow, resize_width, resize_height);
     XMapWindow(display, mainwindow);
     XRaiseWindow(display, mainwindow);
@@ -1541,13 +1566,13 @@ static void toggle_fullscreen_mode(void)
     X_vidmode(-1, -1, &resize_width, &resize_height);
     gc = normalgc;
     XCopyGC(display, fullscreengc, -1, gc);
-    if (vga.mode_class == GRAPH)
+    if (vga.mode_class == GRAPH || font == NULL)
       XResizeWindow(display, mainwindow, resize_width, resize_height);
     XMapWindow(display, mainwindow);
   }
-  if(vga.mode_class == TEXT) {
+  if(vga.mode_class == TEXT && font) {
     X_resize_text_screen();
-  } else {	/* GRAPH */
+  } else {	/* GRAPH or builtin font */
     resize_ximage(resize_width, resize_height);
     dirty_all_video_pages();
     X_update_screen();
@@ -2115,6 +2140,9 @@ void refresh_text_palette()
       X_printf("X: refresh_text_palette: %d (%d -> %d)\n", i, (int) text_colors[i], (int) xc.pixel);
     }
     text_colors[i] = xc.pixel;
+    if (font == NULL)
+      remap_obj.palette_update(&remap_obj, col[i].index, dac_bits,
+                               col[i].r, col[i].g, col[i].b);
   }
 
   if(j) X_redraw_text_screen();
@@ -2341,6 +2369,89 @@ void resize_ximage(unsigned width, unsigned height)
   remap_obj.dst_image = ximage->data;
 }
 
+/*
+ * Resize everything according to vga.*
+ */
+static void resize_text_mapper(unsigned wx_res, unsigned wy_res)
+{
+  /* lots of things are global vars... */
+  int X_mode_type;
+  unsigned old_w_x_res = w_x_res;
+  unsigned old_w_y_res = w_y_res;
+  static char *text_canvas = NULL;
+
+  /* need a remap obj for the font system even in text mode! */
+  x_msg("X_setmode to text mode: Get remapper for Erics fonts\n");
+
+  X_mode_type = MODE_PSEUDO_8; /* linear 1 byte per pixel */
+
+  remap_done(&remap_obj);
+  x_msg("X_setmode: remap_init(0x%04x, 0x%04x, 0x%04x)\n",
+        X_mode_type, ximage_mode, remap_features);
+
+  remap_obj = remap_init(X_mode_type, ximage_mode, remap_features);
+  *remap_obj.dst_color_space = X_csd;
+  adjust_gamma(&remap_obj, config.X_gamma);
+
+  resize_ximage(wx_res, wy_res);    /* destroy, create, dst-map */
+  w_x_res = old_w_x_res;
+  w_y_res = old_w_y_res;
+  /* already done by resize: remap_obj.dst_image = ximage->data; */
+
+  /* resizing to remove half text lines is a bit useless but okay */  
+  remap_obj.dst_resize(&remap_obj, wx_res, wy_res, ximage->bytes_per_line);
+
+  x_res = vga.width;
+  y_res = vga.height;
+  text_canvas = remap_obj.src_image = realloc(text_canvas, 1 * x_res * y_res);
+  if (remap_obj.src_image == NULL)
+    error("X: cannot allocate text mode canvas for font simulation\n");
+  remap_obj.src_resize(&remap_obj, x_res, y_res, 1 * x_res);
+
+  x_msg("resize_text_mapper to %d x %d VGA --> %d x %d X11\n",
+        x_res, y_res, w_x_res, w_y_res);
+}
+
+/*
+ * Resize the window to given (*) size and lock it at that size
+ * In text mode, you have to resize the mapper, too
+ * ((*): given size is size of the embedded image)
+ */
+static void lock_window_size(unsigned wx_res, unsigned wy_res)
+{
+  XSizeHints sh;
+  int x_fill, y_fill;
+
+  sh.width = sh.min_width = sh.max_width = wx_res;
+  sh.height = sh.min_height = sh.max_height = wy_res;
+
+  sh.flags = PSize  | PMinSize | PMaxSize;
+  if (font == NULL) {
+    sh.flags |= PResizeInc;
+    sh.max_width = 32767;
+    sh.max_height = 32767;
+    sh.min_width = 0;
+    sh.min_height = 0;
+    sh.width_inc = 1;
+    sh.height_inc = 1;
+  }
+  XSetNormalHints(display, normalwindow, &sh);
+  XSync(display, False);
+
+  x_fill = w_x_res;
+  y_fill = w_y_res;
+  if (mainwindow == fullscreenwindow)
+    X_vidmode(w_x_res, w_y_res, &x_fill, &y_fill);
+
+  XResizeWindow(display, mainwindow, x_fill, y_fill);
+  X_printf("Resizing our window to %dx%d image\n", x_fill, y_fill);
+
+  XSetForeground(display, gc, text_colors[0]);
+  XFillRectangle(display, mainwindow, gc, 0, 0, x_fill, y_fill);
+
+  XSync(display, False); /* show NOW */
+  if (font == NULL) resize_text_mapper(x_fill, y_fill);
+}
 
 /* 
  * DANG_BEGIN_FUNCTION X_set_videomode
@@ -2372,14 +2483,21 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
  */
 int X_setmode(int mode, int text_width, int text_height, int init_vga)
 {
-  XSizeHints sh;
+  XSizeHints sh; /* for graphics modes, text size locking is above */
   int X_mode_type;
 #ifdef X_USE_BACKING_STORE
   XSetWindowAttributes xwa;
 #endif
 
   if(init_vga) {	/* tell vgaemu we're going to another mode */
-    if(!vga_emu_setmode(mode, text_width, text_height)) return 0;
+    if(!vga_emu_setmode(mode, text_width, text_height)) {
+      v_printf("vga_emu_setmode(%d, %d, %d) failed\n",
+               mode, text_width, text_height);
+      return 0;
+    } else if (font == NULL) {
+      font_width = vga.char_width;
+      font_height = vga.char_height;
+    }
   }
   else {
     vga.reconfig.re_init = 0;
@@ -2405,7 +2523,7 @@ int X_setmode(int mode, int text_width, int text_height, int init_vga)
    * We use it only in text modes; in graphics modes we are fast enough and
    * it would likely only slow down the whole thing. -- sw
    */
-  if(vga.mode_class == TEXT) {
+  if(vga.mode_class == TEXT && font) {
     xwa.backing_store = Always;
     xwa.backing_planes = -1;
     xwa.save_under = True;
@@ -2420,34 +2538,28 @@ int X_setmode(int mode, int text_width, int text_height, int init_vga)
 #endif
 
   if(vga.mode_class == TEXT) {
-    int x_fill, y_fill;
-
     XSetWindowColormap(display, mainwindow, text_cmap);
 
     X_reset_redraw_text_screen();
 
     dac_bits = vga.dac.bits;
 
-    saved_w_x_res = w_x_res = x_res = vga.text_width * font_width;
-    saved_w_y_res = w_y_res = y_res = vga.text_height * font_height;
+    if (font) {
+      w_x_res = x_res = vga.text_width * font_width;
+      w_y_res = y_res = vga.text_height * font_height;
+    } else {
+      x_res = vga.width;
+      w_x_res = (x_res <= 320) ? (2 * x_res) : x_res;
+      y_res = vga.height;
+      w_y_res = (y_res <= 240) ? (2 * y_res) : y_res;
+    }
 
-    /* We use the X font! Own font in future? */
-
-    sh.width = sh.min_width = sh.max_width = w_x_res;
-    sh.height = sh.min_height = sh.max_height = w_y_res;
-
-    sh.flags = PSize | PMinSize | PMaxSize;
-    XSetNormalHints(display, normalwindow, &sh);
-    XSync(display, False);
-
-    x_fill = w_x_res;
-    y_fill = w_y_res;
-    if (mainwindow == fullscreenwindow)
-      X_vidmode(w_x_res, w_y_res, &x_fill, &y_fill);
-    XResizeWindow(display, mainwindow, x_fill, y_fill);
-
-    XSetForeground(display, gc, text_colors[0]);
-    XFillRectangle(display, mainwindow, gc, 0, 0, x_fill, y_fill);
+    saved_w_x_res = w_x_res;
+    saved_w_y_res = w_y_res;
+    lock_window_size(w_x_res, w_y_res);
+    if(mainwindow == fullscreenwindow) {
+      X_vidmode(x_res, y_res, &w_x_res, &w_y_res);
+    }
   }
   else {	/* GRAPH */
 
@@ -2505,6 +2617,10 @@ int X_setmode(int mode, int text_width, int text_height, int init_vga)
       default:
         X_mode_type = 0;
     }
+
+    x_msg("X_setmode: remap_init(0x%04x, 0x%04x, 0x%04x)\n",
+      X_mode_type, ximage_mode, remap_features);
+
     remap_obj = remap_init(X_mode_type, ximage_mode, remap_features);
     *remap_obj.dst_color_space = X_csd;
     adjust_gamma(&remap_obj, config.X_gamma);
@@ -2533,7 +2649,7 @@ int X_setmode(int mode, int text_width, int text_height, int init_vga)
     remap_obj.dst_resize(&remap_obj, w_x_res, w_y_res, ximage->bytes_per_line);
 
     if(!(remap_obj.state & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
-      error("X: X_setmode: vide mode 0x%02x not supported on this screen\n", mode);
+      error("X: X_setmode: video mode 0x%02x not supported on this screen\n", mode);
     }
 
     sh.width = w_x_res;
@@ -2642,6 +2758,11 @@ static void X_modify_mode()
 
   if(vga.reconfig.display) {
     remap_obj.src_resize(&remap_obj, vga.width, vga.height, vga.scan_len);
+
+    if (font == NULL) {
+      font_width = vga.char_width;
+      font_height = vga.char_height;
+    }
     x_msg(
       "X_modify_mode: geometry changed to %d x% d, scan_len = %d bytes\n",
       vga.width, vga.height, vga.scan_len
@@ -2671,6 +2792,10 @@ static void X_modify_mode()
 void X_set_textsize(int width, int height)
 {
   X_printf("X: X_set_textsize: size = %d x %d\n", width, height);
+  if (font == NULL) {
+    font_width = vga.char_width;
+    font_height = vga.char_height;
+  }
   vga_emu_set_textsize(width, height);
   X_resize_text_screen();
 }
@@ -2681,28 +2806,20 @@ void X_set_textsize(int width, int height)
  */
 void X_resize_text_screen() 
 {
-  XSizeHints sh;
-  int x_fill, y_fill;
-                                
-  saved_w_x_res = w_x_res = x_res = vga.text_width * font_width;
-  saved_w_y_res = w_y_res = y_res = vga.text_height * font_height;
-
-  sh.width = sh.min_width = sh.max_width = w_x_res;
-  sh.height = sh.min_height = sh.max_height = w_y_res;
-
-  sh.flags = PSize | PMinSize | PMaxSize;
-  XSetNormalHints(display, normalwindow, &sh);
-
-  if (mainwindow == normalwindow) {
-    x_fill = w_x_res;
-    y_fill = w_y_res;
-  } else { 
-    X_vidmode(w_x_res, w_y_res, &x_fill, &y_fill);
+  if (font) {
+    w_x_res = x_res = vga.text_width * font_width;
+    w_y_res = y_res = vga.text_height * font_height;
+  } else {
+    x_res = vga.width;
+    w_x_res = (x_res <= 320) ? (2 * x_res) : x_res;
+    y_res = vga.height;
+    w_y_res = (y_res <= 240) ? (2 * y_res) : y_res;
   }
-  XResizeWindow(display, mainwindow, x_fill, y_fill);
-
-  XSetForeground(display, gc, text_colors[0]);
-  XFillRectangle(display, mainwindow, gc, 0, 0, x_fill, y_fill);
+  saved_w_x_res = w_x_res;
+  saved_w_y_res = w_y_res;
+  
+  lock_window_size(w_x_res, w_y_res);
+ 
   X_redraw_text_screen();
 }
 
@@ -2761,12 +2878,12 @@ static void X_vidmode(int w, int h, int *new_width, int *new_height)
   my = MIN(mouse_y, nh - 1);
   shift_x = 0;
   shift_y = 0;
-  if(vga.mode_class == TEXT) {
+  if(vga.mode_class == TEXT && font) {
     shift_x = (nw - w_x_res)/2;
     shift_y = (nh - w_y_res)/2;
   }
 
-  if (!grab_active && (mx != 0 || my != 0) && !mouse_really_left_window)
+  if (!grab_active && (mx != 0 || my != 0) && have_focus)
     XWarpPointer(display, None, mainwindow, 0, 0, 0, 0,
                  mx + shift_x, my + shift_y);
   *new_width = nw;
@@ -2784,7 +2901,14 @@ void X_reset_redraw_text_screen()
 
   XFlush(display);
 
-  MEMCPY_2UNIX(prev_screen, screen_adr, co * li * 2);
+  /* Comment Eric: If prev_screen is too small, we must update */
+  /* everything continuously anyway, sigh...                   */
+  /* so we better cheat and clip co / li / ..., danger >:->.   */
+  if (vga.text_width  > MAX_COLUMNS) vga.text_width  = MAX_COLUMNS;
+  if (vga.text_height > MAX_LINES  ) vga.text_height = MAX_LINES;
+  if (co > MAX_COLUMNS) co = MAX_COLUMNS;
+  if (li > MAX_LINES  ) li = MAX_LINES;
+  MEMCPY_2UNIX(prev_screen, screen_adr, vga.text_width * vga.text_height * 2);
 }
 
 
@@ -2807,6 +2931,15 @@ void X_redraw_text_screen()
   if(vga.mode_class == GRAPH) {
     x_msg("X_redraw_text_screen: Text refresh in graphics video mode?\n");
     return;
+  }
+  x_msg("X_redraw_text_screen: all\n");
+
+  if (font == NULL) {
+    if ((co != vga.text_width) || (li != vga.text_height))
+      X_resize_text_screen(); /* assume vgaemu already knew that */
+  /* otherwise we would do vga_emu_set_textsize(x,y) */
+    co = vga.text_width;
+    li = vga.text_height;
   }
 
   if(co > MAX_COLUMNS) {
@@ -2895,6 +3028,11 @@ int X_update_text_screen()
 
   if(!is_mapped) return 0;       /* no need to do anything... */
 
+  if (font == NULL) {
+    li = vga.text_height;
+    co = vga.text_width;
+  }
+  
   refresh_palette();
 
   /* The following determines how many lines it should scan at once,
@@ -3017,10 +3155,11 @@ chk_cursor:
 	
 	if (numdone) 
 	  {
-	    if (numscan==li)
-	      return 1;     /* changed, entire screen updated */
-	    else
-	      return 2;     /* changed, part of screen updated */
+            if ((!font && numscan==vga.text_height) ||
+                (font && numscan==li))
+              return 1;     /* changed, entire screen updated */
+            else
+              return 2;     /* changed, part of screen updated */
 	  }
 	else 
 	  {
@@ -3137,23 +3276,120 @@ void X_draw_string(int x, int y, char *text, int len, Bit8u attr)
     "X_draw_string: %d chars at (%d, %d), attr = 0x%02x\n",
     len, x, y, (unsigned) attr
   );
+  
+  if (font) {
+    set_gc_attr(attr);
+    XDrawImageString(
+      display, mainwindow, gc,
+      shift_x + font_width * x,
+      shift_y + font_height * y + font_shift,
+      text,
+      len
+      );
+    
+  } else {
 
-  set_gc_attr(attr);
+    unsigned src, height, xx, yy, cc, srcp, srcp2, bits;
+    unsigned long fgX;
+    unsigned long bgX;
+    static int last_redrawn_line = -1;
+    RectArea ra;
 
-  XDrawImageString(
-    display, mainwindow, gc,
-    shift_x + font_width * x,
-    shift_y + font_height * y + font_shift,
-    text,
-    len
-  );
+    if (y >= MAX_LINES)      return;                /* clip */
+    if (x >= MAX_COLUMNS)    return;                /* clip */
+    if (x+len > MAX_COLUMNS) len = MAX_COLUMNS - x; /* clip */
 
+    /* fgX = text_colors[ATTR_FG(attr)]; */ /* if no remapper used */
+    /* bgX = text_colors[ATTR_BG(attr)]; */ /* if no remapper used */
+    fgX = ATTR_FG(attr);
+    bgX = ATTR_BG(attr);
+  
+    /* we could set fgX = bgX: vga.attr.data[0x10] & 0x08 enables  */
+    /* blinking to be triggered by (attr & 0x80) - but the third   */
+    /* condition would need to be periodically and having to redo  */
+    /* all blinking chars again each time that they blink sucks.   */
+    /* so we ALWAYS interpret blinking as bright background, which */
+    /* is what also happens when not vga.attr.data[0x10] & 0x08... */
+    /* An IDEA would be to have palette animation and use special  */
+    /* colors for the bright-or-blinking background, although the  */
+    /* official blink would be the foreground, not the background. */
+
+    /* Eric: What type is our remap_obj.src_mode at this moment??? */
+    /* not sure if I use the remap object at least roughly correct */
+    /* basically, it is like two Ximages, linked by remapping...   */
+
+
+    height = vga.char_height; /* not font_height - should start to */
+                              /* remove font_height completely. It */
+                              /* holds the X font's size...        */
+    font_width = vga.char_width; /* for similar reasons...  */
+    src = vga.seq.fontofs[(attr & 8) >> 3];
+
+    if (y != last_redrawn_line) /* have some less output */
+      X_printf(
+        "X_draw_string(x=%d y=%d len=%d attr=%d %dx%d @ 0x%04x)\n",
+        x, y, len, attr, font_width, height, src);
+    last_redrawn_line = y;
+
+    if ( ((y+1) * height) > vga.height ) {
+      v_printf("Tried to print below scanline %d (row %d)\n",
+          remap_obj.src_height, y);
+      return;
+    }
+    if ( ((x+len) * font_width) > vga.width ) {
+      v_printf("Tried to print past right margin\n");
+      v_printf("x=%d len=%d font_width=%d width=%d\n",
+               x, len, font_width, remap_obj.src_width);
+      return;
+    }
+    
+    /* would use vgaemu_xy2ofs, but not useable for US, NOW! */
+    srcp = remap_obj.src_scan_len * y * height;
+    srcp += x * font_width;
+    
+    /* vgaemu -> vgaemu_put_char would edit the vga.mem.base[...] */
+    /* but as vga memory is used as text buffer at this moment... */
+    for (yy = 0; yy < height; yy++) {
+      srcp2 = srcp;
+      for (cc = 0; cc < len; cc++) {
+        bits = vga.mem.base[0x20000 + src + (32 * (unsigned char)text[cc])];
+        for (xx = 0; xx < 8; xx++) {
+          remap_obj.src_image[srcp2++]
+            = (bits & 0x80) ? fgX : bgX;
+          bits <<= 1;
+        }
+        if (font_width >= 9) { /* copy 8th->9th for line gfx */
+          /* (only if enabled by bit... */
+          if ( (vga.attr.data[0x10] & 0x04) &&
+               ((text[cc] & 0xc0) == 0xc0) ) {
+            remap_obj.src_image[srcp2] = remap_obj.src_image[srcp2-1];
+            srcp2++;
+          } else {             /* ...or fill with background */
+            remap_obj.src_image[srcp2++] = bgX;
+          }
+          srcp2 += (font_width - 9);
+        }   /* (pixel-x has reached on next char now) */
+      }
+      srcp += remap_obj.src_scan_len;      /* next line */
+      src++;  /* globally shift to the next font row!!! */
+    }
+    
+    ra = remap_obj.remap_rect(&remap_obj, 0, height * y,
+                              remap_obj.src_width, height);
+    
+    /* put_ximage uses display, mainwindow, gc, ximage       */
+    X_printf("image at %d %d %d %d %d %d\n", shift_x+ra.x, shift_y+ra.y,
+             ra.width - shift_x, ra.height, ra.x, ra.y);
+    put_ximage(ra.x, ra.y, ra.x, ra.y, ra.width, ra.height);
+    
+  }
   if(vga.mode_type == TEXT_MONO && (attr == 0x01 || attr == 0x09 || attr == 0x89)) {
     XDrawLine(
       display, mainwindow, gc,
-      shift_x + font_width * x, font_height * y + font_shift,
-      shift_x + font_width * (x + len) - 1,
-      shift_y + font_height * y + font_shift
+      (shift_x + font_width * x) * w_x_res / x_res,
+      (font_height * y + font_shift) * w_y_res / y_res,
+      (shift_x + font_width * (x + len) - 1) * w_x_res / x_res,
+      (shift_y + font_height * y + font_shift) * w_y_res / y_res
     );
   }
 }
@@ -3166,14 +3402,15 @@ void X_draw_string(int x, int y, char *text, int len, Bit8u attr)
  */
 void load_text_font()
 {
-  const char *fonts[] = {config.X_font, "vga", "9x15", "fixed", NULL}, **p = fonts;
-
-  while(1) {
-    if((font = XLoadQueryFont(display, *p)) == NULL) {
-      error("X: Unable to open font \"%s\"", *p);
+  const char *p = config.X_font;
+  font = NULL;
+  if (strlen(p)) {
+    font = XLoadQueryFont(display, p);
+    if(font == NULL) {
+      error("X: Unable to open font \"%s\", using builtin", p);
     }
     else if(font->min_bounds.width != font->max_bounds.width) {
-      error("X: Font \"%s\" isn't monospaced", *p);
+      error("X: Font \"%s\" isn't monospaced, using builtin", p);
       XFreeFont(display, font);
       font = NULL;
     }
@@ -3182,20 +3419,16 @@ void load_text_font()
       font_height = font->max_bounds.ascent + font->max_bounds.descent;
       font_shift = font->max_bounds.ascent;
       vga_font = font->fid;
-      X_printf("X: Using font \"%s\", size = %d x %d\n", *p, font_width, font_height);
-      break;     
-    }  
-
-    if(p[1] != NULL) {
-      error(", trying \"%s\"...\n", p[1]);
-      p++;
+      X_printf("X: Using font \"%s\", size = %d x %d\n", p, font_width, font_height);
+      return;
     }
-    else {
-      /* If the user doesn't have "fixed", he's in big trouble anyway. */
-      error(", aborting!\n");
-      leavedos(99);
-    }  
   }
+  if ((vga.char_width < 8) || (vga.char_width > 9))
+    vga.char_width = 8;
+  font_width = vga.char_width;
+  if ((vga.char_height < 2) || (vga.char_height > 32))
+    vga.char_height = 16;
+  font_height = vga.char_height;
 }
 
 
@@ -3263,17 +3496,21 @@ void draw_cursor(int x, int y)
   if(!have_focus) {
     XDrawRectangle(
       display, mainwindow, gc,
-      shift_x + x * font_width, shift_y + y * font_height,
-      font_width - 1, font_height - 1
-    );
+      (shift_x + x * font_width) * w_x_res / x_res,
+      (shift_y + y * font_height) * w_y_res / y_res,
+      (font_width - 1) * w_x_res / x_res,
+      (font_height - 1) * w_y_res / y_res
+      );
   }
   else if(blink_state) {
     cstart = CURSOR_START(cursor_shape) * font_height / 16;
     cend = CURSOR_END(cursor_shape) * font_height / 16;
     XFillRectangle(
       display, mainwindow, gc,
-      shift_x + x * font_width, shift_y + y * font_height + cstart,
-      font_width, cend - cstart + 1
+      (shift_x + x * font_width) * w_x_res / x_res,
+      (shift_y + y * font_height + cstart) * w_y_res / y_res,
+      font_width * w_x_res / x_res,
+      (cend - cstart + 1) * w_y_res / y_res
     );
   }
 }
@@ -3360,8 +3597,17 @@ void X_blink_cursor()
  */
 inline void restore_cell(int x, int y)
 {
-  Bit16u *sp = screen_adr + y * co + x, *oldsp = prev_screen + y * co + x;
-  u_char c = XCHAR(sp);
+  Bit16u *sp, *oldsp;
+  u_char c;
+
+  if (font == NULL) {
+    li = vga.text_height;
+    co = vga.text_width;
+  }
+  
+  sp = screen_adr + y * co + x;
+  oldsp = prev_screen + y * co + x;
+  c = XCHAR(sp);
 
   /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
   if(vga.mode_class == GRAPH) return;
@@ -3436,7 +3682,11 @@ void set_mouse_buttons(int state)
  */
 int x_to_col(int x)
 {
-  int col = (x-shift_x)/font_width;
+  int col = x_res*(x-shift_x)/font_width/w_x_res;
+  if (font == NULL) {
+    li = vga.text_height;
+    co = vga.text_width;
+  }
   if (col < 0)
     col = 0;
   else if (col >= co)
@@ -3450,7 +3700,11 @@ int x_to_col(int x)
  */
 int y_to_row(int y)
 {
-  int row = (y-shift_y)/font_height;
+  int row = y_res*(y-shift_y)/font_height/w_y_res;
+  if (font == NULL) {
+    li = vga.text_height;
+    co = vga.text_width;
+  }
   if (row < 0)
     row = 0;
   else if (row >= li)
@@ -3464,6 +3718,10 @@ int y_to_row(int y)
  */
 void calculate_selection()
 {
+  if (font == NULL) {
+    li = vga.text_height;
+    co = vga.text_width;
+  }
   if ((sel_end_row < sel_start_row) || 
     ((sel_end_row == sel_start_row) && (sel_end_col < sel_start_col)))
   {
@@ -3576,6 +3834,11 @@ static void save_selection(int col1, int row1, int col2, int row2)
   u_char *sel_text_latin;
   size_t sel_text_bytes;
   u_char *p;
+
+  if (font == NULL) {
+    li = vga.text_height;
+    co = vga.text_width;
+  }
 
   sel_text_latin = sel_text = malloc((row2-row1+1)*(co+1)+2);
   
