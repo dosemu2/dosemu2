@@ -117,9 +117,6 @@ static int return_requested = 0;
 static int find_cli_in_blacklist(unsigned char *);
 static int dpmi_mhp_intxx_check(struct sigcontext_struct *scp, int intno);
 
-RealModeCallBack mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
-far_t XMS_call;
-
 struct vm86_regs DPMI_rm_stack[DPMI_max_rec_rm_func];
 int DPMI_rm_procedure_running = 0;
 
@@ -3155,7 +3152,8 @@ void dpmi_fault(struct sigcontext_struct *scp)
             _eflags |= CF;
 
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_XMS_call)) {
-	  D_printf("DPMI: XMS call to 0x%x:0x%x\n", XMS_call.segment, XMS_call.offset);
+	  D_printf("DPMI: XMS call to 0x%x:0x%x\n",
+	    DPMI_CLIENT.XMS_call.segment, DPMI_CLIENT.XMS_call.offset);
 	  save_rm_regs();
 	  REG(eflags) = eflags_VIF(_eflags);
 	  REG(eax) = _eax;
@@ -3168,7 +3166,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  REG(cs) = DPMI_SEG;
 	  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_XMS_call);
 	  in_dpmi_dos_int = 1;
-	  fake_call_to(XMS_call.segment, XMS_call.offset);
+	  fake_call_to(DPMI_CLIENT.XMS_call.segment, DPMI_CLIENT.XMS_call.offset);
 
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_pm)) {
 	  if (in_dpmi_pm_stack) {
@@ -3889,8 +3887,8 @@ done:
     DPMI_CLIENT.stack_frame.esi = REG(esi);
     DPMI_CLIENT.stack_frame.edi = REG(edi);
     DPMI_CLIENT.stack_frame.ds = ConvertSegmentToDescriptor(REG(ds));
-    DPMI_CLIENT.stack_frame.cs = mouseCallBack.selector;
-    DPMI_CLIENT.stack_frame.eip = mouseCallBack.offset;
+    DPMI_CLIENT.stack_frame.cs = DPMI_CLIENT.mouseCallBack.selector;
+    DPMI_CLIENT.stack_frame.eip = DPMI_CLIENT.mouseCallBack.offset;
 
     if (!in_dpmi_pm_stack) {
       D_printf("DPMI: Switching to locked stack\n");
@@ -3944,8 +3942,8 @@ done:
     save_pm_regs(&DPMI_CLIENT.stack_frame);
     DPMI_CLIENT.stack_frame.eflags = 0x0202 | (0x0dd5 & REG(eflags)) |
       dpmi_mhp_TF;
-    DPMI_CLIENT.stack_frame.cs = PS2mouseCallBack.selector;
-    DPMI_CLIENT.stack_frame.eip = PS2mouseCallBack.offset;
+    DPMI_CLIENT.stack_frame.cs = DPMI_CLIENT.PS2mouseCallBack.selector;
+    DPMI_CLIENT.stack_frame.eip = DPMI_CLIENT.PS2mouseCallBack.offset;
 
     if (!in_dpmi_pm_stack) {
       D_printf("DPMI: Switching to locked stack\n");

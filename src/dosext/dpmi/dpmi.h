@@ -72,7 +72,7 @@ __res; })
 
 #define HLT_OFF(addr) ((unsigned long)addr-(unsigned long)DPMI_dummy_start)
 
-typedef struct interrupt_descriptor_s
+typedef struct pmaddr_s
 {
     unsigned long	offset;
     unsigned short	selector, __selectorh;
@@ -146,6 +146,8 @@ struct DPMIclient_struct {
   unsigned short LDT_ALIAS;
   unsigned short PMSTACK_SEL;	/* protected mode stack selector */
   unsigned short DPMI_SEL;
+  struct pmaddr_s mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
+  far_t XMS_call;
   /* used when passing a DTA higher than 1MB */
   unsigned short USER_DTA_SEL;
   unsigned long USER_DTA_OFF;
@@ -169,9 +171,6 @@ extern unsigned long dpmi_free_memory; /* how many bytes memory client */
 				       /* can allocate */
 extern unsigned long pm_block_handle_used;       /* tracking handle */
 extern SEGDESC Segments[];
-/* used to store the dpmi client registers */
-extern RealModeCallBack mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
-extern far_t XMS_call;
 extern char *ldt_buffer;
 extern char *pm_stack;
 

@@ -317,8 +317,8 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		if ( _es && D_16_32(_ebx) ) {
 		  D_printf("DPMI: PS2MOUSE: set handler addr 0x%x:0x%lx\n",
 		    _es, D_16_32(_ebx));
-		  PS2mouseCallBack.selector = _es;
-		  PS2mouseCallBack.offset = D_16_32(_ebx); 
+		  DPMI_CLIENT.PS2mouseCallBack.selector = _es;
+		  DPMI_CLIENT.PS2mouseCallBack.offset = D_16_32(_ebx); 
 		  REG(es) = DPMI_SEG;
 		  REG(ebx) = DPMI_OFF + HLT_OFF(DPMI_PS2_mouse_callback);
 		} else {
@@ -842,8 +842,8 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	case 0x14:		/* swap call back */
 	    if ( _es && D_16_32(_edx) ) {
 		D_printf("DPMI: set mouse callback\n");
-		mouseCallBack.selector = _es;
-		mouseCallBack.offset = D_16_32(_edx); 
+		DPMI_CLIENT.mouseCallBack.selector = _es;
+		DPMI_CLIENT.mouseCallBack.offset = D_16_32(_edx); 
 		REG(es) = DPMI_SEG;
 		REG(edx) = DPMI_OFF + HLT_OFF(DPMI_mouse_callback);
 	    } else {
@@ -1047,7 +1047,7 @@ void msdos_post_extender(int intr)
     case 0x2f:
 	switch (LO_WORD(INT2f_SAVED_REGS.eax)) {
 	    case 0x4310:
-                XMS_call = MK_FARt(REG(es), LWORD(ebx));
+                DPMI_CLIENT.XMS_call = MK_FARt(REG(es), LWORD(ebx));
                 DPMI_CLIENT.stack_frame.es = DPMI_CLIENT.DPMI_SEL;
                 DPMI_CLIENT.stack_frame.ebx = DPMI_OFF + HLT_OFF(DPMI_XMS_call);
 		break;
