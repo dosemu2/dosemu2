@@ -474,6 +474,8 @@ __asm__("___START___: jmp _emulate\n");
 #include "int.h"
 #endif
 
+/* Using 2 fd_sets. One fot SIGIO Routines, one for the rest */
+fd_set fds_sigio, fds_no_sigio;
 
 extern void getKeys(void);
 
@@ -484,6 +486,7 @@ extern inline void vm86_GP_fault();
 extern int cursor_row, cursor_col, cursor_blink;
 
 unsigned int use_sigio=0;
+unsigned int not_use_sigio=0;
 
 char *cstack[16384];
 
@@ -1203,8 +1206,8 @@ sigalrm(int sig, struct sigcontext_struct context)
   if (++timals == TIMER_DIVISOR) {
     timals = 0;
     /* update the Bios Data Area timer dword if interrupts enabled */
-    if (REG(eflags) & VIF)
-      timer_tick();
+/*    if (REG(eflags) & VIF)
+      timer_tick();*/
     if (config.timers) {
       h_printf("starting timer int 8...\n");
       if (!do_hard_int(8))
@@ -1214,7 +1217,12 @@ sigalrm(int sig, struct sigcontext_struct context)
       h_printf("NOT CONFIG.TIMERS\n");
   }
 
+#if 1 /* Old way 94/08/30 */
+  if (not_use_sigio)
+    io_select(fds_no_sigio);
+#else
   if (!use_sigio
+    | config.num_ser
 #ifdef SIG
     | SillyG
 #endif
@@ -1222,6 +1230,7 @@ sigalrm(int sig, struct sigcontext_struct context)
   /* Call select to see if any I/O is ready on devices */
     io_select();
   }
+#endif
 
   /* this is for per-second activities */
   partials++;
@@ -1253,7 +1262,7 @@ sigio(int sig, struct sigcontext_struct context)
 #endif /* DPMI */
 
   /* Call select to see if any I/O is ready on devices */
-  io_select();
+  io_select(fds_sigio);
 
   insigio = 0;
 }
@@ -1653,6 +1662,8 @@ SIG_init()
     /* Reset interupt incase it went off already */
     write(SillyG, NULL, (int) NULL);
     fprintf(stderr, "Gonna monitor the INT you requested, Return=0x%02x\n", Sill
+    FD_SET(SillyG, &fds_no_sigio)
+    not_use_sigio++;
   }
 }
 
@@ -1946,6 +1957,10 @@ void
 
   vm86s.flags=0;
 
+  /* Initialize both fd_sets to 0 */
+  FD_ZERO(&fds_sigio);
+  FD_ZERO(&fds_no_sigio);
+
   /* Verify that Keyboard is OK as well as turn off some
      options if not at a console
   */
@@ -2038,7 +2053,7 @@ void
   SETSIG(SIGILL, ign_sigs);
   SETSIG(SIGFPE, ign_sigs);
   SETSIG(SIGTRAP, ign_sigs);
-  error("leavedos(%d) called - shutting down\n", sig);
+  error("leavedos(%d) called - shutting down\n", sig );
 
   close_all_printers();
 

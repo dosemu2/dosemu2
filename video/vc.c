@@ -193,8 +193,13 @@ allow_switch()
 void
 parent_close_mouse(void)
 {
-  if (mice->intdrv)
+  if (mice->intdrv) {
     DOS_SYSCALL(close(mice->fd));
+    if (use_sigio) {
+      FD_CLR(mice->fd, &fds_sigio);
+    } else
+      FD_CLR(mice->fd, &fds_no_sigio);
+  }
   else
     child_close_mouse();
 }
@@ -202,8 +207,17 @@ parent_close_mouse(void)
 void
 parent_open_mouse(void)
 {
-  if (mice->intdrv)
-    mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK));
+ if (mice->intdrv) {
+   static int old_mice_flags;
+   mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK));
+   if (use_sigio) {
+      old_mice_flags = fcntl(mice->fd, F_GETFL);
+      fcntl(mice->fd, F_SETOWN,  getpid());
+      fcntl(mice->fd, F_SETFL, old_mice_flags | use_sigio);
+      FD_SET(mice->fd, &fds_sigio);
+   } else 
+      FD_SET(mice->fd, &fds_no_sigio);
+ }
   else
     child_open_mouse();
 }

@@ -157,8 +157,6 @@ u_char keepkey = 1;
 
 inline void child_set_flags(int );
 
-extern unsigned int use_sigio;
-
 void clear_raw_mode();
 extern void clear_console_video();
 extern void clear_process_control();
@@ -289,7 +287,7 @@ static fptr key_table[] =
 
 int kbd_fd = -1,		/* the fd for the keyboard */
  ioc_fd = -1,			/* the dup'd fd for ioctl()'s */
- old_kbd_flags;			/* flags for STDIN before our fcntl */
+ old_kbd_flags = -1;			/* flags for STDIN before our fcntl */
 
 /* these are in DOSIPC.C */
 extern int ipc_fd[2];
@@ -621,6 +619,9 @@ keyboard_init(void)
   int major, minor;
   struct new_utsname unames;
 
+  kbd_fd = dup(STDIN_FILENO);
+  ioc_fd = dup(STDIN_FILENO);
+
   uname(&unames);
   fprintf(stderr, "DOSEMU%spl%s is coming up on %s version %s\n", VERSTR, PATCHSTR, unames.sysname, unames.release);
   if (unames.release[0] > 0 ) {
@@ -628,11 +629,13 @@ keyboard_init(void)
          unames.release[2] > 1 ) {
       use_sigio=FASYNC;
       k_printf("KBD: Using SIGIO\n");
+      FD_SET(kbd_fd, &fds_sigio);
+    }
+    else {
+      FD_SET(kbd_fd, &fds_no_sigio);
+      not_use_sigio++;
     }
   }
-
-  kbd_fd = dup(STDIN_FILENO);
-  ioc_fd = dup(STDIN_FILENO);
 
   if (kbd_fd < 0)
     {
@@ -863,7 +866,8 @@ child_set_flags(int sc)
   case 0x57:
   case 0x58:
     child_clr_kbd_flag(4);
-    if ( child_kbd_flag(3) && child_kbd_flag(2) && !child_kbd_flag(1) ) {
+    if ( !config.X && 
+				 (child_kbd_flag(3) && child_kbd_flag(2) && !child_kbd_flag(1)) ) {
       int fnum = sc - 0x3a;
 
       k_printf("KDB: Doing VC switch\n");
@@ -881,7 +885,8 @@ child_set_flags(int sc)
     }
     return;
   case 0x51:
-    if ( child_kbd_flag(2) && child_kbd_flag(3) && !child_kbd_flag(1) ) {
+    if ( !config.X &&
+				 (child_kbd_flag(2) && child_kbd_flag(3) && !child_kbd_flag(1)) ) {
       dbug_printf("ctrl-alt-pgdn\n");
       leavedos(42);
     }
@@ -1034,7 +1039,7 @@ convKey(int scancode)
   if (scancode == 0)
     return 0;
 
-  if (config.console_keyb) {
+  if (config.console_keyb || config.X) {
     unsigned int tmpcode = 0;
 
     *LASTSCAN_ADD = scancode;

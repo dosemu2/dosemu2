@@ -116,7 +116,7 @@ static byte keypad_scan[] =
     0x4c, 0x4d, 0x47, 0x48, 0x49  /* 0..9 */
 };
 
-static struct
+static struct _key_scan
 {
     KeySym key;
     ushort scan_code;
@@ -129,7 +129,11 @@ static struct
     { XK_Insert,        0xe052 },
 
     { XK_KP_Enter,      0xe01c },
+};
+#define NUM_OTHER (sizeof(other_scan)/sizeof(other_scan[0]))
 
+static struct _key_scan shift_scan[] =
+{
     { XK_Shift_L,       0x2a },
     { XK_Shift_R,       0x36 },
     { XK_Control_L,     0x1d },
@@ -141,6 +145,7 @@ static struct
 
     { XK_Scroll_Lock,   0x46 },
 };
+#define NUM_SHIFT (sizeof(shift_scan)/sizeof(shift_scan[0]))
 
 /* This is a very quick'n dirty put_key...  */
 void put_key(ushort scan, short charcode) {
@@ -152,14 +157,18 @@ void put_key(ushort scan, short charcode) {
    
    if (charcode!=-1) {
 #if 0
-     if (scan&0x80) DOS_setscan(((scan & 0x7f)<< 8) | charcode);
+     if (scan&0x80) DOS_setscan(((scan & 0x7f)<<8) | charcode);
 #else
-     if (!(scan&0x80)) DOS_setscan((scan<<8) | charcode);
+     DOS_setscan((charcode<<8) | scan);
 #endif
    }
    else {
-      if (scan & 0xFF00) DOS_setscan(scan&0xFF00);
-      DOS_setscan((scan&0xFF)<<8);
+      if (scan & 0xFF00) {
+	 child_set_flags(scan>>8);
+	 DOS_setscan(scan>>8);
+      } 
+      child_set_flags(scan&0xff);
+      DOS_setscan(scan&0xff);
    }
 }
 
@@ -168,14 +177,13 @@ inline ushort translate(KeySym key)
     int i;
 
     /* ascii keys */
-    if (key >= 0x20 && key <= 0x7e) {
+    if (key <= 0x7e) {
 #if 0
       return (ascii_scan[key - 0x20]);
 #else
       return highscan[key];
 #endif
     }
-
     /* function keys:
        note that shift-F1..F12 actually give shift-F11..F22, so
        we have to do a little translation here.
@@ -207,7 +215,7 @@ inline ushort translate(KeySym key)
        
     /* any other keys */
             
-    for (i = 0; i < sizeof(other_scan); i++)
+    for (i = 0; i < NUM_OTHER; i++)
         if (other_scan[i].key == key)
             return (other_scan[i].scan_code);
 
@@ -225,6 +233,7 @@ void X_process_key(XKeyEvent *e)
     int count;
     short ch;
     static XComposeStatus compose_status = {NULL, 0};
+    int i;
     
 #if 0
     key = XLookupKeysym(e,0);
@@ -254,7 +263,6 @@ void X_process_key(XKeyEvent *e)
        put_key(0xc5,-1);
        return;
     }
-
     if (key == XK_Pause || key == XK_Break) {
        if (e->state & ControlMask) {
 	  put_key(0xe046,-1);   /* Ctrl-Break */
@@ -283,7 +291,16 @@ void X_process_key(XKeyEvent *e)
     }
     else {
        scan = translate(key);
+       if ((e->state & AltMask) && ch) {
+	  ch=0;
+       }
     }
+    if (scan==0) 
+       for (i = 0; i < NUM_SHIFT; i++)
+	  if (shift_scan[i].key == key) {
+	     scan=shift_scan[i].scan_code;
+	     ch=-1;
+	  }
 
     /* do latin1 translation */
     if (ch>=0xa0) ch=latin1_to_dos[ch-0xa0];

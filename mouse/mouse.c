@@ -133,6 +133,10 @@
 #include "serial.h"
 #include "port.h"
 
+#ifdef X_SUPPORT
+extern void X_change_mouse_cursor(int);
+#endif
+
 extern void open_kmem(void), close_kmem(void);
 
 void DOSEMUSetupMouse(void);
@@ -192,6 +196,9 @@ static long mousescreenmask[HEIGHT] =  {
   0xf87fffffL,  /*1111100001111111*/
   0xfcffffffL   /*1111110011111111*/
 };
+
+static ushort mousetextscreen = 0xffff;
+static ushort mousetextcursor = 0xff00;
 
 void
 mouse_int(void)
@@ -289,6 +296,10 @@ mouse_int(void)
   case 0x21:			
     m_printf("MOUSE: software reset on mouse\n");
     mouse.cursor_on = 0;	/* Assuming software reset, turns off mouse */
+#ifdef X_SUPPORT
+	 if (config.X)
+		 X_change_mouse_cursor(0);
+#endif
     LWORD(eax) = 0xffff;
     LWORD(ebx) = 2;
     break;
@@ -357,6 +368,10 @@ mouse_reset(void)
   mouse.points = (*(unsigned short *)0x485);
   mouse.ratio = 1;
   mouse.cursor_on = 0;
+#ifdef X_SUPPORT
+	 if (config.X)
+		 X_change_mouse_cursor(0);
+#endif
   mouse.cursor_type = 0;
   mouse.lbutton = mouse.mbutton = mouse.rbutton = 0;
   mouse.oldlbutton = mouse.oldrbutton = 1;
@@ -386,6 +401,10 @@ void
 mouse_cursor(int flag)
 {
   mouse.cursor_on = flag;
+#ifdef X_SUPPORT
+  if (config.X)
+	  X_change_mouse_cursor(flag);
+#endif
   m_printf("MOUSE: %s mouse cursor\n", flag ? "show" : "hide");
 }
 
@@ -484,6 +503,13 @@ mouse_set_tcur(void)
 #if 0
   gfx_cursor = FALSE;
 #endif
+  if (LWORD(ebx)==0) {
+	  mousetextscreen = LWORD(ecx);
+	  mousetextcursor = LWORD(edx);
+  } else {
+	  mousetextscreen = 0xffff;
+	  mousetextcursor = 0xff00;
+  }
 }
 
 void 
@@ -726,7 +752,7 @@ mouse_do_cur(void)
     for (i = 0; i < HEIGHT; i++)
       graph_mem[mouse.x / 8 +((mouse.y + i - 4) * 80)] = (long)mousecursormask[i];
 
-  } else {
+  } else if (!config.X) {
     unsigned short *p = SCREEN_ADR(bios_current_screen_page);
 
     p[mouse.hidx + mouse.hidy * 80] = mouse.hidchar;
@@ -734,9 +760,11 @@ mouse_do_cur(void)
     /* save old char/attr pair */
     mouse.hidx = mouse.cx;
     mouse.hidy = mouse.cy;
-    mouse.hidchar = p[mouse.cx + mouse.cy * 80];
+	 i=mouse.cx + mouse.cy * 80;
+    mouse.hidchar = p[i];
 
-    p[mouse.cx + mouse.cy * 80] = 0x0b00;
+    p[i] &= mousetextscreen;
+	 p[i] ^= mousetextcursor;
   }
 }
 
@@ -765,6 +793,7 @@ void
 mouse_init(void)
 {
   serial_t *sptr;
+  int old_mice_flags = -1;
 
 #ifdef X_SUPPORT
   if (config.X) {
@@ -783,11 +812,29 @@ mouse_init(void)
       return;
     }
     DOSEMUSetupMouse();
+    if (use_sigio) {
+      old_mice_flags = fcntl(mice->fd, F_GETFL);
+      fcntl(mice->fd, F_SETOWN,  getpid());
+      fcntl(mice->fd, F_SETFL, old_mice_flags | use_sigio);
+      FD_SET(mice->fd, &fds_sigio);
+    } else {
+      FD_SET(mice->fd, &fds_no_sigio);
+      not_use_sigio++;
+    }
     return;
   }
 
   if ((mice->type == MOUSE_PS2) || (mice->type == MOUSE_BUSMOUSE)) {
     mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK)); 
+    if (use_sigio) {
+      old_mice_flags = fcntl(mice->fd, F_GETFL);
+      fcntl(mice->fd, F_SETOWN,  getpid());
+      fcntl(mice->fd, F_SETFL, old_mice_flags | use_sigio);
+      FD_SET(mice->fd, &fds_sigio);
+    } else  {
+      FD_SET(mice->fd, &fds_no_sigio);
+      not_use_sigio++;
+    }
   }
   else {
     sptr = &com[config.num_ser];

@@ -1,3 +1,18 @@
+Tue Aug 30 1994 Jmaclean
+
+-	Added dosconfig script by Jan Vandenberghe. Requires DIALOG. I like
+	it :-).
+-	Included patches from Heiko for X and timer.
+-	Fixed emubat config thanks to Scottb.
+-	Modified io_select() calls to start dividing into 2 camps, 
+	those that use sigio and those that don't.
+-	Added SIGIO ability to internal mouse driver.
+
+Fri Aug 26 1994 Jmaclean
+
+-	Fix that HJ already sent in and I missed :-( for the 
+	-T arguement of ld from flebbe@tat.physik.uni-tuebingen.de.
+
 Wed Aug 24 1994 Jmaclean
 
 -	Added Enhancements to CDROM driver by Karsten Rucker.

@@ -4,6 +4,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
+#include <X11/cursorfont.h>
 #include "emu.h"
 #include "bios.h"
 #include "video.h"
@@ -28,6 +29,7 @@
 Display *dpy;
 int scr;
 Window root,W;
+static Cursor X_stnd_cursor, X_mouse_cursor;
 GC gc;
 Atom proto_atom = None, delete_atom = None;
 
@@ -76,6 +78,9 @@ inline void get_vga_colors()
 int X_init() {
    XGCValues gcv;
    XSetWindowAttributes attr;
+	XColor bg, fg;
+	Font   cfont;
+	int    cmap;
 #if 0 /* Not used ... yet */
    XWMHints wmhints;
 #endif
@@ -105,6 +110,28 @@ int X_init() {
                    ExposureMask|StructureNotifyMask|FocusChangeMask;
 
    XChangeWindowAttributes(dpy,W,CWEventMask,&attr);
+
+	/* Create the mouse cursor shapes */
+	cmap=DefaultColormap(dpy,scr);
+	/* Use a white on black cursor as the background is normally dark */
+	XParseColor(dpy,cmap,"white",&fg);
+	XParseColor(dpy,cmap,"black",&bg);
+	cfont=XLoadFont(dpy, "cursor");
+	X_stnd_cursor = XCreateGlyphCursor(dpy,cfont,cfont,XC_top_left_arrow,
+												  XC_top_left_arrow+1,&fg,&bg);
+	XUnloadFont(dpy,cfont);
+	cfont=XLoadFont(dpy,"decw$cursor");
+	if (!cfont) {
+		/* IMHO, the DEC cursor font looks nicer, but if it is not there, 
+			use the standard cursor font */
+		cfont=XLoadFont(dpy,"cursor");
+		X_mouse_cursor = XCreateGlyphCursor(dpy,cfont,cfont,XC_hand2,
+														XC_hand2+1,&bg,&fg);
+	} else {
+		X_mouse_cursor = XCreateGlyphCursor(dpy,cfont,cfont,2,3,&fg,&bg);
+	}
+	XUnloadFont(dpy,cfont);
+	XDefineCursor(dpy,W,X_stnd_cursor);
 
 /*
    wmhints.icon_pixmap=...
@@ -166,6 +193,13 @@ inline void X_setattr(byte attr) {
    XChangeGC(dpy,gc,GCForeground|GCBackground,&gcv);
 }
 
+void X_change_mouse_cursor(int flag) {
+	if (flag)
+		XDefineCursor(dpy, W, X_mouse_cursor);
+	else
+		XDefineCursor(dpy, W, X_stnd_cursor);
+}
+
 inline void X_draw_cursor(int x,int y) {
 
    X_setattr(ATTR(screen_adr+y*co+x));
@@ -178,8 +212,8 @@ inline void X_draw_cursor(int x,int y) {
    }
    else {
       XDrawRectangle(dpy,W,gc,
-                     x*font_width, y*font_height,
-                     font_width-1, font_height-1);
+                     x*font_width, y*font_height+1,
+                     font_width-1, font_height-2);
    }
 }
 

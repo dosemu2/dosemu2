@@ -392,15 +392,16 @@ u_char keys_ready = 0;
 extern int convKey();
 extern int InsKeyboard();
 
-fd_set fds;
 void
-io_select(void)
+io_select(fd_set fds)
 {
   static int selrtn;
   static struct timeval tvptr;
 
   tvptr.tv_sec=0L;
   tvptr.tv_usec=0L;
+
+#if 0 /* Now called with fd_set */
   FD_ZERO(&fds);
   FD_SET(kbd_fd, &fds);
 
@@ -411,6 +412,7 @@ io_select(void)
   
   if (mice->intdrv)
     FD_SET(mice->fd, &fds);
+#endif
 
   switch ((selrtn = select(15, &fds, NULL, NULL, &tvptr))) {
     case 0:			/* none ready, nothing to do :-) */
@@ -463,7 +465,7 @@ DOS_setscan(u_short scan)
     parent_nextscan();
     scan_to_buffer();
   }
-  if (!config.console_keyb) {
+  if (!config.console_keyb && !config.X) {
     static u_short tmp_scan;
     tmp_scan = scan & 0xff00;
     if (tmp_scan < 0x8000 && tmp_scan > 0) {
@@ -488,8 +490,20 @@ set_keyboard_bios(void)
     }
     else
       inschr = convKey(*LASTSCAN_ADD);
-  }
-  else {
+  } else if (config.X) {
+	  if (config.keybint) {
+		  keepkey = 1;
+		  /* check, if we have to store the key in the keyboard buffer */
+		  if (convKey(HI(ax)) || ((lastchr>>8) && !(lastchr&0x80)) )
+			  /* xdos gives us the char-code, so use it.
+				  We'd get into trouble, if we would try to convert the
+				  scan code into a char while using a non-US keyboard! */
+			  inschr = (lastchr>>8) | (HI(ax)<<8);
+		  else
+			  inschr = 0;
+	  } else
+		  inschr = convKey(*LASTSCAN_ADD);
+  } else {
     inschr = lastchr;
     if (inschr > 0x7fff) {
       inschr = 0;
@@ -528,7 +542,7 @@ parent_nextscan()
     lastchr = scan_queue[scan_queue_start];
     if (scan_queue_start != scan_queue_end)
       scan_queue_start = (scan_queue_start + 1) % SCANQ_LEN;
-    if (!config.console_keyb) {
+    if (!config.console_keyb && !config.X) {
       *LASTSCAN_ADD = lastchr >> 8;
     }
     else {

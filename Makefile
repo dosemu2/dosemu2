@@ -30,7 +30,7 @@ ifdef X_SUPPORT
 XCFILES = Xkeyb.c
 XOBJS   = Xkeyb.o
 #the -u forces the X11 shared library to be linked into ./dos
-XLIBS   = -lX11 -u _XOpenDisplay
+XLIBS   = -L/usr/X386/lib -lX11 -u _XOpenDisplay
 XDEFS   = -DX_SUPPORT
 endif
 
@@ -57,7 +57,7 @@ DOSLNK=
 # dosemu version
 EMUVER  =   0.53
 VERNUM  =   0x53
-PATCHL  =   16
+PATCHL  =   17
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
 # should be okay at...0x20000000 for .5 GB mark.
@@ -112,7 +112,7 @@ SFILES=bios.S
 OFILES= Makefile ChangeLog dosconfig.c QuickStart \
 	DOSEMU-HOWTO.txt DOSEMU-HOWTO.ps DOSEMU-HOWTO.sgml \
 	README.ncurses vga.pcf xtermdos xinstallvgafont README.X \
-	README.CDROM README.video
+	README.CDROM README.video Configure
 
 BFILES=
 
@@ -222,7 +222,7 @@ dos:	dos.c $(DOSOBJS)
               $(XLIBS)
 
 libdosemu:	$(SHLIBOBJS) $(DPMIOBJS)
-	ld $(LDFLAGS) $(MAGIC) -T $(LIBSTART) -o $@ \
+	ld $(LDFLAGS) $(MAGIC) -Ttext $(LIBSTART) -o $@ \
 	   $(SHLIBOBJS) $(DPMIOBJS) $(SHLIBS) $(XLIBS) -lncurses -lc
 
 dossubdirs: dummy

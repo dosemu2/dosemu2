@@ -203,6 +203,8 @@
 
 extern struct vm86_struct vm86s;
 extern int screen, max_page, screen_mode;
+extern fd_set fds_sigio, fds_no_sigio;
+extern unsigned int use_sigio, not_use_sigio;
 
 extern char *cl,		/* clear screen */
 *le,				/* cursor left */
@@ -536,7 +538,7 @@ extern void int10(void);
 extern void int13(u_char);
 extern void int14(u_char);
 extern void int17(u_char);
-extern void io_select(void);
+extern void io_select(fd_set);
 extern int pd_receive_packet(void);
 extern int printer_tick(u_long);
 extern int printer_tick(u_long);

@@ -148,12 +148,12 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    }
  		| EMUBAT STRING
 		    {
-		    config.emusys = $2;
+		    config.emubat = $2;
 		    c_printf("CONF: config.emubat = '%s'\n", $2);
 		    }
 		| EMUBAT '{' STRING '}'
 		    {
-		    config.emusys = $3;
+		    config.emubat = $3;
 		    c_printf("CONF: config.emubat = '%s'\n", $3);
 		    }
 		| FASTFLOPPY bool	{ config.fastfloppy = $2; }
