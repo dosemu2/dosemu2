@@ -12,11 +12,11 @@
 #            can be checked via 'ifdef' in /etc/dosemu.conf
 #            Variables starting with 'c_' define class permission
 #
-# For more details look at ./doc/README.txt
+# For more details look at README.txt
 
-default_lib_dir= /usr/local/share/dosemu
+#default_lib_dir= /usr/local/share/dosemu
 #config_script= builtin # (or e.g. /etc/dosemu/global.conf)
-log_level= 0
+#log_level= 0
 #carol is allowed to do do all weird things
 #carol c_all
 #joe is a restricted user and is only allowed to use console graphics
