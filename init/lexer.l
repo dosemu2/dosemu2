@@ -95,7 +95,7 @@ rawkeyboard		return(RAWKEYBOARD);
 
 finnish			{ yylval->i_value = KEYB_FINNISH;
 			  return(KEYB_LAYOUT); }
-finnish-latin1\,1	{ yylval->i_value = KEYB_FINNISH_LATIN1;
+finnish-latin11		{ yylval->i_value = KEYB_FINNISH_LATIN1;
 			  return(KEYB_LAYOUT); }
 us			{ yylval->i_value = KEYB_US; return(KEYB_LAYOUT); }
 uk			{ yylval->i_value = KEYB_UK; return(KEYB_LAYOUT); }
@@ -250,4 +250,12 @@ no			{ yylval->i_value = 0; return(L_NO); }
 \n			line_count++;	/* keep track of lines seen */
 .			fprintf(stderr, "discarding char '%c'\n", yytext[0]);
 
+%%
+
+#ifndef yywrap()
+int yywrap(void)    /* do this to avoid needing to do -lfl */
+   {
+   return(1);
+   }
+#endif
 

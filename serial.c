@@ -13,11 +13,14 @@
  *	ag115@freenet.carleton.ca
  *
  *
- * $Date: 1994/07/04 23:59:23 $
+ * $Date: 1994/08/14 02:52:04 $
  * $Source: /home/src/dosemu0.60/RCS/serial.c,v $
- * $Revision: 2.2 $
+ * $Revision: 2.3 $
  * $State: Exp $
  * $Log: serial.c,v $
+ * Revision 2.3  1994/08/14  02:52:04  root
+ * Rain's latest CLEANUP and MOUSE for X additions.
+ *
  * Revision 2.2  1994/07/04  23:59:23  root
  * Prep for Markkk's NCURSES patches.
  *
@@ -580,7 +583,7 @@ void
 serial_init(void)
 {
   int i;
-  fprintf(stderr, "SERIAL $Header: /home/src/dosemu0.60/RCS/serial.c,v 2.2 1994/07/04 23:59:23 root Exp root $\n");
+  fprintf(stderr, "SERIAL $Header: /home/src/dosemu0.60/RCS/serial.c,v 2.3 1994/08/14 02:52:04 root Exp root $\n");
   s_printf("SER: Running serial_init, %d serial ports\n", config.num_ser);
 
   /* Clean the BIOS data area at 0040:0000 for serial ports */
@@ -592,7 +595,10 @@ serial_init(void)
   /* Do UART init here - Need to set up registers and init the lines. */
   for (i = 0; i < config.num_ser; i++) {
     com[i].fd = -1;
-    do_ser_init(i);
+#ifdef X_SUPPORT
+    if (!config.X || !com[i].mouse)   /* skip "mouse" ports in X mode */
+#endif
+      do_ser_init(i);
   }
 }
 

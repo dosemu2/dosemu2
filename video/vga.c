@@ -11,6 +11,7 @@
 #include "port.h"
 #include "memory.h"
 #include "video.h"
+#include "vc.h"
 #include "vga.h"
 
 #include "et4000.h"
@@ -220,7 +221,7 @@ void store_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
   bsize = p[0] + p[1] + p[2] + p[3];
   dump_video_regs();
   if (config.chipset == ET4000) {
-    /*
+/*
  * The following is from the X files
  * we need this here , cause we MUST disable the ROM SYNC feature
 */
@@ -438,7 +439,7 @@ void restore_vga_state(struct video_save_struct *save_regs)
   v_printf("Restore_vga_state complete\n");
 }
 
-void vga_initialize(void)
+int vga_initialize(void)
 {
   linux_regs.mem = NULL;
   dosemu_regs.mem = NULL;
@@ -500,6 +501,7 @@ void vga_initialize(void)
   dump_video_linux();
   video_initialized = 1;
   /* release_perm(); */
+  return 0;
 }
 
 /* Store current actuall EGA/VGA regs */

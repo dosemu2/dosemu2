@@ -26,16 +26,18 @@ CFLAGS=-O2 -Wall # -Wmissing-prototypes \
 
 # ANSI isn't possible right now, because some header-file aren't ANSI
 
-CFILES = video.c vga.c et4000.c s3.c trident.c console.c terminal.c $(XCFILES)
-HFILES =         vga.h et4000.h s3.h trident.h terminal.h $(XHDRS)
+CFILES = video.c vc.c vga.c et4000.c s3.c trident.c console.c \
+         terminal.c int10.c $(XCFILES)
+HFILES = vga.h et4000.h s3.h trident.h terminal.h vc.h $(XHDRS)
 
 # Insert all source- and header-files here.
 
-ALL = $(CFILES) $(HFILES) $(XCFILES) $(XHDRS)
+ALL = $(CFILES) $(HFILES) 
 
 # All object-files are included here.
 
-OBJS = video.o vga.o et4000.o s3.o trident.o console.o terminal.o $(XOBJS)
+OBJS = video.o vc.o vga.o et4000.o s3.o trident.o console.o \
+       terminal.o int10.o $(XOBJS)
 
 .c.o:
 	$(CC) $(CFLAGS) $(XDEFS) $(INCDIR) -c $<

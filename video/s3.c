@@ -31,6 +31,7 @@
 #include "emu.h"
 #include "port.h"
 #include "video.h"
+#include "vc.h"
 #include "vga.h"
 #include "s3.h"
 

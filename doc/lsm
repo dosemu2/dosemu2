@@ -1,0 +1,30 @@
+Begin2
+Title        = DOSEMU DOS emulator for Linux
+Version      = 0.52
+Desc1        = This package allows users to run many DOS programs under
+Desc2        = the Linux operating system.
+Author       = Matthias Lautner, Robert Sanders
+AuthorEmail  = gt8134b@prism.gatech.edu (Robert)
+Maintainer   = James B. MacLean
+MaintEmail   = jmaclean@fox.nstn.ns.ca
+Site1        = tsx-11.mit.edu
+Path1        = /pub/Linux/ALPHA
+File1        = dosemu0.52.tgz
+FileSize1    = 556346
+Site2        = dspsun.eas.asu.edu
+Path2        = pub/dosemu
+File2        = dosemu0.52.tgz
+FileSize2    = 556346
+Site3        = sunsite.unc.edu
+Path3        = /pub/Linux/system/Emulators
+File3        = dosemu0.52.tgz
+FileSize3    = 556346
+Required1    = Linux 1.0.8+ or 1.1.12+, optionally IPX kernel extensions
+Keywords     = DOS, DOSEMU 
+Comment1     = Although this is still considered ALPHA, it will run MANY
+Comment2     = DOS based programs. Please follow the QuickStart file.
+Entered      = 15JUN94
+EnteredBy    = James B. MacLean
+CheckedEmail = jmaclean@fox.nstn.ns.ca
+End
+

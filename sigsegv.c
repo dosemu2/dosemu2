@@ -1,12 +1,15 @@
 #define SIGSEGV_C 1
 
 /* 
- * $Date: 1994/08/05 22:29:31 $
+ * $Date: 1994/08/14 02:52:04 $
  * $Source: /home/src/dosemu0.60/RCS/sigsegv.c,v $
- * $Revision: 2.6 $
+ * $Revision: 2.7 $
  * $State: Exp $
  *
  * $Log: sigsegv.c,v $
+ * Revision 2.7  1994/08/14  02:52:04  root
+ * Rain's latest CLEANUP and MOUSE for X additions.
+ *
  * Revision 2.6  1994/08/05  22:29:31  root
  * Prep dir pre53_10.
  *
@@ -119,7 +122,7 @@
 #include "ipx.h"
 
 /* Needed for DIAMOND define */
-#include "video.h"
+#include "video/vc.h"
 
 #ifdef DPMI
 #include "dpmi/dpmi.h"
@@ -132,7 +135,6 @@ int in_vm86 = 0;
 extern struct config_info config;
 
 #if 0 /* 94/05/26 */
-#include "int10.h"
 #include "int.h"
 #endif
 #include "ports.h"

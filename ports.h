@@ -1,12 +1,15 @@
 #define PORTS_H 1
 
 /* 
- * $Date: 1994/08/02 00:08:51 $
+ * $Date: 1994/08/14 02:52:04 $
  * $Source: /home/src/dosemu0.60/RCS/ports.h,v $
- * $Revision: 2.9 $
+ * $Revision: 2.10 $
  * $State: Exp $
  *
  * $Log: ports.h,v $
+ * Revision 2.10  1994/08/14  02:52:04  root
+ * Rain's latest CLEANUP and MOUSE for X additions.
+ *
  * Revision 2.9  1994/08/02  00:08:51  root
  * Markk's latest.
  *
@@ -93,6 +96,7 @@ extern void set_leds(void);
 extern int s3_8514_base;
 extern int cursor_row;
 extern int cursor_col;
+extern int char_blink;
 u_short microsoft_port_check = 0;
 
 /*

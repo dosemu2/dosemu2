@@ -11,6 +11,7 @@
 #include "emu.h"             /* nur für v_printf */
 #include "port.h"
 #include "video.h"
+#include "vc.h"
 #include "vga.h"
 #include "trident.h"
 

@@ -3,12 +3,15 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/08/05 22:29:31 $
+ * $Date: 1994/08/14 02:52:04 $
  * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
- * $Revision: 2.10 $
+ * $Revision: 2.11 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 2.11  1994/08/14  02:52:04  root
+ * Rain's latest CLEANUP and MOUSE for X additions.
+ *
  * Revision 2.10  1994/08/05  22:29:31  root
  * Prep dir pre53_10.
  *
@@ -465,8 +468,6 @@ config_t;
 
 extern config_t config;
 
-extern unsigned char *scrbuf;		/* the previously updated screen */
-
 #define SPKR_OFF	0
 #define SPKR_NATIVE	1
 #define SPKR_EMULATED	2
@@ -521,7 +522,7 @@ extern __inline__ void disk_close(void);
 extern void cpu_init(void);
 extern __inline__ void run_int(int);
 extern int mfs_redirector(void);
-extern void int10(u_char);
+extern void int10();
 extern void int13(u_char);
 extern void int14(u_char);
 extern void int17(u_char);

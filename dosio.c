@@ -4,12 +4,15 @@
 /*
  * Robert Sanders, started 3/1/93
  *
- * $Date: 1994/08/11 01:11:34 $
+ * $Date: 1994/08/14 02:52:04 $
  * $Source: /home/src/dosemu0.60/RCS/dosio.c,v $
- * $Revision: 2.4 $
+ * $Revision: 2.5 $
  * $State: Exp $
  *
  * $Log: dosio.c,v $
+ * Revision 2.5  1994/08/14  02:52:04  root
+ * Rain's latest CLEANUP and MOUSE for X additions.
+ *
  * Revision 2.4  1994/08/11  01:11:34  root
  * Added check to NOT add release key for ascii's with high byte 0x00.
  *
@@ -224,7 +227,6 @@
 #include "termio.h"
 #include "dosio.h"
 #include "mouse.h"
-#include "video.h"
 
 extern void DOSEMUMouseEvents(void);
 

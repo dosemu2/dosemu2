@@ -1,185 +1,125 @@
-/* VGAlib version 1.1 - Copyright 1992 Tommy Frandsen 		   */
-/*								   */
-/* This library is free software; you can redistribute it and/or   */
-/* modify it without any restrictions. This library is distributed */
-/* in the hope that it will be useful, but without any warranty;   */
-/* without even the implied warranty of merchantability or fitness */
-/* for a particular purpose.					   */
-/* $Log:                  */
 
-#ifndef VIDEO_H
-#define VIDEO_H
-
-#define uchar unsigned char
-#define TEXT 	     0
-#define G320x200x16  1
-#define G640x200x16  2
-#define G640x350x16  3
-#define G640x480x16  4
-#define G320x200x256 5
-#define G320x240x256 6
-#define G320x400x256 7
-#define G360x480x256 8
-#define G640x480x2   9
-#define G640x480x256  10
-#define G800x600x256  11
-#define G1024x768x256 12
-
-#define CRT_IC  0x3D4		/* CRT Controller Index - color emulation */
-#define CRT_IM  0x3B4		/* CRT Controller Index - mono emulation */
-#define ATT_IW  0x3C0		/* Attribute Controller Index & Data Write Register */
-#define GRA_I   0x3CE		/* Graphics Controller Index */
-#define SEQ_I   0x3C4		/* Sequencer Index */
-#define PEL_IW  0x3C8		/* PEL Write Index */
-#define PEL_IR  0x3C7		/* PEL Read Index */
-
-/* VGA data register ports */
-#define CRT_DC  0x3D5		/* CRT Controller Data Register - color emulation */
-#define CRT_DM  0x3B5		/* CRT Controller Data Register - mono emulation */
-#define ATT_R   0x3C1		/* Attribute Controller Data Read Register */
-#define GRA_D   0x3CF		/* Graphics Controller Data Register */
-#define SEQ_D   0x3C5		/* Sequencer Data Register */
-#define MIS_R   0x3CC		/* Misc Output Read Register */
-#define MIS_W   0x3C2		/* Misc Output Write Register */
-#define IS0_R   0x3C2		/* Input Status Register 0 */
-#define IS1_RC  0x3DA		/* Input Status Register 1 - color emulation */
-#define IS1_RM  0x3BA		/* Input Status Register 1 - mono emulation */
-#define PEL_D   0x3C9		/* PEL Data Register */
-#define FCR_R   0x3CA		/* Feature Control Read */
-#define FCR_WM  0x3BA		/* Feature Control Write Mono */
-#define FCR_WC  0x3DA		/* Feature Control Write Color */
-#define PEL_M   0x3C6		/* Palette MASK                */
-#define GR1_P   0x3CC		/* Graphics 1                  */
-#define GR2_P   0x3CA		/* Graphics 2                  */
-
-/* VGA indexes max counts */
-#define CRT_C   24		/* 24 CRT Controller Registers */
-#define ATT_C   21		/* 21 Attribute Controller Registers */
-#define GRA_C   9		/* 9  Graphics Controller Registers */
-#define SEQ_C   5		/* 5  Sequencer Registers */
-#define MIS_C   1		/* 1  Misc Output Register */
-#define ISR1_C  1		/* 1  ISR reg */
-#define GRAI_C  1		/* 1  GRAphic Index */
-#define CRTI_C  1		/* 1  CRT Index */
-#define SEQI_C  1		/* 1  SEQ Index */
-#define FCR_C   1		/* 1  Feature Control Register */
-#define ISR0_C  1		/* 1  Input Status Register 0  */
-#define PELIR_C 1		/* 1  Pallette Read Index */
-#define PELIW_C 1		/* 1  Pallette Write Index */
-#define PELM_C  1		/* 1  Pallette MASK        */
-#define GR1P_C  1		/* 1  Pallette MASK        */
-#define GR2P_C  1		/* 1  Pallette MASK        */
-
-/* VGA registers saving indexes */
-#define CRT     0		/* CRT Controller Registers start */
-#define ATT     CRT+CRT_C	/* Attribute Controller Registers start */
-#define GRA     ATT+ATT_C	/* Graphics Controller Registers start */
-#define SEQ     GRA+GRA_C	/* Sequencer Registers */
-#define MIS     SEQ+SEQ_C	/* General Registers */
-#define ISR1    MIS+MIS_C	/* SVGA Extended Registers */
-#define GRAI    ISR1+ISR1_C	/* SVGA Extended Registers */
-#define CRTI    GRAI+GRAI_C
-#define SEQI    CRTI+CRTI_C
-#define FCR     SEQI+SEQI_C
-#define ISR0    FCR+FCR_C
-#define PELIR   ISR0+ISR0_C
-#define PELIW   PELIR+PELIR_C
-#define PELM    PELIW+PELIW_C
-#define GR1P    PELM+PELM_C
-#define GR2P    GR1P+GR1P_C
-
-#define SEG_SELECT 0x3CD
-#define MAX_REGS 100
-#define TEXT       0
-
-extern __inline__ void allow_switch(void);
-extern void dump_video_linux(void);
-extern void set_vc_screen_page(int);
-extern void get_video_ram(int);
-extern void clear_screen(int, int);
-extern void set_linux_video(void);
-extern void put_video_ram(void);
-
-extern int get_perm(void);
-extern int release_perm(void);
-extern int set_regs(unsigned char regs[]);
-extern void open_vga_mem(void);
-extern void close_vga_mem(void);
-
-extern unsigned char video_initialized;
-extern void vga_initialize(void);
-
-#define MAX_S_REGS	71
-#define MAX_X_REGS	50
-#define MAX_X_REGS16	10
-
-/* Struct to hold necessary elements during a save/restore */
-struct video_save_struct {
-  unsigned char regs[MAX_S_REGS];	/* These are the standard VGA-regs */
-  unsigned char xregs[MAX_X_REGS];	/* These are EXT regs */
-  unsigned short xregs16[MAX_X_REGS16]; /* These are 16-bit EXT regs */
-  unsigned char *mem;
-  unsigned char pal[3 * 256];
-  unsigned char save_mem_size[4];
-  unsigned char banks;
-  unsigned char video_mode;
-  unsigned char *video_name;	/* Debugging only */
-  unsigned char release_video;
-  unsigned char *textmem;	/* for saving page 0 memory */
-};
-extern struct video_save_struct linux_regs, dosemu_regs;
-extern void save_vga_state(struct video_save_struct *save_regs);
-extern void restore_vga_state(struct video_save_struct *save_regs);
-extern void load_vga_font(unsigned char);
-
-extern void vga_blink(unsigned char blink);
-
+typedef unsigned char byte;
 /*
-extern int save_vga_regs();
-extern int restore_vga_regs();
+typedef unsigned char boolean;
+typedef unsigned short ushort;
 */
 
-struct dinfo {
-  int xdim;
-  int ydim;
-  int colors;
-  int xbytes;
-  unsigned char mode;
-  int buffer;
-  unsigned char bpc;
-  int seg;
-  int off;
+typedef struct { byte end, start; } cshape;
+
+
+/* if you set this to 1, the video memory dirty bit will be checked 
+   before updating the screen.
+   (this affects emu.c and video/int10.c)
+*/
+#define VIDEO_CHECK_DIRTY 0
+
+#define CURSOR_START(c) ((int)((cshape*)&c)->start)
+#define CURSOR_END(c)   ((int)((cshape*)&c)->end)
+#define NO_CURSOR 0x0100
+
+#define MAX_COLUMNS 132
+
+#if 0
+#define SCREEN_ADR(s)	((ushort *)(virt_text_base + (s*TEXT_SIZE)))
+#endif
+
+/********************************************/
+
+/* macros for accessing video memory. w is an ushort* 
+   to a character cell, attr is a byte.
+*/
+
+#define CHAR(w) (((char*)(w))[0])
+#define ATTR(w) (((byte*)(w))[1])
+#define ATTR_FG(attr) (attr & 0x0F)
+#define ATTR_BG(attr) (attr >> 4)
+
+
+/***********************************************************************/
+
+/* Here's an idea to clean up the video code: Build a 'virtual' video
+   support, a bit like the VFS in the linux kernel.
+   The following structure defines the currently active video routines.
+   There should be one such structure for each 'video front end',
+   i.e. terminal, ncurses, console, X.
+   The pointer 'Video' will be initialized at startup to point to
+   the video_system struct of the active frontend and Video->init
+   will then be called. The other contents don't have to be valid
+   before Video->init() but the recommended method is to define
+   them statically.
+
+   Most of the function pointers defined here can be set to NULL for
+   no special handling.
+   functions returning int should return zero for normal completion,
+   non-zero on error (unless specified otherwise).
+
+   The contents of this struct should only be changed by init, cleanup
+   and (maybe) setmode.
+*/
+
+
+struct video_system {
+   boolean is_mapped;          /* if true, video ram is directly mapped and
+                                  update_screen is not needed. */
+
+   int (*init)();              /* does all frontend-specific setup,
+                                  like mapping video memory, opening XWindow,
+                                  etc. */
+   void (*close)();
+   
+   int (*setmode)(int type, int xsize,int ysize);   /* type=0 currently (text mode) */
+
+   int (*update_screen)();     /* (partially) update screen and cursor from the 
+                                  video memory. called from sigalrm handler */
+
+   void (*update_cursor)();    /* update cursor position&shape. Called by sigalrm
+                                  handler *only* if update_screen does not exist
+                                  or is not done because the video mem is clean */
 };
-extern struct dinfo cur_info;
 
-extern int vga_setmode(int mode);
-extern int vga_hasmode(int mode);
+extern struct video_system *Video;
 
-extern int vga_clear(void);
-extern int vga_newscreen(void);
+extern struct video_system Video_X, Video_console, Video_term;
 
-extern int save_vga_setmode(void);
-extern int restore_vga_setmode(void);
+extern ushort *screen_adr;   /* pointer to video memory of current page */
+extern ushort *prev_screen;  /* pointer to currently displayed screen   */
+                             /* used&updated by Video->update_screen    */
 
-extern int vga_getxdim(void);
-extern int vga_getydim(void);
-extern int vga_getcolors(void);
+extern int video_mode, video_page, char_blink;
+extern int co,li;
+extern int cursor_col, cursor_row, cursor_blink;
+extern ushort cursor_shape;
+extern int font_height;
+extern unsigned int screen_mask;
 
-extern int vga_setpalette(int index, int red, int green, int blue);
-extern int vga_getpalette(int index, int *red, int *green, int *blue);
-extern int vga_setpalvec(int start, int num, uchar * pal);
-extern int vga_getpalvec(int start, int num, uchar * pal);
 
-extern int vga_screenoff(void);
-extern int vga_screenon(void);
+extern unsigned char video_initialized;
+extern int vga_initialize(void);
+extern void install_int_10_handler(void);
+extern void clear_screen(int s,int att);
 
-extern int vga_setcolor(int color);
-extern int vga_drawpixel(int x, int y);
-extern int vga_drawline(int x1, int y1, int x2, int y2);
-extern int vga_drawscanline(int line, unsigned char *colors);
-extern int vga_drawscansegment(unsigned char *colors, int x, int y, int length);
+/* Values are set by video_config_init depending on video-card defined in config */
 
-extern int vga_dumpregs(void);
+extern int virt_text_base;
+extern int phys_text_base;
+extern int video_combo;
+extern int video_subsys;
+
+/* The following defines are for terminal (curses) mode */
+
+/* Character set defines */
+#define CHARSET_LATIN	1
+#define CHARSET_IBM	2
+#define CHARSET_FULLIBM	3
+
+/* Color set defines */
+#define COLOR_NORMAL	1
+#define COLOR_XTERM	2
+
+/* Terminal update defines. For using direct ANSI sequences, or NCURSES */
+#define METHOD_FAST	1
+#define METHOD_NCURSES	2
 
 /* Various defines for all common video adapters */
 
@@ -220,12 +160,6 @@ extern int vga_dumpregs(void);
 #define VGA_VIDEO_SUBSYS       0 /* 0=color */
 /* #define BASE_CRTC               0x3d4  currently not used */
 
-/* Values are set from emu.c depending on video-card defined in config */
-
-extern int virt_text_base;
-extern int phys_text_base;
-extern int video_combo;
-extern int video_subsys;
 
 #define PLAINVGA	0
 #define TRIDENT		1
@@ -233,34 +167,3 @@ extern int video_subsys;
 #define DIAMOND		3
 #define S3		4
 
-extern u_char video_port_in(int port);
-extern void video_port_out(u_char value, int port);
-
-extern void install_int_10_handler(void);
-
-extern int CRT_I, CRT_D, IS1_R, FCR_W, color_text;
-extern u_char att_d_index;
-extern u_char permissions;
-extern struct screen_stat scr_state;
-extern int cursor_row;
-extern int cursor_col;
-extern int cursor_blink;
-extern int char_blink;
-
-/* The following defines are for terminal (curses) mode */
-
-/* Character set defines */
-#define CHARSET_LATIN	1
-#define CHARSET_IBM	2
-#define CHARSET_FULLIBM	3
-
-/* Color set defines */
-#define COLOR_NORMAL	1
-#define COLOR_XTERM	2
-
-/* Terminal update defines. For using direct ANSI sequences, or NCURSES */
-#define METHOD_FAST	1
-#define METHOD_NCURSES	2
-
-#endif 
-/* End of include/video.h */

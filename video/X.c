@@ -2,37 +2,29 @@
 #include <stdio.h>
 #include <X11/X.h>
 #include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/Xatom.h>
 #include "emu.h"
 #include "bios.h"
-#include "memory.h"
 #include "video.h"
+#include "memory.h"
+#include "mouse.h"
 
 /* "fine tuning" options for X_update_screen */
 
 #define MAX_UNCHANGED	3
 #define COPY_WHOLE_LINE	1
-#define MOD_Y_INC 	0
 #define PRECHECK_LINE   1
 
 #define MY_WINDOW_TITLE "DOS in a BOX"
 #define MY_ICON_NAME    MY_WINDOW_TITLE
 
-/********************************************/
-
-typedef unsigned char byte;
-
-typedef struct { byte end, start; } cshape;
-
-#define CHAR(w) (((char*)(w))[0])
-#define ATTR(w) (((byte*)(w))[1])
-#define ATTR_FG(attr) (attr & 0x0F)
-#define ATTR_BG(attr) (attr >> 4)
-
-#define CURSOR_START(c) ((int)((cshape*)&c)->start)
-#define CURSOR_END(c)   ((int)((cshape*)&c)->end)
-#define NO_CURSOR 0x0100
-
-#define MAX_COLUMNS 132
+#if 0
+#define XCHAR(w) CHAR(w)
+#else
+/* kludge for incorrect ASCII 0 char in vga font */
+#define XCHAR(w) (CHAR(w)?CHAR(w):' ')
+#endif
 
 /********************************************/
 
@@ -40,12 +32,13 @@ Display *dpy;
 int scr;
 Window root,W;
 GC gc;
+Atom proto_atom = None, delete_atom = None;
 
-int font_height=16, font_width=8, font_shift=12;
-int prev_cursor_row, prev_cursor_col;
-us cursor_shape, prev_cursor_shape;
+static int font_width=8, font_height=16, font_shift=12;
+int prev_cursor_row=-1, prev_cursor_col=-1;
+ushort prev_cursor_shape=-1;
 
-boolean have_focus=1;
+boolean have_focus=1, is_mapped=1;
 
 
 struct {
@@ -56,9 +49,10 @@ struct {
 {100,100,100},{10,10,255},{10,255,10},{10,255,255},
 {255,10,10},{255,10,255},{255,255,0},{255,255,255}};
 
-static int vga_colors[16];
+/* initialization is used just in case XAllocColor fails */
+static int vga_colors[16] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
 
-void get_vga_colors()
+inline void get_vga_colors()
 {
 	int i;
         int cmap=DefaultColormap(dpy,scr);
@@ -71,7 +65,10 @@ void get_vga_colors()
 	   xcol.red   = crgb[i].r<<8;
 	   xcol.green = crgb[i].g<<8;
 	   xcol.blue  = crgb[i].b<<8;
-	   XAllocColor(dpy, cmap, &xcol);
+	   if (!XAllocColor(dpy, cmap, &xcol)) {
+	      error("X: couldn't allocate all VGA colors!\n");
+	      return;
+	   }
 	   vga_colors[i] = xcol.pixel;
 	}
 }
@@ -80,7 +77,9 @@ void get_vga_colors()
 int X_init() {
    XGCValues gcv;
    XSetWindowAttributes attr;
+   XWMHints wmhints;
    
+
    X_printf("X_init()\n");
    
    dpy=XOpenDisplay(":0");
@@ -99,21 +98,41 @@ int X_init() {
                            vga_colors[0]                   /* background */
                            );
    
-   attr.event_mask=KeyPressMask|ButtonPressMask|ExposureMask;
+   attr.event_mask=KeyPressMask|KeyReleaseMask|
+                   ButtonPressMask|ButtonReleaseMask|
+                   EnterWindowMask|LeaveWindowMask|PointerMotionMask|
+                   ExposureMask|StructureNotifyMask|FocusChangeMask;
+
    XChangeWindowAttributes(dpy,W,CWEventMask,&attr);
 
    XStoreName(dpy,W,MY_WINDOW_TITLE);
    XSetIconName(dpy,W,MY_ICON_NAME);
 
+/* Delete-Window-Message black magic copied from xloadimage */
+   proto_atom  = XInternAtom(dpy,"WM_PROTOCOLS", False);
+   delete_atom = XInternAtom(dpy,"WM_DELETE_WINDOW", False);
+   if ((proto_atom != None) && (delete_atom != None))
+      XChangeProperty(dpy, W, proto_atom, XA_ATOM, 32,
+                      PropModePrepend, (char*)&delete_atom, 1);
+                                    
+   
    XMapWindow(dpy,W);
 
    gcv.foreground=1;
    gcv.background=0;
    gcv.font=XLoadFont(dpy,"vga");
+   if (!gcv.font) {
+      printf("ERROR: Could not find the vga font - did you run `xinstallvgafont' ?\n"
+	     "Please read QuickStart and DOSEMU-HOWTO.* for more information.\n");
+      leavedos(99);
+   }
+
    gc=XCreateGC(dpy,W,GCForeground|GCBackground|GCFont,&gcv);
 
+/*
    prev_cursor_row=prev_cursor_col=-1;
    prev_cursor_shape=NO_CURSOR;
+*/
 
    X_printf("X_init() ok, dpy=%x scr=%d root=%d W=%d gc=%x\n",
             (int)dpy,(int)scr,(int)root,(int)W,(int)gc);
@@ -128,6 +147,11 @@ void X_close() {
    XCloseDisplay(dpy);
 }
 
+int X_setmode(int type, int xsize, int ysize) {
+   /* unimplemented... */
+   return 0;
+}
+
 inline void X_setattr(byte attr) {
    XGCValues gcv;
    gcv.foreground=vga_colors[ATTR_FG(attr)];
@@ -135,114 +159,136 @@ inline void X_setattr(byte attr) {
    XChangeGC(dpy,gc,GCForeground|GCBackground,&gcv);
 }
 
-inline void X_draw_cursor(us *sadr,int x,int y) {
-   X_setattr(ATTR(sadr+y*co+x));
+inline void X_draw_cursor(int x,int y) {
 
-   if (CURSOR_END(cursor_shape)>=CURSOR_START(cursor_shape)) {
-      (have_focus?XFillRectangle:XDrawRectangle)(dpy,W,gc,
-              x*font_width, 
-              y*font_height+CURSOR_START(cursor_shape),
-              font_width, 
-              CURSOR_END(cursor_shape)-CURSOR_START(cursor_shape)+1);
+   X_setattr(ATTR(screen_adr+y*co+x));
+   if (have_focus) {
+      XFillRectangle(dpy,W,gc,
+                     x*font_width, 
+                     y*font_height+CURSOR_START(cursor_shape),
+                     font_width, 
+                     CURSOR_END(cursor_shape)-CURSOR_START(cursor_shape)+1);
    }
-
+   else {
+      XDrawRectangle(dpy,W,gc,
+                     x*font_width, y*font_height,
+                     font_width-1, font_height-1);
+   }
 }
 
-inline void X_restore_cell(us *sadr,int x,int y) {
-   us *sp = sadr+y*co+x;
+inline void X_restore_cell(int x,int y) {
+   us *sp = screen_adr+y*co+x;
+   char c = XCHAR(sp);
    X_setattr(ATTR(sp));
    XDrawImageString(dpy,W,gc,font_width*x,font_height*y+font_shift,
-                    (char*)sp,1);
+                    &c,1);
 }
 
-inline void X_move_cursor(us *sadr,int from_x,int from_y,int to_x,int to_y) {
+void X_redraw_cursor() {
+  
+  if (!is_mapped) return;
+#if 0  
+  if (prev_cursor_shape!=NO_CURSOR)
+#endif
+    X_restore_cell(prev_cursor_col,prev_cursor_row);
+   if (cursor_shape!=NO_CURSOR)
+      X_draw_cursor(cursor_col,cursor_row);
+   XFlush(dpy);
 
-   X_printf("X_move_cursor: (%d,%d) -> (%d,%d)\n",from_x,from_y,to_x,to_y);
-
-   X_restore_cell(sadr,from_x,from_y);
-   X_draw_cursor(sadr,to_x,to_y);
+   prev_cursor_row=cursor_row;
+   prev_cursor_col=cursor_col;
+   prev_cursor_shape=cursor_shape;
 }
 
+void X_update_cursor() {
 
-void X_setcursorshape(us shape) {
-   int cs,ce;
-   cs=CURSOR_START(shape) & 0x0F;
-   ce=CURSOR_END(shape) & 0x0F;
-
-   if (shape & 0x2000 || cs>ce) {
-      X_printf("X: no cursor\n");
-      cursor_shape=NO_CURSOR;
-      return;
+   if (cursor_row!=prev_cursor_row || cursor_col!=prev_cursor_col ||
+       cursor_shape!=prev_cursor_shape)
+   {
+      X_redraw_cursor();
    }
-
-   if (ce>3 && ce<12) {
-      if (cs>ce-3) cs+=font_height-ce-1;
-      else if (cs>3) cs=font_height/2;
-      ce=font_height-1;
-   }
-   X_printf("X: mapped cursor start=%d end=%d\n",(int)cs,(int)ce);
-   CURSOR_START(cursor_shape)=cs;
-   CURSOR_END(cursor_shape)=ce;
 }
 
-#undef cs
-#undef ce
 
+void X_scroll(int x,int y,int width,int height,int n,byte attr) {
+  
+  x*=font_width;
+  y*=font_height;
+  width*=font_width;
+  height*=font_height;
+  n*=font_height;
+  
+  X_setattr(attr);
+  
+  if (n>0) {       /* scroll up */
+     height-=n;
+     XCopyArea(dpy,W,W,gc,x,y+n,width,height,x,y);
+     XClearArea(dpy,W,x,y+height,width,n,FALSE);
+  }
+  else if (n<0) {  /* scroll down */
+     height+=n;
+     XCopyArea(dpy,W,W,gc,x,y,width,height,x,y-n);
+     XClearArea(dpy,W,x,y,width,-n,FALSE);
+  }
+}
 
 /* redraw the entire screen. Used for expose events etc. */
  
-void X_redraw_screen(Window W,GC gc) 
+void X_redraw_screen() 
 {
-   int x,y,start_x,curattr;
-   us *screen=(us*)SCREEN_ADR(bios_current_screen_page);
+   int x,y,start_x,attr;
    us *sp;
-   char buff[MAX_COLUMNS];
+   char charbuff[MAX_COLUMNS];
    char *bp;
 
-   X_printf("X_redraw_screen entered; CO=%d LI=%d screen=%x\n",
-            CO,LI,(int)screen);
+   if (!is_mapped) return;
+   
+   X_printf("X_redraw_screen entered; CO=%d LI=%d screen_adr=%x\n",
+            CO,LI,(int)screen_adr);
 
-   for(y=0;y<LI;y++) {
-      sp=&screen[y*CO];
-      bp=buff;
-      curattr=-1;
-      for(x=0;x<=CO;x++) {
-         *bp++=CHAR(sp);
-         if (ATTR(sp)!=curattr || x==CO) {
-            if (x!=0) {
-               X_setattr(ATTR(sp));
-               XDrawImageString(dpy,W,gc,
-                        font_width*start_x,font_height*y,
-                        buff,x-start_x);
-            }
-            curattr=ATTR(sp);
-            bp=buff;
-            start_x=x;
-         }
-         sp++;
-      }
+   sp=screen_adr;
+
+   for(y=0;y<co;y++) {
+      x=0;
+      do {
+         /* scan in a string of chars of the same attribute. */
+
+         bp=charbuff;
+         start_x=x;
+         attr=ATTR(sp);
+
+         do {
+            *bp++=XCHAR(sp);
+            sp++; x++;
+         } while(ATTR(sp)==attr && x<co);
+
+         /* ok, we've got the string now send it to the X server */
+
+         X_setattr(attr);
+         XDrawImageString(dpy,W,gc,
+                          font_width*start_x,font_height*y+font_shift,
+                          charbuff,x-start_x);
+
+      } while(x<co);
    }
 
+   X_redraw_cursor();
+
+   XFlush(dpy);
+
+   memcpy(prev_screen,screen_adr,co*li*2);
+   
    X_printf("X_redraw_screen done\n");
 }
 
 
-#if MOD_Y_INC
-#define Y_INC(y) yloop = (yloop + 1) % li
-#else
 #define Y_INC(y) if (++yloop==li) yloop=0
-#endif
-
-int yloop, prev_cursor_row, prev_cursor_col;
-us prev_cursor_shape;
-
 
 /* this is derived from ansi_update but heavily modified 
 */
 
 int X_update_screen()
 {
-  us *sadr;	/* Ptr to start of screen memory of curr page */
   us *srow, *oldsrow, *sp, *oldsp;
   char *bp;
   char charbuff[MAX_COLUMNS];
@@ -251,11 +297,12 @@ int X_update_screen()
   int start_x, len, unchanged;
   byte attr;
 
+  static int yloop = -1;
   int lines;    /* Number of lines to redraw */
   int numscan;	/* counter for number of lines scanned */
   int numdone;  /* counter for number of lines actually updated */
 
-  sadr = SCREEN_ADR(bios_current_screen_page);
+  if (!is_mapped) return 0;       /* no need to do anything... */
 
   /* The following determines how many lines it should scan at once,
    * since this routine is being called by sig_alrm.  If the entire
@@ -301,8 +348,8 @@ int X_update_screen()
     }
     numscan++;
 
-    sp = srow = sadr + y*co;
-    oldsp = oldsrow = (us*)scrbuf + y*co;
+    sp = srow = screen_adr + y*co;
+    oldsp = oldsrow = prev_screen + y*co;
 
 #if PRECHECK_LINE
     /* Only update if the line has changed. 
@@ -330,13 +377,7 @@ int X_update_screen()
         unchanged=0;         /* counter for unchanged chars */
 
         while(1) {
-#if 0
-           *bp++=CHAR(sp);
-#else
-	   { char c = CHAR(sp);
-             *bp++ = c?c:' ';     /* kludge for incorrect ASCII 0 char in vga font */
-           }
-#endif
+           *bp++=XCHAR(sp);
            sp++; oldsp++; x++;
 
            if (ATTR(sp)!=attr || x==co) break;
@@ -376,56 +417,179 @@ line_done:
 #endif
 
 chk_cursor:
-/* update the cursor. We do this here to avoid the cursor 'running behind'
-   when using a fast key-repeat.
-*/
-   if (y==cursor_row) {
-      if (cursor_row!=prev_cursor_row || cursor_col!=prev_cursor_col ||
-          cursor_shape!=prev_cursor_shape)
-      {
-#if 1
-         X_move_cursor(sadr,prev_cursor_col,prev_cursor_row,
-                            cursor_col,cursor_row);
-#else
-         if (prev_cursor_shape!=NO_CURSOR)
-            X_restore_cell(sadr,prev_cursor_col,prev_cursor_row);
-         if (cursor_shape!=NO_CURSOR)
-            X_draw_cursor(sadr,cursor_col,cursor_row);
-#endif
-         prev_cursor_row=cursor_row;
-         prev_cursor_col=cursor_col;
-         prev_cursor_shape=cursor_shape;
-      }
-    }
+    /* update the cursor. We do this here to avoid the cursor 'running behind'
+       when using a fast key-repeat.
+    */
+    if (y==cursor_row) X_update_cursor();
   }
   XFlush(dpy);
 
   X_printf("X_update_screen: %d lines updated\n",numdone);
 
-  if (!numdone) {
-    /* The updates look a bit cleaner when reset to top of the screen
-     * if nothing had changed on the screen in this call to screen_restore
-     */
-    yloop = -1;
+  if (numdone) {
+     if (numscan==li)
+        return 1;     /* changed, entire screen updated */
+     else
+        return 2;     /* changed, part of screen updated */
   }
-
-  return numdone;
+  else {
+     /* The updates look a bit cleaner when reset to top of the screen
+      * if nothing had changed on the screen in this call to screen_restore
+      */
+     yloop = -1;
+     return 0;
+  }
 }
 
-#if 0
-void X_handler() 
+void X_handle_events()
 {
    XEvent e;
+   KeySym key;
+   static int busy = 0;
 
-   XNextEvent(dpy,&e);
+   if (busy) return;
+   busy=1;
 
-   switch(e.type) {
-    case Expose:  X_redraw_screen();
-                  break;
+   while (XPending(dpy) > 0) {
+      XNextEvent(dpy,&e);
 
-    case ButtonPress: 
-                  break;
-   }
-}
+      switch(e.type) {
+       case Expose:  
+                     X_printf("X: expose event\n");
+#if 0
+                     /*if (running<0) break; ??*/
+                     running=-1;
 #endif
+                     if (e.xexpose.count==0)   /* pcemu does this check... what's it good for ?? */
+                        X_redraw_screen();
+#if 0
+                     running=config.term_updatefreq;
+#endif
+                     break;
 
+       case UnmapNotify:
+                     X_printf("X: window unmapped\n");
+                     is_mapped = 0;
+                     break;
+
+       case MapNotify:
+                     X_printf("X: window mapped\n");
+                     is_mapped = 1;
+                     break;
+
+       case FocusIn:
+                     X_printf("X: focus in\n");
+                     have_focus = 1;
+                     X_redraw_cursor();
+                     break;
+
+       case FocusOut:
+                     X_printf("X: focus out\n");
+                     have_focus = 0;
+                     X_redraw_cursor();
+                     break;
+
+/* keyboard... yet unimplemented */
+
+       case KeyPress:
+       case KeyRelease:
+	             key = XLookupKeysym(&e.xkey,0);
+	             X_printf("key %x %s, state=%08x\n",
+			      (int)key,(e.type==KeyPress)?"pressed":"released",
+			      e.xkey.state);
+		     X_process_key(&e.xkey);
+                     break;
+
+/* mouse... */
+
+/* ok, the bit shifting below is not very clean, but it's somewhat simpler
+   this way. It would only break if the button masks in X.h change, 
+   which I don't expect to happen.
+*/
+       case ButtonPress:
+#if 0
+                    X_printf("X: mouse button %d pressed, state=%04x\n",
+                             e.xbutton.button, e.xbutton.state);
+#endif
+                    m_setbuttons(e.xbutton.state|(0x80<<e.xbutton.button));
+                    break;
+                    
+       case ButtonRelease:
+#if 0
+                    X_printf("X: mouse button %d released, state=%04x\n",
+                             e.xbutton.button, e.xbutton.state);
+#endif
+                    m_setbuttons(e.xbutton.state&~(0x80<<e.xbutton.button));
+		    break;
+		    
+       case MotionNotify:
+#if 0
+                    X_printf("X pointer motion\n");
+#endif
+	            m_setpos(e.xmotion.x,e.xmotion.y);
+		    break;
+		   
+       case EnterNotify:
+                    X_printf("X: mouse entering window\n");
+	            m_setpos(e.xcrossing.x,e.xcrossing.y);
+		    m_setbuttons(e.xcrossing.state);
+		    break;
+		    
+       case LeaveNotify:      /* should this do anything? */
+                    X_printf("X: mouse leaving window\n");
+		    break;
+		       
+/* some weirder things... */
+		     
+       case DestroyNotify:
+                    error("Oh, NO! My beautiful window got destroyed! :-(\n");
+                    leavedos(99);
+                    break;
+                    
+       case ClientMessage:
+       /* if we get a client message which has the value of the delete
+        * atom, it means the window manager wants us to die.
+        */
+
+	            if (e.xclient.data.l[0] == delete_atom) {
+      		        error("Got delete message! Goodbye, World...\n");
+      		        leavedos(0);    /* XXX - is it ok to call this from a sigalrm handler ? */
+                    }
+                    break;
+
+      }
+   }
+   busy=0;
+}
+
+void m_setpos(int x,int y) {
+   /* XXX - this works in text mode only */
+   x = x*8/font_width;
+   y = y*8/font_height;
+   if (x!=mouse.x || y!=mouse.y) {
+      mouse.x=x; 
+      mouse.y=y;
+      mouse_move();
+   }
+}   
+
+void m_setbuttons(int state) {
+   mouse.oldlbutton=mouse.lbutton;
+   mouse.oldmbutton=mouse.mbutton;
+   mouse.oldrbutton=mouse.rbutton;
+   mouse.lbutton = ((state & Button1Mask) != 0);
+   mouse.mbutton = ((state & Button2Mask) != 0);
+   mouse.rbutton = ((state & Button3Mask) != 0);
+   if (mouse.lbutton!=mouse.oldlbutton) mouse_lb();
+   if (mouse.mbutton!=mouse.oldmbutton) mouse_mb();
+   if (mouse.rbutton!=mouse.oldrbutton) mouse_rb();
+}
+
+struct video_system Video_X = {
+   0,                /* is_mapped */
+   X_init,         
+   X_close,      
+   X_setmode,      
+   X_update_screen,
+   X_update_cursor
+};

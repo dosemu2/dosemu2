@@ -43,6 +43,9 @@
  *
  * HISTORY: (DANG_BEGIN_CHANGELOG
  * $Log: bios_emm.c,v $
+ * Revision 2.7  1994/08/13  01:13:46  root
+ * Added Scottb's cleanup for proc/self/mmap.
+ *
  * Revision 2.6  1994/08/01  15:08:39  root
  * EMS RCS fix.
  *
@@ -177,8 +180,7 @@
 #include <malloc.h>
 #include <fcntl.h>
 #include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
+#include <linux/utsname.h>
 
 #include "emu.h"
 #include "machcompat.h"
@@ -194,35 +196,6 @@ inline boolean_t unmap_page(int);
 
 #include <sys/file.h>
 #include <sys/ioctl.h>
-
-/*********************************************************************/
-/* This defines the method used for mapping EMS pages */
-
-/* MMAP_EMS:  use /proc/self mmap()ing. Fast, but requires the kernel 
-   patch in ./kernel/kernel-mmap.* which appears not to work with
-   newer kernels :-(
-*/
-
-#if 0
-#define MMAP_EMS
-#endif
-
-/* IPC_EMS:  use the IPC shared memory facilities. Completely broken, 
-   and probably can't be easily fixed.
-*/
-
-#if 0
-#define IPC_EMS
-#endif
-
-/* COPY_EMS:  just copy the data between the page frame and allocated memory.
-   Works ok, but sloooooowwwww....
-*/
-
-#if 1
-#define COPY_EMS
-#define UNMAP_BEFORE_MAP
-#endif
 
 /*****************************************************************************/
 
@@ -393,78 +366,16 @@ u_short os_allow=1;
 #define Kdebug1(args)		E_Stub args
 #define Kdebug2(args)		E_Stub args
 
-int selfmem_fd = -1;
-
+static int     selfmem_fd = -1;
+static boolean ems_mmap = 0;
 #endif
-
-#ifdef __linux__
-
-boolean_t
-probe_mmap()
-{
-  char *page1 = NULL, *page2 = NULL;
-  char *maperr;
-
-  /* open our fd for mmap()ing */
-  selfmem_fd = open("/proc/self/mem", O_RDWR);
-  if (selfmem_fd < 0)
-    return (FALSE);
-
-  if (!(page1 = valloc(4096 * 1024)))
-    return (FALSE);
-  if (!(page2 = valloc(4096 * 1024))) {
-    free(page1);
-    return (FALSE);
-  }
-
-  errno = 0;
-  maperr = (caddr_t) mmap(page1,
-			  4096 * 1024,
-			  PROT_READ | PROT_WRITE | PROT_EXEC,
-			  MAP_SHARED | MAP_FIXED,
-			  selfmem_fd,
-			  (u_long) page2);
-
-  munmap(page1, 4096 * 1024);
-  munmap(page2, 4096 * 1024);
-  free(page1);
-  free(page2);
-
-#if 0
-  error("EMM: maperr was %d %x, errno was %d %s\n", maperr, maperr,
-	errno, strerror(errno));
-#endif
-
-  if (maperr != (char *) -1) {
-    E_printf("EMS: probe_mmap() succeeded!\n");
-    return (TRUE);
-  }
-  else {
-    error("ERROR: probe mmap() failed (%d, %s) - turning EMS off\n",
-	  errno, strerror(errno));
-    return (FALSE);
-  }
-}
-
-#endif /* __linux__ */
-
-int shmid[EMM_MAX_PHYS];
-
-#define PRINT_EMS  { \
-  struct shmid_ds buf; \
-  int logical = shmctl(shmid[sh_base], IPC_STAT, &buf); \
-  E_printf("EMS: Shared memory stats:\n     size=0x%x,\n     attach_cnt=%d,\n     shmid=%x\n", \
-    buf.shm_segsz, buf.shm_nattch, shmid[sh_base]); }
 
 void
 bios_emm_init()
 {
   int sh_base;
   int j;
-
-#ifdef IPC_EMS
-  caddr_t base;
-#endif
+  struct new_utsname unames;
 
 #ifdef __linux__
 
@@ -473,44 +384,28 @@ bios_emm_init()
 
 #endif
 
-#ifdef MMAP_EMS
-  if (1) {
+  /* we need release 1.1.43 or higher to use the mmap stuff */
+  uname(&unames);
+  E_printf("EMS: coming up on release %s\n", unames.release);
+  if (strcmp(unames.release, "1.1.43") >= 0) {
+    E_printf("EMS: using /proc/self/mem mmaping (yeah!!!)\n");
+    ems_mmap = 1;
+  }
+
+  if (ems_mmap) {
      E_printf("EMS: opening /proc/self/mem\n");
 
      selfmem_fd = open("/proc/self/mem", O_RDWR);
      if (selfmem_fd < 0) {
        error("EMS: cannot open /proc/self/mem: %s\n",strerror(errno));
-       config.ems_size=0;
-       return;
+       ems_mmap = 0;
      }
   }
-  else {
-     config.ems_size=0;
-     return;
-  }
-#endif
 
   E_printf("EMS: initializing memory\n");
 
   for (sh_base = 0; sh_base < EMM_MAX_PHYS; sh_base++) {
     emm_map[sh_base].handle = NULL_HANDLE;
-#ifdef IPC_EMS
-    base = (caddr_t)(EMM_BASE_ADDRESS + (EMM_PAGE_SIZE * sh_base));
-    if ((shmid[sh_base] = shmget(IPC_PRIVATE, EMM_PAGE_SIZE, 0755)) == (int)-1) {
-      E_printf("EMS: shmget unsuccessful: %s\n", strerror(errno));
-      leavedos(2);
-    }
-    if ((base = (caddr_t) shmat(shmid[sh_base], base, SHM_REMAP)) == (caddr_t) 0xffffffff) {
-      E_printf("EMS: shmat %x base 0x%x unsuccessful: %s\n", shmid[sh_base], base, strerror(errno));
-      leavedos(3);
-    }
-    E_printf("EMS: shmat %d base 0x%x successful\n", shmid[sh_base], base);
-    if (shmctl(shmid[sh_base], IPC_RMID, (struct shmid_ds *) 0) < 0) {
-      E_printf("EMS: shmctl unsuccessful: %s\n", strerror(errno));
-      leavedos(4);
-    }
-    PRINT_EMS;
-#endif
   }
 
   for (sh_base = 0; sh_base < MAX_HANDLES; sh_base++) {
@@ -665,25 +560,13 @@ __map_page(physical_page)
 
   base = (caddr_t) EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE);
 
-#ifdef MMAP_EMS
-#else
-  logical = (caddr_t) handle_info[handle].object + emm_map[physical_page].logical_page * EMM_PAGE_SIZE;
+  if (!ems_mmap) {
+    logical = (caddr_t) handle_info[handle].object + emm_map[physical_page].logical_page * EMM_PAGE_SIZE;
 
-#ifdef IPC_EMS
-  if ((logical = (caddr_t) shmat(shmid[physical_page],logical,SHM_REMAP)) == (caddr_t) 0xffffffff) {
-    E_printf("EMS: map_page shmat logical unsuccessful: %s\n", strerror(errno));
-    PRINT_EMS;
-    leavedos(29);
+    E_printf("EMS: COPY-MAP   l=0x%08x, bs=0x%04x, d=0x%02x, s=0x%02x\n",
+	     (int)logical, (int)base, *(u_short *)logical, * (u_short *) base);
+    memmove((u_char *) base, (u_char *) logical, EMM_PAGE_SIZE);
   }
-  PRINT_EMS;
-#endif
-
-#ifdef COPY_EMS
-  E_printf("EMS: COPY-MAP   l=0x%08x, bs=0x%04x, d=0x%02x, s=0x%02x\n",
-        (int)logical, (int)base, *(u_short *)logical, * (u_short *) base);
-  memmove((u_char *) base, (u_char *) logical, EMM_PAGE_SIZE);
-#endif
-#endif
 
 #else /* __linux__ */
   MACH_CALL((vm_allocate(mach_task_self(),
@@ -714,26 +597,16 @@ __unmap_page(physical_page)
 
   base = (caddr_t) EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE);
 
-#ifdef MMAP_EMS
-  /* XXX - add error checking here */
-  munmap(base, EMM_PAGE_SIZE);
-#else
-  logical = (caddr_t) handle_info[handle].object + emm_map[physical_page].logical_page * EMM_PAGE_SIZE;
+  if (ems_mmap) {
+    /* XXX - add error checking here */
+    munmap(base, EMM_PAGE_SIZE);
+  } else {
+    logical = (caddr_t) handle_info[handle].object + emm_map[physical_page].logical_page * EMM_PAGE_SIZE;
 
-#ifdef IPC_EMS
-  if (shmdt((caddr_t)logical) < 0) {
-    E_printf("EMS: IPC shmdt unsuccessful: %s\n", strerror(errno));
-    leavedos(29);
+    E_printf("EMS: COPY-UNMAP l=0x%08x, bs=0x%04x, d=0x%02x, s=0x%02x\n",
+	     (int)logical, (int)base, *(u_short *)logical, * (u_short *) base);
+    memmove((u_char *) logical, (u_char *) base, EMM_PAGE_SIZE);
   }
-  PRINT_EMS;
-#endif
-
-#ifdef COPY_EMS
-  E_printf("EMS: COPY-UNMAP l=0x%08x, bs=0x%04x, d=0x%02x, s=0x%02x\n",
-        (int)logical, (int)base, *(u_short *)logical, * (u_short *) base);
-  memmove((u_char *) logical, (u_char *) base, EMM_PAGE_SIZE);
-#endif
-#endif
 
 #else /* __linux__ */
   MACH_CALL((vm_deallocate(mach_task_self(),
@@ -801,16 +674,15 @@ map_page(handle, physical_page, logical_page)
   sync();
 #endif
 
-#ifdef UNMAP_BEFORE_MAP
-  if (emm_map[physical_page].handle != NULL_HANDLE)
-    unmap_page(physical_page);
-#endif
+  if (!ems_mmap) {
+    if (emm_map[physical_page].handle != NULL_HANDLE)
+      unmap_page(physical_page);
+  }
 
-    base = (caddr_t) EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE);
-    logical = (caddr_t) handle_info[handle].object + logical_page * EMM_PAGE_SIZE;
-
+  base = (caddr_t) EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE);
+  logical = (caddr_t) handle_info[handle].object + logical_page * EMM_PAGE_SIZE;
    
-#ifdef MMAP_EMS
+  if (ems_mmap) {
     E_printf("EMS: mmap()ing from 0x%x to 0x%x\n", (int)base, (int)logical);
     
     if (base!=mmap(base,
@@ -823,30 +695,11 @@ map_page(handle, physical_page, logical_page)
         E_printf("EMS: mmap() failed: %s\n",strerror(errno));
         leavedos(2);
     }
-#endif
-
-#ifdef IPC_EMS
-/* former sh_base was equal to physical_page */
-
-  logical-=handle_info[handle].object;
-  
-  E_printf("EMS: MAP l=0x%x, bs=0x%x, sz=%x, d=0x%02x, s=0x%02x sh_base=%d, shmid[sh_base]=%x\n", 
-    logical, base, size, *(u_short *)base, *(u_short *) logical, sh_base, shmid[sh_base]);
-
-  if ((logical = (caddr_t) shmat(shmid[physical_page],logical,SHM_REMAP)) == (caddr_t) 0xffffffff) {
-    E_printf("EMS: map_page shmat logical unsuccessful: %s\n", strerror(errno));
-    PRINT_EMS;
-    leavedos(2);
+  } else {
+    E_printf("EMS: COPY-MAP l=0x%x, bs=0x%x, d=0x%02x, s=0x%02x\n", 
+	     (int)logical, (int)base, *(u_short *)base, *(u_short *) logical);
+    memmove((u_char *) base, (u_char *) logical, EMM_PAGE_SIZE);
   }
-  E_printf("EMS: v_mmap base=%x, logical=%x\n", base, logical);
-  PRINT_EMS;
-#endif
-
-#ifdef COPY_EMS
-  E_printf("EMS: COPY-MAP l=0x%x, bs=0x%x, d=0x%02x, s=0x%02x\n", 
-    (int)logical, (int)base, *(u_short *)base, *(u_short *) logical);
-  memmove((u_char *) base, (u_char *) logical, EMM_PAGE_SIZE);
-#endif
 
 #else /* __linux__ */
   memory_object_remap(
@@ -891,9 +744,8 @@ save_handle_state(handle)
 	emm_map[i].logical_page;
       handle_info[handle].saved_mappings_handle[i] =
 	emm_map[i].handle;
-#ifdef COPY_EMS
-      reunmap_page(i);
-#endif
+      if (!ems_mmap)
+	reunmap_page(i);
     }
     else
       handle_info[handle].saved_mappings_logical[i] =
@@ -1390,10 +1242,10 @@ move_memory_region(state_t * state)
   caddr_t dest, source, mem;
   u_char i;
 
-#ifdef COPY_EMS
-  for (i = 0; i < EMM_MAX_PHYS; i++)
-    reunmap_page(i);
-#endif
+  if (!ems_mmap) {
+    for (i = 0; i < EMM_MAX_PHYS; i++)
+      reunmap_page(i);
+  }
 
   (u_char *) mem = (u_char *) Addr(state, ds, esi);
   load_move_mem(mem, mem_move);
@@ -1446,11 +1298,11 @@ move_memory_region(state_t * state)
   E_printf("EMS: Move Memory Region from 0x%x -> 0x%x\n", (int)source, (int)dest);
   memmove((u_char *) dest, (u_char *) source, mem_move->size);
 
-#ifdef COPY_EMS
-  for (i = 0; i < EMM_MAX_PHYS; i++)
-    remap_page(i);
-  E_printf("EMS: remap_page\n");
-#endif
+  if (!ems_mmap) {
+    for (i = 0; i < EMM_MAX_PHYS; i++)
+      remap_page(i);
+    E_printf("EMS: remap_page\n");
+  }
 
   if (source < dest) {
     if (source + mem_move->size >= dest) {
@@ -1474,10 +1326,10 @@ exchange_memory_region(state_t * state)
   caddr_t dest, source, mem, tmp;
   u_char i;
 
-#ifdef COPY_EMS
-  for (i = 0; i < EMM_MAX_PHYS; i++)
-    reunmap_page(i);
-#endif
+  if (!ems_mmap) {
+    for (i = 0; i < EMM_MAX_PHYS; i++)
+      reunmap_page(i);
+  }
 
   (u_char *) mem = (u_char *) Addr(state, ds, esi);
   load_move_mem(mem, mem_move);
@@ -1519,10 +1371,10 @@ exchange_memory_region(state_t * state)
   memmove(dest, tmp, mem_move->size);
   free(tmp);
 
-#ifdef COPY_EMS
-  for (i = 0; i < EMM_MAX_PHYS; i++)
-    remap_page(i);
-#endif
+  if (!ems_mmap) {
+    for (i = 0; i < EMM_MAX_PHYS; i++)
+      remap_page(i);
+  }
 
   return (0);
 }

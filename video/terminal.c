@@ -23,9 +23,6 @@
 #include "memory.h"
 #include "video.h"
 #include "terminal.h" 
-#ifdef X_SUPPORT
-#include "X.h"
-#endif
 
 /* The default character set is to use the latin character set */
 unsigned char *chartrans = charset_latin;
@@ -46,10 +43,12 @@ unsigned char *outp = outbuf;
 int cursor_row, cursor_col, cursor_blink, char_blink;
 int ibm_codes;
 
+int ncurses_update();
+
 /* The following initializes the terminal.  This should be called at the
  * startup of DOSEMU if it's running in terminal mode.
  */ 
-void
+int
 terminal_initialize()
 {
   int i,j,fore,back,attr,pairnum;
@@ -94,7 +93,7 @@ terminal_initialize()
   if (config.console_video) {
     config.term_method = METHOD_FAST;
     config.term_color = 0;
-    return;
+    return 0;
   }
   if (config.term_method != METHOD_NCURSES) {
     fprintf(stdout,"\033[H\033[2J");
@@ -108,8 +107,10 @@ terminal_initialize()
     fprintf(stdout,"\033(U\033(U\r        \r");
   }
   
-  if (config.term_method != METHOD_NCURSES) return;  
+  if (config.term_method != METHOD_NCURSES) return 0;  
 
+  Video_term.update_screen = ncurses_update;
+  
   initscr();
   if (!has_colors()) config.term_color = 0;
   if (config.term_color) start_color();
@@ -175,6 +176,7 @@ terminal_initialize()
       attrlookup[i] = attr;
     }
   }  
+  return 0;
 }
 
 void 
@@ -206,145 +208,17 @@ v_write(int fd, unsigned char *ch, int len)
     error("ERROR: (video) v_write deferred for console_video\n");
 }
 
-/* This is a better scroll routine, mostly for aesthetic reasons. It was
- * just too horrible to contemplate a scroll that worked 1 character at a
- * time :-)
- * 
- * It may give some performance improvement on some systems (it does
- * on mine) (Andrew Tridgell)
+
+/*
+ * This is a much-improved restore_screen, programmed by Mark D. Rejhon.
+ * Based on Andrew Tridgell code.  Updated to do more optimization.
+ * It is now much faster than it was in pre0.51pl24 and earlier,
+ * and actually works more properly. It's also better looking over
+ * a 2400 baud modem.  However, there is no buffer overflow checking
+ * yet :-(
  */
-void
-Scroll(int x0, int y0, int x1, int y1, int l, int att)
-{
-  int dx = x1 - x0 + 1;
-  int dy = y1 - y0 + 1;
-  int x, y;
-  us *sadr, blank = ' ' | (att << 8);
-  us *tbuf;
 
-  if (dx <= 0 || dy <= 0 || x0 < 0 || x1 >= co || y0 < 0 || y1 >= li)
-    return;
 
-  /* make a blank line */
-  tbuf = (us *) malloc(sizeof(us) * dx);
-  if (!tbuf) {
-    error("failed to malloc temp buf in scroll!");
-    return;
-  }
-  for (x = 0; x < dx; x++)
-    tbuf[x] = blank;
-
-  sadr = SCREEN_ADR(bios_current_screen_page);
-
-  if (l >= dy || l <= -dy)
-    l = 0;
-
-  if (l == 0) {			/* Wipe mode */
-    for (y = y0; y <= y1; y++)
-      memcpy(&sadr[y * co + x0], tbuf, dx * sizeof(us));
-    free(tbuf);
-    return;
-  }
-
-  if (l > 0) {
-    if (dx == co)
-      memcpy(&sadr[y0 * co], &sadr[(y0 + l) * co], (dy - l) * dx * sizeof(us));
-    else
-      for (y = y0; y <= (y1 - l); y++)
-	memcpy(&sadr[y * co + x0], &sadr[(y + l) * co + x0], dx * sizeof(us));
-
-    for (y = y1 - l + 1; y <= y1; y++)
-      memcpy(&sadr[y * co + x0], tbuf, dx * sizeof(us));
-  }
-  else {
-    for (y = y1; y >= (y0 - l); y--)
-      memcpy(&sadr[y * co + x0], &sadr[(y + l) * co + x0], dx * sizeof(us));
-
-    for (y = y0 - l - 1; y >= y0; y--)
-      memcpy(&sadr[y * co + x0], tbuf, dx * sizeof(us));
-  }
-  free(tbuf);
-}
-
-/* Output a character to the screen. */ 
-void
-char_out(unsigned char ch, int s)
-{
-  us *sadr;
-  int newline_att = 7;
-  int xpos, ypos;
-  xpos = bios_cursor_x_position(s);
-  ypos = bios_cursor_y_position(s);
-
-  switch (ch) {
-  case '\r':         /* Carriage return */
-    xpos = 0;
-    break;
-
-  case '\n':         /* Newline */
-    ypos++;
-    xpos = 0;                  /* EDLIN needs this behavior */
-    sadr = SCREEN_ADR(s);      /* Color newline */
-    newline_att = sadr[ypos * co + xpos - 1] >> 8;
-    break;
-
-  case 8:           /* Backspace */
-    if (xpos > 0) xpos--;
-    break;
-  
-  case '\t':        /* Tab */
-    v_printf("tab\n");
-    do char_out(' ', s); while (xpos % 8 != 0);
-    break;
-
-  case 7:           /* Bell */
-    /* Bell should be sounded here, but it's more trouble than its */
-    /* worth for now, because printf, addch or addstr or out_char  */
-    /* would all interfere by possibly interrupting terminal codes */
-    /* Ignore this for now, since this is a hack til NCURSES.      */
-    break;
-
-  default:          /* Printable character */
-    sadr = SCREEN_ADR(s);
-    sadr[ypos * co + xpos] &= 0xff00;
-    sadr[ypos * co + xpos++] |= ch;
-  }
-
-  if (xpos == co) {
-    xpos = 0;
-    ypos++;
-  }
-  if (ypos == li) {
-    ypos--;
-    scrollup(0, 0, co - 1, li - 1, 1, newline_att);
-  }
-
-  bios_cursor_x_position(s) = xpos;
-  bios_cursor_y_position(s) = ypos;
-  cursor_col = xpos;
-  cursor_row = ypos;
-}
-
-/* The following clears the screen buffer. It does it only to the screen 
- * buffer.  If in termcap mode, the screen will be cleared the next time
- * restore_screen() is called.
- */
-void
-clear_screen(int s, int att)
-{
-  u_short *schar, blank = ' ' | (att << 8);
-  int lx;
-
-  v_printf("VID: cleared screen\n");
-  if (s > max_page) return;
-  
-  for (schar = SCREEN_ADR(s), 
-       lx = 0; lx < (co * li); 
-       *(schar++) = blank, lx++);
-
-  bios_cursor_x_position(s) = bios_cursor_y_position(s) = 0;
-  cursor_row = cursor_col = 0;
-}
 
 /* This is the screen updating routine that uses NCURSES as the display
  * engine.  Because of NCURSES' overheads, this routine is much slower than 
@@ -381,11 +255,10 @@ ncurses_update()
     wmove(win, y, x);
   }
 
-  static us *sadr;      /* Ptr to start of screen memory of curr page */
   static us *schar;     /* Ptr to character being updated */
   static us scrrow[256];/* Array to hold screen memory row temporarily */
   static us *temprow;   /* Temporary buffer pointer for scrrow[] */
-  static uchar *bufrow; /* Ptr to start of buffer row corresp to screen row */
+  static us *bufrow;    /* Ptr to start of buffer row corresp to screen row */
   static int x, y;      /* X and Y position of character being updated */
   static int scanx;     /* Index for comparing screen and buffer rows */
   static int endx;      /* Last character for line loop index */
@@ -400,11 +273,9 @@ ncurses_update()
   static int attrbits = 0;
   static int oldattr = -1;
 
-  sadr = SCREEN_ADR(bios_current_screen_page);
-
 #if 0
-  v_printf("RESTORE SCREEN: scrbuf at %p\n", scrbuf);
-  v_printf("SADR: %p\n", sadr);
+  v_printf("RESTORE SCREEN: prev_screen at %p\n", prev_screen);
+  v_printf("SADR: %p\n", screen_adr);
   v_printf("virt_text_base: %p\n", (u_char *)virt_text_base);
   v_printf("SCREEN: %x\n", bios_current_screen_page);
 #endif  
@@ -462,13 +333,13 @@ ncurses_update()
       if (y == (li - 1)) endx = co - 1;
     }
 
-    /* Only update if the line has changed.  Note that sadr is an unsigned
-     * short ptr, so co is not multiplied by 2...I'll clean this up later.
+    /* Only update if the line has changed.  Note that screen_adr & prev_screen
+     * are unsigned short ptrs, so co is not multiplied by 2.
      */
-    bufrow = scrbuf + y * co * 2;  /* Position of first char in row in sadr */
+    bufrow = prev_screen + y * co;  /* Position of first char in row in prev_screen */
 
     /* Copy screen mem line to temporary buffer row */
-    memcpy(scrrow, sadr + y * co, co * 2);
+    memcpy(scrrow, screen_adr + y * co, co * 2);
 
     /* Strip all blinking bits from temp buffer row if blinking disabled */
     if (!char_blink) {
@@ -501,7 +372,7 @@ ncurses_update()
 
         /* Scan for first character that needs to be updated */
         for (scanx = x; scanx < endx; scanx++)
-          if (memcmp(bufrow + scanx * 2, scrrow + scanx, 2))
+          if (bufrow[scanx]!=scrrow[scanx])
             break;
       
         /* Do next row if there are no more chars needing to be updated */
@@ -557,12 +428,19 @@ ncurses_update()
     wrefresh(win);
   }
 
-  /* The updates look a bit cleaner when reset to top of the screen
-   * if nothing had changed on the screen in this call to screen_restore
-   */
-  if (!numdone) yloop = -1;
-
-  return numdone;
+  if (numdone) {
+     if (numscan==li)
+        return 1;     /* changed, entire screen updated */
+     else
+        return 2;     /* changed, part of screen updated */
+  }
+  else {
+     /* The updates look a bit cleaner when reset to top of the screen
+      * if nothing had changed on the screen in this call to screen_restore
+      */
+     yloop = -1;
+     return 0;
+  }
 }
 
 int
@@ -662,11 +540,10 @@ ansi_update()
     *oldatt = newatt;
   }
 
-  static us *sadr;	/* Ptr to start of screen memory of curr page */
   static us *schar;	/* Ptr to character being updated */
   static us scrrow[256];/* Array to hold screen memory row temporarily */
   static us *temprow;	/* Temporary buffer pointer for scrrow[] */
-  static uchar *bufrow;	/* Ptr to start of buffer row corresp to screen row */
+  static us *bufrow;	/* Ptr to start of buffer row corresp to screen row */
   static int x, y;	/* X and Y position of character being updated */
   static int scanx;	/* Index for comparing screen and buffer rows */
   static int endx;	/* Last character for line loop index */
@@ -680,11 +557,9 @@ ansi_update()
   static int oldx = 0;      /* Previous x cursor position */
   static int oldy = 0;      /* Previous y cursor position */
 
-  sadr = SCREEN_ADR(bios_current_screen_page);
-
 #if 0
-  v_printf("RESTORE SCREEN: scrbuf at %p\n", scrbuf);
-  v_printf("SADR: %p\n", sadr);
+  v_printf("RESTORE SCREEN: prev_screen at %p\n", prev_screen);
+  v_printf("SADR: %p\n", screen_adr);
   v_printf("virt_text_base: %p\n", (u_char *)virt_text_base);
   v_printf("SCREEN: %x\n", bios_current_screen_page);
 #endif  
@@ -740,13 +615,13 @@ ansi_update()
       if (y == (li - 1)) endx = co - 1;
     }
 
-    /* Only update if the line has changed.  Note that sadr is an unsigned
-     * short ptr, so co is not multiplied by 2...I'll clean this up later.
+    /* Only update if the line has changed.  Note that screen_adr & prev_screen
+     * are unsigned short ptrs, so co is not multiplied by 2.
      */
-    bufrow = scrbuf + y * co * 2;  /* Position of first char in row in sadr */
+    bufrow = prev_screen + y * co;  /* Position of first char in row in prev_screen */
 
     /* Copy screen mem line to temporary buffer row */
-    memcpy(scrrow, sadr + y * co, co * 2);  
+    memcpy(scrrow, screen_adr + y * co, co * 2);  
     
     /* Strip all blinking bits from temp buffer row if blinking disabled */
     if (!char_blink) {
@@ -779,7 +654,7 @@ ansi_update()
 
         /* Scan for first character that needs to be updated */
         for (scanx = x; scanx < endx; scanx++)
-          if (memcmp(bufrow + scanx * 2, scrrow + scanx, 2))
+          if (bufrow[scanx]!=scrrow[scanx])
             break;
       
         /* Do next row if there are no more chars needing to be updated */
@@ -822,36 +697,29 @@ ansi_update()
   fast_buffer_poscur(&oldx,&oldy,cursor_col,cursor_row,1);
   CHFLUSH;
 
-  /* The updates look a bit cleaner when reset to top of the screen
-   * if nothing had changed on the screen in this call to screen_restore
-   */
-  if (!numdone) yloop = -1;
-
-  return numdone;
-}
-
-/*
- * This is a much-improved restore_screen, programmed by Mark D. Rejhon.
- * Based on Andrew Tridgell code.  Updated to do more optimization.
- * It is now much faster than it was in pre0.51pl24 and earlier,
- * and actually works more properly. It's also better looking over
- * a 2400 baud modem.  However, there is no buffer overflow checking
- * yet :-(
- */
-int
-restore_screen()
-{
-#if X_SUPPORT
-  if (config.X) {
-     return X_update_screen();
+  if (numdone) {
+     if (numscan==li)
+        return 1;     /* changed, entire screen updated */
+     else
+        return 2;     /* changed, part of screen updated */
   }
   else {
-#endif
-     if (config.term_method == METHOD_NCURSES)
-       return ncurses_update();
-     else
-       return ansi_update(); 
-#if X_SUPPORT
-   }
-#endif
+     /* The updates look a bit cleaner when reset to top of the screen
+      * if nothing had changed on the screen in this call to screen_restore
+      */
+     yloop = -1;
+     return 0;
+  }
 }
+
+#define term_setmode NULL
+#define term_update_cursor NULL
+
+struct video_system Video_term = {
+   0,                /* is_mapped */
+   terminal_initialize, 
+   terminal_close,      
+   term_setmode,      
+   ansi_update,     /* might be changed by terminal_init */
+   term_update_cursor
+};

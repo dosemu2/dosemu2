@@ -1,8 +1,8 @@
 # Makefile for Linux DOS emulator
 #
-# $Date: 1994/08/11 01:11:34 $
+# $Date: 1994/08/14 02:52:04 $
 # $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.22 $
+# $Revision: 2.24 $
 # $State: Exp $
 #
 
@@ -35,12 +35,14 @@ X_SUPPORT = 1
 export X_SUPPORT
 
 ifdef X_SUPPORT
-XCFILES = 
-XOBJS   =
+XCFILES = Xkeyb.c
+XOBJS   = Xkeyb.o
 #the -u forces the X11 shared library to be linked into ./dos
 XLIBS   = -lX11 -u _XOpenDisplay
 XDEFS   = -DX_SUPPORT
 endif
+
+export XDEFS
 
 # dosemu version
 EMUVER  =   0.53
@@ -90,11 +92,11 @@ DOCS= doc
 
 CFILES=cmos.c dos.c emu.c termio.c xms.c disks.c keymaps.c mutex.c \
 	timers.c dosio.c cpu.c  mfs.c bios_emm.c lpt.c \
-        serial.c dyndeb.c sigsegv.c detach.c
+        serial.c dyndeb.c sigsegv.c detach.c $(XCFILES)
 
 HFILES=cmos.h emu.h termio.h timers.h xms.h dosio.h \
         cpu.h mfs.h disks.h memory.h machcompat.h lpt.h \
-        serial.h mutex.h int.h int10.h ports.h
+        serial.h mutex.h int.h ports.h
 
 SFILES=bios.S
 
@@ -203,7 +205,7 @@ dos:	dos.c $(DOSOBJS)
 
 libdosemu:	$(SHLIBOBJS) $(DPMIOBJS)
 	ld $(LDFLAGS) $(MAGIC) -T $(LIBSTART) -o $@ \
-	   $(SHLIBOBJS) $(DPMIOBJS) $(SHLIBS) $(XLIBS) -lncurses -lc -lfl
+	   $(SHLIBOBJS) $(DPMIOBJS) $(SHLIBS) $(XLIBS) -lncurses -lc
 
 dossubdirs: dummy
 	@for i in $(SUBDIRS); do \

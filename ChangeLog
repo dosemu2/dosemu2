@@ -1,3 +1,20 @@
+Sat Aug 12 1994 Jmaclean
+
+-	Added Rain's massive cleanups and X mouse support. This is
+	NOT tested and will need some time to smoothen out.
+- 	Added keymaps fixes for sg-latin1 from :
+	pingu@satu.baboon.ch (Ruedi Kneubuehler).
+
+Fri Aug 12 1994 Jmaclean
+
+-	Added Scottb's patches to bios_emm.c and lexer.l
+-	Added lsm to ./doc subdir
+
+Thr Aug 11 1994 Jmaclean
+
+-	Fixed keyboard latin1 statement and latin1 codes for better
+	emualtion thanks to vilva@xiron.pc.helsinki.fi (Veijo Vilva).
+
 Wed Aug 10 1994 Jmaclean
 
 -	Added back some termio ioctl's to set ISTRIP,IGNBRK,OPOST

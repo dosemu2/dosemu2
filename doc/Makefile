@@ -18,10 +18,10 @@ install:
 	cp dos.1 /usr/man/man1
 
 checkin:
-	-ci dosemu.texinfo DPR DANG DANG.sgml EMUsuccess.txt
+	-ci dosemu.texinfo DPR DANG DANG.sgml EMUsuccess.txt lsm
 
 checkout:
-	-co -l dosemu.texinfo DPR DANG DANG.sgml EMUsuccess.txt
+	-co -l dosemu.texinfo DPR DANG DANG.sgml EMUsuccess.txt lsm
 
 clean:
 	rm -f dosemu.dvi dosemu.cp dosemu.aux dosemu.cps dosemu.fn dosemu.fns 
@@ -31,6 +31,6 @@ clean:
 
 dist: dosemu.texinfo dosemu.info dos.1 DPR DANG EMUsuccess.txt
 	install -d $(DISTPATH)/doc
-	install -m 0644 Makefile dosemu.texinfo dosemu.info dos.1 announce$(EMUVER) DPR DANG EMUsuccess.txt $(DISTPATH)/doc
+	install -m 0644 Makefile dosemu.texinfo dosemu.info dos.1 announce$(EMUVER) DPR DANG EMUsuccess.txt lsm $(DISTPATH)/doc
 	install -d $(DISTPATH)/html
 	install -m 0644 html/* $(DISTPATH)/html

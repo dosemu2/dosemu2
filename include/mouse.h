@@ -18,6 +18,7 @@
 #define MOUSE_MOUSEMAN 5
 #define MOUSE_PS2 6
 #define MOUSE_HITACHI 7
+#define MOUSE_X 8
 
 /* types of mouse events */
 #define DELTA_CURSOR		1
@@ -52,7 +53,7 @@ typedef struct mouse_structure {
 
 struct mouse_struct {
   unsigned char lbutton, mbutton, rbutton;
-  unsigned char oldlbutton, oldrbutton;
+  unsigned char oldlbutton, oldmbutton, oldrbutton;
 
   int lpcount, lrcount, mpcount, mrcount, rpcount, rrcount;
 
@@ -102,5 +103,10 @@ extern void mouse_init(void);
 extern void mouse_int(void);
 extern void mouse_close(void);
 extern void int74(void);
+
+extern void mouse_move();
+extern void mouse_lb();
+extern void mouse_mb();
+extern void mouse_rb();
 
 #endif /* MOUSE_H */

@@ -13,6 +13,7 @@
 #include "emu.h"        /* for v_printf only */
 #include "port.h"
 #include "video.h"
+#include "vc.h"
 #include "vga.h"
 #include "et4000.h"
 

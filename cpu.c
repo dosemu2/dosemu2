@@ -3,12 +3,15 @@
  * taken over by:
  *          Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/08/05 22:29:31 $
+ * $Date: 1994/08/14 02:52:04 $
  * $Source: /home/src/dosemu0.60/RCS/cpu.c,v $
- * $Revision: 2.5 $
+ * $Revision: 2.6 $
  * $State: Exp $
  *
  * $Log: cpu.c,v $
+ * Revision 2.6  1994/08/14  02:52:04  root
+ * Rain's latest CLEANUP and MOUSE for X additions.
+ *
  * Revision 2.5  1994/08/05  22:29:31  root
  * Prep dir pre53_10.
  *
@@ -197,9 +200,6 @@
 #include "termio.h"
 #include "emu.h"
 #include "port.h"
-
-/* Needed for DIAMOND define */
-#include "video.h"
 
 #ifdef DPMI
 #include "dpmi/dpmi.h"

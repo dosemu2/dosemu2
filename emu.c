@@ -12,12 +12,15 @@
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
- * $Date: 1994/08/09 01:49:57 $
+ * $Date: 1994/08/14 02:52:04 $
  * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 2.18 $
+ * $Revision: 2.19 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 2.19  1994/08/14  02:52:04  root
+ * Rain's latest CLEANUP and MOUSE for X additions.
+ *
  * Revision 2.18  1994/08/09  01:49:57  root
  * Prep for pre53_11.
  *
@@ -461,9 +464,9 @@ __asm__("___START___: jmp _emulate\n");
 #include "cpu.h"
 
 #if 1				/* 94/05/12 */
-#include "int10.h"
 #include "int.h"
 #endif
+
 
 extern void getKeys(void);
 
@@ -495,7 +498,7 @@ struct itimerval itv;
 long start_time;		/* Keep track of times for DOS calls */
 unsigned long last_ticks;
 
-void video_config_init(void);
+extern void video_config_init(void);
 
 /*
    Tables that hold information of currently specified storage
@@ -548,8 +551,6 @@ struct int_queue_list_struct {
   struct vm86_regs saved_regs;
 } int_queue_head[NUM_INT_QUEUE];
 #endif
-
-unsigned char *scrbuf;	/* the previously updated screen */
 
 int card_init = 0;		/* VGAon exectuted flag */
 unsigned long precard_eip, precard_cs;	/* Save state at VGAon */
@@ -984,7 +985,7 @@ boot(void)
   bios_address_lpt2 = 0x278;
   bios_configuration = configuration;
   bios_memory_size = config.mem_size;	/* size of memory */
-  bios_video_mode = screen_mode;/* screen mode */
+  bios_video_mode = video_mode; /* video mode */
   bios_screen_columns = CO;	/* chars per line */
   bios_rows_on_screen_minus_1 = LI - 1;	/* lines on screen - 1 */
   bios_video_memory_used = TEXT_SIZE;	/* size of video regen area in bytes */
@@ -998,10 +999,8 @@ boot(void)
 
   keybuf_clear();
 
-  if ((configuration & MDA_CONF_SCREEN_MODE) == MDA_CONF_SCREEN_MODE)
-    bios_video_port = 0x3b4;	/* base port of CRTC - IMPORTANT! */
-  else
-    bios_video_port = 0x3d4;	/* base port of CRTC - IMPORTANT! */
+  video_config_init();
+
   bios_vdu_control = 9;		/* current 3x8 (x=b or d) value */
   bios_ctrl_alt_del_flag = 0x0000;
   *(char *) 0x487 = 0x61;
@@ -1087,8 +1086,11 @@ sigalrm(int sig, struct sigcontext_struct context)
   static inalrm = 0;
   static int partials = 0;
   static u_char timals = 0;
-  static int anychanges = 0;
-
+#if VIDEO_CHECK_DIRTY
+  static int update_pending = 0;
+#endif
+  int retval;
+  
   if (inalrm || in_sighandler) {
     error("ERROR: Reentering SIGALRM! alrm=%d, in_sig=%d\n", inalrm, in_sighandler);
     setitimer(TIMER_TIME, &itv, NULL);
@@ -1103,31 +1105,65 @@ sigalrm(int sig, struct sigcontext_struct context)
     dpmi_sigalrm(&context);
 #endif /* DPMI */
 
+#ifdef X_SUPPORT
+  if (config.X) 
+     X_handle_events();
+#endif
+
+
   /* If it is running in termcap mode, then update the screen.
    * First it sets a running flag, so as to avoid re-entrancy of 
-   * restore_screen while it is in use.  After restore_screen is done,
+   * update_screen while it is in use.  After update_screen is done,
    * it returns a nonzero value if there was any updates to the screen.
    * If there were any updates to the screen, then set a countdown value
    * in order to give DOSEMU more CPU time, between screen updates.
    * This increases the DOSEMU-to-termcap update efficiency greatly.
    * The countdown counter is currently at a value of 2.
    */
-  if (!config.graphics) {
-    if (!config.console_video) {
-      if (!running) {
-        running = -1;
-        anychanges = restore_screen();
-        running = anychanges ? config.term_updatefreq : 0;
-      }
-      else if (running > 0) {
-        running--;
-      }
+   
+   /* This now (again) tests screen_bitmap, i.e. checks if the screen 
+    * was written to at all. This doesn't seem to achieve much for now,
+    * but it will be helpful when implementing X graphics.
+    * It's a bit tricky, however, because previous calls of update_screen
+    * might not have updated the entire screen. Therefore update_pending
+    * is set to 1 if only part of the screen was updated (update_screen
+    * returns 2), meaning that update_screen will in any case be called
+    * next time.
+    * (*** this only applies if VIDEO_CHECK_DIRTY is set, which is 
+    *      currently not the default! ***)
+    *
+    * return vales for update_screen are now:    
+    *       0 nothing changed
+    *       1 changed, entire screen updated
+    *       2 changed, only partially updated
+    *
+    * note that update_screen also updates the cursor.
+    */
+
+  if (!running) {
+    if (Video->update_screen 
+#if VIDEO_CHECK_DIRTY
+       && (update_pending || vm86s.screen_bitmap&screen_mask)
+#endif
+       ) 
+    {
+       running = -1;
+       retval = Video->update_screen();
+       v_printf("update_screen returned %d\n",retval);
+       running = retval ? config.term_updatefreq : 0;
+#if VIDEO_CHECK_DIRTY
+       update_pending=(retval==2);
+       vm86s.screen_bitmap=0;
+#endif
     }
-    else {
-      console_update_cursor(cursor_col, cursor_row, cursor_blink, 0);
+    else if (Video->update_cursor) {
+       Video->update_cursor();
     }
   }
-
+  else if (running > 0) {
+    running--;
+  }
+  
 #if 0
   setitimer(TIMER_TIME, &itv, NULL);
 #endif
@@ -1574,32 +1610,6 @@ int_queue_run()
   return;
 }
 
-/* load <msize> bytes of file <name> starting at offset <foffset>
- * into memory at <mstart>
- */
-int
-load_file(char *name, int foffset, char *mstart, int msize)
-{
-  int fd;
-
-  if (strcmp(name, "/dev/kmem") == 0) {
-    v_printf("kmem used for loadfile\n");
-    open_kmem();
-    fd = mem_fd;
-  }
-  else
-    fd = open(name, O_RDONLY);
-
-  DOS_SYSCALL(lseek(fd, foffset, SEEK_SET));
-  RPT_SYSCALL(read(fd, mstart, msize));
-
-  if (strcmp(name, "/dev/kmem") == 0)
-    close_kmem();
-  else
-    close(fd);
-  return 0;
-}
-
 /* Silly Interrupt Generator Initialization/Closedown */
 
 #ifdef SIG
@@ -1652,6 +1662,17 @@ void
   in_sighandler = 0;
   sync();			/* for safety */
 
+#ifdef X_SUPPORT
+  {  char *p;
+     p = strrchr(argv[0],'/');    /* parse the program name */
+     p = p ? p+1 : argv[0];
+    
+     if (strcmp(p,"xdos")==0)
+        config.X=1;               /* activate X mode if dosemu was */ 
+                                  /* called as 'xdos'              */
+  }
+#endif
+     
   opterr = 0;
   confname = NULL;
   while ((c = getopt(argc, argv, "ABC:cF:kM:D:P:VNtsgx:Km234e:dX")) != EOF) {
@@ -1833,41 +1854,19 @@ void
   /* setup DOS memory, whether shared or not */
   memory_setup();
 
+  /* initialize some video config variables, possibly map video bios,
+     get graphics chars
+  */
   video_config_init();
 
-  /* This is needed in the video stuff. Grabbed from boot(). */
-  if ((configuration & MDA_CONF_SCREEN_MODE) == MDA_CONF_SCREEN_MODE)
-    bios_video_port = 0x3b4;	/* base port of CRTC - IMPORTANT! */
-  else
-    bios_video_port = 0x3d4;	/* base port of CRTC - IMPORTANT! */
-
-  if (config.mapped_bios) {
-    if (config.vbios_file) {
-      warn("WARN: loading VBIOS %s into mem at 0x%X (0x%X bytes)\n",
-	   config.vbios_file, VBIOS_START, VBIOS_SIZE);
-      load_file(config.vbios_file, 0, (char *) VBIOS_START, VBIOS_SIZE);
-    }
-    else if (config.vbios_copy) {
-      warn("WARN: copying VBIOS from /dev/kmem at 0x%X (0x%X bytes)\n",
-	   VBIOS_START, VBIOS_SIZE);
-      load_file("/dev/kmem", VBIOS_START, (char *) VBIOS_START, VBIOS_SIZE);
-    }
-    else {
-      warn("WARN: copying VBIOS file from /dev/kmem\n");
-      load_file("/dev/kmem", VBIOS_START, (char *) VBIOS_START, VBIOS_SIZE);
-    }
-  }
-
-  /* copy graphics characters from system BIOS */
-  load_file("/dev/kmem", GFX_CHARS, (char *) GFX_CHARS, GFXCHAR_SIZE);
 
   g_printf("EMULATE\n");
 
   /* we assume system call restarting... under linux 0.99pl8 and earlier,
-	 * this was the default.  SA_RESTART was defined in 0.99pl8 to explicitly
-	 * request restarting (and thus does nothing).  However, if this ever
-	 * changes, I want to be safe
-	 */
+   * this was the default.  SA_RESTART was defined in 0.99pl8 to explicitly
+   * request restarting (and thus does nothing).  However, if this ever
+   * changes, I want to be safe
+   */
 #ifndef SA_RESTART
 #define SA_RESTART 0
 #endif
@@ -1924,31 +1923,21 @@ void
     set_ticks(last_ticks);
   };
 
-  termioInit();
+  vm86s.flags=0;
+
+  video_init();
   mouse_init();
   disk_init();
-
-#ifdef X_SUPPORT
-  /* when X supports keyboard input, the termioInit call above should
-     be removed for X support. 
-  */
-  if (config.X)
-     X_init();
+#if 0 /* Why init video twice ? */
+  video_init();
 #endif
-
-  /* allocate screen buffer for non-console video compare speedup */
-  scrbuf = (u_char *)malloc(CO * LI * 2);
-  v_printf("SCREEN saves at: %p of %d size\n", scrbuf, CO * LI * 2);
-
+  
   NEWSETSIG(SIGSEGV, dosemu_fault);
   hardware_init();
-  if (config.vga) vga_initialize();
-  
-  clear_screen(bios_current_screen_page, 7);
 
   boot();
 
-  /*
+/*
   boot(config.hdiskboot ? hdisktab : disktab);
 */
 
@@ -1960,10 +1949,6 @@ void
   setitimer(TIMER_TIME, &itv, NULL);
   k_printf("Used %d for update\n", UPDATE / TIMER_DIVISOR);
 
-  if (!config.console_video)
-    vm86s.flags = VM86_SCREEN_BITMAP;
-  else
-    vm86s.flags = 0;
 
   serial_init();
 #ifdef SIG
@@ -1984,62 +1969,6 @@ void
   leavedos(99);
 }
 
-void
- video_config_init(void) {
-  switch (config.cardtype) {
-  case CARD_MDA:
-    {
-      configuration |= (MDA_CONF_SCREEN_MODE);
-      screen_mode = MDA_INIT_SCREEN_MODE;
-      phys_text_base = MDA_PHYS_TEXT_BASE;
-      virt_text_base = MDA_VIRT_TEXT_BASE;
-      video_combo = MDA_VIDEO_COMBO;
-      video_subsys = MDA_VIDEO_SUBSYS;
-      break;
-    }
-  case CARD_CGA:
-    {
-      configuration |= (CGA_CONF_SCREEN_MODE);
-      screen_mode = CGA_INIT_SCREEN_MODE;
-      phys_text_base = CGA_PHYS_TEXT_BASE;
-      virt_text_base = CGA_VIRT_TEXT_BASE;
-      video_combo = CGA_VIDEO_COMBO;
-      video_subsys = CGA_VIDEO_SUBSYS;
-      break;
-    }
-  case CARD_EGA:
-    {
-      configuration |= (EGA_CONF_SCREEN_MODE);
-      screen_mode = EGA_INIT_SCREEN_MODE;
-      phys_text_base = EGA_PHYS_TEXT_BASE;
-      virt_text_base = EGA_VIRT_TEXT_BASE;
-      video_combo = EGA_VIDEO_COMBO;
-      video_subsys = EGA_VIDEO_SUBSYS;
-      break;
-    }
-  case CARD_VGA:
-    {
-      configuration |= (VGA_CONF_SCREEN_MODE);
-      screen_mode = VGA_INIT_SCREEN_MODE;
-      phys_text_base = VGA_PHYS_TEXT_BASE;
-      virt_text_base = VGA_VIRT_TEXT_BASE;
-      video_combo = VGA_VIDEO_COMBO;
-      video_subsys = VGA_VIDEO_SUBSYS;
-      break;
-    }
-  default:			/* or Terminal, is this correct ? */
-    {
-      configuration |= (CGA_CONF_SCREEN_MODE);
-      screen_mode = CGA_INIT_SCREEN_MODE;
-      phys_text_base = CGA_PHYS_TEXT_BASE;
-      virt_text_base = CGA_VIRT_TEXT_BASE;
-      video_combo = CGA_VIDEO_COMBO;
-      video_subsys = CGA_VIDEO_SUBSYS;
-      break;
-    }
-  }
-  bios_current_screen_page = 0x0;	/* Current Screen Page */
-}
 
 void
 ign_sigs(int sig) {
@@ -2094,7 +2023,7 @@ void
   show_ints(0, 0x33);
   show_regs();
   disk_close_all();
-  termioClose();
+  video_close();
   fflush(stderr);
   fflush(stdout);
 
@@ -2145,7 +2074,7 @@ int
 
 void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.18 1994/08/09 01:49:57 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.19 1994/08/14 02:52:04 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -2754,7 +2683,7 @@ dos_helper(void) {
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/08/09 01:49:57 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/08/14 02:52:04 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */

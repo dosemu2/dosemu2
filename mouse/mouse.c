@@ -1,12 +1,15 @@
 /* mouse.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/08/09 01:51:17 $
+ * $Date: 1994/08/14 02:54:28 $
  * $Source: /home/src/dosemu0.60/mouse/RCS/mouse.c,v $
- * $Revision: 2.8 $
+ * $Revision: 2.9 $
  * $State: Exp $
  *
  * $Log: mouse.c,v $
+ * Revision 2.9  1994/08/14  02:54:28  root
+ * Rain's CLEANUP and DOS in a X box MOUSE additions.
+ *
  * Revision 2.8  1994/08/09  01:51:17  root
  * Prep for pre53_11.
  *
@@ -574,6 +577,26 @@ mouse_lb(void)
 }
 
 void 
+mouse_mb(void)
+{
+#if 0
+  m_printf("MOUSE: middle button %s\n", mouse.mbutton ? "pressed" : "released");
+  if (!mouse.mbutton) {
+    mouse.mrcount++;
+    mouse.mrx = mouse.x;
+    mouse.mry = mouse.y;
+    mouse_delta(DELTA_MIDDLEBUP);
+  }
+  else {
+    mouse.mpcount++;
+    mouse.mpx = mouse.x;
+    mouse.mpy = mouse.y;
+    mouse_delta(DELTA_MIDDLEBDOWN);
+  }
+#endif
+}
+
+void 
 mouse_rb(void)
 {
   m_printf("MOUSE: right button %s\n", mouse.rbutton ? "pressed" : "released");
@@ -736,6 +759,14 @@ mouse_init(void)
 {
   serial_t *sptr;
 
+#ifdef X_SUPPORT
+  if (config.X) {
+    mice->intdrv = TRUE;
+    mice->type = MOUSE_X;
+    return;
+  }
+#endif
+  
   if (mice->intdrv) {
     mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK));
     if (mice->fd == -1) {
@@ -762,6 +793,10 @@ mouse_init(void)
 void
 mouse_close(void)
 {
+#ifdef X_SUPPORT
+  if (config.X) return;
+#endif
+  
   if (mice->intdrv) {
     DOS_SYSCALL(close(mice->fd));
     return;

@@ -8,6 +8,7 @@
 #include "emu.h"
 #include "termio.h"
 #include "video.h"
+#include "vc.h"
 
 extern int wait_vc_active(void);
 
@@ -55,6 +56,10 @@ console_update_cursor(int xpos, int ypos, int blinkflag, int forceflag)
   
   /* Save current state of cursor for next call to this function. */
   oldx = xpos; oldy = ypos; oldblink = blinkflag;
+}
+
+void do_console_update_cursor() {
+   console_update_cursor(cursor_col,cursor_row,cursor_blink,0);
 }
 
 void set_console_video(void)
@@ -136,4 +141,17 @@ void clear_console_video(void)
     ioctl(ioc_fd, KDSETMODE, KD_TEXT);
   }
 }
+
+#define console_init vga_initialize
+#define console_close NULL
+#define console_setmode NULL
+
+struct video_system Video_console = {
+   1,                /* is_mapped */
+   console_init,
+   console_close,
+   console_setmode,
+   NULL,             /* update_screen */
+   do_console_update_cursor
+};
 

@@ -37,7 +37,7 @@ ALL = $(CFILES) $(HFILES)
 OBJS = mouse.o mouseint.o
 
 .c.o:
-	$(CC) $(CFLAGS) $(INCDIR) -c $<
+	$(CC) $(CFLAGS) $(XDEFS) $(INCDIR) -c $<
  
 all: ../$(SUBDIR).o
 
