@@ -18,3 +18,4 @@ void X_draw_cursor(int x,int y);
 void X_restore_cell(int x,int y);
 void X_move_cursor(int from_x,int from_y,int to_x,int to_y);
 void X_setcursorshape(unsigned short shape);
+void X_set_textsize(int, int);

@@ -134,6 +134,12 @@
  * 1998/11/01: Added so far unsupported video modes (CGA, 1 bit & 2 bit VGA).
  * -- sw
  *
+ * 1998/12/12: Palette/font changes in text modes improved.
+ * -- sw
+ *
+ * 1999/01/05: Splitted X_update_screen() into two separate parts.
+ * -- sw
+ *
  * DANG_END_CHANGELOG
  */
 
@@ -142,20 +148,26 @@
  * some configurable options
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+/*
+ * Debug level for the X interface.
+ * 0 - normal / 1 - useful / 2 - too much
+ */
+#define DEBUG_X		0
+
+/* show X mouse in graphics modes */
+#undef DEBUG_MOUSE_POS
+
+/* define if you wish to have a visual indication of the area being updated */
+#undef DEBUG_SHOW_UPDATE_AREA
+
 /* use backing store in text modes */
 #define X_USE_BACKING_STORE
 
 /* Do you want speaker support in X? */
 #define CONFIG_X_SPEAKER 1
 
-/* show X mouse in graphics modes */
-#undef DEBUG_MOUSE_POS
-
 /* when grabbing all mouse events, grab keyboard too */
 #undef ENABLE_KEYBOARD_GRAB
-
-/* define if you wish to have a visual indication of the area being updated */
-#undef DEBUG_SHOW_UPDATE_AREA
 
 /* "fine tuning" option for X_update_screen */
 #define MAX_UNCHANGED	3
@@ -166,6 +178,23 @@
 #define CONFIG_X_SELECTION 1
 
 #define CONFIG_X_MOUSE 1
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define x_msg(x...) X_printf("X: " x)
+
+#if DEBUG_X >= 1
+#define x_deb(x...) X_printf("X: " x)
+#else
+#define x_deb(x...)
+#endif
+
+#if DEBUG_X >= 2
+#define x_deb2(x...) X_printf("X: " x)
+#else
+#define x_deb2(x...)
+#endif
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -223,6 +252,7 @@
 #if CONFIG_X_SELECTION
 #define SEL_ACTIVE(w) (visible_selection && ((w) >= sel_start) && ((w) <= sel_end))
 #define SEL_ATTR(attr) (((attr) >> 4) ? (attr) :(((attr) & 0x0f) << 4))
+/* #define SEL_ATTR(attr) ((((attr) >> 4) & 0x0f) + (((attr) << 4) & 0xf0)) */
 #define XATTR(w) (SEL_ACTIVE(w) ? SEL_ATTR(ATTR(w)) : ATTR(w))
 #else
 #define XATTR(w) (ATTR(w))
@@ -432,14 +462,20 @@ static void put_ximage(int, int, int, int, unsigned, unsigned);
 static void resize_ximage(unsigned, unsigned);
 
 /* video mode set/modify stuff */
-static int X_setmode(int, int, int);
+static int X_set_videomode(int, int, int);
+static int X_setmode(int, int, int, int);
 static void X_modify_mode(void);
-static void X_partial_redraw_screen(void);
+void X_set_textsize(int, int);
+static void X_resize_text_screen(void);
 
 /* screen update/redraw functions */
-static void X_redraw_screen(void);
+static void X_reset_redraw_text_screen(void);
+static void X_redraw_text_screen(void);
 static int X_update_screen(void);
-static inline void set_gc_attr(Bit8u);
+static int X_update_text_screen(void);
+static int X_update_graphics_screen(void);
+static void set_gc_attr(Bit8u);
+static void X_draw_string(int, int, char *, int, Bit8u);
 
 /* text mode init stuff (font/cursor) */
 static void load_text_font(void);
@@ -494,7 +530,7 @@ struct video_system Video_X =
    0,                /* is_mapped */
    X_init,         
    X_close,      
-   X_setmode,      
+   X_set_videomode,      
    X_update_screen,
    X_update_cursor
 };
@@ -640,7 +676,7 @@ int X_init()
   }
 
   /* start with some standard text mode */
-  X_setmode(TEXT, co, li);
+  X_set_videomode(TEXT, co, li);
 
 #if CONFIG_X_SPEAKER
   register_speaker(display, X_speaker_on, X_speaker_off);
@@ -954,10 +990,7 @@ int X_change_config(unsigned item, void *buf)
 
           X_printf("X: X_change_config: using font \"%s\", size = %d x %d\n", (char *) buf, font_width, font_height);
 
-          if(vga.mode_class == TEXT) {
-            X_setmode(vga.mode_class, vga.text_width, vga.text_height);
-          }
-
+          if(vga.mode_class == TEXT) X_resize_text_screen();
         }
       }
       break;
@@ -1095,18 +1128,15 @@ void X_handle_events()
 	{
        case Expose:  
 	  X_printf("X: expose event\n");
-	  switch(vga.mode_class) {
-	    case GRAPH:
-	      if(!resize_event) put_ximage(
-	        e.xexpose.x, e.xexpose.y,
-	        e.xexpose.x, e.xexpose.y,
-	        e.xexpose.width, e.xexpose.height
-	      );
-	      break;
-	      
-	    default:    /* case TEXT: */
-	      if(e.xexpose.count == 0) X_redraw_screen();
-              break;
+	  if(vga.mode_class == TEXT) {
+	    if(e.xexpose.count == 0) X_redraw_text_screen();
+	  }
+	  else {	/* GRAPH */
+	    if(!resize_event) put_ximage(
+	      e.xexpose.x, e.xexpose.y,
+	      e.xexpose.x, e.xexpose.y,
+	      e.xexpose.width, e.xexpose.height
+	    );
 	  }
 	  break;
 
@@ -1412,7 +1442,7 @@ ColorSpaceDesc MakeSharedColormap()
   XColor xc;
   int i, j;
   static unsigned long pix[256];
-  c_cube c_cubes[] = {
+  static c_cube c_cubes[] = {
     { 6, 8, 5 }, { 6, 7, 5 }, { 6, 6, 5 }, { 5, 7, 5 },
     { 5, 6, 5 }, { 4, 8, 4 }, { 5, 6, 4 }, { 5, 5, 4 },
     { 4, 5, 4 }, { 4, 5, 3 }, { 4, 4, 3 }, { 3, 4, 3 }
@@ -1505,8 +1535,7 @@ void refresh_palette()
  * Reallocate color cells if a text color has changed. If no
  * free color cell is left, choose an approximate color.
  *
- * Note: This should probably redraw at least parts of
- * the screen to immediately reflect the changes.
+ * Note: Redraws the *entire* screen if at least one color has changed.
  */
 void refresh_text_palette()
 {
@@ -1542,6 +1571,8 @@ void refresh_text_palette()
     }
     text_colors[i] = xc.pixel;
   }
+
+  if(j) X_redraw_text_screen();
 }
 
 
@@ -1767,24 +1798,51 @@ void resize_ximage(unsigned width, unsigned height)
 
 
 /* 
- * DANG_BEGIN_FUNCTION X_setmode
+ * DANG_BEGIN_FUNCTION X_set_videomode
  *
  * description:
- * Set the video mode. Note that the mode is taken from
- * the global variable "video_mode".
+ * This is the interface function called by the video subsystem
+ * to set a video mode.
+ *
+ * NOTE: The actual mode is taken from the global variable "video_mode".
  *
  * DANG_END_FUNCTION
  */
-int X_setmode(int mode_class, int text_width, int text_height) 
+
+int X_set_videomode(int mode_class, int text_width, int text_height)
+{
+  return X_setmode(video_mode, text_width, text_height, 1);
+}
+
+
+/* 
+ * DANG_BEGIN_FUNCTION X_setmode
+ *
+ * description:
+ * Set the video mode.
+ * If init_vga is zero, this will only reinitialize the current mode.
+ * The other arguments are ignored in this case.
+ *
+ * DANG_END_FUNCTION
+ */
+int X_setmode(int mode, int text_width, int text_height, int init_vga)
 {
   XSizeHints sh;
   int X_mode_type;
+#ifdef X_USE_BACKING_STORE
+  XSetWindowAttributes xwa;
+#endif
 
-  /* tell vgaemu we're going to another mode */
-  if(!vga_emu_setmode(video_mode, text_width, text_height)) return 0;	/* if it can't fail! */
+  if(init_vga) {	/* tell vgaemu we're going to another mode */
+    if(!vga_emu_setmode(mode, text_width, text_height)) return 0;
+  }
+  else {
+    vga.reconfig.re_init = 0;
+  }
                                 
-  X_printf("X: X_setmode: video_mode = 0x%x (%s), size = %d x %d (%d x %d pixel)\n",
-    (int) video_mode, vga.mode_class ? "GRAPH" : "TEXT",
+  X_printf("X: X_setmode: %svideo_mode 0x%x (%s), size %d x %d (%d x %d pixel)\n",
+    init_vga ? "" : "re-init ",
+    (int) mode, vga.mode_class ? "GRAPH" : "TEXT",
     vga.text_width, vga.text_height, vga.width, vga.height
   );
 
@@ -1797,207 +1855,179 @@ int X_setmode(int mode_class, int text_width, int text_height)
 
   mouse_x = mouse_y = 0;
 
-  switch(vga.mode_class) {
-
-    case TEXT:
-
 #ifdef X_USE_BACKING_STORE
-      {
-        XSetWindowAttributes xwa;
+  /*
+   * We use it only in text modes; in graphics modes we are fast enough and
+   * it would likely only slow down the whole thing. -- sw
+   */
+  if(vga.mode_class == TEXT) {
+    xwa.backing_store = Always;
+    xwa.backing_planes = -1;
+    xwa.save_under = True;
+  }
+  else {	/* GRAPH */
+    xwa.backing_store = NotUseful;
+    xwa.backing_planes = 0;
+    xwa.save_under = False;
+  }
 
-        xwa.backing_store = Always;
-        xwa.backing_planes = -1;
-        xwa.save_under = True;
-        XChangeWindowAttributes(display, mainwindow, CWBackingStore | CWBackingPlanes | CWSaveUnder, &xwa);
-      }
+  XChangeWindowAttributes(display, mainwindow, CWBackingStore | CWBackingPlanes | CWSaveUnder, &xwa);
 #endif
 
-      XSetWindowColormap(display, mainwindow, text_cmap);
+  if(vga.mode_class == TEXT) {
 
-      /* This is sometimes needed, when we return from graph to a saved
-       * text mode, else the screen would remain garbaged until we manually
-       * do a resize/refresh.  --Hans
-       *
-       * Maybe, but then we should better do it always. -- sw
-       *
-       */
-      X_partial_redraw_screen();
+    XSetWindowColormap(display, mainwindow, text_cmap);
 
-      dac_bits = vga.dac.bits;
+    X_reset_redraw_text_screen();
 
-      w_x_res = x_res = vga.text_width * font_width;
-      w_y_res = y_res = vga.text_height * font_height;
+    dac_bits = vga.dac.bits;
 
-      /* We use the X font! Own font in future? */
+    w_x_res = x_res = vga.text_width * font_width;
+    w_y_res = y_res = vga.text_height * font_height;
 
-      sh.width = sh.min_width = sh.max_width = w_x_res;
-      sh.height = sh.min_height = sh.max_height = w_y_res;
+    /* We use the X font! Own font in future? */
 
-      sh.flags = PSize | PMinSize | PMaxSize;
-      XSetNormalHints(display, mainwindow, &sh);
-      XSync(display, False);
+    sh.width = sh.min_width = sh.max_width = w_x_res;
+    sh.height = sh.min_height = sh.max_height = w_y_res;
 
-      XResizeWindow(display, mainwindow, w_x_res, w_y_res);
+    sh.flags = PSize | PMinSize | PMaxSize;
+    XSetNormalHints(display, mainwindow, &sh);
+    XSync(display, False);
 
-      XSetForeground(display, gc, text_colors[0]);
-      XFillRectangle(display, mainwindow, gc, 0, 0, w_x_res, w_y_res);
+    XResizeWindow(display, mainwindow, w_x_res, w_y_res);
 
-      break;
+    XSetForeground(display, gc, text_colors[0]);
+    XFillRectangle(display, mainwindow, gc, 0, 0, w_x_res, w_y_res);
+  }
+  else {	/* GRAPH */
 
-    case GRAPH:
+    if(!have_true_color) {
+      XSetWindowColormap(display, mainwindow, graphics_cmap);
+    }
 
-#ifdef X_USE_BACKING_STORE
-      {
-        /*
-         * We use it only in text modes; in graphics modes we are fast enough and
-         * it would likely only slow down the whole thing. -- sw
-         */
-        XSetWindowAttributes xwa;
+    dac_bits = vga.dac.bits;
 
-        xwa.backing_store = NotUseful;
-        xwa.backing_planes = 0;
-        xwa.save_under = False;
-        XChangeWindowAttributes(display, mainwindow, CWBackingStore | CWBackingPlanes | CWSaveUnder, &xwa);
-      }
-#endif
+    w_x_res = x_res = vga.width;
+    w_y_res = y_res = vga.height;
 
-      if(!have_true_color) {
-        XSetWindowColormap(display, mainwindow, graphics_cmap);
-      }
+    /* 320x200 modes */
+    if(vga.width == 320 && vga.height == 200) {
+      w_x_res *= config.X_mode13fact;
+      w_y_res *= config.X_mode13fact;
+    }
 
-      dac_bits = vga.dac.bits;
+    /* 640x200 modes */
+    if(vga.width == 640 && vga.height == 200) {
+      w_y_res *= 2;
+    }
 
-      w_x_res = x_res = vga.width;
-      w_y_res = y_res = vga.height;
+    if(config.X_winsize_x > 0 && config.X_winsize_y > 0) {
+      w_x_res = config.X_winsize_x;
+      w_y_res = config.X_winsize_y;
+    }
 
-      if(vga.mode_info) {
+    if(config.X_aspect_43) {
+      w_y_res = (w_x_res * 3) >> 2;
+    }
 
-        /* 320x200 modes */
-        if(vga.mode_info->width == 320 && vga.mode_info->height == 200) {
-          w_x_res *= config.X_mode13fact;
-          w_y_res *= config.X_mode13fact;
-        }
+    remap_done(&remap_obj);
+    switch(vga.mode_type) {
+      case CGA:
+        X_mode_type = vga.pixel_size == 2 ? MODE_CGA_2 : MODE_CGA_1; break;
+      case HERC:
+        X_mode_type = MODE_HERC; break;
+      case PL1:
+        X_mode_type = MODE_VGA_1; break;
+      case PL2:
+        X_mode_type = MODE_VGA_2; break;
+      case PL4:
+        X_mode_type = MODE_VGA_4; break;
+      case P8:
+        X_mode_type = MODE_PSEUDO_8; break;
+      case P15:
+        X_mode_type = MODE_TRUE_15; break;
+      case P16:
+        X_mode_type = MODE_TRUE_16; break;
+      case P24:
+        X_mode_type = MODE_TRUE_24; break;
+      case P32:
+        X_mode_type = MODE_TRUE_32; break;
+      default:
+        X_mode_type = 0;
+    }
+    remap_obj = remap_init(X_mode_type, ximage_mode, remap_features);
+    *remap_obj.dst_color_space = X_csd;
+    adjust_gamma(&remap_obj, config.X_gamma);
 
-        /* 640x200 modes */
-        if(vga.mode_info->width == 640 && vga.mode_info->height == 200) {
-          w_y_res *= 2;
-        }
-      }
-
-
-      if(config.X_winsize_x > 0 && config.X_winsize_y > 0) {
-        w_x_res = config.X_winsize_x;
-        w_y_res = config.X_winsize_y;
-      }
-
-      if(config.X_aspect_43) {
-        w_y_res = (w_x_res * 3) >> 2;
-      }
-
-      remap_done(&remap_obj);
-      switch(vga.mode_type) {
-        case CGA:
-          X_mode_type = vga.pixel_size == 2 ? MODE_CGA_2 : MODE_CGA_1; break;
-        case PL1:
-          X_mode_type = MODE_VGA_1; break;
-        case PL2:
-          X_mode_type = MODE_VGA_2; break;
-        case PL4:
-          X_mode_type = MODE_VGA_4; break;
-        case P8:
-          X_mode_type = MODE_PSEUDO_8; break;
-        case P15:
-          X_mode_type = MODE_TRUE_15; break;
-        case P16:
-          X_mode_type = MODE_TRUE_16; break;
-        case P24:
-          X_mode_type = MODE_TRUE_24; break;
-        case P32:
-          X_mode_type = MODE_TRUE_32; break;
-        default:
-          X_mode_type = 0;
-      }
-      remap_obj = remap_init(X_mode_type, ximage_mode, remap_features);
-      *remap_obj.dst_color_space = X_csd;
-      adjust_gamma(&remap_obj, config.X_gamma);
-
-      if(!(remap_obj.state & ROS_SCALE_ALL)) {
-        if((remap_obj.state & ROS_SCALE_2) && !(remap_obj.state & ROS_SCALE_1)) {
-          w_x_res = x_res << 1;
-          w_y_res = y_res << 1;
-        }
-        else {
-          w_x_res = x_res;
-          w_y_res = y_res;
-        }
-      }
-
-      create_ximage();
-
-      remap_obj.dst_image = ximage->data;
-      remap_obj.src_resize(&remap_obj, vga.width, vga.height, vga.scan_len);
-      remap_obj.dst_resize(&remap_obj, w_x_res, w_y_res, ximage->bytes_per_line);
-
-      if(!(remap_obj.state & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
-        error("X: X_setmode: video_mode 0x%02x not supported on this screen\n", video_mode);
-      }
-
-      sh.width = w_x_res;
-      sh.height = w_y_res;
-      if(!(remap_obj.state & ROS_SCALE_ALL)) {
-        sh.width_inc = x_res;
-        sh.height_inc = y_res;
+    if(!(remap_obj.state & ROS_SCALE_ALL)) {
+      if((remap_obj.state & ROS_SCALE_2) && !(remap_obj.state & ROS_SCALE_1)) {
+        w_x_res = x_res << 1;
+        w_y_res = y_res << 1;
       }
       else {
-        sh.width_inc = 1;
-        sh.height_inc = 1;
+        w_x_res = x_res;
+        w_y_res = y_res;
       }
-      sh.min_aspect.x = w_x_res;
-      sh.min_aspect.y = w_y_res;
-      sh.max_aspect = sh.min_aspect;
+    }
 
-      if(remap_obj.state & ROS_SCALE_ALL) {
-        sh.min_width = 0;
-        sh.min_height = 0;
-      }
-      else {
-        sh.min_width = w_x_res;
-        sh.min_height = w_y_res;
-      }
-      if(remap_obj.state & ROS_SCALE_ALL) {
-        sh.max_width = 32767;
-        sh.max_height = 32767;
-      }
-      else if(remap_obj.state & ROS_SCALE_2) {
-        sh.max_width = x_res << 1;
-        sh.max_height = y_res << 1;
-      }
-      else {
-        sh.max_width = w_x_res;
-        sh.max_height = w_y_res;
-      }
+    create_ximage();
 
-      sh.flags = PResizeInc | PSize  | PMinSize | PMaxSize;
-      if(config.X_fixed_aspect || config.X_aspect_43) sh.flags |= PAspect;
+    remap_obj.dst_image = ximage->data;
+    remap_obj.src_resize(&remap_obj, vga.width, vga.height, vga.scan_len);
+    remap_obj.dst_resize(&remap_obj, w_x_res, w_y_res, ximage->bytes_per_line);
 
-      veut.base = vga.mem.base;
-      veut.max_max_len = 0;
-      veut.max_len = 0;
-      veut.display_start = 0;
-      veut.display_end = vga.scan_len * vga.height;
-      veut.update_gran = 0;
-      veut.update_pos = veut.display_start;
+    if(!(remap_obj.state & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
+      error("X: X_setmode: vide mode 0x%02x not supported on this screen\n", mode);
+    }
 
-      XSetNormalHints(display, mainwindow, &sh);
-      XResizeWindow(display, mainwindow, w_x_res, w_y_res);
+    sh.width = w_x_res;
+    sh.height = w_y_res;
+    if(!(remap_obj.state & ROS_SCALE_ALL)) {
+      sh.width_inc = x_res;
+      sh.height_inc = y_res;
+    }
+    else {
+      sh.width_inc = 1;
+      sh.height_inc = 1;
+    }
+    sh.min_aspect.x = w_x_res;
+    sh.min_aspect.y = w_y_res;
+    sh.max_aspect = sh.min_aspect;
 
-      break;
-  
-    default:
+    if(remap_obj.state & ROS_SCALE_ALL) {
+      sh.min_width = 0;
+      sh.min_height = 0;
+    }
+    else {
+      sh.min_width = w_x_res;
+      sh.min_height = w_y_res;
+    }
+    if(remap_obj.state & ROS_SCALE_ALL) {
+      sh.max_width = 32767;
+      sh.max_height = 32767;
+    }
+    else if(remap_obj.state & ROS_SCALE_2) {
+      sh.max_width = x_res << 1;
+      sh.max_height = y_res << 1;
+    }
+    else {
+      sh.max_width = w_x_res;
+      sh.max_height = w_y_res;
+    }
 
-      X_printf("X: X_setmode: Invalid mode class %d (neither TEXT nor GRAPH)\n", vga.mode_class);
-      return 0;
+    sh.flags = PResizeInc | PSize  | PMinSize | PMaxSize;
+    if(config.X_fixed_aspect || config.X_aspect_43) sh.flags |= PAspect;
 
+    veut.base = vga.mem.base;
+    veut.max_max_len = 0;
+    veut.max_len = 0;
+    veut.display_start = 0;
+    veut.display_end = vga.scan_len * vga.height;
+    veut.update_gran = 0;
+    veut.update_pos = veut.display_start;
+
+    XSetNormalHints(display, mainwindow, &sh);
+    XResizeWindow(display, mainwindow, w_x_res, w_y_res);
   }
 
   /* unconditionally update the palette */
@@ -2030,16 +2060,22 @@ static void X_modify_mode()
       tmp_ro.dst_resize(&tmp_ro, w_x_res, w_y_res, ximage->bytes_per_line);
 
       if(!(tmp_ro.state & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
-        X_printf("X: X_modify_mode: no memory config change of current graphics mode supported\n");
+        x_msg("X_modify_mode: no memory config change of current graphics mode supported\n");
         remap_done(&tmp_ro);
       }
       else {
-        X_printf("X: X_modify_mode: chain4 addressing turned %s\n", vga.mem.planes == 1 ? "on" : "off");
+        x_msg("X_modify_mode: chain4 addressing turned %s\n", vga.mem.planes == 1 ? "on" : "off");
         remap_done(&remap_obj);
         remap_obj = tmp_ro;
       }
 
       dirty_all_video_pages();
+      /*
+       * The new remap object does not yet know about our colors.
+       * So we have to force an update. -- sw
+       */
+      dirty_all_vga_colors();
+
       vga.reconfig.mem =
       vga.reconfig.display =
       vga.reconfig.dac = 0;
@@ -2048,8 +2084,8 @@ static void X_modify_mode()
 
   if(vga.reconfig.display) {
     remap_obj.src_resize(&remap_obj, vga.width, vga.height, vga.scan_len);
-    X_printf(
-      "X: X_modify_mode: geometry changed to %d x% d, scan_len = %d bytes\n",
+    x_msg(
+      "X_modify_mode: geometry changed to %d x% d, scan_len = %d bytes\n",
       vga.width, vga.height, vga.scan_len
     );
     dirty_all_video_pages();
@@ -2059,28 +2095,66 @@ static void X_modify_mode()
   if(vga.reconfig.dac) {
     vga.reconfig.dac = 0;
     dac_bits = vga.dac.bits;
-    X_printf("X: X_modify_mode: DAC bits = %d\n", dac_bits);
+    x_msg("X_modify_mode: DAC bits = %d\n", dac_bits);
   }
 
   veut.display_start = vga.display_start;
   veut.display_end = veut.display_start + vga.scan_len * vga.height;
 
   if(vga.reconfig.mem || vga.reconfig.display) {
-    X_printf("X: X_modify_mode: failed to modify current graphics mode\n");
+    x_msg("X_modify_mode: failed to modify current graphics mode\n");
   }
 }
 
 
 /*
- * Don't ask; look at X_setmode().
+ * Set the text mode resolution.
  */
-void X_partial_redraw_screen()
+void X_set_textsize(int width, int height)
+{
+  X_printf("X: X_set_textsize: size = %d x %d\n", width, height);
+  vga_emu_set_textsize(width, height);
+  X_resize_text_screen();
+}
+
+
+/*
+ * Resize the X display to the appropriate size.
+ */
+void X_resize_text_screen() 
+{
+  XSizeHints sh;
+                                
+  w_x_res = x_res = vga.text_width * font_width;
+  w_y_res = y_res = vga.text_height * font_height;
+
+  sh.width = sh.min_width = sh.max_width = w_x_res;
+  sh.height = sh.min_height = sh.max_height = w_y_res;
+
+  sh.flags = PSize | PMinSize | PMaxSize;
+  XSetNormalHints(display, mainwindow, &sh);
+
+  XResizeWindow(display, mainwindow, w_x_res, w_y_res);
+
+  XSetForeground(display, gc, text_colors[0]);
+  XFillRectangle(display, mainwindow, gc, 0, 0, w_x_res, w_y_res);
+
+  X_redraw_text_screen();
+}
+
+
+/*
+ * Sync prev_screen & screen_adr.
+ */
+void X_reset_redraw_text_screen()
 {
   if(!is_mapped) return;
-  prev_cursor_shape = NO_CURSOR;	/* was overwritten */
-  redraw_cursor();
+
+  prev_cursor_shape = NO_CURSOR; redraw_cursor();
   clear_scroll_queue();
+
   XFlush(display);
+
   MEMCPY_2UNIX(prev_screen, screen_adr, co * li * 2);
   clear_scroll_queue();
 }
@@ -2092,10 +2166,9 @@ void X_partial_redraw_screen()
  * (cf. X_handle_events). Since we now use backing store in text modes,
  * this function will likely never be called (depending on X's configuration).
  *
- * Note: Does this really redraw the *entire* screen regardless of the
- * actual size of the exposed area? -- sw
+ * Note: It redraws the *entire* screen.
  */
-void X_redraw_screen()
+void X_redraw_text_screen()
 {
   Bit16u *sp, *oldsp;
   u_char charbuff[MAX_COLUMNS], *bp;
@@ -2103,58 +2176,42 @@ void X_redraw_screen()
   Bit8u attr;
 
   if(!is_mapped) return;
+  if(vga.mode_class == GRAPH) {
+    x_msg("X_redraw_text_screen: Text refresh in graphics video mode?\n");
+    return;
+  }
 
-  X_printf(
-    "X: X_redraw_screen: co = %d li = %d screen_adr = %x mode = %d\n",
-    co, li, (int) screen_adr, video_mode
+  if(co > MAX_COLUMNS) {
+    x_msg("X_redraw_text_screen: unable to handle %d colums\n", co);
+    return;
+  }
+
+  x_deb(
+    "X_redraw_text_screen: mode 0x%x (%d x %d), screen_adr = 0x%x\n",
+    vga.mode, co, li, (unsigned) screen_adr
   );
+
+  /* sp = (Bit16u *) (vga.mem.base + vga.display_start); */
 
   sp = screen_adr;
   oldsp = prev_screen;
 
-  refresh_palette();
+  for(y = 0; y < li; y++) {
+    x = 0;
+    do {	/* scan in a string of chars of the same attribute */
+      bp = charbuff; start_x = x; attr = XATTR(sp);
 
-  if(vga.mode_class == TEXT) {
-    for(y = 0; y < li; y++) {
-      x = 0;
-      do {
-        /* scan in a string of chars of the same attribute */
-        bp = charbuff;
-        start_x = x;
-        attr = XATTR(sp);
+      do {	/* conversion of string to X */
+        *oldsp++ = XREAD_WORD(sp); *bp++ = XCHAR(sp);
+        sp++; x++;
+      } while(XATTR(sp) == attr && x < co);
 
-        do {
-          /* conversion of string to X */
-          *oldsp++ = XREAD_WORD(sp);
-          *bp++ = XCHAR(sp);
-          sp++; x++;
-        } while(XATTR(sp) == attr && x < co);
+      X_draw_string(start_x, y, charbuff, x - start_x, attr);
 
-        /* ok, we've got the string now send it to the X server */
-        set_gc_attr(attr);
-
-        XDrawImageString(
-          display, mainwindow, gc,
-          font_width * start_x,
-          font_height * y + font_shift,
-          charbuff,
-          x - start_x
-        );
-      } while(x < co);
-    }
-  }
-  else {
-    X_printf("X: X_redraw_screen: Should not be here, Text refresh in graphics video mode\n");
+    } while(x < co);
   }
 
-  prev_cursor_shape = NO_CURSOR;   /* was overwritten */
-  redraw_cursor();
-  clear_scroll_queue();
-   
-  XFlush(display);
-
-  MEMCPY_2UNIX(prev_screen, screen_adr, co * li * 2); /* what????????????????????? */
-  clear_scroll_queue();
+  X_reset_redraw_text_screen();
 }
 
 
@@ -2175,28 +2232,42 @@ void X_redraw_screen()
  * At least it is supposed to do that.
  *
  * DANG_END_FUNCTION
+ *
+ * Text and graphics updates are separate functions now; the code was
+ * too messy. -- sw
  */
 int X_update_screen()
 {
-  switch(vga.mode_class) {
+  if(vga.config.video_off) {
+    x_deb("X_update_screen: nothing done (video_off = 0x%x)\n", vga.config.video_off);
+    return 1;
+  }
 
-    case TEXT: {	/* Do it the OLD way! */
+  if(vga.reconfig.re_init) X_setmode(0, 0, 0, 0);
 
-	Bit16u *sp, *oldsp;
-	u_char charbuff[MAX_COLUMNS], *bp;
-	int x, y;	/* X and Y position of character being updated */
-	int start_x, len, unchanged;
-	Bit8u attr;
+  return vga.mode_class == TEXT ? X_update_text_screen() : X_update_graphics_screen();
+}
 
-	static int yloop = -1;
-	int lines;               /* Number of lines to redraw. */
-	int numscan = 0;         /* Number of lines scanned. */
-	int numdone = 0;         /* Number of lines actually updated. */
 
-	if (!is_mapped) 
-	  return 0;       /* no need to do anything... */
+/*
+ * Update the text screen.
+ */
+int X_update_text_screen()
+{
+  Bit16u *sp, *oldsp;
+  u_char charbuff[MAX_COLUMNS], *bp;
+  int x, y;	/* X and Y position of character being updated */
+  int start_x, len, unchanged;
+  Bit8u attr;
 
-        refresh_palette();
+  static int yloop = -1;
+  int lines;               /* Number of lines to redraw. */
+  int numscan = 0;         /* Number of lines scanned. */
+  int numdone = 0;         /* Number of lines actually updated. */
+
+  if(!is_mapped) return 0;       /* no need to do anything... */
+
+  refresh_palette();
 
 #if USE_SCROLL_QUEUE
   do_scroll();
@@ -2292,12 +2363,9 @@ int X_update_screen()
 		  } 
 		len=x-start_x-unchanged;
 
-/* ok, we've got the string now send it to the X server */
+                /* ok, we've got the string now send it to the X server */
 
-		set_gc_attr(attr);
-		XDrawImageString(display,mainwindow,gc,
-				 font_width*start_x,font_height*y+font_shift,
-				 charbuff,len);
+                X_draw_string(start_x, y, charbuff, len, attr);
 
 		if ((prev_cursor_row == y) && 
 		    (prev_cursor_col >= start_x) && 
@@ -2338,78 +2406,110 @@ chk_cursor:
 	    yloop = -1;
 	    return(1);
 	  }
-    }
-    break;
       
-    case GRAPH: {
+  return 0;
+}
 
+
+/*
+ * Update the graphics screen.
+ */
+int X_update_graphics_screen()
+{
+  RectArea ra;
+  int update_ret;
 #ifdef DEBUG_SHOW_UPDATE_AREA
-      static int dsua_fg_color = 0;
+  static int dsua_fg_color = 0;
 #endif		
-      RectArea ra;
-      int update_ret;
 
-      if(!is_mapped) return 0;		/* no need to do anything... */
+  if(!is_mapped) return 0;		/* no need to do anything... */
 
-      if(vga.reconfig.mem || vga.reconfig.display || vga.reconfig.dac) X_modify_mode();
+  if(vga.reconfig.mem || vga.reconfig.display || vga.reconfig.dac) X_modify_mode();
 
-      refresh_palette();
+  refresh_palette();
 
-      if(vga.display_start != veut.display_start) {
-        veut.display_start = vga.display_start;
-        veut.display_end = veut.display_start + vga.scan_len * vga.height;
-        dirty_all_video_pages();
-      }
-
-      /*
-       * You can now set the maximum update length, like this:
-       *
-       * veut.max_max_len = 20000;
-       *
-       * vga_emu_update() will return -1, if this limit is exceeded and there
-       * are still invalid pages; `max_max_len' is only a rough estimate, the
-       * actual upper limit will vary (might even be 25000 in the above
-       * example).
-       */
-
-      veut.max_len = veut.max_max_len;
-
-      while((update_ret = vga_emu_update(&veut)) > 0) {
-        remap_obj.src_image = veut.base + veut.display_start;
-        ra = remap_obj.remap_mem(&remap_obj, veut.update_start - veut.display_start, veut.update_len);
-
-#ifdef DEBUG_SHOW_UPDATE_AREA
-        XSetForeground(display, gc, dsua_fg_color++);
-        XFillRectangle(display, mainwindow, gc, ra.x, ra.y, ra.width, ra.height);
-        XSync(display, False);
-#endif
-
-        put_ximage(ra.x, ra.y, ra.x, ra.y, ra.width, ra.height);
-
-        X_printf("X_update_screen: func = %s, display_start = 0x%04x, write_plane = %d, start %d, len %u, win (%d,%d),(%d,%d)\n",
-          remap_obj.remap_func_name, vga.display_start, vga.mem.write_plane,
-          veut.update_start, veut.update_len, ra.x, ra.y, ra.width, ra.height
-        );
-      }
-
-      return update_ret < 0 ? 2 : 1;
-    }
+  if(vga.display_start != veut.display_start) {
+    veut.display_start = vga.display_start;
+    veut.display_end = veut.display_start + vga.scan_len * vga.height;
+    dirty_all_video_pages();
   }
 
-  return 0;
+  /*
+   * You can now set the maximum update length, like this:
+   *
+   * veut.max_max_len = 20000;
+   *
+   * vga_emu_update() will return -1, if this limit is exceeded and there
+   * are still invalid pages; `max_max_len' is only a rough estimate, the
+   * actual upper limit will vary (might even be 25000 in the above
+   * example).
+   */
+
+  veut.max_len = veut.max_max_len;
+
+  while((update_ret = vga_emu_update(&veut)) > 0) {
+    remap_obj.src_image = veut.base + veut.display_start;
+    ra = remap_obj.remap_mem(&remap_obj, veut.update_start - veut.display_start, veut.update_len);
+
+#ifdef DEBUG_SHOW_UPDATE_AREA
+    XSetForeground(display, gc, dsua_fg_color++);
+    XFillRectangle(display, mainwindow, gc, ra.x, ra.y, ra.width, ra.height);
+    XSync(display, False);
+#endif
+
+    put_ximage(ra.x, ra.y, ra.x, ra.y, ra.width, ra.height);
+
+    x_deb("X_update_graphics_screen: func = %s, display_start = 0x%04x, write_plane = %d, start %d, len %u, win (%d,%d),(%d,%d)\n",
+      remap_obj.remap_func_name, vga.display_start, vga.mem.write_plane,
+      veut.update_start, veut.update_len, ra.x, ra.y, ra.width, ra.height
+    );
+  }
+
+  return update_ret < 0 ? 2 : 1;
 }
 
 
 /* 
  * Change color values in our graphics context 'gc'.
  */
-inline void set_gc_attr(Bit8u attr)
+void set_gc_attr(Bit8u attr)
 {
   XGCValues gcv;
 
   gcv.foreground = text_colors[ATTR_FG(attr)];
   gcv.background = text_colors[ATTR_BG(attr)];
   XChangeGC(display, gc, GCForeground | GCBackground, &gcv);
+}
+
+
+/*
+ * Draw a text string.
+ * The attribute is the VGA color/mono text attribute.
+ */
+void X_draw_string(int x, int y, char *text, int len, Bit8u attr)
+{
+  x_deb2(
+    "X_draw_string: %d chars at (%d, %d), attr = 0x%02x\n",
+    len, x, y, (unsigned) attr
+  );
+
+  set_gc_attr(attr);
+
+  XDrawImageString(
+    display, mainwindow, gc,
+    font_width * x,
+    font_height * y + font_shift,
+    text,
+    len
+  );
+
+  if(vga.mode_type == TEXT_MONO && (attr == 0x01 || attr == 0x09 || attr == 0x89)) {
+    XDrawLine(
+      display, mainwindow, gc,
+      font_width * x, font_height * y + font_shift,
+      font_width * (x + len) - 1, font_height * y + font_shift
+    );
+  }
 }
 
 
@@ -2640,13 +2740,8 @@ inline void restore_cell(int x, int y)
   /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
   if(vga.mode_class == GRAPH) return;
 
-  set_gc_attr(XATTR(sp));
   *oldsp = XREAD_WORD(sp);
-  XDrawImageString(
-    display, mainwindow, gc,
-    x * font_width, y * font_height + font_shift,
-    &c, 1
-  );
+  X_draw_string(x, y, &c, 1, XATTR(sp));
 }
 
 

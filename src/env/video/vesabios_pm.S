@@ -24,6 +24,15 @@
  * Copyright (c) 1997 Steffen Winterfeldt,
  * email: Steffen.Winterfeldt@itp.uni-leipzig.de
  *
+ * DANG_BEGIN_CHANGELOG
+ *
+ * 1998/12/14: Another attempt to fix the pm version of the
+ * VBE set palette function. Removed some old code blocks.
+ * -- sw
+ *
+ * DANG_END_CHANGELOG
+ *
+ *
  */
 
 /*
@@ -47,63 +56,34 @@ vgaemu_bios_pm_interface:
 		 */
 
 vbpi_win_func:
-#if 1
 		pushl %ebx
 		movb $0x4000,%ebx
 		movl $0x4f05,%eax
 		int $0x10
 		popl %ebx
 		ret
-#else
-		movb %dl,%ah
-		pushl %edx
-		movl $0x3d4,%edx
-		movb $0xf4,%al
-		outw %ax,%dx
-		popl %edx
-		movl $0x4f,%eax
-		ret
-#endif
 
 vbpi_display_start:
-#if 1
 		pushl %ebx
 		movl $0x40,%ebx
 		movl $0x4f07,%eax
 		int $0x10
 		popl %ebx
 		ret
-#else
-		pushl %edx
-		movl $0x3d4,%edx
-		movb $0xf0,%al
-		movb %cl,%ah
-		outw %ax,%dx
-		incb %al
-		movb %ch,%ah
-		outw %ax,%dx
-		incb %al
-		popl %ecx
-		pushl %ecx
-		movb %cl,%ah
-		outw %ax,%dx
-		incb %al
-		movb %ch,%ah
-		outw %ax,%dx
-		incb %al
-		movb %bl,%ah
-		outw %ax,%dx
-		popl %edx
-		movl $0x4f,%eax
-		ret
-#endif
 
 vbpi_set_palette:
+		pushl %ebp
+		pushl %esi
 		pushl %ebx
-		movb $0,%bl
+		movb $0x40,%bl
 		movl $0x4f09,%eax
+		movl %edi,%esi
+		shrl $0x10,%esi
+		movl %es,%bp
 		int $0x10
 		popl %ebx
+		popl %esi
+		popl %ebp
 		ret
 
 vgaemu_bios_pm_interface_end:

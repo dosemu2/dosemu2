@@ -29,6 +29,9 @@
  * support all but the Hercules mode.
  * -- sw
  *
+ * 1999/01/05: Added support for Hercules mode.
+ * -- sw
+ *
  * DANG_END_CHANGELOG
  *
  */
@@ -253,7 +256,7 @@ RemapObject remap_init(int src_mode, int dst_mode, int features)
       ro.src_mode & (
         MODE_PSEUDO_8 | MODE_VGA_X |
         MODE_VGA_1 | MODE_VGA_2 | MODE_VGA_4 |
-        MODE_CGA_1 | MODE_CGA_2
+        MODE_CGA_1 | MODE_CGA_2 | MODE_HERC
       )
     ) == ro.src_mode
   ) {
@@ -286,7 +289,7 @@ RemapObject remap_init(int src_mode, int dst_mode, int features)
     ro.remap_rect = remap_rect_1;
   }
 
-  if((ro.src_mode & (MODE_CGA_1 | MODE_CGA_2)) &&
+  if((ro.src_mode & (MODE_CGA_1 | MODE_CGA_2 | MODE_HERC)) &&
     (ro.dst_mode & (MODE_TRUE_COL | MODE_PSEUDO_8)) == ro.dst_mode
   ) {
     ro.remap_mem = remap_mem_2;
@@ -828,6 +831,10 @@ void bre_update(RemapObject *ro)
         y = bre_s(i, ro->src_height, l);
         ii[i] = (y >> 1) * ro->src_scan_len + ((y & 1) ? 0x2000 : 0);
       }
+      else if(ro->src_mode == MODE_HERC) {
+        y = bre_s(i, ro->src_height, l);
+        ii[i] = (y >> 2) * ro->src_scan_len + (y & 3) * 0x2000;
+      }
       else {
         ii[i] = bre_s(i, ro->src_height, l) * ro->src_scan_len;
       }
@@ -1163,7 +1170,7 @@ static RectArea remap_rect_1(RemapObject *ro, int x0, int y0, int width, int hei
 
 
 /*
- * for CGA-like modes
+ * for CGA/Hercules-like modes
  */
 static RectArea remap_mem_2(RemapObject *ro, int offset, int len)
 {
@@ -1196,8 +1203,14 @@ static RectArea remap_mem_2(RemapObject *ro, int offset, int len)
   j1 = (offset + len) / ro->src_scan_len;
   j2 = (offset + len) % ro->src_scan_len;
 
-  i1 <<= 1;
-  j1 <<= 1; j1++;
+  if(ro->src_mode == MODE_HERC) {
+    i1 <<= 2;
+    j1 <<= 2; j1 += 3;
+  }
+  else {	/* CGA */
+    i1 <<= 1;
+    j1 <<= 1; j1++;
+  }
 
   /* make sure it's all visible */
   if(i2 >= ro->src_width) i1++, i2 = 0, offset = i1 * ro->src_scan_len;
@@ -1219,7 +1232,12 @@ static RectArea remap_mem_2(RemapObject *ro, int offset, int len)
     (ro->remap_func_flags & RFF_REMAP_RECT) ||
     (ro->remap_func_flags & RFF_REMAP_LINES)
   ) {
-    ro->src_offset = (i1 >> 1) * ro->src_scan_len + (i1 & 1 ? 0x2000 : 0);
+    if(ro->src_mode == MODE_HERC) {
+      ro->src_offset = (i1 >> 2) * ro->src_scan_len + (i1 & 3) * 0x2000;
+    }
+    else {	/* CGA */
+      ro->src_offset = (i1 >> 1) * ro->src_scan_len + (i1 & 1 ? 0x2000 : 0);
+    }
     ro->src_x0 = ro->dst_x0 = 0;
     ro->src_x1 = ro->src_width; ro->dst_x1 = ro->dst_width;
     ro->src_y0 = i1;
@@ -2756,7 +2774,7 @@ static RemapFuncDesc remap_gen_list[] = {
 
   REMAP_DESC(
     RFF_SCALE_ALL | RFF_REMAP_LINES,
-    MODE_VGA_1 | MODE_CGA_1,
+    MODE_VGA_1 | MODE_CGA_1 | MODE_HERC,
     MODE_PSEUDO_8,
     gen_1to8p_all,
     NULL
@@ -2764,7 +2782,7 @@ static RemapFuncDesc remap_gen_list[] = {
 
   REMAP_DESC(
     RFF_SCALE_ALL | RFF_REMAP_LINES,
-    MODE_VGA_1 | MODE_CGA_1,
+    MODE_VGA_1 | MODE_CGA_1 | MODE_HERC,
     MODE_TRUE_8,
     gen_1to8_all,
     NULL
@@ -2772,7 +2790,7 @@ static RemapFuncDesc remap_gen_list[] = {
 
   REMAP_DESC(
     RFF_SCALE_ALL | RFF_REMAP_LINES,
-    MODE_VGA_1 | MODE_CGA_1,
+    MODE_VGA_1 | MODE_CGA_1 | MODE_HERC,
     MODE_TRUE_15 | MODE_TRUE_16,
     gen_1to16_all,
     NULL
@@ -2780,7 +2798,7 @@ static RemapFuncDesc remap_gen_list[] = {
 
   REMAP_DESC(
     RFF_SCALE_ALL | RFF_REMAP_LINES,
-    MODE_VGA_1 | MODE_CGA_1,
+    MODE_VGA_1 | MODE_CGA_1 | MODE_HERC,
     MODE_TRUE_32,
     gen_1to32_all,
     NULL

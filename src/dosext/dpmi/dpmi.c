@@ -902,6 +902,12 @@ static inline unsigned long GetSegmentBaseAddress(unsigned short selector)
   return Segments[selector >> 3].base_addr;
 }
 
+/* needed in env/video/vesa.c */
+unsigned long dpmi_GetSegmentBaseAddress(unsigned short selector)
+{
+  return GetSegmentBaseAddress(selector);
+}
+
 static int SetSegmentBaseAddress(unsigned short selector, unsigned long baseaddr)
 {
   unsigned short ldt_entry = selector >> 3;

@@ -66,12 +66,13 @@ get_current_video_mode(void)
     }
     current_video.bytesperline = vga.scan_len;
     switch(vga.mode_type) {
-      case TEXT: current_video.organization = ORG_TEXT; break;
+      case TEXT:
+      case TEXT_MONO: current_video.organization = ORG_TEXT; break;
       case  CGA: current_video.organization = ORG_CGA4; break;
       case  PL4: current_video.organization = ORG_EGA16; break;
       default: current_video.organization = ORG_VGA;
     }
-    current_video.offset = (vga.mode_info->buffer_start - 0xa000) << 4;
+    current_video.offset = (vga.buffer_seg - 0xa000) << 4;
   }
   else 
 #endif /* X_GRAPHICS */

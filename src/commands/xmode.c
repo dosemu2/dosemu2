@@ -32,6 +32,7 @@ int main(int argc, char **argv)
   if(!--argc) {
     fprintf(stderr,
       "usage: xmode <some arguments>\n"
+      "  -mode <mode>     activate graphics/text mode\n"
       "  -title <name>    set window name\n"
       "  -font <font>     use <font> as text font\n"
       "  -map <mode>      map window after graphics <mode> has been entered\n"
@@ -82,6 +83,27 @@ int main(int argc, char **argv)
       X_change_config(X_CHG_WINSIZE, ll);
       argc -= 3; argv += 3;
     }
+    else if(!strcmp(*argv, "-mode") && argc >= 2) {
+      l = strtol(argv[1], &p, 0);
+      if(argv[1] == p) {
+        fprintf(stderr, "invalid mode number \"%s\"\n", argv[1]);
+        return 2;
+      }
+      if(l & ~0xff) {
+        struct REGPACK r;
+
+        r.r_bx = l & 0xffff;
+        r.r_ax = 0x4f02;
+        intr(0x10, &r);
+      }
+      else {
+        struct REGPACK r;
+
+        r.r_ax = l & 0xff;
+        intr(0x10, &r);
+      }
+      argc -= 2; argv += 2;
+    }
     else {
       fprintf(stderr, "Don't know what to do with argument \"%s\"; aborting here.", *argv);
       return 2;
@@ -95,13 +117,13 @@ int X_change_config(unsigned item, void *buf)
 {
   struct REGPACK r;
 
-  r.es = FP_SEG(buf);
-  r.bx = FP_OFF(buf);
-  r.dx = item;
-  r.ax = 0xa0;
+  r.r_es = FP_SEG(buf);
+  r.r_bx = FP_OFF(buf);
+  r.r_dx = item;
+  r.r_ax = 0xa0;
 
   intr(0xe6, &r);
 
-  return r.ax;
+  return r.r_ax;
 } 
 

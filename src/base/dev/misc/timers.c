@@ -58,7 +58,7 @@
 extern hitimer_t pic_itime[33];
 #endif /* MONOTON_MICRO_TIMING */
 
-extern hitimer_t t_vretrace;	/* see env/video/attremu.c */
+extern hitimer_t t_vretrace;	/* see env/video/miscemu.c */
 
 pit_latch_struct pit[PIT_TIMERS];   /* values of 3 PIT counters */
 

@@ -49,13 +49,16 @@
  * DANG_BEGIN_CHANGELOG
  *
  * 1998/09/20: Added proper DAC init values for all graphics modes.
- * -- sw
+ * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
  *
  * 1998/10/25: Cleaned up the interface, removed unnecessary parts.
  * Working PEL mask support.
  * -- sw
  *
  * 1998/11/01: Reworked DAC init code.
+ * -- sw
+ *
+ * 1998/12/12: Added RGB to gray scale conversion.
  * -- sw
  *
  * DANG_END_CHANGELOG
@@ -66,8 +69,11 @@
  * some configurable options
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* define to debug the DAC */
-#undef DEBUG_DAC
+/*
+ * Debug level for the DAC.
+ * 0 - normal / 1 - useful / 2 - too much
+ */
+#define	DEBUG_DAC	0
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -79,13 +85,17 @@
 #define True 1
 #endif
 
-#ifdef DEBUG_DAC
-#define dac_deb(x...) v_printf(x)
+#define dac_msg(x...) v_printf("VGAEmu: " x)
+
+#if DEBUG_DAC >= 1
+#define dac_deb(x...) v_printf("VGAEmu: " x)
 #else
 #define dac_deb(x...)
 #endif
 
+
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+#include "config.h"
 #include "emu.h"
 #include "vgaemu.h"
 
@@ -182,14 +192,10 @@ static _DAC_entry dac_vga[256] = {
 void DAC_init()
 {
   DAC_entry dac_zero = {True, 0, 0, 0}, de = dac_zero;
-  vga_mode_info *vmi = vga.mode_info;
   int i;
 
   if(vga.pixel_size <= 4) {
-    if(vmi == NULL) {
-      v_printf("VGAEmu: DAC_init failed\n");
-    }
-    if(vmi != NULL && (vmi->mode == 7 || vmi->mode == 15)) {	/* mono modes */
+    if(vga.VGA_mode == 7 || vga.VGA_mode == 15) {	/* mono modes */
       for(i = 0; i < 64; i++) {
         switch((i >> 3) & 3) {
           case 0: de.r = de.g = de.b = 0x00; break;
@@ -200,10 +206,10 @@ void DAC_init()
         vga.dac.rgb[i] = de;
       }
     }
-    else if(vmi != NULL && (
-            vmi->mode ==  4 || vmi->mode ==  5 || vmi->mode ==  6 ||
-            vmi->mode == 13 || vmi->mode == 14
-           )) {
+    else if(
+            vga.VGA_mode ==  4 || vga.VGA_mode ==  5 || vga.VGA_mode ==  6 ||
+            vga.VGA_mode == 13 || vga.VGA_mode == 14
+           ) {
       for(i = 0; i < 64; i++) {
         de.r = (((i & 4) >> 1) + ((i & 0x10) >> 4)) * 0x15;
         de.g = (((i & 2) >> 0) + ((i & 0x10) >> 4)) * 0x15;
@@ -239,7 +245,7 @@ void DAC_init()
   vga.dac.read_index = 0;
   vga.dac.write_index = 0;
 
-  v_printf("VGAEmu: DAC_init done\n");
+  dac_msg("DAC_init done\n");
 }
 
 
@@ -260,7 +266,10 @@ void DAC_set_width(unsigned bits)
   if(bits > 8) bits = 8;
   if(bits < 4) bits = 4;	/* it's no use to allow other values than 6 or 8, but anyway... */
 
-  dac_deb("VGAEmu: DAC_set_width: width = %u bits\n", vga.dac.bits);
+  dac_deb(
+    "DAC_set_width: width = %u bits%s\n",
+    bits, vga.dac.bits == bits ? " (unchanged)" : ""
+  );
 
   if(vga.dac.bits != bits) {
     vga.reconfig.dac = 1;
@@ -288,7 +297,7 @@ void DAC_get_entry(DAC_entry *entry)
   *entry = vga.dac.rgb[u = entry->index]; entry->index = u;
 
   dac_deb(
-    "VGAEmu: DAC_get_entry: dac.rgb[0x%02x] = 0x%02x 0x%02x 0x%02x\n",
+    "DAC_get_entry: dac.rgb[0x%02x] = 0x%02x 0x%02x 0x%02x\n",
     entry->index, entry->r, entry->g, entry->b
   );
 }
@@ -310,7 +319,7 @@ void DAC_set_entry(unsigned char index, unsigned char r, unsigned char g, unsign
   r &= mask; g &= mask; b &= mask;
 
   dac_deb(
-    "VGAEmu: DAC_set_entry: dac.rgb[0x%02x] = 0x%02x 0x%02x 0x%02x\n",
+    "DAC_set_entry: dac.rgb[0x%02x] = 0x%02x 0x%02x 0x%02x\n",
     (unsigned) index, (unsigned) r, (unsigned) g, (unsigned) b);
 
   if(
@@ -328,6 +337,31 @@ void DAC_set_entry(unsigned char index, unsigned char r, unsigned char g, unsign
 
 
 /*
+ * DANG_BEGIN_FUNCTION DAC_rgb2gray
+ *
+ * Converts a DAC register's RGB values to gray scale.
+ * This is an interface function.
+ *
+ * DANG_END_FUNCTION
+ *
+ */
+void DAC_rgb2gray(unsigned char index)
+{
+  unsigned i, m = (vga.dac.bits << 1) - 1;
+
+  i =  77 * vga.dac.rgb[index].r +
+      151 * vga.dac.rgb[index].g +
+       28 * vga.dac.rgb[index].b;
+
+  i = (i + 0x80) >> 8;
+  if(i > m) i = m;
+
+  vga.dac.rgb[index].index = True;
+  vga.dac.rgb[index].r = vga.dac.rgb[index].g = vga.dac.rgb[index].b = i;
+}
+
+
+/*
  * DANG_BEGIN_FUNCTION DAC_set_read_index
  *
  * Specifies which palette entry is read.
@@ -338,7 +372,7 @@ void DAC_set_entry(unsigned char index, unsigned char r, unsigned char g, unsign
  */
 void DAC_set_read_index(unsigned char index)
 {
-  dac_deb("VGAEmu: DAC_set_read_index: index = 0x%02x\n", (unsigned) index);
+  dac_deb("DAC_set_read_index: index = 0x%02x\n", (unsigned) index);
 
   vga.dac.read_index = index;
   vga.dac.pel_index = 'r';
@@ -357,7 +391,7 @@ void DAC_set_read_index(unsigned char index)
  */
 void DAC_set_write_index(unsigned char index)
 {
-  dac_deb("VGAEmu: DAC_set_write_index: index = 0x%02x\n", (unsigned) index);
+  dac_deb("DAC_set_write_index: index = 0x%02x\n", (unsigned) index);
 
   vga.dac.write_index = index;
   vga.dac.pel_index = 'r';
@@ -380,7 +414,7 @@ unsigned char DAC_read_value()
 {
   unsigned char rv;
 
-#ifdef DEBUG_DAC
+#if DEBUG_DAC >= 1
   char c = vga.dac.pel_index;
   unsigned char ri = vga.dac.read_index;
 #endif
@@ -405,14 +439,14 @@ unsigned char DAC_read_value()
       break;
 
     default:
-      v_printf("VGAEmu: DAC_read_value: ERROR: pel_index out of range\n");
+      dac_msg("DAC_read_value: ERROR: pel_index out of range\n");
       vga.dac.pel_index = 'r';
       rv = 0;
       break;
     }
 
   dac_deb(
-    "VGAEmu: DAC_read_value: dac.rgb[0x%02x].%c = 0x%02x\n",
+    "DAC_read_value: dac.rgb[0x%02x].%c = 0x%02x\n",
     (unsigned) ri, c, (unsigned) rv
   );
 
@@ -438,7 +472,7 @@ void DAC_write_value(unsigned char value)
   vga.dac.state = DAC_WRITE_MODE;
 
   dac_deb(
-    "VGAEmu: DAC_write_value: dac.rgb[0x%02x].%c = 0x%02x\n",
+    "DAC_write_value: dac.rgb[0x%02x].%c = 0x%02x\n",
     (unsigned) vga.dac.write_index, vga.dac.pel_index, (unsigned) value
   );
 
@@ -463,7 +497,7 @@ void DAC_write_value(unsigned char value)
       break;
 
     default:
-      v_printf("VGAEmu: DAC_write_value: ERROR: pel_index out of range\n");
+      dac_msg("DAC_write_value: ERROR: pel_index out of range\n");
       vga.dac.pel_index = 'r';
       break;
   }
@@ -482,7 +516,7 @@ void DAC_write_value(unsigned char value)
  */
 unsigned char DAC_get_pel_mask()
 {
-  dac_deb("VGAEmu: DAC_get_pel_mask: mask = 0x%02x\n", (unsigned) vga.dac.pel_mask);
+  dac_deb("DAC_get_pel_mask: mask = 0x%02x\n", (unsigned) vga.dac.pel_mask);
 
   return vga.dac.pel_mask;
 }
@@ -501,7 +535,7 @@ void DAC_set_pel_mask(unsigned char mask)
 {
   int i;
 
-  dac_deb("VGAEmu: DAC_set_pel_mask: mask = 0x%02x\n", (unsigned) mask);
+  dac_deb("DAC_set_pel_mask: mask = 0x%02x\n", (unsigned) mask);
 
   if(vga.dac.pel_mask != mask) {
     vga.dac.pel_mask = mask;
@@ -522,7 +556,7 @@ void DAC_set_pel_mask(unsigned char mask)
  */
 unsigned char DAC_get_state()
 {
-  dac_deb("VGAEmu: DAC_get_state: state = 0x%02x\n", vga.dac.state);
+  dac_deb("DAC_get_state: state = 0x%02x\n", vga.dac.state);
 
   return vga.dac.state;
 }

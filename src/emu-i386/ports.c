@@ -654,7 +654,7 @@ static Bit8u special_port_inb(ioport_t port)
 	    }
 	}
 	if ((port==0x3ba)||(port==0x3da)) {
-		res = Attr_get_input_status_1();
+		res = Misc_get_input_status_1();
 		if (!config.usesX && !r3da_pending && (config.emuretrace>1)) {
 			set_ioperm(0x3c0,1,0);
 			r3da_pending = port;

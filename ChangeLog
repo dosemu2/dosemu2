@@ -1,3 +1,18 @@
+99/01/06 ver. 0.99.5.2 unofficial pre-release
+	From Steffen
+	- Further work on VGAEMU, involved files: int10.c, timers.c
+	  mousevid.c, xmode.c, dpmi.c, ports.c, video/*, vgaemu.h
+	  New files: video/{gfxemu.c,hercemu.c,miscemu.c}
+	  - all standard VGA registers now are correctly initialized
+	  - monochrom textmode (0x07) functional, correct grayscales
+	  - support for HCG graphics mode (though, this was a jumper
+	    setable feature on old VGA cards, needs to be dosemu.conf
+	    option --Hans)
+	  - magicaly some display errors of doom have vanished
+	  - xmode.exe has a new option '-mode n' to set the desired
+	    graphic mode
+	  - some general cleanups
+	- integrated Josef Pavlik's <jet@spintec.com> patches
 99/01/05 ver. 0.99.5.1 unofficial pre-release
 	From Pat
 	- new DosC kernel, version 1.0 Beta2, built 1937

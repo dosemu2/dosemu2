@@ -8,7 +8,7 @@
 /*
  * attremu.c
  *
- * Attribute controller emulator for VGAemu
+ * Attribute controller emulator for VGAEmu
  *
  * Copyright (C) 1995 1996, Erik Mouw and Arjan Filius
  *
@@ -61,29 +61,30 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
- * 1996/05/06:
- *  - Changed Attr_get_input_status_1() to get it _slower_.
- *    Idea from Adam D. Moss (aspirin@tigerden.com).
- * 1996/05/09:
- *  - Added horizontal retrace too (--adm)
- *
  * 1998/09/20: Added proper init values for all graphics modes.
- * -- sw
+ * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
  *
  * 1998/10/25: Restructured code, removed unnecessary parts, added some code.
  * The emulation is now (as far as I could test) identical to my VGA chip's
  * controller (S3 968).
  * -- sw
  *
+ * 1999/01/05: Moved Attr_get_input_status_1() into a separate file (miscemu.c).
+ * -- sw
+ *
  * DANG_END_CHANGELOG
  */
+
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * some configurable options
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* define to debug the Attribute Controller */
-#undef DEBUG_ATTR
+/*
+ * Debug level for the Attribute Controller.
+ * 0 - normal / 1 - useful / 2 - too much
+ */
+#define DEBUG_ATTR	0
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -101,8 +102,10 @@
 #define True 1
 #endif
 
-#ifdef DEBUG_ATTR
-#define attr_deb(x...) v_printf(x)
+#define attr_msg(x...) v_printf("VGAEmu: " x)
+
+#if DEBUG_ATTR >= 1
+#define attr_deb(x...) v_printf("VGAEmu: " x)
 #else
 #define attr_deb(x...)
 #endif
@@ -111,7 +114,6 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 #include "config.h"
 #include "emu.h"
-#include "timers.h"
 #include "vgaemu.h"
 
 
@@ -132,7 +134,7 @@ static unsigned char attr_ival[9][ATTR_MAX_INDEX + 1] = {
     0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17,
     0x01, 0x00, 0x01, 0x00, 0x00
   },
-  {	/* 3  TEXT, 1 bit */
+  {	/* 3  TEXT, mono */
     0x00, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
     0x10, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18,
     0x0e, 0x00, 0x0f, 0x08, 0x00
@@ -188,7 +190,6 @@ static unsigned char clear_undef_bits(unsigned char i, unsigned char v)
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-#ifdef X_SUPPORT
 
 /*
  * DANG_BEGIN_FUNCTION Attr_init
@@ -202,31 +203,25 @@ static unsigned char clear_undef_bits(unsigned char i, unsigned char v)
 void Attr_init()
 {
   int i = 0, j;
-  vga_mode_info *vmi = vga.mode_info;
 
-  if(vmi == NULL) {
-    v_printf("VGAEmu: Attr_init failed\n");
-  }
-  else {
-    switch(vmi->mode) {
-      case 0x06: i = 2; break;
-      case 0x0d:
-      case 0x0e: i = 4; break;
-      case 0x0f: i = 5; break;
-      default:
-        switch(vmi->color_bits) {
-          case  1: if(vmi->type == TEXT) i = 3;
-                   if(vmi->type == PL1)  i = 7; break;
-          case  2: if(vmi->type == CGA)  i = 1; break;
-          case  4: if(vmi->type == TEXT) i = 0;
-                   if(vmi->type == PL4)  i = 6; break;
-          case  8:
-          case 15:
-          case 16:
-          case 24:
-          case 32: i = 8;
-        }
-    }
+  switch(vga.VGA_mode) {
+    case 0x06: i = 2; break;
+    case 0x0d:
+    case 0x0e: i = 4; break;
+    case 0x0f: i = 5; break;
+    default:
+      switch(vga.color_bits) {
+        case  1: if(vga.mode_type == PL1)  i = 7; break;
+        case  2: if(vga.mode_type == CGA)  i = 1; break;
+        case  4: if(vga.mode_type == TEXT) i = 0;
+                 if(vga.mode_type == TEXT_MONO) i = 3;
+                 if(vga.mode_type == PL4)  i = 6; break;
+        case  8:
+        case 15:
+        case 16:
+        case 24:
+        case 32: i = 8;
+      }
   }
 
   for(j = 0; j <= ATTR_MAX_INDEX; j++) {
@@ -239,7 +234,7 @@ void Attr_init()
   vga.attr.cpu_video = 0x20;
   vga.attr.flipflop = ATTR_INDEX_FLIPFLOP;
 
-  v_printf("VGAEmu: Attr_init done\n");
+  attr_msg("Attr_init done\n");
 }
 
 
@@ -258,7 +253,7 @@ unsigned char Attr_get_entry(unsigned char index)
 
   u = index <= ATTR_MAX_INDEX ? vga.attr.data[index] : 0xff;
 
-  attr_deb("VGAEmu: Attr_get_entry: data[0x%02x] = 0x%02x\n", (unsigned) index, (unsigned) u);
+  attr_deb("Attr_get_entry: data[0x%02x] = 0x%02x\n", (unsigned) index, (unsigned) u);
 
   return u;
 }
@@ -277,7 +272,7 @@ void Attr_set_entry(unsigned char index, unsigned char value)
 {
   unsigned i;
 
-  attr_deb("VGAEmu: Attr_set_entry: data[0x%02x] = 0x%02x\n", (unsigned) index, (unsigned) value);
+  attr_deb("Attr_set_entry: data[0x%02x] = 0x%02x\n", (unsigned) index, (unsigned) value);
 
   if(index > ATTR_MAX_INDEX) return;
 
@@ -311,10 +306,10 @@ unsigned char Attr_read_value()
   if(i <= ATTR_MAX_INDEX && (vga.attr.cpu_video == 0 ||i > 15)) {
     uc = vga.attr.data[i];
 
-    attr_deb("VGAEmu: Attr_read_value: attr[0x%02x] = 0x%02x\n", i, (unsigned) uc);
+    attr_deb("Attr_read_value: attr[0x%02x] = 0x%02x\n", i, (unsigned) uc);
   }
   else {
-    attr_deb("VGAEmu: Attr_read_value: data reg inaccessible, index = 0x%02x\n", (unsigned) uc);
+    attr_deb("Attr_read_value: data reg inaccessible, index = 0x%02x\n", (unsigned) uc);
   }
 
   return uc;
@@ -342,9 +337,18 @@ void Attr_write_value(unsigned char data)
     vga.attr.cpu_video = data & 0x20;
 
     attr_deb(
-      "VGAEmu: Attr_write_value: index = 0x%02x\n",
+      "Attr_write_value: index = 0x%02x\n",
       (unsigned) (vga.attr.index | vga.attr.cpu_video)
     );
+
+    attr_deb("Attr_write_value: %svideo access\n", vga.attr.cpu_video ? "" : "no ");
+
+    i = vga.config.video_off;
+    vga.config.video_off = (vga.config.video_off & ~1) + (((vga.attr.cpu_video >> 5) & 1) ^ 1);
+    if(i != vga.config.video_off) {
+      attr_deb("Attr_write_value: video signal turned %s\n", vga.config.video_off ? "off" : "on");
+    }
+
   }
   else {	/* Attr_flipflop == ATTR_DATA_FLIPFLOP */
     vga.attr.flipflop = ATTR_INDEX_FLIPFLOP;
@@ -359,10 +363,10 @@ void Attr_write_value(unsigned char data)
         for(j = 0; j < 16; j++) vga.attr.dirty[j] = True;
       }
 
-      attr_deb("VGAEmu: Attr_write_value: attr[0x%02x] = 0x%02x\n", i, (unsigned) data);
+      attr_deb("Attr_write_value: attr[0x%02x] = 0x%02x\n", i, (unsigned) data);
     }
     else {
-      attr_deb("VGAEmu: Attr_write_value: data ignored\n");
+      attr_deb("Attr_write_value: data ignored\n");
     }
   }
 }
@@ -384,101 +388,9 @@ unsigned char Attr_get_index()
 {
   unsigned char uc = vga.attr.index | vga.attr.cpu_video;
 
-  attr_deb("VGAEmu: Attr_get_index: index = 0x%02x\n", (unsigned) uc);
+  attr_deb("Attr_get_index: index = 0x%02x\n", (unsigned) uc);
 
   return uc;
 }
 
-#endif	/* X_SUPPORT */
-
-
-hitimer_t t_vretrace = 0;
- 
-/*
- * DANG_BEGIN_FUNCTION Attr_get_input_status_1
- *
- * Emulate input status #1 register. The essential part is to
- * simulate the retrace signals.
- * Clears the Attribute Controller's flip-flop.
- * This is a hardware emulation function.
- *
- * DANG_END_FUNCTION
- *
- */
-unsigned char Attr_get_input_status_1(void)
-{
-  /* 
-   * Graphic status - many programs will use this port to sync with
-   * the vert & horz retrace so as not to cause CGA snow. On VGAs this
-   * register is used to get full (read: fast) access to the video memory 
-   * during the vertical retrace.
-   *
-   * bit 0 is Display Enable, bit 3 is Vertical Retrace
-   * 00=display 01=horiz.retrace 09=vert.retrace
-   * We're in vertical retrace?  If so, set VR and DE flags
-   * We're in horizontal retrace?  If so, just set DE flag, 0 in VR
-   *
-   * Idea from Adam Moss:
-   * Wait 20 milliseconds before we tell the DOS program that the VGA is
-   * in a vertical retrace. This is to avoid that some programs run too
-   * _fast_ in Dosemu (yes, I know, this sounds odd, but such programs
-   * really exist!). This option works only if the system has
-   * gettimeofday().
-   *
-   * Now simpler and more 'realtime', for better or for worse.  Implements
-   * horizontal retrace too.  (--adm)
-   *
-   */
-  static unsigned char hretrace=0, vretrace=0, first=1;
-  static hitimer_t t_vretrace = 0;
-  /* Timings are 'ballpark' guesses and may vary from mode to mode, but
-     such accuracy is probably not important... I hope. (--adm) */
-  static int vvfreq = 17000;	/* 70 Hz - but the best we'll get with
-  				 * current PIC will be 50 Hz */
-  hitimer_t t;
-  long tdiff;
-  unsigned char retval;
-
-#ifdef X_SUPPORT
-  vga.attr.flipflop = ATTR_INDEX_FLIPFLOP;
-#endif
-
-#ifdef OLD_CGA_SNOW_CODE
-  /* old 'cga snow' code with the new variables - looks terrible,
-   * but since it sometimes works we keep it for emergencies */
-  hretrace ^= 0x01;
-  vretrace++;
-  retval = 0xc6 | hretrace | (vretrace&0xfc? 0:0x09);
-#else
-  t = pic_sys_time = GETtickTIME(0);
-
-  if (first) {
-    t_vretrace=t; first=0;
-  }
-  tdiff = t-t_vretrace;
-  r_printf("EMUVR diff=%ld\n", tdiff);
-
-  switch (vretrace) {
-    /* set retrace on timeout */
-    case 0: if (tdiff > vvfreq) {
-	  /* We're in vertical retrace?  If so, set VR and DE flags */
-    		vretrace=0x09; t_vretrace=t;
-    		v_printf("V_RETRACE\n");
-    	    }
-    	    else
-	  /* We're in horizontal retrace?  If so, just set DE flag, 0 in VR */
-    	    	hretrace = ((tdiff%49) > 35);
-    	    break;
-    /* Otherwise, we're in 'display' mode and should return 0 in DE and VR */
-    /* set display after 1ms from retrace start */
-    case 9: if (tdiff > 1000) vretrace=hretrace=0;
-    	    break;
-  }
-  retval = 0xc6 | hretrace | vretrace;
-#endif
-
-  attr_deb("VGAEmu: Attr_get_input_status_1: status = 0x%02x\n", retval);
-
-  return retval;
-}
 

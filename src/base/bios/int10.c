@@ -36,6 +36,11 @@
  * in the future
  * -- Hans 980614
  *
+ * 1998/12/12: Fixed some bugs and integrated Josef Pavlik's <jet@spintec.com>
+ * patches; improved font/palette changes, get screen mode (ah = 0x0f) fixed,
+ * cursor shape is now initialized during mode set.
+ * -- sw
+ *
  * DANG_END_CHANGELOG
  */
 
@@ -352,7 +357,7 @@ clear_screen(int s, int att)
   if (config.cardtype == CARD_NONE)
      return;
 
-  v_printf("VID: cleared screen: %d %d %p\n", s, att, SCREEN_ADR(s));
+  v_printf("INT10: cleared screen: page %d, attr 0x%02x, screen_adr %p\n", s, att, SCREEN_ADR(s));
   if (s > max_page) return;
   
   for (schar = SCREEN_ADR(s), 
@@ -417,7 +422,7 @@ static boolean X_set_video_mode(int mode) {
     if(li > MAX_LINES) li = MAX_LINES;
     WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
     WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
-    Video->setmode(vmi->mode_class, co, li);
+    if(vmi->mode_class == TEXT) X_set_textsize(co, li);
     return 1;
   }
 
@@ -435,9 +440,12 @@ static boolean X_set_video_mode(int mode) {
   if(config.cardtype == CARD_MDA) video_mode = 7;
 
   /*
-   * We store the SVGA mode number (if possible) even when setting a VESA mode. -- sw
+   * We store the SVGA mode number (if possible) even when setting
+   * a VESA mode.
+   * Note that this gives mode 0x7f if no VGA mode number
+   * had been assigned. -- sw
    */
-  WRITE_BYTE(BIOS_VIDEO_MODE, vmi->mode & 0x7f);
+  WRITE_BYTE(BIOS_VIDEO_MODE, vmi->VGA_mode & 0x7f);
   WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
 
   if(vmi->mode_class == TEXT) {
@@ -491,16 +499,15 @@ static boolean X_set_video_mode(int mode) {
 
   video_page = 0;
   WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);
-  screen_adr = SCREEN_ADR(0);
+  screen_adr = (void *) (vga.buffer_seg << 4);
   screen_mask = 0;
   cursor_col = get_bios_cursor_x_position(0);
   cursor_row = get_bios_cursor_y_position(0);
 
-  /*
-   * There are still some BIOS variables that need to be updated.
-   * (cursor shape, CRTC address...)
-   * -- sw
-   */
+  set_cursor_shape(0x0607);
+  WRITE_WORD(BIOS_CURSOR_SHAPE, 0x0607);
+
+  WRITE_WORD(BIOS_VIDEO_PORT, vga.config.mono_port ? 0x3b4 : 0x3d4);
 
   return 1;
 }    
@@ -933,106 +940,154 @@ void int10()
     break;
 
   case 0x0f:			/* get video mode */
+    HI(ax) = co & 0xff;
 #if USE_DUALMON
-    if (IS_SCREENMODE_MDA) LWORD(eax) = (co << 8) | READ_BYTE(BIOS_VIDEO_MODE);
+    if(IS_SCREENMODE_MDA)
+      LO(ax) = READ_BYTE(BIOS_VIDEO_MODE);
     else 
 #endif
-    LWORD(eax) = (co << 8) | video_mode;
-    v_printf("get screen mode: 0x%04x s=%d\n", LWORD(eax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
-    HI(bx) = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
+    {
+      unsigned m = video_mode & 0xff;
+
+#if X_GRAPHICS
+      if(config.X) {
+        if(vga.mode & ~0xff) {
+          /*
+           * For VESA modes we look for an equivalent VGA mode number
+           * and, if we don't have one, use 0x7f.
+           */
+          m = vga.VGA_mode == -1 ? 0x7f : vga.VGA_mode;
+          if(vga.mode & 0x8000) m |= 0x80;
+        }
+      }
+#endif
+      LO(ax) = m;
+      HI(bx) = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
+      v_printf(
+        "INT10: get screen mode: mode = 0x%02x (%u colums, page %u)\n",
+        (unsigned) LO(ax), (unsigned) HI(ax), (unsigned) HI(bx)
+      );
+    }
     break;
 
   case 0x10:			/* ega palette */
     /* Sets blinking or bold background mode.  This is important for 
      * PCTools type programs that uses bright background colors.
      */
-    if (LO(ax) == 3) {      
-      char_blink = LO(bx) & 1;
-    }
+    if(LO(ax) == 3) char_blink = LO(bx) & 1;
+
 #if X_GRAPHICS
     /* root@zaphod */
     /* Palette register stuff. Only for the VGA emulator used by X */
-    if(config.X)
-      {
-        int i, count;
-        unsigned char *src;
-        unsigned char r, g, b, index;
-	DAC_entry rgb;
+    if(config.X) {
+       int i, count;
+       unsigned char *src;
+       unsigned char index, m;
+       DAC_entry rgb;
 
-        switch(LO(ax))
-          {
-          case 0x00:
-            Attr_set_entry(LO(bx), HI(bx));
-            break;
+       switch(LO(ax)) {
+         case 0x00:	/* Set Palette Register */
+           Attr_set_entry(LO(bx), HI(bx));
+           break;
 
-          case 0x01:
-            Attr_set_entry(0x11, HI(bx));
-            break;
+         case 0x01:	/* Set Overscan Color */
+           Attr_set_entry(0x11, HI(bx));
+           break;
 
-          case 0x02:
-            src = SEG_ADR((unsigned char *), es, dx);
-            for(i = 0; i < 0x10; i++) Attr_set_entry(i, src[i]);
-            Attr_set_entry(0x11, src[i]);
-            break;
+         case 0x02:	/* Set Palette & Overscan Color */
+           src = SEG_ADR((unsigned char *), es, dx);
+           for(i = 0; i < 0x10; i++) Attr_set_entry(i, src[i]);
+           Attr_set_entry(0x11, src[i]);
+           break;
 
-          case 0x07:
-            HI(bx) = Attr_get_entry(LO(bx));
-            break;
+         case 0x03:	/* Toggle Intensity/Blinking Bit */
+           m = Attr_get_entry(0x10) & ~(1 << 3);
+           m |= (LO(bx) & 1) << 3;
+           Attr_set_entry(0x10, m);
+           break;
 
-          case 0x08:
-            HI(bx) = Attr_get_entry(0x11);
-            break;
+         case 0x07:	/* Read Palette Register */
+           HI(bx) = Attr_get_entry(LO(bx));
+           break;
 
-          case 0x09:
-            src = SEG_ADR((unsigned char *), es, dx);
-            for(i = 0; i < 0x10; i++) src[i] = Attr_get_entry(i);
-            src[i] = Attr_get_entry(0x11);
-            break;
+         case 0x08:	/* Read Overscan Color */
+           HI(bx) = Attr_get_entry(0x11);
+           break;
 
-          case 0x10:
-            DAC_set_entry((unsigned char)LO(bx), (unsigned char)HI(dx),
-                          (unsigned char)HI(cx), (unsigned char)LO(cx));
-            break;
+         case 0x09:	/* Read Palette & Overscan Color */
+           src = SEG_ADR((unsigned char *), es, dx);
+           for(i = 0; i < 0x10; i++) src[i] = Attr_get_entry(i);
+           src[i] = Attr_get_entry(0x11);
+           break;
 
-          case 0x12:
-            index=(unsigned char)LO(bx);
-            count=LWORD(ecx);
-            src=SEG_ADR((unsigned char*),es,dx);
-            for(i=0; i<count; i++, index++)
-              {
-                r=src[i*3];
-                g=src[i*3+1];
-                b=src[i*3+2];
-                DAC_set_entry(r, g, b, index);
-              }
-            break;
+         case 0x10:	/* Set Individual DAC Register */
+           DAC_set_entry(LO(bx), HI(dx), HI(cx), LO(cx));
+           break;
 
-          case 0x15:  /* Read Individual DAC Register */
-            rgb.index = (unsigned char) LO(bx);
-            DAC_get_entry(&rgb);
-            (unsigned char)HI(dx) = rgb.r;
-            (unsigned char)HI(cx) = rgb.g;
-            (unsigned char)LO(cx) = rgb.b;
-            break;
+         case 0x12:	/* Set Block of DAC Registers */
+           index = LO(bx);
+           count = LWORD(ecx);
+           src = SEG_ADR((unsigned char *), es, dx);
+           for(i = 0; i < count; i++, index++)
+             DAC_set_entry(index, src[3*i], src[3*i + 1], src[3*i + 2]);
+           break;
 
-          case 0x17:  /* Read Block of DAC Registers */
-            index=(unsigned char)LO(bx);
-            count=LWORD(ecx);
-            src=SEG_ADR((unsigned char*),es,dx);
-            for(i=0; i<count; i++, index++)
-              {
-                rgb.index = index;
-                DAC_get_entry(&rgb); 
-                src[i*3    ] = rgb.r;
-                src[i*3 + 1] = rgb.g;
-                src[i*3 + 2] = rgb.b;
-              }
-            break;
+         case 0x13:	/* Select Video DAC Color Page */
+           m = Attr_get_entry(0x10);
+           switch(LO(bx)) {
+             case 0:	/* Select Page Mode */
+               m &= ~(1 << 7);
+               m |= (HI(bx) & 1) << 7;
+               Attr_set_entry(0x10, m);
+               break;
+             case 1:	/* Select Page */
+               if(m & (1 << 7))
+                 Attr_set_entry(0x14, HI(bx) & 0xf);
+               else
+                 Attr_set_entry(0x14, (HI(bx) & 0x3) << 2);
+               break;
+           }
+           break;
 
-          default:
-            break;
-          }
-      }
+         case 0x15:	/* Read Individual DAC Register */
+           rgb.index = LO(bx);
+           DAC_get_entry(&rgb);
+           HI(dx) = rgb.r; HI(cx) = rgb.g; LO(cx) = rgb.b;
+           break;
+
+         case 0x17:	/* Read Block of DAC Registers */
+           index = LO(bx);
+           count = LWORD(ecx);
+           src = SEG_ADR((unsigned char *), es, dx);
+           for(i = 0; i < count; i++, index++) {
+             rgb.index = index;
+             DAC_get_entry(&rgb);
+             src[3*i] = rgb.r; src[3*i + 1] = rgb.g; src[3*i + 2] = rgb.b;
+           }
+           break;
+
+         case 0x18:	/* Set PEL Mask */
+           DAC_set_pel_mask(LO(bx));
+           break;
+
+         case 0x19:	/* Read PEL Mask */
+           LO(bx) = DAC_get_pel_mask();
+           break;
+
+         case 0x1a:	/* Get Video DAC Color Page */
+           LO(bx) = m = (Attr_get_entry(0x10) >> 7) & 1;
+           HI(bx) = (Attr_get_entry(0x14) & 0xf) >> (m ? 0 : 2);
+           break;
+
+         case 0x1b:	/* Convert to Gray */
+           for(index = LO(bx), count = LWORD(ecx); count--; index++)
+             DAC_rgb2gray(index);
+           break;
+
+         default:
+           break;
+       }
+    }
 #endif
     break;
 
@@ -1107,11 +1162,13 @@ void int10()
 	      vga_font_height = old_font_height;
 	      CARRY;
 	    }
+#if 0
 	  else if (old_li < li) 
 	    {
 	      /* The attribute is just like my Bios, weird! */
 	      bios_scroll(0,old_li,co-1,li-1,0,07);
 	    }
+#endif
 	  break;
 	}
 	

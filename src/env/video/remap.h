@@ -49,6 +49,7 @@
 #define MODE_VGA_X	(1 << 12)
 #define MODE_CGA_1	(1 << 13)
 #define MODE_CGA_2	(1 << 14)
+#define MODE_HERC	(1 << 15)
 #define MODE_UNSUP	(1 << 31)
 
 #define MODE_TRUE_COL	(MODE_TRUE_8 | MODE_TRUE_15 | MODE_TRUE_16 | MODE_TRUE_24 | MODE_TRUE_32)

@@ -46,6 +46,13 @@
  * our only frontend, X, doesn't use this info yet).
  * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
  *
+ * 1998/12/12: Changed (fixed?) VBE set/get palette function.
+ * -- sw
+ *
+ * 1998/12/14: Another attempt to fix the pm version of the
+ * VBE set palette function.
+ * -- sw
+ *
  * DANG_END_CHANGELOG
  *
  */
@@ -71,6 +78,9 @@
 #include "video.h"
 #include "remap.h"
 #include "vgaemu.h"
+
+/* from dosext/dpmi/dpmi.c */
+unsigned long dpmi_GetSegmentBaseAddress(unsigned short);
 
 #define VBE_BIOS_MAXPAGES	2	/* max. 8k BIOS size, more than enough */
 
@@ -1319,6 +1329,21 @@ int vbe_palette_data(unsigned sub_func, unsigned len, unsigned first, unsigned c
   int err_code = 0;
   DAC_entry dac;
 
+  if(sub_func & 0x40) {		/* called via pm interface */
+    unsigned base, ofs;
+
+    sub_func &= ~0x40;
+    ofs = (_SI << 16) + _DI;
+    base = dpmi_GetSegmentBaseAddress(_BP);
+    buffer = (unsigned char *) (base + ofs);
+#ifdef DEBUG_VBE
+    v_printf(
+      "VBE: [0x%02x.%u] vbe_palette_data: called via pm interface, es.sel = 0x%04x, es.base = 0x%08x, es.ofs = 0x%08x\n",
+      (unsigned) _AL, sub_func, (unsigned) _BP, base, ofs
+    );
+#endif
+  }
+
 #ifdef DEBUG_VBE
   v_printf(
     "VBE: [0x%02x.%u] vbe_palette_data: bl = 0x%02x, cx = 0x%04x, dx = 0x%04x, es:di = 0x%04x:0x%04x\n",
@@ -1330,7 +1355,7 @@ int vbe_palette_data(unsigned sub_func, unsigned len, unsigned first, unsigned c
     case    0:
     case 0x80:	/* set palette */
       while(first < 256 && len) {
-        DAC_set_entry(first, buffer[1], buffer[2], buffer[3]);	/* index, r, g, b */
+        DAC_set_entry(first, buffer[2], buffer[1], buffer[0]);	/* index, r, g, b */
         first++; len--; buffer += 4;
       }
       break;
@@ -1339,9 +1364,9 @@ int vbe_palette_data(unsigned sub_func, unsigned len, unsigned first, unsigned c
       while(first < 256 && len) {
         dac.index = first;
         DAC_get_entry(&dac);
-        buffer[1] = dac.r;
-        buffer[2] = dac.g;
-        buffer[3] = dac.b;
+        buffer[2] = dac.r;
+        buffer[1] = dac.g;
+        buffer[0] = dac.b;
         first++; len--; buffer += 4;
       }
       break;
