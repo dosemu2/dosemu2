@@ -2387,11 +2387,12 @@ static void dpmi_RSP_call(struct sigcontext *scp, int num, int terminating)
 static void dpmi_cleanup(struct sigcontext_struct *scp)
 {
   D_printf("DPMI: cleanup\n");
-  FreeAllDescriptors();
   if (in_dpmi==1) {
+    in_win31 = 0;
     mprotect_mapping(MAPPING_DPMI, ldt_buffer,
       PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE);
   }
+  FreeAllDescriptors();
   cli_blacklisted = 0;
   in_dpmi--;
   if (in_dpmi) {
@@ -2412,7 +2413,6 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
         in_dpmi_pm_stack);
     }
     in_dpmi_pm_stack = 0;
-    in_win31 = 0;
   }
 
   if (DPMI_CLIENT.RSP_state == 0) {
