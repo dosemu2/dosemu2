@@ -254,7 +254,7 @@ static int terminal_initialize(void)
    /* initialize VGA emulator */
    use_bitmap_font = FALSE;
    config.X_updatelines = li;
-   if (vga_emu_init(NULL)) {
+   if (vga_emu_init(0, NULL)) {
      error("X: X_init: VGAEmu init failed!\n");
      leavedos(99);
    }

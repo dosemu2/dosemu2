@@ -86,7 +86,7 @@ typedef struct {
   unsigned r, g, b;
 } RGBColor;
 
-typedef struct {
+typedef struct ColorSpaceDesc {
   unsigned bits, bytes;
   unsigned r_mask, g_mask, b_mask;
   unsigned r_shift, g_shift, b_shift;

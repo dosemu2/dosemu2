@@ -653,7 +653,6 @@ int X_init()
   char *display_name; 
   char *s;
   int i, remap_src_modes;
-  vgaemu_display_type X_screen;
 
   X_printf("X: X_init\n");
 
@@ -839,19 +838,7 @@ int X_init()
   register_text_system(&Text_X);
 
   /* initialize VGA emulator */
-  X_screen.src_modes = remap_src_modes;
-  X_screen.bits = X_csd.bits;
-  X_screen.bytes = X_csd.bytes;
-  X_screen.r_mask = X_csd.r_mask;
-  X_screen.g_mask = X_csd.g_mask;
-  X_screen.b_mask = X_csd.b_mask;
-  X_screen.r_shift = X_csd.r_shift;
-  X_screen.g_shift = X_csd.g_shift;
-  X_screen.b_shift = X_csd.b_shift;
-  X_screen.r_bits = X_csd.r_bits;
-  X_screen.g_bits = X_csd.g_bits;
-  X_screen.b_bits = X_csd.b_bits;
-  if(vga_emu_init(&X_screen)) {
+  if(vga_emu_init(remap_src_modes, &X_csd)) {
     error("X: X_init: VGAEmu init failed!\n");
     leavedos(99);
   }

@@ -334,7 +334,7 @@ void X_process_key(XKeyEvent *e)
 static int probe_X_keyb(void)
 {
 	int result = FALSE;
-	if (config.X) {
+	if (Video == &Video_X) {
 		result = TRUE;
 	}
 	return result;

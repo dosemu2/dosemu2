@@ -1340,7 +1340,7 @@ void vgaemu_reset_mapping()
  *
  */     
 
-int vga_emu_init(vgaemu_display_type *vedt)
+int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
 {
   int i;
   vga_mapping_type vmt = {0, 0, 0};
@@ -1419,8 +1419,22 @@ int vga_emu_init(vgaemu_display_type *vedt)
 
   vga_emu_setup_mode_table();
 
-  if(vedt != NULL) {
-    vbe_init(vedt);
+  if(csd != NULL) {
+    vgaemu_display_type vedt;
+
+    vedt.src_modes = src_modes;
+    vedt.bits = csd->bits;
+    vedt.bytes = csd->bytes;
+    vedt.r_mask = csd->r_mask;
+    vedt.g_mask = csd->g_mask;
+    vedt.b_mask = csd->b_mask;
+    vedt.r_shift = csd->r_shift;
+    vedt.g_shift = csd->g_shift;
+    vedt.b_shift = csd->b_shift;
+    vedt.r_bits = csd->r_bits;
+    vedt.g_bits = csd->g_bits;
+    vedt.b_bits = csd->b_bits;
+    vbe_init(&vedt);
   }
 
   /*

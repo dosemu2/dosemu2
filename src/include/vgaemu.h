@@ -465,6 +465,7 @@ typedef struct {
 extern vga_type vga;
 extern vgaemu_bios_type vgaemu_bios;
 
+struct ColorSpaceDesc;
 
 /*
  * Functions defined in env/video/vgaemu.c.
@@ -478,7 +479,7 @@ Bit16u VGA_emulate_inw(ioport_t);
 int vga_emu_fault(struct sigcontext_struct *, int pmode);
 #define VGA_EMU_FAULT(scp,code,pmode) vga_emu_fault(scp,pmode)
 #endif
-int vga_emu_init(vgaemu_display_type *);
+int vga_emu_init(int src_modes, struct ColorSpaceDesc *);
 void vga_emu_done(void);
 int vga_emu_update(vga_emu_update_type *);
 int vgaemu_switch_plane(unsigned);
