@@ -14,8 +14,7 @@ IDEST=/var/lib
 SRC=hdinfo.c bootsect.S mkhdimage.c putrom.c mkfatimage.c mkfatimage16.c \
     dexeconfig.c scsicheck.c dosctrl.c vbioscheck.c
 OBJ1=hdinfo mkhdimage putrom dexeconfig scsicheck dosctrl vbioscheck 
-OBJ=$(OBJ1) bootsect ../../../etc/hdimage.dist \
-    $(BINPATH)/bin/mkfatimage $(BINPATH)/bin/mkfatimage16
+OBJ=$(OBJ1) bootsect $(BINPATH)/bin/mkfatimage $(BINPATH)/bin/mkfatimage16
 SCRIPT=getrom
 
 CPPFLAGS += -I.
