@@ -99,38 +99,10 @@ typedef struct vm86_regs state_t;
  *	V86 DOS disk emulation header file
  *
  * HISTORY:
- * $Log$
- * Revision 1.7  2003/08/26 22:13:47  bartoldeman
- * From Stas: xtitle support (Bart: extended support to xterms)
  *
- * Revision 1.6  2003/08/17 12:24:37  bartoldeman
- * MFS cleanup, fix exists() and wildcard delete.
- * Also make findfirst on a single file more efficient again and get it to
- * honour devices again.
- *
- * Revision 1.5  2003/08/16 14:01:17  bartoldeman
- * Add support (using the translate plugin) to the MFS to translate between
- * the external and internal charset for filenames.
- * Set $_external_charset (for all purposes except the display) to the
- * current locale charset by default.
- * Various MFS cleanups.
- *
- * Revision 1.4  2003/08/10 18:06:44  bartoldeman
- * MFS cleanup: avoid use of some global variables and pass the drive number
- * around as a parameter instead.
- *
- * Revision 1.3  2003/07/18 22:42:41  bartoldeman
- * Fix LFN's for VFAT.
- * Make use of the VFAT_IOCTL_READDIR_BOTH ioctl to obtain the short
- * aliases for long filenames (Wine provided a good example).
- * Remove unnecessary scan_dir usage on VFAT (because stat is already case-
- * insensitive)
- *
- * Revision 1.2  2003/07/15 18:28:23  bartoldeman
- * Add support for Long File Names (default=off)
- *
- * Revision 1.1.1.1  2003/06/23 00:02:08  bartoldeman
- * Initial import (dosemu-1.1.5.2).
+ * Log: mfs.h,v
+ * Revision 1.1  2003/06/23 00:02:08  bartoldeman
+ * Initial revision
  *
  * Revision 1.2  1995/05/23  06:04:49  root
  * fix for redirector open existing file function
@@ -332,16 +304,6 @@ struct drive_info
   boolean_t read_only;
 };
 extern struct drive_info drives[MAX_DRIVE];
-
-#ifdef OLD_OBSOLETE
-typedef struct lol_record {
-  u_char filler1[22];
-  far_t cdsfarptr;
-  u_char filler2[6];
-  u_char last_drive;
-} *lol_t;
-
-#endif
 
 /* dos attribute byte flags */
 #define REGULAR_FILE 	0x00

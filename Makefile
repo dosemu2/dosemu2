@@ -52,7 +52,7 @@ dosemu_script:
 
 pristine distclean mrproper:  docsclean mididclean
 	@$(MAKE) -C src pristine
-	rm -f Makefile.conf
+	rm -f Makefile.conf dosemu.spec
 	rm -f core `find . -name config.cache`
 	rm -f core `find . -name config.status`
 	rm -f core `find . -name config.log`
@@ -68,6 +68,8 @@ pristine distclean mrproper:  docsclean mididclean
 	(cd setup/demudialog; make clean)
 	(cd setup/parser; make clean)
 	rm -rf ./dist/tmp
-	rm -rf autom4te*.cache
+	rm -f man/dosemu.1 man/dosemu.bin.1 man/ru/dosemu.1 man/ru/dosemu.bin.1
 	$(srcdir)/mkpluginhooks clean
 
+tar: distclean
+	VERSION=`cat VERSION` && cd .. && tar czvf dosemu-$$VERSION.tgz dosemu-$$VERSION

@@ -5,6 +5,7 @@ DOSEMU installation instructions (from source)
     - egcs >= 2.91.66 (1.1.2) / gcc >= 2.95.2
     - glibc >= 2.1.3
     - Linux >= 2.0.30, 2.x.y >= 2.1.27 (>= 2.4.20 recommended)
+    - bison (not just yacc) and flex
 
 --------------------------------------------------------------------------
 1. Compile
@@ -180,21 +181,4 @@ this change will have an immediate effect on all users,
 because the user's private instances will have symlinks to the
 commonly used DOS binaries.
 
-Some final note: It may be better to link static. Keep in mind, that DOSEMU
-can run much better when linked statically, this (among other) has to do
-with the more compact address space spanned by statically linked binaries
-(more TLB hits, less reloads) and the enormous number of kernel-/user-
-space transitions DOSEMU needs to do. Hence, even if static binaries
-under glibc >= 2.2 are no longer strictly portable between systems,
-you may get a better performing DOSEMU. You may argue performance
-not to be important, maybe, but DOSEMU's dynamic behavior can change
-dramatically when missing to 'hit the slot', resulting in malfunction
-of the DOS application, which expects to 'own' the whole machine'.
-There is, however, some problem with static linkage under glibc together
-with gethostname() as called by XOpenDisplay() on remote X. This problem
-(silent crash) can be solved by always having nscd running on the remote
-system.
- 
-
-			--Hans <lermen@fgan.de>, 2001/05/30
-			--Bart Oldeman, 2003/06/04
+			--Bart Oldeman, 2003/09/30

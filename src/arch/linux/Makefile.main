@@ -90,6 +90,7 @@ $(BINPATH)/bin/dosemu: $(REALTOPDIR)/dist/dosemu
 	sed -e "s|SYSTEM_INSTALL_PATH=NOT_SYSTEM_WIDE|SYSTEM_INSTALL_PATH=$(dosemudir)|" \
 	    -e "s|SYSTEM_CONF_PATH=NOT_SYSTEM_WIDE|SYSTEM_CONF_PATH=$(sysconfdir)|" \
 	    -e "s|SYSTEM_XFONTS_PATH=NOT_SYSTEM_WIDE|SYSTEM_XFONTS_PATH=$(x11fontdir)|" \
+	    -e "s|SYSTEM_BIN_PATH=NOT_SYSTEM_WIDE|SYSTEM_BIN_PATH=$(bindir)|" \
 	              $(REALTOPDIR)/dist/dosemu > $(BINPATH)/bin/dosemu
 	chmod +x $(BINPATH)/bin/dosemu
 
@@ -140,7 +141,6 @@ install:
 	rm -rf $(TMP)
 	mkdir -p -m 0755 $(TMP)/dosemu/freedos/dosemu
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)
-	$(INSTALL) -d $(DESTDIR)$(syshdimagedir)
 	for i in `find $(SYS)/* -type f`; do \
 	  $(INSTALL) -m 0644 $$i $(TMP)/dosemu/freedos/dosemu; \
 	done
@@ -170,13 +170,12 @@ install:
 	  $(INSTALL) $(DESTDIR)$(dosemudir)/freedos/config.sys freedos; \
 	  $(INSTALL) $(DESTDIR)$(dosemudir)/freedos/autoexec.bat freedos; \
 	  cd .. ; tar -cf- dosemu |gzip -9 >$(DESTDIR)$(dosemudir)/dosemu-freedos-bin.tgz; \
-	  if [ ! -d $(DESTDIR)$(syshdimagedir)/drives ]; then \
-	    $(INSTALL) -d $(DESTDIR)$(syshdimagedir)/drives; \
-	    ln -s $(dosemudir)/freedos $(DESTDIR)$(syshdimagedir)/drives/c; \
+	  if [ ! -d $(DESTDIR)$(sysconfdir)/drives ]; then \
+	    $(INSTALL) -d $(DESTDIR)$(sysconfdir)/drives; \
+	    ln -s $(dosemudir)/freedos $(DESTDIR)$(sysconfdir)/drives/c; \
 	  fi; \
-	  $(INSTALL) -d $(DESTDIR)$(syshdimagedir)/freedos; \
-	  rm -f $(DESTDIR)$(syshdimagedir)/freedos/tmp; \
-	  ln -sf /tmp $(DESTDIR)$(syshdimagedir)/freedos/tmp; \
+	  rm -f $(DESTDIR)$(dosemudir)/freedos/tmp; \
+	  ln -sf /tmp $(DESTDIR)$(dosemudir)/freedos/tmp; \
 	fi
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)
 	if [ ! -f $(DESTDIR)$(sysconfdir)/dosemu.conf ]; then \
@@ -204,6 +203,8 @@ endif
 	$(INSTALL) -m 0644 $(REALTOPDIR)/README.bindist $(DESTDIR)$(docdir)
 	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/{README,README-tech,dosemu-HOWTO,sound-usage}.txt \
 	   $(REALTOPDIR)/doc/announce $(DESTDIR)$(docdir)
+	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/{DANG,EMUfailure,NOVELL-HOWTO}.txt \
+	   $(REALTOPDIR)/doc/README.gdb $(DESTDIR)$(docdir)
 ifdef X_SUPPORT
 	if [ ! -e $(DESTDIR)$(bindir)/xdosemu ]; then ln -s dosemu $(DESTDIR)$(bindir)/xdosemu; fi
 	$(INSTALL) -d $(DESTDIR)$(x11fontdir)
@@ -241,6 +242,22 @@ endif
 	  echo and use another DOS, which can be installed using dosemu -install,; \
 	  echo referred to using \$$_hdimage in $(sysconfdir)/dosemu.conf or \~/.dosemurc; \
 	  echo or symbolically linked from \~/.dosemu/drives/c.; \
+	fi
+	@if test $(sysconfdir) != /etc; then \
+	  if [ -f $(DESTDIR)/etc/dosemu.users ]; then \
+	    echo ; \
+	    echo /etc/dosemu.users exists but you did not set sysconfdir=/etc; \
+	    echo Deprecated: saving backup as /etc/dosemu.users.save; \
+	    echo mv /etc/dosemu.users /etc/dosemu.users.save; \
+	    mv /etc/dosemu.users /etc/dosemu.users.save; \
+	  fi; \
+	  if [ -f $(DESTDIR)/etc/dosemu.conf ]; then \
+	    echo ; \
+	    echo /etc/dosemu.conf exists but you did not set sysconfdir=/etc; \
+	    echo Deprecated: saving backup as /etc/dosemu.conf.save; \
+	    echo mv /etc/dosemu.conf /etc/dosemu.conf.save; \
+	    mv /etc/dosemu.conf /etc/dosemu.conf.save; \
+	  fi \
 	fi
 	@echo ""; \
 	 echo "---------------------------------DONE Installing-------------------------------"; \

@@ -1,6 +1,7 @@
   Netware-HOWTO
   Lauri Tischler ltischler@fipower.pp.fi
   rev.0.2 30 Mar 1995
+  updated for DOSEMU 1.2.0, 28 Sep 2003, Bart Oldeman
 
   This document tryes to descibe how to connect to Novell Netware
   servers from Linux.
@@ -110,6 +111,7 @@
   directory ipxutils and run 'make'.
 
   Check that in your 'dosemu.conf' file you have 'ipx_support' enabled.
+  $_ipxsupport = (on)
 
   Now you need to enable the ipxinterface.  To do that you execute
   following command :
@@ -148,6 +150,8 @@
      suspect that it has something to do with 'watchdog packets' from
      the server not getting proper answer.  Maybe some IPX/SPX guru will
      look into this.
+ 
+  o  DPMI in combination with direct IPX is broken as of DOSEMU 1.2.0.
 
 
   3.2.	The Packet Driver (IPX).
@@ -155,7 +159,8 @@
   As a driver you should use PDETHER which is an ipx-to-packet driver
   shim, but masquerading as an ODI compliant driver.  There also exists
   an older driver PDIPX, technology represented by PDIPX is no longer
-  supported by Novell.
+  supported by Novell. A driver named IPXPD is more likely to work
+  than PDIPX.
 
   The Packet Driver uses build-in packetdriver interface which means
   that the IPX-SUPPORT in Kernel and in DOSEMU is NOT needed.  When
@@ -163,10 +168,10 @@
   actually the default case.
 
   Corresponding parameter for DOSEMU is found in the NETWORKING SUPPORT
-  section of /etc/dosemu.conf file.  There you just leave the line
-  ipxsupport on commented out.	(see below)
+  section of dosemu.conf/.dosemurc.  There you just leave the line
+  $_ipxsupport = (off) commented out.	(see below)
 
-  The use of the second configuration parameter pktdriver novell_hack is
+  The use of the second configuration parameter $_novell_hack is
   explained in detail in later paragraphs.
 
   #************************* NETWORKING SUPPORT *****************************
@@ -175,11 +180,13 @@
   #    Therefore, there is no need to load IPX.COM within the DOS session.
   #    The following option does not emulate LSL.COM, IPXODI.COM, etc.
   #    NOTE: MUST HAVE IPX PROTOCOL ENABLED IN KERNEL !!
-  #ipxsupport on
+  # $_ipxsupport = (off)
   #
-  #    Enable Novell 8137->raw 802.3 translation hack in new packet driver.
-  #pktdriver novell_hack
+  #    Enable Novell 8137->raw 802.3 translation hack in new packet
+  #    driver.
 
+  $_pktdriver = (on)
+  # $_novell_hack = (off)
 
   There are various versions of packetdriver PDETHER floating around, at
   least the one which is in
@@ -192,15 +199,15 @@
 
   Because PDETHER is an ODI driver, you load..
 
-
-
-
-
-      LSL
+      LSL (at least version 2.20; older versions may crash)
       PDETHER
       IPXODI
       NETX
 
+  If you use IPXPD or PDIPX you just load
+
+      IPXPD or PDIPX
+      NETX
 
   Because PDETHER is an ODI driver, there must be corresponding section
   in your net.cfg file.	Here is a snippet of my NET.CFG
@@ -231,9 +238,10 @@
   Do NOT CHANGE line 'FRAME Ethernet_II' in Link Driver PDETHER section,
   instead enable or disable the 'pkdriver novell_hack' in 'dosemu.conf'
 
-  pktdriver novell_hack		If you have Ethernet_802.3
+  $_pktdriver = (on)
+  $_novell_hack = (on)            If you have Ethernet_802.3
 
-  #pktdriver novell_hack	  If you have Ethernet_II
+  # $_novell_hack = (off)	  If you have Ethernet_II
 
   Read the PDETHER.DOC for further info.
 

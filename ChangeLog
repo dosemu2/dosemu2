@@ -1,3 +1,117 @@
+2003/xx/xx ver 1.3.0 released
+	From Stas:
+	- src/: base/async/int.c, base/misc/disks.c, dosext/dpmi/dpmi.c,
+	  dosext/mfs/lfn.c, dosext/mfs/mangle.c, dosext/mfs/mfs.c,
+	  dosext/mfs/mfs.h, emu-i386/do_vm86.c, env/video/X.h,
+	  include/dos2linux.h, include/int.h: xtitle support
+	  (Bart: extended support to xterms)
+	- dist/dosemu, src/arch/linux/async/sigsegv.c, signal.c,
+	  src/dosext/dpmi/dpmi.c, dpmi.h: Upon signal handler entry:
+	  Restore the eflags instead of explicitly clearing AC and ID.
+	  Also restore the %fs and %gs registers for compatibility with
+	  NPTL. Remove old LD_ASSUME_KERNEL workaround (Bart)
+	- src/: dosext/dpmi/dpmi.c, include/pic.h:
+	  * Fixed some log output, adjusted some types.
+	- src/dosext/dpmi/: dpmi.c, dpmi.h, msdos.c, memory.c:
+	  * Per-client IDT, as required by DPMI 1.0 spec.  IDT is inherited
+	    from previous client if possible, to retain the compatibility
+	    with DPMI 0.9. Also added pm_block_root and realModeCallBack
+	    to the per-client structure.
+	  * Started consolidation of the per-client data into a single
+	    structure for the true multi-client support and better
+	    compatibility with DPMI 1.0. This patch consolidates
+	    DPMIclient_is_32 and dpmi_stack_frame, adding other units is in
+	    to-do.  This patch allows building a FreeDOS kernel under a
+	    16-bit BC-3.1 environment, while using a 32-bit nasm.
+	  * Check ss:sp=0 as per specs, sp=0 is not enough.
+	  * Recovery code for Windows which puts 0 into %ss on the exception
+	    stack frame. Escaping via a locked stack seems to help.
+	  * Improve DPMI debugging: 
+	    - Properly debug the emulated instructions
+	    - force_early hack is no longer necessary
+	    - More debugging messages
+	  * Limits >1MB are page-granular.
+	  * ConvertSegmentToDescriptor() must look up segments also with the
+	    limit==0xff as this is the limit of PSP segments created at DPMI
+	    initialization.
+	  * Optimisation: READ_DS_COPIED can be #define instead of variable
+	- src/base/serial/ser_init.c: Make sure the serial device is a tty.
+	- src/base/: init/init.c, mouse/mouse.c:
+	  Init the mouse IRQ after the mouse client initialisation.
+	  Remove duplicate/unused includes.
+	- src/: emu.c, base/init/init.c: Call hardware_setup() before
+	  device_init(). This fixes a numlock  problem reported by Reinhard.
+	- src/: arch/linux/async/sigsegv.c, include/emu.h, emu.c:
+	  Dont intercept leavedos() if it was called from within a signal
+	  context.  TODO: Calling leavedos() from within a signal context
+	  should be deprecated and replaced with some more elegant solution
+	  that can work with dosdebug.
+	- src/arch/linux/debugger/Makefile, dosdebug.c:
+	  Dont use -O2 for dosdebug, CFLAGS should be enough.
+	  Exit dosdebug if dosemu unexpectedly terminated.
+	From Bart:
+	- src/: emu-i386/cputime.c, base/async/int.c, base/bios/int10.c,
+	  base/misc/userhook.c, base/misc/utilities.c, base/mouse/mouse.c,
+	  env/video/X.c, env/video/X.h, include/video.h,
+	  plugin/commands/comcom.c, plugin/term/env_term.h,
+	  plugin/term/keyb_slang.c, plugin/term/terminal.c:
+	  Localized title support using a new Video function pointer.
+	- configure, configure.ac: Fix PATCHLEVEL typo in configure.ac;
+	  remove help for enable-mitshm (disable-mitshm is enough)
+	- src/arch/linux/debugger/mhpdbg.c: (with Stas)
+	  Fix -H1 (stop until dosdebug has connected)
+	- src/base/async/int.c: Let int 11 and int 12 read their values
+	  from 40:xxx like real BIOSes do.
+	- README.*, INSTALL, doc/, src/doc/: Documentation updates,
+	  regenerated DANG, add note about bison and yacc; remove note
+	  about static linking (no proofs seen).
+	- src/doc/HOWTO/dosemu-HOWTO.sgml: 
+	  Update the HOWTO -- in line with present DOSEMU, and delete 
+	  obsolete sections, and merge formatting changes from Peter
+	  Jay Salzman
+	- src/: arch/linux/async/signal.c, plugin/term/keyb_slang.c: 
+	  Based on a patch from Märt Laak (martlaak@users.sourceforge.net)
+	  Turn off shiftstates for terminals later.
+	  Bart: do this from the sigalrm handler instead of for the next
+	  key. Also add some more escape sequences for xterm and putty.
+	  Add shift-tab to the xterm keys.
+	- src/: include/mouse.h, base/mouse/mouse.c, base/mouse/mouseint.c,
+	  plugin/kbd_unicode/include/keyboard.h, plugin/term/keyb_slang.c:
+	  Originally by Mart Laak: xterm mouse support. Works in putty too.
+	  Changed by Bart to run automatically if TERM=xterm* and use the
+	  1002/1003 modes so that not just button clicks but also drags can be
+	  detected.
+	- src/: base/mouse/mouse.c, plugin/term/mouse_xterm.c: Delay xterm
+	  mouse init until the first int33 call, so that normal copy/paste
+	  works without shift until the first DOS app wants to use a mouse.
+	  Could be much cleaner -- leaving that for 1.3
+	- src/plugin/kbd_unicode/serv_xlat.c: Be more conservative in using
+	  approximations for the unicode keyboard.
+	- src/plugin/kbd_unicode/keymaps.c: Use Unicode for the Turkish
+	  keyboard!
+	- src/plugin/term/keyb_slang.c: Remove unnecessary (and wrong on
+	  some keyboards) translations of * and +
+	- src/arch/linux/Makefile.main: We no longer need to create
+	  /var/lib/dosemu; also adjust a few symbolic links.
+	- etc/global.conf: Wrap each "foreach" in if/endif blocks;
+	  otherwise the lexer may have problems and may not recognize
+	  $_vbootfloppy. I wasn't able to fix the lexer.
+	- dist/dosemu: Remove automatic "enter" since FreeDOS supports
+	  switches=/f now
+	- Makefile, configure, configure.ac, dosemu.spec.in, man/Makefile,
+	  man/dosemu.1, man/dosemu.1.in, man/dosemu.bin.1,
+	  man/dosemu.bin.1.in, man/ru/dosemu.1, man/ru/dosemu.1.in,
+	  man/ru/dosemu.bin.1, man/ru/dosemu.bin.1.in: 
+	  Automatically put the right paths into the man pages.
+	  Add dosemu.spec.in for creating an rpm.
+	- etc/dosemu.conf, etc/global.conf, src/base/init/Makefile: New
+	  clear layout of dosemu.conf. Document the fact that /etc/dosemu
+	  may be used as hdimage base.
+	- src/base/misc/priv.c: Correct suid-root privilege problem wrt
+	  "mapself".
+	- src/: env/video/X.c, plugin/kbd_unicode/keyb_clients.c: Fix
+	  copy/paste problems (delay from DOSEMU->xterm and LF->CR
+	  translation for smth->DOSEMU)
 2003/08/22 ver 1.1.5.7 unofficial pre-release
 	From Nerijus Baliunas (nerijus@users.sf.net):
 	* doc/README-tech.txt, doc/README.txt, etc/dosemu.conf,

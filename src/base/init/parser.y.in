@@ -2276,7 +2276,9 @@ parse_dosemu_users(void)
    *    (which could be changed by the owner of global.conf).
    */
 
-  if (!exists_file(DOSEMU_USERS_FILE)) {
+  if (DOSEMU_USERS_FILE == NULL) {
+    setenv("DOSEMU_CONF_DIR", "", 1);
+  } else if (!exists_file(DOSEMU_USERS_FILE)) {
     DOSEMU_USERS_FILE = ALTERNATE_ETC "/" DOSEMU_USERS;
     DOSEMU_LOGLEVEL_FILE = ALTERNATE_ETC "/" DOSEMU_LOGLEVEL;
     setenv("DOSEMU_CONF_DIR", ALTERNATE_ETC, 1);

@@ -3,7 +3,7 @@ The DOSEMU Alterer Novices Guide
 
 Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 
-   version dosemu-1.1.5
+   version dosemu-1.1.99.1
 
    This Document is the DOSEMU Alterer Novices Guide. It is known as the
    DANG.
@@ -796,10 +796,6 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    -----
 
    We shouldn't return to dosemu code if IF=0, but it helps - WHY? */
-
-   -----
-
-   we should not change registers for hardware interrupts */
      _________________________________________________________________
 
 4.4. New Ideas for dosext/dpmi/dpmi.c

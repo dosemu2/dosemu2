@@ -57,8 +57,6 @@ To the dosemu hacker:
 <itemizedlist>
 <listitem>
 <para>
-There is a compile-time option USE_UNICODE_KEYB (on by default) to active the
-
  While the old code already claimed to be "client-server" (and was, to
 some extent), the new code introduces a clean, well-defined interface
 between the `server', which is the interface to DOS (int9, bios etc.),
@@ -201,7 +199,7 @@ is not implemented (i.e. it doesn't actually halt DOS execution.)
       once everything is proved to work, remove the old keyboard code
 </para> </listitem>
 <listitem> <para>
-      impelemnt utf8 and possibly iso2022 terminal support
+      implement utf8 and possibly iso2022 terminal support
 </para> </listitem>
 </itemizedlist>
 

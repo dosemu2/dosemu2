@@ -210,7 +210,9 @@ fi
 AC_ARG_WITH(slangdir, [  --with-slangdir=dir     Specify S-Lang directory],
   AC_MSG_CHECKING(for S-Lang)
   SLANGINC=""
-  if test "$withval" = "default"; then
+  if test "$withval" = "src/plugin/slang"; then
+    $srcdir/mkpluginhooks enable slang yes
+  elif test "$withval" = "default"; then
     if test -d $srcdir/../slang; then
       SLANGINC="-I ${srcdir}/../slang/src"
       SLANGLIB="-L ${srcdir}/../slang/src/objs"
@@ -237,8 +239,12 @@ AC_ARG_WITH(slangdir, [  --with-slangdir=dir     Specify S-Lang directory],
     fi
   fi
   dnl --- now that we've found it, check the link
-  AC_MSG_RESULT($SLANGINC $SLANGLIB)
-  AC_CHECK_LIB(slang, SLsmg_write_nwchars,
+  if test "$withval" = "src/plugin/slang"; then
+   LIBS="$LIBS -lm -ldl"
+   AC_MSG_RESULT() 
+  else
+   AC_MSG_RESULT($SLANGINC $SLANGLIB)
+   AC_CHECK_LIB(slang, SLsmg_write_nwchars,
     AC_MSG_WARN([Rejecting system S-Lang with UTF-8 support. It is incompatible with DOSEMU. Using supplied S-Lang.])
     buggy_slang=yes
     $srcdir/mkpluginhooks enable slang yes,
@@ -247,6 +253,7 @@ AC_ARG_WITH(slangdir, [  --with-slangdir=dir     Specify S-Lang directory],
                 [AC_MSG_WARN([No S-Lang library found. Using supplied S-Lang.])]
 		$srcdir/mkpluginhooks enable slang yes,
    -lm -ldl), -lm -ldl)
+  fi
 )
 
 if test "$no_x" = "yes" ; then
@@ -399,8 +406,8 @@ dnl Do compilation for GDB
 
 dnl Compile with ASPI support
  AC_ARG_ENABLE(aspi,
-               [  --enable-aspi           compile with ASPI support])
-  if test "$enable_aspi" = "yes"; then
+               [  --disable-aspi          do NOT compile with ASPI support])
+  if test "$enable_aspi" != "no"; then
    AC_MSG_NOTICE(Compiling with ASPI support...);
    AC_DEFINE(ASPI_SUPPORT)
    AC_SUBST(ASPI_SUPPORT,"ASPI_SUPPORT=1")
@@ -586,7 +593,7 @@ AC_SUBST(LIBS)
 
 dnl Create output files. If you add new ones, please do it in order.
 
-AC_CONFIG_FILES([Makefile.conf])
+AC_CONFIG_FILES([Makefile.conf dosemu.spec])
 
 AC_CONFIG_COMMANDS([Makefile], 
 [ if ! test -f configure.ac; then 

@@ -153,7 +153,7 @@ facilities, смотрите
 global.conf (необходимо запустить DOSEMU от root с установленным флагом suid)
 .TP
 .I --Fusers
-Обойти файл /etc/dosemu.users и взять предоставленный файл вместо него
+Обойти файл dosemu.users и взять предоставленный файл вместо него
 (принимается только в случае, когда
 .B dosemu.bin
 .I не
@@ -161,7 +161,7 @@ global.conf (необходимо запустить DOSEMU от root с установленным флагом suid)
 .TP
 .I --Flibdir
 Обойти каталог по умолчанию DOSEMU_LIB_DIR (как, возможно, определено в
-/etc/dosemu.users) и использовать предоставленный каталог вместо него 
+dosemu.users) и использовать предоставленный каталог вместо него 
 (принимается только в случае, когда
 .B dosemu.bin
 .I не
@@ -348,7 +348,7 @@ DOSEMU будет затем заблокирован перед переходом в загруженный boot сектор в
 .B dosemu.conf
 перед запуском
 .BR DOSEMU .
-Смотрите также doc/README.txt.
+Смотрите также @docdir@/README.txt.
 
 .SH ФЛОППИ ДИСКИ
 .B DOSEMU
@@ -573,14 +573,14 @@ djgpp и прочее) произошла втечение его 'правления' и перенесла проект ближе к
 .SH ФАЙЛЫ
 .PD 0
 .TP
-.I /usr/local/bin/dosemu.bin
+.I @bindir@/dosemu.bin
 Исполняемый модуль
 .TP
-.I /usr/local/bin/dosemu
+.I @bindir@/dosemu
 Оберточный скрипт, рекомендуемый для запуска dosemu.bin, который не стоит
 запускать непосредственно.
 .TP
-.I /usr/local/bin/xdosemu
+.I @bindir@/xdosemu
 То же самое, но служит для запуска DOS в X window.
 .TP
 .I $HOME/.dosemu
@@ -610,10 +610,10 @@ djgpp и прочее) произошла втечение его 'правления' и перенесла проект ближе к
 .I global.conf
 (global.conf включен в dosemu.bin по умолчанию).
 .TP
-.I /etc/dosemu.users
+.I dosemu.users
 или
 .TP
-.I /etc/dosemu/dosemu.users
+.I @sysconfdir@/dosemu.users
 Для запускаемых бинарников с suid-root: определение прав доступа к
 .BR DOSEMU
 на базисе каждого пользователя и установка некоторой необходимой 
@@ -621,9 +621,9 @@ djgpp и прочее) произошла втечение его 'правления' и перенесла проект ближе к
 фиксированное расположение,
 .BR DOSEMU
 вначале ищет
-.I /etc/dosemu.users
+.I dosemu.users
 и, если он не найден, обращается к
-.I /etc/dosemu/dosemu.users.
+.I @sysconfdir@/dosemu.users.
 Через ключевой параметр
 .I default_lib_dir=
 в файле
@@ -632,22 +632,22 @@ djgpp и прочее) произошла втечение его 'правления' и перенесла проект ближе к
 .I DOSEMU_LIB_DIR
 может быть перемещен куда-нибудь.
 За более детальной информацией обращайтесь к
-.I ./doc/README.txt
+.I @docdir@/README.txt
 .TP
-.I /etc/dosemu/dos.ini
+.I @sysconfdir@/dos.ini
 Настроечный файл для IPX.
 
 .TP
-.I doc/DPR
+.I @docdir@/DPR
 Команда разработчиков dosemu: кто и какую часть проекта
 .B DOSEMU
 ведет?
 .TP
-.I doc/DANG
+.I doc/DANG.txt
 Помощь для изучения кода
 .B DOSEMU.
 .TP
-.I doc/README.*
+.I @docdir@/README.*
 Различная документация.
 .TP
 .I QuickStart

@@ -1888,9 +1888,9 @@ CONST t_keysym ctrl_map_ru[] =
 
 CONST t_keysym key_map_tr[] =	{
 	U_VOID,27,'1','2','3','4','5','6','7','8','9','0','*','-',127,9, 
-	'q','w','e','r','t','y','u',141,'o','p',167,129,13,U_VOID,
-	'a','s','d','f','g','h','j','k','l',159,'i',130,U_VOID,44,
-	'z','x','c','v','b','n','m',148,135,'.',U_VOID,
+	'q','w','e','r','t','y','u',0x131,'o','p',0x11f,0xfc,13,U_VOID,
+	'a','s','d','f','g','h','j','k','l',0x15f,'i',0xe9,U_VOID,44,
+	'z','x','c','v','b','n','m',0xf6,0xe7,'.',U_VOID,
 	'*',U_VOID,' ',U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID, 
 	U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
 	U_VOID,'-',U_VOID,U_VOID,U_VOID,'+',U_VOID,
@@ -1901,9 +1901,9 @@ CONST t_keysym key_map_tr[] =	{
 CONST t_keysym shift_map_tr[] =
 {
      U_VOID,27,'!','\'','^','+','%','&','/','(',')','=','?','_',127,9, 
-     'Q','W','E','R','T','Y','U','I','O','P',166,154,13,U_VOID,
-		 'A','S','D','F','G','H','J','K','L',158,152,34,U_VOID,';',
-		 'Z','X','C','V','B','N','M',153,128,':',U_VOID,
+     'Q','W','E','R','T','Y','U','I','O','P',0x11e,0xdc,13,U_VOID,
+		 'A','S','D','F','G','H','J','K','L',0x15e,0x130,34,U_VOID,';',
+		 'Z','X','C','V','B','N','M',0xd6,0xc7,':',U_VOID,
 		 '*',U_VOID,' ',U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
      U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
 		 U_VOID,U_VOID,'-',U_VOID,U_VOID,U_VOID,'+',U_VOID,

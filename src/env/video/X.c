@@ -16,7 +16,11 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
+<<<<<<< X.c
  * $Id$
+=======
+ * $Id$
+>>>>>>> 1.4.2.2
  *
  * 951205: bon@elektron.ikp.physik.th-darmstadt.de
  *   Merged in again the selection stuff. Hope introduce hidden bugs 
@@ -904,6 +908,7 @@ void X_init_videomode(void)
   }
   /* start with some standard text mode */
   X_set_videomode(TEXT, co, li);
+  mouse_reset_to_current_video_mode();
 }
 
 /*
@@ -4079,7 +4084,7 @@ void send_selection(Time time, Window requestor, Atom target, Atom property)
 	
 	else if ((target == XA_STRING) || (target == compound_text_atom) ||
 		 (target == utf8_text_atom) || (target == text_atom)) {
-		X_printf("X: selection: %s\n",sel_text);   
+		X_printf("X: selection: %s\n",sel_text);
 		e.xselection.target = target;
 		XChangeProperty(display, requestor, property, target, 8, PropModeReplace, 
 			sel_text, strlen(sel_text));

@@ -7,7 +7,7 @@ This section of the document by Hans,
 url="mailto:lermen@fgan.de"
 >&#60;lermen@fgan.de&#62;</ulink
 >. Last
-updated on Apr 17, 2003, by Bart Oldeman.
+updated on Sep 27, 2003, by Bart Oldeman.
 </para>
 
 <para>
@@ -15,7 +15,9 @@ Most of DOSEMU configuration is done during runtime and per default it
 can use the system wide configuration file dosemu.conf (which is often
 situated in /etc or /etc/dosemu) optionally followed by the users
 ~/.dosemurc and additional configurations statements on the commandline
-(-I option).
+(-I option). If /etc/dosemu.users exists then dosemu.conf is searched for
+in /etc and otherwise in /etc/dosemu (or an alternative sysconfdir
+compiletime-setting).
 </para>
 
 <para>
@@ -284,10 +286,12 @@ setup:
 <para>
 
 <screen>
-  $_hdimage = "freedos" # list of hdimages or boot directories
-                        # under DOSEMU_HDIMAGE_DIR assigned in this order
-                        # such as "hdimage_c hdimage_d hdimage_e"
-  $_hdimage_r = $_hdimage # hdimages for 'restricted access (if different)
+# List of hdimages or boot directories under 
+# ~/.dosemu, the system config directory (/etc/dosemu by default), or
+# syshdimagedir (/var/lib/dosemu by default) assigned in this order
+# such as "hdimage_c directory_d hdimage_e"
+# Absolute pathnames are also allowed.
+  $_hdimage = "freedos"
   $_vbootfloppy = ""    # if you want to boot from a virtual floppy:
                         # file name of the floppy image under DOSEMU_LIB_DIR
                         # e.g. "floppyimage" disables $_hdimage
@@ -303,10 +307,11 @@ A hdimage is
 a file containing a virtual image of a DOS-FAT filesystem. Once you have
 booted it, you (or autoexec.bat) can use `lredir' to access any directory
 in your Linux tree as DOS drive (a -t msdos mounted too).
-Look at chapter 6 (Using Lredir) and for more details
-on creating your own hdimage look at chapter 4.3 of this README
-(Making a bootable hdimage for general purpose). Chapter 4.4 also describes
-how to import/export files from/to a hdimage.
+Look at chapter 5 (Using Lredir) and for more details.
+If you want to create your own hdimage use "mkfatimage16" (see the manual
+page). To make it bootable you can make it, say, drive F:, and use
+"SYS F:" at the DOS prompt. 
+The DOSEMU-HOWTO explains how to manipulate it using mtools.
 </para>
 
 <para>
@@ -407,16 +412,16 @@ keyword `+hd' such as
 <para>
 In some rare cases you may have problems accessing Lredir'ed drives
 (especially when your DOS application refuses to run on a 'network drive'),
-though I personally never happened to fall into one of this.
-For this to overcome you may need to use socalled `partition access'. The odd
-with this kind of access is, that you <emphasis>never</emphasis> should have those partition
+For this to overcome you may need to use socalled `partition access',
+use a floppy (or a "vbootfloppy"), or a special-purpose hdimage. The odd
+with partition access is, that you <emphasis>never</emphasis> should have those partition
 mounted in the Linux file system at the same time as you use it in DOSEMU
 (which is quite uncomfortable and dangerous on a multitasking OS such as
 Linux ). Though global.conf checks for mounted partitions, there may be races
 that are not caught. In addition, when your DOSEMU crashes, it may leave
 some FAT sectors unflushed to the disk, hence destroying the partition.
-Anyway, if you think you need it, here is how you `assign' real DOS partitions
-to DOSEMU:
+Anyway, if you think you need it, you must have r/w access to the partition
+in /dev, and you have to `assign' real DOS partitions as follows:
 </para>
 
 <para>
@@ -550,16 +555,17 @@ overcome eventual problems. For this you can specify
 </screen>
 
 to force the use of the driver, which uses a temporary file. Or on
-kernels up to 2.3.27
+kernels up to 2.2.23 and up to 2.3.27.
 
 <screen>
   $_mapping= "mapself"
 </screen>
 
 to use mapping on the /proc/self/mem file, which is a lot faster the
-the `mapfile' driver, but maybe not relyable in conjunctions with glibc
+the `mapfile' driver, but maybe not reliable in conjunction with glibc
 (NOTE: the kernel since ages has bugs on /proc/self/mem mapping and
-our workaround doesn't fit exactly together glibc).
+our workaround doesn't fit exactly together glibc). Kernel 2.2.24
+dropped /proc/self/mem mapping because of security issues.
 </para>
 
 <para>
@@ -602,15 +608,12 @@ Defining the memory layout, which DOS should see:
   $_xms = (8192)          # in Kbyte
   $_ems = (2048)          # in Kbyte
   $_ems_frame = (0xe000)
-  $_dpmi = (0x4000)       # in Kbyte (default is 0 if running suid-root)
+  $_dpmi = (0x5000)       # in Kbyte
   $_dosmem = (640)        # in Kbyte, &#60; 640
 </screen>
 
 Note that (other as in native DOS) each piece of mem is separate, hence
-DOS perhaps will show other values for 'extended' memory. To enable
-DPMI (by giving it memory) is a security concern, so you should either
-<emphasis>not</emphasis> give access to dosemu for normal users (via /etc/dosemu.users)
-or give those users the `restricted' attribute (see above).
+DOS perhaps will show other values for 'extended' memory.
 </para>
 
 <para>

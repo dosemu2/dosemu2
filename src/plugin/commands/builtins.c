@@ -542,6 +542,7 @@ int commands_plugin_inte6(void)
 
 	if (!(lowmem_pool = com_dosallocmem(LOWMEM_POOL_SIZE))) {
 		error("Unable to allocate memory pool\n");
+		error("You should upgrade generic.com, lredir.com and so on\n");
 		return 0;
 	}
 	zinitPool(&mp, "lowmem_pool", zpanic, znot,

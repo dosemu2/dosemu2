@@ -7,7 +7,7 @@ Edited by
 
 Alistair MacDonald
 
-   For DOSEMU v1.0 pl2.0
+   For DOSEMU v1.2 pl0.0
 
    This document is the amalgamation of a series of README files which
    were created to deal with the lack of DOSEMU documentation.
@@ -121,13 +121,15 @@ Alistair MacDonald
 2. Runtime Configuration Options
 
    This section of the document by Hans, <lermen@fgan.de>. Last updated
-   on Apr 17, 2003, by Bart Oldeman.
+   on Sep 27, 2003, by Bart Oldeman.
 
    Most of DOSEMU configuration is done during runtime and per default it
    can use the system wide configuration file dosemu.conf (which is often
    situated in /etc or /etc/dosemu) optionally followed by the users
    ~/.dosemurc and additional configurations statements on the
-   commandline (-I option).
+   commandline (-I option). If /etc/dosemu.users exists then dosemu.conf
+   is searched for in /etc and otherwise in /etc/dosemu (or an
+   alternative sysconfdir compiletime-setting).
 
    The default dosemu.conf and ~/.dosemurc have all settings commented
    out for documentation purposes; the commented out values are the ones
@@ -281,10 +283,12 @@ Alistair MacDonald
    global.conf). We strongly recommend that you use the proposed
    techique. Here the normal setup:
 
-      $_hdimage = "freedos" # list of hdimages or boot directories
-                            # under DOSEMU_HDIMAGE_DIR assigned in this order
-                            # such as "hdimage_c hdimage_d hdimage_e"
-      $_hdimage_r = $_hdimage # hdimages for 'restricted access (if different)
+    # List of hdimages or boot directories under
+    # ~/.dosemu, the system config directory (/etc/dosemu by default), or
+    # syshdimagedir (/var/lib/dosemu by default) assigned in this order
+    # such as "hdimage_c directory_d hdimage_e"
+    # Absolute pathnames are also allowed.
+      $_hdimage = "freedos"
       $_vbootfloppy = ""    # if you want to boot from a virtual floppy:
                             # file name of the floppy image under DOSEMU_LIB_DI
 R
@@ -297,10 +301,11 @@ ge
    A hdimage is a file containing a virtual image of a DOS-FAT
    filesystem. Once you have booted it, you (or autoexec.bat) can use
    `lredir' to access any directory in your Linux tree as DOS drive (a -t
-   msdos mounted too). Look at chapter 6 (Using Lredir) and for more
-   details on creating your own hdimage look at chapter 4.3 of this
-   README (Making a bootable hdimage for general purpose). Chapter 4.4
-   also describes how to import/export files from/to a hdimage.
+   msdos mounted too). Look at chapter 5 (Using Lredir) and for more
+   details. If you want to create your own hdimage use "mkfatimage16"
+   (see the manual page). To make it bootable you can make it, say, drive
+   F:, and use "SYS F:" at the DOS prompt. The DOSEMU-HOWTO explains how
+   to manipulate it using mtools.
 
    Starting with dosemu-0.99.8, there is a more convenient method
    available: you just can have a Linux directory containing all what you
@@ -363,16 +368,17 @@ ge
 
    In some rare cases you may have problems accessing Lredir'ed drives
    (especially when your DOS application refuses to run on a 'network
-   drive'), though I personally never happened to fall into one of this.
-   For this to overcome you may need to use socalled `partition access'.
-   The odd with this kind of access is, that you never should have those
-   partition mounted in the Linux file system at the same time as you use
-   it in DOSEMU (which is quite uncomfortable and dangerous on a
+   drive'), For this to overcome you may need to use socalled `partition
+   access', use a floppy (or a "vbootfloppy"), or a special-purpose
+   hdimage. The odd with partition access is, that you never should have
+   those partition mounted in the Linux file system at the same time as
+   you use it in DOSEMU (which is quite uncomfortable and dangerous on a
    multitasking OS such as Linux ). Though global.conf checks for mounted
    partitions, there may be races that are not caught. In addition, when
    your DOSEMU crashes, it may leave some FAT sectors unflushed to the
    disk, hence destroying the partition. Anyway, if you think you need
-   it, here is how you `assign' real DOS partitions to DOSEMU:
+   it, you must have r/w access to the partition in /dev, and you have to
+   `assign' real DOS partitions as follows:
 
          $_hdimage = "hdimage.first /dev/hda1 /dev/sdc4:ro"
 
@@ -471,15 +477,11 @@ ge
       $_xms = (8192)          # in Kbyte
       $_ems = (2048)          # in Kbyte
       $_ems_frame = (0xe000)
-      $_dpmi = (0x4000)       # in Kbyte (default is 0 if running suid-root)
+      $_dpmi = (0x5000)       # in Kbyte
       $_dosmem = (640)        # in Kbyte, < 640
 
    Note that (other as in native DOS) each piece of mem is separate,
-   hence DOS perhaps will show other values for 'extended' memory. To
-   enable DPMI (by giving it memory) is a security concern, so you should
-   either not give access to dosemu for normal users (via
-   /etc/dosemu.users) or give those users the `restricted' attribute (see
-   above).
+   hence DOS perhaps will show other values for 'extended' memory.
 
    If you want mixed operation on the filesystem, from which you boot
    DOSEMU (native and via DOSEMU), it may be necessary to have two
@@ -1612,51 +1614,24 @@ is,
 9.1. Windows 3.0 Real Mode
 
    DOSEMU has been able to run Windows 3.0 in Real Mode for some time
-   now. If you really, really, really want to run Windows under DOSEMU,
-   this is the route to take for the moment.
+   now.
      _________________________________________________________________
 
 9.2. Windows 3.1 Protected Mode
 
-    ***************************************************************
-    *    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
-    *                                                             *
-    *  Danger Will Robinson!!!  This is not yet fully supported   *
-    *  and there are many known bugs!  Large programs will almost *
-    *  certainly NOT WORK!!!  BE PREPARED FOR SYSTEM CRASHES IF   *
-    *  YOU TRY THIS!!!                                            *
-    *                                                             *
-    *    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
-    ***************************************************************
-
-   What, you're still reading?
-
-   Okay, it is possible to boot WINOS2 (the modified version of Windows
-   3.1 that OS/2 uses) under DOSEMU. Many kudos to Lutz & Dong!
+   It is possible to boot WINOS2 (the modified version of Windows 3.1
+   that OS/2 uses) under DOSEMU. Many kudos to Lutz & Dong! But, as far
+   as we know, you cannot install Windows 3.1 in DOSEMU, but you must do
+   that in real mode DOS. Windows 3.1 also does not run in FreeDOS.
 
    However, YOU NEED BOTH LICENSES, for WINDOWS-3.1 as well OS/2 !!!
-
-   There are many known problems. Windows is prone to crash, could take
-   data with it, large programs will not load, etc. etc. etc. In other
-   words, it is NOT ready for daily use. Many video cards are known to
-   have problems (you may see a nice white screen, however, look below
-   for win31-in-xdos). Your program groups are all likely to disappear.
-   Basically, it's a pain.
-
-   On the other hand, if you're dying to see the little Windows screen
-   running under Linux and you have read this CAREFULLY and PROMISE NOT
-   TO BOMBARD THE DOSEMU DEVELOPERS WITH "MS Word 6.0 doesn't run!!!"
-   MESSAGES
 
      * Get DOSEMU & the Linux source distributions.
      * Unpack DOSEMU.
      * Configure DOSEMU typing './default-configure'.
      * Compile DOSEMU typing 'make'.
-     * Get the OS2WIN31.ZIP distribution from somehere. oh well, and now
-       you have the first problem. It _was_ on ibm.com sometime ago, but
-       has vanished from that site, and as long as it was there, we could
-       mirror it. ,,,, you see the problem? However, use 'archie' to find
-       it, it will be around somewhere on the net ... for some time ;-)
+     * Get the OS2WIN31.ZIP distribution from somehere. One place that
+       distributes it is http://www.funet.fi/pub/os2/32bit/win_os2
      * Unpack the OS2WIN31 files into your WINDOWS\SYSTEM directory.
        (Infact you only need WINDOWS/SYSTEM/os2k386.exe and the mouse
        driver)
@@ -1666,15 +1641,11 @@ is,
      * Cross your fingers.
 
    Good luck!
-
-   REMEMBER: THIS IS NOT AT ALL RECOMMENDED!!! THIS IS NOT RECOMMENDED!!!
-   WE DO NOT RECOMMEND YOU TRY THIS!!!
      _________________________________________________________________
 
 9.3. Windows 3.x in xdos
 
-   As of version 0.64.3 DOSEMU is able to run Windows in xdos. Of course,
-   this is not recommended at all, but if you really want to try, it is
+   As of version 0.64.3 DOSEMU is able to run Windows in xdosemu. It is
    safer then starting windows-31 on the console, because when it
    crashes, it doesn't block your keyboard or freeze your screen.
 
@@ -1684,9 +1655,10 @@ is,
      * Unpack dosemu.
      * Run "./default-configure" to configure Dosemu.
      * Type "make" to compile.
-     * Get a Trident SVGA drivers for Windows. The files are tvgaw31a.zip
-       and/or tvgaw31b.zip. They are available at garbo.uwasa.fi in
-       /windows/drivers (any mirrors?).
+     * For faster graphics (256 colors instead of 16 is faster in
+       xdosemu), get a Trident SVGA drivers for Windows. The files are
+       tvgaw31a.zip and/or tvgaw31b.zip. They are available at
+       garbo.uwasa.fi in /windows/drivers (any mirrors?).
      * Unpack the Trident drivers.
      * In Windows setup, install the Trident "800x600 256 color for 512K
        boards" driver.

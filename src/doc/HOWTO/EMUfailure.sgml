@@ -1,9 +1,6 @@
 <!DOCTYPE article PUBLIC "-//Davenport//DTD DocBook V3.0//EN">
 
 <!-- This is the dosemu EMUproblem SGML source -->
-<!-- Last edited: Time-stamp: <97/03/16 12:39:22 bon> -->
-
-<!--97/03/16 Added Known Bugs -->
 
 <article>
 
@@ -12,28 +9,36 @@
 <title>EMUfailure.txt</title>
 
 <author>
-<firstname>Uwe Bonnes, <emphasis remap="bf"><ulink
+<firstname>Uwe Bonnes (original author), <emphasis remap="bf"><ulink
 url="mailto:bon@elektron.ikp.physik.th-darmstadt.de"
 >bon@elektron.ikp.physik.th-darmstadt.de</ulink
 ></emphasis> </firstname>
 </author>
 
-<pubdate> May 30, 1997 for dosemu 0.66.5 (and possibly earlier versions) </pubdate>
+<pubdate> Sep 28, 2003 for dosemu 1.2.0 (and possibly earlier
+versions) </pubdate>
 
 <abstract>
 
 <para>
-This file list programs and groups of programms not running or running
-only partial under dosemu.
-The most up-to-date version of this file may be found on:
+This file lists programs and groups of programs not running or running
+only partially under dosemu. The most up-to-date version of this file
+may be found on: 
 <emphasis remap="bf"><ulink
-url="ftp://ftp.mathematik.th-darmstadt.de:/pub/linux/bonnes/"
->ftp.mathematik.th-darmstadt.de:/pub/linux/bonnes/</ulink
+url="http://www.dosemu.org/"
+>http://www.dosemu.org/</ulink
 ></emphasis>.
-Please report about possible additions to <emphasis remap="bf"><ulink
-url="mailto:linux-msdos@vger.rutgers.edu"
+Please report about possible additions to
+<emphasis remap="bf"><ulink
+url="mailto:linux-msdos@vger.kernel.org"
 >linux-msdos@vger.rutgers.edu</ulink
-></emphasis>. Perhaps it can be made going
+></emphasis>. 
+or the SourceForge BTS at 
+<emphasis remap="bf"><ulink
+url="http://www.dosemu.org/"
+>http://www.dosemu.org/</ulink
+></emphasis>.
+Perhaps it can be made going
 with the help others. Have a look at the dosemu-howto how to do so.
 </para>
 
@@ -42,12 +47,12 @@ with the help others. Have a look at the dosemu-howto how to do so.
 </artheader>
 
 <sect1>
-<title>Fundamental problem</title>
+<title>Fundamental problems</title>
 
 <para>
-Programs that don't work under the MSDOS Emulator and probably
-won't ever work, because of fundamental problem. Some of these
-fundamental problems result in these programs not being runnable on
+Programs that don't work under the MSDOS Emulator and probably won't
+ever work, because of fundamental problems. Some of these fundamental
+problems result in these programs not being runnable on
 Win3.x/Win95/WinNT in a Dosbox and under OS/2 either. These programs
 are characterized by using any of these features:
 </para>
@@ -102,11 +107,78 @@ Win32s needs Ring 0 access too.
 <title>Does my failing program belong to these groups?</title>
 
 <para>
-Check with "strings &lt;program.exe&gt; | less" if the programm
+Check with "strings &lt;program.exe&gt; | less" if the program
 contains some of these keywords <emphasis remap="bf"> vcpi, pharlap and win32s</emphasis>. Newer
 Pharlap programs may work.
 </para>
 
+</sect2>
+
+<sect2>
+<title>
+Fundamental problem with the timer
+</title>
+<para>
+We are emulating a high-resolution timer (PIT) while the Linux
+kernel programs the timer (which can be used via setitimer(2)) at
+100Hz. The interrupts are so saturated that the main loop never
+gets much of a chance. We are using "bursts" to catch up with an 
+emulated frequency, which causes races for the interrupt handlers.
+Scream tracker 3 and Cosmo suffer from this problem. Possibly
+a workaround may be found in future DOSEMU development.
+</para>
+</sect2>
+
+<sect2>
+<title>
+Fundamental problem with the CPU
+</title>
+<para>
+Intel's design defect described here:
+<ulink url="http://www.intel.com/design/intarch/specupdt/27287402.PDF">
+http://www.intel.com/design/intarch/specupdt/27287402.PDF
+</ulink>
+chapter "Specification Clarifications" section 4:
+"Use Of ESP In 16-Bit Code With 32-Bit Interrupt Handlers"
+causes problems since the Linux kernel uses 32-Bit
+interrupt handlers and will trash the stack pointer, ESP.
+This is never a problem in real DOS where, normally, no
+32-bit interrupt are present.
+</para>
+<para>
+It may be possible to work around this problem by using a
+different DOS extender, e.g. DOS32A at
+<ulink url="http://dos32a.sf.net">
+http://dos32a.sf.net,
+</ulink>
+as follows: <command>DOS32A progname.exe</command> (at the DOS prompt)
+</para>
+<para>
+The following programs are examples that are problematic because
+of this misfeature:
+</para>
+<itemizedlist>
+<listitem>
+<para>
+Need For Speed 1 (demo version at least)
+</para>
+</listitem>
+<listitem>
+<para>
+Syndicate Wars with dos4gw 0.8
+</para>
+</listitem>
+<listitem>
+<para>
+Open Cubic Player   
+</para>
+</listitem>
+</itemizedlist>
+
+<para>
+It may be possible in the future to work around this using CPU
+emulation and/or a 4G/4G code/data split in the Linux kernel.
+</para>
 </sect2>
 
 </sect1>
@@ -118,60 +190,107 @@ Pharlap programs may work.
 <title>Things YOU may help changing</title>
 
 <para>
-This is a list of currently known bugs in Dosemu0.53pl58, currently
-in the process of adaptation to 0.66.5
+This is a list of currently known bugs in Dosemu 1.2.0.
+Some of these are in the bug tracking system at 
+<ulink url="http://dosemu.sf.net">
+http://dosemu.sf.net.
+</ulink>
 
 <itemizedlist>
-<listitem>
 
+<listitem>
 <para>
 Some documentation is known to be well out of date. 
 </para>
 </listitem>
-<listitem>
 
-<para>
-Sound Card emulation does not work yet
-</para>
-</listitem>
 <listitem>
-
 <para>
 Some video BIOS will start very slowly with the serial ports enabled.
 </para>
 </listitem>
-<listitem>
 
+<listitem>
 <para>
-If you are having troubles with EMS, try moving your page frame or
-disabling umb_max if it is set to 'on'.
+Windows 3.1 will not run very well because of timer problems.
 </para>
 </listitem>
-<listitem>
 
+<listitem>
 <para>
-Programs (like MFT.EXE from QEMM) may crash due to inadequate timer
-resolution. A fast machine will have less problems
+OPL3 FM sound doesn't work (but Midi, SB8 and SB16 work)
 </para>
 </listitem>
-<listitem>
 
+<listitem>
 <para>
-Quattro Pro for DOS is rumored not to work (anyone with a copy willing to
-look into why?)
+IPX doesn't play well with DPMI. You might be able to use
+the packet driver in combination with DOS TSR drivers such
+as LSL, IPXPD/PDETHER/PDIPX and IPXODI. See NOVELL-HOWTO.txt
+and README.txt for details.
 </para>
 </listitem>
-<listitem>
 
+<listitem>
 <para>
-Windows 3.1 will not run very well.  We do NOT recommend running it.
+Some database programs (Clipper, FoxPro) have problems with
+locking in certain configurations. smbfs doesn't support
+locking. $_full_file_locks=(on) may or may not help.
 </para>
 </listitem>
-<listitem>
 
+<listitem>
 <para>
-There may be periodic "internal stack overflows" using the mouse,
-especially under Windows (correct, all?)
+The direct text console (without graphics) may have the
+whole screen jumping one line up.
+</para>
+</listitem>
+
+<listitem>
+<para>
+Console graphics (especially switching VCs) can be problematic
+with certain video cards, in particular in combination with
+fbdev graphical consoles.
+</para>
+</listitem>
+
+<listitem>
+<para>
+An (unknown) DPMI clipper program hangs when run on a SMP machine
+</para>
+</listitem>
+
+<listitem>
+<para>
+A chess program (VChess) may crash in xdosemu when the
+mouse is moved (there are still some issues with the internal
+mouse driver)
+</para>
+</listitem>
+
+<listitem>
+<para>
+Another chess program (Nimzo 3) crashes when there is no
+CD in the CDROM drive.
+</para>
+</listitem>
+
+<listitem>
+<para>
+DPMI interrupt handling may be unreliable. This problem
+exhibits itself in a program named "Screamer 2".
+</para>
+</listitem>
+
+<listitem>
+<para>
+Watcom C may fail freeze on AMD but not PIV.
+</para>
+</listitem>
+
+<listitem>
+<para>
+Ishar only works fine if sound is disabled or uses the pc-speaker
 </para>
 </listitem>
 
@@ -190,30 +309,17 @@ should have solved them, but this has to be validated. Please report if you
 had problems in the listed areas and these problems are now solved. 
 
 <itemizedlist>
-<listitem>
 
+<listitem>
 <para>
-If you seem to be getting corrupt files, try switching away from Linux
-v1.1.50-v1.1.65, since there are known disk access bugs.
+There are known problems with xdosemu (e.g. it may not work at all for you.)
 </para>
 </listitem>
 <listitem>
 
 <para>
-DPMI emulation is known to be somewhat buggy.
-</para>
-</listitem>
-<listitem>
-
-<para>
-There are known problems with xdos (e.g. it may not work at all for you.)
-</para>
-</listitem>
-<listitem>
-
-<para>
-xdos sessions accessed from remote, non-Linux X-sessions (e.g. SUN stations
-and others) may not work correctly.
+xdosemu sessions accessed from remote, non-Linux X-sessions (e.g. SUN stations
+and others) may not work correctly. Use $_mitshm=(off).
 </para>
 </listitem>
 <listitem>
@@ -270,6 +376,11 @@ The crash happens in DMPI Call 0x0302
 At least DMPI Call 0x0506 is not yet implemented.
 </para>
 
+<para>
+This demo is no longer for download. But if you can test please let us
+know for completeness.
+</para>
+
 </sect2>
 
 <sect2>
@@ -292,29 +403,9 @@ missing implementation of DMPI Call 0x0800, as Uwe Bonnes reported it
 once working on the console with some hack.
 </para>
 
-</sect2>
-
-<sect2>
-<title>tasmx.exe </title>
-
 <para>
-Reported by vignani@mail.tin.it (Alberto Vignani):
-Protected-mode version of the Borland Turbo Assembler. It crashes with
-"out of memory" at startup. I traced it at the assembly level, no result
-until now. Maybe a DPMI problem (97/03/04).
-</para>
-
-</sect2>
-
-<sect2>
-<title>xaos.exe</title>
-
-<para>
-Reported by vignani@mail.tin.it (Alberto Vignani):
-Mandelbrot zoomer, version 2.2 under djgpp, using Allegro 2.1 library.
-Can be found on any simtelnet mirror (xaos22b.exe?)
-Any mouse movement (in console mode with a button pressed) crashes it
-(97/03/04).
+However, this demo is no longer for download, and, moreover, they
+have a native Linux version. 
 </para>
 
 </sect2>
@@ -330,17 +421,63 @@ have sometimes to remove/reinstall the ftape module.
 
 </sect2>
 
+</sect1>
+
+<sect1>
+<title>Programs exhibiting graphical problems in xdosemu</title>
+<para>
+The following programs work perfectly on the Linux console
+(suid/sudo/root) with graphics enabled but exhibit minor or
+major glitches in xdosemu.
+</para>
+
 <sect2>
-<title> Any program using SCSI</title>
-
+<title>
+Text programs with custom fonts
+</title>
 <para>
-Reported by vignani@mail.tin.it (Alberto Vignani):
+Programs such as Norton Commander and the Watcom Debugger use
+custom characters to display icons, radio buttons and similar
+characters. This problem is addressed in current development
+versions and the fixes will likely be backported to a later
+version of DOSEMU 1.2.x
 </para>
-
+</sect2>
+<sect2>
+<title>
+Games with graphical problems
+</title>
 <para>
-No ASPI support until now(97/03/04).
+The following games exhibit glitches or don't work at all in
+xdosemu. Please let us know when any problems are solved or
+even better, help us solving!
 </para>
-
+<itemizedlist>
+<listitem>
+<para>
+Commander Keen 1 wobbles like jelly and the window shakes 
+every time it scrolls.
+</para>
+</listitem>
+<listitem>
+<para>
+Commander Keen 4 gives you a black screen.
+</para>
+</listitem>
+<listitem>
+<para>
+Clyde's Adventures statsbar fonts completely garbled xdosemu.
+Download at: <ulink url="http://www.gamesdomain.com/directd/513.html">
+http://www.gamesdomain.com/directd/513.html</ulink>
+</para>
+</listitem>
+<listitem>
+<para>
+Pinball Dreams 2 takes a long time to start. Once it's past
+the startup screen it runs fine though.
+</para>
+</listitem>
+</itemizedlist>
 </sect2>
 
 </sect1>

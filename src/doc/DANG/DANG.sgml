@@ -10,7 +10,7 @@
 <FirstName> Alistair MacDonald, &lt;alistair@slitesys.demon.co.uk&gt; </FirstName>
 </AUTHOR
 >
-<PubDate> version dosemu-1.1.5 </PubDate>
+<PubDate> version dosemu-1.1.99.1 </PubDate>
 
 <Abstract>
 
@@ -647,14 +647,6 @@ Should we really care for the Memory info?
 
 <Para>
  We shouldn't return to dosemu code if IF=0, but it helps - WHY? */
-</Para>
-
-<Para>
------
-</Para>
-
-<Para>
- we should not change registers for hardware interrupts */
 </Para>
 
 </Sect2>

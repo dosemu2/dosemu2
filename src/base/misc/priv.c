@@ -243,12 +243,11 @@ void priv_init(void)
     }
   }
   
-  if ((euid != 0) && (uid == euid))
+  if (!can_do_root_stuff)
     {
       skip_priv_setting = 1;
-      can_do_root_stuff = 0;
     }
-  else if (euid != 0)
+  else if (!under_root_login)
     {
       /* we must open /proc/self/mem before dropping privs.
          it will then be closed if the mapfile or mapshm driver 

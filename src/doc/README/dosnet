@@ -27,6 +27,7 @@ read/write access to /dev/net/tun. Then either:
 
 <orderedlist>
 <listitem>
+<para>
 set $_pktdriver=(on), $_vnet = "tap" and $_netdev = "". Start DOSEMU as usual 
 and configure the network device while DOSEMU is running (using ifconfig
 manually as root, a script, or usernetctl if your distribution supplies 
@@ -34,15 +35,18 @@ that), e.g. ifconfig tap0 192.168.74.1. Configure the DOS
 network clients to have another IP address withing the same domain (e.g.
 192.168.74.2). Your network should now be up and running, but it will
 be down as soon as you exit DOSEMU.
+</para>
 </listitem>
 
 <listitem>
+<para>
 or set $_pktdriver=(on), $_vnet = "tap" and $_netdev = "tap0". Obtain tunctl
 from the user mode linux project. Then set up a persistent TAP device using
 tunctl (use the -u owner option if you do that as root). Configure
 the network using ifconfig as above, but now before starting DOSEMU.
 Now start DOSEMU as often as you like and you can use the network in
 the same way as you did above.
+</para>
 </listitem>
 </orderedlist>
 

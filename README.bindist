@@ -6,16 +6,17 @@ The DOSEMU/FreeDos ready-to-use binary distribution.
 INSTALL
 -------
 
-The easiest way to get DOSEMU working on your machine is to use
-the ready-to-use DOSEMU binary distribution. This one comes in 2 packages:
+An easy way to get DOSEMU working on your machine is to use
+the ready-to-use DOSEMU binary distribution. This one comes in 2 packages
+from www.dosemu.org:
 
-  - ftp://ftp.dosemu.org/dosemu/dosemu-freedos-bin.tgz
+  - dosemu-freedos-<version>-bin.tgz
 
       A tarball containing a collection of suitable FreeDos binaries,
       eventually patched to fit DOSEMU needs, together with some GNU
       tools you may find useful.
 
-  - ftp://ftp.dosemu.org/dosemu/dosemu-<version>-bin.tgz
+  - dosemu-<version>-bin.tgz
 
       A tarball containing the recent DOSEMU binaries together with a
       user local configuration setup.
@@ -28,7 +29,7 @@ the same directory (regardless what ever) within your HOME, such as:
   $ mkdir mydos
   $ cd mydos
   $ tar -zxf dosemu-freedos-bin.tgz
-  $ tar -zxf dosemu-1.0.2-bin.tgz
+  $ tar -zxf dosemu-<version>-bin.tgz
   $ cd dosemu
 
 now look where you are and what was installed:
@@ -65,11 +66,7 @@ Remember, that you can't use <Ctrl>-C _within_ DOS to exit _from_ DOS.
 For this you need to execute 'exitemu' or, when using xdosemu,
 <Ctrl><Alt><PgDn>.
 
-If you want to have your Linux $HOME available as DOS drive D: type
-
-  $ ./dosemu -home
-or
-  $ ./xdosemu -home
+Your Linux $HOME is available as DOS drive D:
 
 For DOS applications which only read/write from/to STDIN/STDOUT,
 you may prefer to invoke DOSEMU such as
@@ -79,7 +76,7 @@ you may prefer to invoke DOSEMU such as
 this has the advantage that (A) the output of the DOS application stacks
 up in your xterm scroll buffer and (B) you can redirect it to a file such as
 
-  $ ./dosemu -dumb -E dir > listing
+  $ ./dosemu -dumb dir > listing
 
 Note that DOSEMU command.com's commandline editor/history will also work
 here, however, editing is restricted to BACKSPACE'ing.
@@ -87,14 +84,21 @@ here, however, editing is restricted to BACKSPACE'ing.
 SOURCES
 -------
 
-The sources of the here included GPL'ed binaries can be found at
+The sources of all the included binaries can be found in the
+dosemu-freedos*sources.tgz tarball.
 
-  http://www.dosemu.org/
-  http://www.freedos.org/
-  http://freedos.sourceforge.net/download/
-  http://www.gnu.org/
+CONFIGURATION
+-------------
 
-Some applications are public domain with no sources published.
+Optional configuration is possible by editing the file conf/dosemurc.example
+and copying it to ~/.dosemurc. Advanced configuration can be accomplished
+using global.conf in combination with the -F option.
+
+Note that, unlike the situation in installations from source, distributors,
+and the RPM, /etc/dosemu.conf and /etc/dosemu/dosemu.conf are NOT used in
+this setup, unless you make dosemu.bin suid-root, use sudo or replace
+IGNORE_DOSEMU_CONF="-n" by IGNORE_DOSEMU_CONF="" in the dosemu script.
+The file conf/dosemu.conf (as opposed to DOSEMU 1.0.2.x) is also ignored.
 
 POLICIES
 --------
@@ -106,3 +110,5 @@ POLICIES
 
                                   -- Hans <lermen@fgan.de>
 				     2001/06/10
+				  -- Bart Oldeman
+				     2003/10/01

@@ -7,7 +7,7 @@ Edited by
 
 Alistair MacDonald
 
-   For DOSEMU v1.0 pl2.0
+   For DOSEMU v1.2 pl0.0
 
    This document is the amalgamation of a series of technical README
    files which were created to deal with the lack of DOSEMU
@@ -2297,13 +2297,12 @@ isk }
 
    To the dosemu hacker:
 
-     * There is a compile-time option USE_UNICODE_KEYB (on by default) to
-       active the While the old code already claimed to be
-       "client-server" (and was, to some extent), the new code introduces
-       a clean, well-defined interface between the `server', which is the
-       interface to DOS (int9, bios etc.), and the `clients', which are
-       the interfaces to the user frontends supported by dosemu.
-       Currently, clients are `raw', `slang' (i.e. terminal), and `X'.
+     * While the old code already claimed to be "client-server" (and was,
+       to some extent), the new code introduces a clean, well-defined
+       interface between the `server', which is the interface to DOS
+       (int9, bios etc.), and the `clients', which are the interfaces to
+       the user frontends supported by dosemu. Currently, clients are
+       `raw', `slang' (i.e. terminal), and `X'.
        Clients send keystrokes to the server through the interface
        mentioned above (which is defined in "keyboard.h"), the most
        important functions being `putkey()' and `putrawkey()'.
@@ -2361,7 +2360,7 @@ isk }
        the keyboard data port.
      * implement pause key
      * once everything is proved to work, remove the old keyboard code
-     * impelemnt utf8 and possibly iso2022 terminal support
+     * implement utf8 and possibly iso2022 terminal support
      _________________________________________________________________
 
 6. Old Keyboard Code

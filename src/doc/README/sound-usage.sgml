@@ -20,7 +20,7 @@
 </authorblurb>
 </author>
 
-<pubdate>dosemu-1.0</pubdate>
+<pubdate>dosemu-1.2</pubdate>
 
 <abstract>
 
@@ -519,11 +519,11 @@ You can get slightly more verbose output if you use level 2 debugging
 else to look at the
 debug output then feel free to send it to the list or report it at
 <ulink url="
-http://sourceforge.net/tracker/?atid=457447&group_id=49784&func=browse">
+http://sourceforge.net/tracker/?atid=457447&amp;group_id=49784&amp;func=browse">
 the SourceForge bug tracker at
-http://sourceforge.net/tracker/?atid=457447&group_id=49784&func=browse
+http://sourceforge.net/tracker/?atid=457447&amp;group_id=49784&amp;func=browse
 </ulink>,
-but <emphasis>PLEASE,
+but <emphasis>PLEASE</emphasis>,
 remove any unnecessary debug output, and give a DETAILED description
 of the problem.
 </para>

@@ -10,8 +10,6 @@ Okay, perhaps you've heard the hooplah.  DOSEMU can run Windows (sort of.)
 
 <para>
 DOSEMU has been able to run Windows 3.0 in Real Mode for some time now.
-If you really, really, really want to run Windows under DOSEMU, this is the
-route to take for the moment.
 </para>
 
 </sect2>
@@ -20,48 +18,15 @@ route to take for the moment.
 <title>Windows 3.1 Protected Mode</title>
 
 <para>
-
-<screen>
-***************************************************************
-*    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
-*                                                             *
-*  Danger Will Robinson!!!  This is not yet fully supported   *
-*  and there are many known bugs!  Large programs will almost *
-*  certainly NOT WORK!!!  BE PREPARED FOR SYSTEM CRASHES IF   *
-*  YOU TRY THIS!!!                                            *
-*                                                             *
-*    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
-***************************************************************
-</screen>
-
-</para>
-
-<para>
-What, you're still reading?
-</para>
-
-<para>
-Okay, it is possible to boot WINOS2 (the modified version of Windows 3.1
+It is possible to boot WINOS2 (the modified version of Windows 3.1
 that OS/2 uses) under DOSEMU.  Many kudos to Lutz &#38; Dong!
+But, as far as we know, you cannot <emphasis>install</emphasis>
+Windows 3.1 in DOSEMU, but you must do that in real mode DOS.
+Windows 3.1 also does <emphasis>not</emphasis> run in FreeDOS.
 </para>
 
 <para>
 However, YOU NEED <emphasis remap="bf">BOTH</emphasis> LICENSES, for WINDOWS-3.1 as well OS/2 !!!
-</para>
-
-<para>
-There are many known problems.  Windows is prone to crash, could take data
-with it, large programs will not load, etc. etc. etc.
-In other words, it is NOT ready for daily use.  Many video cards are known
-to have problems (you may see a nice white screen, however, look below
-for win31-in-xdos).  Your program groups are all likely to disappear.
-Basically, it's a pain.
-</para>
-
-<para>
-On the other hand, if you're dying to see the little Windows screen running
-under Linux and you have read this CAREFULLY and PROMISE NOT TO BOMBARD THE
-DOSEMU DEVELOPERS WITH "MS Word 6.0 doesn't run!!!" MESSAGES
 </para>
 
 <para>
@@ -95,11 +60,10 @@ DOSEMU DEVELOPERS WITH "MS Word 6.0 doesn't run!!!" MESSAGES
 
 <para>
   Get the OS2WIN31.ZIP distribution from somehere.
-oh well, and now you have the first problem.
-It _was_ on ibm.com sometime ago, but has vanished from that site, and
-as long as it was there, we could mirror it. ,,,, you see the problem?
-However, use 'archie' to find it, it will be around somewhere on the net
-... for some time ;-)
+One place that distributes it is
+<ulink url="http://www.funet.fi/pub/os2/32bit/win_os2/">
+http://www.funet.fi/pub/os2/32bit/win_os2
+</ulink>
 </para>
 </listitem>
 <listitem>
@@ -136,19 +100,14 @@ However, use 'archie' to find it, it will be around somewhere on the net
 Good luck!
 </para>
 
-<para>
-<emphasis remap="bf">REMEMBER:  THIS IS NOT AT ALL RECOMMENDED!!!  THIS IS NOT RECOMMENDED!!!
-WE DO NOT RECOMMEND YOU TRY THIS!!!</emphasis>
-</para>
-
 </sect2>
 
 <sect2>
 <title>Windows 3.x in xdos</title>
 
 <para>
-As of version 0.64.3 DOSEMU is able to run Windows in xdos. Of course, this
-is not recommended at all, but if you really want to try, it is safer then
+As of version 0.64.3 DOSEMU is able to run Windows in xdosemu.
+It is safer then
 starting windows-31 on the console, because <emphasis>when</emphasis> it crashes, it doesn't
 block your keyboard or freeze your screen.
 </para>
@@ -187,7 +146,8 @@ Hints:
 <listitem>
 
 <para>
- Get a Trident SVGA drivers for Windows. The files are tvgaw31a.zip
+For faster graphics (256 colors instead of 16 is faster in xdosemu),
+get a Trident SVGA drivers for Windows. The files are tvgaw31a.zip
 and/or tvgaw31b.zip. They are available at garbo.uwasa.fi in
 /windows/drivers (any mirrors?).
 </para>

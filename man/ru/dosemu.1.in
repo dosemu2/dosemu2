@@ -74,7 +74,7 @@ dosemu, xdosemu \- запускает DOS и приложения DOS под Linux
 (А) вывод приложения DOS накапливается в буфере прокрутки xterm и (Б) можно
 перенаправить его в файл, типа как
 .TP
-		$ ./dosemu -dumb -E dir > listing
+		$ dosemu -dumb -E dir > listing
 
 Заметьте, что редактор/история командной строки DOSEMU command.com будет также
 работать и здесь, однако, редактирование ограничено по части BACKSPACE.
@@ -135,7 +135,7 @@ djgpp и прочее) произошла втечение его 'правления' и перенесла проект ближе к
 .I $HOME/.dosemurc
 настроечный файл на каждого пользователя
 .TP
-.I /etc/dosemu/dosemu.conf
+.I @sysconfdir@/dosemu.conf
 или
 .TP
 .I /etc/dosemu.conf
@@ -152,13 +152,13 @@ djgpp и прочее) произошла втечение его 'правления' и перенесла проект ближе к
 каталоги по умолчанию локального варианта установки DOSEMU на каждого
 пользователя
 .TP   
-.I /usr/local/bin/
+.I @bindir@
 .TP   
-.I /usr/local/share/dosemu/
+.I @datadir@/dosemu/
 .TP   
-.I /usr/local/share/dosemu/dosemu-bin.tgz
+.I @datadir@/dosemu/dosemu-bin.tgz
 .TP   
-.I /usr/local/share/dosemu/dosemu-freedos-bin.tgz
+.I @datadir@/dosemu/dosemu-freedos-bin.tgz
 общесистемная установка по умолчанию, включающая в себя бинарные файлы и
 шаблоны (Пути могут быть изменены втечение создания общесистемной установки).
 

@@ -93,12 +93,6 @@ static int xterm_mouse_init(void)
 	mice->type = MOUSE_XTERM;
 	mice->use_absolute = 1;
 
-	/* save old highlight mouse tracking */
-	printf("\033[?1001s");
-	/* enable mouse tracking */
-	printf("\033[?9h\033[?1000h\033[?1002h\033[?1003h");	
-	fflush (stdout);
-	m_printf("XTERM MOUSE: Remote terminal mouse tracking enabled\n");
 	return TRUE;
 }
 
@@ -107,7 +101,8 @@ static void xterm_mouse_close(void)
 	/* disable mouse tracking */
 	printf("\033[?1003l\033[?1002l\033[?1000l\033[9l");
 	/* restore old highlight mouse tracking */
-	printf("\033[?1001r");
+	printf("\033[?1001r\033[?1001l");
+	fflush(stdout);
 
 	m_printf("XTERM MOUSE: Mouse tracking deinitialized\n");
 }

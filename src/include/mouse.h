@@ -193,5 +193,6 @@ extern void mouse_io_callback(void);
 extern void mouse_move_buttons(int lbutton, int mbutton, int rbutton);
 extern void mouse_move_relative(int dx, int dy);
 extern void mouse_move_absolute(int x, int y, int x_range, int y_range);
+extern void mouse_reset_to_current_video_mode(void);
 
 #endif /* MOUSE_H */

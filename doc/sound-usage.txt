@@ -3,7 +3,7 @@ Using The DOSEMU Sound System (SBEMU)
 
 Alistair MacDonald, updated by Stas Sergeev and subsequently by Ben Davis.
 
-   dosemu-1.0
+   dosemu-1.2
 
    The document describes the use of the DOSEMU Sound code (SBEMU), and
    what you can expect from it.
@@ -334,9 +334,9 @@ Alistair MacDonald, updated by Stas Sergeev and subsequently by Ben Davis.
    (e.g. use -D-a+2Sh). If you need someone else to look at the debug
    output then feel free to send it to the list or report it at the
    SourceForge bug tracker at
-   http://sourceforge.net/tracker/?atid=457447=49784=browse, but PLEASE,
-   remove any unnecessary debug output, and give a DETAILED description
-   of the problem.
+   http://sourceforge.net/tracker/?atid=457447&group_id=49784&func=browse
+   , but PLEASE, remove any unnecessary debug output, and give a DETAILED
+   description of the problem.
 
   Notes
 

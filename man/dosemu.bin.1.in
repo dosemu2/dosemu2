@@ -1,5 +1,5 @@
 .\" -*- nroff -*-  (This is for Emacs)
-.TH DOSEMU.BIN 1 "Jun, 2003" "Version 1.1.5" "DOS Emulation"
+.TH DOSEMU.BIN 1 "Sep, 2003" "Version 1.2.0" "DOS Emulation"
 .SH NAME
 dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 .SH SYNOPSIS
@@ -30,6 +30,9 @@ dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 [
 .B \-f
 .I file
+]
+[
+.B \-n
 ]
 [
 .B \-L
@@ -157,14 +160,14 @@ Parse this config-script instead of the built-in global.conf file
 (you need to run as root on suid DOSEMU for this)
 .TP
 .I --Fusers
-Bypass /etc/dosemu.users and take this file instead (only accepted when
+Bypass dosemu.users and take this file instead (only accepted when
 .B dosemu.bin
 is
 .I not
 suid-root).
 .TP
 .I --Flibdir
-Bypass the default DOSEMU_LIB_DIR (as maybe defined in /etc/dosemu.users)
+Bypass the default DOSEMU_LIB_DIR (as maybe defined in dosemu.users)
 and use this directory instead (only accepted when
 .B dosemu.bin
 is
@@ -181,6 +184,13 @@ suid-root).
 .TP
 .I -f
 Parse this config-file instead of .dosemurc
+.TP
+.I -n
+Bypass (don't use) dosemu.users and dosemu.conf (only accepted when
+.B dosemu.bin
+is
+.I not
+suid-root).
 .TP
 .I -u
 set a user configuration variable. An
@@ -346,7 +356,7 @@ hard disk resources is done by editing
 .B dosemu.conf
 before running
 .BR DOSEMU .
-Look at doc/README.txt.
+Look at @docdir@/README.txt.
 
 .SH FLOPPY DISKS
 .B DOSEMU
@@ -570,13 +580,13 @@ developer team - even just good detailed debug reports are all you need!
 .SH FILES
 .PD 0
 .TP
-.I dosemu.bin
+.I @bindir@/dosemu.bin
 The binary
 .TP
-.I dosemu
+.I @bindir@/dosemu
 The wrapper script, it is recommended not to invoke dosemu.bin directly.
 .TP
-.I xdosemu
+.I @bindir@/xdosemu
 Same, but invoking DOS in an X window.
 .TP
 .I $HOME/.dosemu
@@ -600,7 +610,9 @@ including debugger pipes.
 .I $HOME/dosemu/freedos
 Bootdirectory containing the FreeDos part.
 .TP
-.I dosemu.conf
+.I @sysconfdir@/dosemu.conf
+or (only if /etc/dosemu.users exists)
+.I /etc/dosemu.conf
 Main configuration file for
 .BR DOSEMU .
 which is included by
@@ -613,7 +625,7 @@ Per-user configuration file.
 .I /etc/dosemu.users
 or
 .TP
-.I /etc/dosemu/dosemu.users
+.I @sysconfdir@/dosemu.users
 For suid-root or sudo running binaries: Defines the access rights to
 .BR DOSEMU
 on a per user basis and sets some vital configuration. This is the only
@@ -622,7 +634,7 @@ fix-location configuration file,
 first looks for
 .I /etc/dosemu.users
 and, if this is not found, for
-.I /etc/dosemu/dosemu.users .
+.I @sysconfdir@/dosemu.users .
 Via the keyword
 .I default_lib_dir=
 in
@@ -631,18 +643,18 @@ the systemwide
 .I DOSEMU_LIB_DIR
 directory may be moved elsewere.
 For more information see
-.I ./doc/README.txt
+.I @docdir@/README.txt
 .TP
-.I /etc/dosemu/dos.ini
+.I @sysconfdir@/dos.ini
 IPX configuration file.
 
 .TP
-.I doc/DANG
+.I doc/DANG.txt
 To help you hack
 .B DOSEMU
 code.
 .TP
-.I doc/README.*
+.I @docdir@/README.*
 Various documentation.
 .TP
 .I QuickStart, README and INSTALL
@@ -655,7 +667,7 @@ Changes in
 .B DOSEMU
 since the last release.
 .TP
-.I README.bindist
+.I @docdir@/README.bindist
 Information on how to use the DOSEMU/FreeDos ready-to-use binary
 distribution.
 .TP

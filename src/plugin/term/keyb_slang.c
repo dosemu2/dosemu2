@@ -131,7 +131,9 @@ static Keymap_Scan_Type Dosemu_defined_fkeys[] =
   {"^@0", KEY_F10 },			/* F10 */
   {"^@-", KEY_F11 },			/* F11 */
   {"^@=", KEY_F12 },			/* F12 */
+#if 0 /* conflicts with alt-fn */
   {"\033\033", KEY_ESC },		/* ESC */
+#endif
   {"", 0}
 };
 
@@ -602,8 +604,6 @@ static Keymap_Scan_Type Dosemu_Ctrl_keys[] =
   /* Repair some of the mistakes from 'define_key_from_keymap()' */
   /* REMEMBER, we're pretending this is a us-ascii keyboard */
   {"^C",	KEY_BREAK },
-  {"*",		KEY_8 | SHIFT_MASK },
-  {"+",		KEY_EQUALS | SHIFT_MASK },
 
   /* Now setup the shift modifier keys */
   {"^@a",	ALT_KEY_SCAN_CODE },
@@ -1353,8 +1353,10 @@ static void do_slang_getkeys(void)
 		keyb_state.Shift_Flags &= ~KEYPAD_MASK;
 	}
 	old_flags = 0;
-	if (-1 == cc)
+	if (-1 == cc) {
+		do_slang_special_keys(0);
 		return;
+	}
 	
 	k_printf("KBD: do_slang_getkeys() found %d bytes\n", keyb_state.kbcount);
 	
@@ -1426,6 +1428,7 @@ static void do_slang_getkeys(void)
                        key ? strprintable(key->str+1): "ESC", keyb_state.Keystr_Len);
 		if (!(scan&0x80000000)) {
 			slang_send_scancode(keyb_state.Shift_Flags | scan, symbol);
+			do_slang_special_keys(0);
 		}
 		else {
 			do_slang_special_keys(scan);

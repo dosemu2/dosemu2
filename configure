@@ -855,7 +855,7 @@ Optional Features:
   --disable-vidmode       do NOT use the XF86 vidmode extension
   --enable-experimental   enable configuration of EXPERIMENTAL stuff
   --enable-debug          compile with debug info
-  --enable-aspi           compile with ASPI support
+  --disable-aspi          do NOT compile with ASPI support
   --disable-sbemu         do NOT use SoundBlaster emulator
   --enable-cpuemu         EXPERIMENTAL, compile with optional x86 emulation code
   --disable-net           do NOT use Linux net code
@@ -6707,7 +6707,9 @@ if test "${with_slangdir+set}" = set; then
   echo "$as_me:$LINENO: checking for S-Lang" >&5
 echo $ECHO_N "checking for S-Lang... $ECHO_C" >&6
   SLANGINC=""
-  if test "$withval" = "default"; then
+  if test "$withval" = "src/plugin/slang"; then
+    $srcdir/mkpluginhooks enable slang yes
+  elif test "$withval" = "default"; then
     if test -d $srcdir/../slang; then
       SLANGINC="-I ${srcdir}/../slang/src"
       SLANGLIB="-L ${srcdir}/../slang/src/objs"
@@ -6731,9 +6733,14 @@ echo $ECHO_N "checking for S-Lang... $ECHO_C" >&6
       SLANGLIB="-L${withval}/lib"
     fi
   fi
-    echo "$as_me:$LINENO: result: $SLANGINC $SLANGLIB" >&5
+    if test "$withval" = "src/plugin/slang"; then
+   LIBS="$LIBS -lm -ldl"
+   echo "$as_me:$LINENO: result: " >&5
+echo "${ECHO_T}" >&6
+  else
+   echo "$as_me:$LINENO: result: $SLANGINC $SLANGLIB" >&5
 echo "${ECHO_T}$SLANGINC $SLANGLIB" >&6
-  echo "$as_me:$LINENO: checking for SLsmg_write_nwchars in -lslang" >&5
+   echo "$as_me:$LINENO: checking for SLsmg_write_nwchars in -lslang" >&5
 echo $ECHO_N "checking for SLsmg_write_nwchars in -lslang... $ECHO_C" >&6
 if test "${ac_cv_lib_slang_SLsmg_write_nwchars+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
@@ -6857,6 +6864,7 @@ fi
 
 fi
 
+  fi
 
 fi;
 
@@ -8533,7 +8541,7 @@ if test "${enable_aspi+set}" = set; then
   enableval="$enable_aspi"
 
 fi;
-  if test "$enable_aspi" = "yes"; then
+  if test "$enable_aspi" != "no"; then
    { echo "$as_me:$LINENO: Compiling with ASPI support..." >&5
 echo "$as_me: Compiling with ASPI support..." >&6;};
    cat >>confdefs.h <<\_ACEOF
@@ -8838,7 +8846,7 @@ CPPFLAGS="${CPPFLAGS} -MMD \${INCDIR}"
 
 
 
-          ac_config_files="$ac_config_files Makefile.conf"
+                    ac_config_files="$ac_config_files Makefile.conf dosemu.spec"
 
 
           ac_config_commands="$ac_config_commands Makefile"
@@ -9470,6 +9478,7 @@ do
   case "$ac_config_target" in
   # Handling of arguments.
   "Makefile.conf" ) CONFIG_FILES="$CONFIG_FILES Makefile.conf" ;;
+  "dosemu.spec" ) CONFIG_FILES="$CONFIG_FILES dosemu.spec" ;;
   "Makefile" ) CONFIG_COMMANDS="$CONFIG_COMMANDS Makefile" ;;
   "src/include/config.h" ) CONFIG_HEADERS="$CONFIG_HEADERS src/include/config.h" ;;
   *) { { echo "$as_me:$LINENO: error: invalid argument: $ac_config_target" >&5

@@ -703,7 +703,8 @@ static void init_one_approximation(void *p, t_unicode symbol, t_unicode approxim
 		return;
 
 	if ((charset->keys[symbol].key == NUM_VOID) &&
-		(charset->keys[approximation].key != NUM_VOID)) {
+		(charset->keys[approximation].key != NUM_VOID) &&
+		(charset->keys[approximation].character == charset->keys[symbol].character)) {
 		/* Copy the code from the approximate symbol to the symbol */
 		charset->keys[symbol] = charset->keys[approximation];
 	}

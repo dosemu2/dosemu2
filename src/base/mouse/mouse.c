@@ -86,7 +86,6 @@ void mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
 /* mouse movement functions */
 static void mouse_reset(int);
 static void mouse_do_cur(void), mouse_update_cursor(void);
-static void mouse_reset_to_current_video_mode(void);
 
 /* graphics cursor */
 void graph_cursor(void), text_cursor(void);
@@ -102,6 +101,7 @@ static int last_mouse_call_read_mickeys = 0;
 
 static int mouse_events = 0;
 static mouse_erase_t mouse_erase;
+static int sent_mouse_esc = FALSE;
 
 static mouse_t *mice = &config.mouse;
 /* the 'volatile' is there to cover some bug in gcc -O -g3 */
@@ -349,13 +349,25 @@ int mouse_is_ps2(void)
 int
 mouse_int(void)
 {
+  /* delayed mouse init for xterms; should be done cleaner in 1.3.x */
+  if (mice->type == MOUSE_XTERM) {
+    /* save old highlight mouse tracking */
+    mice->intdrv = TRUE;
+    printf("\033[?1001s");
+    /* enable mouse tracking */
+    printf("\033[?9h\033[?1000h\033[?1002h\033[?1003h");	
+    fflush (stdout);
+    m_printf("XTERM MOUSE: Remote terminal mouse tracking enabled\n");
+    sent_mouse_esc = TRUE;
+  }
+
   m_printf("MOUSEALAN: int 0x%x ebx=%x\n", LWORD(eax), LWORD(ebx));
   if (!mice->intdrv || (!mouse.enabled && LWORD(eax) != 0x20)) {
     m_printf("MOUSE: driver disabled, intdrv=%i enable=%i\n",
       mice->intdrv, mouse.enabled);
     return 0;
   }
-  
+
   switch (LWORD(eax)) {
   case 0x00:			/* Mouse Reset/Get Mouse Installed Flag */
     mouse_reset(0);
@@ -1918,7 +1930,10 @@ void mouse_io_callback(void)
 void
 dosemu_mouse_close(void)
 {
+  if (mice->type == MOUSE_XTERM && !sent_mouse_esc)
+    return;
   if (Mouse->close) Mouse->close(); 
+  sent_mouse_esc = FALSE;
 }
 
 
