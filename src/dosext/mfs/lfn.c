@@ -218,7 +218,7 @@ int mfs_lfn(void)
 		slash = strrchr(fpath, '/');
 		strcpy(fpath2, slash);
 		*slash = '\0';
-		if (find_file(fpath, &st))
+		if (!find_file(fpath, &st))
 			return lfn_error(PATH_NOT_FOUND);
 		strcat(fpath, fpath2);
 		if (find_file(fpath, &st) || (mkdir(fpath, 0755) != 0))
