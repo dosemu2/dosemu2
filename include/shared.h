@@ -22,6 +22,7 @@
 #define TMPFILE "/var/run/dosemu."
 
 #define SHARED_KEYBOARD_OFFSET 1816
+#define CLIENT_REQUEST_FLAG_AREA 8
 
 
 EXTERN u_char *shared_qf_memory;

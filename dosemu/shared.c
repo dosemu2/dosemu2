@@ -60,9 +60,6 @@ void shared_memory_init(void) {
  *
  */
 
-#if 0
-  shared_qf_memory=malloc(SHARED_QUEUE_FLAGS_AREA);
-#else
   if ((shm_qf_id = shmget(IPC_PRIVATE, SHARED_QUEUE_FLAGS_AREA, 0755)) < 0) {
     E_printf("SHM: Initial QF IPC mapping unsuccessful: %s\n", strerror(errno));
     E_printf("SHM: Do you have IPC in the kernel?\n");
@@ -78,7 +75,6 @@ void shared_memory_init(void) {
   if (shmctl(shm_qf_id, IPC_RMID, (struct shmid_ds *) 0) < 0) {
     E_printf("SHM: Shmctl QF SHM unsuccessful: %s\n", strerror(errno));
   }
-#endif
 
 /*
  *
@@ -104,6 +100,14 @@ void shared_memory_init(void) {
     E_printf("SHM: Shmctl Video SHM unsuccessful: %s\n", strerror(errno));
   }
  }
+
+/* 
+ * DANG_BEGIN_REMARK
+ *	Set to 0 all client request area
+ * DANG_END_REMARK
+ */
+*(int *)(shared_qf_memory + CLIENT_REQUEST_FLAG_AREA) = (int)0;
+E_printf("SHM: Client request area set to %04d\n", *(int *)(shared_qf_memory + CLIENT_REQUEST_FLAG_AREA));
 
 /* 
  * DANG_BEGIN_REMARK

@@ -10,6 +10,7 @@
 #include "video.h"
 #include "timers.h"
 #include "int.h"
+#include "shared.h"
 #ifdef DPMI
 #include "../dpmi/dpmi.h"
 #endif
@@ -245,10 +246,6 @@ void SIGALRM_call(void){
     running--;
   }
   
-#if 0
-  setitimer(TIMER_TIME, &itv, NULL);
-#endif
-
   if (mice->intdrv)
     mouse_curtick();
 
@@ -259,6 +256,18 @@ void SIGALRM_call(void){
 #endif
 
   timer_tick();
+
+/*
+ * DANG_BEGIN_REMARK
+ *  Check for keyboard coming from client
+ *  For now, first byte is interrupt requests from Client 
+ * DANG_END_REMARK
+ */
+ if (*(u_char *)(shared_qf_memory + CLIENT_REQUEST_FLAG_AREA) & 0x40) {
+   k_printf("KBD: Client sent key\n");
+   pic_request (PIC_IRQ1);
+   *(u_char *)(shared_qf_memory + CLIENT_REQUEST_FLAG_AREA) &=  ~0x40;
+ }
 
   if (not_use_sigio)
     io_select(fds_no_sigio);

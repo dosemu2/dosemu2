@@ -859,8 +859,8 @@ void do_slang_getkeys (void)
 		   * wants esc.
 		   */
 		  if (sltermio_input_pending ()) return;
-		  add_scancode_to_queue ((unsigned short) (scan >> 8));
-		  add_key_depress((scan>>8));
+		  add_scancode_to_queue ((unsigned short)0x011b);
+		  add_key_depress((unsigned short)0x011b);
 		  key = NULL;
 		  /* drop on through to the return for the undefined key below. */
 	       }
@@ -892,8 +892,8 @@ void do_slang_getkeys (void)
 	if (scan < ALT_KEY_SCAN_CODE)
 	  {
 	     if (sticky == 0) map = The_Normal_KeyMap;
-  	     add_scancode_to_queue ((unsigned short) (scan >> 8));
-	     add_key_depress((scan>>8));
+  	     add_scancode_to_queue ((unsigned short) (scan));
+	     add_key_depress((unsigned short)(scan));
 
 	     continue;
 	  }

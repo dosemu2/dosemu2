@@ -905,7 +905,6 @@ static int *scan_queue_start;
 static int *scan_queue_end;
 static int next_scancode;
 
-
 void
 shared_keyboard_init (void)
 {

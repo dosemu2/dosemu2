@@ -209,7 +209,6 @@ extern void clear_consoleX_video();
 extern void clear_process_control();
 void set_raw_mode();
 void get_leds();
-extern void read_next_scancode_from_queue(u_short);
 void activate(int);
 extern int terminal_initialize();
 extern void terminal_close();
@@ -623,8 +622,6 @@ print_termios(struct termios term)
   k_printf("KBD: 	c_line =%x\n", term.c_line);
 }
 
-extern void scr_state_init(void);
-
 /*
  * DANG_BEGIN_FUNCTION keyboard_init
  *
@@ -670,15 +667,6 @@ keyboard_init(void)
      minor = chkbuf.st_rdev & 0xff;
   } else
      major = minor = 0;
-
-  scr_state_init();
-#if 0
-  scr_state.vt_allow = 0;
-  scr_state.vt_requested = 0;
-  scr_state.mapped = 0;
-  scr_state.pageno = 0;
-  scr_state.virt_address = PAGE_ADDR(0);
-#endif
 
   if (!config.usesX) {
     /* console major num is 4, minor 64 is the first serial line */
@@ -841,7 +829,7 @@ getKeys(void)
       for (i = 0; i < cc; i++) {
 	k_printf("KEY: readcode: %d \n", kbp[kbcount + i]);
 	child_set_flags(kbp[kbcount + i]);
-	read_next_scancode_from_queue(kbp[kbcount + i]);
+	add_scancode_to_queue(kbp[kbcount + i]);
 	k_printf("KBD: cc pushing %d'th character\n", i);
       }
     }
@@ -1035,7 +1023,7 @@ convascii(int *cc)
 	  kbcount -= i;
 	  *cc -= i;
 	  kbp += i;
-	  read_next_scancode_from_queue(fkp->code);
+	  add_scancode_to_queue(fkp->code);
 	  return;
 	}
       }
@@ -1045,7 +1033,7 @@ convascii(int *cc)
     if (kbcount == 1) {
       kbcount--;
       (*cc)--;
-      read_next_scancode_from_queue((highscan[*kbp] << 8) + (unsigned char) *kbp++);
+      add_scancode_to_queue((highscan[*kbp] << 8) + (unsigned char) *kbp++);
       return;
     }
 
@@ -1054,7 +1042,7 @@ convascii(int *cc)
   else if (*kbp >= 128) {
     for (fkp = xfunkey; fkp->code; fkp++) {
       if ((unsigned char) (*kbp) == fkp->esc[0]) {
-	read_next_scancode_from_queue(fkp->code);
+	add_scancode_to_queue(fkp->code);
 	break;
       }
     }
@@ -1068,7 +1056,7 @@ convascii(int *cc)
     kbcount--;
     (*cc)--;
     kbp++;
-    read_next_scancode_from_queue(((unsigned char) highscan[8] << 8) + (unsigned char) 8);
+    add_scancode_to_queue(((unsigned char) highscan[8] << 8) + (unsigned char) 8);
     return;
   }
 
@@ -1078,7 +1066,7 @@ convascii(int *cc)
   if ((unsigned char) *kbp < 0x80)
     i |= (unsigned char) *kbp;
 
-  read_next_scancode_from_queue(i);
+  add_scancode_to_queue(i);
   kbcount--;
   (*cc)--;
   kbp++;
@@ -1935,7 +1923,7 @@ void shared_keyboard_init(void) {
 /* This is used to run the keyboard interrupt */
 void
 do_irq1(void) {
-   add_scancode_to_queue();
+   read_next_scancode_from_queue();
   /* reschedule if queue not empty */
   if (*scan_queue_start!=*scan_queue_end) { 
     k_printf("KBD: Requesting next keyboard interrupt startstop %d:%d\n", 
@@ -1957,7 +1945,7 @@ scan_to_buffer(void) {
 }
 
 void
-read_next_scancode_from_queue(u_short scan)
+add_scancode_to_queue(u_short scan)
 {
   k_printf("DOS got set scan %04x, startq=%d, endq=%d\n", scan, *scan_queue_start, *scan_queue_end);
   scan_queue[*scan_queue_end] = scan;
@@ -1972,7 +1960,7 @@ read_next_scancode_from_queue(u_short scan)
   }
   else {
     k_printf("NOT Hard queue\n");
-    add_scancode_to_queue();
+    read_next_scancode_from_queue();
     scan_to_buffer();
 #ifdef NEW_PIC
  /*   *LASTSCAN_ADD=1; */
@@ -1990,7 +1978,7 @@ add_key_depress(u_short scan){
     tmp_scan = scan & 0xff00;
     if (tmp_scan < 0x8000 && tmp_scan > 0) {
       k_printf("Adding Key-Release\n");
-      read_next_scancode_from_queue(scan | 0x8000);
+      add_scancode_to_queue(scan | 0x8000);
     }
   }
 }
@@ -2090,7 +2078,7 @@ insert_into_keybuffer(void)
 }
 
 void
-add_scancode_to_queue(void)
+read_next_scancode_from_queue(void)
 {
 #ifndef NEW_PIC
   keys_ready = 0;

@@ -1,8 +1,18 @@
 /*
  * DANG_BEGIN_MODULE
+ *
+ * Description: Timer emulation for DOSEMU.
  * 
- * There is some old Mach code in here.  Please be aware of their copyright
- * in mfs.c
+ * Maintainers: Scott Bucholz
+ *              J. Lawrence Stephan
+ *
+ * This is the timer emulation for DOSEMU.  It emulates the Programmable
+ * Interval Timer (PIT), and also handles IRQ0 interrupt events.
+ * A lot of animation and video game software are dependant on this module
+ * for high frequency timer interrupts (IRQ0).
+ *
+ * COPYRIGHT: There is some old Mach code in here.  Please be aware of
+ * their copyright in mfs.c
  * 
  * This code will actually generate 18.2 interrupts/second.  It will even
  * happily attempt to generate faster clocks, right up to the point where
@@ -11,12 +21,6 @@
  * to work well.  (The code will attempt to generate up to 10Khz interrupts
  * per second at the moment.  Too bad that would probably overflow all
  * internal queues really fast. :)
- *
- * Incidentally, this code almost works.  There seems to be some oddness
- * reading values from port 0x40 which cause, for example, the delay(x)
- * function in Borland C++ to take x or 2x msecs.  Or Norton's SI to return
- * a variety of values.  Many kudos to the one who figures this one out or
- * who finds me a timer chip reference online.
  *
  * DANG_END_MODULE
  *
@@ -99,20 +103,15 @@
 
 #define CLOCK_TICK_RATE   1193180     /* underlying clock rate in HZ */
 
-static int timer_interrupt_rate = 55;
-
 static int timer0_read_latch_value = 0;
 static int timer0_read_latch_value_orig = 0;
 static int timer0_latched_value = 0;
 static int timer0_new_value = 0;
 static boolean_t latched_counter_msb = FALSE;
-static int timer0_cntr_latch = 0;
 
-static u_long timer_latch0;           /* current timer port 0 latch value */
-static u_long timer_div;              /* used by timer int code */
-static struct timeval clock0;         /* start time of port 0 timer */
-static u_long timer_pops;             /* number of times the timer's popped */
-static u_long timer_value0;           /* current read timer port 0 value */
+static u_long timer_div;          /* used by timer int code */
+static struct timeval clock0;     /* start time of port 0 timer */
+static u_long ticks_accum;        /* For timer_tick function, 100usec ticks */
 
 /*
  * DANG_BEGIN_FUNCTION set_timer_latch0
@@ -126,12 +125,11 @@ static u_long timer_value0;           /* current read timer port 0 value */
  */
 static void set_timer_latch0(u_long latch_value)
 {
-  timer_pops    = 0;
+  ticks_accum   = 0;
   gettimeofday(&clock0, NULL);
 
   if (latch_value == 0)
     latch_value = 0x10000;
-  timer_latch0  = latch_value;
   timer_div     = (latch_value * 10000) / CLOCK_TICK_RATE;
   if (timer_div == 0)
     timer_div = 1;
@@ -160,48 +158,50 @@ void initialize_timers(void)
  *  It checks to see if we should queue a timer interrupt based on the
  *  current values.
  *
- *  NOTE:  this code is liable to overflow after about ~111 hours without
- *         having the timer port reset.
- *
  * DANG_END_FUNCTION
  */
 void timer_tick(void)
 {
-  static u_char timals = 0;
+  struct timeval tp;
+  u_long time_curr;
+  static u_long time_old = 0;       /* Preserve value for next call */
 
-  if (config.timers) {
-    struct timeval tp;
-    u_long cur_count;
+  if (!config.timers) {
+    h_printf("NOT CONFIG.TIMERS\n");
+    return;
+  }
 
-    gettimeofday(&tp, NULL);
+  /* Get system time */
+  gettimeofday(&tp, NULL);
 
-    /* compute the number of 100usecs since we started */
-    cur_count  = (tp.tv_sec - clock0.tv_sec) * 10000;
-    cur_count += (tp.tv_usec - clock0.tv_usec) / 100;
+  /* compute the number of 100usecs since we started */
+  time_curr  = (tp.tv_sec - clock0.tv_sec) * 10000;
+  time_curr += (tp.tv_usec - clock0.tv_usec) / 100;
+  
+  /* Reset old timer value to 0 if time_curr wrapped around back to 0 */
+  if (time_curr < time_old) time_old = 0;
+  
+  /* Compute number of 100usec ticks since the last time this function ran */
+  ticks_accum += (time_curr - time_old);
+  pit.CNTR2 -= ticks_accum;
+  
+  /* Save old value of the timer */
+  time_old = time_curr;
 
-    /* compute the correspond number of timer ticks */
-    cur_count /= timer_div;
-
-    /* add any missing timer events to the queue */
-    while (timer_pops < cur_count) {
-      timer_value0++;
-
-      h_printf("starting timer int 8...\n");
+  /* Add any missing timer events to the queue */
+  while (ticks_accum > timer_div) {
+    ticks_accum -= timer_div;
+    /* h_printf("starting timer int 8...\n"); */ /* Slows down game testing */
 #ifndef NEW_PIC
-      if (!do_hard_int(8))
-	h_printf("CAN'T DO TIMER INT 8...IF CLEAR\n");
+    if (!do_hard_int(8)) h_printf("CAN'T DO TIMER INT 8...IF CLEAR\n");
 #else
 #if NEW_PIC==2
-      age_transmit_queues();
+    /* This line will be obsolete with the new serial PIC coming soon */
+    age_transmit_queues();
 #endif
-      pic_request(PIC_IRQ0);
+    pic_request(PIC_IRQ0);
 #endif
-
-      timer_pops++;
-    }
   }
-  else
-    h_printf("NOT CONFIG.TIMERS\n");
 }
 
 void set_ticks(unsigned long new)
@@ -212,8 +212,8 @@ void set_ticks(unsigned long new)
   ignore_segv++;
   *ticks = new;
   *overflow = 0;
-  /* warn("TIMER: update value of %d\n", (40 / (1000000 / UPDATE))); */
   ignore_segv--;
+  /* warn("TIMER: update value of %d\n", (40 / (1000000 / UPDATE))); */
 }
 
 int do_40(boolean_t in_out, int val)
@@ -239,11 +239,20 @@ int do_40(boolean_t in_out, int val)
 	timer0_latched_value = 0;
 	break;
       case 0x0:
-	if (latched_counter_msb) {
-	  ret = (timer0_cntr_latch >> 8) & 0xff;
+	if (!latched_counter_msb) {
+	  struct timeval tp;
+	  u_long count;
+	  gettimeofday(&tp, NULL);
+
+	  count = (tp.tv_sec - clock0.tv_sec) * CLOCK_TICK_RATE +
+	          ((tp.tv_usec - clock0.tv_usec) * 1193) / 1000;
+
+	  timer0_latched_value = 0x10000 - count;
+
+	  ret = timer0_latched_value & 0xff;
 	} else {
-	  timer0_cntr_latch = timer_value0;
-	  ret = timer0_cntr_latch & 0xff;
+	  ret = (timer0_latched_value >> 8) & 0xff;
+	  timer0_latched_value = 0;
 	}
 	latched_counter_msb = !latched_counter_msb;
 	break;

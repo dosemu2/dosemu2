@@ -598,7 +598,10 @@ outb(int port, int byte)
 	break;
 #endif
   case 0x42:
+#if 0
 	safe_port_out_byte(port, byte);
+#endif
+    pit.CNTR2 = byte;
     if ((port == 0x42) && (lastport == 0x42)) {
       if ((timer_beep == 1) &&
 	  (config.speaker == SPKR_EMULATED)) {

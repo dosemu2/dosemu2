@@ -464,6 +464,7 @@ void device_init(void)
   mouse_init();
   printer_init();
   disk_init();
+  scr_state_init();
   video_config_init();
 }
 

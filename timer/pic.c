@@ -56,8 +56,8 @@ static unsigned long              pic_smm;          /* 32=>special mask mode, 0 
 
 static unsigned long   pic_pirr;         /* pending requests: ->irr when icount==0 */
 static unsigned long   pic_wirr;             /* watchdog timer for pic_pirr */
-static unsigned long   pic_imr = 0xfff8;   /* interrupt mask register, enable irqs 0,1 */
-static unsigned long   pice_imr = -1;      /* interrupt mask register, dos emulator */ 
+unsigned long   pic_imr = 0xfff8;   /* interrupt mask register, enable irqs 0,1 */
+unsigned long   pice_imr = -1;      /* interrupt mask register, dos emulator */ 
 
 #define PNULL	(void *) 0
 static struct lvldef pic_iinfo[32] =
