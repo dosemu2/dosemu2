@@ -168,7 +168,7 @@ int
 pcibios_init(void)
 {
     unsigned long pcibuses[16];
-    unsigned long pciheader[64];
+    unsigned long pciheader[16];
     int busidx = 0;
     int idx = 0;
     int func = 0;
@@ -439,7 +439,7 @@ interpretCfgSpace(unsigned long *pciheader,unsigned long *pcibuses,int busidx,
 	    }
 	}
     }
-    memcpy(pciTmp->header, pciheader, sizeof(*pciheader) * 64);
+    memcpy(pciTmp->header, pciheader, sizeof(*pciheader) * 16);
     if ((pciheader[3] & 0x007f0000) == 0) for (i = 0; i < 7; i++) {
 	unsigned long mask, base, size, pci_val, pci_val1;
 	unsigned long reg = PCI_BASE_ADDRESS_0 + (i << 2);

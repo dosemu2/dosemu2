@@ -66,7 +66,10 @@ int pci_read_header_cfg1 (unsigned char bus, unsigned char device,
     error("iopl(): %s\n", strerror(errno));
     return 0;
   }
-  for (i=0; i<64; i++) {
+  /* Get only first 64 bytes: See src/linux/drivers/pci/proc.c for
+     why. They are not joking. My NCR810 crashes the machine on read
+     of register 0xd8 */
+  for (i=0; i<16; i++) {
 	port_real_outd (PCI_CONF_ADDR, bx|(i<<2));
 	buf[i] = port_real_ind (PCI_CONF_DATA);
   }
@@ -156,7 +159,7 @@ int pci_read_header_cfg2 (unsigned char bus, unsigned char device,
   }
   port_real_outb(PCI_MODE2_ENABLE_REG, (fn << 1) | 0xF0);
   port_real_outb(PCI_MODE2_FORWARD_REG, bus);
-  for (i=0; i<64; i++) {
+  for (i=0; i<16; i++) {
 	buf[i] = port_real_ind (0xc000 | (device << 8) | (i << 2));
   }
   port_real_outb(PCI_MODE2_ENABLE_REG, 0x00);
@@ -302,9 +305,10 @@ emureadPciCfg1(unsigned long reg)
     return 0xffffffff;
   bdf = (reg >> 8) & 0xffff;
   pci = set_pcirec(bdf);
-  if (pci == NULL)
+  reg &= 0xfc;
+  if (pci == NULL || reg >= 0x40)
     return 0xffffffff;
-  val = pci->header[(reg & 0xfc) >> 2];
+  val = pci->header[reg >> 2];
   Z_printf("PCIEMU: reading 0x%lx from 0x%lx\n",val,reg);
   return val;
 }
@@ -319,9 +323,9 @@ emuwritePciCfg1(unsigned long reg, unsigned long val)
     return;
   bdf = (reg >> 8) & 0xffff;
   pci = set_pcirec(bdf);
-  if (pci == NULL)
-    return;
   reg &= 0xfc;
+  if (pci == NULL || reg >= 0x40)
+    return;
   if ((pci->header[3] & 0x007f0000) == 0) {
     if (reg >= PCI_BASE_ADDRESS_0 && reg <= PCI_BASE_ADDRESS_5)
       val &= pci->region[reg - PCI_BASE_ADDRESS_0].rawsize;

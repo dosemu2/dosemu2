@@ -61,7 +61,7 @@ typedef struct _pciRec {
         unsigned long size;
         unsigned long rawsize;
     } region[7];
-    unsigned long header[64];
+    unsigned long header[16];
     struct _pciRec *next;
 } pciRec, *pciPtr;
 
