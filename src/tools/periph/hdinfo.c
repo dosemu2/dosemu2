@@ -30,6 +30,7 @@
 #include <sys/types.h>
 #include <sys/fcntl.h>
 #include <stdio.h>
+#include <errno.h>
 #ifdef __linux__
 #include <asm/types.h>
 #include <linux/genhd.h>
@@ -40,7 +41,26 @@
   /* well, if we don't have llseek prototype,
    * we most likely won't have __loff_t too, hence using long long
    */
-  extern long long llseek (int fd, long long offset, int origin);
+long long libless_llseek(int fd, long long offset, int origin)
+{
+  long long result;
+  int offlo = offset;
+  int offhi = offset >> 32;
+  int __res;
+  __asm__ __volatile__(
+    "int $0x80\n"
+    :"=a" (__res)
+    :"a" ((int)140), "b" (fd), "c" (offhi), "d" (offlo),
+                    "S" ((int)&result), "D" (origin)
+  );
+  errno = 0;
+  if (__res < 0) {
+    errno = -__res;
+    result = -1;
+  }
+  return result;
+}
+#define llseek libless_llseek
 #endif
 
 #define SECTOR_SIZE	512

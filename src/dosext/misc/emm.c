@@ -144,7 +144,9 @@ static inline boolean_t unmap_page(int);
 #define	MAX_HANDLES	255	/* must fit in a byte */
 /* this is in EMS pages, which MAX_EMS (defined in Makefile) is in K */
 #define MAX_EMM		(config.ems_size / 16)
+#ifndef PAGE_SIZE
 #define PAGE_SIZE	4096
+#endif
 #define	EMM_PAGE_SIZE	(16*1024)
 #define EMM_MAX_PHYS	4
 #define NULL_HANDLE	-1

@@ -1462,6 +1462,26 @@ void code_append_ins(CodeObj *co, int len, void *nc)
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  */
 
+#if GCC_VERSION_CODE >= 2095
+  /*
+   * NOTE: 
+   *	gcc-2.95 will optimize away all code behind the 'return'
+   *	and the function end (closing curly bracket),
+   *	hence it will remove our code generator templates.
+   *	To fool gcc, we define 'return' to be conditional on a variable
+   *	_we_ know will ever be true.
+   *	For this we define START_TEMPLATE, which contains this
+   *	conditional return statement:
+   */
+  int trick_out_gcc295_for_remap = 1;
+  #define START_TEMPLATE if (trick_out_gcc295_for_remap) return;
+#else
+  /*
+   * For all gcc below gcc-2.95 we use a normal return statement:
+   */
+  #define START_TEMPLATE return;
+#endif
+
 void _a_ret(CodeObj *co)
 {
   __label__ _cf_001;
@@ -1469,7 +1489,7 @@ void _a_ret(CodeObj *co)
   fprintf(rdm, "0x%04x:\tret\n", co->pc);
 #endif
   code_append_ins(co, 1, &&_cf_001);
-  return;
+  START_TEMPLATE
   _cf_001: asm("ret\n");
 }
 
@@ -1480,7 +1500,7 @@ void _a_movb_dl_dh(CodeObj *co)
   fprintf(rdm, "0x%04x:\tmovb %%dl,%%dh\n", co->pc);
 #endif
   code_append_ins(co, 2, &&_cf_001);
-  return;
+  START_TEMPLATE
   _cf_001: asm("movb %dl,%dh\n");
 }
 
@@ -1491,7 +1511,7 @@ void _a_movb_dh_dl(CodeObj *co)
   fprintf(rdm, "0x%04x:\tmovb %%dh,%%dl\n", co->pc);
 #endif
   code_append_ins(co, 2, &&_cf_001);
-  return;
+  START_TEMPLATE
   _cf_001: asm("movb %dh,%dl\n");
 }
 
@@ -1516,7 +1536,7 @@ void _a_movb_n_ecx_4eax_dl(CodeObj *co, int ofs)
   }
   code_append_ins(co, &&_cf_004 - &&_cf_003 - 4, &&_cf_003);
   code_append_ins(co, 4, &ofs);
-  return;
+  START_TEMPLATE
   _cf_001: asm("movb (%ecx,%eax,4),%dl\n");
   _cf_002: asm("movb 0x1(%ecx,%eax,4),%dl\n");
   _cf_003: asm("movb 0x100(%ecx,%eax,4),%dl\n");
@@ -1544,7 +1564,7 @@ void _a_movb_n_ecx_4eax_dh(CodeObj *co, int ofs)
   }
   code_append_ins(co, &&_cf_004 - &&_cf_003 - 4, &&_cf_003);
   code_append_ins(co, 4, &ofs);
-  return;
+  START_TEMPLATE
   _cf_001: asm("movb (%ecx,%eax,4),%dh\n");
   _cf_002: asm("movb 0x1(%ecx,%eax,4),%dh\n");
   _cf_003: asm("movb 0x100(%ecx,%eax,4),%dh\n");
@@ -1572,7 +1592,7 @@ void _a_movb_n_ecx_4ebx_dl(CodeObj *co, int ofs)
   }
   code_append_ins(co, &&_cf_004 - &&_cf_003 - 4, &&_cf_003);
   code_append_ins(co, 4, &ofs);
-  return;
+  START_TEMPLATE
   _cf_001: asm("movb (%ecx,%ebx,4),%dl\n");
   _cf_002: asm("movb 0x1(%ecx,%ebx,4),%dl\n");
   _cf_003: asm("movb 0x100(%ecx,%ebx,4),%dl\n");
@@ -1600,7 +1620,7 @@ void _a_movb_n_ecx_4ebx_dh(CodeObj *co, int ofs)
   }
   code_append_ins(co, &&_cf_004 - &&_cf_003 - 4, &&_cf_003);
   code_append_ins(co, 4, &ofs);
-  return;
+  START_TEMPLATE
   _cf_001: asm("movb (%ecx,%ebx,4),%dh\n");
   _cf_002: asm("movb 0x1(%ecx,%ebx,4),%dh\n");
   _cf_003: asm("movb 0x100(%ecx,%ebx,4),%dh\n");
@@ -1614,7 +1634,7 @@ void _a_movl_ebx_4eax_ebp(CodeObj *co)
   fprintf(rdm, "0x%04x:\tmovl (%%ebx,%%eax,4),%%ebp\n", co->pc);
 #endif
   code_append_ins(co, 3, &&_cf_001);
-  return;
+  START_TEMPLATE
   _cf_001: asm("movl (%ebx,%eax,4),%ebp\n");
 }
 
@@ -1625,7 +1645,7 @@ void _a_movl_ebx_4ecx_edx(CodeObj *co)
   fprintf(rdm, "0x%04x:\tmovl (%%ebx,%%ecx,4),%%edx\n", co->pc);
 #endif
   code_append_ins(co, 3, &&_cf_001);
-  return;
+  START_TEMPLATE
   _cf_001: asm("movl (%ebx,%ecx,4),%edx\n");
 }
 
@@ -1636,7 +1656,7 @@ void _a_movl_ecx_4eax_ebp(CodeObj *co)
   fprintf(rdm, "0x%04x:\tmovl (%%ecx,%%eax,4),%%ebp\n", co->pc);
 #endif
   code_append_ins(co, 3, &&_cf_001);
-  return;
+  START_TEMPLATE
   _cf_001: asm("movl (%ecx,%eax,4),%ebp\n");
 }
 
@@ -1647,7 +1667,7 @@ void _a_movl_edx_4eax_ebp(CodeObj *co)
   fprintf(rdm, "0x%04x:\tmovl (%%edx,%%eax,4),%%ebp\n", co->pc);
 #endif
   code_append_ins(co, 3, &&_cf_001);
-  return;
+  START_TEMPLATE
   _cf_001: asm("movl (%edx,%eax,4),%ebp\n");
 }
 
@@ -1658,7 +1678,7 @@ void _a_addl_edx_4eax_ebp(CodeObj *co)
   fprintf(rdm, "0x%04x:\taddl (%%edx,%%eax,4),%%ebp\n", co->pc);
 #endif
   code_append_ins(co, 3, &&_cf_001);
-  return;
+  START_TEMPLATE
   _cf_001: asm("addl (%edx,%eax,4),%ebp\n");
 }
 
@@ -1683,7 +1703,7 @@ void _a_movb_esi_al(CodeObj *co, int ofs)
   }
   code_append_ins(co, 2, &&_cf_003);
   code_append_ins(co, 4, &ofs);
-  return;
+  START_TEMPLATE
   _cf_001: asm("movb (%esi),%al\n");
   _cf_002: asm("movb 0x1(%esi),%al\n");
   _cf_003: asm("movb 0x100(%esi),%al\n");
@@ -1710,7 +1730,7 @@ void _a_movb_esi_bl(CodeObj *co, int ofs)
   }
   code_append_ins(co, 2, &&_cf_003);
   code_append_ins(co, 4, &ofs);
-  return;
+  START_TEMPLATE
   _cf_001: asm("movb (%esi),%bl\n");
   _cf_002: asm("movb 0x1(%esi),%bl\n");
   _cf_003: asm("movb 0x100(%esi),%bl\n");
@@ -1737,7 +1757,7 @@ void _a_movb_esi_cl(CodeObj *co, int ofs)
   }
   code_append_ins(co, 2, &&_cf_003);
   code_append_ins(co, 4, &ofs);
-  return;
+  START_TEMPLATE
   _cf_001: asm("movb (%esi),%cl\n");
   _cf_002: asm("movb 0x1(%esi),%cl\n");
   _cf_003: asm("movb 0x100(%esi),%cl\n");
@@ -1764,7 +1784,7 @@ void _a_movb_esi_dl(CodeObj *co, int ofs)
   }
   code_append_ins(co, 2, &&_cf_003);
   code_append_ins(co, 4, &ofs);
-  return;
+  START_TEMPLATE
   _cf_001: asm("movb (%esi),%dl\n");
   _cf_002: asm("movb 0x1(%esi),%dl\n");
   _cf_003: asm("movb 0x100(%esi),%dl\n");
@@ -1791,7 +1811,7 @@ void _a_movb_esi_dh(CodeObj *co, int ofs)
   }
   code_append_ins(co, 2, &&_cf_003);
   code_append_ins(co, 4, &ofs);
-  return;
+  START_TEMPLATE
   _cf_001: asm("movb (%esi),%dh\n");
   _cf_002: asm("movb 0x1(%esi),%dh\n");
   _cf_003: asm("movb 0x100(%esi),%dh\n");
@@ -1818,7 +1838,7 @@ void _a_movl_ebp_edi(CodeObj *co, int ofs)
   }
   code_append_ins(co, 2, &&_cf_003);
   code_append_ins(co, 4, &ofs);
-  return;
+  START_TEMPLATE
   _cf_001: asm("movl %ebp,(%edi)\n");
   _cf_002: asm("movl %ebp,0x1(%edi)\n");
   _cf_003: asm("movl %ebp,0x100(%edi)\n");
@@ -1845,7 +1865,7 @@ void _a_movw_bp_edi(CodeObj *co, int ofs)
   }
   code_append_ins(co, 3, &&_cf_003);
   code_append_ins(co, 4, &ofs);
-  return;
+  START_TEMPLATE
   _cf_001: asm("movw %bp,(%edi)\n");
   _cf_002: asm("movw %bp,0x1(%edi)\n");
   _cf_003: asm("movw %bp,0x100(%edi)\n");
@@ -1872,7 +1892,7 @@ void _a_movl_edx_edi(CodeObj *co, int ofs)
   }
   code_append_ins(co, 2, &&_cf_003);
   code_append_ins(co, 4, &ofs);
-  return;
+  START_TEMPLATE
   _cf_001: asm("movl %edx,(%edi)\n");
   _cf_002: asm("movl %edx,0x1(%edi)\n");
   _cf_003: asm("movl %edx,0x100(%edi)\n");
@@ -1899,7 +1919,7 @@ void _a_movw_dx_edi(CodeObj *co, int ofs)
   }
   code_append_ins(co, 3, &&_cf_003);
   code_append_ins(co, 4, &ofs);
-  return;
+  START_TEMPLATE
   _cf_001: asm("movw %dx,(%edi)\n");
   _cf_002: asm("movw %dx,0x1(%edi)\n");
   _cf_003: asm("movw %dx,0x100(%edi)\n");
@@ -1926,7 +1946,7 @@ void _a_movb_dl_edi(CodeObj *co, int ofs)
   }
   code_append_ins(co, 2, &&_cf_003);
   code_append_ins(co, 4, &ofs);
-  return;
+  START_TEMPLATE
   _cf_001: asm("movb %dl,(%edi)\n");
   _cf_002: asm("movb %dl,0x1(%edi)\n");
   _cf_003: asm("movb %dl,0x100(%edi)\n");
@@ -1955,7 +1975,7 @@ void _a_addl_n_edi(CodeObj *co, int n)
   }
   code_append_ins(co, 2, &&_cf_003);
   code_append_ins(co, 4, &n);
-  return;
+  START_TEMPLATE
   _cf_001: asm("incl %edi\n");
   _cf_002: asm("addl $1,%edi\n");
   _cf_003: asm("addl $0x100,%edi\n");
@@ -1984,7 +2004,7 @@ void _a_addl_n_esi(CodeObj *co, int n)
   }
   code_append_ins(co, 2, &&_cf_003);
   code_append_ins(co, 4, &n);
-  return;
+  START_TEMPLATE
   _cf_001: asm("incl %esi\n");
   _cf_002: asm("addl $1,%esi\n");
   _cf_003: asm("addl $0x100,%esi\n");
@@ -2010,7 +2030,7 @@ void _a_shrl_n_ebp(CodeObj *co, int n)
 #endif
   code_append_ins(co, 2, &&_cf_002);
   code_append_ins(co, 1, &n);
-  return;
+  START_TEMPLATE
   _cf_001: asm("shrl %ebp\n");
   _cf_002: asm("shrl $2,%ebp\n");
 }
@@ -2035,7 +2055,7 @@ void _a_shll_n_edx(CodeObj *co, int n)
 #endif
   code_append_ins(co, 2, &&_cf_002);
   code_append_ins(co, 1, &n);
-  return;
+  START_TEMPLATE
   _cf_001: asm("shll %edx\n");
   _cf_002: asm("shll $2,%edx\n");
 }

@@ -22,17 +22,17 @@
  * 2.  facilitate searching for frames (EMS frame, UMB blocks, etc.)
  */
 
-#define PAGE_SIZE               1024    /* Size of granularity in KB   */
+#define GRAN_SIZE               1024    /* Size of granularity in KB   */
 #define MEM_SIZE          (1024*1024)   /* Size of memory in KB        */
-#define MAX_PAGE (MEM_SIZE/PAGE_SIZE)   /* Number of 'pages' in memory */
+#define MAX_PAGE (MEM_SIZE/GRAN_SIZE)   /* Number of 'pages' in memory */
 
 static unsigned char mem_map[MAX_PAGE];          /* Map of memory contents      */
 static char *mem_names[256];             /* List of id. strings         */
 
 static inline void round_addr(int *addr)
 {
-  *addr = (*addr + PAGE_SIZE - 1) / PAGE_SIZE;
-  *addr *= PAGE_SIZE;
+  *addr = (*addr + GRAN_SIZE - 1) / GRAN_SIZE;
+  *addr *= GRAN_SIZE;
 }
 
 int memcheck_addtype(unsigned char map_char, char *name)
@@ -64,16 +64,16 @@ void memcheck_reserve(unsigned char map_char, int addr_start, int size)
   addr_end = addr_start + size;
   round_addr(&addr_end);
 
-  for (cntr = addr_start / PAGE_SIZE; cntr < addr_end / PAGE_SIZE; cntr++) {
+  for (cntr = addr_start / GRAN_SIZE; cntr < addr_end / GRAN_SIZE; cntr++) {
     if (mem_map[cntr]) {
       if (mem_map[cntr] == map_char) {
 	c_printf("CONF: Possible error.  The memory type '%s' has\
  been mapped twice to the same location (0x%4.4XF:0x0000)\n",
-		mem_names[map_char], (cntr * PAGE_SIZE) / 16);
+		mem_names[map_char], (cntr * GRAN_SIZE) / 16);
       } else {
 	fprintf(stderr, "CONF: memcheck - Fatal error.  Memory conflict!\n");
 	fprintf(stderr, "    Memory at 0x%4.4X:0x0000 is mapped to both:\n",
-		(cntr * PAGE_SIZE) / 16);
+		(cntr * GRAN_SIZE) / 16);
 	fprintf(stderr, "    '%s' & '%s'\n", mem_names[map_char],
 		mem_names[mem_map[cntr]]);
 	memcheck_dump();
@@ -110,7 +110,7 @@ int memcheck_isfree(int addr_start, int size)
   addr_end = addr_start + size;
   round_addr(&addr_end);
 
-  for (cntr = addr_start / PAGE_SIZE; cntr < addr_end / PAGE_SIZE; cntr++) {
+  for (cntr = addr_start / GRAN_SIZE; cntr < addr_end / GRAN_SIZE; cntr++) {
     if (mem_map[cntr])
       return FALSE;
   }
@@ -123,26 +123,26 @@ int memcheck_findhole(int *start_addr, int min_size, int max_size)
 
   round_addr(start_addr);
 
-  for (cntr = *start_addr/PAGE_SIZE; cntr < MAX_PAGE; cntr++) {
+  for (cntr = *start_addr/GRAN_SIZE; cntr < MAX_PAGE; cntr++) {
     int cntr2, end_page;
 
     /* any chance of finding anything? */
-    if ((MAX_PAGE - cntr) * PAGE_SIZE < min_size)
+    if ((MAX_PAGE - cntr) * GRAN_SIZE < min_size)
       return 0;
 
     /* if something's already there, no go */
     if (mem_map[cntr])
       continue;
 
-    end_page = cntr + (max_size / PAGE_SIZE);
+    end_page = cntr + (max_size / GRAN_SIZE);
     if (end_page > MAX_PAGE)
       end_page = MAX_PAGE;
 
     for (cntr2 = cntr+1; cntr2 < end_page; cntr2++) {
       if (mem_map[cntr2]) {
-	if ((cntr2 - cntr) * PAGE_SIZE >= min_size) {
-	  *start_addr = cntr * PAGE_SIZE;
-	  return ((cntr2 - cntr) * PAGE_SIZE);
+	if ((cntr2 - cntr) * GRAN_SIZE >= min_size) {
+	  *start_addr = cntr * GRAN_SIZE;
+	  return ((cntr2 - cntr) * GRAN_SIZE);
 	} else {
 	  /* hole isn't big enough, skip to the next one */
 	  cntr = cntr2;
@@ -160,7 +160,7 @@ void memcheck_dump(void)
   c_printf("CONF:  Memory map dump:\n");
   for (cntr = 0; cntr < MAX_PAGE; cntr++) {
     if (cntr % 64 == 0)
-      c_printf("0x%5.5X:  ", cntr * PAGE_SIZE);
+      c_printf("0x%5.5X:  ", cntr * GRAN_SIZE);
     c_printf("%c", (mem_map[cntr]) ? mem_map[cntr] : '.');
     if (cntr % 64 == 63)
       c_printf("\n");

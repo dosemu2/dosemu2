@@ -38,7 +38,8 @@
   /* well, if we don't have llseek prototype,
    * we most likely won't have __loff_t too, hence using long long
    */
-  extern long long llseek (int fd, long long offset, int origin);
+  extern long long libless_llseek(int fd, long long offset, int origin);
+  #define llseek libless_llseek
 #endif
 
 static int disks_initiated = 0;

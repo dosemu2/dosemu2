@@ -45,7 +45,9 @@ extern void dump_kbuffer(void);
 extern int int_count[];
 extern int in_readkeyboard, keybint;
 
+#ifndef PAGE_SIZE
 #define PAGE_SIZE	4096
+#endif
 
 /* my test shared memory IDs */
 static struct {

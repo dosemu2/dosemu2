@@ -26,7 +26,9 @@
 #include "priv.h"
 #include "mapping.h"
 
+#ifndef PAGE_SIZE
 #define PAGE_SIZE	4096
+#endif
 #define EMM_PAGE_SIZE	(16*1024)
 
 /* NOTE: Do not optimize higher then  -O2, else GCC will optimize away what we
@@ -333,12 +335,14 @@ static void *mmap_mapping_self(int cap, void *target, int mapsize, int protect, 
   if (cap & MAPPING_KMEM) {
     void *addr_;
     open_kmem();
+    if (!fixed) target = 0;
     addr_ = mmap(target, mapsize, protect, MAP_SHARED | fixed,
 				mem_fd, (off_t) source);
     close_kmem();
     return addr_;
   }
   if (cap & MAPPING_SCRATCH) {
+    if (!fixed) target = 0;
     return mmap(target, mapsize, protect,
 		MAP_PRIVATE | fixed | MAP_ANON, -1, 0);
   }
