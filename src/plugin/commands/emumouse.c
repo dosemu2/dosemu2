@@ -38,13 +38,6 @@
 
 #define printf  com_printf
 
-#define MHLP(rin, rout) ({rin.x.ax = DOS_HELPER_MOUSE_HELPER; \
-	com_int86(DOS_HELPER_INT, &rin, &rout);})
-
-
-union com_REGS regs;
-
-
 /* Show help screen */
 static int usage(void)
 {
@@ -74,9 +67,7 @@ static int usage(void)
 /* Detect internal mouse driver of Linux */
 static int detectInternalMouse(void)
 {
-  regs.x.bx = 0x00ff;
-  MHLP(regs, regs);
-  if (regs.x.ax == 0xffff) {
+  if (!config.mouse.intdrv) {
     printf("ERROR! Internal driver option not set, enable internal driver\n");
     printf("       in dosemu.conf ($_mouse_dev option).\n");
     return 0;
@@ -87,6 +78,7 @@ static int detectInternalMouse(void)
 
 int emumouse_main(int argc, char *argv[])
 {
+  struct vm86_regs regs;
   int i, value;
 
   if (argc == 1)
@@ -114,51 +106,51 @@ int emumouse_main(int argc, char *argv[])
       case 'A':
       case 'a':
 	printf("Fixed speed settings.\n");
-	regs.h.cl = 0x0001;
-	regs.x.bx = 0x0006;
-	MHLP(regs, regs);
+	SETLOW(&regs.ecx, 0x0001);
+	SETWORD(&regs.ebx, 0x0006);
+	mouse_helper(&regs);
 	break;
 
       case 'B':
       case 'b':
 	printf("Variable speed settings.\n");
-	regs.h.cl = 0x0000;
-	regs.x.bx = 0x0006;
-	MHLP(regs, regs);
+	SETLOW(&regs.ecx, 0x0000);
+	SETWORD(&regs.ebx, 0x0006);
+	mouse_helper(&regs);
 	break;
 
       case 'R':
       case 'r':
 	printf("Resetting iret.\n");
-	regs.x.bx = 0x0000;
-	MHLP(regs, regs);
+	SETWORD(&regs.ebx, 0x0000);
+	mouse_helper(&regs);
 	break;
 
       case 'I':
       case 'i':
 	printf("\nCurrent mouse setting:\n");
-	regs.x.bx = 0x0003;
-	MHLP(regs, regs);
-	if (regs.h.bh == 0x10)
+	SETWORD(&regs.ebx, 0x0003);
+	mouse_helper(&regs);
+	if (HIGH(regs.ebx) == 0x10)
 	  printf("  2 button mouse mode (Microsoft)\n");
 	else
 	  printf("  3 button mouse mode (e.g. Mousesystems, PS2)\n");
-	printf  ("  Horizontal Speed (X) - %d\n", regs.h.cl);
-	printf  ("  Vertical Speed   (Y) - %d\n", regs.h.ch);
-	printf  ("  Speed Setting        - %s\n\n", regs.h.dl ? "fixed" : "variable");
-	regs.x.bx = 0x0007;
-	MHLP(regs, regs);
-	if (regs.x.ax == 0) {
-	  printf  ("  Minimum Internal Horizontal Resolution - %d\n", regs.x.cx);
-          printf  ("  Minimum Internal Vertical Resolution   - %d\n", regs.x.dx);
+	printf  ("  Horizontal Speed (X) - %d\n", LOW(regs.ecx));
+	printf  ("  Vertical Speed   (Y) - %d\n", HIGH(regs.ecx));
+	printf  ("  Speed Setting        - %s\n\n", LOW(regs.edx) ? "fixed" : "variable");
+	SETWORD(&regs.ebx, 0x0007);
+	mouse_helper(&regs);
+	if (WORD(regs.eax) == 0) {
+	  printf  ("  Minimum Internal Horizontal Resolution - %d\n", WORD(regs.ecx));
+          printf  ("  Minimum Internal Vertical Resolution   - %d\n", WORD(regs.edx));
 	}
 	break;
 
       case '3':
 	printf("Selecting 3 button mouse mode (e.g. Mousesystems, PS2).\n");
-	regs.x.bx = 0x0002;
-	MHLP(regs, regs);
-	if (regs.h.al == 0xff) {
+	SETWORD(&regs.ebx, 0x0002);
+	mouse_helper(&regs);
+	if (LOW(regs.eax) == 0xff) {
 	  printf("ERROR! Cannot select 3 button mouse mode, \"emulate3buttons\" not set\n");
 	  printf("       in /etc/dosemu.conf, try e.g.\n");
 	  printf("       'mouse { ps2 device /dev/mouse internaldriver emulate3buttons }'\n");
@@ -168,8 +160,8 @@ int emumouse_main(int argc, char *argv[])
 
       case '2':
 	printf("Selecting 2 button mouse mode (Microsoft).\n");
-	regs.x.bx = 0x0001;
-	MHLP(regs, regs);
+	SETWORD(&regs.ebx, 0x0001);
+	mouse_helper(&regs);
 	break;
 
       case 'Y':
@@ -181,10 +173,10 @@ int emumouse_main(int argc, char *argv[])
 	}
 	value = atoi(argv[i]);
 	printf("Selecting vertical speed to %d.\n", value);
-	regs.x.bx = 0x0004;
-	regs.h.cl = value;
-	MHLP(regs, regs);
-	if (regs.x.ax == 1) {
+	SETWORD(&regs.ebx, 0x0004);
+	SETLOW(&regs.ecx, value);
+	mouse_helper(&regs);
+	if (WORD(regs.eax) == 1) {
 	  printf("ERROR! Selected speed is out of range. Unable to set speed.\n");
 	  return(1);
 	}
@@ -199,10 +191,10 @@ int emumouse_main(int argc, char *argv[])
 	}
 	value = atoi(argv[i]);
 	printf("Selecting horizontal speed to %d.\n", value);
-	regs.x.bx = 0x0005;
-	regs.h.cl = value;
-	MHLP(regs, regs);
-	if (regs.x.ax == 1) {
+	SETWORD(&regs.ebx, 0x0005);
+	SETLOW(&regs.ecx, value);
+	mouse_helper(&regs);
+	if (WORD(regs.eax) == 1) {
 	  printf("ERROR! Selected speed is out of range. Unable to set speed.\n");
 	  return(1);
 	}
@@ -220,16 +212,16 @@ int emumouse_main(int argc, char *argv[])
 	  }
 	  value = atoi(argv[i]);
 	  printf("Selecting minimum horizontal resolution to %d.\n", value);
-	  regs.x.bx = 0x0007;
-	  MHLP(regs, regs);
-	  if (regs.x.ax == 1) {
+	  SETWORD(&regs.ebx, 0x0007);
+	  mouse_helper(&regs);
+	  if (WORD(regs.eax) == 1) {
 	    printf("ERROR! Setting minimum horizontal resolution not supported.\n");
 	    break;
 	  }
-	  regs.x.bx = 0x0008;
-	  regs.x.cx = value;
-	  MHLP(regs, regs);
-	  if (regs.x.ax == 1) {
+	  SETWORD(&regs.ebx, 0x0008);
+	  SETWORD(&regs.ecx, value);
+	  mouse_helper(&regs);
+	  if (WORD(regs.eax) == 1) {
 	    printf("ERROR! Setting minimum horizontal resolution not supported.\n");
 	    break;
 	  }
@@ -244,16 +236,16 @@ int emumouse_main(int argc, char *argv[])
 	  }
 	  value = atoi(argv[i]);
 	  printf("Selecting minimum vertical resolution to %d.\n", value);
-	  regs.x.bx = 0x0007;
-	  MHLP(regs, regs);
-	  if (regs.x.ax == 1) {
+	  SETWORD(&regs.ebx, 0x0007);
+	  mouse_helper(&regs);
+	  if (WORD(regs.eax) == 1) {
 	    printf("ERROR! Setting minimum vertical resolution not supported.\n");
 	    break;
 	  }
-	  regs.x.bx = 0x0008;
-	  regs.x.dx = value;
-	  MHLP(regs, regs);
-	  if (regs.x.ax == 1) {
+	  SETWORD(&regs.ebx, 0x0008);
+	  SETWORD(&regs.edx, value);
+	  mouse_helper(&regs);
+	  if (WORD(regs.eax) == 1) {
 	    printf("ERROR! Setting minimum vertical resolution not supported.\n");
 	    break;
 	  }

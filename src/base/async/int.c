@@ -428,7 +428,7 @@ int dos_helper(void)
     break;
 
   case DOS_HELPER_MOUSE_HELPER:	/* set mouse vector */
-    mouse_helper();
+    mouse_helper(&vm86s.regs);
     break;
 
   case DOS_HELPER_PAUSE_KEY:

@@ -175,17 +175,17 @@ static struct mouse_client *mouse_clients[] =
 struct mouse_client *Mouse;
 
 void
-mouse_helper(void) 
+mouse_helper(struct vm86_regs *regs) 
 {
   if (!mice->intdrv) {
     m_printf("MOUSE No Internaldriver set, exiting mouse_helper()\n");
-    LWORD(eax) = 0xffff;
+    SETWORD(&regs->eax, 0xffff);
     return;
   }
  
-  LWORD(eax) = 0;		/* Set successful completion */
+  SETWORD(&regs->eax, 0);		/* Set successful completion */
     
-  switch (LO(bx)) {
+  switch (LOW(regs->ebx)) {
   case 0:				/* Reset iret for mouse */
     m_printf("MOUSE move iret !\n");
     mouse_enable_internaldriver();
@@ -203,40 +203,40 @@ mouse_helper(void)
     break;
   case 3:				/* Tell me what mode we are in ? */
     if (!mouse.threebuttons)
-      HI(bx) = 0x10;		/* We are currently in Microsoft Mode */
+      SETHIGH(&regs->ebx, 0x10);		/* We are currently in Microsoft Mode */
     else
-      HI(bx) = 0x20;		/* We are currently in PC Mouse Mode */
-    LO(cx) = mouse.speed_x;
-    HI(cx) = mouse.speed_y;
-    LO(dx) = mouse.ignorexy;
+      SETHIGH(&regs->ebx, 0x20);		/* We are currently in PC Mouse Mode */
+    SETLOW(&regs->ecx, mouse.speed_x);
+    SETHIGH(&regs->ecx, mouse.speed_y);
+    SETLOW(&regs->edx, mouse.ignorexy);
     break;
   case 4:				/* Set vertical speed */
-    if (LO(cx) < 1) {
+    if (LOW(regs->ecx) < 1) {
       m_printf("MOUSE Vertical speed out of range. ERROR!\n");
-      LWORD(eax) = 1;
+      SETWORD(&regs->eax, 1);
     } else 
-      mice->init_speed_y = mouse.speed_y = LO(cx);
+      mice->init_speed_y = mouse.speed_y = LOW(regs->ecx);
     break;
   case 5:				/* Set horizontal speed */
-    if (LO(cx) < 1) {
+    if (LOW(regs->ecx) < 1) {
       m_printf("MOUSE Horizontal speed out of range. ERROR!\n");
-      LWORD(eax) = 1;
+      SETWORD(&regs->eax, 1);
     } else
-      mice->init_speed_x = mouse.speed_x = LO(cx);
+      mice->init_speed_x = mouse.speed_x = LOW(regs->ecx);
     break;
   case 6:				/* Ignore horz/vert selection */
-    if (LO(cx) == 1) 
+    if (LOW(regs->ecx) == 1) 
       mouse.ignorexy = TRUE;
     else
       mouse.ignorexy = FALSE;
     break;
   case 7:				/* get minimum internal resolution */
-    LWORD(ecx) = mouse.min_max_x;
-    LWORD(edx) = mouse.min_max_y;
+    SETWORD(&regs->ecx, mouse.min_max_x);
+    SETWORD(&regs->edx, mouse.min_max_y);
     break;
   case 8:				/* set minimum internal resolution */
-    mouse.min_max_x = LWORD(ecx);
-    mouse.min_max_y = LWORD(edx);
+    mouse.min_max_x = WORD(regs->ecx);
+    mouse.min_max_y = WORD(regs->edx);
     break;
   case 0xf0:
     m_printf("MOUSE Start video mode set\n");
@@ -255,7 +255,7 @@ mouse_helper(void)
     break;
   default:
     m_printf("MOUSE Unknown mouse_helper function\n");
-    LWORD(eax) = 1;		/* Set unsuccessful completion */
+    SETWORD(&regs->eax, 1);		/* Set unsuccessful completion */
   }
 }
 
@@ -272,9 +272,9 @@ void mouse_ps2bios(void)
   case 0x0000:                    
     mouse.ps2.state = HI(bx);
     if (mouse.ps2.state == 0)
-      mice->intdrv = FALSE;
+      mouse_disable_internaldriver();
     else
-      mice->intdrv = TRUE;
+      mouse_enable_internaldriver();
     HI(ax) = 0;
     NOCARRY;		
     break;
