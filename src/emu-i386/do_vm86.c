@@ -302,6 +302,10 @@ void vm86_GP_fault(void)
       callback_return();
     }
 
+    else if (lina == (unsigned char *) Mouse_HLT_ADD) {
+      int33_post();
+    }
+
     else if (lina == (unsigned char *) XMSTrap_ADD) {
       LWORD(eip) += 2;  /* skip halt and info byte to point to FAR RET */
       xms_control();

@@ -213,6 +213,21 @@ Mouse_EOI:
 	popw	%ax
 	iret
 
+        .org	((Mouse_SEG - BIOSSEG) << 4)+Mouse_HLT_OFF
+/* ======================= Addr = F000:2160 (F2160) */
+	/* vm86 mouse handlers return here to allow for the
+	   hogthreshold code to take effect
+	*/
+	hlt
+
+        .org	EOI_OFF
+/* ======================= Addr = F000:2180 (F2180) */
+	pushw	%ax
+        movb    $0x20,%al
+        outb    %al,$0x20		/* flag interrupt complete	*/
+	popw	%ax
+	iret
+
 /* ----------------------------------------------------------------- */   
 	/* pause cycle */
 	.org	((Pause_SEG - BIOSSEG) << 4) + Pause_OFF

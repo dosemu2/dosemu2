@@ -1858,7 +1858,7 @@ static int int2f(void)
   return !IS_REDIRECTED(0x2f);
 }
 
-int int33_post(void);
+static int int33_check_hog(void);
 
 /* mouse */
 static int int33(void) {
@@ -1872,37 +1872,22 @@ static int int33(void) {
   }
 
 /* Firstly do the actual mouse function. */   
-/* N.B. This code uses a callback or the intdrv since real_run_int() would not
- * actually call the real mode mouse driver now. (It simply sets up the registers so
- * that when the signal that we are currently handling has completed and the kernel
- * reschedules dosemu it will then start executing the real mode mouse handler). :-( 
- * Do we need/have we got post_interrupt (IRET) handlers? 
+/* N.B. This code lets the real mode mouse driver return at a HLT, so
+ * after it returns the hogthreshold code can do its job.
  */
-/* We have post_interrupt handlers in dpmi --EB 28 Oct 1997 */
-
-  /* avoid recursion */
-  interrupt_function[0x33] = mouse_int;
-  if (fault_cnt) {
-    /* we are called from a signal handler. This means DPMI and calling
-       do_intr_call_back is not safe. int33_post is called from the DPMI
-       code to deal with hogthreshold */
-    if (!IS_REDIRECTED(0x33))
-      return mouse_int();
-    real_run_int(0x33);
+  if (IS_REDIRECTED(0x33)) {
+    /* avoid recursion */
+    interrupt_function[0x33] = mouse_int;
+    fake_int_to(Mouse_SEG, Mouse_HLT_OFF);
     return 0;
   }
-  if (IS_REDIRECTED(0x33))
-    do_intr_call_back(0x33);
-  else
-    mouse_int();
-  return int33_post();
+  mouse_int();
+  return int33_check_hog();
 }
 
-int int33_post(void)
+static int int33_check_hog(void)
 {
   static unsigned short int oldx=0, oldy=0;
-
-  interrupt_function[0x33] = int33;
 
 /* It seems that the only mouse sub-function that could be plausibly used to 
  * poll the mouse is AX=3 - get mouse buttons and position. 
@@ -1930,6 +1915,25 @@ m_printf("Called/ing the mouse with AX=%x \n",LWORD(eax));
  * system get on with some real work. :-) */
   idle(200, 20, INT15_IDLE_USECS, "mouse");
   return 1;
+}
+
+/* this function is called from the HLT at Mouse_SEG:Mouse_HLT_OFF */
+void int33_post(void)
+{
+  unsigned char *ssp;
+  unsigned long sp;
+
+  ssp = (unsigned char *) (REG(ss) << 4);
+  sp = (unsigned long) LWORD(esp);
+
+  _SP += 6;
+  _IP = popw(ssp, sp);
+  _CS = popw(ssp, sp);
+  set_FLAGS(popw(ssp, sp));
+
+  interrupt_function[0x33] = int33;
+
+  int33_check_hog();
 }
 
 /* mfs FCB call */

@@ -1342,7 +1342,6 @@ void msdos_post_extender(int intr)
 	default:
 	    break;
 	}
-        int33_post();
     default:
 	break;
     }
