@@ -271,15 +271,15 @@ void mouse_ps2bios(void)
     CARRY;
     return;
   }
-  
+
   switch (REG(eax) &= 0x00FF) {
   case 0x0000:                    
     mouse.ps2.state = HI(bx);
-    mouse.enabled = (mouse.ps2.state != 0);
     HI(ax) = 0;
     NOCARRY;
     break;
   case 0x0001:
+    mouse.ps2.state = 0;
     HI(ax) = 0;
     LWORD(ebx) = 0xAAAA;    /* we have a ps2 mouse */
     NOCARRY;
@@ -304,6 +304,7 @@ void mouse_ps2bios(void)
     break;
   case 0x0005:			/* Initialize ps2 mouse */
     HI(ax) = 0;
+    mouse.ps2.state = 0;
     mouse.ps2.pkg = HI(bx);
     NOCARRY;
     break;
@@ -999,7 +1000,7 @@ static void mouse_reset(int flag)
 {
   m_printf("MOUSE: reset mouse/installed!\n");
 
-  mouse.ps2.cs = mouse.ps2.ip = 0;
+  mouse.ps2.state = 0;
 
   if (flag == 0) mouse_enable_internaldriver();
 
@@ -1718,7 +1719,7 @@ static void call_mouse_event_handler(void)
   LWORD(eax) = popw(ssp, sp);
   LWORD(esp) += 4;
 
-  if (mouse_events && (mouse.ps2.cs || mouse.ps2.ip)) {
+  if (mouse_events && mouse.ps2.state && (mouse.ps2.cs || mouse.ps2.ip)) {
     call_int15_mouse_event_handler();
   } else {
     mouse.old_mickeyx = mouse.mickeyx;
