@@ -115,11 +115,12 @@ unsigned short ucodesel, udatasel;
  */
 int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
 {
+	int increment_ip = 0;
 	g_printf("CPU: TRAP op 0F %02x %02x\n",csp[1],csp[2]);
 
 	if (csp[1] == 0x06) {
-		(scp ? scp->eip:LWORD(eip)) += 2;  /* CLTS - ignore */
-		return 1;
+		/* CLTS - ignore */
+		increment_ip = 2;
 	}
 	else if (csp[1] == 0x31) {
 		/* ref: Van Gilluwe, "The Undocumented PC". The program
@@ -147,8 +148,7 @@ int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
 		  REG(eax)=t & 0xffffffff;
 		  REG(edx)=t >> 32;
 		}
-		(scp ? scp->eip:LWORD(eip)) += 2;
-		return 1;
+		increment_ip = 2;
 	}
 	else if ((((csp[1] & 0xfc)==0x20)||(csp[1]==0x24)||(csp[1]==0x26)) &&
 		((csp[2] & 0xc0) == 0xc0)) {
@@ -199,7 +199,13 @@ int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
 		  }
 		  else cdt[idx] = *srg;
 		}
-		(scp ? scp->eip:LWORD(eip)) += 3;
+		increment_ip = 3;
+	}
+	if (increment_ip) {
+		if (scp)
+			scp->eip += increment_ip;
+		else
+			LWORD(eip) += increment_ip;
 		return 1;
 	}
 	/* all other trapped combinations:
