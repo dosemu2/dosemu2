@@ -422,6 +422,19 @@ static void do_ser_init(int num)
   **
   ** If COMx is unspecified, the next unused COMx port number is assigned.
   */
+
+  static struct {
+    int interrupt;
+    ioport_t base_port;
+    char *dev;
+    char *handler_name;
+  } default_com[4] = {
+    { 4, 0x3F8, "/dev/ttyS0", "COM1" },
+    { 3, 0x2F8, "/dev/ttyS1", "COM2" },
+    { 4, 0x3E8, "/dev/ttyS2", "COM3" },
+    { 3, 0x2E8, "/dev/ttyS3", "COM4" }
+  };
+
   if (com[num].real_comport == 0) {		/* Is comport number undef? */
     for (i = 1; i < 16; i++) if (com_port_used[i] != 1) break;
     com[num].real_comport = i;
@@ -430,30 +443,18 @@ static void do_ser_init(int num)
   }
 
   if (com[num].interrupt <= 0) {		/* Is interrupt undefined? */
-    switch (com[num].real_comport) {		/* Define it depending on */
-    case 4:  com[num].interrupt = 0x3; break;	/*  using standard irqs */
-    case 3:  com[num].interrupt = 0x4; break;
-    case 2:  com[num].interrupt = 0x3; break;
-    default: com[num].interrupt = 0x4; break;
-    }
+    /* Define it depending on using standard irqs */
+    com[num].interrupt = default_com[com[num].real_comport].interrupt;
   }
   
   if (com[num].base_port <= 0) {		/* Is base port undefined? */
-    switch (com[num].real_comport) {		/* Define it depending on */ 
-    case 4:  com[num].base_port = 0x2E8; break;	/*  using standard addrs */
-    case 3:  com[num].base_port = 0x3E8; break;
-    case 2:  com[num].base_port = 0x2F8; break;
-    default: com[num].base_port = 0x3F8; break;
-    }
+    /* Define it depending on using standard addrs */
+    com[num].base_port = default_com[com[num].real_comport].base_port;
   }
 
   if (com[num].dev[0] == 0) {			/* Is the device file undef? */
-    switch (com[num].real_comport) {		/* Define it using std devs */
-    case 4:  com[num].dev = "/dev/ttyS3"; break;
-    case 3:  com[num].dev = "/dev/ttyS2"; break;
-    case 2:  com[num].dev = "/dev/ttyS1"; break;
-    default: com[num].dev = "/dev/ttyS0"; break;
-    }
+    /* Define it using std devs */
+    com[num].dev = default_com[com[num].real_comport].dev;
   }
   iodev_add_device(com[num].dev);
 
@@ -479,6 +480,8 @@ static void do_ser_init(int num)
   /*** The following is where the real initialization begins ***/
 
   /* Tell the port manager that we exist and that we're alive */
+  io_device.read_portb  = com_readb;
+  io_device.write_portb = com_writeb;
   io_device.read_portw  = NULL;
   io_device.write_portw = NULL;
   io_device.read_portd  = NULL;
@@ -487,28 +490,7 @@ static void do_ser_init(int num)
   io_device.end_addr    = com[num].base_port+7;
   io_device.irq         = com[num].interrupt;
   io_device.fd		= -1;
-  switch (num) {
-    case 0 :
-      io_device.read_portb   = com_readb;
-      io_device.write_portb  = com_writeb;
-      io_device.handler_name = "COM1";
-      break;
-    case 1 :
-      io_device.read_portb   = com_readb;
-      io_device.write_portb  = com_writeb;
-      io_device.handler_name = "COM2";
-      break;
-    case 2 :
-      io_device.read_portb   = com_readb;
-      io_device.write_portb  = com_writeb;
-      io_device.handler_name = "COM3";
-      break;
-    case 3 :
-      io_device.read_portb   = com_readb;
-      io_device.write_portb  = com_writeb;
-      io_device.handler_name = "COM4";
-      break;
-  }
+  io_device.handler_name = default_com[num].handler_name;
   port_register_handler(io_device, 0);
 
   /* Information about serial port added to debug file */
