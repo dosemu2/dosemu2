@@ -202,6 +202,11 @@ io_select(fd_set fds)
 	   keyb_client_run();
         }
       }
+      {
+	extern int uhook_fdin;
+	extern void uhook_input(void);
+	if (uhook_fdin != -1) if (FD_ISSET(uhook_fdin, &fds)) uhook_input();
+      }
 #ifdef USE_MHPDBG
       if (mhpdbg.fdin != -1) if (FD_ISSET(mhpdbg.fdin, &fds)) mhp_input();
 #endif

@@ -1,3 +1,19 @@
+99/02/21 ver. 0.99.8.1 unofficial pre-release
+	From Steffen
+	- some fixes to the emulated FAT stuff (fatfs.c, disks.c)
+	From Hans
+	- fix for bug introduced in 0.99.6.1 which breaks INT10,AX=1130
+	  (trashing BP in bios.S). Using ESP instead to access the stack.
+	- introducing 'user hooks', which supply a facility to control
+	  DOSEMU (via -U command line option) from a foreign process,
+	  e.g. a graphical frontend. Look at ./man/dos.1 for more.
+	  Involved files: man/dos.1, mhpdbgc.c, config.c, ioctl.c,
+	  base/misc/userhook.c, utilities.c, dpmi.c, do_vm86.c, emu.c,
+	  emu.h, mhpdbg.h, utilities.h, tools/periph/dosctrl.c
+	- moved some code mhpdbgc.c to utilities.c in order to use them
+	  also for userhook.c
+	- fixed append_pre_strokes() such that it can work also _after_
+	  the first initial use (needed by userhook.c)
 99/02/12 ver. 0.99.8 released
 	From Markus Kossmann <markus.kossmann@inka.de>
 	- missing <errno.h> in utilities.c made compile fail for glibc

@@ -715,8 +715,6 @@ WINT10:
 	cmp	ax,#0x4F02
 	jne	L10	/* svga mode set */
 L9:
-	push	bp
-	mov	bp,sp	/* we must use bp to access flags on stack */
 	push 	ax	/* save everything */
 	push	bx
 	mov	ax,#0x33	/* mouse helper */
@@ -726,7 +724,8 @@ L9:
 	pop	ax
 
 /* fake stack frame for iret: push original flags and avoid a GPF from pushf */
-	push	word ptr [bp+6]
+	movzx	esp,sp	/* make sure high of esp is zero */
+	push	word ptr [esp+4]
 	push	cs
 	call	L10	/* perform the actual mode set */
 
@@ -738,7 +737,6 @@ L9:
 	int	DOSHELPER_INT
 	pop	bx
 	pop	ax
-	pop	bp
 	retf	2    /* keep current flags and avoid another GPF from iret */
 
 L10:	/* chain to original handler (probably the video bios) */
@@ -746,7 +744,6 @@ L10:	/* chain to original handler (probably the video bios) */
 	.globl	CISH(bios_f000_int10_old)
 CISH(bios_f000_int10_old):
 	dw	0,0
-/* if ever int0x10 modifies the flags on stack, they are restored here */
 
 #ifdef X86_EMULATOR
 	.org	((INT10_WATCHER_SEG-BIOSSEG) << 4)+(INT10_WATCHER_OFF+0x60)
@@ -757,13 +754,11 @@ CISH(bios_f000_int10_old):
  * and fall back into an HLT at the end of the video code. Since cs==
  * f800, cpuemu gets control back at the right point -- AV
  */
-	push	bp
-	mov	bp,sp
 /* fake stack frame for iret: push original flags and avoid a GPF from pushf */
-	push	word ptr [bp+6]
+	movzx	esp,sp	/* make sure high of esp is zero */
+	push	word ptr [esp+4]
 	push	cs
 	call	WINT10
-	pop	bp
 	hlt
 	retf	2    /* keep current flags and avoid another GPF from iret */
 #endif

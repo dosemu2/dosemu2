@@ -4,7 +4,8 @@
 # for details see file COPYING in the DOSEMU distribution
 #
 
-CFILES=dosio.c ioctl.c shared.c disks.c utilities.c dos2linux.c dump.c priv.c fatfs.c
+CFILES=dosio.c ioctl.c shared.c disks.c utilities.c dos2linux.c dump.c \
+	priv.c fatfs.c userhook.c
 
 SFILES=
 ALL=$(CFILES) $(SFILES)

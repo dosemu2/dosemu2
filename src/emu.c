@@ -643,6 +643,10 @@ leavedos(int sig)
     shared_memory_exit();
     g_printf("calling HMA exit\n");
     hma_exit();
+    {
+	extern void close_uhook(void);
+	close_uhook();
+    }
 #ifdef USE_MHPDBG
     g_printf("closing debugger pipes\n");
     mhp_close();

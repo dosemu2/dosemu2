@@ -292,7 +292,8 @@ config_defaults(void)
 				 * new VT. */
     config.debugout = NULL;	/* default to no debug output file */
 
-    config.pre_stroke =NULL;	/* defualt no keyboard pre-strokes */
+    config.pre_stroke =NULL;	/* default no keyboard pre-strokes */
+    config.pre_stroke_mem =NULL;
 
     config.sillyint = 0;
     config.must_spare_hardware_ram = 0;
@@ -648,7 +649,7 @@ config_init(int argc, char **argv)
 
     opterr = 0;
     confname = CONFIG_SCRIPT;
-    while ((c = getopt(argc, argv, "ABCcF:f:I:kM:D:P:VNtsgh:H:x:KL:m23456e:E:dXY:Z:o:Ou:")) != EOF) {
+    while ((c = getopt(argc, argv, "ABCcF:f:I:kM:D:P:VNtsgh:H:x:KL:m23456e:E:dXY:Z:o:Ou:U:")) != EOF) {
 	usedoptions[(unsigned char)c] = c;
 	switch (c) {
 	case 'h':
@@ -742,6 +743,11 @@ config_init(int argc, char **argv)
 		define_config_variable(s);
 	    }
 	    break;
+	case 'U': {
+		extern void init_uhook(char *pipes);
+		init_uhook(optarg);
+	    }
+	    break;
 	}
     }
 
@@ -785,7 +791,9 @@ config_init(int argc, char **argv)
     optind = 0;
 #endif
     opterr = 0;
-    while ((c = getopt(argc, argv, "ABCcF:f:I:kM:D:P:v:VNtsgh:H:x:KLm23456e:dXY:Z:E:o:Ou:")) != EOF) {
+    while ((c = getopt(argc, argv, "ABCcF:f:I:kM:D:P:v:VNtsgh:H:x:KLm23456e:dXY:Z:E:o:Ou:U:")) != EOF) {
+	/* currently _NOT_ used option characters: abGjJlpqQrRSTwWyz */
+
 	/* Note: /etc/dosemu.conf may have disallowed some options
 	 *	 ( by removing them from $DOSEMU_OPTIONS ).
 	 *	 We skip them by re-checking 'usedoptions'.
@@ -804,6 +812,7 @@ config_init(int argc, char **argv)
 	case 'O':
 	case 'L':
 	case 'u':
+	case 'U':
 	case '2': case '3': case '4': case '5': case '6':
 	    break;
 	case 'A':

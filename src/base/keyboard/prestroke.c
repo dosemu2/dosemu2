@@ -180,20 +180,27 @@ int type_in_pre_strokes()
 
 void append_pre_strokes(unsigned char *s)
 {
-  if (config.pre_stroke) {
+  if (config.pre_stroke_mem) {
     int l1,l2;
+    int offs = 0;
     unsigned char *n;
 
-    l1 = strlen(config.pre_stroke);
+    if (config.pre_stroke) {
+      l1 = strlen(config.pre_stroke);
+    }
+    else {
+      l1 = 0;
+    }
     l2 = strlen(s);
     n = malloc(l1+l2+1);
     if (!n) return;
-    memcpy(n, config.pre_stroke, l1);
+    if (l1) memcpy(n, config.pre_stroke, l1);
     memcpy(n+l1, s, l2+1);
-    free(config.pre_stroke);
+    free(config.pre_stroke_mem);
     config.pre_stroke = n;
   }
   else {
     config.pre_stroke = strdup(s);
   }
+  config.pre_stroke_mem = config.pre_stroke;
 }

@@ -2337,6 +2337,12 @@ void run_dpmi(void)
   }
     handle_signals();
 
+    { /* catch user hooks here */
+    	extern int uhook_fdin;
+    	extern void uhook_poll(void);
+    	if (uhook_fdin != -1) uhook_poll();
+    }
+
 #ifdef USE_MHPDBG  
     if (mhpdbg.active) mhp_debug(DBG_POLL, 0, 0);
 #endif

@@ -62,6 +62,7 @@
 #include "emu.h"
 #include "cpu.h"
 #include "dpmi.h"
+#include "utilities.h"
 
 #define MHP_PRIVATE
 #include "mhpdbg.h"
@@ -91,7 +92,6 @@ extern int  dis_8086(unsigned int, const unsigned char *,
 
 /* prototypes */
 static void* mhp_getadr(unsigned char *, unsigned int *, unsigned int *, unsigned int *);
-static int mhp_parse(char*, char *[]);
 static void mhp_regs  (int, char *[]);
 static void mhp_r0    (int, char *[]);
 static void mhp_dis   (int, char *[]);
@@ -1252,39 +1252,6 @@ static void mhp_bpload(int argc, char * argv[])
    return;
 }
 
-static int mhp_parse(char *s, char* argvx[])
-{
-   int mode = 0;
-   int argcx = 0;
-   char delim = 0;
-
-   for ( ; *s; s++) {
-      if (!mode) {
-         if (*s > ' ') {
-            mode = 1;
-            argvx[argcx++] = s;
-            switch (*s) {
-              case '"':
-              case '\'':
-                delim = *s;
-                mode = 2;
-            }
-            if (argcx >= MAXARG)
-               break;
-         }
-      } else if (mode == 1) {
-         if (*s <= ' ') {
-            mode = 0;
-            *s = 0x00;
-         }
-      } else {
-         if (*s == delim) mode = 1;
-      }
-   }
-   argvx[argcx] = 0;
-   return(argcx);
-}
-
 static void mhp_regs(int argc, char * argv[])
 {
   unsigned long newval;
@@ -1463,27 +1430,7 @@ void mhp_modify_eip(int delta)
 
 void mhp_cmd(const char * cmd)
 {
-   int argc1;
-   char * argv1[MAXARG];
-   char tmpcmd[250];
-   void (*cmdproc)(int, char *[]);
-   const struct cmd_db * cmdp;
-
-   strcpy(tmpcmd, cmd);
-   argc1 = mhp_parse(tmpcmd, argv1);
-   if (argc1 < 1)
-      return;
-   for (cmdp = cmdtab, cmdproc = NULL; cmdp->cmdproc; cmdp++) {
-      if (!memcmp(cmdp->cmdname, argv1[0], strlen(argv1[0])+1)) {
-         cmdproc = cmdp->cmdproc;
-         break;
-      }
-   }
-   if (!cmdproc) {
-      mhp_printf("Command %s not found\n", argv1[0]);
-      return;
-   }
-   (*cmdproc)(argc1, argv1);
+   call_cmd(cmd, MAXARG, cmdtab, mhp_printf);
 }
 
 static void mhp_print_ldt(int argc, char * argv[])

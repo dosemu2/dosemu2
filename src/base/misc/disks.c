@@ -196,7 +196,7 @@ read_sectors(struct disk *dp, char *buffer, long head, long sector,
     already += readsize;
   }
 
-  if(dp->type == DIR_TYPE) {
+  if(dp->type == DIR_TYPE && dp->fatfs) {
     /* this should not never happen */
     if(pos % SECTOR_SIZE || already % SECTOR_SIZE) {
       error("illegal read offset for %s\n", dp->dev_name);
@@ -279,7 +279,7 @@ write_sectors(struct disk *dp, char *buffer, long head, long sector,
     already += writesize;
   }
 
-  if(dp->type == DIR_TYPE) {
+  if(dp->type == DIR_TYPE && dp->fatfs) {
     /* this should not never happen */
     if(pos % SECTOR_SIZE || already % SECTOR_SIZE) {
       error("illegal write offset for %s\n", dp->dev_name);

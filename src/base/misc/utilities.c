@@ -483,6 +483,82 @@ char *get_dosemu_local_home(void)
 	return mkdir_under(get_path_in_HOME(".dosemu"), 0, 0);
 }
 
+int argparse(char *s, char *argvx[], int maxarg)
+{
+   int mode = 0;
+   int argcx = 0;
+   char delim = 0;
+
+   maxarg --;
+   for ( ; *s; s++) {
+      if (!mode) {
+         if (*s > ' ') {
+            mode = 1;
+            argvx[argcx++] = s;
+            switch (*s) {
+              case '"':
+              case '\'':
+                delim = *s;
+                mode = 2;
+            }
+            if (argcx >= maxarg)
+               break;
+         }
+      } else if (mode == 1) {
+         if (*s <= ' ') {
+            mode = 0;
+            *s = 0x00;
+         }
+      } else {
+         if (*s == delim) mode = 1;
+      }
+   }
+   argvx[argcx] = 0;
+   return(argcx);
+}
+
+void call_cmd(const char *cmd, int maxargs, const struct cmd_db *cmdtab,
+	cmdprintf_func *printf)
+{
+   int argc1;
+   char **argv1;
+   char *tmpcmd;
+   void (*cmdproc)(int, char *[]);
+   const struct cmd_db *cmdp;
+
+   tmpcmd = strdup(cmd);
+   if (!tmpcmd) {
+      (*printf)("out of memory\n");
+      return;
+   }
+   argv1 = malloc(maxargs);
+   if (!argv1) {
+      (*printf)("out of memory\n");
+      free(tmpcmd);
+      return;
+   };
+   argc1 = argparse(tmpcmd, argv1, maxargs);
+   if (argc1 < 1) {
+      free(tmpcmd);
+      free(argv1);
+      return;
+   }
+   for (cmdp = cmdtab, cmdproc = NULL; cmdp->cmdproc; cmdp++) {
+      if (!memcmp(cmdp->cmdname, argv1[0], strlen(argv1[0])+1)) {
+         cmdproc = cmdp->cmdproc;
+         break;
+      }
+   }
+   if (!cmdproc) {
+      (*printf)("Command %s not found\n", argv1[0]);
+   }
+   else (*cmdproc)(argc1, argv1);
+   free(tmpcmd);
+   free(argv1);
+}
+
+
+
 #if (GLIBC_VERSION_CODE >= 2000) && defined(PORTABLE_BINARY)
 /*
  * Under glibc we can't make portable static binaries due to libnss stuff.

@@ -7,6 +7,16 @@
 #ifndef UTILITIES_H
 #define UTILITIES_H
 
+struct cmd_db {
+	char cmdname[12];
+	void (*cmdproc)(int, char *[]);
+};
+
+int argparse(char *s, char *argvx[], int maxarg);
+typedef void cmdprintf_func(const char *fmt, ...);
+void call_cmd(const char *cmd, int maxargs, const struct cmd_db *cmdtab,
+	 cmdprintf_func *printf);
+
 char *strprintable(char *s);
 char *chrprintable(char c);
 void open_proc_scan(char *name);

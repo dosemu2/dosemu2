@@ -986,7 +986,6 @@ void build_boot_blk(fatfs_t *f)
   unsigned char *b;
   unsigned char *d0, *d1;
 
-  if(!f->sys_type) return;
   if(!(f->boot_sec = malloc(0x200))) return;
 
   b = f->boot_sec;

@@ -86,12 +86,6 @@ struct brkentry {
    char is_dpmi;
 };
 
-struct cmd_db {
-   char cmdname[12];
-   void (*cmdproc)(int, char *[]);
-};
-
-
 struct segoff {
   unsigned short off,seg;
 };
