@@ -308,7 +308,7 @@ DPMIrealloc(unsigned long handle, unsigned long newsize)
     /* Now we are safe - region merged. mremap() can be attempted now. */
     ptr = mremap_mapping(MAPPING_DPMI, block->base, block->size, newsize,
       MREMAP_MAYMOVE, (void*)-1);
-    if (!ptr)
+    if (ptr == MAP_FAILED)
 	return NULL;
 
     block->attrs = realloc(block->attrs, (newsize >> PAGE_SHIFT) * sizeof(u_short));
