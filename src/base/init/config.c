@@ -189,8 +189,9 @@ void dump_config_status(void *printfunc)
         config.X_fixed_aspect, config.X_aspect_43, config.X_lin_filt);
     (*print)("X_bilin_filt %d\nX_mode13fact %d\nX_winsize_x %d\n",
         config.X_bilin_filt, config.X_mode13fact, config.X_winsize_x);
-    (*print)("X_winsize_y %d\nX_gamma %d\nvgaemu_memsize 0x%x\n",
-        config.X_winsize_y, config.X_gamma, config.vgaemu_memsize);
+    (*print)("X_winsize_y %d\nX_gamma %d\nX_fullscreen %d\nvgaemu_memsize 0x%x\n",
+        config.X_winsize_y, config.X_gamma, config.X_fullscreen, 
+	     config.vgaemu_memsize);
     (*print)("vesamode_list %p\nX_lfb %d\nX_pm_interface %d\n",
         config.vesamode_list, config.X_lfb, config.X_pm_interface);
     (*print)("X_keycode %d\nX_font \"%s\"\n",
@@ -756,7 +757,7 @@ config_init(int argc, char **argv)
     opterr = 0;
     if (strcmp(config_script_name, DEFAULT_CONFIG_SCRIPT))
       confname = config_script_path;
-    while ((c = getopt(argc, argv, "ABCcF:f:I:kM:D:P:VNtsgh:H:x:KL:mn23456e:E:dXY:Z:o:Ou:U:")) != EOF) {
+    while ((c = getopt(argc, argv, "ABCcF:f:I:kM:D:P:VNtsgh:H:x:KL:mn23456e:E:dwXY:Z:o:Ou:U:")) != EOF) {
 	usedoptions[(unsigned char)c] = c;
 	switch (c) {
 	case 'h':
@@ -895,8 +896,8 @@ config_init(int argc, char **argv)
     optind = 0;
 #endif
     opterr = 0;
-    while ((c = getopt(argc, argv, "ABCcF:f:I:kM:D:P:v:VNtsgh:H:x:KLm23456e:dXY:Z:E:o:Ou:U:")) != EOF) {
-	/* currently _NOT_ used option characters: abGjJlpqQrRSTwWyz */
+    while ((c = getopt(argc, argv, "ABCcF:f:I:kM:D:P:v:VNtsgh:H:x:KLm23456e:dwXY:Z:E:o:Ou:U:")) != EOF) {
+	/* currently _NOT_ used option characters: abGjJlpqQrRSTWyz */
 
 	/* Note: /etc/dosemu.conf may have disallowed some options
 	 *	 ( by removing them from $DOSEMU_OPTIONS ).
@@ -940,6 +941,10 @@ config_init(int argc, char **argv)
 #else
 	    error("X support not compiled in\n");
 #endif
+	    break;
+	case 'w':
+	  printf("full %d\n", config.X_fullscreen);
+            config.X_fullscreen = !config.X_fullscreen;
 	    break;
 	case 'K':
 #if 0 /* now dummy, leave it for compatibility */
@@ -1100,6 +1105,7 @@ usage(char *basename)
 	"    -u set user configuration variable 'confvar' prefixed by 'u_'.\n"
 	"    -V use BIOS-VGA video modes (!#%%)\n"
 	"    -v NUM force video card type\n"
+	"    -w toggle windowed/fullscreen mode in X\n"
 	"    -x SIZE enable SIZE K XMS RAM\n"
 	"    --version, print version of dosemu\n"
 	"    (!) BE CAREFUL! READ THE DOCS FIRST!\n"

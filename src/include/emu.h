@@ -217,6 +217,7 @@ typedef struct vesamode_type_struct {
        boolean console_video;
        boolean vga;
        boolean X;
+       boolean X_fullscreen;
        u_short cardtype;
        u_short chipset;
        boolean pci;
