@@ -19,6 +19,8 @@
 #include "bios.h"
 #include "mouse.h"
 #include "video.h"
+#include "vgaemu.h"
+#include "vgatext.h"
 #include "timers.h"
 #include "int.h"
 #include "dpmi.h"
@@ -258,10 +260,10 @@ signal_init(void)
   SETSIG(SIGQUIT, sigquit);
   SETSIG(SIGPIPE, SIG_IGN);
 
-  if(config.X) {
-    SETSIG(SIGWINCH, SIG_IGN);
+  if(Video == &Video_term) {
+    SETSIG(SIGWINCH, sigwinch);
   } else if(!config.console_video && !config.console_keyb) {
-    SETSIG(SIGWINCH, sigwinch); /* Adjust window sizes in DOS */
+    SETSIG(SIGWINCH, SIG_IGN); /* Adjust window sizes in DOS */
   }
 #ifdef X86_EMULATOR
   SETSIG(SIGPROF, SIG_IGN);
@@ -416,11 +418,9 @@ static void SIGALRM_call(void)
     *
     * note that update_screen also updates the cursor.
     */
-#ifdef X_SUPPORT
-  if (config.X && config.X_blinkrate) {
-     X_blink_cursor();
+  if (Video->update_screen && config.X_blinkrate) {
+     blink_cursor();
   }
-#endif
   if (!running) {
     if (Video->update_screen 
 #if VIDEO_CHECK_DIRTY
@@ -433,7 +433,7 @@ static void SIGALRM_call(void)
 #if 0
        v_printf("update_screen returned %d\n",retval);
 #endif
-       running = retval ? (config.X?config.X_updatefreq:config.term_updatefreq) 
+       running = retval ? (Video==&Video_term?config.term_updatefreq:config.X_updatefreq) 
                         : 0;
 #if VIDEO_CHECK_DIRTY
        update_pending=(retval==2);

@@ -3200,17 +3200,6 @@ void X_update_cursor()
 }
 
 
-/*
- * Blink the cursor. Called from SIGALRM handler.
- * Do nothing in graphics modes.
- */
-void X_blink_cursor()
-{
-  /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
-  if(vga.mode_class == GRAPH) return;   
-  blink_cursor();
-}
-
 #if CONFIG_X_MOUSE
 /* 
  * DANG_BEGIN_FUNCTION set_mouse_position

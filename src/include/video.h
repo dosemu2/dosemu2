@@ -259,7 +259,6 @@ EXTERN int v_8514_base INIT(0);
 
 EXTERN void get_screen_size (void);
 EXTERN void set_video_bios_size(void);
-EXTERN void X_blink_cursor(void);
 EXTERN void init_vga_card(void);
 EXTERN void scr_state_init(void);
 

@@ -304,6 +304,7 @@ void blink_cursor()
 {
   /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
   if(vga.mode_class == GRAPH) return;
+  if(Text->Draw_cursor == NULL) return;
 
   if(!have_focus || --blink_count) return;
 
