@@ -516,7 +516,8 @@ static boolean X_set_video_mode(int mode) {
 
   video_page = 0;
   WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);
-  screen_adr = (void *) (vga.buffer_seg << 4);
+  virt_text_base = (int)vga.mem.base;
+  screen_adr = (void *)vga.mem.base;
   screen_mask = 0;
   cursor_col = get_bios_cursor_x_position(0);
   cursor_row = get_bios_cursor_y_position(0);
