@@ -2,77 +2,20 @@
 #define EMU_C 1
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1993/02/05 02:54:13 $
+ * $Date: 1993/02/16 00:21:29 $
  * $Source: /usr/src/dos/RCS/emu.c,v $
- * $Revision: 1.14 $
+ * $Revision: 1.18 $
  * $State: Exp $
- *
- * $Log: emu.c,v $
- * Revision 1.14  1993/02/05  02:54:13  root
- * this is for 0.47.6
- *
- * Revision 1.13  1993/02/04  01:16:44  root
- * version 0.47.5
- *
- * Revision 1.12  1993/01/28  02:17:38  root
- * fixed get_leds(), CloseKeyboard(), added -V option to set the high attribute
- * bit to mean high intensity background (as opposed to blinking) on VGAs.
- * THIS IS THE DOSEMU47 DISTRIBUTION EMU.C
  *
  * Revision 1.11  1993/01/25  22:59:38  root
  * added the -H and -F options to choose # of hard/flpy disks.
  * LINUX.EXE won't work with more than 2 floppies defined, so I changed
  * default number of floppy disks to 2.
  *
- * Revision 1.10  1993/01/21  21:58:30  root
- * i don't remember.  it must have been important.
- *
- * Revision 1.9  1993/01/21  01:57:15  root
- * lots o' stuff. generalized the hide_cursor, show_cursor routines.
- * really fixed up the floppy disk I/O.  should be much better now, although
- * it's not nearly done.
- * took out some useless messages, put some in.
- * I STILL NEED TO FIND OUT WHY TIME GIVES THE WRONG ANSWER!!!!!!
- * added the -b flag to map in 64k of BIOS at 0xf0000 and 32k of video BIOS
- * at 0xc0000. this is mainly useful for ME.
- *
- * Revision 1.8  1993/01/19  15:28:54  root
- * i forget what all I did. fixed some non-console keyboard mode problems
- * (alt-numkeys, stuff like that).  fixed int 21h, ah=1,7,8 problem
- * with extended keystrokes. cleaned up restore_screen() a bit, but
- * you need a fairly complete termcap to use it.  it still exhibits
- * a bug with pcshell.
- *
  * Revision 1.7  1993/01/16  01:15:32  root
  * fixed various things, like the BDA base port address of the CRTC.
  * now telix "port checked" writes work, as does tv.com (partly).
  * fixed the int 10h, ah=09 problem (the func wasn't there :-).
- *
- * Revision 1.6  1993/01/15  01:02:35  root
- * implemented int10h, ah=1 (define cursor) for the console_video mode.
- * safer console_video mode, as it now unmaps the screen before switching
- * VC's.  -m switch for max DOS mem.
- *
- * Revision 1.5  1993/01/14  21:55:52  root
- * HURRAY! got the direct screen stuff working.  sorta.  it's real
- * unstable right now.  DON'T SWITCH CONSOLES WHILE IT's WORKING!
- * don't run it in anything but 80x25.  there's a bug in that you
- * have to switch away and back at the initial DOS prompt to get
- * it to work ???
- * put the dos options into getopt now.
- *
- * Revision 1.4  1993/01/14  19:28:27  root
- * some more fixes here and there, nothing special.  next version
- * will do mmap'ing of display, getopt() for options.  this version
- * uses the 0.99pl3 VT_PROCESS modes for console switching!
- *
- * Revision 1.3  1993/01/12  01:19:03  root
- * BIOS serial ports now work (had timeout bit reversed).
- * all devices will be redirected to /dev/modem (BAD!).
- *
- * Revision 1.2  1993/01/11  21:24:07  root
- * minor changes for making the BIOS serial ports.  still flaky.
- * they almost work, but kermit gets extra characters.
  *
  */
 
@@ -102,8 +45,13 @@
 #include <linux/fd.h>
 #include "emu.h"
 #include "dosvga.h"
+#include "timers.h"
+#include "cmos.h"
 
-#define CONFIGURATION 0x002c;   /* without disk information */
+#ifdef XMS
+#include "xms.h"
+#endif
+
 /* #define CO	80
    #define LI	25 */
 
@@ -113,10 +61,7 @@
 
 #define SCREEN_ADR(s)	(us *)(0xb8000 + s * 0x1000)
 
-/* these were 330000 and 250000 */
-#define UPDATE	330000		/* waiting time in usec */
-#define DELAY	250000		/* sleeping time in usec */
-#define OUTBUFSIZE	3000
+#define OUTBUFSIZE	1500    /* was 3000 */
 
 /* thanks to Andrew Haylett (ajh@gec-mrc.co.uk) for catching character loss
  * in CHOUT, and other things */
@@ -153,7 +98,7 @@ int scrtest_bitmap;
 long start_time;
 unsigned long last_ticks;
 int screen, xpos[8], ypos[8];
-int mem_size=640;
+int mem_size=640, extmem_size=MAX_XMS;
 
 int card_init=0;
 unsigned long precard_eip, precard_cs;
@@ -177,9 +122,20 @@ struct vec_t snapshot[256];	/* vectors from last snapshot */
 
 /* initial reported video mode */
 #ifdef MDA_VIDEO
-#define INIT_SCREEN_MODE	2  /* 80x25 monochrome */ 
+#define INIT_SCREEN_MODE	2  /* 80x25 MDA monochrome */ 
+#define VID_COMBO		1
+#define VID_SUBSYS		1  /* 1=mono */
 #else
-#define INIT_SCREEN_MODE	3  /* 80x25 color */
+#define INIT_SCREEN_MODE	3  /* 80x25 VGA color */
+#define VID_COMBO		4  /* 4=EGA (ok), 8=VGA (not ok) */
+#define VID_SUBSYS		0  /* 0=color */
+#endif
+
+/* without disk information, w/3 printers, 2 serial ports */
+#ifdef MATHCO
+#define CONFIGURATION (0xc90e | INIT_SCREEN_MODE)
+#else
+#define CONFIGURATION (0xc90c | INIT_SCREEN_MODE)
 #endif
 
 void boot(struct disk *);
@@ -192,7 +148,7 @@ void leavedos(int sig),
   robert_irq(int sig),
   hardware_init(void),
   show_ints(int),
-  do_int(int);		/* was protyped wrong */
+  do_int(int);
 
 int printer_print(int, char), serial_write(int, char), serial_read(int);
 
@@ -247,23 +203,7 @@ struct pic
     OCW3;
 } pics[2];
 
-/* Programmable Interval Timer, 8253/8254 */
-/* ports 0x40 - 0x43 */
-struct pit
-{   
-  unsigned int
-    CNTR0,	/* 0x40, time of day clock (usu/ mode 3) */
-    CNTR1,	/* 0x41, RAM refresh cntr (usu. mode 2) */
-    CNTR2,	/* 0x42, cassette/spkr */
-    MCR;	/* 0x43, mode control register */
-  unsigned char
-    s0,         /* states */
-    s1,
-    s2,
-    sm;
-} pit;
-
-int port61;  /* the pseudo-8255 device on AT's */
+int port61=0xd0;  /* the pseudo-8255 device on AT's */
 
 /* apparently, DOS 5.0 issues some nasty instructions
  * when it's booting.  We want it to boot, and there
@@ -276,7 +216,14 @@ int console_video=0,
     vga=0,			/* use VGA controls on sonsole */
     graphics=0;                 /* can do graphics */
 int gfx_mode = TEXT;
-int max_page = 3;		/* number of highest vid page - 1*/
+int max_page = 4;		/* number of highest vid page - 1*/
+
+/* keybint should really be 1 all the time, but until I get it
+ * stable...the default value is set in emulate()
+ */
+int keybint;
+int xms=0;
+int mapped_bios=0, special_nowait=0;
 
 struct ioctlq iq = {0,0,0,0};	/* one-entry queue :-( for ioctl's */
 int in_sighandler=0;		/* so I know to not use non-reentrant
@@ -290,7 +237,7 @@ int sizes=0;
 
 int screen_mode=INIT_SCREEN_MODE;
 
-struct debug_flags d = {0,0,0,0,1,0,1,1,0,0,0,1,1,1,0};
+struct debug_flags d = {0,0,0,0,1,0,1,1,0,0,0,1,1,1,0,1};
 
 int poll_io=1;			/* polling io, default on */
 int ignore_segv;		/* ignore sigsegv's */
@@ -302,32 +249,8 @@ extern unsigned int kbd_flags,
 int in_interrupt=0;		/* for unimplemented interrupt code */
 
 
-/************** Adam's changes ***********************/
-#define CARRY	_regs.eflags|=CF;
-#define NOCARRY _regs.eflags&=~CF;
-/************** end of Adam's changes ****************/
-
-
-
 unsigned char trans[] = /* LATIN CHAR SET */
 {
-/*	"\000\001\002\003\004\005\006\007\010\011\000\013\000\000\016\017"
-	"\020\021\022\023\024\025\026\027\030\031\032\000\034\035\036\037"
-	"\040\041\042\043\044\045\046\047\050\051\052\053\054\055\056\057"
-	"\060\061\062\063\064\065\066\067\070\071\072\073\074\075\076\077"
-	"\100\101\102\103\104\105\106\107\110\111\112\113\114\115\116\117"
-	"\120\121\122\123\124\125\126\127\130\131\132\133\134\135\136\137"
-	"\140\141\142\143\144\145\146\147\150\151\152\153\154\155\156\157"
-	"\160\161\162\163\164\165\166\167\170\171\172\173\174\175\176\177"
-	"\200\201\202\203\204\205\206\207\210\211\212\213\214\215\216\217"
-	"\220\221\222\223\224\225\226\227\230\231\232\233\234\235\236\237"
-	"\240\241\242\243\244\245\246\247\250\251\252\253\254\255\256\257"
-	"\260\261\262\263\264\265\266\267\270\271\272\273\274\275\276\277"
-	"\300\301\302\303\304\305\306\307\310\311\312\313\314\315\316\317"
-	"\320\321\322\323\324\325\326\327\330\331\332\333\334\335\336\337"
-	"\340\341\342\343\344\345\346\347\350\351\352\353\354\355\356\357"
-	"\360\361\362\363\364\365\366\367\370\371\372\373\374\375\376\377" */
-
 	"\0\0\0\0\0\0\0\0\00\00\00\00\00\00\00\00"
 	"\0\0\0\0\266\247\0\0\0\0\0\0\0\0\0\0"
 	" !\"#$%&'()*+,-./"
@@ -360,7 +283,6 @@ inline void run_vm86(void)
    * lag of indeterminate time.  Ah, life isn't perfect.
    *
    * I really need to clean up the queue functions to use real queues.
-   * C++ would be nice for this...sigh.  Wish I knew C++ :-)
    */
   if (iq.queued) 
       do_queued_ioctl();
@@ -370,6 +292,13 @@ int outcbuf(int c)
 {
   CHOUT(c);
   return 1;
+}
+
+int dostputs(char *a, int b, outfuntype c)
+{
+  /* discard c right now */
+  CHFLUSH;
+  tputs(a,b,outc);
 }
 
 void poscur(int x, int y)
@@ -444,10 +373,10 @@ void scrolldn(int x0, int y0 , int x1, int y1, int l, int att)
 v_write(int fd, unsigned char *ch, int len)
 {
   if (!console_video) write(fd, ch, len);
-  else v_printf("v_write deferred for console_video\n");
+  else error("ERROR: (video) v_write deferred for console_video\n");
 }
 
-void char_out(unsigned char ch, int s)
+void char_out_att(unsigned char ch, unsigned char att, int s)
 {
 	us *sadr, *p;
 
@@ -457,31 +386,25 @@ void char_out(unsigned char ch, int s)
 	  {
 	    if (ch >= ' ') {
 	      sadr = SCREEN_ADR(s);
-	      sadr[ypos[s]*CO + xpos[s]++] = ch | (7 << 8);
-	      /* if (s == screen) outc(trans[ch]); */
+	      sadr[ypos[s]*CO + xpos[s]++] = ch | (att << 8);
 	    } else if (ch == '\r') {
 	      xpos[s] = 0;
-	      /* if (s == screen) write(2, &ch, 1); */
 	    } else if (ch == '\n') {
 	      ypos[s]++;
-	      /* if (s == screen) write(2, &ch, 1); */
+	      /* is this correct? EDLIN needs it */
+	      xpos[s]=0;
 	    } else if (ch == '\010' && xpos[s] > 0) {
 	      xpos[s]--;
-	      /* if (s == screen) write(2, &ch, 1); */
-	      /*	} else if (ch == '\t') {
-			do {
-			char_out(' ', s);
-			} while (xpos[s] % 8 != 0); */
-	    } else if (ch == '\010' && xpos[s] > 0) {
-	      xpos[s]--;
-	      /* if (s == screen) write(2, &ch, 1); */
+	    } else if (ch == '\t') {
+	      v_printf("tab\n");
+	      do {
+		char_out(' ', s);
+	      } while (xpos[s] % 8 != 0); 
 	    }
 
 	    poscur(xpos[s], ypos[s]);
-	    /* sadr = SCREEN_ADR(s);
-	       sadr[ypos[s]*CO + xpos[s]++] = ch | (7 << 8);
-	       v_printf("char_out w/console video: %c\n", ch); */
 	  }
+
 	else {
 	  if (ch >= ' ') {
 	    sadr = SCREEN_ADR(s);
@@ -496,10 +419,10 @@ void char_out(unsigned char ch, int s)
 	  } else if (ch == '\010' && xpos[s] > 0) {
 	    xpos[s]--;
 	    if (s == screen) write(2, &ch, 1);
-	    /*	} else if (ch == '\t') {
+	  } else if (ch == '\t') {
 		do {
-		char_out(' ', s);
-		} while (xpos[s] % 8 != 0); */
+		    char_out(' ', s);
+	        } while (xpos[s] % 8 != 0);
 	  } else if (ch == '\010' && xpos[s] > 0) {
 	    xpos[s]--;
 	    if (s == screen) write(2, &ch, 1);
@@ -549,33 +472,33 @@ void restore_screen(void)
 	oa = 7; 
 	p = sadr;
 	for (y=0; y<LI; y++) {
-		tputs(tgoto(cm, 0, y), 1, outcbuf);
+		dostputs(tgoto(cm, 0, y), 1, outcbuf);
 		for (x=0; x<CO; x++) {
 			c = *(unsigned char *)p;
 			if ((a = ((unsigned char *)p)[1]) != oa) {
 #ifndef OLD_RESTORE
 			  /* do fore/back-ground colors */      
-			  if (!(a & 7) || (a & 0x70)) tputs(mr, 1, outcbuf);
-			  else tputs(me, 1, outcbuf);
+			  if (!(a & 7) || (a & 0x70)) dostputs(mr, 1, outcbuf);
+			  else dostputs(me, 1, outcbuf);
 
 			  /* do high intensity */
-			  if (a & 0x8) tputs(md, 1, outcbuf);
+			  if (a & 0x8) dostputs(md, 1, outcbuf);
 			  else if (oa & 0x8)
 			    {
-			      tputs(me, 1, outcbuf);
+			      dostputs(me, 1, outcbuf);
 			      if (!(a & 7) || (a & 0x70))
-				tputs(mr, 1, outcbuf);
+				dostputs(mr, 1, outcbuf);
 			    }
 
 			  /* do underline/blink */
-			  if (a & 0x80) tputs(so, 1, outcbuf);
-			  else if (oa & 0x80) tputs(se, 1, outcbuf);
+			  if (a & 0x80) dostputs(so, 1, outcbuf);
+			  else if (oa & 0x80) dostputs(se, 1, outcbuf);
 			  
 			  oa = a;   /* save old attr as current */
 #else
-				if ((a & 7) == 0) tputs(mr, 1, outcbuf);
-				else tputs(me, 1, outcbuf);
-				if ((a & 0x88)) tputs(md, 1, outcbuf);
+				if ((a & 7) == 0) dostputs(mr, 1, outcbuf);
+				else dostputs(me, 1, outcbuf);
+				if ((a & 0x88)) dostputs(md, 1, outcbuf);
 				oa = a;
 #endif
 			}
@@ -583,7 +506,7 @@ void restore_screen(void)
 			p++;
 		}
 	}
-	tputs(me, 1, outcbuf);
+	dostputs(me, 1, outcbuf);
 	CHFLUSH;
 	poscur(xpos[screen],ypos[screen]);
 }
@@ -594,6 +517,7 @@ void disk_close(void) {
 
 	for (dp = disktab; dp < &disktab[fdisks]; dp++) {
 		if (dp->removeable && dp->fdesc >= 0) {
+		        d_printf("DISK: Closing a disk\n");
 			(void)close(dp->fdesc);
 			dp->fdesc = -1;
 		}
@@ -727,8 +651,10 @@ void show_regs(void)
 
 int inb(int port)
 {
-	static int cga_r=0;
-	static int inb_flg=0, tmp=0;
+	static unsigned int cga_r=0;
+	static unsigned int tmp=0;
+	int holder;
+	unsigned int tmpkeycode;
 
 	port &= 0xffff;
 
@@ -736,18 +662,43 @@ int inb(int port)
 	 * the vert & horz retrace so as not to cause CGA snow */
 	if ((port == 0x3da) || (port == 0x3ba))
 	  return (cga_r ^= 1) ? 0xcf : 0xc6;
-
-	else if ((port == 0x60) || (port == 0x64))
-	  i_printf("keyboard inb [0x%x]\n", port);
 	else
 	  switch (port)
 	    {
+	    case 0x60:
+#ifndef new8042
+	      k_printf("direct 8042 read1: 0x%02x\n", lastscan);
+	      tmp=lastscan;
+	      lastscan=0;
+	      return tmp;
+#else
+  /* this code can't send non-ascii scancodes like alt/ctrl/scrollock,
+     nor keyups, etc. */
+	      if (!ReadKeyboard(&tmpkeycode, NOWAIT)) 
+		{
+		  k_printf("failed direct 8042 read\n");
+		  return 0;
+		}
+	      else {
+		tmp=tmpkeycode >> 8;
+		k_printf("direct 8042 read: 0x%02x\n", tmp);
+		return tmp;
+	      }
+	      break;
+#endif
+	    case 0x64:
+	      tmp=0x10 | (lastscan ? 1 : 0);  /* low bit set = sc ready */
+	      /* lastscan=0; */
+	      k_printf("direct 8042 status check: 0x%02x\n", tmp);
+	      return tmp;
 	    case 0x61:
 	      i_printf("inb [0x61] =  0x%x (8255 chip)\n", port61);
-	      /* if (inb_flg) { port61++; inb_flg=0; }
-	      else inb_flg=1;
-              return inb_flg ? (port61 - 1) : port61; */
 	      return port61;
+
+	    case 0x70:
+	    case 0x71:
+	      return cmos_read(port);
+
 	    case 0x2f8:
 	      serial_read(1);
 	      s_printf("com2 RX --> %c [%d]\n", uarts[1].RX, uarts[1].RX);
@@ -786,33 +737,17 @@ int inb(int port)
 	      s_printf("com2 SCR --> 0x%2x\n", uarts[1].SCR);
 	      return uarts[1].SCR;
 	      break;
-	    case 0x3f8:
-	      s_printf("serial 1 check RX\n");
-	      break;
-	    case 0x3fA:
-	      s_printf("serial 1 check int ID\n");
-	      break;
-	    case 0x3FD:
-	      s_printf("serial 1 check line status\n");
-	      break;
-	    case 0x3fe:
-	      s_printf("serial 1 check modem status\n");
-	      break;
-	    case 0x3ff:
-	      s_printf("serial 1 scratch\n");
-	      return uarts[1].SCR;
-	      break;
 	    case 0x40:
 	      i_printf("inb [0x41] = 0x%x  1st timer inb\n",
-			  pit.CNTR0 /*++*/ );
+			  pit.CNTR0--);
 	      return pit.CNTR0;
 	    case 0x41:
 	      i_printf("inb [0x41] = 0x%x  2nd timer inb\n",
-			  pit.CNTR1 /*++*/);
+			  pit.CNTR1--);
 	      return pit.CNTR1;
 	    case 0x42:
 	      i_printf("inb [0x42] = 0x%x  3rd timer inb\n",
-			  pit.CNTR2 /* +=100 */);
+			  pit.CNTR2--);
 	      return pit.CNTR2;
 	    case 0x3bc:
 	      i_printf("printer port inb [0x3bc] = 0\n");
@@ -849,6 +784,10 @@ void outb(int port, int byte)
 	} 
       else timer_beep=1;
     }
+
+  else if ((port == 0x70) || (port == 0x71))
+    cmos_write(port, byte);
+
   else if (port >= 0x40 && port <= 0x43)
     {
       i_printf("timer outb 0x%02x\n", byte);
@@ -919,137 +858,154 @@ void outb(int port, int byte)
 void dos_ctrl_alt_del(void)
 {
   dbug_printf("DOS ctrl-alt-del requested.  Rebooting!\n");
+  disk_close();
   clear_screen(screen,0);
-  p_dos_str("Rebooting DOS.  Be careful...this is partially implemented\r\n");
   show_cursor();
+  special_nowait=0;
+  p_dos_str("Rebooting DOS.  Be careful...this is partially implemented\r\n");
   boot(hdiskboot? hdisktab : disktab);
+}
+
+void dos_ctrlc(void)
+{
+  k_printf("DOS ctrl-c!\n");
+  p_dos_str("^C\n\r");   /* print DOS's ctrl-c message */
+  keybuf_clear();
+  if (_regs.eflags & IF) do_int(0x23);
+  else warn("CAN'T DO INT 0x23: IF CLEAR\n");
 }
 
 void boot(struct disk *dp)
 {
-	char *buffer;
-	unsigned int i;
-	unsigned char *ptr;
+  char *buffer;
+  unsigned int i;
+  unsigned char *ptr;
+  
+  boot_in_progress=1;
 
-	boot_in_progress=1;
-	disk_close();
-	disk_open(dp);
-	buffer = (char *)0x7c00;
-	memset(NULL, 0, 0x7c00); /* clear the first 32 k */
-	memset((char *)0xff000, 0xF4, 0x1000); /* fill the last page w/HLT */
-	/* init trapped interrupts if called via jump */
-#if 0
-	for (i=0; i<0x100; i++) {
-		if ((i & 0xf8) == 0x60) continue; /* user interrupts */
-		SETIVEC(i, 0xff01, 4*i);
-	}
-#else
-	for (i=0; i<256; i++) {
-		if ((i & 0xf8) == 0x60) continue; /* user interrupts */
-		SETIVEC(i, 0xe000, 16*i);
-		ptr=(unsigned char *)(0xe000*16 + 16*i);
-		ptr[0]=0xcd;     /* 0xcd = INT */
-		ptr[1]=i;        /* was i + 128 */
-		ptr[2]=0xcf;     /* 0xcf = IRET */
-	}
-	/* show_ints(0x30); */
+  cmos_init();
+  
+  disk_close();
+  disk_open(dp);
+  buffer = (char *)0x7c00;
+  memset(NULL, 0, 0x7c00); /* clear the first 32 k */
+  memset((char *)0xff000, 0xF4, 0x1000); /* fill the last page w/HLT */
+  /* init trapped interrupts if called via jump */
+  
+  for (i=0; i<256; i++) {
+    if ((i & 0xf8) == 0x60) continue; /* user interrupts */
+    SETIVEC(i, 0xe000, 16*i);
+    ptr=(unsigned char *)(0xe000*16 + 16*i);
+    ptr[0]=0xcd;     /* 0xcd = INT */
+    ptr[1]=i;
+    ptr[2]=0xcf;     /* 0xcf = IRET */
+  }
+  
+  SETIVEC(0x33,0,0);     /* zero mouse address */
+  SETIVEC(0x1c,0xe000,2);  /* should be an IRET */
+  SETIVEC(0x67,0,0);  /* no EMS */
+
+#ifdef XMS
+  /* XMS has it's handler just after the interrupt dummy segment */
+  ptr=(unsigned char *)(XMSControl_ADD);
+  ptr[0]=0xeb;       /* jmp short forward 3 */
+  ptr[1]=3;
+  ptr[2]=0x90;       /* nop */
+  ptr[3]=0x90;       /* nop */
+  ptr[4]=0x90;       /* nop */
+  ptr[5]=0xf4;       /* HLT...the current emulator trap */
+  ptr[6]=XMS_MAGIC;  /* just an info byte. reserved for later */
+  ptr[7]=0xcb;       /* FAR RET */
+  xms_init();
 #endif
-	SETIVEC(0x33,0,0);     /* zero mouse address */
-	SETIVEC(0x1c,0xe000,2);  /* should be an IRET */
+  
+  *(us *)0x402 = 0x2f8; 	/* com port addresses */
+  *(us *)0x404 = 0x3f8;  
+  *(us *)0x406 = 0x2e8;
+  *(us *)0x408 = 0x3e8;
+  *(us *)0x410 = CONFIGURATION;
+  if (fdisks > 0) *(us *)0x410 |= 1 | ((fdisks -1)<<6);
+  
+  *(us *)0x413 = MEM_SIZE;	/* size of memory */
+  *(char *)0x449 = screen_mode;	/* screen mode */
+  *(us *)0x44a = CO;	/* chars per line */
+  *(us *)0x44c = CO * LI * 2;  /* size of video regen area in bytes */
+  *(us *)0x44e = 0;       /* offset of current page in buffer */
+  *(unsigned char *)0x484 = LI-1;    /* lines on screen - 1 */
+  *(us *)0x41a = 0x1e;	/* key buf start ofs */
+  *(us *)0x41c = 0x1e;	/* key buf end ofs */
+  /* key buf 0x41e .. 0x43d */
+  
+  keybuf_clear();
+  
+  *(us *)0x463 = 0x3d4;           /* base port of CRTC - IMPORTANT! */
+  *(char *)0x465 = 9;		  /* current 3x8 (x=b or d) value */
+  *(char *)0x487 = 0x61;
+  *(char *)0x488 = 0x81;          /* video display data */
+  *(char *)0x48a = VID_COMBO;     /* video type */
 
-	*(us *)0x402 = 0x2f8;	/* com port addresses */
-	*(us *)0x404 = 0x3f8;  
-	*(us *)0x406 = 0x2e8;
-	*(us *)0x408 = 0x3e8;
-	*(us *)0x410 = 0x7cc8;
-	*(us *)0x419 = 0xc849;	/* equip. present word */
+  *(char *)0x496 = 16;		  /* 102-key keyboard */
+  *(long *)0x4a8 = 0;             /* pointer to video table */
 
-
-	*(us *)0x413 = MEM_SIZE;	/* size of memory */
-	*(char *)0x449 = screen_mode;	/* screen mode */
-	*(us *)0x44a = CO;	/* chars per line */
-	*(us *)0x44c = CO * LI * 2;  /* size of video regen area in bytes */
-	*(us *)0x44e = 0;       /* offset of current page in buffer */
-	*(unsigned char *)0x484 = LI-1;    /* lines on screen - 1 */
-	*(us *)0x41a = 0x1e;	/* key buf start ofs */
-	*(us *)0x41c = 0x1e;	/* key buf end ofs */
-	/* key buf 0x41e .. 0x43d */
-
-        /* dosemu0.4 missed this trick, and many programs that don't
-           assume 0x3d4 were reading from port 6 (base 0 + 6) instead
-           of 0x3da.  oh, well. live and learn */
-	*(us *)0x463 = 0x3d4;   /* base port of CRTC - IMPORTANT! */
-
-	*(long *)0x4a8 = 0;  /* pointer to video table */
-
-	/* from Alan Cox's mods */
-	/* we need somewhere for the bios equipment. Put it at ffe00 */
-	*(char *)0xffe00=0x09;
-	*(char *)0xffe01=0x00;	/* 9 byte table */
-	*(char *)0xffe02=0xFC;  /* PC AT */
-	*(char *)0xffe03=0x00;
-	*(char *)0xffe04=0x04;	/* bios revision 4 */
-	*(char *)0xffe05=0x20;	/* no mca no ebios no wat no keybint
+  
+  /* from Alan Cox's mods */
+  /* we need somewhere for the bios equipment. Put it at d0000 */
+  *(char *)0xd0000=0x09;
+  *(char *)0xd0001=0x00;	/* 9 byte table */
+  *(char *)0xd0002=0xFC;        /* PC AT */
+  *(char *)0xd0003=0x00;
+  *(char *)0xd0004=0x04;	/* bios revision 4 */
+  *(char *)0xd0005=0x20;	/* no mca no ebios no wat no keybint
 				   rtc no slave 8259 no dma 3 */
-	*(char *)0xffe06=0x00;
-	*(char *)0xffe07=0x00;
-	*(char *)0xffe08=0x00;
-	*(char *)0xffe09=0x00;
+  *(char *)0xd0006=0x00;
+  *(char *)0xd0007=0x00;
+  *(char *)0xd0008=0x00;
+  *(char *)0xd0009=0x00;
+  
+  lseek(dp->fdesc, 0, 0);
+  i = read(dp->fdesc, buffer, 512);
+  if (i != 512) {
+    error("can't boot from disk, using harddisk\n");
+    dp = hdisktab;
+    lseek(dp->fdesc, 0, 0);
+    i = read(dp->fdesc, buffer, 512);
+    if (i != 512) {
+      error("ERROR: can't boot from disk\n");
+      leavedos(1);
+    }
+  }
+  disk_close();
+  _regs.eax = _regs.ebx = _regs.edx = 0;
+  _regs.ecx = 0;
+  _regs.ebp = _regs.esi = _regs.edi = _regs.esp = 0;
+  _regs.cs = _regs.ss = _regs.ds = _regs.es = _regs.fs = _regs.gs = 0x7c0;
+  _regs.eip = 0;
+  _regs.eflags = 0;
+  boot_in_progress=0;
 
-	lseek(dp->fdesc, 0, 0);
-	i = read(dp->fdesc, buffer, 512);
-	if (i != 512) {
-	  error("can't boot from disk, using harddisk\n");
-	  dp = hdisktab;
-	  lseek(dp->fdesc, 0, 0);
-	  i = read(dp->fdesc, buffer, 512);
-	  if (i != 512) {
-	    error("ERROR: can't boot from disk\n");
-	    leavedos(1);
-	  }
-	}
-	disk_close();
-	_regs.eax = _regs.ebx = _regs.edx = 0;
-	_regs.ecx = 0;
-	_regs.ebp = _regs.esi = _regs.edi = _regs.esp = 0;
-	_regs.cs = _regs.ss = _regs.ds = _regs.es = _regs.fs = _regs.gs = 0x7c0;
-	_regs.eip = 0;
-	_regs.eflags = 0;
-	boot_in_progress=0;
-	if (exitearly)
-	  {
-	    dbug_printf("Leaving DOS before booting\n");
-	    leavedos(0);
-	  }
+  if (exitearly)
+    {
+      dbug_printf("Leaving DOS before booting\n");
+      leavedos(0);
+    }
 }
 
 
 void show_ints(int max)
 {
   int i;
-  unsigned short int icsp1,iipp1, icsp2, iipp2;
 
-  max |= 1;
-#if 0
-  for (i=0x0; i<=max; i+=2)  /* interrupt tbl. entries 0 - 0xf */
-    {
-      iipp1 = IOFF(i);
-      iipp2 = IOFF(i+1);
-      icsp1 = ISEG(i);
-      icsp2 = ISEG(i+1);
-      dbug_printf("%02x| %04x:%04x->%05x    ",i,icsp1, iipp1,
-		  (icsp1 << 4) + iipp1 );
-      dbug_printf("%02x| %04x:%04x->%05x\n",i+1,icsp2, iipp2,
-		  (icsp2 << 4) + iipp2 ); 
-    }
-#endif
-  for (i=0x0; i<=max; i+=2)  /* interrupt tbl. entries 0 - 0xf */
+  max |= 2;
+  for (i=0x0; i<=max; i+=3)  /* interrupt tbl. entries 0 - 0xf */
     {
       dbug_printf("%02x| %04x:%04x->%05x    ",i,ISEG(i), IOFF(i),
 		  IVEC(i));
-      dbug_printf("%02x| %04x:%04x->%05x\n",i+1,ISEG(i+1),IOFF(i+1),
+      dbug_printf("%02x| %04x:%04x->%05x    ",i+1,ISEG(i+1), IOFF(i+1),
 		  IVEC(i+1));
+      dbug_printf("%02x| %04x:%04x->%05x\n",i+2,ISEG(i+2),IOFF(i+2),
+		  IVEC(i+2));
     }
+
 }
 
 hide_cursor()
@@ -1117,7 +1073,7 @@ void int10(void)
 	      error("returning from gfx mode, but no gfx support!\n");
 #endif
 	    }
-	  max_page=3;
+	  max_page=4;
 	  screen_mode = LO(ax);
 	  gfx_flag=0;  /* we're in a text mode now */
 	  gfx_mode = TEXT;
@@ -1210,6 +1166,8 @@ s_gfx:
       break;
     xpos[s] = x;
     ypos[s] = y;
+    *(unsigned char *)(0x450 + s) = ypos[s];
+    *(unsigned char *)(0x451 + s) = xpos[s];
     if (s == screen) 
       poscur(x, y);
     break;
@@ -1223,6 +1181,7 @@ s_gfx:
     _regs.edx = (ypos[s] << 8) | xpos[s];
     break;
   case 0x5: /* change page */ 
+    warn("changing page from %d to %d\n", screen, LO(ax));
     if ((s = LO(ax)) == screen) break;
     if (s < max_page) {
       screen = s;
@@ -1258,10 +1217,14 @@ s_gfx:
     _regs.eax=sm[CO*ypos[s]+xpos[s]];
     break;
     
-  case 0xff:
-    break;
-    
   case 0x9:
+      /* v_printf("int10h ax=0x%04x cx=0x%04x\n", _regs.eax, _regs.ecx); */
+#ifdef XDOS
+      x = *(us *)&_regs.ecx;
+      c = LO(ax);
+      s = HI(bx);
+      for (i=0; i<x; i++) char_out_att(c,(char)LO(bx),s);
+#else
     i=0;	/* repeat count */
     s=HI(bx);
     sm=SCREEN_ADR(s);
@@ -1270,17 +1233,23 @@ s_gfx:
 	sm[CO*ypos[s]+xpos[s]+i]=(LO(bx)<<8)|LO(ax);
 	i++;
       }
-    break;
-#if 0
-  case 0x9:
-    v_printf("second int10h, ah=9 called\n");
 #endif
+    break;
+
   case 0xA: /* set chars at cursor pos */
+      v_printf("int10h ax=0x%04x cx=0x%04x\n", _regs.eax, _regs.ecx);
+#ifdef XDOS
+      /* xdos code */
+      x = *(us *)&_regs.ecx;
+      c = LO(ax);
+      s = HI(bx);
+      for (i=0; i < x; i++) char_out(c, s);
+      /* end of xdos code */
+#else
     c = _regs.eax&0xFF;;
     s = HI(bx);
     if (s != 0) {
-      error("ERROR: video error(0xA s!=0)\n");
-      /*				show_regs();*/
+      error("ERROR: video error(0xA s=%d)\n", s);
       CARRY;
       return;
     }
@@ -1291,32 +1260,29 @@ s_gfx:
 	sm[CO*ypos[s]+xpos[s]+i]|=LO(ax);
 	i++;
       }
-    /* must_update=1; */
+#endif
     break;
   case 0xe: /* print char */ 
-     /* found the problem: int 29 was calling int 10h/ah=e, and guess what?
-      * Matthias forgot to set HI(bx) to be the current screen. so I just
-      * made int 29h stand-alone and use char_out()
-      */
     s=HI(bx);
     if (s > max_page) 
       {
-	v_printf("in int10h/ah=3, s=%d\n", s);
+	v_printf("in int10h/ah=e, s=%d\n", s);
 	s=screen;
       }
-    /* else if (s != screen) v_printf("int 10h, ah=e with s=%d\n", s); */
     char_out(*(char *)&_regs.eax, s);    /* char in AL */
     break;
   case 0x0f: /* get screen mode */
-    v_printf("get screen mode!\n"); 
     _regs.eax = (CO << 8) | screen_mode;
+    v_printf("get screen mode: 0x%04x\n", _regs.eax);
     _regs.ebx &= 0xff;  /* clear top byte (BH) */
     _regs.ebx |= screen << 8;
     break;
+#if 0
   case 0xb: /* palette */
   case 0xc: /* set dot */
   case 0xd: /* get dot */
     break;
+#endif
   case 0x4: /* get light pen */
     error("ERROR: video error(no light pen)\n");
     CARRY;
@@ -1325,26 +1291,26 @@ s_gfx:
     if (LO(ax) == 0)
       {
 	v_printf("get display combo!\n");
-	LO(ax) = 0x1a;  /* valid function */
-	LO(bx) = 4;     /* active display = color EGA */
-	HI(bx) = 0;     /* no inactive display */
+	LO(ax) = 0x1a;          /* valid function=0x1a */
+	LO(bx) = VID_COMBO;     /* active display */
+	HI(bx) = 0;             /* no inactive display */
       }
     else {
       v_printf("set display combo not supported\n");
     }
     break;
   case 0x12: /* video subsystem config */
+    v_printf("get video subsystem config ax=0x%04x bx=0x%04x\n",
+	     _regs.eax, _regs.ebx);
     switch (LO(bx))
       {
       case 0x10:
-	if (d.video)
-	  {
-	    dbug_printf("return video config\n");
-	    show_regs();
-	  }
-#if 0
-	_regs.ebx=1;   /* color 128k EGA */
-#endif
+	HI(bx)=VID_SUBSYS;
+	/* this breaks qedit! (any but 0x10) */
+	/* LO(bx)=3;  */
+	v_printf("video subsystem 0x10 BX=0x%04x\n", _regs.ebx);
+	_regs.ecx=0x0809;
+
 	break;
       case 0x20:
 	v_printf("select alternate printscreen\n");
@@ -1366,8 +1332,8 @@ s_gfx:
 	show_regs();
       }
     break;
-  case 0xfe: /* get shadow buffer */
-    v_printf("get shadow buffer\n");
+  case 0xfe: /* get shadow buffer..return unchanged */
+  case 0xff: /* update shadow buffer...do nothing */
     break;
   case 0x10: /* ega palette */
   case 0x11: /* ega character generator */
@@ -1377,6 +1343,20 @@ s_gfx:
     CARRY;
     break;
   }
+}
+
+checkdp(struct disk *disk)
+{
+  if (disk == NULL) 
+    {
+      error("DISK: null dp\n");
+      return 1;
+    }
+  else if (disk->fdesc == -1) {
+    error("DISK: closed disk\n");
+    return 1;
+  }
+  else return 0;
 }
 
 void int13(void)
@@ -1411,7 +1391,7 @@ void int13(void)
 			buffer = SEG_ADR((char *), es, bx);
 			number = LO(ax);
 			/* d_printf("DISK %d read [h%d,s%d,t%d](%d)->0x%x\n", disk, head, sect, track, number, buffer); */
-			if (dp == NULL || head >= dp->heads || 
+			if (checkdp(dp) || head >= dp->heads || 
 			    sect >= dp->sectors || track >= dp->tracks) {
 			    error("ERROR: Sector not found 1!\n");
 			    show_regs();
@@ -1448,7 +1428,7 @@ void int13(void)
 			buffer = SEG_ADR((char *), es, bx);
 			number = LO(ax);
 			W_printf("DISK write [h%d,s%d,t%d](%d)->0x%x\n", head, sect, track, number, buffer); 
-			if (dp == NULL || head >= dp->heads || 
+			if (checkdp(dp) || head >= dp->heads || 
 			    sect >= dp->sectors || track >= dp->tracks) {
 			    error("ERROR: Sector not found 3!\n");
 			    show_regs();
@@ -1491,7 +1471,7 @@ void int13(void)
 				((_regs.ecx & 0xc0) << 2);
 			number = LO(ax);
 			d_printf("DISK %d test [h%d,s%d,t%d](%d)\n", disk, head, sect, track, number);
-			if (dp == NULL || head >= dp->heads || 
+			if (checkdp(dp) || head >= dp->heads || 
 			    sect >= dp->sectors || track >= dp->tracks) {
 			    _regs.eax = 0x400; /* sector not found */
 			    _regs.eflags |= CF;
@@ -1521,6 +1501,7 @@ void int13(void)
 			break;
 		case 8: /* get disk drive parameters */
 			d_printf("disk get parameters %d\n", disk); 
+
 			if (dp != NULL) {
 			  /* get CMOS type */
 			  /* LO(bx) = 3; */
@@ -1549,7 +1530,7 @@ void int13(void)
 			      d_printf("type det. failed. num_tracks is: %d\n", dp->tracks);
 			      break;
 			    }
-			  
+
 			  /* these numbers are "zero based" */
 			  HI(dx) = dp->heads - 1; 
 			  HI(cx) = (dp->tracks - 1) & 0xff;
@@ -1639,7 +1620,7 @@ void int13(void)
 			  if (dp != NULL)
 			    {
 			      d_printf("gettype on floppy %d\n", disk);
-			      HI(ax) = 1;  /* floppy, no change detect */
+			      HI(ax) = 1;  /* floppy, no change detect=1 */
 			      NOCARRY;
 			    }
 			  else
@@ -1655,16 +1636,21 @@ void int13(void)
 		case 0x16: 
 			/* get disk change status - hard - by claiming
 			our disks dont have a changed line we are kind of ok */
+			warn("int13: CHECK DISKCHANGE LINE\n");
 			disk=LO(dx);
 			if(disk<0||disk>=fdisks)
 			{
-				CARRY;
-				_regs.eax&=0xFF;
-				_regs.eax|=0x200;
-				break;
+			  d_printf("int13: DISK CHANGED\n");
+			  CARRY;
+			  /* _regs.eax&=0xFF;
+			     _regs.eax|=0x200; */
+			  HI(ax)=1;  /* change occurred */
 			}
-			NOCARRY;
-			_regs.eax&=0xFF;
+			else {
+			  NOCARRY;
+			  _regs.eax &= ~0xFF00;  /* clear AH */
+			  d_printf("int13: NO CHANGE\n");
+			}
 			break;
 		case 0x17:
 			/* set disk type: should do all the ioctls etc
@@ -1761,35 +1747,7 @@ void int14(void)
 void int15(void)
 {
   static int extcount=0;
-  
-#ifdef OLD_INT_15
-	int num;
-
-	switch(HI(ax)) {
-		case 0x41: /* wait on external event */
-			dbug_printf("wait on external event\n");
-			show_regs();
-			break;
-		case 0x87: /* block move */
-			dbug_printf("block move not supported\n");
-			_regs.eflags |= CF; /* not supported */
-			break;
-		case 0x88: /* get memory size */
-			_regs.eax = 0;
-			break;
-		case 0xc0: /* get configuration */
-			dbug_printf("get configuration not supported\n");
-			_regs.eflags |= CF; /* not supported */
-			break;
-		case 0xc1: /* ext-BIOS data segment */
-			_regs.eflags |= CF; /* not supported */
-			break;
-		default:
-			dbug_printf(" cassette 0x%x ignoring\n", HI(ax));
-			show_regs();
-			break;
-	}
-#else
+  struct timeval wait_time;
   int num;
   NOCARRY;
 
@@ -1805,7 +1763,11 @@ void int15(void)
 	show_regs();
       }
     break;
-  case 0x80:	/* defaul BIOS device open event */
+  case 0x4f:   /* Keyboard intercept */
+    HI(ax) = 0x86;
+    NOCARRY;  /* original scancode (no translation) */
+    break;
+  case 0x80:	/* default BIOS device open event */
     _regs.eax&=0x00FF;
     return;
   case 0x81:
@@ -1815,6 +1777,8 @@ void int15(void)
     _regs.eax&=0x00FF;
     return;
   case 0x83:
+    h_printf("int 15h event wait:\n");
+    show_regs();
     CARRY;
     return;	/* no event wait */
   case 0x84:
@@ -1832,18 +1796,38 @@ void int15(void)
     CARRY;
     return;
   case 0x86:
-    /* cx:dx=time in usecs. Spose we should usleep here... */
-    CARRY;
-    return;
-  case 0x87:
-    _regs.eax&=0xFF;
-    _regs.eax|=0x0300;	/* say A20 gate failed - a lie but enough */
-    CARRY;
-    return;
-  case 0x88:
-    _regs.eax=0;		/* we don't have extended ram */
+    /* wait...cx:dx=time in usecs */
+    g_printf("doing int15 wait...ah=0x86\n");
+    show_regs();
+    wait_time.tv_sec = 0;
+    wait_time.tv_usec = ((_regs.ecx&0xffff) << 16) | (_regs.edx&0xffff);
+    select(STDIN_FILENO, NULL, NULL, NULL, &scr_tv);
     NOCARRY;
     return;
+
+  case 0x87:
+#ifdef XMS
+    if (xms) xms_int15();
+    else
+#endif
+      {
+	_regs.eax&=0xFF;
+	_regs.eax|=0x0300;	/* say A20 gate failed - a lie but enough */
+	CARRY;
+      }
+    return;
+
+  case 0x88:
+#ifdef XMS
+    if (xms) xms_int15();
+    else
+#endif
+    {
+      _regs.eax &= ~0xffff;   /* we don't have extended ram if it's not XMS */
+      NOCARRY;
+    }
+    return;
+
   case 0x89:			/* enter protected mode : kind of tricky! */
     _regs.eax|=0xFF00;	/* failed */
     CARRY;
@@ -1856,7 +1840,7 @@ void int15(void)
     return;
   case 0xc0:
     g_printf("incomplete EXT. BIOS DATA AREA requested...\n");
-    _regs.es=0xFFE0;
+    _regs.es=0xd000;
     _regs.ebx=0x0000;	/* bios data area - see emulate.. */
     return;
   case 0xc1:
@@ -1876,18 +1860,16 @@ void int15(void)
     CARRY;
     return;
   default:
-    g_printf("int 15h error: ax=0x%04x\n", _regs.eax);
+    g_printf("int 15h error: ax=0x%04x\n", _regs.eax&0xffff);
     CARRY;
     return;
   }
-#endif
 }
 
 void int16(void)
 {
 	unsigned int key;
 	fd_set fds;
-	static int special_nowait=0;
 
 	switch(HI(ax)) {
 		case 0: /* read key code, wait */
@@ -1907,6 +1889,7 @@ void int16(void)
 			for (;;) {
 				if (ReadKeyboard(&key, WAIT)) break;
 			}
+			if ((key & 0xff) == 3) k_printf("CTRL-C!\n");
 			_regs.eax = key;
 			break;
 		case 1: /* test key code */
@@ -1919,42 +1902,52 @@ void int16(void)
 			}
 			break;
 		case 2: /* read key state */
-
 			if (console_keyb) LO(ax)=kbd_flags & 0xff;
 			else _regs.eax &= ~0xff; 
-#if 0
-			if (!(vm86s.screen_bitmap & scrtest_bitmap)) {
-				FD_ZERO(&fds);
-				FD_SET(kbd_fd, &fds);
-				scr_tv.tv_sec = 0;
-				scr_tv.tv_usec = DELAY;
-				select(kbd_fd+1, &fds, NULL, NULL, &scr_tv);
-			}
-#endif
 			break;
  		case 5:	/* insert key code */
- 			k_printf("ins ext key 0x04x\n", _regs.eax & 0xffff);
+ 			k_printf("ins ext key 0x%04x\n", _regs.eax & 0xffff);
  			_regs.eax &= ~0xff;
  			_regs.eax |= ((InsKeyboard((unsigned short)
  						  _regs.ecx & 0xffff)) 
  				      ? 0 : 1);
  			break;
 		case 0x10: /* read extended key code, wait */
-			k_printf("get ext key\n"); 
+#ifdef OLD_EXTKEYREAD
 			for (;;) {
 				if (ReadKeyboard(&key, WAIT)) break;
 			}
 			_regs.eax = key;
-			break;
-		case 0x11: /* check for enhanced keystroke */
-			if (ReadKeyboard(&key, 0))
-			{
-				InsKeyboard(key);
-				_regs.eax = key;
-				_regs.eflags &= ~ZF;
+#else
+	                if (special_nowait)
+			  {
+			    /* k_printf("doing special_nowait\n"); */
+			    if (ReadKeyboard(&key, NOWAIT) == 1)
+			      {
+				_regs.eax=key;
+				_regs.eflags &= ~(ZF|CF);
+			      } else {
+				_regs.eax=0;
+				_regs.eflags |= ZF | CF;
+			      }
+			    return;
+			  }
+			for (;;) {
+				if (ReadKeyboard(&key, WAIT)) break;
 			}
-			else
-				_regs.eflags |= ZF;
+			if ((key & 0xff) == 3) k_printf("CTRL-C!\n");
+			_regs.eax = key;
+#endif
+			break;
+
+		case 0x11: /* check for enhanced keystroke */
+			if (ReadKeyboard(&key, TEST)) {
+				_regs.eflags &= ~(ZF | CF); /* key pressed */
+				_regs.eax = key;
+			} else {
+				_regs.eflags |= ZF | CF; /* no key */
+				_regs.eax = 0;
+			}
 			break;
 		case 0x12: /* get extended shift states */
 			if (console_keyb) _regs.eax=kbd_flags;
@@ -1967,6 +1960,7 @@ void int16(void)
 			    dbug_printf("weird int16 ax=%04x call: %d!\n",
 				     _regs.eax,special_nowait);
 			    show_regs();
+			    show_ints(0x16);
 			  }
 			_regs.eax=0x4d53;  /* say keyboard already handled */
 			return;
@@ -1985,8 +1979,8 @@ void int17(void)
 
 	switch(HI(ax)) {
 	        case 0: /* write char */
-	                /* dbug_printf("print character on lpt%d : %c (%d)\n",
-			       LO(dx), LO(ax), LO(ax)); */
+	                p_printf("print character on lpt%d : %c (%d)\n",
+			       LO(dx), LO(ax), LO(ax)); 
 			HI(ax) = printer_print(LO(dx), LO(ax));
 			/* HI(ax) = 0xd0;  not busy, ACK, selected */
 			break;
@@ -2030,6 +2024,7 @@ void int1a(void)
 			break;
 		case 1: /* write time counter */
 			last_ticks = (_regs.ecx << 16) | (_regs.edx & 0xffff);
+			set_ticks(last_ticks);
 			time(&start_time);
 			g_printf("set timer to %ud \n", last_ticks);
 			break;
@@ -2037,7 +2032,7 @@ void int1a(void)
 			gettimeofday(&tp, &tzp);
 			ticks = tp.tv_sec - (tzp.tz_minuteswest*60);
 			tm = localtime((time_t *)&ticks);
-        		g_printf("get time %d:%02d:%02d\n", tm->tm_hour, tm->tm_min, tm->tm_sec);
+        		/* g_printf("get time %d:%02d:%02d\n", tm->tm_hour, tm->tm_min, tm->tm_sec); */
 			HI(cx) = tm->tm_hour % 10;
 			tm->tm_hour /= 10;
 			HI(cx) |= tm->tm_hour << 4;
@@ -2056,7 +2051,7 @@ void int1a(void)
 			tm = localtime((time_t *)&ticks);
 			tm->tm_year += 1900;
 			tm->tm_mon ++;
-        		g_printf("get date %d.%d.%d\n", tm->tm_mday, tm->tm_mon, tm->tm_year);
+        		/* g_printf("get date %d.%d.%d\n", tm->tm_mday, tm->tm_mon, tm->tm_year); */
 			_regs.ecx = tm->tm_year % 10;
 			tm->tm_year /= 10;
 			_regs.ecx |= (tm->tm_year % 10) << 4;
@@ -2077,9 +2072,9 @@ void int1a(void)
 			error("ERROR: timer: can't set time/date\n");
 			break;
 		default:
-			error("ERROR: timer error\n");
-			show_regs();
-			error = 9;
+			error("ERROR: timer error AX=0x%04x\n", _regs.eax);
+			/* show_regs(); */
+			/* error = 9; */
 			return;
 	}
 }
@@ -2108,14 +2103,24 @@ Restart:
 	/* dbug_printf("DOSINT 0x%x\n", nr); */
 	/* emulate keyboard io to avoid DOS' busy wait */
 	switch(nr) {
+
+/* define NO_FIX_STDOUT if you want faster dos screen output, at the 
+ * expense of being able to redirect things.  I don't seriously consider
+ * leaving this in for real, but I just don't feel like taking it out
+ * yet...I'd forget it if I did.
+ */
+#ifdef NO_FIX_STDOUT
 	case 2:		/* char out */
+	  v_printf("dos_c_out: %d %c\n", LO(dx), LO(dx));
 	  char_out(LO(dx), screen);
 	  NOCARRY;
 	  break;
+#endif
+	case 7: /* read char, do not check <ctrl> C */
 	case 1: /* read and echo char */
 	case 8: /* read char */
-	case 7: /* read char, do not check <ctrl> C */
-	  disk_close();
+	  /* k_printf("KBD/DOS: int 21h ah=%d\n", nr); */
+	  disk_close();   /* DISK */
 	  if (nextcode)
 	    {
 	      _regs.eax = nextcode;
@@ -2128,16 +2133,22 @@ Restart:
 	      if (_regs.eax == 0)    /* extended scan code */
 		nextcode = c >> 8; /* get scan code */
 	    }
-	  if ((nr == 1) && (_regs.eax != 0)) char_out(c, screen);
+	  if ((nr == 1) && (_regs.eax != 0)) 
+	    char_out(_regs.eax, screen);
+	  /* ctrl-C checking */
+	  if ((_regs.eax == 3) && (nr != 7))
+	    dos_ctrlc();
 	  NOCARRY;
 	  break;
+#ifdef NO_FIX_STDOUT  /* dir /w doesn't care about this one, anyway */
 	case 9: /* str out */
 	  csp = SEG_ADR((char *), ds, dx);
 	  for (p = csp; *p != '$';) char_out(*p++, screen);
 	  NOCARRY;
 	  break;
+#endif
 	case 10: /* read string */
-	  disk_close();
+	  disk_close(); /* DISK */
 	  csp = SEG_ADR((char *), ds, dx);
 	  ReadString(((unsigned char *)csp)[0], csp +1);
 	  NOCARRY;
@@ -2248,21 +2259,18 @@ int int28(void)		 /* keyboard busy loop */
 
 	k_printf("called int28()\n");
 	return 1;  /* this tells do_int to return */
-
-	if (!(vm86s.screen_bitmap & scrtest_bitmap)) {
-		FD_ZERO(&fds);
-		FD_SET(kbd_fd, &fds);
-		scr_tv.tv_sec = 0;
-		scr_tv.tv_usec = DELAY;
-		select(kbd_fd+1, &fds, NULL, NULL, &scr_tv);
-	}
-	return 0;
 }
 
 run_int(int i)
 {
   us *ssp;
   
+  if ((_regs.eip == 0) && (_regs.cs == 0))
+    {
+      error("run_int: not running NULL interrupt 0x%x handler\n",i);
+      show_regs();
+      return;
+    }
   ssp = SEG_ADR((us *), ss, sp);
   *--ssp = _regs.eflags;
   *--ssp = _regs.cs;
@@ -2270,14 +2278,6 @@ run_int(int i)
   _regs.esp -= 6;
   _regs.cs =  ((us *)0)[ (i<<1) +1];
   _regs.eip = ((us *)0)[  i<<1    ];
-  if ((_regs.eip == 0) && (_regs.cs == 0))
-    {
-      warn("run_int: NULL interrupt 0x%x handler\n",i);
-      show_regs();
-    }
-  /* else
-    dbug_printf("run_int 0x%02x: SG: 0x%04x   OF: 0x%04x\n",
-		i, _regs.cs, _regs.eip); */
 
   _regs.eflags &= 0xfffffcff;
 }
@@ -2302,47 +2302,10 @@ can_revector (int i)
  * if we emulate it, but things don't seem to work when it's revectored,
  * (like int15h and LINUX.EXE), then don't let it be revectored.
  *
- * if it's something we deliberately steal from DOS, like int 28h, then
- * don't revector it (as that would miss the point: we don't want DOS to
- * ever get run with int 28h, as it just polls.)
  */
 
   switch(i)
     {
-/* these, the old vectors, are MUCH faster in TP 5.5 w/pgup pgdn.
- * I wonder why?  The difference is that 0x28 must be revectorable
- * for this speed. it points to an IRET in the standard DOS setup...
- */
-#ifdef OLD_REVECS
-    case 0x1b:
-    case 0x1c:
-    case 0x20:
-    case 0x21: /* we want it first...then we'll pass it on */
-    case 0x29:
-    case 0x2f:
-    case 0x2a:
-    case 0x15:  /* need this for LINUX.EXE...why??  */
-    case 0x25:
-      return 0;
-
-    case 0: 
-    case 1:
-    case 2:
-    case 3:
-    case 4:
-    case 0x17: 
-    case 0x10:
-    case 0x16:
-    case 0x13: 
-    case 0x28:   /* idle loop - this is s'posed to be here */
-    case 0x33: /* mouse */
-      return 1;
-    default:
-      g_printf("revectoring 0x%02x\n", i);
-      return 1;
-#else
-      /* these are the new ones... */
-
       /* some things, like 0x29, need to be unrevectored if the vectors
        * are the DOS vectors...but revectored otherwise
        */
@@ -2350,6 +2313,9 @@ can_revector (int i)
     case 0x2a: 
     case 0x15: /* need this for LINUX.EXE...why??  */
     case 0x29: /* DOS fast char output... */
+#ifdef XMS
+    case 0x2f:
+#endif
       return 0;
 
 
@@ -2369,16 +2335,19 @@ can_revector (int i)
     case 0x16: /* BIOS keyboard */
     case 0x13: /* BIOS disk */
     case 0x27: /* TSR */
+#ifndef XMS
     case 0x2f: /* multiplex */
+#endif
     case 0x20: /* exit program */
     case 0x33: /* mouse */
+      /* if (i == 0x16) k_printf("SHOCK! revectoring int 0x%02x\n", i); */
       return 1;
     default:
       g_printf("revectoring 0x%02x\n", i);
       return 1;
-#endif
     }
 }
+
 
 void do_int(int i)
 {
@@ -2388,22 +2357,13 @@ void do_int(int i)
   in_interrupt++;
 
   if ((_regs.cs&0xffff) == 0xe000)
-    {
-      /* dbug_printf("highint 0x%x!\n", i); */
-      highint=1;
-    } 
-  else {
+    highint=1;
+  else
     if ((ISEG(i) != 0xe000) && can_revector(i) /* && !is_iret(i) */)
       {
-	/* dbug_printf("going to run_int 0x%02x, SG: 0x%04x OF: 0x%04x\n",
-	   i, ISEG(i), IOFF(i));
-	   show_ints(i); */
 	run_int(i);
 	return;
       }
-    /* else dbug_printf("will be DEFIVEC_0x%x   SG: 0x%04x OF: 0x%04x\n",
-		    i, ISEG(i), IOFF(i)); */
-  }
 
   switch(i) {
       case 0x5   :
@@ -2426,7 +2386,6 @@ void do_int(int i)
       case 0x11 : /* CONFIGURATION */
 	_regs.eax = CONFIGURATION;
 	if (fdisks > 0) _regs.eax |= 1 | ((fdisks -1)<<6);
-	g_printf("configuration read\n");
 	return;
       case 0x12 : /* MEMORY */
 	_regs.eax = MEM_SIZE;
@@ -2483,8 +2442,31 @@ void do_int(int i)
 
       case 0x2a : /* CRITICAL SECTION */
 	goto default_handling;
+
       case 0x2f : /* Multiplex */
-	goto default_handling;
+#ifdef XMS
+	if ((HI(ax) == XMS_MAGIC) && xms) {
+	  switch(LO(ax))
+	    {
+	    case 0:  /* check for XMS */
+	      x_printf("Check for XMS\n");
+	      LO(ax)=0x80;
+	      break;
+	    case 0x10:
+	      x_printf("Get XMSControl address\n");
+	      _regs.es = XMSControl_SEG;
+	      _regs.ebx &= ~0xffff;
+	      _regs.ebx |= XMSControl_OFF;
+	      break;
+	    default:
+	      x_printf("BAD int 0x2f XMS function\n");
+	    }
+	  in_interrupt--;
+	  return;
+	}
+	else 
+#endif
+        goto default_handling;
 
       default :
 	if (d.defint)
@@ -2537,8 +2519,16 @@ void do_int(int i)
 
 void sigalrm(int sig)
 {
-    static int running;
+    static int running,
+             lastint=0;
+    static inalrm=0;
 
+    int didkbd=0;
+
+    if (inalrm)
+      error("ERROR: Reentering SIGALRM!\n");
+
+    inalrm=1;
     in_sighandler=1;
 
     if ((vm86s.screen_bitmap & scrtest_bitmap) && !running) {
@@ -2548,42 +2538,45 @@ void sigalrm(int sig)
       setitimer(ITIMER_REAL, &itv, NULL);
       running = 0;
     }
+
     if (console_keyb && poll_io && !in_readkeyboard) 
       {
 	if (in_ioctl)
 	  k_printf("not polling keyboard: in_ioctl: %d %04x %04x\n",
 		   curi.fd, curi.req, curi.param3);
 	else
-	  PollKeyboard();
+	  {
+	    /* do int9 if key was polled.
+             * this is a hack.  keyups, for example, are iffy.
+	     */
+	    if ( (didkbd=PollKeyboard()) && keybint)
+	      {
+		k_printf("KBD: doing int 9 after PollKeyboard\n");
+		if (_regs.eflags & IF) do_int(9);
+		else k_printf("CAN'T DO INT 9...IF CLEAR\n");
+	      }
+	  }
       }
+
+    /* update the Bios Data Area timer dword if interrupts enabled */
+    if (_regs.eflags & IF) timer_tick();
 
     /* this is severely broken */
-    if (timers)
+    if (timers && !didkbd)
       {
-	int old_in = in_interrupt;
-	do_int(8);
-
-	h_printf("starting timer int 0x1c...\n");
-
-	/* is vm86() reentrant?  or does it just return on a sigsegv?
-         * I really should read the kernel sources...
-         */
-#if 0
-	while ((in_interrupt != old_in) && (in_interrupt > 0)) {
-	  g_printf("i: %d  o: %d\n", in_interrupt, old_in);
-	  run_vm86();
-	}
-#endif
+	h_printf("starting timer int 8...\n");
+	if (_regs.eflags & IF) do_int(8);
+	else h_printf("CAN'T DO TIMER INT 8...IF CLEAR\n");
       }
-
     in_sighandler=0;
+    inalrm=0;
 }
 
 void sigsegv(int sig)
 {
   unsigned long a;
   us *ssp;
-  unsigned char *csp;
+  unsigned char *csp, *lina;
   static int haltcount=0;
   
 #define MAX_HALT_COUNT 1
@@ -2606,16 +2599,38 @@ void sigsegv(int sig)
    */
   in_sighandler=0;
 
+  lina=(unsigned char *)((WORD(_regs.cs)<<4) + WORD(_regs.eip));
+
   if (_regs.eflags & TF) {
     g_printf("SIGSEGV %d received\n", sig);
     show_regs(); 
   }
   csp = SEG_ADR((unsigned char *), cs, ip);
+  if (! (_regs.eflags & VM)) /* test VM bit */
+    {
+      error("ERROR: NON-VM86 general protection!\n");
+    }
+
   switch (*csp) {
   case 0x62: /* bound */
+    error("BOUND INSN");
     show_regs();
-    _regs.eip += 4;  /* check this... */
-    do_int(5);
+    _regs.eip += 4;  /* check this! */
+    /* do_int(5); */
+    break;
+  case 0x6c: /* insb */
+  case 0x6d: /* insw */
+  case 0x6e: /* outsb */
+  case 0x6f: /* outsw */
+    error("ERROR: IN/OUT SB/SW: 0x%02x\n",*csp);
+    _regs.eip++;
+    break;
+  case 0xcb: /* ret far */
+    error("FAR RET SIGSEGV???\n");
+    show_regs();
+    ssp = SEG_ADR((us *), ss, sp);
+    _regs.eip = *ssp++;
+    _regs.cs = *ssp++;
     break;
   case 0xcd: /* int xx */
     _regs.eip += 2;
@@ -2632,7 +2647,6 @@ void sigsegv(int sig)
     _regs.eflags = (_regs.eflags & 0xffff0000) | *ssp++;
     _regs.esp += 6;
     in_interrupt--;
-    if (timers) h_printf("in_interrupt: %d\n", timers);
     break;
   case 0xe5: /* inw xx */
     _regs.eax &= ~0xff00;
@@ -2685,9 +2699,8 @@ void sigsegv(int sig)
     _regs.esp += 2;
     _regs.eip += 1;
     break;
-  case 0xf4: /* halt */
-    error("HLT requested!\n");
-    show_regs();
+  case 0xf4: /* hlt...I use it for various things, 
+		like trapping direct jumps into the XMS function */
     if ((_regs.cs & 0xffff) == 0xf000) /* jump into BIOS */
       {
 	error("jump into BIOS...simulating IRET\n");
@@ -2698,7 +2711,20 @@ void sigsegv(int sig)
 	_regs.eflags = (_regs.eflags & 0xffff0000) | *ssp++;
 	_regs.esp += 6;	
 	in_interrupt--;
-      } else {
+	return;
+    } else if (lina == (unsigned char *)0xffff0) {
+        error("Jump to BIOS exit routine, flag: 0x%04x\n",
+	      *(unsigned short int *)0x472);
+	leavedos(1);
+#ifdef XMS
+    } else if (lina == (unsigned char *)XMSTrap_ADD) {
+        _regs.eip+=2;  /* skip halt and info byte to point to FAR RET */
+	xms_control();
+	return;
+#endif
+    } else {
+        error("HLT requested: lina=0x%06x!\n", lina);
+        show_regs();
 	haltcount++;
 	if (haltcount > MAX_HALT_COUNT) error=0xf4;
 	_regs.eip += 1;
@@ -2708,10 +2734,6 @@ void sigsegv(int sig)
   default:
     /* er, why don't we advance eip here, and
        why does it work??  */
-    if (! (_regs.eflags && (1 << 17))) /* test VM bit */
-      {
-	error("ERROR: NON-VM86 general protection!\n");
-      }
     error("general protection %x\n", *csp);
     show_regs();
     show_ints(0x30);
@@ -2736,7 +2758,11 @@ void sigsegv(int sig)
       }
 	
     /* don't trap bad DOS 5 boot instructions */
-    if (! boot_in_progress) error=4;
+    if (! boot_in_progress) 
+      {
+	error("Not boot in progress, bad instruction\n");
+	error=4;
+      }
     else {
       dbug_printf("Bad Insn %x in DOS boot\n", *csp);
       error = 0;
@@ -2780,68 +2806,72 @@ void timint(int sig)
 
 void sigill(int sig)
 {
-unsigned char *csp;
-int i, d;
+  unsigned char *csp;
+  int i, d;
 
-	error("SIGILL %d received\n", sig);
-	show_regs();
-	csp = SEG_ADR((unsigned char *), cs, ip);
-	if (csp[0] == 0xf0)
-	  {
-	    dbug_printf("ERROR: LOCK prefix not permitted!\n");
-	    _regs.eip++;
-	    return;
-	  }
-	i = (csp[0] << 8) + csp[1]; /* swapped */
-	if ((i & 0xf800) != 0xd800) { /* no fpu instruction */
-		error = 4;
-		return;
-	}
-	switch(i & 0xc0) {
-		case 0x00:
-			if ((i & 0x7) == 0x6) {
-				d = *(short *)(csp +2);
-				_regs.eip += 4;
-			} else {
-				_regs.eip += 2;
-				d = 0;
-			}
-			break;
-		case 0x40:
-			d = (signed)csp[2];
-			_regs.eip += 3;
-			break;
-		case 0x80:
-			d = *(short *)(csp +2);
-			_regs.eip += 4;
-			break;
-		default:
-			_regs.eip += 2;
-			d = 0;
-	}
-	dbug_printf("math emulation %x d=%x\n", i, d);
+  if (! (_regs.eflags & VM)) /* test VM bit */
+    {
+      error("ERROR: NON-VM86 illegal insn!\n");
+    }
+  error("SIGILL %d received\n", sig);
+  show_regs();
+  csp = SEG_ADR((unsigned char *), cs, ip);
+  if (csp[0] == 0xf0)
+    {
+      dbug_printf("ERROR: LOCK prefix not permitted!\n");
+      _regs.eip++;
+      return;
+    }
+  i = (csp[0] << 8) + csp[1]; /* swapped */
+  if ((i & 0xf800) != 0xd800) { /* no FPU insns */
+    error("NO FPU instructions\n");
+    error = 4;
+    return;
+  }
+  switch(i & 0xc0) {
+  case 0x00:
+    if ((i & 0x7) == 0x6) {
+      d = *(short *)(csp +2);
+      _regs.eip += 4;
+    } else {
+      _regs.eip += 2;
+      d = 0;
+    }
+    break;
+  case 0x40:
+    d = (signed)csp[2];
+    _regs.eip += 3;
+    break;
+  case 0x80:
+    d = *(short *)(csp +2);
+    _regs.eip += 4;
+    break;
+  default:
+    _regs.eip += 2;
+    d = 0;
+  }
+  dbug_printf("math emulation %x d=%x\n", i, d);
 }
 
 void sigfpe(int sig)
 {
+  if (! (_regs.eflags & VM)) /* test VM bit */
+    {
+      error("ERROR: NON-VM86 SIGFPE insn!\n");
+    }
 	error("SIGFPE %d received\n", sig);
 	show_regs();
-	do_int(0); 
+	if (_regs.eflags & IF) do_int(0); 
+        else error("ERROR: FPE and interrupts disabled\n");
 }
 
+/* this is for single stepping code */
 void sigtrap(int sig)
 {
-#if 0
-  if (d.warning)
-    {
-      warn("SIGTRAP %d received\n", sig);
-      show_regs();
-    }
-#endif
-	if (_regs.eflags & TF)  /* trap flag */
-		_regs.eip++;
-
-	do_int(3);
+  if (_regs.eflags & TF)  /* trap flag */
+    _regs.eip++;
+  
+  do_int(3);
 }
 
 #define SETSIG(sig, fun)	sa.sa_handler = fun; \
@@ -2886,7 +2916,7 @@ parse_debugflags(const char *s)
 {
   char c;
   unsigned char flag=1;
-  const char allopts[]="+vsdRWkpiwgh";
+  const char allopts[]="+vsdRWkpiwghx";
 
 /* if you add new classes of debug messages, make sure to add the
  * letter to the allopts string above so that "1" and "a" can work
@@ -2933,6 +2963,9 @@ parse_debugflags(const char *s)
       case 'g': /* general messages */
 	d.general=flag;
 	break;
+      case 'x': /* XMS */
+	d.xms=flag;
+	break;
       case 'a':	/* turn all on/off depending on flag */
 	d.all=flag;
 	if (flag) parse_debugflags("1");
@@ -2968,7 +3001,7 @@ int emulate(int argc, char **argv)
 	struct sigaction sa;
 	int c;
 	int open_mem=0;  /* flag for opening mem_fd */
-	int mapped_bios=0;
+
 	iq.queued=0;
 	in_sighandler=0;
 	sync(); /* for safety */
@@ -2977,8 +3010,11 @@ int emulate(int argc, char **argv)
 	hdiskboot=1;   /* default hard disk boot */
 	console_video=0;
 	console_keyb=0;
+	mapped_bios=0;
+	keybint=0; 
+
 	opterr=0;
-	while ( (c=getopt(argc, argv, "ABCfckm:D:pP:bH:F:VNtsg")) != EOF) {
+	while ( (c=getopt(argc, argv, "ABCfckm:D:pP:bH:F:VNtsgxK")) != EOF) {
 	  switch(c) {
 	  case 'A':
 	    hdiskboot=0;
@@ -2998,6 +3034,10 @@ int emulate(int argc, char **argv)
 	    break;
 	  case 'k':
 	    console_keyb=1;
+	    break;
+	  case 'K':
+	    warn("Keyboard interrupt enabled...this is still buggy!\n");
+	    keybint=1;
 	    break;
 	  case 'm':
 	    mem_size=atoi(optarg);
@@ -3051,6 +3091,14 @@ int emulate(int argc, char **argv)
 	    error("Graphics support not compiled in!\n");
 #endif
 	    break;
+	  case 'x':
+#ifdef XMS
+	    x_printf("turning XMS option on\n");
+	    xms=1;
+#else
+	    error("XMS support not compiled in!\n");
+#endif
+	    break;
 	  case '?':
 	    p_dos_str("unrecognized option: -%c\n\r", c);
 	    usage();
@@ -3092,14 +3140,15 @@ int emulate(int argc, char **argv)
 	  ticks = tp.tv_sec - (tzp.tz_minuteswest*60);
 	  tm = localtime((time_t *)&ticks);
 	  last_ticks=(tm->tm_hour*60*60 + tm->tm_min*60 + tm->tm_sec)*18.206;
+	  set_ticks(last_ticks);
 	};
 
 	disk_init();
 	termioInit();
 	hardware_init();
 	clear_screen(screen, 7);
-	dbug_printf("$Header: /usr/src/dos/RCS/emu.c,v 1.14 1993/02/05 02:54:13 root Exp root $\n");
-	p_dos_str("Linux DOS emulator $Revision: 1.14 $  1993\n\r");
+	dbug_printf("$Header: /usr/src/dos/RCS/emu.c,v 1.18 1993/02/16 00:21:29 root Exp $\n");
+	p_dos_str("Linux DOS emulator $Revision: 1.18 $  1993\n\r");
 	p_dos_str("Mods by Robert Sanders, Alan Cox\n\r");
 	if (hdiskboot != 2)
 	  boot(hdiskboot? hdisktab : disktab); 
@@ -3279,15 +3328,15 @@ int d_ready(int fd)
 
 void usage(void)
 {
-   fprintf(stderr, "$Header: /usr/src/dos/RCS/emu.c,v 1.14 1993/02/05 02:54:13 root Exp root $\n");
-   fprintf(stderr,"usage: dos [-ABCfckbVtspg] [-D flags] [-m SIZE] [-P FILE] [-H|F #disks] > doserr\n");
+   fprintf(stderr, "$Header: /usr/src/dos/RCS/emu.c,v 1.18 1993/02/16 00:21:29 root Exp $\n");
+   fprintf(stderr,"usage: dos [-ABCfckbVtspgxK] [-D flags] [-m SIZE] [-P FILE] [-H|F #disks] > doserr\n");
    fprintf(stderr,"    -A boot from first defined floppy disk (A)\n");
    fprintf(stderr,"    -B boot from second defined floppy disk (B) (#)\n");
    fprintf(stderr,"    -C boot from first defined hard disk (C)\n");
    fprintf(stderr,"    -f flip definitions for A: and B: floppies\n");
    fprintf(stderr,"    -c use PC console video (kernel 0.99pl3+) (!%%)\n");
    fprintf(stderr,"    -k use PC console keyboard (kernel 0.99pl3+) (!)\n");
-   fprintf(stderr,"    -D set debug-msg mask to flags (+-)(avkdRWspwg01)\n");
+   fprintf(stderr,"    -D set debug-msg mask to flags (+-)(avkdRWspwgxhi01)\n");
    fprintf(stderr,"    -m set memory size to SIZE kilobytes (!)\n");
    fprintf(stderr,"    -P copy debugging output to FILE\n");
    fprintf(stderr,"    -b map BIOS into emulator RAM (%%)\n");
@@ -3299,6 +3348,8 @@ void usage(void)
    fprintf(stderr,"    -s try new screen size code (COMPLETELY BROKEN)(#)\n");
    fprintf(stderr,"    -p turn off the RAW keyboard mode polling (!)\n");
    fprintf(stderr,"    -g enable graphics modes (COMPLETELY BROKEN) (!%%#)\n");
+   fprintf(stderr,"    -x enable XMS (#)\n");
+   fprintf(stderr,"    -K Do int9 within PollKeyboard (!#)\n");
    fprintf(stderr,"\n     (!) means BE CAREFUL! READ THE DOCS FIRST!\n");
    fprintf(stderr,"     (%%) marks those options which require dos be run as root (i.e. suid)\n");
    fprintf(stderr,"     (#) marks options which do not fully work yet\n");
@@ -3320,7 +3371,7 @@ ifprintf(unsigned char flg,const char *fmt, ...)
   if (terminal_pipe) fprintf(terminal, buf);
 }  
 
-p_dos_str(const char *fmt, ...)
+p_dos_str(char *fmt, ...)
 {
   va_list args;
   char buf[1025], *s;

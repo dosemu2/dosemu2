@@ -1,0 +1,120 @@
+============================== WORDPERFECT ==============================
+   a dosemu 0.48 bulletin
+=========================================================================
+
+Friends,
+
+While I don't plan to produce "how to run" reports for every piece of
+software DOSEMU can run, I thought this was important enough to
+post.  I've gotten a lot of requests for the ability to run WordPerfect,
+so here it is (sort of).  Ideally, once I get the emulator working
+solidly, you won't need this kind of info at all.
+
+I have been able to get WordPerfect 5.0 running under dosemu 0.48 (please
+excuse the nasty version numbering).  You need to do 2 things (probably
+under a real DOS session...):  set the graphics mode to none (Text), and
+choose normal cursor speed.  For WP 5.0, here are the keystrokes:
+
+Shift-F1                 ; select display setup
+2 n                      ; set cursor speed to Normal
+3 5 [choose Text] 0      ; disable graphics
+5 1 1 n 2 n 3 n 0 0      ; disable all beeps
+3 2 2 y 0                ; turn Fast Text on
+0 0                      ; exit setup
+
+Turning Fast Text on shouldn't hurt anything, and it will speed screen
+writes up.  Fast Text is basically waiting for the vertical retrace to
+write to video RAM, which is a CGA technique.  
+
+(NOTE: even if you're using a CGA card, you should turn Fast Text on.
+       the current emulator doesn't really allow DOS programs to check
+       for retrace, but tells them it's okay to write no matter what.
+       If this causes anyone snowy screens, please tell me, and I'll fix
+       it up.)
+
+Exit with F7 to save the settings, and you're all set to load it under
+the DOS emulator.
+
+
+DANGER
+------
+I recommend that you save often.  Use the Autosave feature if you're likely
+to forget.  I haven't extensively tested WordPerfect, and the testing I
+have done show that it is very stable under dosemu, but you never can tell.
+
+If the emulator crashes while running WP, WP will ask you
+if other copies of WP are running when you load it again.  Just
+answer no.
+
+
+REQUIRED SOFTWARE
+-----------------
+I haven't tried WP 5.1 (don't have it), but this whole thread of
+inquiry into WP was started by a kind report that someone had made Wp 5.1
+(kinda) work by a small fix to dosemu 0.47.7.
+
+
+STABILITY
+---------
+Occasionally, a WP error message will cause a freezeup/crash.  I'm
+looking into this.  
+
+WHAT WORKS:
+  Most everything that I've tested except graphics and beeping.
+  Printing is slow, and goes to the dosemulpt1 file, so you'll have to
+ copy that to /dev/lp1 (or use lpr) yourself until I revamp the
+ printing code.
+ 
+ NOTE: dosemu's dosemulptX files aren't fully updated until you exit
+       the emulator. Sorry about this.
+
+
+WHAT DOESN'T:
+------------
+   Some ERROR messages lock WP up, beeps freeze while waiting for a
+ timer interrupt (currently unimplemented).  Graphics don't work, of
+ course.  Sometimes an emulator bug that affects everything also strikes
+ WP...holding down (repeating) a key too long will sometimes cause a crash.
+
+
+KEYBOARD
+--------
+   Oh, yeah, and you'll have to use -k (RAW keyboard) mode right now, as
+there's currently no other way to generate SHIFT/ALT/CTRL fkeys.  Any
+suggestions are welcome.  I guess I'll have some precursor key set
+the shift/alt/ctrl mode, but that sounds pretty clumsy.  Please tell
+me about any schemes that you've seen work well.
+
+
+VIDEO
+-----
+  I also recommend -c (direct console video ) mode if you can do it.
+When XFree86 1.2 comes out, you'll be able to flip VC's with X, so
+using X at the same time won't be a problem.  You'll need to have Linux
+boot into an 80x25 (or 80x50) screen size, but if you use WP much, you'll
+appreciate the speed.  
+
+I haven't yet buckled down and made the termcap (non -c) output
+decent, so I'm afraid non-console video won't be too appetizing for a
+while.
+
+Also, someone has released a dosemu based on Matthias' original dosemu0.4
+that opens a color xterm for display.  I'll probably look at this
+and see if we can achieve some sort of merger.  His xdos isn't
+terribly fast, and it's not very much different from 0.4, but you
+could always give it a try. (it's in tsx-11.mit.edu /pub/linux/ALPHA/dosemu).
+
+The author has said that he's working to incorporate some of dosemu 0.47.7's
+changes into his xdosemu, so look for that.
+
+I currently invoke my pre-0.48 version of dosemu like this (just for info):
+  dos -ckxV -Dkx-v > dosdbg
+
+
+
+Robert Sanders
+gt8134b@prism.gatech.edu
+
+
+
+

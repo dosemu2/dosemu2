@@ -29,13 +29,11 @@
  */
 
 #include <stdio.h>
-#include "termio.h"
 
 #define LIBSTART 	0x400000
 
 void (*dosemu)();
-/* ensure that the lower 1MB+64K is unused */
-char dummy[1088*1024 + 4*GRAPH_SIZE]; 
+char dummy[1088*1024 + 64*1024]; /* ensure that the lower 1MB+64K is unused */
 
 /* the "+ 64*1024" reserves 64k second video buffer */
 

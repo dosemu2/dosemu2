@@ -3,12 +3,21 @@
 #define TERMIO_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1993/02/05 02:54:41 $
+ * $Date: 1993/02/13 23:37:20 $
  * $Source: /usr/src/dos/RCS/termio.h,v $
- * $Revision: 1.7 $
+ * $Revision: 1.10 $
  * $State: Exp $
  *
  * $Log: termio.h,v $
+ * Revision 1.10  1993/02/13  23:37:20  root
+ * latest version, no time to document!
+ *
+ * Revision 1.9  1993/02/10  20:56:56  root
+ * for the circa-WP dosemu
+ *
+ * Revision 1.8  1993/02/08  04:17:23  root
+ * dosemu 0.47.7
+ *
  * Revision 1.7  1993/02/05  02:54:41  root
  * this is for 0.47.6
  *
@@ -66,16 +75,20 @@
 #define KKF_E0	0
 #define KKF_E1	1
 
-
-/* LED FLAGS */
+/* LED FLAGS (from Linux keyboard code) */
 #define LED_SCRLOCK	0
 #define LED_NUMLOCK	1
 #define LED_CAPSLOCK	2
 
-/* signals */
+extern unsigned int kbd_flags, key_flags;
+
+
+/* Bios data area 16-key (32byte) keybuffer */
+#define KBDA_ADDR	(unsigned short *)0x41e
+
+/* signals for Linux's process control of consoles */
 #define SIG_RELEASE	SIGWINCH
 #define SIG_ACQUIRE	SIGUSR1
-extern unsigned int kbd_flags, key_flags;
 
 /* raw console stuff */
 #ifdef MDA_VIDEO
@@ -93,8 +106,4 @@ extern unsigned int kbd_flags, key_flags;
 #define SCRN_BUF_ADDR	0x110000     /* buffer for storing screen @ 1MB+64K*/
 #define SCRN_BUF_SIZE	(0x10000)    /* buffer of 64K */
 
-/* extern unsigned char shift_map[],
-  alt_map[],
-  key_map,
-  num_table[]; */
 #endif /* TERMIO_H */

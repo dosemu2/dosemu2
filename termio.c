@@ -2,65 +2,10 @@
 #define TERMIO_C 1
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1993/02/05 02:54:32 $
+ * $Date: 1993/02/16 00:21:29 $
  * $Source: /usr/src/dos/RCS/termio.c,v $
- * $Revision: 1.13 $
+ * $Revision: 1.17 $
  * $State: Exp $
- *
- * $Log: termio.c,v $
- * Revision 1.13  1993/02/05  02:54:32  root
- * this is for 0.47.6
- *
- * Revision 1.12  1993/02/04  01:17:11  root
- * version 0.47.5
- *
- * Revision 1.11  1993/01/28  02:19:16  root
- * see emu.c 1.12.
- * THIS IS THE DOSEMU47 DISTRIBUTION TERMIO.C
- *
- * Revision 1.10  1993/01/21  21:56:59  root
- * I did it! I added the WAITACTIVE support to termio.c!  basically, now it
- * can detect being run from a console, what console # it is also, of course.
- * it won't overwrite another VC's memory no matter what tortuous VC
- * switching you try, either!  yea! safe for the masses, almost.
- *
- * Revision 1.9  1993/01/21  02:01:12  root
- * basically just added the cursor-visibility support. I really need to
- * add the race-condition code for setting raw video, the asynchronous
- * keyboard, ioctl return code checking (like, to see if kbd_fd really
- * DOES point to a console).
- *
- * Revision 1.8  1993/01/19  15:30:23  root
- * see emu.c 1.8. kbd flags are now echoed to the BIOS Data Area.
- * fixed some of the fkey scancodes in funkey[]. expanded highscan[] a
- * bit. fixed reversed entries in alt_keys[]. cleaned up convKey() a bit,
- * too.  remember to include all the national keyboards in the finished
- * product, or tell people how to get them from keyboard.c in the kernel.
- *
- * Revision 1.7  1993/01/16  01:18:47  root
- * tried to fix some of the race conditions with allow_switch(),
- * but I still can't atomically tell if I'm the current console
- * and mmap the mem if I am.  this is bad :-(.  I also haven't fixed
- * the problem with the kernel fast scrolling hardware offset stuff.
- * waiting for KDMAPDISP to do that one.
- *
- * Revision 1.6  1993/01/15  01:03:43  root
- * safer console_video mode, as the screenis now unmap'ed before switching
- * VC's.  need to extend this for all 4 pages of EGA/VGA.  took out
- * some annoying key-debugging messages for console_keyb mode.
- *
- * Revision 1.5  1993/01/14  21:57:21  root
- * see emu.c version 1.5.  GOT THE DIRECT SCREEN THING WORKING!
- * bad news: it assumes you're using an 80x25 color EGA display.
- * (i.e. it uses address 0xb8000 no matter what Linux thinks you're
- * doing).  This will be fixed when KDMAPDISP is done, although I'd
- * rather he not put the ENABIO stuff with it (Zorst, that is).
- * If he does it.  If not, Robert to the rescue!
- * anyway, it's a work very much in progress.
- *
- * Revision 1.4  1993/01/12  01:25:57  root
- * added log RCS variable
- *
  */
 
 #include <stdio.h>
@@ -84,9 +29,14 @@
 #include "emu.h"
 #include "termio.h"
 #include "dosvga.h"
-#include "keymaps.c"
 
-/* imports from dos.c */
+/* these are the structures in keymaps.c */
+extern unsigned char shift_map[97],
+  alt_map[97],
+  key_map[97],
+  num_table[15]; 
+
+/* flags from dos.c */
 extern int console_video,
            console_keyb,
   	   vga;
@@ -110,8 +60,16 @@ unsigned int convscanKey(unsigned char);
 unsigned int queue;
 
 #define KBUFLEN 16
+
+#ifdef OLD_KEYBUFFER
 static unsigned short Kbuffer[KBUFLEN];
 static int Kbuff_next_free = 0, Kbuff_next_avail = 0;
+#else
+unsigned short *Kbuffer=KBDA_ADDR;
+static int Kbuff_next_free = 0, Kbuff_next_avail = 0;
+#endif
+
+int lastscan=0;
 
 #define put_queue(psc) (queue = psc)
 
@@ -135,7 +93,6 @@ static void gettermcap(void),
  num(unsigned int),
  do_self(unsigned int),
  cursor(unsigned int),
- cur(unsigned int),
  func(unsigned int),
  slash(unsigned int),
  star(unsigned int),
@@ -146,8 +103,6 @@ static void gettermcap(void),
  tab(unsigned int),
  none(unsigned int),
  spacebar(unsigned int);
-
-extern void dos_ctrl_alt_del(void);
 
  void set_kbd_flag(int),
   clr_kbd_flag(int),
@@ -163,6 +118,7 @@ extern void dos_ctrl_alt_del(void);
 /* initialize these in OpenKeyboard! */
 unsigned int kbd_flags = 0;
 unsigned int key_flags = 0;
+int altchar=0;
 
 int vt_allow,      /* allow VC switches now? */
     vt_requested;  /* was one requested in a disallowed state? */
@@ -241,14 +197,13 @@ static fptr key_table[] = {
 };
 
 #define us unsigned short
-#define	KEYBOARD	"/dev/tty"
 
 int kbd_fd=-1,		/* the fd for the keyboard */
     old_kbd_flags,      /* flags for STDIN before our fcntl */
     console_no;		/* if console_keyb, the number of the console */
 
-int akt_keycode, kbcount;
-unsigned char kbbuf[50], *kbp, akt_key, erasekey;
+int kbcount;
+unsigned char kbbuf[50], *kbp, erasekey;
 static  struct termio   oldtermio;      /* original terminal modes */
 
 char tc[1024], termcap[1024],
@@ -310,11 +265,15 @@ static struct funkeystruct funkey[FUNKEYS] = {
 
 /* this might need changing per country, like the RAW keyboards, but I
  * don't think so.  I think that it'll make every keyboard look like
- * a U.S. keyboard to DOS
+ * a U.S. keyboard to DOS, which maybe "keyb" does anyway.  Sorry
+ * it's so ugly.
  */
 
+/* this is a table of scancodes, indexed by the ASCII value of the character
+ * to be completed */
+
 unsigned char highscan[256] = {
-0,0x1e,0x30,0x2e,0x20,0x12,0x21,0x22,0xe,0x0f,0x24,0x25,0x2e,0x1c,  /* ASCII 0 - 0xd */
+0,0x1e,0x30,0x2e,0x20,0x12,0x21,0x22,0xe,0x0f,0x24,0x25,0x2e,0x1c,  /* 0-0xd */
 0x31,0x18,0x19,0x10,0x13,0x1f,0x14,0x16,0x2f,0x11,0x2d,0x15,0x2c, /* -> 0x1a */
 1,0x2b,0,7,0xc,  /* ASCII 1b-1F */
 0x39,2,0x28,4,5,6,8,0x28,0xa,0xb,9,0xd, 0x33, 0x0c, 0x34, 0x35,  /* -> 2F */
@@ -495,7 +454,7 @@ static int OpenKeyboard(void)
 	    ioctl(kbd_fd, VT_ACTIVATE, other_no);
 	    ioctl(kbd_fd, VT_ACTIVATE, console_no);
 	  }
-	dbug_printf("$Header: /usr/src/dos/RCS/termio.c,v 1.13 1993/02/05 02:54:32 root Exp root $\n");
+	dbug_printf("$Header: /usr/src/dos/RCS/termio.c,v 1.17 1993/02/16 00:21:29 root Exp $\n");
 	return 0;
 }
 
@@ -524,13 +483,7 @@ void acquire_vt(int sig)
 
   /* v_printf("acquire_vt() called!\n"); */
   if (do_ioctl(kbd_fd, VT_RELDISP, VT_ACKACQ)) /* switch acknowledged */
-#if 0
-    v_printf("VT_REL(ACQ)DISP failed!\n");
-  else
-    v_printf("VT_REL(ACQ)DISP succeeded!\n");
-#else
-  ;
-#endif
+    v_printf("VT_RELDISP failed (or was queued)!\n");
 
   if (console_video)
     {
@@ -739,13 +692,7 @@ set_process_control()
   SETSIG(SIG_ACQUIRE, acquire_vt);
 
   if (do_ioctl(kbd_fd, VT_SETMODE, (int)&vt_mode))
-#if 0
     v_printf("initial VT_SETMODE failed!\n");
-  else
-    v_printf("initial VT_SETMODE to VT_PROCESS succeded!\n");
-#else
-   ;
-#endif
 }
 
 clear_process_control()
@@ -933,8 +880,6 @@ int tty_raw(int fd)
   ttysavefd = fd;
 #endif
   return(0);
-
-
 }
 
 static us alt_keys[] = { /* <ALT>-A ... <ALT>-Z */
@@ -973,49 +918,31 @@ static void getKeys(void)
 	struct funkeystruct *fkp;
 	fd_set fds;
 	unsigned int kbd_mode;
-	static int rawcount=0;
 
 	if (kbcount == 0) return 0;
 
 	if (console_keyb)
 	  {
-#if 0
+#ifdef CHECK_RAW
 	    do_ioctl(kbd_fd, KDGKBMODE, &kbd_mode);   /* get kb mode */
-
-	    if (kbd_mode == K_RAW) 
-#endif
-	      if (console_keyb)
+	    if (kbd_mode == K_RAW)
 	      {
+#endif
 		unsigned char scancode = *kbp & 0xff;
 		unsigned int tmpcode = 0;
-		
-		if (rawcount == 0) 
-		  {
-		    if (!console_video)
-		      fprintf(stderr,"Going into RAW mode!\n");
-		    k_printf("Going into RAW mode!\n");
-		    get_leds();
-		    key_flags = 0; 
-		  }
-		
-		rawcount++;
-
+	
+		lastscan=scancode;
 		tmpcode = convscanKey(scancode);
 		kbp++;
 		kbcount--;
 		return tmpcode;
+#ifdef CHECK_RAW
 	      }
 	    else goto xlate;
+#endif
 	  }
 
 	xlate:
-	if (console_keyb && (rawcount != 0))
-	  {
-	    k_printf("left RAW mode, I guess\n");
-	    if (!console_video) fprintf(stderr,"\nleft RAW mode, I guess\n");
-	    rawcount=0;
-	  }
-
 	/* get here only if in cooked mode (i.e. K_XLATE) */
 	if (*kbp == '\033') {
 		if (kbcount == 1) {
@@ -1107,12 +1034,43 @@ static void getKeys(void)
    */
 int InsKeyboard (unsigned short scancode)
 {
-	int n = (Kbuff_next_free+1) % KBUFLEN;
+	int n;
+
+	/* read the BDA pointers */
+	Kbuff_next_avail = *(unsigned short *)0x41a - 0x1e;
+	Kbuff_next_free = *(unsigned short *)0x41c - 0x1e;
+
+        n = (Kbuff_next_free+1) % KBUFLEN;
 	if (n == Kbuff_next_avail)
 		return 0;
 	Kbuffer[Kbuff_next_free] = scancode;
 	Kbuff_next_free = n;
+
+	/* these are the offsets from 0x400 to the head & tail */
+	*(unsigned short *)0x41a = 0x1e + Kbuff_next_avail;
+	*(unsigned short *)0x41c = 0x1e + Kbuff_next_free;
+
+	dump_kbuffer();
 	return 1;
+}
+
+dump_kbuffer()
+{
+  int i;
+  
+  k_printf("KEYBUFFER DUMP: 0x%02x 0x%02x\n", 
+	   *(us *)0x41a-0x1e, *(us *)0x41c-0x1e);
+  for (i=0;i<16;i++)
+    k_printf("%04x ", Kbuffer[i]);
+  k_printf("\n");
+}
+
+void keybuf_clear(void)
+{
+  Kbuff_next_free = Kbuff_next_free = 0;
+  *(unsigned short *)0x41a = 0x1e + Kbuff_next_avail;
+  *(unsigned short *)0x41c = 0x1e + Kbuff_next_free;
+  dump_kbuffer();
 }
 
 /* PollKeyboard
@@ -1125,18 +1083,21 @@ int PollKeyboard (void)
 
   if (in_readkeyboard) error("ERROR: Polling while in_readkeyboard!!!!!\n");
 
-  while (ReadKeyboard(&key, POLL) && count < 5)
+  if (ReadKeyboard(&key, POLL))
   {
     k_printf("found key in PollKeyboard: 0x%04x\n", key);
     if (key == 0)
       {
 	k_printf("Snatched scancode from me!\n");
-	return 0;
       }
     else
-      if (! InsKeyboard(key)) error("PollKeyboard could not insert key!\n");
-    count++;
+      {
+	if (! InsKeyboard(key)) error("PollKeyboard could not insert key!\n");
+	count++;
+      }
   }
+  if (count) return 1;
+  else return 0;
 }
 
 /* ReadKeyboard
@@ -1158,11 +1119,20 @@ int ReadKeyboard(unsigned int *buf, int wait)
 
 	in_readkeyboard=1;
 
+	/* read the BDA pointers */
+	Kbuff_next_avail = *(unsigned short *)0x41a - 0x1e;
+	Kbuff_next_free = *(unsigned short *)0x41c - 0x1e;
+
 	if ((wait != POLL) && (Kbuff_next_free != Kbuff_next_avail))
 	{
 	  *buf = (int) (Kbuffer[Kbuff_next_avail]);
 	  if (wait != TEST) 
 	      Kbuff_next_avail = (Kbuff_next_avail + 1) % KBUFLEN;
+
+	  /* update the BDA pointers */
+	  *(unsigned short *)0x41a = 0x1e + Kbuff_next_avail;
+	  *(unsigned short *)0x41c = 0x1e + Kbuff_next_free;
+
 	  in_readkeyboard=0;
 	  return 1;
 	}
@@ -1181,6 +1151,10 @@ int ReadKeyboard(unsigned int *buf, int wait)
 		    return 0;
 		  }
 		aktkey = convKey();
+		/* if console keyboard, lastscan is set in
+		 * convKey()
+		 */
+		if (!console_keyb) lastscan = aktkey >> 8;
 	}
 	*buf = aktkey;
 	if (wait != TEST) aktkey = 0;
@@ -1194,18 +1168,19 @@ int ReadKeyboard(unsigned int *buf, int wait)
    buf[0] ... length of string
    buf +1 ... string
    */
-void ReadString(int max, char *buf)
+void ReadString(int max, unsigned char *buf)
 {
-	char ch, *cp = buf +1, *ce = buf + max;
+	unsigned char ch, *cp = buf +1, *ce = buf + max;
 	unsigned int c;
 	int tmp;
 
 	for (;;) {
 		if (ReadKeyboard(&c, WAIT) != 1) continue;
 		c &= 0xff;   /* mask out scan code -> makes ASCII */
-		if ((unsigned)c >= 128) continue;
+		/* I'm not entirely sure why Matthias did this */
+		/* if ((unsigned)c >= 128) continue; */
 		ch = (char)c;
-		if (ch >= ' ' && ch <= '~' && cp < ce) {
+		if (ch >= ' ' && /* ch <= '~' && */ cp < ce) {
 			*cp++ = ch;
 			char_out(ch, screen);
 			continue;
@@ -1220,6 +1195,13 @@ void ReadString(int max, char *buf)
 		if (ch == 13) {
 			*cp = ch;
 			break;
+		}
+		if (ch == 3) {
+		  k_printf("READSTRING ctrl-c\n");
+		  *cp = ch;
+		  *buf = (cp - buf) -1; /* length of string */
+		  dos_ctrlc();
+		  break;
 		}
 	}
 	*buf = (cp - buf) -1; /* length of string */
@@ -1255,7 +1237,6 @@ unsigned int convscanKey(unsigned char scancode)
 {
 	static unsigned char rep = 0xff;
 
-	fflush(stdout);
 	if (scancode == 0xe0)
 		set_key_flag(KKF_E0);
 	else if (scancode == 0xe1)
@@ -1283,9 +1264,8 @@ unsigned int convscanKey(unsigned char scancode)
 
 	rep = scancode;
 	queue=0;
-	fflush(stdout);
 	key_table[scancode](scancode); 
-	fflush(stdout);
+
 #if 0
 	do_keyboard_interrupt(); 
 #endif
@@ -1334,7 +1314,19 @@ static void unalt(unsigned int sc)
 		clr_kbd_flag(EKF_LALT);
 
 	if (! (kbd_flag(EKF_LALT) && kbd_flag(EKF_RALT)) )
+	  {
 	        clr_kbd_flag(KF_ALT);		
+
+		/* this is for hold-alt-and-keypad entry method */
+		if (altchar)
+		  {
+		    /* perhaps anding with 0xff is incorrect.  how about
+		     * filtering out anything > 255?
+		     */
+		     put_queue(altchar&0xff);  /* just the ASCII */
+		  }
+		altchar=0;
+	  }
 }
 
 static void lshift(unsigned int sc)
@@ -1369,7 +1361,7 @@ static void uncaps(unsigned int sc)
 
 static void sysreq(unsigned int sc)
 {
-  g_printf("Regs requested\n");
+  g_printf("Regs requested: SYSREQ\n");
   show_regs();
 }
 
@@ -1379,13 +1371,28 @@ static void scroll(unsigned int sc)
     {
       k_printf("ctrl-break!\n");
       *(unsigned char *)0x471 = 0x80;  /* ctrl-break flag */
+      *(us *)0x41a = 0x1e;	/* key buf start ofs */
+      *(us *)0x41c = 0x1e;	/* key buf end ofs */
+      *(us *)0x41e = 0;		/* put 0 word in buffer */
+      Kbuff_next_free = Kbuff_next_avail;  /* clear our buffer */      
       do_int(0x1b);
       return;
     }
-  if (kbd_flag(KF_CTRL))
+  else if (kbd_flag(KF_CTRL))
       show_ints(0x30);
   else if (kbd_flag(KF_ALT))
     show_regs();
+  else if (kbd_flag(KF_RSHIFT))
+    {
+      warn("timer int 8 requested...\n");
+      do_int(8);
+    }
+  else if (kbd_flag(KF_LSHIFT))
+    {
+      warn("keyboard int 9 requested...\n");
+      dump_kbuffer();
+      do_int(9);
+    }
   else {
     chg_kbd_flag(KF_SCRLOCK);
     set_leds();
@@ -1448,7 +1455,7 @@ static void do_self(unsigned int sc)
 		return;  
 #endif
 
-	if (kbd_flag(KF_CTRL) || kbd_flag(KF_CAPSLOCK)) 	/* ctrl or caps */
+	if (kbd_flag(KF_CTRL) || kbd_flag(KF_CAPSLOCK))
 		if ((ch >= 'a' && ch <= 'z') || (ch >= 224 && ch <= 254))
 			ch -= 32;
 
@@ -1462,6 +1469,20 @@ static void spacebar(unsigned int sc)
 {
   put_queue(0x3920);
 }
+
+/* 0x47-0x53, indexed by sc-0x47 , goes like:
+ * home, up, pgup, kp -, left, kp 5, right, kp +, end, down, pgdn, ins, del
+ */
+unsigned short ctrl_cursor[] = {
+  0x7700, 0x8d00, 0x8400, 0x8e00, 0x7300, 0x8f00,0x7400,
+  0, 0x7500, 0x9100, 0x7600, 0x9200, 0x9300
+  };
+
+unsigned short alt_cursor[] = {
+  0x9700,0x9800,0x9900,0x4a00,0x9b00,0,0x9d00,0x4e00,0x9f00,0xa000,
+  0xa100,0xa200,0xa300
+  };
+
 
 static void cursor(unsigned int sc)
 {
@@ -1485,26 +1506,38 @@ static void cursor(unsigned int sc)
 
   sc -= 0x47;
 
+  /* ENHANCED CURSOR KEYS:  only ctrl and alt may modify them.
+   */
   if (key_flag(KKF_E0)) {
-    cur(old_sc);
+    if (kbd_flag(KF_ALT))
+      put_queue(alt_cursor[sc]);
+    else if (kbd_flag(KF_CTRL))
+      put_queue(ctrl_cursor[sc]);
+    else put_queue(old_sc << 8);
     return;
   }
-  
-  if (kbd_flag(KF_NUMLOCK) || kbd_flag(KF_LSHIFT)
-      || kbd_flag(KF_RSHIFT)) {
+
+/* everything below this must be a keypad key, as the check for KKF_E0
+ * above filters out enhanced cursor (gray) keys 
+ */
+
+/* this is the hold-alt-and-type numbers thing */  
+  if (kbd_flag(KF_ALT))
+    {
+      int digit;
+
+      if ((digit=num_table[sc]-'0') <= 9)      /* is a number */
+	  altchar = altchar*10 + digit;
+    }
+  else if (kbd_flag(KF_CTRL))
+    put_queue(ctrl_cursor[sc]);
+  else if (kbd_flag(KF_NUMLOCK) || kbd_flag(KF_LSHIFT)
+      || kbd_flag(KF_RSHIFT)) 
     put_queue(num_table[sc]);
-  } else
-    cur(old_sc);
-  
-  /*  put_queue(sc << 8); */
-  k_printf("cursor2: 0x%04x\n", sc << 8);
+  else
+    put_queue(old_sc << 8);
 }
 
-
-static void cur(unsigned int sc)
-{
-  put_queue(sc << 8);
-}
 
 static void backspace(unsigned int sc)
 {

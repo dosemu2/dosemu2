@@ -1,0 +1,341 @@
+.\" -*- nroff -*-
+.TH DOS 1 "Feb 16, 1993" "Version ALPHA 0.48" "MS-DOS Emulation"
+.SH NAME
+dos \- run MS-DOS and MS-DOS programs under Linux
+.SH SYNOPSIS
+.B dos
+[
+.B \-ABCfckbVtspgxK 
+]
+[
+.B \-D
+.I flags
+]
+[ 
+.B \-m 
+.I SIZE 
+]
+[
+.B \-P 
+.I FILE 
+]
+[
+.B \-H|F 
+.I #disks
+]
+\> dosdbg
+.SH DESCRIPTION
+.B dos
+invokes the Linux dos emulator, also known as dosemu.
+.br
+.I dosdbg
+is the file into which all debugging output will be redirected.
+.PP
+Although this program is known as the DOS
+.I emulator,
+it is actually a virtual machine for MS-DOS, allowing DOS and programs
+written for DOS to operate in an environment similar to a standard IBM
+PC/AT or compatible with an Intel 80x86 processor in real mode.  
+.B dosemu
+provides such services as BIOS video, disk, keyboard, and printer; CMOS
+memory for configuration information; a real time clock; and extended memory
+allocation through the XMS specification.
+.PP
+Because 
+.B dosemu
+is not really an emulator, a copy of MS-DOS 3.3, 4.0, or 5.0 is required.
+(Future versions of MS-DOS may run, but have of course not been verified.
+DR-DOS 6.0 has also been reported to work.)
+.PP
+See the files 
+.B README.first,
+.B README, 
+and the
+.B Makefile
+contained in the source distribution
+for information on how to configure, compile, and boot 
+.B dosemu.
+.SH OPTIONS
+.TP
+.PD 0
+.I -A
+boot from floppy disk A (may not be a real floppy disk, see below)
+.TP
+.I -C
+boot from hard disk C (may not be a real hard disk, see below)
+.TP
+.I -f
+Flip the definitions for the A: and B: floppies
+.TP
+.I -c
+use direct Console video (must be at the console, requires that dos is suid 
+root)
+.TP
+.I -V
+use VGA specific video optimizations
+.TP
+.I -k
+use RAW console Keyboard (must be at the console)
+.TP
+.I -H
+specify the number of Hard disks to be recognized
+.TP
+.I -F
+specify the number of Floppy disks to be recognized
+.TP
+.I -D
+specify which Debugging messages to allow/suppress
+.TP
+.I -x
+enable XMS extended memory allocation
+.TP
+.I -m
+set base memory to SIZE Kilobytes
+.TP
+.I -P
+copy debugging output to FILE
+.PD 1
+.SH HARD DISKS
+.B dosemu
+supports three methods of supplying DOS with hard disks:
+.IP 1.
+a virtual disk file residing on a Linux filesystem which emulates a hard drive
+.IP 2.
+direct access to an MS-DOS partition through a raw disk device (i.e. /dev/hda,
+/dev/hdb, /dev/sdX).
+.IP 3.
+access to a Linux filesystem as a "network" drive using the program LINUX.EXE
+supplied with
+.B dosemu
+on the 
+.I hdimage
+virtual disk file.
+.PP
+This is explained more thoroughly in
+.B README.first.
+.PP
+Configuration of
+.B dosemu's
+hard disk resources is done by editing the
+.B Makefile
+and the source file
+.B disks.c
+before compiling dosemu.
+.SH FLOPPY DISKS
+.B dosemu
+supports two methods of supplying DOS with floppy disks:
+.IP 1.
+a virtual disk file residing on a Linux filesystem which emulates a floppy
+drive
+.IP 2.
+direct access to a physical floppy through a raw disk device (i.e. /dev/fd0,
+/dev/fd1).
+.PP
+This is explained more thoroughly in
+.B README.first.
+.PP
+Configuration of
+.B dosemu's
+floppy disk resources is done by editing the
+.B Makefile
+before compiling dosemu.
+.SH VIDEO
+.B dosemu
+may be run on any tty device.  However, increased performance and functionality
+may be had by taking advantage of special features of the Linux console.
+Those running dosemu on the console may wish to investigate the 
+.I \-c,
+.I \-k,
+and
+.I \-V
+switches, explained more thoroughly in
+.B README.first.
+.PP
+In brief, proper use of the console device and the corresponding switches
+allows the user to view a DOS program in its original color and font,
+with none of the periodic screen update problems with the generic tty
+output code.
+.SH KEYBOARD
+Those using dosemu on the Linux console may also wish to use the RAW
+keyboard support.  This mode of operation, selected by the
+.I \-k
+switch, provides the user with access to the entire keyboard accessible
+under DOS.  Any combination of ALT, CTRL, and SHIFT keys may be used to
+generate the odd keycodes expected by many DOS programs.
+.SH PRINTING
+The BIOS printer services are emulated through standard UNIX file I/O
+to a set of files, 
+.I dosemulpt1, 
+.I dosemulpt2, 
+and 
+.I dosemulpt3,
+corresponding to the DOS printer devices LPT1, LPT2, and LPT3.
+All characters sent to LPTx will be redirected to the file dosemulptx in
+the current directory.
+.PP
+.B WARNING!
+dosemu does not keep the file buffers flushed; therefore, the state of these
+files is undefined until you actually exit the DOS emulator.  Please
+excuse the inconvenience.
+.SH DEBUGGING MESSAGES
+You may specify which classes of messages you wish 
+.B dos
+to allow. The syntax of this is 
+Dosemu takes an option "-D FLAGS", where FLAGS is a string of letters
+which specify which options to print or suppress.  Dosemu parses this
+string from left to right.
+
+   +   turns the following options on (initial state)
+   -   turns the following options off
+   a   turns all the options on/off, depending on flag
+   0   turns all options off
+   1   turns all options on
+   #   where # is a letter from the valid class list, 
+       turns that option off/on depending on the 
+       +/- state.
+
+.I Message Classes:
+   d   disk            v   video          R   disk Reads
+   k   keyboard        i   port I/O       W   disk Writes
+   s   serial          p   printer        h   hardware
+   w   warnings        g   general        x   XMS
+
+Any debugging classes following a 
+.I \+ 
+character, up to a 
+.I \- 
+character, will be turned on (non-suppressed).  Any after a 
+.I \-
+character, up to a 
+.I \+
+character, will be suppressed.  The character 
+.I a
+acts like a string of all possible debugging classes, so 
+.I \+a
+turns on all debugging messages, and 
+.I \-a
+turns off all debugging messages.  The characters 
+.I 0 
+and 
+.I 1
+are also special: 
+.I 0
+turns off all debugging messages, and 
+.I 1 
+turns on all debugging messages.
+
+There is an assumed 
+.I \+
+at the beginning of the FLAGS string.
+Some classes, such as error, can not be turned off.  You must tolerate
+these; you could always redirect stdout to 
+.B /dev/null 
+if you REALLY don't want them.
+
+Some examples:
+  "-D+a-v" or "-D1-v"  : all messages but video
+  "-D+kd"              : default + keyboard and disk
+  "-D0+RW"             : only disk READ and WRITE
+
+Any option letter can occur in any place.  Even pointless combinations,
+such as 
+.I -D01-a-1+0,
+will be parsed without error, so be careful.
+Some options are set by default, some are clear. This is subject to my 
+whim, and will probably change between releases.  You can ensure
+which are set by always explicitly specifying them.
+.SH SPECIAL KEYS
+In RAW keyboard mode (see the
+.BR \-k
+option), dosemu responds to certain key sequences as control functions.
+.PP
+.PD 0
+.IP 
+ctrl-scrlock   =  show 0x32 int vectors
+.IP 
+alt-scrlock    =  show the vm86 registers
+.IP
+rshift-scrlock =  generate an int8 (timer)
+.IP
+lshift-scrlock =  generate an int9 (keyboard)
+.IP
+ctrl-break     =  ctrl-break as under DOS.
+.IP
+ctrl-alt-pgup  =  reboot DOS. Don't trust this!
+.IP
+ctrl-alt-pgdn  =  exit the emulator
+.PD 1
+.PP
+Also, realize that to generate ALT-function keys, you must depress the RIGHT
+ALT key together with the desired function key; the LEFT ALT key pressed
+together with a function key will change virtual consoles, as it normally
+does under Linux.
+.SH MEMORY
+The XMS memory support in dosemu conforms to Lotus/Intel/Microsoft/AST extended
+memory specification 3.0.  I have implemented all XMS functions except:
+function 0x12 (Reallocate Upper Memory Block) and the Super Extended
+Memory Support.  
+.PP
+While I have implemented the UMB functions, they are extremely stupid and 
+will almost always act suboptimally.  The next release of dosemu should
+have saner UMB support.
+.PP
+EMS has not been implemented, and probably won't be for some time.
+.SH AUTHOR
+.B dosemu
+(comprised of the files
+.B dos 
+and 
+.B libemu
+) is based on version 0.4 of the original program written by Matthias Lautner
+(no current address that I know of).
+.PP
+Robert Sanders <gt8134b@prism.gatech.edu> is still maintaining and enhancing 
+the incarnation of 
+.B dosemu 
+with which this man page was distributed.
+.PP
+There is also an X-based version of Matthias Lautner's DOS emulator called
+.B xdosemu,
+adapted by Edward Der-Hua Liu.
+.B Xdosemu
+uses X-specific code to provide color and line-drawing characters, and
+can be found on the same site as dosemu.
+.SH BUGS
+There are too many to count, much less list.  
+.br
+However, one hugely annoying bug is the inability of .EXE files to be run
+from the LINUX.EXE-created "network" or "phantom" drive.  This means that
+the .EXE files must be run from disks accessed through hard disk methods 1 or 2
+(see 
+.B HARD DISKS
+above), or through floppy access. 
+.PP
+Just to make things more difficult, I have noticed some bugs in the floppy
+code.
+.PP
+Please report bugs to the author.
+I'd also like to hear about which programs DO work.  Just send me a note
+detailing what program (and what version) you are using, what works and
+what doesn't, etc.
+.SH AVAILABILITY
+The most recent version of 
+.B dosemu
+can be ftp'ed from tsx-11.mit.edu in the /pub/linux/ALPHA/dosemu directory.
+.SH SEE ALSO
+.PD 0
+.BR /usr/bin/dos
+(the invoker program)
+.PP
+.BR /lib/libemu
+(the actual emulator code as a shared library)
+.BR README.first
+and
+.BR README
+distributed with dosemu.
+.PP
+the
+.BR MSDOS 
+mailing list: for more information, mail to
+.IP 
+linux-activists-request@niksula.hut.fi

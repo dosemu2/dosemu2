@@ -3,12 +3,21 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1993/02/05 02:54:24 $
+ * $Date: 1993/02/13 23:37:20 $
  * $Source: /usr/src/dos/RCS/emu.h,v $
- * $Revision: 1.5 $
+ * $Revision: 1.8 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 1.8  1993/02/13  23:37:20  root
+ * latest version, no time to document!
+ *
+ * Revision 1.7  1993/02/10  20:56:45  root
+ * for the circa-Wp dosemu
+ *
+ * Revision 1.6  1993/02/08  04:17:56  root
+ * dosemu 0.47.7
+ *
  * Revision 1.5  1993/02/05  02:54:24  root
  * this is for 0.47.6
  *
@@ -18,9 +27,6 @@
  * Revision 1.3  1993/01/28  02:19:59  root
  * for emu.c 1.12
  * THIS IS THE DOSEMU47 DISTRIBUTION EMU.H
- *
- * Revision 1.2  1993/01/12  01:27:11  root
- * just added log RCS var.
  *
  */
 
@@ -38,6 +44,7 @@
 #define SF 0x80
 #define TF 0x100
 #define IF 0x200
+#define VM 0x20000
 
 extern struct vm86_struct vm86s;
 extern int error, screen;
@@ -64,8 +71,10 @@ extern int kbd_fd, mem_fd;
 extern int in_readkeyboard;
 
 extern int  li, co, li2, co2;	/* lines, columns */     
+extern int lastscan;
 #endif
 
+void dos_ctrlc(void), dos_ctrl_alt_del(void);
 void show_regs(void);
 int ext_fs(int, char *, char *, int);
 void char_out(unsigned char, int);
@@ -82,7 +91,7 @@ inline void run_vm86(void);
 int ReadKeyboard(unsigned int *, int);
 int InsKeyboard(unsigned short scancode);
 int PollKeyboard(void);
-void ReadString(int, char *);
+void ReadString(int, unsigned char *);
 
 static void inline port_out(char value, unsigned short port)
 {
@@ -115,11 +124,12 @@ struct debug_flags
     general,
     warning,
     all,	/* all non-classifiable messages */
-    hardware;
+    hardware,
+    xms;
 };
 
 int ifprintf(unsigned char,const char *, ...),
-    p_dos_str(const char *, ...);
+    p_dos_str(char *, ...);
 
 #define dbug_printf(f,a...)	ifprintf(1,f,##a)
 #define k_printf(f,a...) 	ifprintf(d.keyb,f,##a)
@@ -133,13 +143,20 @@ int ifprintf(unsigned char,const char *, ...),
 #define W_printf(f,a...) 	ifprintf(d.write,f,##a)
 #define warn(f,a...)     	ifprintf(d.warning,f,##a)
 #define g_printf(f,a...)	ifprintf(d.general,f,##a)
+#define x_printf(f,a...)	ifprintf(d.xms,f,##a)
 #define e_printf(f,a...) 	ifprintf(1,f,##a)
 #define error(f,a...)	 	ifprintf(1,f,##a)
 
 #define IOFF(i) ivecs[i].offset
 #define ISEG(i) ivecs[i].segment
-
 #define IVEC(i) ((ISEG(i)<<4) + IOFF(i))
+
+#define WORD(i) (i&0xffff)
+
+#define CARRY	_regs.eflags|=CF;
+#define NOCARRY _regs.eflags&=~CF;
+
+#define char_out(c,s)   char_out_att(c,7,s)
 
 struct disk {
 	char *dev_name;			/* disk file */
@@ -167,6 +184,7 @@ struct ioctlq
 void do_queued_ioctl(void);
 int queue_ioctl(int, int, int),
     do_ioctl(int, int, int);
+void keybuf_clear(void);
 
 #ifndef EMU_C
 extern struct debug_flags d;
@@ -175,5 +193,5 @@ extern int in_sighandler, in_ioctl;
 extern struct ioctlq iq, curi;
 #endif
 
-static char RCSid[]="$Header: /usr/src/dos/RCS/emu.h,v 1.5 1993/02/05 02:54:24 root Exp root $";
+static char RCSid[]="$Header: /usr/src/dos/RCS/emu.h,v 1.8 1993/02/13 23:37:20 root Exp $";
 #endif /* EMU_H */

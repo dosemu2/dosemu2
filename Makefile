@@ -1,10 +1,7 @@
 # define LATIN1 if if you have defined KBD_XX_LATIN1 in your linux Makefile.
 # This assumes that <ALT>-X can be read as "\033x" instead of 'x'|0x80 
 #
-# -DCONSOLE will one day control whether my console support is compiled
-#  in - Robert
-#
-# DEFINES=-DLATIN1 -DCONSOLE
+# DEFINES=-DLATIN1
 #
 # WARNING!  You'll have to "touch" the affected files after you change
 #           some configuration option in the Makefile.  Unless you
@@ -17,11 +14,13 @@
 
 # path to your compiler's shared libraries
 #
-# IF YOU ARE USING GCC 2.3.3, ENSURE THAT THE FOLLOWING LINE
+# IF YOU ARE NOT USING GCC 2.3.3, ENSURE THAT THE FOLLOWING LINE
 # POINTS TO YOUR SHARED LIBRARY STUBS!
 #
+# one of these ought to work:
+# SHLIBS=
+ SHLIBS=-L/usr/lib/gcc-lib/i386-linux/2.2.2d/shared -L/usr/lib/shlib/jump
 
-SHLIBS=-L/usr/lib/gcc-lib/i386-linux/2.2.2d/shared -L/usr/lib/shlib/jump
 
 #
 # PHANTOMDIR
@@ -31,8 +30,7 @@ SHLIBS=-L/usr/lib/gcc-lib/i386-linux/2.2.2d/shared -L/usr/lib/shlib/jump
 
 PHANTOMDIR = -DPHANTOMDIR=\"/usr/dos\"
 
-
-
+#
 # VIDEO_CARD
 #    choose the correct one for your machine.
 #    currently, VGA/EGA/CGA are synonomous
@@ -45,14 +43,12 @@ PHANTOMDIR = -DPHANTOMDIR=\"/usr/dos\"
 
 
 
-
 # KEYBOARD
 #   choose the proper RAW-mode keyboard
 #   nationality 
 #
 
-KEYBOARD = -DKBD_US -DKBDFLAGS=0
-
+  KEYBOARD = -DKBD_US -DKBDFLAGS=0
 # KEYBOARD = -DKBD_FINNISH -DKBDFLAGS=0
 # KEYBOARD = -DKBD_FINNISH_LATIN1 -DKBDFLAGS=0x9F
 # KEYBOARD = -DKBD_GR -DKBDFLAGS=0
@@ -104,13 +100,13 @@ NUM_DISKS = -DDEF_FDISKS=$(DEF_FDISKS) -DDEF_HDISKS=$(DEF_HDISKS)
 #   5:  "/dev/fd1" 3.5 inch 1.44 MB
 #
 # this is my configuration: a diskimage file
-# as floppy A:, /dev/fd0 5.25 inch as floppy B:,
-# and the EXTRA_FLOPPY is my /dev/fd1 3.5 inch.
+# as floppy A:, /dev/fd1 3.5 inch as floppy B:,
+# and the EXTRA_FLOPPY is my /dev/fd0 5.25 inch.
 #
 
 FLOPPY_A=1
-FLOPPY_B=2
-EXTRA_FLOPPY=5
+FLOPPY_B=5
+EXTRA_FLOPPY=2
 
 # another popular configuration might be this:
 # the floppies A: and B: correspond to /dev/fd0 and
@@ -124,6 +120,12 @@ FLOPPY_CONFIG = -DFLOPPY_A=$(FLOPPY_A) -DFLOPPY_B=$(FLOPPY_B) \
                 -DEXTRA_FLOPPY=$(EXTRA_FLOPPY)
 
 #
+# MATHCO
+#  uncomment this if you have a real math coprocessor. Linux math
+#  emulation doesn't seem to work w/vm86 mode.
+MATHCO = -DMATHCO=1
+
+#
 # EXPERIMENTAL_GFX
 #  uncomment these if you want to freeze your machine with
 #  no hope of recovery...
@@ -131,15 +133,38 @@ FLOPPY_CONFIG = -DFLOPPY_A=$(FLOPPY_A) -DFLOPPY_B=$(FLOPPY_B) \
 # GFX    = -DEXPERIMENTAL_GFX=1
 # GFXOBS = dosvga.o
 
+# XMS  (eXtended Memory Specification)
+#  comment these if you don't want programs to use the
+#  semi-functional XMS support (UMB support is still weak)
+#  Although semi-functional, it seems bug-free. :-)
+# 
+# MAX_XMS is the maximum number of Kilobytes you will allow
+#   dosemu's XMS support to use. Unused XMS memory doesn't cost 
+#   you anything, and it can be swapped like any other Linux memory
+#
+XMS     = -DXMS=1
+XMSOBS  = xms.o
+MAX_XMS = 3072
+
 #
 # SYNC_ALOT
 #  uncomment this if the emulator is crashing and some debug info isn't
 #  being written to the file
 # SYNC_ALOT = -DSYNC_ALOT=1
 
-OBJS=emu.o linuxfs.o termio.o disks.o $(GFXOBS)
-OPTIONAL  = $(GFX)
-CONFIGS   = $(KEYBOARD) $(PHANTOMDIR) $(VIDEO_CARD)
+
+###################################################################
+CFILES=cmos.c dos.c emu.c termio.c xms.c disks.c dosvga.c keymaps.c \
+	timers.c linuxfs.c
+HFILES=cmos.h dosvga.h emu.h termio.h timers.h xms.h 
+OFILES=Makefile README.first README
+###################################################################
+
+OBJS=emu.o linuxfs.o termio.o disks.o keymaps.o timers.o cmos.o \
+     $(GFXOBS) $(XMSOBS)
+
+OPTIONAL  = $(GFX) $(XMS) -DMAX_XMS=$(MAX_XMS) # -DDANGEROUS_CMOS=1
+CONFIGS   = $(KEYBOARD) $(PHANTOMDIR) $(VIDEO_CARD) $(MATHCO)
 DEBUG     = $(SYNC_ALOT)
 DISKS     = $(NUM_DISKS) $(FLOPPY_CONFIG)
 CFLAGS    = $(DEFINES) $(CONFIGS) $(OPTIONAL) $(DEBUG) $(DISKS) #-O6 -Wall
@@ -153,22 +178,35 @@ libemu:	$(OBJS)
 	ld -T 400000 -o $@ $(OBJS) $(SHLIBS) -lc -ltermcap
 
 clean:
-	rm -f $(OBJS) dos.o dos libemu *.s core
+	rm -f $(OBJS) $(GFXOBS) $(XMSOBS) dos libemu *.s core
 
 install: all
-#	rm -f /lib/libemu /usr/bin/dos
 	cp libemu /lib
 	cp dos /usr/bin
-	chmod 4755 /usr/bin/dos
+	cp dos.1 /usr/man/man1
+	chmod 4755 /usr/bin/dos    # make it suid
 	touch hdimage diskimage
 	@echo "Type 'dos -\?' for help."
 
-emu.o:		emu.h
-linuxfs.o:	emu.h
-termio.o:	emu.h termio.h keymaps.c
-disks.o:	emu.h
-dosvga.o:	emu.h dosvga.h
-disks:
-	touch disks.c
-	@echo "Now do a 'make all' to make the emulator with the new disks."
+checkin:
+	ci $(CFILES) $(HFILES) $(OFILES)
 
+dist: $(CFILES) $(HFILES) $(OFILES) dos.1
+	mkdir -p /tmp/dosemu0.48
+	cp $(CFILES) $(HFILES) $(OFILES) announce.48 wp50 dos.1 /tmp/dosemu0.48
+	cp hds/hdimage.dist /tmp/dosemu0.48/hdimage
+	touch /tmp/dosemu0.48/diskimage
+	(cd /tmp; tar cf dosemu0.48.tar dosemu0.48; compress dosemu0.48.tar)
+	rm -rf /tmp/dosemu0.48
+	@echo "FINAL TAR.Z FILE:"
+	@ls -l /tmp/dosemu0.48.tar.Z
+
+emu.o:		emu.h dosvga.h xms.h timers.h Makefile
+linuxfs.o:	emu.h 
+termio.o:	emu.h termio.h dosvga.h
+disks.o:	emu.h Makefile
+keymaps.o:	Makefile
+dosvga.o:	emu.h dosvga.h
+xms.o:		emu.h xms.h Makefile
+timers.o:	emu.h timers.h
+cmos.o:		emu.h cmos.h

@@ -1,0 +1,62 @@
+======================= DOSEMU ANNOUNCEMENT ==============================
+
+I have put dosemu48.tar.Z onto tsx-11.mit.edu in the
+/pub/linux/ALPHA/dosemu directory.
+
+dosemu48.tar.Z is a collection of my enhanced sources to the MS-DOS
+emulator originally written by Matthias Lautner.  Note that the term
+MS-DOS "emulator" is a misnomer, as you must have a copy of MS-DOS to
+boot it.  I doubt this is a problem for anybody.
+  Suggestions for less misleading names are welcome.
+
+There have been a lot of questions about using WordPerfect under dosemu.
+As of dosemu 0.48, you can.  If you didn't see my post on how to make
+WordPerfect run under dosemu, mail me and I'll send it to you.
+(Basically, just set the screen mode to "Text Only").
+
+Here are some of the changes since version 0.47.7:
+=========================================================================
+  * "dir /w" actually comes out right now (finally).  This also means
+    any errors in DOS STDOUT redirection (i.e. type file > file2) should
+    be fixed.
+  * that hold-alt-and-type-on-the-keypad numeric keypad entry methos works
+    in RAW keyboard mode.
+  * along with this, almost all RAW keyboard mode keys should work (ctrl/alt
+    cursor keys, etc).
+  * fixes to get WordPerfect to work.
+  * fixes to get EDLIN to work (whee) including the proper handling of ctrl-c
+    while in a DOS read char/string call.
+  * some of the fixes needed to get QBASIC/EDIT to work (this is primarily
+    the addition of hardware keyboard access emulation, and is nowhere near
+    completion)
+  * partial XMS...put "dos=high,umb" in your config.sys and
+    watch the fun begin.  Works great for 4DOS.
+  * a pseudo-timer tick has been implemented...all it does is update the
+    BIOS tick counter at 0040:006c.  This is apparently a big deal
+    to a lot of programs, so if they just froze before, try them again.
+  * a lot of little things here and there.
+  * most of the important CMOS RAM has been implemented, with the
+    exception of the Real Time Clock alarm.
+  * a tentative man page
+=========================================================================
+
+Thanks to all you who are bravely risking your filesystems, your
+machines, nay, your very lives, to help me test this thing.
+
+Read README.first for details.  Read the Makefile for help on configuration.
+
+I hope this satisfies all you DOS losers, er, users for a while.  I'm 
+gonna take some time to actually do my schoolwork, get some rest, smell
+the flowers.  
+
+I'd like to say the next release will be the big bad dosemu I've
+envisioned, but I doubt it will.  I will eventually have the console
+graphics working, and I'll finish the XMS UMB support, maybe even find the
+time to get the keyboard and timer hardware emulation working.  But
+it'll be several weeks before that happens.
+
+
+Robert Sanders
+gt8134b@prism.gatech.edu
+
+

@@ -1,16 +1,17 @@
-========================== DOS EMULATOR 0.47 ===========================
+========================== DOS EMULATOR 0.48 ===========================
       Robert Sanders                           gt8134b@prism.gatech.edu
-$Header:$
+$Header: /usr/src/dos/RCS/README.first,v 1.4 1993/02/16 00:21:29 root Exp $
 ========================================================================
 
-						January 27, 1993  0.47
-						February 5, 1993  0.47.7
+						January  27, 1993  0.47
+						February  5, 1993  0.47.7
+						February 16, 1993  0.48
 
 
 Hello, public,
 
-This is my latest version of the DOS emulator; I call it dosemu47.7,
-meaning dosemu 0.47.7 alpha. I hope the numbering doesn't confuse
+This is my latest version of the DOS emulator; I call it dosemu48,
+meaning dosemu 0.48 alpha. I hope the numbering doesn't confuse
 anybody.  0.41-0.46 were "internal" versions, while 0.47 is the public
 release preceding this one.  The RCS revision numbers printed in
 various places throughout the emulator mean very little to either of
@@ -19,12 +20,12 @@ us, so don't worry about them.
 I was hoping to wait a little longer to release this version, but
 there were several very important "features" I implemented fairly
 quickly, and I thought I'd let everyone benefit.  I want to avoid a
-Seyon-like release cycle of 3 per week (not to knock Seyon, I use it
+Seyon-like release cycle of 1 per week (not to knock Seyon, I use it
 myself when I can spare the memory to run X), but I'd rather not have
 people suffering from things I'd solved weeks before.  I won't provide
 diffs until things settle down a bit.
 
-Dosemu 0.47.7 is based on dosemu0.4 from Matthias Lautner, but is quite
+Dosemu 0.48 is based on dosemu0.4 from Matthias Lautner, but is quite
 a bit more useable.  It is probably already obsolete by now, however,
 as I am continually at work making the code even uglier :-).
 Hopefully, with all this code uglification will come a stray feature
@@ -87,7 +88,9 @@ sure the emulator doesn't hide the cursor, so you can find your place.
 
 I'm still trying to devise a way to map a variety of foreground and
 background colors, as well as high intensity, onto a very few
-termcap attributes.
+termcap attributes.  I have just gotten a copy of color xterm, so
+perhaps I will provide support for that.  I have also gotten the xdosemu
+released recently, and will look into incorporating its X interface.
 
   4) If you're using the raw keyboard (-k) option, you will probably want
      to change the kernel to allow you an easy way out in case things crash
@@ -114,11 +117,10 @@ termcap attributes.
         You'll probably want to just exit the emulator after a hang, as the
         reboot code is currently flaky.
 
-	I suggest you not use the -k feature of the DOS emulator unless you
-	really need it.  It gives you some debatably useful things like
+	RAW keyboard mode (-k) gives you some debatably useful things like
 	alt/ctrl/shift key flags (through int16h and the Bios Data Area),
 	but it's not really necessary.  Some programs won't recognize ALT
-        keys unless you use -k mode, but I'll fix that on day.  And, if you
+        keys unless you use -k mode, but I'll fix that one day.  And, if you
         use a non-U.S. keyboard, -k mode is probably still incomplete for you.
 
   5) I recommend that you use libc.so.4.2 or newer.
@@ -135,20 +137,24 @@ termcap attributes.
      it because of the danger.  Otherwise, you'll have to run LINUX.EXE
      as specified in README, and that won't let you run .EXE files from
      the phantom drive (yet).  However, you can still run .EXE files
-     from floppies, diskimage, and hdimage.
+     from diskimage and hdimage.
+
+     I might soon be investing in _Undocumented DOS_ to find out how to
+write a network redirector.  When I do, you will be able to run .EXE
+files from your "phantom" drive.  However, I'm not making any promises;
+it might happen next week, it might happen 4 months from now.  
 
 
 -------- INVOCATION --------
 Here is what you see if you type "dos -?":
-$Header: /usr/src/dos/RCS/emu.c,v 1.14 1993/02/05 02:54:13 root Exp root $
-usage: dos [-ABCfckbVtspg] [-D flags] [-m SIZE] [-P FILE] [-H|F #disks] > dbg
+usage: dos [-ABCfckbVtspgxK] [-D flags] [-m SIZE] [-P FILE] [-H|F #disks] > doserr
     -A boot from first defined floppy disk (A)
     -B boot from second defined floppy disk (B) (#)
     -C boot from first defined hard disk (C)
     -f flip definitions for A: and B: floppies
     -c use PC console video (kernel 0.99pl3+) (!%)
     -k use PC console keyboard (kernel 0.99pl3+) (!)
-    -D set debug-msg mask to flags (+-)(avkdRWspwg01)
+    -D set debug-msg mask to flags (+-)(avkdRWspwgxhi01)
     -m set memory size to SIZE kilobytes (!)
     -P copy debugging output to FILE
     -b map BIOS into emulator RAM (%)
@@ -156,22 +162,24 @@ usage: dos [-ABCfckbVtspg] [-D flags] [-m SIZE] [-P FILE] [-H|F #disks] > dbg
     -F specify number of floppy disks (1-4)
     -V use VGA specific video optimizations (!#%)
     -N No boot of DOS
-    -t try new timer code (COMPLETELY BROKEN) (#)
-    -s try new screen size code (COMPLETELY BROKEN) (#)
+    -t try new timer code (COMPLETELY BROKEN)(#)
+    -s try new screen size code (COMPLETELY BROKEN)(#)
     -p turn off the RAW keyboard mode polling (!)
     -g enable graphics modes (COMPLETELY BROKEN) (!%#)
+    -x enable XMS (#)
+    -K Do int9 within PollKeyboard (!#)
 
      (!) means BE CAREFUL! READ THE DOCS FIRST!
      (%) marks those options which require dos be run as root (i.e. suid)
      (#) marks options which do not fully work yet
 
-The invocation I use under an 80x25 console window is this:
-    dos -ckbm 720 -VP /dev/ttys0 > dbg
+The invocation I use under an 80x25 console (when not debugging) is this:
+    dos -ckx -VP /dev/ttys0 -D0 > dbg
 
 Under an xterm*:
     dos -b -P /dev/ttys0 > dbg
 * I recommend that you resize the xterm to 25 lines first. The standard 24
-  is insufficient.  Larger sizes will have no affect.
+  is insufficient.  Larger sizes will have no effect.
 
 
 Using "-k" direct console keyboard, there are a few things you should know:
@@ -190,13 +198,20 @@ under native DOS. (write me if it doesn't)
 Some special keys under RAW keyboard mode:
    ctrl-scrlock   =  shows the first 0x32 int vectors on debug output)
    alt-scrlock    =  show the vm86 registers
-   ctrl-break     =  ctrl-break under DOS.
-   ctrl-alt-pgup  =  (preferred) reboot DOS. imperfectly done. 
-   ctrl-alt-pgdn  =  exit the emulator.
+   rshift-scrlock =  generate an int8 (timer tick)
+   lshift-scrlock =  generate an int9 (keyboard service)
+   ctrl-break     =  ctrl-break as under DOS.
+   ctrl-alt-pgup  =  reboot DOS. imperfectly done. don't trust this.
+   ctrl-alt-pgdn  =  exit the emulator (same as using EXITEMU.COM)
+
+(some of these are useful for debugging purposes only)
 
 I chose not to use ctrl-alt-del to reboot dosemu because it's a bad
 habit to get into.  I accidentally rebooted my machine a couple of times,
-and decided that authenticity was somewhat less important than uptime.
+and decided that authenticity was somewhat less important than safety.
+(None of these keys will work reliably if you have specified the -p option,
+ including the VC switching keys...this could leave you stranded in a VC
+ witha crashed DOS program.  NOT RECOMMENDED!)
 
 -------- DEBUGGING -------
 The emulator, being so early ALPHA, has a considerable amount of code
@@ -222,7 +237,7 @@ classes:
    d   disk            v   video          R   disk Reads
    k   keyboard        i   port I/O       W   disk Writes
    s   serial          p   printer        h   hardware
-   w   warnings        g   general
+   w   warnings        g   general        x   XMS
 
 Any debugging classes following a "+" character, up to a "-" character, will
 be turned on (non-suppressed).  Any after a "-" character, up to a "+"
@@ -256,18 +271,72 @@ option unless you really need it or are sure you can handle the risks,
 and that if you do, you apply the kernel patch listed above.  If the
 emulator crashes (as it so rarely does :-), you might be left in
 suspended animation.  You can now exit DOS with CTRL-ALT-PGDN , so
-you'll most likely not get stuck.  However, a serious crash might
+you'll most likely not get stuck.  However, a REALLY serious crash might
 leave the keyboard in RAW mode, and then, unless you applied my tiny
-patch, you really are stuck.
+patch, you really are stuck.  Since I made the keyboard code safer
+(in 0.47.7), I've had this happen ONCE, and that was caused by what
+I suspect to be a kernel bug.  So you're probably safe.
 
 Also, the multinational support with RAW keyboard mode is very
 sketchy.  I have the keyboard types selectable in the Makefile (like
 the kernel does), but I for some reason removed the
-deadkey/diacritical mark code when I first implemented RAW mode (my
+deadkey/diacritical code when I first implemented RAW mode (my
 scancode parsing code is lifted wholesale from the kernel.  Thanks,
 Linus! :-)  I dunno why.  Anyway, until I put it back in, you foreigners
-are probably disadvantaged. And the DOS "keyb" command crashes the
+are probably disadvantaged.  And the DOS "keyb" command crashes the
 emulator, so don't get any ideas. :-)
+
+You'll need to use RAW keyboard mode to run WordPerfect, as it
+uses all sorts of godawful ctrl/alt-fkeys.  I'm thinking of ways to
+support these sorts of combinations without RAW keyboard mode, but
+nothing really seems "transparent" enough yet.
+
+
+----- CONSOLE VIDEO ----- 
+Hmmm.  This is one of the first features I added to the DOS emulator,
+and I find it one of the most useful.  Basically, when you enable
+console video by giving dosemu the "-c" flag, dosemu bypasses the
+whole tty universe and writes directly to video RAM.  
+
+The advantages:
+  * very fast
+  * you get color and PC graphics characters
+
+The disadvantages:
+  * still doesn't support screen widths greater than 80 characters
+  * only works on the console (i.e. not over a serial line, not over
+    a network)
+
+With the release of XFree86 1.2 (which is sort of half in progress as
+you read this), you should have the ability to switch virtual consoles
+even while running an X session.  So, the best environment for X users
+is probably to boot Linux into an 80x25 screen size, run dosemu on one
+VC, and run XFree86 1.2 on another.
+
+For those of you who like text screen sizes other than 80x25, I
+apologize.  I am working on support for these, but it hasn't seemed
+urgent, so it hasn't gotten done.
+
+If you don't use console video, dosemu reverts to the old method of
+screen refresh, which is to translate the DOS virtual-screen memory
+into a normal stream of ASCII characters and terminal control sequences
+(read from your /etc/termcap).  This method is much slower, doesn't
+support color, and doesn't support most of the PC graphics characters.
+However, you can use this in an xterm or over a serial line.
+
+There is a modified DOS emulator (xdosemu) that includes a mini-xterm
+for output.  It supports color, enhanced keyboard (like my "-k" RAW
+keyboard mode), most PC graphics characters, and its output should be
+faster than my dosemu's termcap output.  However, xdosemu is otherwise
+little modified from the original dosemu0.4, and offers little of the
+added functionality/compatibility of dosemu 0.48.  The author has said
+he will incorporate some of my dosemu's features.
+
+You can get it on tsx-11.mit.edu as /pub/linux/ALPHA/dosemu/xdosemu.tpz
+(it is a tar'ed and gzip'ed file).
+
+In addition, I will one day incorporate some form of X support, whether
+it is taken from xdosemu or not.
 
 -------- VGA VIDEO ------
 All I'll say about the -V flag is that you must also specify -c
@@ -282,14 +351,17 @@ shouldn't be any, try -cV)
 The "-P TTY" sends a copy of _dbg_ (the debugging messages) to a
 terminal.  It can be left out if you wish (or have nothing to send it
 to!).  This is no big deal, basically just a tee.  The reason it's
-there at all is that it will one day provide me with a debugging menu
-system.  (One day, like everything else :-).
+there at all is that it will one day provide me with an interactive
+debugging system.  (One day, like everything else :-).
 
 ----------- BIOS --------------
 The "-b" option maps the two BIOS ROMs at c000:0000 and f000:0000 into
 the emulator's address space (same addresses).  This is for my
 purposes, and does not (yet) enhance the functionality of the emulator.
 I'm not sure if all computers have their ROMs at those addresses.
+
+Also, once I have the XMS Upper Memory Block support done, you won't 
+want to do this, as it steals memory from XMS.
 
 
 ----------- SERIAL --------------
@@ -304,15 +376,17 @@ The emulator assumes COM1 is /dev/modem (on my system, a symlink to
 in the current directory.  These should also be symlinks to real devices.
 You can change these names directly in emu.c (see the comnames[] array).
 
-It seems that I screwed this up somewhere along the line.  Oh, well.
-I'll fix it later.
+[It seems that I screwed this up somewhere along the line.  Oh, well.
+ I'll fix it later.]
 
 ----------- PRINTERS ------------
 The emulator supports printing to LPT1, LPT2, and LPT3.  The output from
 these "virtual printers" is dumped into the files dosemulpt1, dosemulpt2,
 and dosemulpt3, respectively.  You can change these names in emu.c
 (see the lptnames[] array).  I can't guarantee that these files are
-fully up-to-date until you exit the emulator.  
+fully up-to-date until you exit the emulator...in fact, they probably
+aren't.  So, don't depend on the contents of the printer capture files
+until you exit the emulator.
 
 I'll revamp the print handling later.  It works for now.
 
@@ -323,29 +397,34 @@ memory size.  This switch specifies, in Kilobytes, how much main memory
 the emulator has available.  The default is 640, although the emulator
 allows up to 734.  I believe that 734K is safe, although too much
 over that intrudes on the screen memory at b800:0000.  When I add
-real VGA video, this option will be really unsafe, as VGA memory starts at
+real VGA video, this option will be REALLY unsafe, as VGA memory starts at
 a000:0000.
 
-I've just gotten some pretty extensive docs on EMS, so I hope to have
-EMS at least buggily implemented by some time or other, give or take a
-while.  It won't hard...all the hard work has been done by giving the
-emulator 32-bit access to DOS RAM.  I don't have docs on XMS yet.
+Adam Goldberg (adamg@microware.com) was kind enough to send me the XMS
+3.0 specs.  As of now, I have a partial XMS implementation.  The EMB
+(Extended Memory Block) support is fully functional, and it
+really is the most powerful of the XMS memory types.  The HMA (High
+Memory Area) is also supported.  However, only the simplest of UMB
+support has been finished as of yet.  I will hopefully change that
+soon.
 
-Adam Goldberg (adam@microware.com) has kindly offered to send me the XMS
-specs.  I'll probably end up implementing XMS before I do EMS if these
-get here in time.
+You can change the MAX_XMS line in the Makefile to specify the maximum
+KILOBYTES (i.e. say 1024 for 1 Megabyte) that the emulator can use for
+XMS.  I have it set by default to 3 megabytes.
 
+If you enable XMS, you can put the line
+ dos=high,umb
+in your CONFIG.SYS to allow MS-DOS itself to use the extra memory.
 
 ----------- HARD DISKS --------
 My current setup in emu.c has two hard disks: hdimage (C:)*, and
 direct access to my DOS partition (D:).  It has two floppies, a
 "diskimage" Linux file (A:), and my first floppies (B:).  I currently
-have floppy B: set as a 1.2 MB 5 1/4 in drive.  Look in the top
-portions of emu.c on how to change this (with THREE_INCH_FLOPPY and
-FIVE_INCH_FLOPPY).  You can have the emulator use more floppies by
-adding them to the table in emu.c and giving dos the parameter
--F num.  However, having more than 2 floppies defined will cause the 
-LINUX.EXE phantom drive to fail.
+have floppy B: set as a 1.2 MB 5 1/4 in drive.  Look in the Makefile
+to specify your particular floppy configuration.
+
+Having more than 2 floppies defined will cause the LINUX.EXE phantom
+drive to fail.  At least, it has for me.
 
 * The drive specifications in parentheses refer to the dos emulator's
   view of the world, not your normal, real-DOS letters.
@@ -355,8 +434,7 @@ if dosemu references them.  Only one of them need be bootable; and
 they can be of any size.  In fact, with this installation, you only
 need to "touch diskimage" in the dosemu directory to make it work.
 You may then format the A: disk to make "diskimage" into an accessible
-disk.  The hdimage will grow to accomodate your usage of it (contary
-to myth, it will NOT shrink).
+disk.  The disk/hd-image will grow to accomodate your usage of it.
 
 To boot from diskimage (if diskimage is your A: drive), "dos -A >
 dbg" will work.  If diskimage is your B: drive, you can boot from
@@ -375,7 +453,7 @@ boot disk you wish to copy into the file "diskimage."
 If you do not want to have direct access to your hard drive, change
 DEF_HDISKS to 1 in the Makefile.  Then you may invoke LINUX.EXE to set
 up your /usr/dos partition as drive d:.  Otherwise, edit disks.c so
-that hdisktab[] had the correct geometry.
+that hdisktab[] has the correct geometry.
 
 
 -------- EVERYTHING -----
@@ -397,21 +475,26 @@ their compressed "partitions" under the emulator.  I don't have either
 of these programs, haven't tried them, and most definitely won't guarantee
 that they'll work.  However, you are free to experiment.
 
-Here are some programs that I use under dosemu:
+Here are some programs that I use/test under dosemu:
   Turbo Pascal 5.5, PC Tools PCShell (and compress), QEdit, TASM/TLINK,
-  doskey (might not be impressive, but it's useful), 4DOS*, HelpPC 2.1,
-  d86 (a shareware debugger)
+  doskey (might not be impressive, but it's useful), 4DOS, HelpPC 2.1,
+  d86 (a shareware debugger), WordPerfect 5.0, Norton Utilities*,
+  Checkit, Dosshell (well, I don't actually USE it!)
+
 Here are some programs that are reported to work:
-  DR-DOS 6.0, SuperStor, Stacker, uEmacs (don't even think about demacs),
+  DR-DOS 6.0, SuperStor, Stacker, uEmacs (don't even think about demacs!),
   Minitab, the Big Mouth Voicemail card (Ed Carp, erc@apple.com posted
   some patches to get it to work)
-Things that inexplicably fail to work:
-  Currently, I'm trying to coax QBASIC/EDIT to work.   
 
-* 4DOS will work fine until it makes a beep, at which point you can fix
-  it by sending a SIGQUIT to dosemu, or if you're in RAW keyboard mode,
-  typing CTRL-BREAK.  4HELP (or F1 at the DOS prompt) will freeze up 
-  entirely with no hope of return.
+Things that almost work:
+  Currently, I'm trying to coax QBASIC/EDIT into working. They do
+direct access to the keyboard "hardware" ONLY when using pulldown menus
+(????? Is this typical Microsoft subgenius, or might there be a
+reason?), and I haven't really ironed out the keyboard hardware
+emulation code yet.
+
+*If you're using Norton Utilities, go into config and turn off "Zooming
+ Boxes" under the Video menu.  This really speeds things up.
 
 -------- DISK IMAGES  -----
 Everyone seems to ask this: "How do I create diskimage/hdimage"?
@@ -454,6 +537,10 @@ do find some bug that you think OUGHT to work, please do write me and
 tell me about it.  Also, if you have some fairly simple feature that
 you really need NOW, I can be flexible.
 
+The floppy code seems to be buggy.  Don't trust it.  The network "phantom"
+drive (LINUX.EXE) code is definitely buggy, but I don't have the sources
+or the info, so it'll have to wait.
+
 I've fixed too many dosemu0.4 bugs to count, so I won't list them
 here.  I've probably introduced as many, though, so watch out.
 
@@ -468,6 +555,32 @@ such line first.  If you can't find any suspicious lines, try recreating
 the crash with full debugging-messages (i.e. specify "-Da" as a parameter
 to dosemu).  You'll get a file full of trash, probably, but at least
 it's something.
+
+--------CHANGES FROM 0.47.7--------------
+Well, lemme see, nothing too impressive...
+
+  * "dir /w" actually comes out right now (finally).  This also means
+    any errors in DOS STDOUT redirection (i.e. type file > file2) should
+    be fixed.
+  * that hold-alt-and-type-on-the-keypad numeric keypad entry methos works
+    in RAW keyboard mode.
+  * along with this, almost all RAW keyboard mode keys should work (ctrl/alt
+    cursor keys, etc).
+  * fixes to get WordPerfect to work.
+  * fixes to get EDLIN to work (whee) including the proper handling of ctrl-c
+    while in a DOS read char/string call.
+  * some of the fixes needed to get QBASIC/EDIT to work (this is primarily
+    the addition of hardware keyboard access emulation, and is nowhere near
+    completion)
+  * partial XMS...put "dos=high,umb" in your config.sys and
+    watch the fun begin.  Works great for 4DOS.
+  * a pseudo-timer tick has been implemented...all it does is update the
+    BIOS tick counter at 0040:006c.  This is apparently a big deal
+    to a lot of programs, so if they just froze before, try them again.
+  * a lot of little things here and there.
+  * most of the important CMOS RAM has been implemented, with the notable
+    exception of the Real Time Clock alarm.
+  * a tentative man page
 
 Enjoy!
 
