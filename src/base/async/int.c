@@ -2413,22 +2413,27 @@ static void update_xtitle(void)
 
 void do_periodic_stuff(void)
 {
+    static hitimer_t last_time = 0;
+
     if (in_crit_section)
 	return;
 
     handle_signals();
-    io_select(fds_sigio);	/* we need this in order to catch lost SIGIOs */
-    if (not_use_sigio)
-      io_select(fds_no_sigio);
+    /* dont go to poll the I/O if <1mS elapsed */
+    if (GETusTIME(0) - last_time >= 1000) {
+	last_time = GETusTIME(0);
+	io_select(fds_sigio);	/* we need this in order to catch lost SIGIOs */
+	if (not_use_sigio)
+	    io_select(fds_no_sigio);
 
-    /* catch user hooks here */
-    if (uhook_fdin != -1) uhook_poll();
+	/* catch user hooks here */
+	if (uhook_fdin != -1) uhook_poll();
 
-    /* here we include the hooks to possible plug-ins */
-    #define VM86_RETURN_VALUE retval
-    #include "plugin_poll.h"
-    #undef VM86_RETURN_VALUE
-
+	/* here we include the hooks to possible plug-ins */
+	#define VM86_RETURN_VALUE retval
+	#include "plugin_poll.h"
+	#undef VM86_RETURN_VALUE
+    }
 
 #ifdef USE_MHPDBG  
     if (mhpdbg.active) mhp_debug(DBG_POLL, 0, 0);
