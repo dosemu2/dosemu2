@@ -80,16 +80,20 @@ static int *Attribute_Map;
 /* if negative, char is invisible */
 
 int cursor_blink = 1;
-struct mbchar {
-  size_t len;
-  unsigned char *mbstring;
-};
-static struct mbchar The_Charset[256];
+/* The layout of one charset element is:
+   mb0 mb1 mb2 len
+   as we never need more than 3 characters to represent a DOS character
+   in any multibyte charset that SLang supports (utf8);
+   this allows an efficient memcpy of 4 (gcc makes that "mov") followed
+   by an increase by len bytes of the buffer pointer in the draw_string
+   routine
+   mb0 == 0 means that mb1 is in the alternate character set. This set
+   is only used in non-utf8 mode.
+ */
+static unsigned char The_Charset[256][4];
 static int slang_update (void);
 
 static int Slsmg_is_not_initialized = 1;
-static int Use_IBM_Codes = 0;
-static int Use_utf8 = 0;
 
 /* I think this is what is assumed. */
 static int Rows = 25;
@@ -123,6 +127,56 @@ void get_screen_size (void)
    vga.text_height = Rows;
 }
 
+/* bitmap of cp437 characters < 32 that are always control characters
+   according to the Linux kernel */
+#define CTRL_ALWAYS 0x0800f501
+static t_unicode acs_to_uni[128];
+
+/* construct an easy lookup array to figure out the relationship
+   between vt100 (acs) characters and unicode.
+   If the acs charset is the same as cp437 (as it is on the Linux
+   console) we replace the terminal acs lookup string with something
+   that can reach all the funny characters; there are around 100
+   of them
+*/
+static void construct_acs_table(void)
+{
+	struct char_set *charset;
+	struct char_set_state state;
+	int i, j;
+	char *cp437_acs = NULL;
+	char *smacs = SLtt_tgetstr ("as");
+	char *smpch = SLtt_tgetstr ("S2");
+
+	if (smacs && smpch && strcmp(smacs, smpch) == 0)
+		cp437_acs = malloc(128*2);
+	j = 1;
+	charset = lookup_charset(cp437_acs ? "cp437" : "vt100");
+	for (i = 1; i < (cp437_acs ? 256 : 128); i++) {
+		t_unicode uni;
+		unsigned char c = i;
+		init_charset_state(&state, charset);
+		charset_to_unicode(&state, &uni, &c, 1);
+		if ((c < ' ') && ((CTRL_ALWAYS >> c) & 1))
+			uni = i;
+		if (uni >= 256) {
+			if (cp437_acs) {
+				cp437_acs[(j-1)*2] = j;
+				cp437_acs[(j-1)*2+1] = i;
+				acs_to_uni[j] = uni;
+			} else {
+				acs_to_uni[i] = uni;
+			}
+			j++;
+		}
+		cleanup_charset_state(&state);
+	}
+	if (cp437_acs) {
+		cp437_acs[(j-1)*2] = '\0';
+		SLtt_Graphics_Char_Pairs = cp437_acs;
+	}
+}
+
 static void set_char_set (void)
 {
 	struct char_set *term_charset, *display_charset;
@@ -133,19 +187,6 @@ static void set_char_set (void)
 	struct char_set_state term_state;
 	struct char_set_state display_state;
 	int i;
-	struct mbchar *mbc;
-        char *term = getenv("TERM");
-
-	if ( term && strncmp(term, "linux", 5) == 0 && !Use_utf8 &&
-	     strstr( "cp437", trconfig.video_mem_charset->names[0] ) ) {
-		Use_IBM_Codes = 1;
-		/* The following turns on the IBM character set mode of virtual console
-		 * The same code is echoed twice, then just in case the escape code
-		 * not recognized and was printed, erase it with spaces.
-		 */
-		SLtt_write_string ("\033(U\033(U\r        \r");
-		trconfig.output_charset = get_terminal_charset(lookup_charset("cp437"));
-	}
 
 	term_charset = trconfig.output_charset;
 	display_charset = trconfig.video_mem_charset;
@@ -154,7 +195,7 @@ static void set_char_set (void)
 	SLsmg_Display_Eight_Bit = 0xA0;
 	/* Build the translate tables */
 	v_printf("mapping internal characters to terminal characters:\n");
-	for(i= 0, mbc = The_Charset; i <= 0xff; i++, mbc++) {
+	for(i= 0; i <= 0xff; i++) {
 		unsigned char buff[MB_LEN_MAX + 1];
 		t_unicode uni;
 		size_t result;
@@ -166,16 +207,26 @@ static void set_char_set (void)
 		buff[1] = '\0';
 		result = charset_to_unicode(&display_state, &uni, buff, 1);
 		result = unicode_to_charset(&term_state, uni, buff, MB_LEN_MAX);
-		mbc->len = result > 1 ? result : 1;
-		buff[mbc->len] = '\0';
-		mbc->mbstring = strdup(buff);
-		v_printf("mapping: %x -> %04x -> %s (len=%d)\n", i, uni,
-			 mbc->mbstring, result);
+		if (result < 1 || result >= 4)
+			result = 1;
+		buff[3] = result;
+		if (result == 1 && uni >= 0x100) {
+			int j;
+			for (j = 1; j < 128; j++) {
+				if (acs_to_uni[j] == uni) {
+					buff[0] = '\0';
+					buff[1] = j;
+				}
+			}
+		}
+		memcpy(The_Charset + i, buff, 4);
+		v_printf("mapping: %x -> %04x -> %.*s (len=%d,acs=%d)\n", i, uni,
+			 result, buff[0] ? buff : buff + 1, result, buff[0]=='\0');
 
 		/* If we have any non control charcters in 0x80 - 0x9f
 		 * set up  the slang code up so we can send them. 
 		 */
-		if (mbc->len > 1 || (buff[0] >= 0x80 && buff[0] <= 0x9f
+		if (result > 1 || (buff[0] >= 0x80 && buff[0] <= 0x9f
 		    && (((uni >= 0x20) && (uni < 0x80)) || (uni > 0x9f)))) {
 			/* Allow us to use chars 0x80 to 0x9F */
 			SLsmg_Display_Eight_Bit = 0x80;
@@ -227,7 +278,7 @@ static void sigwinch(int sig)
   gettermcap(sig);
 }
 
-#if SLANG_VERSION < 20000 
+#if SLANG_VERSION < 20000
 /* replacement function to deal with old slangs */
 static int SLutf8_enable(int mode)
 {
@@ -305,19 +356,17 @@ static int terminal_initialize(void)
    register_text_system(&Text_term);
    vga_emu_setmode(video_mode, Columns, Rows);
 
-#if SLANG_VERSION < 20000 
-   SLtt_Use_Blink_For_ACS = 1;
-#endif
    SLtt_Blink_Mode = 1;
-   
+
    SLtt_Use_Ansi_Colors = is_color;
    
    if (is_color) Attribute_Map = Color_Attribute_Map;
    else Attribute_Map = BW_Attribute_Map;
 
-   Use_utf8 = SLutf8_enable(
+   if (!SLutf8_enable(
 	strstr("utf8", trconfig.output_charset->names[0]) ? 1 :
-	strstr("default", trconfig.output_charset->names[0]) ? -1 : 0);
+	strstr("default", trconfig.output_charset->names[0]) ? -1 : 0))
+      construct_acs_table();
 
 #if SLANG_VERSION < 10000
    if (!SLsmg_init_smg ())
@@ -391,12 +440,7 @@ static void terminal_close (void)
 	SLsmg_gotorc (SLtt_Screen_Rows - 1, 0);
 	SLsmg_refresh ();
 	SLsmg_reset_smg ();
-	if (Use_IBM_Codes) 
-	  {
-	     SLtt_write_string ("\n\033(B\033(B\r         \r");
-	     SLtt_flush_output ();
-	  }
-	else putc ('\n', stdout);
+	putc ('\n', stdout);
 	Slsmg_is_not_initialized = 1;
 	term_close();
      }
@@ -554,27 +598,41 @@ static int slang_update (void)
 
 static void term_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
 {
-   int i, buflen;
-   unsigned char buf[len * MB_LEN_MAX + 1];
+   unsigned char buf[(len + 1) * 3];
+   unsigned char *bufp, *text_end;
    int this_obj = Attribute_Map[attr];
+   int acs = 0;
 
    y -= DOSemu_Terminal_Scroll_Min;
    if (y < 0 || y >= SLtt_Screen_Rows) return;
    SLsmg_gotorc (y, x);
    SLsmg_set_color (abs(this_obj));
-   for (i = 0, buflen = 0; i < len; i++) {
-      /* take care of invisible character */
-      if (this_obj < 0) {
-	 buf[buflen++] = ' ';
-      } else {
-	 struct mbchar *mbc = The_Charset + text[i];
-	 memcpy(buf + buflen,  mbc->mbstring, mbc->len);
-         buflen += mbc->len;
-      }
+#if SLANG_VERSION < 20000 
+   SLtt_Use_Blink_For_ACS = char_blink && ((attr & 0x80) >> 7);
+#endif
+
+   /* take care of invisible character */
+   if (this_obj < 0) {
+      memset(buf, ' ', len);
+      SLsmg_write_nchars(buf, len);
+      return;
    }
-   buf[buflen] = '\0';
-   SLsmg_write_nchars(buf, buflen);
-   v_printf("term_draw_string %d %d %d %s\n", x, y, len, buf);
+   text_end = text + len;
+   while (text < text_end) {
+      for (bufp = buf; text < text_end; bufp += bufp[3], text++) {
+	 memcpy(bufp, The_Charset + *text, 4);
+	 if (acs) {
+	    if (bufp[0] != '\0') break;
+	    bufp[0] = bufp[1];
+	 } else {
+	    if (bufp[0] == '\0') break;
+	 }
+      }
+      if (acs) SLsmg_set_char_set(1);
+      SLsmg_write_nchars(buf, bufp - buf);
+      if (acs) SLsmg_set_char_set(0);
+      acs = !acs;
+   }
 }
 
 static void term_update(void)
