@@ -14,12 +14,16 @@
  */
 
 #define MAX_NUM_FRAGMENTS       0x20
+#define MIN_NUM_FRAGMENTS       0x4
 
 /* 
  * milliseconds to buffer sound. It should be high enough to avoid
  * clicking, but low enough to not delay the sound to much 
  */
 #define BUFFER_MSECS		60
+
+/* sampling rate for direct DAC writes */
+#define DIRECT_WRITE_FREQ	6000
 
 void linux_sb_mixer_write_setting (int ch, __u8 val);
 __u8 linux_sb_mixer_read_setting(int ch);
@@ -29,15 +33,19 @@ int linux_sb_get_version(void);
 void linux_sb_disable_speaker(void);
 void linux_sb_enable_speaker (void);
 
-void linux_sb_set_speed (__u16 speed, __u8 stereo_mode);
+int linux_sb_set_speed (__u16 speed, __u8 stereo_mode);
 
-void linux_sb_dma_start_init(__u32 command);
-void linux_sb_dma_start_complete(void);
+int linux_sb_dma_start_init(void);
+
+size_t linux_sb_do_read(void *ptr, size_t size);
+size_t linux_sb_do_write(void *ptr, size_t size);
 
 int  linux_sb_dma_complete_test(void);
+int  linux_sb_dma_is_empty(void);
+int  linux_sb_dma_get_free_space(void);
 
 void linux_sb_dma_complete(void);
 
 void linux_mpu401_data_write(__u8 data);
 
-int linux_sb_get_free_fragments(int *total, int *free);
+int linux_sb_get_free_fragments(int *total, int *free, int *bytes);

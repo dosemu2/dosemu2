@@ -1386,20 +1386,16 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
       REG(edx) = rmreg->edx;
       REG(ecx) = rmreg->ecx;
       REG(eax) = rmreg->eax;
-      if (_LO(bx)==0x21)
-        D_printf("DPMI: int 0x21 fn %04x\n",LWORD(eax));
       REG(eflags) = (long) rmreg->flags;
       REG(es) = rmreg->es;
       REG(ds) = rmreg->ds;
       REG(fs) = rmreg->fs;
       REG(gs) = rmreg->gs;
       if (inumber==0x0300) {
+        if (_LO(bx)==0x21)
+          D_printf("DPMI: int 0x21 fn %04x\n",LWORD(eax));
 	REG(cs) = ((us *) 0)[(_LO(bx) << 1) + 1];
 	REG(eip) = ((us *) 0)[_LO(bx) << 1];
-        if ((_LO(bx) >= 0xe0) && (REG(cs) < 0xf000)) { /* avoid hardreboot !! */
-        	 D_printf("DPMI: Interrupt vector overwritten!");
-        	 leavedos(99);
-        }
       } else {
 	REG(cs) = rmreg->cs;
 	REG(eip) = (long) rmreg->ip;

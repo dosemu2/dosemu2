@@ -11,15 +11,16 @@
  * 
  * maintainer: 
  *   Alistair MacDonald <alistair@slitesys.demon.co.uk>
- *   David Brauman <crisk@netvision.net.il>
- *   Rutger Nijlunsing <rutger@null.net>
- *   Michael Karcher <Michael.Karcher@writeme.com>
+ *   Stas Sergeev <stssppnn@yahoo.com>
  *
  * DANG_END_MODULE
  *
  * Previous Maintainers:
  *  Joel N. Weber II
  *  Michael Beck
+ *  David Brauman <crisk@netvision.net.il>
+ *  Rutger Nijlunsing <rutger@null.net>
+ *  Michael Karcher <Michael.Karcher@writeme.com>
  *
  * Key:
  *  AM/Alistair - Alistair MacDonald
@@ -37,9 +38,6 @@
  * Michael's code where I thought it was better than mine. I also separated
  * out the Linux specific driver code. - Alistair
  *
- * For 0.66 we have updated many areas and re-organised others to make it 
- * easier to maintain. Many thanks for David for finding so many bugs ....
- *
  * 0.67 has seen the introduction of stub code for handling Adlib (the timers
  * work after a fashion now) and changes to handle auto-init DMA. I've merged
  * some code from Michael Karcher (Michael.Karcher@writeme.com) although I
@@ -51,7 +49,11 @@
  *
  * [and I prefer my way - it works! - MK]
  *
- * 
+ *
+ * Rewrote the code almost completely to make it actually work.
+ * Many thanks to Vlad Romascanu for the usefull info and hints.
+ * -- Stas Sergeev
+ *
  * 
  *
  * Original Copyright Notice:
@@ -80,6 +82,7 @@
 #include "timers.h"
 #include "sound.h"
 #include "pic.h"
+#include "bitops.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -95,13 +98,16 @@ inline void dsp_write_output(__u8 value);
 inline void dsp_clear_output(void);
 inline __u8 dsp_read_output(void);
 
+size_t sb_dma_read(void *ptr, size_t size);
+size_t sb_dma_write(void *ptr, size_t size);
+
+static void sb_dma_start(void);
 static void start_dsp_dma(void);
 static void restart_dsp_dma(void);
 static void pause_dsp_dma(void);
 
 void sb_irq_trigger (void);
 
-void sb_set_speed (void);
 static void sb_enable_speaker (void);
 static void sb_disable_speaker(void);
 static void sb_write_DAC (int bits, __u8 value);
@@ -118,30 +124,19 @@ static void fm_init(void);
 static void mpu401_init(void);
 
 static void sb_reset(void);
+static void sb_detect(void);
 static void fm_reset(void);
 static void mpu401_reset(void);
 
 static void sb_dsp_write ( Bit8u value );
 
-void sb_handle_test (void);
 void sb_do_sine (void);
 void sb_get_aux_status (void);
-void sb_handle_dac (void);
-void sb_dsp_handle_interrupt(void);
-void sb_stereo_input (void);
-void sb_handle_speaker (void);
 void sb_get_version (void);
-void sb_do_adc(void);
-void stop_dsp_dma(void);
-int  set_dma_blocksize(void);
 void sb_dsp_get_status (void);
 void sb_dsp_unsupported_command (void);
 void sb_write_silence (void);
 void sb_do_midi_write (void);
-void sb_handle_sb20_dsp_probe (void);
-
-void sb16_dac(void);
-void sb16_adc(void);
 
 void sb_cms_write (ioport_t port, Bit8u value);
 
@@ -151,13 +146,10 @@ Bit8u sb_mixer_data_read (void);
 
 void sb_do_reset (Bit8u value);
 
-int sb_set_length(Bit16u *variable); /* LSB, MSB */
-int sb_set_rate(Bit16u *variable);   /* MSB, LSB */
-
-
 void sb_update_timers (void);
 
 static void sb_activate_irq (int type);
+static void sb_deactivate_irq (int type);
 static void sb_check_complete (void);
 
 Bit8u sb_get_mixer_IRQ_mask (void);
@@ -165,8 +157,23 @@ Bit8u sb_irq_to_bit (Bit8u irq);
 Bit8u sb_get_mixer_DMA_mask (void);
 Bit8u sb_get_mixer_IRQ_status (void);
 
-/* Not in the array as it fixes a "bug" in the SB programming */
-static int sb_uses_broken_dma = 0;
+static int dsp_block_size;
+static int dma_pending = 0;
+static int mixer_emu_regs[255];
+
+static int into_irq = 0;
+static int DSP_busy_hack = 0;
+static int byte_skipped = 0;
+static char m_E2Value = 0xaa;
+static int m_E2Count = 0;
+static int E2_Active = 0;
+
+int E2_incr_table[4][9] = {
+  {  0x01, -0x02, -0x04,  0x08, -0x10,  0x20,  0x40, -0x80, -106 },
+  { -0x01,  0x02, -0x04,  0x08,  0x10, -0x20,  0x40, -0x80,  165 },
+  { -0x01,  0x02,  0x04, -0x08,  0x10, -0x20, -0x40,  0x80, -151 },
+  {  0x01, -0x02,  0x04, -0x08, -0x10,  0x20, -0x40,  0x80,   90 }
+};
 
 /*
  ************************************************************
@@ -203,7 +210,7 @@ void dsp_clear_output(void)
 
 __u8 dsp_read_output(void)
 {
-  unsigned char r = 0xFF;
+  Bit8u r = 0xFF;
 
   if (SB_queue.holds) {
     r = SB_queue.output[SB_queue.start];
@@ -248,6 +255,9 @@ Bit8u sb_io_read(ioport_t port)
   ioport_t addr;
   __u8 value;
   Bit8u result;
+
+  if (SB_info.version == SB_NONE)
+    return 0xff;
 
   addr = port - config.sb_base;
 
@@ -296,9 +306,15 @@ Bit8u sb_io_read(ioport_t port)
      break;
 
    case 0x0C: /* DSP Write Buffer Status */
-     S_printf ("SB: Write? %x\n", SB_dsp.ready);
      result = SB_dsp.ready;
-		break;
+     if (SB_dsp.ready)
+       SB_dsp.ready--;		/* HACK */
+     if(DSP_busy_hack == 1)
+       result = 0x80;
+     if(DSP_busy_hack)
+       DSP_busy_hack--;
+     S_printf ("SB: Write? %x\n", result);
+     break;
 
    case 0x0D: /* DSP MIDI Interrupt Clear - SB16 ? */
      S_printf("SB: read 16-bit MIDI interrupt status. Not Implemented.\n");
@@ -309,28 +325,30 @@ Bit8u sb_io_read(ioport_t port)
    case 0x0E:		
      /* DSP Data Available Status - SB */
      /* DSP 8-bit IRQ Ack - SB */
-     S_printf("SB: Ready?/8-bit IRQ Ack: %x\n", SB_dsp.data);
+     S_printf("SB: 8-bit IRQ Ack: %x\n", SB_dsp.data);
+     sb_deactivate_irq(SB_IRQ_8BIT);
      SB_info.irq.active &= ~SB_IRQ_8BIT; /* may mean it never triggers! */
+     SB_dsp.ready = 0x7f;
      if(SB_dsp.empty_state & DREQ_AT_EOI)
      {
-       dma_assert_DREQ(config.sb_dma);
+       if(!SB_dsp.pause_state)
+         dma_assert_DREQ(config.sb_dma);
        SB_dsp.empty_state &= ~DREQ_AT_EOI;
      }
-
-     result = SB_dsp.data; 
+     result = SB_dsp.data;
      break;
 
    case 0x0F: /* 0x0F: DSP 16-bit IRQ - SB16 */
      S_printf("SB: 16-bit IRQ Ack: %x\n", SB_dsp.data);
-
+     sb_deactivate_irq(SB_IRQ_16BIT);
      SB_info.irq.active &= ~SB_IRQ_16BIT; /* may mean it never triggers! */
-
+     SB_dsp.ready = 0x7f;
      if(SB_dsp.empty_state & DREQ_AT_EOI)
      {
-       dma_assert_DREQ(config.sb_dma);
+       if(!SB_dsp.pause_state)
+         dma_assert_DREQ(config.sb_dma);
        SB_dsp.empty_state &= ~DREQ_AT_EOI;
      }
-
      result = SB_dsp.data;
      break;
 
@@ -372,32 +390,43 @@ Bit8u sb_io_read(ioport_t port)
 
 Bit8u sb_mixer_data_read (void)
 {
-  /* DANG_FIXME Only DSP version 3 supported - Karcher */
+  int value;
+  /* DANG_FIXME Only CT1345 supported */
 
 	if (SB_info.version > SB_20) {
 	    switch (SB_info.mixer_index) {
 		case 0x04:
-			return sb_read_mixer(SB_MIXER_PCM);
-
+			value = sb_read_mixer(SB_MIXER_PCM);
+			break;
 		case 0x0A:
-			return sb_read_mixer(SB_MIXER_MIC);
+			value = sb_read_mixer(SB_MIXER_MIC);
+			break;
+
+		case 0x0C:
+			value = 32;	/* filters not supported */
+			break;
 
 		case 0x0E:
-			return SB_dsp.stereo;
+			value = (SB_dsp.stereo ? 2 : 0) | 32;
+			break;
 
 		case 0x22:
-			return sb_read_mixer(SB_MIXER_VOLUME);
+			value = sb_read_mixer(SB_MIXER_VOLUME);
+			break;
 
 		case 0x26:
-			return sb_read_mixer(SB_MIXER_SYNTH);
+			value = sb_read_mixer(SB_MIXER_SYNTH);
+			break;
 
 		case 0x28:
-			return sb_read_mixer(SB_MIXER_CD);
+			value = sb_read_mixer(SB_MIXER_CD);
+			break;
 
 		case 0x2E:
-			return sb_read_mixer(SB_MIXER_LINE);
+			value = sb_read_mixer(SB_MIXER_LINE);
+			break;
 
-			/* === SB16 Rgisters === */
+			/* === SB16 Registers === */
 
 			/* 
 			 * Additional registers, originally from Karcher
@@ -417,9 +446,16 @@ Bit8u sb_mixer_data_read (void)
 		default:
 			S_printf("SB: invalid read from mixer (%x)\n", 
 				 SB_info.mixer_index);
-			return 0xFF;
+			value = 0xFF;
 			break;
-	    };
+	    }
+	    if (value != mixer_emu_regs[SB_info.mixer_index] &&
+	      mixer_emu_regs[SB_info.mixer_index] > 0) {
+	      S_printf("SB: Emulated (0x%x) and real (0x%x) values mismatch for Mixer register 0x%x\n",
+	      mixer_emu_regs[SB_info.mixer_index], value, SB_info.mixer_index);
+	      value = mixer_emu_regs[SB_info.mixer_index];
+	    }
+	    return value;
 	} else {
 		S_printf("SB: mixer not supported on this SB version.\n");
 		return 0xFF;
@@ -590,14 +626,15 @@ Bit8u mpu401_io_read(ioport_t port)
   case 0:
     /* Read data port */
     r=0xfe; /* Whatever happened before, send a MPU_ACK */
-		mpu401_info.isdata=0;
+    mpu401_info.isdata=0;
     S_printf("MPU401: Read data port = 0x%02x\n",r);
+    sb_deactivate_irq(SB_IRQ_MIDI);
     break;
   case 1:
      /* Read status port */
     /* 0x40=OUTPUT_AVAIL; 0x80=INPUT_AVAIL */
     r=0xff & (~0x40); /* Output is always possible */
-		if (mpu401_info.isdata) r &= (~0x80);
+    if (mpu401_info.isdata) r &= (~0x80);
     S_printf("MPU401: Read status port = 0x%02x\n",r);
   }
   return r;
@@ -715,6 +752,10 @@ void sb_io_write(ioport_t port, Bit8u value)
 		/* == DSP == */
 
   case 0x0C:		/* dsp write register */
+		if (SB_dsp.dma_mode & HIGH_SPEED_DMA) {
+		  S_printf("SB: Commands are not permitted in High-Speed DMA mode!\n");
+		  break;
+		}
 		sb_dsp_write ( value );
 		break;
 
@@ -767,6 +808,7 @@ void sb_mixer_data_write (Bit8u value)
     switch (SB_info.mixer_index) {
       case 0:
 	/* 0 is the reset register, but we'll ignore it */
+			S_printf("SB: Mixer reset\n");
 			break;
 
       case 0x04:
@@ -779,13 +821,26 @@ void sb_mixer_data_write (Bit8u value)
 
       case 0x0C:
 			/* 0x0C is ignored - sets record source and a filter */
+			if (!(value & 32)) {
+			  S_printf("SB: Warning: Input filter is not supported!\n");
+			  value |= 32;
+			}
 			break;
 
       case 0x0E: 
-	SB_dsp.stereo = value & 2;
-	S_printf ("SB: Stereo Mode set to %d\n", SB_dsp.stereo);
-			/* I ignored the output filter */
-			break;	
+	if (!(value & 32)) {
+	  S_printf("SB: Warning: Output filter is not supported!\n");
+	  value |= 32;
+	}
+	if (!SB_dsp.pause_state && (SB_dsp.dma_mode & SB_USES_DMA) &&
+	  SB_dsp.bytes_left && SB_dsp.stereo != ((value & 2) ? 1 : 0)) {
+	  S_printf("SB: Changing mode while DMA is running?!\n");
+	  SB_dsp.dma_mode &= ~SB_USES_DMA;	/* stop DMA :( */
+	  SB_dsp.empty_state = START_DMA_AT_EMPTY | DMA_CONTINUE;
+	}
+	SB_dsp.stereo = (value & 2) ? 1 : 0;
+	S_printf ("SB: Mode set to %s\n", (SB_dsp.stereo ? "Stereo" : "Mono"));
+	break;	
 		
       case 0x22: 
 	sb_write_mixer(SB_MIXER_VOLUME, value);
@@ -803,23 +858,50 @@ void sb_mixer_data_write (Bit8u value)
 	sb_write_mixer(SB_MIXER_LINE, value);
 	break;
 
-		default:
+      default:
 			S_printf ("SB: Unknown index 0x%x in Mixer Write\n",
 				  SB_info.mixer_index);
-	break;
-    }; 
+      break;
+    } 
+    mixer_emu_regs[SB_info.mixer_index] = value;
   }
 }
     
 void sb_do_reset (Bit8u value)
 {
+  dma_drop_DREQ(config.sb_dma);
+
+  if (SB_dsp.dma_mode & HIGH_SPEED_DMA) {
+/* for High-Speed mode reset means only exit High-Speed */
+    S_printf("SB: Reset called, exiting High-Speed DMA mode\n");
+    SB_dsp.dma_mode &= ~(HIGH_SPEED_DMA | SB_USES_DMA);
+    return;
+  }
+
   sb_reset();
-  if (value != 0xC6) {
+
+  if (SB_info.version != SB_NONE && value != 0xC6) {
 		/* From CRISK: Undocumented */
     dsp_write_output(0xAA);
   }
 }
     
+static inline void dma_start()
+{
+  if (SB_dsp.dma_mode & SB_USES_DMA)
+    SB_dsp.empty_state |= START_DMA_AT_EMPTY;
+  dma_pending = 1;
+  dma_assert_DREQ(config.sb_dma);
+  if (!SB_info.speaker && !pic_icount) {
+   /* 
+    * it seems that when speaker is disabled, DMA transfer is running at
+    * maximum speed, disregarding the sampling rate. So we are going to
+    * start and complete it right now.
+    */
+    dma_run();
+    sb_check_complete();
+  }
+}
     
 /*
  * DANG_BEGIN_FUNCTION sb_dsp_write
@@ -844,21 +926,26 @@ void sb_do_reset (Bit8u value)
     
 void sb_dsp_write ( Bit8u value ) 
 {
+#define REQ_PARAMS(i) if (SB_dsp.num_parameters < i) return
+#define PAR_LSB_MSB(i) (SB_dsp.parameter[i] | (SB_dsp.parameter[i+1] << 8))
+#define PAR_MSB_LSB(i) ((SB_dsp.parameter[i] << 8) | SB_dsp.parameter[i+1])
+
 	/* 
 	 * ALL commands set SB_dsp.command to SB_NO_DSP_COMMAND when they 
 	 * complete 
 	 */
 
-      if (SB_dsp.command == SB_NO_DSP_COMMAND) {
+      if (SB_dsp.command == SB_NO_DSP_COMMAND ||
+       SB_dsp.num_parameters >= MAX_DSP_PARAMS) {
       	/* No command yet */
       	SB_dsp.command = value;
-      	SB_dsp.parameter = 0;
-      	SB_dsp.write_size_mode = 0;
-      	SB_dsp.have_parameter = SB_PARAMETER_EMPTY;
+      	SB_dsp.num_parameters = 0;
+	S_printf("SB: DSP command 0x%x accepted\n", value);
       }
       else {
-      	SB_dsp.parameter = value;
-      	SB_dsp.have_parameter = SB_PARAMETER_FULL;
+      	SB_dsp.parameter[SB_dsp.num_parameters++] = value;
+	S_printf("SB: DSP parameter 0x%x accepted for command 0x%x\n",
+	  value, SB_dsp.command);
       }
 
       switch (SB_dsp.command) {
@@ -877,10 +964,17 @@ void sb_dsp_write ( Bit8u value )
 	break;
 	
 		/* 0x05: ??? - SB16ASP */
+	case 0x05:
+		REQ_PARAMS(1);
+		sb_dsp_unsupported_command();
+		break;
 	
 	case 0x10:	
 		/* Direct 8-bit DAC - SB */
-		sb_handle_dac();
+		REQ_PARAMS(1);
+		S_printf("SB: Direct 8-bit DAC write (%u)\n", 
+			SB_dsp.parameter[0]);
+		sb_write_DAC(8, SB_dsp.parameter[0]);
 	break;
 	
 	
@@ -888,27 +982,71 @@ void sb_dsp_write ( Bit8u value )
 
 	case 0x14:
 		/* DMA 8-bit DAC - SB */
-		start_dsp_dma ();
+		REQ_PARAMS(2);
+		SB_dsp.length = PAR_LSB_MSB(0) + 1;
+	        S_printf ("SB: 8-bit DMA output starting\n");
+		SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		dma_start();
 	break;
 
 	case 0x16:
 		/* DMA 2-bit ADPCM DAC - SB */
-		start_dsp_dma ();
+		REQ_PARAMS(2);
+		SB_dsp.length = PAR_LSB_MSB(0) + 1;
+	        S_printf("SB: Unsupported DMA type (0x%x)\n", SB_dsp.command);
+		SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		/* dma_start(); */
 	break;
 
 	case 0x17:
 		/* DMA 2-bit ADPCM DAC (Reference) - SB */
-		start_dsp_dma();
+		REQ_PARAMS(2);
+		SB_dsp.length = PAR_LSB_MSB(0) + 1;
+	        S_printf("SB: Unsupported DMA type (0x%x)\n", SB_dsp.command);
+		SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		/* dma_start(); */
 	break;
 	
 	case 0x1C:	
 		/* DMA 8-bit DAC (Auto-Init) - SB2.0 */
-		start_dsp_dma ();
-		break;
+		if (SB_info.version < SB_20) {
+			S_printf("SB: 8-bit Auto-Init DMA DAC not supported on this SB version.\n");
+		}
+		if (!SB_dsp.length) {
+		/* 
+		 * There seem to be two(!) ways to use the instruction
+		 * 0x1C (8bit, lowspeed, auto): 
+		 *   1. Set blocklength via 0x48, BLOCK, LENGTH
+		 *      Issue 0x1C parameterless.
+		 *   2. Issue 0x1C with blocklength as parameter, WITHOUT
+		 *      setting it before. (This is wrong - 'sblaster.doc')
+		 * I assume, no program ever uses BOTH ways at once, so
+ 		 * I remember, wether blocklength was set, and if, I expect
+ 		 * the first variation, if not, i expect the second. The flag
+ 		 * is reset when resetting the SB. The game "Millenia", which
+ 		 * is using the HMI-Driverkit uses the first way, but the
+ 		 * Shareware Version of Jazz Jackrabit uses the second one.
+ 		 * Does anyone know, which programmer to flame, and also know,
+ 		 * what his e-mail adress is? - Karcher
+ 		 */
+		  REQ_PARAMS(2);
+		  SB_dsp.length = PAR_LSB_MSB(0) + 1;
+		  S_printf("SB: Warning: your program uses an undocumented feature of 0x1C command!\n");
+		  S_printf("SB: Length is now set to %d\n", SB_dsp.length);
+		}
+	        S_printf ("SB: 8-bit DMA (Auto-Init) output starting\n");
+		SB_dsp.dma_mode |= DMA_AUTO_INIT;
+		dma_start();
+	break;
 	
 	case 0x1F:	
 		/* DMA 2-bit ADPCM DAC (Reference, Auto-Init) - SB2.0 */
-		start_dsp_dma ();
+		if (SB_info.version < SB_20) {
+			S_printf("SB: 2-bit Auto-Init DMA DAC not supported on this SB version.\n");
+		}
+	        S_printf("SB: Unsupported DMA type (0x%x)\n", SB_dsp.command);
+		SB_dsp.dma_mode |= DMA_AUTO_INIT;
+		/* dma_start(); */
 	break;
 
 
@@ -916,39 +1054,67 @@ void sb_dsp_write ( Bit8u value )
 
 	case 0x20:	
 		/* Direct 8-bit ADC - SB */
-		sb_do_adc();
+		S_printf ("SB: 8-bit ADC (Unimplemented)\n");
+ 		dsp_write_output (0);
+		break;
 	break;
 
 	case 0x24:
-		/* DMA 8-bit DAC - SB */
-		start_dsp_dma();
-		break;
+		/* DMA 8-bit ADC - SB */
+		REQ_PARAMS(2);
+		SB_dsp.length = PAR_LSB_MSB(0) + 1;
+	        S_printf ("SB: 8-bit DMA input starting\n");
+		SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		dma_start();
+	break;
 
 	case 0x28:
 		/* Direct 8-bit ADC (Burst) - SBPro2 */
-		sb_do_adc();
+		if (SB_info.version > SB_PRO) {
+			S_printf("SB: Burst mode 8-bit ADC (Unimplemented)\n");
+		}
+ 		dsp_write_output (0);
 		break;
 			
 	case 0x2C:	
 		/* DMA 8-bit ADC (Auto-Init) - SB2.0 */
-		start_dsp_dma();
-		break;
+		if (SB_info.version < SB_20) {
+			S_printf("SB: 8-bit Auto-Init DMA ADC not supported on this SB version.\n");
+		}
+		if (!SB_dsp.length) {
+		  REQ_PARAMS(2);
+		  SB_dsp.length = PAR_LSB_MSB(0) + 1;
+		  S_printf("SB: Warning: your program uses an undocumented feature of 0x2C command!\n");
+		  S_printf("SB: Length is now set to %d\n", SB_dsp.length);
+		}
+		SB_dsp.dma_mode |= DMA_AUTO_INIT;
+	        S_printf ("SB: 8-bit DMA (Auto-Init) input starting\n");
+		dma_start();
+	break;
 
 
 		/* == MIDI == */
 
 	case 0x30:
 		/* Midi Read Poll - SB */
+		S_printf("SB: Attempt to read from SB Midi (Poll)\n");
+		dsp_write_output(0);
 		sb_do_midi_write();
 		break;
 
 	case 0x31:
 		/* Midi Read Interrupt - SB */
+		S_printf("SB: Attempt to read from SB Midi (Interrupt)\n");
 		sb_do_midi_write();
 		break;
 
 	case 0x32:
 		/* Midi Read Timestamp Poll - SB ? */
+		S_printf("SB: Attempt to read from SB Midi (Poll)\n");
+		dsp_write_output(0);
+		dsp_write_output(0);
+		dsp_write_output(0);
+		dsp_write_output(0);
 		sb_do_midi_write();
 		break;
 
@@ -959,21 +1125,24 @@ void sb_dsp_write ( Bit8u value )
 
 	case 0x35:
 		/* Midi Read/Write Poll (UART) - SB2.0 */
-		sb_do_midi_write();
-		break;
-
 	case 0x36:
 		/* Midi Read Interrupt/Write Poll (UART) - SB2.0 ? */
-		sb_do_midi_write();
-	break;
-	
 	case 0x37:
 		/* Midi Read Interrupt Timestamp/Write Poll (UART) - SB2.0? */
+		REQ_PARAMS(1);
+		if (SB_info.version >= SB_20) {
+			S_printf ("SB: Write 0x%u to SB Midi Port\n",
+					  SB_dsp.parameter[0]);
+				/* Command Ends _only_ on reset */
+		}
 		sb_do_midi_write();
 		break;
 
 	case 0x38:
 		/* Midi Write Poll - SB */
+		REQ_PARAMS(1);
+		S_printf ("SB: Write 0x%u to SB Midi Port\n",
+			  SB_dsp.parameter[0]);
 		sb_do_midi_write();
 		break;
 	
@@ -982,12 +1151,22 @@ void sb_dsp_write ( Bit8u value )
 
 	case 0x40:
 		/* Set Time Constant */
-		sb_set_speed();
+		REQ_PARAMS(1);
+		SB_dsp.time_constant = SB_dsp.parameter[0];
+		SB_dsp.sample_rate = 0;
+		S_printf("SB: Time constant set to %u\n", SB_dsp.time_constant);
 		break;
 
 	case 0x41:
 		/* Set Sample Rate - SB16 */
-		sb_set_speed();
+		REQ_PARAMS(2);
+		if (SB_info.version < SB_16) {
+		    S_printf("SB: MSB-LSB Sampling rate is not supported on this DSP version\n");
+		}
+		        /* MSB, LSB values - Karcher */
+		SB_dsp.sample_rate = PAR_MSB_LSB(0);
+		SB_dsp.time_constant = 0;
+		S_printf("SB: Sampling rate set to %uHz\n", SB_dsp.sample_rate);
 		break;
 
 
@@ -1005,90 +1184,190 @@ void sb_dsp_write ( Bit8u value )
 	
 	case 0x48:	
 		/* Set DMA Block Size - SB2.0 */
-		(void) set_dma_blocksize();
+		REQ_PARAMS(2);
+		SB_dsp.length = PAR_LSB_MSB(0) + 1;
+		S_printf("SB: Transfer length is set to %d\n", SB_dsp.length);
 		break;
 
 	case 0x74:
 		/* DMA 4-bit ADPCM DAC - SB */
-		start_dsp_dma();
-		break;
-		
+		REQ_PARAMS(2);
+		SB_dsp.length = PAR_LSB_MSB(0) + 1;
+	        S_printf("SB: Unsupported DMA type (0x%x)\n", SB_dsp.command);
+		SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		/* dma_start(); */
+	break;
+
 	case 0x75:
 		/* DMA 4-bit ADPCM DAC (Reference) - SB */
-		start_dsp_dma();
-		break;
+		REQ_PARAMS(2);
+		SB_dsp.length = PAR_LSB_MSB(0) + 1;
+	        S_printf("SB: Unsupported DMA type (0x%x)\n", SB_dsp.command);
+		SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		/* dma_start(); */
+	break;
 
 	case 0x76:
 		/* DMA 2.6-bit ADPCM DAC - SB */
-		start_dsp_dma();
-		break;
+		REQ_PARAMS(2);
+		SB_dsp.length = PAR_LSB_MSB(0) + 1;
+	        S_printf("SB: Unsupported DMA type (0x%x)\n", SB_dsp.command);
+		SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		/* dma_start(); */
+	break;
 
 	case 0x77:
 		/* DMA 2.6-bit ADPCM DAC (Reference) - SB */
-		start_dsp_dma();
-		break;
+		REQ_PARAMS(2);
+		SB_dsp.length = PAR_LSB_MSB(0) + 1;
+	        S_printf("SB: Unsupported DMA type (0x%x)\n", SB_dsp.command);
+		SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		/* dma_start(); */
+	break;
 
 	case 0x7D:
 		/* DMA 4-bit ADPCM DAC (Auto-Init, Reference) - SB2.0 */
-		start_dsp_dma();
-		break;
+		if (SB_info.version < SB_20) {
+			S_printf ("SB: 4-bit Auto-Init ADPCM DMA DAC not supported on this SB version.\n");
+		}
+	        S_printf("SB: Unsupported DMA type (0x%x)\n", SB_dsp.command);
+		SB_dsp.dma_mode |= DMA_AUTO_INIT;
+		/* dma_start(); */
+	break;
 
 	case 0x7F:
 		/* DMA 2.6-bit ADPCM DAC (Auto-Init, Reference) - SB2.0 */
-		start_dsp_dma();
+		if (SB_info.version < SB_20) {
+			S_printf ("SB: 2.6-bit Auto-Init ADPCM DMA DAC not supported on this SB version.\n");
+		}
+	        S_printf("SB: Unsupported DMA type (0x%x)\n", SB_dsp.command);
+		SB_dsp.dma_mode |= DMA_AUTO_INIT;
+		/* dma_start(); */
 	break;
 	
 	case 0x80:
 		/* Silence DAC - SB */
+		REQ_PARAMS(2);
+		SB_dsp.length = PAR_LSB_MSB(0) + 1; 
 		sb_write_silence();
 		break;
 
 	case 0x90:
 		/* DMA 8-bit DAC (High Speed, Auto-Init) - SB2.0-Pro2 */
-		start_dsp_dma();
-		break;
+    		if (SB_info.version < SB_20 /*|| SB_info.version > SB_PRO*/)  {
+    			S_printf ("SB: 8-bit Auto-Init High Speed DMA DAC not supported on this SB version.\n");
+    		}
+		if (!SB_dsp.length) {
+		  REQ_PARAMS(2);
+		  SB_dsp.length = PAR_LSB_MSB(0) + 1;
+		  S_printf("SB: Length is now set to %d\n", SB_dsp.length);
+		}
+		S_printf ("SB: 8-bit DMA (High Speed, Auto-Init) output starting\n");
+		SB_dsp.dma_mode |= HIGH_SPEED_DMA | DMA_AUTO_INIT;
+		dma_start();
+	break;
 
 
         case 0x91:
 	        /* **CRISK** DMA-8 bit DAC (High Speed) */
-	        start_dsp_dma();
-		break;
+    		if (SB_info.version < SB_20 /*|| SB_info.version > SB_PRO*/)  {
+    			S_printf ("SB: 8-bit High Speed DMA DAC not supported on this SB version.\n");
+    		}
+		if (!SB_dsp.length) {
+		  REQ_PARAMS(2);
+		  SB_dsp.length = PAR_LSB_MSB(0) + 1;
+		  S_printf("SB: Length is now set to %d\n", SB_dsp.length);
+		}
+	        S_printf ("SB: 8-bit DMA (High Speed) output starting\n");
+		SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		SB_dsp.dma_mode |= HIGH_SPEED_DMA;
+	        dma_start();
+	break;
 	 
 	/* == INPUT == */
 	
 	case 0x98:
 		/* DMA 8-bit ADC (High Speed, Auto-Init) - SB2.0-Pro2 */
-		start_dsp_dma();
+		if (SB_info.version < SB_20 || SB_info.version > SB_PRO) {
+			S_printf ("SB: 8-bit Auto-Init High Speed DMA ADC not supported on this SB version.\n");
+		}
+		if (!SB_dsp.length) {
+		  REQ_PARAMS(2);
+		  SB_dsp.length = PAR_LSB_MSB(0) + 1;
+		  S_printf("SB: Length is now set to %d\n", SB_dsp.length);
+		}
+	        S_printf ("SB: 8-bit DMA (High Speed, Auto-Init) input starting\n");
+		SB_dsp.dma_mode |= HIGH_SPEED_DMA | DMA_AUTO_INIT;
+		dma_start();
+	break;
+
+	case 0x99:
+		/* DMA 8-bit ADC (High Speed) - SB2.0-Pro2 */
+		if (SB_info.version < SB_20 || SB_info.version > SB_PRO) {
+			S_printf ("SB: 8-bit High-Speed DMA ADC not supported on this SB version.\n");
+		}
+		if (!SB_dsp.length) {
+		  REQ_PARAMS(2);
+		  SB_dsp.length = PAR_LSB_MSB(0) + 1;
+		  S_printf("SB: Length is now set to %d\n", SB_dsp.length);
+		}
+	        S_printf ("SB: 8-bit DMA (High Speed) input starting\n");
+		SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		SB_dsp.dma_mode |= HIGH_SPEED_DMA;
+		dma_start();
 	break;
 	
 	
 		/* == STEREO MODE == */
 
 	case 0xA0:	
-		/* Enable Stereo Input - SBPro Only */
-		sb_stereo_input();
+		/* Enable Mono Input - SBPro Only */
+		S_printf ("SB: Disable Stereo Input not implemented\n");
 	break;
 
 	case 0xA8:
-		/* Disable Stereo Input - SBPro Only */
-		sb_stereo_input();
+		/* Enable Stereo Input - SBPro Only */
+		S_printf ("SB: Enable Stereo Input not implemented\n");
 	break;
 	
 
 	/* == SB16 direct ADC/DAC == */
 
-	case 0xB0 ... 0xB7:
-	case 0xC0 ... 0xC7:
- 		/* SB16 DAC - Karcher */
-		sb16_dac();
+	case 0xB0 ... 0xBF:
+ 		/* SB16 16-bit DMA */
+		REQ_PARAMS(3);
+		S_printf("SB: 16-bit DMA is not supported yet\n");
 	break;
-		
-	case 0xB8 ... 0xBf:
-	case 0xC8 ... 0xCF:
- 		/* SB16 ADC - Karcher */
-		sb16_adc();
+
+	case 0xC0 ... 0xCF:
+		if (SB_dsp.command & 1) {
+		  sb_dsp_unsupported_command();
+		  break;
+		}
+ 		/* SB16 8-bit DMA */
+		REQ_PARAMS(3);
+		if(SB_info.version < SB_16) {
+		  S_printf("SB: SB16-DMA not supported on this DSP-version\n");
+		}
+		SB_dsp.length = PAR_LSB_MSB(1) + 1;
+		if (SB_dsp.command & 4)
+		  SB_dsp.dma_mode |= DMA_AUTO_INIT;
+		else
+		  SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		if (SB_dsp.command & 8) {
+		  S_printf("SB: Starting SB16 8-bit DMA input\n");
+		}
+		else {
+		  S_printf("SB: Starting SB16 8-bit DMA output\n");
+		}
+		if (SB_dsp.parameter[0] & 16) {
+		  S_printf("SB: Warning: signed sampling is not supported yet\n");
+		}
+		SB_dsp.stereo = (SB_dsp.parameter[0] & 32) ? 1 : 0;
+		S_printf("SB: stereo set to %i\n", SB_dsp.stereo);
+		dma_start();
 	break;
-		
+
 
 	/* == DMA == */
 	
@@ -1102,12 +1381,12 @@ void sb_dsp_write ( Bit8u value )
 		
 	case 0xD1:
 		/* Enable Speaker - SB */
-		sb_handle_speaker();
+		sb_enable_speaker();
 	break;
 	
 	case 0xD3:
 		/* Disable Speaker - SB */
-		sb_handle_speaker();
+		sb_disable_speaker();
 	break;
 	
 	
@@ -1133,19 +1412,16 @@ void sb_dsp_write ( Bit8u value )
 		
 	case 0xD8:
 		/* Speaker Status */
-		sb_handle_speaker();
+		dsp_write_output (SB_info.speaker);
 		break;
 	
 	/* == DMA == */
 	
 	case 0xD9:
 		/* Exit Auto-Init 16-bit DMA - SB16 */
-		stop_dsp_dma();
-		break;
-
 	case 0xDA:
 		/* Exit Auto-Init 8-bit DMA - SB2.0 */
-		stop_dsp_dma();
+		SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
 		break;
 
 	
@@ -1153,13 +1429,38 @@ void sb_dsp_write ( Bit8u value )
 	
 	case 0xE0:
 		/* DSP Identification - SB2.0 */
-		sb_handle_sb20_dsp_probe();
+		REQ_PARAMS(1);
+		if (SB_info.version >= SB_20) {
+			S_printf("SB: Identify SB2.0 DSP.\n");
+			dsp_write_output(~SB_dsp.parameter[0]);
+		}
+		else
+			S_printf("SB: Identify DSP not supported by this SB version.\n");
 	break;
 
 	case 0xE1:
 		/* DSP Version - SB */
 		sb_get_version();
 		break;
+
+	case 0xE2: {
+		/* DMA Identification - completely undocumented! */
+		/* Code stolen from VDMSound project,
+		 * http://www.sourceforge.net/projects/vdmsound/
+		 */
+		int i;
+		REQ_PARAMS(1);
+		SB_dsp.length = 1;
+		for (i = 0; i < 8; i++)
+		  if ((SB_dsp.parameter[0] >> i) & 0x01)
+		    m_E2Value += E2_incr_table[m_E2Count % 4][i];
+
+		m_E2Value += E2_incr_table[m_E2Count % 4][8];
+		m_E2Count++;
+		E2_Active = 1;
+		dma_start();
+		break;
+	}
 
 	case 0xE3:
 		/* DSP Copyright - SBPro2 ? */
@@ -1168,15 +1469,29 @@ void sb_dsp_write ( Bit8u value )
 
 	case 0xE4:
 		/* Write to Test - SB2.0 */
-		sb_handle_test();
-		break;
+		REQ_PARAMS(1);
+		if (SB_info.version >= SB_20) {
+			SB_dsp.test = SB_dsp.parameter[0];
+			S_printf("SB: write 0x%x to test register.\n", SB_dsp.test);
+		}
+		else {
+			S_printf("SB: write to test register not in this SB version.\n");
+		}
+	break;
 
 
 		/* == TEST == */
 
 	case 0xE8:
 		/* Read from Test - SB2.0 */
-		sb_handle_test();
+		if (SB_info.version >= SB_20) {
+			S_printf("SB: Read 0x%x from test register.\n", 
+				 SB_dsp.test);
+			dsp_write_output(SB_dsp.test);
+			}
+			else {
+			S_printf("SB: read from test register not supported by SB version.\n");
+		}
 		break;
 
 	case 0xF0:
@@ -1197,18 +1512,34 @@ void sb_dsp_write ( Bit8u value )
 
 	case 0xF2:	
 		/* 8-bit IRQ - SB */
-		sb_dsp_handle_interrupt();
+	        sb_activate_irq (SB_IRQ_8BIT);
 		break;
 
 	case 0xF3:
 		/* 16-bit IRQ - SB16 */
-		sb_dsp_handle_interrupt();
+	        sb_activate_irq (SB_IRQ_16BIT);
 		break;
 
 		/* 0xFB: DSP Status - SB16 */
 		/* 0xFC: DSP Auxiliary Status - SB16 */
 		/* 0xFD: DSP Command Status - SB16 */
+
+	default:
+		sb_dsp_unsupported_command();
       }
+
+      SB_dsp.command = SB_NO_DSP_COMMAND;
+      SB_dsp.num_parameters = 0;
+
+/* 
+ * Some programs expects DSP to be busy after a command was written to it, but
+ * not immediately. Probably it takes some time for the command being written
+ * to the i/o port, to be accepted by DSP.
+ * So I am going to return 0 (ready), then 0x80 (busy) and then 0 again.
+ *
+ * -- Stas Sergeev
+ */
+        DSP_busy_hack = 2;
 }
 
 
@@ -1226,26 +1557,18 @@ void sb_dsp_get_status (void)
 	}
 
 	dsp_write_output(output);
-	SB_dsp.command = SB_NO_DSP_COMMAND;
 }
 	
 void sb_dsp_unsupported_command (void)
-{
-	S_printf ("SB: Unsupported Command 0x%x\n", SB_dsp.command);
-	
-	SB_dsp.command = SB_NO_DSP_COMMAND;
+{	
+    S_printf ("SB: Unsupported Command 0x%x (parameter 0x%x)\n",
+	SB_dsp.command, SB_dsp.parameter[0]);
 }
 
 
 void sb_write_silence (void)
 {
-        void *silence_data;
-
-	if (sb_set_length (&SB_dsp.length)) {
-		S_printf("SB: DAC silence length set to %d.\n",
-			 SB_dsp.length);
-
-		SB_dsp.command = SB_NO_DSP_COMMAND;
+void *silence_data;
 
 		/*
 		 * DANG_BEGIN_REMARK
@@ -1277,71 +1600,13 @@ void sb_write_silence (void)
 
 		if (SB_driver.play_buffer != NULL) {
 		  (*SB_driver.play_buffer)(silence_data, SB_dsp.length);
+                  SB_dsp.empty_state = IRQ_AT_EMPTY;
 		}
-		else if (debug_level('S') >= 3) {
-		  S_printf ("SB: Optional function 'play_buffer' not provided.\n");
+		else {
+		  if (debug_level('S') >= 3)
+		    S_printf ("SB: Optional function 'play_buffer' not provided.\n");
+		  sb_activate_irq(SB_IRQ_8BIT);
 		}
-                SB_dsp.empty_state = IRQ_AT_EMPTY;
-	}
-}
-
-
-void sb_set_speed (void)
-{
-    switch (SB_dsp.command) {
-	case 0x40:
-		if (SB_dsp.have_parameter != SB_PARAMETER_EMPTY) {
-			SB_dsp.time_constant = SB_dsp.parameter;
-			SB_dsp.command = SB_NO_DSP_COMMAND;
-
-			if (SB_dsp.stereo) {
-				SB_dsp.sample_rate = 1000000 
-					/ (2 * (256 - SB_dsp.time_constant));
-			}
-			else {
-				SB_dsp.sample_rate = 1000000 
-					/ (256 - SB_dsp.time_constant);
-			}
-
-		} else {
-			return;
-		}
-		break;
-
-	case 0x41:
-		if (SB_info.version >= SB_16) {
-		        /* MSB, LSB values - Karcher */
-			if (!sb_set_rate(&SB_dsp.sample_rate)) {
-				return;
-			} else {
-			        SB_dsp.command = SB_NO_DSP_COMMAND;
-			}
-		} else {
-			SB_dsp.command = SB_NO_DSP_COMMAND;
-			return;
-		}
-	break;
-	
-	default:
-		/* 
-		 * Allow drop through, since this is probably the speaker
-		 * (or something!)
-		 */
-		break;
-	
-    }
-
-    S_printf("SB: Trying to set speed to %u Hz.\n", SB_dsp.sample_rate);
-
-    SB_dsp.command = SB_NO_DSP_COMMAND;
-
-    if (SB_driver.set_speed == NULL) {
-		S_printf("SB: Required function 'set_speed' not provided.\n");
-    }
-    else {
-		(*SB_driver.set_speed) (SB_dsp.sample_rate, SB_dsp.stereo);
-    }
-
 }
 
 void adlib_io_write(ioport_t port, Bit8u value)
@@ -1461,19 +1726,20 @@ void mpu401_io_write(ioport_t port, Bit8u value)
 	switch (addr) {
 	case 0:
 		/* Write data port */
-		(*mpu401_info.data_write)(value);
 		S_printf("MPU401: Write 0x%02x to data port\n",value);
+		(*mpu401_info.data_write)(value);
 		break;
 	case 1:
 		/* Write command port */
-		if (port == (config.mpu401_base+1)) {
-			mpu401_info.isdata=1; /* A command is sent: MPU_ACK it next time */
-			/* Known commands:
-			   0x3F = UART mode
-			   0xFF = reset MPU. Does anyone know more? */
-			S_printf("MPU401: Write 0x%02x to command port\n",value);
-			break;
+		S_printf("MPU401: Write 0x%02x to command port\n",value);
+		switch (value) {
+		  case 0x3f:		// 0x3F = UART mode
+		    sb_activate_irq(SB_IRQ_MIDI);
+		    break;
+		  case 0xff:		// 0xFF = reset MPU. Does anyone know more?
+		    break;
 		}
+		mpu401_info.isdata=1; /* A command is sent: MPU_ACK it next time */
 		break;
 	}
 }
@@ -1485,66 +1751,7 @@ void mpu401_io_write(ioport_t port, Bit8u value)
 
 void sb_do_midi_write (void) 
 {
-	switch (SB_dsp.command) {
-	case 0x30:
-		/* Midi Read Poll - SB */
-		S_printf("SB: Attempt to read from SB Midi (Poll)\n");
-		dsp_write_output(0);
-		SB_dsp.command = SB_NO_DSP_COMMAND;
-		break;
-
-	case 0x31:
-		/* Midi Read Interrupt - SB */
-		S_printf("SB: Attempt to read from SB Midi (Interrupt)\n");
-		SB_dsp.command = SB_NO_DSP_COMMAND;
-		break;
-
-	case 0x32:
-		/* Midi Read Timestamp Poll - SB ? */
-		S_printf("SB: Attempt to read from SB Midi (Poll)\n");
-		dsp_write_output(0);
-		dsp_write_output(0);
-		dsp_write_output(0);
-		dsp_write_output(0);
-			SB_dsp.command = SB_NO_DSP_COMMAND;
-		break;
-
-	case 0x33:
-		/* Midi Read Timestamp Interrupt - SB ? */
-		SB_dsp.command = SB_NO_DSP_COMMAND;
-		break;
-
-	case 0x35:
-		/* Midi Read/Write Poll (UART) - SB2.0 */
-	case 0x36:
-		/* Midi Read Interrupt/Write Poll (UART) - SB2.0 ? */
-	case 0x37:
-		/* Midi Read Interrupt Timestamp/Write Poll (UART) - SB2.0 ? */
-		if (SB_dsp.have_parameter != SB_PARAMETER_EMPTY) {
-		if (SB_info.version >= SB_20) {
-				S_printf ("SB: Write 0x%u to SB Midi Port\n",
-					  SB_dsp.parameter);
-				/* Command Ends _only_ on reset */
-			} else {
-				SB_dsp.command = SB_NO_DSP_COMMAND;
-		}
-		}
-		break;
-		 
-	case 0x38:
-		/* Midi Write Poll - SB */
-		if (SB_dsp.have_parameter != SB_PARAMETER_EMPTY) {
-			S_printf ("SB: Write 0x%u to SB Midi Port\n",
-				  SB_dsp.parameter);
-			SB_dsp.command = SB_NO_DSP_COMMAND;
-		}
-		break;
-
-	default:
-		S_printf("SB: Unknown MIDI command 0x%x\n", SB_dsp.command);
-		SB_dsp.command = SB_NO_DSP_COMMAND;
-		break;
-	}
+	S_printf("SB: Sorry, unimplemented MIDI command 0x%x\n", SB_dsp.command);
 }
 
 
@@ -1570,53 +1777,6 @@ static void dsp_do_copyright(void)
 	SB_dsp.command = SB_NO_DSP_COMMAND;
 }
 
-void sb_handle_sb20_dsp_probe (void)
-{
-	if (SB_info.version >= SB_20) {
-		if (SB_dsp.have_parameter != SB_PARAMETER_EMPTY) {
-			S_printf("SB: Identify SB2.0 DSP.\n");
-			dsp_write_output(~SB_dsp.parameter);
-			SB_dsp.command = SB_NO_DSP_COMMAND;
-		}
-	}
-	else {
-		S_printf("SB: Identify DSP not supported by this SB version.\n");
-			SB_dsp.command = SB_NO_DSP_COMMAND;
-	}
-}
-
-void sb_handle_test (void)
-{
-    switch (SB_dsp.command) {
-	case 0xE8:
-		if (SB_info.version >= SB_20) {
-			S_printf("SB: Read %x from test register.\n", 
-				 SB_dsp.test);
-			dsp_write_output(SB_dsp.test);
-			}
-			else {
-			S_printf("SB: read from test register not supported by SB version.\n");
-		}
-		SB_dsp.command = SB_NO_DSP_COMMAND;
-		break;
-
-	case 0xE4:
-		if (SB_dsp.have_parameter != SB_PARAMETER_EMPTY) {
-			if (SB_info.version >= SB_20) {
-				SB_dsp.test = SB_dsp.parameter;
-			}
-			else {
-				S_printf("SB: write to test register not in this SB version.\n");
-			}
-			SB_dsp.command = SB_NO_DSP_COMMAND;
-		}
-		break;
-
-	default:
-		S_printf ("SB: Unknown test 0x%x\n", SB_dsp.command);
-		SB_dsp.command = SB_NO_DSP_COMMAND;
-    }
-}
 
 /* 
  * DANG_FIXTHIS Sine Generation is unimplemented 
@@ -1624,13 +1784,10 @@ void sb_handle_test (void)
 void sb_do_sine (void)
 {
 	S_printf("SB: Start Sine generator. (unimplemented)\n");
-	SB_dsp.time_constant = 0xC0;
 	
 	if (SB_info.version < SB_16) {
 		sb_enable_speaker();
 	}
-
-	SB_dsp.command = SB_NO_DSP_COMMAND;
 }
 
 /* 
@@ -1645,135 +1802,6 @@ void sb_get_aux_status (void)
 	else {
 		S_printf("SB: DSP aux. status not supported by SB version.\n");
 	}
-		SB_dsp.command = SB_NO_DSP_COMMAND;
-}
-
-void sb_handle_dac (void)
-{
-    switch (SB_dsp.command) {
-	case 0x10:
-		if (SB_dsp.have_parameter != SB_PARAMETER_EMPTY) {
-			S_printf("SB: Direct 8-bit DAC write (%u)\n", 
-				 SB_dsp.parameter);
-			sb_write_DAC(8, SB_dsp.parameter);
-			SB_dsp.command = SB_NO_DSP_COMMAND;
-		}
-		break;
-
-	default:
-		S_printf ("Invalid DAC command 0x%x\n", SB_dsp.command);
-		SB_dsp.command = SB_NO_DSP_COMMAND;
-    }
-}
-    
-
-void sb16_dac(void)
-{
-	if(SB_info.version < SB_16)
-	{
-		S_printf("SB: SB16-DMA not supported on this DSP-version\n");
-		SB_dsp.command = SB_NO_DSP_COMMAND;
-		return;
-	}
-	/* The LSB is reserved, and the second one is only for the interesting
-	   real hardware */
-	SB_dsp.command &= ~0x3;
-	if(SB_dsp.have_parameter == SB_PARAMETER_EMPTY)
-	{
-		SB_dsp.sb16_playmode = 0xFF;
-		return; 
-	}
-	if(SB_dsp.sb16_playmode == 0xFF)
-	{
-		SB_dsp.sb16_playmode = SB_dsp.parameter;
-		return;
-	}
-	if(!sb_set_length(&SB_dsp.length))
-		return;
-	/* do_*/ start_dsp_dma(/*SB_dsp.command*/);
-	SB_dsp.command = SB_NO_DSP_COMMAND;
-}			
-
-
-void sb_dsp_handle_interrupt(void)
-{
-    switch (SB_dsp.command) {
-	case 0xF2:
-		/* Trigger the interrupt */
-	        /* pic_request(SB_info.irq8); */
-	        sb_activate_irq (SB_IRQ_8BIT);
-		break;
-    
-	case 0xF3:
-		/* 0xF3: 16-bit IRQ - SB16 */
-	        sb_activate_irq (SB_IRQ_16BIT);
-		break;
-
-	default:
-		S_printf ("SB: Invalid Interrupt command 0x%x", SB_dsp.command);
-		break;
-    }
-
-    SB_dsp.command = SB_NO_DSP_COMMAND;
-}
-
-/*
- * DANG_FIXTHIS Stero Input is no implemented
- */
-void sb_stereo_input (void)
-{
-    switch (SB_dsp.command) {
-	case 0xA0:
-		S_printf ("SB: Enable Stereo Input not implemented\n");
-		break;
-
-	case 0xA8:
-		S_printf ("SB: Disable Stereo Input not implemented\n");
-		break;
-
-	default:
-		S_printf ("SB: Invalid Stereo Input command 0x%x\n",
-			  SB_dsp.command);
-		break;
-    }
-
-    SB_dsp.command = SB_NO_DSP_COMMAND;
-}
-
-void sb_handle_speaker (void)
-{
-    S_printf ("SB: In Handle Speaker (0x%x)\n", SB_dsp.command);
-
-    switch (SB_dsp.command) {
-	case 0xD1:
-		sb_enable_speaker();
-		break;
-
-	case 0xD3:
-		sb_disable_speaker();
-
-		/* 
-		 * in this case we shouldn't emulate
-		 * dma, 'cause this is used to check
-		 * the used dma-channel
-		 * just generate the appropriate IRQ
-		 * and the software should be happy
-		 * XXX -- next time  - Michael
-		 */
-
-		break;
-
-	case 0xD8:
-		dsp_write_output (SB_info.speaker);
-		break;
-
-	default:
-		S_printf ("SB: Invalid speaker command 0x%x\n", 
-			  SB_dsp.command);
-		break;
-    }
-
-    SB_dsp.command = SB_NO_DSP_COMMAND;
 }
 
 void sb_get_version (void)
@@ -1781,65 +1809,17 @@ void sb_get_version (void)
 	S_printf("SB: Query Version\n");
 	dsp_write_output(SB_info.version >> 8);
 	dsp_write_output(SB_info.version & 0xFF);
-	SB_dsp.command = SB_NO_DSP_COMMAND;
 }
-
-
-/*
- * ADC Support 
- */
-
-/*
- * DANG_FIXTHIS ADC is Unimplemented
- */
-
-void sb_do_adc(void)
-{
-    switch (SB_dsp.command) {
-	case 0x20:
-		S_printf ("SB: 8-bit ADC (Unimplemented)\n");
- 		dsp_write_output (0);
-		SB_dsp.command = SB_NO_DSP_COMMAND;
-		break;
-
-	case 0x28:
-		if (SB_info.version > SB_PRO) {
-			S_printf("SB: Burst mode 8-bit ADC (Unimplemented)\n");
-		}
- 		dsp_write_output (0);
-		SB_dsp.command = SB_NO_DSP_COMMAND;
-		break;
-
-	default:
-		S_printf ("SB: Invalid ADC command 0x%x\n", SB_dsp.command);
-		SB_dsp.command = SB_NO_DSP_COMMAND;
-    }
-
-}
-
-
-void sb16_adc(void)
-{
-	S_printf("SB: SB16 recording not supported yet\n");
-	SB_dsp.command = SB_NO_DSP_COMMAND;
-}
-
 
 /*
  * DMA Support
  * ===========
  */
-
-/*
- * SB operations use READ, SINGLE-MODE
- */
  
-#define PAUSE_DREQ 0x80
-
-int pause_state; /* SB_dsp.empty_state will be moved to here while pausing */
-
+#define SB_IRQ_PEND (SB_info.irq.pending & (SB_IRQ_8BIT | SB_IRQ_16BIT))
 void pause_dsp_dma(void)
 {
+  S_printf("SB: Pausing DMA transfer, %d bytes left\n", SB_dsp.bytes_left);
   if (SB_driver.DMA_pause != NULL) {
     (*SB_driver.DMA_pause)();
   }
@@ -1847,21 +1827,18 @@ void pause_dsp_dma(void)
     S_printf ("SB: Optional function 'DMA_pause' not provided.\n");
   }
 
-/* Don't do anything till unpause or another start playback command */
-  pause_state = SB_dsp.empty_state;
-  SB_dsp.empty_state = 0;
-  /* Save DREQ also */
-  if(dma_test_DREQ(config.sb_dma))
-    pause_state |= PAUSE_DREQ;
+  if(!SB_dsp.pause_state)
+    dma_drop_DREQ(config.sb_dma);
+  sb_deactivate_irq(SB_IRQ_PEND);
+  dma_pending = 0;
   sb_is_running &= ~DSP_OUTPUT_RUN;
-
-  dma_drop_DREQ(config.sb_dma);
-
-  SB_dsp.command = SB_NO_DSP_COMMAND;
+  SB_dsp.pause_state = 1;
 }
 
 void restart_dsp_dma(void)
 {
+  if (!SB_dsp.pause_state)
+    return;
   if (SB_driver.DMA_resume != NULL) {
     (*SB_driver.DMA_resume)();
   }
@@ -1869,431 +1846,338 @@ void restart_dsp_dma(void)
     S_printf ("SB: Optional function 'DMA_resume' not provided.\n");
   }
    
-  if(pause_state & PAUSE_DREQ)
+  SB_dsp.pause_state = 0;
+  sb_is_running |= DSP_OUTPUT_RUN;
+  if (!SB_dsp.empty_state)
     dma_assert_DREQ(config.sb_dma);
-  SB_dsp.empty_state = pause_state & ~PAUSE_DREQ;
-  if (SB_dsp.empty_state & (DREQ_AT_EMPTY | IRQ_AT_EMPTY))
-    sb_is_running = DSP_OUTPUT_RUN;
-
-  SB_dsp.command = SB_NO_DSP_COMMAND;
 }
 
-
-/*
- * Sets the length parameter: LSB, MSB
- *  Returns 1 when both bytes are set, and 0 otherwise.
- */
-
-int sb_set_length(Bit16u *variable)
+void sb_dma_done_block(void)
 {
-	if (SB_dsp.have_parameter != SB_PARAMETER_EMPTY) {
-		if (!SB_dsp.write_size_mode) {
-			*variable = SB_dsp.parameter;
-			SB_dsp.write_size_mode = !SB_dsp.write_size_mode;
-			return 0;
-		}
-		else {
-			*variable += (SB_dsp.parameter << 8);
-			SB_dsp.write_size_mode = !SB_dsp.write_size_mode;
-			return 1;
-		}
-	} else {
-		return 0;
-	}
+  S_printf("SB: DMA block completed\n");
+  if (dma_test_DACK(config.sb_dma))
+    S_printf("SB: DMA transfer continues (Auto-Init)\n");
 }
 
-/*
- * Sets a rate parameter: MSB, LSB
- * Returns 1 when both bytes are set, and 0 otherwise.
- */
-
-int sb_set_rate(Bit16u *variable)
+void sb_dma_start(void)
 {
-	if (SB_dsp.have_parameter != SB_PARAMETER_EMPTY) {
-		if (!SB_dsp.write_size_mode) {
-			*variable = (SB_dsp.parameter << 8);
-			SB_dsp.write_size_mode = !SB_dsp.write_size_mode;
-			return 0;
-		}
-		else {
-			*variable |= SB_dsp.parameter;
-			SB_dsp.write_size_mode = !SB_dsp.write_size_mode;
-			return 1;
-		}
-	} else {
-		return 0;
-	}
+  if (dma_pending)
+    start_dsp_dma();
 }
 
 void start_dsp_dma(void)
 {
-  Bit8u command;
+  static int dma_transfer_length;
+  int result = 0;
+  int real_sampling_rate;
 
-  command = SB_dsp.command;
+  S_printf("SB: Starting to open DMA access to DSP (%s mode)\n",
+    (SB_dsp.dma_mode & DMA_AUTO_INIT) ? "Auto-Init" : "Single-Cycle");
 
-  SB_dsp.dma_mode = 0;
+  SB_dsp.empty_state &= ~START_DMA_AT_EMPTY;
+  sb_is_running |= DSP_OUTPUT_RUN;
 
-  switch (command) {
-	case 0x14:
-	case 0x16:
-	case 0x17:
-	case 0x24:
-	case 0x74:
-	case 0x75:
-	case 0x76:
-	case 0x77:
-		/* Multi-parameter DMA commands - Supported (!) */
-		if (! sb_set_length(&SB_dsp.length)) {
-			/* Not complete yet */
-			return;
-		}
-		break;
-
-	case 0x1C:
-		/* 
-		 * There seem to be two(!) ways to use the instruction
-		 * 0x1C (8bit, lowspeed, auto): 
-		 *   1. Set blocklength via 0x48, BLOCK, LENGTH
-		 *      Issue 0x1C parameterless.
-		 *   2. Issue 0x1C with blocklength as parameter, WITHOUT
-		 *      setting it before. (This is wrong - 'sblaster.doc')
-		 * I assume, no program ever uses BOTH ways at once, so
- 		 * I remember, wether blocklength was set, and if, I expect
- 		 * the first variation, if not, i expect the second. The flag
- 		 * is reset when resetting the SB. The game "Millenia", which
- 		 * is using the HMI-Driverkit uses the first way, but the
- 		 * Shareware Version of Jazz Jackrabit uses the second one.
- 		 * Does anyone know, which programmer to flame, and also know,
- 		 * what his e-mail adress is? - Karcher
- 		 */
-		if (SB_info.version < SB_20) {
-			S_printf("SB: 8-bit Auto-Init DMA DAC not supported on this SB version.\n");
-			SB_dsp.command = SB_NO_DSP_COMMAND;
-			return;
-		}
-		SB_dsp.dma_mode |= DMA_AUTO_INIT;
-		if (SB_dsp.blocksize == 0 || sb_uses_broken_dma) {
-		  /* Broken Form */
-		  sb_uses_broken_dma = 1;
-
-		  if (!set_dma_blocksize())
-		    return;
-		}
-		break;
-
-	case 0x1F:
-		if (SB_info.version < SB_20) {
-			S_printf("SB: 2-bit Auto-Init DMA DAC not supported on this SB version.\n");
-			SB_dsp.command = SB_NO_DSP_COMMAND;
-			return;
-		}
-		SB_dsp.dma_mode |= DMA_AUTO_INIT;
-		break;
-
-	case 0x2C:
-		if (SB_info.version < SB_20) {
-			S_printf("SB: 8-bit Auto-Init DMA ADC not supported on this SB version.\n");
-			SB_dsp.command = SB_NO_DSP_COMMAND;
-			return;
-		}
-		SB_dsp.dma_mode |= DMA_AUTO_INIT;
-		break;
-
-	case 0x7D:
-		if (SB_info.version < SB_20) {
-			S_printf ("SB: 4-bit Auto-Init ADPCM DMA DAC not supported on this SB version.\n");
-			SB_dsp.command = SB_NO_DSP_COMMAND;
-			return;
-		}
-		SB_dsp.dma_mode |= DMA_AUTO_INIT;
-		break;
-
-	case 0x7F:
-		if (SB_info.version < SB_20) {
-			S_printf ("SB: 2.6-bit Auto-Init ADPCM DMA DAC not supported on this SB version.\n");
-			SB_dsp.command = SB_NO_DSP_COMMAND;
-			return;
-		}
-		SB_dsp.dma_mode |= DMA_AUTO_INIT;
-		break;
-
-   /*
-    * Huh?? My SB16 sure does support this. And 0x91, too. **CRISK**
-    * Confirmed for SB32 - Karcher
-    *
-    */
-
-        case 0x90:
-                /* Moved for gcc-optimization */
-		SB_dsp.dma_mode |= DMA_AUTO_INIT;
-    		if (SB_info.version < SB_20 /*|| SB_info.version > SB_PRO*/)  {
-    			S_printf ("SB: 8-bit Auto-Init High Speed DMA DAC not supported on this SB version.\n");
-    			SB_dsp.command = SB_NO_DSP_COMMAND;
-    			return;
-    		}
-    		break;
-
-        case 0x91:
-    		if (SB_info.version < SB_20 /*|| SB_info.version > SB_PRO*/)  {
-    			S_printf ("SB: 8-bit High Speed DMA DAC not supported on this SB version.\n");
-    			SB_dsp.command = SB_NO_DSP_COMMAND;
-    			return;
-    		}
-    		break;
-     
-	case 0x98:
-		if (SB_info.version < SB_20 || SB_info.version > SB_PRO) {
-			S_printf ("SB: 8-bit Auto-Init High Speed DMA ADC not supported on this SB version.\n");
-			SB_dsp.command = SB_NO_DSP_COMMAND;
-			return;
-		}
-		SB_dsp.dma_mode |= DMA_AUTO_INIT;
-		break;
-
-
-	default:
-		S_printf("SB: Invalid or unsupported DMA sequence (0x%x)\n",
-			 command);
-		SB_dsp.command = SB_NO_DSP_COMMAND;
-
-		return;
-  }
-
-  SB_dsp.command = SB_NO_DSP_COMMAND;
-
-  S_printf("SB: Starting to open DMA access to DSP\n");
-
-  if (!SB_info.speaker) {
-    S_printf ("SB: Speaker not enabled\n");
-    /* Michael thinks we should trigger the interrupt now */
-    /*
-     * MK: that is fine, but we have to eat the DMA-transfer too!
-     *     and we should not generate an IRQ if DMA is not programmed,
-     *     at least on a clone the IRQ is signalled first if the given
-     *     number of bytes is transferred! 
-     */
-    sb_activate_irq (SB_IRQ_8BIT);
+  if (!SB_dsp.length) {
+    S_printf("SB: ERROR: transfer lenght is not set, aborting DMA!\n");
+    sb_is_running &= ~DSP_OUTPUT_RUN;
     return;
   }
 
+  if (SB_dsp.bytes_left && !SB_dsp.pause_state &&
+   !(SB_dsp.empty_state & DMA_CONTINUE) && (SB_dsp.dma_mode & SB_USES_DMA)) {
+      S_printf("SB: Waiting DMA transfer cycle to finish, %d bytes left\n",
+        SB_dsp.bytes_left);
+      SB_dsp.empty_state |= START_DMA_AT_EMPTY;
+      return;
+    }
+
+ /* drop DRQ for now - DMA startup can fail */
+  dma_drop_DREQ(config.sb_dma);
+
+ if (SB_info.speaker) {
+  if (SB_dsp.sample_rate && SB_dsp.time_constant)
+    S_printf("SB: ERROR: Both sampling rate and time constant are set!\n");
+  if (SB_dsp.sample_rate)
+    real_sampling_rate = SB_dsp.sample_rate;
+  else {
+    real_sampling_rate = 1000000 / (256 - SB_dsp.time_constant);
+    if (SB_dsp.stereo)
+      real_sampling_rate /= 2;
+    if (!SB_dsp.time_constant)
+      S_printf("SB: ERROR: Sampling rate is not set!\n");
+  }
+  S_printf("SB: Sampling rate is %uHz\n", real_sampling_rate);
+
+  /* Set up the housekeeping for the DMA transfer */
+  dma_transfer_length = MIN(SB_dsp.length/2, MAX_DMA_TRANSFERSIZE);
+  if(dma_transfer_length < MAX_DMA_TRANSFERSIZE &&
+   dma_transfer_length * 2 < SB_dsp.length)
+    dma_transfer_length++;
+  dma_transfer_length = MIN(dma_transfer_length,
+    dma_get_block_size(config.sb_dma));
+  if (dsp_block_size != SB_dsp.length) {
+    if (SB_driver.DMA_set_blocksize != NULL)
+      (*SB_driver.DMA_set_blocksize)
+	(MAX(SB_dsp.length/2, MAX_DMA_TRANSFERSIZE*4), dma_transfer_length);
+    dsp_block_size = SB_dsp.length;
+  }
+
+  if (SB_driver.set_speed == NULL) {
+    S_printf ("SB: Required function 'DMA_set_speed' not provided, can't use DMA.\n");
+    sb_is_running &= ~DSP_OUTPUT_RUN;
+    return;
+  }
   if (SB_driver.DMA_start_init == NULL) {
     S_printf ("SB: Required function 'DMA_start_init' not provided.\n");
   }
-  else {
-    (*SB_driver.DMA_start_init)(command);
-  }
-
-  switch (command) {
-  case 0x14: /* 8-bit DMA */
-    S_printf ("SB: 8-bit DMA starting\n");
-    break;
-  case 0x1C: /* 8-bit DMA (Auto-Init) */
-    S_printf ("SB: 8-bit DMA (Auto-Init) starting\n");
-    break;
-  case 0x90: /* 8-bit DMA (Auto-Init, High Speed) */
-    S_printf ("SB: 8-bit DMA (High Speed, Auto-Init) starting\n");
-    break;
-  case 0x91: /* **CRISK** 8-bit DMA (High Speed) */
-    S_printf ("SB: 8-bit DMA (High Speed) starting\n");
-    break;
-  default:
-    S_printf("SB: Unsupported DMA type (0x%x)\n", command);
+  else
+    result = (*SB_driver.DMA_start_init)();
+  if (result == 0)
+    result = (*SB_driver.set_speed) (real_sampling_rate, SB_dsp.stereo);
+  if (result<0) {
+    SB_dsp.empty_state |= START_DMA_AT_EMPTY;
+    dsp_block_size = 0;
+    S_printf ("SB: DMA init failed, will try again later...\n");
     return;
-  };
-
-  /* Set up the housekeeping for the DMA transfer */
-  SB_dsp.bytes_left = SB_dsp.blocksize;
-  SB_dsp.dma_transfer_size = (SB_dsp.blocksize > MAX_DMA_TRANSFERSIZE) 
-    ? MAX_DMA_TRANSFERSIZE : SB_dsp.blocksize;
-
-  if (SB_driver.DMA_start_complete == NULL) {
-    S_printf ("SB: Required function 'DMA_start_complete' not provided.\n");
   }
-  else {
-    (*SB_driver.DMA_start_complete)();
-  }
+ } else {
+    S_printf ("SB: Speaker not enabled\n");
+    dma_transfer_length = MIN(SB_dsp.length, MAX_DMA_TRANSFERSIZE);
+    dma_transfer_length = MIN(dma_transfer_length,
+      dma_get_block_size(config.sb_dma));
+    /* we want only one irq when speaker not enabled */
+    SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+ }
+
+  dma_set_transfer_size(config.sb_dma, dma_transfer_length);
+  S_printf("SB: DSP block size is set to %d\n", SB_dsp.length);
+  S_printf("SB: DMA block size is %ld (%ld left)\n",
+    dma_get_block_size(config.sb_dma), dma_bytes_left(config.sb_dma));
+  S_printf("SB: DMA transfer size is set to %d\n", dma_transfer_length);
+
+  SB_dsp.pause_state = 0;
+  if (!(SB_dsp.empty_state & DMA_CONTINUE))
+    SB_dsp.bytes_left = SB_dsp.length;
+  else
+    S_printf("SB: Resuming DMA transfer, %d bytes left\n", SB_dsp.bytes_left);
+  SB_dsp.empty_state &= ~DMA_CONTINUE;
+  SB_dsp.dma_mode |= SB_USES_DMA;
+  dma_pending = 0;
+//  byte_skipped = 0;		/* uncomment this for some reverberation :) */
 
   /* Commence Firing ... */
   dma_assert_DREQ(config.sb_dma);
 }
 
-/*
- * DANG_FIXTHIS Stopping Auto-Init DMA is not implemented
- */
-void stop_dsp_dma(void)
+static void handle_dma_IO(int size)
 {
-	Bit8u command;
+  sb_is_running |= DSP_OUTPUT_RUN;
+  dma_drop_DREQ(config.sb_dma);
 
-	command = SB_dsp.command;
-	SB_dsp.command = SB_NO_DSP_COMMAND;
+  if (size > SB_dsp.bytes_left) {
+    error("SB: DMA crossed transfer buffer! (size=%d left=%d)\n",
+	size, SB_dsp.bytes_left);
+    size = SB_dsp.bytes_left;
+  }
 
-        /* I think, that should do it - MK */
-	SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+  SB_dsp.bytes_left -= size;
+     
+  if(SB_dsp.bytes_left)
+  {
+    if(!(SB_dsp.dma_mode & SB_USES_DMA)) {	/* what? Damn this ST3... */
+      S_printf("SB: Warning: DMA transfer interrupted!\n");
+      return;
+    }
+    /* Still some bytes left till IRQ */
+    if(!SB_dsp.pause_state)
+      dma_assert_DREQ(config.sb_dma);
+    else
+      sb_is_running &= ~DSP_OUTPUT_RUN;
+  }
+  else {
+    /* We are at the end of an block */
+    S_printf("SB: Done block, triggering IRQ\n");
+    if(SB_dsp.dma_mode & DMA_AUTO_INIT)
+    {
+      /* Reset block size */
+      SB_dsp.bytes_left = SB_dsp.length;
+      sb_activate_irq(SB_IRQ_8BIT);
+      if (!SB_dsp.empty_state) {
+	S_printf("SB: Auto-reinitialized for next block\n");
 
-	/* 
-	 * We should stop after the block
-	 * that is currently in transfer. In our system, that is the
-	 * block, we already got an DMA_READ call for. And if we already
-	 * caught the last DMA_READ for that block, some things of auto-
-	 * initing are already done, and have to be cleared - MK
-	 */
-	
-	/* Don't continue on an EOI with the next block */
-	
-	SB_dsp.empty_state &= ~DREQ_AT_EOI;
-	/*	switch (command) {
-		}
-	*/
-}
-
-int set_dma_blocksize(void) 
-{
-   if (SB_info.version >= SB_20) {
-      if (sb_set_length (&SB_dsp.blocksize)) 
-	{
-	  /* DMA system transfers 1 extra byte, so ensure we know about it */
-	  SB_dsp.blocksize++;
-           if (SB_driver.DMA_set_blocksize != NULL)
-	     (*SB_driver.DMA_set_blocksize)(SB_dsp.blocksize);
-	   S_printf("SB: DMA blocksize set to %u.\n", 
-		    SB_dsp.blocksize);
-	   SB_dsp.command = SB_NO_DSP_COMMAND; /* **CRISK** multibyte fix */
-
-	   return 1;
+	/* bad HACK :( */
+	if (test_bit(SB_info.irq.irq8, &pic0_imr)) {
+          S_printf("SB: Warning: SB IRQ (%d) is masked!!!\n", config.sb_irq);
+	  dma_assert_DREQ(config.sb_dma);
+	  SB_dsp.empty_state &= ~DREQ_AT_EOI;
 	}
-   } 
-
-   return 0;
+        else
+	  SB_dsp.empty_state |= DREQ_AT_EOI;
+      }
+      else
+        S_printf("SB: Warning: empty_state = %d, aborting Auto-Init DMA!\n",
+	  SB_dsp.empty_state);
+    }
+    else {
+      SB_dsp.dma_mode &= ~SB_USES_DMA;
+      if((SB_dsp.length > dma_get_block_size(config.sb_dma)) ||
+	(SB_dsp.empty_state & START_DMA_AT_EMPTY)) {
+        sb_activate_irq(SB_IRQ_8BIT);
+	if(SB_dsp.empty_state & START_DMA_AT_EMPTY) {
+/* we are probably switching from Auto-init to Single, so try to start DMA ASAP */
+	  start_dsp_dma();
+	}
+      }
+      else {
+	SB_dsp.empty_state |= IRQ_AT_EMPTY;
+	if (!pic_icount)		/* broken PIC, ST3 HACK */
+	  sb_check_complete();
+      }
+    }
+  }
 }
 
-
-/* 
- * MK: as the people out there don't know how to manage DMA and IRQ,
- *     I've writen a short explanation:
- *
- * The DMA-chip is programmed to any blocksize, auto init may be on or
- * off, this is implemented well, I think, but the soundcard *does not*
- * *care* about these values!
- *
- * The SB-card gets it's own parameters for auto-init and blocksize.
- * The SB card gets as many bytes from DMA as you told the SB card,
- * regardless of what you told the DMA-chip! After having played the
- * specified amount of data, an IRQ is generated. This is NOT
- * when DMA indicates done, as the DMA-chip may have a totally different
- * blocksize, but when the SB-count has elapsed. After generating the
- * IRQ we have to wait for a new instruction if not in auto-init or
- * restart playing a block of same size if in auto-init. I repeat:
- * The blocksizes you told the SB and DMA are *completely independent* and
- * no component knows about the other's setting, so we can't use
- * DMA_HANDLER_DONE for generating IRQ's (hope somebody understands) 
- *
- * (Modified to (slightly) improve the English - Alistair)
- */
-
-
-int sb_dma_handler (int status, Bit16u amount)
+size_t sb_dma_write(void *dosptr, size_t size)
 {
-  int result;
-
-  result = DMA_HANDLER_OK;
+int amount_done = 0, length;
+void *ptr = dosptr;
+Bit8u buffer[MAX_DMA_TRANSFERSIZE+1];
+static Bit8u missed_byte;
 
   if (debug_level('S') >= 2) {
-    S_printf ("SB: In DMA Handler\n");
+    S_printf ("SB: sb_dma_write: size=%d\n", size);
   }
 
-  if (!SB_info.speaker) {
-    /* No output possbile - Try to stop processing ! */
-    dma_drop_DREQ(config.sb_dma);
-    return DMA_HANDLER_NOT_OK;
+  length = MIN(size, SB_dsp.bytes_left);
+  if (!length)
+    return 0;
+  S_printf("SB: Going to write %d bytes\n", length);
+
+  if (!SB_driver.DMA_do_write) {
+    S_printf("SB: function \"DMA_do_write\" not provided, can't use DMA!\n");
+    amount_done = length;
   }
-
-  switch (status) {
-  case DMA_HANDLER_READ:
-    dma_assert_DACK(config.sb_dma);
-    if(!amount)
-      return DMA_HANDLER_OK; /* I'm getting a zero length call when DMA
-                                auto-reinits. Ignore it! */
-    if (debug_level('S') >= 2) {
-      S_printf ("SB: Outputted %d bytes\n",amount);
-    }
-
-    SB_dsp.bytes_left -= amount;
-     
-    /* For to not reach impossible transfer speeds and thus overfilling
-       the oss-driver-buffer, we interrupt data-flow till we see enough
-       space in the buffer, or if it is the last fragment of an block,
-       till the next block is started. On auto-init, next block start
-       on an EOI. - MK */
-        
-    /*    dma_drop_DREQ(config.sb_dma); */
-    if(SB_dsp.bytes_left)
-    {
-      /* Still some bytes left till IRQ */
-      if(SB_dsp.bytes_left < SB_dsp.dma_transfer_size)
-      {
-	/* Tell the DMA to not cross SB block boundaries... */
-	SB_dsp.dma_transfer_size = SB_dsp.bytes_left;
-	dma_transfer_size(config.sb_dma,SB_dsp.dma_transfer_size);
+  else {
+    if (SB_info.speaker) {
+      if (SB_dsp.stereo && ((length % 2) ^ byte_skipped)) {
+        if (!byte_skipped)
+          S_printf("SB: Warning: requested %d (odd) bytes in Stereo\n",length);
+        length--;
+        if (length == 0) {
+/* 
+ * The idea of this hack is to preserve the last byte and attach it to the
+ * beginning of the next block. Outputting it now will result in unexpected
+ * reverberation, dropping it will result in a channel swapping.
+ * This HACK is ugly, esp. for the intermediate buffer involvement,
+ * but suggest another solution or send me a patch - I'll be happy.
+ *
+ * -- Stas Sergeev
+ */
+          missed_byte = *(Bit8u *)dosptr;
+          S_printf("SB: Warning: skipping byte 0x%hhx\n", missed_byte);
+          handle_dma_IO(1);
+          byte_skipped = 1;
+          return 1;
+        }
       }
-      SB_dsp.empty_state = DREQ_AT_EMPTY;
-      sb_is_running |= DSP_OUTPUT_RUN;
+      if (byte_skipped) {		/* UGLY, ugly, ugly!!! */
+	S_printf("SB: Inserting missing byte 0x%hhx\n", missed_byte);
+	buffer[0] = missed_byte;
+        memcpy(buffer + 1, dosptr, length);
+	ptr = buffer;
+      }
+
+      if (SB_dsp.stereo && ((length + byte_skipped) % 2))
+        error("SB: ERROR: odd transfer in stereo mode!!!\n");
+
+      amount_done = SB_driver.DMA_do_write(ptr, length + byte_skipped);
+
+      if (SB_dsp.stereo && (amount_done % 2))
+        error("SB: ERROR: Driver does odd transfer in stereo mode!!!\n");
+
+      if (amount_done > 0) {
+        amount_done -= byte_skipped;
+	byte_skipped = 0;
+      }
+    } else {
+      S_printf("SB: Speaker not enabled, doing nothing...\n");
+      amount_done = length;
     }
-    else
-    {
-      S_printf("SB: Done block, triggering IRQ\n");
-      /* Generate IRQ when DMA complete */
-      SB_dsp.empty_state = IRQ_AT_EMPTY;
-      sb_is_running |= DSP_OUTPUT_RUN;
-      /* We are at the end of an block */
-      if(SB_dsp.dma_mode & DMA_AUTO_INIT)
-      {
-	/* Reset block size */
-	SB_dsp.bytes_left = SB_dsp.blocksize;
-	/* Reset DMA transfer size */
-	if(SB_dsp.blocksize > MAX_DMA_TRANSFERSIZE)
-	  SB_dsp.dma_transfer_size = MAX_DMA_TRANSFERSIZE;
-	else
-	  SB_dsp.dma_transfer_size = SB_dsp.blocksize;
-	dma_transfer_size(config.sb_dma, SB_dsp.dma_transfer_size);
-	S_printf("Auto-reinitialized for next block\n");
-	SB_dsp.empty_state = DREQ_AT_EOI | IRQ_AT_EMPTY;
-      } 
+  }
+
+  handle_dma_IO(amount_done);
+
+  if (debug_level('S') >= 2) {
+    S_printf ("SB: Outputted %d bytes, %d bytes left\n",
+	amount_done, SB_dsp.bytes_left);
+  }
+
+  return amount_done;
+}
+
+size_t sb_dma_read(void *ptr, size_t size)
+{
+int amount_done, length;
+char fill;
+
+  if (debug_level('S') >= 2) {
+    S_printf ("SB: sb_dma_read: size=%d\n", size);
+  }
+
+  length = MIN(size, SB_dsp.bytes_left);
+  if (!length)
+    return 0;
+  S_printf("SB: Going to read %d bytes\n", length);    
+
+  if (!SB_driver.DMA_do_read) {
+    S_printf("SB: function \"DMA_do_read\" not provided, can't use DMA!\n");
+    amount_done = length;
+  }
+  else {
+    if (SB_info.speaker)
+      amount_done = SB_driver.DMA_do_read(ptr, length);
+    else {
+      fill = E2_Active ? m_E2Value : 0x80;
+      S_printf("SB: Speaker not enabled, memset'ing buffer with 0x%02hhX\n", fill);
+      memset(ptr, fill, length);
+      E2_Active = 0;
+      amount_done = length;
     }
-    return DMA_HANDLER_OK;
+  }
 
-  case DMA_HANDLER_WRITE:
-    S_printf ("SB: Handled WRITE response (!) INVALID !!!!\n");
-    return DMA_HANDLER_NOT_OK;
+  handle_dma_IO(amount_done);
 
-  case DMA_HANDLER_ERROR:
-    S_printf ("SB: Error in DMA\n");
-    return DMA_HANDLER_NOT_OK;
+  if (debug_level('S') >= 2) {
+    S_printf ("SB: Inputted %d bytes, %d bytes left\n",
+	amount_done, SB_dsp.bytes_left);
+  }
 
-  case DMA_HANDLER_DONE:
-    return DMA_HANDLER_OK;
-
-  };
-
-  return DMA_HANDLER_NOT_OK;
+  return amount_done ;
 }
 
 void sb_irq_trigger (void)
 {
   S_printf ("SB: Interrupt activated.\n");
 
-	if (SB_driver.DMA_complete != NULL) {
-		(*SB_driver.DMA_complete)();
-	}
-	else if (debug_level('S') >= 3) {
-		S_printf ("SB: Optional function 'DMA_complete' not provided.\n");
-	}
+  SB_info.irq.active |= SB_info.irq.pending;
+  SB_info.irq.pending = 0;
 
+  if (SB_driver.DMA_complete != NULL) {
+    (*SB_driver.DMA_complete)();
+  }
+  else if (debug_level('S') >= 3) {
+    S_printf ("SB: Optional function 'DMA_complete' not provided.\n");
+  }
+
+  into_irq = 1;
   do_irq();
+  into_irq = 0;
 }
 
 static void sb_check_complete (void)
 {
   int result = DMA_HANDLER_OK;
+  int dma_change_speed = 1;
 
   if (SB_driver.DMA_complete_test != NULL) {
     result = (*SB_driver.DMA_complete_test)();
@@ -2305,12 +2189,37 @@ static void sb_check_complete (void)
   if(result == DMA_HANDLER_OK)
   {
     sb_is_running &= ~DSP_OUTPUT_RUN;
-    if(SB_dsp.empty_state & DREQ_AT_EMPTY)
-      dma_assert_DREQ(config.sb_dma);
+    if (SB_driver.DMA_can_change_speed == NULL)
+      S_printf ("SB: Optional function 'DMA_can_change_speed' not provided.\n");
+    else
+      dma_change_speed = (*SB_driver.DMA_can_change_speed)();
+    if(dma_change_speed) {
+      if(SB_dsp.empty_state & START_DMA_AT_EMPTY) {
+	S_printf("SB: Trying to start DMA transfer again...\n");
+	start_dsp_dma();
+      }
+    }
     if(SB_dsp.empty_state & IRQ_AT_EMPTY)
       sb_activate_irq(SB_IRQ_8BIT);
-    SB_dsp.empty_state &= ~(DREQ_AT_EMPTY | IRQ_AT_EMPTY);
+    SB_dsp.empty_state &= ~IRQ_AT_EMPTY;
+    if(!SB_dsp.bytes_left) {
+      SB_dsp.dma_mode = 0;
+    }
+
+    if(SB_dsp.empty_state & DREQ_AT_EOI) {
+      if (!into_irq && !SB_info.irq.pending) {
+	S_printf("SB: Warning: program doesn't ACK the interrupt, enjoy clicking.\n");  
+	if(!SB_dsp.pause_state)
+	  dma_assert_DREQ(config.sb_dma);
+	SB_dsp.empty_state &= ~DREQ_AT_EOI;
+      }
+      else
+	S_printf("SB: Warning: DMA is running too slow!\n");
+    }
   }
+
+  if (SB_dsp.empty_state)
+    sb_is_running |= DSP_OUTPUT_RUN;
 }
 
 /*
@@ -2325,12 +2234,8 @@ void sound_init(void)
   mpu401_init();
 }
 
-static void sb_init(void)
+static void sb_detect(void)
 {
-  emu_iodev_t  io_device;
-
-  S_printf ("SB: SB Initialisation\n");
-
   /* First - Check if the DMA/IRQ values make sense */
 
   /* Must have an IRQ between 1 & 15 inclusive */
@@ -2359,32 +2264,13 @@ static void sb_init(void)
 #ifdef STRICT_SB_EMU
   SB_info.version = STRICT_SB_EMU;
 #endif
+}
 
-  switch (SB_info.version) {
-  case SB_NONE:
-    S_printf ("SB: No SB emulation available. Disabling SB\n");
-    return;
+static void sb_init(void)
+{
+  emu_iodev_t  io_device;
 
-  case SB_OLD:
-    S_printf ("SB: \"Old\" SB emulation available\n");
-    break;
-  case SB_20:
-    S_printf ("SB: SB 2.0 emulation available\n");
-    break;
-  case SB_PRO:
-    S_printf ("SB: SB PRO emulation available\n");
-    break;
-  case SB_16:
-    S_printf ("SB: SB 16 emulation available\n");
-    break;
-  case SB_AWE32:
-    S_printf ("SB: SB AWE32 emulation available\n");
-    break;
-  default:
-    S_printf ("SB: Incorrect value for emulation. Disabling SB.\n");
-    SB_info.version = SB_NONE;
-    return;
-  }
+  S_printf ("SB: SB Initialisation\n");
 
   /* SB Emulation */
   io_device.read_portb   = sb_io_read;
@@ -2411,9 +2297,12 @@ static void sb_init(void)
   pic_seti(SB_info.irq.irq8, sb_irq_trigger, 0, NULL);
   pic_unmaski(SB_info.irq.irq8);
 
+  /* Register DMA handlers */
+  dma_install_handler(config.sb_dma, sb_dma_read, sb_dma_write, sb_dma_start,
+    sb_dma_done_block);
+
   S_printf ("SB: Initialisation - Base 0x%03x, IRQ %d, DMA %d\n", 
 	    config.sb_base, config.sb_irq, config.sb_dma);
-
 }
 
 static void fm_init(void)
@@ -2490,27 +2379,43 @@ static void sb_reset (void)
 {
   S_printf ("SB: Resetting SB\n");
 
+  sb_detect();			/* check if noone occupied /dev/dsp */
+
   if (SB_info.version != SB_NONE) {
-  sb_disable_speaker();
 
-  dsp_clear_output ();
+    sb_deactivate_irq(SB_IRQ_PEND);
+    SB_info.irq.active = 0;
 
-  SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
-  dma_drop_DREQ(config.sb_dma);
-  sb_is_running = 0;
-  SB_dsp.empty_state = 0;
-  SB_dsp.last_write = 0;
-  SB_info.mixer_index = 0;
-  SB_dsp.write_size_mode = 0;
+    sb_disable_speaker();
+    dsp_clear_output ();
+    SB_dsp.pause_state = 0;
 
-  SB_dsp.command = SB_NO_DSP_COMMAND;
-  SB_dsp.have_parameter = SB_PARAMETER_EMPTY;
-  SB_dsp.sb16_playmode = 0xFF;
-
-  SB_dsp.blocksize = 0;
-  sb_uses_broken_dma = 0;
-
-  SB_driver_reset();
+    SB_dsp.dma_mode = 0;
+    sb_is_running = 0;
+    SB_dsp.empty_state = 0;
+    SB_dsp.num_parameters = 0;
+    SB_dsp.bytes_left = 0;
+    dma_pending = 0;
+    byte_skipped = 0;
+    SB_dsp.stereo = 0;
+    SB_dsp.length = 0;
+    dsp_block_size = 0;
+    m_E2Value = 0xaa;
+    m_E2Count = 0;
+    E2_Active = 0;
+    DSP_busy_hack = 2;
+    SB_dsp.ready = 0x7f;
+/* the following must not be zeroed out */
+#if 0
+    SB_info.mixer_index = 0;
+    SB_dsp.sample_rate = 0;
+    SB_dsp.time_constant = 0;
+#endif
+    SB_driver_reset();
+  }
+  else {
+    SB_dsp.ready = 0xff;
+    SB_dsp.data = 0xff;
   }
 }
 
@@ -2568,8 +2473,6 @@ void sb_enable_speaker (void)
   }
 
   SB_info.speaker = 1;
-
-  sb_set_speed ();
 }
 
 void sb_disable_speaker(void)
@@ -2601,7 +2504,7 @@ static __u8 sb_read_mixer(__u8 ch)
 
 static void sb_write_mixer (int ch, __u8 value)
 {
-  S_printf ("SB: Read mixer setting on channel %u.\n", ch);
+  S_printf ("SB: Write mixer setting on channel %u.\n", ch);
 
   if (SB_driver.write_mixer == NULL) {
     S_printf ("SB: Required function 'write_mixer' not provided.\n");
@@ -2700,6 +2603,10 @@ void sb_update_timers () {
 static void sb_activate_irq (int type)
 {
     S_printf ("SB: Activating irq type %d\n",type);
+    if ((SB_info.irq.pending | SB_info.irq.active) & type) {
+      S_printf("SB: Warning: Interrupt already active!\n");
+      return;
+    }
 
     /* On a real SB-board, all three sources use the same IRQ-number. -MK */
     /* So ? Just means we are more flexible. - AM */
@@ -2721,6 +2628,30 @@ static void sb_activate_irq (int type)
           S_printf("SB: ERROR! Wrong IRQ-type passed to activate_irq!\n");
           break;
     }
-    SB_info.irq.active |= type;
+    SB_info.irq.pending |= type;
 }
 
+static void sb_deactivate_irq (int type)
+{
+    if(SB_dsp.empty_state & IRQ_AT_EMPTY) {
+      S_printf("SB: Untriggering scheduled IRQ\n");
+      SB_dsp.empty_state &= ~IRQ_AT_EMPTY;
+    }
+    if(!(SB_info.irq.pending & type)) {
+      return;
+    }
+    S_printf ("SB: Warning: Deactivating irq type %d\n",type);
+
+    /* On a real SB-board, all three sources use the same IRQ-number. -MK */
+    /* So ? Just means we are more flexible. - AM */
+
+    if(SB_info.irq.pending & type & SB_IRQ_8BIT)
+        pic_untrigger(SB_info.irq.irq8);
+    if(SB_info.irq.pending & type & SB_IRQ_16BIT)
+        pic_untrigger(SB_info.irq.irq16);
+    if(SB_info.irq.pending & type & SB_IRQ_MIDI)
+        pic_untrigger(SB_info.irq.midi);
+        /* Any more ? - AM */
+        /* On an SB16: No - MK */
+    SB_info.irq.pending &= ~type;
+}

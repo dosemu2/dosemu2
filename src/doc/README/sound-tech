@@ -19,6 +19,14 @@ url="http://www.slitesys.demon.co.uk/a.macdonald/dosemu/sound/"
 >
 </para>
 
+<para>
+At a later stages the code was extensively reworked (again) by Stas Sergeev. 
+Instead of direct pipes connected to /dev/dsp the DMA code now uses callbacks. 
+If pipes will be advantageous for other types of DMA in the future, they 
+will be readded. Opinions differ on this very subject (whether pipes 
+are more flexible than callbacks in certain cases).
+</para>
+
 </sect2>
 
 <sect2>

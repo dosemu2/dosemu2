@@ -1,3 +1,13 @@
+2002/11/02 ver 1.1.3.6 unofficial pre-release
+	From Stas
+	- Remove bogus check for ints >= 0xe0 in dpmi.c.
+	- Extensively reworked the Sound Blaster Pro emulation code.
+	From Michael and Reinhard Karcher
+	- Add missing semicolon for newer yacc's in parser.y.in
+	From Bart
+	- Fix old keyboard code compilation and mkbindist (noted
+	  by Grigory Batalov)
+	- Update sound documentation
 2002/10/22 ver 1.1.3.5 unofficial pre-release
 	From Baurjan Ismagulov and Sergey Suleymanov
 	- Turkish keyboard layout

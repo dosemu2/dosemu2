@@ -31,6 +31,9 @@ void dma_drop_DREQ(int channel);
 void dma_drop_DACK(int channel);
 void dma_assert_DREQ(int channel);
 void dma_assert_DACK(int channel);
+inline long int dma_get_block_size (int channel);
+inline long int dma_bytes_left (int channel);
+inline long int dma_get_transfer_size (int channel);
 
 
 #define DMA_HANDLER_READ   1
@@ -43,11 +46,14 @@ void dma_assert_DACK(int channel);
 
 #define DMA_HANDLER_ERROR  -1
 
-void dma_install_handler (int ch, int wfd, int rfd, 
-			  int (* handler) (int, Bit16u), int size);
+#define MAX_DMA_TRANSFERSIZE 512
+
+void dma_install_handler(int ch, size_t(*read_handler)(void *, size_t),
+    size_t(*write_handler)(void *, size_t), void(*DACK_handler)(void),
+    void(*EOP_handler)(void));
 
 /* [Re-]Sets the preferred transfer size - Karcher */
-void dma_transfer_size (int ch, int size);
+void dma_set_transfer_size (int ch, long int size);
 
 /* From <asm/dma.h> */
 
@@ -100,6 +106,7 @@ void dma_transfer_size (int ch, int size);
 #define DMA_PAGE_1              0x83
 #define DMA_PAGE_2              0x81
 #define DMA_PAGE_3              0x82
+#define DMA_PAGE_4              0x8F
 #define DMA_PAGE_5              0x8B
 #define DMA_PAGE_6              0x89
 #define DMA_PAGE_7              0x8A

@@ -68,6 +68,7 @@ struct sb_irq_t {
   __u16 irq16;                 /* 16-bit IRQ (internal PIC value) */
   __u16 midi;                  /* Midi IRQ (internal PIC value) */
 
+  __u8  pending;               /* Currently pending IRQs */
   __u8  active;                /* Currently active IRQs */
 };
 
@@ -85,18 +86,14 @@ EXTERN struct sb_information_t {
  */
 
 EXTERN struct DSP_information_t {
-  __u8  channels;              /* Number of Channels on the DSP */
   __u8  time_constant;         /* The current Time constant for writes */
   __u16 sample_rate;           /* The current sample rate */
   __u8  test;                  /* Storage for the test value */
   __u8  stereo;                /* Is the device Stereo */
   __u8  ready;                 /* Is DSP Ready ? */
   __u8  data;                  /* Data is available */
-  __u8  write_size_mode;       /* Are we writing the upper or lower byte */
-  __u8  last_write;            /* First part of a multi-byte instruction */
-  __u16 length;                /* Length of the DMA transfer */
-  __u16 blocksize;             /* **CRISK** Block size of transfer */
-  __u16 bytes_left;	       /* No. of bytes left in current blk */
+  __s32 length;                  /* Length of the DMA transfer */
+  __s32 bytes_left;	       /* No. of bytes left in current blk */
 /* 
  * This is the maximum number of bytes transferred via DMA. If you turn
  * it too low, the dosemu-overhead gets too big, so the transfer is
@@ -104,20 +101,20 @@ EXTERN struct DSP_information_t {
  * programs reading the dma-registers are confused, because the registers
  * jump in too high steps 
  */
-#define MAX_DMA_TRANSFERSIZE 512
-  __u16 dma_transfer_size;
+#define IRQ_AT_EMPTY 1
+#define START_DMA_AT_EMPTY 2
+#define DMA_CONTINUE 4		/* NOT for DMA pause/restart !!! */
+#define DREQ_AT_EOI 8
   __u8  empty_state;	       /* what we have to do when transfer ends */ 
-#define DREQ_AT_EMPTY 1
-#define IRQ_AT_EMPTY 2
-#define DREQ_AT_EOI 4
+  __u8  pause_state;	       /* is DMA transfer paused? */ 
+#define SB_USES_DMA 1
+#define HIGH_SPEED_DMA 2
   __u8  dma_mode;              /* Information we need on the DMA transfer */
   __u8  command;               /* DSP command in progress */
-  __u8  sb16_playmode;         /* DSP command byte 2 - SB16+ */
 #define SB_NO_DSP_COMMAND 0
-  __u8  parameter;             /* value of parameter */
-  __u8  have_parameter;        /* do we have the parameter */
-#define SB_PARAMETER_EMPTY 0
-#define SB_PARAMETER_FULL  1
+#define MAX_DSP_PARAMS 3
+  __u8  parameter[MAX_DSP_PARAMS];  /* value of parameter */
+  __u8  num_parameters;        /* do we have the parameter */
 } SB_dsp;
 
 
@@ -147,19 +144,21 @@ EXTERN struct SB_driver_t {
   /*
    * DMA functions
    */
-  void  (* DMA_start_init)(__u32);
-  void  (* DMA_start_complete)(void);
+  int  (* DMA_start_init)(void);
+  size_t  (* DMA_do_read)(void*, size_t);
+  size_t  (* DMA_do_write)(void*, size_t);
   void  (* DMA_pause)(void);
   void  (* DMA_resume)(void);
   void  (* DMA_stop)(void);
   int   (* DMA_complete_test)(void);
+  int   (* DMA_can_change_speed)(void);
   void  (* DMA_complete)(void);
-  void  (* DMA_set_blocksize)(__u16); /* **CRISK** */
+  void  (* DMA_set_blocksize)(int, int); /* **CRISK** */
    
   /*
    * Miscellaneous Functions
    */
-  void  (* set_speed)(__u16 speed, __u8 stereo);
+  int  (* set_speed)(__u16 speed, __u8 stereo);
   void  (* play_buffer)(void *buffer, __u16 length);
 
 } SB_driver; 
@@ -280,7 +279,6 @@ EXTERN struct SB_queue_t {
  */
 
 extern void adlib_io_write  (ioport_t addr, Bit8u value); /* Stray */
-extern int sb_dma_handler (int status, Bit16u amount); /* Stray */
 
 extern void sb_io_write     (ioport_t addr, Bit8u value);
 extern void fm_io_write     (ioport_t addr, Bit8u value);

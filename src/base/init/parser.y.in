@@ -514,7 +514,7 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    else
 			c_printf("CONF: Ignoring 'rdtsc' statement\n");
 		    }
-		| PCI bool	    { config.pci = $2 }
+		| PCI bool	    { config.pci = $2; }
 		| BOOTA
                     { IFCLASS(CL_BOOT){
 		      if (priv_lvl)

@@ -51,9 +51,12 @@
 #error SOUND_FRAG not defined!
 #endif*/
 
+/* define this to work around some buggy OSS drivers */
+#define STALLED_FRAGS 1
+
 /* SB static vars */
 static int mixer_fd = -1;
-static int dsp_fd   = -1;
+static int dsp_fd = -1;
 
 /* Old variables - Obselete - AM */
 static long int block_size = 0;
@@ -62,76 +65,57 @@ static long int block_size = 0;
 /* New fragment control - AM */
 static int sound_frag_size = 0x9; /* ie MAX_DMA_TRANSFERSIZE (== 512) */
 static int num_sound_frag  = MAX_NUM_FRAGMENTS;
-static int extra_buffer    = 8000*BUFFER_MSECS/1000;
+static int bits_per_samp = 0;
+static int sample_rate = 0;
+static int num_channels = 0;
+static int oss_block_size = 0;
 
 /* MPU static vars */
 static int mpu_fd = -1;	             /* -1 = closed */
 static boolean mpu_disabled = FALSE; /* TRUE if MIDI output disabled */
 
-extern void sb_set_speed (void);   /* From sound.c */
-
-void linux_sb_dma_set_blocksize(__u16 sb_blocksize)
+void linux_sb_dma_set_blocksize(int blocksize, int fragsize)
 {
-  __u16 blockbits, oss_blocksize, oss_blocknum;
-
-  /* 
-   * The blocksize we are passed is the actual number of bytes to include in a
-   * DMA transfer. The OSS/Free driver uses a number of fragments within the 
-   * buffer to try to control the output, and the DOSEmu sound driver places an
-   * upper limit on the size of the transfers (to avoid confusing applications
-   * which monitor the DMA transfer)
-   * Ideally, the size of a fragment should match that of the transfer. This
-   * will not be possible in all cases as the fragment size must be a power of
-   * ---
-   * New by MK:
-   * We provide more space than sb_blocksize for buffering, as the IRQ-timing
-   * in dosemu is lousy. I hardly get 100 Hz on the SB-irq. The extra space
-   * is depending on the actual data rate. The default is to buffer 10 msec,
-   * but it can be changed in linux_sound.h. The calculation is done in
-   * linux_sb_set_speed. There will be a problem when we start implementing
-   * SB16, as stereo and 16-bit flags are not known till the sound really
-   * starts.
-   */
+  int blockbits, oss_fragsize;
   
-  if(sb_blocksize > MAX_DMA_TRANSFERSIZE) {
-    oss_blocksize = MAX_DMA_TRANSFERSIZE;
+  if(fragsize > MAX_DMA_TRANSFERSIZE) {
+    oss_fragsize = MAX_DMA_TRANSFERSIZE;
   } else {
-    oss_blocksize = sb_blocksize;
+    oss_fragsize = fragsize;
   }
-  block_size = oss_blocksize;
+  block_size = oss_fragsize;
 
-  for (blockbits = 0; oss_blocksize > 1; 
-       blockbits++, oss_blocksize = oss_blocksize >> 1)
-    ;
-  /* blockbits now contains floor(log2(oss_blocksize)), and oss_blocksize is
+  for (blockbits = 0; oss_fragsize > 1; 
+       blockbits++, oss_fragsize = oss_fragsize >> 1);
+  /* blockbits now contains floor(log2(oss_fragsize)), and oss_fragsize is
       destroyed */
 
   sound_frag_size = blockbits;
+  if (sound_frag_size < 4)	/* not all drivers supports size < 16b */
+    sound_frag_size = 4;
 
-  /* This is intentionally here, because fragments should not be greater
-     than the SB block size */
-  sb_blocksize += extra_buffer;
-
-  oss_blocknum = sb_blocksize / (1 << sound_frag_size);
+  num_sound_frag = blocksize / (1 << sound_frag_size);
   
-  if (sb_blocksize - ( oss_blocknum * (1 << sound_frag_size)) > 0 ) {
-    num_sound_frag = oss_blocknum + 1;
-  } else {
-    num_sound_frag = oss_blocknum;
-  }
-
   if (num_sound_frag > MAX_NUM_FRAGMENTS) {
     num_sound_frag = MAX_NUM_FRAGMENTS;
   }
+  if (num_sound_frag < MIN_NUM_FRAGMENTS) {
+    num_sound_frag = MIN_NUM_FRAGMENTS;
+  }
 
-  S_printf ("SB:[Linux] DMA blocksize set to %u (%u,%u)\n", sb_blocksize, 
-	    sound_frag_size, num_sound_frag);
+  S_printf ("SB:[Linux] DMA blocksize set to %u (%u,%u)\n",
+    num_sound_frag * (1 << sound_frag_size), sound_frag_size, num_sound_frag);
 }
 
 void linux_sb_write_mixer(int ch, __u8 val)
 {
-  int newsetting;
+  int newsetting, real_mixer_val;
   __u8 driver_channel = -1;
+
+  if (strcmp(config.sb_mixer, "") == 0) {
+    S_printf("SB [Linux]: Warning: Mixer is not configured.\n");
+    return;
+  }
 
   switch (ch) {
   case SB_MIXER_VOLUME: 
@@ -154,22 +138,40 @@ void linux_sb_write_mixer(int ch, __u8 val)
     break;
   }
 
-  S_printf ("SB:[Linux] Writing to the Mixer (%u, %u)\n", ch, val);
+  if (mixer_fd == -1)
+    if ((mixer_fd = open(config.sb_mixer, O_RDWR)) < 0) {
+      S_printf("SB [Linux]: Warning: can't open mixer device\n");
+      return;
+    }
+
+  if (ioctl(mixer_fd, MIXER_READ(driver_channel), &real_mixer_val)<0)
+    real_mixer_val = 0;
 
   if (ch != SB_MIXER_MIC) {
-    newsetting = ((val & 0x0F0) * 0x0006) + ((val & 0xF0) * 0x0060);
-    ioctl(mixer_fd, MIXER_WRITE(driver_channel), &newsetting);
+    newsetting = ((val & 0xF0) >> 2) | ((val & 0x0F) << 10) |
+      (real_mixer_val & 0xC3C3);	/* magic mixer code :) */
   }
   else {
     newsetting = ((val & 0x7) * 0x0C0C);
-    ioctl(mixer_fd, MIXER_WRITE(SOUND_MIXER_MIC), &newsetting);
   }
+  S_printf ("SB:[Linux] Writing to the Mixer (%u, 0x%X)\n", ch, newsetting);
+    if (ioctl(mixer_fd, MIXER_WRITE(driver_channel), &newsetting)<0)
+       S_printf ("SB:[Linux] Warning: ioctl() failed: %s\n", strerror(errno));
+
+  close(mixer_fd);
+  mixer_fd = -1;
 }
 
 __u8 linux_sb_read_mixer(int ch)
 {
   int x;
   __u8 driver_channel = -1;
+  __u8 sb_mixer_value;
+
+  if (strcmp(config.sb_mixer, "") == 0) {
+    S_printf("SB [Linux]: Warning: Mixer is not configured.\n");
+    return 0;
+  }
 
   switch (ch) {
   case SB_MIXER_VOLUME: 
@@ -192,16 +194,25 @@ __u8 linux_sb_read_mixer(int ch)
     break;
   }
 
-  ioctl(mixer_fd, MIXER_READ(driver_channel), &x);
-  S_printf ("SB:[Linux] Reading from the Mixer (%u -> %u)\n", ch, x);
+  if (mixer_fd == -1)
+    if ((mixer_fd = open(config.sb_mixer, O_RDWR)) < 0) {
+      S_printf("SB [Linux]: Warning: can't open mixer device\n");
+      return 0;
+    }
 
-  if (ch != SB_MIXER_MIC) {
-    return (((x & 0x00FF) / 6) | ((x & 0xFF00) / 0x600));
-  }
-  else {
-    return x / 7; /* This isn't the right value.  Anyone care to tell me
-                     how to do division in C???? (- Joel)*/
-  }
+  if (ioctl(mixer_fd, MIXER_READ(driver_channel), &x)<0)
+    S_printf ("SB:[Linux] Warning: ioctl() failed: %s\n", strerror(errno));
+  S_printf ("SB:[Linux] Reading from the Mixer (%u -> 0x%X)\n", ch, x);
+
+  close(mixer_fd);
+  mixer_fd = -1;
+
+  if (ch != SB_MIXER_MIC)
+    sb_mixer_value = (((x & 0x003C) << 2) | ((x & 0x3C00) >> 10));
+  else
+    sb_mixer_value = x / 7; /* This isn't the right value.  Anyone care to tell me
+                    		how to do division in C???? (- Joel)*/
+  return sb_mixer_value;
 }
 
 /*
@@ -210,10 +221,11 @@ __u8 linux_sb_read_mixer(int ch)
 
 void linux_sb_disable_speaker(void)
 {
-  if (dsp_fd != -1)
+  if (dsp_fd > -1)
   {
     S_printf ("SB:[Linux] Syncing DSP\n");
-    ioctl(dsp_fd, SNDCTL_DSP_SYNC);
+    /* don't use blocking ioctl's like DSP_SYNC!!! */
+    ioctl(dsp_fd, SNDCTL_DSP_POST);
     close (dsp_fd);
     dsp_fd = -1;
   } else {
@@ -223,40 +235,76 @@ void linux_sb_disable_speaker(void)
 
 void linux_sb_enable_speaker (void)
 {
-  dsp_fd = open(config.sb_dsp, O_WRONLY | O_NONBLOCK);
-
+  oss_block_size = 0;
+  bits_per_samp = 0;
+  sample_rate = 0;
+  num_channels = 0;
   if (dsp_fd == -1)
-  {
-    S_printf ("SB:[Linux] Failed to initiate connection to %s (%s)\n", config.sb_dsp, 
-	      strerror(errno));
-    return;
-  }
+    if ((dsp_fd = RPT_SYSCALL(open(config.sb_dsp, O_RDWR | O_NONBLOCK))) < 0)
+      S_printf ("SB:[Linux] Failed to initiate connection to %s (%s)\n",
+        config.sb_dsp, strerror(errno));
+}
+
+static int linux_set_OSS_fragsize (int frag_value)
+{
+    if (ioctl (dsp_fd, SNDCTL_DSP_SETFRAGMENT, &frag_value)<0) {
+      S_printf ("SB:[Linux] Warning: ioctl() (SETFRAGMENT) failed: %s\n", strerror(errno));
+      if (linux_sb_dma_is_empty()) {
+      /* OSS manual states that the device must be reopened */
+        linux_sb_disable_speaker();
+	linux_sb_enable_speaker();
+	if (ioctl (dsp_fd, SNDCTL_DSP_SETFRAGMENT, &frag_value)<0)
+	  return DMA_HANDLER_NOT_OK;
+      }
+      else return DMA_HANDLER_NOT_OK;
+    }
+    S_printf ("SB:[Linux] ioctl() (SETFRAGMENT) success\n");
+    return DMA_HANDLER_OK;
 }
 
 static void linux_sb_DAC_write (int bits, __u8 value)
 {
-  static int last_bits = 0;
+#define BUF_LEN 4096
   static int sound_frag = 0x0200007;
-  static __u8 buffer[128];
+  static __u8 buffer[BUF_LEN];
   static __u8 buffer_count = 0;
-  
-  buffer[buffer_count] = value;
-  buffer_count ++;
 
-  if (buffer_count == 128)
+  buffer[buffer_count] = value;
+  if (buffer_count < BUF_LEN - 1)
+    buffer_count ++;
+  else
+    error("SB: direct write buffer overflowed!\n");
+
+  if (buffer_count >= 128)
   {
-    if (bits != last_bits)
+    if (bits != bits_per_samp)
     {
-      S_printf ("SB:[Linux] Intialising Direct DAC write (%u bits)\n", bits);
-      last_bits = bits;
-      ioctl (dsp_fd, SNDCTL_DSP_SAMPLESIZE, &last_bits);
-      ioctl (dsp_fd, SNDCTL_DSP_SETFRAGMENT, &sound_frag);
-      SB_dsp.time_constant = 193; /* Approx 16kHz */
-      sb_set_speed();
+      S_printf ("SB:[Linux] Initialising Direct DAC write (%u bits)\n", bits);
+      if (linux_sb_dma_is_empty() == DMA_HANDLER_OK) {
+        bits_per_samp = bits;
+        if (ioctl (dsp_fd, SNDCTL_DSP_SAMPLESIZE, &bits)<0) {
+           S_printf ("SB:[Linux] Warning: ioctl() (SAMPLESIZE) failed: %s\n", strerror(errno));
+           bits_per_samp = 0;
+        }
+        if (linux_set_OSS_fragsize(sound_frag) == DMA_HANDLER_NOT_OK) {
+           S_printf ("SB:[Linux] Warning: failed to change sound fragment size.\n");
+           bits_per_samp = 0;
+        }
+        linux_sb_set_speed(DIRECT_WRITE_FREQ, 0);
+        /* reset DMA settings */
+        sample_rate = 0;
+        num_channels = 0;
+        oss_block_size = 0;
+      }
+      else {
+        S_printf("SB:[Linux] Sorry, can't change OSS settings now...\n");
+      }
     }
 
-    write (dsp_fd, buffer, buffer_count);
-    buffer_count = 0;
+    if (linux_sb_dma_get_free_space() < buffer_count)
+      return;
+    buffer_count -= write (dsp_fd, buffer, buffer_count);
+    ioctl (dsp_fd, SNDCTL_DSP_POST);
   }
 }
 
@@ -280,15 +328,13 @@ int linux_sb_get_version(void)
   int tmp, version = 0;
   char *s=NULL;
 
-  /* if we cannot open the mixer, it's not more than a SB 2.0 */
-  mixer_fd = open(config.sb_mixer, O_RDWR);
-
-  dsp_fd = open(config.sb_dsp, O_WRONLY | O_NONBLOCK);
+  if (dsp_fd == -1)
+    dsp_fd = RPT_SYSCALL(open(config.sb_dsp, O_RDWR | O_NONBLOCK));
   
   if (dsp_fd > 0) {
     /* Ok, let's try to set stereo for output */
     tmp = 1;
-    if (mixer_fd < 0 || ioctl(dsp_fd, SNDCTL_DSP_STEREO, &tmp) < 0 || !tmp) {
+    if (ioctl(dsp_fd, SNDCTL_DSP_STEREO, &tmp) < 0) {
       /*
        * we cannot set stereo, so it can be only SB 1.5 or 2.0,
        * the only difference as far as I know is that SB 1.5 cannot
@@ -307,7 +353,8 @@ int linux_sb_get_version(void)
        */
 
        tmp=44100;
-       ioctl(dsp_fd, SNDCTL_DSP_SPEED,&tmp);
+       if (ioctl(dsp_fd, SNDCTL_DSP_SPEED,&tmp)<0)
+	  S_printf ("SB:[Linux] Warning: ioctl() (SPEED) failed: %s\n", strerror(errno));
        if(tmp < 44100)
 	 version = SB_OLD;
        else
@@ -324,18 +371,6 @@ int linux_sb_get_version(void)
       else 
         version = SB_16;
     }
-
-#if 0
-    /* reset to 8 bit per sample and mono */
-    tmp = 0;
-    ioctl(dsp_fd, SNDCTL_DSP_STEREO, &tmp);
-    tmp = AFMT_U8;
-    ioctl(dsp_fd, SNDCTL_DSP_SAMPLESIZE, &tmp);
-
-    /* Set the fragments and ignore any error yet */
-    ioctl(dsp_fd, SNDCTL_DSP_SETFRAGMENT, &sound_frag);
-#endif
-
   }
   if (version) {
     switch (version) {
@@ -354,106 +389,102 @@ int linux_sb_get_version(void)
    * OS friendly, but leaves the possibility that we can't access the driver 
    * when we want to. - Alistair
    */
-  close (dsp_fd);
-  close (mixer_fd);
+
+  if (dsp_fd > -1) {
+    close (dsp_fd);
+    dsp_fd = -1;
+  }
 
   return version;
 }
 
-void linux_sb_dma_start_init(__u32 command)
+int linux_sb_dma_start_init(void)
 {
-  /*fndef SOUND_FRAG
-#error SOUND_FRAG not defined!
-#endif*/
-/*  long int sound_frag = SOUND_FRAG; */
-  long int samplesize = AFMT_U8;
-
-  /*  extern long int sound_frag;
-  extern long int block_size;
-  */
-
-  /*  long int fragments = 0x0020000 | sound_frag; */
   long int fragments = (num_sound_frag << 16) | sound_frag_size;
+  long int new_block_size = num_sound_frag * sound_frag_size;
+  long int frag_size;
+  int result=0;
 
-  switch(command)
-  {
-  case 0x14: /* 8-bit DMA */
-    S_printf ("SB:[Linux] 8-bit DMA starting\n");
-    break;
-  case 0x1C: /* 8-bit DMA (Auto-Init) */
-    S_printf ("SB:[Linux] 8-bit DMA (Auto-Init) starting\n");
-    break;
-  case 0x90: /* 8-bit DMA (Auto-Init, High Speed) */
-    S_printf ("SB:[Linux] 8-bit DMA (High Speed, Auto-Init) starting\n");
-    break;
-  case 0x91: /* 8-bit DMA (High Speed) */
-    S_printf ("SB:[Linux] 8-bit DMA (High Speed) starting\n");
-    break;
-  default:
-    S_printf ("SB:[Linux] Unsupported DMA type (%x)\n", command);
-    return;
-    break;
-  };
-
-  ioctl(dsp_fd, SNDCTL_DSP_SETFRAGMENT, &fragments);
-  ioctl(dsp_fd, SNDCTL_DSP_SAMPLESIZE, &samplesize);
-
-  ioctl(dsp_fd, SNDCTL_DSP_GETBLKSIZE, &block_size);
-  S_printf ("SB:[Linux] 8-bit DMA Blocksize set to: %lu\n", block_size);
-
+  if (oss_block_size != new_block_size) {
+    if (linux_sb_dma_is_empty() == DMA_HANDLER_OK) {
+      if (ioctl(dsp_fd, SNDCTL_DSP_RESET)<0) {
+	S_printf ("SB:[Linux] Warning: ioctl() (RESET) failed: %s\n", strerror(errno));
+      }
+      if (linux_set_OSS_fragsize(fragments) == DMA_HANDLER_NOT_OK) {
+	result = -1;
+      }
+      ioctl(dsp_fd, SNDCTL_DSP_GETBLKSIZE, &frag_size);
+      S_printf ("SB:[Linux] OSS fragsize set to: %lu\n", frag_size);
+    }
+    else {
+      S_printf("SB:[Linux] Sorry, can't change OSS settings now...\n");
+      S_printf("SB:[Linux] Trying to continue with current settings.\n");
+    }
+  }
+  oss_block_size = (result < 0 ? 0 : new_block_size);
+  
+  return result;
 }
 
-
-void linux_sb_dma_start_complete (void) {
-  /*
-   * This is the important part:
-   *
-   * The first parameter is the DMA channel we are referring to.
-   *
-   * The WRITE_FD is used for writing to the DMA channel.
-   *
-   * The READ FD is used to read from the DMA channel (in this case, reads
-   * are sent to /dev/dsp
-   *
-   * The handler responds to the data being written - it is called after each 
-   * read/write to the DMA channel. It is expected to provide the DACK 
-   * handshaking. Ideally it should be very short ....
-   * 
-   * The final value sets the number of bytes to try and transfer.
-   */
-   
-   /* 
-    * **CRISK**
-    * 
-    * Now using the "blocksize" as set by the user, when set.
-    * Potential bug -> this may need resetting. No idea how the actual
-    * thing works.
-    *
-    */
-   
-   if(!block_size)
-   {
-     S_printf("SB:[Linux] Using default blocksize\n");
-     block_size = MAX_DMA_TRANSFERSIZE;
-   }
-   S_printf ("SB:[Linux] DMA start completed (block_size %lu)\n",block_size);
-
-   dma_install_handler(config.sb_dma, -1, dsp_fd, sb_dma_handler, block_size);
+size_t linux_sb_do_read(void *ptr, size_t size)
+{
+int amount_done;
+  if (dsp_fd == -1) {
+    S_printf("SB [Linux]: ERROR: Device is not opened for read!\n");
+    return 0;
+  }
+  amount_done = read(dsp_fd, ptr, size);
+  S_printf("SB [Linux]: read() returned %d", amount_done);
+  if (amount_done < 0)
+    S_printf(": %s", strerror(errno));
+  S_printf("\n");
+  return (amount_done > 0 ? amount_done : 0);
 }
 
-int linux_sb_get_free_fragments(int *total, int *free)
+size_t linux_sb_do_write(void *ptr, size_t size)
+{
+int amount_done;
+static int in_frag = 0;
+  if (dsp_fd == -1) {
+    S_printf("SB [Linux]: ERROR: Device is not opened for write!\n");
+    return 0;
+  }
+  if (linux_sb_dma_get_free_space() < size) {
+    ioctl (dsp_fd, SNDCTL_DSP_POST);	/* some buggy drivers needs this */
+    in_frag = 0;
+    return 0;
+  }
+  amount_done = write(dsp_fd, ptr, size);
+  S_printf("SB [Linux]: write() returned %d", amount_done);
+  if (amount_done < 0) {
+    S_printf(": %s", strerror(errno));
+    amount_done = 0;
+  }
+  S_printf("\n");
+  in_frag += amount_done;
+  if (in_frag >= (1 << sound_frag_size)) {
+    S_printf("SB [Linux]: ioctling POST\n");
+    ioctl (dsp_fd, SNDCTL_DSP_POST);	/* some buggy drivers needs this */
+    in_frag = 0;
+  }
+  return amount_done;
+}
+
+int linux_sb_get_free_fragments(int *total, int *free, int *bytes)
 {
   audio_buf_info data;
 
   *total = 0;
   *free = 0;
+  *bytes = 0;
 
-  if (ioctl(dsp_fd, SNDCTL_DSP_GETOSPACE, &data) != -1) {
+  if (ioctl(dsp_fd, SNDCTL_DSP_GETOSPACE, &data) > -1) {
     S_printf ("SB:[Linux] Get Free Fragments (%d, %d)\n", 
 	      data.fragstotal, data.fragments);
 
     *total = data.fragstotal;
     *free = data.fragments;
+    *bytes = data.bytes;
 
     return DMA_HANDLER_OK;
   } else {
@@ -467,27 +498,23 @@ int linux_sb_get_free_fragments(int *total, int *free)
   }
 }
 
-int linux_sb_dma_has_space(void)
+int linux_sb_dma_get_free_space(void)
 {
-  int free_fragments = 0, total_fragments = 0;
+  int free_fragments = 0, total_fragments = 0, bytes = 0;
   int result = DMA_HANDLER_OK;
 
-  result = linux_sb_get_free_fragments(&total_fragments, &free_fragments);
+  result = linux_sb_get_free_fragments(&total_fragments, &free_fragments, &bytes);
 
-  if (result == DMA_HANDLER_OK && free_fragments > 0) {
-    return DMA_HANDLER_OK;
-  } else {
-    return result;
-  }
+  return bytes;
 
 }
 
 int linux_sb_dma_complete_test(void)
 {
-  int free_fragments = 0, total_fragments = 0;
+  int extra_fragments, free_fragments = 0, total_fragments = 0, bytes;
   int result = DMA_HANDLER_OK;
 
-  result = linux_sb_get_free_fragments(&total_fragments, &free_fragments);
+  result = linux_sb_get_free_fragments(&total_fragments, &free_fragments, &bytes);
 
     /* 
      * As we set fragments that way that all are used, we can just
@@ -496,10 +523,28 @@ int linux_sb_dma_complete_test(void)
      * filled as soon as possible. - MK
      */
 
+  extra_fragments = total_fragments / 5;
+  if (extra_fragments < 2)
+    extra_fragments = 2;
+  if (extra_fragments < STALLED_FRAGS)
+    extra_fragments = STALLED_FRAGS;
   if (result == DMA_HANDLER_OK &&
-      free_fragments >= (total_fragments - 2)) {
+      free_fragments >= (total_fragments - extra_fragments)) {
     return DMA_HANDLER_OK;
   }
+
+  return DMA_HANDLER_NOT_OK;
+}
+
+int linux_sb_dma_is_empty(void)
+{
+  int free_fragments = 0, total_fragments = 0, bytes;
+  int result = DMA_HANDLER_OK;
+
+  result = linux_sb_get_free_fragments(&total_fragments, &free_fragments, &bytes);
+
+  if (result == DMA_HANDLER_OK && free_fragments >= total_fragments - STALLED_FRAGS)
+    return DMA_HANDLER_OK;
 
   return DMA_HANDLER_NOT_OK;
 }
@@ -509,66 +554,62 @@ void linux_sb_dma_complete(void)
 	S_printf ("SB:[Linux] DMA Completed\n");
 }
 
-#if 0
-void start_dsp_dma(void)
+int linux_sb_set_speed (__u16 speed, __u8 stereo_mode)
 {
-  int real_speed, trash;
- 
-  S_printf ("Starting to open DMA access to DSP\n");
- 
-  if (dsp_stereo)
-    real_speed = dsp_rate >> 1;
-  else
-    real_speed = dsp_rate;
-
-  ioctl(dsp_fd, SOUND_PCM_WRITE_RATE, &real_speed);
-  if (dsp_stereo)
-    trash = 1;
-  else
-    trash = 2;
-  ioctl(dsp_fd, SOUND_PCM_WRITE_CHANNELS, &trash);
-
-  dma_ch[sound_dma_ch].fd = dsp_fd;
-  dma_ch[sound_dma_ch].dreq = DREQ_COUNTED;
-
-  /*
-   * immediately start the dma-transfer, as some programs use a short
-   * timeout to check for the used dma-channel
-   */
-  dma_trans();
-}
-#endif
-
-void linux_sb_set_speed (__u16 speed, __u8 stereo_mode)
-{
-  int rate;
-  int channels = 1;
-
-  rate = speed;
+  int rate = speed;
+  int channels, result = 0;
+  long int samplesize = AFMT_U8;
 
   /* stereo_mode is actually 2 is stereo is requested - Karcher */
-  if(stereo_mode)
-    channels = 2;
+  channels = stereo_mode ? 2 : 1;
 
-  if (dsp_fd != -1)
+  if (dsp_fd > -1)
   {
-    ioctl(dsp_fd, SNDCTL_DSP_CHANNELS, &channels);
-    ioctl(dsp_fd, SNDCTL_DSP_SPEED, &rate);
-    
-    S_printf ("SB:[Linux] (actual rate : %u)\n", rate);
+    if (sample_rate != rate || num_channels != channels) {
+      if (linux_sb_dma_is_empty() == DMA_HANDLER_OK) {
+	sample_rate = rate;
+	num_channels = channels;
+	if (ioctl(dsp_fd, SNDCTL_DSP_RESET)<0) {
+	  S_printf ("SB:[Linux] Warning: ioctl() (RESET) failed: %s\n", strerror(errno));
+	  sample_rate = 0;
+	  num_channels = 0;
+	}
+	if (ioctl(dsp_fd, SNDCTL_DSP_SAMPLESIZE, &samplesize)<0) {
+	  S_printf ("SB:[Linux] Warning: ioctl() (SAMPLESIZE) failed: %s\n", strerror(errno));
+	  sample_rate = 0;
+	  num_channels = 0;
+	}
+	if (ioctl(dsp_fd, SNDCTL_DSP_CHANNELS, &channels)<0) {
+	  S_printf ("SB:[Linux] Warning: ioctl() (CHANNELS) failed: %s\n", strerror(errno));
+	  sample_rate = 0;
+	  num_channels = 0;
+	}
+	if (ioctl(dsp_fd, SNDCTL_DSP_SPEED, &rate)<0) {
+	  S_printf ("SB:[Linux] Warning: ioctl() (SPEED) failed: %s\n", strerror(errno));
+	  sample_rate = 0;
+	  num_channels = 0;
+	}
+	S_printf ("SB:[Linux] (actual rate : %u)\n", rate);
+      }
+      else {
+	S_printf("SB:[Linux] Sorry, can't change OSS settings now...\n");
+        ioctl (dsp_fd, SNDCTL_DSP_POST);
+	result = -1;
+      }
+    }
   }
   else
   {
     S_printf ("SB:[Linux] Device not open - Can't set speed.\n");
   }
-  extra_buffer = channels*rate*BUFFER_MSECS/1000;
+  return result;
 }
 
 
 /*
  * This is required to set up the driver for future use.
  */
-int SB_driver_init (void) {
+int SB_driver_init () {
   extern struct SB_driver_t SB_driver;
 
   S_printf ("SB:[Linux] SB Driver Initialisation Called\n");
@@ -593,14 +634,19 @@ int SB_driver_init (void) {
   
   /* DMA Functions */
   SB_driver.DMA_start_init      = linux_sb_dma_start_init;
-  SB_driver.DMA_start_complete  = linux_sb_dma_start_complete;
+  SB_driver.DMA_do_read         = linux_sb_do_read;
+  SB_driver.DMA_do_write        = linux_sb_do_write;
   SB_driver.DMA_pause           = NULL;
   SB_driver.DMA_resume          = NULL;
   SB_driver.DMA_stop            = NULL;
   SB_driver.DMA_complete_test   = linux_sb_dma_complete_test;
+  SB_driver.DMA_can_change_speed= linux_sb_dma_is_empty;
   SB_driver.DMA_complete        = linux_sb_dma_complete;
   SB_driver.DMA_set_blocksize   = linux_sb_dma_set_blocksize;
    
+  /* MPU-401 Functions */
+  mpu401_info.data_write = linux_mpu401_data_write;
+
   /* Miscellaneous Functions */
   SB_driver.set_speed           = linux_sb_set_speed;
   SB_driver.play_buffer         = NULL;
@@ -610,6 +656,7 @@ int SB_driver_init (void) {
    * emulate given the actual hardware capabilities, as indicated by 
    * various probes of the Linux Sound Driver(s).
    */
+
   return linux_sb_get_version();
 }
 
@@ -621,8 +668,8 @@ void linux_mpu401_data_write(__u8 data)
 	if (mpu_fd == -1) {
 	  	if (mpu_disabled) return;
 		/* Added NONBLOCK to prevent hanging - Karcher */
-		mpu_fd = open(DOSEMU_MIDI_PATH,
-			      O_WRONLY | O_CREAT | O_NONBLOCK, 0777);
+		mpu_fd = RPT_SYSCALL(open(DOSEMU_MIDI_PATH,
+			      O_WRONLY | O_CREAT | O_NONBLOCK, 0777));
 		if (mpu_fd == -1) {
 			mpu_disabled = TRUE;
 			S_printf("MPU401:[Linux] Failed to open file 'midi' (%s)\n",
@@ -647,15 +694,24 @@ int FM_driver_init()
 int MPU_driver_init()
 {
   S_printf("MPU:[Linux] MPU Driver Initialisation Called\n");
-  mpu401_info.data_write = linux_mpu401_data_write;
-  mpu_fd = -1;
   mpu_disabled = FALSE;
+  /* Output a MIDI byte to an external file */
+  /* Added NONBLOCK to prevent hanging - Karcher */
+  mpu_fd = RPT_SYSCALL(open(DOSEMU_MIDI_PATH, O_WRONLY | O_CREAT | O_NONBLOCK, 0777));
+  if (mpu_fd == -1) {
+    S_printf("MPU401:[Linux] Failed to open file 'midi' (%s)\n", strerror(errno));
+  }
   return MPU_NONE;
 }
 
 void SB_driver_reset() {
   S_printf ("SB:[Linux] SB Driver Reset Called\n");
-
+  bits_per_samp = 0; /* to reinitialize on direct DAC writes */
+  sample_rate = 0;
+  num_channels = 0;
+  oss_block_size = 0;
+  if (dsp_fd > -1)
+    ioctl(dsp_fd, SNDCTL_DSP_RESET);
 }
 
 void FM_driver_reset() {
@@ -666,9 +722,4 @@ void FM_driver_reset() {
 void MPU_driver_reset()
 {
 	S_printf("MPU:[Linux] MPU Driver Reset Called\n");
-	if (mpu_fd != -1) {
-		close(mpu_fd);
-		mpu_fd = -1;
-	}
-	mpu_disabled = FALSE;
 }

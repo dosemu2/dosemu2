@@ -3502,6 +3502,13 @@ b */
 
    For details of the internal interface and any available patches see my
    WWW page at http://www.slitesys.demon.co.uk/a.macdonald/dosemu/sound/
+
+   At a later stages the code was extensively reworked (again) by Stas
+   Sergeev. Instead of direct pipes connected to /dev/dsp the DMA code
+   now uses callbacks. If pipes will be advantageous for other types of
+   DMA in the future, they will be readded. Opinions differ on this very
+   subject (whether pipes are more flexible than callbacks in certain
+   cases).
      _________________________________________________________________
 
 14.2. Original DOSEMU sound code

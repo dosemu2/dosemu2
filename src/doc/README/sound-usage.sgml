@@ -57,6 +57,11 @@ from users who have contributed code &#38; comments. Unfortunately I tend
 to forget names and lose emails, so their names are not included.
 </para>
 
+<para>
+Note that the SB and DMA emulation has been extensively reworked by
+Stas Sergeev now, and DOSEMU can emulate an SB Pro quite well.
+</para>
+
 </sect1>
 
 <sect1>
