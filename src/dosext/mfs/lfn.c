@@ -6,11 +6,6 @@
 
 #include "config.h"
 
-#include "emu.h"
-#include "mfs.h"
-#include "mangle.h"
-#include "bios.h"
-
 #include <stdio.h>
 #include <string.h>
 #include <limits.h>
@@ -24,6 +19,11 @@
 #include <dirent.h>
 #include <fnmatch.h>
 #include <errno.h>
+
+#include "emu.h"
+#include "mfs.h"
+#include "mangle.h"
+#include "bios.h"
 
 #define EOS '\0'
 #define BACKSLASH '\\'
@@ -95,11 +95,8 @@ static void make_unmake_dos_mangled_path(char *dest, char *fpath,
 		if (!strcmp(src, "..") || !strcmp(src, ".")) {
 			strcpy(dest, src);
 		} else if (!vfat_search(dest, src, fpath, alias)) {
-			if (alias) {
+			if (alias || !name_ufs_to_dos(dest, src, 0)) {
 				name_convert(dest, src, MANGLE, NULL);
-				strupperDOS(dest);
-			} else {
-				strcpy(dest, src);
 			}
 		}
 		dest += strlen(dest);
@@ -112,6 +109,11 @@ static void make_unmake_dos_mangled_path(char *dest, char *fpath,
 	*dest = '\0';
 }
 
+static inline int build_ufs_path(char *ufs, const char *path, int drive)
+{
+	return build_ufs_path_(ufs, path, drive, 0);
+}
+
 static int build_posix_path(char *dest, const char *src)
 {
 	char filename[PATH_MAX];
@@ -120,7 +122,7 @@ static int build_posix_path(char *dest, const char *src)
 	d_printf("LFN: build_posix_path: %s\n", src);
 	
 	if (src[1] == ':') {
-		dd = toupperDOS(src[0]) - 'A';
+		dd = toupper(src[0]) - 'A';
 		src += 2;
 	} else {
 		dd = sda_cur_drive(sda);
@@ -134,9 +136,9 @@ static int build_posix_path(char *dest, const char *src)
 		strcat(filename, "/");
 		strcat(filename, src);
 		build_ufs_path(dest, filename, dd);
-	} else {
-		build_ufs_path(dest, src, dd);
+		src = filename;
 	}
+	build_ufs_path(dest, src, dd);
 	dest = strchr(dest, '\r');
 	if (dest) *dest = '\0';
 	return dd;
@@ -144,6 +146,7 @@ static int build_posix_path(char *dest, const char *src)
 
 static int getfindnext(char *fpath, struct mfs_dirent *de, int attr, int drive)
 {
+	char name_8_3[PATH_MAX];
 	struct stat st;
 	char *dest = (char *)SEGOFF2LINEAR(_ES, _DI);
 	char *long_name;
@@ -183,7 +186,8 @@ static int getfindnext(char *fpath, struct mfs_dirent *de, int attr, int drive)
 	}
 
 	long_name = strrchr(fpath, '/') + 1;
-	strcpy(dest + 0x2c, long_name);
+	if (!name_ufs_to_dos(dest + 0x2c, long_name, 0))
+		name_convert(dest + 0x2c, long_name, MANGLE, NULL);
 	dest += 0x130;
 	if (de == NULL) {
 		long_name[-1] = '\0';
@@ -193,16 +197,14 @@ static int getfindnext(char *fpath, struct mfs_dirent *de, int attr, int drive)
 		}
 		long_name[-1] = '/';		    
 	}
+	dest[0] = '\0';
 	if (de && de->d_name != de->d_long_name) {
-		strcpy(dest, de->d_name);
+		name_convert(name_8_3, de->d_name, MANGLE, NULL);
 	} else {
-		char name_8_3[13];
-		dest[0] = '\0';
-		name_convert(name_8_3,long_name,MANGLE,NULL);
-		if (strcmp(name_8_3, long_name) != 0) {
-			strcpy(dest, name_8_3);
-			strupperDOS(dest);
-		}
+		name_convert(name_8_3, long_name, MANGLE, NULL);
+	}
+	if (strcmp(name_8_3, dest - 0x130 + 0x2c) != 0) {
+		strcpy(dest, name_8_3);
 	}
 	return 1;
 }
@@ -402,7 +404,10 @@ int mfs_lfn(void)
 			return lfn_error(NO_MORE_FILES);
 		}
 		dir = malloc(sizeof *dir);
-		strcpy(dir->dirbase, fpath);
+		if (slash == fpath + 1)
+			strcpy(dir->dirbase, "/");
+                else
+			strcpy(dir->dirbase, fpath);
 		dir->dirattr = _CX;
 		dir->drive = drive;
 		strcpy(dir->pattern, slash);
@@ -410,17 +415,17 @@ int mfs_lfn(void)
 		if (dotpos > 0 && strcmp(&dir->pattern[dotpos], ".*") == 0)
 			dir->pattern[dotpos] = '*';
 		/* XXX check for device (special dir entry) */
-		if (!find_file(fpath, &st, drive) || is_dos_device(fpath)) {
+		if (!find_file(dir->dirbase, &st, drive) || is_dos_device(fpath)) {
 			Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
 			return lfn_error(NO_MORE_FILES);
 		}
-		dir->dir = dos_opendir(fpath);
+		dir->dir = dos_opendir(dir->dirbase);
 		if (dir->dir == NULL) {
 			Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
 			free(dir);
 			return lfn_error(NO_MORE_FILES);
 		}
-		d_printf("LFN: findfirst %s %s %s %x\n", slash, src, fpath, _CX);
+		d_printf("LFN: findfirst %s %s %s %x\n", slash, src, dir->dirbase, _CX);
 		lfndirs[dirhandle] = dir;
 		/* fall through! */
 	}
@@ -579,7 +584,8 @@ int mfs_lfn(void)
 		char name[8];
 		char ext[3];
 		src = (char *)SEGOFF2LINEAR(_DS, _SI);
-		strcpy(fpath, src);
+		build_ufs_path(fpath2, src, 0);
+		name_convert(fpath, strrchr(fpath2, '/') + 1, MANGLE, NULL);
 		auspr(fpath, name, ext);
 		if (_DH == 0) {
 			memcpy(dest, name, 8);

@@ -6,13 +6,16 @@
 
 #include "config.h"
 #include "mangle.h"
+#include "translate.h"
+#include <wctype.h>
 
 int case_default=-1;
 BOOL case_mangle=False;
 int DEBUGLEVEL=0;
 
-int codepage=CODEPAGE;
+#ifndef HAVE_UNICODE_TRANSLATION
 
+int codepage=CODEPAGE;
 
 /**********************************************************************
 Modified by O.V.Zhirov July 1998
@@ -148,15 +151,17 @@ BOOL isalnumDOS(int c)
 { if(c>=0) { return(isalnum(c));}
   else return(islowerDOS(c) || isupperDOS(c));
 }
-
+#endif
 
 BOOL is_valid_DOS_char(int c)
 { unsigned char u=(unsigned char)c; /* convert to ascii */
-  if(isalnumDOS(c)) return(True);
+  if(isalnum(c)) return(True);
 
   /* now we add some extra special chars  */
   if(strchr("._^$~!#%&-{}()@'`",c)!=0) return(True); /* general for
                                                     any codepage */
+#ifndef HAVE_UNICODE_TRANSLATION
+  if(isalnumDOS(c)) return(True);
   switch (codepage)
   {
     case 866: return(False); break;
@@ -190,10 +195,14 @@ BOOL is_valid_DOS_char(int c)
   case 157: return(True); break;     /* Phi     (WIN)*/
   case 212: return(True); break;     /* E`      (WIN)*/
   }
+#else
+  if (u >= 128) return(True);
+#endif
 /* no match is found, then    */
   return(False);
 }
 
+#ifndef HAVE_UNICODE_TRANSLATION
 /***************************************************************************
  locale-dependent string operations
 ****************************************************************************/
@@ -269,7 +278,66 @@ int strncasecmpDOS(char *s1, char *s2, int n)
   free(p2);
   return match;
 };
+#endif
 
+#ifdef HAVE_UNICODE_TRANSLATION
+/* this is better called "strcasecmpUNIX" since it
+   operates on the UNIX charset;
+   only cares about equality!!! */
+int strcasecmpDOS(char *s1, char *s2)
+{
+  struct char_set_state unix_state1;
+  struct char_set_state unix_state2;
+
+  t_unicode symbol1, symbol2;
+  size_t len1 = strlen(s1), len2 = strlen(s2);
+  int result;
+
+  init_charset_state(&unix_state1, trconfig.unix_charset);
+  init_charset_state(&unix_state2, trconfig.unix_charset);
+
+  while (*s1 && *s2) {
+    result = charset_to_unicode(&unix_state1, &symbol1, s1, len1);
+    if (result == -1)
+      break;
+    len1 -= result;
+    s1 += result;
+    result = charset_to_unicode(&unix_state2, &symbol2, s2, len2);
+    if (result == -1)
+      break;
+    if (towupper(symbol1) != towupper(symbol2))
+      break;
+    len2 -= result;
+    s2 += result;
+  }
+  cleanup_charset_state(&unix_state1);
+  cleanup_charset_state(&unix_state2);
+  return len1 != 0 || len2 != 0;
+}
+
+BOOL strhasupperDOS(char *s)
+{
+  struct char_set_state dos_state;
+
+  t_unicode symbol;
+  size_t len = strlen(s);
+  int result = -1;
+
+  init_charset_state(&dos_state, trconfig.dos_charset);
+
+  while (*s) {
+    result = charset_to_unicode(&dos_state, &symbol, s, len);
+    if (result == -1)
+      break;
+    if (iswupper(symbol))
+      break;
+    len -= result;
+    s += result;
+  }
+  cleanup_charset_state(&dos_state);
+  return(result != -1 && iswupper(symbol));
+}
+#else
 int strcasecmpDOS(char *s1, char *s2)
 { char *p1,*p2;
   int match;
@@ -284,6 +352,7 @@ int strcasecmpDOS(char *s1, char *s2)
   return match;
 };
 
+#endif
 
 /* locale-independent routins      */
 

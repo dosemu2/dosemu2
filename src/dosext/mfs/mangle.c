@@ -31,11 +31,16 @@ Modified by O.V.Zhirov, July 1998
 */
 
 
-
 #ifdef DOSEMU
+#include "config.h"
+#include "utilities.h"
 #include "mangle.h"
 #include "mfs.h"
 #include "emu.h"
+#ifdef HAVE_UNICODE_TRANSLATION
+#include "translate.h"
+#include <wctype.h>
+#endif
 #else
 #include "includes.h"
 #include "loadparm.h"
@@ -60,7 +65,7 @@ static int str_checksum(char *s)
 
 /****************************************************************************
 check if a name is a special msdos reserved name:
-the name is either a full Unix name or an 8 character candidate
+the name is either a ffffull Unix name or an 8 character candidate
 ****************************************************************************/
 unsigned long is_dos_device(const char *fname)
 {
@@ -105,6 +110,9 @@ unsigned long is_dos_device(const char *fname)
     for (i = 0; i < 8; i++)
     {
       char c1 = fname[i];
+      /* hopefully no device names with cyrillic characters exist ... */
+      if ((unsigned char)c1 >= 128) break;
+      if ((unsigned char)dev[0xa + i] >= 128) break;
       if (c1 == '.' || c1 == '\0')
       {
         /* check if remainder of device name consists of spaces or nulls */
@@ -116,7 +124,7 @@ unsigned long is_dos_device(const char *fname)
         }
         break;
       }
-      if (toupperDOS(c1) != toupperDOS(dev[0xa + i]))
+      if (toupper(c1) != toupper(dev[0xa + i]))
         break;
     }
     if (i == 8)
@@ -147,10 +155,6 @@ static void valid_initialise(void)
   for (i=0;i<256;i++)
     valid_dos_char[i] = is_valid_DOS_char(i);
 
-#ifdef DOSEMU
-  valid_dos_char['?'] = True;
-#endif
-  
   initialised = True;
 }
 
@@ -316,13 +320,12 @@ BOOL check_mangled_stack(char *s, char *MangledMap)
     {
       check_extension = True;
       StrnCpy(extension,p,4);
-      strlowerDOS(extension); /* XXXXXXX */
     }
 
   for (i=0;i<mangled_stack_len;i++)
     {
       strcpy(tmpname,mangled_stack[i]);
-      mangle_name_83(tmpname, MangledMap);
+      mangle_name_83(tmpname, tmpname, MangledMap);
       if (strequal(tmpname,s))
 	{
 	  strcpy(s,mangled_stack[i]);
@@ -332,7 +335,7 @@ BOOL check_mangled_stack(char *s, char *MangledMap)
 	{
 	  strcpy(tmpname,mangled_stack[i]);
 	  strcat(tmpname,extension);
-	  mangle_name_83(tmpname, MangledMap);
+	  mangle_name_83(tmpname, tmpname, MangledMap);
 	  if (strequal(tmpname,s))
 	    {
 	      strcpy(s,mangled_stack[i]);
@@ -390,7 +393,7 @@ static char base36(int v)
 /****************************************************************************
 do the actual mangling to 8.3 format
 ****************************************************************************/
-void mangle_name_83(char *s, char *MangledMap)
+void mangle_name_83(char *s, char *upcase_s, char *MangledMap)
 {
   int csum = str_checksum(s);
   char *p;
@@ -401,12 +404,14 @@ void mangle_name_83(char *s, char *MangledMap)
 
   valid_initialise();
 
+#ifndef DOSEMU
   if (MangledMap && *MangledMap) {
     if (do_fwd_mangled_map(s, MangledMap))
       return;
   }
+#endif
 
-  p = strrchr(s,'.');  
+  p = strrchr(s,'.');
   if (p && (strlen(p+1)<4) )
     {
       BOOL all_normal = (strisnormal(p+1)); /* XXXXXXXXX */
@@ -418,10 +423,9 @@ void mangle_name_83(char *s, char *MangledMap)
 	}
     }
       
-
-  strupperDOS(s);
-
+  strcpy(s, upcase_s);
   DEBUG(5,("Mangling name %s to ",s));
+  p = strrchr(s,'.');
 
   if (p)
     {
@@ -464,37 +468,113 @@ void mangle_name_83(char *s, char *MangledMap)
 
 
 /****************************************************************************
-convert a filename to 8.3 format. return True if successful.
+convert a filename from a UNIX to a DOS character set.
+****************************************************************************/
+#ifdef HAVE_UNICODE_TRANSLATION
+BOOL name_ufs_to_dos(char *dest, const char *src, char *udest)
+{
+  struct char_set_state dos_state;
+  struct char_set_state udos_state;
+  struct char_set_state unix_state;
+
+  int retval = 1;
+  
+  t_unicode symbol;
+  size_t slen, dlen, udlen, result;
+
+  init_charset_state(&unix_state, trconfig.unix_charset);
+  init_charset_state(&dos_state, trconfig.dos_charset);
+  if (udest) init_charset_state(&udos_state, trconfig.dos_charset);
+
+  dlen = slen = udlen = strlen(src);
+  while (*src) {
+    result = charset_to_unicode(&unix_state, &symbol, src, slen);
+    if (result == -1) {
+      symbol = '?';
+      result = 1;
+    }
+    src += result;
+    slen -= result;
+    result = unicode_to_charset(&dos_state, symbol, dest, dlen);
+    if (result == -1) {
+      *dest = '?';
+      result = 1;
+    }
+    if (!VALID_DOS_PCHAR(dest) && strchr(" +,;=[]",*dest)==0) {
+      retval = 0;
+    }
+    dest += result;
+    dlen -= result;
+    if (udest) {
+      symbol = towupper(symbol);
+      result = unicode_to_charset(&udos_state, symbol, udest, udlen);
+      if (result == -1) {
+        *udest = '?';
+        result = 1;
+      }
+      if (!VALID_DOS_PCHAR(udest) && strchr(" +,;=[]",*udest)==0) {
+        retval = 0;
+      }
+      udest += result;
+      udlen -= result;
+    }
+  }
+  *dest = '\0';
+  if (udest) {
+    *udest = '\0';
+    cleanup_charset_state(&udos_state);
+  }
+  cleanup_charset_state(&unix_state);
+  cleanup_charset_state(&dos_state);
+  return retval;
+}
+#endif
+
+/****************************************************************************
+convert a filename to uppercase 8.3 format. return True if successful.
 ****************************************************************************/
 BOOL name_convert(char *OutName,char *InName,BOOL mangle, char *MangledMap)
 {
-  /* initially just copy it */
-#ifdef KANJI
+  char *UOutName = malloc(strlen(InName) + 1); /* uppercase out name */
+  
+  /* initially just copy or convert it */
+#if defined KANJI
   strcpy(OutName, kj_dos_format (InName, False));
+  strcpy(UOutName, OutName);
+  strupperDOS(UOutName);
+#elif defined HAVE_UNICODE_TRANSLATION
+  name_ufs_to_dos(OutName,InName,UOutName);
 #else
   strcpy(OutName,InName);
+  strcpy(UOutName, OutName);
+  strupperDOS(UOutName);
 #endif
 
   /* check if it's already in 8.3 format */
-  if (is_8_3(OutName))
+  if (is_8_3(UOutName)) {
+    strcpy(OutName, UOutName);
+    free(UOutName);
     return(True);
+  }
 
-  if (!mangle)
+  if (!mangle) {
+    free(UOutName);    
     return(False);
+  }
 
-  DEBUG(5,("Converted name %s ",OutName));
+  DEBUG(5,("Converted name %s (upcase %s)",OutName, UOutName));
 
   /* mangle it into 8.3 */
-  push_mangled_name(OutName);  
-  mangle_name_83(OutName, MangledMap);
+  push_mangled_name(OutName);
+  mangle_name_83(OutName, UOutName, MangledMap);
 
   DEBUG(5,("to %s\n",OutName));
-
   
+  free(UOutName);    
   return(True);
 }
 
-
+#ifndef DOSEMU
 static char *mangled_match(char *s, /* This is null terminated */
                            char *pattern, /* This isn't. */
                            int len) /* This is the length of pattern. */
@@ -642,7 +722,6 @@ BOOL do_fwd_mangled_map(char *s, char *MangledMap)
 /******************************************************/
 
 
-#ifndef DOSEMU
 static BOOL do_rev_mangled_map(char *s, char *MangledMap)
 {
   /* Does the reverse of do_fwd_mangled_map().  Look in there for

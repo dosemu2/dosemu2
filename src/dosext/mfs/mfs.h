@@ -100,6 +100,13 @@ typedef struct vm86_regs state_t;
  *
  * HISTORY:
  * $Log$
+ * Revision 1.5  2003/08/16 14:01:17  bartoldeman
+ * Add support (using the translate plugin) to the MFS to translate between
+ * the external and internal charset for filenames.
+ * Set $_external_charset (for all purposes except the display) to the
+ * current locale charset by default.
+ * Various MFS cleanups.
+ *
  * Revision 1.4  2003/08/10 18:06:44  bartoldeman
  * MFS cleanup: avoid use of some global variables and pass the drive number
  * around as a parameter instead.
@@ -458,14 +465,15 @@ typedef struct lol_record {
 #define CANCEL_REDIRECTION 4
 #define EXTENDED_GET_REDIRECTION 5
 
-extern int build_ufs_path(char *ufs, const char *path, int drive);
+extern int build_ufs_path_(char *ufs, const char *path, int drive,
+                           int lowercase);
 extern boolean_t find_file(char *fpath, struct stat *st, int drive);
 extern boolean_t is_hidden(char *fname);
 extern int get_dos_attr(int mode,boolean_t hidden);
 extern int get_unix_attr(int mode, int attr);
 extern void time_to_dos(time_t clock, u_short *date, u_short *time);
 extern time_t time_to_unix(u_short dos_date, u_short dos_time);
-extern void auspr(char *filestring0, char *name, char *ext);
+extern void auspr(const char *filestring0, char *name, char *ext);
 extern struct mfs_dir *dos_opendir(const char *name);
 extern struct mfs_dirent *dos_readdir(struct mfs_dir *);
 extern int dos_closedir(struct mfs_dir *dir);
