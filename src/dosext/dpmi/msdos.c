@@ -960,12 +960,14 @@ void msdos_post_extender(int intr)
 	    }
 	    break;
 	case 0x47:		/* get CWD */
+	    DPMI_CLIENT.stack_frame.esi = S_REG(esi);
 	    if (LWORD(eflags) & CF)
 		break;
 	    snprintf((char *)(GetSegmentBaseAddress(S_REG(ds)) +
 			D_16_32(S_REG(esi))), 0x40, "%s", 
 		        (char *)((REG(ds) << 4) + LWORD(esi)));
-	    DPMI_CLIENT.stack_frame.esi = S_REG(esi);
+	    D_printf("DPMI: CWD: %s\n",(char *)(GetSegmentBaseAddress(S_REG(ds)) +
+			D_16_32(S_REG(esi))));
 	    break;
 #if 0	    
 	case 0x48:		/* allocate memory */
