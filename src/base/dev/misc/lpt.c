@@ -65,7 +65,7 @@ int17(u_char ii)
     break;
 
   case 2:			/* get status */
-    HI(ax) = LPT_NOTBUSY | LPT_ACK | LPT_ONLINE;
+    HI(ax) = LPT_NOTBUSY | LPT_ONLINE;
     /* dbug_printf("printer 0x%x status: 0x%x\n", LO(dx), HI(ax)); */
     break;
 

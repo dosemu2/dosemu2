@@ -3387,19 +3387,15 @@
   1177..11..  TThhee DDOOSSNNEETT vviirrttuuaall ddeevviiccee..
 
   Dosnet.o is a kernel module that implements a special virtual network
-  device. In combination with pktdrv.c.multi and libpacket.c.multi, this
-  will enable multiple dosemu sessions and the linux kernel to be on a
-  virtual network. Each has it's own network device and ethernet
-  address.
+  device. In combination with pktdrv.c and libpacket.c, this will enable
+  multiple dosemu sessions and the linux kernel to be on a virtual
+  network. Each has it's own network device and ethernet address.
 
   This means that you can telnet or ftp from the dos-session to your
   telnetd/ftpd running in linux and, with IP forwarding enabled in the
   kernel, connect to any host on your network.
 
   1177..22..  SSeettuupp ffoorr vviirrttuuaall TTCCPP//IIPP
-
-  First replace ./src/dosext/net/net/libpacket.c with libpacket.c.multi
-  and are also in ./src/dosext/net/net). Now (re)build dosemu.
 
   Go to ./src/dosext/net/v-net and make dosnet.o. As root, insmod
   dosnet.o. Now as root, configure the dsn0 interface (for example:
@@ -3417,7 +3413,6 @@
 
   Detailed original description of Vinod G Kulkarni
   <vinod@cse.iitb.ernet.in>
-
   Allowing a program to have its own network protocol stacks.
 
   Resulting in multiple dosemu's to use netware, ncsa telnet etc.
@@ -3475,6 +3470,7 @@
 
      b. Communication with dosnet device is done by opening a
         SOCK_PACKET socket of special type.
+
   3. IPX bridge code. Between eth0 and dsn0 so that multiple lan
      accesses can be made. 0.1 is non-intelligent.  (both versions are
      alpha codes.)  Actually IPX routing code is there in kernel.  Has
@@ -3601,7 +3597,6 @@
 
   [ Note from JES : If you wish, you may use Hans ../syscallmgr/insmod
   with the -m flag instead of patching the kernel as elluded below ]
-
   I forgot to mention this: The kernel sources need to be patched
   slightly. (This is happening with any new loadable module these days
   ;-) Here is what you need to do:  The only file that gets affected is

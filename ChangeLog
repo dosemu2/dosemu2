@@ -1,3 +1,17 @@
+98/01/30 ver. 0.97.1.1 unofficial pre-release
+	From Marcus
+	- rest of dosnet rework
+	From Sergey Suleimanov <solt@atibank.astrakhan.su>
+	- fix for FoxPro "Record not available" bug in conjuctions with
+	  lredir'ed drives (mfs.c)
+	From Kenneth
+	- fix: Print Shop Delux not recognizing 'printer online'.
+	From Reinhard
+	- (first) patch to get the keypad-Ctrl (E0) stuff better.
+	  ( well, atleast this one should be in so we don't forget it,
+          looking forward to get the rest from Eric )
+        From Hans
+	- docs recompile
 98/01/15 ver. 0.97.1 unofficial pre-release
 	From Marcus Better <marcusb@matematik.su.se>
 	- First round of a libpacket / dosnet rework (needed for 2.1.x)

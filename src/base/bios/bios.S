@@ -336,7 +336,7 @@ CISH(INT16_dummy_start):			/* KEYBOARD BIOS ROUTINE        */
 	push	dx		/* dx needed for extended calls */
 	push    ds			/* save ds and bx               */
 	push    bx		/* next 2 lines set ds to bios data seg	*/
-        mov     bx,#BIOS_DATA
+    mov     bx,#BIOS_DATA
 	mov	ds,bx
 	mov dl,#0x00        /* clear mask for extended calls */
 
@@ -353,8 +353,8 @@ CISH(INT16_dummy_start):			/* KEYBOARD BIOS ROUTINE        */
 	je	INT16_4			/* adjust keyclick */
 #endif
 	cmp	ah,#5
-	je	INT16_5			/* store key in buffer */
-	mov	dl,#0xFF		/* set mask for extended calls */
+	je	INT16_5X		/* store key in buffer */
+	not	dl				/* set mask for extended calls */
 	cmp	ah,#0x10
 	je	INT16_10		/* read key extended */
 	cmp	ah,#0x11
@@ -367,6 +367,8 @@ INT16_ex:
 	pop     ds
 	pop	dx
 	iret   
+INT16_5X:
+	jmp INT16_5
 
 INT16_0_idle:
 	sti
@@ -374,6 +376,7 @@ INT16_0_idle:
 	mov     ax,#0x1680		/* magic machine idle function  */
 	int     0x2f
 	pop	ax
+
 INT16_0:				/* 0 => read keyboard */
 INT16_10:				/* 0x10 => extended read        */
 	cli				/* READ KEYBOARD		*/
@@ -398,19 +401,24 @@ INT16_11:				/* 0x11 => extended check       */
 	cli
 	mov	bx,[KEYBUF_READ_PTR]	/* get address of next char	*/
 	cmp	bx,[KEYBUF_WRITE_PTR]	/* set flag if buffer empty	*/
-	mov	ax,[bx]			/* put char into ax		*/
+	mov	ax,[bx]        		/* put char into ax             */ 
 	sti
  	je	INT16_1_a		/* buffer empty			*/
 	call 	do_extended		/* differences for extended calls */
 INT16_1_a:
 	pop     bx
 	pop     ds
-	pop	dx
+	pop		dx
 	retf    #2		/* can't do iret, it would change flags	*/
 
 INT16_2:				/* RETURN SHIFT FLAG STATUS     */
 INT16_12:
 	mov	ax,[KEYSHIFT_FLAGS]	/* get shift flags (ah=extended)*/
+	and		ah,#0x7f	/* clear insert status */
+	test	ah,#0x04	/* test sys_request status */
+	jz	NO_SYS_REQ		/* sys_request not set
+	or		ah,#0x80	/* set sys_request status */
+NO_SYS_REQ:
 	and     ah,#0xf3		/* disallow bits 2 & 3		*/
 	mov	bh,[KEYBOARD_STATUS_3]	/* bits 2 & 3 come from here	*/
 	and     bh,#0xc			/* isolate those bits		*/
@@ -419,13 +427,15 @@ INT16_12:
 
 do_extended:				/* remove 0xE0 from AL for nonextended calls */
 	pushf				/* save Flags for CALL with AX = 1 or 11 */
+	or	dl,dl			/* don't do specials, if extended call */
+	jnz	DONT_MASK
+	cmp	ax,#0xe02f		/* keypad-slash scancode? */
+	jne	NO_SLASH
+	mov	ah,#0x35		/* transform to normal slash */
+NO_SLASH:
 	cmp	al,#0xe0		/* is character 0xE0 ? */
 	jne	DONT_MASK		/* no, done */
-	cmp	ah,#0x47		/* is scan code in range ? */
-	jb	DONT_MASK
-	cmp	ah,#0x53
-	ja	DONT_MASK
-	and	al,dl			/* yes, mask with 0xFF or 0x00 */
+	and	al,dl			/* yes, mask with 0x00 */
 DONT_MASK:
 	popf
 	ret
@@ -437,10 +447,10 @@ INT16_5:				/* STORE KEY INTO BUFFER	*/
 	sti
 	jc	INT16_5_full
 	mov	al,#0			/* return al=0 (success)	*/
-	jmp	INT16_ex
+	JMPL	(INT16_ex)
 INT16_5_full:
 	mov	al,#1			/* return al=1 (buffer full)	*/
- 	jmp	INT16_ex
+ 	JMPL	(INT16_ex)
 
 
 /* SUBROUTINE: store keycode in AX in the BIOS keyboard buffer, 

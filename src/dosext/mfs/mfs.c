@@ -3382,7 +3382,14 @@ dos_fs_redirect(state)
 		struct flock larg;
 		unsigned long mask = 0xC0000000;
 
+#if 1	/* fix for foxpro problems with lredired drives from
+         * Sergey Suleimanov <solt@atibank.astrakhan.su>.
+         * Needs more testing --Hans 98/01/30
+	 */
+		larg.l_type = is_lock ? F_RDLCK : F_UNLCK;
+#else
 		larg.l_type = is_lock ? F_WRLCK : F_UNLCK;
+#endif
 		larg.l_whence = SEEK_SET;
 		larg.l_start = pt->offset;
 		larg.l_len = pt->size;

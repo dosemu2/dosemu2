@@ -7,7 +7,7 @@
 <sect1>The DOSNET virtual device.
 <p>
 Dosnet.o is a kernel module that implements a special virtual network
-device. In combination with pktdrv.c.multi and libpacket.c.multi, this will
+device. In combination with pktdrv.c and libpacket.c, this will
 enable multiple dosemu sessions and the linux kernel to be on a virtual
 network. Each has it's own network device and ethernet address.
 <p>
@@ -16,10 +16,6 @@ telnetd/ftpd running in linux and, with IP forwarding enabled in the
 kernel, connect to any host on your network.
 
 <sect1>Setup for virtual TCP/IP
-<p>
-First replace ./src/dosext/net/net/libpacket.c with libpacket.c.multi and
-./src/dosext/net/net/pktnew.c with pktnew.c.multi (the .multi-versions
-are also in ./src/dosext/net/net). Now (re)build dosemu.
 <p>
 Go to ./src/dosext/net/v-net and make dosnet.o. As root, insmod
 dosnet.o. Now as root, configure the dsn0 interface (for example: 

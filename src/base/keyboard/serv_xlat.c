@@ -250,7 +250,8 @@ static Bit16u make_bios_code(Boolean make, t_keysym key, uchar ascii) {
             that were passed.
           */
          if (bios_scan) {
-            if (ascii&~0x1f) ascii=0;  /* allow control keys to be passed */
+            if (ascii&~0x1f && ascii != 0xE0)
+								 ascii=0;  /* allow control keys to be passed */
             if (bios_scan) {
                switch(key) {
                   case KEY_BKSP:       ascii=0x7f; break;
@@ -286,10 +287,10 @@ static Bit16u make_bios_code(Boolean make, t_keysym key, uchar ascii) {
           case KEY_PRTSCR:
           case KEY_PAD_AST:
                   bios_scan=0; break;
+		  case KEY_PAD_SLASH:
+				  bios_scan=0xe0; ascii=0x2f; break;
 		  case 0xe047 ... 0xe053:
 				  ascii=0xe0; bios_scan=key&0x7f; break;
-          case KEY_PAD_SLASH:
-                  ascii='/';   /* fallthrough */
           default:
                   bios_scan=key&0x7f; break;
          }
@@ -310,6 +311,8 @@ static Bit16u make_bios_code(Boolean make, t_keysym key, uchar ascii) {
                   bios_scan=0xe0; break;
           case KEY_PRTSCR:
                   bios_scan=0; break;
+          case KEY_PAD_SLASH:
+                  bios_scan=0xe0; ascii=0x2f; break;
           case 0xe047 ... 0xe053:
                   ascii=0xe0;
           default:
@@ -319,10 +322,6 @@ static Bit16u make_bios_code(Boolean make, t_keysym key, uchar ascii) {
       /* all shiftstates */
       if (key==KEY_SPACE) ascii=' ';
       if (key==KEY_DEL) ascii=0;
-      
-      /* distinction cursor block / keypad */
-      if (ascii == 0 && (key&0xff00) == 0xe000)
-         ascii = 0xe0;
    }
    else { /* !make */
       if (key==KEY_SYSRQ) {
@@ -624,10 +623,10 @@ void putrawkey(t_rawkeycode code) {
    if ((scan&0xff0000) == 0xe10000)
       k_printf("KBD: E1 scancode 0x%06x\n",(int)scan);
 
-   /* for BIOS, ignore the fake shift scancodes 0xe02a, 0xe0aa sent by
-      the keyboard for fn/numeric keys */
+   /* for BIOS, ignore the fake shift scancodes 0xe02a, 0xe0aa 0xe036, 0xe0b6
+      sent by the keyboard for fn/numeric keys */
 
-   if (scan==0xe02a || scan==0xe0aa) {
+   if (scan==0xe02a || scan==0xe0aa || scan==0xe036 || scan==0xe0b6) {
       bios_key=0;
    }
    else {
