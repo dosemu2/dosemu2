@@ -3660,8 +3660,8 @@ void dpmi_realmode_hlt(unsigned char * lina)
 		error("Unable to resize descriptor block\n");
 	}
 	if (LO_WORD(DPMI_CLIENT.stack_frame.eax) != 0x101)
-	    DPMI_CLIENT.stack_frame.ebx = REG(ebx);/* max para aval */
-	DPMI_CLIENT.stack_frame.eax = REG(eax);/* get error code */
+	    LO_WORD(DPMI_CLIENT.stack_frame.ebx) = LWORD(ebx); /* max para avail */
+	LO_WORD(DPMI_CLIENT.stack_frame.eax) = LWORD(eax); /* get error code */
 	DPMI_CLIENT.stack_frame.eflags |= CF;
 	goto done;
     }
@@ -3670,10 +3670,10 @@ void dpmi_realmode_hlt(unsigned char * lina)
     length = 0;
     switch (LO_WORD(DPMI_CLIENT.stack_frame.eax)) {
       case 0x0100:	/* allocate block */
-	DPMI_CLIENT.stack_frame.eax = LWORD(eax);
+	LO_WORD(DPMI_CLIENT.stack_frame.eax) = LWORD(eax);
 	base = LWORD(eax) << 4;
 	length = GetSegmentLimit(begin_selector) + 1;
-	DPMI_CLIENT.stack_frame.ebx = length >> 4;
+	LO_WORD(DPMI_CLIENT.stack_frame.ebx) = length >> 4;
 	num_descs = (length ? (DPMI_CLIENT.is_32 ? 1 : (length/0x10000 +
 					((length%0x10000) ? 1 : 0))) : 0);
 	for (i = 0; i < num_descs; i++) {
@@ -3689,7 +3689,7 @@ void dpmi_realmode_hlt(unsigned char * lina)
         if (ValidAndUsedSelector(begin_selector)) {
 	  length = GetSegmentLimit(begin_selector) + 1;
 	}
-	DPMI_CLIENT.stack_frame.ebx = length >> 4;
+	LO_WORD(DPMI_CLIENT.stack_frame.ebx) = length >> 4;
 	break;
     }
 
