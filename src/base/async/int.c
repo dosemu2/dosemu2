@@ -65,6 +65,8 @@
 #undef  DEBUG_INT1A
 
 #define WINDOWS_HACKS 1
+static int win31_mode = 3;
+static char win31_title[256];
 
 static void dos_post_boot(void);
 static int int33(void);
@@ -1219,7 +1221,7 @@ static int int21(void)
 
   case 0x4B: {			/* program load */
       char *ptr, *tmp_ptr;
-      char cmdname[256], tmpname[256];
+      char cmdname[256];
       char *str = SEG_ADR((char*), ds, dx);
 
       dos_post_boot();
@@ -1239,10 +1241,16 @@ static int int21(void)
           tmp_ptr = (ptr[8] == 'd' ? "krnl286" : "krnl386");
         else
           have_args = 1;
+#if 1
+	/* ignore everything and use krnl386.exe */
+        memcpy(ptr+8, "krnl386", 7);
+#else
         memcpy(ptr+8, tmp_ptr, 7);
+#endif
         strcpy(ptr+8+7, ".exe");
-        sprintf(tmpname, "Windows 3.1 in %c86 mode", tmp_ptr[4]);
-        str = tmpname;
+        sprintf(win31_title, "Windows 3.1 in %c86 mode", tmp_ptr[4]);
+        str = win31_title;
+        win31_mode = tmp_ptr[4] - '0';
         if (have_args) {
           tmp_ptr = strchr(tmp_ptr, ' ');
           if (tmp_ptr) {
@@ -1256,7 +1264,7 @@ static int int21(void)
       if (!Video->change_config)
         return 0;
       if ((!title_hint[0] || strcmp(title_current, title_hint) != 0) &&
-          str != tmpname)
+          str != win31_title)
         return 0;
 
       ptr = strrchr(str, '\\');
@@ -1273,7 +1281,7 @@ static int int21(void)
       strncpy(cmdname, ptr, TITLE_APPNAME_MAXLEN-1);
       cmdname[TITLE_APPNAME_MAXLEN-1] = 0;
       ptr = strchr(cmdname, '.');
-      if (ptr && str!=tmpname) *ptr = 0;
+      if (ptr && str != win31_title) *ptr = 0;
       /* change the title */
       strcpy(title_current, cmdname);
       change_window_title(title_current);
@@ -1761,13 +1769,14 @@ static int int2f(void)
     }
     switch (LO(ax)) {
       case 0x00:		/* WINDOWS ENHANCED MODE INSTALLATION CHECK */
-#if 1			/* it seens this confuse winos2 */
     if (in_dpmi && in_win31) {
-      D_printf("WIN: WINDOWS ENHANCED MODE INSTALLATION CHECK\n");
-      LWORD(eax) = 0x0a03;	/* let's try enhaced mode 3.1 :-))))))) */
+      D_printf("WIN: WINDOWS ENHANCED MODE INSTALLATION CHECK: %i\n", in_win31);
+      if (win31_mode == 3)
+        LWORD(eax) = 0x0a03;
+      else
+        LWORD(eax) = 0;
       return 1;
       }
-#endif    
     break;
 
       case 0x05:		/* Win95 Initialization Notification */
@@ -1783,11 +1792,7 @@ static int int2f(void)
       D_printf ("WIN: WINDOWS VERSION AND TYPE\n");
       LWORD(eax) = 0;
       LWORD(ebx) = 0x030a;	/* 3.10 */
-#if 1
-      LWORD(ecx) = 0x0003;	/* let\'s try enhaced mode */
-#else
-      LWORD(ecx) = 0x0002;	/* standard mode */
-#endif
+      LWORD(ecx) = win31_mode;
       return 1;
         }
       break;
@@ -2298,6 +2303,11 @@ static void update_xtitle(void)
   while (*tmp_ptr) {	/* Check whether the name is valid */
     if (iscntrl(*tmp_ptr++))
       return;
+  }
+
+  if (in_win31 && memcmp(cmd_ptr, "krnl", 4) == 0) {
+    cmd_ptr = win31_title;
+    force_update = 1;
   }
 
   if (force_update || strcmp(title_current, title_hint) != 0) {
