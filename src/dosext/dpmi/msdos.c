@@ -701,20 +701,12 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		    16);
 	    return 0;
 	case 0x0c:		/* set call back */
-	case 0x14:		/* swap call back */
+	case 0x14: {		/* swap call back */
+	    struct pmaddr_s old_callback = DPMI_CLIENT.mouseCallBack;
+	    DPMI_CLIENT.mouseCallBack.selector = _es;
+	    DPMI_CLIENT.mouseCallBack.offset = D_16_32(_edx);
 	    if ( _es && D_16_32(_edx) ) {
-	        struct pmaddr_s new_callback;
 		D_printf("DPMI: set mouse callback\n");
-		new_callback.selector = _es;
-		new_callback.offset = D_16_32(_edx);
-		if (_LWORD(eax) == 0x14) {
-		    _es = DPMI_CLIENT.mouseCallBack.selector;
-		    if (DPMI_CLIENT.is_32)
-			_edx = DPMI_CLIENT.mouseCallBack.offset;
-		    else
-			_LWORD(edx) = DPMI_CLIENT.mouseCallBack.offset;
-		}
-		DPMI_CLIENT.mouseCallBack = new_callback;
 		REG(es) = DPMI_SEG;
 		REG(edx) = DPMI_OFF + HLT_OFF(DPMI_mouse_callback);
 	    } else {
@@ -722,7 +714,15 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		REG(es) = 0;
 		REG(edx) = 0;
 	    }
-	    return 0;
+	    if (_LWORD(eax) == 0x14) {
+		_es = old_callback.selector;
+		if (DPMI_CLIENT.is_32)
+		    _edx = old_callback.offset;
+		else
+		    _LWORD(edx) = old_callback.offset;
+	    }
+	  }
+	  return 0;
 	case 0x16:		/* save state */
 	case 0x17:		/* restore */
 	    ES_MAPPED = 1;
