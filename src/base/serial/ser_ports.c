@@ -613,14 +613,15 @@ static void put_tx(int num, int val)
   /* Update the transmit timer */
   com[num].tx_timer += com[num].tx_char_time;
 #endif
-  com[num].TX = val;			/* Mainly used in overflow cases */
-  com[num].tx_trigger = 1;		/* Time to trigger next tx int */
   com[num].int_condition &= ~TX_INTR;	/* TX interrupt condition satisifed */
   com[num].LSR &= ~UART_LSR_TEMT;	/* TEMT not empty */
 
   /* If Transmit interrupt status is set, then update interrupt status */
   if ((com[num].IIR & UART_IIR_ID) == UART_IIR_THRI)
     serial_int_engine(num, 0);		/* Update interrupt status */
+
+  com[num].TX = val;			/* Mainly used in overflow cases */
+  com[num].tx_trigger = 1;		/* Time to trigger next tx int */
 
   /* Loop-back writes.  Parity is currently not calculated.  No
    * UART diagnostics programs including COMTEST.EXE, that I tried,
