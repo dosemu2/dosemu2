@@ -1920,8 +1920,8 @@ static void start_vnet(char *mode) {
   else if (strcmp(mode, "dosnet") == 0)
     config.vnet = VNET_TYPE_DSN;
   else {
-    error("Unknown vnet mode %s\n", mode);
-    config.vnet = VNET_TYPE_ETH;
+    error("Unknown vnet mode \"%s\"\n", mode);
+    config.exitearly = 1;
   } 
 }
 
