@@ -82,14 +82,14 @@ typedef struct {
 /*54*/	unsigned long cr2;
 /* ------------------------------------------------ */
 /*58*/	unsigned long sreg1;
-/*5c*/	unsigned long xreg1;
-/*60*/	unsigned long mem_ref;
-/*64*/	unsigned long veflags;
-/*68*/		 long err;
-/*6c*/	unsigned long long EMUtime;
-/*74*/	unsigned int  mode;
-/*78*/	unsigned long StackMask;
-/*7c	... */
+/*5c*/  unsigned long dreg1;
+/*60*/	unsigned long xreg1;
+/*64*/	unsigned long mem_ref;
+/*68*/	unsigned long veflags;
+/*6c*/		 long err;
+/*70*/	unsigned long long EMUtime;
+/*78*/	unsigned int  mode;
+/*7c*/	unsigned long StackMask;
 /* ------------------------------------------------ */
 	unsigned long tr[2];
 /*
@@ -218,6 +218,7 @@ extern SynCPU TheCPU;
 #define Ofs_FLAGSL	(Ofs_EFLAGS)
 
 #define REG1		TheCPU.sreg1
+#define REG3		TheCPU.dreg1
 #define SBASE		TheCPU.xreg1
 #define MEMREF		TheCPU.mem_ref
 #define EFLAGS		TheCPU.eflags

@@ -292,19 +292,26 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 
     switch (*p) {
 	case 0x88:	// write byte
-		if ((p[1]!=0x07)||((_err&2)==0)) leavedos(0x5643);
+		if ((_err&2)==0) goto badrw;
+		if (p[1]!=0x07) goto unimp;
 		e_VgaWrite(_edi,_eax,MBYTE);
 		_eip = (long)(p+2); break;
 	case 0x89:	// write word
-		if ((p[1]!=0x07)||((_err&2)==0)) leavedos(0x5643);
+		if ((_err&2)==0) goto badrw;
+		if (p[1]!=0x07) goto unimp;
 		e_VgaWrite(_edi,_eax,(w16? DATA16:DATA32));
 		_eip = (long)(p+2); break;
 	case 0x8a:	// read byte
-		if ((p[1]!=0x07)||(_err&2)) leavedos(0x5643);
-		*((unsigned char *)&_eax) = e_VgaRead(_edi,MBYTE);
+		if (_err&2) goto badrw;
+		if (p[1]==0x07)
+		    *((unsigned char *)&_eax) = e_VgaRead(_edi,MBYTE);
+		else if (p[1]==0x17)
+		    *((unsigned char *)&_edx) = e_VgaRead(_edi,MBYTE);
+		else goto unimp;
 		_eip = (long)(p+2); break;
 	case 0x8b:	// read word
-		if ((p[1]!=0x07)||(_err&2)) leavedos(0x5643);
+		if (_err&2) goto badrw;
+		if (p[1]!=0x07) goto unimp;
 		if (w16)
 			*((unsigned short *)&_eax) = e_VgaRead(_edi,DATA16);
 		else
@@ -320,25 +327,25 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		_eip = (long)(p+1); } break;
 	case 0xaa: {	// STOsb
 		int d = (_eflags & EFLAGS_DF? -1:1);
-		if ((_err&2)==0) leavedos(0x5643);
+		if ((_err&2)==0) goto badrw;
 		e_VgaWrite(_edi,_eax,MBYTE);
 		_edi+=d;
 		_eip = (long)(p+1); } break;
 	case 0xab: {	// STOsw
 		int d = (_eflags & EFLAGS_DF? -4:4);
-		if ((_err&2)==0) leavedos(0x5643);
+		if ((_err&2)==0) goto badrw;
 		if (w16) d>>=1;
 		e_VgaWrite(_edi,_eax,(w16? DATA16:DATA32)); _edi+=d;
 		_eip = (long)(p+1); } break;
 	case 0xac: {	// LODsb
 		int d = (_eflags & EFLAGS_DF? -1:1);
-		if (_err&2) leavedos(0x5643);
+		if (_err&2) goto badrw;
 		*((char *)&_eax) = e_VgaRead(_esi,MBYTE);
 		_esi+=d;
 		_eip = (long)(p+1); } break;
 	case 0xad: {	// LODsw
 		int d = (_eflags & EFLAGS_DF? -4:4);
-		if (_err&2) leavedos(0x5643);
+		if (_err&2) goto badrw;
 		if (w16) {
 		    d >>= 1;
 		    *((short *)&_eax) = e_VgaRead(_esi,DATA16);
@@ -351,7 +358,7 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		int d = (_eflags & EFLAGS_DF? -1:1);
 		if (p[1]==0x66) w16=1,p++;
 		if (p[1]==0xaa) {
-		    if ((_err&2)==0) leavedos(0x5643);
+		    if ((_err&2)==0) goto badrw;
 		    cxrep = _ecx;
 		    while (cxrep--) {
 			e_VgaWrite(_edi,_eax,MBYTE);
@@ -363,7 +370,7 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		    e_VgaMovs(scp, 2, 0, d);
 		}
 		else if (p[1]==0xab) {
-		    if ((_err&2)==0) leavedos(0x5643);
+		    if ((_err&2)==0) goto badrw;
 		    if (w16) {
 		      d *= 2;
 		      cxrep = _ecx;
@@ -386,7 +393,7 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		else if (p[1]==0xa5) {
 		    e_VgaMovs(scp, 3, w16, d*2);
 		}
-		else leavedos(0x5643);
+		else goto unimp;
 		_eip = (long)(p+2); }
 		break;
 	default:
@@ -395,6 +402,15 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 /**/  e_printf("eVgaEmuFault: new eip=%08lx\n",(long)_eip);
   }
   return 1;
+
+unimp:
+  error("eVgaEmuFault: unimplemented decode instr at %08lx: %08lx\n",
+	(long)_eip, *((long *)_eip));
+  leavedos(0x5643);
+badrw:
+  error("eVgaEmuFault: bad R/W CR2 bits at %08lx: %08lx\n",
+	(long)_eip, _err);
+  leavedos(0x5643);
 }
 
 /* ======================================================================= */

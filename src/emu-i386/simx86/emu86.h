@@ -625,13 +625,15 @@ extern hitimer_t TotalTime, AddTime, SearchTime, ExecTime, CleanupTime;	// for d
 extern unsigned long eTSSMASK;
 extern volatile sig_atomic_t e_signal_pending;
 extern int Running;		/* into interpreter loop */
+extern int JumpOpt;
+extern unsigned long JumpOptLim;
 //
 unsigned char *do_hwint(int mode, int intno);
 unsigned char *Interp86(unsigned char *PC, int mode);
 //
 int ModRM(unsigned char *PC, int mode);
 int ModRMSim(unsigned char *PC, int mode);
-void ModGetReg1(unsigned char *PC, int mode);
+int ModGetReg1(unsigned char *PC, int mode);
 //
 char *e_emu_disasm(unsigned char *org, int is32);
 char *e_print_regs(void);

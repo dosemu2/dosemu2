@@ -143,7 +143,7 @@ unsigned char TailCode[8] =
 	{ 0x9c,0x5a,0xb8,0,0,0,0,0xc3 };
 
 /*
- * This function is here just for looking at the generated binary code
+ * This function is only here for looking at the generated binary code
  * with objdump.
  */
 static void _test_(void)
@@ -973,7 +973,7 @@ shrot0:
 		else {
 			// mov{wl} offs(%%ebx),%%{e}ax
 			p[2] = 0x43;
-			p[3] = va_arg(ap,char);
+			p[3] = va_arg(ap,int);
 		}
 		GNX(Cp, p, sz);
 		} break;
@@ -1017,7 +1017,7 @@ shrot0:
 		else {
 			// mov{wl} offs(%%ebx),%%{e}ax
 			p[5] = 0x43;
-			p[6] = va_arg(ap,char);
+			p[6] = va_arg(ap,int);
 		}
 		GNX(Cp, p, sz);
 		} break;
@@ -1026,20 +1026,32 @@ shrot0:
 		static char pseq16[] = {
 			// leal -2(%%ebp),%%ebp
 			0x8d,0x6d,0xfe,
-			// movw Ofs_EFLAGS(%%ebx),%%eax
-			0x8b,0x43,Ofs_EFLAGS,
-			// andl 0xfcfeff,%%eax
-			0x25,0xff,0xfe,0xfc,0x00,
+			// movl (%%esp),%%edx	(get flags on stack)
+			0x8b,0x14,0x24,
+			// movw Ofs_FLAGS(%%ebx),%%ax
+			0x66,0x8b,0x43,Ofs_EFLAGS,
+			// andw $0xcff,%%dx
+			0x66,0x81,0xe2,0xff,0x0c,
+			// andw	$0x7200,%%ax
+			0x66,0x25,0x00,0x72,
+			// orw %%dx,%%ax
+			0x66,0x09,0xd0,
 			// movw %%ax,(%%esi,%%ebp,1)
 			0x66,0x89,0x04,0x2e
 		};
 		static char pseq32[] = {
 			// leal -4(%%ebp),%%ebp
 			0x8d,0x6d,0xfc,
-			// movw Ofs_EFLAGS(%%ebx),%%eax
+			// movl (%%esp),%%edx	(get flags on stack)
+			0x8b,0x14,0x24,
+			// movl Ofs_EFLAGS(%%ebx),%%eax
 			0x8b,0x43,Ofs_EFLAGS,
-			// andl 0xfcfeff,%%eax
-			0x25,0xff,0xfe,0xfc,0x00,
+			// andl $0xcff,%%edx
+			0x81,0xe2,0xff,0x0c,0x00,0x00,
+			// andl	$0x3c7200,%%eax
+			0x25,0x00,0x72,0x3c,0x00,
+			// orl %%edx,%%eax
+			0x09,0xd0,
 			// movl %%eax,(%%esi,%%ebp,1)
 			0x89,0x04,0x2e
 		};
@@ -1090,11 +1102,11 @@ shrot0:
 		register char *p; int sz;
 		if (mode&DATA16) {
 			p = pseq16,sz=sizeof(pseq16);
-			*((short *)(p+0x14)) = va_arg(ap,short);
+			*((short *)(p+0x14)) = va_arg(ap,int);
 		}
 		else {
 			p = pseq32,sz=sizeof(pseq32);
-			*((long *)(p+0x13)) = va_arg(ap,long);
+			*((long *)(p+0x13)) = va_arg(ap,int);
 		}
 		GNX(Cp, p, sz);
 		} break;
@@ -1232,7 +1244,7 @@ shrot0:
 		}
 		else {
 			*((short *)(p+0x10)) = 0x4389;
-			p[0x12] = va_arg(ap,char);
+			p[0x12] = va_arg(ap,int);
 		}
 		GNX(Cp, p, sz);
 		} break;
@@ -1297,7 +1309,7 @@ shrot0:
 		}
 		else {
 			*((short *)(p+0x05)) = 0x4389;
-			p[0x07] = va_arg(ap,char);
+			p[0x07] = va_arg(ap,int);
 		}
 		GNX(Cp, p, sz);
 		} break;
@@ -1393,53 +1405,50 @@ shrot0:
 		}
 		break;
 
-	case O_MOVS_SetA: {
-		static char pseq16[] = {
-			// movl OVERR_DS(%%ebx),%%esi
-/*00*/			0x8b,0x73,0x00,
-			// movzwl Ofs_SI(%%ebx),%%edx
-			0x0f,0xb7,0x53,Ofs_SI,
-			// leal (%%edx,%%esi,1),%%esi
-			0x8d,0x34,0x32,
-			// movl Ofs_XES(%%ebx),%%edi
-			0x8b,0x7b,Ofs_XES,
-			// movzwl Ofs_DI(%%ebx),%%ecx
-			0x0f,0xb7,0x4b,Ofs_DI,
-			// leal (%%ecx,%%edi,1),%%edi
-			0x8d,0x3c,0x39,
-			// movzwl Ofs_CX(%%ebx),%%ecx (unused if not REP)
-			0x0f,0xb7,0x4b,Ofs_CX,
-			// push ds; pop es	(dangerous?)
-			//0x1e,0x07
-		};
-		static char pseq32[] = {
-			// movl OVERR_DS(%%ebx),%%esi
-/*00*/			0x8b,0x73,0x00,
-			// movl Ofs_ESI(%%ebx),%%edx
-			0x8b,0x53,Ofs_ESI,
-			// leal (%%edx,%%esi,1),%%esi
-			0x8d,0x34,0x32,
-			// movl Ofs_XES(%%ebx),%%edi
-			0x8b,0x7b,Ofs_XES,
-			// movl Ofs_EDI(%%ebx),%%ecx
-			0x8b,0x4b,Ofs_EDI,
-			// leal (%%ecx,%%edi,1),%%edi
-			0x8d,0x3c,0x39,
-			// movl Ofs_ECX(%%ebx),%%ecx (unused if not REP)
-			0x8b,0x4b,Ofs_ECX,
-			// push ds; pop es	(dangerous?)
-			//0x1e,0x07
-		};
-		register char *p; int sz;
+	case O_MOVS_SetA:
 		if (mode&ADDR16) {
-			p = pseq16,sz=sizeof(pseq16);
+		    if (mode&MOVSSRC) {
+			// movl OVERR_DS(%%ebx),%%esi
+			G2(0x738b,Cp); G1(OVERR_DS,Cp);
+			// movzwl Ofs_SI(%%ebx),%%edx
+			G4M(0x0f,0xb7,0x53,Ofs_SI,Cp);
+			// leal (%%edx,%%esi,1),%%esi
+			G3(0x32348d,Cp);
+		    }
+		    if (mode&MOVSDST) {
+			// movl Ofs_XES(%%ebx),%%edi
+			G3M(0x8b,0x7b,Ofs_XES,Cp);
+			// movzwl Ofs_DI(%%ebx),%%ecx
+			G4M(0x0f,0xb7,0x4b,Ofs_DI,Cp);
+			// leal (%%ecx,%%edi,1),%%edi
+			G3(0x393c8d,Cp);
+		    }
+		    if (mode&(MREP|MREPNE)) {
+			// movzwl Ofs_CX(%%ebx),%%ecx
+			G4M(0x0f,0xb7,0x4b,Ofs_CX,Cp);
+		    }
 		}
 		else {
-			p = pseq32,sz=sizeof(pseq32);
+		    G1(0x9c,Cp);
+		    if (mode&MOVSSRC) {
+			// movl OVERR_DS(%%ebx),%%esi
+			G2(0x738b,Cp); G1(OVERR_DS,Cp);
+			// addl Ofs_ESI(%%ebx),%%esi
+			G3M(0x03,0x73,Ofs_ESI,Cp);
+		    }
+		    if (mode&MOVSDST) {
+			// movl Ofs_XES(%%ebx),%%edi
+			G3M(0x8b,0x7b,Ofs_XES,Cp);
+			// addl Ofs_EDI(%%ebx),%%edi
+			G3M(0x03,0x7b,Ofs_EDI,Cp);
+		    }
+		    if (mode&(MREP|MREPNE)) {
+			// movl Ofs_ECX(%%ebx),%%ecx
+			G3M(0x8b,0x4b,Ofs_ECX,Cp);
+		    }
+		    G1(0x9d,Cp);
 		}
-		p[2] = OVERR_DS;
-		GNX(Cp, p, sz);
-		} break;
+		break;
 
 	case O_MOVS_MovD:
 		if (mode&(MREP|MREPNE))	{ G1(REP,Cp); }
@@ -1489,46 +1498,52 @@ shrot0:
 		// ! Warning DI,SI wrap	in 16-bit mode
 		break;
 
-	case O_MOVS_SavA: {
-		static char pseq16[] = {
-			// movw %%cx,Ofs_CX(%%ebx) (redundant if not REP)
-			0x66,0x89,0x4b,Ofs_CX,
-			// esi = base1 + CPU_(e)SI +- n
-			// edi = base2 + CPU_(e)DI +- n
-			// pushfl; subl OVERR_DS(%%ebx),%%esi
-/*04*/			0x9c,0x2b,0x73,0x00,
-			// subl Ofs_XES(%%ebx),%%edi; popfl
-			0x2b,0x7b,Ofs_XES,0x9d,
-			// movw %%si,Ofs_SI(%%ebx)
-			0x66,0x89,0x73,Ofs_SI,
-			// movw %%di,Ofs_DI(%%ebx)
-			0x66,0x89,0x7b,Ofs_DI
-		};
-		static char pseq32[] = {
-			// movl %%ecx,Ofs_ECX(%%ebx) (redundant if not REP)
-			0x89,0x4b,Ofs_ECX,
-			// esi = base1 + CPU_(e)SI +- n
-			// edi = base2 + CPU_(e)DI +- n
-			// pushfl; subl OVERR_DS(%%ebx),%%esi
-/*03*/			0x9c,0x2b,0x73,0x00,
-			// subl Ofs_XES(%%ebx),%%edi; popfl
-			0x2b,0x7b,Ofs_XES,0x9d,
-			// movl %%esi,Ofs_ESI(%%ebx)
-			0x89,0x73,Ofs_ESI,
-			// movl %%edi,Ofs_EDI(%%ebx)
-			0x89,0x7b,Ofs_EDI
-		};
-		register char *p; int sz;
+	case O_MOVS_SavA:
 		if (mode&ADDR16) {
-			p = pseq16,sz=sizeof(pseq16);
-			p[7] = OVERR_DS;
+		    G1(0x9c,Cp);
+		    if (mode&(MREP|MREPNE)) {
+			// movw %%cx,Ofs_CX(%%ebx)
+			G4M(0x66,0x89,0x4b,Ofs_CX,Cp);
+		    }
+		    if (mode&MOVSSRC) {
+			// esi = base1 + CPU_(e)SI +- n
+			// subl OVERR_DS(%%ebx),%%esi
+			G2(0x732b,Cp); G1(OVERR_DS,Cp);
+			// movw %%si,Ofs_SI(%%ebx)
+			G4M(0x66,0x89,0x73,Ofs_SI,Cp);
+		    }
+		    if (mode&MOVSDST) {
+			// edi = base2 + CPU_(e)DI +- n
+			// subl Ofs_XES(%%ebx),%%edi; popfl
+			G3M(0x2b,0x7b,Ofs_XES,Cp);
+			// movw %%di,Ofs_DI(%%ebx)
+			G4M(0x66,0x89,0x7b,Ofs_DI,Cp);
+		    }
+		    G1(0x9d,Cp);
 		}
 		else {
-			p = pseq32,sz=sizeof(pseq32);
-			p[6] = OVERR_DS;
+		    G1(0x9c,Cp);
+		    if (mode&(MREP|MREPNE)) {
+			// movl %%ecx,Ofs_ECX(%%ebx)
+			G3M(0x89,0x4b,Ofs_ECX,Cp);
+		    }
+		    if (mode&MOVSSRC) {
+			// esi = base1 + CPU_(e)SI +- n
+			// subl OVERR_DS(%%ebx),%%esi
+			G2(0x732b,Cp); G1(OVERR_DS,Cp);
+			// movl %%esi,Ofs_ESI(%%ebx)
+			G3M(0x89,0x73,Ofs_ESI,Cp);
+		    }
+		    if (mode&MOVSDST) {
+			// edi = base2 + CPU_(e)DI +- n
+			// subl Ofs_XES(%%ebx),%%edi; popfl
+			G3M(0x2b,0x7b,Ofs_XES,Cp);
+			// movl %%edi,Ofs_EDI(%%ebx)
+			G3M(0x89,0x7b,Ofs_EDI,Cp);
+		    }
+		    G1(0x9d,Cp);
 		}
-		GNX(Cp, p, sz);
-		} break;
+		break;
 
 	case O_CJMP:
 		rcod = va_arg(ap,int);	// cond
@@ -1677,8 +1692,6 @@ shrot0:
 		}
 		break;
 #endif
-
-#ifdef OPTIMIZE_BACK_JUMPS
 	case JB_LOCAL: {	// cond, tgt_addr_in_buf, PC_here
 		unsigned char cond = (unsigned char)va_arg(ap,int);
 		/* target address */
@@ -1759,20 +1772,19 @@ shrot0:
 		}
 		}
 		break;
-#endif
-#ifdef OPTIMIZE_FW_JUMPS
+
 	case JF_LOCAL: {	// cond, PC_there
 		unsigned char cond = (unsigned char)va_arg(ap,int);
+		int dsp = va_arg(ap,int);
 		// j_not_cc +8
 		G2M(0x70|(cond^1),8,Cp);	// reverse cond
 		/* standard termination code */
 		// pushfl; pop %%edx
 		// movl $arg,%%eax
 		// ret
-		G3(0xb85a9c,Cp); G4(va_arg(ap,int),Cp); G1(0xc3,Cp);
+		G3(0xb85a9c,Cp); G4(dsp,Cp); G1(0xc3,Cp);
 		}
 		break;
-#endif
 	}
 
 	CodePtr = Cp;
@@ -1783,15 +1795,15 @@ shrot0:
 /////////////////////////////////////////////////////////////////////////////
 
 
-#ifdef OPTIMIZE_FW_JUMPS
 static void AdjustFwRefs(unsigned char *PC)
 {
 	IMeta *F = ForwIRef;
 	while (F) {
 	    // this is a forward jump, so start from next instruction
+	    // (if there is one)
 	    int n = (F - InstrMeta) + 1;
 	    // if the jump is out of our sequence, do nothing
-	    if (F->jtgt < PC) {
+	    if ((n < NextFreeIMeta) && (F->jtgt < PC)) {
 		IMeta *G = &InstrMeta[n];
 		// look for the instruction, note that it could also
 		// not be found if common seq optimization is on
@@ -1815,7 +1827,6 @@ static void AdjustFwRefs(unsigned char *PC)
 	}
 	ForwIRef = NULL;
 }
-#endif
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1856,6 +1867,7 @@ unsigned char *CloseAndExec(unsigned char *PC, int mode)
 	static hitimer_u t0,t1;
 	static unsigned char *ePC;
 	static unsigned short seqflg, fpuc, ofpuc;
+	extern int PrevMp;
 	unsigned char *SeqStart;
 	TNode *G = NULL;
 	int ifl;
@@ -1864,27 +1876,57 @@ unsigned char *CloseAndExec(unsigned char *PC, int mode)
 		/* sorry for the reuse of parameter PC this way */
 		G = (TNode *)PC;
 		PC = G->addr;
+		InstrMeta[0].cklen = G->cklen;
+		InstrMeta[0].npc = G->npc;
 		SeqStart = PC;
 		seqflg = mode >> 16;
 	}
 	else if (IsCodeInBuf()) {
+		long mp;
 		unsigned char *p = CodePtr;
 		/* we only know here the total length of the original
 		 * code block */
 		InstrMeta[0].cklen = PC - InstrMeta[0].npc;
 		if (d.emu>3) e_printf("Seq len %d\n",InstrMeta[0].cklen);
-		// tail	instructions
+
+		/* copy tail instructions to the end of the code block */
 		memcpy(p, TailCode, sizeof(TailCode));
 		*((long	*)(p+3)) = (long)PC;
+
 		SeqStart = CodeBuf;
 		seqflg = InstrMeta[0].flags;
 		if (d.emu>2) {
 			e_printf("============ Closing sequence at %08lx\n** Adding tail code at %08lx\n",
 				(long)PC,(long)p);
 		}
-#ifdef OPTIMIZE_FW_JUMPS
-		if (ForwIRef) AdjustFwRefs(PC);
-#endif
+		if (!JumpOpt) {
+		    /* Jumps are no more compiled in after we detect
+		     * a write fault which hits the memory page where
+		     * our currently compiled sequence resides.
+		     * How to determine when it's safe to turn jump
+		     * optimization back on is another matter; let's try
+		     * this rule: if we hit a point PAST the sequence
+		     * that gave the fault, restore the default.
+		     */
+		    if ((long)InstrMeta[0].npc > JumpOptLim) {
+			e_printf("Restored Jump Optimizations\n");
+			JumpOpt = 3; JumpOptLim = 0x1000;
+		    }
+		}
+		else {
+		    if ((JumpOpt&2) && ForwIRef) AdjustFwRefs(PC);
+		}
+		/* mprotect the page here; this will trap faults coming
+		 * from the execution of the current instruction buffer
+		 * (i.e. before it is moved into the tree), so we can
+		 * invalidate it too */
+		mp = ((long)InstrMeta[0].npc)&~(PAGE_SIZE-1);
+		if ((mp != PrevMp) && (mp > JumpOptLim)) {
+			e_printf("Mprotect %08lx\n",mp);
+			if (mprotect((void *)mp,PAGE_SIZE,PROT_READ))
+				perror("mprotect");
+			PrevMp = mp;
+		}
 	}
 	else {
 		return PC;
@@ -1892,9 +1934,9 @@ unsigned char *CloseAndExec(unsigned char *PC, int mode)
 
 	ecpu = (long)CPUOFFS(0);
 	if (d.emu>2) {
+		if (e_signal_pending&1) e_printf("** SIGNAL is pending\n");
 		e_printf("** Executing code at %08lx flg=%04x\n",
 			(long)SeqStart,seqflg);
-		if (e_signal_pending) e_printf("** SIGNAL is pending\n");
 	}
 	ifl = EFLAGS & 0x3f7300;	// save	reserved bits
 	if (seqflg & F_FPOP) {
@@ -1983,13 +2025,18 @@ unsigned char *CloseAndExec(unsigned char *PC, int mode)
 				*((unsigned long *)mem_ref));
 	}
 	if (!(mode & XECFND)) {
-		G = Move2ITree();
+		G = Move2ITree();	/* G!=NULL if inserted */
 	    if ((d.emu>2) && (ePC != PC)) {
 		e_printf("## Return %08lx instead of %08lx\n",(long)ePC,
 			(long)PC);
 	    }
 	}
 	if (G) {
+	    /* Seq was inserted in the tree after execution. Store
+	     * a pointer to it into the previously executed node, so to
+	     * keep a path between the nodes which follows the historical
+	     * execution order.
+	     */
 	    if (LastXNode) {
 		LastXNode->nxnode = G;
 		LastXNode->nxkey = G->key;

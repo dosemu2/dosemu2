@@ -631,23 +631,13 @@ TNode *Move2ITree(void)
 
   nI->npc = G0->npc;
   nI->cklen = G0->cklen;
-  if (nI->cklen > MaxNodeSize) MaxNodeSize = nI->cklen;
+  if (nI->len > MaxNodeSize) MaxNodeSize = nI->len;
   nI->len = len = G0->len + sizeof(TailCode);
   nI->jcount = NODELIFE(nI);
   nI->addr = (unsigned char *)malloc(len+8);
   if (d.emu>(DT_LEV+1)) e_printf("Move sequence from %08lx to %08lx l=%d\n",
 	(long)G0->addr, (long)nI->addr, len);
   __memcpy(nI->addr, G0->addr, len);
-
-  if ((long)nI->npc >= 0x1000) {
-    long mp = ((long)nI->npc)&~(PAGE_SIZE-1);
-    if (mp != PrevMp) {
-	e_printf("Mprotect %08lx\n",mp);
-	if (mprotect((void *)mp,PAGE_SIZE,PROT_READ))
-		perror("mprotect");
-    }
-    PrevMp = mp;
-  }  
   nI->flags = G0->flags;
 
 noinode:
@@ -673,8 +663,9 @@ TNode *FindTree(unsigned char *addr)
   if (LastXNode) {
 	TNode *G = LastXNode->nxnode;
 	if (G && (G->key==key) && (G->jcount>0)) {
-	e_printf("LastXNode found at %08lx p-> key=%08lx addr=%08lx\n",
-		(long)LastXNode,key,(long)G->addr);
+	if (d.emu>1) 
+		e_printf("LastXNode found at %08lx p-> key=%08lx addr=%08lx\n",
+			(long)LastXNode,key,(long)G->addr);
 	    G->jcount = NODELIFE(G);
 	    return G;
 	}
@@ -789,8 +780,9 @@ static void print_structure (avltr_tree *tree, TNode *node, int level)
  */
 void InvalidateTreePaged (unsigned char *addr, int len)
 {
+  IMeta *G0 = &InstrMeta[0];		// root of code buffer
   TNode *G = &CollectTree.root;
-  long al, ah;
+  long al, al2, ah, alG, ahG;
   hitimer_t t0;
 
   t0 = GETTSC();
@@ -804,16 +796,16 @@ void InvalidateTreePaged (unsigned char *addr, int len)
   al = (long)addr & ~(PAGE_SIZE-1);		/* base of mem page */
   ah = max((al+PAGE_SIZE),((long)addr+len));	/* end of dirty range */
   /* maybe a block can begin before al but extend beyond it - try to trap */
-  al = min(al,(long)addr-256);
+  al2 = min(al,(long)addr-256);
 
   /* find nearest (lesser than) node */
   G = G->link[0]; if (G == NULL) goto quit;
   for (;;) {
-      if (G->key > al) {
+      if (G->key > al2) {
 	if (G->link[0]==NULL) break;
 	G = G->link[0];
       }
-      else if (G->key < al) {
+      else if (G->key < al2) {
         TNode *G2;
 	if (G->rtag == MINUS) break;
 	G2 = G->link[1];
@@ -822,15 +814,44 @@ void InvalidateTreePaged (unsigned char *addr, int len)
       else break;
   }
 
+  /* Check currently executing node too, as the fault could come from it.
+   * If the fault hits an address between the start of the sequence and
+   * the end of the memory page, declare the sequence invalid (so it
+   * will not go into the tree) and disable optimizations.
+   * The chosen range is only an empirical guess, since it is much more
+   * probable to have instructions changed at the bottom or after the
+   * sequence than at the top (e.g. loaders).
+   */
+  alG = (long)G0->npc;
+  if (alG) {
+    ahG = (long)(G0->npc+G0->cklen);
+    if (((long)addr >= alG) && (ahG < ah)) {
+	InstrMeta[0].ncount = 0;	/* invalidate it */
+	JumpOpt = 0;
+	/* Set a point to reenable jump compiling. As soon as we
+	 * compile a new sequence whose address is greater than
+	 * JmpOptLim, we go back to the default. This also is an
+	 * empirical rule, which can and will fail. */
+	e_printf("Disabled Jump Optimizations before %08lx\n",ahG);
+	JumpOptLim = max(0x1000,ahG);
+	/* Try to stop any running code. Raising a signal this way
+	 * exits any backward jump, but has no other effect */
+	e_signal_pending |= 2;
+	e_printf("Invalidated Meta buffer %08lx..%08lx\n",
+		(long)G0->npc,(long)(G0->npc+G0->cklen));
+    }
+  }
+
   /* walk tree in ascending, hopefully sorted, address order */
   for (;;) {
       if (G == &CollectTree.root) break;
       if (G->key > ah) break;
 
       if (G->addr && (G->jcount>0)) {
-	if ((G->key+G->cklen) > al) {
+	if ((G->key+G->cklen) > al2) {
 	  e_printf("Invalidated node %08lx at %08lx\n",(long)G,G->key);
-	  /* do not free the code block, as we can be executing from it */
+	  /* do not free the code block yet, as maybe we are executing
+	   * from it */
 	  G->jcount = 0;
 	  NodesCleaned++;
 	}
@@ -892,13 +913,11 @@ IMeta *NewIMeta(unsigned char *npc, int	mode, int *rc, void *aux)
 				G0->flags,G->len);
 			GCPrint(cp, G->len);
 		}
-#ifdef OPTIMIZE_FW_JUMPS
-		if (G->flags&F_FJMP) {
+		if ((JumpOpt&2) && (G->flags&F_FJMP)) {
 			G->fwref = ForwIRef;
 			G->jtgt = aux;
 			ForwIRef = G;
 		}
-#endif
 		*rc = 1;
 		AddTime += (GETTSC() - t0);
 		return G;

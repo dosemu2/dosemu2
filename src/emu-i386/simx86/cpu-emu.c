@@ -68,7 +68,10 @@ static unsigned long sigEMUdelta = 0;
 static int last_emuretrace;
 
 /* This needs to be merged someday with 'mode' */
-int    CEmuStat = 0;
+int CEmuStat = 0;
+
+int JumpOpt = 3;	/* b0=back b1=fwd */
+unsigned long JumpOptLim = 0x1000;
 
 /* Another signal pending flag... this one is used by the compiled
  * back jumps to avoid looping forever */
@@ -752,7 +755,7 @@ static void e_gen_sigalrm(int sig, struct sigcontext_struct context)
 	 * the passed context is that of dosemu, NOT that of the
 	 * emulated CPU! */
 
-	e_signal_pending = 1;
+	e_signal_pending |= 1;
 	e_sigpa_count += sigEMUdelta;
 	if (!in_vm86 && !in_dpmi) {
 	    TheCPU.EMUtime = GETTSC();
@@ -801,6 +804,8 @@ void enter_cpu_emu(void)
 	e_printf("EMU86: turning emuretrace ON\n");
 	last_emuretrace = config.emuretrace;
 	config.emuretrace = 2;
+	JumpOpt = 3;
+	JumpOptLim = 0x1000;
 
 	e_printf("EMU86: switching SIGALRMs\n");
 	TheCPU.EMUtime = GETTSC();
@@ -851,9 +856,9 @@ void leave_cpu_emu(void)
 		GDT = NULL; IDT = NULL;
 		dbug_printf("======================= LEAVE CPU-EMU ===============\n");
 		dbug_printf("Total cpuemu time %16Ld us\n",TotalTime/config.CPUSpeedInMhz);
+		dbug_printf("Total exec   time %16Ld us\n",ExecTime/config.CPUSpeedInMhz);
 		dbug_printf("Total insert time %16Ld us\n",AddTime/config.CPUSpeedInMhz);
 		dbug_printf("Total search time %16Ld us\n",SearchTime/config.CPUSpeedInMhz);
-		dbug_printf("Total exec   time %16Ld us\n",ExecTime/config.CPUSpeedInMhz);
 		dbug_printf("Total clean  time %16Ld us\n",CleanupTime/config.CPUSpeedInMhz);
 		dbug_printf("Max tree nodes    %16d\n",MaxNodes);
 		dbug_printf("Max node size     %16d\n",MaxNodeSize);
@@ -1068,7 +1073,9 @@ int e_vm86(void)
 		struct sigcontext_struct scp;
 		Cpu2Scp (&scp, xval-1);
 		/* CALLBACK */
+		TotalTime += (GETTSC() - tt0);
 		dosemu_fault1(xval-1, &scp);
+		tt0 = GETTSC();
 		Scp2CpuR (&scp);
 		in_vm86 = 1;
 		retval = -1;	/* reenter vm86 emu */
@@ -1165,6 +1172,7 @@ int e_dpmi(struct sigcontext_struct *scp)
     E_TIME_STRETCH;
 
     if ((xval==EXCP_SIGNAL) || (xval==EXCP_PICSIGNAL) || (xval==EXCP_STISIGNAL)) {
+/**/ e_printf("DPMI retcode = %d\n",emu_dpmi_retcode);
 	if (emu_dpmi_retcode >= 0) {
 	    retval=emu_dpmi_retcode; emu_dpmi_retcode = -1;
 	}
@@ -1173,7 +1181,9 @@ int e_dpmi(struct sigcontext_struct *scp)
         retval = 0;
     }
     else {
+	TotalTime += (GETTSC() - tt0);
 	dpmi_fault(scp);
+	tt0 = GETTSC();
 	if (emu_dpmi_retcode >= 0) {
 		retval=emu_dpmi_retcode; emu_dpmi_retcode = -1;
 	}

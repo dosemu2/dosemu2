@@ -112,9 +112,9 @@ int SetSegreg(int mode, SDTR *sd, unsigned char *big, unsigned long csel)
 	    }
 	}
 	else {
-	    dt = GDT;
+	    dt = GDT;	/* GDT is not yet there */
 	    if ((dt == NULL) ||	((sel & 0xfff8) > TheCPU.GDTR.Limit)) {
-		dbug_printf("Invalid GDT selector %#lx\n", sel);
+		if (dt) e_printf("Invalid GDT selector %#lx\n", sel);
 		return EXCP0D_GPF;
 	    }
 	}

@@ -231,7 +231,7 @@ int ModRM(unsigned char *PC, int mode)
 }
 
 
-void ModGetReg1(unsigned char *PC, int mode)
+int ModGetReg1(unsigned char *PC, int mode)
 {
 	unsigned char mod,cab=Fetch(PC+1);
 
@@ -244,5 +244,15 @@ void ModGetReg1(unsigned char *PC, int mode)
 	}
 	else
 		REG1 = (mode&ADDR16? R1Tab_w[mod]:R1Tab_l[mod]);
+	mod = D_HO(cab);
+	if (mod==3) {
+		if (mode & MBYTE)
+			REG3 = R1Tab_b[cab&7];
+		else if (mode & ADDR16)
+			REG3 = R1Tab_w[cab&7];
+		else
+			REG3 = R1Tab_l[cab&7];
+	}
+	return mod;
 }
 

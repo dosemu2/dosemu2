@@ -92,7 +92,8 @@ static __inline__ void SetCPU_WL(int m, char o, unsigned long v)
 
 #define UNPREFIX(m)	((m)&~(DATA16|ADDR16))|(basemode&(DATA16|ADDR16))
 
-#define MAX_FWD_JUMP	256
+#define MIN_FWD_JUMP	(-120)
+#define MAX_FWD_JUMP	127
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -151,7 +152,7 @@ unsigned char *JumpGen(unsigned char *P2, int *mode, int cond,
 		dsp = pskip + (signed char)Fetch(P2+1);
 	else		// long branch (word/long)
 		dsp = pskip + (int)AddrFetchWL_S(*mode, P2+2);
-#if defined(OPTIMIZE_BACK_JUMPS) && !defined(SINGLESTEP)
+#if !defined(SINGLESTEP)
 	/*
 	 * There's a trick here. Suppose our program does
 	 *	label:	cmp location,value
@@ -166,7 +167,7 @@ unsigned char *JumpGen(unsigned char *P2, int *mode, int cond,
 	 *		ret
 	 *	ahead:	jcond label
 	 */
-	if ((dsp < 0) && IsCodeInBuf()) {
+	if ((JumpOpt&1) && (dsp < 0) && IsCodeInBuf()) {
 		IMeta *GHead = &InstrMeta[0];
 		unsigned char *hp = P2 + dsp;
 		if (LastIMeta && (hp >= GHead->npc)) {
@@ -194,9 +195,8 @@ unsigned char *JumpGen(unsigned char *P2, int *mode, int cond,
 			}
 		}
 	}
-#endif
-#if defined(OPTIMIZE_FW_JUMPS) && !defined(SINGLESTEP)
-	if ((dsp > 0) && (dsp<=MAX_FWD_JUMP) && IsCodeInBuf() && (cond<0x10)) {
+	if ((JumpOpt&2) && IsCodeInBuf()) {
+	    if ((dsp>MIN_FWD_JUMP) && (dsp<=MAX_FWD_JUMP) && (cond<0x10)) {
 		unsigned long hp;
 		hp = (long)P2 - LONG_CS + dsp;
 		if (*mode&ADDR16) hp &= 0xffff;
@@ -206,6 +206,7 @@ unsigned char *JumpGen(unsigned char *P2, int *mode, int cond,
 		Gen(JF_LOCAL, *mode, cond, hp);
 		*mode |= M_FJMP;
 		return P2 + pskip;
+	    }
 	}
 #endif
 jgreal:
@@ -824,24 +825,40 @@ override:
 			Gen(O_XCHG, mode, REG1);
 			break;
 /*88*/	case MOVbfrm:
-			PC += ModRM(PC, mode|MBYTE);	// mem=reg
-			GenL_REG_byte(mode|MBYTE, REG1);
-			GenS_DI_byte(mode|MBYTE);
+			if (ModGetReg1(PC, MBYTE)==3) {
+			    GenReg2Reg(REG1, REG3, MBYTE); PC+=2;
+			} else {
+			    PC += ModRM(PC, mode|MBYTE);	// mem=reg
+			    GenL_REG_byte(mode|MBYTE, REG1);
+			    GenS_DI_byte(mode|MBYTE);
+			}
 			break; 
 /*89*/	case MOVwfrm:
-			PC += ModRM(PC, mode);
-			GenL_REG_wl(mode, REG1);
-			GenS_DI_wl(mode);
+			if (ModGetReg1(PC, mode)==3) {
+			    GenReg2Reg(REG1, REG3, mode); PC+=2;
+			} else {
+			    PC += ModRM(PC, mode);
+			    GenL_REG_wl(mode, REG1);
+			    GenS_DI_wl(mode);
+			}
 			break; 
 /*8a*/	case MOVbtrm:
-			PC += ModRM(PC, mode|MBYTE);	// reg=mem
-			GenL_DI_R1_byte(mode|MBYTE);
-			GenS_REG_byte(mode|MBYTE, REG1);
+			if (ModGetReg1(PC, MBYTE)==3) {
+			    GenReg2Reg(REG3, REG1, MBYTE); PC+=2;
+			} else {
+			    PC += ModRM(PC, mode|MBYTE);	// reg=mem
+			    GenL_DI_R1_byte(mode|MBYTE);
+			    GenS_REG_byte(mode|MBYTE, REG1);
+			}
 			break; 
 /*8b*/	case MOVwtrm:
-			PC += ModRM(PC, mode);
-			GenL_DI_R1_wl(mode);
-			GenS_REG_wl(mode, REG1);
+			if (ModGetReg1(PC, mode)==3) {
+			    GenReg2Reg(REG3, REG1, mode); PC+=2;
+			} else {
+			    PC += ModRM(PC, mode);
+			    GenL_DI_R1_wl(mode);
+			    GenS_REG_wl(mode, REG1);
+			}
 			break; 
 /*8c*/	case MOVsrtrm:
 			PC += ModRM(PC, mode|SEGREG);
@@ -972,12 +989,13 @@ override:
 			INC_WL_PCA(mode,1);
 			break;
 
-/*a4*/	case MOVSb:
-			Gen(O_MOVS_SetA, mode|MBYTE);
-			Gen(O_MOVS_MovD, mode|MBYTE);
-			Gen(O_MOVS_SavA, mode|MBYTE);
-			PC++; break;
-/*a5*/	case MOVSw: {	int m = mode;
+/*a4*/	case MOVSb: {	int m = mode|(MBYTE|MOVSSRC|MOVSDST);
+			Gen(O_MOVS_SetA, m);
+			Gen(O_MOVS_MovD, m);
+			Gen(O_MOVS_SavA, m);
+			PC++;
+			} break;
+/*a5*/	case MOVSw: {	int m = mode|(MOVSSRC|MOVSDST);
 			Gen(O_MOVS_SetA, m);
 #if defined(OPTIMIZE_COMMON_SEQ) && !defined(SINGLESTEP)
 			/* optimize common sequence MOVSw..MOVSw..MOVSb */
@@ -995,27 +1013,25 @@ override:
 #endif
 			Gen(O_MOVS_SavA, m);
 			} break;
-/*a6*/	case CMPSb:
-			Gen(O_MOVS_SetA, mode|MBYTE);
-			GenL_REG_byte(mode|MBYTE, Ofs_AL);
-			Gen(O_MOVS_CmpD, mode|MBYTE);
-			Gen(O_MOVS_SavA, mode|MBYTE);
-			PC++; break;
-/*a7*/	case CMPSw:
-			Gen(O_MOVS_SetA, mode);
-			GenL_REG_wl(mode, SEL_WL(mode,Ofs_EAX));
-			Gen(O_MOVS_CmpD, mode);
-			Gen(O_MOVS_SavA, mode);
-			PC++; break;
-/*aa*/	case STOSb:
-			Gen(O_MOVS_SetA, mode|MBYTE);
-			GenL_REG_byte(mode|MBYTE, Ofs_AL);
-			Gen(O_MOVS_StoD, mode|MBYTE);
-			Gen(O_MOVS_SavA, mode|MBYTE);
-			PC++; break;
-/*ab*/	case STOSw: {	int m = mode;
+/*a6*/	case CMPSb: {	int m = mode|(MBYTE|MOVSSRC|MOVSDST);
 			Gen(O_MOVS_SetA, m);
-			GenL_REG_wl(mode, SEL_WL(m,Ofs_EAX));
+			Gen(O_MOVS_CmpD, m);
+			Gen(O_MOVS_SavA, m);
+			PC++; } break;
+/*a7*/	case CMPSw: {	int m = mode|(MOVSSRC|MOVSDST);
+			Gen(O_MOVS_SetA, m);
+			Gen(O_MOVS_CmpD, m);
+			Gen(O_MOVS_SavA, m);
+			PC++; } break;
+/*aa*/	case STOSb: {	int m = mode|(MBYTE|MOVSDST);
+			Gen(O_MOVS_SetA, m);
+			GenL_REG_byte(m, Ofs_AL);
+			Gen(O_MOVS_StoD, m);
+			Gen(O_MOVS_SavA, m);
+			PC++; } break;
+/*ab*/	case STOSw: {	int m = mode|MOVSDST;
+			Gen(O_MOVS_SetA, m);
+			GenL_REG_wl(m, SEL_WL(m,Ofs_EAX));
 #if defined(OPTIMIZE_COMMON_SEQ) && !defined(SINGLESTEP)
 			do {
 				Gen(O_MOVS_StoD, m);
@@ -1027,44 +1043,48 @@ override:
 #endif
 			Gen(O_MOVS_SavA, m);
 			} break;
-/*ac*/	case LODSb:
-			Gen(O_MOVS_SetA, mode|MBYTE);
-			Gen(O_MOVS_LodD, mode|MBYTE);
-			GenS_REG_byte(mode|MBYTE, Ofs_AL); PC++;
+/*ac*/	case LODSb: {	int m = mode|(MBYTE|MOVSSRC);
+			Gen(O_MOVS_SetA, m);
+			Gen(O_MOVS_LodD, m);
+			GenS_REG_byte(m, Ofs_AL); PC++;
 #if defined(OPTIMIZE_COMMON_SEQ) && !defined(SINGLESTEP)
 			/* optimize common sequence LODSb-STOSb */
 			if (Fetch(PC) == STOSb) {
-				Gen(O_MOVS_StoD, mode|MBYTE);
+				Gen(O_MOVS_SetA, (m&ADDR16)|MOVSDST);
+				Gen(O_MOVS_StoD, m);
+				m |= MOVSDST;
 				PC++;
 			}
 #endif
-			Gen(O_MOVS_SavA, mode|MBYTE);
-			break;
-/*ad*/	case LODSw:
-			Gen(O_MOVS_SetA, mode);
-			Gen(O_MOVS_LodD, mode);
-			GenS_REG_wl(mode, SEL_WL(mode,Ofs_EAX)); PC++;
+			Gen(O_MOVS_SavA, m);
+			} break;
+/*ad*/	case LODSw: {	int m = mode|MOVSSRC;
+			Gen(O_MOVS_SetA, m);
+			Gen(O_MOVS_LodD, m);
+			GenS_REG_wl(m, SEL_WL(m,Ofs_EAX)); PC++;
 #if defined(OPTIMIZE_COMMON_SEQ) && !defined(SINGLESTEP)
 			/* optimize common sequence LODSw-STOSw */
 			if (Fetch(PC) == STOSw) {
-				Gen(O_MOVS_StoD, mode);
+				Gen(O_MOVS_SetA, (m&ADDR16)|MOVSDST);
+				Gen(O_MOVS_StoD, m);
+				m |= MOVSDST;
 				PC++;
 			}
 #endif
-			Gen(O_MOVS_SavA, mode);
-			break;
-/*ae*/	case SCASb:
-			Gen(O_MOVS_SetA, mode|MBYTE);
-			GenL_REG_byte(mode|MBYTE, Ofs_AL);
-			Gen(O_MOVS_ScaD, mode|MBYTE);
-			Gen(O_MOVS_SavA, mode|MBYTE);
-			PC++; break;
-/*af*/	case SCASw:
-			Gen(O_MOVS_SetA, mode);
-			GenL_REG_wl(mode, SEL_WL(mode,Ofs_EAX));
-			Gen(O_MOVS_ScaD, mode);
-			Gen(O_MOVS_SavA, mode);
-			PC++; break;
+			Gen(O_MOVS_SavA, m);
+			} break;
+/*ae*/	case SCASb: {	int m = mode|(MBYTE|MOVSDST);
+			Gen(O_MOVS_SetA, m);
+			GenL_REG_byte(m, Ofs_AL);
+			Gen(O_MOVS_ScaD, m);
+			Gen(O_MOVS_SavA, m);
+			PC++; } break;
+/*af*/	case SCASw: {	int m = mode|MOVSDST;
+			Gen(O_MOVS_SetA, m);
+			GenL_REG_wl(m, SEL_WL(m,Ofs_EAX));
+			Gen(O_MOVS_ScaD, m);
+			Gen(O_MOVS_SavA, m);
+			PC++; } break;
 
 /*b0*/	case MOVial:
 /*b1*/	case MOVicl:
@@ -1421,50 +1441,52 @@ repag0:
 					CODE_FLUSH();
 					goto not_implemented;
 				case MOVSb:
-					repmod |= MBYTE;
+					repmod |= (MBYTE|MOVSSRC|MOVSDST);
 					Gen(O_MOVS_SetA, repmod);
 					Gen(O_MOVS_MovD, repmod);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case MOVSw:
+					repmod |= (MOVSSRC|MOVSDST);
 					Gen(O_MOVS_SetA, repmod);
 					Gen(O_MOVS_MovD, repmod);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case CMPSb:
-					repmod |= MBYTE;
+					repmod |= (MBYTE|MOVSSRC|MOVSDST);
 					Gen(O_MOVS_SetA, repmod);
-					GenL_REG_byte(repmod|MBYTE, Ofs_AL);
 					Gen(O_MOVS_CmpD, repmod);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case CMPSw:
+					repmod |= (MOVSSRC|MOVSDST);
 					Gen(O_MOVS_SetA, repmod);
-					GenL_REG_wl(repmod, SEL_WL(repmod,Ofs_EAX));
 					Gen(O_MOVS_CmpD, repmod);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case STOSb:
-					repmod |= MBYTE;
+					repmod |= (MBYTE|MOVSDST);
 					Gen(O_MOVS_SetA, repmod);
 					GenL_REG_byte(repmod|MBYTE, Ofs_AL);
 					Gen(O_MOVS_StoD, repmod);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case STOSw:
+					repmod |= MOVSDST;
 					Gen(O_MOVS_SetA, repmod);
 					GenL_REG_wl(repmod, SEL_WL(repmod,Ofs_EAX));
 					Gen(O_MOVS_StoD, repmod);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case SCASb:
-					repmod |= MBYTE;
+					repmod |= (MBYTE|MOVSDST);
 					Gen(O_MOVS_SetA, repmod);
 					GenL_REG_byte(repmod|MBYTE, Ofs_AL);
 					Gen(O_MOVS_ScaD, repmod);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case SCASw:
+					repmod |= MOVSDST;
 					Gen(O_MOVS_SetA, repmod);
 					GenL_REG_wl(repmod, SEL_WL(repmod,Ofs_EAX));
 					Gen(O_MOVS_ScaD, repmod);

@@ -229,6 +229,21 @@ _cf_0e:	if (TrapVgaOn) {
 	CodePtr = Cp; \
 })
 
+// move register to register
+#define GenReg2Reg(rs, rd, mode) \
+({ \
+	register unsigned char *Cp = CodePtr; \
+	if ((mode) & MBYTE) { \
+		G2(0x438a,Cp); G1((rs),Cp); \
+		G2(0x4388,Cp); G1((rd),Cp); \
+	} else { \
+		if ((mode) & DATA16) G1(OPERoverride,Cp); \
+		G2(0x438b,Cp); G1((rs),Cp); \
+		if ((mode) & DATA16) G1(OPERoverride,Cp); \
+		G2(0x4389,Cp); G1((rd),Cp); \
+	} CodePtr = Cp; \
+})
+
 
 /////////////////////////////////////////////////////////////////////////////
 

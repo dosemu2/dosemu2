@@ -112,28 +112,24 @@
 #define O_POP2		90
 #define O_POP3		91
 
-#define O_MOVS_SetA	92
-#define O_MOVS_MovD	93
-#define O_MOVS_SavA	94
-#define O_MOVS_LodD	95
-#define O_MOVS_StoD	96
-#define O_MOVS_ScaD	97
-#define O_MOVS_CmpD	98
-#define O_RDTSC		99
+#define O_MOVS_SetA	100
+#define O_MOVS_MovD	101
+#define O_MOVS_SavA	102
+#define O_MOVS_LodD	103
+#define O_MOVS_StoD	104
+#define O_MOVS_ScaD	105
+#define O_MOVS_CmpD	106
+#define O_RDTSC		107
 
-#define O_INPDX		100
-#define O_INPPC		101
-#define O_OUTPDX	102
-#define O_OUTPPC	103
+#define O_INPDX		108
+#define O_INPPC		109
+#define O_OUTPDX	110
+#define O_OUTPPC	111
 
-#ifdef OPTIMIZE_BACK_JUMPS
-#define JB_LOCAL	110
-#define JCXZ_LOCAL	111
-#define JLOOP_LOCAL	112
-#endif
-#ifdef OPTIMIZE_FW_JUMPS
-#define JF_LOCAL	113
-#endif
+#define JB_LOCAL	112
+#define JCXZ_LOCAL	113
+#define JLOOP_LOCAL	114
+#define JF_LOCAL	115
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -155,6 +151,8 @@
 #define NOFLDR	0x00000800
 #define XECFND	0x00001000
 #define MBYTX	0x00002000
+#define MOVSSRC	0x00004000
+#define MOVSDST	0x00008000
 
 #define DSPSTK	0x00080000
 

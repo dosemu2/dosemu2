@@ -1,3 +1,15 @@
+2000/10/15 ver. 1.1.0.5 unofficial pre-release
+	From Alberto
+	- cpuemu stuff: continued moving code generator sequences into macros,
+	  and making speed improvements to the code generator
+	- made jump optimizations dynamic in an attempt to solve some
+	  self-modifying code sequences (ndiags)
+	- currently compiled sequence, not yet in the tree, was not
+	  invalidated by write faults; fixed.
+	- compiled jumps out of sequences can now go also backwards
+	- added missing decode in vgaemu stuff (bgidemo)
+	From Hans
+	- fixed my own stupidness from 1.1.0.4 in base-configure :-(
 2000/10/14 ver. 1.1.0.4 unofficial pre-release
 	From Bart
 	- svgalib support, needs svgalib >= 1.2.4, for switching
