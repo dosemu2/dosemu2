@@ -8642,11 +8642,6 @@ fi
 
 
 
-cat >>confdefs.h <<\_ACEOF
-#define WANT_WINDOWS 1
-_ACEOF
-
-
 
 
 
@@ -8862,9 +8857,6 @@ CPPFLAGS="${CPPFLAGS} -MMD \${INCDIR}"
 
 
           ac_config_commands="$ac_config_commands Makefile"
-
-
-
 
 
 

@@ -313,9 +313,6 @@ EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MID
 /* Define the version string */
 #undef VERSTR
 
-/* DPMI test windows */
-#undef WANT_WINDOWS
-
 /* Define this to use the X86 CPU emulator */
 #undef X86_EMULATOR
 
