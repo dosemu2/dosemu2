@@ -813,90 +813,30 @@ mfs_helper(state_t *regs)
 }
 
 /* include a few necessary functions from dos_disk.c in the mach
-   code as well */
-static boolean_t
-extract_filename(char *filename, char *name, char *ext)
+   code as well. input: 8.3 filename, output name + ext
+   validity of filename was already checked by name_convert.
+*/
+static void extract_filename(const char *filename, char *name, char *ext)
 {
-  int pos;
-  int dec_found;
-  boolean_t invalid;
-  int end_pos;
-  int slen;
-  int flen;
+  char *dot_pos = strchr(filename, '.');
+  size_t slen;
 
-  pos = 1;
-  end_pos = 0;
-  dec_found = 0;
-  invalid = FALSE;
-  while ((pos < 13) && !invalid) {
-    char ch = filename[pos];
-
-    if (ch == 0) {
-      end_pos = pos - 1;
-      pos = 20;
-      continue;
-    }
-    if (dec_found) {
-      /* are there more than one .'s ? */
-      if (ch == '.') {
-	invalid = TRUE;
-	continue;
-      }
-      /* is extension > 3 long ? */
-      if (pos - dec_found > 3) {
-	invalid = TRUE;
-	continue;
-      }
-    }
-    else {
-      /* is filename > 8 long ? */
-      if ((pos > 7) && (ch != '.')) {
-	invalid = TRUE;
-	continue;
-      }
-    }
-	if (ch == '.')
-	{
-	  dec_found = pos;
-	}
-	else if (strchr("\"/\\[]:<>+=;,", ch) != NULL)
-	{
-	  invalid = TRUE;
-	}
-    pos++;
-  }
-  if (invalid)
-    return (FALSE);
-
-  if ((pos > 11) && (pos != 20))
-    return (FALSE);
-
-  if (dec_found == 0) {
-    slen = end_pos + 1;
-  }
-  else {
-    slen = dec_found;
-  }
-  strncpy(name, filename, slen);
-  if (slen < 8) {
-    if ((flen = 8 - slen) > 0)
-      strncpy((name + slen), "        ", flen);
+  if (dot_pos) {
+    slen = dot_pos - filename;
+  } else {
+    slen = strlen(filename);
   }
 
-  if (dec_found) {
-    if (end_pos) {
-      slen = end_pos - dec_found;
-    }
-    else {
-      slen = 3;
-    }
-    strncpy(ext, (filename + dec_found + 1), slen);
-    if (3 - slen > 0)
-      strncpy((ext + slen), "   ", 3 - slen);
+  memcpy(name, filename, slen);
+  memset(name + slen, ' ', 8 - slen);
+
+  slen = 0;
+  if (dot_pos) {
+    dot_pos++;
+    slen = strlen(dot_pos);
+    memcpy(ext, dot_pos, slen);
   }
-  else {
-    strncpy(ext, "   ", 3);
-  }
+  memset(ext + slen, ' ', 3 - slen);
 
 #ifndef HAVE_UNICODE_TRANSLATION
   for (pos = 0; pos < 8; pos++) {
@@ -913,8 +853,6 @@ extract_filename(char *filename, char *name, char *ext)
       ext[pos] = toupperDOS(ch);
   }
 #endif
-
-  return (TRUE);
 }
 
 static struct dir_list *make_dir_list(int n)
@@ -1025,8 +963,11 @@ static boolean_t convert_compare(char *d_name, char *fname, char *fext,
 {
   char tmpname[NAME_MAX + 1];
   size_t namlen;
+  boolean_t maybe_mangled;
 
-  if (!name_convert(tmpname,d_name,MANGLE,NULL))
+  maybe_mangled = (mname[5] == '~' || mname[5] == '?');
+
+  if (!name_convert(tmpname,d_name,maybe_mangled,NULL))
     return FALSE;
 
   namlen = strlen(tmpname);
@@ -1046,8 +987,7 @@ static boolean_t convert_compare(char *d_name, char *fname, char *fext,
       fname[1] = '.';
   }
   else {
-    if (!extract_filename(tmpname, fname, fext))
-      return FALSE;
+    extract_filename(tmpname, fname, fext);
     if (!compare(fname, fext, mname, mext))
       return FALSE;
   }
@@ -1105,8 +1045,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
     return (dir_list);
   }
   /* for efficiency we don't read everything if there are no wildcards */
-  else if (mname && !memchr(mname, '?', 8) && !memchr(mname, '*', 8) &&
-           !memchr(mext, '?', 3) && !memchr(mext, '*', 3))
+  else if (mname && !memchr(mname, '?', 8) && !memchr(mext, '?', 3))
   {
     dos83_to_ufs(buf, mname, mext);
     if (exists(name, buf, &sbuf, drive))
@@ -1175,10 +1114,8 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
  */
 void auspr(const char *filestring, char *name, char *ext)
 {
-  int pos = 0;
-  int dot_pos = 0;
-  int elen;
   const char *bs_pos;
+  char *star_pos;
 
   Debug1((dbg_fd, "auspr '%s'\n", filestring));
   bs_pos=strrchr(filestring, '\\');
@@ -1188,49 +1125,16 @@ void auspr(const char *filestring, char *name, char *ext)
     bs_pos++;
   filestring = bs_pos;
 
-  for (pos = 0;; pos++) {
-    if (filestring[pos] == '.') {
-      dot_pos = pos;
-      continue;
-    }
-    if (filestring[pos] == '\0')
-      break;
-  }
-
-  if (dot_pos > 0) {
-    memcpy(name, filestring, dot_pos);
-    if (8 - dot_pos > 0)
-      memset(name + dot_pos, ' ', 8 - dot_pos);
-    elen = pos - dot_pos - 1;
-    memcpy(ext, filestring + dot_pos + 1, elen);
-    if (3 - elen > 0)
-      memset(ext + elen, ' ', 3 - elen);
-  }
-  else {
-    memcpy(name, filestring, pos);
-    if (8 - pos > 0)
-      memset(name + pos, ' ', 8 - pos);
-    memset(ext, ' ', 3);
-  }
-
-#ifndef HAVE_UNICODE_TRANSLATION
-  for (pos = 0; pos < 8; pos++) {
-    char ch = name[pos];
-
-    if (isalphaDOS(ch) && islowerDOS(ch))
-      name[pos] = toupperDOS(ch);
-  }
-
-  for (pos = 0; pos < 3; pos++) {
-    char ch = ext[pos];
-
-    if (isalphaDOS(ch) && islowerDOS(ch))
-      ext[pos] = toupperDOS(ch);
-  }
-#endif
+  extract_filename(filestring, name, ext);
+  /* convert any * wildcards (from DRDOS 5.0) into ? */
+  star_pos = memchr(name, '*', 8);
+  if (star_pos)
+    memset(star_pos, '?', name + 8 - star_pos);
+  star_pos = memchr(ext, '*', 3);
+  if (star_pos)
+    memset(star_pos, '?', ext + 3 - star_pos);
 
   Debug0((dbg_fd,"auspr(%s,%.8s,%.3s)\n",filestring,name,ext));
-
 }
 
 static void
@@ -1985,17 +1889,6 @@ compare(char *fname, char *fext, char *mname, char *mext)
     if (mname[i] == '?') {
       continue;
     }
-    if (mname[i] == ' ') {
-      if (fname[i] == ' ') {
-	break;
-      }
-      else {
-	return (FALSE);
-      }
-    }
-    if (mname[i] == '*') {
-      break;
-    }
 #ifndef HAVE_UNICODE_TRANSLATION
     if (isalphaDOS(mname[i]) && isalphaDOS(fname[i])) {
       char x = isupperDOS(mname[i]) ?
@@ -2019,17 +1912,6 @@ compare(char *fname, char *fext, char *mname, char *mext)
   for (i = 0; i < 3; i++) {
     if (mext[i] == '?') {
       continue;
-    }
-    if (mext[i] == ' ') {
-      if (fext[i] == ' ') {
-	break;
-      }
-      else {
-	return (FALSE);
-      }
-    }
-    if (mext[i] == '*') {
-      break;
     }
 #ifndef HAVE_UNICODE_TRANSLATION
     if (isalphaDOS(mext[i]) && isalphaDOS(fext[i])) {
@@ -3882,9 +3764,7 @@ dos_fs_redirect(state_t *state)
     *bs_pos = '\0';
     /* for efficiency we don't read everything if there are no wildcards */
     if (!memchr(sdb_template_name(sdb), '?', 8) &&
-        !memchr(sdb_template_name(sdb), '*', 8) &&
-        !memchr(sdb_template_ext(sdb), '?', 3) &&
-        !memchr(sdb_template_ext(sdb), '*', 3)) {
+        !memchr(sdb_template_ext(sdb), '?', 3)) {
       hlist = get_dir(fpath, sdb_template_name(sdb),
                       sdb_template_ext(sdb), drive);
       bs_pos = NULL;
