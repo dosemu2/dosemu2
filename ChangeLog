@@ -1,3 +1,24 @@
+2001/11/04 ver. 1.1.2 released
+        From Hans
+	- get 'make dosbin' working
+	- "su -" for nobody and space fixes in dist/dosemu
+	- adjusted COPYING to the current maintainer situation
+	From Bart
+	- fix compiler warnings in src/emu.c, src/emu-i386/simx86/protmode.h,
+	  src/base/init/lexer.in
+	- fix for gcc-3.0 in base-configure.in; let the target_cpu decide which
+	  gcc options to use instead of the host_cpu
+	- removed restriction to have to run (suid)-root in serial.c for creating
+	  the lock file
+	From Stas
+	- remove emusys disabling for lredir'ed drives: at least DRDOS and FreeDOS
+	  already switch from fatfs to lredir before opening config.sys
+	- graciously terminate on unhandled bound exceptions (int5)
+	- prevent segfault when DOSEMU_OPTIONS is an empty
+	  string, but not NULL
+	- SIG_init() must be called *after* sighandler for SIGIO is set,
+	  or dosemu is killed by unhandled SIGIO on startup and you have to
+	  reboot your computer (emu.c, signal.c).
 2001/10/28 ver. 1.1.1.11 unofficial pre-release
 	From Jeff Beardsley <jeff.beardsley@fuellinks.com>
 	- changes to global.conf to allow com3/4 work on other the irq12

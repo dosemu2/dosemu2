@@ -627,7 +627,10 @@ static void restore_usedoptions(char *usedoptions)
     char *p = getenv("DOSEMU_OPTIONS");
     if (p) {
         memset(usedoptions,0,256);
-        do usedoptions[(unsigned char)*p] = *p; while (*++p);
+        while (*p) {
+	    usedoptions[(unsigned char)*p] = *p;
+	    p++;
+	}
     }
 }
 

@@ -1454,7 +1454,13 @@ static int can_revector_int21(int i)
 }
 
 static void int05(u_char i) {
-    g_printf("BOUNDS exception\n");
+    if( *SEG_ADR((Bit8u *), cs, ip) == 0x62 ) {	/* is this BOUND ? */
+	if(!IS_REDIRECTED(5)) {	/* avoid deadlock: eip is not advanced! */
+	    error("Unhandled BOUND exception!\n");
+	    leavedos(54);
+	}
+	g_printf("BOUND exception\n");
+    }
     default_interrupt(i);
     return;
 }

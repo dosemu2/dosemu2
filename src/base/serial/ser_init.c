@@ -119,7 +119,9 @@ static int tty_lock(char *path, int mode)
   pid_t ime;
   int cwrote;
 
-  /* Check that lockfiles can be created! */
+#if 0
+  /* you don't NEED to be root to create lock files! */
+  /* Check that lockfiles can be created! */  
   if((mode == 1 || mode == 2) && get_orig_euid() != (uid_t)0) {
     s_printf("DOSEMU: Need to be suid root to create Lock Files!\n"
 	     "        Serial port on %s not configured!\n", path);
@@ -127,6 +129,7 @@ static int tty_lock(char *path, int mode)
 	  "        Serial port on %s not configured!\n", path);
     return(-1);
   }
+#endif  
 
   bzero(dev_nam, sizeof(dev_nam));
   sprintf(saved_path, "%s/%s%s", config.tty_lockdir, config.tty_lockfile, 

@@ -635,11 +635,6 @@ void add_object(fatfs_t *f, unsigned parent, char *name)
     if (config.emusys) {
       snprintf(esys, 8+1+3+1,"config.%s", config.emusys);
       esys[12] =0;
-      /* If we have to fake config.sys, it will _only_ be here
-       * and we don't need it after the switch to the lredir'ed drive.
-       * Hence we disable config.emusys.
-       */
-      config.emusys = 0;
       exxx += 2;
     }
     if (config.emubat) {

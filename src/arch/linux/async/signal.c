@@ -108,6 +108,75 @@ dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
 #endif /* not __GLIBC__ */
 #endif /* __linux__ */
 
+/* Silly Interrupt Generator Initialization/Closedown */
+
+#ifdef SIG
+SillyG_t       *SillyG = 0;
+static SillyG_t SillyG_[16 + 1];
+#endif
+
+/*
+ * DANG_BEGIN_FUNCTION SIG_init
+ * 
+ * description: Allow DOSEMU to be made aware when a hard interrupt occurs
+ * The IRQ numbers to monitor are taken from config.sillyint, each bit
+ * corresponding to one IRQ. The higher 16 bit are defining the use of
+ * SIGIO
+ * 
+ * DANG_END_FUNCTION
+ */
+void SIG_init()
+{
+#if defined(SIG)
+    PRIV_SAVE_AREA
+    /* Get in touch with Silly Interrupt Handling */
+    if (config.sillyint) {
+	char            prio_table[] =
+	{8, 9, 10, 11, 12, 14, 15, 3, 4, 5, 6, 7};
+	int             i,
+	                irq;
+	SillyG_t       *sg = SillyG_;
+	for (i = 0; i < sizeof(prio_table); i++) {
+	    irq = prio_table[i];
+	    if (config.sillyint & (1 << irq)) {
+		int ret;
+		enter_priv_on();
+		ret = vm86_plus(VM86_REQUEST_IRQ, (SIGIO << 8) | irq);
+		leave_priv_setting();
+		if ( ret > 0) {
+		    g_printf("Gonna monitor the IRQ %d you requested\n", irq);
+		    sg->fd = -1;
+		    sg->irq = irq;
+		    g_printf("SIG: IRQ%d, enabling PIC-level %ld\n", irq, pic_irq_list[irq]);
+		    { extern int SillyG_do_irq(void);
+		    pic_seti(pic_irq_list[irq], SillyG_do_irq, 0);
+		    }
+		    pic_unmaski(pic_irq_list[irq]);
+		    sg++;
+		}
+	    }
+	}
+	sg->fd = 0;
+	if (sg != SillyG_)
+	    SillyG = SillyG_;
+    }
+#endif
+}
+
+void SIG_close()
+{
+#if defined(SIG)
+    if (SillyG) {
+	SillyG_t       *sg = SillyG;
+	while (sg->fd) {
+	    vm86_plus(VM86_FREE_IRQ, sg->irq);
+	    sg++;
+	}
+	g_printf("Closing all IRQ you opened!\n");
+    }
+#endif
+}
+
 /* DANG_BEGIN_FUNCTION signal_init
  *
  * description:
@@ -198,6 +267,8 @@ signal_init(void)
 */
   NEWSETQSIG(SIGIO, sigio);
   NEWSETSIG(SIGSEGV, dosemu_fault);
+
+  SIG_init();			/* silly int generator support */
 }
 
 /* 

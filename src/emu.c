@@ -216,77 +216,6 @@ boot(void)
     ignore_segv--;
 }
 
-/* Silly Interrupt Generator Initialization/Closedown */
-
-#ifdef SIG
-SillyG_t       *SillyG = 0;
-static SillyG_t SillyG_[16 + 1];
-#endif
-
-/*
- * DANG_BEGIN_FUNCTION SIG_int
- * 
- * description: Allow DOSEMU to be made aware when a hard interrupt occurs
- * The IRQ numbers to monitor are taken from config.sillyint, each bit
- * corresponding to one IRQ. The higher 16 bit are defining the use of
- * SIGIO
- * 
- * DANG_END_FUNCTION
- */
-static inline void 
-SIG_init()
-{
-#if defined(SIG)
-    PRIV_SAVE_AREA
-    /* Get in touch with Silly Interrupt Handling */
-    if (config.sillyint) {
-	char            prio_table[] =
-	{8, 9, 10, 11, 12, 14, 15, 3, 4, 5, 6, 7};
-	int             i,
-	                irq;
-	SillyG_t       *sg = SillyG_;
-	for (i = 0; i < sizeof(prio_table); i++) {
-	    irq = prio_table[i];
-	    if (config.sillyint & (1 << irq)) {
-		int ret;
-		enter_priv_on();
-		ret = vm86_plus(VM86_REQUEST_IRQ, (SIGIO << 8) | irq);
-		leave_priv_setting();
-		if ( ret > 0) {
-		    g_printf("Gonna monitor the IRQ %d you requested\n", irq);
-		    sg->fd = -1;
-		    sg->irq = irq;
-		    g_printf("SIG: IRQ%d, enabling PIC-level %ld\n", irq, pic_irq_list[irq]);
-		    { extern int SillyG_do_irq(void);
-		    pic_seti(pic_irq_list[irq], SillyG_do_irq, 0);
-		    }
-		    pic_unmaski(pic_irq_list[irq]);
-		    sg++;
-		}
-	    }
-	}
-	sg->fd = 0;
-	if (sg != SillyG_)
-	    SillyG = SillyG_;
-    }
-#endif
-}
-
-static inline void 
-SIG_close()
-{
-#if defined(SIG)
-    if (SillyG) {
-	SillyG_t       *sg = SillyG;
-	while (sg->fd) {
-	    vm86_plus(VM86_FREE_IRQ, sg->irq);
-	    sg++;
-	}
-	g_printf("Closing all IRQ you opened!\n");
-    }
-#endif
-}
-
 static inline void 
 vm86plus_init(void)
 {
@@ -312,7 +241,6 @@ static inline void
 module_init(void)
 {
     vm86plus_init();		/* emumodule support */
-    SIG_init();			/* silly int generator support */
     memcheck_init();		/* lower 1M memory map support */
 }
 
@@ -547,6 +475,7 @@ leavedos(int sig)
     struct sigaction sa;
     struct itimerval itv;
     extern int errno;
+    extern void SIG_close(); /* obsolete now; integrated into the kernel */
     extern void do_r3da_pending (void);	/* emuretrace stuff */
    
     if (leavedos_recurse_check)
@@ -617,6 +546,8 @@ leavedos(int sig)
 #if defined(X86_EMULATOR)
     /* if we are here with config.cpuemu>1 something went wrong... */
     if (config.cpuemu>1) {
+        extern void leave_cpu_emu(void);
+        
     	leave_cpu_emu();
     }
 #endif

@@ -547,19 +547,6 @@ fi
 rm -f dummy.o
 AC_DEFINE_UNQUOTED(GASCODE16, $GASCODE16)
 
-
-# -m486 is usually in the specs for the compiler
-case "$host_cpu" in
-  i[[456]]86)
-    OPT="$OPT -m486 -malign-loops=2 -malign-jumps=2 -malign-functions=2"
-    ;;
-  i386)
-    OPT="$OPT -m386"
-    ;;
-  *)
-    ;;
-esac
-
 OPT="$OPT -MD" # this should give painless dependencies
 
 # OPT=-fno-inline
@@ -608,6 +595,36 @@ if test "$GCC" = "yes" ; then
      echo "no"
   fi
   GCC_VERSION_CODE="-DGCC_VERSION_CODE=$GCC_VERSION_CODE"
+
+  # -m486 is usually in the specs for the compiler
+  # but gcc-3.0 wants -mcpu=i486 instead
+  # let the compiler options be dependent of the _target_
+  # where dosemu is compiled for, not the host
+  if test "$(( $GCC_VERSION_CODE >= 2095 ))" = "1"; then
+     case "$target_cpu" in
+       i386 | i486 | i586 | i686)
+          OPT="$OPT -mcpu=$target_cpu"
+          ;;
+       *)
+          ;;
+     esac
+  else
+     case "$target_cpu" in
+       i486)
+         OPT="$OPT -m486"
+         ;;
+       i386)
+         OPT="$OPT -m386"
+         ;;
+       *)
+         ;;
+     esac
+  fi
+  if test "$force_k7" = "yes"; then
+     OPT="$OPT -malign-functions=4 -fschedule-insns2 -fexpensive-optimizations"
+  elif test "$target_cpu" = "i486"; then
+     OPT="$OPT -malign-loops=2 -malign-jumps=2 -malign-functions=2"
+  fi
 
   echo -n "checking for glibc..."
   set `echo -e '#include <features.h>\nXXAaZZ __GLIBC__ XXBbZZ __GLIBC_MINOR__'|gcc -E -|awk '/XXAaZZ/ {print $2 " " $4}'`

@@ -6,6 +6,8 @@
 
 SHELL=/bin/bash
 
+export LD=$(CC)
+
 D=$(REALTOPDIR)/$(THISVERSION)/commands
 
 COM=$(D)/exitemu.com $(D)/vgaoff.com $(D)/vgaon.com $(D)/eject.com \

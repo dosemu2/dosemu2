@@ -353,8 +353,8 @@ if [ $UID = 0 ]; then
   # User is logged in as root. Need to check wether the config files
   # are safe and not world writeable
 
-  if ! su nobody -c "\
-	test -w $BOOT_DIR_PATH/conf && exit 1; \  
+  if ! su - nobody -c "\
+	test -w $BOOT_DIR_PATH/conf && exit 1; \
 	test -w $BOOT_DIR_PATH/conf/global.conf && exit 1; \
 	test -w $BOOT_DIR_PATH/conf/dosemu.conf && exit 1; \
 	test -w $BOOT_DIR_PATH/conf/dosemurc && exit 1; \

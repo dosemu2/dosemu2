@@ -18,8 +18,8 @@
 #endif
 
 #include <stdlib.h>
-#undef ECHO
 #include <termios.h>
+#undef ECHO
 #include <sys/types.h>
 #include <fcntl.h>
 #include <stdio.h>
