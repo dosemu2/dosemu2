@@ -11,9 +11,6 @@
 #include "utilities.h"
 #include "zalloc.h"
 
-/* hope this will be removed soon */
-#include "coop_compat.h"
-
 /* hope 2K is enough */
 #define LOWMEM_POOL_SIZE 0x800
 #define BUF_SIZE LOWMEM_POOL_SIZE
@@ -555,21 +552,11 @@ int commands_plugin_inte6(void)
 	char *args[MAX_ARGS + 1];
 	struct PSP *psp;
 	struct MCB *mcb;
-	struct coop_com_header *com_header;
 	struct com_program_entry *com;
 	int argc;
 
 	psp = COM_PSP_ADDR;
 	mcb = SEG2LINEAR(COM_PSP_SEG - 1);
-        com_header = (struct coop_com_header *)((char *)psp + 0x100);
-
-	if (HI(ax) == 0 && com_header->magic != COM_MAGIC)
-		return 0;
-
-	if ((HI(ax) != 0) ||
-            strcasecmp(mcb->name, "comcom") == 0 ||
-            strcmp((char *)psp + com_header->heapstart, ",,,comcom") == 0)
-                return coopthreads_plugin_inte6();
 
 	if (!(lowmem_pool = com_dosallocmem(LOWMEM_POOL_SIZE))) {
 		error("Unable to allocate memory pool\n");

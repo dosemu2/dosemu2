@@ -9,7 +9,7 @@ include $(top_builddir)/Makefile.conf
 
 
 CFILES=commands.c lredir.c xmode.c emumouse.c dosdbg.c msetenv.c \
-       unix.c cmdline.c comcom.c builtins.c
+       unix.c cmdline.c builtins.c
 
 SFILES=generic.S
 ALL=$(CFILES) $(SFILES)
@@ -27,7 +27,6 @@ STUBSYMLINK = $(D)/bootoff.com $(D)/booton.com $(D)/ecpuon.com $(D)/ecpuoff.com 
 
 #STUBL = $(D)/lredir.com $(D)/emumouse.com $(D)/xmode.com $(D)/dosdbg.com $(D)/unix.com
 STUBL =
-STUBM = $(D)/comcom.com
 #STUBFULL = $(D)/cmdline.com
 STUBFULL =
 
