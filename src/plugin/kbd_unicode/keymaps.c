@@ -4,6 +4,8 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
+#include "config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,7 +18,15 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#include "config.h"
+#ifdef X_SUPPORT
+#include <X11/X.h>
+#include <X11/Xlib.h>
+#include <X11/keysym.h>
+#ifdef HAVE_XKB
+#include <X11/XKBlib.h>
+#endif
+#endif
+
 #include "keymaps.h"
 #include "keyb_clients.h"
 #include "keynum.h"
@@ -1988,15 +1998,16 @@ CONST t_keysym num_table_comma[] = { '7', '8', '9', '-', '4', '5', '6', '+', '1'
 
 #define CT(X) (sizeof(X)/sizeof(X[0]))
 struct keytable_entry keytable_list[] = {
+  /* US must be first in the table, no other rules about order */
+  {"us", KEYB_US, 0, CT(key_map_us), CT(num_table_comma),
+    key_map_us, shift_map_us, alt_map_us,
+    num_table_dot, ctrl_map_us},
   {"finnish", KEYB_FINNISH, 0, CT(key_map_finnish), CT(num_table_comma),
     key_map_finnish, shift_map_finnish, alt_map_finnish,
     num_table_comma,},
   {"finnish-latin1", KEYB_FINNISH_LATIN1, 0, CT(key_map_finnish_latin1), CT(num_table_comma),
     key_map_finnish_latin1, shift_map_finnish_latin1, alt_map_finnish_latin1,
     num_table_comma,},
-  {"us", KEYB_US, 0, CT(key_map_us), CT(num_table_comma),
-    key_map_us, shift_map_us, alt_map_us,
-    num_table_dot, ctrl_map_us},
   {"uk", KEYB_UK, 0, CT(key_map_uk), CT(num_table_comma),
     key_map_uk, shift_map_uk, alt_map_uk,
     num_table_dot,},
@@ -2369,8 +2380,6 @@ static int read_kbd_table(struct keytable_entry *kt)
 	
 	fd = getfd();
 	if(fd < 0) {
-		error("Unable to open console to evaluate the keyboard map.\n"
-		      "Please specify your keyboard map explicitly via the $_layout option\n");
 		return 1;
 	}
 	
@@ -2419,10 +2428,10 @@ static int read_kbd_table(struct keytable_entry *kt)
 		if ((dosemu == NUM_TAB) && (kc == 0x09)) {
 			kc = U_VOID;
 		}
-		kt->key_map[dosemu]   = kp;
-		kt->shift_map[dosemu] = ks;
-		kt->alt_map[dosemu]   = ka;
-		kt->ctrl_map[dosemu]  = kc;
+		if (kp != U_VOID) kt->key_map[dosemu]   = kp;
+		if (ks != U_VOID) kt->shift_map[dosemu] = ks;
+		if (ka != U_VOID) kt->alt_map[dosemu]   = ka;
+		if (kc != U_VOID) kt->ctrl_map[dosemu]  = kc;
 #if 0
 		printf("%02x: ", dosemu);
 		printf("p: %04x->%-6s ", vp, pretty_keysym(kp));
@@ -2451,15 +2460,252 @@ static int read_kbd_table(struct keytable_entry *kt)
 }
 
 
+#ifdef X_SUPPORT
+static t_unicode keysym_to_unicode(t_unicode ch)
+{
+	struct char_set *keyb_charset;
+	unsigned char buff[1];
+	size_t result;
+	struct char_set_state keyb_state;
+
+	/* 0xef00 - 0xefff is a pass through range to the current
+	 * character set.
+	 */
+	if ((ch < 0xef00) || (ch > 0xefff))
+		return ch;
+
+	keyb_charset = trconfig.keyb_config_charset;
+	init_charset_state(&keyb_state, keyb_charset);
+	buff[0] = ch & 0xFF;
+	result = charset_to_unicode(&keyb_state, &ch, buff, 1);
+	cleanup_charset_state(&keyb_state);
+	return ch;
+}
+
+static t_keysym KEYBOARD_MapDeadKeysym(KeySym keysym)
+{
+        switch (keysym) {
+        /* symbolic ASCII is the same as defined in rfc1345 */
+#ifdef XK_dead_tilde
+	case XK_dead_tilde :
+#endif
+	case 0x1000FE7E : /* Xfree's XK_Dtilde */
+		return KEY_DEAD_TILDE;
+#ifdef XK_dead_acute
+	case XK_dead_acute :
+#endif
+	case 0x1000FE27 : /* Xfree's XK_Dacute_accent */
+		return KEY_DEAD_ACUTE;
+#ifdef XK_dead_circumflex
+	case XK_dead_circumflex:
+#endif
+	case 0x1000FE5E : /* Xfree's XK_Dcircumflex_accent */
+		return KEY_DEAD_CIRCUMFLEX;
+#ifdef XK_dead_grave
+	case XK_dead_grave :
+#endif
+	case 0x1000FE60 : /* Xfree's XK_Dgrave_accent */
+		return KEY_DEAD_GRAVE;
+#ifdef XK_dead_diaeresis
+	case XK_dead_diaeresis :
+#endif
+	case 0x1000FE22 : /* Xfree's XK_Ddiaeresis */
+	        return KEY_DEAD_DIAERESIS;
+#ifdef XK_dead_cedilla
+	case XK_dead_cedilla :
+	        return KEY_DEAD_CEDILLA;
+#endif
+#ifdef XK_dead_breve
+	case XK_dead_breve :
+	        return KEY_DEAD_BREVE;
+#endif
+#ifdef XK_dead_abovedot
+	case XK_dead_abovedot :
+	        return KEY_DEAD_ABOVEDOT;
+#endif
+#ifdef XK_dead_abovering
+	case XK_dead_abovering :
+	        return KEY_DEAD_ABOVERING;
+#endif
+#ifdef XK_dead_doubleacute
+	case XK_dead_doubleacute :
+	        return KEY_DEAD_DOUBLEACUTE;
+#endif
+#ifdef XK_dead_caron
+	case XK_dead_caron :
+	        return KEY_DEAD_CARON;
+#endif
+#ifdef XK_dead_ogonek
+	case XK_dead_ogonek :
+	        return KEY_DEAD_OGONEK;
+#endif
+	}
+        return 0;
+}
+
+/* This function is borrowed from Wine (LGPL'ed)
+   http://source.winehq.org/source/dlls/x11drv/keyboard.c
+   with adjustments to match dosemu
+
+   The idea is, if $_layout="auto", to match each keyboard map with
+   the X keymap and choose the one that matches best.
+
+   It is used when we can access display, not just for xdosemu,
+   but also in xterms. Remote users using terminals will have
+   to specify $_layout explicitly though.
+
+   The console map is just another map in this scheme that may
+   or may not be the best one.
+*/
+static int X11_DetectLayout (void)
+{
+  Display *display;
+  unsigned match, mismatch, seq, i, syms;
+  int score, keyc, key, pkey, ok;
+  KeySym keysym;
+  unsigned max_seq = 0;
+  int max_score = 0, ismatch = 0;
+  int min_keycode, max_keycode;
+  KeySym *ksp;
+  wchar_t ckey[4] = {0, 0, 0, 0};
+  t_keysym lkey[3] = {0, 0, 0};
+  char mbkey[MB_CUR_MAX];
+  int major_version, minor_version;
+  struct keytable_entry *kt;
+  int use_xkb;
+
+  char *display_name = config.X_display ? config.X_display : getenv("DISPLAY");
+  display = XOpenDisplay(display_name);
+  if (display == NULL) return 1;
+
+  XDisplayKeycodes(display, &min_keycode, &max_keycode);
+  ksp = XGetKeyboardMapping(display, min_keycode,
+                             max_keycode + 1 - min_keycode, &syms);
+  /* We are only interested in keysyms_per_keycode.
+     There is no need to hold a local copy of the keysyms table */
+  XFree(ksp);
+  if (syms > 4) {
+    k_printf("%d keysyms per keycode not supported, set to 4\n", syms);
+    syms = 4;
+  }
+
+  use_xkb = XkbLibraryVersion(&major_version, &minor_version);
+  for (kt = keytable_list; kt->name; kt++) {
+    k_printf("Attempting to match against \"%s\"\n", kt->name);
+    match = 0;
+    mismatch = 0;
+    score = 0;
+    seq = 0;
+    pkey = -1;
+    for (keyc = min_keycode; keyc <= max_keycode; keyc++) {
+      /* get data for keycode from X server */
+      for (i = 0; i < syms; i++) {
+        keysym = XKeycodeToKeysym (display, keyc, i);
+        /* Allow both one-byte and two-byte national keysyms */
+        if ((keysym < 0x8000) && (keysym != ' '))
+        {
+#ifdef HAVE_XKB
+            if (!use_xkb || !XkbTranslateKeySym(display, &keysym, 0, mbkey, MB_CUR_MAX, NULL))
+#endif
+            {
+                /* FIXME: query what keysym is used as Mode_switch, fill XKeyEvent
+                 * with appropriate ShiftMask and Mode_switch, use XLookupString
+                 * to get character in the local encoding.
+                 */
+                ckey[i] = keysym & 0xFF;
+            } else {
+	        mbtowc(&ckey[i], mbkey, MB_CUR_MAX);
+            }
+        }
+        else {
+          ckey[i] = KEYBOARD_MapDeadKeysym(keysym);
+        }
+	if (ckey[i] == 0) ckey[i] = U_VOID;
+      }
+      if (ckey[0] != U_VOID) {
+        /* search for a match in layout table */
+        /* right now, we just find an absolute match for defined positions */
+        /* (undefined positions are ignored, so if it's defined as "3#" in */
+        /* the table, it's okay that the X server has "3#£", for example) */
+        /* however, the score will be higher for longer matches */
+        for (key = 0; key < NUM_KEY_NUMS; key++) {
+	  lkey[0] = keysym_to_unicode(kt->key_map[key]);
+	  lkey[1] = keysym_to_unicode(kt->shift_map[key]);
+	  lkey[2] = keysym_to_unicode(kt->alt_map[key]);
+	  lkey[3] = U_VOID;
+          for (ok = 0, i = 0; (ok >= 0) && (i < syms); i++) {
+            if (lkey[i] != U_VOID && lkey[i] == ckey[i])
+              ok++;
+            if (lkey[i] != U_VOID && lkey[i] != ckey[i])
+              ok = -1;
+          }
+	  if (debug_level('k') > 5)
+	    k_printf("score %d for keycode %d, %x %x %x, "
+		     "got %lx %lx %lx %lx\n",
+		     ok, keyc, lkey[0], lkey[1], lkey[2], 
+		     ckey[0], ckey[1], ckey[2], ckey[3]);
+          if (ok > 0) {
+            score += ok;
+            break;
+          }
+        }
+        /* count the matches and mismatches */
+        if (ok > 0) {
+          match++;
+          /* and how much the keycode order matches */
+          if (key > pkey) seq++;
+          pkey = key;
+        } else {
+          /* print spaces instead of \0's */
+          for (i = 0; i < sizeof(ckey); i++) if (!ckey[i]) ckey[i] = ' ';
+          mismatch++;
+          score -= syms;
+        }
+      }
+    }
+    k_printf("matches=%d, mismatches=%d, seq=%d, score=%d\n",
+           match, mismatch, seq, score);
+    if (score > max_score ||
+       (score == max_score && seq > max_seq) ||
+       (score == max_score && seq == max_seq && kt->keyboard == KEYB_AUTO)) {
+      /* best match so far */
+      config.keytable = kt;
+      max_score = score;
+      max_seq = seq;
+      ismatch = !mismatch;
+    }
+  }
+  /* we're done, report results if necessary */
+  if (!ismatch)
+    k_printf("Using closest match (%s) for scan/virtual codes mapping.\n",
+	   config.keytable->name);
+
+  c_printf("CONF: detected layout is \"%s\"\n", config.keytable->name);
+  XCloseDisplay(display);
+  for (kt = keytable_list; kt->name; kt++) {
+    if (kt->keyboard == config.keytable->keyboard &&
+	(kt->flags & KT_ALTERNATE)) {
+      c_printf("CONF: Alternate keyboard-layout %s\n", kt->name);
+      config.altkeytable = kt;
+      break;
+    }
+  }
+  return 0;
+}
+#endif
+
 /*
  * Read the console keyboard description and try to build
  * a DOSEMU compatible map from it.
  *
  * NOTE: If you use X you might get the *wrong* mapping
  * (e.g. on remote machines)... :-)
+ * 
+ * we now compare this map and all the keymaps above
+ * with the X keymap (if X is available) and chose the
+ * best one.
  */
-
-int setup_default_keytable()
+void setup_default_keytable()
 {
   static char *dt_name = "auto";
   static t_keysym 
@@ -2477,7 +2723,7 @@ int setup_default_keytable()
 
   k_printf("KBD: setup_default_keytable: setting up table %d\n", idx);
 
-  kt = keytable_list + idx;
+  config.keytable = kt = keytable_list + idx;
 
   kt->name = dt_name;
   kt->keyboard = KEYB_AUTO;
@@ -2511,10 +2757,18 @@ int setup_default_keytable()
   /* Now copy parameters for the linux kernel keymap */
   if(read_kbd_table(kt)) {
     k_printf("setup_default_keytable: failed\n");
-    return -1;
+    kt->name = NULL;
   }
 
-  return KEYB_AUTO;
+#ifdef X_SUPPORT
+  idx = X11_DetectLayout();
+#else
+  idx = 1;
+#endif
+  if (idx && kt->name == NULL) {
+    error("Unable to open console or check with X to evaluate the keyboard "
+	  "map.\nPlease specify your keyboard map explicitly via the "
+	  "$_layout option\n");
+    config.keytable = keytable_list; /* US must be first */
+  }
 }
-
-

@@ -2015,8 +2015,9 @@ void keyb_layout(int layout)
 {
   struct keytable_entry *kt = keytable_list;
   if (layout == -1) {
-    layout = setup_default_keytable();
-    if(layout < 0) layout = KEYB_US;
+    /* auto: do it later */
+    config.keytable = NULL;
+    return;
   }
   while (kt->name) {
     if (kt->keyboard == layout) {

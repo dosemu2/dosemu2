@@ -2303,6 +2303,8 @@ int keyb_server_reset(void)
 int keyb_server_init(void) 
 {
 	k_printf("KBD: keyb_server_init()\n");
+	if (!config.keytable)
+		setup_default_keytable();
 	keyb_init_state();
 	return 1;
 }
