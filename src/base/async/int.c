@@ -620,13 +620,7 @@ static int int15(void)
     switch (LO(ax))
     {
       case 0x00: {		/* giveup timeslice */
-        static int trigger = 0;
-        if (config.hogthreshold && CAN_SLEEP()) {
-          if (trigger++ >= (config.hogthreshold - 1) * 100) {
-            usleep(INT15_IDLE_USECS);
-	    trigger = 0;
-	  }
-        }
+        idle(0, 100, INT15_IDLE_USECS, "topview");
         break;
       }
     }
@@ -1220,13 +1214,7 @@ static int int21(void)
 #endif
 
   case 0x2C: {                   /* get time & date */
-      static int trigger = 0;
-      if (config.hogthreshold && CAN_SLEEP()) {
-        if (trigger++ >= (config.hogthreshold - 1) * 100) {
-          usleep(INT2F_IDLE_USECS);
-	  trigger = 0;
-	}
-      }
+      idle(2, 100, INT2F_IDLE_USECS, "dos_time");
       return 0;
     }
 
@@ -1660,15 +1648,7 @@ static void dos_post_boot(void)
 /* KEYBOARD BUSY LOOP */
 static int int28(void) {
   dos_post_boot();
-  if (config.hogthreshold && CAN_SLEEP()) {
-    /* the hogthreshold value just got redefined to be the 'garrot' value */
-    static int time_count = 0;
-    if (++time_count >= config.hogthreshold * 50) {
-      usleep(INT28_IDLE_USECS);
-      time_count = 0;
-    }
-  }
-
+  idle(0, 50, INT28_IDLE_USECS, "int28");
   return 0;
 }
 
@@ -1681,6 +1661,7 @@ static int int29(void) {
 
 static int int2f(void)
 {
+  reset_idle();
 #if 1
   ds_printf("INT2F at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
        LWORD(cs), LWORD(eip),
@@ -1688,13 +1669,7 @@ static int int2f(void)
 #endif
   switch (LWORD(eax)) {
     case INT2F_IDLE_MAGIC: {  /* magic "give up time slice" value */
-      static int trigger = 0;
-      if (config.hogthreshold && CAN_SLEEP()) {
-        if (trigger++ >= config.hogthreshold * 100) {
-          usleep(INT2F_IDLE_USECS);
-	  trigger = 0;
-	}
-      }
+      idle(0, 100, INT2F_IDLE_USECS, "int2f_idle_magic");
       LWORD(eax) = 0;
       return 1;
     }
@@ -1851,7 +1826,7 @@ static int int33(void) {
  * garrot control when the dos app is polling the mouse and the mouse is 
  * taking a break. */
   
-  static unsigned short int oldx=0, oldy=0, trigger=0, trigger1=0;
+  static unsigned short int oldx=0, oldy=0;
    
 /* Firstly do the actual mouse function. */   
 /* N.B. This code only works with the intdrv since default_interrupt() does not
@@ -1878,9 +1853,9 @@ static int int33(void) {
  */
    if (LWORD(eax) ==0x0003)  {
      if (LWORD(ebx) == 0 && oldx == LWORD(ecx) && oldy == LWORD(edx) ) 
-        trigger1++;
+        trigger_idle();
       else  { 
-        trigger1=0;
+        reset_idle();
         oldx = LWORD(ecx);
         oldy = LWORD(edx);
       } 
@@ -1888,15 +1863,7 @@ static int int33(void) {
 m_printf("Called/ing the mouse with AX=%x \n",LWORD(eax));
 /* Ok now we test to see if the mouse has been taking a break and we can let the 
  * system get on with some real work. :-) */
-   if (trigger1 >= config.hogthreshold*200) {
-     if (config.hogthreshold && CAN_SLEEP() &&
-        trigger++ > (config.hogthreshold - 1) * 20)  {
-       m_printf("Ignoring the quiet mouse.\n");
-       usleep(INT15_IDLE_USECS);
-       trigger=0;
-     }
-     trigger1--;
-   }
+  idle(200, 20, INT15_IDLE_USECS, "mouse");
   return ret;
 }
 
