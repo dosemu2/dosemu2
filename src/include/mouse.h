@@ -141,6 +141,7 @@ struct mouse_struct {
     unsigned short pkg;
   } ps2;
 };
+extern volatile struct mouse_struct mouse;
 
 struct mouse_client {
   const char *name;

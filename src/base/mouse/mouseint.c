@@ -461,6 +461,8 @@ static void raw_mouse_getevent(void)
           sizeof(rBuf)-qEnd));
 	if (nBytes>0)
 	  qEnd += nBytes;
+	if (!mouse.enabled)
+	  return;
 	if (qBeg < qEnd) {
 	  m_printf("MOUSE: Read %d bytes. %d bytes in queue\n",
 	    nBytes>0 ? nBytes : 0, qEnd-qBeg);

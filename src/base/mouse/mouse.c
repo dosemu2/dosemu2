@@ -105,7 +105,7 @@ static int sent_mouse_esc = FALSE;
 
 static mouse_t *mice = &config.mouse;
 /* the 'volatile' is there to cover some bug in gcc -O -g3 */
-static volatile struct mouse_struct mouse;
+volatile struct mouse_struct mouse;
 
 static inline int mouse_roundx(int x) 
 { 
@@ -1040,8 +1040,6 @@ static void mouse_reset(int flag)
   memcpy((void *)mouse.graphcursormask,default_graphcursormask,32);
   mouse.hotx = mouse.hoty = -1;
 
-  mouse.enabled = TRUE;
-
   mouse_do_cur();
 }
 
@@ -1879,9 +1877,13 @@ dosemu_mouse_init(void)
   	mouse.threebuttons = FALSE;
 
   mice->fd = -1;
+  /* Set to disabled, will be enabled in post_boot() */
+  mouse.enabled = FALSE;
 
   mice->init_speed_x = 8;
   mice->init_speed_y = 16;
+  mouse.speed_x = mice->init_speed_x;
+  mouse.speed_y = mice->init_speed_y;
 
   mouse_client_init();
 
