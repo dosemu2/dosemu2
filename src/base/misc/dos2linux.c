@@ -149,7 +149,7 @@ static int fork_debug(void)
  * 2/9/1995, Erik Mouw (j.a.k.mouw@et.tudelft.nl):
  *  - initial version
  * 3/10/1995, Erik Mouw (j.a.k.mouw@et.tudelft.nl):
- *  - fixed securety hole
+ *  - fixed security hole
  *  - stderr output also to dosemu screen
  * 2/27/1997, Alberto Vignani (vignani@torino.alpcom.it):
  *  - make it work (tested with 'ls -lR /' and 'updatedb &')

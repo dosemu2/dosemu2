@@ -1,3 +1,6 @@
+#ifndef MEMINFO_H
+#define MEMINFO_H
+
 struct meminfo {
   int meminfofd;
   int total;
@@ -15,3 +18,5 @@ struct meminfo {
 };
 
 struct meminfo *readMeminfo(void);
+
+#endif

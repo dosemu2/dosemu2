@@ -112,14 +112,14 @@ static int old_dos_terminate(struct sigcontext_struct *scp)
 		(Segments[i].limit > parent_off))
 		break;
 	if (i>=MAX_SELECTORS) {
-	    error("DPMI: WARNNING !!! unvalid termninate address found in PSP\n");
+	    error("DPMI: WARNING !!! invalid terminate address found in PSP\n");
 	    return 1;
 	} else
 	    _cs = (i << 3)|7;
 	_eip = parent_off;
 #endif	
 	/* set parent\'s PSP to itself, so dos won\'t free memory */
-	/* I believe winkernel put the selector of parent psp there */
+	/* I believe winkernel puts the selector of parent psp there */
 	PARENT_PSP = *(unsigned short *)((char *)(CURRENT_PSP<<4) + 0x16);
 	*(unsigned short *)((char *)(CURRENT_PSP<<4) + 0x16) = CURRENT_PSP;
 	
@@ -1598,7 +1598,7 @@ static int msdos_fault(struct sigcontext_struct *scp)
 	    }
 	    break;
 	case 0x3e:		/* ds: */
-	default:		/* assmue default is using ds, but if the */
+	default:		/* assume default is using ds, but if the */
 				/* client sets ss to 0, it is totally broken */
 	    if (_ds == 0) {
 		D_printf("DPMI: client tries to use use gdt 0 as ds\n");

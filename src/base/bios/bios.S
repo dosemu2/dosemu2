@@ -30,8 +30,7 @@
 #include "keyb_server.h"
 #endif
 
-
-/* some other usefull definitions */
+/* some other useful definitions */
 
 #define DOSHELPER_INT 0xe6
 
@@ -162,10 +161,11 @@ irqnum	set	irqnum+1
 /* ----------------------------------------------------------------- */
 	/* this is the mouse handler */
 	.org	((Mouse_SEG - BIOSSEG) << 4) + Mouse_OFF
+/* ======================= Addr = F000:20F0 (F20F0) */
    
 	/* 
 	mouse routine simulates the stack frame of an int, then does a 
-	"pushad" before here...so we just "popad; iret" to get back out
+	"pusha" before here...so we just "popa; iret" to get back out
 	*/
 
 	call	far [mouse_handler]
@@ -192,6 +192,7 @@ mouse_handler:
 	 * So, this is only to be taken as template or example !
 	 */
 	.org	((PKTDRV_SEG - BIOSSEG) << 4) + PKTDRV_OFF
+/* ======================= Addr = F000:3100 (F3100) */
 
 #define PKTDRV_VECTOR 0x60
 
@@ -257,11 +258,10 @@ PKTDRV_nothing:
 	.org ((PKTDRV_SEG - BIOSSEG) << 4) + PKTDRV_OFF+0x1c4  /* 0x62c4 */
 PKTDRV_buf:
 
-
 /* ----------------------------------------------------------------- */
 
-
 	.org	((DBGload_SEG - BIOSSEG) << 4) + DBGload_OFF
+/* ======================= Addr = F000:7F80 (F7F80) */
 /* we come here after we have intercepted INT21 AX=4B00
  * in order to get a breakpoint for the debugger
  * (wanting to debug a program from it's very beginning)
@@ -303,6 +303,7 @@ CISH(DBGload_CSIP):	dd	0
 
 	/* XMS has it's handler just after the interrupt dummy segment */
 	.org	((XMSControl_SEG - BIOSSEG) << 4) + XMSControl_OFF
+/* ======================= Addr = F800:0000 (F8000) */
 	jmp	(*+2+3)	/* jmp short forward 3 */
 	nop
 	nop
@@ -313,6 +314,7 @@ CISH(DBGload_CSIP):	dd	0
 
 /* ----------------------------------------------------------------- */
 	.org	((Banner_SEG - BIOSSEG) << 4) + Banner_OFF
+/* ======================= Addr = F800:2000 (FA000) */
 
 	mov	al,#5
 	int	DOSHELPER_INT
@@ -326,6 +328,7 @@ CISH(bios_f000_bootdrive):
 /* ----------------------------------------------------------------- */
 
 	.org	((INT16_SEG-BIOSSEG) << 4)+INT16_OFF
+/* ======================= Addr = F800:3000 (FB000) */
 
 	.globl	CISH(INT16_dummy_start)
 CISH(INT16_dummy_start):			/* KEYBOARD BIOS ROUTINE        */
@@ -536,7 +539,7 @@ L2:	cli				/* READ KEYBOARD		*/
 	push	ax			/* buffer empty - 		*/
 	mov     al,#0x16		/* ask dosemu for another key	*/
 	sti
-	int     0xe6			/* sti with return to dosemu code */
+	int     DOSHELPER_INT		/* sti with return to dosemu code */
 	pop	ax
 	jmp     L2			/* got another key, go try again*/
 L3:
@@ -556,7 +559,7 @@ L3:
 
 L4:	push	ax			/* RETURN KEYBOARD STATUS	*/
 	movb    al,#0x16		/* anti hogging code	*/
-	int     0xe6			/* call delay routine 	*/
+	int     DOSHELPER_INT		/* call delay routine 	*/
 	pop	ax
 
 	cli
@@ -606,6 +609,7 @@ CISH(INT16_dummy_end):
 
 /* ----------------------------------------------------------------- */
 	.org	((IPX_SEG - BIOSSEG) << 4) + IPX_OFF
+/* ======================= Addr = F800:3100 (FB100) */
 ipx_handler:
 	push	ax	/* FarCallHandler removes this before returning */
 	mov	al,#0x7a
@@ -655,6 +659,7 @@ CISH(bios_IPX_PopRegistersIRet):
 	.org	((INT08_SEG-BIOSSEG) << 4)+INT08_OFF
 
 	.globl	CISH(INT08_dummy_start)
+/* ======================= Addr = F800:4000 (FC000) */
 CISH(INT08_dummy_start):		/* TIMER INTERRUPT ROUTINE	*/
 
 #if 0
@@ -667,7 +672,7 @@ CISH(INT08_dummy_start):		/* TIMER INTERRUPT ROUTINE	*/
  */
 	push	ds
 	push	ax
-	xor	ax, ax			/* set bx to segment 0		*/
+	xor	ax, ax			/* set ax to segment 0		*/
         mov	ds,ax
 	inc	dword ptr [BIOS_TIMER]
 	cmp	word ptr [BIOS_TIMER+2],#24 /* 24 hour check */
@@ -694,7 +699,14 @@ CISH(INT08_L2):
 CISH(INT08_dummy_end):
 
 /* ----------------------------------------------------------------- */   
+/* This is for video init only - it calls in order:
+   - first helper function (int0xe6,al=8)
+   - the video BIOS init entry point at C000:3 or E000:3
+   - second helper function (int 0xe6,al=9)
+   It is called from memory_init() [init.c] -> init_vga_card() [vga.c]
+ */
 	.org	((INT10_SEG-BIOSSEG) << 4)+INT10_OFF
+/* ======================= Addr = F800:4200 (FC200) */
 	push	ax
 	sti
 	mov	al,#8		/*  Start Video init */
@@ -716,6 +728,7 @@ CISH(bios_f000_int10ptr):
 /* Comments and bugs to David Etherton, etherton@netcom.com */
 
 	.org	((INT10_SEG-BIOSSEG) << 4)+INT10_WATCHER_OFF
+/* ======================= Addr = F800:4240 (FC240) */
 	or	ah,ah
 	jz	L9	/* normal mode set */
 	cmp	ax,#0x4F02
@@ -751,6 +764,7 @@ CISH(bios_f000_int10_old):
 /* ----------------------------------------------------------------- */   
 		/* This is an int e7 used for FCB opens */
 	.org	((INTE7_SEG-BIOSSEG) << 4)+INTE7_OFF
+/* ======================= Addr = F800:4500 (FC500) */
 	push	es
 	push	di
 	push	ax
@@ -766,13 +780,14 @@ CISH(bios_f000_int10_old):
 /* It uses one byte.  see sigsegv.c */
 	.org	((PIC_SEG-BIOSSEG) << 4)+PIC_OFF
 
+/* ======================= Addr = F800:47F0 (FC7F0) */
 	.globl	CISH(PIC_dummy_start)
 CISH(PIC_dummy_start):
 	hlt
 
 /* ----------------------------------------------------------------- */   
 	.org	((DPMI_SEG-BIOSSEG) << 4)+DPMI_OFF
-
+/* ======================= Addr = F800:4800 (FC800) */
 	.globl	CISH(DPMI_dummy_start)
 CISH(DPMI_dummy_start):
 	push	bx
@@ -780,63 +795,80 @@ CISH(DPMI_dummy_start):
 	mov	ah,#0x62
 	int	0x21			/* Get PSP */
 	pop	ax
+/* ======================= Addr = F800:4807 (FC807) */
 	.globl	CISH(DPMI_dpmi_init)
 CISH(DPMI_dpmi_init):
 	hlt
 	pop	bx
 	retf
+/* ======================= Addr = F800:480A (FC80A) */
 	.globl	CISH(DPMI_return_from_dos)
 CISH(DPMI_return_from_dos):
 	hlt
+/* ======================= Addr = F800:480B (FC80B) */
 	.globl	CISH(DPMI_return_from_dos_exec)
 CISH(DPMI_return_from_dos_exec):
 	hlt
+/* ======================= Addr = F800:480C (FC80C+intno) */
 	.globl	CISH(DPMI_return_from_dosint)
 CISH(DPMI_return_from_dosint):
 	FILL_OPCODE(256,hlt)
+/* ======================= Addr = F800:490C (FC90C) */
 	.globl	CISH(DPMI_return_from_realmode)
 CISH(DPMI_return_from_realmode):
 	hlt
+/* ======================= Addr = F800:490D (FC90D) */
 	.globl	CISH(DPMI_return_from_dos_memory)
 CISH(DPMI_return_from_dos_memory):
 	hlt
+/* ======================= Addr = F800:490E (FC90E+n_callback) */
 	.globl   CISH(DPMI_realmode_callback)
 CISH(DPMI_realmode_callback):
 	FILL_OPCODE(0x10,hlt)
+/* ======================= Addr = F800:491E (FC91E) */
 	.globl	CISH(DPMI_mouse_callback)
 CISH(DPMI_mouse_callback):
 	hlt
 	retf
+/* ======================= Addr = F800:4920 (FC920) */
 	.globl	CISH(DPMI_raw_mode_switch)
 CISH(DPMI_raw_mode_switch):
 	hlt
+/* ======================= Addr = F800:4921 (FC921) */
 	.globl	CISH(DPMI_save_restore)
 CISH(DPMI_save_restore):
 	hlt
 	retf
+/* ======================= Addr = F800:4923 (FC923) */
 	.globl	CISH(DPMI_API_extension)
 CISH(DPMI_API_extension):
 	hlt
 	retf
+/* ======================= Addr = F800:4925 (FC925) */
 	.globl	CISH(DPMI_return_from_pm)
 CISH(DPMI_return_from_pm):
 	hlt
+/* ======================= Addr = F800:4926 (FC926) */
 	.globl	CISH(DPMI_return_from_exception)
 CISH(DPMI_return_from_exception):
 	hlt
+/* ======================= Addr = F800:4927 (FC927) */
 	.globl	CISH(DPMI_return_from_rm_callback)
 CISH(DPMI_return_from_rm_callback):
 	hlt
+/* ======================= Addr = F800:4928 (FC928) */
 	.globl	CISH(DPMI_return_from_mouse_callback)
 CISH(DPMI_return_from_mouse_callback):
 	hlt
+/* ======================= Addr = F800:4929 (FC929+except) */
 	.globl	CISH(DPMI_exception)
 CISH(DPMI_exception):
 	FILL_OPCODE(32,hlt)
+/* ======================= Addr = F800:4949 (FC949+intno) */
 	.globl	CISH(DPMI_interrupt)
 CISH(DPMI_interrupt):
 	FILL_OPCODE(256,hlt)
-
+/* ======================= Addr = F800:4A49 (FCA49) */
 	.globl	CISH(DPMI_dummy_end)
 CISH(DPMI_dummy_end):
 
@@ -844,6 +876,7 @@ CISH(DPMI_dummy_end):
 /* ----------------------------------------------------------------- */   
 	.org	ROM_CONFIG_OFF /* for int15 */
 
+/* ======================= Addr = E6F5 */
 	/* from Alan Cox's mods */
 	/* we need somewhere for the bios equipment. */
 	dw	9	/* 9 byte table */
@@ -871,7 +904,10 @@ CISH(DPMI_dummy_end):
 /* get the RAW scancode (used only for int15,4f) */
 	in	al,0x60
 	
-	mov	al,ah
+/*ERIC	* src/base/bios/bios.S (INT09_dummy_start): 
+	removed spurious 'mov al,ah' between in al,0x60 and mov ah,#0x4f
+	it was trashing the value read and would serve no useful purpose.
+*/
 	mov	ah,#0x4f
 	stc
 	int	#0x15
@@ -886,7 +922,7 @@ CISH(DPMI_dummy_end):
         /* get the pre-translated bios key. */
 	
 	mov	al,#7
-	int	0xe6			/* call get_bios_key helper       */
+	int	DOSHELPER_INT		/* call get_bios_key helper       */
 					/* returns ax=keycode or 0,       */
 					/* also copies new shift state to */
 					/* seg 0x40                       */
@@ -968,7 +1004,7 @@ CISH(INT09_dummy_start):		/* KEYBOARD INTERRUPT ROUTINE	*/
 	mov	ah,al			/* move char to ah		*/
 	mov	al,#6			/* dosemu helper func 6		*/
 
-	int	0xe6			/* call dos helper		*/
+	int	DOSHELPER_INT		/* call dos helper		*/
 	mov    	al,#0x20
 	out     0x20,al			/* tell pic we're done 		*/
 	pop	cx			/* restore registers		*/

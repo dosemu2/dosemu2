@@ -1541,7 +1541,7 @@ void dma_init(void)
 
   is_dma = 0;
 
-  h_printf ("DMA: DMA Controller initialiased - 8 & 16 bit modes\n");
+  h_printf ("DMA: DMA Controller initialized - 8 & 16 bit modes\n");
 }
   
 

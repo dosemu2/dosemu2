@@ -1,8 +1,8 @@
-#ifndef _EMU_TYPES_H
-#define _EMU_TYPES_H
+#ifndef EMU_TYPES_H
+#define EMU_TYPES_H
 
 #include <sys/types.h>
-#ifdef __LINUX__
+#ifdef __linux__
 #include <asm/types.h>
 #endif
 
@@ -47,4 +47,4 @@ typedef long               Bit32s;  /* type of 32 bit signed quantity */
 typedef unsigned long long Bit64u;  /* type of 64 bit unsigned quantity */
 typedef          long long Bit64s;  /* type of 64 bit signed quantity */
 
-#endif /* _EMU_TYPES_H */
+#endif /* EMU_TYPES_H */

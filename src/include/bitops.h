@@ -90,8 +90,9 @@ pic0_to_emu(char flags)
      * c, but it would be messier, and might get clobbered by optimization
      */
 
-    /* move bits xxxx xxxx 7654 3210 to 7654 3ooo oooo 210o             */
+    /* move bits xxxx xxxx 7654 3210 to 7654 3222 2222 210o             */
     /* where 76543210 are original 8 bits, x = don't care, and o = zero */
+    /* bit 2 (cascade int) is used to mask/unmask pic1 (Larry)          */
 
     long            result;
     __asm__         __volatile__("movzbl %1,%0\n\t

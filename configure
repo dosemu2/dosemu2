@@ -3260,7 +3260,7 @@ XLIBSW="$XLIBSWD $XLIBSWL"
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
 SUBLEVEL="67"
-PATCHLEVEL="1.0"
+PATCHLEVEL="1.1"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`
@@ -3494,7 +3494,7 @@ fi
 # it with a comment line (such as: XINCLUDES="# no special path needed")
 # We need to fix this, because this is a time bomb. --HL
 
-INCDIR="-I${SRCPATH}/include -I${SRCPATH}/base/dev/pic -I${SRCPATH}/dosext/dpmi ${SLANGINC} ${XINCLUDES}"
+INCDIR="-I${SRCPATH}/include -I${SRCPATH}/dosext/dpmi ${SLANGINC} ${XINCLUDES}"
 
 
 if test "$dodebug" = "yes"; then

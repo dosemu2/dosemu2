@@ -368,7 +368,7 @@ int main(int argc, char *argv[])
   switch(p_type) {
   case P_TYPE_12BIT: memmove(&buffer[54], "FAT12   ", 8); break;
   case P_TYPE_16BIT: memmove(&buffer[54], "FAT16   ", 8); break;
-  default: fprintf(stderr, "Unknown FAT type %d\n",p_type); exit(1);
+  default: fprintf(stderr, "Unknown FAT type %ld\n",p_type); exit(1);
   }
   put_word(&buffer[510], 0xaa55);
   write_buffer();

@@ -237,7 +237,7 @@ dosstatic:	$(DOSSTATICFILES) ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
 x2dos: x2dos.o
 	@echo "Including x2dos.o "
 	$(CC) $(LDFLAGS) \
-	  -o $@ $< -L$(X11LIBDIR) -lXaw -lXt -lX11
+	  -o $@ $< -L$(X11LIBDIR) -lXt -lX11
 
 ../etc/xtermdos:	../etc/xtermdos.sh
 	@echo "#!/bin/sh" > ../etc/xtermdos

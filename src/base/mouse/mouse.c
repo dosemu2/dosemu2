@@ -710,8 +710,13 @@ mouse_setcurspeed(void)
   }
 }
 
-
-static void
+/*
+ * Note that under X X_setmode() is called instead. The two setmodes are
+ * indipendent, and this does not help very much :(
+ * Moreover, Win31 does not reset the mouse in the normal way, and
+ * the only clue we have is the video mode (0x62 and 0x06 for 1024x768)
+ */
+void
 mouse_reset_to_current_video_mode(void)
 {
   /* Setup MAX / MIN co-ordinates */
@@ -722,6 +727,13 @@ mouse_reset_to_current_video_mode(void)
   * in text mode, then we return pixel resolution and assume graphic mode.
   */
   get_current_video_mode();
+
+  /* 
+   * Actually what happens is: if a Text mode is found, height and width
+   * are in characters, else they are in pixels. This was clearly done to
+   * confuse people. Besides, they ignore the ACTUAL maxx,maxy values as
+   * stored in the BIOS variables.
+   */
 
   if (current_video.textgraph == 'T') {
     mouse.gfx_cursor = FALSE;

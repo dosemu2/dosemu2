@@ -225,7 +225,7 @@ void hardware_setup(void)
   /* DMA Init */
   /* dma_init(); - Currently in dev_list */
 
-  g_printf("PIC,mouse,IPX,DMA initialized\n");
+  g_printf("PIC,mouse,IPX initialized\n");
 }
 
 /*
@@ -419,7 +419,7 @@ void memory_init(void)
 #if 0
   if( first_call == 0) {
 #ifdef __linux__
-    /* make interrupts vector read-write */
+    /* make interrupt vectors read-write */
     mprotect((void *)(BIOSSEG<<4), 0x1000, PROT_WRITE|PROT_READ|PROT_EXEC);
     /* make memory area 0xf8000 to 0xfffff read write */
     mprotect((void *)(ROMBIOSSEG<<4), 0x8000, PROT_WRITE|PROT_READ|PROT_EXEC);

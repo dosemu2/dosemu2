@@ -22,7 +22,7 @@ usage(void)
   fprintf(stderr, "mkhdimage [-h <heads>] [-s <sectors>] [-c|-t <cylinders>]\n");
 }
 
-void
+int
 main(int argc, char **argv)
 {
   int c;
@@ -69,4 +69,5 @@ w_tmp; })
     fprintf(stderr, "Pos now is %d\n", pos);
   }
 
+  return 0;
 }

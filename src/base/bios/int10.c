@@ -882,6 +882,10 @@ void int10()
     }
     break;
     
+  case 0xcc:			/* called from NC 5.0 */
+    _CX = 0; _AL = 0xff;
+    break;
+
   case 0xfe:			/* get shadow buffer..return unchanged */
   case 0xff:			/* update shadow buffer...do nothing */
     break;

@@ -65,7 +65,7 @@ enum cirrusChipTable {
 		port_out(tmp | (m), 0x3cf); \
 	}
 
-/* We use a seperate banking routine with 16K granularity for some accel. */
+/* We use a separate banking routine with 16K granularity for some accel. */
 /* functions. Knows about different bank granularity for 2Mb cards. */
 
 #define setwritebank(n) \

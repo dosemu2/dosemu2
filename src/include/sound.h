@@ -1,3 +1,5 @@
+#ifndef EMU_SOUND_H
+#define EMU_SOUND_H
 /*
  ***************************************************************************
  *                                   Sound.h                               *
@@ -229,3 +231,5 @@ extern void MPU_driver_reset (void);
 extern int SB_driver_init (void);
 extern int FM_driver_init (void);
 extern int MPU_driver_init (void);
+
+#endif		/* EMU_SOUND_H */

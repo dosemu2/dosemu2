@@ -1,3 +1,14 @@
+97/05/05 ver. 0.67.1.1 unofficial pre-release
+	From Alberto
+	- fixes for typos
+	- some comments added
+	- cleaned extra dependencies in makefile, removed pic include dir
+	- very small bug fixes:
+	  - exception 16 feed to IRQ13, src/arch/linux/async/sigsegv.c
+	  - usleep for hogthreshold changed to INT28_IDLE_USECS
+	  - added INT10 AH=CC (for NC 5.0) in src/base/bios/int10.c
+	-From Eric
+	  fixed trashing AL in src/base/bios/bios.S (INT09_dummy_start)
 97/05/03 ver. 0.67.1 released
 	From Steffen
 	- cool new X-stuff:

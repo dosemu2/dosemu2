@@ -717,7 +717,7 @@ static inline boolean_t
 remap_page(physical_page)
      int physical_page;
 {
-  E_printf("EMS: remaping physical page 0x%01x\n", physical_page);
+  E_printf("EMS: remapping physical page 0x%01x\n", physical_page);
 
   return __map_page(physical_page);
 }

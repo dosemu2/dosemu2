@@ -1,3 +1,6 @@
+#ifndef PIC_H
+#define PIC_H
+
 /* Priority Interrupt Controller Emulation 
    Copyright (C) 1994, J. Lawrence Stephan  jlarry@ssnet.com 
 
@@ -24,7 +27,7 @@
   
 */
    
-/* Valuse from 16 - 31 are available for assignment if not already 
+/* Values from 16 - 31 are available for assignment if not already 
  * assigned below.  They can be used to activate dos interrupts not
  * associated to the hardware pic controllers, or simply to activate
  * other dosemu code.  This is best used to initiate non-signal dosemu
@@ -32,8 +35,6 @@
  */
 
 
-#ifndef PIC
-#define PIC
 #include "extern.h"
 #define NEVER 0x80000000
 #define PIC_NMI   0        /*  non-maskable interrupt 0x02 */
@@ -127,10 +128,11 @@ void pic_sched(int ilevel, int interval);          /* schedule an interrupt */
 #define pic_set_mask pic_imr=(pic0_imr|pic1_imr|pice_imr|pic_iflag)
 #define pic_sti() pic_iflag=0;pic_set_mask          /*    emulate STI      */
 #define pic_cli() pic_iflag=PIC_IRQALL;pic_set_mask /*    emulate CLI      */
-#endif
 
 /* Experimental TIMER-IRQ CHAIN code */
 extern void timer_int_engine(void);
 
 extern void pic_reset(void);
 extern void pic_init(void);
+
+#endif	/* PIC_H */

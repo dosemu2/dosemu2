@@ -49,7 +49,7 @@ int priv_drop(void);
       broke this 'holy law' myself was when printing the log, showing both
       values (the _real_ and the cashed on).
 
-   4. In case of dosemu was startet out of a root login, we skip 
+   4. In case dosemu was started out of a root login, we skip 
       _all_ priv-settings. There is a new variable 'under_root_login'
       which is only set when dosemu is started from a root login.
 

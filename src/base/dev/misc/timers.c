@@ -11,7 +11,8 @@
  * A lot of animation and video game software are dependant on this module
  * for high frequency timer interrupts (IRQ0).
  *
- * This code will actually generate 18.2 interrupts/second.  It will even
+ * This code will actually generate 18.2 DOS interrupts/second (the code
+ * here itself will be triggered about 100 times per second). It will even
  * happily attempt to generate faster clocks, right up to the point where
  * it chokes.  Since the absolute best case timing we can get out of Linux
  * is 100Hz, figure that anything approaching or exceeding that isn't going
@@ -404,6 +405,26 @@ void pit_control_outp(Bit32u port, Bit8u val)
   i_printf("PORT: outp(0x43, 0x%x)\n",val);
 #endif
 
+  /* Timer commands (00-BF):
+   *  bit 6-7 = Timer (0,1,2)
+   *		3 is not a timer but a special read-back command
+   *
+   *    bit 4-5 = command 00=latch 01=LSB mode 10=MSB mode 11=16bit mode
+   *    bit 1-3 = mode selection
+   *                    mode 0(000) 1(001) 2(010 or 110) 3(011 or 111)
+   *                         4(100) 5(101)
+   *			6(110) and 7(111) undefined?
+   *    bit 0   = binary(0), BCD(1)
+   *
+   *  0xh	counter latch timer 0
+   *  1xh	timer 0 LSB mode
+   *			modes: 0,2,3,4 - 1,5 not applicable
+   *  2xh	timer 0 MSB mode
+   *			modes: 0,2,3,4 - 1,5 not applicable
+   *  3xh	timer 0 16bit mode
+   *			modes: 0,2,4 - 3 typical - 1,5 not applicable
+   *  modes 1,5 applicable only to timer 2 [van Gilluwe,1994]
+   */
   switch (latch) {
     case 2:
       if (config.speaker == SPKR_NATIVE) {

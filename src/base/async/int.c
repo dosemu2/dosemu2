@@ -304,9 +304,9 @@ static int dos_helper(void)
     /* Many video BIOSes use hi interrupt vector locations as
      * scratchpad area - this is because they come before DOS and feel
      * safe to do it. But we are initializing vectors before video, so
-     * this will cause trouble. I assume no video BIOS will ever:
+     * this only causes trouble. I assume no video BIOS will ever:
      * - change vectors < 0xe0 (0:380-0:3ff area)
-     * - change anything in the vector area _after_ installation
+     * - change anything in the vector area _after_ installation - AV
      */
     v_printf("Save hi vector area\n");
     MEMCPY_2UNIX(save_hi_ints,0x380,128);
@@ -323,6 +323,7 @@ static int dos_helper(void)
     }
     v_printf("Restore hi vector area\n");
     MEMCPY_2DOS(0x380,save_hi_ints,128);
+    /* The video BIOS just wrote its entry point into the int0x10 vector */
     if (mice->intdrv) { /* grab int10 back from video card for mouse */
         void bios_f000(), bios_f000_int10_old();
         us *ptr = (us*)((BIOSSEG << 4) +
@@ -988,7 +989,7 @@ run_int(int i)
   /* clear TF (trap flag, singlestep), VIF/IF (interrupt flag), and
    * NT (nested task) bits of EFLAGS
    * NOTE: IF-flag only, because we are not sure that we will test it in
-   *       some of our own software (...we all are human beeings)
+   *       some of our own software (...we all are human beings)
    *       For vm86() 'VIF' is the candidate to reset in order to do CLI !
    */
   WRITE_FLAGSE(READ_FLAGSE() & ~(VIF | TF | IF | NT));
@@ -1174,7 +1175,7 @@ static void int28(u_char i) {
     /* the hogthreshold value just got redefined to be the 'garrot' value */
     static int time_count = 0;
     if (++time_count >= config.hogthreshold) {
-      usleep(INT2F_IDLE_USECS);
+      usleep(INT28_IDLE_USECS);
       time_count = 0;
     }
   }
@@ -1324,7 +1325,7 @@ static void int33(u_char i) {
 /* It seems that the only mouse sub-function that could be plausibly used to 
  * poll the mouse is AX=3 - get mouse buttons and position. 
  * The mouse driver should have left AX=3 unaltered during its call.
- * The correct responce should have the buttons in the low 3 bits in BX and 
+ * The correct response should have the buttons in the low 3 bits in BX and 
  * x,y in CX,DX. 
  * Some programs seem to interleave calls to read mouse with various other 
  * sub-functions (Esp. 0x0b  0x05 and 0x06)

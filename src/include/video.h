@@ -16,12 +16,12 @@ extern void scr_state_init(void);
 #define VIDEO_CHECK_DIRTY 0
 
 /* if you set this to 1, then you will be able to use your MDA + monitor
-   as second display. This currently is possibe together with
+   as second display. This currently is possible together with
    Video_term, Video_console and Video_graphics.
    You also must set the keyword "dualmon" in the video section
    of your /etc/dosemu.conf.
    With dualmonitor support you can run CAD-programs, debuggers, or
-   simple change your PC-console with "mode mono"
+   simply change your PC-console with "mode mono"
    NOTE: 
      Currently this can't be used together with VIDEO_CHECK_DIRTY,
      because the kernel (vm86.c) would remap all video pages

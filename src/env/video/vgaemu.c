@@ -389,15 +389,15 @@ unsigned char VGA_emulate_inb(int port)
  * DANG_BEGIN_FUNCTION vga_emu_fault(struct sigcontext_struct *scp)        
  *
  * description:
- *  vga_emu_fault() is used to catch video acces, and handle it.
+ *  vga_emu_fault() is used to catch video access, and handle it.
  *  This function is called from dosemu/sigsegv.c:dosemu_fault()
  *  The sigcontext_struct is defined in include/cpu.h
  *  Now it catches only changes in a 4K page, but maybe it is useful to
- *  catch each video acces. The problem when you do that is, you have to 
- *  simulate each intruction which could write to the video-memory.
- *  it is easy to get the place where the exeption happens (scp->cr2),
+ *  catch each video access. The problem when you do that is, you have to 
+ *  simulate each instruction which could write to the video-memory.
+ *  it is easy to get the place where the exception happens (scp->cr2),
  *  but what are those changes?
- *  An other problem is, it could eat a lot time, but it does now also.
+ *  An other problem is, it could eat a lot of time, but it does now also.
  *  
  * DANG_END_FUNCTION                        
  */     
@@ -565,10 +565,9 @@ unsigned char* vga_emu_init(void)
  * DANG_BEGIN_FUNCTION int vgaemu_get_changes_in_pages
  *
  * description:
- *  vgaemu_get_changes_in_pages() is vgaemu_get_changes() is used 
- *  to get the changed 4K pages .
+ *  vgaemu_get_changes_in_pages() is used to get the changed 4K pages.
  *  This function is only called from video/vgaemu.c .
- *  It has to called several times to make sure grabbing all the changed
+ *  It has to be called several times to make sure we grab all the changed
  *  pages.
  *
  * should be updated for other video modes than 0x13
@@ -843,7 +842,7 @@ int vgaemu_get_changes_and_update_XImage_0x13(unsigned char **base, unsigned lon
  *  This function isn't called anywhere, but has to be used, with
  *  other videomodes.
  *  This function just remaps his 'own' memory into the 0xA000-0xB0000
- *  area and returns True on succes and False on error.
+ *  area and returns True on success and False on error.
  *
  *  At the moment just a stupid function, but it is a start.
  *  Jou must be sure, you've got all changes before you switch a bank!

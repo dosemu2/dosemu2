@@ -207,6 +207,14 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 	   
 	case MOUSE_MOUSEMAN:	    /* MouseMan / TrackMan   [CHRIS-211092] */
 	case MOUSE_MICROSOFT:       /* Microsoft */
+	/*
+	 * the damned MouseMan has 3/4 bytes packets. The extra byte 
+	 * is only there if the middle button is active.
+	 * I get the extra byte as a packet with magic numbers in it.
+	 * and then switch to 4-byte mode (A.Rubini in gpm-1.10)
+	 * Don't complain if you use this code with hi-res timers - AV
+	 */
+	   /* chordMiddle is always 0! see config.c */
 	   if (mice->chordMiddle)
 	      buttons = ((pBuf[0] & 0x30) == 0x30) ? 2 : 
 	      (((pBuf[0] & 0x20) >> 3) | ((pBuf[0] & 0x10) >> 4));

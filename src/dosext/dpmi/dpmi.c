@@ -522,6 +522,49 @@ unsigned long inline client_esp(struct sigcontext_struct *scp)
 	
 
 #ifdef DIRECT_DPMI_CONTEXT_SWITCH
+/* --------------------------------------------------------------
+ *-15	context->gs, __gsh	copied, then popped
+ *-14	context->fs, __fsh
+ *-13	context->es, __esh
+ *-12	context->ds, __dsh
+ *-11	context->edi
+ *-10	context->esi
+ *-09	context->ebp
+ *-08	context->esp
+ *-07	context->ebx
+ *-06	context->edx
+ *-05	context->ecx
+ *-04	context->eax
+ *-03	p->eflags
+ *-02	p->esp
+ *-01	p->ss
+ * --------------------------------------------------------------
+ * 00	unsigned short gs, __gsh;	00 -88 -> emu_stack_frame
+ * 01	unsigned short fs, __fsh;	04 -84
+ * 02	unsigned short es, __esh;	08 -80
+ * 03	unsigned short ds, __dsh;	12 -76
+ * 04	unsigned long edi;		16 -72
+ * 05	unsigned long esi;		20 -68
+ * 06	unsigned long ebp;		24 -64
+ * 07	unsigned long esp;		28 -60 (+40)
+ * 08	unsigned long ebx;		32 -56
+ * 09	unsigned long edx;		36 -52
+ * 10	unsigned long ecx;		40 -48
+ * 11	unsigned long eax;		44 -44
+ *
+ * 12	unsigned long trapno;		48 -40
+ * 13	unsigned long err;		52 -36
+ * 14	unsigned long eip;		56 -32
+ * 15	unsigned short cs, __csh;	60 -28
+ * 16	unsigned long eflags;		64 -24
+ *
+ * 17	unsigned long esp_at_signal;	68 -20
+ * 18	unsigned short ss, __ssh;	72 -16
+ * 19	struct _fpstate * fpstate;	76 -12
+ * 20	unsigned long oldmask;		80 -08
+ * 21	unsigned long cr2;		84 -04
+ * --------------------------------------------------------------
+ */
 static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
 {
   register int ret;
@@ -1318,6 +1361,12 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	pushw(rm_ssp, rm_sp, LWORD(eflags));
 	REG(eflags) &= ~(IF|TF);
       }
+/* --------------------------------------------------- 0x300:
+     RM |  FC90C   |
+	| dpmi_seg |
+	|  flags   |
+	| cx words |
+   --------------------------------------------------- */
       pushw(rm_ssp, rm_sp, DPMI_SEG);
       pushw(rm_ssp, rm_sp, DPMI_OFF + HLT_OFF(DPMI_return_from_realmode));
       in_dpmi_dos_int=1;
@@ -1693,6 +1742,33 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 
 #ifdef DIRECT_DPMI_CONTEXT_SWITCH
 
+/* --------------------------------------------------------------
+ * 00	unsigned short gs, __gsh;	COPIED
+ * 01	unsigned short fs, __fsh;	COPIED
+ * 02	unsigned short es, __esh;	COPIED
+ * 03	unsigned short ds, __dsh;	COPIED
+ * 04	unsigned long edi;		COPIED
+ * 05	unsigned long esi;		COPIED
+ * 06	unsigned long ebp;		COPIED
+ * 07	unsigned long esp;		COPIED
+ * 08	unsigned long ebx;		COPIED
+ * 09	unsigned long edx;		COPIED
+ * 10	unsigned long ecx;		COPIED
+ * 11	unsigned long eax;		COPIED
+ *
+ * 12	unsigned long trapno;		NOT COPIED
+ * 13	unsigned long err;		NOT COPIED
+ * 14	unsigned long eip;		COPIED
+ * 15	unsigned short cs, __csh;	COPIED
+ * 16	unsigned long eflags;		COPIED
+ *
+ * 17	unsigned long esp_at_signal;	NOT COPIED
+ * 18	unsigned short ss, __ssh;	COPIED
+ * 19	struct _fpstate * fpstate;	NOT COPIED
+ * 20	unsigned long oldmask;		NOT COPIED
+ * 21	unsigned long cr2;		NOT COPIED
+ * -------------------------------------------------------------- */
+
 static inline void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *s)
 {
   memcpy(d, s, ((int)(&s->eax) - (int)(s))+ sizeof(s->eax));
@@ -1848,6 +1924,17 @@ void run_pm_int(int i)
     PMSTACK_ESP = client_esp(0);
   ssp = (us *) (GetSegmentBaseAddress(PMSTACK_SEL) +
 		(DPMIclient_is_32 ? PMSTACK_ESP : (PMSTACK_ESP&0xffff)));
+/* ---------------------------------------------------
+	| 000FC925 | <- ssp here, executes pm int
+	| dpmi_sel |
+	|  eflags  |
+	|   eip    | <- ssp at fc925 -> hlt, see line 2709
+	|    cs    |
+	|  eflags  |
+	|   esp    |
+	|    ss    |
+	| i_d_d_i  |
+   --------------------------------------------------- */
   if (DPMIclient_is_32) {
     *(--((unsigned long *) ssp)) = (unsigned long) in_dpmi_dos_int;
     *--ssp = (us) 0;
@@ -2244,7 +2331,7 @@ void dpmi_init()
 
   in_sigsegv--;
   for (; (!fatalerr && in_dpmi) ;) {
-    if (d.dpmi>6)
+    if (d.general>6)
 	D_printf("------ DPMI: dpmi loop ---------------------\n");
     run_dpmi();
     serial_run();
@@ -2425,10 +2512,9 @@ void dpmi_fault(struct sigcontext *scp, int code)
 
 #if 0
 /* 
- * If we have a 16-Bit stack segment the high word of
- * esp is not zero es expected. I don't know if this
- * is a bug of the linux kernel or the intel chip - I
- * guess the bug is due to intel :-))))))
+ * If we have a 16-Bit stack segment the high word of esp is not always
+ * zero as expected, but sometimes has the same bit pattern of (guess what?)
+ * the kernel stack. Could it really be an Intel bug?
  */
 if ((_ss & 7) == 7) {
   /* stack segment from ldt */
@@ -2632,6 +2718,17 @@ if ((_ss & 7) == 7) {
 
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_pm)) {
           D_printf("DPMI: Return from protected mode interrupt hander\n");
+/* ---------------------------------------------------
+	|(000FC925)|
+	|(dpmi_sel)|
+	|( eflags )|
+	|   eip    | <- ssp here
+	|    cs    |
+	|  eflags  |
+	|   esp    |
+	|    ss    |
+	| i_d_d_i  |
+   --------------------------------------------------- */
 	  if (DPMIclient_is_32) {
 	    PMSTACK_ESP = client_esp(scp) + 24;
 	    _eip = *(((unsigned long *) ssp)++);
@@ -3329,6 +3426,11 @@ done:
 	PMSTACK_ESP = client_esp(0);
     ssp = (us *) (GetSegmentBaseAddress(PMSTACK_SEL) +
 		(DPMIclient_is_32 ? PMSTACK_ESP : (PMSTACK_ESP&0xffff)));
+/* ---------------------------------------------------
+	| 000FC927 | <- ssp here
+	| dpmi_sel |
+	|  eflags  |
+   --------------------------------------------------- */
     if (DPMIclient_is_32) {
 	*(--((unsigned long *) ssp)) = dpmi_stack_frame[current_client].eflags;
 	*--ssp = (us) 0;

@@ -40,6 +40,83 @@
  * DANG_END_MODULE
  */
 
+/*
+ * > 
+ * > In 0.66.x the new interrupt is scheduled too early, and restore_rm_regs()
+ * > is never called. Then the crash.
+ * > 
+ * > There are at least 2 problems with this kind of code:
+ * > 1) avoiding interrupt reentrancy
+ * > 2) avoiding too early interrupt scheduling
+ * > 
+ *
+ * You have run into an old problem, which was created through attempts
+ * (not by me) to speed up pic by creating holes in its re-entrancy protection.
+ * As I released pic, it was quite safe on this score, however, that made
+ * dosemu unpleasantly slow.  For everyone's edification, here's the problem:
+ * 
+ * As dos is designed, it is sometimes necessary to presume that an interrupt
+ * (most often the timer, but sometimes the keyboard or even a serial port)
+ * could not possibly re-trigger before a certain amount of time has elapsed.
+ * Sloppy dos programmers have also often made this assumption even when it was
+ * not necessary.
+ *
+ * Dosemu breaks this assumption, because dos doesn't always have the entire
+ * machine, and interrupts can "pile-up" while other processes are running.
+ * As far as pic (hardware or emulated) is concerned, an interrupt ends
+ * when the interrupt acknowledge is sent to pic.  However, to avoid
+ * re-entrancy, pic.c points the iret to a HLT, which is trapped, and used to
+ * allow re-triggerring of an interrupt.  This works, and would completely
+ * eliminate the above problem, but there's more to the story.
+ *
+ * Since some programs put great piles of code inside an interrupt ("I've ACK'd
+ * the interrupt, what's the hurry on the IRET?"), this kind of hold-off slows
+ * dosemu down.  A few (2 or 3) people have modified pic since I released it
+ * to create holes in the hold-off mechanism, citing the need for more speed.
+ * They were certainly right that speed was needed, but I could never get them
+ * to understand the problem they were creating.  These changes are what's
+ * creating the re-entrancy, I believe.
+ *
+ * To make matters worse, dos uses IRETs for software interrupts, even inside
+ * hardware interrupt routines.  So the only reliable way to catch the IRET of
+ * a hardware interrupt is to point it to a HLT by modifying the stack.  Please
+ * don't question this, I've many hours of debugging time that demonstrated
+ * this quite thoroughly.
+ *
+ * BUT...task-switching environments (MS-Win) use hardware interrupts (mostly
+ * timer and keyboard, but sometimes serial, too) to switch tasks. When a new
+ * task is created, there is no address pointing to a HLT on the (new) stack,
+ * so the end of the interrupt code will never be sensed, and the re-trigger
+ * protection will lock up dosemu.  So it is necessary to detect this event,
+ * and decide that the interrupt has terminated, or we'll never let the timer
+ * (or keyboard, etc. as the case may be) interrupt re-trigger.  So, in a way,
+ * we MUST create some kind of hole in the hold-off process.
+ *
+ * The entire pic debate is one of finding the right kind of hole to make, and
+ * the trade-off is robustness vs. speed. Since the task switch problem only
+ * occurs on the initial invocation of a dos task (when a new stack is built),
+ * I elected to use a conservative hole, to maintain robustness.  Others have
+ * since modified pic.c to gain speed, often without adequate testing of
+ * robustness.
+ * 
+ * There's lots of re-entrancy protection in pic, but it has largely been
+ * defeated by speed-up efforts.  Perhaps the best fix is to re-visit those
+ * speed-up efforts, and see if a better solution can't be found.
+ *
+ * My next thing to try was to put back the correct pic_icount stuff and see if
+ * I can't set up separate HLTs for each IRQ, automatically releasing any
+ * pending (pic_pirr) interrupts when their HLT is encountered.  The pic_icount
+ * and related stuf may still be needed for stack switches.  This may be
+ * enough to gain the full speed-up without creating significant holes.
+ *
+ * The other thing I want to do is some timer changes to better guarantee
+ * interrupts get activated in their proper order.  This is a bit messy, and
+ * I've got the code somewhere. It involves threading the timer queue.  Some of
+ * it may already be done, but I think not.
+ *
+ * Larry
+ */
+
 #include <stdio.h>
 #include "config.h"
 #include "port.h"
@@ -77,6 +154,17 @@ extern void timer_int_engine(void);
 static unsigned long pic1_isr;         /* second isr for pic1 irqs */
 static unsigned long pic_irq2_ivec = 0;
 
+/*
+ * pic_pirr contains a bit set for each interrupt which has attempted to
+ * re-trigger.
+ *
+ * pic_icount is an attempt to count active interrupts.  Pending (pic_pirr)
+ * interrupts are released when pic_icount gets back to zero (as designed).
+ * Haven't looked how it is now, this is one thing others have played with.
+ *
+ * pic_watch() has the primary job of releasing interrupts when a stack switch
+ * occurs.
+ */
 
 #if 0
 static unsigned long pic1_mask;        /* bits set for pic1 levels */
@@ -237,8 +325,8 @@ char ci,cc;
  * Pic maintains two stacks of the current interrupt level. an internal one
  * is maintained by run_irqs, and is valid whenever the emulator code for
  * an interrupt is active.  These functions maintain an external stack,
- * winch is valid from the time the dos interrupt code is called until
- * that code has issued all necessary EOIs.  Because pic will not necessarily 
+ * which is valid from the time the dos interrupt code is called until
+ * the code has issued all necessary EOIs.  Because pic will not necessarily 
  * get control immediately after an EOI, another EOI (for another interrupt)
  * could occur.  This external stack is kept strictly synchronized with
  * the actions of the dos code to avoid any problems.  pic_push and pic_pop
@@ -306,7 +394,7 @@ unsigned char int_num;
  * They are called by the code that emulates inb and outb instructions.
  * Each function implements both ports for the pic:  pic0 is on ports
  * 0x20 and 0x21; pic1 is on ports 0xa0 and 0xa1.  These functions take
- * two arguements: a port number (0 or 1) and a value to be written.
+ * two arguments: a port number (0 or 1) and a value to be written.
  *
  * DANG_END_FUNCTION
  */
@@ -659,10 +747,18 @@ if (!(REG(eflags) & VIF)) return;
  *  here and fake cs:ip to PIC_[SEG,OFF], where there is a hlt.  This makes 
  *  the irq generate a sigsegv, which calls pic_iret when it completes.
  *  pic_iret then pops the real cs:ip from the stack.
- *  This routine is RE-ENTRANT - it calls run_irqs, which
+ *  This routine is RE-ENTRANT - it calls run_irqs,
  *  which may call an interrupt routine,
  *  which may call do_irq().  Be Careful!  !!!!!!!!!!!!!!!!!! 
  *  No single interrupt is ever re-entered.
+ *
+ * Callers:
+ * base/misc/ioctl.c
+ * base/keyboard/n_serv_8042.c
+ * base/keyboard/keyboard-server.c
+ * base/serial/ser_irq.c
+ * dosext/sound/sound.c
+ * dosext/net/net/pktnew.c
  *
  * DANG_END_FUNCTION
  */
@@ -708,8 +804,13 @@ g_printf("+%d",(int)pic_ilevel);
      }
       pic_icount++;
       pic_wcount++;
+
+ /* enter PIC loop - we can continue only when pic_isr has been cleared */
       while(!fatalerr && test_bit(pic_ilevel,&pic_isr))
       {
+	if (d.request>2)
+		r_printf("------ PIC: intr loop ---%06lx--%06lx----\n",
+			pic_vm86_count,pic_dpmi_count);
 	if (in_dpmi ) {
           ++pic_dpmi_count;
 	  pic_print(2, "Initiating DPMI irq lvl ", pic_ilevel, " in do_irq");
@@ -745,7 +846,7 @@ g_printf("+%d",(int)pic_ilevel);
  * pic_request triggers an interrupt.  There is presently no way to
  * "un-trigger" an interrupt.  The interrupt will be initiated the
  * next time pic_run is called, unless masked or superceded by a 
- * higher priority interrupt.  pic_request takes one arguement, an
+ * higher priority interrupt.  pic_request takes one argument, an
  * interrupt level, which specifies the interrupt to be triggered.
  * If that interrupt is already active, the request will be queued 
  * until all active interrupts have been completed.  The queue is
@@ -876,7 +977,8 @@ unsigned long pic_newirr;
  * pic_watch is a watchdog timer for pending interrupts.  If pic_iret
  * somehow fails to activate a pending interrupt request for 2 consecutive 
  * timer ticks, pic_watch will activate them anyway.  pic_watch is called
- * by timer_tick, the interval timer signal handler.
+ * ONLY by timer_tick, the interval timer signal handler, so the two functions
+ * will probably be merged.
  *
  * DANG_END_FUNCTION
  */

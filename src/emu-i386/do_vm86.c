@@ -26,8 +26,6 @@
 #ifndef __NetBSD__
 #include <getopt.h>
 #endif
-#include <assert.h>
-
 
 #if X_GRAPHICS
 #include <sys/mman.h>           /* root@sjoerd*/
@@ -82,10 +80,6 @@
 #include "vc.h"
 
 #include "dma.h"
-
-#ifdef bon
-extern void     vm86_GP_fault();
-#endif
 
 /*  */
 /* vm86_GP_fault @@@  32768 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/arch/linux/async/sigsegv.c --> src/emu-i386/do_vm86.c  */
@@ -164,7 +158,7 @@ void vm86_GP_fault(void)
 
   /* DANG_BEGIN_REMARK
    * Here we handle all prefixes prior switching to the appropriate routines
-   * The exception CS:EIP will point to the first prefix that effects the
+   * The exception CS:EIP will point to the first prefix that effects
    * the faulting instruction, hence, 0x65 0x66 is same as 0x66 0x65.
    * So we collect all prefixes and remember them.
    * - Hans Lermen

@@ -51,6 +51,7 @@ extern int munmap __P ((caddr_t __addr, size_t __len));
 #endif
 
 #define INIT_C2TRAP
+#define NO_VC_NO_DEBUG
 
 #include "emu.h"
 #include "memory.h"
@@ -76,7 +77,9 @@ extern inline void console_update_cursor (int, int, int, int);
 static void set_dos_video ();
 void put_video_ram ();
 
+#ifdef NO_VC_NO_DEBUG
 static struct debug_flags save_debug_flags;
+#endif
 
 extern int
   dosemu_sigaction (int sig, struct sigaction *, struct sigaction *);
@@ -86,10 +89,10 @@ static void SIGACQUIRE_call (void);
 void dump_video_regs (void);
 
 #ifdef WANT_DUMP_VIDEO
-static void dump_video ();
+static void dump_video (void);
 #endif
 
-void dump_video_linux ();
+void dump_video_linux (void);
 
 
 static int  color_text;
@@ -119,7 +122,7 @@ forbid_switch (void)
 /* check whether we are running on the console; initialise
  * config.console, console_fd and scr_state.console_no
  */
-void check_console() {
+void check_console(void) {
 
 #ifdef __NetBSD__
     struct screeninfo info;
@@ -223,7 +226,9 @@ acquire_vt (int sig, struct sigcontext_struct context)
 {
   dos_has_vt = 1;
 
+#ifdef NO_VC_NO_DEBUG
   d = save_debug_flags;
+#endif
   v_printf ("VID: Acquiring VC\n");
   forbid_switch ();
 #ifdef __NetBSD__
@@ -302,7 +307,9 @@ set_linux_video (void)
 static void
 SIGRELEASE_call (void)
 {
+#ifdef NO_VC_NO_DEBUG
   save_debug_flags = d;
+#endif
 
   if (scr_state.current == 1)
     {
@@ -354,7 +361,9 @@ SIGRELEASE_call (void)
   else {
    /* we don't want any debug activity while VC is not active */
     flush_log();
+#ifdef NO_VC_NO_DEBUG
     memset(&d, 0, sizeof(struct debug_flags));
+#endif
   }
 }
 
@@ -1173,12 +1182,9 @@ dump_video_linux (void)
 /*
  * install_int_10_handler - install a handler for the video-interrupt (int 10)
  *                          at address INT10_SEG:INT10_OFFS. Currently
- *                          it's f100:4100.
+ *                          it's f800:4200.
  *                          The new handler is only installed, if the bios
- *                          handler at f100:4100 is not the appropriate on
- *                          that means, if we use not mda with X
- *                          The new handler is only installed, if the bios
- *                          handler at f100:4100 is not the appropriate on
+ *                          handler at f800:4200 is not the appropriate on
  *                          that means, if we use not mda with X
  */
 
@@ -1233,6 +1239,9 @@ install_int_10_handler (void)
     extern void bios_f000_int10ptr(), bios_f000();
     ptr = (u_char *)((BIOSSEG << 4) + ((long)bios_f000_int10ptr - (long)bios_f000));
     *((long *)ptr) = 0xe0000003;
+    v_printf("VID: new int10 handler at %p\n",ptr);
   }
+  else
+    v_printf("VID: install_int_10_handler: do nothing\n");
 #endif
 }

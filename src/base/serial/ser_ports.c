@@ -118,7 +118,7 @@ void uart_fill(int num)
 
   /* Is it time to do another read() of the serial device yet? 
    * The rx_timer is used to prevent system load caused by empty read()'s 
-   * It also skip the following code block if the recieve buffer 
+   * It also skip the following code block if the receive buffer 
    * contains enough data for a full FIFO (at least 16 bytes).
    * The receive buffer is a sliding buffer.
    */
@@ -151,7 +151,7 @@ void uart_fill(int num)
       com[num].LSR |= UART_LSR_DR;		/* Set recv data ready bit */
 
       /* The following code is to emulate the 16 byte (configurable)
-       * limitation of the recieve FIFO, for compatibility purposes.
+       * limitation of the receive FIFO, for compatibility purposes.
        * Reset the receive FIFO counter up to a value of 16 (configurable)
        * if we are not within an interrupt.
        */
@@ -162,7 +162,7 @@ void uart_fill(int num)
           com[num].rx_fifo_bytes = com[num].rx_buf_bytes;
       }
       
-      /* Has it gone above the recieve FIFO trigger level? */
+      /* Has it gone above the receive FIFO trigger level? */
       if (com[num].rx_buf_bytes >= com[num].rx_fifo_trigger) {
         if(s3_printf) s_printf("SER%d: Func uart_fill requesting RX_INTR\n",num);
         com[num].LSRqueued |= UART_LSR_DR;	/* Update queued LSR */
@@ -420,20 +420,20 @@ static int get_rx(int num)
   static int val;
   com[num].rx_timeout = TIMEOUT_RX;		/* Reset timeout counter */
 
-  /* If the Recieved-Data-Ready bit is clear then return a 0
+  /* If the Received-Data-Ready bit is clear then return a 0
    * since we're not supposed to read from the buffer right now!
    */
   if ( !(com[num].LSR & UART_LSR_DR)) return 0;
   
   /* Is the FIFO enabled? */
   if (com[num].fifo_enable) {
-    /* Read data from the recieve buffer.  The 16-byte (configurable)
-     * limitation of the FIFO is emulated (even though the recieve
+    /* Read data from the receive buffer.  The 16-byte (configurable)
+     * limitation of the FIFO is emulated (even though the receive
      * buffer is bigger) for compatibility purposes.  Note, that the 
      * following code is optimized for speed rather than compactness.
      */
      
-    /* Is the recieve FIFO empty? */
+    /* Is the receive FIFO empty? */
     if (com[num].rx_fifo_bytes == 0) return 0;
 
     val = com[num].rx_buf[com[num].rx_buf_start];	/* Get byte */
@@ -469,7 +469,7 @@ static int get_rx(int num)
         com[num].IIR = (com[num].IIR & UART_IIR_ID) | UART_IIR_FIFO;
       }
     }
-    return val;		/* Return recieved byte */
+    return val;		/* Return received byte */
   }
   
   /* The following code executes only if in non-FIFO mode */
@@ -494,7 +494,7 @@ static int get_rx(int num)
     com[num].rx_buf_bytes--;
   }
   
-  return val;		/* Return recieved byte */
+  return val;		/* Return received byte */
 }
 
 

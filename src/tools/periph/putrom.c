@@ -28,7 +28,7 @@
 #define scan(p,s) { int i; volatile u_char j,*jp=&j; for (i=0; i<ROM_SIZE/4096; i++) \
 		      *jp=*((volatile u_char *)p + i*4096); }
 
-void
+int
 main(int argc, char **argv)
 {
   int mem_fd, file_fd, rd;
@@ -65,4 +65,5 @@ main(int argc, char **argv)
   fprintf(stderr, "done");
   close(mem_fd);
   close(file_fd);
+  return 0;
 }

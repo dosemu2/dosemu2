@@ -32,7 +32,7 @@ show_regs(char *file, int line)
   g_printf("\nProgram=%s, Line=%d\n", file, line);
   g_printf("EIP: %04x:%08lx", LWORD(cs), REG(eip));
   g_printf(" ESP: %04x:%08lx", LWORD(ss), REG(esp));
-#if 1 /* LERMEN */
+#if 1
   g_printf("  VFLAGS(b): ");
   for (i = (1 << 0x14); i > 0; i = (i >> 1)) {
     g_printf((vflags & i) ? "1" : "0");

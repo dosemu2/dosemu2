@@ -169,6 +169,11 @@ int signal, int code, struct sigcontext *scp
       case 0x05: /* bounds */
       case 0x07: /* device_not_available */
 		 return (void) do_int(_trapno);
+
+      case 0x10: /* coprocessor error */
+		 pic_request(PIC_IRQ13); /* this is the 386 way of signalling this */
+		 return;
+
       case 0x06: /* invalid_op */
 		 dbug_printf("SIGILL while in vm86()\n");
 #if 0
@@ -239,10 +244,10 @@ int signal, int code, struct sigcontext *scp
 #if X_GRAPHICS				/* only for debug ?*/ /*root@sjoerd*/
 /* The reason it comes here instead of inside_VM86 is
  * char_out() in ./video/int10.c (and the memory is protected).
+ * We want to protect the video memory and the VGA BIOS.
  * This function is called from the following functions:
  * dosemu/utilities.c:     char_out(*s++, READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
  * video/int10.c:    char_out(*(char *) &REG(eax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
- *
  */
 
   if(_trapno==0x0e)

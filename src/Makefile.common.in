@@ -59,23 +59,6 @@ depend dep: $(DEPENDS)
 # Use -M for everything  or -MM for local
 TYPE_DEPEND=-MM
 
-%.d: %.c
-
-
-ifeq '$(findstring -n,$(MAKEFLAGS))' '-n'
-# this is only set on the top level makefile
-export CLEANING=true  # don't do depends
-endif
-
-ifndef CLEANING
-%.depend.tmp: %.c
-	$(CC) $(TYPE_DEPEND) $(CFLAGS) $< -o $@
-
-%.d:  %.depend.tmp
-	sh -c 'sed '\''s/$*\\.o[ :]*/& $@/g'\'' <$^ > $@'
-	@rm -f $^
-endif
-
 ifdef notdef
 	$(SHELL) -ec '$(CC) $(TYPE_DEPEND) $(CFLAGS) $< \
         | sed '\''s/$*\\.o[ :]*/& $@/g'\'' > $@'
@@ -96,4 +79,4 @@ echo::
 	@echo CFILES = $(wildcard *.c)
 	@echo DEPENDS FOUND= $(wildcard *.d)
 	@echo MAKEFLAGS=$(MAKEFLAGS)
-	@echo CLEANING=$(CLEANING)
+
