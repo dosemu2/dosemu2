@@ -554,29 +554,16 @@ static int dpmi_control(void)
 #ifdef TRACE_DPMI
   if (debug_level('t')) _eflags |= TF;
 #endif
+  if (dpmi_mhp_TF) _eflags |= TF;
   if (!(_eflags & TF)) {
 	if (debug_level('M')>6) {
-	  D_printf("DPMI SWITCH to %08lx, esp=%08lx\n",(long)SEL_ADR(_cs,_eip),_esp);
+	  D_printf("DPMI SWITCH to 0x%x:0x%08lx (0x%08lx), Stack 0x%x:0x%08lx (0x%08lx)\n",
+	    _cs, _eip, (long)SEL_ADR(_cs,_eip), _ss, _esp, (long)SEL_ADR(_ss, _esp));
 	}
 	return direct_dpmi_switch(scp);
   }
   else {
     /* Note: we can't set TF with our speedup code */
-#ifdef USE_MHPDBG
-    if (mhpdbg.active) {
-      static int force_early=0;
-      usleep(1); /* NOTE: We need a syscall (maybe any) to force scheduling.
-                  *       ( ... don't know why ... )
-                  *       If we do not, the below kludge doesn't work
-                  *       and we may loose 1 single step after an INTx.
-                  */
-      if (*((unsigned char *)SEL_ADR(_cs,_eip))==0xcd) force_early=1;
-      else if (force_early) {
-        force_early=0;
-        return 1; /* we are simulating SIGTRAP after INTx */
-      }
-    }
-#endif
     emu_stack_frame=&_emu_stack_frame;
     asm("xorl %0,%0; hlt":"=a" (ret));
     return ret;
@@ -2831,7 +2818,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
     CLIENT_PMSTACK_SEL = _ss;
   }
 
-  if (_ss == PMSTACK_SEL || in_dpmi_pm_stack) 
+  if (_ss == PMSTACK_SEL || in_dpmi_pm_stack)
     PMSTACK_ESP = client_esp(scp);
   else
     PMSTACK_ESP = DPMI_pm_stack_size;
@@ -3021,6 +3008,8 @@ if ((_ss & 4) == 4) {
       else {
         us cs2 = _cs;
         unsigned long eip2 = _eip;
+	if (debug_level('M')>=9)
+          D_printf("DPMI: int 0x%x\n", csp[0]);
 	if (DPMIclient_is_32) {
 	  *(--((unsigned long *) ssp)) = _eflags;
 	  *--ssp = (us) 0;
@@ -3293,6 +3282,8 @@ if ((_ss & 4) == 4) {
 	_eip -= 1;
       break;
     case 0xfa:			/* cli */
+      if (debug_level('M')>=9)
+        D_printf("DPMI: cli\n");
       _eip += 1;
       /*
        * are we trapped in a deadly loop?
@@ -3311,11 +3302,15 @@ if ((_ss & 4) == 4) {
 	is_cli = 1;
       break;
     case 0xfb:			/* sti */
+      if (debug_level('M')>=9)
+        D_printf("DPMI: sti\n");
       _eip += 1;
       dpmi_sti();
       break;
 
     case 0x6c:                    /* [rep] insb */
+      if (debug_level('M')>=9)
+        D_printf("DPMI: insb\n");
       /* NOTE: insb uses ES, and ES can't be overwritten by prefix */
       if (DPMIclient_is_32)
 	_edi += port_rep_inb(_LWORD(edx), (Bit8u *)SEL_ADR(_es,_edi),
@@ -3328,6 +3323,8 @@ if ((_ss & 4) == 4) {
       break;
 
     case 0x6d:			/* [rep] insw/d */
+      if (debug_level('M')>=9)
+        D_printf("DPMI: insw\n");
       /* NOTE: insw/d uses ES, and ES can't be overwritten by prefix */
       if (prefix66) {
 	if (DPMIclient_is_32)
@@ -3350,6 +3347,8 @@ if ((_ss & 4) == 4) {
       break;
 
     case 0x6e:			/* [rep] outsb */
+      if (debug_level('M')>=9)
+        D_printf("DPMI: outsb\n");
       if (pref_seg < 0) pref_seg = _ds;
       if (DPMIclient_is_32)
 	_esi += port_rep_outb(_LWORD(edx), (Bit8u *)SEL_ADR(pref_seg,_esi),
@@ -3362,6 +3361,8 @@ if ((_ss & 4) == 4) {
       break;
 
     case 0x6f:			/* [rep] outsw/d */
+      if (debug_level('M')>=9)
+        D_printf("DPMI: outsw\n");
       if (pref_seg < 0) pref_seg = _ds;
       if (prefix66) {
         if (DPMIclient_is_32)
@@ -3384,52 +3385,70 @@ if ((_ss & 4) == 4) {
       break;
 
     case 0xe5:			/* inw xx, ind xx */
+      if (debug_level('M')>=9)
+        D_printf("DPMI: in%s xx\n", prefix66 ^ DPMIclient_is_32 ? "d" : "w");
       if (prefix66 ^ DPMIclient_is_32) _eax = ind((int) csp[0]);
       else _LWORD(eax) = inw((int) csp[0]);
       LWORD32(eip) += 2;
       break;
     case 0xe4:			/* inb xx */
+      if (debug_level('M')>=9)
+        D_printf("DPMI: inb xx\n");
       _LWORD(eax) &= ~0xff;
       _LWORD(eax) |= inb((int) csp[0]);
       LWORD32(eip) += 2;
       break;
     case 0xed:			/* inw dx */
+      if (debug_level('M')>=9)
+        D_printf("DPMI: in%s dx\n", prefix66 ^ DPMIclient_is_32 ? "d" : "w");
       if (prefix66 ^ DPMIclient_is_32) _eax = ind(_LWORD(edx));
       else _LWORD(eax) = inw(_LWORD(edx));
       LWORD32(eip)++;
       break;
     case 0xec:			/* inb dx */
+      if (debug_level('M')>=9)
+        D_printf("DPMI: inb dx\n");
       _LWORD(eax) &= ~0xff;
       _LWORD(eax) |= inb(_LWORD(edx));
       LWORD32(eip) += 1;
       break;
     case 0xe7:			/* outw xx */
+      if (debug_level('M')>=9)
+        D_printf("DPMI: outw xx\n");
       if (prefix66 ^ DPMIclient_is_32) outd((int)csp[0], _eax);
       else outw((int)csp[0], _LWORD(eax));
       LWORD32(eip) += 2;
       break;
     case 0xe6:			/* outb xx */
+      if (debug_level('M')>=9)
+        D_printf("DPMI: outb xx\n");
       outb((int) csp[0], _LO(ax));
       LWORD32(eip) += 2;
       break;
     case 0xef:			/* outw dx */
+      if (debug_level('M')>=9)
+        D_printf("DPMI: outw dx\n");
       if (prefix66 ^ DPMIclient_is_32) outd(_LWORD(edx), _eax);
       else outw(_LWORD(edx), _LWORD(eax));
       LWORD32(eip) += 1;
       break;
     case 0xee:			/* outb dx */
+      if (debug_level('M')>=9)
+        D_printf("DPMI: outb dx\n");
       outb(_LWORD(edx), _LO(ax));
       LWORD32(eip) += 1;
       break;
 
     case 0x0f:
+      if (debug_level('M')>=9)
+        D_printf("DPMI: 0f opcode\n");
       if (cpu_trap_0f(csp-1, scp)) break;
       /* fall thru */
 
     default:
       _eip = org_eip;
       if (msdos_fault(scp))
-	  return;
+	  break;
 #ifdef __linux__
 #ifdef X86_EMULATOR
       /* the other side of the trick */
@@ -3445,11 +3464,23 @@ if ((_ss & 4) == 4) {
       do_cpu_exception(scp);
 #endif
 
+  if (dpmi_mhp_TF) {
+      dpmi_mhp_TF=0;
+      _eflags &= ~TF;
+      Return_to_dosemu_code(scp,1);
+      return;
+  }
+
   if (pic_irr & ~(pic_isr | pic_imr)) dpmi_eflags |= VIP;
   if (in_dpmi_dos_int || (dpmi_eflags & VIP)) {
     dpmi_eflags &= ~VIP;
     Return_to_dosemu_code(scp,0);
+    return;
   }
+
+  if (debug_level('M') >= 8)
+    D_printf("DPMI: Return to client at %04x:%08lx, Stack 0x%x:0x%08lx\n",
+      _cs, _eip, _ss, _esp);
 }
 
 
@@ -3505,7 +3536,6 @@ void dpmi_realmode_hlt(unsigned char * lina)
 
     D_printf("DPMI: Return from DOS Interrupt 0x%02x\n",intr);
 
-    /* DANG_FIXTHIS we should not change registers for hardware interrupts */
     dpmi_stack_frame[current_client].eflags = 0x0202 | (0x0dd5 & REG(eflags)) |
       dpmi_mhp_TF;
     dpmi_stack_frame[current_client].eax = REG(eax);
