@@ -36,4 +36,6 @@ extern void set_int21_revectored(int);
 
 int dos_helper(void);
 
+void do_periodic_stuff(void);
+
 #endif

@@ -18,7 +18,7 @@
 #define X_CHG_BACKGROUND_PAUSE	9
 
 #define X_TITLE_EMUNAME_MAXLEN 128
-#define X_TITLE_APPNAME_MAXLEN 9
+#define X_TITLE_APPNAME_MAXLEN 25
 
 extern int grab_active;
 extern Display *display;
@@ -41,5 +41,4 @@ void X_process_keys(XKeymapEvent *);
 #else
 static inline void X_process_keys(XKeymapEvent *event) { return; }
 #endif
-
 

@@ -189,6 +189,7 @@ TODO:
 #include <string.h>
 #include <wctype.h>
 #include "mfs.h"
+#include "dos2linux.h"
 /* For passing through GetRedirection Status */
 #include "memory.h"
 #include "redirect.h"

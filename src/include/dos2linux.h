@@ -51,6 +51,166 @@ struct lowstring {
 	char s[0];
 } __attribute__((packed));
 
+#define DOSVER_31_33	1
+#define DOSVER_41	2
+#define DOSVER_50	3
+#define DOSVER_60	4
+
+typedef u_char *sdb_t;
+
+#define sdb_drive_letter(sdb)	(*(u_char  *)&sdb[sdb_drive_letter_off])
+#define sdb_template_name(sdb)	((u_char   *)&sdb[sdb_template_name_off])
+#define sdb_template_ext(sdb)	((u_char   *)&sdb[sdb_template_ext_off])
+#define	sdb_attribute(sdb)	(*(u_char  *)&sdb[sdb_attribute_off])
+#define sdb_dir_entry(sdb)	(*(u_short *)&sdb[sdb_dir_entry_off])
+#define sdb_p_cluster(sdb)	(*(u_short *)&sdb[sdb_p_cluster_off])
+#define	sdb_file_name(sdb)	((char     *)&sdb[sdb_file_name_off])
+#define	sdb_file_ext(sdb)	((char     *)&sdb[sdb_file_ext_off])
+#define	sdb_file_attr(sdb)	(*(u_char  *)&sdb[sdb_file_attr_off])
+#define	sdb_file_time(sdb)	(*(u_short *)&sdb[sdb_file_time_off])
+#define	sdb_file_date(sdb)	(*(u_short *)&sdb[sdb_file_date_off])
+#define sdb_file_st_cluster(sdb)(*(u_short *)&sdb[sdb_file_st_cluster_off])
+#define sdb_file_size(sdb)	(*(u_long  *)&sdb[sdb_file_size_off])
+
+typedef u_char *sft_t;
+
+#define sft_handle_cnt(sft) 	(*(u_short *)&sft[sft_handle_cnt_off])
+#define sft_open_mode(sft)  	(*(u_short *)&sft[sft_open_mode_off])
+#define sft_attribute_byte(sft) (*(u_char  *)&sft[sft_attribute_byte_off])
+#define sft_device_info(sft)  	(*(u_short *)&sft[sft_device_info_off])
+#define	sft_dev_drive_ptr(sft)	(*(u_long  *)&sft[sft_dev_drive_ptr_off])
+#define	sft_start_cluster(sft)	(*(u_short *)&sft[sft_start_cluster_off])
+#define	sft_time(sft)		(*(u_short *)&sft[sft_time_off])
+#define	sft_date(sft)		(*(u_short *)&sft[sft_date_off])
+#define	sft_size(sft)		(*(u_long  *)&sft[sft_size_off])
+#define	sft_position(sft)	(*(u_long  *)&sft[sft_position_off])
+#define sft_rel_cluster(sft)	(*(u_short *)&sft[sft_rel_cluster_off])
+#define sft_abs_cluster(sft)	(*(u_short *)&sft[sft_abs_cluster_off])
+#define	sft_directory_sector(sft) (*(u_short *)&sft[sft_directory_sector_off])
+#define	sft_directory_entry(sft)  (*(u_char  *)&sft[sft_directory_entry_off])
+#define	sft_name(sft)		( (char    *)&sft[sft_name_off])
+#define	sft_ext(sft)		( (char    *)&sft[sft_ext_off])
+
+#define	sft_fd(sft)		(*(u_char *)&sft[sft_fd_off])
+
+typedef u_char *cds_t;
+extern cds_t cds_base;
+extern cds_t cds;
+extern int cds_current_path_off;
+extern int cds_rootlen_off;
+extern int cds_record_size;
+
+
+#define	cds_current_path(cds)	((char	   *)&cds[cds_current_path_off])
+#define	cds_flags(cds)		(*(u_short *)&cds[cds_flags_off])
+#define cds_DBP_pointer(cds)	(*(far_t *)&cds[cds_DBP_pointer_off])
+#define cds_cur_cluster(cds)	(*(u_short *)&cds[cds_cur_cluster_off])
+#define	cds_rootlen(cds)	(*(u_short *)&cds[cds_rootlen_off])
+#define drive_cds(dd) ((cds_t)(((int)cds_base)+(cds_record_size*(dd))))
+
+#define CDS_FLAG_REMOTE		0x8000
+#define CDS_FLAG_READY		0x4000
+#define CDS_FLAG_NOTNET		0x0080
+#define CDS_FLAG_SUBST		0x1000
+#define CDS_DEFAULT_ROOT_LEN	2
+
+typedef u_char *sda_t;
+extern sda_t sda;
+extern int sda_cur_drive_off;
+
+#define	sda_current_dta(sda)	((char *)(FARPTR((far_t *)&sda[sda_current_dta_off])))
+#define	sda_error_code(sda)		(*(u_short *)&sda[4])
+#define sda_cur_psp(sda)		(*(u_short *)&sda[sda_cur_psp_off])
+#define sda_cur_drive(sda)		(*(u_char *)&sda[sda_cur_drive_off])
+#define sda_filename1(sda)		((char  *)&sda[sda_filename1_off])
+#define	sda_filename2(sda)		((char  *)&sda[sda_filename2_off])
+#define sda_sdb(sda)			((sdb_t    )&sda[sda_sdb_off])
+#define	sda_cds(sda)		((cds_t)(FARPTR((far_t *)&sda[sda_cds_off])))
+#define sda_search_attribute(sda)	(*(u_char *)&sda[sda_search_attribute_off])
+#define sda_open_mode(sda)		(*(u_char *)&sda[sda_open_mode_off])
+#define sda_rename_source(sda)		((sdb_t    )&sda[sda_rename_source_off])
+#define sda_user_stack(sda)		((char *)(FARPTR((far_t *)&sda[sda_user_stack_off])))
+
+/*
+ *  Data for extended open/create operations, DOS 4 or greater:
+ */
+#define sda_ext_act(sda)		(*(u_short *)&sda[sda_ext_act_off])
+#define sda_ext_attr(sda)		(*(u_short *)&sda[sda_ext_attr_off])
+#define sda_ext_mode(sda)		(*(u_short *)&sda[sda_ext_mode_off])
+
+#define psp_parent_psp(psp)		(*(u_short *)&psp[0x16])
+#define psp_handles(psp)		((char *)(FARPTR((far_t *)&psp[0x34])))
+
+#define lol_cdsfarptr(lol)		(*(far_t *)&lol[lol_cdsfarptr_off])
+#define lol_last_drive(lol)		(*(u_char *)&lol[lol_last_drive_off])
+#define lol_nuldev(lol)		        (&lol[lol_nuldev_off])
+
+extern int sdb_drive_letter_off;
+extern int sdb_template_name_off;
+extern int sdb_template_ext_off;
+extern int sdb_attribute_off;
+extern int sdb_dir_entry_off;
+extern int sdb_p_cluster_off;
+extern int sdb_file_name_off;
+extern int sdb_file_ext_off;
+extern int sdb_file_attr_off;
+extern int sdb_file_time_off;
+extern int sdb_file_date_off;
+extern int sdb_file_st_cluster_off;
+extern int sdb_file_size_off;
+
+extern int sft_handle_cnt_off;
+extern int sft_open_mode_off;
+extern int sft_attribute_byte_off;
+extern int sft_device_info_off;
+extern int sft_dev_drive_ptr_off;
+extern int sft_fd_off;
+extern int sft_start_cluster_off;
+extern int sft_time_off;
+extern int sft_date_off;
+extern int sft_size_off;
+extern int sft_position_off;
+extern int sft_rel_cluster_off;
+extern int sft_abs_cluster_off;
+extern int sft_directory_sector_off;
+extern int sft_directory_entry_off;
+extern int sft_name_off;
+extern int sft_ext_off;
+
+extern int cds_record_size;
+extern int cds_current_path_off;
+extern int cds_flags_off;
+extern int cds_DBP_pointer_off;
+extern int cds_cur_cluster_off;
+extern int cds_rootlen_off;
+
+extern int sda_current_dta_off;
+extern int sda_cur_psp_off;
+extern int sda_cur_drive_off;
+extern int sda_filename1_off;
+extern int sda_filename2_off;
+extern int sda_sdb_off;
+extern int sda_cds_off;
+extern int sda_search_attribute_off;
+extern int sda_open_mode_off;
+extern int sda_rename_source_off;
+extern int sda_user_stack_off;
+
+extern int lol_cdsfarptr_off;
+extern int lol_last_drive_off;
+extern int lol_nuldev_off;
+
+/*
+ * These offsets only meaningful for DOS 4 or greater:
+ */
+extern int sda_ext_act_off;
+extern int sda_ext_attr_off;
+extern int sda_ext_mode_off;
+
+typedef u_char *lol_t;
+extern lol_t lol;
+extern int lol_nuldev_off;
+
 extern int misc_e6_envvar (char *str);
 
 extern int misc_e6_commandline (char *str);

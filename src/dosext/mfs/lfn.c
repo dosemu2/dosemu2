@@ -23,6 +23,7 @@
 #include "emu.h"
 #include "mfs.h"
 #include "mangle.h"
+#include "dos2linux.h"
 #include "bios.h"
 
 #define EOS '\0'

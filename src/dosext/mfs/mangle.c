@@ -36,6 +36,7 @@ Modified by O.V.Zhirov, July 1998
 #include "utilities.h"
 #include "mangle.h"
 #include "mfs.h"
+#include "dos2linux.h"
 #include "emu.h"
 #ifdef HAVE_UNICODE_TRANSLATION
 #include "translate.h"

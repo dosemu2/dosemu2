@@ -472,8 +472,6 @@ void dir_setup(struct disk *dp)
 
   dp->fatfs = NULL;
   fatfs_init(dp);
-
-  if(dp->fatfs && !redir_state) set_int21_revectored(redir_state = 1);
 }
 
 /* XXX - relies upon a file of SECTOR_SIZE in PARTITION_PATH that which

@@ -83,7 +83,6 @@
 #endif
 
 #include "dma.h"
-#include "userhook.h"
 
 static void callback_return(void);
 
@@ -468,31 +467,7 @@ run_vm86(void)
 	}
 
 freeze_idle:
-    handle_signals();
-
-    /* catch user hooks here */
-    if (uhook_fdin != -1) uhook_poll();
-
-    /* here we include the hooks to possible plug-ins */
-    #define VM86_RETURN_VALUE retval
-    #include "plugin_poll.h"
-    #undef VM86_RETURN_VALUE
-
-
-#ifdef USE_MHPDBG  
-    if (mhpdbg.active) mhp_debug(DBG_POLL, 0, 0);
-#endif
-    /*
-     * This is here because ioctl() is non-reentrant, and signal handlers
-     * may have to use ioctl().  This results in a possible (probable)
-     * time lag of indeterminate length (and a bad return value). Ah, life
-     * isn't perfect.
-     * 
-     * I really need to clean up the queue functions to use real queues.
-     */
-    if (iq.queued)
-	do_queued_ioctl();
-    /* update the pic to reflect IEF */
+  do_periodic_stuff();
 
   if (dosemu_frozen) {
     static int minpoll = 0;
