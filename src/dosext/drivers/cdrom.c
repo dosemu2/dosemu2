@@ -141,6 +141,7 @@ void cdrom_reset()
    priv_off();
    cdrom_fd = open (_PATH_CDROM, O_RDONLY);
    priv_default();
+   if (cdrom_fd >= 0) ioctl (cdrom_fd, CDROMRESET, NULL);
 #ifdef __NetBSD__
    if (cdrom_fd >= 0) ioctl(cdrom_fd, CDIOCALLOW, 0);
 #endif
@@ -466,8 +467,11 @@ void cdrom_helper(void)
      case 0x0D: /* eject */
                 LO(ax) = 0;
                 if ((eject_allowed) && (audio_status.status & 0x02)) /* drive unlocked ? */
+                {
+                  audio_status.media_changed = 1;
                   if (ioctl (cdrom_fd, CDROMEJECT, NULL))
                     LO(ax) = 1;
+                }
                 break;
      case 0x0E: /* close tray */
                 LO(ax) = 0;

@@ -738,14 +738,14 @@ mouse_reset_to_current_video_mode(void)
   }
 
   /* virtual resolution is always at least 640x200 */
-  mouse.maxx = current_video.width;
   if (mouse.maxx < 640) {
 	mouse.maxx = 640;
+        mouse.maxy = current_video.height;
   }
-  mouse.maxy = current_video.height;
   if (mouse.maxy < 200) {
   	mouse.maxy = 200;
   	mouse.yshift = 3;
+	mouse.maxy = current_video.height << mouse.yshift;
   }
   else
   	mouse.yshift = 0;
@@ -1171,7 +1171,6 @@ mouse_round_coords()
 void 
 mouse_move(void)
 {
-
   get_current_video_mode();
   if (current_video.textgraph == 'T') {
     mouse.gfx_cursor = FALSE;

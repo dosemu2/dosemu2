@@ -48,6 +48,7 @@ extern void scan_to_buffer(void);
    access can be given
 */
 static u_char         in_video = 0;
+static u_char         save_hi_ints[128];
 
 static int            card_init = 0;
 static unsigned long  precard_eip, precard_cs;
@@ -222,6 +223,15 @@ static int dos_helper(void)
       }
       in_video = 1;
     }
+    /* Many video BIOSes use hi interrupt vector locations as
+     * scratchpad area - this is because they come before DOS and feel
+     * safe to do it. But we are initializing vectors before video, so
+     * this will cause trouble. I assume no video BIOS will ever:
+     * - change vectors < 0xe0 (0:380-0:3ff area)
+     * - change anything in the vector area _after_ installation
+     */
+    v_printf("Save hi vector area\n");
+    MEMCPY_2UNIX(save_hi_ints,0x380,128);
     break;
 
   case 9:
@@ -233,6 +243,8 @@ static int dos_helper(void)
       }
       in_video = 0;
     }
+    v_printf("Restore hi vector area\n");
+    MEMCPY_2DOS(0x380,save_hi_ints,128);
     if (mice->intdrv) { /* grab int10 back from video card for mouse */
         void bios_f000(), bios_f000_int10_old();
         us *ptr = (us*)((BIOSSEG << 4) +

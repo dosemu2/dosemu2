@@ -1,3 +1,11 @@
+97/03/14 ver. 0.65.99.19 unofficial pre-release
+	From Alberto
+	- 1st arg of log_printf becomes 'int'
+	- (some) fix for the inte6 problem (80x50)
+	- missing HLT_OFF in DPMI 'free realmode call back address' (0x0304)
+	- Without this CDs can't be changed:
+	  force media_changed, when ejecting (src/dosext/drivers/cdrom.c),
+	  _realy_ do CDROMRESET in cdrom_reset()
 97/03/12 ver. 0.65.99.18 unofficial pre-release
 	From Alistair
 	- Further gnats enhancements

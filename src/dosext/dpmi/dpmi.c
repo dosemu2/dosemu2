@@ -1369,15 +1369,13 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     break;
   case 0x0304: /* free realmode call back address */
     {
-       unsigned i, offset;
-       offset = _LWORD(edx);
-       if ((_LWORD(ecx) == DPMI_SEG) &&
-	   ( offset >= (unsigned short)DPMI_realmode_callback) &&
-	   ( offset < (unsigned short)DPMI_realmode_callback +	0x10)) {
-	 i = offset - (unsigned short)DPMI_realmode_callback;
-	 realModeCallBack[current_client][i].selector = 0;
-	 realModeCallBack[current_client][i].offset = 0;
-	 FreeDescriptor(realModeCallBack[current_client][i].rm_ss_selector);
+       unsigned short offset, rcbase;
+       rcbase = DPMI_OFF + HLT_OFF(DPMI_realmode_callback);
+       offset = _LWORD(edx) - rcbase;
+       if ((_LWORD(ecx) == DPMI_SEG) && (offset < 0x10)) {
+	 realModeCallBack[current_client][offset].selector = 0;
+	 realModeCallBack[current_client][offset].offset = 0;
+	 FreeDescriptor(realModeCallBack[current_client][offset].rm_ss_selector);
        } else
 	 _eflags |= CF;
     }

@@ -204,7 +204,7 @@ struct debug_flags {
 
 EXTERN void saytime(char *m_str);
 
-int log_printf(unsigned int, const char *,...) FORMAT(printf, 2, 3);
+int log_printf(int, const char *,...) FORMAT(printf, 2, 3);
 
 void p_dos_str(char *,...) FORMAT(printf, 1, 2);
 

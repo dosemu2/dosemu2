@@ -19,7 +19,7 @@ char *logbuf=logbuf_;
 int logbuf_size = INITIAL_LOGBUFSIZE;
 
 int
- log_printf(unsigned int flg, const char *fmt,...) {
+ log_printf(int flg, const char *fmt,...) {
   va_list args;
   int i;
   static int first_time = 1;
