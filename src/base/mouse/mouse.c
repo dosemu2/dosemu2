@@ -1875,6 +1875,11 @@ dosemu_mouse_init(void)
   if (mice->intdrv)
     memcpy(p,mouse_ver,sizeof(mouse_ver));
 
+  if (mouse_is_ps2()) {
+    pic_seti(PIC_IMOUSE, DOSEMUMouseEvents, 0, do_mouse_irq);
+    pic_unmaski(PIC_IMOUSE);
+  }
+
   /* We set the defaults at the end so that we can test the mouse type */
   mouse_reset(1);		/* Let's set defaults now ! */
   m_printf("MOUSE: INIT complete\n");

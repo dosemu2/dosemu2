@@ -190,10 +190,6 @@ void hardware_setup(void)
   pic_unmaski(PIC_IRQ1);
   pic_seti(PIC_IRQ8, rtc_int8, 0, NULL);
   pic_unmaski(PIC_IRQ8);
-  if (mouse_is_ps2()) {
-    pic_seti(PIC_IMOUSE, DOSEMUMouseEvents, 0, do_mouse_irq);
-    pic_unmaski(PIC_IMOUSE);
-  }
 #ifdef USING_NET
 #ifdef IPX
   pic_seti(PIC_IPX, do_irq, 0, IPXCallRel);
@@ -206,7 +202,7 @@ void hardware_setup(void)
   /* DMA Init */
   /* dma_init(); - Currently in dev_list */
 
-  g_printf("PIC,mouse,IPX initialized\n");
+  g_printf("PIC,IPX initialized\n");
 }
 
 /*
