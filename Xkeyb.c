@@ -54,6 +54,10 @@ typedef unsigned char byte;
 typedef unsigned short ushort;
 */
 
+#if 1    /* use highscan in termio.c now, which is essentially the same */
+byte highscan[];
+
+#else
 /* ASCII 0x20..0x7E */
 
 static byte ascii_scan[] =
@@ -70,6 +74,22 @@ static byte ascii_scan[] =
     0x23, 0x17, 0x24, 0x25, 0x26, 0x32, 0x31, 0x18,
     0x19, 0x10, 0x13, 0x1f, 0x14, 0x16, 0x2f, 0x11,
     0x2d, 0x15, 0x2c, 0x1a, 0x2b, 0x1b, 0x29
+};
+#endif
+
+static u_char latin1_to_dos[] = {
+    0,    0xad, 0x9b, 0x9c, 0,    0x9d, 0x7c, 0x15,  /* A0-A7 */
+    0x22, 0,    0xa6, 0xae, 0xaa, 0x2d, 0,    0,     /* A8-AF */
+    0xf8, 0xf1, 0xfd, 0xfc, 0x27, 0xe6, 0x14, 0xf9,  /* B0-B7 */
+    0x2c, 0,    0xa7, 0xaf, 0xac, 0xab, 0,    0xa8,  /* B8-BF */
+    0,    0,    0,    0,    0x8e, 0x8f, 0x92, 0x80,  /* C0-C7 */
+    0,    0x90, 0,    0,    0,    0,    0,    0,     /* C8-CF */
+    0,    0xa5, 0,    0,    0,    0,    0x99, 0,     /* D0-D7 */
+    0xed, 0,    0,    0,    0x9a, 0,    0,    0xe1,  /* D8-DF */
+    0x85, 0xa0, 0x83, 0,    0x84, 0x86, 0x91, 0x87,  /* E0-E7 */
+    0x8a, 0x82, 0x88, 0x89, 0x8d, 0xa1, 0x8c, 0x8b,  /* E8-EF */
+    0,    0xa4, 0xa2, 0x95, 0x93, 0,    0x94, 0xf6,  /* F0-F7 */
+    0xed, 0x97, 0xa3, 0x96, 0x81, 0,    0,    0x98   /* F8-FF */
 };
 
 static byte cursor_scan[] = 
@@ -102,7 +122,6 @@ static struct
     ushort scan_code;
 } other_scan[] =
 {
-    { XK_BackSpace,     0x0e },
     { XK_Tab,           0x0f },
     { XK_Return,        0x1c },
     { XK_Escape,        0x01 },
@@ -126,12 +145,17 @@ static struct
 /* This is a very quick'n dirty put_key...  */
 void put_key(ushort scan, short charcode) {
 #if 0
-   printf("put_key(0x%X,'%c')\n",scan,charcode>=0x20?charcode:'?');
+   printf("put_key(0x%X,'%c'=%d)\n",scan,charcode>=0x20?charcode:'?',charcode);
 #else
-   X_printf("put_key(0x%X,'%c')\n",scan,charcode>=0x20?charcode:'?');
+   X_printf("put_key(0x%X,'%c'=%d)\n",scan,charcode>=0x20?charcode:'?',charcode);
 #endif
+   
    if (charcode!=-1) {
-      if (scan&0x80) DOS_setscan(((scan & 0x7f)<< 8) | charcode);
+#if 0
+     if (scan&0x80) DOS_setscan(((scan & 0x7f)<< 8) | charcode);
+#else
+     if (!(scan&0x80)) DOS_setscan((scan<<8) | charcode);
+#endif
    }
    else {
       if (scan & 0xFF00) DOS_setscan(scan&0xFF00);
@@ -144,15 +168,27 @@ inline ushort translate(KeySym key)
     int i;
 
     /* ascii keys */
-    if (key >= 0x20 && key <= 0x20+sizeof(ascii_scan))
-        return (ascii_scan[key - 0x20]);
+    if (key >= 0x20 && key <= 0x7e) {
+#if 0
+      return (ascii_scan[key - 0x20]);
+#else
+      return highscan[key];
+#endif
+    }
 
-    /* function keys */
-    if (key >= XK_F1 && key <= XK_F12) {
+    /* function keys:
+       note that shift-F1..F12 actually give shift-F11..F22, so
+       we have to do a little translation here.
+       It's not perfect for shift-F1,F2...
+    */
+    
+    if (key >= XK_F1 && key <= XK_F22) {
+       if (key >= XK_F13) key-=10;
+
        if (key > XK_F10)
-          return key-XK_F10+0x57;
+          return key-XK_F10+0x57;     /* F11, F12 */
        else
-          return key-XK_F1+0x3b;
+          return key-XK_F1+0x3b;      /* F1..F10  */
     }
 
     /* cursor keys */
@@ -185,7 +221,7 @@ void X_process_key(XKeyEvent *e)
 {
     ushort scan;
     KeySym key;
-    char chars[MAXCHARS];
+    u_char chars[MAXCHARS];
     int count;
     short ch;
     static XComposeStatus compose_status = {NULL, 0};
@@ -241,10 +277,17 @@ void X_process_key(XKeyEvent *e)
     }
     else if (key == XK_X386_SysReq)
        scan = 0x54;
+    else if (key == XK_BackSpace) {
+       scan = 0x0e;
+       ch = 8;
+    }
     else {
        scan = translate(key);
     }
+
+    /* do latin1 translation */
+    if (ch>=0xa0) ch=latin1_to_dos[ch-0xa0];
     
-    if (scan)
+    if (scan || ch)
        put_key((e->type==KeyPress) ? scan : scan|0x80, ch);
 }

@@ -12,12 +12,15 @@
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
- * $Date: 1994/08/17 02:08:22 $
+ * $Date: 1994/08/25 00:49:34 $
  * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 2.20 $
+ * $Revision: 2.21 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 2.21  1994/08/25  00:49:34  root
+ * Lutz's STI patches and prep for pre53_16.
+ *
  * Revision 2.20  1994/08/17  02:08:22  root
  * Mods to Rain's patches to get all modes back on the road.
  *
@@ -444,6 +447,7 @@ __asm__("___START___: jmp _emulate\n");
 #include <sys/vm86.h>
 #include <syscall.h>
 #include <linux/cdrom.h>
+#include <linux/config.h>
 
 #include "config.h"
 #include "memory.h"
@@ -502,6 +506,8 @@ long start_time;		/* Keep track of times for DOS calls */
 unsigned long last_ticks;
 
 extern void video_config_init(void);
+extern int keyboard_init(void);
+extern void keyboard_close(void);
 
 /*
    Tables that hold information of currently specified storage
@@ -1002,8 +1008,6 @@ boot(void)
 
   keybuf_clear();
 
-  video_config_init();
-
   bios_vdu_control = 9;		/* current 3x8 (x=b or d) value */
   bios_ctrl_alt_del_flag = 0x0000;
   *(char *) 0x487 = 0x61;
@@ -1210,7 +1214,11 @@ sigalrm(int sig, struct sigcontext_struct context)
       h_printf("NOT CONFIG.TIMERS\n");
   }
 
-  if (!use_sigio) {
+  if (!use_sigio
+#ifdef SIG
+    | SillyG
+#endif
+     ) {
   /* Call select to see if any I/O is ready on devices */
     io_select();
   }
@@ -1873,12 +1881,6 @@ void
   /* setup DOS memory, whether shared or not */
   memory_setup();
 
-  /* initialize some video config variables, possibly map video bios,
-     get graphics chars
-  */
-  video_config_init();
-
-
   g_printf("EMULATE\n");
 
   /* we assume system call restarting... under linux 0.99pl8 and earlier,
@@ -1944,18 +1946,30 @@ void
 
   vm86s.flags=0;
 
-  video_init();
+  /* Verify that Keyboard is OK as well as turn off some
+     options if not at a console
+  */
+  if (keyboard_init() != 0) {
+    error("ERROR: can't open keyboard\n");
+    leavedos(19);
+  }
+  /* initialize some video config variables, possibly map video bios,
+     get graphics chars
+  */
+  video_config_init();
+#ifdef SIG
+  SIG_init();
+#endif
   mouse_init();
+#if 0
+  video_init();
+#endif
   disk_init();
-  
+  serial_init();
   NEWSETSIG(SIGSEGV, dosemu_fault);
   hardware_init();
 
   boot();
-
-/*
-  boot(config.hdiskboot ? hdisktab : disktab);
-*/
 
   fflush(stdout);
   itv.it_interval.tv_sec = 0;
@@ -1965,16 +1979,15 @@ void
   setitimer(TIMER_TIME, &itv, NULL);
   k_printf("Used %d for update\n", UPDATE / TIMER_DIVISOR);
 
-
-  serial_init();
-#ifdef SIG
-  SIG_init();
-#endif
-
   for (; !fatalerr;) {
     run_vm86();
-    serial_run();
-    int_queue_run();
+#ifdef CONFIG_CORRECT_STI /* defined in linux/autoconfig.h */
+    if (!(REG(eflags) & STIP_MASK))
+#endif
+    {
+      serial_run();
+      int_queue_run();
+    }
   }
 
   error("error exit: (%d,0x%04x) in_sigsegv: %d ignore_segv: %d\n",
@@ -2040,6 +2053,7 @@ void
   show_regs();
   disk_close_all();
   video_close();
+  keyboard_close();
   fflush(stderr);
   fflush(stdout);
 
@@ -2090,7 +2104,7 @@ int
 
 void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.20 1994/08/17 02:08:22 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.21 1994/08/25 00:49:34 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -2165,12 +2179,11 @@ p_dos_str(char *fmt,...) {
   while (*s) char_out(*s++, bios_current_screen_page);
 }
 
-
-
 int cdrom_fd = -1;
 
 unsigned int device_status;
 struct audio_status { unsigned int status;
+		      unsigned char media_changed;
                       unsigned char paused_bit;
                       unsigned int last_StartSector,last_EndSector;
                       unsigned char outchan0,outchan1,outchan2,outchan3;
@@ -2225,6 +2238,16 @@ struct audio_status { unsigned int status;
 #define MSCD_CTRL_VOLUME2          6
 #define MSCD_CTRL_VOLUME3          8
 
+
+void cdrom_reset()
+{
+  /* after a disk change a new read access will 
+     return in error. In order to unlock this condition
+     the drive must be reopend.
+     Does some one knows a better way?                   */
+  close (cdrom_fd); 
+  cdrom_fd = open ("/dev/cdrom", O_RDONLY);
+ }
 #define MSCD_AUDCHAN_VOLUME0       2
 #define MSCD_AUDCHAN_VOLUME1       4
 #define MSCD_AUDCHAN_VOLUME2       6
@@ -2242,7 +2265,7 @@ void cdrom_helper()
    struct cdrom_volctrl cdrom_volctrl;
    int n,ioctlin;
    
-              /*  error ("call function %d !\n", HI(ax));
+                /* error ("call function %d !\n", HI(ax));
 
                 ioctlin = 0;
                 req_buf = SEG_ADR((char *), es, di);
@@ -2261,11 +2284,12 @@ void cdrom_helper()
                      error ("  %3x", req_buf[n]);
                   error ("\n");
                 }
-                error ("\n"); */
-
+                error ("\n");
+                */
    switch (HI(ax)) {
      case 0x01: audio_status.status = 0x00000310;
                 audio_status.paused_bit = 0;
+                audio_status.media_changed = 0;
                 audio_status.volume0 = 0xFF;
                 audio_status.volume1 = 0xFF;
                 audio_status.volume2 = 0;
@@ -2326,14 +2350,19 @@ void cdrom_helper()
 
                 audio_status.last_EndSector = Sector_plus_150;
                 audio_status.paused_bit = 0;
-                if (ioctl (cdrom_fd, CDROMPLAYMSF, &cdrom_msf) == -1) {
-                  LO(ax) = 1;
-                 }
-                 else LO(ax) = 0;
+                if (ioctl (cdrom_fd, CDROMPLAYMSF, &cdrom_msf)) {
+                  audio_status.media_changed = 1;
+                  if (ioctl (cdrom_fd, CDROMPLAYMSF, &cdrom_msf)) {
+                    /* no disk in drive */
+                    LO(ax) = 1;
+                    break;
+                  }
+                }
+                LO(ax) = 0;
                 break;                 
      case 0x05: /* pause (stop) audio */
                 LO(ax) = 0;
-                if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl) != -1) {
+                if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl) == 0) {
                   if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY) {
                     audio_status.last_StartSector =             
                                 cdrom_subchnl.cdsc_absaddr.msf.minute*60*75
@@ -2346,12 +2375,17 @@ void cdrom_helper()
                          audio_status.last_EndSector = 0;
                          audio_status.paused_bit = 0;
                        }
-                }
+                 }
+                 else { audio_status.last_StartSector = 0;
+                        audio_status.last_EndSector = 0;
+                        audio_status.paused_bit = 0;
+                        audio_status.media_changed = 1;
+                      }
                 break;
      case 0x06: /* resume audio */
                 LO(ax) = 0;
                 if (audio_status.paused_bit) {
-                  if (ioctl (cdrom_fd, CDROMRESUME, NULL) != -1) {
+                  if (ioctl (cdrom_fd, CDROMRESUME, NULL) == 0) {
                     audio_status.paused_bit = 0;
                     HI(ax) = 1;
                   }
@@ -2359,26 +2393,30 @@ void cdrom_helper()
                 else LO(ax) = 1;
                 break;                
      case 0x07: /* location of head */
-                if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl) == -1)
-                  LO(ax) = 1;
-                 else { 
-                        req_buf = SEG_ADR((char *), ds, si);
-                        if (*CALC_PTR(req_buf,MSCD_LOCH_ADRESSING,u_char) == 0) {
-                          *CALC_PTR(req_buf,MSCD_LOCH_LOCATION,u_long)
-                             = cdrom_subchnl.cdsc_absaddr.msf.minute*60*75
-                                    +cdrom_subchnl.cdsc_absaddr.msf.second*75
-                                     +cdrom_subchnl.cdsc_absaddr.msf.frame-150;                                                
-                         }
-                         else {
-                               *CALC_PTR(req_buf,MSCD_LOCH_LOCATION+3,u_char) = 0;
-                               *CALC_PTR(req_buf,MSCD_LOCH_LOCATION+2,u_char) = cdrom_subchnl.cdsc_absaddr.msf.minute;
-                               *CALC_PTR(req_buf,MSCD_LOCH_LOCATION+1,u_char) = cdrom_subchnl.cdsc_absaddr.msf.second;
-                               *CALC_PTR(req_buf,MSCD_LOCH_LOCATION+0,u_char) = cdrom_subchnl.cdsc_absaddr.msf.frame;
-                              }
-                        if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
-                          HI(ax) = 1;   
-                         else HI(ax) = 0;
-                        LO(ax) = 0;
+                LWORD(eax) = 0;
+                if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
+                  audio_status.media_changed = 1;
+                  if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
+                    /* no disk in drive */
+                    LO(ax) = 1;
+                    break;
+                  }
+                }
+                if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
+                  HI(ax) = 1;   
+
+                req_buf = SEG_ADR((char *), ds, si);
+                if (*CALC_PTR(req_buf,MSCD_LOCH_ADRESSING,u_char) == 0) {
+                  *CALC_PTR(req_buf,MSCD_LOCH_LOCATION,u_long)
+                     = cdrom_subchnl.cdsc_absaddr.msf.minute*60*75
+                            +cdrom_subchnl.cdsc_absaddr.msf.second*75
+                             +cdrom_subchnl.cdsc_absaddr.msf.frame-150;                                                
+                 }
+                 else {/* red book adressing */
+                       *CALC_PTR(req_buf,MSCD_LOCH_LOCATION+3,u_char) = 0;
+                       *CALC_PTR(req_buf,MSCD_LOCH_LOCATION+2,u_char) = cdrom_subchnl.cdsc_absaddr.msf.minute;
+                       *CALC_PTR(req_buf,MSCD_LOCH_LOCATION+1,u_char) = cdrom_subchnl.cdsc_absaddr.msf.second;
+                       *CALC_PTR(req_buf,MSCD_LOCH_LOCATION+0,u_char) = cdrom_subchnl.cdsc_absaddr.msf.frame;
                       }
                 break;
      case 0x08: /* return sectorsize */
@@ -2386,20 +2424,37 @@ void cdrom_helper()
                 LWORD(ebx) = 2048;
                 break;
      case 0x09: /* media changed */
-                HI(ax) = 0;
-                if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl) != -1) 
-                  if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
-                    HI(ax) = 1;
-                LO(ax) = 0;
-                LO(bx) = 0;
+                /* this function will be called from MSCDEX before 
+                   each new disk access !                         */
+                HI(ax) = 0; LO(ax) = 0; LO(bx) = 0;
+                if ((audio_status.media_changed) ||
+                      ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
+                  audio_status.media_changed = 0;
+                  LO(bx) = 1; /* media has been changed */
+                  if (! ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
+                    /* new disk inserted */
+                    cdrom_reset();
+                  }
+                 }
+                 else /* media has not changed, check audio status */
+                      if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
+                        HI(ax) = 1; /* audio playing in progress */
                 break;
      case 0x0A: /* device status */
+                HI(ax) = 0; LO(ax) = 0;
+                if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl))
+                  if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl))
+                    { /* no disk in drive */
+                      LWORD(ebx) = audio_status.status | 0x800;
+                      break;
+                    }
+                   else { /* disk has been changed; new disk in drive ! */
+                          cdrom_reset();
+                        }
+                /* disk in drive */
                 LWORD(ebx) = audio_status.status;
-                HI(ax) = 0;
-                if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl) != -1) 
-                  if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
-                    HI(ax) = 1;
-                LO(ax) = 0;
+                if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
+                  HI(ax) = 1;
                 break;
      case 0x0B: /* drive reset */
                 LO(ax) = 0;
@@ -2411,18 +2466,27 @@ void cdrom_helper()
                 LO(ax) = 0;
                 break;
      case 0x0D: /* eject */
-                if (ioctl (cdrom_fd, CDROMEJECT, NULL) != -1)
-                  LO(ax) = 0;
-                 else LO(ax) = 1;
+                LO(ax) = 0;
+                if (audio_status.status & 0x02) /* drive unlocked ? */
+                  if (ioctl (cdrom_fd, CDROMEJECT, NULL))
+                    LO(ax) = 1;
                 break;
      case 0x0E: /* close tray */
                 LO(ax) = 0;
                 break;
      case 0x0F: /* audio channel control */
                 LWORD(eax) = 0;
-                if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl) != -1) 
-                  if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
-                    HI(ax) = 1;
+                if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
+                  audio_status.media_changed = 1;
+                  if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
+                    /* no disk in drive */
+                    LO(ax) = 1;
+                    break;
+                  }
+                }
+                if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
+                  HI(ax) = 1;
+ 
                 req_buf = SEG_ADR((char *), ds, si);
                 cdrom_volctrl.channel0 = *CALC_PTR(req_buf, MSCD_CTRL_VOLUME0, u_char);
                 cdrom_volctrl.channel1 = *CALC_PTR(req_buf, MSCD_CTRL_VOLUME1, u_char);
@@ -2439,74 +2503,105 @@ void cdrom_helper()
                 ioctl (cdrom_fd, CDROMVOLCTRL, &cdrom_volctrl);
                 break;
      case 0x10: /* audio disk info */
-                LO(ax) = 1;
-                if (ioctl (cdrom_fd, CDROMREADTOCHDR, &cdrom_tochdr) != -1) {
-                  req_buf = SEG_ADR((char *), ds, si);
-                  *CALC_PTR(req_buf,MSCD_DISKINFO_LTN,u_char) = cdrom_tochdr.cdth_trk0;
-                  *CALC_PTR(req_buf,MSCD_DISKINFO_HTN,u_char) = cdrom_tochdr.cdth_trk1;
-                  cdrom_tocentry.cdte_track = CDROM_LEADOUT;
-                  cdrom_tocentry.cdte_format = CDROM_MSF;
-                  if (ioctl (cdrom_fd, CDROMREADTOCENTRY, &cdrom_tocentry) != -1) {
-                    *CALC_PTR(req_buf,MSCD_DISKINFO_LEADOUT+3,u_char) = 0;
-                    *CALC_PTR(req_buf,MSCD_DISKINFO_LEADOUT+2,u_char) = cdrom_tocentry.cdte_addr.msf.minute;
-                    *CALC_PTR(req_buf,MSCD_DISKINFO_LEADOUT+1,u_char) = cdrom_tocentry.cdte_addr.msf.second;
-                    *CALC_PTR(req_buf,MSCD_DISKINFO_LEADOUT+0,u_char) = cdrom_tocentry.cdte_addr.msf.frame;
-                    LO(ax) = 0;
+                LWORD(eax) = 0;
+                if (ioctl (cdrom_fd, CDROMREADTOCHDR, &cdrom_tochdr)) {
+                  audio_status.media_changed = 1;
+                  if (ioctl (cdrom_fd, CDROMREADTOCHDR, &cdrom_tochdr)) {
+                    /* no disk in drive */
+                    LO(ax) = 1;
+                    break;
                   }
                 }
+
+                req_buf = SEG_ADR((char *), ds, si);
+                *CALC_PTR(req_buf,MSCD_DISKINFO_LTN,u_char) = cdrom_tochdr.cdth_trk0;
+                *CALC_PTR(req_buf,MSCD_DISKINFO_HTN,u_char) = cdrom_tochdr.cdth_trk1;
+                cdrom_tocentry.cdte_track = CDROM_LEADOUT;
+                cdrom_tocentry.cdte_format = CDROM_MSF;
+                if (ioctl (cdrom_fd, CDROMREADTOCENTRY, &cdrom_tocentry)) {
+                  error ("Fatal cdrom error(audio disk info); read toc header succeeded but following read entry didn't\n");
+                  LO(ax) = 1;
+                  break;
+                }
+                *CALC_PTR(req_buf,MSCD_DISKINFO_LEADOUT+3,u_char) = 0;
+                *CALC_PTR(req_buf,MSCD_DISKINFO_LEADOUT+2,u_char) = cdrom_tocentry.cdte_addr.msf.minute;
+                *CALC_PTR(req_buf,MSCD_DISKINFO_LEADOUT+1,u_char) = cdrom_tocentry.cdte_addr.msf.second;
+                *CALC_PTR(req_buf,MSCD_DISKINFO_LEADOUT+0,u_char) = cdrom_tocentry.cdte_addr.msf.frame;
                 break;                
      case 0x11: /* track info */
                 req_buf = SEG_ADR((char *), ds, si);
                 cdrom_tocentry.cdte_track = *CALC_PTR(req_buf,MSCD_TRACKINFO_TRACKNUM,u_char);
                 cdrom_tocentry.cdte_format = CDROM_MSF;
-                if (ioctl (cdrom_fd, CDROMREADTOCENTRY, &cdrom_tocentry) != -1) {
-                  *CALC_PTR(req_buf,MSCD_TRACKINFO_TRACKPOS+3,u_char) = 0;
-                  *CALC_PTR(req_buf,MSCD_TRACKINFO_TRACKPOS+2,u_char) = cdrom_tocentry.cdte_addr.msf.minute;
-                  *CALC_PTR(req_buf,MSCD_TRACKINFO_TRACKPOS+1,u_char) = cdrom_tocentry.cdte_addr.msf.second;
-                  *CALC_PTR(req_buf,MSCD_TRACKINFO_TRACKPOS+0,u_char) = cdrom_tocentry.cdte_addr.msf.frame;                  
-                  *CALC_PTR(req_buf,MSCD_TRACKINFO_CTRL,u_char) = cdrom_tocentry.cdte_ctrl;
-                  LO(ax) = 0;
-                 }
-                 else LO(ax) = 1;
+                if (ioctl (cdrom_fd, CDROMREADTOCENTRY, &cdrom_tocentry)) {
+                  audio_status.media_changed = 1;
+                  if (ioctl (cdrom_fd, CDROMREADTOCENTRY, &cdrom_tocentry)) {
+                    /* no disk in drive */
+                    LO(ax) = 1;
+                    break;
+                  }
+                }
+                *CALC_PTR(req_buf,MSCD_TRACKINFO_TRACKPOS+3,u_char) = 0;
+                *CALC_PTR(req_buf,MSCD_TRACKINFO_TRACKPOS+2,u_char) = cdrom_tocentry.cdte_addr.msf.minute;
+                *CALC_PTR(req_buf,MSCD_TRACKINFO_TRACKPOS+1,u_char) = cdrom_tocentry.cdte_addr.msf.second;
+                *CALC_PTR(req_buf,MSCD_TRACKINFO_TRACKPOS+0,u_char) = cdrom_tocentry.cdte_addr.msf.frame;                  
+                *CALC_PTR(req_buf,MSCD_TRACKINFO_CTRL,u_char) = cdrom_tocentry.cdte_ctrl << 4 | 0x20;
+                LO(ax) = 0;
                 break;                
      case 0x12: /* volume size */
                 cdrom_tocentry.cdte_track = CDROM_LEADOUT;
                 cdrom_tocentry.cdte_format = CDROM_MSF;
-                if (ioctl (cdrom_fd, CDROMREADTOCENTRY, &cdrom_tocentry) != -1) {
-                  req_buf = SEG_ADR((char *), ds, si);
-                  *CALC_PTR(req_buf,MSCD_GETVOLUMESIZE_SIZE,int) = cdrom_tocentry.cdte_addr.msf.minute*60*75
-                                                                      +cdrom_tocentry.cdte_addr.msf.second*60
-                                                                      +cdrom_tocentry.cdte_addr.msf.frame;
-                  LO(ax) = 0;
-                 }                              
-                else LO(ax) = 1;
+                if (ioctl (cdrom_fd, CDROMREADTOCENTRY, &cdrom_tocentry)) {
+                  audio_status.media_changed = 1;
+                  if (ioctl (cdrom_fd, CDROMREADTOCENTRY, &cdrom_tocentry)) {
+                    /* no disk in drive */
+                    LO(ax) = 1;
+                    break;
+                  }
+                }
+                req_buf = SEG_ADR((char *), ds, si);
+                *CALC_PTR(req_buf,MSCD_GETVOLUMESIZE_SIZE,int) = cdrom_tocentry.cdte_addr.msf.minute*60*75
+                                                                    +cdrom_tocentry.cdte_addr.msf.second*60
+                                                                    +cdrom_tocentry.cdte_addr.msf.frame;
+                LO(ax) = 0;
                 break;                
      case 0x13: /* q channel */
                 LWORD(eax) = 0;
-                if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl) != -1) { 
-                  if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
-                    HI(ax) = 1;
-             
-                  req_buf = SEG_ADR((char *), ds, si);
-                  *CALC_PTR(req_buf,MSCD_QCHAN_CTRL,u_char) = (cdrom_subchnl.cdsc_adr << 4) + (cdrom_subchnl.cdsc_ctrl);
-                  *CALC_PTR(req_buf,MSCD_QCHAN_TNO,u_char)  = cdrom_subchnl.cdsc_trk;
-                  *CALC_PTR(req_buf,MSCD_QCHAN_IND,u_char)  = cdrom_subchnl.cdsc_ind;
-                  *CALC_PTR(req_buf,MSCD_QCHAN_MIN,u_char)  = cdrom_subchnl.cdsc_reladdr.msf.minute;
-                  *CALC_PTR(req_buf,MSCD_QCHAN_SEC,u_char)  = cdrom_subchnl.cdsc_reladdr.msf.second;
-                  *CALC_PTR(req_buf,MSCD_QCHAN_FRM,u_char)  = cdrom_subchnl.cdsc_reladdr.msf.frame;
-                  *CALC_PTR(req_buf,MSCD_QCHAN_ZERO,u_char) = 0;
-                  *CALC_PTR(req_buf,MSCD_QCHAN_AMIN,u_char) = cdrom_subchnl.cdsc_absaddr.msf.minute;
-                  *CALC_PTR(req_buf,MSCD_QCHAN_ASEC,u_char) = cdrom_subchnl.cdsc_absaddr.msf.second;
-                  *CALC_PTR(req_buf,MSCD_QCHAN_AFRM,u_char) = cdrom_subchnl.cdsc_absaddr.msf.frame;
-                  LO(ax) = 0;
-                 }
-                 else LO(ax) = 1;
+                if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
+                  audio_status.media_changed = 1;
+                  if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
+                    /* no disk in drive */
+                    LO(ax) = 1;
+                    break;
+                  }
+                }
+                if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
+                  HI(ax) = 1;
+            
+                req_buf = SEG_ADR((char *), ds, si);
+                *CALC_PTR(req_buf,MSCD_QCHAN_CTRL,u_char) = (cdrom_subchnl.cdsc_adr << 4) + (cdrom_subchnl.cdsc_ctrl);
+                *CALC_PTR(req_buf,MSCD_QCHAN_TNO,u_char)  = cdrom_subchnl.cdsc_trk;
+                *CALC_PTR(req_buf,MSCD_QCHAN_IND,u_char)  = cdrom_subchnl.cdsc_ind;
+                *CALC_PTR(req_buf,MSCD_QCHAN_MIN,u_char)  = cdrom_subchnl.cdsc_reladdr.msf.minute;
+                *CALC_PTR(req_buf,MSCD_QCHAN_SEC,u_char)  = cdrom_subchnl.cdsc_reladdr.msf.second;
+                *CALC_PTR(req_buf,MSCD_QCHAN_FRM,u_char)  = cdrom_subchnl.cdsc_reladdr.msf.frame;
+                *CALC_PTR(req_buf,MSCD_QCHAN_ZERO,u_char) = 0;
+                *CALC_PTR(req_buf,MSCD_QCHAN_AMIN,u_char) = cdrom_subchnl.cdsc_absaddr.msf.minute;
+                *CALC_PTR(req_buf,MSCD_QCHAN_ASEC,u_char) = cdrom_subchnl.cdsc_absaddr.msf.second;
+                *CALC_PTR(req_buf,MSCD_QCHAN_AFRM,u_char) = cdrom_subchnl.cdsc_absaddr.msf.frame;
                 break;
      case 0x14: /* audio status */
                 LWORD(eax) = 0;
-                if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl) != -1) 
-                  if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
-                    HI(ax) = 1;
+                if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
+                  audio_status.media_changed = 1;
+                  if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
+                    /* no disk in drive */
+                    LO(ax) = 1;
+                    break;
+                  }
+                }
+                if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
+                  HI(ax) = 1;
+
                 req_buf = SEG_ADR((char *), ds, si);
                 *CALC_PTR(req_buf,MSCD_AUDSTAT_PAUSED,u_short)= audio_status.paused_bit;
                 *CALC_PTR(req_buf,MSCD_AUDSTAT_START ,u_long) = audio_status.last_StartSector;
@@ -2514,12 +2609,18 @@ void cdrom_helper()
                 break;
      case 0x15: /* get audio channel information */
                 LWORD(eax) = 0;
-                if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl) != -1) { 
-                  if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
-                    HI(ax) = 1;
+                if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
+                  audio_status.media_changed = 1;
+                  if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
+                    /* no disk in drive */
+                    LO(ax) = 1;
+                    break;
+                  }
                 }
-                req_buf = SEG_ADR((char *), ds, si);
+                if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
+                  HI(ax) = 1;
 
+                req_buf = SEG_ADR((char *), ds, si);
                 *CALC_PTR(req_buf,MSCD_AUDCHAN_VOLUME0,u_char) = audio_status.volume0;
                 *CALC_PTR(req_buf,MSCD_AUDCHAN_VOLUME1,u_char) = audio_status.volume1;
                 *CALC_PTR(req_buf,MSCD_AUDCHAN_VOLUME2,u_char) = audio_status.volume2; 
@@ -2532,7 +2633,7 @@ void cdrom_helper()
      default: error ("CDROM: unknown request !\n");
    }
 
-/*                if (ioctlin) {
+                /* if (ioctlin) {
                   error ("            return  : ");
                   req_buf = SEG_ADR((char *), ds, si);
                   for (n = 0; n <= 9; ++n)
@@ -2542,7 +2643,7 @@ void cdrom_helper()
                 else ("\n");
 
                 error ("Leave cdrom request with return status %d !\n\n", LWORD(eax));
-*/
+                */
    return ;
 }
 
@@ -2699,7 +2800,7 @@ dos_helper(void) {
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/08/17 02:08:22 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/08/25 00:49:34 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */

@@ -1,3 +1,17 @@
+Wed Aug 24 1994 Jmaclean
+
+-	Added Enhancements to CDROM driver by Karsten Rucker.
+-	Added Lutz's STI patches and kernel patch sti.pat in .kernel
+
+Fri Aug 19 1994 Jmaclean
+
+-	Changed OpenKeyboard to keyboard_init and closeKeyboard
+	to keyboard_close. Moved these out of video init procs and
+	into there own separate calls. This was causing problems
+	in video_config_init() as it would map in video bios
+	illegally :-(.
+-	Added Conditional for SIG in sigalrm to help io_select()
+
 Wed Aug 17 1994 Jmaclean
 
 -	Added scan to charcode returned in Xkeyb.c by put_key()

@@ -3,12 +3,15 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/08/17 02:08:22 $
+ * $Date: 1994/08/25 00:49:34 $
  * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
- * $Revision: 2.12 $
+ * $Revision: 2.13 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 2.13  1994/08/25  00:49:34  root
+ * prep for pre53_16
+ *
  * Revision 2.12  1994/08/17  02:08:22  root
  * Mods to Rain's patches to get all modes back on the road.
  *
@@ -236,7 +239,6 @@ void show_regs(void);
 int ext_fs(int, char *, char *, int);
 int outch(int c);
 void termioInit(void);
-void termioClose(void);
 __inline__ void run_vm86(void);
 
 #define NOWAIT  0

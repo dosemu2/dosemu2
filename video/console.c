@@ -76,7 +76,7 @@ void set_console_video(void)
   allow_switch();
 
   if (config.vga) {
-    v_printf("VID: Taking mouse control\n");
+    k_printf("KBD: Taking mouse control\n");
     ioctl(ioc_fd, KDSETMODE, KD_GRAPHICS);
   }
 
@@ -136,7 +136,7 @@ void clear_console_video(void)
     fprintf(stdout,"\033[?25h");        /* Turn on the cursor */
 
   if (config.console_video) {
-    v_printf("VID: Release mouse control\n");
+    k_printf("KBD: Release mouse control\n");
     ioctl(ioc_fd, KDSETMODE, KD_TEXT);
   }
 }

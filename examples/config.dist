@@ -48,7 +48,7 @@ timint on
 #    With the "layout" keyword, you can specify your country's keyboard
 #    layout.  The following layouts are implemented:
 #        finnish           us           dvorak       sf
-#        finnish_latin1    uk           sg           sf-latin1
+#        finnish-latin1    uk           sg           sf-latin1
 #        gr                dk           sg-latin1    es
 #        gr-latin1         dk-latin1    fr           es-latin1
 #        be                no           fr-latin1

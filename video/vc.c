@@ -21,9 +21,9 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
- * $Date: 1994/08/17 02:10:31 $
+ * $Date: 1994/08/25 00:52:10 $
  * $Source: /home/src/dosemu0.60/video/RCS/vc.c,v $
- * $Revision: 1.2 $
+ * $Revision: 1.3 $
  * $State: Exp $
  *
  * Revision 1.3  1993/10/03  21:38:22  root
@@ -156,7 +156,7 @@ u_char video_initialized = 0;
 
 struct screen_stat scr_state;	/* main screen status variables */
 void release_vt(), acquire_vt();
-void get_video_ram(int), open_kmem(), set_console_video();
+void get_video_ram(int), open_kmem();
 extern int mem_fd, ioc_fd;
 
 int gfx_mode = TEXT;
@@ -214,6 +214,7 @@ acquire_vt(int sig)
   struct sigaction siga;
   void *oldalrm;
 
+  v_printf("VID: Acquiring VC\n");
   forbid_switch();
 
 #if 1
@@ -299,6 +300,7 @@ release_vt(int sig)
 {
   struct sigaction siga;
 
+  v_printf("VID: Releasing VC\n");
   SETSIG(siga, SIG_RELEASE, release_vt);
 
   parent_close_mouse();
@@ -576,6 +578,7 @@ set_process_control()
 
   if (do_ioctl(ioc_fd, VT_SETMODE, (int) &vt_mode))
     v_printf("initial VT_SETMODE failed!\n");
+  v_printf("VID: Set process control\n");
 }
 
 void

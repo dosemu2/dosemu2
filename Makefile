@@ -1,8 +1,8 @@
 # Makefile for Linux DOSEMU
 #
-# $Date: 1994/08/17 02:08:22 $
+# $Date: 1994/08/25 00:49:34 $
 # $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.25 $
+# $Revision: 2.26 $
 # $State: Exp $
 #
 # You should do a "make doeverything" or a "make most" (excludes TeX)
@@ -33,6 +33,7 @@ XOBJS   = Xkeyb.o
 XLIBS   = -lX11 -u _XOpenDisplay
 XDEFS   = -DX_SUPPORT
 endif
+
 export X_SUPPORT
 export XDEFS
 
@@ -49,13 +50,14 @@ DOSOBJS=
 SHLIBOBJS=$(OBJS)
 DOSLNK=
 #LNKOPTS=-s
+# LNKOPTS=-Ttext
 #MAGIC=-zmagic
 #endif
 
 # dosemu version
 EMUVER  =   0.53
 VERNUM  =   0x53
-PATCHL  =   15
+PATCHL  =   16
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
 # should be okay at...0x20000000 for .5 GB mark.
@@ -253,7 +255,7 @@ install: all
 		install -m 0700 /usr/bin/xdosemu /tmp; \
 		rm -f /usr/bin/xdosemu; \
 	fi
-	ifdef X_SUPPORT
+ifdef X_SUPPORT
 	@ln -sf dos xdos
 	@install -m 0755 xtermdos /usr/bin
 	@if [ ! -e /usr/bin/xdos ]; then ln -s dos /usr/bin/xdos; fi
@@ -266,7 +268,7 @@ install: all
 			mkfontdir; \
 		fi \
 	fi
-	endif
+endif
 	@echo ""
 	@echo "---------------------------------DONE compiling-------------------------------"
 	@echo ""
@@ -274,10 +276,10 @@ install: all
 	@echo "  - Update your /etc/dosemu.conf by editing a copy of './examples/config.dist'"
 	@echo "  - Using your old DOSEMU 0.52 configuration file might not work."
 	@echo "  - After configuring DOSEMU, you can type 'dos' to run DOSEMU."
-	ifdef X_SUPPORT
+ifdef X_SUPPORT
 	@echo "  - Use 'xdos' instead of 'dos' to cause DOSEMU to open its own Xwindow."
 	@echo "  - If Xwindows is running now, restart it before 'xdos' for the first time."
-	endif
+endif
 	@echo ""
 
 converthd: hdimage
@@ -320,7 +322,7 @@ clean:
         done
 
 depend dep: 
-	$(CPP) -MM $(CFLAGS) *.c > .depend ;echo "bios.o : bios.S" >>.depend
+	$(CPP) -MM $(CFLAGS) $(CFILES) > .depend ;echo "bios.o : bios.S" >>.depend
 	cd clients;$(CPP) -MM -I../ -I../include $(CFLAGS) *.c > .depend
 	cd video; make depend
 	cd mouse; make depend

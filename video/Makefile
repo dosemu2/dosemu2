@@ -63,7 +63,7 @@ dist: $(ALL) Makefile
 	install -m 0644 $(ALL) Makefile $(DISTPATH)/video
 
 depend dep: $(CFILES) $(HFILES)
-	$(CPP) -MM $(CFLAGS) *.c $(INCDIR) > .depend
+	$(CPP) -MM $(CFLAGS) $(CFILES) $(INCDIR) > .depend
 
 dummy:
 

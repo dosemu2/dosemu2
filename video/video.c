@@ -14,7 +14,9 @@
 #include "memory.h"
 #include "video.h"
 
-void open_kmem();      /* from vc.c */
+extern void open_kmem();      /* from vc.c */
+extern void set_process_control();
+extern void set_console_video();
 
 
 int video_mode = 0;		/* Init Screen Mode in emu.c     */
@@ -39,7 +41,7 @@ int video_init()
 {
   /* figure out which video front end we are to use */
   
-  if (config.graphics) {
+  if (config.vga) {
      v_printf("VID: Video set to Video_graphics\n");
      Video=&Video_graphics;
   }
@@ -58,9 +60,9 @@ int video_init()
      Video=&Video_term;       /* ansi or ncurses */
   }
 
-  termioInit();            /* kludge! */
-
   Video->init();              /* call the specific init routine */
+
+  termioInit();            /* kludge! */
 
   if (!Video->is_mapped) {
      /* allocate screen buffer for non-console video compare speedup */
@@ -73,7 +75,9 @@ int video_init()
      vm86s.flags |= VM86_SCREEN_BITMAP;
   }
   
+#if 0
   if (config.vga) vga_initialize();
+#endif
   clear_screen(video_page, 7);
 
   return 0;
@@ -85,7 +89,6 @@ void video_close() {
     Video->close();
     v_printf("VID: video_close()->Video->close() called\n");
   }
-  termioClose();          /* kludge! */
 }
 
 /* load <msize> bytes of file <name> starting at offset <foffset>
@@ -117,26 +120,6 @@ load_file(char *name, int foffset, char *mstart, int msize)
 
 void
  video_config_init(void) {
-
-  struct stat chkbuf;
-  int major, minor;
-  fstat(STDIN_FILENO, &chkbuf);
-  major = chkbuf.st_rdev >> 8;
-  minor = chkbuf.st_rdev & 0xff;
-
-  /* console major num is 4, minor 64 is the first serial line */
-  if (!((major == 4) && (minor < 64)))
-  {
-    if (config.console_keyb || config.console_video)
-      error("ERROR: STDIN not a console-can't do console modes! major=%d, minor=%d\n", major, minor);
-    config.console_keyb = 0;
-    config.console_video = 0;
-    config.mapped_bios = 0;
-    config.vga = 0;
-    config.graphics = 0;
-    if (config.speaker == SPKR_NATIVE)
-      config.speaker = SPKR_EMULATED;
-  }
 
   switch (config.cardtype) {
   case CARD_MDA:
@@ -221,6 +204,15 @@ void
 
   /* copy graphics characters from system BIOS */
   load_file("/dev/kmem", GFX_CHARS, (char *) GFX_CHARS, GFXCHAR_SIZE);
+
+
+  if (config.console_keyb || config.console_video)
+    set_process_control();
+
+  if (config.console_video)
+    set_console_video();
+
+  video_init();
 
 }
 

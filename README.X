@@ -5,10 +5,8 @@ someone could like to try ;)
 
 What you should take care of:
 
--- uncomment the "X_SUPPORT = 1" line in the makefile and rebuild
-   dosemu.
-   this affects only emu.c, dyndeb.c and video/terminal.c, so you
-   don't have to recompile all if you just delete the related .o files.
+-- Make sure dosemu has X support compiled in. 
+   (X_SUPPORT = 1 in the Makefile)
 
 -- you need to have the vga font installed. See README.ncurses.
 
@@ -17,33 +15,29 @@ What you should take care of:
    dosemu will automatically assume -X. 
    There is also a new debug flag 'X' for X-related messages.
 
--- Keyboard input yet runs through the terminal routines, so your
-   input focus must be in the window you started dosemu from, not
-   in the dosemu window! 
-   This of course also means that only the key combinations 
-   supported in terminal mode will work. (this will hopefully 
-   be changed soon.)
+-- Keyboard support in the dosemu window isn't perfect yet. It's somewhat
+   slow, Alt-xx keys don't work, etc...
+   However, input through the terminal window (i.e. the window you started
+   dosemu from) is still supported. If you have problems, better put
+   your focus in there.
+
+-- Keyboard support of course depends on your X keyboard mappings (xmodmap).
+   If certain keys don't work (like Pause, Backspace,...), it *might* be 
+   because you haven't defined them in your xmodmap, or defined to something
+   other than dosemu expects.
 
 -- video modes other than 80x25 color don't work correctly.
-
--- dosemu currently doesn't honor the DISPLAY variable, nor any
-   standard command line options like -geometry etc.
-   DISPLAY is hardcoded to ":0", if you need another setting, you
-   have to change video/X.c.
 
 -- If anything else does not work as expected, don't panic :-)
    Remember the thing is still under construction.
    However, if you think it's a real bug, please tell me.
 
-important changes to previous version (pre53_9):
+important changes to previous version (pre53_13):
 
-- serial mouse ports are now REALLY automatically disabled
-  (removed my silly changes to the config parser)
-- added 'xdos' calling method
-- attempt to implement keyboard
-- implemented mouse support (X part works, but the internal mouse
-  driver is VERY buggy)
-- handle delete window message
+- fixed mouse bug which blanked screen in dosshell
+- latin1 national character support for keyboard (please let 
+  me know if anything is wrong here!)
+- minor keyboard improvements (Backspace, Fn keys)
 
 Rainer Zimmermann
 (zimmerm@mathematik.uni-marburg.de)
@@ -71,6 +65,7 @@ care about int10 calls  -ok?
 Handle close ("delete") window event - (copied from xloadimage)
 X keyboard support (use xdos code? pcemu code?)
 Mouse support
+X configuration (display, updatefreq, updatelines,... what else?)
 
 ToDo (in no special order)
 --------------------------
@@ -81,6 +76,5 @@ jump scroll?
 int10 video mode switches (resize window)
 Window SizeHints - fixed size or max size?
 fine-tune X_update_screen
-X configuration (display, updatefreq, updatelines,... what else?)
 graphics support?
 create icon :-)

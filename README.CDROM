@@ -11,16 +11,17 @@ Up to now i have tested it with the following programs
    lucas arts adventures are so sloooow in dosemu?)
 - acdc (a shareware audio player)
 Please send any suggestions&bug reports to rucker@astro.uni-bonn.de.
+- make sure that you have a link /dev/cdrom to
+  the device file of your drive
 
 To use it:
 - load cdrom.sys within your config.sys file
 - start microsoft cdrom extension as follows:
     mscdex /d:mscd0001 /l:driveletter
 
-Restrictions:
-The driver does not support the eject function. This means, the
-exchange of cd's while dosemu is running is curently (i'm working on 
-this) not supported. With most drives this is even physically impossible,
-because the cdrom drive is locked after /dev/sr0 has been opened.
+To change the cd while dosemu is running, use the dos
+program 'eject.com'. It is not possible to change the
+disk, when the drive has been opened by another process
+(e.g. mounted)!
 
  

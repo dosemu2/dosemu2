@@ -405,7 +405,12 @@ void int10()
 
   case 0x4:			/* get light pen */
     error("ERROR: video error(no light pen)\n");
+#if 0
     CARRY;
+#else
+    HI(ax) = 0;   /* "light pen switch not pressed" */
+                  /* This is how my VGA BIOS behaves [rz] */
+#endif    
     return;
 
   case 0x1a:			/* get display combo */

@@ -1,12 +1,15 @@
 /* dos emulator, Matthias Lautner */
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/07/14 23:19:20 $
+ * $Date: 1994/08/25 00:49:34 $
  * $Source: /home/src/dosemu0.60/RCS/dos.c,v $
- * $Revision: 2.2 $
+ * $Revision: 2.3 $
  * $State: Exp $
  *
  * $Log: dos.c,v $
+ * Revision 2.3  1994/08/25  00:49:34  root
+ * HJ's patches for new linking (Actually new dos.c)
+ *
  * Revision 2.2  1994/07/14  23:19:20  root
  * Jochen's Patches
  *
@@ -37,13 +40,16 @@
  */
 
 #include <stdio.h>
+#include <a.out.h>
 #include <locale.h>
 #include "config.h"
 
-void (*dosemu) ();
+#define LIBDOSEMU	"/usr/lib/libdosemu"
+
+void (*dosemu) (int argc, char **argv);
 
 #if !STATIC
-char dummy[1088 * 1024];	/* ensure that the lower 1MB+64K is unused */
+char buf [1088 * 1024];	/* ensure that the lower 1MB+64K is unused */
 
 #endif
 
@@ -58,13 +64,44 @@ main(int argc, char **argv)
   fprintf(stderr, "WARNING: running static, emulate @ %x!\n", emulate);
   emulate(argc, argv);
 #else
-  if (uselib("/usr/lib/libdosemu") != 0) {
-    fprintf(stderr, "cannot load shared library /usr/lib/libdosemu!\n");
+  struct exec header;
+  FILE *f;
+
+  f = fopen(LIBDOSEMU, "r");
+  if (f == NULL)
+  {
+    sprintf (buf, "%s: cannot open shared library: %s", argv [0],
+	LIBDOSEMU);
+    perror (buf);
+    exit(1);
+  }
+
+  if (fread(&header, sizeof(header), 1, f) != 1)
+  {
+    sprintf (buf, "%s: cannot read shared library: %s", argv [0],
+	LIBDOSEMU);
+    perror (buf);
+    exit(1);
+  }
+
+  if (N_BADMAG (header))
+  {
+    fprintf (stderr, "%s: invalid shared library format: %s\n", argv [0],
+	LIBDOSEMU);
+    exit(1);
+  }
+
+  if (uselib(LIBDOSEMU) != 0) {
+    sprintf (buf, "%s: cannot load shared library: %s", argv [0],
+	LIBDOSEMU);
+    perror (buf);
     exit(1);
   }
   setlocale(LC_CTYPE,"");
-  dosemu = (void *) LIBSTART;
-  dosemu(argc, argv);
+
+  dosemu = (void *) header.a_entry;
+
+  (* dosemu)(argc, argv);
 #endif
 
 }

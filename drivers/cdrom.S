@@ -244,7 +244,7 @@ IOCTLOUT_SEKTOR  = 20		! not used
 IOCTLOUT_VOL     = 22		! not used (4 bytes)	
 
 ! ioctlout jump table
-IoctloutTbl:	.word	cmderr
+IoctloutTbl:	.word	eject
 		.word	lockunlock
 		.word	resetdrive
 		.word	audio_ctrl
@@ -276,6 +276,18 @@ ioctlout:
 
 ioctlout_err:
 	br	cmderr
+
+! eject disk
+eject:
+	seg cs
+	les	di,[ptrsav]
+	movb	al,#Helper
+	movb	ah,#0x0D
+	int	LinuxCD
+
+	mov	ax,#0
+	br	exit
+	
 
 ! function lock - unlock drive
 lockunlock:
@@ -542,7 +554,7 @@ INIT_BDN	= 22
 
 
 Message:
-	.ascii	"[dosemu 0.53 cdrom driver installed]"
+	.ascii	"[dosemu 0.53 cdrom driver installed (V0.2)]"
         .byte	cr,lf,eom
 FailMsg:
         .byte	cr,lf,lf

@@ -1,9 +1,9 @@
 AS86 = as86 -0 -a
 LD86 = ld86 -0
 
-SRC=exitemu.S vgaoff.S vgaon.S lredir.c lredir.readme dumpconf.asm \
+SRC=exitemu.S vgaoff.S vgaon.S eject.S lredir.c lredir.readme dumpconf.asm \
 	bootoff.S booton.S dosdbg.c dosdbg.readme
-COM=exitemu.com vgaoff.com vgaon.com bootoff.com booton.com pdipx.com
+COM=exitemu.com vgaoff.com vgaon.com eject.com bootoff.com booton.com pdipx.com
 EXE=lredir.exe dumpconf.exe dosdbg.exe lancheck.exe
 
 all: $(COM)
@@ -15,16 +15,16 @@ all: $(COM)
 	rm -f $*.tmp $*.o
 
 checkin:
-	-ci exitemu.S vgaoff.S vgaon.S dumpconf.exe dumpconf.asm \
+	-ci exitemu.S vgaoff.S vgaon.S eject.S dumpconf.exe dumpconf.asm \
 	bootoff.S booton.S Makefile dosdbg.c lredir.c pdipx.com 
 
 checkout:
-	-co -l exitemu.S vgaoff.S vgaon.S dumpconf.exe dumpconf.asm
+	-co -l exitemu.S vgaoff.S vgaon.S eject.S dumpconf.exe dumpconf.asm
 	-co -l bootoff.S booton.S Makefile dosdbg.c lredir.c
 	-co -l pdipx.com
 
 clean:
-	rm -f exitemu.com vgaoff.com vgaon.com booton.com bootoff.com *.o
+	rm -f exitemu.com vgaoff.com vgaon.com eject.com booton.com bootoff.com *.o
 
 dist: $(SRC) $(COM)
 	install -d $(DISTPATH)/commands

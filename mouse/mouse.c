@@ -1,12 +1,15 @@
 /* mouse.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/08/14 02:54:28 $
+ * $Date: 1994/08/25 00:52:24 $
  * $Source: /home/src/dosemu0.60/mouse/RCS/mouse.c,v $
- * $Revision: 2.9 $
+ * $Revision: 2.10 $
  * $State: Exp $
  *
  * $Log: mouse.c,v $
+ * Revision 2.10  1994/08/25  00:52:24  root
+ * Prep for pre53_16.
+ *
  * Revision 2.9  1994/08/14  02:54:28  root
  * Rain's CLEANUP and DOS in a X box MOUSE additions.
  *
@@ -468,7 +471,9 @@ mouse_set_gcur(void)
 {
   m_printf("MOUSE: set gfx cursor...hspot: %d, vspot: %d, masks: %04x:%04x\n",
 	   LWORD(ebx), LWORD(ecx), LWORD(es), LWORD(edx));
+#if 0
   gfx_cursor = TRUE;
+#endif
 }
 
 void 
@@ -476,7 +481,9 @@ mouse_set_tcur(void)
 {
   m_printf("MOUSE: set text cursor...type: %d, start: 0x%04x, end: 0x%04x\n",
 	   LWORD(ebx), LWORD(ecx), LWORD(edx));
+#if 0
   gfx_cursor = FALSE;
+#endif
 }
 
 void 
@@ -763,6 +770,7 @@ mouse_init(void)
   if (config.X) {
     mice->intdrv = TRUE;
     mice->type = MOUSE_X;
+    m_printf("MOUSE: X Mouse being set\n");
     return;
   }
 #endif

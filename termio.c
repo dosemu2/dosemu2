@@ -20,11 +20,14 @@
  * DANG_BEGIN_CHANGELOG
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/08/17 02:08:22 $
+ * $Date: 1994/08/25 00:49:34 $
  * $Source: /home/src/dosemu0.60/RCS/termio.c,v $
- * $Revision: 2.11 $
+ * $Revision: 2.12 $
  * $State: Exp $
  * $Log: termio.c,v $
+ * Revision 2.12  1994/08/25  00:49:34  root
+ * Lutz's STI patches and prep for pre53_16.
+ *
  * Revision 2.11  1994/08/17  02:08:22  root
  * Mods to Rain's patches to get all modes back on the road.
  *
@@ -160,8 +163,6 @@ void clear_raw_mode();
 extern void clear_console_video();
 extern void clear_process_control();
 void set_raw_mode();
-extern void set_console_video();
-extern void set_process_control();
 void get_leds();
 extern void DOS_setscan(u_short);
 void activate(int);
@@ -189,7 +190,7 @@ unsigned int queue;
 #define put_queue(psc) (queue = psc)
 
 static void gettermcap(void),
- CloseKeyboard(void), sysreq(unsigned int), ctrl(unsigned int),
+ sysreq(unsigned int), ctrl(unsigned int),
  alt(unsigned int), Unctrl(unsigned int), unalt(unsigned int), lshift(unsigned int),
  unlshift(unsigned int), rshift(unsigned int), unrshift(unsigned int),
  caps(unsigned int), uncaps(unsigned int), Scroll(unsigned int), unscroll(unsigned int),
@@ -206,7 +207,7 @@ void set_kbd_flag(int), clr_kbd_flag(int), chg_kbd_flag(int), child_set_kbd_flag
 
 int kbd_flag(int), child_kbd_flag(int), key_flag(int);
 
-/* initialize these in OpenKeyboard! */
+/* initialize these in keyboard_init()! */
 unsigned int child_kbd_flags = 0;
 
 int altchar = 0;
@@ -574,28 +575,26 @@ gettermcap(void)
   }
 }
 
-static void
-CloseKeyboard(void)
+void
+keyboard_close(void)
 {
   if (kbd_fd != -1) {
 
     if (config.console_keyb) {
-      v_printf("CloseKeyboard:clear raw keyb\n");
+      k_printf("KBD: keyboard_close:clear raw keyb\n");
       clear_raw_mode();
     }
     if (config.console_video) {
-      v_printf("CloseKeyboard:clear console video\n");
+      k_printf("KBD: keyboard_close:clear console video\n");
       clear_console_video();
     }
 
     if (config.console_keyb || config.console_video) {
-      v_printf("CloseKeyboard: clear process control\n");
+      k_printf("KBD: keyboard_close: clear process control\n");
       clear_process_control();
     }
 
-    v_printf("CloseKeyboard: F_SETFL\n");
     fcntl(kbd_fd, F_SETFL, old_kbd_flags);
-    v_printf("CloseKeyboard: TCSETAF\n");
     ioctl(kbd_fd, TCSETAF, &oldtermio);
 
     close(kbd_fd);
@@ -614,8 +613,8 @@ void print_termios(struct termios term) {
  k_printf("KBD: 	c_line =%x\n", term.c_line);
 }
 
-static int
-OpenKeyboard(void)
+int
+keyboard_init(void)
 {
   struct termio newtermio;	/* new terminal modes */
   struct stat chkbuf;
@@ -696,17 +695,12 @@ OpenKeyboard(void)
   if (ioctl(kbd_fd, TCSETAF, &newtermio) < 0) {
     error("ERROR: Couldn't ioctl(STDIN,TCSETAF,...) !\n");
   }
-  if (config.console_keyb || config.console_video)
-    set_process_control();
 
   kbd_flags = 0;
   child_kbd_flags = 0;
   key_flags = 0;
 
-  if (config.console_video)
-    set_console_video();
-
-  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 2.11 1994/08/17 02:08:22 root Exp root $\n");
+  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 2.12 1994/08/25 00:49:34 root Exp root $\n");
 
   return 0;
 }
@@ -741,8 +735,6 @@ tty_raw(int fd)
 
   buf = save_termios;
 
-  print_termios(buf);
-
   buf.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
   buf.c_iflag &= ~(IMAXBEL | IGNBRK | IGNCR | IGNPAR | BRKINT | INLCR | ICRNL | INPCK | ISTRIP | IXON | IUCLC | IXANY | IXOFF | IXON);
   buf.c_cflag &= ~(CSIZE | PARENB);
@@ -751,9 +743,6 @@ tty_raw(int fd)
   buf.c_cc[VMIN] = 1;
   buf.c_cc[VTIME] = 0;
 
-  k_printf("KBD: Setting TERMIOS Structure.\n");
-
-  print_termios(buf);
   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &buf) < 0) { 
     k_printf("KBD: Setting to RAW mode failed.\n");
     return (-1);
@@ -761,6 +750,7 @@ tty_raw(int fd)
   if (tcgetattr(fd, &buf) < 0) {
     k_printf("Termios ERROR\n");
   }
+  k_printf("KBD: Setting TERMIOS Structure.\n");
   print_termios(buf);
 
   return (0);
@@ -1089,14 +1079,6 @@ termioInit()
   struct funkeystruct *fkp;
 
   scr_state.current = 1;
-  if (OpenKeyboard() != 0) {
-    error("ERROR: can't open keyboard\n");
-    leavedos(19);
-  }
-
-#if 0
-  terminal_initialize();       /* now called from video_init() */
-#endif
 
   if (config.console_keyb) {
     set_raw_mode();
@@ -1113,15 +1095,6 @@ termioInit()
   for (fkp = funkey; fkp->code; fkp++) 
     numkeys++;
   qsort(funkey, numkeys, sizeof(struct funkeystruct), &fkcmp);
-}
-
-void
-termioClose()
-{
-#if 0
-  terminal_close();
-#endif
-  CloseKeyboard(); 
 }
 
 /***************************************************************
