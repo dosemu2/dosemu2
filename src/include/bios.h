@@ -273,6 +273,7 @@ void            DPMI_return_from_pm(void);
 void            DPMI_return_from_exception(void);
 void            DPMI_return_from_ext_exception(void);
 void            DPMI_return_from_rm_callback(void);
+void            DPMI_return_from_RSPcall(void);
 void            DPMI_return_from_int_1c(void);
 void            DPMI_return_from_int_23(void);
 void            DPMI_return_from_int_24(void);

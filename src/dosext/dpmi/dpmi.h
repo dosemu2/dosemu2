@@ -153,6 +153,9 @@ struct DPMIclient_struct {
   unsigned short DPMI_SEL;
   struct pmaddr_s mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
   far_t XMS_call;
+  /* used for RSP calls */
+  unsigned short RSP_cs[DPMI_MAX_CLIENTS], RSP_ds[DPMI_MAX_CLIENTS];
+  int RSP_state, RSP_installed;
   /* used when passing a DTA higher than 1MB */
   unsigned short USER_DTA_SEL;
   unsigned long USER_DTA_OFF;
@@ -164,7 +167,22 @@ struct DPMIclient_struct {
 };
 extern struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 
+struct RSPcall_s {
+  unsigned char data16[8];
+  unsigned char code16[8];
+  unsigned short ip;
+  unsigned short reserved;
+  unsigned char data32[8];
+  unsigned char code32[8];
+  unsigned long eip;
+};
+struct RSP_s {
+  struct RSPcall_s call;
+  dpmi_pm_block_root *pm_block_root;
+};
+
 EXTERN volatile int in_dpmi INIT(0);/* Set to 1 when running under DPMI */
+EXTERN volatile int RSP_num INIT(0);/* Set to 1 when running under DPMI */
 EXTERN volatile int in_win31 INIT(0); /* Set to 1 when running Windows 3.1 */
 EXTERN volatile int in_dpmi_dos_int INIT(0);
 EXTERN volatile int dpmi_mhp_TF INIT(0);
@@ -176,7 +194,6 @@ extern unsigned long dpmi_total_memory; /* total memory  of this session */
 extern unsigned long dpmi_free_memory; /* how many bytes memory client */
 				       /* can allocate */
 extern unsigned long pm_block_handle_used;       /* tracking handle */
-extern SEGDESC Segments[];
 extern char *ldt_buffer;
 extern char *pm_stack;
 

@@ -791,6 +791,10 @@ CISH(DPMI_return_from_int_23):
 CISH(DPMI_return_from_int_24):
 	hlt
 /* ======================= Addr = F800:4A5D (FCA5D) */
+	.globl	CISH(DPMI_return_from_RSPcall)
+CISH(DPMI_return_from_RSPcall):
+	hlt
+/* ======================= Addr = F800:4A5E (FCA5E) */
 	.globl	CISH(DPMI_dummy_end)
 CISH(DPMI_dummy_end):
 

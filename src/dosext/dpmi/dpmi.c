@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2004 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
@@ -142,6 +142,7 @@ char *pm_stack; /* locked protected mode stack */
 static int in_dpmi_pm_stack = 0; /* locked protected mode stack in use */
 
 struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
+struct RSP_s RSP_callbacks[DPMI_MAX_CLIENTS];
 
 unsigned long PMSTACK_ESP = 0;	/* protected mode stack descriptor */
 
@@ -162,6 +163,9 @@ static struct sigcontext_struct *emu_stack_frame = &_emu_stack_frame;
       break; \
     } \
 }
+
+static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
+    int tsr, unsigned short tsr_para);
 
 #ifdef __linux__
 #define modify_ldt dosemu_modify_ldt
@@ -2101,6 +2105,24 @@ err:
     }
     break;
 
+  case 0x0c00:	/* Install Resident Service Provider Callback */
+    {
+      struct RSPcall_s *callback = (struct RSPcall_s *)
+        ((unsigned char *)GetSegmentBaseAddress(_es) + D_16_32(_edi));
+      if (RSP_num >= DPMI_MAX_CLIENTS) {
+        _eflags |= CF;
+	_LWORD(eax) = 0x8015;
+      } else {
+        RSP_callbacks[RSP_num].call = *callback;
+        DPMI_CLIENT.RSP_installed = 1;
+        D_printf("installed Resident Service Provider Callback %i\n", RSP_num);
+      }
+    }
+    break;
+  case 0x0c01:	/* Terminate and Stay Resident */
+    quit_dpmi(scp, _LO(bx), 1, _LWORD(edx));
+    break;
+
   case 0x0e00:	/* Get Coprocessor Status */
     _LWORD(eax) = 0x4d;
     break;
@@ -2282,18 +2304,108 @@ void dpmi_realmode_callback(int rmcb_client, int num)
     in_dpmi_dos_int = 0;
 }
 
-static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
+static void dpmi_RSP_call(struct sigcontext *scp, int num, int terminating)
 {
-  /* Restore environment, must before FreeDescriptor */
-  if (DPMI_CLIENT.CURRENT_ENV_SEL)
-      *(unsigned short *)(((char *)(DPMI_CLIENT.CURRENT_PSP<<4))+0x2c) =
-             (unsigned long)(GetSegmentBaseAddress(DPMI_CLIENT.CURRENT_ENV_SEL)) >> 4;
+  unsigned char *code, *data;
+  unsigned short *ssp, CLIENT_PMSTACK_SEL;
+  unsigned long eip, PMSTACK_ESP;
+  if (DPMI_CLIENT.is_32) {
+    if ((RSP_callbacks[num].call.code32[5] & 0x88) != 0x88)
+      return;
+    code = RSP_callbacks[num].call.code32;
+    data = RSP_callbacks[num].call.data32;
+    eip = RSP_callbacks[num].call.eip;
+  } else {
+    if ((RSP_callbacks[num].call.code16[5] & 0x88) != 0x88)
+      return;
+    code = RSP_callbacks[num].call.code16;
+    data = RSP_callbacks[num].call.data16;
+    eip = RSP_callbacks[num].call.ip;
+  }
 
+  if (!terminating) {
+    DPMI_CLIENT.RSP_cs[num] = AllocateDescriptors(1);
+    SetDescriptor(DPMI_CLIENT.RSP_cs[num], (unsigned long *)code);
+    if ((data[5] & 0x88) == 0x80) {
+      DPMI_CLIENT.RSP_ds[num] = AllocateDescriptors(1);
+      SetDescriptor(DPMI_CLIENT.RSP_ds[num], (unsigned long *)data);
+    } else {
+      DPMI_CLIENT.RSP_ds[num] = 0;
+    }
+  }
+
+  save_pm_regs(scp);
+  if (!in_dpmi_pm_stack) {
+    D_printf("DPMI: Switching to locked stack\n");
+    CLIENT_PMSTACK_SEL = DPMI_CLIENT.PMSTACK_SEL;
+    if (DPMI_CLIENT.stack_frame.ss == DPMI_CLIENT.PMSTACK_SEL)
+      error("DPMI: run_pm_dos_int: App is working on host\'s PM locked stack, expect troubles!\n");
+  }
+  else {
+    D_printf("DPMI: Not switching to locked stack, in_dpmi_pm_stack=%d\n",
+      in_dpmi_pm_stack);
+    CLIENT_PMSTACK_SEL = DPMI_CLIENT.stack_frame.ss;
+  }
+
+  if (DPMI_CLIENT.stack_frame.ss == DPMI_CLIENT.PMSTACK_SEL || in_dpmi_pm_stack)
+    PMSTACK_ESP = client_esp(scp);
+  else
+    PMSTACK_ESP = D_16_32(DPMI_pm_stack_size);
+
+  if (PMSTACK_ESP < 100) {
+      error("PM stack overflowed: in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
+      leavedos(25);
+  }
+
+  ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) + D_16_32(PMSTACK_ESP));
+  if (DPMI_CLIENT.is_32) {
+    ssp -= 2, *((unsigned long *) ssp) = (unsigned long) in_dpmi_dos_int;
+    *--ssp = (us) 0;
+    *--ssp = DPMI_CLIENT.DPMI_SEL;
+    ssp -= 2, *((unsigned long *) ssp) = DPMI_OFF + HLT_OFF(DPMI_return_from_RSPcall);
+    PMSTACK_ESP -= 12;
+  } else {
+    *--ssp = (unsigned short) in_dpmi_dos_int;
+    *--ssp = DPMI_CLIENT.DPMI_SEL; 
+    *--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_RSPcall);
+    LO_WORD(PMSTACK_ESP) -= 6;
+  }
+  _ss = CLIENT_PMSTACK_SEL;
+  _esp = PMSTACK_ESP;
+  in_dpmi_pm_stack++;
+
+  _es = _fs = _gs = 0;
+  _ds = DPMI_CLIENT.RSP_ds[num];
+  _cs = DPMI_CLIENT.RSP_cs[num];
+  _eip = eip;
+  _eax = terminating;
+  _ebx = in_dpmi;
+
+  in_dpmi_dos_int = 0;
+}
+
+static void dpmi_cleanup(struct sigcontext_struct *scp)
+{
+  D_printf("DPMI: cleanup\n");
   FreeAllDescriptors();
-  DPMIfreeAll();
-  
-  /* we must free ldt_buffer here, because FreeDescriptor() will */
-  /* modify ldt_buffer */
+  if (in_dpmi==1) {
+    mprotect_mapping(MAPPING_DPMI, ldt_buffer,
+      PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE);
+  }
+  cli_blacklisted = 0;
+  in_dpmi--;
+  if (in_dpmi) {
+    copy_context(scp, &DPMI_CLIENT.stack_frame);
+  }
+}
+
+static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
+    int tsr, unsigned short tsr_para)
+{
+  int i;
+
+  /* do this all before doing RSP call */
+  in_dpmi_dos_int = 1;
   if (in_dpmi==1) {
     if(in_dpmi_pm_stack) {
       error("DPMI: Warning: trying to leave DPMI when in_dpmi_pm_stack=%i\n",
@@ -2301,28 +2413,53 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
     }
     in_dpmi_pm_stack = 0;
     in_win31 = 0;
-    mprotect_mapping(MAPPING_DPMI, ldt_buffer,
-      PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE);
   }
-  free(DPMI_CLIENT.pm_block_root);
-  cli_blacklisted = 0;
-  in_dpmi_dos_int = 1;
-  in_dpmi--;
+
+  if (DPMI_CLIENT.RSP_state == 0) {
+    DPMI_CLIENT.RSP_state = 1;
+    for (i = 0;i < RSP_num; i++) {
+      D_printf("DPMI: Calling RSP %i for termination\n", i);
+      dpmi_RSP_call(scp, i, 1);
+    }
+  }
+
+  /* Restore environment, must before FreeDescriptor */
+  if (DPMI_CLIENT.CURRENT_ENV_SEL)
+      *(unsigned short *)(((char *)(DPMI_CLIENT.CURRENT_PSP<<4))+0x2c) =
+             (unsigned long)(GetSegmentBaseAddress(DPMI_CLIENT.CURRENT_ENV_SEL)) >> 4;
+
+  if (!tsr || !DPMI_CLIENT.RSP_installed) {
+    if (DPMI_CLIENT.pm_block_root) {
+      DPMIfreeAll();
+      free(DPMI_CLIENT.pm_block_root);
+    }
+  } else {
+    RSP_callbacks[RSP_num].pm_block_root = DPMI_CLIENT.pm_block_root;
+    RSP_num++;
+  }
+  DPMI_CLIENT.pm_block_root = NULL;
+  if (in_dpmi_dos_int) {
+    dpmi_cleanup(scp);
+  }
+
   if(pic_icount) {
     D_printf("DPMI: Warning: trying to leave DPMI when pic_icount=%i\n",
 	pic_icount);
     pic_resched();
   }
 
-  if (in_dpmi) {
-    copy_context(scp, &DPMI_CLIENT.stack_frame);
-  }
-
   REG(cs) = DPMI_SEG;
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
-  HI(ax) = 0x4c;
-  LO(ax) = errcode;
-  return (void) do_int(0x21);
+  if (!tsr || !DPMI_CLIENT.RSP_installed || !tsr_para) {
+    HI(ax) = 0x4c;
+    LO(ax) = errcode;
+    do_int(0x21);
+  } else {
+    HI(ax) = 0x31;
+    LO(ax) = errcode;
+    LWORD(edx) = tsr_para;
+    do_int(0x21);
+  }
 }
 
 static void do_dpmi_int(struct sigcontext_struct *scp, int i)
@@ -2368,7 +2505,7 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
         case 0x4c:
           D_printf("DPMI: leaving DPMI with error code 0x%02x, in_dpmi=%i\n",
             _LO(ax), in_dpmi);
-	  quit_dpmi(scp, _LO(ax));
+	  quit_dpmi(scp, _LO(ax), 0, 0);
 	  return;
       }
       break;
@@ -2819,6 +2956,12 @@ void dpmi_init(void)
   DPMI_CLIENT.stack_frame.fs	= 0;
   DPMI_CLIENT.stack_frame.gs	= 0;
   rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
+
+  for (i = 0; i < RSP_num; i++) {
+    D_printf("DPMI: Calling RSP %i\n", i);
+    dpmi_RSP_call(&DPMI_CLIENT.stack_frame, i, 0);
+  }
+
   return; /* return immediately to the main loop */
 
 err:
@@ -2901,7 +3044,7 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
     us * ssp;
     ssp = (us *)SEL_ADR(_ss,_esp);
 
-    D_printf("DPMI: do_default_cpu_exception %d at %#x:%#x ss:sp=%x:%x\n",
+    D_printf("DPMI: do_default_cpu_exception 0x%02x at %#x:%#x ss:sp=%x:%x\n",
       trapno, (int)_cs, (int)_eip, (int)_ss, (int)_esp);
 
 #if EXC_TO_PM_INT
@@ -2923,7 +3066,7 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
 		p_dos_str("DPMI: Unhandled Exception %02x - Terminating Client\n"
 		  "It is likely that dosemu is unstable now and should be rebooted\n",
 		  trapno);
-		quit_dpmi(scp, 0xff);
+		quit_dpmi(scp, 0xff, 0, 0);
       }
       return;
     }
@@ -2970,7 +3113,7 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
 	       p_dos_str("DPMI: Unhandled Exception %02x - Terminating Client\n"
 			 "It is likely that dosemu is unstable now and should be rebooted\n",
 			 trapno);
-	       quit_dpmi(scp, 0xff);
+	       quit_dpmi(scp, 0xff, 0, 0);
   }
 #endif
 }
@@ -3601,7 +3744,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	    if (REG(eflags) & CF) {
 	      struct vm86_regs saved_regs = REGS;
 	      D_printf("DPMI: int23 termination request\n");
-	      quit_dpmi(scp, 0);
+	      quit_dpmi(scp, 0, 0, 0);
 	      REGS = saved_regs;
 	      D_printf("DPMI: int23 termination performed\n");
 	    }
@@ -3609,7 +3752,6 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  in_dpmi_dos_int = 1;
 
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_int_24)) {
-
 	  if (in_dpmi_pm_stack) {
 	    in_dpmi_pm_stack--;
 	    if (!in_dpmi_pm_stack && _ss != DPMI_CLIENT.PMSTACK_SEL) {
@@ -3623,6 +3765,27 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  pm_to_rm_regs(scp, ~(1 << ebp_INDEX));
 	  restore_pm_regs(scp);
 	  in_dpmi_dos_int = 1;
+
+        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_RSPcall)) {
+	  if (in_dpmi_pm_stack) {
+	    in_dpmi_pm_stack--;
+	    if (!in_dpmi_pm_stack && _ss != DPMI_CLIENT.PMSTACK_SEL) {
+	      error("DPMI: Client's PM Stack corrupted during RSPcall!\n");
+//	      leavedos(91);
+	    }
+	  }
+	  if (DPMI_CLIENT.is_32) {
+	    in_dpmi_dos_int = ((int) *((unsigned long *) ssp)), ssp += 2;
+	  } else {
+	    in_dpmi_dos_int = (int) *ssp++;
+	  }
+	  D_printf("DPMI: Return from RSPcall, in_dpmi_pm_stack=%i, in_dpmi_dos_int=%i\n",
+	    in_dpmi_pm_stack, in_dpmi_dos_int);
+	  restore_pm_regs(scp);
+	  if (in_dpmi_dos_int) {
+	    /* app terminated */
+	    dpmi_cleanup(scp);
+	  }
 
 	} else if ((_eip>=DPMI_OFF+1+HLT_OFF(DPMI_exception)) && (_eip<=DPMI_OFF+32+HLT_OFF(DPMI_exception))) {
 	  int excp = _eip-1-DPMI_OFF-HLT_OFF(DPMI_exception);
