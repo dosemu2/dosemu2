@@ -22,6 +22,7 @@ static int paste_len = 0, paste_idx = 0;
 
 static int paste_unicode_text(const t_unicode *text, int len)
 {
+	int i;
 	/* if previous paste in progress, ignore current request */
 	/* XXX - maybe this should append ? */
 	k_printf("KBD: paste_text called, len=%d\n",len);
@@ -31,6 +32,10 @@ static int paste_unicode_text(const t_unicode *text, int len)
 	}
 	paste_buffer = malloc(sizeof(t_unicode) * len);
 	memcpy(paste_buffer, text, sizeof(t_unicode) * len);
+	/* translate all 0xa's (\n) to ENTERs */
+	for (i = 0; i < len; i++)
+		if (paste_buffer[i] == U_LINE_FEED)
+			paste_buffer[i] = U_CARRIAGE_RETURN;
 	paste_len = len;
 	paste_idx = 0;
 	return 1;

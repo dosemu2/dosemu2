@@ -454,6 +454,8 @@ static int sel_start_row = -1, sel_end_row = -1, sel_start_col, sel_end_col;
 static unsigned short *sel_start = NULL, *sel_end = NULL;
 static u_char *sel_text = NULL;
 static Atom compound_text_atom = None;
+static Atom utf8_text_atom = None;
+static Atom text_atom = None;
 static Boolean doing_selection = FALSE, visible_selection = FALSE;
 #endif
 
@@ -842,8 +844,10 @@ int X_init()
     XSetClassHint(display, fullscreenwindow, &xch);
   }
 #if CONFIG_X_SELECTION
-  /* Get atom for COMPOUND_TEXT type. */
+  /* Get atom for COMPOUND_TEXT/UTF8/TEXT type. */
   compound_text_atom = XInternAtom(display, "COMPOUND_TEXT", False);
+  utf8_text_atom = XInternAtom(display, "UTF8_STRING", False);
+  text_atom = XInternAtom(display, "TEXT", False);
 #endif
   /* Delete-Window-Message black magic copied from xloadimage. */
   proto_atom  = XInternAtom(display, "WM_PROTOCOLS", False);
@@ -4072,14 +4076,16 @@ void send_selection(Time time, Window requestor, Atom target, Atom property)
 			(unsigned long) requestor);
 		e.xselection.property = None;
 	}
-	else if ((target == XA_STRING) || (target == compound_text_atom)) {
+	
+	else if ((target == XA_STRING) || (target == compound_text_atom) ||
+		 (target == utf8_text_atom) || (target == text_atom)) {
 		X_printf("X: selection: %s\n",sel_text);   
 		e.xselection.target = target;
 		XChangeProperty(display, requestor, property, target, 8, PropModeReplace, 
 			sel_text, strlen(sel_text));
 		e.xselection.property = property;
 		X_printf("X: Selection sent to window 0x%lx as %s\n", 
-			(unsigned long) requestor, (target==XA_STRING)?"string":"compound_text");
+			(unsigned long) requestor, XGetAtomName(display, target));
 	}
 	else
 	{
