@@ -1063,7 +1063,7 @@ move_memory_region(state_t * state)
   struct mem_move_struct *mem_move=NULL;
   caddr_t dest, source, mem;
 
-  (u_char *) mem = (u_char *) Addr(state, ds, esi);
+  mem = (caddr_t)((u_char *) Addr(state, ds, esi));
   load_move_mem(mem, mem_move);
   show_move_struct(mem_move);
   if (mem_move->source_type == 0)
@@ -1135,7 +1135,7 @@ exchange_memory_region(state_t * state)
   struct mem_move_struct *mem_move=NULL;
   caddr_t dest, source, mem, tmp;
 
-  (u_char *) mem = (u_char *) Addr(state, ds, esi);
+  mem = (caddr_t)((u_char *) Addr(state, ds, esi));
   load_move_mem(mem, mem_move);
   show_move_struct(mem_move);
   if (mem_move->source_type == 0)
