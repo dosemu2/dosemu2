@@ -301,7 +301,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		    _eflags &= ~CF;
 		    DPMIfree(h);
 		    FreeDescriptor(_es);
-		    _es = 0;
+		    FreeSegRegs(scp, _es);
 		}
 		return 1;
 	    }

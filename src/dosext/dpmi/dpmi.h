@@ -234,5 +234,6 @@ extern void save_pm_regs(struct sigcontext_struct *);
 extern void restore_pm_regs(struct sigcontext_struct *);
 extern unsigned short AllocateDescriptors(int);
 extern int FreeDescriptor(unsigned short selector);
+extern void FreeSegRegs(struct sigcontext_struct *scp, unsigned short selector);
 
 #endif /* DPMI_H */

@@ -663,7 +663,7 @@ unsigned short AllocateDescriptors(int number_of_descriptors)
   return AllocateDescriptorsAt((next_ldt<<3) | 0x0007, number_of_descriptors);
 }
 
-static void FreeSegRegs(struct sigcontext_struct *scp, unsigned short selector)
+void FreeSegRegs(struct sigcontext_struct *scp, unsigned short selector)
 {
     if ((_ds | 7) == (selector | 7)) _ds = 0;
     if ((_es | 7) == (selector | 7)) _es = 0;
