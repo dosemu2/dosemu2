@@ -11,55 +11,55 @@ operating system in a virtual x86 machine. This allows you to run
 many DOS applications. These are the capabilities of DOSEMU that are
 worth noting:
 
-  - Color text and full keyboard emulation (via hotkeys) even on terminal.
-  - Built-in X-Windows support (includes IBM character set font)
+  - color text and full keyboard emulation (via hotkeys) even on a terminal
+  - built-in X-Windows support (includes IBM character set font)
     including fullscreen X (via Ctrl-Alt-F)
-  - Graphics capability at the console (most compatible video cards).
+  - graphics capability at the console (for most compatible video cards)
     (requires suid-root or sudo)
-  - Graphics emulation in X for many color modes.
+  - graphics emulation in X for many color modes
     (X-server may be in true color mode)
   - DPMI support
-  - Runs several 32-bit DPMI-compliant video games (including those based
-    on DOS/4GW) at the Linux console (suid-root) and on X (non-suid).
+  - runs several 32-bit DPMI-compliant video games (including those based
+    on DOS/4GW) at the Linux console (suid-root) and on X (non-suid)
   - integrated (command line) instruction level debugger, various break
     points, single stepping etc.
   - integrated EMS and XMS drivers
   - integrated packet driver
   - integrated mouse driver
   - integrated joystick driver
-  - CDROM support.
+  - CDROM support
   - ASPI driver support (CD writers, scanners, tapes etc.)
-    (requires access rigths to /dev/sgX)
+    (requires access rights to /dev/sgX)
   - support for redirected drives (any Linux directory can be 'mounted'
     as DOS drive via the lredir command)
-  - can even directly boot from a Linux directory containing all DOS files.
-  - Sound support (including sound DMA and Midi)
-  - NetWare and other network connectivity via builtin IPX and pktdrvr
-    support.
-  - dosemu-freedos packaged binary distribution installs directly via a
-    normal user's $HOME and runs 'out-of-the-box' without any further
-    configuration (no root rights needed).
+  - can even directly boot from a Linux directory containing all DOS files
+  - sound support (including sound DMA and Midi)
+  - NetWare and other network connectivity via built-in IPX and pktdrvr
+    support
+  - the dosemu-freedos binary package starts a DOS-"C:\>"-Drive
+    'out-of-the-box' in a normal user's $HOME directory and runs without 
+    any further configuration (no root rights needed)
 
 WHAT IS NEW against version 1.0.2.1?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-- Many bugs have been fixed
-- Easier configuration and installation from source code
-- Much improved DPMI support
+- Many bugs have been fixed.
+- Easier configuration and installation from source code.
+- Much improved DPMI support.
 - Unicode support: translates between many different codepages and 
   character sets for keyboards, terminals and copy & paste in X.
 - Much improved sound support, including SoundBlaster 16 and
-  Midi emulation (but no OPL3 FM / Adlib yet)
-- Improved VGA emulation in X
-- Fullscreen support in X using the Ctrl-Alt-F hotkey
+  Midi emulation (but no OPL3 FM / Adlib yet).
+- Improved VGA emulation in X.
+- Fullscreen support in X using the Ctrl-Alt-F hotkey.
 - Console improvements: by avoiding POST more graphics cards can
   be accessed directly in the "plainvga" mode. Raw keyboard support
   now also works without special privileges.
-- Many improvements to the networking code (TUN/TAP)
-- Improved PIC (Programmable Interrupt Controller) emulation
-- Joystick support
-- xterm mouse support (including PUTTY)
-- DOSEMU shows the running DOS program in X and xterm title bars
-- Better terminal support (more keys are recognized)
+- Many improvements to the networking code (TUN/TAP).
+- Improved PIC (Programmable Interrupt Controller) emulation.
+- Joystick support.
+- xterm mouse support (including PUTTY).
+- DOSEMU shows the running DOS program in X and xterm title bars.
+- Better terminal support (more keys are recognized).
 - Improved I/O performance using asynchronous I/O.
 - Added large file support for file locking.
 - Security:
@@ -85,19 +85,20 @@ WHAT IS NEW against version 1.0.2.1?
 REQUIREMENTS
 ~~~~~~~~~~~~
   - Linux >= 2.0.30 (with IPC support, IPX support optional)
-  - any DOS to boot (FreeDos is supplied with the dosemu-freedos-*-bin.tgz
-    tarball and in the RPM)
+  - a DOS as guest-OS, which can be booted by DOSEMU
+    (FreeDOS is included in the RPM or can be downloaded as
+    dosemu-freedos-*-bin.tgz)
 
-When compiling dosemu yourself:
-  - GCC 2.91.66+ and glibc 2.1.3+ are required.
+When compiling DOSEMU yourself:
+  - GCC 2.91.66 or higher and glibc 2.1.3 or higher are required
   - binutils > 2.9.1.0.25
-  - bison, _not_ yacc, and flex.
+  - bison, _not_ yacc, and flex
 
 COPYRIGHT
 ~~~~~~~~~
 DOSEMU is set under GPL version 2 (see file COPYING in the distribution).
                         ~~~~~~~~~
-The DOS processed (booted) by DOSEMU may have any other policy and is
+The DOS, which is processed (booted) by DOSEMU, may have any other policy and is
 explicitly allowed to be proprietary.
 
 
@@ -141,18 +142,18 @@ at least (sorted by first name):
 
   ... and others too important to mention.
 
-Of course, all those people involved in the FreeDos development should be
+Of course, all those people involved in the FreeDOS development should be
 mentioned here too, but before I fail to mention some of them, I better point
-you to http://www.freedos.org ;-)
+to http://www.freedos.org ;-)
 
 
-WHERE TO GET IT:
-~~~~~~~~~~~~~~~~
+WHERE TO GET IT
+~~~~~~~~~~~~~~~
 The DOSEMU PC Emulator can be downloaded at:
 
   http://sourceforge.net/project/showfiles.php?group_id=49784
 
-The binary distribution is dynamically linked against glibc-2.2 and libX*
+The binary package is dynamically linked against glibc-2.2 and libX*
 from XFree86. It should run on all recent Linux distributions.
 
 
@@ -168,6 +169,6 @@ us. We can be reached at:
 http://www.dosemu.org
 
 
-- - - -	- - - -				October 2003,
+- - - -	- - - -				January 2004,
 					Bart Oldeman <bart@dosemu.org>
 					coordinator of "The DOSEMU Team"

@@ -8,8 +8,33 @@ url="mailto:barth@stack.nl"
 >&#60;barth@stack.nl&#62;</ulink
 >
 ( for the detailed original description see below )
-updated by Bart Oldeman, June 2003.
+updated by Bart Oldeman, Jan 2004.
 </para>
+
+<sect2>
+<title>Virtual networking.</title>
+
+<para>
+A special virtual network device can be created using TUN/TAP or
+the obsolete dosnet module. In combination with pktdrv.c and libpacket.c,
+this will enable multiple dosemu sessions and the linux kernel to be on
+a virtual network. Each has its own network device and ethernet address.
+</para>
+
+<para>
+This means that you can ping/ssh/telnet/ftp from the dos-session to your
+telnetd/ftpd/... running in linux and, with IP forwarding enabled in the 
+kernel, or by bridging, connect to any host on your network.
+</para>
+
+<para>
+If you, on the other hand, just want one DOSEMU session which talks
+to your ethernet card through the packet driver, then you don't need
+to use $_vnet and can set $_netdev to "eth0" or similar. Note that
+this direct "eth0" access requires root privileges because the DOSEMU
+code needs to manipulate raw sockets.
+</para>
+</sect2>
 
 <sect2>
 <title>TUN/TAP support.</title>
@@ -31,9 +56,13 @@ read/write access to /dev/net/tun. Then either:
 set $_pktdriver=(on), $_vnet = "tap" and $_netdev = "". Start DOSEMU as usual 
 and configure the network device while DOSEMU is running (using ifconfig
 manually as root, a script, or usernetctl if your distribution supplies 
-that), e.g. ifconfig tap0 192.168.74.1. Configure the DOS 
-network clients to have another IP address withing the same domain (e.g.
-192.168.74.2). Your network should now be up and running, but it will
+that), e.g. ifconfig tap0 192.168.74.1. Configure the DOS TCP/IP
+network clients to have another IP address in the
+subnet you just configured. This address should be unique, i.e. no other
+dosemu, or the kernel, should have this address. For the example addresses
+given above, 192.168.74.2-192.168.74.254 would be good. 
+Your network should now be up and running and you can, for example,
+use a DOS SSH client to ssh to your own machine, but it will
 be down as soon as you exit DOSEMU.
 </para>
 </listitem>
@@ -57,55 +86,52 @@ by setting the dosemu__netdev environment variable or by using something
 like [x]dosemu -I "netdev tap1".
 </para>
 
+<para>
+With the above you did set up a purely virtual internal network between
+the DOSEMU virtual PC and the real Linux box. This is why, in the
+above example, 192.168.74.1 should *not* be a real IP address of the
+Linux box, and the 192.168.74 network should not exist as a real
+network. To enable DOS programs to talk to the outside world you have
+to set up IP Forwarding or bridging.
+</para>
+
+<para>
+Bridging, using brctl (look for the bridge-utils package if you don't
+have it), is somewhat easier to accomplish than IP forwarding. 
+You set up a bridge, for example named "br0" and connect eth0 and
+tap0 to it. Suppose the Linux box has IP 192.168.1.10, where
+192.168.1.x can be a real LAN, and the uid of the user who is
+going to use DOSEMU is 500, then you can do (as root):
+<screen>
+     host# brctl addbr br0
+     host# ifconfig eth0 0.0.0.0 promisc up
+     host# brctl addif br0 eth0
+     host# ifconfig br0 192.168.1.10 netmask 255.255.255.0 up
+     host# tunctl -u 500
+     host# ifconfig tap0 0.0.0.0 promisc up
+     host# brctl addif br0 tap0
+</screen>
+Now the DOSEMU's IP can be (for example) 192.168.1.11. If you still
+like to use IP forwarding instead (where the DOSEMU box' IP appears 
+to the outside world as the Linux box' IP), then check out the IP
+forwarding HOWTO.
+</para>
 </sect2>
 
 <sect2>
 <title>The DOSNET virtual device (deprecated).</title>
 
 <para>
-Dosnet.o is a kernel module that implements a special virtual network
-device. In combination with pktdrv.c and libpacket.c, this will
-enable multiple dosemu sessions and the linux kernel to be on a virtual
-network. Each has its own network device and ethernet address.
-</para>
-
-<para>
-This means that you can telnet or ftp from the dos-session to your
-telnetd/ftpd running in linux and, with IP forwarding enabled in the 
-kernel, connect to any host on your network.
-</para>
-
-<para>
-If you, on the other hand, just want one DOSEMU session which talks
-to your ethernet card through the packet driver, then you don't need
-to use $_vnet and can set $_netdev to "eth0" or similar. Note that
-this all requires root privileges because the DOSEMU code needs to
-manipulate raw sockets.
-</para>
-
-</sect2>
-
-<sect2>
-<title>Setup for virtual TCP/IP</title>
-
-<para>
-Go to ./src/dosext/net/v-net and make dosnet.o. As root, insmod
+Dosnet.o is a kernel module that implements the special virtual network
+device (predecessor of tun/tap support). 
+To set it up, go to ./src/dosext/net/v-net and make dosnet.o. As root, insmod
 dosnet.o. Now as root, configure the dsn0 interface (for example: 
 ifconfig dsn0 192.168.74.1 netmask 255.255.255.0), and add a route for it 
 (for example: route add -net 192.168.74.0 netmask 255.255.255.0 dsn0).
 </para>
 
-<para>
-Finally, start dosemu (either as root or suid-root)
- and give your TCP/IP client and ip-address in the
-subnet you just configured. This address should be unique, i.e. no other
-dosemu, or the kernel, should have this address. For the example addresses
-given above, 192.168.74.2-192.168.74.254 would be good. Now you can use a
-dos telnet client to telnet to your own machine!
-</para>
-
 </sect2>
-
+ 
 <sect2>
 <title>Full Details</title>
 

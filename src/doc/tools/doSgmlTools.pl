@@ -120,7 +120,7 @@ sub getSoftwareVersions {
 
   $result = `openjade -v --wibblefoo 2>&1`;
 
-  if ($result =~ /\"?OpenJade\"? version "([^\"]+)"/) {
+  if ($result =~ /\"?[Oo]pen[Jj]ade\"? version "([^\"]+)"/) {
     $versions{'openjade'} = $1;
     if ($verbose) {
       print "Found OpenJade version $1\n";

@@ -73,6 +73,10 @@ compiletime-settings.devel -- you can use it by running
 	./default-configure -d
 (*not* ./configure -d) prior to running make.
 
+Optimizations: 
+BIG NOTE: do _not_ use -O3 in CFLAGS, because it forces _inline_ at
+places where we don't want it !
+
 ---- NOTE: the setup tool is temporarily disabled! ----
 Or (if you have Tcl/Tk installed) alternatively, you can use the menu
 driven configuration tool:

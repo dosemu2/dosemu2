@@ -1075,8 +1075,10 @@ void build_boot_blk(fatfs_t *f)
    * Make sure this messages are not too long; they should not extend
    * beyond 0x7ded (incl. final '\0').
    */
-  char *msg = "\r\nSorry, could not load an operating system.\r\nHave a nice day!\r\n";
-  char *msg1 = "\r\nSorry, there is no operating system.\r\nHave a nice day!\r\n";
+  char *msg = "\r\nSorry, could not load an operating system.\r\n"
+"Please try to install FreeDOS from dosemu-freedos-*-bin.tgz\r\n";
+  char *msg1 = "\r\nSorry, there is no operating system.\r\n"
+"Please try to install FreeDOS from dosemu-freedos-*-bin.tgz\r\n";
 
   int i;
   unsigned r_o, d_o, t_o;

@@ -228,7 +228,7 @@ Updated by David Hodges, davidhodges@altavista.iname.com
 
 1.10. What's the newest version of dosemu and where can I get it?
 
-   The newest version of dosemu as of 2003/10/31 is dosemu-1.2.0 and can
+   The newest version of dosemu as of 2004/01/18 is dosemu-1.2.0 and can
    be obtained at http://www.dosemu.org/.
 
    We just decided to leave BETA stage, however: there may be serious
@@ -640,13 +640,13 @@ Updated by David Hodges, davidhodges@altavista.iname.com
    The dosemu.conf has lines at the end to redirect printers to either
    lpr or a file. If you want direct access to the bare metal, comment
    out these emulation lines, and add the line:
-       $_ports { device /dev/lp0 fast range 0x3bc 0x3bf  } # lpt0
+       $_ports = "device /dev/lp0 fast range 0x3bc 0x3bf" # lpt0
 
    for the "monitor card" printer port (corresponds to /dev/lp0), or:
-       $_ports { device /dev/lp1 fast range 0x378 0x37f } # lpt1
+       $_ports = "device /dev/lp1 fast range 0x378 0x37f" # lpt1
 
    or:
-       $_ports { device /dev/lp1 fast range 0x278 0x27f } # lpt2
+       $_ports = "device /dev/lp1 fast range 0x278 0x27f" # lpt2
 
    for LPT1 (/dev/lp1) or LPT2 (/dev/lp2) respectively(97/2/9).
 
@@ -1236,7 +1236,7 @@ program
     0.98.1     December 9, 1998    Hans Lermen
     0.98.6     March 21, 1999      Hans Lermen
     1.0.0      March 6, 2000       Hans Lermen
-    1.2.0      October, 2003       Bart Oldeman
+    1.2.0      January 18, 2004    Bart Oldeman
      _________________________________________________________________
 
 11.2. I want to help. Who should I contact?
