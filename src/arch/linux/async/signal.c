@@ -107,11 +107,13 @@ dosemu_sigaction_wrapper(int sig, void *fun, int flags)
 {
   struct sigaction sa;
   struct kernel_sigaction kernel_sa;
+  sigset_t mask;
 
   sa.sa_handler = (__sighandler_t)fun;
   sa.sa_flags = flags;
-  sigemptyset(&sa.sa_mask);
-  addset_signals_that_queue(&sa.sa_mask);
+  sigemptyset(&mask);
+  addset_signals_that_queue(&mask);
+  sa.sa_mask = mask;
 
   if ((sa.sa_flags & SA_ONSTACK) && !have_working_sigaltstack)
   {
@@ -128,7 +130,7 @@ dosemu_sigaction_wrapper(int sig, void *fun, int flags)
 
   syscall(SYS_sigaction, sig, NULL, &kernel_sa);
   /* no wrapper: no problem */
-  if (kernel_sa.kernel_sa_handler == sa.sa_handler)
+  if (kernel_sa.kernel_sa_handler == (__sighandler_t)fun)
     return;
 
   /* if glibc installs a wrapper it's incompatible with dosemu:
@@ -139,7 +141,10 @@ dosemu_sigaction_wrapper(int sig, void *fun, int flags)
      and it doesn't seem that the actions done by the wrapper
         would affect dosemu: if only seems to affect sigwait()
 	and sem_post(), and we (most probably) don't use these */
-  kernel_sa.kernel_sa_handler = sa.sa_handler;
+  kernel_sa.kernel_sa_handler = (__sighandler_t)fun;
+  kernel_sa.sa_mask = *((unsigned long *) &mask);
+  kernel_sa.sa_flags = flags;
+  kernel_sa.sa_restorer = NULL;
   syscall(SYS_sigaction, sig, &kernel_sa, NULL);
 }
 
