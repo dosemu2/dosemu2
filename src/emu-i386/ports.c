@@ -58,7 +58,7 @@ _port_handler port_handler[EMU_MAX_IO_DEVICES];
 unsigned char port_handle_table[0x10000];
 unsigned char port_andmask[0x400];
 unsigned char port_ormask[0x400];
-pid_t portserver_pid;
+pid_t portserver_pid = 0;
 
 static unsigned char port_handles;	/* number of io_handler's */
 
@@ -295,107 +295,6 @@ void port_outd(ioport_t port, Bit32u dword)
 
 
 /* ---------------------------------------------------------------------- */
-/* default port I/O access
- */
-
-struct portreq 
-{
-        ioport_t port;
-        int type;
-        unsigned long word;
-};
-
-static int port_fd_out[2];
-static int port_fd_in[2];
-
-Bit8u std_port_inb(ioport_t port)
-{
-        struct portreq pr;
-
-        if (current_iopl == 3) {
-		return port_real_inb(port);
-        }
-        pr.port = port;
-        pr.type = TYPE_INB;
-	write(port_fd_out[1], &pr, sizeof(pr));
-	read(port_fd_in[0], &pr, sizeof(pr));
-	return pr.word;
-}
-
-void std_port_outb(ioport_t port, Bit8u byte)
-{
-        struct portreq pr;
-
-        if (current_iopl == 3) {
-		port_real_outb(port, byte);
-		return;
-        }
-        pr.word = byte;
-        pr.port = port;
-        pr.type = TYPE_OUTB;
-	write(port_fd_out[1], &pr, sizeof(pr));
-	read(port_fd_in[0], &pr, sizeof(pr));
-}
-
-Bit16u std_port_inw(ioport_t port)
-{
-        struct portreq pr;
-
-        if (current_iopl == 3) {
-		return port_real_inw(port);
-        }
-        pr.port = port;
-        pr.type = TYPE_INW;
-	write(port_fd_out[1], &pr, sizeof(pr));
-	read(port_fd_in[0], &pr, sizeof(pr));
-	return pr.word;
-}
-
-void std_port_outw(ioport_t port, Bit16u word)
-{
-        struct portreq pr;
-
-        if (current_iopl == 3) {
-		port_real_outw(port, word);
-		return;
-        }
-        pr.word = word;
-        pr.port = port;
-        pr.type = TYPE_OUTW;
-	write(port_fd_out[1], &pr, sizeof(pr));
-	read(port_fd_in[0], &pr, sizeof(pr));
-}
-
-Bit32u std_port_ind(ioport_t port)
-{
-        struct portreq pr;
-
-        if (current_iopl == 3) {
-		return port_real_ind(port);
-        }
-        pr.port = port;
-        pr.type = TYPE_IND;
-	write(port_fd_out[1], &pr, sizeof(pr));
-	read(port_fd_in[0], &pr, sizeof(pr));
-	return pr.word;
-}
-
-void std_port_outd(ioport_t port, Bit32u dword)
-{
-        struct portreq pr;
-
-        if (current_iopl == 3) {
-		port_real_outd(port, dword);
-		return;
-        }
-        pr.word = dword;
-        pr.port = port;
-        pr.type = TYPE_OUTD;
-	write(port_fd_out[1], &pr, sizeof(pr));
-	read(port_fd_in[0], &pr, sizeof(pr));
-}
-
-/* ---------------------------------------------------------------------- */
 /* the following functions are all static!				  */
 
 static void pna_emsg(ioport_t port, char ch, char *s)
@@ -439,6 +338,137 @@ static void port_not_avail_outd(ioport_t port, Bit32u value)
 	if (debug_level('i')) pna_emsg(port,'d',"write");
 }
 
+
+/* ---------------------------------------------------------------------- */
+/* default port I/O access
+ */
+
+struct portreq 
+{
+        ioport_t port;
+        int type;
+        unsigned long word;
+};
+
+static int port_fd_out[2] = {-1, -1};
+static int port_fd_in[2] = {-1, -1};
+
+Bit8u std_port_inb(ioport_t port)
+{
+        struct portreq pr;
+
+        if (current_iopl == 3) {
+		return port_real_inb(port);
+	}
+	if (!portserver_pid) {
+		error ("std_port_inb(0x%X): port server unavailable\n", port);
+		return port_not_avail_inb (port);
+	}
+	pr.port = port;
+	pr.type = TYPE_INB;
+	write(port_fd_out[1], &pr, sizeof(pr));
+	read(port_fd_in[0], &pr, sizeof(pr));
+	return pr.word;
+}
+
+void std_port_outb(ioport_t port, Bit8u byte)
+{
+        struct portreq pr;
+
+        if (current_iopl == 3) {
+		port_real_outb(port, byte);
+		return;
+        }
+	if (!portserver_pid) {
+		error ("std_port_outb(0x%X,0x%X): port server unavailable\n",
+		       port, byte);
+		port_not_avail_outb (port, byte);
+		return;
+	}
+        pr.word = byte;
+        pr.port = port;
+        pr.type = TYPE_OUTB;
+	write(port_fd_out[1], &pr, sizeof(pr));
+	read(port_fd_in[0], &pr, sizeof(pr));
+}
+
+Bit16u std_port_inw(ioport_t port)
+{
+        struct portreq pr;
+
+        if (current_iopl == 3) {
+		return port_real_inw(port);
+        }
+	if (!portserver_pid) {
+		error ("std_port_inw(0x%X): port server unavailable\n", port);
+		return port_not_avail_inw (port);
+	}
+        pr.port = port;
+        pr.type = TYPE_INW;
+	write(port_fd_out[1], &pr, sizeof(pr));
+	read(port_fd_in[0], &pr, sizeof(pr));
+	return pr.word;
+}
+
+void std_port_outw(ioport_t port, Bit16u word)
+{
+        struct portreq pr;
+
+        if (current_iopl == 3) {
+		port_real_outw(port, word);
+		return;
+        }
+	if (!portserver_pid) {
+		error ("std_port_outw(0x%X,0x%X): port server unavailable\n",
+		       port, word);
+		port_not_avail_outw (port, word);
+		return;
+	}
+        pr.word = word;
+        pr.port = port;
+        pr.type = TYPE_OUTW;
+	write(port_fd_out[1], &pr, sizeof(pr));
+	read(port_fd_in[0], &pr, sizeof(pr));
+}
+
+Bit32u std_port_ind(ioport_t port)
+{
+        struct portreq pr;
+
+        if (current_iopl == 3) {
+		return port_real_ind(port);
+        }
+	if (!portserver_pid) {
+		error ("std_port_ind(0x%X): port server unavailable\n", port);
+		return port_not_avail_ind (port);
+	}
+        pr.port = port;
+        pr.type = TYPE_IND;
+	write(port_fd_out[1], &pr, sizeof(pr));
+	read(port_fd_in[0], &pr, sizeof(pr));
+	return pr.word;
+}
+
+void std_port_outd(ioport_t port, Bit32u dword)
+{
+        struct portreq pr;
+
+        if (current_iopl == 3) {
+		port_real_outd(port, dword);
+		return;
+        }
+	if (!portserver_pid) {
+		error ("std_port_outd(0x%X,0x%X): port server unavailable\n",
+		       port, dword);
+		port_not_avail_outd (port, dword);
+		return;
+	}
+        pr.word = dword;
+        pr.port = port;
+        pr.type = TYPE_OUTD;
+	write(port_fd_out[1], &pr, sizeof(pr));
+	read(port_fd_in[0], &pr, sizeof(pr));
+}
 
 /* ---------------------------------------------------------------------- */
 /* SIDOC_BEGIN_REMARK
@@ -619,8 +649,6 @@ int port_rep_outd(ioport_t port, Bit32u *base, int df, Bit32u count)
 	return (Bit8u *)dest-(Bit8u *)base;
 }
 
-
-/* ---------------------------------------------------------------------- */
 /* 
  * SIDOC_BEGIN_FUNCTION special_port_inb,special_port_outb
  *
@@ -991,7 +1019,8 @@ int extra_port_init(void)
 
 void port_exit(void)
 {
-        struct portreq pr;
+	struct portreq pr;
+	if (!portserver_pid) return;
         pr.type = TYPE_EXIT;
         if (port_fd_out[1]) write(port_fd_out[1], &pr, sizeof(pr));
 }
@@ -1044,7 +1073,7 @@ int port_register_handler(emu_iodev_t device, int flags)
     if (handle >= port_handles) {
 	/* no existing handle found, create new one */
 	if (port_handles >= EMU_MAX_IO_DEVICES) {
-		error("PORT: too many IO devices, increase EMU_MAX_IO_DEVICES");
+		error("PORT: too many IO devices, increase EMU_MAX_IO_DEVICES\n");
 		leavedos(77);
 	}
 
