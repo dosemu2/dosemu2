@@ -290,6 +290,7 @@ static int wildcard_delete(char *fpath, int drive)
 			if (errcode != 0) {
 				Debug0((dbg_fd, "Delete failed(%s) %s\n",
 					strerror(errcode), fpath));
+				dos_closedir(dir);
 				if (errcode == EACCES) {
 					return lfn_error(ACCESS_DENIED);
 				} else {
