@@ -1,12 +1,18 @@
 #define PORTS_H 1
 
 /* 
- * $Date: 1994/06/14 21:34:25 $
- * $Source: /usr/src/dosemu0.52/RCS/ports.h,v $
- * $Revision: 2.3 $
+ * $Date: 1994/06/27 02:15:58 $
+ * $Source: /home/src/dosemu0.60/RCS/ports.h,v $
+ * $Revision: 2.5 $
  * $State: Exp $
  *
  * $Log: ports.h,v $
+ * Revision 2.5  1994/06/27  02:15:58  root
+ * Prep for pre53
+ *
+ * Revision 2.4  1994/06/24  14:51:06  root
+ * Markks's patches plus.
+ *
  * Revision 2.3  1994/06/14  21:34:25  root
  * Second series of termcap patches.
  *
@@ -72,8 +78,9 @@ int port61 = 0x0e;              /* the pseudo-8255 device on AT's */
 extern int fatalerr;
 struct pit pit;
 extern void set_leds(void);
-extern inline void poscur(int, int);
 extern int s3_8514_base;
+extern int cursor_row;
+extern int cursor_col;
 u_short microsoft_port_check = 0;
 
 inline int
@@ -225,13 +232,15 @@ outb(int port, int byte)
 	    {
 	      hi = (unsigned char)byte;
 	      pos = (hi << 8) | lo;
-	      if (config.console_video) poscur(pos%80, pos/80);
+	      cursor_col = pos%80;
+	      cursor_row = pos/80;
 	    }
 	  else if ( last_byte == 15 )
 	    {
 	      lo = (unsigned char)byte;
 	      pos = (hi << 8) | lo;
-	      if (config.console_video) poscur(pos%80, pos/80);
+	      cursor_col = pos%80;
+	      cursor_row = pos/80;
 	    }
 	}
       last_port = port; last_byte = byte;
@@ -306,7 +315,9 @@ outb(int port, int byte)
   case 0x41:
   case 0x42:
   case 0x43:
+#if 0
     i_printf("timer outb 0x%02x\n", byte);
+#endif
     if ((port == 0x42) && (lastport == 0x42)) {
       if ((timer_beep == 1) &&
 	  (config.speaker == SPKR_EMULATED)) {

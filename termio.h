@@ -4,7 +4,7 @@
 /* Extensions by Robert Sanders, 1992-93
  *
  * $Date: 1994/06/12 23:15:37 $
- * $Source: /usr/src/dosemu0.52/RCS/termio.h,v $
+ * $Source: /home/src/dosemu0.60/RCS/termio.h,v $
  * $Revision: 2.1 $
  * $State: Exp $
  *

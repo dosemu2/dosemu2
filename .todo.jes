@@ -10,7 +10,7 @@ Timing
 Network
 	-	Want to connect to network existing already in Linux.
 		Be able to support both TCP/IP and IPX/SPX protocols.
-		Almost there thanks to Jason & Tim.
+		Almost there thanks to Jason & Tim & Rob.
 Keyboard
 	-	Clean it up. Get EDIT.COM(Qbasic.exe) to highlight
 		properly.
@@ -19,4 +19,4 @@ EMS
 DPMI
 	-	Although forgotten awhile back due to kernel limitations,
 		should be reconsidered because of WINE reworking the
-		memory allocation algorithm.
+		memory allocation algorithm. Lutz is the man in charge.

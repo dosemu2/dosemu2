@@ -1,30 +1,30 @@
 bios_emm.o : bios_emm.c emu.h machcompat.h cpu.h 
 cmos.o : cmos.c emu.h machcompat.h cpu.h cmos.h disks.h 
-cpu.o : cpu.c config.h memory.h cpu.h termio.h emu.h machcompat.h /usr/src/dosemu0.52/include/port.h \
-  /usr/src/dosemu0.52/include/video.h dpmi/dpmi.h 
+cpu.o : cpu.c config.h memory.h cpu.h termio.h emu.h machcompat.h /home/src/dosemu0.60/include/port.h \
+  /home/src/dosemu0.60/include/video.h dpmi/dpmi.h 
 disks.o : disks.c emu.h machcompat.h cpu.h disks.h 
 dos.o : dos.c config.h 
 dosconfig.o : dosconfig.c 
-dosio.o : dosio.c memory.h emu.h machcompat.h cpu.h termio.h dosio.h /usr/src/dosemu0.52/include/mouse.h \
-  /usr/src/dosemu0.52/include/video.h 
+dosio.o : dosio.c memory.h emu.h machcompat.h cpu.h termio.h dosio.h /home/src/dosemu0.60/include/mouse.h \
+  /home/src/dosemu0.60/include/video.h 
 dyndeb.o : dyndeb.c emu.h machcompat.h cpu.h 
-emu.o : emu.c config.h memory.h emu.h machcompat.h cpu.h /usr/src/dosemu0.52/include/bios.h \
-  termio.h /usr/src/dosemu0.52/include/video.h timers.h cmos.h /usr/src/dosemu0.52/include/mouse.h \
-  dosio.h disks.h xms.h dpmi/dpmi.h /usr/src/dosemu0.52/include/ipx.h /usr/src/dosemu0.52/include/../cpu.h \
-  serial.h /usr/src/dosemu0.52/include/keymaps.h int10.h int.h 
+emu.o : emu.c config.h memory.h emu.h machcompat.h cpu.h /home/src/dosemu0.60/include/bios.h \
+  termio.h /home/src/dosemu0.60/include/video.h timers.h cmos.h /home/src/dosemu0.60/include/mouse.h \
+  dosio.h disks.h xms.h dpmi/dpmi.h /home/src/dosemu0.60/include/ipx.h /home/src/dosemu0.60/include/../cpu.h \
+  serial.h /home/src/dosemu0.60/include/keymaps.h int10.h int.h 
 keymaps.o : keymaps.c config.h 
 lpt.o : lpt.c emu.h machcompat.h cpu.h dosio.h lpt.h 
 mfs.o : mfs.c mfs.h emu.h machcompat.h cpu.h config.h memory.h 
 mutex.o : mutex.c config.h emu.h machcompat.h cpu.h mutex.h 
 prnt.o : prnt.c 
-serial.o : serial.c config.h cpu.h emu.h machcompat.h dosio.h serial.h /usr/src/dosemu0.52/include/mouse.h 
-sigsegv.o : sigsegv.c emu.h machcompat.h cpu.h /usr/src/dosemu0.52/include/bios.h \
-  /usr/src/dosemu0.52/include/mouse.h serial.h xms.h timers.h cmos.h memory.h \
-  termio.h config.h /usr/src/dosemu0.52/include/port.h /usr/src/dosemu0.52/include/ipx.h \
-  /usr/src/dosemu0.52/include/../cpu.h /usr/src/dosemu0.52/include/video.h dpmi/dpmi.h \
+serial.o : serial.c config.h cpu.h emu.h machcompat.h dosio.h serial.h /home/src/dosemu0.60/include/mouse.h 
+sigsegv.o : sigsegv.c emu.h machcompat.h cpu.h /home/src/dosemu0.60/include/bios.h \
+  /home/src/dosemu0.60/include/mouse.h serial.h xms.h timers.h cmos.h memory.h \
+  termio.h config.h /home/src/dosemu0.60/include/port.h /home/src/dosemu0.60/include/ipx.h \
+  /home/src/dosemu0.60/include/../cpu.h /home/src/dosemu0.60/include/video.h dpmi/dpmi.h \
   ports.h 
-termio.o : termio.c config.h memory.h emu.h machcompat.h cpu.h termio.h /usr/src/dosemu0.52/include/video.h \
-  /usr/src/dosemu0.52/include/mouse.h dosio.h /usr/src/dosemu0.52/include/keymaps.h 
+termio.o : termio.c config.h memory.h emu.h machcompat.h cpu.h termio.h /home/src/dosemu0.60/include/video.h \
+  /home/src/dosemu0.60/include/mouse.h dosio.h /home/src/dosemu0.60/include/keymaps.h 
 timers.o : timers.c emu.h machcompat.h cpu.h timers.h 
 xms.o : xms.c emu.h machcompat.h cpu.h config.h memory.h xms.h dosio.h 
 bios.o : bios.S

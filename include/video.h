@@ -242,6 +242,8 @@ extern int CRT_I, CRT_D, IS1_R, FCR_W, color_text;
 extern u_char att_d_index;
 extern u_char permissions;
 extern struct screen_stat scr_state;
+extern int cursor_row;
+extern int cursor_col;
 
 #endif 
 /* End of include/video.h */

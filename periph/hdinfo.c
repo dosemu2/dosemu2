@@ -17,7 +17,7 @@
  *   512 bytes earlier).
  *
  * $Date: 1994/06/17 00:14:24 $
- * $Source: /usr/src/dosemu0.52/periph/RCS/hdinfo.c,v $
+ * $Source: /home/src/dosemu0.60/periph/RCS/hdinfo.c,v $
  * $Revision: 2.2 $
  * $State: Exp $
  *

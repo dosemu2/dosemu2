@@ -2,9 +2,10 @@
  * Handler for int10-requests, moved from video.c and made it inline
  */
 
-extern inline void poscur(int, int);
 extern void Scroll(int, int, int, int, int, int);
 extern void hide_cursor(void);
+extern int cursor_row;
+extern int cursor_col;
 
 __inline__ void int10(void)
 {
@@ -82,9 +83,8 @@ __inline__ void int10(void)
 
     bios_cursor_x_position(screen) = x;
     bios_cursor_y_position(screen) = y;
-
-    if ((screen == bios_current_screen_page) && (config.console_video)) 
-      poscur(x, y);
+    cursor_col = x;
+    cursor_row = y;
     break;
 
   case 0x3:			/* get cursor pos */
@@ -112,10 +112,8 @@ __inline__ void int10(void)
 
       bios_current_screen_page = screen;
       bios_video_memory_address = TEXT_SIZE * screen;
-
-      if (config.console_video) 
-        poscur(bios_cursor_x_position(bios_current_screen_page), 
-               bios_cursor_y_position(bios_current_screen_page));
+      cursor_col = bios_cursor_x_position(bios_current_screen_page);
+      cursor_row = bios_cursor_y_position(bios_current_screen_page);
       break;
     }
 

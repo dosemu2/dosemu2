@@ -22,7 +22,7 @@
  * Extensions by Robert Sanders, 1992-93
  *
  * $Date: 1994/06/14 22:00:18 $
- * $Source: /usr/src/dosemu0.52/RCS/termio.c,v $
+ * $Source: /home/src/dosemu0.60/RCS/termio.c,v $
  * $Revision: 2.2 $
  * $State: Exp $
  * $Log: termio.c,v $
@@ -556,7 +556,7 @@ OpenKeyboard(void)
   if (config.console_video)
     set_console_video();
 
-  dbug_printf("$Header: /usr/src/dosemu0.52/RCS/termio.c,v 2.2 1994/06/14 22:00:18 root Exp root $\n");
+  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 2.2 1994/06/14 22:00:18 root Exp root $\n");
 
   return 0;
 }

@@ -12,12 +12,18 @@
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
- * $Date: 1994/06/17 00:13:32 $
- * $Source: /usr/src/dosemu0.52/RCS/emu.c,v $
- * $Revision: 2.5 $
+ * $Date: 1994/06/27 02:15:58 $
+ * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
+ * $Revision: 2.7 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 2.7  1994/06/27  02:15:58  root
+ * Prep for pre53
+ *
+ * Revision 2.6  1994/06/24  14:51:06  root
+ * Markks's patches plus.
+ *
  * Revision 2.5  1994/06/17  00:13:32  root
  * Let's wrap it up and call it DOSEMU0.52.
  *
@@ -435,12 +441,11 @@ extern void getKeys(void);
 extern struct pit pit;
 
 extern inline void disk_open(struct disk *);
-extern inline void vm86_sigsegv();
+extern inline void vm86_GP_fault();
+extern int cursor_row;
+extern int cursor_col;
 
-char *segv_stack[4096];
-char *alrm_stack[4096];
-char *ill_stack[4096];
-char *trap_stack[4096];
+char *cstack[16384];
 
 int int_queue_running = 0;
 inline void int_queue_run();
@@ -649,24 +654,23 @@ run_vm86(void)
    * be in here.
    */
     in_vm86 = 1;
-    switch VM86_TYPE(retval = vm86(&vm86s)) {
+    switch VM86_TYPE({retval=vm86(&vm86s); in_vm86=0; retval;}) {
 	case VM86_UNKNOWN:
-		vm86_sigsegv();
+		vm86_GP_fault();
 		break;
 	case VM86_STI:
 		I_printf("Return from vm86() for timeout\n");
 		REG(eflags) &= ~(VIP);
 		break;
 	case VM86_INTx:
-		in_vm86 = 0;
 		do_int(VM86_ARG(retval));
 		break;
 	case VM86_SIGNAL:
 		break;
 	default:
 		error("unknown return value from vm86()=%x,%d-%x\n", VM86_TYPE(retval), VM86_TYPE(retval), VM86_ARG(retval));
+		fatalerr = 4;
     }
-    in_vm86 = 0;
 
   /* this is here because ioctl() is non-reentrant, and signal handlers
    * may have to use ioctl().  This results in a possible (probable) time
@@ -1049,6 +1053,8 @@ sigalrm(int sig, struct sigcontext_struct context)
   static int partials = 0;
   static u_char timals = 0;
   static int anychanges = 0;
+  static int old_row = -1;
+  static int old_col = -1;
 
   if (inalrm || in_sighandler) {
     error("ERROR: Reentering SIGALRM! alrm=%d, in_sig=%d\n", inalrm, in_sighandler);
@@ -1073,13 +1079,22 @@ sigalrm(int sig, struct sigcontext_struct context)
    * This increases the DOSEMU-to-termcap update efficiency greatly.
    * The countdown counter is currently at a value of 2.
    */
-  if (!config.console_video && !running) {
-    running = -1;
-    anychanges = restore_screen();
-    running = anychanges ? 2 : 0;
-  }
-  else if (running > 0) {
-    running--;
+  if (!config.graphics) {
+    if (!config.console_video) {
+      if (!running) {
+        running = -1;
+        anychanges = restore_screen();
+        running = anychanges ? 2 : 0;
+      }
+      else if (running > 0) {
+        running--;
+      }
+    }
+    else if ((old_row != cursor_row) || (old_col != cursor_col)) {
+      poscur(cursor_col, cursor_row);
+      old_col = cursor_col;
+      old_row = cursor_row;
+    }
   }
 
 #if 0
@@ -1575,7 +1590,7 @@ void
   while ((c = getopt(argc, argv, "ABC:cF:kM:D:P:VNtsgx:Km234e:")) != EOF)
     if (c == 'F')
       confname = optarg;
-  parse_config(confname);
+  parse_config(NULL);
 
   if (config.exitearly)
     leavedos(0);
@@ -1768,12 +1783,12 @@ void
 					sigaddset(&sa.sa_mask, SIG_TIME); \
 					sigaction(sig, &sa, NULL);
 
-#define DPMISETSIG(sig, fun, stack) \
+#define NEWSETSIG(sig, fun) \
 			sa.sa_handler = (__sighandler_t) fun; \
 			/* Point to the top of the stack, minus 4 just in case, and make \
 			   just in case, and make it aligned  */ \
 			sa.sa_restorer = \
-			(void (*)()) (((unsigned int)(stack) + sizeof(stack) - 4) & ~3); \
+			(void (*)()) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
 			sa.sa_flags = SA_RESTART; \
 			sigemptyset(&sa.sa_mask); \
 			sigaddset(&sa.sa_mask, SIG_TIME); \
@@ -1781,16 +1796,19 @@ void
 
   /* init signal handlers */
 
-  DPMISETSIG(SIGILL, sigill, ill_stack);
-  DPMISETSIG(SIG_TIME, sigalrm, alrm_stack);
-  SETSIG(SIGFPE, sigfpe);
-  DPMISETSIG(SIGTRAP, sigtrap, trap_stack);
+  NEWSETSIG(SIGILL, dosemu_fault);
+  NEWSETSIG(SIG_TIME, sigalrm);
+  NEWSETSIG(SIGFPE, dosemu_fault);
+  NEWSETSIG(SIGTRAP, dosemu_fault);
+  NEWSETSIG(SIGBUS, dosemu_fault);
 
   SETSIG(SIGHUP, leavedos);	/* for "graceful" shutdown */
   SETSIG(SIGTERM, leavedos);
   SETSIG(SIGKILL, leavedos);
   SETSIG(SIGQUIT, sigquit);
+/*
   SETSIG(SIGUNUSED, timint);
+*/
 
   /* do time stuff - necessary for initial time setting */
   {
@@ -1815,7 +1833,7 @@ void
   scrbuf = (u_char *)malloc(CO * LI * 2);
   v_printf("SCREEN saves at: %p of %d size\n", scrbuf, CO * LI * 2);
 
-  DPMISETSIG(SIGSEGV, sigsegv, segv_stack);
+  NEWSETSIG(SIGSEGV, dosemu_fault);
   hardware_init();
   if (config.vga)
     vga_initialize();
@@ -2018,7 +2036,7 @@ int
 
 void
  usage(void) {
-  fprintf(stdout, "$Header: /usr/src/dosemu0.52/RCS/emu.c,v 2.5 1994/06/17 00:13:32 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.7 1994/06/27 02:15:58 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -2235,7 +2253,7 @@ int
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/06/17 00:13:32 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/06/27 02:15:58 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */

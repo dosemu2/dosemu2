@@ -1,0 +1,146 @@
+<title>The Misc group of Modules</title>
+<h1>5 <a name="s5"> The Misc group of Modules </h1>
+<p> <a href="$$.html#toc5"> Contents of this section</a></p>
+
+<p>These are the remaining important files, that do not really fit into another
+group. These should not be dismissed as unimportant - rather, they are often
+amongst the most important.</p>
+<p></p>
+<p></p>
+<h2>5.1 <A Name="ss5.1"> bios_emm.c Information </h2>
+
+<p>This provides the EMM Memory Management for DOSEMU. It was originally part
+of the Mach Dos Emulator. </p>
+<p>Recent work in this area has involved a patch to the Kernel. If this is used
+and the DEFINE MMAP_EMS line used, a faster form of EMS memory support is
+included, using the /proc filesystem.</p>
+<p>In contrast to some of the comments (Yes, _I_ know the adage about that...)
+we appear to be supporting EMS 4.0, not 3.2</p>
+<p></p>
+<p></p>
+<h3> Functions in bios_emm.c </h3>
+
+<p>We appear to have no information on the functions in bios_emm.c.</p>
+<p></p>
+<h3> Remarks in bios_emm.c </h3>
+
+<p>Apparently, no-one has anything interesting to say about bios_emm.c.</p>
+<p></p>
+<h3> Items for Fixing in bios_emm.c </h3>
+
+<p>Apparently, nothing needs fixing in bios_emm.c.</p>
+<p></p>
+<h3> New Ideas for bios_emm.c </h3>
+
+<p>Apparently, there are no new ideas for bios_emm.c.</p>
+<p></p>
+
+<h2>5.2 <A Name="ss5.2"> emu.c Information </h2>
+
+<p>This is where we call of the initialisation code. Everything not covered
+elsewhere is handled here (Such logic !) By this we mean the speakers,
+the standard memory, cassettes etc.</p>
+<p>More than that, I cannot tell you - Things have changed a lot since I
+last got an update ... 8-(</p>
+<p></p>
+<h3> Functions in emu.c </h3>
+
+<p>We appear to have no information on the functions in emu.c.</p>
+<p></p>
+<h3> Remarks in emu.c </h3>
+
+<p>Apparently, no-one has anything interesting to say about emu.c.</p>
+<p></p>
+<h3> Items for Fixing in emu.c </h3>
+
+<p>Apparently, nothing needs fixing in emu.c.</p>
+<p></p>
+<h3> New Ideas for emu.c </h3>
+
+<p>Apparently, there are no new ideas for emu.c.</p>
+<p></p>
+
+<h2>5.3 <A Name="ss5.3"> xms.c Information </h2>
+
+<p>Currently the XMS 3.0 spec is covered in this file. XMS is fairly simple
+as it onbly deals with allocating extended memory and then moving it 
+around in specific calls. This spec also includes the allocation of UMB's,
+so they are also included as part of this file. The amount of xms memory
+returned to DOS programs via the XMS requests, or int15 fnc88 is set in
+" /etc/dosemu.conf"  via the XMS paramter.</p>
+<p></p>
+<p></p>
+<h3> Functions in xms.c </h3>
+
+<p>We appear to have no information on the functions in xms.c.</p>
+<p></p>
+<h3> Remarks in xms.c </h3>
+
+<p>Apparently, no-one has anything interesting to say about xms.c.</p>
+<p></p>
+<h3> Items for Fixing in xms.c </h3>
+
+<p>Apparently, nothing needs fixing in xms.c.</p>
+<p></p>
+<h3> New Ideas for xms.c </h3>
+
+<p>Apparently, there are no new ideas for xms.c.</p>
+<p></p>
+
+<h2>5.4 <A Name="ss5.4"> termio.c Information </h2>
+
+<p>This handles the keyboard.</p>
+<p>Two keyboard modes are handled 'raw' and 'xlate'. 'Raw' works with
+codes as sent out by the kernel and 'xlate' uses plain ASCII as used over
+serial lines. The mapping for different languages &amp;  the two ALT-keys is
+done here, but the definitions are elsewhere. Only the default (US)
+keymap is stored here.</p>
+<p></p>
+<p></p>
+<h3> Functions in termio.c </h3>
+
+<p>We appear to have no information on the functions in termio.c.</p>
+<p></p>
+<h3> Remarks in termio.c </h3>
+
+<p>Apparently, no-one has anything interesting to say about termio.c.</p>
+<p></p>
+<h3> Items for Fixing in termio.c </h3>
+
+<p>Apparently, nothing needs fixing in termio.c.</p>
+<p></p>
+<h3> New Ideas for termio.c </h3>
+
+<p>Apparently, there are no new ideas for termio.c.</p>
+<p></p>
+
+<h2>5.5 <A Name="ss5.5"> keymaps.c Information </h2>
+
+<p>These are definitions, giving which key is related to which scancode in
+raw keyboard mode. Basically, the code of 'x' on a US keyboard may be that
+of a 'Y' on a German keyboard. This way, all types of keyboard can be
+represented under DOSEMU. Also, the right ALT-key is often a function
+key in it's own right.</p>
+<p></p>
+<p></p>
+<h3> Functions in keymaps.c </h3>
+
+<p>We appear to have no information on the functions in keymaps.c.</p>
+<p></p>
+<h3> Remarks in keymaps.c </h3>
+
+<p>Apparently, no-one has anything interesting to say about keymaps.c.</p>
+<p></p>
+<h3> Items for Fixing in keymaps.c </h3>
+
+<p>Apparently, nothing needs fixing in keymaps.c.</p>
+<p></p>
+<h3> New Ideas for keymaps.c </h3>
+
+<p>Apparently, there are no new ideas for keymaps.c.</p>
+<p></p>
+
+<p><a href="$$-6.html"> Next </a> Chapter, <a href="$$-4.html"> Previous </a> Chapter</p><p>Table of contents of <a href="$$.html#toc5">this chapter</a>,
+ General <a href="$$.html#toc">table of contents</a></p>
+<p><a href="$$.html"> Top </a> of the document,
+ <a href="#0"> Beginning of this Chapter</a></p>

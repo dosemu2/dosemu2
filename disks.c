@@ -2,7 +2,7 @@
  * Extensions by Robert Sanders, 1992-93
  *
  * $Date: 1994/06/17 00:13:32 $
- * $Source: /usr/src/dosemu0.52/RCS/disks.c,v $
+ * $Source: /home/src/dosemu0.60/RCS/disks.c,v $
  * $Revision: 2.2 $
  * $State: Exp $
  *

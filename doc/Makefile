@@ -32,3 +32,5 @@ clean:
 dist: dosemu.texinfo dosemu.info dos.1 DPR DANG EMUsuccess.txt
 	install -d $(DISTPATH)/doc
 	install -m 0644 Makefile dosemu.texinfo dosemu.info dos.1 announce$(EMUVER) DPR DANG EMUsuccess.txt $(DISTPATH)/doc
+	install -d $(DISTPATH)/html
+	install -m 0644 html/* $(DISTPATH)/html

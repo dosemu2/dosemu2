@@ -1,12 +1,18 @@
 #define SIGSEGV_C 1
 
 /* 
- * $Date: 1994/06/12 23:15:37 $
- * $Source: /usr/src/dosemu0.52/RCS/sigsegv.c,v $
- * $Revision: 2.1 $
+ * $Date: 1994/06/27 02:15:58 $
+ * $Source: /home/src/dosemu0.60/RCS/sigsegv.c,v $
+ * $Revision: 2.3 $
  * $State: Exp $
  *
  * $Log: sigsegv.c,v $
+ * Revision 2.3  1994/06/27  02:15:58  root
+ * Prep for pre53
+ *
+ * Revision 2.2  1994/06/24  14:51:06  root
+ * Markks's patches plus.
+ *
  * Revision 2.1  1994/06/12  23:15:37  root
  * Wrapping up prior to release of DOSEMU0.52.
  *
@@ -125,11 +131,16 @@ extern struct config_info config;
 
 extern inline void do_int(int);
 
-/* this is the brain, the privileged instruction handler.
- * see cpu.h for the SIGSTACK definition (new in Linux 0.99pl10)
+/*
+ * DANG_BEGIN_FUNCTION void vm86_GP_fault();
+ *
+ * All from the kernel unhandled general protection faults from V86 mode
+ * are handled here. This are mainly port IO and the HLT instruction.
+ *
+ * DANG_END_FUNCTION
  */
 
-inline void vm86_sigsegv()
+inline void vm86_GP_fault()
 {
 
   unsigned char *csp, *lina;
@@ -157,7 +168,7 @@ inline void vm86_sigsegv()
   if (in_sigsegv)
     error("ERROR: in_sigsegv=%d!\n", in_sigsegv);
 
-  in_vm86 = 0;
+  /* in_vm86 = 0; */
   in_sigsegv++;
 
   /* In a properly functioning emulator :-), sigsegv's will never come
@@ -182,13 +193,6 @@ inline void vm86_sigsegv()
   /* fprintf(stderr, "CSP in cpu is 0x%04x\n", *csp); */
 
   switch (*csp) {
-
-  case 0x62:			/* bound */
-    error("ERROR: BOUND instruction");
-    show_regs();
-    LWORD(eip) += 2;		/* check this! */
-    do_int(5);
-    break;
 
   case 0x6c:			/* insb */
   case 0x6d:			/* insw */
@@ -313,32 +317,57 @@ inline void vm86_sigsegv()
   in_sighandler = 0;
 }
 
+/*
+ * DANG_BEGIN_FUNCTION void dosemu_fault(int, struct sigcontext_struct);
+ *
+ * All CPU exceptions (except 13=general_protection from V86 mode,
+ * which is directly scaned by the kernel) are handled here.
+ *
+ * DANG_END_FUNCTION
+ */
+
 void 
-sigsegv(int signal, struct sigcontext_struct context)
+dosemu_fault(int signal, struct sigcontext_struct context)
 {
   struct sigcontext_struct *scp = &context;
   unsigned char *csp;
   int i;
 
   if (in_vm86) {
-#if 0
-    error("VM86 SIGSEGV trapno:0x%02lx\n",_trapno);
-#endif
-
-#if 0
-    if (_trapno == 13)
-      error("Uhhuh trap 13 received - This couldn't be from vm86()\n"
-	    "probably a sigsegv from dosemu code!!!!!!\n");
-#if 1
-    else
-#endif
-#endif
-      return vm86_sigsegv();
+    in_vm86 = 0;
+    switch (_trapno) {
+      case 0x00: /* divide_error */
+		 return (void) do_int(0);
+      case 0x01: /* debug */
+ 		 return (void) do_int(1);
+      case 0x03: /* int3 */
+ 		 return (void) do_int(3);
+      case 0x04: /* overflow */
+ 		 return (void) do_int(4);
+      case 0x05: /* bounds */
+ 		 return (void) do_int(5);
+      case 0x06: /* invalid_op */
+ 		 csp = SEG_ADR((unsigned char *), cs, ip);
+ 		 /* Some db commands start with 2e (use cs segment) and thus is accounted
+ 		    for here */
+ 		 if (csp[0] == 0x2e) {
+ 		   csp++;
+ 		   LWORD(eip)++;
+ 		 }
+ 		 if (csp[0] == 0xf0) {
+ 		   dbug_printf("ERROR: LOCK prefix not permitted!\n");
+ 		   LWORD(eip)++;
+ 		   return;
+ 		 }
+      default:	 error("ERROR: unexpected CPU exceptions 0x%02lx while in vm86()\n",_trapno);
+ 		 show_regs();
+ 		 leavedos(4);
+    }
   }
 
 #ifdef DPMI
   if (in_dpmi)
-    return dpmi_sigsegv(scp);
+    return dpmi_fault(&context);
 #endif
 
   csp = (char *) _eip;
@@ -351,7 +380,7 @@ sigsegv(int signal, struct sigcontext_struct context)
 #else
   {
 #endif
-    error("ERROR: sigsegv in dosemu code!  trapno=0x%02lx\n"
+    error("ERROR: exception 0x%02lx in dosemu code!\n"
 	  "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%lx\n"
 	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n", _trapno,
 	  _eip, _esp, _eflags, _cs, _ds, _es, _ss);

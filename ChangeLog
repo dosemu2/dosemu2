@@ -1,3 +1,18 @@
+Fri Jun 24 1994 JES
+
+	- Markks console cursor patches, and more speed increses to
+	  serial stuff.
+	- Small change to mfs.c to correct wrong return codes for
+	  findfirst. Seems t speed up directory searches, but may
+	  just be my imagination :-).
+	- Messed around with SIGILL a bit to try and track down reported
+	  problem starting DOSEMU for some that causes SIGILL with 
+	  instr of 2e:f7 (cs:div?). No solution yet.
+	- Hacked ./init/parse.c a bit to exchange_uids when running
+	  overide config files. Now /etc/dosemu.conf always runs, then
+ 	  overrides can be speced in optional config files.
+	  Doesn't work yet :-(
+
 Tue Jun 14 1994 JES
 
 	- Next set of patches from Markkk. Major overhaul started

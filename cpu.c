@@ -3,12 +3,18 @@
  * taken over by:
  *          Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/06/12 23:15:37 $
- * $Source: /usr/src/dosemu0.52/RCS/cpu.c,v $
- * $Revision: 2.1 $
+ * $Date: 1994/06/27 02:15:58 $
+ * $Source: /home/src/dosemu0.60/RCS/cpu.c,v $
+ * $Revision: 2.3 $
  * $State: Exp $
  *
  * $Log: cpu.c,v $
+ * Revision 2.3  1994/06/27  02:15:58  root
+ * Prep for pre53
+ *
+ * Revision 2.2  1994/06/24  14:51:06  root
+ * Markks's patches plus.
+ *
  * Revision 2.1  1994/06/12  23:15:37  root
  * Wrapping up prior to release of DOSEMU0.52.
  *
@@ -343,138 +349,6 @@ do_soft_int(int intno)
 {
   do_int(intno);
   return 1;
-}
-
-void
-sigill(int sig, struct sigcontext_struct context)
-{
-  unsigned char *csp;
-  int i, dee;
-
-#ifdef DPMI
-  if (in_dpmi && !in_vm86)
-    return dpmi_sigill(&context);
-#endif /* DPMI */
-
-  csp = SEG_ADR((unsigned char *), cs, ip);
-
-  if (!in_vm86)			/* test VM bit */
-    error("ERROR: NON-VM86 illegal insn!\n");
-
-  in_vm86 = 0;
-
-  error("SIGILL %d received\n", sig);
-  show_regs();
-
-  /* Some db commands start with 2e (use cs segment) and thus is accounted
-   for here */
-
-  if (csp[0] == 0x2e) {
-    csp++;
-    LWORD(eip)++;
-  }
-  if (csp[0] == 0xf0) {
-    dbug_printf("ERROR: LOCK prefix not permitted!\n");
-    LWORD(eip)++;
-    return;
-  }
-
-  /* look at this with Checkit...the new code just sits in a loop */
-#define OLD_MATH_CODE
-#ifdef OLD_MATH_CODE
-  i = (csp[0] << 8) + csp[1];	/* swapped */
-  if ((i & 0xf800) != 0xd800) {	/* not FPU insn */
-    error("ERROR: not an FPU instruction, real illegal opcode!\n");
-#if 0
-    do_int(0x6);		/* Coprocessor error */
-#else
-    fatalerr = 4;
-#endif
-    return;
-  }
-
-  /* I don't know what this code does. -Robert */
-  switch (i & 0xc0) {
-  case 0x00:
-    if ((i & 0x7) == 0x6) {
-      dee = *(short *) (csp + 2);
-      REG(eip) += 4;
-    }
-    else {
-      REG(eip) += 2;
-      dee = 0;
-    }
-    break;
-  case 0x40:
-    dee = (signed) csp[2];
-    REG(eip) += 3;
-    break;
-  case 0x80:
-    dee = *(short *) (csp + 2);
-    REG(eip) += 4;
-    break;
-  default:
-    REG(eip) += 2;
-    dee = 0;
-  }
-
-  warn("MATH: emulation %x d=%x\n", i, dee);
-
-#else /* this is the new, stupid MATH-EMU code. it doesn't work. */
-
-  if ((*csp >= 0xd8) && (*csp <= 0xdf)) {	/* the FPU insn prefix bytes */
-    error("MATH: math emulation for (first 2 bytes) %02x %02x...\n",
-	  *csp, *(csp + 1));
-
-    /* this is the coprocessor-not-available int. to use this, you
-       * should compile your kernel with FPU-emu support in, and you
-       * should install a DOS-based FPU emulator within dosemu.
-       * this is untested, and I CAN'T test it, as I have a 486.
-       */
-    do_int(7);
-  }
-#endif
-}
-
-void
-sigfpe(int sig)
-{
-  if (!in_vm86)
-    error("ERROR: NON-VM86 SIGFPE insn!\n");
-
-  in_vm86 = 0;
-
-  error("SIGFPE %d received\n", sig);
-  show_regs();
-  if (REG(eflags) & VIF) {
-    LWORD(eip) -= 1;
-    do_int(0);
-  }
-  else
-    error("ERROR: FPE happened but interrupts disabled\n");
-}
-
-void
-sigtrap(int sig, struct sigcontext_struct context)
-{
-  struct sigcontext_struct *scp = &context;
-
-#if 0
-#ifdef DPMI
-  if (in_dpmi && !in_vm86)
-    return dpmi_sigtrap(scp);
-#endif /* DPMI */
-#endif
-
-  if (!in_vm86)
-    error("ERROR: NON-VM86 SIGTRAP insn!\n");
-
-  in_vm86 = 0;
-
-  if (_trapno == 3)
-    return (void) do_int(3);
-
-  do_int(1);
 }
 
 struct port_struct {

@@ -9,12 +9,19 @@
  *
  * First Attempted by James B. MacLean jmaclean@fox.nstn.ns.ca
  *
- * $Date: 1994/06/17 00:14:41 $
- * $Source: /usr/src/dosemu0.52/dpmi/RCS/dpmi.c,v $
- * $Revision: 2.2 $
+ * $Date: 1994/06/27 02:17:03 $
+ * $Source: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v $
+ * $Revision: 2.4 $
  * $State: Exp $
  *
  * $Log: dpmi.c,v $
+ * Revision 2.4  1994/06/27  02:17:03  root
+ * Prep for pre53
+ *
+ * Revision 2.3  1994/06/24  14:52:04  root
+ * Lutz's patches against DPMI
+ * ,
+ *
  * Revision 2.2  1994/06/17  00:14:41  root
  * Let's wrap it up and call it DOSEMU0.52.
  *
@@ -112,7 +119,7 @@ INTDESC Exception_Table[0x20];
 SEGDESC Segments[MAX_SELECTORS];
 static char ldt_buffer[LDT_ENTRIES*LDT_ENTRY_SIZE];
 
-static char RCSdpmi[] = "$Header: /usr/src/dosemu0.52/dpmi/RCS/dpmi.c,v 2.2 1994/06/17 00:14:41 root Exp root $";
+static char RCSdpmi[] = "$Header: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v 2.4 1994/06/27 02:17:03 root Exp root $";
 
 /* Set to 1 when running under DPMI */
 u_char in_dpmi = 0;
@@ -650,24 +657,23 @@ inline void run_dpmi(void)
   if (*OUTB_ADD || in_dpmi_dos_int) {
 #endif
     in_vm86 = 1;
-    switch VM86_TYPE(retval = vm86(&vm86s)) {
+    switch VM86_TYPE({retval=vm86(&vm86s); in_vm86=0; retval;}) {
 	case VM86_UNKNOWN:
-		vm86_sigsegv();
+		vm86_GP_fault();
 		break;
 	case VM86_STI:
 		I_printf("Return from vm86() for timeout\n");
 		REG(eflags) &=~VIP;
 		break;
 	case VM86_INTx:
-		in_vm86 = 0;
 		do_int(VM86_ARG(retval));
 		break;
 	case VM86_SIGNAL:
 		break;
 	default:
 		error("unknown return value from vm86()=%x,%d-%x\n", VM86_TYPE(retval), VM86_TYPE(retval), VM86_ARG(retval));
+		fatalerr = 4;
     }
-    in_vm86 = 0;
   }
   else {
     dpmi_control();
@@ -809,14 +815,6 @@ void dpmi_init()
   in_sigsegv++;
 }
 
-inline void dpmi_sigill(struct sigcontext_struct *scp)
-{
-  unsigned char *csp2, *ssp2;
-  int i;
-  D_printf("DPMI: sigill\n");
-  DPMI_show_state;
-}
-
 inline void dpmi_sigalrm(struct sigcontext_struct *scp)
 {
   us *ssp;
@@ -833,7 +831,24 @@ inline void dpmi_sigalrm(struct sigcontext_struct *scp)
   }
 }
 
-inline void dpmi_sigsegv(struct sigcontext_struct *scp)
+/*
+ * DANG_BEGIN_FUNCTION void dpmi_fault(struct sigcontext_struct);
+ *
+ * This is the brain of DPMI. All CPU exceptions are first
+ * reflected (from the signal handlers) to this code.
+ *
+ * Exception from nonpriveleged instructions INT XX, STI, CLI, HLT
+ * and from WINDOWS 3.1 are handled here.
+ *
+ * If installed one, the DPMI client exception handler is called first.
+ * If not installed, exceptions 0, 1, 2, 3, 4, 5 and 7 are reflected
+ * to real mode. All other exceptions are terminating the client
+ * (and may be dosemu too :-)).
+ *
+ * DANG_END_FUNCTION
+ */
+
+void dpmi_fault(struct sigcontext_struct *scp)
 {
   us *ssp;
   unsigned char *csp;
@@ -841,9 +856,11 @@ inline void dpmi_sigsegv(struct sigcontext_struct *scp)
   int i;
 
 #if 1
-    D_printf("DPMI: Protected Mode SIGSEGV!\n");
-    DPMI_show_state;
+  D_printf("DPMI: CPU Exception!\n");
+  DPMI_show_state;
 #endif /* 1 */
+  
+  if (_trapno == 13) {
     csp = (unsigned char *) SEL_ADR(_cs, _eip);
     ssp = (us *) SEL_ADR(_ss, _esp);
 
@@ -953,7 +970,6 @@ inline void dpmi_sigsegv(struct sigcontext_struct *scp)
 
       error("DPMI: Unhandled Execption 0x%02x\n", _trapno);
 leavedpmi:
-#if 1
       p_dos_str("DPMI: Unhandled Execption %02lx at %04x:%08lx\n"
       		"Terminating Client\n"
 		"It is likely that dosemu is unstable now and should be rebooted\n",
@@ -965,10 +981,6 @@ leavedpmi:
       in_dpmi = 0;
       in_dpmi_dos_int = 1;
       do_int(0x21);
-#else
-      leavedos(fatalerr);	/* shouldn't return */
-      _exit(1000);
-#endif
     } /* switch */
     if (in_dpmi_dos_int || int_queue_running) {
       *--ssp = (us) 0;
@@ -978,6 +990,27 @@ leavedpmi:
       _cs = UCODESEL;
       _eip = (unsigned long) ReturnFrom_dpmi_control;
     }
+    return;
+  } /* _trapno==13 */
+
+  error("DPMI: Unhandled Execption 0x%02x\n", _trapno);
+  p_dos_str("DPMI: Unhandled Execption %02lx at %04x:%08lx\n"
+	    "Terminating Client\n"
+	    "It is likely that dosemu is unstable now and should be rebooted\n",
+	    _trapno, _cs, _eip);
+  REG(eax) = 0x4cff;
+  REG(cs) = DPMI_SEG;
+  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint);
+  print_ldt();
+  in_dpmi = 0;
+  in_dpmi_dos_int = 1;
+  do_int(0x21);
+  *--ssp = (us) 0;
+  *--ssp = (us) _cs;
+  *(--((unsigned long *) ssp)) = _eip;
+  _esp -= 8;
+  _cs = UCODESEL;
+  _eip = (unsigned long) ReturnFrom_dpmi_control;
 }
 
 inline void dpmi_realmode_hlt(unsigned char * lina)

@@ -13,12 +13,15 @@
  * DANG_END_MODULE
  * DANG_BEGIN_CHANGELOG
  *
- * $Date: 1994/06/14 22:00:18 $
- * $Source: /usr/src/dosemu0.52/RCS/xms.c,v $
- * $Revision: 2.2 $
+ * $Date: 1994/06/27 02:15:58 $
+ * $Source: /home/src/dosemu0.60/RCS/xms.c,v $
+ * $Revision: 2.3 $
  * $State: Exp $
  *
  * $Log: xms.c,v $
+ * Revision 2.3  1994/06/27  02:15:58  root
+ * Prep for pre53
+ *
  * Revision 2.2  1994/06/14  22:00:18  root
  * Alistair's DANG inserted for the first time :-).
  *
@@ -125,7 +128,7 @@ int umb_find_unused(void);
  * the 1 MEG mark.  ugly.  fix this.
  */
 
-static char RCSxms[] = "$Header: /usr/src/dosemu0.52/RCS/xms.c,v 2.2 1994/06/14 22:00:18 root Exp root $";
+static char RCSxms[] = "$Header: /home/src/dosemu0.60/RCS/xms.c,v 2.3 1994/06/27 02:15:58 root Exp root $";
 
 #define	 XMS_GET_VERSION		0x00
 #define	 XMS_ALLOCATE_HIGH_MEMORY	0x01
@@ -749,16 +752,18 @@ xms_allocate_EMB(int api)
     handles[h].num = h;
     handles[h].valid = 1;
     if (api == OLDXMS)
-      handles[h].size = LWORD(edx) * 1024;
+      handles[h].size = (long)(LWORD(edx) * 1024);
     else
-      handles[h].size = REG(edx) * 1024;
+      handles[h].size = (long)(REG(edx) * 1024);
+
+    x_printf("XMS: EMB size %l\n", (int) handles[h].size);
 
     /* I could just rely on the behavior of malloc(0) here, but
        * I'd rather not.  I'm going to interpret the XMS 3.0 spec
        * to mean that reserving a handle of size 0 gives it no address
        */
     if (handles[h].size)
-      handles[h].addr = malloc(handles[h].size);
+      handles[h].addr = malloc((long)handles[h].size);
     else {
       x_printf("XMS WARNING: allocating 0 size EMB\n");
       handles[h].addr = 0;
@@ -859,7 +864,14 @@ xms_lock_EMB(int flag)
     if (flag)
       handles[h].lockcount++;
     else
-      handles[h].lockcount--;
+      if (handles[h].lockcount)
+        handles[h].lockcount--;
+      else {
+        x_printf("XMS: Unlock handle %d already at 0\n", h);
+        LWORD(eax) = 0;
+        LO(bx) = 0xaa;		/* Block is not locked */
+	return;
+      }
 
     LWORD(edx) = (int) handles[h].addr >> 16;
     LWORD(ebx) = (int) handles[h].addr & 0xffff;
@@ -985,6 +997,7 @@ get_emm(unsigned int seg, unsigned int off)
 
   p = (char *) ((seg << 4) + off);
 
+#if 0
   e.Length = *(unsigned long *) p;
   p += 4;
   e.SourceHandle = *(unsigned short *) p;
@@ -994,6 +1007,17 @@ get_emm(unsigned int seg, unsigned int off)
   e.DestHandle = *(unsigned short *) p;
   p += 2;
   e.DestOffset = *(unsigned long *) p;
+#else
+  e.Length = *(unsigned int *) p;
+  p += 4;
+  e.SourceHandle = *(unsigned short *) p;
+  p += 2;
+  e.SourceOffset = *(unsigned int *) p;
+  p += 4;
+  e.DestHandle = *(unsigned short *) p;
+  p += 2;
+  e.DestOffset = *(unsigned int *) p;
+#endif
 
   return e;
 }

@@ -3,12 +3,15 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/06/14 21:34:25 $
- * $Source: /usr/src/dosemu0.52/RCS/emu.h,v $
- * $Revision: 2.2 $
+ * $Date: 1994/06/24 14:51:06 $
+ * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
+ * $Revision: 2.3 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 2.3  1994/06/24  14:51:06  root
+ * Markks's patches plus.
+ *
  * Revision 2.2  1994/06/14  21:34:25  root
  * Second series of termcap patches.
  *
@@ -198,6 +201,8 @@ extern int in_vm86;
 
 extern int li, co, li2, co2;	/* lines, columns */
 extern int scanseq;
+extern int cursor_row;
+extern int cursor_col;
 
 /* #define CO	80
    #define LI	25 */

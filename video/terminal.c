@@ -74,6 +74,8 @@ unsigned char trans[] =		/* LATIN CHAR SET */
 #define CHFLUSH    if (outp - outbuf) { v_write(1, outbuf, outp - outbuf); \
 						outp = outbuf; }
 unsigned char outbuf[OUTBUFSIZE], *outp = outbuf;
+int cursor_row;
+int cursor_col;
 
 void
 v_write(int fd, unsigned char *ch, int len)
@@ -180,29 +182,35 @@ char_out(unsigned char ch, int s)
   xpos = bios_cursor_x_position(s);
   ypos = bios_cursor_y_position(s);
 
-  if (ch == '\r') {         /* Carriage return */
+  switch (ch) {
+  case '\r':         /* Carriage return */
     xpos = 0;
-  }
-  else if (ch == '\n') {    /* Newline */
+    break;
+
+  case '\n':         /* Newline */
     ypos++;
     xpos = 0;                  /* EDLIN needs this behavior */
     sadr = SCREEN_ADR(s);      /* Color newline */
     newline_att = sadr[ypos * CO + xpos - 1] >> 8;
-  }
-  else if (ch == '\010') {
+    break;
+
+  case 8:           /* Backspace */
     if (xpos > 0) xpos--;
-  }
-  else if (ch == '\t') {    /* Tab */
+    break;
+  
+  case '\t':        /* Tab */
     v_printf("tab\n");
     do char_out(' ', s); while (xpos % 8 != 0);
-  }
-  else if (ch == 7) {       /* Bell */
+    break;
+
+  case 7:           /* Bell */
     /* Bell should be sounded here, but it's more trouble than its */
     /* worth for now, because printf, addch or addstr or out_char  */
     /* would all interfere by possibly interrupting terminal codes */
     /* Ignore this for now, since this is a hack til NCURSES.      */
-  }
-  else {                    /* Printable character */
+    break;
+
+  default:          /* Printable character */
     sadr = SCREEN_ADR(s);
     sadr[ypos * CO + xpos] &= 0xff00;
     sadr[ypos * CO + xpos++] |= ch;
@@ -219,6 +227,8 @@ char_out(unsigned char ch, int s)
 
   bios_cursor_x_position(s) = xpos;
   bios_cursor_y_position(s) = ypos;
+  cursor_col = xpos;
+  cursor_row = ypos;
 }
 
 /* The following clears the screen buffer. It does it only to the screen 
@@ -239,11 +249,7 @@ clear_screen(int s, int att)
        *(schar++) = blank, lx++);
 
   bios_cursor_x_position(s) = bios_cursor_y_position(s) = 0;
-  if (config.console_video) {
-    cli();
-    poscur(0,0); 
-    sti();
-  }
+  cursor_row = cursor_col = 0;
 }
 
 /*
@@ -429,12 +435,9 @@ restore_screen()
 
   /* If any part of the screen was updated, then reset the attributes */
   /* and reposition the cursor */
-  if (numdone || 
-     (bios_cursor_x_position(bios_current_screen_page) != oldx) ||
-     (bios_cursor_y_position(bios_current_screen_page) != oldy)) 
-  {
-    oldx = bios_cursor_x_position(bios_current_screen_page);
-    oldy = bios_cursor_y_position(bios_current_screen_page);
+  if (numdone || (cursor_col != oldx) || (cursor_row != oldy)) {
+    oldx = cursor_col;
+    oldy = cursor_row;
     dostputs(me, 1, outcbuf);
     dostputs(tgoto(cm, oldx, oldy), 1, outcbuf);
     oa = 7;

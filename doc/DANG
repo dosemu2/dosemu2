@@ -1,6 +1,6 @@
   The DOSEMU Alterer Novices Guide DANG
   Alistair MacDonald, am20@unix.york.ac.uk
-  For DOSEMU v0.52 pl
+  For DOSEMU v0.52 pl0
 
   This Document is the DOSEMU Alterer Novices Guide. It is known as the
   DANG.
@@ -117,7 +117,39 @@
 
   3.1.1.  Functions in dpmi/dpmi.c
 
-  We appear to have no information on the functions in dpmi/dpmi.c.
+  These are the functions defined in dpmi/dpmi.c.
+
+
+  3.1.1.1.  void
+
+  void dpmi_fault(struct sigcontext_struct);
+
+
+  o  This is the brain of DPMI. All CPU exceptions are first
+
+  o  reflected (from the signal handlers) to this code.
+
+
+  o
+
+  o  Exception from nonpriveleged instructions INT XX, STI, CLI, HLT
+
+  o  and from WINDOWS 3.1 are handled here.
+
+  o
+
+  o  If installed one, the DPMI client exception handler is called
+     first.
+
+  o  If not installed, exceptions 0, 1, 2, 3, 4, 5 and 7 are reflected
+
+  o  to real mode. All other exceptions are terminating the client
+
+  o  (and may be dosemu too :-)).
+
+  o
+
+
 
 
   3.1.2.  Remarks in dpmi/dpmi.c
@@ -159,6 +191,8 @@
   the emulator try to execute the card's initialization routine which is
   normally located at address c000:0003. This can now be changed as an
   option.
+
+
 
 
 
@@ -223,6 +257,9 @@
   5.1.4.  New Ideas for bios_emm.c
 
   Apparently, there are no new ideas for bios_emm.c.
+
+
+
 
 
   5.2.	emu.c Information
@@ -328,6 +365,7 @@
   function key in it's own right.
 
 
+
   5.5.1.  Functions in keymaps.c
 
   We appear to have no information on the functions in keymaps.c.
@@ -355,6 +393,7 @@
   because they may be useful for searching, as they are (at least at the
   moment) reasonably unique.
 
+
   DANG_BEGIN_MODULE / DANG_END_MODULE This will bracket a description of
   the file (normally at the start).
 
@@ -375,6 +414,33 @@
 
   DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG Changelogs - very useful for
   bug fixing, and avvailable for use with DPR (or that's the theory)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

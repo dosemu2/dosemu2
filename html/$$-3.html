@@ -1,0 +1,66 @@
+<title>The DPMI group of Modules</title>
+<h1>3 <a name="s3"> The DPMI group of Modules </h1>
+<p> <a href="$$.html#toc3"> Contents of this section</a></p>
+
+<p>DPMI is Lutz's Baby. It's a really important part of the Emulator as far
+as we are concerned, since it will allow us to run so many more programs
+and, most importantly, bcc. This is the one thing that the WINE developers
+want that we haven't been able to give them.</p>
+<p>If you think you can help .... " Away you Go!"  (Sorry to those non-UK folks ...
+Thats a reference to a UK kids sports programme from my youth ... anyway ...
+enough of this banter. You'll be wanting to know that this is all about 
+DPMI ...)</p>
+<p></p>
+<p></p>
+<h2>3.1 <A Name="ss3.1"> dpmi/dpmi.c Information </h2>
+
+<p>dpmi.c</p>
+<p>DOS Protected Mode Interface allows DOS programs to run in the
+protected mode of <F>2345..</F>86 processors</p>
+<p></p>
+<p></p>
+<h3> Functions in dpmi/dpmi.c </h3>
+
+<p>These are the functions defined in dpmi/dpmi.c.</p>
+<p></p>
+<h3> void </h3>
+
+<p>void dpmi_fault(struct sigcontext_struct);</p>
+<p>
+<ul>
+<li> This is the brain of DPMI. All CPU exceptions are first</li>
+<li> reflected (from the signal handlers) to this code.</li>
+<li></li>
+<li> Exception from nonpriveleged instructions INT XX, STI, CLI, HLT</li>
+<li> and from WINDOWS 3.1 are handled here.</li>
+<li></li>
+<li> If installed one, the DPMI client exception handler is called first.</li>
+<li> If not installed, exceptions 0, 1, 2, 3, 4, 5 and 7 are reflected</li>
+<li> to real mode. All other exceptions are terminating the client</li>
+<li> (and may be dosemu too :-)).</li>
+<li></li>
+</ul>
+</p>
+<p></p>
+<p></p>
+<p></p>
+<h3> Remarks in dpmi/dpmi.c </h3>
+
+<p>Apparently, no-one has anything interesting to say about dpmi/dpmi.c.</p>
+<p></p>
+<h3> Items for Fixing in dpmi/dpmi.c </h3>
+
+<p>Apparently, nothing needs fixing in dpmi/dpmi.c.</p>
+<p></p>
+<h3> New Ideas for dpmi/dpmi.c </h3>
+
+<p>Simulate Local Descriptor Table for MS-Windows 3.1
+must be read only, so if krnl386.exe/krnl286.exe
+try to write to this table, we will bomb into sigsegv()
+and and emulate direct ldt access</p>
+<p></p>
+
+<p><a href="$$-4.html"> Next </a> Chapter, <a href="$$-2.html"> Previous </a> Chapter</p><p>Table of contents of <a href="$$.html#toc3">this chapter</a>,
+ General <a href="$$.html#toc">table of contents</a></p>
+<p><a href="$$.html"> Top </a> of the document,
+ <a href="#0"> Beginning of this Chapter</a></p>

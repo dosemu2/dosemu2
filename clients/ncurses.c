@@ -15,7 +15,7 @@
  * DANG_BEGIN_CHANGELOG
  *
  * $Date: 1994/06/14 22:01:48 $
- * $Source: /usr/src/dosemu0.52/clients/RCS/ncurses.c,v $
+ * $Source: /home/src/dosemu0.60/clients/RCS/ncurses.c,v $
  * $Revision: 2.2 $
  * $State: Exp $
  *

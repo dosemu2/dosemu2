@@ -19,9 +19,7 @@ extern void ReturnFrom_dpmi_control();
 void dpmi_get_entry_point();
 void dpmi_control();
 
-inline void dpmi_sigill(struct sigcontext_struct *);
-inline void dpmi_sigalrm(struct sigcontext_struct *);
-inline void dpmi_sigsegv(struct sigcontext_struct *);
+void dpmi_fault(struct sigcontext_struct *);
 inline void dpmi_realmode_hlt(unsigned char *);
 
 /* this is used like: SEL_ADR(_ss, _esp) */

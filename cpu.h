@@ -1,9 +1,9 @@
 /* cpu.h, for the Linux DOS emulator
  *    Copyright (C) 1993 Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/06/12 23:15:37 $
- * $Source: /usr/src/dosemu0.52/RCS/cpu.h,v $
- * $Revision: 2.1 $
+ * $Date: 1994/06/27 02:15:58 $
+ * $Source: /home/src/dosemu0.60/RCS/cpu.h,v $
+ * $Revision: 2.3 $
  * $State: Exp $
  */
 
@@ -173,10 +173,7 @@ struct sigcontext_struct {
 #define _eflags (scp->eflags)
 #define _ss     (scp->ss)
 
-void sigtrap(int, struct sigcontext_struct);
-void sigill(int, struct sigcontext_struct);
-void sigfpe(int);
-void sigsegv(int, struct sigcontext_struct);
+void dosemu_fault(int, struct sigcontext_struct);
 
 void show_regs(void), show_ints(int, int);
 __inline__ int do_hard_int(int), do_soft_int(int);

@@ -3,12 +3,18 @@
 #include "ipx.h"
 
 /* 
- * $Date: 1994/06/17 00:13:32 $
- * $Source: /usr/src/dosemu0.52/RCS/int.h,v $
- * $Revision: 2.4 $
+ * $Date: 1994/06/27 02:15:58 $
+ * $Source: /home/src/dosemu0.60/RCS/int.h,v $
+ * $Revision: 2.6 $
  * $State: Exp $
  *
  * $Log: int.h,v $
+ * Revision 2.6  1994/06/27  02:15:58  root
+ * Prep for pre53
+ *
+ * Revision 2.5  1994/06/24  14:51:06  root
+ * Markks's patches plus.
+ *
  * Revision 2.4  1994/06/17  00:13:32  root
  * Let's wrap it up and call it DOSEMU0.52.
  *
@@ -875,9 +881,11 @@ if (mice->intdrv) {
     mouse_int();
     return;
 }
-else
+else {
+    k_printf("Why is this being called?\n");
     goto default_handling;
     break;
+}
 
   case 0x67:			/* EMS */
     goto default_handling;
@@ -948,6 +956,9 @@ else
     if (!IS_REDIRECTED(i)) {
       g_printf("DEFIVEC: int 0x%02x  SG: 0x%04x  OF: 0x%04x\n",
 	       i, ISEG(i), IOFF(i));
+      if (i == 0x00) {
+	LWORD(eip)+=2;
+      }
       return;
     }
 

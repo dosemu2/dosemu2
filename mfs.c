@@ -146,6 +146,9 @@ TODO:
  *
  * HISTORY:
  * $Log: mfs.c,v $
+ * Revision 2.2  1994/06/24  14:51:06  root
+ * Markks's patches plus.
+ *
  * Revision 2.1  1994/06/12  23:15:37  root
  * Wrapping up prior to release of DOSEMU0.52.
  *
@@ -2493,6 +2496,7 @@ dos_fs_redirect(state)
   char *filename1;
   char *filename2;
   char *dta;
+  u_char firstfind = 0;
   long s_pos=0;
   u_char attr;
   u_char subfunc;
@@ -3241,6 +3245,7 @@ dos_fs_redirect(state)
       strcpy(fpath, "/");
     hlist = match_filename_prune_list(
 				  get_dir(fpath, fname, fext), fname, fext);
+    firstfind = 1;
 
   find_again:
 
@@ -3248,11 +3253,15 @@ dos_fs_redirect(state)
     if (hlist == NULL) {
       /* no matches or empty directory */
       Debug0((dbg_fd, "No more matches\n"));
-      SETWORD(&(state->eax), NO_MORE_FILES);
+      if (firstfind)
+        SETWORD(&(state->eax), FILE_NOT_FOUND);
+      else
+        SETWORD(&(state->eax), NO_MORE_FILES);
       hlist = hlist_pop();
       last_find_drive = 0;
       if (hlist == NULL && !hlist_stack_indx)
 	find_in_progress = FALSE;
+      firstfind = 0;
       return (FALSE);
     }
     else {
@@ -3278,14 +3287,15 @@ dos_fs_redirect(state)
       sdb_dir_entry(sdb)++;
 #endif
 
-      Debug0((dbg_fd, "'%.8s'.'%.3s'\n",
+      Debug0((dbg_fd, "'%.8s'.'%.3s' hlist=%d\n",
 	      sdb_file_name(sdb),
-	      sdb_file_ext(sdb)));
+	      sdb_file_ext(sdb), hlist_stack_indx));
 
       tmp = hlist->next;
       free(hlist);
       hlist = tmp;
     }
+    firstfind = 0;
     find_in_progress = TRUE;
     return (TRUE);
   case FIND_NEXT:		/* 0x1c */

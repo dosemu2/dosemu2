@@ -5,12 +5,15 @@
  *
  * The parser is a hand-written state machine.
  *
- * $Date: 1994/06/17 00:14:45 $
- * $Source: /usr/src/dosemu0.52/init/RCS/parse.c,v $
- * $Revision: 2.2 $
+ * $Date: 1994/06/24 14:52:20 $
+ * $Source: /home/src/dosemu0.60/init/RCS/parse.c,v $
+ * $Revision: 2.3 $
  * $State: Exp $
  *
  * $Log: parse.c,v $
+ * Revision 2.3  1994/06/24  14:52:20  root
+ * Messing with parse_config.
+ *
  * Revision 2.2  1994/06/17  00:14:45  root
  * Let's wrap it up and call it DOSEMU0.52.
  *
@@ -145,6 +148,8 @@
 #include "serial.h"
 #include "timers.h"
 #include "keymaps.h"
+
+extern int exchange_uids(void);
 
 extern char* strdup(const char *); /* Not defined in string.h :-( */
 
@@ -2010,6 +2015,19 @@ parse_config(char *confname)
 {
   FILE *volatile fd;
 
+  c_hdisks = 0;
+  c_fdisks = 0;
+
+  if (/* !fd && */ !(fd = open_file(CONFIG_FILE))) {
+    die("cannot open standard configuration file!");
+  }
+
+  if (!setjmp(exitpar))
+    parse_file(top_words, fd);
+
+  close_file(fd);
+
+  if (!exchange_uids()) die("Cannot exchange uids\n");
   if (confname)
     fd = open_file(confname);
   else {
@@ -2020,18 +2038,13 @@ parse_config(char *confname)
     fd = open_file(name);
     free(name);
   }
-
-  if (!fd && !(fd = open_file(CONFIG_FILE))) {
-    die("cannot open configuration files!");
-  }
-
-  c_hdisks = 0;
-  c_fdisks = 0;
+  if (!exchange_uids()) die("Cannot changeback uids\n");
 
   if (!setjmp(exitpar))
     parse_file(top_words, fd);
 
-  close_file(fd);
+  if (fd) close_file(fd);
+
   return 1;
 }
 
