@@ -69,7 +69,10 @@ mkdir -p $TMP/conf
 mkdir -p $TMP/Xfonts
 mkdir -p $TMP/freedos/dosemu
 
-cp -p ../etc/vga.pcf $TMP/Xfonts
+bdftopcf ../etc/vga.bdf | gzip -c -9 > $TMP/Xfonts/vga.pcf.gz
+bdftopcf ../etc/vga11x19.bdf | gzip -c -9 > $TMP/Xfonts/vga11x19.pcf.gz
+bdftopcf ../etc/vga-cp866.bdf | gzip -c -9 > $TMP/Xfonts/vga-cp866.pcf.gz
+bdftopcf ../etc/vga10x20-cp866.bdf | gzip -c -9 > $TMP/Xfonts/vga10x20-cp866.pcf.gz
 cp -p ../etc/dosemu.alias $TMP/Xfonts/fonts.alias
 
 cp -p ../etc/dosemu.conf $TMP/conf/dosemurc
