@@ -97,10 +97,12 @@ static inline void flow_control_update(int num)
  * a circular buffer because this way, a single read() can easily
  * put data straight into our internal receive buffer!
  */
-static inline void rx_buffer_slide(int num)
+static void rx_buffer_slide(int num)
 {
   int i;
-  
+
+  if (com[num].rx_buf_start == 0)
+    return;
   /* Move existing chars in receive buffer to the start of buffer */
   for(i = 0; i < com[num].rx_buf_bytes; i++)
     com[num].rx_buf[i] = com[num].rx_buf[com[num].rx_buf_start + i];
@@ -148,6 +150,8 @@ void uart_fill(int num)
       size = RPT_SYSCALL(read(com[num].fd, 
                               &com[num].rx_buf[com[num].rx_buf_end],
                               RX_BUFFER_SIZE - com[num].rx_buf_end));
+      if (size < 0)
+        return;
 #if 0    
       if (size == 0) { 				/* No characters read? */
         com[num].rx_timer = RX_READ_FREQ;	/* Reset rcv read() timer */
