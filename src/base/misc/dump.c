@@ -18,6 +18,9 @@
 #include "emu-ldt.h"
 #include "dpmi.h"
 #include "int.h"
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
+#endif
 
 extern int  dis_8086(unsigned int, const unsigned char *,
                      unsigned char *, int, unsigned int *, unsigned int *,
@@ -164,13 +167,15 @@ show_ints(int min, int max)
 
 #define GetSegmentBaseAddress(s)	(((s) >= (MAX_SELECTORS << 3))? 0 :\
 					Segments[(s) >> 3].base_addr)
+#define IsSegment32(s)			(((s) >= (MAX_SELECTORS << 3))? 0 :\
+					Segments[(s) >> 3].is_32)
 
 void DPMI_show_state(struct sigcontext_struct *scp)
 {
     unsigned char *csp2, *ssp2;
     D_printf("eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n"
-	     "trapno: 0x%02lx  errorcode: 0x%08lx  cr2: 0x%08lx\n"
-	     "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x  fs: 0x%04x  gs: 0x%04x\n",
+	     "\ttrapno: 0x%02lx  errorcode: 0x%08lx  cr2: 0x%08lx\n"
+	     "\tcs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x  fs: 0x%04x  gs: 0x%04x\n",
 	     _eip, _esp, _eflags, _trapno, _err, _cr2, _cs, _ds, _es, _ss, _fs, _gs);
     D_printf("EAX: %08lx  EBX: %08lx  ECX: %08lx  EDX: %08lx\n",
 	     _eax, _ebx, _ecx, _edx);
@@ -191,7 +196,11 @@ void DPMI_show_state(struct sigcontext_struct *scp)
      * 'not present' error and then we try accessing the code/stack
      * area, we fall into another fault which likely terminates dosemu.
      */
+#ifdef X86_EMULATOR
+    if (!config.cpuemu || (_trapno!=0x0b && _trapno!=0x0c)) {
+#else
     if (1) {
+#endif
       int i;
       D_printf("OPS  : ");
       for (i = 0; i < 10; i++)

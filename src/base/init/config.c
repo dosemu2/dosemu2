@@ -30,6 +30,9 @@
 #include "dos2linux.h"
 #include "priv.h"
 #include "utilities.h"
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
+#endif
 #include "mhpdbg.h"
 
 
@@ -108,6 +111,7 @@ config_defaults(void)
     config.rdtsc = 0;
     config.mathco = 0;
     config.smp = 0;
+    config.CPUSpeedInMhz = 150;	/* instruction cycles per us, entry level */
 
     open_proc_scan("/proc/cpuinfo");
     switch (get_proc_intvalue_by_key(
@@ -126,19 +130,33 @@ config_defaults(void)
 	  if ((kernel_version_code > 0x20100+126)
 	       && (cpuflags = get_proc_string_by_key("cpu MHz"))) {
 	    int di,df;
+	    /* last known proc/cpuinfo format is xxx.xxxxxx, with 3
+	     * int and 6 decimal digits - but what if there are less
+	     * or more digits??? */
 	    if (sscanf(cpuflags,"%d.%d",&di,&df)==2) {
+		char cdd[8]; int i;
+		long long chz = 0;
+		char *p = cpuflags;
+		while (*p!='.') p++; p++;
+		for (i=0; i<6; i++) cdd[i]=(*p && isdigit(*p)? *p++:'0');
+		cdd[6]=0; sscanf(cdd,"%d",&df);
 		/* speed division factor to get 1us from CPU clocks - for
 		 * details on fast division see timers.h */
-		long long chz = 0;		/* strange gcc warning */
 		chz = (di * 1000000) + df;
+
+		/* speed division factor to get 1us from CPU clock */
 		config.cpu_spd = (LLF_US*1000000)/chz;
 
-		/* speed division factor to get 838ns from CPU clocks */
+		/* speed division factor to get 838ns from CPU clock */
 		config.cpu_tick_spd = (LLF_TICKS*1000000)/chz;
 
 		fprintf (stderr,"kernel CPU speed is %Ld Hz\n",chz);
 /*		fprintf (stderr,"CPU speed factors %ld,%ld\n",
 			config.cpu_spd, config.cpu_tick_spd); */
+		config.CPUSpeedInMhz = di + (df>500000);
+#ifdef X86_EMULATOR
+		fprintf (stderr,"CPU-EMU speed is %d MHz\n",config.CPUSpeedInMhz);
+#endif
 		break;
 	    }
 	    else
@@ -177,6 +195,9 @@ config_defaults(void)
 
     config.hdiskboot = 1;	/* default hard disk boot */
     config.mappingdriver = 0;
+#ifdef X86_EMULATOR
+    config.cpuemu = 0;
+#endif
     config.mem_size = 640;
     config.ems_size = 0;
     config.ems_frame = 0xd000;
@@ -349,6 +370,10 @@ void dump_config_status(void *printfunc)
 
     (*print)("pci %d\nrdtsc %d\nmathco %d\nsmp %d\n",
                  config.pci, config.rdtsc, config.mathco, config.smp);
+    (*print)("cpuspeed %d\n", config.CPUSpeedInMhz);
+#ifdef X86_EMULATOR
+    (*print)("cpuemu %d\n", config.cpuemu);
+#endif
 
     (*print)("mappingdriver %s\n", config.mappingdriver ? config.mappingdriver : "auto");
     (*print)("hdiskboot %d\nmem_size %d\n",
@@ -958,6 +983,12 @@ config_init(int argc, char **argv)
     c_printf(" uid=%d (cached %d) gid=%d (cached %d)\n",
         geteuid(), get_cur_euid(), getegid(), get_cur_egid());
 
+#ifdef X86_EMULATOR
+    if (config.cpuemu && config.speaker==SPKR_NATIVE) {
+	c_printf("SPEAKER: can`t use native mode with cpu-emu\n");
+	config.speaker=SPKR_EMULATED;
+    }
+#endif
     if (config_check_only) {
 	dump_config_status(0);
 	usage();
@@ -1018,10 +1049,12 @@ int parse_debugflags(const char *s, unsigned char flag)
     char            c;
     int ret = 0;
 #ifdef X_SUPPORT
-    const char      allopts[] = "dARWDCvXkiTsm#pQgcwhIExMnPrSeZ";
+    const char      allopts[] = "dARWDCvXkiTtsm#pQgcwhIExMnPrSeZ";
 #else
-    const char      allopts[] = "dARWDCvkiTsm#pQgcwhIExMnPrSeZ";
+    const char      allopts[] = "dARWDCvkiTtsm#pQgcwhIExMnPrSeZ";
 #endif
+/*    abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ  */
+/*      *** *** * ** * **  ***  * ***   *   *  *****  ** *  */
 
     /*
      * if you add new classes of debug messages, make sure to add the
@@ -1135,6 +1168,14 @@ int parse_debugflags(const char *s, unsigned char flag)
 	case 'Z':
 	    d.pci = flag;       /* PCI */
 	    break;
+#ifdef X86_EMULATOR
+	case 'e':		/* cpu-emu */
+	    d.emu = flag;
+	    break;
+	case 't':		/* dpmi */
+	    d.dpmit = flag;
+	    break;
+#endif
 	case 'a':{		/* turn all on/off depending on flag */
 		char           *newopts = (char *) malloc(strlen(allopts) + 2);
 

@@ -94,3 +94,8 @@ ifdef ASPI_SUPPORT
   export ASPI_SUPPORT
 endif
 
+@X86_EMULATOR@
+ifdef X86_EMULATOR
+  export X86_EMULATOR
+endif
+

@@ -95,6 +95,15 @@ int signal, struct sigcontext_struct *scp
       case 0x04: /* overflow */
       case 0x05: /* bounds */
       case 0x07: /* device_not_available */
+#if defined(X86_EMULATOR) && defined(TRACE_DPMI)
+		 if ((d.dpmit>1) && (_trapno==1)) {
+	           extern char *e_print_scp_regs();
+	           extern char *e_scp_disasm();
+	           char *pr = e_print_scp_regs(scp,0);
+	           if (pr && *pr)
+		     dbug_printf("\n%s    %s",pr,e_scp_disasm(scp,0));
+		 }
+#endif
 		 return (void) do_int(_trapno);
 
       case 0x10: /* coprocessor error */
@@ -171,8 +180,8 @@ sgleave:
 
 		 print_exception_info(scp);
 #else
-		 error("unexpected CPU exception 0x%02lx errorcode: 0x%08lx while in vm86 (DOS)\n",
-	  	 _trapno, _err);
+		 error("unexpected CPU exception 0x%02lx err=0x%08lx cr2=%08lx while in vm86 (DOS)\n",
+	  	 _trapno, _err, _cr2);
 		{
 		  extern FILE *dbg_fd;
 		  int auxg = d.general;
@@ -190,6 +199,7 @@ sgleave:
  		 show_regs(__FILE__, __LINE__);
 		 if (d.network)		/* XXX */
 		     abort();
+		 flush_log();
  		 leavedos(4);
     }
   }
@@ -228,10 +238,16 @@ sgleave:
 
   csp = (char *) _eip;
 
-  /* This has been added temporarily as most illegal sigsegv's are attempt
-     to call Linux int routines */
+#ifdef X86_EMULATOR
+  if ((_trapno==0x05) && (config.cpuemu>1)) {
+	if (!e_decode_bound_excp(csp, scp))
+		return;
+  }
+#endif
 
 #if 0
+  /* This was added temporarily as most illegal sigsegv's are attempt
+     to call Linux int routines */
   if (!(csp[-2] == 0xcd && csp[-1] == 0x80 && csp[0] == 0x85)) {
 #else
   {
@@ -281,7 +297,7 @@ sgleave:
     /* display the 10 bytes before and after CS:EIP.  the -> points
      * to the byte at address CS:EIP
      */
-    dbug_printf("OPS  : ");
+    dbug_printf("OOPS : ");
     csp = (unsigned char *) _eip - 10;
     for (i = 0; i < 10; i++)
       dbug_printf("%02x ", *csp++);
@@ -461,14 +477,39 @@ void print_exception_info(struct sigcontext_struct *scp)
 
       error("@Exception was caused by ");
       if(_err & 0x01)
-	error("@insufficient privelege\n");
+	error("@insufficient privilege\n");
       else
 	error("@non-available page\n");
       break;
 
-   case 0x10:
-      error ("Coprocessor Error:\n");
-      break;
+   case 0x10: {
+      struct _fpstate *p = scp->fpstate;
+      int i, n;
+      error ("@Coprocessor Error:\n");
+      error ("@cw=%04x sw=%04x tag=%04x\n",
+	*((unsigned short *)&(p->cw)),*((unsigned short *)&(p->sw)),
+	*((unsigned short *)&(p->tag)));
+      n = (p->sw >> 11) & 7;
+      error ("@cs:eip=%04x:%08lx ds:data=%04x:%08lx\n",
+	*((unsigned short *)&(p->cssel)),p->ipoff,
+	*((unsigned short *)&(p->datasel)),p->dataoff);
+      if ((p->sw&0x80)==0) error("@No error summary bit,why?\n");
+      else {
+	if (p->sw&0x20) error("@Precision\n");
+	if (p->sw&0x10) error("@Underflow\n");
+	if (p->sw&0x08) error("@Overflow\n");
+	if (p->sw&0x04) error("@Divide by 0\n");
+	if (p->sw&0x02) error("@Denormalized\n");
+	if ((p->sw&0x41)==0x01) error("@Invalid op\n");
+	  else if ((p->sw&0x41)==0x41) error("@Stack fault\n");
+      }
+      for (i=0; i<8; i++) {
+	unsigned long long *r = (unsigned long long *)&(p->_st[i].significand);
+	unsigned short *e = (unsigned short *)&(p->_st[i].exponent);
+	error ("@fpr[%d] = %04x:%016Lx\n",n,*e,*r);
+	n = (n+1) & 7;
+      }
+      } break;
 
     default:
       error("@Unknown exception\n");

@@ -185,7 +185,7 @@ void timer_interrupt_init(void)
   itv.it_value.tv_usec = delta;
   c_printf("TIME: using %d usec for updating ALRM timer\n", delta);
 
-  setitimer(TIMER_TIME, &itv, NULL);
+  setitimer(ITIMER_REAL, &itv, NULL);
 }
 
 /*

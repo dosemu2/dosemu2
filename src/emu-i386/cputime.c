@@ -120,36 +120,35 @@ static hitimer_t rawP5time(void)
 static hitimer_t getC4time(void)
 {
   if (cpu_time_stop) return LastTimeRead;
-  return (rawC4time() - ZeroTimeBase.td);
+  return (rawC4time() - ZeroTimeBase.td);	/* ZeroTimeBase in us */
 }
 
 static hitimer_t getP5time(void)
 {
   if (cpu_time_stop) return LastTimeRead;
-  return CPUtoUS_Z();
+  return CPUtoUS_Z();				/* ZeroTimeBase in cycles */
 }
 
 /*
  * SIDOC_BEGIN_FUNCTION GETusTIME(sc)
  *
- * GETusTIME returns the DOS ('stretched') time with 1-usec resolution
+ * GETusTIME returns the DOS time with 1-usec resolution
  *  using GETcpuTIME to get the implementation-dependent CPU time.
- * The 'sc' parameter controls the granularity of the stretching
- *  algorithm (not yet there, see the docs)
+ * The 'sc' parameter is unused.
  *
  * SIDOC_END_FUNCTION
  */
 hitimer_t GETusTIME(int sc)
 {
-  return GETcpuTIME();	/* no 'stretching' at the moment */
+  return GETcpuTIME();
 }
 
 /*
  * SIDOC_BEGIN_FUNCTION GETtickTIME(sc)
  *
- * GETtickTIME returns the DOS (stretched) time with 838ns resolution
+ * GETtickTIME returns the DOS time with 838ns resolution
  *  using GETcpuTIME to get the implementation-dependent CPU time.
- * The 'sc' parameter works like in GETusTIME.
+ * The 'sc' parameter is unused.
  *
  * SIDOC_END_FUNCTION
  */
@@ -179,15 +178,17 @@ void get_time_init (void)
      * on a SMP machine and the user didn't say 'rdtsc off'. But
      * we could have an emulated CPU < 586, this doesn't affect timing
      * but only flags processing (& other features) */
-    RAWcpuTIME = rawP5time;
-    GETcpuTIME = getP5time;
+    RAWcpuTIME = rawP5time;		/* in usecs */
+    GETcpuTIME = getP5time;		/* in usecs */
+    ZeroTimeBase.td = GETTSC();		/* in CPU cycles */
     g_printf("TIMER: using pentium timing\n");
   }
   else {
     /* we are here on all other cases: real CPU < 586, SMP machines,
      * 'rdtsc off' into config file */
-    RAWcpuTIME = rawC4time;
-    GETcpuTIME = getC4time;
+    RAWcpuTIME = rawC4time;		/* in usecs */
+    GETcpuTIME = getC4time;		/* in usecs */
+    ZeroTimeBase.td = rawC4time();	/* in usecs */
     if (config.realcpu) {
       if (kernel_version_code < 0x2017e)
         g_printf("TIMER: using gettimeofday\n");
@@ -195,7 +196,6 @@ void get_time_init (void)
         g_printf("TIMER: using new gettimeofday with microsecond resolution\n");
     }
   }
-  ZeroTimeBase.td = RAWcpuTIME();
 }
 
 
@@ -207,7 +207,7 @@ int stop_cputime (int quiet)
   if (cpu_time_stop) return 1;
   if (!quiet) dbug_printf("STOP TIME\n");
   StopTimeBase = RAWcpuTIME();
-  LastTimeRead = StopTimeBase - ZeroTimeBase.td;
+  LastTimeRead = StopTimeBase - TSCtoUS(ZeroTimeBase.td);
   cpu_time_stop = 1;
   return 0;
 }
@@ -217,7 +217,7 @@ int restart_cputime (int quiet)
 {
   if (!cpu_time_stop) return 1;
   if (!quiet) dbug_printf("RESTART TIME\n");
-  ZeroTimeBase.td += (RAWcpuTIME() - StopTimeBase);
+  ZeroTimeBase.td += ((RAWcpuTIME() - StopTimeBase) * config.CPUSpeedInMhz);
   cpu_time_stop = 0;
   return 0;
 }
@@ -229,6 +229,7 @@ void freeze_dosemu(void)
 {
   if (dosemu_frozen) return;
   stop_cputime(0);
+  dbug_printf("*** dosemu frozen\n");
   dosemu_frozen = 1;
 }
 
@@ -236,6 +237,7 @@ void unfreeze_dosemu(void)
 {
   if (!dosemu_frozen) return;
   restart_cputime(0);
+  dbug_printf("*** dosemu unfrozen\n");
   dosemu_frozen = 0;
 }
 
@@ -290,6 +292,7 @@ int bogospeed(unsigned long *spus, unsigned long *sptick)
 	/* speed division factor to get 838ns from CPU clocks */
 	*sptick = (LLF_TICKS*mlt)/dvs;
 
+	config.CPUSpeedInMhz = dvs/mlt;
 	fprintf (stderr,"CPU speed set to %d MHz\n",(dvs/mlt));
 /*	fprintf (stderr,"CPU speed factors %ld,%ld\n",*spus,*sptick); */
 	first = 0;

@@ -97,10 +97,6 @@ extern void pit_outp(ioport_t, Bit8u);
 #define INT28_IDLE_USECS	(JIFFIE_TIME/2)
 
 /* --------------------------------------------------------------------- */
-
-#define TIMER_TIME		ITIMER_REAL
-
-/* --------------------------------------------------------------------- */
 /*	New unified timing macros with/without Pentium rdtsc - AV 8/97	 */
 /* --------------------------------------------------------------------- */
 /*
@@ -166,10 +162,12 @@ static __inline__ hitimer_t _mul64x32_(hitimer_t v, unsigned long f)
 
 /* --------------------------------------------------------------------- */
 
+extern hitimer_u ZeroTimeBase;
+
 EXTERN hitimer_t (*GETcpuTIME)(void) INIT(0);
 
-static inline unsigned long long GETTSC(void) {
-	unsigned long long d;
+static inline hitimer_t GETTSC(void) {
+	hitimer_t d;
 	__asm__ __volatile__ ("rdtsc" : "=A" (d));
 	return d;
 }
@@ -200,6 +198,8 @@ static inline unsigned long long GETTSC(void) {
 	hitimer_u t; \
 	__asm__ __volatile__ (" \
 		rdtsc\n \
+		subl	%3,%%eax\n \
+		sbbl	%4,%%edx\n \
 		movl	%%edx,%%ebx\n \
 		mull	%2\n \
 		movl	%%edx,%%ecx\n \
@@ -207,8 +207,6 @@ static inline unsigned long long GETTSC(void) {
 		mull	%2\n \
 		addl	%%ecx,%%eax\n \
 		adcl	$0,%%edx\n \
-		subl	%3,%%eax\n \
-		sbbl	%4,%%edx\n \
 		" \
 		: "=a"(t.t.tl),"=d"(t.t.th) \
 		: "m"(config.cpu_spd), \
@@ -216,6 +214,25 @@ static inline unsigned long long GETTSC(void) {
 		: "%eax","%edx","%ecx","%ebx","memory" ); \
 	t.td; \
 })
+
+static inline hitimer_t TSCtoUS(register hitimer_t t) {
+	unsigned long __low, __high;
+	__asm__ ("":"=a"(__low),"=d"(__high):"A"(t));
+	__asm__ __volatile__ ("
+		movl	%1,%%ebx\n
+		mull	%2\n
+		movl	%1,%%ecx\n
+		movl	%%ebx,%0\n
+		mull	%2\n
+		addl	%%ecx,%0\n
+		adcl	$0,%1\n
+		"
+		: "=a"(__low), "=d"(__high)
+		: "m"(config.cpu_spd)
+		: "%eax","%edx","%ecx","%ebx","memory" );
+	__asm__ ("":"=A"(t):"a"(__low),"d"(__high));
+	return t;
+}
 
 #else /* ASM_PEDANTIC */
 
@@ -243,6 +260,8 @@ static inline unsigned long long GETTSC(void) {
 	hitimer_u t; \
 	__asm__ __volatile__ (" \
 		rdtsc\n \
+		subl	%3,%%eax\n \
+		sbbl	%4,%%edx\n \
 		movl	%%edx,%%ebx\n \
 		mull	%2\n \
 		movl	%%edx,%%ecx\n \
@@ -250,8 +269,6 @@ static inline unsigned long long GETTSC(void) {
 		mull	%2\n \
 		addl	%%ecx,%%eax\n \
 		adcl	$0,%%edx\n \
-		subl	%3,%%eax\n \
-		sbbl	%4,%%edx\n \
 		" \
 		: "=&a"(t.t.tl),"=&d"(t.t.th) \
 		: "m"(config.cpu_spd), \
@@ -259,6 +276,25 @@ static inline unsigned long long GETTSC(void) {
 		: "%ecx","%ebx","memory" ); \
 	t.td; \
 })
+
+static inline hitimer_t TSCtoUS(register hitimer_t t) {
+	unsigned long __low, __high;
+	__asm__ ("":"=a"(__low),"=d"(__high):"A"(t));
+	__asm__ __volatile__ ("
+		movl	%1,%%ebx\n
+		mull	%2\n
+		movl	%1,%%ecx\n
+		movl	%%ebx,%0\n
+		mull	%2\n
+		addl	%%ecx,%0\n
+		adcl	$0,%1\n
+		"
+		: "=&a"(__low), "=&d"(__high)
+		: "m"(config.cpu_spd)
+		: "%ecx","%ebx","memory" );
+	__asm__ ("":"=A"(t):"a"(__low),"d"(__high));
+	return t;
+}
 
 #endif /* ASM_PEDANTIC */
 

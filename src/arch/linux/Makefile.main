@@ -41,6 +41,14 @@ export SBEMU=arch/linux/dosext/sound dosext/sound
 export MIDID=arch/linux/dosext/sound/midid
 endif
 
+#
+# This is defined when the CPU emulator is required. You should
+# re-configure, rather than just change this.
+#
+ifdef X86_EMULATOR
+export XCPUEMU=emu-i386/simx86
+endif
+
 # SYNC_ALOT
 #   uncomment this if the emulator is crashing your machine and some debug info 
 #   isn't being sync'd to the debug file (stdout). shouldn't happen. :-) 
@@ -51,7 +59,7 @@ OPTIONALSUBDIRS += $(MIDID)
 LIBSUBDIRS=env/video base/async \
 	arch/linux/async arch/linux/mapping \
 	base/misc base/dev/misc\
-	emu-i386 $(XEMUIFC) $(XCPUEMU) env base/speaker \
+	emu-i386 $(XCPUEMU) env base/speaker \
 	base/dev/pic dosext/dpmi dosext/mfs dosext/misc\
 	base/init base/serial base/keyboard base/mouse\
 	base/dev/dma \

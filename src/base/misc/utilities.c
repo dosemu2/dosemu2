@@ -43,6 +43,9 @@
  *                                     --Hans 990213
  */
 #define SHOW_TIME	0		/* 0 or 1 */
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
+#endif
 
 #ifndef INITIAL_LOGBUFSIZE
 #define INITIAL_LOGBUFSIZE      0
@@ -210,9 +213,15 @@ static int vlog_printf(int flg, const char *fmt, va_list args)
       log_written += fsz;
       if (log_written > logfile_limit) {
         fflush(dbg_fd);
+#if 0
         ftruncate(fileno(dbg_fd),0);
         fseek(dbg_fd, 0, SEEK_SET);
         log_written = 0;
+#endif
+	fclose(dbg_fd);
+	shut_debug = 1;
+	dbg_fd = 0;	/* avoid recursion in leavedos() */
+	leavedos(0);
       }
     }
   }
@@ -357,15 +366,13 @@ char *get_proc_string_by_key(char *key)
     if ((p == procbufptr) || (p[-1] == '\n')) {
       p += strlen(key);
       while (*p && isblank(*p)) p++;
-      if (*p == ':') {
-        p++;
-        while (*p && isblank(*p)) p++;
-        proclastpos = p;
-        while (*proclastpos && (*proclastpos != '\n')) proclastpos++;
-        proclastdelim = *proclastpos;
-        *proclastpos = 0;
-        return p;
-      }
+      if (*p == ':') p++;
+      while (*p && isblank(*p)) p++;
+      proclastpos = p;
+      while (*proclastpos && (*proclastpos != '\n')) proclastpos++;
+      proclastdelim = *proclastpos;
+      *proclastpos = 0;
+      return p;
     }
   }
 #if 0
@@ -555,15 +562,26 @@ void call_cmd(const char *cmd, int maxargs, const struct cmd_db *cmdtab,
 void sigalarm_onoff(int on)
 {
   static struct itimerval itv_old;
+#ifdef X86_EMULATOR
+  static struct itimerval itv_oldp;
+#endif
   static struct itimerval itv;
   static int is_off = 0;
   if (on) {
-    if (is_off--) setitimer(TIMER_TIME, &itv_old, NULL);
+    if (is_off--) {
+    	setitimer(ITIMER_REAL, &itv_old, NULL);
+#ifdef X86_EMULATOR
+    	setitimer(ITIMER_PROF, &itv_oldp, NULL);
+#endif
+    }
   }
   else if (!is_off++) {
     itv.it_interval.tv_sec = itv.it_interval.tv_usec = 0;
     itv.it_value = itv.it_interval;
-    setitimer(TIMER_TIME, &itv, &itv_old);
+    setitimer(ITIMER_REAL, &itv, &itv_old);
+#ifdef X86_EMULATOR
+    setitimer(ITIMER_PROF, &itv, &itv_oldp);
+#endif
   }
 }
 

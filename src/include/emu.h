@@ -143,7 +143,11 @@ void getKeys(void);
 
      int set_ioperm(int, int, int);
 
+#ifdef X86_EMULATOR
+EXTERN struct debug_flags d INIT({0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0});
+#else
 EXTERN struct debug_flags d INIT({0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0});
+#endif
 #ifdef DONT_DEBUG_BOOT
 EXTERN struct debug_flags d_save;
 #endif
@@ -230,6 +234,10 @@ typedef struct vesamode_type_struct {
      typedef struct config_info {
        int hdiskboot;
 
+#ifdef X86_EMULATOR
+       boolean cpuemu;
+#endif
+       int CPUSpeedInMhz;
        /* for video */
        boolean console;
        boolean console_video;
@@ -383,9 +391,6 @@ config_t;
  */
 #define SIG_SER		SIGTTIN
 
-#define SIG_TIME	SIGALRM
-#define TIMER_TIME	ITIMER_REAL
-
 #define IO_READ  1
 #define IO_WRITE 2
 #define IO_RDWR	 (IO_READ | IO_WRITE)
@@ -479,7 +484,7 @@ EXTERN int dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *ol
 #define ADDSET_SIGNALS_THAT_QUEUE(x) \
 do { \
        sigaddset(x, SIGIO); \
-       sigaddset(x, SIG_TIME); \
+       sigaddset(x, SIGALRM); \
        sigaddset(x, SIG_RELEASE); \
        sigaddset(x, SIG_ACQUIRE); \
 } while(0)
@@ -501,7 +506,7 @@ do { \
 #define SETSIG(sig, fun)	sa.sa_handler = (SignalHandler)fun; \
 					sa.sa_flags = SA_RESTART; \
 					sigemptyset(&sa.sa_mask); \
-					sigaddset(&sa.sa_mask, SIG_TIME); \
+					sigaddset(&sa.sa_mask, SIGALRM); \
 					sigaction(sig, &sa, NULL);
 
 #define NEWSETSIG(sig, fun) \
@@ -512,7 +517,7 @@ do { \
 			(void (*)()) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
 			sa.sa_flags = SA_RESTART; \
 			sigemptyset(&sa.sa_mask); \
-			sigaddset(&sa.sa_mask, SIG_TIME); \
+			sigaddset(&sa.sa_mask, SIGALRM); \
 			dosemu_sigaction(sig, &sa, NULL);
 #endif
 

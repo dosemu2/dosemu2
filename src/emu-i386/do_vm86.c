@@ -63,6 +63,9 @@
 #include "ipx.h"                /* TRB - add support for ipx */
 #include "keymaps.h"
 #include "bitops.h"
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
+#endif
 
 #include "video.h"
 #if X_GRAPHICS
@@ -152,10 +155,12 @@ void vm86_GP_fault(void)
    */
   in_sighandler = 0;
 
+#if !defined(X86_EMULATOR) || !defined(TRACE_DPMI)
   if (LWORD(eflags) & TF) {
     g_printf("SIGSEGV received while TF is set\n");
     show_regs(__FILE__, __LINE__);
   }
+#endif
 
   csp = lina = SEG_ADR((unsigned char *), cs, ip);
 
@@ -310,6 +315,14 @@ void vm86_GP_fault(void)
        /* set VIF (only if necessary) */
     if (REG(eflags) & IF_MASK) REG(eflags) |= VIF_MASK;
 #endif /* not USE_NEW_INT */
+#if defined(X86_EMULATOR) && defined(SKIP_EMU_VBIOS)
+    if ((config.cpuemu>1) && (lina == (unsigned char *) CPUEMUI10_ADD)) {
+      e_printf("EMU86: HLT at int10 end\n");
+      LWORD(eip) += 1;	/* simply skip, so that we go back to emu mode */
+      break;
+    }
+    else
+#endif
           /* return with STI if VIP was set from run_dpmi; this happens
            * if pic_count is >0 and the VIP flag in dpmi_eflags was on
            */
@@ -336,7 +349,7 @@ void vm86_GP_fault(void)
     }
 
     else {
-#if 1
+#ifndef SKIP_EMU_VBIOS
       error("HLT requested: lina=%p!\n", lina);
       show_regs(__FILE__, __LINE__);
 #if 0
@@ -372,6 +385,9 @@ op0ferr:
     leavedos(fatalerr);		/* shouldn't return */
   }				/* end of switch() */
 
+#if defined(X86_EMULATOR) && defined(TRACE_DPMI)
+  if (d.dpmit==0)
+#endif
   if (LWORD(eflags) & TF) {
     g_printf("TF: trap done");
     show_regs(__FILE__, __LINE__);
@@ -425,6 +441,9 @@ run_vm86(void)
     /* FIXME: this needs to be clarified and rewritten */
 
     if (
+#ifdef X86_EMULATOR
+	(d.emu>1)||
+#endif
 	(d.general>3)) {
 	dbug_printf ("DO_VM86,  cs=%04x:%04x ss=%04x:%04x f=%08x\n",
 		_CS, _EIP, _SS, _SP, _EFLAGS);
@@ -453,6 +472,9 @@ run_vm86(void)
       _EFLAGS &= ~(AC|ID);
     }
     if (
+#ifdef X86_EMULATOR
+	(d.emu>1)||
+#endif
 	(d.general>3)) {
 	dbug_printf ("RET_VM86, cs=%04x:%04x ss=%04x:%04x f=%08x ret=0x%x\n",
 		_CS, _EIP, _SS, _SP, _EFLAGS, retval);
@@ -539,6 +561,7 @@ freeze_idle:
   if (dosemu_frozen) {
     static int minpoll = 0;
     if (!(++minpoll & 7)) usleep(10000);
+    g_printf("VM86: freeze: loop\n");
     goto freeze_idle;
   }
 }

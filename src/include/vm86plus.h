@@ -16,6 +16,13 @@
 #define OLD_SYS_vm86  113
 #define NEW_SYS_vm86  166
 
+#ifdef X86_EMULATOR
+int e_vm86(void);
+
+#define E_VM86(x) ( \
+    (x)->vm86plus.force_return_for_pic = (pic_irr & ~(pic_isr | pice_imr)) != 0, \
+    e_vm86() )
+#endif
 
 static inline int vm86_plus(int function, int param)
 {
@@ -30,7 +37,13 @@ static inline int vm86_plus(int function, int param)
   #define _DO_VM86__(x) ( \
     (x)->vm86plus.force_return_for_pic = (pic_irr & ~(pic_isr | pice_imr)) != 0, \
     vm86((struct vm86_struct *)(x)) )
+ #ifdef X86_EMULATOR
+  #define _DO_VM86_(x) ( \
+    config.cpuemu? E_VM86(x) : _DO_VM86__(x) )
+  #define TRUE_VM86(x)	_DO_VM86__(x)
+ #else
   #define _DO_VM86_(x)	_DO_VM86__(x)
+ #endif
    #ifdef USE_MHPDBG
     #if 1
       #define DO_VM86(x) _DO_VM86_(x)

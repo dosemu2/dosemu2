@@ -31,6 +31,7 @@
 
 #define EMU_NO_IRQ   0xffff
 
+/* Hey, stranger, there is one too many of us in this town! */
 typedef struct {
   Bit8u         (* read_portb)(ioport_t port);
   void          (* write_portb)(ioport_t port, Bit8u byte);
@@ -42,7 +43,19 @@ typedef struct {
   ioport_t      start_addr;
   ioport_t      end_addr;
   int           irq, fd;
-  } emu_iodev_t;
+} emu_iodev_t;
+
+typedef struct {
+  Bit8u  (*read_portb)  (ioport_t port_addr);
+  void   (*write_portb) (ioport_t port_addr, Bit8u byte);
+  Bit16u (*read_portw) (ioport_t port_addr);
+  void   (*write_portw) (ioport_t port_addr, Bit16u word);
+  Bit32u (*read_portd) (ioport_t port_addr);
+  void   (*write_portd) (ioport_t port_addr, Bit32u dword);
+  char   *handler_name;
+  int    irq, fd;
+} _port_handler;
+
 
 static __inline__ void port_real_outb(ioport_t port, Bit8u value)
 {
@@ -145,6 +158,31 @@ extern int port_rep_outd(ioport_t port, Bit32u *dest, int df, Bit32u count);
 
 extern int extra_port_init(void);
 extern void release_ports(void);
+
+/*
+ * maximum number of emulated devices allowed.  floppy, mda, etc...
+ * an 8-bit handle is used for each device:
+ */
+#define EMU_MAX_IO_DEVICES 254
+
+#define NO_HANDLE	0x00
+#define HANDLE_STD_IO	0x01
+#define HANDLE_STD_RD	0x02
+#define HANDLE_STD_WR	0x03
+#define HANDLE_VID_IO	0x04
+#define HANDLE_SPECIAL	0x05		/* catch-all */
+#define STD_HANDLES	6
+
+extern _port_handler port_handler[];
+/*
+ * Codes:
+ *	00    = no device attached, port undefined
+ *	01-FD = index into handle
+ *	FE,FF = reserved
+ */
+extern unsigned char port_handle_table[];
+extern unsigned char port_andmask[];
+extern unsigned char port_ormask[];
 
 #define PORT_FAST	1
 #define PORT_DEV_RD	2

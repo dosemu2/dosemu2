@@ -40,6 +40,9 @@ extern void keyb_server_run(void);
 extern void irq_select(void);
 extern int type_in_pre_strokes();
 
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
+#endif
 
 /* Variables for keeping track of signals */
 #define MAX_SIG_QUEUE_SIZE 50
@@ -154,14 +157,14 @@ signal_init(void)
    SIGXCPU		24
    SIGXFSZ		25
    SIGVTALRM		26
-   SIGPROF		27	N	(SIG_CALIB)sigstretch
+   SIGPROF		27	N
    SIGWINCH		28	NQ	(SIG_RELEASE)
    SIGIO		29	NQ	sigio
    SIGPWR		30
    SIGUNUSED		31	na
   ------------------------------------------------ */
   NEWSETSIG(SIGILL, dosemu_fault);
-  NEWSETQSIG(SIG_TIME, sigalrm);
+  NEWSETQSIG(SIGALRM, sigalrm);
   NEWSETSIG(SIGFPE, dosemu_fault);
   NEWSETSIG(SIGTRAP, dosemu_fault);
 
@@ -187,7 +190,9 @@ signal_init(void)
   {
     SETSIG(SIGWINCH, gettermcap); /* Adjust window sizes in DOS */
   }
-
+#ifdef X86_EMULATOR
+  SETSIG(SIGPROF, SIG_IGN);
+#endif
 /*
   SETSIG(SIGUNUSED, timint);
 */
@@ -246,6 +251,10 @@ sti(void)
  */
 void handle_signals(void) {
   if ( SIGNAL_head != SIGNAL_tail ) {
+#ifdef X86_EMULATOR
+    if ((config.cpuemu>1) && (d.emu>3))
+      {e_printf("EMU86: SIGNAL at %d\n",SIGNAL_head);}
+#endif
     signal_pending = 0;
     signal_queue[SIGNAL_head].signal_handler();
     SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
@@ -254,7 +263,10 @@ void handle_signals(void) {
  * by the kernel ASAP.
  */
       if (SIGNAL_head != SIGNAL_tail) {
-        signal_pending = 1;
+#ifdef X86_EMULATOR
+	if (config.cpuemu>1) CEmuStat|=CeS_SIGPEND;
+#endif
+	signal_pending = 1;
 	if (in_dpmi)
 	  dpmi_eflags |= VIP;
         REG(eflags) |= VIP;
@@ -483,6 +495,9 @@ void SIGALRM_call(void)
 inline void SIGNAL_save( void (*signal_call)() ) {
   signal_queue[SIGNAL_tail].signal_handler=signal_call;
   SIGNAL_tail = (SIGNAL_tail + 1) % MAX_SIG_QUEUE_SIZE;
+#ifdef X86_EMULATOR
+  if (config.cpuemu>1) CEmuStat|=CeS_SIGPEND;
+#endif
   signal_pending = 1;
   if (in_dpmi)
     dpmi_eflags |= VIP;
@@ -527,6 +542,16 @@ sigalrm(int sig, struct sigcontext_struct context)
   SIGNAL_save(SIGALRM_call);
 }
 
+#ifdef X86_EMULATOR
+/* this is the same thing, but with a pointer parameter */
+void
+e_sigalrm(struct sigcontext_struct *context)
+{
+  if (in_dpmi && !in_vm86)
+    dpmi_sigio(context);
+  SIGNAL_save(SIGALRM_call);
+}
+#endif
 #endif
 
 

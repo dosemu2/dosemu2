@@ -1,3 +1,18 @@
+2000/07/09 ver. 1.1.0 released, starting new development tree
+	From Alberto
+	- new cpuemu stuff: new name: simx86
+	  (for more detaila see preliminary src/docs/README/simx86)
+	- ZeroBaseTime is now in cycles instead of us
+	- SIGTIME has been un-macroed to its standard value of SIGALRM
+	- SIGPROF to be reserved/used in the future for cpuemu
+	From Hans
+	- small fixes to compile simx86 on other than Alberto's systems;)
+	  - moved changes from config.in to acconfig.h, where they belong.
+	    and rerun ./mkconfscript.
+	  - put missing '#ifdef X86_EMULATOR' around '#include "cpu-emu.h"'
+	  - added macro offsetof() in emu-i386/simx86/syncpu.h
+	  - changed 'sigcontext' to 'sigcontext_struct' in simx86/cpu-emu.c
+	- adapted dosemu.spec
 2000/07/08 ver. 1.0.1.1 unofficial pre-release, development fork
 	From Hans
 	- added missing parts of 1.0.0.2 vmodem (doors) patch.

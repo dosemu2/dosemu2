@@ -195,9 +195,18 @@ static const char *loop_codes[] =
 #define IMMED32I(code) *(int *)(code)
 #else
 /* Big-endian or strict alignment.  */
-#define IMMED16(code) code[0] | (code[1] << 8)
-#define IMMED32(code) code[0] | (code[1] << 8) | (code[2] << 16) | (code[3] << 24)
-#define IMMED32I(code) code[0] | (code[1] << 8) | (code[2] << 16) | (code[3] << 24)
+#ifndef __GNUC__
+#error needs gcc
+#endif
+#define IMMED16(code)	({const unsigned char *p=(code); unsigned short v;\
+				v=p[0]|((unsigned short)(p[1])<<8); v; })
+#define IMMED32(code)	({const unsigned char *p=(code); unsigned int v;\
+				v=p[0]|((unsigned int)(p[1])<<8)|\
+				((unsigned int)(p[2])<<16)|\
+				((unsigned int)(p[3])<<24); v; })
+#define IMMED32I(code)	({const unsigned char *p=(code); int v;\
+				v=p[0]|((int)(p[1])<<8)|\
+				((int)(p[2])<<16)|((int)(p[3])<<24); v; })
 #endif
 
 #undef index
@@ -402,7 +411,7 @@ char *nw = 0;
       if (code[0] & 1)
           d86_printf("st(%d)",reg);
 
-      else if (reg == 1) ; /*((code[1] & 0x30) == 0x10) ;*/
+/*      else if (reg == 1) ; ((code[1] & 0x30) == 0x10) ;*/
 
       else if (code[0] & 4)
           d86_printf("st(%d),st",reg);
@@ -813,7 +822,7 @@ int  dis_8086(unsigned int org,
 	    case 0xb7:
 	      d86_printf("movzx   %s,", wreg[(*code >> 3) & 7]);
 	      if ((*code & 0xc0) != 0xc0)
-	        d86_printf("word ptr ");
+	        d86_printf("%cword ptr ",(data32? 'd':' '));
 	      code = mod_rm(code, seg, reg16, addr32);
 	      break;
 	      	
@@ -844,7 +853,7 @@ int  dis_8086(unsigned int org,
 	    case 0xbf:
 	      d86_printf("movsx   %s,", wreg[(*code >> 3) & 7]);
 	      if ((*code & 0xc0) != 0xc0)
-	        d86_printf("word ptr ");
+	        d86_printf("%cword ptr ",(data32? 'd':' '));
 	      code = mod_rm(code, seg, reg16, addr32);
 	      break;
 
@@ -1000,12 +1009,12 @@ int  dis_8086(unsigned int org,
 	  continue;
 
 	case 0x66:
-	  data32 = !def_size;
+	  data32 = ((def_size & 2)==0);
 	  prefix = 1; i--;
 	  continue;
 
 	case 0x67:
-	  addr32 = !def_size;
+	  addr32 = ((def_size & 1)==0);
 	  prefix = 1; i--;
 	  continue;
 
@@ -1182,7 +1191,7 @@ int  dis_8086(unsigned int org,
 	case 0x8f:
 	  d86_printf("pop     ");
 	  if ((*code & 0xc0) != 0xc0)
-	    d86_printf("%sword ptr ", data32 ? "d" : "");
+	    d86_printf("%cword ptr ",(data32? 'd':' '));
 	  code = mod_rm(code, seg, wreg, addr32);
 	  break;
 
@@ -1401,16 +1410,16 @@ int  dis_8086(unsigned int org,
 	  if ((*code & 0xc0) != 0xc0)
 	      d86_printf("byte ptr ");
 	  code = mod_rm(code, seg, reg8, addr32);
-	  d86_printf(",%02X", 31 & *code++);
+	  d86_printf(",%d", 31 & *code++);
 	  break;
 
 	case 0xc1:
 	  d86_printf(shift[(*code >> 3) & 7]);
 	  d86_printf("     ");
 	  if ((*code & 0xc0) != 0xc0)
-	      d86_printf("%sword ptr ", data32 ? "d" : "");
+	      d86_printf("%cword ptr ", (data32? 'd':' '));
 	  code = mod_rm(code, seg, wreg, addr32);
-	  d86_printf(",%02X", 31 & *code++);
+	  d86_printf(",%d", 31 & *code++);
 	  break;
 
 	case 0xc2:
@@ -1502,7 +1511,7 @@ int  dis_8086(unsigned int org,
 	  d86_printf(shift[(*code >> 3) & 7]);
 	  d86_printf("     ");
 	  if ((*code & 0xc0) != 0xc0)
-	      d86_printf("%sword ptr ", data32 ? "d" : "");
+	      d86_printf("%cword ptr ",(data32? 'd':' '));
 	  code = mod_rm(code, seg, wreg, addr32);
 	  d86_printf(",1");
 	  break;
@@ -1520,7 +1529,7 @@ int  dis_8086(unsigned int org,
 	  d86_printf(shift[(*code >> 3) & 7]);
 	  d86_printf("     ");
 	  if ((*code & 0xc0) != 0xc0)
-	      d86_printf("%sword ptr ", data32 ? "d" : "");
+	      d86_printf("%cword ptr ", (data32? 'd':' '));
 	  code = mod_rm(code, seg, wreg, addr32);
 	  d86_printf(",cl");
 	  break;
@@ -1779,7 +1788,7 @@ int  dis_8086(unsigned int org,
 	  d86_printf(f7_code[(*code >> 3) & 7]);
 	  d86_printf("    ");
 	  if (((*code & 0xc0) != 0xc0) && (*code & 0x38))
-	      d86_printf("%sword ptr ", data32 ? "d" : "");
+	      d86_printf("%cword ptr ", (data32? 'd':' '));
 	  code = mod_rm(code, seg, wreg, addr32);
 	  if ((opcode & 0x38) == 0)
 	    {
@@ -1838,7 +1847,7 @@ int  dis_8086(unsigned int org,
 	  d86_printf(ff_code[(*code >> 3) & 7]);
 	  if (((*code & 0xc0) != 0xc0) &&
 	      (((*code & 0x30) == 0) || ((*code & 0x30) == 0x30)))
-	      d86_printf("%sword ptr ", data32 ? "d" : "");
+	      d86_printf("%cword ptr ", (data32? 'd':' '));
 	  code = mod_rm(code, seg, wreg, addr32);
 	  break;
 

@@ -1301,7 +1301,11 @@ static void mhp_regs(int argc, char * argv[])
 
  if (!traceloop)
   mhp_printf( "system state: %s%s%s%s\n",
+#ifdef X86_EMULATOR
+       config.cpuemu > 1 ? "emulated," : "",
+#else
        "",
+#endif
        mhpdbgc.stopped ? "stopped" : "running",
        IN_DPMI ? " in DPMI" : (in_dpmi?" in real mode while in DPMI":""),
        IN_DPMI ?(dpmi_mhp_getcsdefault()?"-32bit":"-16bit") : "");
@@ -1595,13 +1599,13 @@ static void print_log_breakpoints(void)
    num_logbp = 0;
    for (rx=0; rx <num_regex; rx++) {
      if (rxbuf[rx]) {
-       mhp_printf("log break point %d: %s\n", rx, rxpatterns[rx]);
+       mhp_printf("log breakpoint %d: %s\n", rx, rxpatterns[rx]);
        mhp_send();
        num_logbp++;
      }
    }
    if (!num_logbp) {
-     mhp_printf("no log break points aktiv\n");
+     mhp_printf("no log breakpoint active\n");
    }
 }
 

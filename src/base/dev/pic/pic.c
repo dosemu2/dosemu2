@@ -138,9 +138,7 @@
 #else
 #include "bitops.h"
 #endif
-#include "timers.h"
 #include "pic.h"
-#include "iodev.h"
 #include "memory.h"
 #ifdef __linux__
 #include <linux/linkage.h>
@@ -149,6 +147,8 @@
 #include <sys/time.h>
 #include "cpu.h"
 #include "emu.h"
+#include "timers.h"
+#include "iodev.h"
 #include "dpmi.h"
 #include "serial.h"
 #include "int.h"

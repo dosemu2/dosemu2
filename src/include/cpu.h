@@ -289,6 +289,7 @@ __inline__ int do_hard_int(int);
 #endif
 
 int cpu_trap_0f (unsigned char *, struct sigcontext_struct *);
+int e_decode_bound_excp (unsigned char *csp, struct sigcontext_struct *scp);
 
 extern unsigned int read_port_w(unsigned short port);
 extern int write_port_w(unsigned int value,unsigned short port);

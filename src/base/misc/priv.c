@@ -11,6 +11,9 @@
 #endif
 #include "emu.h"
 #include "priv.h"
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
+#endif
 
 #if 0
 #define PRIV_TESTING
@@ -137,6 +140,9 @@ int priv_iopl(int pl)
     _priv_off();
   }
   else ret = iopl(pl);
+#ifdef X86_EMULATOR
+  if (config.cpuemu) e_priv_iopl(pl);
+#endif
   return ret;
 }
 

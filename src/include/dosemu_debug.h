@@ -24,6 +24,9 @@
 # define NORETURN
 #endif
 
+#if 1
+#define DONT_DEBUG_BOOT
+#endif
 
 /*
  * The 'struct debug_flags' defines which features may print discrete debug
@@ -37,8 +40,8 @@
  * Here is an overview of which flags are used and which not, please keep
  * this comment in sync with the reality:
  *
- *   used: aA  cCdD E  g h iI  k   mMn   pP QrRsS T  v wWxX      and '#'
- *   free:   bB    e fF G H  jJ KlL   NoO  q     t uU V    yYzZ
+ *   used: aA  cCdDeE  g h iI  k   mMn   pP QrRsStT  v wWxX      and '#'
+ *   free:   bB      fF G H  jJ KlL   NoO  q       uU V    yYzZ
  */
 struct debug_flags {
   unsigned char
@@ -71,6 +74,10 @@ struct debug_flags {
    aspi,		/* ASPI interface    "A" */
    mapping,		/* Mapping driver    "Q" */
    pci                  /* PCI               "Z" */
+#ifdef X86_EMULATOR
+   ,emu			/* CPU emulation     "e" */
+   ,dpmit		/* DPMI emu-debug    "t" */
+#endif
    ;
 };
 
@@ -139,6 +146,10 @@ void verror(const char *fmt, va_list args);
 #define A_printf(f,a...)     	ifprintf(d.aspi,f,##a)
 #define Q_printf(f,a...)	ifprintf(d.mapping,f,##a)
 #define Z_printf(f,a...)        ifprintf(d.pci,f,##a)
+#ifdef X86_EMULATOR
+#define e_printf(f,a...)     	ifprintf(d.emu,f,##a)
+#define t_printf(f,a...)     	ifprintf(d.dpmit,f,##a)
+#endif
 
 #define ALL_DEBUG_ON	memset(&d,9,sizeof(d))
 #define ALL_DEBUG_OFF	memset(&d,0,sizeof(d))

@@ -42,6 +42,15 @@
 
 extern void xms_control(void);
 
+#ifdef X86_EMULATOR
+#include "simx86/syncpu.h"
+#define CRs	TheCPU.cr
+#define DRs	TheCPU.dr
+#define TRs	TheCPU.tr
+#else
+/* Extra CPU registers. Note that GDTR,LDTR,IDTR are internal
+ * to the cpuemu and are defined in emu-ldt.c:
+ */
 unsigned long CRs[5] =
 {
 	0x00000013,	/* valid bits: 0xe005003f */
@@ -86,6 +95,7 @@ unsigned long TRs[2] =
 	0x00000000,
 	0x00000000
 };
+#endif
 
 /* 
  * DANG_BEGIN_FUNCTION cpu_trap_0f
@@ -113,6 +123,12 @@ int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
 	else if (csp[1] == 0x31) {
 		/* ref: Van Gilluwe, "The Undocumented PC". The program
 		 * 'cpurdtsc.exe' traps here */
+#ifdef X86_EMULATOR
+		if (config.cpuemu>1) {
+		  REG(eax) = (unsigned long)TheCPU.EMUtime;
+		  REG(edx) = (unsigned long)(TheCPU.EMUtime>>32);
+		} else
+#endif
 		if (vm86s.cpu_type >= CPU_586) {
 		  __asm__ __volatile__ ("rdtsc" \
 			:"=a" (REG(eax)),  \
@@ -204,7 +220,7 @@ int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
 void cpu_setup(void)
 {
   extern void int_vector_setup(void);
-  extern void init_cpu (void);
+  extern void init_emu_cpu (void);
 
   int_vector_setup();
 
@@ -230,6 +246,11 @@ void cpu_setup(void)
   REG(eflags) |= (VIF | VIP);
 #endif
 
+#ifdef X86_EMULATOR
+  if (config.cpuemu) {
+    init_emu_cpu();
+  }
+#endif
 }
 
 

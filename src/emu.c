@@ -128,6 +128,9 @@ __asm__("___START___: jmp _emulate\n");
 #ifdef USE_SBEMU
 #include "sound.h"
 #endif
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
+#endif
 
 extern void     stdio_init(void);
 extern void     time_setting_init(void);
@@ -422,9 +425,11 @@ emulate(int argc, char **argv)
     port_init();		/* setup port structures, before config! */
     version_init();		/* Check the OS version */
     config_init(argc, argv);	/* parse the commands & config file(s) */
+#ifdef X86_EMULATOR
 #ifdef DONT_DEBUG_BOOT		/* cpuemu only */
     memcpy(&d_save,&d,sizeof(struct debug_flags));
     if (d.emu) memset(&d,0,sizeof(struct debug_flags));
+#endif
 #endif
     get_time_init();
     stdio_init();		/* initialize stdio & open debug file */
@@ -513,7 +518,7 @@ ign_sigs(int sig)
     error("signal %d received in leavedos()\n", sig);
     show_regs(__FILE__, __LINE__);
     flush_log();
-    if (sig == SIG_TIME)
+    if (sig == SIGALRM)
 	timerints++;
     else
 	otherints++;
@@ -562,10 +567,14 @@ leavedos(int sig)
 
     itv.it_interval.tv_sec = itv.it_interval.tv_usec = 0;
     itv.it_value = itv.it_interval;
-    if (setitimer(TIMER_TIME, &itv, NULL) == -1) {
+    if (setitimer(ITIMER_REAL, &itv, NULL) == -1) {
 	g_printf("can't turn off timer at shutdown: %s\n", strerror(errno));
     }
-    SETSIG(SIG_TIME, ign_sigs);
+    SETSIG(SIGALRM, ign_sigs);
+#ifdef X86_EMULATOR
+    setitimer(ITIMER_PROF, &itv, NULL);
+    SETSIG(SIGPROF, ign_sigs);
+#endif
     SETSIG(SIGSEGV, ign_sigs);
     SETSIG(SIGILL, ign_sigs);
     SETSIG(SIGFPE, ign_sigs);
@@ -578,7 +587,7 @@ leavedos(int sig)
       g_printf("SPEAKER: sound off\n");
       speaker_off();		/* turn off any sound */
     }
-    if (config.speaker==SPKR_NATIVE) {
+    else if (config.speaker==SPKR_NATIVE) {
        g_printf("SPEAKER: sound off\n");
        /* Since the speaker is native hardware use port manipulation,
 	* we don't know what is actually implementing the kernel's
@@ -599,6 +608,12 @@ leavedos(int sig)
     keyb_server_close();
     keyb_client_close();
 
+#if defined(X86_EMULATOR)
+    /* if we are here with config.cpuemu>1 something went wrong... */
+    if (config.cpuemu>1) {
+    	leave_cpu_emu();
+    }
+#endif
     show_ints(0, 0x33);
     g_printf("calling disk_close_all\n");
     disk_close_all();

@@ -50,45 +50,15 @@
 #include "shared.h"
 #include "serial.h"
 #include "bitops.h"
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
+#include "bitops.h"
+#endif
 
-/*
- * maximum number of emulated devices allowed.  floppy, mda, etc...
- * an 8-bit handle is used for each device:
- */
-#define EMU_MAX_IO_DEVICES 254
-
-#define NO_HANDLE	0x00
-#define HANDLE_STD_IO	0x01
-#define HANDLE_STD_RD	0x02
-#define HANDLE_STD_WR	0x03
-#define HANDLE_VID_IO	0x04
-#define HANDLE_SPECIAL	0x05		/* catch-all */
-#define STD_HANDLES	6
-
-static struct _port_handler {
-	Bit8u  (*read_portb)  (ioport_t port_addr);
-	void   (*write_portb) (ioport_t port_addr, Bit8u byte);
-	Bit16u (*read_portw) (ioport_t port_addr);
-	void   (*write_portw) (ioport_t port_addr, Bit16u word);
-	Bit32u (*read_portd) (ioport_t port_addr);
-	void   (*write_portd) (ioport_t port_addr, Bit32u dword);
-	char   *handler_name;
-	int    irq, fd;
-} port_handler[EMU_MAX_IO_DEVICES];
-
-/*
- * If you are worried by the size of this array keep in mind that:
- * - it always existed, it was just not used
- * - ports above 0x400 could be better implemented using some form of
- *   dynamic storage
- *	00    = no device attached, port undefined
- *	01-FD = index into handle
- *	FE,FF = reserved
- * Ioperm could use a bitmap similar to set/reset_revectored
- */
-static unsigned char port_handle_table[0x10000];
-static unsigned char port_andmask[0x400];
-static unsigned char port_ormask[0x400];
+_port_handler port_handler[EMU_MAX_IO_DEVICES];
+unsigned char port_handle_table[0x10000];
+unsigned char port_andmask[0x400];
+unsigned char port_ormask[0x400];
 
 static unsigned char port_handles;	/* number of io_handler's */
 
@@ -793,6 +763,9 @@ int port_init(void)
 	  port_handler[i].irq = EMU_NO_IRQ;
 	  port_handler[i].fd = -1;
 	}
+#ifdef X86_EMULATOR
+	memset (io_bitmap, 0, sizeof(io_bitmap));
+#endif
 
   /* handle 0 maps to the unmapped IO device handler.  Basically any
      ports which don't map to any other device get mapped to this
@@ -1048,7 +1021,7 @@ int port_register_handler(emu_iodev_t device, int flags)
 
     i_printf("PORT: registered \"%s\" handle 0x%02x [0x%04x-0x%04x] fd=%d\n",
 	port_handler[handle].handler_name, handle, device.start_addr,
-	device.end_addr, (device.fd>=0? devstat.st_dev:device.fd));
+	device.end_addr, (int)(device.fd>=0? devstat.st_dev:device.fd));
 
     if (flags & PORT_FAST) {
 	if (device.start_addr < 0x400) {
@@ -1113,7 +1086,7 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 		sscanf(line, "%x-%x : %s", &beg, &end, portname);
 		if ((start <= end) && ((start+size) > beg)) {
 			/* ports are besetzt, try to open the according device */
-			i_printf("PORT: in range 0x%04x-0x%04x already registered as %s\n",
+			i_printf("PORT: range 0x%04x-0x%04x already registered as %s\n",
 				 beg, end, portname);
 			if (!strncasecmp(portname,"dosemu",6)) return FALSE;
 			mapped = 1;
@@ -1235,7 +1208,16 @@ set_ioperm(int start, int size, int flag)
 	tmp = DOS_SYSCALL(ioperm(start, size, flag));
 	leave_priv_setting();
 
-	i_printf ("nPORT: set_ioperm [%4x:%2d:%d] returns %d\n",start,size,flag,tmp);
+#ifdef X86_EMULATOR
+	if (config.cpuemu && (tmp==0)) {
+	    int i;
+	    for (i=start; i<(start+size); i++)
+		(flag? set_bit(i,io_bitmap) : clear_bit(i,io_bitmap));
+	    i_printf("ePORT: set_ioperm [%x:%d:%d]\n",start,size,flag);
+	}
+#else
+	i_printf ("nPORT: set_ioperm [%x:%d:%d] returns %d\n",start,size,flag,tmp);
+#endif
 	return tmp;
 }
 

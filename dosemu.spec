@@ -17,9 +17,9 @@ Provides:     dosemu
 #Requires:     mtools tcltk
 Packager:     Hans Lermen <lermen@dosemu.org>
 
-Version:      1.0.1
+Version:      1.1.0
 Summary:      The Linux DOS emulator
-Source:       dosemu-1.0.1.tgz
+Source:       dosemu-1.1.0.tgz
 Url:          http://www.dosemu.org
 Buildroot:    /var/tmp/dosemu
 

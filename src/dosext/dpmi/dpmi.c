@@ -48,6 +48,9 @@
 #else
 #include <errno.h>
 #endif
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
+#endif
 #include "emu-ldt.h"
 #include <asm/segment.h>
 #include <asm/page.h>
@@ -180,6 +183,11 @@ _syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
 inline int get_ldt(void *buffer)
 {
 #ifdef __linux__
+#ifdef X86_EMULATOR
+  if (config.cpuemu>1)
+	return emu_modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
+  else
+#endif
   return modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
 #endif
 }
@@ -235,7 +243,7 @@ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
         /* Well, we have last < first, the other cases we can't handle anyway,
          * so we let modify_ldt() accept or reject.
          * We ajust the limit, so the kernel accepts it, but we leave the
-         * LTD_ALIAS untouched.
+         * LDT_ALIAS untouched.
          * If the base is below TASK_SIZE, we force an expand-up.
          * However, this isn't a complete fake, if the DPMI client accesses
          * outside the _real_ limit, we get a segfault.
@@ -292,6 +300,11 @@ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 	}
   }
 
+#ifdef X86_EMULATOR
+  if (config.cpuemu>1)
+	__retval = emu_modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
+  else
+#endif
   __retval = modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
   if (__retval)
 	return __retval;
@@ -341,19 +354,25 @@ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   return 0;
 }
 
-void print_ldt(void ) /* stolen from WINE */
+void _print_dt(char *buffer, int nsel, int isldt) /* stolen from WINE */
 {
-  static char buffer[0x10000];
-  unsigned long *lp, *lp2;
+  static char *cdsdescs[] = {
+	"RO data", "RW data/upstack", "RO data", "RW data/dnstack",
+	"FO nonconf code", "FR nonconf code", "FO conf code", "FR conf code"
+  };
+  static char *sysdescs[] = {
+	"reserved", "avail 16bit TSS", "LDT" ,"busy 16bit TSS",
+	"16bit call gate", "task gate", "16bit int gate", "16bit trap gate",
+	"reserved", "avail 32bit TSS", "reserved" ,"busy 32bit TSS",
+	"32bit call gate", "reserved", "32bit int gate", "32bit trap gate"
+  };
+  unsigned long *lp;
   unsigned long base_addr, limit;
   int type, i;
 
-  if (get_ldt(buffer) < 0)
-    leavedos(0x544c);
-
   lp = (unsigned long *) buffer;
 
-  for (i = 0; i < MAX_SELECTORS; i++, lp++) {
+  for (i = 0; i < nsel; i++, lp++) {
     /* First 32 bits of descriptor */
     base_addr = (*lp >> 16) & 0x0000FFFF;
     limit = *lp & 0x0000FFFF;
@@ -362,11 +381,11 @@ void print_ldt(void ) /* stolen from WINE */
     /* First 32 bits of descriptor */
     base_addr |= (*lp & 0xFF000000) | ((*lp << 16) & 0x00FF0000);
     limit |= (*lp & 0x000F0000);
-    type = (*lp >> 10) & 7;
+    type = (*lp >> 8) & 15;
     if ((base_addr > 0) || (limit > 0 ) || Segments[i].used) {
       if (*lp & 0x1000)  {
 	D_printf("Entry 0x%04x: Base %08lx, Limit %05lx, Type %d (desc %#x)\n",
-	       i, base_addr, limit, type, (i<<3)|7);
+	       i, base_addr, limit, (type&7), (i<<3)|(isldt?7:0));
 	D_printf("              ");
 	if (*lp & 0x100)
 	  D_printf("Accessed, ");
@@ -387,19 +406,34 @@ void print_ldt(void ) /* stolen from WINE */
 	else
 	  D_printf("byte limit, ");
 	D_printf("\n");
-	D_printf("              %08lx %08lx\n", *(lp), *(lp-1));
+	D_printf("              %08lx %08lx [%s]\n", *(lp), *(lp-1),
+		cdsdescs[type>>1]);
       }
       else {
 	D_printf("Entry 0x%04x: Base %08lx, Limit %05lx, Type %d (desc %#x)\n",
-	       i, base_addr, limit, type, (i<<3)|7);
-	D_printf("              SYSTEM: %08lx %08lx\n", *lp, *(lp - 1));
+	       i, base_addr, limit, type, (i<<3)|(isldt?7:0));
+	D_printf("              SYSTEM: %08lx %08lx [%s]\n", *lp, *(lp-1),
+		sysdescs[type]);
       }
-      lp2 = (unsigned long *) &ldt_buffer[i*LDT_ENTRY_SIZE];
-      D_printf("       cache: %08lx %08lx\n", (unsigned long)*(lp2+1), (unsigned long)*(lp2)); 
-      D_printf("         seg: Base %08lx, Limit %05x, Type %d, Big %d\n",
+      if (isldt) {
+	unsigned long *lp2;
+	lp2 = (unsigned long *) &ldt_buffer[i*LDT_ENTRY_SIZE];
+	D_printf("       cache: %08lx %08lx\n", (unsigned long)*(lp2+1), (unsigned long)*(lp2)); 
+	D_printf("         seg: Base %08lx, Limit %05x, Type %d, Big %d\n",
 	     Segments[i].base_addr, Segments[i].limit, Segments[i].type, Segments[i].is_big); 
+      }
     }
   }
+}
+
+void print_ldt(void)
+{
+  static char buffer[0x10000];
+
+  if (get_ldt(buffer) < 0)
+    leavedos(0x544c);
+
+  _print_dt(buffer, MAX_SELECTORS, 1);
 }
 
 /* client_esp return the proper value of client\'s esp, if scp != 0, */
@@ -610,7 +644,15 @@ static int dpmi_control(void)
   register int ret;
 #ifdef DIRECT_DPMI_CONTEXT_SWITCH
   struct sigcontext_struct *scp=&dpmi_stack_frame[current_client];
-  if (!(_eflags & TF)) return direct_dpmi_switch(scp);
+#if defined(X86_EMULATOR) && defined(TRACE_DPMI)
+  if (d.dpmit) _eflags |= TF;
+#endif
+  if (!(_eflags & TF)) {
+	if (d.dpmi>6) {
+	  D_printf("DPMI SWITCH to %08lx, esp=%08lx\n",(long)SEL_ADR(_cs,_eip),_esp);
+	}
+	return direct_dpmi_switch(scp);
+  }
   else {
     /* Note: we can't set TF with our speedup code */
 #ifdef USE_MHPDBG
@@ -885,6 +927,11 @@ static unsigned short CreateCSAlias(unsigned short selector)
 
 static int inline do_LAR(us selector)
 {
+#ifdef X86_EMULATOR
+  if (config.cpuemu>1)
+    return emu_do_LAR(selector);
+  else
+#endif
   __asm__ volatile("
     movzwl  %%ax,%%eax
     larw %%ax,%%ax
@@ -1094,6 +1141,18 @@ static __inline__ void dpmi_sti()
 
 void do_int31(struct sigcontext_struct *scp, int inumber)
 {
+#ifdef X86_EMULATOR
+  extern void e_dpmi_b0x(int op,struct sigcontext_struct *);
+
+  if (d.dpmi) {
+    D_printf("DPMI: int31, ax=%04x, ebx=%08lx, ecx=%08lx, edx=%08lx\n",
+	_LWORD(eax),_ebx,_ecx,_edx);
+    D_printf("        edi=%08lx, esi=%08lx, ebp=%08lx, esp=%08lx\n",
+	_edi,_esi,_ebp,_esp);
+    D_printf("        cs=%04x, ds=%04x, ss=%04x, es=%04x, fs=%04x, gs=%04x\n",
+	_cs,_ds,_ss,_es,_fs,_gs);
+  }
+#endif
 
   _eflags &= ~CF;
   switch (inumber) {
@@ -1575,7 +1634,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	}
     }
     break;
-  case 0x0509:			/* Map convientional memory,1.0 */
+  case 0x0509:			/* Map conventional memory,1.0 */
     {
 	unsigned long low_addr, handle, offset;
 	dpmi_pm_block *block;
@@ -1596,7 +1655,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	    break;
 	}
 
-	D_printf("DPMI: Map convientional mem for handle %ld, offset %lx at low address %lx\n", handle, offset, low_addr);
+	D_printf("DPMI: Map conventional mem for handle %ld, offset %lx at low address %lx\n", handle, offset, low_addr);
 	block = lookup_pm_block(handle);
 	if(block == NULL || block -> handle != handle) {
 	    _eflags |= CF;
@@ -1632,7 +1691,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
   case 0x0600:	/* Lock Linear Region */
   case 0x0601:	/* Unlock Linear Region */
   case 0x0602:	/* Mark Real Mode Region as Pageable */
-  case 0x0603:	/* Relock Real Mode Reagion */
+  case 0x0603:	/* Relock Real Mode Region */
     break;
   case 0x0604:	/* Get Page Size */
     _LWORD(ebx) = 0;
@@ -1684,6 +1743,11 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     {
       D_printf("DPMI: Set breakpoint type %x size %x at %04x%04x\n",
 	_HI(dx),_LO(dx),_LWORD(ebx),_LWORD(ecx));
+#ifdef X86_EMULATOR
+      if (config.cpuemu>1) {
+	e_dpmi_b0x(0,scp);
+      } else
+#endif
       {_LWORD(eax) = 0x8016;	/* n.i. */
 	_eflags |= CF; }
     }
@@ -1691,6 +1755,11 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
   case 0x0b01:	/* Clear Debug Breakpoint, bx=handle */
     {
       D_printf("DPMI: Clear breakpoint %x\n",_LWORD(ebx));
+#ifdef X86_EMULATOR
+      if (config.cpuemu>1) {
+	e_dpmi_b0x(1,scp);
+      } else
+#endif
       { _LWORD(eax) = 0x8023;	/* n.i. */
 	_eflags |= CF; }
     }
@@ -1698,6 +1767,11 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
   case 0x0b02:	/* Get Debug Breakpoint State, bx=handle->ax=state(!CF) */
     {
       D_printf("DPMI: Breakpoint %x state\n",_LWORD(ebx));
+#ifdef X86_EMULATOR
+      if (config.cpuemu>1) {
+	e_dpmi_b0x(2,scp);
+      } else
+#endif
       { _LWORD(eax) = 0x8023;	/* n.i. */
 	_eflags |= CF; }
     }
@@ -1705,6 +1779,11 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
   case 0x0b03:	/* Reset Debug Breakpoint, bx=handle */
     {
       D_printf("DPMI: Reset breakpoint %x\n",_LWORD(ebx));
+#ifdef X86_EMULATOR
+      if (config.cpuemu>1) {
+	e_dpmi_b0x(3,scp);
+      } else
+#endif
       { _LWORD(eax) = 0x8023;	/* n.i. */
 	_eflags |= CF; }
     }
@@ -1807,9 +1886,23 @@ static inline void copy_context(struct sigcontext_struct *d, struct sigcontext_s
 
 static inline void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode)
 {
+#ifdef X86_EMULATOR
+ if (config.cpuemu<2) {	/* 0=off 1=on-inactive 2=active 3=on-first time */
+#endif
   copy_context(&dpmi_stack_frame[current_client],scp);
   copy_context(scp, emu_stack_frame);
   _eax = retcode;
+#ifdef X86_EMULATOR
+ }
+ else {
+    extern int emu_dpmi_retcode;
+    if (retcode)
+	D_printf("DPMI: return %x to dosemu code\n", retcode);
+    D_printf("DPMI: in_dpmi_dos_int=%d dpmi_eflags=%x\n",in_dpmi_dos_int,
+	dpmi_eflags);
+    emu_dpmi_retcode = retcode;
+ }
+#endif
 }
 
 #else
@@ -2010,6 +2103,9 @@ void run_dpmi(void)
    static unsigned char *lastcsp;
    int retval;
    unsigned char *csp;
+#ifdef X86_EMULATOR
+   extern int e_dpmi(struct sigcontext_struct *);
+#endif
 
   /* always invoke vm86() with this call.  all the messy stuff will
    * be in here.
@@ -2024,7 +2120,7 @@ void run_dpmi(void)
     * there's no need to lose time calling vm86() again - AV
     */
    if ((csp==lastcsp) && (*csp == 0xf4)) {
-     D_printf("DPMI: skip 0xf4 at %p\n", csp);
+     if (d.dpmi>3) D_printf("DPMI: skip 0xf4 at %p\n", csp);
      retval=VM86_UNKNOWN;
    }
    else {
@@ -2052,6 +2148,21 @@ void run_dpmi(void)
     retval=DO_VM86(&vm86s);
     in_vm86=0;
 
+    if (
+#if defined(X86_EMULATOR) && defined(TRACE_DPMI)
+	(retval!=1)&&
+#endif
+	(d.dpmi>3)) {
+	D_printf ("DPMI: ret_vm86, %04x:%04lx %08lx %08lx %08x ret=%#x\n",
+		REG(cs), REG(eip), REG(esp), REG(eflags), dpmi_eflags, retval);
+#if defined(X86_EMULATOR) && defined(TRACE_DPMI)
+	D_printf ("ax=%04x bx=%04x ss=%04x sp=%04x bp=%04x\n"
+	      		 "           cx=%04x dx=%04x ds=%04x cs=%04x ip=%04x\n"
+	      		 "           si=%04x di=%04x es=%04x flg=%08x\n",
+			_AX, _BX, _SS, _SP, _BP, _CX, _DX, _DS, _CS, _IP,
+			_SI, _DI, _ES, _EFLAGS);
+#endif
+    }
 
     if (REG(eflags)&IF) {
       if (!(dpmi_eflags&IF))
@@ -2106,6 +2217,10 @@ void run_dpmi(void)
     int retcode;
     if(pic_icount) dpmi_eflags |= VIP;
     retcode = (
+#ifdef X86_EMULATOR
+	config.cpuemu>1?
+	e_dpmi(&dpmi_stack_frame[current_client]) :
+#endif
 	dpmi_control());
 #ifdef USE_MHPDBG
     if (retcode && mhpdbg.active) {
@@ -2204,9 +2319,11 @@ void dpmi_init()
     }
 
     D_printf("Freeing descriptors\n");
-    for (i=0;i<MAX_SELECTORS;i++) {
-	FreeDescriptor(i<<3);
-/*	D_printf("%d freed\n", i);*/
+    { int dd=d.dpmi; d.dpmi=0;
+      for (i=0;i<MAX_SELECTORS;i++) {
+	  FreeDescriptor(i<<3);
+      }
+      d.dpmi=dd;
     }
     D_printf("Descriptors freed\n");
 
@@ -2410,7 +2527,12 @@ void dpmi_init()
 
 void dpmi_sigio(struct sigcontext_struct *scp)
 {
+#ifdef X86_EMULATOR
+  extern int in_dpmi_emu;
+  if (in_dpmi_emu || (_cs != UCODESEL)) {
+#else
   if (_cs != UCODESEL){
+#endif
 #if 1
     if (in_win31 || (dpmi_eflags & IF)) {
       D_printf("DPMI: return to dosemu code for handling signals\n");
@@ -2444,6 +2566,17 @@ static  void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
     case 0x04: /* overflow */
     case 0x05: /* bounds */
     case 0x07: /* device_not_available */
+#if defined(X86_EMULATOR) && defined(TRACE_DPMI)
+	       if ((d.dpmit>1) && (trapno==1)) {
+	         extern char *e_print_scp_regs();
+	         extern char *e_scp_disasm();
+	         char *pr = e_print_scp_regs(scp,1);
+	         if (pr && *pr)
+		     dbug_printf("\n%s    %s",pr,e_scp_disasm(scp,1));
+	       } else
+#endif
+	       D_printf("DPMI: do_default_cpu_exception %d at %#x:%#x\n",
+		 trapno, (int)_cs, (int)_eip);
 	       save_rm_regs();
 	       REG(cs) = DPMI_SEG;
 	       REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
@@ -2484,18 +2617,49 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
   unsigned char dd = d.dpmi;
   d.dpmi = 1;
 #endif
+
+#ifdef X86_EMULATOR
+#ifdef TRACE_DPMI
+  if (d.dpmit && (_trapno == 1)) {
+    do_default_cpu_exception(scp, _trapno);
+    return;
+  }
+#endif
+  if ((_trapno==0x05) && (config.cpuemu>1)) {
+	unsigned char *csp2 = (unsigned char *)(GetSegmentBaseAddress(_cs)+_eip);
+	if (!e_decode_bound_excp(csp2, scp)) {
+#ifdef DPMI_DEBUG
+		d.dpmi = dd;
+#endif
+		return;
+	}
+  }
+#endif
+
   D_printf("DPMI: do_cpu_exception(0x%02lx) at %#x:%#x\n",_trapno,
   	(int)_cs, (int)_eip);
   if ( _trapno == 0xe) {
       D_printf("DPMI: page fault. in dosemu?\n");
+      /* why should we let dpmi continue after this point and crash
+       * the system? */
+      flush_log();
+      DPMI_show_state(scp);
+      leavedos(0x5046);
   }
+
   if ((_trapno != 0xe)
+#ifdef X86_EMULATOR
+      || d.emu
+#endif
      )
     { DPMI_show_state(scp); }
 #ifdef SHOWREGS
   print_ldt();
 #endif
   if ((_trapno == 0xe)
+#ifdef X86_EMULATOR
+	&& (config.cpuemu==0)
+#endif
      )
     leavedos(98);
 #ifdef DPMI_DEBUG
@@ -2671,6 +2835,10 @@ if ((_ss & 4) == 4) {
     org_eip = _eip;
     _eip += (csp-lina);
 
+#ifdef X86_EMULATOR
+    /* trick, because dpmi_fault must return void */
+    if (config.cpuemu>1) _trapno = *csp;
+#endif
 
     switch (*csp++) {
 
@@ -3124,6 +3292,10 @@ if ((_ss & 4) == 4) {
       if (msdos_fault(scp))
 	  return;
 #ifdef __linux__
+#ifdef X86_EMULATOR
+      /* the other side of the trick */
+      _trapno = 13;
+#endif
       do_cpu_exception(scp);
 #endif
 
@@ -3280,7 +3452,9 @@ void run_pm_mouse()
 }
 void dpmi_realmode_hlt(unsigned char * lina)
 {
-
+#if defined(X86_EMULATOR) && defined(TRACE_DPMI)
+  if ((d.dpmit==0)||(lina!=0xfc80a))
+#endif
   D_printf("DPMI: realmode hlt: %p\n", lina);
   if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_dpmi_init))) {
     /* The hlt instruction is 6 bytes in from DPMI_ADD */
@@ -3291,6 +3465,9 @@ void dpmi_realmode_hlt(unsigned char * lina)
 
   } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_return_from_dos))) {
 
+#if defined(X86_EMULATOR) && defined(TRACE_DPMI)
+    if ((d.dpmit==0)||(lina!=0xfc80a))
+#endif
     D_printf("DPMI: Return from DOS Interrupt without register translation\n");
     restore_rm_regs();
     in_dpmi_dos_int = 0;
@@ -3618,6 +3795,10 @@ void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned long *lp)
   int typebyte=do_LAR(selector);
   if (typebyte) {
 	((unsigned char *)(&ldt_buffer[selector & 0xfff8]))[5]=typebyte;
+#ifdef X86_EMULATOR
+	if (config.cpuemu>1)
+	  emu_mhp_SetTypebyte (selector, typebyte);
+#endif
   }
   memcpy(lp, &ldt_buffer[selector & 0xfff8], 8);
 }

@@ -22,7 +22,7 @@
   #include <linux/hdreg.h>
   #include <linux/fd.h>
   #include "kversion.h"
-  #if (LX_KERNEL_VERSION < 2004000)
+  #if (LX_KERNEL_VERSION < 2003099)
     #include <linux/fs.h>
   #else
     #if (GLIBC_VERSION_CODE >= 2000)
@@ -40,6 +40,8 @@
 
 #include "emu.h"
 #include "disks.h"
+#include "timers.h"
+#include "utilities.h"
 #include "priv.h"
 #include "dosemu_select.h"
 #include "int.h"

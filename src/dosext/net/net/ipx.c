@@ -32,9 +32,9 @@
 #include <netinet/in.h>
 #include <errno.h>
 
-#include "timers.h"
 #include "memory.h"
 #include "emu.h"
+#include "timers.h"
 #include "cpu.h"
 #include "bios.h"
 #include "inifile.h"

@@ -358,7 +358,15 @@ static void uhook_help(int argc, char **argv)
 static void uhook_ecpu(int argc, char **argv)
 {
 	do_syn(argv[0]);
+#ifdef X86_EMULATOR
+	if (argv[1]) {
+/*FIXME, need to ask Alberto*/
+		uhook_printf("setting cpuemu not yet implemented\n");
+	}
+	uhook_printf("cpuemu=%s\n", config.cpuemu ? "on" : "off");
+#else
 	uhook_printf("cpuemu not compiled in\n");
+#endif
 }
 
 static void uhook_config(int argc, char **argv)
