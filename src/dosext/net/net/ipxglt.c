@@ -81,7 +81,12 @@ char buf_targ[9], buf_net[9], buf_node[13], proc_net[9], proc_node[13], *proc_st
 	sprintf(buf_node, "%02X%02X%02X%02X%02X%02X", node[0], node[1],
                      node[2], node[3], node[4], node[5]);
 
-	open_proc_scan("/proc/net/ipx_route");
+	if(access("/proc/net/ipx/route",R_OK) == 0)
+		open_proc_scan("/proc/net/ipx/route");
+	else if(access("/proc/net/ipx_route",R_OK) == 0)
+		open_proc_scan("/proc/net/ipx_route");
+	else
+		return 0;
 	proc_str = get_proc_string_by_key(buf_targ);
 
 	if (!proc_str) {
