@@ -285,13 +285,14 @@ static int setupDOSCommand (char *linux_path)
     
     j_printf ("Changing to directory '%s'\n", dos_dir);
     err = com_dossetcurrentdir (dos_dir);
-    free(dos_dir);
     if (err) {
       com_fprintf (com_stderr,
                    "ERROR: Could not change to directory: %s\n",
                    dos_dir);
+      free(dos_dir);
       return (1);
     }
+    free(dos_dir);
   } else {
     com_fprintf (com_stderr, "INTERNAL ERROR: no backslash in DOS path\n");
     return (1);
