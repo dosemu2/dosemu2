@@ -584,13 +584,17 @@ int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int l
                        unsigned char is_big, unsigned char seg_not_present, unsigned char useable)
 {
   int ldt_entry = selector >> 3;
-  if (set_ldt_entry(ldt_entry, base_addr, limit, is_32, type, readonly, is_big,
-      seg_not_present, useable)) {
-    D_printf("DPMI: set_ldt_entry() failed\n");
+  if (!ValidSelector(selector))
     return -1;
+  if (Segments[ldt_entry].used) {
+    if (set_ldt_entry(ldt_entry, base_addr, limit, is_32, type, readonly, is_big,
+        seg_not_present, useable)) {
+      D_printf("DPMI: set_ldt_entry() failed\n");
+      return -1;
+    }
+    D_printf("DPMI: SetSelector: 0x%04x base=0x%lx limit=0x%x big=%i type=%hhi\n",
+      selector, base_addr, limit, is_big, type);
   }
-  D_printf("DPMI: SetSelector: 0x%04x base=0x%lx limit=0x%x big=%i type=%hhi\n",
-    selector, base_addr, limit, is_big, type);
   Segments[ldt_entry].base_addr = base_addr;
   Segments[ldt_entry].limit = limit;
   Segments[ldt_entry].type = type;
@@ -599,10 +603,6 @@ int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int l
   Segments[ldt_entry].is_big = is_big;
   Segments[ldt_entry].not_present = seg_not_present;
   Segments[ldt_entry].useable = useable;
-  if (in_dpmi)
-    Segments[ldt_entry].used = in_dpmi;
-  else
-    Segments[ldt_entry].used = 1;
   return 0;
 } 
 
@@ -613,7 +613,9 @@ static int SystemSelector(unsigned short selector)
        (((selector) & 0xfffc) == (DPMI_CLIENT.PMSTACK_SEL & 0xfffc)) ||
        (((selector) & 0xfffc) == (DPMI_CLIENT.LDT_ALIAS & 0xfffc)) ||
        (((selector) & 0xfffc) == (UCODESEL & 0xfffc)) ||
-       (((selector) & 0xfffc) == (UDATASEL & 0xfffc))
+       (((selector) & 0xfffc) == (UDATASEL & 0xfffc)) ||
+       (((selector) & 0xfffc) == (_emu_stack_frame.fs & 0xfffc)) ||
+       (((selector) & 0xfffc) == (_emu_stack_frame.gs & 0xfffc))
      )
     return 1;
   return 0;
@@ -691,27 +693,11 @@ void FreeSegRegs(struct sigcontext_struct *scp, unsigned short selector)
 
 int FreeDescriptor(unsigned short selector)
 {
-  unsigned short ldt_entry = selector >> 3;
-
-  if (ldt_entry >= MAX_SELECTORS)
-    return -1;
-
+  int ret;
   D_printf("DPMI: Free descriptor, selector=0x%x\n", selector);
-  Segments[ldt_entry].used = 0;
-  Segments[ldt_entry].base_addr = 0;
-  Segments[ldt_entry].limit = 0;
-  Segments[ldt_entry].type = 0;
-  Segments[ldt_entry].is_32 = 0;
-  Segments[ldt_entry].readonly = 1;
-  Segments[ldt_entry].is_big = 0;
-  Segments[ldt_entry].not_present = 1;
-  Segments[ldt_entry].useable = 0;
-#if 1
-  /* We should be in sync with the real LDT  --Alberto 981209 */
-  return set_ldt_entry(ldt_entry, 0, 0, 0, 0, 1, 0, 1, 0);
-#else
-  return 0;
-#endif
+  ret = SetSelector(selector, 0, 0, 0, MODIFY_LDT_CONTENTS_DATA, 1, 0, 1, 0);
+  Segments[selector >> 3].used = 0;
+  return ret;
 }
 
 static void FreeAllDescriptors(void)

@@ -328,9 +328,7 @@ bad:
 #ifdef __linux__
 void dosemu_fault(int signal, struct sigcontext_struct context)
 {
-  restore_eflags_fs_gs();
   fault_cnt++;
-
   if (fault_cnt > 2) {
    /*
     * At this point we already tried leavedos(). Now try _exit()
@@ -339,6 +337,8 @@ void dosemu_fault(int signal, struct sigcontext_struct context)
     */
     _exit(255);
   }
+
+  restore_eflags_fs_gs();
 
   if (debug_level('g')>7)
     g_printf("Entering fault handler, signal=%i _trapno=0x%lX\n",
