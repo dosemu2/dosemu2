@@ -261,6 +261,7 @@ static void linux_sb_DAC_write (int bits, uint8_t value)
   static int sound_frag = 0x0200007;
   static uint8_t buffer[BUF_LEN];
   static size_t buffer_count = 0;
+  int result;
 
   buffer[buffer_count] = value;
   if (buffer_count < BUF_LEN - 1)
@@ -274,20 +275,25 @@ static void linux_sb_DAC_write (int bits, uint8_t value)
     {
       S_printf ("SB:[Linux] Initialising Direct DAC write (%u bits)\n", bits);
       if (linux_sb_dma_is_empty() == DMA_HANDLER_OK) {
-        bits_per_samp = bits;
+        result = 0;
         if (ioctl (dsp_fd, SNDCTL_DSP_SAMPLESIZE, &bits)<0) {
            S_printf ("SB:[Linux] Warning: ioctl() (SAMPLESIZE) failed: %s\n", strerror(errno));
-           bits_per_samp = 0;
+           result = -1;
         }
         if (linux_set_OSS_fragsize(sound_frag) == DMA_HANDLER_NOT_OK) {
            S_printf ("SB:[Linux] Warning: failed to change sound fragment size.\n");
-           bits_per_samp = 0;
+           result = -1;
         }
         linux_sb_set_speed(DIRECT_WRITE_FREQ, 0, 0, 0);
         /* reset DMA settings */
         sample_rate = 0;
         num_channels = 0;
         oss_block_size = 0;
+        if (result == -1) {
+          bits_per_samp = 0;
+          return;
+        }
+        bits_per_samp = bits;
       }
       else {
         S_printf("SB:[Linux] Sorry, can't change OSS settings now...\n");
