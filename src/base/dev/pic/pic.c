@@ -401,9 +401,7 @@ unsigned char int_num;
  *
  * DANG_END_FUNCTION
  */
-void write_pic0(port,value)
-Bit32u port;
-Bit8u value;
+void write_pic0(ioport_t port, Bit8u value)
 {
 
 /* if port == 0 this must be either an ICW1, OCW2, or OCW3
@@ -468,9 +466,7 @@ else                              /* icw2, icw3, icw4, or mask register */
 }  
 
 
-void write_pic1(port,value)
-Bit32u port;
-Bit8u value;
+void write_pic1(ioport_t port, Bit8u value)
 {
 /* if port == 0 this must be either an ICW1, OCW2, or OCW3 */
 /* if port == 1 this must be either ICW2, ICW3, ICW4, or load IMR */
@@ -539,8 +535,7 @@ else                         /* icw2, icw3, icw4, or mask register */
  *
  * DANG_END_FUNCTION
  */
-Bit8u read_pic0(port)
-Bit32u port;
+Bit8u read_pic0(ioport_t port)
 {
   port -= 0x20;
   if(port)		return((unsigned char)get_pic0_imr());
@@ -549,8 +544,7 @@ Bit32u port;
 }
 
 
-Bit8u read_pic1(port)
-Bit32u port;
+Bit8u read_pic1(ioport_t port)
 {
   port -= 0xa0;
   if(port)		return((unsigned char)get_pic1_imr());
@@ -1163,36 +1157,30 @@ void pic_sched(int ilevel, int interval)
 void pic_init(void)
 {
   /* do any one-time initialization of the PIC */
+#ifdef NEW_PORT_CODE
   emu_iodev_t  io_device;
-#ifdef USE_HLT_CODE
-  emu_hlt_t    hlt_hdlr;
-#endif
 
   /* 8259 PIC (Programmable Interrupt Controller) */
   io_device.read_portb   = read_pic0;
   io_device.write_portb  = write_pic0;
   io_device.read_portw   = NULL;
   io_device.write_portw  = NULL;
-  io_device.handler_name = "8259 PIC";
+  io_device.read_portd   = NULL;
+  io_device.write_portd  = NULL;
+  io_device.handler_name = "8259 PIC0";
   io_device.start_addr   = 0x0020;
   io_device.end_addr     = 0x0021;
   io_device.irq          = EMU_NO_IRQ;
-  port_register_handler(io_device);
+  io_device.fd = -1;
+  port_register_handler(io_device, 0);
 
+  io_device.handler_name = "8259 PIC1";
   io_device.start_addr = 0x00A0;
   io_device.end_addr   = 0x00A1;
   io_device.read_portb   = read_pic1;
   io_device.write_portb  = write_pic1;
-  port_register_handler(io_device);
-
-#ifdef USE_HLT_CODE
-  hlt_hdlr.name       = "PIC";
-  hlt_hdlr.start_addr = 0x0fff;
-  hlt_hdlr.end_addr   = 0x0fff;
-  hlt_hdlr.func       = (emu_hlt_func)pic_iret;
-  hlt_register_handler(hlt_hdlr);
+  port_register_handler(io_device, 0);
 #endif
-
 }
 
 void pic_reset(void)

@@ -238,7 +238,7 @@ static int selfmem_fd;
  * DANG_END_FUNCTION
  *
  */
-void VGA_emulate_outb(int port, unsigned char value)
+void VGA_emulate_outb(ioport_t port, unsigned char value)
 {
 #ifdef DEBUG_IO
   v_printf("VGAemu: VGA_emulate_outb(): outb(0x%03x, 0x%02x)\n", port, value);
@@ -315,7 +315,7 @@ void VGA_emulate_outb(int port, unsigned char value)
  * DANG_END_FUNCTION
  *
  */
-unsigned char VGA_emulate_inb(int port)
+unsigned char VGA_emulate_inb(ioport_t port)
 {
 #ifdef NEW_X_CODE
   unsigned char uc = 0xff;
@@ -479,7 +479,9 @@ static inline caddr_t vga_mmap(caddr_t  addr,  size_t  len,
  */     
 unsigned char* vga_emu_init(void)
 {
+#ifdef NEW_PORT_CODE
   emu_iodev_t io_device;
+#endif
 
   vga_emu_memory=(unsigned char*)valloc(VGAEMU_BANK_SIZE*VGAEMU_BANKS);
   if(vga_emu_memory==NULL)
@@ -520,37 +522,48 @@ unsigned char* vga_emu_init(void)
   CRTC_init();
 #endif
 
+#ifdef NEW_PORT_CODE
   /* register VGA ports */
   io_device.read_portb = VGA_emulate_inb;
   io_device.write_portb = VGA_emulate_outb;
   io_device.read_portw = NULL;
   io_device.write_portw = NULL;
+  io_device.read_portd = NULL;
+  io_device.write_portd = NULL;
   io_device.irq = EMU_NO_IRQ;
+  io_device.fd = -1;
   
   /* register attribute controller */
   io_device.handler_name = "VGAemu Attribute controller";
   io_device.start_addr = ATTRIBUTE_INDEX;
   io_device.end_addr = INPUT_STATUS_0;
-  port_register_handler(io_device);
+  port_register_handler(io_device, 0);
 
   /* register sequencer */
   io_device.handler_name = "VGAemu Sequencer";
   io_device.start_addr = SEQUENCER_INDEX;
   io_device.end_addr = SEQUENCER_DATA;
-  port_register_handler(io_device);
+  port_register_handler(io_device, 0);
 
   /* register DAC */
   io_device.handler_name = "VGAemu DAC";
   io_device.start_addr = DAC_BASE;
   io_device.end_addr = DAC_DATA;
-  port_register_handler(io_device);
+  port_register_handler(io_device, 0);
 
 #ifdef NEW_X_CODE
   /* register crt controller */
   io_device.handler_name = "VGAemu CRT Controller";
   io_device.start_addr = CRTC_INDEX;
   io_device.end_addr = CRTC_DATA;
-  port_register_handler(io_device);
+  port_register_handler(io_device, 0);
+#endif
+
+  /* register graphics - just to trap these registers and do no harm */
+  io_device.handler_name = "VGAemu Graph";
+  io_device.start_addr = GRAPHICS_BASE;
+  io_device.end_addr = GRAPHICS_DATA;
+  port_register_handler(&io_device, 0);
 #endif
 
   vesa_init();

@@ -27,8 +27,8 @@
 
 extern void timer_tick(void);
 extern void set_ticks(unsigned long);
-extern Bit8u pit_inp(Bit32u);
-extern void pit_outp(Bit32u, Bit8u);
+extern Bit8u pit_inp(ioport_t);
+extern void pit_outp(ioport_t, Bit8u);
 
 /* The divisor used to time faster-than-1sec activities (floppy,printer,
  * IPX) - see signal.c
@@ -204,8 +204,8 @@ int bogospeed(unsigned long *spus, unsigned long *sptick);
 
 /* --------------------------------------------------------------------- */
 
-extern Bit8u pit_control_inp(Bit32u);
-extern void pit_control_outp(Bit32u port, Bit8u val);
+extern Bit8u pit_control_inp(ioport_t);
+extern void pit_control_outp(ioport_t port, Bit8u val);
 extern void initialize_timers(void);
 extern void get_time_init(void);
 

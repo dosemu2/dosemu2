@@ -1118,7 +1118,7 @@ read_next_scancode_from_queue (void)
   k_printf ("start=%d, end=%d, LASTSCAN=%x\n", *scan_queue_start, *scan_queue_end, READ_WORD (LASTSCAN_ADD));
 }
 
-Bit8u keyb_io_read(Bit32u port)
+Bit8u keyb_io_read(ioport_t port)
 {
   int r=0;
   switch (port) {
@@ -1143,15 +1143,15 @@ Bit8u keyb_io_read(Bit32u port)
       keys_ready, microsoft_port_check);
     break;
   default: 
-    k_printf("KBD: Unsupported read from port 0x%lx\n", port); 
+    k_printf("KBD: Unsupported read from port 0x%x\n", port); 
   }
-  k_printf("KBD: 0x%lx inb = 0x%x\n", port, r);
+  k_printf("KBD: 0x%x inb = 0x%x\n", port, r);
   return r;
 }
 
-void keyb_io_write(Bit32u port, Bit8u byte)
+void keyb_io_write(ioport_t port, Bit8u byte)
 {
-  k_printf("KBD: 0x%lx outb = 0x%x\n", port, byte);
+  k_printf("KBD: 0x%x outb = 0x%x\n", port, byte);
   switch (port) {
   case 0x60:
     microsoft_port_check = 1;
@@ -1179,13 +1179,14 @@ void keyb_io_write(Bit32u port, Bit8u byte)
     k_printf("KBD: No action for port 0x64\n");
     break;
   default: 
-    k_printf("KBD: Unsupported write from to port 0x%lx of 0x%x\n",
+    k_printf("KBD: Unsupported write from to port 0x%x of 0x%x\n",
 	port, byte); 
   }
 }
 
 void keyb_init(void)
 {
+#ifdef NEW_PORT_CODE
   emu_iodev_t  io_device;
 
   /* 8042 keyboard controller */
@@ -1193,11 +1194,27 @@ void keyb_init(void)
   io_device.write_portb  = keyb_io_write;
   io_device.read_portw   = NULL;
   io_device.write_portw  = NULL;
-  io_device.handler_name = "8042 Keyboard controller";
+  io_device.read_portd   = NULL;
+  io_device.write_portd  = NULL;
+  io_device.handler_name = "8042 Keyboard data";
   io_device.start_addr   = 0x0060;
-  io_device.end_addr     = 0x0064;
+  io_device.end_addr     = 0x0060;
   io_device.irq          = 1;
-  port_register_handler(io_device);
+  io_device.fd           = -1;
+  port_register_handler(io_device, 0);
+
+  io_device.handler_name = "8042 Keyboard command";
+  io_device.start_addr   = 0x0064;
+  io_device.end_addr     = 0x0064;
+  io_device.irq 	 = EMU_NO_IRQ;
+  port_register_handler(io_device, 0);
+
+  /* with OLD_KEYBOARD_CODE, speaker goes to keyb_io */
+  io_device.handler_name = "Speaker port";
+  io_device.start_addr   = 0x0061;
+  io_device.end_addr     = 0x0061;
+  port_register_handler(io_device, config.speaker==SPKR_NATIVE? PORT_FAST:0);
+#endif
 }
 
 void keyb_reset(void)

@@ -118,9 +118,11 @@ __asm__("___START___: jmp _emulate\n");
 #include "serial.h"
 #include "int.h"
 #include "bitops.h"
+#include "port.h"
 #include "pic.h"
 #include "dpmi.h"
 #include "priv.h"   /* for priv_init */
+#include "port.h"   /* for port_init */
 #include "pci.h"
 #ifdef __NetBSD__
 #include <setjmp.h>
@@ -393,6 +395,7 @@ emulate(int argc, char **argv)
 
     get_time_init();		/* debug can use CPUtime */
     io_select_init();
+    port_init();		/* setup port structures, before config! */
     config_init(argc, argv);	/* parse the commands & config file(s) */
     get_time_init();
 #ifdef USE_THREADS
@@ -412,6 +415,9 @@ emulate(int argc, char **argv)
     cpu_setup();		/* setup the CPU */
     pci_setup();
     hardware_setup();		/* setup any hardware */
+#ifdef NEW_PORT_CODE
+    extra_port_init();		/* setup ports dependent on config */
+#endif
     memory_init();		/* initialize the memory contents */
     boot();			/* read the boot sector & get moving */
     timer_interrupt_init();	/* start sending int 8h int signals */

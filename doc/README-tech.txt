@@ -14,11 +14,13 @@
 
   2.      Accessing ports with dosemu
 
-  2.1.    System Integrity
+  2.1.    General
 
-  2.2.    System Security
+  2.2.    Port I/O access
 
-  2.3.    Speed
+  2.2.1.  System Integrity
+
+  2.2.2.  System Security
 
   3.      The Virtual Flags
 
@@ -302,48 +304,121 @@
 
   22..  AAcccceessssiinngg ppoorrttss wwiitthh ddoosseemmuu
 
-  Beside ports that certain dosemu-subsystems need, the system
-  administrator can allow access to specific ports. There are several
-  things to consider:
+  This section written by Alberto Vignani <vignani@mbox.vol.it> , Aug
+  10, 1997
+
+  22..11..  GGeenneerraall
+
+  For port I/O access the type iiooppoorrtt__tt has been defined; it should be
+  an unsigned short, but the previous unsigned int is retained for
+  compatibility. Also for compatibility, the order of parameters has
+  been kept as-is; new code should use the port_real_xxx(port,value)
+  function.  The new port code is selected at configuration time by the
+  parameter --enable-new-port which will define the macro NEW_PORT_CODE.
+  Files: portss.c is now no more used and has been replaced by
+  n_ports.c; all functions used by 'old' port code have been moved to
+  ports.c. Note that the code in portss.c (retrieved from Scott
+  Buchholz's pre-0.61) was previously disabled (not used), because it
+  had problems with older versions of dosemu.
+
+  The _r_e_p_;_i_n_,_o_u_t instructions will been optimized so to call iopl() only
+  once.
+
+  22..22..  PPoorrtt II//OO aacccceessss
+
+  Every process under Linux has a map of ports it is allowed to access.
+  Too bad this map covers only the first 1024 (0x400) ports. For all the
+  ports whose access permission is off, and all ports over 0x400, an
+  exception is generated and trapped by dosemu.
+
+  When the I/O permission (ioperm) bit for a port is ON, the time it
+  takes to access the port is much lower than a microsecond (30 cycles
+  on a P5-150); when the port is accessed from dosemu through the
+  exception mechanism, access times are in the range of tenths of us
+  (3000 cycles on the P5-150) instead.  It is easy to show that 99% of
+  this time is spent in the kernel trap and syscalls, and the influence
+  of the port selection method (table or switch) is actually minimal.
+
+  There is nothing we can do for ports over 0x400, only hope that these
+  slow access times are not critical for the hardware (generally they
+  are not) and use the largest possible word width (i.e. do not break
+  16- and 32-bit accesses).
+
+  The 'old' port code used a switch...case mechanism for accessing
+  ports, while now the table access (previously in the unused file
+  portss.c) has been chosen, as it is much more clear, easy to maintain
+  and not slower than the "giant switch" method (at least on pentium and
+  up).
+
+  There are two main tables in ports.c:
+
+  +o  the _p_o_r_t _t_a_b_l_e, a 64k char array indexed by port number and storing
+     the number of the handle to be used for that port. 0 means no
+     handle defined, valid range is 1-253, 0xfe and 0xff are reserved.
+
+  +o  the _h_a_n_d_l_e _t_a_b_l_e, an array of structures describing the properties
+     for a port group and its associated functions:
+
+       static struct _port_handler {
+             unsigned char(*read_portb)  (ioport_t port_addr);
+             void (*write_portb) (ioport_t port_addr, unsigned char byte);
+             unsigned short(*read_portw) (ioport_t port_addr);
+             void (*write_portw) (ioport_t port_addr, unsigned short word);
+             char *handler_name;
+             int irq, fd;
+       } port_handler[EMU_MAX_IO_DEVICES];
+
+  It works this way: when an I/O instruction is trapped (in do_vm86.c
+  and dpmi.c) the standard entry points _p_o_r_t___i_n_b_w_d_,_p_o_r_t___o_u_t_b_w_d are
+  called. They log the port access if specified and then perform a
+  double indexed jump into the port table to the function responsible
+  for the actual port access/emulation.
+
+  Ports must be _r_e_g_i_s_t_e_r_e_d before they can be used. This is the purpose
+  of the ppoorrtt__rreeggiisstteerr__hhaannddlleerr function, which is called from inside the
+  various device initializations in dosemu itself, and of ppoorrtt__aallllooww__iioo,
+  which is used for user-specified ports instead.  Some ports, esp.
+  those of the video adapter, are registered an trapped this way only
+  under X, while in console mode they are permanently enabled (ioperm
+  ON). The ioperm bit is also set to ON for the user-specified ports
+  below 0x400 defined as _f_a_s_t.  Of course, when a port has the ioperm
+  bit ON, it is not trapped, and thus cannot be traced from inside
+  dosemu.
+
+  There are other things to consider:
 
   +o  system integrity
 
   +o  system security
 
-  +o  speed
+  22..22..11..  SSyysstteemm IInntteeggrriittyy
 
-  22..11..  SSyysstteemm IInntteeggrriittyy
-
-  To block two programms from accessing a port without knowing that the
-  other programm does, this is the strategy dosemu takes.
+  To block two programs from accessing a port without knowing what the
+  other program does, this is the strategy dosemu takes:
 
   +o  If the port is not listed in /proc/ioports, no other program should
-     access the port. Dosemu will register theses ports. This will also
-     block a second dosemu-process from accessing this ports.
+     access the port. Dosemu will register these ports. This will also
+     block a second dosemu-process from accessing these ports.
+     Unfortunately there is _n_o _k_e_r_n_e_l _c_a_l_l _y_e_t for registering a port
+     range system-wide; see later for current hacks.
 
-  +o  If the port is listed, there's probbabbly a device that could use
+  +o  If the port is listed, there's probably a device that could use
      these ports. So we require the system administrator to give the
      name of the corresponding device. Dosemu tries to open this device
      and hopes this will block other from accessing. The parallel ports
      (0x378-0x37f) and /dev/lp1 act in this way.  To allow access to a
-     port registered in /proc/ioports, it is neccessary that the open on
-     the device given by the system administrator succeeds. An open
-     on/dev/null will always succeed, but useon your own risk.
+     port registered in /proc/ioports, it is necessary that the open on
+     the device given by the system administrator succeeds. An open on
+     /dev/null will always succeed, but use it at your own risk.
 
-  22..22..  SSyysstteemm SSeeccuurriittyy
+  22..22..22..  SSyysstteemm SSeeccuurriittyy
 
   If the strategy administrator did list ports in /etc/dosemu.conf and
-  allow a user listed in /etc/dosemu.users to use dosemu, (s)he must
-  know what he is doing.
-
-  22..33..  SSppeeeedd
-
-  For ports below 0x400, each process has a map af ports allowed to
-  access. If a port is allowed, vm86() dosen't produce an exception.
-  That way, dosemu has no way to log the values written to that port. To
-  log the value, the port may not be in that map while inside vm86().
-  This produces an exception, and dosemu can decide on a per incident
-  case what to do with that exception. But that is rather slow.
+  allows a user listed in /etc/dosemu.users to use dosemu, (s)he must
+  know what (s)he is doing. Port access is inherently dangerous, as the
+  system can easily be screwed up if something goes wrong: just think of
+  the blank screen you get when dosemu crashes without restoring screen
+  registers...
 
   33..  TThhee VViirrttuuaall FFllaaggss
 
@@ -618,6 +693,7 @@
   LDT directly to get it. Well, this is not problem with our user space
   LDT copy (LDT_ALIAS) as long as the DPMI client doesn't need a
   reliable information about the 'accessed bit'.
+
   In the older emumodule we had a so called KERNEL_LDT, which (readonly)
   accessed the LDT directly in kernel space. This now has been abandoned
   and we use some workarounds which may (or may not) work for the above
@@ -714,7 +790,6 @@
 
   +o  sigalrm now again checks the dirty bit(s) in vm86s.screen_bitmap
      before calling update_screen.
-
      At the moment, it doesn't seem to achieve much, but it might help
      when we use mark's scroll detector, and will be absolutely
      necessary for a good X graphics support.
@@ -732,6 +807,7 @@
 
   +o  fix bug: screen is not restored properly when killing dosemu in
      graphics mode
+
   +o  properly implement set_video_mode()   (int10.c)
 
   +o  cursor in console mode ok?
@@ -770,7 +846,6 @@
   +o  If you have a previous version of DOSEMU running, you should copy
      the hdimage drive that you boot from.  Some of these files have
      changed.
-
   66..11..33..  IIff yyoouu ddoonn''tt kknnooww hhooww ttoo ccooppyy ffiilleess ffrroomm//ttoo tthhee hhddiimmaaggee
 
   +o  Have a look at the recent mtools package (version 3.6 at time of
@@ -780,10 +855,10 @@
 
   then you can use _a_l_l _t_h_e _m_t_o_o_l _c_o_m_m_a_n_d_s to access it, such as
 
-      # mcopy g:autoexec.bat -
-      Copying autoexec.bat
-      @echo off
-      echo "Welcome to dosemu 0.66!"
+           # mcopy g:autoexec.bat -
+           Copying autoexec.bat
+           @echo off
+           echo "Welcome to dosemu 0.66!"
 
   77..  NNeeww KKeeyybbooaarrdd CCooddee
 
@@ -818,7 +893,6 @@
      (int9, bios etc.), and the `clients', which are the interfaces to
      the user frontends supported by dosemu. Currently, clients are
      `raw', `slang' (i.e. terminal), and `X'.
-
      Clients send keystrokes to the server through the interface
      mentioned above (which is defined in "keyboard.h"), the most
      important functions being `putkey()' and `putrawkey()'.
@@ -935,23 +1009,23 @@
 
   77..44..22..  TThhee FFrroonntt EEnndd
 
-   putrawkey() -------->----+
-        \   \               |
-         \   v              |
-          \  translate()    |
-           \     |          |
-            \    v          \    (t_rawkeycode[4])      /---QUEUE----\
-       /->---\---|-----------*------------------------> [ raw        ]
-      /       \  \  (t_keysym+char)                     [            ]
-   putkey() ->-\--*--------------> make_bios_code() --> [ bios_key   ]
-      \         \                                       [            ]
-       \         v                           /--------> [ shiftstate ]
-        \---> do_shift_keys()               /           \------------/
-                  |                        /
-                  v        (t_shiftstate) /
-              [shiftstate]---------------/
+        putrawkey() -------->----+
+             \   \               |
+              \   v              |
+               \  translate()    |
+                \     |          |
+                 \    v          \    (t_rawkeycode[4])      /---QUEUE----\
+            /->---\---|-----------*------------------------> [ raw        ]
+           /       \  \  (t_keysym+char)                     [            ]
+        putkey() ->-\--*--------------> make_bios_code() --> [ bios_key   ]
+           \         \                                       [            ]
+            \         v                           /--------> [ shiftstate ]
+             \---> do_shift_keys()               /           \------------/
+                       |                        /
+                       v        (t_shiftstate) /
+                   [shiftstate]---------------/
 
-  --------->  data flow (&calls, sometimes)
+       --------->  data flow (&calls, sometimes)
 
   77..44..22..11..  FFuunnccttiioonnss iinn sseerrvv__xxllaatt..cc
 
@@ -1196,7 +1270,6 @@
   values: "latin" "ibm" and "fullibm".   View ./video/terminal.h for
   more information on these character set.  Here are the instructions on
   how to activate the 8-bit graphical IBM character set for DOSEMU:
-
   88..11..11..  IIBBMM cchhaarraacctteerr sseett iinn aann xxtteerrmm
 
   GREAT NEWS: You just use your existing ordinary "rxvt" or "xterm".
@@ -1262,6 +1335,7 @@
 
   This files is some kind of FAQ on how to use the 'HogThreshold' value
   in the dosemu config file.
+
   In case you have more questions feel free to ask me (
   <andi@andiunx.m.isar.de>).
 
@@ -1304,7 +1378,6 @@
 
      HHooww ddoo II ffoouunndd oouutt aabboouutt CCPPUU uussaaggee ooff DDOOSSEEMMUU ??
         Simply use 'top'. It displays cpu and memory usage.
-
   P.S.  If you want to change the HogThreshold value during execution,
   simply call int e6h w/al=12h & bx=the new value.  This is what
   speed.com does. If you are interested, please take a look at speed.c.
@@ -1358,15 +1431,16 @@
 
   or
 
-               enter_priv_off();  /* need pure user access for 'do_something' */
-               do_something();
-               leave_priv_setting();
+          enter_priv_off();  /* need pure user access for 'do_something' */
+          do_something();
+          leave_priv_setting();
 
   +o  On enter_priv_XXX() the current state will be saved (pushed) on a
      socalled 'privilege stack' and restored (popped) by
      leave_priv_setting(); Hence, you never again have to worry about
      previous priv settings, and whenever you feel you need to switch
      off or on privs, you can do it without coming into trouble.
+
   +o  We now have the system calls (getuid, setreuid, etc.) _o_n_l_y in
      src/base/misc/priv.c. We cash the setting and don't do unnecessary
      systemcalls. Hence NEVER call 'getuid', 'setreuid' etc. yourself,
@@ -1580,7 +1654,6 @@
   specify almost any possible speed (e.g. 133.33... will become '400
   3'). You can even slow down dosemu for debugging purposes (only if
   using TSC, however).
-
   The speed value is internally converted into two pairs of integers of
   the form {multiplier,divider}, to avoid float calculations. The first
   pair is used for the 1-usec clock, the second one for the tick(838ns)
@@ -1682,18 +1755,18 @@
 
   Example:
 
-       /*
-        * DANG_BEGIN_MODULE
-        *
-        * This is the goobledygook module. It provides BAR services. Currently there
-        * are no facilities for mixing a 'FOO' cocktail. The stubs are in 'mix_foo()'.
-        *
-        * Maintainer:
-        *      Alistair MacDonald      <alistair@slitesys.demon.co.uk>
-        *      Foo Bar                 <foobar@inter.net.junk>
-        *
-        * DANG_END_MODULE
-        */
+  /*
+   * DANG_BEGIN_MODULE
+   *
+   * This is the goobledygook module. It provides BAR services. Currently there
+   * are no facilities for mixing a 'FOO' cocktail. The stubs are in 'mix_foo()'.
+   *
+   * Maintainer:
+   *      Alistair MacDonald      <alistair@slitesys.demon.co.uk>
+   *      Foo Bar                 <foobar@inter.net.junk>
+   *
+   * DANG_END_MODULE
+   */
 
   1133..55..11..  DDAANNGG__BBEEGGIINN__FFUUNNCCTTIIOONN // DDAANNGG__EENNDD__FFUUNNCCTTIIOONN
 
@@ -1736,15 +1809,15 @@
 
   Example:
 
-       /*
-        * DANG_BEGIN_REMARK
-        *
-        * We select the method of preparation of the cocktail, according to the type
-        * of cocktail being prepared. To do this we divide the cocktails up into :
-        * VERY_ALCHOHOLIC, MILDLY_ALCHOHOLIC & ALCOHOL_FREE
-        *
-        * DANG_END_REMARK
-        */
+  /*
+   * DANG_BEGIN_REMARK
+   *
+   * We select the method of preparation of the cocktail, according to the type
+   * of cocktail being prepared. To do this we divide the cocktails up into :
+   * VERY_ALCHOHOLIC, MILDLY_ALCHOHOLIC & ALCOHOL_FREE
+   *
+   * DANG_END_REMARK
+   */
 
   1133..55..33..  DDAANNGG__BBEEGGIINN__NNEEWWIIDDEEAA // DDAANNGG__EENNDD__NNEEWWIIDDEEAA
 
@@ -1755,16 +1828,16 @@
 
   Example:
 
-  /*
-   * DANG_BEGIN_NEWIDEA
-   *
-   * Rather than hard coding the names of the mixer functions we could try
-   * using an array constructed at compile time - Alistair
-   *
-   * How to we get the list of functions ? - Foo
-   *
-   * DANG_END_NEWIDEA
-   */
+       /*
+        * DANG_BEGIN_NEWIDEA
+        *
+        * Rather than hard coding the names of the mixer functions we could try
+        * using an array constructed at compile time - Alistair
+        *
+        * How to we get the list of functions ? - Foo
+        *
+        * DANG_END_NEWIDEA
+        */
 
   1133..55..44..  DDAANNGG__FFIIXXTTHHIISS
 
@@ -1871,6 +1944,7 @@
   +o  You _c_a_n_n_o_t skip section levels on the way down (ie you must go
      <sect>,<sect1>,<sect2> and not <sect>,<sect2>).  On the way back it
      doesn't matter!
+
   +o  Any text on the same line as the tag will be used to identify the
      section
 
@@ -2002,17 +2076,17 @@
 
   1177..22..  OOrriiggiinnaall DDOOSSEEMMUU ssoouunndd ccooddee
 
-           Copyright (C) 1995  Joel N. Weber II
+      Copyright (C) 1995  Joel N. Weber II
 
-           This sound code is free software; you can redistribute it and/or modify
-           it under the terms of the GNU General Public License as published by
-           the Free Software Foundation; either version 2 of the License, or
-           (at your option) any later version.
+      This sound code is free software; you can redistribute it and/or modify
+      it under the terms of the GNU General Public License as published by
+      the Free Software Foundation; either version 2 of the License, or
+      (at your option) any later version.
 
-           This program is distributed in the hope that it will be useful,
-           but WITHOUT ANY WARRANTY; without even the implied warranty of
-           MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-           GNU General Public License for more details.
+      This program is distributed in the hope that it will be useful,
+      but WITHOUT ANY WARRANTY; without even the implied warranty of
+      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+      GNU General Public License for more details.
 
   This is a very incomplete sound blaster pro emulator.  I recomend you
   get the PC Game Programmer's Encycolpedia; I give the URL at the end
@@ -2038,6 +2112,7 @@
   FM currently has been ignored.  Maybe there's a PCGPE newer than 1.0
   which describes the OPL3.  But I have an OPL3, and it would be nice if
   it emulated that.
+
   MIDI and joystick functions are ignored.  And I think that DOSEMU is
   supposed to already have good CDROM support, but I don't know how well
   audio CD players will work.

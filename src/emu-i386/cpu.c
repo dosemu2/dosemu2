@@ -216,6 +216,8 @@ do_soft_int(int intno)
   return 1;
 }
 
+#ifndef NEW_PORT_CODE
+
 static struct port_struct {
   int start;
   int size;
@@ -696,4 +698,4 @@ char safe_port_in_byte(const unsigned short port)
         return value;
 }
 
-
+#endif	/* NEW_PORT_CODE */

@@ -11,6 +11,7 @@
 #define VC_H
 
 #include <sys/types.h>
+#include "types.h"
 #include "emu.h"
 
 #include "extern.h"
@@ -184,8 +185,8 @@ extern int vga_drawscansegment(unsigned char *colors, int x, int y, int length);
 
 extern int vga_dumpregs(void);
 
-extern u_char video_port_in(int port);
-extern void video_port_out(u_char value, int port);
+extern unsigned char video_port_in(ioport_t port);
+extern void video_port_out(ioport_t port, unsigned char value);
 
 EXTERN int CRT_I, CRT_D, IS1_R, FCR_W;
 extern u_char att_d_index;

@@ -186,7 +186,7 @@ void vga_init_trident(void)
 
 static trident_old_regs = 0;
 
-u_char trident_ext_video_port_in(int port)
+u_char trident_ext_video_port_in(ioport_t port)
 {
   switch (port) {
   case SEQ_D:
@@ -246,7 +246,7 @@ u_char trident_ext_video_port_in(int port)
   return (0);
 }
 
-void trident_ext_video_port_out(u_char value, int port)
+void trident_ext_video_port_out(ioport_t port, u_char value)
 {
   switch (port) {
   case SEQ_D:

@@ -134,7 +134,7 @@ void sb_handle_sb20_dsp_probe (void);
 void sb16_dac(void);
 void sb16_adc(void);
 
-void sb_cms_write (Bit32u port, Bit8u value);
+void sb_cms_write (ioport_t port, Bit8u value);
 
 inline void sb_mixer_register_write (Bit8u value);
 void sb_mixer_data_write (Bit8u value);
@@ -239,9 +239,9 @@ __u8 dsp_read_output(void)
  * DANG_END_FUNCTION
  */
 
-Bit8u sb_io_read(Bit32u port)
+Bit8u sb_io_read(ioport_t port)
 {
-  __u32 addr;
+  ioport_t addr;
   __u8 value;
 
   addr = port - config.sb_base;
@@ -342,7 +342,7 @@ Bit8u sb_io_read(Bit32u port)
 		break;
 
    default:
-	S_printf("SB: %lx is an unhandled read port.\n", port);
+	S_printf("SB: %#x is an unhandled read port.\n", port);
 		return 0xFF;
 	};
 
@@ -497,25 +497,25 @@ Bit8u sb_get_mixer_IRQ_status (void)
  * DANG_END_FUNCTION
  */
 
-Bit8u adlib_io_read(Bit32u port)
+Bit8u adlib_io_read(ioport_t port)
 {
   /* Adlib Base Port is 0x388 */
   /* Adv. Adlib Base Port is 0x38A */
   
   switch (port){
   case 0x388:    
-    S_printf ("Adlib: Read from Adlib port (%lx)\n", port);
+    S_printf ("Adlib: Read from Adlib port (%#x)\n", port);
     return fm_io_read (ADLIB_STATUS);
   case 0x38A:    
-    S_printf ("Adv_Adlib: Read from Adlib Advanced port (%lx)\n", port);
+    S_printf ("Adv_Adlib: Read from Adlib Advanced port (%#x)\n", port);
     return fm_io_read (ADV_ADLIB_STATUS);
 	default:
-		S_printf("%lx is an unhandled read port\n", port);
+		S_printf("%#x is an unhandled read port\n", port);
   };
   return 0;
 }
 
-Bit8u fm_io_read (Bit32u port)
+Bit8u fm_io_read (ioport_t port)
 {
   extern struct adlib_info_t adlib_info;
   extern struct adlib_timer_t adlib_timers[2];
@@ -560,9 +560,9 @@ Bit8u fm_io_read (Bit32u port)
  * DANG_END_FUNCTION
  */
 
-Bit8u mpu401_io_read(Bit32u port)
+Bit8u mpu401_io_read(ioport_t port)
 {
-  __u32 addr;
+  ioport_t addr;
 	Bit8u r=0xff;
   
   addr = port - config.mpu401_base;
@@ -607,9 +607,9 @@ Bit8u mpu401_io_read(Bit32u port)
  * DANG_END_FUNCTION
  */
 
-void sb_io_write(Bit32u port, Bit8u value)
+void sb_io_write(ioport_t port, Bit8u value)
 {
-  __u32 addr;
+  ioport_t addr;
   
   addr = port - config.sb_base;
 
@@ -710,7 +710,7 @@ void sb_io_write(Bit32u port, Bit8u value)
 /*
  * DANG_FIXTHIS CMS Writes are unimplemented.
  */
-void sb_cms_write (Bit32u port, Bit8u value)
+void sb_cms_write (ioport_t port, Bit8u value)
 {
 	switch (port) {
 	case CMS_LOWER_DATA:
@@ -730,7 +730,7 @@ void sb_cms_write (Bit32u port, Bit8u value)
 		break;
 
 	default:
-		S_printf("SB: Invalid write to C/MS (0x%x, 0x%lx)\n", value,
+		S_printf("SB: Invalid write to C/MS (%#x, %#x)\n", value,
 			 port);
 	}
 }
@@ -1323,7 +1323,7 @@ void sb_set_speed (void)
 
 }
 
-void adlib_io_write(Bit32u port, Bit8u value)
+void adlib_io_write(ioport_t port, Bit8u value)
 {
     /* Base Port for Adlib is 0x388 */
     /* Base Port for Adv. Adlib is 0x38a */
@@ -1349,7 +1349,7 @@ void adlib_io_write(Bit32u port, Bit8u value)
     };
 }
 	
-void fm_io_write(Bit32u port, Bit8u value)
+void fm_io_write(ioport_t port, Bit8u value)
 {
   extern struct adlib_info_t adlib_info;
   extern struct adlib_timer_t adlib_timers[2];
@@ -1430,7 +1430,7 @@ void fm_io_write(Bit32u port, Bit8u value)
 }
 
 
-void mpu401_io_write(Bit32u port, Bit8u value)
+void mpu401_io_write(ioport_t port, Bit8u value)
 {
 	__u32 addr;
 
@@ -2192,7 +2192,9 @@ void sound_init(void)
 
 static void sb_init(void)
 {
+#ifdef NEW_PORT_CODE
   emu_iodev_t  io_device;
+#endif
 
   S_printf ("SB: SB Initialisation\n");
 
@@ -2244,16 +2246,21 @@ static void sb_init(void)
     return;
   }
 
+#ifdef NEW_PORT_CODE
   /* SB Emulation */
   io_device.read_portb   = sb_io_read;
   io_device.write_portb  = sb_io_write;
   io_device.read_portw   = NULL;
   io_device.write_portw  = NULL;
+  io_device.read_portd   = NULL;
+  io_device.write_portd  = NULL;
   io_device.handler_name = "SB Emulation";
   io_device.start_addr   = config.sb_base;
   io_device.end_addr     = config.sb_base+ 0x013;
   io_device.irq          = config.sb_irq;
-  port_register_handler(io_device);
+  io_device.fd           = -1;
+  port_register_handler(io_device, 0);
+#endif
 
   /* Register the Interrupt */
 
@@ -2270,36 +2277,54 @@ static void sb_init(void)
 
 static void fm_init(void)
 {
+#ifdef NEW_PORT_CODE
   emu_iodev_t  io_device;
+#endif
   
   S_printf ("SB: FM Initialisation\n");
 
+#ifdef NEW_PORT_CODE
   /* This is the FM (Adlib + Advanced Adlib) */
   io_device.read_portb   = adlib_io_read;
   io_device.write_portb  = adlib_io_write;
+  io_device.read_portw   = NULL;
+  io_device.write_portw  = NULL;
+  io_device.read_portd   = NULL;
+  io_device.write_portd  = NULL;
   io_device.handler_name = "Adlib (+ Advanced) Emulation";
   io_device.start_addr   = 0x388;
   io_device.end_addr     = 0x38B;
   io_device.irq          = EMU_NO_IRQ;
-  port_register_handler(io_device);
+  io_device.fd           = -1;
+  port_register_handler(io_device, 0);
+#endif
 
   FM_driver_init();
 }
 
 static void mpu401_init(void)
 {
+#ifdef NEW_PORT_CODE
   emu_iodev_t  io_device;
+#endif
   
   S_printf ("MPU401: MPU-401 Initialisation\n");
 
+#ifdef NEW_PORT_CODE
   /* This is the MPU-401 */
   io_device.read_portb   = mpu401_io_read;
   io_device.write_portb  = mpu401_io_write;
+  io_device.read_portw   = NULL;
+  io_device.write_portw  = NULL;
+  io_device.read_portd   = NULL;
+  io_device.write_portd  = NULL;
   io_device.handler_name = "Midi Emulation";
   io_device.start_addr   = config.mpu401_base;
   io_device.end_addr     = config.mpu401_base + 0x001;
   io_device.irq          = EMU_NO_IRQ;
-  port_register_handler(io_device);
+  io_device.fd           = -1;
+  port_register_handler(io_device, 0);
+#endif
 
   S_printf ("MPU401: MPU-401 Initialisation - Base 0x%03x \n", 
 	    config.mpu401_base);

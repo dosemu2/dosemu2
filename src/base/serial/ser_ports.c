@@ -924,7 +924,7 @@ put_msr(int num, int val)
  * DANG_END_FUNCTION
  */
 int
-do_serial_in(int num, int address)
+do_serial_in(int num, ioport_t address)
 {
   static int val;
   switch (address - com[num].base_port) {
@@ -1007,7 +1007,7 @@ do_serial_in(int num, int address)
  * DANG_END_FUNCTION
  */
 int
-do_serial_out(int num, int address, int val)
+do_serial_out(int num, ioport_t address, int val)
 {
   switch (address - com[num].base_port) {
   case UART_TX:		/* Write to Transmit Holding Register */

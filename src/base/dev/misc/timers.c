@@ -40,7 +40,6 @@
 #include "port.h"
 #include "timers.h"
 #include "iodev.h"
-#include "port.h"
 #include "int.h"
 #include "pic.h"
 #include "dpmi.h"
@@ -337,7 +336,7 @@ static void pit_latch(int latch)
 #endif
 }
 
-Bit8u pit_inp(Bit32u port)
+Bit8u pit_inp(ioport_t port)
 {
   int ret = 0;
   port -= 0x40;
@@ -379,7 +378,7 @@ Bit8u pit_inp(Bit32u port)
   return ret;
 }
 
-void pit_outp(Bit32u port, Bit8u val)
+void pit_outp(ioport_t port, Bit8u val)
 {
 
   port -= 0x40;
@@ -441,12 +440,12 @@ void pit_outp(Bit32u port, Bit8u val)
   }
 }
 
-Bit8u pit_control_inp(Bit32u port)
+Bit8u pit_control_inp(ioport_t port)
 {
   return 0;
 }
 
-void pit_control_outp(Bit32u port, Bit8u val)
+void pit_control_outp(ioport_t port, Bit8u val)
 {
   int latch = (val >> 6) & 0x03;
 
@@ -589,7 +588,7 @@ void timer_int_engine(void)
 #ifdef NEW_KBD_CODE
 /* reads/writes to the speaker control port (0x61)
  */
-Bit8u spkr_io_read(Bit32u port) {
+Bit8u spkr_io_read(ioport_t port) {
    if (port==0x61)  {
       if (config.speaker == SPKR_NATIVE)
          return port_safe_inb(0x61);
@@ -599,7 +598,7 @@ Bit8u spkr_io_read(Bit32u port) {
    return 0xff;
 }
 
-void spkr_io_write(Bit32u port, Bit8u value) {
+void spkr_io_write(ioport_t port, Bit8u value) {
    if (port==0x61) {
       switch (config.speaker) {
        case SPKR_NATIVE:
@@ -621,6 +620,7 @@ void spkr_io_write(Bit32u port, Bit8u value) {
 
 void pit_init(void)
 {
+#ifdef NEW_PORT_CODE
   emu_iodev_t  io_device;
 
   /* 8254 PIT (Programmable Interval Timer) */
@@ -628,32 +628,38 @@ void pit_init(void)
   io_device.write_portb  = pit_outp;
   io_device.read_portw   = NULL;
   io_device.write_portw  = NULL;
-  io_device.handler_name = "8254 PIT";
+  io_device.read_portd   = NULL;
+  io_device.write_portd  = NULL;
+  io_device.handler_name = "8254 Timer0";
   io_device.start_addr   = 0x0040;
-  io_device.end_addr     = 0x0042;
+  io_device.end_addr     = 0x0040;
   io_device.irq          = 0;
-  port_register_handler(io_device);
+  io_device.fd = -1;
+  port_register_handler(io_device, 0);
+
+  io_device.handler_name = "8254 Timer1";
+  io_device.start_addr = 0x0041;
+  io_device.end_addr = 0x0041;
+  io_device.irq = EMU_NO_IRQ;
+  port_register_handler(io_device, 0);
+
+  io_device.handler_name = "8254 Timer2";
+  io_device.start_addr = 0x0042;
+  io_device.end_addr = 0x0042;
+  port_register_handler(io_device, config.speaker==SPKR_NATIVE? PORT_FAST:0);
 
   io_device.read_portb   = pit_control_inp;
   io_device.write_portb  = pit_control_outp;
+  io_device.handler_name = "8254 Ctrl02";
   io_device.start_addr   = 0x0043;
   io_device.end_addr     = 0x0043;
-  port_register_handler(io_device);
+  port_register_handler(io_device, 0);
 
 #if 0
   io_device.start_addr   = 0x0047;
   io_device.end_addr     = 0x0047;
-  port_register_handler(io_device);
+  port_register_handler(io_device, 0);
 #endif
-
-#ifdef NEW_KBD_CODE /* This code conflicts with the old keyboard code! 16 Sept 96*/
-  io_device.read_portb   = spkr_io_read;
-  io_device.write_portb  = spkr_io_write;
-  io_device.handler_name = "Speaker port";
-  io_device.start_addr   = 0x0061;
-  io_device.end_addr     = 0x0061;
-  io_device.irq          = EMU_NO_IRQ;
-  port_register_handler(io_device);
 #endif
 }
 

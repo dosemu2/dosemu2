@@ -57,7 +57,7 @@ typedef struct serial_struct {
   char dev[255];		/* String to hold path to device file */
   int fd;			/* File descriptor of device */
   int real_comport;		/* The actual COMx port number. 0 for invalid */
-  int base_port;		/* Base port address handled by device */
+  ioport_t base_port;		/* Base port address handled by device */
   int interrupt;		/* IRQ line handled by device */
   boolean mouse;		/* Flag to turn on mouse sharing features */
   boolean dev_locked;           /* Flag to indicate that device is locked */
@@ -125,8 +125,8 @@ typedef struct serial_struct {
 EXTERN serial_t com[MAX_SER];
 extern void int14(u_char);
 extern inline void serial_run(void);
-extern inline int do_serial_in(int, int);
-extern inline int do_serial_out(int, int, int);
+extern inline int do_serial_in(int, ioport_t);
+extern inline int do_serial_out(int, ioport_t, int);
 extern void serial_helper();
 
 #endif /* SERIAL_H */

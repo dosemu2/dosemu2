@@ -63,13 +63,13 @@ void set_bank_write_dummy(u_char bank)
   return;
 }
 
-u_char dummy_ext_video_port_in(int port)
+u_char dummy_ext_video_port_in(ioport_t port)
 {
   v_printf("Bad Read on port 0x%04x\n", port);
   return (0);
 }
 
-void dummy_ext_video_port_out(u_char value, int port)
+void dummy_ext_video_port_out(ioport_t port, u_char value)
 {
   v_printf("Bad Write on port 0x%04x with value 0x%02x\n", port, value);
 }

@@ -8,9 +8,8 @@ EXTERN __u8 is_dma;     /* Active DMA channels mask */
 
 void dma_controller(void);
 
-/* AM - The "ports" are 32bit since that is what the 'emudev_t' requires. */
-Bit8u dma_io_read(Bit32u port);
-void dma_io_write(Bit32u port, Bit8u value);
+Bit8u dma_io_read(ioport_t port);
+void dma_io_write(ioport_t port, Bit8u value);
 
 /* This is the correct way to run the dma controller */
 

@@ -341,7 +341,7 @@ static void s3_set_bank(u_char bank)
 	out_crt(0x38, mode);
 }
 
-static u_char s3_ext_video_port_in(int port)
+static u_char s3_ext_video_port_in(ioport_t port)
 {
 	int x_reg;
 
@@ -370,7 +370,7 @@ static u_char s3_ext_video_port_in(int port)
 	return 0;
 }
 
-static void s3_ext_video_port_out(u_char value, int port)
+static void s3_ext_video_port_out(ioport_t port, u_char value)
 {
 	int x_reg;
 

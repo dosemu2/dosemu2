@@ -251,7 +251,7 @@ inb(unsigned int port)
     r = pit_inp((u_int)port);
     return r;
   case 0x43:
-    r = port_inb((u_int)port);
+    r = inb((u_int)port);
     return r;
   case 0x3ba:
   case 0x3da:
@@ -702,6 +702,88 @@ outd(unsigned int port, unsigned int value)
 }
 /* @@@ MOVE_END @@@ 32768 */
 
+
+/* The following functions were previously in portss.c */
+
+Bit8u port_safe_inb(Bit32u port)
+{
+  Bit8u res = 0;
+
+  i_printf("PORT: safe_inb ");
+  if (i_am_root) {
+    enter_priv_on();
+    iopl(3);
+    res = port_in(port);
+    iopl(0);
+
+    leave_priv_setting();
+  }
+  else
+    i_printf("want to ");
+  i_printf("in(%lx)", port);
+  if (i_am_root)
+    i_printf(" = %hx", res);
+  i_printf("\n");
+  return res;
+}
+
+void port_safe_outb(Bit32u port, Bit8u byte)
+{
+  i_printf("PORT: safe_outb ");
+  if (i_am_root) {
+    enter_priv_on();
+    iopl(3);
+    port_out(byte, port);
+    iopl(0);
+    leave_priv_setting();
+  }
+  else
+    i_printf("want to ");
+  i_printf("outb(%lx, %hx)\n", port, byte);
+}
+
+Bit16u port_safe_inw(Bit32u port)
+{
+  Bit16u res = 0;
+
+  i_printf("PORT: safe_inw ");
+  if (i_am_root) {
+    enter_priv_on();
+    iopl(3);
+    res = port_in_w(port);
+    iopl(0);
+    leave_priv_setting();
+  }
+  else
+    i_printf("want to ");
+  i_printf("inw(%lx)", port);
+  if (i_am_root)
+    i_printf(" = %x", res);
+  i_printf("\n");
+  return res;
+}
+
+void port_safe_outw(Bit32u port, Bit16u word)
+{
+  i_printf("PORT: safe_outw ");
+  if (i_am_root) {
+    enter_priv_on();
+    iopl(3);
+    port_out_w(word, port);
+    iopl(0);
+    leave_priv_setting();
+  }
+  else
+    i_printf("want to ");
+  i_printf("outw(%lx, %x)\n", port, word);
+}
+
+
+int port_init(void)
+{
+  /* this function intentionally left blank */
+  return 0;
+}
 
 
 /*  */

@@ -153,7 +153,7 @@ void vga_init_et4000(void)
   return;
 }
 
-u_char et4000_ext_video_port_in(int port)
+u_char et4000_ext_video_port_in(ioport_t port)
 {
   switch (port) {
   case 0x3c3:
@@ -233,7 +233,7 @@ u_char et4000_ext_video_port_in(int port)
   return (0);
 }
 
-void et4000_ext_video_port_out(u_char value, int port)
+void et4000_ext_video_port_out(ioport_t port, u_char value)
 {
   switch (port) {
   case 0x3c3:

@@ -11,9 +11,9 @@ EXTERN void (*save_ext_regs) (u_char xregs[], u_short xregs16[]);
 EXTERN void (*restore_ext_regs) (u_char xregs[], u_short xregs16[]);
 EXTERN void (*set_bank_read) (unsigned char bank);
 EXTERN void (*set_bank_write) (unsigned char bank);
-EXTERN void (*ext_video_port_out) (unsigned char value, int port);
+EXTERN void (*ext_video_port_out) (ioport_t port, unsigned char value);
 
-EXTERN u_char(*ext_video_port_in) (int port);
+EXTERN u_char(*ext_video_port_in) (ioport_t port);
 
 int vga_screenoff(void);
 int vga_screenon(void);
@@ -36,8 +36,8 @@ void save_ext_regs_dummy(u_char xregs[], u_short xregs16[]);
 void restore_ext_regs_dummy(u_char xregs[], u_short xregs16[]);
 void set_bank_read_dummy(u_char bank);
 void set_bank_write_dummy(u_char bank);
-u_char dummy_ext_video_port_in(int port);
-void dummy_ext_video_port_out(u_char value, int port);
+unsigned char dummy_ext_video_port_in(ioport_t port);
+void dummy_ext_video_port_out(ioport_t port, unsigned char value);
 
 #endif
 /* End of video/vga.h */

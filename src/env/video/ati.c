@@ -74,7 +74,7 @@ void vga_init_ati(void)
   return;
 }
 
-u_char ati_ext_video_port_in(int port)
+u_char ati_ext_video_port_in(ioport_t port)
 {
 /* FIXME - bad v_print messages */
 
@@ -152,7 +152,7 @@ u_char ati_ext_video_port_in(int port)
   return (0);
 }
 
-void ati_ext_video_port_out(u_char value, int port)
+void ati_ext_video_port_out(ioport_t port, u_char value)
 {
   switch (port) {
   case 0x1ce:

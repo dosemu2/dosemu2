@@ -30,6 +30,10 @@ ifdef NEW_X_CODE
   export NEW_X_CODE
 endif
 
+@NEW_PORT_CODE@
+ifdef NEW_PORT_CODE
+  export NEW_PORT_CODE
+endif
 
 export _LD86_=@LD86@
 export _AS86_=@AS86@

@@ -151,13 +151,13 @@ static int cirrusReprogrammedMCLK = 0;
 
  */
 
-static void wrinx(const int port, const int index, const int value)
+static inline void wrinx(const ioport_t port, const int index, const u_char value)
 {
 	port_out(index, port);
 	port_out(value, port+1);
 }
 
-static int rdinx(const int port, const int index)
+static inline int rdinx(const ioport_t port, const int index)
 {
 	port_out(index, port);
 	return (port_in(port+1) & 0xff);

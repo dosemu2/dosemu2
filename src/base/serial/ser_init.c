@@ -294,7 +294,7 @@ static int ser_close(int num)
 #endif
 
 Bit8u
-com_readb(Bit32u port) {
+com_readb(ioport_t port) {
   int tmp;
   for (tmp = 0; tmp < config.num_ser; tmp++) {
     if (((u_short)(port & ~7)) == com[tmp].base_port) {
@@ -305,7 +305,7 @@ com_readb(Bit32u port) {
 }
 
 void
-com_writeb(Bit32u port, Bit8u value) {
+com_writeb(ioport_t port, Bit8u value) {
   int tmp;
   for (tmp = 0; tmp < config.num_ser; tmp++) {
     if (((u_short)(port & ~7)) == com[tmp].base_port) {
@@ -322,7 +322,9 @@ com_writeb(Bit32u port, Bit8u value) {
  */
 static void do_ser_init(int num)
 {
+#ifdef NEW_PORT_CODE
   emu_iodev_t io_device;
+#endif
   int data = 0;
   int i;
   
@@ -392,12 +394,16 @@ static void do_ser_init(int num)
 
   /*** The following is where the real initialization begins ***/
 
+#ifdef NEW_PORT_CODE
   /* Tell the port manager that we exist and that we're alive */
   io_device.read_portw  = NULL;
   io_device.write_portw = NULL;
+  io_device.read_portd  = NULL;
+  io_device.write_portd = NULL;
   io_device.start_addr  = com[num].base_port;
   io_device.end_addr    = com[num].base_port+7;
-  io_device.irq         = EMU_NO_IRQ;
+  io_device.irq         = com[num].interrupt;
+  io_device.fd		= -1;
   switch (num) {
     case 0 :
       io_device.read_portb   = com_readb;
@@ -419,8 +425,9 @@ static void do_ser_init(int num)
       io_device.write_portb  = com_writeb;
       io_device.handler_name = "COM4";
       break;
-    }
-  port_register_handler(io_device);
+  }
+  port_register_handler(io_device, 0);
+#endif
 
   /* Information about serial port added to debug file */
   s_printf("SER%d: COM%d, intlevel=%d, base=0x%x, device=%s\n", 

@@ -199,58 +199,74 @@ void mda_reinitialize(void)
   /* Values from c't 10/88 page 216 */
 
   /* horizontal length in chars-1 */
-  outb( 0x03b4,0); outb( 0x03b5,97);
+  port_real_outb(0x03b4, 0);
+  port_real_outb(0x03b5, 97);
 
   /* horizontal displayed */
-  outb(0x03b4,1); outb( 0x03b5,80);
+  port_real_outb(0x03b4, 1);
+  port_real_outb(0x03b5, 80);
 
   /* horizontal sync position */
-  outb(0x03b4,2); outb( 82,0x03b5);
+  port_real_outb(0x03b4, 2);
+  port_real_outb(0x03b5, 82);
 
   /* horizontal sync width */
-  outb(0x03b4,3); outb( 0x03b5,15);
+  port_real_outb(0x03b4, 3);
+  port_real_outb(0x03b5, 15);
 
   /* vertical total height in chars-1 */
-  outb(0x03b4,4); outb( 0x03b5,25);
+  port_real_outb(0x03b4, 4);
+  port_real_outb(0x03b5, 25);
 
   /* vertical adjust */
-  outb(0x03b4,5); outb( 0x03b5,6);
+  port_real_outb(0x03b4, 5);
+  port_real_outb(0x03b5, 6);
 
   /* vertical displayed */
-  outb(0x03b4,6); outb( 0x03b5,25);
+  port_real_outb(0x03b4, 6);
+  port_real_outb(0x03b5, 25);
 
   /* vertical sync position */
-  outb(0x03b4,7); outb( 0x03b5,25);
+  port_real_outb(0x03b4, 7);
+  port_real_outb(0x03b5, 25);
 
   /* interlace mode */
-  outb(0x03b4,8); outb( 0x03b5,2);
+  port_real_outb(0x03b4, 8);
+  port_real_outb(0x03b5, 2);
 
   /* max. scan line address  */
-  outb(0x03b4,9); outb( 0x03b5,13);
+  port_real_outb(0x03b4, 9);
+  port_real_outb(0x03b5, 13);
 
   /* cursor start */
-  outb(0x03b4,10); outb( 0x03b5,12);
+  port_real_outb(0x03b4, 10);
+  port_real_outb(0x03b5, 12);
 
   /* cursor end */
-  outb(0x03b4,11); outb( 0x03b5,12);
+  port_real_outb(0x03b4, 11);
+  port_real_outb(0x03b5, 12);
 
   /* start address high */
-  outb(0x03b4,12); outb( 0x03b5,0);
+  port_real_outb(0x03b4, 12);
+  port_real_outb(0x03b5, 0);
 
   /* start address low */
-  outb(0x03b4,13); outb( 0x03b5,0);
+  port_real_outb(0x03b4, 13);
+  port_real_outb(0x03b5, 0);
 
   /* cursor address high */
-  outb(0x03b4,14); outb( 0x03b5,0);
+  port_real_outb(0x03b4, 14);
+  port_real_outb(0x03b5, 0);
 
   /* cursor address low */
-  outb(0x03b4,15); outb( 0x03b5,0);
+  port_real_outb(0x03b4, 15);
+  port_real_outb(0x03b5, 0);
 
   /* Graphics allowed with 1 page (half mode) */
-  outb(0x03bf,1);
+  port_real_outb(0x03bf, 1);
 
   /* Texmode, screen & cursor visible, page 0 */
-  outb(0x03b8,0x28);
+  port_real_outb(0x03b8, 0x28);
 #endif
 
 
@@ -489,7 +505,7 @@ int hgc_init(void)
 int hgc_setmode(int type, int xsize,int ysize)
 {
   mda_reinitialize();
-    /* outb(0x03b8, 0x28); */ /* 6845: text, visible, page0, cursor */
+    /* port_real_outb(0x03b8, 0x28); *//* 6845: text, visible, page0, cursor */
   return 0;
 }
 

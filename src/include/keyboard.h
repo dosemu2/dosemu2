@@ -2,21 +2,20 @@
 #define _KEYBOARD_H
 
 #include "config.h"
+#include "types.h"
 
 #ifndef NEW_KBD_CODE
 
 #include "extern.h"
-#include "types.h"
-EXTERN Bit8u keyb_io_read(Bit32u);
-EXTERN void keyb_io_write(Bit32u port, Bit8u byte);
+
+EXTERN Bit8u keyb_io_read(ioport_t);
+EXTERN void keyb_io_write(ioport_t port, Bit8u byte);
 EXTERN void keyb_init(void);
 EXTERN void keyb_reset(void);
 
 #else /* NEW_KBD_CODE */
 
 /* keyboard related PUBLIC definitions (for keyboard clients) */
-
-#include "types.h"
 
 #ifndef __ASM__
 

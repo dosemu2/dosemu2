@@ -436,7 +436,7 @@ Bit16u length_transferred (int controller, int channel)
 	  - get_value (dma[controller].length[channel]) );
 }
 
-Bit8u dma_io_read(Bit32u port)
+Bit8u dma_io_read(ioport_t port)
 {
   Bit8u r;
 
@@ -552,7 +552,7 @@ inline void dma_write_mask (int dma_c, Bit8u value)
 
 
 
-void dma_io_write(Bit32u port, Bit8u value)
+void dma_io_write(ioport_t port, Bit8u value)
 {
   Bit8u ch;
 
@@ -1609,15 +1609,19 @@ size_t dma_do_read(int controller, int channel, Bit32u target_addr)
 
 void dma_init(void)
 {
-  emu_iodev_t  io_device;
   int i, j;
+#ifdef NEW_PORT_CODE
+  emu_iodev_t  io_device;
   
   /* 8237 DMA controller */
   io_device.read_portb   = dma_io_read;
   io_device.write_portb  = dma_io_write;
   io_device.read_portw   = NULL;
   io_device.write_portw  = NULL;
+  io_device.read_portd   = NULL;
+  io_device.write_portd  = NULL;
   io_device.irq          = EMU_NO_IRQ;
+  io_device.fd           = -1;
 
   /*
    * XT Controller 
@@ -1625,7 +1629,7 @@ void dma_init(void)
   io_device.start_addr   = 0x0000;
   io_device.end_addr     = 0x000F;
   io_device.handler_name = "DMA - XT Controller";
-  port_register_handler(io_device);
+  port_register_handler(io_device, 0);
 
   /*
    * Page Registers (XT)
@@ -1633,7 +1637,7 @@ void dma_init(void)
   io_device.start_addr   = 0x0081;
   io_device.end_addr     = 0x0087;
   io_device.handler_name = "DMA - XT Pages";
-  port_register_handler(io_device);
+  port_register_handler(io_device, 0);
 
   /*
    * AT Controller
@@ -1641,7 +1645,7 @@ void dma_init(void)
   io_device.start_addr   = 0x00C0;
   io_device.end_addr     = 0x00DE;
   io_device.handler_name = "DMA - AT Controller";
-  port_register_handler(io_device);
+  port_register_handler(io_device, 0);
 
   /*
    * Page Registers (AT)
@@ -1649,7 +1653,8 @@ void dma_init(void)
   io_device.start_addr   = 0x0089;
   io_device.end_addr     = 0x008A;
   io_device.handler_name = "DMA - AT Pages";
-  port_register_handler(io_device);
+  port_register_handler(io_device, 0);
+#endif
 
   for (i = 0; i < 2; i++) {
     for (j = 0; j < 5; j++) {

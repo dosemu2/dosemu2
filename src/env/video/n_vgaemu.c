@@ -173,7 +173,7 @@ vga_type vga;
  *
  */
 
-void VGA_emulate_outb(Bit32u port, Bit8u value)
+void VGA_emulate_outb(ioport_t port, Bit8u value)
 {
 #ifdef DEBUG_IO
   v_printf("VGAemu: VGA_emulate_outb(): outb(0x%03x, 0x%02x)\n", (unsigned) port, (unsigned) value);
@@ -252,7 +252,7 @@ void VGA_emulate_outb(Bit32u port, Bit8u value)
  *
  */
 
-Bit8u VGA_emulate_inb(Bit32u port)
+Bit8u VGA_emulate_inb(ioport_t port)
 {
   Bit8u uc = 0xff;
 
@@ -604,7 +604,9 @@ int vga_emu_init(vgaemu_display_type *vedt)
 {
   int i;
   vga_mapping_type vmt = {0, 0, 0};
+#ifdef NEW_PORT_CODE
   emu_iodev_t io_device;
+#endif
   static unsigned char *lfb_base = NULL;
 
   if(config.vgaemu_memsize)
@@ -672,36 +674,41 @@ int vga_emu_init(vgaemu_display_type *vedt)
   Seq_init();
   CRTC_init();
 
+#ifdef NEW_PORT_CODE
   /* register VGA ports */
   io_device.read_portb = VGA_emulate_inb;
   io_device.write_portb = VGA_emulate_outb;
   io_device.read_portw = NULL;
   io_device.write_portw = NULL;
+  io_device.read_portd = NULL;
+  io_device.write_portd = NULL;
   io_device.irq = EMU_NO_IRQ;
+  io_device.fd = -1;
   
   /* register attribute controller */
   io_device.handler_name = "VGAEmu Attribute controller";
   io_device.start_addr = ATTRIBUTE_INDEX;
   io_device.end_addr = INPUT_STATUS_0;
-  port_register_handler(io_device);
+  port_register_handler(io_device, 0);
 
   /* register sequencer */
   io_device.handler_name = "VGAEmu Sequencer";
   io_device.start_addr = SEQUENCER_INDEX;
   io_device.end_addr = SEQUENCER_DATA;
-  port_register_handler(io_device);
+  port_register_handler(io_device, 0);
 
   /* register DAC */
   io_device.handler_name = "VGAEmu DAC";
   io_device.start_addr = DAC_BASE;
   io_device.end_addr = DAC_DATA;
-  port_register_handler(io_device);
+  port_register_handler(io_device, 0);
 
   /* register CRT controller */
   io_device.handler_name = "VGAEmu CRT Controller";
   io_device.start_addr = CRTC_INDEX;
   io_device.end_addr = CRTC_DATA;
-  port_register_handler(io_device);
+  port_register_handler(io_device, 0);
+#endif
 
   vbe_init(vedt);
 

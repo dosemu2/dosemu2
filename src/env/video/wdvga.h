@@ -1,7 +1,7 @@
 extern void vga_init_wd(void);
 
-extern unsigned char wd_ext_video_port_in(Bit16u port);
-extern void wd_ext_video_port_out(Bit16u port, unsigned char value);
+extern u_char wd_ext_video_port_in(ioport_t port);
+extern void wd_ext_video_port_out(ioport_t port, u_char value);
 
 extern void wd_set_bank_read(u_char bank);
 extern void wd_set_bank_write(u_char bank);

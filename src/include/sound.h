@@ -265,15 +265,15 @@ EXTERN struct SB_queue_t {
  * The definitions needed for setting up the device structures.
  */
 
-extern void adlib_io_write  (Bit32u addr, Bit8u value); /* Stray */
+extern void adlib_io_write  (ioport_t addr, Bit8u value); /* Stray */
 extern int sb_dma_handler (int status, Bit16u amount); /* Stray */
 
-extern void sb_io_write     (Bit32u addr, Bit8u value);
-extern void fm_io_write     (Bit32u addr, Bit8u value);
-extern void mpu401_io_write (Bit32u addr, Bit8u value);
-extern Bit8u sb_io_read     (Bit32u addr);
-extern Bit8u fm_io_read     (Bit32u addr);
-extern Bit8u mpu401_io_read (Bit32u addr);
+extern void sb_io_write     (ioport_t addr, Bit8u value);
+extern void fm_io_write     (ioport_t addr, Bit8u value);
+extern void mpu401_io_write (ioport_t addr, Bit8u value);
+extern unsigned char sb_io_read      (ioport_t addr);
+extern unsigned char fm_io_read      (ioport_t addr);
+extern unsigned char mpu401_io_read  (ioport_t addr);
 extern void sound_init      (void);
 extern void sound_reset     (void);
 

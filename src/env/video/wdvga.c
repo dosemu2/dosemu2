@@ -173,13 +173,13 @@ void vga_init_wd(void)
   return;
 }
 
-unsigned char wd_ext_video_port_in(Bit16u port)
+unsigned char wd_ext_video_port_in(ioport_t port)
 {
   v_printf("Bad Read on port 0x%04x\n", port);
   return (0);
 }
 
-void wd_ext_video_port_out(Bit16u port, unsigned char value)
+void wd_ext_video_port_out(ioport_t port, u_char value)
 {
   v_printf("Bad Write on port 0x%04x with value 0x%02x\n", port, value);
 }

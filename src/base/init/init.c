@@ -523,8 +523,6 @@ void memory_init(void)
  */
 void device_init(void)
 {
-  port_init();
-
 #ifdef NEW_KBD_CODE
   /* check whether we are running on the console */
   check_console();

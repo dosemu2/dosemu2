@@ -6,6 +6,7 @@
 #ifndef _PORT_H
 #define _PORT_H
 
+#include "config.h"
 #include "types.h"
 
 /* port i/o privileges */
@@ -13,12 +14,14 @@
 #define IO_WRITE 2
 #define IO_RDWR	 (IO_READ | IO_WRITE)
 
+#ifndef NEW_PORT_CODE
 /*
  * maximum number of emulated devices allowed.  floppy, mda, etc...
  * you can increase this to anything below 256 since an 8-bit handle
  * is used for each device
  */
 #define EMU_MAX_IO_DEVICES 0x20
+#endif
 
 /*
  * number of IRQ lines supported.  In an ISA PC there are two
@@ -30,25 +33,25 @@
 #define EMU_NO_IRQ   0xffff
 
 typedef struct {
-  Bit8u         (* read_portb)(Bit32u port);
-  void          (* write_portb)(Bit32u port, Bit8u byte);
-  Bit16u        (* read_portw)(Bit32u port);
-  void          (* write_portw)(Bit32u port, Bit16u word);
-  Bit32u        (* read_portd)(Bit32u port);
-  void          (* write_portd)(Bit32u port, Bit32u word);
+  Bit8u         (* read_portb)(ioport_t port);
+  void          (* write_portb)(ioport_t port, Bit8u byte);
+  Bit16u        (* read_portw)(ioport_t port);
+  void          (* write_portw)(ioport_t port, Bit16u word);
+  Bit32u        (* read_portd)(ioport_t port);
+  void          (* write_portd)(ioport_t port, Bit32u word);
   const char    *handler_name;
-  Bit32u        start_addr;
-  Bit32u        end_addr;
-  int           irq;
+  ioport_t      start_addr;
+  ioport_t      end_addr;
+  int           irq, fd;
   } emu_iodev_t;
 
-static __inline__ void port_real_outb(Bit16u port, Bit8u value)
+static __inline__ void port_real_outb(ioport_t port, Bit8u value)
 {
   __asm__ volatile ("outb %0,%1"
 		    ::"a" ((Bit8u) value), "d"((Bit16u) port));
 }
 
-static __inline__ Bit8u port_real_inb(Bit16u port)
+static __inline__ Bit8u port_real_inb(ioport_t port)
 {
   Bit8u _v;
   __asm__ volatile ("inb %1,%0"
@@ -56,78 +59,80 @@ static __inline__ Bit8u port_real_inb(Bit16u port)
   return _v;
 }
 
-static __inline__ void port_real_outw(Bit16u port, Bit16u value)
+static __inline__ void port_real_outw(ioport_t port, Bit16u value)
 {
   __asm__("outw %0,%1" :: "a" ((Bit16u) value),
 		"d" ((Bit16u) port));
 }
 
-static __inline__ Bit16u port_real_inw(Bit16u port)
+static __inline__ Bit16u port_real_inw(ioport_t port)
 {
   Bit16u _v;
   __asm__("inw %1,%0":"=a" (_v) : "d" ((Bit16u) port));
   return _v;
 }
 
-static __inline__ void port_real_outd(Bit16u port, Bit32u value)
+static __inline__ void port_real_outd(ioport_t port, Bit32u value)
 {
   __asm__ __volatile__ ("outl %0,%1" : : "a" (value),
-		"d" (port));
-}
-
-static __inline__ Bit32u port_real_ind(Bit16u port)
-{
-  unsigned int _v;
-  __asm__ __volatile__ ("inl %1,%0":"=a" (_v) : "d" (port));
-  return _v;
-}
-
-
-static __inline__ void port_out(Bit8u value, Bit32u port)
-{
-  __asm__ volatile ("outb %0,%1"
-		    ::"a" ((char) value), "d"((Bit16u) port));
-}
-
-static __inline__ Bit8u port_in(Bit32u port)
-{
-  Bit8u _v;
-  __asm__ volatile ("inb %1,%0"
-		    :"=a" (_v):"d"((Bit16u) port));
-  return _v;
-}
-
-static __inline__ void port_out_w(Bit16u value, Bit32u port)
-{
-  __asm__("outw %0,%1" :: "a" ((Bit16u) value),
 		"d" ((Bit16u) port));
 }
 
-static __inline__ Bit16u port_in_w(Bit32u port)
+static __inline__ Bit32u port_real_ind(ioport_t port)
 {
-  Bit16u _v;
-  __asm__("inw %1,%0":"=a" (_v) : "d" ((Bit16u) port));
+  Bit32u _v;
+  __asm__ __volatile__ ("inl %1,%0":"=a" (_v) : "d" ((Bit16u) port));
   return _v;
 }
 
-extern Bit8u   port_inb(Bit32u port);
-extern Bit16u  port_inw(Bit32u port);
-extern Bit32u  port_ind(Bit32u port);
-extern void    port_outb(Bit32u port, Bit8u byte);
-extern void    port_outw(Bit32u port, Bit16u word);
-extern void    port_outd(Bit32u port, Bit32u word);
 
+/* These are for compatibility */
+#define port_in(p)	port_real_inb((p))
+#define port_out(v,p)	port_real_outb((p),(v))
+#define port_in_w(p)	port_real_inw((p))
+#define port_out_w(v,p)	port_real_outw((p),(v))
+
+
+extern Bit8u   port_inb(ioport_t port);
+extern Bit16u  port_inw(ioport_t port);
+extern Bit32u  port_ind(ioport_t port);
+extern void    port_outb(ioport_t port, Bit8u byte);
+extern void    port_outw(ioport_t port, Bit16u word);
+extern void    port_outd(ioport_t port, Bit32u word);
+
+#ifdef NEW_PORT_CODE
+extern Bit8u  std_port_inb(ioport_t port);
+extern void   std_port_outb(ioport_t port, Bit8u byte);
+extern Bit16u std_port_inw(ioport_t port);
+extern void   std_port_outw(ioport_t port, Bit16u word);
+extern Bit32u std_port_ind(ioport_t port);
+extern void   std_port_outd(ioport_t port, Bit32u word);
+
+#define inb			port_inb
+#define inw			port_inw
+#define ind			port_ind
+#define outb			port_outb
+#define outw			port_outw
+#define outd			port_outd
+#define safe_port_in_byte	std_port_inb
+#define safe_port_out_byte	std_port_outb
+#define port_safe_inb		std_port_inb
+#define port_safe_outb		std_port_outb
+#define port_safe_inw		std_port_inw
+#define port_safe_outw		std_port_outw
+
+extern int extra_port_init(void);
+extern void release_ports(void);
+
+#define PORT_FAST	1
+#define PORT_DEV_RD	2
+#define PORT_DEV_WR	4
+
+#else
 extern Bit8u   port_safe_inb(Bit32u port);
 extern void    port_safe_outb(Bit32u port, Bit8u byte);
 extern Bit16u  port_safe_inw(Bit32u port);
 extern void    port_safe_outw(Bit32u port, Bit16u word);
-
-extern void    port_init(void);
-extern void    port_register_handler(emu_iodev_t info);
-extern Boolean port_allow_io(Bit16u, Bit16u, int, Bit8u, Bit8u);
-
-extern int     set_ioperm(int, int, int);
-
 
 extern char safe_port_in_byte(const unsigned short port);
 extern void safe_port_out_byte(const unsigned short port, const unsigned char byte);
@@ -138,5 +143,13 @@ extern unsigned int inw(int port);
 extern unsigned int ind(int port);
 extern void outw(unsigned int port, unsigned int value);
 extern void outd(unsigned int port, unsigned int value);
+
+#endif
+
+extern int     port_init(void);
+extern int     port_register_handler(emu_iodev_t info, int);
+extern Boolean port_allow_io(ioport_t, Bit16u, int, Bit8u, Bit8u, unsigned int,
+	char *);
+extern int     set_ioperm(int start, int size, int flag);
 
 #endif /* _PORT_H */

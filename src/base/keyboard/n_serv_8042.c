@@ -23,6 +23,7 @@
 #include "memory.h"
 #include "keyboard.h"
 #include "keyb_server.h"
+#include "speaker.h"
 
 #ifndef NEW_KBD_CODE
 #error serv_8042.c is for new keyboard code only!
@@ -265,7 +266,7 @@ static Bit8u read_port60(void)
 }
 
 
-Bit8u keyb_io_read(Bit32u port)
+Bit8u keyb_io_read(ioport_t port)
 {
   Bit8u r = 0;
 
@@ -291,7 +292,7 @@ Bit8u keyb_io_read(Bit32u port)
   return r;
 }
 
-void keyb_io_write(Bit32u port, Bit8u value)
+void keyb_io_write(ioport_t port, Bit8u value)
 {
   switch (port) {
   case 0x60:
@@ -336,6 +337,7 @@ void do_irq1() {
 
 void keyb_8042_init(void)
 {
+#ifdef NEW_PORT_CODE
   emu_iodev_t  io_device;
 
   /* 8042 keyboard controller */
@@ -343,15 +345,30 @@ void keyb_8042_init(void)
   io_device.write_portb  = keyb_io_write;
   io_device.read_portw   = NULL;
   io_device.write_portw  = NULL;
-  io_device.handler_name = "8042 Keyboard controller";
+  io_device.read_portd   = NULL;
+  io_device.write_portd  = NULL;
+  io_device.handler_name = "8042 Keyboard data";
   io_device.start_addr   = 0x0060;
   io_device.end_addr     = 0x0060;
   io_device.irq          = 1;
-  port_register_handler(io_device);
+  io_device.fd 	   = -1;
+  port_register_handler(io_device, 0);
+
+  io_device.handler_name = "8042 Keyboard command";
   io_device.start_addr   = 0x0064;
   io_device.end_addr     = 0x0064;
-  port_register_handler(io_device);
-  
+  io_device.irq 	 = EMU_NO_IRQ;
+  port_register_handler(io_device, 0);
+
+#ifdef NEW_KBD_CODE
+  io_device.read_portb   = spkr_io_read;
+  io_device.write_portb  = spkr_io_write;
+  io_device.handler_name = "Speaker port";
+  io_device.start_addr   = 0x0061;
+  io_device.end_addr     = 0x0061;
+  port_register_handler(io_device, config.speaker==SPKR_NATIVE? PORT_FAST:0);
+#endif
+#endif
   if (config.keybint) {
      pic_seti(PIC_IRQ1, do_irq1, 0);     /* init keyboard interrupt */
      pic_unmaski(PIC_IRQ1);

@@ -171,6 +171,9 @@
 /* Define this to use the new keyboard code */
 #undef NEW_KBD_CODE
 
+/* Define this to use the new port I/O code */
+#undef NEW_PORT_CODE
+
 /*
  * This is DEFINED when SB emulation is required. Just changing this is not
  * enough - you must reconfigure.

@@ -2,6 +2,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include "timers.h"
 #include "slang.h"
 
 #ifndef SLANG_VERSION

@@ -185,8 +185,8 @@ enum cirrusChipTable {
 
 extern void vga_init_cirrus(void);
 
-extern u_char cirrus_ext_video_port_in(int port);
-extern void cirrus_ext_video_port_out(u_char value, int port); 
+extern unsigned char cirrus_ext_video_port_in(ioport_t port);
+extern void cirrus_ext_video_port_out(ioport_t port, unsigned char value);
 
 extern void cirrus_set_bank_read(u_char bank);
 extern void cirrus_set_bank_write(u_char bank);

@@ -97,7 +97,7 @@ cmos_chksum(void)
 }
 
 Bit8u
-cmos_read(Bit32u port)
+cmos_read(ioport_t port)
 {
   unsigned char holder = 0;
 
@@ -152,7 +152,7 @@ cmos_read(Bit32u port)
 }
 
 void
-cmos_write(Bit32u port, Bit8u byte)
+cmos_write(ioport_t port, Bit8u byte)
 {
   if (port == 0x70)
     cmos.address = byte & ~0xc0;/* get true address */
@@ -168,6 +168,7 @@ cmos_write(Bit32u port, Bit8u byte)
 
 void cmos_init(void)
 {
+#ifdef NEW_PORT_CODE
   emu_iodev_t  io_device;
 
   /* CMOS RAM & RTC */
@@ -175,11 +176,15 @@ void cmos_init(void)
   io_device.write_portb  = cmos_write;
   io_device.read_portw   = NULL;
   io_device.write_portw  = NULL;
+  io_device.read_portd   = NULL;
+  io_device.write_portd  = NULL;
   io_device.handler_name = "CMOS RAM";
   io_device.start_addr   = 0x0070;
   io_device.end_addr     = 0x0071;
   io_device.irq          = EMU_NO_IRQ;
-  port_register_handler(io_device);
+  io_device.fd           = -1;
+  port_register_handler(io_device, 0);
+#endif
 }
 
 void cmos_reset(void)

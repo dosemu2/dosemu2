@@ -92,6 +92,9 @@
 /* Define this to use the new keyboard code */
 #undef NEW_KBD_CODE
 
+/* Define this to use the new port I/O code */
+#undef NEW_PORT_CODE
+
 /*
  *  DEFINE this, if you have joystick support in the kernel
  *  or have the joystick module loaded (needing <linux/joystick.h>)

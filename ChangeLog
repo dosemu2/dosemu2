@@ -1,3 +1,14 @@
+97/10/10 ver. 0.67.12.2 unofficial pre-release
+	From Alberto
+	- enabled 'new' port code, moved new code (from portss.c) to
+	  n_ports.c  and integrated code that ist used by the old code
+	  into ports.c. portss.c is no longer used.
+	  The new code can be enabled via ./configure (--enable-new-port).
+	- Now ioport_t (from types.h) is used all over the code.
+	  However, for compatibility changed to unsigned int.
+	- PCI code is now fully enabled.
+	From Hans
+	- DANG/README update/recompile
 97/10/10 ver. 0.67.12.1 unofficial pre-release
 	From Alberto
 	- fixes to CDrom driver (undocumented bit 10 in CD status)

@@ -40,6 +40,10 @@
 #include "cpu.h"
 #endif /* WHY */
 #include "disks.h"
+#include "port.h"
+#ifdef NEW_PORT_CODE
+#define allow_io	port_allow_io
+#endif
 #include "lpt.h"
 #include "video.h"
 #include "mouse.h"
@@ -86,7 +90,6 @@ static char *file_being_parsed;
 
 	/* external procedures */
 
-extern int allow_io(int, int, int, int, int, int, char *);
 extern int exchange_uids(void);
 extern char* strdup(const char *); /* Not defined in string.h :-( */
 extern int yylex(); /* exact argument types depend on the way you call bison */

@@ -48,7 +48,9 @@ static void chk_pend(void)
 	}
 }
 
-static unsigned char pci_port_inb(Bit32u port)
+#ifdef NEW_PORT_CODE
+
+static Bit8u pci_port_inb(ioport_t port)
 {
 	unsigned char ret;
 	chk_pend();
@@ -57,30 +59,31 @@ static unsigned char pci_port_inb(Bit32u port)
 	return ret;
 }
 
-static void pci_port_outb(Bit32u port, unsigned char byte)
+static void pci_port_outb(ioport_t port, Bit8u byte)
 {
 	chk_pend();
 	port_real_outb(port,byte);
 	priv_iopl(0);
 }
 
-static Bit16u pci_port_inw(Bit32u port)
+static Bit16u pci_port_inw(ioport_t port)
 {
-	Bit16u ret;
+	unsigned short ret;
 	chk_pend();
 	ret = port_real_inw(port);
 	priv_iopl(0);
 	return ret;
 }
 
-static void pci_port_outw(Bit32u port, Bit16u value)
+static void pci_port_outw(ioport_t port, Bit16u value)
 {
 	chk_pend();
 	port_real_outw(port,value);
 	priv_iopl(0);
 }
+#endif
 
-static Bit32u pci_port_ind(Bit32u port)
+static Bit32u pci_port_ind(ioport_t port)
 {
 	unsigned int ret;
 	chk_pend();
@@ -99,11 +102,11 @@ static Bit32u pci_port_ind(Bit32u port)
  *
  * SIDOC_END_FUNCTION
  */
-static void pci_port_outd(Bit32u port, Bit32u value)
+static void pci_port_outd(ioport_t port, Bit32u value)
 {
 	if ((port==0xcf8)&&(value&0x80000000)&&(!wcf8_pend)) {
 		wcf8_pend=value;
-		i_printf("PCICFG: %08x pending\n", (int)value);
+		i_printf("PCICFG: %08lx pending\n", value);
 	}
 	else {
 		chk_pend();
@@ -121,6 +124,7 @@ static void pci_port_outd(Bit32u port, Bit32u value)
  */
 int pci_setup (void)
 {
+#ifdef NEW_PORT_CODE
   emu_iodev_t io_device;
 
   if (config.pci) {
@@ -132,12 +136,14 @@ int pci_setup (void)
     io_device.read_portd = pci_port_ind;
     io_device.write_portd = pci_port_outd;
     io_device.irq = EMU_NO_IRQ;
+    io_device.fd = -1;
   
     io_device.handler_name = "PCI Config";
     io_device.start_addr = PCI_CONF_ADDR;
     io_device.end_addr = PCI_CONF_DATA+3;
-    port_register_handler(io_device);
+    port_register_handler(io_device, 0);
   }
+#endif
   return 0;
 }
 

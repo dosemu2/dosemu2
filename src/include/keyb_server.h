@@ -16,8 +16,8 @@
  * these are needed in some other modules, e.g. ports.c
  */
 
-Bit8u keyb_io_read(Bit32u port);
-void keyb_io_write(Bit32u port, Bit8u value);
+Bit8u keyb_io_read(ioport_t port);
+void keyb_io_write(ioport_t port, Bit8u value);
 void keyb_8042_init(void);
 void keyb_8042_reset(void);
 

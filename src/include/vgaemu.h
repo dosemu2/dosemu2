@@ -363,8 +363,8 @@ extern vgaemu_bios_type vgaemu_bios;
  * Functions defined in env/video/vgaemu.c.
  */
 
-void VGA_emulate_outb(Bit32u, Bit8u);
-Bit8u VGA_emulate_inb(Bit32u);
+void VGA_emulate_outb(ioport_t, Bit8u);
+unsigned char VGA_emulate_inb(ioport_t);
 #ifdef __linux__
 int vga_emu_fault(struct sigcontext_struct *);
 #define VGA_EMU_FAULT(scp,code) vga_emu_fault(&context)
@@ -497,8 +497,6 @@ typedef struct
 
 /* **** emulation functions **** */
 
-void VGA_emulate_outb(int port, unsigned char value);
-unsigned char VGA_emulate_inb(int port);
 #ifdef __linux__
 int vga_emu_fault(struct sigcontext_struct *scp);
 #define VGA_EMU_FAULT(scp,code) vga_emu_fault(&context)

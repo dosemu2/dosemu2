@@ -949,7 +949,7 @@ u_char att_d_index = 0;
 static isr_read = 0;
 
 u_char
-video_port_in (int port)
+video_port_in (ioport_t port)
 {
   /* v_printf("Video read on port 0x%04x.\n",port); */
   switch (port)
@@ -1033,7 +1033,7 @@ video_port_in (int port)
 }
 
 void
-video_port_out (u_char value, int port)
+video_port_out (ioport_t port, u_char value)
 {
   /* v_printf("Video write on port 0x%04x,byte 0x%04x.\n",port, value); */
   switch (port)
@@ -1051,7 +1051,7 @@ video_port_out (u_char value, int port)
 	  dosemu_regs.regs[CRT + dosemu_regs.regs[CRTI]] = value;
 	}
       else
-	ext_video_port_out (value, port);
+	ext_video_port_out (port, value);
       break;
     case GRA_I:
       v_printf ("Set Index GRAI 0x%02x\n", value);
@@ -1064,7 +1064,7 @@ video_port_out (u_char value, int port)
 	  dosemu_regs.regs[GRA + dosemu_regs.regs[GRAI]] = value;
 	}
       else
-	ext_video_port_out (value, port);
+	ext_video_port_out (port, value);
       break;
     case SEQ_I:
       v_printf ("Set Index SEQI 0x%02x\n", value);
@@ -1077,7 +1077,7 @@ video_port_out (u_char value, int port)
 	  dosemu_regs.regs[SEQ + dosemu_regs.regs[SEQI]] = value;
 	}
       else
-	ext_video_port_out (value, port);
+	ext_video_port_out (port, value);
       break;
     case ATT_IW:
       if (isr_read)
@@ -1090,7 +1090,7 @@ video_port_out (u_char value, int port)
 	{
 	  isr_read = 1;
 	  if (att_d_index > 20)
-	    ext_video_port_out (value, port);
+	    ext_video_port_out (port, value);
 	  else
 	    {
 	      v_printf ("Write Data at ATT Index 0x%02x = 0x%02x \n", att_d_index, value);
@@ -1128,7 +1128,7 @@ video_port_out (u_char value, int port)
       dosemu_regs.regs[GR2P] = value;
       break;
     default:
-      ext_video_port_out (value, port);
+      ext_video_port_out (port, value);
     }
   return;
 }

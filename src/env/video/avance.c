@@ -26,7 +26,7 @@
  * saves about 100 bytes of code overall ...
  */
 
-static void SETB(int port, int idx, int value)
+static void SETB(ioport_t port, int idx, u_char value)
 {
     if (idx != -1)
 	port_out(idx, port);
@@ -39,7 +39,7 @@ static void SETB(int port, int idx, int value)
  * As with SETB, this tightens the code considerably.
  */
 
-static int GETB(int port, int idx)
+static int GETB(ioport_t port, int idx)
 {
     if (idx != -1)
 	port_out(idx, port);
