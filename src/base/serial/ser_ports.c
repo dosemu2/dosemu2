@@ -162,6 +162,7 @@ void uart_fill(int num)
 #endif
       if (size > 0) {		/* Note that size is -1 if error */
         com[num].rx_timeout = TIMEOUT_RX;	/* Reset timeout counter */
+        com[num].rx_buf_end += size;
         com[num].rx_buf_bytes += size;		/* No. of chars in buffer */
       }
 #if 0
