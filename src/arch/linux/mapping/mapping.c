@@ -166,6 +166,9 @@ void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source
       addr = mmap(target, mapsize, protect, MAP_SHARED | fixed,
 		  mem_fd, (size_t) source);
       close_kmem();
+      if (cap & MAPPING_COPYBACK)
+	/* copy from low shared memory to the /dev/mem memory */
+	memcpy(target, lowmem_base + (size_t)target, mapsize);
     } else
 #endif
     {
@@ -188,6 +191,14 @@ void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source
     mprotect_mapping(cap, target, mapsize, protect);
     return target;
   }
+
+#ifndef HAVE_MREMAP_FIXED
+  if (!have_mremap_fixed && (cap & MAPPING_VC)) {
+    /* if no root is available don't over-map kmem or it will be
+       lost forever ... */
+    if (!can_do_root_stuff && mem_fd == -1) return MAP_FAILED;
+  }
+#endif
 
   if (cap & MAPPING_COPYBACK) {
     if (cap & (MAPPING_LOWMEM | MAPPING_HMA)) {

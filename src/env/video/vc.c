@@ -331,8 +331,8 @@ static void unmap_video_ram(int copyback)
     base = scr_state.virt_address;
   }
   if (copyback) cap |= MAPPING_COPYBACK;
-  mmap_mapping(cap, base, size, PROT_READ | PROT_WRITE, base);
-  scr_state.mapped = 0;
+  if (mmap_mapping(cap, base, size, PROT_READ | PROT_WRITE, base) != MAP_FAILED)
+    scr_state.mapped = 0;
 }
 
 static void map_video_ram(void)
@@ -397,7 +397,8 @@ void get_video_ram (int waitflag)
     wait_for_active_vc();
 
   page = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
-  if (config.vga && READ_BYTE(BIOS_VIDEO_MODE) == 3 && page < 8) {
+  if (!scr_state.mapped && config.vga
+      && READ_BYTE(BIOS_VIDEO_MODE) == 3 && page < 8) {
     li = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1);
     co = READ_WORD(BIOS_SCREEN_COLUMNS);
     if (dosemu_regs.mem)
@@ -418,7 +419,7 @@ void put_video_ram (void)
   if (scr_state.mapped) {
     v_printf ("put_video_ram called\n");
     unmap_video_ram(!config.vga);
-    if (config.vga) {
+    if (!scr_state.mapped && config.vga) {
       li = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1);
       co = READ_WORD(BIOS_SCREEN_COLUMNS);
       if (dosemu_regs.mem && READ_BYTE(BIOS_VIDEO_MODE) == 3 &&
