@@ -1,3 +1,7 @@
+98/09/12 ver. 0.99.1 released
+	From Hans
+	- fixed the severe security hole introduced in 0.97.9.2
+	  (And yes, it was me who produced this glitch)
 98/09/07 ver. 0.99.0 FORK-POINT released
 	NOTE: This is the 0.98/0.99 forkpoint
 	      0.99 will continue unchanged to form the new Hacker version.

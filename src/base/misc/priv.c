@@ -230,7 +230,8 @@ void priv_init(void)
   uid  = cur_uid  = getuid();
   if (!uid) under_root_login =1;
   euid = cur_euid = geteuid();
-  if (!euid) can_do_root_stuff = skip_priv_setting = 1;
+  if (!euid) can_do_root_stuff = 1;
+  if (!uid) skip_priv_setting = 1;
   gid  = cur_gid  = getgid();
   egid = cur_egid = getegid();
 
