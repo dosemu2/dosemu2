@@ -29,6 +29,8 @@ OFILES =
 
 ALL = $(CFILES) $(HFILES) $(OFILES) README.syscallmgr
 
+CFLAGS += $(KERNEL) $(KERNEL2)
+
 # All object-files are included here.
 
 OBJS =
@@ -38,10 +40,10 @@ all: syscallmgr.o insmod testsys.o testmain
 .c.o:
 	$(CC) $(CFLAGS) $(XDEFS) $(INCDIR) -c $<
 
-syscallmgr.o:    syscallmgr.c ../include/syscallmgr.h $(USRSRCDIR)/linux/tools/version.h
+syscallmgr.o:    syscallmgr.c ../include/syscallmgr.h 
 	$(CC) -m486 -Wall -I$(USRSRCDIR) $(INCDIR) -c -O2 -fomit-frame-pointer -D__KERNEL__ -DLINUX -c syscallmgr.c -o syscallmgr.o
 
-testsys.o:    testsys.c $(USRSRCDIR)/linux/tools/version.h
+testsys.o:    testsys.c 
 	$(CC) -m486 -Wall -I$(USRSRCDIR) $(INCDIR) -c -O2 -fomit-frame-pointer -D__KERNEL__ -DLINUX -c testsys.c -o testsys.o
 
 testmain:	testmain.c

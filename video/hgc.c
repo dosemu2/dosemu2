@@ -442,6 +442,7 @@ void map_hgc_page( int fullmode )
 */
   }
   close_kmem();
+  v_printf("HGC finished call!\n");
   return;
 }
 

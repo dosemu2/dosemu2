@@ -1,4 +1,6 @@
-CFILES=cmos.c xms.c timers.c cpu.c dosio.c bios_emm.c lpt.c serial.c \
+# major portion of dosemu
+# $Id$
+CFILES=cmos.c xms.c data.c timers.c cpu.c dosio.c bios_emm.c lpt.c serial.c \
 	dyndeb.c disks.c sigsegv.c detach.c mutex.c
 SFILES=
 ALL=$(CFILES) $(SFILES)

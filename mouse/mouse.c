@@ -147,6 +147,14 @@
 #include "mouse.h"
 #include "serial.h"
 #include "port.h"
+#include "termio.h"
+
+#include "vc.h"
+#include "port.h"
+extern int get_perm ();
+extern int release_perm ();
+
+extern struct screen_stat scr_state;
 
 #ifdef X_SUPPORT
 extern void X_change_mouse_cursor(int);
@@ -220,6 +228,10 @@ static long mousescreenmask[HEIGHT] =  {
 
 static ushort mousetextscreen = 0xffff;
 static ushort mousetextcursor = 0x7f00;
+static ushort mousegraphscreen = 0xffff;
+static ushort mousegraphcursor = 0x7f00;
+
+int delta_x, delta_y;
 
 void
 mouse_int(void)
@@ -296,15 +308,14 @@ mouse_int(void)
     break;
 
   case 0x14:
-    tmp1 = LWORD(ecx);
-    tmp2 = REG(es);
-    tmp3 = LWORD(edx);
-    LWORD(ecx) = mouse.mask;
-    REG(es) = mouse.cs;
-    LWORD(edx) = mouse.ip;
-    mouse.mask = tmp1;
-    mouse.cs = tmp2;
-    mouse.ip = tmp3;
+    m_printf("MOUSE: exchange subroutines\n");
+    tmp1 = mouse.mask;
+    tmp2 = mouse.cs;
+    tmp3 = mouse.ip;
+    mouse_setsub();
+    LWORD(ecx) = tmp1;
+    REG(es) = tmp2;
+    LWORD(edx) = tmp3;
     break;
 
   case 0x15:			/* Get size of buffer needed to hold state */
@@ -326,7 +337,7 @@ mouse_int(void)
       struct mouse_struct *mpt;
       mpt=&mouse;
       memcpy(mpt, (u_char *)(LWORD(es) << 4)+LWORD(edx), sizeof(mouse));
-      mouse.cursor_on = 1;	/* Assuming software reset, turns off mouse */
+      mouse.cursor_on = 0;	/* Assuming software reset, turns off mouse */
       m_printf("MOUSE: Restore mouse state\n");
     }
     break;
@@ -449,7 +460,7 @@ mouse_reset(void)
   mouse.lpcount = mouse.mpcount = mouse.rpcount = 0;
   mouse.lrcount = mouse.mrcount = mouse.rrcount = 0;
 
-  mouse.x = mouse.y = 0;
+  mouse.x = mouse.y = delta_x = delta_y = 0;
   mouse.cx = mouse.cy = 0;
   mouse.speed_x = 16;
   mouse.speed_y = 8;
@@ -467,8 +478,8 @@ mouse_reset(void)
 
   mouse.mickeyx = mouse.mickeyy = 0;
 
-  mousetextscreen = 0xffff;
-  mousetextcursor = 0x7f00;
+  mousetextscreen = mousegraphscreen = 0xffff;
+  mousetextcursor = mousegraphcursor = 0x7f00;
 }
 
 void 
@@ -497,8 +508,8 @@ mouse_pos(void)
 void 
 mouse_setpos(void)
 {
-  mouse.x = LWORD(ecx);
-  mouse.y = LWORD(edx) ;
+  mouse.x = delta_x = LWORD(ecx);
+  mouse.y = delta_y = LWORD(edx) ;
   m_printf("MOUSE: set cursor pos x:%d, y:%d\n", mouse.x, mouse.y);
 }
 
@@ -567,13 +578,15 @@ mouse_set_gcur(void)
 {
   m_printf("MOUSE: set gfx cursor...hspot: %d, vspot: %d, masks: %04x:%04x\n",
 	   LWORD(ebx), LWORD(ecx), LWORD(es), LWORD(edx));
+#if 0
   gfx_cursor = TRUE;
+#endif
   if (LWORD(ebx)==0) {
-	  mousetextscreen = LWORD(ecx);
-	  mousetextcursor = LWORD(edx);
+	  mousegraphscreen = LWORD(ecx);
+	  mousegraphcursor = LWORD(edx);
   } else {
-	  mousetextscreen = 0x7fff;
-	  mousetextcursor = 0xff00;
+	  mousegraphscreen = 0x7fff;
+	  mousegraphcursor = 0xff00;
   }
 }
 
@@ -582,7 +595,9 @@ mouse_set_tcur(void)
 {
   m_printf("MOUSE: set text cursor...type: %d, start: 0x%04x, end: 0x%04x\n",
 	   LWORD(ebx), LWORD(ecx), LWORD(edx));
+#if 0
   gfx_cursor = FALSE;
+#endif
   if (LWORD(ebx)==0) {
 	  mousetextscreen = LWORD(ecx);
 	  mousetextcursor = LWORD(edx);
@@ -613,7 +628,9 @@ mouse_mickeys(void)
   m_printf("MOUSE: read mickeys %d %d\n", mouse.mickeyx, mouse.mickeyy);
   LWORD(ecx) = mouse.mickeyx;
   LWORD(edx) = mouse.mickeyy;
+#if 0
   mouse.mickeyx = mouse.mickeyy = 0;
+#endif
 }
 
 void 
@@ -680,15 +697,31 @@ mouse_keyboard(int sc)
 void 
 mouse_move(void)
 {
-  m_printf("MOUSE: move.\n");
   if (mouse.x <= mouse.minx) mouse.x = mouse.minx;
   if (mouse.y <= mouse.miny) mouse.y = mouse.miny;
   if (mouse.x >= mouse.maxx) mouse.x = mouse.maxx;
   if (mouse.y >= mouse.maxy) mouse.y = mouse.maxy;
+  m_printf("MOUSE: move. x=%x,y=%x\n", mouse.x, mouse.y);
+   
+  if (mouse.x == mouse.minx)
+	  mouse.mickeyx = -1;
+  else if (mouse.x == mouse.maxx)
+	  mouse.mickeyx = 1;
+  else
+  	  mouse.mickeyx = (mouse.x - delta_x) * 1  /* MICKEY */;
+
+  if (mouse.y == mouse.miny)
+	  mouse.mickeyy = -2;
+  else if (mouse.y == mouse.maxy)
+	  mouse.mickeyy = 2;
+  else
+  	  mouse.mickeyy = (mouse.y - delta_y) * 2  /* MICKEY */;
+
+  delta_x = mouse.x;
+  delta_y = mouse.y;
   mouse.cx = mouse.x / 8;
   mouse.cy = mouse.y / 8;
-  mouse.mickeyy -= MICKEY;
-  mouse.mickeyx -= MICKEY;
+
   mouse_delta(DELTA_CURSOR);
 }
 
@@ -760,7 +793,9 @@ fake_int(void)
   pushw(ssp, sp, LWORD(cs));
   pushw(ssp, sp, LWORD(eip));
   LWORD(esp) -= 6;
+#if 0
   do_hard_int(0x74);
+#endif
   
 }
 
@@ -846,8 +881,8 @@ mouse_event()
 	     LWORD(cs), LWORD(eip));	
   }
   mouse_events = 0;
-  show_regs();
 }
+
 
 void
 mouse_do_cur(void)
@@ -855,20 +890,36 @@ mouse_do_cur(void)
   char *graph_mem;
   int i;
 
+#if 1
+  if (config.vga) {
+    if (scr_state.current) {
+      get_perm();
+      port_out(0x06, GRA_I);
+      if ((port_in(GRA_D) & 0x01))
+        gfx_cursor=1;
+      else
+        gfx_cursor=0;
+      release_perm();
+    } else 
+      gfx_cursor=0;
+  }
+#endif
   if (gfx_cursor)
   {
-    open_kmem();		/* Open KMEM for graphics screen access */
-    graph_mem = (char *) mmap((caddr_t) GRAPH_BASE,
+    if (scr_state.current)
+      {
+        open_kmem();		/* Open KMEM for graphics screen access */
+        graph_mem = (char *) mmap((caddr_t) GRAPH_BASE,
 				(size_t) (GRAPH_SIZE),
 				PROT_READ | PROT_WRITE,
 				MAP_SHARED | MAP_FIXED,
 				mem_fd,
 				GRAPH_BASE);
-    close_kmem();
+        close_kmem();
  
-    for (i = 0; i < HEIGHT; i++)
-      graph_mem[mouse.x / 8 +((mouse.y + i - 4) * 80)] = (long)mousecursormask[i];
-
+        for (i = 0; i < HEIGHT; i++)
+          graph_mem[mouse.x / 8 +((mouse.y + i - 4) * 80)] = (long)mousecursormask[i];
+       }
   } else {
     unsigned short *p = SCREEN_ADR(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
 

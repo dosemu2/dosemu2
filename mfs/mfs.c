@@ -1,121 +1,14 @@
 /*
-Work started by Tim Bird (tbird@novell.com) 28th October 1993
-
-	
-	added support for CONTROL_REDIRECTION in dos_fs_redirect.
-	removed my_drive, and made drive arrays 0-based instead of
-	first_drive based.
-
-
-This module is a port of the redirector handling in the mach dos
-emulator to the linux dos emulator. Started by
-Andrew.Tridgell@anu.edu.au on 30th March 1993
-
-
-
-version 1.4 12th May 1993
-
-      added a cds_flags check in select_drive so the pointers can
-      be recalculated when the cds moves. This means you can use the
-      emufs drive immediately after it installs, even using it to load
-      other device drivers in config.sys
-
-      fixed the volume label bug, so now volume labels are enabled by default.
-      We really should do something more useful with them.
-
-      ran "indent" on mfs.c so emacs wouldn't choke in C mode
-
-      did a quick fix for nested finds so they work if the inner find
-      didn't finish.  I don't think it's quite right yet, probably
-      find_first/next need to be completely rewritten to get perfect
-      behaviour, especially for programs that may try to hack directly with
-      the search template/directory entry during a find.
-
-      added Roberts patches so the root directory gets printed when initialised
-
-version 1.3 9th may 1993
-
-      completely revamped find_file() so it can match mixed case names.
-      This doesn't seem to have cost as much in speed as I thought
-      it would. This actually involved changes to quite a few routines for
-      it to work properly.
-
-      added a check for the dos root passed to init_drive - you now get
-      a "server not responding" error with a bad path - this is still not good
-      but's it's better than just accepting it.
-
-version 1.2 8th may 1993
-
-      made some changes to get_dir() which make the redirector MUCH faster.
-      It no longer stat's every file when searching for a file. This
-      is most noticible when you have a long dos path.
-
-      also added profiling. This is supported by profile.c and profile.h.
-
-version 1.2 7th may 1993
-
-      more changes from Stephen Tweedie to fix the dos root length
-      stuff, hopefully it will now work equally well with DRDOS and MSDOS.
-
-      also change the way the calculate_dos_pointers() works - it's
-      now done drive by drive which should be better
-
-      also fixed for MS-DOS 6. It turned out that the problem was that
-      an earlier speculative dos 6 compatability patch I did managed to get
-      lost in all the 0.49v? ungrades. re-applying it fixed the problem.
-      *grumble*. While I was doing that I fixed up non-cds filename finding
-      (which should never be used anyway as we have a valid cds), and added
-      a preliminary qualify_filename (which is currently turned off
-      as it's broken)
-
-version 1.1 1st May 1993
-
-      incorporated patches from Stephen Tweedie to
-      fix things for DRDOS and to make the file attribute handling
-      a lot saner. (thanks Stephen!)
-
-      The main DRDOS change is to handle the fact that filenames appear
-      to be in <DRIVE><PATH> format rather than <DRIVE>:\<PATH>. Hopefully
-      the changes will not affect the operation under MS-DOS
-
-version 1.0 17th April 1993
-changes from mach dos emulator version 2.5:
-
-   - changed SEND_FROM_EOF to SEEK_FROM_EOF and added code (untested!)
-   - added better attribute mapping and set attribute capability
-   - remove volume label to prevent "dir e:" bug
-   - made get_attribute return file size
-   - added multiple drive capability via multiple .sys files in config.sys
-   - fixed so compatible with devlod so drives can be added on the fly
-   - allow unix directory to be chosen with command line in config.sys
-   - changed dos side (.asm) code to only use 1 .sys file (removed
-     need for mfsini.exe)
-   - ported linux.asm to use as86 syntax (Robert Sanders did this - thanks!)
-   - added read-only option on drives
-   - totally revamped drive selection to match Ralf's interrupt list
-   - made reads and writes faster by not doing 4096 byte chunks
-   - masked sigalrm in read and write to prevent crash under NFS
-   - gave delete_file it's own hlist to prevent clashes with find_next
-
-TODO:
-   - fix volume labels
-   - get filename qualification working properly
-   - anything else???
-
-*/
-
-#ifdef __linux__
-#define DOSEMU 1		/* this is a port to dosemu */
-#endif
-
-#if PROFILE
-#include "profile.h"
-#else
-#define PS(x)
-#define PE(x)
-#endif
-
-/*
+ * DANG_BEGIN_MODULE
+ *
+ * This is the file redirector code for DOSEMU. It was built on the Mach
+ * DOS redirector and as such continues that copyright as well in 
+ * addition the GNU copyright. This redirector uses the 
+ * DOS int2f fnx 11 calls to give running DOS programs access to any 
+ * Unix mounted drives that permissions exist for.
+ *
+ * DANG_END_MODULE
+ *
  * Copyright (c) 1991 Carnegie Mellon University
  * All Rights Reserved.
  *
@@ -138,8 +31,6 @@ TODO:
  *
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
- */
-/*
  *
  * Purpose:
  *	V86 DOS disk emulation routines
@@ -357,7 +248,121 @@ TODO:
  * 	Created.
  * 	[91/03/26  19:25:05  grm]
  *
- */
+
+Work started by Tim Bird (tbird@novell.com) 28th October 1993
+
+	
+	added support for CONTROL_REDIRECTION in dos_fs_redirect.
+	removed my_drive, and made drive arrays 0-based instead of
+	first_drive based.
+
+
+This module is a port of the redirector handling in the mach dos
+emulator to the linux dos emulator. Started by
+Andrew.Tridgell@anu.edu.au on 30th March 1993
+
+version 1.4 12th May 1993
+
+      added a cds_flags check in select_drive so the pointers can
+      be recalculated when the cds moves. This means you can use the
+      emufs drive immediately after it installs, even using it to load
+      other device drivers in config.sys
+
+      fixed the volume label bug, so now volume labels are enabled by default.
+      We really should do something more useful with them.
+
+      ran "indent" on mfs.c so emacs wouldn't choke in C mode
+
+      did a quick fix for nested finds so they work if the inner find
+      didn't finish.  I don't think it's quite right yet, probably
+      find_first/next need to be completely rewritten to get perfect
+      behaviour, especially for programs that may try to hack directly with
+      the search template/directory entry during a find.
+
+      added Roberts patches so the root directory gets printed when initialised
+
+version 1.3 9th may 1993
+
+      completely revamped find_file() so it can match mixed case names.
+      This doesn't seem to have cost as much in speed as I thought
+      it would. This actually involved changes to quite a few routines for
+      it to work properly.
+
+      added a check for the dos root passed to init_drive - you now get
+      a "server not responding" error with a bad path - this is still not good
+      but's it's better than just accepting it.
+
+version 1.2 8th may 1993
+
+      made some changes to get_dir() which make the redirector MUCH faster.
+      It no longer stat's every file when searching for a file. This
+      is most noticible when you have a long dos path.
+
+      also added profiling. This is supported by profile.c and profile.h.
+
+version 1.2 7th may 1993
+
+      more changes from Stephen Tweedie to fix the dos root length
+      stuff, hopefully it will now work equally well with DRDOS and MSDOS.
+
+      also change the way the calculate_dos_pointers() works - it's
+      now done drive by drive which should be better
+
+      also fixed for MS-DOS 6. It turned out that the problem was that
+      an earlier speculative dos 6 compatability patch I did managed to get
+      lost in all the 0.49v? ungrades. re-applying it fixed the problem.
+      *grumble*. While I was doing that I fixed up non-cds filename finding
+      (which should never be used anyway as we have a valid cds), and added
+      a preliminary qualify_filename (which is currently turned off
+      as it's broken)
+
+version 1.1 1st May 1993
+
+      incorporated patches from Stephen Tweedie to
+      fix things for DRDOS and to make the file attribute handling
+      a lot saner. (thanks Stephen!)
+
+      The main DRDOS change is to handle the fact that filenames appear
+      to be in <DRIVE><PATH> format rather than <DRIVE>:\<PATH>. Hopefully
+      the changes will not affect the operation under MS-DOS
+
+version 1.0 17th April 1993
+changes from mach dos emulator version 2.5:
+
+   - changed SEND_FROM_EOF to SEEK_FROM_EOF and added code (untested!)
+   - added better attribute mapping and set attribute capability
+   - remove volume label to prevent "dir e:" bug
+   - made get_attribute return file size
+   - added multiple drive capability via multiple .sys files in config.sys
+   - fixed so compatible with devlod so drives can be added on the fly
+   - allow unix directory to be chosen with command line in config.sys
+   - changed dos side (.asm) code to only use 1 .sys file (removed
+     need for mfsini.exe)
+   - ported linux.asm to use as86 syntax (Robert Sanders did this - thanks!)
+   - added read-only option on drives
+   - totally revamped drive selection to match Ralf's interrupt list
+   - made reads and writes faster by not doing 4096 byte chunks
+   - masked sigalrm in read and write to prevent crash under NFS
+   - gave delete_file it's own hlist to prevent clashes with find_next
+
+TODO:
+   - fix volume labels
+   - get filename qualification working properly
+   - anything else???
+
+*/
+
+#ifdef __linux__
+#define DOSEMU 1		/* this is a port to dosemu */
+#endif
+
+#if PROFILE
+#include "profile.h"
+#else
+#define PS(x)
+#define PE(x)
+#endif
+
 
 #if !DOSEMU
 #include "base.h"
@@ -421,16 +426,15 @@ boolean_t mach_fs_enabled = FALSE;
 #define	FIND_NEXT		0x1c
 #define	CLOSE_ALL		0x1d
 #define	CONTROL_REDIRECT	0x1e
-#define PRINTER_SETUP  0x1f
+#define PRINTER_SETUP		0x1f
 #define	FLUSH_ALL_DISK_BUFFERS	0x20
 #define	SEEK_FROM_EOF		0x21
 #define	PROCESS_TERMINATED	0x22
 #define	QUALIFY_FILENAME	0x23
-/*#define TURN_OFF_PRINTER   0x24 */
+/*#define TURN_OFF_PRINTER	0x24 */
 #define MULTIPURPOSE_OPEN	0x2e	/* Used in DOS 4.0+ */
-#define PRINTER_MODE  0x25	/* Used in DOS 3.1+ */
-/*#define UNDOCUMENTED_FUNCTION_2 0x25  Used in DOS 4.0+ */
-#define EXTENDED_ATTRIBUTES 0x2d/* Used in DOS 4.x */
+#define PRINTER_MODE  		0x25	/* Used in DOS 3.1+ */
+#define EXTENDED_ATTRIBUTES	0x2d	/* Used in DOS 4.x */
 
 #define EOS		'\0'
 #define	SLASH		'/'
@@ -533,7 +537,7 @@ int sda_ext_attr_off = 0x2df;
 int sda_ext_mode_off = 0x2e1;
 
 /* here are the functions used to interface dosemu with the mach
-dos redirector code */
+   dos redirector code */
 
 struct direct *dos_readdir(DIR *);
 
@@ -622,15 +626,16 @@ select_drive(state)
   default:
     check_cds = TRUE;
     break;
-    /* The rest are unknown - assume check_cds */
-    /*
+   
+ /* The rest are unknown - assume check_cds */
+ /*
 	case CREATE_TRUNCATE_NO_DIR	0x18
 	case FIND_NEXT		0x1c
 	case CLOSE_ALL		0x1d
 	case FLUSH_ALL_DISK_BUFFERS	0x20
 	case PROCESS_TERMINATED	0x22
 	case UNDOCUMENTED_FUNCTION_2	0x25
-	*/
+ */
   }
 
   /* re-init the cds stuff for any drive that I think is mine, but
@@ -1178,7 +1183,9 @@ _get_dir(char *name, char *mname, char *mext)
   char *sptr;
   char fname[8];
   char fext[3];
+/*
   boolean_t find_file();
+*/
   boolean_t compare();
 
   (void) find_file(name, &sbuf);
@@ -1195,7 +1202,13 @@ _get_dir(char *name, char *mname, char *mext)
   dir_list = NULL;
   entry = dir_list;
 
-#if 1
+/* DANG_BEGIN_REMARK
+ * 
+ * Added compares to NUL so that newer versions of Foxpro which test directories
+ * using xx\yy\nul perform closer to whats DOS does.
+ * 
+ * DANG_END_FUNCTION
+ */
   if (strncasecmp(mname, "NUL     ", strlen(mname)) == 0 &&
       strncasecmp(mext, "   ", strlen(mext)) == 0) {
 
@@ -1213,8 +1226,6 @@ _get_dir(char *name, char *mname, char *mext)
     return (dir_list);
   }
   else
-#endif
-
     while ((cur_ent = dos_readdir(cur_dir))) {
 
       if (cur_ent->d_ino == 0)
@@ -1553,11 +1564,7 @@ dos_read(fd, data, cnt)
 
   if (cnt <= 0)
     return (0);
-
-  Debug0((dbg_fd, "About to do it!\n"));
   ret = RPT_SYSCALL(read(fd, data, cnt));
-  Debug0((dbg_fd, "After doing it!\n"));
-
   return (ret);
 }
 
@@ -1572,11 +1579,8 @@ dos_write(fd, data, cnt)
 
   if (cnt <= 0)
     return (0);
-
   ret = RPT_SYSCALL(write(fd, data, cnt));
-
   Debug0((dbg_fd, "Wrote %10.10s\n", data));
-
   return (ret);
 }
 
@@ -1899,7 +1903,6 @@ scan_dir(char *path, char *name)
   return (FALSE);
 }
 
-#ifndef OLD_FIND_FILE
 /*
  * a new find_file that will do complete upper/lower case matching for the
  * whole path
@@ -1983,67 +1986,6 @@ _find_file(char *fpath, struct stat * st)
   return (TRUE);
 }
 
-#else
-/*
- * function: file_file
- *
- * Finds file fpath using stat.
- * If file exists under given name, it returns true.
- * This routine also checks for uppercase and lowercase
- * versions of last component of filename.  It returns
- * the stat structure modified appropriately and converts
- * the string to the matching case or to uppercase if there
- * is no match.
- */
-__inline__ boolean_t
-_find_file(fpath, st)
-     char *fpath;
-     struct stat *st;
-{
-  int i;
-  int len = 0;
-
-  /* Check original name */
-  Debug0((dbg_fd, "Find file trying '%s'\n", fpath));
-  if (stat(fpath, st) == 0)
-    return (TRUE);
-
-  /* Restore to lower case */
-  for (i = 0; fpath[i] != EOS; i++) {
-    if (isalpha(fpath[i]) && isupper(fpath[i]))
-      fpath[i] = (char) tolower(fpath[i]);
-    len++;
-  }
-  Debug0((dbg_fd, "Find file trying '%s'\n", fpath));
-  if (stat(fpath, st) == 0)
-    return (TRUE);
-
-  /* Force each component from the end to have upper case */
-  i = len - 1;
-  while (i >= 0) {
-    /* Check upper case version of component */
-    for (; i >= 0; i--) {
-      if (fpath[i] == SLASH) {
-	i--;
-	break;
-      }
-      if (isalpha(fpath[i]) && islower(fpath[i]))
-	fpath[i] = (char) toupper(fpath[i]);
-    }
-    Debug0((dbg_fd, "Find file trying '%s'\n", fpath));
-    if (stat(fpath, st) == 0)
-      return (TRUE);
-  }
-
-  /* Restore to lower case */
-  for (i = 0; fpath[i] != EOS; i++) {
-    if (isalpha(fpath[i]) && isupper(fpath[i]))
-      fpath[i] = (char) tolower(fpath[i]);
-  }
-  return (FALSE);
-}
-
-#endif
 boolean_t
 find_file(fpath, st)
      char *fpath;
@@ -2190,7 +2132,11 @@ match_filename_prune_list(list, name, ext)
   return (r);
 }
 
+#if 0
 #define HLIST_STACK_SIZE 32
+#else
+#define HLIST_STACK_SIZE 256
+#endif
 int hlist_stack_indx = 0;
 struct dir_ent *hlist = NULL;
 struct dir_ent *hlist_stack[HLIST_STACK_SIZE];
@@ -2201,6 +2147,7 @@ hlist_push(hlist)
 {
   Debug0((dbg_fd, "hlist_push: %x\n", hlist_stack_indx));
   if (hlist_stack_indx >= HLIST_STACK_SIZE) {
+    Debug0((dbg_fd, "hlist_push: past maximum stack"));
     return (FALSE);
   }
   else {
@@ -2630,7 +2577,7 @@ dos_fs_redirect(state)
       return (FALSE);
     }
     /* what we do now is update the cds_current_path, although it is
-  probably superflous in most cases as dos seems to do it for us */
+       probably superflous in most cases as dos seems to do it for us */
     {
       char *fp, *cwd;
 
@@ -2902,7 +2849,9 @@ dos_fs_redirect(state)
       fpath[bs_pos] = EOS;
       auspr(fpath + bs_pos + 1, fname, fext);
       if (bs_pos == 0) {
+#if 0 /* 95/01/01 */
 	bs_pos = -1;
+#endif
 	strcpy(fpath, "/");
       }
 
@@ -3330,7 +3279,7 @@ dos_fs_redirect(state)
     find_in_progress = TRUE;
     return (TRUE);
   case FIND_NEXT:		/* 0x1c */
-    Debug0((dbg_fd, "Find next %8.8s.%3.3s, hlist=%d\n",
+    Debug0((dbg_fd, "Find next %8.8s.%3.3s, pointer->hlist=%d\n",
 	    (char *) sdb_template_name(sdb),
 	    (char *) sdb_template_ext(sdb), (int)hlist));
     if (last_find_drive && ((strncmp(last_find_name, sdb_template_name(sdb), 8) != 0 ||

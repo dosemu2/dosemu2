@@ -39,6 +39,8 @@ ALL = $(CFILES) $(HFILES) $(SFILES) README.emumod
 
 OBJS= vm86.o traps.o emumod.o fastsys.o emusys.o
  
+CFLAGS += KERNEL2
+
 all: $(OBJS) emumodule.o
 
 .c.o:
@@ -47,16 +49,16 @@ all: $(OBJS) emumodule.o
 emumodule.o: ${OBJS}
 	ld -r -o emumodule.o $(OBJS)
 
-vm86.o:  vm86.c emumod.h $(USRSRCDIR)/linux/tools/version.h
+vm86.o:  vm86.c emumod.h 
 	$(CC) $(EXTRA_HEADERS) ${KCFLAGS} -D_LOADABLE_VM86_  -c vm86.c -o vm86.o
 
-emumod.o:  emumod.c emumod.h $(USRSRCDIR)/linux/tools/version.h
+emumod.o:  emumod.c emumod.h 
 	$(CC) $(EXTRA_HEADERS) ${KCFLAGS} -D_LOADABLE_VM86_  -c emumod.c -o emumod.o
 
-emusys.o:  emusys.c $(USRSRCDIR)/linux/tools/version.h 
+emusys.o:  emusys.c 
 	$(CC) $(EXTRA_HEADERS) ${KCFLAGS} -D_LOADABLE_VM86_  -c emusys.c -o emusys.o
 
-traps.o:  traps.c emumod.h $(USRSRCDIR)/linux/tools/version.h
+traps.o:  traps.c emumod.h 
 	$(CC) $(EXTRA_HEADERS) ${KCFLAGS} -D_LOADABLE_VM86_  -c traps.c -o traps.o
 
 fastsys.o: fastsys.S

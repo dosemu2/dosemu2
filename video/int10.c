@@ -102,26 +102,32 @@ Scroll(us *sadr, int x0, int y0, int x1, int y1, int l, int att)
   
   if (l == 0) {			/* Wipe mode */
     for (y = y0; y <= y1; y++)
-      memcpy(&sadr[y * co + x0], tbuf, dx * sizeof(us));
+      /*memcpy(&sadr[y * co + x0], tbuf, dx * sizeof(us));*/
+      MEMCPY_2DOS(&sadr[y * co + x0], tbuf, dx * sizeof(us));
     return;
   }
 
   if (l > 0) {
     if (dx == co)
-      memcpy(&sadr[y0 * co], &sadr[(y0 + l) * co], (dy - l) * dx * sizeof(us));
+      /*memcpy(&sadr[y0 * co], &sadr[(y0 + l) * co], (dy - l) * dx * sizeof(us));*/
+      MEMCPY_DOS2DOS(&sadr[y0 * co], &sadr[(y0 + l) * co], (dy - l) * dx * sizeof(us));
     else
       for (y = y0; y <= (y1 - l); y++)
-	memcpy(&sadr[y * co + x0], &sadr[(y + l) * co + x0], dx * sizeof(us));
+	/*memcpy(&sadr[y * co + x0], &sadr[(y + l) * co + x0], dx * sizeof(us));*/
+	MEMCPY_DOS2DOS(&sadr[y * co + x0], &sadr[(y + l) * co + x0], dx * sizeof(us));
 
     for (y = y1 - l + 1; y <= y1; y++)
-      memcpy(&sadr[y * co + x0], tbuf, dx * sizeof(us));
+      /*memcpy(&sadr[y * co + x0], tbuf, dx * sizeof(us));*/
+      MEMCPY_2DOS(&sadr[y * co + x0], tbuf, dx * sizeof(us));
   }
   else {
     for (y = y1; y >= (y0 - l); y--)
-      memcpy(&sadr[y * co + x0], &sadr[(y + l) * co + x0], dx * sizeof(us));
+      /*memcpy(&sadr[y * co + x0], &sadr[(y + l) * co + x0], dx * sizeof(us));*/
+      MEMCPY_DOS2DOS(&sadr[y * co + x0], &sadr[(y + l) * co + x0], dx * sizeof(us));
 
     for (y = y0 - l - 1; y >= y0; y--)
-      memcpy(&sadr[y * co + x0], tbuf, dx * sizeof(us));
+      /*memcpy(&sadr[y * co + x0], tbuf, dx * sizeof(us));*/
+      MEMCPY_2DOS(&sadr[y * co + x0], tbuf, dx * sizeof(us));
   }
 }
 
@@ -226,7 +232,8 @@ char_out(unsigned char ch, int s)
     break;
 
   default:          /* Printable character */
-    CHAR(SCREEN_ADR(s) + ypos*co + xpos) = ch;
+    /* CHAR(SCREEN_ADR(s) + ypos*co + xpos) = ch; */
+    WRITE_BYTE(SCREEN_ADR(s) + ypos*co + xpos, ch);
     xpos++;
     set_dirty(s);
   }
@@ -266,7 +273,8 @@ clear_screen(int s, int att)
   
   for (schar = SCREEN_ADR(s), 
        lx = 0; lx < (co * li); 
-       *(schar++) = blank, lx++);
+/*       *(schar++) = blank, lx++); */
+       WRITE_WORD(schar++, blank), lx++);
 
   set_dirty(s);
   set_bios_cursor_x_position(s, 0);
@@ -381,7 +389,8 @@ void int10()
   if (d.video >= 3)
     {
       if (d.video >= 4)
-	dbug_printf("int10 near %04x:%08lx\n", LWORD(cs), REG(eip));
+/*	dbug_printf("int10 near %04x:%08lx\n", LWORD(cs), REG(eip));*/
+	dbug_printf("int10 near %04x:%08lx\n", READ_SEG_REG(cs), REG(eip));
       if ( (LO(ax) >= ' ') && (LO(ax) < 0x7f) )
 	dbug_printf("int10 AH=%02x AL=%02x '%c'\n",
 		    HI(ax), LO(ax), LO(ax));
@@ -545,13 +554,14 @@ void int10()
       n = LWORD(ecx);
       src = SEG_ADR((char*),es,bp);
       
-      if (LO(ax) >= 2) {                 /* use attribute in BL */
+      if (LO(ax) < 2) {                  /* use attribute in BL */
         attr=LO(bx)<<8;
 	while(n--)
 	  *(sadr++) = *src++ | attr;
       }
       else {                             /* use attributes in buffer */
-	memcpy(sadr,src,n*2);
+	/*memcpy(sadr,src,n*2);*/
+	MEMCPY_DOS2DOS(sadr,src,n*2);
       }
 
       if (LO(ax)&1) {                    /* update cursor position */
@@ -650,7 +660,9 @@ void int10()
     case 0x30:     /* get current character generator info */
       LWORD(ecx)=vga_font_height;
       LO(dx)= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1);
-      LWORD(es)=LWORD(ebp)=0;  /* return NULL pointer */
+      /* LWORD(es)=LWORD(ebp)=0;*/  /* return NULL pointer */
+      WRITE_SEG_REG(es, 0);   /* return NULL pointer */
+      LWORD(ebp)= 0;        /* return NULL pointer */
     }
     break;
       
@@ -692,7 +704,7 @@ void int10()
 #endif      
     default:
       error("ERROR: unrecognized video subsys config!!\n");
-      show_regs();
+      show_regs(__FILE__, __LINE__);
     }
     break;
     

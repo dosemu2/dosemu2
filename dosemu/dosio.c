@@ -271,12 +271,12 @@ extern SillyG_t *SillyG;
 
 #define PAGE_SIZE	4096
 
-u_long secno = 0;
+static u_long secno = 0;
 
 inline void process_interrupt(SillyG_t *sg);
 
 /* my test shared memory IDs */
-struct {
+static struct {
   int 			/* normal mem if idt not attached at 0x100000 */
   hmastate;		/* 1 if HMA mapped in, 0 if idt mapped in */
 }

@@ -77,7 +77,11 @@
 #include <linux/malloc.h>
 
 #include <linux/unistd.h>
+#ifdef KERNEL
 #include <linux/segment.h>
+#else
+#include <asm/segment.h>
+#endif
 #include <linux/sys.h>
 #include <linux/mm.h>
 
@@ -102,7 +106,11 @@
  *   To install the module, we must include the kernel identification string.
  *   (so, don't panic if you get a GCC warning "_kernel_version not used" )
  */
+#ifdef KERNEL2
 #include "linux/tools/version.h"
+#else
+#include "linux/version.h"
+#endif
 static char kernel_version[] = UTS_RELEASE;
 
 #define ID_STRING "Syscall_Modul"

@@ -1,9 +1,7 @@
+#ifndef VIDEO_H
+#define VIDEO_H
 
 typedef unsigned char byte;
-/*
-typedef unsigned char boolean;
-typedef unsigned short ushort;
-*/
 
 typedef struct { byte end, start; } cshape;
 
@@ -27,6 +25,7 @@ typedef struct { byte end, start; } cshape;
      from 0xa0000 to 0xbffff.
 */
 #define USE_DUALMON 1
+
 #if USE_DUALMON && VIDEO_CHECK_DIRTY
   #error "Currently USE_DUALMON can't be used together with VIDEO_CHECK_DIRTY"
 #endif
@@ -48,8 +47,13 @@ typedef struct { byte end, start; } cshape;
    to a character cell, attr is a byte.
 */
 
+#if 0
 #define CHAR(w) (((char*)(w))[0])
 #define ATTR(w) (((byte*)(w))[1])
+#else
+#define CHAR(w) ((char)READ_BYTE(w))
+#define ATTR(w) ((byte)READ_BYTE(((ubyte_t *)(w))+1))
+#endif
 #define ATTR_FG(attr) (attr & 0x0F)
 #define ATTR_BG(attr) (attr >> 4)
 
@@ -226,3 +230,4 @@ extern int video_subsys;
 #define DIAMOND		3
 #define S3		4
 
+#endif

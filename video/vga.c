@@ -224,7 +224,9 @@ void store_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
   p[2] = mem_size[2] * 1024;
   p[3] = mem_size[3] * 1024;
   bsize = p[0] + p[1] + p[2] + p[3];
+#if 0
   dump_video_regs();
+#endif
   if (config.chipset == ET4000) {
 /*
  * The following is from the X files
@@ -247,9 +249,11 @@ void store_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
       port_out(0x04, GRA_I);
       port_out(plane, GRA_D);
 
-      memcpy((caddr_t) (mem + position), (caddr_t) GRAPH_BASE, p[plane]);
+/*      memcpy((caddr_t) (mem + position), (caddr_t) GRAPH_BASE, p[plane]); */
+      MEMCPY_2UNIX((caddr_t) (mem + position), (caddr_t) GRAPH_BASE, p[plane]);
+      v_printf("READ Bank=%d, plane=0x%02x, *mem=0x%x, GRAPH_BASE=%08x, mem=0x%x\n",
+	 banks, plane, *(int *)(mem + position), *(int *) GRAPH_BASE, (caddr_t) (mem + position));
       position = position + p[plane];
-      v_printf("READ Bank=%d, plane=0x%02x, mem=%08x\n", banks, plane, *(int *) GRAPH_BASE);
     }
   }
   else {
@@ -258,7 +262,8 @@ void store_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
       if (cbank < 10) {
 	for (plane = 0; plane < 4; plane++) {
 	  set_bank_read((cbank * 4) + plane);
-	  memcpy((caddr_t) (mem + (bsize * cbank) + position), (caddr_t) GRAPH_BASE, p[plane]);
+	  /*memcpy((caddr_t) (mem + (bsize * cbank) + position), (caddr_t) GRAPH_BASE, p[plane]);*/
+	  MEMCPY_2UNIX((caddr_t) (mem + (bsize * cbank) + position), (caddr_t) GRAPH_BASE, p[plane]);
 	  position = position + p[plane];
 	  for (counter = 0; counter < 80; counter++) {
 	    v_printf("%c", *(u_char *) (GRAPH_BASE + counter));
@@ -290,7 +295,10 @@ void restore_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
   p[3] = mem_size[3] * 1024;
   bsize = p[0] + p[1] + p[2] + p[3];
 
+#if 0
   dump_video_regs();
+#endif
+
   if (config.chipset == ET4000)
     port_out(0x00, 0x3cd);
   if (!config.chipset || banks == 1) {
@@ -306,9 +314,10 @@ void restore_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
       port_out(0x02, SEQ_I);
       port_out(1 << plane, SEQ_D);
 
-      memcpy((caddr_t) GRAPH_BASE, (caddr_t) (mem + position), p[plane]);
+/*      memcpy((caddr_t) GRAPH_BASE, (caddr_t) (mem + position), p[plane]); */
+      MEMCPY_2DOS((caddr_t) GRAPH_BASE, (caddr_t) (mem + position), p[plane]);
+      v_printf("WRITE Bank=%d, plane=0x%02x, *mem=%x, mem=%p\n", banks, plane, *(int *) (mem + position), (caddr_t) (mem + position));
       position = position + p[plane];
-      v_printf("WRITE Bank=%d, plane=0x%02x, *mem=%08x, mem=%p\n", banks, plane, *(caddr_t) mem, (caddr_t) mem);
     }
   }
   else {
@@ -318,7 +327,8 @@ void restore_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
       if (cbank < 10) {
 	for (plane = 0; plane < 4; plane++) {
 	  set_bank_write((cbank * 4) + plane);
-	  memcpy((caddr_t) GRAPH_BASE, (caddr_t) (mem + (bsize * cbank) + position), p[plane]);
+	  /*memcpy((caddr_t) GRAPH_BASE, (caddr_t) (mem + (bsize * cbank) + position), p[plane]);*/
+	  MEMCPY_2DOS((caddr_t) GRAPH_BASE, (caddr_t) (mem + (bsize * cbank) + position), p[plane]);
 	  for (counter = 0; counter < 20; counter++) {
 	    v_printf("0x%02x ", *(u_char *) (mem + (bsize * cbank) + position + counter));
 	  }
@@ -337,7 +347,7 @@ int restore_vga_regs(char regs[], u_char xregs[], u_short xregs16[])
 {
   set_regs(regs);
   restore_ext_regs(xregs, xregs16);
-  v_printf("Restore completed!\n");
+  v_printf("Restore_vga_regs completed!\n");
   return 0;
 }
 
@@ -407,13 +417,14 @@ void save_vga_state(struct video_save_struct *save_regs)
   }
   v_printf("Mode  == %d\n", save_regs->video_mode);
   v_printf("Banks == %d\n", save_regs->banks);
-  if (!save_regs->mem)
+  if (!save_regs->mem) {
     save_regs->mem = malloc((save_regs->save_mem_size[0] +
 			     save_regs->save_mem_size[1] +
 			     save_regs->save_mem_size[2] +
 			     save_regs->save_mem_size[3]) * 1024 *
 			    save_regs->banks
       );
+   }
 
   store_vga_mem(save_regs->mem, save_regs->save_mem_size, save_regs->banks);
   vga_getpalvec(0, 256, save_regs->pal);
@@ -433,6 +444,7 @@ void restore_vga_state(struct video_save_struct *save_regs)
   restore_vga_regs(save_regs->regs, save_regs->xregs, save_regs->xregs16);
   restore_vga_mem(save_regs->mem, save_regs->save_mem_size, save_regs->banks);
   if (save_regs->release_video) {
+    v_printf("Releasing video memory\n");
     free(save_regs->mem);
     save_regs->mem = NULL;
   }
@@ -658,12 +670,12 @@ void init_vga_card(void)
 
 #else
 
-  ssp = (unsigned char *)(REG(ss)<<4);
+  ssp = (unsigned char *)(READ_SEG_REG(ss)<<4);
   sp = (unsigned long) LWORD(esp);
-  pushw(ssp, sp, LWORD(cs));
+  pushw(ssp, sp, READ_SEG_REG(cs));
   pushw(ssp, sp, LWORD(eip));
   LWORD(esp) -= 4;
-  LWORD(cs) = INT10_SEG;
+  WRITE_SEG_REG(cs, INT10_SEG);
   LWORD(eip) = INT10_OFF;
 #endif
 }

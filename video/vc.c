@@ -246,10 +246,6 @@ parent_open_mouse (void)
 void
 SIGACQUIRE_call (void)
 {
-  v_printf ("VID: Acquiring VC\n");
-  forbid_switch ();
-  if (ioctl (kbd_fd, VT_RELDISP, VT_ACKACQ))	/* switch acknowledged */
-    v_printf ("VT_RELDISP failed (or was queued)!\n");
   if (config.console_video)
     {
       get_video_ram (WAIT);
@@ -257,14 +253,18 @@ SIGACQUIRE_call (void)
       /*      if (config.vga) dos_unpause(); */
     }
   parent_open_mouse ();
-  allow_switch ();
-  scr_state.current = 1;
 }
 
 void
 acquire_vt (int sig, struct sigcontext_struct context)
 {
+  v_printf ("VID: Acquiring VC\n");
+  forbid_switch ();
+  if (ioctl (kbd_fd, VT_RELDISP, VT_ACKACQ))	/* switch acknowledged */
+    v_printf ("VT_RELDISP failed (or was queued)!\n");
+  allow_switch ();
   SIGNAL_save (SIGACQUIRE_call);
+  scr_state.current = 1;
 }
 
 void
@@ -293,7 +293,9 @@ set_dos_video ()
     {
       v_printf ("Acquiring vt, restoring dosemu_regs\n");
       get_perm ();
+#if 0
       dump_video ();
+#endif
       restore_vga_state (&dosemu_regs);
     }
 
@@ -312,11 +314,15 @@ set_linux_video ()
       v_printf ("Storing dosemu_regs, Releasing vt mode=%02x\n", *(u_char *) 0x449);
       dosemu_regs.video_mode = *(u_char *) 0x449;
       save_vga_state (&dosemu_regs);
+#if 0
       dump_video ();
+#endif
       if (linux_regs.mem != (u_char) NULL)
 	{
 	  v_printf ("Restoring linux_regs, Releasing vt\n");
+#if 0
 	  dump_video_linux ();
+#endif
 	  restore_vga_state (&linux_regs);
 	}
       release_perm ();
@@ -344,7 +350,6 @@ SIGRELEASE_call (void)
       if (config.console_video)
 	{
 	  unsigned short pos;
-	  v_printf ("VID: %d\n", __LINE__);
 
 	  /* Read the cursor position from the 6845 registers. */
 	  /* Must have bios_video_port initialized */
@@ -354,7 +359,6 @@ SIGRELEASE_call (void)
 			"incl %%edx; inb %%dx,%%al; mov %%ax,%0"
 			:"=g" (pos):"m" (READ_WORD(BIOS_VIDEO_PORT)):"%dx", "%ax");
 
-	  v_printf ("VID: %d\n", __LINE__);
 	  /* Let kernel know the cursor location. */
 	  console_update_cursor (pos % 80, pos / 80, 1, 1);
 
@@ -498,8 +502,8 @@ get_video_ram (int waitflag)
 	memcpy (textbuf, PAGE_ADDR (READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)), TEXT_SIZE);
 
       g_printf ("mapping PAGE_ADDR\n");
-      open_kmem ();
 
+      open_kmem ();
 #if 0
       /* Map CGA, etc text memory to HGA memory.
        Useful for debugging systems with HGA or MDA cards.
@@ -518,8 +522,8 @@ get_video_ram (int waitflag)
 				 MAP_SHARED | MAP_FIXED,
 				 mem_fd,
 				 phys_text_base);
-
       close_kmem ();
+
       if ((long) graph_mem < 0)
 	{
 	  error ("ERROR: mmap error in get_video_ram (text)\n");
@@ -544,21 +548,6 @@ get_video_ram (int waitflag)
   scr_state.mapped = 1;
 }
 
-void
-setup_low_mem (void)
-{
-  char *result;
-  g_printf ("Low memory mapping!\n");
-  result = mmap (NULL, 0x100000,
-		 PROT_EXEC | PROT_READ | PROT_WRITE,
-		 MAP_FIXED | MAP_PRIVATE | MAP_ANON,
-		 -1, 0);
-  if (result != NULL)
-    {
-      perror ("anonymous mmap");
-      leavedos (1);
-    }
-}
 
 void
 put_video_ram (void)
@@ -661,7 +650,7 @@ open_kmem ()
       leavedos (0);
       return;
     }
-  v_printf ("Kmem opened successfully\n");
+  g_printf ("Kmem opened successfully\n");
 }
 
 void

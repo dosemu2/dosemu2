@@ -207,7 +207,6 @@
  * DANG_END_CHANGELOG
  *
  */
-#define CPU_C
 
 
 #include <stdio.h>
@@ -234,15 +233,21 @@ extern void xms_control(void);
 
 extern inline int can_revector(int);
 
-struct vm86_struct vm86s;
 
-struct vec_t orig[256];		/* "original" interrupt vectors */
-struct vec_t snapshot[256];	/* vectors from last snapshot */
+static struct vec_t orig[256];		/* "original" interrupt vectors */
+static struct vec_t snapshot[256];	/* vectors from last snapshot */
 
 extern u_char in_sigsegv, in_sighandler, ignore_segv;
-extern int fatalerr;
 
-extern struct config_info config;
+/* this is the array of interrupt vectors */
+struct vec_t {
+  unsigned short offset;
+  unsigned short segment;
+};
+ 
+static struct vec_t *ivecs;    
+
+
 
 /* 
  * DANG_BEGIN_FUNCTION cpu_init
@@ -288,7 +293,7 @@ cpu_init(void)
 }
 
 void
-show_regs(void)
+show_regs(char *file, int line)
 {
   int i;
   unsigned char *sp;
@@ -303,7 +308,8 @@ show_regs(void)
   else
     sp = SEG_ADR((u_char *), ss, sp);
 
-  g_printf("\nEIP: %04x:%08lx", LWORD(cs), REG(eip));
+  g_printf("\nProgram=%s, Line=%d\n", file, line);
+  g_printf("EIP: %04x:%08lx", LWORD(cs), REG(eip));
   g_printf(" ESP: %04x:%08lx", LWORD(ss), REG(esp));
   g_printf("         VFLAGS(b): ");
   for (i = (1 << 0x11); i > 0; i = (i >> 1))
@@ -374,7 +380,7 @@ show_ints(int min, int max)
   }
 }
 
-inline int
+int
 do_hard_int(int intno)
 {
 #ifdef DPMI
@@ -384,28 +390,27 @@ do_hard_int(int intno)
   return (1);
 }
 
-inline int
+int
 do_soft_int(int intno)
 {
   do_int(intno);
   return 1;
 }
 
-struct port_struct {
+static struct port_struct {
   int start;
   int size;
   int permission;
   int ormask, andmask;
-}
+} *ports = NULL;
 
-*ports = NULL;
-int num_ports = 0;
+static int num_ports = 0;
 
 extern struct screen_stat scr_state;
-u_char video_port_io = 0;
+static u_char video_port_io = 0;
 
 /* find a matching entry in the ports array */
-int
+static int
 find_port(int port, int permission)
 {
   static int last_found = 0;
@@ -669,4 +674,3 @@ write_port_w(int value,int port)
 }
 
 
-#undef CPU_C

@@ -223,7 +223,7 @@ CONST unsigned char alt_map_uk[] =
   0, 0, 0, 0, 0, 0, 0, 0,
   0};
 
-CONST unsigned char key_map_gr[] =
+CONST unsigned char key_map_de[] =
 {
   0, 27, '1', '2', '3', '4', '5', '6',
   '7', '8', '9', '0', 'á', '\'', 127, 9,
@@ -239,7 +239,7 @@ CONST unsigned char key_map_gr[] =
   0, 0, 0, 0, 0, 0, 0, 0,
   0};
 
-CONST unsigned char shift_map_gr[] =
+CONST unsigned char shift_map_de[] =
 {
   0, 27, '!', '"', 'œ', '$', '%', '&',
   '/', '(', ')', '=', '?', '`', 127, 9,
@@ -255,7 +255,7 @@ CONST unsigned char shift_map_gr[] =
   0, 0, 0, 0, 0, 0, 0, 0,
   0};
 
-CONST unsigned char alt_map_gr[] =
+CONST unsigned char alt_map_de[] =
 {
   0, 0, 0, 'ý', 'ü', 0, 0, 0,
   '{', '[', ']', '}', '\\', 0, 0, 0,
@@ -271,7 +271,7 @@ CONST unsigned char alt_map_gr[] =
   0, 0, 0, 0, 0, 0, 0, 0,
   0};
 
-CONST unsigned char key_map_gr_latin1[] =
+CONST unsigned char key_map_de_latin1[] =
 {
   0, 27, '1', '2', '3', '4', '5', '6',
   '7', '8', '9', '0', 225, 39, 127, 9,
@@ -287,7 +287,7 @@ CONST unsigned char key_map_gr_latin1[] =
   0, 0, 0, 0, 0, 0, 0, 0,
   0};
 
-CONST unsigned char shift_map_gr_latin1[] =
+CONST unsigned char shift_map_de_latin1[] =
 {
   0, 27, '!', '"', 21, '$', '%', '&',
   '/', '(', ')', '=', '?', '`', 127, 9,
@@ -303,7 +303,7 @@ CONST unsigned char shift_map_gr_latin1[] =
   0, 0, 0, 0, 0, 0, 0, 0,
   0};
 
-CONST unsigned char alt_map_gr_latin1[] =
+CONST unsigned char alt_map_de_latin1[] =
 {
   0, 0, 0, 253, 252, '$', 0, 0,
   '{', '[', ']', '}', '\\', 0, 0, 0,

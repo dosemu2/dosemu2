@@ -43,7 +43,11 @@
 
 #ifdef MODULE
 #include <linux/module.h>
+#ifdef KERNEL2
 #include "/usr/src/linux/tools/version.h"
+#else
+#include "linux/version.h"
+#endif
 #endif
 
 #include "dosnet.h"

@@ -110,8 +110,8 @@ finnish-latin1		{ yylval->i_value = KEYB_FINNISH_LATIN1;
 			  return(KEYB_LAYOUT); }
 us			{ yylval->i_value = KEYB_US; return(KEYB_LAYOUT); }
 uk			{ yylval->i_value = KEYB_UK; return(KEYB_LAYOUT); }
-gr			{ yylval->i_value = KEYB_GR; return(KEYB_LAYOUT); }
-gr-latin1		{ yylval->i_value = KEYB_GR_LATIN1;
+de			{ yylval->i_value = KEYB_DE; return(KEYB_LAYOUT); }
+de-latin1		{ yylval->i_value = KEYB_DE_LATIN1;
 			  return(KEYB_LAYOUT); }
 fr			{ yylval->i_value = KEYB_FR; return(KEYB_LAYOUT); }
 fr-latin1		{ yylval->i_value = KEYB_FR_LATIN1;
@@ -269,7 +269,7 @@ no			{ yylval->i_value = 0; return(L_NO); }
 
 	/* comments & whitespace */
 
-[#\;\!][^\n]*$		line_count++;	/* comments to EOLN */
+[#\;\!][^\n]*\n		line_count++;   /* comments to (and including) EOLN */
 [ \t]+			;   		/* ignore all white space */
 \n			line_count++;	/* keep track of lines seen */
 .			fprintf(stderr, "discarding char '%c'\n", yytext[0]);

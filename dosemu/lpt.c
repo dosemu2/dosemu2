@@ -117,7 +117,7 @@ int17(u_char ii)
 
   default:
     error("ERROR: printer int17 bad call ax=0x%x\n", LWORD(eax));
-    show_regs();
+    show_regs(__FILE__, __LINE__);
     /* fatalerr = 8; */
     return;
   }

@@ -64,6 +64,7 @@ static int slang_update (void);
 static int Slsmg_is_not_initialized = 0;
 static int Use_IBM_Codes = 0;
 
+
 /* The following initializes the terminal.  This should be called at the
  * startup of DOSEMU if it's running in terminal mode.
  */ 
@@ -215,7 +216,11 @@ static int slang_update (void)
    n = 0;
    for (i = 0; i < li; i++)
      {
-	if (memcmp (screen_adr + n, prev_screen + n, row_len))
+#if 0
+	if (memcmp(screen_adr + n, prev_screen + n, row_len))
+#else
+	if (MEMCMP_DOS_VS_UNIX(screen_adr + n, prev_screen + n, row_len))
+#endif
 	  {
 	     line = screen_adr + n;
 	     prev_line = prev_screen + n;
@@ -224,7 +229,8 @@ static int slang_update (void)
 	     SLsmg_gotorc (i, 0);
 	     while (line < line_max)
 	       {
-		  *prev_line = char_attr = *line++;
+		  /* *prev_line = char_attr = *line++; */
+		  *prev_line = char_attr = READ_WORD(line++);
 		  prev_line++;
 		  this_obj = Attribute_Map[(unsigned int) (char_attr >> 8)];
 		  if (this_obj != last_obj)

@@ -17,13 +17,12 @@
 /**                                                                     **/
 /** NOTE: be careful with overlapping ".org",                           **/
 /**       or ld86 will then reach your disk quotas !                    **/
+/* $Id$
 /*************************************************************************/
 
 
-#if 1
-#include "../include/memory.h"
-#endif
-#include "../include/macros86.h"
+#include "memory.h"
+#include "macros86.h"
 
 /* some other usefull definitions */
 

@@ -3,10 +3,10 @@
 
 
 ALL = bios.h cmos.h cpu.h disks.h dosio.h dosnet.h emu.h \
-	emusys.h err hgc.h inifile.h int.h int10.h ipx.h keymaps.h \
+	emusys.h hgc.h inifile.h int.h int10.h ipx.h keymaps.h \
 	lpt.h machcompat.h memory.h mouse.h mutex.h port.h ports.h \
 	serial.h slang.h syscallmgr.h termio.h timers.h video.h xms.h \
-	macros86.h
+	macros86.h vc.h extern.h
 
 OBJS = 
 

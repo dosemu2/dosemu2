@@ -1,5 +1,3 @@
-#define SIGSEGV_C 1
-
 /* 
  * $Date: 1994/11/03 11:43:26 $
  * $Source: /home/src/dosemu0.60/RCS/sigsegv.c,v $
@@ -115,6 +113,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+
 #include <unistd.h>
 #include <time.h>
 #include <string.h>
@@ -146,7 +145,7 @@
 #include "ipx.h"
 
 /* Needed for DIAMOND define */
-#include "../video/vc.h"
+#include "vc.h"
 
 #ifdef DPMI
 #include "../dpmi/dpmi.h"
@@ -160,12 +159,634 @@ extern struct config_info config;
 
 #include "hgc.h"
 
-#if 0 /* 94/05/26 */
-#include "int.h"
-#endif
-#include "ports.h"
 
-extern inline void do_int(int);
+extern u_char keys_ready;
+
+/* PORT_DEBUG is to specify whether to record port writes to debug output.
+ * 0 means disabled.
+ * 1 means record all port accesses to 0x00 to 0xFF
+ * 2 means record ANY port accesses!  (big fat debugfile!)
+ */ 
+#define PORT_DEBUG 0
+
+/* int port61 = 0xd0;           the pseudo-8255 device on AT's */
+static int port61 = 0x0e;		/* the pseudo-8255 device on AT's */
+#if 0
+extern int fatalerr;
+#endif
+extern void set_leds(void);
+extern int s3_8514_base;
+extern int cursor_row;
+extern int cursor_col;
+extern int char_blink;
+u_short microsoft_port_check = 0;
+
+/* 
+ * Copied adverbatim from Mach code, please be aware of their 
+ * copyright in mfs.c
+ */
+static int timer_interrupt_rate = 55;
+static int min_timer_milli_pause = 16;
+static int timer_milli_pause = 55;
+
+static int timer0_read_latch_value = 0;
+static int timer0_read_latch_value_orig = 0;
+static int timer0_latched_value = 0;
+static int timer0_new_value = 0;
+static boolean_t latched_counter_msb = FALSE;
+
+extern void update_timers(void);
+static u_long milliseconds_since_boot;
+
+static int do_40(in_out, val)
+	boolean_t in_out;
+	int val;
+{
+	int ret;
+
+	if (in_out) {  /* true => in, false => out */
+
+		update_timers();
+		if (timer0_latched_value == 0) {
+			timer0_latched_value = timer_interrupt_rate*850;
+		}
+		switch (timer0_read_latch_value) {
+			case 0x30:
+				ret = timer0_latched_value&0xf;
+				timer0_read_latch_value = 0x20;
+				break;
+			case 0x10:
+				ret = timer0_latched_value&0xf;
+				timer0_read_latch_value = 0x0;
+				break;
+			case 0x20:
+				ret = (timer0_latched_value&0xf0)>>8;
+				timer0_read_latch_value = 0x0;
+				timer0_latched_value = 0;
+				break;
+			case 0x0:
+				if (latched_counter_msb) {
+					ret = 
+					(milliseconds_since_boot >> 8) & 0xff;
+				} else {
+					ret = milliseconds_since_boot & 0xff;
+				}
+				latched_counter_msb = !latched_counter_msb;
+				break;
+
+		}
+		i_printf("PORT: do_40, in = 0x%x\n",ret);
+	} else {
+		switch (timer0_read_latch_value) {
+			case 0x0:
+			case 0x30:
+				timer0_new_value = val;
+				timer0_read_latch_value = 0x20;
+				break;
+			case 0x10:
+				timer0_new_value = val;
+				timer0_read_latch_value = 0x0;
+				break;
+			case 0x20:
+				timer0_new_value |= (val<<8);
+				timer0_read_latch_value = 0x0;
+				break;
+		}
+		i_printf("PORT: do_40, out = 0x%x\n",val);
+		if (timer0_read_latch_value == 0) {
+			timer0_read_latch_value=timer0_read_latch_value_orig;
+			if (timer0_new_value == 0) timer0_new_value = 64*1024;
+			timer_interrupt_rate = ((timer0_new_value)/1193);
+			if (timer_interrupt_rate < min_timer_milli_pause) {
+				int i;
+				if (timer_interrupt_rate == 0) 
+					timer_interrupt_rate = 1;
+				for (i = 1; i<=min_timer_milli_pause;i++) {
+				    if (i*timer_interrupt_rate >= 
+						min_timer_milli_pause){
+				    	timer_milli_pause = i*
+						timer_interrupt_rate;
+					break;
+				    }
+				}
+			} else {
+				timer_milli_pause = timer_interrupt_rate;
+			}
+			i_printf("timer_interrupt_rate = %d\n",
+					  timer_interrupt_rate);
+			i_printf("timer_milli_pause = %d\n",
+					  timer_milli_pause);
+		}
+	}
+	return(ret);
+}
+
+static int do_42(in_out, val)
+	boolean_t in_out;
+	int val;
+{
+	int ret;
+	if (in_out) {  /* true => in, false => out */
+		ioperm(0x42,1,1);
+		ret = port_in(0x42);
+		ioperm(0x42,1,0);
+		i_printf( "PORT: do_42, in = 0x%x\n",ret);
+	} else {
+		ioperm(0x42,1,1);
+		port_out(val, 0x42);
+		ioperm(0x42,1,0);
+		i_printf( "PORT: do_42, out = 0x%x\n",val);
+	}
+	return(ret);
+}
+
+static int do_43(boolean_t in_out, int val)
+{
+	int ret;
+	
+	if (in_out) {  /* true => in, false => out */
+		i_printf( "PORT: do_43, in = 0x%x\n",ret);
+	} else {
+		i_printf( "PORT: do_43, out = 0x%x\n",val);
+		switch(val>>6) {
+			case 0:
+				timer0_read_latch_value = (val&0x30);
+				timer0_read_latch_value_orig = (val&0x30);
+				if (timer0_read_latch_value == 0) {
+					latched_counter_msb = FALSE;
+				}
+				break;
+			case 2:
+				ioperm(0x43,1,1);
+				port_out(val, 0x43);
+				ioperm(0x43,1,0);
+				i_printf( "PORT: Really do_43\n");
+				break;
+		}
+	}
+	return(ret);
+}
+
+/*
+ * DANG_BEGIN_FUNCTION inb(int port)
+ *
+ * description:
+ *  INB is used to do controlled emulation of input from ports.
+ *
+ * DANG_END_FUNCTION
+ */
+static inline int
+inb(int port)
+{
+
+  static unsigned int cga_r = 0;
+  static unsigned int tmp = 0;
+  static unsigned int r;
+
+  r = 0;
+  port &= 0xffff;
+  if (port_readable(port))
+    r = (read_port(port) & 0xFF);
+  else if (config.usesX) {
+    v_printf("HGC Portread: %d\n", (int) port);
+    switch (port) {
+    case 0x03b8:		/* mode-reg */
+      set_ioperm(port, 1, 1);
+      r = port_in(port);
+      set_ioperm(port, 1, 0);
+      r = (r & 0x7f) | (hgc_Mode & 0x80);
+      break;
+    case 0x03ba:		/* status-reg */
+      set_ioperm(port, 1, 1);
+      r = port_in(port);
+      set_ioperm(port, 1, 0);
+      break;
+    case 0x03bf:		/* conf-reg */
+      set_ioperm(port, 1, 1);
+      r = port_in(port);
+      set_ioperm(port, 1, 0);
+      r = (r & 0xfd) | (hgc_Konv & 0x02);
+      break;
+    case 0x03b4:		/* adr-reg */
+      set_ioperm(port, 1, 1);
+      r = port_in(port);
+      set_ioperm(port, 1, 0);
+      break;
+    case 0x03b5:		/* data-reg */
+      set_ioperm(port, 1, 1);
+      r = port_in(port);
+      set_ioperm(port, 1, 0);
+      break;
+    }
+  }
+#if 1
+  else if (config.chipset && port > 0x3b3 && port < 0x3df && config.mapped_bios)
+    r = (video_port_in(port));
+  else if ((config.chipset == S3) && ((port & 0x03fe) == s3_8514_base) && (port & 0xfc00)) {
+    iopl(3);
+    r = port_in(port) & 0xff;
+    iopl(0);
+    v_printf("S3 inb [0x%04x] = 0x%02x\n", port, r);
+  }
+#endif
+  else switch (port) {
+#ifdef NEW_PIC
+  case 0x20:
+  case 0x21:
+    r = read_pic0(port-0x20);
+    break;
+  case 0xa0:
+  case 0xa1:
+    r = read_pic1(port-0xa0);
+    break; 
+#endif
+  case 0x60:
+    if (keys_ready) microsoft_port_check = 0;
+    k_printf("direct 8042 read1: 0x%02x microsoft=%d\n", *LASTSCAN_ADD, microsoft_port_check);
+    if (microsoft_port_check)
+      r = microsoft_port_check;
+    else
+      r = *LASTSCAN_ADD;
+      keys_ready = 0;
+    break;
+
+  case 0x61:
+    k_printf("inb [0x61] = 0x%02x (8255 chip)\n", port61);
+    r = port61;
+    break;
+
+  case 0x64:
+    r = 0x1c | (keys_ready || microsoft_port_check ? 1 : 0);	/* low bit set = sc ready */
+    k_printf("direct 8042 0x64 status check: 0x%02x keys_ready=%d, microsoft=%d\n", tmp, keys_ready, microsoft_port_check);
+    break;
+
+  case 0x70:
+  case 0x71:
+    r = cmos_read(port);
+    break;
+
+#define COUNTER 2
+#if 0 /*Nov-21-94*/
+  case 0x40:
+    r = do_40(1, 0);
+    break;
+  case 0x41:
+    r = do_40(1, 0);
+    break;
+#else
+  case 0x40:
+    pit.CNTR0 -= COUNTER;
+    i_printf("inb [0x40] = 0x%02x  1st timer inb\n", pit.CNTR0);
+    r = pit.CNTR0;
+    break;
+  case 0x41:
+    pit.CNTR1 -= COUNTER;
+    i_printf("inb [0x41] = 0x%02x  2nd timer inb\n", pit.CNTR1);
+    r = pit.CNTR1;
+    break;
+#endif
+  case 0x42:
+#if 0
+    r = do_42(1, 0);
+    break;
+#else
+    pit.CNTR2 -= COUNTER;
+    i_printf("inb [0x42] = 0x%02x  3rd timer inb\n", pit.CNTR2);
+    r = pit.CNTR2;
+    break;
+#endif
+  case 0x43:
+    r = do_43(1, 0);
+    break;
+
+  case 0x3ba:
+  case 0x3da:
+    /* graphic status - many programs will use this port to sync with
+     * the vert & horz retrace so as not to cause CGA snow */
+    i_printf("3ba/3da port inb\n");
+    r = (cga_r ^= 1) ? 0xcf : 0xc6;
+    break;
+
+  case 0x3bc:
+    i_printf("printer port inb [0x3bc] = 0\n");    /* 0 by default */
+    break;
+
+  case 0x3db:			/* light pen strobe reset, 0 by default */
+    break;
+    
+  default:
+    /* SERIAL PORT I/O.  The base serial port must be a multiple of 8. */
+    for (tmp = 0; tmp < config.num_ser; tmp++)
+      if ((port & ~7) == com[tmp].base_port) {
+	r = do_serial_in(tmp, port);
+	break;
+      }
+
+    /* The diamond bug */
+    if (config.chipset == DIAMOND && (port >= 0x23c0) && (port <= 0x23cf)) {
+      iopl(3);
+      r = port_in(port);
+      iopl(0);
+      i_printf(" Diamond inb [0x%x] = 0x%x\n", port, r);
+      break;
+    }
+    i_printf("default inb [0x%x] = 0x%02x\n", port, r);
+  }
+
+/* Now record the port and the read value to debugfile if needed */
+#if PORT_DEBUG > 0
+#if PORT_DEBUG == 1
+  if (port < 0x100)
+#endif
+    fprintf(stderr,"PORT: Rd 0x%04x -> 0x%02x\n",port,r);
+#endif
+
+  return r;    /* Return with port read value */
+}
+
+static inline int
+inw(int port)
+{
+  if ((config.chipset == S3) && ((port & 0x03ff) == s3_8514_base) && (port & 0xfc00)) {
+    int value;
+
+    iopl(3);
+    value = port_in_w(port) & 0xffff;
+    iopl(0);
+    v_printf("S3 inw [0x%04x] = 0x%04x\n", port, value);
+    return value;
+  }
+  return( read_port_w(port) );
+}
+
+static inline void
+outb(int port, int byte)
+{
+  static int timer_beep = 0;
+  static int lastport = 0;
+  static unsigned int tmp = 0;
+
+  port &= 0xffff;
+  byte &= 0xff;
+
+#if PORT_DEBUG > 0
+#if PORT_DEBUG == 1
+  if (port < 0x100)
+#endif
+    fprintf(stderr,"PORT: Wr 0x%04x <- 0x%02x\n",port,byte);
+#endif
+
+  if (port_writeable(port)) {
+    write_port(byte, port);
+    return;
+  }
+
+  /* Port writes for enable/disable blinking character mode */
+  if (port == 0x03C0) {
+    static int last_byte = -1;
+    static int last_index = -1;
+    static int flip_flop = 1;
+
+    flip_flop = !flip_flop;
+    if (flip_flop) {
+      if (last_index = 0x10)
+	char_blink = (byte & 8) ? 1 : 0;
+      last_byte = byte;
+    }
+    else {
+      last_index = byte;
+    }
+    return;
+  }
+
+  /* Port writes for cursor position */
+  if ((port & 0xfffe) == READ_WORD(BIOS_VIDEO_PORT)) {
+    /* Writing to the 6845 */
+    static int last_port;
+    static int last_byte;
+    static int hi = 0, lo = 0;
+    int pos;
+
+    v_printf("Video Port outb [0x%04x]\n", port);
+    if (!config.usesX) {
+      if ((port == READ_WORD(BIOS_VIDEO_PORT) + 1) && (last_port == READ_WORD(BIOS_VIDEO_PORT))) {
+	/* We only take care of cursor positioning for now. */
+	/* This code should work most of the time, but can
+	     be defeated if i/o permissions change (e.g. by a vt
+	     switch) while a new cursor location is being written
+	     to the 6845. */
+	if (last_byte == 14) {
+	  hi = (unsigned char) byte;
+	  pos = (hi << 8) | lo;
+	  cursor_col = pos % 80;
+	  cursor_row = pos / 80;
+	  if (config.usesX)
+	    poshgacur(cursor_col,
+		      cursor_row);
+	}
+	else if (last_byte == 15) {
+	  lo = (unsigned char) byte;
+	  pos = (hi << 8) | lo;
+	  cursor_col = pos % 80;
+	  cursor_row = pos / 80;
+	  if (config.usesX)
+	    poshgacur(cursor_col,
+		      cursor_row);
+	}
+      }
+      last_port = port;
+      last_byte = byte;
+    }
+    else {
+      set_ioperm(port, 1, 1);
+      port_out(byte, port);
+      set_ioperm(port, 1, 0);
+    }
+    return;
+  }
+  else {
+    if (config.usesX) {
+      v_printf("HGC Portwrite: %d %d\n", (int) port, (int) byte);
+      switch (port) {
+      case 0x03b8:		/* mode-reg */
+	if (byte & 0x80)
+	  set_hgc_page(1);
+	else
+	  set_hgc_page(0);
+	set_ioperm(port, 1, 1);
+	port_out(byte & 0x7f, port);
+	set_ioperm(port, 1, 0);
+	break;
+      case 0x03ba:		/* status-reg */
+	set_ioperm(port, 1, 1);
+	port_out(byte, port);
+	set_ioperm(port, 1, 0);
+	break;
+      case 0x03bf:		/* conf-reg */
+	if (byte & 0x02)
+	  map_hgc_page(1);
+	else
+	  map_hgc_page(0);
+	set_ioperm(port, 1, 1);
+	port_out(byte & 0xFD, port);
+	set_ioperm(port, 1, 0);
+	break;
+      }
+      return;
+    }
+  }
+
+#if 1
+  if (port > 0x3b3 && port < 0x3df && config.chipset && config.mapped_bios)
+    video_port_out(byte, port);
+  if ((config.chipset == S3) && ((port & 0x03fe) == s3_8514_base) && (port & 0xfc00)) {
+    iopl(3);
+    port_out(byte, port);
+    iopl(0);
+    v_printf("S3 outb [0x%04x] = 0x%02x\n", port, byte);
+    return;
+  }
+#endif
+
+  /* The diamond bug */
+  if (config.chipset == DIAMOND && (port >= 0x23c0) && (port <= 0x23cf)) {
+    iopl(3);
+    port_out(byte, port);
+    iopl(0);
+    i_printf(" Diamond outb [0x%x] = 0x%x\n", port, byte);
+    return;
+  }
+
+  switch (port) {
+  case 0x20:
+  case 0x21:
+#ifdef NEW_PIC
+    write_pic0(port-0x20,byte);
+#else /* NEW_PIC */
+    k_printf("OUTB 0x%x to byte=%x\n", port, byte);
+#if 0				/* 94/04/30 */
+    REG(eflags) |= VIF;
+#endif
+#if 1				/* 94/05/11 */
+    *OUTB_ADD = 1;
+#endif
+    if (port == 0x20 && byte != 0x20)
+      set_leds();
+#endif  /* NEW_PIC */
+    break;
+  case 0x60:
+    k_printf("keyboard 0x60 outb = 0x%x\n", byte);
+    microsoft_port_check = 1;
+    if (byte < 0xf0) {
+      microsoft_port_check = 0xfe;
+    }
+    else {
+      microsoft_port_check = 0xfa;
+    }
+    break;
+  case 0x64:
+    k_printf("keyboard 0x64 outb = 0x%x\n", byte);
+    break;
+  case 0x61:
+    port61 = byte & 0x0f;
+    k_printf("8255 0x61 outb = 0x%x\n", byte);
+    if (((byte & 3) == 3) && (timer_beep == 1) &&
+	(config.speaker == SPKR_EMULATED)) {
+      i_printf("beep!\n");
+      putchar('\007');
+      timer_beep = 0;
+    }
+    else {
+      timer_beep = 1;
+    }
+    break;
+  case 0x70:
+  case 0x71:
+    cmos_write(port, byte);
+    break;
+#ifdef NEW_PIC
+  case 0xa0:
+  case 0xa1:
+    write_pic1(port-0xa0,byte);
+#endif
+  case 0x40:
+	do_40(0, byte);
+	break;
+  case 0x41:
+	do_40(0, byte);
+	break;
+  case 0x42:
+	do_42(0, byte);
+    if ((port == 0x42) && (lastport == 0x42)) {
+      if ((timer_beep == 1) &&
+	  (config.speaker == SPKR_EMULATED)) {
+	putchar('\007');
+	timer_beep = 0;
+      }
+      else {
+	timer_beep = 1;
+      }
+    }
+    break;
+  case 0x43:
+#if 0
+    i_printf("timer outb 0x%02x\n", byte);
+#endif
+	do_43(0, byte);
+	break;
+
+  default:
+    /* SERIAL PORT I/O.  Avoids port==0 for safety.  */
+    /* The base serial port must be a multiple of 8. */
+    for (tmp = 0; tmp < config.num_ser; tmp++) {
+      if ((port & ~7) == com[tmp].base_port) {
+	do_serial_out(tmp, port, byte);
+	lastport = port;
+	return;
+      }
+    }
+    i_printf("outb [0x%x] 0x%02x\n", port, byte);
+  }
+  lastport = port;
+}
+
+inline void
+outw(int port, int value)
+{
+  if ((config.chipset == S3) && ((port & 0x03ff) == s3_8514_base) && (port & 0xfc00)) {
+    iopl(3);
+    port_out_w(value, port);
+    iopl(0);
+    v_printf("S3 outw [0x%04x] = 0x%04x\n", port, value);
+    return;
+  }
+  if(!write_port_w(value,port) ) {
+    outb(port, value & 0xff);
+    outb(port + 1, value >> 8);
+  }
+
+}
+
+void update_timers(void) {
+  static long initial_sec=0L;
+  static long initial_usec;
+  static struct timeval tp;
+  static unsigned long adder=0;
+
+  gettimeofday(&tp, NULL);
+
+  if (initial_sec == 0L) {
+    initial_sec = tp.tv_sec;
+    initial_usec = tp.tv_usec;
+  }
+
+  milliseconds_since_boot = ((tp.tv_sec - initial_sec)*1000) +
+                            ((tp.tv_usec - initial_usec)/1000) + adder;
+  adder = (adder + 1) % 20;
+  i_printf("Timers updated: %x\n", milliseconds_since_boot);
+
+}
+ 
 
 /*
  * DANG_BEGIN_FUNCTION vm86_GP_fault();
@@ -177,7 +798,7 @@ extern inline void do_int(int);
  * DANG_END_FUNCTION
  */
 
-inline void vm86_GP_fault()
+void vm86_GP_fault()
 {
 
   unsigned char *csp, *lina;
@@ -193,7 +814,7 @@ inline void vm86_GP_fault()
     csp = SEG_ADR((unsigned char *), cs, ip);
     k_printf("SIGSEGV cs=0x%04x ip=0x%04lx *csp=0x%02x->0x%02x 0x%02x 0x%02x\n", LWORD(cs), REG(eip), csp[-1], csp[0], csp[1], csp[2]);
 /*
-    show_regs();
+    show_regs(__FILE__, __LINE__);
 */
 #endif
 
@@ -225,7 +846,7 @@ inline void vm86_GP_fault()
 
   if (LWORD(eflags) & TF) {
     g_printf("SIGSEGV received while TF is set\n");
-    show_regs();
+    show_regs(__FILE__, __LINE__);
   }
 
   csp = lina = SEG_ADR((unsigned char *), cs, ip);
@@ -383,12 +1004,14 @@ inline void vm86_GP_fault()
     }
 #endif /* DPMI */
     else {
-#if 0
+#if 1
       error("HLT requested: lina=%p!\n", lina);
-      show_regs();
+      show_regs(__FILE__, __LINE__);
+#if 0
       haltcount++;
       if (haltcount > MAX_HALT_COUNT)
 	fatalerr = 0xf4;
+#endif
 #endif
       LWORD(eip) += 1;
     }
@@ -399,7 +1022,7 @@ inline void vm86_GP_fault()
     /* er, why don't we advance eip here, and
 	 why does it work??  */
     error("general protection at %p: %x\n", csp,*csp);
-    show_regs();
+    show_regs(__FILE__, __LINE__);
     show_ints(0, 0x33);
     error("ERROR: SIGSEGV, protected insn...exiting!\n");
     fatalerr = 4;
@@ -408,7 +1031,7 @@ inline void vm86_GP_fault()
 
   if (LWORD(eflags) & TF) {
     g_printf("TF: trap done");
-    show_regs();
+    show_regs(__FILE__, __LINE__);
   }
 
   in_sigsegv--;
@@ -443,7 +1066,7 @@ dosemu_fault(int signal, struct sigcontext_struct context)
 		 return (void) do_int(_trapno);
       case 0x06: /* invalid_op */
 		 dbug_printf("SIGILL while in vm86()\n");
-		 show_regs();
+		 show_regs(__FILE__, __LINE__);
  		 csp = SEG_ADR((unsigned char *), cs, ip);
  		 /* Some db commands start with 2e (use cs segment) and thus is accounted
  		    for here */
@@ -461,7 +1084,7 @@ dosemu_fault(int signal, struct sigcontext_struct context)
 	  	"cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n", _trapno,scp->err,
 	  	_eip, _esp, _eflags, _cs, _ds, _es, _ss);
 		perror("YUCK");
- 		 show_regs();
+ 		 show_regs(__FILE__, __LINE__);
  		 leavedos(4);
     }
   }
@@ -533,11 +1156,9 @@ dosemu_fault(int signal, struct sigcontext_struct context)
       dbug_printf("%02x ", *csp++);
     dbug_printf("\n");
 
-    show_regs();
+    show_regs(__FILE__, __LINE__);
 
     fatalerr = 4;
     leavedos(fatalerr);		/* shouldn't return */
   }
 }
-
-#undef SIGSEGV_C

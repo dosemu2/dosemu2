@@ -34,7 +34,11 @@
  * included, using the /proc filesystem.
  * 
  * In contrast to some of the comments (Yes, _I_ know the adage about that...)
- * we appear to be supporting EMS 4.0, not 3.2
+ * we appear to be supporting EMS 4.0, not 3.2.  The following EMS 4.0
+ * functions are not supported (yet): 0x4f (partial page map functions),
+ * 0x55 (map pages and jump), and 0x56 (map pages and call).  OS handle
+ * support is missing, and raw page size is 16k (instead of 4k).  Other than
+ * that, EMS 4.0 support appears complete.
  *
  * DANG_END_MODULE
  *

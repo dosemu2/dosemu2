@@ -10,6 +10,10 @@
  * The names are retranslatios from an old german book :-(
  */
 
+#ifdef X86_EMULATOR
+#include "x86_emulator.h"
+#endif
+
 #ifndef X86_EMULATOR_CHECK
 #define bios_base_address_com1          (*(unsigned short *) 0x400)
 #define bios_base_address_com2          (*(unsigned short *) 0x402)
@@ -87,12 +91,10 @@
 
 
 #ifndef X86_EMULATOR
+
 typedef unsigned char  ubyte_t;
 typedef unsigned short uword_t;
 typedef unsigned long  udword_t;
-#else
-  /* types for x86 emulator here */
-#endif
 
 #define READ_BYTE(addr)                 (*(ubyte_t *) (addr))
 #define WRITE_BYTE(addr, val)           (*(ubyte_t *) (addr) = (val) )
@@ -100,6 +102,20 @@ typedef unsigned long  udword_t;
 #define WRITE_WORD(addr, val)           (*(uword_t *) (addr) = (val) )
 #define READ_DWORD(addr)                (*(udword_t *) (addr))
 #define WRITE_DWORD(addr, val)          (*(udword_t *) (addr) = (val) )
+
+#define MEMCPY_2UNIX(unix_addr, dos_addr, n) \
+	memcpy(unix_addr, dos_addr, n)
+
+#define MEMCPY_2DOS(dos_addr, unix_addr, n) \
+	memcpy(dos_addr, unix_addr, n)
+
+#define MEMCPY_DOS2DOS(dos_addr, unix_addr, n) \
+	memcpy(dos_addr, unix_addr, n)
+
+#define MEMCMP_DOS_VS_UNIX(dos_addr, unix_addr, n) \
+	memcmp(dos_addr, unix_addr, n)
+
+#endif
 
 
 #define BIOS_BASE_ADDRESS_COM1          0x400
@@ -132,14 +148,16 @@ typedef unsigned long  udword_t;
 #define BIOS_VIDEO_MEMORY_ADDRESS       0x44e
 
 #define set_bios_cursor_x_position(screen, val) \
-                        (*(ubyte_t *)(0x450 + 2*(screen)) = (val))
+                        WRITE_BYTE(0x450 + 2*(screen), (val))
 #define get_bios_cursor_x_position(screen) \
-                        (*(ubyte_t *)(0x450 + 2*(screen)))
+                        READ_BYTE(0x450 + 2*(screen))
+
 
 #define set_bios_cursor_y_position(screen, val) \
-                        (*(ubyte_t *)(0x451 + 2*(screen)) = (val))
+                        WRITE_BYTE(0x451 + 2*(screen), (val))
 #define get_bios_cursor_y_position(screen) \
-                        (*(ubyte_t *)(0x451 + 2*(screen)))
+                        READ_BYTE(0x451 + 2*(screen))
+
  
 #define BIOS_CURSOR_SHAPE               0x460
 #define BIOS_CURSOR_LAST_LINE           0x460

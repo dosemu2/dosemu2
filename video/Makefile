@@ -2,6 +2,7 @@
 # This is the Makefile for the video-subdirectory of the DOS-emulator
 # for Linux.
 #
+# $Id$
 
 ifdef X_SUPPORT
 XCFILES	= X.c
@@ -11,14 +12,17 @@ endif
 
 
 CFILES = video.c vc.c vga.c et4000.c s3.c trident.c console.c \
-         terminal.c int10.c $(XCFILES) hgc.c dualmon.c
-HFILES = vga.h et4000.h s3.h trident.h terminal.h vc.h $(XHDRS)
-DEPENDS=$(CFILES:.c=.d)
-OBJS=$(CFILES:.c=.o)
+         int10.c $(XCFILES) hgc.c dualmon.c
+HFILES = vga.h et4000.h s3.h trident.h terminal.h $(XHDRS)
 
+ifdef USE_SLANG
 CFLAGS+= $(USE_SLANG)
+CFILES+=terminal.slang.c
+else
+CFILES+=terminal.ncurses.c
+endif
 
-ALL = $(CFILES) $(HFILES) terminal.c.slang terminal.c.ncurses
+ALL = $(CFILES) $(HFILES) terminal.slang.c terminal.ncurses.c
 
 SUBDIR=video
 

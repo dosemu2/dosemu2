@@ -1,11 +1,15 @@
 ifndef SUBDIR
-Makefile.common:
+thisshouldnothappen:
 	echo This rule should never execute
 	false
 endif
 
 ifndef OBJS
+ifdef CFILES
+OBJS=$(CFILES:.c=.o)
+else
 OBJS=$($(wildcard *.c):.c=.o)
+endif
 endif
 
 ifndef DEPENDS

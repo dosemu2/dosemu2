@@ -11,6 +11,7 @@
  * Update to do console disallocation on exit of dosemu
  * (C) 1994 under GPL: Wayne Meissner
  * 
+ * $Id$
  */
 
 /* the new VT for dosemu - only needed by detach() and disallocate_vt() */
@@ -19,7 +20,7 @@ static int dosemu_vt = 0;
 static struct stat orig_stat; /* original info of the VT */
 
 /* One of these has to work */
-const char * CONSOLE[] =   { 
+static const char * CONSOLE[] =   { 
   "/dev/console",
   "/dev/tty0",
   "/dev/vt00",
@@ -27,7 +28,7 @@ const char * CONSOLE[] =   {
   0 
 };
 
-const char vt_base[] = "/dev/tty";
+static const char vt_base[] = "/dev/tty";
 
 /* open a specific VT */
 

@@ -220,6 +220,8 @@
 #include "machcompat.h"
 #include "cpu.h"
 
+#include "extern.h"
+
 #if 1 /* Set to 1 to use Silly Interrupt generator */
 #define SIG 1
 typedef struct { int fd; int irq; } SillyG_t;
@@ -245,10 +247,17 @@ typedef struct { int fd; int irq; } SillyG_t;
 
 #define us unsigned short
 
-extern struct vm86_struct vm86s;
+/*
+ * DANG_BEGIN_REMARK
+   The `vm86_struct` is used to pass all the necessary status/registers to
+   DOSEMU when running in vm86 mode.
+ * DANG_END_REMARK
+*/ 
+EXTERN struct vm86_struct vm86s;
 extern int screen, max_page, screen_mode;
-extern fd_set fds_sigio, fds_no_sigio;
-extern unsigned int use_sigio, not_use_sigio;
+EXTERN fd_set fds_sigio, fds_no_sigio;
+EXTERN unsigned int use_sigio INIT(0);
+EXTERN unsigned int  not_use_sigio INIT(0);
 
 extern char *cl,		/* clear screen */
 *le,				/* cursor left */
@@ -271,8 +280,9 @@ extern int kbd_fd, mem_fd;
 extern int in_readkeyboard;
 
 /* X-pipes */
-extern int keypipe;
-extern int mousepipe;
+EXTERN int keypipe;
+EXTERN int mousepipe;
+
 
 extern int in_vm86;
 
@@ -282,13 +292,12 @@ extern int cursor_row;
 extern int cursor_col;
 
 void dos_ctrlc(void), dos_ctrl_alt_del(void);
-void show_regs(void);
 int ext_fs(int, char *, char *, int);
 #if 0 /* Not used anymore */
 int outch(int c);
 #endif
 void termioInit(void);
-extern __inline__ void run_vm86(void);
+extern void run_vm86(void);
 
 #define NOWAIT  0
 #define WAIT    1
@@ -563,7 +572,6 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 
 config_t;
 
-extern config_t config;
 
 #define SPKR_OFF	0
 #define SPKR_NATIVE	1
@@ -573,8 +581,8 @@ extern config_t config;
 #define KEYB_FINNISH_LATIN1    1
 #define KEYB_US                2
 #define KEYB_UK                3
-#define KEYB_GR                4
-#define KEYB_GR_LATIN1         5
+#define KEYB_DE                4
+#define KEYB_DE_LATIN1         5
 #define KEYB_FR                6
 #define KEYB_FR_LATIN1         7
 #define KEYB_DK                8
@@ -642,7 +650,6 @@ extern boolean_t bios_emm_fn(state_t *);
 extern int GetDebugFlagsHelper(char *);
 extern int SetDebugFlagsHelper(char *);
 extern void leavedos(int) NORETURN;
-extern void version_init(void);
 extern void add_to_io_select(int, unsigned char);
 
 /* signals for Linux's process control of consoles */
@@ -716,6 +723,23 @@ extern inline void handle_signals(void);
   #endif  
   #include "emusys.h"
 #endif
+
+/* 
+ * DANG_BEGIN_REMARK
+ * DOSEMU keeps system wide configuration status in a structure
+ * called config.
+ * DANG_END_REMARK
+ */
+EXTERN struct config_info config;
+
+
+/*
+ * DANG_BEGIN_REMARK
+ * The var `fatalerr` can be given a true value at any time to have DOSEMU
+ * exit on the next return from vm86 mode.
+ * DANG_END_REMARK
+ */
+EXTERN int fatalerr;
 
 
 #endif /* EMU_H */

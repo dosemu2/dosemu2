@@ -762,7 +762,7 @@ int13(u_char i)
       error("ERROR: Sector not found 1!\n");
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
-      show_regs();
+      show_regs(__FILE__, __LINE__);
       break;
     }
 
@@ -775,7 +775,6 @@ int13(u_char i)
     }
     else if (res & 511) {	/* must read multiple of 512 bytes */
       error("ERROR: sector_corrupt 1, return = %d!\n", res);
-      /* show_regs(); */
       HI(ax) = DERR_BADSEC;	/* sector corrrupt */
       CARRY;
       break;
@@ -802,7 +801,7 @@ int13(u_char i)
     if (checkdp(dp) || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
       error("ERROR: Sector not found 3!\n");
-      show_regs();
+      show_regs(__FILE__, __LINE__);
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
       break;
@@ -810,7 +809,7 @@ int13(u_char i)
 
     if (dp->rdonly) {
       error("ERROR: write protect!\n");
-      show_regs();
+      show_regs(__FILE__, __LINE__);
       if (dp->removeable)
 	HI(ax) = DERR_WP;
       else
@@ -1074,7 +1073,7 @@ int13(u_char i)
   default:
     error("ERROR: disk error, unknown command: int13, ax=0x%x\n",
 	  LWORD(eax));
-    show_regs();
+    show_regs(__FILE__, __LINE__);
     CARRY;
     return;
   }

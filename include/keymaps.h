@@ -24,13 +24,13 @@ extern unsigned char key_map_uk[];
 extern unsigned char shift_map_uk[];
 extern unsigned char alt_map_uk[];
 
-extern unsigned char key_map_gr[];
-extern unsigned char shift_map_gr[];
-extern unsigned char alt_map_gr[];
+extern unsigned char key_map_de[];
+extern unsigned char shift_map_de[];
+extern unsigned char alt_map_de[];
 
-extern unsigned char key_map_gr_latin1[];
-extern unsigned char shift_map_gr_latin1[];
-extern unsigned char alt_map_gr_latin1[];
+extern unsigned char key_map_de_latin1[];
+extern unsigned char shift_map_de_latin1[];
+extern unsigned char alt_map_de_latin1[];
 
 extern unsigned char key_map_fr[];
 extern unsigned char shift_map_fr[];

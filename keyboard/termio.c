@@ -168,6 +168,7 @@
 #include <linux/vt.h>
 #include <linux/kd.h>
 
+#include "bios.h"
 #include "config.h"
 #include "memory.h"
 #include "emu.h"
@@ -765,9 +766,11 @@ keyboard_init(void)
      }
   }
 
-  kbd_flags = 0;
+  WRITE_WORD(KBDFLAG_ADDR, 0);
+  /*kbd_flags = 0;*/
   child_kbd_flags = 0;
-  key_flags = 0;
+  WRITE_WORD(KEYFLAG_ADDR, 0);
+  /*key_flags = 0;*/
 
   dbug_printf("TERMIO: $Header: /home/src/dosemu0.60/keyboard/termio.c,v 1.1 1994/11/06 02:36:40 root Exp root $\n");
 
@@ -797,7 +800,7 @@ set_raw_mode()
 #endif
   k_printf("KBD: Setting keyboard to RAW mode\n");
   if (!config.console_video)
-    fprintf(stderr, "\nEntering RAW mode for DOS!\n");
+    fprintf(stderr, "\nKBD: Entering RAW mode for DOS!\n");
   do_ioctl(kbd_fd, KDSKBMODE, K_RAW);
   tty_raw(kbd_fd);
 }
@@ -852,6 +855,10 @@ getKeys(void)
   int cc;
 
   if (config.console_keyb) {	/* Keyboard at the console */
+    if (scr_state.current != 1) {
+	k_printf("KBD: Not current screen!\n");
+	return;
+    }
     kbcount = 0;
     kbp = kbbuf;
 
@@ -1126,7 +1133,8 @@ InsKeyboard(unsigned short scancode)
     return (0);
 
   ignore_segv++;
-  *((unsigned short *) BIOS_DATA_PTR(KBD_Tail)) = scancode;
+  /* *((unsigned short *) BIOS_DATA_PTR(KBD_Tail)) = scancode;*/
+  WRITE_WORD(BIOS_DATA_PTR(KBD_Tail), scancode);
   KBD_Tail = nextpos;
   ignore_segv--;
 
@@ -1408,7 +1416,7 @@ static void
 sysreq(unsigned int sc)
 {
   g_printf("Regs requested: SYSREQ\n");
-  show_regs();
+  show_regs(__FILE__, __LINE__);
 }
 
 static void
@@ -1417,16 +1425,18 @@ ScrollLock(unsigned int sc)
   if (key_flag(KKF_E0)) {
     k_printf("KBD: ctrl-break!\n");
     ignore_segv++;
-    *(unsigned char *) 0x471 = 0x80;	/* ctrl-break flag */
+    /* *(unsigned char *) 0x471 = 0x80; */	/* ctrl-break flag */
+    WRITE_BYTE(0x471, 0x80); 	/* ctrl-break flag */
     KBD_Head = KBD_Tail = KBD_Start;
-    *((unsigned short *) (BIOS_DATA_PTR(KBD_Start))) = 0;
+    /* *((unsigned short *) (BIOS_DATA_PTR(KBD_Start))) = 0;*/
+    WRITE_WORD(BIOS_DATA_PTR(KBD_Start), 0);
     ignore_segv--;
     return;
   }
   else if (kbd_flag(KKF_RCTRL))
     show_ints(0, 0x33);
   else if (kbd_flag(KKF_RALT))
-    show_regs();
+    show_regs(__FILE__, __LINE__);
   else if (kbd_flag(KF_RSHIFT)) {
     warn("timer int 8 requested...\n");
 #ifdef NEW_PIC
@@ -1555,7 +1565,8 @@ get_leds()
     clr_kbd_flag(KF_CAPSLOCK);
   }
   k_printf("KBD: GET LEDS key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
-	   *(u_char *) 0x496, *(u_char *) 0x497, *(u_char *) 0x417, *(u_char *) 0x418);
+/*	   *(u_char *) 0x496, *(u_char *) 0x497, *(u_char *) 0x417, *(u_char *) 0x418);*/
+	   READ_BYTE(0x496), READ_BYTE(0x497), READ_BYTE(0x417), READ_BYTE(0x418));
 }
 
 static void
@@ -1570,13 +1581,13 @@ do_self(unsigned int sc)
              Pressed with the Left-Alt-Key they return the normal symbol
              with the alt-modifier. I've tested this with the 4DOS-Alias-
              Command.                  hein@tlaloc.in.tu-clausthal.de       */
-    if (config.keyboard == KEYB_GR_LATIN1) {
+    if (config.keyboard == KEYB_DE_LATIN1) {
       if (kbd_flag(EKF_LALT))	/* Left-Alt-Key pressed ?            */
 	ch = config.alt_map[0];	/* Return Key with Alt-modifier      */
       else			/* otherwise (this is Alt-Gr)        */
 	ch = config.alt_map[sc];/* Return key from alt_map          */
     }
-    else			/* or no GR_LATIN1-keyboard          */
+    else			/* or no DE_LATIN1-keyboard          */
       ch = config.alt_map[sc];	/* Return key from alt_map           */
 
     if ((sc >= 2) && (sc <= 0xb))	/* numbers */
@@ -1897,25 +1908,29 @@ none(unsigned int sc)
 void
 set_kbd_flag(int flag)
 {
-  kbd_flags |= (1 << flag);
+  WRITE_WORD(KBDFLAG_ADDR, READ_WORD(KBDFLAG_ADDR) | (1 << flag) );
+  /*kbd_flags |= (1 << flag);*/
 }
 
 void
 clr_kbd_flag(int flag)
 {
-  kbd_flags &= ~(1 << flag);
+  WRITE_WORD(KBDFLAG_ADDR, READ_WORD(KBDFLAG_ADDR) & ~(1 << flag) );
+  /*kbd_flags &= ~(1 << flag);*/
 }
 
 void
 chg_kbd_flag(int flag)
 {
-  kbd_flags ^= (1 << flag);
+  WRITE_WORD(KBDFLAG_ADDR, READ_WORD(KBDFLAG_ADDR) ^ (1 << flag) );
+  /*kbd_flags ^= (1 << flag);*/
 }
 
 int
 kbd_flag(int flag)
 {
-  return ((kbd_flags >> flag) & 1);
+  return ((READ_WORD(KBDFLAG_ADDR) >> flag) & 1);
+  /*return ((kbd_flags >> flag) & 1);*/
 }
 
 /* These are added to allow the CHILD process to keep its own flags on keyboard
@@ -1943,25 +1958,29 @@ child_kbd_flag(int flag)
 void
 set_key_flag(int flag)
 {
-  key_flags |= (1 << flag);
+  WRITE_WORD(KEYFLAG_ADDR, READ_WORD(KEYFLAG_ADDR) | (1 << flag));
+  /*key_flags |= (1 << flag);*/
 }
 
 void
 clr_key_flag(int flag)
 {
-  key_flags &= ~(1 << flag);
+  WRITE_WORD(KEYFLAG_ADDR, READ_WORD(KEYFLAG_ADDR) & ~(1 << flag));
+  /*key_flags &= ~(1 << flag);*/
 }
 
 void
 chg_key_flag(int flag)
 {
-  key_flags ^= (1 << flag);
+  WRITE_WORD(KEYFLAG_ADDR, READ_WORD(KEYFLAG_ADDR) ^ (1 << flag));
+  /*key_flags ^= (1 << flag);*/
 }
 
 int
 key_flag(int flag)
 {
-  return ((key_flags >> flag) & 1);
+  return( (READ_WORD(KEYFLAG_ADDR) >> flag) & 1 );
+  /*return ((key_flags >> flag) & 1);*/
 }
 
 /************* end of key-related functions *************/

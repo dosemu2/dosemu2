@@ -8,7 +8,7 @@
  * DANG_END_MODULE
  *
  * $Date: 1994/10/03 00:24:25 $
- * $Source: /home/src/dosemu0.60/RCS/int.h,v $
+ * $Source: /home/src/dosemu0.60/include/RCS/int.h,v $
  * $Revision: 2.14 $
  * $State: Exp $
  *
@@ -310,15 +310,12 @@ int15(u_char i)
     CARRY;
     return;			/* no ebios area */
   case 0xc2:
-        m_printf("PS2MOUSE: Call ax=0x%04x\n", LWORD(eax));
-	if (!mice->intdrv) {
-          if (mice->type != MOUSE_PS2) {
+	if (!mice->intdrv) 
+        if (mice->type != MOUSE_PS2) {
                 REG(eax) = 0500;        /* No ps2 mouse device handler */
                 CARRY;
                 return;
-          }
-	  else return;
-	}
+        }
                 
         switch (REG(eax) &= 0x00FF)
         {
@@ -326,16 +323,14 @@ int15(u_char i)
                         if (LO(bx)) mouse.cursor_on = 1;
                                 else mouse.cursor_on = 0;
                         HI(ax) = 0;             
-			NOCARRY;
                         break;
                 case 0x0001:
                         HI(ax) = 0;
                         LWORD(ebx) = 0xAAAA;    /* we have a ps2 mouse */
-			NOCARRY;
                         break;
 		case 0x0002:			/* set sampling rate */
-			HI(ax) = 0;		/* invalid function  but who cares */
-			NOCARRY;
+			HI(ax) = 1;		/* invalid function */
+			CARRY;
 			break;
 		case 0x0003:
 			switch (LO(bx))
@@ -353,16 +348,13 @@ int15(u_char i)
 				mouse.ratio = 8;
 			} 
 			HI(ax) = 0;
-			NOCARRY;
 			break;
 		case 0x0004:
 			HI(bx) = 0xAA;
-			HI(ax) = 0;
-			NOCARRY;
 			break;
 		case 0x0005:
-			HI(ax) = 0;
-			NOCARRY;
+			HI(ax) = 1;
+			CARRY;
 			break;
                 default:
                         g_printf("PS2MOUSE: Unknown call ax=0x%04x\n", LWORD(eax));
@@ -901,7 +893,7 @@ void inline int28caller(u_char i) {
 /* FAST CONSOLE OUTPUT */
 void inline int29(u_char i) {
     /* char in AL */
-    char_out(*(char *) &REG(eax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+    char_out(*(char *) &REG(eax), bios_current_screen_page);
     return;
 }
 

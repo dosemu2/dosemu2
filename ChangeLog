@@ -1,3 +1,49 @@
+Wed Jan  4 	1995
+
+-	Released pre0.53_38. Happy New Year.
+-	Added Marty's next set of patches.
+-	Moved Hans' enhancements form 'make doeverything' to
+	'make itall' so that as kernels change, make doeverything
+	remains OK.
+-	Jiggled around where ioctl's to acquire_vt were in vc.c in
+	an effort to stop more of the VC switch hanging bug.
+
+Tue Jan  3 	1995
+
+-	Added Marty's Unix.exe to send unix commands from DOSEMU.
+	To use, just ln files to a unix.exe that you wish to run. 
+	I.E:
+	 ln ./commands/unix.exe ls.exe
+	 from within dosemu, just enter ls and the ls command is executed.
+-	Added two parms to call to show_reg( __FILE__, __LINE__) to
+	track down where show_regs() are being called from.
+
+Sun Jan  1 	1995
+
+-	Added return to getKey() function in ./keyboard/termio.c when
+	screen is not current. Fixed screen lockups here.
+-	Removed (added #if 0) code setting bs_pos to -1 for root dir deletes
+
+Mon Dec  19	1994
+
+-	Added Marty's latest Makefile enhancements. This included 2 new
+	files (data.c extern.h) and including int.h inside of
+	emu.c. Marty promises emu.c will get smaller :-)
+-	Added Lutz's latest DPMI enhancements.
+
+Sun Dec  11	1994
+
+-	Changed check for mouse in graphics mode by using video
+	regs.
+-	Latest updates from BOCHS project.
+-	Modified MICKEY concept in mouse.c so that WordPerfect now
+	works with internal mouse. Doing this blind folks. Anxiously
+	waiting for Alan's next set of mouse enhancements.
+
+Tue Jan  3 09:49:22 1995  Jochen Hein (Hein@Informatik.TU-Clausthal.de)
+
+	* keyboard layout gr renamed to de, like keyboard-utils.
+
 Fri Dec  9	1994
 
 -	Release pl37

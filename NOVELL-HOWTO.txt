@@ -1,0 +1,165 @@
+               Novell-HOWTO  rev. 0.1  26 Nov 1994
+                   by ltischler@fipower.pp.fi
+
+This is my first attempt to write some kind of advice on how to
+connect to a Netware server from your Linux box.
+
+Due to the first attempt and the scope of this note, it is not a real
+HOWTO, not even a 'mini-HOWTO'.  You might call it a 'nano-HOWTO' if
+you like.
+
+As in most sites the Netware is really just an extension to PC's running
+DOS and DOS applications (Windows is JUST another DOS-application),
+the Netware providing fileserver and printing support,
+I will concentrate on getting the connection via DOSEMU only.
+
+It is possible to access Netware server via NFS from Linux directly,
+but that requires the Novell NFS nlm-module for the server.
+Unless you have $x000 of extra dough around you better forget it.
+Besides all the applications are DOS programs anyway, so you can't run them
+in Linux native mode.  Also, if there is filenamelength limitations in 
+Novell NFS it is quite useless in *nix environment. (I really don't
+know NFS, never seen the beast).
+
+So, how to get the connection to the Netware server, that is the question.
+
+We have a Netware network with 3 servers and appr. 110 PC's connected
+to it.  It is TOTALLY Dos/Windows environment, running 'Novell standard'
+Ethernet_802.3 frames, really very ordinary commercial REAL LIFE setup.
+
+I use in my PC (in addition to DOS) Linux 1.1.65 and Dosemu pre0.53_35
+and it works in my machine with my hardware and our network.
+The following may or may not work on Your pile of iron.
+
+1)  Linux kernel requirements  (NONE).
+    There is a config parameter 'IPX-SUPPORT'.  It makes no difference
+    to use it or not to use it.  It is provided for future hooks to kernel.
+    There are no working hooks which use it,  not at least in dosemu,  not
+    in various configurations I have tested.
+
+2)  dosemu requirements  (FEW)
+    Here is a fragment of dosemu.conf file.
+    Comment out ipxsupport on and pktdriver novell_hack
+
+#************************* NETWORKING SUPPORT *****************************
+#
+#    Turn the following option 'on' if you require IPX/SPX emulation.
+#    Therefore, there is no need to load IPX.COM within the DOS session.
+#    The following option does not emulate LSL.COM, IPXODI.COM, etc.
+#    NOTE: MUST HAVE IPX PROTOCOL ENABLED IN KERNEL !!
+#ipxsupport on
+#
+#    Enable Novell 8137->raw 802.3 translation hack in new packet driver.
+#pktdriver novell_hack
+  
+    The ipx support does not work yet in dosemu and the novell_hack has been
+    disabled in the latest dosemu (pl35).
+    There is a gallant effort for better support, look at directory v-net
+    for info, but we are not there yet.
+
+    In stock dosemu release (at least in pre0.53_35) in directory net the
+    two files pktnew.c and libpacket.c are the experimental multi-version.
+    They do not work yet.  You need to copy the single-versions over the
+    original multi-versions.
+
+    cp pktnew.c.single pktnew.c
+    cp libpacket.c.single libpacket.c
+
+    Remake your dosemu, normally 'make most' and we are almost there.
+
+    Test your newly made dosemu and when you are convinced that everything
+    is on order,  continue..	
+
+
+3)  The shell.
+
+    To connect to Netware server you need the driver (ipx) and the shell
+    (netx or vlm).
+
+    As a driver you can use either PDIPX, which is really an ipx-to-packet
+    driver shim, or PDETHER which is also ipx-to-packet driver shim,
+    but masquerading as an ODI compliant driver.
+
+    Which one to use depends really on what frametypes is your Netware
+    server using.
+    a) If the Netware runs on Ethernet_802.3  use PDIPX
+    b) If the Netware runs on Ethernet_II     use PDETHER
+
+    If you use PDIPX, you just load
+    PDIPX
+    NETX
+    and voila there You are, connected...
+
+    You can use PDIPX on Ethernet_II frame but then you need to run 
+    program called econfig against PDIPX,  see Novell docs for info.	
+
+
+    If you use PDETHER, because PDETHER is an ODI driver, you load..
+    LSL
+    PDETHER
+    IPXODI
+    NETX
+    and again You should be connected...
+    Because PDETHER is an ODI driver, there must be corresponding section in 
+    Your net.cfg file.  Read the PDETHER.DOC for info.
+
+    There is NO WAY to use PDETHER on Ethernet_802.3 frames.  If your
+    Netware runs on 802.3 and you MUST use ODI drivers then you need to
+    run both frametypes on Netware server.
+    You need to load the NIC-driver second time in your server. This time
+    specifying Ethernet_II frame, like I do..
+
+    load SMCE32 port=6810 Name=Nv Frame=Ethernet_802.2    ; 'novell' frame
+    load SMCE32 port=6810 Name=Nl Frame=Ethernet_II       ; 'normal' frame
+    bind ipx to Nv Net=E1
+    bind ipx to Nl Net=E2    
+
+    Both nets E1 and E2 are really the same net.  If I use original PDIPX
+    I connect to E1 with PDETHER I connect to E2.
+
+Some people might want to use VLM drivers, because in DOS environment
+they are much faster.  Don't bother,  for reasons unknown, in DOSEMU the
+VLM drivers are dogs.
+
+With above mentioned setup it IS POSSIBLE to connect to Netware server and
+even do some usefull work,  but slowly. 
+
+Here is some benchmarking I did using NETX and VLM shells, with and
+without packetburst.
+The testprogram was TESTNET.EXE, available somewhere in NetWire.
+It tests the network transfer speed.
+I can saturate my ethernet with two stations running at full tilt.
+Maximum aggregate speed is appr. 900 kilobytes/sec.
+I'm using SMC Elite 32 EISA board in Server and SMC Elite Ultra in 
+workstation.
+                       NETX          VLM(0)          VLM(3)
+Dos6.2                 620           560             760 
+DosEmu                 107           111              60
+
+The figures denote transferspeed in kilobytes/second.
+VLM(0) means packetburst disabled, VLM(3) packetburst enabled.
+You can see that the connection with dosemu is not very fast, barely usable.
+
+Few months ago I had a NE2000 clone in my box, with DOS6.2/NETX it
+would run to appr. 460 kbs.  I could live with that.
+There is still work to be done.
+
+I am well aware that I'm missing a lot of things in here, like
+- multiuser dos-session, I don't think it works yet,  anyway the speed
+  would be comparable to dead snail.
+- tcp-connections from dosemu, I havn't the faintest idea, the only
+  *nix machine in our net is my Linuxbox.
+
+Also I may have totally mixed the working and not working things.
+As the Dosemu as well as the Kernel are evolving, living things it is
+sometimes difficult to keep up with the beasts.  I do apologize for any
+mistakes and will gratefully accept and include any corrections and
+additions to this note.
+
+We all know that the DOSEMU is still ALPHA but it is not really far from
+BETA.  There is some interesting work going on by Vinod G Kulkarni and
+others, read the relevant pieces in dosemu release (READMEs and such).
+
+-- 
+Lauri W G Tischler                     I'll try to be humble,
+ltischler@fipower.pp.fi                but I'm so darn gooood...

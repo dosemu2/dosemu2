@@ -7,7 +7,6 @@
  * $State: Exp $
  */
 
-#define CMOS_C
 #include <time.h>
 #include <sys/time.h>
 
@@ -15,12 +14,10 @@
 #include "cmos.h"
 #include "disks.h"
 
-extern struct config_info config;
 
 #define EXTMEM_SIZE ((config.xms_size>config.ems_size)?config.xms_size : \
 		     config.ems_size)
 #define SET_CMOS(byte,val)  do { cmos.subst[byte] = (val); cmos.flag[byte] = 1; } while(0)
-extern struct disk disktab[];
 
 int cmos_date(int);
 static struct CMOS cmos;
@@ -80,7 +77,7 @@ cmos_init(void)
   g_printf("CMOS initialized: \n$Header: /home/src/dosemu0.60/RCS/cmos.c,v 2.4 1994/09/26 23:10:13 root Exp root $\n");
 }
 
-int
+static int
 cmos_chksum(void)
 {
   int i, sum = 0;
@@ -165,7 +162,7 @@ cmos_write(int port, int byte)
   }
 }
 
-u_short
+static u_short
 BCD(int binval)
 {
   unsigned short tmp1, tmp2;
@@ -182,7 +179,7 @@ BCD(int binval)
   return ((tmp1 << 4) | tmp2);
 }
 
-int
+static int
 cmos_date(int reg)
 {
   unsigned long ticks;
@@ -253,4 +250,3 @@ cmos_date(int reg)
 
 }
 
-#undef CMOS_C

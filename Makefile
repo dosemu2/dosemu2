@@ -12,6 +12,8 @@
 # Kernel version
 #if less than 1.1.67
 # export KERNEL=-DOLD_KERNEL
+#if less than 1.1.73
+# export KERNEL2=-DOLD_KERNEL2
 
 # Want to try SLANG?
 USE_SLANG=-DUSE_SLANG
@@ -22,7 +24,7 @@ else
 TCNTRL=-lncurses
 endif
 
-# Elimiate to avoid X
+# Eliminate to avoid X
 USE_X=1
 ifdef USE_X
 # Autodetecting the installation of X11. Looks weird, but works...
@@ -44,16 +46,12 @@ endif
 
 endif
 
-# Uncomment for DPMI support
-# it is for the makefile and also for the C compiler
-DPMI=-DDPMI
-
 #Change the following line if the right kernel includes reside elsewhere
 LINUX_INCLUDE = /usr/src/linux/include # why not
 export LINUX_INCLUDE  
 
 #Change the following line to point to your ncurses include
-NCURSES_INC = /usr/include/ncurses
+NCURSES_INC = $(HOME)/include/ncurses
 
 #Change the following line to point to your loadable modules directory
 BOOTDIR = /boot/modules
@@ -89,7 +87,7 @@ export NEW_PIC
 export PICOBJS
 endif
 
-
+# enable this target to make a different way
 # do_DEBUG=true
 export CC         = gcc  # I use gcc-specific features (var-arg macros, fr'instance)
 export LD         = gcc
@@ -107,7 +105,7 @@ DEPENDS = dos.d emu.d
 EMUVER  =   0.53
 export EMUVER
 VERNUM  =   0x53
-PATCHL  =   37
+PATCHL  =   38
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -130,6 +128,12 @@ DOSEMU_USERS_FILE = -DDOSEMU_USERS_FILE=\"/etc/dosemu.users\"
 
 ###################################################################
 
+# Uncomment for DPMI support
+# it is for the makefile and also for the C compiler
+DPMI=-DDPMI
+ifndef NEW_PIC	# I need PIC for DPMI
+DPMI=
+endif
 
 ###################################################################
 #
@@ -160,6 +164,7 @@ DOCS= doc
 
 OFILES= Makefile Makefile.common ChangeLog dosconfig.c QuickStart \
 	DOSEMU-HOWTO.txt DOSEMU-HOWTO.ps DOSEMU-HOWTO.sgml \
+	NOVELL-HOWTO.txt BOGUS-Notes \
 	README.ncurses vga.pcf vga.bdf xtermdos.sh xinstallvgafont.sh README.X \
 	README.CDROM README.video Configure DANG_CONFIG
 
@@ -194,14 +199,16 @@ INCDIR  := $(INCDIR) -I$(X11INCDIR)
 endif
 export INCDIR
 
+
+
 # if NEWPIC is there, use it
 # if DPMI is there, use it
 export CFLAGS     = -N -s -O2 $(NEW_PIC) $(DPMI) $(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
 EMU_CFLAGS=-Idosemu $(CFLAGS)
+export ASFLAGS    = $(NEW_PIC)
 ifdef STATIC
 CFLAGS+=-DSTATIC
 endif
-export ASFLAGS    = $(NEW_PIC)
 
 
 LDFLAGS    = $(LNKOPTS) # exclude symbol information
@@ -223,7 +230,7 @@ export DISTBASE DISTNAME DISTPATH DISTFILE
 ifdef do_DEBUG
 # first target for debugging build
 ifneq (include/config.h,$(wildcard include/config.h))
-firstsimple:	include/config dep simple
+firstsimple:	include/config.h dep simple
 endif
 
 ifdef STATIC
@@ -269,9 +276,11 @@ warning3:
 	@echo "Hopefully you have at least 16MB swap+RAM available during this compile."
 	@echo ""
 
-doeverything: warning2 config dep optionalsubdirs $(DOCS) installnew
+doeverything: warning2 config dep $(DOCS) installnew
 
-most: warning2 config.h dep installnew
+itall: warning2 config dep optionalsubdirs $(DOCS) installnew
+
+most: warning2 config dep installnew
 
 all:	warnconf warning3 dos $(LIBDOSEMU) $(X2CEXE)
 
@@ -280,14 +289,15 @@ debug:
 	rm dos
 	$(MAKE) dos
 
-config.h: Makefile
+include/config.h: Makefile 
 ifeq (include/config.h,$(wildcard include/config.h))
 	@echo "WARNING: Your Makefile has changed since config.h was generated."
 	@echo "         Consider doing a 'make config' to be safe."
 else
 	@echo "WARNING: You have no config.h file in the current directory."
 	@echo "         Generating config.h..."
-	$(MAKE) config
+	$(MAKE) dosconfig
+	./dosconfig $(CONFIGINFO) > include/config.h
 endif
 
 warnconf: include/config.h
@@ -298,8 +308,8 @@ x2dos.o: include/config.h x2dos.c
 	$(CC) $(CFLAGS) -I/usr/openwin/include -c x2dos.c
 
 ifdef STATIC
-dos:	dos.o emu.o
-	$(LD) $(LDFLAGS) -N -o $@ $^ $(addprefix -L,$(LIBPATH)) -L. \
+dos::	dos.o emu.o bios/bios.o
+	$(LD) $(LDFLAGS) -o $@ $^ bios/bios.o $(addprefix -L,$(LIBPATH)) -L. \
 		$(addprefix -l, $(LIBS)) $(TCNTRL) $(XLIBS)
 else
 dos:	dos.o
@@ -349,8 +359,9 @@ docsubdirs:	$(DOCS)
 $(DOCS) $(OPTIONALSUBDIRS) $(LIBSUBDIRS) $(REQUIRED):
 	$(MAKE) -C $@ 
 
-config: dosconfig
-	./dosconfig $(CONFIGINFO) > include/config.h
+config: include/config.h
+
+#	./dosconfig $(CONFIGINFO) > include/config.h
 
 installnew: 
 	$(MAKE) install
@@ -406,6 +417,9 @@ ifdef X_SUPPORT
 	@echo "		xmodmap -e \"key 108 = Return\"  [Return = 0xff0d]"	
 	@echo ""
 endif
+	@echo "  - Try the ./commands/mouse.com if your INTERNAL mouse won't work"
+	@echo "  - Try ./commands/unix.com to run a Unix command under DOSEMU"
+	@echo "  - Try the ./garrot02/garrot02.com for better CPU use under Linux"
 	@echo ""
 
 converthd: hdimage
@@ -427,7 +441,7 @@ checkout::
 	-co -M -l $(CFILES) $(HFILES) $(SFILES) $(OFILES)
 	@for i in $(LIBS) $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) checkout) || exit; done
 
-dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) config.h
+dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
 	install -d $(DISTPATH)
 	install -d $(DISTPATH)/lib
 	install -m 0644 dosemu.xpm libslang.a $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) $(DISTPATH)
@@ -474,6 +488,11 @@ depend dep:  $(DEPENDDIRS) depend_local
 	$(CPP) -MM $(CFLAGS) $(CFILES) > .depend
 	cd clients;$(CPP) -MM -I../ -I../include $(CFLAGS) *.c > .depend
 
+.PHONY:       size
+size:
+	size ./dos >>size
+	ls -l dos >>size
+
 .PHONY: $(DEPENDDIRS)
 
 $(DEPENDDIRS):
@@ -496,4 +515,4 @@ help:
 	@echo Making dossubdirs will make the follow targets:
 	@echo "    " $(LIBSUBDIRS)
 	@echo
-	@echo "To clean a directory, do make -C <dirname> clean|realclean"
+	echo "To clean a directory, do make -C <dirname> clean|realclean"

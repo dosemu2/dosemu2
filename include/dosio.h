@@ -1,19 +1,22 @@
 #ifndef DOSIPC_H
 #define DOSIPC_H
 
+#if 0
+/* this doesn't need to be here */
 #include <sys/ipc.h>
 #include <sys/shm.h>
+
+#endif
 
 void memory_setup(void), set_a20(int);
 
 /* do, while necessary because if { ... }; precludes an else, while
  * do { ... } while(); does not. ugly */
-extern void HMA_MAP(int); 
 #ifdef NEW_PIC
 extern void do_irq1(void);
 #endif
 
-extern inline void set_keyboard_bios();
-extern inline void insert_into_keybuffer();
+extern void set_keyboard_bios(void);
+extern void insert_into_keybuffer(void);
 
 #endif /* DOSIPC_H */

@@ -1,0 +1,51 @@
+
+I've also created a
+BOGUS-Notes file for the latest pre-release. If you like to see
+how this can be done automatically, look into my nlsutils-0.5 at
+ftp.tu-clausthal.de in /pub/systems/Linux/SLT/nls.
+
+Jochen
+
+------------------------ dosemu0.53pl37.bin.Notes --------------
+Linux DOSemulator
+%n dosemu
+%v 0.53pl37
+%c *
+%l *
+%b *
+%d *
+%f tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/Development
+%t pre0.53pl37.tar.gz
+%w usr.bin
+%%
+
+#if [ ! -e $BUILDDIR ]; then mkdir -p $BUILDDIR; fi
+cd $BUILDDIR
+#rm -rf $NAME$VERSION
+#tar xvzf $SRCTARDIR/$TARFILE
+cd $NAME$VERSION
+
+#make config
+#make depend
+make all
+
+%doc DOSEMU-HOWTO.txt README.CDROM README.X README.ncurses README.video
+%doc doc/DANG doc/DPR doc/EMUsuccess.txt
+
+* make install
+* install -m 644 doc/dosemu.info /usr/info
+* echo Copy examples/config.dist into /etc/dosemu.conf and edit that file
+* echo Add all users that are allowed to run dosemu to /etc/dosemu.users
+* echo Add dosemu to you Emacs-Info-Dir.
+%%
+* /usr/lib/libdosemu
+* /usr/lib/libdosemu0.53pl37
+* /usr/lib/dosemu/getrom
+* /usr/lib/dosemu/mkhdimage
+* /usr/lib/dosemu/mkpartition
+* /usr/lib/dosemu/putrom
+* /var/lib/dosemu
+* /usr/bin/dos
+* /usr/bin/xdos
+* /usr/bin/xtermdos
+* /usr/man/man1/dos.1

@@ -35,11 +35,12 @@
 #include "bitops.h"
 #include "pic.h"
 #undef IN_PIC
-#define us unsigned
 #include "memory.h"
 /* #include <sys/vm86.h> */
 #include "cpu.h"
 #include "emu.h"
+#undef us
+#define us unsigned
 
 extern int fatalerr;
 
@@ -142,7 +143,7 @@ if(!port){                          /* icw1, ocw2, ocw3 */
     if((value&0xb8) == 0x20 && !clear_bit(pic_ilevel,&pic1_isr))     
           {clear_bit(pic_ilevel,&pic_isr);  /* the famous outb20 */
            pic0_cmd=2;}
-    k_printf("EOI received, pic_isr=%08x, pic1_isr=%08x\n", pic_isr, pic1_isr);
+    g_printf("EOI received, pic_isr=%08x, pic1_isr=%08x\n", pic_isr, pic1_isr);
   }
 else                                /* icw2, icw3, icw4, or mask register */
   switch(pic0_icw_state){

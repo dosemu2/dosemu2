@@ -1,4 +1,4 @@
-# Linux dosemu 0.51 configuration file. 
+# Linux dosemu 0.53 configuration file. 
 # Updated to include QuickStart documentation 5/10/94 by Mark Rejhon
 # James MacLean, jmaclean@fox.nstn.ns.ca, 12/31/93
 # Robert Sanders, gt8134b@prism.gatech.edu, 5/16/93
@@ -49,8 +49,8 @@ timint on
 #    layout.  The following layouts are implemented:
 #        finnish           us           dvorak       sf
 #        finnish-latin1    uk           sg           sf-latin1
-#        gr                dk           sg-latin1    es
-#        gr-latin1         dk-latin1    fr           es-latin1
+#        de                dk           sg-latin1    es
+#        de-latin1         dk-latin1    fr           es-latin1
 #        be                no           fr-latin1    portuguese
 #    The us-layout is selected by default if the "layout" keyword is omitted.
 #
@@ -69,7 +69,7 @@ timint on
 #    emulation (needed by major software package), set it to "off"
 #
 keyboard {  layout us  keybint on  rawkeyboard on  }
-# keyboard {  layout gr-latin1  keybint on  rawkeyboard on  }
+# keyboard {  layout de-latin1  keybint on  rawkeyboard on  }
 #
 #    If DOSEMU speed is unimportant, and CPU time is very valuable to you,
 #    you may want to set HogThreshold to a non-zero value.  This means

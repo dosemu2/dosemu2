@@ -19,6 +19,8 @@ ALL = $(CFILES) $(HFILES) dosnet.README
 
 OBJS = dosnet.o
 
+CFLAGS += $(KERNEL2)
+
 all: $(OBJS)
 
 dosnet.o:  dosnet.c

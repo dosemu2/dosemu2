@@ -1,6 +1,7 @@
 #ifndef TIMERS_H
 #define TIMERS_H
 
+#include "extern.h"
 /* Programmable Interval Timer, 8253/8254 */
 /* ports 0x40 - 0x43 */
 struct pit {
@@ -15,7 +16,7 @@ struct pit {
   unsigned long update, freq;
 };
 
-extern struct pit pit;
+EXTERN struct pit pit;
 
 void timer_tick(void), set_ticks(unsigned long);
 extern inline int int28(void);

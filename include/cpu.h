@@ -18,17 +18,20 @@
 #endif
 #define _regs vm86s.regs
 
-#ifndef CPU_C
-#define CPU_EXTERN extern
-#else
-#define CPU_EXTERN
+#include "extern.h"
+
+#ifdef X86_EMULATOR
+#include "x86_emulator.h"
 #endif
 
+#ifndef X86_EMULATOR
 /* all registers as a structure */
 #define REGS  vm86s.regs
 
 /* this is used like: REG(eax) = 0xFFFFFFF */
 #define REG(reg) (REGS.##reg)
+#define READ_SEG_REG(reg) (REGS.##reg)
+#define WRITE_SEG_REG(reg, val) REGS.##reg = (val)
 
 /* these are used like:  LO(ax) = 2 (sets al to 2) */
 #define LO(reg)  (*(unsigned char *)&REG(e##reg))
@@ -46,6 +49,11 @@
 
 /* this is used like: SEG_ADR((char *), es, bx) */
 #define SEG_ADR(type, seg, reg)  type((LWORD(seg) << 4) + LWORD(e##reg))
+
+#define WRITE_FLAGS(val)    REG(eflags) = (val)
+#define READ_FLAGS()        REG(eflags)
+
+#endif /* #ifndef X86_EMULATOR */
 
 /*
  * nearly directly stolen from Linus : linux/kernel/vm86.c
@@ -119,16 +127,19 @@ static __inline__ void reset_revectored(int nr, struct revectored_struct * bitma
 #define IOPL_MASK  (3 << 12)
 #endif
 
-#define vflags ((REG(eflags) & VIF)? LWORD(eflags) | IF : LWORD(eflags) & ~IF)
+/*#define vflags ((REG(eflags) & VIF)? LWORD(eflags) | IF : LWORD(eflags) & ~IF)*/
+#define vflags ((READ_FLAGS() & VIF)? WORD(READ_FLAGS()) | IF : WORD(READ_FLAGS()) & ~IF)
 
+#if 0
 /* this is the array of interrupt vectors */
 struct vec_t {
   unsigned short offset;
   unsigned short segment;
 };
 
-CPU_EXTERN struct vec_t *ivecs;
+EXTERN struct vec_t *ivecs;
 
+#endif
 #ifdef TRUST_VEC_STRUCT
 #define IOFF(i) ivecs[i].offset
 #define ISEG(i) ivecs[i].segment
@@ -150,8 +161,12 @@ CPU_EXTERN struct vec_t *ivecs;
 #define WORD(i) (unsigned short)(i)
 */
 
+/*
 #define CARRY (LWORD(eflags) |= CF)
 #define NOCARRY (LWORD(eflags) &= ~CF)
+*/
+#define CARRY   ( WRITE_FLAGS(WORD(READ_FLAGS()) | CF) )
+#define NOCARRY ( WRITE_FLAGS(WORD(READ_FLAGS()) & ~CF) )
 
 struct sigcontext_struct {
   unsigned short gs, __gsh;
@@ -198,7 +213,7 @@ struct sigcontext_struct {
 
 void dosemu_fault(int, struct sigcontext_struct);
 
-void show_regs(void), show_ints(int, int);
+void show_regs(char *, int), show_ints(int, int);
 __inline__ int do_hard_int(int), do_soft_int(int);
 
 #endif /* CPU_H */

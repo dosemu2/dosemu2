@@ -108,7 +108,7 @@ main(int argc, char **argv)
   char *libpath = LIBDOSEMU; 
   char *cp;
 
-  cp = getenv("LIBDOSEMU");
+  cp = (unsigned char  *)getenv("LIBDOSEMU");
   if(cp) 
 	libpath = cp;
 

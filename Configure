@@ -181,8 +181,8 @@ dialog --title "KEYBOARD" --radiolist "select a keyboard layout" 24 60 17 \
   7 finnish_latin1 off \
   8 sg off \
   9 sg_latin1 off \
-  a gr off \
-  b gr_latin1 off \
+  a de off \
+  b de_latin1 off \
   c dk off \
   d dk_latin1 off \
   e es off \
@@ -207,8 +207,8 @@ case $choice in
      7) echo -n "layout finnish-latin1  " >> $CONFIG;;
      8) echo -n "layout sg  " >> $CONFIG;;
      9) echo -n "layout sg_latin1  " >> $CONFIG;;
-     a) echo -n "layout gr  " >> $CONFIG;;
-     b) echo -n "layout gr_latin1  " >> $CONFIG;;
+     a) echo -n "layout de  " >> $CONFIG;;
+     b) echo -n "layout de_latin1  " >> $CONFIG;;
      c) echo -n "layout dk  " >> $CONFIG;;
      d) echo -n "layout dk_latin1  " >> $CONFIG;;
      e) echo -n "layout es  " >> $CONFIG;;

@@ -5,6 +5,7 @@ OBJS=
 SUBDIR=bios
 
 AS86FLAGS  = $(NEW_PIC)
+AS86FLAGS+=$(INCDIR)
 
 ifndef TOPDIR
 TOPDIR=..
@@ -12,16 +13,26 @@ endif
 
 all: bios.o
 
-bios.o: bios.S # $(TOPDIR)/include/macros86.h $(TOPDIR)/include/memory.h
-	gcc -E $(AS86FLAGS) bios.S | $(TOPDIR)/tools/tools86 -E >bios.s
-	as86 -0 -w -g -o bios.o bios.s
-	ld86 -0 -r -o bios bios.o
-	$(TOPDIR)/tools/tools86 bios
-	mv -f bios bios.o
+bios.o: bios.part.2
+	$(TOPDIR)/tools/tools86 $^
+	mv $< $@
+
+bios:	bios.s
+
+bios.s:	bios.i
+	$(TOPDIR)/tools/tools86 -E <$^ >$@
+
+bios.i:	bios.S
+	gcc -E $(AS86FLAGS) $^ >$@
+
+bios.part.1:	bios.s
+	as86 -0 -w -g -o $@  $^
+
+bios.part.2:	bios.part.1
+	ld86 -0 -r -o $@ $^
+
 
 include ../Makefile.common
 
 clean::
 	rm -f bios.o bios.s
-
-realclean:: clean

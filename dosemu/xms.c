@@ -119,7 +119,6 @@
  *    structure.  Most XMS calls specify/expect size in KILOBYTES.
  */
 
-#define XMS_C
 
 #include <stdlib.h>
 #include <sys/types.h>
@@ -132,7 +131,7 @@
 #include "dosio.h"
 #include "machcompat.h"
 
-int umb_find_unused(void);
+static int umb_find_unused(void);
 /* 128*1024 is the amount of memory currently reserved in dos.c above
  * the 1 MEG mark.  ugly.  fix this.
  */
@@ -163,7 +162,6 @@ static char RCSxms[] = "$Header: /home/src/dosemu0.60/RCS/xms.c,v 2.6 1994/11/03
 #define XMS_OUT_OF_SPACE		0xa0
 #define XMS_INVALID_HANDLE		0xa2
 
-extern struct config_info config;
 
 int a20 = 0;
 int freeHMA = 1;		/* is HMA free? */
@@ -171,16 +169,15 @@ int freeHMA = 1;		/* is HMA free? */
 static struct Handle handles[NUM_HANDLES + 1];
 static int handle_count = 0;
 
-int xms_grab_int15 = 0;		/* non-version XMS call been made yet? */
-int xms_grab_int15again = 0;
+static int xms_grab_int15again = 0;
 
 struct EMM get_emm(unsigned int, unsigned int);
 void show_emm(struct EMM);
-void xms_query_freemem(int), xms_allocate_EMB(int), xms_free_EMB(void),
+static void xms_query_freemem(int), xms_allocate_EMB(int), xms_free_EMB(void),
  xms_move_EMB(void), xms_lock_EMB(int), xms_EMB_info(int), xms_realloc_EMB(int),
  xms_request_UMB(void), xms_release_UMB(void);
 
-int FindFreeHandle(int);
+static int FindFreeHandle(int);
 
 /* beginning of quote from Mach */
 
@@ -213,7 +210,7 @@ int FindFreeHandle(int);
 #define IN_EMU_SPACE(addr) (((int)(addr) >= (BIOSSEG*16) && (int)(addr) <= \
 			    (BIOSSEG*16 + 0xffff)) || IN_BIOS_SPACE(addr))
 
-struct umb_record {
+static struct umb_record {
   vm_address_t addr;
   vm_size_t size;
   boolean_t in_use;
@@ -226,7 +223,7 @@ struct umb_record {
 #define Debug2(args)		x_Stub args
 #define dbg_fd stderr
 
-boolean_t
+static boolean_t
 umb_memory_empty(addr, size)
      vm_address_t addr;
      int size;
@@ -243,8 +240,8 @@ umb_memory_empty(addr, size)
   return (TRUE);
 }
 
-int
-umb_setup()
+static int
+umb_setup(void)
 {
   int i;
   int umb,tumb;
@@ -339,8 +336,8 @@ umb_setup()
   return 0;
 }
 
-int
-umb_find_unused()
+static int
+umb_find_unused(void)
 {
   int i;
 
@@ -351,9 +348,8 @@ umb_find_unused()
   return (UMB_NULL);
 }
 
-int
-umb_find(segbase)
-     vm_address_t segbase;
+static int
+umb_find(vm_address_t segbase)
 {
   int i;
   vm_address_t addr = (vm_address_t) ((int) segbase * 16);
@@ -368,9 +364,8 @@ umb_find(segbase)
   return (UMB_NULL);
 }
 
-vm_address_t
-umb_allocate(size)
-     int size;
+static vm_address_t
+umb_allocate(int size)
 {
   int i;
 
@@ -401,8 +396,7 @@ umb_allocate(size)
   return ((vm_address_t) 0);
 }
 
-umb_cleanup(umb)
-     int umb;
+static void umb_cleanup(int umb)
 {
   vm_address_t umb_top = umbs[umb].addr + umbs[umb].size;
   int i, updated;
@@ -429,12 +423,11 @@ umb_cleanup(umb)
     }
   } while (updated);
 }
-
-int
-umb_free(segbase)
-     int segbase;
+/* why int? */
+static int
+umb_free(int segbase)
 {
-  int umb = umb_find(segbase);
+  int umb = umb_find((vm_address_t)segbase);
 
   if (umb != UMB_NULL) {
     umbs[umb].free = TRUE;
@@ -443,8 +436,8 @@ umb_free(segbase)
   return (0);
 }
 
-int
-umb_query()
+static int
+umb_query(void)
 {
   int i;
   int largest = 0;
@@ -677,14 +670,14 @@ xms_control(void)
 
   default:
     error("Unimplemented XMS function AX=0x%04x", LWORD(eax));
-    show_regs();		/* if you delete this, put the \n on the line above */
+    show_regs(__FILE__, __LINE__);		/* if you delete this, put the \n on the line above */
     LWORD(eax) = 0;		/* failure */
     LO(bx) = 0x80;		/* function not implemented */
 
   }
 }
 
-int
+static int
 FindFreeHandle(int start)
 {
   int i, h = 0;
@@ -702,7 +695,7 @@ FindFreeHandle(int start)
   return h;
 }
 
-int
+static int
 ValidHandle(unsigned short h)
 {
   if ((h <= NUM_HANDLES) && (handles[h].valid))
@@ -711,7 +704,7 @@ ValidHandle(unsigned short h)
     return 0;
 }
 
-void
+static void
 xms_query_freemem(int api)
 {
   unsigned long totalBytes = 0, subtotal;
@@ -759,7 +752,7 @@ xms_query_freemem(int api)
   LO(bx) = 0;			/* no error */
 }
 
-void
+static void
 xms_allocate_EMB(int api)
 {
   unsigned long h;
@@ -809,7 +802,7 @@ xms_allocate_EMB(int api)
   }
 }
 
-void
+static void
 xms_free_EMB(void)
 {
   unsigned short int h = LWORD(edx);
@@ -834,7 +827,7 @@ xms_free_EMB(void)
   }
 }
 
-void
+static void
 xms_move_EMB(void)
 {
   char *src, *dest;
@@ -886,7 +879,7 @@ xms_move_EMB(void)
   return;
 }
 
-void
+static void
 xms_lock_EMB(int flag)
 {
   int h = LWORD(edx);
@@ -923,7 +916,7 @@ xms_lock_EMB(int flag)
   }
 }
 
-void
+static void
 xms_EMB_info(int api)
 {
   int h = LWORD(edx);
@@ -951,7 +944,7 @@ xms_EMB_info(int api)
 }
 
 /* untested! if you test it, please tell me! */
-void
+static void
 xms_realloc_EMB(int api)
 {
   int h;
@@ -1072,4 +1065,3 @@ show_emm(struct EMM e)
 	   e.DestHandle, e.DestOffset);
 }
 
-#undef XMS_C

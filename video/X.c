@@ -342,7 +342,8 @@ void X_redraw_screen()
 
    XFlush(dpy);
 
-   memcpy(prev_screen,screen_adr,co*li*2);
+   /* memcpy(prev_screen,screen_adr,co*li*2); */
+   MEMCPY_2UNIX(prev_screen,screen_adr,co*li*2);
    clear_scroll_queue();
    
    X_printf("X_redraw_screen done\n");
@@ -463,11 +464,11 @@ int X_update_screen()
            co,li,yloop,y,lines);
 #endif
 
+
   /* The following loop scans lines on the screen until the maximum number
    * of lines have been updated, or the entire screen has been scanned.
    */
   while ((numdone < lines) && (numscan < li)) {
-
     /* The following sets the row to be scanned and updated, if it is not
      * the first iteration of the loop, or y has an invalid value from
      * loop pre-initialization.
@@ -485,13 +486,15 @@ int X_update_screen()
 #if PRECHECK_LINE
     /* Only update if the line has changed. 
        If the line matches, then no updated is needed, and skip the line. */
-    if (!memcmp(srow, oldsrow, co * 2)) goto chk_cursor;
+    /*if (!memcmp(srow, oldsrow, co * 2)) goto chk_cursor;*/
+    if (!MEMCMP_DOS_VS_UNIX(srow, oldsrow, co * 2)) goto chk_cursor;
 #endif
 
     x=0;
     do {
         /* find a non-matching character position */
-        while (*sp==*oldsp) {
+/*        while (*sp==*oldsp) {*/
+        while (READ_WORD(sp)==*oldsp) {
            sp++; oldsp++; x++;
            if (x==co) goto line_done;    /* sort of `double break' */
         }
@@ -512,7 +515,8 @@ int X_update_screen()
            sp++; oldsp++; x++;
 
            if (ATTR(sp)!=attr || x==co) break;
-           if (*sp==*oldsp) {
+/*           if (*sp==*oldsp) {*/
+           if (READ_WORD(sp)==*oldsp) {
               if (unchanged>MAX_UNCHANGED) break;
               unchanged++;
            }
@@ -534,7 +538,8 @@ int X_update_screen()
         }
 	
 #if !COPY_WHOLE_LINE
-        memcpy(oldsrow+start_x,srow+start_x,len*2);
+        /* memcpy(oldsrow+start_x,srow+start_x,len*2); */
+        MEMCPY_2UNIX(oldsrow+start_x,srow+start_x,len*2);
 #endif
 
     } while(x<co);
@@ -544,7 +549,8 @@ line_done:
     /* Increment the number of successfully updated lines counter */
     numdone++;
 #if COPY_WHOLE_LINE
-    memcpy(oldsrow, srow, co * 2);  /* Copy screen mem line to buffer */
+    /*memcpy(oldsrow, srow, co * 2);*/  /* Copy screen mem line to buffer */
+    MEMCPY_2UNIX(oldsrow, srow, co * 2);  /* Copy screen mem line to buffer */
 #endif
 
 chk_cursor:

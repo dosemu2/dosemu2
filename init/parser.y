@@ -1031,20 +1031,20 @@ void keyb_layout(int layout)
     config.alt_map   = alt_map_uk;
     config.num_table = num_table_dot;
     break;
-  case KEYB_GR:
-    c_printf("CONF: Keyboard-layout gr\n");
-    config.keyboard  = KEYB_GR;
-    config.key_map   = key_map_gr;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_gr;
-    config.alt_map   = alt_map_gr;
+  case KEYB_DE:
+    c_printf("CONF: Keyboard-layout de\n");
+    config.keyboard  = KEYB_DE;
+    config.key_map   = key_map_de;  /* pointer to the keyboard-map */
+    config.shift_map = shift_map_de;
+    config.alt_map   = alt_map_de;
     config.num_table = num_table_comma;
     break;
-  case KEYB_GR_LATIN1:
-    c_printf("CONF: Keyboard-layout gr-latin1\n");
-    config.keyboard  = KEYB_GR_LATIN1;
-    config.key_map   = key_map_gr_latin1;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_gr_latin1;
-    config.alt_map   = alt_map_gr_latin1;
+  case KEYB_DE_LATIN1:
+    c_printf("CONF: Keyboard-layout de-latin1\n");
+    config.keyboard  = KEYB_DE_LATIN1;
+    config.key_map   = key_map_de_latin1;  /* pointer to the keyboard-map */
+    config.shift_map = shift_map_de_latin1;
+    config.alt_map   = alt_map_de_latin1;
     config.num_table = num_table_comma;
     break;
   case KEYB_FR:
