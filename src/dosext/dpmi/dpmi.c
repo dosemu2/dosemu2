@@ -2766,16 +2766,16 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
 {
   unsigned short CLIENT_PMSTACK_SEL;
   us *ssp;
-  char buf[255];
+
 #ifdef DPMI_DEBUG
   /* My log file grows to 2MB, I have to turn off dpmi debugging,
      so this log exceptions even if dpmi debug is off */
   unsigned char dd = debug_level('M');
   set_debug_level('M', 1);
 #endif
-  sprintf(buf, "DPMI: do_cpu_exception(0x%02lx) at %#x:%#x\n",_trapno,
-  	(int)_cs, (int)_eip);
-  mhp_intercept(buf);
+
+  mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
+
 #ifdef TRACE_DPMI
   if (debug_level('t') && (_trapno == 1)) {
     do_default_cpu_exception(scp, _trapno);
@@ -2783,7 +2783,8 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
   }
 #endif
 
-  D_printf(buf);
+  D_printf("DPMI: do_cpu_exception(0x%02lx) at %#x:%#x\n",_trapno,
+  	(int)_cs, (int)_eip);
   if (_trapno == 0xe) {
       set_debug_level('M', 9);
       error("DPMI: page fault. in dosemu?\n");

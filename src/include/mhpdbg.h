@@ -38,6 +38,7 @@ EXTERN unsigned long dosdebug_flags INIT(0);
 #define DBGF_DISABLE_LOG_TO_FILE	0x004
 #define DBGF_LOG_TO_DOSDEBUG		0x100
 #define DBGF_LOG_TO_BREAK		0x200
+#define DBGF_LOG_TEMPORARY		0x400
 #define DBGF_IN_LEAVEDOS	   0x40000000
 
 
@@ -49,7 +50,8 @@ void mhp_printf(const char *,...);
 int mhp_getaxlist_value(int v, int mask);
 int mhp_getcsip_value(void);
 void mhp_modify_eip(int delta);
-void mhp_intercept(char *msg);
+void mhp_intercept_log(char *flags, int temporary);
+void mhp_intercept(char *msg, char *logflags);
 void mhp_exit_intercept(int errcode);
 
 void DBGload(void);

@@ -274,25 +274,40 @@ static void mhp_poll(void)
       mhpdbgc.want_to_stop = 0;
    }
    if (mhpdbgc.stopped) {
+      if (dosdebug_flags & DBGF_LOG_TEMPORARY) {
+         dosdebug_flags &= ~DBGF_LOG_TEMPORARY;
+	 mhp_cmd("log off");
+      }
       mhp_cmd("r0");
       mhp_send();
    }
    mhp_poll_loop();
 }
 
-void mhp_intercept(char *msg)
+void mhp_intercept_log(char *flags, int temporary)
+{
+   char buf[255];
+   sprintf(buf, "log %s", flags);
+   mhp_cmd(buf);
+   mhp_cmd("log on");
+   if (temporary)
+      dosdebug_flags |= DBGF_LOG_TEMPORARY;
+}
+
+void mhp_intercept(char *msg, char *logflags)
 {
    if (!mhpdbg.active || (mhpdbg.fdin == -1)) return;
    mhpdbgc.stopped = 1;
    mhpdbgc.want_to_stop = 0;
    mhp_printf(msg);
-   mhp_send();
    mhp_cmd("r0");
    mhp_send();
    if (!(dosdebug_flags & DBGF_IN_LEAVEDOS)) {
      set_VIP();
      if (in_dpmi)
        dpmi_eflags |= VIP;
+     if (logflags)
+       mhp_intercept_log(logflags, 1);
      return;
    }
    mhp_poll_loop();
@@ -305,7 +320,7 @@ void mhp_exit_intercept(int errcode)
 
    sprintf(buf, "\n****\nleavedos(%d) called, at termination point of DOSEMU\n****\n\n", errcode);
    dosdebug_flags |= DBGF_IN_LEAVEDOS;
-   mhp_intercept(buf);
+   mhp_intercept(buf, NULL);
 }
 
 unsigned int mhp_debug(unsigned int code, unsigned int parm1, unsigned int parm2)
