@@ -68,6 +68,8 @@ static struct memnode *find_mn_prev(struct memnode *mp, unsigned char *ptr)
 void *smalloc(struct memnode *mp, size_t size)
 {
   struct memnode *mn;
+  if (!size)
+    return NULL;
   /* Find the unused region, large enough to hold an object */
   for (mn = mp; mn; mn = mn->next) {
     if (!mn->used && mn->size >= size)
@@ -76,18 +78,16 @@ void *smalloc(struct memnode *mp, size_t size)
   if (!mn)
     return NULL;	/* OOM */
   /* Now fit the object */
-  if (size > 0) {
+  mn->used = 1;
+  if (mn == mp) {
+    /* first allocation, lock the pool */
+    mntruncate(mn, 0);
+    mn = mn->next;
     mn->used = 1;
-    if (mn == mp) {
-      /* first allocation, lock the pool */
-      mntruncate(mn, 0);
-      mn = mn->next;
-      mn->used = 1;
-    }
-    mntruncate(mn, size);
-    assert(mn->size == size);
-    memset(mn->mem_area, 0, size);
   }
+  mntruncate(mn, size);
+  assert(mn->size == size);
+  memset(mn->mem_area, 0, size);
   return mn->mem_area;
 }
 
