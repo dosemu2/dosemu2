@@ -116,13 +116,23 @@ struct pkt_statistics *p_stats;
 /************************************************************************/
 
 /* initialize the packet driver interface (called at startup) */
-void
-pkt_init(int vec)
+void pkt_priv_init(void)
 {
     /* initialize the globals */
 
     pktdrvr_installed = 1; /* Will be cleared if some error occurs */
 
+    if (config.vnet == VNET_TYPE_DSN && Open_sockets() < 0) {
+	error("Cannot open dosnet device\n");
+        pktdrvr_installed = -1;
+    }
+}
+
+void
+pkt_init(int vec)
+{
+    if (pktdrvr_installed == -1)
+      goto fail;
     p_param = MK_PTR(PKTDRV_param);
     p_stats = MK_PTR(PKTDRV_stats);
 
@@ -136,20 +146,23 @@ pkt_init(int vec)
 
       case VNET_TYPE_DSN:
 	strcpy(devname, DOSNET_DEVICE);
-	if (Open_sockets() < 0) {
-	    error("Cannot open dosnet device\n");
-	    goto fail;
-	}
 	add_to_io_select(pkt_fd, 1, pkt_receive_async);
-	add_to_io_select(pkt_broadcast_fd, 1, pkt_receive_async);		    
+	add_to_io_select(pkt_broadcast_fd, 1, pkt_receive_async);
 	break;
 
       case VNET_TYPE_TAP:
-        strcpy(devname, TAP_DEVICE);
-	if ((pkt_fd = tun_alloc(devname)) < 0) {
-	  error("Cannot allocate TAP device\n");
-	  goto fail;
-	}
+        if (strncmp(config.netdev, TAP_DEVICE, 3) == 0) {
+          pd_printf("PKT: trying to bind to device %s\n", config.netdev);
+          strcpy(devname, config.netdev);
+          pkt_fd = tun_alloc(devname);
+        }
+        if (pkt_fd < 0) {
+          strcpy(devname, TAP_DEVICE);
+          if ((pkt_fd = tun_alloc(devname)) < 0) {
+            error("Cannot allocate TAP device\n");
+            goto fail;
+          }
+        }
 	max_pkt_fd = pkt_fd + 1;
 	add_to_io_select(pkt_fd, 1, pkt_receive_async);
 	break;

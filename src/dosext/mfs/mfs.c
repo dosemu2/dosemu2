@@ -202,6 +202,7 @@ TODO:
 #include "memory.h"
 #include "redirect.h"
 #include "mangle.h"
+#include "utilities.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
@@ -795,15 +796,12 @@ int
 mfs_redirector(void)
 {
   int ret;
-  sigset_t blockset, oldset;
 
   PS(MFS);
 
-  sigemptyset (&blockset);
-  sigaddset(&blockset, SIGALRM);
-  sigprocmask(SIG_BLOCK, &blockset, &oldset);
+  sigalarm_onoff(0);
   ret = dos_fs_redirect(&REGS);
-  sigprocmask(SIG_SETMASK, &oldset, NULL);
+  sigalarm_onoff(1);
   PE(MFS);
 
   Debug0((dbg_fd, "Finished dos_fs_redirect\n"));
@@ -830,13 +828,10 @@ int
 mfs_inte6(void)
 {
   boolean_t result;
-  sigset_t blockset, oldset;
 
-  sigemptyset (&blockset);
-  sigaddset(&blockset, SIGALRM);
-  sigprocmask(SIG_BLOCK, &blockset, &oldset);
+  sigalarm_onoff(0);
   result = dos_fs_dev(&REGS);
-  sigprocmask(SIG_SETMASK, &oldset, NULL);
+  sigalarm_onoff(1);
   return (result);
 }
 
@@ -2796,7 +2791,7 @@ dos_fs_redirect(state_t *state)
   u_short FCBcall = 0;
   u_char create_file=0;
   int fd;
-  int cnt;
+  int cnt, cnt1;
   int ret = REDIRECT;
   cds_t my_cds;
   sft_t sft;
@@ -3273,10 +3268,11 @@ dos_fs_redirect(state_t *state)
 	return (TRUE);
       }
 
+      cnt1 = strlen(fpath);
+      fpath[cnt1] = SLASH;
       while (de != NULL) {
 	if ((de->mode & S_IFMT) == S_IFREG) {
-	  cnt = strlen(fpath);
-	  fpath[cnt] = SLASH;
+	  cnt = cnt1;
 	  memcpy(&fpath[cnt+1], de->name, 8);
 	  for (cnt += 8; fpath[cnt] == ' '; cnt--);
 	  fpath[++cnt] = '.';
@@ -3689,8 +3685,7 @@ dos_fs_redirect(state_t *state)
 
 	p = dos_roots[current_drive];
 	label = (char *) malloc(8 + 3 + 1);
-	root = (char *) malloc(strlen(p) + 1);
-	strcpy(root, p);
+	root = strdup(p);
 	if (root[strlen(root) - 1] == '/' && strlen(root) > 1)
 	  root[strlen(root) - 1] = '\0';
 #if 0

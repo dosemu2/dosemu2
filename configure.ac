@@ -1,5 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([DOSEMU],[`cat VERSION`],[http://sourceforge.net/tracker/?atid=457447&group_id=49784&func=browse],dosemu)
+AC_INIT([DOSEMU], [],
+[http://sourceforge.net/tracker/?atid=457447&group_id=49784&func=browse],dosemu)
 AC_CONFIG_SRCDIR(src/base/misc/dosio.c)
 AC_PREREQ(2.57)
 
@@ -132,29 +133,15 @@ AC_SUBST(CONFIG_HOST)
 
 dnl Do ELF if possible
 
- if ! $CC -v 2>&1|grep specs >/dev/null 2>&1; then
-   AC_MSG_WARN(Your GCC installation is incomplete: specs file is missing.)
-   AC_MSG_WARN(We assume your GCC compiles for ELF.)
-   AC_MSG_WARN( )
-   ELF="ELF=1"
- else
-   if grep __ELF__ `$CC -v 2>&1|head -n1|cut -d' ' -f4` /dev/null 1>/dev/null 2>&1; then 
-    ELF="ELF=1"
-   else
-     if test "$CONFIG_HOST" = "linux"; then
-      echo "------------------------------------------------------------"
-      echo "Sorry, a.out system detected, but we do no longer support it"
-      echo "------------------------------------------------------------"
-      exit 1
-     else
-      # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe.
-      # should be okay at...0x20000000 for .5 GB mark.
-      LIBSTART="LIBSTART = 0x20000000"
-     fi
-   fi
- fi
- AC_SUBST(LIBSTART)
- AC_SUBST(ELF)
+if ! echo -e '#ifdef __ELF__\n#define foo bar\n#endif\nfoo' \
+   | gcc -E - | grep bar > /dev/null; then
+  if test "$CONFIG_HOST" = "linux"; then
+    echo "------------------------------------------------------------"
+    echo "Sorry, a.out system detected, but we do no longer support it"
+    echo "------------------------------------------------------------"
+    exit 1
+  fi
+fi
 
 dnl Check for static and then also use it for tests
 
@@ -388,6 +375,15 @@ dnl Do compilation for GDB
    AC_MSG_NOTICE(Compiling without debug info...);
   fi
 
+ AC_ARG_ENABLE(debug,
+               [  --enable-debug          compile with debug info],
+               [debug="yes"],[debug="no"])
+  if test "$debug" = "yes"; then
+   AC_MSG_NOTICE(Compiling with debug info...);
+  else
+   AC_MSG_NOTICE(Compiling without debug info...);
+  fi
+
 dnl Compile with ASPI support
  AC_ARG_ENABLE(aspi,
                [  --enable-aspi           do compile with ASPI support],
@@ -429,7 +425,7 @@ INCDIR="-I\${SRCPATH}/plugin/include -I\${SRCPATH}/include ${SLANGINC}"
 AC_SUBST(INCDIR)
 
 CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations -Wnested-externs"
-if test "$dodebug" = "yes"; then
+if test "$dodebug" = "yes" -o "$debug" = "yes"; then
   CFLAGS="$CFLAGS -gstabs+"
   AC_DEFINE(_DEBUG)
   OPT="-O"
@@ -789,6 +785,3 @@ if test "$no_x" = "yes" ; then
   AC_MSG_WARN(Install the X development libraries if you want support for X.)
 fi
 echo ""
-echo "Configure finished. Do 'make' to compile Dosemu."
-echo ""
-

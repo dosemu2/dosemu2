@@ -4,9 +4,12 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
+#ifndef _IO_H
+#define _IO_H
+
 /* Output to screen and input from stream routines */
 
-#include "midid.h"
+#include "device.h"
 
 /* Special return values; must be smaller then 0 */
 #define MAGIC_EOF (-1)    /* End Of File */
@@ -22,3 +25,5 @@ extern Device *devices;
 
 /* File descriptor of input file */
 extern int fd;		/* file descriptor */
+
+#endif

@@ -285,7 +285,10 @@ void mhp_exit_intercept(int errcode)
            mhpdbg.nbytes=strlen(loopbuf);
          }
          else {
-          if (mhpdbgc.stopped) continue;
+          if (mhpdbgc.stopped) {
+            usleep(JIFFIE_TIME/10);
+            continue;
+          }
           else break;
         }
       }

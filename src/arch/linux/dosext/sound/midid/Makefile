@@ -32,7 +32,7 @@ install:
 	@echo ""
 
 clean:
-		rm -f *.o
+		rm -f *.o *.d
 
 cleanall:	clean
 		rm -f $(REALTOPDIR)/bin/midid

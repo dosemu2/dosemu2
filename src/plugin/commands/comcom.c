@@ -2881,11 +2881,11 @@ struct cmdlist intcmdlist[] = {
 	{"ecpuon",	ecpuon_main, 1},
 	{"eject",	eject_main, 1},
 	{"emumouse",	emumouse_main, 1},
-	{"ugetcwd",	ugetcwd_main, 1},
 	{"vgaoff",	vgaoff_main, 1},
 	{"vgaon",	vgaon_main, 1},
 
 #ifdef USE_HEAP_EATING_BUILTINS
+	{"ugetcwd",	ugetcwd_main, 1},
 	{"lredir",	lredir_main, 1},
 	{"unix",	unix_main, 1},
 	{"dosdbg",	dosdbg_main, 1},

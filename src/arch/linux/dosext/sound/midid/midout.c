@@ -8,7 +8,7 @@
   .mid file writer
  ***********************************************************************/
 
-#include "midid.h"
+#include "device.h"
 #include <sys/time.h>	   /* for gettimeofday(2) */
 #include <string.h>
 #include <stdio.h>

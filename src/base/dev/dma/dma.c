@@ -423,22 +423,29 @@ static inline void deactivate_channel(int controller, int channel)
 
 inline Bit32u create_addr(Bit8u page, multi_t address, int dma_c)
 {
-  /* **CRISK** modified this - making this actually work */
-  /* AM - Removed 'dma_c' assumption */
+  /* Ben Davis modified this so it really actually DOES work. :)
+   * Tested with SB16 emulation.
+   */
 
-  Bit32u base_address;
+  Bit32u offset;
 
-  base_address = (
-		  (((Bit32u) page & 0xF) << 16) +
-		  ((Bit16u) address.bits.msb << 8) + address.bits.lsb);
+  offset = ((Bit16u) address.bits.msb << 8) + address.bits.lsb;
 
-  if (dma_c == DMA1) {
-    /* 64K Page */
-    return (base_address);
-  } else {
-    /* 128K Page */
-    return (base_address << 1);
-  }
+  if (dma_c == DMA2)
+    offset <<= 1;
+
+  /* Note: my 'PC Intern' book strongly implies that the '& 0xFFFF'
+   * operation should not be done. However, several programs don't
+   * work unless I do this operation. Such is life. -- BD
+   */
+
+  /* Great. FT2 works (sorta) if I don't do & 0xFFFF. ITSB16.MMX
+   * works if I DO do & 0xFFFF. GIMME A BREAK!
+   * ... very well. Bochs uses |, so we shall too. Seems to work.
+   * Now I know why my old QB+ASM SB16 code sometimes made evil
+   * noises :( -- BD
+   */
+  return (((Bit32u) page & 0xF) << 16) | offset;
 }
 
 inline void dma_toggle_ff(int dma_c)
@@ -1424,7 +1431,7 @@ void dma_init(void)
    * Page Registers (AT)
    */
   io_device.start_addr = 0x0089;
-  io_device.end_addr = 0x008A;
+  io_device.end_addr = 0x008F;
   io_device.handler_name = "DMA - AT Pages";
   port_register_handler(io_device, 0);
 

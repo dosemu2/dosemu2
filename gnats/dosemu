@@ -1,9 +1,0 @@
-doc :Documentation Bugs
-windows :Windows Bugs
-memory :Memory Bugs
-files :File and Filesystem Bugs
-sound :Sound Bugs
-misc :Miscellaneous Bugs
-x :X-Windows Bugs
-terminal :Terminal bugs
-console :Console Bugs

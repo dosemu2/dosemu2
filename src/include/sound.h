@@ -109,6 +109,7 @@ EXTERN struct DSP_information_t {
   uint8_t  pause_state;	       /* is DMA transfer paused? */ 
 #define SB_USES_DMA 1
 #define HIGH_SPEED_DMA 2
+#define SB_DMA_AUTO_INIT 4
   uint8_t  dma_mode;              /* Information we need on the DMA transfer */
   uint8_t  command;               /* DSP command in progress */
 #define SB_NO_DSP_COMMAND 0

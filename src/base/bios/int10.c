@@ -775,14 +775,15 @@ static void return_state(Bit8u *statebuf) {
 
 /* the actual int10 handler */
 
-void int10()
+int int10(void)
 {
 #if X_GRAPHICS
   if(!config.dualmon && config.X) {
-    return int10_new();
-  }
+    int10_new();
+  } else
 #endif
-  int10_old();
+    int10_old();
+  return 1;
 }
 
 void int10_old()

@@ -76,7 +76,7 @@ int cmos_date(int reg)
     if (cmos.flag[CMOS_YEAR])
       return GET_CMOS(CMOS_YEAR);
     else
-      return BCD(tm->tm_year);
+      return BCD(tm->tm_year%100);
 
   case CMOS_CENTURY:
     return BCD(tm->tm_year/100 + 19);

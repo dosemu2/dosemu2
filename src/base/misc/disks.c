@@ -686,14 +686,14 @@ disk_open(struct disk *dp)
       if (dp->fdesc < 0) {
         error("ERROR: (disk) can't open %s for read nor write: %s\n", dp->dev_name, strerror(errno));
         /* In case we DO get more clever, we want to share that code */
-        leavedos(22);
+        if (!dp->removeable) leavedos(22);
       } else {
         dp->rdonly = 1;
         d_printf("(disk) can't open %s for read/write. Readonly used.\n", dp->dev_name);
       }
     } else {
       d_printf("ERROR: (disk) can't open %s: %s\n", dp->dev_name, strerror(errno));
-      leavedos(22);
+      if (!dp->removeable) leavedos(22);
     }
   }
   else dp->rdonly = dp->wantrdonly;
@@ -979,8 +979,7 @@ static int checkdp(struct disk *disk)
     return 0;
 }
 
-void
-int13(u_char i)
+int int13(void)
 {
   unsigned int disk, head, sect, track, number;
   int res;
@@ -1569,8 +1568,9 @@ int13(u_char i)
 	  LWORD(eax));
     show_regs(__FILE__, __LINE__);
     CARRY;
-    return;
+    break;
   }
+  return 1;
 }
 
 #define FLUSH_DELAY 2

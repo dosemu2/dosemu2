@@ -9,7 +9,7 @@
 #ifndef _EMULATION_H
 #define _EMULATION_H
 
-#include "midid.h"
+#include "device.h"
 
 /* Current instrument mapping needed for emulation */
 extern int *imap;

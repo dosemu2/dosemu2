@@ -337,10 +337,12 @@ char *e_print_regs(void)
 	return buf;
 }
 
-#define GetSegmentBaseAddress(s)	(((s) >= (MAX_SELECTORS << 3))? 0 :\
-					Segments[(s) >> 3].base_addr)
-#define IsSegment32(s)			(((s) >= (MAX_SELECTORS << 3))? 0 :\
-					Segments[(s) >> 3].is_32)
+#if MAX_SELECTORS != 8192
+#error MAX_SELECTORS needs to be 8192
+#endif
+
+#define GetSegmentBaseAddress(s)	(Segments[(s) >> 3].base_addr)
+#define IsSegment32(s)			(Segments[(s) >> 3].is_32)
 
 char *e_print_scp_regs(struct sigcontext_struct *scp, int pmode)
 {
@@ -439,7 +441,9 @@ char *e_scp_disasm(struct sigcontext_struct *scp, int pmode)
       csp2 = org = (unsigned char *)scp->eip;
    }
    else {
-      csp2 = (unsigned char *)(GetSegmentBaseAddress(scp->cs));
+      csp2 = NULL;
+      if (scp->cs <= 0xffff)
+         csp2 = (unsigned char *)(GetSegmentBaseAddress(scp->cs));
       org  = (unsigned char *)(csp2 + scp->eip);
    }
    if ((long)org==lasta) { insrep=1; return buf; } /* skip 'rep xxx' steps */

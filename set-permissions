@@ -9,8 +9,7 @@ chmod 755 config.guess config.sub default-configure mkkeytables
 chmod 755 mknewyear mkpluginhooks
 chmod 755 bisonpp.pl
 chmod 755 configure
-chmod 755 setup-dosemu submit-bug-report gnats/send-pr gnats/send-pr.sh
-chmod 755 gnats/get-email.sh
+chmod 755 setup-dosemu
 chmod 755 setup/compiletime_setup.sh setup/runtime_setup.sh
 chmod 755 setup/runtime_setup.tk setup/compiletime_setup.tk
 chmod 755 install-sh rebuild

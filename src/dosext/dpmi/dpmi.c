@@ -660,8 +660,10 @@ unsigned short AllocateDescriptors(int number_of_descriptors)
   for (i=0;i<number_of_descriptors;i++) {
     if (in_dpmi)
       Segments[next_ldt+i].used = in_dpmi;
-    else
+    else {
+      error("AllocateDescriptor() called while in_dpmi=0\n");
       Segments[next_ldt+i].used = 1;
+    }
   }
   D_printf("DPMI: Allocate %d descriptors started at 0x%04x\n",
 	number_of_descriptors, (next_ldt<<3) | 0x0007);
@@ -699,6 +701,15 @@ int FreeDescriptor(unsigned short selector)
 #else
   return 0;
 #endif
+}
+
+static void FreeAllDescriptors(void)
+{
+    int i;
+    for (i=0;i<MAX_SELECTORS;i++) {
+      if (Segments[i].used==in_dpmi)
+        FreeDescriptor(i<<3);
+    }
 }
 
 int ConvertSegmentToDescriptor(unsigned short segment)
@@ -1936,14 +1947,8 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
   }
   else
     D_printf("DPMI: warning: in_dpmi=%d\n",in_dpmi);
-  { 
-    int i;
-    for (i=0;i<MAX_SELECTORS;i++) {
-      if (Segments[i].used==in_dpmi)
-        FreeDescriptor(i<<3);
-    }
-  }
 
+  FreeAllDescriptors();
   DPMIfreeAll();
   
   /* we must free ldt_buffer here, because FreeDescriptor() will */
@@ -1956,6 +1961,11 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
   in_dpmi_dos_int = 1;
   in_dpmi_pm_stack = 0;
   in_dpmi--;
+
+  /* set int 23 to "iret" so that DOS doesn't terminate the program
+     behind our back */
+  SETIVEC(0x23, BIOSSEG, INT_OFF(0x68));
+
   in_win31 = 0;
   if(pic_icount) {
     D_printf("DPMI: Warning: trying to leave DPMI when pic_icount=%li\n",
@@ -2321,7 +2331,9 @@ static void dpmi_init(void)
     return;
   }
 
-  if(!in_dpmi) {
+  in_dpmi++;
+
+  if(in_dpmi == 1) {
     struct meminfo *mi;
 
 #ifdef X86_EMULATOR
@@ -2357,14 +2369,14 @@ static void dpmi_init(void)
     ldt_buffer = malloc(LDT_ENTRIES*LDT_ENTRY_SIZE);
     if (ldt_buffer == NULL) {
       error("DPMI: can't allocate memory for ldt_buffer\n");
-      return;
+      goto err;
     }
 
     pm_stack = malloc(DPMI_pm_stack_size);
     if (pm_stack == NULL) {
       error("DPMI: can't allocate memory for locked protected mode stack\n");
       free(ldt_buffer);
-      return;
+      goto err;
     }
 
     D_printf("Freeing descriptors\n");
@@ -2402,17 +2414,17 @@ static void dpmi_init(void)
  * DANG_END_NEWIDEA
  */
 
-    if (!(LDT_ALIAS = AllocateDescriptors(1))) return;
+    if (!(LDT_ALIAS = AllocateDescriptors(1))) goto err;
     if (SetSelector(LDT_ALIAS, (unsigned long) ldt_buffer, MAX_SELECTORS*LDT_ENTRY_SIZE-1, DPMIclient_is_32,
-                  MODIFY_LDT_CONTENTS_DATA, 1, 0, 0, 0)) return;
+                  MODIFY_LDT_CONTENTS_DATA, 1, 0, 0, 0)) goto err;
     
-    if (!(PMSTACK_SEL = AllocateDescriptors(1))) return;
+    if (!(PMSTACK_SEL = AllocateDescriptors(1))) goto err;
     if (SetSelector(PMSTACK_SEL, (unsigned long) pm_stack, DPMI_pm_stack_size-1, DPMIclient_is_32,
-                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return;
+                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
-    if (!(DPMI_SEL = AllocateDescriptors(1))) return;
+    if (!(DPMI_SEL = AllocateDescriptors(1))) goto err;
     if (SetSelector(DPMI_SEL, (unsigned long) (DPMI_SEG << 4), 0xffff, DPMIclient_is_32,
-                  MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) return;
+                  MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
 
     for (i=0;i<0x100;i++) {
       Interrupt_Table[i].offset = DPMI_OFF + HLT_OFF(DPMI_interrupt) + i;
@@ -2427,7 +2439,7 @@ static void dpmi_init(void)
     
   } else {
     if (DPMIclient_is_32 != (LWORD(eax) ? 1 : 0))
-      return;
+      goto err;
   }
 
   ssp = (unsigned char *) (REG(ss) << 4);
@@ -2458,7 +2470,7 @@ static void dpmi_init(void)
     D_printf("\n");
 
     D_printf("STACK: ");
-    (*(unsigned short *)& sp) -= 10;
+    sp = (sp & 0xffff0000) | (((sp & 0xffff) - 10 ) & 0xffff);
     for (i = 0; i < 10; i++)
       D_printf("%02lx ", popb(ssp, sp));
     D_printf("-> ");
@@ -2468,38 +2480,38 @@ static void dpmi_init(void)
     flush_log();
   }
 
-  if (!(CS = AllocateDescriptors(1))) return;
+  if (!(CS = AllocateDescriptors(1))) goto err;
   if (SetSelector(CS, (unsigned long) (my_cs << 4), 0xffff, 0,
-                  MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) return;
+                  MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) goto err;
 
-  if (!(SS = AllocateDescriptors(1))) return;
+  if (!(SS = AllocateDescriptors(1))) goto err;
   if (SetSelector(SS, (unsigned long) (LWORD(ss) << 4), 0xffff, DPMIclient_is_32,
-                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return;
+                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
   if (LWORD(ss) == LWORD(ds))
     DS=SS;
   else {
-    if (!(DS = AllocateDescriptors(1))) return;
+    if (!(DS = AllocateDescriptors(1))) goto err;
     if (SetSelector(DS, (unsigned long) (LWORD(ds) << 4), 0xffff, DPMIclient_is_32,
-                    MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return;
+                    MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
   }
 
-  if (!(ES = AllocateDescriptors(1))) return;
+  if (!(ES = AllocateDescriptors(1))) goto err;
   if (SetSelector(ES, (unsigned long) (psp << 4), 0x00ff, DPMIclient_is_32,
-                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return;
+                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
   {/* convert environment pointer to a descriptor*/
      unsigned short envp, envpd;
      envp = *(unsigned short *)(((char *)(psp<<4))+0x2c);
      if (envp) {
-	if(!(envpd = AllocateDescriptors(1))) return;
+	if(!(envpd = AllocateDescriptors(1))) goto err;
 #if 0
 	if (SetSelector(envpd, (unsigned long) (envp << 4), 0x03ff,
 #else
 	/* windows is accessing envp:0x0400 */
 	if (SetSelector(envpd, (unsigned long) (envp << 4), 0x0ffff,
 #endif
-		DPMIclient_is_32, MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return;
+		DPMIclient_is_32, MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 	*(unsigned short *)(((char *)(psp<<4))+0x2c) = envpd;
 
         CURRENT_ENV_SEL = envpd;
@@ -2522,7 +2534,6 @@ static void dpmi_init(void)
   REG(cs) = DPMI_SEG;
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
 
-  in_dpmi++;
   in_win31 = 0;
   in_dpmi_dos_int = 0;
   if(pic_icount) {
@@ -2568,6 +2579,11 @@ static void dpmi_init(void)
     pic_run();
   }
   if (debug_level('M')>6) D_printf("DPMI: end dpmi loop\n");
+  return;
+
+err:
+  FreeAllDescriptors();
+  in_dpmi--;
 }
 
 void dpmi_sigio(struct sigcontext_struct *scp)

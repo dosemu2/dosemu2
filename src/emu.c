@@ -126,6 +126,7 @@ __asm__("___START___: jmp _emulate\n");
 #include "dosemu_config.h"
 #include "shared.h"
 #include "userhook.h"
+#include "pktdrvr.h"
 
 #include "keyb_clients.h"
 
@@ -365,6 +366,7 @@ emulate(int argc, char **argv)
     signal_init();              /* initialize sig's & sig handlers */
     map_video_bios();           /* map the video bios */
     map_hardware_ram();         /* map the direct hardware ram */
+    pkt_priv_init();
 
     /* here we include the hooks to possible plug-ins */
     #include "plugin_init.h"

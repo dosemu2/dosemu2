@@ -33,6 +33,7 @@
 #define X_CHG_TITLE_EMUNAME	6
 #define X_CHG_TITLE_APPNAME	7
 #define X_CHG_TITLE_SHOW_APPNAME	8
+#define X_CHG_BACKGROUND_PAUSE	9
 
 static int X_change_config(unsigned, void *);
 
@@ -53,6 +54,7 @@ int xmode_main(int argc, char **argv)
       "  -map <mode>      map window after graphics <mode> has been entered\n"
       "  -unmap <mode>    unmap window before graphics <mode> is left\n"
       "  -winsize <width> <height>    set initial graphics window size\n"
+      "  -bpause on|off   pause DOSEMU if the window loses focus\n"
     );
     return 1;
   }
@@ -126,6 +128,15 @@ int xmode_main(int argc, char **argv)
         r.r_ax = l & 0xff;
         intr(0x10, &r);
       }
+      argc -= 2; argv += 2;
+    }
+    else if (!strcmp(*argv, "-bpause") && argc >= 2) {
+      if (!strcasecmp (argv [1], "off") || !strcasecmp (argv [1], "0"))
+	l = 0;
+      else
+	l = 1;
+
+      X_change_config(X_CHG_BACKGROUND_PAUSE, &l);
       argc -= 2; argv += 2;
     }
     else {

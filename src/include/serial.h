@@ -122,7 +122,7 @@ typedef struct serial_struct {
 
 #define MAX_SER 4
 EXTERN serial_t com[MAX_SER];
-extern void int14(u_char);
+extern int int14(void);
 extern inline void serial_run(void);
 extern inline int do_serial_in(int, ioport_t);
 extern inline int do_serial_out(int, ioport_t, int);

@@ -314,7 +314,7 @@ Bit8u sb_io_read(ioport_t port)
        result = 0x80;
      if(DSP_busy_hack)
        DSP_busy_hack--;
-     S_printf ("SB: Write? %x\n", result);
+     S_printf ("SB: Read 0x%x from DSP Write Buffer Status Register\n", result);
      break;
 
    case 0x0D: /* DSP MIDI Interrupt Clear - SB16 ? */
@@ -985,7 +985,7 @@ void sb_dsp_write ( Bit8u value )
 		REQ_PARAMS(2);
 		SB_dsp.length = PAR_LSB_MSB(0) + 1;
 	        S_printf ("SB: 8-bit DMA output starting\n");
-		SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
 		dma_start();
 	break;
 
@@ -994,7 +994,7 @@ void sb_dsp_write ( Bit8u value )
 		REQ_PARAMS(2);
 		SB_dsp.length = PAR_LSB_MSB(0) + 1;
 	        S_printf("SB: Unsupported DMA type (0x%x)\n", SB_dsp.command);
-		SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
 		/* dma_start(); */
 	break;
 
@@ -1003,7 +1003,7 @@ void sb_dsp_write ( Bit8u value )
 		REQ_PARAMS(2);
 		SB_dsp.length = PAR_LSB_MSB(0) + 1;
 	        S_printf("SB: Unsupported DMA type (0x%x)\n", SB_dsp.command);
-		SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
 		/* dma_start(); */
 	break;
 	
@@ -1035,7 +1035,7 @@ void sb_dsp_write ( Bit8u value )
 		  S_printf("SB: Length is now set to %d\n", SB_dsp.length);
 		}
 	        S_printf ("SB: 8-bit DMA (Auto-Init) output starting\n");
-		SB_dsp.dma_mode |= DMA_AUTO_INIT;
+		SB_dsp.dma_mode |= SB_DMA_AUTO_INIT;
 		dma_start();
 	break;
 	
@@ -1045,7 +1045,7 @@ void sb_dsp_write ( Bit8u value )
 			S_printf("SB: 2-bit Auto-Init DMA DAC not supported on this SB version.\n");
 		}
 	        S_printf("SB: Unsupported DMA type (0x%x)\n", SB_dsp.command);
-		SB_dsp.dma_mode |= DMA_AUTO_INIT;
+		SB_dsp.dma_mode |= SB_DMA_AUTO_INIT;
 		/* dma_start(); */
 	break;
 
@@ -1064,7 +1064,7 @@ void sb_dsp_write ( Bit8u value )
 		REQ_PARAMS(2);
 		SB_dsp.length = PAR_LSB_MSB(0) + 1;
 	        S_printf ("SB: 8-bit DMA input starting\n");
-		SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
 		dma_start();
 	break;
 
@@ -1087,7 +1087,7 @@ void sb_dsp_write ( Bit8u value )
 		  S_printf("SB: Warning: your program uses an undocumented feature of 0x2C command!\n");
 		  S_printf("SB: Length is now set to %d\n", SB_dsp.length);
 		}
-		SB_dsp.dma_mode |= DMA_AUTO_INIT;
+		SB_dsp.dma_mode |= SB_DMA_AUTO_INIT;
 	        S_printf ("SB: 8-bit DMA (Auto-Init) input starting\n");
 		dma_start();
 	break;
@@ -1194,7 +1194,7 @@ void sb_dsp_write ( Bit8u value )
 		REQ_PARAMS(2);
 		SB_dsp.length = PAR_LSB_MSB(0) + 1;
 	        S_printf("SB: Unsupported DMA type (0x%x)\n", SB_dsp.command);
-		SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
 		/* dma_start(); */
 	break;
 
@@ -1203,7 +1203,7 @@ void sb_dsp_write ( Bit8u value )
 		REQ_PARAMS(2);
 		SB_dsp.length = PAR_LSB_MSB(0) + 1;
 	        S_printf("SB: Unsupported DMA type (0x%x)\n", SB_dsp.command);
-		SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
 		/* dma_start(); */
 	break;
 
@@ -1212,7 +1212,7 @@ void sb_dsp_write ( Bit8u value )
 		REQ_PARAMS(2);
 		SB_dsp.length = PAR_LSB_MSB(0) + 1;
 	        S_printf("SB: Unsupported DMA type (0x%x)\n", SB_dsp.command);
-		SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
 		/* dma_start(); */
 	break;
 
@@ -1221,7 +1221,7 @@ void sb_dsp_write ( Bit8u value )
 		REQ_PARAMS(2);
 		SB_dsp.length = PAR_LSB_MSB(0) + 1;
 	        S_printf("SB: Unsupported DMA type (0x%x)\n", SB_dsp.command);
-		SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
 		/* dma_start(); */
 	break;
 
@@ -1231,7 +1231,7 @@ void sb_dsp_write ( Bit8u value )
 			S_printf ("SB: 4-bit Auto-Init ADPCM DMA DAC not supported on this SB version.\n");
 		}
 	        S_printf("SB: Unsupported DMA type (0x%x)\n", SB_dsp.command);
-		SB_dsp.dma_mode |= DMA_AUTO_INIT;
+		SB_dsp.dma_mode |= SB_DMA_AUTO_INIT;
 		/* dma_start(); */
 	break;
 
@@ -1241,7 +1241,7 @@ void sb_dsp_write ( Bit8u value )
 			S_printf ("SB: 2.6-bit Auto-Init ADPCM DMA DAC not supported on this SB version.\n");
 		}
 	        S_printf("SB: Unsupported DMA type (0x%x)\n", SB_dsp.command);
-		SB_dsp.dma_mode |= DMA_AUTO_INIT;
+		SB_dsp.dma_mode |= SB_DMA_AUTO_INIT;
 		/* dma_start(); */
 	break;
 	
@@ -1263,7 +1263,7 @@ void sb_dsp_write ( Bit8u value )
 		  S_printf("SB: Length is now set to %d\n", SB_dsp.length);
 		}
 		S_printf ("SB: 8-bit DMA (High Speed, Auto-Init) output starting\n");
-		SB_dsp.dma_mode |= HIGH_SPEED_DMA | DMA_AUTO_INIT;
+		SB_dsp.dma_mode |= HIGH_SPEED_DMA | SB_DMA_AUTO_INIT;
 		dma_start();
 	break;
 
@@ -1279,7 +1279,7 @@ void sb_dsp_write ( Bit8u value )
 		  S_printf("SB: Length is now set to %d\n", SB_dsp.length);
 		}
 	        S_printf ("SB: 8-bit DMA (High Speed) output starting\n");
-		SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
 		SB_dsp.dma_mode |= HIGH_SPEED_DMA;
 	        dma_start();
 	break;
@@ -1297,7 +1297,7 @@ void sb_dsp_write ( Bit8u value )
 		  S_printf("SB: Length is now set to %d\n", SB_dsp.length);
 		}
 	        S_printf ("SB: 8-bit DMA (High Speed, Auto-Init) input starting\n");
-		SB_dsp.dma_mode |= HIGH_SPEED_DMA | DMA_AUTO_INIT;
+		SB_dsp.dma_mode |= HIGH_SPEED_DMA | SB_DMA_AUTO_INIT;
 		dma_start();
 	break;
 
@@ -1312,7 +1312,7 @@ void sb_dsp_write ( Bit8u value )
 		  S_printf("SB: Length is now set to %d\n", SB_dsp.length);
 		}
 	        S_printf ("SB: 8-bit DMA (High Speed) input starting\n");
-		SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
 		SB_dsp.dma_mode |= HIGH_SPEED_DMA;
 		dma_start();
 	break;
@@ -1351,9 +1351,9 @@ void sb_dsp_write ( Bit8u value )
 		}
 		SB_dsp.length = PAR_LSB_MSB(1) + 1;
 		if (SB_dsp.command & 4)
-		  SB_dsp.dma_mode |= DMA_AUTO_INIT;
+		  SB_dsp.dma_mode |= SB_DMA_AUTO_INIT;
 		else
-		  SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		  SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
 		if (SB_dsp.command & 8) {
 		  S_printf("SB: Starting SB16 8-bit DMA input\n");
 		}
@@ -1421,7 +1421,7 @@ void sb_dsp_write ( Bit8u value )
 		/* Exit Auto-Init 16-bit DMA - SB16 */
 	case 0xDA:
 		/* Exit Auto-Init 8-bit DMA - SB2.0 */
-		SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+		SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
 		break;
 
 	
@@ -1869,13 +1869,13 @@ void start_dsp_dma(void)
   int real_sampling_rate;
 
   S_printf("SB: Starting to open DMA access to DSP (%s mode)\n",
-    (SB_dsp.dma_mode & DMA_AUTO_INIT) ? "Auto-Init" : "Single-Cycle");
+    (SB_dsp.dma_mode & SB_DMA_AUTO_INIT) ? "Auto-Init" : "Single-Cycle");
 
   SB_dsp.empty_state &= ~START_DMA_AT_EMPTY;
   sb_is_running |= DSP_OUTPUT_RUN;
 
   if (!SB_dsp.length) {
-    S_printf("SB: ERROR: transfer lenght is not set, aborting DMA!\n");
+    S_printf("SB: ERROR: transfer length is not set, aborting DMA!\n");
     sb_is_running &= ~DSP_OUTPUT_RUN;
     return;
   }
@@ -1943,7 +1943,7 @@ void start_dsp_dma(void)
     dma_transfer_length = MIN(dma_transfer_length,
       dma_get_block_size(config.sb_dma));
     /* we want only one irq when speaker not enabled */
-    SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+    SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
  }
 
   dma_set_transfer_size(config.sb_dma, dma_transfer_length);
@@ -1994,7 +1994,7 @@ static void handle_dma_IO(int size)
   else {
     /* We are at the end of an block */
     S_printf("SB: Done block, triggering IRQ\n");
-    if(SB_dsp.dma_mode & DMA_AUTO_INIT)
+    if(SB_dsp.dma_mode & SB_DMA_AUTO_INIT)
     {
       /* Reset block size */
       SB_dsp.bytes_left = SB_dsp.length;
@@ -2405,6 +2405,7 @@ static void sb_reset (void)
     E2_Active = 0;
     DSP_busy_hack = 2;
     SB_dsp.ready = 0x7f;
+    SB_dsp.command = SB_NO_DSP_COMMAND;
 /* the following must not be zeroed out */
 #if 0
     SB_info.mixer_index = 0;

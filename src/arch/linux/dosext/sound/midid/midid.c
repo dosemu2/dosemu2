@@ -57,7 +57,6 @@
 #include <string.h>
 #include <sys/soundcard.h>
 
-Device *devices = NULL;		/* list of all drivers */
 int debugall;			/* 1 for all read bytes */
 int debug;			/* 1 for interpretation of each byte */
 int ignored;			/* 1 for ignored but recognised messages */
@@ -274,7 +273,7 @@ int main(int argc, char **argv)
     if (ch == MAGIC_EOF || ch == MAGIC_TIMEOUT) {
       /* Resident; reset soundcard */
       if (initialised) {
-	dev_done();
+	device_stop_all();
 	initialised = 0;
       }
       do {
@@ -419,7 +418,7 @@ int main(int argc, char **argv)
   if (statistics)
     stats_print();
   if (initialised) {
-    dev_done();
+    device_stop_all();
     initialised = 0;
   }
   return (0);

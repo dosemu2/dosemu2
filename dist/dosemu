@@ -21,12 +21,12 @@ USAGE:
 }
 
 install_from_template () {
-# $1 = path to install to
-  (cd $1
-    tar -xzf $SYSTEM_INSTALL_PATH/dosemu-bin.tgz
-  )
+# $BOOT_DIR_PATH = path to install to
   if [ -z "$PROPRIETARY" ]; then
-    BOOTDIR="$1/dosemu/freedos"
+    (cd $BOOT_DIR_PATH
+      tar -xzf $SYSTEM_INSTALL_PATH/dosemu-bin.tgz
+    )
+    BOOTDIR="$BOOT_DIR_PATH/dosemu/freedos"
   else
     BOOTDIR="$PROPRIETARY"
   fi
@@ -37,30 +37,22 @@ install_from_template () {
   rm -f $HOME/.dosemu/drives/c
   ln -sf $BOOTDIR $HOME/.dosemu/drives/c
   if [ -z "$PROPRIETARY" ]; then
-    (cd $1
+    (cd $BOOT_DIR_PATH
       tar -xzf $SYSTEM_INSTALL_PATH/dosemu-freedos-bin.tgz
     )
   else
-    (cd $1
-      mv dosemu/freedos/dosemu dosemu/commands
-      rmdir dosemu/freedos
-    )
     echo "
   The DOSEMU part of the proprietary installation has been done.
 
-  It is now your part to install the bootable part '$PROPRIETARY' to
-  $1/dosemu/$PROPRIETARY.
-  Read the docs for details on what it must contain. You also should install a
-  symlink to $1/dosemu/commands in order
-  to make the DOSEMU support commands available within $PROPRIETARY.
+  Please make sure that you have a bootable DOS in '$PROPRIETARY'.
+  Read the documentation for details on what it must contain. 
+  You should also install a symbolic link to or make a copy of the files in
+  $SYSTEM_INSTALL_PATH/commands 
+  in order to make the DOSEMU support commands available within $PROPRIETARY.
 
-  After you finished installing $PROPRIETARY (which simply may be a symlink
-  to your mounted DOS partition) _and_ have checked ~/.dosemurc,
-  you can rerun [x]dosemu again (without the -install option) to boot this DOS.
-
-  Good luck
+  Type ENTER to confirm or Ctrl-C to abort
 "
-    exit 0
+    read x
   fi
 }
 
@@ -195,40 +187,48 @@ if [ -n "$INSTALL" -o \
       exit 1;
     fi
 
-    # We copy the binaries from the directory SYSTEM_INSTALL_PATH
-    # to the users $HOME.
-    echo "
-  Going to install your private DOSEMU files into the directory
-  $HOME/dosemu
-  Enter an empty string to confirm, a new path, or \"none\" (without
-  the quotes) if you don't want this:"
-    read BOOT_DIR_PATH
-    if [ "$BOOT_DIR_PATH" == "none" ]; then
-      if [ ! -f $HOME/.dosemu/disclaimer ]; then
-        echo "
-  Please put the paths of your DOSEMU DOS drives in \$_hdimage in
-  $SYSTEM_CONF_PATH/dosemu.conf or copy that file to $HOME/.dosemurc and
-  adjust it there if you haven't already done so.
-          "
-      fi
-    elif [ "$BOOT_DIR_PATH" != "" ]; then
-      if [ "${BOOT_DIR_PATH#/*}" != "$BOOT_DIR_PATH" ]; then
-        echo "  You gave an absolute path, type ENTER to confirm or Ctrl-C"
-        read x
-      fi
+    if [ -z "$PROPRIETARY" ]; then
       echo "
-  Ok, will install into $BOOT_DIR_PATH/dosemu
+  Please enter the name of a directory which contains a bootable
+  DOS [ENTER = the default $SYSTEM_INSTALL_PATH/freedos]
+         "
+      read PROPRIETARY
+    fi
+
+    if [ "$PROPRIETARY" = "" -o "$PROPRIETARY" = "$SYSTEM_INSTALL_PATH/freedos" ]; then
+
+      # We copy the binaries from the directory SYSTEM_INSTALL_PATH
+      # to the users $HOME.
+      echo "
+  Going to install your private DOSEMU-freedos files into the directory
+  $HOME/dosemu
+  Enter an empty string to confirm, a new path (the files will then
+  be installed in a subdirectory named \"dosemu\" under that new path),
+  or \"none\" (without the quotes) if you don't want a writable
+  C-drive.
+"
+      read BOOT_DIR_PATH
+      if [ "$BOOT_DIR_PATH" != "none" ]; then
+        if [ "$BOOT_DIR_PATH" != "" ]; then
+          if [ "${BOOT_DIR_PATH#/*}" != "$BOOT_DIR_PATH" ]; then
+            echo "  You gave an absolute path, type ENTER to confirm or Ctrl-C"
+            read x
+          fi
+          echo "
+  Ok, will install into $BOOT_DIR_PATH
   type ENTER to confirm or Ctrl-C to abort"
-      read x
-      if ! mkdir -p $BOOT_DIR_PATH 2>/dev/null; then
-        echo "  unable to create $BOOT_DIR_PATH, giving up"
-        exit 1
+          read x
+          if ! mkdir -p $BOOT_DIR_PATH 2>/dev/null; then
+            echo "  unable to create $BOOT_DIR_PATH, giving up"
+            exit 1
+          fi
+        else
+          BOOT_DIR_PATH=$HOME
+        fi
+        install_from_template
       fi
-      install_from_template $BOOT_DIR_PATH
-      BOOT_DIR_PATH="$BOOT_DIR_PATH/dosemu"
     else
-      install_from_template $HOME
-      BOOT_DIR_PATH="$HOME/dosemu"
+      install_from_template
     fi
   fi
 fi
@@ -336,7 +336,7 @@ else
   w4l_check
   if [ $LINES -lt 25 -o -z "$QUIET" -a ! -f $HOME/.dosemu/stamp-dosemu ]; then
     echo
-    echo "   Now type ENTER to start DOSEMU or <Ctrl>C to cancel\n"
+    echo "   Now type ENTER to start DOSEMU or <Ctrl>C to cancel"
     read dummy
     touch ~/.dosemu/stamp-dosemu
   fi

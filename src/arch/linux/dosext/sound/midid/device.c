@@ -13,6 +13,8 @@
 #include <stdarg.h>
 #include <assert.h>
 
+Device *devices = NULL;		/* list of all drivers */
+
 /***********************************************************************
   Devices handling
  ***********************************************************************/
@@ -131,8 +133,8 @@ int num = 0;
   while (dev) {
     if (dev->active) {
       fprintf(stderr, "Initialising %s...\n", dev->name);
-      dev->active = dev->init();
-      if (! dev->active) {
+      dev->ready = dev->init();
+      if (! dev->ready) {
         fprintf(stderr, "Warning: Init failed for \"%s\"\n", dev->name);
       } else {
         emulation_set(dev, config.mode);
@@ -143,6 +145,24 @@ int num = 0;
     dev = dev->next;
   }
   return num;
+}
+
+void device_stop_all(void)
+/* De-Initialises available drivers */
+{
+Device *dev = devices;
+int num = 0;
+  while (dev) {
+    if (dev->ready) {
+      fprintf(stderr, "Stopping %s...\n", dev->name);
+      dev->done();
+      dev->ready = 0;
+      num++;
+    }
+    dev = dev->next;
+  }
+  if (num)
+    fprintf(stderr, "Stopped %i devices\n\n", num);
 }
 
 Device *device_activate(int number)
@@ -182,7 +202,7 @@ bool for_each_dev(bool (*func)(Device *, va_list), ...)
   Device *dev = devices;
 
   while (dev) {
-    if (dev->detected && dev->active) {
+    if (dev->ready) {
       va_start(args, func);
       ret = func(dev, args);
       va_end(args);
@@ -195,16 +215,6 @@ bool for_each_dev(bool (*func)(Device *, va_list), ...)
   return ret;
 }
 
-bool run_init(Device * dev, va_list args)
-{				/* returns TRUE if init was succesful */
-  return dev->init();
-}
-
-bool run_done(Device * dev, va_list args)
-{
-  dev->done();
-  return 1;
-}
 
 bool run_flush(Device * dev, va_list args)
 {				/* Flush all commands sent */

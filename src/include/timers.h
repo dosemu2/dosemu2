@@ -105,6 +105,9 @@ extern void pit_outp(ioport_t, Bit8u);
 static __inline__ hitimer_t _mul64x32_(hitimer_t v, unsigned long f)
 {
 	hitimer_u t;
+	unsigned long v0 = v & 0xffffffff;
+	unsigned long v1 = v >> 32;
+
 
 #ifdef ASM_PEDANTIC
 	unsigned long int d0;
@@ -121,12 +124,12 @@ static __inline__ hitimer_t _mul64x32_(hitimer_t v, unsigned long f)
 		"adcl	$0,%%edx"
 #ifndef ASM_PEDANTIC
 		: "=a"(t.t.tl),"=d"(t.t.th)
-		: "g"(((int *)&v)[0]),"g"(((int *)&v)[1]),\
+		: "g"(v0),"g"(v1),\
 		  "b"(f)
 		: "%eax","%edx","%ecx","%ebx","memory" );
 #else
 		:"=&a"(t.t.tl),"=&d"(t.t.th), "=&b"(d0)
-		:"g"(((int *)&v)[1]),"2"(f),"0"(((int *)&v)[0])
+		:"g"(v1),"2"(f),"0"(v0)
 		:"%ecx","memory" );
 #endif
 	return t.td;
@@ -297,9 +300,11 @@ int restart_cputime (int);
 extern int cpu_time_stop;	/* for dosdebug */
 int bogospeed(unsigned long *spus, unsigned long *sptick);
 
+void freeze_dosemu_manual(void);
 void freeze_dosemu(void);
 void unfreeze_dosemu(void);
 extern int dosemu_frozen;
+extern int dosemu_user_froze;
 
 /* --------------------------------------------------------------------- */
 

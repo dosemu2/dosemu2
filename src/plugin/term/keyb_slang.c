@@ -800,8 +800,8 @@ static int init_slang_keymaps(void)
 		buf[1] = keyb_state.erasekey+'@';
 		buf[2] = 0;
 		define_key(buf, KEY_BKSP, m);
-	} else if (keyb_state.erasekey > '~' && keyb_state.erasekey <= 0xFF) {
-		buf[0] = keyb_state.erasekey &0xff;
+	} else if (keyb_state.erasekey > '~') {
+		buf[0] = keyb_state.erasekey;
 		buf[1] = 0;
 		define_key(buf, KEY_BKSP, m);
 	}

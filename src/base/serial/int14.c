@@ -86,7 +86,7 @@ static void set_speed(int num, int speed)
  * for a character during receive, and this may confuse some programs.
  * DANG_END_FUNCTION
  */
-void int14(u_char ii)
+int int14(void)
 {
   int num;
   int temp;
@@ -97,7 +97,7 @@ void int14(u_char ii)
   for(num = 0; num < config.num_ser; num++)
     if (com[num].real_comport == (LO(dx)+1)) break;
 
-  if (num >= config.num_ser) return;	/* Exit if not on supported port */
+  if (num >= config.num_ser) return 1;	/* Exit if not on supported port */
 
   /* Reinit the serial port if it is in use for a mouse, with
    * the standard mouse parameters,
@@ -112,14 +112,14 @@ void int14(u_char ii)
 	  LO(ax)=0x82;		/* Microsoft: 1200 7N1 */
 	com[num].mouse++;	/* flag as already done */
     }
-    else return;
+    else return 1;
   }
 
   /* If FOSSIL is active, call it! */
   if (com[num].fossil_active)
   {
     fossil_int14(num);
-    return;
+    return 1;
   }
 
   switch (HI(ax)) {
@@ -202,6 +202,7 @@ void int14(u_char ii)
   default:
     s_printf("SER%d: INT14 0x%x: Unsupported interrupt on port %d\n",
               num,HI(ax),LO(dx));
-    return;
+    break;
   }
+  return 1;
 }

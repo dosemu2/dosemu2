@@ -396,7 +396,7 @@ void ser_termios(int num)
   /* The following does the actual system calls to set the line parameters */
   cfsetispeed(&com[num].newset, baud);
   cfsetospeed(&com[num].newset, baud);
-  tcsetattr(com[num].fd, TCSANOW, &com[num].newset);
+  tcsetattr(com[num].fd, TCSADRAIN, &com[num].newset);
 
 #if 0
   /* Many mouse drivers require this, they detect for Framing Errors
@@ -787,10 +787,13 @@ put_lcr(int num, int val)
   if (changed & UART_LCR_SBC) {
     /* there is change of break state */
     if (val & UART_LCR_SBC) {
+      s_printf("SER%d: Setting BREAK state.\n", num);
       tcdrain(com[num].fd);
       ioctl(com[num].fd, TIOCSBRK);
+    } else {
+      s_printf("SER%d: Clearing BREAK state.\n", num);
+      ioctl(com[num].fd, TIOCCBRK);
     }
-    else ioctl(com[num].fd, TIOCCBRK);
   }
 }
 

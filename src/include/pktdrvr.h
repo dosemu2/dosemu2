@@ -89,6 +89,7 @@ extern int pkt_check_receive(int timeout);
 extern void pkt_check_receive_quick(void);
 extern void pkt_receiver_callback(void);
 extern void pkt_receive_async(void);
+extern void pkt_priv_init (void);
 extern void pkt_init (int vec);
 
 #endif				/* PKTDRVR_H */

@@ -1,3 +1,63 @@
+2003/06/04 ver 1.1.4.16 unofficial pre-release
+	From Stas:
+	- midid update
+	  * Compatibility with the latest TiMidity++ (daily
+	    snapshot)  
+	  * Moved forgotten bits from midid.h to device.h
+	  * Improved start/stop sequence
+	  * Re-including protection to all headers
+	- fix the DPMI descriptor leaks in:
+	  1. dpmi_init()
+	  2. "Free DOS memory" service routine.
+	  Additionally the "Allocate DOS memory" routine
+	  was fixed to match the DPMI specs.
+	- fix the environment translation for DPMI (bug #731906)
+	- sleep in the dosdebug poll cycle
+	- allow to configure the TAP device before starting DOSEMU
+	- fix MFS bug for wildcard delete() (bug #732975)
+	- MFS sigalrm cleanup
+	- add hint to emumouse about the internal mouse driver config
+	- adjust some defaults in dosemu.conf
+	- vga.c: remove redundant ioperm
+	- linux_sound.c: dont ioctl POST by default
+	- ioctl.c: init the callback array
+	- serial: Use TCADRAIN instead of TCSANOW where appropriate
+	From Oleg Kuimov <ok020969@users.sourceforge.net>
+	- wrong year in rtc emulation
+	  fix last two digits of the CMOS year that is emulated in rtc.c
+	  from tm->tm_year (which is possibly >= 100)
+	  to tm->tm_year%100
+	From Grigory Batalov
+	- ignore a busy disk (don't abort DOSEMU) if it is a floppy.
+	- corrected and added font descriptions in dosemu.alias
+	From Ben Davis <entheh@users.sourceforge.net>
+	- Sound fixes in preparation for SB16 support.
+	From Clarence
+	- allow freezing of xdosemu in the background through dosemu.conf.
+	From Andy Shevchenko <andriy@pylesos.interdon.net>
+	- fix some problems with symbolic links and DESTDIR in
+	  Makefile.main
+	From Bart
+	- fix fullscreen X toggling when already in graphics mode
+	- misc doc fixes (added INSTALL, README, stripped down QuickStart)
+	  (inspired by Ged Haywood's comments on linux-msdos)
+	- removed some old cruft (keyboard.c.diff, DPR, gnats)
+	- streamline "make" a little (removed the wait)
+	- dosemu -install now asks for a boot directory location so
+	  it is easier to set up a different boot directory.
+	- fix the dosnet init to be before the privilege drop
+	- fix ugetcwd (it is a heap-eating builtin)
+	- fix null pointer dereference in remap.c
+	- replace the DJGPP hack by something a little less intrusive
+	  (an iret handler for int23 when dpmi is active)
+	- int code cleanup: int routines now return 1 if they want
+	  to return, and 0 if they want to chain through to a real mode
+	  interrupt. The somewhat confusing default_interrupt() function 
+	  is eliminated.
+	- add --enable-debug as alias for --enable-dodebug as configure
+	  switch
+	- fix gcc 3.3 builds (ELF detection was broken) and the new
+	  warnings it gives.
 2003/03/15 ver 1.1.4.15 unofficial pre-release
 	From Stas
 	- fix race in do_irq(): see if the pic_ilevel is in sync

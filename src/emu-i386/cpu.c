@@ -142,8 +142,8 @@ int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
 		  gettimeofday(&tv, NULL);
 		  t = (unsigned long long)tv.tv_sec*100000000 +
 		      (unsigned long long)tv.tv_usec*100;
-		  REG(eax)=((int *)&t)[0];
-		  REG(edx)=((int *)&t)[1];
+		  REG(eax)=t & 0xffffffff;
+		  REG(edx)=t >> 32;
 		}
 		(in_dpmi? scp->eip:LWORD(eip)) += 2;
 		return 1;

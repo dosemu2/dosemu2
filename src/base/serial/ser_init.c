@@ -343,7 +343,7 @@ static int ser_close(int num)
    * before closing the file down. 
    */
   RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].newset));
-  RPT_SYSCALL(tcsetattr(com[num].fd, TCSANOW, &com[num].oldset));
+  RPT_SYSCALL(tcsetattr(com[num].fd, TCSADRAIN, &com[num].oldset));
   i = RPT_SYSCALL(close(com[num].fd));
   com[num].fd = -1;
   
@@ -577,7 +577,7 @@ void serial_close(void)
     if (com[i].mouse && !config.console)
       s_printf("SER%d: Not touching mouse outside of the console!\n",i);
     else {
-      RPT_SYSCALL(tcsetattr(com[i].fd, TCSANOW, &com[i].oldset));
+      RPT_SYSCALL(tcsetattr(com[i].fd, TCSADRAIN, &com[i].oldset));
       ser_close(i);
     }
   }

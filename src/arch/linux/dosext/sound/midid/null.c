@@ -8,7 +8,7 @@
   null (flush) device -- mainly for testing
  ***********************************************************************/
 
-#include "midid.h"
+#include "device.h"
 
 bool null_detect(void)
 {

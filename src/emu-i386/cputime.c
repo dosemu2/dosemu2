@@ -236,6 +236,13 @@ int restart_cputime (int quiet)
 
 /* --------------------------------------------------------------------- */
 int dosemu_frozen = 0;
+int dosemu_user_froze = 0;
+
+void freeze_dosemu_manual(void)
+{
+  dosemu_user_froze = 2;
+  freeze_dosemu();
+}
 
 void freeze_dosemu(void)
 {
@@ -243,6 +250,7 @@ void freeze_dosemu(void)
   
   stop_cputime(0);
   dosemu_frozen = 1;
+  if (dosemu_user_froze) dosemu_user_froze--;
   dbug_printf("*** dosemu frozen\n");
   
   speaker_pause();
@@ -261,6 +269,7 @@ void unfreeze_dosemu(void)
   
   restart_cputime(0);
   dosemu_frozen = 0;
+  dosemu_user_froze = 0;
   dbug_printf("*** dosemu unfrozen\n");
 
 #ifdef X_SUPPORT
@@ -276,18 +285,19 @@ static int getmhz(void)
 {
 	struct timeval tv1,tv2;
 	hitimer_t a,b;
+        unsigned long a0, a1, b0, b1;
 
 	gettimeofday(&tv1, NULL);
 	__asm__ __volatile__ ("rdtsc"
-		:"=a" (((unsigned long*)&a)[0]),
-		 "=d" (((unsigned long*)&a)[1]));
+		:"=a" (a0),
+		 "=d" (a1));
 /*	for (j=0; j<10000000; j++);*/	/* 500ms on a P5-100 */
 	usleep(50000);
 	gettimeofday(&tv2, NULL);
 	__asm__ __volatile__ ("rdtsc"
-		:"=a" (((unsigned long*)&b)[0]),
-		 "=d" (((unsigned long*)&b)[1]));
-	b -= a;
+		:"=a" (b0),
+		 "=d" (b1));
+	b = (((hitimer_t)b1 << 32) | b0) - (((hitimer_t)a1 << 32) | a0);
 	a = (tv2.tv_sec*1000000 + tv2.tv_usec) - 
 	    (tv1.tv_sec*1000000 + tv1.tv_usec);
 	return (int)((b*4096)/a);

@@ -3,7 +3,7 @@ The DOSEMU Alterer Novices Guide
 
 Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 
-   version dosemu-1.1.3.9
+   version dosemu-1.1.5
 
    This Document is the DOSEMU Alterer Novices Guide. It is known as the
    DANG.
@@ -47,17 +47,15 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
               3.1.12. low_mem_init
               3.1.13. version_init
 
-        3.2. Items for Fixing in base/init/init.c
-        3.3. Functions in base/init/config.c
+        3.2. Functions in base/init/config.c
 
-              3.3.1. cpu_override
-              3.3.2. config_defaults
-              3.3.3. register_config_scrub
-              3.3.4. unregister_config_scrub
-              3.3.5. config_scrub
-              3.3.6. config_init
+              3.2.1. cpu_override
+              3.2.2. register_config_scrub
+              3.2.3. unregister_config_scrub
+              3.2.4. config_scrub
+              3.2.5. config_init
 
-        3.4. Remarks in base/init/config.c
+        3.3. Remarks in base/init/config.c
 
    4. The DPMI group of Modules
 
@@ -72,12 +70,6 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
         4.2. Remarks in dosext/dpmi/dpmi.c
         4.3. Items for Fixing in dosext/dpmi/dpmi.c
         4.4. New Ideas for dosext/dpmi/dpmi.c
-        4.5. Functions in dosext/dpmi/msdos.h
-
-              4.5.1. msdos_pre_extender
-              4.5.2. msdos_post_extender
-
-        4.6. Items for Fixing in dosext/dpmi/msdos.h
 
    5. The Video group of Modules
 
@@ -238,12 +230,11 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 
         8.1. Functions in base/async/int.c
 
-              8.1.1. DEFAULT_INTERRUPT
-              8.1.2. ms_dos
-              8.1.3. run_caller_func(i, from_int)
-              8.1.4. DO_INT
-              8.1.5. setup_interrupts
-              8.1.6. int_vector_setup
+              8.1.1. ms_dos
+              8.1.2. run_caller_func(i, from_int)
+              8.1.3. DO_INT
+              8.1.4. setup_interrupts
+              8.1.5. int_vector_setup
 
         8.2. Remarks in base/async/int.c
         8.3. Functions in arch/linux/async/sigsegv.c
@@ -277,44 +268,43 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 
               8.8.1. shared_qf_memory_init
 
-        8.9. Remarks in base/misc/shared.c
-        8.10. Functions in base/misc/dos2linux.c
+        8.9. Functions in base/misc/dos2linux.c
 
-              8.10.1. run_unix_command
+              8.9.1. run_unix_command
 
-        8.11. Functions in base/misc/ioctl.c
+        8.10. Functions in base/misc/ioctl.c
 
-              8.11.1. io_select_init
-              8.11.2. add_to_io_select
-              8.11.3. remove_from_io_select
+              8.10.1. io_select_init
+              8.10.2. add_to_io_select
+              8.10.3. remove_from_io_select
 
-        8.12. Functions in base/dev/misc/lpt.c
+        8.11. Functions in base/dev/misc/lpt.c
 
-              8.12.1. printer_init
+              8.11.1. printer_init
 
-        8.13. Functions in base/dev/misc/pci.c
+        8.12. Functions in base/dev/misc/pci.c
 
-              8.13.1. pci_read_header
-              8.13.2. pci_read_header
-              8.13.3. pci_read_header
+              8.12.1. pci_read_header
+              8.12.2. pci_read_header
+              8.12.3. pci_read_header
 
-        8.14. Functions in base/dev/misc/joystick.c
+        8.13. Functions in base/dev/misc/joystick.c
 
-              8.14.1. joy_latency_over
-              8.14.2. joy_emu_button_set
-              8.14.3. joy_emu_axis_set
-              8.14.4. joy_emu_axis_conv
-              8.14.5. joy_linux_process_event
-              8.14.6. joy_linux_read_events
-              8.14.7. joy_linux_read_status
-              8.14.8. joy_linux_read_buttons_(family)
-              8.14.9. joy_linux_read_axis_(family)
-              8.14.10. joy_bios_read
-              8.14.11. joy_port_inb
+              8.13.1. joy_latency_over
+              8.13.2. joy_emu_button_set
+              8.13.3. joy_emu_axis_set
+              8.13.4. joy_emu_axis_conv
+              8.13.5. joy_linux_process_event
+              8.13.6. joy_linux_read_events
+              8.13.7. joy_linux_read_status
+              8.13.8. joy_linux_read_buttons_(family)
+              8.13.9. joy_linux_read_axis_(family)
+              8.13.10. joy_bios_read
+              8.13.11. joy_port_inb
 
-        8.15. Remarks in base/dev/misc/joystick.c
-        8.16. Items for Fixing in base/dev/misc/joystick.c
-        8.17. Remarks in include/doshelpers.h
+        8.14. Remarks in base/dev/misc/joystick.c
+        8.15. Items for Fixing in base/dev/misc/joystick.c
+        8.16. Remarks in include/doshelpers.h
 
    9. The CPU_Intel group of Modules
 
@@ -654,52 +644,41 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    Find version of OS running and set necessary global parms.
      _________________________________________________________________
 
-3.2. Items for Fixing in base/init/init.c
-
-   config.timer is undocumented and probably obsolete
-     _________________________________________________________________
-
-3.3. Functions in base/init/config.c
+3.2. Functions in base/init/config.c
 
    These are the functions defined in base/init/config.c.
      _________________________________________________________________
 
-3.3.1. cpu_override
+3.2.1. cpu_override
 
    Process user CPU override from the config file ('cpu xxx') or from the
    command line. Returns the selected CPU identifier or -1 on error.
    'config.realcpu' should have already been defined.
      _________________________________________________________________
 
-3.3.2. config_defaults
-
-   Set all values in the `config` structure to their default value. These
-   will be modified by the config parser.
-     _________________________________________________________________
-
-3.3.3. register_config_scrub
+3.2.2. register_config_scrub
 
    register a function Enforce consistency upon the `config` structure
    after all values have been set to remove silly option combinations
      _________________________________________________________________
 
-3.3.4. unregister_config_scrub
+3.2.3. unregister_config_scrub
 
    Complement of register_config_scrub This removes a scrub function.
      _________________________________________________________________
 
-3.3.5. config_scrub
+3.2.4. config_scrub
 
    Enforce consistency upon the `config` structure after all values have
    been set to remove silly option combinations
      _________________________________________________________________
 
-3.3.6. config_init
+3.2.5. config_init
 
    This is called to parse the command-line arguments and config files.
      _________________________________________________________________
 
-3.4. Remarks in base/init/config.c
+3.3. Remarks in base/init/config.c
 
    For simpler support of X, DOSEMU can be started by a symbolic link
    called `xdos` which DOSEMU will use to switch into X-mode.
@@ -828,33 +807,6 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    Simulate Local Descriptor Table for MS-Windows 3.1 must be read only,
    so if krnl386.exe/krnl286.exe try to write to this table, we will bomb
    into sigsegv() and and emulate direct ldt access
-     _________________________________________________________________
-
-4.5. Functions in dosext/dpmi/msdos.h
-
-   These are the functions defined in dosext/dpmi/msdos.h.
-     _________________________________________________________________
-
-4.5.1. msdos_pre_extender
-
-   This function is called before a protected mode client goes to real
-   mode for DOS service. All protected mode selector is changed to real
-   mode segment register. And if client\'s data buffer is above 1MB,
-   necessary buffer copying is performed. This function returns 1 if it
-   does not need to go to real mode, otherwise returns 0.
-     _________________________________________________________________
-
-4.5.2. msdos_post_extender
-
-   This function is called after return from real mode DOS service All
-   real mode segment registers are changed to protected mode selectors
-   And if client\'s data buffer is above 1MB, necessary buffer copying is
-   performed.
-     _________________________________________________________________
-
-4.6. Items for Fixing in dosext/dpmi/msdos.h
-
-   : Please implement the ENV translation! */
      _________________________________________________________________
 
 5. The Video group of Modules
@@ -1984,13 +1936,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    These are the functions defined in base/async/int.c.
      _________________________________________________________________
 
-8.1.1. DEFAULT_INTERRUPT
-
-   DEFAULT_INTERRUPT is the default interrupt service routine called when
-   DOSEMU initializes.
-     _________________________________________________________________
-
-8.1.2. ms_dos
+8.1.1. ms_dos
 
    int0x21 call
 
@@ -2004,7 +1950,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    for the moment, ANSI.SYS won't work anyway, so it's no problem.
      _________________________________________________________________
 
-8.1.3. run_caller_func(i, from_int)
+8.1.2. run_caller_func(i, from_int)
 
    This function runs the specified caller function in response to an int
    instruction. Where i is the interrupt function to execute and from_int
@@ -2050,22 +1996,24 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 
    This improves consistency of interrupt handling, but not quite as much
    as if I could handle it the way I would like. -- EB 30 Nov 1997
+
+   Trying to get it right now -- BO 25 Jan 2003
      _________________________________________________________________
 
-8.1.4. DO_INT
+8.1.3. DO_INT
 
    DO_INT is used to deal with interrupts returned to DOSEMU by the
    kernel.
      _________________________________________________________________
 
-8.1.5. setup_interrupts
+8.1.4. setup_interrupts
 
    SETUP_INTERRUPTS is used to initialize the interrupt_function array
    which directs handling of interrupts in protected mode and also
    initializes the base vector for interrupts in real mode.
      _________________________________________________________________
 
-8.1.6. int_vector_setup
+8.1.5. int_vector_setup
 
    Setup initial interrupts which can be revectored so that the kernel
    does not need to return to DOSEMU if such an interrupt occurs.
@@ -2251,19 +2199,12 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    Setup all memory areas to be shared with clients.
      _________________________________________________________________
 
-8.9. Remarks in base/misc/shared.c
-
-   Output info required for client activity (NOTE: 'client activity' as
-   of 2000/02/02 totally disabled, but left file structure compatible,
-   --Hans)
-     _________________________________________________________________
-
-8.10. Functions in base/misc/dos2linux.c
+8.9. Functions in base/misc/dos2linux.c
 
    These are the functions defined in base/misc/dos2linux.c.
      _________________________________________________________________
 
-8.10.1. run_unix_command
+8.9.1. run_unix_command
 
    Runs a command and prints the (stdout and stderr) output on the dosemu
    screen.
@@ -2275,17 +2216,17 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
      * buffer - string with command to execute
      _________________________________________________________________
 
-8.11. Functions in base/misc/ioctl.c
+8.10. Functions in base/misc/ioctl.c
 
    These are the functions defined in base/misc/ioctl.c.
      _________________________________________________________________
 
-8.11.1. io_select_init
+8.10.1. io_select_init
 
    Initialize fd_sets to NULL for both SIGIO and NON-SIGIO.
      _________________________________________________________________
 
-8.11.2. add_to_io_select
+8.10.2. add_to_io_select
 
    Arguments are:
 
@@ -2296,7 +2237,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    kernel can handle SIGIO.
      _________________________________________________________________
 
-8.11.3. remove_from_io_select
+8.10.3. remove_from_io_select
 
    Arguments are:
 
@@ -2307,28 +2248,28 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    whether the kernel can handle SIGIO.
      _________________________________________________________________
 
-8.12. Functions in base/dev/misc/lpt.c
+8.11. Functions in base/dev/misc/lpt.c
 
    These are the functions defined in base/dev/misc/lpt.c.
      _________________________________________________________________
 
-8.12.1. printer_init
+8.11.1. printer_init
 
    Initialize printer control structures
      _________________________________________________________________
 
-8.13. Functions in base/dev/misc/pci.c
+8.12. Functions in base/dev/misc/pci.c
 
    These are the functions defined in base/dev/misc/pci.c.
      _________________________________________________________________
 
-8.13.1. pci_read_header
+8.12.1. pci_read_header
 
    Use standard 32-bit (type 1) access method to read PCI configuration
    space data
      _________________________________________________________________
 
-8.13.2. pci_read_header
+8.12.2. pci_read_header
 
    32-bit I/O port output on PCI ports (0xcf8=addr,0xcfc=data)
    Optimization: trap the config writes (outd 0xcf8 with bit31=1). Since
@@ -2337,17 +2278,17 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    operation, saving two calls to priv_iopl().
      _________________________________________________________________
 
-8.13.3. pci_read_header
+8.12.3. pci_read_header
 
    Register standard PCI ports 0xcf8-0xcff
      _________________________________________________________________
 
-8.14. Functions in base/dev/misc/joystick.c
+8.13. Functions in base/dev/misc/joystick.c
 
    These are the functions defined in base/dev/misc/joystick.c.
      _________________________________________________________________
 
-8.14.1. joy_latency_over
+8.13.1. joy_latency_over
 
    Tells DOSEMU whether or not it is time to update its internal status
    of the joystick (for nonblocking reads only).
@@ -2370,7 +2311,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    registers any changes at all.
      _________________________________________________________________
 
-8.14.2. joy_emu_button_set
+8.13.2. joy_emu_button_set
 
    Update the button status for each joystick.
 
@@ -2383,7 +2324,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    b) 4th button of 1st joy --> 2nd button of 2nd joy
      _________________________________________________________________
 
-8.14.3. joy_emu_axis_set
+8.13.3. joy_emu_axis_set
 
    Update the axis status for each joystick.
 
@@ -2397,7 +2338,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    reversed deliberately because it's what happens in DOS)
      _________________________________________________________________
 
-8.14.4. joy_emu_axis_conv
+8.13.4. joy_emu_axis_conv
 
    Convert a Linux joystick axis reading to a DOS one by making use of
    the differences in the allowable range of axis values.
@@ -2408,12 +2349,12 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    in this function.
      _________________________________________________________________
 
-8.14.5. joy_linux_process_event
+8.13.5. joy_linux_process_event
 
    Update global joystick status variables given a Linux joystick event.
      _________________________________________________________________
 
-8.14.6. joy_linux_read_events
+8.13.6. joy_linux_read_events
 
    Process the event queue for _both_ linux joysticks using nonblocking
    reads with the new joystick API (joy_driver_new).
@@ -2427,20 +2368,20 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    joysticks (what DOS sees).
      _________________________________________________________________
 
-8.14.7. joy_linux_read_status
+8.13.7. joy_linux_read_status
 
    Read both the current position and current button status of the
    joystick from Linux (joy_driver_old).
      _________________________________________________________________
 
-8.14.8. joy_linux_read_buttons_(family)
+8.13.8. joy_linux_read_buttons_(family)
 
    Eventually called from DOS to get the button status of the joysticks.
    The threaded version will simply get the status from global variables.
    The unthreaded versions will perform non-blocking reads.
      _________________________________________________________________
 
-8.14.9. joy_linux_read_axis_(family)
+8.13.9. joy_linux_read_axis_(family)
 
    Eventually called from DOS to get the axis status of the joysticks.
    The threaded version will simply get the values from global variables.
@@ -2456,7 +2397,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
      * the axis positions to be from different points in time :)
      _________________________________________________________________
 
-8.14.10. joy_bios_read
+8.13.10. joy_bios_read
 
    This is the int15 function 0x84 handler (ie. BIOS joystick emulation),
    called from src/base/async/int.c.
@@ -2470,7 +2411,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    this won't cause any problems).
      _________________________________________________________________
 
-8.14.11. joy_port_inb
+8.13.11. joy_port_inb
 
    This function emulates reads from the joystick port (0x201) -- this is
    the most common way of detecting and reading the joystick.
@@ -2492,7 +2433,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    times, there would be trouble).
      _________________________________________________________________
 
-8.15. Remarks in base/dev/misc/joystick.c
+8.14. Remarks in base/dev/misc/joystick.c
 
    We make a runtime decision based on the detected joystick API version
    and #ifdef USE_PTHREADS, on the way in which we obtain the joystick
@@ -2559,7 +2500,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    port first so the Linux read must be done _here_) and return it.
      _________________________________________________________________
 
-8.16. Items for Fixing in base/dev/misc/joystick.c
+8.15. Items for Fixing in base/dev/misc/joystick.c
 
    does this code work for ports other than 0x201?
 
@@ -2580,7 +2521,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    perhaps we should not have been called to start with?
      _________________________________________________________________
 
-8.17. Remarks in include/doshelpers.h
+8.16. Remarks in include/doshelpers.h
 
    The Helper Interrupt uses the following groups:
 
@@ -2741,10 +2682,6 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 9.4. Items for Fixing in emu-i386/ports.c
 
    This stuff should be moved to video code!!
-
-   -----
-
-   this code needs to be removed - it collides with vgaemu
 
    -----
 

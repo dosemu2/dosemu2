@@ -8,7 +8,7 @@
   timidity server driver
  ***********************************************************************/
 
-#include "midid.h"
+#include "device.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
@@ -119,27 +119,34 @@ static int timid_preinit(void)
 bool timid_detect(void)
 {
 char buf[255];
-int n, attempt = 0, ret = FALSE;
+int n, selret = 0, ret = FALSE;
 fd_set rfds;
 struct timeval tv;
 
   if (!timid_preinit())
     return FALSE;
 
-  do {
+  FD_ZERO(&rfds);
+  FD_SET(ctrl_sock, &rfds);
+  tv.tv_sec = 1;
+  tv.tv_usec = 0;
+  while ((selret = select(ctrl_sock + 1, &rfds, NULL, NULL, &tv)) > 0) {
     n = recv(ctrl_sock, buf, sizeof(buf) - 1, 0);
     buf[n] = 0;
+    if (!n) {
+      break;
+    }
     if (strstr(buf, "220 TiMidity++")) {
       ret = TRUE;
       break;
     }
-    if (attempt++ > 5)
-      break;
     FD_ZERO(&rfds);
     FD_SET(ctrl_sock, &rfds);
     tv.tv_sec = 1;
     tv.tv_usec = 0;
-  } while (select(ctrl_sock + 1, &rfds, NULL, NULL, &tv));
+  }
+  if (selret < 0)
+    perror("select()");
 
   shutdown(ctrl_sock, 2);
   close(ctrl_sock);
@@ -154,30 +161,38 @@ static char cmd2[] = "SETBUF %1.2f %1.2f\n";
 static char cmd3[] = "OPEN %s\n";
 char buf[255];
 char * pbuf;
-int n, i, data_port, ret = FALSE, attempt = 0;
+int n, i, data_port, ret = FALSE, selret = 0;
 fd_set rfds;
 struct timeval tv;
 
   if (!timid_preinit())
     return FALSE;
 
-  do {
+  FD_ZERO(&rfds);
+  FD_SET(ctrl_sock, &rfds);
+  tv.tv_sec = 1;
+  tv.tv_usec = 0;
+  while ((selret = select(ctrl_sock + 1, &rfds, NULL, NULL, &tv)) > 0) {
     n = recv(ctrl_sock, buf, sizeof(buf) - 1, 0);
     buf[n] = 0;
     if (n)
       fprintf(stderr, "\tInit: %s", buf);
+    else {
+      fprintf(stderr, "\tInit failed!\n");
+      break;
+    }
     if (strstr(buf, "220 TiMidity++")) {
       ret = TRUE;
       break;
     }
-    if (attempt++ > 5)
-      return FALSE;
     FD_ZERO(&rfds);
     FD_SET(ctrl_sock, &rfds);
     tv.tv_sec = 1;
     tv.tv_usec = 0;
-  } while (select(ctrl_sock + 1, &rfds, NULL, NULL, &tv));
+  }
   fprintf(stderr, "\n");
+  if (selret < 0)
+    perror("select()");
   if (!ret)
     return FALSE;
 

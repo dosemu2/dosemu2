@@ -194,14 +194,14 @@ mouse_helper(void)
     LO(dx) = mouse.ignorexy;
     break;
   case 4:				/* Set vertical speed */
-    if ((LO(cx) < 1) || (LO(cx) > 255)) {
+    if (LO(cx) < 1) {
       m_printf("MOUSE Vertical speed out of range. ERROR!\n");
       LWORD(eax) = 1;
     } else 
       mouse.init_speed_y = mouse.speed_y = LO(cx);
     break;
   case 5:				/* Set horizontal speed */
-    if ((LO(cx) < 1) || (LO(cx) > 255)) {
+    if (LO(cx) < 1) {
       m_printf("MOUSE Horizontal speed out of range. ERROR!\n");
       LWORD(eax) = 1;
     } else
@@ -976,7 +976,7 @@ mouse_reset_to_current_video_mode(void)
 static void mouse_reset(int flag)
 {
   m_printf("MOUSE: reset mouse/installed!\n");
-  mouse_enable_internaldriver();
+  if (flag == 0) mouse_enable_internaldriver();
 
   /* Return 0xffff on mouse installed, 0x0000 - no mouse driver installed */
   /* Return number of mouse buttons */

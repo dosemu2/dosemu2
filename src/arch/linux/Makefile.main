@@ -34,11 +34,6 @@ ifdef X86_EMULATOR
 export XCPUEMU=emu-i386/simx86
 endif
 
-# SYNC_ALOT
-#   uncomment this if the emulator is crashing your machine and some debug info 
-#   isn't being sync'd to the debug file (stdout). shouldn't happen. :-) 
-#SYNC_ALOT = -DSYNC_ALOT=1
-
 REQUIRED += $(MIDID)
 
 LIBSUBDIRS=env/video base base/async \
@@ -57,97 +52,12 @@ LIBS_ := $(subst /,_,$(LIBSUBDIRS))
 
 DOCS= $(REALTOPDIR)/man
 
-
-# Relevant to src
-OFILES= Makefile Makefile.common ../ChangeLog ../QuickStart \
-	../etc/BOGUS-Notes arch/linux/Makefile.main arch/netbsd/Makefile.main \
-	../etc/vga.pcf ../etc/vga.bdf ../etc/xtermdos.sh ../etc/xinstallvgafont.sh \
-	Configure ../load_module.sh ../unload_module.sh ../install-for-modprobe.sh
-
-BFILES=
-
-F_DOC=dosemu.texinfo Makefile dos.1 wp50
-F_DRIVERS=emufs.S emufs.sys
-F_COMMANDS=exitemu.S exitemu.com vgaon.S vgaon.com vgaoff.S vgaoff.com \
-           lredir.com lredir.c makefile.mak dosdbg.com dosdbg.c
-F_EXAMPLES=config.dist
-F_PERIPH=debugobj.S getrom hdinfo.c mkhdimage.c mkpartition putrom.c
-
-
 ###################################################################
 
 LIBPATH=lib
 
-
-OPTIONAL   = # -DDANGEROUS_CMOS=1
-CONFIGS    = $(CONFIG_FILE) $(DOSEMU_USERS_FILE)
-DEBUG      = $(SYNC_ALOT)
-
-DISTBASE=/tmp
-DISTNAME=dosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
-DISTPATH=$(DISTBASE)/$(DISTNAME)
-ifdef RELEASE
-DISTFILE=$(DISTBASE)/$(DISTNAME).tgz
-else
-DISTFILE=$(DISTBASE)/pre$(VERSION).$(SUBLEVEL).$(PATCHLEVEL).tgz
-endif
-export DISTBASE DISTNAME DISTPATH DISTFILE
-
-
-ifdef do_DEBUG
-# first target for debugging build
-ifneq (include/config.h,$(wildcard include/config.h))
-firstsimple:	version dep simple
-endif
-
-simple:	version dossubdirs $(BINPATH)/bin/$(DOSBIN)
-endif
-
-# The assumption is that most new users will only type 'make'
-# if they have not read the documentation, so therefore a 
-# keypress pause is a good idea and is included here.
-
-default: warning2 pausekey version include/confpath.h doslibnew \
+default: version include/confpath.h doslibnew \
 	../etc/xtermdos ../etc/xinstallvgafont
-
-warning2: 
-	@echo ""; \
-	 echo "Starting DOSEMU "$(THISVERSION)" compile..."; \
-	 echo ""; \
-	 echo "-> IMPORTANT!"; \
-	 echo "    - Please read 'QuickStart' file before compiling DOSEMU!"; \
-	 echo "    - Location and format of DOSEMU files have changed since 0.50pl1!"; \
-	 echo ""; \
-	 echo "-> REQUIREMENTS for DOSEMU:"; \
-	 echo '    - egcs >= 2.91.66 (1.1.2) / gcc >= 2.95.2'; \
-	 echo "    - glibc >= 2.1.3"; \
-	 echo '    - Linux >= 2.0.30, 2.x.y >= 2.1.27 (>= 2.4.20 recommended)'; \
-	 echo "";
-
-ifeq ($(WAIT),yes)
-pausekey:
-	@echo "====> Press Enter to continue, or hit Ctrl-C to abort <===="
-	@read
-else
-pausekey:
-	@echo "====> Compile begins <====="
-endif
-
-pausedelay:
-	@echo "====> HIT CTRL-C NOW to abort if you forgot something! <===="
-	@sleep 10
-
-warning3:
-	@echo ""; \
-	 echo "Be patient...Some of this code may take a while to complete."; \
-	 echo "Hopefully you have at least 16MB swap+RAM available during this compile."; \
-	 echo ""
-
-doeverything: warning2 pausedelay dep $(DOCS) installnew
-
-most: warning2 pausedelay dep installnew
-
-itall: warning2 pausedelay dep optionalsubdirs $(DOCS) installnew
 
 all:	dosemu
 
@@ -249,6 +159,8 @@ install:
 	  ln -sf generic.com $(TMP)/dosemu/freedos/dosemu/$$i; \
 	done
 	cp -a $(TMP)/dosemu/freedos $(DESTDIR)$(dosemudir)
+	rm -f $(DESTDIR)$(dosemudir)/commands
+	ln -sf freedos/dosemu $(DESTDIR)$(dosemudir)/commands
 	cd $(TMP)/dosemu; \
 	for i in `find freedos -type f` ; do \
 	  ln -snf $(dosemudir)/$$i $$i; \
@@ -271,9 +183,10 @@ install:
 	  cd .. ; tar -cf- dosemu |gzip -9 >$(DESTDIR)$(dosemudir)/dosemu-freedos-bin.tgz; \
 	  if [ ! -d $(DESTDIR)$(syshdimagedir)/drives ]; then \
 	    $(INSTALL) -d $(DESTDIR)$(syshdimagedir)/drives; \
-	    ln -s $(DESTDIR)$(dosemudir)/freedos $(DESTDIR)$(syshdimagedir)/drives/c; \
+	    ln -s $(dosemudir)/freedos $(DESTDIR)$(syshdimagedir)/drives/c; \
 	  fi; \
-	  rmdir $(DESTDIR)$(syshdimagedir)/freedos/tmp; \
+	  $(INSTALL) -d $(DESTDIR)$(syshdimagedir)/freedos; \
+	  rm -f $(DESTDIR)$(syshdimagedir)/freedos/tmp; \
 	  ln -sf /tmp $(DESTDIR)$(syshdimagedir)/freedos/tmp; \
 	fi
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)
@@ -332,8 +245,9 @@ endif
 	  echo You can also use this procedure to upgrade an existing *FreeDOS*; \
 	  echo installation when a new tarball is available.; \
 	  echo Alternatively you can set fdtarball to none in compiletime-settings; \
-	  echo and use another DOS, which can be installed using dosemu -install; \
-	  echo or referred to using \$$_hdimage in your dosemu.conf or .dosemurc.; \
+	  echo and use another DOS, which can be installed using dosemu -install,; \
+	  echo referred to using \$$_hdimage in $(sysconfdir)/dosemu.conf or \~/.dosemurc; \
+	  echo or symbolically linked from \~/.dosemu/drives/c.; \
 	fi
 	@echo ""; \
 	 echo "---------------------------------DONE Installing-------------------------------"; \
@@ -354,7 +268,7 @@ endif
 	@echo "  - Try emumouse.exe -r if your INTERNAL mouse won't work"; \
 	 echo "  - Try unix.exe to run a Unix command under DOSEMU"; \
 	 echo -e "\n  NOTE: DOSEMU is no longer installed suid-root by default!"; \
-	 echo "Please see the QuickStart file for additional information."; \
+	 echo "Please see the README and INSTALL files for additional information."; \
 	 echo ""
 
 

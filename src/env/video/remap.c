@@ -232,17 +232,19 @@ RemapObject remap_init(int src_mode, int dst_mode, int features)
   install_remap_funcs(&ro, features);
 
   if(
-    ro.func_all->flags & RFF_LIN_FILT ||
+    ro.func_all != NULL &&
+   (ro.func_all->flags & RFF_LIN_FILT ||
     ro.func_1->flags & RFF_LIN_FILT ||
-    ro.func_2->flags & RFF_LIN_FILT
+    ro.func_2->flags & RFF_LIN_FILT)
   ) {
     color_lut_size = 256 * 3;
   }
 
   if(
-    ro.func_all->flags & RFF_BILIN_FILT ||
+    ro.func_all != NULL &&
+   (ro.func_all->flags & RFF_BILIN_FILT ||
     ro.func_1->flags & RFF_BILIN_FILT ||
-    ro.func_2->flags & RFF_BILIN_FILT
+    ro.func_2->flags & RFF_BILIN_FILT)
   ) {
     color_lut_size = 256 * 6;
   }

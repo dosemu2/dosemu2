@@ -255,14 +255,18 @@ int strcmpDOS(char *s1, char *s2)
    return(match);
 }
 
-int strncasecmpDOS(char *s1, char *s2,int n)
+int strncasecmpDOS(char *s1, char *s2, int n)
 {
   char *p1,*p2;
   int match;
 
-  p1=(char*)malloc(strlen(s1)+1); strcpy(p1,s1);  strupperDOS(p1);
-  p2=(char*)malloc(strlen(s2)+1); strcpy(p2,s2);  strupperDOS(p2);
-  match=strncmpDOS(p1, p2, n); free(p1); free(p2);
+  p1=strdup(s1);
+  strupperDOS(p1);
+  p2=strdup(s2);
+  strupperDOS(p2);
+  match=strncmpDOS(p1, p2, n);
+  free(p1);
+  free(p2);
   return match;
 };
 
@@ -270,9 +274,13 @@ int strcasecmpDOS(char *s1, char *s2)
 { char *p1,*p2;
   int match;
 
-  p1=malloc(strlen(s1)+1); strcpy(p1,s1); strupperDOS(p1);
-  p2=malloc(strlen(s2)+1); strcpy(p2,s2); strupperDOS(p2);
-  match=strcmpDOS(p1, p2); free(p1); free(p2);
+  p1=strdup(s1);
+  strupperDOS(p1);
+  p2=strdup(s2);
+  strupperDOS(p2);
+  match=strcmpDOS(p1, p2);
+  free(p1);
+  free(p2);
   return match;
 };
 

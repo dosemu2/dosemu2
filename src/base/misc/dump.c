@@ -164,11 +164,12 @@ show_ints(int min, int max)
   }
 }
 
+#if MAX_SELECTORS != 8192
+#error MAX_SELECTORS needs to be 8192
+#endif
 
-#define GetSegmentBaseAddress(s)	(((s) >= (MAX_SELECTORS << 3))? 0 :\
-					Segments[(s) >> 3].base_addr)
-#define IsSegment32(s)			(((s) >= (MAX_SELECTORS << 3))? 0 :\
-					Segments[(s) >> 3].is_32)
+#define GetSegmentBaseAddress(s)	(Segments[(s) >> 3].base_addr)
+#define IsSegment32(s)			(Segments[(s) >> 3].is_32)
 
 void DPMI_show_state(struct sigcontext_struct *scp)
 {

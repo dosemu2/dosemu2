@@ -123,6 +123,10 @@
 
 #include "video.h" /* for charset defines */
 
+#if NUM_KEYSYMS != 0x10000
+#error NUM_KEYSYMS needs to be 0x10000
+#endif
+
 #define ITERATE_LIST(iter, start, action) \
     iter = start; \
     do { \
@@ -2116,9 +2120,6 @@ t_keynum keysym_to_keynum(t_keysym key)
 {
 	struct press_state *sym_info;
 	t_keynum keynum = NUM_VOID;
-	if (key >= NUM_KEYSYMS) {
-		key = KEY_VOID;
-	}
 	if (key != KEY_VOID) {
 		sym_info = &input_keyboard_state.rules->charset.keys[key];
 		keynum = sym_info->key;
@@ -2156,9 +2157,6 @@ int move_key(Boolean make, t_keysym key)
 	struct press_state *sym_info;
 	t_keynum keynum;
 	t_keysym deadsym;
-	if (key >= NUM_KEYSYMS) {
-		key = KEY_VOID;
-	}
 	sym_info = &input_keyboard_state.rules->charset.keys[key];
 	keynum = sym_info->key;
 	deadsym = sym_info->deadsym;
@@ -2199,9 +2197,6 @@ void put_symbol(Boolean make, t_keysym sym)
 {
 	k_printf("put_symbol: keysym=%04x\n",
 		 sym);
-	if (sym >= NUM_KEYSYMS) {
-		sym = KEY_VOID;
-	}
 	put_character_symbol(make, 0, sym, &input_keyboard_state);
 }
 
@@ -2236,9 +2231,6 @@ void put_modified_symbol(Boolean make, t_modifiers modifiers, t_keysym sym)
 {
 	k_printf("put_symbol: modifiers=%04x keysym=%04x\n",
 		 modifiers, sym);
-	if (sym >= NUM_KEYSYMS) {
-		sym = KEY_VOID;
-	}
 	put_character_symbol(make, modifiers, sym, &input_keyboard_state);
 }
 

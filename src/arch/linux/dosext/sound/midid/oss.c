@@ -19,7 +19,7 @@
 #define SBMELODIC       "std.sb"          /* OPL2 instruments file */
 #define SBDRUMS         "drums.sb"        /* OPL3 drums file */
 
-#include "midid.h"
+#include "device.h"
 #include <sys/types.h>     /* for open(2) */
 #include <sys/stat.h>
 #include <fcntl.h>

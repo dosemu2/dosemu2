@@ -120,42 +120,13 @@ Alistair MacDonald
 2. Runtime Configuration Options
 
    This section of the document by Hans, <lermen@fgan.de>. Last updated
-   on Dec 17, 2002, by Bart Oldeman.
-
-   Before you even continue to read further -- especially if you have
-   never tried DOSEMU -- I strongly recommend starting with the ready to
-   use DOSEMU binary distribution. This comes in 2 packages:
-
-     * dosemu-1.0.2.1-bin.tgz
-       A tarball containing the recent DOSEMU binaries together with a
-       user local configuration setup. This installation fits into any
-       user HOME directory and can be used and installed without root
-       permissions.
-     * dosemu-freedos-bin.tgz
-       A tarball containing a collection of suitable FreeDos binaries,
-       eventually patched to fit DOSEMU needs together with some GNU
-       tools you may find useful.
-
-   You have to unpack both tarballs (as normal user, NOT as root) into
-   the same directory , `cd' into the directory `dosemu' and execute
-   `./xdosemu' or `./dosemu'. After you have played with this for a while
-   and have looked into the file `~/.dosemurc' or the files in
-   `dosemu/conf', you will be much better prepared to understand the rest
-   of this chapter.
-
-   Note: The DOSEMU installation described above may also come from a
-   systemwide installation, which you or your Linux distributor has
-   established. In this case, simply calling '[x]dosemu' will establish
-   the per user instance of DOSEMU. For details on how to create such a
-   systemwide installation, look at the file README.distributors in the
-   DOSEMU source distribution.
+   on Apr 17, 2003, by Bart Oldeman.
 
    Most of DOSEMU configuration is done during runtime and per default it
-   can use the system wide configuration file dosemu.conf optionally
-   followed by the users ~/.dosemurc and additional configurations
-   statements on the commandline (-I option). The builtin configuration
-   file of a DEXE file is passed using the -I technique, hence the rules
-   of -I apply.
+   can use the system wide configuration file dosemu.conf (which is often
+   situated in /etc or /etc/dosemu) optionally followed by the users
+   ~/.dosemurc and additional configurations statements on the
+   commandline (-I option).
 
    The default dosemu.conf and ~/.dosemurc have all settings commented
    out for documentation purposes; the commented out values are the ones

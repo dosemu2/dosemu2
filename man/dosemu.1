@@ -1,5 +1,5 @@
 .\" -*- nroff -*-  (This is for Emacs)
-.TH DOSEMU 1 "January, 2003" "Version 1.1.4.1" "DOS Emulation"
+.TH DOSEMU 1 "June, 2003" "Version 1.1.5" "DOS Emulation"
 .SH NAME
 dosemu, xdosemu \- run DOS and DOS programs under Linux
 .SH SYNOPSIS
@@ -96,17 +96,18 @@ passed.
 .I -s
 Invoke dosemu via sudo. This is necessary to get access to certain I/O ports
 and to get graphics on the Linux console. Please refer to the documentation
-(QuickStart and README.txt) to see which files need to be adjusted before
+(INSTALL and README.txt) to see which files need to be adjusted before
 attempting this. 
 .TP
 .I -install
-launched as part of a systemwide installation, this option installs
-a private instance of a different DOS than the DOSEMU distributed
-dosemu-freedos-bin (maybe any proprietary DOS, which is bootable via fatfs).
+launched as part of a systemwide installation, this option (re-)installs
+a DOS that is used in DOSEMU (this can be the DOSEMU distributed
+FreeDOS  or any proprietary DOS, which is bootable via fatfs).
 .I bootdir
-is the base name of a directory, the users has to install himself into
-the same directory the instance will be created in. The configuration in
-conf/dosemu.conf will be changed to boot this directory.
+is the base name of a directory. The symbolic link ~/.dosemu/drives/c
+will be changed to point to this directory.
+Re-installing is only rarely necessary, since in practise the symbolic
+link(s) will automatically point to updated files.
 
 .SH AUTHOR
 .B DOSEMU

@@ -55,13 +55,15 @@
 
 #include "keyb_server.h"
 
-#define DJGPP_HACK	/* AV Feb 97 */
 #undef  DEBUG_INT1A
 
 #if X_GRAPHICS
 /* prototype is in X.h -- 1998/03/08 sw */
 int X_change_config(unsigned, void *);
 #endif
+
+typedef int interrupt_function_t(void);
+static interrupt_function_t *interrupt_function[0x100];
 
 /*
    This flag will be set when doing video routines so that special
@@ -95,33 +97,6 @@ static void kill_time(long usecs) {
         scr_tv.tv_sec = 0L;
         scr_tv.tv_usec = usecs - (long)t_dif;
      }
-}
-
-/*
- * DANG_BEGIN_FUNCTION DEFAULT_INTERRUPT 
- *
- * description:
- * DEFAULT_INTERRUPT is the default interrupt service routine 
- * called when DOSEMU initializes.
- *
- * DANG_END_FUNCTION
- */
-
-static void default_interrupt(u_char i) {
-  di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
-
-  if (!IS_REDIRECTED(i) || (!IVEC(i)) ||
-      can_revector(i) != REVECT) {
-    g_printf("DEFIVEC: int 0x%02x @ 0x%04x:0x%04x\n", i, ISEG(i), IOFF(i));
-
-    /* This is here for old SIGILL's that modify IP */
-    if (i == 0x00)
-      LWORD(eip)+=2;
-  } else if (IS_IRET(i)) {
-    if ((i != 0x2a) && (i != 0x28))
-      g_printf("just an iret 0x%02x\n", i);
-  } else
-    real_run_int(i);
 }
 
 static void process_master_boot_record(void)
@@ -179,7 +154,7 @@ static void process_master_boot_record(void)
    HI(cx) = mbr->partition[i].start_track;
    LWORD(eax) = 0x0201;  /* read one sector */
    LWORD(ebx) = 0x7c00;  /* target offset, ES is 0 */
-   int13(13); /* we simply call our INT13 routine, hence we will not have
+   int13();   /* we simply call our INT13 routine, hence we will not have
                  to worry about future changements to this code */
    if ((REG(eflags) & CF) || (bootrec->bootmagic != 0xaa55)) {
      /* error while booting */
@@ -192,7 +167,8 @@ static void process_master_boot_record(void)
 }
 
 /* returns 1 if dos_helper() handles it, 0 otherwise */
-static int dos_helper(void)
+/* dos helper and mfs startup (was 0xfe) */
+static int inte6(void)
 {
   switch (LO(ax)) {
   case DOS_HELPER_DOSEMU_CHECK:			/* Linux dosemu installation test */
@@ -592,7 +568,7 @@ static int dos_helper(void)
   return 1;
 }
 
-static void int15(u_char i)
+static int int15(void)
 {
   int num;
 
@@ -614,7 +590,7 @@ static void int15(u_char i)
 	    trigger = 0;
 	  }
         }
-        return;
+        break;
       }
     }
     CARRY;
@@ -644,27 +620,27 @@ static void int15(u_char i)
     h_printf("int 15h event wait:\n");
     show_regs(__FILE__, __LINE__);
     CARRY;
-    return;			/* no event wait */
+    break;			/* no event wait */
   case 0x84:
-  	joy_bios_read ();
-    return;
+    joy_bios_read ();
+    break;
   case 0x85:
     num = LWORD(eax) & 0xFF;	/* default bios handler for sysreq key */
     if (num == 0 || num == 1) {
       LWORD(eax) &= 0x00FF;
-      return;
+      break;
     }
     LWORD(eax) &= 0xFF00;
     LWORD(eax) |= 1;
     CARRY;
-    return;
+    break;
   case 0x86:
     /* wait...cx:dx=time in usecs */
     g_printf("doing int15 wait...ah=0x86\n");
     show_regs(__FILE__, __LINE__);
     kill_time((long)((LWORD(ecx) << 16) | LWORD(edx)));
     NOCARRY;
-    return;
+    break;
 
   case 0x87:
     if (config.xms_size)
@@ -674,7 +650,7 @@ static void int15(u_char i)
       LWORD(eax) |= 0x0300;	/* say A20 gate failed - a lie but enough */
       CARRY;
     }
-    return;
+    break;
 
   case 0x88:
     if (config.xms_size) {
@@ -684,18 +660,18 @@ static void int15(u_char i)
       LWORD(eax) &= ~0xffff;	/* no extended ram if it's not XMS */
       NOCARRY;
     }
-    return;
+    break;
 
   case 0x89:			/* enter protected mode : kind of tricky! */
     LWORD(eax) |= 0xFF00;		/* failed */
     CARRY;
-    return;
+    break;
   case 0x90:			/* no device post/wait stuff */
     CARRY;
-    return;
+    break;
   case 0x91:
     CARRY;
-    return;
+    break;
   case 0xbf:			/* DOS/16M,DOS/4GW */
     switch (REG(eax) &= 0x00FF)
       {
@@ -703,34 +679,34 @@ static void int15(u_char i)
         default:
           REG(edx) = 0;
           CARRY;
-          return;
+          break;
       }
-    return;
+    break;
   case 0xc0:
     LWORD(es) = ROM_CONFIG_SEG;
     LWORD(ebx) = ROM_CONFIG_OFF;
     HI(ax) = 0;
-    return;
+    break;
   case 0xc1:
     CARRY;
-    return;			/* no ebios area */
+    break;			/* no ebios area */
   case 0xc2:
     mouse_ps2bios();
-    return;
+    break;
   case 0xc3:
     /* no watchdog */
     CARRY;
-    return;
+    break;
   case 0xc4:
     /* no post */
     CARRY;
-    return;
+    break;
   case 0xc9:
     if (LO(ax) == 0x10) {
 	HI(ax) = 0;
 	HI(cx) = vm86s.cpu_type;
 	LO(cx) = 0x20;
-	return;
+	break;
     }
   /* else fall through */
   case 0x24:		/* PS/2 A20 gate support */
@@ -768,15 +744,16 @@ SeeAlso: AH=8Ah"Phoenix",AX=E802h,AX=E820h,AX=E881h"Phoenix"
 	LWORD(eax) = mem;
 	LWORD(ebx) = mem >>16;
 	NOCARRY;
-	return;
+	break;
     }
     /* Fall through !! */
 
   default:
     g_printf("int 15h error: ax=0x%04x\n", LWORD(eax));
     CARRY;
-    return;
+    break;
   }
+  return 1;
 }
 
 void set_ticks(unsigned long new)
@@ -790,7 +767,7 @@ void set_ticks(unsigned long new)
   h_printf("TICKS: update ticks to %ld\n", new);
 }
 
-static void int1a(u_char i)
+static int int1a(void)
 {
   time_t time_val;
   struct timeval;
@@ -1070,6 +1047,7 @@ Return: nothing
   if (tmp) E_MPROT_STACK(0);
 #endif
 
+  return 1;
 }
 
 /* ========================================================================= */
@@ -1095,10 +1073,54 @@ Return: nothing
  */
 #define EMM_FILE_HANDLE 200
 
+/* MS-DOS */
+/* see config.c: int21 is redirected here only when debug_level('D)>0 !! */
 
-static int ms_dos(int nr)
+static int redir_it(void);
+
+static int int21(void)
 {
-  switch (nr) {
+#ifdef X86_EMULATOR
+  static char buf[80];
+#endif
+  ds_printf("INT21 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+       redir_state, LWORD(cs), LWORD(eip),
+       LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
+
+  if(redir_state && redir_it()) return 0;
+
+#if 1
+  if(HI(ax) == 0x3d) {
+    char *p = (char *) (((REG(ds)) << 4) + LWORD(edx));
+    int i;
+
+    ds_printf("INT21: open file \"");
+    for(i = 0; i < 64 && p[i]; i++) ds_printf("%c", p[i]);
+    ds_printf("\"\n");
+  }
+#endif
+
+#ifdef X86_EMULATOR
+  if ((HI(ax)==0x40) && LWORD(ecx)) {
+	char *dp = (char *)((LWORD(ds)<<4)+LWORD(edx));
+	unsigned int nb = LWORD(ecx);
+	if (nb>78) nb=78; memcpy(buf,dp,nb); buf[nb]=0;
+	ds_printf("WRITE(40): [%s]\n",buf);
+  }
+  else if (HI(ax)==9) {
+	char *dp = (char *)((LWORD(ds)<<4)+LWORD(edx));
+	char *q = buf;
+	int nb;
+	for (nb=0; (nb<78)&&(*dp!='$'); nb++) *q++ = *dp++;
+	buf[nb]=0;
+	ds_printf("WRITE(09): [%s]\n",buf);
+  }
+  else if ((HI(ax)==6) && (LO(ax)!=0xff)) {
+	ds_printf("WRITE(06): [%c]\n",isprint(LO(ax)? LO(ax):'.'));
+  }
+#endif
+
+  switch (HI(ax)) {
   case 0x3d:       /* DOS handle open */
   case 0x6c:
 #ifdef INTERNAL_EMS
@@ -1267,7 +1289,7 @@ void real_run_int(int i)
 
 static void run_caller_func(int i, Boolean from_int)
 {
-	void (*caller_function)(int i);
+	interrupt_function_t *caller_function;
 	g_printf("Do INT0x%02x: Using caller_function()\n", i);
 
 	if (!from_int) {
@@ -1280,8 +1302,26 @@ static void run_caller_func(int i, Boolean from_int)
 	}
 	caller_function = interrupt_function[i];
 	if (caller_function) {
+		if (!caller_function() && can_revector(i) == REVECT && from_int)
+		{
+			di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
 
-		caller_function(i);
+			if (!IS_REDIRECTED(i) || (!IVEC(i))) {
+				g_printf("DEFIVEC: int 0x%02x @ 0x%04x:0x%04x\n", i, ISEG(i), IOFF(i));
+			} else if (IS_IRET(i)) {
+				if ((i != 0x2a) && (i != 0x28))
+					g_printf("just an iret 0x%02x\n", i);
+			} else
+				real_run_int(i);
+		}
+	}
+	else
+	{
+		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
+		g_printf("DEFIVEC: int 0x%02x @ 0x%04x:0x%04x\n", i, ISEG(i), IOFF(i));
+		/* This is here for old SIGILL's that modify IP */
+		if (i == 0x00)
+			LWORD(eip)+=2;
 	}
 }
 
@@ -1297,20 +1337,11 @@ int can_revector(int i)
 
   switch (i) {
   case 0x21:			/* we want it first...then we'll pass it on */
-#ifdef DJGPP_HACK
-  case 0x23:			/* TMP FIX for ^C under DPMI */
-#endif
   case 0x28:                    /* keyboard idle interrupt */
   case 0x2f:			/* needed for XMS, redirector, and idling */
   case DOS_HELPER_INT:		/* e6 for redirector and helper (was 0xfe) */
   case 0xe7:			/* for mfs FCB helper */
     return REVECT;
-
-  case 0x74:			/* needed for PS/2 Mouse */
-    if ((config.mouse.type == MOUSE_PS2) || (config.mouse.intdrv))
-      return REVECT;
-    else
-      return NO_REVECT;
 
   case 0x33:			/* Mouse. Wrapper for mouse-garrot as well*/
     if (config.mouse.intdrv || config.hogthreshold)
@@ -1380,7 +1411,7 @@ ushort *base=SCREEN_ADR(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
     printer_close(0);
 }
 
-static void int05(u_char i) 
+static int int05(void) 
 {
      /* FIXME does this test actually catch an unhandled bound exception */
     if( *SEG_ADR((Bit8u *), cs, ip) == 0x62 ) {	/* is this BOUND ? */
@@ -1390,29 +1421,31 @@ static void int05(u_char i)
     }
     g_printf("INT 5: PrintScreen\n");
     do_print_screen();
-    return;
+    return 1;
 }
 
 /* CONFIGURATION */
-static void int11(u_char i) {
+static int int11(void) {
     LWORD(eax) = configuration;
-    return;
+    return 1;
 }
 
 /* MEMORY */
-static void int12(u_char i) {
+static int int12(void) {
     LWORD(eax) = config.mem_size;
-    return;
+    return 1;
 }
 
 /* BASIC */
-static void int18(u_char i) {
+static int int18(void) {
   k_printf("BASIC interrupt being attempted.\n");
+  return 1;
 }
 
 /* LOAD SYSTEM */
-static void int19(u_char i) {
+static int int19(void) {
   boot();
+  return 1;
 }
 
 
@@ -1474,7 +1507,6 @@ static int redir_it(void)
         redir_state = 2;
         LWORD(eip) -= 2;
         LWORD(eax) = 0x5200;		/* ### , see above EGCS comment! */
-        default_interrupt(0x21);
         ds_printf("INT21 +1 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
           redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
         return 1;
@@ -1486,7 +1518,6 @@ static int redir_it(void)
       redir_state = 3;
       LWORD(eip) -= 2;
       LWORD(eax) = 0x3000;
-      default_interrupt(0x21);
       ds_printf("INT21 +2 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
         redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
       return 2;
@@ -1497,7 +1528,6 @@ static int redir_it(void)
       redir_state = 4;
       LWORD(eip) -= 2;
       LWORD(eax) = 0x5d06;
-      default_interrupt(0x21);
       ds_printf("INT21 +3 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
         redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
       return 3;
@@ -1534,77 +1564,13 @@ static int redir_it(void)
   return 0;
 }
 
-
-/* MS-DOS */
-/* see config.c: int21 is redirected here only when debug_level('D)>0 !! */
-static void int21(u_char i)
-{
-#ifdef X86_EMULATOR
-  static char buf[80];
-#endif
-  ds_printf("INT21 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
-       redir_state, LWORD(cs), LWORD(eip),
-       LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
-
-  if(redir_state && redir_it()) return;
-
-#if 1
-  if(HI(ax) == 0x3d) {
-    char *p = (char *) (((REG(ds)) << 4) + LWORD(edx));
-    int i;
-
-    ds_printf("INT21: open file \"");
-    for(i = 0; i < 64 && p[i]; i++) ds_printf("%c", p[i]);
-    ds_printf("\"\n");
-  }
-#endif
-
-#ifdef X86_EMULATOR
-  if ((HI(ax)==0x40) && LWORD(ecx)) {
-	char *dp = (char *)((LWORD(ds)<<4)+LWORD(edx));
-	unsigned int nb = LWORD(ecx);
-	if (nb>78) nb=78; memcpy(buf,dp,nb); buf[nb]=0;
-	ds_printf("WRITE(40): [%s]\n",buf);
-  }
-  else if (HI(ax)==9) {
-	char *dp = (char *)((LWORD(ds)<<4)+LWORD(edx));
-	char *q = buf;
-	int nb;
-	for (nb=0; (nb<78)&&(*dp!='$'); nb++) *q++ = *dp++;
-	buf[nb]=0;
-	ds_printf("WRITE(09): [%s]\n",buf);
-  }
-  else if ((HI(ax)==6) && (LO(ax)!=0xff)) {
-	ds_printf("WRITE(06): [%c]\n",isprint(LO(ax)? LO(ax):'.'));
-  }
-#endif
-  if (!ms_dos(HI(ax)))
-    default_interrupt(i);
-}
-
-#ifdef DJGPP_HACK
-/* Ctrl-C */
-static void int23(u_char i)
-{
-  /* Had to revector here int0x23 under DPMI to solve the obnoxious
-   * case of ^C under djgpp - actually my DOS (IBM 7.0) gets the ^C
-   * and shuts down the program without telling it to dosemu :( - AV
-   */
-  if (in_dpmi)
-	NOCARRY;
-  else
-	real_run_int(0x23);
-  return; 
-}
-#endif
-
 static void dos_post_boot(void)
 {
     mouse_post_boot();
 }
 
 /* KEYBOARD BUSY LOOP */
-static void int28(u_char i) {
+static int int28(void) {
   static int first = 1;
   if (first) {
     first = 0;
@@ -1620,16 +1586,17 @@ static void int28(u_char i) {
     }
   }
 
-  default_interrupt(i);
+  return 0;
 }
 
 /* FAST CONSOLE OUTPUT */
-static void int29(u_char i) {
+static int int29(void) {
     /* char in AL */
   char_out(*(char *) &REG(eax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+  return 1;
 }
 
-static void int2f(u_char i)
+static int int2f(void)
 {
 #if 1
   ds_printf("INT2F at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
@@ -1646,13 +1613,13 @@ static void int2f(u_char i)
 	}
       }
       LWORD(eax) = 0;
-      return;
+      return 1;
     }
 
 #ifdef IPX
   case INT2F_DETECT_IPX:  /* TRB - detect IPX in int2f() */
     if (config.ipxsup && IPXInt2FHandler())
-      return;
+      return 1;
     break;
 #endif
     }
@@ -1660,12 +1627,12 @@ static void int2f(u_char i)
   switch (HI(ax)) {
   case 0x11:              /* redirector call? */
     if (LO(ax) == 0x23) subst_file_ext(SEG_ADR((char *), ds, si));
-    if (mfs_redirector()) return;
+    if (mfs_redirector()) return 1;
     break;
 
   case 0x16:		/* misc PM/Win functions */
     if (!config.dpmi) {
-      break;		/* fall into default_interrupt() */
+      break;		/* fall into real_run_int() */
     }
     switch (LO(ax)) {
       case 0x00:		/* WINDOWS ENHANCED MODE INSTALLATION CHECK */
@@ -1673,7 +1640,7 @@ static void int2f(u_char i)
     if (in_dpmi && in_win31) {
       D_printf("WIN: WINDOWS ENHANCED MODE INSTALLATION CHECK\n");
       LWORD(eax) = 0x0a03;	/* let's try enhaced mode 3.1 :-))))))) */
-      return;
+      return 1;
       }
 #endif    
     break;
@@ -1684,7 +1651,7 @@ static void int2f(u_char i)
       case 0x07:		/* Win95 Device CallOut */
       case 0x08:		/* Win95 Init Complete Notification */
       case 0x09:		/* Win95 Begin Exit Notification */
-    return;
+    return 1;
 
       case 0x0a:			/* IDENTIFY WINDOWS VERSION AND TYPE */
     if(in_dpmi && in_win31) {
@@ -1696,7 +1663,7 @@ static void int2f(u_char i)
 #else
       LWORD(ecx) = 0x0002;	/* standard mode */
 #endif      
-      return;
+      return 1;
         }
       break;
 
@@ -1707,36 +1674,36 @@ static void int2f(u_char i)
         if (in_dpmi && in_win31) {
 	    D_printf ("WIN: enter critical section\n");
 	    /* LWORD(eax) = 0;	W95 DDK says no return value */
-	    return;
+	    return 1;
   }
       break;
       case 0x82:		/* W95: exit critical section */
         if (in_dpmi && in_win31) {
 	    D_printf ("WIN: exit critical section\n");
 	    /* LWORD(eax) = 0;	W95 DDK says no return value */
-	    return;
+	    return 1;
   }
         break;
 
       case 0x84:		/* Win95 Get Device Entry Point */
         LWORD(edi) = 0;
         WRITE_SEG_REG(es, 0);	/* say NO to Win95 ;-) */
-        return;
+        return 1;
       case 0x85:		/* Win95 Switch VM + Call Back */
         CARRY;
         LWORD(eax) = 1;
-        return;
+        return 1;
 
       case 0x86:            /* Are we in protected mode? */
         D_printf("DPMI CPU mode check in real mode.\n");
         if (in_dpmi && !in_dpmi_dos_int) /* set AX to zero only if program executes in protected mode */
 	    LWORD(eax) = 0;	/* say ok */
 		 /* else let AX untouched (non-zero) */
-      return;
+      return 1;
 
       case 0x87:            /* Call for getting DPMI entry point */
 	dpmi_get_entry_point();
-	return;
+	return 1;
     }
     break;
 
@@ -1758,15 +1725,14 @@ static void int2f(u_char i)
     default:
       x_printf("BAD int 0x2f XMS function:0x%02x\n", LO(ax));
     }
-    return;
+    return 1;
   }
 
-  if (IS_REDIRECTED(i))
-    default_interrupt(i);
+  return !IS_REDIRECTED(0x2f);
 }
 
 /* mouse */
-static void int33(u_char i) {
+static int int33(void) {
 /* New code introduced by Ed Sirett (ed@cityscape.co.uk)  26/1/95 to give 
  * garrot control when the dos app is polling the mouse and the mouse is 
  * taking a break. */
@@ -1782,8 +1748,7 @@ static void int33(u_char i) {
  */
 /* We have post_interrupt handlers in dpmi --EB 28 Oct 1997 */
 
-  if (!mouse_int())
-    default_interrupt(i);
+  int ret = mouse_int();
   
 /* It seems that the only mouse sub-function that could be plausibly used to 
  * poll the mouse is AX=3 - get mouse buttons and position. 
@@ -1817,26 +1782,13 @@ m_printf("Called/ing the mouse with AX=%x \n",LWORD(eax));
      }
      trigger1--;
    }
-}
-
-#ifdef USING_NET
-/* new packet driver interface */
-static void int_pktdrvr(u_char i) {
-  if (!pkt_int())
-    default_interrupt(i);
-}
-#endif
-
-/* dos helper and mfs startup (was 0xfe) */
-static void inte6(u_char i) {
-  if (!dos_helper())
-    default_interrupt(i);
+  return ret;
 }
 
 /* mfs FCB call */
-static void inte7(u_char i) {
+static int inte7(void) {
   SETIVEC(0xe7, INTE7_SEG, INTE7_OFF);
-  real_run_int(0xe7);
+  return 0;
 }
 
 
@@ -1914,8 +1866,7 @@ void do_int(int i)
  			  _ESI, _EDI, _ES, (int) read_EFLAGS());
  	}
  	}
- 	else if ((magic_address == IVEC(i)) ||
- 		 (can_revector(i) == REVECT)) {
+ 	else if ((magic_address == IVEC(i)) || (can_revector(i) == REVECT)) {
  		run_caller_func(i, TRUE);
  	}
  	else {
@@ -2028,7 +1979,7 @@ void setup_interrupts(void) {
 
   /* init trapped interrupts called via jump */
   for (i = 0; i < 256; i++) {
-    interrupt_function[i] = default_interrupt;
+    interrupt_function[i] = NULL;
 
     /* don't overwrite; these have been set during video init */
     if(video_ints[i]) continue;
@@ -2058,16 +2009,13 @@ void setup_interrupts(void) {
   interrupt_function[0x19] = int19;
   interrupt_function[0x1a] = int1a;
   interrupt_function[0x21] = int21;
-#ifdef DJGPP_HACK
-  interrupt_function[0x23] = int23;
-#endif
   interrupt_function[0x28] = int28;
   interrupt_function[0x29] = int29;
   interrupt_function[0x2f] = int2f;
   interrupt_function[0x33] = int33;
 #ifdef USING_NET
   if (config.pktdrv)
-    interrupt_function[0x60] = int_pktdrvr;
+    interrupt_function[0x60] = pkt_int;
 #endif
   interrupt_function[0xe6] = inte6;
   interrupt_function[0xe7] = inte7;

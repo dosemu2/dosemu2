@@ -212,7 +212,7 @@ static void store_key_in_buffer(void)
   LO(ax) = (store_key(LWORD(ecx)) ? 0 : 1);
 }
 
-void int16(u_char i)
+int int16(void)
 {
 #ifdef X86_EMULATOR
   int tmp = E_MUNPROT_STACK(0);	/* no faults in BIOS area! */
@@ -250,4 +250,5 @@ void int16(u_char i)
 #ifdef X86_EMULATOR
    if (tmp) E_MPROT_STACK(0);
 #endif
+  return 1;
 }

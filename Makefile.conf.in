@@ -76,11 +76,6 @@ ifdef USE_ULTRA
 endif
 
 export OS=@CONFIG_HOST@
-export LIBSTART=@LIBSTART@
-@ELF@
-ifdef ELF
-  export ELF=1
-endif
 export RANLIB=@RANLIB@
 
 @ASPI_SUPPORT@

@@ -70,7 +70,7 @@ void detectInternalMouse(void)
   MHLP(regs, regs);
   if (regs.x.ax == 0xffff) {
     printf("ERROR! Internal driver option not set, enable internal driver\n");
-    printf("       in /etc/dosemu.conf.\n");
+    printf("       in dosemu.conf ($_mouse_dev option).\n");
     exit(1);
   }
 }

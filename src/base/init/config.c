@@ -185,6 +185,8 @@ void dump_config_status(void *printfunc)
     (*print)("X_keycode %d\nX_font \"%s\"\n",
         config.X_keycode, config.X_font);
     (*print)("X_mgrab_key \"%s\"\n",  config.X_mgrab_key);
+    (*print)("X_background_pause %d\n", config.X_background_pause);
+
     switch (config.chipset) {
       case PLAINVGA: s = "plainvga"; break;
       case TRIDENT: s = "trident"; break;

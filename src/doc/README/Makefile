@@ -3,8 +3,7 @@
 #
 # for details see file COPYING in the DOSEMU distribution
 #
-DOCSOURCES := README.sgml README-tech.sgml bugreports.sgml \
-	configuration.sgml sound-usage.sgml
+DOCSOURCES := README.sgml README-tech.sgml configuration.sgml sound-usage.sgml
 TXT = $(DOCSOURCES:.sgml=.txt)
 DVI = $(DOCSOURCES:.sgml=.dvi)
 HTML = $(DOCSOURCES:.sgml=.html)

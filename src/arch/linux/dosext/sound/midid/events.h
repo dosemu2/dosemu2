@@ -4,6 +4,9 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
+#ifndef _EVENTS_H
+#define _EVENTS_H
+
 /* Interface to device driver */
 
 void do_noteoff(int chn);
@@ -28,3 +31,5 @@ void do_midi_continue(void);
 void do_midi_stop(void);
 void do_active_sensing(void);
 void do_reset(void);
+
+#endif

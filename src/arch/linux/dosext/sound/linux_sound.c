@@ -53,7 +53,7 @@
 
 /* define this to work around some buggy OSS drivers */
 #define STALLED_FRAGS 1
-#define BUGGY_DRIVER_NEEDS_POST
+#define BUGGY_DRIVER_NEEDS_POST 0
 
 /* SB static vars */
 static int mixer_fd = -1;
@@ -268,7 +268,7 @@ static void linux_sb_DAC_write (int bits, uint8_t value)
 #define BUF_LEN 4096
   static int sound_frag = 0x0200007;
   static uint8_t buffer[BUF_LEN];
-  static uint8_t buffer_count = 0;
+  static size_t buffer_count = 0;
 
   buffer[buffer_count] = value;
   if (buffer_count < BUF_LEN - 1)
@@ -305,7 +305,9 @@ static void linux_sb_DAC_write (int bits, uint8_t value)
     if (linux_sb_dma_get_free_space() < buffer_count)
       return;
     buffer_count -= write (dsp_fd, buffer, buffer_count);
+#if BUGGY_DRIVER_NEEDS_POST
     ioctl (dsp_fd, SNDCTL_DSP_POST);
+#endif
   }
 }
 
@@ -451,7 +453,7 @@ static int in_frag = 0;
     return 0;
   }
   if (linux_sb_dma_get_free_space() < size) {
-#ifdef BUGGY_DRIVER_NEEDS_POST
+#if BUGGY_DRIVER_NEEDS_POST
     ioctl (dsp_fd, SNDCTL_DSP_POST);	/* some buggy drivers needs this */
 #endif
     in_frag = 0;
@@ -466,7 +468,7 @@ static int in_frag = 0;
   S_printf("\n");
   in_frag += amount_done;
   if (in_frag >= (1 << sound_frag_size)) {
-#ifdef BUGGY_DRIVER_NEEDS_POST
+#if BUGGY_DRIVER_NEEDS_POST
     S_printf("SB [Linux]: ioctling POST\n");
     ioctl (dsp_fd, SNDCTL_DSP_POST);	/* some buggy drivers needs this */
 #endif

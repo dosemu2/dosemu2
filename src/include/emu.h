@@ -251,6 +251,7 @@ typedef struct vesamode_type_struct {
        vesamode_type *vesamode_list;	/* chained list of VESA modes */
        int     X_lfb;			/* support VESA LFB modes */
        int     X_pm_interface;		/* support protected mode interface */
+       int     X_background_pause;	/* pause xdosemu if it loses focus */
        boolean fullrestore;
        boolean force_vt_switch;         /* in case of console_video force switch to emu VT at start */
        int     dualmon;
@@ -393,10 +394,10 @@ EXTERN void cpu_setup(void);
 EXTERN void real_run_int(int);
 #define run_int do_int
 EXTERN int mfs_redirector(void);
-EXTERN void int10(void);
-EXTERN void int13(u_char);
-EXTERN void int16(u_char);
-EXTERN void int17(u_char);
+EXTERN int int10(void);
+EXTERN int int13(void);
+EXTERN int int16(void);
+EXTERN int int17(void);
 EXTERN void io_select(fd_set);
 EXTERN void io_select_init(void);
 EXTERN int pd_receive_packet(void);

@@ -10,7 +10,7 @@
 <FirstName> Alistair MacDonald, &lt;alistair@slitesys.demon.co.uk&gt; </FirstName>
 </AUTHOR
 >
-<PubDate> version dosemu-1.1.3.9 </PubDate>
+<PubDate> version dosemu-1.1.5 </PubDate>
 
 <Abstract>
 
@@ -398,15 +398,6 @@ Find version of OS running and set necessary global parms.
 </Sect2>
 
 <Sect2>
-<Title>Items for Fixing in base/init/init.c</Title>
-
-<Para>
-config.timer is undocumented and probably obsolete
-</Para>
-
-</Sect2>
-
-<Sect2>
 <Title>Functions in base/init/config.c</Title>
 
 <Para>
@@ -420,16 +411,6 @@ These are the functions defined in base/init/config.c.
 Process user CPU override from the config file ('cpu xxx') or
 from the command line. Returns the selected CPU identifier or
 -1 on error. 'config.realcpu' should have already been defined.
-</Para>
-
-</Sect3>
-
-<Sect3>
-<Title>config_defaults</Title>
-
-<Para>
-Set all values in the `config` structure to their default
-value. These will be modified by the config parser.
 </Para>
 
 </Sect3>
@@ -686,49 +667,6 @@ Simulate Local Descriptor Table for MS-Windows 3.1
 must be read only, so if krnl386.exe/krnl286.exe
 try to write to this table, we will bomb into sigsegv()
 and and emulate direct ldt access
-</Para>
-
-</Sect2>
-
-<Sect2>
-<Title>Functions in dosext/dpmi/msdos.h</Title>
-
-<Para>
-These are the functions defined in dosext/dpmi/msdos.h.
-</Para>
-
-<Sect3>
-<Title>msdos_pre_extender</Title>
-
-<Para>
-This function is called before a protected mode client goes to real
-mode for DOS service. All protected mode selector is changed to
-real mode segment register. And if client\'s data buffer is above 1MB,
-necessary buffer copying is performed. This function returns 1 if
-it does not need to go to real mode, otherwise returns 0.
-</Para>
-
-</Sect3>
-
-<Sect3>
-<Title>msdos_post_extender</Title>
-
-<Para>
-This function is called after return from real mode DOS service
-All real mode segment registers are changed to protected mode selectors
-And if client\'s data buffer is above 1MB, necessary buffer copying
-is performed.
-</Para>
-
-</Sect3>
-
-</Sect2>
-
-<Sect2>
-<Title>Items for Fixing in dosext/dpmi/msdos.h</Title>
-
-<Para>
-: Please implement the ENV translation! */
 </Para>
 
 </Sect2>
@@ -2912,16 +2850,6 @@ These are the functions defined in base/async/int.c.
 </Para>
 
 <Sect3>
-<Title>DEFAULT_INTERRUPT </Title>
-
-<Para>
-DEFAULT_INTERRUPT is the default interrupt service routine 
-called when DOSEMU initializes.
-</Para>
-
-</Sect3>
-
-<Sect3>
 <Title>ms_dos</Title>
 
 <Para>
@@ -3006,6 +2934,10 @@ dropping the stack slot  that held retFlags.
 This improves consistency of interrupt handling, but not quite as
 much as if I could handle it the way I would like.
 -- EB 30 Nov 1997
+</Para>
+
+<Para>
+Trying to get it right now -- BO 25 Jan 2003
 </Para>
 
 </Sect3>
@@ -3351,17 +3283,6 @@ Setup all memory areas to be shared with clients.
 </Para>
 
 </Sect3>
-
-</Sect2>
-
-<Sect2>
-<Title>Remarks in base/misc/shared.c</Title>
-
-<Para>
-Output info required for client activity
-(NOTE: 'client activity' as of 2000/02/02 totally disabled,
-but left file structure compatible, --Hans)
-</Para>
 
 </Sect2>
 
@@ -4218,14 +4139,6 @@ port access was granted.
 
 <Para>
 This stuff should be moved to video code!!
-</Para>
-
-<Para>
------
-</Para>
-
-<Para>
- this code needs to be removed - it collides with vgaemu
 </Para>
 
 <Para>

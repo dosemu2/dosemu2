@@ -522,7 +522,7 @@ static void X_keycode_initialize(Display *display)
 #if 1
 	for(i = 0; i < MAX_X_KEYCODES; i++) {
 		t_keynum keynum = keycode_to_keynum[i];
-		if (keynum != KEY_VOID) {
+		if (keynum != NUM_VOID) {
 			k_printf("mapping keycode:%d  -> keynum: 0x%02x\n",
 				 i, keynum);
 		}

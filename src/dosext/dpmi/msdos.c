@@ -504,6 +504,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		    memmove((void *)(segment<<4),
 			   (char *)GetSegmentBaseAddress(sel) + off,
 			   0x80);
+		    segment += 8;
 		} else
 		    *(unsigned short *)((REG(es)<<4)+LWORD(ebx)+4)
 			= GetSegmentBaseAddress(sel)>>4;
@@ -523,9 +524,9 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    save_pm_regs(scp);
 	    return 0;
 	case 0x50:		/* set PSP */
-
+	  {
+	    unsigned short envp;
 	    if ( !is_dos_selector(_LWORD(ebx))) {
-		unsigned short envp;
 
 		USER_PSP_SEL = _LWORD(ebx);
 		LWORD(ebx) = CURRENT_PSP;
@@ -534,20 +535,20 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		D_printf("DPMI: PSP moved from %p to %p\n",
 		    (char *)GetSegmentBaseAddress(_LWORD(ebx)),
 		    (void *)(LWORD(ebx) << 4));
-
-		envp = *(unsigned short *)(((char *)(LWORD(ebx)<<4)) + 0x2c);
-		if ( !is_dos_selector(envp)) {
-		    /* DANG_FIXTHIS: Please implement the ENV translation! */
-		    error("FIXME: ENV translation is not implemented\n");
-		    CURRENT_ENV_SEL = 0;
-		} else {
-		    CURRENT_ENV_SEL = envp;
-		}
 	    } else {
 		REG(ebx) = GetSegmentBaseAddress(_LWORD(ebx)) >> 4;
 		USER_PSP_SEL = 0;
 	    }
 	    CURRENT_PSP = LWORD(ebx);
+	    envp = *(unsigned short *)(((char *)(LWORD(ebx)<<4)) + 0x2c);
+	    if ( !is_dos_selector(envp)) {
+		/* DANG_FIXTHIS: Please implement the ENV translation! */
+		error("FIXME: ENV translation is not implemented\n");
+		CURRENT_ENV_SEL = 0;
+	    } else {
+		CURRENT_ENV_SEL = envp;
+	    }
+	  }
 
 	    in_dos_21++;
 	    return 0;
@@ -851,6 +852,7 @@ void msdos_post_exec(void)
 	*(unsigned short *)((char *)(PARENT_PSP<<4) + 0x2c) =
 	                     PARENT_ENV_SEL;
     CURRENT_PSP = PARENT_PSP;
+    CURRENT_ENV_SEL = PARENT_ENV_SEL;
 }
 
 /*

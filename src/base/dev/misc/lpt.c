@@ -43,8 +43,7 @@ static struct printer lpt[NUM_PRINTERS] =
   {NULL, NULL, NULL, 10, 0x3bc}
 };
 
-void
-int17(u_char ii)
+int int17(void)
 {
   int num;
 
@@ -52,7 +51,7 @@ int17(u_char ii)
     p_printf("LPT: print to non-defined printer LPT%d\n",
 	     LWORD(edx) + 1);
     CARRY;
-    return;
+    return 1;
   }
 
   switch (HI(ax)) {
@@ -77,8 +76,9 @@ int17(u_char ii)
     error("printer int17 bad call ax=0x%x\n", LWORD(eax));
     show_regs(__FILE__, __LINE__);
     /* fatalerr = 8; */
-    return;
+    break;
   }
+  return 1;
 }
 
 int

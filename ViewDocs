@@ -5,8 +5,9 @@ The files ./doc/*.txt are BOLDFACE formatted. Apparently this confuses some of
 our users, so we just supply this script to help them ;-)
 
 What info do you want to be displayed ? (enter a number)
+(press the "q" key to exit the viewer)
 "
-LIST="README.txt:README-tech.txt:dosemu manpage:dosemu.bin manpage:configuration.txt:bugreports.txt:dosemu-HOWTO.txt"
+LIST="README.txt:README-tech.txt:dosemu manpage:dosemu.bin manpage:configuration.txt:dosemu-HOWTO.txt"
 CONF="dosemu.conf chapter"
 
 IFS=:

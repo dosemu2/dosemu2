@@ -148,7 +148,7 @@ int ugetcwd_main(int argc, char **argv)
 	struct com_starter_seg  *ctcb = owntcb->params;
 	char *s = lowmem_alloc(256);
 	
-	LWORD(ecx) = 1024;
+	LWORD(ecx) = 256;
 	LWORD(edx) = COM_OFFS_OF(s);
 	do_doshelper(DOS_HELPER_GETCWD, 0);
 	com_printf("%s\n", s);

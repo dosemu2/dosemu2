@@ -1271,7 +1271,11 @@ int X_change_config(unsigned item, void *buf)
          if (dosemu_frozen)
          {
            if (strlen (title)) strcat (title, " ");
-           strcat (title, "[paused - Ctrl+Alt+P]");
+
+           if (dosemu_user_froze)
+             strcat (title, "[paused - Ctrl+Alt+P]");
+           else
+             strcat (title, "[background pause]");
          }
 
          
@@ -1343,6 +1347,11 @@ int X_change_config(unsigned item, void *buf)
       X_printf("X: X_change_config: set initial graphics window size to %d x %d\n", config.X_winsize_x, config.X_winsize_y);
       break;
 
+    case X_CHG_BACKGROUND_PAUSE:
+      X_printf("X: X_change_config: background_pause %i\n", *((int *) buf));
+      config.X_background_pause = *((int *) buf);
+      break;
+      
     default:
       err = 100;
   }
@@ -1510,6 +1519,8 @@ static void toggle_fullscreen_mode(void)
     mainwindow = fullscreenwindow;
     gc = fullscreengc;
     XCopyGC(display, normalgc, -1, gc);
+    if (vga.mode_class == GRAPH)
+      XResizeWindow(display, mainwindow, resize_width, resize_height);
     XMapWindow(display, mainwindow);
     XRaiseWindow(display, mainwindow);
     XGrabPointer(display, mainwindow, True,
@@ -1533,12 +1544,13 @@ static void toggle_fullscreen_mode(void)
     X_vidmode(-1, -1, &resize_width, &resize_height);
     gc = normalgc;
     XCopyGC(display, fullscreengc, -1, gc);
+    if (vga.mode_class == GRAPH)
+      XResizeWindow(display, mainwindow, resize_width, resize_height);
     XMapWindow(display, mainwindow);
   }
   if(vga.mode_class == TEXT) {
     X_resize_text_screen();
   } else {	/* GRAPH */
-    XResizeWindow(display, mainwindow, resize_width, resize_height);
     resize_ximage(resize_width, resize_height);
     dirty_all_video_pages();
     X_update_screen();
@@ -1653,6 +1665,7 @@ void X_handle_events()
 	  X_printf("X: focus in\n");
 	  have_focus = TRUE;
 	  redraw_cursor();
+	  if (config.X_background_pause && !dosemu_user_froze) unfreeze_dosemu ();
 	  break;
 
 	case FocusOut:
@@ -1663,6 +1676,7 @@ void X_handle_events()
 	  blink_count = config.X_blinkrate;
 	  redraw_cursor();
 	  output_byte_8042(port60_buffer | 0x80);
+	  if (config.X_background_pause && !dosemu_user_froze) freeze_dosemu ();
 	  break;
 
 	case DestroyNotify:
@@ -1722,7 +1736,7 @@ void X_handle_events()
             } else if (keysym == XK_p) {
               if (e.type == KeyRelease) break;
               if (!dosemu_frozen) {
-                freeze_dosemu();
+                freeze_dosemu_manual();
               } else {
                 unfreeze_dosemu();
               }

@@ -7,67 +7,15 @@ This section of the document by Hans,
 url="mailto:lermen@fgan.de"
 >&#60;lermen@fgan.de&#62;</ulink
 >. Last
-updated on Dec 17, 2002, by Bart Oldeman.
-</para>
-
-<para>
-Before you even continue to read further -- especially if you have
-never tried DOSEMU -- I strongly recommend starting with the ready
-to use DOSEMU binary distribution. This comes in 2 packages:
-</para>
-
-<para>
-<itemizedlist>
-
-<listitem>
-<para>
-dosemu-1.0.2.1-bin.tgz
-</para>
-<para>
- A tarball containing the recent DOSEMU binaries together with a user
- local configuration setup. This installation fits into any user HOME
- directory and can be used and installed without root permissions.
-</para>
-</listitem>
-
-<listitem>
-<para>
-dosemu-freedos-bin.tgz
-</para>
-<para>
- A tarball containing a collection of suitable FreeDos binaries,
- eventually patched to fit DOSEMU needs together with some GNU tools
- you may find useful.
-</para>
-</listitem>
-
-</itemizedlist>
-</para>
-
-<para>
-You have to unpack both tarballs (as normal user, <emphasis>NOT as
-root</emphasis>) into the same directory , `cd' into the
-directory `dosemu' and execute `./xdosemu' or `./dosemu'.
-After you have played with this for a while and have looked into the file
-`~/.dosemurc' or the files in `dosemu/conf', you will be much better 
-prepared to understand the rest of this chapter.
-</para>
-
-<para>
-Note: The DOSEMU installation described above may also come from a
-systemwide installation, which you or your Linux distributor has
-established. In this case, simply calling '[x]dosemu' will establish the
-per user instance of DOSEMU. For details on how to create such a systemwide
-installation, look at the file README.distributors in the DOSEMU source
-distribution.
+updated on Apr 17, 2003, by Bart Oldeman.
 </para>
 
 <para>
 Most of DOSEMU configuration is done during runtime and per default it
-can use the system wide configuration file dosemu.conf optionally
-followed by the users ~/.dosemurc and additional configurations statements
-on the commandline (-I option). The builtin configuration file of a DEXE
-file is passed using the -I technique, hence the rules of -I apply.
+can use the system wide configuration file dosemu.conf (which is often
+situated in /etc or /etc/dosemu) optionally followed by the users
+~/.dosemurc and additional configurations statements on the commandline
+(-I option).
 </para>
 
 <para>

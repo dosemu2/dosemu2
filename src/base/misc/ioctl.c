@@ -183,8 +183,11 @@ io_select(fd_set fds)
  */
 void 
 io_select_init(void) {
+int i;
     FD_ZERO(&fds_sigio);	/* initialize both fd_sets to 0 */
     FD_ZERO(&fds_no_sigio);
+    for (i = 0; i < MAX_FD; i++)
+      io_callback_func[i] = NULL;
 }
 
 /*

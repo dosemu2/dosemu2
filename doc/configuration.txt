@@ -5,11 +5,10 @@ The DOSEMU team Edited by Alistair MacDonald
 
    For DOSEMU v1.0 pl0.0
      _________________________________________________________________
-   
+
    Table of Contents
-          
    1. DOSEMU Configuration
-          
+
 1. DOSEMU Configuration
 
    Running './setup-dosemu' from this directory will allow you to
@@ -18,9 +17,9 @@ The DOSEMU team Edited by Alistair MacDonald
    system wide settings and your personal settings. Even better, the
    program will automatically tell you your current settings or suggest
    defaults where possible.
-   
+
    The program needs Tcl/Tk, take care to have it available on your
    system.
-   
+
    Comments, and bug reports to me, Alistair MacDonald
    <alistair@slitesys.demon.co.uk>
