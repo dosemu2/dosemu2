@@ -160,10 +160,10 @@ static char *makeEndInBackslash (char *s)
 static int findDrive (char *linux_path_resolved)
 {
   int freeDrive = -26;
+  int drive;
 
   j_printf ("findDrive (linux_path='%s')\n", linux_path_resolved);
 
-  int drive;
   for (drive = 0; drive < 26; drive++) {
     char *drive_linux_root = NULL;
     int drive_ro;
