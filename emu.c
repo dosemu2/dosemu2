@@ -901,15 +901,11 @@ run_vm86(void)
     do_queued_ioctl();
 #ifdef NEW_PIC
 /* update the pic to reflect IEF */
-  if (vm86s.flags&IF_MASK) {
-/* LARRY,   ^----- please verify !
- *  I guess this should be "vm86s.regs.eflags" (??), because this flag here is *never* set !
- *  ( at state of 0.53.31, Hans Lermen)
- */
-    if (!pic_iflag) pic_cli(); /* pic_iflag=0 => enabled */
+  if (REG(eflags)&IF_MASK) {
+    if (pic_iflag) pic_sti();
     }
   else {
-    if (pic_iflag) pic_sti();
+    if (!pic_iflag) pic_cli(); /* pic_iflag=0 => enabled */
     }
 #endif
 }
@@ -944,7 +940,7 @@ dos_ctrl_alt_del(void)
 {
   dbug_printf("DOS ctrl-alt-del requested.  Rebooting!\n");
   disk_close();
-  clear_screen(bios_current_screen_page, 7);
+  clear_screen(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), 7);
   special_nowait = 0;
   p_dos_str("Rebooting DOS.  Be careful...this is partially implemented\r\n");
   boot();
@@ -2705,7 +2701,7 @@ p_dos_str(char *fmt,...) {
   va_end(args);
 
   s = buf;
-  while (*s) char_out(*s++, bios_current_screen_page);
+  while (*s) char_out(*s++, READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
 }
 
 int cdrom_fd = -1;
@@ -3312,7 +3308,7 @@ dos_helper(void) {
       if (set_ioperm(0x3b0, 0x3db - 0x3b0, 1))
 	warn("couldn't get range!\n");
       config.vga = 1;
-      set_vc_screen_page(bios_current_screen_page);
+      set_vc_screen_page(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
       warn("WARNING: jumping to 0[c/e]000:0003\n");
 
       ssp = (unsigned char *) (REG(ss) << 4);

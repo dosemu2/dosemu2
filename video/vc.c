@@ -352,7 +352,7 @@ SIGRELEASE_call (void)
 			"incl %%edx; in %%dx,%%al; mov %%al,%%ah; "
 			"decl %%edx; movb $0xf,%%al; outb %%al,%%dx; "
 			"incl %%edx; inb %%dx,%%al; mov %%ax,%0"
-			:"=g" (pos):"m" (bios_video_port):"%dx", "%ax");
+			:"=g" (pos):"m" (READ_WORD(BIOS_VIDEO_PORT)):"%dx", "%ax");
 
 	  v_printf ("VID: %d\n", __LINE__);
 	  /* Let kernel know the cursor location. */
@@ -412,7 +412,7 @@ get_video_ram (int waitflag)
   else
     {
       ssize = TEXT_SIZE;
-      sbase = PAGE_ADDR (bios_current_screen_page);
+      sbase = PAGE_ADDR (READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
     }
 
   if (waitflag == WAIT)
@@ -433,7 +433,7 @@ get_video_ram (int waitflag)
 
   if (config.vga)
     {
-      if (bios_video_mode == 3 && bios_current_screen_page < 8)
+      if (bios_video_mode == 3 && READ_BYTE(BIOS_CURRENT_SCREEN_PAGE) < 8)
 	{
 	  textbuf = malloc (TEXT_SIZE * 8);
 	  memcpy (textbuf, PAGE_ADDR (0), TEXT_SIZE * 8);
@@ -494,8 +494,8 @@ get_video_ram (int waitflag)
   else
     {
       /* this is used for page switching */
-      if (PAGE_ADDR (bios_current_screen_page) != scr_state.virt_address)
-	memcpy (textbuf, PAGE_ADDR (bios_current_screen_page), TEXT_SIZE);
+      if (PAGE_ADDR (READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)) != scr_state.virt_address)
+	memcpy (textbuf, PAGE_ADDR (READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)), TEXT_SIZE);
 
       g_printf ("mapping PAGE_ADDR\n");
       open_kmem ();
@@ -512,7 +512,7 @@ get_video_ram (int waitflag)
 				 phys_text_base);
 #endif	/* 0 */
 
-      graph_mem = (char *) mmap ((caddr_t) PAGE_ADDR (bios_current_screen_page),
+      graph_mem = (char *) mmap ((caddr_t) PAGE_ADDR (READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)),
 				 TEXT_SIZE,
 				 PROT_READ | PROT_WRITE,
 				 MAP_SHARED | MAP_FIXED,
@@ -527,11 +527,11 @@ get_video_ram (int waitflag)
 	}
       else
 	v_printf ("CONSOLE VIDEO address: %p %p %p\n", (void *) graph_mem,
-		  (void *) phys_text_base, (void *) PAGE_ADDR (bios_current_screen_page));
+		  (void *) phys_text_base, (void *) PAGE_ADDR (READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)));
 
       get_permissions ();
       /* copy contents of page onto video RAM */
-      memcpy ((caddr_t) PAGE_ADDR (bios_current_screen_page), textbuf, TEXT_SIZE);
+      memcpy ((caddr_t) PAGE_ADDR (READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)), textbuf, TEXT_SIZE);
     }
 
   if (vgabuf)
@@ -539,8 +539,8 @@ get_video_ram (int waitflag)
   if (textbuf)
     free (textbuf);
 
-  scr_state.pageno = bios_current_screen_page;
-  scr_state.virt_address = PAGE_ADDR (bios_current_screen_page);
+  scr_state.pageno = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
+  scr_state.virt_address = PAGE_ADDR (READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
   scr_state.mapped = 1;
 }
 
@@ -578,7 +578,7 @@ put_video_ram (void)
 				     MAP_PRIVATE | MAP_FIXED | MAP_ANON,
 				     -1,
 				     0);
-	  if (dosemu_regs.mem && bios_video_mode == 3 && bios_current_screen_page < 8)
+	  if (dosemu_regs.mem && bios_video_mode == 3 && READ_BYTE(BIOS_CURRENT_SCREEN_PAGE) < 8)
 	    memcpy ((caddr_t) PAGE_ADDR (0), dosemu_regs.mem, TEXT_SIZE * 8);
 	}
       else
@@ -782,7 +782,7 @@ vc_active (void)
 void
 set_vc_screen_page (int page)
 {
-  bios_current_screen_page = page;
+  WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, page);
 
   /* okay, if we have the current console, and video ram is mapped.
    * this has to be "atomic," or there is a "race condition": the

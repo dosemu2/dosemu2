@@ -24,13 +24,10 @@ QuickStart: Instructions on how to quickly get DOSEMU up and running.
 	./doc/announce0.53
 		The announcement textfile for DOSEMU 0.53.
 
-2) Kernel Patch for older Linux versions:
+2) Kernel/GCC/libc Requirements:
 -----------------------------------------
-     >>>> Skip this section if you already Linux 1.1.12 or later installed.
-	- Preferable course of action is to upgrade to v1.1.12 or above.
-	- If you use Linux v1.0.8+, you can patch the kernel with the 
-          included patch ./kernel/kernel.1.0.x.diff
-	- NOTE: At least GCC 2.5.8 and libc 4.5.21 are required to run DOSEMU.
+	- Linux version 1.1.43 or better is now expected for running DOSEMU.
+	- At least GCC 2.5.8 and libc 4.5.21 are required to run DOSEMU.
 
 3) Notes about file location changes from DOSEMU 0.50pl1 and before:
 --------------------------------------------------------------------

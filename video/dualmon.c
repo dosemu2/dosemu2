@@ -146,14 +146,14 @@ static int dualmon_setmode(int type, int xsize,int ysize)
   if (type==7) {
     Video->is_mapped = 1;
     bios_configuration |= 0x30;
-    bios_cursor_shape = 0x0b0d;
-    bios_video_port = 0x3b4;
+    WRITE_WORD(BIOS_CURSOR_SHAPE, 0x0b0d);
+    WRITE_WORD(BIOS_VIDEO_PORT, 0x3b4);
   }
   else {
     Video->is_mapped = Video_default->is_mapped;
     bios_configuration &= ~0x30;
-    bios_cursor_shape = 0x0607;
-    bios_video_port = 0x3d4;
+    WRITE_WORD(BIOS_CURSOR_SHAPE, 0x0607);
+    WRITE_WORD(BIOS_VIDEO_PORT, 0x3d4);
     if (Video_default->setmode) return Video_default->setmode(type, xsize,ysize);
   }
   return 0;

@@ -503,7 +503,7 @@ outb(int port, int byte)
   }
 
   /* Port writes for cursor position */
-  if ((port & 0xfffe) == bios_video_port) {
+  if ((port & 0xfffe) == READ_WORD(BIOS_VIDEO_PORT)) {
     /* Writing to the 6845 */
     static int last_port;
     static int last_byte;
@@ -512,7 +512,7 @@ outb(int port, int byte)
 
     v_printf("Video Port outb [0x%04x]\n", port);
     if (!config.usesX) {
-      if ((port == bios_video_port + 1) && (last_port == bios_video_port)) {
+      if ((port == READ_WORD(BIOS_VIDEO_PORT) + 1) && (last_port == READ_WORD(BIOS_VIDEO_PORT))) {
 	/* We only take care of cursor positioning for now. */
 	/* This code should work most of the time, but can
 	     be defeated if i/o permissions change (e.g. by a vt

@@ -336,7 +336,7 @@ do_text_mode:
     }
     /* mode change clears screen unless bit7 of AL set */
     if (!(mode & 0x80))
-       clear_screen(bios_current_screen_page, 7);
+       clear_screen(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), 7);
        
     bios_video_mode=video_mode=mode&0x7f;
     break;
@@ -407,7 +407,7 @@ void int10()
   case 0x1:			/* define cursor shape */
     v_printf("define cursor: 0x%04x\n", LWORD(ecx));
     set_cursor_shape(LWORD(ecx));
-    bios_cursor_shape = LWORD(ecx);
+    WRITE_WORD(BIOS_CURSOR_SHAPE, LWORD(ecx));
     break;
     
   case 0x2:			/* set cursor pos */
@@ -437,7 +437,7 @@ void int10()
     }
     REG(edx) = (bios_cursor_y_position(page) << 8) 
               | bios_cursor_x_position(page);
-    REG(ecx) = bios_cursor_shape;
+    REG(ecx) = READ_WORD(BIOS_CURSOR_SHAPE);
     break;
 
   case 0x5:
@@ -446,7 +446,7 @@ void int10()
       if (config.dualmon && IS_SCREENMODE_MDA) break;
 #endif
       page = LO(ax);
-      error("VID: change page from %d to %d!\n", bios_current_screen_page, page);
+      error("VID: change page from %d to %d!\n", READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), page);
       if (page > max_page) {
 	error("ERROR: video error: set bad page %d\n", page);
 	CARRY;
@@ -454,7 +454,7 @@ void int10()
       }
       if (config.console_video) set_vc_screen_page(page);
 
-      bios_current_screen_page = video_page = page;
+      WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, video_page = page);
       bios_video_memory_address = TEXT_SIZE * page;
       screen_adr = SCREEN_ADR(page);
       screen_mask = 1 << page;
@@ -563,7 +563,7 @@ void int10()
     break;
 
   case 0xe:			/* print char */
-    char_out(*(char *) &REG(eax), bios_current_screen_page); 
+    char_out(*(char *) &REG(eax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)); 
     break;
 
   case 0x0f:			/* get video mode */
@@ -572,8 +572,8 @@ void int10()
     else 
 #endif
     LWORD(eax) = (co << 8) | video_mode;
-    v_printf("get screen mode: 0x%04x s=%d\n", LWORD(eax), bios_current_screen_page);
-    HI(bx) = bios_current_screen_page;
+    v_printf("get screen mode: 0x%04x s=%d\n", LWORD(eax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+    HI(bx) = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
     break;
 
   case 0x10:			/* ega palette */

@@ -125,17 +125,17 @@ unsigned long RealModeContext;
 extern int int_queue_running;
 extern u_char in_sigsegv;
 
-INTDESC Interrupt_Table[0x100];
-INTDESC Exception_Table[0x20];
+static INTDESC Interrupt_Table[0x100];
+static INTDESC Exception_Table[0x20];
 SEGDESC Segments[MAX_SELECTORS];
-char *ldt_buffer;
-char *pm_stack; /* protected mode stack */
+static char *ldt_buffer;
+static char *pm_stack; /* protected mode stack */
 
-static char RCSdpmi[] = "$Header: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v 2.8 1994/10/14 18:02:48 root Exp root $";
+static char RCSdpmi[] = "$Header: /fs1/src/dosemu/dosemu0.53pl32/dpmi/dpmi.c,v 2.8 1994/10/14 18:02:48 root Exp marty $";
 
 u_char in_dpmi = 0;		/* Set to 1 when running under DPMI */
-u_char DPMIclient_is_32 = 0;
-us DPMI_private_data_segment;
+static u_char DPMIclient_is_32 = 0;
+static us DPMI_private_data_segment;
 u_char in_dpmi_dos_int = 0;
 us PMSTACK_SEL = 0;		/* protected mode stack selector */
 unsigned long PMSTACK_ESP = 0;	/* protected mode stack descriptor */
@@ -148,12 +148,12 @@ static struct sigcontext_struct emu_stack_frame;  /* used to store emulator regi
 
 _syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
 
-inline int get_ldt(void *buffer)
+static inline int get_ldt(void *buffer)
 {
   return modify_ldt(0, buffer, 32 * sizeof(struct modify_ldt_ldt_s));
 }
 
-inline int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
+static inline int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 	      int seg_32bit_flag, int contents, int read_only_flag,
 	      int limit_in_pages_flag)
 {
@@ -204,8 +204,9 @@ inline int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   return 0;
 }
 
-void print_ldt() /* stolen from WINE */
+static void print_ldt(void ) /* stolen from WINE */
 {
+	/* wow -- why static  */
   static char buffer[0x10000];
   unsigned long *lp;
   unsigned long base_addr, limit;
@@ -270,7 +271,7 @@ void print_ldt() /* stolen from WINE */
  * DANG_END_FUNCTION
  */
 
-static void dpmi_control()
+static void dpmi_control(void)
 {
 /*
  * DANG_BEGIN_REMARK
@@ -291,7 +292,7 @@ static void dpmi_control()
   asm("hlt");
 }
 
-inline void dpmi_get_entry_point()
+void dpmi_get_entry_point(void)
 {
     D_printf("Request for DPMI entry\n");
 
@@ -315,10 +316,9 @@ inline void dpmi_get_entry_point()
     /* private data */
     LWORD(esi) = DPMI_private_paragraphs;
 
-  return;
 }
 
-inline int SetSelector(unsigned short selector, unsigned long base_addr, unsigned long limit,
+static inline int SetSelector(unsigned short selector, unsigned long base_addr, unsigned long limit,
                        unsigned char is_32, unsigned char type, unsigned char readonly,
                        unsigned char is_big)
 {
@@ -345,7 +345,7 @@ inline int SetSelector(unsigned short selector, unsigned long base_addr, unsigne
   return 0;
 } 
 
-inline unsigned short AllocateDescriptors(int number_of_descriptors)
+static inline unsigned short AllocateDescriptors(int number_of_descriptors)
 {
   int next_ldt=0, i;
   unsigned char isfree=1;
@@ -361,12 +361,12 @@ inline unsigned short AllocateDescriptors(int number_of_descriptors)
   return (next_ldt<<3) | 0x0007;
 }
 
-inline int FreeDescriptor(unsigned short selector)
+static inline int FreeDescriptor(unsigned short selector)
 {
   return SetSelector(selector, 0, 0, 0, 0, 0, 0);
 }
 
-inline unsigned short ConvertSegmentToDescriptor(unsigned short segment)
+static inline unsigned short ConvertSegmentToDescriptor(unsigned short segment)
 {
   unsigned long baseaddr = segment << 4;
   us selector;
@@ -381,12 +381,12 @@ inline unsigned short ConvertSegmentToDescriptor(unsigned short segment)
   return selector;
 }
 
-inline unsigned short GetNextSelectorIncrementValue(void)
+static inline unsigned short GetNextSelectorIncrementValue(void)
 {
   return 8;
 }
 
-inline unsigned long GetSegmentBaseAddress(unsigned short selector)
+static inline unsigned long GetSegmentBaseAddress(unsigned short selector)
 {
   return Segments[selector >> 3].base_addr;
 }
@@ -402,7 +402,7 @@ inline unsigned char SetSegmentBaseAddress(unsigned short selector, unsigned lon
 	Segments[ldt_entry].type, Segments[ldt_entry].readonly, Segments[ldt_entry].is_big);
 }
 
-inline unsigned char SetSegmentLimit(unsigned short selector, unsigned long limit)
+static inline unsigned char SetSegmentLimit(unsigned short selector, unsigned long limit)
 {
   unsigned short ldt_entry = selector >> 3;
   if (!Segments[ldt_entry].used)
@@ -419,7 +419,7 @@ inline unsigned char SetSegmentLimit(unsigned short selector, unsigned long limi
 	Segments[ldt_entry].type, Segments[ldt_entry].readonly, Segments[ldt_entry].is_big);
 }
 
-inline unsigned char SetDescriptorAccessRights(unsigned short selector, unsigned short type_byte)
+static inline unsigned char SetDescriptorAccessRights(unsigned short selector, unsigned short type_byte)
 {
   unsigned short ldt_entry = selector >> 3;
   if (!Segments[ldt_entry].used)
@@ -433,7 +433,7 @@ inline unsigned char SetDescriptorAccessRights(unsigned short selector, unsigned
 			Segments[ldt_entry].readonly, Segments[ldt_entry].is_big);
 }
 
-inline unsigned short CreateCSAlias(unsigned short selector)
+static inline unsigned short CreateCSAlias(unsigned short selector)
 {
   us ds_selector;
   us cs_ldt= selector >> 3;
@@ -446,12 +446,12 @@ inline unsigned short CreateCSAlias(unsigned short selector)
   return ds_selector;
 }
 
-GetDescriptor(us selector, unsigned long *lp)
+static void GetDescriptor(us selector, unsigned long *lp)
 {
   memcpy(lp, &ldt_buffer[selector & 0xfff8], 8);
 }
 
-inline unsigned char SetDescriptor(unsigned short selector, unsigned long *lp)
+static unsigned char SetDescriptor(unsigned short selector, unsigned long *lp)
 {
   unsigned long base_addr, limit;
   D_printf("DPMI: SetDescriptor[0x%04lx] 0x%08lx%08lx\n", selector>>3, *(lp+1), *lp);
@@ -466,7 +466,8 @@ inline unsigned char SetDescriptor(unsigned short selector, unsigned long *lp)
 			(*lp >> 10) & 7, ((*lp >> 9) & 1) ? 0 : 1, (*lp >> 23) & 1);
 }
 
-u_char AllocateSpecificDescriptor(us selector)
+/* why not int? */
+static u_char AllocateSpecificDescriptor(us selector)
 {
   int ldt_entry = selector >> 3;
   if (Segments[ldt_entry].used)
@@ -475,7 +476,7 @@ u_char AllocateSpecificDescriptor(us selector)
   return 0;
 }
 
-void GetFreeMemoryInformation(unsigned long *lp)
+static void GetFreeMemoryInformation(unsigned long *lp)
 {
   int i;
   *lp = (unsigned long) 4096 * config.dpmi_size;

@@ -1,0 +1,28 @@
+Makefile.common:
+
+
+
+LIB:=../lib/lib$(SUBDIR).a
+
+AR=ar
+RANLIB=ranlib
+
+lib:	$(LIB)	
+
+$(LIB):	$(OBJS)
+	-rm $@
+	$(AR) cr $@ $^
+	$(RANLIB) $@
+
+..PHONY:	clean realclean 
+realclean clean::
+	-rm $(OBJS)
+	-rm $(LIB)
+
+realclean::
+	-rm .depend
+
+%.o:	 %.c
+	$(CC) -c $(CFLAGS) -o $@ $^
+
+

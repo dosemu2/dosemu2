@@ -9,7 +9,7 @@
 # if you are doing the first compile.
 #
 
-# Need a way not to use X
+# Elimiate to avoid X
 USE_X=1
 ifdef USE_X
 # Autodetecting the installation of X11. Looks weird, but works...
@@ -30,6 +30,10 @@ ifeq (/usr/include/X11/X.h,$(wildcard /usr/include/X11/X.h))
 endif
 
 endif
+
+# Uncomment for DPMI support
+# it is for the makefile and also for the C compiler
+DPMI=-DDPMI
 
 #Change the following line if the right kernel includes reside elsewhere
 LINUX_INCLUDE = /usr/src/linux/include # why not
@@ -88,7 +92,7 @@ CC         = gcc
 LD         = gcc
 COPTFLAGS  = -N -s -O2 -funroll-loops
 # -Wall -fomit-frame-pointer # -ansi -pedantic -Wmissing-prototypes -Wstrict-prototypes
-STATIC=0
+# STATIC=0
 DOSOBJS=
 SHLIBOBJS=$(OBJS)
 DOSLNK=
@@ -100,7 +104,7 @@ endif
 # dosemu version
 EMUVER  =   0.53
 VERNUM  =   0x53
-PATCHL  =   33
+PATCHL  =   34
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -109,7 +113,6 @@ LIBSTART = 0x20000000
 
 ENDOFDOSMEM = 0x110000     # 1024+64 Kilobytes
 
-DPMIOBJS = libdpmi.a
 
 # For testing the internal IPX code
 #IPX = ipxutils
@@ -124,11 +127,6 @@ DOSEMU_USERS_FILE = -DDOSEMU_USERS_FILE=\"/etc/dosemu.users\"
 
 ###################################################################
 
-ifdef DPMIOBJS
-DPMISUB= dpmi
-else
-DPMISUB=
-endif
 
 ###################################################################
 #
@@ -141,7 +139,8 @@ CLIENTSSUB=clients
 OPTIONALSUBDIRS =examples sig v-net syscallmgr emumod
 
 SUBDIRS= keyboard periph video mouse include boot commands drivers \
-	$(DPMISUB) $(CLIENTSSUB) timer init net $(IPX) kernel \
+	$(CLIENTSSUB) timer init net $(IPX) kernel \
+
 
 DOCS= doc
 
@@ -155,7 +154,7 @@ HFILES=cmos.h emu.h timers.h xms.h dosio.h \
 
 SFILES=bios.S
 
-OFILES= Makefile ChangeLog dosconfig.c QuickStart \
+OFILES= Makefile Makefile.common ChangeLog dosconfig.c QuickStart \
 	DOSEMU-HOWTO.txt DOSEMU-HOWTO.ps DOSEMU-HOWTO.sgml \
 	README.ncurses vga.pcf vga.bdf xtermdos.sh xinstallvgafont.sh README.X \
 	README.CDROM README.video Configure DANG_CONFIG
@@ -172,10 +171,17 @@ F_PERIPH=debugobj.S getrom hdinfo.c mkhdimage.c mkpartition putrom.c
 
 ###################################################################
 
-OBJS=emu.o disks.o timers.o cmos.o libmouse.a \
+OBJS=emu.o disks.o timers.o cmos.o  \
      dosio.o cpu.o xms.o mfs.o bios_emm.o lpt.o $(PICOBJS)\
-     serial.o dyndeb.o sigsegv.o libvideo.a bios.o libinit.a libnet.a \
-     detach.o libkeyboard.a $(XOBJS)
+     serial.o dyndeb.o sigsegv.o bios.o  \
+     detach.o $(XOBJS)
+LIBS=video keyboard init net mouse
+LIBPATH=. lib
+
+ifdef DPMI
+SUBDIRS+= dpmi
+LIBS+= dpmi 	# why not for !do_DEBUG?
+endif
 
 OPTIONAL   = # -DDANGEROUS_CMOS=1
 CONFIGS    = $(CONFIG_FILE) $(DOSEMU_USERS_FILE)
@@ -185,11 +191,6 @@ CONFIGINFO = $(CONFIGS) $(OPTIONAL) $(DEBUG) \
 	     -DPATCHSTR=\"$(PATCHL)\"
 
  
-ifdef DPMIOBJS
-DPMI = -DDPMI
-else
-DPMI = 
-endif
 
 TOPDIR  := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
 INCDIR     = -I$(TOPDIR)/include -I$(TOPDIR) -I$(LINUX_INCLUDE) -I$(NCURSES_INC)
@@ -198,10 +199,8 @@ INCDIR  := $(INCDIR) -I$(X11INCDIR)
 endif
 export INCDIR
 
-#ifndef NEW_PIC
-CFLAGS     = $(DPMI) $(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
-#else
-CFLAGS     = $(DPMI) $(NEW_PIC) $(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
+# if NEWPIC is ther, use it
+CFLAGS     = $(NEW_PIC) $(DPMI) $(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
 ASFLAGS    = $(NEW_PIC)
 #endif
 LDFLAGS    = $(LNKOPTS) # exclude symbol information
@@ -265,11 +264,11 @@ warning3:
 	@echo "Hopefully you have at least 16MB swap+RAM available during this compile."
 	@echo ""
 
-doeverything: warning2 config dep docsubdirs optionalsubdirs installnew
+doeverything: warning2 config dep dossubdirs optionalsubdirs installnew
 
 most: warning2 config dep installnew
 
-all:	warnconf $(X2CEXE) dos dossubdirs warning3 $(LIBDOSEMU)
+all:	warnconf $(X2CEXE) dossubdirs dos warning3 $(LIBDOSEMU)
 
 .EXPORT_ALL_VARIABLES:
 
@@ -289,14 +288,19 @@ endif
 
 warnconf: config.h
 
-dos.o: config.h dos.c
-	$(CC) $(CFLAGS) -c dos.c
+dos.o: config.h
 
 x2dos.o: config.h x2dos.c
 	$(CC) $(CFLAGS) -I/usr/openwin/include -c x2dos.c
 
 dos:	dos.o $(DOSOBJS)
-	$(LD) $(LDFLAGS) -N -o $@ $^ -lncurses $(XLIBS)
+ifdef STATIC
+	$(LD) $(LDFLAGS) -N -o $@ $^ $(addprefix -L,$(LIBPATH)) \
+		$(addprefix -l, $(LIBS)) -lncurses $(XLIBS)
+else
+	$(LD) $(LDFLAGS) -N -o $@ $^ $(addprefix -L,$(LIBPATH)) \
+		-lncurses $(XLIBS)
+endif
 
 x2dos: x2dos.o
 	@echo "Including x2dos.o "
@@ -319,27 +323,24 @@ xinstallvgafont:	xinstallvgafont.sh
 
 $(LIBDOSEMU):	$(SHLIBOBJS) $(DPMIOBJS)
 	$(LD) $(LDFLAGS) $(MAGIC) -Ttext $(LIBSTART) -o $(LIBDOSEMU) \
-	   -nostdlib $(SHLIBOBJS) $(DPMIOBJS) $(SHLIBS) $(XLIBS) -lncurses -lc
+	   -nostdlib $(SHLIBOBJS) $(DPMIOBJS) $(addprefix -L,$(LIBPATH)) $(SHLIBS) \
+	    $(addprefix -l, $(LIBS)) $(XLIBS) -lncurses -lc
 
 .PHONY:	dossubdirs optionalsubdirs docsubdirs
+.PHONY: $(SUBDIRS)
 
-dossubdirs:
-	@for i in $(SUBDIRS); do \
-	    $(MAKE) -C  $$i || exit; \
-	done
+dossubdirs:	$(SUBDIRS)
 
-optionalsubdirs:
-	@for i in $(OPTIONALSUBDIRS); do \
-	    $(MAKE) -C $$i || exit; \
-	done
+optionalsubdirs:	$(OPTIONALSUBDIRS)
 
-docsubdirs: 
-	@for i in $(DOCS); do \
-	    (cd $$i && echo $$i && $(MAKE)) || exit; \
-	done
+
+docsubdirs:	$(DOCS)
+
+$(DOCS) $(OPTIONALSUBDIRS) $(SUBDIRS):
+	$(MAKE) -C $@ 
 
 config: dosconfig
-	@./dosconfig $(CONFIGINFO) > config.h
+	./dosconfig $(CONFIGINFO) > config.h
 
 installnew: 
 	$(MAKE) install
@@ -392,6 +393,7 @@ ifdef X_SUPPORT
 	@echo "  - To make your backspace and delete key work properly in 'xdos', type:"
 	@echo "		xmodmap -e \"keycode 107 = 0xffff\""
 	@echo "		xmodmap -e \"keycode 22 = 0xff08\""
+	@echo "		xmodmap -e \"key 108 = Return\"  [Return = 0xff0d]"	
 	@echo ""
 endif
 	@echo ""
@@ -413,9 +415,10 @@ checkout:
 	-co -M -l $(CFILES) $(HFILES) $(SFILES) $(OFILES)
 	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) checkout) || exit; done
 
-dist: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES)
+dist: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) config.h
 	install -d $(DISTPATH)
-	install -m 0644 $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) .depend $(DISTPATH)
+	install -d $(DISTPATH)/lib
+	install -m 0644 $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) $(DISTPATH)
 	cp TODO $(DISTPATH)/.todo
 	cp TODO.JES $(DISTPATH)/.todo.jes
 	cp .indent.pro $(DISTPATH)/.indent.pro
@@ -428,19 +431,24 @@ dist: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES)
 	@echo "FINAL .tgz FILE:"
 	@ls -l $(DISTFILE) 
 
-clean:
+local_clean::
 	-rm -f $(OBJS) $(X2CEXE) x2dos.o dos.o dos libdosemu0.* *.s core \
 	  dosconfig dosconfig.o *.tmp dosemu.map
-	-@for i in $(SUBDIRS) $(OPTIONALSUBDIRS) $(DOCS) ; do \
-	  $(MAKE) -C $$i clean; \
+
+local_realclean::	
+	-rm -f config.h .depend
+
+clean:	local_clean
+
+realclean:   local_realclean local_clean
+
+clean realclean:
+	-@for i in $(SUBDIRS) $(OPTIONALSUBDIRS); do \
+	  $(MAKE) -C $$i $@; \
 	done
 
-# isn't this redudenant? No, I don't think so, it does realclean not clean.
-realclean:      clean
-	-rm -f config.h .depend
-	-@for i in $(SUBDIRS) $(OPTIONALSUBDIRS); do \
-	  $(MAKE) -C $$i realclean; \
-	done
+pristine:	realclean
+	-rm lib/*
 
 depend dep: 
 	$(CPP) -MM $(CFLAGS) $(CFILES) > .depend ;echo "bios.o : bios.S" >>.depend
@@ -456,6 +464,7 @@ endif
 ifdef DPMIOBJS
 	cd dpmi;$(CPP) -MM -I../ -I../include $(CFLAGS) *.c > .depend
 endif
+
 
 #
 # include a dependency file if one exists

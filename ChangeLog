@@ -1,5 +1,19 @@
+Wed Nov  16     1994
+
+-	Rod May has noted that due to race conditions in the kernel
+	during partition access in kernels in the 1.1.51 - 1.1.61 and
+	I believe 1.1.63. Don't have his E-mail here, but it DOES
+	CAUSE CORRUPTION and therefore BEWARE of using PARTITION
+	ACCESS in these kernels!
+-	First steps towards making DOSEMU platform independant by
+	the Boch's project, Kevin P. Lawton" <bochs@max.tiac.net>.
+-	JL's latest bios.S. Cleaned up and documented.
+-	Latest Makefile, DPMI, etc cleanups. Moving towards a
+	Makefile.common system.
+
 Sat Nov  12	1994
 
+- Release pre0.53_33.
 - Han's latest, now he has a self-contained emumodule that includes
   SIG and really gives DOSEMU the power it has desired for quite some
   time to make use of the kernel. You will need to set the #if 0 to 1

@@ -281,7 +281,7 @@ ncurses_update()
   v_printf("RESTORE SCREEN: prev_screen at %p\n", prev_screen);
   v_printf("SADR: %p\n", screen_adr);
   v_printf("virt_text_base: %p\n", (u_char *)virt_text_base);
-  v_printf("SCREEN: %x\n", bios_current_screen_page);
+  v_printf("SCREEN: %x\n", READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
 #endif  
 
   NFLUSH;
@@ -308,7 +308,7 @@ ncurses_update()
    * If y is out of bounds, then give it an invalid value so that it
    * can be given a different value during the loop.
    */
-  y = bios_cursor_y_position(bios_current_screen_page);
+  y = bios_cursor_y_position(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
   if ((y < 0) || (y > li)) y = -1;
   
   /* The following loop scans lines on the screen until the maximum number
@@ -322,7 +322,7 @@ ncurses_update()
      */
     if ((numscan > 0) || (y < 0)) {
       yloop = (yloop + 1) % li;
-      if (yloop == bios_cursor_y_position(bios_current_screen_page))
+      if (yloop == bios_cursor_y_position(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)))
         yloop = (yloop + 1) % li;
       y = yloop;
     }
@@ -565,7 +565,7 @@ ansi_update()
   v_printf("RESTORE SCREEN: prev_screen at %p\n", prev_screen);
   v_printf("SADR: %p\n", screen_adr);
   v_printf("virt_text_base: %p\n", (u_char *)virt_text_base);
-  v_printf("SCREEN: %x\n", bios_current_screen_page);
+  v_printf("SCREEN: %x\n", READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
 #endif  
 
   /* The following determines how many lines it should scan at once,
@@ -590,7 +590,7 @@ ansi_update()
    * If y is out of bounds, then give it an invalid value so that it
    * can be given a different value during the loop.
    */
-  y = bios_cursor_y_position(bios_current_screen_page);
+  y = bios_cursor_y_position(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
   if ((y < 0) || (y > li)) y = -1; 
   
   /* The following loop scans lines on the screen until the maximum number
@@ -604,7 +604,7 @@ ansi_update()
      */
     if ((numscan > 0) || (y < 0)) {
       yloop = (yloop + 1) % li;
-      if (yloop == bios_cursor_y_position(bios_current_screen_page))
+      if (yloop == bios_cursor_y_position(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)))
         yloop = (yloop + 1) % li;
       y = yloop;
     }

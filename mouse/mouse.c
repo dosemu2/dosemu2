@@ -809,7 +809,7 @@ mouse_do_cur(void)
       graph_mem[mouse.x / 8 +((mouse.y + i - 4) * 80)] = (long)mousecursormask[i];
 
   } else {
-    unsigned short *p = SCREEN_ADR(bios_current_screen_page);
+    unsigned short *p = SCREEN_ADR(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
 
     i=mouse.hidx + mouse.hidy * 80;
     if (p[i] == ((mouse.hidchar & mousetextscreen) ^ mousetextcursor))

@@ -893,7 +893,7 @@ void inline int28caller(u_char i) {
 /* FAST CONSOLE OUTPUT */
 void inline int29(u_char i) {
     /* char in AL */
-    char_out(*(char *) &REG(eax), bios_current_screen_page);
+    char_out(*(char *) &REG(eax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
     return;
 }
 

@@ -222,17 +222,17 @@ video_config_init(void) {
       break;
     }
   }
-  bios_current_screen_page = 0x0;	/* Current Screen Page */
+  WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0x0);	/* Current Screen Page */
   video_page = 0;
   screen_mask = 1 << (((int)phys_text_base-0xA0000)/4096);
   screen_adr = SCREEN_ADR(0);
-  bios_cursor_shape = (configuration&MDA_CONF_SCREEN_MODE)?0x0A0B:0x0607;
+  WRITE_WORD(BIOS_CURSOR_SHAPE, (configuration&MDA_CONF_SCREEN_MODE)?0x0A0B:0x0607);
   
   /* This is needed in the video stuff. Grabbed from boot(). */
   if ((configuration & MDA_CONF_SCREEN_MODE) == MDA_CONF_SCREEN_MODE)
-    bios_video_port = 0x3b4;	/* base port of CRTC - IMPORTANT! */
+    WRITE_WORD(BIOS_VIDEO_PORT, 0x3b4);	/* base port of CRTC - IMPORTANT! */
   else
-    bios_video_port = 0x3d4;	/* base port of CRTC - IMPORTANT! */
+    WRITE_WORD(BIOS_VIDEO_PORT, 0x3d4);	/* base port of CRTC - IMPORTANT! */
 
   bios_vdu_control = 9;		/* current 3x8 (x=b or d) value */
 

@@ -22,7 +22,7 @@ CFLAGS=-O2 -Wall # -Wmissing-prototypes \
 # ANSI isn't possible right now, because some header-file aren't ANSI
 
 CFILES = syscallmgr.c insmod.c testsys.c testmain.c
-HFILES = syscallmgr.h
+HFILES = 
 OFILES = 
 
 # Insert all source- and header-files here.

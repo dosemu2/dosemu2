@@ -624,7 +624,7 @@ void init_vga_card(void)
   if (set_ioperm(0x3b0, 0x3db - 0x3b0, 1))
     warn("couldn't get range!\n");
   config.vga = 1;
-  set_vc_screen_page(bios_current_screen_page);
+  set_vc_screen_page(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
 
 #if 0
   open_kmem();
