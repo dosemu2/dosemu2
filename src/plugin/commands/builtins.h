@@ -56,6 +56,7 @@ int com_printf(char *format, ...);
 int com_puts(char *s);
 int com_doswrite(int dosfilefd, char *buf32, int size);
 int com_dosread(int dosfilefd, char *buf32, int size);
+int com_error(char *format, ...);
 char *com_getenv(char *keyword);
 int com_system(char *command, int quit);
 char * com_strdup(char *s);
@@ -65,9 +66,6 @@ int com_dosgetdrive(void);
 int com_dossetdrive(int drive);
 int com_dossetcurrentdir(char *path);
 void com_intr(int intno, struct REGPACK *regpack);
-int com_int86x(int intno, union com_REGS *inregs,
-		union com_REGS *outregs, struct SREGS *segregs);
-int com_int86(int intno, union com_REGS *inregs, union com_REGS *outregs);
 void call_msdos(void);
 void call_msdos_interruptible(void);
 char *lowmem_alloc(int size);

@@ -258,11 +258,22 @@ int com_system(char *command, int quit)
 	return load_and_run_DOS_program(program, cmdline, quit);
 }
 
+int com_error(char *format, ...)
+{
+	int ret;
+	va_list args;
+	va_start(args, format);
+	ret = com_vprintf(format, args);
+	verror(format, args);
+	va_end(args);
+	return ret;
+}
+
 char * lowmem_alloc(int size)
 {
 	char *ptr = smalloc(&mp, size);
 	if (!ptr) {
-		error("builtin %s OOM\n", builtin_name);
+		com_error("builtin %s OOM\n", builtin_name);
 		leavedos(86);
 	}
 	if (size > 1024) {
@@ -445,48 +456,6 @@ void com_intr(int intno, struct REGPACK *regpack)
 	_regs = saved_regs;
 }
 
-int com_int86x(int intno, union com_REGS *inregs,
-		union com_REGS *outregs, struct SREGS *segregs)
-{
-	struct vm86_regs saved_regs = _regs;
-
-	LWORD(eax) = inregs->x.ax;
-	LWORD(ebx) = inregs->x.bx;
-	LWORD(ecx) = inregs->x.cx;
-	LWORD(edx) = inregs->x.dx;
-	LWORD(esi) = inregs->x.si;
-	LWORD(edi) = inregs->x.di;
-	LWORD(eflags) = inregs->x.flags;
-	if (segregs) {
-		LWORD(ds) = segregs->ds;
-		LWORD(es) = segregs->es;
-	}
-
-	do_intr_call_back(intno);
-
-	outregs->x.ax =  LWORD(eax);
-	outregs->x.bx =  LWORD(ebx);
-	outregs->x.cx =  LWORD(ecx);
-	outregs->x.dx =  LWORD(edx);
-	outregs->x.si =  LWORD(esi);
-	outregs->x.di =  LWORD(edi);
-	outregs->x.flags =  LWORD(eflags);
-	if (segregs) {
-		segregs->ds =  LWORD(ds);
-		segregs->es =  LWORD(es);
-	}
-	outregs->x.cflag = LWORD(eflags) & CF;
-
-	_regs = saved_regs;
-
-	return LWORD(eax);
-}
-
-int com_int86(int intno, union com_REGS *inregs, union com_REGS *outregs)
-{
-	return com_int86x(intno, inregs, outregs, 0);
-}
-
 
 static struct com_program_entry *com_program_list = 0;
 
@@ -531,9 +500,9 @@ int commands_plugin_inte6(void)
 	int argc;
 
 	if (HI(ax) != BUILTINS_PLUGIN_VERSION) {
-	    error("builtins plugin version mismatch: found %i, required %i\n",
+	    com_error("builtins plugin version mismatch: found %i, required %i\n",
 		HI(ax), BUILTINS_PLUGIN_VERSION);
-	    error("You should upgrade your generic.com, isemu.com and other utilities "
+	    com_error("You should upgrade your generic.com, isemu.com and other utilities "
 		  "from the latest dosemu package\n");
 	    return 0;
 	}
@@ -542,12 +511,12 @@ int commands_plugin_inte6(void)
 	mcb = SEG2LINEAR(COM_PSP_SEG - 1);
 
 	if (pool_used >= MAX_NESTING) {
-	    error("Cannot invoke more than %i builtins\n", MAX_NESTING);
+	    com_error("Cannot invoke more than %i builtins\n", MAX_NESTING);
 	    return 0;
 	}
 	if (!pool_used) {
 	    if (!(lowmem_pool = lowmem_heap_alloc(LOWMEM_POOL_SIZE))) {
-		error("Unable to allocate memory pool\n");
+		com_error("Unable to allocate memory pool\n");
 		return 0;
 	    }
 	    sminit(&mp, lowmem_pool, LOWMEM_POOL_SIZE);
@@ -567,7 +536,7 @@ int commands_plugin_inte6(void)
 	if (com) {
 		com->program(argc, args);
 	} else {
-		error("inte6: unknown builtin: %s\n",builtin_name);
+		com_error("inte6: unknown builtin: %s\n",builtin_name);
 	}
 
 	free(args[0]);
