@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #include "emu.h"
 #include "bios.h"
@@ -906,8 +907,7 @@ static void save_selection(int col1, int row1, int col2, int row2)
 	init_charset_state(&paste_state, paste_charset);
 	
 	p = sel_text_dos = malloc(co);
-	/* utf-8 can use 6 bytes per char it seems */
-	sel_space = (row2-row1+1)*(co+1)*6+1;
+	sel_space = (row2-row1+1)*(co+1)*MB_LEN_MAX+1;
 	sel_text_latin = sel_text = malloc(sel_space);
   
 	/* Copy the text data. */
