@@ -1,3 +1,13 @@
+Thu Mar 30	1995
+
+-	Release pl57
+-	Scott's timer patches for speaker emulation
+-	Hans' patches to bring emumodule to 1.2.2
+-	More cleanup+ by Kang-Jin Lee lee@tengu.in-berlin.de
+-	Added hack for KERNEL_VERSION to lower E-mail :-)
+-	Rod May's dummy HDiamge (hddummy)
+
+
 Tue Mar 28	1995
 
 -	Release pl56

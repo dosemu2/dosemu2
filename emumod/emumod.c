@@ -6,7 +6,7 @@
   
 #include "kversion.h"
 #if 0
-#define KERNEL_VERSION 1002001 /* last verified kernel version */
+#define KERNEL_VERSION 1002002 /* last verified kernel version */
 #endif
 
 #include <linux/errno.h>

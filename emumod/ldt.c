@@ -32,7 +32,9 @@
 
 #ifdef _LOADABLE_VM86_
 #include "kversion.h"
-/* #define KERNEL_VERSION 1002001 */  /*  last verified kernel version */
+#if 0
+#define KERNEL_VERSION 1002002 /* last verified kernel version */
+#endif
 
 #if KERNEL_VERSION < 1001090
 #error "Sorry, but this patch runs only on Linux >= 1.1.90"

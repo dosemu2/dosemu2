@@ -9,7 +9,7 @@
 #ifdef _LOADABLE_VM86_
   #include "kversion.h"
 #else
-  #define KERNEL_VERSION 1002001 /* last verified kernel version */
+  #define KERNEL_VERSION 1002002 /* last verified kernel version */
 #endif
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -119,6 +119,7 @@ static void mark_screen_rdonly(struct task_struct * tsk)
 		}
 	}
 #else
+  #if KERNEL_VERSION < 1002002
 	pgd_t *pg_dir;
 
 	pg_dir = PAGE_DIR_OFFSET(tsk, 0);
@@ -139,6 +140,36 @@ static void mark_screen_rdonly(struct task_struct * tsk)
 			pg_table++;
  		}
  	}
+  #else
+	pgd_t *pgd;
+	pmd_t *pmd;
+	pte_t *pte;
+	int i;
+
+	pgd = pgd_offset(tsk, 0xA0000);
+	if (pgd_none(*pgd))
+		return;
+	if (pgd_bad(*pgd)) {
+		printk("vm86: bad pgd entry [%p]:%08lx\n", pgd, pgd_val(*pgd));
+		pgd_clear(pgd);
+		return;
+	}
+	pmd = pmd_offset(pgd, 0xA0000);
+	if (pmd_none(*pmd))
+		return;
+	if (pmd_bad(*pmd)) {
+		printk("vm86: bad pmd entry [%p]:%08lx\n", pmd, pmd_val(*pmd));
+		pmd_clear(pmd);
+		return;
+	}
+	pte = pte_offset(pmd, 0xA0000);
+	for (i = 0; i < 32; i++) {
+		if (pte_present(*pte))
+			*pte = pte_wrprotect(*pte);
+		pte++;
+ 	}
+	invalidate();
+  #endif
 #endif
 }
 

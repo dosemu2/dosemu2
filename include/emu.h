@@ -153,19 +153,28 @@ void getKeys(void);
 
 struct debug_flags {
   unsigned char
-   disk,			/* disk msgs, "d" */
-   read,			/* disk read "R" */
-   write,			/* disk write "W" */
-   dos,				/* unparsed int 21h, "D" */
-   video,			/* video, "v" */
-   X,				/* X support, "X" */
-   keyb,			/* keyboard, "k" */
-   debug, io,			/* port I/O, "i" */
-   serial,			/* serial, "s" */
-   defint,			/* default ints */
-   printer, general, warning, all,	/* all non-classifiable messages */
-   hardware, xms, mouse, IPC, EMS, config, dpmi, network, /* TRB - only IPX for now */
-   pd;
+   disk,		/* disk msgs,        "d" */
+   read,		/* disk read         "R" */
+   write,		/* disk write        "W" */
+   dos,			/* unparsed int 21h  "D" */
+   video,		/* video,            "v" */
+   X,			/* X support,        "X" */
+   keyb,		/* keyboard,         "k" */
+   io,			/* port I/O,         "i" */
+   serial,		/* serial,           "s" */
+   mouse,		/* mouse,            "m" */
+   defint,		/* default ints      "#" */
+   printer,		/* printer           "p" */
+   general,		/* general           "g" */
+   config,		/* configuration     "c" */
+   warning,		/* warning           "w" */
+   hardware,		/* hardware          "h" */
+   IPC,			/* IPC               "I" */
+   EMS,			/* EMS               "E" */
+   xms,			/* xms               "x" */
+   dpmi,		/* dpmi              "M" */
+   network,		/* IPX network       "n" */
+   pd;			/* Packet driver     "P" */
 };
 
 #if __GNUC__ >= 2

@@ -16,14 +16,15 @@
  * Modified: 03/14/95 by Kang-Jin Lee
  *  sync'd debug flags with pre0.53.49
  *  cosmetic changes
+ *  03/27/95 minor changes
  ***********************************************/
 
 /* comment out if dosemu is compiled without X support */
 #define X_SUPPORT
 
-#include <stdio.h>    /* for printf */
-#include <stdlib.h>   /* for exit   */
-#include <dos.h>      /* for geninterrupt and MK_FP */
+#include <stdio.h>    /* printf                 */
+#include <stdlib.h>   /* exit                   */
+#include <dos.h>      /* geninterrupt and MK_FP */
 #include <string.h>
 
 typedef unsigned char uint8;
@@ -34,16 +35,16 @@ typedef unsigned int uint16;
 
 #define MAX_DEBUG_STRING_LENGTH   100
 
-#define DOS_HELPER_INT        0xE6
+#define DOS_HELPER_INT            0xE6
 #define DOS_HELPER_DOSEMU_CHECK   0x00
-#define DOS_HELPER_SHOW_REGS    0x01
-#define DOS_HELPER_SHOW_INTS    0x02
-#define DOS_HELPER_ADJUST_IOPERMS 0x03  /* CY indicates get or set */
+#define DOS_HELPER_SHOW_REGS      0x01
+#define DOS_HELPER_SHOW_INTS      0x02
+#define DOS_HELPER_ADJUST_IOPERMS 0x03  /* CY indicates get or set      */
 #define DOS_HELPER_CONTROL_VIDEO  0x04  /* BL indicates init or release */
 #define DOS_HELPER_SHOW_BANNER    0x05
-#define DOS_HELPER_MFS_HELPER   0x20
-#define DOS_HELPER_EMS_HELPER   0x21
-#define DOS_HELPER_EMS_BIOS     0x22
+#define DOS_HELPER_MFS_HELPER     0x20
+#define DOS_HELPER_EMS_HELPER     0x21
+#define DOS_HELPER_EMS_BIOS       0x22
 #define DOS_HELPER_GET_DEBUG_STRING 0x10
 #define DOS_HELPER_SET_DEBUG_STRING 0x11
 
@@ -60,16 +61,17 @@ Usage(void)
     printf("\n");
     printf("d  disk         R  disk Reads   W  disk Writes  D  dos\n");
 #ifdef X_SUPPORT
-    printf("v  video        X  X support    k  keyboard     ?  debug\n");
-    printf("i  port I/O     s  serial       #  interrupt    p  printer\n");
-    printf("g  general      w  warnings     h  hardware     x  XMS\n");
-    printf("m  mouse        I  IPC          E  EMS          c  config\n");
-    printf("n  network\n");
+    printf("v  video        X  X support    k  keyboard     i  port I/O\n");
+    printf("s  serial       m  mouse        #  interrupt    p  printer\n");
+    printf("g  general      c  config       w  warnings     h  hardware\n");
+    printf("I  IPC          E  EMS          x  XMS          M  DPMI\n");
+    printf("n  network      P  pktdrv\n");
 #else
-    printf("v  video        k  keyboard     ?  debug        i  port I/O\n");
-    printf("s  serial       #  interrupt    p  printer      g  general\n");
-    printf("w  warnings     h  hardware     x  XMS          m  mouse\n");
-    printf("I  IPC          E  EMS          c  config       n  network\n");
+    printf("v  video        k  keyboard     i  port I/O     s  serial\n");
+    printf("m  mouse        #  interrupt    p  printer      g  general\n");
+    printf("c  config       w  warnings     h  hardware     I  IPC\n");
+    printf("E  EMS          x  XMS          M  DPMI         n  network\n");
+    printf("P  pktdrv\n");
 #endif
     printf("a  all (shorthand for all of the above)\n");
     printf("\n");
@@ -80,9 +82,6 @@ Usage(void)
     printf("The character 'a' acts like a string of all possible debugging classes,\n");
     printf("  so \"-a\" turns all message off, and \"+a-RW\" would turn all messages\n");
     printf("  on except for disk Read and Write messages.");
-#ifndef X_SUPPORT
-    printf("\n");
-#endif
 }
 
 
@@ -158,16 +157,16 @@ printDebugClass(char class, char value)
               printf("k  keyboard   ");
               break;
 
-         case '?':
-              printf("?  debug      ");
-              break;
-
          case 'i':
               printf("i  port I/O   ");
               break;
 
          case 's':
               printf("s  serial     ");
+              break;
+
+         case 'm':
+              printf("m  mouse      ");
               break;
 
          case '#':
@@ -182,20 +181,16 @@ printDebugClass(char class, char value)
               printf("g  general    ");
               break;
 
+         case 'c':
+              printf("c  config     ");
+              break;
+
          case 'w':
               printf("w  warnings   ");
               break;
 
          case 'h':
               printf("h  hardware   ");
-              break;
-
-         case 'x':
-              printf("x  XMS        ");
-              break;
-
-         case 'm':
-              printf("m  mouse      ");
               break;
 
          case 'I':
@@ -206,12 +201,20 @@ printDebugClass(char class, char value)
               printf("E  EMS        ");
               break;
 
-         case 'c':
-              printf("c  config     ");
+         case 'x':
+              printf("x  XMS        ");
+              break;
+
+         case 'M':
+              printf("M  DPMI       ");
               break;
 
          case 'n':
               printf("n  network    ");
+              break;
+
+         case 'P':
+              printf("P  pktdrv     ");
               break;
 
          default:
@@ -283,11 +286,11 @@ uint16 ParseAndSetDebugString(char *userDebugStr)
     char class, value;
 
 #ifdef X_SUPPORT
-    const char debugOn[] =  "+d+R+W+D+v+X+k+?+i+s+#+p+g+w+h+x+m+I+E+c+n";
-    const char debugOff[] = "-d-R-W-D-v-X-k-?-i-s-#-p-g-w-h-x-m-I-E-c-n";
+    const char debugOn[] =  "+d+R+W+D+v+X+k+i+s+m+#+p+g+c+w+h+I+E+x+M+n+P";
+    const char debugOff[] = "-d-R-W-D-v-X-k-i-s-m-#-p-g-c-w-h-I-E-x-M-n-P";
 #else
-    const char debugOn[] =  "+d+R+W+D+v+k+?+i+s+#+p+g+w+h+x+m+I+E+c+n";
-    const char debugOff[] = "-d-R-W-D-v-k-?-i-s-#-p-g-w-h-x-m-I-E-c-n";
+    const char debugOn[] =  "+d+R+W+D+v+k+i+s+m+#+p+g+c+w+h+I+E+x+M+n+P";
+    const char debugOff[] = "-d-R-W-D-v-k-i-s-m-#-p-g-c-w-h-I-E-x-M-n-P";
 #endif
 
     //expand the user string to a canonical form

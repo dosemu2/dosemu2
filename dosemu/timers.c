@@ -321,19 +321,8 @@ void pit_outp(int port, int val)
 
   if (port == 1)
     i_printf("PORT: someone is writing the CMOS refresh time?!?");
-
-  if (port == 2) {
-    switch (config.speaker) {
-      case SPKR_NATIVE:
-        safe_port_out_byte(0x42, val);
-	break;
-      case SPKR_EMULATED:
-	if ((port61 & 3) == 3) {
-	  i_printf("PORT: Emulated beep!");
-	  putchar('\007');
-	}
-	break;
-    }
+  else if (port == 2 && config.speaker == SPKR_NATIVE) {
+    safe_port_out_byte(0x42, val);
   }
 
   switch (pit[port].write_state) {
@@ -373,6 +362,12 @@ void pit_outp(int port, int val)
       i_printf("timer_interrupt_rate requested %.3g Hz, granted %.3g Hz\n",
 	       CLOCK_TICK_RATE/(double)pit[0].cntr, 10000.0/timer_div);
 #endif
+    }
+    else if (port == 2 && config.speaker == SPKR_EMULATED) {
+      if ((port61 & 3) == 3) {
+	i_printf("PORT: Emulated beep!");
+	putchar('\007');
+      }
     }
   }
 }
@@ -446,7 +441,7 @@ void write_port61(int byte)
       break;
 
     case SPKR_EMULATED:
-      if (((byte & 3) == 3) && (pit[2].cntr != -1)) {
+      if (((byte & 3) == 3) && (pit[2].mode == 2 || pit[2].mode == 3)) {
 	i_printf("PORT: emulated beep!\n");
 	putchar('\007');
       }

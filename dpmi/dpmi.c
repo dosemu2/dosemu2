@@ -1414,7 +1414,9 @@ inline void run_pm_int(int i)
   dpmi_stack_frame[current_client].ss = PMSTACK_SEL;
   dpmi_stack_frame[current_client].esp = PMSTACK_ESP;
   in_dpmi_dos_int = 0;
+#if 0
   dpmi_cli();
+#endif
 }
 
 inline void run_dpmi(void)

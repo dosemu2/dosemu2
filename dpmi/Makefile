@@ -13,7 +13,7 @@ DEPENDS=dpmi.d meminfo.d
 all:  lib
 
 clean::
-	-rm  *.com 
+	-rm -f *.com
 
 install:
 

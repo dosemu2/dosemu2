@@ -1358,7 +1358,7 @@ static void keyb_layout(int layout)
 
 static int set_hardware_ram(int addr)
 {
-  if ((addr>=0xc800) || (addr<0xf000))   addr *= 0x10;
+  if ((addr>=0xc800) && (addr<0xf000))   addr *= 0x10;
   if ((addr<0xc8000) || (addr>=0xf0000)) return 0;
   memcheck_reserve('h', addr, 4096);
   config.must_spare_hardware_ram=1;

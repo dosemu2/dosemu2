@@ -33,14 +33,14 @@ SetDebugFlagsHelper(char *debugStr)
     case 'k':
       d.keyb = value;
       break;
-    case '?':
-      d.debug = value;
-      break;
     case 'i':
       d.io = value;
       break;
     case 's':
       d.serial = value;
+      break;
+    case 'm':
+      d.mouse = value;
       break;
     case '#':
       d.defint = value;
@@ -51,17 +51,14 @@ SetDebugFlagsHelper(char *debugStr)
     case 'g':
       d.general = value;
       break;
+    case 'c':
+      d.config = value;
+      break;
     case 'w':
       d.warning = value;
       break;
     case 'h':
       d.hardware = value;
-      break;
-    case 'x':
-      d.xms = value;
-      break;
-    case 'm':
-      d.mouse = value;
       break;
     case 'I':
       d.IPC = value;
@@ -69,11 +66,17 @@ SetDebugFlagsHelper(char *debugStr)
     case 'E':
       d.EMS = value;
       break;
-    case 'c':
-      d.config = value;
+    case 'x':
+      d.xms = value;
+      break;
+    case 'M':
+      d.dpmi = value;
       break;
     case 'n':
       d.network = value;
+      break;
+    case 'P':
+      d.pd = value;
       break;
     default:
       /* unknown flag, return failure */
@@ -91,113 +94,32 @@ GetDebugFlagsHelper(char *debugStr)
   dbug_printf("GetDebugFlagsHelper\n");
   dbug_printf("debugStr at %x\n", (int)debugStr);
   i = 0;
-  if (d.disk)
-    debugStr[i++] = '+';
-  else
-    debugStr[i++] = '-';
-  debugStr[i++] = 'd';
-  if (d.read)
-    debugStr[i++] = '+';
-  else
-    debugStr[i++] = '-';
-  debugStr[i++] = 'R';
-  if (d.write)
-    debugStr[i++] = '+';
-  else
-    debugStr[i++] = '-';
-  debugStr[i++] = 'W';
-  if (d.dos)
-    debugStr[i++] = '+';
-  else
-    debugStr[i++] = '-';
-  debugStr[i++] = 'D';
-  if (d.video)
-    debugStr[i++] = '+';
-  else
-    debugStr[i++] = '-';
-  debugStr[i++] = 'v';
+
+  debugStr[i++] = (d.disk)     ? '+' : '-'; debugStr[i++] = 'd';
+  debugStr[i++] = (d.read)     ? '+' : '-'; debugStr[i++] = 'R';
+  debugStr[i++] = (d.write)    ? '+' : '-'; debugStr[i++] = 'W';
+  debugStr[i++] = (d.dos)      ? '+' : '-'; debugStr[i++] = 'D';
+  debugStr[i++] = (d.video)    ? '+' : '-'; debugStr[i++] = 'v';
 #ifdef X_SUPPORT
-  if (d.X)
-    debugStr[i++] = '+';
-  else
-    debugStr[i++] = '-';
-  debugStr[i++] = 'X';
+  debugStr[i++] = (d.X)        ? '+' : '-'; debugStr[i++] = 'X';
 #endif
-  if (d.keyb)
-    debugStr[i++] = '+';
-  else
-    debugStr[i++] = '-';
-  debugStr[i++] = 'k';
-  if (d.debug)
-    debugStr[i++] = '+';
-  else
-    debugStr[i++] = '-';
-  debugStr[i++] = '?';
-  if (d.io)
-    debugStr[i++] = '+';
-  else
-    debugStr[i++] = '-';
-  debugStr[i++] = 'i';
-  if (d.serial)
-    debugStr[i++] = '+';
-  else
-    debugStr[i++] = '-';
-  debugStr[i++] = 's';
-  if (d.defint)
-    debugStr[i++] = '+';
-  else
-    debugStr[i++] = '-';
-  debugStr[i++] = '#';
-  if (d.printer)
-    debugStr[i++] = '+';
-  else
-    debugStr[i++] = '-';
-  debugStr[i++] = 'p';
-  if (d.general)
-    debugStr[i++] = '+';
-  else
-    debugStr[i++] = '-';
-  debugStr[i++] = 'g';
-  if (d.warning)
-    debugStr[i++] = '+';
-  else
-    debugStr[i++] = '-';
-  debugStr[i++] = 'w';
-  if (d.hardware)
-    debugStr[i++] = '+';
-  else
-    debugStr[i++] = '-';
-  debugStr[i++] = 'h';
-  if (d.xms)
-    debugStr[i++] = '+';
-  else
-    debugStr[i++] = '-';
-  debugStr[i++] = 'x';
-  if (d.mouse)
-    debugStr[i++] = '+';
-  else
-    debugStr[i++] = '-';
-  debugStr[i++] = 'm';
-  if (d.IPC)
-    debugStr[i++] = '+';
-  else
-    debugStr[i++] = '-';
-  debugStr[i++] = 'I';
-  if (d.EMS)
-    debugStr[i++] = '+';
-  else
-    debugStr[i++] = '-';
-  debugStr[i++] = 'E';
-  if (d.config)
-    debugStr[i++] = '+';
-  else
-    debugStr[i++] = '-';
-  debugStr[i++] = 'c';
-  if (d.network)
-    debugStr[i++] = '+';
-  else
-    debugStr[i++] = '-';
-  debugStr[i++] = 'n';
+  debugStr[i++] = (d.keyb)     ? '+' : '-'; debugStr[i++] = 'k';
+  debugStr[i++] = (d.io)       ? '+' : '-'; debugStr[i++] = 'i';
+  debugStr[i++] = (d.serial)   ? '+' : '-'; debugStr[i++] = 's';
+  debugStr[i++] = (d.mouse)    ? '+' : '-'; debugStr[i++] = 'm';
+  debugStr[i++] = (d.defint)   ? '+' : '-'; debugStr[i++] = '#';
+  debugStr[i++] = (d.printer)  ? '+' : '-'; debugStr[i++] = 'p';
+  debugStr[i++] = (d.general)  ? '+' : '-'; debugStr[i++] = 'g';
+  debugStr[i++] = (d.config)   ? '+' : '-'; debugStr[i++] = 'c';
+  debugStr[i++] = (d.warning)  ? '+' : '-'; debugStr[i++] = 'w';
+  debugStr[i++] = (d.hardware) ? '+' : '-'; debugStr[i++] = 'h';
+  debugStr[i++] = (d.IPC)      ? '+' : '-'; debugStr[i++] = 'I';
+  debugStr[i++] = (d.EMS)      ? '+' : '-'; debugStr[i++] = 'E';
+  debugStr[i++] = (d.xms)      ? '+' : '-'; debugStr[i++] = 'x';
+  debugStr[i++] = (d.dpmi)     ? '+' : '-'; debugStr[i++] = 'M';
+  debugStr[i++] = (d.network)  ? '+' : '-'; debugStr[i++] = 'n';
+  debugStr[i++] = (d.pd)       ? '+' : '-'; debugStr[i++] = 'P';
+
   debugStr[i] = 0;
   dbug_printf("debugStr is %s\n", debugStr);
 

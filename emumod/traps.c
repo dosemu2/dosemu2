@@ -16,7 +16,7 @@
 #ifdef _LOADABLE_VM86_
   #include "kversion.h"
 #else
-  #define KERNEL_VERSION 1002001 /* last verified kernel version */
+  #define KERNEL_VERSION 1002002 /* last verified kernel version */
 #endif
 #include <linux/head.h>
 #include <linux/sched.h>

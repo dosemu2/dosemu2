@@ -128,7 +128,7 @@ DEPENDS = dos.d emu.d
 EMUVER  =   0.53
 export EMUVER
 VERNUM  =   0x53
-PATCHL  =   56
+PATCHL  =   57
 LIBDOSEMU = libdosemu$(EMUVER).$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -452,8 +452,16 @@ include/kversion.h:
 	echo '#define KERNEL_VERSION $(KERNEL_VERSION)' >>$@
 	echo '#endif' >>$@
 else
+ifeq ($(LINUX_KERNEL)/tools/version.h,$(wildcard $(LINUX_KERNEL)/tools/version.h))
 include/kversion.h:
 	 $(SHELL) ./tools/kversion.sh $(LINUX_KERNEL) ./
+else
+KERNEL_VERSION=1001088
+include/kversion.h:
+	echo '#ifndef KERNEL_VERSION' >$@
+	echo '#define KERNEL_VERSION $(KERNEL_VERSION)' >>$@
+	echo '#endif' >>$@
+endif
 endif
 
 
@@ -478,6 +486,8 @@ installnew: doslib
 install:
 	@install -d /var/lib/dosemu
 	@install -d /var/run
+	@if [ -f load_module.sh ]; then chmod 700 load_module.sh; fi
+	@if [ -f unload_module.sh ]; then chmod 700 unload_module.sh; fi
 ifdef ELF
 	@nm dos | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > dosemu.map
@@ -563,6 +573,7 @@ dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
 	install -d $(DISTPATH)/lib
 	cp -a dosemu.xpm libslang.a $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) $(DISTPATH)
 	cp -a hdimages/hdimage.dist $(DISTPATH)/hdimage.dist
+	cp -a hddummy $(DISTPATH)/hddummy
 	@for i in $(REQUIRED) $(LIBS) $(SUBDIRS) $(DOCS) ipxutils $(OPTIONALSUBDIRS) ipxbridge; do \
 	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \
 	done

@@ -307,9 +307,9 @@ int run_simple_system_command(const char *p)
 	int result;
 	
 	if(i_am_root)
-		exchange_uids();
+		priv_off();
 	result = system(p);
 	if(i_am_root)
-		exchange_uids();
+		priv_on();
 }
 

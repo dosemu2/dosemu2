@@ -27,8 +27,9 @@
  */
 #define MAX_MEM_SIZE    640
 
+
 struct debug_flags d =
-{0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0};
+{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 
 static void     check_for_env_autoexec_or_config(void);
@@ -443,7 +444,12 @@ parse_debugflags(const char *s)
 {
     char            c;
     unsigned char   flag = 1;
-    const char      allopts[] = "vsdDRWkpiwghxmIEcXP#";
+
+#ifdef X_SUPPORT
+    const char      allopts[] = "dRWDvXkism#pgcwhIExMnP";
+#else
+    const char      allopts[] = "dRWDvkism#pgcwhIExMnP";
+#endif
 
     /*
      * if you add new classes of debug messages, make sure to add the
@@ -461,20 +467,7 @@ parse_debugflags(const char *s)
 	case '-':		/* begin options to turn off */
 	    flag = 0;
 	    break;
-	case 'v':		/* video */
-	    d.video = flag;
-	    break;
-#ifdef X_SUPPORT
-	case 'X':
-	    d.X = flag;
-	    break;
-#endif
-	case 's':		/* serial */
-	    d.serial = flag;
-	    break;
-	case 'c':		/* disk */
-	    d.config = flag;
-	    break;
+
 	case 'd':		/* disk */
 	    d.disk = flag;
 	    break;
@@ -484,44 +477,44 @@ parse_debugflags(const char *s)
 	case 'W':		/* disk WRITE */
 	    d.write = flag;
 	    break;
+	case 'D':		/* DOS int 21h */
+	    d.dos = flag;
+	    break;
+	case 'v':		/* video */
+	    d.video = flag;
+	    break;
+#ifdef X_SUPPORT
+	case 'X':
+	    d.X = flag;
+	    break;
+#endif
 	case 'k':		/* keyboard */
 	    d.keyb = flag;
-	    break;
-	case 'p':		/* printer */
-	    d.printer = flag;
 	    break;
 	case 'i':		/* i/o instructions (in/out) */
 	    d.io = flag;
 	    break;
-	case 'w':		/* warnings */
-	    d.warning = flag;
+	case 's':		/* serial */
+	    d.serial = flag;
+	    break;
+	case 'm':		/* mouse */
+	    d.mouse = flag;
+	    break;
+	case '#':		/* default int */
+	    d.defint =flag;
+	    break;
+	case 'p':		/* printer */
+	    d.printer = flag;
 	    break;
 	case 'g':		/* general messages */
 	    d.general = flag;
 	    break;
-	case 'x':		/* XMS */
-	    d.xms = flag;
+	case 'c':		/* configuration */
+	    d.config = flag;
 	    break;
-	case 'D':		/* DPMI */
-	    d.dpmi = flag;
+	case 'w':		/* warnings */
+	    d.warning = flag;
 	    break;
-	case 'm':		/* mouse */
-	    d.mouse = flag;
-	case 'P':
-	    d.pd = flag;
-	    d.network = flag;
-	    break;
-	case 'a':{		/* turn all on/off depending on flag */
-		char           *newopts = (char *) malloc(strlen(allopts) + 2);
-
-		d.all = flag;
-		newopts[0] = flag ? '+' : '-';
-		newopts[1] = 0;
-		strcat(newopts, allopts);
-		parse_debugflags(newopts);
-		free(newopts);
-		break;
-	    }
 	case 'h':		/* hardware */
 	    d.hardware = flag;
 	    break;
@@ -531,9 +524,28 @@ parse_debugflags(const char *s)
 	case 'E':		/* EMS */
 	    d.EMS = flag;
 	    break;
-	case '#':			/* defint */
-	    d.defint = flag;
+	case 'x':		/* XMS */
+	    d.xms = flag;
 	    break;
+	case 'M':		/* DPMI */
+	    d.dpmi = flag;
+	    break;
+	case 'n':		/* IPX network */
+	    d.network = flag;
+	    break;
+	case 'P':		/* Packet driver */
+	    d.pd = flag;
+	    break;
+	case 'a':{		/* turn all on/off depending on flag */
+		char           *newopts = (char *) malloc(strlen(allopts) + 2);
+
+		newopts[0] = flag ? '+' : '-';
+		newopts[1] = 0;
+		strcat(newopts, allopts);
+		parse_debugflags(newopts);
+		free(newopts);
+		break;
+	    }
 	case '0'...'9':	/* set debug level, 0 is off, 9 is most
 				 * verbose */
 	    flag = c - '0';
@@ -569,14 +581,14 @@ usage(void)
     fprintf(stdout, "    -V use BIOS-VGA video modes (!#%%)\n");
     fprintf(stdout, "    -N No boot of DOS\n");
     fprintf(stdout, "    -t try new timer code (#)\n");
-    fprintf(stdout, "    -s try new screen size code (COMPLETELY BROKEN)(#)\n");
-    fprintf(stdout, "    -g enable graphics modes (COMPLETELY BROKEN) (!%%#)\n");
+    fprintf(stdout, "    -s try new screen size code (#)\n");
+    fprintf(stdout, "    -g enable graphics modes (!%%#)\n");
     fprintf(stdout, "    -x SIZE enable SIZE K XMS RAM\n");
     fprintf(stdout, "    -e SIZE enable SIZE K EMS RAM\n");
     fprintf(stdout, "    -m enable mouse support (!#)\n");
     fprintf(stdout, "    -2,3,4 choose 286, 386 or 486 CPU\n");
-    fprintf(stdout, "    -K Do int9 (!#)\n");
-    fprintf(stdout, "\n     (!) means BE CAREFUL! READ THE DOCS FIRST!\n");
-    fprintf(stdout, "     (%%) marks those options which require dos be run as root (i.e. suid)\n");
-    fprintf(stdout, "     (#) marks options which do not fully work yet\n");
+    fprintf(stdout, "    -K Do int9 (!#)\n\n");
+    fprintf(stdout, "    (!) BE CAREFUL! READ THE DOCS FIRST!\n");
+    fprintf(stdout, "    (%%) require dos be run as root (i.e. suid)\n");
+    fprintf(stdout, "    (#) options do not fully work yet\n");
 }
