@@ -608,7 +608,7 @@ void sigalarm_onoff(int on)
   static struct itimerval itv_oldp;
 #endif
   static struct itimerval itv;
-  static int is_off = 0;
+  static volatile int is_off = 0;
   if (on) {
     if (is_off--) {
     	setitimer(ITIMER_REAL, &itv_old, NULL);
@@ -624,6 +624,24 @@ void sigalarm_onoff(int on)
 #ifdef X86_EMULATOR
     setitimer(ITIMER_PROF, &itv, &itv_oldp);
 #endif
+  }
+}
+
+void sigalarm_block(int block)
+{
+  static volatile int is_blocked = 0;
+  sigset_t blockset;
+  if (block) {
+    if (!is_blocked++) {
+      sigemptyset(&blockset);
+      sigaddset(&blockset, SIGALRM);
+      sigprocmask(SIG_BLOCK, &blockset, NULL);
+    }
+  }
+  else if (is_blocked--) {
+    sigemptyset(&blockset);
+    sigaddset(&blockset, SIGALRM);
+    sigprocmask(SIG_UNBLOCK, &blockset, NULL);
   }
 }
 

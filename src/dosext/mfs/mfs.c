@@ -769,9 +769,9 @@ mfs_redirector(void)
 {
   int ret;
 
-  sigalarm_onoff(0);
+  sigalarm_block(1);
   ret = dos_fs_redirect(&REGS);
-  sigalarm_onoff(1);
+  sigalarm_block(0);
 
   Debug0((dbg_fd, "Finished dos_fs_redirect\n"));
 
@@ -796,9 +796,9 @@ mfs_inte6(void)
 {
   boolean_t result;
 
-  sigalarm_onoff(0);
+  sigalarm_block(1);
   result = dos_fs_dev(&REGS);
-  sigalarm_onoff(1);
+  sigalarm_block(0);
   return (result);
 }
 
@@ -1058,10 +1058,17 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
     while ((cur_ent = dos_readdir(cur_dir))) {
       char tmpname[100];
       int namlen;
+      sigset_t mask;
 
       /* this while loop can take a _long_ time ... better avoid signal queue
        *overflows AV
        */
+      sigpending(&mask);
+      if (sigismember(&mask, SIGALRM)) {
+	sigalarm_block(0);
+	/* the pending sigalrm must be delivered now */
+	sigalarm_block(1);
+      }
       handle_signals();
 
       Debug0((dbg_fd, "get_dir(): `%s' \n", cur_ent->d_name));
