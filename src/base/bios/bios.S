@@ -269,6 +269,12 @@ do_int21:
         .globl  CISH(LFN_string)
 CISH(LFN_string):
 
+/* ===== unix -e / unix -c helper f000:4200 */
+        .org	((UNIX_HELPER_SEG-BIOSSEG) << 4)+UNIX_HELPER_OFF
+	int	$0x21
+        movw    $0xffff, %ax
+        int     $0xe6           /* bye bye */
+
 /* ----------------------------------------------------------------- */
 
 	.org	((DBGload_SEG - BIOSSEG) << 4) + DBGload_OFF

@@ -59,7 +59,7 @@ int com_puts(char *s);
 int com_doswrite(int dosfilefd, char *buf32, int size);
 int com_dosread(int dosfilefd, char *buf32, int size);
 char *com_getenv(char *keyword);
-int com_system(char *command);
+int com_system(char *command, int quit);
 char * com_strdup(char *s);
 unsigned short get_dos_ver(void);
 void com_strfree(char *s);

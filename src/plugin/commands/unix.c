@@ -329,7 +329,7 @@ static int do_execute_dos (int argc, char **argv, int isLiteralCommand)
     if (*data) {
       com_printf ("About to Execute : %s\n", data);
 
-      if (com_system (data)) {
+      if (com_system (data, data[strlen(data)+1] == '\0')) {
         /* SYSTEM failed ... */
         com_fprintf (com_stderr, "SYSTEM failed ....(%d)\n", com_errno);
         return (1);
