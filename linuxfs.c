@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
@@ -49,8 +50,10 @@ void dos_time(time_t utime, short *time, short *date)
 	struct tm *tp;
 
 	tp = localtime(&utime);
+	/*
 	printf("%d.%d.%d   %d:%02d\n", tp->tm_mday, tp->tm_mon+1, tp->tm_year,
 		tp->tm_hour, tp->tm_min);
+	*/
 	*time = (tp->tm_sec >>1) | (tp->tm_min <<5) | (tp->tm_hour <<11);
 	*date = tp->tm_mday | ((tp->tm_mon +1) <<5) | ((tp->tm_year -80) <<9);
 }
@@ -122,10 +125,60 @@ int dir_entry(int first, int s_mode, struct fentry *fptr)
 	return 0; /* OK */
 }
 
+int delete(char *delpath)
+{
+	char name[80], *cp, *np;
+	char delname[13];
+	int c = 2; /* file not found */
+	DIR *dirp;
+	struct dirent *dp;
+	struct stat stbuf;
+
+
+	cp = delpath + strlen(delpath);
+	while (*--cp != '/');
+	*cp++ = '\0';
+	strcpy(delname, cp);
+	printf("DEL <%s><%s>\n", delpath, delname);
+	if ((dirp = opendir(delpath)) == NULL) return 3;
+	while ((dp = readdir(dirp)) != NULL) { 
+		/* printf("dir: %s\n", dp->d_name); */
+		np = dp->d_name;
+		cp = delname;
+		while (*cp) {
+			if (*cp == '?') {
+ 				if (*np != '\0' && *np != '.') np++;
+			} else if (*cp == *np) np++;
+			else if (*cp != '.' || *np != '\0') break;
+			cp++;
+		}
+		if (*np || *cp) continue;
+		if (*--np == '.') continue;
+		strcpy(name, delpath);
+		strcat(name, "/");
+		strcat(name, dp->d_name);
+		if (stat(name, &stbuf) < 0) {
+			c = 5;
+			break;
+		}
+		if (!S_ISREG(stbuf.st_mode)) continue;
+		/* matched */
+		printf("deleting %s\n", name);
+		if (unlink(name) == 0) c = 0;
+		else {
+			c = 5;
+			break;
+		}
+	}
+	(void)closedir(dirp);
+	return c;
+}
+
 int ext_fs(int nr, char *p1, char *p2, int c)
 {
-	char name[80], *cp;
+	char name[80], name2[80], *cp;
 	struct stat stbuf;
+	struct ustat ubuf;
 	int r, m, a, f;
 
 	printf("EXT FS:\n");
@@ -139,7 +192,7 @@ int ext_fs(int nr, char *p1, char *p2, int c)
 		case 2: /* MD */
 			if (dos2unix(name, p1)) return 0xf;
 			printf("MD %s --- %s\n", p1, name);
-			if (mknod(name, S_IFDIR | 0755, 0) < 0) {
+			if (mkdir(name, 0755) < 0) {
 				return (errno == EPERM) ? 5 : 3;
 			}
 			return 0;
@@ -150,7 +203,7 @@ int ext_fs(int nr, char *p1, char *p2, int c)
 				return 3;
 			}
 			printf("stat\n");
-			if (unlink(name) < 0) {
+			if (rmdir(name) < 0) {
 				return (errno == EBUSY) ? 16 : 5;
 				break;
 			}
@@ -181,10 +234,8 @@ int ext_fs(int nr, char *p1, char *p2, int c)
 			if (fstat(dos_files[f], &stbuf) < 0) return 2;
 			if (S_ISDIR(stbuf.st_mode)) return 5;
 			if (nr == 6) {
-				r = lseek(dos_files[f], 0, SEEK_END);
-				a = lseek(dos_files[f], 0, SEEK_SET);
-				printf("SZ=%d\n", r);
-				*((int *)p2)++ = r;
+				printf("SZ=%d\n", stbuf.st_size);
+				*((int *)p2)++ = stbuf.st_size;
 			} 
 			*(short *)p2 = (short)f;
 			printf("__%d\n", f);
@@ -192,30 +243,49 @@ int ext_fs(int nr, char *p1, char *p2, int c)
 		case 8: /* SPECIAL OPEN */
 			if (dos2unix(name, p1)) return 0xf;
 			printf("SPECIAL OPEN %x --- %s, %s\n", c, p1, name);
-			return 1;
+			r = (stat(name, &stbuf) == 0 && S_ISREG(stbuf.st_mode));
+			printf("r= %d\n", r);
+			if (((c & 0xf00) == 0 && r) || ((c & 0xf000) == 0 && !r))
+				return 5;
+			m = c & 0x3;
+			if (m > 2) return 0xc;
+			for (f=19; f>= 0; f--) if (dos_files[f] < 0) break;
+			if (f < 0) return 4;
+			if (r) a = (c & 0x200) ? O_TRUNC : 0;
+			else a = O_CREAT;
+			a |= dos_open_modes[m];
+			dos_files[f] = open(name, a, 0644);
+			if (dos_files[f] < 0) return 5;
+			if (fstat(dos_files[f], &stbuf) < 0) return 2;
+			if (S_ISDIR(stbuf.st_mode)) return 5;
+			r = (a & (O_CREAT | O_TRUNC)) ? -1 : stbuf.st_size;
+			*((int *)p2)++ = r;
+			*(short *)p2 = (short)f;
+			printf("__%d, SZ=%d\n", f, r);
+			return 0;
 		case 9: /* CLOSE */
 			printf("CLOSE (%d) \n", c);
 			if (c >= 0 && c < 20)
 				dos_files[c] = -1;
 			return 0;
 		case 10: /* READ */
-			printf("READ (%d) \n", c);
+		case 11: /* WRITE */
+			printf("%s (%d) sz=%d\n", (nr == 10) ? "READ" : "WRITE",
+						 c, *(unsigned short *)p2);
+			printf("%04x:%04x\n", _regs.fs, _regs.edi);
 			if (c < 0 || c >= 20 || dos_files[c] < 0) r = 0;
 			else {
 				a = *(int *)(p2+2);
-				printf ("... %d - %d\n", a, lseek(dos_files[c], 0, SEEK_CUR));
-				lseek(dos_files[c], a, SEEK_SET);
-				printf ("... %d - %d (%d)\n", a, lseek(dos_files[c], 0, SEEK_CUR), *(unsigned short *)p2);
-				r = read(dos_files[c], p1, *(unsigned short *)p2);
+				printf ("... %d - (%d)  ", a, lseek(dos_files[c], 0, SEEK_CUR));
+				if (a != lseek(dos_files[c], a, SEEK_SET))
+					printf("SEEK OUT OF FILE\n");
+				if (nr == 10)
+					r = read(dos_files[c], p1, *(unsigned short *)p2);
+				else
+					r = write(dos_files[c], p1, *(unsigned short *)p2);
+				printf("res:%d\n", r);
 				if (r < 0) r = 0;
 			}
-			*(unsigned short *)p2 = (unsigned short)r;
-			return 0;
-		case 11: /* WRITE */
-			printf("WRITE (%d) \n", c);
-			if (c < 0 || c >= 20 || dos_files[c] < 0) r = 0;
-			else r = write(dos_files[c], p1, *(unsigned short *)p2);
-			if (r < 0) r = 0;
 			*(unsigned short *)p2 = (unsigned short)r;
 			return 0;
 		case 12: /* SEEK */
@@ -229,10 +299,13 @@ int ext_fs(int nr, char *p1, char *p2, int c)
 		case 13: /* DELETE */
 			if (dos2unix(name, p1)) return 0xf;
 			printf("DELETE %s --- %s\n", p1, name);
-			return 0;
+			return delete(name);
 		case 14: /* RENAME */
 			if (dos2unix(name, p1)) return 0xf;
+			if (dos2unix(name2, p2)) return 0xf;
 			printf("RENAME %s --- %s TO %s\n", p1, name, p2);
+			if (rename(name, name2) < 0)
+				return 5;
 			return 0;
 		case 15: /* SPACE */
 			printf("SPACE \n");
@@ -252,7 +325,9 @@ int ext_fs(int nr, char *p1, char *p2, int c)
 			*(unsigned short *)p2 = m;
 			return 0;
 		default:
+			printf("FN_%d not implemented\n", nr);
 			show_regs();
 			error = 1;
 	}
+	return -1;
 }

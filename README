@@ -1,23 +1,22 @@
-DOS EMULATOR for LINUX 0.97 pl2
+DOS EMULATOR for LINUX 0.97 pl4 or later versions
 
-This is a pre alpha version. This means thera are some bugs and lots of things
+This is a pre alpha version. This means there are some bugs and lots of things
 aren't implemented such as
-- screen attributes
 - some video interrupts
 - some other bios calls
 - any port io
 - ...
 
 But MS DOS is running and programms using direct screen io are working if
-you use the periodic screen update option.
+you use the periodic screen update option (eg. TURBO PASCAL).
 This version needs no further patches to the kernel.
 
 INSTALLATION
 
-1. unpack the tar arcive and run make
-2. move libemu to /lib or make a symbolic link
-3. create the directory /usr/dos
-4. su to root because only root can do the ioctl GETFDPERM call
+1. unpack the tar arcive 
+2. adapt the Makefile to your system and run make
+3. move libemu to /lib or make a symbolic link
+4. create the directory /usr/dos
 5. insert a DOS boot disk into drive A: (/dev/fd0) without config.sys and
    autoexec.bat
 6. run: dos > [debug msg file]
@@ -29,17 +28,23 @@ The file hdimage is mounted as drive C:
 
 On drive C: is a file LINUX.EXE. Run this with parameter D. Now you should
 have access to drive d: which is linked to the linux file system /usr/dos.
-LINUX.EXE may work only with DOS 3.3 cause I havn't tested it with other
-DOS versions. The rest should allthough I havn't tested too.
-Be carefull: this feature isn't totaly implemented and may have bugs but I'm
-working on.
+LINUX.EXE has been tested with DOS 3.3 and DOS 5.0. It isn't totaly implemented
+(file attributes cann't be set) and there is a bug that running .EXE files 
+will crash the emulator.
 This program LINUX.EXE is derived from a version in the book 'undocumented
 dos' chapter 4. Due to unknown copyrights I don't post the sources.
 
 Now you can install DOS on C:, but don't format C: use sys.
 Use then 'dos c' to boot direct from C:
 
-To stop the DOS emulator use kill from another window.
+To stop the DOS emulator kill it from another window or run a command that
+crashes the emulator (-:.
+
+Things crashing the emulator:
+- running any .EXE file from the LINUX drive (loading of .EXE files does not work)
+- dir /p (jumps to an invalide address after the keypress)
+- cls (using not implemented video interrupt)
+- ...
 
 Using programms wich accesses the screen directly:
 

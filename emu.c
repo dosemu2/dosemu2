@@ -1,4 +1,9 @@
+/* make sure that this line ist the first of emu.c
+   and link emu.o as the first object file to the lib */
+	__asm__("___START___: jmp _emulate\n");
+
 #include <stdio.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
@@ -9,27 +14,26 @@
 #include <termcap.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <sys/times.h>
 #include <sys/time.h>
 #include <limits.h>
 #include <linux/fd.h>
 #include "emu.h"
 
-/* make sure that emulate() is the first function */
 
 #define CONFIGURATION 0x002c;   /* without disk information */
-#define	KEYBOARD	"/dev/tty"
-#define KeyWait		(void)fcntl(kbd_fd, F_SETFL, O_RDONLY)
-#define KeyNoWait	(void)fcntl(kbd_fd, F_SETFL, O_RDONLY | O_NDELAY)
-#define NOWAIT	0
-#define WAIT	1
-#define TEST	2
+#define CO	80
+#define LI	25
 #define SCREEN_ADR(s)	(us *)(0xb8000 + s * 0x1000)
-#define UPDATE	400000		/* screen update time in usec */
-#define OUTBUFSIZE	2048
+#define UPDATE	250000		/* waiting time in usec */
+#define UTICKS	(1250 /* ms */ * CLK_TCK / 1000) /* time betwenn two screen updates in ticks */
+#define OUTBUFSIZE	2500
 #define CHOUT(c)	if (outp == &outbuf[OUTBUFSIZE]) { CHFLUSH } \
-			else *outp++ = (trans[c] ? trans[c] : '_');
+			else *outp++ = (c);
 #define CHFLUSH		if (outp > outbuf) { write(2, outbuf, outp - outbuf); \
 						outp = outbuf; }
+#define SETIVEC(i, seg, ofs)	((us *)0)[ (i<<1) +1] = (us)seg; \
+				((us *)0)[  i<<1    ] = (us)ofs
 
 struct disk {
 	char *dev_name;
@@ -45,56 +49,30 @@ struct disk {
 struct disk disktab[DISKS] = {
 		{"/dev/fd0", 0, 0, 0, 0},
 		{"/dev/fd1", 0, 0, 0, 0},
+		/* {"/dev/hdb1", 1, 29, 16, 141}, */
+		/* {"/dev/hda1", 1, 17, 9, 428}, */
+		/* {"diskimage", 1, 9, 2, 40}, */
 	};
 /* whole hard disks, dos extented partitions (containing one ore more partitions)
    or their images (files) */
 #define HDISKS 1	/* maximum 2 */
 struct disk hdisktab[HDISKS] = {
 		{"hdimage", 0, 17, 4, 6},
-		/* {"/dev/hda", 1, 17, 9, 900}, */
 	};
 
 
 struct vm86_struct vm86s;
 int error;
 struct timeval scr_tv;
-int kbd_fd;
 unsigned char outbuf[OUTBUFSIZE], *outp = outbuf;
 int iflag;
-int akt_keycode, kbcount;
-char kbbuf[50], *kbp, akt_key, erasekey;
 int hdiskboot =0;
 int do_screen_updates;
 long start_time;
-static	struct termio	oldtermio;	/* original terminal modes */
 int screen_bitfield;
 int screen, xpos[8], ypos[8];
+unsigned int next_upd;
 
-char tc[200], termcap[1024],
-     *cl,	/* clear screen */
-     *le,	/* cursor left */
-     *cm,	/* goto */
-     *ce,	/* clear to end */
-     *sr,	/* scroll reverse */
-     *so,	/* stand out start */
-     *se,	/* stand out end */
-     *tp;
-int   li, co;   /* lines, columns */     
-
-void startemu(void);     
-
-int emulate(int argc, char **argv)
-{
-
-	printf("EMULATE\n");
-	sync(); /* for safety */
-
-	if (argc >= 2 && toupper(argv[1][0]) == 'A') hdiskboot = 0;
-	if (argc >= 2 && toupper(argv[1][0]) == 'C') hdiskboot = 1;
-	if (argc >= 2 && toupper(argv[1][0]) == 'U') do_screen_updates = 1;
-	if (argc >= 3 && toupper(argv[2][0]) == 'U') do_screen_updates = 1;
-	startemu();
-}
 
 
 unsigned char trans[] = /* LATIN CHAR SET */
@@ -116,41 +94,13 @@ unsigned char trans[] = /* LATIN CHAR SET */
 	"\0\261\0\0\0\0\367\0\260\267\0\0\0\262\244\0"
 };
 
-int outc(int c)
+
+int outcbuf(int c)
 {
-  write(2, (char *)&c, 1);
+  CHOUT(c);
   return 1;
 }
 
-void gettermcap(void)
-{
-struct winsize ws;		/* buffer for TIOCSWINSZ */
-
-  li = 0;
-  co = 0;
-  if (ioctl(2, TIOCGWINSZ, &ws) >= 0) {
-    li = ws.ws_row;
-    co = ws.ws_col;
-  }
-  if(tgetent(termcap, getenv("TERM")) != 1) {printf("no termcap \n"); exit(1);}
-  if (li == 0 || co == 0) {
-    li = tgetnum("li");
-    co = tgetnum("co");
-  }
-  tp = tc;
-  cl = tgetstr("cl", &tp);
-  le = tgetstr("le", &tp);
-  cm = tgetstr("cm", &tp);
-  ce = tgetstr("ce", &tp);
-  sr = tgetstr("sr", &tp);
-  so = tgetstr("so", &tp);
-  se = tgetstr("se", &tp);
-  if (se == NULL) so = NULL;
-  if (li == 0 || co == 0) {
-    printf("unknown window sizes \n");
-    exit(1);
-  }
-}
 
 void poscur(int x, int y)
 {
@@ -165,18 +115,18 @@ void scrollup(int x0, int y0 , int x1, int y1, int l, int att)
 
 
 	sadr = SCREEN_ADR(screen);
-	sadr += x0 + co * (y0 + l);
+	sadr += x0 + CO * (y0 + l);
 	dx = x1 - x0 +1;
 	dy = y1 - y0 - l +1;
-	ofs = -co * l;
+	ofs = -CO * l;
 	for (y=0; y<dy; y++) {
 		p = sadr;
 		if (l != 0) for (x=0; x<dx; x++, p++) p[ofs] = p[0];
 		else        for (x=0; x<dx; x++, p++) p[0] = blank;
-		sadr += co;
+		sadr += CO;
 	}
 	for (y=0; y<l; y++) {
-		sadr -= co;
+		sadr -= CO;
 		p = sadr;
 		for (x=0; x<dx; x++, p++) *p = blank;
 	}
@@ -189,18 +139,18 @@ void scrolldn(int x0, int y0 , int x1, int y1, int l, int att)
 
 
 	sadr = SCREEN_ADR(screen);
-	sadr += x0 + co * (y1 -l);
+	sadr += x0 + CO * (y1 -l);
 	dx = x1 - x0 +1;
 	dy = y1 - y0 - l +1;
-	ofs = co * l;
+	ofs = CO * l;
 	for (y=0; y<dy; y++) {
 		p = sadr;
 		if (l != 0) for (x=0; x<dx; x++, p++) p[ofs] = p[0];
 		else        for (x=0; x<dx; x++, p++) p[0] = blank;
-		sadr -= co;
+		sadr -= CO;
 	}
 	for (y=0; y<l; y++) {
-		sadr += co;
+		sadr += CO;
 		p = sadr;
 		for (x=0; x<dx; x++, p++) *p = blank;
 	}
@@ -213,7 +163,7 @@ void char_out(unsigned char ch, int s)
 	if (s > 7) return;
 	if (ch >= ' ') {
 		sadr = SCREEN_ADR(s);
-		sadr[ypos[s]*co + xpos[s]++] = ch | (7 << 8);
+		sadr[ypos[s]*CO + xpos[s]++] = ch | (7 << 8);
 		if (s == screen) outc(trans[ch]);
 	} else if (ch == '\r') {
 		xpos[s] = 0;
@@ -223,15 +173,15 @@ void char_out(unsigned char ch, int s)
 		if (s == screen) write(2, &ch, 1);
 	} else if (ch == '\010' && xpos[s] > 0) {
 		xpos[s]--;
-		if (s == screen) write(2, le, 1);
+		if (s == screen) write(2, &ch, 1);
 	}
-	if (xpos[s] == co) {
+	if (xpos[s] == CO) {
 		xpos[s] = 0;
 		ypos[s]++;
 	}
-	if (ypos[s] == li) {
+	if (ypos[s] == LI) {
 		ypos[s]--;
-		scrollup(0, 0, co-1, li-1, 1, 7);
+		scrollup(0, 0, CO-1, LI-1, 1, 7);
 	}
 }
 
@@ -250,164 +200,34 @@ void clear_screen(int s, int att)
 void restore_screen(int bitmap)
 {
 	us *sadr, *p; 
-	unsigned char c;
+	unsigned char c, a;
+	int x, y, oa;
 
 	if ((bitmap & (1 << (24 + screen))) == 0) return;
 	printf("RESTORE SCREEN 0x%x\n", screen_bitfield);
-	poscur(0,0);
 	sadr = SCREEN_ADR(screen);
-	for (p = sadr; p < sadr+2000; p++) {
-		c = *(unsigned char *)p;
-		CHOUT(c);
+	oa = 7;
+	p = sadr;
+	for (y=0; y<LI; y++) {
+		tputs(tgoto(cm, 0, y), 1, outcbuf);
+		for (x=0; x<CO; x++) {
+			c = *(unsigned char *)p;
+			if ((a = ((unsigned char *)p)[1]) != oa) {
+				if ((a & 7) == 0) tputs(mr, 1, outcbuf);
+				else tputs(me, 1, outcbuf);
+				if ((a & 0x88)) tputs(md, 1, outcbuf);
+				oa = a;
+			}
+			CHOUT(trans[c] ? trans[c] : '_');
+			p++;
+		}
 	}
+	tputs(me, 1, outcbuf);
 	CHFLUSH;
 	poscur(xpos[screen],ypos[screen]);
 	screen_bitfield = 0;
 }
 
-
-void CloseKeyboard(void)
-{
-	ioctl(kbd_fd, TCSETAF, &oldtermio);
-	close(kbd_fd);
-	kbd_fd = -1;
-}
-
-int OpenKeyboard(void)
-{
-	struct termio	newtermio;	/* new terminal modes */
-
-	kbd_fd = open(KEYBOARD, O_RDONLY | O_NDELAY );
-	if (kbd_fd < 0)
-		return -1;
-	if (ioctl(kbd_fd, TCGETA, &oldtermio) < 0) {
-		close(kbd_fd);
-		kbd_fd = -1;
-		return -1;
-	}
-
-	newtermio = oldtermio;
-	newtermio.c_iflag &= (ISTRIP|IGNBRK); /* (IXON|IXOFF|IXANY|ISTRIP|IGNBRK);*/
-	/* newtermio.c_oflag &= ~OPOST; */
-	newtermio.c_lflag &= /* ISIG */ 0;
-	newtermio.c_cc[VMIN] = 1;
-	newtermio.c_cc[VTIME] = 0;
-	erasekey = newtermio.c_cc[VERASE];
-	if (ioctl(kbd_fd, TCSETAF, &newtermio) < 0) {
-		close(kbd_fd);
-		kbd_fd = -1;
-		return -1;
-	}
-	return 0;
-}
-
-us alt_keys[] = { /* <ALT>-A ... <ALT>-Z */
-	0x1e00, 0x3000, 0x2e00, 0x2000, 0x1200, 0x2100,
-	0x2200, 0x2300, 0x1700, 0x2400, 0x2500, 0x2600,
-	0x3200, 0x3100, 0x1800, 0x1900, 0x1000, 0x1300,
-	0x1f00, 0x1400, 0x1600, 0x2f00, 0x1100, 0x2d00,
-	0x2c00, 0x1500};
-
-/* ReadKeyboard
-   returns 1 if a character could be read in buf 
-   */
-int ReadKeyboard(int *buf, int wait)
-{
-	int	cc;
-	char *savep;
-	int savecnt;
-
-	if (kbcount == 0) {
-		if (wait == WAIT) KeyWait;
-		for (;;) {
-			cc = read(kbd_fd, kbbuf, 50);
-			if (cc > 0) {
-				kbcount = cc;
-				kbp = kbbuf;
-				break;
-			}
-			if (wait != WAIT) break;
-		}
-		if (wait) KeyNoWait;
-		if (kbcount == 0) return 0;
-	}
-	savep = kbp;
-	savecnt = kbcount;
-	*buf = (unsigned char)*kbp++;
-	kbcount--;
-	if (*buf == erasekey) {
-		*buf = 8;
-	} else if (*buf == '\033' && kbcount > 1 && *kbp == '[') {
-		switch (kbp[1]) {
-			case 'A':
-				*buf = 0x4800;
-				kbcount -= 2;
-				break;
-			case 'B':
-				*buf = 0x5000;
-				kbcount -= 2;
-				break;
-			case 'C':
-				*buf = 0x4d00;
-				kbcount -= 2;
-				break;
-			case 'D':
-				*buf = 0x4b00;
-				kbcount -= 2;
-				break;
-		}
-	} else if (*buf >= ('a'|0x80) && *buf <= ('z'|0x80)) {
-		*buf = alt_keys[*buf - ('a'|0x80)];
-	}
-	if (wait == TEST) { /* restore variables (test only) */
-		kbp = savep;
-		kbcount = savecnt;
-	}
-	return 1;
-}
-
-
-/* ReadString
-   reads a string into a buffer
-   buf[0] ... length of string
-   buf +1 ... string
-   */
-void ReadString(int max, char *buf)
-{
-	char ch, *cp = buf +1, *ce = buf + max;
-	int c;
-
-	for (;;) {
-		if (ReadKeyboard(&c, WAIT) != 1) continue;
-		if ((unsigned)c >= 128) continue;
-		ch = (char)c;
-		if (ch >= ' ' && ch <= '~' && cp < ce) {
-			*cp++ = ch;
-			char_out(ch, screen);
-			continue;
-		}
-		if (ch == '\010' && cp > buf +1) { /* BS */
-			cp--;
-			char_out('\010', screen);
-			char_out(' ', screen);
-			char_out('\010', screen);
-			continue;
-		}
-		if (ch == 13) {
-			*cp = ch;
-			break;
-		}
-	}
-	*buf = (cp - buf) -1; /* length of string */
-}
-
-void process_key(char key)
-{
-	int code;
-
-	akt_keycode = (int)key;
-	akt_key = key;
-}
 
 void disk_close(void) {
 	struct disk * dp;
@@ -559,6 +379,20 @@ void boot(struct disk *dp)
 	disk_open(dp);
 	buffer = (char *)0x7c00;
 	memset(NULL, 0, 0x7c00); /* clear the first 32 k */
+	memset((char *)0xff000, 0xF4, 0x1000); /* fill the last page with HLT */
+	/* init trapped interrupts if called via jump */
+	for (i=0; i<0x100; i++) {
+		if ((i & 0xf8) == 0x60) continue; /* user interrupts */
+		SETIVEC(i, 0xff01, 4*i);
+	}
+	*(us *)0x413 = 640;	/* size of memory */
+	*(char *)0x449 = 3;	/* screen mode */
+	*(us *)0x44a = CO;	/* chars per line */
+	*(us *)0x44c = LI;	/* lines per page */
+	*(us *)0x41a = 0x1e;	/* key buf start ofs */
+	*(us *)0x41c = 0x1e;	/* key buf end ofs */
+	/* key buf 0x41e .. 0x43d */
+
 	lseek(dp->fdesc, 0, 0);
 	i = read(dp->fdesc, buffer, 512);
 	if (i != 512) {
@@ -588,7 +422,7 @@ void int10(void)
 
 	switch((_regs.eax >> 8) & 0xff) {
 		case 0x0: /* define mode */
-			if (_regs.eax & 0xff != 2) {
+			if (_regs.eax & 0xfe != 2) {
 				printf("undefined video mode %d\n", _regs.eax & 0xff);
 				error = 1;
 			}
@@ -606,7 +440,7 @@ void int10(void)
 				error = 1;
 				return;
 			}
-			if (x >= co || y >= li) break;
+			if (x >= CO || y >= LI) break;
 			xpos[s] = x;
 			ypos[s] = y;
 			if (s == screen) poscur(x, y);
@@ -631,11 +465,13 @@ void int10(void)
 			printf("scroll up %d %d %d %d, %d\n", LO(cx), HI(cx), LO(dx), HI(dx), LO(ax));
 			show_regs();
 			scrollup(LO(cx), HI(cx), LO(dx), HI(dx), LO(ax), HI(bx));
+			screen_bitfield = -1;
 			break;
 		case 0x7: /* scroll down */
 			printf("scroll dn %d %d %d %d, %d\n", LO(cx), HI(cx), LO(dx), HI(dx), LO(ax));
 			show_regs();
 			scrolldn(LO(cx), HI(cx), LO(dx), HI(dx), LO(ax), HI(bx));
+			screen_bitfield = -1;
 			break;
 		case 0x9: /* set chars at cursor pos */
 		case 0xA: /* set chars at cursor pos */
@@ -658,7 +494,7 @@ void int10(void)
 			char_out(*(char *)&_regs.eax, screen);
 			break;
 		case 0x0f: /* get screen mode */
-			_regs.eax = (co << 8) | 2; /* chrs per line, mode 2 */
+			_regs.eax = (CO << 8) | 2; /* chrs per line, mode 2 */
 			_regs.ebx &= ~0xff00;
 			_regs.ebx |= screen << 8;
 			break;
@@ -709,7 +545,7 @@ void int13(void)
 				((_regs.ecx & 0xc0) << 2);
 			buffer = SEG_ADR((char *), es, bx);
 			number = _regs.eax & 0xff;
-			printf("DISK %d read [h%d,s%d,t%d](%d)->0x%x\n", disk, head, sect, track, number, buffer - (char *)0);
+			printf("DISK %d read [h%d,s%d,t%d](%d)->0x%x\n", disk, head, sect, track, number, buffer);
 			if (dp == NULL || head >= dp->heads || 
 			    sect >= dp->sectors || track >= dp->tracks) {
 			    _regs.eax = 0x400; /* sector not found */
@@ -740,7 +576,7 @@ void int13(void)
 				((_regs.ecx & 0xc0) << 2);
 			buffer = SEG_ADR((char *), es, bx);
 			number = _regs.eax & 0xff;
-			printf("DISK write [h%d,s%d,t%d](%d)->0x%x\n", head, sect, track, number, buffer - (char *)0);
+			printf("DISK write [h%d,s%d,t%d](%d)->0x%x\n", head, sect, track, number, buffer);
 			if (dp == NULL || head >= dp->heads || 
 			    sect >= dp->sectors || track >= dp->tracks) {
 			    _regs.eax = 0x400; /* sector not found */
@@ -834,15 +670,12 @@ void int16(void)
 			break;
 		case 2: /* read key state */
 			/* printf("get key state not implemented\n"); */
+			_regs.eax &= ~0xff;
 			FD_ZERO(&fds);
 			FD_SET(kbd_fd, &fds);
-			_regs.eax &= ~0xff;
+			scr_tv.tv_sec = 0;
+			scr_tv.tv_usec = UPDATE;
 			select(kbd_fd+1, &fds, NULL, NULL, &scr_tv);
-			if (!scr_tv.tv_sec && scr_tv.tv_usec < 100) {
-				restore_screen(screen_bitfield);
-				scr_tv.tv_sec = 0;
-				scr_tv.tv_usec = UPDATE;
-			}
 			break;
 		default:
 			printf("keyboard error\n");
@@ -905,12 +738,8 @@ void int1a(void)
 
 int ms_dos(int nr) /* returns 1 if emulated, 0 if internal handling */
 {
-	char ch, *csp, *cp, *dp, *p, buf[80]; 
-	int c, m, fd;
-	long ofs;
-	static char dosname[11];
-	static int dosmode;
-	struct stat stbuf;
+	char *csp, *p; 
+	int c;
 
 Restart:
 	/* printf("DOSINT 0x%x\n", nr); */
@@ -1032,11 +861,7 @@ default_handling:
 
 void sigalrm(int sig)
 {
-	printf("SIGALRM received!!!!!\n");
-	restore_screen(-1);
-	scr_tv.tv_sec = 0;
-	scr_tv.tv_usec = 500000;
-	alarm(1);
+	printf("SIGALRM received!!!!!\n"); 
 }
 
 void sigsegv(int sig)
@@ -1045,8 +870,10 @@ void sigsegv(int sig)
 	us *ssp;
 	unsigned char *csp;
 
-	/* printf("SIGSEGV %d received\n", sig);
-	show_regs(); */
+	if (_regs.eflags & TF) {
+		printf("SIGSEGV %d received\n", sig);
+		show_regs(); 
+	}
 	csp = SEG_ADR((unsigned char *), cs, ip);
 	switch (*csp) {
 		case 0xcd: /* int xx */
@@ -1101,7 +928,7 @@ void sigsegv(int sig)
 			_regs.eip += 1;
 			break;
 		case 0x9c: /* pushf */
-			_regs.eflags &= ~IF;
+			_regs.eflags &= 0xfff ^ IF;
 			if (iflag) _regs.eflags |= IF;
 			ssp = SEG_ADR((us *), ss, sp);
 			*--ssp = (us)_regs.eflags;
@@ -1121,6 +948,10 @@ void sigsegv(int sig)
 			show_regs();
 			error = 4;
 	}	
+	if (_regs.eflags & TF) {
+		printf("emulation done");
+		show_regs(); 
+	}
 }
 
 void sigill(int sig)
@@ -1165,24 +996,37 @@ void sigfpe(int sig)
 {
 	printf("SIGFPE %d received\n", sig);
 	show_regs();
-	error = 4;
+	do_int(0);
 }
 
 void sigtrap(int sig)
 {
 	printf("SIGTRAP %d received\n", sig);
+	if (_regs.eflags & TF)  /* trap flag */
+		_regs.eip++;
 	show_regs();
-	error = 4;
+	do_int(3);
 }
 
 #define SETSIG(sig, fun)	sa.sa_handler = fun; \
 				sa.sa_flags = 0; \
 				sa.sa_mask = 0; \
 				sigaction(sig, &sa, NULL);
-void startemu()
+
+int emulate(int argc, char **argv)
 {
 	struct sigaction sa;
+	unsigned int akt_t;
 
+	printf("EMULATE\n");
+	sync(); /* for safety */
+
+	if (argc >= 2 && toupper(argv[1][0]) == 'A') hdiskboot = 0;
+	if (argc >= 2 && toupper(argv[1][0]) == 'C') hdiskboot = 1;
+	if (argc >= 2 && toupper(argv[1][0]) == 'U') do_screen_updates = 1;
+	if (argc >= 3 && toupper(argv[2][0]) == 'U') do_screen_updates = 1;
+
+	/* init signal handlers */
 	SETSIG(SIGSEGV, sigsegv);
 	SETSIG(SIGILL, sigill);
 	SETSIG(SIGALRM, sigalrm);
@@ -1190,21 +1034,26 @@ void startemu()
 	SETSIG(SIGTRAP, sigtrap);
 	time(&start_time);
 	disk_init();
-	if (OpenKeyboard() != 0) {
-		printf("cann't open keyboard\n");
-		exit(1);
-	}
-	gettermcap();
+	termioInit();
 	clear_screen(screen, 7);
 	boot(hdiskboot? hdisktab : disktab);
-	scr_tv.tv_sec = 0;
-	scr_tv.tv_usec = 500000;
 	fflush(stdout);
-	if (do_screen_updates) alarm(1);
 	for(;!error;) {
+		if (do_screen_updates) alarm(1);
 		(void)vm86(&vm86s);
+		/* screen_bitfield |= vm86s.screen_dirty; */
+		if (do_screen_updates) screen_bitfield = -1;
+		if (do_screen_updates) alarm(0);
+		akt_t = times(NULL);
+		if (akt_t >= next_upd) {
+			if (screen_bitfield) {
+				restore_screen(screen_bitfield);
+				akt_t = times(NULL);
+			}
+			next_upd = akt_t + UTICKS;
+		}
 	}
-	CloseKeyboard();
+	termioClose();
 	disk_close_all();
 	_exit(error);
 }
