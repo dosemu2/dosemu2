@@ -18,9 +18,6 @@
 #include "machcompat.h"
 #include "cpu.h"
 #include "vm86plus.h"
-
-/* Note: priv.h needs 'error' !!! */
-#define error(f,a...)	 	fprintf(stderr, f, ##a)
 #include "priv.h"
 
 #include "extern.h"
@@ -135,128 +132,7 @@ EXTERN void     vm86_GP_fault();
 
 void getKeys(void);
 
-
-struct debug_flags {
-  unsigned char
-   disk,		/* disk msgs         "d" */
-   read,		/* disk read         "R" */
-   write,		/* disk write        "W" */
-   dos,			/* unparsed int 21h  "D" */
-   cdrom,               /* cdrom             "C" */
-   video,		/* video             "v" */
-   X,			/* X support         "X" */
-   keyb,		/* keyboard          "k" */
-   io,			/* port I/O          "i" */
-   io_trace,		/* port I/O tracing  "T" */
-   serial,		/* serial            "s" */
-   mouse,		/* mouse             "m" */
-   defint,		/* default ints      "#" */
-   printer,		/* printer           "p" */
-   general,		/* general           "g" */
-   config,		/* configuration     "c" */
-   warning,		/* warning           "w" */
-   hardware,		/* hardware          "h" */
-   IPC,			/* IPC               "I" */
-   EMS,			/* EMS               "E" */
-   xms,			/* xms               "x" */
-   dpmi,		/* dpmi              "M" */
-   network,		/* IPX network       "n" */
-   pd,			/* Packet driver     "P" */
-   request,		/* PIC               "r" */
-   sound;		/* SOUND	     "S" */
-};
-
-#if __GNUC__ >= 2
-# define FORMAT(T,A,B)  __attribute__((format(T,A,B)))
-#else
-# define FORMAT(T,A,B)
-#endif
-
-#if __GNUC__ >= 2
-# define NORETURN	__attribute__((noreturn))
-#else
-# define NORETURN
-#endif
-
-EXTERN void saytime(char *m_str);
-
-int log_printf(int, const char *,...) FORMAT(printf, 2, 3);
-
-void p_dos_str(char *,...) FORMAT(printf, 1, 2);
-
-#if 0  /* set this to 0, if you want dosemu to honor the -D flags */
- #define NO_DEBUGPRINT_AT_ALL
-#endif
-
-extern FILE *dbg_fd;
-
-#define ifprintf(flg,fmt,a...)	do{ if (flg) log_printf(flg,fmt,##a); }while(0)
-
-/* Note: moved it at top of emu.h, we need to define 'error' for priv.h 
-  #define error(f,a...)	 	fprintf(stderr, f, ##a) */
-
-#define hard_error(f, a...)	fprintf(stderr, f, ##a)
-#define dbug_printf(f,a...)	ifprintf(2,f,##a)
-#define flush_log()		{ if (dbg_fd) log_printf(-1, "\n"); }
-
-#ifndef NO_DEBUGPRINT_AT_ALL
-
-#define k_printf(f,a...) 	ifprintf(d.keyb,f,##a)
-#define h_printf(f,a...) 	ifprintf(d.hardware,f,##a)
-#define v_printf(f,a...) 	ifprintf(d.video,f,##a)
-#define X_printf(f,a...)        ifprintf(d.X,f,##a)
-#define s_printf(f,a...) 	ifprintf(d.serial,f,##a)
-#define p_printf(f,a...) 	ifprintf(d.printer,f,##a)
-#define d_printf(f,a...) 	ifprintf(d.disk,f,##a)
-#define i_printf(f,a...) 	ifprintf(d.io,f,##a)
-#define T_printf(f,a...) 	ifprintf(d.io_trace,f,##a)
-#define R_printf(f,a...) 	ifprintf(d.read,f,##a)
-#define W_printf(f,a...) 	ifprintf(d.write,f,##a)
-#define C_printf(f,a...)        ifprintf(d.cdrom,f,##a)
-#define g_printf(f,a...)	ifprintf(d.general,f,##a)
-#define x_printf(f,a...)	ifprintf(d.xms,f,##a)
-#define D_printf(f,a...)	ifprintf(d.dpmi,f,##a)
-#define m_printf(f,a...)	ifprintf(d.mouse,f,##a)
-#define I_printf(f,a...) 	ifprintf(d.IPC,f,##a)
-#define E_printf(f,a...) 	ifprintf(d.EMS,f,##a)
-#define c_printf(f,a...) 	ifprintf(d.config,f,##a)
-#define e_printf(f,a...) 	ifprintf(1,f,##a)
-#define n_printf(f,a...)        ifprintf(d.network,f,##a)  /* TRB     */
-#define pd_printf(f,a...)       ifprintf(d.pd,f,##a)	   /* pktdrvr */
-#define r_printf(f,a...)        ifprintf(d.request,f,##a)
-#define warn(f,a...)     	ifprintf(d.warning,f,##a)
-#define S_printf(f,a...)     	ifprintf(d.sound,f,##a)
-#define ds_printf(f,a...)     	ifprintf(d.dos,f,##a)
-
-#else
-
-#define k_printf(f,a...)
-#define h_printf(f,a...)
-#define v_printf(f,a...)
-#define X_printf(f,a...)
-#define s_printf(f,a...)
-#define p_printf(f,a...)
-#define d_printf(f,a...)
-#define i_printf(f,a...)
-#define R_printf(f,a...)
-#define W_printf(f,a...)
-#define C_printf(f,a...)
-#define g_printf(f,a...)
-#define x_printf(f,a...)
-#define D_printf(f,a...)
-#define m_printf(f,a...)
-#define I_printf(f,a...)
-#define E_printf(f,a...)
-#define c_printf(f,a...)
-#define e_printf(f,a...)
-#define n_printf(f,a...)
-#define pd_printf(f,a...)
-#define r_printf(f,a...)
-#define warn(f,a...)
-#define S_printf(f,a...)
-#define ds_printf(f,a...)
-
-#endif
+#include "dosemu_debug.h"
 
      void char_out(u_char, int);
 

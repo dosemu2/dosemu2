@@ -367,7 +367,7 @@ void VGA_emulate_outb(ioport_t, Bit8u);
 unsigned char VGA_emulate_inb(ioport_t);
 #ifdef __linux__
 int vga_emu_fault(struct sigcontext_struct *);
-#define VGA_EMU_FAULT(scp,code) vga_emu_fault(&context)
+#define VGA_EMU_FAULT(scp,code) vga_emu_fault(scp)
 #endif
 #ifdef __NetBSD__
 int vga_emu_fault(struct sigcontext *, int);
@@ -499,7 +499,7 @@ typedef struct
 
 #ifdef __linux__
 int vga_emu_fault(struct sigcontext_struct *scp);
-#define VGA_EMU_FAULT(scp,code) vga_emu_fault(&context)
+#define VGA_EMU_FAULT(scp,code) vga_emu_fault(scp)
 #endif
 #ifdef __NetBSD__
 int vga_emu_fault(struct sigcontext *scp, int code);

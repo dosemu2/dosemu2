@@ -458,9 +458,10 @@
 
          cpu 80386
 
-  If you have a pentium, DOSEMU can make use of the pentium cycle counter
-  to do better timing. DOSEMU detects the pentium and will use the RDTSC
-  instruction for get time per default. To disable this feature use
+  If you have a pentium, DOSEMU can make use of the pentium cycle
+  counter to do better timing. DOSEMU detects the pentium and will use
+  the RDTSC instruction for get time per default. To disable this
+  feature use
 
          rdtsc off
 

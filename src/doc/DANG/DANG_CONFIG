@@ -62,7 +62,7 @@ GROUP:		CPU_Intel doc/DANG/summary_CPU_Intel
 			emu-i386/ports.c
 			emu-i386/do_vm86.c
 			emu-i386/fake_cpu.c
-			emu-i386/portss.c
+			emu-i386/n_ports.c
 			emu-i386/cputime.c
 GROUP:		Serial doc/DANG/summary_Serial 
 			base/serial/ser_defs.h base/serial/ser_init.c

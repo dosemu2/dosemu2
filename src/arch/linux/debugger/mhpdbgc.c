@@ -81,7 +81,8 @@ extern struct vm86_struct vm86s;
 #endif
 
 extern int  dis_8086(unsigned int, const unsigned char *,
-                     unsigned char *, int, unsigned int *, unsigned int *, unsigned int);
+                     unsigned char *, int, unsigned int *, unsigned int *,
+                     unsigned int, int);
 
 /* prototypes */
 static void* mhp_getadr(unsigned char *, unsigned int *, unsigned int *, unsigned int *);
@@ -771,7 +772,7 @@ static void mhp_disasm(int argc, char * argv[])
        }
        refseg = seg;
        rc = dis_8086(org+bytesdone, buf+bytesdone, frmtbuf, def_size,
-                  &refseg, &ref, (IN_DPMI ? dpmi_mhp_getselbase(refseg) : 0));
+                  &refseg, &ref, (IN_DPMI ? dpmi_mhp_getselbase(refseg) : 0), 16);
        for (i=0;i<rc;i++) {
            sprintf(&bytebuf[i*2], "%02X", *(buf+bytesdone+i) );
            bytebuf[(i*2)+2] = 0x00;

@@ -1,6 +1,6 @@
   The DOSEMU Alterer Novices Guide
   Author: Alistair MacDonald, alistair@slitesys.demon.co.uk
-  version dosemu-0.67.12.2
+  version dosemu-0.67.14
 
   This Document is the DOSEMU Alterer Novices Guide. It is known as the
   DANG.
@@ -338,105 +338,107 @@
 
   7.4.4.  int_vector_setup
 
-  7.5.    include/int.h Information
+  7.5.    Remarks in base/async/int.c
 
-  7.6.    arch/linux/async/sigsegv.c Information
+  7.6.    include/int.h Information
 
-  7.7.    Functions in arch/linux/async/sigsegv.c
+  7.7.    arch/linux/async/sigsegv.c Information
 
-  7.7.1.  dosemu_fault(int, struct sigcontext_struct);
+  7.8.    Functions in arch/linux/async/sigsegv.c
 
-  7.7.2.  print_exception_info
+  7.8.1.  dosemu_fault(int, struct sigcontext_struct);
 
-  7.8.    arch/linux/async/signal.c Information
+  7.8.2.  print_exception_info
 
-  7.9.    Functions in arch/linux/async/signal.c
+  7.9.    arch/linux/async/signal.c Information
 
-  7.9.1.  signal_init
+  7.10.   Functions in arch/linux/async/signal.c
 
-  7.9.2.  cli
+  7.10.1. signal_init
 
-  7.9.3.  sti
+  7.10.2. cli
 
-  7.9.4.  handle_signals
+  7.10.3. sti
 
-  7.9.5.  SIGNAL_save
+  7.10.4. handle_signals
 
-  7.9.6.  SIGIO_call
+  7.10.5. SIGNAL_save
 
-  7.10.   Remarks in arch/linux/async/signal.c
+  7.10.6. SIGIO_call
 
-  7.11.   include/ports.h Information
+  7.11.   Remarks in arch/linux/async/signal.c
 
-  7.12.   base/misc/dosio.c Information
+  7.12.   include/ports.h Information
 
-  7.13.   base/misc/disks.c Information
+  7.13.   base/misc/dosio.c Information
 
-  7.14.   Functions in base/misc/disks.c
+  7.14.   base/misc/disks.c Information
 
-  7.14.1. disk_init
+  7.15.   Functions in base/misc/disks.c
 
-  7.15.   dev/misc/lpt.c Information
+  7.15.1. disk_init
 
-  7.16.   base/dev/misc/timers.c Information
+  7.16.   dev/misc/lpt.c Information
 
-  7.17.   Functions in base/dev/misc/timers.c
+  7.17.   base/dev/misc/timers.c Information
 
-  7.17.1. initialize_timers
+  7.18.   Functions in base/dev/misc/timers.c
 
-  7.17.2. timer_tick
+  7.18.1. initialize_timers
 
-  7.17.3. do_sound
+  7.18.2. timer_tick
 
-  7.17.4. timer_int_engine
+  7.18.3. do_sound
 
-  7.18.   base/speaker/speaker.c Information
+  7.18.4. timer_int_engine
 
-  7.19.   base/misc/shared.c Information
+  7.19.   base/speaker/speaker.c Information
 
-  7.20.   Functions in base/misc/shared.c
+  7.20.   base/misc/shared.c Information
 
-  7.20.1. shared_qf_memory_init
+  7.21.   Functions in base/misc/shared.c
 
-  7.21.   Remarks in base/misc/shared.c
+  7.21.1. shared_qf_memory_init
 
-  7.22.   base/misc/dos2linux.c Information
+  7.22.   Remarks in base/misc/shared.c
 
-  7.23.   Functions in base/misc/dos2linux.c
+  7.23.   base/misc/dos2linux.c Information
 
-  7.23.1. run_unix_command
+  7.24.   Functions in base/misc/dos2linux.c
 
-  7.24.   base/misc/ioctl.c Information
+  7.24.1. run_unix_command
 
-  7.25.   Functions in base/misc/ioctl.c
+  7.25.   base/misc/ioctl.c Information
 
-  7.25.1. io_select_init
+  7.26.   Functions in base/misc/ioctl.c
 
-  7.25.2. add_to_io_select
+  7.26.1. io_select_init
 
-  7.25.3. remove_from_io_select
+  7.26.2. add_to_io_select
 
-  7.26.   base/dev/misc/cmos.c Information
+  7.26.3. remove_from_io_select
 
-  7.27.   base/dev/misc/lpt.c Information
+  7.27.   base/dev/misc/cmos.c Information
 
-  7.28.   Functions in base/dev/misc/lpt.c
+  7.28.   base/dev/misc/lpt.c Information
 
-  7.28.1. printer_init
+  7.29.   Functions in base/dev/misc/lpt.c
 
-  7.29.   base/dev/misc/pci.c Information
+  7.29.1. printer_init
 
-  7.30.   Functions in base/dev/misc/pci.c
+  7.30.   base/dev/misc/pci.c Information
 
-  7.30.1. pci_read_header
+  7.31.   Functions in base/dev/misc/pci.c
 
-  7.30.2. pci_read_header
+  7.31.1. pci_read_header
 
-  7.30.3. pci_read_header
+  7.31.2. pci_read_header
 
-  7.31.   include/doshelpers.h Information
+  7.31.3. pci_read_header
 
-  7.32.   Remarks in include/doshelpers.h
+  7.32.   include/doshelpers.h Information
+
+  7.33.   Remarks in include/doshelpers.h
 
   8.      The CPU_Intel group of Modules
 
@@ -466,37 +468,49 @@
 
   8.8.    emu-i386/fake_cpu.c Information
 
-  8.9.    emu-i386/portss.c Information
+  8.9.    emu-i386/n_ports.c Information
 
-  8.10.   Functions in emu-i386/portss.c
+  8.10.   Functions in emu-i386/n_ports.c
 
-  8.10.1. port_inb(Bit32u port)
+  8.10.1. port_inb(ioport_t port)
 
-  8.10.2. port_outb(Bit32u port, Bit8u byte)
+  8.10.2. port_outb(ioport_t port, Bit8u byte)
 
-  8.10.3. port_inw(Bit32u port)
+  8.10.3. port_inw(ioport_t port)
 
-  8.10.4. port_outw(Bit32u port, Bit16u word)
+  8.10.4. port_outw(ioport_t port, Bit16u word)
 
-  8.10.5. port_ind(Bit32u port)
+  8.10.5. port_ind(ioport_t port)
 
-  8.10.6. port_outd(Bit32u port, Bit32u dword)
+  8.10.6. special_port_inb,special_port_outb
 
-  8.10.7. port_init(void)
+  8.10.7. port_init()
 
-  8.11.   emu-i386/cputime.c Information
+  8.10.8. extra_port_init()
 
-  8.12.   Functions in emu-i386/cputime.c
+  8.10.9. port_register_handler
 
-  8.12.1. GETcpuTIME
+  8.10.10.        port_allow_io
 
-  8.12.2. GETusTIME(sc)
+  8.10.11.        set_ioperm
 
-  8.12.3. GETtickTIME(sc)
+  8.11.   Remarks in emu-i386/n_ports.c
 
-  8.12.4. GETusSYSTIME()
+  8.12.   Items for Fixing in emu-i386/n_ports.c
 
-  8.13.   Remarks in emu-i386/cputime.c
+  8.13.   emu-i386/cputime.c Information
+
+  8.14.   Functions in emu-i386/cputime.c
+
+  8.14.1. GETcpuTIME
+
+  8.14.2. GETusTIME(sc)
+
+  8.14.3. GETtickTIME(sc)
+
+  8.14.4. GETusSYSTIME()
+
+  8.15.   Remarks in emu-i386/cputime.c
 
   9.      The Serial group of Modules
 
@@ -710,7 +724,6 @@
   to "James B. MacLean" <macleajb@ednet.ns.ca> for supplying the
   original information. (It was mostly ripped out of a mail message.)
   "Jochen Hein" has made many useful comments & suggestions.
-
   At the end if this document is a section detailing how this guide is
   put together. This may help you when trying to locate the relevant
   pieces of code. If you add new code, it would be useful if the
@@ -977,6 +990,7 @@
   far as we are concerned, since it will allow us to run so many more
   programs and, most importantly, bcc. This is the one thing that the
   WINE developers want that we haven't been able to give them.
+
   If you think you can help .... "Away you Go!" (Sorry to those non-UK
   folks ...  Thats a reference to a UK kids sports programme from my
   youth ... anyway ...  enough of this banter. You'll be wanting to know
@@ -1008,7 +1022,6 @@
   This is the default CPU exception handler.  Exceptions 0, 1, 2, 3, 4,
   5 and 7 are reflected to real mode. All other exceptions are
   terminating the client (and may be dosemu too :-)).
-
   44..22..44..  ddoo__ccppuu__eexxcceeppttiioonn
 
   This routine switches to the locked protected mode stack, disables
@@ -1077,6 +1090,7 @@
   routines The exception CS:EIP will point to the first prefix that
   effects the the faulting instruction, hence, 0x65 0x66 is same as 0x66
   0x65.  So we collect all prefixes and remember them.  - Hans Lermen
+
   44..44..  IItteemmss ffoorr FFiixxiinngg iinn ddoosseexxtt//ddppmmii//ddppmmii..cc
 
   Should we really care for the Memory info?
@@ -1225,6 +1239,7 @@
   was returned, depending somewhat on various config options as e.g.
   config.X_updatefreq and VIDEO_CHECK_DIRTY.  At least it is supposed to
   do that.
+
   Arguments are:
 
   +o  none
@@ -1544,7 +1559,6 @@
 
   Sets the pel mask and marks all DAC entries as dirty.  This is a
   hardware emulation function.
-
   55..1166..77..  DDAACC__ggeett__eennttrryy
 
   Returns a complete DAC entry (r,g,b). Color values are AND-ed with the
@@ -1786,6 +1800,7 @@
 
   Interface to serv_backend.c is through write_queue(bios_key, shift,
   raw).
+
   More information about this module is in doc/README.newkbd
 
   Maintainers:
@@ -1839,6 +1854,7 @@
 
   Note also that you can't simply write to the shiftstate variable
   instead of using this function.
+
   66..77..  bbaassee//kkeeyybbooaarrdd//nn__sseerrvv__bbaacckkeenndd..cc IInnffoorrmmaattiioonn
 
   This module handles interfacing to the DOS side both on int9/port60h
@@ -1937,44 +1953,61 @@
   Setup initial interrupts which can be revectored so that the kernel
   does not need to return to DOSEMU if such an interrupt occurs.
 
-  77..55..  iinncclluuddee//iinntt..hh IInnffoorrmmaattiioonn
+  77..55..  RReemmaarrkkss iinn bbaassee//aassyynncc//iinntt..cc
 
-  77..66..  aarrcchh//lliinnuuxx//aassyynncc//ssiiggsseeggvv..cc IInnffoorrmmaattiioonn
+  Some video BIOSes need access to the PIT timer 2, and some (e.g.
+  Matrox) directly read the timer output on port 0x61.  If we don't
+  allow video port access, this will be totally emulated; else, we give
+  temporary access to the needed ports (timer at 0x42, timer config at
+  0x43 and timer out/speaker at 0x61), provided they were not previously
+  enabled by SPKR_NATIVE - AV
 
-  77..77..  FFuunnccttiioonnss iinn aarrcchh//lliinnuuxx//aassyynncc//ssiiggsseeggvv..cc
+  -----
+
+  Many video BIOSes use hi interrupt vector locations as scratchpad area
+  - this is because they come before DOS and feel safe to do it. But we
+  are initializing vectors before video, so this only causes trouble. I
+  assume no video BIOS will ever: - change vectors < 0xe0 (0:380-0:3ff
+  area) - change anything in the vector area _after_ installation - AV
+
+  77..66..  iinncclluuddee//iinntt..hh IInnffoorrmmaattiioonn
+
+  77..77..  aarrcchh//lliinnuuxx//aassyynncc//ssiiggsseeggvv..cc IInnffoorrmmaattiioonn
+
+  77..88..  FFuunnccttiioonnss iinn aarrcchh//lliinnuuxx//aassyynncc//ssiiggsseeggvv..cc
 
   These are the functions defined in arch/linux/async/sigsegv.c.
 
-  77..77..11..  ddoosseemmuu__ffaauulltt((iinntt,, ssttrruucctt ssiiggccoonntteexxtt__ssttrruucctt));;
+  77..88..11..  ddoosseemmuu__ffaauulltt((iinntt,, ssttrruucctt ssiiggccoonntteexxtt__ssttrruucctt));;
 
   All CPU exceptions (except 13=general_protection from V86 mode, which
   is directly scanned by the kernel) are handled here.
 
-  77..77..22..  pprriinntt__eexxcceeppttiioonn__iinnffoo
+  77..88..22..  pprriinntt__eexxcceeppttiioonn__iinnffoo
 
   Prints information about an exception: exception number, error code,
   address, reason, etc.
 
-  77..88..  aarrcchh//lliinnuuxx//aassyynncc//ssiiggnnaall..cc IInnffoorrmmaattiioonn
+  77..99..  aarrcchh//lliinnuuxx//aassyynncc//ssiiggnnaall..cc IInnffoorrmmaattiioonn
 
-  77..99..  FFuunnccttiioonnss iinn aarrcchh//lliinnuuxx//aassyynncc//ssiiggnnaall..cc
+  77..1100..  FFuunnccttiioonnss iinn aarrcchh//lliinnuuxx//aassyynncc//ssiiggnnaall..cc
 
   These are the functions defined in arch/linux/async/signal.c.
 
-  77..99..11..  ssiiggnnaall__iinniitt
+  77..1100..11..  ssiiggnnaall__iinniitt
 
   Initialize the signals to have NONE being blocked.  Currently this is
   NOT of much use to DOSEMU.
 
-  77..99..22..  ccllii
+  77..1100..22..  ccllii
 
   Stop additional signals from interrupting DOSEMU.
 
-  77..99..33..  ssttii
+  77..1100..33..  ssttii
 
   Allow all signals to interrupt DOSEMU.
 
-  77..99..44..  hhaannddllee__ssiiggnnaallss
+  77..1100..44..  hhaannddllee__ssiiggnnaallss
 
   Due to signals happening at any time, the actual work to be done
   because a signal occurs is done here in a serial fashion.
@@ -1983,7 +2016,7 @@
   flag that it has occurred and let DOSEMU deal with it in an orderly
   fashion as it executes the rest of it's code.
 
-  77..99..55..  SSIIGGNNAALL__ssaavvee
+  77..1100..55..  SSIIGGNNAALL__ssaavvee
 
   Arguments are:
 
@@ -1996,34 +2029,34 @@
      this signal.  This is a queue because any signal may occur multiple
      times before DOSEMU deals with it down the road.
 
-  77..99..66..  SSIIGGIIOO__ccaallll
+  77..1100..66..  SSIIGGIIOO__ccaallll
 
   Whenever I/O occurs on devices allowing SIGIO to occur, DOSEMU will be
   flagged to run this call which inturn checks which fd(s) was set and
   execute the proper routine to get the I/O from that device.
 
-  77..1100..  RReemmaarrkkss iinn aarrcchh//lliinnuuxx//aassyynncc//ssiiggnnaall..cc
+  77..1111..  RReemmaarrkkss iinn aarrcchh//lliinnuuxx//aassyynncc//ssiiggnnaall..cc
 
   Check for keyboard coming from client For now, first byte is interrupt
   requests from Client
 
-  77..1111..  iinncclluuddee//ppoorrttss..hh IInnffoorrmmaattiioonn
+  77..1122..  iinncclluuddee//ppoorrttss..hh IInnffoorrmmaattiioonn
 
-  77..1122..  bbaassee//mmiisscc//ddoossiioo..cc IInnffoorrmmaattiioonn
+  77..1133..  bbaassee//mmiisscc//ddoossiioo..cc IInnffoorrmmaattiioonn
 
-  77..1133..  bbaassee//mmiisscc//ddiisskkss..cc IInnffoorrmmaattiioonn
+  77..1144..  bbaassee//mmiisscc//ddiisskkss..cc IInnffoorrmmaattiioonn
 
-  77..1144..  FFuunnccttiioonnss iinn bbaassee//mmiisscc//ddiisskkss..cc
+  77..1155..  FFuunnccttiioonnss iinn bbaassee//mmiisscc//ddiisskkss..cc
 
   These are the functions defined in base/misc/disks.c.
 
-  77..1144..11..  ddiisskk__iinniitt
+  77..1155..11..  ddiisskk__iinniitt
 
   Test by opening all floppies/hardrives configured.
 
-  77..1155..  ddeevv//mmiisscc//llpptt..cc IInnffoorrmmaattiioonn
+  77..1166..  ddeevv//mmiisscc//llpptt..cc IInnffoorrmmaattiioonn
 
-  77..1166..  bbaassee//ddeevv//mmiisscc//ttiimmeerrss..cc IInnffoorrmmaattiioonn
+  77..1177..  bbaassee//ddeevv//mmiisscc//ttiimmeerrss..cc IInnffoorrmmaattiioonn
 
   This is the timer emulation for DOSEMU.  It emulates the Programmable
   Interval Timer (PIT), and also handles IRQ0 interrupt events.  A lot
@@ -2041,21 +2074,21 @@
 
   Speaker emulation, now including port 61h, is also in here. [rz]
 
-  77..1177..  FFuunnccttiioonnss iinn bbaassee//ddeevv//mmiisscc//ttiimmeerrss..cc
+  77..1188..  FFuunnccttiioonnss iinn bbaassee//ddeevv//mmiisscc//ttiimmeerrss..cc
 
   These are the functions defined in base/dev/misc/timers.c.
 
-  77..1177..11..  iinniittiiaalliizzee__ttiimmeerrss
+  77..1188..11..  iinniittiiaalliizzee__ttiimmeerrss
 
   ensure the 0x40 port timer is initially set correctly
 
-  77..1177..22..  ttiimmeerr__ttiicckk
+  77..1188..22..  ttiimmeerr__ttiicckk
 
   Every time we get a TIMER signal from Linux, this procedure is called.
   It checks to see if we should queue a timer interrupt based on the
   current values.
 
-  77..1177..33..  ddoo__ssoouunndd
+  77..1188..33..  ddoo__ssoouunndd
 
   do_sound handles the _emulated_ mode pc-speaker emulation.
 
@@ -2078,7 +2111,7 @@
 
   --EB 21 September 1997
 
-  77..1177..44..  ttiimmeerr__iinntt__eennggiinnee
+  77..1188..44..  ttiimmeerr__iinntt__eennggiinnee
 
   This is experimental TIMER-IRQ CHAIN code!  This is a function to
   determine whether it is time to invoke a new timer irq 0 event.
@@ -2097,7 +2130,7 @@
   result is that we simply call pic_sched and run the dos interrupt.  If
   the new code causes no problems, I'll revise this section permanently.
 
-  77..1188..  bbaassee//ssppeeaakkeerr//ssppeeaakkeerr..cc IInnffoorrmmaattiioonn
+  77..1199..  bbaassee//ssppeeaakkeerr//ssppeeaakkeerr..cc IInnffoorrmmaattiioonn
 
   The pc-speaker emulator for Dosemu.
 
@@ -2147,20 +2180,20 @@
 
   Eric W. Biederman  <ebiederm+eric@npwt.net>
 
-  77..1199..  bbaassee//mmiisscc//sshhaarreedd..cc IInnffoorrmmaattiioonn
+  77..2200..  bbaassee//mmiisscc//sshhaarreedd..cc IInnffoorrmmaattiioonn
 
   Memory areas needed to be shared between the DOSEMU process and other
   clients.
 
-  77..2200..  FFuunnccttiioonnss iinn bbaassee//mmiisscc//sshhaarreedd..cc
+  77..2211..  FFuunnccttiioonnss iinn bbaassee//mmiisscc//sshhaarreedd..cc
 
   These are the functions defined in base/misc/shared.c.
 
-  77..2200..11..  sshhaarreedd__qqff__mmeemmoorryy__iinniitt
+  77..2211..11..  sshhaarreedd__qqff__mmeemmoorryy__iinniitt
 
   Setup all memory areas to be shared with clients.
 
-  77..2211..  RReemmaarrkkss iinn bbaassee//mmiisscc//sshhaarreedd..cc
+  77..2222..  RReemmaarrkkss iinn bbaassee//mmiisscc//sshhaarreedd..cc
 
   Set to 0 all client request area
 
@@ -2168,7 +2201,7 @@
 
   Output info required for client activity
 
-  77..2222..  bbaassee//mmiisscc//ddooss22lliinnuuxx..cc IInnffoorrmmaattiioonn
+  77..2233..  bbaassee//mmiisscc//ddooss22lliinnuuxx..cc IInnffoorrmmaattiioonn
 
   This file contains a simple system for passing information through to
   DOSEMU from the Linux side. It does not allow dynamic message passing,
@@ -2183,11 +2216,11 @@
   GET_USER_ENVVAR the string also contains the name of the environment
   variable to interrogate.  (The string is overwritten with the reply).
 
-  77..2233..  FFuunnccttiioonnss iinn bbaassee//mmiisscc//ddooss22lliinnuuxx..cc
+  77..2244..  FFuunnccttiioonnss iinn bbaassee//mmiisscc//ddooss22lliinnuuxx..cc
 
   These are the functions defined in base/misc/dos2linux.c.
 
-  77..2233..11..  rruunn__uunniixx__ccoommmmaanndd
+  77..2244..11..  rruunn__uunniixx__ccoommmmaanndd
 
   Runs a command and prints the (stdout and stderr) output on the dosemu
   screen.
@@ -2198,17 +2231,17 @@
 
   +o  buffer - string with command to execute
 
-  77..2244..  bbaassee//mmiisscc//iiooccttll..cc IInnffoorrmmaattiioonn
+  77..2255..  bbaassee//mmiisscc//iiooccttll..cc IInnffoorrmmaattiioonn
 
-  77..2255..  FFuunnccttiioonnss iinn bbaassee//mmiisscc//iiooccttll..cc
+  77..2266..  FFuunnccttiioonnss iinn bbaassee//mmiisscc//iiooccttll..cc
 
   These are the functions defined in base/misc/ioctl.c.
 
-  77..2255..11..  iioo__sseelleecctt__iinniitt
+  77..2266..11..  iioo__sseelleecctt__iinniitt
 
   Initialize fd_sets to NULL for both SIGIO and NON-SIGIO.
 
-  77..2255..22..  aadddd__ttoo__iioo__sseelleecctt
+  77..2266..22..  aadddd__ttoo__iioo__sseelleecctt
 
   Arguments are:
 
@@ -2218,7 +2251,8 @@
 
      Add file handle to one of 2 select FDS_SET's depending on whether
      the kernel can handle SIGIO.
-  77..2255..33..  rreemmoovvee__ffrroomm__iioo__sseelleecctt
+
+  77..2266..33..  rreemmoovvee__ffrroomm__iioo__sseelleecctt
 
   Arguments are:
 
@@ -2229,30 +2263,30 @@
      Remove a file handle from one of 2 select FDS_SET's depending on
      whether the kernel can handle SIGIO.
 
-  77..2266..  bbaassee//ddeevv//mmiisscc//ccmmooss..cc IInnffoorrmmaattiioonn
+  77..2277..  bbaassee//ddeevv//mmiisscc//ccmmooss..cc IInnffoorrmmaattiioonn
 
-  77..2277..  bbaassee//ddeevv//mmiisscc//llpptt..cc IInnffoorrmmaattiioonn
+  77..2288..  bbaassee//ddeevv//mmiisscc//llpptt..cc IInnffoorrmmaattiioonn
 
-  77..2288..  FFuunnccttiioonnss iinn bbaassee//ddeevv//mmiisscc//llpptt..cc
+  77..2299..  FFuunnccttiioonnss iinn bbaassee//ddeevv//mmiisscc//llpptt..cc
 
   These are the functions defined in base/dev/misc/lpt.c.
 
-  77..2288..11..  pprriinntteerr__iinniitt
+  77..2299..11..  pprriinntteerr__iinniitt
 
   Initialize printer control structures
 
-  77..2299..  bbaassee//ddeevv//mmiisscc//ppccii..cc IInnffoorrmmaattiioonn
+  77..3300..  bbaassee//ddeevv//mmiisscc//ppccii..cc IInnffoorrmmaattiioonn
 
-  77..3300..  FFuunnccttiioonnss iinn bbaassee//ddeevv//mmiisscc//ppccii..cc
+  77..3311..  FFuunnccttiioonnss iinn bbaassee//ddeevv//mmiisscc//ppccii..cc
 
   These are the functions defined in base/dev/misc/pci.c.
 
-  77..3300..11..  ppccii__rreeaadd__hheeaaddeerr
+  77..3311..11..  ppccii__rreeaadd__hheeaaddeerr
 
   Use standard 32-bit (type 1) access method to read PCI configuration
   space data
 
-  77..3300..22..  ppccii__rreeaadd__hheeaaddeerr
+  77..3311..22..  ppccii__rreeaadd__hheeaaddeerr
 
   32-bit I/O port output on PCI ports (0xcf8=addr,0xcfc=data)
   Optimization: trap the config writes (outd 0xcf8 with bit31=1).  Since
@@ -2260,13 +2294,13 @@
   0xcfc, we can just set it as pending and merge it with the following
   operation, saving two calls to priv_iopl().
 
-  77..3300..33..  ppccii__rreeaadd__hheeaaddeerr
+  77..3311..33..  ppccii__rreeaadd__hheeaaddeerr
 
   Register standard PCI ports 0xcf8-0xcff
 
-  77..3311..  iinncclluuddee//ddoosshheellppeerrss..hh IInnffoorrmmaattiioonn
+  77..3322..  iinncclluuddee//ddoosshheellppeerrss..hh IInnffoorrmmaattiioonn
 
-  77..3322..  RReemmaarrkkss iinn iinncclluuddee//ddoosshheellppeerrss..hh
+  77..3333..  RReemmaarrkkss iinn iinncclluuddee//ddoosshheellppeerrss..hh
 
   The Helper Interrupt uses the following groups:
 
@@ -2359,83 +2393,165 @@
 
   88..88..  eemmuu--ii338866//ffaakkee__ccppuu..cc IInnffoorrmmaattiioonn
 
-  Contains the functions to fake the stack push's & pop's
-
-  88..99..  eemmuu--ii338866//ppoorrttssss..cc IInnffoorrmmaattiioonn
+  88..99..  eemmuu--ii338866//nn__ppoorrttss..cc IInnffoorrmmaattiioonn
 
   This is the code that allows and disallows port access within DOSEMU.
-  The BOCHS port IO code was actually very cleverly done.  So I stole
-  the idea.
+  The BOCHS port IO code was actually very cleverly done.  So the idea
+  was stolen from there.
 
-  88..1100..  FFuunnccttiioonnss iinn eemmuu--ii338866//ppoorrttssss..cc
+  This port I/O code (previously in portss.c, from Scott Bucholz) is
+  based on a table access instead of a switch statement. This method is
+  much more clean and easy to maintain, while not slower than a switch.
 
-  These are the functions defined in emu-i386/portss.c.
+  Remains of the old code are emerging here and there, they will
+  hopefully be moved back to where they belong, mainly video code.
 
-  88..1100..11..  ppoorrtt__iinnbb((BBiitt3322uu ppoorrtt))
+  88..1100..  FFuunnccttiioonnss iinn eemmuu--ii338866//nn__ppoorrttss..cc
+
+  These are the functions defined in emu-i386/n_ports.c.
+
+  88..1100..11..  ppoorrtt__iinnbb((iiooppoorrtt__tt ppoorrtt))
 
   Handles/simulates an inb() port IO read
 
-  88..1100..22..  ppoorrtt__oouuttbb((BBiitt3322uu ppoorrtt,, BBiitt88uu bbyyttee))
+  88..1100..22..  ppoorrtt__oouuttbb((iiooppoorrtt__tt ppoorrtt,, BBiitt88uu bbyyttee))
 
   Handles/simulates an outb() port IO write
 
-  88..1100..33..  ppoorrtt__iinnww((BBiitt3322uu ppoorrtt))
+  88..1100..33..  ppoorrtt__iinnww((iiooppoorrtt__tt ppoorrtt))
 
   Handles/simulates an inw() port IO read.  Usually this invokes
   port_inb() twice, but it may be necessary to do full word i/o for some
   video boards.
 
-  88..1100..44..  ppoorrtt__oouuttww((BBiitt3322uu ppoorrtt,, BBiitt1166uu wwoorrdd))
+  88..1100..44..  ppoorrtt__oouuttww((iiooppoorrtt__tt ppoorrtt,, BBiitt1166uu wwoorrdd))
 
   Handles/simulates an outw() port IO write
 
-  88..1100..55..  ppoorrtt__iinndd((BBiitt3322uu ppoorrtt))
+  88..1100..55..  ppoorrtt__iinndd((iiooppoorrtt__tt ppoorrtt))
 
-  Handles/simulates an ind() port IO read.  For the moment, this just
-  does port_inw() twice, but it may be necessary to do full dword i/o
-  for some video boards.
+  Handles/simulates an ind()/outd() port IO read/write.
 
-  88..1100..66..  ppoorrtt__oouuttdd((BBiitt3322uu ppoorrtt,, BBiitt3322uu ddwwoorrdd))
+  88..1100..66..  ssppeecciiaall__ppoorrtt__iinnbb,,ssppeecciiaall__ppoorrtt__oouuttbb
 
-  Handles/simulates an outd() port IO write
+  I don't know what to do of this stuff... it was added incrementally to
+  port.c and has mainly to do with video code. This is not the right
+  place for it...  Anyway, this implements some HGC stuff for X
 
-  88..1100..77..  ppoorrtt__iinniitt((vvooiidd))
+  88..1100..77..  ppoorrtt__iinniitt(())
 
-  Resets all the port port_handler information
+  Resets all the port port_handler information.  This must be called
+  before parsing the config file - This must NOT be called again when
+  warm booting!  Can't use debug logging, it is called too early.
 
-  88..1111..  eemmuu--ii338866//ccppuuttiimmee..cc IInnffoorrmmaattiioonn
+  88..1100..88..  eexxttrraa__ppoorrtt__iinniitt(())
+
+  Catch all the special cases previously defined in ports.c mainly video
+  stuff that should be moved away from here This must be called at the
+  end of initialization phase
+
+  NOTE: the order in which these inits are done could be significant!  I
+  tried to keep it the same it was in ports.c but this code surely can
+  still have bugs
+
+  88..1100..99..  ppoorrtt__rreeggiisstteerr__hhaannddlleerr
+
+  Assigns a handle in the port table to a range of ports with or without
+  a device, and registers the ports
+
+  88..1100..1100..  ppoorrtt__aallllooww__iioo
+
+  88..1100..1111..  sseett__iiooppeerrmm
+
+  wrapper for the ioperm() syscall, returns -1 if port>=0x400
+
+  88..1111..  RReemmaarrkkss iinn eemmuu--ii338866//nn__ppoorrttss..cc
+
+   PORT_DEBUG is to specify whether to record port writes to debug output.
+     0 means disabled.
+     1 means record all port accesses to 0x00 to 0xFF
+     2 means record ANY port accesses!  (big fat debugfile!)
+     3 means record all port accesses >= 0x100
+
+  -----
+
+  The following port_{in|out}{bwd} functions are the main entry points
+  to the port code. They look into the port_handle_table and call the
+  appropriate code, usually the std_port_ functions, but each device is
+  free to register its own functions which in turn will call std_port or
+  directly access I/O (like video code does), or emulate it - AV
+
+  -----
+
+  optimized versions for rep - basically we avoid changing privileges
+  and iopl on and off lots of times. We are safe letting iopl=3 here
+  since we don't exit from this code until finished.  This code is
+  shared between VM86 and DPMI.
+
+  -----
+
+  find out whether the port address request is available; this way, try
+  to deny uncoordinated access
+
+  If it is not listed in /proc/ioports, register them (we need some
+  syscall to do so bo 960609)...  (we have a module to do so AV 970813)
+  if it is registered, we need the name of a device to open if we can't
+  open it, we disallow access to that port
+
+  -----
+
+  We need to check if our required port range is in use by some device.
+  So we look into proc/ioports to check the addresses. Fine, but at this
+  point we must supply a device name ourselves, and we can't check from
+  here if it's the right one. The device is then open and left open
+  until dosemu ends; for the rest, in the original code the device
+  wasn't used, just locked, and only then port access was granted.
+
+  88..1122..  IItteemmss ffoorr FFiixxiinngg iinn eemmuu--ii338866//nn__ppoorrttss..cc
+
+  This stuff should be moved to video code!!
+
+  -----
+
+  this code needs to be removed - it collides with vgaemu
+
+  -----
+
+  we should free the name but we are going to exit anyway
+
+  88..1133..  eemmuu--ii338866//ccppuuttiimmee..cc IInnffoorrmmaattiioonn
 
   Maintainers:
 
-  88..1122..  FFuunnccttiioonnss iinn eemmuu--ii338866//ccppuuttiimmee..cc
+  88..1144..  FFuunnccttiioonnss iinn eemmuu--ii338866//ccppuuttiimmee..cc
 
   These are the functions defined in emu-i386/cputime.c.
 
-  88..1122..11..  GGEETTccppuuTTIIMMEE
+  88..1144..11..  GGEETTccppuuTTIIMMEE
 
   GETcpuTIME is a pointer to a function which returns the relative CPU
   time. Different methods of getting the time can then be implemented,
   currently there are two using gettimeofday() for 486 and TSC for
   pentium
 
-  88..1122..22..  GGEETTuussTTIIMMEE((sscc))
+  88..1144..22..  GGEETTuussTTIIMMEE((sscc))
 
   GETusTIME returns the DOS ('stretched') time with 1-usec resolution
   using GETcpuTIME to get the implementation-dependent CPU time.  The
   'sc' parameter controls the granularity of the stretching algorithm
   (not yet there, see the docs)
 
-  88..1122..33..  GGEETTttiicckkTTIIMMEE((sscc))
+  88..1144..33..  GGEETTttiicckkTTIIMMEE((sscc))
 
   GETtickTIME returns the DOS (stretched) time with 838ns resolution
   using GETcpuTIME to get the implementation-dependent CPU time.  The
   'sc' parameter works like in GETusTIME.
 
-  88..1122..44..  GGEETTuussSSYYSSTTIIMMEE(())
+  88..1144..44..  GGEETTuussSSYYSSTTIIMMEE(())
 
   GETusSYSTIME returns the real CPU time with 1-usec resolution
 
-  88..1133..  RReemmaarrkkss iinn eemmuu--ii338866//ccppuuttiimmee..cc
+  88..1155..  RReemmaarrkkss iinn eemmuu--ii338866//ccppuuttiimmee..cc
 
   At the heart of the timing system in dosemu >= 0.67.11 is the
   availability of the system time as a 64-bit [type hitimer_t] monoton
@@ -2519,7 +2635,6 @@
   You must recompile dosemu everytime one of these constants are
   modified.  Just type 'make' in the dosemu dir and it will recompile
   the changes only.
-
   -----
 
   IMPORTANT INFO about com[] variable array structure used in serial.c
@@ -2687,7 +2802,6 @@
   certain point.   However, it should be self-compensating if it
   executes 10 times or even 1000 times per second.   Serial performance
   increases with frequency of execution of serial_run.
-
   Serial mouse performance becomes more smooth if the time between calls
   to serial_run are smaller.
 
@@ -2861,6 +2975,7 @@
   flag (+, -, or blank) current interrupt level interrupt in-service
   register interrupt mask register interrupt request register message
   part one decimal data value message part two
+
   If the message part 2 pointer is a null pointer, then only message
   part one (without the data value) is printed.
 
@@ -3402,7 +3517,6 @@
   valloc().  However, you can't free that memory later. For this purpose
   you may use the below functions, which are put on top of
   malloc()/free().
-
   void *page_malloc(size_t size)
 
   void page_free(void *ptr)
@@ -3634,6 +3748,7 @@
   It may be necessary to scan data of all running threads or doing
   something special like notifying e.t.c. To acomplish this you should
   use the macro FOR_ALL_TCB such as
+
    struct tcb *tcb;
    int id;
    FOR_ALL_TCB(id,tcb) {
@@ -3769,7 +3884,6 @@
 
   DANG_BEGIN_REMARK / DANG_END_REMARK This brackets descriptions of
   obscure items, like data structures and architecture.
-
   DANG_FIXTHIS This is a one line item, indicating a an area requiring a
   fix, or redesign.
 

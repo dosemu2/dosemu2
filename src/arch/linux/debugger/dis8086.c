@@ -331,11 +331,11 @@ int  dis_8086(unsigned int org,
 	      int def_size,
 	      unsigned int * refseg,
 	      unsigned int * refoff,
-	      int refsegbase)
+	      int refsegbase, int nlines)
 {
+  static char seg[32];
   const unsigned char *code0 = code;
   FILE *out = 0;
-  const char *seg = "";
   int data32 = def_size;
   int addr32 = def_size;
   int prefix = 0;
@@ -343,13 +343,14 @@ int  dis_8086(unsigned int org,
 
   linebuf = outbuf;
   memset(linebuf, 0x00, IBUFS);
+  *seg = 0;
 
   #define SEG16REL(x) ((x)- ( refsegbase ? refsegbase : (*refseg<<4) ) )
   #define SEG32REL(x) ((x)- refsegbase)
   refaddr = refoff;
   *refaddr = 0;
 
-  for(i=0;i<16;i++)
+  for(i=0;i<nlines;i++)
     {
       unsigned char opcode;
       register const char **wreg = data32 ? reg32 : reg16;
@@ -682,8 +683,8 @@ int  dis_8086(unsigned int org,
 	  break;
 
 	case 0x26:
-	  seg = "es:";
-	  prefix = 1;
+	  strcat(seg,"es:");
+	  prefix = 1; i--;
 	  continue;
 
 	case 0x27:
@@ -691,8 +692,8 @@ int  dis_8086(unsigned int org,
 	  break;
 
 	case 0x2e:
-	  seg = "cs:";
-	  prefix = 1;
+	  strcat(seg,"cs:");
+	  prefix = 1; i--;
 	  continue;
 
 	case 0x2f:
@@ -700,8 +701,8 @@ int  dis_8086(unsigned int org,
 	  break;
 
 	case 0x36:
-	  seg = "ss:";
-	  prefix = 1;
+	  strcat(seg,"ss:");
+	  prefix = 1; i--;
 	  continue;
 
 	case 0x37:
@@ -709,8 +710,8 @@ int  dis_8086(unsigned int org,
 	  break;
 
 	case 0x3e:
-	  seg = "ds:";
-	  prefix = 1;
+	  strcat(seg,"ds:");
+	  prefix = 1; i--;
 	  continue;
 
 	case 0x3f:
@@ -780,23 +781,25 @@ int  dis_8086(unsigned int org,
 	  break;
 
 	case 0x64:
-	  seg = "fs:";
-	  prefix = 1;
+	  strcat(seg,"fs:");
+	  prefix = 1; i--;
 	  continue;
 
 	case 0x65:
-	  seg = "gs:";
-	  prefix = 1;
+	  strcat(seg,"gs:");
+	  prefix = 1; i--;
 	  continue;
 
 	case 0x66:
 	  data32 = !data32;
-	  prefix = 1;
+	  strcat(seg,(data32? "data32:":"data16:"));
+	  prefix = 1; i--;
 	  continue;
 
 	case 0x67:
 	  addr32 = !addr32;
-	  prefix = 1;
+	  strcat(seg,(addr32? "addr32:":"addr16"));
+	  prefix = 1; i--;
 	  continue;
 
 	case 0x68:
@@ -1110,7 +1113,7 @@ int  dis_8086(unsigned int org,
 	  break;
 
 	case 0xad:
-	  d86_printf("lods%c %s[%s]", data32 ? 'd' : 'c', seg,
+	  d86_printf("lods%c %s[%s]", data32 ? 'd' : 'w', seg,
 		  addr32 ? "esi" : "si");
 	  break;
 
@@ -1489,7 +1492,7 @@ int  dis_8086(unsigned int org,
 	  d86_printf("%x", opcode);
 	  break;
 	}
-      seg = "";
+      *seg = 0;
       data32 = def_size;
       addr32 = def_size;
       prefix = 0;

@@ -3,7 +3,7 @@
 
 <title> The DOSEMU Alterer Novices Guide
 <author> Author: Alistair MacDonald, <tt/alistair\@slitesys.demon.co.uk/
-<date> version dosemu-0.67.12.2
+<date> version dosemu-0.67.14
 <abstract>
 This Document is the DOSEMU Alterer Novices Guide. It is known as the DANG.
 </abstract>
@@ -1850,6 +1850,25 @@ These are the functions defined in base/async/int.c.
  
 
 
+<sect1>Remarks in base/async/int.c
+
+<p>
+ Some video BIOSes need access to the PIT timer 2, and some
+ (e.g. Matrox) directly read the timer output on port 0x61.
+ If we don't allow video port access, this will be totally
+ emulated; else, we give temporary access to the needed ports
+ (timer at 0x42, timer config at 0x43 and timer out/speaker at 0x61),
+ provided they were not previously enabled by SPKR_NATIVE - AV
+ 
+-----
+
+ Many video BIOSes use hi interrupt vector locations as
+ scratchpad area - this is because they come before DOS and feel
+ safe to do it. But we are initializing vectors before video, so
+ this only causes trouble. I assume no video BIOS will ever:
+ - change vectors &lt; 0xe0 (0:380-0:3ff area)
+ - change anything in the vector area _after_ installation - AV
+ 
 <sect1>include/int.h Information
 
 <p>
@@ -2482,91 +2501,210 @@ These are the functions defined in emu-i386/do_vm86.c.
 <sect1>emu-i386/fake_cpu.c Information
 
 <p>
- Contains the functions to fake the stack push's &amp; pop's
-<sect1>emu-i386/portss.c Information
+<sect1>emu-i386/n_ports.c Information
 
 <p>
  This is the code that allows and disallows port access within DOSEMU.
- The BOCHS port IO code was actually very cleverly done.  So I stole
- the idea.
-<sect1>Functions in emu-i386/portss.c
+ The BOCHS port IO code was actually very cleverly done.  So the idea
+ was stolen from there.
+
+ This port I/O code (previously in portss.c, from Scott Bucholz) is based on
+ a table access instead of a switch statement. This method is much more
+ clean and easy to maintain, while not slower than a switch.
+
+ Remains of the old code are emerging here and there, they will
+ hopefully be moved back to where they belong, mainly video code.
+<sect1>Functions in emu-i386/n_ports.c
 
 <p>
-These are the functions defined in emu-i386/portss.c.
+These are the functions defined in emu-i386/n_ports.c.
 
-<sect2>port_inb(Bit32u port)
-
-
-<p>
- 
-   Handles/simulates an inb() port IO read
-
- 
-
-
-<sect2>port_outb(Bit32u port, Bit8u byte)
+<sect2>port_inb(ioport_t port)
 
 
 <p>
  
-   Handles/simulates an outb() port IO write
+ Handles/simulates an inb() port IO read
 
  
 
 
-<sect2>port_inw(Bit32u port)
+<sect2>port_outb(ioport_t port, Bit8u byte)
 
 
 <p>
  
-   Handles/simulates an inw() port IO read.  Usually this invokes
-   port_inb() twice, but it may be necessary to do full word i/o for
-   some video boards.
+ Handles/simulates an outb() port IO write
 
  
 
 
-<sect2>port_outw(Bit32u port, Bit16u word)
+<sect2>port_inw(ioport_t port)
 
 
 <p>
  
-   Handles/simulates an outw() port IO write
+ Handles/simulates an inw() port IO read.  Usually this invokes
+ port_inb() twice, but it may be necessary to do full word i/o for
+ some video boards.
 
  
 
 
-<sect2>port_ind(Bit32u port)
+<sect2>port_outw(ioport_t port, Bit16u word)
 
 
 <p>
  
-   Handles/simulates an ind() port IO read.  For the moment, this just
-   does port_inw() twice, but it may be necessary to do full dword i/o for
-   some video boards.
+ Handles/simulates an outw() port IO write
 
  
 
 
-<sect2>port_outd(Bit32u port, Bit32u dword)
+<sect2>port_ind(ioport_t port)
 
 
 <p>
  
-   Handles/simulates an outd() port IO write
+ Handles/simulates an ind()/outd() port IO read/write.
 
  
 
 
-<sect2>port_init(void)
+<sect2>special_port_inb,special_port_outb
 
 
 <p>
  
-   Resets all the port port_handler information
+ I don't know what to do of this stuff... it was added incrementally to
+ port.c and has mainly to do with video code. This is not the right
+ place for it...
+ Anyway, this implements some HGC stuff for X
 
  
 
+
+<sect2>port_init()
+
+
+<p>
+ 
+ Resets all the port port_handler information.
+ This must be called before parsing the config file -
+ This must NOT be called again when warm booting!
+ Can't use debug logging, it is called too early.
+
+ 
+
+
+<sect2>extra_port_init()
+
+
+<p>
+ 
+ Catch all the special cases previously defined in ports.c
+ mainly video stuff that should be moved away from here
+ This must be called at the end of initialization phase
+
+ NOTE: the order in which these inits are done could be significant!
+   I tried to keep it the same it was in ports.c but this code surely
+   can still have bugs
+
+ 
+
+
+<sect2>port_register_handler
+
+
+<p>
+ 
+ Assigns a handle in the port table to a range of ports with or
+ without a device, and registers the ports
+
+ 
+
+
+<sect2>port_allow_io
+
+
+<p>
+ 
+
+ 
+
+
+<sect2>set_ioperm
+
+
+<p>
+ 
+ wrapper for the ioperm() syscall, returns -1 if port&gt;=0x400
+
+ 
+
+
+<sect1>Remarks in emu-i386/n_ports.c
+
+<p>
+<p><verb>
+ PORT_DEBUG is to specify whether to record port writes to debug output.
+   0 means disabled.
+   1 means record all port accesses to 0x00 to 0xFF
+   2 means record ANY port accesses!  (big fat debugfile!)
+   3 means record all port accesses >= 0x100
+</verb>
+ 
+-----
+
+ The following port_{in|out}{bwd} functions are the main entry points to
+ the port code. They look into the port_handle_table and call the
+ appropriate code, usually the std_port_ functions, but each device is
+ free to register its own functions which in turn will call std_port or
+ directly access I/O (like video code does), or emulate it - AV
+ 
+ 
+-----
+
+ optimized versions for rep - basically we avoid changing privileges
+ and iopl on and off lots of times. We are safe letting iopl=3 here
+ since we don't exit from this code until finished.
+ This code is shared between VM86 and DPMI.
+ 
+ 
+-----
+
+ find out whether the port address request is available;
+ this way, try to deny uncoordinated access
+ 
+ If it is not listed in /proc/ioports, register them 
+ (we need some syscall to do so bo 960609)...
+ (we have a module to do so AV 970813)
+ if it is registered, we need the name of a device to open
+ if we can't open it, we disallow access to that port
+ 
+-----
+
+ We need to check if our required port range is in use
+ by some device. So we look into proc/ioports to check
+ the addresses. Fine, but at this point we must supply
+ a device name ourselves, and we can't check from here
+ if it's the right one. The device is then open and left
+ open until dosemu ends; for the rest, in the original
+ code the device wasn't used, just locked, and only then
+ port access was granted.
+ 
+<sect1>Items for Fixing in emu-i386/n_ports.c
+
+<p>
+ This stuff should be moved to video code!!
+
+-----
+
+ this code needs to be removed - it collides with vgaemu
+
+-----
+
+ we should free the name but we are going to exit anyway
 
 <sect1>emu-i386/cputime.c Information
 

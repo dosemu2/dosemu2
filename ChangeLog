@@ -1,3 +1,12 @@
+97/10/24 ver. 0.67.14 released
+	From Alberto
+	- prep for cpuemu in src/arch/linux/debugger/{dis8086.c,mhpdbgc.c}
+	- isolated log-printf stuff in headers to avoid name clashes for
+	  cpuemu: new file src/include/dosemu_debug.h
+	- fixed bug/typo in src/include/vgaemu.h: vga_emu_fault was passing
+	  wrong arg.
+	From Hans
+	- adapted DANG_CONF, DANG and docs recompile
 97/10/23 ver. 0.67.13.2 unofficial pre-release
 	From Alberto
 	- fix for Matrox _and_ 'speaker non-native', lots of port61 fixes.
