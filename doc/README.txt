@@ -444,19 +444,9 @@ ge
    explicitely to overcome eventual problems. For this you can specify
          $_mapping= "mapfile"
 
-   to force the use of the driver, which uses a temporary file. Or on
-   kernels up to 2.2.23 and up to 2.3.27.
-         $_mapping= "mapself"
+   to force the use of the driver, which uses a temporary file.
 
-   to use mapping on the /proc/self/mem file, which is a lot faster the
-   the `mapfile' driver, but maybe not reliable in conjunction with glibc
-   (NOTE: the kernel since ages has bugs on /proc/self/mem mapping and
-   our workaround doesn't fit exactly together glibc). Kernel 2.2.24
-   dropped /proc/self/mem mapping because of security issues; kernel
-   2.3.28 dropped it because of its inherent problems.
-
-   Last but not least, if you are using a kernel above 2.3.40, you may
-   use
+   If you are using a kernel above 2.3.40, you may use
 
       $_mapping= "mapshm"
 

@@ -247,13 +247,6 @@ void priv_init(void)
     {
       skip_priv_setting = 1;
     }
-  else if (!under_root_login)
-    {
-      /* we must open /proc/self/mem before dropping privs.
-         it will then be closed if the mapfile or mapshm driver 
-         is used */
-      mappingdriver_self.open(MAPPING_PROBE);
-    }
 
   num_groups = getgroups(0,0);
   groups = malloc(num_groups * sizeof(gid_t));

@@ -347,7 +347,6 @@ description "Select the prefered mapping driver"
     "automatic detection" auto
     "use a temporary map file" mapfile
     "use IPCshm/mremap (kernels > 2.3.37)" mapshm
-    "use /proc/self/mem mapping (kernels <= 2.2.x)" mapself
   }
 }
 

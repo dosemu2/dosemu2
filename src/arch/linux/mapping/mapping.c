@@ -56,15 +56,7 @@ static int init_done = 0;
 
 static struct mappingdrivers *mappingdrv[] = {
   &mappingdriver_shm,
-  /* 
-   * It turns out, that binaries produced by gcc > 2.7.x and/or those
-   * linked against glibc are prone to break our /proc/self/mem kludge
-   * (gcc-2.7.2/libc5 binaries worked fine in here).
-   * Therefor we prefer the mapfile driver for those binaries.
-   * For Linux 2.3.x the problem won't exist anyway.  --Hans 2000/02/27
-   */
   &mappingdriver_file,
-  &mappingdriver_self,
   0
 };
 

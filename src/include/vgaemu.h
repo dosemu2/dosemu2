@@ -264,7 +264,6 @@ typedef struct {
   unsigned char *base;			/* base address of VGA memory */
   unsigned size;			/* size of memory in bytes */
   unsigned pages;			/* dto in pages */
-  int fd;				/* file descriptor for "/proc/self/mem" */
   unsigned lfb_base_page;		/* lfb base page, 0 -> no lfb support */
   unsigned scratch_page;		/* for unmapped areas */
   vga_mapping_type map[VGAEMU_MAX_MAPPINGS];	/* all the mappings */

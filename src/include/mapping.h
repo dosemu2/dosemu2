@@ -86,7 +86,6 @@ struct mappingdrivers {
 EXTERN struct mappingdrivers mappingdriver INIT({0});
 char *decode_mapping_cap(int cap);
 
-extern struct mappingdrivers mappingdriver_self;
 extern struct mappingdrivers mappingdriver_file;
 extern struct mappingdrivers mappingdriver_shm;
 
