@@ -676,7 +676,10 @@ leavedos(int sig)
     /* remove per process tmpdir and its contents */
     {
        char *command = strcatdup("rm -rf >/dev/null 2>&1 ", TMPDIR_PROCESS);
-       if (command) run_unix_command(command); /* beware of system() !! */
+       if (command) {
+          priv_drop(); /* drop any priviledges before running system() !! */
+          system(command);
+       }
     }
 
 #ifdef USE_THREADS

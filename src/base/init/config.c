@@ -327,55 +327,66 @@ config_defaults(void)
     memset(config.features, 0, sizeof(config.features));
 }
 
-void dump_config_status(void)
+static void dump_printf(char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+}
+
+void dump_config_status(void *printfunc)
 {
     char *s;
-    FILE *out = stderr;
+    void (*print)(char *, ...) = (printfunc ? printfunc : dump_printf);
 
-    fprintf(out, "\n-------------------------------------------------------------\n");
-    fprintf(out, "------dumping the runtime configuration _after_ parsing -----\n");
-    fprintf(out, "Version: dosemu-" VERSTR " versioncode = 0x%08x\n\n", DOSEMU_VERSION_CODE);
-    fprintf(out, "cpu ");
+    if (!printfunc) {
+      (*print)("\n-------------------------------------------------------------\n");
+      (*print)("------dumping the runtime configuration _after_ parsing -----\n");
+    }
+    else (*print)("dumping the current runtime configuration:\n");
+    (*print)("Version: dosemu-" VERSTR " versioncode = 0x%08x\n\n", DOSEMU_VERSION_CODE);
+    (*print)("cpu ");
     switch (vm86s.cpu_type) {
       case CPU_386: s = "386"; break;
       case CPU_486: s = "486"; break;
       case CPU_586: s = "586"; break;
       default:  s = "386"; break;
     }
-    fprintf(out, "%s\nrealcpu ", s);
+    (*print)("%s\nrealcpu ", s);
     switch (config.realcpu) {
       case CPU_386: s = "386"; break;
       case CPU_486: s = "486"; break;
       case CPU_586: s = "586"; break;
       default:  s = "386"; break;
     }
-    fprintf(out, "%s\n", s);
-    fprintf(out, "CPUclock %gMHz\ncpu_spd 0x%lx\ncpu_tick_spd 0x%lx\n",
+    (*print)("%s\n", s);
+    (*print)("CPUclock %gMHz\ncpu_spd 0x%lx\ncpu_tick_spd 0x%lx\n",
 	(((double)LLF_US)/config.cpu_spd), config.cpu_spd, config.cpu_tick_spd);
 
-    fprintf(out, "pci %d\nrdtsc %d\nmathco %d\nsmp %d\n",
+    (*print)("pci %d\nrdtsc %d\nmathco %d\nsmp %d\n",
                  config.pci, config.rdtsc, config.mathco, config.smp);
 #ifdef X86_EMULATOR
-    fprintf(out, "emuspeed %d\ncpuemu %d\n", config.emuspeed, config.cpuemu);
+    (*print)("emuspeed %d\ncpuemu %d\n", config.emuspeed, config.cpuemu);
 #endif
 
-    fprintf(out, "hdiskboot %d\nmem_size %d\n",
+    (*print)("hdiskboot %d\nmem_size %d\n",
         config.hdiskboot, config.mem_size);
-    fprintf(out, "ems_size 0x%x\nems_frame 0x%x\nsecure %d\n",
+    (*print)("ems_size 0x%x\nems_frame 0x%x\nsecure %d\n",
         config.ems_size, config.ems_frame, config.secure);
-    fprintf(out, "xms_size 0x%x\nmax_umb 0x%x\ndpmi 0x%x\n",
+    (*print)("xms_size 0x%x\nmax_umb 0x%x\ndpmi 0x%x\n",
         config.xms_size, config.max_umb, config.dpmi);
-    fprintf(out, "mouse_flag %d\nmapped_bios %d\nvbios_file %s\n",
+    (*print)("mouse_flag %d\nmapped_bios %d\nvbios_file %s\n",
         config.mouse_flag, config.mapped_bios, (config.vbios_file ? config.vbios_file :""));
-    fprintf(out, "vbios_copy %d\nvbios_seg 0x%x\nvbios_size 0x%x\n",
+    (*print)("vbios_copy %d\nvbios_seg 0x%x\nvbios_size 0x%x\n",
         config.vbios_copy, config.vbios_seg, config.vbios_size);
-    fprintf(out, "console %d\nconsole_keyb %d\nconsole_video %d\n",
+    (*print)("console %d\nconsole_keyb %d\nconsole_video %d\n",
         config.console, config.console_keyb, config.console_video);
-    fprintf(out, "kbd_tty %d\nexitearly %d\n",
+    (*print)("kbd_tty %d\nexitearly %d\n",
         config.kbd_tty, config.exitearly);
-    fprintf(out, "fdisks %d\nhdisks %d\nbootdisk %d\n",
+    (*print)("fdisks %d\nhdisks %d\nbootdisk %d\n",
         config.fdisks, config.hdisks, config.bootdisk);
-    fprintf(out, "term_esc_char 0x%x\nterm_color %d\nterm_updatefreq %d\n",
+    (*print)("term_esc_char 0x%x\nterm_color %d\nterm_updatefreq %d\n",
         config.term_esc_char, config.term_color, config.term_updatefreq);
     switch (config.term_charset) {
       case CHARSET_LATIN: s = "latin"; break;
@@ -385,23 +396,23 @@ void dump_config_status(void)
       case CHARSET_FULLIBM: s = "fullibm"; break;
       default: s = "(unknown)";
     }
-    fprintf(out, "term_charset \"%s\"\nX_updatelines %d\nX_updatefreq %d\n",
+    (*print)("term_charset \"%s\"\nX_updatelines %d\nX_updatefreq %d\n",
         s, config.X_updatelines, config.X_updatefreq);
-    fprintf(out, "X_display \"%s\"\nX_title \"%s\"\nX_icon_name \"%s\"\n",
+    (*print)("X_display \"%s\"\nX_title \"%s\"\nX_icon_name \"%s\"\n",
         (config.X_display ? config.X_display :""), config.X_title, config.X_icon_name);
-    fprintf(out, "X_blinkrate %d\nX_sharecmap %d\nX_mitshm %d\n",
+    (*print)("X_blinkrate %d\nX_sharecmap %d\nX_mitshm %d\n",
         config.X_blinkrate, config.X_sharecmap, config.X_mitshm);
-    fprintf(out, "X_fixed_aspect %d\nX_aspect_43 %d\nX_lin_filt %d\n",
+    (*print)("X_fixed_aspect %d\nX_aspect_43 %d\nX_lin_filt %d\n",
         config.X_fixed_aspect, config.X_aspect_43, config.X_lin_filt);
-    fprintf(out, "X_bilin_filt %d\nX_mode13fact %d\nX_winsize_x %d\n",
+    (*print)("X_bilin_filt %d\nX_mode13fact %d\nX_winsize_x %d\n",
         config.X_bilin_filt, config.X_mode13fact, config.X_winsize_x);
-    fprintf(out, "X_winsize_y %d\nX_gamma %d\nvgaemu_memsize 0x%x\n",
+    (*print)("X_winsize_y %d\nX_gamma %d\nvgaemu_memsize 0x%x\n",
         config.X_winsize_y, config.X_gamma, config.vgaemu_memsize);
-    fprintf(out, "vesamode_list %p\nX_lfb %d\nX_pm_interface %d\n",
+    (*print)("vesamode_list %p\nX_lfb %d\nX_pm_interface %d\n",
         config.vesamode_list, config.X_lfb, config.X_pm_interface);
-    fprintf(out, "X_keycode %d\nX_font \"%s\"\nusesX %d\n",
+    (*print)("X_keycode %d\nX_font \"%s\"\nusesX %d\n",
         config.X_keycode, config.X_font, config.usesX);
-    fprintf(out, "X_mgrab_key \"%s\"\n",  config.X_mgrab_key);
+    (*print)("X_mgrab_key \"%s\"\n",  config.X_mgrab_key);
     switch (config.chipset) {
       case PLAINVGA: s = "plainvga"; break;
       case TRIDENT: s = "trident"; break;
@@ -415,7 +426,7 @@ void dump_config_status(void)
       case WDVGA: s = "wdvga"; break;
       default: s = "unknown"; break;
     }
-    fprintf(out, "config.X %d\nhogthreshold %d\nchipset \"%s\"\n",
+    (*print)("config.X %d\nhogthreshold %d\nchipset \"%s\"\n",
         config.X, config.hogthreshold, s);
     switch (config.cardtype) {
       case CARD_VGA: s = "VGA"; break;
@@ -424,9 +435,9 @@ void dump_config_status(void)
       case CARD_EGA: s = "EGA"; break;
       default: s = "unknown"; break;
     }
-    fprintf(out, "cardtype \"%s\"\npci_video %d\nfullrestore %d\n",
+    (*print)("cardtype \"%s\"\npci_video %d\nfullrestore %d\n",
         s, config.pci_video, config.fullrestore);
-    fprintf(out, "graphics %d\ngfxmemsize %d\nvga %d\n",
+    (*print)("graphics %d\ngfxmemsize %d\nvga %d\n",
         config.graphics, config.gfxmemsize, config.vga);
     switch (config.speaker) {
       case SPKR_OFF: s = "off"; break;
@@ -434,48 +445,48 @@ void dump_config_status(void)
       case SPKR_EMULATED: s = "emulated"; break;
       default: s = "wrong"; break;
     }
-    fprintf(out, "dualmon %d\nforce_vt_switch %d\nspeaker \"%s\"\n",
+    (*print)("dualmon %d\nforce_vt_switch %d\nspeaker \"%s\"\n",
         config.dualmon, config.force_vt_switch, s);
-    fprintf(out, "update %d\nfreq %d\nwantdelta %d\nrealdelta %d\n",
+    (*print)("update %d\nfreq %d\nwantdelta %d\nrealdelta %d\n",
         config.update, config.freq, config.wantdelta, config.realdelta);
-    fprintf(out, "timers %d\nkeybint %d\n",
+    (*print)("timers %d\nkeybint %d\n",
         config.timers, config.keybint);
-    fprintf(out, "tty_lockdir \"%s\"\ntty_lockfile \"%s\"\nconfig.tty_lockbinary %d\n",
+    (*print)("tty_lockdir \"%s\"\ntty_lockfile \"%s\"\nconfig.tty_lockbinary %d\n",
         config.tty_lockdir, config.tty_lockfile, config.tty_lockbinary);
-    fprintf(out, "num_ser %d\nnum_lpt %d\nnum_mice %d\nfastfloppy %d\n",
+    (*print)("num_ser %d\nnum_lpt %d\nnum_mice %d\nfastfloppy %d\n",
         config.num_ser, config.num_lpt, config.num_mice, config.fastfloppy);
-    fprintf(out, "emusys \"%s\"\nemubat \"%s\"\nemuini \"%s\"\n",
+    (*print)("emusys \"%s\"\nemubat \"%s\"\nemuini \"%s\"\n",
         (config.emusys ? config.emusys : ""), (config.emubat ? config.emubat : ""), (config.emuini ? config.emuini : ""));
-    fprintf(out, "dosbanner %d\nallowvideoportaccess %d\ndetach %d\n",
+    (*print)("dosbanner %d\nallowvideoportaccess %d\ndetach %d\n",
         config.dosbanner, config.allowvideoportaccess, config.detach);
-    fprintf(out, "debugout \"%s\"\n",
+    (*print)("debugout \"%s\"\n",
         (config.debugout ? config.debugout : (unsigned char *)""));
     {
 	char buf[256];
 	GetDebugFlagsHelper(buf, 0);
-	fprintf(out, "debug_flags \"%s\"\n", buf);
+	(*print)("debug_flags \"%s\"\n", buf);
     }
     {
       extern void dump_keytable(FILE *f, struct keytable_entry *kt);
-      dump_keytable(out, config.keytable);
+      if (!printfunc) dump_keytable(stderr, config.keytable);
     }
-    fprintf(out, "pre_stroke \"%s\"\n", (config.pre_stroke ? config.pre_stroke : (unsigned char *)""));
-    fprintf(out, "irqpassing= ");
+    (*print)("pre_stroke \"%s\"\n", (config.pre_stroke ? config.pre_stroke : (unsigned char *)""));
+    (*print)("irqpassing= ");
     if (config.sillyint) {
       int i;
       for (i=0; i <16; i++) {
         if (config.sillyint & (1<<i)) {
-          fprintf(out, "IRQ%d", i);
+          (*print)("IRQ%d", i);
           if (config.sillyint & (0x10000<<i))
-            fprintf(out, "(sigio) ");
+            (*print)("(sigio) ");
           else
-            fprintf(out, " ");
+            (*print)(" ");
         }
       }
-      fprintf(out, "\n");
+      (*print)("\n");
     }
-    else fprintf(out, "none\n");
-    fprintf(out, "must_spare_hardware_ram %d\n",
+    else (*print)("none\n");
+    (*print)("must_spare_hardware_ram %d\n",
         config.must_spare_hardware_ram);
     {
       int need_header_line =1;
@@ -483,15 +494,15 @@ void dump_config_status(void)
       for (i=0; i<(sizeof(config.hardware_pages)); i++) {
         if (config.hardware_pages[i]) {
           if (need_header_line) {
-            fprintf(out, "hardware_pages:\n");
+            (*print)("hardware_pages:\n");
             need_header_line = 0;
           }
-          fprintf(out, "%05x ", (i << 12) + 0xc8000);
+          (*print)("%05x ", (i << 12) + 0xc8000);
         }
       }
-      if (!need_header_line) fprintf(out, "\n");
+      if (!need_header_line) (*print)("\n");
     }
-    fprintf(out, "ipxsup %d\nvnet %d\npktflags 0x%x\n",
+    (*print)("ipxsup %d\nvnet %d\npktflags 0x%x\n",
 	config.ipxsup, config.vnet, config.pktflags);
     
     {
@@ -499,7 +510,7 @@ void dump_config_status(void)
 	struct printer *pptr;
 	extern struct printer lpt[NUM_PRINTERS];
 	for (i = 0, pptr = lpt; i < config.num_lpt; i++, pptr++) {
-	  fprintf(out, "LPT%d command \"%s  %s\"  timeout %d  device \"%s\"  baseport 0x%03x\n",
+	  (*print)("LPT%d command \"%s  %s\"  timeout %d  device \"%s\"  baseport 0x%03x\n",
 	  i+1, pptr->prtcmd, pptr->prtopt, pptr->delay, (pptr->dev ? pptr->dev : ""), pptr->base_port); 
 	}
     }
@@ -508,14 +519,16 @@ void dump_config_status(void)
 	int i;
 	int size = sizeof(config.features) / sizeof(config.features[0]);
 	for (i = 0; i < size; i++) {
-	  fprintf(out, "feature_%d %d\n", i, config.features[i]);
+	  (*print)("feature_%d %d\n", i, config.features[i]);
 	}
     }
 
-    fprintf(out, "\nSOUND:\nsb_base 0x%x\nsb_dma %d\nsb_irq %d\nmpu401_base 0x%x\nsb_dsp \"%s\"\nsb_mixer \"%s\"\n",
+    (*print)("\nSOUND:\nsb_base 0x%x\nsb_dma %d\nsb_irq %d\nmpu401_base 0x%x\nsb_dsp \"%s\"\nsb_mixer \"%s\"\n",
         config.sb_base, config.sb_dma, config.sb_irq, config.mpu401_base, config.sb_dsp, config.sb_mixer);
-    fprintf(out, "\n--------------end of runtime configuration dump -------------\n");
-    fprintf(out,   "-------------------------------------------------------------\n\n");
+    if (!printfunc) {
+      (*print)("\n--------------end of runtime configuration dump -------------\n");
+      (*print)(  "-------------------------------------------------------------\n\n");
+    }
 }
 
 static void 
@@ -978,7 +991,7 @@ config_init(int argc, char **argv)
     }
 #endif
     if (config_check_only) {
-	dump_config_status();
+	dump_config_status(0);
 	usage();
 	leavedos(0);
     }

@@ -2245,6 +2245,7 @@ GetRedirection(state, index)
  * RedirectDisk - redirect a disk to the Linux file system
  * on entry:
  * on exit:
+ *   Returns 0 on success, otherwise some error code.
  * notes:
  *   This function is used internally by DOSEMU, in contrast to
  *   RedirectDevice(), which must be called from DOS.
@@ -2265,7 +2266,7 @@ RedirectDisk(int dsk, char *resourceName, int ro_flag)
   current_drive = dsk;
 
   /* see if drive is in range of valid drives */
-  if(current_drive > lol_last_drive(lol)) return 1;
+  if(current_drive < 0 || current_drive > lol_last_drive(lol)) return 1;
 
   cds = drive_cds(current_drive);
 
@@ -2363,6 +2364,65 @@ RedirectDevice(state_t * state)
   else {
     return (TRUE);
   }
+}
+
+/*****************************
+ * CancelDiskRedirection - cancel a drive redirection
+ * on entry:
+ * on exit:
+ *   Returns 0 on success, otherwise some error code.
+ * notes:
+ *   This function is used internally by DOSEMU, in contrast to
+ *   CancelRedirection(), which must be called from DOS.
+ *****************************/
+int
+CancelDiskRedirection(int dsk)
+{
+  char *path;
+  far_t DBPptr;
+
+  Debug0((dbg_fd, "CancelDiskRedirection on %c:\n", dsk + 'A'));
+
+  cdsfarptr = lol_cdsfarptr(lol);
+  cds_base = (cds_t) Addr_8086(cdsfarptr.segment, cdsfarptr.offset);
+
+  current_drive = dsk;
+
+  /* see if drive is in range of valid drives */
+  if(current_drive < 0 || current_drive > lol_last_drive(lol)) return 1;
+
+  cds = drive_cds(current_drive);
+
+  /* Do we own this drive? */
+  if(dos_roots[current_drive] == NULL) return 2;
+
+  /* first, clean up my information */
+  free(dos_roots[current_drive]);
+  dos_roots[current_drive] = NULL;
+  dos_root_lens[current_drive] = 0;
+  finds_in_progress[current_drive] = FALSE;
+  read_onlys[current_drive] = FALSE;
+
+  /* reset information in the CDS for this drive */
+  cds_flags(cds) = 0;		/* default to a "not ready" drive */
+
+  path = cds_current_path(cds);
+  /* set the current path for the drive */
+  path[0] = current_drive + 'A';
+  path[1] = ':';
+  path[2] = '\\';
+  path[3] = EOS;
+  cds_rootlen(cds) = CDS_DEFAULT_ROOT_LEN;
+  cds_cur_cluster(cds) = 0;	/* reset us at the root of the drive */
+
+  /* see if there is a physical drive behind this redirection */
+  DBPptr = cds_DBP_pointer(cds);
+  if (DBPptr.offset | DBPptr.segment) {
+    /* if DBP_pointer is non-NULL, set the drive status to ready */
+    cds_flags(cds) = CDS_FLAG_READY;
+  }
+
+  return 0;
 }
 
 /*****************************

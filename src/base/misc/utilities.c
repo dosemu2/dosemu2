@@ -557,6 +557,20 @@ void call_cmd(const char *cmd, int maxargs, const struct cmd_db *cmdtab,
    free(argv1);
 }
 
+void sigalarm_onoff(int on)
+{
+  static struct itimerval itv_old_;
+  static struct itimerval *itv_old = &itv_old_;
+  static struct itimerval itv;
+  if (on) setitimer(TIMER_TIME, &itv_old, NULL);
+  else {
+    itv.it_interval.tv_sec = itv.it_interval.tv_usec = 0;
+    itv.it_value = itv.it_interval;
+    setitimer(TIMER_TIME, &itv, itv_old);
+    itv_old = NULL;
+  }
+}
+
 
 
 #if (GLIBC_VERSION_CODE >= 2000) && defined(PORTABLE_BINARY)

@@ -16,6 +16,10 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#if defined (__GLIBC__) && __GLIBC__ >= 2
+#define __needs_timeval
+#include <timebits.h>
+#endif
 #include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -134,7 +138,9 @@ int main (int argc, char **argv)
     perror("can't open fifo to feedin commands to DOSEMU");
     exit(1);
   }
-  if ((fdin = open(pipename_out, O_RDONLY | O_NONBLOCK)) == -1) {
+  /* NOTE: need to open read/write else if the sending process closes,
+           select() will trigger as hell and eat CPU time */
+  if ((fdin = open(pipename_out, O_RDWR | O_NONBLOCK)) == -1) {
     close(fdout);
     perror("can't open fifo to get results from DOSEMU");
     exit(1);

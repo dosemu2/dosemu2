@@ -471,9 +471,13 @@ A special control command (
 .I ack on
 ) can be used to force
 .B DOSEMU
-returning an acknowledge via `outpipe' such that the frontend knows
-when the control command has finished and wether it was successful.
-The format of this `ack' is
+returning handshake taggs via `outpipe' such that the frontend knows
+when the control command has started or finished and wether it was successful.
+The format of this tagging is
+.TP
+		SYN: <commandname>
+.TP
+		<any output from the command>
 .TP
 		ACK: code=n
 

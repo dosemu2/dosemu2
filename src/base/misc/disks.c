@@ -35,6 +35,7 @@
 #include "dosemu_select.h"
 #include "int.h"
 #include "fatfs.h"
+#include "utilities.h"
 
 #ifdef NEED_LLSEEK_PROTOTYPE
   /* well, if we don't have llseek prototype,
@@ -748,18 +749,6 @@ disk_open(struct disk *dp)
   /*  DOS_SYSCALL(ioctl(dp->fdesc, FDMSGOFF, 0));*/
 }
 #endif
-
-static void sigalarm_onoff(int on)
-{
-  static struct itimerval itv_old;
-  static struct itimerval itv;
-  if (on) setitimer(TIMER_TIME, &itv_old, NULL);
-  else {
-    itv.it_interval.tv_sec = itv.it_interval.tv_usec = 0;
-    itv.it_value = itv.it_interval;
-    setitimer(TIMER_TIME, &itv, &itv_old);
-  }
-}
 
 #ifdef __linux__
 void

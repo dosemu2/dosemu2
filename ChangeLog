@@ -1,3 +1,26 @@
+99/02/25 ver. 0.99.8.2 unofficial pre-release
+	From Steffen
+	- for userhook: CancelDiskRedirection (disk.c)
+	From Antonio Larrosa <antlarr@arrakis.es>
+	- included '<timebits.h>' in dosctrl when glibc used.
+	From Hans
+	- built CancelDiskRedirection into userhook.c, such that now
+	  also 'lredir del d:' works from 'outside'.
+	- fixed double // in uhook_lredir.
+	- added 'config' uhook command (changes in init/config.c, userhook.c)
+	  This prints the contents of the config.* structure.
+	- added 'SYN: command' to be outputed before any uhook command
+	  in case 'ack on' is set. This makes handshaking easier.
+	  ( Needed by Antonio to better  parse the results )
+	- fixed reading from the uhook inpipe, more than one command
+	  in the buffer was ignored.
+	- fixed strange sig11 while in leavedos(), the bad guy was
+	  run_unix_command() which was used to do 'rm -rf' on exit
+	  while the assumed context was already destroyed :-(
+	  Using privdrop() and system() now because we don't need to regain
+	  root privs here anymore.
+	- moved sigalarm_onoff() from disks.c to utilities.c
+	  (needing it elsewere too).
 99/02/21 ver. 0.99.8.1 unofficial pre-release
 	From Steffen
 	- some fixes to the emulated FAT stuff (fatfs.c, disks.c)

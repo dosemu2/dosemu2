@@ -1,3 +1,19 @@
+/* 
+ * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
+/*
+ * This implements a hook to allow user processes control the behave
+ * of dosemu dynamically. Its purpose mainly is to support frontends
+ * for dosemu such as kdos.
+ *
+ * Author:		Hans Lermen
+ * With help from:	Steffen Winterfeld, Antonio Larrosa
+ *			and Alistair MacDonald
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -29,6 +45,7 @@ static int sendptr =0;
 static char *recvbuf = 0;
 static char *sendbuf = 0;
 static int need_ack = 0;
+static int need_syn =0;
 static int errorcode = 0;
 
 static void uhook_printf(const char *fmt, ...);
@@ -46,6 +63,7 @@ static void uhook_xmode(int argc, char **argv);
 static void uhook_lredir(int argc, char **argv);
 static void uhook_help(int argc, char **argv);
 static void uhook_ecpu(int argc, char **argv);
+static void uhook_config(int argc, char **argv);
 
 static const struct cmd_db cmdtab[] = {
 	{"ack",		uhook_ack},
@@ -60,6 +78,7 @@ static const struct cmd_db cmdtab[] = {
 	{"lredir",	uhook_lredir},
 	{"help",	uhook_help},
 	{"ecpu",	uhook_ecpu},
+	{"config",	uhook_config},
 	{"",		NULL}
 };
 
@@ -76,19 +95,38 @@ static char help_string[] =
 	"lredir n: dir [ro]  redirect directory 'dir' to DOS drive 'n:'\n"
 	"help                this screen\n"
 	"ecpu [{on|off}]     get/set cpuemu\n"
+        "config              print the current configuration\n"
 	;
+
+static void do_syn(char *command)
+{
+	if (need_syn) uhook_printf("SYN: %s\n", command);
+}
 
 static void uhook_ack(int argc, char **argv)
 {
 	if (argv[1]) {
-		if (!strcmp(argv[1], "on")) need_ack = 1;
-		else if (!strcmp(argv[1], "off")) need_ack = 0;
+		int ack = need_ack;
+		if (!strcmp(argv[1], "on")) ack = 1;
+		else if (!strcmp(argv[1], "off")) ack = 0;
+		if (need_ack) {
+			if (ack) do_syn(argv[0]);
+			else need_ack = need_syn = 0;
+		}
+		else {
+			if (ack) {
+				need_ack = need_syn = 1;
+				do_syn(argv[0]);
+			}
+		}
 	}
+	else do_syn(argv[0]);
 	uhook_printf("acknowledge is %s\n", need_ack ? "on" : "off");
 }
 
 static void uhook_hello(int argc, char **argv)
 {
+	do_syn(argv[0]);
 	uhook_printf("Hello DOSEMU world, argc=%d, argv:", argc);
 	while (*argv) uhook_printf(" %s", *argv++);
 	uhook_printf("\n");
@@ -96,6 +134,7 @@ static void uhook_hello(int argc, char **argv)
 
 static void uhook_kill(int argc, char **argv)
 {
+	do_syn(argv[0]);
 	uhook_printf("dosemu %d killed via user hook\n", getpid());
 	if (need_ack) uhook_printf("ACK: code=%d\n", errorcode);
 	leavedos(1);
@@ -103,6 +142,7 @@ static void uhook_kill(int argc, char **argv)
 
 static void uhook_version(int argc, char **argv)
 {
+	do_syn(argv[0]);
 	uhook_printf("dosemu-%d.%d.%g\n", VERSION, SUBLEVEL, PATCHLEVEL);
 }
 
@@ -112,6 +152,7 @@ static void uhook_keystroke(int argc, char **argv)
 	int bufsize = 256, i=0, j;
 	char *s = malloc(bufsize);
 
+	do_syn(argv[0]);
 	while (*++argv) {
 		j = snprintf(s+i, bufsize-i, " %s", *argv);
 		if (j == -1) {
@@ -132,6 +173,7 @@ static void uhook_keystroke(int argc, char **argv)
 static void uhook_log(int argc, char **argv)
 {
 	char buf[1024];
+	do_syn(argv[0]);
 	if (argv[1]) {
 		SetDebugFlagsHelper(argv[1]);
 	}
@@ -141,6 +183,7 @@ static void uhook_log(int argc, char **argv)
 
 static void uhook_hog(int argc, char **argv)
 {
+	do_syn(argv[0]);
 	if (argv[1]) {
 		int hog = strtol(argv[1], 0, 0);
 		if (hog < 0) hog = 0;
@@ -152,6 +195,7 @@ static void uhook_hog(int argc, char **argv)
 
 static void uhook_boot(int argc, char **argv)
 {
+	do_syn(argv[0]);
 	if (argv[1]) {
 		if (!strcmp(argv[1], "on")) use_bootdisk = 1;
 		else if (!strcmp(argv[1], "off")) use_bootdisk = 0;
@@ -165,6 +209,7 @@ static void uhook_xmode(int argc, char **argv)
   char *p;
   long l, ll[2];
 
+  do_syn(argv[0]);
   argc--; argv++;
   errorcode = 1;
 
@@ -227,6 +272,7 @@ static void uhook_xmode(int argc, char **argv)
   }
   errorcode = 0;
 #else
+	do_syn(argv[0]);
 	uhook_printf("X support not compiled in\n");
 #endif
 }
@@ -234,10 +280,26 @@ static void uhook_xmode(int argc, char **argv)
 static void uhook_lredir(int argc, char **argv)
 {
 	char *s = "\\\\LINUX\\FS";
+	char *n;
 	int drive, ret;
 	extern int RedirectDisk(int, char *, int);
 
+	do_syn(argv[0]);
 	errorcode = 1;
+
+	if ((argc == 3) && (!strcmp(argv[1], "del")) && (strchr(argv[2], ':'))) {
+		/* delete a redirection */
+		extern int CancelDiskRedirection(int);
+		drive = tolower(argv[2][0]) - 'a';
+		if (drive < 2) {
+			uhook_printf("wrong drive, must be >= C:\n");
+			return;
+		}
+		errorcode = CancelDiskRedirection(drive);
+		return;
+	}
+
+
 	if ((argc < 3) || (!strchr(argv[1], ':'))) {
 		uhook_printf("wrong arguments\n");
 		return;
@@ -247,7 +309,9 @@ static void uhook_lredir(int argc, char **argv)
 		uhook_printf("wrong drive, must be >= C:\n");
 		return;
 	}
-	s = concatpath(s, argv[2]);
+	n = argv[2];
+	if (n[0] == '/') n++;
+	s = concatpath(s, n);
 	if (!s) {
 		uhook_printf("out of memory\n");
 		return;
@@ -262,12 +326,14 @@ static void uhook_lredir(int argc, char **argv)
 
 static void uhook_help(int argc, char **argv)
 {
+	do_syn(argv[0]);
 	uhook_printf("%s", help_string);
 }
 
 
 static void uhook_ecpu(int argc, char **argv)
 {
+	do_syn(argv[0]);
 #ifdef X86_EMULATOR
 	if (argv[1]) {
 /*FIXME, need to ask Alberto*/
@@ -279,10 +345,22 @@ static void uhook_ecpu(int argc, char **argv)
 #endif
 }
 
+static void uhook_config(int argc, char **argv)
+{
+	extern void dump_config_status(void *);
+
+	do_syn(argv[0]);
+	sigalarm_onoff(0);	/* duh, this is ugly, but the amount of printed
+				   data maybe too big
+				 */
+	dump_config_status(&uhook_printf);
+	sigalarm_onoff(1);
+}
+
 void uhook_input(void)
 {
 	if (fdin == -1) return;
-	nbytes = read(fdin, recvbuf, UHOOK_BUFSIZE);
+	nbytes = read(fdin, recvbuf+nbytes, UHOOK_BUFSIZE-nbytes);
 }
 
 static void uhook_send(void)
@@ -330,12 +408,20 @@ void uhook_poll(void)
 	 *	 below loop
 	 */
 	while (nbytes > 0) {
-		recvbuf[nbytes] = 0;
-		errorcode = 0;
-		call_cmd(recvbuf, 32, cmdtab, uhook_printf);
-		if (need_ack) uhook_printf("ACK: code=%d\n", errorcode);
-		uhook_send();
-		nbytes = 0;
+		int i =0;
+		while ((recvbuf[i] != '\n') && (i < nbytes)) i++;
+		if (i < nbytes) {
+			recvbuf[i] = 0;
+			errorcode = 0;
+			call_cmd(recvbuf, 32, cmdtab, uhook_printf);
+			if (need_ack) uhook_printf("ACK: code=%d\n", errorcode);
+			uhook_send();
+			i++;
+			nbytes -= i;
+			if (nbytes) {
+				memcpy(recvbuf, recvbuf+i, nbytes);
+			}
+		}
 		handle_signals();
 		/* NOTE: if there is input on fdin, as result of handle_signals
 		 *	 io_select() is called and this then calls uhook_input,
@@ -385,7 +471,6 @@ void init_uhook(char *pipes)
 			}
 		}
 	}
-/*LERMEN*/fprintf(stderr, "XXX >%s< %d >%s< %d\n", inpipename, fdin, outpipename, fdout);
 }
 
 void close_uhook(void)
