@@ -89,11 +89,6 @@
 #undef X_SUPPORT
 #undef X2_SUPPORT
 #undef X_GRAPHICS
-/* Add if you have X-Keycode problems */
-#undef NEW_KEYCODES
-
-/* Define this to use the new keyboard code */
-#undef NEW_KBD_CODE
 
 /* Define this to use the new port I/O code */
 #undef NEW_PORT_CODE

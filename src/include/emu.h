@@ -99,9 +99,6 @@ EXTERN char *cl,		/* clear screen */
 
 /* the fd for the keyboard */ 
 EXTERN int console_fd INIT(-1);
-#ifndef NEW_KBD_CODE
-  #define kbd_fd console_fd
-#endif
 
 /* the file descriptor for /dev/mem when mmap'ing the video mem */
 EXTERN int mem_fd INIT(-1);

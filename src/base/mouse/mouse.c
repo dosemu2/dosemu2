@@ -30,9 +30,7 @@
 #include "vc.h"
 #include "port.h"
 
-#ifdef NEW_KBD_CODE
 #include "keyboard.h"
-#endif
 
 #include "priv.h"
 
@@ -1111,18 +1109,6 @@ mouse_enable_internaldriver()
 }
 
 
-#ifndef NEW_KBD_CODE
-/* for the new keyboard code, these are defined in keyboard.h.
- * The old keyboard code doesn't have symbolic constants, so we
- * define them here
- */
-#define KEY_LEFT  0x4b
-#define KEY_RIGHT 0x4d
-#define KEY_UP    0x48
-#define KEY_DOWN  0x50
-#define KEY_HOME  0x47
-#define KEY_END   0x4f
-#endif
 
 /* XXX - something's wrong here. Shouldn't the first 4 cases move the cursor?
  */

@@ -133,11 +133,7 @@ typedef unsigned long udword_t;
 /* #define bios_expansion_memory_size      (*(unsigned int   *) 0x415) */
 #define BIOS_KEYBOARD_STATE             0x417
 #define BIOS_KEYBOARD_FLAGS1            BIOS_KEYBOARD_STATE
-#ifdef NEW_KBD_CODE
 #define BIOS_KEYBOARD_FLAGS2            0x418
-#else
-#define BIOS_KEYBOARD_LEDS              0x418
-#endif
 #define BIOS_KEYBOARD_TOKEN             0x419
 /* used for keyboard input with Alt-Number */
 #define BIOS_KEYBOARD_BUFFER_HEAD       0x41a
@@ -198,12 +194,8 @@ typedef unsigned long udword_t;
 #define BIOS_VIDEO_INFO_2               0x489
 #define BIOS_VIDEO_COMBO                0x48a
 
-#ifdef NEW_KBD_CODE
 #define BIOS_KEYBOARD_FLAGS3            0x496
 #define BIOS_KEYBOARD_LEDS              0x497
-#else
-#define BIOS_KEYBOARD_FLAGS2            0x496
-#endif
 #define BIOS_PRINT_SCREEN_FLAG          0x500
 
 #define BIOS_VIDEO_SAVEPTR              0x4a8

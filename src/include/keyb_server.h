@@ -1,9 +1,6 @@
 #ifndef _EMU_KEYB_H
 #define _EMU_KEYB_H
 
-#ifndef NEW_KBD_CODE
-#error keyb_server.h is for new keyboard code only !
-#endif
 
 
 /* this file is included from base/bios/bios.S */

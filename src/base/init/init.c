@@ -55,9 +55,7 @@
 #include "doshelpers.h"
 #include "speaker.h"
 
-#ifdef NEW_KBD_CODE
 #include "keyb_clients.h"
-#endif
 
 #ifdef USING_NET
 extern void pkt_check_receive_quick(void);
@@ -406,28 +404,6 @@ static inline void bios_mem_setup(void)
   bios_configuration = configuration;
   bios_memory_size   = config.mem_size;	/* size of memory */
 
-#ifndef NEW_KBD_CODE
-  /* The default 16-word BIOS key buffer starts at 0x41e */
-#if 0
-  KBD_Head =			/* key buf start ofs */
-    KBD_Tail =			/* key buf end ofs */
-    KBD_Start = 0x1e;		/* keyboard queue start... */
-  KBD_End = 0x3e;		/* ...and end offsets from 0x400 */
-#endif
-  WRITE_WORD(KBD_HEAD, 0x1e); 	/* key buf start ofs */
-  WRITE_WORD(KBD_TAIL, 0x1e);	/* key buf end ofs */
-  WRITE_WORD(KBD_START, 0x1e);	/* keyboard queue start... */
-  WRITE_WORD(KBD_END, 0x3e);	/* ...and end offsets from 0x400 */
-
-
-  keybuf_clear();
-
-  bios_ctrl_alt_del_flag = 0x0000;
-  bios_keyboard_flags2   = 16;	/* 102-key keyboard */
-
-  *OUTB_ADD = 1;                /* Set OUTB_ADD to 1 */
-  *LASTSCAN_ADD = 1;
-#endif
 }
 
 /* 
@@ -505,9 +481,6 @@ void memory_init(void)
     ems_init();                /* initialize ems */
     xms_init();                /* initialize xms */
     shared_memory_init();
-#ifndef NEW_KBD_CODE
-    shared_keyboard_init();
-#endif
   }
   first_call = 0;
 #if 0
@@ -529,7 +502,6 @@ void memory_init(void)
  */
 void device_init(void)
 {
-#ifdef NEW_KBD_CODE
   /* check whether we are running on the console */
   check_console();
 
@@ -541,13 +513,6 @@ void device_init(void)
     error("can't open keyboard client\n");
     leavedos(19);
   }
-#else
-  if (keyboard_init() != 0) {
-    error("can't open keyboard\n");
-    leavedos(19);
-  }
-  keyboard_flags_init();
-#endif
    
   if (!config.vga)
     config.allowvideoportaccess = 0;
@@ -631,16 +596,6 @@ void version_init(void) {
   }
 #endif
 
-#ifndef NEW_KBD_CODE
-  /* Next Check input */
-  if (isatty(STDIN_FILENO)) {
-    k_printf("STDIN is tty\n");
-    config.kbd_tty = 0;
-  } else {
-    k_printf("STDIN not a tty\n");
-    config.kbd_tty = 1;
-  }
-#endif
    
 }
 

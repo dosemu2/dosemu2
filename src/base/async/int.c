@@ -37,11 +37,7 @@
 
 #include "dpmi.h"
 
-#ifdef NEW_KBD_CODE
 #include "keyb_server.h"
-#else
-extern void scan_to_buffer(void);
-#endif
 
 #define DJGPP_HACK	/* AV Feb 97 */
 
@@ -279,7 +275,6 @@ static int dos_helper(void)
       p_dos_str("DPMI-Server Version 0.9 installed\n\n");
     break;
 
-#ifdef NEW_KBD_CODE
    case DOS_HELPER_INSERT_INTO_KEYBUFFER:
       k_printf("KBD: WARNING: outdated keyboard helper fn 6 was called!\n");
       break;
@@ -288,12 +283,6 @@ static int dos_helper(void)
       _AX=get_bios_key();
       k_printf("HELPER: get_bios_key() returned %04x\n",_AX);
       break;
-#else
-   case DOS_HELPER_INSERT_INTO_KEYBUFFER:	/* Do inline int09 insert_into_keybuffer() */
-    k_printf("KBD: Doing INT9 insert_into_keybuffer() bx=0x%04x\n", LWORD(ebx));
-    scan_to_buffer();
-    break;
-#endif
      
   case DOS_HELPER_VIDEO_INIT:
     v_printf("Starting Video initialization\n");
@@ -1567,13 +1556,6 @@ void int_queue_run(void)
   ssp = (unsigned char *) (REG(ss) << 4);
   sp = (unsigned long) LWORD(esp);
 
-#ifndef NEW_KBD_CODE
-  if (current_interrupt == 0x09) {
-    k_printf("Int9 set\n");
-    /* If another program does a keyboard read on port 0x60, we'll know */
-    read_next_scancode_from_queue();
-  }
-#endif
    
   /* call user startup function...don't run interrupt if returns -1 */
   if (int_queue[int_queue_start].callstart) {

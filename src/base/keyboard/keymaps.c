@@ -1,8 +1,5 @@
 #include "config.h"
 #include "keymaps.h"
-#ifndef NEW_KBD_CODE
-#include "termio.h"
-#endif
 
 /* DANG_BEGIN_MODULE
  * 
@@ -18,13 +15,8 @@
  */
 
 
-#ifdef NEW_KBD_CODE
   #define _DEAD_ACUTE_ DEAD_ACUTE
   #define _DEAD_GRAVE_ DEAD_GRAVE
-#else
-  #define _DEAD_ACUTE_ 39
-  #define _DEAD_GRAVE_ '`'
-#endif
 
 CONST unsigned char key_map_finnish[] =
 {

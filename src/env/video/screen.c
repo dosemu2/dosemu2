@@ -9,13 +9,7 @@
 
 #include "screen.h"
 #include "emu.h"
-#if NEW_KBD_CODE
 #include "keyb_clients.h"    /* for paste_text() */
-#else
-/* from Xkeyb.c */
-/*extern void X_process_key(XKeyEvent *); */
-extern void X_process_char(u_char);
-#endif
 
 #define PROP_SIZE 1024  /* chunk size for retrieving the selection property */
 #define MARGIN 0 /*  perhaps needed 23.8.95 */
@@ -215,11 +209,7 @@ void scr_request_selection(Display *dpy,Window W,int time,int x,int y)
       /* The selection is internal
        */
       X_printf("X: mouse selection internal\n");
-#ifdef NEW_KBD_CODE
       paste_text(selection_text,strlen(selection_text));
-#else       
-      send_string(selection_text,strlen(selection_text));
-#endif       
       return;
     }
   X_printf("X: mouse display %d\n", (Bit32u)dpy);
@@ -248,9 +238,6 @@ void scr_paste_primary(Display *dpy,int window,int property,int Delete)
 {
   Atom actual_type;
   int actual_format;
-#ifndef NEW_KBD_CODE
-  int i;
-#endif
   long nitems, bytes_after, nread;
   unsigned char *data, *data2;
 
@@ -271,19 +258,8 @@ void scr_paste_primary(Display *dpy,int window,int property,int Delete)
       
       data2 = data;
 
-#ifdef NEW_KBD_CODE
       paste_text(data2,nitems);
 
-#else
-      /* want to make a \n to \r mapping for cut and paste only */
-      for(i=0;i<nitems;i++)
-	{
-          if(*data == '\n')
-	    *data = '\r';
-          data++;
-	}
-      send_string(data2,nitems);
-#endif
 
       nread += nitems;
       XFree(data2);
@@ -410,17 +386,3 @@ using that upsets the whole thing
 }
 */
 
-#ifndef NEW_KBD_CODE
-void send_string(unsigned char *buf,int count)
-{
-  int i;
-
-  X_printf("X: mouse selection text %s\n",buf);
-  for (i=0; i<count; i++)
-    {
-      X_printf("X: mouse selection processing char %c 0x%x (%d from %d)\n",
-	       buf[i],buf[i],i+1, count);
-      X_process_char(buf[i]);
-    }
-}
-#endif /* NEW_KBD_CODE */

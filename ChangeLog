@@ -1,3 +1,12 @@
+97/11/30 ver. 0.67.16.2 unofficial pre-release
+	From Eric
+	- back ported keycodes stuff to new kbd
+	  ( ...thanks, that makes it possible to delete the old kbd code )
+	From Hans
+	- removed old kbd code and renamed src/base/keyboard/n_* to *
+	- include/speaker.h missed a '#include "types.h"', it compiled ok
+	  in the past, because NEW_KBD wasn't defined (even when) because
+	  also config.h wasn't included ;-(
 97/11/29 ver. 0.67.16.1 unofficial pre-release
 	From From Ulrich Weigand <uweigand@easynet.de>
 	- (gnats report files/70)

@@ -6,25 +6,14 @@
 
 SUBDIR=keyboard
 
-ifdef NEW_KBD_CODE
 
 ifdef X_SUPPORT
-X_CFILES = n_keyb_X.c
+X_CFILES = keyb_X.c keyb_X_keycode.c
 endif
 
-CFILES = n_serv_xlat.c n_serv_backend.c n_serv_8042.c keymaps.c n_keyb_raw.c n_keyb_slang.c \
-         n_keyb_clients.c prestroke.c $(X_CFILES)
+CFILES = serv_xlat.c serv_backend.c serv_8042.c keymaps.c keyb_raw.c keyb_slang.c \
+         keyb_clients.c prestroke.c $(X_CFILES)
 
-else
-#old keyboard code source files
-
-ifdef X_SUPPORT
-X_CFILES = Xkeyb.c
-endif
-
-CFILES = keyboard-server.c keyboard-client.c keymaps.c prestroke.c $(X_CFILES)
-
-endif
 
 DEPENDS= $(CFILES:.c=.d)
 OBJS   = $(CFILES:.c=.o)

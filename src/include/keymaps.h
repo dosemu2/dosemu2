@@ -148,7 +148,6 @@ extern struct dos_dead_key dos850_dead_map[];
 extern unsigned char dead_key_table[];
  
 
-#ifdef NEW_KBD_CODE
 
 /*  dead keys for accents */
 #define DEAD_GRAVE         1
@@ -169,6 +168,5 @@ struct dos_dead_key {
   unsigned char out_key;
 };
 
-#endif
 
 #endif /* _EMU_KEYMAPS_H */

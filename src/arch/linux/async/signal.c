@@ -22,9 +22,7 @@
 #include "ipx.h"
 #include "pktdrvr.h"
 
-#ifdef NEW_KBD_CODE
 #include "keyb_clients.h"
-#endif
 
 #ifdef USE_SBEMU
 #include "sound.h"
@@ -289,22 +287,18 @@ void SIGALRM_call(void){
 #ifdef X_SUPPORT
   if (config.X) {
      X_handle_events();
-#ifdef NEW_KBD_CODE
      /* although actually the event handler handles the keyboard in X, keyb_client_run
       * still needs to be called in order to handle pasting.
       */
      keyb_client_run();
-#endif
   }
 #endif
 
-#ifdef NEW_KBD_CODE
   /* for other front-ends, keyb_client_run() is called from ioctl.c if data is
    * available, so we don't need to do it here.
    */
   
   keyb_server_run();
-#endif
    
 
 

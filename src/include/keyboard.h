@@ -4,16 +4,6 @@
 #include "config.h"
 #include "types.h"
 
-#ifndef NEW_KBD_CODE
-
-#include "extern.h"
-
-EXTERN Bit8u keyb_io_read(ioport_t);
-EXTERN void keyb_io_write(ioport_t port, Bit8u byte);
-EXTERN void keyb_init(void);
-EXTERN void keyb_reset(void);
-
-#else /* NEW_KBD_CODE */
 
 /* keyboard related PUBLIC definitions (for keyboard clients) */
 
@@ -209,6 +199,5 @@ void keyb_server_close();
 #define KEY_PAUSE	0xff02              /* "symbolic" scancode */
 #define KEY_SYSRQ	0x54	
 #define KEY_BREAK	0xe046
-#endif /* NEW_KBD_CODE */
 
 #endif /* not _KEYBOARD_H */

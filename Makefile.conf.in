@@ -37,10 +37,6 @@ endif
 
 export _LD86_=@LD86@
 export _AS86_=@AS86@
-@NEW_KBD_CODE@
-ifdef NEW_KBD_CODE
-  export NEW_KBD_CODE
-endif
 
 # This gets defined even if we chose via ./include/config.h NOT to
 # use the debugger

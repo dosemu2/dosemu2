@@ -161,14 +161,10 @@ int type_in_pre_strokes()
     if (config.pre_stroke) {
       o=out;
       while (*o) {
-#ifdef NEW_KBD_CODE
         int c = (*o >>8) & 0xff;
         if (!c) c = ' ';
         putkey((*o & 0x80)==0, (t_keysym)((*o & 0x7f) | ((*o >> 8) & 0xff00)), c);
         o++;
-#else
-        add_scancode_to_queue(*(o++) & 0xff);
-#endif
       }
     }
   }

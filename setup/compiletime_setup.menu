@@ -8,7 +8,6 @@ menu "Main Menu" {
   boolean "disable VM86 enhancement" novm86plus
   boolean "enable Linux net code" net
   boolean "compile with debug info" dodebug
-  boolean "use the new keyboard code" newkbd
   boolean "use the new port I/O code" newport
   boolean "Use X-Windows" x
   boolean "Use new X-code" newx

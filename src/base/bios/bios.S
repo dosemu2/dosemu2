@@ -26,9 +26,7 @@
 #include <linux/linkage.h>
 #endif
 
-#ifdef NEW_KBD_CODE
 #include "keyb_server.h"
-#endif
 
 /* some other useful definitions */
 
@@ -339,8 +337,6 @@ CISH(INT16_dummy_start):			/* KEYBOARD BIOS ROUTINE        */
 	mov	ds,bx
 	mov dl,#0x00        /* clear mask for extended calls */
 
-#if 1 /* new */
-#ifdef NEW_KBD_CODE
 	cmp	ah,#0
 	je	INT16_0			/* read key */
 	cmp	ah,#1
@@ -368,13 +364,6 @@ INT16_ex:
 	pop     ds
 	pop	dx
 	iret   
-#else
-	cmp	ah,#2
-	ja	INT16_3			/* >2 */
-	je	INT16_2			/* 2 => retn. shift flag stat. */
-	jp	INT16_1			/* 1 => return keyboard status */
-	jmp	INT16_0			/* 0 => read keyboard */
-#endif
 
 INT16_0_idle:
 	sti
@@ -383,9 +372,7 @@ INT16_0_idle:
 	int     0x2f
 	pop	ax
 INT16_0:				/* 0 => read keyboard */
-#ifdef NEW_KBD_CODE
 INT16_10:				/* 0x10 => extended read        */
-#endif
 	cli				/* READ KEYBOARD		*/
 	mov	bx,[KEYBUF_READ_PTR]    /* get address of next char	*/
 	cmp	bx,[KEYBUF_WRITE_PTR]	/* is buffer empty?		*/
@@ -395,28 +382,16 @@ INT16_0_a:
 	call	do_extended /* for non-extend calls remove 0xE0 from AL */
 	inc     bx			/* advance buffer pointer 2 bytes*/
 	inc     bx
-#ifdef NEW_KBD_CODE
  	cmp	bx,[KEYBUFFER_END]	/* check for wrap around        */
 	jne	INT16_0_nowrap		/* no wrap - go return to caller*/
 	mov	bx,[KEYBUFFER_START]	/* wrap - get buffer start	*/
 INT16_0_nowrap:
 	mov     [KEYBUF_READ_PTR],bx	/* save it as new pointer	*/
 	sti
-#else
-	mov	[KEYBUF_READ_PTR],bx	/* save new pointer		*/
-	cmp	bx,[KEYBUFFER_END]	/* check for wrap around        */
-	jne	INT16_ex		/* no wrap - go return to caller*/
-					/* wrap - get buffer start	*/
-	mov	bx,[KEYBUFFER_START]
-					/* save it as new pointer	*/
-	mov     [KEYBUF_READ_PTR],bx
-#endif
 	jmp	INT16_ex		/* return to caller		*/
 
 INT16_1:				/* 0x01 => check for key        */
-#ifdef NEW_KBD_CODE
 INT16_11:				/* 0x11 => extended check       */
-#endif
 	cli
 	mov	bx,[KEYBUF_READ_PTR]	/* get address of next char	*/
 	cmp	bx,[KEYBUF_WRITE_PTR]	/* set flag if buffer empty	*/
@@ -431,9 +406,7 @@ INT16_1_a:
 	retf    #2		/* can't do iret, it would change flags	*/
 
 INT16_2:				/* RETURN SHIFT FLAG STATUS     */
-#ifdef NEW_KBD_CODE
 INT16_12:
-#endif
 	mov	ax,[KEYSHIFT_FLAGS]	/* get shift flags (ah=extended)*/
 	and     ah,#0xf3		/* disallow bits 2 & 3		*/
 	mov	bh,[KEYBOARD_STATUS_3]	/* bits 2 & 3 come from here	*/
@@ -454,7 +427,6 @@ DONT_MASK:
 	popf
 	ret
 
-#ifdef NEW_KBD_CODE
 INT16_5:				/* STORE KEY INTO BUFFER	*/
 	mov	ax,cx
 	cli
@@ -488,143 +460,6 @@ no_wrap:
 keybuffer_full:
 	ret
 
-#else   /* not NEW_KBD_CODE */
-
-INT16_3:
-	cmp	ah,#5
-	je	INT16_5			/*  5 => store key in buffer    */
-	jb	INT16_ex		/*  3, 4 */
-					/*  3 => set rpt. speed & delay */
-					/*  4 => reserved (do nothing)  */
-	cmp	ah,#0x10
-	je	INT16_0			/* 0x10 => read extended keyboard */
-	jb	INT16_ex
-	cmp	ah,#0x12
-	je	INT16_2			/* 0x12 => retn ext shift flg stat */
-	jb	INT16_1			/* 0x11 => retn. ext. keybd. stat.*/
-INT16_ex:
-	pop     bx			/* do nothing and return	*/
-	pop     ds
-	pop	dx
-	iret   
-
-INT16_5:
-	cli				/* STORE KEY INTO BUFFER	*/
-	mov	bx,[KEYBUF_WRITE_PTR]	/* get buffer "in" pointer	*/
-	inc     bx			/* increment "in" pointer	*/
-	inc     bx
-	cmp	bx,[KEYBUFFER_END]	/* wrap if needed		*/
-	jne     INT16_5_a
-	mov	bx,[KEYBUFFER_START]
-INT16_5_a:
-	cmp	bx,[KEYBUF_READ_PTR]	/* is buffer full?              */
-	jne     INT16_5_b
-	mov     al,#1			/* buffer is full, return error	*/
-	sti
-	jmp	INT16_ex
-INT16_5_b:
-	push    bx			/* buffer is not full - save bx	*/
-	mov     bx,[KEYBUF_WRITE_PTR]	/* get "in" pointer again	*/
-	mov	[bx],cx			/* put cx into buffer		*/
-	mov     al,#0			/* clear error flag		*/
-	pop     bx			/* restore incremented pointer	*/
-	mov	[KEYBUF_WRITE_PTR],bx	/* save it in bios data area	*/
-	sti
-	jmp	INT16_ex		/* return to caller		*/
-#endif /* not NEW_KBD_CODE */
-#else /* old */
-	/* ------------------------------------ */
- 	cmp     ah,#0			/*   0 => read keyboard		*/
-	je      L2
-	cmp     ah,#0x10		/* 10 => read extended keyboard	*/
-	je      L2
-	cmp     ah,#0x1			/*  1 => return keyboard status	*/
-	je      L4
-	cmp     ah,#0x11		/* 11 => retn. ext. keybd. stat.*/
-	je      L4
-	cmp     ah,#0x2			/*  2 => retn. shift flag stat.	*/
-	je      L5
-	cmp     ah,#0x3			/*  3 => set rpt. speed & delay	*/
-	je      L1
-	cmp     ah,#0x4			/*  4 => reserved (do nothing)	*/
-	je      L1
-	cmp     ah,#0x5			/*  5 => store key in buffer	*/
-	je      L6
-	cmp     ah,#0x12		/* 12 => retn ext shift flg stat*/
-	je      L5
-L1:	pop     bx			/* do nothing and return	*/
-	pop     ds
-	iret   
-L2:	cli				/* READ KEYBOARD		*/
-	mov	bx,[KEYBUF_READ_PTR]    /* get address of next char	*/
-	cmp	bx,[KEYBUF_WRITE_PTR]	/* is buffer empty?		*/
-	jne     L3			/* jump if not empty		*/
-
-	push	ax			/* buffer empty - 		*/
-	mov     al,#0x16		/* ask dosemu for another key	*/
-	sti
-	int     DOSHELPER_INT		/* sti with return to dosemu code */
-	pop	ax
-	jmp     L2			/* got another key, go try again*/
-L3:
-	mov	ax,[bx]			/* movw   [%bx],%ax  get last key	*/
-	inc     bx			/* advance buffer pointer 2 bytes	*/
-	inc     bx
-					/* save new pointer		*/	
-	mov	[KEYBUF_READ_PTR],bx
-	cmp	bx,[KEYBUFFER_END]	/* check for wrap around        */
-	JNEL    (L1)			/* no wrap - go return to caller*/
-					/* wrap - get buffer start	*/
-	mov	bx,[KEYBUFFER_START]
-					/* save it as new pointer	*/
-	mov     [KEYBUF_READ_PTR],bx
-	JMPL    (L1)			/* return to caller		*/
-
-
-L4:	push	ax			/* RETURN KEYBOARD STATUS	*/
-	movb    al,#0x16		/* anti hogging code	*/
-	int     DOSHELPER_INT		/* call delay routine 	*/
-	pop	ax
-
-	cli
-	mov	bx,[KEYBUF_READ_PTR]	/* get address of next char	*/
-	cmp	bx,[KEYBUF_WRITE_PTR]	/* set flag if buffer empty	*/
-	mov	ax,[bx]			/* put char into ax		*/
-	sti
-	pop     bx
-	pop     ds
-	retf    #2		/* can't do iret, it would change flags	*/
-					/* RETURN SHIFT FLAG STATUS	*/
-L5:	
-	mov	ax,[KEYSHIFT_FLAGS]	/* get shift flags (ah=extended)*/
-	and     ah,#0xf3		/* disallow bits 2 & 3		*/
-	mov	bh,[KEYBOARD_STATUS_3]	/* bits 2 & 3 come from here	*/
-	and     bh,#0xc			/* isolate those bits		*/
-	or      ah,bh			/* merge them with flags in ax	*/
-	JMPL    (L1)			/* return to caller		*/
-
-L6:	cli				/* STORE KEY INTO BUFFER	*/
-	mov	bx,[KEYBUF_WRITE_PTR]	/* get buffer "in" pointer	*/
-	inc     bx			/* increment "in" pointer	*/
-	inc     bx
-	cmp	bx,[KEYBUFFER_END]	/* wrap if needed		*/
-	jne     L7
-	mov	bx,[KEYBUFFER_START]
-L7:
-	cmp	bx,[KEYBUF_READ_PTR]	/* is buffer full?              */
-	jne     L8
-	mov     al,#1			/* buffer is full, return error	*/
-	sti
-	JMPL    (L1)
-L8:	push    bx			/* buffer is not full - save bx	*/
-	mov     bx,[KEYBUF_WRITE_PTR]	/* get "in" pointer again	*/
-	mov	[bx],cx			/* put cx into buffer		*/
-	mov     al,#0			/* clear error flag		*/
-	pop     bx			/* restore incremented pointer	*/
-	mov	[KEYBUF_WRITE_PTR],bx	/* save it in bios data area	*/
-	sti
-	JMPL    (L1)			/* return to caller		*/
-#endif
 
 	.globl  CISH(INT16_dummy_end)
 CISH(INT16_dummy_end):
@@ -913,7 +748,6 @@ CISH(DPMI_dummy_end):
 
 
 /* ----------------------------------------------------------------- */   
-#ifdef NEW_KBD_CODE
 	.org	((INT09_SEG-BIOSSEG) << 4)+INT09_OFF
 	.globl	CISH(INT09_dummy_start)
 	push	ax
@@ -1016,55 +850,6 @@ kbd_do_sysrq_break:			/* ALT-SYSRQ released		*/
 CISH(INT09_dummy_end):
 
 
-#else /* not NEW_KBD_CODE */
-
-	.org	((INT09_SEG-BIOSSEG) << 4)+INT09_OFF
-	.globl	CISH(INT09_dummy_start)
-CISH(INT09_dummy_start):		/* KEYBOARD INTERRUPT ROUTINE	*/
-	push	ds			/* save registers		*/
-	push	bx
-	push	ax
-	push	cx
-	mov	bx, #LASTSCAN_SEG	/* get segment of LASTSCAN_ADDR	*/
-	push	bx
-	pop	ds
-/* LASTSCAN_OFF = 0x20f2 = pseudo 8042 output	*/
-	mov	bx,#LASTSCAN_OFF
-	mov	ax,[bx]			/* "read" keyboard controller	*/
-
-
-	mov	ah,#0x4f		/* prepare for int 15 func 4f	*/
-	clc 
-	cmc
-#if 1
-		/* int 15 func 4f as per bios spec.
-		 * We need however a _simulated_ INT else a DOS-space
-		 * hooked INT15 would not be called,
-		 * because _we_ intercept it in src/base/async/int.c.
-		 * As we currently don't do anything important with INT15-AH=4f,
-		 * this doesn't make problems.
-		 * -- Hans, June 15 1997
-		 */
-	SIM_INT(0x15,kbd_int15_return)
-#else
-	int	0x15			/* int 15 func 4f per bios spec	*/
-#endif
-
-	mov	ah,al			/* move char to ah		*/
-	mov	al,#6			/* dosemu helper func 6		*/
-
-	int	DOSHELPER_INT		/* call dos helper		*/
-	mov    	al,#0x20
-	out     0x20,al			/* tell pic we're done 		*/
-	pop	cx			/* restore registers		*/
-	pop	ax
-	pop	bx
-	pop	ds
-	iret
-	.globl  CISH(INT09_dummy_end)
-CISH(INT09_dummy_end):
-
-#endif /* not NEW_KBD_CODE */
 
 /* ----------------------------------------------------------------- */
 	.org	0xf065

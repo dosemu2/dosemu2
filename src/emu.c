@@ -129,9 +129,7 @@ __asm__("___START___: jmp _emulate\n");
 #endif
 #include "speaker.h"
 
-#ifdef NEW_KBD_CODE
 #include "keyb_clients.h"
-#endif
 
 #ifdef USE_SBEMU
 #include "sound.h"
@@ -158,9 +156,6 @@ extern void treads_init(void);
 
 static int      special_nowait = 0;
 
-#ifndef NEW_KBD_CODE
-extern void     keyboard_close(void);
-#endif
 
 
 void 
@@ -479,11 +474,7 @@ dos_ctrl_alt_del(void)
     dbug_printf("DOS ctrl-alt-del requested.  Rebooting!\n");
     HMA_MAP(1);
     time_setting_init();
-#ifdef NEW_KBD_CODE   
     keyb_server_reset();
-#else   
-    keyboard_flags_init();
-#endif
     video_config_init();
     serial_init();
     mouse_init();
@@ -614,17 +605,10 @@ leavedos(int sig)
     video_close();
    
     g_printf("calling keyboard_close\n");
-#ifdef NEW_KBD_CODE 
     keyb_server_close();
     keyb_client_close();
 
 
-#else
-    fflush(stderr);
-    fflush(stdout);
-    keyboard_close();
-#endif
-   
     g_printf("calling shared memory exit\n");
     shared_memory_exit();
     g_printf("calling HMA exit\n");

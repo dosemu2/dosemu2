@@ -375,7 +375,6 @@ video_config_init(void) {
 
   WRITE_DWORD(BIOS_VIDEO_SAVEPTR, 0);		/* pointer to video table */
 
-#ifdef NEW_KBD_CODE
   if (!config.console) {
      /* NOTE: BIG FAT WARNING !!!
       *       without this you will reproduceable KILL LINUX
@@ -401,10 +400,6 @@ video_config_init(void) {
   }
   if (config.console_video && !config.usesX)
     set_process_control();
-#else
-  if ((config.console_keyb || config.console_video) && !config.usesX)
-    set_process_control();
-#endif
 
   if (config.console_video) {
     set_console_video();

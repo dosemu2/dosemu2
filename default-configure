@@ -42,9 +42,6 @@ while [ "$1" != "" ]; do
     net)
       if [ "$2" = "off" ]; then STRING="$STRING --enable-nonet"; fi
       ;;
-    newkbd)
-      if [ "$2" = "on" ]; then STRING="$STRING --enable-new-kbd"; fi
-      ;;
     x)
       if [ "$2" = "off" ]; then STRING="$STRING --without-x"; fi
       ;;

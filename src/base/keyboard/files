@@ -1,29 +1,24 @@
 
 
-* New keyboard code *
+* keyboard code files and their meaning *
 
 server:
 
-n_serv_xlat.c      Translation part of keyboard server (`queue frontend')
-n_serv_backend.c   `Queue backend': interface to bios/dos
-n_serv_8042.c      8042 keyboard controller emulation
-n_keyb_server.h    header file for keyboard server code (private definitions)
+serv_xlat.c      Translation part of keyboard server (`queue frontend')
+serv_backend.c   `Queue backend': interface to bios/dos
+serv_8042.c      8042 keyboard controller emulation
+keyb_server.h    header file for keyboard server code (private definitions)
 
 clients:
 
-n_keyb_X.c         X keyboard client
-n_keyb_raw.c       raw mode keyboard client
-n_keyb_slang.c     SLANG (terminal) keyboard client
-n_keyb_clients.c   client selection/initialisation code, paste routine
+keyb_X.c         X keyboard client
+keyb_raw.c       raw mode keyboard client
+keyb_slang.c     SLANG (terminal) keyboard client
+keyb_clients.c   client selection/initialisation code, paste routine
+keyb_X_keycode.c keycode translation under X
+keyb_clients.h   header file for keyboard client code (private definitions)
 
-* old keyboard code *
-
-Xkeyb.c
-keyboard-client.c
-keyboard-server.c
-slang-keyboard.c
-
-* common for old and new code *
+* common *
 
 keymaps.c          Translation tables
 keymaps.h          ...

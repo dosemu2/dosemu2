@@ -608,7 +608,7 @@ static void slang_send_scancode(unsigned long lscan, unsigned char ch)
 
   if (lscan & (STICKY_CTRL_MASK | CTRL_MASK)) {
     /* actually this is probably a little extra */
-    /* taken form n_serv_xlate.c ... translate .. (shiftstate & CTRL) */
+    /* taken form serv_xlate.c ... translate .. (shiftstate & CTRL) */
     if ((ch >= 0x40) && (ch <= 0x7e)) {
       ch &= 0x1f;
     } 

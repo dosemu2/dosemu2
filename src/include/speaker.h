@@ -1,6 +1,8 @@
 #ifndef SPEAKER_H
 #define SPEAKER_H
 
+#include "types.h"
+
 /*
  * Caller speaker functions
  * ============================================================================
@@ -54,9 +56,7 @@ void console_speaker_off(void *gp);
  * These are used by kbd code but reside in timers.c
  * =============================================================================
  */
-#ifdef NEW_KBD_CODE
 Bit8u spkr_io_read(ioport_t port);
 void spkr_io_write(ioport_t port, Bit8u value);
-#endif
 
 #endif /* SPEAKER_H */

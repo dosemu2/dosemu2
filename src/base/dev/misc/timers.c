@@ -44,9 +44,7 @@
 #include "pic.h"
 #include "dpmi.h"
 
-#ifdef NEW_KBD_CODE
 #include "keyb_server.h"
-#endif
 
 
 #ifdef MONOTON_MICRO_TIMING
@@ -58,11 +56,7 @@ pit_latch_struct pit[PIT_TIMERS];   /* values of 3 PIT counters */
 static u_long timer_div;          /* used by timer int code */
 static u_long ticks_accum;        /* For timer_tick function, 100usec ticks */
 
-#ifdef NEW_KBD_CODE
 static Bit8u port61 = 0x0e;
-#else
-extern int    port61;
-#endif
 
 
 /*
@@ -155,7 +149,6 @@ void timer_tick(void)
 }
 
 
-#ifdef NEW_KBD_CODE
 #include "speaker.h"
 
 /* DANG_BEGIN_FUNCTION do_sound
@@ -209,7 +202,6 @@ void do_sound(Bit16u period)
 		break;
 	}
 }
-#endif /* NEW_KBD_CODE */
 
  
 static void pit_latch(int latch)
@@ -432,14 +424,7 @@ void pit_outp(ioport_t port, Bit8u val)
 #endif
     }
     else if (port == 2 && config.speaker == SPKR_EMULATED) {
-#ifdef NEW_KBD_CODE
       do_sound(pit[2].write_latch & 0xffff);
-#else
-      if ((port61 & 3) == 3) {
-	i_printf("PORT: Emulated beep!");
-	putchar('\007');
-      }
-#endif
     }
   }
 }
@@ -589,7 +574,6 @@ void timer_int_engine(void)
  do_irq();
 }
 
-#ifdef NEW_KBD_CODE
 /* reads/writes to the speaker control port (0x61)
  * Port 0x61 is really more complex than a speaker enable bit... look here:
  * [output]:
@@ -643,7 +627,6 @@ void spkr_io_write(ioport_t port, Bit8u value) {
       }
    }
 }
-#endif
 
 void pit_init(void)
 {
@@ -682,10 +665,8 @@ void pit_init(void)
   io_device.end_addr     = 0x0043;
   port_register_handler(io_device, 0);
 
-#ifdef NEW_KBD_CODE
   /* register_handler for port 0x61 is in keyboard code */
   port61 = (config.speaker==SPKR_OFF? 0x0c:0x0e);
-#endif
 #if 0
   io_device.start_addr   = 0x0047;
   io_device.end_addr     = 0x0047;
@@ -739,9 +720,7 @@ void pit_reset(void)
 #if 0
   timer_handle = timer_create(pit_timer_func, NULL, pit_timer_usecs(0x10000));
 #endif
-#ifdef NEW_KBD_CODE
   port61 = (config.speaker==SPKR_OFF? 0x0c:0x0e);
   do_ioctl(console_fd,KIOCSOUND,0);    /* sound off */
-#endif
 }
 #endif /* new engine */

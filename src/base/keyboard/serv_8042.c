@@ -25,9 +25,6 @@
 #include "keyb_server.h"
 #include "speaker.h"
 
-#ifndef NEW_KBD_CODE
-#error serv_8042.c is for new keyboard code only!
-#endif
 
 /* accurate emulation of special 8042 and keyboard commands - currently untested...
 */
@@ -360,14 +357,12 @@ void keyb_8042_init(void)
   io_device.irq 	 = EMU_NO_IRQ;
   port_register_handler(io_device, 0);
 
-#ifdef NEW_KBD_CODE
   io_device.read_portb   = spkr_io_read;
   io_device.write_portb  = spkr_io_write;
   io_device.handler_name = "Speaker port";
   io_device.start_addr   = 0x0061;
   io_device.end_addr     = 0x0061;
   port_register_handler(io_device, config.speaker==SPKR_NATIVE? PORT_FAST:0);
-#endif
 #endif
   if (config.keybint) {
      pic_seti(PIC_IRQ1, do_irq1, 0);     /* init keyboard interrupt */

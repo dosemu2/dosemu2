@@ -136,7 +136,13 @@ void X_process_key(XKeyEvent *e)
    short ch;
    static XComposeStatus compose_status = {NULL, 0};
    int i;
-    
+
+   if (config.X_keycode) {
+	   void X_keycode_process_key(XKeyEvent *e);
+	   X_keycode_process_key(e);
+	   return;
+   }
+
    count = XLookupString(e, chars, MAXCHARS, &xkey, &compose_status);
    ch = count? chars[0]:0;
    X_printf("xkey %x %s, state=%08x, char='%c'\n",

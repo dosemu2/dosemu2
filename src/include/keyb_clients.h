@@ -5,9 +5,6 @@
 #include "emu.h"
 #include "keyboard.h"
 
-#ifndef NEW_KBD_CODE
-#error keyb_clients.h is for new keyboard code only!
-#endif
 
 /* ASCII 0x20..0x7E */
 extern const Bit8u ascii_keys[];

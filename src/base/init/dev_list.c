@@ -26,11 +26,7 @@
 #include "int.h"
 #include "port.h"
 #include "pic.h"
-#ifdef NEW_KBD_CODE
 #include "keyb_server.h"     /* for keyb_8042_{init,reset} */
-#else
-#include "keyboard.h"
-#endif
 #include "lpt.h"
 #include "serial.h"
 #include "disks.h"
@@ -51,11 +47,7 @@ static struct io_dev_struct io_devices[] = {
   { "cmos",    cmos_init,    cmos_reset,    NULL },
   { "serial",  serial_init,  NULL,          serial_close },
   { "pic",     pic_init,     pic_reset,     NULL },
-#ifdef NEW_KBD_CODE
   { "keyb",    keyb_8042_init, keyb_8042_reset, NULL },
-#else
-  { "keyb",    keyb_init,    keyb_reset,    NULL },
-#endif
 #if 0
   { "rtc",     NULL,         rtc_reset,     NULL },
   { "pos",     pos_init,     pos_reset,     NULL },
