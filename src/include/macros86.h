@@ -20,7 +20,12 @@
 #define FILL_LONG(x,v) .REPT x .long v!!!.ENDR
 #define FILL_OPCODE(x,v) .REPT x v!!!.ENDR
 
+#if 0
 #define JMPL(label) db 0xe9!!!dw (label-(*+2)) ; jmp near label
+#else
+#define JMPL(label) br label ; 'branch' on as86 does a 'jmp near label'
+#endif
+
 #define JAL(label) dw 0x870f, (label-(*+4)) ; ja near label
 #define JAEL(label) dw 0x830f, (label-(*+4)) ; jae near label
 #define JBL(label) dw 0x820f, (label-(*+4)) ; jb  near label

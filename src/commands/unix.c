@@ -4,8 +4,6 @@
  *
  * Written by ???
  *
- * 12/27/95 Kang-Jin Lee
- *  - Dosemu detection moved to emulib.c
  ************************************************/
 
 
@@ -13,7 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "emulib.h"
+#include "detect.h"
 
 
 void usage (void);
@@ -24,12 +22,13 @@ void do_set_dosenv (int agrc, char **argv);
 
 int main(int argc, char **argv)
 {
+
   if (argc == 1) {
     usage();
   }
 
-  if (!check_emu()) {
-    printf ("This Command can only be used under DOSEMU.\n");
+  if (!is_dosemu()) {
+    printf ("This program requires DOSEMU to run, aborting\n");
     exit (-1);
   }
 
@@ -64,6 +63,8 @@ void usage (void)
   printf ("UNIX -e [ENVVAR]\n");
   printf ("  Execute the command given in the Linux environment variable \"ENVVAR\".\n");
   printf ("  If not given, use the argument to the -E flag of DOSEMU\n\n");
+  printf ("UNIX -s ENVVAR\n");
+  printf ("  Set the DOS environment to the Linux environment variable \"ENVVAR\".\n\n");
   printf ("UNIX command [arg1 ...]\n");
   printf ("  Execute the Linux command with the arguments given.\n\n");
   printf ("UNIX\n");
@@ -92,8 +93,8 @@ int send_command(char **argv)
     printf("Effective commandline: %s\n", command_line);
 
     preg.r_ax = 0x50;
-    preg.r_dx = (unsigned int) &command_line;
-    preg.r_es = _DS;
+    preg.r_dx = FP_OFF(&command_line);
+    preg.r_es = FP_SEG(&command_line);
     intr(0xe6, &preg);
 
     return(0);
@@ -114,13 +115,20 @@ void do_execute_dos (int argc, char **argv)
   }
 
   /* Store the string address in the registers */
-  preg.r_dx = (unsigned int) &data;
-  preg.r_es = _DS;
+  preg.r_dx = FP_OFF(&data);
+  preg.r_es = FP_SEG(&data);
 
   intr(0xe6, &preg);
 
   if (! preg.r_ax) {
     /* SUCCESFUL */
+
+    if (!data[0])
+    	/* empty string, assume we had to exec -E and this wasn't given
+    	 * ( may have 'unix -e' in your atoexec.bat )
+    	 */
+    	exit(1);
+
     printf ("About to Execute : %s\n", data);
 
 #ifdef GIBBER
@@ -150,36 +158,24 @@ void do_execute_dos (int argc, char **argv)
 void do_set_dosenv (int argc, char **argv)
 {
   struct REGPACK preg;
-
+  extern int msetenv(char *,char *);
   char data[256];
 
-  puts ("This option (-s, set DOS environment) is not available at the moment.\n");
-  puts ("Please try again later. Whilst you are waiting, please help yourself\n");
-  puts ("to the Lemon scented napkins.\n");
+  if (argc == 0) usage();
 
-  if (argc == 0) {
-	data[0] = '\0';
-  } else {
-    strcpy (data, argv[0]);
-  }
+  strcpy (data, argv[0]);
 
   preg.r_ax = 0x52;
 
   /* Store the string address in the registers */
-  preg.r_dx = (unsigned int) &data;
-  preg.r_es = _DS;
+  preg.r_dx = FP_OFF(&data);
+  preg.r_es = FP_SEG(&data);
 
   intr(0xe6, &preg);
 
   if (! preg.r_ax) {
-    /* SUCCESFUL */
-    puts ("In the meantime, the environment variable would have been set to :\n");
-    puts (data);
-
-  } else {
-    /* UNSUCCESFUL */
-    printf ("Anyway, the lookup failed ...(%d)\n", _AX);
-
+    if (msetenv(argv[0],data))
+    	exit(0);
   }
-  exit (-1);
+  exit (1);
 }

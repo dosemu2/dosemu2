@@ -9,11 +9,11 @@
  *  Changes to eliminate warnings
  *  Display read/write status when redirecting drive
  *  Usage information is more verbose
- * Changes: 11/02/95
- *  Safer dosemu detection
- * Changes: 12/27/95
- *  Dosemu detection moved to emulib.c
  *
+ * Changes: 11/27/97 Hansl Lermen
+ *  new detection stuff,
+ *  rewrote to use plain C and intr(), instead of asm and fiddling with
+ *  (maybe used) machine registers.
  *
  * NOTES:
  *  LREDIR supports the following commands:
@@ -35,7 +35,7 @@
 #include <stdio.h>    /* printf  */
 #include <stdlib.h>   /* exit    */
 #include <string.h>
-#include "emulib.h"
+#include "detect.h"
 
 typedef unsigned char uint8;
 typedef unsigned int uint16;
@@ -70,10 +70,11 @@ char far *
 GetListOfLists(void)
 {
     char far *LOL;
+    struct REGPACK preg;
 
-    _AX = DOS_GET_LIST_OF_LISTS;
-    geninterrupt(0x21);
-    LOL = MK_FP(_ES, _BX);
+    preg.r_ax = DOS_GET_LIST_OF_LISTS;
+    intr(0x21, &preg);
+    LOL = MK_FP(preg.r_es, preg.r_bx);
     return (LOL);
 }
 
@@ -81,18 +82,11 @@ char far *
 GetSDAPointer(void)
 {
     char far *SDA;
+    struct REGPACK preg;
 
-    _AX = DOS_GET_SDA_POINTER;
-
-    asm {
-      push ds
-      int 0x21
-      push ds
-      pop es
-      pop ds
-    }
-
-    SDA = MK_FP(_ES, _SI);
+    preg.r_ax = DOS_GET_SDA_POINTER;
+    intr(0x21, &preg);
+    SDA = MK_FP(preg.r_ds, preg.r_si);
 
     return (SDA);
 }
@@ -105,29 +99,21 @@ void InitMFS(void)
 {
     char far *LOL;
     char far *SDA;
+    struct REGPACK preg;
 
     LOL = GetListOfLists();
     SDA = GetSDAPointer();
 
     /* get DOS version into CX */
-    _CL = _osmajor;
-    _CH = _osminor;
+    preg.r_cx = _osmajor | (_osminor <<8);
 
-    asm {
-      push ds
-    }
-
-    _DX = FP_OFF(LOL);
-    _ES = FP_SEG(LOL);
-    _SI = FP_OFF(SDA);
-    _DS = FP_SEG(SDA);
-    _BX = 0x500;
-    _AX = 0x20;
-    geninterrupt(DOS_HELPER_INT);
-
-    asm {
-      pop ds
-    }
+    preg.r_dx = FP_OFF(LOL);
+    preg.r_es = FP_SEG(LOL);
+    preg.r_si = FP_OFF(SDA);
+    preg.r_ds = FP_SEG(SDA);
+    preg.r_bx = 0x500;
+    preg.r_ax = 0x20;
+    intr(DOS_HELPER_INT, &preg);
 }
 
 /********************************************
@@ -153,33 +139,24 @@ uint16 RedirectDevice(char *deviceStr, char *resourceStr, uint8 deviceType,
                       uint16 deviceParameter)
 {
     char slashedResourceStr[MAX_RESOURCE_PATH_LENGTH];
+    struct REGPACK preg;
 
     /* prepend the resource string with slashes */
     strcpy(slashedResourceStr, "\\\\");
     strcat(slashedResourceStr, resourceStr);
 
     /* should verify strings before sending them down ??? */
-    asm {
-      push ds
-    }
+    preg.r_ds = FP_SEG(deviceStr);
+    preg.r_si = FP_OFF(deviceStr);
+    preg.r_es = FP_SEG(slashedResourceStr);
+    preg.r_di = FP_OFF(slashedResourceStr);
+    preg.r_cx = deviceParameter;
+    preg.r_bx = deviceType;
+    preg.r_ax = DOS_REDIRECT_DEVICE;
+    intr(0x21, &preg);
 
-    _DS = FP_SEG(deviceStr);
-    _SI = FP_OFF(deviceStr);
-    _ES = FP_SEG(slashedResourceStr);
-    _DI = FP_OFF(slashedResourceStr);
-    _CX = deviceParameter;
-    _BL = deviceType;
-    _AX = DOS_REDIRECT_DEVICE;
-    geninterrupt(0x21);
-
-    asm {
-      pop ds
-      pushf
-      pop dx
-    }
-
-    if (_DX & CARRY_FLAG) {
-      return (_AX);
+    if (preg.r_flags & CARRY_FLAG) {
+      return (preg.r_ax);
     }
     else {
       return (CC_SUCCESS);
@@ -210,34 +187,23 @@ uint16 GetRedirection(uint16 redirIndex, char *deviceStr, char *resourceStr,
     uint16 ccode;
     uint8 deviceTypeTemp;
     char slashedResourceStr[MAX_RESOURCE_PATH_LENGTH];
+    struct REGPACK preg;
 
-    asm {
-      push ds
-    }
+    preg.r_ds = FP_SEG(deviceStr);
+    preg.r_si = FP_OFF(deviceStr);
+    preg.r_es = FP_SEG(slashedResourceStr);
+    preg.r_di = FP_OFF(slashedResourceStr);
+    preg.r_bx = redirIndex;
+    preg.r_ax = DOS_GET_REDIRECTION;
+    intr(0x21, &preg);
 
-    _DS = FP_SEG(deviceStr);
-    _SI = FP_OFF(deviceStr);
-    _ES = FP_SEG(slashedResourceStr);
-    _DI = FP_OFF(slashedResourceStr);
-    _BX = redirIndex;
-    _AX = DOS_GET_REDIRECTION;
-
-    asm {
-      push bp
-      int 33
-      pop bp
-      pushf
-      pop dx /* get flags into DX */
-      pop ds
-    }
-
-    ccode = _AX;
-    deviceTypeTemp = _BL;       /* save device type before C ruins it */
+    ccode = preg.r_ax;
+    deviceTypeTemp = preg.r_bx & 0xff;       /* save device type before C ruins it */
     *deviceType = deviceTypeTemp;
-    *deviceParameter = _CX;
+    *deviceParameter = preg.r_cx;
 
     /* copy back unslashed portion of resource string */
-    if (_DX & CARRY_FLAG) {
+    if (preg.r_flags & CARRY_FLAG) {
       return (ccode);
     }
     else {
@@ -260,23 +226,15 @@ uint16 GetRedirection(uint16 redirIndex, char *deviceStr, char *resourceStr,
  ********************************************/
 uint16 CancelRedirection(char *deviceStr)
 {
-    asm {
-      push ds
-    }
+    struct REGPACK preg;
 
-    _DS = FP_SEG(deviceStr);
-    _SI = FP_OFF(deviceStr);
-    _AX = DOS_CANCEL_REDIRECTION;
-    geninterrupt(0x21);
+    preg.r_ds = FP_SEG(deviceStr);
+    preg.r_si = FP_OFF(deviceStr);
+    preg.r_ax = DOS_CANCEL_REDIRECTION;
+    intr(0x21, &preg);
 
-    asm {
-      pop ds
-      pushf
-      pop dx
-    }
-
-    if (_DX & CARRY_FLAG) {
-      return (_AX);
+    if (preg.r_flags & CARRY_FLAG) {
+      return (preg.r_ax);
     }
     else {
       return (CC_SUCCESS);
@@ -363,9 +321,8 @@ main(int argc, char **argv)
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
     char resourceStr[MAX_RESOURCE_PATH_LENGTH];
 
-    if (check_emu() == 0) {
-      printf("DOSEMU is not running.  This program is intended for use\n");
-      printf("only with DOSEMU.\n");
+    if (!is_dosemu()) {
+      printf("This program requires DOSEMU to run, aborting\n");
       exit(1);
     }
 

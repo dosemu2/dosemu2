@@ -1,86 +1,52 @@
-! ***********************************************
-! File: speed.S -> speed.com
-! Program for Linux Dosemu
-! Written by Tim Van der Linden <timvdl@innet.be>
-! Changes the HogThreshold value during execution
-! ***********************************************
+! speed.S, to generate speed.com, for dosemu 0.67.16, 97/11/22
+! Set/Get HogThreshold
+!                                            Hans Lermen@fgan.de
+!
 
 .text
 .data
 .bss
 
 .align 0
-.globl _main
 
+.globl _main	; for ld86
 _main:
 
-        .org 0x100
+	.org	0x100	; which is were *.com files start
 
-        push cs
-        pop ds
-        mov dx, #string
-        add dx, #0x100
-        mov ah, #0x09
-        int 0x21
+#define NEED_ARGV
+#include "detect.h"
 
-        xor dx,dx
-        xor cx,cx
-        xor bx,bx
-        xor ax,ax
+	cmp	argc,#1
+	je	ok_set
+	jb	ok_get
+abort:
+	lea	si,abortmsg
+	call	print_and_exit
+abortmsg:
+	.ascii	"USAGE: speed [hogthreshold]"
+linefeed:
+	db	13,10,0
+resultmsg:
+	.ascii	"Current hogthreshold value = "
+	db	0
 
-start_loop:
-	mov ah, #0x8
-	int 0x21
-
-	cmp al, #0xd
-	je is_carriage_return
-
-	cmp al, #0x3a
-	jge start_loop
-
-	cmp al, #0x2f
-	jbe start_loop
-
-	mov dl,al
-	mov ah, #0x02
-	int 0x21
-
-	sub al, #0x30
-
-	push ax
-	mov ax,bx
-	mov dx, #0x0a
-	mul dx
-	mov bx,ax
-	pop ax
-	xor ah,ah
-	add bx,ax
-
-	inc cx
-	cmp cx, #0x4
-	jb start_loop
-
-HogThreshold:
-        mov al, #0x12
-        int 0xe6
-	jmp back_to_dos
-
-is_carriage_return:
-	cmp cx, #0x0
-	jne HogThreshold
-
-not_changed:
-        mov dx, #string_not_changed
-        add dx, #0x100
-        mov ah, #0x09
-        int 0x21
-
-back_to_dos:
-        mov ah, #0x4c
-        int 0x21
-
-string:
-        .ascii "Enter the new HogThreshold value (0-9999): $"
-string_not_changed:
-        .byte 0x0d, 0x0a
-        .ascii "HogThreshold value left unchanged.$"
+ok_set:
+	mov	si,argv
+	call	atoi
+	cmp	ax,#255
+	ja	abort
+	mov	bx,ax
+	mov	ax,#0x12	; set HogThreshold
+	int	0xe6		; doshelper
+ok_get:
+	lea	si,resultmsg
+	call	print
+	mov	ax,#0x28	; get HogThreshold
+	mov	bx,#1		; bx=1 for Get Hogthreshold
+	int	0xe6		; doshelper
+	call	printdecimal
+	lea	si,linefeed
+	call	print
+	mov	al,#0
+	call	exit

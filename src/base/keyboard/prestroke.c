@@ -31,7 +31,7 @@ static int stroke_pause;
   ret; \
 })
 
-static unsigned char *recode(unsigned short *out, unsigned char *in)
+static unsigned char *recode(unsigned int *out, unsigned char *in)
 {
   int keynum,esc;
   unsigned char ch;
@@ -135,6 +135,19 @@ static unsigned char *recode(unsigned short *out, unsigned char *in)
         *(out++) = 0;
         return in;
       }
+      if ((keynum = scantable(config.alt_map, ch)) >0 ) {
+        keynum |= ch <<8;
+	if (config.keyboard != KEYB_US)
+		*(out++) = 0xe00038; /* right ALT pressed */
+        else	*(out++) = 0x38;   /* Alt pressed */
+        *(out++) = keynum;         /* key pressed */
+        *(out++) = keynum | 0x80;  /* key released */
+	if (config.keyboard != KEYB_US)
+		*(out++) = 0xe000b8; /* right ALT released */
+        else	*(out++) = 0xb8;   /* Alt released */
+        *(out++) = 0;
+        return in;
+      }
     }
   }
   return in;
@@ -143,13 +156,15 @@ static unsigned char *recode(unsigned short *out, unsigned char *in)
 int type_in_pre_strokes()
 {
   if (config.pre_stroke) {
-    unsigned short out[16], *o;
+    unsigned int out[16], *o;
     config.pre_stroke = recode(out, config.pre_stroke);
     if (config.pre_stroke) {
       o=out;
       while (*o) {
 #ifdef NEW_KBD_CODE
-        putkey((*o & 0x80)==0, (t_keysym)*o & 0xff, *o >>8);
+        int c = (*o >>8) & 0xff;
+        if (!c) c = ' ';
+        putkey((*o & 0x80)==0, (t_keysym)((*o & 0x7f) | ((*o >> 8) & 0xff00)), c);
         o++;
 #else
         add_scancode_to_queue(*(o++) & 0xff);

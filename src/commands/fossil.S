@@ -20,7 +20,7 @@ _main:
         
         .org     0x100
 start:
-        jmp      init
+        br      check_init
 
 ! -------------------------------------------------------------------------
 
@@ -57,9 +57,6 @@ int14a:
 ! -------------------------------------------------------------------------
 
 init:
-
-#include "detect.h"
-
         push    cs
         pop     ds
 
@@ -123,7 +120,8 @@ not_yet_installed:
 	int     0x21
         ! terminate and stay resident
         mov     ax,#0x3100
-	mov     dx,#[[init - start]/16]+17
+;	mov     dx,#[[init - start]/16]+17
+	mov	dx,#((init - start)/16)+17
         int     0x21
 
 complain_and_exit:
@@ -134,6 +132,10 @@ complain_and_exit:
         mov     ah,#0x4c           
 	mov     al,#1
 	int     0x21
+
+check_init:
+#include "detect.h"
+	JMPL	init
 
 ! -------------------------------------------------------------------------
 	

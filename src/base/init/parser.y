@@ -483,8 +483,8 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
  		| PRESTROKE STRING
 		    {
 		    append_pre_strokes($2);
-		    free($2);
 		    c_printf("CONF: appending pre-strokes '%s'\n", $2);
+		    free($2);
 		    }
 		| PORTS
 		    { IFCLASS(CL_PORT) start_ports(); }

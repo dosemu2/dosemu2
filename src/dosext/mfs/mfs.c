@@ -3489,6 +3489,7 @@ dos_fs_redirect(state)
       if (((action & 0xf) == 1) && file_exists) {
 	/* Open if does exist */
 	SETWORD(&(state->ecx), 0x1);
+	dos_mode = mode & 0xF;
 	goto do_open_existing;
       }
 

@@ -18,4 +18,5 @@ _main:
 	mov al, #0x30
 	mov bx, #0
 	int #0xe6  ! disable bootdisk
-	int #0x20  ! exit
+	mov al,#0
+	call exit

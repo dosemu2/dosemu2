@@ -470,7 +470,7 @@ static int dos_helper(void)
     break;
 #endif
     case DOS_HELPER_GETCWD:
-        LWORD(eax) = (short)((int)getcwd(SEG_ADR((char *), es, dx), (size_t)LWORD(eax)));
+        LWORD(eax) = (short)((int)getcwd(SEG_ADR((char *), es, dx), (size_t)LWORD(ecx)));
         break;
   case DOS_HELPER_CHDIR:
         LWORD(eax) = chdir(SEG_ADR((char *), es, dx));

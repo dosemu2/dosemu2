@@ -21,12 +21,8 @@
  *  sync'd debug flags with 0.60.2+
  * Modified: 08/18/95 by PeaK
  *  added support for debug levels (they're used by PIC emulation)
- * Modified: 11/02/95 by Kang-Jin Lee
- *  safer dosemu detection
  * Modified: 11/05/95 by Michael Beck
  *  sync'd debug flags with 0.60.4.4
- * Modified: 12/27/95 by Kang-Jin Lee
- *  dosemu detection moved to emulib.c
  ***********************************************/
 
 
@@ -37,8 +33,12 @@
 #include <stdio.h>    /* printf                 */
 #include <stdlib.h>   /* exit                   */
 #include <string.h>
-#include "emulib.h"
-#include "doshelpers.h"
+#include "detect.h"
+
+#define DOS_HELPER_INT              0xE6 /* The interrupt we use */
+#define DOS_HELPER_GET_DEBUG_STRING 0x10
+#define DOS_HELPER_SET_DEBUG_STRING 0x11
+
 
 typedef unsigned char uint8;
 typedef unsigned int uint16;
@@ -95,21 +95,23 @@ T  I/O-trace    e  cpu-emu\n");
 
 uint16 GetDebugString(char *debugStr)
 {
-    _ES = FP_SEG(debugStr);
-    _DI = FP_OFF(debugStr);
-    _AL = DOS_HELPER_GET_DEBUG_STRING;
-    geninterrupt(DOS_HELPER_INT);
-    return (_AX);
+    struct REGPACK preg;
+    preg.r_es = FP_SEG(debugStr);
+    preg.r_di = FP_OFF(debugStr);
+    preg.r_ax = DOS_HELPER_GET_DEBUG_STRING;
+    intr(DOS_HELPER_INT, &preg);
+    return (preg.r_ax);
 }
 
 
 uint16 SetDebugString(char *debugStr)
 {
-    _ES = FP_SEG(debugStr);
-    _DI = FP_OFF(debugStr);
-    _AL = DOS_HELPER_SET_DEBUG_STRING;
-    geninterrupt(DOS_HELPER_INT);
-    return (_AX);
+    struct REGPACK preg;
+    preg.r_es = FP_SEG(debugStr);
+    preg.r_di = FP_OFF(debugStr);
+    preg.r_ax = DOS_HELPER_SET_DEBUG_STRING;
+    intr(DOS_HELPER_INT, &preg);
+    return (preg.r_ax);
 }
 
 
@@ -318,9 +320,9 @@ uint16 ParseAndSetDebugString(char *userDebugStr)
     const char debugAll[] = "-d-R-W-D-C-v-k-i-T-s-m-#-p-g-c-w-h-I-E-x-M-n-P-r-S-e";
 #endif
 
-    //expand the user string to a canonical form
-    //by inserting a value before each class letter, and
-    //by replacing 'a' with all values
+    /*expand the user string to a canonical form
+     *by inserting a value before each class letter, and
+     *by replacing 'a' with all values */
     j = 0;
 
     value = '+';        /* assume ON for start of string */
@@ -365,9 +367,8 @@ int main(int argc, char **argv)
 {
     uint16 ccode;
 
-    if (check_emu() == 0) {
-         printf("DOSEMU is not running. This program is intended for use\n");
-         printf("only with Dosemu.\n");
+    if (!is_dosemu()) {
+         printf("This program requires DOSEMU to run, aborting\n");
          exit(1);
     }
 

@@ -15,10 +15,6 @@
  *   - Arguments are case insensitiv
  * Modified:
  *   - Added argument h for help screen
- * Modified: 11/02/95 by Kang-Jin Lee
- *   - Safer dosemu detection
- * Modified: 12/27/95
- *   - Moved dosemu detection to emulib.c
  ********************************************/
 
 
@@ -26,8 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "emulib.h"
-
+#include "detect.h"
 
 #define MHLP(rin, rout) int86(0xe6, &rin, &rout)
 
@@ -90,9 +85,9 @@ int main(int argc, char *argv[])
       break;
   }
 
-  if (check_emu() == 0)
+  if (!is_dosemu())
   {
-    printf("Dosemu not detected. This program requires Dosemu, exiting.\n");
+    printf("This program requires DOSEMU to run, aborting\n");
     exit (1);
   }
 

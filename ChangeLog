@@ -1,3 +1,42 @@
+97/11/29 ver. 0.67.16.1 unofficial pre-release
+	From From Ulrich Weigand <uweigand@easynet.de>
+	- (gnats report files/70)
+	  fix for wrong open mode handling in MULTIPURPOSE_OPEN of mfs.c
+	From Hans
+	- fixed misplaced 'free()' in src/base/init/parser.y
+	- fixed not correctly working '-I keystroke' stuff for new keyb.
+	  (recode(), type_in_pre_strokes() in src/base/keyboard/prestroke.c)
+	- forceing KEYB_US when in X _and_ not X_keycodes also for new kbd.
+	  ( prep for Eric's keycodes backport and fix for '-I keystroke')
+	- further rework of commands stuff, reworked commands/detect.h.
+	  NOTE: No longer using '-a' flag of as86 because it results
+	  in strange compilation (call far ptr * does generate a near call).
+	  Changed all *.S which relied on the 'asld' syntax.
+	- changed macros86.h to use 'br' for JMPL, well it turns out that
+	  this (non-Intel) as86-memnonic _does_ in fact generate a near jump.
+	  ( no docs are telling this:-( ).
+	- rewrote the simple C files to as86 such that we clean up the
+          'precompiled' directory.
+	- converted dumpconf.asm (MASM) to dumpconf.S, know having dumpconf.sys
+	  instead of precompiled/dumpconf.exe
+	- converted mgarrot.a86 to mgarrot.S.
+	- renamed 'chdir.com,getcwd.com' to 'uchdir,ugetcwd' respectivly
+	  (the 'u' stands for Unix) the old names were misleading as the
+	  directories involved _are_ Unix ones (not DOS).
+	- fixed a bug concerning (u)getcwd, the old code used AX to pass
+	  the size of the buffer to the doshelper, but AX is used to pass
+	  the function code for the helper. Now using CX for size.
+	- removed all _AX _BX .. usage in command/*.c (too dangerous)
+	  and replaced geninterrupt() with intr();
+	- made the (hidden) 'unix -s XXX' working (using msetenv), so you know
+	  may 'transport' Unix-env.variables to DOS.
+	- 'unix -e' (without further param now will be quiet, so you may
+	  have it in your autoexec.bat to be prepared for something like
+	  'dos -D-a -E dosapp'. This as an alternative to '-I keystroke'
+          to launch DOS-applications from the linux commandline.
+	- changed src/commands/Makefile such that it can compile
+	  precompile/*.exe on demand. Need an already installed DOSEMU
+	  and Turbo-C though;-)
 97/11/22 ver. 0.67.16 released
 	From Eric
 	- found and fixed a diabolic memory overwriting bug
