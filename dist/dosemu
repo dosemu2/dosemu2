@@ -112,10 +112,6 @@ while [ $# -gt 0 ] ; do
   esac
 done
 
-if [ -z "$INPUT" ]; then
-  STRING_I="$STRING_I keystroke "'"'"\r"'"'
-fi
-
 #echo "$PROPRIETARY $LREDIRHOME $DUMBTERM $*"; exit
 
 w4l_check () {
