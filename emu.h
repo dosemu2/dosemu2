@@ -660,7 +660,7 @@ extern void add_to_io_select(int, unsigned char);
 			   just in case, and make it aligned  */ \
 			sa.sa_restorer = \
 			(void (*)()) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
-					sa.sa_flags = 0 /* SA_RESTART */ ; \
+					sa.sa_flags = SA_RESTART ; \
 					sigemptyset(&sa.sa_mask); \
 					sigaddset(&sa.sa_mask, SIGNALS_THAT_QUEUE); \
 					dosemu_sigaction(sig, &sa, NULL);

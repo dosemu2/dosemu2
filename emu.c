@@ -20,12 +20,15 @@
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
- * $Date: 1994/10/14 17:58:38 $
+ * $Date: 1994/11/06 02:35:24 $
  * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 2.28 $
+ * $Revision: 2.30 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 2.30  1994/11/06  02:35:24  root
+ * Testing co -M.
+ *
  * Revision 2.28  1994/10/14  17:58:38  root
  * Prep for pre53_27.tgz
  *
@@ -1258,7 +1261,14 @@ boot(void)
 
   buffer = (char *) 0x7c00;
 
-  if (read_sectors(dp, buffer, 0, 0, 0, 1) != SECTOR_SIZE) {
+  if (dp->type == PARTITION) {   /* we boot partition boot record, not MBR! */
+    d_printf("Booting partition boot record from part=%s....\n", dp->dev_name);
+    if (RPT_SYSCALL(read(dp->fdesc, buffer, SECTOR_SIZE)) != SECTOR_SIZE) {
+      error("ERROR: reading partition boot sector using partition %s.\n", dp->dev_name);
+      leavedos(16);
+    }
+  }
+  else if (read_sectors(dp, buffer, 0, 0, 0, 1) != SECTOR_SIZE) {
     error("ERROR: can't boot from %s, using harddisk\n", dp->dev_name);
     dp = hdisktab;
     if (read_sectors(dp, buffer, 0, 0, 0, 1) != SECTOR_SIZE) {
@@ -1728,7 +1738,7 @@ config_defaults(void)
   config.freq = 18;		/* rough frequency */
 
   config.timers = 1;		/* deliver timer ints */
-  config.keybint = 0;		/* no keyboard interrupt */
+  config.keybint = 0;		/* keyboard interrupts */
 
   config.num_ser = 0;
   config.num_lpt = 0;
@@ -2559,7 +2569,7 @@ int
 
 void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.28 1994/10/14 17:58:38 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.30 1994/11/06 02:35:24 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -3275,7 +3285,7 @@ dos_helper(void) {
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/10/14 17:58:38 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/11/06 02:35:24 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */

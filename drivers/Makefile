@@ -13,7 +13,7 @@ checkin:
 	-ci emufs.S ems.S cdrom.S
 
 checkout:
-	-co -l emufs.S ems.S cdrom.S
+	-co -M -l emufs.S ems.S cdrom.S
 
 clean:
 	rm -f emufs.sys ems.sys cdrom.sys *.o *.tmp *.out

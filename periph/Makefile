@@ -26,7 +26,7 @@ checkin:
 	-ci keyboard.c.diff hdinfo.c bootsect.S mkhdimage.c putrom.c mkpartition getrom Makefile
 
 checkout:
-	-co -l keyboard.c.diff hdinfo.c bootsect.S mkhdimage.c putrom.c mkpartition getrom Makefile
+	-co -M -l keyboard.c.diff hdinfo.c bootsect.S mkhdimage.c putrom.c mkpartition getrom Makefile
 
 clean:
 	rm -f bootsect *.o hdinfo mkhdimage putrom

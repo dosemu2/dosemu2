@@ -32,7 +32,7 @@ dpmi.o:
 checkin:
 	-ci $(ALL) Makefile TODO
 checkout:
-	-co -l $(ALL) Makefile TODO
+	-co -M -l $(ALL) Makefile TODO
 
 clean:
 	rm -f *.o *.com ../lib$(SUBDIR).a

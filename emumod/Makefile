@@ -58,7 +58,7 @@ checkin:
 	-ci $(ALL) Makefile
 
 checkout:
-	-co -l $(ALL) Makefile
+	-co -M -l $(ALL) Makefile
 
 clean:
 	rm -f *.o

@@ -1,5 +1,11 @@
+Sun Nov  6	1994
+
+-	Various PIC patches from JL, also left PIC disabled.
+-	Changed some of the automatic X11 code thanks to Jochen.
+
 Thu Nov  3          1994
 
+-	Released pred0.53_30.
 -	Fixed Serial (removed r=0 setting at the end of inb() in
 	ports.h)
 -	Removed SA_RESTART for some functions (atleast temporarily)

@@ -1,21 +1,25 @@
 # Makefile for Linux DOSEMU
 #
-# $Date: 1994/11/03 11:43:26 $
+# $Date: 1994/11/06 02:35:24 $
 # $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.35 $
+# $Revision: 2.36 $
 # $State: Exp $
 #
 # You should do a "make doeverything" or a "make most" (excludes TeX)
 # if you are doing the first compile.
 #
 
-# Autodetecting the installation of X11. Looks weired, but works...
+# Autodetecting the installation of X11. Looks weird, but works...
 ifeq (/usr/include/X11/X.h,$(wildcard /usr/include/X11/X.h))
 ifeq (/usr/X11R6/lib/libX11.sa,$(wildcard /usr/X11R6/lib/libX11.sa))
 X11LIBDIR  = /usr/X11R6/lib
 else
-ifeq (/usr/X368/lib/libX11.sa,$(wildcard /usr/X386/lib/libX11.sa))
+ifeq (/usr/X386/lib/libX11.sa,$(wildcard /usr/X386/lib/libX11.sa))
 X11LIBDIR  = /usr/X386/lib
+else
+ifeq (/usr/lib/libX11.sa,$(wildcard /usr/lib/libX11.sa))
+X11LIBDIR  = /usr/X386/lib
+endif
 endif
 endif
 endif
@@ -89,7 +93,7 @@ endif
 # dosemu version
 EMUVER  =   0.53
 VERNUM  =   0x53
-PATCHL  =   30
+PATCHL  =   31
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -276,7 +280,7 @@ endif
 warnconf: config.h
 
 dos.o: config.h dos.c
-	$(CC) -c dos.c
+	$(CC) $(CFLAGS) -c dos.c
 
 x2dos.o: config.h x2dos.c
 	$(CC) -I/usr/openwin/include -c x2dos.c
@@ -397,7 +401,7 @@ checkin:
 	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) checkin) || exit; done
 
 checkout:
-	-co -l $(CFILES) $(HFILES) $(SFILES) $(OFILES)
+	-co -M -l $(CFILES) $(HFILES) $(SFILES) $(OFILES)
 	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) checkout) || exit; done
 
 dist: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES)

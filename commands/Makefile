@@ -19,9 +19,9 @@ checkin:
 	bootoff.S booton.S Makefile dosdbg.c lredir.c pdipx.com 
 
 checkout:
-	-co -l exitemu.S vgaoff.S vgaon.S eject.S dumpconf.exe dumpconf.asm
-	-co -l bootoff.S booton.S Makefile dosdbg.c lredir.c
-	-co -l pdipx.com
+	-co -M -l exitemu.S vgaoff.S vgaon.S eject.S dumpconf.exe dumpconf.asm
+	-co -M -l bootoff.S booton.S Makefile dosdbg.c lredir.c
+	-co -M -l pdipx.com
 
 clean:
 	rm -f exitemu.com vgaoff.com vgaon.com eject.com booton.com bootoff.com *.o

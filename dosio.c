@@ -4,12 +4,15 @@
 /*
  * Robert Sanders, started 3/1/93
  *
- * $Date: 1994/11/03 11:43:26 $
+ * $Date: 1994/11/06 02:35:24 $
  * $Source: /home/src/dosemu0.60/RCS/dosio.c,v $
- * $Revision: 2.11 $
+ * $Revision: 2.12 $
  * $State: Exp $
  *
  * $Log: dosio.c,v $
+ * Revision 2.12  1994/11/06  02:35:24  root
+ * Testing co -M.
+ *
  * Revision 2.11  1994/11/03  11:43:26  root
  * Checkin Prior to Jochen's Latest.
  *
@@ -489,6 +492,7 @@ void
 do_irq1(void) {
    parent_nextscan();
    do_irq(); /* do dos interrupt */
+   keys_ready = 0;	/* flag *LASTSCAN_ADDR empty	*/
 }
 #endif
 
@@ -511,7 +515,8 @@ DOS_setscan(u_short scan)
     parent_nextscan();
     scan_to_buffer();
 #ifdef NEW_PIC
-    *LASTSCAN_ADD=1;
+ /*   *LASTSCAN_ADD=1; */
+    keys_ready = 0;
 #endif
   }
   if (!config.console_keyb && !config.X) {
@@ -541,7 +546,8 @@ set_keyboard_bios(void)
     else
       inschr = convKey(*LASTSCAN_ADD);
 #ifdef NEW_PIC
-      *LASTSCAN_ADD=1;   /* flag character as read */
+ /*     *LASTSCAN_ADD=1;   /* flag character as read */
+      keys_ready = 0;	/* flag character as read	*/
 #endif
   } else if (config.X) {
 	  if (config.keybint) {
@@ -561,7 +567,8 @@ set_keyboard_bios(void)
 	  } else
 		  inschr = convKey(*LASTSCAN_ADD);
 #ifdef NEW_PIC
-                  *LASTSCAN_ADD=1;   /* flag character as read */
+/*                  *LASTSCAN_ADD=1;   /* flag character as read */
+                  keys_ready = 0;	/* flag character as read	*/
 #endif
   } else {
     inschr = lastchr;
@@ -575,7 +582,8 @@ set_keyboard_bios(void)
     k_printf("KBD: Requesting next keyboard interrupt startstop %d:%d\n", 
       scan_queue_start, scan_queue_end);
     pic_request(PIC_IRQ1); 
-    *LASTSCAN_ADD=1;
+  /*  *LASTSCAN_ADD=1; */
+    keys_ready = 0;
   }
 #endif
   k_printf("set keybaord bios inschr=0x%04x, lastchr = 0x%04x, *LASTSCAN_ADD = 0x%04x\n", inschr, lastchr, *LASTSCAN_ADD);
@@ -606,10 +614,10 @@ insert_into_keybuffer(void)
 inline void
 parent_nextscan()
 {
-
+#ifndef NEW_PIC
   keys_ready = 0;
-#ifdef NEW_PIC
-  if(*LASTSCAN_ADD==1) {  /* make sure last character has been read */
+#else
+  if(!keys_ready) { /* make sure last character has been read */
 #endif
   if (scan_queue_start != scan_queue_end) {
     keys_ready = 1;

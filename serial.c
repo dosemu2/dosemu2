@@ -686,7 +686,7 @@ child_close_mouse()
 {
   static u_char i, rtrn;
   if ( !config.usesX ){
-  s_printf("MOUSE: CLOSE function starting.\n");
+  s_printf("MOUSE: CLOSE function starting. num_ser=%d\n", config.num_ser);
   for (i = 0; i < config.num_ser; i++) {
     s_printf("MOUSE: CLOSE port=%d, dev=%s, fd=%d, valid=%d\n", 
               i, com[i].dev, com[i].fd, com[i].mouse);
@@ -699,6 +699,7 @@ child_close_mouse()
       s_printf("MOUSE: CLOSE port=%d: Not running ser_close.\n", i);
     }
   }
+  s_printf("MOUSE: CLOSE function ended.\n");
 }
 }
 

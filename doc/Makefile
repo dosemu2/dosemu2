@@ -21,7 +21,7 @@ checkin:
 	-ci dosemu.texinfo DPR DANG EMUsuccess.txt lsm
 
 checkout:
-	-co -l dosemu.texinfo DPR DANG EMUsuccess.txt lsm
+	-co -M -l dosemu.texinfo DPR DANG EMUsuccess.txt lsm
 
 clean:
 	rm -f dosemu.dvi dosemu.cp dosemu.aux dosemu.cps dosemu.fn dosemu.fns 

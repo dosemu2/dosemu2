@@ -1,12 +1,15 @@
 #define PORTS_H 1
 
 /*
- * $Date: 1994/10/14 17:58:38 $
+ * $Date: 1994/11/06 02:35:24 $
  * $Source: /home/src/dosemu0.60/RCS/ports.h,v $
- * $Revision: 2.14 $
+ * $Revision: 2.16 $
  * $State: Exp $
  *
  * $Log: ports.h,v $
+ * Revision 2.16  1994/11/06  02:35:24  root
+ * Testing co -M.
+ *
  * Revision 2.14  1994/10/14  17:58:38  root
  * Prep for pre53_27.tgz
  *
@@ -347,6 +350,7 @@ inb(int port)
       r = microsoft_port_check;
     else
       r = *LASTSCAN_ADD;
+      keys_ready = 0;
     break;
 
   case 0x61:

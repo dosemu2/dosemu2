@@ -483,8 +483,8 @@ tmp = SEG_ADR((short *),ss,sp)-3;
   if(tmp[0] == LWORD(eip))
     if(pic_icount) 
       if(!(--pic_icount)) {
-        pic_irr|=pic_pirr;
-        pic_pirr=0;
+        pic_irr|=(pic_pirr&~pic_isr);
+        pic_pirr&=~pic_irr;
         REG(eflags)&=~(VIP);
    } 
  return;

@@ -47,7 +47,7 @@ checkin:
 	-ci $(ALL) Makefile README.pic
 
 checkout:
-	-co -l $(ALL) Makefile README.pic
+	-co -M -l $(ALL) Makefile README.pic
 
 clean:
 	rm -f *.o ../lib$(SUBDIR).o
