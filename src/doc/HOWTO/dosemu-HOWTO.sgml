@@ -189,7 +189,7 @@ exception is Windows 3.x. See also <xref linkend="whatdosversion">.
 <title>Can I run Microsoft Windows programs under dosemu?</title>
 
 <para>
-Not easily. You would be better to use the Windows emulator
+Yes, but it would be better to use the Windows emulator
 Wine (<ulink url="http://www.winehq.com"
 >http://www.winehq.com</ulink>). If you insist on running Windows
 under dosemu, see section 8 - dosemu and MS-Windows 3.1.
@@ -1358,7 +1358,6 @@ screen.  43 line mode will resize the <literal>xterm</literal> window to use 43 
 <para>
 Yes, it is possible to boot WINOS2 (the modified version of Windows 3.1
 that OS/2 uses) under DOSEMU+MSDOS (not FreeDOS). 
-Many kudos to Lutz &amp; Dong!
 But with some restrictions, and YOU NEED BOTH LICENSES, for
 WINDOWS-3.1 as well OS/2! for more details see
 <filename>README.txt</filename>.
@@ -1371,20 +1370,7 @@ WINDOWS-3.1 as well OS/2! for more details see
 
 <para>
 Sorry, no you can't.
-Win32s needs stuff running in ring 0. That's a "nono" with Linux.
-(97/04/27)
-</para>
-
-</sect2>
-
-<sect2>
-<title>Errormessage: Cannot find the vdtapi.386 file when starting dosemu</title>
-
-<para>
-As explained above, winemu can't handle 32 bit stuff. All drivers ending in
-386 are 32bit. So to run winemu, you have to delete all references to .386
-drivers in your <filename>win.ini</filename>.
-(97/04/27)
+Win32s is not supported yet, Win95 is neither.
 </para>
 
 </sect2>
@@ -1393,10 +1379,8 @@ drivers in your <filename>win.ini</filename>.
 <title>Windows 3.x in xdosemu:</title>
 
 <para>
-As of version 0.64.3, DOSEMU is able to run Windows in xdosemu.
-it is safer then starting windows-31 on the console, because 
-<emphasis>when</emphasis> it
-crashes, it doesn't block your keyboard or freeze your screen.
+As of version 1.2.0, DOSEMU is able to run Windows in xdosemu, but it
+works reliably only since 1.2.2.
 </para>
 
 <para>
@@ -1404,27 +1388,6 @@ Hints:
 </para>
 
 <orderedlist>
-<listitem>
-<para>
-Get Dosemu &#38; Linux source.
-</para>
-</listitem>
-<listitem>
-<para>
-Unpack dosemu.
-</para>
-</listitem>
-<listitem>
-<para>
-Run "./configure" to configure Dosemu (it will enable vm86plus as a
-default).
-</para>
-</listitem>
-<listitem>
-<para>
-Type "make" to compile.
-</para>
-</listitem>
 <listitem>
 <para>
 For faster graphics (256 colors instead of 16 is faster in xdosemu),
@@ -1456,15 +1419,9 @@ Start xdosemu.
 </listitem>
 <listitem>
 <para>
-In Dosemu, go to windows directory and start winemu.
+In Dosemu, go to windows directory and start winemu or type system\os2k386.exe.
 </para>
 </listitem>
-<listitem>
-<para>
-Cross your fingers.
-</para>
-</listitem>
-
 </orderedlist>
 
 </sect2>
@@ -1473,15 +1430,7 @@ Cross your fingers.
 <title>Can I install windows from within dosemu?</title>
 
 <para>
-<emphasis>No</emphasis>, you can't. Dos will tell you something like:
-</para>
-
-<screen>
-The XMS driver you have on your system is not
-compatible with Windows...
-</screen>
-
-<para>
+<emphasis>No</emphasis>, right now you can't.
 You need to install windows from Dos. You can copy the windows tree to
 somewhere on your Linux Filesystem and use lredir to mount it on the
 same place as it is in dos. Example:
@@ -1555,26 +1504,6 @@ just move the cursor outside and then inside the DOS-Box again.
 </para>
 </listitem>
 </orderedlist>
-
-</sect2>
-
-<sect2>
-<title>Why did my Icon disappear from the Program manager?</title>
-
-<para>
-MS-Windows and WinOS2 handle the program manager group differently. While
-MS-Win store the setup in progman.ini, WinOS2 wants the contents of
-progman.ini in system.ini. Here's a tip from Todd
-T. Fries <email>friest@acm.org</email>:
-</para>
-
-<screen>
-cat progman.ini &gt;&gt; system.ini
-</screen>
-
-<para>
-Be sure to use &gt;&gt;. &nbsp; :-)
-</para>
 
 </sect2>
 
