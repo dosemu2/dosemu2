@@ -9,6 +9,14 @@ QuickStart: Instructions on how to quickly get DOSEMU up and running.
 - su
 - make install
 
+
+NOTE: If you run dosemu with emumodule on a SMP-Kernel, you need to
+      also compile the modules for SMP !!! In this case you _must_ use
+      the configure-option --enable-SMPmodules such as
+
+         ./configure --enable-SMPmodules
+
+
 --------------------------------------------------------------------------
 1a. Load modules
 --------------------------------------------------------------------------

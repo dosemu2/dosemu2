@@ -644,7 +644,7 @@ static void int1a(u_char i)
     set_ticks(last_ticks);
 #else
     ignore_segv++;
-    last_ticks = *((long *)(BIOS_TICK_ADDR));
+    last_ticks = *((unsigned long *)(BIOS_TICK_ADDR));
     LO(ax) = *(u_char *) (TICK_OVERFLOW_ADDR);
     *(u_char *) (TICK_OVERFLOW_ADDR) = 0;
     ignore_segv--;

@@ -89,6 +89,13 @@
  * - Adapted to modules-2.0.0.tar.gz from http://www.pi.se/blox/modules
  * - rearange resolving: first all global, then all local symbols.
  *
+ * August 24, 1996 ( 2.0.0-HACKER_TOOL-1 )
+ * - Added HACKER_TOOL support for modprobe.
+ *   You now may put HACKER_TOOL special options into /etc/modules.conf such as
+ *      options emumodule +-lZ +/System.map
+ *   The '+' prefixed params will be put into the options part of the
+ *   insmod-commandline, so they get recognized (the '+' gets removed).
+ *
  * ---------------------------
  *
  * NOTE for HACKER_TOOL:
@@ -414,6 +421,30 @@ static struct zSystem_entry *build_zSystem_syms(char *name, struct kernel_sym *k
   return table;
 }
 
+void reorder_options(int argc, char *argv[])
+{
+  char *a;
+  int i,j,ii=1;
+  if (argc < 2) return;
+  for (i=1; i<argc; i++) {
+    if ((argv[i][0] != '-') || ((argv[i][0] == '-') && (argv[i][1] == 'o'))) {
+      ii=i;
+      break;
+    }
+  }
+  for (; i<argc; i++) {
+    if (argv[i][0] == '+') {
+      a=argv[i]+1;
+      for (j=i; j>ii; j--) {
+        argv[j]=argv[j-1];
+      }
+      argv[ii]=a;
+      ii++;
+    }
+  }
+}
+
+
 #endif  /* HACKER_TOOL <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
 
 
@@ -537,6 +568,16 @@ int main(int argc, char **argv)
 	char *modname = NULL;
 	char *otextseg; /* JEJB: store the initial textseg, so we get offset */
 	char *p;
+
+#ifdef HACKER_TOOL
+	/* This allows to put HACKER_TOOL special options into /etc/modules.conf
+	 * which is used by modprobe and kerneld, such as
+	 *      options emumodule +-lZ +/System.map
+	 * The '+' prefixed params will be put into the options part of the
+	 * insmod-commandline, so they get recognized (the '+' gets removed).
+         */
+	reorder_options(argc,argv);
+#endif
 
 	/* find basename */
 	

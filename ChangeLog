@@ -1,3 +1,5 @@
+96/09/24 ver. 0.64.0.2 - From Hans, SMP, emumodule, insmod and some minor DPMI-stuff
+96/09/23 ver. 0.64.0.1 - JES took over some valuable patches from 0.63
 96/09/18 23:06:34 From : JES - Allow compiling without X support --without-x
 96/08/30 01:21:30 From: Eric -- Some more Bugfixes, and a little video cleanup practice
 96/08/07 13:56:38 From : Rainer - Video / Keyboard / Misc cleanup

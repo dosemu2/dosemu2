@@ -1015,7 +1015,13 @@ _get_dir(char *name, char *mname, char *mext)
     while ((cur_ent = dos_readdir(cur_dir))) {
       char tmpname[100];
       int namlen;
-	Debug0((dbg_fd, "get_dir(): `%s' (%d)\n", cur_ent->d_name,
+
+      /* this while loop can take a _long_ time ... better avoid signal queue
+       *overflows AV
+       */
+      handle_signals();
+
+      Debug0((dbg_fd, "get_dir(): `%s' (%d)\n", cur_ent->d_name,
 	       cur_ent->d_namlen));
       if (cur_ent->d_ino == 0)
 	continue;

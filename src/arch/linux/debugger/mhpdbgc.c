@@ -86,6 +86,7 @@ static void mhp_disasm  (int, char *[]);
 static void mhp_go      (int, char *[]);
 static void mhp_stop    (int, char *[]);
 static void mhp_trace   (int, char *[]);
+static void mhp_tracec  (int, char *[]);
 static void mhp_trace_force (int, char *[]);
 static void mhp_regs32  (int, char *[]);
 static void mhp_bp      (int, char *[]);
@@ -128,6 +129,9 @@ static unsigned int symbl2_org = 0;
 
 static int trapped_bp=-1, trapped_bp_;
 
+int traceloop=0;
+char loopbuf[4] = "";
+
 /* constants */
 static const struct cmd_db cmdtab[] = {
    {"r0",            mhp_r0},
@@ -139,6 +143,7 @@ static const struct cmd_db cmdtab[] = {
    {"stop",          mhp_stop},
    {"mode",          mhp_mode},
    {"t",             mhp_trace},
+   {"tc",            mhp_tracec},
    {"tf",            mhp_trace_force},
    {"r32",           mhp_regs32},
    {"bp",            mhp_bp},
@@ -168,12 +173,13 @@ static const char help_page[]=
   "stop                   stop (if running)\n"
   "mode 0|1|+d|-d         set mode (0=SEG16, 1=LIN32) for u and d commands\n"
   "t                      single step (not fully debugged!!!)\n"
+  "tc                     single step, loop forever until key pressed\n"
   "tf                     single step, force over IRET\n"
   "r32                    dump regs in 32 bit format\n"
   "bp addr                set int3 style breakpoint\n"
   "bpint/bcint xx         set/clear breakpoint on INT xx\n"
   "bpintd/bcintd xx [ax]  set/clear breakpoint on DPMI INT xx [ax]\n"
-  "bpload                 stop at start of next loaded a DOS program\n"
+  "bpload                 stop at start of next loaded DOS program\n"
   "bl                     list active breakpoints\n"
   "rusermap org fn        read microsoft linker format .MAP file 'fn'\n"
   "                       code origin = 'org'.\n"
@@ -514,6 +520,17 @@ static void mhp_trace(int argc, char * argv[])
       }
       else WRITE_FLAGS(READ_FLAGS() | TF);
       mhpdbgc.trapcmd = 1;
+   }
+}
+
+static void mhp_tracec(int argc, char * argv[])
+{
+   if (!mhpdbgc.stopped) {
+      mhp_printf("must be in stopped state\n");
+   } else {
+     mhp_trace (argc, argv);
+     traceloop=1;
+     strcpy(loopbuf,"t");
    }
 }
 
@@ -1127,6 +1144,7 @@ static void mhp_regs(int argc, char * argv[])
   if (DBG_TYPE(mhpdbgc.currcode) == DBG_GPF)
      mhp_printf( "General Protection Fault, ");
 
+ if (!traceloop)
   mhp_printf( "system state: %s%s%s\n",
        mhpdbgc.stopped ? "stopped" : "running",
        IN_DPMI ? " in DPMI" : (in_dpmi?" in real mode while in DPMI":""),

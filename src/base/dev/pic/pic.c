@@ -84,7 +84,7 @@ pic.c: At top level:
 pic.c:81: warning: `pic1_mask' defined but not used
 it it used in the assembly part
 */
-static unsigned long              pic_smm;          /* 32=>special mask mode, 0 otherwise */
+static unsigned long   pic_smm = 0;      /* 32=>special mask mode, 0 otherwise */
 
 static unsigned long   pic_pirr;         /* pending requests: ->irr when icount==0 */
 static unsigned long   pic_wirr;             /* watchdog timer for pic_pirr */
@@ -945,11 +945,11 @@ int earliest, timer, count;
 /*if(pic_irr&~pic_imr) return;*/
    earliest = pic_sys_time;
    count = 0;
-   for (timer=0; timer<32;++timer) { 
-      if( pic_itime[timer] < pic_sys_time && pic_itime[timer] != NEVER) {
+   for (timer=0; timer<32; ++timer) { 
+      if ((pic_itime[timer] < pic_sys_time) && (pic_itime[timer] != NEVER)) {
          if( pic_itime[timer] != pic_ltime[timer]) {
            /* if( pic_itime[timer] > pic_itime[32]) {*/
-               if(pic_itime[timer] < earliest || earliest == NEVER) 
+               if ((pic_itime[timer] < earliest) || (earliest == NEVER))
                     earliest = pic_itime[timer];
                pic_request(timer);
                ++count;

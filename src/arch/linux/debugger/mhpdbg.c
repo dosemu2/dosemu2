@@ -56,6 +56,9 @@ static char mhp_banner[] = {
 };
 struct mhpdbgc mhpdbgc ={0};
 
+extern int traceloop;
+extern char loopbuf[];
+
 /********/
 /* CODE */
 /********/
@@ -193,8 +196,17 @@ static void mhp_poll(void)
        *       ( all clear ? )
        */
       if (mhpdbg.nbytes <= 0) {
-	 if (mhpdbgc.stopped) continue;
-	 else break;
+         if (traceloop && mhpdbgc.stopped) {
+           strcpy(mhpdbg.recvbuf,loopbuf);
+           mhpdbg.nbytes=strlen(loopbuf);
+         }
+         else {
+          if (mhpdbgc.stopped) continue;
+          else break;
+        }
+      }
+      else {
+        if (traceloop) { traceloop=loopbuf[0]=0; }
       }
       if ((mhpdbg.recvbuf[0] == 'q') && (mhpdbg.recvbuf[1] <= ' ')) {
 	 mhpdbg.active = 0;

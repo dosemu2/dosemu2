@@ -14,6 +14,7 @@ DEBUGGER=@DEBUGGER@
 @X_SUPPORT@
 @X_GRAPHICS@
 X11LIBDIR=@x_libraries@
+USE_MHPDBG=@USE_MHPDBG@
 
 #Change the following line if the right kernel includes reside elsewhere
 #LINUX_KERNEL = /usr/src/linux
@@ -93,7 +94,7 @@ DOCS= $(REALTOPDIR)/doc
 OFILES= Makefile Makefile.common ../ChangeLog ../QuickStart \
 	../etc/BOGUS-Notes arch/linux/Makefile.main arch/netbsd/Makefile.main \
 	../etc/vga.pcf ../etc/vga.bdf ../etc/xtermdos.sh ../etc/xinstallvgafont.sh \
-	Configure ../load_module.sh ../unload_module.sh
+	Configure ../load_module.sh ../unload_module.sh ../install-for-modprobe.sh
 
 BFILES=
 
@@ -398,6 +399,7 @@ install:
 	@install -d /var/run
 	@if [ -f ../load_module.sh ]; then chmod 700 ../load_module.sh; fi
 	@if [ -f ../unload_module.sh ]; then chmod 700 ../unload_module.sh; fi
+	@if [ -f ../install-for-modprobe.sh ]; then chmod 700 ../install-for-modprobe.sh; fi
 	@if [ -f /lib/libemu ]; then rm -f /lib/libemu ; fi
 	@install -c -o root -m 04755 $(BINPATH)/bin/dos /usr/bin
 ifdef  USE_MHPDBG
@@ -446,7 +448,7 @@ endif
 	 echo ""
 ifdef REQUIRES_EMUMODULE
 	@echo "  - DO NOT FORGET TO LOAD EMUMODULE"; \
-	 echo "    use load_module.sh from this directory."; \
+	 echo "    use load_module.sh from this directory"; \
 	 echo ""
 else
 	@echo "  - It is _STRONGLY_ recommended that the modules"; \

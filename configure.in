@@ -246,7 +246,7 @@ AC_SUBST(x_libraries)
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
 SUBLEVEL="64"
-PATCHLEVEL="0.0"
+PATCHLEVEL="0.2"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 AC_DEFINE_UNQUOTED(EMUVER, "$EMUVER")
@@ -301,6 +301,18 @@ dnl   AC_DEFINE_UNQUOTED(USE_VM86_STACKVERIFY)
   fi
 fi
 AC_SUBST(DEBUGGER)
+
+dnl Do SMP compilation for modules
+ AC_ARG_ENABLE(SMPmodules,
+               [  --enable-SMPmodules     do compile emumodule for SMP kernels],
+               [SMPmodules="yes"],[SMPmodules="no"])
+  if test "$SMPmodules" = "yes"; then
+   AC_CHECKING("Compiling modules for SMP kernels");
+   SMP="-D__SMP__"
+   AC_SUBST(SMP)
+  else
+   AC_CHECKING("Compiling modules for uniprocessor kernels");
+  fi
 
 dnl Do SB emulation
  AC_ARG_ENABLE(nosbemu,
@@ -479,6 +491,21 @@ else
   AC_MSG_WARN(run on any X server. Use  configure --enable-mitshm)
   AC_MSG_WARN(to force the use of MITSHM.)
   AC_MSG_WARN( )
+fi
+
+dnl Warn the user about SMP
+if test "$SMPmodules" = "yes" ; then
+  if ! grep cpu_data /proc/ksyms >/dev/null 2>&1; then
+    AC_MSG_WARN( )
+    AC_MSG_WARN(You choose to compile for SMP, but your kernel is uniprocessor)
+    AC_MSG_WARN( )
+  fi
+else
+  if grep cpu_data /proc/ksyms >/dev/null 2>&1; then
+    AC_MSG_WARN( )
+    AC_MSG_WARN(Your kernel is SMP, but you did not set --enable-SMPmodules)
+    AC_MSG_WARN( )
+  fi
 fi
 
 echo ""

@@ -583,7 +583,6 @@ static int dpmi_control(void)
 #ifdef USE_MHPDBG
     if (mhpdbg.active) {
       static force_early=0;
-      unsigned char *cp=(void *)SEL_ADR(_cs,_eip);
       usleep(1); /* NOTE: We need a syscall (maybe any) to force scheduling.
                   *       ( ... don't know why ... )
                   *       If we do not, the below kludge doesn't work
@@ -1853,7 +1852,7 @@ void run_dpmi(void)
     * _but_ dpmi_eflags.IF is now 1 (who sets it?).
     */
    static int prev_IF=-1;
-   int retval, current_IF;
+   int retval, current_IF=0;
 #else
    int retval;
 #endif
@@ -1862,6 +1861,12 @@ void run_dpmi(void)
    */
 
   if (int_queue_running || in_dpmi_dos_int) {
+   /* a little optimization - if we already know that next insn is a hlt
+    * there's no need to lose time calling vm86() again - AV
+    */
+   if (*((unsigned char *)SEG_ADR((unsigned char *), cs, ip))==0xf4)
+     retval=VM86_UNKNOWN;
+   else {
 #if 1 && (!defined(ALBERTO_KLUDGE)) /* <ESC> BUG FIXER (if 1) */
     #define OVERLOAD_THRESHOULD2  600000 /* maximum acceptable value */
     #define OVERLOAD_THRESHOULD1  238608 /* good average value */
@@ -1889,6 +1894,7 @@ void run_dpmi(void)
       if (dpmi_eflags&IF)
         dpmi_cli();
     }
+  } /* not an HLT insn */
 
     switch VM86_TYPE(retval) {
 	case VM86_UNKNOWN:
@@ -2363,6 +2369,8 @@ void dpmi_fault(struct sigcontext *scp, int code)
   unsigned char *csp;
 
 #ifdef SHOWREGS
+  unsigned char *csp2, *ssp2;
+  int i;
 #if 1
   if (!(_cs==UCODESEL))
 #endif
