@@ -1790,9 +1790,10 @@ m_printf("Called/ing the mouse with AX=%x \n",LWORD(eax));
 /* Ok now we test to see if the mouse has been taking a break and we can let the 
  * system get on with some real work. :-) */
    if (trigger1 >= config.hogthreshold*200) {
-     if (config.hogthreshold && CAN_SLEEP() && ++trigger >= config.hogthreshold)  {
+     if (config.hogthreshold && CAN_SLEEP() &&
+        trigger++ > (config.hogthreshold - 1) * 20)  {
        m_printf("Ignoring the quiet mouse.\n");
-       usleep(INT2F_IDLE_USECS);
+       usleep(INT15_IDLE_USECS);
        trigger=0;
      }
      trigger1--;
