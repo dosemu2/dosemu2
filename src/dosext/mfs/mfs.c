@@ -47,8 +47,11 @@
  *
  * HISTORY:
  * $Log$
- * Revision 1.1  2003/06/23 00:02:08  bartoldeman
- * Initial revision
+ * Revision 1.2  2003/07/15 16:58:08  bartoldeman
+ * Small optimization.
+ *
+ * Revision 1.1.1.1  2003/06/23 00:02:08  bartoldeman
+ * Initial import (dosemu-1.1.5.2).
  *
 
 Work started by Tim Bird (tbird@novell.com) 28th October 1993
@@ -1103,11 +1106,8 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext)
 
       if (dir_list == NULL) {
         dir_list = make_dir_list(20);
-	entry = make_entry(dir_list);
       }
-      else {
-	entry = make_entry(dir_list);
-      }
+      entry = make_entry(dir_list);
 
       memcpy(entry->name, fname, 8);
       memcpy(entry->ext, fext, 3);
