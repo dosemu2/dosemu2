@@ -3029,7 +3029,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
     if (debug_level('M') >= 5)
       D_printf("DPMI: ESP bug, esp=%#lx stack_bot=%#lx, cs32=%i ss32=%i\n",
 	_esp, stack_init_bot, Segments[_cs >> 3].is_32, Segments[_ss >> 3].is_32);
-    if (!Segments[_ss >> 3].is_32) {
+    if (!Segments[_ss >> 3].is_32 || !Segments[_cs >> 3].is_32) {
       _HWORD(esp) = 0;
       esp_fixed = 1;
     }
