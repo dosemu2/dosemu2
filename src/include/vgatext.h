@@ -31,6 +31,7 @@ int register_text_system(struct text_system *text_system);
 void blink_cursor(void);
 void reset_redraw_text_screen(void);
 void update_cursor(void);
+void resize_text_mapper(int image_mode);
 struct RectArea convert_bitmap_string(int x, int y, unsigned char *text,
 				      int len, Bit8u attr);
 int update_text_screen(void);

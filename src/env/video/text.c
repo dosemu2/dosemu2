@@ -329,6 +329,39 @@ void blink_cursor()
   }
 }
 
+/*
+ * Resize everything according to vga.*
+ */
+void resize_text_mapper(int image_mode)
+{
+  static char *text_canvas = NULL;
+
+  /* need a remap obj for the font system even in text mode! */
+  x_msg("X_setmode to text mode: Get remapper for Erics fonts\n");
+
+  remap_done(&remap_obj);
+
+  /* linear 1 byte per pixel */
+  remap_obj = remap_init(MODE_PSEUDO_8, image_mode, remap_features);
+  adjust_gamma(&remap_obj, config.X_gamma);
+
+  text_canvas = remap_obj.src_image = realloc(text_canvas, 1 * vga.width * vga.height);
+  if (remap_obj.src_image == NULL)
+    error("X: cannot allocate text mode canvas for font simulation\n");
+  remap_obj.src_resize(&remap_obj, vga.width, vga.height, 1 * vga.width);
+
+  dirty_all_video_pages();
+  /*
+   * The new remap object does not yet know about our colors.
+   * So we have to force an update. -- sw
+   */
+  dirty_all_vga_colors();
+
+  vga.reconfig.mem =
+    vga.reconfig.display =
+    vga.reconfig.dac = 0;
+}
+
 RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
 			       Bit8u attr)
 {

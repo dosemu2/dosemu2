@@ -2278,60 +2278,6 @@ void resize_ximage(unsigned width, unsigned height)
 }
 
 /*
- * Resize everything according to vga.*
- */
-static void resize_text_mapper(unsigned wx_res, unsigned wy_res)
-{
-  /* lots of things are global vars... */
-  int X_mode_type;
-  unsigned old_w_x_res = w_x_res;
-  unsigned old_w_y_res = w_y_res;
-  static char *text_canvas = NULL;
-
-  /* need a remap obj for the font system even in text mode! */
-  x_msg("X_setmode to text mode: Get remapper for Erics fonts\n");
-
-  X_mode_type = MODE_PSEUDO_8; /* linear 1 byte per pixel */
-
-  remap_done(&remap_obj);
-  x_msg("X_setmode: remap_init(0x%04x, 0x%04x, 0x%04x)\n",
-        X_mode_type, ximage_mode, remap_features);
-
-  remap_obj = remap_init(X_mode_type, ximage_mode, remap_features);
-  *remap_obj.dst_color_space = X_csd;
-  adjust_gamma(&remap_obj, config.X_gamma);
-
-  resize_ximage(wx_res, wy_res);    /* destroy, create, dst-map */
-  w_x_res = old_w_x_res;
-  w_y_res = old_w_y_res;
-  /* already done by resize: remap_obj.dst_image = ximage->data; */
-
-  /* resizing to remove half text lines is a bit useless but okay */  
-  remap_obj.dst_resize(&remap_obj, wx_res, wy_res, ximage->bytes_per_line);
-
-  x_res = vga.width;
-  y_res = vga.height;
-  text_canvas = remap_obj.src_image = realloc(text_canvas, 1 * x_res * y_res);
-  if (remap_obj.src_image == NULL)
-    error("X: cannot allocate text mode canvas for font simulation\n");
-  remap_obj.src_resize(&remap_obj, x_res, y_res, 1 * x_res);
-
-  x_msg("resize_text_mapper to %d x %d VGA --> %d x %d X11\n",
-        x_res, y_res, w_x_res, w_y_res);
-
-  dirty_all_video_pages();
-  /*
-   * The new remap object does not yet know about our colors.
-   * So we have to force an update. -- sw
-   */
-  dirty_all_vga_colors();
-
-  vga.reconfig.mem =
-    vga.reconfig.display =
-    vga.reconfig.dac = 0;
-}
-
-/*
  * Resize the window to given (*) size and lock it at that size
  * In text mode, you have to resize the mapper, too
  * ((*): given size is size of the embedded image)
@@ -2369,7 +2315,11 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
   XFillRectangle(display, mainwindow, gc, 0, 0, x_fill, y_fill);
 
   XSync(display, False); /* show NOW */
-  if (font == NULL) resize_text_mapper(x_fill, y_fill);
+  if (font == NULL) {
+    resize_text_mapper(ximage_mode);
+    resize_ximage(x_fill, y_fill);    /* destroy, create, dst-map */
+    *remap_obj.dst_color_space = X_csd;
+  }
 }
 
 /* 
@@ -2988,7 +2938,7 @@ void set_mouse_buttons(int state)
 static int X_mouse_init(void)
 {
   mouse_t *mice = &config.mouse;
-  if (!config.X || !mice->intdrv)
+  if (Video != &Video_X || !mice->intdrv)
     return FALSE;
   mice->type = MOUSE_X;
   mice->use_absolute = 1;
