@@ -1401,14 +1401,9 @@ int can_revector(int i)
     return config.dpmi ? REVECT : NO_REVECT;
 
   case 0x33:			/* Mouse. Wrapper for mouse-garrot as well*/
-    /* the mouse is a bit of a special case:
-       the hogthreshold part is revectored (should always occur even
-       for DOS mouse drivers, but the INT33 API is non-revectored
-       just like int10 */
-    if (config.hogthreshold)
-      return REVECT;
-    else
-      return NO_REVECT;
+    /* hogthreshold may be changed using "speed". Easiest to leave it
+       permanently enabled for now */
+    return REVECT;
 
 #if 0		/* no need to specify all */
   case 0x10:			/* BIOS video */
@@ -1639,18 +1634,16 @@ static int redir_it(void)
 
 static void dos_post_boot(void)
 {
-  /* Ignore the first invocation, otherwise we set the mouse
-   * intvector too early and DOS resets it to iret :( */
-  static int first = 2;
-  if (!first)
-    return;
-  if (!--first) {
+  static int first = 1;
+  if (first) {
+    first = 0;
     mouse_post_boot();
   }
 }
 
 /* KEYBOARD BUSY LOOP */
 static int int28(void) {
+  dos_post_boot();
   idle(0, 50, INT28_IDLE_USECS, "int28");
   return 0;
 }
@@ -1837,7 +1830,12 @@ static int int33(void) {
  * taking a break. */
   
   static unsigned short int oldx=0, oldy=0;
-   
+
+  /* set the mouse int33 back to where it should be in case DOS put it to iret */
+  if (config.mouse.intdrv && IS_IRET(0x33)) {
+    SETIVEC(0x33, BIOSSEG, INT_OFF(0x33));
+  }
+
 /* Firstly do the actual mouse function. */   
 /* N.B. This code uses a callback or the intdrv since real_run_int() would not
  * actually call the real mode mouse driver now. (It simply sets up the registers so
