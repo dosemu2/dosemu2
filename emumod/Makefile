@@ -18,15 +18,15 @@ endif
 
 
 
-# CFLAGS=-Wall -I$(USRSRCDIR) -O2 -fomit-frame-pointer  -D__KERNEL__ -DLINUX
+KCFLAGS=-Wall -I$(USRSRCDIR) $(INCDIR)  -O2 -fomit-frame-pointer  -D__KERNEL__ -DLINUX
  
 
 
 # ANSI isn't possible right now, because some header-file aren't ANSI
 
-CFILES = vm86.c traps.c emumod.c
+CFILES = vm86.c traps.c emumod.c emusys.c
 HFILES = emumod.h
-OFILES = vm86.o traps.o emumod.o
+OFILES = vm86.o traps.o emumod.o emusys.o
 
 # Insert all source- and header-files here.
 
@@ -34,7 +34,7 @@ ALL = $(CFILES) $(HFILES)
 
 # All object-files are included here.
 
-OBJS= vm86.o traps.o emumod.o
+OBJS= vm86.o traps.o emumod.o fastsys.o emusys.o
 
 .c.o:
 	$(CC) $(CFLAGS) $(XDEFS) $(INCDIR) -c $<
@@ -46,13 +46,19 @@ emumodule.o: ${OBJS}
 	ld -r -o emumodule.o $(OBJS)
 
 vm86.o:  vm86.c emumod.h $(USRSRCDIR)/linux/tools/version.h
-	$(CC) ${CFLAGS} -D_LOADABLE_VM86_ -D__KERNEL__ -c vm86.c -o vm86.o
+	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c vm86.c -o vm86.o
 
 emumod.o:  emumod.c emumod.h $(USRSRCDIR)/linux/tools/version.h
-	$(CC) ${CFLAGS} -D_LOADABLE_VM86_ -D__KERNEL__ -c emumod.c -o emumod.o
+	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c emumod.c -o emumod.o
+
+emusys.o:  emusys.c $(USRSRCDIR)/linux/tools/version.h 
+	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c emusys.c -o emusys.o
 
 traps.o:  traps.c emumod.h $(USRSRCDIR)/linux/tools/version.h
-	$(CC) ${CFLAGS} -D_LOADABLE_VM86_ -D__KERNEL__ -c traps.c -o traps.o
+	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c traps.c -o traps.o
+
+fastsys.o: fastsys.S
+	$(CC) -c fastsys.S -o fastsys.o
 
 checkin:
 	-ci $(ALL) Makefile

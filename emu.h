@@ -3,12 +3,15 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/11/03 11:43:26 $
+ * $Date: 1994/11/13 00:40:45 $
  * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
- * $Revision: 2.20 $
+ * $Revision: 2.21 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 2.21  1994/11/13  00:40:45  root
+ * Prep for Hans's latest.
+ *
  * Revision 2.20  1994/11/03  11:43:26  root
  * Checkin Prior to Jochen's Latest.
  *
@@ -220,6 +223,20 @@
 #define SIG 1
 typedef struct { int fd; int irq; } SillyG_t;
 #endif
+
+#if 0 
+  /* Set this to 1, if you you need the emumodules special features
+   * You also must load the modules as follows:
+   *   login in as root
+   *   cd /usr/src/dosemuXXX/syscallmgr
+   *   ./insmod syscallmgr.o
+   *   ./insmod -m ../emumod/emumodule.o
+   */
+  #define REQUIRES_EMUMODULE
+#else 
+  #undef REQUIRES_EMUMODULE
+#endif 
+
 
 #define inline __inline__
 
@@ -482,6 +499,7 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
        char    *X_icon_name;
        int     X_blinkrate;
        boolean fullrestore;
+       int     dualmon;
 
        u_short usesX;  /* !=0 if dosemu owns an X window */
 
@@ -684,5 +702,14 @@ extern void add_to_io_select(int, unsigned char);
 
 extern inline void SIGNAL_save( void (*signal_call)(void) );
 extern inline void handle_signals(void);
+
+
+#ifdef REQUIRES_EMUMODULE
+  #ifdef EMU_C
+    #define __EMUSYS_parent
+  #endif  
+  #include "emusys.h"
+#endif
+
 
 #endif /* EMU_H */

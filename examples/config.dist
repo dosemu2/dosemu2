@@ -265,6 +265,21 @@ video { vga  console }          # Use this line, if you are using VGA
 #                    This is not always necessary, but a word to the wise
 #                    shall be sufficient.
 #
+#   - If you have a dual-monitor configuration (e.g. MDA as second display),
+#     you then may run CAD programs on 2 displays or let play your debugger
+#     on the MDA while debugging a graphics program on the VGA (e.g TD -do ).
+#     You also may switch to the MDA display by using the DOS command
+#     mode mono (mode co80 returns to your normal display).
+#     This feature can be enabled by the switch "dualmon" like this:
+#       video { vga  console  graphics dualmon }
+#     and can be used on a xterm and the console, but of course not, if you
+#     have the MDA as your primary display. 
+#     You also must set USE_DUALMON 1 in include/video.h.
+#     NOTE: Make shure no more then one process is using this feature !
+#           ( you will get funny garbage on your MDA display. ) 
+#           Also, you must NOT have the dualmon-patches for kernel applied
+#           ( having the MDA as Linux console ) 
+#        
 #   It may be necessary to set this to "on" if DOSEMU can't boot up properly
 #   on your system when it's set "off" and when graphics are enabled.
 #   Note: May interfere with serial ports when using certain video boards.

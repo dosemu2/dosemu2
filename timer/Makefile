@@ -50,7 +50,7 @@ checkout:
 	-co -M -l $(ALL) Makefile README.pic
 
 clean:
-	rm -f *.o ../lib$(SUBDIR).o
+	rm -f *.o $(LIB)
 
 realclean: clean
 	rm -f .depend

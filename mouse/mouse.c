@@ -1,12 +1,15 @@
 /* mouse.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/10/14 18:02:19 $
+ * $Date: 1994/11/13 00:43:00 $
  * $Source: /home/src/dosemu0.60/mouse/RCS/mouse.c,v $
- * $Revision: 2.14 $
+ * $Revision: 2.15 $
  * $State: Exp $
  *
  * $Log: mouse.c,v $
+ * Revision 2.15  1994/11/13  00:43:00  root
+ * Prep for Hans's latest.
+ *
  * Revision 2.14  1994/10/14  18:02:19  root
  * Prep for pre53_27.tgz
  *
@@ -222,7 +225,7 @@ mouse_int(void)
 {
   unsigned short tmp1, tmp2, tmp3;
 
-  m_printf("MOUSEALAN: int 0x%x\n", LWORD(eax));
+  m_printf("MOUSEALAN: int 0x%x ebx=%x\n", LWORD(eax), LWORD(ebx));
   switch (LWORD(eax)) {
   case 0:			/* Mouse Reset/Get Mouse Installed Flag */
     mouse_reset();
@@ -323,6 +326,8 @@ mouse_int(void)
   case 0x21:			
     m_printf("MOUSE: software reset on mouse\n");
     mouse.cursor_on = 0;	/* Assuming software reset, turns off mouse */
+    mouse.cs=0;
+    mouse.ip=0;
 #ifdef X_SUPPORT
     if (config.X)
        X_change_mouse_cursor(0);
@@ -616,6 +621,7 @@ mouse_keyboard(int sc)
 void 
 mouse_move(void)
 {
+  m_printf("MOUSE: move.\n");
   if (mouse.x <= mouse.minx) mouse.x = mouse.minx;
   if (mouse.y <= mouse.miny) mouse.y = mouse.miny;
   if (mouse.x >= mouse.maxx) mouse.x = mouse.maxx;
@@ -751,7 +757,7 @@ mouse_delta(int event)
 void
 mouse_event()
 {
-  if (mouse.mask & mouse_events) {
+  if (mouse.mask & mouse_events && mouse.cs && mouse.ip) {
     fake_int();
     fake_pusha();
 
@@ -884,9 +890,13 @@ mouse_init(void)
       add_to_io_select(mice->fd, 0);
     }
     else {
-      sptr = &com[config.num_ser];
+      int x;
+      for (x=0;x<config.num_ser;x++){
+        sptr = &com[config.num_ser];
+        if (sptr->mouse) break;
+      }
       if (!(sptr->mouse)) {
- 	m_printf("MOUSE: No mouse configured in serial config! num_ser=%d\n",config.num_ser);
+        m_printf("MOUSE: No mouse configured in serial config! num_ser=%d\n",config.num_ser);
  	mice->intdrv = FALSE;
       }
     }

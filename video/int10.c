@@ -17,6 +17,22 @@
 #define set_dirty(page)
 #endif
 
+#if USE_DUALMON
+  #if USE_SCROLL_QUEUE
+    #error "dualmon: You can't have defined USE_SCROLL_QUEUE together with USE_DUALMON"
+  #endif
+  #define BIOS_CONFIG_SCREEN_MODE (bios_configuration & 0x30)
+  #define IS_SCREENMODE_MDA (BIOS_CONFIG_SCREEN_MODE == 0x30)
+  /* This is the text screen base, the DOS program actually has to use.
+   * Programs that support simultaneous dual monitor support rely on
+   * the fact, that the BIOS takes B0000 for EQUIP-flags 4..5 = 3
+   * else B8000 as regenbuffer address. Each compatible PC-BIOS behaves so.
+   * This is ugly, but there is no screen buffer address in the BIOS-DATA
+   * at 0x400. (Hans)
+   */
+  #define BIOS_SCREEN_BASE (IS_SCREENMODE_MDA ? MDA_PHYS_TEXT_BASE : VGA_PHYS_TEXT_BASE)
+#endif
+
 /* this maps the cursor shape given by int10, fn1 to the actually
    displayed cursor start&end values in cursor_shape. This seems 
    to be typical IBM Black Compatiblity Magic.
@@ -157,7 +173,14 @@ void bios_scroll(int x0,int y0,int x1,int y1,int n,byte attr) {
    VIDEO_UPDATE_UNLOCK();
 }
 #else
-#define bios_scroll(x0,y0,x1,y1,n,attr) Scroll(screen_adr,x0,y0,x1,y1,n,attr)
+  #if USE_DUALMON
+    #define bios_scroll(x0,y0,x1,y1,n,attr) ({\
+     if (IS_SCREENMODE_MDA) Scroll((void *)MDA_PHYS_TEXT_BASE,x0,y0,x1,y1,n,attr); \
+     else Scroll(screen_adr,x0,y0,x1,y1,n,attr);\
+    })
+  #else
+    #define bios_scroll(x0,y0,x1,y1,n,attr) Scroll(screen_adr,x0,y0,x1,y1,n,attr)
+  #endif
 #endif
 
 /* Output a character to the screen. */ 
@@ -166,6 +189,9 @@ char_out(unsigned char ch, int s)
 {
   int newline_att = 7;
   int xpos, ypos;
+#if USE_DUALMON
+  int virt_text_base = BIOS_SCREEN_BASE;
+#endif
   xpos = bios_cursor_x_position(s);
   ypos = bios_cursor_y_position(s);
 
@@ -231,6 +257,9 @@ clear_screen(int s, int att)
 {
   u_short *schar, blank = ' ' | (att << 8);
   int lx;
+#if USE_DUALMON
+  int virt_text_base = BIOS_SCREEN_BASE;
+#endif
 
   v_printf("VID: cleared screen\n");
   if (s > max_page) return;
@@ -251,6 +280,7 @@ clear_screen(int s, int att)
 
 boolean set_video_mode(int mode) {
   static int gfx_flag = 0;
+  int type=0;
   
   switch (mode&0x7f) {
   case 0:
@@ -259,11 +289,33 @@ boolean set_video_mode(int mode) {
     co=40;
     goto do_text_mode;
     
+  case 7:
+    /*
+     * This to be sure in case of older DOS programs probing HGC.
+     * There was no secure way to detect a HGC before VGA was invented.
+     * ( Now we can do INT 10, AX=1A00 ).
+     * Some older DOS programs do it by modifying EQUIP-flags
+     * and then let the BIOS say, if it can ?!?!)
+     * If we have config.dualmon, this happens legaly.
+     */
+    if (!Video->setmode) goto Default;
+#if USE_DUALMON
+    if (config.dualmon) {
+      type=7;
+      text_scanlines = 400;
+      vga_font_height=text_scanlines/25;
+    }
+#endif
+    /* fall through */
+     
   case 2:
   case 3:
-  case 7:
     /* set 80 column text mode */
+#if USE_DUALMON
+    bios_screen_columns = co = CO /*80*/;
+#else
     co=80;
+#endif
     
 do_text_mode:
     gfx_flag = 0;		/* we're in a text mode now */
@@ -276,7 +328,7 @@ do_text_mode:
     bios_font_height=vga_font_height;
     bios_video_mode=video_mode;
     if (Video->setmode) {
-       Video->setmode(0,co,li);
+      Video->setmode(type,co,li);
     }
     else {
        v_printf("video: no setmode handler!");
@@ -289,6 +341,7 @@ do_text_mode:
     bios_video_mode=video_mode=mode&0x7f;
     break;
 
+  Default:
   default:
     /* handle graphics modes here */
     v_printf("undefined video mode 0x%x\n", mode);
@@ -308,6 +361,21 @@ void int10()
   unsigned int page;
   u_char c;
   us *sm;
+
+#if USE_DUALMON
+  int virt_text_base = BIOS_SCREEN_BASE;
+  static int last_equip=-1;
+  
+  if (config.dualmon && (last_equip != BIOS_CONFIG_SCREEN_MODE)) {
+    extern struct video_system *Video_default;
+    v_printf("VID: int10 entry, equip-flags=0x%04x\n",bios_configuration);
+    last_equip = BIOS_CONFIG_SCREEN_MODE;
+    if (IS_SCREENMODE_MDA) Video->is_mapped = 1;
+    else Video->is_mapped = Video_default->is_mapped;
+    li=bios_rows_on_screen_minus_1+1;
+    co=bios_screen_columns;
+  }
+#endif
 
   if (d.video >= 3)
     {
@@ -374,6 +442,9 @@ void int10()
 
   case 0x5:
     {				/* change page */
+#if USE_DUALMON
+      if (config.dualmon && IS_SCREENMODE_MDA) break;
+#endif
       page = LO(ax);
       error("VID: change page from %d to %d!\n", bios_current_screen_page, page);
       if (page > max_page) {
@@ -496,6 +567,10 @@ void int10()
     break;
 
   case 0x0f:			/* get video mode */
+#if USE_DUALMON
+    if (IS_SCREENMODE_MDA) LWORD(eax) = (CO << 8) | bios_video_mode;
+    else 
+#endif
     LWORD(eax) = (co << 8) | video_mode;
     v_printf("get screen mode: 0x%04x s=%d\n", LWORD(eax), bios_current_screen_page);
     HI(bx) = bios_current_screen_page;
@@ -530,6 +605,19 @@ void int10()
     if (LO(ax) == 0) {
       v_printf("get display combo!\n");
       LO(ax) = 0x1a;		/* valid function=0x1a */
+#if USE_DUALMON
+      if (config.dualmon) {
+        if (IS_SCREENMODE_MDA) {
+          LO(bx) = MDA_VIDEO_COMBO;  /* active display */
+          HI(bx) = video_combo;
+        }
+        else {
+          LO(bx) = video_combo;     /* active display */
+          HI(bx) = MDA_VIDEO_COMBO;
+        }
+        break;
+      }
+#endif
       LO(bx) = video_combo;	/* active display */
       HI(bx) = 0;		/* no inactive display */
     }

@@ -437,6 +437,20 @@ io_select(fd_set fds)
   tvptr.tv_sec=0L;
   tvptr.tv_usec=0L;
 
+#if defined(SIG) && defined(REQUIRES_EMUMODULE)
+  if (SillyG) {
+    if (get_irq_bits()) {
+      SillyG_t *sg=SillyG;
+      while (sg->fd) {
+        if (get_and_reset_irq(sg->irq)) {
+          h_printf("SIG: We have an interrupt\n");
+          process_interrupt(sg);
+        }
+        sg++;
+      }
+    }
+  }
+#endif
   while ( ((selrtn = select(15, &fds, NULL, NULL, &tvptr)) == -1)
         && (errno == EINTR)) {
     tvptr.tv_sec=0L;
@@ -456,6 +470,7 @@ io_select(fd_set fds)
     default:			/* has at least 1 descriptor ready */
 
 #ifdef SIG
+#ifndef REQUIRES_EMUMODULE
       if (SillyG) {
         SillyG_t *sg=SillyG;
         while (sg->fd) {
@@ -466,6 +481,7 @@ io_select(fd_set fds)
 	  sg++;
 	}
       }
+#endif
 #endif
       if (mice->intdrv)
 	if (FD_ISSET(mice->fd, &fds)) {
@@ -654,11 +670,7 @@ process_interrupt(SillyG_t *sg)
   u_int chr;
   int irq;
 
-#if 0
-  if ((irq = read(sg->fd, " ", 1))) {
-#else
-  if (irq = sg->irq) {
-#endif
+  if ((irq = sg->irq) != 0) {
     h_printf("INTERRUPT: 0x%02x\n", irq);
 #ifndef PIC
     if (irq < 8)

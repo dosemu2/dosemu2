@@ -12,6 +12,8 @@
 #ifdef _VM86_STATISTICS_
 int vm86_fault_count=0;
 int vm86_trap_count[8]={0};
+int vm86_count_sti=0;
+int vm86_count_cli=0;  
 #endif
 
 #else  /* NOT _EMUMOD_itself */

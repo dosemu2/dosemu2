@@ -37,7 +37,7 @@ ALL = $(CFILES) $(HFILES)
 OBJS = mouse.o mouseint.o
 
 .c.o:
-	$(CC) $(CFLAGS) $(XDEFS) $(INCDIR) -c $<
+	$(CC) $(CFLAGS) -c $<
 
 SUBDIR=mouse
  
@@ -57,7 +57,7 @@ checkout:
 	-co -M -l $(ALL) Makefile
 
 clean:
-	rm -f *.o ../lib$(SUBDIR).a
+	rm -f *.o $(LIB)
 
 realclean:
 	rm -f .depend

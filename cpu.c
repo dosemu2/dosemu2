@@ -11,12 +11,15 @@
  * taken over by:
  *          Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/10/14 17:58:38 $
+ * $Date: 1994/11/13 00:40:45 $
  * $Source: /home/src/dosemu0.60/RCS/cpu.c,v $
- * $Revision: 2.9 $
+ * $Revision: 2.10 $
  * $State: Exp $
  *
  * $Log: cpu.c,v $
+ * Revision 2.10  1994/11/13  00:40:45  root
+ * Prep for Hans's latest.
+ *
  * Revision 2.9  1994/10/14  17:58:38  root
  * Prep for pre53_27.tgz
  *
@@ -290,6 +293,10 @@ show_regs(void)
   int i;
   unsigned char *sp;
   unsigned char *cp = SEG_ADR((unsigned char *), cs, ip);
+  if (!cp) {
+    g_printf("Ain't gonna do it\n");
+    return;
+  }
 
   if (!LWORD(esp))
     sp = (SEG_ADR((u_char *), ss, sp)) + 0x8000;

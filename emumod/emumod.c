@@ -1,4 +1,4 @@
-/* file: emumod.h
+/* file: emumod.c
  * emumodule interface and redirection stuff
  *
  * (C) 1994 under GPL, Hans Lermen <lermen@elserv.ffm.fgan.de>
@@ -120,22 +120,32 @@ static void restore_redirect_all() {
   restore_flags(flags);
 }
 
+extern int init_emusyscalls( void);
+extern void remove_emusyscalls( void);
+
+
 int init_module( void) {
   kernel_version[0] = kernel_version[0];
   printk(ID_STRING ", init_module called \n");
   redirect_all();
+  if (init_emusyscalls()) {
+    restore_redirect_all();
+    return -1;
+  }
   return 0;
 }
 
 void cleanup_module( void) {
   int i;
   printk(ID_STRING ": cleanup modul called\n");
+  remove_emusyscalls();
   restore_redirect_all();
-
+  
 #ifdef _VM86_STATISTICS_
   printk(ID_STRING ": statistics vm86_traps= ");
   for (i=0; i<8 ; i++) printk(" %d",vm86_trap_count[i]);
   printk("\n" ID_STRING ": statistics vm86_faults= %d\n",vm86_fault_count);
+  printk( ID_STRING ": statistics vm86_count_cli= %d vm86_count_sti= %d\n",  vm86_count_cli, vm86_count_sti);
 #endif
 
   /* wait arround to be sure no process is still in the module */

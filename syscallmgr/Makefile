@@ -39,14 +39,14 @@ OBJS =
 all: syscallmgr.o insmod testsys.o testmain
 
 
-syscallmgr.o:    syscallmgr.c syscallmgr.h $(USRSRCDIR)/linux/tools/version.h
-	$(CC) -m486 -Wall -I$(USRSRCDIR) -c -O2 -fomit-frame-pointer -D__KERNEL__ -DLINUX -c syscallmgr.c -o syscallmgr.o
+syscallmgr.o:    syscallmgr.c ../include/syscallmgr.h $(USRSRCDIR)/linux/tools/version.h
+	$(CC) -m486 -Wall -I$(USRSRCDIR) $(INCDIR) -c -O2 -fomit-frame-pointer -D__KERNEL__ -DLINUX -c syscallmgr.c -o syscallmgr.o
 
 testsys.o:    testsys.c $(USRSRCDIR)/linux/tools/version.h
-	$(CC) -m486 -Wall -I$(USRSRCDIR) -c -O2 -fomit-frame-pointer -D__KERNEL__ -DLINUX -c testsys.c -o testsys.o
+	$(CC) -m486 -Wall -I$(USRSRCDIR) $(INCDIR) -c -O2 -fomit-frame-pointer -D__KERNEL__ -DLINUX -c testsys.c -o testsys.o
 
 testmain:	testmain.c
-	$(CC) -m486 -Wall -O6 testmain.c -o testmain
+	$(CC) -m486 -Wall $(INCDIR) -O6 testmain.c -o testmain
 
 insmod:	insmod.c
 	$(CC) -m486 -Wall -O6 insmod.c -o insmod

@@ -192,6 +192,7 @@ vbios_copy		return(VBIOS_COPY);
 vbios_mmap		return(VBIOS_MMAP);
 vbios_seg		return(VBIOS_SEG);
 vbios_size		return(VBIOS_SIZE);
+dualmon			return(DUALMON);
 plainvga		{ yylval->i_value = 0; return(CHIPSET_TYPE); }
 trident			{ yylval->i_value = 1; return(CHIPSET_TYPE); }
 et4000			{ yylval->i_value = 2; return(CHIPSET_TYPE); }

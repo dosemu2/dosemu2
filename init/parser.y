@@ -121,7 +121,7 @@ extern void yyrestart(FILE *input_file);
 %token L_DISPLAY L_TITLE ICON_NAME X_KEYCODE X_BLINKRATE
 	/* video */
 %token VGA MGA CGA EGA CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
-%token MEMSIZE VBIOS_SIZE VBIOS_SEG VBIOS_FILE VBIOS_COPY VBIOS_MMAP
+%token MEMSIZE VBIOS_SIZE VBIOS_SEG VBIOS_FILE VBIOS_COPY VBIOS_MMAP DUALMON
 	/* terminal */
 %token UPDATEFREQ UPDATELINES COLOR CORNER METHOD NORMAL XTERM NCURSES FAST
 	/* debug */
@@ -349,6 +349,7 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		      c_printf("CONF: VGA-BIOS-Size set to 0x10000\n");
 		      }
 		   }
+		| DUALMON		{ config.dualmon = 1; }
 		| STRING
 		    { yyerror("unrecognized video option '%s'", $1);
 		      free($1); }
@@ -1289,6 +1290,9 @@ parse_dosemu_users(void)
                 }
         } else {
 		fprintf(stderr,
+   "Cannot open %s, Please check installation via System Admin.\n",
+				DOSEMU_USERS_FILE);
+		fprintf(stdout,
    "Cannot open %s, Please check installation via System Admin.\n",
 				DOSEMU_USERS_FILE);
 		exit(1);

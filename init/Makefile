@@ -37,7 +37,7 @@ ALL = $(YFILES) $(LFILES) $(CFILES) $(HFILES)
 OBJS = parser.o lex.yy.o # parse.o 
 
 .c.o:
-	$(CC) $(CFLAGS) $(DEFINES) $(INCDIR) -c $<
+	$(CC) $(CFLAGS) $(DEFINES) -c $<
 
 SUBDIR=init
 

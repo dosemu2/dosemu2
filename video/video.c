@@ -12,6 +12,7 @@
 
 #include "emu.h"
 #include "bios.h"
+#include "port.h"
 #include "memory.h"
 #include "video.h"
 #if 0
@@ -83,6 +84,13 @@ int video_init()
      Video=&Video_term;       /* ansi or ncurses */
   }
 
+#if USE_DUALMON
+  {
+    extern void init_dualmon(void);
+    init_dualmon();
+  }
+#endif
+
   Video->init();              /* call the specific init routine */
 
   termioInit();            /* kludge! */
@@ -95,7 +103,28 @@ int video_init()
         leavedos(99);
      }
      v_printf("SCREEN saves at: %p of %d size\n", prev_screen, CO * LI * 2);
-     vm86s.flags |= VM86_SCREEN_BITMAP;
+/* 
+ * DANG_BEGIN_REMARK
+ * Here the sleeping lion will be awoken and eat much of CPU time !!!
+ *
+ * The result of setting VM86_SCREEN_BITMAP (at state of Linux 1.1.56):
+ *   Each vm86 call will set 32 pages of video mem RD-only
+ *    (there may be 1000000 per second)
+ *   Write access to RD-only page results in page-fault (mm/memory.c),
+ *   which will set a bit in current->screen_bitmap and calls do_wp_page()
+ *   which does __get_free_page(GFP_KERNEL) but frees it immediatly, 
+ *   because copy-on-write is not neccessary and sets RD/WR for the page.
+ *   (this could happen 32000000 per second, if the CPU were fast enough)
+ * It would be better to get the DIRTY-bit directly from the page table,
+ * isn't it?  A special syscall in emumodule could do this.
+ * DANG_END_REMARK
+ */
+#if VIDEO_CHECK_DIRTY
+     if (!config_dualmon) {
+       vm86s.flags |= VM86_SCREEN_BITMAP;
+     }
+#endif
+
   }
   
   clear_screen(video_page, 7);

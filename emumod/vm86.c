@@ -187,7 +187,11 @@ static inline void set_vflags_long(unsigned long eflags, struct vm86_regs * regs
 {
 	set_flags(VEFLAGS, eflags, current->v86mask);
 	set_flags(regs->eflags, eflags, SAFE_MASK);
+#if 1
 	if (eflags & IF_MASK)
+#else
+	if (VEFLAGS & IF_MASK)
+#endif
 		set_IF(regs);
 }
 
@@ -196,6 +200,7 @@ static inline void set_vflags_short(unsigned short flags, struct vm86_regs * reg
 	set_flags(VFLAGS, flags, current->v86mask);
 	set_flags(regs->eflags, flags, SAFE_MASK);
 	if (flags & IF_MASK)
+	if (VFLAGS & IF_MASK)
 		set_IF(regs);
 }
 
@@ -314,17 +319,17 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 	unsigned char *csp, *ssp;
 	unsigned long ip, sp;
 
+#if defined(_LOADABLE_VM86_) && defined(_VM86_STATISTICS_)
+	extern int vm86_fault_count;
+	extern int vm86_count_cli,vm86_count_sti;
+	vm86_fault_count++;
+#endif
+
 	csp = (unsigned char *) (regs->cs << 4);
 	ssp = (unsigned char *) (regs->ss << 4);
 	sp = SP(regs);
 	ip = IP(regs);
 
-#if defined(_LOADABLE_VM86_) && defined(_VM86_STATISTICS_)
-        {
-          extern int vm86_fault_count;
-          vm86_fault_count++;
-        }
-#endif
 	switch (popb(csp, ip)) {
 
 	/* operand size override */
@@ -383,6 +388,9 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 
 	/* cli */
 	case 0xfa:
+#ifdef _VM86_STATISTICS_
+		vm86_count_cli++;
+#endif
 		IP(regs)++;
 		clear_IF(regs);
 		return;
@@ -395,6 +403,9 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 	 * Probably needs some horsing around with the TF flag. Aiee..
 	 */
 	case 0xfb:
+#ifdef _VM86_STATISTICS_
+		vm86_count_sti++;
+#endif          
 		IP(regs)++;
 		set_IF(regs);
 		return;

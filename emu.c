@@ -20,12 +20,15 @@
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
- * $Date: 1994/11/06 02:35:24 $
+ * $Date: 1994/11/13 00:40:45 $
  * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 2.30 $
+ * $Revision: 2.31 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 2.31  1994/11/13  00:40:45  root
+ * Prep for Hans's latest.
+ *
  * Revision 2.30  1994/11/06  02:35:24  root
  * Testing co -M.
  *
@@ -899,6 +902,10 @@ run_vm86(void)
 #ifdef NEW_PIC
 /* update the pic to reflect IEF */
   if (vm86s.flags&IF_MASK) {
+/* LARRY,   ^----- please verify !
+ *  I guess this should be "vm86s.regs.eflags" (??), because this flag here is *never* set !
+ *  ( at state of 0.53.31, Hans Lermen)
+ */
     if (!pic_iflag) pic_cli(); /* pic_iflag=0 => enabled */
     }
   else {
@@ -1143,6 +1150,15 @@ void memory_init(void) {
   *ptr++ = 0xe6;
 
   /* set up relocated video handler (interrupt 0x42) */
+#if USE_DUALMON
+  if (config.dualmon == 2) {
+    interrupt_function[0x42] = int10;
+    ptr = (u_char *) 0xff065;
+    *ptr++=0xcd; *ptr++=0x42;        /* int 0x42 */
+    *ptr++=0xca; *ptr++=2; *ptr++=0; /* RETF 2 */ 
+  }
+  else
+#endif 
   *(u_char *) 0xff065 = 0xcf;	/* IRET */
 
   /* TRB - initialize a helper routine for IPX in boot() */
@@ -1726,6 +1742,7 @@ config_defaults(void)
   config.graphics = 0;
   config.gfxmemsize = 256;
   config.vga = 0;		/* this flags BIOS graphics */
+  config.dualmon =0;
 
   config.speaker = SPKR_EMULATED;
 
@@ -1944,6 +1961,14 @@ SIG_init()
     for (i=0; i<sizeof(prio_table); i++) {
       irq=prio_table[i];
       if (config.sillyint & (1 << irq)) {
+#ifdef REQUIRES_EMUMODULE
+        if (emusyscall(EMUSYS_REQUEST_IRQ, irq)<0) {
+          g_printf("Not gonna touch IRQ %d you requested!\n",irq);
+        }
+        else {
+          g_printf("Gonna monitor the IRQ %d you requested\n", irq);
+          sg->fd=-1;
+#else
         sprintf(devname, "/dev/int/%d", irq);
         if ((fd = open(devname, O_RDWR)) < 1) {
           g_printf("Not gonna touch IRQ %d you requested!\n",irq);
@@ -1973,6 +1998,7 @@ SIG_init()
             add_to_io_select(fd, 0);
           }
           sg->fd=fd;
+#endif /* NOT REQUIRES_EMUMODULE */
 #ifndef NEW_PIC
           (sg++)->irq=irq;
 #else
@@ -1994,7 +2020,14 @@ void
  SIG_close() {
   if (SillyG) {
     SillyG_t *sg=SillyG;
+#ifdef REQUIRES_EMUMODULE
+    while (sg->fd) {
+      emusyscall(EMUSYS_FREE_IRQ,sg->irq);
+      sg++;
+    }
+#else
     while (sg->fd) close((sg++)->fd);
+#endif
     fprintf(stderr, "Closing all IRQ you opened!\n");
   }
 }
@@ -2270,6 +2303,18 @@ void
   if (config.X) {
     config.console_video = config.vga = config.graphics = 0;
   }
+
+#ifdef REQUIRES_EMUMODULE
+  resolve_emusyscall();
+  if (EMUSYS_AVAILABLE) {
+    if (emusyscall(EMUSYS_GETVERSION,0) < EMUSYSVERSION) {
+      fprintf(stderr, "emumodule not loaded or wrong version\n\r");
+      fflush(stdout);
+      fflush(stderr);
+      _exit(1);
+    }
+  }
+#endif
 
   if (!check_special_mapping()) error("ERROR: You have overlapping mappings (EMS,VBIOS,HARDWARE_RAM)\n");
 
@@ -2568,7 +2613,7 @@ int
 
 void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.30 1994/11/06 02:35:24 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.31 1994/11/13 00:40:45 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -3284,7 +3329,7 @@ dos_helper(void) {
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/11/06 02:35:24 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/11/13 00:40:45 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */

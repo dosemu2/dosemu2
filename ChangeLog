@@ -1,3 +1,112 @@
+Sat Nov  12	1994
+
+- Han's latest, now he has a self-contained emumodule that includes
+  SIG and really gives DOSEMU the power it has desired for quite some
+  time to make use of the kernel. You will need to set the #if 0 to 1
+  in emu.h as well as:
+  /* From Hans: If you you need the emumodules special features
+   * You also must load the modules as follows:
+   *   login in as root
+   *   cd /usr/src/dosemuXXX/syscallmgr
+   *   ./insmod syscallmgr.o
+   *   ./insmod -m ../emumod/emumodule.o
+   */
+
+More background:
+
+Hi Jim
+
+As you didn't show up at IRC, I send you some explanations about the
+new emumodule stuff and inbedded sillyint.
+
+I established two interfaces to the emumodule, which I think can be
+expanded for all other features, that we need in the future:
+
+1. A standard Linux systemcall (over syscallmgr) for all
+   functions that needs the kernel support functions (like printk).
+   During within this syscall, the scheduler and/or an interrupt
+   may take away control from dosemu.
+   The calling convention of this syscal is defined in
+   ./include/emusys.h as
+       extern inline int emusyscall(int mode, int params)
+   and can be called at this time as
+
+   result = emusyscall(EMUSYS_GETVERSION,0);
+   result = emusyscall(EMUSYS_GETSUPPORT,0);
+   result = emusyscall(EMUSYS_REQUEST_IRQ,irqnum);
+   result = emusyscall(EMUSYS_FREE_IRQ,irqnum);
+   
+2. I implemented a so called fast syscall via an INT 0xe6 to Linux
+   (not to DOS).
+   This syscall has not the great overhead that the standard syscall
+   has and can't be interrupted by Linux's scheduler or interrupts.
+   With this we can access kernel space much faster then with kmem
+   or other techniques and also we can set some bits of emumodules
+   variable. We can check some status, and after return from
+   fastsyscall we are shure that the status is what it says.
+   Its also possible to realized some of the DPMI functions with
+   this kind of syscall.
+   But, this syscall must run with interrupts disabled, and also
+   can only use some the kernels macros, but not the support functions
+   which leads to rescheduling e.t.c.
+   I used this type of syscall to get and reset the IRQ-bits of
+   sillyint.
+   Also the fastsys calls are defined in ./include/emusys.h and
+   currently there exists:
+
+   extern inline int fastsyscall(int mode) /* generic call */
+   extern inline int get_and_reset_irq(int irqnum)
+   extern inline int get_and_set_irq(int irqnum)
+   extern inline int get_irq_bits(void)
+
+To enable dosemu to use the new features there must be REQUIRES_EMUMODULE
+defined in emu.h (see at the comments at top of this file).
+If it is not defined, sillyint is used as usual.
+
+One thing at last: I always are on war with "make", so please check
+and change the Makefiles, that they do compile emumod/ and syscallmkgr/
+if REQUIRES_EMUMODULE is set. I was to silly to do so.
+I also would like to do make from the subdirectories directly during
+devellopment phase.
+
+...Ah, and the patch fits into 0.53.32 with dualmon.patch already in.
+
+So long
+Hans
+<lermen@elserv.ffm.fgan.de>
+
+-  Small patch to ./mouse/mouse.c which resets the initiated mouse
+   subroutine on calls to fnx 0x21. This previously wasn't reset and
+   caused future programs to crash DOSEMU when they loaded over that
+   space. Now to see why some programs (Foxpro/Word Perfect Office) 
+   don't recognize the internal mouse driver :-(.
+
+Wed Nov  9	1994
+
+-	Various patches from lee@tengu.in-berlin.de (Kang-Jin Lee) to
+	makefiles.
+
+- From Hans :
+#   - If you have a dual-monitor configuration (e.g. MDA as second display),
+#     you then may run CAD programs on 2 displays or let play your debugger
+#     on the MDA while debugging a graphics program on the VGA (e.g TD -do ).
+#     You also may switch to the MDA display by using the DOS command
+#     mode mono (mode co80 returns to your normal display).
+#     This feature can be enabled by the switch "dualmon" like this:
+#       video { vga  console  graphics dualmon }
+#     and can be used on a xterm and the console, but of course not, if you
+#     have the MDA as your primary display.
+#     You also must set USE_DUALMON 1 in include/video.h.
+#     NOTE: Make shure no more then one process is using this feature !
+#           ( you will get funny garbage on your MDA display. )
+#           Also, you must NOT have the dualmon-patches for kernel applied
+#           ( having the MDA as Linux console )
+#
+
+Tue Nov  8	1994
+
+-	Small fix to mouse.c
+
 Tue Nov  8	1994
 
 -	pre0.53pl32 released

@@ -1,30 +1,34 @@
 # Makefile for Linux DOSEMU
 #
-# $Date: 1994/11/06 02:35:24 $
+# $Date: 1994/11/13 00:40:45 $
 # $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.36 $
+# $Revision: 2.37 $
 # $State: Exp $
 #
 # You should do a "make doeverything" or a "make most" (excludes TeX)
 # if you are doing the first compile.
 #
 
+# Need a way not to use X
+USE_X=1
+ifdef USE_X
 # Autodetecting the installation of X11. Looks weird, but works...
 ifeq (/usr/include/X11/X.h,$(wildcard /usr/include/X11/X.h))
-ifeq (/usr/X11R6/lib/libX11.sa,$(wildcard /usr/X11R6/lib/libX11.sa))
-X11LIBDIR  = /usr/X11R6/lib
-X11ROOTDIR  = /usr/X11R6
-else
-ifeq (/usr/X386/lib/libX11.sa,$(wildcard /usr/X386/lib/libX11.sa))
-X11LIBDIR  = /usr/X386/lib
-X11ROOTDIR  = /usr/X386
-else
-ifeq (/usr/lib/libX11.sa,$(wildcard /usr/lib/libX11.sa))
-X11LIBDIR  = /usr/lib
-X11ROOTDIR  = /usr/X386
+  ifeq (/usr/X11R6/lib/libX11.sa,$(wildcard /usr/X11R6/lib/libX11.sa))
+    X11ROOTDIR  = /usr/X11R6
+  else
+    ifeq (/usr/X386/lib/libX11.sa,$(wildcard /usr/X386/lib/libX11.sa))
+      X11ROOTDIR  = /usr/X386
+    else
+      ifeq (/usr/lib/libX11.sa,$(wildcard /usr/lib/libX11.sa))
+        X11ROOTDIR  = /usr/X386
+      endif
+    endif
+  endif
+  X11LIBDIR = $(X11ROOTDIR)/lib
+  X11INCDIR = $(X11ROOTDIR)/include
 endif
-endif
-endif
+
 endif
 
 #Change the following line if the right kernel includes reside elsewhere
@@ -96,7 +100,7 @@ endif
 # dosemu version
 EMUVER  =   0.53
 VERNUM  =   0x53
-PATCHL  =   32
+PATCHL  =   33
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -143,7 +147,7 @@ DOCS= doc
 
 CFILES=cmos.c dos.c emu.c xms.c disks.c mutex.c \
 	timers.c dosio.c cpu.c  mfs.c bios_emm.c lpt.c \
-        serial.c dyndeb.c sigsegv.c detach.c $(XCFILES) $(X2CFILES)
+        serial.c dyndeb.c sigsegv.c detach.c $(XCFILES) $(X2CFILES) \
 
 HFILES=cmos.h emu.h timers.h xms.h dosio.h \
         cpu.h mfs.h disks.h memory.h machcompat.h lpt.h \
@@ -189,6 +193,9 @@ endif
 
 TOPDIR  := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
 INCDIR     = -I$(TOPDIR)/include -I$(TOPDIR) -I$(LINUX_INCLUDE) -I$(NCURSES_INC)
+ifdef X11LIBDIR
+INCDIR  := $(INCDIR) -I$(X11INCDIR)
+endif
 export INCDIR
 
 #ifndef NEW_PIC
@@ -286,13 +293,12 @@ dos.o: config.h dos.c
 	$(CC) $(CFLAGS) -c dos.c
 
 x2dos.o: config.h x2dos.c
-	$(CC) -I/usr/openwin/include -c x2dos.c
+	$(CC) $(CFLAGS) -I/usr/openwin/include -c x2dos.c
 
 dos:	dos.o $(DOSOBJS)
-	@echo "Including dos.o " $(DOSOBJS)
-	$(LD) $(LDFLAGS) -N -o $@ $^ -lncurses $(DOSOBJS) $(XLIBS)
+	$(LD) $(LDFLAGS) -N -o $@ $^ -lncurses $(XLIBS)
 
-x2dos: x2dos.c
+x2dos: x2dos.o
 	@echo "Including x2dos.o "
 	$(CC) $(LDFLAGS) \
 	  -o $@ $< -L$(X11LIBDIR) -lXaw -lXt -lX11
@@ -423,7 +429,7 @@ dist: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES)
 	@ls -l $(DISTFILE) 
 
 clean:
-	-rm -f $(OBJS) $(X2CEXE) dos libdosemu0.* *.s core \
+	-rm -f $(OBJS) $(X2CEXE) x2dos.o dos.o dos libdosemu0.* *.s core \
 	  dosconfig dosconfig.o *.tmp dosemu.map
 	-@for i in $(SUBDIRS) $(OPTIONALSUBDIRS) $(DOCS) ; do \
 	  $(MAKE) -C $$i clean; \
