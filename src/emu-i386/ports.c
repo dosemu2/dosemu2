@@ -119,6 +119,7 @@ void register_port_traceing(ioport_t firstport, ioport_t lastport)
   lastport &= PORTLOG_MASK;
   if (lastport < firstport) return;
   init_port_traceing();
+  T_printf ("PORT: traceing 0x%x-0x%x\n",firstport,lastport);
   for (; firstport <= lastport; firstport++) {
     set_bit(firstport, portlog_map);
   }
@@ -137,7 +138,7 @@ void init_port_traceing(void)
 }
 
 #define TT_printf(p,f,v,m) ({ \
-  if (debug_level('T') && test_bit(p & PORTLOG_MASK, portlog_map)) { \
+  if (debug_level('T')) { \
     log_printf(1, "%hx %c %x\n", p, f, v & m); \
   } \
 })
