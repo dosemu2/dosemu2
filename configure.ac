@@ -571,7 +571,6 @@ AC_CONFIG_FILES([Makefile.conf])
 AC_CONFIG_COMMANDS([Makefile], 
 [ if ! test -f configure.ac; then 
     mkdir -p `(cd $srcdir; find . -type d)`
-    mkdir -p src/lib
     for i in `(cd $srcdir; find . -name Makefile)`; do
       echo  ln -sf $srcdir/$i $i
       ln -sf $srcdir/$i $i

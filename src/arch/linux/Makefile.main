@@ -111,6 +111,7 @@ $(DIRLIST):
 version:	versetup
 
 versetup:
+	@mkdir -p lib
 	@mkdir -p $(BINPATH)/bin
 	@mkdir -p $(BINPATH)/commands
 	@cp -p commands/precompiled/*.{com,exe} $(BINPATH)/commands 2> /dev/null || true
@@ -301,7 +302,7 @@ $(REALCLEANDIRS):
 	-@$(MAKE) -C $(subst .realclean,,$@) realclean CLEANING=true
 
 pristine:	realclean
-	-rm -f lib/*
+	-rm -rf lib
 	-rm -rf $(BINPATH) ../bin ../commands ../etc/xtermdos ../etc/xinstallvgafont
 	-rm -rf ../testboot
 
