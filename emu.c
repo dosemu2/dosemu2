@@ -448,7 +448,9 @@ extern void     disallocate_vt(void);
 extern void     keyboard_close(void);
 extern void     vm86_GP_fault();
 extern void     config_init(int argc, char **argv);
+extern void	timer_int_engine(void);
 
+void io_select_init(void);
 
 #ifndef NEW_PIC
 /* Programmable Interrupt Controller, 8259 */
@@ -762,12 +764,6 @@ void
 emulate(int argc, char **argv)
 #endif
 {
-    FD_ZERO(&fds_sigio);	/* initialize both fd_sets to 0 */
-    FD_ZERO(&fds_no_sigio);
-#if 0 /* Why mess with vm86 flags here? */
-    vm86s.flags = 0;
-#endif
-
     if (0 == geteuid()) {
 	warn("I am root\n");
 	i_am_root = 1;
@@ -789,6 +785,7 @@ emulate(int argc, char **argv)
     /* the transposal of (config_|stdio_)init allows the addition of -o */
     /* to specify a debug out filename, if you're wondering */
 
+    io_select_init();
     config_init(argc, argv);	/* parse the commands & config file(s) */
     stdio_init();		/* initialize stdio & open debug file */
     module_init();
@@ -812,6 +809,9 @@ emulate(int argc, char **argv)
 
     while (!fatalerr) {
 	run_vm86();
+#if 0
+	timer_int_engine();
+#endif
 #ifdef NEW_PIC
 	run_irqs();		/* trigger any hardware interrupts
 				 * requested */
@@ -1012,6 +1012,20 @@ set_ioperm(int start, int size, int flag)
 
     tmp = ioperm(start, size, flag);
     return tmp;
+}
+
+/*
+ * DANG_BEGIN_FUNCTION io_select_init
+ * 
+ * description: Initialize fd_sets to NULL for both SIGIO and
+ * NON-SIGIO.
+ * 
+ * DANG_END_FUNCTION
+ */
+void 
+io_select_init(void) {
+    FD_ZERO(&fds_sigio);	/* initialize both fd_sets to 0 */
+    FD_ZERO(&fds_no_sigio);
 }
 
 /*

@@ -48,12 +48,6 @@
  */
 		/* out of xms.h */
 #define INT2F_XMS_MAGIC         0x43  /* AH for all int 2f XMS calls */
-		/* out of include/mouse.h */
-#define Mouse_OFF  0x1500
-#define Mouse_ROUTINE_OFF 0x1550
-
-
-
 
 .text
 	.globl	CISH(bios_f000)
@@ -140,11 +134,85 @@ irqnum	set	0x78
 irqnum	set	irqnum+1
 .ENDR
 
+/* ----------------------------------------------------------------- */   
+	/* NOTE:
+	 * This part currently is overwritten by Vinod's pkt_init()
+	 * because the current address layout depends on "struct pkt_globs"
+	 * I guess, Vinod is the man to actually integrate this stuff.
+	 * ( Vinod ? ).
+	 * So, this is only to be taken as template or example !
+	 */
+	.org	((PKTDRV_SEG - BIOSSEG) << 4) + PKTDRV_OFF
+
+#define PKTDRV_VECTOR 0x60
+
+	.globl	CISH(PKTDRV_signature)
+CISH(PKTDRV_signature):
+	jmp	PKTDRV_start
+	nop
+	.ascii	"PKT DRVR"
+	db	0
+PKTDRV_start:
+	int	PKTDRV_VECTOR
+	retf	#2
+	.org	((PKTDRV_SEG - BIOSSEG) << 4) + PKTDRV_OFF+0x50
+	.ascii	"Linux$\0\0"
+	dw	12	/* type */
+PKTDRV_size: dw	0
+PKTDRV_receiver: dd	0
+	dd	PKTDRV_VECTOR+1 /* helpvec */
+
+PKTDRV_helper:
+	pusha
+	push	ds
+	push	es
+	CSEG
+	mov	cx,PKTDRV_size
+	jcxz	PKTDRV_nothing
+	xor	ax,ax
+	push	cx
+	CSEG
+	call	far [PKTDRV_receiver]
+	pop	cx
+	mov	ax,es
+	or	ax,di
+	jz	PKTDRV_norecv
+	push	cs
+	pop	ds
+	mov	si,#PKTDRV_buf
+	push	di
+	push	cx
+	cld
+	shr	cx,#1
+	rep
+	movsw
+	jnc	PKTDRV_nobyte
+	movsb
+PKTDRV_nobyte:
+	pop	cx
+	pop	si
+	push	es
+	pop	ds
+	mov	ax,#1
+	CSEG
+	call	far [PKTDRV_receiver]
+PKTDRV_norecv:
+	CSEG
+	mov	word ptr PKTDRV_size,#0
+PKTDRV_nothing:
+	pop	es
+	pop	ds
+	popa
+	iret
+
+	.org ((PKTDRV_SEG - BIOSSEG) << 4) + PKTDRV_OFF+0x1c4  /* 0x62c4 */
+PKTDRV_buf:
+
 
 /* ----------------------------------------------------------------- */
 
 	/* XMS has it's handler just after the interrupt dummy segment */
-	.org	XMSControl_OFF
+	.org	((XMSControl_SEG - BIOSSEG) << 4) + XMSControl_OFF
 	jmp	(*+2+3)	/* jmp short forward 3 */
 	nop
 	nop
@@ -153,10 +221,21 @@ irqnum	set	irqnum+1
 	db	INT2F_XMS_MAGIC /* just an info byte. reserved for later */
 	retf
 
+/* ----------------------------------------------------------------- */
+	.org	((Banner_SEG - BIOSSEG) << 4) + Banner_OFF
+
+	mov	al,#5
+	int	DOSHELPER_INT
+	db	0xb2          /* mov dl,#0   or mov dl,#0x80 */
+	.globl	CISH(bios_f000_bootdrive)
+CISH(bios_f000_bootdrive):
+	db	0
+	retf
+
 
 /* ----------------------------------------------------------------- */
 	/* this is the mouse handler */
-	.org	Mouse_OFF
+	.org	((Mouse_SEG - BIOSSEG) << 4) + Mouse_OFF
    
 	/* 
 	mouse routine simulates the stack frame of an int, then does a 
@@ -168,55 +247,11 @@ irqnum	set	irqnum+1
 	pop	ds
 	popa
 	iret
-	.org	Mouse_OFF+8
+	.org	((Mouse_SEG - BIOSSEG) << 4)+Mouse_OFF+8
 mouse_handler: 
 	dd	0x1c810227
-	.org	Mouse_ROUTINE_OFF
+	.org	((Mouse_SEG - BIOSSEG) << 4)+Mouse_ROUTINE_OFF
 	push	ax
-	pop	ax
-	iret
-
-
-/* ----------------------------------------------------------------- */
-	.org	Banner_OFF
-
-	mov	al,#5
-	int	DOSHELPER_INT
-	db	0xb2          /* mov dl,#0   or mov dl,#0x80 */
-	.globl	CISH(bios_f000_bootdrive)
-CISH(bios_f000_bootdrive):
-	db	0
-	retf
-
-/* ----------------------------------------------------------------- */
-	.org	IPX_OFF
-	push	ax	/* FarCallHandler removes this before returning */
-	mov	al,#0x7a
-	int	DOSHELPER_INT
-	retf
-
-	.globl	CISH(bios_IPX_PopRegistersReturn)
-CISH(bios_IPX_PopRegistersReturn):
-	pop	es
-	pop	ds
-	pop	bp
-	pop	di
-	pop	si
-	pop	dx
-	pop	cx
-	pop	bx
-	pop	ax
-	retf
-	.globl	CISH(bios_IPX_PopRegistersIRet)
-CISH(bios_IPX_PopRegistersIRet):
-	pop	es
-	pop	ds
-	pop	bp
-	pop	di
-	pop	si
-	pop	dx
-	pop	cx
-	pop	bx
 	pop	ax
 	iret
 
@@ -419,6 +454,40 @@ L8:	push    bx			/* buffer is not full - save bx	*/
 CISH(INT16_dummy_end):
 
 
+
+/* ----------------------------------------------------------------- */
+	.org	((IPX_SEG - BIOSSEG) << 4) + IPX_OFF
+	push	ax	/* FarCallHandler removes this before returning */
+	mov	al,#0x7a
+	int	DOSHELPER_INT
+	retf
+
+	.globl	CISH(bios_IPX_PopRegistersReturn)
+CISH(bios_IPX_PopRegistersReturn):
+	pop	es
+	pop	ds
+	pop	bp
+	pop	di
+	pop	si
+	pop	dx
+	pop	cx
+	pop	bx
+	pop	ax
+	retf
+	.globl	CISH(bios_IPX_PopRegistersIRet)
+CISH(bios_IPX_PopRegistersIRet):
+	pop	es
+	pop	ds
+	pop	bp
+	pop	di
+	pop	si
+	pop	dx
+	pop	cx
+	pop	bx
+	pop	ax
+	iret
+
+
 /* ----------------------------------------------------------------- */   
 	.org	((INT08_SEG-BIOSSEG) << 4)+INT08_OFF
 
@@ -563,81 +632,6 @@ CISH(DPMI_interrupt):
 CISH(DPMI_dummy_end):
 
 
-
-/* ----------------------------------------------------------------- */   
-	/* NOTE:
-	 * This part currently is overwritten by Vinod's pkt_init()
-	 * because the current address layout depends on "struct pkt_globs"
-	 * I guess, Vinod is the man to actually integrate this stuff.
-	 * ( Vinod ? ).
-	 * So, this is only to be taken as template or example !
-	 */
-	.org	PKTDRV_OFF
-
-#define PKTDRV_VECTOR 0x60
-
-	.globl	CISH(PKTDRV_signature)
-CISH(PKTDRV_signature):
-	jmp	PKTDRV_start
-	nop
-	.ascii	"PKT DRVR"
-	db	0
-PKTDRV_start:
-	int	PKTDRV_VECTOR
-	retf	#2
-	.org	PKTDRV_OFF+0x50
-	.ascii	"Linux$\0\0"
-	dw	12	/* type */
-PKTDRV_size: dw	0
-PKTDRV_receiver: dd	0
-	dd	PKTDRV_VECTOR+1 /* helpvec */
-
-PKTDRV_helper:
-	pusha
-	push	ds
-	push	es
-	CSEG
-	mov	cx,PKTDRV_size
-	jcxz	PKTDRV_nothing
-	xor	ax,ax
-	push	cx
-	CSEG
-	call	far [PKTDRV_receiver]
-	pop	cx
-	mov	ax,es
-	or	ax,di
-	jz	PKTDRV_norecv
-	push	cs
-	pop	ds
-	mov	si,#PKTDRV_buf
-	push	di
-	push	cx
-	cld
-	shr	cx,#1
-	rep
-	movsw
-	jnc	PKTDRV_nobyte
-	movsb
-PKTDRV_nobyte:
-	pop	cx
-	pop	si
-	push	es
-	pop	ds
-	mov	ax,#1
-	CSEG
-	call	far [PKTDRV_receiver]
-PKTDRV_norecv:
-	CSEG
-	mov	word ptr PKTDRV_size,#0
-PKTDRV_nothing:
-	pop	es
-	pop	ds
-	popa
-	iret
-
-	.org	PKTDRV_OFF+0x1c4  /* 0x62c4 */
-PKTDRV_buf:
-
 /* ----------------------------------------------------------------- */   
 	.org	ROM_CONFIG_OFF /* for int15 */
 
@@ -704,6 +698,9 @@ CISH(INT09_dummy_end):
 	int	0x42  /* this will be overwritten with iret, if no dualmon */
 	retf	#2
 
+	.globl  CISH(bios_f000_end)
+CISH(bios_f000_end):
+
 /* ----------------------------------------------------------------- */
 	.org	0xfff0
 	/* set up BIOS exit routine (we have *just* enough room for this) */
@@ -713,8 +710,5 @@ CISH(INT09_dummy_end):
 	hlt
 	db	0xfc   /* model byte = IBM AT */
 	hlt
-
-	.globl  CISH(bios_f000_end)
-CISH(bios_f000_end):
 
 /*--------------------------------------------------------------------------*/

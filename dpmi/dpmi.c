@@ -509,6 +509,10 @@ static inline int FreeDescriptor(unsigned short selector)
   /* WinOS2 depends on freeed descrpitor really free */
   memset((void *)&ldt_info, 0, sizeof(ldt_info));
   ldt_info.entry_number = ldt_entry;
+#ifdef WANT_WINDOWS
+  ldt_info.read_exec_only = 1;
+  ldt_info.seg_not_present = 1;
+#endif  
   return modify_ldt(1, &ldt_info, sizeof(ldt_info));
 
 }
@@ -826,7 +830,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
       _LWORD(eax) = 0x8011;
       _eflags |= CF;
     }
-#if 0    
+#if 1    
     /* do it dpmi 1.00 host\'s way */
     if ( _ds == _LWORD(ebx)) _ds = 0;
     if ( _es == _LWORD(ebx)) _es = 0;
@@ -1119,6 +1123,8 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
          _LWORD(esi) = 0;
 	 break;
       }
+      if (in_win31)
+         memset(ptr, 0, mem_required);
       block -> handle = pm_block_handle_used++;
       block -> base = ptr;
       block -> size = mem_required;
@@ -1534,7 +1540,7 @@ void dpmi_init()
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) return;
 
     dpmi_eflags = IF;
-
+    
   } else {
     if (DPMIclient_is_32 != (LWORD(eax) ? 1 : 0))
       return;
@@ -1752,6 +1758,8 @@ static inline void do_cpu_exception(struct sigcontext_struct *scp)
   print_ldt();
 #endif
 
+  
+#if 0			/* it has been taken care of in msdos_fault() */
 #ifdef CLIENT_USE_GDT_40
   if ((_err & 0xffff) == 0x40) { /* client try to use gdt 0x40 */
       unsigned short segment , gdt_40;
@@ -1784,7 +1792,7 @@ static inline void do_cpu_exception(struct sigcontext_struct *scp)
       }
   }
 #endif CLIENT_USE_GDT_40
-  
+#endif  
   if (Exception_Table[0][_trapno].selector == DPMI_SEL) {
     do_default_cpu_exception(scp, _trapno);
     return;

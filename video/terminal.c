@@ -100,8 +100,6 @@ void get_screen_size (void)
 	SLtt_Screen_Cols = 80;
 	SLtt_Screen_Rows = 24;
      }
-   Rows = SLtt_Screen_Rows;
-   Columns = SLtt_Screen_Cols;
 }
 
 static void set_char_set (int cs)
@@ -183,9 +181,13 @@ terminal_initialize()
    get_screen_size ();
 
    /* Now set the variables li and co back to their dos defaults. */
+
 #if 0
-   li = Rows;
-   co = Columns;
+   if (li < 25)
+     {
+        li = Rows;
+        co = Columns;
+     }
 #endif
    
    SLtt_Use_Blink_For_ACS = 1;

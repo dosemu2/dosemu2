@@ -865,7 +865,7 @@ static void start_video(void)
   config.vga = 0;
   config.gfxmemsize = 256;
   config.fullrestore = 0;
-  config.dualmon = 1;
+  config.dualmon = 0;
 }
 
 static void stop_video(void)

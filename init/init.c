@@ -85,6 +85,11 @@ void stdio_init(void)
 {
   struct stat statout, staterr;
 
+  if(dbg_fd) {
+    warn("DBG_FD already set\n");
+    return;
+  }
+
   if(config.debugout)
   {
     dbg_fd=fopen(config.debugout,"w");
@@ -289,6 +294,20 @@ static inline void map_custom_bios(void)
 
   ptr = (u_char *) (BIOSSEG << 4);
   memcpy(ptr, bios_f000, (u_long)bios_f000_end - (u_long)bios_f000);
+  if (!config.mapped_sbios) {
+    memset((char *) 0xffff0, 0xF4, 16);
+
+    strncpy((char *) 0xffff5, "02/25/93", 8);   /* set our BIOS date */
+    *(char *) 0xffffe = 0xfc;   /* model byte = IBM AT */
+  }
+  /* set up BIOS exit routine (we have *just* enough room for this) */
+  ptr = (u_char *) 0xffff0;
+  *ptr++ = 0xb8;                /* mov ax, 0xffff */
+  *ptr++ = 0xff;
+  *ptr++ = 0xff;
+  *ptr++ = 0xcd;                /* int 0xe6 */
+  *ptr++ = 0xe6;
+
 #if 0 /* for debugging only */
   f = fopen("/tmp/bios","w");
   fprintf(stderr,"opened /tmp/bios f=%p\n",f);
@@ -368,6 +387,12 @@ void memory_init(void)
   /* first_call is a truly awful hack to keep some of these procedures from
      being called twice.  It should be fixed sometime. */
 
+  if( first_call == 0) {
+    /* make interrupts vector read-write */
+    mprotect((void *)(BIOSSEG<<4), 0x1000, PROT_WRITE|PROT_READ|PROT_EXEC);
+    /* make memory area 0xf8000 to 0xfffff read write */
+    mprotect((void *)(ROMBIOSSEG<<4), 0x8000, PROT_WRITE|PROT_READ|PROT_EXEC);
+  }
   map_video_bios();            /* map the video bios */
   if (first_call)
     map_hardware_ram();        /* map the direct hardware ram */
@@ -417,11 +442,14 @@ void memory_init(void)
   if (first_call) {
     ems_init();                /* initialize ems */
     xms_init();                /* initialize xms */
-
     shared_memory_init();
     shared_keyboard_init();
   }
   first_call = 0;
+  /* make interrupts vector read-only */
+  mprotect((void *)(BIOSSEG<<4), 0x1000, PROT_READ|PROT_EXEC);
+  /* make memory area 0xf8000 to 0xfffff read only */
+  mprotect((void *)(ROMBIOSSEG<<4), 0x8000, PROT_READ|PROT_EXEC);
 }
 
 /* 

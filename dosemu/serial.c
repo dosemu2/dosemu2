@@ -1,31 +1,32 @@
 /*
- * serial.c: Near-complete emulation of a 16550A UART.
- * This version is for DOSEMU currently maintained by jmaclean@fox.nstn.ns.ca
+ * serial.c: Near-complete software emulation of a 16550A UART.
+ * Please send bug reports and bugfixes to mdrejhon@magi.com
  * 
- * Information on a 16550 is based on information from HELPPC 2.1 and 
- * results from National Semiconductor's COMTEST.EXE diagnostics program.
- * Some people claim to me that this code does a much better emulation 
- * than OS/2 serial emulation (non-direct) mode done by its COM.SYS driver!
- * This module is fairly huge, but nearly 50% of it are comments!!!
+ *   Information on a 16550 is based on information from HELPPC.EXE 2.1 and 
+ *   results from National Semiconductor's COMTEST.EXE diagnostics program.
+ *   This code aims to emulate a 16550 as accurately as possible, using just
+ *   reasonably POSIX.2 compilant code.  In some cases, this code does a 
+ *   better job than OS/2 serial emulation (in non-direct mode) done by its 
+ *   COM.SYS driver!  This module is fairly huge, but nearly 50% are comments!
  * 
- * This module is maintained by Mark Rejhon at these Email addresses:
- *	mdrejhon@csclub.uwaterloo.ca
- *	ag115@freenet.carleton.ca
+ *   This module is maintained by Mark Rejhon at these Email addresses:
+ *        mdrejhon@magi.com
+ *        ag115@freenet.carleton.ca
  *
- *              Lock file stuff stolen from Taylor UUCP
- *              Copyright (C) 1991, 1992 Ian Lance Taylor
+ * COPYRIGHTS
+ * ~~~~~~~~~~
+ *   Lock file stuff was derived from Taylor UUCP with these copyrights:
+ *   Copyright (C) 1991, 1992 Ian Lance Taylor
+ *   Uri Blumenthal <uri@watson.ibm.com> (C) 1994
+ *   Paul Cadach, <paul@paul.east.alma-ata.su> (C) 1994
  *
- *              Uri Blumenthal <uri@watson.ibm.com>
- *              (C) 1994
+ *   Rest of serial code
+ *   Copyright (C) 1995 by Mark Rejhon
  *
- *              Paul Cadach, <paul@paul.east.alma-ata.su>
- *              (C) 1994
- *
- *              Lock file stuff is free software; you can redistribute it
- *              and/or  modify it under  the terms of  the GNU General
- *              Public  License as  published  by  the  Free  Software
- *              Foundation;  either  version 2 of the License, or  (at
- *              your option) any later version.
+ *   The code in this module is free software; you can redistribute it
+ *   and/or modify it under the terms of the GNU General Public License
+ *   as published by the Free Software Foundation; either version 2 of 
+ *   the License, or (at your option) any later version.
  *
  *
  * $Date: 1995/02/25 22:38:01 $
@@ -36,105 +37,41 @@
  * Revision 2.9  1995/02/25  22:38:01  root
  * *** empty log message ***
  *
- * Revision 2.8  1995/02/05  16:52:03  root
- * Prep for Scotts patches.
+ * These are older RCS log messages, which may be deleted if you want:
  *
- * Revision 2.8  1995/02/05  16:52:03  root
- * Prep for Scotts patches.
- *
- * Revision 2.7  1994/11/13  00:40:45  root
- * Prep for Hans's latest.
- *
- * Revision 2.6  1994/11/03  11:43:26  root
- * Checkin Prior to Jochen's Latest.
- *
- * Revision 2.5  1994/09/20  01:53:26  root
- * Prep for pre53_21.
- *
- * Revision 2.4  1994/09/11  01:01:23  root
- * Prep for pre53_19.
- *
- * Revision 2.3  1994/08/14  02:52:04  root
- * Rain's latest CLEANUP and MOUSE for X additions.
- *
- * Revision 2.2  1994/07/04  23:59:23  root
- * Prep for Markkk's NCURSES patches.
- *
- * Revision 2.1  1994/06/12  23:15:37  root
- * Wrapping up prior to release of DOSEMU0.52.
- *
- * Revision 1.33  1994/05/13  17:21:00  root
- * pre51_15.
- *
- * Revision 2.9.1.1  1994/05/10  22:46:03  root
- * Submitted to James.  May be final code for DOSEMU 0.52
- *
- * Revision 2.9.0.9  1994/05/10  22:08:26  root
- * Major additions of comments, and a few bugfixes/adjustments.
- *
- * Revision 2.9.0.8  1994/05/10  16:15:55  root
- * Backup before I hack this code. :-)
- *
- * Revision 2.9.0.7  1994/04/09  14:48:57  root
- * Bug with initialization fixed. Now *SHOULD* work on most systems.
- *
- * Revision 2.9.0.6  1994/04/08  00:19:58  root
- * Added a transmit timeout in non-FIFO mode.
- * Improved the startup serial line initialization.
- *
- * Revision 2.9.0.5  1994/04/07  06:42:18  root
- * This got into pre0.51 release 4.
- *
- * Revision 2.9.0.4  1994/04/06  14:49:25  root
- * Fixing some RCS message problems, summarized old RCS changes.
- *
- * Revision 2.9.0.3  1994/04/06  14:48:30  root
- * More accurate Master Reset (dosemu bootup) condition.
- *
- * Revision 2.9.0.2  1994/04/06  13:12:55  root
- * Some static declarations in order to optimize speed.
- *
- * Revision 2.9.0.1  1994/04/06  12:56:02  root
- * Fixed a minor bug with IRQ configuration.
- *
- * This is a summary of older changes to DOSEMU:
- *     2.8 - A much improved interrupts emulation.
- *           National Semiconductor COMTEST.EXE now reports only 4-10 errors!
- * 2.7.0.5 - Last checkin for pre51 before upgrading and patching to pre51_2
- * 2.7.0.1 - A number of minor fixes.
- *     2.7 - Yay! The transmit bug has been fixed.  Also may be more stable 
- *            on James system due to my forgetting to initialize some vars.
- *     2.6 - Fixed slow mouse in MSDOS edit, and a number of bugfixes.
- * 2.5.1.1 - This one was submitted, with slight modification.
- *     2.5 - CHECKPOINT: This may go into the 0.51 release.
- *     2.4 - Line status interrupts, and better loopback testing capability.
- *     2.3 - Better UART detection support, albiet not perfect..
- *     2.2 - It survived the interrupts overhaul...
- * 2.1.1.1 - Interrupt engine still being added, checking in for safety.
- *     2.0 - Time to check in before a number of compatibility mods!
- *   OLDER - Lots of bugfixes 
- *         - Transmit interrupt timeout adjustments.
- *         - Speed problems caused by unnecessary modem status polls, fixed.
- *         - Major speed improvement by letting Linux do serial buffering
- *            instead of this serial code..
- *         - PARANOID debug messages.
- *         - Modem status interrupt is now more real.
- *         - Interrupts no longer interrupt each other.
- *         - Fixed the baudrate-change crashing bug.
- *         - Major structural changes.
- *         - Baudrate changes more flexible. Rounds up to nearest baudrate.
- *         - Major update to the INT14 interface.
- *         - Default is now 2400 baud 8N1 for modems.
- *         - Ronnie's SERIAL enhancements, the base serial code here..
+ * Revision 2.8  1995/02/05  16:52:03  * Prep for Scotts patches.
+ * Revision 2.8  1995/02/05  16:52:03  * Prep for Scotts patches.
+ * Revision 2.7  1994/11/13  00:40:45  * Prep for Hans's latest.
+ * Revision 2.6  1994/11/03  11:43:26  * Checkin Prior to Jochen's Latest.
+ * Revision 2.5  1994/09/20  01:53:26  * Prep for pre53_21.
+ * Revision 2.4  1994/09/11  01:01:23  * Prep for pre53_19.
+ * Revision 2.3  1994/08/14  02:52:04  * Rain's CLEANUP and MOUSE for X add'n
+ * Revision 2.2  1994/07/04  23:59:23  * Prep for Markkk's NCURSES patches.
+ * Revision 2.1  1994/06/12  23:15:37  * Wrap up for release of DOSEMU0.52
+ * Revision 1.33  1994/05/13  17:21:00     * pre51_15.
+ * Revision 2.9.1.1  1994/05/10  22:46:03  * May be final for DOSEMU 0.52
+ * Revision 2.9.0.9  1994/05/10  22:08:26  * Major addn of comments, bugfixes
+ * Revision 2.9.0.8  1994/05/10  16:15:55  * Backup before I hack code. :-)
+ * Revision 2.9.0.7  1994/04/09  14:48:57  * Bug with initialization fixed.
+ * Revision 2.9.0.6  1994/04/08  00:19:58  * Added xmit timeout for 8250 mode.
+ *                                           Improved startup serial init.
+ * Revision 2.9.0.5  1994/04/07  06:42:18  * This got into pre0.51 release 4.
+ * Revision 2.9.0.4  1994/04/06  14:49:25  * Cleanup of RCS stuff.
+ * Revision 2.9.0.3  1994/04/06  14:48:30  * More accurate bootup condition
+ * Revision 2.9.0.2  1994/04/06  13:12:55  * Speed optimization, static decls
+ * Revision 2.9.0.1  1994/04/06  12:56:02  * Fix minor bug with IRQ config
  */
 
 /**************************** DECLARATIONS *******************************/
- 
-/* A SUPER_DBG level of 2 means RICIDULOUS debug output, including all
- *  port reads and writes, and every character received and transmitted!
+
+/* 
+ * A SUPER_DBG level of 0 is for simple debugging.
  * A SUPER_DBG level of 1 means plenty of debug output on some of the
  *  most critical information.
- * A SUPER_DBG level of 0 is for simple debugging.
+ * A SUPER_DBG level of 2 means really-heavy debug output, including all
+ *  port reads and writes, and every character received and transmitted!
+ * A SUPER_DBG level of 3 adds even more debugging messages, those related 
+ *  to flagging for serial interrupts, or PIC-driven code.
  *
  * You must recompile everytime this constant is modified.
  */
@@ -156,25 +93,13 @@
 #include "cpu.h"
 #include "emu.h"
 #include "dosio.h"
-/* NEW_PIC only applies to serial code if NEW_PIC = 2.  Use NEW_PIC=0
-   if it's not defined, to avoid errors.  Undefine NEW_PIC at end if it =0 */
-#ifndef NEW_PIC
-#define NEW_PIC 0
-#endif
 #include "serial.h"
 #include "mouse.h"
-#if NEW_PIC==2   /*  add includes for NEW_PIC */
 #include "bitops.h"
 #include "pic.h"
-#else
-extern void queue_hard_int(int i, void (*), void (*));
-#endif
 
 serial_t com[MAX_SER];
-#if NEW_PIC==2
-static int tx_timer[MAX_SER];
-static int br_divisor[MAX_SER];
-#endif
+
 /* The following are positive constants that adjust the soonness of the next
  * receive or transmit interrupt in FIFO mode.  These are a little
  * bit sensitive, and may dissappear when better timer code arrives.
@@ -182,67 +107,64 @@ static int br_divisor[MAX_SER];
 #define TIMEOUT_TX   2
 #define TIMEOUT_RX   3
 
-/* Some very useful defines, mainly for Modem Status register operation.
- * CONVERT_BIT returns 'outbit' only if 'inbit' in 'testbyte' is set.
- * DELTA_BIT   returns 'outbit' if 'inbit' changed between bytes 'old' and 'new'
- * TRAIL_EDGE  returns 'outbit' if 'inbit' is on in 'old' and off in 'new'
+/* Maximum number of 115200ths of a seconds worth of chars to buffer
+ * If more characters than this is in the buffer, then wait till it
+ * drops below this value, to trigger the next transmit interrupt
+ * Right now this is set to 1/10th of a second.
  */
-#if 0
-#define CONVERT_BIT(testbyte,inbit,outbit) ((testbyte & inbit) ? outbit : 0)
-#define DELTA_BIT(old,new,inbit,outbit) \
-                 ((old ^ new) & inbit) ? outbit : 0
-#define TRAIL_EDGE(old,new,inbit,outbit) \
-                  ((old & inbit) > (new & inbit)) ? outbit : 0
+#define MAX_TX_BUF_TICKS        11520L
 
-#else
-static inline int CONVERT_BIT(int testbyte, int inbit, int outbit)
-{
-	if(testbyte & inbit) 
-		return outbit;
-	return 0;
-}
-
-static inline int DELTA_BIT(int old, int new, int inbit, int output)
-{
-	if((old ^ new) & inbit) 	
-		return output;
-	else	return 0;
-}
-
-static inline int TRAIL_EDGE(int old, int new, int inbit,  int outbit)
-{
-	if((old & inbit) > (new  & inbit)) 
-		return outbit;
-	else	return 0;
-}
-#endif
-	
 static int get_msr(int num);
 static void transmit_engine(int num);
 static void receive_engine(int num);
 static void interrupt_engine(int num);
-#if NEW_PIC==2
+static void serial_timer_update(void);
 void pic_serial_run(void);
-#endif
 
 static int tty_already_locked(char *nam);
 static int tty_lock(char *path, int mode);
+
+/* Some very useful functions, mainly for Modem Status register operation.
+ * CONVERT_BIT returns 'outbit' only if 'inbit' in 'testbyte' is set.
+ * DELTA_BIT   returns 'outbit' if 'inbit' changed between bytes 'old' and 'new'
+ * TRAIL_EDGE  returns 'outbit' if 'inbit' is on in 'old' and off in 'new'
+ */
+static inline int CONVERT_BIT(int testbyte, int inbit, int outbit)
+{
+  if (testbyte & inbit) return outbit;
+  return 0;
+}
+
+static inline int DELTA_BIT(int old, int new, int inbit, int output)
+{
+  if((old ^ new) & inbit) return output;
+  return 0;
+}
+
+static inline int TRAIL_EDGE(int old, int new, int inbit, int outbit)
+{
+  if((old & inbit) > (new  & inbit)) return outbit;
+  return 0;
+}
+ 
  
 /*************************************************************************/
 /*                 MISCALLENOUS serial support functions                 */
 /*************************************************************************/
 
-/* This function flushes the internal unix receive buffer,
- * up to 10 KB at a time.  [num = port]
- */
+/* This function flushes the internal unix receive buffer [num = port] */
 static void
-buffer_dump(int num)
+rx_buffer_dump(int num)
 {
-  u_char bytes[1024];
-  int i;
-  if (com[num].fd != -1) 
-    for (i = 0; (i < 10) && (RPT_SYSCALL(read(com[num].fd,bytes,1024)) > 0); i++)
-      ;
+  tcflush(com[num].fd,TCIFLUSH);
+}
+
+
+/* This function flushes the internal unix transmit buffer [num = port] */
+static void
+tx_buffer_dump(int num)
+{
+  tcflush(com[num].fd,TCOFLUSH);
 }
 
 
@@ -254,26 +176,32 @@ uart_fill(int num)
 {
   static u_char bytes[RX_FIFO_SIZE];
   static int i,size;
+  
   if (com[num].MCR & UART_MCR_LOOP) return;	/* Return if loopback */
+  
   if (com[num].fifo_enable) {
     /* The FIFO must be dequeued in here!  The following section is coded 
-    ** for maximum speed efficiency instead of size and logic.
-    */
+     * for maximum speed efficiency instead of size and logic.
+     */
     if (com[num].RX_FIFO_BYTES == RX_FIFO_SIZE) {
       com[num].uart_full = 1;
     }
     else {
       /* Do a block read up to the amount of empty space left in FIFO */
       size = RPT_SYSCALL(read(com[num].fd, bytes, (RX_FIFO_SIZE - com[num].RX_FIFO_BYTES)));
+ 
       if (size > 0) {			/* Note that size is -1 if error */
         com[num].rx_timeout = TIMEOUT_RX;	/* Reset timeout counter */
+ 
         for (i = 0; i < size; i++) {
           com[num].RX_FIFO_BYTES++;
           com[num].RX_FIFO[com[num].RX_FIFO_END] = bytes[i];
           com[num].RX_FIFO_END = (com[num].RX_FIFO_END +1) & (RX_FIFO_SIZE -1);
         }
+ 
         com[num].uart_full = (com[num].RX_FIFO_BYTES == RX_FIFO_SIZE);
         com[num].LSR |= UART_LSR_DR;		/* Set recv data ready bit */
+ 
         if (com[num].RX_FIFO_BYTES >= com[num].RX_FIFO_TRIGGER) {
           com[num].int_type |= RX_INTR;		/* flag receive interrupt */
           interrupt_engine(num);		/* Do next interrupt */
@@ -284,9 +212,10 @@ uart_fill(int num)
       }
     }
   }
+ 
   else if (!(com[num].LSR & UART_LSR_DR)) {
-    /* Normal mode.  Don't overwrite if data is already waiting.    */
-    /* Now Copy one byte to RX register.                            */
+    /* Normal mode.  Don't overwrite if data is already waiting. */
+    /* Now Copy one byte to RX register.                         */
     if (RPT_SYSCALL(read(com[num].fd,bytes,1)) > 0) {
       com[num].LSR |= UART_LSR_DR;	/* Set received data ready bit */
       com[num].RX = bytes[0];		/* Put byte into RBR */
@@ -317,7 +246,7 @@ uart_clear_fifo(int num, int fifo)
     com[num].RX_FIFO_BYTES = 0;		/* Number of bytes in rec FIFO queue */
     com[num].uart_full = 0;		/* UART is now empty */
     com[num].rx_timeout = 0;		/* Receive intr already occured */
-    buffer_dump(num);			/* Discard waiting incoming data */
+    rx_buffer_dump(num);		/* Clear receive buffer */
     com[num].int_type &= ~(LS_INTR | RX_INTR);	/* Clear LS and RX intrs */
     if (((com[num].IIR & UART_IIR_ID) == UART_IIR_RDI) ||
         ((com[num].IIR & UART_IIR_ID) == UART_IIR_RLSI))
@@ -331,9 +260,10 @@ uart_clear_fifo(int num, int fifo)
     com[num].TX_FIFO_START = 0;		/* Start of xmit FIFO queue */
     com[num].TX_FIFO_END = 0;		/* End of xmit FIFO queue */
     com[num].TX_FIFO_BYTES = 0;		/* Number of bytes in xmit FIFO */
-    com[num].tx_timeout = 0;		/* Transmit intr already occured */
+    com[num].tx_trigger = 0;            /* Transmit intr already occured */
     com[num].tx_overflow = 0;		/* Not in overflow state */
     com[num].int_type &= ~TX_INTR;	/* Clear TX intr */
+    tx_buffer_dump(num);		/* Clear transmit buffer */
     if ((com[num].IIR & UART_IIR_ID) == UART_IIR_THRI) {
       com[num].IIR = (com[num].IIR & UART_IIR_FIFO) | UART_IIR_NO_INT;
     }
@@ -350,10 +280,10 @@ static void
 ser_termios(int num)
 {
   speed_t baud;
-  int rounddiv;
-
+  long int rounddiv;
+  
   /* The following is the same as (com[num].dlm * 256) + com[num].dll */
-#define DIVISOR ((com[num].dlm<<8)|com[num].dll)
+  #define DIVISOR ((com[num].dlm << 8) | com[num].dll)
 
   /* Return if not a tty */
   if (tcgetattr(com[num].fd, &com[num].newset) == -1) {
@@ -385,7 +315,7 @@ ser_termios(int num)
     break;
   }
 
-  /* Set the parity */
+  /* Set the parity.  Rarely-used MARK and SPACE parities not supported yet */
   if (com[num].LCR & UART_LCR_PARITY) {
     com[num].newset.c_cflag |= PARENB;
     if (com[num].LCR & UART_LCR_EPAR) {
@@ -413,14 +343,30 @@ ser_termios(int num)
     s_printf("1, ");
   }
 
-  /* The following sets the baudrate.  These nested IF statements rounds 
-  ** upwards to the next higher baudrate. (ie, rounds downwards to the next 
-  ** valid divisor value) The formula is:  bps = 1843200 / (divisor * 16)
-  */
-  if (DIVISOR < DIV_38400 && DIVISOR) {		/* above 38400, use 38400 bps */
-    s_printf("bps = %d, using 38400, ", 1843200 / (DIVISOR * 16));
-    rounddiv = DIV_38400;
-    baud = B38400;
+  /* Linux 1.1.65 and above supports 115200 and 57600 directly, while
+   * Linux 1.1.64 and below do not support them.  For these kernels, make 
+   * B115200 and B57600 equal to B38400.  These defines also may be 
+   * important if DOSEMU is ported to other nix-like operating systems.
+   */
+  #ifndef B115200
+  #define B115200 B38400
+  #endif
+  #ifndef B57600
+  #define B57600 B38400
+  #endif
+                       
+  /* The following sets the baudrate.  These nested IF statements rounds
+   * upwards to the next higher baudrate. (ie, rounds downwards to the next
+   * valid divisor value) The formula is:  bps = 1843200 / (divisor * 16)
+   */
+  if ((DIVISOR < DIV_57600) && DIVISOR) {               /* 115200 bps */
+    s_printf("bps = 115200, ");
+    rounddiv = DIV_115200;
+    baud = B115200;
+  } else if (DIVISOR < DIV_38400) {                     /* 57600 bps */
+    s_printf("bps = 57600, ");
+    rounddiv = DIV_57600;
+    baud = B57600;
   } else if (DIVISOR < DIV_19200) {			/* 38400 bps */
     s_printf("bps = 38400, ");
     rounddiv = DIV_38400;
@@ -472,22 +418,44 @@ ser_termios(int num)
   }
   s_printf("divisor 0x%x -> 0x%x\n", DIVISOR, rounddiv);
 
-  /* The following does the actual system call to set the line settings */
-  /* James Maclean say to not use DOS_SYS_CALL wrappers around these!!! */
+  /* Number of 115200ths of a second for each char to transmit,
+   * This assumes 10 bits per characters, although math can easily
+   * be done here to accomodate the parity and character size.
+   * Remember: One bit takes exactly (rounddiv / 115200)ths of a second.
+   */
+  com[num].char_time = rounddiv * 10;
+  
+  /* Save the newbaudrate value */
+  com[num].newbaud = baud;
+
+  /* These are required to increase chances that 57600/115200 will work. */
+  /* At least, these were needed on my system, Linux 1.2 and Libc 4.6.27 */
+  com[num].newset.c_cflag &= ~CBAUD;
+  com[num].newset.c_cflag |= baud;
+  
+  /* The following does the actual system calls to set the line parameters */
   cfsetispeed(&com[num].newset, baud);
   cfsetospeed(&com[num].newset, baud);
-#if NEW_PIC==2
-  br_divisor[num]=rounddiv<<4;			/* set xmit speed */
-#endif
-  com[num].newbaud = baud;
-  tcsetattr(com[num].fd, TCSANOW, &com[num].newset);   /* DOS_SYSCALL */
+  tcsetattr(com[num].fd, TCSANOW, &com[num].newset);
+  
+  /* Many mouse drivers require this, they detect for Framing Errors
+   * coming from the mouse, during initialization, usually right after
+   * the LCR register is set, so this is why this line of code is here
+   */
+  if (com[num].mouse) {
+    com[num].LSR |= UART_LSR_FE; 		/* Set framing error */
+    com[num].int_type |= LS_INTR;		/* Flag for RLSI */
+    interrupt_engine(num);			/* Do next interrupt */
+  }
 }
+
+
 /*  Determines if the tty is already locked.  Stolen from uri-dip-3.3.7k
  *  Nice work Uri Blumenthal & Ian Lance Taylor!
- *			[nam = lock file +path, return = locked (!=0) or not]
+ *  [nam = complete path to lock file, return = nonzero if locked]
  */
 static int
-tty_already_locked(char *nam) /* nam - complete path to lock file */
+tty_already_locked(char *nam)
 {
   int  i = 0, pid = 0;
   FILE *fd = (FILE *)0;
@@ -496,15 +464,13 @@ tty_already_locked(char *nam) /* nam - complete path to lock file */
   if ((fd = fopen(nam, "r")) == (FILE *)0)
     return 0; /* No, return perm to continue */
 
-  /* Yes, the lock is there.  Now let's make sure */
-  /* at least there's no active process that owns */
-  /* that lock.                                   */
-  if(config.tty_lockbinary){
+  /* Yes, the lock is there.  Now let's make sure at least */
+  /* there's no active process that owns that lock.        */
+  if(config.tty_lockbinary)
     i = read(fileno(fd), &pid, sizeof(pid)) == sizeof(pid);
-  }
-  else {
+  else 
     i = fscanf(fd, "%d", &pid);
-  }
+
   (void) fclose(fd);
 
   if (i != 1) /* Lock file format's wrong! Kill't */
@@ -512,7 +478,7 @@ tty_already_locked(char *nam) /* nam - complete path to lock file */
 
   /* We got the pid, check if the process's alive */
   if (kill(pid, 0) == 0)      /* it found process */
-      return 1;           /* Yup, it's running... */
+    return 1;                 /* Yup, it's running... */
 
   /* Dead, we can proceed locking this device...  */
   return 0;
@@ -521,23 +487,18 @@ tty_already_locked(char *nam) /* nam - complete path to lock file */
 
 /*  Locks or unlocks a terminal line Stolen from uri-dip-3.3.7k
  *  Nice work Uri Blumenthal & Ian Lance Taylor!
- * [path = device name, 
- *  mode: 1 = lock, 2 = reaquire lock, anythingelse = unlock,
- *  return = success (0) or failure (< 0)]
+ *  [path = device name, 
+ *   mode: 1 = lock, 2 = reaquire lock, anythingelse = unlock,
+ *   return = zero if success, greater than zero for failure]
  */
-/* Lock or unlock a terminal line. */
 static int
 tty_lock(char *path, int mode)
 {
-  static char saved_path[PATH_MAX];
-  static char nam_tmp[PATH_MAX];
-  static char dev_nam[20];
-  static int saved_lock = 0;
+  char saved_path[PATH_MAX];
+  char dev_nam[20];
   struct passwd *pw;
   pid_t ime;
   int cwrote;
-
-  bzero(nam_tmp, sizeof(nam_tmp));
 
   /* Check that lockfiles can be created! */
   if((mode == 1 || mode == 2) && geteuid() != (uid_t)0) {
@@ -548,100 +509,85 @@ tty_lock(char *path, int mode)
     return(-1);
   }
 
+  bzero(dev_nam, sizeof(dev_nam));
+  sprintf(saved_path, "%s/%s%s", config.tty_lockdir, config.tty_lockfile, 
+         (strrchr(path, '/')+1));
+  strcpy(dev_nam, path);
+  
   if (mode == 1) {      /* lock */
     if (path == NULL) return(0);        /* standard input */
-    bzero(dev_nam, sizeof(dev_nam));
-    sprintf(saved_path, "%s/%s%s", config.tty_lockdir, config.tty_lockfile, 
-	    (strrchr(path, '/')+1));
-    strcpy(dev_nam, path);
     {
       FILE *fd;
       if (tty_already_locked(saved_path) == 1) {
-        s_printf("DOSEMU: attempt to use already locked tty %s\n",
-               saved_path);
-        error("\nDOSEMU: attempt to use already locked tty %s\n",
-                saved_path);
+        s_printf("DOSEMU: attempt to use already locked tty %s\n", saved_path);
+        error("\nDOSEMU: attempt to use already locked tty %s\n", saved_path);
         return (-1);
       }
       if ((fd = fopen(saved_path, "w")) == (FILE *)0) {
-        s_printf("DOSEMU: lock: (%s): %s\n",
-               saved_path, strerror(errno));
-        error("\nDOSEMU: tty: lock: (%s): %s\n",
-                saved_path, strerror(errno));
+        s_printf("DOSEMU: lock: (%s): %s\n", saved_path, strerror(errno));
+        error("\nDOSEMU: tty: lock: (%s): %s\n", saved_path, strerror(errno));
         return(-1);
       }
+
       ime = getpid();
-      if(config.tty_lockbinary) {
+      if(config.tty_lockbinary)
 	cwrote = write (fileno(fd), &ime, sizeof(ime));
-      }
-      else {
+      else
 	fprintf(fd, "%10d\n", (int)ime);
-      }
+
       (void)fclose(fd);
     }
 
     /* Make sure UUCP owns the lockfile.  Required by some packages. */
     if ((pw = getpwnam(OWNER_LOCKS)) == NULL) {
-      error("\nDOSEMU: tty: lock: UUCP user %s unknown!\n",
-              OWNER_LOCKS);
+      error("\nDOSEMU: tty: lock: UUCP user %s unknown!\n", OWNER_LOCKS);
       return(0);        /* keep the lock anyway */
     }
+    
     (void) chown(saved_path, pw->pw_uid, pw->pw_gid);
     (void) chmod(saved_path, 0644);
-    saved_lock = 1;
-  } else {
-    if (mode == 2) { /* re-acquire a lock after a fork() */
-      FILE *fd;
+  } 
+  else if (mode == 2) { /* re-acquire a lock after a fork() */
+    FILE *fd;
 
-      if (saved_lock != 1) {
-        s_printf("DOSEMU: tty_lock reaquire: lock was not saved!\n");
-        return (-1);
-      }
-      if ((fd = fopen(saved_path, "w")) == (FILE *)0) {
-        s_printf("DOSEMU:tty_lock(%s) reaquire: %s\n",
-               saved_path, strerror(errno));
-        error("\nDOSEMU:tty_lock: reacquire (%s): %s\n",
-                saved_path, strerror(errno));
-        return(-1);
-      }
-      ime = getpid();
-      if(config.tty_lockbinary) {
-	cwrote = write (fileno(fd), &ime, sizeof(ime));
-      }
-      else {
-	fprintf(fd, "%10d\n", (int)ime);
-      }
-      (void)fclose(fd);
-      (void) chmod(saved_path, 0444);
-      (void) chown(saved_path, getuid(), getgid());
-      return(0);
-    } else {    /* unlock */
-      FILE *fd;
+    if ((fd = fopen(saved_path, "w")) == (FILE *)0) {
+      s_printf("DOSEMU:tty_lock(%s) reaquire: %s\n", 
+              saved_path, strerror(errno));
+      error("\nDOSEMU:tty_lock: reacquire (%s): %s\n",
+              saved_path, strerror(errno));
+      return(-1);
+    }
+    ime = getpid();
+     
+    if(config.tty_lockbinary)
+      cwrote = write (fileno(fd), &ime, sizeof(ime));
+    else
+      fprintf(fd, "%10d\n", (int)ime);
 
-      if (saved_lock != 1) {
-        s_printf("DOSEMU:tty_lock: lock was not saved?!\n");
-        return(0);
-      }
-      if ((fd = fopen(saved_path, "w")) == (FILE *)0) {
-        s_printf("DOSEMU:tty_lock: can't reopen to delete: %s\n",
-               strerror(errno));
-        return (-1);
-      }
-      if (unlink(saved_path) < 0) {
-        s_printf("DOSEMU: tty: unlock: (%s): %s\n", saved_path,
-               strerror(errno));
-        error("\nDOSEMU: tty: unlock: (%s): %s\n", saved_path,
-                strerror(errno));
-        saved_lock = 0;
-        return(-1);
-      }
-      saved_lock = 0;
+    (void) fclose(fd);
+    (void) chmod(saved_path, 0444);
+    (void) chown(saved_path, getuid(), getgid());
+    return(0);
+  } 
+  else {    /* unlock */
+    FILE *fd;
+
+    if ((fd = fopen(saved_path, "w")) == (FILE *)0) {
+      s_printf("DOSEMU:tty_lock: can't reopen to delete: %s\n",
+             strerror(errno));
+      return (-1);
+    }
+      
+    if (unlink(saved_path) < 0) {
+      s_printf("DOSEMU: tty: unlock: (%s): %s\n", saved_path,
+             strerror(errno));
+      error("\nDOSEMU: tty: unlock: (%s): %s\n", saved_path,
+             strerror(errno));
+      return(-1);
     }
   }
-
   return(0);
 }
-
 
 
 /* This function opens the serial port for DOSEMU.  Normally called only
@@ -651,14 +597,35 @@ static int
 ser_open(int num)
 {
   s_printf("SER%d: Running ser_open, fd=%d\n",num, com[num].fd);
+  
+  if (com[num].fd != -1) return (com[num].fd);
+  
+  if ( tty_lock(com[num].dev, 1) >= 0) {		/* Lock port */
+    /* We know that we have access to the serial port */
+    com[num].dev_locked = TRUE;
+    
+    /* If the port is used for a mouse, then remove lockfile, because
+     * the use of the mouse serial port can be switched between processes,
+     * such as on Linux virtual consoles.
+     */
+    if (com[num].mouse)
+      if (tty_lock(com[num].dev, 0) >= 0)   		/* Unlock port */
+        com[num].dev_locked = FALSE;
+  }
+  else {
+    /* The port is in use by another process!  Don't touch the port! */
+    com[num].dev_locked = FALSE;
+    com[num].fd = -1;
+    return(-1);
+  }
+  
   if (com[num].dev[0] == 0) {
     s_printf("SER%d: Device file not yet defined!\n",num);
     return (-1);
   }
-  if (com[num].fd != -1) return (com[num].fd);
+  
   com[num].fd = RPT_SYSCALL(open(com[num].dev, O_RDWR | O_NONBLOCK));
   RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].oldset));
-  RPT_SYSCALL(tcsetattr(com[num].fd, TCSANOW, &com[num].newset));
   return (com[num].fd);
 }
 
@@ -672,13 +639,20 @@ ser_close(int num)
   static int i;
   s_printf("SER%d: Running ser_close\n",num);
   uart_clear_fifo(num,UART_FCR_CLEAR_CMD);
-  if (com[num].fd == -1) return (0);
+  
   /* save current dosemu settings of the file and restore the old settings
-   * before closing the file down. */
+   * before closing the file down. 
+   */
   RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].newset));
   RPT_SYSCALL(tcsetattr(com[num].fd, TCSANOW, &com[num].oldset));
   i = RPT_SYSCALL(close(com[num].fd));
   com[num].fd = -1;
+  
+  /* Clear the lockfile from DOSEMU */
+  if (com[num].dev_locked) {
+    if (tty_lock(com[num].dev, 0) >= 0) 
+      com[num].dev_locked = FALSE;
+  }
   return (i);
 }
 
@@ -705,11 +679,11 @@ do_ser_init(int num)
   **
   ** If COMx is unspecified, the next unused COMx port number is assigned.
   */
-
   if (com[num].real_comport == 0) {		/* Is comport number undef? */
     for (i = 1; i < 16; i++) if (com_port_used[i] != 1) break;
     com[num].real_comport = i;
     com_port_used[i] = 1;
+    s_printf("SER%d: No COMx port number given, defaulting to COM%d\n", num, i);
   }
 
   if (com[num].interrupt <= 0) {		/* Is interrupt undefined? */
@@ -720,6 +694,7 @@ do_ser_init(int num)
     default: com[num].interrupt = 0x4; break;
     }
   }
+  
   if (com[num].base_port <= 0) {		/* Is base port undefined? */
     switch (com[num].real_comport) {		/* Define it depending on */ 
     case 4:  com[num].base_port = 0x2E8; break;	/*  using standard addrs */
@@ -737,61 +712,47 @@ do_ser_init(int num)
     default: strcpy(com[num].dev, "/dev/cua0"); break;
     }
   }
-  
-  /* Insert lock file function here */
-  if ( !com[num].mouse ) {
-    if ( tty_lock( com[num].dev, 1) >= 0) {
-      com[num].dev_locked = TRUE;
-    }
-    else {
-      return;
-    }
-  }
-
-#if NEW_PIC==2
-  /* convert irq number to pic_ilevel number and set up interrupt */
-  /* if irq is invalid, no interrupt will be assigned */
+ 
+  /* convert irq number to pic_ilevel number and set up interrupt
+   * if irq is invalid, no interrupt will be assigned 
+   */
   if(com[num].interrupt < 16) {
     com[num].interrupt = pic_irq_list[com[num].interrupt];
     s_printf("SER%d: enabling interrupt %d\n", num, com[num].interrupt);
     pic_seti(com[num].interrupt,pic_serial_run,0);
     pic_unmaski(com[num].interrupt);
-    }
-#else
-  if (com[num].interrupt < 8)			/* Convert IRQ no's into */
-    com[num].interrupt += 0x8;			/* software interrupt no's */
-  else
-    com[num].interrupt += 0x68;
-#endif
+  }
   irq_source_num[com[num].interrupt] = num;	/* map interrupt to port */
 
   /*** The following is where the real initialization begins ***/
 
-  /* Write serial port information into BIOS data area 0040:0000        */
-  /* This is for DOS and many programs to recognize ports automatically */
+  /* Information about serial port added to debug file */
+  s_printf("SER%d: COM%d, intlevel=%d, base=0x%x\n", 
+        num, com[num].real_comport, com[num].interrupt, com[num].base_port);
+
+  /* Write serial port information into BIOS data area 0040:0000
+   * This is for DOS and many programs to recognize ports automatically
+   */
   if ((com[num].real_comport >= 1) && (com[num].real_comport <= 4)) {
     *((u_short *) (0x400) + (com[num].real_comport-1)) = com[num].base_port;
+
+    /* Debugging to determine whether memory location was written properly */
+    s_printf("SER%d: BIOS memory location 0x%x has value of 0x%x\n", num,
+	(int)((u_short *) (0x400) + (com[num].real_comport-1)), 
+        *((u_short *) (0x400) + (com[num].real_comport-1)) );
   }
 
-  /* Information about serial port added to debug file */
-#if NEW_PIC==2  
-  s_printf("SER%d: comport %d, ilevel %d, base 0x%x, address 0x%x -> val 0x%x\n", 
-        num, com[num].real_comport, com[num].interrupt, com[num].base_port, 
-	(int)((u_short *) (0x400) + (com[num].real_comport-1)), 
-        *((u_short *) (0x400) + (com[num].real_comport-1)) );
-#else
-  s_printf("SER%d: comport %d, interrupt %d, base 0x%x, address 0x%x -> val 0x%x\n", 
-        num, com[num].real_comport, com[num].interrupt, com[num].base_port, 
-	(int)((u_short *) (0x400) + (com[num].real_comport-1)), 
-        *((u_short *) (0x400) + (com[num].real_comport-1)) );
-#endif
+  /* first call to serial timer update func to initialize the timer */
+  /* value, before the com[num] structure is initialized */
+  serial_timer_update();
 
-  /* The following obtains current line settings of line for compatibility */
-  com[num].fd = RPT_SYSCALL(open(com[num].dev, O_RDWR | O_NONBLOCK));
-  RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].newset));
-  RPT_SYSCALL(close(com[num].fd));
- 
-  /* The following adjust raw line settings needed for DOSEMU serial */
+  /* Set file descriptor as unused, then attempt to open serial port */
+  com[num].fd = -1;
+  ser_open(num);
+  
+  /* The following adjust raw line settings needed for DOSEMU serial     */
+  /* These defines are based on the Minicom 1.70 communications terminal */
+#if 1
   com[num].newset.c_cflag |= (CLOCAL | CREAD);
   com[num].newset.c_cflag &= ~(HUPCL | CRTSCTS);
   com[num].newset.c_iflag |= (IGNBRK | IGNPAR);
@@ -803,17 +764,22 @@ do_ser_init(int num)
   com[num].newset.c_lflag &= ~(XCASE | ISIG | ICANON | IEXTEN | ECHO | 
                                ECHONL | ECHOE | ECHOK | ECHOPRT | ECHOCTL | 
                                ECHOKE | NOFLSH | TOSTOP);
+#else
+  /* These values should only be used as a last resort, or for testing */
+  com[num].newset.c_iflag = IGNBRK | IGNPAR;
+  com[num].newset.c_lflag = 0;
+  com[num].newset.c_oflag = 0;
+  com[num].newset.c_cflag |= CLOCAL | CREAD;
+  com[num].newset.c_cflag &= ~(HUPCL | CRTSCTS);
+#endif
   com[num].newset.c_line = 0;
   com[num].newset.c_cc[VMIN] = 1;
   com[num].newset.c_cc[VTIME] = 0;
-  com[num].fd = -1;
-  ser_open(num);	 		/* Open and set attributes */
+  tcsetattr(com[num].fd, TCSANOW, &com[num].newset);
 
   com[num].dll = 0x30;			/* Baudrate divisor LSB: 2400bps */
   com[num].dlm = 0;			/* Baudrate divisor MSB: 2400bps */
-#if NEW_PIC==2
-  br_divisor[num] = 16*DIV_2400;	/* Baudrate divisor*16: 2400bps */
-#endif
+  com[num].char_time = DIV_2400 * 10;	/* 115200ths of second per char */
   com[num].TX = 0;			/* Transmit Holding Register */
   com[num].RX = 0;			/* Received Byte Register */
   com[num].IER = 0;			/* Interrupt Enable Register */
@@ -831,13 +797,12 @@ do_ser_init(int num)
   com[num].int_type = TX_INTR;		/* FLAG: THRE interrupt waiting */
   com[num].uart_full = 0;		/* FLAG: UART full flag */
   com[num].fifo_enable = 0;		/* FLAG: FIFO enabled */
-  com[num].tx_timeout = 0;		/* FLAG: Between char timeout */
+  com[num].tx_timer = 0;		/* Transmit timer */
+  com[num].tx_trigger = 0;		/* FLAG: Dont start more xmit ints */
   com[num].rx_timeout = TIMEOUT_RX;	/* FLAG: Receive timeout */
   com[num].tx_overflow = 0;		/* FLAG: Outgoing buffer overflow */
   uart_clear_fifo(num,UART_FCR_CLEAR_CMD);	/* Initialize FIFOs */
 
-  /* Now set linux communication flags */
-  /* DOS_SYSCALL(tcsetattr(com[num].fd, TCSANOW, &com[num].newset)); */
   #if SUPER_DBG > 1
     s_printf("SER%d: do_ser_init: running ser_termios\n",num);
   #endif
@@ -877,15 +842,16 @@ serial_init(void)
   for (i = 0; i < config.num_ser; i++) {
     com[i].fd = -1;
     com[i].dev_locked = FALSE;
-#ifdef X_SUPPORT
-    if ((!config.usesX && config.console_video ) || !com[i].mouse)   /* skip "mouse" ports in X mode */
-#else
-    if ( config.console_video || !com[i].mouse) 
-#endif
-      do_ser_init(i);
+    
+    /* Only initialize port if:
+     * - Not using a mouse on the port.  
+     * - If using mouse, only initialize port for using the mouse directly 
+     *    if at the console and not running in an Xwindow (since in Xwindows,
+     *    dosemu will use Xwindows mouse events instead of direct access
+     */
+    if ( (!com[i].mouse) || (!config.usesX) ) do_ser_init(i);
   }
 }
-
 
 /* Like serial_init, this is the master function that is called externally,
  * but at the end, when the user quits DOSEMU.  It deinitializes all the
@@ -897,15 +863,12 @@ serial_close(void)
   static int i;
   s_printf("SER: Running serial_close\n");
   for (i = 0; i < config.num_ser; i++) {
-    if ( ( ! config.usesX ) || ( ! com[i].mouse ) ){
+    if ( (!com[i].mouse) || (!config.usesX) ){
       RPT_SYSCALL(tcsetattr(com[i].fd, TCSANOW, &com[i].oldset));
       ser_close(i);
-      if ( com[i].dev_locked ) 
-	tty_lock(com[i].dev, 0);
     }
   }
 }
-
 
 /* The following de-initializes the mouse on the serial port that the mouse
  * has been enabled on.  For mouse sharing purposes, this is the function
@@ -916,22 +879,22 @@ void
 child_close_mouse(void)
 {
   static u_char i, rtrn;
-  if ( !config.usesX ){
-  s_printf("MOUSE: CLOSE function starting. num_ser=%d\n", config.num_ser);
-  for (i = 0; i < config.num_ser; i++) {
-    s_printf("MOUSE: CLOSE port=%d, dev=%s, fd=%d, valid=%d\n", 
-              i, com[i].dev, com[i].fd, com[i].mouse);
-    if ((com[i].mouse == TRUE) && (com[i].fd > 0)) {
-      s_printf("MOUSE: CLOSE port=%d: Running ser_close.\n", i);
-      rtrn = ser_close(i);
-      if (rtrn) s_printf("MOUSE SERIAL ERROR - %s\n", strerror(errno));
+  if ( !config.usesX ) {
+    s_printf("MOUSE: CLOSE function starting. num_ser=%d\n", config.num_ser);
+    for (i = 0; i < config.num_ser; i++) {
+      s_printf("MOUSE: CLOSE port=%d, dev=%s, fd=%d, valid=%d\n", 
+                i, com[i].dev, com[i].fd, com[i].mouse);
+      if ((com[i].mouse == TRUE) && (com[i].fd > 0)) {
+        s_printf("MOUSE: CLOSE port=%d: Running ser_close.\n", i);
+        rtrn = ser_close(i);
+        if (rtrn) s_printf("MOUSE SERIAL ERROR - %s\n", strerror(errno));
+      }
+      else {
+        s_printf("MOUSE: CLOSE port=%d: Not running ser_close.\n", i);
+      }
     }
-    else {
-      s_printf("MOUSE: CLOSE port=%d: Not running ser_close.\n", i);
-    }
+    s_printf("MOUSE: CLOSE function ended.\n");
   }
-  s_printf("MOUSE: CLOSE function ended.\n");
-}
 }
 
 /* The following initializes the mouse on the serial port that the mouse
@@ -943,18 +906,19 @@ void
 child_open_mouse(void)
 {
   static u_char i;
-  if ( ! config.usesX ){
-  s_printf("MOUSE: OPEN function starting.\n");
-  for (i = 0; i < config.num_ser; i++) {
-    s_printf("MOUSE: OPEN port=%d, type=%d, dev=%s, valid=%d\n",
-              i, mice->type, com[i].dev, com[i].mouse);
-    if (com[i].mouse == TRUE) {
-      s_printf("MOUSE: OPEN port=%d: Running ser-open.\n", i);
-      ser_open(i);
-      tcgetattr(com[i].fd, &com[i].newset);
+  if ( ! config.usesX ) {
+    s_printf("MOUSE: OPEN function starting.\n");
+    for (i = 0; i < config.num_ser; i++) {
+      s_printf("MOUSE: OPEN port=%d, type=%d, dev=%s, valid=%d\n",
+                i, mice->type, com[i].dev, com[i].mouse);
+      if (com[i].mouse == TRUE) {
+        s_printf("MOUSE: OPEN port=%d: Running ser-open.\n", i);
+        com[i].fd = -1;
+        ser_open(i);
+        tcgetattr(com[i].fd, &com[i].newset);
+      }
     }
   }
-}
 }
 
 
@@ -1167,7 +1131,7 @@ end_msi(int intnum)
 static int
 get_lsr(int num)
 {
-  int val;
+  static int val;
 
   val = com[num].LSR;			/* Save old LSR value */
   com[num].int_type &= ~LS_INTR;	/* Clear line stat int flag */
@@ -1177,7 +1141,8 @@ get_lsr(int num)
     com[num].IIR = (com[num].IIR & UART_IIR_FIFO) | UART_IIR_NO_INT;
     interrupt_engine(num);
   }
-  return (val);				/* Return LSR value */
+  
+  return (val);                         /* Return LSR value */
 }
 
 
@@ -1235,9 +1200,13 @@ put_tx(int num, int val)
     com[num].dll = val;			/* Simulate write to DLL register */
     return;				/*  (Divisor Latch LSB) */
   }
+
+  /* Update the transmit timer */
+  com[num].tx_timer += com[num].char_time;
+
   com[num].TX = val;			/* Mainly used in overflow cases */
-  com[num].tx_timeout = TIMEOUT_TX;	/* Set timeout till next THRE */
-  com[num].int_type &= ~TX_INTR;	/* Set transmit interrupt */
+  com[num].tx_trigger = 1;		/* Time to trigger next tx int */
+  com[num].int_type &= ~TX_INTR;	/* Clear transmit interrupt */
   com[num].LSR &= ~(UART_LSR_TEMT | UART_LSR_THRE);	/* THR not empty */
 
   /* Clear Transmit Holding Register interrupt, etc */
@@ -1249,7 +1218,7 @@ put_tx(int num, int val)
   /* Loop-back writes.  Parity is currently not calculated.  No
    * UART diagnostics programs including COMTEST.EXE, that I tried,
    * complained about parity problems during loopback tests anyway!
-   * Even some UART clones don't calculate parity during loopback.
+   * Even some real UART clones don't calculate parity during loopback.
    */
   if (com[num].MCR & UART_MCR_LOOP) {
     com[num].rx_timeout = TIMEOUT_RX;		/* Reset timeout counter */
@@ -1276,16 +1245,21 @@ put_tx(int num, int val)
           interrupt_engine(num);		/* Do next interrupt */
         }
       }
+      com[num].LSR |= UART_LSR_DR;		/* Flag Data Ready bit */
     }
     else {				/* FIFOs not enabled */
       com[num].RX = val;			/* Overwrite old byte */
       if (com[num].LSR & UART_LSR_DR) {		/* Was data waiting? */
         com[num].LSR |= UART_LSR_OE;		/* Indicate overrun error */
         com[num].int_type |= LS_INTR;		/* Flag for RLSI */
-        interrupt_engine(num);			/* Do next interrupt if any */
+        interrupt_engine(num);			/* Do next interrupt */
+      }
+      else {
+        com[num].LSR |= UART_LSR_DR;		/* Flag Data Ready bit */
+        com[num].int_type |= RX_INTR;		/* Flag receive interrupt */
+        interrupt_engine(num);			/* Do next interrupt */
       }
     }
-    com[num].LSR |= UART_LSR_DR;		/* Flag Data Ready bit */
     #ifdef 0
       #if SUPER_DBG > 1
         s_printf("SER%d: loopback write!\n",num);
@@ -1293,37 +1267,34 @@ put_tx(int num, int val)
     #endif
     return;
   }
-  else {				/* Not in loopback mode */
-    if (com[num].fifo_enable) {			/* Is FIFO enabled? */
-      if (com[num].TX_FIFO_BYTES == TX_FIFO_SIZE) {	/* Is FIFO full? */
-        rtrn = RPT_SYSCALL(write(com[num].fd,&com[num].TX_FIFO[com[num].TX_FIFO_START],1));	
-        if (rtrn != 1) {			/* Did transmit fail? */
-          com[num].tx_overflow = 1;		/* Set overflow flag */
-        }
-        else {					/* Squeeze char into FIFO */
-          com[num].TX_FIFO[com[num].TX_FIFO_END] = val;
-          com[num].TX_FIFO_END = (com[num].TX_FIFO_END +1) & (TX_FIFO_SIZE-1);
-          com[num].TX_FIFO_START = (com[num].TX_FIFO_START+1)&(TX_FIFO_SIZE-1);
-#if NEW_PIC==2
-	  tx_timer[num] -= br_divisor[num];
-#endif
-        }
-      } 
-      else {					/* FIFO not full */
-        com[num].TX_FIFO[com[num].TX_FIFO_END] = val;  /* Put char into FIFO */
+  /* Else, not in loopback mode */
+  
+  if (com[num].fifo_enable) {			/* Is FIFO enabled? */
+    if (com[num].TX_FIFO_BYTES == TX_FIFO_SIZE) {	/* Is FIFO full? */
+      rtrn = RPT_SYSCALL(write(com[num].fd,&com[num].TX_FIFO[com[num].TX_FIFO_START],1));
+      if (rtrn != 1) {				/* Did transmit fail? */
+        com[num].tx_overflow = 1;		/* Set overflow flag */
+      }
+      else {					
+        /* Squeeze char into FIFO */
+        com[num].TX_FIFO[com[num].TX_FIFO_END] = val;
+        
+        /* Update FIFO queue pointers */
         com[num].TX_FIFO_END = (com[num].TX_FIFO_END +1) & (TX_FIFO_SIZE-1);
-        com[num].TX_FIFO_BYTES++;
-      } 
+        com[num].TX_FIFO_START = (com[num].TX_FIFO_START+1)&(TX_FIFO_SIZE-1);
+        
+      }
     } 
-    else { 				/* Not in FIFO mode */
-      rtrn = RPT_SYSCALL(write(com[num].fd, &val, 1));	/* Attempt char transmit */
-      if (rtrn != 1) 				/* Did transmit fail? */
-        com[num].tx_overflow = 1; 		/* Set overflow flag */
-#if NEW_PIC==2
-      else
-        tx_timer[num] -= br_divisor[num];          
-#endif
-    }
+    else {					/* FIFO not full */
+      com[num].TX_FIFO[com[num].TX_FIFO_END] = val;  /* Put char into FIFO */
+      com[num].TX_FIFO_END = (com[num].TX_FIFO_END +1) & (TX_FIFO_SIZE-1);
+      com[num].TX_FIFO_BYTES++;
+    } 
+  } 
+  else { 				/* Not in FIFO mode */
+    rtrn = RPT_SYSCALL(write(com[num].fd, &val, 1));   /* Attempt char xmit */
+    if (rtrn != 1) 				/* Did transmit fail? */
+      com[num].tx_overflow = 1; 		/* Set overflow flag */
   }
 }
 
@@ -1338,8 +1309,7 @@ beg_txint(int intnum)
 
   num = irq_source_num[intnum];		/* Port that caused interrupt */
   com[num].int_type &= ~TX_INTR;	/* No more interrupt needed */
-  com[num].tx_timeout = 0;		/* Reset xmit counter */
-  com[num].LSR |= UART_LSR_TEMT | UART_LSR_THRE;	/* Set TEMT/THRE */
+  com[num].LSR |= UART_LSR_TEMT | UART_LSR_THRE;  /* Set TEMT/THRE */
   com[num].IIR = (com[num].IIR & UART_IIR_FIFO) | UART_IIR_THRI;
   #if SUPER_DBG > 1
     s_printf("SER%d: ---BEGIN---Transmit Interrupt\n",num);
@@ -1436,17 +1406,19 @@ put_lcr(int num, int val)
 {
   com[num].LCR = val;			/* Set new LCR value */
   if (val & UART_LCR_DLAB) {		/* Is Baudrate Divisor Latch set? */
+    s_printf("SER%d: LCR = 0x%x, DLAB high.\n", num, val);
     com[num].DLAB = 1;			/* Baudrate Divisor Latch flag */
     com[num].IIR = (com[num].IIR & UART_IIR_FIFO) | UART_IIR_NO_INT;
-    /* IIR is cleared for safety reasons because if a receive/transmit
+    /* IIR is cleared here for safety reasons because if a receive/transmit
      * interrupt is currently pending, DOSEMU will crash because it will
      * access the baudrate divisor LSB value instead of the RBR/THR 
      * registers...
      */
   }
-  else
+  else {
     com[num].DLAB = 0;			/* Baudrate Divisor Latch flag */
-  ser_termios(num);			/* Sets new line settings */
+    ser_termios(num);			/* Sets new line settings */
+  }
 }
 
 
@@ -1522,13 +1494,13 @@ put_lsr(int num, int val)
 {
   com[num].LSR = val & 0x1F;			/* Bits 6 to 8 are ignored */
   if (val & UART_LSR_THRE) {
-    com[num].LSR |= UART_LSR_THRE | UART_LSR_TEMT;	/* Set THRE state */
     com[num].int_type |= TX_INTR;		/* Flag for THRI */
+    com[num].LSR |= UART_LSR_TEMT | UART_LSR_THRE;
   }
   else {
     com[num].LSR &= ~(UART_LSR_THRE | UART_LSR_TEMT);	/* Clear THRE state */
     com[num].int_type &= ~TX_INTR;		/* Unflag THRI */
-    com[num].tx_timeout = TIMEOUT_TX;		/* Set counter til next THRE */
+    com[num].tx_trigger = 1;			/* Trigger next xmit int */
   }
 
   if (val & UART_LSR_DR)			/* Is data ready bit set? */
@@ -1614,10 +1586,10 @@ do_serial_in(int num, int address)
     if ((com[num].IIR & UART_IIR_ID) == UART_IIR_THRI) {
       com[num].int_type &= ~TX_INTR;		/* Unflag tx interrupt */
       com[num].IIR = (com[num].IIR & UART_IIR_FIFO) | UART_IIR_NO_INT;
-      interrupt_engine(num);			/* Do next interrupt */
       #if SUPER_DBG > 1
         s_printf("SER%d: Read IIR: THRI INT cleared: 0x%x\n",num,com[num].IIR);
       #endif
+      interrupt_engine(num);			/* Do next interrupt */
     }
     break;
 
@@ -1703,12 +1675,15 @@ do_serial_out(int num, int address, int val)
       #endif
     }
     else {			/* Else, write to Interrupt Enable Register */
-      if (val & 2) com[num].int_type |= TX_INTR;    /* Flag THRI if enabled */ 
+      if ( !(com[num].IER & 2) && (val & 2) ) {
+        /* Flag to allow THRI if enable THRE went from state 0 -> 1 */
+        com[num].tx_trigger = 1;
+      }
       com[num].IER = (val & 0xF);	/* Write to IER */
-      interrupt_engine(num);		/* Do next interrupt if any */
       #if SUPER_DBG > 0
         s_printf("SER%d: IER = 0x%x\n", num, val);
       #endif
+      interrupt_engine(num);		/* Do next interrupt if any */
     }
     break;
 
@@ -1776,9 +1751,6 @@ int14(u_char ii)
 {
   static int num;
   
-s_printf("SER%d TEST: INT14 0x0: Initialize port %d, AL=0x%x\n", 
-	num, LO(dx), LO(ax));
-
   /* Translate the requested COM port number in the DL register, into
    * the necessary arbritary port number system used throughout this module.
    */
@@ -1820,6 +1792,7 @@ s_printf("SER%d TEST: INT14 0x0: Initialize port %d, AL=0x%x\n",
     s_printf("SER%d: INT14 0x0: Return with AL=0x%x AH=0x%x\n", 
 	num, LO(ax), HI(ax));
     break;
+    
   case 1:		/* Write character function */
     #if SUPER_DBG > 1
       s_printf("SER%d: INT14 0x1: Write char 0x%x\n",num,LO(ax));
@@ -1829,6 +1802,7 @@ s_printf("SER%d TEST: INT14 0x0: Initialize port %d, AL=0x%x\n",
     HI(ax) = get_lsr(num);	/* Line Status */
     LO(ax) = get_msr(num);	/* Modem Status */
     break;
+    
   case 2:		/* Read character function */
     uart_fill(num);		/* Fill UART with received data */
     if (com[num].LSR & UART_LSR_DR) {	/* Was a character received? */
@@ -1845,6 +1819,7 @@ s_printf("SER%d TEST: INT14 0x0: Initialize port %d, AL=0x%x\n",
       HI(ax) = get_lsr(num) | 0x80;	/* Timeout */
     }
     break;
+    
   case 3:		/* Port Status request function. */
     uart_fill(num);		/* Fill UART with received data */
     HI(ax) = get_lsr(num);	/* Line Status */
@@ -1854,9 +1829,11 @@ s_printf("SER%d TEST: INT14 0x0: Initialize port %d, AL=0x%x\n",
                num,HI(ax),LO(ax));
     #endif
     break;
+    
   case 4:			/* Extended initialize. Not supported. */
     s_printf("SER%d: INT14 0x4: Unsupported Extended serial initialize\n",num);
     return;
+    
   default:			/* This runs if nothing handles the func? */
     error("SER%d: INT14 0x%x: Unsupported interrupt on port %d\n",
 	num,HI(ax),LO(dx));
@@ -1877,6 +1854,8 @@ s_printf("SER%d TEST: INT14 0x0: Initialize port %d, AL=0x%x\n",
 static void
 receive_engine(int num)		/* Internal 16550 Receive emulation */ 
 {
+  if (com[num].MCR & UART_MCR_LOOP) return;	/* Return if loopback */
+
   /* Occasional stack overflows occured when "uart_fill" done inside intr */
   if (!com[num].int_pend) 
     uart_fill(num);
@@ -1886,6 +1865,9 @@ receive_engine(int num)		/* Internal 16550 Receive emulation */
       if (com[num].rx_timeout) {		/* Has get_rx run since int? */
         com[num].rx_timeout--;			/* Decrement counter */
         if (!com[num].rx_timeout) {		/* Has timeout counted down? */
+          #if SUPER_DBG > 2
+            s_printf("SER%d: Func receive_engine setting RX_INTR\n",num);
+          #endif
           com[num].int_type |= RX_INTR;		/* Flag recv interrupt */
           interrupt_engine(num);		/* Do next interrupt */
         }
@@ -1894,58 +1876,16 @@ receive_engine(int num)		/* Internal 16550 Receive emulation */
     else { 				/* Not in FIFO mode */
       if (com[num].rx_timeout) {		/* Has get_rx run since int? */
         com[num].rx_timeout = 0;		/* Reset timeout counter */
+        #if SUPER_DBG > 2
+          s_printf("SER%d: Func receive_engine setting RX_INTR\n",num);
+        #endif
         com[num].int_type |= RX_INTR;		/* Flag recv interrupt */
         interrupt_engine(num);			/* Do next interrupt */
       }
     }
   }
 }
-#if NEW_PIC==2
-/* This function ages the transmit queues.  Some protocols (z-modem) work
- * well only if we approximate the correct timing.  Else we get many blocks
- * of data sent after an error, all of which will be discarded :-(.  Makes
- * for very slow transfers.  Each timer tick adds 10125 to the counter, or
- * a total of 184320 ticks/second. (1/10 of a real uart clock)  Assuming
- * 10 bits/character, this will be br_divisor times chars/second.
- * If I ever get ambitious, I'll get this to adapt to other character sizes.
- */
-void
-age_transmit_queues(void)
-{
-  s_printf("SER: ageing serial transmit queues\n");
-  s_printf("SER: pic_irr=%x, pic_isr=%x\n",pic_irr, pic_isr);
-  if(com[0].TX_FIFO_BYTES)
-    s_printf("SER0 xmit bytes=%d, timer=%d, ilevel=%d\n",
-              com[0].TX_FIFO_BYTES,tx_timer[0], com[0].interrupt);
-    if(tx_timer[0]<=0) { 
-      tx_timer[0] += 10125;
-      if(tx_timer[0]>0) {
-        transmit_engine(0);
-        interrupt_engine(0);
-      }
-    }
-  if(com[1].TX_FIFO_BYTES)
-    s_printf("SER1 xmit bytes=%d, timer=%d, ilevel=%d\n",
-              com[1].TX_FIFO_BYTES,tx_timer[1], com[1].interrupt);
-    if(tx_timer[1]<=0) {
-      tx_timer[1] += 10125;
-      if(tx_timer[1]>0) {
-        transmit_engine(0);
-        interrupt_engine(0);
-        }
-      }
-  if(com[2].TX_FIFO_BYTES)
-    s_printf("SER2 xmit bytes=%d, timer=%d, ilevel=%d\n",
-              com[2].TX_FIFO_BYTES,tx_timer[2], com[2].interrupt);
-    if(tx_timer[2]<=0) tx_timer[2] += 10125;
-    if(tx_timer[2]>0) pic_request(com[2].interrupt);
-  if(com[3].TX_FIFO_BYTES)
-    s_printf("SER3 xmit bytes=%d, timer=%d, ilevel=%d\n",
-              com[3].TX_FIFO_BYTES,tx_timer[3], com[3].interrupt);
-    if(tx_timer[3]<=0) tx_timer[3] += 10125;
-    if(tx_timer[3]>0) pic_request(com[3].interrupt);
-}
-#endif
+
 
 /* This function does housekeeping for serial transmit operations.
  * Duties of this function include attempting to transmit the data out
@@ -1956,52 +1896,64 @@ static void
 transmit_engine(int num)      /* Internal 16550 Transmission emulation */
 {
   static int rtrn;
-#if NEW_PIC==2
-  if (tx_timer[num] < 0) return; /* Wait until a real uart would empty*/
-#endif
+
+  #if 0
+    /* This is for transmit timer debugging in case it screws up
+     * com[].tx_timer is number of 115200ths of a second worth of chars
+     * that have been transmitted, and com[].char_time is 115200ths
+     * of a second per character.
+     */
+    s_printf("SER%d: tx_timer = %d, char_time = %d\n",num,com[num].tx_timer,com[num].char_time);
+  #endif
+
+  /* Give system time to transmit */
+  if (com[num].tx_timer > MAX_TX_BUF_TICKS) return;
+  
+  #if 0
+    s_printf("SER%d: Exceeded %d\n", num, MAX_TX_BUF_TICKS);
+    return;
+  }
+  else {
+    s_printf("SER%d: Within %d\n", num, MAX_TX_BUF_TICKS);
+  }
+  #endif
+  
   if (com[num].tx_overflow) {		/* Is it in overflow state? */
-    rtrn = RPT_SYSCALL(write(com[num].fd, &com[num].TX, 1));	/* Write to port */
-    if (rtrn == 1) 				/* Did it succeed? */
-      com[num].tx_overflow = 0;			/* Exit overflow state */
-#if NEW_PIC==2
-      tx_timer[num] -= br_divisor[num];		/* adjust time for char sent*/
-#endif
+    rtrn = RPT_SYSCALL(write(com[num].fd, &com[num].TX, 1));  /* Write port */
+    if (rtrn == 1)                               /* Did it succeed? */
+      com[num].tx_overflow = 0;                  /* Exit overflow state */
   }
   else if (com[num].fifo_enable) {	/* Is FIFO enabled? */
-    if (!com[num].TX_FIFO_BYTES &&		/* Is FIFO empty? */
-         com[num].tx_timeout)			/* Intr not occur already? */
-    {
-      com[num].tx_timeout--;			/* Decrease timeout value */
-      if (!com[num].tx_timeout) { 		/* Timeout done? */
-#if NEW_PIC==2 
-        s_printf("SER%d: Xmit engine setting TX_INTR\n",num);
-#endif
-        com[num].int_type |= TX_INTR;		/* Set xmit interrupt */
-        com[num].LSR |= UART_LSR_TEMT | UART_LSR_THRE;   /* Update LSR */
-        interrupt_engine(num);			/* Do next interrupt */
-      }
-    } 
 
     /* Clear as much of the transmit FIFO as possible! */
     while (com[num].TX_FIFO_BYTES > 0) {		/* Any data in fifo? */
       rtrn = RPT_SYSCALL(write(com[num].fd, &com[num].TX_FIFO[com[num].TX_FIFO_START], 1));
       if (rtrn != 1) break;				/* Exit Loop if fail */
-#if NEW_PIC==2
-      tx_timer[num] -= br_divisor[num];			/* note 1 char time */
-#endif
       com[num].TX_FIFO_START = (com[num].TX_FIFO_START+1) & (TX_FIFO_SIZE-1);
       com[num].TX_FIFO_BYTES--; 			/* Decr # of bytes */
     }
+     
+    /* Is FIFO empty, and is it time to trigger an xmit int? */
+    if (!com[num].TX_FIFO_BYTES && com[num].tx_trigger) {
+      #if SUPER_DBG > 2
+        s_printf("SER%d: Func transmit_engine setting TX_INTR\n",num);
+      #endif
+      com[num].tx_trigger = 0;
+      com[num].int_type |= TX_INTR;		/* Set xmit interrupt */
+      com[num].LSR |= UART_LSR_TEMT | UART_LSR_THRE;
+      interrupt_engine(num);			/* Do next interrupt */
+    }
   }
   else {					/* Not in FIFO mode */
-    if (com[num].tx_timeout) { 			/* Has int already occured? */
-      com[num].tx_timeout--;
-      if (!com[num].tx_timeout) {
-        com[num].int_type |= TX_INTR;		/* Set xmit interrupt */
-        com[num].LSR |= UART_LSR_TEMT | UART_LSR_THRE;	/* Update LSR */
-        interrupt_engine(num);			/* Do next interrupt */
-      }
-    }
+    if (com[num].tx_trigger) { 			/* Is it time to trigger int */
+      #if SUPER_DBG > 2
+        s_printf("SER%d: Func transmit_engine setting TX_INTR\n",num);
+      #endif
+      com[num].tx_trigger = 0;
+      com[num].int_type |= TX_INTR;		/* Set xmit interrupt */
+      com[num].LSR |= UART_LSR_TEMT | UART_LSR_THRE;
+      interrupt_engine(num);			/* Do next interrupt */
+    }  
   }
 }
 
@@ -2014,12 +1966,10 @@ transmit_engine(int num)      /* Internal 16550 Transmission emulation */
 static void
 modstat_engine(int num)		/* Internal Modem Status processing */ 
 {
-	/* why static? */
   static int control;
   int newmsr, delta;
 
   control = 0;
-
   if (!(com[num].MCR & UART_MCR_LOOP)) {	/* Not in Loopback mode */
     ioctl(com[num].fd, TIOCMGET, &control);	/* WARNING: Non re-entrant! */
     newmsr = CONVERT_BIT(control, TIOCM_CTS, UART_MSR_CTS) |
@@ -2030,6 +1980,9 @@ modstat_engine(int num)		/* Internal Modem Status processing */
 
     if (delta) {
       com[num].MSR = newmsr | delta | (com[num].MSR & UART_MSR_DELTA);
+      #if SUPER_DBG > 2
+        s_printf("SER%d: Func modstat_engine setting MS_INTR\n",num);
+      #endif
       com[num].int_type |= MS_INTR;
       interrupt_engine(num);
       #if SUPER_DBG > 1
@@ -2040,7 +1993,7 @@ modstat_engine(int num)		/* Internal Modem Status processing */
 }
 
 
-/* There is no Line Status housekeeping function at this moment since there
+/* There is no need for a Line Status Engine function right now since there
  * is not much justification for one, since all the error bits that causes
  * interrupt, are handled by Linux and are difficult for this serial code
  * to detect.  When easy non-blocking break signal handling is introduced,
@@ -2049,8 +2002,20 @@ modstat_engine(int num)		/* Internal Modem Status processing */
  * break signal sent from the remote) and generate a hardware interrupt
  * on its occurance (RLSI).
  */
+#if 0
+static void
+linestat_engine(int num)		/* Internal Line Status processing */
+{
+  #if SUPER_DBG > 2
+    s_printf("SER%d: Func linestat_engine setting LS_INTR\n",num);
+  #endif
+  com[num].int_type |= LS_INTR;
+  interrupt_engine(num);
+}
+#endif
 
-#if NEW_PIC==2
+
+
 /* This function is the  interrupt scheduler.  Its purpose is to
  * invoke any currently pending serial interrupt.  If interrupts
  * are not enabled, the Interrupt Identification Register is set
@@ -2069,57 +2034,62 @@ modstat_engine(int num)		/* Internal Modem Status processing */
 static void
 interrupt_engine(int num)
 {
-u_char tmp;
-  /* Quit if all interrupts disabled, DLAB high, interrupt pending, or */
-  /* that the old interrupt has not been cleared.                      */
-  if (!com[num].IER || com[num].int_pend || com[num].DLAB) return;
+  u_char tmp;
+  
+  /* Quit if all interrupts disabled, DLAB high, interrupt pending, or
+   * that the old interrupt has not been cleared.
+   */
+  if (!com[num].IER || com[num].int_pend || com[num].DLAB) {
+    return;
+  }
 
-  /* At this point, we don't much care which function is requested; that   */
-  /* is taken care of in the interrupt_engine.  However, if interrupts are */
-  /* disabled, then the Interrupt Identification Register  must be set.    */
+  /* At this point, we don't much care which function is requested; that  
+   * is taken care of in the interrupt_engine.  However, if interrupts are
+   * disabled, then the Interrupt Identification Register must be set.
+   *
+   * The int_type values have been switched from priority order to IER 
+   * order, to speed up testing.  The actual priority is controlled by
+   * the "if" tests in the pic_serial_run() function, and is unchanged,
+   * of course.
+   */
 
-/* The int_type values have been switched from priority order to IER 
- * order, to speed up testing.  The actual priority is controlled by
- * the "if" tests in the pic_serial_run() function, and is unchanged,
- * of course.
- */
-
-
-
-   /* See if a requested interrupt is enabled */
- if (tmp=com[num].int_type & com[num].IER) { 
-   if (com[num].int_enab && com[num].interrupt) {
+  /* See if a requested interrupt is enabled */
+  tmp = (com[num].int_type & com[num].IER);
+  if (tmp) {
+    if (com[num].int_enab && com[num].interrupt) {
       com[num].int_pend = 1;
-/*      irq_source_num[com[num].interrupt] = num;*/
-      s_printf("SER%d: int_engine requesting ilevel %d\n", num, com[num].interrupt);
-      s_printf("SER%d: int_engine: int_type=%x\n", num, com[num].int_type);
+      /* irq_source_num[com[num].interrupt] = num; */
+      #if SUPER_DBG > 2
+        s_printf("SER%d: Func pic_request intlevel=%d, int_type=%d\n", 
+                 num, com[num].interrupt, com[num].int_type);
+      #endif 
       pic_request(com[num].interrupt);
-      }
+    }
    
-   /* Interrupts for this UART are not enabled; set IIR and return */
-   else if (tmp & LS_INTR) {
+    /* Interrupts for this UART are disabled, but we should check whether IER 
+     * is set for any interrupt.  If so, then initialize the IIR where needed.
+     */
+    else if (tmp & LS_INTR) {
       com[num].IIR = (com[num].IIR & UART_IIR_FIFO) | UART_IIR_RLSI;
-      }
-   
-   else if (tmp & RX_INTR) {
+    }
+    else if (tmp & RX_INTR) {
       if (!com[num].fifo_enable)
         com[num].IIR = UART_IIR_RDI;
       else if (com[num].RX_FIFO_BYTES >= com[num].RX_FIFO_TRIGGER)
         com[num].IIR = (com[num].IIR & ~0x7) | UART_IIR_RDI;
       else
         com[num].IIR = UART_IIR_CTI | UART_IIR_FIFO;
-      }
-
-   else if (tmp & TX_INTR) {
+    }
+    else if (tmp & TX_INTR) {
       com[num].IIR = (com[num].IIR & UART_IIR_FIFO) | UART_IIR_THRI;
-      }
-
-   else if (tmp & MS_INTR) {
+    }
+    else if (tmp & MS_INTR) {
       com[num].IIR = (com[num].IIR & UART_IIR_FIFO) | UART_IIR_MSI;
-      }     
-   }
-      return;
+    }
+    return;
+  }
 }  
+
 
 /* This function is called by the priority iunterrupt controller when a
  * serial interrupt occurs.  It executes the highest priority serial
@@ -2129,171 +2099,147 @@ u_char tmp;
  * interrupt trigger and the actual interrupt, some checks must be 
  * repeated.
  */
-
 void
 pic_serial_run(void)
 {
-u_char tmp;
-u_char num;
+  u_char tmp;
+  u_char num;
 
-/* Make sure requested interrupt is still enabled, then run it. */
-/* These checks are in priority order.                          */
+  /* Make sure requested interrupt is still enabled, then run it. 
+   * These checks are in priority order.
+   *
+   * The IER check is delayed until interrupt time, at which this 
+   * function executes.  This cause incompatibilities with some
+   * programs that expect serial interrupts to be processed
+   * immediately on occurance.  The disreprecancies include:
+   *   - Possibility of a new, higher priority interrupt to take precedence
+   *      before a currently flagged interrupt has a chance to execute.
+   *   - Possibility to cancel an interrupt by fulfilling an interrupt
+   *      condition, before the interrupt actually executes.
+   *
+   * Incompatibilities include the 'X00 fossil driver' (use BNU instead)
+   * and the 'Natural Connection' software package.
+   *
+   * In some cases, do_irq() does not execute the interrupt code right
+   * away. (Maybe it exits back to vm86 before end of interrupt?).
+   * This is a problem with the X00 fossil driver which is having extra
+   * side effects like scrambling the order of received characters!
+   * (Use the BNU fossil driver instead, it works great)
+   */
+   
+  num = irq_source_num[pic_ilevel];
+  tmp = com[num].int_type & com[num].IER;
+  
+  #if SUPER_DBG > 2
+    s_printf("SER%d: Func pic_serial_run interrupt flags = %d\n", 
+              num, com[num].int_type);
+  #endif 
 
-/* Note to Mark:  This IER check is, as far as I know, the only logical */ 
-/* discrepancy between the original serial implementation and the pic-  */
-/* based implementation.  I added it because the decision of which      */
-/* interrupt to run is now deferred until interrupt time.  I'm not      */
-/* sure this is a good idea, though.                                    */
-
-    num=irq_source_num[pic_ilevel];
-    tmp=com[num].int_type & com[num].IER;
-    if (tmp & LS_INTR) {  
-       beg_lsi(pic_ilevel);
-       do_irq();              /* Receiver Line Status Interrupt */
-       end_lsi(pic_ilevel);
-       }
-    else if (tmp & RX_INTR) {
-       beg_rxint(pic_ilevel);
-       do_irq();              /* Received Data Interrupt */
-       end_rxint(pic_ilevel);
-       }
-    else if (tmp & TX_INTR) {
-       beg_txint(pic_ilevel);
-       do_irq();              /* Transmit Data Interrupt */
-       end_txint(pic_ilevel);
-       }
-    else if (tmp & MS_INTR) {
-       beg_msi(pic_ilevel);
-       do_irq();              /* Modem Status Interrupt */
-       end_msi(pic_ilevel);
-       }
-    if((com[num].int_type&com[num].int_enab) && pic_ilevel) 
-          {
-          s_printf("SER%d: pic_ser_run: pic_request %d\n",num,pic_ilevel);
-          pic_request(pic_ilevel);
-          }
+  if (tmp & LS_INTR) {		/* Receiver Line Status Interrupt */
+    beg_lsi(pic_ilevel);
+    do_irq();
+    end_lsi(pic_ilevel);
+  }
+  else if (tmp & RX_INTR) {	/* Received Data Interrupt */
+    beg_rxint(pic_ilevel);
+    do_irq();
+    end_rxint(pic_ilevel);
+  }
+  else if (tmp & TX_INTR) {	/* Transmit Data Interrupt */
+    beg_txint(pic_ilevel);
+    do_irq();
+    end_txint(pic_ilevel);
+  }
+  else if (tmp & MS_INTR) {	/* Modem Status Interrupt */
+    beg_msi(pic_ilevel);
+    do_irq();
+    end_msi(pic_ilevel);
+  }
+  else {
+    /* No interrupt flagged?  Then the interrupt was cancelled sometime
+     * after the interrupt was flagged, but before pic_serial_run executed.
+     * But we must run do_irq() anyway at this point, or serial will crash.
+     *
+     * James Larry, how do you cancel a PIC interrupt, when we have
+     * come this far?  (This is preferable)
+     */
+    do_irq();
+    com[num].int_pend = 0;
+  }
+  interrupt_engine(num);	/* Flag next interrupt if any */
 }
-#else
-/* This function is the prioritizing interrupt engine.  Its purpose is to
- * invoke any currently pending serial interrupt of the highest priority
- * if interrupts are permissible.  (Priority order is: RLSI, RDI, THRI, MSI)
- *
- * Right now, this engine queues the interrupt.  Later, this can be upgraded
- * to call the interrupts ON THE SPOT within this function (whenever 
- * interrupts are enabled, such as by the STI instruction or that a 
- * previous interrupt has exited and re-enabled interrupts as the STI 
- * instruction would).  This would prove a more accurate 16550 emulation
- * especially for applications that are extremely fussy about interrupt 
- * occuring at the right time.    [num = port]
+
+
+/* This function updates a timer counter, mainly used for the timing of 
+ * the transmission so that data gets written to the serial device at
+ * a constant rate, without buffer overflows.
  */
 static void
-interrupt_engine(int num)
+serial_timer_update(void)
 {
-  /* Quit if all interrupts disabled, DLAB high, interrupt pending, or */
-  /* that the old interrupt has not been cleared.                      */
-  if (!com[num].IER || com[num].int_pend || com[num].DLAB) return;
+  static struct timeval tp;		/* Current timer value */
+  static struct timeval oldtp;		/* Timer value from last call */
+  static long int elapsed;		/* No of 115200ths seconds elapsed */
+  static int i;				/* Loop index */
 
-  /* The following attempts to invoke the Receiver Line Status (RLSI) */
-  /* Interrupt if it is enabled and is pending. */
-  if ((com[num].int_type & LS_INTR) && (com[num].IER & UART_IER_RLSI)) {
-    if (com[num].int_enab) {
-      com[num].int_pend = 1;			/* Set int pending flag */
-      irq_source_num[com[num].interrupt] = num;	/* map IRQ to port */
-      queue_hard_int(com[num].interrupt, beg_lsi, end_lsi);
-    }
-    else {
-      com[num].IIR = (com[num].IIR & UART_IIR_FIFO) | UART_IIR_RLSI;
-    }
-    return;
+  /* Get system time */
+  gettimeofday(&tp, NULL);
+
+  /* compute the number of 115200hs of seconds since last timer update */
+  elapsed  = (tp.tv_sec - oldtp.tv_sec) * 115200;
+  elapsed += ((tp.tv_usec - oldtp.tv_usec) * 1152) / 10000;
+
+  /* Reset to 0 if the timer had wrapped around back to 0, just in case */
+  if (elapsed < 0) {
+    s_printf("SER: Timer wrapped around back to 0!\n");
+    elapsed = 0;
   }
-  /* The following attempts to invoke the Receive Data Interrupt (RDI) */
-  /* if it is enabled and is pending. */
-  else if ((com[num].int_type & RX_INTR) && (com[num].IER & UART_IER_RDI)) {
-    if (com[num].int_enab) {
-      com[num].int_pend = 1;			/* Set int pending flag */
-      irq_source_num[com[num].interrupt] = num;	/* map IRQ to port */
-      queue_hard_int(com[num].interrupt, beg_rxint, end_rxint);
-    }
-    else {
-      if (!com[num].fifo_enable)
-        com[num].IIR = UART_IIR_RDI;
-      else if (com[num].RX_FIFO_BYTES >= com[num].RX_FIFO_TRIGGER)
-        com[num].IIR = (com[num].IIR & ~0x7) | UART_IIR_RDI;
-      else
-        com[num].IIR = UART_IIR_CTI | UART_IIR_FIFO;
-    }
-    return;
-  }
-  /* The following attempts to invoke the Transmit Holding Register (THRI) */
-  /* Interrupt if it is enabled and is pending. */
-  else if ((com[num].int_type & TX_INTR) && (com[num].IER & UART_IER_THRI)) {
-    if (com[num].int_enab) {
-      com[num].int_pend = 1;			/* Set int pending flag */
-      irq_source_num[com[num].interrupt] = num;	/* map IRQ to port */
-      queue_hard_int(com[num].interrupt, beg_txint, end_txint);
-    }
-    else {
-      com[num].IIR = (com[num].IIR & UART_IIR_FIFO) | UART_IIR_THRI;
-    }
-    return;
-  }
-  /* The following attempts to invoke the Modem Status Interrupt (MSI) */
-  /* Interrupt if it is enabled and is pending. */
-  else if ((com[num].int_type & MS_INTR) && (com[num].IER & UART_IER_MSI)) {
-    if (com[num].int_enab) {
-      com[num].int_pend = 1;			/* Set int pending flag */
-      irq_source_num[com[num].interrupt] = num;	/* map IRQ to port */
-      queue_hard_int(com[num].interrupt, beg_msi, end_msi);
-    }
-    else {
-      com[num].IIR = (com[num].IIR & UART_IIR_FIFO) | UART_IIR_MSI;
-    }
-    return;
+
+  /* Save the old timer values for next time */
+  oldtp.tv_sec  = tp.tv_sec;
+  oldtp.tv_usec = tp.tv_usec;
+
+  /* Update all the transmit timers */
+  for (i = 0; i < config.num_ser; i++) {
+    if (com[i].tx_timer > elapsed)
+      com[i].tx_timer -= elapsed;
+    else
+      com[i].tx_timer = 0;
   }
 }
-#endif
+
 
 /**************************************************************************/
 /*                         The MAIN ENGINE LOOP                           */
 /**************************************************************************/
 
-/* This is the main housekeeping function called roughly 18 times per
- * second, externally of this serial module while DOSEMU is running.  
- * (If the frequency of calls to this engine changes in the future, 
- * this would disrupt serial performance, and would require minor changes
- * for speed optimization purposes.  (In this function, and for the 
- * TIMEOUT_TX, TIMEOUT_RX values)
+/* This is the main housekeeping function, which should be called about
+ * 20 to 100 times per second, but should be self-compensating for less
+ * frequent executions.  (I might eventually add code to compensate for
+ * more frequent executions, but this is not necessary right now)
+ * Serial performance improves (up to a certain point) if you increase the
+ * frequency of executing this function.
  */
 void
 serial_run(void)	
 {
   static int i;
-  stage = (stage + 1) & 15;
+  stage = ++stage & 7;   /* Counters increments up to 7, wraps back to 0 */
 
-  /* Do interrupt checking in a logically efficient manner.  For example, */
-  /* The FIFO should be given time to fill up on slower computers, since  */
-  /* they easily sieze emulation CPU time.  And modem status checking     */
-  /* should not be done more frequently than necessary.  And interrupts   */
-  /* should be given time to run through in the hardware interrupt queue. */
+  serial_timer_update();
+
+  /* Do interrupt checking in a logically efficient manner.  For example,
+   * The FIFO should be given time to fill up on slower computers, since
+   * they easily sieze emulation CPU time.  And modem status checking
+   * should not be done more frequently than necessary.  And interrupts
+   * should be given time to run through in the hardware interrupt queue.
+   */
   for (i = 0; i < config.num_ser; i++) {
-    switch (stage) {
-    case 2:
-    case 6:
-    case 10:
-    case 14:
-      receive_engine(i);  break;	/* Receive operations */
-    case 0:
-    case 4:
-    case 8:
-    case 12:
-      transmit_engine(i); break;	/* Transmit operations */
-    case 15:
-      modstat_engine(i);  break;	/* Modem Status operations */
-    }
-    /* XXXXX - This following last line may be removed soon, now that an  
-    ** interrupt_engine statement will be after every interrupt condition 
-    ** occurance in this module.
-    */
+    if ((stage % 2) == 0) receive_engine(i);	/* Receive operations */
+    if ((stage % 2) == 1) transmit_engine(i);	/* Transmit operations */
+    if (stage == 1)       modstat_engine(i);  	/* Modem Status operations */
+
+    /* Trigger any interrupts, just in case */
     interrupt_engine(i);		/* The master interrupts invoker */
   }
   return;

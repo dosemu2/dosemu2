@@ -44,6 +44,7 @@
 #undef us
 #define us unsigned
 void timer_tick(void);
+extern void timer_int_engine(void);
 
 
 static unsigned long pic1_isr;         /* second isr for pic1 irqs */
@@ -591,6 +592,7 @@ unsigned short * tmp;
         pic_pirr&=~pic_irr;
         pic_wirr&=~pic_irr;		/* clear watchdog timer */
 	dpmi_eflags &= ~VIP;
+	timer_int_engine();   /* Experimental TIMER-IRQ CHAIN code! */
       } 
   return;
   }
@@ -606,6 +608,7 @@ tmp = SEG_ADR((short *),ss,sp)-3;
         pic_pirr&=~pic_irr;
         pic_wirr&=~pic_irr;		/* clear watchdog timer */
         REG(eflags)&=~(VIP);
+       timer_int_engine();   /* Experimental TIMER-IRQ CHAIN code! */
     }
 /* if return is to PIC_ADD, pop the real cs:ip */
     if(tmp[0] == PIC_OFF && tmp[1] == PIC_SEG) {

@@ -28,47 +28,14 @@
 #endif
 #endif
 
+/* split segment 0xf000 into tow region, 0xf0000 to 0xf7fff is read-write */
+/*                                       0xf8000 to 0xfffff is read-only  */
+/* so put anything need read-write into BIOSSEG and anything read-only */
+/* to ROMBIOSSEG  */
+
 #ifndef BIOSSEG
 #define BIOSSEG		0xf000
 #endif
-
-#define XMSControl_SEG  BIOSSEG
-#define XMSControl_OFF  0x1000
-#define XMSControl_ADD  ((XMSControl_SEG << 4)+XMSControl_OFF)
-#define XMSTrap_ADD     ((XMSControl_SEG << 4)+XMSControl_OFF+5)
-
-/* EMS origin must be at 0 */
-#define EMS_SEG		(BIOSSEG+0x200)
-#define EMS_OFF		0x0000
-#define EMS_ADD		((EMS_SEG << 4) + EMS_OFF)
-
-#define EMM_BASE_ADDRESS        (config.ems_frame << 4)
-#define EMM_SEGMENT             (config.ems_frame)
-
-
-#define Banner_SEG	BIOSSEG
-#define Banner_OFF	0x3000
-#define Banner_ADD	((Banner_SEG << 4) + Banner_OFF)
-
-#define OUTB_SEG	(BIOSSEG + 0x100)
-#define OUTB_OFF	0x20f0
-#define OUTB_ADD	(u_short *)((OUTB_SEG << 4) + OUTB_OFF)
-
-#define LASTSCAN_SEG	(BIOSSEG + 0x100)
-#define LASTSCAN_OFF	0x20f2
-#define LASTSCAN_ADD	(u_short *)((LASTSCAN_SEG << 4) + LASTSCAN_OFF)
-
-#define IPX_SEG		BIOSSEG
-#define IPX_OFF		0x3100
-#define IPX_ADD		((IPX_SEG << 4) + IPX_OFF)
-
-#define INT16_SEG	(BIOSSEG + 0x100)
-#define INT16_OFF	0x3000
-#define INT16_ADD	((INT16_SEG << 4) + INT16_OFF)
-
-#define INT08_SEG	(BIOSSEG + 0x100)
-#define INT08_OFF	0x4000
-#define INT08_ADD	((INT08_SEG << 4) + INT08_OFF)
 
 #if 0
 #define INT09_SEG	(BIOSSEG + 0x100)
@@ -79,29 +46,79 @@
 #endif
 #define INT09_ADD	((INT09_SEG << 4) + INT09_OFF)
 
-#define INT10_SEG	(BIOSSEG + 0x100)
-#define INT10_OFF	0x4200
-#define INT10_ADD	((INT10_SEG << 4) + INT10_OFF)
+#define LASTSCAN_SEG	(BIOSSEG + 0x100)
+#define LASTSCAN_OFF	0x0
+#define LASTSCAN_ADD	(u_short *)((LASTSCAN_SEG << 4) + LASTSCAN_OFF)
 
-/* This inline interrupt is used for FCB open calls */
-#define INTE7_SEG	(BIOSSEG + 0x100)
-#define INTE7_OFF	0x4500
-#define INTE7_ADD	((INTE7_SEG << 4) + INTE7_OFF)
+#define OUTB_SEG	(BIOSSEG+0x100)
+#define OUTB_OFF	0x1000
+#define OUTB_ADD	(u_short *)((OUTB_SEG << 4) + OUTB_OFF)
 
-#define PIC_SEG       (BIOSSEG + 0x100)
-#define PIC_OFF       0x47f0
-#define PIC_ADD       ((PIC_SEG << 4) + PIC_OFF)
-
-#define DPMI_SEG	(BIOSSEG + 0x100)
-#define DPMI_OFF	0x4800		/* need at least 512 bytes */
-#define DPMI_ADD	((DPMI_SEG << 4) + DPMI_OFF)
 
 /* The packet driver has some code in this segment which needs to be */
 /* at BIOSSEG.  therefore use BIOSSEG and compensate for the offset. */
 /* Memory required is about 2000 bytes, beware! */
-#define PKTDRV_SEG	BIOSSEG
-#define PKTDRV_OFF	(0x5100 + (0x100 << 4))
+#define PKTDRV_SEG	(BIOSSEG + 0x100)
+#define PKTDRV_OFF	0x1100
 #define PKTDRV_ADD	((PKTDRV_SEG << 4) + PKTDRV_OFF)
+
+#ifndef ROMBIOSSEG
+#define ROMBIOSSEG	0xf800
+#endif
+
+#define XMSControl_SEG  ROMBIOSSEG
+#define XMSControl_OFF  0
+#define XMSControl_ADD  ((XMSControl_SEG << 4)+XMSControl_OFF)
+#define XMSTrap_ADD     ((XMSControl_SEG << 4)+XMSControl_OFF+5)
+
+/* EMS origin must be at 0 */
+#define EMS_SEG		(ROMBIOSSEG+0x100)
+#define EMS_OFF		0x0000
+#define EMS_ADD		((EMS_SEG << 4) + EMS_OFF)
+
+#define EMM_BASE_ADDRESS        (config.ems_frame << 4)
+#define EMM_SEGMENT             (config.ems_frame)
+
+
+#define Banner_SEG	ROMBIOSSEG
+#define Banner_OFF	0x2000
+#define Banner_ADD	((Banner_SEG << 4) + Banner_OFF)
+
+/* don't change these for now, they're hardwired! */
+#define Mouse_SEG       ROMBIOSSEG
+#define Mouse_OFF       0x20f0
+#define Mouse_ROUTINE_OFF  0x2140
+#define Mouse_ADD      ((Mouse_SEG << 4)+Mouse_OFF)
+#define Mouse_ROUTINE  ((Mouse_SEG << 4)+Mouse_ROUTINE_OFF)
+
+#define INT16_SEG	ROMBIOSSEG
+#define INT16_OFF	0x3000
+#define INT16_ADD	((INT16_SEG << 4) + INT16_OFF)
+
+#define IPX_SEG		ROMBIOSSEG
+#define IPX_OFF		0x3100
+#define IPX_ADD		((IPX_SEG << 4) + IPX_OFF)
+
+#define INT08_SEG	ROMBIOSSEG
+#define INT08_OFF	0x4000
+#define INT08_ADD	((INT08_SEG << 4) + INT08_OFF)
+
+#define INT10_SEG	ROMBIOSSEG
+#define INT10_OFF	0x4200
+#define INT10_ADD	((INT10_SEG << 4) + INT10_OFF)
+
+/* This inline interrupt is used for FCB open calls */
+#define INTE7_SEG	ROMBIOSSEG
+#define INTE7_OFF	0x4500
+#define INTE7_ADD	((INTE7_SEG << 4) + INTE7_OFF)
+
+#define PIC_SEG       ROMBIOSSEG
+#define PIC_OFF       0x47f0
+#define PIC_ADD       ((PIC_SEG << 4) + PIC_OFF)
+
+#define DPMI_SEG	ROMBIOSSEG
+#define DPMI_OFF	0x4800		/* need at least 512 bytes */
+#define DPMI_ADD	((DPMI_SEG << 4) + DPMI_OFF)
 
 /* For int15 0xc0 */
 #define ROM_CONFIG_SEG  BIOSSEG

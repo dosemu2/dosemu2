@@ -297,12 +297,14 @@ config_init(int argc, char **argv)
 	    parse_debugflags(optarg);
 	    break;
 	case 'o':
+	    exchange_uids();
 	    config.debugout = strdup(optarg);
 	    dbg_fd = fopen(config.debugout, "w");
 	    if (!dbg_fd) {
 		fprintf(stderr, "can't open \"%s\" for writing\n", config.debugout);
 		exit(1);
 	    }
+	    exchange_uids();
 	    break;
 	case 'P':
 	    if (terminal_fd == -1)

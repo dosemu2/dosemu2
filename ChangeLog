@@ -1,3 +1,16 @@
+Wed Mar 22	1995
+
+-	Release pl54
+-	Got TankWars going. Did so by removing section of 
+	bios/bios.S that starts at orig 0xfff0. Put that 
+	back into init/init.c as *ptr += code :-(. Now...
+	Why did this cause this problem?
+-	Latest and greatest serial patches from Mark. Should
+	allow DPMI good access to serial interrupts as well as
+	better throughput for transfers.
+-	Dong's latest DPMI series.
+-	Dong's shift to readonly bios parts.
+
 Sun Mar 19	1995
 
 -	Release pre0.53.53

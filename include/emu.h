@@ -120,7 +120,7 @@ extern char *cl,		/* clear screen */
 /* the fd for the keyboard */ 
 EXTERN int kbd_fd INIT(-1);
 /* the file descriptor for /dev/mem when mmap'ing the video mem */
-EXTERN mem_fd INIT(-1);
+EXTERN int mem_fd INIT(-1);
 extern int in_readkeyboard;
 
 /* X-pipes */
@@ -188,7 +188,7 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 #if 1
 
 #define dbug_printf(f,a...)	ifprintf(2,f,##a)
-#define k_printf(f,a...) 	ifprintf(d.keyb,f,##a)
+#define k_printf(f,a...) 	(d.keyb?ifprintf(d.keyb,f,##a):0)
 #define h_printf(f,a...) 	ifprintf(d.hardware,f,##a)
 #define v_printf(f,a...) 	ifprintf(d.video,f,##a)
 #define X_printf(f,a...)        ifprintf(d.X,f,##a)

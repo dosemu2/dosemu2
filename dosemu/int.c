@@ -223,8 +223,10 @@ static int dos_helper(void)
 	     "cx=0x%04x\n", LWORD(eax), LWORD(ebx), LWORD(edx), LWORD(ecx));
     if (config.ems_size)
       ems_fn(&REGS);
-    else
-      error("EMS: not running bios_em_fn!\n");
+    else{
+      error("EMS: not running ems_fn!\n");
+      return 0;
+    }
     break;
   }
 

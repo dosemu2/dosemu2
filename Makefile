@@ -51,7 +51,6 @@ ifeq (/usr/include/X11/X.h,$(wildcard /usr/include/X11/X.h))
   X11LIBDIR = $(X11ROOTDIR)/lib
   X11INCDIR = $(X11ROOTDIR)/include
 endif
-
 endif
 
 #Change the following line if the right kernel includes reside elsewhere
@@ -128,7 +127,7 @@ DEPENDS = dos.d emu.d
 EMUVER  =   0.53
 export EMUVER
 VERNUM  =   0x53
-PATCHL  =   53
+PATCHL  =   54
 LIBDOSEMU = libdosemu$(EMUVER).$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -245,7 +244,13 @@ CFLAGS+=$(PATH_LOCKD) $(NAME_LOCKF)
 CFLAGS+=$(X86_EMULATOR_FLAGS)
 
 # set for DPMI want windows
-CFLAGS+=-DWANT_WINDOWS
+LDTPATCH:= $(shell grep -c useable /usr/include/linux/ldt.h)
+ifeq ($(LDTPATCH),2)
+  CFLAGS+=-DWANT_WINDOWS
+  WIN31=1
+else
+  WIN31=0
+endif
 # set to use a simpler fork for unix command
 # CFLAGS+=-DSIMPLE_FORK
 # set to debug fork with environment
@@ -312,6 +317,11 @@ warning2:
 	else \
 		echo "  -> I didn't find the X11-development-system here." ; \
 		echo "     DOSEMU will be compiled without X11-support." ; \
+	fi
+	@if [ "1" = "$(WIN31)" ]; then \
+		echo "  -> You patched the kernel for Windows 3.1, using it." ; \
+	else \
+		echo "  -> No kernel-support for Windows 3.1." ; \
 	fi
 	@echo "  -> Type 'make most' instead of 'make doeverything' if you don't have TeX."
 	@echo "  -> Hit Ctrl-C now to abort if you forgot something!"
@@ -509,8 +519,6 @@ ifdef X_SUPPORT
 endif
 	@echo "  - Try the ./commands/mouse.exe if your INTERNAL mouse won't work"
 	@echo "  - Try ./commands/unix.exe to run a Unix command under DOSEMU"
-	@echo "  BEWARE: This release breaks certain things like WP so "
-	@echo " 	 Do not E-mail if it does work in pl49 - Thanks " 
 	@echo ""
 
 converthd: hdimage

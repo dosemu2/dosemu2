@@ -1,88 +1,99 @@
-Here comes the great, new, faster, improved DOSEMU....Version 0.53!  
 
-    DOSEMU is a Linux specific application that allows Linux to run many
-DOS based programs. It requires a bootable DOS disk and Linux 1.1.12+
-(with SYSV IPC support compiled in).  It will work with older 1.0.8+ 
-kernels after recompiling your kernel with kernel patches included
-with the DOSEMU package.
+ANNOUNCEMENT
+~~~~~~~~~~~~
+The DOSEMU team is proud to announce DOSEMU 0.60, the PC Emulator for Linux!
 
-    This release could not have gotten out the door without the work of
+
+
+WHAT IS DOSEMU?
+~~~~~~~~~~~~~~~
+DOSEMU is a PC Emulator application that allows Linux to run a DOS
+operating system in a virtual x86 machine.  This allows you to run
+many DOS applications.  These are capabilities of DOSEMU worth noting:
+
+  - Color text and full keyboard emulation (via hotkeys) via terminal
+  - Built-in X-Windows support, includes IBM character set font!
+  - Graphics capability at the console with most compatible video cards.
+  - Much-improved DPMI support.
+  - Runs Borland BCC.EXE / TCC.EXE version 3.x command line compilers!
+  - Runs several 32-bit DPMI-compilant video games, including DOS/4GW,
+     at the Linux console.  A partial list of successfully tested games 
+     includes DOOM2, Heretic, Descent, MK2, OMF2097, ROTT, and WarCraft!
+  - Games runs *MUCH* faster in dosemu due to improved timer emulation
+  - FreeBSD verison of DOSEMU under development, contact jtk@atria.com
+  - Windows 3.1 capability under development, will now run a basic
+     Windows 3.1 setup using a kernel patch and an OS/2-style preloader.
+  - CDROM support
+
+
+
+REQUIREMENTS
+~~~~~~~~~~~~
+  - Linux 1.1.31+ (with IPC support, IPX support optional)
+  - GCC 2.6.3 and LIBC 4.6.27 are recommended for best results.
+  - Plenty of swap, since DOSEMU requires between 12 and 25 megabytes
+     of total memory to compile, depending on Makefile configuration.
+
+
+
+CREDITS
+~~~~~~~
+This release could not have gotten out the door without the work of
 the our relentless development team and friends, currently consisting
 of at least:
 
-Corey Sweeney, Jason Gorden, Tim Bird, Rob Jenneson, Jon Tombs,
-Aaron, Alan Hourihane, Ronnie, Karl Kiniger, Michael Deisher, 
-Daniel R. Barrlow, Scott Buchholz, Christoph Niemann, Mark Rejhon,
-Theadore Tso, Lutz Molgedey, Larry Stephen, Derek Fawcus, Jochen Hein,
-Alistair MacDonald, Linus Torvalds, Alan Cox, Bob Amstadt, 
-Alessandro Rubini and possibly myself from time to time.
+  Corey Sweeney         Jason Gorden          Dong Liu
+  Rob Jenneson          Jon Tombs             Aaron
+  Alan Hourihane        Ronnie                Karl Kiniger
+  Michael Deisher       Daniel R. Barrlow     Scott Buchholz
+  Christoph Niemann     Mark Rejhon           Theadore Tso
+  Lutz Molgedey         Larry Stephen         Derek Fawcus
+  Jochen Hein           Bob Amstadt           Alistair MacDonald    
+  Linus Torvalds        Alan Cox              Alessandro Rubini
+  Marty Leisner         James B. Maclean      
 
-    Definitely still consider this ALPHA software, and as such please
-beware it is not yet fully functional, or always smooth sailing.
 
-Very soon, (As of June 16) it should be locatable at:
-  tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.53.tgz
-  sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.53.tgz
-  dspsun.eas.asu.edu:/pub/dosemu/dosemu0.53.tgz
 
-    Thanks to deisher@enws125.EAS.ASU.EDU (Michael E. Deisher) for dspsun.
-Micheal has a version of DOSEMU for the Debian distribution, since DOSEMU
-is now conformed easily to the Debian distribution format.
+WHERE TO GET IT:
+~~~~~~~~~~~~~~~~
+The DOSEMU PC Emulator can be downloaded from the following FTP sites
+when version 0.60.0 arrives on April the 1st:
 
-*** NOTE ***
-    There has been many changes since DOSEMU 0.50pl1, so please go to 
-great caution to read the "QuickStart" file included with DOSEMU since 
+  tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.60.tgz
+  sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.60.tgz
+  dspsun.eas.asu.edu:/pub/dosemu/dosemu0.60.tgz
+
+We expect to see DOSEMU being included as an extra with many Linux 
+Distribution packages.
+
+
+
+IMPORTANT NOTES
+~~~~~~~~~~~~~~~
+If you haven't used DOSEMU in several months (Especially if the last 
+version you used was DOSEMU 0.52 or earlier), please go to great
+caution to read the "QuickStart" file included with DOSEMU since 
 the location and format of files (including the configuration file) has 
-changed since the last public DOSEMU release.  One of the noteable changes 
-(since 0.50pl1 and before) is /etc/dosemu now becomes /var/lib/dosemu.
+changed since the DOSEMU 0.50pl1.  
 
-The following was updated in DOSEMU 0.53:
-     -  Color Xwindows client for DOSEMU available in a separate package.
-     -  color NCURSES and color ANSI support for running DOSEMU remotely.
-     -  IBM character set support for running DOSEMU remotely.
-     -  Better terminal keyboard support.
-     -  Much improved terminal support in general. 
-     -  The mouse works better, especially for Windows 3.0.
-     -  Other Bugfixes.
-        
-The following was updated in DOSEMU 0.52:
-     -  Major speed improvement (2-5 times faster) compared to DOSEMU 0.50.
-	 Many thanks to Linus for the kernel enhancement, and always helpful
-	 feedback.
-     -  EMS 4.0 support is now near-complete.
-     -  Optional EMS speedup with a kernel patch to map memory in user
-	 space with /proc/self/mem. Thanks Scott for bringing Roberts
-	 code up to date and testing it.
-     -  Support for Novell Netware and other things are now via a
-	built in packet driver at int 0x60. Rob Janssen has been busy.
-     -  Improved foreign keyboard support.
-     -  Improved DPMI support, although far from complete.  Someday, 
-         maybe this fall, programs like Borland C++ or Maple V will work.
-	 Some RSX extender based programs like emtex386 are allready runing.
-     -  Improved serial support for modems.  More flexible with up to 4
-         ports, thanks to mdrejhon@csclub.uwaterloo.ca (Mark Rejhon)
-     -  Mice work a bit better, too, although not all drivers work.
-     -  Busmice support well underway thanks to Alan Hourihane.
-     -  S3 video code updated by niemann@swt.ruhr-uni-bochum.de 
-         (Christoph Niemann)
-     -  Real time clocks will become more accurate in the future, thanks to
-         preparation of new code.  Should make some video games run faster.
-	 Many Thanks to Jochen Hein for his continous efforts to clean up
-	 what the rest of us leave behind.
-     -  Easier Debug reports for you to send :-).
-     -  More updates by Tim Bird to his internal IPX code.
-     -  Major reorganization and cleanup. Way to go Jochen :-)
-     -  Termcap updates are much faster in Xterms now, thanks to Mark Rejhon.
+While DOSEMU may be more stable than many of the previous releases, it
+must be noted that it is still possible to crash the Linux video and 
+keyboard, if you don't follow instructions properly.  In this case, it
+becomes necessary to use a remote terminal or even the RESET button,
+to reboot the system.
 
-    As always, many, thanks to all who have helped with this release, 
-either by sending in bug reports so we knew something was wrong, by 
-sending in bug fixes (which may not have made it into this release), 
-or by just providing a sounding board for ideas that come up.
-    My apologies for not having answered every letter, and possibly 
-missing some of the important information. If you know something you
-think we should, try to contact me again, PLEASE.
+The main risks of DOSEMU are the 'graphics' capability and 'rawkeyboard'.
+These can be disabled in the DOSEMU configuration file, to make DOSEMU
+become bullet-proof, at the cost of some convenience.
 
-Later,
-JES
-jmaclean@fox.nstn.ns.ca
----
+
+
+HELPING US
+~~~~~~~~~~
+Many thanks to all who have helped with this release, by sending bug 
+reports, patches, comments and/or ideas for DOSEMU!  My apologies for 
+not having answered every letter, and possibly missing some important 
+information.  If you know something you think we should know, 
+contact us, PLEASE!  We can be reached at:
+
+linux-msdos@vger.rutgers.edu (The DOSEMU team)

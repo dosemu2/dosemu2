@@ -32,13 +32,6 @@
 #define MICKEY			9	/* mickeys per move */
 #define M_DELTA			8
 
-/* don't change these for now, they're hardwired! */
-#define Mouse_SEG  BIOSSEG
-#define Mouse_OFF  0x1500
-#define Mouse_ROUTINE_OFF  0x1550
-#define Mouse_ADD  ((Mouse_SEG << 4)+Mouse_OFF)
-#define Mouse_ROUTINE  ((Mouse_SEG << 4)+Mouse_ROUTINE_OFF)
-
 #define MAX_MOUSE 1
 #define HEIGHT 16
 #define PLANES 4

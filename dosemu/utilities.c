@@ -10,7 +10,9 @@
 #include "machcompat.h"
 #include "bios.h"
 
+#if 0
 FILE *dbg_fd=0;			/* referenced in a billion other places */
+#endif
 
 int
  ifprintf(unsigned char flg, const char *fmt,...) {

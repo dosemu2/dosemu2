@@ -515,7 +515,7 @@ typedef size_t vm_size_t;
 
 #define Fprintf(args)	reset_tty();fprintf args;set_tty()
 
-EXTERN FILE *dbg_fd;
+EXTERN FILE *dbg_fd INIT(NULL);
 #ifndef __linux__
 
 #define MAX_IO_PORTS	128

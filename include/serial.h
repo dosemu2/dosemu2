@@ -1,74 +1,67 @@
 /*
+ * serial.h: Include module for serial.c, software emulation of 16550A UART.
+ * Please send bug reports and bugfixes to mdrejhon@magi.com
+ * Please see serial.c for more information.
+ *
+ * This module is maintained by Mark Rejhon at these Email addresses:
+ *      mdrejhon@magi.com
+ *      ag115@freenet.carleton.ca
+ *
+ * COPYRIGHTS
+ * ~~~~~~~~~~
+ *   Lock file stuff stolen from Taylor UUCP:
+ *   Copyright (C) 1991, 1992 Ian Lance Taylor
+ *   Uri Blumenthal <uri@watson.ibm.com> (C) 1994
+ *   Paul Cadach, <paul@paul.east.alma-ata.su> (C) 1994
+ *
+ *   Rest of serial code
+ *   Copyright (C) 1995 by Mark Rejhon
+ *
+ *   All of this code is free software; you can redistribute it and/or
+ *   modify it under the terms of the GNU General Public License as  
+ *   published by the Free Software Foundation; either version 2 of 
+ *   the License, or (at your option) any later version.
+ *
+ *
  * $Log: serial.h,v $
- * Revision 2.3  1995/02/25  22:38:47  root
- * *** empty log message ***
  *
- * Revision 2.2  1994/11/03  11:43:26  root
- * Checkin Prior to Jochen's Latest.
+ * This is a summary of older serial.h changes, which may be deleted soon:
  *
- * Revision 2.2  1994/11/03  11:43:26  root
- * Checkin Prior to Jochen's Latest.
- *
- * Revision 2.1  1994/06/12  23:15:37  root
- * Wrapping up prior to release of DOSEMU0.52.
- *
- * Revision 1.20  1994/05/13  17:21:00  root
- * pre51_15.
- *
- * Revision 2.9.1.1  1994/05/10  22:53:03  root
- * Corresponds to serial 2.9.1.1, may be final for DOSEMU 0.52
- *
- * Revision 1.19  1994/04/09  18:41:52  root
- * Prior to Lutz's kernel enhancements.
- *
- * Revision 2.9.0.6  1994/04/08  00:20:39  root
- * Corressponds to serial.c 2.9.0.6
- *
- * Revision 2.9.0.5  1994/04/07  06:42:44  root
- * This got into pre0.51 release 4.
- *
- * Revision 2.9  1994/04/06  00:55:51  root
- * Made serial config more flexible, and up to 4 ports.
- *
- * Revision 1.16  1994/04/04  22:51:55  root
- * Patches for PS/2 mouse.
- *
- * Revision 2.8  1994/03/31  22:57:34  root
- * Corresponds to 2.8 of serial.c
- *
- * Revision 2.7  1994/03/30  08:07:51  root
- * New variables for 2.7
- *
- * Revision 2.5.1.1  1994/03/26  09:59:00  root
- * This is what got into pre0.51 (with a minor modification)
- *
- * Revision 2.5  1994/03/24  07:15:48  root
- * CHECKPOINT: This may go into the 0.51 release.
- *
- * Revision 2.2  1994/03/23  07:14:52  root
- * Survived interrupts overhaul.  From now on, I correspond serial.h
- * as closely as possible to serial.c
- *
+ * Revision 2.3  1995/02/25  22:38:47  * *** empty log message ***
+ * Revision 2.2  1994/11/03  11:43:26  * Checkin Prior to Jochen's Latest.
+ * Revision 2.2  1994/11/03  11:43:26  * Checkin Prior to Jochen's Latest.
+ * Revision 2.1  1994/06/12  23:15:37  * Wrapping up prior to DOSEMU0.52.
+ * Revision 1.20  1994/05/13  17:21:00  * pre51_15.
+ * Revision 2.9.1.1  1994/05/10  22:53:03  * Corresponds to serial 2.9.1.1
+ * Revision 1.19  1994/04/09  18:41:52     * Prior to Lutz kernel enhancements.
+ * Revision 2.9.0.6  1994/04/08  00:20:39  * Corressponds to serial.c 2.9.0.6
+ * Revision 2.9.0.5  1994/04/07  06:42:44  * This got into pre0.51 release 4.
+ * Revision 2.9  1994/04/06  00:55:51      * Made serial config more flexible, and up to 4 ports.
+ * Revision 1.16  1994/04/04  22:51:55     * Patches for PS/2 mouse.
+ * Revision 2.8  1994/03/31  22:57:34      * Corresponds to 2.8 of serial.c
+ * Revision 2.7  1994/03/30  08:07:51      * New variables for 2.7
+ * Revision 2.5.1.1  1994/03/26  09:59:00  * This is mostly what is in 0.51 
+ * Revision 2.5  1994/03/24  07:15:48      * CHECKPOINT: May go into 0.51 
+ * Revision 2.2  1994/03/23  07:14:52      * Survived interrupts overhaul.  
  */
 
 #ifndef SERIAL_H
 #define SERIAL_H
 
-
 /* the Lock file stuff.  Default user is uucp!
  */
 #ifndef OWNER_LOCKS
-#define OWNER_LOCKS        "uucp"                  /* owns locks  */
+#define OWNER_LOCKS        "uucp"                /* Owner of locks  */
 #endif
 #ifndef PATH_LOCKD
-#define PATH_LOCKD         "/var/locks"            /* lock files */
+#define PATH_LOCKD         "/usr/spool/uucp"     /* Lock files */
 #endif
 #ifndef NAME_LOCKF
-#define NAME_LOCKF         "LCK.."                 /* lock file name */
+#define NAME_LOCKF         "LCK.."               /* Lock filename prefix */
 #endif
 
-/* the UART definitions are quoted from linux/include/linux/serial.h, a work
- * by Theodore Ts'o
+/* The following UART definitions are derived from 
+ * linux/include/linux/serial.h, a work by Theodore Ts'o.
  */
 
 /*
@@ -110,10 +103,12 @@
  *
  * Note: if the word length is 5 bits (UART_LCR_WLEN5), then setting
  * UART_LCR_STOP will select 1.5 stop bits, not 2 stop bits.
+ * UART_LCR_SPAR is rarely used, but if this is set, it means to
+ * stick the parity bit high or low, depending on UART_LCR_PARITY.
  */
 #define UART_LCR_DLAB	0x80	/* Devisor latch access bit */
 #define UART_LCR_SBC	0x40	/* Set break control */
-#define UART_LCR_SPAR	0x20	/* Stick parity (?) */
+#define UART_LCR_SPAR	0x20	/* Stick parity bit continously high or low */
 #define UART_LCR_EPAR	0x10	/* Even paraity select */
 #define UART_LCR_PARITY	0x08	/* Parity Enable */
 #define UART_LCR_STOP	0x04	/* Stop bits: 0=1 stop bit, 1= 2 stop bits */
@@ -202,26 +197,19 @@
 #define	DIV_57600   0x002
 #define	DIV_115200  0x001
 
-/* Interrupts pending flag bits for com[num].int_type */
-#if NEW_PIC==2
-/* These bits must match the UART_IER_xxx bits, above */
-#define RX_INTR    UART_IER_RDI  /* 1 */
-#define TX_INTR    UART_IER_THRI /* 2 */
-#define LS_INTR    UART_IER_RLSI /* 4 */
-#define MS_INTR    UART_IER_MSI  /* 8 */
-#else
-#define MS_INTR    1
-#define TX_INTR    2
-#define RX_INTR    4
-#define LS_INTR    8
-#endif
-
 /* The following sets the size of receive and transmit FIFOs.        */
 /* They MUST be a power of 2 in order to work.  Bigger FIFOs can     */
 /* speed throughput in certain cases, but may not be as compatible.  */
 /* Don't exceed 512 bytes, to prevent DOS "Stack Overflow" stupdity. */
 #define RX_FIFO_SIZE            16
 #define TX_FIFO_SIZE            16
+
+/* Interrupts pending flag bits for com[num].int_type */
+/* These bits must match the UART_IER_xxx bits, above */
+#define RX_INTR    UART_IER_RDI    /* 1 */
+#define TX_INTR    UART_IER_THRI   /* 2 */
+#define LS_INTR    UART_IER_RLSI   /* 4 */
+#define MS_INTR    UART_IER_MSI    /* 8 */
 
 int stage;			/* Stage counter for serial interrupts */
 u_char irq_source_num[255];	/* Index to map from IRQ no. to serial port */
@@ -233,18 +221,20 @@ typedef struct serial_struct {
   int interrupt;		/* IRQ line handled by device */
   int fd;			/* File descriptor of device */
   boolean mouse;		/* Flag to turn on mouse sharing features */
-  boolean dev_locked;           /* Flag to indicate wether device is locked */
-                                /* or not */
-
+  boolean dev_locked;           /* Flag to indicate that device is locked */
+  
+  long int tx_timer;            /* For timing of transmit operations */
+  long int char_time;           /* Number of 1843200ths of sec per char */
+  long int ms_timer;            /* [FUTURE USE] Counter to forced MS check */
+  u_char tx_trigger;		/* Flag whether Xmit int should be triggered */
+  u_char rx_timeout;		/* Transmit Interrupt timeout counter */
   u_char int_pend;		/* Interrupt Pending Flag */
   u_char int_type;		/* Interrupts Waiting Flags */
   u_char int_enab;		/* Interrupts Enable = OUT2 of MCR */
-  u_char tx_timeout;		/* Receive Interrupt timeout counter */
-  u_char rx_timeout;		/* Transmit Interrupt timeout counter */
-  u_char ms_counter;            /* [FUTURE USE] Counter to forced MS check */
   u_char uart_full;		/* UART full flag */
   u_char fifo_enable;		/* FIFO enabled flag */
   u_char tx_overflow;		/* Full outgoing buffer flag. */
+  speed_t newbaud;		/* Currently set bps rate */
 
   int dll, dlm;		/* Baudrate divisor LSB and MSB */
   u_char TX;		/* Transmit Holding Register */
@@ -252,7 +242,7 @@ typedef struct serial_struct {
   u_char IER;		/* Interrupt Enable Register */
   u_char IIR;		/* Interrupt Identification Register */
   u_char LCR;		/* Line Control Register */
-  u_char FCReg;		/* Fifo Control Register (name conflict) */
+  u_char FCReg;		/* Fifo Control Register (.FCR is a name conflict) */
   u_char MCR;		/* Modem Control Register */
   u_char LSR;		/* Line Status Register */
   u_char MSR;		/* Modem Status Register */
@@ -272,7 +262,6 @@ typedef struct serial_struct {
 
   struct termios oldset;
   struct termios newset;
-  speed_t newbaud;
 } serial_t;
 
 int debug1,debug2;			/* Global debugging variables */

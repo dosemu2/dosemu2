@@ -917,7 +917,7 @@ do_map_unmap(state_t * state, int handle, int physical_page, int logical_page)
 static inline int
 SEG_TO_PHYS(int segaddr)
 {
-  Kdebug0((dbg_fd, "SEG_TO_PHYS: segment: %x\n", segaddr));
+  E_printf("SEG_TO_PHYS: segment: %x\n", segaddr);
 
 #if 1
   segaddr-=EMM_SEGMENT;

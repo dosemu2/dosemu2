@@ -57,7 +57,7 @@ static unsigned short CURRENT_PSP;
 static unsigned short CURRENT_ENV_SEL;
 static unsigned short PARENT_PSP;
 static unsigned short PARENT_ENV_SEL;
-
+static int in_dos_21 = 0;
 static inline int old_dos_terminate(struct sigcontext_struct *scp)
 {
     REG(cs)  = CURRENT_PSP;
@@ -140,7 +140,12 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
     case 0x20:			/* DOS terminate */
 	return old_dos_terminate(scp);
     case 0x21:
+	if (in_dos_21) 
+	    dbug_printf("DPMI: int 0x21 called recursively in_dos_21=%d.\n",in_dos_21);
+	if (_HI(ax) != 0x4b )
+	    in_dos_21++;
 	SAVED_REGS = REGS;
+	READ_DS_COPIED = 0;
 	switch (_HI(ax)) {
 	    /* first see if we don\'t need to go to real mode */
 	case 0x25:		/* set vector */
@@ -151,12 +156,14 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	      Interrupt_Table[current_client][_LO(ax)].offset = _LWORD(edx);
 	    D_printf("DPMI: int 21,ax=0x%04x, ds=0x%04x. dx=0x%04x\n",
 		     _LWORD(eax), _ds, _LWORD(edx));
+	    in_dos_21--;
 	    return 1;
 	case 0x35:	/* Get Interrupt Vector */
 	    _es = Interrupt_Table[current_client][_LO(ax)].selector;
 	    _ebx = Interrupt_Table[current_client][_LO(ax)].offset;
 	    D_printf("DPMI: int 21,ax=0x%04x, es=0x%04x. bx=0x%04x\n",
 		     _LWORD(eax), _es, _LWORD(ebx));
+	    in_dos_21--;
 	    return 1;
 	case 0x01 ... 0x08:	/* These are dos functions which */
 	case 0x0b ... 0x0e:	/* are not required memory copy, */
@@ -175,6 +182,7 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	case 0xF8:		/* OEM SET vector */
 	    return 0;
 	case 0x00:		/* DOS terminate */
+	    in_dos_21--;
 	    return old_dos_terminate(scp);
 	case 0x09:		/* Print String */
 	    if ( Segments[ _ds >> 3].base_addr > 0xffff0) {
@@ -367,14 +375,17 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		READ_DS_COPIED = 0;
 	    return 0;
 	case 0x40:		/* DOS Write */
-	    if ( Segments[ _ds >> 3].base_addr > 0xffff0)
+	    if ( Segments[ _ds >> 3].base_addr > 0xffff0) {
 		D_printf("DPMI: passing pointer > 1MB to dos write\n"); 
-	    S_REG(ds) = _ds;
-	    REG(ds) = DPMI_private_data_segment+DPMI_private_paragraphs;
-	    REG(edx) = 0;
-	    memcpy((void *)(REG(ds) << 4),
-		   (void *)GetSegmentBaseAddress(S_REG(ds))+S_LWORD(edx),
-		   LWORD(ecx));
+		S_REG(ds) = _ds;
+		REG(ds) = DPMI_private_data_segment+DPMI_private_paragraphs;
+		REG(edx) = 0;
+		memcpy((void *)(REG(ds) << 4),
+		       (void *)GetSegmentBaseAddress(S_REG(ds))+S_LWORD(edx),
+		       LWORD(ecx));
+		READ_DS_COPIED = 1;
+	    } else
+		READ_DS_COPIED = 0;
 	    return 0;
 	case 0x53:		/* Generate Drive Parameter Table  */
 	    {
@@ -417,6 +428,8 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    }
 	    return 0;
 	case 0x57:		/* Get/Set File Date and Time Using Handle */
+	    if ((S_LO(ax) == 0) || (S_LO(ax) == 1))
+		return 0;
 	    ES_MAPPED = 1;
 	    break;
 	case 0x5e:
@@ -487,7 +500,8 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    DS_MAPPED = _ds;
 	    REG(ds) =   DPMI_private_data_segment+DPMI_private_paragraphs;
 	    memcpy ((void *)(REG(ds)<<4), (void *)GetSegmentBaseAddress(_ds),
-		 Segments[_ds >> 3].limit);
+		    (Segments[_ds >> 3].limit > 0xffff) ?
+		    0xffff : Segments[_ds >> 3].limit);
 	} else
 	    DS_MAPPED = 0;
     }
@@ -498,7 +512,8 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    DS_MAPPED = _es;
 	    REG(ds) =   DPMI_private_data_segment+DPMI_private_paragraphs;
 	    memcpy ((void *)(REG(es)<<4), (void *)GetSegmentBaseAddress(_es),
-		 Segments[_es >> 3].limit);
+		    (Segments[_es >> 3].limit > 0xffff) ?
+		    0xffff : Segments[_es >> 3].limit);
 	} else
 	    ES_MAPPED = 0;
     }
@@ -568,7 +583,8 @@ msdos_post_extender(int intr)
 	unsigned short my_ds;
 	my_ds =   DPMI_private_data_segment+DPMI_private_paragraphs;
 	memcpy ((void *)GetSegmentBaseAddress(DS_MAPPED), (void *)(my_ds<<4), 
-		 Segments[DS_MAPPED >> 3].limit);
+		(Segments[DS_MAPPED >> 3].limit > 0xffff) ?
+		0xffff : Segments[DS_MAPPED >> 3].limit);
     } 
     DS_MAPPED = 0;
 
@@ -576,12 +592,14 @@ msdos_post_extender(int intr)
 	unsigned short my_es;
 	my_es =   DPMI_private_data_segment + DPMI_private_paragraphs;
 	memcpy ((void *)GetSegmentBaseAddress(ES_MAPPED), (void *)(my_es<<4), 
-		 Segments[ES_MAPPED >> 3].limit);
+		(Segments[ES_MAPPED >> 3].limit > 0xffff) ?
+		0xffff : Segments[ES_MAPPED >> 3].limit);
     } 
     ES_MAPPED = 0;
 	       
     switch (intr) {
     case 0x21:
+	in_dos_21--;
 	switch (S_HI(ax)) {
 	case 0x29:		/* Parse a file name for FCB */
 	    {
@@ -621,7 +639,9 @@ msdos_post_extender(int intr)
 	    if (LWORD(eflags) & CF)
 		break;
 	    if (READ_DS_COPIED)
-		strcpy((void *)(GetSegmentBaseAddress(S_REG(ds))+LWORD(esi)),
+		strcpy((void *)(GetSegmentBaseAddress
+				(dpmi_stack_frame[current_client].ds)
+				+LWORD(esi)),
 		       (void *)((REG(ds) << 4) + LWORD(esi)));
 	    READ_DS_COPIED = 0;
 	    break;
@@ -681,14 +701,17 @@ msdos_post_extender(int intr)
 		dpmi_stack_frame[current_client].edx = S_REG(edx);
 		if (LWORD(eflags) & CF)
 		    return;
-		memcpy((void *)(GetSegmentBaseAddress(S_REG(ds)) +
-				S_LWORD(edx)),
+		memcpy((void *)(GetSegmentBaseAddress
+				(dpmi_stack_frame[current_client].ds)
+				 + S_LWORD(edx)),
 				(void *)(REG(ds) << 4), LWORD(eax));
 	    }
 	    READ_DS_COPIED = 0;
 	    break;
 	case 0x40:
-	    dpmi_stack_frame[current_client].edx = S_REG(edx);
+	    if (READ_DS_COPIED)
+		dpmi_stack_frame[current_client].edx = S_REG(edx);
+	    READ_DS_COPIED = 0;
 	    break;
 	case 0x5f:		/* redirection */
 	    switch (S_LO(ax)) {
@@ -696,11 +719,13 @@ msdos_post_extender(int intr)
 		return ;
 	    case 2 ... 6:
 		dpmi_stack_frame[current_client].esi = S_REG(esi);
-		memcpy ((void *)GetSegmentBaseAddress(S_REG(ds))
+		memcpy ((void *)GetSegmentBaseAddress
+			(dpmi_stack_frame[current_client].ds)
 			+ S_LWORD(esi),(void *)(REG(ds)<<4),
 			0x100);
 		dpmi_stack_frame[current_client].edi = S_REG(edi);
-		memcpy ((void *)GetSegmentBaseAddress(S_REG(es))
+		memcpy ((void *)GetSegmentBaseAddress
+			(dpmi_stack_frame[current_client].es)
 			+ S_LWORD(edi),(void *)(REG(es)<<4),
 			0x100);
 	    }

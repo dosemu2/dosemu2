@@ -271,7 +271,7 @@ inb(int port)
 #endif
   case 0x60:
     if (keys_ready) microsoft_port_check = 0;
-    k_printf("direct 8042 read1: 0x%02x microsoft=%d\n", *LASTSCAN_ADD, microsoft_port_check);
+    k_printf("direct 8042 0x60 read1: 0x%02x microsoft=%d\n", *LASTSCAN_ADD, microsoft_port_check);
     if (microsoft_port_check)
       r = microsoft_port_check;
     else
