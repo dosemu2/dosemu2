@@ -2876,13 +2876,13 @@ static boolean_t find_again(boolean_t firstfind, int drive, char *fpath,
 
     de = &hlist->de[sdb_dir_entry(sdb)];
 
-    Debug0((dbg_fd, "find_again entered with %.8s.%.3s\n", de->name, de->ext));
     sdb_dir_entry(sdb)++;
 
     if (!convert_compare(de->d_name, de->name, de->ext,
 			 sdb_template_name(sdb), sdb_template_ext(sdb), is_root))
       continue;
 
+    Debug0((dbg_fd, "find_again entered with %.8s.%.3s\n", de->name, de->ext));
     fill_entry(de, fpath, drive);
     sdb_file_attr(sdb) = get_dos_attr(de->mode,de->hidden);
 
