@@ -38,7 +38,7 @@
 #if defined(ppc)||defined(__ppc)||defined(__ppc__)
 /* NO PAGING! */
 /*
- *  $Id: byteorder.h,v 1.14 1998/08/12 05:07:12 paulus Exp $
+ *  $Id$
  */
 /* alas, egcs sounds like it has a bug in this code that doesn't use the
    inline asm correctly, and can cause file corruption. */

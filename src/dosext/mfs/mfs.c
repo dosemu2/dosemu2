@@ -46,7 +46,10 @@
  *	V86 DOS disk emulation routines
  *
  * HISTORY:
- * $Log: mfs.c,v $
+ * $Log$
+ * Revision 1.1  2003/06/23 00:02:08  bartoldeman
+ * Initial revision
+ *
 
 Work started by Tim Bird (tbird@novell.com) 28th October 1993
 

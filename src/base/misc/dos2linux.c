@@ -27,7 +27,10 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
- *	$Log: dos2linux.c,v $
+ *	$Log$
+ *	Revision 1.1  2003/06/23 00:02:07  bartoldeman
+ *	Initial revision
+ *
  *
  * DANG_END_CHANGELOG
  *

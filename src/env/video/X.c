@@ -16,7 +16,7 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
- * $Id: X.c,v 1.13 1995/05/06 16:25:24 root Exp root $
+ * $Id$
  *
  * 951205: bon@elektron.ikp.physik.th-darmstadt.de
  *   Merged in again the selection stuff. Hope introduce hidden bugs 

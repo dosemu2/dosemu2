@@ -11,7 +11,7 @@ include $(top_builddir)/Makefile.conf
 # This is the Makefile for the video-subdirectory of the DOS-emulator
 # for Linux.
 #
-# $Id: Makefile,v 2.15 1995/04/08 22:30:27 root Exp $
+# $Id$
 
 
 # if you want to disable graphics in X, delete vgaemu.[co], vesa.[cho],

@@ -44,7 +44,7 @@ static int umb_find_unused(void);
  */
 
 /*
-static char RCSxms[] = "$Header: /usr/src/dosemu0.60/dosemu/RCS/xms.c,v 2.11 1995/05/06 16:25:30 root Exp root $";
+static char RCSxms[] = "$Header$";
 */
 
 #define	 XMS_GET_VERSION		0x00

@@ -96,7 +96,10 @@ typedef struct vm86_regs state_t;
  *	V86 DOS disk emulation header file
  *
  * HISTORY:
- * $Log: mfs.h,v $
+ * $Log$
+ * Revision 1.1  2003/06/23 00:02:08  bartoldeman
+ * Initial revision
+ *
  * Revision 1.2  1995/05/23  06:04:49  root
  * fix for redirector open existing file function
  *

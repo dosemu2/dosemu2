@@ -184,7 +184,10 @@ typedef int onoff_t;
  *	V86 BIOS emulation
  *
  * HISTORY:
- * $Log: machcompat.h,v $
+ * $Log$
+ * Revision 1.1  2003/06/23 00:02:10  bartoldeman
+ * Initial revision
+ *
  * Revision 2.4  1995/04/08  22:35:19  root
  * Release dosemu0.60.0
  *

@@ -10,7 +10,7 @@ include $(top_builddir)/Makefile.conf
 #
 # This is the Makefile for the mouse-subdirectory of the DOS-emulator
 # for Linux.
-# $Id: Makefile,v 2.11 1995/05/06 16:27:42 root Exp root $
+# $Id$
 
 
 # The following variables may go into the Makfile in the parent-directory

@@ -254,7 +254,7 @@ static int inte6(void)
     }
 
   case DOS_HELPER_SHOW_BANNER:		/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: " VERDATE " $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date$\n");
     p_dos_str("Last configured at %s on %s\n", CONFIG_TIME, CONFIG_HOST);
 #if 1 
     p_dos_str("This is work in progress.\n");
