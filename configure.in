@@ -96,13 +96,13 @@ AC_SUBST(CONFIG_HOST)
 
 dnl Do ELF if possible
 
- if ! gcc -v 2>&1|grep specs >/dev/null 2>&1; then
+ if ! $CC -v 2>&1|grep specs >/dev/null 2>&1; then
    AC_MSG_WARN(Your GCC installation is incomplete: specs file is missing.)
    AC_MSG_WARN(We assume your GCC compiles for ELF.)
    AC_MSG_WARN( )
    ELF="ELF=1"
  else
-   if grep __ELF__ `gcc -v 2>&1|head -n1|cut -d' ' -f4` /dev/null 1>/dev/null 2>&1; then 
+   if grep __ELF__ `$CC -v 2>&1|head -n1|cut -d' ' -f4` /dev/null 1>/dev/null 2>&1; then 
     ELF="ELF=1"
    else
      if test "$CONFIG_HOST" = "linux"; then
@@ -177,6 +177,9 @@ fi
 if test "$XINCLUDES" = nope; then
   AC_WARN(Couldn't find any X11 include files)
   XINCLUDES="# no include files found"
+fi
+if test "$XINCLUDES" = "-I"; then
+  XINCLUDES =""
 fi
 AC_SUBST(XINCLUDES)
 
@@ -289,7 +292,7 @@ AC_SUBST(x_libraries)
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
 SUBLEVEL="66"
-PATCHLEVEL="0.0"
+PATCHLEVEL="0.1"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`
@@ -413,6 +416,10 @@ AC_SUBST(TOPDIR)
 
 if test "$SLANGINC" != ""; then
   SLANGINC="-I${SRCPATH}/${SLANGINC}"
+else
+  if test -d "$oldincludedir/slang"; then
+    SLANGINC="-I$oldincludedir/slang"
+  fi
 fi
 INCDIR="-I${SRCPATH}/include -I${SRCPATH}/base/dev/pic -I${SRCPATH}/dosext/dpmi ${XINCLUDES} ${SLANGINC}"
 AC_SUBST(INCDIR)
@@ -521,8 +528,7 @@ src/tools/periph/Makefile ])
 
 dnl Print some warnings (if neccessary)
 
-dnl All I know of so far is gcc
-if test ! "$CC" = "gcc" ; then
+if test "$GCC" != "yes" ; then
   AC_MSG_WARN( )
   AC_MSG_WARN(Your system doesn't seem to have the GNU C compiler (gcc).)
   AC_MSG_WARN(Trying to compile with $CC.)

@@ -16,6 +16,8 @@
  *
  */
 
+#include <unistd.h>		/* for iopl() */
+
 #include "config.h"
 #include "emu.h"
 #include "port.h"

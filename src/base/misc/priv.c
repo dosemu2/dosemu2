@@ -55,7 +55,7 @@ int internal_priv_off(void)
 
 int priv_drop(void)
 {
-  if (setreuid(uid,uid) || setreuid(gid,gid))
+  if (setreuid(uid,uid) || setregid(gid,gid))
     {
       error("Cannot drop root uid or gid!\n");
       return 0;

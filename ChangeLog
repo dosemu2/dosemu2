@@ -1,3 +1,17 @@
+97/03/26 ver. 0.66.0.1 unofficial pre-release
+	From Hans Zoebelein <zocki@goldfish.cube.net>
+	- fix for error printout, when reading a write protected floppy.
+	From Steffen
+	- fix typo in priv_drop()
+	From Andries.Brouwer@cwi.nl
+	- fix for ./configure to detect slang.h correctly
+	- making rm -f `find ...` not complaining, when nothing found
+	- small 'warning avoid' in src/emu-i386/portss.c
+	From Hans
+	- fix for gnats report misc/4
+	  When no XINCLUDES is set, it left a stale '-I'
+	- fix wrong gcc check in ./configure (reported by Jeff Epler)
+	  checking now for $GCC=yes
 97/03/21 ver. 0.66.0 released
 	From Hans
 	- fix to ./configure, -without-x gots messed up in 0.65.99.23

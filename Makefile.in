@@ -32,14 +32,13 @@ pristine:  docsclean mididclean
 	@$(MAKE) -C src $@
 	rm -f config.cache config.status config.log src/include/config.h
 	rm -f src/Makefile.common src/arch/linux/Makefile.main
-	rm -f `find src -name Makefile`
+	rm -f core `find src -name Makefile`
 	rm -f doc/Makefile
-	rm -f `find . -name '*~'`
-	rm -f `find . -name '*[\.]o'`
-	rm -f `find . -name '*.d'`
-	rm -f `find . -name '*[\.]orig'`
-	rm -f `find . -name '*[\.]rej'`
-	rm -f gen*.log
-	rm -f `find . -size 0`
+	rm -f core `find . -name '*~'`
+	rm -f core `find . -name '*[\.]o'`
+	rm -f core `find . -name '*.d'`
+	rm -f core `find . -name '*[\.]orig'`
+	rm -f core `find . -name '*[\.]rej'`
+	rm -f core gen*.log `find . -size 0`
 	(cd setup/demudialog; make clean)
 	rm -f Makefile

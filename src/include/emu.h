@@ -291,6 +291,8 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
 	  errno, strerror(errno), __FILE__, __LINE__, #sc); \
   s_tmp; })
 
+#define SILENT_DOS_SYSCALL(sc) sc
+
 #if 0
 #define RPT_SYSCALL(sc) ({ int s_tmp, s_err; \
    do { \

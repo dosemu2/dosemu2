@@ -619,11 +619,11 @@ disk_open(struct disk *dp)
     return;
     
   priv_on();
-  dp->fdesc = DOS_SYSCALL(open(dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR, 0));
+  dp->fdesc = SILENT_DOS_SYSCALL(open(dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR, 0));
   priv_default();
 
   if (dp->fdesc < 0) 
-    if (errno == EROFS) {
+    if (errno == EROFS || errno == ENODEV) {
       priv_on();
       dp->fdesc = DOS_SYSCALL(open(dp->dev_name, O_RDONLY, 0));
       priv_default();
