@@ -15,6 +15,7 @@
 #include "emu.h"
 #include "cpu.h"
 #include "port.h"
+#include "dpmi.h"
 #include "int.h"
 
 extern int  dis_8086(unsigned int, const unsigned char *,
@@ -80,7 +81,7 @@ show_regs(char *file, int line)
   else
     sp = SEG_ADR((u_char *), ss, sp);
 
-  g_printf("\nProgram=%s, Line=%d\n", file, line);
+  g_printf("Program=%s, Line=%d\n", file, line);
   g_printf("EIP: %04x:%08lx", LWORD(cs), REG(eip));
   g_printf(" ESP: %04x:%08lx", LWORD(ss), REG(esp));
 #if 1
@@ -158,6 +159,68 @@ show_ints(int min, int max)
 		IVEC(b + 2));
   }
 }
+
+
+#define GetSegmentBaseAddress(s)	(((s) >= (MAX_SELECTORS << 3))? 0 :\
+					Segments[(s) >> 3].base_addr)
+
+void DPMI_show_state(struct sigcontext_struct *scp)
+{
+    unsigned char *csp2, *ssp2;
+    D_printf("eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n"
+	     "trapno: 0x%02lx  errorcode: 0x%08lx  cr2: 0x%08lx\n"
+	     "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x  fs: 0x%04x  gs: 0x%04x\n",
+	     _eip, _esp, _eflags, _trapno, _err, _cr2, _cs, _ds, _es, _ss, _fs, _gs);
+    D_printf("EAX: %08lx  EBX: %08lx  ECX: %08lx  EDX: %08lx\n",
+	     _eax, _ebx, _ecx, _edx);
+    D_printf("ESI: %08lx  EDI: %08lx  EBP: %08lx\n",
+	     _esi, _edi, _ebp);
+    /* display the 10 bytes before and after CS:EIP.  the -> points
+     * to the byte at address CS:EIP
+     */
+    if (!((_cs) & 0x0004)) {
+      /* GTD */
+      csp2 = (unsigned char *) _eip - 10;
+    }
+    else {
+      /* LDT */
+      csp2 = (unsigned char *) (GetSegmentBaseAddress(_cs) + _eip) - 10;
+    }
+    /* We have a problem here, if we get a page fault or any kind of
+     * 'not present' error and then we try accessing the code/stack
+     * area, we fall into another fault which likely terminates dosemu.
+     * There should be some way to check for that...
+     */
+    {
+      int i;
+      D_printf("OPS  : ");
+      for (i = 0; i < 10; i++)
+        D_printf("%02x ", *csp2++);
+      D_printf("-> ");
+      for (i = 0; i < 10; i++)
+        D_printf("%02x ", *csp2++);
+      D_printf("\n");
+      if (!((_ss) & 0x0004)) {
+        /* GDT */
+        ssp2 = (unsigned char *) _esp - 10;
+      }
+      else {
+        /* LDT */
+        if (Segments[_ss>>3].is_32)
+	  ssp2 = (unsigned char *) (GetSegmentBaseAddress(_ss) + _esp ) - 10;
+        else
+	  ssp2 = (unsigned char *) (GetSegmentBaseAddress(_ss) + _LWORD(esp) ) - 10;
+      }
+      D_printf("STACK: ");
+      for (i = 0; i < 10; i++)
+        D_printf("%02x ", *ssp2++);
+      D_printf("-> ");
+      for (i = 0; i < 10; i++)
+        D_printf("%02x ", *ssp2++);
+      D_printf("\n");
+    }
+}
+
 /* @@@ MOVE_END @@@ 32768 */
 
 

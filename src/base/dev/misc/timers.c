@@ -348,10 +348,9 @@ Bit8u pit_inp(ioport_t port)
   int ret = 0;
   port -= 0x40;
 
-  if (port == 2) {
-    if (config.speaker == SPKR_NATIVE) return safe_port_in_byte(0x42);
-    pit_latch(port);
-    return(pit[port].outpin);
+  if ((port == 2) && (config.speaker == SPKR_NATIVE)) {
+	/* how could we come here if we defined PORT_FAST? */
+	return safe_port_in_byte(0x42);
   }
   else if (port == 1)
     i_printf("PIT:  someone is reading the CMOS refresh time?!?");
@@ -393,6 +392,7 @@ void pit_outp(ioport_t port, Bit8u val)
   if (port == 1)
     i_printf("PORT: someone is writing the CMOS refresh time?!?");
   else if (port == 2 && config.speaker == SPKR_NATIVE) {
+    /* how could we come here if we defined PORT_FAST? */
     safe_port_out_byte(0x42, val);
     return;
   }
@@ -486,6 +486,10 @@ void pit_control_outp(ioport_t port, Bit8u val)
   switch (latch) {
     case 2:
       if (config.speaker == SPKR_NATIVE) {
+	/* hmmm.. timer 2 is in PORT_FAST mode, and there will be a
+	 * noticeable amount of time from this mode setting to the
+	 * timer freq settings... could this cause strange effects?
+	 */
         safe_port_out_byte(0x43, val);
 	break;
       }
@@ -622,12 +626,15 @@ void timer_int_engine(void)
 Bit8u spkr_io_read(ioport_t port) {
    if (port==0x61)  {
       if (config.speaker == SPKR_NATIVE)
+	 /* how could we come here if we defined PORT_FAST? */
          return port_safe_inb(0x61);
-      else
+      else {
 	 /* keep the connection between port 0x61 and PIT timer#2 */
+	 pit_latch(2);
          return ((*((Bit8u *)&pic_sys_time)&0x10) | /* or anything that toggles quick enough */
-		(pit_inp(0x42)? 0x20:0) |	/* outpin: 00 or 80 */
+		(pit[2].outpin? 0x20:0) |	/* outpin: 00 or 80 */
 		(port61&0xcf));
+      }
    }
    return 0xff;
 }
@@ -636,6 +643,7 @@ void spkr_io_write(ioport_t port, Bit8u value) {
    if (port==0x61) {
       switch (config.speaker) {
        case SPKR_NATIVE:
+	  /* how could we come here if we defined PORT_FAST? */
           port_safe_outb(0x61, value & 0x03);
           break;
       

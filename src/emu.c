@@ -100,7 +100,6 @@ __asm__("___START___: jmp _emulate\n");
 #include <linux/hdreg.h>
 #include <sys/vm86.h>
 #include <syscall.h>
-#include <setjmp.h>
 #endif
 
 #include "config.h"
@@ -132,9 +131,6 @@ __asm__("___START___: jmp _emulate\n");
 #include "priv.h"   /* for priv_init */
 #include "port.h"   /* for port_init */
 #include "pci.h"
-#ifdef __NetBSD__
-#include <setjmp.h>
-#endif
 #include "speaker.h"
 #include "utilities.h"
 #include "dos2linux.h"
@@ -391,14 +387,16 @@ emulate(int argc, char **argv)
 #endif
 {
     extern void parse_dosemu_users(void);
+    int e;
 #ifdef __NetBSD__
     changesegs();
 #endif
 
     srand(time(NULL));
 
-    if (setjmp(NotJEnv)) {
-    	fprintf(stderr,"EMERGENCY JUMP!!!\n");
+    if ((e=setjmp(NotJEnv))) {
+        flush_log();
+    	fprintf(stderr,"EMERGENCY JUMP %x!!!\n",e);
     	/* there's no other way to stop a signal 11 from hanging dosemu
     	 * but politely ask the kernel to terminate ourselves */
 	kill(0, SIGKILL);
@@ -462,6 +460,8 @@ emulate(int argc, char **argv)
 
     while (!fatalerr) {
 	++pic_vm86_count;
+	if (d.general>6)
+	  g_printf("------ EMU: main loop -- %06ld -----------\n",pic_vm86_count);
 	run_vm86();
 #if 0
 	timer_int_engine();
@@ -542,7 +542,7 @@ ign_sigs(int sig)
 #define LEAVEDOS_SIGOUT  5
     if ((sig==11) || (timerints >= LEAVEDOS_TIMEOUT) || (otherints >= LEAVEDOS_SIGOUT)) {
 	error("timed/signalled out in leavedos()\n");
-	longjmp(NotJEnv, 1);
+	longjmp(NotJEnv, 0x11);
     }
 }
 

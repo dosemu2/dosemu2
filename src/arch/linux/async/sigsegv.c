@@ -192,34 +192,37 @@ int signal, int code, struct sigcontext *scp
 		 show_regs(__FILE__, __LINE__);
 #endif /* 0 */
  		 csp = SEG_ADR((unsigned char *), cs, ip);
+		 /* this one is for CPU detection programs
+		  * actually we should check if int0x06 has been
+		  * hooked by the pgm and redirected to it */
 #if 1
-		 /* this one is for CPU detection programs */
-		 if (csp[0]==0x0f) return (void) do_int(_trapno);
+		 if (IS_REDIRECTED(0x06))
+#else
+		 if (csp[0]==0x0f)
 #endif
+		    return (void) do_int(_trapno);
  		 /* Some db commands start with 2e (use cs segment) 
 		    and thus is accounted for here */
  		 if (csp[0] == 0x2e) {
  		   csp++;
  		   LWORD(eip)++;
+		   goto sgleave;
  		 }
  		 if (csp[0] == 0xf0) {
  		   dbug_printf("ERROR: LOCK prefix not permitted!\n");
  		   LWORD(eip)++;
  		   return;
  		 }
+		 goto sgleave;
 #if X_GRAPHICS
       /* We want to protect the video memory and the VGA BIOS */
       case 0x0e:
-                if(_trapno!=0x06)   /* original code (case 0x06) fall trough */
-                                    /* so we have to do it this way. Maybe */
-                                    /* it's better that we just put a break */
-                                    /* at 0x06... Maybe we have to rewrite */
-                                    /* this... (root@zaphod) */
                 if(config.X)
                   {
                     if(VGA_EMU_FAULT(scp,code)==True)
                       return;
                   }
+                /* fall into default case if not X */
 
 #endif /* X_GRAPHICS */
 
@@ -241,10 +244,12 @@ sgleave:
 		  extern FILE *dbg_fd;
 		  int auxg = d.general;
 		  FILE *aux = dbg_fd;
+		  flush_log();  /* important! else we flush to stderr */
 		  dbg_fd = stderr;
 		  d.general =1;
 		  show_regs(__FILE__, __LINE__);
 		  d.general = auxg;
+		  flush_log();
 		  dbg_fd = aux;
 		}
 #endif

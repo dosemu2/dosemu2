@@ -1,3 +1,19 @@
+99/01/07 ver. 0.99.5.4 unofficial pre-release
+	From Alberto
+	- decide for INT06-handling by redirection of INT06 and not by
+	  opcode 0f  (sigsegv.c)
+	- removed wrong "we shouldn't be here" in case of newint code
+	  (async/int.c)
+	- fixed a bug in PIT2 (timers.c) always returning the state of the
+	  output pin instead of the count.
+	- moved DPMI_show_state to dump.c
+	- uninlined set_ldt_entry, checking only bit 2 of ss in ldt (dpmi.c)
+	- introduced 'quiet' mode in cputime.c
+	- when config.vga is defined, don't try to set a wrong entry in the
+	  port table (port.c)
+	- further fixes on sig11 recovery (emu.c, emu.h)
+	- introduced GETTSC() to read the TSC counter (timers.h)
+	  (modified it to be optimized by using "=A" constraint --Hans)
 99/01/06 ver. 0.99.5.3 unofficial pre-release
 	From Marcus
 	- fix for misc/136 dosnet bug report (e.g. put back old loopback.c

@@ -126,10 +126,10 @@ struct mhpdbgc
 };
 
 #if 0
-extern int stop_cputime (void);
-extern int restart_cputime (void);
-#define MHP_STOP	{stop_cputime(); mhpdbgc.stopped = 1;}
-#define MHP_UNSTOP	{mhpdbgc.stopped = 0; restart_cputime();}
+extern int stop_cputime (int);
+extern int restart_cputime (int);
+#define MHP_STOP	{stop_cputime(0); mhpdbgc.stopped = 1;}
+#define MHP_UNSTOP	{mhpdbgc.stopped = 0; restart_cputime(0);}
 #else
 #define MHP_STOP	mhpdbgc.stopped = 1
 #define MHP_UNSTOP	mhpdbgc.stopped = 0

@@ -124,7 +124,7 @@ config_defaults(void)
         config.realcpu = CPU_586;
         config.pci = 1;	/* fair guess */
         cpuflags = get_proc_string_by_key("flags");
-        if (strstr(cpuflags, "tsc")) {
+        if (cpuflags && strstr(cpuflags, "tsc")) {
           /* bogospeed currently returns 0; should it deny
            * pentium features, fall back into 486 case */
 #if LX_KERNEL_VERSION > 2001126
@@ -609,7 +609,7 @@ config_init(int argc, char **argv)
     PRIV_SAVE_AREA
     extern char *commandline_statements;
     extern int dexe_running;
-    int             c;
+    int             c=0;
     char           *confname = NULL;
     char           *dosrcname = NULL;
     char           *basename;

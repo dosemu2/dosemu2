@@ -168,6 +168,12 @@ static __inline__ hitimer_t _mul64x32_(hitimer_t v, unsigned long f)
 
 EXTERN hitimer_t (*GETcpuTIME)(void) INIT(0);
 
+static inline unsigned long long GETTSC(void) {
+	unsigned long long d;
+	__asm__ __volatile__ ("rdtsc" : "=A" (d));
+	return d;
+}
+
 #ifndef ASM_PEDANTIC
 
 #define CPUtoUS() \
@@ -263,8 +269,8 @@ extern hitimer_t GETusSYSTIME(void);
 /* 838 ns granularity */
 extern hitimer_t GETtickTIME(int sc);
 
-int stop_cputime (void);
-int restart_cputime (void);
+int stop_cputime (int);
+int restart_cputime (int);
 extern int cpu_time_stop;	/* for dosdebug */
 int bogospeed(unsigned long *spus, unsigned long *sptick);
 

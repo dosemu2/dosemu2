@@ -249,7 +249,7 @@ inline int get_ldt(void *buffer)
 #endif
 }
 
-__inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
+int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 	      int seg_32bit_flag, int contents, int read_only_flag,
 	      int limit_in_pages_flag
 #ifdef WANT_WINDOWS
@@ -473,7 +473,7 @@ static void print_ldt(void ) /* stolen from WINE */
   int type, i;
 
   if (get_ldt(buffer) < 0)
-    exit(1);
+    leavedos(0x544c);
 
   lp = (unsigned long *) buffer;
 
@@ -875,7 +875,7 @@ static int FreeDescriptor(unsigned short selector)
 #endif
 }
 
-static inline int ConvertSegmentToDescriptor(unsigned short segment)
+static int ConvertSegmentToDescriptor(unsigned short segment)
 {
   unsigned long baseaddr = segment << 4;
   unsigned short selector;
@@ -2294,7 +2294,6 @@ void dpmi_init()
 /*	D_printf("%d freed\n", i);*/
     }
     D_printf("Descriptors freed\n");
-    flush_log();
 
 #if 0
     /* all selectors are used */
@@ -2361,31 +2360,34 @@ void dpmi_init()
   my_ip = popw(ssp, sp);
   my_cs = popw(ssp, sp);
 
-  cp = (unsigned char *) ((my_cs << 4) +  my_ip);
+  if (d.dpmi) {
+    cp = (unsigned char *) ((my_cs << 4) +  my_ip);
 
-  D_printf("Going protected with fingers crossed\n"
+    D_printf("Going protected with fingers crossed\n"
 		"32bit=%d, CS=%04x SS=%04x DS=%04x PSP=%04x ip=%04x sp=%04lx\n",
 		LO(ax), my_cs, LWORD(ss), LWORD(ds), psp, my_ip, REG(esp));
   /* display the 10 bytes before and after CS:EIP.  the -> points
    * to the byte at address CS:EIP
    */
-  D_printf("OPS  : ");
-  cp -= 10;
-  for (i = 0; i < 10; i++)
-    D_printf("%02x ", *cp++);
-  D_printf("-> ");
-  for (i = 0; i < 10; i++)
-    D_printf("%02x ", *cp++);
-  D_printf("\n");
+    D_printf("OPS  : ");
+    cp -= 10;
+    for (i = 0; i < 10; i++)
+      D_printf("%02x ", *cp++);
+    D_printf("-> ");
+    for (i = 0; i < 10; i++)
+      D_printf("%02x ", *cp++);
+    D_printf("\n");
 
-  D_printf("STACK: ");
-  (*(unsigned short *)& sp) -= 10;
-  for (i = 0; i < 10; i++)
-    D_printf("%02lx ", popb(ssp, sp));
-  D_printf("-> ");
-  for (i = 0; i < 10; i++)
-    D_printf("%02lx ", popb(ssp, sp));
-  D_printf("\n");
+    D_printf("STACK: ");
+    (*(unsigned short *)& sp) -= 10;
+    for (i = 0; i < 10; i++)
+      D_printf("%02lx ", popb(ssp, sp));
+    D_printf("-> ");
+    for (i = 0; i < 10; i++)
+      D_printf("%02lx ", popb(ssp, sp));
+    D_printf("\n");
+    flush_log();
+  }
 
   if (!(CS = AllocateDescriptors(1))) return;
   if (SetSelector(CS, (unsigned long) (my_cs << 4), 0xffff, 0,
@@ -2422,15 +2424,17 @@ void dpmi_init()
 	*(unsigned short *)(((char *)(psp<<4))+0x2c) = envpd;
 
         CURRENT_ENV_SEL = envpd;
-	D_printf("DPMI: env segement %X converted to descriptor %X\n",
+	D_printf("DPMI: env segment %X converted to descriptor %X\n",
 		envp,envpd);
      } else
           CURRENT_ENV_SEL = 0;
      CURRENT_PSP = psp;
   }
 
-  print_ldt();
-  D_printf("LDT_ALIAS=%x DPMI_SEL=%x CS=%x DS=%x SS=%x ES=%x\n", LDT_ALIAS, DPMI_SEL, CS, DS, SS, ES);
+  if (d.dpmi) {
+    print_ldt();
+    D_printf("LDT_ALIAS=%x DPMI_SEL=%x CS=%x DS=%x SS=%x ES=%x\n", LDT_ALIAS, DPMI_SEL, CS, DS, SS, ES);
+  }
 
   REG(esp) += 6;
   my_sp = LWORD(esp);
@@ -2470,8 +2474,9 @@ void dpmi_init()
 
   in_sigsegv--;
   for (; (!fatalerr && in_dpmi) ;) {
-    if (d.general>6)
+    if (d.dpmi>6) {
 	D_printf("------ DPMI: dpmi loop ---------------------\n");
+    }
     run_dpmi();
     serial_run();
     if (config.sb_irq) dma_run();
@@ -2558,8 +2563,6 @@ static void do_cpu_exception(struct sigcontext *scp, int code)
 #endif
 {
   us *ssp;
-  unsigned char *csp2, *ssp2;
-  int i;
 
 #ifdef DPMI_DEBUG
   /* My log file grows to 2MB, I have to turn off dpmi debugging,
@@ -2568,7 +2571,7 @@ static void do_cpu_exception(struct sigcontext *scp, int code)
   d.dpmi = 1;
 #endif
   D_printf("DPMI: do_cpu_exception(0x%02lx) called\n",_trapno);
-  DPMI_show_state;
+  DPMI_show_state(scp);
   if ( _trapno == 0xe)
       D_printf("DPMI: page fault. in dosemu?\n");
 #ifdef SHOWREGS
@@ -2648,10 +2651,7 @@ void dpmi_fault(struct sigcontext *scp, int code)
   us *ssp;
   unsigned char *csp;
 
-#ifdef SHOWREGS
-  unsigned char *csp2, *ssp2;
-  int i;
-
+#if 0
   /*
    * FIRST thing to do - to avoid being trapped into int0x11 forever
    * we must clear AC everywhere before doing anything else!
@@ -2672,23 +2672,23 @@ void dpmi_fault(struct sigcontext *scp, int code)
     REG(eflags) &= ~AC;
     return;
   }
+#endif
 
+#ifdef SHOWREGS
 #if 1
   if (!(_cs==UCODESEL))
 #endif
   {
-    D_printf("DPMI: CPU Exception!\n");
-    DPMI_show_state;
+    DPMI_show_state(scp);
   }
 #endif /* SHOWREGS */
 
 #if 0
 /* 
  * If we have a 16-Bit stack segment the high word of esp is not always
- * zero as expected, but sometimes has the same bit pattern of (guess what?)
- * the kernel stack. Could it really be an Intel bug?
+ * zero as expected.
  */
-if ((_ss & 7) == 7) {
+if ((_ss & 4) == 4) {
   /* stack segment from ldt */
   if (Segments[_ss>>3].used) {
     if (Segments[_ss>>3].is_32==0)
@@ -2719,6 +2719,7 @@ if ((_ss & 7) == 7) {
     int done,is_rep,prefix66,prefix67;
     
     csp = lina = (unsigned char *) SEL_ADR(_cs, _eip);
+    /* should we use _sp instead for 16-bit stack segments? */
     ssp = (us *) SEL_ADR(_ss, _esp);
 
     /* DANG_BEGIN_REMARK
@@ -2808,7 +2809,7 @@ if ((_ss & 7) == 7) {
       _eip += 1;
 
       if (_cs==UCODESEL) {
-	/* HLT in dosemu code - must in dpmi_control() */
+	/* HLT in dosemu code - must come from dpmi_control() */
 #ifdef DIRECT_DPMI_CONTEXT_SWITCH
         /* Note: when using DIRECT_DPMI_CONTEXT_SWITCH, we only come
          * here if we have set the trap-flags (TF)
@@ -2823,7 +2824,7 @@ if ((_ss & 7) == 7) {
 #if 0
 	D_printf("DPMI: now jumping to dpmi client code\n");
 #ifdef SHOWREGS
-	DPMI_show_state;
+	DPMI_show_state(scp);
 #endif
 #endif
 	return;

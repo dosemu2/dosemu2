@@ -14,6 +14,7 @@
 
 #include <features.h>
 #include <sys/types.h>
+#include <setjmp.h>
 #if GLIBC_VERSION_CODE == 2000
 #include <sigcontext.h>
 #endif
@@ -115,6 +116,7 @@ EXTERN int cursor_col;
 #if 0
 void dos_ctrl_alt_del(void);	/* disabled */
 #endif
+extern jmp_buf NotJEnv;
 
 EXTERN void run_vm86(void);
 EXTERN void     vm86_GP_fault();
@@ -440,6 +442,7 @@ EXTERN void sigquit(int);
 #ifdef __linux__
 EXTERN void sigalrm(int, struct sigcontext_struct);
 EXTERN void sigio(int, struct sigcontext_struct);
+EXTERN int dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old);
 #endif
 #ifdef __NetBSD__
 EXTERN void sigalrm(int, int, struct sigcontext *);

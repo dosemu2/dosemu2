@@ -173,7 +173,7 @@ hitimer_t GETusSYSTIME(void)
 
 void get_time_init (void)
 {
-  extern kernel_version_code;
+  extern int kernel_version_code;
   if ((config.realcpu > CPU_486) && config.rdtsc) {
     /* we are here if: a 586/686 was detected at startup, we are not
      * on a SMP machine and the user didn't say 'rdtsc off'. But
@@ -202,10 +202,10 @@ void get_time_init (void)
 /* --------------------------------------------------------------------- */
 
 
-int stop_cputime (void)
+int stop_cputime (int quiet)
 {
   if (cpu_time_stop) return 1;
-  dbug_printf("STOP TIME\n");
+  if (!quiet) dbug_printf("STOP TIME\n");
   StopTimeBase = RAWcpuTIME();
   LastTimeRead = StopTimeBase - ZeroTimeBase.td;
   cpu_time_stop = 1;
@@ -213,10 +213,10 @@ int stop_cputime (void)
 }
 
 
-int restart_cputime (void)
+int restart_cputime (int quiet)
 {
   if (!cpu_time_stop) return 1;
-  dbug_printf("RESTART TIME\n");
+  if (!quiet) dbug_printf("RESTART TIME\n");
   ZeroTimeBase.td += (RAWcpuTIME() - StopTimeBase);
   cpu_time_stop = 0;
   return 0;

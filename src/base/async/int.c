@@ -217,7 +217,7 @@ static int dos_helper(void)
     show_ints(HI(bx), LO(bx));
     break;
 
-  case DOS_HELPER_PRINT_STRING:	/* SHOW INTS, BH-BL */
+  case DOS_HELPER_PRINT_STRING:	/* PRINT STRING ES:DX */
     g_printf("DOS likes us to print a string\n");
     ds_printf("DOS to EMU: \"%s\"\n",SEG_ADR((char *), es, dx));
     break;
@@ -1145,9 +1145,11 @@ static int ms_dos(int nr)
     return 0;
 
   default:
+#ifndef USE_NEW_INT
     if (!in_dpmi)
       g_printf("INT21 (0x%02x):  we shouldn't be here! ax=0x%04x, bx=0x%04x\n",
 	     nr, LWORD(eax), LWORD(ebx));
+#endif
     return 0;
   }
   return 1;
