@@ -7,7 +7,7 @@
  *   Alistair MacDonald <alistair@slitesys.demon.co.uk>
  *   David Brauman <crisk@netvision.net.il>
  *   Rutger Nijlunsing <rutger@null.net>
- *   Michael Karcher <karcher@dpk.berlin.fidi.de>
+ *   Michael Karcher <Michael.Karcher@writeme.com>
  *
  * DANG_END_MODULE
  *
@@ -18,9 +18,9 @@
  * Key:
  *  AM/Alistair - Alistair MacDonald
  *  CRISK       - David Brauman
- *  Karcher     - Michael Karcher
+ *  MK/Karcher  - Michael Karcher
  *
- * History:
+ * History: (AM, unless noted)
  * ========
  * The original code was written by Joel N. Weber II. See README.sound
  * for more information. I (Alistair MacDonald) made the code compile, and
@@ -36,9 +36,17 @@
  *
  * 0.67 has seen the introduction of stub code for handling Adlib (the timers
  * work after a fashion now) and changes to handle auto-init DMA. I've merged
- * some code from Michael Karcher (karcher@dpk.berlin.fido.de) although I
+ * some code from Michael Karcher (Michael.Karcher@writeme.com) although I
  * can't use all of it because it duplicates the auto-init (and I prefer my 
  * way - its cleaner!
+ *
+ * Included Michael's reworked Auto-Init, as it fixed a number of problems with
+ * my version. (His new version _is_ cleaner than it was!)
+ *
+ * [and I prefer my way - it works! - MK]
+ *
+ * 
+ * 
  *
  * Original Copyright Notice:
  * ==========================
@@ -48,16 +56,17 @@
 
 /* DANG_FIXME NetBSD SB code will not compile */
 
-/*
- * This is defined by default. Turning it off gives less information, but
- * makes execution slightly faster.
+/* Uncomment following to force complete emulation of some varient of
+ * Creative Technology's SB sound card
+ *
+ * This should only be used to experiment with some of the undocumented
+ * features that are used by Creative Technology's utilities.  Among
+ * other things it changes the response to the E3 copyright message
+ * request to match the real SB hardware copyright message.
+ * It should match your REAL card.
  */
-/* #define EXCESSIVE_DEBUG 1 */
-/*
- * This makes the code complain more (into the debug log)
- * It only makes sense with 'excessive debug' although it works any time.
- */
-#define FUSSY_SBEMU 1
+/* #define STRICT_SB_EMU SB_AWE32 */
+
 
 #include "emu.h"
 #include "iodev.h"
@@ -66,6 +75,7 @@
 #include "dma.h"
 #include "timers.h"
 #include "sound.h"
+#include "pic.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -85,7 +95,6 @@ static void start_dsp_dma(void);
 static void restart_dsp_dma(void);
 static void pause_dsp_dma(void);
 
-int sb_dma_handler(int status, Bit16u amount);
 void sb_irq_trigger (void);
 
 void sb_set_speed (void);
@@ -109,10 +118,6 @@ static void fm_reset(void);
 static void mpu401_reset(void);
 
 static void sb_dsp_write ( Bit8u value );
-
-
-__u8 dsp_read_output(void);
-void dsp_write_output(__u8 value);
 
 void sb_handle_test (void);
 void sb_do_sine (void);
@@ -140,11 +145,6 @@ inline void sb_mixer_register_write (Bit8u value);
 void sb_mixer_data_write (Bit8u value);
 Bit8u sb_mixer_data_read (void);
 
-Bit8u sb_get_mixer_IRQ_mask (void);
-Bit8u sb_irq_to_bit (Bit8u irq);
-
-Bit8u sb_get_mixer_DMA_mask (void);
-
 void sb_do_reset (Bit8u value);
 
 int sb_set_length(Bit16u *variable); /* LSB, MSB */
@@ -155,6 +155,7 @@ void sb_update_timers (void);
 
 static void sb_activate_irq (int type);
 static void sb_update_irqs (void);
+static void sb_check_complete (void);
 
 Bit8u sb_get_mixer_IRQ_mask (void);
 Bit8u sb_irq_to_bit (Bit8u irq);
@@ -179,17 +180,17 @@ void dsp_write_output(__u8 value)
   SB_queue.end &= (DSP_QUEUE_SIZE - 1);
   SB_dsp.data = SB_DATA_AVAIL;
 
-#ifdef EXCESSIVE_DEBUG
-  S_printf ("SB: Insert into output Queue [%u]... (0x%x)\n", 
+  if (d.sound >= 2) {
+    S_printf ("SB: Insert into output Queue [%u]... (0x%x)\n", 
 	    SB_queue.holds, value);
-#endif /* EXCESSIVE_DEBUG */
+  }
 }
 
 void dsp_clear_output(void)
 {
-#ifdef EXCESSIVE_DEBUG
-  S_printf ("SB: Clearing the output Queue\n");
-#endif /* EXCESSIVE_DEBUG */
+  if (d.sound >= 2) {
+    S_printf ("SB: Clearing the output Queue\n");
+  }
 
   SB_queue.holds = 0;
   SB_queue.end   = 0;
@@ -211,10 +212,10 @@ __u8 dsp_read_output(void)
     else
       SB_dsp.data = SB_DATA_UNAVAIL;
 
-#ifdef EXCESSIVE_DEBUG
-    S_printf ("SB: Remove from output Queue [%u]... (0x%X)\n", 
+    if (d.sound >= 2) {
+      S_printf ("SB: Remove from output Queue [%u]... (0x%X)\n", 
 	      SB_queue.holds, r);
-#endif /* EXCESSIVE_DEBUG */
+    }
   }
   return r;
 }
@@ -243,6 +244,7 @@ Bit8u sb_io_read(ioport_t port)
 {
   ioport_t addr;
   __u8 value;
+  Bit8u result;
 
   addr = port - config.sb_base;
 
@@ -253,52 +255,52 @@ Bit8u sb_io_read(ioport_t port)
    case 0x00:
 	/* FM Music Left Status Port - SBPro */
 	if (SB_info.version >= SB_PRO) {
-		return fm_io_read (FM_LEFT_STATUS);
+		result = fm_io_read (FM_LEFT_STATUS);
 	} else {
-		return 0xFF;
+		result = 0xFF;
 	}
 	break;
 
    case 0x02:
 	/* FM Music Right Status Port - SBPro */
 	if (SB_info.version >= SB_PRO) {
-		return fm_io_read (FM_RIGHT_STATUS);
+		result = fm_io_read (FM_RIGHT_STATUS);
 	}
 	else {
-		return 0xFF;
+		result = 0xFF;
 	}
 	break;
     
    case 0x05: /* Mixer Data Register */
-     return sb_mixer_data_read();
+     result = sb_mixer_data_read();
 		break;
 
    case 0x06: /* Reset ? */
      S_printf("SB: read from Reset address\n");
-     return 0; /* Some programms read this whilst resetting */
+     result = 0; /* Some programms read this whilst resetting */
      break;
 
    case 0x08:
 	/* FM Music Compatible Status Port - SB */
 	/* (Alias to 0x00 on SBPro) */
-	return fm_io_read(FM_LEFT_STATUS);
+	result = fm_io_read(FM_LEFT_STATUS);
 	break;
 
    case 0x0A: /* DSP Read Data - SB */
      value = dsp_read_output(); 
      S_printf ("SB: Read 0x%x from SB DSP\n", value);
-     return value;
+     result = value;
      break;
 
    case 0x0C: /* DSP Write Buffer Status */
      S_printf ("SB: Write? %x\n", SB_dsp.ready);
-     return SB_dsp.ready;
+     result = SB_dsp.ready;
 		break;
 
    case 0x0D: /* DSP MIDI Interrupt Clear - SB16 ? */
      S_printf("SB: read 16-bit MIDI interrupt status. Not Implemented.\n");
      SB_info.irq.active &= ~SB_IRQ_MIDI; /* may mean it never triggers! */
-     return -1;
+     result = 0xFF;
      break;
 
    case 0x0E:		
@@ -307,14 +309,21 @@ Bit8u sb_io_read(ioport_t port)
      S_printf("SB: Ready?/8-bit IRQ Ack: %x\n", SB_dsp.data);
      SB_info.irq.active &= ~SB_IRQ_8BIT; /* may mean it never triggers! */
 
-     return SB_dsp.data; 
+     result = SB_dsp.data; 
      break;
 
    case 0x0F: /* 0x0F: DSP 16-bit IRQ - SB16 */
      S_printf("SB: 16-bit IRQ Ack: %x\n", SB_dsp.data);
+
      SB_info.irq.active &= ~SB_IRQ_16BIT; /* may mean it never triggers! */
 
-     return SB_dsp.data;
+     if(SB_dsp.empty_state & DACK_AT_EOI)
+     {
+       dma_assert_DACK(config.sb_dma);
+       SB_dsp.empty_state &= ~DACK_AT_EOI;
+     }
+
+     result = SB_dsp.data;
      break;
 
      /* == CD-ROM - UNIMPLEMENTED == */
@@ -322,32 +331,35 @@ Bit8u sb_io_read(ioport_t port)
    case 0x10: /* CD-ROM Data Register - SBPro */
      if (SB_info.version > SB_PRO) {
        S_printf("SB: read from CD-ROM Data register.\n");
-       return 0;
+       result = 0;
      }
      else {
        S_printf("SB: CD-ROM not supported in this version.\n");
-       return 0xFF;
+       result = 0xFF;
      }
 		break;
 
    case 0x11: /* CD-ROM Status Port - SBPro */
      if (SB_info.version > SB_PRO) {
        S_printf("SB: read from CD-ROM status port.\n");
-       return 0xFE;
+       result = 0xFE;
      }
      else {
        S_printf("SB: CD-ROM not supported in this version.\n");
-       return 0xFF;
+       result = 0xFF;
      }
 		break;
 
    default:
 	S_printf("SB: %#x is an unhandled read port.\n", port);
-		return 0xFF;
+		result = 0xFF;
 	};
 
-	/* Unreachable ??? */
-	return 0xFF;
+  if (d.sound >= 3) {
+    S_printf ("SB: port read 0x%x returns 0x%x\n", port, result);
+  }
+
+  return result;
 }
 
 Bit8u sb_mixer_data_read (void)
@@ -358,31 +370,24 @@ Bit8u sb_mixer_data_read (void)
 	    switch (SB_info.mixer_index) {
 		case 0x04:
 			return sb_read_mixer(SB_MIXER_PCM);
-			break;
 
 		case 0x0A:
 			return sb_read_mixer(SB_MIXER_MIC);
-			break;
 
 		case 0x0E:
 			return SB_dsp.stereo;
-			break;
 
 		case 0x22:
 			return sb_read_mixer(SB_MIXER_VOLUME);
-			break;
 
 		case 0x26:
 			return sb_read_mixer(SB_MIXER_SYNTH);
-			break;
 
 		case 0x28:
 			return sb_read_mixer(SB_MIXER_CD);
-			break;
 
 		case 0x2E:
 			return sb_read_mixer(SB_MIXER_LINE);
-			break;
 
 			/* === SB16 Rgisters === */
 
@@ -394,15 +399,12 @@ Bit8u sb_mixer_data_read (void)
 
 	        case 0x80: /* IRQ Select */
 		        return sb_get_mixer_IRQ_mask();
-			break;
 
 		case 0x81: /* DMA Select */
 		        return sb_get_mixer_DMA_mask();
-			break;
 
 	        case 0x82: /* IRQ Status */
 		        return sb_get_mixer_IRQ_status();
-			break;
 		
 		default:
 			S_printf("SB: invalid read from mixer (%x)\n", 
@@ -499,26 +501,37 @@ Bit8u sb_get_mixer_IRQ_status (void)
 
 Bit8u adlib_io_read(ioport_t port)
 {
+  Bit8u result;
+
   /* Adlib Base Port is 0x388 */
   /* Adv. Adlib Base Port is 0x38A */
   
   switch (port){
   case 0x388:    
     S_printf ("Adlib: Read from Adlib port (%#x)\n", port);
-    return fm_io_read (ADLIB_STATUS);
+    result = fm_io_read (ADLIB_STATUS);
+    break;
+
   case 0x38A:    
     S_printf ("Adv_Adlib: Read from Adlib Advanced port (%#x)\n", port);
-    return fm_io_read (ADV_ADLIB_STATUS);
+    result = fm_io_read (ADV_ADLIB_STATUS);
+    break;
+
 	default:
 		S_printf("%#x is an unhandled read port\n", port);
   };
-  return 0;
+  
+  if (d.sound >= 2) {
+    S_printf ("Adlib: Read from port 0x%x returns 0x%x\n", port, result);
+  }
+
+  return result;
 }
 
 Bit8u fm_io_read (ioport_t port)
 {
   extern struct adlib_info_t adlib_info;
-  extern struct adlib_timer_t adlib_timers[2];
+  /* extern struct adlib_timer_t adlib_timers[2]; - For reference - AM */
   Bit8u retval;
 
   switch (port){
@@ -536,12 +549,10 @@ Bit8u fm_io_read (ioport_t port)
     }
     S_printf ("Adlib: Status read - %d\n", retval);
     return retval;
-    break;
 
   case ADV_ADLIB_STATUS:
 		/* DANG_FIXTHIS Advanced adlib reads are unimplemented */
     return 31;
-    break;
   };
   
   return 0;
@@ -613,9 +624,9 @@ void sb_io_write(ioport_t port, Bit8u value)
   
   addr = port - config.sb_base;
 
-#ifdef EXCESSIVE_DEBUG  
-  S_printf("SB: [crisk] port 0x%04x value 0x%02x\n", (Bit16u)port, value);
-#endif /* EXCESSIVE_DEBUG */
+  if (d.sound >= 2) {
+    S_printf("SB: [crisk] port 0x%04x value 0x%02x\n", (Bit16u)port, value);
+  }
   
   switch (addr) {
     
@@ -903,6 +914,7 @@ void sb_dsp_write ( Bit8u value )
 	case 0x24:
 		/* DMA 8-bit DAC - SB */
 		start_dsp_dma();
+		break;
 
 	case 0x28:
 		/* Direct 8-bit ADC (Burst) - SBPro2 */
@@ -1032,6 +1044,7 @@ void sb_dsp_write ( Bit8u value )
         case 0x91:
 	        /* **CRISK** DMA-8 bit DAC (High Speed) */
 	        start_dsp_dma();
+		break;
 	 
 	/* == INPUT == */
 	
@@ -1216,9 +1229,6 @@ void sb_dsp_unsupported_command (void)
 }
 
 
-/*
- * DANG_FIXTHIS Write Silence is not implemented.
- */
 void sb_write_silence (void)
 {
         void *silence_data;
@@ -1236,12 +1246,16 @@ void sb_write_silence (void)
 		 * DANG_END_REMARK
 		 */
 
-/* DANG_FIXME sb_write_silence should take into account the sample type and number of channels */
+     /* DANG_FIXME sb_write_silence should take into account the sample type */
 
 		/* 
 		 * Originally from Karcher using a special function, 
 		 * generalized by Alistair
 		 */
+
+		 
+		if(SB_dsp.stereo)
+		  SB_dsp.length *= 2;
 		
 		silence_data = malloc(SB_dsp.length);
 		if (silence_data == NULL) {
@@ -1256,11 +1270,10 @@ void sb_write_silence (void)
 		if (SB_driver.play_buffer != NULL) {
 		  (*SB_driver.play_buffer)(silence_data, SB_dsp.length);
 		}
-#ifdef FUSSY_SBEMU
-		else {
+		else if (d.sound >= 3) {
 		  S_printf ("SB: Optional function 'play_buffer' not provided.\n");
 		}
-#endif /* FUSSY_SBEMU */
+                SB_dsp.empty_state = IRQ_AT_EMPTY;
 	}
 }
 
@@ -1356,15 +1369,14 @@ void fm_io_write(ioport_t port, Bit8u value)
 
     switch (port) {
 	case ADLIB_REGISTER:
-		/* DANG_FIXTHIS Adlib register writes are unimplemented */
 	  adlib_info.reg = value;
 
 	break;
 
 	case ADLIB_DATA:
-		/* DANG_FIXTHIS Adlib data writes are unimplemented */
 	  switch (adlib_info.reg) {
 	  case 0x01: /* Test LSI/Enable Waveform control */
+	    /* DANG_FIXTHIS Adlib Waveform tests are unimplemented */
 	    break;
 	  case 0x02: /* Timer 1 data */
 	    S_printf ("Adlib: Timer 1 register set to %d\n", value);
@@ -1375,7 +1387,7 @@ void fm_io_write(ioport_t port, Bit8u value)
 	    adlib_timers[1].reg = value;
 	    break;
 	  case 0x04: /* Timer control flags */
-	    if (value & 128) {
+	    if (value & 0x80) {
 	      S_printf ("Adlib: Resetting both timers\n");
 
 	      adlib_timers[0].enabled = 0;
@@ -1386,23 +1398,25 @@ void fm_io_write(ioport_t port, Bit8u value)
 	      adlib_timers[1].expired = 0;
 	      return;
 	    }
- 	    if ( !(value & 64) ) {
+ 	    if ( !(value & 0x40) ) {
 	      if (value & 1) {
 		S_printf ("Adlib: Timer 1 counter set to %d\n", adlib_timers[0].reg);
 		adlib_timers[0].counter = adlib_timers[0].reg;
 		adlib_timers[0].enabled = 1;
 		adlib_timers[0].expired = 0;
+		sb_is_running |= FM_TIMER_RUN;
 	      } else {
 		S_printf ("Adlib: Timer 1 disabled\n");
 		adlib_timers[0].enabled = 0;
 	      }
 	    }
- 	    if ( !(value & 32) ) {
+ 	    if ( !(value & 0x20) ) {
 	      if (value & 2) {
 		S_printf ("Adlib: Timer 2 counter set to %d\n", adlib_timers[1].reg);
 		adlib_timers[1].counter = adlib_timers[1].reg;
 		adlib_timers[1].enabled = 1;
 		adlib_timers[1].expired = 0;
+		sb_is_running |= FM_TIMER_RUN;
 	      } else {
 		S_printf ("Adlib: Timer 2 disabled\n");
 		adlib_timers[1].enabled = 0;
@@ -1528,14 +1542,19 @@ void sb_do_midi_write (void)
 
 static void dsp_do_copyright(void)
 {
+#ifndef STRICT_SB_EMU
 	char cs[] = "(c) Copyright 1995 Alistair MacDonald";
+#else /* STRICT_SB_EMU */
+	char cs[] = "Copyright (c) Creative Technology";
+#endif
 	char *ptr;
-	int i;
 
 	if (SB_info.version > SB_PRO) {
 		S_printf("SB: DSP Copyright requested.\n");
-		for (i = strlen(cs) + 1, ptr = cs; i >= 0; ptr++, i--)
+		ptr = cs;
+		do {
 			dsp_write_output((__u8) * ptr);
+		} while (*ptr ++);
 	} else {
 		S_printf("SB: DSP copyright not supported by this SB Version.\n");
 	}
@@ -1631,6 +1650,7 @@ void sb_handle_dac (void)
 			sb_write_DAC(8, SB_dsp.parameter);
 			SB_dsp.command = SB_NO_DSP_COMMAND;
 		}
+		break;
 
 	default:
 		S_printf ("Invalid DAC command 0x%x\n", SB_dsp.command);
@@ -1811,11 +1831,9 @@ void pause_dsp_dma(void)
   if (SB_driver.DMA_pause != NULL) {
     (*SB_driver.DMA_pause)();
   }
-#ifdef FUSSY_SBEMU
-  else {
+  else if (d.sound >= 3) {
     S_printf ("SB: Optional function 'DMA_pause' not provided.\n");
   }
-#endif /* FUSSY_SBEMU */
 
   dma_drop_DREQ(config.sb_dma);
 
@@ -1827,11 +1845,9 @@ void restart_dsp_dma(void)
   if (SB_driver.DMA_resume != NULL) {
     (*SB_driver.DMA_resume)();
   }
-#ifdef FUSSY_SBEMU
-  else {
+  else if (d.sound >= 3) {
     S_printf ("SB: Optional function 'DMA_resume' not provided.\n");
   }
-#endif /* FUSSY_SBEMU */
 
   dma_assert_DREQ(config.sb_dma);
 
@@ -1940,6 +1956,7 @@ void start_dsp_dma(void)
 		  if (!set_dma_blocksize())
 		    return;
 		}
+		break;
 
 	case 0x1F:
 		if (SB_info.version < SB_20) {
@@ -1947,6 +1964,7 @@ void start_dsp_dma(void)
 			SB_dsp.command = SB_NO_DSP_COMMAND;
 			return;
 		}
+		SB_dsp.dma_mode |= DMA_AUTO_INIT;
 		break;
 
 	case 0x2C:
@@ -1955,6 +1973,7 @@ void start_dsp_dma(void)
 			SB_dsp.command = SB_NO_DSP_COMMAND;
 			return;
 		}
+		SB_dsp.dma_mode |= DMA_AUTO_INIT;
 		break;
 
 	case 0x7D:
@@ -1963,6 +1982,7 @@ void start_dsp_dma(void)
 			SB_dsp.command = SB_NO_DSP_COMMAND;
 			return;
 		}
+		SB_dsp.dma_mode |= DMA_AUTO_INIT;
 		break;
 
 	case 0x7F:
@@ -1971,6 +1991,7 @@ void start_dsp_dma(void)
 			SB_dsp.command = SB_NO_DSP_COMMAND;
 			return;
 		}
+		SB_dsp.dma_mode |= DMA_AUTO_INIT;
 		break;
 
    /*
@@ -1980,9 +2001,17 @@ void start_dsp_dma(void)
     */
 
         case 0x90:
-        case 0x91:
     		if (SB_info.version < SB_20 /*|| SB_info.version > SB_PRO*/)  {
     			S_printf ("SB: 8-bit Auto-Init High Speed DMA DAC not supported on this SB version.\n");
+    			SB_dsp.command = SB_NO_DSP_COMMAND;
+    			return;
+    		}
+		SB_dsp.dma_mode |= DMA_AUTO_INIT;
+    		break;
+
+        case 0x91:
+    		if (SB_info.version < SB_20 /*|| SB_info.version > SB_PRO*/)  {
+    			S_printf ("SB: 8-bit High Speed DMA DAC not supported on this SB version.\n");
     			SB_dsp.command = SB_NO_DSP_COMMAND;
     			return;
     		}
@@ -1994,6 +2023,7 @@ void start_dsp_dma(void)
 			SB_dsp.command = SB_NO_DSP_COMMAND;
 			return;
 		}
+		SB_dsp.dma_mode |= DMA_AUTO_INIT;
 		break;
 
 
@@ -2012,6 +2042,12 @@ void start_dsp_dma(void)
   if (!SB_info.speaker) {
     S_printf ("SB: Speaker not enabled\n");
     /* Michael thinks we should trigger the interrupt now */
+    /*
+     * MK: that is fine, but we have to eat the DMA-transfer too!
+     *     and we should not generate an IRQ if DMA is not programmed,
+     *     at least on a clone the IRQ is signalled first if the given
+     *     number of bytes is transferred! 
+     */
     sb_activate_irq (SB_IRQ_8BIT);
     return;
   }
@@ -2037,10 +2073,14 @@ void start_dsp_dma(void)
     S_printf ("SB: 8-bit DMA (High Speed) starting\n");
     break;
   default:
-		S_printf("SB: Unsupported DMA type (0x%x)\n", command);
+    S_printf("SB: Unsupported DMA type (0x%x)\n", command);
     return;
-    break;
   };
+
+  /* Set up the housekeeping for the DMA transfer */
+  SB_dsp.bytes_left = SB_dsp.blocksize;
+  SB_dsp.dma_transfer_size = (SB_dsp.blocksize > MAX_DMA_TRANSFERSIZE) 
+    ? MAX_DMA_TRANSFERSIZE : SB_dsp.blocksize;
 
   if (SB_driver.DMA_start_complete == NULL) {
     S_printf ("SB: Required function 'DMA_start_complete' not provided.\n");
@@ -2088,65 +2128,114 @@ int set_dma_blocksize(void)
    return 0;
 }
 
+
+/* 
+ * MK: as the people out there don't know how to manage DMA and IRQ,
+ *     I've writen a short explanation:
+ *
+ * The DMA-chip is programmed to any blocksize, auto init may be on or
+ * off, this is implemented well, I think, but the soundcard *does not*
+ * *care* about these values!
+ *
+ * The SB-card gets it's own parameters for auto-init and blocksize.
+ * The SB card gets as many bytes from DMA as you told the SB card,
+ * regardless of what you told the DMA-chip! After having played the
+ * specified amount of data, an IRQ is generated. This is NOT
+ * when DMA indicates done, as the DMA-chip may have a totally different
+ * blocksize, but when the SB-count has elapsed. After generating the
+ * IRQ we have to wait for a new instruction if not in auto-init or
+ * restart playing a block of same size if in auto-init. I repeat:
+ * The blocksizes you told the SB and DMA are *completely independent* and
+ * no component knows about the other's setting, so we can't use
+ * DMA_HANDLER_DONE for generating IRQ's (hope somebody understands) 
+ *
+ * (Modified to (slightly) improve the English - Alistair)
+ */
+
+
 int sb_dma_handler (int status, Bit16u amount)
 {
   int result;
 
   result = DMA_HANDLER_OK;
 
-#ifdef EXCESSIVE_DEBUG
-  S_printf ("SB: In DMA Handler\n");
-#endif /* EXCESSIVE_DEBUG */
+  if (d.sound >= 2) {
+    S_printf ("SB: In DMA Handler\n");
+  }
 
   switch (status) {
   case DMA_HANDLER_READ:
-#ifdef EXCESSIVE_DEBUG
-    S_printf ("SB: Asserting DACK\n");
-#endif /* EXCESSIVE_DEBUG */
-    dma_assert_DACK(config.sb_dma);
-
-    if (SB_dsp.dma_mode & DMA_AUTO_INIT) {
-      if (amount + SB_dsp.blocksize > SB_dsp.last_block) {
-	SB_dsp.last_block = amount + SB_dsp.blocksize;
-	/* Trigger the interrupt */
-	sb_activate_irq(SB_IRQ_8BIT);
-      } else if (amount == 0) {
-	SB_dsp.last_block = 0;
-	/* Trigger the interrupt */
-	sb_activate_irq(SB_IRQ_8BIT);
-      }
+    if (d.sound >= 2) {
+      S_printf ("SB: Outputted %d bytes\n",amount);
     }
 
+    SB_dsp.bytes_left -= amount;
+    if(SB_dsp.bytes_left)
+    {
+      /* Still some bytes left till IRQ */
+      if(SB_dsp.bytes_left < SB_dsp.dma_transfer_size)
+      {
+	/* Tell the DMA to not cross SB block boundaries... */
+	SB_dsp.dma_transfer_size = SB_dsp.bytes_left;
+	dma_transfer_size(config.sb_dma,SB_dsp.dma_transfer_size);
+      }
+      /* 
+       * I could assert DACK here, but then DMA would be too fast...
+       * I assert DACK when SB-linux indicates buffer-refill needed 
+       */
+      SB_dsp.empty_state = DACK_AT_EMPTY;
+      sb_is_running |= DSP_OUTPUT_RUN;
+    }
+    else
+    {
+      S_printf("SB: Done block, triggering IRQ\n");
+      /* Generate IRQ when DMA complete */
+      SB_dsp.empty_state = IRQ_AT_EMPTY;
+      sb_is_running |= DSP_OUTPUT_RUN;
+      /* We are at the end of an block */
+      if(SB_dsp.dma_mode & DMA_AUTO_INIT)
+      {
+	/* Reset block size */
+	SB_dsp.bytes_left = SB_dsp.blocksize;
+	/* Reset DMA transfer size */
+	if(SB_dsp.blocksize > MAX_DMA_TRANSFERSIZE)
+	  SB_dsp.dma_transfer_size = MAX_DMA_TRANSFERSIZE;
+	else
+	  SB_dsp.dma_transfer_size = SB_dsp.blocksize;
+	dma_transfer_size(config.sb_dma, SB_dsp.dma_transfer_size);
+	S_printf("Auto-reinitialized for next block\n");
+	SB_dsp.empty_state = DACK_AT_EOI | IRQ_AT_EMPTY;
+	/* Same thing for DACK as above */
+      } 
+    }
     return DMA_HANDLER_OK;
-    break;
 
   case DMA_HANDLER_WRITE:
     S_printf ("SB: Handled WRITE response (!) INVALID !!!!\n");
     return DMA_HANDLER_NOT_OK;
-    break;
 
   case DMA_HANDLER_ERROR:
     S_printf ("SB: Error in DMA\n");
     return DMA_HANDLER_NOT_OK;
-    break;
 
   case DMA_HANDLER_DONE:
+#if 1
+    return DMA_HANDLER_OK;
+#else
     if (SB_driver.DMA_complete_test != NULL) {
       result = (*SB_driver.DMA_complete_test)();
       /*      result = linux_sb_dma_complete_test();*/
     }
-#ifdef FUSSY_SBEMU
-    else {
+    else if (d.sound >= 3) {
       S_printf ("SB: Optional function 'DMA_complete_test' not provided.\n");
     }
-#endif /* FUSSY_SBEMU */
 
 S_printf ("SB: Returned from completion test.\n");
 
     if (result == DMA_HANDLER_OK) {
-#ifdef EXCESSIVE_DEBUG
-      S_printf ("SB: Asserting DACK & triggering Interrupt\n");
-#endif /* EXCESSIVE_DEBUG */
+      if (d.sound >= 2) {
+	S_printf ("SB: Asserting DACK & triggering Interrupt\n");
+      }
       dma_assert_DACK(config.sb_dma);
 
       /* Finally, trigger the interrupt */
@@ -2156,6 +2245,7 @@ S_printf ("SB: Returned from completion test.\n");
     } else {
       return DMA_HANDLER_NOT_OK;
     }
+#endif /* ! 1 */
   };
 
   return DMA_HANDLER_NOT_OK;
@@ -2168,15 +2258,34 @@ void sb_irq_trigger (void)
 	if (SB_driver.DMA_complete != NULL) {
 		(*SB_driver.DMA_complete)();
 	}
-#ifdef FUSSY_SBEMU
-	else {
+	else if (d.sound >= 3) {
 		S_printf ("SB: Optional function 'DMA_complete' not provided.\n");
 	}
-#endif /* FUSSY_SBEMU */
 
   do_irq();
 }
 
+static void sb_check_complete (void)
+{
+  int result = DMA_HANDLER_OK;
+
+  if (SB_driver.DMA_complete_test != NULL) {
+    result = (*SB_driver.DMA_complete_test)();
+  }
+  else if (d.sound >= 3) {
+    S_printf ("SB: Optional function 'DMA_complete_test' not provided.\n");
+  }
+
+  if(result == DMA_HANDLER_OK)
+  {
+    sb_is_running &= ~DSP_OUTPUT_RUN;
+    if(SB_dsp.empty_state & DACK_AT_EMPTY)
+      dma_assert_DACK(config.sb_dma);
+    if(SB_dsp.empty_state & IRQ_AT_EMPTY)
+      sb_activate_irq(SB_IRQ_8BIT);
+    SB_dsp.empty_state &= ~(DACK_AT_EMPTY | IRQ_AT_EMPTY);
+  }
+}
 
 /*
  * Sound Initialisation
@@ -2223,11 +2332,15 @@ static void sb_init(void)
     S_printf("SB: Downgraded emulation to SB Pro because SBEmu is incomplete\n");
   }
 
+#ifdef STRICT_SB_EMU
+  SB_info.version = STRICT_SB_EMU;
+#endif
+
   switch (SB_info.version) {
   case SB_NONE:
     S_printf ("SB: No SB emulation available. Disabling SB\n");
     return;
-    break;
+
   case SB_OLD:
     S_printf ("SB: \"Old\" SB emulation available\n");
     break;
@@ -2239,6 +2352,9 @@ static void sb_init(void)
     break;
   case SB_16:
     S_printf ("SB: SB 16 emulation available\n");
+    break;
+  case SB_AWE32:
+    S_printf ("SB: SB AWE32 emulation available\n");
     break;
   default:
     S_printf ("SB: Incorrect value for emulation. Disabling SB.\n");
@@ -2259,7 +2375,10 @@ static void sb_init(void)
   io_device.end_addr     = config.sb_base+ 0x013;
   io_device.irq          = config.sb_irq;
   io_device.fd           = -1;
-  port_register_handler(io_device, 0);
+  if (port_register_handler(io_device, 0) != 0) {
+    S_printf ("SB: Error registering DSP port handler\n");
+    SB_info.version = SB_NONE;
+  }
 #endif
 
   /* Register the Interrupt */
@@ -2296,10 +2415,13 @@ static void fm_init(void)
   io_device.end_addr     = 0x38B;
   io_device.irq          = EMU_NO_IRQ;
   io_device.fd           = -1;
-  port_register_handler(io_device, 0);
+  if (port_register_handler(io_device, 0) != 0) {
+    S_printf("ADLIB: Error registering port handler\n");
+    SB_info.version = SB_NONE;
+  }
 #endif
 
-  FM_driver_init();
+  (void) FM_driver_init();
 }
 
 static void mpu401_init(void)
@@ -2323,15 +2445,18 @@ static void mpu401_init(void)
   io_device.end_addr     = config.mpu401_base + 0x001;
   io_device.irq          = EMU_NO_IRQ;
   io_device.fd           = -1;
-  port_register_handler(io_device, 0);
+  if (port_register_handler(io_device, 0) != 0) {
+    S_printf("MPU-401: Error registering port handler\n");
+    SB_info.version = SB_NONE;
+  }
 #endif
 
   S_printf ("MPU401: MPU-401 Initialisation - Base 0x%03x \n", 
 	    config.mpu401_base);
 
-	mpu401_info.isdata=TRUE;
+  mpu401_info.isdata = TRUE;
 
-  MPU_driver_init();
+  (void) MPU_driver_init();
 }
 
 
@@ -2464,7 +2589,7 @@ static void sb_write_mixer (int ch, __u8 value)
     S_printf ("SB: Required function 'write_mixer' not provided.\n");
   }
   else {
-    return (*SB_driver.write_mixer)(ch, value);
+    (*SB_driver.write_mixer)(ch, value);
   }
 }
 
@@ -2482,6 +2607,8 @@ void sb_controller(void) {
   if (sb_is_running & SB_IRQ_RUN)
     sb_update_irqs ();
 
+  if (sb_is_running & DSP_OUTPUT_RUN)
+    sb_check_complete ();
 }
 
 /* Blatant rip-off of serial_update_timers */
@@ -2489,11 +2616,9 @@ void sb_update_timers () {
   static hitimer_t oldtp = 0;		/* Timer value from last call */
   hitimer_t tp;				/* Current timer value */
   unsigned long elapsed;		/* No of 80useconds elapsed */
-  void (* caller_function)();
   Bit8u current_value;
   Bit16u int08_irq;
-  int i;
-  extern struct adlib_info_t adlib_info;
+  /* extern struct adlib_info_t adlib_info; - For reference - AM */
   extern struct adlib_timer_t adlib_timers[2];
 
   if ( (adlib_timers[0].enabled != 1) 
@@ -2521,7 +2646,6 @@ void sb_update_timers () {
   /* Save the old timer values for next time */
   oldtp = tp;
 
-  caller_function = interrupt_function[i];
   int08_irq = pic_irq_list[0x08];
 
   if (adlib_timers[0].enabled == 1) {
@@ -2532,8 +2656,6 @@ void sb_update_timers () {
       S_printf ("Adlib: timer1 has expired \n");
       adlib_timers[0].expired = 1;
       pic_request(int08_irq);    
-      /* caller_function(i); */
-      /* Raise interrupt ! */
     }
   }
   if (adlib_timers[1].enabled == 1) {
@@ -2544,8 +2666,6 @@ void sb_update_timers () {
       S_printf ("Adlib: timer2 has expired \n");
       adlib_timers[1].expired = 1;
       pic_request(int08_irq);    
-      /* caller_function(i); */
-      /* Raise interrupt ! */
     }
   }
 }
@@ -2600,6 +2720,9 @@ static void sb_update_irqs (void)
     if (SB_info.irq.activating & SB_IRQ_8BIT) {
       pic_request (SB_info.irq.irq8);
     }
+
+    /* On a real SB-board, all three sources use the same IRQ-number. -MK */
+    /* So ? Just means we are more flexible. - AM */
 
     if (SB_info.irq.activating & SB_IRQ_16BIT) {
       /* pic_request (SB_info.irq.irq16); */

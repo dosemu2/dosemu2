@@ -94,13 +94,26 @@ EXTERN struct DSP_information_t {
   __u8  last_write;            /* First part of a multi-byte instruction */
   __u16 length;                /* Length of the DMA transfer */
   __u16 blocksize;             /* **CRISK** Block size of transfer */
-  __u16 last_block;            /* AM - Last block which triggered IRQ */
+  __u16 bytes_left;	       /* No. of bytes left in current blk */
+/* 
+ * This is the maximum number of bytes transferred via DMA if you turn
+ * it too low, the dosemu-overhead gets too big, so the transfer is
+ * interrupted (clicking, buzzing), if you make it too high, some
+ * programs reading the dma-registers are confused, because the registers
+ * jump in too high steps 
+ */
+#define MAX_DMA_TRANSFERSIZE 512
+  __u16 dma_transfer_size;
+  __u8  empty_state;	       /* what we have to do when transfer ends */ 
+#define DACK_AT_EMPTY 1
+#define IRQ_AT_EMPTY 2
+#define DACK_AT_EOI 4
   __u8  dma_mode;              /* Information we need on the DMA transfer */
   __u8  command;               /* DSP command in progress */
   __u8  sb16_playmode;         /* DSP command byte 2 - SB16+ */
 #define SB_NO_DSP_COMMAND 0
   __u8  parameter;             /* value of parameter */
-  __u8  have_parameter;        /* Have we the parameter */
+  __u8  have_parameter;        /* do we have the parameter */
 #define SB_PARAMETER_EMPTY 0
 #define SB_PARAMETER_FULL  1
 } SB_dsp;
@@ -221,9 +234,9 @@ EXTERN struct mpu401_info_t {
 
 EXTERN __u8 sb_is_running; /* Do we need a tick ? */
 
-#define FM_TIMER_RUN   1
-#define DSP_OUTPUT_RUN 2
-#define SB_IRQ_RUN     4
+#define FM_TIMER_RUN   1 /* Indicates FM sub-system in operation */
+#define DSP_OUTPUT_RUN 2 /* Indicates DSP sub-system in operation */
+#define SB_IRQ_RUN     4 /* Indicates IRQ operation */
 
 extern void sb_controller(void);
 
@@ -248,7 +261,7 @@ extern void sb_controller(void);
  */
 
 /* 
- * How big the output buffer should be. This _MUST_ be a multiple of 2.
+ * How big the output buffer should be. This _MUST_ be a power of 2.
  * The queue is big, so that it can accomodate the copyright string.
  */
 

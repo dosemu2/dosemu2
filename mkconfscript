@@ -1,14 +1,15 @@
 #! /bin/bash
 #
-# NOTE: Don not use this, its only a tool for developers
+# NOTE: Don _not_ use this, its only a tool for developers
 #
 # Build the 'base-configure' script, which should not called directly
 # by users. Users should always call 'default-configure' or just
 # simply 'make'
 #
 
+ln -sf base-configure.in configure.in
 autoconf
 autoheader
 sed -e 's|#! /bin/sh|# DO NOT EXECUTE THIS exept via default-configure|' configure >base-configure
 chmod 644 base-configure
-rm -f configure
+rm -f configure configure.in

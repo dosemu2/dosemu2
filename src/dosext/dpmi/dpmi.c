@@ -106,6 +106,7 @@
 #include "int.h"
 #include "serial.h"
 #include "port.h"
+#include "dma.h"
 
 #ifdef NEW_X_CODE
 #include "vgaemu.h"
@@ -2444,6 +2445,7 @@ void dpmi_init()
 	D_printf("------ DPMI: dpmi loop ---------------------\n");
     run_dpmi();
     serial_run();
+    if (config.sb_irq) dma_run();
     run_irqs();
 #ifdef USE_INT_QUEUE
     int_queue_run();

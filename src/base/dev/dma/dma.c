@@ -47,6 +47,8 @@
 
 #include <unistd.h>
 
+/* #define EXCESSIVE_DEBUG 1 */
+
 typedef struct {
   Bit8u lsb;
   Bit8u msb;
@@ -356,6 +358,54 @@ inline int has_underflow (multi_t data)
   return data.bits.underflow;
 }
 
+/*
+ * This ensures that the controller will be called to service this channel.
+ */
+inline void activate_channel (int controller, int channel)
+{
+  int mask, ch;
+
+  ch = get_ch (controller, channel);
+
+#if 0
+  /* 
+   * We only _actually_ activate the channel if DREQ is set. It's irrelevant
+   * otherwise (from an idea by Michael Karcher)
+   */
+     
+  if (dma_test_DREQ(ch) )
+#endif /* 0 */
+ {
+    mask = get_mask (ch);
+
+    is_dma |= mask;
+#ifdef EXCESSIVE_DEBUG
+
+    h_printf ("DMA: Activated channel %d\n", ch);
+#if 0
+  } else {
+    h_printf ("DMA: Activation of channel %d ignored\n", ch);
+#endif /* 0 */  
+#endif /* EXCESSIVE_DEBUG */
+  }
+}
+
+/* 
+ * This ensures that the controller is not called for this channel.
+ */
+inline void deactivate_channel (int controller, int channel)
+{
+  int mask, ch;
+
+  ch = get_ch (controller, channel);
+  mask = get_mask (ch);
+
+  is_dma &= ~mask;  
+
+#ifdef EXCESSIVE_DEBUG
+  h_printf ("DMA: De-activated channel %d\n", ch);
+#endif /* EXCESSIVE_DEBUG */
+}
 
 inline Bit32u create_addr(Bit8u page, multi_t address, int dma_c)
 {
@@ -430,6 +480,11 @@ void dma_recover_values (int controller, int channel)
   dma[controller].i[channel].size = dma[controller].i[channel].set_size;
 }
 
+/* 
+ * Obselete? 
+ * Might make a useful public function if converted to just take a single
+ * parameter - AM 
+ */
 Bit16u length_transferred (int controller, int channel)
 {
   return (get_value (dma[controller].i[channel].length)
@@ -514,6 +569,8 @@ Bit8u dma_io_read(ioport_t port)
 inline void dma_write_addr (int dma_c, int channel, Bit8u value)
 {
   dma[dma_c].address[channel].data[dma[dma_c].ff] = value;
+  dma[dma_c].i[channel].address.data[dma[dma_c].ff] = value; /* autoinit */
+
   h_printf ("DMA: Wrote 0x%x into Channel %d Address (Byte %d)\n", value,
 	    (dma_c *4) + channel, dma[dma_c].ff);
 
@@ -523,6 +580,8 @@ inline void dma_write_addr (int dma_c, int channel, Bit8u value)
 inline void dma_write_count (int dma_c, int channel, Bit8u value)
 {
   dma[dma_c].length[channel].data[dma[dma_c].ff] = value;
+  dma[dma_c].i[channel].length.data[dma[dma_c].ff] = value; /* autoinit */
+
   h_printf ("DMA: Wrote 0x%x into Channel %d Length (Byte %d)\n", value,
 	    (dma_c *4) + channel, dma[dma_c].ff);
 
@@ -534,6 +593,9 @@ inline void dma_write_mask (int dma_c, Bit8u value)
     if (value & DMA_SELECT_BIT)
     {
       dma[dma_c].current_channel = (int) value & 3;
+
+      deactivate_channel (dma_c, dma[dma_c].current_channel); /* - Karcher */
+
       h_printf ("DMA: Channel %u selected.\n", 
 			(dma_c * 4) + dma[dma_c].current_channel);
     }
@@ -543,7 +605,8 @@ inline void dma_write_mask (int dma_c, Bit8u value)
       h_printf ("DMA: Channel %u deselected.\n", 
 			 (dma_c * 4) + dma[dma_c].current_channel);
 
-      is_dma |= (1 << dma[dma_c].current_channel);
+      /*      is_dma |= (1 << dma[dma_c].current_channel); */
+      activate_channel (dma_c, dma[dma_c].current_channel);
 
       dma[dma_c].current_channel = -1;
     }
@@ -711,30 +774,21 @@ void dma_install_handler (int ch, int wfd, int rfd,
 
 
 /*
- * This sets up a DMA channel for the first time.
+ * This sets up a DMA channel when it used for the first time after 
+ * programming ie if there are no files alreadu associated with it.
  */
 
 int dma_initialise_channel (int controller, int channel) 
 {
 	extern dma_t dma[2];
 	int tmp_pipe[2];
-	int ch, mask;
+	int ch/*, mask*/;
 
 	ch = get_ch (controller, channel);
-	mask = get_mask (ch);
+	/*	mask = get_mask (ch); */
 
 	h_printf ("DMA: Initialising transfer for channel %d, controller %d\n",
 		  ch, controller +1);
-
-	/* Backup the values into the private store - in case we need them */
-	dma[controller].i[channel].address.data[0] 
-	  = dma[controller].address[channel].data[0];
-	dma[controller].i[channel].address.data[1] 
-	  = dma[controller].address[channel].data[1];
-	dma[controller].i[channel].length.data[0] 
-	  = dma[controller].length[channel].data[0];
-	dma[controller].i[channel].length.data[1] 
-	  = dma[controller].length[channel].data[1];
 
 	if (pipe(tmp_pipe)) {
 	  /* Failed to create the pipe */
@@ -745,7 +799,9 @@ int dma_initialise_channel (int controller, int channel)
 		 * DANG_FIXTHIS: Pipe Creation failed. Lets hope that it times out ! 
 		 */
 
-		is_dma &= ~mask;
+	  /*is_dma &= ~mask; */
+	        deactivate_channel (controller, channel);
+
 		return -1;
 	}
 
@@ -810,10 +866,10 @@ void dma_process_demand_mode_write (int controller, int channel)
 	Bit32u target_addr;
 	int amount_done = 0;
 	int ch;
-	int mask;
+	/*	int mask;*/
 
 	ch = get_ch (controller, channel);
-	mask = get_mask (ch);
+	/*	mask = get_mask (ch);*/
 
       target_addr = create_addr (dma[controller].page[channel],
 				  dma[controller].address[channel],
@@ -838,8 +894,9 @@ void dma_process_demand_mode_write (int controller, int channel)
 	  } else {
 	    dma[controller].status |= (1 << channel);
 
-	    is_dma &= ~ (1 << (ch -1));
-	    
+	    /*is_dma &= ~ (1 << (ch -1));*/
+	    deactivate_channel (controller, channel);
+
 	    if (dma[controller].i[channel].handler != NULL) {
 	      /* The handler is expected to close any descriptors */
 	      dma[controller].i[channel].handler (DMA_HANDLER_DONE, 0);
@@ -860,7 +917,8 @@ void dma_process_demand_mode_write (int controller, int channel)
 	    dma[controller].i[channel].wfd = -1;
 	    */ 
 		
-		is_dma &= ~mask;
+	    deactivate_channel (controller, channel);
+		/*		is_dma &= ~mask;*/
 	    return;
 	  }
 
@@ -886,7 +944,7 @@ void dma_process_demand_mode_write (int controller, int channel)
 
 		if (dma[controller].i[channel].handler != NULL) {
 	      dma[controller].i[channel].handler (DMA_HANDLER_WRITE,
-				 length_transferred (controller, channel));
+						  amount_done);
 	  }
 	}
 }
@@ -896,10 +954,10 @@ void dma_process_single_mode_write (int controller, int channel)
 	Bit32u target_addr;
 	int amount_done = 0;
 	int ch;
-	int mask;
+	/*	int mask;*/
 
 	ch = get_ch (controller, channel);
-	mask = get_mask (ch);
+	/*	mask = get_mask (ch);*/
 
 	target_addr = create_addr(dma[controller].page[channel],
 				  dma[controller].address[channel],
@@ -910,7 +968,8 @@ void dma_process_single_mode_write (int controller, int channel)
 	    /* Transfer is complete */
 	    dma[controller].status |= (1 << channel);
 
-		is_dma &= ~mask;
+	        deactivate_channel (controller, channel);
+		/*		is_dma &= ~mask;*/
 				
 		if (dma[controller].i[channel].handler != NULL) {
 			/* The handler is expected to close any descriptors */
@@ -952,7 +1011,7 @@ void dma_process_single_mode_write (int controller, int channel)
 
 		if (dma[controller].i[channel].handler != NULL) {
 	      dma[controller].i[channel].handler (DMA_HANDLER_WRITE,
-				 length_transferred (controller, channel));
+						  amount_done);
 	  }
 	}
 }	
@@ -963,10 +1022,10 @@ void dma_process_block_mode_write (int controller, int channel)
 	Bit32u target_addr;
 	int amount_done = 0;
 	int ch;
-	int mask;
+	/*	int mask;*/
 
 	ch = get_ch (controller, channel);
-	mask = get_mask (ch);
+	/*	mask = get_mask (ch);*/
 
 	target_addr = create_addr(dma[controller].page[channel],
 				  dma[controller].address[channel],
@@ -991,7 +1050,8 @@ void dma_process_block_mode_write (int controller, int channel)
 	  } else {
 	    dma[controller].status |= (1 << channel);
 
-	    is_dma &= ~mask;
+	    deactivate_channel (controller, channel);
+		/*	    is_dma &= ~mask;*/
 		
 	    if (dma[controller].i[channel].handler != NULL) {
 	      /* The handler is expected to close any descriptors */
@@ -1013,7 +1073,8 @@ void dma_process_block_mode_write (int controller, int channel)
 /*	    close (dma[controller].i[channel].wfd);
 	    dma[controller].i[channel].wfd = -1;
 	    */ 
-		is_dma &= ~mask;
+	        deactivate_channel (controller, channel);
+		/*		is_dma &= ~mask;*/
 	    return;
 	  }
 
@@ -1041,7 +1102,7 @@ void dma_process_block_mode_write (int controller, int channel)
 	    
 		if (dma[controller].i[channel].handler != NULL) {
 	      dma[controller].i[channel].handler (DMA_HANDLER_WRITE,
-				 length_transferred (controller, channel));
+						  amount_done);
 	  }
 	}
 }
@@ -1053,10 +1114,10 @@ void dma_process_block_mode_write (int controller, int channel)
 void dma_process_cascade_mode_write (int controller, int channel)
 {
 	int ch;
-	int mask;
+	/*	int mask;*/
 
 	ch = get_ch (controller, channel);
-	mask = get_mask (ch);
+	/*	mask = get_mask (ch);*/
 
 	  h_printf ("DMA: Attempt to use unsupported CASCADE mode\n");
 
@@ -1064,7 +1125,8 @@ void dma_process_cascade_mode_write (int controller, int channel)
 	  dma[controller].i[channel].wfd = -1;
 	  */ 
 
-	is_dma &= ~mask;
+	  deactivate_channel (controller, channel);
+	  /*	is_dma &= ~mask;*/
 
 	if (dma[controller].i[channel].handler != NULL) {
 		dma[controller].i[channel].handler(DMA_HANDLER_DONE, 0);
@@ -1077,10 +1139,10 @@ void dma_process_demand_mode_read (int controller, int channel)
 	Bit32u target_addr;
 	int amount_done = 0;
 	int ch;
-	int mask;
+	/*	int mask;*/
 
 	ch = get_ch (controller, channel);
-	mask = get_mask (ch);
+	/*	mask = get_mask (ch);*/
 
 	target_addr = create_addr(dma[controller].page[channel],
 				  dma[controller].address[channel],
@@ -1105,7 +1167,8 @@ void dma_process_demand_mode_read (int controller, int channel)
 	  } else {
 	    dma[controller].status |= (1 << channel);
 
-	    is_dma &= ~mask;
+	    deactivate_channel (controller, channel);
+	    /*is_dma &= ~mask;*/
 	    
 	    if (dma[controller].i[channel].handler != NULL) {
 	      /* The handler is expected to close any descriptors */
@@ -1126,7 +1189,8 @@ void dma_process_demand_mode_read (int controller, int channel)
 /*	    close (dma[controller].i[channel].rfd);
 	    dma[controller].i[channel].rfd = -1;
 	    */ 
-		is_dma &= ~mask;
+	    deactivate_channel (controller, channel);
+	    /*is_dma &= ~mask;*/
 	    return;
 	  }
 
@@ -1154,7 +1218,7 @@ void dma_process_demand_mode_read (int controller, int channel)
 
 		if (dma[controller].i[channel].handler != NULL) {
 	      dma[controller].i[channel].handler (DMA_HANDLER_READ,
-				 length_transferred (controller, channel));
+						  amount_done);
 		}
 	}
 }
@@ -1165,10 +1229,10 @@ void dma_process_single_mode_read (int controller, int channel)
 	Bit32u target_addr;
 	size_t amount_done = 0;
 	int ch;
-	int mask;
+	/*	int mask;*/
 
 	ch = get_ch (controller, channel);
-	mask = get_mask (ch);
+	/*	mask = get_mask (ch);*/
 
 	target_addr = create_addr(dma[controller].page[channel],
 				  dma[controller].address[channel],
@@ -1205,7 +1269,8 @@ void dma_process_single_mode_read (int controller, int channel)
 
 	    dma[controller].status |= (1 << channel);
 
-	    is_dma &= ~mask;
+	    deactivate_channel (controller, channel);
+	    /*is_dma &= ~mask;*/
 				
 	    dma[controller].i[channel].rfd = -1;
 	  }		
@@ -1249,7 +1314,7 @@ void dma_process_single_mode_read (int controller, int channel)
 
 		if (dma[controller].i[channel].handler != NULL) {
 	      dma[controller].i[channel].handler (DMA_HANDLER_READ,
-				 length_transferred (controller, channel));
+						  amount_done);
 	  }
 	}
 	h_printf("DMA: [crisk] DMA single read end trace\n");
@@ -1262,10 +1327,10 @@ void dma_process_block_mode_read (int controller, int channel)
 	Bit32u target_addr;
 	int amount_done = 0;
 	int ch;
-	int mask;
+	/*	int mask;*/
 
 	ch = get_ch (controller, channel);
-	mask = get_mask (ch);
+	/*	mask = get_mask (ch);*/
 
 	target_addr = create_addr(dma[controller].page[channel],
 				  dma[controller].address[channel],
@@ -1290,7 +1355,8 @@ void dma_process_block_mode_read (int controller, int channel)
 	  } else {
 	    dma[controller].status |= (1 << channel);
 
-	    is_dma &= ~mask;
+	    deactivate_channel (controller, channel);
+	    /*is_dma &= ~mask;*/
 
 	    if (dma[controller].i[channel].handler != NULL) {
 	      /* The handler is expected to close any descriptors */
@@ -1312,7 +1378,8 @@ void dma_process_block_mode_read (int controller, int channel)
 	    dma[controller].i[channel].rfd = -1;
 	    */ 
 
-		is_dma &= ~mask;
+	    deactivate_channel (controller, channel);
+	    /*is_dma &= ~mask;*/
 	    return;
 	  }
 
@@ -1341,7 +1408,7 @@ void dma_process_block_mode_read (int controller, int channel)
 	    
 		if (dma[controller].i[channel].handler != NULL) {
 	      dma[controller].i[channel].handler (DMA_HANDLER_READ,
-				 length_transferred (controller, channel));
+						  amount_done);
 	  }
 	}
 }
@@ -1353,14 +1420,16 @@ void dma_process_block_mode_read (int controller, int channel)
 void dma_process_cascade_mode_read (int controller, int channel)
 {
 	int ch;
-	int mask;
+	/*	int mask;*/
 
 	ch = get_ch (controller, channel);
-	mask = get_mask (ch);
+	/*	mask = get_mask (ch);*/
 
 	  h_printf ("DMA: Attempt to use unsupported CASCADE mode\n");
 
-	is_dma &= ~mask;
+	  /*is_dma &= ~mask;*/
+	deactivate_channel (controller, channel);
+
 
 	if (dma[controller].i[channel].handler != NULL) {
 	    dma[controller].i[channel].handler (DMA_HANDLER_DONE, 0);
@@ -1377,10 +1446,10 @@ void dma_process_cascade_mode_read (int controller, int channel)
 void dma_process_verify_mode  (int controller, int channel)
 {
 	int ch;
-	int mask;
+	/*	int mask;*/
 
 	ch = get_ch (controller, channel);
-	mask = get_mask (ch);
+	/*	mask = get_mask (ch);*/
 
  	h_printf ("DMA: Attempt to use unsupported VERIFY direction by controller %d, channel %d\n",
 		  controller +1, channel);
@@ -1395,7 +1464,8 @@ void dma_process_verify_mode  (int controller, int channel)
 	dma[controller].i[channel].rfd = -1;
 	dma[controller].i[channel].wfd = -1;
 
-	is_dma &= ~mask;
+	deactivate_channel (controller, channel);
+	/*is_dma &= ~mask;*/
 }
 
 
@@ -1405,10 +1475,10 @@ void dma_process_verify_mode  (int controller, int channel)
 void dma_process_invalid_mode  (int controller, int channel)
 {
 	int ch;
-	int mask;
+	/*	int mask;*/
 
 	ch = get_ch (controller, channel);
-	mask = get_mask (ch);
+	/*	mask = get_mask (ch);*/
 
  	h_printf ("DMA: Attempt to use INVALID direction by controller %d, channel %d\n",
 		  controller +1, channel);
@@ -1423,7 +1493,8 @@ void dma_process_invalid_mode  (int controller, int channel)
 	dma[controller].i[channel].rfd = -1;
 	dma[controller].i[channel].wfd = -1;
 
-	is_dma &= ~mask;
+	deactivate_channel (controller, channel);
+	/*is_dma &= ~mask;*/
 }
 
 

@@ -1,3 +1,18 @@
+98/03/20 ver. 0.97.4.4 unofficial pre-release
+	From Alistair
+	- This patch contains (unfortunately) too many changes for me to
+	  remember them all. The main parts are Michaels patches to limit
+	  the size of transfers (and other fixes) and Kenneths patches to
+	  clean up the code, fix some small bugs and make the debug code more
+	  flexible. I have (as usual) hacked about and probably broken large
+	  chunks of it.
+	From Hans
+	- some small fixes to global.conf (checked for version)
+	- Again a _desperate_ try to avoid people using configure directly.
+	  ( a user 'just saw configure.in and executed autoconf' )
+	  Why the hell do we have a Quickstart ???!!!
+	  Moved configure.in to base-configure.in and changed mkconfscript
+	  accordingly. ... hope this helps :-(
 98/03/20 ver. 0.97.4.3 unofficial pre-release
 	From Hans
 	- introduced .dosemurc (this replaces .dosrc). If this is found,

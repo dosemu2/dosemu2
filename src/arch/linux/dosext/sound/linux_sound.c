@@ -13,7 +13,7 @@
  * maintainer:
  * Alistair MacDonald <alistair@slitesys.demon.co.uk>
  * David Brauman <crisk@netvision.net.il>
- * Michael Karcher <karcher@dpk.berlin.fido.de>
+ * Michael Karcher <Michael.Karcher@writeme.com>
  *
  * DANG_END_MODULE
  */
@@ -40,15 +40,22 @@
 #include "sound.h"
 #include "linux_sound.h"
 
-#ifndef SOUND_FRAG
+/*#ifndef SOUND_FRAG
 #error SOUND_FRAG not defined!
-#endif
+#endif*/
 
 /* SB static vars */
 static int mixer_fd = -1;
 static int dsp_fd   = -1;
+
+/* Old variables - Obselete - AM */
 static long int block_size = 0;
 static long int sound_frag = 0xc;
+
+/* New fragment control - AM */
+static int sound_frag_size = 0x9; /* ie MAX_DMA_TRANSFERSIZE (== 512) */
+static int num_sound_frag  = MAX_NUM_FRAGMENTS;
+
 /* MPU static vars */
 static int mpu_fd = -1;	             /* -1 = closed */
 static boolean mpu_disabled = FALSE; /* TRUE if MIDI output disabled */
@@ -59,12 +66,41 @@ void linux_sb_dma_set_blocksize(__u16 val)
 {
   __u16 i, tmp;
 
-  for (i = 0, tmp = val; tmp > 1; i++, tmp = tmp >> 1)
+  /* 
+   * The blocksize we are passed is the actual number of bytes to include in a
+   * DMA transfer. The OSS/Free driver uses a number of fragments within the 
+   * buffer to try to control the output, and the DOSEmu sound driver places an
+   * upper limit on the size of the transfers (to avoid confusing applications
+   * which monitor the DMA transfer)
+   * Ideally, the size of a fragment should match that of the transfer. This
+   * will not be possible in all cases as the fragment size must be a power of
+   * 2.
+   */
+
+  if(val > MAX_DMA_TRANSFERSIZE) {
+    tmp = MAX_DMA_TRANSFERSIZE;
+  } else {
+    tmp = val;
+  }
+
+  for (i = 0; tmp > 1; i++, tmp = tmp >> 1)
     ;
 
-  sound_frag = i;
+  sound_frag_size = i;
 
-  S_printf ("SB:[Linux] DMA blocksize set to %u (%lu)\n", val, sound_frag);
+  tmp = val / (1 << sound_frag_size);
+  if (val - ( tmp  * (1 << sound_frag_size)) > 0 ) {
+    num_sound_frag = tmp + 1;
+  } else {
+    num_sound_frag = tmp;
+  }
+
+  if (num_sound_frag > MAX_NUM_FRAGMENTS) {
+    num_sound_frag = MAX_NUM_FRAGMENTS;
+  }
+
+  S_printf ("SB:[Linux] DMA blocksize set to %u (%u,%u)\n", val, 
+	    sound_frag_size, num_sound_frag);
 }
 
 void linux_sb_write_mixer(int ch, __u8 val)
@@ -175,7 +211,7 @@ void linux_sb_enable_speaker (void)
 static void linux_sb_DAC_write (int bits, __u8 value)
 {
   static int last_bits = 0;
-  static int sound_frag = 0x020007;
+  static int sound_frag = 0x0200007;
   static __u8 buffer[128];
   static __u8 buffer_count = 0;
   
@@ -301,16 +337,18 @@ int linux_sb_get_version(void)
 
 void linux_sb_dma_start_init(__u32 command)
 {
-#ifndef SOUND_FRAG
+  /*fndef SOUND_FRAG
 #error SOUND_FRAG not defined!
-#endif
+#endif*/
 /*  long int sound_frag = SOUND_FRAG; */
   long int samplesize = AFMT_U8;
 
-  extern long int sound_frag;
+  /*  extern long int sound_frag;
   extern long int block_size;
+  */
 
-  long int fragments = 0x0020000 | sound_frag;
+  /*  long int fragments = 0x0020000 | sound_frag; */
+  long int fragments = (num_sound_frag << 16) | sound_frag_size;
 
   switch(command)
   {
@@ -333,6 +371,8 @@ void linux_sb_dma_start_init(__u32 command)
   ioctl(dsp_fd, SNDCTL_DSP_SAMPLESIZE, &samplesize);
 
   ioctl(dsp_fd, SNDCTL_DSP_GETBLKSIZE, &block_size);
+  S_printf ("SB:[Linux] 8-bit DMA Blocksize set to: %lu\n", block_size);
+
 }
 
 
@@ -366,7 +406,7 @@ void linux_sb_dma_start_complete (void) {
     *
     */
    
-   fragsize = (1 << sound_frag);
+   fragsize = (1 << sound_frag_size);
    if (!fragsize) 
      {
 	fragsize = block_size;
@@ -386,7 +426,7 @@ int linux_sb_dma_complete_test(void)
     S_printf ("SB:[Linux] DMA completion test (%d, %d)\n", 
 	      data.fragstotal, data.fragments);
 
-    if (data.fragstotal == data.fragments) {
+    if (data.fragstotal <= data.fragments + LOW_FRAGMENT_WATERMARK) {
       return DMA_HANDLER_OK;
     }
 
@@ -439,11 +479,14 @@ void start_dsp_dma(void)
 
 void linux_sb_set_speed (__u16 speed, __u8 stereo_mode)
 {
-  int rate, channels;
+  int rate;
+  int channels = 1;
+
   rate = speed;
 
   /* stereo_mode is actually 2 is stereo is requested - Karcher */
-  channels = (stereo_mode != 0) +1; /* not happy with this constuct - AM */
+  if(stereo_mode)
+    channels = 2;
 
   if (dsp_fd != -1)
   {
