@@ -29,7 +29,6 @@
 
 #include "dpmi.h"
 
-static int fault_cnt = 0;
 
 /* Function prototypes */
 void print_exception_info(struct sigcontext_struct *scp);

@@ -62,6 +62,7 @@ EXTERN struct vm86plus_struct vm86s INIT ( {
 } );
 
 EXTERN volatile sig_atomic_t signal_pending INIT(0);
+EXTERN int fault_cnt INIT(0);
 EXTERN fd_set fds_sigio, fds_no_sigio;
 EXTERN unsigned int not_use_sigio INIT(0);
 EXTERN int terminal_pipe;
