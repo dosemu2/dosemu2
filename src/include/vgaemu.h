@@ -318,6 +318,7 @@ typedef struct {
   unsigned addr_mode;
   unsigned cursor_location;
   unsigned line_compare;
+  unsigned char readonly;
   unsigned char index;
   unsigned char data[CRTC_MAX_INDEX + 1];
   unsigned char dirty[CRTC_MAX_INDEX + 1];

@@ -109,6 +109,7 @@ void CRTC_init()
   for(i = 0; i <= CRTC_MAX_INDEX; i++) vga.crtc.data[i] = crtc_ival[j][i];
 
   vga.crtc.index = 0;
+  vga.crtc.readonly = 1;
 
   vgaemu_adj_cfg(CFG_CRTC_ADDR_MODE, 1);
 
@@ -147,6 +148,14 @@ void CRTC_write_value(unsigned char data)
   }
 
   crtc_deb2("CRTC_write_value: crtc[0x%02x] = 0x%02x\n", ind, u);
+
+  if(vga.crtc.readonly) {
+    /* read only regs 00h-07h with the exception of bit4 in 07h */
+    if (ind <= 6)
+      return;
+    if (ind == 7)
+      data = (vga.crtc.data[ind] & 0xef) | (data & 0x10);
+  }
 
   if(vga.crtc.data[ind] == data) return;
 
@@ -222,8 +231,17 @@ void CRTC_write_value(unsigned char data)
       crtc_deb("CRTC_write_value: Cursor Location = 0x%04x\n", vga.crtc.cursor_location);
       break;
 
-    case 0x10:
     case 0x11:
+      if(NEWBITS(0x80)) {
+        vga.crtc.readonly = (data >= 0x80);
+      }
+      if(NEWBITS(0x7F)) {
+        todo[todo_ind++] = CFG_CRTC_HEIGHT;
+      }
+      crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (guessed)\n", ind, u);
+      break;
+
+    case 0x10:
     case 0x12:
       if(NEWBITS(0xFF)) {
         todo[todo_ind++] = CFG_CRTC_HEIGHT;

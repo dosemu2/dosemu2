@@ -2548,7 +2548,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       vertical_retrace_start = 
 	      vga.crtc.data[0x10] +
 	      ((vga.crtc.data[0x7] & 0x4) << (8 - 2)) +
-	      ((vga.crtc.data[0x7] & 0xF0) << (9 - 7));
+	      ((vga.crtc.data[0x7] & 0x80) << (9 - 7));
       vertical_retrace_end = vga.crtc.data[0x11]  & 0x0F;
       vertical_display_end = 
 	      vga.crtc.data[0x12] +
@@ -2644,6 +2644,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
         dirty_all_video_pages();
       }
       if (vga.line_compare == 0) vga.line_compare = vga.height;
+      break;
     }
     default:
       vga_msg("vgaemu_adj_cfg: unknown item %u\n", what);
