@@ -468,7 +468,7 @@ void DOSEMUMouseEvents(void)
 	  switch (GPM_BARE_EVENTS(ev.type)) {
 	  case GPM_MOVE:
 	  case GPM_DRAG:
-	    mouse_move_absolute(ev.x, ev.y, co, li);
+	    mouse_move_absolute(ev.x - 1, ev.y - 1, co, li);
 	    break;
 	  case GPM_UP:
 	    if (ev.buttons & GPM_B_LEFT) buttons &= ~GPM_B_LEFT;
