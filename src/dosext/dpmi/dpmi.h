@@ -131,6 +131,8 @@ struct DPMIclient_struct {
   struct sigcontext_struct stack_frame;
   int is_32;
   dpmi_pm_block *pm_block_root;
+  /* for real mode call back, DPMI function 0x303 0x304 */
+  RealModeCallBack realModeCallBack[0x10];
 };
 extern struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 

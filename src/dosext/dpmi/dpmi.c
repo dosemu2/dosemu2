@@ -107,9 +107,6 @@ INTDESC Interrupt_Table[0x100];
 static INTDESC Exception_Table[0x20];
 SEGDESC Segments[MAX_SELECTORS];
 
-/* for real mode call back, DPMI function 0x303 0x304 */
-static RealModeCallBack realModeCallBack[DPMI_MAX_CLIENTS][0x10];
-
 #define CLI_BLACKLIST_LEN 128
 static unsigned char * cli_blacklist[CLI_BLACKLIST_LEN];
 static unsigned char * current_cli;
@@ -1638,36 +1635,36 @@ err:
     {
        int i;
        for (i=0; i< 0x10; i++)
-	 if ((realModeCallBack[current_client][i].selector == 0)&&
-	     (realModeCallBack[current_client][i].offset == 0))
+	 if ((DPMI_CLIENT.realModeCallBack[i].selector == 0)&&
+	     (DPMI_CLIENT.realModeCallBack[i].offset == 0))
 	    break;
        if ( i>= 0x10) {
 	 D_printf("DPMI: Allocate real mode call back address failed.\n");
 	 _eflags |= CF;
 	 break;
        }
-       if (!(realModeCallBack[current_client][i].rm_ss_selector
+       if (!(DPMI_CLIENT.realModeCallBack[i].rm_ss_selector
 	     = AllocateDescriptors(1))) {
 	 D_printf("DPMI: Allocate real mode call back address failed.\n");
 	 _eflags |= CF;
 	 break;
        }
 	   
-       realModeCallBack[current_client][i].selector = _ds;
-       realModeCallBack[current_client][i].offset =
+       DPMI_CLIENT.realModeCallBack[i].selector = _ds;
+       DPMI_CLIENT.realModeCallBack[i].offset =
                                  (DPMI_CLIENT.is_32 ? _esi:_LWORD(esi)); 
-       realModeCallBack[current_client][i].rmreg_selector = _es;
-       realModeCallBack[current_client][i].rmreg_offset =
+       DPMI_CLIENT.realModeCallBack[i].rmreg_selector = _es;
+       DPMI_CLIENT.realModeCallBack[i].rmreg_offset =
 	                         (DPMI_CLIENT.is_32 ? _edi : _LWORD(edi));
-       realModeCallBack[current_client][i].rmreg =
+       DPMI_CLIENT.realModeCallBack[i].rmreg =
 	                  (struct RealModeCallStructure *)
 	                         (GetSegmentBaseAddress(_es) +
 	                         (DPMI_CLIENT.is_32 ? _edi : _LWORD(edi)));
        _LWORD(ecx) = DPMI_SEG;
        _LWORD(edx) = DPMI_OFF + HLT_OFF(DPMI_realmode_callback)+i;
        D_printf("DPMI: Allocate realmode callback for 0x%0x4:0x%08lx use #%i callback address\n",
-		realModeCallBack[current_client][i].selector,
-		realModeCallBack[current_client][i].offset,i);
+		DPMI_CLIENT.realModeCallBack[i].selector,
+		DPMI_CLIENT.realModeCallBack[i].offset,i);
     }
     break;
   case 0x0304: /* free realmode call back address */
@@ -1676,9 +1673,9 @@ err:
        rcbase = DPMI_OFF + HLT_OFF(DPMI_realmode_callback);
        offset = _LWORD(edx) - rcbase;
        if ((_LWORD(ecx) == DPMI_SEG) && (offset < 0x10)) {
-	 realModeCallBack[current_client][offset].selector = 0;
-	 realModeCallBack[current_client][offset].offset = 0;
-	 FreeDescriptor(realModeCallBack[current_client][offset].rm_ss_selector);
+	 DPMI_CLIENT.realModeCallBack[offset].selector = 0;
+	 DPMI_CLIENT.realModeCallBack[offset].offset = 0;
+	 FreeDescriptor(DPMI_CLIENT.realModeCallBack[offset].rm_ss_selector);
        } else
 	 _eflags |= CF;
     }
@@ -2633,7 +2630,7 @@ static void dpmi_init(void)
     pic_resched();
   }
   DPMI_CLIENT.pm_block_root = 0;
-  memset((void *)(&realModeCallBack[current_client][0]), 0,
+  memset((void *)(&DPMI_CLIENT.realModeCallBack[0]), 0,
 	 sizeof(RealModeCallBack)*0x10);
   DPMI_CLIENT.stack_frame.eip	= my_ip;
   DPMI_CLIENT.stack_frame.cs	= CS;
@@ -3664,7 +3661,7 @@ done:
     struct RealModeCallStructure *rmreg;
 
     num = (int)(lina) - DPMI_ADD-HLT_OFF(DPMI_realmode_callback);
-    rmreg = realModeCallBack[current_client][num].rmreg;
+    rmreg = DPMI_CLIENT.realModeCallBack[num].rmreg;
 
     D_printf("DPMI: Real Mode Callback for #%i address\n", num);
 
@@ -3740,22 +3737,22 @@ done:
 	PMSTACK_ESP -= 6;
     }
     DPMI_CLIENT.stack_frame.cs =
-	realModeCallBack[current_client][num].selector;
+	DPMI_CLIENT.realModeCallBack[num].selector;
     DPMI_CLIENT.stack_frame.eip =
-	realModeCallBack[current_client][num].offset;
+	DPMI_CLIENT.realModeCallBack[num].offset;
     DPMI_CLIENT.stack_frame.ss = CLIENT_PMSTACK_SEL;
     DPMI_CLIENT.stack_frame.esp = PMSTACK_ESP;
     in_dpmi_pm_stack++;
-    SetSelector(realModeCallBack[current_client][num].rm_ss_selector,
+    SetSelector(DPMI_CLIENT.realModeCallBack[num].rm_ss_selector,
 		(REG(ss)<<4), 0xffff, DPMI_CLIENT.is_32,
 		MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0);
     DPMI_CLIENT.stack_frame.ds =
-	realModeCallBack[current_client][num].rm_ss_selector;
+	DPMI_CLIENT.realModeCallBack[num].rm_ss_selector;
     DPMI_CLIENT.stack_frame.esi = REG(esp);
     DPMI_CLIENT.stack_frame.es =
-	realModeCallBack[current_client][num].rmreg_selector;
+	DPMI_CLIENT.realModeCallBack[num].rmreg_selector;
     DPMI_CLIENT.stack_frame.edi=
-	realModeCallBack[current_client][num].rmreg_offset;
+	DPMI_CLIENT.realModeCallBack[num].rmreg_offset;
 
     dpmi_cli();
     in_dpmi_dos_int = 0;
