@@ -1,10 +1,25 @@
 QuickStart: Instructions on how to quickly get DOSEMU up and running.
+==========
+
+Well, you are impatient? Ok, maybe you succeed with this SHORT description.
+However, if you are reasonable just execute ViewDocs to read the docs.
+                                            ========
 
 WARNING for old dosemu users:
             ^^^^^^^^^^^^^^^^
         The format of dosemu.conf and dosemu.users has changed !!!
-        Please take over the new config files and read
-        ./doc/README.txt chapter 2
+        Please take over the new config files as follows
+
+        # mv /etc/dosemu.config /etc/dosemu.conf.v2
+        # cd /where/I/have/dosemu
+        # cp ./etc/dosemu.config /etc
+
+        and edit /etc/dosemu.config using DOCDIR/README.txt chapter 2
+
+        If you want to keep your old dosemu binary running, additionally do
+
+        # mv /etc/dosemu.conf /etc/dosemu.conf.v3
+        # cp etc/dosemu.conf.wrapper /etc/dosemu.conf
 
 
 --------------------------------------------------------------------------
@@ -15,7 +30,7 @@ To install the binary package of DOSEMU do the following (in this order)
 - become root
 - do the following
     # cd /
-    # tar -xzf dosemu-0.66.5-bin.tgz
+    # tar -xzf dosemu-0.97.10-bin.tgz
     # cd /var/lib/dosemu
     # sh ./doinstall.sh
 
@@ -89,7 +104,7 @@ If you don't know how to copy files from/to the hdimage:
     # mcopy g:autoexec.bat -
     Copying autoexec.bat
     @echo off
-    echo "Welcome to dosemu 0.66!"
+    echo "Welcome to dosemu 0.97!"
 
   ... all clear ? ;-)
 

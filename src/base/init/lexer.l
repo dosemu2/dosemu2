@@ -516,6 +516,7 @@ ega			RETURN(EGA);
 cga			RETURN(CGA);
 mga			RETURN(MGA);
 mda			RETURN(MGA);
+none			RETURN(NONE);
 console			RETURN(CONSOLE);
 graphics		RETURN(GRAPHICS);
 chipset			RETURN(CHIPSET);

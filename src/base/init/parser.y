@@ -280,7 +280,7 @@ extern void yyrestart(FILE *input_file);
 %token X_FIXED_ASPECT X_ASPECT_43 X_LIN_FILT X_BILIN_FILT X_MODE13FACT X_WINSIZE
 %token X_GAMMA VGAEMU_MEMSIZE VESAMODE X_LFB X_PM_INTERFACE X_MGRAB_KEY
 	/* video */
-%token VGA MGA CGA EGA CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
+%token VGA MGA CGA EGA NONE CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
 %token MEMSIZE VBIOS_SIZE_TOK VBIOS_SEG VBIOS_FILE VBIOS_COPY VBIOS_MMAP DUALMON
 %token FORCE_VT_SWITCH PCI
 	/* terminal */
@@ -1007,6 +1007,7 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		| MGA			{ config.cardtype = CARD_MDA; }
 		| CGA			{ config.cardtype = CARD_CGA; }
 		| EGA			{ config.cardtype = CARD_EGA; }
+		| NONE			{ config.cardtype = CARD_NONE; }
 		| CHIPSET CHIPSET_TYPE
 		    {
 		    config.chipset = $2;

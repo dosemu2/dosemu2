@@ -123,8 +123,9 @@ THISDIR=`pwd -P`
 
          # ISBINRELEASE will be changed to 1 (via sed) for bin releases
 if [ "ISBINRELEASE" = "1" ]; then
-  DDIR=/var/lib/dosemu
-  BINDIR=/usr/bin
+  ROOTDIR="" # just for test purposes
+  DDIR=${ROOTDIR}/var/lib/dosemu
+  BINDIR=${ROOTDIR}/usr/bin
   MYDIR="${DDIR}/dexe"
   MKFAT="${BINDIR}/mkfatimage16"
   DEXECONF="${BINDIR}/dexeconfig"

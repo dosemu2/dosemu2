@@ -36,6 +36,21 @@ dosemu_sigaction(int sig, struct sigaction *, struct sigaction *);
 
 struct video_system *Video = NULL;
 
+/* I put Video_none here because I don't want to make a special file for such 
+ * a simple task -- Goga
+ */
+static int i_empty_void () {return 0;}
+static void v_empty_void () {}
+static int i_empty_3int (int type, int xsize, int ysize) {return 0;}
+
+struct video_system Video_none = {
+  0,		/* is_mapped */
+  i_empty_void,	/* init */
+  v_empty_void,	/* close */
+  i_empty_3int,	/* setmode */
+  i_empty_void,	/* update_screen */
+  v_empty_void	/* update_cursor */
+};
 
 /* 
  * DANG_BEGIN_FUNCTION video_init
@@ -75,6 +90,10 @@ int video_init()
   else if (config.usesX) {
      v_printf("VID: Video set to Video_hgc\n");
      Video=&Video_hgc;
+  }
+  else if (config.cardtype == CARD_NONE) {
+     v_printf("VID: Video set to Video_none");
+     Video=&Video_none;
   }
   else {
      v_printf("VID: Video set to Video_term\n");

@@ -6,7 +6,7 @@ CFLAGS= -O2 -Wall
 CFLAGS+=-DYYPURE
 
 parser:	parser.c lex.yy.c Makefile
-	$(CC) $(CFLAGS) $(DEFINES) -o $@ lex.yy.c $< 
+	$(CC) $(STATIC) $(CFLAGS) $(DEFINES) -o $@ lex.yy.c $< 
 
 parser.c: parser.y
 	$(BISON) -do $@  $<

@@ -207,6 +207,7 @@ EXTERN int v_8514_base INIT(0);
 #define CARD_EGA	2
 #define CARD_CGA	3
 #define CARD_MDA	4
+#define CARD_NONE	5
 
 /* Defines for Monochrome Display Adapter */
 

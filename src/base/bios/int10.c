@@ -83,6 +83,9 @@
 inline void set_cursor_shape(ushort shape) {
    int cs,ce;
 
+   if (config.cardtype == CARD_NONE)
+     return;
+
    cs=CURSOR_START(shape) & 0x1F;
    ce=CURSOR_END(shape) & 0x1F;
 
@@ -125,6 +128,9 @@ Scroll(us *sadr, int x0, int y0, int x1, int y1, int l, int att)
   int x, y;
   us blank = ' ' | (att << 8);
   us tbuf[MAX_COLUMNS];
+
+  if (config.cardtype == CARD_NONE)
+     return;
 
   if ( (config.cardtype == CARD_MDA) && ((att & 7) != 0) && ((att & 7) != 7) )
     {
@@ -214,6 +220,9 @@ void bios_scroll(int x0,int y0,int x1,int y1,int n,byte attr) {
    struct scroll_entry *s;
    int sqh2;
 
+   if (config.cardtype == CARD_NONE)
+     return;
+
    VIDEO_UPDATE_LOCK();
    sqh2=SQ_INC(sq_head);
    if (n!=0 && !Video->is_mapped && sqh2!=sq_tail) {
@@ -253,9 +262,16 @@ char_out(unsigned char ch, int s)
 {
   int newline_att = 7;
   int xpos, ypos;
+
 #if USE_DUALMON
   int virt_text_base = BIOS_SCREEN_BASE;
 #endif
+
+  if (config.cardtype == CARD_NONE) {
+     putchar (ch);
+     return;
+  }
+
   xpos = get_bios_cursor_x_position(s);
   ypos = get_bios_cursor_y_position(s);
 
@@ -326,6 +342,9 @@ clear_screen(int s, int att)
   int virt_text_base = BIOS_SCREEN_BASE;
 #endif
 
+  if (config.cardtype == CARD_NONE)
+     return;
+
   v_printf("VID: cleared screen: %d %d %p\n", s, att, SCREEN_ADR(s));
   if (s > max_page) return;
   
@@ -357,6 +376,12 @@ static boolean X_set_video_mode(int mode) {
   vga_mode_info *vmi;
   int clear_mem = 1;
   int adjust_font_size = 0;
+  
+  if (config.cardtype == CARD_NONE) {
+    v_printf("set_video_mode: no video!\n");
+    return 0;
+  }
+
 
   if(mode & (1 << 16)) {
     adjust_font_size = 1;

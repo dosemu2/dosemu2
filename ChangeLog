@@ -1,3 +1,14 @@
+98/06/27 ver. 0.97.10 released
+	From George K.Bronnikov <goga@goga.mainet.msk.su>
+	- First step for 'DOSEMU in batch mode', atleast the output side.
+	  When setting 'video {none}' DOSEMU can run without any terminal
+	  and writes the DOS-stdout to Linux-stdout. You may play with it
+	  such as: dos -I 'video {none} keystroke "dir\rexitdos\r"'
+	  (for stdin we haven't yet a reasonable solution}
+	  Note: When 'video {none}' isn't given, the code is absolutely
+	  disabled.
+	From Hans
+	- fixed src/tools/mkbindist ( was out of sync )
 98/06/26 ver. 0.97.9.3 unofficial pre-release
 	From Andreas Kirschbaum <ank@rbg.informatik.tu-darmstadt.de>
 	- fix for Borland-C (4.0) tlib not running

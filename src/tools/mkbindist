@@ -36,8 +36,7 @@ if [ "`basename $PWD`" = "tools" ]; then
   cd ../../
 fi
 
-TAKESETUP="0"  # we need this later, needs some more work
-               # ^^^^^^^^^^^^^^^^^^
+TAKESETUP="1"
 
 VER=`basename $PWD`
 DIR=/tmp/${VER}
@@ -81,7 +80,7 @@ if [ "$COMPILE" != "1" ]; then
     DOCDIR="${DIR}/${DOCDIR}"
   fi
 
-  install -d  $DIR
+  install -d  ${DIR}/etc
   install -d  ${DIR}/usr/bin
   install -d  ${DIR}/var/lib/dosemu
   install -d  ${DIR}/var/run
@@ -94,14 +93,16 @@ if [ "$DOMAKE" = "1" ]; then
   else
     sed -e "s/linkstatic on/linkstatic off/" -e "s/slangforce off/slangforce on/" $SETTINGS > ${TMP}
   fi
-  if [ -f Makefile ]; then
+  if [ -f Makefile.conf ]; then
     make pristine
   fi
   ./default-configure ${TMP} ${SUFFIX}
   make 'WAIT='
   if [ "$TAKESETUP" = "1" ]; then
-    (cd setup/demudialog; make 'STATIC=-static')
-    strip setup/demudialog/demudialog
+#    (cd setup/demudialog; make 'STATIC=-static')
+#    strip setup/demudialog/demudialog
+     (cd setup/parser; make 'STATIC=-static')
+     strip setup/parser/parser
   fi
   strip ./bin/dos
   strip ./bin/dosdebug
@@ -114,10 +115,18 @@ if [ "$COMPILE" = "1" ]; then
   exit 0
 fi
 
+if [ ! -x ./bin/dos ]; then
+  echo "there was nothing compiled to install"
+  echo " use -m or -c before"
+  echo
+  usage
+fi
+
 if [ "$DIR" = "/" ]; then
   make install
 else
   make "INSTROOT=$DIR" install
+  rm -rf ${DIR}/etc
 fi
 install -m 0755 src/tools/periph/mkfatimage16 ${DIR}/usr/bin
 install -m 0755 src/tools/periph/dexeconfig ${DIR}/usr/bin
@@ -132,15 +141,13 @@ chmod 755 ${DIR}/var/lib/dosemu/setup-hdimage
 
 if [ -d ${DIR}/var/lib/dosemu/dosC ]; then cp -fp ./contrib/dosC/dist/* ${DIR}/var/lib/dosemu/dosC
 else cp -ap ./contrib/dosC/dist ${DIR}/var/lib/dosemu/dosC; fi
-cp -fp ./contrib/dosC/readme.* ./contrib/dosC/dosc.patch ${DIR}/var/lib/dosemu/dosC
+cp -fp ./contrib/dosC/readme.*  ${DIR}/var/lib/dosemu/dosC
 
 if [ ! -d ${DIR}/var/lib/dosemu/commands ]; then install -d ${DIR}/var/lib/dosemu/commands;fi
 cp -ap ./commands/* ${DIR}/var/lib/dosemu/commands
 
 install -d ${DIR}/var/lib/dosemu/etc
-( cd ./etc; cp -fap config.* dosemu.users* keymap dosemu.xpm \
-  ${DIR}/var/lib/dosemu/etc )
-( cd ${DIR}/var/lib/dosemu/etc; mv config.dist dosemu.conf )
+( cd ./etc; cp -fap config.* dosemu.* keymap ${DIR}/var/lib/dosemu/etc )
 
 pushd ${DIR}/var/lib/dosemu >/dev/null
 cat > doinstall.sh <<EOF
@@ -149,6 +156,23 @@ cat > doinstall.sh <<EOF
 ( cd /var/lib/dosemu; mkfatimage16 -b dosC/boot.bin -p -f hdimage.test \
 	-l DOSEMU dosC/ipl.sys dosC/kernel.exe dosC/command.com \
 	commands/* )
+if [ -f /etc/dosemu.conf ]; then
+  if grep '$_hd.image' /etc/dosemu.conf>/dev/null; then
+    echo "you seem to have a new style dosemu.conf, but better you check"
+    echo "against the one in /var/lib/dosemu/etc"
+  else
+    echo "you seem not have an old style dosemu.conf,"
+    echo "please read /usr/doc/dosemu/QuickStart on how to proceed."
+  fi
+else
+  cp -p /var/lib/dosemu/etc/dosemu.conf /etc
+  if [ ! -f /etc/dosemu.users ]; then
+    cp -p /var/lib/dosemu/etc/dosemu.users.easy /etc
+  fi
+  if [ ! -f /etc/dosemu.loglevel ]; then
+    cp -p /var/lib/dosemu/etc/dosemu.loglevel /etc
+  fi
+fi
 EOF
 popd >/dev/null
 
@@ -170,23 +194,38 @@ sed -e "s/DOCDIR/${_DOCDIR}/g" ./src/tools/QuickStart.bindist >${DOCDIR}/QuickSt
 cp -fp COPYING ${DOCDIR}
 
 if [ "$TAKESETUP" = "1" ]; then
-  install -d  ${DIR}/var/lib/dosemu/setup/demudialog
-  (cd setup; cp -p parse* runtime* select* write* ${DIR}/var/lib/dosemu/setup)
-  install  setup/demudialog/demudialog ${DIR}/var/lib/dosemu/setup/demudialog
+  install -d  ${DIR}/var/lib/dosemu/setup/parser
+  (cd setup; cp -fp parse-* runtime* select* write* *.tk ${DIR}/var/lib/dosemu/setup)
+  sed -e "s|\.\./doc|${_DOCDIR}|" setup/browse.tk >${DIR}/var/lib/dosemu/setup/browse.tk
+  install  setup/parser/parser ${DIR}/var/lib/dosemu/setup/parser
   cat > ${DIR}/var/lib/dosemu/setup-dosemu <<EOF
 #!/bin/sh
 #
-# Front end to the runtime time script.
+# Front end to the runtime & compile time scripts.
+#
 
-TOPDIR=`pwd -P`
-export TOPDIR
+if hash wish >/dev/null 2>&1; then
+  if [ "$DISPLAY" != "" ]; then
+    echo "
+*** NOTE: setup-dosemu currently is only able to handle setup
+***       via TclTk. Fortunately you have that installed ;-)
+"
+    cd setup
+    exec ./setup.tk
+  fi
+fi
 
-AWK=gawk
-export AWK
-
-USING_BIN_DIST="1"
-export USING_BIN_DIST
-(cd setup; ./runtime_setup.sh)
+echo "
+*** NOTE: setup-dosemu isn't correctly updated to the recent changes
+***       in the configuration stuff. Though it can handle the runtime setup
+***       via TclTk, you either don't have that installed or are not running X.
+***       Hence, don't use setup-dosemu at the moment !!
+***       We will fix this in the near future though.
+***
+***       In the meantime just do 'make' to compile DOSEMU and edit
+***       the /etc/dosemu.conf manually.              --Hans, 980531
+"
+exit 1
 EOF
 
   chmod 755 ${DIR}/var/lib/dosemu/setup-dosemu
