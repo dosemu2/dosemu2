@@ -1151,10 +1151,13 @@ static int int21(void)
 #endif
 
   switch (HI(ax)) {
+  case 0x06:
+    if (LO(dx) == 0xff)
+      return 0;
+    /* fallthrough */
   case 0x02:
   case 0x04:
   case 0x05:
-  case 0x06:
   case 0x09:
   case 0x40:       /* output functions: reset idle */
     reset_idle();
