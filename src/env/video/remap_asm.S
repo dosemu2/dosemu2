@@ -445,7 +445,7 @@ pent16_all_10:
 		movl bre_y,%ebp
 		addl (%ebp),%esi
 
-		call r_func
+		call *r_func
 
 		addl $4,bre_y
 		decl y_cnt
@@ -730,7 +730,7 @@ pent32_all_10:
 		movl bre_y,%ebp
 		addl (%ebp),%esi
 
-		call r_func
+		call *r_func
 
 		addl $4,bre_y
 		decl y_cnt
@@ -1008,7 +1008,7 @@ pent8_all_10:
 		movl bre_y,%ebp
 		addl (%ebp),%esi
 
-		call r_func
+		call *r_func
 
 		addl $4,bre_y
 		xorl $2,%ecx
@@ -1081,7 +1081,7 @@ pent8p_all_10:
 		xorl %ecx,%ecx
 		xorl %edx,%edx
 
-		call r_func
+		call *r_func
 
 		addl $4,bre_y
 		decl y_cnt

@@ -1,3 +1,15 @@
+98/06/24 ver. 0.97.9.1 unofficial pre-release
+	From Alberto
+	- fix a 'diabolic' missing '*/' in src/base/async/int.c
+	- some changes to make egcs happy
+	From Eric
+	- removed unneeded int10 label/jump in bios.S
+	From Hans
+	- removed mailing to root (as it turned out to be a bad idea)
+	  Sysadm can check the logfiles instead.
+	- moved parse_dosemu_users into init/config.c _before_ any parsing
+	  of commandline arguments. Should be quite securer.
+	- fixed possible bufferflow in resolve_exec_path (parser.y)
 98/06/15 ver. 0.97.9 released
 	From Markus
 	- cleanup to dosnet code, involved files: bios.S, pktnew.c

@@ -80,7 +80,6 @@ irqnum	set	irqnum+1
 .ENDR
 
 			/* system-soft ints 0x10 .. 0x12 */
-int10:		
 irqnum	set	0x10
 	.org	irqnum*16
 .REPT (0x13-0x10) .align 16
@@ -736,7 +735,6 @@ L10:	/* chain to original handler (probably the video bios) */
 	.globl	CISH(bios_f000_int10_old)
 CISH(bios_f000_int10_old):
 	dw	0,0
-	JMPL(int10)
 
 /* ----------------------------------------------------------------- */   
 		/* This is an int e7 used for FCB opens */

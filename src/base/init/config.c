@@ -591,6 +591,11 @@ config_init(int argc, char **argv)
     }
 #endif
 
+    /* Parse dosemu.users _before_ any argument usage to catch
+     * a not allowed user playing with overruns and kick him out
+     */
+    parse_dosemu_users();
+
     opterr = 0;
     confname = CONFIG_SCRIPT;
     while ((c = getopt(argc, argv, "ABCcF:f:I:kM:D:P:VNtsgh:H:x:KL:m23456e:E:dXY:Z:o:Ou:")) != EOF) {

@@ -407,7 +407,7 @@ void vm86_GP_fault(void)
 
   case 0xef:			/* outw dx */
     if (prefix66) outd(REG(edx), REG(eax));
-    else outw(REG(edx), REG(eax));
+    else outw(LWORD(edx), REG(eax));
     LWORD(eip) += 1;
     break;
   case 0xee:			/* outb dx */

@@ -99,7 +99,7 @@ static char *eipstamp (char *p)
 char *strprintable(char *s)
 {
   static char buf[8][128];
-  static bufi = 0;
+  static int bufi = 0;
   char *t, c;
 
   bufi = (bufi + 1) & 7;

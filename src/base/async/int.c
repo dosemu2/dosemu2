@@ -483,7 +483,7 @@ static int dos_helper(void)
 	if (config.X) {
 		LWORD(eax) = X_change_config((unsigned) LWORD(edx), SEG_ADR((void *), es, bx));
 	} else 
-#endif /* X_GRAPHICS
+#endif /* X_GRAPHICS */
 	{
 		_AX = -1;
 	}

@@ -612,7 +612,7 @@ static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
       movl   (14*4)(%1),%%eax   "/* p->eip */"
       movl   %%eax,__neweip
       movw   (15*4)(%1),%%ax   "/* p->cs */"
-      movw   %%eax,__newcs
+      movw   %%ax,__newcs
       pushl  18*4 (%1)        "/* p->ss */"
       pushl  7*4 (%1)         "/* p->esp */"    
       pushl  16*4 (%1)

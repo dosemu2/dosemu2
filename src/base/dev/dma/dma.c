@@ -130,6 +130,8 @@ inline int get_mask (int ch);
 size_t dma_do_read(int controller, int channel, Bit32u target_addr);
 size_t dma_do_write(int controller, int channel, Bit32u target_addr);
 
+static inline void activate_channel (int controller, int channel);
+static inline void deactivate_channel (int controller, int channel);
 
 /* PUBLIC CODE */
 
@@ -366,7 +368,7 @@ inline int has_underflow (multi_t data)
 /*
  * This ensures that the controller will be called to service this channel.
  */
-inline void activate_channel (int controller, int channel)
+static inline void activate_channel (int controller, int channel)
 {
   int mask, ch;
 
@@ -388,7 +390,7 @@ inline void activate_channel (int controller, int channel)
 /* 
  * This ensures that the controller is not called for this channel.
  */
-inline void deactivate_channel (int controller, int channel)
+static inline void deactivate_channel (int controller, int channel)
 {
   int mask, ch;
 

@@ -160,8 +160,6 @@ static void stop_disk(int token);
 static FILE* open_file(char* filename);
 static void close_file(FILE* file);
 static void write_to_syslog(char *message);
-static void mail_to_root(char *subject, char *message);
-static void parse_dosemu_users(void);
 static int set_hardware_ram(int addr);
 static void set_irq_value(int bits, int i1);
 static void set_irq_range(int bits, int i1, int i2);
@@ -2288,19 +2286,11 @@ static void write_to_syslog(char *message)
   closelog();
 }
 
-/* mail_to_root */
-static void mail_to_root(char *subject, char *message)
-{
-  char buf[256];
-  sprintf(buf, "echo \"%s\" | mail -s \"%s\" root", message, subject);
-  system(buf);
-}
-
 /* Parse Users for DOSEMU, by Alan Hourihane, alanh@fairlite.demon.co.uk */
 /* Jan-17-1996: Erik Mouw (J.A.K.Mouw@et.tudelft.nl)
  *  - added logging facilities
  */
-static void
+void
 parse_dosemu_users(void)
 {
 #define ALL_USERS "all"
@@ -2312,7 +2302,6 @@ parse_dosemu_users(void)
   char buf[PBUFLEN];
   int userok = 0;
   char *ustr;
-  int log_mail=0;
   int log_syslog=0;
   int uid;
   int have_vars=0;
@@ -2344,11 +2333,7 @@ parse_dosemu_users(void)
 	   fgets(buf, PBUFLEN, fp);
 	   if(buf[0]!='#')
 	     {
-	       if(strstr(buf, "mail_error")!=NULL)
-		 log_mail=1;
-	       else if(strstr(buf, "mail_always")!=NULL)
-		 log_mail=2;
-	       else if(strstr(buf, "syslog_error")!=NULL)
+	       if(strstr(buf, "syslog_error")!=NULL)
 		 log_syslog=1;
 	       else if(strstr(buf, "syslog_always")!=NULL)
 		 log_syslog=2;
@@ -2370,7 +2355,6 @@ parse_dosemu_users(void)
      {
        fprintf(stderr, "Illegal User!!!\n");
        sprintf(buf, "Illegal DOSEMU user: uid=%i", uid);
-       mail_to_root("Illegal user", buf);
        write_to_syslog(buf);
        exit(1);
      }
@@ -2440,12 +2424,6 @@ parse_dosemu_users(void)
 	   write_to_syslog(buf);
 	 }
 	 
-       if(log_mail>=1)
-         {
-	   fprintf(stderr, "This event will be reported to root!\n");
-	   mail_to_root("Illegal DOSEMU start", buf);
-	 }
-            
        exit(1);
   }
   else {
@@ -2454,8 +2432,6 @@ parse_dosemu_users(void)
        if(log_syslog>=2)
          write_to_syslog(buf);
 
-       if(log_mail>=2)
-	 mail_to_root("DOSEMU start", buf);
   }
 }
 
@@ -2491,15 +2467,17 @@ static int stat_dexe(char *name)
 
 static char *resolve_exec_path(char *dexename, char *ext)
 {
-  static char n[256];
-  static char name[256];
+  enum { maxn=0x255 };
+  static char n[maxn+1];
+  static char name[maxn+1];
   char *p, *path=getenv("PATH");
 
-  p = rindex(dexename, '.');
+  strncpy(name,dexename,maxn);
+  name[maxn] = 0;
+  n[maxn] = 0;
+  p = rindex(name, '.');
   if ( ext && ((p && strcmp(p, ext)) || !p) )
-    sprintf(name,"%s%s",dexename,ext);
-  else
-    strcpy(name,dexename);
+    strncat(name,ext,maxn);
 
 
   /* first try the pure file name */
@@ -2509,14 +2487,14 @@ static char *resolve_exec_path(char *dexename, char *ext)
   }
 
   /* next try the standard path for DEXE files */
-  sprintf(n, DEXE_LOAD_PATH "/%s", name);
+  snprintf(n, maxn, DEXE_LOAD_PATH "/%s", name);
   if (stat_dexe(n)) return n;
 
   /* now search in the users normal PATH */
   path = strdup(path);
   p= strtok(path,":");
   while (p) {
-    sprintf(n, "%s/%s", p, name);
+    snprintf(n, maxn, "%s/%s", p, name);
     if (stat_dexe(n)) {
       free(path);
       return n;
@@ -2616,8 +2594,6 @@ int parse_config(char *confname, char *dosrcname)
 
   define_config_variable(PARSER_VERSION_STRING);
 
-  /* Parse valid users who can execute DOSEMU */
-  parse_dosemu_users();
   if (get_config_variable("c_strict") && strcmp(confname, CONFIG_SCRIPT)) {
      c_printf("CONF: use of option -F %s forbidden by /etc/dosemu.users\n",confname);
      c_printf("CONF: using %s instead\n", CONFIG_SCRIPT);
