@@ -494,7 +494,6 @@ void loopstep_run_vm86(void)
 {
 	++pic_vm86_count;
 	run_vm86();
-	serial_run();
 	dma_run ();
 #ifdef USE_SBEMU
 	run_sb(); /* Beat Karcher to this one .. 8-) - AM */

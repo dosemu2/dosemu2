@@ -28,6 +28,8 @@
 
 #include <unistd.h>
 #include <stdio.h>
+#include <fcntl.h>
+#include <errno.h>
 #include <sys/time.h>
 #include <termios.h>
 #include <sys/ioctl.h>
@@ -605,16 +607,6 @@ void
 serial_run(void)	
 {
   int i;
-  static int flip = 0;
-
-  /* I don't know why, but putting the following code here speeds up serial
-   * throughput in most terminals by 50% !!!  I think the reason is
-   * because it gives more time for the communications terminal to 
-   * display data, instead of spending too much time in the interrupt
-   * service routines?
-   */
-  flip = (flip + 1) & 3;	/* A looping counter that goes from 0 to 3 */
-  if (flip) return;		/* We'll execute below only 1 out of 4 times */
 
   /* Update the internal serial timers */
   serial_timer_update();

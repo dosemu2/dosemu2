@@ -27,6 +27,7 @@
 #include "ipx.h"
 #include "pktdrvr.h"
 #include "iodev.h"
+#include "serial.h"
 
 #include "keyb_clients.h"
 #include "keyb_server.h"
@@ -495,6 +496,8 @@ static void SIGALRM_call(void)
   /* This is a macro */
   run_sb();
 #endif
+
+  serial_run();
 
   /* TRB - perform processing for the IPX Asynchronous Event Service */
 #ifdef IPX

@@ -35,11 +35,11 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <linux/serial.h>
 
 #include "config.h"
 #include "emu.h"
 #include "mouse.h"
-#include "serial.h"
 #include "ser_defs.h"
 
 
@@ -241,6 +241,7 @@ void ser_termios(int num)
 {
   speed_t baud;
   long int rounddiv;
+  struct serial_struct ser_info;
   
   /* The following is the same as (com[num].dlm * 256) + com[num].dll */
   #define DIVISOR ((com[num].dlm << 8) | com[num].dll)
@@ -250,6 +251,8 @@ void ser_termios(int num)
     if(s1_printf) s_printf("SER%d: Line Control: NOT A TTY (%s).\n",num,strerror(errno));
     return;
   }
+  ioctl(com[num].fd, TIOCGSERIAL, &ser_info);
+
   s_printf("SER%d: LCR = 0x%x, ",num,com[num].LCR);
 
   /* Set the word size */
@@ -401,6 +404,8 @@ void ser_termios(int num)
   cfsetispeed(&com[num].newset, baud);
   cfsetospeed(&com[num].newset, baud);
   tcsetattr(com[num].fd, TCSADRAIN, &com[num].newset);
+  ser_info.flags |= ASYNC_LOW_LATENCY;
+  ioctl(com[num].fd, TIOCSSERIAL, &ser_info);
 
 #if 0
   /* Many mouse drivers require this, they detect for Framing Errors

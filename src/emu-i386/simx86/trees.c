@@ -43,6 +43,8 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <fcntl.h>
+#include <errno.h>
 #include <sys/mman.h>
 #include "emu86.h"
 #include "codegen-arch.h"

@@ -806,7 +806,6 @@ int do_irq(void)
 	if (!test_bit(ilevel,&pic_isr))
 	  break;
 
-        serial_run();           /*  delete when moved to timer stuff */
         pic_run();
       }
       pic_sti();

@@ -2676,7 +2676,6 @@ static void dpmi_init(void)
 	D_printf("------ DPMI: dpmi loop ---------------------\n");
     }
     run_dpmi();
-    serial_run();
     dma_run();
 #ifdef USE_SBEMU
     run_sb(); /* Suggested Karcher */

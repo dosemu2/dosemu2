@@ -49,7 +49,7 @@ extern int no_local_video; /* used by virtual port code */
 EXTERN u_char irq_source_num[255];	/* Index to map from IRQ no. to serial port */
 EXTERN u_char com_port_used[17];       /* Used for auto-assign comport config */
 
-typedef struct serial_struct {
+typedef struct {
   				/*   MAIN VARIABLES  */
   char dev[255];		/* String to hold path to device file */
   int fd;			/* File descriptor of device */
@@ -123,9 +123,9 @@ typedef struct serial_struct {
 #define MAX_SER 4
 EXTERN serial_t com[MAX_SER];
 extern int int14(void);
-extern inline void serial_run(void);
-extern inline int do_serial_in(int, ioport_t);
-extern inline int do_serial_out(int, ioport_t, int);
+extern void serial_run(void);
+extern int do_serial_in(int, ioport_t);
+extern int do_serial_out(int, ioport_t, int);
 extern void serial_helper(void);
 extern void child_close_mouse(void);
 extern void child_open_mouse(void);
