@@ -51,6 +51,7 @@
 #endif
 
 #include "config.h"
+#include "dosemu_config.h"
 #include "emu.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
@@ -254,7 +255,7 @@ extern void yyrestart(FILE *input_file);
 
 	/* main options */
 %token DOSBANNER FASTFLOPPY TIMINT HOGTHRESH SPEAKER IPXSUPPORT NOVELLHACK
-%token VNET
+%token NETDEV VNET
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO ALLOWVIDEOPORT EMURETRACE TIMER
 %token MATHCO CPU CPUSPEED RDTSC BOOTA BOOTB BOOTC L_XMS L_DPMI PORTS DISK DOSMEM PRINTER
 %token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS L_SOUND L_JOYSTICK
@@ -440,11 +441,6 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    config.mappingdriver = $2;
 		    c_printf("CONF: mapping driver = '%s'\n", $2);
 		    }
- 		| EMUBAT string_expr
-		    { IFCLASS(CL_FILEEXT){
-		    config.emubat = $2;
-		    c_printf("CONF: config.emubat = '%s'\n", $2);
-                    }}
                 | EMUINI string_expr
                     { IFCLASS(CL_FILEEXT){
                     config.emuini = $2;
@@ -454,11 +450,6 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
                     { IFCLASS(CL_FILEEXT){
                     config.emuini = $3;
                     c_printf("CONF: config.emuini = '%s'\n", $3);
-		    }}
-		| EMUBAT '{' string_expr '}'
-		    { IFCLASS(CL_FILEEXT){
-		    config.emubat = $3;
-		    c_printf("CONF: config.emubat = '%s'\n", $3);
 		    }}
 		| FASTFLOPPY floppy_bool
 			{ IFCLASS(CL_FLOPPY){ 
@@ -523,15 +514,7 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    else
 			c_printf("CONF: Ignoring 'rdtsc' statement\n");
 		    }
-		| PCI bool
-		    {
-		    if ((config.pci = ($2!=0))) {
-			if (!can_do_root_stuff) {
-			    c_printf("CONF: Warning: PCI requires root, disabled\n");
-			    config.pci = 0;
-			}
-		    }
-		    }
+		| PCI bool	    { config.pci = $2 }
 		| BOOTA
                     { IFCLASS(CL_BOOT){
 		      if (priv_lvl)
@@ -636,15 +619,10 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    }
 		| PKTDRIVER bool
 		    {
-			if ((config.pktdrv = $2)) {
-			    if (!can_do_root_stuff) {
-				c_printf("CONF: Warning: root permissions "
-				"required for Packet Driver, disabling!\n");
-				config.pktdrv = 0;
-			    } else
+			if ((config.pktdrv = $2))
 				c_printf("CONF: Packet Driver enabled.\n");
-			}
 		    }
+		| NETDEV string_expr	{ config.netdev = $2; }
 		| NOVELLHACK bool	{ config.pktflags = $2; }
 		| VNET bool		{ config.vnet = $2; }
 		| SPEAKER speaker
@@ -2312,7 +2290,6 @@ static void write_to_syslog(char *message)
 
 static void move_dosemu_lib_dir(char *path)
 {
-  CONFIG_SCRIPT = assemble_path(path, CONFIG_SCRIPT_NAME, 0);
   DOSEMU_LIB_DIR = strdup(path);
   setenv("DOSEMU_LIB_DIR", DOSEMU_LIB_DIR, 1);
   DEXE_LOAD_PATH = strdup(DOSEMU_LIB_DIR);
@@ -2418,7 +2395,7 @@ parse_dosemu_users(void)
    * Once we know that, most other pathes are runtime configurable:
    *
    *  - dosemu.users tells were to find the dosemu-lib-dir
-   *    (DOSEMULIB_DEFAULT per default) which _must_ hold global.conf.
+   *    (DOSEMULIB_DEFAULT per default)
    *  - global.conf includes $DOSEMU_CONF_DIR/dosemu.conf
    *    (which could be changed by the owner of global.conf).
    */
@@ -2450,7 +2427,7 @@ parse_dosemu_users(void)
         ustr=strtok(0, " \t\n=,;:");
         if (ustr) {
           if (!exists_dir(ustr)) {
-            static char *tx = "default_lib_dir %s not existing\n";
+            char *tx = "default_lib_dir does not %s exist\n";
             fprintf(stderr, tx, ustr);
             fprintf(stdout, tx, ustr);
             exit(1);
@@ -2467,6 +2444,19 @@ parse_dosemu_users(void)
           if (ll > 2) ll = 2;
         }
         log_syslog = ll;
+      }
+      else if (!strcmp(ustr, "config_script")) {
+        ustr=strtok(0, " \t\n=,;:");
+        if (ustr && strcmp(ustr, DEFAULT_CONFIG_SCRIPT)) {
+          config_script_path = strdup(ustr);
+          if (!exists_file(config_script_path)) {
+            char *tx = "config_script does not %s exist\n";
+            fprintf(stderr, tx, ustr);
+            fprintf(stdout, tx, ustr);
+            exit(1);
+          }
+	  config_script_name = strdup(ustr);
+	}
       }
     }
   }
@@ -2754,6 +2744,7 @@ static void do_parse(FILE* fp, char *confname, char *errtx)
 int parse_config(char *confname, char *dosrcname)
 {
   FILE *fd;
+  extern char *yy_vbuffer;
   int is_user_config;
 #if YYDEBUG != 0
   extern int yydebug;
@@ -2762,14 +2753,6 @@ int parse_config(char *confname, char *dosrcname)
 #endif
 
   define_config_variable(PARSER_VERSION_STRING);
-
-#if 0 /* no longer needed, config.c only allows -F for root or non-suid-root */
-  if (get_config_variable("c_strict") && strcmp(confname, CONFIG_SCRIPT)) {
-     c_printf("CONF: use of option -F %s forbidden by /etc/dosemu.users\n",confname);
-     c_printf("CONF: using %s instead\n", CONFIG_SCRIPT);
-     confname = CONFIG_SCRIPT;
-  }
-#endif
 
   /* Let's try confname if not null, and fail if not found */
   /* Else try the user's own .dosrc (old) or .dosemurc (new) */
@@ -2795,7 +2778,7 @@ int parse_config(char *confname, char *dosrcname)
     }
 
     /* privileged options allowed? */
-    is_user_config = strcmp(confname, CONFIG_SCRIPT);
+    is_user_config = (confname && config_script_path && strcmp(confname, config_script_path));
     priv_lvl = uid != 0 && is_user_config;
 
     /* DEXE together with option F ? */
@@ -2809,7 +2792,7 @@ int parse_config(char *confname, char *dosrcname)
     else define_config_variable("c_system");
     if (dexe_running) define_config_variable("c_dexerun");
 
-    if (strcmp(confname, "none")) {
+    if (confname) {
       enter_priv_on();
       fd = open_file(confname);
       leave_priv_setting();
@@ -2819,10 +2802,13 @@ int parse_config(char *confname, char *dosrcname)
           exit(1);
         }
       }
-      else {
-	do_parse(fd, confname, "error in configuration file %s");
-      }
+    } else {
+      fd = NULL;
+      confname = config_script_name;
+      yy_vbuffer = CONFIG_SCRIPT;
     }
+    do_parse(fd, confname, "error in configuration file %s");
+
     if (priv_lvl) undefine_config_variable("c_user");
     else undefine_config_variable("c_system");
 
@@ -2841,15 +2827,6 @@ int parse_config(char *confname, char *dosrcname)
     priv_lvl = uid != 0;
     if (priv_lvl) define_config_variable("c_user");
 
-#if 0 /* we abandon the old .dosrc completely, -- Hans 981010 */
-    define_config_variable("c_dosrc");
-    if (!skip_dosrc && !get_config_variable("skip_dosrc")
-                    && ((fd = open_file(name)) != 0)) {
-      do_parse(fd, name, "error in user's configuration file %s");
-    }
-    undefine_config_variable("c_dosrc");
-#endif
-
     /* Now we parse any commandline statements from option '-I'
      * We do this under priv_lvl set above, so we have the same secure level
      * as with .dosrc
@@ -2857,7 +2834,6 @@ int parse_config(char *confname, char *dosrcname)
 
     if (commandline_statements) {
       #define XX_NAME "commandline"
-      extern char *yy_vbuffer;
 
       open_file(0);
       define_config_variable("c_comline");

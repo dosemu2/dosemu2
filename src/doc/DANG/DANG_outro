@@ -52,7 +52,7 @@ VERB ... /VERB
 
 REMARK ... /REMARK
 	This is only valid within *_MODULE and also can contain VERB
-	brakets. Its usefull to when you want to have a global modul
+	brackets. Its useful to when you want to have a global modul
         description
 
 PROTO ... /PROTO

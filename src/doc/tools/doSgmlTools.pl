@@ -242,8 +242,8 @@ sub convertToHTML {
 
   $command = "";
 
-  if (exists $versions{'sgmltools'} && $versions{'sgmltools'} ge "3.0.3") {
-    # Assume Version 3.0.3 and above are.
+  if (exists $versions{'sgmltools'} && $versions{'sgmltools'} ge "3.0.2") {
+    # Assume Version 3.0.2 and above are.
     $command = "sgmltools -b onehtml --jade-opt=\"$openJadeOptions\" $theFile";
     
   } elsif (exists $versions{'sgmltools'} && $versions{'sgmltools'} ge "3.0") {
@@ -290,9 +290,9 @@ sub convertToText {
     print "Converting $theFile to text: $theOutputFile\n";
   }
 
-  if (exists $versions{'sgmltools'} && $versions{'sgmltools'} ge "3.0.3") {
-    # Assume Version 3.0.3 and above are.
-    $command = "sgmltools -b w3m --jade-opt=\"$openJadeOptions\" $theFile";
+  if (exists $versions{'sgmltools'} && $versions{'sgmltools'} ge "3.0.2") {
+    # Assume Version 3.0.2 and above are.
+    $command = "sgmltools -b lynx --jade-opt=\"$openJadeOptions\" $theFile";
   } else {
     if (!defined $main::opt_h) {
       # Need to build the HTML first

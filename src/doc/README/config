@@ -11,9 +11,9 @@ updated on June 2, 2001.
 </para>
 
 <para>
-Befor you even continue to read further -- especially if you never tried
-DOSEMU -- I strongly recommend to start with the ready to use DOSEMU
-binary distribution. This one comes in 2 packages:
+Before you even continue to read further -- especially if you have
+never tried DOSEMU -- I strongly recommend starting with the ready
+to use DOSEMU binary distribution. This comes in 2 packages:
 </para>
 
 <para>
@@ -43,7 +43,7 @@ url="ftp://ftp.dosemu.org/dosemu/dosemu-freedos-bin.tgz"
 <para>
  A tarball containing a collection of suitable FreeDos binaries,
  eventually patched to fit DOSEMU needs together with some GNU tools
- you may find usefull.
+ you may find useful.
 </para>
 </listitem>
 
@@ -53,18 +53,18 @@ url="ftp://ftp.dosemu.org/dosemu/dosemu-freedos-bin.tgz"
 <para>
 You have to unpack both tarballs (as normal user, <emphasis>NOT as
 root</emphasis>) into the same directory , `cd' into the
-directory `dosemu' and excute `./xdosemu' or `./dosemu'.
-After you played with this a while and have looked into the files
+directory `dosemu' and execute `./xdosemu' or `./dosemu'.
+After you have played with this for a while and have looked into the files
 under `dosemu/conf', you will be much better prepared to understand
 the rest of this chapter.
 </para>
 
 <para>
-Note: The above described DOSEMU installation may also come out of a
-systemwide installation, which you or your Linux distributor have
-established. In this case simply calling '[x]dosemu' will establish the
+Note: The DOSEMU installation described above may also come from a
+systemwide installation, which you or your Linux distributor has
+established. In this case, simply calling '[x]dosemu' will establish the
 per user instance of DOSEMU. For details on how to create such a systemwide
-installation look at the file README.distributor in the DOSEMU source
+installation, look at the file README.distributors in the DOSEMU source
 distribution.
 </para>
 
@@ -73,10 +73,9 @@ Also note: The following description was written for the older type of
 systemwide installation (configuration under /etc). Though this type
 of installation still works for suid-root DOSEMU runs, the new non-suid
 type of installation has no dosemu.users and all configuration files
-(including global.conf) are normally kept under $HOME/dosemu/conf/*.
-The contents of these configuration files are compatible with the below
-described, so most of what is written also is valid for these private
-configuration files.
+are normally kept under $HOME/dosemu/conf/*.  The contents of these 
+configuration files are compatible with the below described, so most 
+of what is written also is valid for these private configuration files.
 </para>
 
 
@@ -90,11 +89,11 @@ file is passed using the -I technique, hence the rules of -I apply.
 
 <para>
 In fact dosemu.conf and ~/.dosemurc (which have identical syntax)
-are included by the systemwide configuration script
-DOSEMU_LIB_DIR/global.conf, but as a normal user you won't ever think on
-editing this, only dosemu.conf and your personal ~/.dosemurc.
-The syntax of global.conf is described in detail in README-tech.txt,
-so this is skipped here. However, the option -I string too
+are included by the systemwide configuration script global.conf which,
+by default, is built into the DOSEMU binary.  As a normal user 
+you won't ever think on editing this, only dosemu.conf and your personal 
+~/.dosemurc.  The syntax of global.conf is described in detail in 
+README-tech.txt, so this is skipped here. However, the option -I string too
 uses the same syntax as global.conf, hence, if you are doing some special
 stuff (after you got familar with DOSEMU) you may need to have a look there.
 </para>
@@ -212,12 +211,11 @@ chapter 11.1 `Privileges and Running as User'
 <para>
 Giving the keyword `private_setup' to a user means he/she can have a private
 DOSEMU lib under $HOME/.dosemu/lib. If this directory is existing, DOSEMU
-will expect all normally under DOSEMU_LIB_DIR within that directory,
-including `global.conf'. As this would be a security risc, it only will
-be allowed, if the used DOSEMU binary is non-suid-root. If you realy trust
-a user you may additionally give the keyword `unrestricted', which will
-allow this user to execute a suid-root binary even on a private lib
-directory (though, be aware).
+will expect all normally under DOSEMU_LIB_DIR within that directory.
+As this would be a security risc, it only will be allowed, if the used DOSEMU
+binary is non-suid-root. If you realy trust a user you may additionally give
+the keyword `unrestricted', which will allow this user to execute a suid-root
+binary even on a private lib directory (though, be aware).
 </para>
 
 <para>
@@ -289,7 +287,7 @@ of dosemu.conf (~/.dosemurc)
 
 <para>
 All settings in dosemu.conf are just variables, that are interpreted
-in DOSEMU_LIB_DIR/global.conf and have the form of
+in global.conf and have the form of
 </para>
 
 <para>
@@ -551,16 +549,20 @@ NOTE: `$_*_hosts' can <emphasis>not</emphasis> be overwritten by ~/.dosemurc.
 <para>
 If you want mixed operation on the filesystem, from which you
 boot DOSEMU (native and via DOSEMU), it may be necessary to have two
-separate sets of `config.sys,autoexec.bat,system.ini'. DOSEMU can
+separate sets of config.sys and system.ini. DOSEMU can
 fake a different file extension, so DOS will get other files when
-running under DOSEMU.
+running under DOSEMU. Faking autoexec.bat cannot happen in a reliable
+fashion, so if you would like to use an autoexec.bat replacement then
+just use the SHELL command in config.XXX, like this:
+</para>
+<para>
+SHELL=COMMAND.COM /P /K AUTOEMU.BAT
 </para>
 
 <para>
 
 <screen>
   $_emusys = ""    # empty or 3 char., config.sys   -&#62; config.XXX
-  $_emubat = ""    # empty or 3 char., autoexec.bat -&#62; autoexec.XXX 
   $_emuini = ""    # empty or 3 char., system.ini   -&#62; system.XXX
 </screen>
 
@@ -1273,7 +1275,22 @@ packet driver support via
 </para>
 
 <para>
-For more on this look at chapter 24 (Net code)
+But if you just need 'single' packet driver support that talks to, for
+instance, your ethernet card eth0 then you need to set
+</para>
+
+<para>
+
+<screen>
+  $_netdev = "eth0"
+</screen>
+
+</para>
+
+<para>
+Note that this requires raw packet access, and hence (suid)-root.
+If $_vnet = (on), the $_netdev will default to "dsn0".
+For more on this look at chapter 15 (Net code).
 </para>
 
 </sect3>

@@ -141,7 +141,7 @@ void init_port_traceing(void)
 
 #define TT_printf(p,f,v,m) ({ \
   if (debug_level('T') && test_bit(p & PORTLOG_MASK, portlog_map)) { \
-    log_printf(1, "%x %c %x\n", p, f, v & m); \
+    log_printf(1, "%hx %c %x\n", p, f, v & m); \
   } \
 })
 

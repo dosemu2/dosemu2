@@ -1316,7 +1316,7 @@ dosemu and/or kernel versions. Here some small examples:
 <title>`Dry' testing your configuration</title>
 
 <para>
-It may be usefull to verify, that your *.conf does what you
+It may be useful to verify, that your *.conf does what you
 want before starting a real running DOSEMU. For this purpose there is a 
 new commandline option (-h), which just runs the parser, print some
 useful output, dumps the main configuration structure and then exits.

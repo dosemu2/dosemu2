@@ -39,7 +39,7 @@ worth noting:
   - support for redirected drives (any Linux directory can be 'mounted'
     as DOS drive as ,ong as the DOS support redirection.
   - can even directly boot from a Linux directory containing all DOS stuff.
-  - Sound support (including sound DMA, requires suid-root)
+  - Sound support (including sound DMA)
   - NetWare and other network connectivity via builtin IPX and pktdrvr
      support.
   - integrated COMMAND.COM (running 32bit to spare valuable DOS memory)
@@ -76,6 +76,8 @@ This release could not have gotten out the door without the work of
 our relentless development team, friends and contributors, consisting of
 at least (sorted by first name):
 
+add some more names here ...
+
   Aaron			Adam J. Richter		Alan Cox
   Alberto Vignani	Alessandro Rubini	Alexander R.Adams
   Alexander V. Lukyanov	Alistair MacDonald	Amit Margalt
@@ -100,10 +102,10 @@ at least (sorted by first name):
   Pasi Eronen		Pat Villani		Rainer Zimmermann
   Reinhard Karcher	Rob Clark		Robert de Bath
   Rod May		Ronnie			Rutger Nijlunsing
-  Scott Buchholz	Stas Sergeev		Steffen Winterfeld
-  Theodore T'so		Tim Van der Linden 	Ulrich Weigand
-  Uwe Bonnes		Urban Widmark		Vinod G Kulkarni
-  Wayne P Meissner	Wojtek Pilorz
+  Scott Buchholz	Sergey Suleymanov	Stas Sergeev
+  Steffen Winterfeld	Theodore T'so		Tim Van der Linden
+  Ulrich Weigand	Uwe Bonnes		Urban Widmark
+  Vinod G Kulkarni	Wayne P Meissner	Wojtek Pilorz
 
   ... and others too important to mention.
 

@@ -795,7 +795,7 @@ void Logical_VGA_write(unsigned offset, unsigned char value)
  *
  */     
 
-int vga_emu_fault(struct sigcontext_struct *scp)
+int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
 {
   int i, j;
   unsigned page_fault, vga_page = 0, u, access_type, lin_addr;
@@ -825,7 +825,7 @@ int vga_emu_fault(struct sigcontext_struct *scp)
   }
 
   vga_deb_map("vga_emu_fault: %s%s access to %s region, address 0x%05x, page 0x%x, vga page 0x%x\n",
-    in_dpmi ? "dpmi " : "", access_type? "write" : "read",
+    pmode ? "dpmi " : "", access_type? "write" : "read",
     txt1[i], lin_addr, page_fault, vga_page
   );
 
@@ -835,7 +835,7 @@ int vga_emu_fault(struct sigcontext_struct *scp)
     (unsigned) REG(cs), (unsigned) REG(eip)
   );
 
-  if(in_dpmi) {
+  if(pmode) {
 #if DEBUG_MAP >= 1
     cs_ip = (unsigned char *) (dpmi_GetSegmentBaseAddress(_cs) + _eip);
 #endif
@@ -857,9 +857,15 @@ int vga_emu_fault(struct sigcontext_struct *scp)
 
   if(i == VGAEMU_MAX_MAPPINGS) {
     if(page_fault >= 0xa0 && page_fault < 0xc0) {	/* unmapped VGA area */
-      u = instr_len(SEG_ADR((unsigned char *), cs, ip));
-      LWORD(eip) += u;
-      if(!in_dpmi && u) {
+      if (pmode) {
+        u = instr_len((unsigned char *)SEL_ADR(_cs, _eip));
+        _eip += u;
+      }
+      else {
+        u = instr_len(SEG_ADR((unsigned char *), cs, ip));
+        LWORD(eip) += u;
+      }
+      if(u) {
         vga_msg("vga_emu_fault: attempted write to unmapped area (cs:ip += %u)\n", u);
       }
       else {
@@ -869,9 +875,15 @@ int vga_emu_fault(struct sigcontext_struct *scp)
       return True;
     }
     else if(page_fault >= 0xc0 && page_fault < (0xc0 + vgaemu_bios.pages)) {	/* ROM area */
-      u = instr_len(SEG_ADR((unsigned char *), cs, ip));
-      LWORD(eip) += u;
-      if(!in_dpmi && u) {
+      if (pmode) {
+        u = instr_len((unsigned char *)SEL_ADR(_cs, _eip));
+        _eip += u;
+      }
+      else {
+        u = instr_len(SEG_ADR((unsigned char *), cs, ip));
+        LWORD(eip) += u;
+      }
+      if(u) {
         vga_msg("vga_emu_fault: attempted write to ROM area (cs:ip += %u)\n", u);
       }
       else {
@@ -906,7 +918,7 @@ int vga_emu_fault(struct sigcontext_struct *scp)
        * while we are using X.  Leave the display page read/write-protected
        * so that each instruction that accesses it can be trapped and
        * simulated. */
-        instr_emu(scp);
+        instr_emu(scp, pmode);
     }
   }
   return True;

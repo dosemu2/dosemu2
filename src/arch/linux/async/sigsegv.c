@@ -14,53 +14,20 @@
 /* WARNING: This may not work in BSD, because it was written for Linux! */
 
 #include <stdio.h>
-#include <termios.h>
 #include <stdlib.h>
-#include <time.h>
 #include <string.h>
-#include <ctype.h>
-#include <sys/times.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#if X_GRAPHICS
-#include <sys/mman.h>           /* root@sjoerd*/
-#endif /* X_GRAPHICS */
+#include <asm/page.h>
 
 #include "emu.h"
-#include "bios.h"
-#include "mouse.h"
-#include "serial.h"
-#include "xms.h"
-#include "timers.h"
-#include "cmos.h"
-#include "memory.h"
-#include "termio.h"
-#include "config.h"
-#include "port.h"
 #include "int.h"
-#include "hgc.h"
-#include "dosio.h"
 
-#include "video.h"
 #if X_GRAPHICS
 #include "vgaemu.h" /* root@zaphod */
 #endif /* X_GRAPHICS */
 
-#include "pic.h"
-
 #include "dpmi.h"
 
-#ifdef USING_NET
-#include "ipx.h"
-#endif /* USING_NET */
-
-/* Needed for DIAMOND define */
-#include "vc.h"
-
-/* #include "sound.h" */
-
-#include "dma.h"
-
+static int fault_cnt = 0;
 
 /* Function prototypes */
 void print_exception_info(struct sigcontext_struct *scp);
@@ -86,22 +53,23 @@ int signal, struct sigcontext_struct *scp
   unsigned char *csp;
   int i;
 
- /*
-  * FIRST thing to do - to avoid being trapped into int0x11
-  * forever, we must clear AC before doing anything else!
-  * Clear also ID for some reasons?
-  */
- __asm__ __volatile__ (" \
-	pushfl\n \
-	popl	%%eax\n \
-	andl	%0,%%eax\n \
-	pushl	%%eax\n \
-	popfl" \
-	: : "i"(~(AC|ID)) : "%eax");
 #if 0
   _eflags &= ~(AC|ID);
   REG(eflags) &= ~(AC|ID);
 #endif
+
+  if (fault_cnt > 1) {
+    error("Fault handler re-entered! signal=%i _trapno=0x%lX\n",
+      signal, _trapno);
+    if (!in_vm86 && _cs == UCODESEL) {
+      /* TODO - we can start gdb here */
+      /* start_gdb() */
+    } else {
+      error("BUG: Fault handler re-entered not within dosemu code! in_vm86=%i\n",
+        in_vm86);
+    }
+    goto bad;
+  }
 
   if (in_vm86) {
     in_vm86 = 0;
@@ -164,7 +132,7 @@ int signal, struct sigcontext_struct *scp
       case 0x0e:
                 if(config.X)
                   {
-                    if(VGA_EMU_FAULT(scp,code)==True)
+                    if(VGA_EMU_FAULT(scp,code,0)==True)
                       return;
                   }
                 /* fall into default case if not X */
@@ -207,51 +175,83 @@ sgleave:
     }
   }
 
+  if (in_dpmi) {
+    /* At first let's find out where we came from */
+    if (_cs==UCODESEL) {
+      /* Fault in dosemu code */
+      /* Now see if it is HLT */
+      csp = (unsigned char *) SEL_ADR(_cs, _eip);
+      if (*csp == 0xf4) {
+	/* Well, must come from dpmi_control() */
+        _eip += 1;
+        /* Note: when using DIRECT_DPMI_CONTEXT_SWITCH, we only come
+         * here if we have set the trap-flags (TF)
+         * ( needed for dosdebug only )
+         */
+	/* backup the registers */
+	memcpy(emu_stack_frame, scp, sizeof(struct sigcontext_struct));
+	/* switch the stack */
+	memcpy(scp, &dpmi_stack_frame[current_client], sizeof(struct sigcontext_struct));
+	return;
+      }
+      else { /* No, not HLT, too bad :( */
+	error("Fault in dosemu code, in_dpmi=%i\n", in_dpmi);
+        /* TODO - we can start gdb here */
+        /* start_gdb() */
 
-#if X_GRAPHICS				/* only for debug ?*/ /*root@sjoerd*/
-/* The reason it comes here instead of inside_VM86 is
- * char_out() in ./video/int10.c (and the memory is protected).
- * We want to protect the video memory and the VGA BIOS.
- * This function is called from the following functions:
- * dosemu/utilities.c:     char_out(*s++, READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
- * video/int10.c:    char_out(*(char *) &REG(eax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
- */
+	/* Going to die from here */
+      }
+    } /*_cs==UCODESEL*/
+    else {
+    /* Not in dosemu code */
 
-  if(_trapno==0x0e)
-    if(config.X)
-      {
-/*
-        printf("ERROR: cpu exception in dosemu code outside of VM86()!\n"
-               "trapno: 0x%02lx  errorcode: 0x%08lx  cr2: 0x%08lx\n"
-               "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n"
-               "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n",
-               _trapno, scp->err, scp->cr2,
-               _eip, _esp, _eflags, _cs, _ds, _es, _ss);
-*/
-        if(VGA_EMU_FAULT(scp,code)==True)
+#if X_GRAPHICS
+      if(_trapno==0x0e && config.X) {
+        if(VGA_EMU_FAULT(scp,code,1)==True)
           return;
       }
 #endif /* X_GRAPHICS */
 
+      /* dpmi_fault() will handle that */
+      return dpmi_fault(scp);
+    }
+  } /*in_dpmi*/
 
-  if (in_dpmi)
-#ifdef __linux__
-    return dpmi_fault(scp);
-#endif /* __linux__ */
+bad:
+/* All recovery attempts failed, going to die :( */
 
-  csp = (char *) _eip;
+#if X_GRAPHICS
+/* Well, there are currently some dosemu functions that touches video memory
+ * without checking the permissions. This is a VERY BIG BUG.
+ * Must be fixed ASAP.
+ * Known offensive functions are:
+ * dosemu/utilities.c:     char_out(*s++, READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+ * video/int10.c:    char_out(*(char *) &REG(eax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+ * EMS and XMS memory transfer functions may also touch video mem.
+ */
+  if(_trapno==0x0e && config.X) {
+    for(i = 0; i < VGAEMU_MAX_MAPPINGS; i++) {
+      if ((_cr2 >> PAGE_SHIFT) >= vga.mem.map[i].base_page &&
+         (_cr2 >> PAGE_SHIFT) < vga.mem.map[i].base_page + vga.mem.map[i].pages)
+        /* Is this check correct??? */
+        error("BUG: dosemu touched the protected video memory!!!\n");
+    }
+  }
+#endif /* X_GRAPHICS */
 
 #if 0
+  csp = (char *) _eip;
   /* This was added temporarily as most illegal sigsegv's are attempt
      to call Linux int routines */
   if (!(csp[-2] == 0xcd && csp[-1] == 0x80 && csp[0] == 0x85)) {
 #else
   {
 #endif /* 0 */
-    error("cpu exception in dosemu code outside of VM86()!\n"
+    error("cpu exception in dosemu code outside of %s!\n"
 	  "trapno: 0x%02lx  errorcode: 0x%08lx  cr2: 0x%08lx\n"
 	  "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n"
 	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n",
+	  (in_dpmi ? "DPMI client" : "VM86()"),
 	  _trapno, _err, _cr2,
 	  _eip, _esp, _eflags, _cs, _ds, _es, _ss);
 
@@ -312,7 +312,30 @@ sgleave:
 #ifdef __linux__
 void dosemu_fault(int signal, struct sigcontext_struct context)
 {
-    dosemu_fault1 (signal, &context);
+ /*
+  * FIRST thing to do - to avoid being trapped into int0x11
+  * forever, we must clear AC before doing anything else!
+  * Clear also ID for some reasons?
+  */
+ __asm__ __volatile__ (" \
+	pushfl\n \
+	popl	%%eax\n \
+	andl	%0,%%eax\n \
+	pushl	%%eax\n \
+	popfl" \
+	: : "i"(~(AC|ID)) : "%eax");
+
+  fault_cnt++;
+
+  if (debug_level('g')>7)
+    g_printf("Entering fault handler, signal=%i _trapno=0x%lX\n",
+      signal, context.trapno);
+
+  dosemu_fault1 (signal, &context);
+
+  if (debug_level('g')>8)
+    g_printf("Returning from the fault handler\n");
+  fault_cnt--;
 }
 #endif /* __linux__ */
 

@@ -6,7 +6,7 @@
      (C) Copyright 1992, ..., 2002 the "DOSEMU-Development-Team"
      unless explicitly stated otherwise.
 
-     The DOSEMU-Development-Team is legaly represented by its
+     The DOSEMU-Development-Team is legally represented by its
      current co-ordinator:
 
        1992          Matthias Lautner
@@ -14,9 +14,9 @@
        1994 .. 1996  James MacLean <macleajb@ednet.ns.ca>
        1997 .. 2001  Hans Lermen <lermen@fgan.de>
        2001 .. now   Bart Oldeman <bart@dosemu.org> 
-		     (... and Hans as still responsible 'backup facility')
+		     (... and Hans as a still responsible 'backup facility')
 
-     Every co-ordinator passes the right to represent to his successor.
+     Every co-ordinator passes on the right to represent to his successor.
 
 2.   This copyright does not cover all parts of the DOSEMU code!
      Parts of the code not covered by the GPL are marked explicitly
@@ -34,9 +34,9 @@
 
      However, recent discussions about the scope of 'library linking' with
      GPL code and the possibility that future versions of the GPL may
-     define this issue in a more restrictive manner make it necessary to 
-     restrict the DOSEMU copyright explicitely to version 2 of the GPL.
-                                               ============        ===
+     define this issue in a more restrictive manner, make it necessary to
+     restrict the DOSEMU copyright explicitly to version 2 of the GPL.
+                                              ============        ===
 
      We grant the right to use a proprietary DOS together with DOSEMU.
 

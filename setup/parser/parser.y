@@ -26,7 +26,7 @@ static int option_rc = 0;
 static char *dosemurc_varlist[] = {
 	"_debug", "_timint", "_mathco", "_cpu", "_pci", "_xms", "_ems", "_ems_frame",
 	"_features", "_mapping",
-	"_emusys", "_emubat", "_emuini",
+	"_emusys", "_emuini",
 	"_term_char_set", "_term_color", "_term_updfreq", "_escchar", "_layout",
 	"_keybint",
 	"_X_updfreq", "_X_title", "_X_icon_name", "_X_keycode", "_X_blinkrate",

@@ -4,7 +4,7 @@ EMUfailure.txt
 Uwe Bonnes, bon@elektron.ikp.physik.th-darmstadt.de
 
    May 30, 1997 for dosemu 0.66.5 (and possibly earlier versions)
-   
+
    This file list programs and groups of programms not running or running
    only partial under dosemu. The most up-to-date version of this file
    may be found on: ftp.mathematik.th-darmstadt.de:/pub/linux/bonnes/.
@@ -12,41 +12,30 @@ Uwe Bonnes, bon@elektron.ikp.physik.th-darmstadt.de
    linux-msdos@vger.rutgers.edu. Perhaps it can be made going with the
    help others. Have a look at the dosemu-howto how to do so.
      _________________________________________________________________
-   
+
    Table of Contents
-          
    1. Fundamental problem
-          
+
         1.1. Virtual Control Program Interface (VCPI)
-                
         1.2. Programs using older Versions of the Pharlap Extender
-                
         1.3. MSDOS enhanced mode Windows kernel krnl386.exe
-                
         1.4. Windows programs using Win32s
-                
         1.5. Does my failing program belong to these groups?
-                
+
    2. Known bugs
-          
+
         2.1. Things YOU may help changing
-                
         2.2. Problems probably solved
-                
+
    3. Programs not working yet
-          
+
         3.1. dd2demo.exe
-                
         3.2. bae.exe
-                
         3.3. tasmx.exe
-                
         3.4. xaos.exe
-                
         3.5. QIC tape programs
-                
         3.6. Any program using SCSI
-                
+
 1. Fundamental problem
 
    Programs that don't work under the MSDOS Emulator and probably won't
@@ -55,47 +44,47 @@ Uwe Bonnes, bon@elektron.ikp.physik.th-darmstadt.de
    Win3.x/Win95/WinNT in a Dosbox and under OS/2 either. These programs
    are characterized by using any of these features:
      _________________________________________________________________
-   
+
 1.1. Virtual Control Program Interface (VCPI)
 
    VCPI allows programs to run in ring 0. This is kernel mode in Linux
    and not sensible.
-   
+
    Example: sim2181.exe from Analog Devices DSP Kit
      _________________________________________________________________
-   
+
 1.2. Programs using older Versions of the Pharlap Extender
 
    The Pharlap Extender in it's older versions needed ring 0 access too,
    so it can't me made working in the emulator.
-   
+
    Example:Autocad Version 12c1 For DOS
      _________________________________________________________________
-   
+
 1.3. MSDOS enhanced mode Windows kernel krnl386.exe
 
    krnl386.exe needs Ring 0 access too.
      _________________________________________________________________
-   
+
 1.4. Windows programs using Win32s
 
    Win32s needs Ring 0 access too.
      _________________________________________________________________
-   
+
 1.5. Does my failing program belong to these groups?
 
    Check with "strings <program.exe> | less" if the programm contains
    some of these keywords vcpi, pharlap and win32s. Newer Pharlap
    programs may work.
      _________________________________________________________________
-   
+
 2. Known bugs
 
 2.1. Things YOU may help changing
 
    This is a list of currently known bugs in Dosemu0.53pl58, currently in
    the process of adaptation to 0.66.5
-   
+
      * Some documentation is known to be well out of date.
      * Sound Card emulation does not work yet
      * Some video BIOS will start very slowly with the serial ports
@@ -111,14 +100,14 @@ Uwe Bonnes, bon@elektron.ikp.physik.th-darmstadt.de
      * There may be periodic "internal stack overflows" using the mouse,
        especially under Windows (correct, all?)
      _________________________________________________________________
-   
+
 2.2. Problems probably solved
 
    Here reported problems with older versions are listed. The current
    version should have solved them, but this has to be validated. Please
    report if you had problems in the listed areas and these problems are
    now solved.
-   
+
      * If you seem to be getting corrupt files, try switching away from
        Linux v1.1.50-v1.1.65, since there are known disk access bugs.
      * DPMI emulation is known to be somewhat buggy.
@@ -130,17 +119,17 @@ Uwe Bonnes, bon@elektron.ikp.physik.th-darmstadt.de
      * Running a protected mode 'make' and a protected mode compiler
        (e.g. Borland's) may not work. Try switching to a real mode make.
      _________________________________________________________________
-   
+
 3. Programs not working yet
 
    Here are programs listed, where someone has reported that it does not
    work.
      _________________________________________________________________
-   
+
 3.1. dd2demo.exe
 
    This is a game found at
-    http://www.psygnosis.com/
+       http://www.psygnosis.com/
 
    Reported by Hans Lermen, it kills dosemu, giving an output like:
     general protection at 0x1fba: a7
@@ -149,11 +138,11 @@ Uwe Bonnes, bon@elektron.ikp.physik.th-darmstadt.de
    The crash happens in DMPI Call 0x0302 At least DMPI Call 0x0506 is not
    yet implemented.
      _________________________________________________________________
-   
+
 3.2. bae.exe
 
    This is a demo version of an Electronic CAD programm, found at
-    http://www.bartels.de/
+       http://www.bartels.de/
 
    Reported by Uwe Bonnes, it stops dosemu with a blank screen in an
    unusable state. You have to do a remote login to kill dosemu, or hit
@@ -161,7 +150,7 @@ Uwe Bonnes, bon@elektron.ikp.physik.th-darmstadt.de
    missing implementation of DMPI Call 0x0800, as Uwe Bonnes reported it
    once working on the console with some hack.
      _________________________________________________________________
-   
+
 3.3. tasmx.exe
 
    Reported by vignani@mail.tin.it (Alberto Vignani): Protected-mode
@@ -169,7 +158,7 @@ Uwe Bonnes, bon@elektron.ikp.physik.th-darmstadt.de
    memory" at startup. I traced it at the assembly level, no result until
    now. Maybe a DPMI problem (97/03/04).
      _________________________________________________________________
-   
+
 3.4. xaos.exe
 
    Reported by vignani@mail.tin.it (Alberto Vignani): Mandelbrot zoomer,
@@ -177,16 +166,16 @@ Uwe Bonnes, bon@elektron.ikp.physik.th-darmstadt.de
    any simtelnet mirror (xaos22b.exe?) Any mouse movement (in console
    mode with a button pressed) crashes it (97/03/04).
      _________________________________________________________________
-   
+
 3.5. QIC tape programs
 
    Reported by vignani@mail.tin.it (Alberto Vignani): Tape is not
    supported. Worse, if you use a floppy under dosemu, you have sometimes
    to remove/reinstall the ftape module.
      _________________________________________________________________
-   
+
 3.6. Any program using SCSI
 
    Reported by vignani@mail.tin.it (Alberto Vignani):
-   
+
    No ASPI support until now(97/03/04).

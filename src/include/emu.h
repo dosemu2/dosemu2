@@ -295,6 +295,7 @@ typedef struct vesamode_type_struct {
        boolean mathco, smp, cpummx;
        boolean ipxsup;
        boolean vnet;
+       char   *netdev;
        boolean pktdrv;
        boolean dosbanner;
        boolean allowvideoportaccess;
@@ -312,7 +313,6 @@ typedef struct vesamode_type_struct {
        boolean bootdisk;	/* Special bootdisk defined */
        int  fastfloppy;
        char *emusys;		/* map CONFIG.SYS to CONFIG.EMU */
-       char *emubat;		/* map AUTOEXEC.BAT to AUTOEXEC.EMU */
        char *emuini;           /* map system.ini to  system.EMU */
 
        u_short speaker;		/* 0 off, 1 native, 2 emulated */

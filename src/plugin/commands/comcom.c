@@ -110,7 +110,7 @@ struct res_dta {
 	int echo_on;
 	int envsize;	/* size of enlarged enviroment */
 	int option_p;	/* 1 = this command.com is primary */
-	int cannotexit;	/* 1 = this command.com cannot exit savely */
+	int cannotexit;	/* 1 = this command.com cannot exit safely */
 	int break_pending;
 	int fatal_handler_return_possible;
 	struct vm86_regs fatal_handler_return_regs;
@@ -3299,6 +3299,7 @@ int comcom_main(int argc, char **argv)
 	int argcX;
 	char *argvX[] = {0,0};
 	int i;
+        int option_k = 0;
 
 	UDATAPTR = rdta;
 	rdta->current_bdta = 0;
@@ -3362,9 +3363,11 @@ int comcom_main(int argc, char **argv)
 		 */
 		for (i=1; i <argc; i++) {
 			p = argv[i];
-			if (!(*p == '/' && strchr("pcey", tolower(p[1])))) {
+			if (!(*p == '/' && strchr("pkcey", tolower(p[1])))) {
 				comspec = p;
 				break;
+			} else if (strchr("kc", tolower(p[1]))) {
+				i++;
 			}
 		}			
 		if (!comspec) {
@@ -3374,8 +3377,13 @@ int comcom_main(int argc, char **argv)
 		com_msetenv("COMSPEC", comspec, 1);
 		argc = remove_arg(i, argc, argv);
 
-		/* we now try to exec autoexec.bat */
-		sprintf(buf, "%c:\\AUTOEXEC.BAT", drive);
+		/* we now try to exec autoexec.bat or its substitute */
+		i = findoption("/k", argc, argv);
+		if (i && argv[++i]) {
+			strcpy(buf, argv[i]);
+		} else {
+			sprintf(buf, "%c:\\AUTOEXEC.BAT", drive);
+		}
 		argcX = 1;
 		if (com_exist_file(buf)) {
 			argvX[0] = buf;
@@ -3391,6 +3399,10 @@ int comcom_main(int argc, char **argv)
 
 
 	i = findoption("/c", argc, argv);
+	if (!i && !rdta->option_p) {
+		i = findoption("/k", argc, argv);
+		option_k = 1;
+	}
 	if (i) {
 		/* we just start one program and exit after it terminates */
 		if (!argv[++i]) return 0;
@@ -3398,7 +3410,7 @@ int comcom_main(int argc, char **argv)
 		/* NOTE: there is no way to return the exitcode of the program,
 		 *	 we need to return _our_ exitcode.
 		 */
-		if (!rdta->option_p) return 0;
+		if (!option_k && !rdta->option_p) return 0;
 		/* else fall through and start interactively */
 	}
 

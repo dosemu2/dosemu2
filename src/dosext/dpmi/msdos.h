@@ -46,7 +46,6 @@ static unsigned short USER_DTA_SEL;
 static unsigned long USER_DTA_OFF;
 static void *user_FCB;
 
-static inline unsigned long GetSegmentBaseAddress(unsigned short seg);
 static inline int ConvertSegmentToDescriptor(unsigned short seg);
 static int SetSegmentBaseAddress(unsigned short selector,
 					unsigned long baseaddr);
@@ -55,8 +54,8 @@ static int SetSelector(unsigned short, unsigned long,
                               unsigned int, unsigned char, unsigned char,
                               unsigned char, unsigned char,
                               unsigned char, unsigned char);
-static inline void save_pm_regs();
-static inline void restore_pm_regs();
+static void save_pm_regs(struct sigcontext_struct *);
+static void restore_pm_regs(struct sigcontext_struct *);
 static unsigned short AllocateDescriptors(int);
 static int FreeDescriptor(unsigned short selector);
 
@@ -518,9 +517,7 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    PARENT_PSP = CURRENT_PSP;
 	    REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos_exec);
 	    /* save context for child exits */
-	    memmove(&dpmi_stack_frame[current_client], scp,
-		   sizeof(struct sigcontext_struct));
-	    save_pm_regs();
+	    save_pm_regs(scp);
 	    return 0;
 	case 0x50:		/* set PSP */
 	    if (((LWORD(ebx) & 0x4) == 0x4) &&
@@ -799,8 +796,9 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 static void
 msdos_post_exec()
 {
-    /* restore parent\'s context */
-    restore_pm_regs();
+    /* restore parent\'s context to preserve segment registers */
+    restore_pm_regs(&dpmi_stack_frame[current_client]);
+
     dpmi_stack_frame[current_client].eflags = 0x0202 | (0x0dd5 & REG(eflags));
     dpmi_stack_frame[current_client].eax = REG(eax);
     dpmi_stack_frame[current_client].ebx = REG(ebx);

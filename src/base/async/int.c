@@ -278,11 +278,12 @@ static int dos_helper(void)
   case DOS_HELPER_SHOW_BANNER:		/* show banner */
     p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: " VERDATE " $\n");
     p_dos_str("Last configured at %s on %s\n", CONFIG_TIME, CONFIG_HOST);
-#if 0
+#if 1 
     p_dos_str("This is work in progress.\n");
     p_dos_str("Please test against a recent version before reporting bugs and problems.\n");
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
-    p_dos_str("Bugs, Patches & New Code to linux-msdos@vger.kernel.org\n\n");
+    p_dos_str("Submit Bug Reports, Patches & New Code to linux-msdos@vger.kernel.org or via\n");
+    p_dos_str("the SourceForge tracking system at http://www.sourceforge.net/projects/dosemu\n\n");
 #endif
     if (config.dpmi)
       p_dos_str("DPMI-Server Version 0.9 installed\n\n");
@@ -1184,6 +1185,7 @@ static int ms_dos(int nr)
 {
   switch (nr) {
   case 0x3d:       /* DOS handle open */
+  case 0x6c:
 #ifdef INTERNAL_EMS
     if (config.ems_size && !strncmp(ptr, "EMMXXXX0", 8)) {
       E_printf("EMS: opened EMM file!\n");
@@ -1456,7 +1458,7 @@ static int can_revector_int21(int i)
     return REVECT;
 
   case 0x3d:          /* dos handle open */
-    if (config.emusys || config.emubat)
+    if (config.emusys)
       return REVECT;
     else
       return NO_REVECT;
@@ -1858,7 +1860,7 @@ static void int2f(u_char i)
 
       case 0x86:            /* Are we in protected mode? */
         D_printf("DPMI CPU mode check in real mode.\n");
-        if (in_dpmi) /* set AX to zero only if program executes in protected mode */
+        if (in_dpmi && !in_dpmi_dos_int) /* set AX to zero only if program executes in protected mode */
 	    LWORD(eax) = 0;	/* say ok */
 		 /* else let AX untouched (non-zero) */
       return;
@@ -1990,6 +1992,7 @@ void do_int(int i)
            a 486. They hopefully protect this test using cli and sti, or
            hardware INTs will mess things up.
         */
+	if(REG(eflags & AC)) g_printf("Clearing AC flag\n");
         clear_AC();
 	if (in_dpmi) {
 		if (dpmi_eflags & IF) {
@@ -2014,7 +2017,7 @@ void do_int(int i)
 #if 1  /* This test really ought to be in the main loop before
  	*  instruction execution not here. --EB 10 March 1997 
  	*/
-	
+
  	/* try to catch jumps to 0:0 (e.g. uninitialized user interrupt vectors),
  	   which sometimes can crash the whole system, not only dosemu... */
  	if (SEGOFF2LINEAR(_CS, _IP) < 1024) {
@@ -2033,6 +2036,14 @@ void do_int(int i)
  	magic_address = SEGOFF2LINEAR(BIOSSEG, INT_OFF(i));
  	if (magic_address == (SEGOFF2LINEAR(_CS, _IP) -2)) {
  		run_caller_func(i, FALSE);
+        	if ((debug_level('#') > 2) && (((i != 0x28) && (i != 0x2f)) || in_dpmi)) {
+        		di_printf("RET INT0x%02x eax=0x%08x ebx=0x%08x ss=0x%04x esp=0x%08x\n"
+ 			  "           ecx=0x%08x edx=0x%08x ds=0x%04x  cs=0x%04x ip=0x%04x\n"
+ 			  "           esi=0x%08x edi=0x%08x es=0x%04x flg=0x%08x\n",
+ 			  i, _EAX, _EBX, _SS, _ESP,
+ 			  _ECX, _EDX, _DS, _CS, _IP,
+ 			  _ESI, _EDI, _ES, (int) read_EFLAGS());
+ 	}
  	}
  	else if ((magic_address == IVEC(i)) ||
  		 (can_revector(i) == REVECT)) {

@@ -67,6 +67,7 @@ GROUP:		Misc doc/DANG/summary_Misc dosext/misc/emm.c
 			base/dev/misc/cmos.c
 			base/dev/misc/lpt.c
 			base/dev/misc/pci.c
+			base/dev/misc/joystick.c
 			include/doshelpers.h
 			dosext/drivers/aspi.c
 GROUP:		CPU_Intel doc/DANG/summary_CPU_Intel

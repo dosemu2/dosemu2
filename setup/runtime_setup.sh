@@ -669,7 +669,6 @@ write_out() {
   write_floppy
   write_bootdisk
   write_single  emusys
-  write_single  emubat
   write_single  fastfloppy
   write_printer
   write_pairs  sound_emu  sb_base sb_irq sb_dma sb_dsp sb_mixer mpu_base

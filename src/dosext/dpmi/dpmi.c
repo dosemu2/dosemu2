@@ -118,24 +118,7 @@ SEGDESC Segments[MAX_SELECTORS];
 /* for real mode call back, DPMI function 0x303 0x304 */
 static RealModeCallBack realModeCallBack[DPMI_MAX_CLIENTS][0x10];
 
-/* For protected mode mouse call back support */
-typedef struct {
-    unsigned short ax;
-    unsigned short cx;
-    unsigned short dx;
-    unsigned short si;
-    unsigned short di;
-    unsigned short bx;
-} MouseEvent;
-    
-#define mouseCallBackQueueSize 6       /* hope it is enough */
 static RealModeCallBack mouseCallBack; /* user\'s mouse routine */
-static MouseEvent mouseCallBackQueue[mouseCallBackQueueSize];
-static MouseEvent LastMouse;
-static unsigned short mouseCallBackHead = 0;
-static unsigned short mouseCallBackTail = 0;
-static short mouseCallBackCount;
-static short in_mouse_callback;
 
 struct vm86_regs DPMI_rm_stack[DPMI_max_rec_rm_func];
 int DPMI_rm_procedure_running = 0;
@@ -163,10 +146,6 @@ unsigned short PMSTACK_SEL = 0;	/* protected mode stack selector */
 unsigned long PMSTACK_ESP = 0;	/* protected mode stack descriptor */
 unsigned short DPMI_SEL = 0;
 extern int fatalerr;
-
-static struct sigcontext_struct dpmi_stack_frame[DPMI_MAX_CLIENTS]; /* used to store the dpmi client registers */
-static struct sigcontext_struct _emu_stack_frame;  /* used to store emulator registers */
-static struct sigcontext_struct *emu_stack_frame=&_emu_stack_frame;
 
 #include "msdos.h"
 
@@ -499,7 +478,7 @@ static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
 {
   register int ret;
   __asm__ volatile (
-"      leal   -12(%%esp),%%esp\n"	/* dummy, cr2,oldmask,fpstate */
+"      subl   $12,%%esp\n"		/* dummy, cr2,oldmask,fpstate */
 "      push   %%ss\n"
 "      pushl  %%esp\n"			/* dummy, esp_at_signal */
 "      pushfl\n"
@@ -525,7 +504,7 @@ static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
 "      movw   %%ax,__newcs\n"
 "      pushl  18*4 (%1)\n"		/* p->ss */
 "      pushl  7*4 (%1)\n"		/* p->esp */
-"      pushl  16*4 (%1)\n"
+"      pushl  16*4 (%1)\n"		/* p->eflags */
 "      movl   $12,%%ecx\n"
 "      subl   $12*4,%%esp\n"		/* make room on the stack */
 "      cld\n"
@@ -812,7 +791,7 @@ static inline unsigned short GetNextSelectorIncrementValue(void)
   return 8;
 }
 
-static inline unsigned long GetSegmentBaseAddress(unsigned short selector)
+unsigned long GetSegmentBaseAddress(unsigned short selector)
 {
   if (selector >= (MAX_SELECTORS << 3))
     return 0;
@@ -1036,55 +1015,143 @@ static  void GetFreeMemoryInformation(unsigned int *lp)
   /*2ch*/	*++lp = 0xffffffff;
 }
 
-static inline void save_rm_context()
+void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *s)
+{
+#ifdef DIRECT_DPMI_CONTEXT_SWITCH
+/* --------------------------------------------------------------
+ * 00	unsigned short gs, __gsh;	COPIED
+ * 01	unsigned short fs, __fsh;	COPIED
+ * 02	unsigned short es, __esh;	COPIED
+ * 03	unsigned short ds, __dsh;	COPIED
+ * 04	unsigned long edi;		COPIED
+ * 05	unsigned long esi;		COPIED
+ * 06	unsigned long ebp;		COPIED
+ * 07	unsigned long esp;		COPIED
+ * 08	unsigned long ebx;		COPIED
+ * 09	unsigned long edx;		COPIED
+ * 10	unsigned long ecx;		COPIED
+ * 11	unsigned long eax;		COPIED
+ *
+ * 12	unsigned long trapno;		NOT COPIED
+ * 13	unsigned long err;		NOT COPIED
+ * 14	unsigned long eip;		COPIED
+ * 15	unsigned short cs, __csh;	COPIED
+ * 16	unsigned long eflags;		COPIED
+ *
+ * 17	unsigned long esp_at_signal;	NOT COPIED
+ * 18	unsigned short ss, __ssh;	COPIED
+ * 19	struct _fpstate * fpstate;	NOT COPIED
+ * 20	unsigned long oldmask;		NOT COPIED
+ * 21	unsigned long cr2;		NOT COPIED
+ * -------------------------------------------------------------- */
+
+ #ifdef COPY_CONTEXT_USE_ASM
+  #ifdef ASM_PEDANTIC
+  unsigned long int d0, d1, d2;
+  #endif
+  __asm__ __volatile__ (" \
+	cld\n \
+	rep; movsl \
+  "
+  #ifndef ASM_PEDANTIC
+   :: "S" (s), "D" (d), "c" ((((int)(&s->eax) - (int)(s))+ sizeof(s->eax)) >> 2)
+   : "cx", "si", "di" );
+  #else
+   :"=&c" (d0), "=&D" (d1), "=&S" (d2)
+   :"0" ((((int)(&s->eax) - (int)(s))+ sizeof(s->eax)) >> 2), "1" (d), "2" (s)
+   :"memory");
+  #endif
+ #else
+  memcpy(d, s, ((int)(&s->eax) - (int)(s))+ sizeof(s->eax));
+ #endif
+  d->eip = s->eip;
+  *((long *)(&d->cs)) = *((long *)(&s->cs));
+  d->eflags = s->eflags;
+  *((long *)(&d->ss)) = *((long *)(&s->ss));
+#else /* not DIRECT_DPMI_CONTEXT_SWITCH */
+  memcpy(d, s, sizeof(struct sigcontext_struct));
+#endif
+}
+
+static void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode)
+{
+#ifdef X86_EMULATOR
+ if (config.cpuemu<2) {	/* 0=off 1=on-inactive 2=active 3=on-first time */
+#endif
+  copy_context(&dpmi_stack_frame[current_client],scp);
+  copy_context(scp, emu_stack_frame);
+  _eax = retcode;
+#ifdef X86_EMULATOR
+ }
+ else {
+    extern int emu_dpmi_retcode;
+    if (retcode)
+	D_printf("DPMI: return %x to dosemu code\n", retcode);
+    D_printf("DPMI: in_dpmi_dos_int=%d dpmi_eflags=%x\n",in_dpmi_dos_int,
+	dpmi_eflags);
+    emu_dpmi_retcode = retcode;
+ }
+#endif
+}
+
+static void save_rm_context(void)
 {
   if (RealModeContext_Running >= DPMI_max_rec_rm_func) {
-    error("DPMI: RealModeContext_Running = 0x%lx\n",RealModeContext_Running++);
-    return;
+    error("DPMI: RealModeContext_Running = 0x%lx\n",RealModeContext_Running);
+    leavedos(25);
   }
   RealModeContext_Stack[RealModeContext_Running++] = RealModeContext;
 }
 
-static inline void restore_rm_context()
+static void restore_rm_context(void)
 {
-  if (RealModeContext_Running-- > DPMI_max_rec_rm_func)
-    return;
-  RealModeContext = RealModeContext_Stack[RealModeContext_Running];
+  if (RealModeContext_Running > DPMI_max_rec_rm_func ||
+    RealModeContext_Running < 1) {
+    error("DPMI: RealModeContext_Running = 0x%lx\n",RealModeContext_Running);
+    leavedos(25);
+  }
+  RealModeContext = RealModeContext_Stack[--RealModeContext_Running];
 }
 
 
-static inline void save_rm_regs()
+static void save_rm_regs(void)
 {
   if (DPMI_rm_procedure_running >= DPMI_max_rec_rm_func) {
-    error("DPMI: DPMI_rm_procedure_running = 0x%x\n",DPMI_rm_procedure_running++);
-    return;
+    error("DPMI: DPMI_rm_procedure_running = 0x%x\n",DPMI_rm_procedure_running);
+    leavedos(25);
   }
   DPMI_rm_stack[DPMI_rm_procedure_running++] = REGS;
   REG(ss) = DPMI_private_data_segment;
   REG(esp) = DPMI_rm_stack_size * DPMI_rm_procedure_running;
 }
 
-static inline void restore_rm_regs()
+static void restore_rm_regs(void)
 {
-  if (DPMI_rm_procedure_running-- > DPMI_max_rec_rm_func)
-    return;
-  REGS = DPMI_rm_stack[DPMI_rm_procedure_running];
+  if (DPMI_rm_procedure_running > DPMI_max_rec_rm_func ||
+    DPMI_rm_procedure_running < 1) {
+    error("DPMI: DPMI_rm_procedure_running = 0x%x\n",DPMI_rm_procedure_running);
+    leavedos(25);
+  }
+  REGS = DPMI_rm_stack[--DPMI_rm_procedure_running];
 }
 
-static inline void save_pm_regs()
+static void save_pm_regs(struct sigcontext_struct *scp)
 {
   if (DPMI_pm_procedure_running >= DPMI_max_rec_pm_func) {
-    error("DPMI: DPMI_pm_procedure_running = 0x%x\n",DPMI_pm_procedure_running++);
-    return;
+    error("DPMI: DPMI_pm_procedure_running = 0x%x\n",DPMI_pm_procedure_running);
+    leavedos(25);
   }
-  DPMI_pm_stack[DPMI_pm_procedure_running++] = dpmi_stack_frame [current_client];
+  copy_context(&DPMI_pm_stack[DPMI_pm_procedure_running++], scp);
 }
 
-static inline void restore_pm_regs()
+static void restore_pm_regs(struct sigcontext_struct *scp)
 {
-  if (DPMI_pm_procedure_running-- > DPMI_max_rec_pm_func)
-    return;
-  dpmi_stack_frame[current_client] = DPMI_pm_stack[DPMI_pm_procedure_running];
+  if (DPMI_pm_procedure_running > DPMI_max_rec_pm_func ||
+    DPMI_pm_procedure_running < 1) {
+    error("DPMI: DPMI_pm_procedure_running = 0x%x\n",DPMI_pm_procedure_running);
+    leavedos(25);
+  }
+  copy_context(scp, &DPMI_pm_stack[--DPMI_pm_procedure_running]);
 }
 
 void fake_pm_int(void)
@@ -1829,94 +1896,6 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     D_printf("DPMI: dpmi function failed, CF=1\n");
 }
 
-#ifdef DIRECT_DPMI_CONTEXT_SWITCH
-
-/* --------------------------------------------------------------
- * 00	unsigned short gs, __gsh;	COPIED
- * 01	unsigned short fs, __fsh;	COPIED
- * 02	unsigned short es, __esh;	COPIED
- * 03	unsigned short ds, __dsh;	COPIED
- * 04	unsigned long edi;		COPIED
- * 05	unsigned long esi;		COPIED
- * 06	unsigned long ebp;		COPIED
- * 07	unsigned long esp;		COPIED
- * 08	unsigned long ebx;		COPIED
- * 09	unsigned long edx;		COPIED
- * 10	unsigned long ecx;		COPIED
- * 11	unsigned long eax;		COPIED
- *
- * 12	unsigned long trapno;		NOT COPIED
- * 13	unsigned long err;		NOT COPIED
- * 14	unsigned long eip;		COPIED
- * 15	unsigned short cs, __csh;	COPIED
- * 16	unsigned long eflags;		COPIED
- *
- * 17	unsigned long esp_at_signal;	NOT COPIED
- * 18	unsigned short ss, __ssh;	COPIED
- * 19	struct _fpstate * fpstate;	NOT COPIED
- * 20	unsigned long oldmask;		NOT COPIED
- * 21	unsigned long cr2;		NOT COPIED
- * -------------------------------------------------------------- */
-
-static inline void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *s)
-{
- #ifdef COPY_CONTEXT_USE_ASM
-  #ifdef ASM_PEDANTIC
-  unsigned long int d0, d1, d2;
-  #endif
-  __asm__ __volatile__ (" \
-	cld\n \
-	rep; movsl \
-  "
-  #ifndef ASM_PEDANTIC
-   :: "S" (s), "D" (d), "c" ((((int)(&s->eax) - (int)(s))+ sizeof(s->eax)) >> 2)
-   : "cx", "si", "di" );
-  #else
-   :"=&c" (d0), "=&D" (d1), "=&S" (d2)
-   :"0" ((((int)(&s->eax) - (int)(s))+ sizeof(s->eax)) >> 2), "1" (d), "2" (s)
-   :"memory");
-  #endif
- #else
-  memcpy(d, s, ((int)(&s->eax) - (int)(s))+ sizeof(s->eax));
- #endif
-  d->eip = s->eip;
-  *((long *)(&d->cs)) = *((long *)(&s->cs));
-  d->eflags = s->eflags;
-  *((long *)(&d->ss)) = *((long *)(&s->ss));
-}
-
-static inline void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode)
-{
-#ifdef X86_EMULATOR
- if (config.cpuemu<2) {	/* 0=off 1=on-inactive 2=active 3=on-first time */
-#endif
-  copy_context(&dpmi_stack_frame[current_client],scp);
-  copy_context(scp, emu_stack_frame);
-  _eax = retcode;
-#ifdef X86_EMULATOR
- }
- else {
-    extern int emu_dpmi_retcode;
-    if (retcode)
-	D_printf("DPMI: return %x to dosemu code\n", retcode);
-    D_printf("DPMI: in_dpmi_dos_int=%d dpmi_eflags=%x\n",in_dpmi_dos_int,
-	dpmi_eflags);
-    emu_dpmi_retcode = retcode;
- }
-#endif
-}
-
-#else
-
-static inline void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode)
-{
-  memcpy(&dpmi_stack_frame[current_client], scp, sizeof(dpmi_stack_frame[0]));
-  memcpy(scp, emu_stack_frame, sizeof(*emu_stack_frame));
-  _eax = retcode;
-}
-
-#endif /* DIRECT_DPMI_CONTEXT_SWITCH */
-
 static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
 {
   if (in_dpmi == 1) { /* Restore environment, must before FreeDescriptor */
@@ -1950,11 +1929,7 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
 	pic_icount);
     pic_resched();
   }
-#ifdef DIRECT_DPMI_CONTEXT_SWITCH
   copy_context(scp, &dpmi_stack_frame[current_client]);
-#else
-  memcpy(scp, &dpmi_stack_frame[current_client], sizeof(dpmi_stack_frame[0]));
-#endif
   REG(cs) = DPMI_SEG;
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
   HI(ax) = 0x4c;
@@ -2114,7 +2089,6 @@ void run_pm_int(int i)
 
 void run_dpmi(void)
 {
-   static unsigned char *lastcsp;
    int retval;
    unsigned char *csp;
 #ifdef X86_EMULATOR
@@ -2133,9 +2107,11 @@ void run_dpmi(void)
     * and we are going to repeat it (same address as before)
     * there's no need to lose time calling vm86() again - AV
     */
-   if ((csp==lastcsp) && (*csp == 0xf4)) {
+   if (*csp == 0xf4) {
      if (debug_level('M')>3) D_printf("DPMI: skip 0xf4 at %p\n", csp);
      retval=VM86_UNKNOWN;
+     /* kernel keeps IF always set */
+     REG(eflags) |= IF;
    }
    else {
 #if 1 			/* <ESC> BUG FIXER (if 1) */
@@ -2189,6 +2165,7 @@ void run_dpmi(void)
 			_SI, _DI, _ES, _EFLAGS);
 #endif
     }
+  } /* not an HLT insn */
 
     if (REG(eflags)&IF) {
       if (!(dpmi_eflags&IF))
@@ -2200,9 +2177,6 @@ void run_dpmi(void)
       if (dpmi_eflags&IF)
         dpmi_cli();
     }
-  } /* not an HLT insn */
-
-    lastcsp = SEG_ADR((unsigned char *), cs, ip);
 
     switch VM86_TYPE(retval) {
 	case VM86_UNKNOWN:
@@ -2225,7 +2199,11 @@ void run_dpmi(void)
 		  case 0x1c:	/* ROM BIOS timer tick interrupt */
 		  case 0x23:	/* DOS Ctrl+C interrupt */
 		  case 0x24:	/* DOS critical error interrupt */
-			run_pm_int(VM86_ARG(retval));
+			if (SEGOFF2LINEAR(BIOSSEG, INT_OFF(VM86_ARG(retval))) !=
+ 			    SEGOFF2LINEAR(_CS, _IP) -2)
+			  run_pm_int(VM86_ARG(retval));
+			else
+			  do_int(VM86_ARG(retval));
 			break;
 		  default:
 #ifdef USE_MHPDBG
@@ -2391,9 +2369,6 @@ void dpmi_init()
 
     pm_block_handle_used = 1;
     DTA_over_1MB = 0;		/* from msdos.h */
-    in_mouse_callback = 0;
-    mouseCallBackCount = 0;
-    mouseCallBackTail = mouseCallBackHead = 0;
 /*
  * DANG_BEGIN_NEWIDEA
  * Simulate Local Descriptor Table for MS-Windows 3.1
@@ -2797,15 +2772,6 @@ void dpmi_fault(struct sigcontext_struct *scp)
   us *ssp;
   unsigned char *csp;
 
-#ifdef SHOWREGS
-#if 1
-  if (!(_cs==UCODESEL))
-#endif
-  {
-    DPMI_show_state(scp);
-  }
-#endif /* SHOWREGS */
-
 #if 0
 /* 
  * If we have a 16-Bit stack segment the high word of esp is not always
@@ -2945,28 +2911,6 @@ if ((_ss & 4) == 4) {
 
     case 0xf4:			/* hlt */
       _eip += 1;
-
-      if (_cs==UCODESEL) {
-	/* HLT in dosemu code - must come from dpmi_control() */
-#ifdef DIRECT_DPMI_CONTEXT_SWITCH
-        /* Note: when using DIRECT_DPMI_CONTEXT_SWITCH, we only come
-         * here if we have set the trap-flags (TF)
-         * ( needed for dosdebug only )
-         */
-	copy_context(emu_stack_frame, scp); /* backup the registers */
-	copy_context(scp, &dpmi_stack_frame[current_client]); /* switch the stack */
-#else
-	memcpy(emu_stack_frame, scp, sizeof(*emu_stack_frame)); /* backup the registers */
-	memcpy(scp, &dpmi_stack_frame[current_client], sizeof(dpmi_stack_frame[0])); /* switch the stack */
-#endif
-#if 0
-	D_printf("DPMI: now jumping to dpmi client code\n");
-#ifdef SHOWREGS
-	DPMI_show_state(scp);
-#endif
-#endif
-	return;
-      }
       if (_cs==DPMI_SEL) {
 	if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_raw_mode_switch)) {
 	  D_printf("DPMI: switching from protected to real mode\n");
@@ -3162,23 +3106,14 @@ if ((_ss & 4) == 4) {
 	  REG(ss) = rmreg->ss;
 	  REG(esp) = (long) rmreg->sp;
 	  
-	  /* dpmi_stack_frame[current_client], will be saved in */
-	  /* Return_To_Dosemu */
-	  restore_pm_regs();
-#ifdef DIRECT_DPMI_CONTEXT_SWITCH
-	  copy_context(scp,&dpmi_stack_frame[current_client]);
-#else
-	  *scp = dpmi_stack_frame[current_client];
-#endif
-
+	  restore_pm_regs(scp);
 	  in_dpmi_dos_int = 1;
 	  dpmi_sti();
 
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_mouse_callback)) {
-	  
-	  D_printf("DPMI: Return from mouse callback, count=%d\n",
-		mouseCallBackCount);
-	  
+
+	  D_printf("DPMI: Return from mouse callback\n");
+
 	  if (in_dpmi_pm_stack) {
 	    in_dpmi_pm_stack--;
 	    if (!in_dpmi_pm_stack && _ss != PMSTACK_SEL) {
@@ -3187,54 +3122,9 @@ if ((_ss & 4) == 4) {
 	    }
 	  }
 
-	  if (mouseCallBackCount) {
-	      unsigned short *ssp;
-	      D_printf("DPMI: %d events in mouse queue\n", mouseCallBackCount);
-	      /* we have queued mouse event, call it again */
-	     _eax = mouseCallBackQueue[mouseCallBackHead].ax;
-	     _ebx = mouseCallBackQueue[mouseCallBackHead].bx;
-	     _ecx = mouseCallBackQueue[mouseCallBackHead].cx;
-	     _edx = mouseCallBackQueue[mouseCallBackHead].dx;
-	     _esi = mouseCallBackQueue[mouseCallBackHead].si;
-	     _edi = mouseCallBackQueue[mouseCallBackHead].di;
-	     _cs  = mouseCallBack.selector;
-	     _eip = mouseCallBack.offset;
-	     ssp = (unsigned short *) SEL_ADR(_ss, _esp);
-	     if (DPMIclient_is_32) {
-		 *--ssp = (us) 0;
-		 *--ssp = DPMI_SEL; 
-		 *(--((unsigned long *) ssp)) =
-		      DPMI_OFF + HLT_OFF(DPMI_return_from_mouse_callback);
-		 _esp -= 8;
-	     } else {
-		 *--ssp = DPMI_SEL; 
-		 *--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_mouse_callback);
-		 _esp -= 4;
-	     }
-	     mouseCallBackHead  =
-		 (mouseCallBackHead+1)%mouseCallBackQueueSize;
-	     mouseCallBackCount --;
-	  } else {
-	      /* pop up in_dpmi_dos_int */
-	     if (DPMIclient_is_32) {
-		 in_dpmi_dos_int = (int) *(((unsigned long *) ssp)++);
-		 _esp += 4;
-	     } else {
-		 in_dpmi_dos_int = (int) *ssp++;
-		 _esp += 2;
-	     }
-	     /* dpmi_stack_frame[current_client], will be saved in */
-	     /* Return_To_Dosemu                                   */
-	     restore_pm_regs();
-#ifdef DIRECT_DPMI_CONTEXT_SWITCH
-	     copy_context(scp,&dpmi_stack_frame[current_client]);
-#else
-	     *scp = dpmi_stack_frame[current_client];
-#endif
-	     /*in_dpmi_dos_int = 1;*/
-	     in_mouse_callback = 0;
-	     /* dpmi_sti(); */
-	  }
+	  restore_pm_regs(scp);
+	  in_dpmi_dos_int = 1;
+	  dpmi_sti();
 	} else if ((_eip>=DPMI_OFF+1+HLT_OFF(DPMI_exception)) && (_eip<=DPMI_OFF+32+HLT_OFF(DPMI_exception))) {
 	  int excp = _eip-1-DPMI_OFF-HLT_OFF(DPMI_exception);
 	  D_printf("DPMI: default exception handler 0x%02x called\n",excp);
@@ -3412,163 +3302,6 @@ if ((_ss & 4) == 4) {
     dpmi_eflags &= ~VIP;
     Return_to_dosemu_code(scp,0);
   }
-}
-
-void run_pm_mouse()
-{
-    unsigned char press, release;
-    unsigned char insert;
-    unsigned short CLIENT_PMSTACK_SEL;
-    unsigned short *ssp;
-    
-    REG(eip) += 1;            /* skip halt to point to FAR RET */
-    if(!in_dpmi) {
-       D_printf("DPMI: mouse callback while no dpmi client running\n");
-       return;
-    }
-    else
-       D_printf("DPMI: starting mouse callback, in_cb=%d count=%d\n",
-	in_mouse_callback,mouseCallBackCount);
-    /*
-     * To improve performance, motion events are compacted.
-     */
-
-    /*
-     * It seems that both serial and internal mouse driver are not
-     * reliable to deliver mouse event. Missing events are inserted
-     * here. These code should be deleted when mouse driver becomes
-     * reliable.
-     */
-    press = release = 0;
-    insert = (LastMouse.bx & 0x7) ^ (LO(bx) & 0x7);
-    if (!(LastMouse.bx & 1) && LO(ax) & 4)
-	press |= 0x2;
-    if (!(LastMouse.bx & 2) && LO(ax) & 0x10)
-	press |= 0x8;
-    if (!(LastMouse.bx & 4) && LO(ax) & 0x40)
-	press |= 0x20;
-    if ((LastMouse.bx & 1) && LO(ax) & 2)
-	release |= 0x4;
-    if ((LastMouse.bx & 2) && LO(ax) & 0x8)
-	release |= 0x10;
-    if ((LastMouse.bx & 4) && LO(ax) & 0x20)
-	release |= 0x40;
-    if (insert && LO(ax) == 1)	{ /* buttons changes but only a motion */
-				  /* event, some event is missed       */
-	if (insert & 1) {
-	    if (LastMouse.bx & 1)
-		release |= 0x4;
-	    else
-		press |= 0x2;
-	}
-	if (insert & 2) {
-	    if (LastMouse.bx & 2)
-		release |= 0x10;
-	    else
-		press |= 0x8;
-	}
-	if (insert & 4) {
-	    if (LastMouse.bx & 4)
-		release |= 0x40;
-	    else
-		press |= 0x20;
-	}
-    }
-    if (press && mouseCallBackCount < mouseCallBackQueueSize) {
-	D_printf("insert missing press event 0x%02x\n", press);
-	mouseCallBackQueue[mouseCallBackTail] = LastMouse;
-	mouseCallBackQueue[mouseCallBackTail].ax = press;
-	mouseCallBackQueue[mouseCallBackTail].bx = LWORD(ebx);
-	mouseCallBackTail = (mouseCallBackTail + 1) % mouseCallBackQueueSize;
-	mouseCallBackCount++;
-    }
-    if ((mouseCallBackCount==0) ||
-	((LO(ax) & 0x1e) && mouseCallBackCount < mouseCallBackQueueSize)) {
-	D_printf("mouse event AL=0x%02x\n", LO(ax));
-	mouseCallBackQueue[mouseCallBackTail].ax = LWORD(eax);
-	mouseCallBackQueue[mouseCallBackTail].bx = LWORD(ebx);
-	mouseCallBackQueue[mouseCallBackTail].cx = LWORD(ecx);
-	mouseCallBackQueue[mouseCallBackTail].dx = LWORD(edx);
-	mouseCallBackQueue[mouseCallBackTail].di = LWORD(edi);
-	mouseCallBackQueue[mouseCallBackTail].si = LWORD(esi);
-	mouseCallBackTail = (mouseCallBackTail + 1) % mouseCallBackQueueSize;
-	mouseCallBackCount++;
-    }
-    if (release && mouseCallBackCount < mouseCallBackQueueSize) {
-	D_printf("insert missing release event 0x%02x\n", release);
-	mouseCallBackQueue[mouseCallBackTail] = LastMouse;
-	mouseCallBackQueue[mouseCallBackTail].ax = release;
-	mouseCallBackQueue[mouseCallBackTail].bx = LWORD(ebx);
-	mouseCallBackTail = (mouseCallBackTail + 1) % mouseCallBackQueueSize;
-	mouseCallBackCount++;
-    }
-    LastMouse.ax = LWORD(eax);
-    LastMouse.bx = LWORD(ebx);
-    LastMouse.cx = LWORD(ecx);
-    LastMouse.dx = LWORD(edx);
-    LastMouse.di = LWORD(edi);
-    LastMouse.si = LWORD(esi);
-
-    if (in_mouse_callback && mouseCallBackCount == 0)
-      return;
-
-    in_mouse_callback = 1;
-    save_pm_regs();
-    dpmi_stack_frame[current_client].eflags = 0x0202 | (0x0dd5 & REG(eflags));
-    dpmi_stack_frame[current_client].eax = mouseCallBackQueue[mouseCallBackHead].ax;
-    dpmi_stack_frame[current_client].ebx = mouseCallBackQueue[mouseCallBackHead].bx;
-    dpmi_stack_frame[current_client].ecx = mouseCallBackQueue[mouseCallBackHead].cx;
-    dpmi_stack_frame[current_client].edx = mouseCallBackQueue[mouseCallBackHead].dx;
-    dpmi_stack_frame[current_client].esi = mouseCallBackQueue[mouseCallBackHead].si;
-    dpmi_stack_frame[current_client].edi = mouseCallBackQueue[mouseCallBackHead].di;
-    mouseCallBackHead  = (mouseCallBackHead+1)%mouseCallBackQueueSize;
-    mouseCallBackCount --;
-    dpmi_stack_frame[current_client].ds = ConvertSegmentToDescriptor(REG(ds));
-    dpmi_stack_frame[current_client].cs = mouseCallBack.selector;
-    dpmi_stack_frame[current_client].eip = mouseCallBack.offset;
-
-    /* mouse callback routine should return by a lret, then sometimes
-     * we pop back in_dpmi_dos_int, sometimes not :-( */
-    /* do we need use locked pm_stack_here? */
-    if (!in_dpmi_pm_stack) {
-      D_printf("DPMI: Switching to locked stack\n");
-      CLIENT_PMSTACK_SEL = PMSTACK_SEL;
-      if (dpmi_stack_frame[current_client].ss == PMSTACK_SEL)
-        error("DPMI: run_pm_mouse: App is working on host\'s PM locked stack, expect troubles!\n");
-    }
-    else {
-      D_printf("DPMI: Not switching to locked stack, in_dpmi_pm_stack=%d\n",
-        in_dpmi_pm_stack);
-      CLIENT_PMSTACK_SEL = dpmi_stack_frame[current_client].ss;
-    }
-
-    if (dpmi_stack_frame[current_client].ss == PMSTACK_SEL || in_dpmi_pm_stack)
-      PMSTACK_ESP = client_esp(0);
-    else
-      PMSTACK_ESP = DPMI_pm_stack_size;
-
-    ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) +
-		(DPMIclient_is_32 ? PMSTACK_ESP : (PMSTACK_ESP&0xffff)));
-
-    if (DPMIclient_is_32) {
-	*(--((unsigned long *) ssp)) = in_dpmi_dos_int;
-	*--ssp = (us) 0;
-	*--ssp = DPMI_SEL; 
-	*(--((unsigned long *) ssp)) =
-	     DPMI_OFF + HLT_OFF(DPMI_return_from_mouse_callback);
-	PMSTACK_ESP -= 12;
-    } else {
-	*--ssp = in_dpmi_dos_int;
-	*--ssp = DPMI_SEL; 
-	*--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_mouse_callback);
-	PMSTACK_ESP -= 6;
-    }
-    dpmi_stack_frame[current_client].ss = CLIENT_PMSTACK_SEL;
-    dpmi_stack_frame[current_client].esp = PMSTACK_ESP;
-    in_dpmi_pm_stack++;
-    /*dpmi_cli();*/
-    in_dpmi_dos_int = 0;
-
 }
 
 
@@ -3785,7 +3518,7 @@ done:
 #ifdef X86_EMULATOR
     if (tmp) E_MPROT_STACK(rmreg);
 #endif
-    save_pm_regs();
+    save_pm_regs(&dpmi_stack_frame[current_client]);
 
     /* the realmode callback procedure will return by an iret */
     /* WARNING - realmode flags can contain the dreadful NT flag which
@@ -3852,7 +3585,59 @@ done:
 
   } else if (lina ==(unsigned char *)(DPMI_ADD +
 				      HLT_OFF(DPMI_mouse_callback))) {
-      run_pm_mouse();
+    unsigned short *ssp;
+    unsigned short CLIENT_PMSTACK_SEL;
+
+    REG(eip) += 1;            /* skip halt to point to FAR RET */
+    D_printf("DPMI: starting mouse callback\n");
+    save_pm_regs(&dpmi_stack_frame[current_client]);
+    dpmi_stack_frame[current_client].eflags = 0x0202 | (0x0dd5 & REG(eflags));
+    dpmi_stack_frame[current_client].eax = REG(eax);
+    dpmi_stack_frame[current_client].ebx = REG(ebx);
+    dpmi_stack_frame[current_client].ecx = REG(ecx);
+    dpmi_stack_frame[current_client].edx = REG(edx);
+    dpmi_stack_frame[current_client].esi = REG(esi);
+    dpmi_stack_frame[current_client].edi = REG(edi);
+    dpmi_stack_frame[current_client].ds = ConvertSegmentToDescriptor(REG(ds));
+    dpmi_stack_frame[current_client].cs = mouseCallBack.selector;
+    dpmi_stack_frame[current_client].eip = mouseCallBack.offset;
+
+    if (!in_dpmi_pm_stack) {
+      D_printf("DPMI: Switching to locked stack\n");
+      CLIENT_PMSTACK_SEL = PMSTACK_SEL;
+      if (dpmi_stack_frame[current_client].ss == PMSTACK_SEL)
+        error("DPMI: run_pm_mouse: App is working on host\'s PM locked stack, expect troubles!\n");
+    }
+    else {
+      D_printf("DPMI: Not switching to locked stack, in_dpmi_pm_stack=%d\n",
+        in_dpmi_pm_stack);
+      CLIENT_PMSTACK_SEL = dpmi_stack_frame[current_client].ss;
+    }
+
+    if (dpmi_stack_frame[current_client].ss == PMSTACK_SEL || in_dpmi_pm_stack)
+      PMSTACK_ESP = client_esp(0);
+    else
+      PMSTACK_ESP = DPMI_pm_stack_size;
+
+    ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) +
+		(DPMIclient_is_32 ? PMSTACK_ESP : (PMSTACK_ESP&0xffff)));
+
+    if (DPMIclient_is_32) {
+	*--ssp = (us) 0;
+	*--ssp = DPMI_SEL; 
+	*(--((unsigned long *) ssp)) =
+	     DPMI_OFF + HLT_OFF(DPMI_return_from_mouse_callback);
+	PMSTACK_ESP -= 8;
+    } else {
+	*--ssp = DPMI_SEL; 
+	*--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_mouse_callback);
+	PMSTACK_ESP -= 4;
+    }
+    dpmi_stack_frame[current_client].ss = CLIENT_PMSTACK_SEL;
+    dpmi_stack_frame[current_client].esp = PMSTACK_ESP;
+    in_dpmi_pm_stack++;
+    dpmi_cli();
+    in_dpmi_dos_int = 0;
   } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_raw_mode_switch))) {
     D_printf("DPMI: switching from real to protected mode\n");
 #ifdef SHOWREGS
@@ -3933,7 +3718,7 @@ done:
 int dpmi_mhp_regs(void)
 {
   struct sigcontext_struct *scp;
-  if (!in_dpmi) return 0;
+  if (!in_dpmi || in_dpmi_dos_int) return 0;
   scp=&dpmi_stack_frame[current_client];
   mhp_printf("\nEAX: %08lx EBX: %08lx ECX: %08lx EDX: %08lx eflags: %08lx",
      _eax, _ebx, _ecx, _edx, _eflags);
@@ -3999,7 +3784,7 @@ enum {
 unsigned long dpmi_mhp_getreg(int regnum)
 {
   struct sigcontext_struct *scp;
-  if (!in_dpmi) return 0;
+  if (!in_dpmi || in_dpmi_dos_int) return 0;
   scp=&dpmi_stack_frame[current_client];
   switch (regnum) {
     case _SSr: return _ss;
@@ -4034,7 +3819,7 @@ unsigned long dpmi_mhp_getreg(int regnum)
 void dpmi_mhp_setreg(int regnum, unsigned long val)
 {
   struct sigcontext_struct *scp;
-  if (!in_dpmi) return;
+  if (!in_dpmi || in_dpmi_dos_int) return;
   scp=&dpmi_stack_frame[current_client];
   switch (regnum) {
     case _SSr: _ss = val; break;

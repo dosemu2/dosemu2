@@ -879,7 +879,7 @@ unsigned modrm32(unsigned char *cp, x86_regs *x86, int *inst_len)
 }
 
 /* return value: 1 => instruction known; 0 => instruction not known */
-int instr_sim(x86_regs *x86)
+int instr_sim(x86_regs *x86, int pmode)
 {
   unsigned char *reg_8;
   unsigned char uc;
@@ -1067,7 +1067,7 @@ int instr_sim(x86_regs *x86)
     eip++; break;
 
   case 0x07:		/* pop es */  
-    if (in_dpmi || x86->operand_size == 4)
+    if (pmode || x86->operand_size == 4)
       return 0;
     else {
       pop(&x86->es, x86);
@@ -1081,7 +1081,7 @@ int instr_sim(x86_regs *x86)
   /* 0x17 pop ss is a bit dangerous and rarely used */  
 
   case 0x1f:		/* pop ds */  
-    if (in_dpmi || x86->operand_size == 4)
+    if (pmode || x86->operand_size == 4)
       return 0;
     else {
       pop(&x86->ds, x86);
@@ -1318,7 +1318,7 @@ int instr_sim(x86_regs *x86)
     eip += inst_len + 2; break;
 
   case 0x8e:		/* mov segreg,r/m16 */
-    if (in_dpmi || x86->operand_size == 4) 
+    if (pmode || x86->operand_size == 4) 
       return 0;
     else switch (cs[eip + 1]&0x38) {
     case 0:      
@@ -1385,7 +1385,7 @@ int instr_sim(x86_regs *x86)
     eip++; break;
 
   case 0x9a: /*call far*/
-    if (in_dpmi || x86->operand_size == 4)
+    if (pmode || x86->operand_size == 4)
       return 0;
     else {
       push(x86->cs, x86);
@@ -1615,7 +1615,7 @@ int instr_sim(x86_regs *x86)
     break;
 
   case 0xc4:		/* les */
-    if (in_dpmi || x86->operand_size == 4)
+    if (pmode || x86->operand_size == 4)
       return 0;
     else {
       mem = modrm(cs + eip, x86, &inst_len);
@@ -1627,7 +1627,7 @@ int instr_sim(x86_regs *x86)
     }   
 
   case 0xc5:		/* lds */
-    if (in_dpmi || x86->operand_size == 4)
+    if (pmode || x86->operand_size == 4)
       return 0;
     else {
       mem = modrm(cs + eip, x86, &inst_len);
@@ -1659,7 +1659,7 @@ int instr_sim(x86_regs *x86)
     eip++; break;
 
   case 0xca: /*retf imm 16*/          
-    if (in_dpmi || x86->operand_size == 4)
+    if (pmode || x86->operand_size == 4)
       return 0;
     else {
       pop(&i, x86);
@@ -1673,7 +1673,7 @@ int instr_sim(x86_regs *x86)
     break;
 
   case 0xcb: /*retf*/          
-    if (in_dpmi || x86->operand_size == 4)
+    if (pmode || x86->operand_size == 4)
       return 0;
     else {
       pop(&eip, x86);
@@ -1769,7 +1769,7 @@ int instr_sim(x86_regs *x86)
     break;
     
   case 0xea: /*jmp far*/
-    if (in_dpmi || x86->operand_size == 4)
+    if (pmode || x86->operand_size == 4)
       return 0;
     else {
       x86->cs = R_WORD(cs[eip+3]);
@@ -2113,7 +2113,7 @@ int instr_sim(x86_regs *x86)
       break;
       
     case 0x18: /*call far*/          
-      if (in_dpmi || x86->operand_size == 4)
+      if (pmode || x86->operand_size == 4)
         return 0;
       else {
         push(x86->cs, x86);
@@ -2131,7 +2131,7 @@ int instr_sim(x86_regs *x86)
       break;
       
     case 0x28: /*jmp far*/          
-      if (in_dpmi || x86->operand_size == 4)
+      if (pmode || x86->operand_size == 4)
         return 0;
       else {
         x86->cs = instr_read_word(mem+2);
@@ -2197,7 +2197,7 @@ int instr_sim(x86_regs *x86)
  * DANG_END_FUNCTION                        
  */
  
-void instr_emu(struct sigcontext_struct *scp)
+void instr_emu(struct sigcontext_struct *scp, int pmode)
 {
   extern int dis_8086(unsigned int, 
                       const unsigned char *,
@@ -2213,7 +2213,7 @@ void instr_emu(struct sigcontext_struct *scp)
   int i;
   x86_regs x86;
       
-  if(in_dpmi) {
+  if(pmode) {
     x86.eax = _eax;
     x86.ebx = _ebx;
     x86.ecx = _ecx;
@@ -2277,7 +2277,7 @@ void instr_emu(struct sigcontext_struct *scp)
   count = COUNT + 1;
   vga_base = vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page << 12;
   vga_end =  vga_base + (vga.mem.map[VGAEMU_MAP_BANK_MODE].pages << 12);
-  i = instr_sim(&x86);
+  i = instr_sim(&x86, pmode);
 
 #if DEBUG_INSTR >= 1
   if ((i == 0 && count == COUNT+1) || (count > 0)) {
@@ -2296,7 +2296,7 @@ void instr_emu(struct sigcontext_struct *scp)
   }
   
 
-  if(in_dpmi) {
+  if(pmode) {
     _eax = x86.eax;
     _ebx = x86.ebx;
     _ecx = x86.ecx;

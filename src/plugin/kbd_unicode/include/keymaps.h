@@ -55,6 +55,7 @@
 #define KEYB_CZ_QWERTZ        33
 #define KEYB_AUTO             34
 #define KEYB_RU               35
+#define KEYB_TR               36
 #define CONST
 
 #define KT_ALTERNATE	1

@@ -7,7 +7,7 @@ config {
   dodebug on
   slangforce on
   runasroot off
-  linkstatic on
+  linkstatic off
   cpuemu on
   aspi on
   svgalib on

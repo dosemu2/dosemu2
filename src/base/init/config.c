@@ -164,7 +164,9 @@ config_defaults(void)
 		/* speed division factor to get 838ns from CPU clock */
 		config.cpu_tick_spd = (LLF_TICKS*1000000)/chz;
 
-		fprintf (stderr,"kernel CPU speed is %Ld Hz\n",chz);
+		fprintf (stderr,"Linux kernel %d.%d.%d; CPU speed is %Ld Hz\n",
+		   kernel_version_code >> 16, (kernel_version_code >> 8) & 255,
+		   kernel_version_code & 255,chz);
 /*		fprintf (stderr,"CPU speed factors %ld,%ld\n",
 			config.cpu_spd, config.cpu_tick_spd); */
 		config.CPUSpeedInMhz = di + (df>500000);
@@ -202,7 +204,7 @@ config_defaults(void)
       config.smp = 1;		/* for checking overrides, later */
     }
     close_proc_scan();
-    fprintf(stderr,"Running on CPU=%d86, FPU=%d\n",
+    fprintf(stderr,"Dosemu-" VERSTR " Running on CPU=%d86, FPU=%d\n",
       config.realcpu, config.mathco);
 
     config.hdiskboot = 1;	/* default hard disk boot */
@@ -300,7 +302,6 @@ config_defaults(void)
     config.fastfloppy = 1;
 
     config.emusys = (char *) NULL;
-    config.emubat = (char *) NULL;
     config.emuini = (char *) NULL;
     config.dosbanner = 1;
     config.allowvideoportaccess = 0;
@@ -339,7 +340,8 @@ config_defaults(void)
     config.sb_mixer = "/dev/mixer";
     config.mpu401_base = 0x330;
 
-    config.vnet = 1;
+    config.netdev = "eth0";
+    config.vnet = 0;
 
     memset(config.features, 0, sizeof(config.features));
 }
@@ -484,8 +486,8 @@ void dump_config_status(void *printfunc)
         config.tty_lockdir, config.tty_lockfile, config.tty_lockbinary);
     (*print)("num_ser %d\nnum_lpt %d\nnum_mice %d\nfastfloppy %d\n",
         config.num_ser, config.num_lpt, config.num_mice, config.fastfloppy);
-    (*print)("emusys \"%s\"\nemubat \"%s\"\nemuini \"%s\"\n",
-        (config.emusys ? config.emusys : ""), (config.emubat ? config.emubat : ""), (config.emuini ? config.emuini : ""));
+    (*print)("emusys \"%s\"\nemuini \"%s\"\n",
+        (config.emusys ? config.emusys : ""), (config.emuini ? config.emuini : ""));
     (*print)("dosbanner %d\nallowvideoportaccess %d\ndetach %d\n",
         config.dosbanner, config.allowvideoportaccess, config.detach);
     (*print)("debugout \"%s\"\n",
@@ -612,10 +614,6 @@ static void our_envs_init(char *usedoptions)
         }
         buf[j] = 0;
         setenv("DOSEMU_OPTIONS", buf, 1);
-        if (usedoptions['X']) {
-	    strcpy(buf, "0");
-            setenv("DOSEMU_STDIN_IS_CONSOLE", buf, 1);
-        }
         return;
     }
     uname(&unames);
@@ -731,9 +729,9 @@ void secure_option_preparse(int *argc, char **argv)
   leave_priv_setting();
 }
 
-
-static void config_console_scrub(void)
+static void config_post_process(void)
 {
+    /* console scrub */
     if (config.X) {
 #ifdef HAVE_KEYBOARD_V1
 	if (!config.X_keycode) {
@@ -755,9 +753,8 @@ static void config_console_scrub(void)
 	    fprintf(stderr, "no console on low feature (non-suid root) DOSEMU\n");
 	}
     }
-}
-static void config_uid_scrub(void)
-{
+
+    /* UID scrub */
     if (under_root_login)  c_printf("CONF: running exclusively as ROOT:");
     else {
 #ifdef RUN_AS_ROOT
@@ -769,33 +766,29 @@ static void config_uid_scrub(void)
     c_printf(" uid=%d (cached %d) gid=%d (cached %d)\n",
         geteuid(), get_cur_euid(), getegid(), get_cur_egid());
 
-}
-
-static void config_speaker_scrub(void)
-{
+    /* Speaker scrub */
 #ifdef X86_EMULATOR
     if (config.cpuemu && config.speaker==SPKR_NATIVE) {
 	c_printf("SPEAKER: can`t use native mode with cpu-emu\n");
 	config.speaker=SPKR_EMULATED;
     }
 #endif
+
+    check_for_env_autoexec_or_config();
+
+    if (config.pci && !can_do_root_stuff) {
+        c_printf("CONF: Warning: PCI requires root, disabled\n");
+        config.pci = 0;
+    }
+
+    if (config.pktdrv && !can_do_root_stuff) {
+	c_printf("CONF: Warning: root permissions "
+	"required for Packet Driver, disabling!\n");
+	config.pktdrv = 0;
+    }
 }
 
-
-CONSTRUCTOR(static void init(void))
-{
-	/* Setup the scrub values */
-	register_config_scrub(config_console_scrub);
-	register_config_scrub(check_for_env_autoexec_or_config);
-	register_config_scrub(config_uid_scrub);
-	register_config_scrub(config_speaker_scrub);
-}
-
-static config_scrub_t config_scrub_func[100] = {
-	config_console_scrub,
-	config_uid_scrub,
-	config_speaker_scrub,
-};
+static config_scrub_t config_scrub_func[100];
 
 /*
  * DANG_BEGIN_FUNCTION register_config_scrub
@@ -918,7 +911,8 @@ config_init(int argc, char **argv)
 #endif
 
     opterr = 0;
-    confname = CONFIG_SCRIPT;
+    if (strcmp(config_script_name, DEFAULT_CONFIG_SCRIPT))
+      confname = config_script_path;
     while ((c = getopt(argc, argv, "ABCcF:f:I:kM:D:P:VNtsgh:H:x:KL:m23456e:E:dXY:Z:o:Ou:U:")) != EOF) {
 	usedoptions[(unsigned char)c] = c;
 	switch (c) {
@@ -1199,6 +1193,7 @@ config_init(int argc, char **argv)
 	    _exit(1);
 	}
     }
+    config_post_process();
     config_scrub();
     if (config_check_only) {
 	dump_config_status(0);
@@ -1212,9 +1207,6 @@ static void
 check_for_env_autoexec_or_config(void)
 {
     char           *cp;
-    cp = getenv("AUTOEXEC");
-    if (cp)
-	config.emubat = cp;
     cp = getenv("CONFIG");
     if (cp)
 	config.emusys = cp;
@@ -1226,8 +1218,6 @@ check_for_env_autoexec_or_config(void)
       */
 
 #if 0
-    if (config.emubat)
-	fprintf(stderr, "autoexec extension = %s\n", config.emubat);
     if (config.emusys)
 	fprintf(stderr, "config extension = %s\n", config.emusys);
 #endif

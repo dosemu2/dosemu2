@@ -108,7 +108,7 @@ struct pkt_globs
     } handle[MAX_HANDLE];          
 } pg;
 
-static char devname[10] = "eth0";   /* linux device name */
+static char devname[10];		/* linux device name */
 
 /* various declarations for interfacing with the packet driver code in
    bios.S */
@@ -159,6 +159,9 @@ pkt_init(int vec)
 	strcpy(devname, DOSNET_DEVICE);
 	if (Open_sockets() < 0)
 	    goto fail;
+    } else {
+      strncpy(devname, config.netdev, sizeof(devname) - 1);
+      devname[sizeof(devname) - 1] = 0;
     }
 
     /* hook the interrupt vector by pointing it into the magic table */

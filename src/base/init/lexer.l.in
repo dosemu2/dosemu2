@@ -369,7 +369,6 @@ bootdisk		RETURN(BOOTDISK);
 bootfile		RETURN(BOOTFILE);
 printer			RETURN(PRINTER);
 emusys                  RETURN(EMUSYS);
-emubat                  RETURN(EMUBAT);
 emuini                  RETURN(EMUINI);
 ttylocks		RETURN(TTYLOCKS);
 sound_emu               RETURN(L_SOUND);
@@ -486,6 +485,8 @@ cz-qwertz		MAY_BE { yylval->i_value = KEYB_CZ_QWERTZ;
 hr-latin2		MAY_BE { yylval->i_value = KEYB_HR_LATIN2;
 			  return(KEYB_LAYOUT); }
 ru 			MAY_BE { yylval->i_value = KEYB_RU; 
+				return(KEYB_LAYOUT); }
+tr 			MAY_BE { yylval->i_value = KEYB_TR;
 				return(KEYB_LAYOUT); }
 keyb-user		MAY_BE { yylval->i_value = KEYB_USER; return(KEYB_LAYOUT); }
 
@@ -625,6 +626,7 @@ joy_granularity         RETURN(JOY_GRANULARITY);
 	/* packet driver */
 novell_hack		RETURN(NOVELLHACK);
 	/* Vinod's dosnet stuff (when to use former libpacket.c.multi */
+netdev			RETURN(NETDEV);
 vnet			RETURN(VNET);
 	/* debug flags */
 

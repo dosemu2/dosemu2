@@ -320,7 +320,6 @@ menu "Miscellaneous Items" {
 menu "File Extensions" {
 description "Select the file extension to modify"
 string "Replacement extension for SYS files" emusys
-string "Replacement extension for BAT files" emubat
 string "Replacement extension for INI files" emuini
 }
 

@@ -1,7 +1,7 @@
 QuickStart: Instructions on how to quickly get DOSEMU up and running.
 ==========
 
-Well, you are impatient? Ok, maybe you succeed with this SHORT description.
+Well, you are impatient? Ok, maybe you'll succeed with this SHORT description.
 However, if you are reasonable just execute ViewDocs to read the docs.
                                             ========
 
@@ -9,7 +9,7 @@ However, if you are reasonable just execute ViewDocs to read the docs.
 1. Install and use the ready-to-use DOSEMU binary distribution
 --------------------------------------------------------------------------
 
-The most easiest way to get DOSEMU working on your maschine is to use
+The easiest way to get DOSEMU working on your machine is to use
 the ready-to-use DOSEMU binary distribution. This one comes in 2 packages:
 
   - ftp://ftp.dosemu.org/dosemu/dosemu-freedos-bin.tgz
@@ -31,7 +31,7 @@ Now execute DOSEMU
 
   $ ./xdosemu
 
-For a more detailed description have a look at README.bindist
+For a more detailed description have a look at README.bindist.
 
 --------------------------------------------------------------------------
 2. Compile
@@ -55,19 +55,19 @@ For a more detailed description have a look at README.bindist
 - ./install_systemwide
 
 --------------------------------------------------------------------------
-3.  Want to use not standard configuration ?
+3.  Want to use a non-standard configuration ?
 --------------------------------------------------------------------------
 
 Then you have to edit compiletime-settings (changing on/off) and run
 ./default-configure _prior_ to running make.
 
-Or (if you have Tcl/Tk installed) alternatively you can use the new menu
+Or (if you have Tcl/Tk installed) alternatively, you can use the new menu
 driven configuration tool:
 
 - ./setup-dosemu
 
-then chose "Compile configiration / compilation", when you have
-finished toggling the configuration switches, klick < Ok> and chose
+then choose "Compile configuration / compilation", when you have
+finished toggling the configuration switches, click < Ok> and choose
 the appropriate action ...
 ... well it should be self descriptive.
 
@@ -77,13 +77,13 @@ the appropriate action ...
 --------------------------------------------------------------------------
 
 (Note: You normally don't need it for a non-suid-root DOSEMU.
-       and for an suid-root one your Linux distributor will hav done
+       and for a suid-root one your Linux distributor will have done
        it for you)
 
 (BIG FAT WARNING: you have to be _very_ skilled to do it right !!)
 
 - Copy ./etc/dosemu.conf to /etc if you are installing for the first time.
-  ( make install would have done this, if /etc/dosemu.conf dosen't exist )
+  ( make install would have done this, if /etc/dosemu.conf doesn't exist )
   Modify /etc/dosemu.setup by using the info in the file ./doc/README.txt
   chapter 2
 
@@ -99,7 +99,7 @@ the appropriate action ...
   /etc/dosemu.users and have a look at an other example in
   ./doc/README.txt chapter 2.
 
-  For a more detailed decription on 'running as user' have a look
+  For a more detailed description on 'running as user' have a look
   at ./doc/README.txt 'Running dosemu as a normal user' (chapter 7).
 
 --------------------------------------------------------------------------
@@ -122,15 +122,15 @@ the appropriate action ...
 
 - Read the dosemu-HOWTO for Q&A's.
 
-- If no luck, please send us a debug report by typing 'dos -D+a -o debug'
+- If no luck, please send us a debug report by typing 'dosemu -D+a -o debug'
   and send the file debug together with your config files and a
   description of your problem to
 
     dosemu-bugs@dosemu.org
 
   Don't forget to mention the versions of DOSEMU, GCC, LIBC, Binutils e.t.c.
-  For problems together with DOSEMU installationa made by Linux distributors,
-  please bother them directly, we won't hunt after those bugs.
+  For problems with the packaging of DOSEMU by Linux distributors,
+  please bother them directly - we won't hunt after those bugs.
 
   For general discussion on dosemu use the mailing list
   linux-msdos@vger.kernel.org
@@ -155,7 +155,7 @@ the appropriate action ...
 	This is a log file of progress that have been done on
 	DOSEMU since previous versions.
 ./doc/DANG.txt
-	The Dosemu Alterning Novice's Guide, for interested hackers
+	The Dosemu Alterer Novice's Guide, for interested hackers
 	and programmers alike, if they want to look at the internals
 	of DOSEMU and how it works.
 ./doc/DPR
@@ -166,7 +166,7 @@ the appropriate action ...
 ./man/dosemu.1
 	This is the DOSEMU man page of the wrapper script.
 ./man/mkfatimage16.1
-	This discribes how to create (empty) hdimages of various sizes.
+	This describes how to create (empty) hdimages of various sizes.
 ./doc/announce
 	The announcement textfile for DOSEMU.
 ./doc/README.txt

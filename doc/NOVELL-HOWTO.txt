@@ -305,7 +305,7 @@
   --- message ends ---	Thanks Andrew..
 
   I have no personal experience with any of the packages mentioned
-  above, I'm sure that there are a lot of other usefull packages
+  above, I'm sure that there are a lot of other useful packages
   floating around.  Please mail me, so I can add them to possible future
   incarnations of this note.
 

@@ -230,6 +230,7 @@
 #include "memory.h"
 #include "remap.h"
 #include "vgaemu.h"
+#include "keyb_server.h"
 #include "X.h"
 
 #ifdef HAVE_UNICODE_TRANSLATION
@@ -1480,6 +1481,7 @@ void X_handle_events()
 	  blink_state = TRUE;
 	  blink_count = config.X_blinkrate;
 	  redraw_cursor();
+	  output_byte_8042(port60_buffer | 0x80);
 	  break;
 
 	case DestroyNotify:

@@ -481,16 +481,20 @@ NOTE: `$_*_hosts' can <emphasis>not</emphasis> be overwritten by ~/.dosemurc.
 <para>
 If you want mixed operation on the filesystem, from which you
 boot DOSEMU (native and via DOSEMU), it may be necessary to have two
-separate sets of `config.sys,autoexec.bat,system.ini'. DOSEMU can
+separate sets of config.sys and system.ini. DOSEMU can
 fake a different file extension, so DOS will get other files when
-running under DOSEMU.
+running under DOSEMU. Faking autoexec.bat cannot happen in a reliable
+fashion, so if you would like to use an autoexec.bat replacement then
+just use the SHELL command in config.XXX, like this:
+</para>
+<para>
+SHELL=COMMAND.COM /P /K AUTOEMU.BAT
 </para>
 
 <para>
 
 <screen>
   $_emusys = ""    # empty or 3 char., config.sys   -&#62; config.XXX
-  $_emubat = ""    # empty or 3 char., autoexec.bat -&#62; autoexec.XXX 
   $_emuini = ""    # empty or 3 char., system.ini   -&#62; system.XXX
 </screen>
 

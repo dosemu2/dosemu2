@@ -86,9 +86,9 @@ Bug fix collection & distribution: - Hans Lermen
         Hans assembles various bug fixes & other patches into a
 distribution for all to use.  If you have a bug fix or a patch, send
 it to Hans and it will probably get into the next version of DOSEMU
-(assuming it's a usefull patch :)
+(assuming it's a useful patch :)
 
-Networking made powerfull :- Rob Jenneson, Vinod G Kulkarni
+Networking made powerful :- Rob Jenneson, Vinod G Kulkarni
 
 	Now DOSEMU can talk to those Netware boxes out there. We
 can also do TCP under DOS and have multiple IPX sessions if we
@@ -221,13 +221,13 @@ DANG: - Alistair Macdonald
                         the DANG now updates it'self *-
         For those of you who don't remember the DANG is a document
 that provides information on the differn't sections of dosemu.  It's
-soposto be a helpfull guide for C programmers who wish to make a
+supposed to be a helpful guide for C programmers who wish to make a
 better world for dosemu.  It gets posted to the dosemu channel every
 once in a while, and can be found in the dosemu distribution.
 
 UNIX under DOSEMU :- Marty, Alistair
 
-	Gaining usefullness has been the increased capability of DOSEMU
+	Gaining usefulness has been the increased capability of DOSEMU
 to also run UNIX commands from the DOS prompt.
 
 The DOSEMU manual: - Lawrence Mao

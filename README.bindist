@@ -6,14 +6,14 @@ The DOSEMU/FreeDos ready-to-use binary distribution.
 INSTALL
 -------
 
-The most easiest way to get DOSEMU working on your machine is to use
+The easiest way to get DOSEMU working on your machine is to use
 the ready-to-use DOSEMU binary distribution. This one comes in 2 packages:
 
   - ftp://ftp.dosemu.org/dosemu/dosemu-freedos-bin.tgz
 
       A tarball containing a collection of suitable FreeDos binaries,
       eventually patched to fit DOSEMU needs, together with some GNU
-      tools you may find usefull.
+      tools you may find useful.
 
   - ftp://ftp.dosemu.org/dosemu/dosemu-<version>-bin.tgz
 
@@ -22,7 +22,7 @@ the ready-to-use DOSEMU binary distribution. This one comes in 2 packages:
 
 This installation fits into any user HOME directory and can be used
 and installed without root permissions.
-You have to unpack _both_ tarballs (as normal user, NOT as root) into
+You have to unpack _both_ tarballs (as a normal user, NOT as root) into
 the same directory (regardless what ever) within your HOME, such as:
 
   $ mkdir mydos
@@ -44,7 +44,7 @@ now look where you are and what was installed:
 RUN
 ---
 
-After you got the install right you now can execute DOSEMU with
+After you get the install right, you can execute DOSEMU with
 
   $ cd ~mydos/dosemu             # (your CWD _must_ be here)
   $ ./xdosemu
@@ -55,11 +55,11 @@ which will use X or execute
 
 which will just start within the current terminal or console.
 
-If you never used DOSEMU before, you will get prompted (once) that you have
-read the liability disclaimer and after you agreed, DOSEMU will boot FreeDos
-and give you a command prompt.
+If you have never used DOSEMU before, you will get prompted (once) that you
+have read the liability disclaimer and after you agree, DOSEMU will boot
+FreeDos and give you a command prompt.
 
-If for some reasons it does not start, look at boot.log for details.
+If for some reason it does not start, look at boot.log for details.
 
 Remember, that you can't use <Ctrl>-C _within_ DOS to exit _from_ DOS.
 For this you need to execute 'exitemu' or, when using xdosemu,
@@ -87,7 +87,7 @@ here, however, editing is restricted to BACKSPACE'ing.
 SOURCES
 -------
 
-The sources of the here included GPL'ed binaries can befound at
+The sources of the here included GPL'ed binaries can be found at
 
   http://www.dosemu.org/
   http://www.freedos.org/

@@ -1,3 +1,53 @@
+2002/10/22 ver 1.1.3.5 unofficial pre-release
+	From Baurjan Ismagulov and Sergey Suleymanov
+	- Turkish keyboard layout
+	From Sergey Suleymanov
+	- fix KEY_LESSGREAT for non-US layouts
+	From pesarif <pesarif@bigpond.com>
+	- corrected spelling mistakes in the documentation and various
+	  other tidbits.
+	From Witold Filipczyk and Stas
+	- Improved X detection
+	From Bart and Stas
+	- make global.conf part of the dosemu binary. Users can still
+	  use an external global.conf using a command line switch or
+	  by editing dosemu.users, but by default the builtin one
+	  is used.
+	- improved emusys handling
+	From Bart
+	- removed emubat and explain the /K autoemu.bat command.com option.
+	- added the /k switch to comcom.
+	- various MFS fixes.
+	- turn linkstatic off for development builds.
+	- various docs fixes (for global.conf and netdev).
+	- regenerated the docs and the DANG	
+	- turn dpmi on and set -D+cw by default
+	From Stas
+	- correct in_dpmi usages
+	- add debug info on int return
+	- use more verbose startup info
+	- improve the hlt hack: the kernel always keeps the IF flag set so
+	  we have to set it in a hlt hack as well.
+	- use proper (dpmi/non-dpmi) registers in dosdebug
+	- corrected incorrect usage of in_dpmi at various places.
+	- introduce a config_post_process() function that is called after 
+	  parsing. Otherwise there is no good place for disabling DPMI if
+	  "secure on". Moved some related stuff from parser to post_process().
+	- remove asm run_irqs and other PIC cleanups.
+	- add "if(REG(eflags) & AC) error()" to avoid a gcc problem.
+	- Fix the DPMI mouse callback. This was necessary for the DPMI16
+	  Borland C IDE.
+	- Fix problem with ints 0x1c, 0x23, 0x24 for DPMI
+	- introduce a $_netdev option, because the packet driver can
+	  operate outside vnet mode too. It is not necessary to set up
+	  dosnet anymore if you just need the packet driver to talk to,
+	  say, eth0.
+	- Fault handling fixes for DPMI and instremu.
+	- release key on losing focus
+	- changed restore_pm_regs() to not require an extra copy_context() 
+	  after it (it does it itself now).
+	- leavedos() if DPMI stack structures are overflowed. 
+	- a port logging printf fix
 2002/09/15 ver 1.1.3.4 unofficial pre-release
 	From Eric
 	- better fix for Ins key
@@ -113,9 +163,9 @@
 	- made new keyboard code the default in compiletime-settings
 	From Grigory Batalov
 	- remove perl dependence from DOSEMU
-	- added fonts.alias
 	- unset DOSEMU_STDIN_IS_CONSOLE if "-X" is used
 	From Sergey Suleymanov
+	- added fonts.alias
 	- Cyrillic support: this introduces a Russian keyboard layout as 
 	  well as a keyboard layouts switch. It works with both the unicode 
 	  and the non-unicode keyboard code.

@@ -550,7 +550,7 @@ static boolean X_set_video_mode(int mode) {
    * ( Now we can do INT 10, AX=1A00 ).
    * Some older DOS programs do it by modifying EQUIP-flags
    * and then let the BIOS say, if it can ?!?!)
-   * If we have config.dualmon, this happens legaly.
+   * If we have config.dualmon, this happens legally.
    */
   if(config.dualmon)
     Video->setmode(7, co, li);

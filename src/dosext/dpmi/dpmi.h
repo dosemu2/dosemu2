@@ -32,6 +32,10 @@
 #define UDATASEL 0x2b
 #endif
 
+EXTERN struct sigcontext_struct dpmi_stack_frame[DPMI_MAX_CLIENTS]; /* used to store the dpmi client registers */
+EXTERN struct sigcontext_struct _emu_stack_frame;  /* used to store emulator registers */
+EXTERN struct sigcontext_struct *emu_stack_frame INIT(&_emu_stack_frame);
+
 EXTERN int in_dpmi INIT(0);        /* Set to 1 when running under DPMI */
 #define current_client (in_dpmi-1)
 EXTERN int in_win31 INIT(0);       /* Set to 1 when running Windows 3.1 */
@@ -48,7 +52,6 @@ void dpmi_fault(struct sigcontext_struct *);
 #endif
 void dpmi_realmode_hlt(unsigned char *);
 void run_pm_int(int);
-void run_pm_mouse();
 void fake_pm_int(void);
 
 #ifdef __linux__
@@ -184,6 +187,7 @@ dpmi_pm_block *lookup_pm_block(unsigned long h);
 int
 DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
 			  unsigned long low_addr, unsigned long cnt);
+unsigned long GetSegmentBaseAddress(unsigned short);
 
 extern void DPMI_show_state(struct sigcontext_struct *scp);
 extern void dpmi_sigio(struct sigcontext_struct *scp);

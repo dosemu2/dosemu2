@@ -33,14 +33,15 @@
 #define  DOSEMULIB_DEFAULT  "/var/lib/dosemu" /* system wide dosemu directory */
 #define  DOSEMU_CONF        "dosemu.conf"     /* standard configuration file */
 #define  DOSEMU_USERS       "dosemu.users"    /* access right configuration file */
-#define  CONFIG_SCRIPT_NAME "global.conf"     /* main configuration script */
+#define  DEFAULT_CONFIG_SCRIPT "builtin"      /* main configuration script */
 #define  DOSEMU_LOGLEVEL    "dosemu.loglevel" /* logging configuration file */
 #define  ALTERNATE_ETC      "/etc/dosemu"     /* alternate config. directory */
 #define  DOSEMU_MIDI        "dosemu-midi"     /* fifo for midi daemon */
 
 /* overridable file/path constants */
 EXTERN char *config_file_path INIT("/etc/" DOSEMU_CONF);
-EXTERN char *config_script_path INIT(DOSEMULIB_DEFAULT "/" CONFIG_SCRIPT_NAME);
+EXTERN char *config_script_name INIT(DEFAULT_CONFIG_SCRIPT);
+EXTERN char *config_script_path INIT(0);
 EXTERN char *dosemu_users_file_path INIT("/etc/" DOSEMU_USERS);
 EXTERN char *dosemu_loglevel_file_path INIT("/etc/" DOSEMU_LOGLEVEL);
 EXTERN char *dosemu_tmpfile_path INIT("~/" LOCALDIR_BASE_NAME "/run/dosemu.");
@@ -61,7 +62,7 @@ EXTERN char *dosemu_map_file_name INIT("/usr/src/dosemu/bin/dosemu.map");
 EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 
 #define    CONFIG_FILE           config_file_path
-#define    CONFIG_SCRIPT         config_script_path
+#define    CONFIG_SCRIPT         global_conf
 #define    DOSEMU_USERS_FILE     dosemu_users_file_path
 #define    DOSEMU_LOGLEVEL_FILE  dosemu_loglevel_file_path
 #define    TMPFILE               dosemu_tmpfile_path

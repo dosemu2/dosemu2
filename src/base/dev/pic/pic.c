@@ -131,12 +131,7 @@
 #include "config.h"
 #include "port.h"
 #include "hlt.h"
-#ifndef C_RUN_IRQS
-#define C_RUN_IRQS
 #include "bitops.h"
-#else
-#include "bitops.h"
-#endif
 #include "pic.h"
 #include "memory.h"
 /* #include <sys/vm86.h> */
@@ -177,17 +172,7 @@ static Bit16u cb_ip = 0;
  * occurs.
  */
 
-#if 0
-static unsigned long pic1_mask;        /* bits set for pic1 levels */
-#endif
-static unsigned long __attribute__((unused)) pic1_mask = 0x07f8; /* bits set for pic1 levels */
-/* 
-even asgcc -Wall says;
-pic.c: At top level:
-pic.c:81: warning: `pic1_mask' defined but not used
-though it _is_ used in the assembly part
-So I explicitly tell gcc to not warn by attaching unused - Bart
-*/
+static unsigned long pic1_mask = 0x07f8; /* bits set for pic1 levels */
 static unsigned long   pic_smm = 0;      /* 32=>special mask mode, 0 otherwise */
 
 static unsigned long   pic_pirr;         /* pending requests: ->irr when icount==0 */
@@ -367,8 +352,7 @@ inline int pic_pop()
 }
 
 
-void set_pic0_base(int_num)
-unsigned char int_num;
+void set_pic0_base(unsigned char int_num)
 {
   unsigned char int_n;
   int_n        = int_num & 0xf8;         /* it's not worth doing a loop */
@@ -384,8 +368,7 @@ unsigned char int_num;
 }
 
 
-void set_pic1_base(int_num)
-unsigned char int_num;
+void set_pic1_base(unsigned char int_num)
 {
   unsigned char int_n;
   int_n        = int_num & 0xf8;         /* it's not worth doing a loop */
@@ -574,8 +557,7 @@ Bit8u read_pic1(ioport_t port)
  *
  * DANG_END_FUNCTION
  */
-void pic_unmaski(level)
-int level;
+void pic_unmaski(int level)
 {
  pic_print(2,"Unmasking lvl= ",level,"");
  if(pic_iinfo[level].func != (void*)0) clear_bit(level,&pice_imr);
@@ -583,8 +565,7 @@ int level;
 }
 
 
-void pic_maski(level)
-int level;
+void pic_maski(int level)
 {
   pic_print(2,"Masking lvl= ",level,"");
   set_bit(level,&pice_imr);
@@ -610,9 +591,8 @@ int level;
  *
  * DANG_END_FUNCTION
  */
-void pic_seti(level,func,ivec,callback)
-unsigned int level,ivec;
-void (*func),(*callback);
+void pic_seti(unsigned int level, void (*func), unsigned int ivec,
+  void (*callback))
 {
   if(level>=32) return;
   pic_iinfo[level].func = func;
@@ -625,11 +605,6 @@ void (*func),(*callback);
 }
 
 
-/* this is the guts if the irq processor. it should be called from an if:
- * if(pic_irr) run_irqs();     
- * This will maximize speed.
- */
- 
 /* DANG_BEGIN_FUNCTION run_irqs
  *
  * run_irqs, which is initiated via the macro pic_run, is the "brains" of
@@ -646,7 +621,6 @@ void (*func),(*callback);
  *
  * DANG_END_FUNCTION
  */
-#ifdef C_RUN_IRQS
 /* DANG_BEGIN_COMMENT
  *   This is my C version of the assembly version of run_irqs.
  *   I believe it is a correct translation of the assembly into C.
@@ -671,7 +645,6 @@ void (*func),(*callback);
  *   --EB 5 Jan 97
  *  DANG_END_COMMENT
  */
-/* see assembly language version below */
 void run_irqs(void)
 /* find the highest priority unmasked requested irq and run it */
 {
@@ -720,75 +693,6 @@ void run_irqs(void)
        pic_ilevel=old_ilevel;
 }
 
-#else
-#warning using assembly run_irqs
-
-/* I got inspired.  Here's an assembly language version, somewhat faster.
- * This is also much shorter - fewer checks needed, because there's no
- * question of compiler behavior, and less code because we can use both 
- * results and flags from an instruction.
- * RE-ENTRANT CODE - uses 16 bytes of stack
- */
-void run_irqs()
-{
-
-#if 1 /* BUG FIXER (if 1), lets WIN31 run */
-if ((!(REG(eflags) & VIF)) && (!in_dpmi) ) {
-#if 0
-  g_printf("*");
-#endif
-  return;
-}
-#else
-if (!(REG(eflags) & VIF)) return;
-#endif
-
-/* Without this one dope crashes (DPMI_rm_procedure_* running increases 
- * up to a stack fault)
- *
- * This is a gross disgusting cludge, that I am going to make even grosser
- * and more disgusting in an attempt to get it to work properly.  Someday
- * I am going to find and fix the root problems that are making this 
- * necessary.  -KenC
- */
-if (in_dpmi && in_dpmi_timer_int) return;
-
-  __asm__ __volatile__
-  ("movl "CISH_INLINE(pic_ilevel)",%%ecx\n\t" /* get old ilevel              */
-   "pushl %%ecx\n\t"                          /* save old ilevel             */
-   "addl "CISH_INLINE(pic_smm)",%%ecx\n\t"    /* check spec. mask mode       */
-                                              /***  while(.....){            */
-   "1:movl "CISH_INLINE(pic_isr)",%%eax\n\t" /* 1: int_request = (pic_isr   */
-   "orl "CISH_INLINE(pic_imr)",%%eax\n\t"     /* | pic_imr)                  */
-   "notl %%eax\n\t"                           /* int_request = ~int_request  */
-   "andl "CISH_INLINE(pic_irr)",%%eax\n\t"    /* int_request &= pic_irr      */
-   "jz 3f\n\t"                                /* if(!int_request) goto 3     */
-   "2:bsfl %%eax,%%ebx\n\t"                  /* 2: ebx=find_bit(int_request)*/
-   "jz 3f\n\t"                                /* if(!int_request) goto 3     */
-   "cmpl %%ebx,%%ecx\n\t"                     /* if(ebx > pic_ilevel)...     */
-   "jle 3f\n\t"                               /* ... goto 3                  */
-   "btrl %%ebx,"CISH_INLINE(pic_irr)"\n\t"    /* clear_bit(ebx,&pic_irr)     */
-   "jnc 2b\n\t"                               /* if bit wasn't set, go to 2  */
-   "movl "CISH_INLINE(pic_isr)",%%ecx\n\t"    /* get current pic_isr         */
-   "btsl %%ebx,%%ecx\n\t"                     /* set bit in pic_isr          */
-   "movl %%ebx,"CISH_INLINE(pic_ilevel)"\n\t" /* set new ilevel              */
-   "movl %%ecx,"CISH_INLINE(pic_isr)"\n\t"    /* save new isr                */
-   "andl "CISH_INLINE(pic1_mask)",%%ecx\n\t"  /* isolate pic1 irqs           */
-   "movl %%ecx,"CISH_INLINE(pic1_isr)"\n\t"   /* save in pic1_isr            */
-   "call *"CISH_INLINE(pic_iinfo)"(,%%ebx,8)\n\t" /* call interrupt handler  */
-   "movl "CISH_INLINE(pic_ilevel)",%%eax\n\t" /* get new ilevel              */
-   "btrl %%eax,"CISH_INLINE(pic_isr)"\n\t"    /* reset isr bit - just in case*/
-   "btrl %%eax,"CISH_INLINE(pic1_isr)"\n\t"   /* reset isr bit - just in case*/
-   "jmp 1b\n\t"                               /* go back for next irq        */
-                                              /**** end of while   }      ****/
-   "3:popl "CISH_INLINE(pic_ilevel)"\n\t"    /* 3: restore old ilevel & exit*/
-   :                                          /* no output                   */
-   :                                          /* no input                    */
-   :"eax","ebx","ecx");                       /* registers eax, ebx, ecx used*/
-
- } 
-#endif
-               
    
 /* DANG_BEGIN_FUNCTION do_irq
  *
@@ -835,12 +739,6 @@ int do_irq()
     if(ilevel==PIC_IRQ9)      /* unvectored irq9 just calls int 0x0a.. */
       if(!IS_REDIRECTED(intr)) {intr=0x0a;pic1_isr&= 0xffef;} /* & one EOI */
     {
-#if 0 /* BUG CATCHER (if 1) */
-/* outputting more then one character here will change dynamic behave such
- * that we measure the wrong thing.
- */
-g_printf("+%d",(int)ilevel);
-#endif
      if (test_bit(ilevel, &pic_irqall)) pic_push(ilevel);
 
      if (!in_dpmi || in_dpmi_dos_int) {
@@ -899,13 +797,6 @@ g_printf("+%d",(int)ilevel);
         pic_isr &= pic_irqall;    /*  levels 0 and 16-31 are Auto-EOI  */
         serial_run();           /*  delete when moved to timer stuff */
         pic_run();
-#if 0
-#ifdef USING_NET
-        /* check for available packets on the packet driver interface */
-        /* (timeout=0, so it immediately returns when none are available) */
-        pkt_check_receive(0);
-#endif
-#endif
       }
       pic_sti();
       return(0);
@@ -956,8 +847,7 @@ unsigned long pic_newirr;
  *
  * DANG_END_FUNCTION
  */
-int pic_request(inum)
-int inum;
+int pic_request(int inum)
 {
 static char buf[81];
   int ret=PIC_REQ_NOP;
@@ -1011,7 +901,7 @@ static char buf[81];
   return ret;
 }
 
-void pic_untrigger(inum)
+void pic_untrigger(int inum)
 {
     if ((pic_irr | pic_pirr) & (1<<inum)) {
       pic_print(2,"Requested irq lvl ", inum, " untriggered");
@@ -1106,8 +996,7 @@ unsigned long sp;
  *
  * DANG_END_FUNCTION
  */
-inline void pic_watch(s_time)
-hitimer_u *s_time;	/* time in us, 64-bit unsigned */
+inline void pic_watch(hitimer_u *s_time)
 {
 hitimer_t t_time;
 unsigned long pic_newirr;
@@ -1276,55 +1165,4 @@ void pic_init(void)
 
 void pic_reset(void)
 {
-#if 0
-  int i;
-
-  pic_ilevel     = 32;
-  pic_isr        = 0;
-  pic_irq2_ivec  = 0;
-  pic1_mask      = 0x07f8;
-  pic0_imr       = 0xf800;
-  pic1_imr       = 0x07f8;
-  pic_imr        = 0xfff8;
-  pice_imr       = 0xffffffff;
-  pic_sp         = 0;
-  pic_vm86_count = 0;
-  pic_dpmi_count = 0;
-  pic_sys_time   = NEVER;
-  for (i = 0; i < 33; i++) {
-    pic_ltime[i] = NEVER;
-    pic_itime[i] = NEVER;
-  }
-
-  /* PIC reset on reboot and at bootup */
-  pic_seti(PIC_IRQ0, timer_int_engine, 0, NULL);  /* do_irq0 in pic.c */
-  pic_unmaski(PIC_IRQ0);
-  pic_request(PIC_IRQ0);                    /* start timer */
-  if (mice->intdrv || mice->type == MOUSE_PS2 || mice->type == MOUSE_IMPS2) {
-    pic_seti(PIC_IMOUSE, DOSEMUMouseEvents, 0, do_mouse_irq);
-    pic_unmaski(PIC_IMOUSE);
-  }
-#ifdef USING_NET
-#ifdef CONFIG_IPX
-  pic_seti(PIC_IPX, IPXRelinquishControl, 0, NULL);
-  pic_unmaski(PIC_IPX);
-#endif
-#ifdef CONFIG_IPXPICPKT
-  pic_seti(PIC_NET, pkt_check_receive_quick, 0x61, NULL);
-#else
-  pic_seti(PIC_NET, pkt_check_receive_quick, 0, NULL);
-#endif
-  pic_unmaski(PIC_NET);
-#endif
-#endif
 }
-
-#undef set_pic0_imr
-#undef set_pic1_imr
-#undef get_pic0_imr
-#undef get_pic1_imr
-#undef get_pic0_isr
-#undef get_pic1_isr
-#undef get_pic0_irr
-#undef get_pic1_irr
-#undef NEVER

@@ -383,8 +383,10 @@ struct direct *dos_readdir(DIR *);
 static int cds_drive(cds_t cds)
 {
   ptrdiff_t cds_offset = cds - cds_base;
-  if (cds_offset > 0 && (cds_offset % cds_record_size == 0))
-    return (cds - cds_base) / cds_record_size;
+  int drive = cds_offset / cds_record_size;
+  
+  if (drive >= 0 && drive < MAX_DRIVE && cds_offset % cds_record_size == 0)
+    return drive;
   else
     return -1;
 }
@@ -504,7 +506,7 @@ select_drive(state_t *state)
           directed drive.  This condition seems to be detectable as
           a non-zero value in the second four bits of the entry.
 	*/
-    if (dos_roots[dd]) {
+    if (dd >= 0 && dd < MAX_DRIVE && dos_roots[dd]) {
       found = 1;
     }
   }
@@ -513,7 +515,7 @@ select_drive(state_t *state)
     char *fn1 = sda_filename1(sda);
 
     dd = toupperDOS(fn1[0]) - 'A';
-    if (dos_roots[dd]) {
+    if (dd >= 0 && dd < MAX_DRIVE && dos_roots[dd]) {
       /* removed ':' check so DRDOS would be happy,
 	     there is a slight worry about possible device name
 	     troubles with this - will PRN ever be interpreted as P:\RN ? */
@@ -529,7 +531,7 @@ select_drive(state_t *state)
     } else {
       dd = sda_cur_drive(sda);
     }
-    if (dos_roots[dd])
+    if (dd >= 0 && dd < MAX_DRIVE && dos_roots[dd])
       found = 1;
   }
 
@@ -538,7 +540,7 @@ select_drive(state_t *state)
   if (!found && fn == FIND_NEXT) {
     u_char *dta = sda_current_dta(sda);
     dd = (*dta & ~0x80);
-    if (dos_roots[dd])
+    if (dd >= 0 && dd < MAX_DRIVE && dos_roots[dd])
       found = 1;
   }
 
@@ -796,8 +798,9 @@ mfs_redirector(void)
     return 0;
   }
 
-  sigfillset (&blockset);
-  sigprocmask(SIG_SETMASK, &blockset, &oldset);
+  sigemptyset (&blockset);
+  sigaddset(&blockset, SIGALRM);
+  sigprocmask(SIG_BLOCK, &blockset, &oldset);
   ret = dos_fs_redirect(&REGS);
   sigprocmask(SIG_SETMASK, &oldset, NULL);
   leave_priv_setting();
@@ -835,8 +838,9 @@ mfs_inte6(void)
     leave_priv_setting();
     return 0;
   }
-  sigfillset (&blockset);
-  sigprocmask(SIG_SETMASK, &blockset, &oldset);
+  sigemptyset (&blockset);
+  sigaddset(&blockset, SIGALRM);
+  sigprocmask(SIG_BLOCK, &blockset, &oldset);
   result = dos_fs_dev(&REGS);
   sigprocmask(SIG_SETMASK, &oldset, NULL);
   leave_priv_setting();
@@ -2682,6 +2686,9 @@ Values of DOS 2-6.22 file sharing behavior:
     if (fl.l_type == F_WRLCK || fl.l_type == F_RDLCK) return FALSE;
     fl.l_type = mode == O_RDONLY ? F_RDLCK : F_WRLCK;
     break;
+  case FCB_MODE:
+    if ((sft_open_mode(sft) & 0x8000) && (fl.l_type != F_WRLCK)) return TRUE;
+    /* else fall through */
   default:
     Debug0((dbg_fd, "internal SHARE: unknown sharing mode %x\n",
 	    share_mode));
@@ -2715,7 +2722,6 @@ static void open_device(unsigned long devptr, char *fname, sft_t sft)
   sft_device_info(sft) =
     (((dev[4] | dev[5] << 8) & ~SFT_MASK) & ~SFT_FSHARED)
     | SFT_FDEVICE | SFT_FEOF;
-  printf("%x\n", sft_device_info(sft));
   time_to_dos(time(NULL), &sft_date(sft), &sft_time(sft));
   sft_size(sft) = 0;
   sft_position(sft) = 0;

@@ -59,8 +59,8 @@ current implemented ones:
        a rate of 100/7=14 cps.
 
 \pn;   Before typing the next stroke wait n unix ticks.
-       This is usefull, when the DOS-application fushes the
-       keybord buffer on startup. Your strokes would be discared,
+       This is useful, when the DOS-application flushes the
+       keyboard buffer on startup. Your strokes would be discarded,
        if you don't wait.
 
 </screen>

@@ -27,21 +27,13 @@
 /* function definitions */
 
 
-#ifndef  C_RUN_IRQS
-#define _INLINE_ extern __inline__
-#define _STATIC_
-#else
-#define _INLINE_ static __inline__
-#define _STATIC_ static
-#endif
-
-_STATIC_ int find_bit(unsigned long int word);
-_STATIC_ long atomic_inc(long * addr);
-_STATIC_ long atomic_dec(long * addr);
-_STATIC_ int set_bit(int nr, void * addr);
-_STATIC_ int clear_bit(int nr, void * addr);
-_STATIC_ int test_bit(int nr, void * addr);
-_STATIC_ int pic0_to_emu(char flags);
+static int find_bit(unsigned long int word);
+static long atomic_inc(long * addr);
+static long atomic_dec(long * addr);
+static int set_bit(int nr, void * addr);
+static int clear_bit(int nr, void * addr);
+static int test_bit(int nr, void * addr);
+static int pic0_to_emu(char flags);
 
 /*
  * These have to be done with inline assembly: that way the bit-setting is
@@ -64,7 +56,7 @@ struct __dummy {
  * find_bit returns the bit number of the lowest bit that's set
  * Returns -1 if no one exists.
  */
-_INLINE_ int
+static __inline__ int
 find_bit(unsigned long int word)
 {
        int result = -1; /* value to return on error */
@@ -75,14 +67,14 @@ find_bit(unsigned long int word)
 }
 
 /* atomic increment flag and decrement flag operations */
-_INLINE_ long int
+static __inline__ long int
 atomic_inc(long *addr)
 {
     __asm__         __volatile__("incl %1"
 				 :"=m"           (ADDR):"0"(ADDR));
     return *addr;
 }
-_INLINE_ long int
+static __inline__ long int
 atomic_dec(long *addr)
 {
     __asm__         __volatile__("decl %1"
@@ -90,7 +82,7 @@ atomic_dec(long *addr)
     return *addr;
 }
 
-_INLINE_ int
+static __inline__ int
 pic0_to_emu(char flags)
 {
     /* This function maps pic0 bits to their positions in priority order */
@@ -111,7 +103,7 @@ pic0_to_emu(char flags)
 				 :"=r"(result):"r"(flags));
     return result;
 }
-_INLINE_ long
+static __inline__ long
 emu_to_pic0(long flags)
 {
     /*
@@ -134,7 +126,7 @@ emu_to_pic0(long flags)
  * Linus' stuff follows - except each __inline__ had an extern in front of
  * it
  */
-_INLINE_ int
+static __inline__ int
 set_bit(int nr, void *addr)
 {
     int             oldbit;
@@ -145,7 +137,7 @@ set_bit(int nr, void *addr)
     return oldbit;
 }
 
-_INLINE_ int
+static __inline__ int
 clear_bit(int nr, void *addr)
 {
     int             oldbit;
@@ -160,7 +152,7 @@ clear_bit(int nr, void *addr)
  * This routine doesn't need to be atomic, but it's faster to code it this
  * way.
  */
-_INLINE_ int
+static __inline__ int
 test_bit(int nr, void *addr)
 {
     int             oldbit;

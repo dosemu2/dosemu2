@@ -14,6 +14,7 @@
 #include "config.h"
 #include "int.h"
 #include "memory.h"
+#include "keyb_server.h"
 
 
 #define set_typematic_rate()
@@ -113,7 +114,6 @@ static unsigned get_key(extended)
 static unsigned check_key_available(int extended)
 {
   unsigned keyptr = get_key(extended);
-  extern Bit8u port60_buffer;
   static Bit32u oldESP;
   static int trigger = 0, trigger1 = 0;
   

@@ -1558,10 +1558,8 @@ mouse_delta(int event)
 void
 do_mouse_irq()
 {
-    if(in_dpmi && !in_dpmi_dos_int 
-          && !((mouse.cs == DPMI_SEG) && 
-          ((Bit32u)mouse.ip == (DPMI_OFF+HLT_OFF(DPMI_mouse_callback)))))
-                  fake_pm_int();
+    if(in_dpmi && !in_dpmi_dos_int)
+      fake_pm_int();
 
     /* push iret frame on _SS:_SP. At F000:2146 (bios.S) we get an
      * iret and return to _CS:_IP */
@@ -1593,11 +1591,6 @@ do_mouse_irq()
 
     REG(ds) = *mouse.csp;	/* put DS in user routine */
 
-    if (in_dpmi && 
-	(REG(cs) == DPMI_SEG) 
-	&& (REG(eip) == (DPMI_OFF+HLT_OFF(DPMI_mouse_callback))))
-	run_pm_mouse();
-    
     m_printf("MOUSE: event %d, x %d ,y %d, mx %d, my %d, b %x\n",
 	     mouse_events, mouse.x, mouse.y, mouse.maxx, mouse.maxy, LWORD(ebx));
     m_printf("MOUSE: "

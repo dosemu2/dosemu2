@@ -499,12 +499,6 @@ tolower($1) == "emusys" {
   next
 }
 
-tolower($1) == "emubat" {
-  get_line()
-  write_entry( "emubat", fields[1])
-  next
-}
-
 tolower($1) == "fastfloppy" {
   get_line()
   write_entry( "fastfloppy", fields[1])

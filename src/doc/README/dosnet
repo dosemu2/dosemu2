@@ -26,6 +26,14 @@ telnetd/ftpd running in linux and, with IP forwarding enabled in the
 kernel, connect to any host on your network.
 </para>
 
+<para>
+If you, on the other hand, just want one DOSEMU session which talks
+to your ethernet card through the packet driver, then you don't need
+to use $_vnet and can set $_netdev to "eth0" or similar. Note that
+this all requires root privileges because the DOSEMU code needs to
+manipulate raw sockets.
+</para>
+
 </sect2>
 
 <sect2>

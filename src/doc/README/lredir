@@ -7,7 +7,7 @@ This section of the document by Hans,
 url="mailto:lermen@fgan.de"
 >&#60;lermen@fgan.de&#62;</ulink
 >. Last
-updated on April, 18 1999.
+updated on October, 23 2002.
 </para>
 
 <para>
@@ -21,11 +21,6 @@ partition access.
 
 <sect2>
 <title>how do you use it?</title>
-
-<para>
-First make sure you aren't using DosC (the FreeDos kernel), because
-unfortunately this can't yet cope with the redirector stuff.
-</para>
 
 <para>
 Mount your dos hard disk partition as a Linux subdirectory.
@@ -82,7 +77,8 @@ a /etc/fstab entry like this
    otherhost:      /dos     nfs     nolock
 </screen>
 
-Note that the <emphasis>nolock</emphasis>&#62; option is <emphasis>needed</emphasis> for 2.2.x kernels, because
+Note that the <emphasis>nolock</emphasis>&#62; option might be
+<emphasis>needed</emphasis> for 2.2.x kernels, because
 apparently the locks do not propagate fast enough and DOSEMU's (MFS code)
 share emulation will fail (seeing a lock on its own files).
 </para>

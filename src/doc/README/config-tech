@@ -399,6 +399,8 @@ must be known before any other file is accessed, such as:
 
 <screen>
   default_lib_dir= /opt/dosemu  # replaces /var/lib/dosemu
+  config_script= /etc/dosemu/global.conf	# uses this file instead of the
+				# built-in global.conf
   log_level= 2                  # highest log level
 </screen>
 
@@ -406,9 +408,15 @@ must be known before any other file is accessed, such as:
 
 <para>
 With `default_lib_dir=' you may move /var/lib/dosemu elsewere, this mostly
-is interesting for distributors, who want it elswere but won't patch the
+is interesting for distributors, who want it elsewhere but won't patch the
 DOSEMU source just for this purpose. But note, the dosemu supplied scripts
 and helpers may need some adaption too in order to fit your new directory.
+</para>
+
+<para>
+By default, a global.conf is used that is linked into the main DOSEMU
+executable. Using `config_script=` you can specify a standalone filename
+for use as 'global.conf'. The default setting is 'builtin'. 
 </para>
 
 <para>
@@ -421,7 +429,7 @@ obsolete.
 </sect2>
 
 <sect2>
-<title>Format of /var/lib/dosemu/global.conf ( (old) .dosrc, -I option)</title>
+<title>Format of global.conf ( (old) .dosrc, -I option)</title>
 
 <para>
 The configuration files are not line oriented, instead are consisting of
@@ -666,7 +674,7 @@ implicitely predefined by DOSEMU itself:
 <term>c_system</term>
 <listitem>
 <para>
-     set while being in /var/lib/dosemu/global.conf
+     set while being in global.conf
 </para>
 </listitem></varlistentry>
 <varlistentry>
@@ -864,7 +872,7 @@ you can include it via
 If 'somefile' doesn't have a leading '/', it is assumed to be relative to /etc.
 Also includeing may be nested up to a max depth of 10 files.
 Note however, that the privilege is inherited from the main file from which
-is included, hence all what is included by /var/lib/dosemu/global.conf has its
+is included, hence all what is included by global.conf has its
 privilege.
 </para>
 
@@ -1316,7 +1324,7 @@ dosemu and/or kernel versions. Here some small examples:
 <title>`Dry' testing your configuration</title>
 
 <para>
-It may be usefull to verify, that your *.conf does what you
+It may be useful to verify, that your *.conf does what you
 want before starting a real running DOSEMU. For this purpose there is a 
 new commandline option (-h), which just runs the parser, print some
 useful output, dumps the main configuration structure and then exits.

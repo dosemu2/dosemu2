@@ -628,18 +628,12 @@ void add_object(fatfs_t *f, unsigned parent, char *name)
   static int first = 1;
   static int exxx = 0;
   static char esys[16] = "";
-  static char ebat[16] = "";
 
   if (first) {
     first = 0;
     if (config.emusys) {
       snprintf(esys, 8+1+3+1,"config.%s", config.emusys);
       esys[12] =0;
-      exxx += 2;
-    }
-    if (config.emubat) {
-      snprintf(ebat, 8+1+3+1,"autoexec.%s", config.emubat);
-      ebat[12] =0;
       exxx += 2;
     }
   }
@@ -650,19 +644,9 @@ void add_object(fatfs_t *f, unsigned parent, char *name)
       exxx -= 1;
       return;
     }
-    if (ebat[0] && !strcmp(name, "autoexec.bat")) {
-      fatfs_deb("add_object: ignored real %s in favour of %s\n", name, ebat);
-      exxx -= 1;
-      return;
-    }
     if (esys[0] && !strcmp(name, esys)) {
       tmp_o.is.faked_sys = 1;
       fatfs_deb("add_object: faked %s as DOS entry CONFIG.SYS\n", esys);
-      exxx -= 1;
-    }
-    else if (ebat[0] && !strcmp(name, ebat)) {
-      tmp_o.is.faked_bat = 1;
-      fatfs_deb("add_object: faked %s as DOS entry AUTOEXEC.BAT\n", ebat);
       exxx -= 1;
     }
   }
@@ -739,7 +723,6 @@ unsigned make_dos_entry(fatfs_t *f, obj_t *o, unsigned char **e)
 
   s = o->name;
   if (o->is.faked_sys) s = "config.sys";
-  if (o->is.faked_bat) s = "autoexec.bat";
 
   if(o->is.this_dir) {
     s = ".";

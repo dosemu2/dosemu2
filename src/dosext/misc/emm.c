@@ -787,7 +787,7 @@ reallocate_pages(state_t * state)
 
   if (newcount && handle_info[handle].object) {
     /*
-     * No special handling required, we savely can realloc() or mremap()
+     * No special handling required, we safely can realloc() or mremap()
      */
     obj = realloc_memory_object(handle_info[handle].object, handle_info[handle].numpages*EMM_PAGE_SIZE ,newcount * EMM_PAGE_SIZE);
     if (obj==NULL) {
