@@ -2439,6 +2439,12 @@ static void dpmi_init(void)
     }
   }
 
+  if (in_dpmi > 1) {
+    /* Then we also inherit the realmode callbacks */
+    for (i = 0; i < 0x10; i++)
+      DPMI_CLIENT.realModeCallBack[i] = PREV_DPMI_CLIENT.realModeCallBack[i];
+  }
+
   ssp = (unsigned char *) (REG(ss) << 4);
   sp = (unsigned long) LWORD(esp);
 
