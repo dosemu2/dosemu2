@@ -30,7 +30,7 @@ all: lib
 #	      because we came into trouble with make dependencies recently
 
 bios.o: bios.S $(top_builddir)/src/include/config.h $(IDIR)/macros86.h $(IDIR)/memory.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -nostdlib -Wl,-Ttext,0,-e,bios_f000 -Wa,-a -traditional $< -o $@.tmp > $*.s.out
+	$(CC) $(CPPFLAGS) -nostdlib -Wl,-Ttext,0,-e,bios_f000 -Wa,-a -traditional $< -o $@.tmp > $*.s.out
 	strip -N _edata -N __bss_start -N _end -N _etext -N blaBLA $@.tmp
 	mv -f $@.tmp $@
 

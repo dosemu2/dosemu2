@@ -448,7 +448,7 @@ AC_SUBST(INCDIR)
 
 CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations -Wnested-externs"
 if test "$enable_debug" = "yes"; then
-  CFLAGS="$CFLAGS -gstabs+"
+  CFLAGS="$CFLAGS -g"
   AC_DEFINE(_DEBUG)
   OPT="-O"
 else

@@ -8656,7 +8656,7 @@ INCDIR="-I\${top_builddir}/src/include -I\${top_builddir}/src/plugin/include ${S
 
 CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations -Wnested-externs"
 if test "$enable_debug" = "yes"; then
-  CFLAGS="$CFLAGS -gstabs+"
+  CFLAGS="$CFLAGS -g"
   cat >>confdefs.h <<\_ACEOF
 #define _DEBUG 1
 _ACEOF

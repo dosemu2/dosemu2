@@ -52,7 +52,7 @@ all: lib
 #	      because we came into trouble with make dependencies recently
 
 vesabios.o: vesabios.S 
-	$(CC) $(CPPFLAGS) $(CFLAGS) -nostdlib -Wl,-Ttext,0,-e,_start16 -Wa,-a -traditional $< -o $@.tmp > $*.s.out
+	$(CC) $(CPPFLAGS) -nostdlib -Wl,-Ttext,0,-e,_start16 -Wa,-a -traditional $< -o $@.tmp > $*.s.out
 	strip -N _edata -N __bss_start -N _end $@.tmp
 	mv -f $@.tmp $@
 	chmod 644 $@

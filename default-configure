@@ -74,7 +74,7 @@ while [ "$1" != "" ]; do
     svgalib)
       if [ "$2" = "on" ]; then STRING="$STRING --with-svgalib"; fi
       ;;
-    libgpm)
+    gpm)
       if [ "$2" = "off" ]; then STRING="$STRING --without-gpm"; fi
       ;;
     docdir|x11fontdir|syshdimagedir|fdtarball)
