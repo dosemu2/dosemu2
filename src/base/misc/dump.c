@@ -15,6 +15,7 @@
 #include "emu.h"
 #include "cpu.h"
 #include "port.h"
+#include "emu-ldt.h"
 #include "dpmi.h"
 #include "int.h"
 
@@ -191,7 +192,11 @@ void DPMI_show_state(struct sigcontext_struct *scp)
      * area, we fall into another fault which likely terminates dosemu.
      * There should be some way to check for that...
      */
-    {
+#ifdef X86_EMULATOR
+    if (!d.emu) {
+#else
+    if (1) {
+#endif
       int i;
       D_printf("OPS  : ");
       for (i = 0; i < 10; i++)

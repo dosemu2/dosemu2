@@ -107,6 +107,10 @@ EXTERN int keypipe;
 EXTERN int mousepipe;
 
 EXTERN int in_vm86 INIT(0);
+#ifdef X86_EMULATOR
+EXTERN int in_vm86_emu INIT(0);
+EXTERN int in_dpmi_emu INIT(0);
+#endif
 
 EXTERN int li, co;	/* lines, columns */
 EXTERN int scanseq;
@@ -147,6 +151,9 @@ void getKeys(void);
 EXTERN struct debug_flags d INIT({0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0});
 #else
 EXTERN struct debug_flags d INIT({0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0});
+#endif
+#ifdef DONT_DEBUG_BOOT
+EXTERN struct debug_flags d_save;
 #endif
  
 EXTERN u_char in_sighandler, in_ioctl;

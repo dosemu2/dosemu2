@@ -71,6 +71,7 @@
 #include "ipx.h"                /* TRB - add support for ipx */
 #include "keymaps.h"
 #include "bitops.h"
+#include "cpu-emu.h"
 
 #include "video.h"
 #if X_GRAPHICS
@@ -348,6 +349,7 @@ op0ferr:
 #ifdef USE_MHPDBG
     mhp_debug(DBG_GPF, 0, 0);
 #endif
+    d.general=1;
     error("general protection at %p: %x\n", lina,*lina);
     show_regs(__FILE__, __LINE__);
     show_ints(0, 0x33);
@@ -437,7 +439,11 @@ run_vm86(void)
 #endif
     /* FIXME: this needs to be clarified and rewritten */
 
-    if (d.general>3) {
+    if (
+#ifdef X86_EMULATOR
+	(d.emu>1)||
+#endif
+	(d.general>3)) {
 	dbug_printf ("DO_VM86,  cs=%04x:%04x ss=%04x:%04x f=%08x\n",
 		_CS, _EIP, _SS, _SP, _EFLAGS);
 	if (d.general>8)
@@ -464,7 +470,11 @@ run_vm86(void)
       g_printf("BUG: flags changed to %08x\n",_EFLAGS);
       _EFLAGS &= ~(AC|ID);
     }
-    if (d.general>3) {
+    if (
+#ifdef X86_EMULATOR
+	(d.emu>1)||
+#endif
+	(d.general>3)) {
 	dbug_printf ("RET_VM86, cs=%04x:%04x ss=%04x:%04x f=%08x ret=0x%x\n",
 		_CS, _EIP, _SS, _SP, _EFLAGS, retval);
 	if (d.general>8)

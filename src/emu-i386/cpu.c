@@ -42,7 +42,7 @@
 
 extern void xms_control(void);
 
-static unsigned long CRs[5] =
+unsigned long CRs[5] =
 {
 	0x00000010,	/*0x8003003f?*/
 	0x00000000,	/* invalid */
@@ -51,19 +51,37 @@ static unsigned long CRs[5] =
 	0x00000000
 };
 
-static unsigned long DRs[8] =
+/*
+ * DR0-3 = linear address of breakpoint 0-3
+ * DR4=5 = reserved
+ * DR6	b0-b3 = BP active
+ *	b13   = BD
+ *	b14   = BS
+ *	b15   = BT
+ * DR7	b0-b1 = G:L bp#0
+ *	b2-b3 = G:L bp#1
+ *	b4-b5 = G:L bp#2
+ *	b6-b7 = G:L bp#3
+ *	b8-b9 = GE:LE
+ *	b13   = GD
+ *	b16-19= LLRW bp#0	LL=00(1),01(2),11(4)
+ *	b20-23= LLRW bp#1	RW=00(x),01(w),11(rw)
+ *	b24-27= LLRW bp#2
+ *	b28-31= LLRW bp#3
+ */
+unsigned long DRs[8] =
 {
 	0x00000000,
 	0x00000000,
 	0x00000000,
 	0x00000000,
-	0xffff0ff0,
+	0xffff1ff0,
 	0x00000400,
-	0xffff0ff0,
+	0xffff1ff0,
 	0x00000400
 };
 
-static unsigned long TRs[2] =
+unsigned long TRs[2] =
 {
 	0x00000000,
 	0x00000000
@@ -95,6 +113,14 @@ int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
 	else if (csp[1] == 0x31) {
 		/* ref: Van Gilluwe, "The Undocumented PC". The program
 		 * 'cpurdtsc.exe' traps here */
+#ifdef X86_EMULATOR
+		if (config.cpuemu>1) {
+		  /* I guess we'll never come here...but who knows */
+		  extern unsigned long long EMUtime;
+		  REG(eax) = (unsigned long)EMUtime;
+		  REG(edx) = (unsigned long)(EMUtime>>32);
+		} else
+#endif
 		if (vm86s.cpu_type >= CPU_586) {
 		  __asm__ __volatile__ ("rdtsc" \
 			:"=a" (REG(eax)),  \

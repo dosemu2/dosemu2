@@ -430,6 +430,10 @@ emulate(int argc, char **argv)
     port_init();		/* setup port structures, before config! */
     version_init();		/* Check the OS version */
     config_init(argc, argv);	/* parse the commands & config file(s) */
+#ifdef DONT_DEBUG_BOOT		/* cpuemu only */
+    memcpy(&d_save,&d,sizeof(struct debug_flags));
+    if (d.emu) memset(&d,0,sizeof(struct debug_flags));
+#endif
     get_time_init();
     stdio_init();		/* initialize stdio & open debug file */
     print_version();            /* log version information */

@@ -1058,9 +1058,9 @@ int13(u_char i)
       track |= (HI(dx) & 0xc0) << 4;
     buffer = SEG_ADR((char *), es, bx);
     number = LO(ax);
-#if 0
-    d_printf("DISK %d read [h:%d,s:%d,t:%d](%d)->%p\n",
-	     disk, head, sect, track, number, (void *) buffer);
+#ifdef X86_EMULATOR
+    e_printf("DISK %d read [h:%d,s:%d,t:%d](%d)->%04x:%04x\n",
+	     disk, head, sect, track, number, REG(es), LWORD(ebx));
 #endif
 
     if (checkdp_val || head >= dp->heads ||

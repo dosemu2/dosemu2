@@ -86,6 +86,7 @@
 #ifdef X86_EMULATOR
 #define DOS_HELPER_CPUEMUON         0x90
 #define DOS_HELPER_CPUEMUOFF        0x91
+#define DOS_HELPER_CPUEMULEVEL      0x92
 #endif
 
 #define DOS_HELPER_XCONFIG          0xa0

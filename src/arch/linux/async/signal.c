@@ -276,6 +276,10 @@ sti(void)
  */
 void handle_signals(void) {
   if ( SIGNAL_head != SIGNAL_tail ) {
+#ifdef X86_EMULATOR
+    if ((config.cpuemu>1) && (d.emu>3))
+      {e_printf("EMU86: SIGNAL at %d\n",SIGNAL_head);}
+#endif
     signal_queue[SIGNAL_head].signal_handler();
     SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
 /* 
@@ -472,7 +476,7 @@ void SIGALRM_call(void)
   /* this should be for per-second activities, it is actually at
    * 200ms more or less (PARTIALS=5) */
   if ((pic_sys_time-cnt200) >= (PIT_TICK_RATE/PARTIALS)) {
-    cnt200 += (PIT_TICK_RATE/PARTIALS);
+    cnt200 = pic_sys_time;
 /*    g_printf("**** ALRM: %dms\n",(1000/PARTIALS)); */
 
 #ifdef IPX
@@ -577,16 +581,17 @@ sigalrm(int sig, struct sigcontext_struct context)
     dpmi_sigio(&context);
   SIGNAL_save(SIGALRM_call);
 }
-#endif
 
 #ifdef X86_EMULATOR
+/* this is the same thing, but with a pointer parameter */
 void
-e_sigalrm(void)
+e_sigalrm(struct sigcontext_struct *context)
 {
-/*  if (in_dpmi && !in_vm86)
-    dpmi_sigio(&context); */
+  if (in_dpmi && !in_vm86)
+    dpmi_sigio(context);
   SIGNAL_save(SIGALRM_call);
 }
+#endif
 #endif
 
 #ifdef __NetBSD__

@@ -48,11 +48,10 @@
 #else
 #include <errno.h>
 #endif
-#if LX_KERNEL_VERSION < 2001000
-  #include <linux/ldt.h>
-#else
-  #include <asm/ldt.h>
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
 #endif
+#include "emu-ldt.h"
 #include <asm/segment.h>
 #include <asm/page.h>
 #endif
@@ -241,6 +240,11 @@ make_sd(unsigned base,
 inline int get_ldt(void *buffer)
 {
 #ifdef __linux__
+#ifdef X86_EMULATOR
+  if (config.cpuemu>1)
+	return emu_modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
+  else
+#endif
   return modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
 #endif
 #ifdef __NetBSD__
@@ -258,6 +262,7 @@ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 )
 {
   unsigned long *lp;
+/* --------------------- linux --------------------- */
 #ifdef __linux__
   struct modify_ldt_ldt_s ldt_info;
   unsigned long first, last, bottom, top;
@@ -358,9 +363,17 @@ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 	}
   }
 
-  if ((__retval=modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info))))
+#ifdef X86_EMULATOR
+  if (config.cpuemu>1)
+	__retval = emu_modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
+  else
+#endif
+  __retval = modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
+  if (__retval)
 	return __retval;
 #endif
+/* --------------------- linux --------------------- */
+/* --------------------- NetBSD -------------------- */
 #ifdef __NetBSD__
 #ifndef WANT_WINDOWS
   int seg_not_present = 0;
@@ -416,6 +429,7 @@ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
       return errno;
   D_printf("DPMI: setldt succeeded\n");
 #endif
+/* --------------------- NetBSD -------------------- */
 
 
 /*
@@ -465,7 +479,7 @@ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   return 0;
 }
 
-static void print_ldt(void ) /* stolen from WINE */
+void print_ldt(void ) /* stolen from WINE */
 {
   static char buffer[0x10000];
   unsigned long *lp, *lp2;
@@ -1007,6 +1021,14 @@ static unsigned short CreateCSAlias(unsigned short selector)
 
 static int inline do_LAR(us selector)
 {
+#ifdef X86_EMULATOR
+  if (config.cpuemu) {
+    us flg = LDT[selector>>3].w86Flags & 0xff;
+    if (flg) LDT[selector>>3].w86Flags |= 1;
+    return flg;
+  }
+  else
+#endif
   __asm__ volatile("
     movzwl  %%ax,%%eax
     larw %%ax,%%ax
@@ -1216,6 +1238,19 @@ static __inline__ void dpmi_sti()
 
 void do_int31(struct sigcontext_struct *scp, int inumber)
 {
+#ifdef X86_EMULATOR
+  extern void e_dpmi_b0x(int op,struct sigcontext_struct *);
+
+  if (d.dpmi) {
+    D_printf("DPMI: int31, ax=%04x, ebx=%08lx, ecx=%08lx, edx=%08lx\n",
+	_LWORD(eax),_ebx,_ecx,_edx);
+    D_printf("        edi=%08lx, esi=%08lx, ebp=%08lx, esp=%08lx\n",
+	_edi,_esi,_ebp,_esp);
+    D_printf("        cs=%04x, ds=%04x, ss=%04x, es=%04x, fs=%04x, gs=%04x\n",
+	_cs,_ds,_ss,_es,_fs,_gs);
+  }
+#endif
+
   _eflags &= ~CF;
   switch (inumber) {
   case 0x0000:
@@ -1807,6 +1842,56 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
       }
     }
     break;
+  case 0x0b00:	/* Set Debug Breakpoint ->bx=handle(!CF) */
+    {
+      D_printf("DPMI: Set breakpoint type %x size %x at %04x%04x\n",
+	_HI(dx),_LO(dx),_LWORD(ebx),_LWORD(ecx));
+#ifdef X86_EMULATOR
+      if (config.cpuemu>1) {
+	e_dpmi_b0x(0,scp);
+      } else
+#endif
+      {_LWORD(eax) = 0x8016;	/* n.i. */
+	_eflags |= CF; }
+    }
+    break;
+  case 0x0b01:	/* Clear Debug Breakpoint, bx=handle */
+    {
+      D_printf("DPMI: Clear breakpoint %x\n",_LWORD(ebx));
+#ifdef X86_EMULATOR
+      if (config.cpuemu>1) {
+	e_dpmi_b0x(1,scp);
+      } else
+#endif
+      { _LWORD(eax) = 0x8023;	/* n.i. */
+	_eflags |= CF; }
+    }
+    break;
+  case 0x0b02:	/* Get Debug Breakpoint State, bx=handle->ax=state(!CF) */
+    {
+      D_printf("DPMI: Breakpoint %x state\n",_LWORD(ebx));
+#ifdef X86_EMULATOR
+      if (config.cpuemu>1) {
+	e_dpmi_b0x(2,scp);
+      } else
+#endif
+      { _LWORD(eax) = 0x8023;	/* n.i. */
+	_eflags |= CF; }
+    }
+    break;
+  case 0x0b03:	/* Reset Debug Breakpoint, bx=handle */
+    {
+      D_printf("DPMI: Reset breakpoint %x\n",_LWORD(ebx));
+#ifdef X86_EMULATOR
+      if (config.cpuemu>1) {
+	e_dpmi_b0x(3,scp);
+      } else
+#endif
+      { _LWORD(eax) = 0x8023;	/* n.i. */
+	_eflags |= CF; }
+    }
+    break;
+
   case 0x0e00:	/* Get Coprocessor Status */
     _LWORD(eax) = 0x4d;
     break;
@@ -1904,9 +1989,22 @@ static inline void copy_context(struct sigcontext_struct *d, struct sigcontext_s
 
 static inline void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode)
 {
+#ifdef X86_EMULATOR
+ if (config.cpuemu<2) {
+#endif
   copy_context(&dpmi_stack_frame[current_client],scp);
   copy_context(scp, emu_stack_frame);
   _eax = retcode;
+#ifdef X86_EMULATOR
+ }
+  else {
+    extern int emu_dpmi_retcode;
+    D_printf("DPMI: return %x from emulator to dosemu code\n", retcode);
+    D_printf("DPMI: in_dpmi_dos_int=%d dpmi_eflags=%x\n",in_dpmi_dos_int,
+	dpmi_eflags);
+    emu_dpmi_retcode = retcode;
+  }
+#endif
 }
 
 #else
@@ -2108,7 +2206,7 @@ void run_dpmi(void)
    int retval;
    unsigned char *csp;
 #ifdef X86_EMULATOR
-   extern int e_dpmi(void);
+   extern int e_dpmi(struct sigcontext_struct *);
 #endif
 
   /* always invoke vm86() with this call.  all the messy stuff will
@@ -2142,9 +2240,27 @@ void run_dpmi(void)
         REG(eflags) |= (VIP);
 #endif
 
+    if (
+#ifdef X86_EMULATOR
+	(d.emu>1)||
+#endif
+	(d.dpmi>2)) {
+	D_printf ("DPMI: do_vm86,  %04x:%04lx %08lx %08lx %08x\n", REG(cs),
+		REG(eip), REG(esp), REG(eflags), dpmi_eflags);
+    }
+
     in_vm86 = 1;
     retval=DO_VM86(&vm86s);
     in_vm86=0;
+
+#ifdef X86_EMULATOR
+    if (
+	(d.emu>1)||
+	(d.dpmi>3)) {
+	D_printf ("DPMI: ret_vm86, %04x:%04lx %08lx %08lx %08x ret=%#x\n",
+		REG(cs), REG(eip), REG(esp), REG(eflags), dpmi_eflags, retval);
+    }
+#endif
 
     if (REG(eflags)&IF) {
       if (!(dpmi_eflags&IF))
@@ -2162,13 +2278,13 @@ void run_dpmi(void)
 		vm86_GP_fault();
 		break;
 	case VM86_STI:
-#ifdef SHOWREGS
-		I_printf("DPMI: Return from vm86() for timeout\n");
+#ifdef X86_EMULATOR
+		D_printf("DPMI: Return from vm86() for timeout\n");
 #endif
 		pic_iret();
 		break;
 	case VM86_INTx:
-#ifdef SHOWREGS
+#ifdef X86_EMULATOR
 		D_printf("DPMI: Return from vm86() for interrupt\n");
 #endif
 #ifdef SHOWREGS
@@ -2206,10 +2322,12 @@ void run_dpmi(void)
   else {
     int retcode;
     if(pic_icount) dpmi_eflags |= VIP;
-    retcode = dpmi_control();
+    retcode = (
 #ifdef X86_EMULATOR
-    if (config.cpuemu>1) e_dpmi();	/* keep sigalrm alive */
+	config.cpuemu>1?
+	e_dpmi(&dpmi_stack_frame[current_client]) :
 #endif
+	dpmi_control());
 #ifdef USE_MHPDBG
     if (retcode && mhpdbg.active) {
       if ((retcode ==1) || (retcode ==3)) mhp_debug(DBG_TRAP + (retcode << 8), 0, 0);
@@ -2494,7 +2612,12 @@ void dpmi_init()
 
 void dpmi_sigio(struct sigcontext_struct *scp)
 {
+#ifdef X86_EMULATOR
+  extern int in_dpmi_emu;
+  if (in_dpmi_emu || (_cs != UCODESEL)) {
+#else
   if (_cs != UCODESEL){
+#endif
 #if 0
     if (dpmi_eflags & IF) {
       D_printf("DPMI: return to dosemu code for handling signals\n");
@@ -2566,18 +2689,29 @@ static void do_cpu_exception(struct sigcontext *scp, int code)
 
 #ifdef DPMI_DEBUG
   /* My log file grows to 2MB, I have to turn off dpmi debugging,
-     so this log excptions even dpmi debug is off */
+     so this log exceptions even if dpmi debug is off */
   unsigned char dd = d.dpmi;
   d.dpmi = 1;
 #endif
-  D_printf("DPMI: do_cpu_exception(0x%02lx) called\n",_trapno);
-  DPMI_show_state(scp);
-  if ( _trapno == 0xe)
+  D_printf("DPMI: do_cpu_exception(0x%02lx) at %#x:%#x\n",_trapno,
+  	(int)_cs, (int)_eip);
+  if ( _trapno == 0xe) {
       D_printf("DPMI: page fault. in dosemu?\n");
+  }
+  if ((_trapno != 0xe)
+#ifdef X86_EMULATOR
+      || d.emu
+#endif
+     )
+    { DPMI_show_state(scp); }
 #ifdef SHOWREGS
   print_ldt();
 #endif
-  if ( _trapno == 0xe)
+  if ((_trapno == 0xe)
+#ifdef X86_EMULATOR
+	&& (config.cpuemu==0)
+#endif
+     )
     leavedos(98);
 #ifdef DPMI_DEBUG
   d.dpmi = dd;
@@ -2755,7 +2889,10 @@ if ((_ss & 4) == 4) {
     org_eip = _eip;
     _eip += (csp-lina);
 
-
+#ifdef X86_EMULATOR
+    /* trick, because dpmi_fault must return void */
+    if (config.cpuemu>1) _trapno = *csp;
+#endif
 
     switch (*csp++) {
 
@@ -3707,7 +3844,12 @@ int dpmi_mhp_getcsdefault(void)
 void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned long *lp)
 {
   int typebyte=do_LAR(selector);
-  if (typebyte) ((unsigned char *)(&ldt_buffer[selector & 0xfff8]))[5]=typebyte;
+  if (typebyte) {
+	((unsigned char *)(&ldt_buffer[selector & 0xfff8]))[5]=typebyte;
+#ifdef X86_EMULATOR
+	LDT[selector>>3].w86Flags = (LDT[selector>>3].w86Flags & 0xff00)|typebyte;
+#endif
+  }
   memcpy(lp, &ldt_buffer[selector & 0xfff8], 8);
 }
 

@@ -107,7 +107,7 @@ static const char *d9_e_f[32] =
 static const char *d9_code[8] =
 {
   "fld   ", "fxch  ", "fst   ", "fstp  ", "fldenv", "fldcw ", "fstenv",
-  "fnstcw"
+  "fstcw"
 };
 
 static const char *df_code1[4] =
@@ -331,7 +331,7 @@ unsigned char hex32[9];
         disp = modrm_disp8((signed char)*code++);
     else
     {
-        disp = modrm_disp32(immed32(code));
+        disp = modrm_disp32((signed int)immed32(code));
         code+= 4;
     }
 
@@ -365,7 +365,7 @@ unsigned char rm  = *code & 7;
 
   if (mod == 0x80)
   {
-      d86_printf("%s[%s%s]", seg, memref[rm], modrm_disp16(immed16(code)));
+      d86_printf("%s[%s%s]", seg, memref[rm], modrm_disp16((signed short)immed16(code)));
       return code+2;
   }
 
@@ -402,7 +402,7 @@ char *nw = 0;
       if (code[0] & 1)
           d86_printf("st(%d)",reg);
 
-      else if ((code[1] & 0x30) == 0x10) ;
+      else if (reg == 1) ; /*((code[1] & 0x30) == 0x10) ;*/
 
       else if (code[0] & 4)
           d86_printf("st(%d),st",reg);
@@ -497,8 +497,8 @@ int  dis_8086(unsigned int org,
 {
   const unsigned char *code0 = code;
   const char *seg = "";
-  int data32 = def_size;
-  int addr32 = def_size;
+  int data32 = ((def_size & 2)!=0);
+  int addr32 = ((def_size & 1)!=0);
   int prefix = 0;
   int i;
 

@@ -12,6 +12,9 @@
 #include "emu.h"
 #include "priv.h"
 #include "lt-threads.h"
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
+#endif
 
 #if 0
 #define PRIV_TESTING
@@ -159,14 +162,17 @@ int real_leave_priv_setting(saved_priv_status *privs)
   
 int priv_iopl(int pl)
 {
+  int ret;
   if (PRIVS_ARE_OFF) {
-    int ret;
     _priv_on();
     ret = iopl(pl);
     _priv_off();
-    return ret;
   }
-  return iopl(pl);
+  else ret = iopl(pl);
+#ifdef X86_EMULATOR
+  if (config.cpuemu) e_priv_iopl(pl);
+#endif
+  return ret;
 }
 
 uid_t get_cur_uid(void)

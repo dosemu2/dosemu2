@@ -1058,20 +1058,10 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		    }
 		| MEMSIZE expression	{ config.gfxmemsize = $2; }
 		| GRAPHICS
-		    { config.vga =
-#if defined(X86_EMULATOR)&&defined(VT_EMU_ONLY)
-			!config.cpuemu;
-#else
-			1;
-#endif
+		    { config.vga = 1;
 		    }
 		| CONSOLE
-		    { config.console_video =
-#if defined(X86_EMULATOR)&&defined(VT_EMU_ONLY)
-			!config.cpuemu;
-#else
-			1;
-#endif
+		    { config.console_video = 1;
 		    }
 		| FULLREST		{ config.fullrestore = 1; }
 		| PARTREST		{ config.fullrestore = 0; }

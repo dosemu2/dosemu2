@@ -105,8 +105,6 @@ typedef struct segment_descriptor_s
     unsigned int	used;		/* Segment in use by client # */
 } SEGDESC;
 
-#define MAX_SELECTORS	8192
-
 extern SEGDESC Segments[];
 
 struct RealModeCallStructure {

@@ -774,14 +774,14 @@ static void mhp_disasm(int argc, char * argv[])
 #endif
 
    if (IN_DPMI) {
-     def_size = dpmi_mhp_get_selector_size(seg);
+     def_size = (dpmi_mhp_get_selector_size(seg)? 3:0);
      segmented =1;
    }
    else {
-     if (seekval < (a20 ? 0x10fff0 : 0x100000)) def_size = linmode;
+     if (seekval < (a20 ? 0x10fff0 : 0x100000)) def_size = (linmode? 3:0);
      else if (lastu[0] == '#')
         def_size = 0;
-     else def_size = 1;
+     else def_size = 3;
    }
    rc=0;
    buf = (unsigned char *) seekval;

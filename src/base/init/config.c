@@ -141,12 +141,13 @@ config_defaults(void)
 		/* speed division factor to get 838ns from CPU clocks */
 		config.cpu_tick_spd = (LLF_TICKS*1000000)/chz;
 
-#ifdef X86_EMULATOR
-		config.emuspeed = di;
-#endif
 		fprintf (stderr,"kernel CPU speed is %Ld Hz\n",chz);
 /*		fprintf (stderr,"CPU speed factors %ld,%ld\n",
 			config.cpu_spd, config.cpu_tick_spd); */
+#ifdef X86_EMULATOR
+		config.emuspeed = di;
+		fprintf (stderr,"CPU-EMU speed is %d MHz\n",di);
+#endif
 		break;
 	    }
 	    else
@@ -960,6 +961,12 @@ config_init(int argc, char **argv)
     c_printf(" uid=%d (cached %d) gid=%d (cached %d)\n",
         geteuid(), get_cur_euid(), getegid(), get_cur_egid());
 
+#ifdef X86_EMULATOR
+    if (config.cpuemu && config.speaker==SPKR_NATIVE) {
+	c_printf("SPEAKER: can`t use native mode with cpu-emu\n");
+	config.speaker=SPKR_EMULATED;
+    }
+#endif
     if (config_check_only) {
 	dump_config_status();
 	usage();

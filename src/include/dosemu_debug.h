@@ -24,6 +24,11 @@
 # define NORETURN
 #endif
 
+#ifdef X86_EMULATOR
+#if 1
+#define DONT_DEBUG_BOOT
+#endif
+#endif
 
 /* "dRWDCvXkiTsm#pgcwhIExMnPrS" */
 struct debug_flags {
@@ -61,6 +66,9 @@ struct debug_flags {
    ;
 };
 
+#ifdef DONT_DEBUG_BOOT
+extern struct debug_flags d_save;
+#endif
 extern struct debug_flags d;
 
 int log_printf(int, const char *,...) FORMAT(printf, 2, 3);

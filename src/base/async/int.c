@@ -484,11 +484,18 @@ static int dos_helper(void)
         break;
 #ifdef X86_EMULATOR
   case DOS_HELPER_CPUEMUON:
+#ifdef DONT_DEBUG_BOOT
+	memcpy(&d,&d_save,sizeof(struct debug_flags));
+#endif
   	if (config.cpuemu && !in_dpmi) enter_cpu_emu();
         break;
   case DOS_HELPER_CPUEMUOFF:
   	if (config.cpuemu && !in_dpmi) leave_cpu_emu();
         break;
+  /* to be called from inside pgms */
+  case DOS_HELPER_CPUEMULEVEL:	/* logfile level=BL */
+	d.emu = LO(bx);
+	break;
 #endif
     case DOS_HELPER_XCONFIG:
 #if X_GRAPHICS
@@ -1437,9 +1444,31 @@ static void int19(u_char i) {
 
 /* MS-DOS */
 static void int21(u_char i) {
+#ifdef X86_EMULATOR
+  static char buf[80];
+#endif
   ds_printf("INT21 at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
        LWORD(cs), LWORD(eip),
        LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
+#ifdef X86_EMULATOR
+  if ((HI(ax)==0x40) && LWORD(ecx)) {
+	char *dp = (char *)((LWORD(ds)<<4)+LWORD(edx));
+	unsigned int nb = LWORD(ecx);
+	if (nb>78) nb=78; memcpy(buf,dp,nb); buf[nb]=0;
+	ds_printf("WRITE: [%s]\n",buf);
+  }
+  else if (HI(ax)==9) {
+	char *dp = (char *)((LWORD(ds)<<4)+LWORD(edx));
+	char *q = buf;
+	int nb;
+	for (nb=0; (nb<78)&&(*dp!='$'); nb++) *q++ = *dp++;
+	buf[nb]=0;
+	ds_printf("WRITE: [%s]\n",buf);
+  }
+  else if ((HI(ax)==6) && (LO(ax)!=0xff)) {
+	ds_printf("WRITE: [%c]\n",isprint(LO(ax)? LO(ax):'.'));
+  }
+#endif
   if (!ms_dos(HI(ax)))
     default_interrupt(i);
 }

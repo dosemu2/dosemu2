@@ -60,6 +60,10 @@
 #include "vc.h"
 #include "shared.h"
 #include "serial.h"
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
+#include "bitops.h"
+#endif
 
 /*
  * maximum number of emulated devices allowed.  floppy, mda, etc...
@@ -790,6 +794,9 @@ int port_init(void)
 	  port_handler[i].irq = EMU_NO_IRQ;
 	  port_handler[i].fd = -1;
 	}
+#ifdef X86_EMULATOR
+	memset (io_bitmap, 0, sizeof(io_bitmap));
+#endif
 
   /* handle 0 maps to the unmapped IO device handler.  Basically any
      ports which don't map to any other device get mapped to this
@@ -1233,7 +1240,14 @@ set_ioperm(int start, int size, int flag)
 	leave_priv_setting();
 
 	T_printf ("nPORT: set_ioperm [%4x:%2d:%d] returns %d\n",start,size,flag,tmp);
-
+#ifdef X86_EMULATOR
+	if (config.cpuemu && (tmp==0)) {
+	    int i;
+	    for (i=start; i<(start+size); i++)
+		(flag? set_bit(i,io_bitmap) : clear_bit(i,io_bitmap));
+	    T_printf("ePORT: set_ioperm [%4x:%2d:%d]\n",start,size,flag);
+	}
+#endif
 	return tmp;
 }
 

@@ -1,3 +1,7 @@
+99/01/07 ver. 0.99.5.5 unofficial pre-release
+	From Alberto
+	- first round cpuemu patches
+	  (changes in common parts)
 99/01/07 ver. 0.99.5.4 unofficial pre-release
 	From Alberto
 	- decide for INT06-handling by redirection of INT06 and not by
