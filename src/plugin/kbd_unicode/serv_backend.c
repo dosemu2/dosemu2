@@ -272,7 +272,7 @@ Bit16u get_bios_key(t_rawkeycode raw)
 	if (key != NUM_VOID) {
 		bios_key = translate_key(make, key, &dos_keyboard_state);
 		copy_shift_state(dos_keyboard_state.shiftstate);
-		keyb_client_set_leds(get_modifiers_r(&dos_keyboard_state));
+		keyb_client_set_leds(get_modifiers_r(dos_keyboard_state.shiftstate));
 	}
 	return bios_key;
 }
@@ -353,5 +353,5 @@ void backend_reset()
    
    clear_bios_keybuf();
    copy_shift_state(dos_keyboard_state.shiftstate);
-   keyb_client_set_leds(get_modifiers_r(&dos_keyboard_state));
+   keyb_client_set_leds(get_modifiers_r(dos_keyboard_state.shiftstate));
 }

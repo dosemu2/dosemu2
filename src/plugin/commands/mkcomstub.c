@@ -10,15 +10,14 @@
 int
 main(int argc, char **argv)
 {
-  char *template = "generic.com";
   char buf[MAXBUFSIZE];
   unsigned short fsize=0;
   FILE *tmpl,*fout;
 
 
-  if (argv[1] == NULL)
+  if (argc < 3)
      { printf("USAGE\n\
-  mkcomstub filename buildin_progname [stacksize [heapsize [flags]]]\n\
+  mkcomstub template filename buildin_progname [stacksize [heapsize [flags]]]\n\
 \n\
 where is\n\
 \n\
@@ -36,16 +35,16 @@ where is\n\
         return 1;
        }
        
-  if ((tmpl = fopen(template,"r")) == NULL)
-     { printf("unable to read %s",template);
+  if ((tmpl = fopen(argv[1],"r")) == NULL)
+     { printf("unable to read %s",argv[1]);
        return 1;
       }
   fseek(tmpl,6,SEEK_SET);
   fread(&fsize,2,1,tmpl);
   fsize -= 256;
   fseek(tmpl,0,SEEK_SET);
-  if ((fout = fopen(argv[1],"w")) == NULL)
-     { printf("unable to write %s",argv[1]);
+  if ((fout = fopen(argv[2],"w")) == NULL)
+     { printf("unable to write %s",argv[2]);
        fclose(tmpl);
        return 1;
       }
@@ -60,24 +59,24 @@ where is\n\
 	  fwrite(buf,1,fsize,fout);
       }
   
-  if (argc > 3)
-    { if ((fsize = strlen(argv[3]) + 2) < MAXBUFSIZE)
-       { strcpy(buf,argv[3]);
+  if (argc > 4)
+    { if ((fsize = strlen(argv[4]) + 2) < MAXBUFSIZE)
+       { strcpy(buf,argv[4]);
          strcat(buf,",");
 	}
      }
    else strcpy(buf,",");
-  if (argc > 4)
-    if ((fsize += strlen(argv[4]) + 1) < MAXBUFSIZE)
-       strcat(buf,argv[4]);
-  strcat(buf,",");
   if (argc > 5)
     if ((fsize += strlen(argv[5]) + 1) < MAXBUFSIZE)
        strcat(buf,argv[5]);
+  strcat(buf,",");
+  if (argc > 6)
+    if ((fsize += strlen(argv[6]) + 1) < MAXBUFSIZE)
+       strcat(buf,argv[6]);
    strcat(buf,",");
-  if (argc > 2)
-    if ((fsize += strlen(argv[2]) + 1) < MAXBUFSIZE)
-       strcat(buf,argv[2]);
+  if (argc > 3)
+    if ((fsize += strlen(argv[3]) + 1) < MAXBUFSIZE)
+       strcat(buf,argv[3]);
 
   if ((fsize = strlen(buf)) > 255)
      fsize = 255;

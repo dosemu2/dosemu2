@@ -57,6 +57,7 @@ void DOSEMUSetMouseSpeed();
 void
 DOSEMUSetupMouse(void)
 {
+  mouse_t *mice = &config.mouse;
   m_printf("MOUSE: DOSEMUSetupMouse called\n");
   if ( ! config.usesX ){
       tcgetattr(mice->fd, &mice->oldset);
@@ -179,6 +180,7 @@ DOSEMUMouseProtocol(rBuf, nBytes)
      int nBytes;
 {
   int                  i, buttons=0, dx=0, dy=0;
+  mouse_t             *mice = &config.mouse;
   static int           pBufP = 0;
   static unsigned char pBuf[8];
 
@@ -376,6 +378,7 @@ void DOSEMUSetMouseSpeed(int old, int new, unsigned cflag)
 {
 	struct termios tty;
 	char *c;
+        mouse_t *mice = &config.mouse;
 
         m_printf("MOUSE: set speed %d -> %d\n",old,new);
    
@@ -460,6 +463,8 @@ void DOSEMUMouseEvents(void)
 #define MOUSE_BUFFER 1024
 	static unsigned char rBuf[MOUSE_BUFFER];
 	static int qBeg = 0, qEnd = 0;
+        mouse_t *mice = &config.mouse;
+        
 	int nBytes, nBytesProc;
 
 	nBytes = RPT_SYSCALL(read(mice->fd, (char *)(rBuf+qEnd),

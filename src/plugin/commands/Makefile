@@ -1,5 +1,5 @@
 #
-# (C) Copyright 1992, ..., 2002 the "DOSEMU-Development-Team".
+# (C) Copyright 1992, ..., 2003 the "DOSEMU-Development-Team".
 #
 # for details see file COPYING in the DOSEMU distribution
 #
@@ -15,15 +15,17 @@ DEPENDS=$(CFILES:.c=.d)
 
 SUBDIR=commands_plugin         # just to make Makefile.common happy
 
-COM = generic.com test.com
-STUBSYMLINK = bootoff.com booton.com ecpuon.com ecpuoff.com eject.com \
-  exitemu.com speed.com system.com uchdir.com ugetcwd.com cmdline.com\
-  vgaoff.com vgaon.com lredir.com emumouse.com xmode.com dosdbg.com unix.com
+D=$(REALTOPDIR)/$(THISVERSION)/commands
 
-#STUBL = lredir.com emumouse.com xmode.com dosdbg.com unix.com
+COM = $(D)/generic.com
+STUBSYMLINK = $(D)/bootoff.com $(D)/booton.com $(D)/ecpuon.com $(D)/ecpuoff.com $(D)/eject.com \
+  $(D)/exitemu.com $(D)/speed.com $(D)/system.com $(D)/uchdir.com $(D)/ugetcwd.com $(D)/cmdline.com\
+  $(D)/vgaoff.com $(D)/vgaon.com $(D)/lredir.com $(D)/emumouse.com $(D)/xmode.com $(D)/dosdbg.com $(D)/unix.com
+
+#STUBL = $(D)/lredir.com $(D)/emumouse.com $(D)/xmode.com $(D)/dosdbg.com $(D)/unix.com
 STUBL =
-STUBM = comcom.com
-#STUBFULL = cmdline.com
+STUBM = $(D)/comcom.com
+#STUBFULL = $(D)/cmdline.com
 STUBFULL =
 
 all: lib $(COM) stubs
@@ -38,23 +40,19 @@ endif
 
 
 
-$(STUBL): generic.com Makefile ./mkcomstub
-	./mkcomstub $@ $(basename $@) 512 0x400
+$(STUBL): $(D)/generic.com ./mkcomstub
+	./mkcomstub $(D)/generic.com $@ $(basename $(@F)) 512 0x400
 
-$(STUBM): generic.com Makefile ./mkcomstub
-	./mkcomstub $@ $(basename $@)
+$(STUBM): $(D)/generic.com ./mkcomstub
+	./mkcomstub $(D)/generic.com $@ $(basename $(@F))
 
-$(STUBSYMLINK): generic.com Makefile
-	ln -sf $< $@
+$(STUBSYMLINK): $(D)/generic.com
+	ln -sf $(<F) $@
 
-$(STUBFULL): generic.com Makefile ./mkcomstub
-	./mkcomstub $@ $(basename $@)
+$(STUBFULL): $(D)/generic.com ./mkcomstub
+	./mkcomstub $(D)/generic.com $@ $(basename $(@F))
 
-test.com: generic.S detect.h
-	$(CC) -DTEST -traditional -Wa,-a -Wl,-Ttext,0x100,-e,_start16,--oformat,binary \
-		-nostdlib -s -o $@ $< > test.s.out
-
-%.com:	%.S detect.h
+$(D)/%.com:	%.S detect.h
 	$(CC) -traditional -Wa,-a -Wl,-Ttext,0x100,-e,_start16,--oformat,binary \
 		-nostdlib -s -o $@ $< > $*.s.out
 

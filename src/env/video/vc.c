@@ -71,8 +71,6 @@
 #include "mapping.h"
 #include "timers.h"
 
-extern void child_close_mouse ();
-extern void child_open_mouse ();
 extern void clear_screen (int, int);
 extern inline void console_update_cursor (int, int, int, int);
 static void set_dos_video ();
@@ -162,36 +160,6 @@ allow_switch (void)
       v_printf ("VID: clearing old vt request\n");
       SIGRELEASE_call ();
     }
-}
-
-static void
-parent_close_mouse (void)
-{
-  if (mice->intdrv)
-     {
-	if (mice->fd > 0) {
-   	   remove_from_io_select(mice->fd, mice->add_to_io_select);
-           DOS_SYSCALL(close (mice->fd));
-	}
-    }
-  else
-    child_close_mouse ();
-}
-
-static void
-parent_open_mouse (void)
-{
-  PRIV_SAVE_AREA
-  if (mice->intdrv)
-    {
-      enter_priv_on(); /* The mouse may not be a resource everyone can open. */
-      mice->fd = DOS_SYSCALL (open (mice->dev, O_RDWR | O_NONBLOCK));
-      leave_priv_setting();
-      if (mice->fd > 0)
-	add_to_io_select(mice->fd, mice->add_to_io_select);
-    }
-  else
-    child_open_mouse ();
 }
 
 static inline void

@@ -189,7 +189,7 @@ void hardware_setup(void)
   pic_unmaski(PIC_IRQ1);
   pic_seti(PIC_IRQ8, rtc_int8, 0, NULL);
   pic_unmaski(PIC_IRQ8);
-  if (mice->intdrv || mice->type == MOUSE_PS2 || mice->type == MOUSE_IMPS2) {
+  if (mouse_is_ps2()) {
     pic_seti(PIC_IMOUSE, DOSEMUMouseEvents, 0, do_mouse_irq);
     pic_unmaski(PIC_IMOUSE);
   }
@@ -330,7 +330,7 @@ static inline void bios_mem_setup(void)
   CONF_NFLOP(configuration, config.fdisks);
   CONF_NSER(configuration, config.num_ser);
   CONF_NLPT(configuration, config.num_lpt);
-  if ((mice->type == MOUSE_PS2) || (mice->type == MOUSE_IMPS2) || (mice->intdrv))
+  if (mouse_is_ps2())
     configuration |= CONF_MOUSE;
 
   /* 

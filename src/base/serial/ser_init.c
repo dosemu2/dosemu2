@@ -658,7 +658,7 @@ void child_open_mouse(void)
     s_printf("MOUSE: OPEN function starting.\n");
     for (i = 0; i < config.num_ser; i++) {
       s_printf("MOUSE: OPEN port=%d, type=%d, dev=%s, valid=%d\n",
-                i, mice->type, com[i].dev, com[i].mouse);
+                i, config.mouse.type, com[i].dev, com[i].mouse);
       if (com[i].mouse == TRUE) {
         s_printf("MOUSE: OPEN port=%d: Running ser-open.\n", i);
         com[i].fd = -1;
@@ -668,3 +668,4 @@ void child_open_mouse(void)
     }
   }
 }
+

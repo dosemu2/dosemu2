@@ -123,7 +123,15 @@
 
 #include "video.h" /* for charset defines */
 
+#define ITERATE_LIST(iter, start, action) \
+    iter = start; \
+    do { \
+	action; \
+    } while ((iter = iter->next))
+
 static void sync_shift_state(t_modifiers desired, struct keyboard_state *state);
+static t_shiftstate translate_shiftstate(t_shiftstate cur_shiftstate,
+	struct translate_rule *rule, t_keynum key, t_shiftstate *mask);
 Bit16u translate_key(Boolean make, t_keynum key, struct keyboard_state *state);
 
 /*
@@ -476,25 +484,22 @@ static void init_translate_rule(t_keysym *rule,
 static void dump_translate_rules(struct scancode_translate_rules *rules)
 {
 	int i;
+	struct translate_rule *rule;
 #define LOOP(type)  \
 	do { \
 		k_printf(#type ":\n"); \
 		for(i = 0; i < NUM_KEY_NUMS; i++) { \
-			t_keysym keysym = rules->type[i]; \
+			t_keysym keysym = type[i]; \
 			t_keynum keynum = validate_keynum(i); \
 			if (keysym == KEY_VOID || keynum == NUM_VOID) \
 				continue; \
 			k_printf("keynum->keysym: %02x->%04x\n", \
 				 keynum, keysym); \
 		} \
-	} while(0)   
-	LOOP(plain);
-	LOOP(shift);
-	LOOP(ctrl);
-	LOOP(alt);
-	LOOP(altgr);
-	LOOP(shift_altgr);
-	LOOP(ctrl_alt);
+	} while(0)
+
+	ITERATE_LIST(rule, &rules->plain,
+		LOOP(rule->rule_map));
 }
 
 /* FIXME: I need external input for ctrl mappings!
@@ -509,6 +514,7 @@ init_scancode_translation_rules(struct scancode_translate_rules *maps,
 {
 	struct scancode_translate_rules *rules=NULL;
 	int i;
+	struct translate_rule *rule;
 	
 	for(i = 0; i < MAPS_MAX; i++) {
 		if(maps[i].keyboard==KEYB_NO) {
@@ -522,74 +528,86 @@ init_scancode_translation_rules(struct scancode_translate_rules *maps,
 	}
 
 	rules->keyboard = key_table->keyboard;
+
 	/* Initialize everything to a known value */
-	for(i = 0; i < NUM_KEY_NUMS; i++) {
-		rules->plain[i] = KEY_VOID;
-		rules->shift[i] = KEY_VOID;
-		rules->ctrl[i] = KEY_VOID;
-		rules->alt[i] = KEY_VOID;
-		rules->altgr[i] = KEY_VOID;
-		rules->shift_altgr[i] = KEY_VOID;
-		rules->ctrl_alt[i] = KEY_VOID;
-	}
+	rules->plain.modifiers = 0;
+	rules->plain.next = &rules->shift;
+
+	rules->shift.modifiers = MODIFIER_SHIFT;
+	rules->shift.next = &rules->ctrl;
+
+	rules->ctrl.modifiers = MODIFIER_CTRL;
+	rules->ctrl.next = &rules->alt;
+
+	rules->alt.modifiers = MODIFIER_ALT;
+	rules->alt.next = &rules->altgr;
+
+	rules->altgr.modifiers = MODIFIER_ALTGR;
+	rules->altgr.next = &rules->shift_altgr;
+
+	rules->shift_altgr.modifiers = MODIFIER_SHIFT | MODIFIER_ALTGR;
+	rules->shift_altgr.next = &rules->ctrl_alt;
+
+	rules->ctrl_alt.modifiers = MODIFIER_CTRL | MODIFIER_ALT;
+	rules->ctrl_alt.next = NULL;
+
+	ITERATE_LIST(rule, &rules->plain,
+		for(i = 0; i < NUM_KEY_NUMS; i++)
+			rule->rule_map[i] = KEY_VOID);
+
 	/* plain keys */
-	init_translate_rule(rules->plain, 
+	init_translate_rule(rules->plain.rule_map,
 			    key_table->sizemap, key_table->key_map, 0);
-	init_misc_plain_map(rules->plain);
+	init_misc_plain_map(rules->plain.rule_map);
 
 	/* shifted keys */
-	init_translate_rule(rules->shift,
+	init_translate_rule(rules->shift.rule_map,
 			     key_table->sizemap, key_table->shift_map, 0);
-	init_misc_shifted_map(rules->shift);
+	init_misc_shifted_map(rules->shift.rule_map);
 
 	/* ctrl keys */
 	if (key_table->ctrl_map) {
-		init_translate_rule(rules->ctrl,
+		init_translate_rule(rules->ctrl.rule_map,
 				     key_table->sizemap, key_table->ctrl_map, 0);
 	} else {
 		/* FIXME!!! (unreliable heuristic used) */
-		init_heuristics_ctrl_map(rules->ctrl, rules->plain);
+		init_heuristics_ctrl_map(rules->ctrl.rule_map, rules->plain.rule_map);
 	}
-	init_misc_ctrl_map(rules->ctrl);
+	init_misc_ctrl_map(rules->ctrl.rule_map);
 
 	/* alt keys */
-	init_heuristics_alt_map(rules->alt, rules->plain); /* FIXME (heuristic used) */
-	init_misc_alt_map(rules->alt); 
+	init_heuristics_alt_map(rules->alt.rule_map, rules->plain.rule_map); /* FIXME (heuristic used) */
+	init_misc_alt_map(rules->alt.rule_map); 
 
 	/* altgr keys */
 	if (key_table->alt_map) {
-		init_translate_rule(rules->altgr,
+		init_translate_rule(rules->altgr.rule_map,
 				     key_table->sizemap, key_table->alt_map, 0);
 	} 
-	init_misc_altgr_map(rules->altgr);
+	init_misc_altgr_map(rules->altgr.rule_map);
 
 	/* shift alt keys */
 	if (key_table->shift_alt_map) {
-		init_translate_rule(rules->shift_altgr,
+		init_translate_rule(rules->shift_altgr.rule_map,
 				     key_table->sizemap, key_table->shift_alt_map, 0);
 	}
-	init_misc_shift_altgr_map(rules->shift_altgr);
+	init_misc_shift_altgr_map(rules->shift_altgr.rule_map);
 
 	/* ctrl alt keys */
 	if (key_table->ctrl_alt_map) {
-		init_translate_rule(rules->ctrl_alt,
+		init_translate_rule(rules->ctrl_alt.rule_map,
 				     key_table->sizemap, key_table->ctrl_alt_map, 0);
 	}
-	init_misc_ctrl_alt_map(rules->ctrl_alt);
+	init_misc_ctrl_alt_map(rules->ctrl_alt.rule_map);
 
 	/* shift num_pad key is the same as num_lock num_pad key */
 	/* keypad */
-	init_translate_rule(rules->shift, 
+	init_translate_rule(rules->shift.rule_map,
 			     key_table->sizepad, key_table->num_table, 0x47);
-	init_misc_keypad_map(rules->shift);
+	init_misc_keypad_map(rules->shift.rule_map);
 
-	init_misc_all_maps(rules->plain);
-	init_misc_all_maps(rules->shift);
-	init_misc_all_maps(rules->ctrl);
-	init_misc_all_maps(rules->alt);
-	init_misc_all_maps(rules->altgr);
-	init_misc_all_maps(rules->shift_altgr);
-	init_misc_all_maps(rules->ctrl_alt);
+	ITERATE_LIST(rule, &rules->plain,
+		init_misc_all_maps(rule->rule_map));
 
 	dump_translate_rules(rules);
 }
@@ -600,13 +618,19 @@ init_scancode_translation_rules(struct scancode_translate_rules *maps,
  */
 
 static void init_charset_keymap(struct character_translate_rules *charset,
-				t_keysym *rule, t_modifiers shiftstate, int mapnum)
+				struct scancode_translate_rules *rules, int mapnum)
 {
 	t_keynum key;
 	int i;
 	t_keysym ch;
-	for (i = 0; i < NUM_KEY_NUMS; i++) {
-		ch = rule[i];
+	t_modifiers shiftstate;
+	t_shiftstate mask;
+	struct translate_rule *rule, *rule1;
+
+	ITERATE_LIST(rule, &rules->plain,
+	    for (i = 0; i < NUM_KEY_NUMS; i++) {
+		ch = rule->rule_map[i];
+		shiftstate = rule->modifiers;
 		if (ch == KEY_VOID) {
 			continue;
 		}
@@ -620,7 +644,18 @@ static void init_charset_keymap(struct character_translate_rules *charset,
 		charset->keys[ch].key = key;
 		charset->keys[ch].shiftstate = shiftstate;
 		charset->keys[ch].map = mapnum;
-	}
+		charset->keys[ch].shiftstate_mask = ~0;
+		ITERATE_LIST(rule1, &rules->plain,
+			if (rule1->rule_map[i] != ch) {
+				charset->keys[ch].shiftstate_mask &= ~rule1->modifiers;
+			}
+			if (~get_modifiers_r(translate_shiftstate(
+			    ~0, &rules->plain, key, &mask)) &
+			    ~charset->keys[ch].shiftstate_mask) {
+				charset->keys[ch].shiftstate_mask &= ~get_modifiers_r(mask);
+			}
+		);
+	    });
 }
 
 static void init_one_deadkey(void *p, t_keysym dead_sym, t_keysym in, t_keysym out)
@@ -681,10 +716,11 @@ static void dump_charset(struct character_translate_rules *charset)
 	for(i = 0; i < NUM_KEYSYMS; i++) {
 		if (charset->keys[i].key == NUM_VOID)
 			continue;
-		k_printf("sym: %04x key: %02x shiftstate: %04x deadsym: %04x character: %02x -> '%c'\n",
+		k_printf("sym: %04x key: %02x shiftstate: %04x shiftstate_mask: %04x deadsym: %04x character: %02x -> '%c'\n",
 			 i,
 			 charset->keys[i].key,
 			 charset->keys[i].shiftstate,
+			 charset->keys[i].shiftstate_mask,
 			 charset->keys[i].deadsym,
 			 charset->keys[i].character,
 			 charset->keys[i].character);
@@ -717,13 +753,7 @@ static void init_charset_keys(struct character_translate_rules *charset,
 
 	for(i=0;i<MAPS_MAX;i++) {
 	/* Now find sequences of keypresses that generate them */
-		init_charset_keymap(charset, maps[i].plain, 0, i);
-		init_charset_keymap(charset, maps[i].shift, MODIFIER_SHIFT, i); 
-		init_charset_keymap(charset, maps[i].ctrl, MODIFIER_CTRL, i);
-		init_charset_keymap(charset, maps[i].alt, MODIFIER_ALT, i);
-		init_charset_keymap(charset, maps[i].altgr, MODIFIER_ALTGR, i);
-		init_charset_keymap(charset, maps[i].shift_altgr, MODIFIER_SHIFT | MODIFIER_ALTGR, i);
-		init_charset_keymap(charset, maps[i].ctrl_alt, MODIFIER_CTRL | MODIFIER_ALT, i);
+		init_charset_keymap(charset, &maps[i], i);
 	}
 
 	/* dead keys */
@@ -1047,27 +1077,6 @@ static Bit16u make_bios_code_r(Boolean make, t_keynum key,
 	}
 }
 
-/*
- *    Translation
- */
-void key_is_toggle(t_keysym keysym, t_shiftstate shiftstate)
-{
-	int mask = keyboard_rules.toggle_mask;
-
-	if(!((config.X && config.X_keycode) || config.console_keyb) || !mask) return;
-	
-	if(mask && (shiftstate & mask) == mask && 
-		(((mask & R_ALT) && keysym == KEY_R_ALT) ||
-		((mask & L_ALT) && keysym == KEY_L_ALT) ||
-		((mask & R_CTRL) && keysym == KEY_R_CTRL) ||
-		((mask & L_CTRL) && keysym == KEY_L_CTRL) ||
-		((mask & R_SHIFT) && keysym == KEY_R_SHIFT) ||
-		((mask & L_SHIFT) && keysym == KEY_L_SHIFT)))
-	{
-		keyb_toggle_state(-1);
-	}
-}
-
 static void do_shift_keys_r(Boolean make, t_keysym keysym, t_shiftstate *shiftstate_ret) 
 {
 	t_shiftstate mask=0, togglemask=0, shiftstate = *shiftstate_ret;
@@ -1122,9 +1131,6 @@ static void do_shift_keys_r(Boolean make, t_keysym keysym, t_shiftstate *shiftst
 	}
 #endif
 
-	if(mask && make && shiftstate_ret == &input_keyboard_state.shiftstate)
-		key_is_toggle(keysym,shiftstate);
-
 	*shiftstate_ret = shiftstate;
 	return;
 }
@@ -1152,23 +1158,13 @@ static Boolean is_keypad_key(t_keynum key)
 	return result;
 }
 
-/* translate a keynum to its ASCII equivalent. 
- * (*is_accent) returns TRUE if the if char was produced with an accent key.
- */
-
-static t_keysym translate_r(Boolean make, t_keynum key, Boolean *is_accent,
-	struct keyboard_state *state) 
+static t_shiftstate translate_shiftstate(t_shiftstate cur_shiftstate,
+	struct translate_rule *rule, t_keynum key, t_shiftstate *mask)
 {
-	t_shiftstate shiftstate = state->shiftstate;
-	t_keysym ch = KEY_VOID;
+	t_shiftstate shiftstate = cur_shiftstate;
 
-	k_printf("KBD: translate(shiftstate=%04x, key=%04x, %s)\n", 
-		 shiftstate, key, 
-		 (state == &input_keyboard_state)? "input":
-		 (state == &dos_keyboard_state)? "dos":
-		 "unknown");
-
-	*is_accent=FALSE;
+	if (mask)
+		*mask = 0;
 
 	if (is_keypad_key(key)) {
 		/* just modifying my local copy of shiftstate... */
@@ -1177,8 +1173,10 @@ static t_keysym translate_r(Boolean make, t_keynum key, Boolean *is_accent,
 		} else {
 			shiftstate &= ~ANY_SHIFT;
 		}
+		if (mask && ((shiftstate & ANY_SHIFT) != (cur_shiftstate & ANY_SHIFT)))
+			*mask |= NUM_LOCK;
 	}
-	if (is_keysym_letter(state->rules->maps[state->rules->activemap].plain[key])) {
+	if (is_keysym_letter(rule->rule_map[key])) {
 		/* Use the shift mappings to handle CAPS_LOCK */
 		/* just modifying my local copy of shiftstate... */
 		if ((!!(shiftstate & CAPS_LOCK)) ^ (!!(shiftstate & ANY_SHIFT))) {
@@ -1186,33 +1184,48 @@ static t_keysym translate_r(Boolean make, t_keynum key, Boolean *is_accent,
 		} else {
 			shiftstate &= ~ANY_SHIFT;
 		}
+		if (mask && ((shiftstate & ANY_SHIFT) != (cur_shiftstate & ANY_SHIFT)))
+			*mask |= CAPS_LOCK;
 	}
-	k_printf("KBD: translate(shiftstate=%04x, key=%04x, %s)\n", 
-		 shiftstate, key, 
-		 (state == &input_keyboard_state)? "input":
-		 (state == &dos_keyboard_state)? "dos":
-		 "unknown");
+	k_printf("KBD: translate(old_shiftstate=%04x, shiftstate=%04x, key=%04x)\n", 
+		 cur_shiftstate, shiftstate, key);
+
+	return shiftstate;
+}
+
+/* translate a keynum to its ASCII equivalent. 
+ * (*is_accent) returns TRUE if the if char was produced with an accent key.
+ */
+
+static t_keysym translate_r(Boolean make, t_keynum key, Boolean *is_accent,
+	struct keyboard_state *state) 
+{
+	t_shiftstate shiftstate = translate_shiftstate(state->shiftstate,
+		&state->rules->maps[state->rules->activemap].plain, key, NULL);
+	t_keysym ch = KEY_VOID;
+
+	*is_accent=FALSE;
 
 	if ((shiftstate & ANY_ALT) && (shiftstate & ANY_CTRL)) {
-		ch = state->rules->maps[state->rules->activemap].ctrl_alt[key];
+		ch = state->rules->maps[state->rules->activemap].ctrl_alt.rule_map[key];
 	}
 	else if ((shiftstate & R_ALT) && (shiftstate & ANY_SHIFT)) {
-		ch = state->rules->maps[state->rules->activemap].shift_altgr[key];
+		ch = state->rules->maps[state->rules->activemap].shift_altgr.rule_map[key];
 	}
 	else if (shiftstate & R_ALT) {
-		ch = state->rules->maps[state->rules->activemap].altgr[key];
+		ch = state->rules->maps[state->rules->activemap].altgr.rule_map[key];
 	}
 	else if (shiftstate & ANY_ALT) {
-		ch = state->rules->maps[state->rules->activemap].alt[key];
+		ch = state->rules->maps[state->rules->activemap].alt.rule_map[key];
 	}
 	else if (shiftstate & ANY_CTRL) {
-		ch = state->rules->maps[state->rules->activemap].ctrl[key];
+		ch = state->rules->maps[state->rules->activemap].ctrl.rule_map[key];
 	}
 	else if (shiftstate & ANY_SHIFT) {
-		ch = state->rules->maps[state->rules->activemap].shift[key];
+		ch = state->rules->maps[state->rules->activemap].shift.rule_map[key];
 	}
 	else /* unshifted */ {
-		ch = state->rules->maps[state->rules->activemap].plain[key];
+		ch = state->rules->maps[state->rules->activemap].plain.rule_map[key];
 	}
 	if (make && (state->accent != KEY_VOID)) {
 		t_keysym new_ch = keysym_dead_key_translation(state->accent, ch);
@@ -1597,6 +1610,16 @@ static void put_keynum_r(Boolean make, t_keynum input_keynum, struct keyboard_st
 	backend_run();
 }
 
+static void put_keynum(Boolean make, t_keynum input_keynum, t_keysym sym, struct keyboard_state *state)
+{
+	struct press_state *key;
+	if (sym != U_VOID) {
+		key = &state->rules->charset.keys[sym];
+		if (state->rules->activemap != key->map)
+			keyb_toggle_state(key->map);
+	}
+	put_keynum_r(make, input_keynum, state);
+}
 
  /***********************************************************************************************
   * Intermediate level interface functions 
@@ -1740,10 +1763,9 @@ Bit16u translate_key(Boolean make, t_keynum key,
 
 
 /* get the logical modifiers from the keyboard state */
-t_modifiers get_modifiers_r(struct keyboard_state *state)
+t_modifiers get_modifiers_r(t_shiftstate shiftstate)
 {
 	t_modifiers modifiers = 0;
-	t_shiftstate shiftstate = state->shiftstate;
 	if (shiftstate & ANY_SHIFT)	modifiers |= MODIFIER_SHIFT;
 	if (shiftstate & ANY_CTRL)	modifiers |= MODIFIER_CTRL;
 	if (shiftstate & ANY_ALT)	modifiers |= MODIFIER_ALT;
@@ -1766,7 +1788,7 @@ t_modifiers get_modifiers_r(struct keyboard_state *state)
 
 static void sync_shift_state(t_modifiers desired, struct keyboard_state *state) 
 {
-	t_modifiers current = get_modifiers_r(state);
+	t_modifiers current = get_modifiers_r(state->shiftstate);
 	struct key_pressed_state *keys = &state->keys_pressed;
 
 	/* altgr implies alt */
@@ -1867,7 +1889,7 @@ static void sync_shift_state(t_modifiers desired, struct keyboard_state *state)
 		}
 	}
 	/* reread because of interactions */
-	current = get_modifiers_r(state);
+	current = get_modifiers_r(state->shiftstate);
 	if (!!(current & MODIFIER_ALT) != !!(desired & MODIFIER_ALT)) {
 		t_keynum lkeynum = state->rules->charset.keys[KEY_L_ALT].key;
 		t_keynum rkeynum = state->rules->charset.keys[KEY_R_ALT].key;
@@ -1886,7 +1908,7 @@ static void sync_shift_state(t_modifiers desired, struct keyboard_state *state)
 		 ((state == &input_keyboard_state)? "input":
 		  (state == &dos_keyboard_state)? "dos":
 		  "unknown"),
-		 get_modifiers_r(state), desired);
+		 get_modifiers_r(state->shiftstate), desired);
 }
 
 /*
@@ -1980,8 +2002,8 @@ static void put_preceding_dead_keys(t_keysym ch, struct keyboard_state *state)
  * appropriate entry in the reverse keymap, it calls type_alt_num() to
  * type it that way instead.
  *
- * It also handles a slightly ugly case.  Sometimes it is simply known that we want
- * some symbol with extra modifiers added.  Examples are Ctrl-A or Alt-A.
+ * It also handles a slightly ugly case.  Sometimes it is simply known that we
+ * want some symbol with extra modifiers added.  Examples are Ctrl-A or Alt-A.
  * Quite a few of these don't have their own special symbols, and it wouldn't
  * help even if they did, because we generally don't have enough information to 
  * map those hypothetical symbols to keys.
@@ -2002,11 +2024,11 @@ static void put_character_symbol(
 	if (ch == KEY_VOID) {
 		return;
 	}
-	old_shiftstate = get_modifiers_r(state);
+	old_shiftstate = get_modifiers_r(state->shiftstate);
 	key = &state->rules->charset.keys[ch];
 	if (state->rules->activemap != key->map)
 		keyb_toggle_state(key->map);
-	new_shiftstate = key->shiftstate;
+	new_shiftstate = key->shiftstate | (old_shiftstate & key->shiftstate_mask);
 	if (key->deadsym == KEY_VOID) {
 		new_shiftstate |= modifiers;
 	}
@@ -2089,14 +2111,14 @@ void put_rawkey(t_rawkeycode code)
  * DANG_END_FUNCTION
  */
 
-int move_keynum(Boolean make, t_keynum keynum)
+int move_keynum(Boolean make, t_keynum keynum, t_keysym sym)
 {
 	int result = 0;
 	k_printf("move_key: keynum=%04x\n", keynum);
 	keynum = validate_keynum(keynum);
 	/* move_keynum only works for valid keynum... */
 	if (keynum != NUM_VOID) {
-		put_keynum_r(make, keynum, &input_keyboard_state);
+		put_keynum(make, keynum, sym, &input_keyboard_state);
 	} else {
 		result = -1;
 	}
@@ -2259,7 +2281,7 @@ void put_modified_symbol(Boolean make, t_modifiers modifiers, t_keysym sym)
 
 t_modifiers get_shiftstate(void)
 {
-	return get_modifiers_r(&input_keyboard_state);
+	return get_modifiers_r(input_keyboard_state.shiftstate);
 }
 
 /* 

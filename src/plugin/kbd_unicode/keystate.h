@@ -15,6 +15,7 @@ struct press_state {
 	t_keynum	key;
 	t_keysym	deadsym;
 	t_modifiers	shiftstate;
+	t_modifiers	shiftstate_mask;
 	int 		map;
 };
 
@@ -22,16 +23,21 @@ struct character_translate_rules {
 	struct press_state keys[NUM_KEYSYMS];
 };
 
+struct translate_rule {
+	t_keysym rule_map[NUM_KEY_NUMS];
+	t_modifiers modifiers;
+	struct translate_rule *next;
+};
 
 struct scancode_translate_rules {
 	int keyboard;
-	t_keysym plain[NUM_KEY_NUMS];
-	t_keysym shift[NUM_KEY_NUMS];
-	t_keysym ctrl[NUM_KEY_NUMS];
-	t_keysym alt[NUM_KEY_NUMS]; /* unnecessary? */
-	t_keysym altgr[NUM_KEY_NUMS];
-	t_keysym shift_altgr[NUM_KEY_NUMS];
-	t_keysym ctrl_alt[NUM_KEY_NUMS];
+	struct translate_rule plain;
+	struct translate_rule shift;
+	struct translate_rule ctrl;
+	struct translate_rule alt; /* unnecessary? */
+	struct translate_rule altgr;
+	struct translate_rule shift_altgr;
+	struct translate_rule ctrl_alt;
 };
 
 struct raw_key_state {
@@ -66,6 +72,6 @@ extern Bit16u translate_key(Boolean make, t_keynum key,
 extern struct keyboard_state dos_keyboard_state;
 extern struct keyboard_state input_keyboard_state;
 extern Boolean handle_dosemu_keys(Boolean make, t_keysym key);
-extern t_modifiers get_modifiers_r(struct keyboard_state *state);
+extern t_modifiers get_modifiers_r(t_shiftstate shiftstate);
 
 #endif /* keystate_h */

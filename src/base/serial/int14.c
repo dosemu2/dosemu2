@@ -104,9 +104,9 @@ void int14(u_char ii)
    * maintaining BIOS data at 40:0 like in real DOS (special case of
    * mouse on com1) - AV (hack!)
    */
-  if ((com[num].mouse) && mice->intdrv) {
+  if ((com[num].mouse) && config.mouse.intdrv) {
     if ((com[num].mouse < 2) && (HI(ax)==0)) {
-	if ((mice->flags & CS8) == CS8)	/* linux/include/asm/termbits.h */
+	if ((config.mouse.flags & CS8) == CS8)	/* linux/include/asm/termbits.h */
 	  LO(ax)=0x83;		/* 1200 8N1 */
 	else
 	  LO(ax)=0x82;		/* Microsoft: 1200 7N1 */

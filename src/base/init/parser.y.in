@@ -79,10 +79,8 @@ static int user_scope_level;
 static int after_secure_check = 0;
 static serial_t *sptr;
 static serial_t nullser;
-static mouse_t *mptr;
-static mouse_t nullmouse;
+static mouse_t *mptr = &config.mouse;
 static int c_ser = 0;
-static int c_mouse = 0;
 
 static struct disk *dptr;
 static struct disk nulldisk;
@@ -1196,7 +1194,7 @@ debug_flag	: VIDEO bool		{ set_debug_level('v', $2); }
 mouse_flags	: mouse_flag
 		| mouse_flags mouse_flag
 		;
-mouse_flag	: DEVICE string_expr		{ strcpy(mptr->dev, $2); free($2); }
+mouse_flag	: DEVICE string_expr	{ mptr->dev = $2; }
 		| INTERNALDRIVER	{ mptr->intdrv = TRUE; }
 		| EMULATE3BUTTONS	{ mptr->emulate3buttons = TRUE; }
 		| BAUDRATE expression	{ mptr->baudRate = $2; }
@@ -1204,7 +1202,7 @@ mouse_flag	: DEVICE string_expr		{ strcpy(mptr->dev, $2); free($2); }
 		    { if (mptr->type == MOUSE_MOUSESYSTEMS)
 			 mptr->cleardtr = TRUE;
 		      else
-			 yyerror("option CLEARDTR is only valid for MicroSystems-Mice");
+			 yyerror("option CLEARDTR is only valid for MicroSystems-mice");
 		    }
 		| MICROSOFT
 		  {
@@ -1696,22 +1694,12 @@ static void set_joy_device(char *devstring)
 
 static void start_mouse(void)
 {
-  if (c_mouse >= MAX_MOUSE)
-    mptr = &nullmouse;
-  else {
-    mptr = &mice[c_mouse];
-    mptr->fd = -1;
-  }
+  mptr = &config.mouse;
+  mptr->fd = -1;
 }
 
 static void stop_mouse(void)
 {
-  if (c_mouse >= MAX_MOUSE) {
-    c_printf("MOUSE: too many mice, ignoring %s\n", mptr->dev);
-    return;
-  }
-  c_mouse++;
-  config.num_mice = c_mouse;
   c_printf("MOUSE: %s type %x using internaldriver: %s, emulate3buttons: %s baudrate: %d\n", 
         mptr->dev, mptr->type, mptr->intdrv ? "yes" : "no", mptr->emulate3buttons ? "yes" : "no", mptr->baudRate);
 }

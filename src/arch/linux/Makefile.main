@@ -1,5 +1,5 @@
 #
-# (C) Copyright 1992, ..., 2002 the "DOSEMU-Development-Team".
+# (C) Copyright 1992, ..., 2003 the "DOSEMU-Development-Team".
 #
 # for details see file COPYING in the DOSEMU distribution
 #
@@ -10,7 +10,6 @@
 
 INSTALL = install -c
 TMP = $(REALTOPDIR)/tmp
-COM = ../src/plugin/commands
 SYS = ../commands
 dosemudir = $(datadir)/dosemu
 
@@ -230,6 +229,7 @@ $(BINPATH)/bin/dosemu: ../dist/dosemu
 	    -e "s|SYSTEM_CONF_PATH=NOT_SYSTEM_WIDE|SYSTEM_CONF_PATH=$(sysconfdir)|" \
 	    -e "s|SYSTEM_XFONTS_PATH=NOT_SYSTEM_WIDE|SYSTEM_XFONTS_PATH=$(x11fontdir)|" \
 	              ../dist/dosemu > $(BINPATH)/bin/dosemu
+	chmod +x $(BINPATH)/bin/dosemu
 
 dosemu: $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/dosemu
 
@@ -250,7 +250,7 @@ version:	versetup
 versetup:
 	@mkdir -p $(BINPATH)/bin
 	@mkdir -p $(BINPATH)/commands
-	@cp -p commands/precompiled/* $(BINPATH)/commands || true
+	@cp -p commands/precompiled/*.{com,exe} $(BINPATH)/commands || true
 	@rm -f ../bin ../commands
 	@ln -sf $(THISVERSION)/bin ../bin
 	@ln -sf $(THISVERSION)/commands ../commands
@@ -279,11 +279,10 @@ install:
 	if [ ! -d $(syshdimagedir) ]; then \
 	  $(INSTALL) -d $(syshdimagedir); \
 	fi
-	for i in aspi.sys cdrom.sys dumpconf.sys ems.sys emufs.sys fossil.com isemu.com mgarrot.com; do \
-	  $(INSTALL) -m 0644 $(SYS)/$$i $(TMP)/dosemu/freedos/dosemu; \
+	for i in `find $(SYS)/* -type f`; do \
+	  $(INSTALL) -m 0644 $$i $(TMP)/dosemu/freedos/dosemu; \
 	done
-	$(INSTALL) -m 0644 $(COM)/{generic,comcom}.com $(TMP)/dosemu/freedos/dosemu
-	for i in `(cd $(COM); for i in *.com; do if [ -L $$i ]; then echo -n " $$i";fi;done)`; do \
+	cd $(SYS); for i in `find * -type l`; do \
 	  ln -sf generic.com $(TMP)/dosemu/freedos/dosemu/$$i; \
 	done
 	cp -a $(TMP)/dosemu/freedos $(dosemudir)

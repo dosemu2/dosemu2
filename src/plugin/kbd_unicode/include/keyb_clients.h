@@ -11,6 +11,7 @@
 #include "config.h"
 #include "emu.h"
 #include "keyboard.h"
+#include "translate.h"
 
 int keyb_client_init(void);
 void keyb_client_reset(void);
@@ -31,6 +32,12 @@ struct keyboard_client {
   void   (*close)(void);
   void   (*run)(void);         /* check if keys are ready and process them */
   void   (*set_leds)(t_modifiers modifiers);
+};
+
+struct mapped_X_event {
+	t_modifiers  modifiers;
+	t_unicode key;
+	Boolean make;
 };
 
 EXTERN struct keyboard_client *Keyboard INIT(NULL);

@@ -233,8 +233,8 @@ void dump_config_status(void *printfunc)
         config.timers);
     (*print)("tty_lockdir \"%s\"\ntty_lockfile \"%s\"\nconfig.tty_lockbinary %d\n",
         config.tty_lockdir, config.tty_lockfile, config.tty_lockbinary);
-    (*print)("num_ser %d\nnum_lpt %d\nnum_mice %d\nfastfloppy %d\n",
-        config.num_ser, config.num_lpt, config.num_mice, config.fastfloppy);
+    (*print)("num_ser %d\nnum_lpt %d\nfastfloppy %d\n",
+        config.num_ser, config.num_lpt, config.fastfloppy);
     (*print)("emusys \"%s\"\nemuini \"%s\"\n",
         (config.emusys ? config.emusys : ""), (config.emuini ? config.emuini : ""));
     (*print)("dosbanner %d\nallowvideoportaccess %d\ndetach %d\n",
@@ -632,6 +632,12 @@ static void config_post_process(void)
     if (config.pci && !can_do_root_stuff) {
         c_printf("CONF: Warning: PCI requires root, disabled\n");
         config.pci = 0;
+    }
+
+    if (config.vnet == 1) {
+	error("DOSNET is deprecated and will soon be removed.\n"
+	"Please consider using TAP instead.\n"
+	"To do this, you have to set $_vnet=(2)\n");
     }
 }
 

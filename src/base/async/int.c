@@ -717,89 +717,7 @@ static void int15(u_char i)
     CARRY;
     return;			/* no ebios area */
   case 0xc2:
-    m_printf("PS2MOUSE: Call ax=0x%04x\n", LWORD(eax));
-    if (!mice->intdrv)
-      if (mice->type != MOUSE_PS2 && mice->type != MOUSE_IMPS2) {
-	REG(eax) = 0x0500;        /* No ps2 mouse device handler */
-	CARRY;
-	return;
-      }
-                
-    switch (REG(eax) &= 0x00FF)
-      {
-      case 0x0000:                    
-	mouse.ps2.state = HI(bx);
-	if (mouse.ps2.state == 0)
-	  mice->intdrv = FALSE;
-	else
-	  mice->intdrv = TRUE;
- 	HI(ax) = 0;
-	NOCARRY;		
- 	break;
-      case 0x0001:
-	HI(ax) = 0;
-	LWORD(ebx) = 0xAAAA;    /* we have a ps2 mouse */
-	NOCARRY;
-	break;
-      case 0x0003:
-	if (HI(bx) != 0) {
-	  CARRY;
-	  HI(ax) = 1;
-	} else {
-	  NOCARRY;
-	  HI(ax) = 0;
-	}
-	break;
-      case 0x0004:
-	HI(bx) = 0xAA;
-	HI(ax) = 0;
-	NOCARRY;
-	break;
-      case 0x0005:			/* Initialize ps2 mouse */
-	HI(ax) = 0;
-	mouse.ps2.pkg = HI(bx);
-	NOCARRY;
-	break;
-      case 0x0006:
-	switch (HI(bx)) {
-	case 0x00:
-	  LO(bx)  = (mouse.rbutton ? 1 : 0);
-	  LO(bx) |= (mouse.lbutton ? 4 : 0);
-	  LO(bx) |= 0; 	/* scaling 1:1 */
-	  LO(bx) |= 0x20;	/* device enabled */
-	  LO(bx) |= 0;	/* stream mode */
-	  LO(cx) = 0;		/* resolution, one count */
-	  LO(dx) = 0;		/* sample rate */
-	  HI(ax) = 0;
-	  NOCARRY;
-	  break;
-	case 0x01:
-	  HI(ax) = 0;
-	  NOCARRY;
-	  break;
-	case 0x02:
-	  HI(ax) = 1;
-	  CARRY;
-	  break;
-	}
-	break;
-#if 0
-      case 0x0007:
-	pushw(ssp, sp, 0x000B);
-	pushw(ssp, sp, 0x0001);
-	pushw(ssp, sp, 0x0001);
-	pushw(ssp, sp, 0x0000);
-	REG(cs) = REG(es);
-	REG(eip) = REG(ebx);
-	HI(ax) = 0;
-	NOCARRY;
-	break;
-#endif
-     default:
-	HI(ax) = 1;
-	g_printf("PS2MOUSE: Unknown call ax=0x%04x\n", LWORD(eax));
-	CARRY;
-      }
+    mouse_ps2bios();
     return;
   case 0xc3:
     /* no watchdog */
@@ -1409,13 +1327,13 @@ int can_revector(int i)
     return REVECT;
 
   case 0x74:			/* needed for PS/2 Mouse */
-    if ((mice->type == MOUSE_PS2) || (mice->intdrv))
+    if ((config.mouse.type == MOUSE_PS2) || (config.mouse.intdrv))
       return REVECT;
     else
       return NO_REVECT;
 
   case 0x33:			/* Mouse. Wrapper for mouse-garrot as well*/
-    if (mice->intdrv || config.hogthreshold)
+    if (config.mouse.intdrv || config.hogthreshold)
       return REVECT;
     else
       return NO_REVECT;
@@ -1700,35 +1618,9 @@ static void int23(u_char i)
 }
 #endif
 
-static void mouse_post_boot(void)
-{
-	extern void bios_f000_int10_old();
-	us *ptr;
-	/* This is needed here to revectoring the interrupt, after dos
-	 * has revectored it. --EB 1 Nov 1997 */
-
-	/* This code is dupped for now in base/mouse/mouse.c - JES 96/10/20 */
-	#define Mouse_INT       (0x33 * 16)
-	SETIVEC(0x33, Mouse_SEG, Mouse_INT);
-#if 0
-	SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
-#endif
-
-	/* grab int10 back from video card for mouse */
-        ptr = (us*)((BIOSSEG << 4) +
-		    ((long)bios_f000_int10_old - (long)bios_f000));
-        m_printf("ptr is at %p; ptr[0] = %x, ptr[1] = %x\n",ptr,ptr[0],ptr[1]);
-        ptr[0] = IOFF(0x10);
-        ptr[1] = ISEG(0x10);
-        m_printf("after store, ptr[0] = %x, ptr[1] = %x\n",ptr[0],ptr[1]);
-	 /* Otherwise this isn't safe */
-	SETIVEC(0x10, INT10_WATCHER_SEG, INT10_WATCHER_OFF);
-}
-
 static void dos_post_boot(void)
 {
-    if (mice->intdrv) mouse_post_boot();
-
+    mouse_post_boot();
 }
 
 /* KEYBOARD BUSY LOOP */
@@ -2120,8 +2012,6 @@ void fake_pusha(void)
 
 void setup_interrupts(void) {
   int i;
-  unsigned char *ptr;
-  ushort *seg, *off;
 
   /* init trapped interrupts called via jump */
   for (i = 0; i < 256; i++) {
@@ -2177,18 +2067,7 @@ void setup_interrupts(void) {
   /* show EMS as disabled */
   SETIVEC(0x67, 0, 0);
 
-  if (mice->intdrv) {
-    /* this is the mouse handler */
-    ptr = (unsigned char *) (Mouse_ADD+12);
-    off = (u_short *) (Mouse_ADD + 8);
-    seg = (u_short *) (Mouse_ADD + 10);
-    /* tell the mouse driver where we are...exec add, seg, offset */
-    mouse_sethandler(ptr, seg, off);
-  }
-  else {
-    /* point to the retf#2 immediately after the int 33 entry point. */
-    SETIVEC(0x33, BIOSSEG, INT_OFF(0x33)+2);
-  }
+  mouse_sethandler();
 
   SETIVEC(0x16, INT16_SEG, INT16_OFF);
   SETIVEC(0x09, INT09_SEG, INT09_OFF);

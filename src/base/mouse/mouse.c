@@ -112,10 +112,9 @@ static int last_mouse_call_read_mickeys = 0;
 static int mouse_events = 0;
 static mouse_erase_t mouse_erase;
 
-#if 0
-mouse_t mice[MAX_MOUSE] ;
-struct mouse_struct mouse;
-#endif
+static mouse_t *mice = &config.mouse;
+/* the 'volatile' is there to cover some bug in gcc -O -g3 */
+static volatile struct mouse_struct mouse;
 
 static inline int mouse_roundx(int x) 
 { 
@@ -179,14 +178,7 @@ mouse_helper(void)
   switch (LO(bx)) {
   case 0:				/* Reset iret for mouse */
     m_printf("MOUSE move iret !\n");
-    SETIVEC(0x33, Mouse_SEG, Mouse_INT);
-#ifndef USE_NEW_INT
-    SETIVEC(0x74, Mouse_SEG, Mouse_INT74);
-#else /* USE_NEW_INT */
-#if 0
-    SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
-#endif
-#endif /* USE_NEW_INT */
+    mouse_enable_internaldriver();
     break;
   case 1:				/* Select Microsoft Mode */
     m_printf("MOUSE Microsoft Mouse (two buttons) selected.\n");
@@ -257,10 +249,100 @@ mouse_helper(void)
   }
 }
 
+void mouse_ps2bios(void)
+{        
+  m_printf("PS2MOUSE: Call ax=0x%04x\n", LWORD(eax));
+  if (!mouse_is_ps2()) {
+    REG(eax) = 0x0500;        /* No ps2 mouse device handler */
+    CARRY;
+    return;
+  }
+  
+  switch (REG(eax) &= 0x00FF) {
+  case 0x0000:                    
+    mouse.ps2.state = HI(bx);
+    if (mouse.ps2.state == 0)
+      mice->intdrv = FALSE;
+    else
+      mice->intdrv = TRUE;
+    HI(ax) = 0;
+    NOCARRY;		
+    break;
+  case 0x0001:
+    HI(ax) = 0;
+    LWORD(ebx) = 0xAAAA;    /* we have a ps2 mouse */
+    NOCARRY;
+    break;
+  case 0x0003:
+    if (HI(bx) != 0) {
+      CARRY;
+      HI(ax) = 1;
+    } else {
+      NOCARRY;
+      HI(ax) = 0;
+    }
+    break;
+  case 0x0004:
+    HI(bx) = 0xAA;
+    HI(ax) = 0;
+    NOCARRY;
+    break;
+  case 0x0005:			/* Initialize ps2 mouse */
+    HI(ax) = 0;
+    mouse.ps2.pkg = HI(bx);
+    NOCARRY;
+    break;
+  case 0x0006:
+    switch (HI(bx)) {
+    case 0x00:
+      LO(bx)  = (mouse.rbutton ? 1 : 0);
+      LO(bx) |= (mouse.lbutton ? 4 : 0);
+      LO(bx) |= 0; 	/* scaling 1:1 */
+      LO(bx) |= 0x20;	/* device enabled */
+      LO(bx) |= 0;	/* stream mode */
+      LO(cx) = 0;		/* resolution, one count */
+      LO(dx) = 0;		/* sample rate */
+      HI(ax) = 0;
+      NOCARRY;
+      break;
+    case 0x01:
+      HI(ax) = 0;
+      NOCARRY;
+      break;
+    case 0x02:
+      HI(ax) = 1;
+      CARRY;
+      break;
+    }
+    break;
+#if 0
+  case 0x0007:
+    pushw(ssp, sp, 0x000B);
+    pushw(ssp, sp, 0x0001);
+    pushw(ssp, sp, 0x0001);
+    pushw(ssp, sp, 0x0000);
+    REG(cs) = REG(es);
+    REG(eip) = REG(ebx);
+    HI(ax) = 0;
+    NOCARRY;
+    break;
+#endif
+  default:
+    HI(ax) = 1;
+    g_printf("PS2MOUSE: Unknown call ax=0x%04x\n", LWORD(eax));
+    CARRY;
+  }
+}
+
+int mouse_is_ps2(void)
+{
+  return mice->intdrv || mice->type == MOUSE_PS2 || mice->type == MOUSE_IMPS2;
+}
+
 int
 mouse_int(void)
 {
-  if (!mice->intdrv || (!mice->enabled && LWORD(eax) != 0x20)) 
+  if (!mice->intdrv || (!mouse.enabled && LWORD(eax) != 0x20)) 
     return 0;
   
   m_printf("MOUSEALAN: int 0x%x ebx=%x\n", LWORD(eax), LWORD(ebx));
@@ -638,14 +720,7 @@ mouse_software_reset(void)
   mouse.cursor_on = -1;      
   mouse.cs=0;
   mouse.ip=0;
-  SETIVEC(0x33, Mouse_SEG, Mouse_INT);
-#ifndef USE_NEW_INT
-  SETIVEC(0x74, Mouse_SEG, Mouse_INT74);
-#else /* USE_NEW_INT */
-#if 0
-  SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
-#endif
-#endif /* USE_NEW_INT */
+  mouse_enable_internaldriver();
 
   /* Return 0xffff on success, 0x21 on failure */
   LWORD(eax) = 0xffff;  
@@ -909,14 +984,7 @@ void
 mouse_reset(int flag)
 {
   m_printf("MOUSE: reset mouse/installed!\n");
-  SETIVEC(0x33, Mouse_SEG, Mouse_INT);
-#ifndef USE_NEW_INT
-  SETIVEC(0x74, Mouse_SEG, Mouse_INT74);
-#else /* USE_NEW_INT */
-#if 0
-  SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
-#endif
-#endif /* USE_NEW_INT */
+  mouse_enable_internaldriver();
 
   /* Return 0xffff on mouse installed, 0x0000 - no mouse driver installed */
   /* Return number of mouse buttons */
@@ -1216,7 +1284,7 @@ mouse_disable_internaldriver()
   LWORD(es) = mouse.cs;
   LWORD(ebx) = mouse.ip;
 
-  mice->enabled = FALSE;
+  mouse.enabled = FALSE;
 
   m_printf("MOUSE: Disable InternalDriver\n");
 }
@@ -1224,15 +1292,11 @@ mouse_disable_internaldriver()
 void
 mouse_enable_internaldriver()
 {
-  mice->enabled = TRUE;
+  mouse.enabled = TRUE;
   SETIVEC(0x33, Mouse_SEG, Mouse_INT);
-#ifndef USE_NEW_INT
-  SETIVEC(0x74, Mouse_SEG, Mouse_INT74);
-#else /* USE_NEW_INT */
 #if 0
   SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
 #endif
-#endif /* USE_NEW_INT */
   m_printf("MOUSE: Enable InternalDriver\n");
 }
 
@@ -1711,7 +1775,7 @@ graph_cursor(void)
 void
 mouse_curtick(void)
 {
-  if (mouse.cursor_on != 0 || mice->type == MOUSE_X)
+  if (!mice->intdrv || mouse.cursor_on != 0 || mice->type == MOUSE_X)
     return;
 
   m_printf("MOUSE: curtick x:%d  y:%d\n", mouse.rx, mouse.ry);
@@ -1722,14 +1786,23 @@ mouse_curtick(void)
 }
 
 /* are ip and cs in right order?? */
-void
-mouse_sethandler(void *f, us * cs, us * ip)
+void mouse_sethandler(void)
 {
-  m_printf("MOUSE: sethandler...%p, %p, %p\n",
+  if (mice->intdrv) {
+    /* this is the mouse handler */
+    unsigned char *f = (unsigned char *) (Mouse_ADD+12);
+    u_short *ip = (u_short *) (Mouse_ADD + 8);
+    u_short *cs = (u_short *) (Mouse_ADD + 10);
+    /* tell the mouse driver where we are...exec add, seg, offset */
+    m_printf("MOUSE: sethandler...%p, %p, %p\n",
 	   (void *) f, (void *) cs, (void *) ip);
-  m_printf("...............CS:%04x.....IP:%04x\n", *cs, *ip);
-  mouse.csp = cs;
-  mouse.ipp = ip;
+    m_printf("...............CS:%04x.....IP:%04x\n", *cs, *ip);
+    mouse.csp = cs;
+    mouse.ipp = ip;
+  } else {
+    /* point to the retf#2 immediately after the int 33 entry point. */
+    SETIVEC(0x33, BIOSSEG, INT_OFF(0x33)+2);
+  }
 }
 
 /*
@@ -1765,8 +1838,6 @@ dosemu_mouse_init(void)
   mouse.min_max_x = 640;
   mouse.min_max_y = 200;
 
-  mice->enabled = TRUE;
-
   /* we'll admit we have three buttons if the user asked us to emulate
   	one or else we think the mouse actually has a third button. */
   if (mice->emulate3buttons || mice->has3buttons)
@@ -1776,6 +1847,7 @@ dosemu_mouse_init(void)
 
 #ifdef X_SUPPORT
   if (config.X) {
+    mice->fd = -1;
     mice->intdrv = TRUE;
     mice->type = MOUSE_X;
     memcpy(p,mouse_ver,sizeof(mouse_ver));
@@ -1842,6 +1914,66 @@ dosemu_mouse_init(void)
   
   /* We set the defaults at the end so that we can test the mouse type */
   mouse_reset(1);		/* Let's set defaults now ! */
+}
+
+void mouse_post_boot(void)
+{
+  extern void bios_f000_int10_old();
+        
+  if (!mice->intdrv) return;
+  us *ptr;
+  /* This is needed here to revectoring the interrupt, after dos
+   * has revectored it. --EB 1 Nov 1997 */
+  
+  mouse_enable_internaldriver();
+  
+  /* grab int10 back from video card for mouse */
+  ptr = (us*)((BIOSSEG << 4) +
+              ((long)bios_f000_int10_old - (long)bios_f000));
+  m_printf("ptr is at %p; ptr[0] = %x, ptr[1] = %x\n",ptr,ptr[0],ptr[1]);
+  ptr[0] = IOFF(0x10);
+  ptr[1] = ISEG(0x10);
+  m_printf("after store, ptr[0] = %x, ptr[1] = %x\n",ptr[0],ptr[1]);
+  /* Otherwise this isn't safe */
+  SETIVEC(0x10, INT10_WATCHER_SEG, INT10_WATCHER_OFF);
+}
+
+int mouse_has_data(fd_set *fds)
+{
+  if (mouse_is_ps2() && mice->fd >= 0)
+    if (FD_ISSET(mice->fd, fds)) {
+      m_printf("MOUSE: We have data\n");
+      return 1;
+    }
+  return 0;
+}
+
+void parent_close_mouse (void)
+{
+  if (mice->intdrv)
+     {
+	if (mice->fd > 0) {
+   	   remove_from_io_select(mice->fd, mice->add_to_io_select);
+           DOS_SYSCALL(close (mice->fd));
+	}
+    }
+  else
+    child_close_mouse ();
+}
+
+void parent_open_mouse (void)
+{
+  PRIV_SAVE_AREA
+  if (mice->intdrv)
+    {
+      enter_priv_on(); /* The mouse may not be a resource everyone can open. */
+      mice->fd = DOS_SYSCALL (open (mice->dev, O_RDWR | O_NONBLOCK));
+      leave_priv_setting();
+      if (mice->fd > 0)
+	add_to_io_select(mice->fd, mice->add_to_io_select);
+    }
+  else
+    child_open_mouse ();
 }
 
 void

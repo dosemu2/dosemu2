@@ -36,6 +36,7 @@
 #include "cpu.h"
 #include "vm86plus.h"
 #include "priv.h"
+#include "mouse.h"
 
 #include "extern.h"
 
@@ -205,25 +206,6 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
       } while ((s_tmp == -1) ); \
   s_tmp; })
 
-#ifndef FALSE
-#define FALSE	0
-#endif
-#ifndef TRUE
-#define TRUE	1
-#endif
-
-#ifndef True
-#define True  TRUE
-#endif
-#ifndef False
-#define False FALSE
-#endif
-
-#ifndef DOSEMU_BOOL_IS_CHAR
-typedef unsigned char boolean;
-#define DOSEMU_BOOL_IS_CHAR
-#endif
-
 /* would like to have this in memory.h (but emu.h is included before memory.h !) */
 #define HARDWARE_RAM_START 0xc8000
 #define HARDWARE_RAM_STOP  0xf0000
@@ -320,7 +302,7 @@ typedef struct vesamode_type_struct {
        u_short fdisks, hdisks;
        u_short num_lpt;
        u_short num_ser;
-       u_short num_mice;
+       mouse_t mouse;
 
        int pktflags;		/* global flags for packet driver */
 

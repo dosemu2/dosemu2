@@ -57,11 +57,6 @@ int AddRoute( unsigned long targetNet, unsigned network,
 	struct sockaddr_ipx	*sr = (struct sockaddr_ipx *)&rt.rt_gateway;
 	int sock;
 
-	if (!can_do_root_stuff) {
-		error("IPX: Cannot add route, root privs required!\n");
-		return -2;
-	}
-
 	rt.rt_flags = RTF_GATEWAY;
 	st->sipx_network = targetNet;
         sr->sipx_network = network;

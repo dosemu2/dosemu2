@@ -161,12 +161,8 @@ io_select(fd_set fds)
 
     default:			/* has at least 1 descriptor ready */
 
-      if ((mice->intdrv || mice->type == MOUSE_PS2 || mice->type == MOUSE_IMPS2)
-	  && mice->fd >= 0)
-	if (FD_ISSET(mice->fd, &fds)) {
-		m_printf("MOUSE: We have data\n");
-	  pic_request(PIC_IMOUSE);
-	}
+      if (mouse_has_data(&fds))
+        pic_request(PIC_IMOUSE);
       if (kbd_fd >= 0) {
         if (FD_ISSET(kbd_fd, &fds)) {
 	   keyb_client_run();

@@ -248,13 +248,7 @@ void X_process_keys(XKeymapEvent *e)
 	}
 }
 
-struct mapped_X_event {
-	t_modifiers  modifiers;
-	t_unicode key;
-	Boolean make;
-};
-
-static void map_X_event(Display *display, XKeyEvent *e, struct mapped_X_event *result)
+void map_X_event(Display *display, XKeyEvent *e, struct mapped_X_event *result)
 {
 	KeySym xkey;
 	unsigned int modifiers;
@@ -347,4 +341,3 @@ struct keyboard_client Keyboard_X =  {
 	NULL,			/* run */       /* the X11 event handler is run seperately */
 	NULL,			/* set_leds */
 };
-

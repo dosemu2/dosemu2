@@ -14,11 +14,22 @@
 #endif
 
 #ifndef FALSE
-#define FALSE 0
+#define FALSE	0
+#endif
+#ifndef TRUE
+#define TRUE	1
 #endif
 
-#ifndef TRUE
-#define TRUE 1
+#ifndef True
+#define True  TRUE
+#endif
+#ifndef False
+#define False FALSE
+#endif
+
+#ifndef DOSEMU_BOOL_IS_CHAR
+typedef unsigned char boolean;
+#define DOSEMU_BOOL_IS_CHAR
 #endif
 
 typedef u_int64_t hitimer_t;

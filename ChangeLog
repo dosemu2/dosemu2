@@ -1,3 +1,20 @@
+2003/01/09 ver 1.1.4.2 unofficial pre-release
+	From Stas
+	- A proper fix for the insert key.
+	- Get the xkb switch working with X_keycode on.
+	- Start deprecating dosnet.
+	- Remove root check for IPX route setting.
+	From Bart
+	- Re-add $DOSEMU_VERSION setting to global.conf; autoexec.bat
+	  in dosemu-freedos-bin uses it.
+	- Put coopthreads commands into commands/ together with the
+	  other ones at 'make' time.
+	- Mouse: init mice->fd to -1 for X. Move mice into config.mouse.
+	  Use char *dev instead of dev[255] to avoid a potential buffer 
+	  overflow. Try to move as much mouse handling as possible into
+	  mouse.c, instead of in files outside src/base/mouse.
+	- Add if_tun.h because we don't want to depend on external 
+	  kernel headers.
 2003/01/08 ver 1.1.4.1 unofficial pre-release
 	From Witold Filipczyk
 	- Fix to get MFS to work more reliably with PTS-DOS (slightly

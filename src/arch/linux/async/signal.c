@@ -477,8 +477,7 @@ void SIGALRM_call(void)
     running--;
   }
   
-  if (mice->intdrv)
-    mouse_curtick();
+  mouse_curtick();
 
 #ifdef USE_SBEMU
   /* This is a macro */

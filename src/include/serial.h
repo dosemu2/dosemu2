@@ -124,6 +124,8 @@ extern void int14(u_char);
 extern inline void serial_run(void);
 extern inline int do_serial_in(int, ioport_t);
 extern inline int do_serial_out(int, ioport_t, int);
-extern void serial_helper();
+extern void serial_helper(void);
+extern void child_close_mouse(void);
+extern void child_open_mouse(void);
 
 #endif /* SERIAL_H */

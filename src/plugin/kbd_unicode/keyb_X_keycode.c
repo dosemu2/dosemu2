@@ -11,6 +11,7 @@
 #include <X11/keysym.h>
 #include "config.h"
 #include "keyboard.h"
+#include "keyb_clients.h"
 #include "emu.h"
 #include "keystate.h"
 #include "keyb_X.h"
@@ -528,13 +529,13 @@ static void X_keycode_initialize(Display *display)
 #endif
 }
 
-static void put_keycode(int make, int keycode)
+static void put_keycode(int make, int keycode, t_keysym sym)
 {
 	t_keysym keynum;
 	keynum = keycode_to_keynum[keycode];
 	if (keynum == NUM_VOID) 
 		return;
-	move_keynum(make, keynum);
+	move_keynum(make, keynum, sym);
 }
 
 
@@ -558,7 +559,7 @@ void X_keycode_process_keys(XKeymapEvent *e)
 			int pressed;
 			keycode = i*8 + j;
 			pressed = c & (1 << j);
-			put_keycode(pressed, keycode);
+			put_keycode(pressed, keycode, U_VOID);
 		}
 	}
 }
@@ -566,6 +567,7 @@ void X_keycode_process_keys(XKeymapEvent *e)
 void X_keycode_process_key(XKeyEvent *e)
 {
 	static int first = 1;
+	struct mapped_X_event event;
 	Boolean make;
 	if (!X_keycode_initialized) {
 		X_keycode_initialize(display);
@@ -582,6 +584,7 @@ void X_keycode_process_key(XKeyEvent *e)
 	if (!USING_XKB) {
 		X_sync_shiftstate(make, e->keycode, e->state);
 	}
-	put_keycode(make, e->keycode);
+	map_X_event(display, e, &event);
+	put_keycode(make, e->keycode, event.key);
 	return;
 }

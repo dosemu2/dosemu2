@@ -43,18 +43,16 @@
 #define MICKEY			9	/* mickeys per move */
 #define M_DELTA			8
 
-#define MAX_MOUSE 1
 #define HEIGHT 16
 #define PLANES 4
 
 typedef struct  {
-  char dev[255];
+  char *dev;
   int fd;
   int type;
   int flags;
   boolean add_to_io_select;
   boolean intdrv;
-  boolean enabled;
   boolean emulate3buttons;
   boolean has3buttons;
   boolean cleardtr;
@@ -69,8 +67,8 @@ typedef struct  {
 
 /* this entire structure gets saved on a driver state save */
 /* therefore we try to keep it small where appropriate */
-/* the 'volatile' is there to cover some bug in gcc -O -g3 */
-EXTERN volatile struct  {
+struct mouse_struct {
+  boolean enabled;
   unsigned char lbutton, mbutton, rbutton;
   unsigned char oldlbutton, oldmbutton, oldrbutton;
 
@@ -139,7 +137,7 @@ EXTERN volatile struct  {
     boolean state;
     unsigned short pkg;
   } ps2;
-} mouse;
+};
 
 #ifdef HAVE_UNICODE_KEYB
 #include "keyboard.h"
@@ -148,15 +146,18 @@ void mouse_keyboard(Boolean make, t_keysym key);
 void mouse_keyboard(int);
 #endif
 void mouse_curtick(void);
-void mouse_sethandler(void *, unsigned short *, unsigned short *);
-
-EXTERN mouse_t mice[MAX_MOUSE] ;
+void mouse_sethandler(void);
 
 EXTERN int keyboard_mouse;
 
 extern void dosemu_mouse_init(void);
+extern void mouse_ps2bios(void);
+extern int mouse_is_ps2(void);
 extern int mouse_int(void);
 extern void dosemu_mouse_close(void);
+extern void parent_close_mouse(void);
+extern void parent_open_mouse(void);
+extern void mouse_post_boot(void);
 extern void int74(void);
 
 extern void mouse_move(void);
@@ -172,5 +173,7 @@ extern void do_mouse_irq(void);
 extern void mouse_move_buttons(int lbutton, int mbutton, int rbutton);
 extern void mouse_move_relative(int dx, int dy);
 extern void mouse_move_absolute(int x, int y, int x_range, int y_range);
+
+extern int mouse_has_data(fd_set *fds);
 
 #endif /* MOUSE_H */
