@@ -1,47 +1,41 @@
 <sect1>
 <title>Networking using DOSEMU</title>
 
-<para>
-A mini-HOWTO from Bart Hartgers 
-<ulink
-url="mailto:barth@stack.nl"
->&#60;barth@stack.nl&#62;</ulink
->
-( for the detailed original description see below )
-updated by Bart Oldeman, Jan 2004.
-</para>
-
 <sect2>
-<title>Virtual networking.</title>
-
+<title>Direct NIC access</title>
 <para>
-A special virtual network device can be created using TUN/TAP or
-the obsolete dosnet module. In combination with pktdrv.c and libpacket.c,
-this will enable multiple dosemu sessions and the linux kernel to be on
-a virtual network. Each has its own network device and ethernet address.
+The easiest (and not recommended) way to set up the networking
+in DOSEMU is to use the direct NIC access. It means that DOSEMU
+will exclusively use one of your network interfaces, say eth0.
+No other processes will be able to use that interface. If they
+try to, the data exchange will became unreliable. So you have
+to make sure that this network interface is not used by anything
+including the kernel itself, before starting DOSEMU.
+The settings for this method are as follows:
+<screen>
+$_pktdriver = (on)
+$_netdev = "eth0"
+$_vnet = "direct"
+</screen>
+Note that this method requires root privileges.
 </para>
-
 <para>
-This means that you can ping/ssh/telnet/ftp from the dos-session to your
-telnetd/ftpd/... running in linux and, with IP forwarding enabled in the 
-kernel, or by bridging, connect to any host on your network.
-</para>
-
-<para>
-If you, on the other hand, just want one DOSEMU session which talks
-to your ethernet card through the packet driver, then you don't need
-to use $_vnet and can set $_netdev to "eth0" or similar. Note that
-this direct "eth0" access requires root privileges because the DOSEMU
-code needs to manipulate raw sockets.
+As you can see, this simple method has many shortcomings. If
+you don't have the network card dedicated specially for dosemu,
+consider using more advanced method called "Virtual Networking".
 </para>
 </sect2>
 
 <sect2>
-<title>TUN/TAP support.</title>
+<title>Virtual networking</title>
 <para>
-Using TUN/TAP it is possible to have a networked DOSEMU without
-needing root privileges, although some setup (as root, depending
-on the distribution) is still needed.
+Virtual networking is a mechanism that allows to overcome all the
+limitations of the direct NIC access method, but it requires more
+work to set up everything properly.
+A special virtual network devices can be created using TUN/TAP interface.
+This will enable multiple dosemu sessions and the linux kernel to be on
+a separate virtual network. Each dosemu will have its own network device
+and ethernet address.
 </para>
 
 <para>
@@ -53,11 +47,23 @@ read/write access to /dev/net/tun. Then either:
 <orderedlist>
 <listitem>
 <para>
-set $_pktdriver=(on), $_vnet = "tap" and $_netdev = "". Start DOSEMU as usual 
-and configure the network device while DOSEMU is running (using ifconfig
-manually as root, a script, or usernetctl if your distribution supplies 
-that), e.g. ifconfig tap0 192.168.74.1. Configure the DOS TCP/IP
-network clients to have another IP address in the
+Set
+<screen>
+$_pktdriver=(on)
+$_vnet = "tap"
+$_netdev = ""
+</screen>
+</para>
+<para>
+Start DOSEMU as usual and configure the network device while DOSEMU is
+running (using ifconfig manually as root, a script, or usernetctl if
+your distribution supplies that), e.g.
+<screen>
+ifconfig tap0 up 192.168.74.1
+</screen>
+</para>
+<para>
+Configure the DOS TCP/IP network clients to have another IP address in the
 subnet you just configured. This address should be unique, i.e. no other
 dosemu, or the kernel, should have this address. For the example addresses
 given above, 192.168.74.2-192.168.74.254 would be good. 
@@ -69,60 +75,74 @@ be down as soon as you exit DOSEMU.
 
 <listitem>
 <para>
-or set $_pktdriver=(on), $_vnet = "tap" and $_netdev = "tap0". Obtain tunctl
-from the user mode linux project. Then set up a persistent TAP device using
-tunctl (use the -u owner option if you do that as root). Configure
-the network using ifconfig as above, but now before starting DOSEMU.
-Now start DOSEMU as often as you like and you can use the network in
-the same way as you did above.
+Or set
+<screen>
+$_pktdriver=(on)
+$_vnet = "tap
+$_netdev = "tap0"
+</screen>
 </para>
-</listitem>
-</orderedlist>
-
+<para>
+Obtain tunctl from the user mode linux project. Then set up a persistent
+TAP device using tunctl (use the -u owner option if you do that as root).
+Configure the network using ifconfig as above, but now before starting
+DOSEMU. Now start DOSEMU as often as you like and you can use the network
+in the same way as you did above.
+</para>
+<para>
 Note, however, that multiple DOSEMU sessions that run at the same time
 need to use multiple tapxx devices. $_netdev can be changed without
 editing dosemu.conf/~./dosemurc (if you leave it commented out there)
-by setting the dosemu__netdev environment variable or by using something
-like [x]dosemu -I "netdev tap1".
+by using [x]dosemu -I "netdev tap1".
+</para>
+</listitem>
+</orderedlist>
 </para>
 
 <para>
 With the above you did set up a purely virtual internal network between
-the DOSEMU virtual PC and the real Linux box. This is why, in the
-above example, 192.168.74.1 should *not* be a real IP address of the
+the DOSEMU and the real Linux box. This is why in the
+above example 192.168.74.1 should *not* be a real IP address of the
 Linux box, and the 192.168.74 network should not exist as a real
 network. To enable DOS programs to talk to the outside world you have
-to set up bridging, routing, or forwarding.
+to set up Ethernet bridging or IP routing.
 </para>
 
+<sect3>
+<title>Bridging</title>
 <para>
 Bridging, using brctl (look for the bridge-utils package if you don't
-have it), is somewhat easier to accomplish than IP forwarding. 
+have it), is somewhat easier to accomplish than the IP routing. 
 You set up a bridge, for example named "br0" and connect eth0 and
-tap0 to it. Suppose the Linux box has IP 192.168.1.10, where
+tap0 to it. Suppose the Linux box has IP 192.168.1.10 on eth0, where
 192.168.1.x can be a real LAN, and the uid of the user who is
 going to use DOSEMU is 500, then you can do (as root):
 <screen>
-     host# brctl addbr br0
-     host# ifconfig eth0 0.0.0.0 promisc up
-     host# brctl addif br0 eth0
-     host# ifconfig br0 192.168.1.10 netmask 255.255.255.0 up
-     host# tunctl -u 500
-     host# ifconfig tap0 0.0.0.0 promisc up
-     host# brctl addif br0 tap0
+brctl addbr br0
+ifconfig eth0 0.0.0.0 promisc up
+brctl addif br0 eth0
+ifconfig br0 192.168.1.10 netmask 255.255.255.0 up
+tunctl -u 500
+ifconfig tap0 0.0.0.0 promisc up
+brctl addif br0 tap0
 </screen>
-Now the DOSEMU's IP can be (for example) 192.168.1.11.
+Now the DOSEMU's IP can be set to (for example) 192.168.1.11.
+It will appear in the same network your linux machine is.
 </para>
+</sect3>
 
+<sect3>
+<title>IP Routing</title>
 <para>
-If you like to use IP routing instead, note that the DOSEMU box resides in a
-separate subnet, which consists only of DOSEMU and the TAP device.
-You have to choose an IP address for that subnet. If your LAN has the address
-192.168.1.0 and the netmask is 255.255.255.0, the dosemu subnet can
+If you like to use IP routing, note that unlike with bridging,
+each DOSEMU box will reside in a separate IP subnet, which consists
+only of 2 nodes: DOSEMU itself and the corresponding TAP device on
+Linux side.
+You have to choose an IP address for that subnet. If your LAN has the
+address 192.168.1.0 and the netmask is 255.255.255.0, the dosemu subnet can
 have the address 192.168.74.0 and tap0 can have the address 192.168.74.1:
 <screen>
-
-     host# ifconfig tap0 192.168.74.1 netmask 255.255.255.0 up
+ifconfig tap0 192.168.74.1 netmask 255.255.255.0 up
 </screen>
 Choose a valid IP address from that subnet for DOSEMU box. It can be
 192.168.74.2. Configure your DOS client to use that IP. Configure your
@@ -130,12 +150,10 @@ DOS client to use a gateway, which is the TAP device with IP 192.168.74.1.
 Then you have to add the proper entry to the routing table on your Linux
 box:
 <screen>
-
-     host# route add -net 192.168.74.0 netmask 255.255.255.0 dev tap0
+route add -net 192.168.74.0 netmask 255.255.255.0 dev tap0
 </screen>
 The resulting entry in the routing table will look like this:
 <screen>
-
 Destination   Gateway  Genmask         Flags Metric Ref    Use Iface
 192.168.74.0  *        255.255.255.0   U     0      0        0 tap0
 </screen>
@@ -144,451 +162,37 @@ Then, unless the Linux box on which DOSEMU is running is a default
 gateway for the rest of you LAN, you will have to also add an entry
 to the routing table on each node of your LAN:
 <screen>
-
-host# route add -net 192.168.74.0 netmask 255.255.255.0 gw 192.168.1.10
+route add -net 192.168.74.0 netmask 255.255.255.0 gw 192.168.1.10
 </screen>
 (192.168.1.10 is the IP of the box DOSEMU is running on).
 Also you have to check whether IP forwarding is enabled, and if not -
 enable it:
 <screen>
-
-host# echo 1 > /proc/sys/net/ipv4/ip_forward
+echo 1 > /proc/sys/net/ipv4/ip_forward
 </screen>
-Now DOSEMU will be accessable from any node of your LAN and vice versa.
+Now DOSEMU will be able to access any node of your LAN and vice versa.
 </para>
 
 <para>
-Yet another approach is to use IP forwarding using iptables or ipchains
-(where the DOSEMU box' IP appears to the outside world, including
-the LAN, as the Linux box' IP). Please check out the IP Forwarding
-HOWTO for details.
+Yet one more thing have to be done if you want dosemu to be able to
+access Internet. Unlike in your LAN, you are not supposed to change
+the routing tables on an every Internet host, so how to make them
+to direct the IP packets back to dosemu's virtual network? To
+accomplish this, you only have to enable the IP Masquerading on
+the network interface that looks into Internet. If your machine
+serves as a gateway in a LAN, then the masquerading is most likely
+already enabled, and no further work is required. Otherwise you
+must add the following into your iptables configuration file
+(assuming the eth0 interface serves the Internet connection):
+<screen>
+*nat
+-A POSTROUTING -o eth0 -j MASQUERADE
+COMMIT
+</screen>
+After restarting iptables, you'll find your dosemu session
+being able to access Internet. For more info about the IP Masquerading
+have a look into IP-Masquerade-HOWTO.
 </para>
+</sect3>
 </sect2>
-
-<sect2>
-<title>The DOSNET virtual device (deprecated).</title>
-
-<para>
-Dosnet.o is a kernel module that implements the special virtual network
-device (predecessor of tun/tap support). 
-To set it up, go to ./src/dosext/net/v-net and make dosnet.o. As root, insmod
-dosnet.o. Now as root, configure the dsn0 interface (for example: 
-ifconfig dsn0 192.168.74.1 netmask 255.255.255.0), and add a route for it 
-(for example: route add -net 192.168.74.0 netmask 255.255.255.0 dsn0).
-</para>
-
-</sect2>
- 
-<sect2>
-<title>Full Details</title>
-
-<para>
-Modified description of Vinod G Kulkarni 
-<ulink
-url="mailto:vinod@cse.iitb.ernet.in"
->&#60;vinod@cse.iitb.ernet.in&#62;</ulink
->
-</para>
-
-<para>
-Allowing a program to have its own network protocol stacks. 
-</para>
-
-<para>
-Resulting in multiple dosemu's to use
-netware, ncsa telnet etc. 
-</para>
-
-<sect3>
-<title>Introduction</title>
-
-<para>
-Allowing network access from dosemu is an important functionality.
-For pc based network product developers, it will offer an easy development 
-environment will full control over all the traffic without having to run 
-around and use  several machines.  It will allow already available 
-client-server based "front-ends" to run on dosemulator.  (Assuming that
-they are all packet driver based -- as of now ;-) )
-</para>
-
-<para>
-To accomplish that, we require independent protocol stacks to coexist
-along with linux' IP stack. One way is to add independent network card.
-However, it is cumbersome and allows at most only 2-3 stacks. Other option
-is to use the a virtual network device that will route the packets to
-the actual stacks which run as user programs. 
-</para>
-
-</sect3>
-
-<sect3>
-<title>Design</title>
-
-<para>
-Have a virtual device which provides  routing interface at one end
-(so it is a network device from linux side) and at other end, it
-sends/receives packets from/to user stacks. 
-</para>
-
-<para>
-All the user stacks AND virtual device are virtually connected by
-a network (equavalent to a physical cable). Any broadcast packet 
-(sent by either user stack or router interface of the virtual
-device) should be sent to all the user stacks and router.
-All non-broadcast packets can be sent by communicating with
-each other.
-</para>
-
-<para>
-      
-Each user stack (here dosemu process) will have an base interface 
-which allows sending and receiving of packets. On the top of this,
-a proper interface (such as  packet driver interface) can be built.
-In dosemu, a packet driver interface is emulated.
-</para>
-
-<para>
-Every user stack will have a unique  virtual ethernet address.
-</para>
-
-</sect3>
-
-<sect3>
-<title>Implementation</title>
-
-<para>
-This package includes:
-
-<orderedlist>
-<listitem>
-
-<para>
- dosnet module. Acts as virtual network device introducing
-'dsn0' interface.
-It provides usual network interface AND also facility to
-communicate with dosemu's. 
-</para>
-</listitem>
-<listitem>
-<para>
- Modified  packet driver code (pktnew.c and libdosemu.c)
-to enable the above. Modifications include these:
-
-<orderedlist>
-<listitem>
-
-<para>
- Generate an unique ethernet address for each dosemu .
-I have used minor no. of the tty in use as part
-of ethernet address. This works unless you start
-two dosemu's in same tty.
-</para>
-</listitem>
-<listitem>
-
-<para>
- Communication with dosnet device is done by opening 
-a SOCK_PACKET socket of special type. 
-</para>
-</listitem>
-
-</orderedlist>
-
-</para>
-</listitem>
-<listitem>
-
-<para>
- IPX bridge code. Between eth0 and dsn0 so that multiple
-lan accesses can be made. 0.1 is non-intelligent.
-(both versions are alpha codes.)
-Actually IPX routing code is there in kernel.  Has anyone been 
-successful in using this?
-Yet another alternative is to use IPTunnelling of IPX
-packets (rfc 1234). Novell has NLMs for this on the netware
-side. On linux, we should run a daemon implementing this
-rfc.
-</para>
-</listitem>
-
-</orderedlist>
-
-</para>
-
-</sect3>
-
-<sect3>
-<title>Virtual device 'dsn0'</title>
-
-<para>
-Compile the module dosnet and insmod it, and give it an IP
-address, with a new IP network number. And You have to set up 
-proper routing tables on all machines you want to connect to. 
-So linux side interface is easy to set up.
-</para>
-
-<para>
-This device is assigned a virtual ethernet address, defined in
-dosnet.h.  
-</para>
-
-<para>
-This device is usual loadable module. (Someone please check if
-it can be made more efficient.) However, what is interesting is
-the way it allows access to user stacks (i.e. dosemu's.) i.e.
-its media interface.
-</para>
-
-<para>
-A packet arrives to dosnet from linux for our virtual internal 
-network (after routing process). If it is broadcast packet, dosnet 
-should send it to all dosemu's/user stacks.  If it is normal
-packet, it should send it only particular user stack which has
-same destination ethernet address . 
-</para>
-
-<para>
-It performs this process by the following method, using SOCK_PACKET
-interface , (and not introducing new devices).: 
-</para>
-
-<para>
-The dosemu opens a SOCK_PACKET interface for type 'x' with the dosnet
-device. The result of this will be an addition of entry into
-type handler table for type 'x'.  This table stores the type and
-corresponding handler function  (called when a packet of this type 
-arrives.) 
-</para>
-
-<para>
-Each dosemu will open the interface with unique 'x'  .
-<variablelist>
-
-<varlistentry>
-<term>sending packets from dosemu to dosnet</term>
-<listitem>
-<para>
-SOCK_PACKET  allows you to send the packet "as is". 
-So not a problem at all.
-</para>
-</listitem></varlistentry>
-<varlistentry>
-<term>dosnet -&gt; dosemu</term>
-<listitem>
-<para>
-this is tricky. The packet is simply given by dosnet 
-device to upper layers. However, the upper layer calls
-function to find out the type of the packet which is
-device specific (default is eth_type_trans().). 
-This routine, which returns type of given packet, is to 
-be implemented in each device. So in dosnet, this plays
-a special role. If the packet is identified as 
-type 'x',  the upper layers (net/inet/dev.c) call the
-type handler for 'x'.
-</para>
-
-<para>
-Looking at destination ethernet address of a packet, we can say 
-deduct that it is packet for dosemu, and its type is
-'x' (i.e. 'x' is "inserted" in dosemu's virtual ethernet
-address.)  Type handler function for 'x' is essentially
-SOCK_PACKET receiver function which sends packet back to 
-dosemu.
-</para>
-
-<para>
-<emphasis>NOTE:</emphasis> the "type" field is in destination ethernet address
-and not its usual place (which depends on frame type.) So
-the packet is left intact -- there is no wrapper function
-etc.  We should use type "x" which is unused by others;
-so the packet can carry _ANY_ protocol since the data 
-field is left untouched. 
-</para>
-</listitem></varlistentry>
-<varlistentry>
-<term>Broadcast packets</term>
-<listitem>
-<para>
-We use a common type "y" for dosnet
-broadcasts. Each dosemu "registers" for "y" along
-with usual "x" type packet using SOCK_PACKET. This
-"y" is same for all dosemu's.
-(The packet is duplicated  if  more than one SOCK_PACKET 
-asks for same type. )
-</para>
-</listitem>
-</varlistentry>
-</variablelist>
-</para>
-
-</sect3>
-
-<sect3>
-<title> Packet driver code</title>
-
-<para>
-I have add the code for handling multiple protocols.
-</para>
-
-<para>
-When a packet arrives,  it arrives on  one of the two 
-SOCK_PACKET handle we need to find out which of the 
-registered protocols  should be handled this code. 
-(Earlier code opened multiple sockets, one for each IPX type.
-However it is not useful now because we use *any*
-type.) When a new type is registered, it is added to a
-Type list. When a new packet arrives, first we find out
-the frame type(and hence the position of type field in the 
-packet, and then try matching it with registered types.
-[ ----  I missed comparing class; I will add it later.]
-Then call the helper corresponding to the handle of that
-type.
-</para>
-
-<para>
-Rob, you should help in the following:
-
-<orderedlist>
-<listitem>
-<para>
- Packet driver code ... 
-</para>
-
-<para>
-We should now open only two sockets: one specific to dosemu and
-other broadcast. So we have to add code to demultiplex
-into packet types... I couldn't succeed. Even
-broadcast packets are not getting to dosemu.
-</para>
-</listitem>
-<listitem>
-
-<para>
- Which virtual ethernet  addresses to use (officially)?
-</para>
-</listitem>
-<listitem>
-
-<para>
- Which  special packet type can be used?
-</para>
-</listitem>
-<listitem>
-
-<para>
- Kernel overhead .. lots of packet types getting introduced
-in type handler table... how to reduce?
-</para>
-</listitem>
-
-</orderedlist>
-
-</para>
-
-</sect3>
-
-<sect3>
-<title>Conclusion</title>
-
-<para>
-So at last one can open multiple DOSEMU's and access network
-from each of them ...  However, you HAVE TO set up ROUTING TABLES
-etc.
-</para>
-
-<para>
-Vinod G Kulkarni 
-<ulink
-url="mailto:vinod@cse.iitb.ernet.in"
->&#60;vinod@cse.iitb.ernet.in&#62;</ulink
->
-</para>
-
-<sect4>
-<title>Telnetting to other Systems</title>
-
-<para>
-Other systems need to have route to this
-"new" network. The easiest way to do this is to have  static route for
-dosnet IP network included in remote machine you want to connect to. 
-After all tests are carried out, one could include them permanently 
-(i.e. in gated configurations etc.). However, the "new" IP address should 
-only be internal to your organisation, and not allowed to route outside. 
-There is some rfc in this regard, I will let you know later.
-For e.g., I am working on 144.16.98.20. Internal network I created was
-144.16.112.0. (See the above route command.)
-To connect to another linux system 144.16.98.26 from dosemu, I include
-static route by running 'route add -net 144.16.112.0 gw 144.16.98.20'
-on that system. It becomes more complex if you need to connect to 
-outside of 144.16.98.0.
-</para>
-
-</sect4>
-
-<sect4>
-<title>Accessing Novell netware</title>
-
-<para>
-Since dosemu is now on "different device", IPX needs to be either
-bridged or routed. If it is bridged, then there is no requirement for
-any extra administration ; simply run 'ipxbridge' program supplied with
-the dosnet sources. (There are two versions of it; 0.1 copies all
-packets to from/to both interface. 0.2 is "intelligent bridge", it
-copies packet to other interface only if the destination lies on other
-interface. )
-</para>
-
-<para>
-If you instead want to use "routing" for IPX, then you need to
-enable IPX config option in the kernel.  Next, you should select a
-network number that won't clash with others. Set up static direct 
-ipx routes in linux, and then in one Novell netware server which is 
-directly connected (i.e. without any router inbetween.). (That is where
-you should contact Novell sysadm's ;-) The idea is, the server acts as route 
-broadcaster. (I haven't actually tested this; and we are working on getting 
-proper daemons etc. which will make linux act as IPX router proper.) 
-</para>
-
-<para>
-(You could include this info along with other documentation...)
-</para>
-
-<para>
-Hope this helps,
-</para>
-
-<para>
-Vinod.
-</para>
-
-<para>
-I just realised one more thing: The ipxbridge-0.2 code assumes that
-you have 'eth0' and 'eth1' as the two interfaces. And it uses this
-fact while choosing the interface to put the packet. So it won't
-recognise when 'dsn0' is used. 
-</para>
-
-<para>
-ipxbridge-0.1 will work though.
-</para>
-
-<para>
-Also, note that both these programs put the card in promiscuous mode.
-</para>
-
-<para>
-So my suggestion is to "somehow" get IPX routing done by linux!
-</para>
-
-<para>
-Vinod.
-</para>
-
-</sect4>
-
-</sect3>
-
-</sect2>
-
 </sect1>
-
