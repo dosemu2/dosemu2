@@ -315,7 +315,7 @@ void vm86_GP_fault(void)
     else {
       if(pic_icount) {
     /* looks like we have failed to catch iret... */
-         g_printf("HLT requested with pic_icount=%li: lina=%p!\n",
+         g_printf("HLT requested with pic_icount=%u: lina=%p!\n",
 	    pic_icount, lina);
          show_regs(__FILE__, __LINE__);
       }

@@ -16,7 +16,7 @@
 #include "utilities.h"
 
 /* XTERM MOUSE suport by M.Laak */
-void xtermmouse_get_event (char **kbp, int *kbcount)
+void xtermmouse_get_event (Bit8u **kbp, int *kbcount)
 {
 	int btn;
 	static int last_btn = 0;
