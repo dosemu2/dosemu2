@@ -607,19 +607,32 @@ int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int l
   return 0;
 } 
 
+static int SystemSelector(unsigned short selector)
+{
+  if (
+       (((selector) & 0xfffc) == (DPMI_CLIENT.DPMI_SEL & 0xfffc)) ||
+       (((selector) & 0xfffc) == (DPMI_CLIENT.PMSTACK_SEL & 0xfffc)) ||
+       (((selector) & 0xfffc) == (DPMI_CLIENT.LDT_ALIAS & 0xfffc)) ||
+       (((selector) & 0xfffc) == (UCODESEL & 0xfffc)) ||
+       (((selector) & 0xfffc) == (UDATASEL & 0xfffc))
+     )
+    return 1;
+  return 0;
+}
+
 static unsigned short AllocateDescriptorsAt(unsigned short selector,
     int number_of_descriptors)
 {
   int ldt_entry = selector >> 3, i;
 
-  if (ldt_entry <= 0x10) return 0;
   if (ldt_entry > MAX_SELECTORS-number_of_descriptors) {
-    error("DPMI: Insufficient descriptors, requested %i, avail %i\n",
-      number_of_descriptors, MAX_SELECTORS);
+    D_printf("DPMI: Insufficient descriptors, requested %i\n",
+      number_of_descriptors);
     return 0;
   }
   for (i=0;i<number_of_descriptors;i++)
-    if (Segments[ldt_entry+i].used) return 0;
+    if (Segments[ldt_entry+i].used || SystemSelector(((ldt_entry+i)<<3)|7))
+      return 0;
 
   for (i=0;i<number_of_descriptors;i++) {
     if (in_dpmi)
@@ -639,26 +652,34 @@ static unsigned short AllocateDescriptorsAt(unsigned short selector,
   return (ldt_entry<<3) | 0x0007;
 }
 
-unsigned short AllocateDescriptors(int number_of_descriptors)
+static unsigned short AllocateDescriptorsFrom(int first_ldt, int number_of_descriptors)
 {
-  int next_ldt=0x10, i;		/* first 0x10 descriptors are reserved */
-  unsigned char isfree=1;
+  int next_ldt=first_ldt, i;
+  unsigned char used=1;
 #if 0
   if (number_of_descriptors > MAX_SELECTORS - 0x100)
     number_of_descriptors = MAX_SELECTORS - 0x100;
 #endif
-  while (isfree) {
+  while (used) {
     next_ldt++;
     if (next_ldt > MAX_SELECTORS-number_of_descriptors) {
-      error("DPMI: Insufficient descriptors, requested %i, avail %i\n",
-        number_of_descriptors, MAX_SELECTORS);
+      D_printf("DPMI: Insufficient descriptors, requested %i\n",
+        number_of_descriptors);
       return 0;
     }
-    isfree=0;
+    used=0;
     for (i=0;i<number_of_descriptors;i++)
-      isfree |= Segments[next_ldt+i].used;
+      used |= Segments[next_ldt+i].used || SystemSelector(((next_ldt+i)<<3)|7);
   }
   return AllocateDescriptorsAt((next_ldt<<3) | 0x0007, number_of_descriptors);
+}
+
+unsigned short AllocateDescriptors(int number_of_descriptors)
+{
+  unsigned short selector;
+  /* first 0x10 descriptors are reserved */
+  selector = AllocateDescriptorsFrom(0x10, number_of_descriptors);
+  return selector;
 }
 
 void FreeSegRegs(struct sigcontext_struct *scp, unsigned short selector)
@@ -758,15 +779,6 @@ int ConvertSegmentToCodeDescriptor(unsigned short segment)
 static inline unsigned short GetNextSelectorIncrementValue(void)
 {
   return 8;
-}
-
-static int SystemSelector(unsigned short selector)
-{
-  if ((((selector) & 0xfffc) == (DPMI_CLIENT.DPMI_SEL & 0xfffc)) ||
-     (((selector) & 0xfffc ) == (DPMI_CLIENT.PMSTACK_SEL & 0xfffc)) ||
-     (((selector) & 0xfffc ) == (DPMI_CLIENT.LDT_ALIAS & 0xfffc)))
-    return 1;
-  return 0;
 }
 
 int ValidSelector(unsigned short selector)
@@ -1007,9 +1019,10 @@ static void GetDescriptor(us selector, unsigned long *lp)
    * DANG_END_REMARK
    */
   int typebyte=do_LAR(selector);
-  if (typebyte) {
+  unsigned char *type_ptr = ((unsigned char *)(&ldt_buffer[selector & 0xfff8])) + 5;
+  if (typebyte != *type_ptr) {
 	D_printf("DPMI: change type only in local selector\n");
-	((unsigned char *)(&ldt_buffer[selector & 0xfff8]))[5]=typebyte;
+	*type_ptr=typebyte;
   }
 #endif  
   memcpy(lp, &ldt_buffer[selector & 0xfff8], 8);
@@ -1039,6 +1052,8 @@ static int AllocateSpecificDescriptor(us selector)
   if (ldt_entry >= MAX_SELECTORS)
     return -1;
   if (Segments[ldt_entry].used)
+    return -1;
+  if (SystemSelector(selector))
     return -1;
   /* dpmi spec says, the descriptor allocated should be "data" with */
   /* base and limit set to 0 */
@@ -2073,7 +2088,9 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
   /* modify ldt_buffer */
   if (in_dpmi==1) {
     if (ldt_buffer) free(ldt_buffer);
+    ldt_buffer = NULL;
     if (pm_stack) free(pm_stack);
+    pm_stack = NULL;
     if(in_dpmi_pm_stack) {
       error("DPMI: Warning: trying to leave DPMI when in_dpmi_pm_stack=%i\n",
         in_dpmi_pm_stack);
@@ -2465,6 +2482,8 @@ static void dpmi_init(void)
   }
 
   in_dpmi++;
+  memset(&DPMI_CLIENT, 0, sizeof(DPMI_CLIENT));
+
   DPMI_CLIENT.is_32 = LWORD(eax) ? 1 : 0;
 
   if(in_dpmi == 1) {
@@ -2507,6 +2526,7 @@ static void dpmi_init(void)
     if (pm_stack == NULL) {
       error("DPMI: can't allocate memory for locked protected mode stack\n");
       free(ldt_buffer);
+      ldt_buffer = NULL;
       goto err;
     }
 
@@ -2538,8 +2558,6 @@ static void dpmi_init(void)
 
   DPMI_CLIENT.private_data_segment = REG(es);
 
-  DPMI_CLIENT.USER_DTA_SEL = 0;		/* from msdos.h */
-  DPMI_CLIENT.USER_PSP_SEL = 0;		/* from msdos.h */
 /*
  * DANG_BEGIN_NEWIDEA
  * Simulate Local Descriptor Table for MS-Windows 3.1
@@ -2700,8 +2718,6 @@ static void dpmi_init(void)
   DPMI_CLIENT.pm_block_root = calloc(1, sizeof(dpmi_pm_block_root));
   DPMI_CLIENT.ems_frame_mapped = 0;
   DPMI_CLIENT.in_dpmi_rm_stack = 0;
-  memset((void *)(&DPMI_CLIENT.realModeCallBack[0]), 0,
-	 sizeof(RealModeCallBack)*0x10);
   DPMI_CLIENT.stack_frame.eip	= my_ip;
   DPMI_CLIENT.stack_frame.cs	= CS;
   DPMI_CLIENT.stack_frame.esp	= my_sp;
@@ -4152,15 +4168,7 @@ int dpmi_mhp_getcsdefault(void)
 
 void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned long *lp)
 {
-  int typebyte=do_LAR(selector);
-  if (typebyte) {
-	((unsigned char *)(&ldt_buffer[selector & 0xfff8]))[5]=typebyte;
-#ifdef X86_EMULATOR
-	if (config.cpuemu>1)
-	  emu_mhp_SetTypebyte (selector, typebyte);
-#endif
-  }
-  memcpy(lp, &ldt_buffer[selector & 0xfff8], 8);
+  return GetDescriptor(selector, lp);
 }
 
 int dpmi_mhp_getselbase(unsigned short selector)

@@ -1645,8 +1645,10 @@ int msdos_fault(struct sigcontext_struct *scp)
     D_printf("DPMI: msdos_fault, err=%#lx\n",_err);
     if ((_err & 0xffff) == 0) {	/*  not a selector error */
     /* Why should we "fix" the NULL dereferences? */
-#if 1
     /* Because the unmodified Win3.1 kernel (not WinOS2) needs this */
+    /* Yes, but only when LDT is read-only, and then it doesn't work anyway.
+     * So lets disable it again and see if someone else needs this. */
+#if 0
 	char fixed = 0;
 	unsigned char * csp;
 
