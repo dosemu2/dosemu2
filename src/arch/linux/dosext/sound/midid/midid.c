@@ -305,7 +305,10 @@ int main(int argc, char **argv)
          Use previous status byte. */
       ch = last_status;
     } else {
-      last_status = ch;
+      if ((ch & 0xf0) != MIDI_SYSTEM_PREFIX)
+        last_status = ch;
+      else
+        last_status = MIDI_CTL_CHANGE;	/* Is this correct? */
       getbyte_next();
     }
 
@@ -343,22 +346,69 @@ int main(int argc, char **argv)
       do_bender(chn);
       break;
     case MIDI_SYSTEM_PREFIX:
-      /* 0xF0 - 0xF7 = system exclusive messages */
-      /* 0XF8 - 0xFF = system real time messages */
-      if (chn) {
-	if (debug)
-	  fprintf(stderr, "Warning: Bad SysEx!\n");
-	getbyte_next();
-	getbyte_next();
-	break;
+      switch (chn) {
+        /* Common System Messages */
+        case 0x00:		/* SysEx */
+	  if (debug)
+	    fprintf(stderr, "SysEx\n");
+	  do_sysex();
+	  break;
+	case 0x01:		/* Quarter Frame */
+	  do_quarter_frame();
+	  break;
+	case 0x02:		/* Song Position */
+	  do_song_position();
+	  break;
+	case 0x03:		/* Song Select */
+	  do_song_select();
+	  break;
+	case 0x04:
+	case 0x05:		/* Undef */
+	  if (warning)
+	    fprintf(stderr, "Undefined Common system message %x\n", ch);
+	  getbyte_next();
+	  break;
+	case 0x06:		/* Tune Request */
+	  do_tune_request();
+	  break;
+	case 0x07:		/* EOX */
+	  if (warning)
+	    fprintf(stderr, "Unexpected EOX\n");
+	  getbyte_next();
+	  break;
+
+	  /* System Real Time Messages */
+	case 0x08:		/* MIDI Clock */
+	  do_midi_clock();
+	  break;
+	case 0x09:		/* MIDI Tick */
+	  do_midi_tick();
+	  break;
+	case 0x0A:		/* MIDI Start */
+	  do_midi_start();
+	  break;
+	case 0x0B:		/* MIDI Continue */
+	  do_midi_continue();
+	  break;
+	case 0x0C:		/* MIDI Stop */
+	  do_midi_stop();
+	  break;
+	case 0x0D:		/* Undef */
+	  if (warning)
+	    fprintf(stderr, "Undefined Real-Time system message %x\n", ch);
+	  getbyte_next();
+	  break;
+	case 0x0E:		/* Active Sensing */
+	  do_active_sensing();
+	  break;
+	case 0x0F:		/* Reset */
+	  do_reset();
+	  break;
       }
-      if (debug)
-	fprintf(stderr, "sysex\n");
-      do_sysex();
       break;
     default:
       if (warning)
-	fprintf(stderr, "Warning: Unkown realtime event (0x%02x)\n", ch);
+	fprintf(stderr, "Warning: Unkown midi message (0x%02x)\n", ch);
       getbyte_next();
       break;
     }

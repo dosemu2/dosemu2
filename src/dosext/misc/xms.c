@@ -82,7 +82,7 @@ static int xms_grab_int15again = 0;
 
 struct EMM get_emm(unsigned int, unsigned int);
 void show_emm(struct EMM);
-static void xms_query_freemem(int), xms_allocate_EMB(int), xms_free_EMB(void),
+static unsigned char xms_query_freemem(int), xms_allocate_EMB(int), xms_free_EMB(void),
  xms_move_EMB(void), xms_lock_EMB(int), xms_EMB_info(int), xms_realloc_EMB(int);
 
 static int FindFreeHandle(int);
@@ -426,6 +426,8 @@ xms_control(void)
    * a problem's first appearance, maybe we wouldn't have these kinds
    * of compatibility hacks.
    */
+  unsigned char bl = 0;
+        
   if (HI(ax) != 0) {
     if (!xms_grab_int15again)
       xms_grab_int15 = 1;
@@ -450,8 +452,7 @@ xms_control(void)
     }
     else {
       x_printf("XMS: HMA already allocated\n");
-      LWORD(eax) = 0;
-      LO(bx) = 0x91;
+      bl = 0x91;
     }
     break;
 
@@ -459,8 +460,7 @@ xms_control(void)
     x_printf("XMS release HMA\n");
     if (freeHMA) {
       x_printf("XMS: HMA already free\n");
-      LWORD(eax) = 0;
-      LO(bx) = 0x93;
+      bl = 0x93;
     }
     else {
       x_printf("XMS: freeing HMA\n");
@@ -511,35 +511,35 @@ xms_control(void)
     break;
 
   case 8:			/* Query Free Extended Memory */
-    xms_query_freemem(OLDXMS);
+    bl = xms_query_freemem(OLDXMS);
     break;
 
   case 9:			/* Allocate Extended Memory Block */
-    xms_allocate_EMB(OLDXMS);
+    bl = xms_allocate_EMB(OLDXMS);
     break;
 
   case 0xa:			/* Free Extended Memory Block */
-    xms_free_EMB();
+    bl = xms_free_EMB();
     break;
 
   case 0xb:			/* Move Extended Memory Block */
-    xms_move_EMB();
+    bl = xms_move_EMB();
     break;
 
   case 0xc:			/* Lock Extended Memory Block */
-    xms_lock_EMB(1);
+    bl = xms_lock_EMB(1);
     break;
 
   case 0xd:			/* Unlock Extended Memory Block */
-    xms_lock_EMB(0);
+    bl = xms_lock_EMB(0);
     break;
 
   case 0xe:			/* Get EMB Handle Information */
-    xms_EMB_info(OLDXMS);
+    bl = xms_EMB_info(OLDXMS);
     return;
 
   case 0xf:			/* Reallocate Extended Memory Block */
-    xms_realloc_EMB(OLDXMS);
+    bl = xms_realloc_EMB(OLDXMS);
     break;
 
 #define state (&_regs)
@@ -584,34 +584,35 @@ xms_control(void)
   case 0x12:
     x_printf("XMS realloc UMB segment 0x%04x size 0x%04x\n",
 	     LWORD(edx), LWORD(ebx));
-    LWORD(eax) = 0;		/* failure */
-    LO(bx) = 0x80;		/* function unimplemented */
+    bl = 0x80;		        /* function unimplemented */
     break;
 
     /* the functions below are the newer, 32-bit XMS 3.0 interface */
 
   case 0x88:			/* Query Any Free Extended Memory */
-    xms_query_freemem(NEWXMS);
+    bl = xms_query_freemem(NEWXMS);
     break;
 
   case 0x89:			/* Allocate Extended Memory */
-    xms_allocate_EMB(NEWXMS);
+    bl = xms_allocate_EMB(NEWXMS);
     break;
 
   case 0x8e:			/* Get EMB Handle Information */
-    xms_EMB_info(NEWXMS);
+    bl = xms_EMB_info(NEWXMS);
     break;
 
   case 0x8f:			/* Reallocate EMB */
-    xms_realloc_EMB(NEWXMS);
+    bl = xms_realloc_EMB(NEWXMS);
     break;
 
   default:
     x_printf("XMS: Unimplemented XMS function AX=0x%04x", LWORD(eax));
     show_regs(__FILE__, __LINE__);		/* if you delete this, put the \n on the line above */
-    LWORD(eax) = 0;		/* failure */
-    LO(bx) = 0x80;		/* function not implemented */
-
+    bl = 0x80;		/* function not implemented */
+  }
+  if (bl != 0) {
+    LWORD(eax) = 0;             /* failure */
+    LO(bx) = bl;
   }
 }
 
@@ -642,7 +643,7 @@ ValidHandle(unsigned short h)
     return 0;
 }
 
-static void
+static unsigned char
 xms_query_freemem(int api)
 {
   unsigned long totalBytes = 0, subtotal;
@@ -686,9 +687,10 @@ xms_query_freemem(int api)
     x_printf("XMS query free memory(new): %ldK %ldK\n",
 	     REG(eax), REG(edx));
   }
+  return 0;
 }
 
-static void
+static unsigned char
 xms_allocate_EMB(int api)
 {
   unsigned long totalBytes, subtotal;
@@ -712,15 +714,12 @@ xms_allocate_EMB(int api)
   if(kbsize > subtotal)
   {
     x_printf("XMS: out of memory (only %ldK available)\n",subtotal);
-    LWORD(eax) = 0;
-    LO(bx) = 0xa0; /* Out of memory */
-    return;
+    return 0xa0; /* Out of memory */
   }
   
   if (!(h = FindFreeHandle(FIRST_HANDLE))) {
     x_printf("XMS: out of handles\n");
-    LWORD(eax) = 0;
-    LO(bx) = 0xa1;
+    return 0xa1;
   }
   else {
     handles[h].num = h;
@@ -751,18 +750,18 @@ xms_allocate_EMB(int api)
       REG(edx) = h;
 
     LWORD(eax) = 1;		/* success */
+    return 0;
   }
 }
 
-static void
+static unsigned char
 xms_free_EMB(void)
 {
   unsigned short int h = LWORD(edx);
 
   if (!ValidHandle(h)) {
     x_printf("XMS: free EMB bad handle %d\n", h);
-    LWORD(eax) = 0;
-    LO(bx) = 0xa2;
+    return 0xa2;
   }
   else {
 
@@ -776,10 +775,11 @@ xms_free_EMB(void)
 
     x_printf("XMS: free'd EMB %d\n", h);
     LWORD(eax) = 1;
+    return 0;
   }
 }
 
-static void
+static unsigned char
 xms_move_EMB(void)
 {
   char *src, *dest;
@@ -787,29 +787,21 @@ xms_move_EMB(void)
 
   x_printf("XMS move extended memory block\n");
   show_emm(e);
-  LWORD(eax) = 1;		/* start with success */
-#if 0
-  LWORD(ebx) = 0xff00;		/* start with success */
-  LO(bx) = 0x00; /* do not touch BH, 
-		    else Win98 boot failure. */
-  /* also don't touch BL - the XMS spec only specifies  *
-   * BL = 0x00 for function 7 (query A20)		*/
-#endif
 
   if (e.SourceHandle == 0) {
     src = (char *) (((e.SourceOffset >> 16) << 4) + \
 		    (e.SourceOffset & 0xffff));
   }
   else {
-    if (handles[e.SourceHandle].valid == 0)
+    if (handles[e.SourceHandle].valid == 0) {
       x_printf("XMS: invalid source handle\n");
-    src = handles[e.SourceHandle].addr + e.SourceOffset;
-    if (((unsigned long int)handles[e.SourceHandle].addr + handles[e.SourceHandle].size) <
-        ((unsigned long int)src + e.Length) ) {
-      e.Length = (unsigned long int)handles[e.SourceHandle].addr + handles[e.SourceHandle].size - (unsigned long int)src;
-      LWORD(eax) = 0;
-      LO(bx) = 0xa7;		/* invalid Length */
+      return 0xa3;
     }
+    src = handles[e.SourceHandle].addr + e.SourceOffset;
+    if (src > handles[e.SourceHandle].addr + handles[e.SourceHandle].size)
+      return 0xa4;              /* invalid source offset */
+    if (src + e.Length > handles[e.SourceHandle].addr + handles[e.SourceHandle].size)
+      return 0xa7;              /* invalid Length */
   }
 
   if (e.DestHandle == 0) {
@@ -817,14 +809,15 @@ xms_move_EMB(void)
 		     (e.DestOffset & 0xffff));
   }
   else {
-    if (handles[e.DestHandle].valid == 0)
+    if (handles[e.DestHandle].valid == 0) {
       x_printf("XMS: invalid dest handle\n");
+      return 0xa5;
+    }
     dest = handles[e.DestHandle].addr + e.DestOffset;
-    if (((unsigned long int)handles[e.DestHandle].addr + handles[e.DestHandle].size) <
-        ((unsigned long int)dest + e.Length) ) {
-      e.Length = (unsigned long int)handles[e.DestHandle].addr + handles[e.DestHandle].size - (unsigned long int)dest;
-      LWORD(eax) = 0;
-      LO(bx) = 0xa7;		/* invalid Length */
+    if (dest > handles[e.DestHandle].addr + handles[e.DestHandle].size)
+      return 0xa6;              /* invalid dest offset */
+    if (dest + e.Length > handles[e.DestHandle].addr + handles[e.DestHandle].size) {
+      return 0xa7;		/* invalid Length */
     }
   }
 
@@ -832,13 +825,14 @@ xms_move_EMB(void)
 	   (void *) src, (void *) dest, e.Length);
 
   memmove(dest, src, e.Length);
+  LWORD(eax) = 1;
 
   x_printf("XMS: block move done\n");
 
-  return;
+  return 0;
 }
 
-static void
+static unsigned char
 xms_lock_EMB(int flag)
 {
   int h = LWORD(edx);
@@ -858,52 +852,48 @@ xms_lock_EMB(int flag)
         handles[h].lockcount--;
       else {
         x_printf("XMS: Unlock handle %d already at 0\n", h);
-        LWORD(eax) = 0;
-        LO(bx) = 0xaa;		/* Block is not locked */
-	return;
+        return 0xaa;		/* Block is not locked */
       }
 
     LWORD(edx) = (int) handles[h].addr >> 16;
     LWORD(ebx) = (int) handles[h].addr & 0xffff;
 
     LWORD(eax) = 1;
+    return 0;
   }
   else {
     x_printf("XMS: invalid handle %d, can't (un)lock\n", h);
-    LWORD(eax) = 0;
-    LO(bx) = 0xa2;		/* invalid handle */
+    return 0xa2;		/* invalid handle */
   }
 }
 
-static void
+static unsigned char
 xms_EMB_info(int api)
 {
   int h = LWORD(edx);
 
   if (ValidHandle(h)) {
     if (api == OLDXMS) {
-      HI(bx) = handles[h].lockcount;
       LO(bx) = NUM_HANDLES - handle_count;
       LWORD(edx) = handles[h].size / 1024;
-      LWORD(eax) = 1;
       x_printf("XMS Get EMB info(old) %d\n", h);
     }
     else {			/* api == NEWXMS */
-      HI(bx) = handles[h].lockcount;
       LWORD(ecx) = NUM_HANDLES - handle_count;
       REG(edx) = handles[h].size / 1024;
-      LWORD(eax) = 1;
       x_printf("XMS Get EMB info(new) %d\n", h);
     }
+    HI(bx) = handles[h].lockcount;
+    LWORD(eax) = 1;
+    return 0;
   }
   else {
-    LWORD(eax) = 0;
-    LO(bx) = 0xa2;		/* invalid handle */
+    return 0xa2;		/* invalid handle */
   }
 }
 
 /* untested! if you test it, please tell me! */
-static void
+static unsigned char
 xms_realloc_EMB(int api)
 {
   int h;
@@ -914,18 +904,12 @@ xms_realloc_EMB(int api)
 
   if (!ValidHandle(h)) {
     x_printf("XMS: invalid handle %d, cannot realloc\n", h);
-
-    LO(bx) = 0xa2;
-    LWORD(eax) = 0;
-    return;
+    return 0xa2;
   }
   else if (handles[h].lockcount) {
     x_printf("XMS: handle %d locked (%d), cannot realloc\n",
 	     h, handles[h].lockcount);
-
-    LO(bx) = 0xab;
-    LWORD(eax) = 0;
-    return;
+    return 0xab;
   }
 
   oldsize = handles[h].size;
@@ -955,6 +939,7 @@ xms_realloc_EMB(int api)
   free(oldaddr);
 
   LWORD(eax) = 1;		/* success */
+  return 0;
 }
 
 void

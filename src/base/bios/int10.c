@@ -584,8 +584,6 @@ static boolean X_set_video_mode(int mode) {
 
   WRITE_WORD(BIOS_VIDEO_PORT, vga.config.mono_port ? 0x3b4 : 0x3d4);
 
-  SETIVEC(0x1f, 0xc000, vgaemu_bios.font_8 + 128 * 8);
-
   switch(vga.char_height) {
     case 14:
       u = vgaemu_bios.font_14;

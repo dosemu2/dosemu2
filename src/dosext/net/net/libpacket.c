@@ -26,6 +26,7 @@
 #include <sys/stat.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#include <linux/if_tun.h>
 #if GLIBC_VERSION_CODE >= 2000
   #include <netinet/if_ether.h>
 #else
@@ -81,6 +82,7 @@ OpenNetworkType(unsigned short netid)
 		proto = htons(netid);
 
 	if (!config.secure) enter_priv_on();
+
 #ifdef AF_PACKET
 	if (running_kversion >= 2001000)
 		s = socket(AF_PACKET, SOCK_PACKET, proto);
@@ -151,6 +153,10 @@ WriteToNetwork(int sock, const char *device, const char *data, int len)
 {
 	struct sockaddr sa;
 
+	if (config.vnet == 2) {
+	  return write(sock, data, len);
+	}
+
 #ifdef AF_PACKET
 	if (running_kversion >= 2001000)
 		sa.sa_family = AF_PACKET;
@@ -185,6 +191,10 @@ ReadFromNetwork(int sock, char *device, char *data, int len)
 	struct sockaddr sa;
 	int sz = sizeof(sa);
 	int error;
+
+	if (config.vnet == 2) {
+		return read(sock, data, len);
+	}
 
 	error = recvfrom(sock, data, len, 0, &sa, &sz);
 
@@ -273,4 +283,35 @@ GetDeviceMTU(char *device)
 	if (err < 0)
 		return -1;
 	return req.ifr_mtu;
+}
+
+
+int tun_alloc(char *dev)
+{
+      struct ifreq ifr;
+      int fd, err;
+
+      if( (fd = open("/dev/net/tun", O_RDWR)) < 0 )
+         return -1;
+
+      memset(&ifr, 0, sizeof(ifr));
+
+      /* Flags: IFF_TUN   - TUN device (no Ethernet headers)
+       *        IFF_TAP   - TAP device
+       *
+       *        IFF_NO_PI - Do not provide packet information
+       */
+      ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
+      if( *dev )
+         strncpy(ifr.ifr_name, dev, IFNAMSIZ);
+
+      if( (err = ioctl(fd, TUNSETIFF, (void *) &ifr)) < 0 ){
+         close(fd);
+         return err;
+      }
+      strcpy(dev, ifr.ifr_name);
+
+      DosnetID = GetDosnetID();
+
+      return fd;
 }

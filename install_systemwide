@@ -22,6 +22,8 @@
 #	   it properly. Hence, no 'automagical' suid-root install any more.
 #
 #
+# this script is obsolete, but just keep it as a "make install" front end
+# for now
 
 function usage {
   echo "USAGE:
@@ -120,10 +122,6 @@ if ! tar -tzf $FDTARBALL |grep dosemu/freedos/dosemu/lcd.exe >/dev/null; then
 "
 fi
 
-pushd dist >/dev/null 2>&1
-if ! ./mkbindist; then exit 1; fi
-popd >/dev/null 2>&1
-
 # ok, we now now have all we need
 
 INST=$INSTPATH
@@ -133,38 +131,8 @@ if [ -n "$ROOT" ]; then
   BIN="$ROOT/$BIN"
 fi
 
-mkdir -p $BIN
-mkdir -p $INST/doc
-mkdir -p $INST/man
-
-if [ ! $FDTARBALL -ef $INST/dosemu-freedos-bin.tgz ]; then
-  cp -fp $FDTARBALL $INST/dosemu-freedos-bin.tgz
-fi
-
-rm -rf $INST/bin
-cp -ap dist/tmp/dosemu/bin $INST
-sed -e "s|SYSTEM_INSTALL_PATH=NOT_SYSTEM_WIDE|SYSTEM_INSTALL_PATH=$INSTPATH|" \
-				 dist/tmp/dosemu/dosemu > $INST/bin/dosemu
-chmod 755 $INST/bin/dosemu
-ln -sf dosemu $INST/bin/xdosemu
-
-ln -sf $INSTPATH/bin/dosemu $BIN/dosemu
-ln -sf dosemu $BIN/xdosemu
-ln -sf $INSTPATH/bin/dosdebug $BIN/dosdebug
-ln -sf $INSTPATH/bin/dosemu.bin $BIN/dosemu.bin
-
-cp -fp dist/tmp/dosemu/README.bindist $INST/doc
-cp -fp doc/{README,README-tech,dosemu-HOWTO,sound-usage}.txt doc/announce $INST/doc
-cp -fp man/{dosemu,dosemu.bin,dosdebug}.1 $INST/man
-
-pushd dist/tmp/dosemu/bin >/dev/null 2>&1
-ln -sf $INSTPATH/bin/dosemu.bin dosemu.bin
-ln -sf $INSTPATH/bin/dosdebug dosdebug
-cd ..
-ln -sf $INSTPATH/bin/dosemu dosemu
-ln -sf $INSTPATH/bin/dosemu xdosemu
-rm -f README.bindist
-cd ..
-tar -cf- dosemu | gzip -9 > $INST/dosemu-bin.tgz
-popd >/dev/null 2>&1
+rm -f bin/dosemu
+make dosemu_script syshdimagedir=$INSTPATH dosemudir=$INSTPATH x11fontdir=$INSTPATH/Xfonts
+make install syshdimagedir=$INST dosemudir=$INST mandir=$INST/man bindir=$BIN \
+	x11fontdir=$INST/Xfonts docdir=$INST/doc fdtarball=$FDTARBALL
 

@@ -155,14 +155,35 @@ pkt_init(int vec)
     p_stats = MK_PTR(PKTDRV_stats);
 
     /* use dosnet device (dsn0) for virtual net */
-    if (config.vnet) {
+    pd_printf("PKT: VNET mode is %i\n", config.vnet);
+    switch (config.vnet) {
+      case 0:
+        strncpy(devname, config.netdev, sizeof(devname) - 1);
+        devname[sizeof(devname) - 1] = 0;
+	break;
+
+      case 1:
 	strcpy(devname, DOSNET_DEVICE);
-	if (Open_sockets() < 0)
+	if (Open_sockets() < 0) {
+	    error("Cannot open dosnet device\n");
 	    goto fail;
-    } else {
-      strncpy(devname, config.netdev, sizeof(devname) - 1);
-      devname[sizeof(devname) - 1] = 0;
+	}
+	break;
+
+      case 2:
+        strcpy(devname, TAP_DEVICE);
+	if ((pkt_fd = tun_alloc(devname)) < 0) {
+	  error("Cannot allocate TAP device\n");
+	  goto fail;
+	}
+	max_pkt_fd = pkt_fd + 1;
+	break;
+
+      default:
+        error("Unknown vnet mode %i\n", config.vnet);
+	goto fail;
     }
+    pd_printf("PKT: Using device %s\n", devname);
 
     /* hook the interrupt vector by pointing it into the magic table */
     SETIVEC(vec, PKTDRV_SEG, PKTDRV_OFF);
@@ -669,19 +690,22 @@ pkt_check_receive(int timeout)
     if (config.vnet) {
 	FD_ZERO(&readset);
 	FD_SET(pkt_fd, &readset);
-	FD_SET(pkt_broadcast_fd, &readset);
-	add_to_io_select(pkt_broadcast_fd, 1);
 	add_to_io_select(pkt_fd, 1);
-
-	/* anything ready? */
+	if (config.vnet == 1) {
+	  FD_SET(pkt_broadcast_fd, &readset);
+	  add_to_io_select(pkt_broadcast_fd, 1);
+	  /* anything ready? */
+	}
 	if (select(max_pkt_fd,&readset,NULL,NULL,&tv) <= 0)
 	    return 0;
+
 	if(FD_ISSET(pkt_fd, &readset)) 
 	    fd = pkt_fd;
-	else if(FD_ISSET(pkt_broadcast_fd, &readset)) 
+	else if(config.vnet == 1 && FD_ISSET(pkt_broadcast_fd, &readset)) 
 	    fd = pkt_broadcast_fd;
 	else return 0;
 
+	strcpy(device, devname);
 	size = ReadFromNetwork(fd, device, pkt_buf, PKT_BUF_SIZE);
 	if (size < 0) {
 	    p_stats->errors_in++;		/* select() somehow lied */
@@ -703,7 +727,7 @@ pkt_check_receive(int timeout)
 	    printbuf("received packet:", (struct ethhdr *)pkt_buf); 
 
             /* VINOD: If it is broadcast type, translate it back ... */
-	    if (memcmp(pkt_buf, DOSNET_BROADCAST_ADDRESS, 4) == 0) {
+	    if (config.vnet == 1 && memcmp(pkt_buf, DOSNET_BROADCAST_ADDRESS, 4) == 0) {
 		pd_printf("It is a broadcast packet\n");
 		if(memcmp(pkt_buf + ETH_ALEN, pg.hw_address, ETH_ALEN) == 0) {
 		    /* Ignore our own ethernet broadcast. */

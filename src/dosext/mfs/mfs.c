@@ -506,12 +506,13 @@ select_drive(state_t *state)
   }
 
   if (!found && check_dpb) {
-    dd = sft_device_info(sft) & 0x0f1f;
+    dd = sft_device_info(sft) & 0x0d1f;
         /* 11/20/95 by RGPP:
           Some Novell applications seem to trash the sft_device_info
           in such a way that it looks like an existing DOSEMU re-
           directed drive.  This condition seems to be detectable as
           a non-zero value in the second four bits of the entry.
+	  2002/01/08: apparently PTSDOS doesn't like bit 9 though...
 	*/
     if (dd >= 0 && dd < MAX_DRIVE && dos_roots[dd]) {
       found = 1;
@@ -973,23 +974,6 @@ make_entry(void)
   entry->next = NULL;
   entry->long_path = FALSE;
   return (entry);
-}
-
-static  void
-free_list(list)
-     struct dir_ent *list;
-{
-  struct dir_ent *next;
-
-  if (list == NULL)
-    return;
-
-  while (list->next != NULL) {
-    next = list->next;
-    free(list);
-    list = next;
-  }
-  free(list);
 }
 
 /* check if name/mname.mext exists as such if it does not contain
@@ -2072,64 +2056,141 @@ is_long_path(const char* path)
 #else
 #define HLIST_STACK_SIZE 256
 #endif
-static int hlist_stack_indx = 0;
-static struct dir_ent *hlist = NULL;
-static int hlist_index = 0; 
-static struct dir_ent *hlist_stack[HLIST_STACK_SIZE];
-static unsigned hlist_psp_stack[HLIST_STACK_SIZE];
+
+struct stack_entry
+{
+  struct dir_ent *hlist;
+  unsigned psp;
+  unsigned attr;
+  unsigned char *fpath;
+};
+
+static struct
+{
+  int tail;
+  int head;
+  struct stack_entry stack[HLIST_STACK_SIZE];
+} hlists;
+
+static  void
+free_list(struct stack_entry *se)
+{
+  struct dir_ent *list, *next;
+
+  free(se->fpath);
+  se->fpath = NULL;
+  se->attr = 0;
+  se->psp = 0;
+
+  list = se->hlist;
+  if (list == NULL)
+    return;
+
+  while (list->next != NULL) {
+    next = list->next;
+    free(list);
+    list = next;
+  }
+  free(list);
+  se->hlist = NULL;
+}
 
 static __inline__ int
-hlist_push(struct dir_ent *hlist, unsigned psp)
+hlist_push(struct dir_ent *hlist, unsigned psp, unsigned attr, char *fpath)
 {
-  Debug0((dbg_fd, "hlist_push: %d hlist=%p PSP=%d\n", hlist_stack_indx, hlist, psp));
-  if (hlist_stack_indx >= HLIST_STACK_SIZE) {
-    Debug0((dbg_fd, "hlist_push: past maximum stack"));
-    return -1;
+  struct stack_entry *se = &hlists.stack[hlists.head];
+  int ind = hlists.head;
+  Debug0((dbg_fd, "hlist_push: %d %d hlist=%p PSP=%d\n", hlists.tail, hlists.head, hlist, psp));
+  if (ind != hlists.tail || se->hlist != NULL) do {
+    if (ind == 0)
+      ind = HLIST_STACK_SIZE;
+    ind--;
+    se = &hlists.stack[ind];
+    if (se->hlist && se->psp == psp && se->attr == attr &&
+        se->fpath && strcmp(se->fpath, fpath) == 0) {
+      Debug0((dbg_fd, "hlist_push: found duplicate\n"));
+      free_list(se);
+      goto exit;
+    }
+  } while (ind != hlists.tail);
+  se = &hlists.stack[hlists.head];
+  if (hlists.head == hlists.tail && se->hlist != NULL) {
+    Debug0((dbg_fd, "hlist_push: clean tail\n"));
+    free_list(se);
+    hlists.tail++;
   }
-  else {
-    hlist_stack[hlist_stack_indx] = hlist;
-    hlist_psp_stack[hlist_stack_indx] = psp;
-    return hlist_stack_indx++;
-  }
+  ind = hlists.head;
+  hlists.head++;
+  if (hlists.head == HLIST_STACK_SIZE)
+    hlists.head = 0;
+ exit:  
+  se->hlist = hlist;
+  se->psp = psp;
+  se->attr = attr;
+  se->fpath = strdup(fpath);
+  Debug0((dbg_fd, "hlist_push: %d %d hlist=%p FPATH=%s\n", hlists.tail, hlists.head, se->hlist, se->fpath));
+  return ind;
 }
 
 static __inline__ void
 hlist_pop(int indx, unsigned psp)
 {
-  struct dir_ent *hl;
-  int ind;
-  Debug0((dbg_fd, "hlist_pop: %d popping=%d PSP=%d\n", hlist_stack_indx, indx, psp));
-  if (hlist_stack_indx <= indx)
+  struct stack_entry *se = &hlists.stack[indx];
+  Debug0((dbg_fd, "hlist_pop: %d popping=%d PSP=%d\n", hlists.head, indx, psp));
+  if (hlists.head >= hlists.tail && (indx < hlists.tail || indx >= hlists.head))
     return;
-  if (hlist_psp_stack[indx] != psp) {
+  if (hlists.head < hlists.tail && (hlists.head <= indx && indx < hlists.tail))
+    return;
+  if (se->psp != psp) {
     Debug0((dbg_fd, "hlist_pop: psp mismatch\n"));
     return;
   }
-  hl = hlist_stack[indx];
-  if (hl != NULL) {
+  if (se->hlist != NULL) {
     Debug0((dbg_fd, "hlist_pop: popped list not empty?!\n"));
-    free_list(hl);
   }
-  hlist_stack[indx] = NULL;
-  hlist_psp_stack[indx] = 0;
-  for (ind = hlist_stack_indx-1; ind >= 0 && hlist_stack[ind] == NULL; --ind) ;
-  hlist_stack_indx = ind + 1;
+  free_list(se);
+  se = &hlists.stack[hlists.head];
+  if (hlists.head == hlists.tail && se->hlist == NULL)
+    return;
+  do {
+    if (hlists.head == 0)
+      hlists.head = HLIST_STACK_SIZE;
+    if (hlists.stack[hlists.head - 1].hlist != NULL)
+      break;
+    hlists.head--;
+  } while (hlists.head != hlists.tail);
+  if (hlists.head == HLIST_STACK_SIZE)
+    hlists.head = 0;
+  do {
+    if (hlists.stack[hlists.tail].hlist != NULL)
+      break;
+    hlists.tail++;
+    if (hlists.tail == HLIST_STACK_SIZE)
+      hlists.tail = 0;
+  } while (hlists.head != hlists.tail);
 }
 
 static __inline__ void
 hlist_pop_psp(unsigned psp)
 {
-  struct dir_ent *hl;
+  struct stack_entry *se = &hlists.stack[hlists.head];
+  int ind = hlists.head, old_head = hlists.head;
   Debug0((dbg_fd, "hlist_pop_psp: PSP=%d\n", psp));
-  while (hlist_stack_indx > 0) {
-    if (hlist_psp_stack[--hlist_stack_indx] != psp) {
-      ++hlist_stack_indx;
-      return;
+  if (hlists.head == hlists.tail && se->hlist == NULL)
+    return;
+  do {
+    if (ind == 0)
+      ind = HLIST_STACK_SIZE;    
+    ind--;
+    se = &hlists.stack[ind];
+    if (se->psp == psp) {
+      Debug0((dbg_fd, "hlist_pop_psp: deleting hlist=%p\n", se->hlist));
+      free_list(se);
     }
-    hl = hlist_stack[hlist_stack_indx];
-    Debug0((dbg_fd, "hlist_pop_psp: deleting hlist=%p\n", hl));
-    free_list(hl);
-  }
+    else if (hlists.head == old_head) {
+      hlists.head = ind + 1;
+    }
+  } while (ind != hlists.tail);
 }
 
 #if 0
@@ -2761,6 +2822,8 @@ dos_fs_redirect(state_t *state)
   struct dir_ent *tmp;
   struct stat st;
   boolean_t long_path;
+  struct dir_ent *hlist;
+  int hlist_index;
 #if 0
   static char last_find_name[8] = "";
   static char last_find_ext[3] = "";
@@ -3591,19 +3654,6 @@ dos_fs_redirect(state_t *state)
 
     Debug0((dbg_fd, "findfirst %s attr=%x\n", filename1, attr));
 
-    /* no more needed, this code didn't seem to work anyway */
-#if 0
-    if (!strncmpDOS(&filename1[strlen(filename1) - 3], "NUL", 3)) {
-      Debug0((dng_fd, "Found a NUL, translating\n"));
-      filename1[strlen(filename1) - 4] = 0;
-      attr = attr | DIRECTORY;
-    }
-#endif
-
-    hlist = NULL;
-
-    Debug0((dbg_fd, "attr = 0x%x\n", attr));
-
     /* check if path is long */
     long_path = is_long_path(filename1);
 
@@ -3696,11 +3746,11 @@ dos_fs_redirect(state_t *state)
       hlist =
         match_filename_prune_list(get_dir(fpath, fname, fext), fname, fext);
       if (hlist==NULL)  {
-         SETWORD(&(state->eax), NO_MORE_FILES);
-         return (FALSE);
+        SETWORD(&(state->eax), NO_MORE_FILES);
+        return (FALSE);
       }
 				  
-      hlist_index = hlist_push(hlist, sda_cur_psp(sda));
+      hlist_index = hlist_push(hlist, sda_cur_psp(sda), attr, fpath);
       sdb_dir_entry(sdb) = hlist_index;
       return (TRUE);
     }
@@ -3714,20 +3764,18 @@ dos_fs_redirect(state_t *state)
     hlist =
       match_filename_prune_list(get_dir(fpath, fname, fext), fname, fext);
     if (hlist==NULL)  {
-       SETWORD(&(state->eax), NO_MORE_FILES);
-       return (FALSE);
+      SETWORD(&(state->eax), NO_MORE_FILES);
+      return (FALSE);
     }
     if (long_path) {
       set_long_path_on_dirs(hlist);
     }
-
-    hlist_index = hlist_push(hlist, sda_cur_psp(sda));
+    hlist_index = hlist_push(hlist, sda_cur_psp(sda), attr, fpath);
     sdb_dir_entry(sdb) = hlist_index;
     firstfind = 1;
 
   find_again:
 
-    Debug0((dbg_fd, "find_again entered with %.8s.%.3s\n", hlist->name, hlist->ext));
     if (hlist == NULL) {
       /* no matches or empty directory */
       Debug0((dbg_fd, "No more matches\n"));
@@ -3740,11 +3788,12 @@ dos_fs_redirect(state_t *state)
       else
 #endif
         SETWORD(&(state->eax), NO_MORE_FILES);
-      hlist_stack[hlist_index] = hlist;
-      hlist_pop(hlist_index, sda_cur_psp(sda));
+      hlists.stack[hlist_index].hlist = NULL;
       return (FALSE);
     }
-    else {
+    
+    Debug0((dbg_fd, "find_again entered with %.8s.%.3s\n", hlist->name, hlist->ext));
+    {
       sdb_file_attr(sdb) = get_dos_attr(hlist->mode,hlist->hidden);
 
       if (hlist->mode & S_IFDIR) {
@@ -3785,7 +3834,7 @@ dos_fs_redirect(state_t *state)
       hlist = tmp;
     }
     firstfind = 0;
-    hlist_stack[hlist_index] = hlist;
+    hlists.stack[hlist_index].hlist = hlist;
     if (hlist == NULL) {
       hlist_pop(hlist_index, sda_cur_psp(sda));
     }
@@ -3793,32 +3842,17 @@ dos_fs_redirect(state_t *state)
 
   case FIND_NEXT:		/* 0x1c */
     hlist_index = sdb_dir_entry(sdb);
-    hlist = hlist_index < hlist_stack_indx ? hlist_stack[hlist_index] : NULL;
+    hlist = NULL;
+    if ((hlists.head >= hlists.tail && (hlists.tail <= hlist_index && hlist_index < hlists.head)) ||
+        (hlists.head <  hlists.tail && (hlist_index >= hlists.tail || hlist_index < hlists.head)))
+      hlist = hlists.stack[hlist_index].hlist;
+    if (hlist) {
+      free(hlists.stack[hlist_index].fpath);
+      hlists.stack[hlist_index].fpath = NULL;
+    }
     Debug0((dbg_fd, "Find next %8.8s.%3.3s, pointer->hlist=%d\n",
 	    (char *) sdb_template_name(sdb),
 	    (char *) sdb_template_ext(sdb), (int)hlist));
-#if 0
-    if (last_find_drive && ((strncmpDOS(last_find_name, sdb_template_name(sdb), 8) != 0 ||
-          strncmpDOS(last_find_ext, sdb_template_ext(sdb), 3) != 0) ||
-/*			    (last_find_dir != sdb_dir_entry(sdb)) || */
-			    (last_find_drive != sdb_drive_letter(sdb)))) {
-      Debug0((dbg_fd, "last_template!=this_template. popping. %.8s,%.3s\n", last_find_name, last_find_ext));
-      Debug0((dbg_fd, "last_dir=%x,last_drive=%d sdb_dir=%d,sdb_drive=%d\n", last_find_dir, last_find_drive, sdb_dir_entry(sdb), sdb_drive_letter(sdb)));
-      hlist = hlist_pop(sda_cur_psp(sda));
-
-      strncpy(last_find_name, sdb_template_name(sdb), 8);
-      strncpy(last_find_ext, sdb_template_ext(sdb), 3);
-      last_find_dir = sdb_dir_entry(sdb);
-      last_find_drive = sdb_drive_letter(sdb);
-      /*
-	  if (hlist == NULL)
-	    {
-	      Debug0((dbg_fd,"double popping!!\n"));
-	      hlist = hlist_pop ();
-	    }
-*/
-    }
-#endif
     attr = sdb_attribute(sdb);
     goto find_again;
   case CLOSE_ALL:		/* 0x1d */

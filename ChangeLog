@@ -1,3 +1,60 @@
+2003/01/08 ver 1.1.4.1 unofficial pre-release
+	From Witold Filipczyk
+	- Fix to get MFS to work more reliably with PTS-DOS (slightly
+	  adapted by Bart)
+	- Hack to "add support" for Oacute in cp852 and Polish keyboard
+	  layout
+	- small doc build fixes
+	From Stas
+	- fix for DOSEMU hanging the machine if used with -H0 on the
+	  graphics console; option to unfreeze DOSEMU from dosdebug.
+	- IPX fixes: 
+	  * RIP packets have type 1, not 4 (4 is SAP);
+	  * Setsockopt doesn't require root for setting the packet type 
+	    when the proper Socket Level is used;
+	  * select() can alter its arguments, so they must be always re-inited;
+	  * Check if we really received a RIP packet and retry if we didn't, 
+	    rather than fail.
+	  * remove enter_priv_on() where it is not necessary.
+	- midid fixes:
+	  * Get rid of in_addr_t as it turned to be not present in some glibc
+	  * Shut up the misleading warnings
+	  * Stubs for all the System midi messages and the Real-Time midi
+	    messages;
+	  * "running status" must be reset by the System/Realtime messages;
+	  * Remove the hack that was used to make the game "stunts" happy in an
+	    absense of the above functionality.
+	- TUN/TAP support. This is intended to substitute the dosnet
+	  module. dosnet requires root, while TAP doesn't.
+	  Note: set $_vnet=(2) to enable the TAP support. $_vnet=(1)
+	  (still) uses dosnet.
+	From Jason Eckhardt <jle@rice.edu>
+	- base/bios/int10.c (x_set_video_mode): Do not set INT 1F on a mode change.
+	  (adapted by Bart: initialize INT1F at DOSEMU startup)
+	From Bart
+	- disable unprivileged ttylocks changes in ~/.dosemurc.
+	- ~/.dosemurc can now completely overwrite dosemu.conf
+	  for non-suid-root DOSEMU.
+	- configuration simplification: DOSEMU now parses the default (as
+	  if it was uncommented) dosemu.conf internally before
+	  global.conf. This made it possible to greatly simplify
+	  global.conf again. Also the initialization in init.c is no
+	  longer necessary for the most part.
+	- check for lex or flex
+	- several small 'make install' tweaks
+	- the dosemu script now does not complain if /proc/ksyms does not
+	  exist and can work without ~/.dosemurc. Also dosemu.bin is now
+	  exec'ed. Systemwide paths are substituted during "make" rather
+	  than "make install" so that a different prefix can be used
+	  for "make install".
+	- make install_systemwide bare-bones (kept for backwards
+	  compatibility for now)
+	- XMS cleanup and better error codes
+	- MFS: solve problem with repeated FindFirsts without FindNexts;
+	  also use a circular buffer instead of a stack.
+	- some cpuemu code needs to be guarded by #if X_GRAPHICS
+	- adapted the manpages and "COPYING" a little bit to reflect that
+	  the fact that Hans no longer maintains 1.0.x
 2002/12/17 ver 1.1.4 released
 	From Bart
 	- Fix X font handling and misc other things in the dosemu script 

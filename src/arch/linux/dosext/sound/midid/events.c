@@ -104,6 +104,22 @@ void do_bender(int chn)
 	dev_bender(chn, pitch);
 }
 
+void do_controlchange(int chn)
+{
+	int control;
+	int value;
+	control = getbyte_data();
+	if (control<0) return;
+	getbyte_next();
+	value = getbyte_data();
+	if (value<0) return;
+	getbyte_next();
+	if (debug)
+		fprintf(stderr, "control_change(chn=%i,control=%i,val=%i)\n",
+                        chn, control, value);
+	dev_control(chn, control, value);
+}
+
 void do_sysex(void)
 {
 #define SYSEX_BUF_LEN 1024
@@ -130,19 +146,83 @@ int ch, len = 0;
 	}
 }
 
-void do_controlchange(int chn)
+void do_quarter_frame(void)
 {
-	int control;
 	int value;
-	control = getbyte_data();
-	if (control<0) return;
-	getbyte_next();
-	value = getbyte();
+	value = getbyte_data();
 	if (value<0) return;
 	getbyte_next();
-	if (debug)
-		fprintf(stderr, "control_change(chn=%i,control=%i,val=%i)\n",
-                        chn, control, value);
-	dev_control(chn, control, value);
+	if (warning)
+		fprintf(stderr,"Warning: Quarter Frame message is not implemented\n");
 }
 
+void do_song_position(void)
+{
+	int beat, clocks;
+	beat = getbyte_data();
+	if (beat<0) return;
+	getbyte_next();
+	if (getbyte_data()<0) return;
+	clocks = getbyte_data() << 7;
+	getbyte_next();
+	if (warning)
+		fprintf(stderr,"Warning: Song Position message is not implemented\n");
+}
+
+void do_song_select(void)
+{
+	int song;
+	song = getbyte_data();
+	if (song<0) return;
+	getbyte_next();
+	if (warning)
+		fprintf(stderr,"Warning: Song Select message is not implemented\n");
+}
+
+void do_tune_request(void)
+{
+	if (warning)
+		fprintf(stderr,"Warning: Tune Request message is not implemented\n");
+}
+
+void do_midi_clock(void)
+{
+	if (warning)
+		fprintf(stderr,"Warning: MIDI Clock message is not implemented\n");
+}
+
+void do_midi_tick(void)
+{
+	if (warning)
+		fprintf(stderr,"Warning: MIDI Tick message is not implemented\n");
+}
+
+void do_midi_start(void)
+{
+	if (warning)
+		fprintf(stderr,"Warning: MIDI Start message is not implemented\n");
+}
+
+void do_midi_continue(void)
+{
+	if (warning)
+		fprintf(stderr,"Warning: MIDI Continue message is not implemented\n");
+}
+
+void do_midi_stop(void)
+{
+	if (warning)
+		fprintf(stderr,"Warning: MIDI Stop message is not implemented\n");
+}
+
+void do_active_sensing(void)
+{
+	if (warning)
+		fprintf(stderr,"Warning: Active Sensing message is not implemented\n");
+}
+
+void do_reset(void)
+{
+	if (warning)
+		fprintf(stderr,"Warning: Reset message is not implemented\n");
+}

@@ -46,7 +46,7 @@ typedef struct
         short Hops __attribute__ ((packed));
         short Ticks __attribute__ ((packed));
 } RipPacket_t;
-                                   
+
 /* targetNet and network should be passed in in network order */
 int AddRoute( unsigned long targetNet, unsigned network,
         unsigned char node[] )
@@ -56,7 +56,7 @@ int AddRoute( unsigned long targetNet, unsigned network,
 	struct sockaddr_ipx	*st = (struct sockaddr_ipx *)&rt.rt_dst;
 	struct sockaddr_ipx	*sr = (struct sockaddr_ipx *)&rt.rt_gateway;
 	int sock;
-	
+
 	if (!can_do_root_stuff) {
 		error("IPX: Cannot add route, root privs required!\n");
 		return -2;
@@ -65,16 +65,14 @@ int AddRoute( unsigned long targetNet, unsigned network,
 	rt.rt_flags = RTF_GATEWAY;
 	st->sipx_network = targetNet;
         sr->sipx_network = network;
-	memcpy(sr->sipx_node, node, 6);
+	memcpy(sr->sipx_node, node, IPX_NODE_LEN);
 	sr->sipx_family = st->sipx_family = AF_IPX;
-	
-	enter_priv_on();
+
 	sock=socket(AF_IPX,SOCK_DGRAM,PF_IPX);
-	leave_priv_setting();
 	if(sock==-1) {
 		return( -1 );
 	}
-	
+
 	enter_priv_on();
 	if(ioctl(sock,SIOCADDRT,(void *)&rt) < 0) {
                 if( errno != EEXIST ) {
@@ -83,8 +81,8 @@ int AddRoute( unsigned long targetNet, unsigned network,
                         return( -2 );
                 }
 	}
-        close( sock );
 	leave_priv_setting();
+        close( sock );
         return(0);
 }
 
@@ -131,10 +129,9 @@ char buf_targ[9], buf_net[9], buf_node[13], proc_net[9], proc_node[13], *proc_st
 /* returns 0 on success, less than 0 on failure */
 int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks )
 {
-	PRIV_SAVE_AREA
  	int sock;
 	struct sockaddr_ipx ipxs;
-	int opt=1;
+	int opt;
 	static RipPacket_t RipRequest;
 	static RipPacket_t RipResponse;
         int size, sz;
@@ -143,85 +140,74 @@ int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks )
         fd_set  fds;
         int done, retCode, selrtn;
 
-        retCode = -1;	
-	enter_priv_on();
+        retCode = -1;
 	sock=socket(AF_IPX,SOCK_DGRAM,PF_IPX);
-	leave_priv_setting();
 	if(sock==-1)
 	{
 		n_printf("IPX: could not open IPX socket: %s.\n", strerror(errno));
 		goto GLTExit;
 	}
-	
-	enter_priv_on();
+
 	/* Permit broadcast output */
+	opt = 1;		/* enable */
 	if(setsockopt(sock,SOL_SOCKET,SO_BROADCAST, &opt,sizeof(opt))==-1)
 	{
-		leave_priv_setting();
 		n_printf("IPX: could not set socket option for broadcast: %s.\n", strerror(errno));
 		goto CloseGLTExit;
 	}
-	
-	/* This is a special for IPX sockets that allows the superuser
-	   to change the IPX type field of a socket */
-	   
-	opt=4;		/* Remember no htons! - its a byte */
-	
+
+	opt = 1;		/* RIP type */
 	if (setsockopt(sock, SOL_IPX, IPX_TYPE, &opt, sizeof(opt)) == -1)
 	{
-		leave_priv_setting();
 		n_printf("IPX: could not set socket option for type: %s.\n", strerror(errno));
 		goto CloseGLTExit;
 	}
-	
+
+	memset(&ipxs, 0, sizeof(ipxs));
 	ipxs.sipx_family=AF_IPX;
-	ipxs.sipx_network=htonl(0);
+	ipxs.sipx_network=htonl(0);	/* Primary Interface */
 	ipxs.sipx_port=htons(0);
-	
+	ipxs.sipx_type = 1;		/* RIP */
+
 	if(bind(sock,(struct sockaddr *)&ipxs,sizeof(ipxs))==-1)
 	{
-		leave_priv_setting();
 		n_printf("IPX: could not bind socket to address: %s\n", strerror(errno));
 		goto CloseGLTExit;
 	}
-	leave_priv_setting();
 
         /* prepare destination for send, broadcast to local net */
-	ipxs.sipx_port=htons(0x453);
-	memset(ipxs.sipx_node,0xff,6);
-	ipxs.sipx_type = 4;
-        
-        /* prepare packet data for RIP request */        
+	ipxs.sipx_port=htons(0x453);	/* RIP port */
+	memset(ipxs.sipx_node,0xff,IPX_NODE_LEN);
+
+        /* prepare packet data for RIP request */
         RipRequest.Operation = htons(1);        /* RIP Request */
         RipRequest.Network = network;
         RipRequest.Hops = -1;
         RipRequest.Ticks = -1;
-	
+
         /* get ready for multiple sends and receives */
         /* we will use a select to wait for the response */
         retries = 5;
         done = FALSE;
         retCode = -1;
-        
+
         /* loop here sending RIP requests and trying to get a RIP response */
         while( !done ) {
-		enter_priv_on();
         	if(sendto(sock,(void *)&RipRequest,sizeof(RipRequest),0,
                         (struct sockaddr *)&ipxs,sizeof(ipxs))==-1)
 	        {
-			leave_priv_setting();
                         retCode = -2;
 			n_printf("IPX: sendto() failed: %s\n", strerror(errno));
         		goto CloseGLTExit;
 	        }
-		leave_priv_setting();
-                
+
+RepeatSelect:
                 timeout.tv_sec = 0;
                 timeout.tv_usec = TIMEOUT;
                 FD_ZERO( &fds );
                 FD_SET( sock, &fds);
-RepeatSelect:
                 selrtn = select( 255, &fds, NULL, NULL, &timeout );
+
                 if( selrtn == -1 ) {
                         if( errno != EINTR ) {
                                 done = TRUE;
@@ -240,26 +226,35 @@ RepeatSelect:
                 }
 		if (FD_ISSET(sock, &fds)) {
 			sz = sizeof(ipxs);
-			enter_priv_on();
         		size=recvfrom(sock,(char *)&RipResponse,
                                 sizeof(RipResponse),0,
                                 (struct sockaddr *)&ipxs,&sz);
-			leave_priv_setting();
-        		if(size==-1 || size < sizeof (RipResponse) ||
-                                RipResponse.Operation != htons(2) ) {
+			if(size > 0 && ((ipxs.sipx_type != 1 &&
+				ipxs.sipx_port != htons(0x453)) ||
+				RipResponse.Operation != htons(2))) {
+                    		retries--;
+                    		if( retries==0 ) {
+                            		done = TRUE;
+                            		retCode = -5;
+                    		}
+				n_printf("IPX: Ignoring packet size=%i type=%x port=%x operation=%x retries=%i\n",
+					size, ipxs.sipx_type, ntohs(ipxs.sipx_port), ntohs(RipResponse.Operation), retries);
+                    		continue;
+			}
+        		if(size < sizeof (RipResponse)) {
                                 done = TRUE;
-                                retCode = -5;
+                                retCode = -6;
 	        	} else {
                                 done = TRUE;
                                 retCode = 0;
                         }
                 }
         }
-        
+
         if( retCode==0 ) {
                 n_printf("IPX: Received RIP information for network %08lx\n",
                         (unsigned long int)htonl(network));
-        
+
                 *hops = htons(RipResponse.Hops);
                 *ticks = htons(RipResponse.Ticks);
 		if (CheckRouteExist(network, ipxs.sipx_network, ipxs.sipx_node)) {
@@ -287,13 +282,8 @@ RepeatSelect:
                 printf("IPX: Error %d in GetLocalTarget main packet send/receive loop\n", retCode);
         }
 CloseGLTExit:
-	enter_priv_on();
         close( sock );
-	leave_priv_setting();
 GLTExit:
         return( retCode );
 }
-                                   
-
 #endif
-

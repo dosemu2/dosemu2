@@ -22,7 +22,7 @@ config {
   bindir ${prefix}/bin
   sysconfdir /etc/dosemu
   datadir ${prefix}/share
-  mandir ${datadir}/man
+  mandir ${prefix}/man
   docdir ${datadir}/doc/dosemu
   syshdimagedir /var/lib/dosemu
   x11fontdir ${datadir}/dosemu/Xfonts

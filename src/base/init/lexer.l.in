@@ -332,6 +332,7 @@ warn			RETURN(WARN);
 x			RETURN(L_X);
 dosbanner		RETURN(DOSBANNER);
 fastfloppy		RETURN(FASTFLOPPY);
+timer			RETURN(TIMER);
 timint			RETURN(TIMINT);
 hogthreshold		RETURN(HOGTHRESH);
 speaker			RETURN(SPEAKER);
@@ -506,7 +507,6 @@ binary                 RETURN(BINARY);
 
 charset			RETURN(CHARSET);
 updatefreq		RETURN(UPDATEFREQ);
-	/* updatelines		RETURN(UPDATELINES); */
 color			RETURN(COLOR);
 escchar			RETURN(ESCCHAR);
 	/* corner			RETURN(CORNER); */
@@ -582,11 +582,11 @@ svgalib			MAY_BE { yylval->i_value = SVGALIB; return(CHIPSET_TYPE); }
 
 	/* xwindows stuff */
 
+updatelines             RETURN(UPDATELINES);
 display			RETURN(L_DISPLAY);
 title			RETURN(L_TITLE);
 icon_name		RETURN(ICON_NAME);
 keycode			RETURN(X_KEYCODE);
-keycode_auto		RETURN(X_KEYCODE_AUTO);
 blinkrate		RETURN(X_BLINKRATE);
 sharecmap		RETURN(X_SHARECMAP);
 mitshm                  RETURN(X_MITSHM);

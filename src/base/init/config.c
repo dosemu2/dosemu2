@@ -95,304 +95,6 @@ int cpu_override (int cpu)
     return -1;
 }
 
-/*
- * DANG_BEGIN_FUNCTION config_defaults
- * 
- * description: 
- * Set all values in the `config` structure to their default
- * value. These will be modified by the config parser.
- * 
- * DANG_END_FUNCTION
- * 
- */
-static void
-config_defaults(void)
-{
-    char *cpuflags;
-    int k = 386;
-    struct disk *dptr;
-    struct printer *pptr;
-    extern struct printer lpt[NUM_PRINTERS];
-
-    parse_debugflags("+cw", 1);
-    vm86s.cpu_type = CPU_386;
-    /* defaults - used when /proc is missing, cpu!=x86 etc. */
-    config.realcpu = CPU_386;
-    config.pci = 0;
-    config.rdtsc = 0;
-    config.mathco = 0;
-    config.smp = 0;
-    config.cpummx = 0;
-    config.CPUSpeedInMhz = 150;	/* instruction cycles per us, entry level */
-
-    open_proc_scan("/proc/cpuinfo");
-    switch (get_proc_intvalue_by_key(
-          kernel_version_code > 0x20100+74 ? "cpu family" : "cpu" )) {
-      case 5: case 586:
-      case 6: case 686:
-      case 15:
-        config.realcpu = CPU_586;
-        cpuflags = get_proc_string_by_key("features");
-        if (!cpuflags) {
-          cpuflags = get_proc_string_by_key("flags");
-        }
-#ifdef X86_EMULATOR
-        if (cpuflags && strstr(cpuflags, "mmx")) {
-	  config.cpummx = 1;
-        }
-#endif
-        if (cpuflags && strstr(cpuflags, "tsc")) {
-          /* bogospeed currently returns 0; should it deny
-           * pentium features, fall back into 486 case */
-	  if ((kernel_version_code > 0x20100+126)
-	       && (cpuflags = get_proc_string_by_key("cpu MHz"))) {
-	    int di,df;
-	    /* last known proc/cpuinfo format is xxx.xxxxxx, with 3
-	     * int and 6 decimal digits - but what if there are less
-	     * or more digits??? */
-	    /* some broken kernel/cpu combinations apparently imply
-	     * the existence of 0 Mhz CPUs */
-	    if (sscanf(cpuflags,"%d.%d",&di,&df)==2 && (di || df)) {
-		char cdd[8]; int i;
-		long long chz = 0;
-		char *p = cpuflags;
-		while (*p!='.') p++; p++;
-		for (i=0; i<6; i++) cdd[i]=(*p && isdigit(*p)? *p++:'0');
-		cdd[6]=0; sscanf(cdd,"%d",&df);
-		/* speed division factor to get 1us from CPU clocks - for
-		 * details on fast division see timers.h */
-		chz = (di * 1000000) + df;
-
-		/* speed division factor to get 1us from CPU clock */
-		config.cpu_spd = (LLF_US*1000000)/chz;
-
-		/* speed division factor to get 838ns from CPU clock */
-		config.cpu_tick_spd = (LLF_TICKS*1000000)/chz;
-
-		fprintf (stderr,"Linux kernel %d.%d.%d; CPU speed is %Ld Hz\n",
-		   kernel_version_code >> 16, (kernel_version_code >> 8) & 255,
-		   kernel_version_code & 255,chz);
-/*		fprintf (stderr,"CPU speed factors %ld,%ld\n",
-			config.cpu_spd, config.cpu_tick_spd); */
-		config.CPUSpeedInMhz = di + (df>500000);
-#ifdef X86_EMULATOR
-		fprintf (stderr,"CPU-EMU speed is %d MHz\n",config.CPUSpeedInMhz);
-#endif
-		break;
-	    }
-	    else
-	      cpuflags=NULL;
-	  }
-	  else
-	    cpuflags=0;
-	  if (!cpuflags) {
-            if (!bogospeed(&config.cpu_spd, &config.cpu_tick_spd)) {
-              break;
-            }
-          }
-        }
-        /* fall thru */
-      case 4: case 486: config.realcpu = CPU_486;
-      	break;
-      default:
-        error("Unknown CPU type!\n");
-	/* config.realcpu is set to CPU_386 at this point */
-    }
-    config.mathco = strcmp(get_proc_string_by_key("fpu"), "yes") == 0;
-    reset_proc_bufferptr();
-    k = 0;
-    while (get_proc_string_by_key("processor")) {
-      k++;
-      advance_proc_bufferptr();
-    }
-    if (k > 1) {
-      config.smp = 1;		/* for checking overrides, later */
-    }
-    close_proc_scan();
-    fprintf(stderr,"Dosemu-" VERSTR " Running on CPU=%d86, FPU=%d\n",
-      config.realcpu, config.mathco);
-
-    config.hdiskboot = 1;	/* default hard disk boot */
-    config.mappingdriver = 0;
-#ifdef X86_EMULATOR
-    config.cpuemu = 0;
-#endif
-    config.mem_size = 640;
-    config.ems_size = 2048;
-    config.ems_frame = 0xe000;
-    config.xms_size = 8192;
-    config.max_umb = 0;
-    config.dpmi = (!under_root_login && can_do_root_stuff) ? 0 : 16384;
-    config.secure = 0;
-    config.mouse_flag = 0;
-    config.mapped_bios = 0;
-    config.vbios_file = NULL;
-    config.vbios_copy = 0;
-    config.vbios_seg = 0;
-    config.vbios_size = 0;
-    config.console = 0;
-    config.console_keyb = 0;
-    config.console_video = 0;
-    config.kbd_tty = 0;
-    config.fdisks = 1;
-    dptr = &disktab[0];
-    dptr->type    = FLOPPY;
-    dptr->default_cmos = THREE_INCH_FLOPPY;
-    dptr->sectors = 0;
-    dptr->heads   = 0;
-    dptr->tracks  = 0;
-    dptr->timeout = 0;
-    dptr->dev_name = "/dev/fd0";              /* default-values */
-    dptr->boot_name = NULL;
-    dptr->wantrdonly = 0;
-    dptr->header = 0;
-    dptr->dexeflags = 0;
-
-    config.hdisks = 1;
-    dptr = &hdisktab[0];
-    dptr->type    = DIR_TYPE;
-    dptr->sectors = -1;
-    dptr->heads   = -1;
-    dptr->tracks  = -1;
-    dptr->timeout = 0;
-    dptr->dev_name = malloc(strlen(DOSEMU_HDIMAGE_DIR) + 8 + 1);   /* default-values */
-    strcpy(dptr->dev_name, DOSEMU_HDIMAGE_DIR);
-    strcat(dptr->dev_name, "/freedos"); 
-    dptr->boot_name = NULL;
-    dptr->wantrdonly = 0;
-    dptr->header = 0;
-    dptr->dexeflags = 0;
-
-    config.bootdisk = 0;
-    config.exitearly = 0;
-    config.term_esc_char = 30;	       /* Ctrl-^ */
-    /* config.term_method = METHOD_FAST; */
-    config.term_color = 1;
-    /* config.term_updatelines = 25; */
-    config.term_updatefreq = 4;
-    config.term_charset = CHARSET_LATIN;
-    /* config.term_corner = 1; */
-    config.X_updatelines = 25;
-    config.X_updatefreq = 5;
-    config.X_display = NULL;	/* NULL means use DISPLAY variable */
-    config.X_title = "DOS in a BOX";
-    config.X_icon_name = "xdos";
-    config.X_blinkrate = 12;
-    config.X_sharecmap = 0;     /* Don't share colourmap in graphics modes */
-    config.X_mitshm = 1;
-    config.X_fixed_aspect = 1;
-    config.X_aspect_43 = 1;
-    config.X_lin_filt = 0;
-    config.X_bilin_filt = 0;
-    config.X_mode13fact = 2;
-    config.X_winsize_x = 0;
-    config.X_winsize_y = 0;
-    config.X_gamma = 100;
-    config.vgaemu_memsize = 1024;
-    config.vesamode_list = NULL;
-    config.X_lfb = 1;
-    config.X_pm_interface = 1;
-    config.X_keycode = 2;
-    config.X_font = "vga";
-    config.usesX = 0;
-    config.X = 0;
-    config.X_mgrab_key = NULL;	/* on , NULL = "Home" */
-    config.hogthreshold = 1;	/* bad estimate of a good garrot value */
-    config.chipset = PLAINVGA;
-    config.cardtype = CARD_VGA;
-    config.pci_video = 0;
-    config.fullrestore = 0;
-    config.graphics = 0;
-    config.gfxmemsize = 1024;
-    config.vga = 0;		/* this flags BIOS graphics */
-    config.dualmon = 0;
-    config.force_vt_switch = 0;
-    config.speaker = SPKR_EMULATED;
-
-    /* The frequency in usec of the SIGALRM call (in signal.c) is
-     * equal to this value / 6, and thus is currently 9158us = 100 Hz
-     * The 6 (TIMER DIVISOR) is a constant of unknown origin
-     * NOTE: if you set 'timer 18' in config.dist you can't get anything
-     * better that 55555 (108Hz) because of integer math.
-     * see timer_interrupt_init() in init.c
-     */
-    config.update = 54925;	/* should be = 1E6/config.freq */
-    config.freq = 18;		/* rough frequency (real PC = 18.2065) */
-    config.wantdelta = 9154;	/* requested value for setitimer */
-    config.realdelta = 9154;
-
-    config.timers = 1;		/* deliver timer ints */
- 
-    /* Lock file stuff */
-    config.tty_lockdir = PATH_LOCKD;    /* The Lock directory  */
-    config.tty_lockfile = NAME_LOCKF;   /* Lock file pretext ie LCK.. */
-    config.tty_lockbinary = FALSE;      /* Binary lock files ? */
-
-    config.num_ser = 0;
-    config.fastfloppy = 1;
-
-    config.emusys = (char *) NULL;
-    config.emuini = (char *) NULL;
-    config.dosbanner = 1;
-    config.allowvideoportaccess = 1;
-    config.emuretrace = 0;
-
-    keyb_layout(-1); /* What's the current keyboard  */
-		config.altkeytable = NULL;
-		config.toggle_mask = 0;
-
-    config.detach = 0;		/* Don't detach from current tty and open
-				 * new VT. */
-    config.debugout = NULL;	/* default to no debug output file */
-
-    config.pre_stroke =NULL;	/* default no keyboard pre-strokes */
-    config.pre_stroke_mem =NULL;
-
-    config.sillyint = 0;
-    config.must_spare_hardware_ram = 0;
-    memset(config.hardware_pages, 0, sizeof(config.hardware_pages));
-
-    mice->fd = -1;
-    mice->add_to_io_select = 0;
-    mice->type = 0;
-    mice->flags = 0;
-    mice->intdrv = 0;
-    mice->cleardtr = 0;
-    mice->baudRate = 0;
-    mice->sampleRate = 0;
-    mice->lastButtons = 0;
-    mice->chordMiddle = 0;
-
-    config.num_lpt = 1;
-    pptr = &lpt[0];
-    pptr->prtcmd = "lpr";
-    pptr->prtopt = "%s";
-    pptr->dev = NULL;
-    pptr->file = NULL;
-    pptr->remaining = -1;
-    pptr->delay = 20;
-
-    config.sound = 1;
-    config.sb_base = 0x220;
-    config.sb_dma = 1;
-    config.sb_irq = 5;
-    config.sb_dsp = "/dev/dsp";
-    config.sb_mixer = "";
-    config.mpu401_base = 0x330;
-
-    config.joy_device[0] = "/dev/js0";
-    config.joy_device[1] = "/dev/js1";
-    config.joy_dos_min = 1;
-    config.joy_dos_max = 150;
-    config.joy_granularity = 1;
-    config.joy_latency = 0;
-
-    config.netdev = "eth0";
-    config.vnet = 0;
-
-    memset(config.features, 0, sizeof(config.features));
-}
-
 static void dump_printf(char *fmt, ...)
 {
     va_list args;
@@ -525,8 +227,8 @@ void dump_config_status(void *printfunc)
     }
     (*print)("dualmon %d\nforce_vt_switch %d\nspeaker \"%s\"\n",
         config.dualmon, config.force_vt_switch, s);
-    (*print)("update %d\nfreq %d\nwantdelta %d\nrealdelta %d\n",
-        config.update, config.freq, config.wantdelta, config.realdelta);
+    (*print)("update %d\nfreq %d\n",
+        config.update, config.freq);
     (*print)("timers %d\n",
         config.timers);
     (*print)("tty_lockdir \"%s\"\ntty_lockfile \"%s\"\nconfig.tty_lockbinary %d\n",
@@ -781,6 +483,100 @@ void secure_option_preparse(int *argc, char **argv)
   leave_priv_setting();
 }
 
+static void config_pre_process(void)
+{
+    char *cpuflags;
+    int k = 386;
+
+    parse_debugflags("+cw", 1);
+    open_proc_scan("/proc/cpuinfo");
+    switch (get_proc_intvalue_by_key(
+          kernel_version_code > 0x20100+74 ? "cpu family" : "cpu" )) {
+      case 5: case 586:
+      case 6: case 686:
+      case 15:
+        config.realcpu = CPU_586;
+        cpuflags = get_proc_string_by_key("features");
+        if (!cpuflags) {
+          cpuflags = get_proc_string_by_key("flags");
+        }
+#ifdef X86_EMULATOR
+        if (cpuflags && strstr(cpuflags, "mmx")) {
+	  config.cpummx = 1;
+        }
+#endif
+        if (cpuflags && strstr(cpuflags, "tsc")) {
+          /* bogospeed currently returns 0; should it deny
+           * pentium features, fall back into 486 case */
+	  if ((kernel_version_code > 0x20100+126)
+	       && (cpuflags = get_proc_string_by_key("cpu MHz"))) {
+	    int di,df;
+	    /* last known proc/cpuinfo format is xxx.xxxxxx, with 3
+	     * int and 6 decimal digits - but what if there are less
+	     * or more digits??? */
+	    /* some broken kernel/cpu combinations apparently imply
+	     * the existence of 0 Mhz CPUs */
+	    if (sscanf(cpuflags,"%d.%d",&di,&df)==2 && (di || df)) {
+		char cdd[8]; int i;
+		long long chz = 0;
+		char *p = cpuflags;
+		while (*p!='.') p++; p++;
+		for (i=0; i<6; i++) cdd[i]=(*p && isdigit(*p)? *p++:'0');
+		cdd[6]=0; sscanf(cdd,"%d",&df);
+		/* speed division factor to get 1us from CPU clocks - for
+		 * details on fast division see timers.h */
+		chz = (di * 1000000) + df;
+
+		/* speed division factor to get 1us from CPU clock */
+		config.cpu_spd = (LLF_US*1000000)/chz;
+
+		/* speed division factor to get 838ns from CPU clock */
+		config.cpu_tick_spd = (LLF_TICKS*1000000)/chz;
+
+		fprintf (stderr,"Linux kernel %d.%d.%d; CPU speed is %Ld Hz\n",
+		   kernel_version_code >> 16, (kernel_version_code >> 8) & 255,
+		   kernel_version_code & 255,chz);
+/*		fprintf (stderr,"CPU speed factors %ld,%ld\n",
+			config.cpu_spd, config.cpu_tick_spd); */
+		config.CPUSpeedInMhz = di + (df>500000);
+#ifdef X86_EMULATOR
+		fprintf (stderr,"CPU-EMU speed is %d MHz\n",config.CPUSpeedInMhz);
+#endif
+		break;
+	    }
+	    else
+	      cpuflags=NULL;
+	  }
+	  else
+	    cpuflags=0;
+	  if (!cpuflags) {
+            if (!bogospeed(&config.cpu_spd, &config.cpu_tick_spd)) {
+              break;
+            }
+          }
+        }
+        /* fall thru */
+      case 4: case 486: config.realcpu = CPU_486;
+      	break;
+      default:
+        error("Unknown CPU type!\n");
+	/* config.realcpu is set to CPU_386 at this point */
+    }
+    config.mathco = strcmp(get_proc_string_by_key("fpu"), "yes") == 0;
+    reset_proc_bufferptr();
+    k = 0;
+    while (get_proc_string_by_key("processor")) {
+      k++;
+      advance_proc_bufferptr();
+    }
+    if (k > 1) {
+      config.smp = 1;		/* for checking overrides, later */
+    }
+    close_proc_scan();
+    fprintf(stderr,"Dosemu-" VERSTR " Running on CPU=%d86, FPU=%d\n",
+            config.realcpu, config.mathco);
+}
+
 static void config_post_process(void)
 {
     /* console scrub */
@@ -836,12 +632,6 @@ static void config_post_process(void)
     if (config.pci && !can_do_root_stuff) {
         c_printf("CONF: Warning: PCI requires root, disabled\n");
         config.pci = 0;
-    }
-
-    if (config.pktdrv && !can_do_root_stuff) {
-	c_printf("CONF: Warning: root permissions "
-	"required for Packet Driver, disabling!\n");
-	config.pktdrv = 0;
     }
 }
 
@@ -953,7 +743,7 @@ config_init(int argc, char **argv)
     memset(usedoptions,0,sizeof(usedoptions));
     memcheck_type_init();
     our_envs_init(0);
-    config_defaults();
+    config_pre_process();
 
 #ifdef X_SUPPORT
     /*
@@ -979,7 +769,9 @@ config_init(int argc, char **argv)
 	    break;
 	case 'H': {
 	    dosdebug_flags = strtoul(optarg,0,0) & 255;
+#if 0
 	    if (!dosdebug_flags) dosdebug_flags = DBGF_WAIT_ON_STARTUP;
+#endif
 	    break;
             }
 	case 'F':

@@ -21,3 +21,5 @@
    and address assigned to dsn0. If you change anything here, be sure
    to change the test in device specific type extraction code in dosnet.c.
 */
+
+#define  TAP_DEVICE  "tap%d"

@@ -107,7 +107,7 @@ sub getSoftwareVersions {
       print "Found SGMLtools version $1\n";
     }
   } else {
-    $result = `sgmlt2html --wibblefoo`;
+    $result = `sgml2html --wibblefoo`;
     if ($result =~ /papersize/) {
       $versions{'sgmltools'} = 1;
       if ($verbose) {

@@ -115,7 +115,7 @@ done
 #echo "$PROPRIETARY $LREDIRHOME $DUMBTERM $*"; exit
 
 function w4l_check {
-  if grep mki_install_hook /proc/ksyms >/dev/null; then
+  if grep mki_install_hook /proc/ksyms >/dev/null 2>/dev/null; then
     echo "
    Note: your kernel is patched for Win4Lin, this will most likely
    crash DPMI applications within DOSEMU. ... be warned!
@@ -126,7 +126,7 @@ function w4l_check {
 BPATH_FILE=~/.dosemu/bindist_path
 
 # check whether this user has already got his private installation
-if [ ! -f $HOME/.dosemurc ]; then
+if [ ! -f $HOME/.dosemurc -a -f $BPATH_FILE -o ! -f $HOME/.dosemu/disclaimer ]; then
 
   # This either is the first time this user calls 'dosemu'
   # or the user cd'ed here and we forced a 'take over'
@@ -193,7 +193,6 @@ if [ ! -f $HOME/.dosemurc ]; then
   $SYSTEM_CONF_PATH/dosemu.conf or copy that file to $HOME/.dosemurc and
   adjust it there if you haven't already done so.
           "
-          touch ~/.dosemurc
         fi
       elif [ "$BOOT_DIR_PATH" != "" ]; then
         if [ "${BOOT_DIR_PATH#/*}" != "$BOOT_DIR_PATH" ]; then
@@ -250,8 +249,15 @@ if [ -n "$XFLAG" ]; then
     exit 1
   fi
   
-  FONT=`grep '$_X_font' $HOME/.dosemurc | \
+  if [ -f $HOME/.dosemurc ]; then
+    FONT=`grep '$_X_font' $HOME/.dosemurc | \
+         sed -e 's|[#[:space:]]*\$_X_font[[:space:]]*=[[:space:]]*\"\(.*\)\".*|\1|'`
+  fi
+
+  if [ "$FONT" = "" -a -f $SYSTEM_CONF_PATH/dosemu.conf ]; then
+     FONT=`grep '$_X_font' $SYSTEM_CONF_PATH/dosemu.conf | \
         sed -e 's|[#[:space:]]*\$_X_font[[:space:]]*=[[:space:]]*\"\(.*\)\".*|\1|'`
+  fi
 
   if [ "$FONT" = "" ]; then
      FONT="vga"
@@ -322,7 +328,7 @@ if [ -n "$LREDIRHOME" ]; then
   export DOSDRIVE_D="$HOME"
 fi
 
-if [ $UID = 0 ]; then
+if [ $UID = 0 -a -f $HOME/.dosemurc ]; then
   # User is logged in as root. Need to check whether the config files
   # are safe and not world writeable
 
@@ -345,10 +351,7 @@ else
 fi
 
 if [ -n "$STRING_I" ] ; then
-  $BINARY $XFLAG "-I $STRING_I" "${par[@]}"
+  exec $BINARY $XFLAG "-I $STRING_I" "${par[@]}"
 else
-  $BINARY $XFLAG "${par[@]}"
+  exec $BINARY $XFLAG "${par[@]}"
 fi
-
-umask 077
-exit 0

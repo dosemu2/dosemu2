@@ -63,7 +63,7 @@ int getbyte_status(void)
 	int ch=getbyte_buffer;
 	if (!accept) {
 		ch=MAGIC_INV;
-		if (warning) fprintf(stderr,"Warning: got an illegal status byte=%i\n",getbyte_buffer);
+		if (debugall) fprintf(stderr,"Status not specified, using previous\n");
 	}
 	return(ch);
 }

@@ -19,7 +19,7 @@
 #
 # For more details look at ./doc/README.txt
 
-default_lib_dir= /var/lib/dosemu
+default_lib_dir= /usr/local/share/dosemu
 #config_script= builtin # (or e.g. /etc/dosemu/global.conf)
 log_level= 0
 root c_all		# root is allowed to do all weird things

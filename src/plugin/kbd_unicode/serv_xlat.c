@@ -1724,8 +1724,8 @@ Bit16u translate_key(Boolean make, t_keynum key,
 	 */
 	bios_key = is_accent ? ascii : make_bios_code_r(make, key, ascii, keysym, state);
 
-	if (bios_key == 0x23e0)  /* Cyrillic_er work around */
-		bios_key &= 0x00FF;
+	if (bios_key == 0x23e0 || bios_key == 0x18e0)  /* Cyrillic_er work around */
+		bios_key &= 0x00FF;  /* ^^^^^^^^^^^^^^^^^^ Oacute */
 #if 0
 	k_printf("translate_key: keysym=%04x bios_key=%04x\n",
 		keysym, bios_key);

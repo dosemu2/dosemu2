@@ -1,5 +1,5 @@
 .\" -*- nroff -*-  (This is for Emacs)
-.TH DOSEMU.BIN 1 "Dec, 2002" "Version 1.1.4" "DOS Emulation"
+.TH DOSEMU.BIN 1 "Jan, 2003" "Version 1.1.4.1" "DOS Emulation"
 .SH NAME
 dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 .SH SYNOPSIS
@@ -392,20 +392,8 @@ generate the odd keycodes expected by many DOS programs.
 
 .SH PRINTING
 The BIOS printer services are emulated through standard UNIX file I/O
-to a set of files, 
-.I dosemulpt1, 
-.I dosemulpt2, 
-and 
-.I dosemulpt3,
-corresponding to the DOS printer devices LPT1, LPT2, and LPT3.
-All characters sent to LPTx will be redirected to the file dosemulptx in
-the current directory.
-.PP
-.B WARNING!
-.B DOSEMU 
-does not keep the file buffers flushed; therefore, the state of these
-files is undefined until you actually exit the DOS emulator.  Please
-excuse the inconvenience.
+though temporary files which are then periodically spooled by LPR 
+or a different print client, as defined by $_printer in dosemu.conf.
 
 .SH DEBUG MESSAGES
 Debug messages can be controlled either at the command line or in the
@@ -549,10 +537,9 @@ with which this man page was originally distributed. During about 4 years
 James B. MacLean <macleajb@ednet.ns.ca> was the restless leader of the
 dosemu team, implementation of DPMI (which made Windows-3.1, dos4gw, djgpp,
 etc. running) happened during his 'governement' and brought the project
-near to Beta-state.
-Now Hans Lermen <lermen@fgan.de> is maintaining the stable branch of this
-funny software, and Bart Oldeman <bart@dosemu.org>
-the development branch.
+near to Beta-state. Hans Lermen <lermen@fgan.de> took over and released the
+first 1.0 version. Now Bart Oldeman <bart@dosemu.org> is maintaining this
+funny software.
 
 .SH BUGS
 There are too many to count, much less list.  

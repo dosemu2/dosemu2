@@ -8,8 +8,8 @@
 # You should do a "make" to compile and a "make install" as root to
 # install DOSEMU.
 
-INSTALL = install -c -o root
-TMP = ../tmp
+INSTALL = install -c
+TMP = $(REALTOPDIR)/tmp
 COM = ../src/plugin/commands
 SYS = ../commands
 dosemudir = $(datadir)/dosemu
@@ -21,9 +21,6 @@ export LD=$(CC)
 OBJS	= dos.o
 DEPENDS = version dos.d emu.d dosstatic.d
 
-
-# dosemu version
-LIBDOSEMU = $(BINPATH)/bin/libdosemu
 
 ENDOFDOSMEM = 0x110000     # 1024+64 Kilobytes
 
@@ -108,7 +105,7 @@ DEBUG      = $(SYNC_ALOT)
 # CFLAGS+=-DSIMPLE_FORK
 # set to debug fork with environment
 # CFLAGS+=-DFORK_DEBUG
-CFLAGS += -DDOSEMULIB_DEFAULT=$(datadir)/dosemu -DDOSEMUHDIMAGE_DEFAULT=$(syshdimagedir)
+CFLAGS += -DDOSEMULIB_DEFAULT=$(dosemudir) -DDOSEMUHDIMAGE_DEFAULT=$(syshdimagedir)
 
 # We need to use the C_RUN_IRQS with -fno-inline (TBD why)
 # this is in pic/pic.c
@@ -216,7 +213,7 @@ dosstatic:	$(DOSSTATICFILES) ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
 	@echo >> ../etc/xinstallvgafont
 	@cat ../etc/xinstallvgafont.sh >> ../etc/xinstallvgafont
 
-$(BINPATH)/bin/$(DOSBIN): 	emu.o dossubdirs
+$(BINPATH)/bin/$(DOSBIN): emu.o $(LIBSUBDIRS) ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
 	$(LD) $(LDFLAGS) -o $@ \
 	   emu.o $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
 	-Wl,--whole-archive $(addprefix -l, $(LIBS_))  -Wl,--no-whole-archive \
@@ -228,15 +225,18 @@ ifdef X_SUPPORT
 	@ln -sf $(DOSBIN) $(BINPATH)/bin/xdos
 endif
 
-dosemu: $(BINPATH)/bin/$(DOSBIN)
+$(BINPATH)/bin/dosemu: ../dist/dosemu
+	sed -e "s|SYSTEM_INSTALL_PATH=NOT_SYSTEM_WIDE|SYSTEM_INSTALL_PATH=$(dosemudir)|" \
+	    -e "s|SYSTEM_CONF_PATH=NOT_SYSTEM_WIDE|SYSTEM_CONF_PATH=$(sysconfdir)|" \
+	    -e "s|SYSTEM_XFONTS_PATH=NOT_SYSTEM_WIDE|SYSTEM_XFONTS_PATH=$(x11fontdir)|" \
+	              ../dist/dosemu > $(BINPATH)/bin/dosemu
+
+dosemu: $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/dosemu
+
+dosemu_script: $(BINPATH)/bin/dosemu
 
 .PHONY:	dossubdirs optionalsubdirs docsubdirs
 .PHONY: $(LIBSUBDIRS) $(OPTIONALSUBDIRS) $(DOCS) $(REQUIRED)
-
-# ?
-dossubdirs:	$(LIBSUBDIRS)
-	-rm -f $(LIBDOSEMU)
-	-rm -f $(BINPATH)/bin/$(DOSBIN)
 
 optionalsubdirs:	$(OPTIONALSUBDIRS)
 
@@ -295,9 +295,9 @@ install:
 	$(INSTALL) -m 0644 $(TMP)/dosemu/dosemu-bin.tgz $(dosemudir)
 	rm -rf $(TMP)
 	mkdir -p -m 0755 $(TMP)/dosemu/freedos/dosemu
-	if [ -f ../$(fdtarball) ]; then \
-	  tar -C $(dosemudir)/.. -xpzf ../dosemu-freedos-bin.tgz; \
-	  tar -C $(TMP) -xpzf ../dosemu-freedos-bin.tgz; \
+	cd $(REALTOPDIR); if [ -f $(fdtarball) ]; then \
+	  tar -C $(dosemudir)/.. --no-same-owner -xpzf $(fdtarball); \
+	  tar -C $(TMP) --no-same-owner -xpzf $(fdtarball); \
 	  cd $(TMP)/dosemu; \
 	  rm -f FDchange.log $(dosemudir)/FDchange.log; \
 	  rm -f README.bindist $(dosemudir)/README.bindist; \
@@ -308,10 +308,6 @@ install:
 	  $(INSTALL) $(dosemudir)/freedos/autoexec.bat freedos; \
 	  cd .. ; tar -cf- dosemu |gzip -9 >$(dosemudir)/dosemu-freedos-bin.tgz; \
 	fi
-	sed -e "s|SYSTEM_INSTALL_PATH=NOT_SYSTEM_WIDE|SYSTEM_INSTALL_PATH=$(dosemudir)|" \
-	     -e "s|SYSTEM_CONF_PATH=NOT_SYSTEM_WIDE|SYSTEM_CONF_PATH=$(sysconfdir)|" \
-	     -e "s|SYSTEM_XFONTS_PATH=NOT_SYSTEM_WIDE|SYSTEM_XFONTS_PATH=$(x11fontdir)|" \
-	              ../dist/dosemu > $(TMP)/dosemu/dosemu
 	if [ ! -d $(sysconfdir) ]; then \
 	  $(INSTALL) -d $(sysconfdir); \
 	fi
@@ -321,10 +317,13 @@ install:
 	fi
 	if [ ! -d $(dosemudir)/keymap ]; then \
 	  $(INSTALL) -d $(dosemudir)/keymap; \
-	  $(INSTALL) -m 0644 ../etc/keymap/* $(dosemudir)/keymap; \
+	fi
+	$(INSTALL) -m 0644 ../etc/keymap/* $(dosemudir)/keymap; \
+	if [ ! -d $(bindir) ]; then \
+	  $(INSTALL) -d $(bindir); \
 	fi
 	$(INSTALL) -m 0755 ../bin/$(DOSBIN) $(bindir)
-	$(INSTALL) -m 0755 $(TMP)/dosemu/dosemu $(bindir)
+	$(INSTALL) -m 0755 ../bin/dosemu $(bindir)
 	$(INSTALL) -m 0644 ../bin/dosemu.map $(dosemudir)/dosemu-$(THISVERSION).map
 	$(INSTALL) -m 0755 ../bin/mkfatimage $(bindir)
 	$(INSTALL) -m 0755 ../bin/mkfatimage16 $(bindir)
@@ -334,10 +333,6 @@ endif
 ifdef  USE_MHPDBG
 	$(INSTALL) -m 0755 ../bin/dosdebug $(bindir)
 endif
-	if [ -f $(bindir)/xdosemu ]; then \
-		$(INSTALL) -m 0700 $(bindir)/xdosemu /tmp; \
-		rm -f $(bindir)/xdosemu; \
-	fi
 	if [ ! -d $(docdir) ]; then \
 	  $(INSTALL) -d $(docdir); \
 	fi
@@ -351,12 +346,11 @@ endif
 	   $(mandir)/man1
 	ln -sf dosemu.1 $(mandir)/man1/xdosemu.1
 ifdef X_SUPPORT
-	if [ ! -e $(prefix)/xdosemu ]; then ln -s dosemu $(bindir)/xdosemu; fi
+	if [ ! -e $(bindir)/xdosemu ]; then ln -s dosemu $(bindir)/xdosemu; fi
 	if [ ! -d $(x11fontdir) ]; then \
 	  $(INSTALL) -d $(x11fontdir); \
 	fi
 	if [ -w $(x11fontdir) ] && \
-	    [ -d $(X11fontdir) ] && \
 	    [ ! -e $(x11fontdir)/vga.pcf ] && \
 	    [ ! -e $(x11fontdir)/vga.pcf.Z ] && \
 	    [ ! -e $(x11fontdir)/vga.pcf.gz ]; then \
@@ -377,7 +371,7 @@ ifdef X_SUPPORT
 	fi;
 endif
 	/bin/rm -rf $(TMP)
-	@if test $(fdtarball) != none -a ! -f ../$(fdtarball); then \
+	@cd $(REALTOPDIR); if test $(fdtarball) != none -a ! -f $(fdtarball); then \
 	  echo ; \
 	  echo WARNING ;\
 	  echo No FreeDOS tarball \($(fdtarball)\) found. If you are not ;\

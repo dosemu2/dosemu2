@@ -49,7 +49,11 @@
 
 int TryMemRef = 0;
 
-extern int TrapVgaOn, PageFaults;
+extern int PageFaults;
+
+#if X_GRAPHICS
+
+extern int TrapVgaOn;
 extern unsigned long e_vga_base, e_vga_end;
 
 /* ======================================================================= */
@@ -387,6 +391,8 @@ badrw:
   leavedos(0x5643);
 }
 
+#endif /* X_GRAPHICS */
+
 /* ======================================================================= */
 /*
  * DANG_BEGIN_FUNCTION dosemu_fault(int, struct sigcontext_struct);
@@ -457,7 +463,9 @@ void e_emu_fault1(int signal, struct sigcontext_struct *scp)
          * bit 2 = 1	user mode
          * bit 3 = 0	no reserved bit err
          */
+#if X_GRAPHICS
 cont0e:
+#endif
 	if ((int)_cr2 < 0) {
 		error("Accessing reserved memory at %08lx\n"
 		      "\tMaybe a null segment register\n",_cr2);

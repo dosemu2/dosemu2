@@ -102,7 +102,7 @@ static int timid_preinit(void)
   
   ctrl_adr.sin_family = AF_INET;
   ctrl_adr.sin_port = htons(config.timid_port);
-  memcpy(&ctrl_adr.sin_addr.s_addr, serv->h_addr, sizeof(in_addr_t));
+  memcpy(&ctrl_adr.sin_addr.s_addr, serv->h_addr, sizeof(ctrl_adr.sin_addr.s_addr));
 
   data_adr.sin_family = AF_INET;
   data_adr.sin_addr.s_addr = ctrl_adr.sin_addr.s_addr;

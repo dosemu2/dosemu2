@@ -1498,6 +1498,9 @@ int vga_emu_init(vgaemu_display_type *vedt)
   }
 #endif
 
+  /* point int 1f to the default 8x8 graphics font for high characters */
+  SETIVEC(0x1f, 0xc000, vgaemu_bios.font_8 + 128 * 8);
+
   vga_msg(
     "vga_emu_init: memory: %u kbyte at 0x%x (lfb at 0x%x); %ssupport for mono modes\n",
     vga.mem.size >> 10, (unsigned) vga.mem.base,

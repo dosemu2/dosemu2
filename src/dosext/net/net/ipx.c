@@ -444,28 +444,15 @@ IPXOpenSocket(u_short port, u_short * newPort)
 
   opt = 1;
   /* Permit broadcast output */
-  enter_priv_on();
   if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST,
 		 &opt, sizeof(opt)) == -1) {
-    leave_priv_setting();
     /* I can't think of anything else to return */
     n_printf("IPX: could not set socket option for broadcast: %s.\n", strerror(errno));
     return (RCODE_SOCKET_TABLE_FULL);
   }
   /* allow setting the type field in the IPX header */
   opt = 1;
-#if 0 /* this seems to be wrong: IPX_TYPE can only be set on level SOL_IPX */
-  if (setsockopt(sock, SOL_SOCKET, IPX_TYPE, &opt, sizeof(opt)) == -1) {
-#else
-  /* the socket _is_ an IPX socket, hence it first passes ipx_setsockopt()
-   * in file linux/net/ipx/af_ipx.c. This one handles SOL_IPX itself and
-   * passes SOL_SOCKET-levels down to sock_setsockopt().
-   * Hence I guess the below is correct (can somebody please verify this?)
-   * -- Hans, June 14 1997
-   */
   if (setsockopt(sock, SOL_IPX, IPX_TYPE, &opt, sizeof(opt)) == -1) {
-#endif
-    leave_priv_setting();
     /* I can't think of anything else to return */
     n_printf("IPX: could not set socket option for type: %s.\n", strerror(errno));
     return (RCODE_SOCKET_TABLE_FULL);
@@ -477,6 +464,7 @@ IPXOpenSocket(u_short port, u_short * newPort)
   ipxs.sipx_port = htons(port);
 
   /* now bind to this port */
+  enter_priv_on();
   if (bind(sock, (struct sockaddr *) &ipxs, sizeof(ipxs)) == -1) {
     /* I can't think of anything else to return */
     n_printf("IPX: could not bind socket to address: %s\n", strerror(errno));
@@ -484,6 +472,7 @@ IPXOpenSocket(u_short port, u_short * newPort)
     leave_priv_setting();
     return (RCODE_SOCKET_TABLE_FULL);
   }
+  leave_priv_setting();
   
   if( port==0 ) {
     len = sizeof(ipxs2);
@@ -491,14 +480,12 @@ IPXOpenSocket(u_short port, u_short * newPort)
       /* I can't think of anything else to return */
       n_printf("IPX: could not get socket name in IPXOpenSocket: %s\n", strerror(errno));
       close( sock );
-      leave_priv_setting();
       return(RCODE_SOCKET_TABLE_FULL);
     } else {
       port = htons(ipxs2.sipx_port);
       n_printf("IPX: opened dynamic socket %04x\n", port);
     }
   }
-  leave_priv_setting();
   
   /* if we successfully bound to this port, then record it */
   ipx_insert_socket(port, /* PSP */ 0, sock);

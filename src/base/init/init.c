@@ -150,10 +150,7 @@ void timer_interrupt_init(void)
   struct itimerval itv;
   int delta;
 
-  /* DANG_FIXTHIS config.timer is undocumented and probably obsolete
-   */
   delta = (config.update / TIMER_DIVISOR);
-  config.wantdelta = delta;	/* save it */
   /* Check that the kernel actually supports such a frequency - we
    * can't go faster than jiffies with setitimer()
    */
@@ -162,7 +159,6 @@ void timer_interrupt_init(void)
     config.update = 54925; config.freq = 18;
     delta = 54925 / TIMER_DIVISOR;
   }
-  config.realdelta = delta;
 
   itv.it_interval.tv_sec = 0;
   itv.it_interval.tv_usec = delta;

@@ -868,6 +868,7 @@ void enter_cpu_emu(void)
 {
 	struct itimerval itv;
 	struct sigaction sa;
+	unsigned int realdelta = config.update / TIMER_DIVISOR;
 
 	if (config.rdtsc==0) {
 	  fprintf(stderr,"Cannot execute CPUEMU without TSC counter\n");
@@ -889,22 +890,22 @@ void enter_cpu_emu(void)
 #endif
 	e_printf("EMU86: switching SIGALRMs\n");
 	TheCPU.EMUtime = GETTSC();
-	sigEMUdelta = config.realdelta*config.CPUSpeedInMhz;
+	sigEMUdelta = realdelta*config.CPUSpeedInMhz;
 	sigEMUtime = TheCPU.EMUtime + sigEMUdelta;
 	TotalTime = 0;
 #ifdef PROFILE
 	SearchTime = AddTime = ExecTime = CleanupTime =
 	GenTime = LinkTime = 0;
 #endif
-	e_printf("EMU86: delta alrm=%d speed=%d\n",config.realdelta,config.CPUSpeedInMhz);
+	e_printf("EMU86: delta alrm=%d speed=%d\n",realdelta,config.CPUSpeedInMhz);
 	e_sigpa_count = 0;
 	SETSIG(SIGALRM, e_gen_sigalrm);
 
 	itv.it_interval.tv_sec = 0;
-	itv.it_interval.tv_usec = config.realdelta;
+	itv.it_interval.tv_usec = realdelta;
 	itv.it_value.tv_sec = 0;
-	itv.it_value.tv_usec = config.realdelta;
-	e_printf("TIME: using %d usec for updating PROF timer\n", config.realdelta);
+	itv.it_value.tv_usec = realdelta;
+	e_printf("TIME: using %d usec for updating PROF timer\n", realdelta);
 	setitimer(ITIMER_PROF, &itv, NULL);
 	SETSIG(SIGPROF, e_gen_sigprof);
 	NEWSETSIG(SIGFPE, e_emu_fault);

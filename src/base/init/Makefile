@@ -14,7 +14,7 @@ CFLAGS+=-DYYPURE $(DEFINES)
        -Wstrict-prototypes -ansi -pedantic -Wid-clash-31 -Wcast-qual
 #-Wwrite-strings
 
-CFILES = config.c global_c.c memcheck.c init.c dev_list.c
+CFILES = config.c dosemu_c.c global_c.c memcheck.c init.c dev_list.c
 LFILES = lexer.l
 YFILES = parser.y
 HFILES = parsglob.h
@@ -35,11 +35,19 @@ all:  lib
 
 install:
 
-global_c.c : ../../../etc/global.conf
-	echo 'char global_conf[] = \' > global_c.c 
-	sed -e 's/\\/\\\\/g' -e "s/'/\\\'/g" -e 's/\"/\\\"/g' \
+dosemu_c.c : ../../../etc/dosemu.conf
+	echo 'char dosemu_conf[] = \' > $@
+	sed -e 's/^#$$_/$$_/g' \
+	    -e 's/\\/\\\\/g' -e "s/'/\\\'/g" -e 's/\"/\\\"/g' \
 	    -e 's/^/"/g' -e 's/$$/\\n\"\\/g' $< >> $@
-	echo ';' >> global_c.c
+	echo ';' >> $@
+
+global_c.c : ../../../etc/global.conf
+	echo 'char global_conf[] = \' > $@
+	sed -e 's/^#$$_/$$_/g' \
+	    -e 's/\\/\\\\/g' -e "s/'/\\\'/g" -e 's/\"/\\\"/g' \
+	    -e 's/^/"/g' -e 's/$$/\\n\"\\/g' $< >> $@
+	echo ';' >> $@
 
 parser.c : parser.y
 	$(YACC) -v -do $@  $<
@@ -48,7 +56,7 @@ lex.yy.c : lexer.l parser.y
 	$(LEX) -i $< 
 
 clean::
-	rm -f  parser.[ch] parser.output lex.yy.c global_c.c
+	rm -f  parser.[ch] parser.output lex.yy.c dosemu_c.c global_c.c
 
 # how do we generate dependencies?
 

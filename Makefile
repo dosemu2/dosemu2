@@ -86,6 +86,9 @@ midid:
 mididclean:
 	@$(MAKE) -C src/arch/linux/dosext/sound/midid cleanall
 
+dosemu_script:
+	@$(MAKE) -C src dosemu_script
+
 pristine distclean mrproper:  docsclean mididclean
 	@$(MAKE) -C src pristine
 	rm -f core `find . -name config.cache`

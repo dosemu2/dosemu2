@@ -7159,6 +7159,49 @@ echo "$as_me: error: Install bison and retry." >&2;}
    { (exit 1); exit 1; }; }
 fi
 
+# Extract the first word of "$LEX", so it can be a program name with args.
+set dummy $LEX; ac_word=$2
+echo "$as_me:7164: checking for $ac_word" >&5
+echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6
+if test "${ac_cv_prog_lex_ok+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  if test -n "$lex_ok"; then
+  ac_cv_prog_lex_ok="$lex_ok" # Let the user override the test.
+else
+  ac_save_IFS=$IFS; IFS=$ac_path_separator
+ac_dummy="$PATH"
+for ac_dir in $ac_dummy; do
+  IFS=$ac_save_IFS
+  test -z "$ac_dir" && ac_dir=.
+  $as_executable_p "$ac_dir/$ac_word" || continue
+ac_cv_prog_lex_ok=""yes""
+echo "$as_me:7179: found $ac_dir/$ac_word" >&5
+break
+done
+
+  test -z "$ac_cv_prog_lex_ok" && ac_cv_prog_lex_ok=""no""
+fi
+fi
+lex_ok=$ac_cv_prog_lex_ok
+if test -n "$lex_ok"; then
+  echo "$as_me:7188: result: $lex_ok" >&5
+echo "${ECHO_T}$lex_ok" >&6
+else
+  echo "$as_me:7191: result: no" >&5
+echo "${ECHO_T}no" >&6
+fi
+
+if test "$lex_ok" != "yes"; then
+  { echo "$as_me:7196: WARNING: " >&5
+echo "$as_me: WARNING: " >&2;}
+  { echo "$as_me:7198: WARNING: Your system doesn't seem to have lex or flex available." >&5
+echo "$as_me: WARNING: Your system doesn't seem to have lex or flex available." >&2;}
+  { { echo "$as_me:7200: error: Install lex or flex and retry." >&5
+echo "$as_me: error: Install lex or flex and retry." >&2;}
+   { (exit 1); exit 1; }; }
+fi
+
 echo ""
 echo "Configure finished. Do 'make' to compile Dosemu."
 echo ""

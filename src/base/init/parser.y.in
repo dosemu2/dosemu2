@@ -154,7 +154,6 @@ static void start_keyboard(void);
 static void keytable_start(int layout);
 static void keytable_stop(void);
 static void dump_keytables_to_file(char *name);
-static void start_terminal(void);
 static void stop_terminal(void);
 static void start_disk(void);
 static void do_part(char *);
@@ -264,7 +263,7 @@ extern void yyrestart(FILE *input_file);
 %token L_SECURE
 %token DEXE ALLOWDISK FORCEXDOS XDOSONLY
 %token ABORT WARN
-%token BOOTDISK L_FLOPPY EMUSYS EMUBAT EMUINI L_X
+%token BOOTDISK L_FLOPPY EMUSYS EMUINI L_X
 %token DOSEMUMAP LOGBUFSIZE LOGFILESIZE MAPPINGDRIVER
 	/* speaker */
 %token EMULATED NATIVE
@@ -284,7 +283,7 @@ extern void yyrestart(FILE *input_file);
 %token MICROSOFT MS3BUTTON LOGITECH MMSERIES MOUSEMAN HITACHI MOUSESYSTEMS BUSMOUSE PS2 IMPS2
 %token INTERNALDRIVER EMULATE3BUTTONS CLEARDTR
 	/* x-windows */
-%token L_DISPLAY L_TITLE ICON_NAME X_KEYCODE X_KEYCODE_AUTO X_BLINKRATE X_SHARECMAP X_MITSHM X_FONT
+%token L_DISPLAY L_TITLE ICON_NAME X_KEYCODE X_BLINKRATE X_SHARECMAP X_MITSHM X_FONT
 %token X_FIXED_ASPECT X_ASPECT_43 X_LIN_FILT X_BILIN_FILT X_MODE13FACT X_WINSIZE
 %token X_GAMMA VGAEMU_MEMSIZE VESAMODE X_LFB X_PM_INTERFACE X_MGRAB_KEY
 	/* video */
@@ -325,8 +324,8 @@ extern void yyrestart(FILE *input_file);
 	 * and tell the parser to ignore that */
 	/* %expect 1 */
 
-/* %type <i_value> mem_bool irq_bool bool speaker method_val color_val floppy_bool */
-%type <i_value> mem_bool irq_bool bool speaker color_val floppy_bool
+/* %type <i_value> mem_bool irq_bool bool speaker method_val floppy_bool */
+%type <i_value> mem_bool irq_bool bool speaker floppy_bool
 
 %%
 
@@ -543,7 +542,12 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		| TIMER expression
 		    {
 		    config.freq = $2;
-		    config.update = 1000000 / $2;
+		    if ($2) {
+		        config.update = 1000000 / $2;
+		    } else {
+			config.update = 54925;
+			config.freq = 18;
+		    }
 		    c_printf("CONF: timer freq=%d, update=%d\n",config.freq,config.update);
 		    }
 		| LOGBUFSIZE expression
@@ -584,7 +588,7 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    config.emuretrace = $2;
 		    c_printf("CONF: emu_retrace %s\n", ($2) ? "on" : "off");
 		    }}
-		| L_EMS { config.ems_size=0; }  '{' ems_flags '}'
+		| L_EMS '{' ems_flags '}'
 		| L_EMS mem_bool
 		    {
 		    config.ems_size = $2;
@@ -630,12 +634,13 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		| SPEAKER speaker
 		    {
 		    if ($2 == SPKR_NATIVE) {
-                      c_printf("CONF: allowing speaker port access!\n");
-#if 0  /* this is now handled in timers.c */
-		      allow_io(0x42, 1, IO_RDWR, 0, 0xFFFF, 1, NULL);
-		      allow_io(0x61, 1, IO_RDWR, 0, 0xFFFF, 1, NULL);
-#endif
+		      if (can_do_root_stuff) {
+                        c_printf("CONF: allowing speaker port access!\n");
+		      } else {
+                        c_printf("CONF: native speaker not allowed: emulate\n");
+			$2 = SPKR_EMULATED;
 		      }
+		    }
 		    else
                       c_printf("CONF: not allowing speaker port access\n");
 		    config.speaker = $2;
@@ -646,7 +651,6 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    { stop_video(); }
 		| CHARSET CHARSET_TYPE	{ config.term_charset = $2; }
 		| TERMINAL
-		    { start_terminal(); }
                   '{' term_flags '}'
 		    { stop_terminal(); }
 		| DEBUG strarglist {
@@ -733,8 +737,8 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		  '{' printer_flags '}'
 		    { stop_printer(); }
 		| L_X { IFCLASS(CL_X); } '{' x_flags '}'
-		| L_SOUND bool	{ if (! $2) config.sound = 0; }
-                | L_SOUND { IFCLASS(CL_SOUND); } '{' sound_flags '}'
+		| L_SOUND bool	{ if (! $2) config.sound = $2; }
+                | L_SOUND { IFCLASS(CL_SOUND); config.sound = 1; } '{' sound_flags '}'
 		| L_JOYSTICK bool { if (! $2) { config.joy_device[0] = config.joy_device[1] = ""; } }
                 | L_JOYSTICK { IFCLASS(CL_JOYSTICK); } '{' joystick_flags '}'
 		| SILLYINT
@@ -1140,22 +1144,13 @@ term_flags	: term_flag
 		| term_flags term_flag
 		;
 term_flag	: ESCCHAR expression       { config.term_esc_char = $2; }
-		/* | METHOD method_val	{ config.term_method = $2; } */
-		/* | UPDATELINES INTEGER	{ config.term_updatelines = $2; } */
 		| UPDATEFREQ expression	{ config.term_updatefreq = $2; }
 		| CHARSET CHARSET_TYPE	{ config.term_charset = $2; }
-		| COLOR color_val	{ config.term_color = $2; }
-		/* | CORNER bool		{ config.term_corner = $2; } */
+		| COLOR bool		{ config.term_color = $2; }
 		| STRING
 		    { yyerror("unrecognized terminal option '%s'", $1);
 		      free($1); }
 		| error
-		;
-
-color_val	: L_OFF			{ $$ = 0; }
-		| L_ON			{ $$ = 1; }
-		/* | NORMAL		{ $$ = COLOR_NORMAL; } */
-		/* | XTERM			{ $$ = COLOR_XTERM; } */
 		;
 
 /* method_val	: FAST			{ $$ = METHOD_FAST; } */
@@ -1877,24 +1872,6 @@ static void start_keyboard(void)
   keyb_layout(KEYB_USER); /* NOTE: the default has changed, --Hans, 971204 */
   config.console_keyb = 0;
   keyboard_statement_already = 1;
-}
-
-	/* terminal */
-
-static void start_terminal(void)
-{
-   /* config.term_method = METHOD_FAST; */
-   /* config.term_updatelines = 25; */
-  config.term_updatefreq = 4;
-#if 0 /* we don't preset it here, as it now is set by its own statement
-       * and it's already preset in config_defaults() (config.c).
-       *       --Hans
-       */
-  config.term_charset = CHARSET_LATIN;
-#endif
-  config.term_color = 1;
-   config.term_esc_char = 30;	       /* Ctrl-^ */
-   /* config.term_corner = 1; */
 }
 
 static void stop_terminal(void)
@@ -2796,7 +2773,12 @@ int parse_config(char *confname, char *dosrcname)
     else define_config_variable("c_system");
     if (dexe_running) define_config_variable("c_dexerun");
 
+    yy_vbuffer = dosemu_conf;
+    do_parse(NULL, "built-in dosemu.conf", "error in built-in dosemu.conf");
+    yy_vbuffer = global_conf;
+    do_parse(NULL, "built-in global.conf", "error in built-in global.conf");
     if (confname) {
+      yy_vbuffer = NULL;
       enter_priv_on();
       fd = open_file(confname);
       leave_priv_setting();
@@ -2806,12 +2788,8 @@ int parse_config(char *confname, char *dosrcname)
           exit(1);
         }
       }
-    } else {
-      fd = NULL;
-      confname = config_script_name;
-      yy_vbuffer = CONFIG_SCRIPT;
+      do_parse(fd, confname, "error in configuration file %s");
     }
-    do_parse(fd, confname, "error in configuration file %s");
 
     if (priv_lvl) undefine_config_variable("c_user");
     else undefine_config_variable("c_system");
