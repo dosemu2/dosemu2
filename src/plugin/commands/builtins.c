@@ -556,7 +556,7 @@ int commands_plugin_inte6(void)
 	if (HI(ax) != BUILTINS_PLUGIN_VERSION) {
 	    error("builtins plugin version mismatch: found %i, required %i\n",
 		HI(ax), BUILTINS_PLUGIN_VERSION);
-	    error("You should upgrade your generic.com, isemu.com and other utilities"
+	    error("You should upgrade your generic.com, isemu.com and other utilities "
 		  "from the latest dosemu package\n");
 	    return 0;
 	}
