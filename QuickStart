@@ -40,6 +40,21 @@ For a more detailed description have a look at README.bindist
 - make
 
 --------------------------------------------------------------------------
+2a. Want to install systemwide? 
+--------------------------------------------------------------------------
+
+- download dosemu-freedos-bin.tgz from dosemu.org or its mirrors
+- su -		(become root)
+- ./install_systemwide -fd dosemu-freedos-bin.tgz
+
+--------------------------------------------------------------------------
+2b. Want to update a systemwide installation? 
+--------------------------------------------------------------------------
+
+- su -		(become root)
+- ./install_systemwide
+
+--------------------------------------------------------------------------
 3.  Want to use not standard configuration ?
 --------------------------------------------------------------------------
 
@@ -58,12 +73,14 @@ the appropriate action ...
 
 
 --------------------------------------------------------------------------
-4.  Configure for a system wide installation
+4.  Configure for a system wide suid-root installation
 --------------------------------------------------------------------------
 
 (Note: You normally don't need it for a non-suid-root DOSEMU.
        and for an suid-root one your Linux distributor will hav done
        it for you)
+
+(BIF FAT WARNING: you have to be _very_ skilled to do it right !!)
 
 - Copy ./etc/dosemu.conf to /etc if you are installing for the first time.
   ( make install would have done this, if /etc/dosemu.conf dosen't exist )
@@ -89,7 +106,8 @@ the appropriate action ...
 5.  Something's not right!!!
 --------------------------------------------------------------------------
 
-- Check your dosemu.users file (maybe insufficient privileges set)
+- For suid-root installations:
+  Check your dosemu.users file (maybe insufficient privileges set)
 
 - Read your dosemu.config file carefully and make corrections.
 
@@ -128,7 +146,8 @@ the appropriate action ...
 	Describes the ready-to-use DOSEMU binary distribution, which
 	frees you from all bothering about compilation, installation
 	and configuration ... just _use_ it.
-
+./README.distributors
+	Not intended for 'Joe User' but for Linux distributors.
 ./doc/dosemu-HOWTO.txt
 	This is the F.A.Q. for DOSEMU.  It is a little bit outdated,
 	but still very helpful.  (Read this file first, however.)
@@ -142,9 +161,10 @@ the appropriate action ...
 ./doc/DPR
 	The Dosemu Project Registry, an outdated document keeping
 	track of who's doing what kind of programming for DOSEMU.
-./man/dos.1
-	This is the DOSEMU man page. It is now up to date with 0.98.
-	This normally goes into the /usr/man/man1 directory.
+./man/dosemu.bin.1
+	This is the 'lowlevel' DOSEMU man page. It is now up to date with 1.0.2.
+./man/dosemu.1
+	This is the DOSEMU man page of the wrapper script.
 ./man/mkfatimage16.1
 	This discribes how to create (empty) hdimages of various sizes.
 ./doc/announce

@@ -185,7 +185,7 @@ to realize that you need to synchronize DOSEMU and your debugger terminal.
 This can be done using the -H1 command line option of DOSEMU:
 
 <screen>
-  $ dos -H1
+  $ dosemu -H1
 </screen>
 
 DOSEMU will then lock before jumping into the loaded bootsector waiting

@@ -656,29 +656,58 @@ static int option_delete(int option, int *argc, char **argv)
 void secure_option_preparse(int *argc, char **argv)
 {
   PRIV_SAVE_AREA
-  int o;
+  char *opt;
+  int runningsuid = get_orig_uid() != get_orig_euid();
+
+  char * get_option(char *key, int with_arg)
+  {
+    char *p;
+    int o = find_option(key, *argc, argv);
+    if (!o) return 0;
+    o = option_delete(o, argc, argv);
+    if (!with_arg) return "";
+    if (!with_arg || o >= *argc) return "";
+    if (argv[o][0] == '-') {
+      usage();
+      exit(0);
+    }
+    p = strdup(argv[o]);
+    option_delete(o, argc, argv);
+    return p;
+  }
+
+  if (runningsuid) unsetenv("DOSEMU_LAX_CHECKING");
+  else setenv("DOSEMU_LAX_CHECKING", "on", 1);
 
   if (*argc <=1 ) return;
   enter_priv_off();
                                                   
-  if ( (o = find_option("--Fusers", *argc, argv)) != 0) {
-    o = option_delete(o, argc, argv);
-    if (o < *argc) {
-      if (argv[o][0] == '-') {
-        usage();
-        exit(0);
-      }
-      if (get_orig_uid() != get_orig_euid()) {
-        fprintf(stderr, "Bypassing /etc/dosemu.users not allowed for suid-root\n");
-        exit(0);
-      }
-      /* We are _not_ running suid,
-       * either we are root or are real user without privileges.
-       * So no danger to allow bypassing /etc/dosemu.users
-       */
-      DOSEMU_USERS_FILE = strdup(argv[o]);
-      option_delete(o, argc, argv);
+  opt = get_option("--Fusers", 1);
+  if (opt && opt[0]) {
+    if (runningsuid) {
+      fprintf(stderr, "Bypassing /etc/dosemu.users not allowed for suid-root\n");
+      exit(0);
     }
+    DOSEMU_USERS_FILE = opt;
+  }
+
+  opt = get_option("--Flibdir", 1);
+  if (opt && opt[0]) {
+    if (runningsuid) {
+      fprintf(stderr, "Bypassing systemwide configuration not allowed for suid-root\n");
+      exit(0);
+    }
+    DOSEMU_LIB_DIR = opt;
+    DOSEMU_USERS_FILE = "none";
+  }
+
+  opt = get_option("--Fimagedir", 1);
+  if (opt && opt[0]) {
+    if (runningsuid) {
+      fprintf(stderr, "Bypassing systemwide boot path not allowed for suid-root\n");
+      exit(0);
+    }
+    DOSEMU_HDIMAGE_DIR = opt;
   }
 
   leave_priv_setting();

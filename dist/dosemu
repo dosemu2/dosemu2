@@ -1,0 +1,357 @@
+#! /bin/bash
+#
+# (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
+
+# the below line gets patched, when a systemwide install is done
+SYSTEM_INSTALL_PATH=NOT_SYSTEM_WIDE
+test "$SYSTEM_INSTALL_PATH" != "NOT_SYSTEM_WIDE" && IS_SYSTEM_WIDE=1
+
+function usage {
+  echo "
+USAGE:
+
+  [x]dosemu [-dumb] [-home] [-install nameofbootdir] [args...]
+"
+  exit 1
+}
+
+function install_from_template {
+# $1 = path to install to
+  rm -rf $1/dosemu
+  if [ -z "$PROPRIETARY" ]; then
+    (cd $1
+      tar -xzf $SYSTEM_INSTALL_PATH/dosemu-freedos-bin.tgz
+      tar -xzf $SYSTEM_INSTALL_PATH/dosemu-bin.tgz
+    )
+  else
+    (cd $1
+      tar -xzf $SYSTEM_INSTALL_PATH/dosemu-bin.tgz
+      mv dosemu/freedos/dosemu dosemu/commands
+      rmdir dosemu/freedos
+      perl -i -pe 's|(^\s*\$_hdimage\s*=\s*\")freedos|$1'"$PROPRIETARY|" dosemu/conf/dosemu.conf
+      mkdir -p ~/.dosemu
+      echo "$1/dosemu" > $BPATH_FILE
+    )
+    echo "
+  The DOSEMU part of the proprietary installation has been done.
+
+  It is now your part to install the bootable part '$PROPRIETARY' to
+  $1/dosemu/$PROPRIETARY.
+  Read the docs for details on what it must contain. You also should install a
+  symlink to $1/dosemu/commands in order
+  to make the DOSEMU support commands available within $PROPRIETARY.
+
+  After you finished installing $PROPRIETARY (which simply may be a symlink
+  to your mounted DOS partition) _and_ have checked conf/dosemu.conf,
+  you can rerun [x]dosemu again (without the -install option) to boot this DOS.
+
+  Good luck
+"
+    exit 0
+  fi
+}
+
+if [ $UID = 0 ]; then
+  echo "
+  Your are logged in as user root. The local configuration within
+  this DOSEMU installation is not intended for secure operation.
+  You need to run this as normal unprivileged user.
+"
+  exit 1
+fi
+
+THISDIR=$PWD
+ARG0="$0"
+
+unset DUMBTERM OPT_I STRING_I
+unset LREDIRHOME
+unset PROPRIETARY
+
+while [ "$1" = "-dumb" -o "$1" = "-home" -o "$1" = "-install" ]; do
+  case $1 in
+    -dumb)
+      DUMBTERM=1
+      OPT_I=-I
+      STRING_I="video{none}"
+      ;;
+    -home)
+      LREDIRHOME=1
+      ;;
+    -install)
+      if [ -z "$2" -o "${2-*}" != "$2" ]; then usage; fi
+      PROPRIETARY=$2
+      shift
+      ;;
+  esac
+  shift
+done
+
+#echo "$PROPRIETARY $LREDIRHOME $DUMBTERM $*"; exit
+
+function w4l_check {
+  if grep mki_install_hook /proc/ksyms >/dev/null; then
+    echo "
+   Note: your kernel is patched for Win4Lin, this will most likely
+   crash DPMI applications within DOSEMU. ... be warned!
+"
+  fi
+}
+
+BPATH_FILE=~/.dosemu/bindist_path
+FDPART_CHECK_FILE=freedos/dosemu/lcd.exe
+test -f conf/dosemurc && HAVECONF=1
+test -x bin/dosemu.bin && HAVEBIN=1
+test -n "$HAVECONF" -a -n "$HAVEBIN" && HAVEDOSEMUPART=1
+test -f $BPATH_FILE && PATHSAVED=1;
+
+#
+# we assume, that if the user cd'ed into an unpacked dosemu-freedos directory
+# _and_ started this script from there, he wants to execute this one,
+# regardless what has been configured before.
+#
+if [ -n "$HAVECONF" -a -n "$HAVEBIN" ]; then
+  # make sure we can access the script via $0 (exec over $PATH may hide)
+  if [ -x $ARG0 ]; then
+    # make sure the script is the same as within this directory
+    if [ $ARG0 -ef dosemu ]; then
+      rm -f $BPATH_FILE
+      unset PATHSAVED
+    fi
+  fi
+fi
+
+# check wether the user wants to install a DOS other then freedos
+if [ -n "$PROPRIETARY" ]; then
+  rm -f $BPATH_FILE
+  unset PATHSAVED
+fi
+
+# check wether this user has already got his private installation
+if [ -n "$PATHSAVED" ]; then
+
+  # Yes, there exists an already setup installation
+
+  BOOT_DIR_PATH=`cat ~/.dosemu/bindist_path`
+  if [ ! -f $BOOT_DIR_PATH/conf/dosemu.conf ]; then
+    echo "
+  There is some thing wrong with your private installation,
+  ~/.dosemu/bindist_path points to $BOOT_DIR_PATH,
+  but this directory seems not to contain valid stuff.
+"
+    exit 1
+  fi
+
+else
+
+  # No, this either is the first time this user calls 'dosemu'
+  # or the user cd'ed here and we forced a 'take over'
+
+  if [ -z "$IS_SYSTEM_WIDE" ]; then
+    # we assume this is a fresh unpacked dosemu-freedos distribution
+    # In this case this script has to be called _from_ this directory.
+
+    if [ -z "$HAVEDOSEMUPART" ]; then
+      echo "
+  You are starting this script from the wrong directory.
+  e.g. if you unpacked dosemu-freedos-bin.tgz within
+  $HOME/mydos, you have to 'cd' into
+  $HOME/mydos/dosemu before running this script.
+  Once you have successfully booted, this directory will be remembered
+  in the file ~/.dosemu/bindist_path and you can call dosemu from everywhere.
+"
+      exit 1
+    fi
+    BOOT_DIR_PATH=$THISDIR
+
+  else
+
+    # This script was called from a systemwide installation
+
+    if [ ! -d $SYSTEM_INSTALL_PATH ]; then
+      echo "
+  There is something wrong with your systemwide DOSEMU installation:
+  $SYSTEM_INSTALL_PATH is not existing, but was configured to contain
+  the DOSEMU distribution templates.
+"
+      exit 1;
+    fi
+
+    if [ -n "$HAVEDOSEMUPART" ]; then
+      # we come here just because the user cd'ed into an already
+      # installed directory.
+      BOOT_DIR_PATH=$THISDIR
+    else
+      # We copy the binaries from the directory SYSTEM_INSTALL_PATH
+      # to the users $HOME.
+      echo "
+  Going to install your private DOSEMU files into the directory
+  $HOME/dosemu
+  Enter an empty string to confirm or a new path:"
+      read BOOT_DIR_PATH
+      if [ -n "$BOOT_DIR_PATH" ]; then
+        if [ "${BOOT_DIR_PATH#/*}" != "$BOOT_DIR_PATH" ]; then
+          echo "  You gave an absolute path, type ENTER to confirm or Ctrl-C"
+          read x
+        fi
+        echo "
+  Ok, will install into $BOOT_DIR_PATH/dosemu
+  type ENTER to confirm or Ctrl-C to abort"
+        read x
+        if ! mkdir -p $BOOT_DIR_PATH 2>/dev/null; then
+          echo "  unable to create $BOOT_DIR_PATH, giving up"
+          exit 1
+        fi
+        install_from_template $BOOT_DIR_PATH
+        BOOT_DIR_PATH="$BOOT_DIR_PATH/dosemu"
+      else
+        install_from_template $HOME
+        BOOT_DIR_PATH="$HOME/dosemu"
+      fi
+    fi
+  fi
+fi
+
+if [ -u $BOOT_DIR_PATH/bin/dosemu.bin ]; then
+  echo "
+  You (or your distributor) made the dosemu binary suid-root. The local
+  configuration within this DOSEMU installation is not intended for secure
+  operation.  You need to run this non-suid-root as normal unprivileged user.
+"
+  exit 1
+fi
+
+# Now check wether we have freedos configured. If not, the user has to
+# care himself. If yes, check wether the user did an incomplete installation.
+if grep freedos $BOOT_DIR_PATH/conf/dosemu.conf >/dev/null 2>&1; then
+  if [ ! -f $BOOT_DIR_PATH/$FDPART_CHECK_FILE ]; then
+    echo "
+  You have an only partially unpacked DOSEMU binary distribution. You need
+  to unpack _both_ tarballs (in this order)
+    dosemu-freedos-bin.tgz
+    dosemu-<version>-bin.tgz
+  into the same directory.
+"
+    exit 1
+  fi
+fi
+
+unset XFLAG
+if [ "`basename $ARG0`" = "xdosemu" ]; then
+  if [ -n "$DUMBTERM" ]; then
+    echo "
+  You requested a dumb terminal together with X!
+  ... falling back to non-X
+"
+  else
+    XFLAG=1
+  fi
+fi
+
+if [ -n "$XFLAG" ]; then
+  XFLAG=-X
+  if [ -z "$DISPLAY" ]; then
+    echo "
+  You do not have the DISPLAY variable set, but want to run DOSEMU
+  in its own X-window. Set the DISPLAY variable such as
+
+      export DISPLAY=:0.0
+
+  if running X locally or
+
+      export DISPLAY=host:0.0
+
+  when running remotely ('host' being the machine where you are typing at)
+
+  After this run xdosemu again.
+"
+    exit 1
+  fi
+  if [ "`xlsfonts -fn vga 2>/dev/null`" = "" ]; then
+    if [ ! -f $BOOT_DIR_PATH/Xfonts/fonts.dir ]; then
+      (cd $BOOT_DIR_PATH/Xfonts; mkfontdir)
+    fi
+    xset +fp $BOOT_DIR_PATH/Xfonts 2>/dev/null
+    if [ "`xlsfonts -fn vga 2>/dev/null`" = "" ]; then
+      echo "
+   You do not have the DOSEMU vga font installed and are running
+   remote X. You need to install the vga font on your _local_ Xserver.
+   Look at the readme for details. For now we start with an fixed font,
+   which does not display all national characters correctly.
+   ... be warned
+"
+    fi
+  fi
+  w4l_check
+  echo "
+   DOSEMU will run in its own X window.
+   To terminate it you have three choices:
+   - type <Ctrl>-C _here_ (not in the dosemu window)
+   - type <Ctrl><Alt><PgDn> in the dosemu window
+   - execute 'exitemu' at the DOS prompt"
+  if [ -n "$LREDIRHOME" ]; then
+    echo "   Redirecting \$HOME to DOS drive D:"
+  else
+    echo -e "\n   Hint: if you want \$HOME as DOS drive D:, use '-home' option"
+  fi
+else
+  echo "
+   DOSEMU will run on _this_ terminal.
+   To exit you need to execute 'exitemu' from within DOS,
+   because <Ctrl>-C and 'exit' won't work!"
+  if [ "$TERM" = "xterm" ]; then
+  echo "
+   Note, that DOS needs 25 lines and xterm per default has only 24,
+   so you might want to enlarge it before continuing.
+"
+  fi
+  w4l_check
+  if [ -n "$LREDIRHOME" ]; then
+    echo "   Redirecting \$HOME to DOS drive D:"
+  else
+    echo -e "\n   Hint: if you want \$HOME as DOS drive D:, use '-home' option"
+  fi
+  echo "
+   Now type ENTER to start DOSEMU or <Ctrl>C to cancel
+"
+  read dummy
+fi
+
+if [ -n "$LREDIRHOME" ]; then
+  export DOSDRIVE_D="$HOME"
+fi
+
+$BOOT_DIR_PATH/bin/dosemu.bin 2>$BOOT_DIR_PATH/boot.log $XFLAG \
+	--Flibdir $BOOT_DIR_PATH/conf \
+	--Fimagedir $BOOT_DIR_PATH \
+	-f $BOOT_DIR_PATH/conf/dosemurc \
+	$OPT_I $STRING_I -O $@
+
+if [ -n "XFLAG" ]; then
+ if grep -E '^Xlib.*refused by server' $BOOT_DIR_PATH/boot.log>/dev/null 2>&1; then
+   echo "
+    ERROR:
+    You seem not to have enough rights to connect to your Xserver.
+    Force brut counter mesure (not recommended):
+
+       xhost +
+
+    on the machine you just are sitting in front of ...
+    ... but better read the X documentation for a more secure solution.
+ "
+   exit 1
+ fi
+ if grep -E "^ERROR: X: Can't open display" $BOOT_DIR_PATH/boot.log>/dev/null 2>&1; then
+   echo "
+    ERROR:
+    There is something wrong with the contents of your DISPLAY variable,
+    the defined X server cannot be reached. Please re-check it.
+ "
+   exit 1
+ fi
+fi
+
+echo "$BOOT_DIR_PATH" > $BPATH_FILE
+exit 0

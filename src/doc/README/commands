@@ -205,10 +205,10 @@ Dosemu
 <para>
  Read /proc/self/cmdline and put strings such as "var=xxx"
 found on the commandline into the DOS enviroment.
-Example having this as the dos commandine:
+Example having this as the dosemu commandine:
 
 <screen>
-                 dos "autoexec=echo This is a test..."
+                 dosemu.bin "autoexec=echo This is a test..."
 </screen>
 
 then doing

@@ -7,7 +7,7 @@ This section of the document by Hans,
 url="mailto:lermen@fgan.de"
 >&#60;lermen@fgan.de&#62;</ulink
 >. Last
-updated on Mar 11, 2001.
+updated on June 2, 2001.
 </para>
 
 <para>
@@ -60,17 +60,38 @@ the rest of this chapter.
 </para>
 
 <para>
+Note: The above described DOSEMU installation may be also come out of a
+systemwide installation, which you or your Linux distributor have
+established. In this case simple calling '[x]dosemu' will establish the
+per user instance of DOSEMU. For details on how to create such a systemwide
+installation look at the file README.distributor in the DOSEMU source
+distribution.
+</para>
+
+<para>
+Also note: The following description was written for the older type of
+systemwide installation (configuration under /etc). Though this type
+of installation still works for suid-root DOSEMU runs, the new non-suid
+type of installation has no dosemu.users and all configuration files
+(including global.conf) are normaly kept under $HOME/dosemu/conf/*.
+The contents of these configuration files is compatible with the below
+described, so most of what is written also is valid for these private
+configuration files.
+</para>
+
+
+<para>
 Most of DOSEMU configuration is done during runtime and per default it
-expects the system wide configuration file /etc/dosemu.conf optionally
+expects the system wide configuration file dosemu.conf optionally
 followed by the users ~/.dosemurc and additional configurations statements
 on the commandline (-I option). The builtin configuration file of a DEXE
 file is passed using the -I technique, hence the rules of -I apply.
 </para>
 
 <para>
-In fact /etc/dosemu.conf and ~/.dosemurc (which have identical syntax)
+In fact dosemu.conf and ~/.dosemurc (which have identical syntax)
 are included by the systemwide configuration script
-/var/lib/dosemu/global.conf, but as a normal user you won't ever think on
+DOSEMU_LIB_DIR/global.conf, but as a normal user you won't ever think on
 editing this, only dosemu.conf and your personal ~/.dosemurc.
 The syntax of global.conf is described in detail in README-tech.txt,
 so this is skipped here. However, the option -I string too
@@ -137,7 +158,7 @@ and further more:
 <listitem>
 
 <para>
- wether the lib dir (/var/lib/dosemu) resides elsewhere.
+ wether the lib dir (DOSEMU_LIB_DIR) resides elsewhere.
 </para>
 </listitem>
 <listitem>
@@ -191,7 +212,7 @@ chapter 11.1 `Privileges and Running as User'
 <para>
 Giving the keyword `private_setup' to a user means he/she can have a private
 DOSEMU lib under $HOME/.dosemu/lib. If this directory is existing, DOSEMU
-will expect all normally under /var/lib/dosemu within that directory,
+will expect all normally under DOSEMU_LIB_DIR within that directory,
 including `global.conf'. As this would be a security risc, it only will
 be allowed, if the used DOSEMU binary is non-suid-root. If you realy trust
 a user you may additionally give the keyword `unrestricted', which will
@@ -204,14 +225,14 @@ In addition, dosemu.users can be used to define some global settings, which
 must be known before any other file is accessed, such as:
 
 <screen>
-  default_lib_dir= /opt/dosemu  # replaces /var/lib/dosemu
+  default_lib_dir= /opt/dosemu  # replaces DOSEMU_LIB_DIR
   log_level= 2                  # highest log level
 </screen>
 
 </para>
 
 <para>
-With `default_lib_dir=' you may move /var/lib/dosemu elsewere, this mostly
+With `default_lib_dir=' you may move DOSEMU_LIB_DIR elsewere, this mostly
 is interesting for distributors, who want it elswere but won't patch the
 DOSEMU source just for this purpose. But note, the dosemu supplied scripts
 and helpers may need some adaption too in order to fit your new directory.
@@ -238,7 +259,7 @@ have a look at README-tech.txt chapter 2.
 </para>
 
 <para>
-After /etc/dosemu.users /etc/dosemu.conf (via global.conf) is interpreted,
+After /etc/dosemu.users dosemu.conf (via global.conf) is interpreted,
 and only during global.conf parsing access to all configuration options is
 allowed. Your personal ~/.dosemurc is included directly after dosemu.conf,
 but has less access rights (in fact the lowest level), all variables you
@@ -246,13 +267,13 @@ define within ~/.dosemurc transparently are prefixed with `dosemu_' such
 that the normal namespace cannot be polluted (and a hacker cannot overwrite
 security relevant enviroment variables). Within global.conf only those
 ~/.dosemurc created variables, that are needed are taken over and may
-overwrite those defined in /etc/dosemu.conf.
+overwrite those defined in dosemu.conf.
 </para>
 
 <para>
 The dosemu.conf (global.conf) may check for the configuration variables,
 that are set in /etc/dosemu.users and optionaly include further configuration
-files. But once /etc/dosemu.conf (global.conf) has finished interpretation,
+files. But once dosemu.conf (global.conf) has finished interpretation,
 the access to secure relevant configurations is (class-wise) restricted while
 the following interpretation of (old) .dosrc and -I statements.
 </para>
@@ -260,15 +281,15 @@ the following interpretation of (old) .dosrc and -I statements.
 <para>
 For more details on security setings/issues look at README-tech.txt, for
 now (using DOSEMU the first time) you should need only the below description
-of /etc/dosemu.conf (~/.dosemurc)
+of dosemu.conf (~/.dosemurc)
 </para>
 
 <sect2>
-<title>Format of /etc/dosemu.conf</title>
+<title>Format of dosemu.conf</title>
 
 <para>
 All settings in dosemu.conf are just variables, that are interpreted
-in /var/lib/dosemu/global.conf and have the form of
+in DOSEMU_LIB_DIR/global.conf and have the form of
 </para>
 
 <para>
@@ -711,9 +732,9 @@ may need to define a proper keyboard layout. Its possible to let
 DOSEMU do this work automatically for you (see <emphasis>auto</emphasis> below), however,
 this may fail and you'll end up defining it explicitely. This is done either
 by choosing one on the internal keytables or by loading an external
-keytable from /var/lib/dosemu/keymap/* (which you may modify according
+keytable from DOSEMU_LIB_DIR/keymap/* (which you may modify according
 to your needs). Both sets have identical names (though you may add
-any new one to /var/lib/dosemu/keymap/*):
+any new one to DOSEMU_LIB_DIR/keymap/*):
 
 <screen>
   be              finnish         hu-latin2       sg-latin1
@@ -944,14 +965,14 @@ setup:
 
 <screen>
   $_vbootfloppy = ""    # if you want to boot from a virtual floppy:
-                        # file name of the floppy image under /var/lib/dosemu
+                        # file name of the floppy image under DOSEMU_LIB_DIR
                         # e.g. "floppyimage" disables $_hdimage
                         #      "floppyimage +hd" does _not_ disable $_hdimage
   $_floppy_a ="threeinch" # or "fiveinch" or empty, if not existing
   $_floppy_b = ""       # dito for B:
 
-  $_hdimage = "hdimage.first" # list of hdimages or boot directories
-                        # under /var/lib/dosemu assigned in this order
+  $_hdimage = "freedos" # list of hdimages or boot directories
+                        # under DOSEMU_LIB_DIR assigned in this order
                         # such as "hdimage_c hdimage_d hdimage_e"
   $_hdimage_r = $_hdimage # hdimages for 'restricted access (if different)
 </screen>
@@ -959,14 +980,12 @@ setup:
 </para>
 
 <para>
-When you installed DOSEMU (`make install') you will have a bootable
-hdimage in the file /var/lib/dosemu/hdimage.first. It contains a very tiny
-installation of FreeDos, just to show you that it works. A hdimage is
+A hdimage is
 a file containing a virtual image of a DOS-FAT filesystem. Once you have
 booted it, you (or autoexec.bat) can use `lredir' to access any directory
 in your Linux tree as DOS drive (a -t msdos mounted too).
 Look at chapter 6 (Using Lredir) and for more details
-on creating your own (better) hdimage look at chapter 4.3 of this README
+on creating your own hdimage look at chapter 4.3 of this README
 (Making a bootable hdimage for general purpose). Chapter 4.4 also describes
 how to import/export files from/to a hdimage.
 </para>
@@ -975,13 +994,13 @@ how to import/export files from/to a hdimage.
 Starting with dosemu-0.99.8, there is a more convenient method available:
 you just can have a Linux directory containing all what you want to have
 under your DOS C:. Copy your IO.SYS, MSDOS.SYS or what ever to that
-directory (e.g. /var/lib/dosemu/bootdir), put
+directory (e.g. DOSEMU_LIB_DIR/bootdir), put
 
 <screen>
    $_hdimage = "bootdir"
 </screen>
 
-into your /etc/dosemu.conf, and up it goes. DOSEMU makes a lredir'ed
+into your dosemu.conf, and up it goes. DOSEMU makes a lredir'ed
 drive out of it and can boot from it. You can edit the config.sys and the
 autoexec.bat within this directory before you start dosemu.
 Further more, you may have a more sohisticated setup. Given you want to run
@@ -1007,12 +1026,12 @@ different. Here a small and not complete example bootdir setup:
 <para>
 As a further enhancement of your drives setup you may even use the following
 strategie: Given you have the following directory structure 
-under /var/lib/dosemu
+under DOSEMU_LIB_DIR
 
 <screen>
-  /var/lib/dosemu/drives/C
-  /var/lib/dosemu/drives/D
-  /var/lib/dosemu/drives/E
+  DOSEMU_LIB_DIR/drives/C
+  DOSEMU_LIB_DIR/drives/D
+  DOSEMU_LIB_DIR/drives/E
 </screen>
 
 and the <emphasis>C</emphasis>, <emphasis>D</emphasis>, <emphasis>E</emphasis> are symlinks to appropriate DOS useable
@@ -1027,8 +1046,8 @@ Note, however, that the <emphasis>order</emphasis> in which the directories unde
 are assigned comes from the order given by /bin/ls. Hence the folling
 
 <screen>
-  /var/lib/dosemu/drives/x
-  /var/lib/dosemu/drives/a
+  DOSEMU_LIB_DIR/drives/x
+  DOSEMU_LIB_DIR/drives/a
 </screen>
 
 will assign C: to drives/a and D: to drives/x, keep that in mind.
@@ -1301,7 +1320,7 @@ you need
 <listitem>
 
 <para>
- to configure $_aspi in /etc/dosemu.conf to define which
+ to configure $_aspi in dosemu.conf to define which
 of the /dev/sgX devices you want to show up in DOSEMU.
 </para>
 </listitem>

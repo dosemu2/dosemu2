@@ -432,7 +432,7 @@ flag 'h'. To get basic debugging information into a file called
 <para>
 
 <screen>
-% dos -D-a+Sh -o sound.out
+% dosemu.bin -D-a+Sh -o sound.out
 </screen>
 
 </para>

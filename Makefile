@@ -103,7 +103,7 @@ pristine distclean mrproper:  docsclean mididclean
 	rm -f core gen*.log `find . -size 0`
 	(cd setup/demudialog; make clean)
 	(cd setup/parser; make clean)
-	rm -rf ./bindist
+	rm -rf ./dist/tmp
 	rm -f Makefile.conf
 	./mkpluginhooks clean
 

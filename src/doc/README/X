@@ -17,11 +17,13 @@ url="mailto:bon@elektron.ikp.physik.th-darmstadt.de"
 </para>
 
 <para>
-xdos from dosemu version pre-0.60.4.2 with the patch from my last messages
-should now be more capable.
+ xdosemu (dosemu.bin -X) is now a lot more capable.
 In particular it should now understand the keys from the keypad-area (the
 keys the most right on a MF-Keyboard) and numlock and keyevents in the range
-of the latin characters, even when you run xdos from a remote X-terminal. 
+of the latin characters, even when you run xdosemu from a remote X-terminal. 
+
+It also is capaple to handle PL4 color modes in addition to 256 color modes,
+so bgidemo from Borland runs fine.
 </para>
 
 <para>
@@ -34,7 +36,8 @@ If it dosen't work for you as expected, please check out the following:
 <listitem>
 
 <para>
- Don't specify "keycode" for X-support.
+Specify "keycode" for X-support only for local X-servers, in most cases
+it should work without it.
 The keycode-option is something specific for a special X-server, here
 XFree86, and so isn't portable and I disencourage its use.
 </para>
@@ -42,14 +45,14 @@ XFree86, and so isn't portable and I disencourage its use.
 <listitem>
 
 <para>
-Check out whether your key sends a sensible ksym, with e.g."xev". If it sends
-something sensible which you think should be mapped by xdos, please let me
+ Check out whether your key sends a sensible ksym, with e.g."xev". If it sends
+something sensible which you think should be mapped by xdosemu, please let me
 know details.
 </para>
 </listitem>
 <listitem>
 <para>
- If you are running xdos on XFree86, version 3.1.1 and newer and the keys
+ If you are running xdosemu on XFree86, version 3.1.1 and newer and the keys
 of the keypad-area don't work, you have two options:
 </para>
 
@@ -124,7 +127,7 @@ url="mailto:zimmerm@mathematik.uni-marburg.de"
 </para>
 
 <para>
-Some basic information about dosemu's X support.
+Some basic information about DOSEMU's X support.
 Sometimes it's even sort of useable now.
 </para>
 
@@ -150,7 +153,7 @@ What you should take care of:
 <listitem>
 
 <para>
- Make sure dosemu has X support compiled in. 
+ Make sure DOSEMU has X support compiled in. 
 (X_SUPPORT = 1 in the Makefile)
 </para>
 </listitem>
@@ -163,35 +166,37 @@ What you should take care of:
 <listitem>
 
 <para>
- start dosemu with 'dos -X' from an X terminal window. 
-Or make a link to 'dos' named 'xdos' - when called by that name,
-dosemu will automatically assume -X. 
+ start DOSEMU with `xdosemu' (or `dosemu.bin -X' when bypassing the wrapper)
+from an X terminal window. 
+Or make a link to 'dosemu.bin' named 'xdos' - when called by that name,
+DOSEMU will automatically assume -X. 
 There is also a new debug flag 'X' for X-related messages.
-To exit xdos, use 'exitemu' or select 'Close' aka 'Delete' 
-(better not 'Destroy') from the 'Window' menu.
+To exit xdosemu, use 'exitemu' or select 'Close' aka 'Delete' 
+(better not 'Destroy') from the 'Window' menu. It is also save to use
+&#60;Ctrl&#62;&#60;Alt&#62;&#60;PgDn&#62; within the window to exit DOSEMU.
 </para>
 </listitem>
 <listitem>
 
 <para>
  there are some X-related configuration options for dosemu.conf.
-See etc/dosemu.conf for details.
+See ./etc/dosemu.conf for details.
 </para>
 </listitem>
 <listitem>
 
 <para>
- starting xdos in the background (like from a window manager menu)
+ starting xdosemu in the background (like from a window manager menu)
 appears not to work for some reason.
 </para>
 </listitem>
 <listitem>
 
 <para>
- Keyboard support in the dosemu window isn't perfect yet. It probably
+ Keyboard support in the DOSEMU window isn't perfect yet. It probably
 could be faster, some key combos still don't work (e.g. Ctrl-Fn), etc.
 However, input through the terminal window (i.e. the window you started
-dosemu from) is still supported. If you have problems, you *might* be
+DOSEMU from) is still supported. If you have problems, you *might* be
 better off putting your focus in there.
 </para>
 </listitem>
@@ -201,7 +206,7 @@ better off putting your focus in there.
  Keyboard support of course depends on your X keyboard mappings (xmodmap).
 If certain keys don't work (like Pause, Backspace,...), it *might* be 
 because you haven't defined them in your xmodmap, or defined to something
-other than dosemu expects.
+other than DOSEMU expects.
 </para>
 </listitem>
 <listitem>
@@ -243,7 +248,7 @@ line to your fvwmrc file:
 
 <screen>
      
-     Icon "xdos"   dosemu.xpm
+     Icon "xdosemu"   dosemu.xpm
 </screen>
 
 </para>
@@ -256,7 +261,7 @@ entire pathname.
 <listitem>
 
 <para>
- note that if you set a different icon name than "xdos" in your
+ note that if you set a different icon name than "xdosemu" in your
 dosemu.conf, you will also have to change the fvwmrc entry.
 </para>
 </listitem>
@@ -273,13 +278,13 @@ root menu to do so.
 </para>
 
 <para>
-Now you should see the icon whenever you iconify xdos.
+Now you should see the icon whenever you iconify xdosemu.
 </para>
 
 <para>
-Note that the xdos program itself does not include the icon - that's
+Note that the xdosemu program itself does not include the icon - that's
 why you have to tell the window manager. I chose to do it this way
-to avoid xdos <emphasis>requiring</emphasis> the Xpm library.
+to avoid xdosemu <emphasis>requiring</emphasis> the Xpm library.
 </para>
 </listitem>
 <listitem>
@@ -332,7 +337,7 @@ emulator. Status of the work:
 
 <para>
  Video memory. 1 Mb is allocated. It is mapped with mmap() in the VGA 
-memory region of dosemu (0xa00000-0xbfffff) to support bank switching.
+memory region of DOSEMU (0xa00000-0xbfffff) to support bank switching.
 This is very i386-Linux specific, don't be surprised if it doesn't work
 under NetBSD or another Linux flavour (Alpha/Sparc/MIPS/etc).
 </para>
@@ -587,7 +592,7 @@ are used instead in such cases.
 <para>
 If a VGA mode is not supported on your current X display, the graphics
 screen will just remain black. Note that this <emphasis remap="bf">does not</emphasis> mean
-that xdos has crashed.
+that xdosemu has crashed.
 </para>
 
 <para>

@@ -678,10 +678,7 @@ dnl The bison problem
 if test -z "`echo $YACC | grep bison`" ; then
   AC_MSG_WARN( )
   AC_MSG_WARN(Your system doesn't seem to have bison available.)
-  AC_MSG_WARN(There have been reports that bison is really required to)
-  AC_MSG_WARN(compile Dosemu. You may try to use $YACC instead, your)
-  AC_MSG_WARN(mileage may vary. If you want to be sure, install bison.)
-  AC_MSG_WARN( )
+  AC_MSG_ERROR(Install bison and retry.)
 fi
 
 echo ""

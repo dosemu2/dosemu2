@@ -4523,10 +4523,7 @@ fi
 if test -z "`echo $YACC | grep bison`" ; then
   echo "configure: warning: " 1>&2
   echo "configure: warning: Your system doesn't seem to have bison available." 1>&2
-  echo "configure: warning: There have been reports that bison is really required to" 1>&2
-  echo "configure: warning: compile Dosemu. You may try to use $YACC instead" 1>&2
-  echo "configure: warning: mileage may vary. If you want to be sure" 1>&2
-  echo "configure: warning: " 1>&2
+  { echo "configure: error: Install bison and retry." 1>&2; exit 1; }
 fi
 
 echo ""

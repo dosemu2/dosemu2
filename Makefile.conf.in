@@ -9,6 +9,7 @@
 # It is included by the top Makefile and exports all needed variables
 # to the slave-Makefiles.
 
+export DOSBIN = dosemu.bin
 
 @SET_MAKE@
 ifdef MAKE
@@ -42,7 +43,10 @@ export GLIBCFLAGS=@GLIBCFLAGS@
 endif
 
 export YACC=@YACC@
+# NOTE: we really need bison, yacc won't work any more
+#export YACC=bison -y
 export LEX=@LEX@
+
 @X_SUPPORT@
 ifdef X_SUPPORT
   export X_SUPPORT

@@ -271,7 +271,7 @@ Alistair MacDonald,
    flag 'h'. To get basic debugging information into a file called
    sound.out use:
    
-    % dos -D-a+Sh -o sound.out
+    % dosemu.bin -D-a+Sh -o sound.out
 
    You can get slightly more verbose output is you use level 2 debugging
    (eg use -D-a+2Sh). If you need someone else to look at the debug

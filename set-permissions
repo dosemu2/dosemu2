@@ -1,7 +1,7 @@
 #! /bin/sh
 #
 # execute this script, when you patched your dosemu distribution
-# and want all scrpts to have the exec-bit set.
+# and want all scripts to have the exec-bit set.
 
 chmod 755 set-permissions # myself ;-)
 chmod 755 ViewDocs
@@ -20,3 +20,4 @@ chmod 755 src/doc/DANG/DANG_c.pl src/doc/DANG/make_DANG
 chmod 755 src/doc/tools/fixupSGML.pl
 chmod 755 src/doc/tools/doSgmlTools.pl
 chmod 755 src/plugin/commands/mkcomstub
+chmod 755 dist/dosemu dist/mkbindist install_systemwide

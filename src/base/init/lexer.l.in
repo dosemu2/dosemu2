@@ -729,7 +729,7 @@ static void enter_includefile(char * fname)
   }
   /* we want to have the include files in the same directory as
    * the main config file, if we have no leading  '/'
-   * and we want "keymap/xxx" mapped to e.g. "/var/lib/dosemu/keymap/xxx"
+   * and we want "keymap/xxx" mapped to e.g. "<DOSEMU_LIB_DIR>/keymap/xxx"
    */
   if (fname[0] != '/') {
     int i;

@@ -2,12 +2,6 @@
 The DOSEMU/FreeDos ready-to-use binary distribution.
 ====================================================
 
-BIG-FAT_NOTE:
-
-    do NOT install the configuration files included within the binary
-    distribution systemwide as root. For this have a look at the
-    ./etc directory of the DOSEMU source distribution.
-
 
 INSTALL
 -------
@@ -42,8 +36,8 @@ now look where you are and what was installed:
   $ pwd
   /home/joeuser/mydos/dosemu
   $ ls
-  README.bindist  bin/            conf/           freedos/
-  Xfonts/         boot.log        dosemu*         xdosemu@
+  README.bindist  bin             dosemu          xdosemu
+  Xfonts          conf            freedos
 
 
 

@@ -117,7 +117,7 @@ static void dump_disk_blks(unsigned char *tb, int count, int ssiz)
  *
  *   |   adds up to 1 sector (512 bytes) of Master Boot Record (MBR)
  *       THIS IS KEPT IN MEMORY, and is the file 
- *       /var/lib/dosemu/partition.<partition>.
+ *       <DOSEMU_LIB_DIR>/partition.<partition>.
  *
  *   .   is any number of sectors before the desired partition start address.
  *       THESE SECTORS ARE NOT EMULATED, BUT MERELY SKIPPED

@@ -35,7 +35,7 @@ SYS=$(D)/emufs.sys $(D)/ems.sys $(D)/cdrom.sys $(D)/dumpconf.sys $(D)/aspi.sys
 #      this should compile the *.exe in the precompile directory.
 #
 #CALLDOS=dos -D-a 2>/dev/null
-CALLDOS=../../bin/dos -D-a 2>/dev/null
+CALLDOS=../../bin/$(DOSBIN) -D-a 2>/dev/null
 COMMANDDIR=$(shell pwd -P)
 BOOTUP=\P2;2\rn
 GOTARGET=lredir k: linux\\fs$(COMMANDDIR)\rk:\r

@@ -20,7 +20,7 @@ of DOSEMU (&#62;=dosemu-0.66.2) such as
 <para>
 
 <screen>
-dos -D-a -I 'keystroke "dir &#62; C:\\garbage\rexitemu\r"'
+dosemu.bin -D-a -I 'keystroke "dir &#62; C:\\garbage\rexitemu\r"'
 </screen>
 
 </para>
@@ -110,7 +110,7 @@ such like this:
 <para>
 
 <screen>
-   # dos -D-a 2&#62;/dev/null &#60;FILE &#62;/dev/tty20
+   # dosemu.bin -D-a 2&#62;/dev/null &#60;FILE &#62;/dev/tty20
 </screen>
 
 </para>
@@ -137,7 +137,7 @@ even do this
 <para>
 
 <screen>
-   # dos -D-a 2&#62;/dev/null &#60;FILE &#62;FILE.out
+   # dosemu.bin -D-a 2&#62;/dev/null &#60;FILE &#62;FILE.out
 </screen>
 
 </para>
@@ -169,10 +169,16 @@ it and internally sets it's own TERMCAP entry and TERM to `dosemu-none'.
 You may also configure your video to
 
 <screen>
-   # dos ... -I 'video { none }'
+   # dosemu.bin ... -I 'video { none }'
 </screen>
 
-or have a TERM=none to force the same setting.
+or have a TERM=none to force the same setting. If you use the wrapper
+script, there is save way to do the same:
+
+<screen>
+   # dosemu -dumb
+</screen>
+
 In all other crontab run cases you may get nasty error messages either
 from DOSEMU or from Slang.
 </para>

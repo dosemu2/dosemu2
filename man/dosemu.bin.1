@@ -1,9 +1,9 @@
 .\" -*- nroff -*-  (This is for Emacs)
-.TH DOS 1 "February, 2000" "Version 1.0.0" "MS-DOS Emulation"
+.TH DOSEMU.BIN 1 "May, 2001" "Version 1.0.2" "DOS Emulation"
 .SH NAME
-dos, xdos, dosexec, dosdebug \- run MS-DOS and MS-DOS programs under Linux
+dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 .SH SYNOPSIS
-.B dos
+.B dosemu.bin
 [
 .B \-ABCcdkVNXtsgKm234OU
 ]
@@ -14,6 +14,18 @@ dos, xdos, dosexec, dosdebug \- run MS-DOS and MS-DOS programs under Linux
 [
 .B \-F
 .I file
+]
+[
+.B \--Fusers
+.I file
+]
+[
+.B \--Flibdir
+.I directory
+]
+[
+.B \--Fimagedir
+.I directory
 ]
 [
 .B \-f
@@ -59,134 +71,18 @@ dos, xdos, dosexec, dosdebug \- run MS-DOS and MS-DOS programs under Linux
 .B \-I
 .I config-options
 ]
-[
-.B \-U
-.I inpipe[:outpipe]
-]
-.sp
-.B dosexec
-[
-.B \-ABCcdkVNXtsgKm234OU
-]
-[
-.B \-h
-.I level
-]
-[
-.B \-H
-.I dflags
-]
-[
-.B \-F
-.I file
-]
-[
-.B \-u
-.I confvar
-]
-[
-.B \-D
-.I flags
-]
-[ 
-.B \-M 
-.I size
-]
-[ 
-.B \-e 
-.I size
-]
-[ 
-.B \-x 
-.I size
-]
-[
-.B \-P 
-.I file
-]
-[
-.B \-o
-.I file
-]
-[
-2\>
-.I debugfile
-]
-[
-.B \-I
-.I config-options
-]
-dexefile
 [
 .B \-U
 .I inpipe[:outpipe]
 ]
 .sp
 .B dosdebug
-.sp
-.B xdos
-[
-.B \-ABCbdNtsK234O 
-]
-[
-.B \-h
-.I level
-]
-[
-.B \-H
-.I dflags
-]
-[
-.B \-F
-.I file
-]
-[
-.B \-f
-.I file
-]
-[
-.B \-L
-.I dexefile
-]
-[
-.B \-u
-.I confvar
-]
-[
-.B \-D
-.I flags
-]
-[ 
-.B \-M 
-.I size
-]
-[ 
-.B \-e 
-.I size
-]
-[ 
-.B \-x 
-.I size
-]
-[
-.B \-P 
-.I file
-]
-[
-.B \-o
-.I file
-]
-[
-2\>
-.I debugfile
-]
-[
-.B \-U
-.I inpipe[:outpipe]
-]
 .SH DESCRIPTION
-.B dos
-invokes the Linux dos emulator, also known as
+.B dosemu.bin
+is the binary wrapped by the script
+.B dosemu
+(1)
+which invokes the Linux dos emulator, also known as
 .BR DOSEMU .
 .br
 .I debugfile
@@ -196,21 +92,9 @@ is an optional file into which all debugging output will be redirected.
 is used to control or debug an already running 
 .BR DOSEMU .
 .PP
-.B xdos
-starts
-.B DOSEMU
-in it's own X window. This is the same as
-.B dos -X
-.PP
-.B dosexec
-starts
-.B DOSEMU
-and executes a DEXE file. This is the same as
-.B dos -L
-.PP
 Although this program is known as the DOS
 .I emulator,
-it is actually a virtual machine for MS-DOS, allowing DOS and programs
+it is actually a virtual machine for DOS, allowing DOS and programs
 written for DOS to operate in an environment similar to a standard IBM
 PC/AT or compatible with an Intel 80x86 processor in real mode.
 .B DOSEMU
@@ -220,19 +104,10 @@ memory allocation through the XMS 3.0 specification, EMS 4.0 and DPMI 0.9.
 .PP
 Because 
 .B DOSEMU
-is not really a DOS emulator, a copy of MS-DOS 3.3-7.00 is required.
-(Future versions of MS-DOS may run, but have of course not been verified.
-DR-DOS 6.0 has also been reported to work.)
-.PP
-See the files 
-.I QuickStart,
-.I ChangeLog, 
-.I doc/announce, 
-and the
-.B Makefile
-contained in the source distribution
-for information on how to configure, compile, and boot 
-.BR DOSEMU .
+is not really a DOS emulator, a copy of FreeDos is required, which now is
+preconfigured and part of the official DOSEMU binary distribution.
+In addition any currently available proprietary DOS (such as MS-DOS, PC-DOS,
+DR-DOS) can be booted, when properly configured.
 
 .SH KERNEL REQUIREMENTS
 At present, you will need Linux 2.0.28 or above with the SYSV IPC option
@@ -240,19 +115,6 @@ At present, you will need Linux 2.0.28 or above with the SYSV IPC option
 .BR ipc (2))
 compiled. SYSV IPC is an option in the configuration setup during a Linux
 kernel compile.
-
-Starting with dosemu version 0.64.3
-.I full feature dosemu
-is the default. For details see 
-.I doc/README.vm86plus.
-For a
-.I low feature dosemu
-you need to configure with --enable-novm86plus
-
-If you use 1.2.13, please upgrade to the latest stable kernel.
-At the time of writing, it was Linux 2.0.28, available with anonymous
-ftp at ftp.funet.fi in the directory /pub/Linux/kernel/linux/v2.0/, or
-at various mirrors all over the world.
 
 .SH OPTIONS
 .TP
@@ -282,17 +144,41 @@ use VGA specific video optimizations
 use RAW console Keyboard (must be at the console)
 .TP
 .I -F
-Parse this config-script instead of /var/lib/dosemu/global.conf
+Parse this config-script instead of DOSEMU_LIB_DIR/global.conf
 (you need to run as root on suid DOSEMU for this)
 .TP
+.I --Fusers
+Bypass /etc/dosemu.users and take this file instead (only accepted when
+.B dosemu.bin
+is
+.I not
+suid-root).
+.TP
+.I --Flibdir
+Bypass the default DOSEMU_LIB_DIR (as maybe defined in /etc/dosemu.users)
+and use this directory instead (only accepted when
+.B dosemu.bin
+is
+.I not
+suid-root).
+.TP
+.I --Fimagedir
+Bypass the default directory for bootdirectory and hdimages (DOSEMU_LIB_DIR)
+and use this directory instead (only accepted when
+.B dosemu.bin
+is
+.I not
+suid-root).
+.TP
 .I -f
-Parse this config-file instead of .doserc
+Parse this config-file instead of .dosemurc
 .TP
 .I -u
 set a user configuration variable. An
 .B u_
 is prefixed to the name to avoid name clashes. This variable then can be
-checked in /etc/dosemu.conf or /var/lib/dosemu/global.conf to do some special configuration.
+checked in dosemu.conf or DOSEMU_LIB_DIR/global.conf to do some special
+configuration.
 .TP
 .I -L
 Load and start a DEXE file (special preconfigured bootable hdimage
@@ -301,7 +187,7 @@ containing just one DOS application)
 .I -I
 Parse the string behind
 .I -I
-with the same syntax as /var/lib/dosemu/global.conf or .dosrc such as
+with the same syntax as global.conf or .dosemurc such as
 .TP
 		dos ... -I 'video { mda }'
 
@@ -427,10 +313,10 @@ supports four methods of supplying DOS with hard disks:
 a virtual disk file residing on a Linux filesystem which emulates a hard 
 drive.
 .IP 2.
-direct access to an MS-DOS partition through a raw disk device (i.e. /dev/hda,
+direct access to a DOS partition through a raw disk device (i.e. /dev/hda,
 /dev/hdb, /dev/sdX).
 .IP 3.
-direct access to an MS-DOS partition through single partition access 
+direct access to an DOS partition through single partition access 
 (i.e. /dev/hda1, /dev/hdb2, /dev/sdxx). You need to run the program
 .B mkpartition
 to enable
@@ -448,7 +334,7 @@ This is explained more thoroughly in
 Configuration of
 .B DOSEMU's
 hard disk resources is done by editing 
-.B /etc/dosemu.conf
+.B dosemu.conf
 before running
 .BR DOSEMU .
 Look at doc/README.txt.
@@ -469,7 +355,7 @@ This is also explained more thoroughly in
 Configuration of
 .B DOSEMU's
 floppy disk resources is done by editing the
-.B /etc/dosemu.conf
+.B dosemu.conf
 before running
 .BR DOSEMU .
 
@@ -486,8 +372,8 @@ and
 .I \-V
 switches, explained more thoroughly in
 .B QuickStart.
-There is also some very brief documentation in the file etc/dosemu.conf,
-which can be copied to /etc/dosemu.conf and edited for your needs.
+There is also some very brief documentation in the file dosemu.conf,
+which can be edited for your needs.
 .PP
 In brief, proper use of the console device and the corresponding switches
 allows the user to view a DOS program in its original color and font,
@@ -644,29 +530,15 @@ should
 have saner UMB support.
 .PP
 .B DOSEMU
-0.97 also supports EMS 4.0 and implements DPMI 0.9 (1.0 partially).
-
-.SH LOGGING 
-.B DOSEMU
-is able to log all use via 
-.BR syslogd (8).
-In the file
-.I /etc/dosemu.users
-you may set the loglevel by means of the keyword
-.I log_level=value
-Where
-.I value
-can be 0 (no logging), 1 or 2 (highest loglevel). Read
-.I doc/README.txt
-for more details.
+also supports EMS 4.0 and implements DPMI 0.9 (1.0 partially).
 
 
 .SH AUTHOR
 .B DOSEMU
 (comprised of the files
-.B dos 
+.B dosemu.bin
 and 
-.B libdosemu
+.B dosemu
 ) is based on version 0.4 of the original program written by Matthias Lautner
 (no current address that I know of).
 .PP
@@ -691,7 +563,8 @@ what doesn't, etc.
 .SH AVAILABILITY
 The most recent public version of 
 .B DOSEMU
-can be ftp'ed from tsx-11.mit.edu in the /pub/linux/ALPHA/dosemu directory.
+can be ftp'ed from ftp.dosemu.org in the /pub/dosemu directory, a fast
+mirror for this is ibiblio.unc.edu:/pub/Linux/system/emulators/dosemu/.
 If you want to keep up on private developer pre-releases, join the
 .B DOSEMU
 developer team - even just good detailed debug reports are all you need!
@@ -699,52 +572,49 @@ developer team - even just good detailed debug reports are all you need!
 .SH FILES
 .PD 0
 .TP
-.I /usr/bin/dos
-The invoker program.
+.I /usr/bin/dosemu.bin
+The binary
 .TP
-.I /usr/bin/xdos
-The X version.
+.I /usr/bin/dosemu
+The wrapper script, its recommended not to invoke dosemu.bin directly.
 .TP
-.I $HOME/dosemu
+.I /usr/bin/xdosemu
+Same, but invoking DOS in an X window.
+.TP
+.I $HOME/.dosemu
 Per user
 .B DOSEMU
 local directory. This will be created silently, if not
 existing.
 .TP
-.I $HOME/dosemu/tmp
+.I $HOME/.dosemu/tmp
 All temporary file creation happens here, we do not use /tmp anymore.
 .TP
 .I /var/run/dosemu.*
 or
 .TP
-.I $HOME/dosemu/run
+.I $HOME/.dosemu/run
 Various files used by
 .B DOSEMU
 including debugger pipes.
 .TP
 .TP
-.I /var/lib/dosemu/*
-or
+.I $HOME/dosemu/conf
 .TP
-.I $HOME/dosemu/lib
-Various files used by
+.I $HOME/dosemu/bin
+Various files used by the
 .B DOSEMU
-including diskimages and disk config files. This directory also holds
-the global configuration script
+per-user instance. This directory also holds the global,conf configuration script
 .I global.conf
 for
 .B DOSEMU
 which then includes
-.I /etc/dosemu.conf
-If
-.I /etc/dosemu.users
-does allow it for a given user, then (in case of non-suid-root)
-.I $HOME/dosemu/lib
-will be taken instead of
-.I /var/lib/dosemu/*
-and the user may have its completely own configuration.
+.I dosemu.conf
 .TP
-.I /etc/dosemu.conf
+.I $HOME/dosemu/freedos
+Bootdirectory containig the FreeDos part.
+.TP
+.I dosemu.conf
 Main configuration file for
 .BR DOSEMU .
 which is included by
@@ -754,7 +624,7 @@ which is included by
 or
 .TP
 .I /etc/dosemu/dosemu.users
-Defines the access rights to
+For suid-root running binaries: Defines the access rights to
 .BR DOSEMU
 on a per user basis and sets some vital configuration. This is the only
 fix-location configuration file,
@@ -768,7 +638,7 @@ Via the keyword
 in
 .I dosemu.users
 the systemwide
-.I /var/lib/dosemu
+.I DOSEMU_LIB_DIR
 directory may be moved elsewere.
 For more information see
 .I ./doc/README.txt
@@ -800,6 +670,15 @@ Changes in
 .B DOSEMU
 since the last release.
 .TP
+.I README.bindist
+Information on how to use the DOSEMU/FreeDos ready-to-use binary
+distribution.
+.TP
+.I README.distributors
+Informations for Linux distributors on how to package systemwide
+installations of
+.B DOSEMU.
+.TP
 .I MSDOS mailing list
 For more information, mail to
 .IP linux-msdos@vger.rutgers.edu
@@ -807,4 +686,4 @@ For more information, mail to
 
 
 .SH "SEE ALSO"
-.BR mkfatimage16 "(1), " mtools "(1)"
+.BR dosemu "(1), " mkfatimage16 "(1)"

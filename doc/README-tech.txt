@@ -7,7 +7,7 @@ Edited by
 
 Alistair MacDonald
 
-   For DOSEMU v1.0 pl1.0
+   For DOSEMU v1.0 pl2.0
    
    This document is the amalgamation of a series of technical README
    files which were created to deal with the lack of DOSEMU
@@ -655,7 +655,7 @@ Alistair MacDonald
    Also, you may define any 'u_' type variable at start of DOSEMU via the
    new option -u such as
    
-    # dos -u myspecialfun
+    # dosemu -u myspecialfun
 
    this will then define the config variable 'u_myspecialfun' _before_
    parsing any configuration file. You then may check this in your (old)
@@ -1025,7 +1025,7 @@ Alistair MacDonald
    output: 0 = no parser debug, 1 = print loop debugs, 2 = same as 1 plus
    if_else_endif-stack debug. This feature can be used such as
    
-      $ dos -h0 -O 2>&1 | less
+      $ dosemu.bin -h0 -O 2>&1 | less
 
    The output of `-h2' looks like
       PUSH 1->2 1 >foreach__yy__<
@@ -1055,8 +1055,9 @@ d)
    you are having problems with DOSEMU and you want to enclose debug info
    when you make bug reports to a member of the DOSEMU development team.
    Simply set desired flags to "on" or "off", then redirect stderr of
-   DOSEMU to a file using "dos -o debug" to record the debug information
-   if desired. Skip this section if you're only starting to set up.
+   DOSEMU to a file using "dosemu.bin -o debug" to record the debug
+   information if desired. Skip this section if you're only starting to
+   set up.
    
       debug { config  off       disk    off     warning off     hardware off
             port    off read    off     general off     IPC      off
@@ -1066,7 +1067,7 @@ d)
       }
 
    Alternatively you may use the same format as -D commandline option
-   (but without the -D in front), look at the dos.1 man page.
+   (but without the -D in front), look at the dosemu.bin.1 man page.
    
       debug "+a-v"     # all messages but video
       debug "+4r"      # default + maximum of PIC debug
@@ -1323,7 +1324,7 @@ d)
    exit after generating the tablefile. Instead use the -I commandline
    option such as
    
-      $ dos -I 'keytable dump "kbdtables"'
+      $ dosemu.bin -I 'keytable dump "kbdtables"'
 
    After installation of dosemu ("make install") you'll find the current
    dosemu keytables in /var/lib/dosemu/keymap (and in ./etc/keymap, where
@@ -1331,7 +1332,7 @@ d)
    and split into discrete files, such that you may modify them to fit
    your needs. You may load them such as
    
-      $ dos -I 'include "keymap/de-latin1"'
+      $ dosemu.bin -I 'include "keymap/de-latin1"'
 
    (when an include file is starting with "keymap/" it is taken out of
    /var/lib/dosemu). When there was a keytable previously defined (e.g.
@@ -1389,7 +1390,7 @@ d)
    configuration file, instead together with the commandine option -I you
    can start dosemu and execute any arbitrary dos command such as
    
-      # dos -D-a -I 'keystroke "c:\rcd \\windows\rwinemu\r"'
+      # dosemu.bin -D-a -I 'keystroke "c:\rcd \\windows\rwinemu\r"'
 
    For more details please look at ./doc/README.batch
    
@@ -4036,7 +4037,7 @@ b */
    startup, to realize that you need to synchronize DOSEMU and your
    debugger terminal. This can be done using the -H1 command line option
    of DOSEMU:
-      $ dos -H1
+      $ dosemu -H1
 
    DOSEMU will then lock before jumping into the loaded bootsector
    waiting for dosdebug to connect. Once connected you are in `stopped'

@@ -73,7 +73,7 @@ Before you run DOSEMU for the first time, do the following:
 Then you can use the midi daemon like this:
 
 <screen>
-  ./midid &#60; ~/.dosemu/run/dosemu-midi &#38;; dos
+  ./midid &#60; ~/.dosemu/run/dosemu-midi &#38;; dosemu
 </screen>
 
 </para>

@@ -16,8 +16,8 @@ updated on June 16, 1997.
 <listitem>
 
 <para>
- You have to make 'dos' suid root, if want a fullfeature DOSEMU,
-this normally is done when you run 'make install'.
+ You have to copy 'dosemu.bin to 'dosemu.suidbin' and make it suid root,
+if you want a fullfeature DOSEMU.
 But as of dosemu-0.97.10, you need not if you don't access to ports,
 external DOSish hardware and won't use the console other then
 in normal terminal mode
@@ -26,7 +26,8 @@ in normal terminal mode
 <listitem>
 
 <para>
- You can restrict access to the suid root binary via /etc/dosemu.user.
+  For older DOSEMU system wide installations,
+you can restrict access to the suid root binary via /etc/dosemu.user.
 by specifying `nosuidroot' for a given user (or all).
 </para>
 </listitem>

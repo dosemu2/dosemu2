@@ -2284,6 +2284,44 @@ static FILE *open_dosemu_users(void)
   return 0;
 }
 
+static void setup_home_directories(void)
+{
+  if (strcmp(DOSEMU_LIB_DIR, DOSEMULIB_DEFAULT)) {
+    if (!strcmp(DOSEMU_HDIMAGE_DIR, DOSEMULIB_DEFAULT)) {
+      /* boot path is the default one, but libdir has moved
+       * so move the boot path too
+       */
+      DOSEMU_HDIMAGE_DIR = strdup(DOSEMU_LIB_DIR);
+    }
+  }
+  setenv("DOSEMU_HDIMAGE_DIR", DOSEMU_HDIMAGE_DIR, 1);
+  LOCALDIR = get_dosemu_local_home();
+  TMPDIR = mkdir_under(LOCALDIR, "tmp", 0);
+  TMPDIR_PROCESS = mkdir_under(TMPDIR, "temp.", 1);
+  RUNDIR = mkdir_under(LOCALDIR, "run", 0);
+  TMPFILE = assemble_path(RUNDIR, "dosemu.", 0);
+  DOSEMU_MIDI_PATH = assemble_path(RUNDIR, DOSEMU_MIDI, 0);
+}
+
+static int lax_user_checking(void)
+{
+  char *p;
+  if (strcmp(DOSEMU_USERS_FILE, "none")) return 0;
+  if (!strcmp(DOSEMU_LIB_DIR, DOSEMULIB_DEFAULT)) {
+    fprintf(stderr, "users file = none, but no libdir defined\n");
+    exit(1);
+  }
+  define_config_variable("c_all");
+  setenv("DOSEMU_CONF_DIR", DOSEMU_LIB_DIR, 1);
+  move_dosemu_lib_dir(DOSEMU_LIB_DIR);
+  p = getenv("USER");
+  if (!p) p = "guest";
+  setenv("DOSEMU_USER", p, 1);
+  setenv("DOSEMU_REAL_USER", p, 1);
+  setup_home_directories();
+  return 1;
+}
+
 /* Parse Users for DOSEMU, by Alan Hourihane, alanh@fairlite.demon.co.uk */
 /* Jan-17-1996: Erik Mouw (J.A.K.Mouw@et.tudelft.nl)
  *  - added logging facilities
@@ -2320,13 +2358,18 @@ parse_dosemu_users(void)
   after_secure_check = 0;
   priv_lvl = 0;
 
+  if (lax_user_checking()) {
+    after_secure_check = 1;
+    return;
+  }
+
   /* We first have to find out where the dosemu.users file is placed
    * by the system administrator.
    * We first look for /etc/dosemu.users, then for /etc/dosemu/dosemu.users
    * Once we know that, most other pathes are runtime configurable:
    *
    *  - dosemu.users tells were to find the dosemu-lib-dir
-   *    (/var/lib/dosemu per default) which _must_ hold global.conf.
+   *    (DOSEMULIB_DEFAULT per default) which _must_ hold global.conf.
    *  - global.conf includes $DOSEMU_CONF_DIR/dosemu.conf
    *    (which could be changed by the owner of global.conf).
    */
@@ -2508,13 +2551,7 @@ parse_dosemu_users(void)
    * have (among other things) all temporary stuff in
    * (since 0.97.10.2)
    */
-  LOCALDIR = get_dosemu_local_home();
-  TMPDIR = mkdir_under(LOCALDIR, "tmp", 0);
-  TMPDIR_PROCESS = mkdir_under(TMPDIR, "temp.", 1);
-  RUNDIR = mkdir_under(LOCALDIR, "run", 0);
-  TMPFILE = assemble_path(RUNDIR, "dosemu.", 0);
-  DOSEMU_MIDI_PATH = assemble_path(RUNDIR, DOSEMU_MIDI, 0);
-
+  setup_home_directories();
   after_secure_check = 1;
 }
 

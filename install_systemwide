@@ -1,0 +1,168 @@
+#! /bin/bash
+#
+# (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
+# Make a systemwide installation of dosemu.
+#
+# NOTEs:
+#
+#	1. 'make' and 'make dosbin' must have been done prior to this
+#
+#	2. You must have available dosemu-freedos-bin.tgz somewhere
+#
+#	3. This installs a non-suid-root DOSEMU, which is almost fullfeature
+#	   when running under X. If you want graphics on the console
+#	   or want to access hardware (such as ports and IRQ passing), you
+#	   need a suid-root installation. However, because this is
+#	   inherently insecure and dangerous (you may lock your machine)
+#	   we won't support/recommend it for normal usage and expect only
+#	   skilled people (and those respecting 'RTFM';-) being able to use
+#	   it properly. Hence, no 'automagical' suid-root install any more.
+#
+#
+
+function usage {
+  echo "USAGE:
+
+ ./install_systemwide [-fd FD_tarball] [-r root] [ -i instpath] [-b binpath]
+
+ where is
+
+  FD_tarball	Tarball containing FreeDos part of the DOSEMU binary
+		distribution as available on the official DOSEMU site:
+		       ftp://ftp.dosemu/org/dosemu/dosemu-freedos-bin.tgz
+		(give the local filename where you downloaded it)
+		If this argument is ommitted, the script assumes you have
+		already put it to <instpath>/dosemu-freedos-bin.tgz, if it
+		is not in place, the script aborts.
+
+  root		optional prefix for 'instpath' and 'binpath', so you can make
+		packages out of the installation without messing up your
+		running system setup. 'root' will only be taken for copying,
+		not for configuring and this tree is not useable until
+		it gets moved to the proper instpath/binpath.
+
+  instpath	Path in the (installed) system where the DOSEMU templates,
+		binaries and docs will reside. Default is /opt/dosemu.
+
+  binpath	Path where symlinks of the executables are placed.
+		Default is /usr/bin.
+"
+  exit 1
+}
+
+FDTARBALL=""
+ROOT=""
+INSTPATH=/opt/dosemu
+BINPATH=/usr/bin
+
+while [ ! -z "$1" ]; do
+  if [ "$1" = '-r' ]; then
+    if [ -z "$2" ]; then usage; fi
+    ROOT=$2;
+    shift; shift
+    continue
+  fi
+  if [ "$1" = '-i' ]; then
+    if [ -z "$2" ]; then usage; fi
+    INSTPATH=$2;
+    shift; shift
+    continue
+  fi
+  if [ "$1" = '-b' ]; then
+    if [ -z "$2" ]; then usage; fi
+    BINPATH=$2;
+    shift; shift
+    continue
+  fi
+  if [ "$1" = '-fd' ]; then
+    if [ -z "$2" ]; then usage; fi
+    FDTARBALL=$2;
+    shift; shift
+    continue
+  fi
+  usage
+done
+
+if [ -z "$FDTARBALL" ]; then
+  FDTARBALL="$INSTPATH/dosemu-freedos-bin.tgz"
+  if [ -n "$ROOT" ]; then
+    FDTARBALL="$ROOT/$FDTARBALL"
+  fi
+fi
+
+#echo "$FDTARBALL,$ROOT,$INSTPATH,$BINPATH"; exit
+
+# check if FDTARBALL is valid
+#
+if [ ! -f $FDTARBALL ]; then
+  echo "
+  You missed to give -fd option and the default file for this does not exist.
+  Type 'install_systemwide -help' for details
+  ... giving up.
+"
+  exit 1
+fi
+if ! tar -tzf $FDTARBALL >/dev/null 2>&1; then
+  echo "
+  $FDTARBALL seems broken (broken download?),
+  ... giving up
+"
+  exit 1
+fi
+if ! tar -tzf $FDTARBALL |grep dosemu/freedos/dosemu/lcd.exe >/dev/null; then
+  echo "
+  $FDTARBALL seems not to have correct content,
+  ... giving up
+"
+fi
+
+pushd dist >/dev/null 2>&1
+if ! ./mkbindist; then exit 1; fi
+popd >/dev/null 2>&1
+
+# ok, we now now have all we need
+
+INST=$INSTPATH
+BIN=$BINPATH
+if [ -n "$ROOT" ]; then
+  INST="$ROOT/$INST"
+  BIN="$ROOT/$BIN"
+fi
+
+mkdir -p $BIN
+mkdir -p $INST/doc
+mkdir -p $INST/man
+
+if [ ! $FDTARBALL -ef $INST/dosemu-freedos-bin.tgz ]; then
+  cp -fp $FDTARBALL $INST/dosemu-freedos-bin.tgz
+fi
+
+rm -rf $INST/bin
+cp -ap dist/tmp/dosemu/bin $INST
+perl -pe 's|(SYSTEM_INSTALL_PATH=)NOT_SYSTEM_WIDE|$1'"$INSTPATH|" \
+				 dist/tmp/dosemu/dosemu > $INST/bin/dosemu
+chmod 755 $INST/bin/dosemu
+ln -sf dosemu $INST/bin/xdosemu
+
+ln -sf $INSTPATH/bin/dosemu $BIN/dosemu
+ln -sf dosemu $BIN/xdosemu
+ln -sf $INSTPATH/bin/dosdebug $BIN
+
+cp -fp dist/tmp/dosemu/README.bindist $INST/doc
+cp -fp doc/{README,README-tech,dosemu-HOWTO,sound-usage}.txt doc/announce $INST/doc
+cp -fp man/{dosemu,dosemu.bin,dosdebug}.1 $INST/man
+
+pushd dist/tmp/dosemu/bin >/dev/null 2>&1
+ln -sf $INSTPATH/bin/dosemu.bin dosemu.bin
+ln -sf $INSTPATH/bin/dosdebug dosdebug
+cd ..
+ln -sf $INSTPATH/bin/dosemu dosemu
+ln -sf $INSTPATH/bin/dosemu xdosemu
+rm -f README.bindist
+cd ..
+tar -cf- dosemu | gzip -9 > $INST/dosemu-bin.tgz
+popd >/dev/null 2>&1
+

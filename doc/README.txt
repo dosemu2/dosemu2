@@ -7,7 +7,7 @@ Edited by
 
 Alistair MacDonald
 
-   For DOSEMU v1.0 pl1.0
+   For DOSEMU v1.0 pl2.0
    
    This document is the amalgamation of a series of README files which
    were created to deal with the lack of DOSEMU documentation.
@@ -19,7 +19,7 @@ Alistair MacDonald
           
    2. Runtime Configuration Options
           
-        2.1. Format of /etc/dosemu.conf
+        2.1. Format of dosemu.conf
                 
               2.1.1. Controling amount of debug output
                       
@@ -159,7 +159,7 @@ Alistair MacDonald
 2. Runtime Configuration Options
 
    This section of the document by Hans, <lermen@fgan.de>. Last updated
-   on Mar 11, 2001.
+   on June 2, 2001.
    
    Befor you even continue to read further -- especially if you never
    tried DOSEMU -- I strongly recommend to start with the ready to use
@@ -181,16 +181,32 @@ Alistair MacDonald
    looked into the files under `dosemu/conf', you will be much better
    prepared to understand the rest of this chapter.
    
+   Note: The above described DOSEMU installation may be also come out of
+   a systemwide installation, which you or your Linux distributor have
+   established. In this case simple calling '[x]dosemu' will establish
+   the per user instance of DOSEMU. For details on how to create such a
+   systemwide installation look at the file README.distributor in the
+   DOSEMU source distribution.
+   
+   Also note: The following description was written for the older type of
+   systemwide installation (configuration under /etc). Though this type
+   of installation still works for suid-root DOSEMU runs, the new
+   non-suid type of installation has no dosemu.users and all
+   configuration files (including global.conf) are normaly kept under
+   $HOME/dosemu/conf/*. The contents of these configuration files is
+   compatible with the below described, so most of what is written also
+   is valid for these private configuration files.
+   
    Most of DOSEMU configuration is done during runtime and per default it
-   expects the system wide configuration file /etc/dosemu.conf optionally
+   expects the system wide configuration file dosemu.conf optionally
    followed by the users ~/.dosemurc and additional configurations
    statements on the commandline (-I option). The builtin configuration
    file of a DEXE file is passed using the -I technique, hence the rules
    of -I apply.
    
-   In fact /etc/dosemu.conf and ~/.dosemurc (which have identical syntax)
-   are included by the systemwide configuration script
-   /var/lib/dosemu/global.conf, but as a normal user you won't ever think
+   In fact dosemu.conf and ~/.dosemurc (which have identical syntax) are
+   included by the systemwide configuration script
+   DOSEMU_LIB_DIR/global.conf, but as a normal user you won't ever think
    on editing this, only dosemu.conf and your personal ~/.dosemurc. The
    syntax of global.conf is described in detail in README-tech.txt, so
    this is skipped here. However, the option -I string too uses the same
@@ -216,7 +232,7 @@ Alistair MacDonald
        
    and further more:
    
-     * wether the lib dir (/var/lib/dosemu) resides elsewhere.
+     * wether the lib dir (DOSEMU_LIB_DIR) resides elsewhere.
      * setting the loglevel.
        
    Except for lines starting with `xxx=' (explanation below), each line
@@ -245,7 +261,7 @@ Alistair MacDonald
    
    Giving the keyword `private_setup' to a user means he/she can have a
    private DOSEMU lib under $HOME/.dosemu/lib. If this directory is
-   existing, DOSEMU will expect all normally under /var/lib/dosemu within
+   existing, DOSEMU will expect all normally under DOSEMU_LIB_DIR within
    that directory, including `global.conf'. As this would be a security
    risc, it only will be allowed, if the used DOSEMU binary is
    non-suid-root. If you realy trust a user you may additionally give the
@@ -254,10 +270,10 @@ Alistair MacDonald
    
    In addition, dosemu.users can be used to define some global settings,
    which must be known before any other file is accessed, such as:
-      default_lib_dir= /opt/dosemu  # replaces /var/lib/dosemu
+      default_lib_dir= /opt/dosemu  # replaces DOSEMU_LIB_DIR
       log_level= 2                  # highest log level
 
-   With `default_lib_dir=' you may move /var/lib/dosemu elsewere, this
+   With `default_lib_dir=' you may move DOSEMU_LIB_DIR elsewere, this
    mostly is interesting for distributors, who want it elswere but won't
    patch the DOSEMU source just for this purpose. But note, the dosemu
    supplied scripts and helpers may need some adaption too in order to
@@ -276,33 +292,33 @@ Alistair MacDonald
    to allow evrybody all weird things. For more details on security
    issues have a look at README-tech.txt chapter 2.
    
-   After /etc/dosemu.users /etc/dosemu.conf (via global.conf) is
-   interpreted, and only during global.conf parsing access to all
-   configuration options is allowed. Your personal ~/.dosemurc is
-   included directly after dosemu.conf, but has less access rights (in
-   fact the lowest level), all variables you define within ~/.dosemurc
-   transparently are prefixed with `dosemu_' such that the normal
-   namespace cannot be polluted (and a hacker cannot overwrite security
-   relevant enviroment variables). Within global.conf only those
-   ~/.dosemurc created variables, that are needed are taken over and may
-   overwrite those defined in /etc/dosemu.conf.
+   After /etc/dosemu.users dosemu.conf (via global.conf) is interpreted,
+   and only during global.conf parsing access to all configuration
+   options is allowed. Your personal ~/.dosemurc is included directly
+   after dosemu.conf, but has less access rights (in fact the lowest
+   level), all variables you define within ~/.dosemurc transparently are
+   prefixed with `dosemu_' such that the normal namespace cannot be
+   polluted (and a hacker cannot overwrite security relevant enviroment
+   variables). Within global.conf only those ~/.dosemurc created
+   variables, that are needed are taken over and may overwrite those
+   defined in dosemu.conf.
    
    The dosemu.conf (global.conf) may check for the configuration
    variables, that are set in /etc/dosemu.users and optionaly include
-   further configuration files. But once /etc/dosemu.conf (global.conf)
-   has finished interpretation, the access to secure relevant
-   configurations is (class-wise) restricted while the following
-   interpretation of (old) .dosrc and -I statements.
+   further configuration files. But once dosemu.conf (global.conf) has
+   finished interpretation, the access to secure relevant configurations
+   is (class-wise) restricted while the following interpretation of (old)
+   .dosrc and -I statements.
    
    For more details on security setings/issues look at README-tech.txt,
    for now (using DOSEMU the first time) you should need only the below
-   description of /etc/dosemu.conf (~/.dosemurc)
+   description of dosemu.conf (~/.dosemurc)
      _________________________________________________________________
    
-2.1. Format of /etc/dosemu.conf
+2.1. Format of dosemu.conf
 
    All settings in dosemu.conf are just variables, that are interpreted
-   in /var/lib/dosemu/global.conf and have the form of
+   in DOSEMU_LIB_DIR/global.conf and have the form of
    
       $_xxx = (n)
 
@@ -551,9 +567,9 @@ Alistair MacDonald
    DOSEMU do this work automatically for you (see auto below), however,
    this may fail and you'll end up defining it explicitely. This is done
    either by choosing one on the internal keytables or by loading an
-   external keytable from /var/lib/dosemu/keymap/* (which you may modify
+   external keytable from DOSEMU_LIB_DIR/keymap/* (which you may modify
    according to your needs). Both sets have identical names (though you
-   may add any new one to /var/lib/dosemu/keymap/*):
+   may add any new one to DOSEMU_LIB_DIR/keymap/*):
       be              finnish         hu-latin2       sg-latin1
       de              finnish-latin1  it              sw
       de-latin1       fr              keyb-no         uk
@@ -699,44 +715,41 @@ Alistair MacDonald
    proposed techique. Here the normal setup:
    
       $_vbootfloppy = ""    # if you want to boot from a virtual floppy:
-                            # file name of the floppy image under /var/lib/dose
-mu
+                            # file name of the floppy image under DOSEMU_LIB_DI
+R
                             # e.g. "floppyimage" disables $_hdimage
                             #      "floppyimage +hd" does _not_ disable $_hdima
 ge
       $_floppy_a ="threeinch" # or "fiveinch" or empty, if not existing
       $_floppy_b = ""       # dito for B:
 
-      $_hdimage = "hdimage.first" # list of hdimages or boot directories
-                            # under /var/lib/dosemu assigned in this order
+      $_hdimage = "freedos" # list of hdimages or boot directories
+                            # under DOSEMU_LIB_DIR assigned in this order
                             # such as "hdimage_c hdimage_d hdimage_e"
       $_hdimage_r = $_hdimage # hdimages for 'restricted access (if different)
 
-   When you installed DOSEMU (`make install') you will have a bootable
-   hdimage in the file /var/lib/dosemu/hdimage.first. It contains a very
-   tiny installation of FreeDos, just to show you that it works. A
-   hdimage is a file containing a virtual image of a DOS-FAT filesystem.
-   Once you have booted it, you (or autoexec.bat) can use `lredir' to
-   access any directory in your Linux tree as DOS drive (a -t msdos
-   mounted too). Look at chapter 6 (Using Lredir) and for more details on
-   creating your own (better) hdimage look at chapter 4.3 of this README
-   (Making a bootable hdimage for general purpose). Chapter 4.4 also
-   describes how to import/export files from/to a hdimage.
+   A hdimage is a file containing a virtual image of a DOS-FAT
+   filesystem. Once you have booted it, you (or autoexec.bat) can use
+   `lredir' to access any directory in your Linux tree as DOS drive (a -t
+   msdos mounted too). Look at chapter 6 (Using Lredir) and for more
+   details on creating your own hdimage look at chapter 4.3 of this
+   README (Making a bootable hdimage for general purpose). Chapter 4.4
+   also describes how to import/export files from/to a hdimage.
    
    Starting with dosemu-0.99.8, there is a more convenient method
    available: you just can have a Linux directory containing all what you
    want to have under your DOS C:. Copy your IO.SYS, MSDOS.SYS or what
-   ever to that directory (e.g. /var/lib/dosemu/bootdir), put
+   ever to that directory (e.g. DOSEMU_LIB_DIR/bootdir), put
        $_hdimage = "bootdir"
 
-   into your /etc/dosemu.conf, and up it goes. DOSEMU makes a lredir'ed
-   drive out of it and can boot from it. You can edit the config.sys and
-   the autoexec.bat within this directory before you start dosemu.
-   Further more, you may have a more sohisticated setup. Given you want
-   to run the same DOS drive as you normal have when booting into native
-   DOS, then you just mount you DOS partition under Linux (say to /dos)
-   and put links to its subdirectories into the boot dir. This way you
-   can decide which files/directories have to be visible under DOSEMU and
+   into your dosemu.conf, and up it goes. DOSEMU makes a lredir'ed drive
+   out of it and can boot from it. You can edit the config.sys and the
+   autoexec.bat within this directory before you start dosemu. Further
+   more, you may have a more sohisticated setup. Given you want to run
+   the same DOS drive as you normal have when booting into native DOS,
+   then you just mount you DOS partition under Linux (say to /dos) and
+   put links to its subdirectories into the boot dir. This way you can
+   decide which files/directories have to be visible under DOSEMU and
    which have to be different. Here a small and not complete example
    bootdir setup:
       config.sys
@@ -750,10 +763,10 @@ ge
 
    As a further enhancement of your drives setup you may even use the
    following strategie: Given you have the following directory structure
-   under /var/lib/dosemu
-      /var/lib/dosemu/drives/C
-      /var/lib/dosemu/drives/D
-      /var/lib/dosemu/drives/E
+   under DOSEMU_LIB_DIR
+      DOSEMU_LIB_DIR/drives/C
+      DOSEMU_LIB_DIR/drives/D
+      DOSEMU_LIB_DIR/drives/E
 
    and the C, D, E are symlinks to appropriate DOS useable directories,
    then the following single statement in dosemu.conf
@@ -762,8 +775,8 @@ ge
    will assign all these directories to drive C:, D:, E: respectively.
    Note, however, that the order in which the directories under drives/*
    are assigned comes from the order given by /bin/ls. Hence the folling
-      /var/lib/dosemu/drives/x
-      /var/lib/dosemu/drives/a
+      DOSEMU_LIB_DIR/drives/x
+      DOSEMU_LIB_DIR/drives/a
 
    will assign C: to drives/a and D: to drives/x, keep that in mind.
    
@@ -914,8 +927,8 @@ s
    Dat-streamers, EXABYTE tapedrives, JAZ drives (from iomega) and CD
    writers. To make it work under DOSEMU you need
    
-     * to configure $_aspi in /etc/dosemu.conf to define which of the
-       /dev/sgX devices you want to show up in DOSEMU.
+     * to configure $_aspi in dosemu.conf to define which of the /dev/sgX
+       devices you want to show up in DOSEMU.
      * to load the DOSEMU aspi.sys stub driver within config.sys (e.g.
        DEVICE=ASPI.SYS) before any ASPI using driver.
        
@@ -1083,7 +1096,7 @@ s
       mknod ~/.dosemu/run/dosemu-midi p
 
    Then you can use the midi daemon like this:
-      ./midid < ~/.dosemu/run/dosemu-midi &; dos
+      ./midid < ~/.dosemu/run/dosemu-midi &; dosemu
 
    (Assuming that you put the midid executeable in the directory you run
    DOSEMU from.)
@@ -1201,14 +1214,14 @@ s
    This section of the document by Hans, <lermen@fgan.de>. Last updated
    on June 16, 1997.
    
-    1. You have to make 'dos' suid root, if want a fullfeature DOSEMU,
-       this normally is done when you run 'make install'. But as of
-       dosemu-0.97.10, you need not if you don't access to ports,
-       external DOSish hardware and won't use the console other then in
-       normal terminal mode
-    2. You can restrict access to the suid root binary via
-       /etc/dosemu.user. by specifying `nosuidroot' for a given user (or
-       all).
+    1. You have to copy 'dosemu.bin to 'dosemu.suidbin' and make it suid
+       root, if you want a fullfeature DOSEMU. But as of dosemu-0.97.10,
+       you need not if you don't access to ports, external DOSish
+       hardware and won't use the console other then in normal terminal
+       mode
+    2. For older DOSEMU system wide installations, you can restrict
+       access to the suid root binary via /etc/dosemu.user. by specifying
+       `nosuidroot' for a given user (or all).
     3. Have the users that are allow to execute dosemu in
        /etc/dosemu.user. The format is:
        
@@ -1361,22 +1374,24 @@ s
 
    From Uwe Bonnes <bon@elektron.ikp.physik.th-darmstadt.de>:
    
-   xdos from dosemu version pre-0.60.4.2 with the patch from my last
-   messages should now be more capable. In particular it should now
-   understand the keys from the keypad-area (the keys the most right on a
-   MF-Keyboard) and numlock and keyevents in the range of the latin
-   characters, even when you run xdos from a remote X-terminal.
+   xdosemu (dosemu.bin -X) is now a lot more capable. In particular it
+   should now understand the keys from the keypad-area (the keys the most
+   right on a MF-Keyboard) and numlock and keyevents in the range of the
+   latin characters, even when you run xdosemu from a remote X-terminal.
+   It also is capaple to handle PL4 color modes in addition to 256 color
+   modes, so bgidemo from Borland runs fine.
    
    If it dosen't work for you as expected, please check out the
    following:
    
-     * Don't specify "keycode" for X-support. The keycode-option is
-       something specific for a special X-server, here XFree86, and so
-       isn't portable and I disencourage its use.
+     * Specify "keycode" for X-support only for local X-servers, in most
+       cases it should work without it. The keycode-option is something
+       specific for a special X-server, here XFree86, and so isn't
+       portable and I disencourage its use.
      * Check out whether your key sends a sensible ksym, with e.g."xev".
        If it sends something sensible which you think should be mapped by
-       xdos, please let me know details.
-     * If you are running xdos on XFree86, version 3.1.1 and newer and
+       xdosemu, please let me know details.
+     * If you are running xdosemu on XFree86, version 3.1.1 and newer and
        the keys of the keypad-area don't work, you have two options:
           + Comment out the line " ServerNumLock " in
             /usr/X11R6/lib/X11/XFConfig
@@ -1415,7 +1430,7 @@ s
 
    From Rainer Zimmermann <zimmerm@mathematik.uni-marburg.de>
    
-   Some basic information about dosemu's X support. Sometimes it's even
+   Some basic information about DOSEMU's X support. Sometimes it's even
    sort of useable now.
    
    What you should take care of:
@@ -1424,28 +1439,30 @@ s
        backspace key.
      * Do a 'xmodmap -e "keycode 107 = 0xffff"' to get use of your delete
        key.
-     * Make sure dosemu has X support compiled in. (X_SUPPORT = 1 in the
+     * Make sure DOSEMU has X support compiled in. (X_SUPPORT = 1 in the
        Makefile)
      * you should have the vga font installed. See README.ncurses.
-     * start dosemu with 'dos -X' from an X terminal window. Or make a
-       link to 'dos' named 'xdos' - when called by that name, dosemu will
-       automatically assume -X. There is also a new debug flag 'X' for
-       X-related messages. To exit xdos, use 'exitemu' or select 'Close'
-       aka 'Delete' (better not 'Destroy') from the 'Window' menu.
+     * start DOSEMU with `xdosemu' (or `dosemu.bin -X' when bypassing the
+       wrapper) from an X terminal window. Or make a link to 'dosemu.bin'
+       named 'xdos' - when called by that name, DOSEMU will automatically
+       assume -X. There is also a new debug flag 'X' for X-related
+       messages. To exit xdosemu, use 'exitemu' or select 'Close' aka
+       'Delete' (better not 'Destroy') from the 'Window' menu. It is also
+       save to use <Ctrl><Alt><PgDn> within the window to exit DOSEMU.
      * there are some X-related configuration options for dosemu.conf.
-       See etc/dosemu.conf for details.
-     * starting xdos in the background (like from a window manager menu)
-       appears not to work for some reason.
-     * Keyboard support in the dosemu window isn't perfect yet. It
+       See ./etc/dosemu.conf for details.
+     * starting xdosemu in the background (like from a window manager
+       menu) appears not to work for some reason.
+     * Keyboard support in the DOSEMU window isn't perfect yet. It
        probably could be faster, some key combos still don't work (e.g.
        Ctrl-Fn), etc. However, input through the terminal window (i.e.
-       the window you started dosemu from) is still supported. If you
+       the window you started DOSEMU from) is still supported. If you
        have problems, you *might* be better off putting your focus in
        there.
      * Keyboard support of course depends on your X keyboard mappings
        (xmodmap). If certain keys don't work (like Pause, Backspace,...),
        it *might* be because you haven't defined them in your xmodmap, or
-       defined to something other than dosemu expects.
+       defined to something other than DOSEMU expects.
      * using the provided icon (dosemu.xpm):
           + you need the xpm (pixmaps) package. If you're not sure, look
             for a file like /lib/libXpm.so.*
@@ -1458,19 +1475,19 @@ s
             following line to your fvwmrc file:
             
 
-         Icon "xdos"   dosemu.xpm
+         Icon "xdosemu"   dosemu.xpm
 
             This assumes you have defined a PixmapPath. Otherwise,
             specify the entire pathname.
-          + note that if you set a different icon name than "xdos" in
+          + note that if you set a different icon name than "xdosemu" in
             your dosemu.conf, you will also have to change the fvwmrc
             entry.
           + restart the window manager. There's usually an option in the
             root menu to do so.
-       Now you should see the icon whenever you iconify xdos.
-       Note that the xdos program itself does not include the icon -
+       Now you should see the icon whenever you iconify xdosemu.
+       Note that the xdosemu program itself does not include the icon -
        that's why you have to tell the window manager. I chose to do it
-       this way to avoid xdos requiring the Xpm library.
+       this way to avoid xdosemu requiring the Xpm library.
      * If anything else does not work as expected, don't panic :-)
        Remember the thing is still under construction. However, if you
        think it's a real bug, please tell me.
@@ -1491,7 +1508,7 @@ s
 8.3.1. vgaemu
 
      * Video memory. 1 Mb is allocated. It is mapped with mmap() in the
-       VGA memory region of dosemu (0xa00000-0xbfffff) to support bank
+       VGA memory region of DOSEMU (0xa00000-0xbfffff) to support bank
        switching. This is very i386-Linux specific, don't be surprised if
        it doesn't work under NetBSD or another Linux flavour
        (Alpha/Sparc/MIPS/etc).
@@ -1582,8 +1599,8 @@ s
    cases.
    
    If a VGA mode is not supported on your current X display, the graphics
-   screen will just remain black. Note that this does not mean that xdos
-   has crashed.
+   screen will just remain black. Note that this does not mean that
+   xdosemu has crashed.
    
    The VESA support is (or should be) nearly VBE 2.0 compatible. As a
    reference I used several documents including the unofficial VBE 2.0
@@ -1965,7 +1982,7 @@ s
    Make use of the keystroke configure option and the -I commandline
    option of DOSEMU (>=dosemu-0.66.2) such as
    
-    dos -D-a -I 'keystroke "dir > C:\\garbage\rexitemu\r"'
+    dosemu.bin -D-a -I 'keystroke "dir > C:\\garbage\rexitemu\r"'
 
    The "..." will be 'typed in' by dosemu exactly as if you had them
    typed at the keyboard. The advantage of this technique is, that all
@@ -2020,7 +2037,7 @@ s
      * execute dosemu on a spare (not used) console, maybe /dev/tty20
        such like this:
        
-       # dos -D-a 2>/dev/null <FILE >/dev/tty20
+       # dosemu.bin -D-a 2>/dev/null <FILE >/dev/tty20
 
        This will _not_ switch to /dev/tty20, but silently execute dosemu
        and you will get the '#' prompt back, when dosemu returns.
@@ -2030,7 +2047,7 @@ s
    When your dos-app does only normal printout (text), then you may even
    do this
    
-       # dos -D-a 2>/dev/null <FILE >FILE.out
+       # dosemu.bin -D-a 2>/dev/null <FILE >FILE.out
 
    FILE.out then contains the output from the dos-app, but merged with
    ESC-sequences from Slang.
@@ -2049,11 +2066,14 @@ s
    Normally cron would setup TERM=dumb, this is fine because DOSEMU
    recognizes it and internally sets it's own TERMCAP entry and TERM to
    `dosemu-none'. You may also configure your video to
-       # dos ... -I 'video { none }'
+       # dosemu.bin ... -I 'video { none }'
 
-   or have a TERM=none to force the same setting. In all other crontab
-   run cases you may get nasty error messages either from DOSEMU or from
-   Slang.
+   or have a TERM=none to force the same setting. If you use the wrapper
+   script, there is save way to do the same:
+       # dosemu -dumb
+
+   In all other crontab run cases you may get nasty error messages either
+   from DOSEMU or from Slang.
      _________________________________________________________________
    
 13. Commands & Utilities
@@ -2128,9 +2148,9 @@ s
    cmdline.exe
           Read /proc/self/cmdline and put strings such as "var=xxx" found
           on the commandline into the DOS enviroment. Example having this
-          as the dos commandine:
+          as the dosemu commandine:
           
-                     dos "autoexec=echo This is a test..."
+                     dosemu.bin "autoexec=echo This is a test..."
 
           then doing
           

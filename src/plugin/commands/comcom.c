@@ -184,7 +184,6 @@ void load_comcom_history(char *fname)
 	history_empty = 1;
 	while (1) {
 		if (!fgets(buf, sizeof(buf), f)) {
-			fclose(f);
 			if (history_empty) histi = -1;
 			else histi = (i - 1) & ~(-HISTMAX);
 			break;
@@ -396,7 +395,7 @@ static void builtin_funct0a(char *buf)
 		int c;
 		p = buf+1;
 		start_line();
-		cursor = 0;
+		count = cursor = 0;
 		while (1) {
 		    c = getkey();
 		    switch (c) {
@@ -1409,11 +1408,35 @@ static int cmd_dir(int argc, char **argv)
 	char dirname[128];
 	int dirnamelen;
 	unsigned num_files=0, num_bytes=0;
-	char *p, *wildcard = "*.*";
+	char *p, wildcard[256] = "*.*";
 	int i, c;
 	int opt_p, opt_w, opt_l, opt_b, opt_a;
 	int incmask = DOS_ATTR_ALL | 0x80;
 	int excmask = DOS_ATTR_HIDDEN | DOS_ATTR_SYSTEM;
+
+	int expand_wild(char *b)
+	{
+		if (isalpha(b[0]) && (b[1]==':')) {
+			char buf[256];
+			if (com_dosgetcurrentdir(toupper(b[0]) -'A' +1, buf))
+				return 0x0F;	/* invalid drive */
+			if (!b[2]) {
+			    if (buf[0]) sprintf(b+2, "\\%s\\*.*", buf);
+			    else strcat(b, "\\*.*");
+			    return 0;
+			}
+			if ((b[2]=='\\') && !b[3]) {
+			    strcat(b, "*.*");
+			    return 0;
+			}
+		}
+		if (strpbrk(b, "?*") != 0) return 0;
+		if (com_exist_dir(b)) {
+			strcat(b, "\\*.*");
+			return 0;
+		}
+		return com_exist_file(b) ? 0 : DOS_ENOENT;
+	}
 
 	void cache_it(void)
 	{
@@ -1561,13 +1584,16 @@ static int cmd_dir(int argc, char **argv)
 	cache = alloca(huge_enough);
 
 	/* prepare for header */
-	if (argc > 1) wildcard = argv[1];
+	if (argc > 1) strcpy(wildcard, argv[1]);
+	i = expand_wild(wildcard);
+	if (i) return i;
 	dirnamelen = mkstemm(dirname, wildcard, 1);
 
 	if (!com_dosfindfirst(wildcard, incmask & 0x7f)) {
 		cache_it();
 		while (!com_dosfindnext()) cache_it();
 	}
+	if (!num_files) return DOS_ENOENT;
 	sort_it();
 	display_it();
 	flush_it();

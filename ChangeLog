@@ -1,3 +1,72 @@
+2001/10/28 ver. 1.1.1.9 unofficial pre-release
+	From Bart
+	- fixed a bug in X-speaker code (pitch is short int instead of int)
+	  (src/base/speaker/X_speaker.c)
+	- fixed crashing DOSEMU if compiled with glibc (close() on already
+	  closed file simply gives error normally, but on glibc it will crash
+	  due to implicit free()). Involved file: plugin/commands/comcom.c
+	From Hans
+	- fixed bug in comcom's commandline editor
+	- fixed bug in comcom's 'DIR' command (reported by Bart)
+	- disabled use of (real) yacc in base-configure, yacc won't work
+	  any more, we need bison.
+	- new long options to bypass dosemu.user checks for non-suid runs:
+	  --Flibdir to define DOSEMU_LIB_DIR directly (this also sets
+	  DOSEMU_USERS_FILE=none in which case the config dir moves from
+	  /etc to DOSEMU_LIB_DIR).
+	  --Fimagedir to define a boot path that may differ from libdir
+	- exporting DOSEMU_HDIMAGE_DIR directly to global.conf
+	- 'dos' became 'dosemu.bin' to avoid nameclash with win4lin.
+	  there is a symlink ->dos in ./bin, however, distributors should
+	  install the 'dosemu' script as a wrapper which then calls dosemu.bin
+	- moved generation of the dosemu part of the bindist into the source
+	  distribution:
+	  - ./dist is the directory to contains this stuff
+	  - global.conf and dosemu.conf are common for both, global (/etc) and
+	    private ($HOME) configurations.
+	  - wrote ./dist/mkbindist, which generates dosemu-<version>-bin.tgz
+	  - wrote ./install_systemwide script, which creates the systemwide
+	    installation into a configurable directory (root prefix possible
+	    to ease packaging). It accept the following options, which all
+	    may be omitted:
+	    -fd FD_tarball  Tarball containing FreeDos part, if omitted we
+			    assume it already to be inplace.
+	    -r root         optional prefix for 'instpath' and 'binpath'
+	    -i instpath	    directory where the systemwide installation
+			    templates reside (default is /opt/dosemu)
+	    -b binpath      path where symlinks of the binaries under 'instpath'
+			    have to be placed (default /usr/bin)
+	    If the user accepts the defaults, ./install_systemwide will
+	    just 'update' an existing systemwide installation and all users
+	    on that system will untill than work with the new binaries
+	    while keeping their existing configuration/installation.
+	  - rewrote [x]dosemu script (of bindist) to become the _only_
+	    executable to start dosemu. On a systemwide install it resides
+	    in 'instpath' (see ./install_systemwide) and is accessed via
+	    a symlink in the private installation (though, because of
+	    'binpath' also available via $PATH). [x]dosemu will detect when
+	    the user has no private installation yet and will unpack from
+	    the templates in 'instpath', the latter is substituted into
+	    the script itself at time of ./install_systemwide. If the script
+	    stemms from unpacking the original DOSEMU binary distribution
+	    of dosemu.org, the script will know and not try to fiddle with
+	    an eventually existing systemwide install.
+	    The file ~/.dosemu/bindist_path is maintained to find the last
+	    private dosemu directory, even if [x]dosemu is called from
+	    elsewhere. If, however, the user does cd into the private
+	    installed directory and calls the script from there, bindist_path
+	    is changed to this one. This allows switching between different
+	    private installations.
+	    In addition, on a systemwide install, the script accepts the
+	    option '-install <mydos>', where 'mydos' is the basename of a
+	    bootdir, that the user has to supply. In this case freedos will
+	    not installed and can be replaced by any proprietary DOS, which
+	    is bootable via fatfs (bootdir).
+	- updated README.distributors
+	- renamed ./man/dos.1 to ./man/dosemu.bin.1 and updated it
+	- wrote new ./man/dosemu.1
+	- updated set-permissions
+	- updated README*.txt, recompiled docs
 2001/10/28 ver. 1.1.1.8 unofficial pre-release
 	From Bart & Eric
 	- final mouse fix for applications, which do 'mousing' only

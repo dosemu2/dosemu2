@@ -1,0 +1,138 @@
+.\" -*- nroff -*-  (This is for Emacs)
+.TH DOSEMU 1 "May, 2001" "Version 1.0.2" "DOS Emulation"
+.SH NAME
+dosemu, xdosemu \- run DOS and DOS programs under Linux
+.SH SYNOPSIS
+.B dosemu
+[
+.B \-dumb
+]
+[
+.B \-home
+]
+[
+.B \-install
+.I bootdir
+]
+[
+.B args
+]
+.PP
+.B xdosemu
+[
+.B \-dumb
+]
+[
+.B \-home
+]
+[
+.B \-install
+.I bootdir
+]
+[
+.B args
+]
+.SH DESCRIPTION
+.B dosemu
+is the wrapper script for
+.B dosemu.bin
+(1)
+which invokes the Linux dos emulator, also known as
+.BR DOSEMU .
+The wrapper also takes care of (eventually) installing the private instance of
+.BR DOSEMU
+in the user's $HOME, if this doesn't exist.
+.br
+
+.SH OPTIONS
+.TP
+.I args
+any number of options described in
+.BR dosemu.bin
+(1), please refer to this man page for further details.
+However, take care to quote and escape correctly so bash doesn't
+mess up arguments containing blanks and backslashes.
+.TP
+.I -dumb
+use `dumb' terminal mode. This will only work for DOS applications, which do
+plain text output to stdout, but has the advantage that (A) the output of
+the DOS application stacks up in your xterm scroll buffer and (B) you can
+redirect it to a file such as
+.TP
+		$ ./dosemu -dumb -E dir > listing
+
+Note that DOSEMU command.com's commandline editor/history will also work
+here, however, editing is restricted to BACKSPACE'ing.
+.TP
+.I -home
+in addition to drive C:, make the users $HOME available as drive D:.
+Note, however, that most of the Unix file names will get mangled.
+.TP
+.I -install
+launched as part of a systemwide installation, this option installs
+a private instance of a different DOS than the DOSEMU distributed
+dosemu-freedos-bin (maybe any proprietary DOS, which is bootable via fatfs).
+.I bootdir
+is the base name of a directory, the users has to install himself into
+the same directory the instance will be created in. The configuration in
+conf/dosemu.ocnf will be changed to boot this directory.
+
+.SH AUTHOR
+.B DOSEMU
+(comprised of the files
+.B dosemu.bin
+and 
+.B dosemu
+) is based on version 0.4 of the original program written by Matthias Lautner
+(no current address that I know of).
+.PP
+Robert Sanders <gt8134b@prism.gatech.edu> was maintaining and enhancing 
+the incarnation of 
+.B DOSEMU 
+with which this man page was originally distributed. During about 4 years
+James B. MacLean <macleajb@ednet.ns.ca> was the restless leader of the
+dosemu team, implementation of DPMI (which made Windows-3.1, dos4gw, djgpp,
+e.t.c running) happened during his 'governement' and brought the project
+near to Beta-state.
+Now Hans Lermen <lermen@fgan.de> is maintaining this funny software.
+
+.SH FILES
+.PD 0
+.TP
+.I $HOME/.dosemu/bindist_path
+Contains the path to the current per user
+.B DOSEMU
+local directory. This will be created silently, if not existing.
+.TP
+.I $HOME/dosemu/bin/
+.TP
+.I $HOME/dosemu/conf/
+.TP
+.I $HOME/dosemu/freedos/
+.TP
+.I $HOME/dosemu/Xfonts/
+default directories of the local per user DOSEMU instance
+.TP   
+.I /opt/dosemu/bin/
+.TP   
+.I /opt/dosemu/doc/
+.TP   
+.I /opt/dosemu/man/
+.TP   
+.I /opt/dosemu/dosemu-bin.tgz
+.TP   
+.I /opt/dosemu/dosemu-freedos-bin.tgz
+default systemwide installation, containing binaries and templates
+(path /opt/dosemu can be changed during creation of the systemwide installation).
+.TP   
+.I /usr/bin/dosemu
+.TP           
+.I /usr/bin/xdosemu
+symlinks to
+.I /opt/dosemu/bin/dosemu
+(path /usr/bin can be changed during creation of the systemwide installation).
+ 
+
+
+.SH "SEE ALSO"
+.BR dosemu.bin "(1)

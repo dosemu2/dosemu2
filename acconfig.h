@@ -49,6 +49,7 @@ EXTERN char *dosemu_tmpdir_process_path INIT("~/" LOCALDIR_BASE_NAME "/tmp/<pid>
 EXTERN char *dosemu_rundir_path INIT("~/" LOCALDIR_BASE_NAME "/run");
 EXTERN char *dosemu_localdir_path INIT("~/" LOCALDIR_BASE_NAME);
 EXTERN char *dosemu_lib_dir_path INIT(DOSEMULIB_DEFAULT);
+EXTERN char *dosemu_hdimage_dir_path INIT(DOSEMULIB_DEFAULT);
 EXTERN char *keymap_load_base_path INIT(DOSEMULIB_DEFAULT "/");
 EXTERN char *keymap_dir_path INIT("keymap/");
 EXTERN char *owner_tty_locks INIT("uucp");
@@ -69,6 +70,7 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 #define    RUNDIR                dosemu_rundir_path
 #define    LOCALDIR              dosemu_localdir_path
 #define    DOSEMU_LIB_DIR        dosemu_lib_dir_path
+#define    DOSEMU_HDIMAGE_DIR    dosemu_hdimage_dir_path
 #define    KEYMAP_LOAD_BASE_PATH keymap_load_base_path
 #define    KEYMAP_DIR            keymap_dir_path
 #define    OWNER_LOCKS           owner_tty_locks

@@ -132,7 +132,7 @@ firstsimple:	version dep simple
 endif
 
 ifdef ELF
-simple:	version dossubdirs $(BINPATH)/bin/dos
+simple:	version dossubdirs $(BINPATH)/bin/$(DOSBIN)
 else
 simple:	version dossubdirs dosstatic # libdosemu dos
 endif
@@ -187,8 +187,8 @@ itall: warning2 pausedelay dep optionalsubdirs $(DOCS) installnew
 all:	dosemu
 
 debug:
-	rm $(BINPATH)/bin/dos
-	$(MAKE) $(BINPATH)/bin/dos
+	rm $(BINPATH)/bin/$(DOSBIN)
+	$(MAKE) $(BINPATH)/bin/$(DOSBIN)
 
 dos.o: include/config.h
 
@@ -223,21 +223,22 @@ dosstatic:	$(DOSSTATICFILES) ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
 # (Hans Lermen, at state of 0.63.0.1)
 
 ifdef ELF
-$(BINPATH)/bin/dos: 	emu.o base/data.o dossubdirs
+$(BINPATH)/bin/$(DOSBIN): 	emu.o base/data.o dossubdirs
 	$(LD) $(LDFLAGS) -o $@ \
 	   emu.o base/data.o $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
 	    $(addprefix -l, $(LIBS_)) $(addprefix -l, $(LIBS_)) \
 	    $(SVGALIB) $(XLIBSW) $(SLANGLIB) -lc 
-	@nm $(BINPATH)/bin/dos | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
+	@nm $(BINPATH)/bin/$(DOSBIN) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > $(BINPATH)/bin/dosemu.map
-	@ln -sf dos $(BINPATH)/bin/dosexec
+	@ln -sf $(DOSBIN) $(BINPATH)/bin/dos
+	@ln -sf $(DOSBIN) $(BINPATH)/bin/dosexec
 ifdef X_SUPPORT
-	@ln -sf dos $(BINPATH)/bin/xdos
+	@ln -sf $(DOSBIN) $(BINPATH)/bin/xdos
 endif
 
-dosemu: $(BINPATH)/bin/dos
+dosemu: $(BINPATH)/bin/$(DOSBIN)
 else
-$(BINPATH)/bin/dos:	dos.o
+$(BINPATH)/bin/$(DOSBIN):	dos.o
 	$(LD) $(LDFLAGS) -N -o $@ $^ $(addprefix -L,$(LIBPATH)) -L. \
 		$(SLANGLIB) $(XLIBSW)
 
@@ -246,16 +247,17 @@ $(LIBDOSEMU): 	emu.o base/data.o ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}} #
 	   -nostartfiles -nostdlib $^ $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
 	    $(addprefix -l, $(LIBS_)) $(addprefix -l, $(LIBS_)) base/bios/bios.o env/video/vesabios.o \
             $(XLIBSW) $(SLANGLIB) -lc 
-	@ln -sf dos $(BINPATH)/bin/dosexec
+	@ln -sf $(DOSBIN) $(BINPATH)/bin/dos
+	@ln -sf $(DOSBIN) $(BINPATH)/bin/dosexec
 ifdef X_SUPPORT
-	@ln -sf dos $(BINPATH)/bin/xdos
+	@ln -sf $(DOSBIN) $(BINPATH)/bin/xdos
 endif
 
 libdosemu:	dossubdirs $(LIBDOSEMU)
 	@nm $(LIBDOSEMU) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > $(BINPATH)/bin/dosemu.map
 
-dosemu: $(BINPATH)/bin/dos libdosemu
+dosemu: $(BINPATH)/bin/$(DOSBIN) libdosemu
 endif
 
 .PHONY:	dossubdirs optionalsubdirs docsubdirs
@@ -264,7 +266,7 @@ endif
 # ?
 dossubdirs:	$(LIBSUBDIRS)
 	-rm -f $(LIBDOSEMU)
-	-rm -f $(BINPATH)/bin/dos
+	-rm -f $(BINPATH)/bin/$(DOSBIN)
 
 optionalsubdirs:	$(OPTIONALSUBDIRS)
 
@@ -322,7 +324,7 @@ systemwide_install_no_longer_supported:
 	  install -m 0744 ../etc/keymap/* $(INSTROOT)/var/lib/dosemu/keymap; \
 	fi
 	@if [ -f $(INSTROOT)/lib/libemu ]; then rm -f $(INSTROOT)/lib/libemu ; fi
-	@install -c -o root -m 0755 $(BINPATH)/bin/dos $(INSTROOT)/usr/bin
+	@install -c -o root -m 0755 $(BINPATH)/bin/$(DOSBIN) $(INSTROOT)/usr/bin
 ifdef  USE_MHPDBG
 	@install -c -o root -m 0755 $(BINPATH)/bin/dosdebug $(INSTROOT)/usr/bin
 endif
@@ -374,7 +376,7 @@ endif
 	@echo "  - Try emumouse.exe -r if your INTERNAL mouse won't work"; \
 	 echo "  - Try unix.exe to run a Unix command under DOSEMU"; \
 	 echo -e "\n  NOTE: DOSEMU no longer is installed suid-root by default!"; \
-	 echo -e   "        If you need it, do a \'chmod u+s $(INSTROOT)/usr/bin/dos\'"; \
+	 echo -e   "        If you need it, do a \'chmod u+s $(INSTROOT)/usr/bin/$(DOSBIN)\'"; \
 	 echo ""
 
 
@@ -411,8 +413,8 @@ dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
 	@ls -l $(DISTFILE)
 
 local_clean:
-	-rm -f $(OBJS) $(X2CEXE) $(BINPATH)/bin/dos $(BINPATH)/bin/xdos \
-	  $(BINPATH)/bin/dosexec $(BINPATH)/bin/libdosemu *.s core \
+	-rm -f $(OBJS) $(X2CEXE) $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/xdos \
+	  $(BINPATH)/bin/dos $(BINPATH)/bin/dosexec $(BINPATH)/bin/libdosemu *.s core \
 	  dosstatic *.tmp $(BINPATH)/bin/dosemu.map *.o $(BINPATH)/bin/dosdebug base/data.o
 
 local_realclean:

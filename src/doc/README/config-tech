@@ -723,7 +723,7 @@ option -u such as
 <para>
 
 <screen>
-# dos -u myspecialfun
+# dosemu -u myspecialfun
 </screen>
 
 </para>
@@ -1328,7 +1328,7 @@ if_else_endif-stack debug. This feature can be used such as
 <para>
 
 <screen>
-  $ dos -h0 -O 2&#62;&#38;1 | less
+  $ dosemu.bin -h0 -O 2&#62;&#38;1 | less
 </screen>
 
 </para>
@@ -1377,7 +1377,7 @@ This section is of interest mainly to programmers.  This is useful if
 you are having problems with DOSEMU and you want to enclose debug info
 when you make bug reports to a member of the DOSEMU development team.
 Simply set desired flags to "on" or "off", then redirect stderr of
-DOSEMU to a file using "dos -o debug" to record the debug information
+DOSEMU to a file using "dosemu.bin -o debug" to record the debug information
 if desired.  Skip this section if you're only starting to set up.
 </para>
 
@@ -1396,7 +1396,7 @@ if desired.  Skip this section if you're only starting to set up.
 
 <para>
 Alternatively you may use the same format as -D commandline option
-(but without the -D in front), look at the dos.1 man page.
+(but without the -D in front), look at the dosemu.bin.1 man page.
 </para>
 
 <para>
@@ -1931,7 +1931,7 @@ such as
 <para>
 
 <screen>
-  $ dos -I 'keytable dump "kbdtables"'
+  $ dosemu.bin -I 'keytable dump "kbdtables"'
 </screen>
 
 </para>
@@ -1947,7 +1947,7 @@ You may load them such as
 <para>
 
 <screen>
-  $ dos -I 'include "keymap/de-latin1"'
+  $ dosemu.bin -I 'include "keymap/de-latin1"'
 </screen>
 
 </para>
@@ -2050,7 +2050,7 @@ you can start dosemu and execute any arbitrary dos command such as
 <para>
 
 <screen>
-  # dos -D-a -I 'keystroke "c:\rcd \\windows\rwinemu\r"'
+  # dosemu.bin -D-a -I 'keystroke "c:\rcd \\windows\rwinemu\r"'
 </screen>
 
 </para>
