@@ -21,6 +21,9 @@ EXTERN u_char in_sighandler INIT(0);	/* so I know to not use non-reentrant
 EXTERN u_char ignore_segv INIT(0);      /* ignore sigsegv's */
 
 void do_int(int);
+void fake_int(int, int);
+void fake_call(int, int);
+void fake_pusha(void);
 void setup_interrupts(void);
 void version_init(void);
 

@@ -1,3 +1,61 @@
+2002/09/12 ver 1.1.3.3 unofficial pre-release
+	From Stas and Bart
+	- fix several potential t_dif (vs. hitimer_t) overflows in
+	  the keyboard code and vgaemu code. The vgaemu overflow
+	  caused problems after ~half an hour of inactivity in some
+	  DOS programs.
+	- fix problem where Esc needed to be pressed twice.
+	From Stas
+	- remove special modifier handling for Ins: Ins is not special
+	  like CapsLock is from the BIOS point of view; now Ins does not
+	  trigger twice (annihilating itself) anymore when you press the
+	  key.
+	- ignore keys that are already handled by DOSEMU.
+	- treat the case base==0 correctly for unicode_to_long() in
+	  src/plugin/translate/unicode_utils.c.
+	- resurrection of DPMI->PIC interaction: 
+	  add overall stability for DPMI apps. Also fixes 
+	  a number of related bugs for v86 mode.
+	- Make IPX callbacks DPMI-safe, taking an advantage of 
+	  the PIC enchancements (that were integrated into
+	  dosemu-1.1.3.2).
+	- Memory allocation (pagemalloc.c, used by DPMI) fix:
+	  some DOS extenders expect that newly allocated memory is zeroed!
+	- Only open the serial port on demand, not as soon as DOSEMU is
+	  started.
+	- Allow IPX without root privs unless you are going to use RIP which
+	  is trying to add a route and fails.
+	- preserve flags (pushf/popf) on "Pause".
+	- select the 386 by default for future unknown CPUs (to avoid part
+	  of the P4 problem - we now have a basic backup).
+	- dosdebug fixes: one makes dosdebug to correctly destinguish between 
+	  real and protected mode, second makes it to correctly disassemble 
+	  pushfd, popfd and iretd.
+	From Bart
+	- MFS fixes:
+	  Try to improve the file locking behaviour - see the table in
+	  mfs.c for differences between real DOS handling according to
+	  RBIL and our handling.
+	  Determine whether a file a special (a device) or not by
+	  walking the DOS device driver chain instead of comparing a
+	  fixed list of names. Also open/"create" the device driver 
+	  when appropriate in the same way as DOS does it.
+	  Misc cleanups: add "const" at various places; use memcpy() and
+	  memset() instead of strncpy().
+	  Fixed a bug where the hlists were not freed when findfirst was
+	  called for volume labels.
+	  For efficiency: find first without wildcards uses findfile()
+	  instead of needing to build an hlist.
+	- sleep when dosdebug is in a "stop" state.
+	- fixed a few trivial compiler warnings.
+	From Clarence
+	- conveniently allow DOSEMU to display the name of the currently 
+	  running program in the X Window Title (like Win98 does), if the 
+	  user is running COMCOM.COM
+	From Sergey
+	- set "access denied" if locking a region of a file is impossible.
+	From Per Jessen <per@computer.org>
+	- add a new dos helper: 0x82: returns PID and PPID in ax and bx.
 2002/06/16 ver 1.1.3.2 unofficial pre-release
 	From Stas
 	- enhancements to PIC and mouse driver. This is intended to fix 

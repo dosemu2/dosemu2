@@ -122,8 +122,6 @@ config_defaults(void)
     open_proc_scan("/proc/cpuinfo");
     switch (get_proc_intvalue_by_key(
           kernel_version_code > 0x20100+74 ? "cpu family" : "cpu" )) {
-      case 3: case 386: config.realcpu = CPU_386;	/* redundant */
-      	break;
       case 5: case 586:
       case 6: case 686:
       case 15:
@@ -190,7 +188,8 @@ config_defaults(void)
       case 4: case 486: config.realcpu = CPU_486;
       	break;
       default:
-      	exit(1);	/* no 186,286,786.. */
+        error("Unknown CPU type!\n");
+	/* config.realcpu is set to CPU_386 at this point */
     }
     config.mathco = strcmp(get_proc_string_by_key("fpu"), "yes") == 0;
     reset_proc_bufferptr();

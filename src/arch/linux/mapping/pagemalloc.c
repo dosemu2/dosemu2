@@ -53,6 +53,8 @@
  * set in p->flags.
  * 
  */
+#include "emu.h"
+#include "dosemu_debug.h"
 
 #define PAGE_SHIFT	12
 #define PAGE_SIZE	(1<<PAGE_SHIFT)
@@ -80,6 +82,7 @@ static union mentry *heap_lowater;
   heap_ptr->next = 0; \
   heap_ptr = p; \
   heap_ptr->next = 0; \
+  Q_printf("HEAP: heap_ptr reduced to %p\n", heap_ptr); \
 })
 
 static int do_garbage_collection(union mentry **mentry)
@@ -89,6 +92,7 @@ static int do_garbage_collection(union mentry **mentry)
   union mentry *p_bottom;
   int size;
 
+  Q_printf("HEAP: Garbage collection for %p, heap_ptr=%p\n", *mentry, heap_ptr);
   if (! p_->flags ) {
     /* only one area, just return size and increase pointer */
     if (p_ == heap_ptr) {
@@ -123,6 +127,7 @@ static int do_garbage_collection(union mentry **mentry)
 static void garbage_collection(void)
 {
   union mentry *p = mtable;
+  Q_printf("HEAP: Garbage collection\n");
   while (p) {
     if (!p->flags) {
       p = p->next;
@@ -140,6 +145,7 @@ static union mentry *get_free_marea(int size)
   int freesize, bestsize = 0;
   union mentry *bestmentry = 0;
 
+  Q_printf("HEAP: get_free_area for size=0x%x\n", size);
   size = SIZE2MENTRY(size);
   if (!size) return 0;
   
@@ -204,14 +210,14 @@ static union mentry *get_free_marea(int size)
     return p;
   }
 
-  /* OOM */
+  error("HEAP: OOM!\n");
   return 0;
 }
 
 static int delete_marea(union mentry *mentry)
 {
   int i = (int)(mentry-mtable);
-
+  Q_printf("HEAP: delete_area %p, size=0x%x\n", mentry, AREA_SIZE_OF(mentry));
   if (!mentry || !mentry->next || i<0 || i>(heap_end-mtable)) {
     return -1;
   }
@@ -235,6 +241,7 @@ static union mentry *resize_marea(union mentry *mentry, int newsize)
 
   size = AREA_SIZE_OF(mentry);
   newsize = SIZE2MENTRY(PAGE_ALIGN(newsize));
+  Q_printf("HEAP: resize_area: old=0x%x new=0x%x\n", size, newsize);
 
   if (!size || !newsize) return 0; 
   if (size == newsize) return mentry;
@@ -274,6 +281,7 @@ static union mentry *resize_marea(union mentry *mentry, int newsize)
     return mentry;
   }
 
+  Q_printf("Cant resize, moving region\n");
   /* Ok, nothing other helps than moving */
   p = get_free_marea(newsize << PAGE_SHIFT);
   if (!p) return 0;
@@ -329,6 +337,7 @@ int pgmalloc_init(int numpages, int lowater, void *pool)
   heap_end = mtable + maxpages;
   heap_lowater = mtable + lowater;
   mpool = pool;
+  Q_printf("HEAP: init, heap_ptr=%p\n", heap_ptr);
   return 0;
 }
 
@@ -339,11 +348,14 @@ int pgmalloc_init(int numpages, int lowater, void *pool)
 void *pgmalloc(int size)
 {
   union mentry *p;
+  void *addr;
 
   size = PAGE_ALIGN(size);
   p = get_free_marea(size);
   if (!p) return 0;
-  return mpool + ((int)(p-mtable) << PAGE_SHIFT);
+  addr = mpool + ((int)(p-mtable) << PAGE_SHIFT);
+  memset(addr, 0, size);
+  return addr;
 }
 
 /*
@@ -407,5 +419,7 @@ void *pgrealloc(void *addr, int newsize)
      */
     memcpy(newaddr, addr, size);
   }
+  if (newsize > size)
+    memset(newaddr + size, 0, newsize - size);
   return newaddr;
 }

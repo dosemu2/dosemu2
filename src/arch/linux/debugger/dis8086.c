@@ -1238,11 +1238,11 @@ int  dis_8086(unsigned int org,
 	  break;
 
 	case 0x9c:
-	  d86_printf("pushf");
+	  d86_printf("pushf%s", data32 ? "d" : "");
 	  break;
 
 	case 0x9d:
-	  d86_printf("popf");
+	  d86_printf("popf%s", data32 ? "d" : "");
 	  break;
 
 	case 0x9e:
@@ -1495,7 +1495,7 @@ int  dis_8086(unsigned int org,
 	  break;
 
 	case 0xcf:
-	  d86_printf("iret");
+	  d86_printf("iret%s", data32 ? "d" : "");
 	  break;
 
 	case 0xd0:

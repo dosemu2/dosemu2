@@ -1458,7 +1458,8 @@ static void put_keynum_r(Boolean make, t_keynum input_keynum, struct keyboard_st
 		 !!old_make, !!make, keynum);
 
 	/* update various bits of keyboard state */
-	translate_key(make, keynum, state);
+	if (translate_key(make, keynum, state) == (Bit16u)-1)
+		return;
 	
 	scan_code_string = compute_scancode_string(make, keynum);
 
@@ -1713,7 +1714,7 @@ Bit16u translate_key(Boolean make, t_keynum key,
 	keysym = translate_r(make, key, &is_accent, state);
 	do_shift_keys_r(make, keysym, &state->shiftstate);
 	if (handle_dosemu_keys(make, keysym)) {
-		return 0;
+		return -1;
 	}
 	ascii = state->rules->charset.keys[keysym].character;
 
@@ -1783,22 +1784,6 @@ static void sync_shift_state(t_modifiers desired, struct keyboard_state *state)
 		  "unknown"),
 		 current, desired);
 
-	if (!!(current & MODIFIER_INS) != !!(desired & MODIFIER_INS)) {
-		t_keynum keynum1 = state->rules->charset.keys[KEY_INS].key;
-		t_keynum keynum2 = state->rules->charset.keys[KEY_PAD_INS].key;
-
-		/* by preference toggle something that is already held down */
-		if (test_bit(keynum1, state)) {
-			put_keynum_r(RELEASE, keynum1, state);
-			put_keynum_r(PRESS, keynum1, state);
-		} else if (!(current & MODIFIER_NUM) && test_bit(keynum2, state)) {
-			put_keynum_r(RELEASE, keynum2, state);
-			put_keynum_r(PRESS, keynum2, state);
-		} else {
-			put_keynum_r(PRESS, keynum1, state);
-			put_keynum_r(RELEASE, keynum1, state);
-		}
-	}
 	if (!!(current & MODIFIER_CAPS) != !!(desired & MODIFIER_CAPS)) {
 		t_keynum keynum = state->rules->charset.keys[KEY_CAPS].key;
 		if (test_bit(keynum, keys)) {

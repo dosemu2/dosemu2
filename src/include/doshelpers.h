@@ -100,6 +100,7 @@
 
 #define DOS_HELPER_GETCWD           0x80
 #define DOS_HELPER_CHDIR            0x81
+#define DOS_HELPER_GETPID           0x82
 
 #define DOS_HELPER_CPUEMUON         0x90
 #define DOS_HELPER_CPUEMUOFF        0x91

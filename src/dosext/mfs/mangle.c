@@ -34,6 +34,7 @@ Modified by O.V.Zhirov, July 1998
 
 #ifdef DOSEMU
 #include "mangle.h"
+#include "emu.h"
 #else
 #include "includes.h"
 #include "loadparm.h"
@@ -63,26 +64,34 @@ int str_checksum(char *s)
 }
 
 /****************************************************************************
-check if a name is a special msdos reserved name
+check if a name is a special msdos reserved name:
+the name is either a full Unix name or an 8 character candidate
 ****************************************************************************/
-char *is_reserved_msdos(char *fname)
+unsigned long is_dos_device(const char *fname)
 {
-  static char upperFname[13];
-  char *p , *p_;
+  char *p;
+  extern unsigned char *lol;
+  extern int lol_nuldev_off;
+  unsigned char *dev;
+  unsigned long devfar;
+  int i;
 
   /*
    * LPTx e.t.c. is reserved no matter the path (e.g. .\LPT1 _is_ reserved),
    * but mfs.c sends an entire path.
    *             -- Rob Clark <rclark@list-clark.com> 2000/05/09
    */
-  p = strrchr(fname,'\\');
-  p_ = strrchr(fname,'/');
-  if (p_ > p) p = p_;	/* take what ever is nearer to the end */
-  if (p) fname = p+1;	/* strip the directory part */
+  if (fname[0] == '/')
+  {
+    d_printf("is_msdos_device %s\n", fname);
+    p = strrchr(fname,'/');
+    if (p) fname = p+1;	/* strip the directory part */
+  }
+  else
+  {
+    d_printf("is_msdos_device %.8s\n", fname);
+  }
 
-  StrnCpy (upperFname, fname, 12);
-
-#if 0
   /*
    * The below (now #ifdef'ed out) code strips the extension off for checking.
    * But the assumption, that file names with a reserved basename remain
@@ -90,30 +99,40 @@ char *is_reserved_msdos(char *fname)
    * For example CLIPPER-programs _are_ using file names such as
    * 'LPTx.PRN' for internal spooling purposes.
    *             -- Bernd Schueler b.schueler@gmx.de 2001/02/23
+   * well, as far as I know the extension can be stripped off;
+   * most likely the bug was somewhere else - we must not strip
+   * the extension off for further processing Bart 2002/08/12
    */
 
-  /* lpt1.txt and con.txt etc are also illegal */
-  p=strchr(upperFname,'.');
-  if (p)
-   *p='\0';
-#endif
-
-  strupperDOS (upperFname);
-  if ((strcmp(upperFname,"CLOCK$") == 0) ||
-    (strcmp(upperFname,"CON") == 0) ||
-    (strcmp(upperFname,"AUX") == 0) ||
-    (strcmp(upperFname,"COM1") == 0) ||
-    (strcmp(upperFname,"COM2") == 0) ||
-    (strcmp(upperFname,"COM3") == 0) ||
-    (strcmp(upperFname,"COM4") == 0) ||
-    (strcmp(upperFname,"LPT1") == 0) ||
-    (strcmp(upperFname,"LPT2") == 0) ||
-    (strcmp(upperFname,"LPT3") == 0) ||
-    (strcmp(upperFname,"NUL") == 0) ||
-    (strcmp(upperFname,"PRN") == 0))
-      return upperFname;
-
-  return NULL;
+  /* walk the chain of DOS devices; see also FreeDOS kernel code */
+  dev = &lol[lol_nuldev_off];
+  devfar = (((unsigned long)dev - 0x26) << 12) | 0x26;
+  do
+  {
+    for (i = 0; i < 8; i++)
+    {
+      char c1 = fname[i];
+      if (c1 == '.' || c1 == '\0')
+      {
+        /* check if remainder of device name consists of spaces or nulls */
+        for (; i < 8; i++)
+        {
+          char c2 = dev[0xa + i];
+          if (c2 != ' ' && c2 != '\0')
+            break;
+        }
+        break;
+      }
+      if (toupperDOS(c1) != toupperDOS(dev[0xa + i]))
+        break;
+    }
+    if (i == 8)
+      return devfar;
+    if (dev[0] == 0xff || dev[1] == 0xff)
+      return 0;
+    memcpy(&devfar, dev, 4);
+    dev = (char *)((((dev[3] << 8) | dev[2]) << 4) + ((dev[1] << 8) | dev[0]));
+  } while (1);
 }
 
 
@@ -155,10 +174,6 @@ BOOL is_8_3(char *fname)
 
   /* can't be longer than 12 chars */
   if (len == 0 || len > 12)
-    return(False);
-
-  /* can't be an MS-DOS Special file such as lpt1 or even lpt1.txt */
-  if (is_reserved_msdos(fname))
     return(False);
 
   /* can't contain invalid dos chars */

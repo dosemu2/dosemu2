@@ -97,7 +97,7 @@ extern long int unicode_to_long (const t_unicode *ptr,
 	sign = 1;
 	result = 0;
 
-	if ((base < 2) || (base > 36)) {
+	if (base && ((base < 2) || (base > 36))) {
 		if (endptr) {
 			*endptr = (t_unicode *)ptr;
 		}

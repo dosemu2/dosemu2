@@ -873,9 +873,8 @@ static int getkey_callback(void)
 static int sltermio_input_pending(void)
 {
 	struct timeval scr_tv;
-	hitimer_t t_start;
+       hitimer_t t_start, t_dif;
 	fd_set fds;
-	long t_dif;
 	
 #if 0
 #define	THE_TIMEOUT 750000L
@@ -890,13 +889,13 @@ static int sltermio_input_pending(void)
 	t_start = GETusTIME(0);
 	errno = 0;
 	while ((int)select(keyb_state.kbd_fd + 1, &fds, NULL, NULL, &scr_tv) < (int)1) {
-		t_dif = (long)(GETusTIME(0) - t_start);
+               t_dif = GETusTIME(0) - t_start;
 		
 		if ((t_dif >= THE_TIMEOUT) || (errno != EINTR))
 			return 0;
 		errno = 0;
 		scr_tv.tv_sec = 0L;
-		scr_tv.tv_usec = THE_TIMEOUT - t_dif;
+               scr_tv.tv_usec = THE_TIMEOUT - (long)t_dif;
 	}
 	return 1;
 }
@@ -1281,7 +1280,7 @@ static void do_slang_getkeys(void)
 		keyb_state.kbcount -= keyb_state.Keystr_Len;	/* update count */
 		keyb_state.kbp += keyb_state.Keystr_Len;
 		
-		if (key == NULL) {
+               if (key == NULL && symbol != KEY_ESC) {
 			/* undefined key --- return */
 			DOSemu_Slang_Show_Help = 0;
 			keyb_state.kbcount = 0;
@@ -1295,8 +1294,8 @@ static void do_slang_getkeys(void)
 		
 		
 		k_printf("KBD: scan=%08lx Shift_Flags=%08lx str[0]=%d str='%s' len=%d\n",
-			scan,keyb_state.Shift_Flags,key->str[0],strprintable(key->str+1),
-			keyb_state.Keystr_Len);
+                       scan,keyb_state.Shift_Flags,key ? key->str[0] : 27,
+                       key ? strprintable(key->str+1): "ESC", keyb_state.Keystr_Len);
 		if (!(scan&0x80000000)) {
 			slang_send_scancode(keyb_state.Shift_Flags | scan, symbol);
 		}

@@ -497,6 +497,10 @@ static int NewXErrorHandler(Display *, XErrorEvent *);
 void X_handle_events(void);		/* used in arch/linux/async/signal.c */
 
 /* interface to xmode.exe */
+static char X_title_emuname [X_TITLE_EMUNAME_MAXLEN] = {0};
+char X_title_appname [X_TITLE_APPNAME_MAXLEN] = {0};		/* used in plugin/commands/comcom.c */
+static int X_title_show_appname = 1;
+
 int X_change_config(unsigned, void *);	/* used in base/async/int.c */
 
 /* colormap related stuff */
@@ -1155,8 +1159,51 @@ int X_change_config(unsigned item, void *buf)
   switch(item) {
 
     case X_CHG_TITLE:
-      X_printf("X: X_change_config: win_name = %s\n", (char *) buf);
-      XStoreName(display, mainwindow, buf);
+       /* low-level write */
+       if (buf)
+       {
+         X_printf("X: X_change_config: win_name = %s\n", (char *) buf);
+         XStoreName(display, mainwindow, buf);
+       }
+       /* high-level write (shows name of emulator + running app) */
+       else
+       {
+         char title [X_TITLE_EMUNAME_MAXLEN + X_TITLE_APPNAME_MAXLEN + 5];
+           
+         /* write name of emulator */
+         if (strlen (X_title_emuname))
+           snprintf (title, X_TITLE_EMUNAME_MAXLEN, "%s", X_title_emuname);
+         else
+           snprintf (title, X_TITLE_EMUNAME_MAXLEN, "%s", config.X_title);
+           
+         /* append name of running application (if any) */
+         if (X_title_show_appname && strlen (X_title_appname))
+         {
+           if (strlen (title)) strcat (title, " - ");
+           strcat (title, X_title_appname);
+         }
+           
+         /* now actually change the title of the Window */
+         X_change_config (X_CHG_TITLE, title);
+       }
+       break;
+       
+    case X_CHG_TITLE_EMUNAME:
+      X_printf ("X: X_change_config: emu_name = %s\n", (char *) buf);
+      snprintf (X_title_emuname, X_TITLE_EMUNAME_MAXLEN, "%s", ( char *) buf);
+      X_change_config (X_CHG_TITLE, NULL);
+      break;
+      
+    case X_CHG_TITLE_APPNAME:
+      X_printf ("X: X_change_config: app_name = %s\n", (char *) buf);
+      snprintf (X_title_appname, X_TITLE_APPNAME_MAXLEN, "%s", (char *) buf);
+      X_change_config (X_CHG_TITLE, NULL);
+      break;
+
+    case X_CHG_TITLE_SHOW_APPNAME:
+      X_printf("X: X_change_config: show_appname %i\n", *((int *) buf));
+      X_title_show_appname = *((int *) buf);
+      X_change_config (X_CHG_TITLE, NULL);
       break;
 
     case X_CHG_FONT:

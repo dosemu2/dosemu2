@@ -34,6 +34,8 @@
 #include "emu.h"
 #include "timers.h"
 #include "cpu.h"
+#include "int.h"
+#include "dpmi.h"
 #include "bios.h"
 #include "inifile.h"
 #include "doshelpers.h"
@@ -440,18 +442,6 @@ IPXOpenSocket(u_short port, u_short * newPort)
     return (RCODE_SOCKET_TABLE_FULL);
   }
 
-  opt = 1;
-  /* turn on socket debugging */
-  if (debug_level('n')) {
-    enter_priv_on();
-    if (setsockopt(sock, SOL_SOCKET, SO_DEBUG, &opt, sizeof(opt)) == -1) {
-      leave_priv_setting();
-      n_printf("IPX: could not set socket option for debugging: %s.\n", strerror(errno));
-      /* I can't think of anything else to return */
-      return (RCODE_SOCKET_TABLE_FULL);
-    }
-    leave_priv_setting();
-  }
   opt = 1;
   /* Permit broadcast output */
   enter_priv_on();
@@ -1244,18 +1234,30 @@ IPXFarCallHandler(void)
 void IPXEndCall(void) {
 	if(--IPXRunning < 0) IPXRunning = 0; /* Just incase */
     	n_printf("IPX: ESR Ended\n");
-	if(!IPXRunning) IPXCallRel(); /* Ask for more */
+	if(!IPXRunning) pic_request(PIC_IPX); /* Ask for more */
 	
 }
 
 void IPXCallRel(void) {
-  unsigned char *ssp;
-  unsigned long sp;
-  ssp = (unsigned char *)(REG(ss)<<4);
-  sp = (unsigned long) LWORD(esp);
-  pushw(ssp, sp, LWORD(cs));
-  pushw(ssp, sp, LWORD(eip));
-  LWORD(esp) -= 4;
+
+  if(in_dpmi && !in_dpmi_dos_int)
+    fake_pm_int();
+
+  /* push iret frame on _SS:_SP. At F000:2146 (bios.S) we get an
+   * iret and return to _CS:_IP */
+  fake_int(LWORD(cs), LWORD(eip));
+
+  /* push iret frame. At F000:20F7 (bios.S) we get an
+   * iret and return to F000:2140 for EOI */
+  fake_int(BIOSSEG, EOI_OFF);
+
+  /* push all 16-bit regs plus _DS,_ES. At F000:20F4 (bios.S) we find
+   * 'pop es; pop ds; popa' */
+  fake_pusha();
+
+  /* push return address F000:20F4 */
+  fake_call(BIOSSEG, POPA_IRET_OFF);	/* popa+iret */
+
   _regs.cs = ESRFarCall.segment;
   _regs.eip = ESRFarCall.offset;
 }

@@ -79,20 +79,19 @@ static struct timeval scr_tv;        /* For translating UNIX <-> DOS times */
 int redir_state = 0;
 
 void kill_time(long usecs) {
-   hitimer_t t_start;
-   long t_dif;
+   hitimer_t t_start, t_dif;
    scr_tv.tv_sec = 0L;
    scr_tv.tv_usec = usecs;
 
    t_start = GETusTIME(0);
    while ((int) select(STDIN_FILENO, NULL, NULL, NULL, &scr_tv) < (int) 1)
      {
-	t_dif = (long)(GETusTIME(0)-t_start);
+       t_dif = GETusTIME(0)-t_start;
 
         if ((t_dif >= usecs) || (errno != EINTR))
           return ;
         scr_tv.tv_sec = 0L;
-        scr_tv.tv_usec = usecs - t_dif;
+        scr_tv.tv_usec = usecs - (long)t_dif;
      }
 }
 
@@ -527,6 +526,12 @@ static int dos_helper(void)
     case DOS_HELPER_GETCWD:
         LWORD(eax) = (short)((int)getcwd(SEG_ADR((char *), es, dx), (size_t)LWORD(ecx)));
         break;
+
+    case DOS_HELPER_GETPID:
+	LWORD(eax) = getpid();
+	LWORD(ebx) = getppid();
+	break;
+
   case DOS_HELPER_CHDIR:
         LWORD(eax) = chdir(SEG_ADR((char *), es, dx));
         break;
@@ -1255,6 +1260,16 @@ static int ms_dos(int nr)
       return 0;
     }
 
+  case 0x4B:			/* program load */
+    if(LO(ax) != 0x0)
+      return 0;			/* else as for 0x4c */
+  case 0x4C:                    /* program exit */
+    if(pic_icount) {
+      pic_resched();
+      pic_icount=0;
+    }
+    return 0;
+
   default:
 #ifndef USE_NEW_INT
     if (!in_dpmi)
@@ -1481,6 +1496,8 @@ static int can_revector_int21(int i)
   case 0x3e:          /* dos handle close */
   case 0x44:          /* dos ioctl */
 #endif
+  case 0x4b:          /* program load */
+  case 0x4c:          /* program exit */
     return REVECT;
 
   case 0x3d:          /* dos handle open */
@@ -2123,6 +2140,60 @@ void do_int(int i)
 #endif /* USE_NEW_INT */
 }
 
+void fake_int(int cs, int ip)
+{
+  unsigned char *ssp;
+  unsigned long sp;
+
+  g_printf("fake_int: CS:IP %04x:%04x\n", cs, ip);
+  ssp = (unsigned char *)(LWORD(ss)<<4);
+  sp = (unsigned long) LWORD(esp);
+
+  pushw(ssp, sp, vflags);
+  pushw(ssp, sp, cs);
+  pushw(ssp, sp, ip);
+  LWORD(esp) -= 6;
+
+  clear_TF();
+  clear_NT();
+  clear_IF();
+}
+
+void fake_call(int cs, int ip)
+{
+  unsigned char *ssp;
+  unsigned long sp;
+
+  ssp = (unsigned char *)(LWORD(ss)<<4);
+  sp = (unsigned long) LWORD(esp);
+
+  g_printf("fake_call() CS:IP %04x:%04x\n", cs, ip);
+  pushw(ssp, sp, cs);
+  pushw(ssp, sp, ip);
+  LWORD(esp) -= 4;
+}
+
+void fake_pusha(void)
+{
+  unsigned char *ssp;
+  unsigned long sp;
+
+  ssp = (unsigned char *)(LWORD(ss)<<4);
+  sp = (unsigned long) LWORD(esp);
+
+  pushw(ssp, sp, LWORD(eax));
+  pushw(ssp, sp, LWORD(ecx));
+  pushw(ssp, sp, LWORD(edx));
+  pushw(ssp, sp, LWORD(ebx));
+  pushw(ssp, sp, LWORD(esp));
+  pushw(ssp, sp, LWORD(ebp));
+  pushw(ssp, sp, LWORD(esi));
+  pushw(ssp, sp, LWORD(edi));
+  LWORD(esp) -= 16;
+  pushw(ssp, sp, REG(ds));
+  pushw(ssp, sp, REG(es));
+  LWORD(esp) -= 4;
+}
 
 
 /*

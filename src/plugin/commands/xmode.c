@@ -22,12 +22,15 @@
 #define FP_OFF(x) FP_OFF32(x)
 #define FP_SEG(x) FP_SEG32(x)
 
-
+/* should sync with src/env/video/X.h */
 #define X_CHG_TITLE     1
 #define X_CHG_FONT      2
 #define X_CHG_MAP       3
 #define X_CHG_UNMAP     4
 #define X_CHG_WINSIZE    5
+#define X_CHG_TITLE_EMUNAME	6
+#define X_CHG_TITLE_APPNAME	7
+#define X_CHG_TITLE_SHOW_APPNAME	8
 
 static int X_change_config(unsigned, void *);
 
@@ -42,7 +45,8 @@ int xmode_main(int argc, char **argv)
     fprintf(stderr,
       "usage: xmode <some arguments>\n"
       "  -mode <mode>     activate graphics/text mode\n"
-      "  -title <name>    set window name\n"
+      "  -title <name>    set name of emulator (in window title)\n"
+      "  -showapp on|off  show name of running application (in window title)\n"
       "  -font <font>     use <font> as text font\n"
       "  -map <mode>      map window after graphics <mode> has been entered\n"
       "  -unmap <mode>    unmap window before graphics <mode> is left\n"
@@ -53,7 +57,16 @@ int xmode_main(int argc, char **argv)
 
   while(argc) {
     if(!strcmp(*argv, "-title") && argc >= 2) {
-      X_change_config(X_CHG_TITLE, argv[1]);
+      X_change_config(X_CHG_TITLE_EMUNAME, argv[1]);
+      argc -= 2; argv += 2;
+    }
+    else if (!strcmp(*argv, "-showapp") && argc >= 2) {
+      if (!strcasecmp (argv [1], "off") || !strcasecmp (argv [1], "0"))
+	l = 0;
+      else
+	l = 1;
+
+      X_change_config(X_CHG_TITLE_SHOW_APPNAME, &l);
       argc -= 2; argv += 2;
     }
     else if(!strcmp(*argv, "-font") && argc >= 2) {
@@ -114,7 +127,7 @@ int xmode_main(int argc, char **argv)
       argc -= 2; argv += 2;
     }
     else {
-      fprintf(stderr, "Don't know what to do with argument \"%s\"; aborting here.", *argv);
+      fprintf(stderr, "Don't know what to do with argument \"%s\"; aborting here.\n", *argv);
       return 2;
     }
   }

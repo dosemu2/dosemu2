@@ -281,7 +281,7 @@ int strcasecmpDOS(char *s1, char *s2)
 /***************************************************************************
 line strncpy but always null terminates. Make sure there is room!
 ****************************************************************************/
-char *StrnCpy(char *dest,char *src,int n)
+char *StrnCpy(char *dest,const char *src,int n)
 {
   char *d = dest;
   while (n-- && (*d++ = *src++)) ;

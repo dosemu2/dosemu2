@@ -9,6 +9,12 @@
 #define X_CHG_MAP	3
 #define X_CHG_UNMAP	4
 #define X_CHG_WINSIZE	5
+#define X_CHG_TITLE_EMUNAME	6
+#define X_CHG_TITLE_APPNAME	7
+#define X_CHG_TITLE_SHOW_APPNAME	8
+
+#define X_TITLE_EMUNAME_MAXLEN 128
+#define X_TITLE_APPNAME_MAXLEN 9
 
 int X_change_config(unsigned, void *);		/* modify X config data from DOS */
 

@@ -24,6 +24,7 @@
 #include "config.h"
 #include "emu.h"
 #include "bios.h"
+#include "int.h"
 #include "memory.h"
 #include "video.h"		/* video base address */
 #include "mouse.h"
@@ -1535,65 +1536,6 @@ void mouse_move_absolute(int x, int y, int x_range, int y_range)
 	 */
 	if (dx || dy || mouse.x != new_x || mouse.y != new_y) 
 	   mouse_move();
-}
-
-void 
-fake_int(int cs, int ip)
-{
-  unsigned char *ssp;
-  unsigned long sp;
-
-  m_printf("MOUSE: fake_int: CS:IP %04x:%04x\n", cs, ip);
-  ssp = (unsigned char *)(LWORD(ss)<<4);
-  sp = (unsigned long) LWORD(esp);
-
-  pushw(ssp, sp, vflags);
-  pushw(ssp, sp, cs);
-  pushw(ssp, sp, ip);
-  LWORD(esp) -= 6;
-#if 0
-  do_hard_int(0x74);
-#endif
-  
-}
-
-void 
-fake_call(int cs, int ip)
-{
-  unsigned char *ssp;
-  unsigned long sp;
-
-  ssp = (unsigned char *)(LWORD(ss)<<4);
-  sp = (unsigned long) LWORD(esp);
-
-  m_printf("MOUSE: fake_call() shows S: %04x:%04x, CS:IP %04x:%04x\n",
-	   LWORD(ss), LWORD(esp), cs, ip);
-  pushw(ssp, sp, cs);
-  pushw(ssp, sp, ip);
-  LWORD(esp) -= 4;
-}
-
-void 
-fake_pusha(void)
-{
-  unsigned char *ssp;
-  unsigned long sp;
-
-  ssp = (unsigned char *)(LWORD(ss)<<4);
-  sp = (unsigned long) LWORD(esp);
-
-  pushw(ssp, sp, LWORD(eax));
-  pushw(ssp, sp, LWORD(ecx));
-  pushw(ssp, sp, LWORD(edx));
-  pushw(ssp, sp, LWORD(ebx));
-  pushw(ssp, sp, LWORD(esp));
-  pushw(ssp, sp, LWORD(ebp));
-  pushw(ssp, sp, LWORD(esi));
-  pushw(ssp, sp, LWORD(edi));
-  LWORD(esp) -= 16;
-  pushw(ssp, sp, REG(ds));
-  pushw(ssp, sp, REG(es));
-  LWORD(esp) -= 4;
 }
 
 /*

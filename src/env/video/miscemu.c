@@ -287,8 +287,7 @@ unsigned char Misc_get_input_status_1()
      such accuracy is probably not important... I hope. (--adm) */
   static int vvfreq = 17000;	/* 70 Hz - but the best we'll get with
   				 * current PIC will be 50 Hz */
-  hitimer_t t;
-  long tdiff;
+  hitimer_t t, tdiff;
   unsigned char retval;
 
 #ifdef X_SUPPORT

@@ -330,10 +330,8 @@ void vm86_GP_fault(void)
     }
     else
 #endif
-          /* return with STI if VIP was set from run_dpmi; this happens
-           * if pic_count is >0 and the VIP flag in dpmi_eflags was on
-           */
-    if ((lina == (unsigned char *) PIC_ADD) || (pic_icount && (REG(eflags) & VIP_MASK))) {
+
+    if (lina == (unsigned char *) PIC_ADD) {
       pic_iret();
     }
 
@@ -356,14 +354,17 @@ void vm86_GP_fault(void)
     }
 
     else {
-#ifndef SKIP_EMU_VBIOS
-      error("HLT requested: lina=%p!\n", lina);
-      show_regs(__FILE__, __LINE__);
+      if(pic_icount) {
+    /* looks like we have failed to catch iret... */
+         g_printf("HLT requested with pic_icount=%li: lina=%p!\n",
+	    pic_icount, lina);
+         show_regs(__FILE__, __LINE__);
+      }
+      pic_resched();
 #if 0
       haltcount++;
       if (haltcount > MAX_HALT_COUNT)
 	fatalerr = 0xf4;
-#endif
 #endif
       LWORD(eip) += 1;
     }

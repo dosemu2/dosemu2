@@ -69,6 +69,8 @@
 #define Mouse_ROUTINE_OFF  0x2140
 #define Mouse_ADD      ((Mouse_SEG << 4)+Mouse_OFF)
 #define Mouse_ROUTINE  ((Mouse_SEG << 4)+Mouse_ROUTINE_OFF)
+#define EOI_OFF		0x2140
+#define POPA_IRET_OFF	0x20f4
 
 /* intercept-stub for dosdebugger (catches INT21/AX=4B00 */
 #define DBGload_SEG BIOSSEG

@@ -201,7 +201,8 @@ mouse_handler:
 /* ----------------------------------------------------------------- */   
 	/* pause cycle */
 	.org	((Pause_SEG - BIOSSEG) << 4) + Pause_OFF
-/* ======================= Addr = F000:3000 (F3100) */
+/* ======================= Addr = F000:3000 (F3000) */
+	pushf
 	pushw 	%ds
 	pushw 	%ax
 	movw 	$BIOS_DATA,%ax
@@ -213,6 +214,7 @@ idle_cycle:
 	jnz 	idle_cycle
 	popw 	%ax
 	popw	%ds
+	popf
 	lret
 
 /* ----------------------------------------------------------------- */   

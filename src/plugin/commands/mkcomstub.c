@@ -84,4 +84,5 @@ where is\n\
   fwrite(buf,1,fsize+1,fout);
   fclose(fout);
   fclose(tmpl);
- }
+  return 0;
+}

@@ -30,6 +30,7 @@
 
 #include "doserror.h"
 
+#include "../../env/video/X.h"
 
 /* ============== configurable options ================ */
 /* define this to use cached batchfile reading,
@@ -2851,7 +2852,50 @@ static int dopath_exec(int argc, char **argv)
 	}	
 
 	ret = do_internal_command(argc, argv);
-	if (ret == -2) switch (scan_path_env(name, argv)) {
+	if (ret == -2) {
+	
+#ifdef X_SUPPORT
+		/* for the currently running app name (if any) */
+		char saved_title_appname [X_TITLE_APPNAME_MAXLEN];
+
+		/* shows currently running program in X window title */
+		if (config.X)
+		{
+			int i;
+			
+			/* for the new app that will be run */
+			char appname [X_TITLE_APPNAME_MAXLEN];
+			int appname_len;
+			
+			/* save name of running app */
+			extern char X_title_appname [X_TITLE_APPNAME_MAXLEN];
+			snprintf (saved_title_appname, X_TITLE_APPNAME_MAXLEN, "%s", X_title_appname);
+			
+			/* get short name of running app */
+			if (!strcasecmp (argv [0], "call"))
+				snprintf (appname, X_TITLE_APPNAME_MAXLEN, "%s", basename_of (argv [1], &appname_len));
+			else
+				snprintf (appname, X_TITLE_APPNAME_MAXLEN, "%s", basename_of (argv [0], &appname_len));
+			
+			/* remove extension from name of running app */
+			for (i = 0; i < X_TITLE_APPNAME_MAXLEN; i++)
+			{
+				/* 
+				 * searching for a '.' from the start (instead of the end) of a filename
+				 * is perfectly safe since DOS only allows one dot in a filename
+				 */
+				if (appname [i] == '.')
+				{
+					appname [i] = 0;
+					break;
+				}
+			}
+			
+			X_change_config (X_CHG_TITLE_APPNAME, strupr (appname));
+		 }
+#endif
+
+	switch (scan_path_env(name, argv)) {
 	    case 1:
 		ret = command_inter_preter_loop(1, name, argc, argv);
 		break;
@@ -2873,6 +2917,13 @@ static int dopath_exec(int argc, char **argv)
 		ret =  launch_child_program(name, cmdline);
 		break;
 	    }
+	 }
+	 
+#ifdef X_SUPPORT
+	 	if (config.X)
+			/* revert to the previous app name */
+			X_change_config (X_CHG_TITLE_APPNAME, saved_title_appname);
+#endif
 	}
 	if ((ret == -1 && rdta->need_errprinting == 1)
 		|| (EXITCODE && rdta->need_errprinting == 2)) {

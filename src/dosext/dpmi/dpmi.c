@@ -1088,6 +1088,7 @@ static inline void restore_pm_regs()
 
 void fake_pm_int(void)
 {
+  D_printf("DPMI: fake_pm_int() called, in_dpmi_dos_int=0x%02x\n",in_dpmi_dos_int);
   save_rm_regs();
   REG(cs) = DPMI_SEG;
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
@@ -1943,6 +1944,11 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
   in_dpmi_dos_int = 1;
   in_dpmi--;
   in_win31 = 0;
+  if(pic_icount) {
+    D_printf("DPMI: Warning: trying to leave DPMI when pic_icount=%li\n",
+	pic_icount);
+    pic_resched();
+  }
 #ifdef DIRECT_DPMI_CONTEXT_SWITCH
   copy_context(scp, &dpmi_stack_frame[current_client]);
 #else
@@ -2027,6 +2033,9 @@ void run_pm_int(int i)
   D_printf("DPMI: run_pm_int(0x%02x) called, in_dpmi_dos_int=0x%02x\n",i,in_dpmi_dos_int);
 
   if (Interrupt_Table[i].selector == DPMI_SEL) {
+
+    D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
+
     if (!in_dpmi_dos_int) {
       save_rm_regs();
       REG(cs) = DPMI_SEG;
@@ -2048,6 +2057,8 @@ void run_pm_int(int i)
     PMSTACK_ESP = client_esp(0);
   ssp = (us *) (GetSegmentBaseAddress(PMSTACK_SEL) +
 		(DPMIclient_is_32 ? PMSTACK_ESP : (PMSTACK_ESP&0xffff)));
+
+  D_printf("DPMI: Calling protected mode handler for int 0x%02x\n", i);
 /* ---------------------------------------------------
 	| 000FC925 | <- ssp here, executes pm int
 	| dpmi_sel |
@@ -2513,6 +2524,12 @@ void dpmi_init()
   in_dpmi++;
   in_win31 = 0;
   in_dpmi_dos_int = 0;
+  if(pic_icount) {
+    D_printf("DPMI: Warning: trying to enter DPMI when pic_icount=%li\n",
+	pic_icount);
+    pic_resched();
+    pic_icount=0;
+  }
   pm_block_root[current_client] = 0;
   memset((void *)(&realModeCallBack[current_client][0]), 0,
 	 sizeof(RealModeCallBack)*0x10);
@@ -3020,6 +3037,36 @@ if ((_ss & 4) == 4) {
 	    _ss = *ssp++;
 	    in_dpmi_dos_int = (int) *ssp++;
 	  }
+/* Posibilities:
+ * 1. If in_dpmi_dos_int==0, it is hardware interrupt: software pm ints are
+ *    handled not here. pic_iret() must be called in this case.
+ * 2. If in_dpmi_dos_int==1 and interrupt is from hardware, pic_iret()
+ *    will success here because realmode cs:ip were not modified in pm
+ *    handler and still points to hlt. We can just skip this hlt or do_vm86()
+ *    will do it for us, but pic_iret will be called with current cs:ip anyway.
+ *    So calling pic_iret() here and skipping hlt in this case is also an
+ *    optimization.
+ * 3. If in_dpmi_dos_int==1 and int is software (0x1c, 0x23 or 0x24), then
+ *    cs:ip is not on hlt now and pic_iret() will just return.
+ *
+ *
+ * -- Stas Sergeev
+ */
+	  if (in_dpmi_dos_int) {
+	     if (*SEG_ADR((unsigned char *), cs, ip) == 0xf4) {
+		if (debug_level('M') > 3) D_printf("DPMI: returned to RM from hardware "
+		    "interrupt at %p, skip hlt at %04x:%04lx\n",
+		    lina, REG(cs), REG(eip));
+	     }
+	     else {
+		if (debug_level('M') > 3) D_printf("DPMI: returned to RM from software "
+		    "interrupt at %p, we are at %04x:%04lx\n",
+		    lina, REG(cs), REG(eip));
+	     }
+	  } else {
+	    if (debug_level('M') > 3) D_printf("DPMI: returned to PM from hardware "
+		"interrupt at %p\n", lina);
+	  }
 	  pic_iret();
 	  if (in_dpmi_timer_int) in_dpmi_timer_int--;
 
@@ -3492,6 +3539,22 @@ void dpmi_realmode_hlt(unsigned char * lina)
     D_printf("DPMI: Return from DOS Interrupt without register translation\n");
     restore_rm_regs();
     in_dpmi_dos_int = 0;
+/* we are here at return from:
+ * - realmode hardware interrupt handler
+ * - realmode mouse callback (fake_pm_int)
+ * - default realmode CPU exception handler
+ * - other client's termination point
+ * As internal mouse driver now uses PIC, all the above cases are apropriate
+ * to call pic_iret(). Exception handler does not require pic_iret, but being
+ * called without an active interrupt handler, pic_iret() does nothing, and
+ * CPU exceptions should not happen inside the interrupt handler under normal
+ * conditions.
+ * Calling pic_iret() on other client termination is good idea, I even revector
+ * int 21h/4ch for this.
+ *
+ * -- Stas Sergeev
+ */
+    pic_iret();
 
   } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_return_from_dos_exec))) {
 
@@ -3785,8 +3848,12 @@ done:
     }
     REG(eip) += 1;            /* skip halt to point to FAR RET */
 
-  } else
-    error("DPMI: unhandled HLT: lina=%p!\n", lina);
+  } else {
+    if(pic_icount)
+      D_printf("DPMI: unhandled HLT: lina=%p pic_icount=%li\n",
+        lina, pic_icount);
+    pic_resched();
+  }
 }
 
 #ifdef USE_MHPDBG   /* dosdebug support */

@@ -61,6 +61,7 @@ typedef char pstring[1024];
 
 
 /* prototypes */
+unsigned long is_dos_device(const char *fname);
 void mangle_name_83(char *s, char *MangledMap);
 extern BOOL do_fwd_mangled_map(char *s, char *MangledMap);
 extern BOOL name_convert(char *OutName,char *InName,BOOL mangle, char *MangledMap);
@@ -85,7 +86,7 @@ int strcmpDOS(char *s1, char *s2);
 int strncasecmpDOS(char *s1, char *s2,int n);
 int strcasecmpDOS(char *s1, char *s2);
 
-char *StrnCpy(char *dest,char *src,int n);
+char *StrnCpy(char *dest,const char *src,int n);
 void array_promote(char *array,int elsize,int element);
 BOOL strequal(char *s1,char *s2);
 

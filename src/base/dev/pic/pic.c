@@ -678,7 +678,6 @@ void run_irqs(void)
        int old_ilevel;
        int int_request;
        int priority;
-#warning using C run_irqs
        /* Old hack, to be removed */
        if (in_dpmi && in_dpmi_timer_int) return;
 
@@ -722,6 +721,7 @@ void run_irqs(void)
 }
 
 #else
+#warning using assembly run_irqs
 
 /* I got inspired.  Here's an assembly language version, somewhat faster.
  * This is also much shorter - fewer checks needed, because there's no
@@ -820,6 +820,7 @@ if (in_dpmi && in_dpmi_timer_int) return;
 int do_irq()
 {
  int intr;
+ unsigned long ilevel;
  unsigned char * ssp;
  unsigned long sp;
 #ifdef X86_EMULATOR
@@ -828,28 +829,24 @@ int do_irq()
 #endif
 
     if(pic_ilevel==32) return 0;
-    intr=pic_iinfo[pic_ilevel].ivec;
+    ilevel=pic_ilevel;
+    intr=pic_iinfo[ilevel].ivec;
 
-    if(pic_ilevel==PIC_IRQ9)      /* unvectored irq9 just calls int 0x0a.. */
+    if(ilevel==PIC_IRQ9)      /* unvectored irq9 just calls int 0x0a.. */
       if(!IS_REDIRECTED(intr)) {intr=0x0a;pic1_isr&= 0xffef;} /* & one EOI */
 #ifndef USE_NEW_INT
-    if(IS_REDIRECTED(intr)||pic_ilevel<=PIC_IRQ1||in_dpmi)
+    if(IS_REDIRECTED(intr)||ilevel<=PIC_IRQ1||in_dpmi)
 #endif /* not USE_NEW_INT */
     {
 #if 0 /* BUG CATCHER (if 1) */
 /* outputting more then one character here will change dynamic behave such
  * that we measure the wrong thing.
  */
-g_printf("+%d",(int)pic_ilevel);
+g_printf("+%d",(int)ilevel);
 #endif
-     if(test_bit(pic_ilevel, &pic_irqall)) pic_push(pic_ilevel);
-     if (in_dpmi) {
-      if (!pic_iinfo[pic_ilevel].callback) run_pm_int(intr);
-      else pic_iinfo[pic_ilevel].callback();
-     } else {
-#ifndef USE_NEW_INT
-      pic_cli();
-#endif /* not USE_NEW_INT */
+     if (test_bit(ilevel, &pic_irqall)) pic_push(ilevel);
+
+     if (!in_dpmi || in_dpmi_dos_int) {
       ssp = (unsigned char *)(LWORD(ss)<<4);
       sp = (unsigned long) LWORD(esp);
 
@@ -867,30 +864,43 @@ g_printf("+%d",(int)pic_ilevel);
 #ifdef X86_EMULATOR
       if (tmp) E_MPROT_STACK(tmp_ssp);
 #endif
+      if(debug_level('r')>7) r_printf("PIC: setting iret trap at %04x:%04lx\n",
+        REG(cs), REG(eip));
       REG(cs) = PIC_SEG;
       LWORD(eip) = PIC_OFF;
+     }
+
+     if (pic_iinfo[ilevel].callback)
+        pic_iinfo[ilevel].callback();
+     else {
+       if (in_dpmi) run_pm_int(intr);
+       else {
+#ifndef USE_NEW_INT
+         pic_cli();
+#endif /* not USE_NEW_INT */
       
  /* schedule the requested interrupt, then enter the vm86() loop */
-      if (!pic_iinfo[pic_ilevel].callback) run_int(intr);
-      else pic_iinfo[pic_ilevel].callback();
+         run_int(intr);
+       }
      }
+
       pic_icount++;
       pic_wcount++;
 
  /* enter PIC loop - we can continue only when pic_isr has been cleared */
-      while(!fatalerr && test_bit(pic_ilevel,&pic_isr))
+      while(!fatalerr && test_bit(ilevel,&pic_isr))
       {
 	if (debug_level('r')>2)
 		r_printf("------ PIC: intr loop ---%06lx--%06lx----\n",
 			pic_vm86_count,pic_dpmi_count);
 	if (in_dpmi ) {
           ++pic_dpmi_count;
-	  pic_print(2, "Initiating DPMI irq lvl ", pic_ilevel, " in do_irq");
+	  pic_print(2, "Initiating DPMI irq lvl ", ilevel, " in do_irq");
 	  run_dpmi();
 	  }
 	else {
 	  ++pic_vm86_count;
-	  pic_print(2, "Initiating VM86 irq lvl ", pic_ilevel, " in do_irq");
+	  pic_print(2, "Initiating VM86 irq lvl ", ilevel, " in do_irq");
           run_vm86();
           }
         pic_isr &= pic_irqall;    /*  levels 0 and 16-31 are Auto-EOI  */
@@ -911,6 +921,32 @@ g_printf("+%d",(int)pic_ilevel);
     return(1);
 }
 
+/* DANG_BEGIN_FUNCTION pic_resched
+ *
+ * pic_resched decrements a count of interrupts on the stack
+ * (set by do_irq()). If the count is then less or equal to some pre-defined
+ * value (normally 1, pic_icount_od), pic_resched moves all queued interrupts 
+ * to the interrupt request register.
+ *
+ * Normally it is called from pic_iret(), but it can also be called 
+ * directly if dosemu was fooled by the program and failed to catch iret.
+ *
+ * DANG_END_FUNCTION
+ */
+void
+pic_resched() 
+{
+unsigned long pic_newirr;
+    if(pic_icount)
+       pic_icount--;
+    if(pic_icount<=pic_icount_od) {
+	pic_newirr=pic_pirr&~pic_irr&~pic_isr;
+        pic_irr|=pic_newirr;
+        pic_pirr&=~pic_newirr;
+        pic_wirr&=~pic_newirr;        /* clear watchdog timer */
+	pic_activate();
+    }
+}
 
 /* DANG_BEGIN_FUNCTION pic_request
  *
@@ -1000,12 +1036,13 @@ void pic_untrigger(inum)
  * not been restored to its initial state by an iret.  pic_iret is called
  * whenever interrupts have been enabled by a popf, sti, or iret.  It 
  * determines if an iret was the cause by comparing stack contents with
- * cs and ip.  If so, it decrements a count of interrupts on the stack
- * (set by do_irq()).  If the count is then zero, pic_iret moves all queued
- * interrupts to the interrupt request register.  It is possible for pic_iret
- * to be fooled by dos code; for this reason active interrupts are checked,
- * any queued interrupts that are also active will remain queued.  Also,
- * some programs fake an iret, so that it is possible for pic_iret to fail.
+ * cs and ip. If so, it calls pic_resched() and does the actual iret by
+ * pop'ing ip and cs from stack.
+ * It is possible for pic_iret to be fooled by dos code; for this reason 
+ * active interrupts are checked, any queued interrupts that are also 
+ * active will remain queued.
+ * Also, some programs fake an iret, so that it is possible for pic_iret 
+ * to fail.
  * See pic_watch for the watchdog timer that catches and fixes this event.
  *
  * DANG_END_FUNCTION
@@ -1015,56 +1052,43 @@ pic_iret()
 {
 unsigned char * ssp;
 unsigned long sp;
-unsigned long pic_newirr;
 
-  if(in_dpmi) {
-    if(pic_icount) {
-       pic_icount--;
-       pic_newirr=pic_pirr&~pic_irr&~pic_isr;
-       pic_irr|=pic_newirr;
-       pic_pirr&=~pic_newirr;
-       pic_wirr&=~pic_newirr;        /* clear watchdog timer */
-       if(pic_icount<=pic_icount_od)
-	  pic_activate();
-       if(!pic_irr) dpmi_eflags &= ~VIP;
-    } 
-     pic_print(2,"IRET in dpmi, loops=",pic_dpmi_count," ");
-     pic_dpmi_count=0;
-  return;
+  if(in_dpmi && !in_dpmi_dos_int) {
+/* Even if cs:ip now points to PIC_SEG:PIC_OFF hlt, it means nothing while
+ * in protected mode, so we can't modify it here.
+ */
+    pic_resched();
+    if(!pic_irr) dpmi_eflags &= ~VIP;
+    pic_print(2,"IRET in dpmi, loops=",pic_dpmi_count," ");
+    pic_dpmi_count=0;
   }
-
+  else {
 /* if we've really come from an irq, cs:ip will point to PIC_SEG:PIC_OFF */
 /* if we haven't come from an irq and cs:ip points as above, we're going to
  * die anyway, since our next instruction is a hlt.
  */ 
- if(REG(cs) == PIC_SEG)
-   if(LWORD(eip) == PIC_OFF) {
-    if(pic_icount) { 
-       pic_icount--;
-       pic_newirr=pic_pirr&~pic_irr&~pic_isr;
-       pic_irr|=pic_newirr;
-       pic_pirr&=~pic_newirr;
-       pic_wirr&=~pic_newirr;        /* clear watchdog timer */
-       if(pic_icount<=pic_icount_od)
-	  pic_activate();
-       if(!pic_irr) REG(eflags)&=~(VIP);
+    if(REG(cs) == PIC_SEG && LWORD(eip) == PIC_OFF) {
+      pic_resched();
+      if(!pic_irr) REG(eflags)&=~(VIP);
+      pic_print(2,"IRET in vm86, loops=", in_dpmi?
+      pic_dpmi_count : pic_vm86_count," ");
+      pic_vm86_count=0;
+      pic_dpmi_count=0;
+      if (pic_icount || (!cb_cs && !cb_ip)) {
+	ssp = (unsigned char *)(LWORD(ss)<<4);
+	sp = (unsigned long) LWORD(esp);
+	LWORD(eip) = popw(ssp, sp);
+	REG(cs) = popw(ssp, sp);
+	LWORD(esp) = (LWORD(esp) + 4) & 0xffff;
+      }
+      else {
+	r_printf("PIC: entering callback at %x:%x\n", cb_cs, cb_ip);
+	LWORD(eip) = cb_ip;
+	REG(cs) = cb_cs;
+	cb_cs = cb_ip = 0;
+      }
     }
-     pic_print(2,"IRET in vm86, loops=",pic_vm86_count," ");
-     pic_vm86_count=0;
-     if (pic_icount || (!cb_cs && !cb_ip)) {
-      ssp = (unsigned char *)(LWORD(ss)<<4);
-      sp = (unsigned long) LWORD(esp);
-      LWORD(eip) = popw(ssp, sp);
-      REG(cs) = popw(ssp, sp);
-      LWORD(esp) = (LWORD(esp) + 4) & 0xffff;
-     } else {
-      r_printf("PIC: entering callback at %x:%x\n", cb_cs, cb_ip);
-      LWORD(eip) = cb_ip;
-      REG(cs) = cb_cs;
-      cb_cs = cb_ip = 0;
-     }
-    }
- return;
+  }
 }
 
  

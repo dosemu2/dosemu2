@@ -205,7 +205,7 @@ void hardware_setup(void)
   }
 #ifdef USING_NET
 #ifdef IPX
-  pic_seti(PIC_IPX, IPXCallRel, 0, NULL);
+  pic_seti(PIC_IPX, do_irq, 0, IPXCallRel);
   pic_unmaski(PIC_IPX);
 #endif
 #ifdef PICPKT

@@ -335,6 +335,7 @@ typedef u_char *sda_t;
 
 #define	sda_current_dta(sda)	((char *)(FARPTR((far_t *)&sda[sda_current_dta_off])))
 #define sda_cur_psp(sda)		(*(u_short *)&sda[sda_cur_psp_off])
+#define sda_cur_drive(sda)		(*(u_char *)&sda[sda_cur_drive_off])
 #define sda_filename1(sda)		((char  *)&sda[sda_filename1_off])
 #define	sda_filename2(sda)		((char  *)&sda[sda_filename2_off])
 #define sda_sdb(sda)			((sdb_t    )&sda[sda_sdb_off])
@@ -356,6 +357,7 @@ typedef u_char *sda_t;
 
 #define lol_cdsfarptr(lol)		(*(far_t *)&lol[lol_cdsfarptr_off])
 #define lol_last_drive(lol)		(*(u_char *)&lol[lol_last_drive_off])
+#define lol_nuldev(lol)		        (&lol[lol_nuldev_off])
 
 typedef u_char *lol_t;
 
@@ -387,7 +389,7 @@ typedef struct lol_record {
 #define DENY_ALL	0x01
 #define DENY_WRITE	0x02
 #define DENY_READ	0x03
-#define DENY_ANY	0x04
+#define DENY_NONE	0x04
 
 #define CHILD_INHERIT	0x00
 #define NO_INHERIT	0x01

@@ -107,21 +107,16 @@ int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks )
 	leave_priv_setting();
 	if(sock==-1)
 	{
+		n_printf("IPX: could not open IPX socket: %s.\n", strerror(errno));
 		goto GLTExit;
 	}
 	
-	/* Socket debugging */
 	enter_priv_on();
-	if(setsockopt(sock,SOL_SOCKET,SO_DEBUG,&opt,sizeof(opt))==-1)
-	{
-		leave_priv_setting();
-		goto CloseGLTExit;
-	}
-	
 	/* Permit broadcast output */
 	if(setsockopt(sock,SOL_SOCKET,SO_BROADCAST, &opt,sizeof(opt))==-1)
 	{
 		leave_priv_setting();
+		n_printf("IPX: could not set socket option for broadcast: %s.\n", strerror(errno));
 		goto CloseGLTExit;
 	}
 	
@@ -130,9 +125,10 @@ int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks )
 	   
 	opt=4;		/* Remember no htons! - its a byte */
 	
-	if(setsockopt(sock,SOL_SOCKET,IPX_TYPE,&opt,sizeof(opt))==-1)
+	if (setsockopt(sock, SOL_IPX, IPX_TYPE, &opt, sizeof(opt)) == -1)
 	{
 		leave_priv_setting();
+		n_printf("IPX: could not set socket option for type: %s.\n", strerror(errno));
 		goto CloseGLTExit;
 	}
 	
@@ -143,6 +139,7 @@ int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks )
 	if(bind(sock,(struct sockaddr *)&ipxs,sizeof(ipxs))==-1)
 	{
 		leave_priv_setting();
+		n_printf("IPX: could not bind socket to address: %s\n", strerror(errno));
 		goto CloseGLTExit;
 	}
 	leave_priv_setting();
@@ -172,6 +169,7 @@ int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks )
 	        {
 			leave_priv_setting();
                         retCode = -2;
+			n_printf("IPX: sendto() failed: %s\n", strerror(errno));
         		goto CloseGLTExit;
 	        }
 		leave_priv_setting();

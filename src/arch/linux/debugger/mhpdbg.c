@@ -39,6 +39,7 @@
 #include "bios.h"
 #include "shared.h"
 #include "dpmi.h"
+#include "timers.h"
 
 #define MHP_PRIVATE
 #include "mhpdbg.h"
@@ -268,7 +269,10 @@ static void mhp_poll(void)
            mhpdbg.nbytes=strlen(loopbuf);
          }
          else {
-          if (mhpdbgc.stopped) continue;
+          if (mhpdbgc.stopped) {
+            usleep(JIFFIE_TIME/10);
+            continue;
+          }
           else break;
         }
       }
