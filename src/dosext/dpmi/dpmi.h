@@ -31,6 +31,8 @@
 #define DPMI_CLIENT (DPMIclient[current_client])
 #define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
 
+#define D_16_32(reg)		(DPMI_CLIENT.is_32 ? reg : reg & 0xffff)
+
 /* Aargh!! Is this the only way we have to know if a signal interrupted
  * us in DPMI server or client code? */
 #ifdef __linux__

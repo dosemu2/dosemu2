@@ -2249,8 +2249,7 @@ void run_pm_int(int i)
       leavedos(25);
   }
 
-  ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) +
-		(DPMI_CLIENT.is_32 ? PMSTACK_ESP : (PMSTACK_ESP&0xffff)));
+  ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) + D_16_32(PMSTACK_ESP));
 
   D_printf("DPMI: Calling protected mode handler for int 0x%02x\n", i);
 /* ---------------------------------------------------
@@ -2903,8 +2902,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
       leavedos(25);
   }
 
-  ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) +
-		(DPMI_CLIENT.is_32 ? PMSTACK_ESP : (PMSTACK_ESP&0xffff)));
+  ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) + D_16_32(PMSTACK_ESP));
 
   if (DPMI_CLIENT.is_32) {
     *--ssp = (us) 0;
@@ -3832,8 +3830,7 @@ done:
       leavedos(25);
     }
 
-    ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) +
-		(DPMI_CLIENT.is_32 ? PMSTACK_ESP : (PMSTACK_ESP&0xffff)));
+    ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) + D_16_32(PMSTACK_ESP));
 /* ---------------------------------------------------
 	| 000FC927 | <- ssp here
 	| dpmi_sel |
@@ -3914,8 +3911,7 @@ done:
       leavedos(25);
     }
 
-    ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) +
-		(DPMI_CLIENT.is_32 ? PMSTACK_ESP : (PMSTACK_ESP&0xffff)));
+    ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) + D_16_32(PMSTACK_ESP));
 
     if (DPMI_CLIENT.is_32) {
 	*--ssp = (us) 0;
