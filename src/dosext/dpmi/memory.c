@@ -202,8 +202,10 @@ DPMIrealloc(unsigned long handle, unsigned long newsize)
 	return block;
     
     if ((newsize > block -> size) &&
-	((newsize - block -> size) > dpmi_free_memory))
+	((newsize - block -> size) > dpmi_free_memory)) {
+	D_printf("DPMI: DPMIrealloc failed: Not enough dpmi memory\n");
 	return NULL;
+    }
 
     if (newsize > block -> size)  { /* we must mmap another block */
 	void *ptr;

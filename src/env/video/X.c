@@ -76,6 +76,9 @@
  * The code now looks a bit kludgy, because it was written for for the .98,
  * but it works. Scaling x2 is only set for 320x200.  -- Hans
  *
+ * 1997/03/03: Added code to turn off MIT-SHM for network connections.
+ * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ *              
  * DANG_END_CHANGELOG
  */
 
@@ -182,6 +185,12 @@ extern void X_process_key(XKeyEvent *);
 #define XREAD_WORD(w) ((XATTR(w)<<8)|XCHAR(w))
 
 /********************************************/
+
+#ifdef HAVE_MITSHM
+/* keep this global -- sw */
+int (*OldXErrorHandler)(Display *, XErrorEvent *) = NULL;
+int shm_failed = 0;
+#endif
 
 #ifdef HAVE_MITSHM
 static XShmSegmentInfo shminfo;
@@ -846,7 +855,7 @@ static void EXPutImageUnscaled(Display *display, Drawable d, GC gc, XImage *imag
 		       unsigned  width, unsigned height)
 {
 #ifdef HAVE_MITSHM
-  if (have_shmap)
+  if (!shm_failed /* have_shmap ??? */)
     {
       XShmPutImage(display, d, gc, image, src_x, src_y, dest_x, dest_y, width, height, True);
     }
@@ -872,6 +881,20 @@ static void EXPutImage(Display *display, Drawable d, GC gc, XImage *image,
 
 /* true color stuff <<<<<<<<<<<<<<<<<<<< */
 
+#ifdef HAVE_MITSHM
+int NewXErrorHandler(Display *dsp, XErrorEvent *xev)
+{
+        if(xev->request_code == 129) {
+        X_printf("X::NewXErrorHandler: error using shared memory\n");
+                shm_failed++;
+        }
+        else {
+                return OldXErrorHandler(dsp, xev);
+        }
+        return 0;
+}
+#endif
+
 
 /* Initialize everything X-related. */
 static int X_init(void)
@@ -881,6 +904,11 @@ static int X_init(void)
    XSetWindowAttributes attr;
    
   X_printf("X: X_init\n");
+
+#ifdef HAVE_MITSHM
+        OldXErrorHandler = XSetErrorHandler(NewXErrorHandler);
+#endif
+
    co = 80;
    li = 25;
   set_video_bios_size();		/* make it stick */
@@ -987,11 +1015,14 @@ static void X_close(void)
   if(ximage_p!=NULL)
     {
 #ifdef HAVE_MITSHM
+      if(!shm_failed)
       XShmDetach(display, &shminfo);
+      else
 #endif
       XDestroyImage(ximage_p);	/* calls ximage_p->destroy_image() */
       ximage_p=NULL;
 #ifdef HAVE_MITSHM
+      if(!shm_failed)
       shmdt(shminfo.shmaddr);
 #endif
     }
@@ -1088,12 +1119,15 @@ static int X_setmode(int type, int xsize, int ysize)
             else X_partial_redraw_screen();
 	  }
 #ifdef HAVE_MITSHM
+          if(!shm_failed)
 	  XShmDetach(display, &shminfo);
+          else
 #endif
 	  XDestroyImage(ximage_p);	/* just make a new one all time */
 	  /* image_data_p is also >/dev/0 */	
 	  ximage_p=NULL;
 #ifdef HAVE_MITSHM
+          if(!shm_failed)
 	  shmdt(shminfo.shmaddr);
 #endif
 	}
@@ -1103,12 +1137,15 @@ static int X_setmode(int type, int xsize, int ysize)
       if(ximage_p!=NULL)
 	{
 #ifdef HAVE_MITSHM
+          if(!shm_failed)
 	  XShmDetach(display, &shminfo);
+          else
 #endif
 	  XDestroyImage(ximage_p);        /* just make a new one all time */
 	  /* image_data_p is also >/dev/0 */
 	  ximage_p=NULL;
 #ifdef HAVE_MITSHM
+          if(!shm_failed)
 	  shmdt(shminfo.shmaddr);
 #endif
 	}
@@ -1146,6 +1183,7 @@ static int X_setmode(int type, int xsize, int ysize)
       /* It should be OK for 256 color X servers (depth=8bits) */
 
 #ifdef HAVE_MITSHM
+      if(!shm_failed) {
       ximage_p=XShmCreateImage(display,
 			       DefaultVisual(display, DefaultScreen(display)),
 			       depth, ZPixmap, NULL, 
@@ -1176,14 +1214,15 @@ static int X_setmode(int type, int xsize, int ysize)
       shmctl(shminfo.shmid, IPC_RMID, 0 );
       ximage_p->data = shminfo.shmaddr;
       XSync(display, False);
-#else
+      }
+      if(shm_failed)
+#endif
       ximage_p=XCreateImage(display,
                             DefaultVisual(display, DefaultScreen(display)),
                             depth, ZPixmap, 0, 
                             (unsigned char*)malloc(get_vgaemu_tekens_x()*get_vgaemu_tekens_y()*font_width*font_height),
                                 get_vgaemu_tekens_x()*font_width,
                                 get_vgaemu_tekens_y()*font_height, 8, 0);
-#endif
        /*     memset((void *)ximage_p->data, 0, get_vgaemu_tekens_x()*get_vgaemu_tekens_y()*font_width*font_height);*/
       break;
                   
@@ -1220,6 +1259,7 @@ static int X_setmode(int type, int xsize, int ysize)
 		   &border_width, &depth);
       
 #ifdef HAVE_MITSHM
+      if(!shm_failed) {
       ximage_p=XShmCreateImage(display,
 			       DefaultVisual(display,DefaultScreen(display)),
 			       depth,ZPixmap,NULL,
@@ -1250,13 +1290,14 @@ static int X_setmode(int type, int xsize, int ysize)
       shmctl(shminfo.shmid, IPC_RMID, 0 );
       ximage_p->data = shminfo.shmaddr;
       XSync(display, False);
-#else
+      }
+      if(shm_failed)
+#endif
       ximage_p=XCreateImage(display,DefaultVisual(display,DefaultScreen(display)),
                             depth,ZPixmap,0,
                             (unsigned char*)malloc(get_vgaemu_width()*ScaleX *get_vgaemu_heigth()*ScaleX *chars_ppixel),
                             get_vgaemu_width() * ScaleX,
                             get_vgaemu_heigth() * ScaleY,8,0  );
-#endif
       /*      memset((void *)ximage_p->data, 0, get_vgaemu_width()*get_vgaemu_heigth());*/
       /* set colormap */
       /*get_vga256_colors();*/
@@ -1935,10 +1976,10 @@ chk_cursor:
 	       XSync(display, False);
 #endif /* DEBUG_SHOW_UPDATE_AREA */
 #ifdef HAVE_MITSHM
+               if(!shm_failed)
 	       XShmPutImage(display,mainwindow,gc,ximage_p,xx,yy,xx,yy,ww,hh, True);
-#else
+#endif
 	       XPutImage(display,mainwindow,gc,ximage_p,xx,yy,xx,yy,ww,hh);
-#endif /* HAVE_MITSHM */
 	       X_printf("X_update_screen(): %i pixel changes, redraw "
 			"window is (%i,%i),(%i,%i)\n", 
 			changed, xx, yy, ww, hh);
@@ -2396,14 +2437,15 @@ void X_handle_events(void)
 	    {
 	    case GRAPH:
 #ifdef HAVE_MITSHM
+              if(!shm_failed)
 	      XShmPutImage(display,mainwindow,gc,ximage_p,
 	                e.xexpose.x, e.xexpose.y,e.xexpose.x, e.xexpose.y,
 	                e.xexpose.width, e.xexpose.height, True);
-#else
+              else
+#endif
 	      XPutImage(display,mainwindow,gc,ximage_p,
 	                e.xexpose.x, e.xexpose.y,e.xexpose.x, e.xexpose.y,
 	                e.xexpose.width, e.xexpose.height);
-#endif
 	      break;
 	      
 	    default:    /* case TEXT: */

@@ -2027,6 +2027,9 @@ void dpmi_init()
   if(!in_dpmi) {
     struct meminfo *mi;
 
+ /* DANG_FIXTHIS Should we really care for the Memory info? 
+    After the next task switch evrything may have changed substantial
+    bon@elektron.ikp.physik.th-darmstadt.de 2/16/97 */
     mi = readMeminfo();
     if (mi)
       dpmi_free_memory = ((mi->free + mi->swapfree)<
@@ -2041,6 +2044,7 @@ void dpmi_init()
 	                              ((dpmi_free_memory & 0xfff)
 				      ? DPMI_page_size : 0);
     dpmi_total_memory = dpmi_free_memory;
+    D_printf("DPMI: dpmi_free_memory available 0x%lx\n",dpmi_free_memory); 
     
     DPMI_rm_procedure_running = 0;
 
