@@ -29,3 +29,12 @@ Then you can use the midi daemon like this:
 from.) 
 
 Alistair/Rutger
+
+---------------
+
+25/3/97
+You can now disable the code after it is compiled in by setting the IRQ or DMA
+channels to invalid values (ie IRQ = 0 or > 15, or DMA = 4 or > 7)
+The simplest way, however, is to say 'sound_emu off' in /etc/dosemu.conf
+
+Alistair

@@ -1,3 +1,9 @@
+97/03/27 ver. 0.66.0.4 unofficial pre-release
+	From Alistair
+	- made sound a disable option in /etc/dosemu.conf ('sound_emu off')
+	  (else it may clobber an IRQ, if configured but not used)
+	From Philip.Blundell@pobox.com
+	- some compile fixes for glibc
 97/03/27 ver. 0.66.0.3 unofficial pre-release
 	From Bart Hartgers <barth@stack.nl>
 	- Made dosnet.c running under 2.0.x kernel (was broken)

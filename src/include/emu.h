@@ -600,6 +600,9 @@ EXTERN void sigio(int, int, struct sigcontext *);
 			sigaction(sig, &sa, NULL);
 #endif
 #ifdef __linux__
+#ifdef __GLIBC__
+#define SignalHandler __sighandler_t
+#endif
 #define NEWSETQSIG(sig, fun)	sa.sa_handler = (__sighandler_t)fun; \
 			/* Point to the top of the stack, minus 4 \
 			   just in case, and make it aligned  */ \

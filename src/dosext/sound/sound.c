@@ -1833,6 +1833,47 @@ static void sb_init(void)
 
   S_printf ("SB: SB Initialisation\n");
 
+  /* First - Check if the DMA/IRQ values make sense */
+
+  /* Must have an IRQ between 1 & 15 inclusive */
+  if (config.sb_irq < 1 || config.sb_irq > 15 ) {
+    S_printf ("SB: Invalid IRQ (%d). SB Disabled.\n", config.sb_irq);
+    SB_info.version = SB_NONE;
+    return;
+  }
+
+  /* Must have a DMA between 0 & 7, excluding 4 [unsigned, so don't test < 0]*/
+  if (config.sb_dma == 4 || config.sb_dma > 7) {
+    S_printf ("SB: Invalid DMA channel (%d). SB Disabled.\n", config.sb_dma);
+    SB_info.version = SB_NONE;
+    return;
+  }
+
+  SB_info.version = SB_driver_init();
+
+  switch (SB_info.version) {
+  case SB_NONE:
+    S_printf ("SB: No SB emulation available. Disabling SB\n");
+    return;
+    break;
+  case SB_OLD:
+    S_printf ("SB: \"Old\" SB emulation available\n");
+    break;
+  case SB_20:
+    S_printf ("SB: SB 2.0 emulation available\n");
+    break;
+  case SB_PRO:
+    S_printf ("SB: SB PRO emulation available\n");
+    break;
+  case SB_16:
+    S_printf ("SB: SB 16 emulation available\n");
+    break;
+  default:
+    S_printf ("SB: Incorrect value for emulation. Disabling SB.\n");
+    SB_info.version = SB_NONE;
+    return;
+  }
+
   /* SB Emulation */
   io_device.read_portb   = sb_io_read;
   io_device.write_portb  = sb_io_write;
@@ -1855,28 +1896,6 @@ static void sb_init(void)
   S_printf ("SB: Initialisation - Base 0x%03x, IRQ %d, DMA %d\n", 
 	    config.sb_base, config.sb_irq, config.sb_dma);
 
-  SB_info.version = SB_driver_init();
-
-  switch (SB_info.version) {
-  case SB_NONE:
-    S_printf ("SB: No SB emulation available\n");
-    break;
-  case SB_OLD:
-    S_printf ("SB: \"Old\" SB emulation available\n");
-    break;
-  case SB_20:
-    S_printf ("SB: SB 2.0 emulation available\n");
-    break;
-  case SB_PRO:
-    S_printf ("SB: SB PRO emulation available\n");
-    break;
-  case SB_16:
-    S_printf ("SB: SB 16 emulation available\n");
-    break;
-  default:
-    S_printf ("SB: Incorrect value for emulation. Setting to NONE\n");
-    SB_info.version = SB_NONE;
-  }
 }
 
 static void fm_init(void)
@@ -1937,6 +1956,7 @@ static void sb_reset (void)
 {
   S_printf ("SB: Resetting SB\n");
 
+  if (SB_info.version != SB_NONE) {
   sb_disable_speaker();
 
   dsp_clear_output ();
@@ -1946,6 +1966,7 @@ static void sb_reset (void)
   SB_dsp.write_size_mode = 0;
 
   SB_driver_reset();
+  }
 }
 
 static void fm_reset (void)

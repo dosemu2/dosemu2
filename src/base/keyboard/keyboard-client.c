@@ -30,7 +30,9 @@
 #ifdef __linux__
 #include <linux/vt.h>
 #include <linux/kd.h>
+#ifndef __GLIBC__
 #include <linux/time.h>
+#endif
 #endif
 #ifdef __NetBSD__
 #include <machine/pcvt_ioctl.h>

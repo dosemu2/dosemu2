@@ -199,7 +199,7 @@ RepeatSelect:
         
         if( retCode==0 ) {
                 n_printf("IPX: Received RIP information for network %08lx\n",
-                        htonl(network));
+                        (unsigned long int)htonl(network));
         
                 *hops = htons(RipResponse.Hops);
                 *ticks = htons(RipResponse.Ticks);
@@ -208,12 +208,12 @@ RepeatSelect:
                 if( retCode < 0 ) {
                         n_printf("IPX: Failure %d adding route <%08lx through %08lx:%02x%02x%02x%02x%02x%02x>\n",
                                 retCode,
-                                htonl(network), htonl(ipxs.sipx_network),
+                                (unsigned long int)htonl(network), (unsigned long int)htonl(ipxs.sipx_network),
                                 ipxs.sipx_node[0],ipxs.sipx_node[1],ipxs.sipx_node[2],
                                 ipxs.sipx_node[3],ipxs.sipx_node[4],ipxs.sipx_node[5] );
                 } else {
                         n_printf("IPX: Success adding route <%08lx through %08lx:%02x%02x%02x%02x%02x%02x>\n",
-                                htonl(network), htonl(ipxs.sipx_network),
+                                (unsigned long int)htonl(network), (unsigned long int)htonl(ipxs.sipx_network),
                                 ipxs.sipx_node[0],ipxs.sipx_node[1],ipxs.sipx_node[2],
                                 ipxs.sipx_node[3],ipxs.sipx_node[4],ipxs.sipx_node[5] );
                 }

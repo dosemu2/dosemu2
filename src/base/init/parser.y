@@ -387,6 +387,7 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		  '{' printer_flags '}'
 		    { stop_printer(); }
 		| L_X '{' x_flags '}'
+		| L_SOUND bool	{ if (! $2) config.sb_irq = 0; }
                 | L_SOUND '{' sound_flags '}'
 		| SILLYINT
                     { config.sillyint=0; }

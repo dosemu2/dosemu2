@@ -590,6 +590,9 @@ floppy { device /dev/fd0 threeinch }
 # mpu_base	- base address for the MPU-401 chip (HEX) (Not Implemented)
 #
 
+# use this to disable sound support even if it is configured in
+sound_emu off
+
 # Linux defaults
 #sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/dsp sb_mixer /dev/mixer mpu_base 0x330 }
 # NetBSD defaults

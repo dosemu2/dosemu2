@@ -16,6 +16,7 @@
  *     doing, though...
  */
 
+#include <errno.h>
 #include "pktdrvr.h"
 #include "emu.h"
 #include "dosio.h"
