@@ -34,6 +34,7 @@
 #endif
 
 #include "emu.h"
+#include "priv.h"
 #include "libpacket.h"
 
 #include  "dosnet.h"
@@ -90,7 +91,12 @@ DosnetOpenNetworkType(unsigned short netid)
   /* Here, netid is ignored, and instead, we send our own netid. 
      assigned to this dosnet session. 
    */
-  int s = socket(AF_INET, SOCK_PACKET, htons(GetDosnetID()));  
+  int s;
+
+  if (!config.secure) enter_priv_on();
+  s = socket(AF_INET, SOCK_PACKET, htons(GetDosnetID()));  
+  if (!config.secure) leave_priv_setting();
+
   if (s == -1) {
     if (errno == EPERM) warn("Must be root for virtual TCP/IP\n");
     return -1;

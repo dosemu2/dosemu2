@@ -3,6 +3,7 @@
 
 
 ALL = bios.h cmos.h cpu.h disks.h dosio.h dosnet.h emu.h \
+	utilities.h \
 	emusys.h hgc.h inifile.h ipx.h keymaps.h \
 	lpt.h machcompat.h memory.h mouse.h mutex.h port.h \
 	serial.h slang.h termio.h timers.h video.h xms.h \

@@ -7,6 +7,12 @@
 #include <malloc.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <string.h>
+#include <ctype.h>
+
 #include "emu.h"
 #include "machcompat.h"
 #include "bios.h"
@@ -166,3 +172,89 @@ p_dos_str(char *fmt,...) {
 	char_out(*s++, READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
 }
         
+/* some stuff to handle reading of /proc */
+
+static char *procfile_name=0;
+static char *procbuf=0;
+static char *procbufptr=0;
+#define PROCBUFSIZE	4096
+static char *proclastpos=0;
+static char proclastdelim=0;
+
+void close_proc_scan(void)
+{
+  if (procfile_name) free(procfile_name);
+  if (procbuf) free(procbuf);
+  procfile_name = procbuf = procbufptr = proclastpos = 0;
+}
+
+void open_proc_scan(char *name)
+{
+  int size, fd;
+  close_proc_scan();
+  fd = open(name, O_RDONLY);
+  if (fd == -1) {
+    error("cannot open %s\n", name);
+    leavedos(5);
+  }
+  procfile_name = strdup(name);
+  procbuf = malloc(PROCBUFSIZE);
+  size = read(fd, procbuf, PROCBUFSIZE-1);
+  procbuf[size] = 0;
+  procbufptr = procbuf;
+  close(fd);
+}
+
+void advance_proc_bufferptr(void)
+{
+  if (proclastpos) {
+    procbufptr = proclastpos;
+    if (proclastdelim == '\n') procbufptr++;
+  }
+}
+
+char *get_proc_string_by_key(char *key)
+{
+
+  char *p;
+
+  if (proclastpos) {
+    *proclastpos = proclastdelim;
+    proclastpos =0;
+  }
+  p = strstr(procbufptr, key);
+  if (p) {
+    if ((p == procbufptr) || (p[-1] == '\n')) {
+      p += strlen(key);
+      while (*p && isblank(*p)) p++;
+      if (*p == ':') {
+        p++;
+        while (*p && isblank(*p)) p++;
+        proclastpos = p;
+        while (*proclastpos && (*proclastpos != '\n')) proclastpos++;
+        proclastdelim = *proclastpos;
+        *proclastpos = 0;
+        return p;
+      }
+    }
+  }
+#if 0
+  error("Unknown format on %s\n", procfile_name);
+  leavedos(5);
+#endif
+  return 0; /* just to make GCC happy */
+}
+
+int get_proc_intvalue_by_key(char *key)
+{
+  char *p = get_proc_string_by_key(key);
+  int val;
+
+  if (p) {
+    if (sscanf(p, "%d",&val) == 1) return val;
+  }
+  error("Unknown format on %s\n", procfile_name);
+  leavedos(5);
+  return -1; /* just to make GCC happy */
+}
+

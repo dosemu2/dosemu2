@@ -27,6 +27,8 @@
 #include <netinet/in.h>
 
 #include "libpacket.h"
+#include "emu.h"
+#include "priv.h"
 
 /*
  *	Obtain a file handle on a raw ethernet type. In actual fact
@@ -43,7 +45,11 @@
 int 
 OpenNetworkType(unsigned short netid)
 {
-  int s = socket(AF_INET, SOCK_PACKET, htons(netid));
+  int s;
+
+  if (!config.secure) enter_priv_on();
+  s = socket(AF_INET, SOCK_PACKET, htons(netid));
+  if (!config.secure) leave_priv_setting();
 
   if (s == -1)
     return -1;

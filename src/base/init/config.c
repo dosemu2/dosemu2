@@ -20,6 +20,7 @@
 
 #include "dos2linux.h"
 #include "priv.h"
+#include "utilities.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
@@ -82,8 +83,7 @@ int cpu_override (int cpu)
 static void
 config_defaults(void)
 {
-    FILE *fs;
-    char Line[256];
+    char *cpuflags;
     int k = 386;
 
     vm86s.cpu_type = CPU_386;
@@ -97,67 +97,43 @@ config_defaults(void)
     config.emuspeed = 50;	/* instruction cycles per us */
 #endif
 
-    fs=fopen("/proc/cpuinfo","r");
-    if (fs) {
-	while (fgets(Line,250,fs)) {
-	  /* get the CPU (processor#0) info */
-	  if (!strncmp(Line,"cpu",3) && isspace(Line[3])) {
-	    char *p = Line+4;
-	    while (*p && (*p!=':')) p++;
-
-	    /* if it's an x86, check which one */
-	    if ((sscanf(p+1,"%d",&k)==1) && ((k%100)==86)) {
-	      switch ((k/100)%10) {
-	        case 3: config.realcpu = CPU_386;	/* redundant */
-	        	break;
-	        case 5:
-	        case 6: config.realcpu = CPU_586;
-			/* bogospeed currently returns 0; should it deny
-			 * pentium features, fall back into 486 case */
-			if (!bogospeed(&config.cpu_spd, &config.cpu_tick_spd)) {
-			    config.pci = 1;	/* fair guess */
-			    config.rdtsc = 1;
-			    break;
-			}
-			k = 486;
-			/* fall thru */
-	        case 4: config.realcpu = CPU_486;
-	        	break;
-	        default:
-	        	exit(1);	/* no 186,286,786.. */
-	      }
-	    }
-	  }
-	  else if (!strncmp(Line,"fpu",3) && isspace(Line[3])) {
-	    /* get the fpu info. this is currently unused. */
-	    char *p = Line+4;
-	    while (*p && (*p!=':')) p++;
-	    if (*p) {
-	      p++; while (*p && isspace(*p)) p++;
-	      config.mathco = (*p=='y');
-	    }
-	  }
-	  else if (!strncmp(Line,"processor",9)) {
-	    /* if a 'processor:n' statement is found with n>0, meaning we
-	     * are on a SMP machine, deny use of pentium timer, force
-	     * use of kernel timing and stop parsing the file.
-	     */
-	    char *p = Line+9;
-	    while (*p && (*p!=':')) p++;
-	    if (*p) {
-	      p++; while (*p && isspace(*p)) p++;
-	      if (isdigit(*p) && (*p>'0') && config.rdtsc) {
-	  	fprintf(stderr,"Denying use of pentium timer on SMP machine\n");
-		config.smp = 1;		/* for checking overrides, later */
-	      	config.rdtsc = 0;
-	      	break;
-	      }
-	    }
-	  }
-	}
-	fclose(fs);
+    open_proc_scan("/proc/cpuinfo");
+    switch (get_proc_intvalue_by_key("cpu")) {
+      case 386: config.realcpu = CPU_386;	/* redundant */
+      	break;
+      case 586:
+      case 686:
+        config.realcpu = CPU_586;
+        config.pci = 1;	/* fair guess */
+        cpuflags = get_proc_string_by_key("flags");
+        if (strstr(cpuflags, "tsc")) {
+          /* bogospeed currently returns 0; should it deny
+           * pentium features, fall back into 486 case */
+          if (!bogospeed(&config.cpu_spd, &config.cpu_tick_spd)) {
+              config.rdtsc = 1;
+              break;
+          }
+        }
+        /* fall thru */
+      case 486: config.realcpu = CPU_486;
+      	break;
+      default:
+      	exit(1);	/* no 186,286,786.. */
     }
-    fprintf(stderr,"Running on CPU=%d86, FPU=%d\n",config.realcpu,config.mathco);
+    config.mathco = strcmp(get_proc_string_by_key("fpu"), "yes") == 0;
+    k = 0;
+    while (get_proc_string_by_key("processor")) {
+      k++;
+      advance_proc_bufferptr();
+    }
+    if (k > 1) {
+      fprintf(stderr,"Denying use of pentium timer on SMP machine\n");
+      config.smp = 1;		/* for checking overrides, later */
+      config.rdtsc = 0;
+    }
+    close_proc_scan();
+    fprintf(stderr,"Running on CPU=%d86, FPU=%d, rdtsc=%d\n",
+      config.realcpu, config.mathco, config.rdtsc);
 
     config.hdiskboot = 1;	/* default hard disk boot */
 #ifdef X86_EMULATOR

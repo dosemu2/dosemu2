@@ -98,6 +98,13 @@ void clear_queue(void) {
 void write_queue(Bit16u bios_key,t_shiftstate shift,Bit32u raw) {
    int qh = q_head;
 
+#if 0 /* shall we make this a dosemu.conf option? --Hans */
+   switch (raw & ~0x80) {
+     case KEY_PGUP: case KEY_PGDN: case KEY_HOME: case KEY_END:
+     bios_key &= 0xFF00;
+     raw &= 0xff;
+   }
+#endif
    k_printf("KBD: writing to queue: bios_key=%04x shift=%04x scan=%08x\n",
             bios_key,shift,(unsigned int)raw);
    
