@@ -969,17 +969,17 @@ static void dos83_to_ufs(char *name, const char *mname, const char *mext)
   path_to_ufs(name, 0, filename, 0, 1);
 }
 
-/* check if name/filenae exists as such if it does not contain wildcards */
+/* check if name/filename exists as such if it does not contain wildcards */
 static boolean_t exists(const char *name, const char *filename,
                         struct stat *st, int drive)
 {
-  char fullname[MAXPATHLEN];
-
-  strcpy(fullname, name);
-  strcat(fullname, "/");
-  strcat(fullname, filename);
+  boolean_t ret;
+  char *fullname;
+  asprintf(&fullname, "%s/%s", name, filename);
   Debug0((dbg_fd, "exists() result = %s\n", fullname));
-  return find_file(fullname, st, drive);
+  ret = find_file(fullname, st, drive);
+  free(fullname);
+  return ret;
 }
 
 /* get directory;
