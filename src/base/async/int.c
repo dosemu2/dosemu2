@@ -109,7 +109,7 @@ void kill_time(long usecs) {
 static void default_interrupt(u_char i) {
   di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
 
-  if (!IS_REDIRECTED(i) ||
+  if (!IS_REDIRECTED(i) || (!IVEC(i)) ||
 #ifndef USE_NEW_INT
       (LWORD(cs) == BIOSSEG && LWORD(eip) == (i * 16 + 2))) {
 #else /* USE_NEW_INT */
@@ -2083,7 +2083,8 @@ void setup_interrupts(void) {
     /* don't overwrite; these have been set during video init */
     if(i == 0x1f || i == 0x43) continue;
 
-    if ((i & 0xf8) == 0x60) { /* user interrupts */
+    if ((i & 0xf8) == 0x60 || (i >= 0x78 && i<= 0xfd &&
+      can_revector(i) == NO_REVECT)) { /* user interrupts */
 	/* show also EMS (int0x67) as disabled */
 	SETIVEC(i, 0, 0);
     } else {

@@ -1,3 +1,32 @@
+2001/10/28 ver. 1.1.1.11 unofficial pre-release
+	From Jeff Beardsley <jeff.beardsley@fuellinks.com>
+	- changes to global.conf to allow com3/4 work on other the irq12
+	  (this turns out to be the fix for more than 2 serial ports)
+	  Just have a $_com3 = "/dev/ttyS2 irq 5" in dosemu.conf
+	From Stas
+	- fixed bug in DPMI prevent calling int > 0xe0 in case
+	  of function 0x0300 (not for 0x0301/0x0302)
+	- setting unused intvectors to NULL instead iret
+	From Bart
+	- fix bug in INT 13 AH=8 altering BL wrongly for harddisks
+	  (base/misc/disks.c)
+	- updated doc/dosemu.lsm to reflect new maintainer status ;-)
+	From Steffen
+	- fix to global.conf: one /var/lib/dosemu forgotten to be
+	  replaced by $DOSEMU_HDIMAGE_DIR
+	From Steffen + Hans
+	- fixed bug not booting on Pentium IV (base/init/config.c)
+	From Hans
+	- some fixes/enhancements to the dosemu wrapper script
+	  - added '-input' and '-quiet' option
+	  - tweaked args passing to dosemu.bin
+	  - allowed running _as_ root (not suid), if configfiles are protected
+	  - adapted the man page
+	- disabled obsolete 'root not secure' check in coothreads.h
+	- fix (again) to VERSION setup in ./baseconfigure
+	  (hopefully this was the last one ;-)
+	From Eric + Bart
+	- fix gas -oformat switch: must be --oformat
 2001/10/28 ver. 1.1.1.10 unofficial pre-release
 	From Stas Sergeev
 	- fixes to xms.c (umb_alloc) to match the LIM's specs.

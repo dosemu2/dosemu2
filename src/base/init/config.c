@@ -123,6 +123,7 @@ config_defaults(void)
       	break;
       case 5: case 586:
       case 6: case 686:
+      case 15:
         config.realcpu = CPU_586;
         config.pci = 1;	/* fair guess */
         cpuflags = get_proc_string_by_key("features");

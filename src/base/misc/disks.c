@@ -1208,8 +1208,8 @@ int13(u_char i)
     d_printf("disk get parameters %#x\n", disk);
 
     if (dp != NULL) {
-      /* get CMOS type */
-      switch (dp->sectors) {
+      /* get CMOS type for floppies*/
+      if (disk < 0x80) switch (dp->sectors) {
       case 9:
 	LO(bx) = THREE_INCH_720KFLOP;
 	break;

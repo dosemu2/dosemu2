@@ -49,10 +49,10 @@ INDIR=-I../include
 all: $(COM) $(SYS)
 
 $(D)/%.sys: %.S detect.h
-	$(LD) $(INDIR) -traditional -Wa,-a -Wl,-Ttext,0,-e,_start16,-oformat,binary -nostdlib -s -o $@ $< > $*.s.out
+	$(LD) $(INDIR) -traditional -Wa,-a -Wl,-Ttext,0,-e,_start16,--oformat,binary -nostdlib -s -o $@ $< > $*.s.out
 
 $(D)/%.com: %.S detect.h
-	$(LD) $(INDIR) -traditional -Wa,-a -Wl,-Ttext,100,-e,_start16,-oformat,binary -nostdlib -s -o $@ $< > $*.s.out
+	$(LD) $(INDIR) -traditional -Wa,-a -Wl,-Ttext,100,-e,_start16,--oformat,binary -nostdlib -s -o $@ $< > $*.s.out
 
 precomp: $(PD)/unix.exe $(PD)/cmdline.exe $(PD)/emumouse.exe \
 		$(PD)/lredir.exe $(PD)/dosdbg.exe $(PD)/xmode.exe

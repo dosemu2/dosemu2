@@ -1,5 +1,5 @@
 .\" -*- nroff -*-  (This is for Emacs)
-.TH DOSEMU 1 "May, 2001" "Version 1.0.2" "DOS Emulation"
+.TH DOSEMU 1 "October, 2001" "Version 1.1.2" "DOS Emulation"
 .SH NAME
 dosemu, xdosemu \- run DOS and DOS programs under Linux
 .SH SYNOPSIS
@@ -9,6 +9,13 @@ dosemu, xdosemu \- run DOS and DOS programs under Linux
 ]
 [
 .B \-home
+]
+[
+.B \-quiet
+]
+[
+.B \-input
+.I keystroke-string
 ]
 [
 .B \-install
@@ -24,6 +31,13 @@ dosemu, xdosemu \- run DOS and DOS programs under Linux
 ]
 [
 .B \-home
+]
+[
+.B \-quiet
+]
+[
+.B \-input
+.I keystroke-string
 ]
 [
 .B \-install
@@ -67,6 +81,20 @@ here, however, editing is restricted to BACKSPACE'ing.
 .I -home
 in addition to drive C:, make the users $HOME available as drive D:.
 Note, however, that most of the Unix file names will get mangled.
+.TP
+.I -quiet
+do not print startup comment and do not stop for prompting
+.TP
+.I -input
+Do simulated keystrokes as given by
+.I keystroke-string
+just after DOS has booted. This can be used to autolaunch applications,
+bypass any needed boot menus or something similar. For details on the format
+of the string look at README.txt. Note, however, that the FreeDos kernel
+eats one keystroke at bootup in order to let you time to type in F8. So in
+this case you always should add a '\\r' at the beginning of this
+keystroke-string. As a side effect it will bypass the 'F8' delay and
+FreeDos will boot faster ;-)
 .TP
 .I -install
 launched as part of a systemwide installation, this option installs

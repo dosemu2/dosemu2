@@ -13,7 +13,7 @@ function usage {
   echo "
 USAGE:
 
-  [x]dosemu [-dumb] [-home] [-install nameofbootdir] [args...]
+ [x]dosemu [-dumb] [-home] [-quiet] [-input] [-install nameofbootdir] [args...]
 "
   exit 1
 }
@@ -54,40 +54,58 @@ function install_from_template {
   fi
 }
 
-if [ $UID = 0 ]; then
-  echo "
-  Your are logged in as user root. The local configuration within
-  this DOSEMU installation is not intended for secure operation.
-  You need to run this as normal unprivileged user.
-"
-  exit 1
-fi
-
 THISDIR=$PWD
 ARG0="$0"
 
-unset DUMBTERM OPT_I STRING_I
-unset LREDIRHOME
-unset PROPRIETARY
+unset DUMBTERM STRING_I LREDIRHOME PROPRIETARY QUIET
 
-while [ "$1" = "-dumb" -o "$1" = "-home" -o "$1" = "-install" ]; do
+i=0;
+while [ $(( $# > 0 )) = 1 ] ; do
+#NOTE, this won't work on older BASHes: while (( $# )); do
   case $1 in
     -dumb)
       DUMBTERM=1
       OPT_I=-I
-      STRING_I="video{none}"
+      STRING_I=" video{none}"
+      shift
       ;;
     -home)
       LREDIRHOME=1
+      shift
       ;;
     -install)
       if [ -z "$2" -o "${2-*}" != "$2" ]; then usage; fi
       PROPRIETARY=$2
       shift
+      shift
+      ;;
+    -quiet)
+      QUIET=1
+      shift
+      ;;
+    -input)
+      if [ -z "$2" -o "${2-*}" != "$2" ]; then usage; fi
+      STRING_I="$STRING_I keystroke "'"'"$2"'"'
+      shift
+      shift
+      ;;   
+    -I)
+      if [ -z "$2" -o "${2-*}" != "$2" ]; then usage; fi
+      STRING_I="$STRING_I $2"
+      shift
+      shift
+      ;;   
+    *)
+      # process and accumulate remaining dosemu.bin args into an array
+      # in order to avoid resulting substitution odds
+      par[$i]=$1
+      if [ -z "par[$i]" ]; then par[$i]="''"; fi
+      i=$(( $i + 1 ))
+      shift
       ;;
   esac
-  shift
 done
+
 
 #echo "$PROPRIETARY $LREDIRHOME $DUMBTERM $*"; exit
 
@@ -289,52 +307,86 @@ if [ -n "$XFLAG" ]; then
     fi
   fi
   w4l_check
-  echo "
+  if [ -z "$QUIET" ]; then
+    echo "
    DOSEMU will run in its own X window.
    To terminate it you have three choices:
    - type <Ctrl>-C _here_ (not in the dosemu window)
    - type <Ctrl><Alt><PgDn> in the dosemu window
    - execute 'exitemu' at the DOS prompt"
-  if [ -n "$LREDIRHOME" ]; then
-    echo "   Redirecting \$HOME to DOS drive D:"
-  else
-    echo -e "\n   Hint: if you want \$HOME as DOS drive D:, use '-home' option"
+    if [ -n "$LREDIRHOME" ]; then
+      echo "   Redirecting \$HOME to DOS drive D:"
+    else
+      echo -e "\n   Hint: if you want \$HOME as DOS drive D:, use '-home' option"
+    fi
   fi
 else
-  echo "
+  if [ -z "$QUIET" ]; then
+    echo "
    DOSEMU will run on _this_ terminal.
    To exit you need to execute 'exitemu' from within DOS,
    because <Ctrl>-C and 'exit' won't work!"
-  if [ "$TERM" = "xterm" ]; then
-  echo "
+    if [ "$TERM" = "xterm" ]; then
+      echo "
    Note, that DOS needs 25 lines and xterm per default has only 24,
    so you might want to enlarge it before continuing.
 "
+    fi
   fi
   w4l_check
-  if [ -n "$LREDIRHOME" ]; then
-    echo "   Redirecting \$HOME to DOS drive D:"
-  else
-    echo -e "\n   Hint: if you want \$HOME as DOS drive D:, use '-home' option"
+  if [ -z "$QUIET" ]; then
+    if [ -n "$LREDIRHOME" ]; then
+      echo "   Redirecting \$HOME to DOS drive D:"
+    else
+      echo -e "\n   Hint: if you want \$HOME as DOS drive D:, use '-home' option"
+    fi
+    echo -e "\n   Now type ENTER to start DOSEMU or <Ctrl>C to cancel\n"
+    read dummy
   fi
-  echo "
-   Now type ENTER to start DOSEMU or <Ctrl>C to cancel
-"
-  read dummy
 fi
 
 if [ -n "$LREDIRHOME" ]; then
   export DOSDRIVE_D="$HOME"
 fi
 
-$BOOT_DIR_PATH/bin/dosemu.bin 2>$BOOT_DIR_PATH/boot.log $XFLAG \
-	--Flibdir $BOOT_DIR_PATH/conf \
-	--Fimagedir $BOOT_DIR_PATH \
-	-f $BOOT_DIR_PATH/conf/dosemurc \
-	$OPT_I $STRING_I -O $@
+if [ $UID = 0 ]; then
+  # User is logged in as root. Need to check wether the config files
+  # are safe and not world writeable
+
+  if ! su nobody -c "\
+	test -w $BOOT_DIR_PATH/conf && exit 1; \  
+	test -w $BOOT_DIR_PATH/conf/global.conf && exit 1; \
+	test -w $BOOT_DIR_PATH/conf/dosemu.conf && exit 1; \
+	test -w $BOOT_DIR_PATH/conf/dosemurc && exit 1; \
+	exit 0  "; then
+    echo "
+  Your are logged in as user root. The local configuration within
+  this DOSEMU installation is world writeable and may compromise your system.
+  Either use a normal unprivileged user installation or protect the following
+  directories/files against everybody except root:
+	$BOOT_DIR_PATH/conf
+	$BOOT_DIR_PATH/conf/global.conf
+	$BOOT_DIR_PATH/conf/dosemu.conf
+	$BOOT_DIR_PATH/conf/dosemurc
+"
+    exit 1
+  fi
+fi
+
+
+BINARY=$BOOT_DIR_PATH/bin/dosemu.bin
+LOG=$BOOT_DIR_PATH/boot.log
+MAINARGS="$XFLAG --Flibdir $BOOT_DIR_PATH/conf --Fimagedir $BOOT_DIR_PATH \
+	-f $BOOT_DIR_PATH/conf/dosemurc -O"
+
+if [ -z "$STRING_I" ]; then
+  $BINARY 2>$LOG $MAINARGS "${par[@]}"
+else
+  $BINARY 2>$LOG $MAINARGS -I "$STRING_I" "${par[@]}"
+fi
 
 if [ -n "XFLAG" ]; then
- if grep -E '^Xlib.*refused by server' $BOOT_DIR_PATH/boot.log>/dev/null 2>&1; then
+ if grep -E '^Xlib.*refused by server' $LOG>/dev/null 2>&1; then
    echo "
     ERROR:
     You seem not to have enough rights to connect to your Xserver.
@@ -347,7 +399,7 @@ if [ -n "XFLAG" ]; then
  "
    exit 1
  fi
- if grep -E "^ERROR: X: Can't open display" $BOOT_DIR_PATH/boot.log>/dev/null 2>&1; then
+ if grep -E "^ERROR: X: Can't open display" $LOG>/dev/null 2>&1; then
    echo "
     ERROR:
     There is something wrong with the contents of your DISPLAY variable,
@@ -357,5 +409,6 @@ if [ -n "XFLAG" ]; then
  fi
 fi
 
+umask 077
 echo "$BOOT_DIR_PATH" > $BPATH_FILE
 exit 0

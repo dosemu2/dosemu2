@@ -23,7 +23,7 @@ all: lib
 fatfs.c: fatfs_boot.h
 
 fatfs_boot.h:	fatfs_boot.S
-	$(LD) -x assembler -Wa,-a -Wl,-Ttext,7c40,-e,_start16,-oformat,binary -nostdlib -s -o $@.tmp $< > $<.out
+	$(LD) -x assembler -Wa,-a -Wl,-Ttext,7c40,-e,_start16,--oformat,binary -nostdlib -s -o $@.tmp $< > $<.out
 	hexdump -v -e '"\n" 8/1 " 0x%02x,"' $@.tmp | sed -e 's/ 0x  ,//g' >$@.tmp2
 	echo "XXX" >>$@.tmp2
 	sed -e 's/,XXX//' <$@.tmp2 >$@

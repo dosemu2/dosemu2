@@ -4,8 +4,8 @@ ANNOUNCEMENT
 The DOSEMU team is proud to announce DOSEMU 1.1.2,
 the PC Emulator for x86 based *nix.
 
-SPECIAL 1.0.2 HIGHLIGHT
-~~~~~~~~~~~~~~~~~~~~~~~
+SPECIAL HIGHLIGHT starting from 1.0.2
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 For the first time in it's history, DOSEMU now deserves it's name because it
 distributes together with a specially tailored FreeDos distribution, allowing
 it to run out-of-the-box without further (painful) configuration.

@@ -325,16 +325,18 @@ AC_SUBST(XLIBSW)
 AC_SUBST(x_libraries)
 
 REALTOPDIR=`nolinks=1; pwd`
-V=`cat VERSION`
-if test "${V##*.*.*.*}" = "$V"; then
-  V=$V.0
+VV=`cat VERSION`
+VERSION=${VV%%.*}
+VV=${VV#*.}
+SUBLEVEL=${VV%%.*}
+VV=${VV#*.}
+PATCHLEVEL=${VV%%.*}
+if test $PATCHLEVEL = $VV; then
+  PATCHLEVEL_=0
+else
+  VV=${VV#*.}
+  PATCHLEVEL_=${VV%%.*}
 fi
-VERSION=${V%*.*.*.*}
-PATCHLEVEL_=${V#*.*.*.*}
-V_=${V%*.*.*}
-SUBLEVEL=${V_#*.*}
-V_=${V#*.*.*}
-PATCHLEVEL=${V_%*.*}
 DOSEMU_VERSION_CODE=`echo "$(( ( $VERSION * 16777216 ) + ( $SUBLEVEL * 65536 ) + ( $PATCHLEVEL * 256 ) + $PATCHLEVEL_ ))"`
 PATCHLEVEL="${PATCHLEVEL}.${PATCHLEVEL_}"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"

@@ -119,13 +119,22 @@ irqnum	=	0x1c
 	iret
 
 
-			/* system-soft ints 0x1d .. 0x5f */
+			/* system-soft ints 0x1d .. 0x44 */
 irqnum	=	0x1d
 	.org	irqnum*16
-.REPT (0x60-0x1d) 
+.REPT (0x45-0x1d) 
 	.align 16,0
 	int	$irqnum
 	lret	$2
+irqnum	=	irqnum+1
+.ENDR
+
+			/* soft ints 0x45 .. 0x5f */
+irqnum	=	0x45
+	.org	irqnum*16
+.REPT (0x60-0x45) 
+	.align 16,0
+	iret
 irqnum	=	irqnum+1
 .ENDR
 
@@ -137,13 +146,12 @@ int_pktdrv:
 
 /* ??? Where are 0x61-0x67 ??? */
 		
-			/* system-soft ints 0x68 .. 0x6f */
+			/* soft ints 0x68 .. 0x6f */
 irqnum	=	0x68
 	.org	irqnum*16
 .REPT (0x70-0x68) 
 	.align 16,0
-	int	$irqnum
-	lret	$2
+        iret
 irqnum	=	irqnum+1
 .ENDR
 

@@ -16,10 +16,10 @@ SCRIPT=getrom
 all: $(OBJ)
 
 bootsect: bootsect.S
-	$(LD) -traditional -nostdlib -Wl,-Ttext,0,-e,_start16,-oformat,binary -s -o $@ $< # -Wa,-a > bootsect.lst
+	$(LD) -traditional -nostdlib -Wl,-Ttext,0,-e,_start16,--oformat,binary -s -o $@ $< # -Wa,-a > bootsect.lst
 
 %.com: %.S
-	$(LD) -traditional -Wa,-a -Wl,-Ttext,100,-oformat,binary -nostdlib -s -o $@ $< > $<.out
+	$(LD) -traditional -Wa,-a -Wl,-Ttext,100,--oformat,binary -nostdlib -s -o $@ $< > $<.out
 
 $(D)/hdimage.dist: mkfatimage
 	./mkfatimage -l DOSEMU $(REALTOPDIR)/$(THISVERSION)/commands/* >$(D)/hdimage.dist

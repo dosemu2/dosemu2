@@ -15,7 +15,7 @@
 #ifndef COOPTHREADS_H
 #define COOPTHREADS_H 1
 
-#if 1
+#if 0
 #include <unistd.h>
 #define COM_CHECK_PERMISSIONS { \
   uid_t uid = getuid(); \
