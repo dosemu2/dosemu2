@@ -122,63 +122,6 @@ dexefile
 .I inpipe[:outpipe]
 ]
 .sp
-.B xtermdos
-[
-.B \-ABCcdkVNXtsgKm234OU
-]
-[
-.B \-h
-.I level
-]
-[
-.B \-F
-.I file
-]
-[
-.B \-L
-.I dexefile
-]
-[
-.B \-u
-.I confvar
-]
-[
-.B \-D
-.I flags
-]
-[ 
-.B \-M 
-.I size
-]
-[ 
-.B \-e 
-.I size
-]
-[ 
-.B \-x 
-.I size
-]
-[
-.B \-P 
-.I file
-]
-[
-.B \-o
-.I file
-]
-[
-2\>
-.I debugfile
-]
-[
-.B \-I
-.I config-options
-]
-[
-.B \-U
-.I inpipe[:outpipe]
-]
-.sp
 .B dosdebug
 .sp
 .B xdos
@@ -248,24 +191,6 @@ invokes the Linux dos emulator, also known as
 .br
 .I debugfile
 is an optional file into which all debugging output will be redirected.
-.PP
-.B xtermdos
-brings up
-.B DOSEMU
-in an
-.B xterm
-(or one of its cousins:
-.BR color_xterm ,
-.BR ansi_xterm ,
-or
-.BR rxvt ).
-It automatically detects the IBM VGA font, and the best
-.B xterm
-to run,
-and then runs the
-.B xterm
-with the proper parameters required to run
-.BR DOSEMU .
 .PP
 .B dosdebug
 is used to control or debug an already running 
@@ -776,9 +701,6 @@ developer team - even just good detailed debug reports are all you need!
 .TP
 .I /usr/bin/dos
 The invoker program.
-.TP
-.I /usr/bin/xtermdos
-The xterm wrapper (obsolete).
 .TP
 .I /usr/bin/xdos
 The X version.

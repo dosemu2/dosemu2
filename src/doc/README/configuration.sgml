@@ -4,21 +4,18 @@
 <title>DOSEmu Configuration
 <author>The DOSEmu team
 Edited by Alistair MacDonald  <htmlurl url="mailto:alistair@slitesys.demon.co.uk" name="&lt;alistair@slitesys.demon.co.uk&gt;">
-<date>For DOSEMU v0.66 pl5.0
+<date>For DOSEMU v1.0 pl0.0
 
 <abstract>DOSEmu Configuration
 <p>
-This release includes the new configuration routines. Running './setup-dosemu'
+Running './setup-dosemu'
 from this directory will allow you to configure both the compilation and
 the run-time aspects of DOSEmu. When changing the run-time settings of
 DOSEmu you can set both the system wide settings and your personal settings.
 Even better, the program will automatically tell you your current settings
 or suggest defaults where possible.
 <p>
-The program uses a modified 'lxdialog' (which is in fact a stolen 'dialog')
-from the Linux-kernel (/usr/src/linux/scripts/lxdialog). This is compiled
-before usage. If this compilation fails (e.g. when you have no 'ncurses'),
-it will use 'dialog' which is supplied with all major distributions.
+The program needs Tcl/Tk, take care to have it available on your system.
 <p>
 Comments, and bug reports to me, Alistair MacDonald 
 <htmlurl url="mailto:alistair@slitesys.demon.co.uk" 

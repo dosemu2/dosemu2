@@ -91,9 +91,6 @@ if test "$CONFIG_HOST" = "Linux"; then
     echo ''
     exit 1
   fi
-  force_vm86plus="1"
-else
-  force_vm86plus="0"
 fi
 AC_SUBST(CONFIG_HOST)
 
@@ -368,35 +365,15 @@ dnl enable EXPERIMENTAL stuff
   fi
 
 if test "$CONFIG_HOST" = "linux"; then
- AC_CHECKING("Linux Specific Stuff")
-
 dnl Do vm86plus 
- AC_ARG_ENABLE(novm86plus,
-               [  --enable-novm86plus     do NOT use VM86 enhancement],
-               [novm86plus="yes"],[novm86plus="no"])
-  vm86plus="yes"
-  if test "$novm86plus" = "yes"; then
-    vm86plus="no"
-  fi
-
-  if test "$vm86plus" = "yes"; then
-   AC_DEFINE_UNQUOTED(BUILTIN_VM86PLUS)
-   BUILTIN_VM86PLUS="-DBUILTIN_VM86PLUS"
-   AC_SUBST(BUILTIN_VM86PLUS)
-   AC_CHECKING("Compiling for vm86plus support");
-   AC_DEFINE_UNQUOTED(REQUIRES_VM86PLUS)
+dnl Starting wth dosemu-1.0 we nolonger support the old vm86 interface
+dnl but only vm86plus
    AC_DEFINE_UNQUOTED(USE_MHPDBG)
    USE_MHPDBG="-DUSE_MHPDBG"
    AC_SUBST(USE_MHPDBG)
    DEBUGGER="arch/$CONFIG_HOST/debugger"
-   REQUIRES_VM86PLUS="YES"
    OPTIONALSUBDIRS="dosext/net/v-net"
    REQUIRED="tools commands tools/periph"
-  else
-   AC_CHECKING("Compiling without vm86plus support");
-   DEBUGGER=""
-   REQUIRED="tools commands tools/periph"
-  fi
 fi
 AC_SUBST(DEBUGGER)
 
@@ -492,17 +469,12 @@ AC_ARG_ENABLE(linkstatic,
 
 dnl DPMI requirements
 
-  if test "$vm86plus" = "yes"; then
 AC_DEFINE_UNQUOTED(WANT_WINDOWS)
 WANT_WINDOWS="WANT_WINDOWS=-DWANT_WINDOWS"
-  else
-WANT_WINDOWS=""
-  fi
 AC_SUBST(WANT_WINDOWS)
 
 AC_SUBST(OPTIONALSUBDIRS)
 AC_SUBST(REQUIRED)
-AC_SUBST(REQUIRES_VM86PLUS)
 AC_SUBST(PLUGINSUBDIRS)
 
 dnl Now CFLAGS and INCLUDES
@@ -639,17 +611,6 @@ AC_SUBST(GLIBCFLAGS)
 CFLAGS="-D_GNU_SOURCE ${OPT} ${EGCSFLAGS} ${GCC295FLAGS} ${GCC_VERSION_CODE} ${ASM_PEDANTIC} ${GLIBC_VERSION_CODE} ${GLIBCFLAGS} ${PIPE} ${USING_NET} ${CDEBUGOPTS} ${COPTFLAGS} ${INCDIR}"
 
 
-# set for DPMI want windows
-# ifdef REQUIRES_VM86PLUS
-#  LDTPATCH=2
-#else
-#  LDTPATCH=`grep -c useable /usr/include/linux/ldt.h`
-#endif
-#ifeq ($(LDTPATCH),2)
-#  WIN31=1
-#else
-#  WIN31=0
-#endif
 
 # set to use a simpler fork for unix command
 # CFLAGS+=-DSIMPLE_FORK

@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -218,6 +218,7 @@ int keyb_client_init()  {
 
 
 void keyb_client_close() {
+   extern void clear_console_video(void);
    if (Keyboard!=NULL && Keyboard->close!=NULL)
       Keyboard->close();
    if (config.console_video && config.vga && (Keyboard == &Keyboard_slang)) {

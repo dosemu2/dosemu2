@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -15,8 +15,6 @@
 
 #define OLD_SYS_vm86  113
 #define NEW_SYS_vm86  166
-
-#ifdef REQUIRES_VM86PLUS
 
 #ifdef X86_EMULATOR
 int e_vm86(void);
@@ -56,18 +54,5 @@ static inline int vm86_plus(int function, int param)
   #else
     #define DO_VM86(x) _DO_VM86_(x)
   #endif
-#else
-#ifdef X86_EMULATOR
-#error You need vm86plus with cpuemu
-#endif
-static inline int vm86_old(struct vm86_struct* v86)
-{
-	int __res;
-	__asm__ __volatile__("int $0x80\n"
-	:"=a" (__res):"a" ((int)OLD_SYS_vm86), "b" ((int)v86));
-	return __res;
-} 
-  #define DO_VM86(x) vm86_old(x)
-#endif
 
 #endif

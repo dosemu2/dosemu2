@@ -137,6 +137,7 @@ extern void     time_setting_init(void);
 extern void     low_mem_init(void);
 extern void	mapping_init(void);
 extern void	mapping_close(void);
+extern void	pcibios_init(void);
 extern void     shared_memory_exit(void);
 extern void     restore_vt(u_short);
 extern void     disallocate_vt(void);
@@ -236,7 +237,7 @@ static SillyG_t SillyG_[16 + 1];
 static inline void 
 SIG_init()
 {
-#if defined(SIG) && defined(REQUIRES_VM86PLUS)
+#if defined(SIG)
     PRIV_SAVE_AREA
     /* Get in touch with Silly Interrupt Handling */
     if (config.sillyint) {
@@ -275,7 +276,7 @@ SIG_init()
 static inline void 
 SIG_close()
 {
-#if defined(SIG) && defined(REQUIRES_VM86PLUS)
+#if defined(SIG)
     if (SillyG) {
 	SillyG_t       *sg = SillyG;
 	while (sg->fd) {
@@ -290,7 +291,6 @@ SIG_close()
 static inline void 
 vm86plus_init(void)
 {
-#ifdef REQUIRES_VM86PLUS
     static inline int vm86_old(struct vm86_struct* v86)
     {
         int __res;
@@ -307,7 +307,6 @@ vm86plus_init(void)
     fflush(stdout);
     fflush(stderr);
     _exit(1);
-#endif
 }
 
 static inline void

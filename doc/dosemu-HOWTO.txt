@@ -267,22 +267,22 @@
   Dosemu uses the same numbering scheme as the kernel. Uneven second
   numbers are for possible unstable developer releases, even second
   numbers are for releases considered stable. At the time of writing,
-  00..9988..66 is the latest stable release, while 00..9999..1100 is the latest
+  11..00..00 is the latest stable release, while 11..11..00 is the latest
   developer's release. So if you want to use dosemu, get the latest
   ssttaabbllee release.
 
 
   11..1100..  WWhhaatt''ss tthhee nneewweesstt vveerrssiioonn ooff ddoosseemmuu aanndd wwhheerree ccaann II ggeett iitt??
 
-  The newest version of dosemu as of 99/04/09 is ddoosseemmuu00..9988..66 and can be
-  ftp'ed from:
+  The newest version of dosemu as of 2000/02/28 is ddoosseemmuu--11..00..00 and can
+  be ftp'ed from:
 
        ftp://ftp.dosemu.org/pub/dosemu/
 
 
 
-  Remember that this is ALPHA code, however: there may be serious bugs
-  and very little documentation for new features. The development
+  We just decided to leave BETA stage, however: there may be serious
+  bugs and very little documentation for new features. The development
   version is particularly likely to have bugs. Please use it only if you
   like to do active development. Don't report bugs in the development
   version, fix them instead.
@@ -714,7 +714,7 @@
   that
 
   Works even fine under dosemu with MS-DOS 6.0. If you have problems,
-  then you have to edit the file 'DBLSPACE.INI' manually and change the
+  then you have to edit the file `DBLSPACE.INI' manually and change the
   disk letter to the letter your drive gets under dosemu.
 
   ---------------------
@@ -904,7 +904,7 @@
 
 
   and then a little trick to get "eecchhoo $$** >> $$DDOOSSTTMMPP//ssttaarrttuupp..bbaatt" really
-  working (actually a small C Program which turns '/' in '\\' and termi-
+  working (actually a small C Program which turns `/' in `\\' and termi-
   nates lines correctly for messy dos with cr/lf pairs and adds ^^ZZ at
   the end of the file), creates startup files, links and so on in this
   directory, and then starts dosemu. Within "aauuttooeexxeecc..bbaatt" drive c: is
@@ -1199,7 +1199,7 @@
   3. The mouse cursor gets not painted by X, but by windows itself, so
   it depends on the refresh rate how often it gets updated, though the
   mouse coordinates movement itself will not get delayed.  ( In fact you
-  have 2 cursors, but the X-cursor is given an 'invisible' cursor shape
+  have 2 cursors, but the X-cursor is given an `invisible' cursor shape
   while within the DOS-Box. )
 
   4. Because the coordinates passed to windows are interpreted
@@ -1257,7 +1257,7 @@
   There is a security hole when having enabled DPMI and having dosemu
   suid root (especially when using dos4gw-based games), the client is
   able to access the whole user space, hence also can modify the dosemu
-  code itself. Use of the 'secure' option in /etc/dosemu.conf, e.g.
+  code itself. Use of the `secure' option in /etc/dosemu.conf, e.g.
 
        $_secure = "ngd" # secure for: n (normal users), g (guest), d (dexe)
 
@@ -1302,7 +1302,8 @@
   1100..11..  DDuukkee33dd ddoosseenn''tt wwoorrkk
 
   Hans Lermen <<lleerrmmeenn@@eellsseerrvv..ffffmm..ffggaann..ddee>> said (97/2/16): duke3d must be
-  'configured' via a setup, within this setup you have to choose
+  `configured' via a setup, within this setup you have to choose
+  `keyboard + mouse', else it won't work.
 
 
   1111..  PPrroobblleemmss aanndd ffiixxeess
@@ -1314,10 +1315,12 @@
   usually do not need to run dosemu as root.  Dosemu runs as suid "root"
   only where it is needed, and releases this right thereafter. But with
   DPMI, the Dos client programm can access the whole user space, hence
-  also can modify the dosemu code itself. Use of the 'secure' option in
+  also can modify the dosemu code itself. Use of the `secure' option in
   /etc/dosemu.conf disables this.  There are several other important
   security considerations discussed in the Security section of the
   README.txt file.
+
+
   1111..22..  ddoosseemmuu ssaayyss ""EERRRROORR:: ggeenneerraall pprrootteeccttiioonn"" aanndd tteerrmmiinnaatteess wwhheenn II
   rruunn ssoommee pprrooggrraamm
 
@@ -1380,9 +1383,6 @@
   "kbd_mode -a" automatically right after dosemu.  When dosemu crashes,
   the script usually will resume running, and execute the "kbd_mode -a"
   command.
-
-
-
 
   1111..66..  II''vvee eennaabblleedd EEMMSS mmeemmoorryy iinn ddoosseemmuu..ccoonnff bbuutt iitt ddooeess nnoott hheellpp..
 
@@ -1480,9 +1480,9 @@
   After running dos after playing with some stty settings, I was getting
   doubled key presses.  I can now reveal what the reason is!
 
-  It only happens when dos is run on the console with 'istrip' set.
+  It only happens when dos is run on the console with `istrip' set.
   This is (I think) because the raw scancodes are mutilated by the
-  'istrip', so that key release events look like key press events.
+  `istrip', so that key release events look like key press events.
 
   So, the input processing needs to be turned off when using the scan
   codes on a console (it wouldn't be a good idea to do it for tty

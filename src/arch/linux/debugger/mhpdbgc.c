@@ -1,6 +1,6 @@
 /* 
  * All modifications in this file to the original code are
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -81,7 +81,7 @@ extern void mhp_send(void), mhp_close(void), mhp_putc(char c1);
 
 #if 0
 /* NOTE: the below is already defined with #include "emu.h"
- *       Must NOT redefine it, else REQUIRES_VM86PLUS won't work !!!
+ *       Must NOT redefine it, else vm86plus won't work !!!
  */
 extern struct vm86_struct vm86s;
 #endif

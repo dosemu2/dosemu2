@@ -1,3 +1,34 @@
+2000/03/01 ver. 0.99.14 FORK-POINT released
+	NOTE: This is the 1.0/1.1 forkpoint
+	      1.1 will continue unchanged to form the new Hacker version.
+	      1.0, the stable version, will be 1.1 with the experimental
+	      stuff removed.
+	From Alistair
+	- some fixing soundpatches (mainly DMA stuff, as of 0.98)
+	From Hans
+	- wrote new setup-bootdir (should replace setup-hdimage)
+	  (taken from 0.98)
+	- udated src/tools/mkbindist (taken from 0.98)
+	- removed obsolete old vm86 interface stuff and the configuration
+	  option 'novm86plus'. Also deleted src/doc/README/vm86plus.
+	- checked and fixed some compiler warnings
+	- docs: removed (broken and/or obsolete) video ibmset loglevel
+	- docs: SECURITY, unix.com and system.com are no longer dangerous
+	- docs: X, removed obsolete 'todo' list.
+	- docs: commands, updated to reflect current state
+	- docs: config, added description of the new mapping stuff
+	- docs: dexe, binfmt_misc now is in every kernel.
+	- docs: priv, fixed formatting error at section start
+	- docs: configuration.sgml, TclTk is the only 'dialog' tool
+		currently.
+	- docs: DANG, removed threads and DANG recompile
+	- docs: removed doc/Known-Bugs (was state 0.53pl58).
+		We _have_ still bugs, but not those mentioned ;-)
+	- docs: removed man/xtermdos.1 and updated dos.1 (xtermdos is broken,
+		docs removed but script kept for compatibility)
+	- docs: added help entry for $_mapping in runtime_setup.help.patterns
+	- did docs recompile
+	- did run mknewyear to update copyright header
 2000/02/28 ver. 0.99.13.3 unofficial pre-release
 	From Hans
 	- removed threads code (definitively), because no one made real

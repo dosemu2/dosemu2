@@ -88,7 +88,7 @@ inline int process_interrupt(SillyG_t *sg);
 
 
 void io_select_init(void);
-#if defined(SIG) && defined(REQUIRES_VM86PLUS)
+#if defined(SIG)
 int SillyG_pendind_irq_bits=0;
 
 int SillyG_do_irq(void)
@@ -112,7 +112,7 @@ inline int process_interrupt(SillyG_t *sg)
 }
 
 
-#if defined(SIG) && defined(REQUIRES_VM86PLUS)
+#if defined(SIG)
 inline void irq_select()
 {
   if (SillyG) {
@@ -148,7 +148,7 @@ io_select(fd_set fds)
   tvptr.tv_sec=0L;
   tvptr.tv_usec=0L;
 
-#if defined(SIG) && defined(REQUIRES_VM86PLUS)
+#if defined(SIG)
   irq_select();
 #endif
 

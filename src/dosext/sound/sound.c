@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -509,7 +509,7 @@ Bit8u sb_get_mixer_IRQ_status (void)
 
 Bit8u adlib_io_read(ioport_t port)
 {
-  Bit8u result;
+  Bit8u result = 0xFF;
 
   /* Adlib Base Port is 0x388 */
   /* Adv. Adlib Base Port is 0x38A */
@@ -538,8 +538,8 @@ Bit8u adlib_io_read(ioport_t port)
 
 Bit8u fm_io_read (ioport_t port)
 {
-  extern struct adlib_info_t adlib_info;
-  /* extern struct adlib_timer_t adlib_timers[2]; - For reference - AM */
+  /* extern struct adlib_info_t adlib_info; - For reference - AM */
+  extern struct adlib_timer_t adlib_timers[2];
   Bit8u retval;
 
   switch (port){
@@ -2201,6 +2201,12 @@ int sb_dma_handler (int status, Bit16u amount)
     S_printf ("SB: In DMA Handler\n");
   }
 
+  if (!SB_info.speaker) {
+    /* No output possbile - Try to stop processing ! */
+    dma_drop_DREQ(config.sb_dma);
+    return DMA_HANDLER_NOT_OK;
+  }
+
   switch (status) {
   case DMA_HANDLER_READ:
     dma_assert_DACK(config.sb_dma);
@@ -2219,7 +2225,7 @@ int sb_dma_handler (int status, Bit16u amount)
        till the next block is started. On auto-init, next block start
        on an EOI. - MK */
         
-    dma_drop_DREQ(config.sb_dma);
+    /*    dma_drop_DREQ(config.sb_dma); */
     if(SB_dsp.bytes_left)
     {
       /* Still some bytes left till IRQ */
@@ -2510,7 +2516,7 @@ static void sb_reset (void)
 
 static void fm_reset (void)
 {
-  extern struct adlib_info_t adlib_info;
+  /* extern struct adlib_info_t adlib_info; - For reference - AM */
   extern struct adlib_timer_t adlib_timers[2];
 
   S_printf ("SB: Resetting FM\n");

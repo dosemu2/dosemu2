@@ -1,6 +1,6 @@
   The DOSEMU Alterer Novices Guide
   Author: Alistair MacDonald, alistair\@slitesys.demon.co.uk
-  version dosemu-0.99.13
+  version dosemu-1.0
 
   This Document is the DOSEMU Alterer Novices Guide. It is known as the
   DANG.
@@ -434,33 +434,7 @@
      14.2 Remarks in dosext/mfs/mfs.c
      14.3 Items for Fixing in dosext/mfs/mfs.c
 
-  15. The Threads group of Modules
-
-     15.1 arch/linux/threads/lt-threads.c Information
-     15.2 Functions in arch/linux/threads/lt-threads.c
-        15.2.1 Making room on the stack
-        15.2.2 Setting User Space Stack limits
-        15.2.3 Queuing tools
-        15.2.4 Avoiding Libc reentrancy Problems
-        15.2.5 getting page aligned memory from the heap
-        15.2.6 Name List Tools
-        15.2.7 Exiting a thread
-        15.2.8 Suspending / resuming a thread
-        15.2.9 Locking Resources
-        15.2.10 Sending and receiving messages
-        15.2.11 Creating (starting) a thread
-        15.2.12 Some debugging aids
-     15.3 include/lt-threads.h Information
-     15.4 Functions in include/lt-threads.h
-        15.4.1 The thread itself
-        15.4.2 A thread's exit function
-        15.4.3 Accessing a thread's TCB
-        15.4.4 Looping through all TCBs
-        15.4.5 Atomic inline Functions
-        15.4.6 Misc inline Functions
-     15.5 Data Definitions in include/lt-threads.h
-        15.5.1 TCB  (Thread Control Block)
-  16. And Finally ...
+  15. And Finally ...
 
 
 
@@ -484,6 +458,7 @@
   put together. This may help you when trying to locate the relevant
   pieces of code. If you add new code, it would be useful if the
   relevant markers are added where appropriate.
+
 
   This file is a collective effort. If you don't like one of the
   explanations, or want to add anything, please send me something!
@@ -524,6 +499,9 @@
 
      Function created by entry point into libdosemu. Called to jump into
      the emulate function of DOSEMU.
+
+
+
 
 
   22..33..  eemmuu..cc IInnffoorrmmaattiioonn
@@ -585,8 +563,6 @@
      memory, calling all the initialization functions for the I/O
      subsystems (video/serial/etc...), getting the boot sector
      instructions and calling vm86().
-
-
 
 
 
@@ -658,6 +634,7 @@
   very startup DosC issues a INTe6,0xdcDC to set running_DosC with the
   contents of BX (which is the internal DosC version).
 
+
   33..  TThhee IInniitt ggrroouupp ooff MMoodduulleess
 
   These files are used for initialization and runtime configuration of
@@ -677,7 +654,6 @@
 
 
   Setup the call stack to draw the dosemu banner
-
 
 
 
@@ -724,6 +700,9 @@
   Map the video bios into main memory
 
 
+
+
+
   33..22..77..  mmaapp__hhaarrddwwaarree__rraamm
 
 
@@ -738,6 +717,8 @@
 
   Setup the dosemu amazing custom BIOS, quietly overwriting anything was
   copied there before. Do not overwrite graphic fonts!
+
+
 
 
 
@@ -786,6 +767,7 @@
 
 
   Find version of OS running and set necessary global parms.
+
 
 
 
@@ -856,6 +838,9 @@
   specifying.
 
 
+
+
+
   33..66..  RReemmaarrkkss iinn bbaassee//iinniitt//ccoonnffiigg..cc
 
   For simpler support of X, DOSEMU can be started by a symbolic link
@@ -866,6 +851,9 @@
   Description: Manages a list of the available I/O devices.  It will
   automatically call their initialization and termination routines.  The
   current I/O device list includes:
+
+
+
 
 
        Fully emulated:      pit, pic, cmos, serial
@@ -921,13 +909,14 @@
 
 
 
-
   44..22..33..  ddoo__ddeeffaauulltt__ccppuu__eexxcceeppttiioonn
 
 
   This is the default CPU exception handler.  Exceptions 0, 1, 2, 3, 4,
   5 and 7 are reflected to real mode. All other exceptions are
   terminating the client (and may be dosemu too :-)).
+
+
 
 
 
@@ -1054,6 +1043,11 @@
   mode segment register. And if client\'s data buffer is above 1MB,
   necessary buffer copying is performed. This function returns 1 if it
   does not need to go to real mode, otherwise returns 0.
+
+
+
+
+
   44..77..22..  mmssddooss__ppoosstt__eexxtteennddeerr
 
 
@@ -1120,9 +1114,11 @@
   the page.  (this could happen 32000000 per second, if the CPU were
   fast enough) It would be better to get the DIRTY-bit directly from the
   page table, isn't it?  A special syscall in emumodule could do this.
+
   -----
 
   reserve_video_memory()
+
 
   This procedure is trying to eke out all the UMB blocks possible to
   maximize your memory under DOSEMU.  If you know about dual monitor
@@ -1189,6 +1185,7 @@
   55..66..66..  ggrraapphhiiccss__ccmmaapp__iinniitt
 
 
+
   Allocate a colormap for graphics modes and initialize it.  Do mostly
   nothing on true color displays.  Otherwise, do: - if colormaps have
   less than 256 entries (notably 16 or 2 colors), don't use a private
@@ -1248,6 +1245,9 @@
   This function seems to be called each screen_update :( It is called in
   base/mouse/mouse.c:mouse_cursor(int) a lot for show and hide (changes
   the mouse cursor shape).
+
+
+
 
 
 
@@ -2405,10 +2405,6 @@
   This provides the EMM Memory Management for DOSEMU. It was originally
   part of the Mach Dos Emulator.
 
-  Recent work in this area has involved a patch to the Kernel. If this
-  is used and the DEFINE MMAP_EMS line used, a faster form of EMS memory
-  support is included, using the /proc filesystem.
-
   In contrast to some of the comments (Yes, _I_ know the adage about
   that...)  we appear to be supporting EMS 4.0, not 3.2.  The following
   EMS 4.0 functions are not supported (yet): 0x4f (partial page map
@@ -2439,11 +2435,8 @@
   77..44..11..  DDEEFFAAUULLTT__IINNTTEERRRRUUPPTT
 
 
-
   DEFAULT_INTERRUPT is the default interrupt service routine called when
   DOSEMU initializes.
-
-
 
 
 
@@ -2513,11 +2506,6 @@
 
   This improves consistency of interrupt handling, but not quite as much
   as if I could handle it the way I would like.  -- EB 30 Nov 1997
-
-
-
-
-
   77..44..44..  DDOO__IINNTT
 
 
@@ -2570,8 +2558,6 @@
   77..66..  iinncclluuddee//iinntt..hh IInnffoorrmmaattiioonn
 
 
-
-
   77..77..  aarrcchh//lliinnuuxx//aassyynncc//ssiiggsseeggvv..cc IInnffoorrmmaattiioonn
 
 
@@ -2585,10 +2571,6 @@
 
   All CPU exceptions (except 13=general_protection from V86 mode, which
   is directly scanned by the kernel) are handled here.
-
-
-
-
 
   77..88..22..  pprriinntt__eexxcceeppttiioonn__iinnffoo
 
@@ -2631,8 +2613,6 @@
 
 
   Allow all signals to interrupt DOSEMU.
-
-
 
 
 
@@ -2700,8 +2680,6 @@
   77..1155..  FFuunnccttiioonnss iinn bbaassee//mmiisscc//ddiisskkss..cc
 
   These are the functions defined in base/misc/disks.c.
-
-
 
 
   77..1155..11..  ddiisskk__iinniitt
@@ -2835,7 +2813,6 @@
 
   given.  No mixing happens.
 
-
   For code that wants to implement speaker emulation.  The recommeded
   method is to add a file in src/base/speaker with the necessary code.
   Declare it's methods in speaker.h (or somewhere accessible to your
@@ -2858,7 +2835,6 @@
   speaker functions, which will always work.
 
   --EB 20 Sept 1997
-
 
   Maintainers:
 
@@ -2885,11 +2861,10 @@
 
   77..2222..  RReemmaarrkkss iinn bbaassee//mmiisscc//sshhaarreedd..cc
 
-  Set to 0 all client request area
+  Output info required for client activity (NOTE: 'client activity' as
+  of 2000/02/02 totally disabled, but left file structure compatible,
+  --Hans)
 
-  -----
-
-  Output info required for client activity
 
 
   77..2233..  bbaassee//mmiisscc//ddooss22lliinnuuxx..cc IInnffoorrmmaattiioonn
@@ -2926,8 +2901,6 @@
   Arguments are:
 
   +o  buffer - string with command to execute
-
-
 
   77..2255..  bbaassee//mmiisscc//iiooccttll..cc IInnffoorrmmaattiioonn
 
@@ -2967,7 +2940,6 @@
 
 
 
-
   Arguments are:
 
   +o  fd - File handle to remove from select statment.
@@ -2993,6 +2965,7 @@
 
 
   77..2299..11..  pprriinntteerr__iinniitt
+
 
 
   Initialize printer control structures
@@ -3032,8 +3005,6 @@
 
 
 
-
-
   77..3311..33..  ppccii__rreeaadd__hheeaaddeerr
 
 
@@ -3061,6 +3032,7 @@
   functions 0x8x   -- utility functions 0x80 -- getcwd(ES:DX, size AX)
   0x81 -- chdir(ES:DX) 0xdc      - helper for DosC kernel 0xfe      -
   called from our MBR, emulate MBR-code.  0xff      - Terminate DOSEMU
+
 
   There are (as yet) no guidelines on choosing areas for new functions.
 
@@ -3127,6 +3099,7 @@
 
 
 
+
   88..22..22..  ccppuu__sseettuupp
 
 
@@ -3159,8 +3132,6 @@
 
 
   Handles/simulates an inb() port IO read
-
-
 
 
 
@@ -3253,6 +3224,7 @@
 
 
   88..44..1100..  ppoorrtt__aallllooww__iioo
+
 
 
 
@@ -3361,9 +3333,6 @@
 
 
 
-
-
-
   88..99..  RReemmaarrkkss iinn eemmuu--ii338866//ddoo__vvmm8866..cc
 
   In a properly functioning emulator :-), sigsegv's will never come
@@ -3430,6 +3399,11 @@
   GETtickTIME returns the DOS (stretched) time with 838ns resolution
   using GETcpuTIME to get the implementation-dependent CPU time.  The
   'sc' parameter works like in GETusTIME.
+
+
+
+
+
   88..1133..44..  GGEETTuussSSYYSSTTIIMMEE(())
 
 
@@ -3493,9 +3467,6 @@
 
 
 
-
-
-
   99..  TThhee SSeerriiaall ggrroouupp ooff MMoodduulleess
 
   This is the code that works our serial emulation. This needs to be
@@ -3525,7 +3496,6 @@
   SER_DEBUG_INTERRUPT   (0 or 1) - additional debug output related to
   serial interrupt code, including flagging serial interrupts, or PIC-
   driven code.
-
   SER_DEBUG_FOSSIL_RW   (0 or 1) - heavy FOSSIL debug output, including
   all reads and writes.
 
@@ -3562,6 +3532,8 @@
   for (i = 0; i < config.numser; i++) s_printf("COM port number %d has a
   base address of %x", com[i].real_comport, com[i].base_port);
 
+
+
   99..33..  bbaassee//sseerriiaall//sseerr__iinniitt..cc IInnffoorrmmaattiioonn
 
   ser_init.c: Serial ports initialization for DOSEMU Please read the
@@ -3589,7 +3561,6 @@
   99..44..  FFuunnccttiioonnss iinn bbaassee//sseerriiaall//sseerr__iinniitt..cc
 
   These are the functions defined in base/serial/ser_init.c.
-
 
   99..44..11..  sseerriiaall__iinniitt
 
@@ -3650,6 +3621,9 @@
   I/O address such as 0x3F8 (the base port address of COM1).  [num =
   abritary port number for serial line, address = I/O port address, val
   = value to write to I/O port address]
+
+
+
 
 
 
@@ -3720,10 +3694,6 @@
   interrupt trigger and the actual interrupt, some checks must be
   repeated.
 
-
-
-
-
   99..1100..33..  sseerriiaall__rruunn
 
 
@@ -3757,9 +3727,6 @@
   Perhaps this can be modified to limit max chain length?
 
 
-
-
-
   99..1133..  bbaassee//sseerriiaall//iinntt1144..cc IInnffoorrmmaattiioonn
 
   int14.c: Serial BIOS services for DOSEMU.  Please read the
@@ -3787,6 +3754,8 @@
   code by Mark Rejhon replaced some very buggy, old int14 interface a
   while back.  These routines are not flawless since it does not wait
   for a character during receive, and this may confuse some programs.
+
+
 
 
 
@@ -3825,6 +3794,7 @@
 
   Why does a RX_BUFFER_SIZE of 256 cause slower performance than a size
   of 128?
+
 
   1100..  TThhee MMoouussee ggrroouupp ooff MMoodduulleess
 
@@ -3891,7 +3861,6 @@
   and most common route, which is also long standing dosemu practice of
   always shifting by 1.
 
-
   -- Eric Biederman 19 August 1998
 
 
@@ -3923,8 +3892,6 @@
 
 
 
-
-
   1111..33..22..  hhlltt__hhaannddllee(())
 
 
@@ -3945,16 +3912,6 @@
   pic.c is a fairly complete emulation of both 8259 Priority Interrupt
   Controllers.  It also includes provision for 16 lower level
   interrupts.  This implementation supports the following i/o commands:
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -3998,6 +3955,7 @@
   1122..22..  FFuunnccttiioonnss iinn bbaassee//ddeevv//ppiicc//ppiicc..cc
 
   These are the functions defined in base/dev/pic/pic.c.
+
 
 
   1122..22..11..  ppiicc__pprriinntt
@@ -4059,6 +4017,8 @@
   gate controlled by the OUT2 bit of the 16550A UART's Modem Control
   Register.  This mask is cleared by pic_unmaski() and set by
   pic_maski()
+
+
 
 
 
@@ -4156,6 +4116,11 @@
   will remain queued.  Also, some programs fake an iret, so that it is
   possible for pic_iret to fail.  See pic_watch for the watchdog timer
   that catches and fixes this event.
+
+
+
+
+
   1122..22..1100..  ppiicc__wwaattcchh
 
 
@@ -4185,6 +4150,8 @@
   status will depend upon whether the interrupt code has re-requested
   itself.  If no re-request has occurred, a value of false (zero) will
   be returned.
+
+
 
 
 
@@ -4222,6 +4189,10 @@
   To assure proper repeat scheduling, pic_sched should be called from
   within the interrupt handler for the same interrupt.  The maximum
   interval is 15 minutes (0x3fffffff).
+
+
+
+
   1122..33..  RReemmaarrkkss iinn bbaassee//ddeevv//ppiicc//ppiicc..cc
 
   pic_push,pic_pop
@@ -4248,7 +4219,6 @@
   kept in architecture specifc files under
   src/arch/osname/dosext/sound/. Communication is via a set of interface
   functions and the device independant structures.
-
 
 
 
@@ -4284,7 +4254,6 @@
 
 
   1133..22..22..  aaddlliibb__iioo__rreeaadd
-
 
 
 
@@ -4419,7 +4388,6 @@
 
   -----
 
-
   ADC is Unimplemented
 
   -----
@@ -4486,6 +4454,8 @@
 
   This hold all kind of accessing files on a Unix filesysten from DOS.
 
+
+
   1144..11..  ddoosseexxtt//mmffss//mmffss..cc IInnffoorrmmaattiioonn
 
   This is the file redirector code for DOSEMU. It was built on the Mach
@@ -4516,688 +4486,7 @@
   returned size of struct dir_ent seems wrong at 28 bytes. */
 
 
-  1155..  TThhee TThhrreeaaddss ggrroouupp ooff MMoodduulleess
-
-  This is the (non-POSIX) threads package, that uses the basic clone
-  interface of the Linux-kernel.
-
-  Now, what is the difference between threads and processes? A process
-  runs totaly isolated from the other processes in the Unix system, it
-  concurrently request resources and is controled by the operating
-  system such that it does no harm to the other processes.  Interfaceing
-  between processes is cost intensive performance wise.
-
-  A thread, on the other hand, is scheduled within the context of _one_
-  process, shares most (if not all) of its resources, and has to
-  cooperate with the other threads in order to do no harm to whole
-  thread group. Interfaceing between threads is very cheap performance
-  wise, hence, using threads is what You should do when having _one_
-  application that needs to do work in parallel.
-
-
-
-  1155..11..  aarrcchh//lliinnuuxx//tthhrreeaaddss//lltt--tthhrreeaaddss..cc IInnffoorrmmaattiioonn
-
-  This thread package does _NOT_  POSIX compatible threading.  As its
-  name says: it is a tiny fast alternative using Linux cloning.  The aim
-  was to avoid as much unnecessary sys_calls as possible.  Locking is
-  _NOT_ done via IPC semaphores, instead we use a user level atomic
-  technique, when the resource is free, there will be no sys_call atall.
-
-  Each thread has its own 'Thread Control Block' (TCB) at the bottom of
-  its stack. Hence to identify itself it doesn't need to go over
-  getpid().
-
-  However, there are restrictions given by the technique used:
-
-
-
-     - The total maximum number of threads is 27.
-     - The size of the stack must be at power of 2 and is equal
-       for all threads. It is not a problem to make the stack area huge,
-       because only those pages actually used will be allocated (paged in)
-       by the system. Though you will be estonished what /proc/<pid>/status
-       is telling you about stack consumption, ... just ignore it;-)
-     - You have to lock/unlock resource_libc when using non-reentrant parts
-       of libc (malloc _is_ no-reentrant).
-     - You must not use atexit, exit, _exit atall. instead use the techniques
-       and functions supplied by lt-threads.
-
-
-
-
-  Maintainers:
-
-  Hans Lermen  <lermen@fgan.de>
-
-  1155..22..  FFuunnccttiioonnss iinn aarrcchh//lliinnuuxx//tthhrreeaaddss//lltt--tthhrreeaaddss..cc
-
-  These are the functions defined in arch/linux/threads/lt-threads.c.
-
-
-  1155..22..11..  MMaakkiinngg rroooomm oonn tthhee ssttaacckk
-
-
-
-  static char *force_stack_expand(unsigned long address)
-
-
-  The kernel has a feature, such that it doesn't allow grow down the
-  stack below the current stack pointer.  This makes sense in single
-  threaded applications, but is bad for threading purposes:
-
-
-     1.   You are forced to put the stacks into the heap (below 1st giga)
-          hence it is less protected against overwriting then normally.
-     2.   The 1 giga stack address space isn't used any more, and
-          you may have problems with address space, on huge programs
-          that use huge arrays (data bases, matrices).
-
-
-  We trick out the kernel by expanding the stack vma to a given value
-  (setting ESP to the bottom and thouching it).  ( look at do_page_fault
-  in arch/i386/mm/fault.c how it treats growing down of stack )
-
-
-
-
-  1155..22..22..  SSeettttiinngg UUsseerr SSppaaccee SSttaacckk lliimmiittss
-
-
-
-  int make_stack_unlimited(int drop_privs)
-
-
-  When running as user, current Linux has a stacklimit of 8Mb.  ( no way
-  to change that via bash ulimit ) This is enough for normal stacksizes,
-  however, if you need more You need some way to set it to 'unlimited'.
-  This only can be done as root, hence setting the suid bit is needed.
-  The below function sets the limit high, and (in case drop_privs) will
-  drop root priviledges before return.
-
-
-
-
-  1155..22..33..  QQuueeuuiinngg ttoooollss
-
-  These two functions have to be used when maintaining queues of various
-  sorts. You may cast to your private queue entry structure as long as
-  the top of this structure fits `struct queue_entry':
-
-
-          struct queue_entry {
-                  struct queue_entry *next;
-                  struct queue_entry *last;
-          };
-
-
-
-
-  void append_to_queue(struct queue_entry *existing, struct queue_entry *new)
-
-
-
-
-  void remove_from_queue(struct queue_entry *entry)
-
-
-  Note: An existing entry _must_ have valid pointers in `next', `last'.
-  We build the head of a queue with an empty queue_entry haveing `next',
-  `last' poining to itself.
-
-
-
-
-
-  1155..22..44..  AAvvooiiddiinngg LLiibbcc rreeeennttrraannccyy PPrroobblleemmss
-
-  Because all threads share the same VM, libc needs to be reentrant.
-  This isn't the case for a lot of functions ( malloc() is one on them).
-  Though newer libc can be made reentrant (needs the -D_REENTRANT on
-  compilation of _each_ object file), this feature has a performance
-  lost due to the overhead that applies to evry libc call. As we exactly
-  know _when_ we come into trouble with libc, the faster (and IMHO)
-  better solution is to to take care of this at application level.
-
-  For this to accomplish we have to put a
-  (un)lock_resource(resource_libc) bracket around those involved libc
-  functions. The most frequently used ones are offered by the threads
-  package, including such locking.  Some of those are:
-
-
-  void *locked_malloc(size_t size)
-
-
-
-
-  void locked_free(void *p)
-
-
-  The prototype is exactly as you expect it from the libc functions.
-
-
-
-
-  1155..22..55..  ggeettttiinngg ppaaggee aalliiggnneedd mmeemmoorryy ffrroomm tthhee hheeaapp
-
-  If you need a page aligned piece of memory, you usualy would use
-  valloc().  However, you can't free that memory later. For this purpose
-  you may use the below functions, which are put on top of
-  malloc()/free().
-  void *page_malloc(size_t size)
-
-
-
-
-  void page_free(void *ptr)
-
-
-
-
-
-  1155..22..66..  NNaammee LLiisstt TToooollss
-
-  The below functions are used for handling small name lists (you may
-  call it directories). All major resources in lt-threads are accessable
-  also by their names, as they are defined on creation time. Especially
-  when it comes to link between different processes (thread cores) and
-  different maschines, we look up the resources (such as mailboxes,
-  threads, services) via name lists.
-
-  The global structures used for building namelists (as defined in lt-
-  threads.h) are:
-
-
-  struct name_list_entry {
-          char *name;
-          union {
-                  void *p;
-                  struct tcb *tcb;
-                  struct lock_struct *lock;
-                  struct mbox *mbox;
-                  int idata;
-          } u;
-  };
-
-  struct name_list {
-          int size;
-          int count;
-          struct name_list_entry list[0];
-  };
-
-
-  The follow functions are available:
-
-
-  struct name_list *create_namelist(int numentries)
-
-
-
-
-  int lookup_name_list(struct name_list *list, char *name)
-
-
-
-
-  void * get_name_list_value(struct name_list *list, char *name)
-
-
-
-
-  int set_name_list_value(struct name_list *list, char *name, void *value)
-
-
-
-
-
-  int insert_name_list_entry(struct name_list *list, char *name, void *value)
-
-
-
-
-  int delete_name_list_entry(struct name_list *list, char *name)
-
-
-
-
-
-  1155..22..77..  EExxiittiinngg aa tthhrreeaadd
-
-  Once the threading system is setup, you never should use exit() or
-  _exit(). Instead use exit_thread(0) to exit the running thread,
-  exit_thread(tcb) to kill an other thread and exit_all() to terminate
-  all threads.
-
-
-  void exit_thread(struct tcb *tcb)
-
-
-
-
-  void exit_all(int exit_code)
-
-
-
-
-
-  1155..22..88..  SSuussppeennddiinngg // rreessuummiinngg aa tthhrreeaadd
-
-  When a thread has nothing valuable to do (e.g. it is waiting for some
-  event to happen), it should go asleep. The following function supends
-  the current running thread:
-
-
-  void suspend_thread()
-
-
-  With the follow function a thread can awake a sleeping thread.  This
-  may (but need not) happen imediately such that the calling thread has
-  been sleeping before retuning from resume_thread()
-
-
-  void resume_thread(struct tcb *tcb)
-
-
-  To suspend a thread for a given time interval (not resume_thread()
-  needed to awaken it later) the function thread_usleep can be used.
-
-
-   Note: we use our own usleep to avoid
-    A) problems with signal stuff
-    B) problems with libc
-
-
-
-
-  void thread_usleep(int useconds)
-
-
-
-
-
-
-  1155..22..99..  LLoocckkiinngg RReessoouurrcceess
-
-
-  The below locking scheme implements userspace semaphores, that in the
-  most frequent cases do _not_ enter the kernel.  ( doesn't use IPC or
-  kernel semphores ) It depends on the atomic_reserv/free() algorithme
-  defined above and won't work with other locking strategies, that
-  cannot `reserve and queue' with _one_ atomic operation.
-
-  The win of this algorithme is _much_ more speed, the disadvantage is
-  that you can't have more then 27 threads.  (though, on 64-bit machines
-  it could be 58 threads)
-
-  All locking function rely on the following structure
-
-
-  struct lock_struct {
-          int used;
-          int id;
-          int owner_count;
-          struct tcb *owner;
-          int successor_id;
-  };
-
-
-  However, you should not manipulate them manually.
-
-
-  struct lock_struct *create_resource(char *name)
-
-
-  create_resource returns a pointer to a newly created resource.  This
-  one also is then added to the resources namelist so you may look up
-  for then `name'. If there are too many resources NULL will be
-  returned.  The following two functions are used to lock and unlock a
-  previosly created resource. A call to lock_resource() will put the
-  thread into sleep state, when the resource is already locked by an
-  other thread.  A call to unlock_resource() will awake a thread, that
-  has been waiting on the resource.
-
-
-  void lock_resource(struct lock_struct *lock)
-
-
-
-
-  void unlock_resource(struct lock_struct *lock)
-
-
-  The below function is a special one: The owner of a lock may dedicate
-  the lock to a given other thread instead of just releasing it.  This
-  will change the normal scheduling of locks.  (for example, this is
-  used by the message routines)
-
-
-  void transfer_resource(struct lock_struct *lock, int successor_id)
-
-
-
-
-
-  1155..22..1100..  SSeennddiinngg aanndd rreecceeiivviinngg mmeessssaaggeess
-
-  A threading system without message transfer would be worthless.  We
-  have it ;-)
-
-  All messages can be send to `mailboxes', that were created before.
-  The size of the message queue within a mailbox can be defined at
-  creation time. When a sending thread hits a queue overflow in the
-  mailbox, the sending thread is put asleep and queued for later to be
-  awaken.  When a receiving thread hits an empty mailbox, it also gets
-  asleep.  A sending thread on an empty mailbox awakens a sleeping
-  receiver, A receiving thread on a full mailbox awakens a sleeping
-  sender.
-
-
-  mbox_handle create_local_mailbox(char *name, int numentries)
-
-
-
-
-  mbox_handle get_mailbox(char *name)
-
-
-
-
-  mbox_handle get_mailbox_wait(char *name)
-
-
-
-
-  void sendmessage(mbox_handle mbx, struct msg *msg)
-
-
-
-
-  struct msg *receivemessage(mbox_handle mbx)
-
-
-
-
-  int mailbox_is_empty(mbox_handle mbx)
-
-
-
-
-
-  1155..22..1111..  CCrreeaattiinngg ((ssttaarrttiinngg)) aa tthhrreeaadd
-
-  Any thread can create child threads. You must pass the address of the
-  function, that contains the thread's code and (optionaly) pass the
-  thread a private parameter pointer.
-
-
-  struct tcb *create_thread(thread_function_type *thread_code, void *params)
-
-
-  A little bit different is the creation of the `father of all threads',
-  the original Unix process itself. In order to let it also use the
-  threads related functions, it must be converted into a thread.
-
-  `init_zero_thread()' makes the starting parent process behave as a
-  normal thread and threfore this function call must come before any
-  other thread related call. It initializes the thrreads system.
-
-
-  struct tcb *init_zero_thread(int stacksize)
-
-
-  To obtain the pid of any thread please use the threads_getpid()
-  instead of the system call getpid(). It may be called any time and
-  returns the pid of the current process, when no threading is active
-  (before init_thread0()) If `tcb' is NULL, it returns the pid of the
-  current thread, if -1 or THREAD0_TCB it returns the pid of `the father
-  of all threads' (thread0).
-
-
-  pid_t threads_getpid(struct tcb *tcb)
-
-
-
-
-
-  1155..22..1122..  SSoommee ddeebbuuggggiinngg aaiiddss
-
-
-  To make your life a bit easier (and because GDB has problems debugging
-  a thread group), here some usefull functions
-
-
-
-  int locked_printf( const char *fmt, ...)
-
-
-
-
-  void print_tcb(struct tcb *tcb)
-
-
-
-
-  void print_resource(struct lock_struct *lock)
-
-
-
-
-  void print_mbox(mbox_handle mbx)
-
-
-
-
-
-  1155..33..  iinncclluuddee//lltt--tthhrreeaaddss..hh IInnffoorrmmaattiioonn
-
-
-  1155..44..  FFuunnccttiioonnss iinn iinncclluuddee//lltt--tthhrreeaaddss..hh
-
-  These are the functions defined in include/lt-threads.h.
-
-
-  1155..44..11..  TThhee tthhrreeaadd iittsseellff
-
-
-
-  typedef void thread_function_type(void *params);
-
-
-  All treads are functions of this type, when control reaches end of
-  this function, the thread exits the same as with exit_threads(0).  The
-  'params' pointer can be passed on create_tread().
-
-
-
-
-  1155..44..22..  AA tthhrreeaadd''ss eexxiitt ffuunnccttiioonn
-
-
-
-  typedef void thread_exit_function_type(void);
-
-
-  A thread must _not_ use atexit() to register a exit-function (problems
-  with non reentrancy of libc).  Instead, it may use the tcb->exit_func
-  pointer point to a function of below type. However, the old value of
-  tcb->exit_func must be saved on a _static_ place and restored within
-  the exit function.  This way a a chain of exit functions will be
-  called on a `last-in first-out' policy.
-
-
-
-
-  1155..44..33..  AAcccceessssiinngg aa tthhrreeaadd''ss TTCCBB
-
-  All thread private data is on the stack, there may be private data
-  allocated on the heap, but the pointers to those areas should be
-  itself on the stack. As long as access happens within scope of the
-  thread function itself (or within local functions within function)
-  this needs no extra handling. However, calling an other function that
-  needs to access thread private data may be a problem. This problem can
-  be solved by putting all this data into a private structure and
-  starting the thread by passing it a pointer to this structure. Now,
-  within scope of the thread one has access to this pointer via.
-
-
-   OWN_TCB->params;
-
-
-  The TCB itself always is on bottom of the stack, hence it is also
-  available within a signal handler.
-
-
-
-
-  1155..44..44..  LLooooppiinngg tthhrroouugghh aallll TTCCBBss
-
-  It may be necessary to scan data of all running threads or doing
-  something special like notifying e.t.c. To acomplish this you should
-  use the macro FOR_ALL_TCB such as
-
-
-   struct tcb *tcb;
-   int id;
-   FOR_ALL_TCB(id,tcb) {
-      locked_printf("thread %d tcb is at address %p\n", id, tcb);
-   }
-
-
-
-
-
-
-  1155..44..55..  AAttoommiicc iinnlliinnee FFuunnccttiioonnss
-
-  This set of functions is mainly used within the threads package
-  itself, however, you may find them usefull for your stuff too.
-
-  Below function atomically reserves 'resource' and queues ID.  When the
-  reservation was successfull (i.e. if 'resource' was -1 before) the
-  function returns -1, otherwise '0'.  Id must be a number in the range
-  0..27.  In any case bit 'idnum' is set in resource. Due to the
-  technique used for being atomic, only 27 of 32 bits in the integer can
-  be used.
-
-
-  static __inline__ int atomic_reserv(int *resource, int id)
-
-
-  Below function frees a previously with atomic_reserv reserved resource
-  If there are still IDs queued, the function returns with 0, otherwise
-  -1.
-
-
-  static __inline__ int atomic_free(int *resource, int id)
-
-
-  Below function return the highest priority queued ID in the resource
-  or -1, if none is queued.  Format of 'resource' is as in atomic_reserv
-  and atomic_free.
-
-
-  static __inline__ int get_lowest_waiting_id_from_resource(int resource)
-
-
-  Below function increases `flag' atomically and returns -1 if increas-
-  ing did result in transition from negativ to positive, else returns 0.
-
-
-  static __inline__ int lt_atomic_inc(int *flag, int increment)
-
-
-  Below function decreases `flag' atomically and returns -1 if decreas-
-  ing did result in transition from positive to negative, else returns
-  0.
-
-
-  static __inline__ int lt_atomic_dec(int *flag, int decrement)
-
-
-  Below function atomicaly tests and sets bit `bitnum' in the bitfield
-  pointed to by `addr'. It returns 0 if the bit was 0 before, else -1.
-
-
-  static __inline__ int atomic_bitset(void *addr, int bitnum)
-
-
-  Below function atomicaly tests and clears bit `bitnum' in the bitfield
-  pointed to by `addr'. It returns 0 if the bit was 0 before, else -1.
-
-
-  static __inline__ int atomic_bitclear(void *addr, int bitnum)
-
-
-
-
-
-  1155..44..66..  MMiisscc iinnlliinnee FFuunnccttiioonnss
-
-  This set of functions is mainly used within the threads package
-  itself, however, you may find them usefull for your stuff too.
-
-  search_lowest_bit returns the index of lowest bit set or -1, if not
-  found `fieldsize' must be multiple of 32
-
-
-  static __inline__ int search_lowest_bit(void *addr, int fieldsize)
-
-
-  As its name says: roundup_to_power_of_2
-
-
-  static __inline__ int roundup_to_power_of_2(int val)
-
-
-
-
-
-  1155..55..  DDaattaa DDeeffiinniittiioonnss iinn iinncclluuddee//lltt--tthhrreeaaddss..hh
-
-  These are the structures and/or data defined in include/lt-threads.h.
-
-
-  1155..55..11..  TTCCBB  ((TThhrreeaadd CCoonnttrrooll BBlloocckk))
-
-  The TCB is the main data structure, that is unic to each thread.  It
-  alway is at bottom of the thread's stack and can be accessed using the
-  OWN_TCB macro. This also is valid while in signal handlers.
-
-  Elements are:
-
-  +o  struct queue_entry link;
-
-  +o  pid_t pid;
-
-  +o  int tcb_id;
-
-  +o  int threadflags;
-
-  +o  struct tcb *parent;
-
-  +o  thread_function_type *thread_code;
-
-  +o  void *params;
-
-  +o  unsigned long stack_size;
-
-  +o  int suspend_count;
-
-  +o  char owning_locks[MAX_RESOURCES>>3];
-
-  +o  jmp_buf exit_jmpbuf;
-
-  +o  thread_exit_function_type *exit_func;
-
-  +o  int exit_code;
-
-  +o  uid_t uid, euid;
-
-  +o  gid_t gid, egid;
-
-
-
-  1166..  AAnndd FFiinnaallllyy ......
+  1155..  AAnndd FFiinnaallllyy ......
 
   The Following items are used to delimit the text used to create this
   file.  Whilst it is not necessary to know this, they are included
@@ -5256,21 +4545,6 @@
 
   SKIP ... /SKIP This is only valid within *_FUNCTION and skips
   formatting until either PROTO or /SKIP is seen.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

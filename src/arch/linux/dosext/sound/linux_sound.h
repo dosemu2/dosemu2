@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -39,3 +39,5 @@ int  linux_sb_dma_complete_test(void);
 void linux_sb_dma_complete(void);
 
 void linux_mpu401_data_write(__u8 data);
+
+int linux_sb_get_free_fragments(int *total, int *free);

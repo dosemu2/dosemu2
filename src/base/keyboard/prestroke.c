@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -209,7 +209,6 @@ void append_pre_strokes(unsigned char *s)
 {
   if (config.pre_stroke_mem) {
     int l1,l2;
-    int offs = 0;
     unsigned char *n;
 
     if (config.pre_stroke) {

@@ -118,7 +118,7 @@ and you can boot from this directory:
 
 The bootdir method, however, doesn't work if you use the DosC (FreeDos)
 kernel, for this you have to use 'hdimages' and ./setup-hdimage. Have a look
-at ./doc/README.txt, chapter 2 and ./doc/README-tech.txt, chapter 7.)
+at ./doc/README.txt, chapter 2 and ./doc/README-tech.txt, chapter 5.)
 
 
 --------------------------------------------------------------------------

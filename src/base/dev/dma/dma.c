@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -168,10 +168,21 @@ void dma_assert_DREQ(int channel)
   ch = channel & DMA_CH_SELECT;
   mask = 1 << (ch + 4);
   
+#ifdef EXCESSIVE_DEBUG
+  h_printf ("DMA: ... mask = %d, status = %d\n", mask, 
+	    dma[controller].i[ch].mask);
+#endif /* EXCESSIVE_DEBUG */
+
+  /* 
+   * Must assert DREQ before activating the channel, otherwise it ignores the
+   * the request - AM
+   */
+
+  dma[controller].status |= mask;
+
   if(!dma[controller].i[ch].mask)
     activate_channel (controller, ch);
 
-  dma[controller].status |= mask;
 }
 
 void dma_drop_DACK(int channel)
@@ -390,6 +401,9 @@ static inline void activate_channel (int controller, int channel)
     mask = get_mask (ch);
 
     is_dma |= mask;
+#ifdef EXCESSIVE_DEBUG
+    h_printf ("DMA: Channel %d activated. DMA indicator is %d\n", ch, is_dma);
+#endif /* EXCESSIVE_DEBUG */
   }
 }
 
@@ -405,6 +419,10 @@ static inline void deactivate_channel (int controller, int channel)
   mask = get_mask (ch);
 
   is_dma &= ~mask;  
+
+#ifdef EXCESSIVE_DEBUG
+  h_printf ("DMA: Channel %d deactivated. DMA indicator is %d\n", ch, is_dma);
+#endif /* EXCESSIVE_DEBUG */
 }
 
 inline Bit32u create_addr(Bit8u page, multi_t address, int dma_c)
@@ -598,6 +616,8 @@ inline void dma_write_mask (int dma_c, Bit8u value)
 
       h_printf ("DMA: Channel %u selected.\n", 
 			(dma_c * 4) + dma[dma_c].current_channel);
+      /* Clear the COMPLETE flag for this channel */
+      dma[dma_c].status &= ~ (1 << (value & 3));
     }
     else
     {
@@ -815,13 +835,13 @@ int dma_initialise_channel (int controller, int channel)
 	 * DANG_END_REMARK
 	 */
 
-/*      Why Comment this out ? - AM
-	if (dma[controller].ch_mode[channel] & (DMA_AUTO_INIT | DMA_READ))
+	/*      Why Comment this out ? - AM */
+	if (dma[controller].ch_mode[channel] & (DMA_AUTO_INIT | DMA_READ)) {
 	  dma_assert_DREQ (ch);
-	else
- */                       
-	h_printf("DMA: [crisk] dropping DREQ\n");
-	dma_drop_DREQ(ch);
+	} else {
+	  h_printf("DMA: [crisk] dropping DREQ\n");
+	  dma_drop_DREQ(ch);
+	}
 
 	return 0;
 }
@@ -872,10 +892,17 @@ void dma_process_demand_mode_write (int controller, int channel)
       target_addr = create_addr (dma[controller].page[channel],
 				  dma[controller].address[channel],
 				 controller);
+#ifdef EXCESSIVE_DEBUG
+      h_printf ("DMA: Demand Mode Write run (%d) target: %u\n", ch,
+		target_addr);
+#endif /* EXCESSIVE_DEBUG */
 
 	if (dma_test_DACK(ch)) {
 	    dma_drop_DACK(ch);
 	} else {
+#ifdef EXCESSIVE_DEBUG
+	    h_printf ("DMA: Demand Mode Write run aborted. DACK not set\n");
+#endif /* EXCESSIVE_DEBUG */
 	    return;
 	}
 
@@ -960,6 +987,11 @@ void dma_process_single_mode_write (int controller, int channel)
 	target_addr = create_addr(dma[controller].page[channel],
 				  dma[controller].address[channel],
 				  controller);
+
+#ifdef EXCESSIVE_DEBUG
+      h_printf ("DMA: single Mode Write run (%d) target: %u\n", ch, 
+		target_addr);
+#endif /* EXCESSIVE_DEBUG */
 	
 	if (! get_value (dma[controller].length[channel]) 
 	    && has_underflow(dma[controller].length[channel])) {
@@ -1029,6 +1061,11 @@ void dma_process_block_mode_write (int controller, int channel)
 				  dma[controller].address[channel],
 				  controller);
 	
+#ifdef EXCESSIVE_DEBUG
+      h_printf ("DMA: block Mode Write run (%d) target: %u\n", ch, 
+		target_addr);
+#endif /* EXCESSIVE_DEBUG */
+
 	if (dma_test_DACK(ch)) {
 	    dma_drop_DACK(ch);
 	} else {
@@ -1145,6 +1182,11 @@ void dma_process_demand_mode_read (int controller, int channel)
 	target_addr = create_addr(dma[controller].page[channel],
 				  dma[controller].address[channel],
 				  controller);
+
+#ifdef EXCESSIVE_DEBUG
+      h_printf ("DMA: demand Mode read run (%d) target: %u\n", ch, 
+		target_addr);
+#endif /* EXCESSIVE_DEBUG */
 	
 	if (dma_test_DACK(ch)) {
 	    dma_drop_DACK(ch);
@@ -1333,6 +1375,11 @@ void dma_process_block_mode_read (int controller, int channel)
 	target_addr = create_addr(dma[controller].page[channel],
 				  dma[controller].address[channel],
 				  controller);
+
+#ifdef EXCESSIVE_DEBUG
+      h_printf ("DMA: block Mode read run (%d) target: %u\n", ch, 
+		target_addr);
+#endif /* EXCESSIVE_DEBUG */
 	
 	if (dma_test_DACK(ch)) {
 	    dma_drop_DACK(ch);
@@ -1597,11 +1644,18 @@ void dma_controller(void)
   Bit8u test;
   int controller, channel;
 
-  for (test = 1, controller = DMA1, channel = 0; test != 0; test = test << 1, channel++) {
+  for (test = 1, controller = DMA1, channel = 0; test > 0 && test <= 128; 
+       test = test << 1, channel++) {
     if (channel == 4) {
 	controller = DMA2;
 	channel = 0;
     }
+
+#ifdef EXCESSIVE_DEBUG
+    h_printf ("DMA: controller: (%d) run - %s, current - %s\n", 
+	      (controller * 4) + channel, (is_dma & test) ? "true": "false",
+	      (dma[controller].current_channel == channel) ? "true": "false");
+#endif /* EXCESSIVE_DEBUG */
 
 		/* Process the channel only if it has been deselected */
     if ((is_dma & test) && (dma[controller].current_channel != channel)) {

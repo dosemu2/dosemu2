@@ -180,13 +180,9 @@ Hope we get more of *.dexe in the future ....
 <sect1> Using binfmt_misc to spawn DEXEs directly
 <p>
 
-There is a nifty kernel patch flying around from Richard Guenther
-&lt;zxmpm11@student.uni-tuebingen.de&gt;. This can be obtained via
-
-  <htmlurl
-url="http://www.anatom.uni-tuebingen.de/~richi/linux/binfmt_misc.html" name="&lt;http://www.anatom.uni-tuebingen.de/~richi/linux/binfmt_misc.html&gt;">
-
-We hope this patch makes it into the kernel, because then we could
+If you have binfmt_misc configured into your kernel (you should most likely
+if you use the precompiled kernel of any common Linux distribution), then
+you can
 execute a DEXE just by typing its name at the Bash prompt. To register
 DEXE format using binfmt_misc you do (in your /etc/rc.-whatever)
 

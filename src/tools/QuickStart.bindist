@@ -90,7 +90,7 @@ and you can boot from this directory:
 The bootdir method, however, doesn't work if you use the DosC (FreeDos)
 kernel, for this you have to use 'hdimages' and ./setup-hdimage.
 Have a look at DOCDIR/README.txt, chapter 2
-and DOCDIR/README-tech.txt, chapter 7.)
+and DOCDIR/README-tech.txt, chapter 5.)
 
 
 --------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -63,7 +63,7 @@ int pci_read_header_cfg2 (unsigned char bus, unsigned char device,
 			  unsigned char fn, unsigned long *buf);
 
 extern int (*pci_read_header) (unsigned char bus, unsigned char device,
-			       int func, unsigned long *buf);
+			       unsigned char fn, unsigned long *buf);
 int pci_setup (void);
 
 #endif /* DOSEMU_PCI_H */

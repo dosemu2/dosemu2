@@ -1,6 +1,6 @@
 /* 
  * All modifications in this file to the original code are
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -57,7 +57,7 @@ static int dsp_fd   = -1;
 
 /* Old variables - Obselete - AM */
 static long int block_size = 0;
-static long int sound_frag = 0xc;
+/*static long int sound_frag = 0xc;*/
 
 /* New fragment control - AM */
 static int sound_frag_size = 0x9; /* ie MAX_DMA_TRANSFERSIZE (== 512) */
@@ -441,13 +441,53 @@ void linux_sb_dma_start_complete (void) {
    dma_install_handler(config.sb_dma, -1, dsp_fd, sb_dma_handler, block_size);
 }
 
-int linux_sb_dma_complete_test(void)
+int linux_sb_get_free_fragments(int *total, int *free)
 {
   audio_buf_info data;
 
+  *total = 0;
+  *free = 0;
+
   if (ioctl(dsp_fd, SNDCTL_DSP_GETOSPACE, &data) != -1) {
-    S_printf ("SB:[Linux] DMA completion test (%d, %d)\n", 
+    S_printf ("SB:[Linux] Get Free Fragments (%d, %d)\n", 
 	      data.fragstotal, data.fragments);
+
+    *total = data.fragstotal;
+    *free = data.fragments;
+
+    return DMA_HANDLER_OK;
+  } else {
+    if (errno == EBADF) {
+      return DMA_HANDLER_OK;
+    } else {
+      S_printf ("SB:[Linux] Get Free Fragments IOCTL error (%s)\n", 
+		strerror(errno));
+      return DMA_HANDLER_NOT_OK;
+    }
+  }
+}
+
+int linux_sb_dma_has_space(void)
+{
+  int free_fragments = 0, total_fragments = 0;
+  int result = DMA_HANDLER_OK;
+
+  result = linux_sb_get_free_fragments(&total_fragments, &free_fragments);
+
+  if (result == DMA_HANDLER_OK && free_fragments > 0) {
+    return DMA_HANDLER_OK;
+  } else {
+    return result;
+  }
+
+}
+
+int linux_sb_dma_complete_test(void)
+{
+  int free_fragments = 0, total_fragments = 0;
+  int result = DMA_HANDLER_OK;
+
+  result = linux_sb_get_free_fragments(&total_fragments, &free_fragments);
 
     /* 
      * As we set fragments that way that all are used, we can just
@@ -456,17 +496,9 @@ int linux_sb_dma_complete_test(void)
      * filled as soon as possible. - MK
      */
 
-    if(data.fragments > 2) {
-      return DMA_HANDLER_OK;
-    }
-
-  } else {
-    if (errno == EBADF) {
-      return DMA_HANDLER_OK;
-    } else {
-      S_printf ("SB:[Linux] DMA completion test IOCTL error (%s)\n", 
-		strerror(errno));
-    }
+  if (result == DMA_HANDLER_OK &&
+      free_fragments >= (total_fragments - 2)) {
+    return DMA_HANDLER_OK;
   }
 
   return DMA_HANDLER_NOT_OK;

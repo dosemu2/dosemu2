@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -147,7 +147,10 @@ unsigned char GFX_get_index()
 
 void GFX_write_value(unsigned char data)
 {
-  unsigned u = data, u1, ind = vga.gfx.index;
+#if 0
+  unsigned u = data;
+#endif
+  unsigned u1, ind = vga.gfx.index;
 
   if(ind > GFX_MAX_INDEX) {
     gfx_deb("GFX_write_value: data (0x%02x) ignored\n", u);

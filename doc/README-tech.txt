@@ -1,7 +1,7 @@
   DOSEmu Technical Guide
   The DOSEmu team, Edited by Alistair MacDonald  <alis-
   tair@slitesys.demon.co.uk>
-  For DOSEMU v0.99 pl11.0
+  For DOSEMU v1.0 pl0.0
 
   This document is the amalgamation of a series of technical README
   files which were created to deal with the lack of DOSEmu documenta-
@@ -106,177 +106,142 @@
 
   4. The Virtual Flags
 
-  5. VM86PLUS, new kernel's vm86 for a full feature dosemu
+  5. The old way of generating a bootable DOSEmu
 
-     5.1 Restrictions
-     5.2 Parts in the kernel that get changed for vm86plus
-        5.2.1 Changes to arch/i386/kernel/vm86.c
-           5.2.1.1 New vm86() syscall interface
-           5.2.1.2 Additional Data passed to vm86()
-           5.2.1.3 IRQ passing
-           5.2.1.4 Debugger support
-        5.2.2 Changes to arch/i386/kernel/ldt.c
-           5.2.2.1 New functioncode for `write' in modify_ldt syscall
-           5.2.2.2 `useable' bit in LDT descriptor
-           5.2.2.3 `present' bit in LDT selector
-        5.2.3 Changes to arch/i386/kernel/signal.c
-        5.2.4 Changes to arch/i386/kernel/traps.c
-     5.3 Abandoned `bells and whistles' from older emumodule
-        5.3.1 Kernel space LDT.
-        5.3.2 LDT Selectors accessing the `whole space'
-        5.3.3 Fast syscalls
-        5.3.4 Separate syscall interface (syscall manager)
+     5.1 Boot ( tool generated `hdimage' method )
+     5.2 Boot ( `traditional' method )
+        5.2.1 If you are
+        5.2.2 If you already have a HDIMAGE file
+        5.2.3 If you don't know how to copy files from/to the hdimage
 
-  6. Video Code
+  6. New Keyboard Code
 
-     6.1 C files
-     6.2 Header files
-     6.3 Notes
-     6.4 Todo
+     6.1 Whats New
+     6.2 Status
+     6.3 Keyboard server interface
+     6.4 Keyboard server structure
+        6.4.1 queue handling functions
+        6.4.2 The Front End
+           6.4.2.1 Functions in serv_xlat.c
+              6.4.2.1.1 putrawkey
+              6.4.2.1.2 putkey & others
+        6.4.3 The Back End
+           6.4.3.1 Queue Back End in keybint=on mode
+           6.4.3.2 Queue Back End in keybint=off mode
+           6.4.3.3 Functions in newkbd-server.c
+     6.5 Known bugs & incompatibilites
+     6.6 Changes from 0.61.10
+     6.7 TODO
 
-  7. The old way of generating a bootable DOSEmu
+  7. Setting HogThreshold
 
-     7.1 Boot ( tool generated `hdimage' method )
-     7.2 Boot ( `traditional' method )
-        7.2.1 If you are
-        7.2.2 If you already have a HDIMAGE file
-        7.2.3 If you don't know how to copy files from/to the hdimage
+  8. Privileges and Running as User
 
-  8. New Keyboard Code
+     8.1 What we were suffering from
+     8.2 The new 'priv stuff'
 
-     8.1 Whats New
-     8.2 Status
-     8.3 Keyboard server interface
-     8.4 Keyboard server structure
-        8.4.1 queue handling functions
-        8.4.2 The Front End
-           8.4.2.1 Functions in serv_xlat.c
-              8.4.2.1.1 putrawkey
-              8.4.2.1.2 putkey & others
-        8.4.3 The Back End
-           8.4.3.1 Queue Back End in keybint=on mode
-           8.4.3.2 Queue Back End in keybint=off mode
-           8.4.3.3 Functions in newkbd-server.c
-     8.5 Known bugs & incompatibilites
-     8.6 Changes from 0.61.10
-     8.7 TODO
+  9. Timing issues in dosemu
 
-  9. IBM Character Set
+     9.1 The 64-bit timers
+     9.2 DOS 'view of time' and time stretching
+     9.3 Non-periodic timer modes in PIT
+     9.4 Fast timing
+     9.5 PIC/PIT synchronization and interrupt delay
+     9.6 The RTC emulation
+     9.7 General warnings
 
-     9.1 What's new in configuration
-        9.1.1 IBM character set in an xterm
-        9.1.2 IBM character set at the console
-        9.1.3 IBM character set over a serial line into an IBM ANSI terminal
-     9.2 THE FUTURE by Mark Rejhon
+  10. Pentium-specific issues in dosemu
 
-  10. Setting HogThreshold
+     10.1 The pentium cycle counter
+     10.2 How to compile for pentium
+     10.3 Runtime calibration
+     10.4 Timer precision
+     10.5 Additional points
 
-  11. Priveleges and Running as User
+  11. The DANG system
 
-     11.1 What we were suffering from
-     11.2 The new 'priv stuff'
+     11.1 Description
+     11.2 Changes from last compiler release
+     11.3 Using DANG in your code
+     11.4 DANG Markers
+     11.5 DANG_BEGIN_MODULE / DANG_END_MODULE
+        11.5.1 DANG_BEGIN_FUNCTION / DANG_END_FUNCTION
+        11.5.2 DANG_BEGIN_REMARK / DANG_END_REMARK
+        11.5.3 DANG_BEGIN_NEWIDEA / DANG_END_NEWIDEA
+        11.5.4 DANG_FIXTHIS
+        11.5.5 DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG
+     11.6 Usage
+     11.7 Future
 
-  12. Timing issues in dosemu
+  12. mkfatimage -- Make a FAT hdimage pre-loaded with files
 
-     12.1 The 64-bit timers
-     12.2 DOS 'view of time' and time stretching
-     12.3 Non-periodic timer modes in PIT
-     12.4 Fast timing
-     12.5 PIC/PIT synchronization and interrupt delay
-     12.6 The RTC emulation
-     12.7 General warnings
+  13. mkfatimage16 -- Make a large FAT hdimage pre-loaded with files
 
-  13. Pentium-specific issues in dosemu
+  14. Documenting DOSEmu
 
-     13.1 The pentium cycle counter
-     13.2 How to compile for pentium
-     13.3 Runtime calibration
-     13.4 Timer precision
-     13.5 Additional points
+     14.1 Sections
+     14.2 Emphasising text
+     14.3 Lists
+     14.4 Quoting stuff
+     14.5 Special Characters
+     14.6 Cross-References & URLs
+        14.6.1 Cross-References
+        14.6.2 URLs
+     14.7 Gotchas
 
-  14. The DANG system
+  15. Sound Code
 
-     14.1 Description
-     14.2 Changes from last compiler release
-     14.3 Using DANG in your code
-     14.4 DANG Markers
-     14.5 DANG_BEGIN_MODULE / DANG_END_MODULE
-        14.5.1 DANG_BEGIN_FUNCTION / DANG_END_FUNCTION
-        14.5.2 DANG_BEGIN_REMARK / DANG_END_REMARK
-        14.5.3 DANG_BEGIN_NEWIDEA / DANG_END_NEWIDEA
-        14.5.4 DANG_FIXTHIS
-        14.5.5 DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG
-     14.6 Usage
-     14.7 Future
+     15.1 Current DOSEmu sound code
+     15.2 Original DOSEMU sound code
 
-  15. mkfatimage -- Make a FAT hdimage pre-loaded with files
+  16. DMA Code
 
-  16. mkfatimage16 -- Make a large FAT hdimage pre-loaded with files
+     16.1 Current DOSEmu DMA code
+     16.2 Original DOSEMU DMA code
+        16.2.1 Adding DMA devices to DOSEMU
 
-  17. Documenting DOSEmu
+  17. DOSEmu Programmable Interrupt Controller
 
-     17.1 Sections
-     17.2 Emphasising text
-     17.3 Lists
-     17.4 Quoting stuff
-     17.5 Special Characters
-     17.6 Cross-References & URLs
-        17.6.1 Cross-References
-        17.6.2 URLs
-     17.7 Gotchas
+     17.1 Other features
+     17.2 Caveats
+     17.3 Notes on theory of operation:
+        17.3.1 Functions supported from DOSEmu side
+           17.3.1.1 Functions that Interface with DOS:
+        17.3.2 Other Functions
+     17.4 A (very) little technical information for the curious
 
-  18. Sound Code
+  18. DOSEMU debugger v0.6
 
-     18.1 Current DOSEmu sound code
-     18.2 Original DOSEMU sound code
+     18.1 Introduction
+     18.2 Usage
+     18.3 Commands
+     18.4 Performance
+     18.5 Wish List
+     18.6 BUGS
+        18.6.1 Known bugs
 
-  19. DMA Code
+  19. MARK REJHON'S 16550 UART EMULATOR
 
-     19.1 Current DOSEmu DMA code
-     19.2 Original DOSEMU DMA code
-        19.2.1 Adding DMA devices to DOSEMU
+     19.1 PROGRAMMING INFORMATION
+     19.2 DEBUGGING HELP
+     19.3 FOSSIL EMULATION
+     19.4 COPYRIGHTS
 
-  20. DOSEmu Programmable Interrupt Controller
+  20. Recovering the console after a crash
 
-     20.1 Other features
-     20.2 Caveats
-     20.3 Notes on theory of operation:
-        20.3.1 Functions supported from DOSEmu side
-           20.3.1.1 Functions that Interface with DOS:
-        20.3.2 Other Functions
-     20.4 A (very) little technical information for the curious
+     20.1 The mail message
 
-  21. DOSEMU debugger v0.6
+  21. Net code
 
-     21.1 Introduction
-     21.2 Usage
-     21.3 Commands
-     21.4 Performance
-     21.5 Wish List
-     21.6 BUGS
-        21.6.1 Known bugs
+  22. Software X386 emulation
 
-  22. MARK REJHON'S 16550 UART EMULATOR
+     22.1 The CPU emulator
 
-     22.1 PROGRAMMING INFORMATION
-     22.2 DEBUGGING HELP
-     22.3 FOSSIL EMULATION
-     22.4 COPYRIGHTS
-  23. Recovering the console after a crash
+  23. MFS and National Language Support
 
-     23.1 The mail message
-
-  24. Net code
-
-  25. Software X386 emulation
-
-     25.1 The CPU emulator
-
-  26. MFS and National Language Support
-
-     26.1 MFS and National Language Support
-     26.2 Patching of MFS
-     26.3 TODO:
+     23.1 MFS and National Language Support
+     23.2 Patching of MFS
+     23.3 TODO:
 
 
   ______________________________________________________________________
@@ -297,8 +262,6 @@
 
   This section of the document by Hans, <lermen@fgan.de>. Last updated
   on Mar 20, 1998.
-
-
   Most of DOSEMU configuration is done during runtime and per default it
   expects the system wide configuration file /etc/dosemu.conf optionally
   followed by the users  /.dosemurc and additional configurations
@@ -325,7 +288,6 @@
   for /etc/dosemu/dosemu.users, this makes people happy, which prefer to
   have to configuration stuff in a separate directory under /etc.
   Within dosemu.users the general permissions are set:
-
 
 
   +o  which users are allowed to use DOSEMU.
@@ -394,6 +356,7 @@
      llooggiinnnnaammee
         valid login name (root also is one) or 'all'. The later means
         any user not mentioned in previous lines.
+
      nnoossuuiiddrroooott
         Do not allow execution of a suid dosemu binary. The user may,
         howver, use a non-suid root copy of DOSEMU (reasonable sysadmins
@@ -460,6 +423,7 @@
 
         cc__ddeexxee
            allow `dexe' settings
+
         cc__pprriinntteerr
            allow printer settings
 
@@ -496,8 +460,6 @@
   login name is given (no further parameters, old format) the following
   setting is assumed:
 
-
-
          if 'root'  c_all
          else       c_normal
 
@@ -524,7 +486,6 @@
   patch the DOSEMU source just for this purpose. But note, the dosemu
   supplied scripts and helpers may need some adaption too in order to
   fit your new directory.
-
 
   The `log_level=' can be 0 (never log) or 1 (log only errors) or 2 (log
   all) and controls the ammount written to the systems log facility
@@ -592,6 +553,7 @@
 
      DDOOSSEEMMUU__EEUUIIDD
         effective uid
+
      DDOOSSEEMMUU__UUIIDD
         uid. You may protect security relevant parts of the
         configuration such as:
@@ -630,10 +592,6 @@
         happens in two stages, one _before_ parsing dosemu.conf and one
         _after_. The options 'FfhIdLoO23456' have already gotten
         processed before dosemu.conf, so they can be disabled.
-
-
-
-
   22..22..22..  CCoonnddiittiioonnaall ssttaatteemmeennttss
 
   You may control execution of configuration statements via the
@@ -654,6 +612,7 @@
          else
            ...
          endif
+
 
 
 
@@ -765,8 +724,6 @@
          updatefreq 4  color on }
 
 
-
-
   This is not the case with the (above mentioned) _i_f _s_t_a_t_e_m_e_n_t, this one
   is of course processed within the parser itself and can only take
   place within the proper syntax context such as
@@ -833,9 +790,6 @@
            endif
          done
 
-
-
-
   The later example jumps to the colon (`:') in one step and after that
   process the numbers step by step.
 
@@ -850,7 +804,6 @@
 
 
          include "somefile"
-
 
 
 
@@ -903,8 +856,7 @@
 
   it will expand to
 
-
-         warn 'this is executed as macro'
+    warn 'this is executed as macro'
 
 
 
@@ -921,21 +873,20 @@
   once.
 
 
+         $loop = '
+           while ($xxx)
+             warn "loop in macro ",$xxx
+             $xxx = ($xxx -1)
+           done
+         ';
+         $xxx = (2); $$loop; $xxx = (3); $$loop;
 
-    $loop = '
-      while ($xxx)
-        warn "loop in macro ",$xxx
-        $xxx = ($xxx -1)
-      done
-    ';
-    $xxx = (2); $$loop; $xxx = (3); $$loop;
-
-    $_X_keycode = (off)
-    $_X_lin_filt = (on)
-    ...
-    if ($_X_keycode) $_X_keycode = "keycode" else $_X_keycode = "" endif
-    if ($_X_lin_filt) $_X_lin_filt = "lin_filt" else $_X_lin_filt = "" endif
-    X { icon_name "xdos" $$_X_keycode $$_X_lin_filt }
+         $_X_keycode = (off)
+         $_X_lin_filt = (on)
+         ...
+         if ($_X_keycode) $_X_keycode = "keycode" else $_X_keycode = "" endif
+         if ($_X_lin_filt) $_X_lin_filt = "lin_filt" else $_X_lin_filt = "" endif
+         X { icon_name "xdos" $$_X_keycode $$_X_lin_filt }
 
 
 
@@ -971,8 +922,6 @@
   there is no ambiguity in the syntax. Such an ambiguity is given, when
   a statement needs more then one successive number such as
 
-
-
          ... winsize x y ...
          ... vesamode width heigh ...
          ... range from to ...
@@ -986,11 +935,9 @@
 
 
 
-
-
-    ... winsize x , y ...
-    ... vesamode width , heigh ...
-    ... range from , to ...
+         ... winsize x , y ...
+         ... vesamode width , heigh ...
+         ... range from , to ...
 
 
 
@@ -1051,6 +998,7 @@
           $is_integer = ( int( 3.1415 * 100) )
           $is_integer = ( 100 * 3.1415 )
           $is_real =  ( real($is_integer) )
+
 
 
 
@@ -1119,7 +1067,6 @@
 
 
 
-
   22..22..66..  SSttrriinngg eexxpprreessssiioonnss
 
   For manipulation of strings there are the following builtin functions,
@@ -1159,19 +1106,6 @@
   any special case, such as different terminal types, different hdimages
   for different users and/or different host, adapt to different (future)
   dosemu and/or kernel versions. Here some small examples:
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -3193,357 +3127,7 @@
      of the masks of vm86.
 
 
-  55..  VVMM8866PPLLUUSS,, nneeww kkeerrnneell''ss vvmm8866 ffoorr aa ffuullll ffeeaattuurree ddoosseemmuu
-
-  ( available now in all kernels >= 2.0.28, >= 2.1.15 )
-
-  The below gives some details on the new kernel vm86 functionality that
-  is used for a `full feature dosemu'. We had more of those kernel
-  changes in the older emumodule, but reduced the kernel support to an
-  absolute minimum. As a result of this we now have this support in the
-  mainstream kernels >= 2.0.28 as well as >= 2.1.15 and do not need
-  emumodule any more (removed since dosemu 0.64.3). To distinguish
-  between the old vm86 functionality and the new one, we call the later
-  VM86PLUS.
-
-  Written on January 14, 1997 by Hans Lermen <lermen@fgan.de>.
-
-
-  55..11..  RReessttrriiccttiioonnss
-
-
-  +o  Starting with dosemu-0.64.3 we will no longer support older kernels
-     ( < 2.0.28 ) for vm86plus. If you for any reasons can't upgrade the
-     kernel, then either use an older dosemu or don't configure the
-     vm86plus support.
-
-  +o  Please don't use any 2.1.x kernels ^lt; 2.1.15 and don't use the
-     patch that came with dosemu-0.64.1, we changed the syscall
-     interface because Linus wanted to be absolutely shure that no older
-     (non-dosemu) binary would break.
-
-     Also, don't use any dosemu binaries that were compiled under 2.1.x
-     but earlier then 2.1.15.
-
-
-  55..22..  PPaarrttss iinn tthhee kkeerrnneell tthhaatt ggeett cchhaannggeedd ffoorr vvmm8866pplluuss
-
-
-
-
-
-  55..22..11..  CChhaannggeess ttoo aarrcchh//ii338866//kkeerrnneell//vvmm8866..cc
-
-
-  55..22..11..11..  NNeeww vvmm8866(()) ssyyssccaallll iinntteerrffaaccee
-
-  The vm86() syscall of vm86plus contains a generic interface: old style
-  vm86 syscall is 113, the new one is 166.  At entry of vm86() the
-  vm86_struct gets completely copied into kernel space and now _r_e_m_a_i_n_s
-  on the kernel stack until control return to user space. This has the
-  advantage that performance is increased as long as emulation loops
-  between VM86 and kernel space ( which happens quite often ). A second
-  advantage is, that we now better can translate between old
-  vm86_struct, vm86plus_struct and kernel 2.1.x changed internal
-  pt_regs, hence old vm86 and new vm86plus user space binaries run on
-  both 2.0.x and 2.1.x kernel.  The entry routine of the old style
-  vm86() translates to the new expanded vm86plus_struct before calling
-  the common new do_sys_vm86().
-
-  It is possible to detect the existence of vm86plus support in the
-  kernel by just calling vm86(0,(void *)0) on syscall 166 entry.  On
-  success 0 is returned, an unpatched kernel will return with -1.
-
-
-  55..22..11..22..  AAddddiittiioonnaall DDaattaa ppaasssseedd ttoo vvmm8866(())
-
-  When in vm86plus mode vm86() uses the new `struct vm86plus_struct'
-  instead of `struct vm86_struct'. This contains some additional flags
-  that are used to control whether vm86() should return earlier than
-  usual to give the timer emulation in dosemu a chance to be in sync.
-  Without this, updating the emulated timer chip happens too seldom and
-  may even result in `jumping back', because the granulation is too big
-  and rounding happens. As we don't know what granulation the DOS
-  application is relying on, we can't emulate the expected behave, hence
-  the application locks or crashes.  This especially happens when the
-  application is doing micro timing.
-
-  As a downside of `returning more often', we get DOS-space stack
-  overflows, when we suck too much CPU. This we compensate by detecting
-  this possibility and decreasing the `return rate', hence giving more
-  CPU back to DOS-space.
-
-  So we can realize a self adapting control loop with this feature.
-
-
-  55..22..11..33..  IIRRQQ ppaassssiinngg
-
-  Vm86plus also hosts the IRQ passing stuff now, that was a separate
-  syscall in the older emumodule (no syscallmgr any more).  As this IRQ
-  passing is special to dosemu, we anyway  couldn't it use for other
-  (unix) applications. So having it as part of vm86() should be the
-  right place.
-
-
-  55..22..11..44..  DDeebbuuggggeerr ssuuppppoorrtt
-
-  GDB is a great tool, however, we can't debug DOS and/or DPMI code with
-  it. Dosemu has its own builtin debugger (dosdebug) which allows
-  especially the dosemu developers to track down problems with dosemu
-  and DOS applications for which (as usual) we have no source.  ( ...
-  and debugging DOS applications always has been the `heart' of dosemu
-  development ).
-
-  Dosdebug uses some special flags and data in `vm86plus_struct', which
-  are passed to vm86(), and vm86() reacts on it and returns back to
-  dosemu with the dosdebug special return codes.
-
-  As with dosemu-0.64.1 you now can run both debuggers simultaneously,
-  dosdebug as well as GDB. Dosdebug will be triggered only for VM86
-  traps and with GDB you may debug dosemu itself. However, GDB can't be
-  used when DPMI is in use, because it will break on each trap that is
-  used to simulate DPMI, you won't like that.
-
-
-  55..22..22..  CChhaannggeess ttoo aarrcchh//ii338866//kkeerrnneell//llddtt..cc
-
-
-
-  55..22..22..11..  NNeeww ffuunnccttiioonnccooddee ffoorr ``wwrriittee'' iinn mmooddiiffyy__llddtt ssyyssccaallll
-
-  In order to preserve backword compatibility with Wine and Wabi the
-  changes in the LDT stuff are only available when using function code
-  0x11 for `write' in the modify_ldt syscall.  Hence old binaries will
-  be served with the old LDT behavior.
-
-
-  55..22..22..22..  ``uusseeaabbllee'' bbiitt iinn LLDDTT ddeessccrriippttoorr
-
-  The `struct modify_ldt_ldt_s' got an additional bit: `useable'.  This
-  is needed for DPMI clients that make use of the `available' bits in
-  the descriptor (bit 52).  `available' means, the hardware isn't using
-  it, but software can put information into.
-
-  Because the kernel does not use this bit, its save and harmless.
-  Windows 3.1 is such a client, but also some 32-bit DPMI clients are
-  reported to need it. This bit only is used for 32-bit clients.  DPMI-
-  function SetDescriptorAccessRights (AX=0009) passes this in bit 4 of
-  CH ((80386 extended access rights).
-
-
-  55..22..22..33..  ``pprreesseenntt'' bbiitt iinn LLDDTT sseelleeccttoorr
-
-  The function 1 (write_ldt) of syscall modify_ldt() allows
-  creation/modification of selectors containing a `present' bit, that
-  get updated correctly later on. These selectors are setup so, that
-  they _e_i_t_h_e_r can't be used for access (null-selector) _o_r the `present'
-  info goes into bit 47 (bit 7 of type byte) of a call gate descriptor
-  (segment present). This call gate of course is checked to not give any
-  kernel access rights.  Hence, security will not be hurt by this.
-
-
-
-  55..22..33..  CChhaannggeess ttoo aarrcchh//ii338866//kkeerrnneell//ssiiggnnaall..cc
-
-  Because DPMI code switches via signal return, some type of selectors
-  that the kernel normally would not allow to be loaded into a segment
-  registers have been made loadable. The involved register are DS, ES FS
-  and GS. Loading of CS or SS is not changed.
-
-  The original kernel code would forbid any non-null selector that
-  hasn't privilege level 3, and this also could be one of the LDT
-  selectors. However, sys_sigreturn doesn't check the descriptors that
-  belong to the selector, hence would not see that they are save.  But
-  as we assure proper setting of _a_l_l LDT selector via `write_ldt' of
-  modify_ldt(), we safely may allow LDT selectors to be loaded.  If they
-  are not proper, we then get an exception and have a chance to emulate
-  access. And because old type binaries (Wabi) will not be able create
-  newer type selector (see 2.2.1), gain this wont hurt.
-
-
-
-
-
-  55..22..44..  CChhaannggeess ttoo aarrcchh//ii338866//kkeerrnneell//ttrraappss..cc
-
-  The low-level exception entry points for INTx (x= 0, 1..5, 6) in the
-  kernel normally send a signal to the process, that then may handle the
-  exception. For INT1 (debug), the kernel does special treatment and
-  checks whether it gets interrupted from VM86.
-
-  Due to limitation in how we can handle signals in dosemu without
-  becoming to far behind `real time' and because we need to handle those
-  things on the current vm86() return stack, we need to handle the above
-  INTx in a similar manor then INT1.
-
-  When INTx happens out of VM86 (i.e. the CPU was in virtual 8086 mode
-  when the exception occurred), we do not send a signal, but return from
-  the vm86() syscall with an appropriate return code.
-
-  If the above INTx happens from within old style vm86() call, the
-  exceptions also are handled `the old way'. (backward comptibility)
-
-
-
-  55..33..  AAbbaannddoonneedd ``bbeellllss aanndd wwhhiissttlleess'' ffrroomm oollddeerr eemmuummoodduullee
-
-  ( If you have an application that needs it, well then it won't work,
-  and please don't ask us to re-implement the old behaviour.  We have
-  good reasons for our decision. )
-
-
-
-  55..33..11..  KKeerrnneell ssppaaccee LLDDTT..
-
-  Some DPMI clients have really odd programming techniques that don't
-  use the LAR instruction to get info from a descriptor but access the
-  LDT directly to get it. Well, this is not problem with our user space
-  LDT copy (LDT_ALIAS) as long as the DPMI client doesn't need a
-  reliable information about the `accessed bit'.
-
-  In the older emumodule we had a so called KERNEL_LDT, which (readonly)
-  accessed the LDT directly in kernel space. This now has been abandoned
-  and we use some workarounds which may (or may not) work for the above
-  mentioned DPMI clients.
-
-
-  55..33..22..  LLDDTT SSeelleeccttoorrss aacccceessssiinngg tthhee ``wwhhoollee ssppaaccee''
-
-  DPMI clients may very well try to create selectors with a type and
-  size that would overlap with kernel space, though the client normally
-  only would access user space with such selectors (e.g. expand down
-  segments).
-
-  This was a security hole in the older Linux kernel, that was fixed in
-  the early 1.3.x kernel series. Due to complaints on linux-msdos
-  emumodule did allow those selectors if dosemu was run as root.
-  Because only very few DOS applications are needing this (e.g. some odd
-  programmed games), we now favourite security and don't allow this any
-  more.
-
-
-  55..33..33..  FFaasstt ssyyssccaallllss
-
-  In order to gain speed and to be more atomic on some operations we had
-  so called fast syscalls, that uses INT 0xe6 to quickly enter kernel
-  space get/set the dosemu used IRQ-flags and return without letting the
-  kernel a chance to reschedule.
-
-
-  Today the machines perform much better, so there is no need for for
-  those ugly tricks any more. In dosemu-0.64.1 fast syscalls are no
-  longer used.
-
-
-  55..33..44..  SSeeppaarraattee ssyyssccaallll iinntteerrffaaccee ((ssyyssccaallll mmaannaaggeerr))
-
-  The old emumodule uses the syscallmgr interface to establish a new
-  (temporary) system call, that was used to interface with emumodule.
-  We now have integrated all needed stuff into the vm86 system call,
-  hence we do not need this technique any more.
-
-
-  66..  VViiddeeoo CCooddee
-
-  I have largely reorganized the video code. Be aware that a lot of code
-  is now in a different place, and some files were moved or renamed.
-
-
-  66..11..  CC ffiilleess
-
-
-     vviiddeeoo//vviiddeeoo..cc
-        global variables, init/cleanup code video_init(), video_close(),
-        load_file(), video_config_init()
-
-
-     vviiddeeoo//iinntt1100..cc
-        int10 emulation (formerly int10.h), Scroll, clear_screen,
-        char_out, set_video_mode
-
-
-     vviiddeeoo//vvcc..cc
-        console switching code (formerly video.c)
-
-     vviiddeeoo//ccoonnssoollee..cc
-        console mode routines
-
-
-     vviiddeeoo//eett44000000..cc,,
-        video/s3.c, video/trident.c" card-dependent console/graphics
-        switching routines
-
-
-     vviiddeeoo//vvggaa..cc
-        console mode? graphics?
-
-
-     vviiddeeoo//tteerrmmiinnaall..cc
-        terminal mode video update routines (ansi/ncurses)
-
-
-     vviiddeeoo//XX..cc
-        Xwindow stuff
-
-
-  66..22..  HHeeaaddeerr ffiilleess
-
-
-     vviiddeeoo//vvcc..hh
-        def's relating to console switching (formerly include/video.h)
-
-
-     iinncclluuddee//vviiddeeoo..hh
-        def's for general video status variables and functions
-
-  66..33..  NNootteess
-
-
-  +o  we now have 'virtual' video support. Every video front-end defines
-     a static, initialized structure 'Video_xxx' (e.g. Video_console)
-     which contains (mostly) pointers to the appropriate routines for
-     certain tasks.
-
-     Please use this when implementing new video front ends!  (See
-     video/video.h for more info)
-
-  +o  most of the video code & defs is removed from emu.c and emu.h (now
-     mostly in video/video.c)
-
-  +o  int10.h no longer exists (now in video/int10.c)
-
-  +o  sigalrm now again checks the dirty bit(s) in vm86s.screen_bitmap
-     before calling update_screen.
-
-     At the moment, it doesn't seem to achieve much, but it might help
-     when we use mark's scroll detector, and will be absolutely
-     necessary for a good X graphics support.
-
-     Note that for all video memory modifications done outside of vm86
-     mode we must now use set_dirty()  (defined in int10.c).  _t_h_i_s _i_s
-     _c_u_r_r_e_n_t_l_y _d_i_s_a_b_l_e_d_. _T_o _e_n_a_b_l_e _i_t_, _s_e_t _V_I_D_E_O___C_H_E_C_K___D_I_R_T_Y _t_o _1 _i_n
-     _i_n_c_l_u_d_e_/_v_i_d_e_o_._c_.
-
-
-  66..44..  TTooddoo
-
-
-  +o  cleanup terminal/console mode initialization (currently called from
-     video_init() in video.c) termioInit(), termioClose() should
-     probably be split up somehow (i.e. general/terminal/console)
-
-  +o  fix bug: screen is not restored properly when killing dosemu in
-     graphics mode
-
-  +o  properly implement set_video_mode()   (int10.c)
-
-  +o  cursor in console mode ok?
-
-  +o  put int10.c into video.c?
-
-  +o  put vc.c into console.c?
-
-  77..  TThhee oolldd wwaayy ooff ggeenneerraattiinngg aa bboooottaabbllee DDOOSSEEmmuu
+  55..  TThhee oolldd wwaayy ooff ggeenneerraattiinngg aa bboooottaabbllee DDOOSSEEmmuu
 
   Since dosemu-0.66.4 and once again since dosemu-0.99.6 you will not
   need the complicated method of generating a bootable dosemu suite (see
@@ -3553,7 +3137,7 @@
   drive redirection.
 
 
-  77..11..  BBoooott (( ttooooll ggeenneerraatteedd ``hhddiimmaaggee'' mmeetthhoodd ))
+  55..11..  BBoooott (( ttooooll ggeenneerraatteedd ``hhddiimmaaggee'' mmeetthhoodd ))
 
 
   Short reminder: a hdimage is a virtual disk the contents of which are
@@ -3612,11 +3196,11 @@
 
 
 
-  77..22..  BBoooott (( ``ttrraaddiittiioonnaall'' mmeetthhoodd ))
+  55..22..  BBoooott (( ``ttrraaddiittiioonnaall'' mmeetthhoodd ))
 
 
 
-  77..22..11..  IIff yyoouu aarree nneeww ttoo DDOOSSEEMMUU
+  55..22..11..  IIff yyoouu aarree nneeww ttoo DDOOSSEEMMUU
 
 
 
@@ -3636,7 +3220,7 @@
      (<ctrl><alt><pgdn> will automatically exit dosemu.)
 
 
-  77..22..22..  IIff yyoouu aallrreeaaddyy hhaavvee aa HHDDIIMMAAGGEE ffiillee
+  55..22..22..  IIff yyoouu aallrreeaaddyy hhaavvee aa HHDDIIMMAAGGEE ffiillee
 
 
 
@@ -3646,7 +3230,9 @@
      changed.
 
 
-  77..22..33..  IIff yyoouu ddoonn''tt kknnooww hhooww ttoo ccooppyy ffiilleess ffrroomm//ttoo tthhee hhddiimmaaggee
+
+
+  55..22..33..  IIff yyoouu ddoonn''tt kknnooww hhooww ttoo ccooppyy ffiilleess ffrroomm//ttoo tthhee hhddiimmaaggee
 
 
 
@@ -3677,7 +3263,7 @@
   all clear ? ;-)
 
 
-  88..  NNeeww KKeeyybbooaarrdd CCooddee
+  66..  NNeeww KKeeyybbooaarrdd CCooddee
 
 
   This file describes the new keyboard code which was written in late
@@ -3689,7 +3275,7 @@
   Jan 97. ( correction notes marked *HH  -- Hans )
 
 
-  88..11..  WWhhaattss NNeeww
+  66..11..  WWhhaattss NNeeww
 
 
   What's new in the new keyboard code? A lot.
@@ -3742,7 +3328,7 @@
 
 
 
-  88..22..  SSttaattuuss
+  66..22..  SSttaattuuss
 
 
   Almost everything seems to work well now.
@@ -3759,8 +3345,7 @@
 
 
 
-
-  88..33..  KKeeyybbooaarrdd sseerrvveerr iinntteerrffaaccee
+  66..33..  KKeeyybbooaarrdd sseerrvveerr iinntteerrffaaccee
 
 
   This is all you should need to know if you just want to send
@@ -3793,7 +3378,7 @@
   which runs on top of the server.
 
 
-  88..44..  KKeeyybbooaarrdd sseerrvveerr ssttrruuccttuurree
+  66..44..  KKeeyybbooaarrdd sseerrvveerr ssttrruuccttuurree
 
   [_N_O_T_E_: you won't need to read this unless you actually want to modify
   the keyboard server code. In that case, however, you MUST read it!]
@@ -3823,10 +3408,7 @@
   should always contain something.
 
 
-
-
-
-  88..44..11..  qquueeuuee hhaannddlliinngg ffuunnccttiioonnss
+  66..44..11..  qquueeuuee hhaannddlliinngg ffuunnccttiioonnss
 
 
   +o  static inline Boolean queue_empty(void);
@@ -3848,9 +3430,7 @@
      keycodes to DOS
 
 
-
-
-  88..44..22..  TThhee FFrroonntt EEnndd
+  66..44..22..  TThhee FFrroonntt EEnndd
 
 
 
@@ -3880,7 +3460,7 @@
 
 
 
-  88..44..22..11..  FFuunnccttiioonnss iinn sseerrvv__xxllaatt..cc
+  66..44..22..11..  FFuunnccttiioonnss iinn sseerrvv__xxllaatt..cc
 
 
 
@@ -3890,7 +3470,6 @@
      ascii);
 
   +o  static uchar translate(t_keysym key);
-
 
   +o  static Boolean handle_dosemu_keys(t_keysym key);
 
@@ -3907,7 +3486,7 @@
 
 
 
-  88..44..22..11..11..  ppuuttrraawwkkeeyy
+  66..44..22..11..11..  ppuuttrraawwkkeeyy
 
 
   is called with a single raw scancode byte. Scancodes from subsequent
@@ -3915,17 +3494,19 @@
   placed into the queue.
 
 
-  88..44..22..11..22..  ppuuttkkeeyy && ootthheerrss
+
+
+  66..44..22..11..22..  ppuuttkkeeyy && ootthheerrss
 
   ,,,to be documented.
 
 
 
-  88..44..33..  TThhee BBaacckk EEnndd
+  66..44..33..  TThhee BBaacckk EEnndd
 
 
 
-  88..44..33..11..  QQuueeuuee BBaacckk EEnndd iinn kkeeyybbiinntt==oonn mmooddee
+  66..44..33..11..  QQuueeuuee BBaacckk EEnndd iinn kkeeyybbiinntt==oonn mmooddee
 
 
 
@@ -3957,8 +3538,7 @@
 
 
 
-
-  88..44..33..22..  QQuueeuuee BBaacckk EEnndd iinn kkeeyybbiinntt==ooffff mmooddee
+  66..44..33..22..  QQuueeuuee BBaacckk EEnndd iinn kkeeyybbiinntt==ooffff mmooddee
 
 
 
@@ -3980,7 +3560,9 @@
 
 
 
-  88..44..33..33..  FFuunnccttiioonnss iinn nneewwkkbbdd--sseerrvveerr..cc
+
+
+  66..44..33..33..  FFuunnccttiioonnss iinn nneewwkkbbdd--sseerrvveerr..cc
 
 
 
@@ -4073,7 +3655,7 @@
 
 
 
-  88..55..  KKnnoowwnn bbuuggss && iinnccoommppaattiibbiilliitteess
+  66..55..  KKnnoowwnn bbuuggss && iinnccoommppaattiibbiilliitteess
 
 
 
@@ -4090,6 +3672,7 @@
 
   +o  CAPS LOCK uppercase translation may be incorrect for some (non-
      german) national characters.
+
   +o  typematic codes in X and non-raw modes are Make+Break, not just
      Make.  This shouldn't hurt, though.
 
@@ -4110,11 +3693,12 @@
      extended functions 0x10,0x11 - i.e. 0,1 don't filter out extended
      keycodes.
 
+
   +o  keyb.exe still doesn't work (hangs) - most probably due to the
      above.
 
 
-  88..66..  CChhaannggeess ffrroomm 00..6611..1100
+  66..66..  CChhaannggeess ffrroomm 00..6611..1100
 
 
 
@@ -4134,7 +3718,7 @@
      initialisation and paste support.
 
 
-  88..77..  TTOODDOO
+  66..77..  TTOODDOO
 
 
 
@@ -4148,89 +3732,7 @@
   +o  once everything is proved to work, remove the old keyboard code
 
 
-  99..  IIBBMM CChhaarraacctteerr SSeett
-
-  This is Mark Rejhon's version 2 of terminal support for the IBM
-  graphics character set with a remote DOSEMU or a xterm DOSEMU.   Don't
-  take these patches as final or original, as there is some cleaning up
-  to do, Look forward to version 3 of the terminal support...! :-)
-
-
-  Please give feedback or suggestions to Mark Rejhon at the
-  <marky@magmacom.com> address.  Thanks!
-
-
-  This prereleases updates supports:
-
-  +o  "xdosemu" script to run DOSEMU in a normal xterm/rxvt!
-
-  +o  IBM characters in telnet or kermit session from a Linux console.
-
-  +o  IBM characters in an IBM character terminal like minicom or a DOS-
-     based ANSI terminal.
-
-
-  99..11..  WWhhaatt''ss nneeww iinn ccoonnffiigguurraattiioonn
-
-
-  There is a new keyword called "charset" which accept either of these
-  values: "latin" "ibm" and "fullibm".   View ./video/terminal.h for
-  more information on these character set.  Here are the instructions on
-  how to activate the 8-bit graphical IBM character set for DOSEMU:
-
-
-  99..11..11..  IIBBMM cchhaarraacctteerr sseett iinn aann xxtteerrmm
-
-
-  GREAT NEWS: You just use your existing ordinary "rxvt" or "xterm".
-  Just install the VGA font by going into the DOSEMU directory and
-  running the "xinstallvgafont" script by typing "./xinstallvgafont".
-  Then just run "xdosemu" to start a DOSEMU window!
-
-
-
-  99..11..22..  IIBBMM cchhaarraacctteerr sseett aatt tthhee ccoonnssoollee
-
-  This will work if you are using the Linux console for telnet or
-  kermit, to run a remote DOSEMU session.  Just simply run the
-  "ibmtermdos" command on the remote end.  It puts the Linux console to
-  use the IBM font for VT100 display, so that high ASCII characters are
-  directly printable.
-
-  _N_O_T_E_: This will not work with "screen" or any other programs that
-  affect character set mapping to the Linux console screen.  For this,
-  you should specify "charset fullibm" inside the "video { }"
-  configuration in /etc/dosemu.conf.
-
-
-
-  99..11..33..  IIBBMM cchhaarraacctteerr sseett oovveerr aa sseerriiaall lliinnee iinnttoo aann IIBBMM AANNSSII tteerrmmiinnaall
-
-
-  Simply specify "charset fullibm" inside the "video { }" configuration
-  in /etc/dosemu.conf and then run "dos" in the normal manner.  You must
-  be running in an ANSI emulation mode (or a vt102 mode that is
-  compatible with ANSI and uses the IBM character set.)
-
-
-
-  99..22..  TTHHEE FFUUTTUURREE bbyy MMaarrkk RReejjhhoonn
-
-
-  +o  NCURSES color to be added.  The IBM character set problem is
-     solved.
-
-  +o  clean up terminal code.
-
-  +o  Add command line interface for character set and for serial port
-     enable/disabling.
-
-  +o  Use a separate "terminal { }" line for all the ncurses/termcap
-     related configuration, instead of putting it in the "video { }"
-     line.
-
-
-  1100..  SSeettttiinngg HHooggTThhrreesshhoolldd
+  77..  SSeettttiinngg HHooggTThhrreesshhoolldd
 
   Greetings DOSEMU fans,
 
@@ -4255,6 +3757,7 @@
 
   This files is some kind of FAQ on how to use the 'HogThreshold' value
   in the dosemu config file.
+
 
 
   In case you have more questions feel free to ask me (
@@ -4285,6 +3788,7 @@
                   ; found a key
                   mov ah,0
                   int 0x16 ; get key
+
 
 
 
@@ -4322,7 +3826,6 @@
 
 
 
-
   This is what speed.com does. If you are interested, please take a look
   at speed.c.
 
@@ -4332,13 +3835,16 @@
   program like this, let me ( <scottb@eecs.nwu.edu> ) know and I'll
   rewrite something into the int16 bios.
 
-  1111..  TThhiiss sseeccttiioonn wwrriitttteenn bbyy HHaannss LLeerrmmeenn[[lltt    ]]lleerrmmeenn@@ffggaann..ddee[[ggtt    ]]
-  ,, AApprr 66,, 11999977..  AAnndd uuppddaatteedd bbyy EErriicc BBiieeddeerrmmaann [[lltt    ]]eebbiiee--
-  ddeerrmm++eerriicc@@nnppwwtt..nneett[[ggtt    ]] 3300 NNoovv 11999977..  PPrriivveelleeggeess aanndd RRuunnnniinngg aass
-  UUsseerr
+  88..  PPrriivviilleeggeess aanndd RRuunnnniinngg aass UUsseerr
 
 
-  1111..11..  WWhhaatt wwee wweerree ssuuffffeerriinngg ffrroomm
+  This section written by Hans Lermen <lermen@fgan.de> , Apr 6, 1997.
+  And updated by Eric Biederman <ebiederm+eric@npwt.net> 30 Nov 1997.
+
+
+
+
+  88..11..  WWhhaatt wwee wweerree ssuuffffeerriinngg ffrroomm
 
   Well, I got sick with the complaints about 'have problems running as
   user' and did much effort to 'learn' about what we were doing with
@@ -4420,7 +3926,16 @@
 
 
 
-  1111..22..  TThhee nneeww ''pprriivv ssttuuffff''
+  ReReEnter Hans (2000/02/28):  ;-)
+
+
+
+
+  The treads code has definitively gone (no one made serious use of it),
+  so the above thread related arguments too.
+
+
+  88..22..  TThhee nneeww ''pprriivv ssttuuffff''
 
   This works as follows
 
@@ -4442,10 +3957,6 @@
                enter_priv_off();  /* need pure user access for 'do_something' */
                do_something();
                leave_priv_setting();
-
-
-
-
 
   +o  On enter_priv_XXX() the current state will be saved (pushed) on a
      local variable on the stack and later restored from that on
@@ -4551,15 +4062,14 @@
   is  /.dosemu/* and dosdebug was adapted to support that.
 
 
-
-  1122..  TTiimmiinngg iissssuueess iinn ddoosseemmuu
+  99..  TTiimmiinngg iissssuueess iinn ddoosseemmuu
 
   This section written by Alberto Vignani <vignani@mbox.vol.it> , Aug
   10, 1997
 
 
 
-  1122..11..  TThhee 6644--bbiitt ttiimmeerrss
+  99..11..  TThhee 6644--bbiitt ttiimmeerrss
 
   The idea for the 64-bit timers came, of course, from using the pentium
   cycle counter, and has been extended in dosemu to the whole timing
@@ -4580,8 +4090,6 @@
 
   You can get the current time with the two functions
 
-
-
            GETusTIME    for 1-usec resolution
            GETtickTIME  for 838ns resolution
 
@@ -4597,7 +4105,7 @@
   DANG notes about emu-i386/cputime.c for details.
 
 
-  1122..22..  DDOOSS ''vviieeww ooff ttiimmee'' aanndd ttiimmee ssttrreettcchhiinngg
+  99..22..  DDOOSS ''vviieeww ooff ttiimmee'' aanndd ttiimmee ssttrreettcchhiinngg
 
   The time stretcher implements DOS 'view of time', as opposed to the
   system time.  It would be very easy to just give DOS its time, by
@@ -4617,8 +4125,7 @@
   kernel resources.
 
 
-
-  1122..33..  NNoonn--ppeerriiooddiicc ttiimmeerr mmooddeess iinn PPIITT
+  99..33..  NNoonn--ppeerriiooddiicc ttiimmeerr mmooddeess iinn PPIITT
 
   Normally, PIT timer 0 runs in a periodic mode (mode 2 or 3), it counts
   down to 0 then it issues an int8 and reinitializes itself. But many
@@ -4642,7 +4149,7 @@
 
 
 
-  1122..44..  FFaasstt ttiimmiinngg
+  99..44..  FFaasstt ttiimmiinngg
 
   By "fast timing", I define a timer 0 period less than half of the
   Linux "jiffie" time (10ms). This is empirically determined - programs
@@ -4663,7 +4170,7 @@
   slow machines (386,486) - but it will maybe never work for all cases.
 
 
-  1122..55..  PPIICC//PPIITT ssyynncchhrroonniizzaattiioonn aanndd iinntteerrrruupptt ddeellaayy
+  99..55..  PPIICC//PPIITT ssyynncchhrroonniizzaattiioonn aanndd iinntteerrrruupptt ddeellaayy
 
   Another tricky issue... There are actually two timing systems for
   int8, the one connected to the interrupt in PIC, the other to port
@@ -4680,7 +4187,7 @@
   is restarted, the PIT must be reset too. And so on.
 
 
-  1122..66..  TThhee RRTTCC eemmuullaattiioonn
+  99..66..  TThhee RRTTCC eemmuullaattiioonn
 
   There is a totally new emulation of the CMOS Real Time Clock, complete
   with alarm interrupt. A process ticks at exactly 1sec, always in real
@@ -4691,7 +4198,7 @@
   CMOS and time-stretching features.
 
 
-  1122..77..  GGeenneerraall wwaarrnniinnggss
+  99..77..  GGeenneerraall wwaarrnniinnggss
 
   Do not try to use games or programs with hi-freq timers while running
   heavy tasks in the background. I tried to make dosemu quite robust in
@@ -4699,20 +4206,21 @@
   unplayable, the game could behave in unpredictable ways.
 
 
-  1133..  PPeennttiiuumm--ssppeecciiffiicc iissssuueess iinn ddoosseemmuu
+  1100..  PPeennttiiuumm--ssppeecciiffiicc iissssuueess iinn ddoosseemmuu
 
   This section written by Alberto Vignani <vignani@mbox.vol.it> , Aug
   10, 1997
 
 
 
-  1133..11..  TThhee ppeennttiiuumm ccyyccllee ccoouunntteerr
+  1100..11..  TThhee ppeennttiiuumm ccyyccllee ccoouunntteerr
 
   On 586 and higher CPUs the 'rdtsc' instruction allows access to an
   internal 64-bit TimeStamp Counter (TSC) which increments at the CPU
   clock rate.  Access to this register is controlled by bit 2 in the
   config register cr4; hopefully under Linux this bit is always off,
   thus allowing access to the counter also from user programs at CPL 3.
+
 
   The TSC is part of a more general group of performance evaluation
   registers, but no other feature of these registers is of any use for
@@ -4728,14 +4236,14 @@
   486-style code).
 
 
-  1133..22..  HHooww ttoo ccoommppiillee ffoorr ppeennttiiuumm
+  1100..22..  HHooww ttoo ccoommppiillee ffoorr ppeennttiiuumm
 
   There are no special options required to compile for pentium, the CPU
   selection is done at runtime by parsing /proc/cpuinfo. You can't
   override the CPU selection of the real CPU, only the emulated one.
 
 
-  1133..33..  RRuunnttiimmee ccaalliibbrraattiioonn
+  1100..33..  RRuunnttiimmee ccaalliibbrraattiioonn
 
   At the very start of dosemu the bogospeed() function in
   base/init/config.c is called. This function first looks for the CPUID
@@ -4749,6 +4257,10 @@
 
 
            export CPUSPEED=200
+
+
+
+
 
   The last method used is the autocalibration, which compares the values
   of gettimeofday() and TSC over an interval of several hundred
@@ -4775,7 +4287,8 @@
   clock.
 
 
-  1133..44..  TTiimmeerr pprreecciissiioonn
+
+  1100..44..  TTiimmeerr pprreecciissiioonn
 
   I found no info about this issue. It is reasonable to assume that if
   your CPU is specified to run at 100MHz, it should run at that exact
@@ -4788,7 +4301,7 @@
   the TSC.
 
 
-  1133..55..  AAddddiittiioonnaall ppooiinnttss
+  1100..55..  AAddddiittiioonnaall ppooiinnttss
 
   The experimental 'time stretching' algorithm is only enabled when
   using the pentium (with or without TSC). I found that it is a bit
@@ -4808,11 +4321,11 @@
   in your configuration file.
 
 
-  1144..  TThhee DDAANNGG ssyysstteemm
+  1111..  TThhee DDAANNGG ssyysstteemm
 
 
 
-  1144..11..  DDeessccrriippttiioonn
+  1111..11..  DDeessccrriippttiioonn
 
   The DANG compiler is a perl script which produces a linuxdoc-sgml
   document from special comments embedded in the DOSEmu source code.
@@ -4821,7 +4334,7 @@
 
 
 
-  1144..22..  CChhaannggeess ffrroomm llaasstt ccoommppiilleerr rreelleeaassee
+  1111..22..  CChhaannggeess ffrroomm llaasstt ccoommppiilleerr rreelleeaassee
 
 
 
@@ -4832,7 +4345,7 @@
   +o  Corrections to sgml special character protection.
 
 
-  1144..33..  UUssiinngg DDAANNGG iinn yyoouurr ccooddee
+  1111..33..  UUssiinngg DDAANNGG iinn yyoouurr ccooddee
 
   TTHHEE FFOOLLLLOOWWIINNGG MMAAYY NNOOTT SSOOUUNNDD VVEERRYY NNIICCEE,, BBUUTT IISS IINNTTEENNDDEEDD TTOO KKEEEEPP DDAANNGG AASS
   IITT WWAASS DDEESSIIGGNNEEDD TTOO BBEE -- AA _G_U_I_D_E FFOORR _N_O_V_I_C_E_S..
@@ -4850,7 +4363,7 @@
 
 
 
-  1144..44..  DDAANNGG MMaarrkkeerrss
+  1111..44..  DDAANNGG MMaarrkkeerrss
 
   Some initial comments:
 
@@ -4871,7 +4384,7 @@
      users who are actually reading the SOURCE file.
 
 
-  1144..55..  DDAANNGG__BBEEGGIINN__MMOODDUULLEE // DDAANNGG__EENNDD__MMOODDUULLEE
+  1111..55..  DDAANNGG__BBEEGGIINN__MMOODDUULLEE // DDAANNGG__EENNDD__MMOODDUULLEE
 
   These should enclose a piece of summary text at the start of a file.
   It should explain the purpose of the file. Anything on the same line
@@ -4880,6 +4393,7 @@
   be any number of lines of text.  To include information on the
   maintainer(s) of a module, put 'maintainer:' on a blank line. The
   following lines should contain the maintainers details in form:
+
 
 
        name ..... <user@address>
@@ -4906,11 +4420,7 @@
         * DANG_END_MODULE
         */
 
-
-
-
-
-  1144..55..11..  DDAANNGG__BBEEGGIINN__FFUUNNCCTTIIOONN // DDAANNGG__EENNDD__FFUUNNCCTTIIOONN
+  1111..55..11..  DDAANNGG__BBEEGGIINN__FFUUNNCCTTIIOONN // DDAANNGG__EENNDD__FFUUNNCCTTIIOONN
 
   This is used to describe functions. Ideally this should only be
   complicated or important functions as this avoids cluttering DANG with
@@ -4947,8 +4457,7 @@
 
 
 
-
-  1144..55..22..  DDAANNGG__BBEEGGIINN__RREEMMAARRKK // DDAANNGG__EENNDD__RREEMMAARRKK
+  1111..55..22..  DDAANNGG__BBEEGGIINN__RREEMMAARRKK // DDAANNGG__EENNDD__RREEMMAARRKK
 
   This is used to provide in-context comments within the code. They can
   be used to describe some particularly interesting or complex code. It
@@ -4972,7 +4481,7 @@
 
 
 
-  1144..55..33..  DDAANNGG__BBEEGGIINN__NNEEWWIIDDEEAA // DDAANNGG__EENNDD__NNEEWWIIDDEEAA
+  1111..55..33..  DDAANNGG__BBEEGGIINN__NNEEWWIIDDEEAA // DDAANNGG__EENNDD__NNEEWWIIDDEEAA
 
   This is used to make a note of a new idea which we would like to have
   implemented, or an alternative way of coding something. This can be
@@ -4997,7 +4506,7 @@
 
 
 
-  1144..55..44..  DDAANNGG__FFIIXXTTHHIISS
+  1111..55..44..  DDAANNGG__FFIIXXTTHHIISS
 
   This is for single line comments on an area which needs fixing. This
   should say where the fix is required. This may become a multi-line
@@ -5012,9 +4521,7 @@
 
 
 
-
-
-  1144..55..55..  DDAANNGG__BBEEGGIINN__CCHHAANNGGEELLOOGG // DDAANNGG__EENNDD__CCHHAANNGGEELLOOGG
+  1111..55..55..  DDAANNGG__BBEEGGIINN__CCHHAANNGGEELLOOGG // DDAANNGG__EENNDD__CCHHAANNGGEELLOOGG
 
   This is not currently used. It should be placed around the CHANGES
   section in the code. It was intended to be used along with the DPR.
@@ -5022,7 +4529,7 @@
   * No Example *
 
 
-  1144..66..  UUssaaggee
+  1111..66..  UUssaaggee
 
   The current version of the configuration file resides in
   './src/doc/DANG'. The program needs to be told where to find this
@@ -5041,7 +4548,7 @@
   markers, etc.
 
 
-  1144..77..  FFuuttuurree
+  1111..77..  FFuuttuurree
 
   I have vaguelly started writing the successor of this program. This
   will be a more general program with a more flexible configuration
@@ -5049,7 +4556,7 @@
   version will make it easier to change the markers & document
   structure, as well as providing feedback on errors.
 
-  1155..  mmkkffaattiimmaaggee ---- MMaakkee aa FFAATT hhddiimmaaggee pprree--llooaaddeedd wwiitthh ffiilleess
+  1122..  mmkkffaattiimmaaggee ---- MMaakkee aa FFAATT hhddiimmaaggee pprree--llooaaddeedd wwiitthh ffiilleess
 
   This section from Pasi Eronen <pe@iki.fi> (1995-08-28)
 
@@ -5066,7 +4573,7 @@
 
   As always, comments, suggestions, etc. are welcome.
 
-  1166..  mmkkffaattiimmaaggee1166 ---- MMaakkee aa llaarrggee FFAATT hhddiimmaaggee pprree--llooaaddeedd wwiitthh ffiilleess
+  1133..  mmkkffaattiimmaaggee1166 ---- MMaakkee aa llaarrggee FFAATT hhddiimmaaggee pprree--llooaaddeedd wwiitthh ffiilleess
 
   I have also attached (gzipped in MIME format) mkfatimage16.c, a
   modified version of mkfatimage which takes an additional switch [-t
@@ -5076,7 +4583,7 @@
   DOS system within a big hdimage!
 
 
-  1177..  DDooccuummeennttiinngg DDOOSSEEmmuu
+  1144..  DDooccuummeennttiinngg DDOOSSEEmmuu
 
   This is all about the new style DOSEmu documentation. When I was
   discussing this with Hans he was concerned (as I am) about the fact
@@ -5090,7 +4597,7 @@
   is the file './src/doc/README/doc')
 
 
-  1177..11..  SSeeccttiioonnss
+  1144..11..  SSeeccttiioonnss
 
   There are 5 section levels you can use. They are all automatically
   numbered. Your choices are:
@@ -5111,7 +4618,6 @@
      <<sseecctt44>>
         A 4th level section. This is _n_o_t indexed.
 
-
   +o  You _c_a_n_n_o_t skip section levels on the way down (ie you must go
      <sect>,<sect1>,<sect2> and not <sect>,<sect2>).  On the way back it
      doesn't matter!
@@ -5122,7 +4628,7 @@
   +o  You must have a <p> before you start the section text
 
 
-  1177..22..  EEmmpphhaassiissiinngg tteexxtt
+  1144..22..  EEmmpphhaassiissiinngg tteexxtt
 
   I think there are lots of ways of doing this, but I've only been using
   2:
@@ -5145,8 +4651,7 @@
   This second form can be very useful.
 
 
-
-  1177..33..  LLiissttss
+  1144..33..  LLiissttss
 
   Here we have 3 useful types:
 
@@ -5176,16 +4681,19 @@
   <tag>...</tag> or it's short form (<tag/.../). eg:
 
 
-       <descrip>
-       <tag>item 1</tag> is here
-       <tag/item 2/ is here!
-       </descrip>
+
+
+
+  <descrip>
+  <tag>item 1</tag> is here
+  <tag/item 2/ is here!
+  </descrip>
 
 
 
 
 
-  1177..44..  QQuuoottiinngg ssttuuffff
+  1144..44..  QQuuoottiinngg ssttuuffff
 
   If you want to quote a small amount use <tt>. eg:
 
@@ -5209,10 +4717,7 @@
   characters should be OK.
 
 
-
-
-
-  1177..55..  SSppeecciiaall CChhaarraacctteerrss
+  1144..55..  SSppeecciiaall CChhaarraacctteerrss
 
   Obviously some characters are going to need to be quoted. In general
   these are the same ones as HTML (eg < is written as &lt;) There are 2
@@ -5220,13 +4725,13 @@
   are [ and ]. These _m_u_s_t be written as &lsqb; and &rsqb;.
 
 
-  1177..66..  CCrroossss--RReeffeerreenncceess && UURRLLss
+  1144..66..  CCrroossss--RReeffeerreenncceess && UURRLLss
 
   One of the extra feature that this lets us do is include URLs and
   cross-references.
 
 
-  1177..66..11..  CCrroossss--RReeffeerreenncceess
+  1144..66..11..  CCrroossss--RReeffeerreenncceess
 
   These have 2 parts: a label, and a reference.
 
@@ -5238,16 +4743,13 @@
   used as the link text.
 
 
-  1177..66..22..  UURRLLss
+  1144..66..22..  UURRLLss
 
   This looks slightly horrible, but is very flexible. It looks quite
   similar to the reference above. It is <htmlurl url="..." name="...">.
   The url will be active _o_n_l_y for HTML. The text in _n_a_m_e will be used at
   all times. This means that it is possible to make things like email
   addresses look good! eg:
-
-
-
        <htmlurl url="mailto:someone@no.where.com" name="&lt;someone@no.where.com&gt;">
 
 
@@ -5256,7 +4758,7 @@
   Which will appear as <someone@no.where.com>
 
 
-  1177..77..  GGoottcchhaass
+  1144..77..  GGoottcchhaass
 
 
   +o  You _m_u_s_t do the sect*'s in sequence on the way up
@@ -5270,9 +4772,9 @@
 
   +o  You _m_u_s_t replace <, >, [ and ]
 
-  1188..  SSoouunndd CCooddee
+  1155..  SSoouunndd CCooddee
 
-  1188..11..  CCuurrrreenntt DDOOSSEEmmuu ssoouunndd ccooddee
+  1155..11..  CCuurrrreenntt DDOOSSEEmmuu ssoouunndd ccooddee
 
   Unfortunately I haven't documented this yet. However, the current code
   has been completely rewritten and has been designed to support
@@ -5282,7 +4784,7 @@
   WWW page at http://www.slitesys.demon.co.uk/a.macdonald/dosemu/sound/
 
 
-  1188..22..  OOrriiggiinnaall DDOOSSEEMMUU ssoouunndd ccooddee
+  1155..22..  OOrriiggiinnaall DDOOSSEEMMUU ssoouunndd ccooddee
 
 
 
@@ -5344,6 +4846,7 @@
   and while I'm complaining, those mystery ports that SimEarth needs are
   for the FM synthesiser.  Watch it guys, you might generate interrupts
   with that....)
+
   Reference:
 
   PC Game Programers Encyclopedia
@@ -5353,15 +4856,15 @@
 
   July 17, 1995
 
-  1199..  DDMMAA CCooddee
+  1166..  DDMMAA CCooddee
 
-  1199..11..  CCuurrrreenntt DDOOSSEEmmuu DDMMAA ccooddee
+  1166..11..  CCuurrrreenntt DDOOSSEEmmuu DDMMAA ccooddee
 
   Unfortunately I haven't documented this yet. However, the current code
   has been completely rewritten from this.
 
 
-  1199..22..  OOrriiggiinnaall DDOOSSEEMMUU DDMMAA ccooddee
+  1166..22..  OOrriiggiinnaall DDOOSSEEMMUU DDMMAA ccooddee
 
 
 
@@ -5377,8 +4880,6 @@
            but WITHOUT ANY WARRANTY; without even the implied warranty of
            MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
            GNU General Public License for more details.
-
-
 
 
   This is intended to be a reasonably complete implementation of dma.
@@ -5430,7 +4931,7 @@
   Pascal before that.
 
 
-  1199..22..11..  AAddddiinngg DDMMAA ddeevviicceess ttoo DDOOSSEEMMUU
+  1166..22..11..  AAddddiinngg DDMMAA ddeevviicceess ttoo DDOOSSEEMMUU
 
   Read include/dma.h.  In the dma_ch[] struct, you'll find some fields
   that don't exist on the real DMA controller itself.  Those are for you
@@ -5447,12 +4948,11 @@
 
   The Intel Microprocessors: 8086/8088, 80186, 80286, 80386, 80486,
   Barry B. Brey,ISBN 0-02-314250-2,1994,Macmillan
-
   (The only reason I use this book so extensively is it's the only one
   like it that I can find in the Hawaii State Library System :-)
 
 
-  2200..  DDOOSSEEmmuu PPrrooggrraammmmaabbllee IInntteerrrruupptt CCoonnttrroolllleerr
+  1177..  DDOOSSEEmmuu PPrrooggrraammmmaabbllee IInntteerrrruupptt CCoonnttrroolllleerr
 
   This emulation, in files picu.c and picu.h, emulates all of the useful
   features of the two 8259 programmable interrupt controllers.  Support
@@ -5475,7 +4975,6 @@
      OOCCWW11    aallll bbiittss
         sets interrupt mask
 
-
      OOCCWW22    bbiittss 77,,55--00
         EOI commands only
 
@@ -5485,7 +4984,7 @@
   Reads of both PICs ports are supported completely.
 
 
-  2200..11..  OOtthheerr ffeeaattuurreess
+  1177..11..  OOtthheerr ffeeaattuurreess
 
 
 
@@ -5514,13 +5013,14 @@
      complete as soon as they are successfully started.
 
 
+
   +o  Interrupts are triggered when the PIC emulator, called in the vm86
      loop, detects a bit set in the interrupt request register.  This
      register is a global variable, so that any dosemu code can easily
      trigger an interrupt.
 
 
-  2200..22..
+  1177..22..
 
   CCaavveeaattss
 
@@ -5554,7 +5054,7 @@
   this way.
 
 
-  2200..33..
+  1177..33..
 
   NNootteess oonn tthheeoorryy ooff ooppeerraattiioonn::
 
@@ -5587,10 +5087,10 @@
   interrupts early, which is quite common.
 
 
-  2200..33..11..  FFuunnccttiioonnss ssuuppppoorrtteedd ffrroomm DDOOSSEEmmuu ssiiddee
+  1177..33..11..  FFuunnccttiioonnss ssuuppppoorrtteedd ffrroomm DDOOSSEEmmuu ssiiddee
 
 
-  2200..33..11..11..  FFuunnccttiioonnss tthhaatt IInntteerrffaaccee wwiitthh DDOOSS::
+  1177..33..11..11..  FFuunnccttiioonnss tthhaatt IInntteerrffaaccee wwiitthh DDOOSS::
 
 
      uunnssiiggnneedd cchhaarr rreeaadd__ppiiccuu00((ppoorrtt)),,
@@ -5607,6 +5107,7 @@
         the i/o handler whenever a write to a PIC port is requested.
         Port mapping is the same as for read_picu, above.  The value to
         be written is passed in parameter "value".
+
 
      iinntt ddoo__iirrqq(())
         is the function that actually executes a dos interrupt.
@@ -5660,7 +5161,7 @@
         situation, and pops the real flags, cs, and ip.
 
 
-  2200..33..22..  OOtthheerr FFuunnccttiioonnss
+  1177..33..22..  OOtthheerr FFuunnccttiioonnss
 
 
 
@@ -5710,6 +5211,7 @@
         If so, the mask bit for the level is reset.
 
 
+
      vvooiidd ppiicc__wwaattcchh(())
         runs periodically and checks for 'stuck' interrupt requests.
         These can happen if an irq causes a stack switch and enables
@@ -5718,7 +5220,7 @@
         activated.
 
 
-  2200..44..  AA ((vveerryy)) lliittttllee tteecchhnniiccaall iinnffoorrmmaattiioonn ffoorr tthhee ccuurriioouuss
+  1177..44..  AA ((vveerryy)) lliittttllee tteecchhnniiccaall iinnffoorrmmaattiioonn ffoorr tthhee ccuurriioouuss
 
   There are two big differences when using pic.  First, interrupts are
   not queued beyond a depth of 1 for each interrupt.  It is up to the
@@ -5732,15 +5234,13 @@
   there is anything in the scan_queue.
 
 
-  2211..  DDOOSSEEMMUU ddeebbuuggggeerr vv00..66
+  1188..  DDOOSSEEMMUU ddeebbuuggggeerr vv00..66
 
   This section written on 98/02/08.  Send comments to Max Parke
   <mhp@light.lightlink.com> and to Hans Lermen <lermen@fgan.de>
 
 
-
-
-  2211..11..  IInnttrroodduuccttiioonn
+  1188..11..  IInnttrroodduuccttiioonn
 
   This is release v0.6 of the DOSEMU debugger, with the following
   features:
@@ -5786,7 +5286,7 @@
   +o  code base is on dosemu-0.97.2.1
 
 
-  2211..22..  UUssaaggee
+  1188..22..  UUssaaggee
 
   To run, start up DOSEMU.  Then switch to another virtual console (or
   remote login or use another xterm) and do:
@@ -5803,6 +5303,7 @@
 
 
          dosdebug 2134
+
 
 
 
@@ -5829,7 +5330,7 @@
   and can set breakpoints or singlestep through the bootstrap code.
 
 
-  2211..33..  CCoommmmaannddss
+  1188..33..  CCoommmmaannddss
 
   See mhpdbgc.c for code and cmd table.
 
@@ -5909,7 +5410,6 @@
 
      rr3322
         dump regs in 32 bit format
-
      bbpp aaddddrr
         set int3 style breakpoint _N_O_T_E_: the scope is defined wether a
         DPMI-client is active (in_dpmi). The resulting 'come back' will
@@ -5986,25 +5486,26 @@
   5. a dollar sign($): SS:SP  (ss:esp)
 
 
-  2211..44..  PPeerrffoorrmmaannccee
+  1188..44..  PPeerrffoorrmmaannccee
 
   If you have dosemu compiled with the debugger support, but the
   debugger is not active and/or the process is not stopped, you will not
   see any great performance penalty.
 
 
-  2211..55..  WWiisshh LLiisstt
+  1188..55..  WWiisshh LLiisstt
 
   Main wish is to add support for hardware debug registers (if someone
   would point me in the direction, what syscalls to use, etc.)  Then you
   could breakpoint on memory reads/writes, etc!
 
 
-  2211..66..  BBUUGGSS
+  1188..66..  BBUUGGSS
 
   There must be some.
 
-  2211..66..11..  KKnnoowwnn bbuuggss
+
+  1188..66..11..  KKnnoowwnn bbuuggss
 
 
   +o  Though you may set breakpoints and do singlestep in Windows31, this
@@ -6033,7 +5534,7 @@
      as a work around: Setting breakpoints while not in stop is
      disabled.
 
-  2222..  MMAARRKK RREEJJHHOONN''SS 1166555500 UUAARRTT EEMMUULLAATTOORR
+  1199..  MMAARRKK RREEJJHHOONN''SS 1166555500 UUAARRTT EEMMUULLAATTOORR
 
   The ./src/base/serial directory contains Mark Rejhon's 16550A UART
   emulation code.
@@ -6074,7 +5575,7 @@
   Public License (GPL).  See end of this file for more information.
 
 
-  2222..11..  PPRROOGGRRAAMMMMIINNGG IINNFFOORRMMAATTIIOONN
+  1199..11..  PPRROOGGRRAAMMMMIINNGG IINNFFOORRMMAATTIIOONN
 
   Information on a 16550 is based on information from HELPPC.EXE 2.1 and
   results from National Semiconductor's COMTEST.EXE diagnostics program.
@@ -6106,6 +5607,7 @@
      ccoomm[[xx]]..rreeaall__ccoommppoorrtt
         The COM port number.
 
+
      ccoomm[[xx]]..iinntteerrrruupptt
         The PIC interrupt level (based on IRQ number)
 
@@ -6136,7 +5638,8 @@
 
 
 
-  2222..22..  DDEEBBUUGGGGIINNGG HHEELLPP
+
+  1199..22..  DDEEBBUUGGGGIINNGG HHEELLPP
 
   If you require heavy debugging output for serial operations, please
   take a look in ./ser_defs.h for the following defines:
@@ -6165,7 +5668,7 @@
 
 
 
-  2222..33..  FFOOSSSSIILL EEMMUULLAATTIIOONN
+  1199..33..  FFOOSSSSIILL EEMMUULLAATTIIOONN
 
   The FOSSIL emulation requires a memory-resident DOS module,
   FOSSIL.COM. If you don't load it, the code in fossil.c does nothing,
@@ -6183,7 +5686,7 @@
   sender with flow control (I'm not sure why).
 
 
-  2222..44..  CCOOPPYYRRIIGGHHTTSS
+  1199..44..  CCOOPPYYRRIIGGHHTTSS
 
   Most of the code in the DOSEMU 'serial' subdirectory is: Copyright (C)
   1995 by Mark D. Rejhon <marky@magmacom.com> with the following
@@ -6205,7 +5708,7 @@
   published by the Free Software Foundation; either version 2 of the
   License, or (at your option) any later version.
 
-  2233..  RReeccoovveerriinngg tthhee ccoonnssoollee aafftteerr aa ccrraasshh
+  2200..  RReeccoovveerriinngg tthhee ccoonnssoollee aafftteerr aa ccrraasshh
 
   The below is a mail from Kevin Buhr <buhr@stat.wisc.edu> , that was
   posted on linux-msdos some time ago. Because it describes a way to
@@ -6237,9 +5740,6 @@
 
   In the worst case you will get the following output on your remote
   terminal:
-
-
-
           ...oh dear, have to do kill SIGKILL
           dosemu process (pid 1234) is killed
           If you want to switch to an other console,
@@ -6254,7 +5754,45 @@
 
 
 
-  2233..11..  TThhee mmaaiill mmeessssaaggee
+  2200..11..  TThhee mmaaiill mmeessssaaggee
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6365,7 +5903,7 @@
 
 
 
-  2244..  NNeett ccooddee
+  2211..  NNeett ccooddee
 
 
   +o  Added support for multiple type handling.  So it does type
@@ -6411,14 +5949,14 @@
   Vinod <vinod@cse.iitb.ernet.in>
 
 
-  2255..  SSooffttwwaarree XX338866 eemmuullaattiioonn
+  2222..  SSooffttwwaarree XX338866 eemmuullaattiioonn
 
   This section written in a hurry by Alberto Vignani
   <vignani@mbox.vol.it> , Oct 20, 1997
 
 
 
-  2255..11..  TThhee CCPPUU eemmuullaattoorr
+  2222..11..  TThhee CCPPUU eemmuullaattoorr
 
   The CPU emulator has been derived from <the Twin Willows libraries>.
   Only the relevant parts of the library, namely the /intp32
@@ -6526,13 +6064,13 @@
   reached, it truncates the file to zero and continues writing to it.
 
 
-  2266..  MMFFSS aanndd NNaattiioonnaall LLaanngguuaaggee SSuuppppoorrtt
+  2233..  MMFFSS aanndd NNaattiioonnaall LLaanngguuaaggee SSuuppppoorrtt
 
   This section written by Oleg V. Zhirov <O.V.Zhirov@inp.nsk.su> , Aug
   3, 1998
 
 
-  2266..11..  MMFFSS aanndd NNaattiioonnaall LLaanngguuaaggee SSuuppppoorrtt
+  2233..11..  MMFFSS aanndd NNaattiioonnaall LLaanngguuaaggee SSuuppppoorrtt
 
   Main problem is that *nix and DOS uses codesets, which can differ. So,
   in Russia the most popular codeset for *nix is koi8-r, while DOS
@@ -6587,7 +6125,7 @@
      As a result, `mangled' names differs from true DOS shortnames.
 
 
-  2266..22..  PPaattcchhiinngg ooff MMFFSS
+  2233..22..  PPaattcchhiinngg ooff MMFFSS
 
   Presented patch of MFS cures problem (3) only. Summary of
   modification:
@@ -6685,7 +6223,7 @@
   long filenames, and files with long filenames are irrelevant.
 
 
-  2266..33..  TTOODDOO::
+  2233..33..  TTOODDOO::
 
 
   1. In Linux kernel: Cure in VFAT module upper/lowercase bugs for

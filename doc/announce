@@ -1,8 +1,8 @@
 
 ANNOUNCEMENT
 ~~~~~~~~~~~~
-The DOSEMU team is proud to announce DOSEMU 1.0, the PC Emulator for
-x86 based *nix. Please remember to consider this as ALPHA software.
+The DOSEMU team is proud to announce DOSEMU 1.0,
+the PC Emulator for x86 based *nix.
 
 
 WHAT IS DOSEMU?
@@ -40,14 +40,14 @@ worth noting:
 REQUIREMENTS
 ~~~~~~~~~~~~
   - Linux >= 2.0.28 (with IPC support, IPX support optional)
-  - mtools-3.8 (for creating hdimages and DEXEs)
+  - mtools ( > 3.8) (for creating hdimages and DEXEs)
 
 When compiling dosemu yourself:
   - GCC 2.7.2+ and LIBC 5.4.46+ are recommended for best results.
-    (statically linked in libc-5.4.46 binaries perform better and
-    give stabler results)
+    Though glibc-2.x may be used, statically libc-5.4.46 linked binaries
+    perform better and give much stabler results.
   - Plenty of swap, since DOSEMU requires between 12 and 25 megabytes
-     of total memory to compile, depending on configuration.
+    of total memory to compile, depending on configuration.
 
 
 COPYRIGHT
@@ -61,30 +61,37 @@ explicitly allowed to be proprietary.
 CREDITS
 ~~~~~~~
 This release could not have gotten out the door without the work of
-the our relentless development team and friends, currently consisting
-of at least:
+our relentless development team, friends and contributors, consisting of
+at least (sorted by first name):
 
-  Jon Tombs            	Aaron			Karl Kiniger
-  Daniel R. Barrlow	Christoph Niemann	Theodore T'so
-  Derek Fawcus		Linus Torvalds		Alan Cox
-  Alessandro Rubini	Corey Sweeney		James Maclean
-  Hans Lermen		Andrew.Tridgell		Jochen Hein
-  Jason E Gorden	Lam Lai Yin, Savio	Alistair MacDonald
-  Lawrence K Mao	Ronnie			Mark Rejhon
-  Michael E. Deisher	Larry Stephan		Lutz Molgedey
-  Amit Margalt 		Marty Leisner 		Dong Liu
-  Scott Buchholz 	Tim Van der Linden 	John Davis
-  Kang-Jin Lee 		Matthew Grant 		David Hansen
-  John Kohl 		Kevin P Lawton 		Rod May
-  Wayne P Meissner 	Vinod G Kulkarni 	Andries
-  David Etherton 	Alberto Vignani		Eric W. Biederman
-  Erik Mouw		Arjan Filius		Uwe Bonnes
-  Rainer Zimmermann	Steffen Winterfeld	David Brauman
-  Rutger Nijlunsing	Reinhard Karcher	Michael Karcher
-  Marcus Better		Arne de Bruijn		Kenneth Corbin
-  Pasi Eronen		Robert de Bath		David Hodges
+  Aaron			Alan Cox		Alberto Vignani
+  Alessandro Rubini	Alexander R.Adams	Alexander V. Lukyanov
+  Alistair MacDonald	Amit Margalt 		Andrew.Tridgell
+  Andries		Antonio Larrosa		Arjan Filius
+  Arne de Bruijn	Bernd Paysan		Christoph Niemann
+  Corey Sweeney		Daniel R. Barrlow	David Brauman
+  David Etherton 	David Hansen		David Hodges
+  Derek Fawcus		Dong Liu		Egbert Eich
+  Eric W. Biederman	Erik Mouw		Florian La Roche
+  George K.Bronnikov	Grant R. Guenther	Hans Lermen
+  James Maclean		Jason E Gorden		Jochen Hein
+  John Davis		John Kohl 		Jon Tombs            
+  Josef Pavlik		Kang-Jin Lee 		Karl Kiniger
+  Karl-Max Wagner	Kenneth Corbin		Kevin P Lawton 
+  Lam Lai Yin, Savio	Larry Stephan		Lawrence K Mao
+  Linus Torvalds	Lutz Molgedey		Marcus Better
+  Mark Rejhon		Marty Leisner 		Matthew Grant 
+  Maxim Ruchko		Michael E. Deisher	Michael Karcher
+  Oleg V. Zhirov	Pablo Saratxaga		Pasi Eronen
+  Rainer Zimmermann	Reinhard Karcher	Rob Clark
+  Robert de Bath	Rod May			Ronnie
+  Rutger Nijlunsing	Scott Buchholz 		Steffen Winterfeld
+  Theodore T'so		Tim Van der Linden 	Ulrich Weigand
+  Uwe Bonnes		Vinod G Kulkarni 	Wayne P Meissner 
+  Wojtek Pilorz
 
-  and others too important to mention.
+
+  ... and others too important to mention.
 
 
 WHERE TO GET IT:

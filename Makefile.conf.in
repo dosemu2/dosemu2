@@ -1,5 +1,5 @@
 #
-# (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+# (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
 #
 # for details see file COPYING in the DOSEMU distribution
 #
@@ -81,7 +81,6 @@ ifdef USE_ULTRA
   export USE_ULTRA
 endif
 
-export REQUIRES_VM86PLUS=@REQUIRES_VM86PLUS@
 export OS=@CONFIG_HOST@
 export LIBSTART=@LIBSTART@
 @ELF@

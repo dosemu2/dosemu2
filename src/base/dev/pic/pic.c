@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -183,7 +183,7 @@ static unsigned long pic1_mask = 0x07f8; /* bits set for pic1 levels */
 even asgcc -Wall says;
 pic.c: At top level:
 pic.c:81: warning: `pic1_mask' defined but not used
-it it used in the assembly part
+though it _is_ used in the assembly part
 */
 static unsigned long   pic_smm = 0;      /* 32=>special mask mode, 0 otherwise */
 

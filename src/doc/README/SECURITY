@@ -51,15 +51,4 @@ otherwise allows 'foreign' people login to your machine.
 <p>
    Anyway, better 'secure on' then nothing.
 
-<item> Never allow the 'system.com' command (part of dosemu) to be executed.
-   It makes dosemu execute the libc 'system() function'. Though privileges
-   are turned off, the process inherits the switched uid-setting 
-   (uid=root, euid=user), hence the unix process can use setreuid to gain
-   root access back. ... the rest you can imagine your self. Use of 'system'
-   can be disabled by the 'secure on' option in /etc/dosemu.conf
-<p>
-   The 'unix.com' command (also part of dosemu) does _not_ have this security
-   hole: before execution a separate process is forked that completely
-   drops prililege,
-   ... hence no danger (will no longer be disbaled by 'secure on').
 </itemize>

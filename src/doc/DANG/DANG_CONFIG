@@ -81,9 +81,6 @@ GROUP:		FileAccess doc/DANG/summary_FileAccess
 			dosext/mfs/mfs.c
 #GROUP:		Net doc/DANG/summary_Net dosext/net/net/ipx.c
 #GROUP:		Shared doc/DANG/summary_SHARED dosemu/shared.c
-GROUP:		Threads arch/linux/threads/summary_threads
-		arch/linux/threads/lt-threads.c
-		include/lt-threads.h
 
 # INTRODUCTION is the location of Introduction. There may be
 # more than one of these.

@@ -12,7 +12,7 @@ These are some utitlies to assist you in using Dosemu.
 <tag/booton.com/ switch on the bootfile to access bootfile
                see examples/config.dist at bootdisk option
 
-<tag/chdir.com/ change the Unix directory for Dosemu (use chdir(2))
+<tag/uchdir.com/ change the Unix directory for Dosemu (use chdir(2))
 
 <tag/dosdbg.com/ change the debug setting from within Dosemu
 <itemize>
@@ -20,8 +20,6 @@ These are some utitlies to assist you in using Dosemu.
 <item>               dosdbg &lt;string&gt;
 <item>               dosdbg help -- show usage information
 </itemize>
-
-<tag/dumpconf.exe/ ???
 
 <tag/eject.com/ eject CD-ROM from drive
 
@@ -32,7 +30,7 @@ These are some utitlies to assist you in using Dosemu.
 
 <tag/exitemu.com/ terminate Dosemu
 
-<tag/getcwd.com/ get the Unix directory for Dosemu (use getcwd(2))
+<tag/ugetcwd.com/ get the Unix directory for Dosemu (use getcwd(2))
 
 <tag/isemu.com/ detects Dosemu version and returns greater 0 if running under
                Dosemu
@@ -75,6 +73,9 @@ These are some utitlies to assist you in using Dosemu.
 <tag/vgaoff.com/ disable vga option
 
 <tag/vgaon.com/ enable vga option
+
+<tag/xmode.exe/ set special X parameter when running as xdos
+
 </descrip>
 
 <sect1>Drivers
@@ -88,4 +89,8 @@ These are useful drivers for Dosemu
 <tag/ems.sys/ enable EMM in Dosemu
 
 <tag/emufs.sys/ redirect Unix directory to Dosemu
+
+<tag/aspi.sys/ ASPI conform SCSI driver
+
+<tag/fossil.com/ FOSSIL serial driver (TSR)
 </descrip>

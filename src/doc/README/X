@@ -94,7 +94,7 @@ What you should take care of:
    (better not 'Destroy') from the 'Window' menu.
 
 <item> there are some X-related configuration options for dosemu.conf.
-   See examples/config.dist for details.
+   See etc/dosemu.conf for details.
 
 <item> starting xdos in the background (like from a window manager menu)
    appears not to work for some reason.
@@ -145,59 +145,6 @@ What you should take care of:
    However, if you think it's a real bug, please tell me.
 </itemize>
 
-<p>
-important changes to previous version (pre53_17):
-
-<itemize>
-<item> fixed focus handling at startup
-<item> support for 21/28/43/50 line modes!
-  (43+50 look a bit funny, though... I use the 8x16 font for all modes)
-<item> .xpm icon
-<item> fixed startup error handling (won't hang now if display not found)
-<item> limited window size
-</itemize>
-
-<sect1>Status of X support (Sept 5, 1994)
-<p>
-
-<sect2>Done
-<p>
-
-<itemize>
-<item>X_update_screen    (video output)
-<item>implement cursor
-<item>fix cursor/scrolling bugs
-<item>fix Scroll (video/terminal.c) (?)
-<item>fix banner message (initialization) (works after video cleanup, dunno why :)
-<item>check video memory dirty bit
-<item>X event handling   (close, expose, focus etc.)
-<item>fixed cursor initialization
-<item>cleaned up cursor handling
-<item>added 'xdos' calling method
-<item>disable 'mouse' serial ports in X mode
-<item>write direct scroll routine (not used yet, though)
-<item>care about int10 calls  -ok?
-<item>Handle close ("delete") window event - (copied from xloadimage)
-<item>X keyboard support (pcemu code, heavily modified)
-<item>Mouse support
-<item>X configuration (display, updatefreq, updatelines,... what else?)
-<item>int10 video mode switches (resize window)
-<item>Window SizeHints  (fixed size or max size?)
-<item>create icon :-)
-</itemize>
-
-<sect2>ToDo (in no special order)
-<p>
-
-<itemize>
-<item>xor cursor? blinking cursor?
-<item>use mark's scroll detector
-<item>jump scroll?
-<item>fine-tune X_update_screen
-<item>graphics support?
-<item>allow non-standard font heights via bios
-<item>cut &amp; paste
-</itemize>
 
 <sect1>The appearance of Graphics modes (November 13, 1995)
 <p>

@@ -226,7 +226,9 @@ static int vga_emu_protect_page(unsigned, int);
 static int vga_emu_protect(unsigned, unsigned, int);
 static int vga_emu_adjust_protection(unsigned, unsigned);
 static int vga_emu_map(unsigned, unsigned);
+#if 0
 static int vgaemu_unmap(unsigned);
+#endif
 #if DEBUG_UPDATE >= 1
 static void print_dirty_map(void);
 #endif
@@ -796,6 +798,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
 }
 
 
+#if 0
 /*
  * Unmap the VGA memory.
  */
@@ -821,6 +824,7 @@ static int vgaemu_unmap(unsigned page)
 
   return vga_emu_protect_page(page, RO);
 }
+#endif
 
 
 /*

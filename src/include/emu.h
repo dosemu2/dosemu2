@@ -47,13 +47,9 @@ typedef struct { int fd; int irq; } SillyG_t;
  * DANG_END_REMARK
 */ 
 
-#ifdef REQUIRES_VM86PLUS
-  EXTERN struct vm86plus_struct vm86s INIT ( {
+EXTERN struct vm86plus_struct vm86s INIT ( {
    {0},0,0,0,{{0}},{{0}}, {0}
-  } );
-#else
-  EXTERN struct vm86_struct vm86s;
-#endif
+} );
 
 EXTERN fd_set fds_sigio, fds_no_sigio;
 EXTERN unsigned int use_sigio INIT(0);

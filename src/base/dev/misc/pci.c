@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -32,7 +32,7 @@ int pci_read_header_cfg1 (unsigned char bus, unsigned char device,
 int pci_read_header_cfg2 (unsigned char bus, unsigned char device,
 			  unsigned char func, unsigned long *buf);
 int (*pci_read_header) (unsigned char bus, unsigned char device,
-			int func, unsigned long *buf) = pci_read_header_cfg1;
+			unsigned char func, unsigned long *buf) = pci_read_header_cfg1;
 
 /*
  * So far only config type 1 is supported. Return 0 if

@@ -6,7 +6,6 @@ menu "Main Menu" {
   description "Please select a setting:"
   boolean "enable experimental stuff" experimental
   boolean "SB Emulation" sbemu
-  boolean "disable VM86 enhancement" novm86plus
   boolean "Use MIT Shared Memory extensions under X" mitshm
   boolean "Use X-Windows" x
   boolean "enable Linux net code" net

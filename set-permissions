@@ -19,4 +19,5 @@ chmod 755 src/tools/periph/getrom
 chmod 755 src/doc/DANG/DANG_c.pl src/doc/DANG/make_DANG
 chmod 755 dexe/do_mtools dexe/mkdexe dexe/extract-dos
 chmod 755 dexe/myxcopy setup-hdimage dexe/check-mtools
+chmod 755 setup-bootdir
 chmod 755 src/tools/mkbindist

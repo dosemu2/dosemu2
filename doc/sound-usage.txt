@@ -1,7 +1,7 @@
   Using The DOSEMU Sound System (SBEMU)
   Author: Alistair MacDonald, <A.MacDon-
   ald@slitesys.demon.co.uk>
-  version dosemu-0.98.3
+  version dosemu-1.0
 
   The document describes the use of the DOSEMU Sound code (SBEMU), and
   what you can expect from it.

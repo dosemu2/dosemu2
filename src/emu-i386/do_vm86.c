@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -484,11 +484,9 @@ run_vm86(void)
 	   do_int(VM86_ARG(retval));
 	break;
 #endif
-#ifdef REQUIRES_VM86PLUS
     case VM86_PICRETURN:
         I_printf("Return for FORCE_PIC\n");
         break;
-#endif
     case VM86_SIGNAL:
 	I_printf("Return for SIGNAL\n");
 	break;

@@ -1,5 +1,5 @@
 #
-# (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+# (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
 #
 # for details see file COPYING in the DOSEMU distribution
 #
@@ -9,10 +9,10 @@ TXT = $(DOCSOURCES:.sgml=.txt)
 TEX = $(DOCSOURCES:.sgml=.tex)
 HTML = $(DOCSOURCES:.sgml=.html)
 
-SECTIONS = config SECURITY dexe sound lredir runasuser CDROM loglevel \
+SECTIONS = config SECURITY dexe sound lredir runasuser CDROM \
 	X Windows mgarrot batch commands keymap dosnet Winnet
 
-TECHSECTIONS = config-tech port-io vif vm86plus video oldboot newkbd ibmset \
+TECHSECTIONS = config-tech port-io vif oldboot newkbd \
 	HOGTHRESHOLD priv timing pentium DANG-tech mkfatimage mkfatimage16 doc sound-tech \
 	dma pic dosdebug serial recover net cpuemu mfsnls
 

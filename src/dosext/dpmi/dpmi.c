@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -175,11 +175,7 @@ static struct sigcontext_struct *emu_stack_frame=&_emu_stack_frame;
 
 #ifdef __linux__
 _syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
-#ifdef REQUIRES_VM86PLUS
   #define LDT_WRITE 0x11
-#else
-  #define LDT_WRITE 1
-#endif
 #endif
 
 
@@ -218,9 +214,7 @@ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   ldt_info.limit_in_pages = limit_in_pages_flag;
 #ifdef WANT_WINDOWS
   ldt_info.seg_not_present = seg_not_present;
-#if defined(REQUIRES_VM86PLUS)
   ldt_info.useable = useable;
-#endif
 #else
   ldt_info.seg_not_present = 0;
 #endif
@@ -351,7 +345,7 @@ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
             (ldt_info.seg_32bit << 22) |
             (ldt_info.limit_in_pages << 23) |
             ((ldt_info.seg_not_present ^1) << 15) |
-#if defined(REQUIRES_VM86PLUS) && defined(WANT_WINDOWS)
+#if defined(WANT_WINDOWS)
             (ldt_info.useable << 20) |
 #endif
             0x7000;
@@ -2185,9 +2179,7 @@ void run_dpmi(void)
 	   do_int(VM86_ARG(retval));
 	break;
 #endif
-#ifdef REQUIRES_VM86PLUS
 	case VM86_PICRETURN:
-#endif
 	case VM86_SIGNAL:
 		break;
 	default:

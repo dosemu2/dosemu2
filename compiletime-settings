@@ -1,7 +1,6 @@
 config {
   experimental off
   sbemu on
-  novm86plus off
   mitshm on
   x on
   net on

@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -121,6 +121,7 @@ void SET_HANDLE_COND(int p, int h)
 /* ---------------------------------------------------------------------- */
 /* PORT TRACING								  */
 
+#if 0
 static long nyb2bin[16] =
 {
 	0x30303030, 0x31303030, 0x30313030, 0x31313030,
@@ -139,6 +140,7 @@ static char *
 
 	return s + 3;
 }
+#endif
 
 #define PORTLOG_MAXBITS		16
 #define PORTLOG_MASK		(~(-1 << PORTLOG_MAXBITS))

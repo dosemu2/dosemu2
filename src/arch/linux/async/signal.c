@@ -309,7 +309,7 @@ void SIGALRM_call(void)
     first = 1;
   }
 
-#if defined(SIG) && defined(REQUIRES_VM86PLUS)
+#if defined(SIG)
   irq_select();  /* we need this in order to catch lost IRQ-SIGIOs */
 #endif
 

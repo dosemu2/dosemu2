@@ -1,6 +1,6 @@
 /* src/include/config.h.in.  Generated automatically from configure.in by autoheader.  */
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -204,14 +204,6 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
  * Most compilers have this one, but just to be sure...
  */
 #undef __LINE__
-
-/* DEFINE this, if you want the extended vm86 support (vm86plus)
- * You then either have to patch your kernel or load emumodule
- */
-#undef REQUIRES_VM86PLUS
-
-/* DEFINE this, if you have vm86plus built into the kernel */
-#undef BUILTIN_VM86PLUS
 
 /* DPMI test windows */
 #undef WANT_WINDOWS

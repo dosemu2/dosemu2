@@ -164,13 +164,7 @@ warning2:
 	 echo "    - libc 5.4.7"; \
 	 echo '    - Linux >= 2.0.28, 2.1.x >= 2.1.15'; \
 	 echo "    - 16 megabytes total memory+swap"; \
-	 echo ""; \
-	 if [ "" != "$(REQUIRES_VM86PLUS)" ]; then \
-	 	echo "    - Full feature dosemu, compiled with vm86plus"; \
-	 else \
-		echo "    - Low feature dosemu compiled, will use old vm86 interface"; \
-	 fi; \
-	 echo ""; \
+	 echo "";
 
 ifeq ($(WAIT),yes)
 pausekey:
@@ -392,16 +386,6 @@ endif
 	@echo "  - Try ./commands/emumouse.exe -r if your INTERNAL mouse won't work"; \
 	 echo "  - Try ./commands/unix.exe to run a Unix command under DOSEMU"; \
 	 echo ""
-ifdef REQUIRES_VM86PLUS
-	@echo "  - You compiled with VM86PLUS support, make sure you have booted"; \
-	 echo '    a kernel >= 2.0.28 or 2.1.x >= 2.1.15 before using dosemu'; \
-	 echo ""
-else
-	@echo "  - WARNING: You compiled without VM86PLUS support, however,"; \
-	 echo "    it is  recommended that the VM86PLUS support be used."; \
-	 echo "    (some DOS applications, especially DPMI-based ones may not run )"; \
-	 echo ""
-endif
 
 
 converthd: hdimage

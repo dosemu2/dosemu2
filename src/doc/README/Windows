@@ -46,7 +46,7 @@ DOSEMU DEVELOPERS WITH "MS Word 6.0 doesn't run!!!" MESSAGES
 <itemize>
 <item>  Get DOSEMU & the Linux source distributions.
 <item>  Unpack DOSEMU.
-<item>  Configure DOSEMU typing './configure' and do _not_ disable vm86plus.
+<item>  Configure DOSEMU typing './configure'.
 <item>  Compile DOSEMU typing 'make'.
 <item>  Get the OS2WIN31.ZIP distribution from  ????
     oh well, and now you have the first problem.
@@ -79,8 +79,7 @@ Hints:
 <itemize>
 <item> Get Dosemu & Linux source.
 <item> Unpack dosemu.
-<item> Run "./configure" to configure Dosemu (it will enable vm86plus as a
-   default).
+<item> Run "./configure" to configure Dosemu.
 <item> Type "make" to compile.
 <item> Get a Trident SVGA drivers for Windows. The files are tvgaw31a.zip
    and/or tvgaw31b.zip. They are available at garbo.uwasa.fi in
