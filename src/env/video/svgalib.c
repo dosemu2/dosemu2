@@ -76,6 +76,3 @@ void vga_init_svgalib(void)
                set_bank_write = svgalib_setbank;
        }
 }
-
-#undef SVGALIB_C
-
