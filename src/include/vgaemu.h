@@ -90,6 +90,7 @@
 #define P32		19
 #define PL1		20
 #define TEXT_MONO	21
+#define PL2		22
 
 
 /*

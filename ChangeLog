@@ -1,3 +1,6 @@
+98/11/06 ver. 0.99.3.2 unofficial pre-release
+	From Steffen
+	- implemented the some missing video modes: 1 & 2 bit CGA/VGA
 98/11/06 ver. 0.99.3.1 unofficial pre-release
 	From Michael
 	- small 'more then one' printer fix (lpt.c)

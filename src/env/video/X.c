@@ -131,6 +131,9 @@
  * all unnecessary. :-)
  * -- sw
  *
+ * 1998/11/01: Added so far unsupported video modes (CGA, 1 bit & 2 bit VGA).
+ * -- sw
+ *
  * DANG_END_CHANGELOG
  */
 
@@ -1867,10 +1870,20 @@ int X_setmode(int mode_class, int text_width, int text_height)
       w_x_res = x_res = vga.width;
       w_y_res = y_res = vga.height;
 
-      if (video_mode == 0x13) {
-        w_x_res *= config.X_mode13fact;
-        w_y_res *= config.X_mode13fact;
+      if(vga.mode_info) {
+
+        /* 320x200 modes */
+        if(vga.mode_info->width == 320 && vga.mode_info->height == 200) {
+          w_x_res *= config.X_mode13fact;
+          w_y_res *= config.X_mode13fact;
+        }
+
+        /* 640x200 modes */
+        if(vga.mode_info->width == 640 && vga.mode_info->height == 200) {
+          w_y_res *= 2;
+        }
       }
+
 
       if(config.X_winsize_x > 0 && config.X_winsize_y > 0) {
         w_x_res = config.X_winsize_x;
@@ -1883,6 +1896,12 @@ int X_setmode(int mode_class, int text_width, int text_height)
 
       remap_done(&remap_obj);
       switch(vga.mode_type) {
+        case CGA:
+          X_mode_type = vga.pixel_size == 2 ? MODE_CGA_2 : MODE_CGA_1; break;
+        case PL1:
+          X_mode_type = MODE_VGA_1; break;
+        case PL2:
+          X_mode_type = MODE_VGA_2; break;
         case PL4:
           X_mode_type = MODE_VGA_4; break;
         case P8:

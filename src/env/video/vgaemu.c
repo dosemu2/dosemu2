@@ -93,6 +93,9 @@
  * DAC_get_dirty_entry() functions. PEL mask support now works.
  * -- sw
  *
+ * 1998/11/01: Added so far unsupported video modes (CGA, 1 bit & 2 bit VGA).
+ * -- sw
+ *
  * DANG_END_CHANGELOG
  *
  */
@@ -537,6 +540,36 @@ static int vga_emu_adjust_protection(unsigned page, unsigned mapped_page)
     }
   }
 
+  if(vga.mode_type == PL2) {
+    /* it's actually 4 planes, but we let everyone believe it's a 1-plane mode */
+    j = vga.mem.dirty_map[page];
+    page &= ~0x30;
+    if(j != vga.mem.dirty_map[page]) {
+      vga.mem.dirty_map[page] = j;
+      vga_emu_protect(page, 0, prot);
+    }
+    page += 0x20;
+    if(j != vga.mem.dirty_map[page]) {
+      vga.mem.dirty_map[page] = j;
+      vga_emu_protect(page, 0, prot);
+    }
+  }
+
+  if(vga.mode_type == CGA) {
+    /* CGA uses two 8k banks  */
+    j = vga.mem.dirty_map[page];
+    page &= ~0x2;
+    if(j != vga.mem.dirty_map[page]) {
+      vga.mem.dirty_map[page] = j;
+      vga_emu_protect(page, 0, prot);
+    }
+    page += 0x2;
+    if(j != vga.mem.dirty_map[page]) {
+      vga.mem.dirty_map[page] = j;
+      vga_emu_protect(page, 0, prot);
+    }
+  }
+
   return i;
 }
 
@@ -791,7 +824,11 @@ int vga_emu_update(vga_emu_update_type *veut)
   unsigned start_page, end_page;
 
   if(veut->display_end > vga.mem.size) veut->display_end = vga.mem.size;
-  if(veut->update_pos < veut->display_start || veut->update_pos >= veut->display_end) {
+  if(
+    veut->update_pos < veut->display_start ||
+    veut->update_pos >= veut->display_end ||
+    vga.mode_type == CGA		/* This one is special. :-) */
+  ) {
     veut->update_pos = veut->display_start;
   }
 
@@ -1140,6 +1177,7 @@ vga_mode_info *vga_emu_find_mode(int mode, vga_mode_info* vmi)
 int vga_emu_setmode(int mode, int width, int height)
 {
   unsigned u = -1;
+  int i;
   vga_mode_info *vmi = NULL, *vmi2 = NULL;
   
   v_printf("VGAEmu: vga_emu_setmode: requested mode: 0x%02x (%d x %d)\n", mode, width, height);
@@ -1195,7 +1233,9 @@ int vga_emu_setmode(int mode, int width, int height)
     vga.pixel_size = (vga.pixel_size + 7) & ~7;		/* assume byte alignment for these modes */
     vga.scan_len *= vga.pixel_size >> 3;
   }
+
   v_printf("VGAEmu: vga_emu_setmode: scan_len = %d\n", vga.scan_len);
+  i = vga.scan_len;
 
   vga.reconfig.mem = vga.reconfig.display =
   vga.reconfig.dac = vga.reconfig.power = 0;
@@ -1204,11 +1244,17 @@ int vga_emu_setmode(int mode, int width, int height)
     vga.scan_len >>= 3;
     vga.mem.planes = 4;
   }
+  if(vga.mode_type == PL1 || vga.mode_type == PL2) vga.scan_len >>= 3;
+  if(vga.mode_type == CGA) vga.scan_len >>= 4 - vga.pixel_size;		/* 1 or 2 bits */
   vga.mem.write_plane = vga.mem.read_plane = 0;
 
   if(vga.mode_type == TEXT) vga.scan_len = vga.text_width << 1;
 
   vga.display_start = 0;
+
+  if(i != vga.scan_len) {
+    v_printf("VGAEmu: vga_emu_setmode: scan_len changed to %d\n", vga.scan_len);
+  }
 
   /*
    * Clear the whole VGA memory. In addition, in text modes,
@@ -1333,7 +1379,7 @@ int vga_emu_set_text_page(unsigned page, unsigned page_size)
 
 int changed_vga_colors(DAC_entry *de)
 {
-  int i, j;
+  int i, j, k;
   unsigned cols;
   unsigned char a;
 
@@ -1365,29 +1411,38 @@ int changed_vga_colors(DAC_entry *de)
       /* ATTR_MODE_CTL   == 0x10 */
       /* ATTR_COL_SELECT == 0x14 */
 
+      k = i;
+      if(vga.mode_type == PL2) if(k >= 2) k += 2;
+
       /*
        * Supply bits 6-7 resp. 4-7 from Attribute Controller;
        * see VGADOC for details.
        * Note: palette entries have only 6 bits.
        */
       if(vga.attr.data[0x10] & 0x80) {
-        a = (vga.attr.data[i] & 0x0f) |
+        a = (vga.attr.data[k] & 0x0f) |
             ((vga.attr.data[0x14] & 0x0f) << 4);	/* bits 7-5 */
       }
       else {
-        a = vga.attr.data[i] |
+        a = vga.attr.data[k] |
             ((vga.attr.data[0x14] & 0x0c) << 4);	/* bits 7-6 */
       }
       
       if(
         vga.dac.rgb[a].index == True ||
-        vga.attr.dirty[i] == True
+        vga.attr.dirty[k] == True
       ) {
-        vga.attr.dirty[i] = False;
+        vga.attr.dirty[k] = False;
         de[j] = vga.dac.rgb[a]; de[j++].index = i;
         vga.dac.rgb[a].index = False;
 #ifdef DEBUG_COL_CHANGE
-        v_printf("VGAEmu: changed_vga_colors: color 0x%02x, dac entry 0x%02x\n", i, a);
+        v_printf(
+          "VGAEmu: changed_vga_colors: color 0x%02x, pal 0x%02x, rgb 0x%02x 0x%02x 0x%02x\n",
+          i, a,
+          (unsigned) vga.dac.rgb[a].r,
+          (unsigned) vga.dac.rgb[a].g,
+          (unsigned) vga.dac.rgb[a].b
+        );
 #endif
       }
     }
