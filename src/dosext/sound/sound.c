@@ -7,6 +7,7 @@
  *   Joel N. Weber II
  *   Alistair MacDonald <alistair@slitesys.demon.co.uk>
  *   Michael Beck
+ *   Rutger Nijlunsing <csg465@wing4.wing.rug.nl>
  *
  * DANG_END_MODULE
  *
@@ -59,6 +60,14 @@
 #include <sys/ioctl.h>
 #include <linux/soundcard.h>
 */
+
+/* MPU401 data */
+static int mpu401avail = 1;  /* 1 if byte available at input */
+static int mpufile=0; /* File descriptor */
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 /* Internal Functions */
 
@@ -171,13 +180,16 @@ Bit8u sb_io_read(Bit32u port)
 
   case 0x00: /* FM Music Left Status Port - SBPro */
   case 0x08: /* FM Music Compatible Status Port - SB (Alias to 0x00 on SBPro)*/
+    S_printf("SB: read from Left FM status port.\n");
     return fm_io_read (FM_LEFT_STATUS);
   case 0x02: /* FM Music Right Status Port - SBPro */
     /* FIXME: Unimplemented */
     if (SB_info.version > SB_PRO) {
+      S_printf("SB: read from Right FM status port.\n");
       return fm_io_read (FM_RIGHT_STATUS);
     }
     else {
+      S_printf("SB: read from Right FM status port not supported on this SB version.\n");
       return 0xff;
     }
     
@@ -199,11 +211,16 @@ Bit8u sb_io_read(Bit32u port)
 	 return sb_read_mixer(SB_MIXER_LINE);
        case 0x0A: 
 	 return sb_read_mixer(SB_MIXER_MIC);
+       default:
+         S_printf("SB: invalid read from mixer (%x)\n", SB_info.mixer_index);
+         return -1;
        };
      }
+     S_printf("SB: mixer not supported on this SB version.\n");
      return -1;
 
    case 0x06: /* Reset ? */
+     S_printf("SB: read from Reset address\n");
      return 0; /* Some programms read this whilst resetting */
 
      /* Alias to 0x00 ? */
@@ -217,32 +234,43 @@ Bit8u sb_io_read(Bit32u port)
    case 0x0C: /* DSP Write Buffer Status */
      S_printf ("SB: Write? %x\n", SB_dsp.ready);
      return SB_dsp.ready;
-   /* 0x0D: DSP Timer Interrupt Clear - SB16 ? */
+
+   case 0x0D: /* DSP Timer Interrupt Clear - SB16 ? */
+     S_printf("SB: read 16-bit timer interrupt status. Not Implemented.\n");
+     return -1;
+
    case 0x0E: /* DSP Data Available Status/DSP 8-bit IRQ Ack - SB */
      S_printf ("SB: Ready? %x\n", SB_dsp.data);
      return SB_dsp.data; 
      break;
 
-     /* 0x0F: DSP 16-bit IRQ - SB16 */
+   case 0x0F: /* 0x0F: DSP 16-bit IRQ - SB16 */
+     S_printf("SB: read 16-bit DSP IRQ. Not Implemented.\n");
+     return -1;
+     break;
 
      /* == CD-ROM - UNIMPLEMENTED == */
 
    case 0x10: /* CD-ROM Data Register - SBPro */
      if (SB_info.version > SB_PRO) {
+       S_printf("SB: read from CD-ROM Data register.\n");
        return 0;
      }
      else {
+       S_printf("SB: CD-ROM not supported in this version.\n");
        return 0xFF;
      }
    case 0x11: /* CD-ROM Status Port - SBPro */
      if (SB_info.version > SB_PRO) {
+       S_printf("SB: read from CD-ROM status port.\n");
        return 0xFE;
      }
      else {
+       S_printf("SB: CD-ROM not supported in this version.\n");
        return 0xFF;
      }
     
-  default: S_printf ("SB: %lx is an unhandled read port\n", port);
+  default: S_printf ("SB: %lx is an unhandled read port.\n", port);
   };
    return 0xFF;
 }
@@ -283,15 +311,25 @@ Bit8u fm_io_read (Bit32u port)
 Bit8u mpu401_io_read(Bit32u port)
 {
   __u32 addr;
+  Bit8u r=0xff;   /* Rutger: _not_ INT ! */
   
   addr = port - config.mpu401_base;
   
-  S_printf ("SB: Read from MPU-401 port (%u)\n", addr);
-  
-  switch (addr){
-  default: S_printf ("SB: %lx is an unhandled read port\n", port);
-  };
-  return 0;
+  switch(addr) {
+  case 0:
+    /* Read data port */
+    r=0xfe; /* Whatever happened before, send a MPU_ACK */
+    mpu401avail=0;
+    S_printf("MPU401: Read data port = 0x%02x\n",r);
+    break;
+  case 1:
+     /* Read status port */
+    /* 0x40=OUTPUT_AVAIL; 0x80=INPUT_AVAIL */
+    r=0xff & (~0x40); /* Output is always possible */
+    if (mpu401avail) r &= (~0x80);
+    S_printf("MPU401: Read status port = 0x%02x\n",r);
+  }
+  return r;
 }
 
 
@@ -410,140 +448,81 @@ void sb_io_write(Bit32u port, Bit8u value)
     /* == DSP == */
     
   case 0x0C: /* dsp write register */
-    switch (SB_dsp.last_write) 
-    {
-      
-    case 0x10: /* Direct 8-bit DAC - SB */
-      S_printf ("SB: Direct 8-bit DAC write (%u)\n", value);
-      sb_write_DAC (8, value);
-      break;
-      
-      /* == DMA == */
-      
-    case 0x14: /* DMA 8-bit DAC - SB */
-    case 0x16: /* DMA 2-bit ADPCM DAC - SB */
-    case 0x17: /* DMA 2-bit ADPCM DAC (Reference) - SB */
-    case 0x24: /* DMA 8-bit DAC - SB */
-    case 0x74: /* DMA 4-bit ADPCM DAC - SB */
-    case 0x75: /* DMA 4-bit ADPCM DAC (Reference) - SB */
-    case 0x76: /* DMA 2.6-bit ADPCM DAC - SB */
-    case 0x77: /* DMA 2.6-bit ADPCM DAC (Reference) - SB */
-      if (!SB_dsp.write_size_mode)
-      {
-	SB_dsp.length = value;
-      }
-      else
-      {
-	SB_dsp.length += ( value << 8) + 1;
-	start_dsp_dma(SB_dsp.last_write);
-	SB_dsp.last_write = 0;
-      };
-      SB_dsp.write_size_mode = !SB_dsp.write_size_mode;
-      break;
-      
-      /* == MIDI == */
-      
-    case 0x35: /* Midi Read/Write Poll (UART) - SB2.0 */
-    case 0x36: /* Midi Read Interrupt/Write Poll (UART) - SB2.0 ? */
-    case 0x37: /* Midi Read Interrupt Timestamp/Write Poll (UART) - SB2.0? */
-      /* FIXME: Unimplemented */
-      S_printf ("SB: Write %u to SB MIDI port.\n", value);
-      break;
-    case 0x38: /* Midi Write Poll - SB */
-      /* FIXME: Unimplemented */
-      S_printf ("SB: Write %u to SB MIDI port.\n", value);
-      SB_dsp.last_write = 0;
-      break;
-      
-    case 0x40: /* Set Time Constant */ 
-      SB_dsp.time_constant = value;
-      SB_dsp.last_write = 0;
-      sb_set_speed ();
-      break;
-      
-      /* == DMA == */
-      
-    case 0x48: /* Set DMA Block Size - SB2.0 */
-      if (SB_info.version >= SB_20) {
-	if (!SB_dsp.write_size_mode)
-	{
-	  SB_dsp.length = value;
-	}
-	else
-	  {
-	    SB_dsp.length += ( value << 8);
-	    SB_dsp.last_write = 0;
-	  };
-	SB_dsp.write_size_mode = !SB_dsp.write_size_mode;
-	break;
-      }
-      
-      /* == OUTPUT == */
-      
-    case 0x80: /* Silence DAC - SB */
-      /* FIXME: Unimplemented */
-      break;
 
-    case 0xE4: /* Write to Test - SB2.0 */
-      if (SB_info.version >= SB_20) {
-	SB_dsp.test = value;
+      /* ALL commands set SB_dsp.command to SB_NO_DSP_COMMAND when they finish */
+      if (SB_dsp.command == SB_NO_DSP_COMMAND) {
+      	/* No command yet */
+      	SB_dsp.command = value;
+      	SB_dsp.parameter = 0;
+      	SB_dsp.write_size_mode = 0;
+      	SB_dsp.have_parameter = SB_PARAMETER_EMPTY;
       }
-      break;
+      else {
+      	SB_dsp.parameter = value;
+      	SB_dsp.have_parameter = SB_PARAMETER_FULL;
+      }
 
+      /* Unknowns */
+      /* == STATUS == */
+      /* 0x03: ASP Status - SB16ASP */
+      /* 0x05: ??? - SB16ASP */
 
-      /* == NON MULTI-BYTE == */
+    if (SB_dsp.have_parameter == SB_PARAMETER_EMPTY) {
+      	/* The following commands take no parameters, or we need  */
       
-    default:			/* figure out what command */
       switch (value) 
       {
 	/* == STATUS == */
 	
-	/* 0x03: ASP Status - SB16ASP */
-	
       case 0x04: /* DSP Status - SB2.0-Pro2 - Obselete */
 	/* ASP ? - SB16ASP */
 	/* FIXME: Unimplemented */
+	if (SB_info.version >= SB_20 && SB_info.version <= SB_PRO) {
+		S_printf("SB: Request for SB2.0/SBPRO status (Unimplemented)\n");
+	}
+	dsp_write_output(0);
+	SB_dsp.command = SB_NO_DSP_COMMAND;
 	break;
-	
-	/* 0x05: ??? - SB16ASP */
 	
 	/* == OUTPUT COMMANDS == */
-	
-      case 0x10: /* Direct 8-bit DAC - SB */
-	/* MULTI-BYTE */
-	break;
-      case 0x14: /* DMA 8-bit DAC - SB */
-	/* MULTI-BYTE */
-      case 0x16: /* DMA 2-bit ADPCM DAC - SB */
-	/* MULTI-BYTE */
-      case 0x17: /* DMA 2-bit ADPCM DAC (Reference) - SB */
-	/* MULTI-BYTE */
-	S_printf ("SB: Setting up DMA transfer\n");
-	SB_dsp.write_size_mode = 0; 
-	break;
 	
       case 0x1C: /* DMA 8-bit DAC (Auto-Init) - SB2.0 */
       case 0x1F: /* DMA 2-bit ADPCM DAC (Reference, Auto-Init) - SB2.0 */
 	if (SB_info.version >= SB_20) {
-	  start_dsp_dma(value);
+		start_dsp_dma(SB_dsp.command);
 	}
+	else {
+		S_printf("SB: Auto-Init DMA not supported on this SB version.\n");
+	}
+	SB_dsp.command = SB_NO_DSP_COMMAND;
 	break;
 	
 	/* == INPUT COMMANDS == */
 	
       case 0x20: /* Direct 8-bit ADC - SB */
 	/* FIXME: Unimplemented */
+	S_printf("SB: 8-bit ADC (Unimplemented)\n");
 	dsp_write_output(0);
+	SB_dsp.command = SB_NO_DSP_COMMAND;
 	break;
-      case 0x24: /* DMA 8-bit DAC - SB */
-	/* MULTI-BYTE */
-	SB_dsp.write_size_mode = 0; 
+      case 0x28:	/* Direct 8-bit ADC (Burst) - SBPro2 */
+	/* FIXME: Unimplemented */
+	if (SB_info.version > SB_PRO) {
+		S_printf("SB: Burst mode 8-bit ADC (Unimplemented)\n");
+	}
+	else {
+		S_printf("SB: Burst mode 8-bit ADC not supported by SB version.\n");
+	}
+	SB_dsp.command = SB_NO_DSP_COMMAND;
 	break;
-	/* 0x28: Direct 8-bit ADC (Burst) - SBPro2 */
       case 0x2C: /* DMA 8-bit DAC (Auto-Init) - SB2.0 */
 	if (SB_info.version >= SB_20) {
-	  start_dsp_dma(value);
+		start_dsp_dma(SB_dsp.command);
 	}
+	else {
+		S_printf("SB: Auto-Init DMA not supported on this SB version.\n");
+	}
+	SB_dsp.command = SB_NO_DSP_COMMAND;
 	break;
 	
 	/* == MIDI == */
@@ -552,88 +531,84 @@ void sb_io_write(Bit32u port, Bit8u value)
 	/* FIXME: Unimplemented */
 	S_printf ("SB: Attempt to read from SB Midi (Poll)\n");
 	dsp_write_output(0);
+	SB_dsp.command = SB_NO_DSP_COMMAND;
 	break;
       case 0x31: /* Midi Read Interrupt - SB */
 	/* FIXME: Unimplemented */
 	S_printf ("SB: Attempt to read from SB Midi (Interrupt)\n");
+	SB_dsp.command = SB_NO_DSP_COMMAND;
 	break;
       case 0x32: /* Midi Read Timestamp Poll - SB ? */
 	/* FIXME: Unimplemented */
 	S_printf ("SB: Attempt to read from SB Midi (Poll)\n");
 	dsp_write_output(0); dsp_write_output(0);
 	dsp_write_output(0); dsp_write_output(0);
+	SB_dsp.command = SB_NO_DSP_COMMAND;
       case 0x33: /* Midi Read Timestamp Interrupt - SB ? */
 	/* FIXME: Unimplemented */
 	S_printf ("SB: Attempt to read from SB Midi Timestamp (Interrupt)\n");
+	SB_dsp.command = SB_NO_DSP_COMMAND;
 	break;
-      case 0x34: /* Midi Read/Write Poll (UART) - SB2.0 */
-	S_printf ("SB: Entering MIDI data mode (Poll)\n");
-	break;
-      case 0x35: /* Midi Read Interrupt/Write Poll (UART) - SB2.0 ? */
-	/* FIXME: Unimplemented */
-	S_printf ("SB: Entering MIDI data mode (IRQ/Poll)\n");
-	break;
-      case 0x37: /* Midi Read Interrupt Timestamp/Write Poll (UART) - SB2.0? */
-	/* FIXME: Unimplemented */
-	S_printf ("SB: Entering MIDI data timestamp mode/Write Poll (IRQ/Poll)\n");
-	break;
-      case 0x38: /* Midi Write Poll - SB */
-	break;
-	
-	/* == SAMPLE SPEED == */
-	
-      case 0x40: /* Set Time Constant - SB */
-	/* MULTI-BYTE */
-	break;
-	/* 0x41: Set Sample Rate - SB16 */
 	
 	/* == OUTPUT == */
 	
-	/* 0x45: Continue Auto-Init 8-bit DMA - SB16 */
-	/* 0x47: Continue Auto-Init 16-bit DMA - SB16 */
-	
-      case 0x48: /* Set DMA Block Size - SB2.0 */
-	break;
-	
-      case 0x74: /* DMA 4-bit ADPCM DAC - SB */
-	/* MULTI-BYTE */
-      case 0x75: /* DMA 4-bit ADPCM DAC (Reference) - SB */
-	/* MULTI-BYTE */
-      case 0x76: /* DMA 2.6-bit ADPCM DAC - SB */
-	/* MULTI-BYTE */
-      case 0x77: /* DMA 2.6-bit ADPCM DAC (Reference) - SB */
-	/* MULTI-BYTE */
-	S_printf ("SB: Setting up DMA transfer\n");
+      case 0x45:	/* Continue Auto-Init 8-bit DMA - SB16 */
+      case 0x47:	/* Continue Auto-Init 16-bit DMA - SB16 */
+	/* FIXME: Unimplemented */
+	if (SB_info.version >= SB_16) {
+		S_printf("SB: Continue Auto-init DMA. (unimplemented)\n");
+	}
+	else {
+		S_printf("SB: Continue Auto-init DMA unsupported on this SB.\n");
+	}
+	SB_dsp.command = SB_NO_DSP_COMMAND;
 	break;
 	
       case 0x7D: /* DMA 4-bit ADPCM DAC (Auto-Init, Reference) - SB2.0 */
       case 0x7F: /* DMA 2.6-bit ADPCM DAC (Auto-Init, Reference) - SB2.0 */
-	start_dsp_dma(value);
-	break;
-	
-      case 0x80: /* Silence DAC - SB */
+	if (SB_info.version >= SB_20) {
+		start_dsp_dma(value);
+	}
+	else {
+		S_printf("SB: Auto-init DMA not supported on this SB version.\n");
+	}
+	SB_dsp.command = SB_NO_DSP_COMMAND;
 	break;
 	
       case 0x90: /* DMA 8-bit DAC (High Speed, Auto-Init) - SB2.0-Pro2 */
 	/* FIXME: Unimplemented */
+	if (SB_info.version >= SB_20 && SB_info.version <= SB_PRO) {
+		S_printf("SB: Auto-init DAC DMA (unimplemented.)\n");
+	}
+	else {
+		S_printf("SB: Auto-init DAC DMA not supported on this SB.\n");
+	}
+	SB_dsp.command = SB_NO_DSP_COMMAND;
 	break;
 	
 	/* == INPUT == */
 	
       case 0x98: /* DMA 8-bit ADC (High Speed, Auto-Init) - SB2.0-Pro2 */
 	/* FIXME: Unimplemented */
+	if (SB_info.version >= SB_20 && SB_info.version <= SB_PRO) {
+		S_printf("SB: Auto-init ADC DMA (unimplemented.)\n");
+	}
+	else {
+		S_printf("SB: Auto-init ADC DMA not supported on this SB.\n");
+	}
+	SB_dsp.command = SB_NO_DSP_COMMAND;
 	break;
 	
 	/* == STEREO == */
 	
       case 0xA0: /* Enable Stereo Input - SBPro Only */
 	/* FIXME: Unimplemented */
+	SB_dsp.command = SB_NO_DSP_COMMAND;
 	break;
       case 0xA8: /* Disable Stereo Input - SBPro Only */
 	/* FIXME: Unimplemented */
+	SB_dsp.command = SB_NO_DSP_COMMAND;
 	break;
-	
-	/* 0xB? - 0xC? : Generic DMA - SB16 */
 	
 	/* == DMA == */
 	
@@ -645,8 +620,16 @@ void sb_io_write(Bit32u port, Bit8u value)
 	restart_dsp_dma(); 
 	break;
 	
-	/* 0xD5: Halt 16-bit DMA - SB16 */
-	/* 0xD6: Continue 16-bit DMA - SB16 */
+      case 0xD5:	/* Halt 16-bit DMA - SB16 */
+      case 0xD6:	/* Continue 16-bit DMA - SB16 */
+	if (SB_info.version >= SB_16) {
+		S_printf("SB: 16-bit DMA operations unimplemented\n");
+	}
+	else {
+		S_printf("SB: 16-bit DMA operations not supported on this SB.\n");
+	}
+	SB_dsp.command = SB_NO_DSP_COMMAND;
+	break;
 	
 	/* == SPEAKER == */
 	
@@ -670,17 +653,13 @@ void sb_io_write(Bit32u port, Bit8u value)
 	
 	/* == DMA == */
 	
-	/* 0xD9: Exit Auto-Init 16-bit DMA - SB16 */
+      case 0xD9: /* Exit Auto-Init 16-bit DMA - SB16 */
       case 0xDA: /* Exit Auto-Init 8-bit DMA - SB2.0 */
 	/* FIXME: Unimplemented */
+	SB_dsp.command = SB_NO_DSP_COMMAND;
 	
 	/* == DSP IDENTIFICATION == */
 	
-      case 0xE0: /* DSP Identification - SB2.0 */
-	if (SB_info.version >= SB_20) {
-	  dsp_write_output( ~ value);
-	}
-	break;
       case 0xE1: /* DSP Version - SB */
 	S_printf ("SB: Query Version\n");
 	dsp_write_output(SB_info.version >> 8);
@@ -688,21 +667,36 @@ void sb_io_write(Bit32u port, Bit8u value)
 	break;
       case 0xE3: /* DSP Copyright - SBPro2 ? */
 	if (SB_info.version > SB_PRO) {
+	  S_printf("SB: DSP Copyright requested.\n");
 	  dsp_do_copyright();
 	}
+	else {
+		S_printf("SB: DSP copyright not supported by this SB Version.\n");
+	}
+	SB_dsp.command = SB_NO_DSP_COMMAND;
 	break;
 	
 	/* == TEST == */
 	
       case 0xE8: /* Read from Test - SB2.0 */
 	if (SB_info.version >= SB_20) {
+	  S_printf("SB: Read %x from test register.\n", SB_dsp.test);
 	  dsp_write_output(SB_dsp.test);
 	}
+	else {
+		S_printf("SB: read from test register not supported by SB version.\n");
+	}
+	SB_dsp.command = SB_NO_DSP_COMMAND;
 	break;
       case 0xF0: /* Sine Generator - SB */
 	/* FIXME: Unimplemented */
+	S_printf("SB: Start Sine generator. (unimplemented)\n");
 	SB_dsp.time_constant = 0xC0;
-	sb_enable_speaker();
+
+	if (SB_info.version < SB_16)
+		sb_enable_speaker();
+
+	SB_dsp.command = SB_NO_DSP_COMMAND;
 	break;
 	
 	/* == STATUS == */
@@ -710,8 +704,13 @@ void sb_io_write(Bit32u port, Bit8u value)
       case 0xF1: /* DSP Auxiliary Status - SBPro2 */
 	/* FIXME: Unimplemented */
 	if (SB_info.version > SB_PRO) {
+	  S_printf("SB: DSP aux. status (unimplemented)\n");
 	  dsp_write_output(18);
 	}
+	else {
+		S_printf("SB: DSP aux. status not supported by SB version.\n");
+	}
+	SB_dsp.command = SB_NO_DSP_COMMAND;
 	break;
 	
 	/* == IRQ == */
@@ -719,16 +718,149 @@ void sb_io_write(Bit32u port, Bit8u value)
       case 0xF2: /* 8-bit IRQ - SB */
 	/* Trigger the interrupt */
 	pic_request(SB_info.irq);
+	SB_dsp.command = SB_NO_DSP_COMMAND;
 	break;
+
 	/* 0xF3: 16-bit IRQ - SB16 */
 	
 	/* 0xFB: DSP Status - SB16 */
 	/* 0xFC: DSP Auxiliary Status - SB16 */
 	/* 0xFD: DSP Command Status - SB16 */
 	
-      default:   S_printf ("SB: Ignored DSP instruction (%x)\n", value);
       };
-      SB_dsp.last_write = value;
+    }
+    else {		/* SB_dsp.have_parameter != SB_PARAMETER_EMPTY */
+	/* The following commands take at least one parameter */
+	switch (SB_dsp.command) {
+	case 0x10:	/* Direct 8-bit DAC - SB */
+		S_printf("SB: Direct 8-bit DAC write (%u)\n",value);
+		sb_write_DAC(8, value);
+		SB_dsp.command = SB_NO_DSP_COMMAND;
+		break;
+
+		/* == DMA == */
+
+	case 0x14:	/* DMA 8-bit DAC - SB */
+	case 0x16:	/* DMA 2-bit ADPCM DAC - SB */
+	case 0x17:	/* DMA 2-bit ADPCM DAC (Reference) - SB */
+	case 0x24:	/* DMA 8-bit DAC - SB */
+	case 0x74:	/* DMA 4-bit ADPCM DAC - SB */
+	case 0x75:	/* DMA 4-bit ADPCM DAC (Reference) - SB */
+	case 0x76:	/* DMA 2.6-bit ADPCM DAC - SB */
+	case 0x77:	/* DMA 2.6-bit ADPCM DAC (Reference) - SB */
+		if (!SB_dsp.write_size_mode) {
+			SB_dsp.length = SB_dsp.parameter;
+		}
+		else {
+			SB_dsp.length += (SB_dsp.parameter << 8) + 1;
+			start_dsp_dma(SB_dsp.command);
+			SB_dsp.command = SB_NO_DSP_COMMAND;
+		};
+		SB_dsp.write_size_mode = !SB_dsp.write_size_mode;
+		break;
+
+		/* == MIDI == */
+
+	case 0x35:	/* Midi Read/Write Poll (UART) - SB2.0 */
+	case 0x36:	/* Midi Read Interrupt/Write Poll (UART) - SB2.0 ? */
+	case 0x37:	/* Midi Read Interrupt Timestamp/Write Poll (UART) - SB2.0? */
+		/* FIXME: Unimplemented */
+		if (SB_info.version >= SB_20) {
+			S_printf("SB: Write %u to SB 2.0 MIDI port.\n", SB_dsp.parameter);
+			/* This is terminated by a DSP reset */
+		}
+		else {
+			S_printf("SB: Write to SB 2.0 MIDI port when not an SB 2.0.\n");
+			SB_dsp.command = SB_NO_DSP_COMMAND;
+		}
+		break;
+	case 0x38:	/* Midi Write Poll - SB */
+		/* FIXME: Unimplemented */
+		S_printf("SB: Write %u to SB MIDI port.\n", SB_dsp.parameter);
+		SB_dsp.command = SB_NO_DSP_COMMAND;
+		break;
+
+		/* == SAMPLE SPEED == */
+
+	case 0x40:	/* Set Time Constant */
+		SB_dsp.time_constant = SB_dsp.parameter;
+		SB_dsp.last_write = SB_NO_DSP_COMMAND;
+		sb_set_speed();
+		break;
+	case 0x41:	/* Set Sample Rate - SB16 */
+		/* FIXME: Unimplemented */
+		if (SB_info.version >= SB_16) {
+			if (!SB_dsp.write_size_mode) {
+				SB_dsp.length = SB_dsp.parameter;
+			}
+			else {
+				SB_dsp.length += (SB_dsp.parameter << 8);
+				S_printf("SB: sample rate set to %d. (unimplemented)\n", SB_dsp.length);
+				SB_dsp.command = SB_NO_DSP_COMMAND;
+			};
+			SB_dsp.write_size_mode = !SB_dsp.write_size_mode;
+			break;
+		}
+		else {
+			SB_dsp.command = SB_NO_DSP_COMMAND;
+		}
+
+		/* == DMA == */
+
+	case 0x48:	/* Set DMA Block Size - SB2.0 */
+		if (SB_info.version >= SB_20) {
+			if (!SB_dsp.write_size_mode) {
+				SB_dsp.length = SB_dsp.parameter;
+			}
+			else {
+				SB_dsp.length += (SB_dsp.parameter << 8);
+				S_printf("SB: DMA blocksize set to %d.\n", SB_dsp.length);
+				SB_dsp.command = SB_NO_DSP_COMMAND;
+			};
+			SB_dsp.write_size_mode = !SB_dsp.write_size_mode;
+			break;
+		}
+		else {
+			SB_dsp.command = SB_NO_DSP_COMMAND;
+		}
+
+		/* == OUTPUT == */
+
+	case 0x80:	/* Silence DAC - SB */
+		/* FIXME: Unimplemented */
+		if (!SB_dsp.write_size_mode) {
+			SB_dsp.length = SB_dsp.parameter;
+		}
+		else {
+			SB_dsp.length += (SB_dsp.parameter << 8);
+			S_printf("SB: DAC silence length set to %d. (Unimplemented)\n", SB_dsp.length);
+			SB_dsp.command = SB_NO_DSP_COMMAND;
+		};
+		SB_dsp.write_size_mode = !SB_dsp.write_size_mode;
+		break;
+
+		/* == DSP IDENTIFICATION == */
+
+	case 0xE0:	/* DSP Identification - SB2.0 */
+		if (SB_info.version >= SB_20) {
+			S_printf("SB: Identify SB2.0 DSP.\n");
+			dsp_write_output(~SB_dsp.parameter);
+		}
+		else {
+			S_printf("SB: Identify DSP not supported by this SB version.\n");
+		}
+		SB_dsp.command = SB_NO_DSP_COMMAND;
+		break;
+	case 0xE4:	/* Write to Test - SB2.0 */
+		if (SB_info.version >= SB_20) {
+			SB_dsp.test = SB_dsp.parameter;
+		}
+		else {
+			S_printf("SB: write to test register not in this SB version.\n");
+		}
+		SB_dsp.command = SB_NO_DSP_COMMAND;
+		break;
+	}
     }
     break;
     
@@ -790,11 +922,22 @@ void mpu401_io_write(Bit32u port, Bit8u value)
 
   addr = port - config.mpu401_base;
 
-  S_printf ("SB: Write %u to MPU-401 port %u\n", value, addr);
-
   switch (addr){
+    case 0:
+	/* Write data port */
+	write(mpufile,&value,1);
+	S_printf("MPU401: Write 0x%02x to data port\n",value);
+	break;
+    case 1:
+	/* Write command port */
+	if (port == (config.mpu401_base+1)) {
+		mpu401avail=1; /* A command is sent: MPU_ACK it next time */
+		S_printf("MPU401: Write 0x%02x to command port\n",value);
+		break;
+	}
+	break;
     default: S_printf ("SB: %lx is an unhandled MPU-401 write port\n", port);
-    };
+    }
 }
 
 
@@ -1023,7 +1166,7 @@ static void mpu401_init(void)
 {
   emu_iodev_t  io_device;
   
-  S_printf ("SB: MPU-401 Initialisation\n");
+  S_printf ("MPU401: MPU-401 Initialisation\n");
 
   /* This is the MPU-401 */
   io_device.read_portb   = mpu401_io_read;
@@ -1034,8 +1177,12 @@ static void mpu401_init(void)
   io_device.irq          = EMU_NO_IRQ;
   port_register_handler(io_device);
 
-  S_printf ("SB: MPU-401 Initialisation - Base 0x%03x \n", 
+  S_printf ("MPU401: MPU-401 Initialisation - Base 0x%03x \n", 
 	    config.mpu401_base);
+
+  /* FIXME: Rutger, this is _driver_ specific */
+  /* Quick hack */
+  mpufile=open("midi",O_WRONLY | O_CREAT, 0777);
 
   MPU_driver_init();
 }
@@ -1077,7 +1224,7 @@ static void fm_reset (void)
 
 static void mpu401_reset (void)
 {
-  S_printf ("SB: Resetting MPU401\n");
+  S_printf ("MPU401: Resetting MPU401\n");
 
   MPU_driver_reset();
 }

@@ -1,0 +1,27 @@
+The SB code is currently in a state of flux. Some changes to the code have been
+made which mean that I can separate the DSP handling from the rest of the SB
+code, making the main case statements simpler. In the meantime, Rutger
+Nijlunsing has provided a method for redirecting access to the MPU-401 chip
+into the main OS. 
+
+Using the MPU-401 "Emulation".
+The Sound driver opens a file "midi" in the current directory and writes the
+Raw MIDI data to this. A daemon is provide which can be linked against libgus
+(part of the Ultra drivers) to provide full support for the GUS sound cards.
+To use this see below. It is also possible to get various sounds by redirecting
+'midi' to the relevant part of the sound driver (eq 'ln -s /dev/sequencer midi'
+will link this to the midi sequencer)
+
+The GUS MIDI daemon:
+cd src/arch/linux/dosext/sound; gcc -O2 -Wall midi.c -lgus -omidi
+Copy the executeable 'midi' so that it is on your path, or somewhere you can
+run it easily.
+
+When you run dosemu, do the following:
+mknod p midi; ./midi < midi &; dos
+
+(Assuming that you put the midi executeable in the directory you run DOSEmu
+from.) If you always run DOSEmu from the same directory then you can omit
+the first step.
+
+Alistair.

@@ -74,6 +74,12 @@ EXTERN struct DSP_information_t {
   __u8  write_size_mode;       /* Are we writing the upper or lower byte */
   __u8  last_write;            /* First part of a multi-byte instruction */
   __u16 length;                /* Length of the DMA transfer */
+  __u8  command;               /* DSP command in progress */
+#define SB_NO_DSP_COMMAND 0
+  __u8  parameter;             /* value of parameter */
+  __u8  have_parameter;        /* Have we the parameter */
+#define SB_PARAMETER_EMPTY 0
+#define SB_PARAMETER_FULL  1
 } SB_dsp;
 
 

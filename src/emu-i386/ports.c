@@ -292,6 +292,11 @@ inb(unsigned int port)
     }
     /* It seems that we might need 388, but this is write-only, at least in the
        older chip... */
+    /* MPU401 */
+    if ((port & ~1) == config.mpu401_base) {
+	r=mpu401_io_read(port);
+	return r;
+    }
 #endif /* USE_SBEMU */
 
     /* DMA I/O */
@@ -563,6 +568,10 @@ outb(unsigned int port, unsigned int byte)
 #endif
 
   default:
+    /* DMA I/O */
+    if (((port & ~15) == 0) || ((port & ~15) == 0x80) || ((port & ~31) == 0xC0)) { 
+      dma_io_write(port, byte);
+    }
     /* SERIAL PORT I/O.  Avoids port==0 for safety.  */
     /* The base serial port must be a multiple of 8. */
     for (tmp = 0; tmp < config.num_ser; tmp++) {
@@ -582,17 +591,16 @@ outb(unsigned int port, unsigned int byte)
       adlib_io_write(port, byte);
       break;
     }
+    /* MPU401 */
+    if ((port & ~1) == config.mpu401_base) {
+      mpu401_io_write(port, byte);
+      break;
+    }
 #endif /* USE_SBEMU */
 
-    /* DMA I/O */
-    if (((port & ~15) == 0) || ((port & ~15) == 0x80) || ((port & ~31) == 0xC0)) {
-      dma_io_write(port, byte);
-    }
-    else {
     i_printf("default outb [0x%x] 0x%02x\n", port, byte);
-      h_printf("write port 0x%x denied value %02x", port, (byte & 0xff));
+    h_printf("write port 0x%x denied value %02x", port, (byte & 0xff));
     h_printf(" because not in access list\n");
-  }
   }
   lastport = port;
 }

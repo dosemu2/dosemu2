@@ -1,3 +1,8 @@
+97/02/23 ver. 0.65.99.5 unofficial pre-release
+	From Alistair & Rutger
+	- Updated SB DSP code and fixed some bugs in detection - Alistair
+	- Re-hacked ports.c so the DMA code works again. GRRRRR - Alistair
+	- Added first pass at MPU-401 code - Rutger
 97/02/22 ver. 0.65.99.4 unofficial pre-release
 	From Eric Biederman <ebiederm@cse.unl.edu>
 	- priv_on/off/default cleanup
