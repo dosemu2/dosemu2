@@ -133,9 +133,8 @@ boot from hard disk C (does not need to be a real hard disk or even a
 msdos filesystem, see below) 
 .TP
 .I -c
-use direct Console video (must be at the console, requires that 
-.B dos 
-is suid root)
+use direct Console video (must be at the console, requires special
+privileges).
 .TP
 .I -d
 detach from current virtual console or tty and attach to the first free
@@ -147,7 +146,8 @@ DOSEMU after running the command. Note: this only works if your
 autoexec.bat contains a "unix -e" command.
 .TP
 .I -V
-use VGA specific video optimizations
+use direct console video with VGA graphics and use the native graphics 
+card's BIOS (must be at the console, requires special privileges).
 .TP
 .I -k
 use RAW console Keyboard (must be at the console)

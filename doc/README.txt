@@ -21,7 +21,7 @@ Alistair MacDonald
 
               2.1.1. Disks, boot directories and floppies
               2.1.2. Controling amount of debug output
-              2.1.3. Basic emulaton settings
+              2.1.3. Basic emulation settings
               2.1.4. Code page and character set
               2.1.5. Terminals
               2.1.6. Keyboard settings
@@ -402,12 +402,9 @@ ge
    commandline option (look at the man page for details).
      _________________________________________________________________
 
-2.1.3. Basic emulaton settings
+2.1.3. Basic emulation settings
 
-   To enable INT08 type timer interrupts set the below on or off
-         $_timint = (on)
-
-   Wether a numeric processor should be shown to the DOS space
+   Whether a numeric processor should be shown to the DOS space
          $_mathco = (on)
 
    Which type of CPU should be emulated (NOTE: this is not the one you
@@ -884,7 +881,7 @@ s
     $_joy_granularity = (1)   # the higher, the less sensitive -
                           # useful if you have a wobbly joystick
                               #
-    $_joy_latency = (0)       # delay between nonblocking linux joystick reads
+    $_joy_latency = (1)       # delay between nonblocking linux joystick reads
                               # increases performance if >0 and processor>=Pent
 ium
                               # recommended: 1-50ms or 0 if unsure

@@ -123,6 +123,38 @@ Alistair MacDonald, updated by Stas Sergeev and subsequently by Ben Davis.
    $_sb_mixer can be set to "/dev/mixer" if you want DOSEMU to be able to
    change the volume on your sound card, but most people don't like that,
    so it is disabled by default.
+
+   There are several driver-specific settings for each supported
+   underlying driver (only OSS right now, or the OSS emulation of ALSA).
+   In general you don't need to alter the default values, but many OSS
+   drivers appear to have some very nasty quirks, so some tweaking might
+   be necessary if you have some problems with your particular driver.
+    $_oss_min_frags = (4)
+    $_oss_max_frags = (0x20)
+    $_oss_stalled_frags = (1)
+    $_oss_do_post = (off)
+    $_oss_min_extra_frags = (2)
+
+   $_oss_min_frags specifies the minimum number of fragments to divide
+   your card's DMA buffer to. If you buffer underruns, try increasing
+   this value.
+
+   $_oss_max_frags specifies the maximum number of fragments to divide
+   your card's DMA buffer to.
+
+   $_oss_stalled_frags is a hack to work around a bug found in most of
+   the existing OSS drivers, including the SB one. Even when the playback
+   is completed, these drivers are reporting that one fragment is still
+   in use. If your driver doesn't have that problem, feel free to set
+   this to 0.
+
+   $_oss_do_post is a hack that makes it possible to work with drivers
+   that do not honour the SNDCTL_DSP_SETFRAGMENT ioctl command (unpatched
+   Aureal Vortex binary driver is a known offender). This hack is
+   incompatible with the standard OSS drivers and must be disables unless
+   your driver doesn't work otherwise.
+
+   $_oss_min_extra_frags can be increased if you have underruns.
      _________________________________________________________________
 
 3.1.2. Configuring Midi

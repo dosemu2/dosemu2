@@ -881,8 +881,9 @@ Alistair MacDonald
         # ha, this one is allowed to do odds sound tricks :-)
       endif
 
-      # disable setting graphics mode per commandline option -g
-      $DOSEMU_OPTIONS = strdel($DOSEMU_OPTIONS, strchr($DOSEMU_OPTIONS,"g"),1);
+      # disable setting direct VGA console graphics mode per commandline option
+ -V
+      $DOSEMU_OPTIONS = strdel($DOSEMU_OPTIONS, strchr($DOSEMU_OPTIONS,"V"),1);
      _________________________________________________________________
 
 2.2.7. `Dry' testing your configuration
@@ -960,10 +961,6 @@ d)
    Want startup DOSEMU banner messages? Of course :-)
 
          dosbanner on
-
-   Timint is necessary for many programs to work.
-
-         timint on
 
    For "mathco", set this to "on" to enable the coprocessor during
    DOSEMU. This really only has an effect on kernels prior to 1.0.3.

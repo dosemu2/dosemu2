@@ -473,19 +473,10 @@ option (look at the man page for details).
 </sect3>
 
 <sect3>
-<title>Basic emulaton settings</title>
+<title>Basic emulation settings</title>
 
 <para>
-To enable INT08 type timer interrupts set the below on or off
-
-<screen>
-  $_timint = (on)
-</screen>
-
-</para>
-
-<para>
-Wether a numeric processor should be shown to the DOS space
+Whether a numeric processor should be shown to the DOS space
 
 <screen>
   $_mathco = (on)

@@ -1184,8 +1184,8 @@ dosemu and/or kernel versions. Here some small examples:
     # ha, this one is allowed to do odds sound tricks :-)
   endif
 
-  # disable setting graphics mode per commandline option -g
-  $DOSEMU_OPTIONS = strdel($DOSEMU_OPTIONS, strchr($DOSEMU_OPTIONS,"g"),1);
+  # disable setting direct VGA console graphics mode per commandline option -V
+  $DOSEMU_OPTIONS = strdel($DOSEMU_OPTIONS, strchr($DOSEMU_OPTIONS,"V"),1);
 
 </screen>
 
@@ -1330,18 +1330,6 @@ Want startup DOSEMU banner messages?  Of course :-)
 
 <screen>
   dosbanner on
-</screen>
-
-</para>
-
-<para>
-Timint is necessary for many programs to work.
-</para>
-
-<para>
-
-<screen>
-  timint on
 </screen>
 
 </para>
