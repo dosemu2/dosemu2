@@ -1,3 +1,49 @@
+2000/12/02 ver. 1.1.1.1 unofficial pre-release
+	From Bart
+	- fix for base-configure.in w.r.t. glibc 2.2: the awk script got
+	  confused between the definitions
+	From Eric
+	- remove/disable keyb-nonint mode (eb1.4)
+	- Modified the parser&lexer to handle shift-alt, ctrl, and ctrl-alt
+	  shiftstates. (eb1.11)
+	- Now pass the raw scancode to get_bios_key, this is needed for
+	  correct handling of a few rare cases in keyboard_u stuff.
+	- fix for linux-2.4.0-test11 "features" of /proc/cpuinfo
+	From Hans
+	(in preparation for Eric's keyboard stuff)
+	- removed USE_OLD_SLANG_KBD
+	- added new features to plugin handling (mkpluginhooks)
+	  - config/plugin_override can contain name of plugin which _this_
+	    plugin replaces (plugin_enable of the other will be set to 'no')
+	  - config/plugin_incdirs (same structure as plugin_dirs) will
+	    add directories to the include path.
+	  - config/plugin_config.h is included by src/include/config.h
+	    to give plugins a chance for compile time configuration
+	  - added bison/lexer preprocessor bisonpp.pl (yes, it needs perl)
+	    to add generic hooks into the parser. Moved parser.y
+            parser.y.in and lexer.l to lexer.l.in.
+	    mkpluginhooks will generate the proper parser.y and lexer.l
+	    using bisonpp.pl and merge files found in
+	    config/plugin_{parser,lexer}.
+	  - updated src/plugin/README.plugin to reflect the changes
+	  - added parser stuff to plugin/demo
+	- added VERSION_OF and IS_DEVEL_RELEASE macro to configure to ease
+	   checking of DOSEMU_VERSION_CODE such as
+		#if DOSEMU_VERSION_CODE < VERSION_OF(1,1,0,5)
+		#if IS_DEVEL_RELEASE
+	- fixed bug in base-configure not parsing the version numbers
+	  correctly (kludge failed when VERSION was equal PATCHLEVEL_,
+	  e.g. 1.x.x.1, 2.x.x.2 e.t.c)
+	- moved/changed src/base/keyboard to become src/plugin/keyboard
+	  involved file: src/base/keyboard/*, src/include/key*,
+	  src/arch/linux/Makfile.main, src/plugin/keyboard/config/*
+	  src/env/video/terminal.[ch]
+	- parser.y, shifted outcommented rules down to avoid comments
+	  within rule label such as 'term_flag /*...*/ :'
+	  (problems with bison preprocessor)
+	- prepared parser keyboard stuff for Eric's stuff (eb1.11)
+	  Some parser stuff went into src/plugin/keyboard/config/plugin_parser
+	  and plugin_lexer respectively
 2000/11/10 ver. 1.1.1 released
 	From Urban Widmark <urban@svenskatest.se>
 	- support for mice using the IMPS/2 protocol

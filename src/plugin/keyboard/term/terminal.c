@@ -73,9 +73,7 @@ static int *Attribute_Map;
 extern char *DOSemu_Keyboard_Keymap_Prompt;
 extern int DOSemu_Terminal_Scroll;
 extern int DOSemu_Slang_Show_Help;
-#ifndef USE_OLD_SLANG_KBD
 extern int DOSemu_Slang_Got_Terminfo;
-#endif
 
 int cursor_blink = 1;
 static unsigned char *The_Charset = charset_latin;
@@ -224,15 +222,11 @@ terminal_initialize()
      Video_term.update_screen = NULL;
 
    SLang_Exit_Error_Hook = sl_exit_error;
-#ifdef USE_OLD_SLANG_KBD
-   SLtt_get_terminfo ();
-#else
    if( !DOSemu_Slang_Got_Terminfo )
    {
       SLtt_get_terminfo ();
       DOSemu_Slang_Got_Terminfo = 1;
    }
-#endif
    
    get_screen_size ();
 
@@ -351,15 +345,6 @@ static char *Help[] =
    "Function Keys:",
    "    F1: ^@1      F2: ^@2 ...  F9: ^@9    F10: ^@0   F11: ^@-   F12: ^@=",
    "Key Modifiers:",
-#ifdef USE_OLD_SLANG_KBD
-   "    ^@s : SHIFT KEY        ^@S : STICKY SHIFT KEY",
-   "    ^@a : ALT KEY          ^@A : STICKY ALT KEY",
-   "    ^@c : CTRL KEY         ^@C : STICKY CTRL KEY",
-   "  Note: To cancel the sticky key, press the sticky key again.",
-   "  Examples:",
-   "    Pressing ^@s followed by ^@3 results in SHIFT-F3.",
-   "    Pressing ^@C Up Up Up ^@C results in Ctrl-Up Ctrl-Up Ctrl-Up.",
-#else
    "    Normal:  ^@s SHIFT KEY, ^@a ALT KEY, ^@c CTRL KEY, ^@g ALTGR KEY",
    "    Sticky:  ^@S SHIFT KEY, ^@A ALT KEY, ^@C CTRL KEY, ^@G ALTGR KEY",
    "Substitute keys:",
@@ -371,7 +356,6 @@ static char *Help[] =
    "    Pressing ^@s followed by ^@3 results in SHIFT-F3.",
    "    Pressing ^@C Up Up Up ^@C results in Ctrl-Up Ctrl-Up Ctrl-Up.",
    "    Pressing ^@c ^@K1  results in Ctrl-End",
-#endif
    "Miscellaneous:",
    "    ^@^R : Redraw display      ^@^L : Redraw the display.",
    "    ^@^Z : Suspend dosemu      ^@b  : Select BEST monochrome mode.",    
@@ -380,9 +364,6 @@ static char *Help[] =
    "    ^@ Space: Reset Sticky keys and Panning to automatic panning mode.",
    "    ^@? or ^@h:  Show this help screen.",
    "    ^@^@:  Send the ^@ character to dos.",
-#ifdef USE_OLD_SLANG_KBD
-   " The default panning mode is such that the cursor will always remain visible.",
-#endif
    "",
    "PRESS THE SPACE BAR TO CONTINUE---------",
    NULL

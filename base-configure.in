@@ -327,18 +327,16 @@ AC_SUBST(XLIBSW)
 AC_SUBST(x_libraries)
 
 REALTOPDIR=`nolinks=1; pwd`
-VERSION="`cut -d. -f1 VERSION`"
-SUBLEVEL="`cut -d. -f2 VERSION`"
-PATCHLEVEL="`cut -d. -f3 VERSION`"
-PATCHLEVEL_="`cut -d. -f4 VERSION`"
-if test "$VERSION" = "$PATCHLEVEL_" -o "`cat VERSION`" = "$PATCHLEVEL_"; then
-dnl need to workaround old buggy textutils
-  echo "you should upgrade your textutils to atleast version 1.19"
-  PATCHLEVEL_=""
+V=`cat VERSION`
+if test "${V##*.*.*.*}" = "$V"; then
+  V=$V.0
 fi
-if test "$PATCHLEVEL_" = ""; then
-  PATCHLEVEL_=0
-fi
+VERSION=${V%*.*.*.*}
+PATCHLEVEL_=${V#*.*.*.*}
+V_=${V%*.*.*}
+SUBLEVEL=${V_#*.*}
+V_=${V#*.*.*}
+PATCHLEVEL=${V_%*.*}
 DOSEMU_VERSION_CODE=`echo "$(( ( $VERSION * 16777216 ) + ( $SUBLEVEL * 65536 ) + ( $PATCHLEVEL * 256 ) + $PATCHLEVEL_ ))"`
 PATCHLEVEL="${PATCHLEVEL}.${PATCHLEVEL_}"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
@@ -399,6 +397,11 @@ if test -x ./mkpluginhooks; then
   if test -f ./plugin_libdirs; then
     AC_CHECKING("Including plugins: `cat ./plugin_libdirs`");
     PLUGINSUBDIRS=`cat ./plugin_libdirs`
+    if test -f ./plugin_incdirs; then
+      for i in `cat ./plugin_incdirs`; do
+        PLUGININC="$PLUGININC -I\${SRCPATH}/${i}"
+      done
+    fi
   else
     AC_CHECKING("Compiling without plug-ins")
   fi
@@ -465,14 +468,6 @@ AC_ARG_ENABLE(new-intcode,
 	       AC_SUBST(USE_NEW_INT)],
 	      [AC_CHECKING("Compiling with normal interrupt handling code")])
 
-AC_ARG_ENABLE(old-slangcode,
-              [  --enable-old-slangcode  use old Slang keyboard code],
-              [AC_CHECKING("Compiling with old Slang keyboard code")
-              USE_OLD_SLANG_KBD="USE_OLD_SLANG_KBD=1"
-               AC_DEFINE(USE_OLD_SLANG_KBD)
-	       AC_SUBST(USE_OLD_SLANG_KBD)],
-	      [AC_CHECKING("Compiling with normal Slang keyboard code")])
-
 LNKOPTS="-Wl,-warn-common"
 
 AC_ARG_ENABLE(linkstatic,
@@ -507,7 +502,7 @@ fi
 # it with a comment line (such as: XINCLUDES="# no special path needed")
 # We need to fix this, because this is a time bomb. --HL
 
-INCDIR="-I\${SRCPATH}/include -I\${SRCPATH}/dosext/dpmi ${SLANGINC} ${XINCLUDES}"
+INCDIR="${PLUGININC} -I\${SRCPATH}/include -I\${SRCPATH}/dosext/dpmi ${SLANGINC} ${XINCLUDES}"
 AC_SUBST(INCDIR)
 
 if test "$dodebug" = "yes"; then
@@ -596,14 +591,14 @@ if test "$GCC" = "yes" ; then
   GCC_VERSION_CODE="-DGCC_VERSION_CODE=$GCC_VERSION_CODE"
 
   echo -n "checking for glibc..."
-  major=`echo '#include <features.h>' |${CC-cc} -E -dM -|awk '/#define.+__GLIBC__/{print $3}'`
+  major=`echo '#include <features.h>' |${CC-cc} -E -dM -|awk '/#define[ \t]+__GLIBC__[ \t]/{print $3}'`
   if test "$major" = ""; then
     echo "no"
   else
     if test "$(( $major > 1 ))" = "1"; then
       GLIBCFLAGS="-D_XOPEN_SOURCE"
     fi
-    minor=`echo '#include <features.h>' |${CC-cc} -E -dM -|awk '/#define.+__GLIBC_MINOR__/{print $3}'`
+    minor=`echo '#include <features.h>' |${CC-cc} -E -dM -|awk '/#define[ \t]+__GLIBC_MINOR__[ \t]/{print $3}'`
     if test "$minor" = ""; then
       minor=0;
     fi

@@ -303,7 +303,7 @@ static int dos_helper(void)
       break;
 
    case DOS_HELPER_GET_BIOS_KEY:                /* INT 09 "get bios key" helper */
-      _AX=get_bios_key();
+      _AX=get_bios_key(_AH);
       k_printf("HELPER: get_bios_key() returned %04x\n",_AX);
       break;
      
@@ -1742,11 +1742,6 @@ static void mouse_post_boot(void)
 
 static void dos_post_boot(void)
 {
-    if (!config.keybint && config.console_keyb) {
-      /* revector int9, so dos doesn't play with the keybuffer */
-      k_printf("revectoring int9 away from dos\n");
-      SETIVEC(0x9, BIOSSEG, 16 * 0x8 + 2);  /* point to the IRET before INT9 */
-    }
     if (mice->intdrv) mouse_post_boot();
 
 }

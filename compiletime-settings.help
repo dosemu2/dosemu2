@@ -62,15 +62,6 @@ slangforce	"force use of dosemu supplied Slang-lib"
 		and may have problems in terminal mode if your Slanglib
 		isn't suiteable. Normal this switch is enabled per default.
 
-oldslang	"use old Slang code"
-
-		Since dosemu-0.67.16.8 a new Slang-terminal code was
-		introduced which solved some problems for some people.
-		Unfortunately it turned out that this code is not appropriate
-		for some other people with real terminals who had no problems
-		with the old Slangcode of dosemu-0.66.7. If you are one of
-		those then set this switch on to enable the old behave.
-
 tmonoton	"use monoton micro timing"
 
 		To emulate the timer chip of the PC is a very difficult

@@ -51,10 +51,6 @@ endif
 ifdef X_GRAPHICS
   export X_GRAPHICS
 endif
-@USE_OLD_SLANG_KBD@
-ifdef USE_OLD_SLANG_KBD
-  export USE_OLD_SLANG_KBD
-endif
 
 export _LD86_=@LD86@
 export _AS86_=@AS86@

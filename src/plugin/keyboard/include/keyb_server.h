@@ -37,7 +37,7 @@ void output_byte_8042(Bit8u value);
 void int_check_queue();
 void copy_shift_state(Bit16u shift);
 
-static inline Bit16u get_bios_key(void) {
+static inline Bit16u get_bios_key(int dummy) {
    Bit16u b;
    b=bios_buffer;
    bios_buffer=0;

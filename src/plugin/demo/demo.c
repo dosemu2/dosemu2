@@ -15,12 +15,14 @@
 #include "memory.h"
 #include "doshelpers.h"
 
+int my_plugin_conf = 0;
 int my_plugin_fd = -1;
 
 void demo_plugin_init(void)
 {
 	PRIV_SAVE_AREA
-	fprintf(stderr, "PLUGIN: demo_plugin_init called\n");
+	fprintf(stderr, "PLUGIN: demo_plugin_init called, conf=%d\n", my_plugin_conf);
+	if (!my_plugin_conf) return;
 	enter_priv_off();
 	my_plugin_fd = open("/tmp/plugin_test_pipe", O_RDWR | O_NONBLOCK);
 	leave_priv_setting();
@@ -47,6 +49,7 @@ void my_plugin_ioselect(void)
 {
 	Bit16u nbytes;
 
+	if (!my_plugin_conf) return;
 	if (my_plugin_fd == -1) return;
 	if (!codefarptr) {
 		/* discart all we get in */
@@ -81,6 +84,7 @@ void my_plugin_ioselect(void)
 
 int demo_plugin_inte6(void)
 {
+	if (!my_plugin_conf) return;
 	fprintf(stderr, "PLUGIN: demo_plugin_inte6 called AX=%04x\n", LWORD(eax));
 	switch (HI(ax)) {
 
@@ -126,6 +130,7 @@ int my_plugin_need_poll = 3;
 
 void my_plugin_poll(int vm86ret)
 {
+	if (!my_plugin_conf) return;
 	if (VM86_TYPE(vm86ret) == VM86_INTx) {
 		/* for demomstration purpose we just do n times */
 		my_plugin_need_poll--;

@@ -20,6 +20,9 @@
 #ifndef CONFIG_H
 #define CONFIG_H 1
 
+#define VERSION_OF(a,b,c,d) (((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
+#define IS_DEVEL_RELEASE (DOSEMU_VERSION_CODE && 65536)
+
 #ifndef __ASM__
 #include "extern.h"
 
@@ -140,9 +143,6 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 #undef X2_SUPPORT
 #undef X_GRAPHICS
 
-/* Define this to use the old Slang keyboard code */
-#undef USE_OLD_SLANG_KBD
-
 /*
  *  DEFINE this, if you have joystick support in the kernel
  *  or have the joystick module loaded (needing <linux/joystick.h>)
@@ -187,5 +187,7 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 #undef NEED_LLSEEK_PROTOTYPE
 
 @BOTTOM@
+
+#include "plugin_config.h"
 
 #endif /* CONFIG_H */

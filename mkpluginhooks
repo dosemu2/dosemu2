@@ -1,6 +1,6 @@
 #! /bin/bash
 
-HEADERS="init close inte6 ioselect poll"
+HEADERS="config init close inte6 ioselect poll"
 
 PLUG=plugin
 DIR=src/$PLUG
@@ -8,6 +8,8 @@ INC=src/include
 PREF=plugin_
 CONF=config
 LIB=plugin_libdirs
+PINC=plugin_incdirs
+PARSDIR=src/base/init
 
 function gendummy {
   for i in $HEADERS; do
@@ -21,12 +23,14 @@ function gendummy {
 
 
 gendummy clean
-rm -f $LIB
+rm -f $LIB $PINC $PARSDIR/{parser.y,lexer.l}
 if [ "$1" = "clean" ]; then
   exit 0
 fi
 
 gendummy
+cp -fp $PARSDIR/parser.y.in $PARSDIR/parser.y
+cp -fp $PARSDIR/lexer.l.in $PARSDIR/lexer.l
 
 if [ ! -d $DIR ]; then
   exit 1
@@ -34,7 +38,24 @@ fi
 
 PDIRS=`cd $DIR; find ./ -maxdepth 1 -type d -printf ' %f'`
 
+
 if [ "$PDIRS" != " " ]; then
+
+  # Check for plugins which override default ones.
+  # Overriding plugins will disable the clashing plugin
+  for d in $PDIRS; do
+    if [ -f $DIR/$d/$CONF/${PREF}enable -a "`cat $DIR/$d/$CONF/${PREF}enable`" = "yes" ]; then
+      if [ -f $DIR/$d/$CONF/${PREF}override ]; then
+        oplugin=`cat $DIR/$d/$CONF/${PREF}override`
+        if [ -f $DIR/$oplugin/$CONF/${PREF}enable ]; then
+          echo "no" >$DIR/$oplugin/$CONF/${PREF}enable
+        fi
+      fi
+    fi
+  done
+
+  # ok, now we are safe
+
   rm -f $LIB
   for d in $PDIRS; do
     if [ -f $DIR/$d/$CONF/${PREF}enable ]; then
@@ -54,6 +75,23 @@ if [ "$PDIRS" != " " ]; then
       else
         echo -n " $PLUG/$d" >>$LIB
       fi
+      if [ -f $DIR/$d/$CONF/${PREF}incdirs ]; then
+        for i in `cat $DIR/$d/$CONF/${PREF}incdirs`; do
+          if [ "$i" = "./" ]; then
+            echo -n " $PLUG/$d" >>$PINC
+          else
+            echo -n " $PLUG/$d/$i" >>$PINC
+          fi
+        done
+      fi
+      if [ -f $DIR/$d/$CONF/${PREF}parser ]; then
+        ./bisonpp.pl -y $PARSDIR/parser.y $DIR/$d/$CONF/${PREF}parser >$PARSDIR/parser.y.tmp
+        mv -f $PARSDIR/parser.y.tmp $PARSDIR/parser.y
+      fi
+      if [ -f $DIR/$d/$CONF/${PREF}lexer ]; then
+        ./bisonpp.pl -l $PARSDIR/lexer.l $DIR/$d/$CONF/${PREF}lexer >$PARSDIR/lexer.l.tmp
+        mv -f $PARSDIR/lexer.l.tmp $PARSDIR/lexer.l
+      fi
       for h in $HEADERS; do
         if [ -f $DIR/$d/$CONF/$PREF$h.h ]; then
           echo -E "#include \"../$PLUG/$d/$CONF/$PREF$h.h\"" >>$INC/$PREF$h.h
@@ -63,5 +101,8 @@ if [ "$PDIRS" != " " ]; then
   done
   if [ -f $LIB ]; then
     echo "" >>$LIB
+  fi
+  if [ -f $PINC ]; then
+    echo "" >>$PINC
   fi
 fi

@@ -126,7 +126,10 @@ config_defaults(void)
       case 6: case 686:
         config.realcpu = CPU_586;
         config.pci = 1;	/* fair guess */
-        cpuflags = get_proc_string_by_key("flags");
+        cpuflags = get_proc_string_by_key("features");
+        if (!cpuflags) {
+          cpuflags = get_proc_string_by_key("flags");
+        }
         if (cpuflags && strstr(cpuflags, "tsc")) {
           /* bogospeed currently returns 0; should it deny
            * pentium features, fall back into 486 case */
@@ -281,7 +284,7 @@ config_defaults(void)
     config.realdelta = 9154;
 
     config.timers = 1;		/* deliver timer ints */
-    config.keybint = 1;		/* keyboard interrupts */
+    config.keybint = 1;		/* keyboard interrupts, now ALWAYS 1 */
  
     /* Lock file stuff */
     config.tty_lockdir = PATH_LOCKD;    /* The Lock directory  */
@@ -886,8 +889,10 @@ config_init(int argc, char **argv)
 #endif
 	    break;
 	case 'K':
+#if 0 /* now dummy, leave it for compatibility */
 	    warn("Keyboard interrupt enabled...this is still buggy!\n");
 	    config.keybint = 1;
+#endif
 	    break;
 	case 'M':{
 		int             max_mem = config.vga ? 640 : MAX_MEM_SIZE;
@@ -1260,7 +1265,7 @@ usage(void)
 	"    -h dump configuration to stderr and exit (sets -D+c)\n"
 	"       0=no parser debug, 1=loop debug, 2=+if_else debug\n"
 	"    -H wait for dosdebug terminal at startup and pass dflags\n"
-	"    -K Do int9 (!#)\n"
+	"    -K no effect, left for compatibility\n"
 	"    -k use PC console keyboard (!)\n"
 	"    -M set memory size to SIZE kilobytes (!)\n"
 	"    -m enable mouse support (!#)\n"

@@ -150,7 +150,6 @@ static void stop_printer(void);
 static void start_keyboard(void);
 static void keytable_start(int layout);
 static void keytable_stop(void);
-static void keyb_mod(int wich, int keynum);
 static void dump_keytables_to_file(char *name);
 static void start_terminal(void);
 static void stop_terminal(void);
@@ -265,7 +264,7 @@ extern void yyrestart(FILE *input_file);
 	/* keyboard */
 %token KEYBINT RAWKEYBOARD
 %token PRESTROKE
-%token KEYTABLE SHIFT ALT NUMPAD DUMP
+%token KEYTABLE SHIFT_MAP ALT_MAP NUMPAD_MAP DUMP
 %token DGRAVE DACUTE DCIRCUM DTILDE DBREVE DABOVED DDIARES DABOVER DDACUTE DCEDILLA DIOTA DOGONEK DCARON
 	/* ipx */
 %token NETWORK PKTDRIVER
@@ -1124,9 +1123,9 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 term_flags	: term_flag
 		| term_flags term_flag
 		;
-term_flag	/* : METHOD method_val	{ config.term_method = $2; } */
+term_flag	: ESCCHAR expression       { config.term_esc_char = $2; }
+		/* | METHOD method_val	{ config.term_method = $2; } */
 		/* | UPDATELINES INTEGER	{ config.term_updatelines = $2; } */
-                : ESCCHAR expression       { config.term_esc_char = $2; }
 		| UPDATEFREQ expression	{ config.term_updatefreq = $2; }
 		| CHARSET CHARSET_TYPE	{ config.term_charset = $2; }
 		| COLOR color_val	{ config.term_color = $2; }
@@ -1261,7 +1260,7 @@ keyboard_flag	: LAYOUT KEYB_LAYOUT	{ keyb_layout($2); }
 		| LAYOUT L_NO		{ keyb_layout(KEYB_NO); }
 		| LAYOUT L_AUTO		{ keyb_layout(-1); }
 		| RAWKEYBOARD bool	{ config.console_keyb = $2; }
-		| KEYBINT bool		{ config.keybint = $2; }
+		| KEYBINT bool		{ /* Now a dummy */ }
 		| STRING
 		    { yyerror("unrecognized keyboard flag '%s'", $1);
 		      free($1);}
@@ -1272,34 +1271,21 @@ keyboard_mods	: keyboard_mod
 		| keyboard_mods keyboard_mod
 		;
 
-keyboard_mod	: expression '=' { keyb_mod(' ', $1); } keyboard_modvals
-		| SHIFT expression '=' { keyb_mod('S', $2); } keyboard_modvals
-		| ALT expression '=' { keyb_mod('A', $2); } keyboard_modvals
-		| NUMPAD expression '=' { keyb_mod('N', $2); } keyboard_modvals
+keyboard_mod	: expression '=' { keyb_mod(' ', $1, 0); } keyboard_modvals
+		| SHIFT_MAP expression '=' { keyb_mod('S', $2, 0); } keyboard_modvals
+		| ALT_MAP expression '=' { keyb_mod('A', $2, 0); } keyboard_modvals
+		| NUMPAD_MAP expression '=' { keyb_mod('N', $2, 0); } keyboard_modvals
 		;
 
 keyboard_modvals: keyboard_modval
 		| keyboard_modvals ',' keyboard_modval
 		;
 
-keyboard_modval : INTEGER { keyb_mod(0, $1); }
-		| '(' expression ')' { keyb_mod(0, $2); }
-		| DGRAVE { keyb_mod(0, DEAD_GRAVE); }
-		| DACUTE { keyb_mod(0, DEAD_ACUTE); }
-		| DCIRCUM { keyb_mod(0, DEAD_CIRCUMFLEX); }
-		| DTILDE { keyb_mod(0, DEAD_TILDE); }
-		| DBREVE { keyb_mod(0, DEAD_BREVE); }
-		| DABOVED { keyb_mod(0, DEAD_ABOVEDOT); }
-		| DDIARES { keyb_mod(0, DEAD_DIAERESIS); }
-		| DABOVER { keyb_mod(0, DEAD_ABOVERING); }
-		| DDACUTE { keyb_mod(0, DEAD_DOUBLEACUTE); }
-		| DCEDILLA { keyb_mod(0, DEAD_CEDILLA); }
-		| DIOTA { keyb_mod(0,DEAD_IOTA); }
-		| DOGONEK { keyb_mod(0,DEAD_OGONEK); }
-		| DCARON { keyb_mod(0,DEAD_CARON); }
+keyboard_modval : INTEGER { keyb_mod(0, $1, 0); }
+		| '(' expression ')' { keyb_mod(0, $2, 0); }
 		| STRING {
 			char *p = $1;
-			while (*p) keyb_mod(0, *p++);
+			while (*p) keyb_mod(0, *p++, 0);
 			free($1);
 		}
 		;
@@ -1865,7 +1851,6 @@ static void start_keyboard(void)
 {
   keyb_layout(KEYB_USER); /* NOTE: the default has changed, --Hans, 971204 */
   config.console_keyb = 0;
-  config.keybint = 0;
   keyboard_statement_already = 1;
 }
 
@@ -2135,123 +2120,6 @@ static void keytable_start(int layout)
 static void keytable_stop(void)
 {
   keytable_start(-1);
-}
-
-static void keyb_mod(int wich, int keynum)
-{
-  static unsigned char *table = 0;
-  static int count = 0;
-  static int in_altmap = 0;
-
-  switch (wich) {
-    case ' ': {
-      in_altmap = 0;
-      switch (keynum & 0x300) {
-        case 0: table = config.keytable->key_map;
-        	count=config.keytable->sizemap;
-        	break;
-        case 0x100: table = config.keytable->shift_map;
-        	count=config.keytable->sizemap;
-        	break;
-        case 0x200: table = config.keytable->alt_map;
-        	count=config.keytable->sizemap;
-        	in_altmap = 1;
-        	break;
-        case 0x300: table = config.keytable->num_table;
-        	count=config.keytable->sizepad;
-        	break;
-      }
-      break;
-    }
-    case 'S': table = config.keytable->shift_map;
-    	count=config.keytable->sizemap;
-	in_altmap = 0;
-    	break;
-    case 'A': table = config.keytable->alt_map;
-    	count=config.keytable->sizemap;
-    	in_altmap = 1;
-    	break;
-    case 'N': table = config.keytable->num_table;
-    	count=config.keytable->sizepad;
-	in_altmap = 0;
-    	break;
-  }
-
-  keynum &= 0xff;
-  if (wich) {
-    if (keynum >= count) return;
-    table += keynum;
-    count -= keynum;
-    return;
-  }
-  if (count > 0) {
-    *table++ = keynum;
-    if (in_altmap && keynum)
-      config.keytable->flags |= KT_USES_ALTMAP;
-    count--;
-  }
-}
-
-
-static void dump_keytable_part(FILE *f, unsigned char *map, int size)
-{
-  int i, in_string=0, is_deadkey;
-  unsigned char c, *cc, comma=' ', buf[16];
-  static unsigned char dead_key_list[] = {FULL_DEADKEY_LIST, 0};
-  static char *dead_key_names[] = {
-    "dgrave", "dacute", "dcircum", "dtilde", "dbreve", "daboved", "ddiares",
-    "dabover", "ddacute", "dcedilla", "diota", "dogonek", "dcaron"
-  };
-
-  size--;
-  for (i=0; i<=size; i++) {
-    c = map[i];
-    if (!(i & 15)) fprintf(f,"    ");
-    is_deadkey = c ? (int)strchr(dead_key_list, c) : 0;
-    if (!is_deadkey && isprint(c) && !strchr("\\\"\'`", c)) {
-      if (in_string) fputc(c,f);
-      else {
-        fprintf(f, "%c\"%c", comma, c);
-        in_string = 1;
-      }
-    }
-    else {
-      if (is_deadkey) cc = dead_key_names[is_deadkey - (int)(&dead_key_list)];
-      else {
-        sprintf(buf, "%d", c);
-        cc = buf;
-      }
-      if (!in_string) fprintf(f, "%c%s", comma, cc);
-      else {
-        fprintf(f, "\",%s", cc);
-        in_string = 0;
-      }
-    }
-    if ((i & 15) == 15) {
-      if (in_string) fputc('"', f);
-      if (i < size) fputc(',', f);
-      fputc('\n', f);
-      in_string = 0;
-      comma = ' ';
-    }
-    else comma = ',';
-  }
-  if (in_string) fputc('"', f);
-  fputc('\n', f);
-}
-
-void dump_keytable(FILE *f, struct keytable_entry *kt)
-{
-    fprintf(f, "keytable %s {\n", kt->name);
-    fprintf(f, "  0=\n");
-    dump_keytable_part(f, kt->key_map, kt->sizemap);
-    fprintf(f, "  shift 0=\n");
-    dump_keytable_part(f, kt->shift_map, kt->sizemap);
-    fprintf(f, "  alt 0=\n");
-    dump_keytable_part(f, kt->alt_map, kt->sizemap);
-    fprintf(f, "  numpad 0=\n");
-    dump_keytable_part(f, kt->num_table, kt->sizepad-1);
-    fprintf(f, "}\n\n\n");
 }
 
 static void dump_keytables_to_file(char *name)

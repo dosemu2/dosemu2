@@ -40,7 +40,12 @@ Nevertheless, we now have it and here is how it works:
    src/plugin/<myplugin>/config, which may be
 
      plugin_enable
+     plugin_override
      plugin_dirs
+     plugin_incdirs
+     plugin_parser
+     plugin_lexer
+     plugin_config.h
      plugin_init.h
      plugin_close.h
      plugin_inte6.h
@@ -72,6 +77,22 @@ The plugin_enable file
   be compiled in, if not or not existing, the whole plug-in and its
   subdirectories are ignored. So, you may have the tree installed even if
   you don't want to compile it currently.
+
+
+The plugin_override file
+------------------------
+
+  If this file exists _and_ the plugin is enabled (see plugin_enable), it
+  should contain the base name of an other plugin, that this plugin is
+  intended to replace. This feature is used to have multiple plugins
+  in the tree wich are mutual exclusive to each other. Example:
+
+  Given you wrote a new keyboard code src/plugin/my_keyboard, which completely
+  should replace the default one in src/plugin/keyboard, than you simply
+  need to have a src/plugin/my_keyboard/config/plugin_override with one line
+  containing 'keyboard'.
+  As a result the file src/plugin/keyboard/config/plugin_enable will be set
+  to 'no' before the keyboard plugin has a chance to be included.
 
 
 The plugin_dirs file
@@ -106,6 +127,95 @@ The plugin_dirs file
   which in most cases will be sufficient.
 
 
+The plugin_incdirs file
+-----------------------
+
+  If you have a plugin, which exports include files to the rest of DOSEMU
+  (such as src/base/keyboard does), you need to list the include directory
+  here (same format as in plugin_dirs file). Note that the herein listed
+  directories are simply put into the INCDIR path of base-configure and
+  exported as '-Imy_indir' _before_ all other '-I' to the C compiler;
+  there are _no_ steps taken, which ensure the code actual has the needed
+  #include statements.
+
+
+The plugin_parser and plugin_lexer files
+----------------------------------------
+
+  It may be necessary to have some runtime configuration for your
+  plugin, which you want to integrate in DOSEMU's configuration parser.
+  For this you can use the merge files plugin_parser and plugin_lexer
+  for merging into src/base/init/parser.y and lexer.l respectively.
+
+  The format of plugin_parser is:
+
+  |---------- colum 1 of plugin_parser -------------------------
+  /* Any comment going top of parser.y
+   */ 
+
+  %{
+     /* C DECLARATIONS, such as */
+  #include "mystuff.h"
+  static void mystuff(int);
+
+  %}
+
+     /* BISON DECLARATIONS, such as */
+  %token MYTOKEN
+
+  %%
+
+  new_rule:       existing_rule
+                  | new_rule existing_rule
+                  ;
+
+  existing_rule:  MYTOKEN bool { mystuff($2); }
+                  | MYTOKEN '(' bool ')' { mystuff($2); }
+                  ;
+
+  %%
+     /* ADDITIONAL C CODE, such as */
+  static void mystuff(int foo)
+  {
+     whatever();
+  }
+  --------------------------end of plugin_parser -------------
+
+  The above 'new_rule' will be inserted behind all existing rules
+  in parser.y while 'existing_rule' will be merged into an existing
+  rule. If one of the parts (between %%, %{ or %}) is empty, it needs
+  to have one empty line at least.
+
+  To check wether you did it right your stuff you may do
+
+    $ cd where_I_have_dosemu_source
+    $ ./mkpluginhooks
+    $ diff -u src/base/init/parser.y.in src/base/init/parser.y
+    $ ./mkpluginhooks clean
+
+  The format of plugin_parser is:
+
+  |---------- colum 1 of plugin_lexer -------------------------
+
+  <TAB>/* new comment */
+  newtoken           RETURN(MYTOKEN);
+
+  <TAB>/* existing comment */
+  somenewtoken       RETURN(...);
+  ------------ end of plugin_lexer
+
+  Merging into lexer.l is done by searching for the comment lines
+  in front of the lexer regular expressions. The comment lines are
+  expected to have exactly one <TAB> (\t) at colum 1 before the /* ... */.
+  This is DOSEMU special and won't work on other lexer files (while it
+  will for parser.y;-). If a comment already exists in lexer.l, the
+  lines behind the comment in plugin_lexer until the next fitting
+  comment line will be merged with the existing ones, else they are
+  inserted (including the comment line) in front of the comment line
+  /* strings */ of lexer.l. Again you can check this the same way
+  you checked plugin_parser with mkpluginhooks.
+
+
 The plugin_*.h files
 --------------------
 
@@ -131,7 +241,7 @@ The plugin_*.h files
   You should keep in mind, that the #include statement will be 'in the
   middle' of the code, and no additional header files are included to
   define prototypes for external references. Therefor the contents of
-  any plugin_*.h file should look like
+  any plugin_*.h file (except plugin_config.h, see below) should look like
 
     {
           extern void my_plugin_init(void);
@@ -227,6 +337,32 @@ The plugin_*.h files
       my_plugin_ioselect() (see above), hence you may get a call to
       my_plugin_poll() directly after (without having returned to vm86 mode).
 
+    - plugin_config.h, which is a bit special as it doesn't need the
+      curly bracketed part. Its purpose is to include configuration
+      switches, which are exported to DOSEMU via src/include/config.h.
+      Each plugin_config.h will be included at the _buttom_ of config.h,
+      such that you may redefine/interprete already set global
+      configuration variables.
+
+      This also is a way to let other plugins and/or DOSEMU code know
+      that a given plugin is available/activated or to check for
+      consistency, such as in plugin_config.h:
+
+      #define HAVE_MY_PLUGIN 2
+      #if (IS_DEVEL_RELEASE && (DOSEMU_VERSION_CODE < VERSION_OF(1,1,2,0))) \
+        || (!IS_DEVEL_RELEASE && (DOSEMU_VERSION_CODE < VERSION_OF(1,0,3,0)))
+        #error "Sorry, wrong DOSEMU version for my_plugin, please upgrade"
+      #endif
+
+      and then in the other plugin and/or DOSEMU code:
+
+      #include "config.h"
+      #if HAVE_MY_PLUGIN
+        #if HAVE_MY_PLUGIN < 2
+          #error "Sorry, wrong my_plugin version for this DOSEMU version"
+        #endif
+        /* plugin special code */
+      #endif
 
 For what can plug-ins be used?
 ------------------------------
@@ -252,10 +388,10 @@ Having it now, I see some more usage such as
 
   - Drivers for video chips we currently do not support.
 
-We even may consider to move some of our current code into plugin, this
-would make it possible to distribute them separately.
-It may be necessary to add some more hooks (plugin_*.h), but for this
-we wait what happens;-)
+We even may consider to move more of our current code into plugin
+(as we just did with the keyboard code), this would make it possible to
+distribute them separately. It may be necessary to add some more hooks
+(plugin_*.h), but for this we wait what happens;-)
 
 
-                             Hans Lermen <lermen@dosemu.org>,  Mar 26 1999
+                             Hans Lermen <lermen@dosemu.org>,  Nov 30 2000

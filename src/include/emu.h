@@ -19,7 +19,17 @@
 #include <sigcontext.h>
 #endif
 #include <signal.h> 
+
 #include "config.h"
+
+#if defined(HAVE_KEYBOARD_V1) && (HAVE_KEYBOARD_V1 > 1)
+  #error "Sorry, wrong keyboard code version for this DOSEMU version"
+#endif
+
+#if defined(HAVE_KBD_UNICODE) && (HAVE_KBD_UNICODE > 1)
+  #error "Sorry, wrong unicode keyboard code version for this DOSEMU version"
+#endif
+
 #include "types.h"
 #include "extern.h"
 #include "machcompat.h"

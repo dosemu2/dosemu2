@@ -13,7 +13,7 @@
  * 
  * REMARK
  * This module handles interfacing to the DOS side both on int9/port60h level
- * (if keybint=on), or on the bios buffer level.
+ * or on the bios buffer level.
  * Keycodes are buffered in a queue, which, however, has limited depth, so it
  * shouldn't be used for pasting.
  *
@@ -34,8 +34,8 @@
 #include "pic.h"
 #include "cpu.h"
 
-/* If this is set to 1, the server will check whether the BIOS keyboard buffer is
- * full even in keybint mode.
+/* If this is set to 1, the server will check whether the BIOS keyboard buffer
+ * is full.
  * This is somewhat inaccurate emulation, as the state of BIOS variables really
  * shouldn't affect 'hardware' behaviour, but this seems the only way of knowing how
  * fast DOS is processing keystrokes, in particular for pasting.
@@ -200,32 +200,11 @@ static inline Boolean bios_keybuf_full(void) {
    return (tail==head);
 }
 
-static inline void put_bios_keybuf(Bit16u scancode) {
-   int start,end,head,tail;
-
-   k_printf("KBD: put_bios_keybuf(%04x)\n",(unsigned int)scancode);
-
-   start = READ_WORD(BIOS_KEYBOARD_BUFFER_START);
-   end   = READ_WORD(BIOS_KEYBOARD_BUFFER_END);
-   head  = READ_WORD(BIOS_KEYBOARD_BUFFER_HEAD);
-   tail  = READ_WORD(BIOS_KEYBOARD_BUFFER_TAIL);
-   
-   WRITE_WORD(0x400+tail,scancode);
-   tail+=2;
-   if (tail==end) tail=start;
-   if (tail==head) {
-      k_printf("KBD: BIOS keyboard buffer overflow\n");
-      return;
-   }
-   
-   WRITE_WORD(BIOS_KEYBOARD_BUFFER_TAIL,tail);
-}
-
 /*
  * update the seg 0x40 keyboard flags from dosemu's internal 'shiftstate'
  * variable.
- * This is called either from kbd_process() or the get_bios_key() helper
- * (in keybint mode). It is never called if a dos application takes complete
+ * This is called either from kbd_process() or the get_bios_key() helper.
+ * It is never called if a dos application takes complete
  * control of int9.
  */
 
@@ -264,54 +243,10 @@ void copy_shift_state(t_shiftstate shift) {
    WRITE_BYTE(BIOS_KEYBOARD_LEDS,leds);
 }
 
-static inline void nonint_check_queue() {
-   Bit16u bios_scan;
-   t_shiftstate shift;
-   t_rawkeycode dummy;
-
-   while (!bios_keybuf_full() && !queue_empty()) {
-
-      read_queue(&bios_scan,&shift,&dummy);
-      copy_shift_state(shift);
-
-      if (bios_scan)  {
-            
-         /* check for 'special action' codes */
-         switch(bios_scan)  {
-            case SP_BREAK:
-               do_soft_int(0x1b);
-               break;
-
-            case SP_PAUSE:
-               /* XXX */
-               break;
-
-            case SP_PRTSCR:
-               do_soft_int(0x05);
-               break;
-        
-            case SP_SYSRQ_MAKE:
-               _AX=0x8500;
-               do_soft_int(0x15);
-               break;
-         
-            case SP_SYSRQ_BREAK:
-               _AX=0x8501;
-               do_soft_int(0x15);
-               break;
-         }
-         
-         if (!IS_SPECIAL(bios_scan))
-            put_bios_keybuf(bios_scan);
-	 
-      }
-   }
-}
-
 
 /****************** KEYBINT MODE BACKEND *******************/
 
-/* run the queue backend in keybint=on mode
+/* run the queue backend
  * called either periodically from keyb_server_run or, for faster response,
  * when writing to the queue and after the IRQ1 handler is finished.
  */
@@ -366,10 +301,7 @@ void backend_run(void) {
    }
    running++;
    
-   if (config.keybint)
-      int_check_queue();
-   else
-      nonint_check_queue();
+   int_check_queue();
    
    running--;
 }

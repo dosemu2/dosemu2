@@ -414,9 +414,9 @@ keytable		RETURN(KEYTABLE);
 layout			RETURN(LAYOUT);
 keybint			RETURN(KEYBINT);
 rawkeyboard		RETURN(RAWKEYBOARD);
-shift			RETURN(SHIFT);
-alt			RETURN(ALT);
-numpad			RETURN(NUMPAD);
+shift			RETURN(SHIFT_MAP);
+alt			RETURN(ALT_MAP);
+numpad			RETURN(NUMPAD_MAP);
 dump			RETURN(DUMP);
 		/* dead keys for accents in keytable */
 dgrave			RETURN(DGRAVE);

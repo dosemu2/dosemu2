@@ -964,6 +964,7 @@ CISH(DPMI_dummy_end):
 
         /* get the pre-translated bios key. */
 	
+	mov	ah,al			/* pass the scancode... */
 	mov	al,#7
 	int	DOSHELPER_INT		/* call get_bios_key helper       */
 					/* returns ax=keycode or 0,       */

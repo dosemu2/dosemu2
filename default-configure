@@ -78,9 +78,6 @@ while [ "$1" != "" ]; do
     svgalib)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-use-svgalib"; fi
       ;;
-    oldslang)
-      if [ "$2" = "on" ]; then STRING="$STRING --enable-old-slangcode"; fi
-      ;;
     *)
       ;;
   esac
