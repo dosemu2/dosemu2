@@ -705,6 +705,7 @@ mouse_storestate(void)
 	mouse.cursor_on = 0;
   	mouse_cursor(-1);
   }
+  mouse.cursor_on = current_state;
 
   memcpy((u_char *)(LWORD(es) << 4)+LWORD(edx), (void *)&mouse, sizeof(mouse));
 
@@ -1090,12 +1091,6 @@ mouse_setxminmax(void)
   mouse.virtual_minx = mouse_roundx(mouse.virtual_minx);
   mouse.virtual_maxx = mouse_roundx(mouse.virtual_maxx);
   mouse.virtual_maxx += (1 << mouse.xshift) -1;
-  if (mouse.virtual_minx < mouse.minx) {
-    mouse.virtual_minx = mouse.minx;
-  }
-  if (mouse.virtual_maxx > mouse.maxx) {
-    mouse.virtual_maxx = mouse.maxx;
-  }
 }
 
 void 
@@ -1109,12 +1104,6 @@ mouse_setyminmax(void)
   mouse.virtual_miny = mouse_roundy(mouse.virtual_miny);
   mouse.virtual_maxy = mouse_roundy(mouse.virtual_maxy);
   mouse.virtual_maxy += (1 << mouse.yshift) -1;
-  if (mouse.virtual_miny < mouse.miny) {
-    mouse.virtual_miny = mouse.miny;
-  }
-  if (mouse.virtual_maxy > mouse.maxy) {
-    mouse.virtual_maxy = mouse.maxy;
-  }
 }
 
 void 
@@ -1418,11 +1407,17 @@ void mouse_move_relative(int dx, int dy)
 
 void mouse_move_absolute(int x, int y, int x_range, int y_range)
 {
-	int dx, dy, new_x, new_y, mx_range, my_range;
-	mx_range = mouse.maxx - mouse.minx +1;
-	my_range = mouse.maxy - mouse.miny +1;
-	new_x = (x*mx_range)/x_range + mouse.minx;
-	new_y = (y*my_range)/y_range + mouse.miny;
+	int dx, dy, new_x, new_y, mx_range, my_range,
+            minx, maxx, miny, maxy;
+        
+	minx = mouse.minx<mouse.virtual_minx ? mouse.minx : mouse.virtual_minx;
+	maxx = mouse.maxx>mouse.virtual_maxx ? mouse.maxx : mouse.virtual_maxx;
+	miny = mouse.miny<mouse.virtual_miny ? mouse.miny : mouse.virtual_miny;
+	maxy = mouse.maxy>mouse.virtual_maxy ? mouse.maxy : mouse.virtual_maxy;
+	mx_range = maxx - minx +1;
+	my_range = maxy - miny +1;
+	new_x = (x*mx_range)/x_range + minx;
+	new_y = (y*my_range)/y_range + miny;
 	dx = (((new_x - mouse.x) * mouse.speed_x) >> 3);
 	dy = (((new_y - mouse.y) * mouse.speed_y) >> 3);
 	mouse.mickeyx += dx;
@@ -1573,9 +1568,15 @@ mouse_do_cur(void)
    * -- Eric Biederman 31 May 2000
    */
   if (mice->type == MOUSE_X) {
+    int minx, maxx, miny, maxy;
+
+    minx = mouse.minx<mouse.virtual_minx ? mouse.minx : mouse.virtual_minx;
+    maxx = mouse.maxx>mouse.virtual_maxx ? mouse.maxx : mouse.virtual_maxx;
+    miny = mouse.miny<mouse.virtual_miny ? mouse.miny : mouse.virtual_miny;
+    maxy = mouse.maxy>mouse.virtual_maxy ? mouse.maxy : mouse.virtual_maxy;
     X_set_mouse_cursor(mouse.cursor_on == 0?1: 0, 
-      mouse.x - mouse.minx, mouse.y - mouse.miny,
-      mouse.maxx - mouse.minx +1, mouse.maxy - mouse.miny +1);
+      mouse.x - minx, mouse.y - miny,
+      maxx - minx +1, maxy - miny +1);
     return;
   }
 #endif

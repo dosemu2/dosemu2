@@ -529,6 +529,11 @@ static int dos_helper(void)
 		_AX = -1;
 	}
         break;
+  case DOS_HELPER_BOOTSECT: {
+      extern void fdkernel_boot_mimic(void);
+      fdkernel_boot_mimic();
+      break;
+    }
   case DOS_HELPER_MBR:
     if (LWORD(eax) == 0xfffe) {
       process_master_boot_record();

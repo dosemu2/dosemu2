@@ -59,6 +59,7 @@
 #include "emu.h"
 #include "disks.h"
 #include "fatfs.h"
+#include "doshelpers.h"
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -83,6 +84,7 @@ static unsigned next_cluster(fatfs_t *, unsigned);
 static void build_boot_blk(fatfs_t *);
 static void make_i1342_blk(unsigned char *, unsigned, unsigned, unsigned, unsigned);
 
+static char *bootfile = 0;
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void fatfs_init(struct disk *dp)
@@ -494,6 +496,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
         if(!strcasecmp(dent->d_name, "ibmbio.com")) f->sys_type |= 4;
         if(!strcasecmp(dent->d_name, "ibmdos.com")) f->sys_type |= 8;
         if(!strcasecmp(dent->d_name, "ipl.sys")) f->sys_type |= 0x10;
+        if(!strcasecmp(dent->d_name, "kernel.sys")) f->sys_type |= 0x20;
       }
       closedir(dir);
     }
@@ -510,10 +513,18 @@ void scan_dir(fatfs_t *f, unsigned oi)
       sf[1] = "ibmdos.com";
       scans = 3;
     }
-    if((f->sys_type & 0x10) == 0x10) {
-      f->sys_type = 0x10;	/* FreeDOS */
+    if((f->sys_type & 0x30) == 0x10) {
+      f->sys_type = 0x10;	/* FreeDOS, orig. Patv kernel */
       sf[0] = "ipl.sys";
       scans = 2;
+    }
+
+    if((f->sys_type & 0x30) == 0x20) {
+      f->sys_type = 0x20;	/* FreeDOS, FD maintained kernel */
+      sf[0] = "kernel.sys";
+      scans = 2;
+      bootfile = malloc(strlen(name) + strlen(sf[0]) + 1);
+      sprintf(bootfile, "%s%s", name, sf[0]);
     }
 
     fatfs_msg("system type is 0x%x\n", f->sys_type);
@@ -963,6 +974,37 @@ unsigned next_cluster(fatfs_t *f, unsigned clu)
   return clu + 1;
 }
 
+/*
+ * This will be called by dos_helper (base/async/int.c)
+ * when the bootsector is executed.
+ * We load the systemfile directly and then jump to the entry point.
+ * A normal bootsector at 0x7c00 won't work, because the file will
+ * overwrite 0x7c00. Instead of fiddling with moving the bootsector
+ * 'out of danger' we just do the stuff here in 32-bit space.
+ */
+void fdkernel_boot_mimic(void)
+{
+  int f, size;
+  unsigned int loadaddress = 0x600;
+
+  if (!bootfile) {
+    error("BOOT-helper requested, but no systemfile available\n");
+    leavedos(99);
+  }
+  if ((f = open(bootfile, O_RDONLY)) == -1) {
+    error("cannot open DOS system file %s\n", bootfile);
+    leavedos(99);
+  }
+  size = lseek(f, 0, SEEK_END);
+  lseek(f, 0, SEEK_SET);
+  read(f, (void *)loadaddress, size);
+  close(f);
+  LWORD(cs) = LWORD(ds) = LWORD(es) = loadaddress >> 4;
+  LWORD(eip) = 0;
+  LWORD(ebx) = 0x80;	/* boot drive */
+  LWORD(ss) = 0x1FE0;
+  LWORD(esp) = 0x7c00;	/* temp stack */
+}
 
 /*
  * Build our own boot block (if no "boot.blk" file was found).
@@ -1092,12 +1134,24 @@ void build_boot_blk(fatfs_t *f)
       fatfs_msg("made boot block suitable for PC-, DR-, Open-, NOVELL-DOS\n");
       break;
 
-    case 0x10:			/* FreeDOS */
+    case 0x10:			/* FreeDOS, orig. Patv kernel */
       make_i1342_blk(d1, d_o, (f->obj[1].size + 0x1ff) >> 9, 0x2000, 0x0);
       d0[0x12] = 1;		/* 1 entry */
 
       d0[0x03] = 0x20;		/* start seg */
       d0[0x0a] = 0x80;		/* dl */
+
+      fatfs_msg("made boot block suitable for DosC\n");
+      break;
+
+    case 0x20:			/* FreeDOS, FD maintained kernel */
+			/* boot loading is done by DOSEMU-HELPER
+			   and above fdkernel_boot_mimic() function */
+      b[0x40] = 0xb8;	/* mov ax,0fdh */
+      b[0x41] = DOS_HELPER_BOOTSECT;
+      b[0x42] = 0x00;
+      b[0x43] = 0xcd;	/* int 0e6h */
+      b[0x44] = 0xe6;
 
       fatfs_msg("made boot block suitable for FreeDOS\n");
       break;

@@ -869,7 +869,7 @@ video_port_in (ioport_t port)
       return (dosemu_regs.regs[CRTI]);
     case CRT_DC:
     case CRT_DM:
-      if (dosemu_regs.regs[CRTI] <= 0x18)
+      if (dosemu_regs.regs[CRTI] < CRT_C)
 	{
 	  v_printf ("Read Data at CRTC Index 0x%02x = 0x%02x \n", dosemu_regs.regs[CRTI], dosemu_regs.regs[CRT + dosemu_regs.regs[CRTI]]);
 	  return (dosemu_regs.regs[CRT + dosemu_regs.regs[CRTI]]);
@@ -881,7 +881,7 @@ video_port_in (ioport_t port)
       v_printf ("Read Index GRAI 0x%02x\n", GRAI);
       return (dosemu_regs.regs[GRAI]);
     case GRA_D:
-      if (dosemu_regs.regs[GRAI] < 0x0a)
+      if (dosemu_regs.regs[GRAI] < GRA_C)
 	{
 	  v_printf ("Read Data at GRA  Index 0x%02x = 0x%02x \n", dosemu_regs.regs[GRAI], dosemu_regs.regs[GRA + dosemu_regs.regs[GRAI]]);
 	  return (dosemu_regs.regs[GRA + dosemu_regs.regs[GRAI]]);
@@ -893,7 +893,7 @@ video_port_in (ioport_t port)
       v_printf ("Read Index SEQI 0x%02x\n", SEQI);
       return (dosemu_regs.regs[SEQI]);
     case SEQ_D:
-      if (dosemu_regs.regs[SEQI] < 0x07)
+      if (dosemu_regs.regs[SEQI] < SEQ_C)
 	{
 	  v_printf ("Read Data at SEQ Index 0x%02x = 0x%02x \n", dosemu_regs.regs[SEQI], dosemu_regs.regs[SEQ + dosemu_regs.regs[SEQI]]);
 	  return (dosemu_regs.regs[SEQ + dosemu_regs.regs[SEQI]]);
@@ -954,7 +954,7 @@ video_port_out (ioport_t port, u_char value)
       break;
     case CRT_DC:
     case CRT_DM:
-      if (dosemu_regs.regs[CRTI] <= 0x18)
+      if (dosemu_regs.regs[CRTI] < CRT_C)
 	{
 	  v_printf ("Write Data at CRTC Index 0x%02x = 0x%02x \n", dosemu_regs.regs[CRTI], value);
 	  dosemu_regs.regs[CRT + dosemu_regs.regs[CRTI]] = value;
@@ -967,7 +967,7 @@ video_port_out (ioport_t port, u_char value)
       dosemu_regs.regs[GRAI] = value;
       break;
     case GRA_D:
-      if (dosemu_regs.regs[GRAI] < 0x0a)
+      if (dosemu_regs.regs[GRAI] < GRA_C)
 	{
 	  v_printf ("Write Data at GRAI Index 0x%02x = 0x%02x \n", dosemu_regs.regs[GRAI], value);
 	  dosemu_regs.regs[GRA + dosemu_regs.regs[GRAI]] = value;
@@ -980,7 +980,7 @@ video_port_out (ioport_t port, u_char value)
       dosemu_regs.regs[SEQI] = value;
       break;
     case SEQ_D:
-      if (dosemu_regs.regs[SEQI] <= 0x05)
+      if (dosemu_regs.regs[SEQI] < SEQ_C)
 	{
 	  v_printf ("Write Data at SEQ Index 0x%02x = 0x%02x \n", dosemu_regs.regs[SEQI], value);
 	  dosemu_regs.regs[SEQ + dosemu_regs.regs[SEQI]] = value;

@@ -28,16 +28,16 @@
 #include "cirrus.h"
 #include "matrox.h"
 #include "wdvga.h"
+#include "sis.h"
 #if 0
 #include "hgc.h"
 #endif
 
 /* Here are the REGS values for valid dos int10 call */
 
-unsigned char vregs[34][60] =
+unsigned char vregs[60] =
 {
 /* BIOS mode 0x12 */
-  {
   0x5F, 0x4F, 0x50, 0x82, 0x54, 0x80, 0x0B, 0x3E, 0x00, 0x40, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0xEA, 0x8C, 0xDF, 0x28, 0x00, 0xE7, 0x04, 0xE3,
   0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x14, 0x07, 0x38, 0x39, 0x3A, 0x3B,
@@ -45,7 +45,6 @@ unsigned char vregs[34][60] =
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x0F, 0xFF,
   0x03, 0x21, 0x0F, 0x00, 0x06,
   0xE3
-  }
 };
 
 /* These are dummy calls */
@@ -233,7 +232,7 @@ void store_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
 {
 
   int p[4], bsize, position;
-  u_char cbank, plane, counter;
+  u_char cbank, plane, planar;
 
   p[0] = mem_size[0] * 1024;
   p[1] = mem_size[1] * 1024;
@@ -256,41 +255,25 @@ void store_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
     temp2 = port_in(0x3cd);
     port_out(0x00, 0x3cd);
   }
-  if (!config.chipset || banks == 1) {
-    set_regs((u_char *) vregs);
+  port_out(0x4, SEQ_I);
+   /* check whether we are using packed or planar mode;
+    for standard VGA modes we set 640x480x16 colors  */
+  planar = !(port_in(SEQ_D) & 8) || banks == 1;
+  if (banks == 1) set_regs((u_char *) vregs);
+  for (cbank = 0; cbank < banks; cbank++) {
     position = 0;
+    if (planar) set_bank_read(cbank);
     for (plane = 0; plane < 4; plane++) {
-
-      /* Store planes */
-      port_out(0x04, GRA_I);
-      port_out(plane, GRA_D);
-
-/*      memcpy((caddr_t) (mem + position), (caddr_t) GRAPH_BASE, p[plane]); */
-      MEMCPY_2UNIX((caddr_t) (mem + position), (caddr_t) GRAPH_BASE, p[plane]);
-      v_printf("READ Bank=%d, plane=0x%02x, *mem=0x%x, GRAPH_BASE=%08x, mem=0x%x\n",
-	 banks, plane, *(int *)(mem + position), *(int *) GRAPH_BASE, (Bit32u) (mem + position));
-      position = position + p[plane];
-    }
-  }
-  else {
-    for (cbank = 0; cbank < banks; cbank++) {
-      position = 0;
-      if (cbank < 10) {
-	for (plane = 0; plane < 4; plane++) {
-	  set_bank_read((cbank * 4) + plane);
-	  /*memcpy((caddr_t) (mem + (bsize * cbank) + position), (caddr_t) GRAPH_BASE, p[plane]);*/
-	  MEMCPY_2UNIX((caddr_t) (mem + (bsize * cbank) + position), (caddr_t) GRAPH_BASE, p[plane]);
-	  position = position + p[plane];
-	  for (counter = 0; counter < 80; counter++) {
-	    v_printf("%c", *(u_char *) (GRAPH_BASE + counter));
-	  }
-	  v_printf("\n");
-	  for (counter = 0; counter < 80; counter++)
-	    v_printf("0x%02x ", *(u_char *) (GRAPH_BASE + counter));
-	  v_printf("\n");
-	  v_printf("BANK READ Bank=%d, plane=0x%02x, mem=%08x\n", cbank, plane, *(int *) GRAPH_BASE);
-	}
-      }
+      if (planar) {
+        /* Store planes */
+	port_out(0x04, GRA_I);
+        port_out(plane, GRA_D);
+      } else
+	set_bank_read(cbank * 4 + plane);
+      /* memcpy((caddr_t) (mem + (bsize * cbank) + position), (caddr_t) GRAPH_BASE, p[plane]); */
+      MEMCPY_2UNIX((caddr_t) (mem + (bsize * cbank) + position), (caddr_t) GRAPH_BASE, p[plane]);
+      position += p[plane];
+      v_printf("BANK READ Bank=%d, plane=0x%02x, mem=%08x\n", cbank, plane, *(int *) GRAPH_BASE);
     }
   }
   v_printf("GRAPH_BASE to mem complete!\n");
@@ -303,7 +286,7 @@ void store_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
 void restore_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
 {
   int p[4], bsize, position, plane;
-  u_char cbank, counter;
+  u_char cbank, planar;
 
   p[0] = mem_size[0] * 1024;
   p[1] = mem_size[1] * 1024;
@@ -317,41 +300,29 @@ void restore_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
 
   if (config.chipset == ET4000)
     port_out(0x00, 0x3cd);
-  if (!config.chipset || banks == 1) {
-    set_regs((u_char *) vregs);
-    position = 0;
-    for (plane = 0; plane < 4; plane++) {
-
+  port_out(0x4, SEQ_I);
+     /* check whether we are using packed or planar mode;
+    for standard VGA modes we set 640x480x16 colors  */
+  planar = !(port_in(SEQ_D) & 8) || banks == 1;
+  if (banks == 1) set_regs((u_char *) vregs);
+  if (planar) {
       /* disable Set/Reset Register */
       port_out(0x01, GRA_I);
       port_out(0x00, GRA_D);
-
-      /* Store planes */
-      port_out(0x02, SEQ_I);
-      port_out(1 << plane, SEQ_D);
-
-/*      memcpy((caddr_t) GRAPH_BASE, (caddr_t) (mem + position), p[plane]); */
-      MEMCPY_2DOS((caddr_t) GRAPH_BASE, (caddr_t) (mem + position), p[plane]);
-      v_printf("WRITE Bank=%d, plane=0x%02x, *mem=%x, mem=%p\n", banks, plane, *(int *) (mem + position), (caddr_t) (mem + position));
-      position = position + p[plane];
-    }
   }
-  else {
-    plane = 0;
-    for (cbank = 0; cbank < banks; cbank++) {
-      position = 0;
-      if (cbank < 10) {
-	for (plane = 0; plane < 4; plane++) {
-	  set_bank_write((cbank * 4) + plane);
-	  /*memcpy((caddr_t) GRAPH_BASE, (caddr_t) (mem + (bsize * cbank) + position), p[plane]);*/
-	  MEMCPY_2DOS((caddr_t) GRAPH_BASE, (caddr_t) (mem + (bsize * cbank) + position), p[plane]);
-	  for (counter = 0; counter < 20; counter++) {
-	    v_printf("0x%02x ", *(u_char *) (mem + (bsize * cbank) + position + counter));
-	  }
-	  v_printf("\n");
-	  position = position + p[plane];
-	}
-      }
+  for (cbank = 0; cbank < banks; cbank++) {
+    position = 0;
+    if (planar) set_bank_write(cbank);
+    for (plane = 0; plane < 4; plane++) {
+      if (planar) {
+        /* Store planes */
+        port_out(0x02, SEQ_I);
+        port_out(1 << plane, SEQ_D);
+      } else
+	set_bank_write((cbank * 4) + plane);
+      /* memcpy((caddr_t) GRAPH_BASE, (caddr_t) (mem + (bsize * cbank) + position), p[plane]); */
+      MEMCPY_2DOS((caddr_t) GRAPH_BASE, (caddr_t) (mem + (bsize * cbank) + position), p[plane]);
+      position += p[plane];
       v_printf("BANK WRITE Bank=%d, plane=0x%02x, mem=%08x\n", cbank, plane, *(int *) (mem + (bsize * cbank)));
     }
   }
@@ -387,49 +358,14 @@ void save_vga_state(struct video_save_struct *save_regs)
     v_printf("ALPHA mode save being performed\n");
   }
   else {
-    switch (save_regs->video_mode) {
-    case 0:
-    case 1:
-    case 2:
-    case 3:
-    case 4:
-    case 5:
-    case 6:
-    case 7:
-    case 0x51:
-      save_regs->save_mem_size[0] = 64;
-      save_regs->save_mem_size[1] = 64;
-      save_regs->save_mem_size[2] = 64;
-      save_regs->save_mem_size[3] = 64;
-      save_regs->banks = 1;
-      break;
-    case 8:
-    case 9:
-    case 10:
-    case 11:
-    case 12:
-    case 13:
-    case 14:
-    case 15:
-    case 16:
-    case 17:
-    case 18:
-    case 19:
-      save_regs->save_mem_size[0] = 64;
-      save_regs->save_mem_size[1] = 64;
-      save_regs->save_mem_size[2] = 64;
-      save_regs->save_mem_size[3] = 64;
-      save_regs->banks = 1;
-      break;
-    default:
-      save_regs->save_mem_size[0] = 64;
-      save_regs->save_mem_size[1] = 64;
-      save_regs->save_mem_size[2] = 64;
-      save_regs->save_mem_size[3] = 64;
-      save_regs->banks =
-	(config.gfxmemsize + 255) / 256;
-      break;
-    }
+    save_regs->save_mem_size[0] = 64;
+    save_regs->save_mem_size[1] = 64;
+    save_regs->save_mem_size[2] = 64;
+    save_regs->save_mem_size[3] = 64;
+    save_regs->banks = 
+	(save_regs->video_mode <= 0x13 || !config.chipset
+            /*standard VGA modes*/      /* plainvga */
+			? 1 : (config.gfxmemsize + 255) / 256);
   }
   v_printf("Mode  == %d\n", save_regs->video_mode);
   v_printf("Banks == %d\n", save_regs->banks);
@@ -520,6 +456,10 @@ int vga_initialize(void)
     vga_init_wd();
     v_printf("Paradise CARD in use\n");
     break;
+  case SIS:
+    vga_init_sis();
+    v_printf("SIS CARD in use\n");
+    break;
 
   default:
     v_printf("Unspecific VIDEO selected = 0x%04x\n", config.chipset);
@@ -531,7 +471,7 @@ int vga_initialize(void)
   linux_regs.save_mem_size[2] = 8;
   linux_regs.save_mem_size[3] = 8;
   linux_regs.banks = 1;
-  linux_regs.video_mode = 3;
+  linux_regs.video_mode = 0x14; /* doesn't _need_ to be a textmode */
   linux_regs.release_video = 0;
 
   dosemu_regs.video_name = "Dosemu Regs";

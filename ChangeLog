@@ -1,3 +1,17 @@
+2000/06/05 ver. 1.0.0.9 unofficial pre-release
+	From Bart
+	- patch to make SiS chipset card run on console
+	- cleaned up bankswitching in env/video/vga.c
+	- fix for mouse.c, save/restore bug
+	- fix for mouse.c (SimCity virtual resolution of 2560x1920)
+	  no restricting the virtual mins and maxes.
+	From Hans
+	- made FD kernel 1.1.20 (Build 2020) bootable via the bootdir stuff
+	  (just needs kernel.sys within the boot directory, bootsector
+	   is generated on-the-fly)
+	  BTW: still needing Pat's command.com, the FD one still is buggy and
+	  doesn't allow you write/create files within the redirected drive(s).
+	- removed forgotten '#if 1' for Bart's XWarpPointer improvement;-)
 2000/06/01 ver. 1.0.0.8 unofficial pre-release
 	From Eric (with hints from Bart)
 	- mouse fixes along latest xmouse dicussions

@@ -121,13 +121,12 @@ extern void open_vga_mem(void);
 extern void close_vga_mem(void);
 
 #define MAX_S_REGS	71
-#define MAX_X_REGS	60
+#define MAX_X_REGS	100
 #define MAX_X_REGS16	10
 
 /* Struct to hold necessary elements during a save/restore */
 struct video_save_struct {
-  unsigned char regs[MAX_S_REGS];	/* These are the standard VGA-regs */
-  unsigned char xregs[MAX_X_REGS];	/* These are EXT regs */
+  unsigned char regs[MAX_S_REGS];	      /* These are the standard VGA-regs */
   unsigned short xregs16[MAX_X_REGS16]; /* These are 16-bit EXT regs */
   unsigned char *mem;
   unsigned char pal[3 * 256];
@@ -137,6 +136,7 @@ struct video_save_struct {
   unsigned char *video_name;	/* Debugging only */
   unsigned char release_video;
   unsigned char *textmem;	/* for saving page 0 memory */
+  unsigned char xregs[MAX_X_REGS];      /* These are EXT regs */
 };
 EXTERN struct video_save_struct linux_regs, dosemu_regs;
 extern void save_vga_state(struct video_save_struct *save_regs);

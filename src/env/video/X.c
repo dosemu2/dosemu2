@@ -1213,20 +1213,12 @@ void X_set_mouse_cursor(int yes, int mx, int my, int x_range, int y_range)
 	}
 
 	/* Move the X cursor if needed */
-#if 1
 	x = (x_range * mouse_x)/w_x_res;
 	y = (y_range * mouse_y)/w_y_res;
 	if (!grab_active && ((mx != x) || (my != y))) {
 		XWarpPointer(display, None, mainwindow, 0, 0, 0, 0,
 			(w_x_res * mx)/x_range, (w_y_res * my)/y_range);
 	}
-#else
-	x = (mx * w_x_res)/x_range;
-	y = (my * w_y_res)/y_range;
-	if (!grab_active && ((x != mouse_x) || (y != mouse_y))) {
-		XWarpPointer(display, None, mainwindow, 0, 0, 0, 0, x, y);
-	}
-#endif
 #endif /* CONFIG_X_MOUSE */
 }
 

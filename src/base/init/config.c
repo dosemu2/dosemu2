@@ -405,6 +405,7 @@ void dump_config_status(void *printfunc)
       case CIRRUS: s = "cirrus"; break;
       case MATROX: s = "matrox"; break;
       case WDVGA: s = "wdvga"; break;
+      case SIS: s = "sis"; break;
       default: s = "unknown"; break;
     }
     (*print)("config.X %d\nhogthreshold %d\nchipset \"%s\"\n",
