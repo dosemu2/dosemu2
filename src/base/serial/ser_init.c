@@ -36,13 +36,13 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <errno.h>
 #ifdef __linux__
 #include <linux/fs.h>
 #endif
 #include <pwd.h>
 #ifdef __NetBSD__
 #include <sys/syslimits.h>		/* PATH_MAX */
-extern int errno;
 #endif
 
 #include "config.h"

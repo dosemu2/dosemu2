@@ -25,6 +25,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
+#include <errno.h>
 
 
 /* These can be changed -- at least in theory. In practise, it doesn't

@@ -16,8 +16,14 @@
 #include <sys/types.h>
 #include <sys/vm86.h>
 #include <linux/sockios.h>
+#include <asm/types.h>
 #include <linux/ipx.h>
+#ifndef IPX_TYPE
+  #define IPX_TYPE 1   /* glibc's headers seem missing that
+                          (normally defined in <linux/socket.h>) */
+#endif
 #include <netinet/in.h>
+#include <errno.h>
 
 #include "timers.h"
 #include "memory.h"

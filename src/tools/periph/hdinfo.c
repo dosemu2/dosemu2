@@ -30,6 +30,7 @@
 #include <sys/fcntl.h>
 #include <stdio.h>
 #ifdef __linux__
+#include <asm/types.h>
 #include <linux/genhd.h>
 #endif
 #ifdef __NetBSD__

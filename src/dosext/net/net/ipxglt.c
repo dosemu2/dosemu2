@@ -16,10 +16,22 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/ioctl.h>
-#include <linux/sockios.h>
-#include <linux/ipx.h>
-#include <linux/route.h>
+#if __GLIBC__ > 1
+  #include <asm/types.h>
+  #include <asm/sockios.h>
+  #include <linux/ipx.h>
+  #ifndef IPX_TYPE
+    #define IPX_TYPE 1   /* glibc's headers seem missing that
+                            (normally defined in <linux/socket.h>) */
+  #endif
+  #include <net/route.h>
+#else
+  #include <linux/sockios.h>
+  #include <linux/ipx.h>
+  #include <linux/route.h>
+#endif
 #include <netinet/in.h>
+#include <errno.h>
 
 #include "emu.h"
 

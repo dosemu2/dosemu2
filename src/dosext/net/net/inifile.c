@@ -60,6 +60,7 @@ void GetValueFromIniFile (char *file, char *section, char *variable,
    strcpy (value, "");
 
    srcFile = fopen (file, "rt");
+   if (!srcFile) return;
 
    cptr = fgets (line, 512, srcFile);
 
@@ -146,6 +147,8 @@ void SetValueInIniFile (char *file, char* section, char* variable,
    remove (oldFile);
    rename (file, oldFile);
    srcFile = fopen (oldFile, "rt");
+   if (!srcFile) return;
+
    destFile = fopen (file, "wt");
 
    cptr = fgets (line, 512, srcFile);

@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
+#include <errno.h>
 
 #include "config.h"
 #include "emu.h"
@@ -21,9 +22,6 @@
 #include "dos2linux.h"
 #include "priv.h"
 
-#ifdef __NetBSD__
-extern int errno;
-#endif
 
 /*
  * XXX - the mem size of 734 is much more dangerous than 704. 704 is the

@@ -620,7 +620,7 @@ EXTERN void sigio(int, int, struct sigcontext *);
 					sigaddset(&sa.sa_mask, SIGNALS_THAT_QUEUE); \
 					sigaction(sig, &sa, NULL);
 
-#define SETSIG(sig, fun)	sa.sa_handler = (SignalHandler)fun; \
+#define SETSIG(sig, fun)	sa.sa_handler = (__sighandler_t)fun; \
 					sa.sa_flags = SA_RESTART; \
 					sigemptyset(&sa.sa_mask); \
 					sigaddset(&sa.sa_mask, SIG_TIME); \

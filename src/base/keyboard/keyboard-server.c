@@ -36,7 +36,9 @@
 #ifdef __linux__
 #include <linux/vt.h>
 #include <linux/kd.h>
+#if ! (__GLIBC__ > 1)
 #include <linux/time.h>
+#endif
 #endif
 #include <sys/types.h>
 #include <sys/stat.h>

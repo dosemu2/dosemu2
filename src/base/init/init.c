@@ -12,6 +12,7 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
+#include <errno.h>
 
 #ifdef __linux__
 #include <linux/config.h>

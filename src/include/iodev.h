@@ -10,7 +10,11 @@
 #ifndef _EMU_IODEV_H
 #define _EMU_IODEV_H
 
+#if __GLIBC__ > 1 
+#include <sys/time.h>
+#else
 #include <linux/time.h>
+#endif
 #if 0
 #include "emu_defs.h"
 #include "keyb.h"

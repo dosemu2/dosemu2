@@ -25,6 +25,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <termios.h>
+#include <errno.h>
 
 #include "bios.h"
 #include "emu.h"
@@ -32,10 +33,6 @@
 #include "video.h" 
 #include "terminal.h"
 #include "slang.h"
-
-#ifdef __NetBSD__
-extern int errno;
-#endif
 
 /* The interpretation of the DOS attributes depend upon if the adapter is 
  * color or not.
