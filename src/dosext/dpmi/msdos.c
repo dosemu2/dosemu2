@@ -30,17 +30,7 @@
 #include "dpmi.h"
 #include "msdos.h"
 
-#define S_REG(reg) (DPMI_CLIENT.stack_frame.reg)
-
 #define TRANS_BUFFER_SEG EMM_SEGMENT
-
-/* these are used like:  S_LO(ax) = 2 (sets al to 2) */
-#define S_LO(reg)  (*(unsigned char *)&S_REG(e##reg))
-#define S_HI(reg)  (*((unsigned char *)&S_REG(e##reg) + 1))
-
-/* these are used like: LWORD(eax) = 65535 (sets ax to 65535) */
-#define S_LWORD(reg)	(*((unsigned short *)&S_REG(reg)))
-#define S_HWORD(reg)	(*((unsigned short *)&S_REG(reg) + 1))
 
 #define DTA_over_1MB (void*)(GetSegmentBaseAddress(DPMI_CLIENT.USER_DTA_SEL) + DPMI_CLIENT.USER_DTA_OFF)
 #define DTA_under_1MB (void*)((DPMI_CLIENT.private_data_segment + DTA_Para_ADD) << 4)
@@ -851,16 +841,16 @@ void msdos_post_exec(void)
  * DANG_END_FUNCTION
  */
 
-int msdos_post_extender(int intr)
+int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 {
     int update_mask = ~0;
 #define PRESERVE1(rg) (update_mask &= ~(1 << rg##_INDEX))
 #define PRESERVE2(rg1, rg2) (update_mask &= ~((1 << rg1##_INDEX) | (1 << rg2##_INDEX)))
-#define SET_REG(rg, val) (PRESERVE1(rg), S_REG(rg) = (val))
-    D_printf("DPMI: post_extender: int 0x%x ax=0x%04x\n", intr, S_LWORD(eax));
+#define SET_REG(rg, val) (PRESERVE1(rg), _##rg = (val))
+    D_printf("DPMI: post_extender: int 0x%x ax=0x%04x\n", intr, _LWORD(eax));
 
     if (DPMI_CLIENT.USER_DTA_SEL && intr == 0x21 ) {
-	switch (S_HI(ax)) {	/* functions use DTA */
+	switch (_HI(ax)) {	/* functions use DTA */
 	case 0x11: case 0x12:	/* find first/next using FCB */
 	case 0x4e: case 0x4f:	/* find first/next */
 	    MEMCPY_DOS2DOS(DTA_over_1MB, DTA_under_1MB, 0x80);
@@ -900,21 +890,21 @@ int msdos_post_extender(int intr)
 
     switch (intr) {
     case 0x10:			/* video */
-	if (S_LWORD(eax) == 0x1130) {
+	if (_LWORD(eax) == 0x1130) {
 	    /* get current character generator infor */
 	    SET_REG(es,	ConvertSegmentToDescriptor(REG(es)));
 	}
 	break;
     case 0x15:
 	/* we need to save regs at int15 because AH has the return value */
-	if (S_HI(ax) == 0xc0) { /* Get Configuration */
+	if (_HI(ax) == 0xc0) { /* Get Configuration */
                 if (REG(eflags)&CF)
                         break;
                 SET_REG(es, ConvertSegmentToDescriptor(REG(es)));
         }
 	break;
     case 0x2f:
-	switch (S_LWORD(eax)) {
+	switch (_LWORD(eax)) {
 	    case 0x4310:
                 DPMI_CLIENT.XMS_call = MK_FARt(REG(es), LWORD(ebx));
                 SET_REG(es, DPMI_CLIENT.DPMI_SEL);
@@ -924,7 +914,7 @@ int msdos_post_extender(int intr)
 	break;
 
     case 0x21:
-	switch (S_HI(ax)) {
+	switch (_HI(ax)) {
 	case 0x09:		/* print String */
 	case 0x1a:		/* set DTA */
 	    PRESERVE1(edx);
@@ -934,17 +924,17 @@ int msdos_post_extender(int intr)
  	case 0x16:		/* Create usring FCB */
  	case 0x17:		/* rename using FCB */
  	    PRESERVE1(edx);
-	    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_REG(ds)) + D_16_32(S_REG(edx)),
+	    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(_ds) + D_16_32(_edx),
 			SEG_ADR((void *), ds, dx), 0x50);
 	    break;
 
 	case 0x29:		/* Parse a file name for FCB */
 	    PRESERVE2(esi, edi);
-	    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_REG(ds)) + D_16_32(S_REG(esi)),
+	    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(_ds) + D_16_32(_esi),
 		/* Warning: SI altered, assume old value = 0, don't touch. */
 			    (void *)(REG(ds)<<4), 0x100);
-	    SET_REG(esi, S_REG(esi) + LWORD(esi));
-	    MEMCPY_DOS2DOS((void *)(GetSegmentBaseAddress(S_REG(es)) + D_16_32(S_REG(edi))),
+	    SET_REG(esi, _esi + LWORD(esi));
+	    MEMCPY_DOS2DOS((void *)(GetSegmentBaseAddress(_es) + D_16_32(_edi)),
 			    SEG_ADR((void *), es, di),  0x50);
 	    break;
 
@@ -996,8 +986,8 @@ int msdos_post_extender(int intr)
 	    PRESERVE1(edx);
 	    envp = *(unsigned short *)(((char *)(LWORD(edx)<<4)) + 0x2c);
 	    DPMI_CLIENT.CURRENT_ENV_SEL = ConvertSegmentToDescriptor(envp);
-	    if ( !in_dos_space(S_LWORD(edx), 0)) {
-		MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_LWORD(edx)),
+	    if ( !in_dos_space(_LWORD(edx), 0)) {
+		MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(_LWORD(edx)),
 		    SEG2LINEAR(LWORD(edx)), 0x100);
 	    }
 	  }
@@ -1005,7 +995,7 @@ int msdos_post_extender(int intr)
 
 	case 0x26:		/* create PSP */
 	    PRESERVE1(edx);
-	    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_LWORD(edx)),
+	    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(_LWORD(edx)),
 		(void *)SEG2LINEAR(LWORD(edx)), 0x100);
 	  break;
 
@@ -1015,7 +1005,7 @@ int msdos_post_extender(int intr)
 	    }
 	    break;
 	case 0x38:
-	    if (S_LO(ax) == 0x00 && !DS_MAPPED) { /* get country info */
+	    if (_LO(ax) == 0x00 && !DS_MAPPED) { /* get country info */
 		SET_REG(ds, ConvertSegmentToDescriptor(REG(ds)));
 	    }
 	    break;
@@ -1023,11 +1013,11 @@ int msdos_post_extender(int intr)
 	    PRESERVE1(esi);
 	    if (LWORD(eflags) & CF)
 		break;
-	    snprintf((char *)(GetSegmentBaseAddress(S_REG(ds)) +
-			D_16_32(S_REG(esi))), 0x40, "%s", 
+	    snprintf((char *)(GetSegmentBaseAddress(_ds) +
+			D_16_32(_esi)), 0x40, "%s", 
 		        SEG_ADR((char *), ds, si));
-	    D_printf("DPMI: CWD: %s\n",(char *)(GetSegmentBaseAddress(S_REG(ds)) +
-			D_16_32(S_REG(esi))));
+	    D_printf("DPMI: CWD: %s\n",(char *)(GetSegmentBaseAddress(_ds) +
+			D_16_32(_esi)));
 	    break;
 #if 0	    
 	case 0x48:		/* allocate memory */
@@ -1059,7 +1049,7 @@ int msdos_post_extender(int intr)
 	    break;
 	case 0x53:		/* Generate Drive Parameter Table  */
 	    PRESERVE2(esi, ebp);
-	    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_REG(es)) + D_16_32(S_REG(ebp)),
+	    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(_es) + D_16_32(_ebp),
 			    SEG_ADR((void *), es, bp),
 			    0x60);
 	    break ;
@@ -1067,7 +1057,7 @@ int msdos_post_extender(int intr)
 	    PRESERVE2(edx, edi);
 	    break ;
 	case 0x5d:
-	    if (S_LO(ax) == 0x06) /* get address of DOS swappable area */
+	    if (_LO(ax) == 0x06) /* get address of DOS swappable area */
 				/*        -> DS:SI                     */
 		SET_REG(ds, ConvertSegmentToDescriptor(REG(ds)));
 	    break;
@@ -1080,25 +1070,25 @@ int msdos_post_extender(int intr)
 	    PRESERVE2(edx, ecx);
 	    break;
 	case 0x5f:		/* redirection */
-	    switch (S_LO(ax)) {
+	    switch (_LO(ax)) {
 	    case 0: case 1:
 		break ;
 	    case 2 ... 6:
 		PRESERVE2(esi, edi);
-		MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_REG(ds))
-			+ D_16_32(S_REG(esi)),
+		MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(_ds)
+			+ D_16_32(_esi),
 			SEG_ADR((void *), ds, si),
 			0x100);
-		MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_REG(es))
-			+ D_16_32(S_REG(edi)),
+		MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(_es)
+			+ D_16_32(_edi),
 			SEG_ADR((void *), es, di),
 			0x100);
 	    }
 	    break;
 	case 0x60:		/* Canonicalize file name */
 	    PRESERVE2(esi, edi);
-	    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_REG(es))
-			+ D_16_32(S_REG(edi)),
+	    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(_es)
+			+ D_16_32(_edi),
 			SEG_ADR((void *), es, di),
 			0x80);
 	    break;
@@ -1106,30 +1096,30 @@ int msdos_post_extender(int intr)
 	    PRESERVE2(edi, edx);
 	    if (LWORD(eflags) & CF)
 		break;
-    	    switch (S_LO(ax)) {
+    	    switch (_LO(ax)) {
 		case 1 ... 7:
-		    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_REG(es))
-			+ D_16_32(S_REG(edi)),
+		    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(_es)
+			+ D_16_32(_edi),
 			SEG_ADR((void *), es, di),
 			LWORD(ecx));
 		    break;
 		case 0x21:
 		case 0xa1:
-		    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_REG(ds))
-			+ D_16_32(S_REG(edx)),
+		    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(_ds)
+			+ D_16_32(_edx),
 			SEG_ADR((void *), ds, dx),
-			S_LWORD(ecx));
+			_LWORD(ecx));
 		    break;
 		case 0x22:
 		case 0xa2:
-		    strcpy((void *)GetSegmentBaseAddress(S_REG(ds))
-			+ D_16_32(S_REG(edx)),
+		    strcpy((void *)GetSegmentBaseAddress(_ds)
+			+ D_16_32(_edx),
 			SEG_ADR((void *), ds, dx));
 		    break;
 	    }
 	    break;
 	case 0x71:		/* LFN functions */
-        switch (S_LO(ax)) {
+        switch (_LO(ax)) {
         case 0x3B:
         case 0x41:
 	    PRESERVE1(edx);
@@ -1141,8 +1131,8 @@ int msdos_post_extender(int intr)
 	    PRESERVE1(edi);
             if (LWORD(eflags) & CF)
                 break;
-            MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_REG(es))
-                     + D_16_32(S_REG(edi)),
+            MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(_es)
+                     + D_16_32(_edi),
                      SEG_ADR((void *), es, di),
                         0x13E);
             break;
@@ -1150,16 +1140,16 @@ int msdos_post_extender(int intr)
 	    PRESERVE1(esi);
             if (LWORD(eflags) & CF)
                 break;
-	    snprintf((char *)(GetSegmentBaseAddress(S_REG(ds)) +
-			D_16_32(S_REG(esi))), MAX_DOS_PATH, "%s", 
+	    snprintf((char *)(GetSegmentBaseAddress(_ds) +
+			D_16_32(_esi)), MAX_DOS_PATH, "%s", 
 		        SEG_ADR((char *), ds, si));
             break;
 	case 0x60:
 	    PRESERVE2(esi, edi);
 	    if (LWORD(eflags) & CF)
 		break;
-	    snprintf((void *)GetSegmentBaseAddress(S_REG(es)) + 
-		D_16_32(S_REG(edi)), MAX_DOS_PATH, "%s",
+	    snprintf((void *)GetSegmentBaseAddress(_es) + 
+		D_16_32(_edi), MAX_DOS_PATH, "%s",
 		SEG_ADR((char *), es, di));
 	    break;
         case 0x6c:
@@ -1176,16 +1166,16 @@ int msdos_post_extender(int intr)
 	/* the flags should be pushed to stack */
 	if (DPMI_CLIENT.is_32) {
 	    DPMI_CLIENT.stack_frame.esp -= 4;
-	    *(unsigned long *)(GetSegmentBaseAddress(S_REG(ss)) + S_REG(esp) - 4) =
+	    *(unsigned long *)(GetSegmentBaseAddress(_ss) + _esp - 4) =
 	      REG(eflags);
 	} else {
 	    DPMI_CLIENT.stack_frame.esp -= 2;
-	    *(unsigned short *)(GetSegmentBaseAddress(S_REG(ss)) +
-	      S_LWORD(esp) - 2) = LWORD(eflags);
+	    *(unsigned short *)(GetSegmentBaseAddress(_ss) +
+	      _LWORD(esp) - 2) = LWORD(eflags);
 	}
 	break;
     case 0x33:			/* mouse */
-	switch (S_LWORD(eax)) {
+	switch (_LWORD(eax)) {
 	case 0x09:		/* Set Mouse Graphics Cursor */
 	case 0x14:		/* swap call back */
 	    PRESERVE1(edx);

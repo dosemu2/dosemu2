@@ -4081,7 +4081,7 @@ void dpmi_realmode_hlt(unsigned char * lina)
     D_printf("DPMI: Return from DOS Interrupt 0x%02x\n",intr);
 
     if (config.pm_dos_api) {
-	update_mask = msdos_post_extender(intr);
+	update_mask = msdos_post_extender(&DPMI_CLIENT.stack_frame, intr);
     }
 
     rm_to_pm_regs(&DPMI_CLIENT.stack_frame, update_mask);
