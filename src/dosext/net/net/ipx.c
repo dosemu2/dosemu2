@@ -834,7 +834,7 @@ static ipx_socket_t *check_ipx_ready(fd_set * set)
 
 static void IPXRelinquishControl(void)
 {
-  idle(0, 5, INT2F_IDLE_USECS, "IPX");
+  idle(0, 5, 0, INT2F_IDLE_USECS, "IPX");
 }
 
 void ipx_receive(int ilevel)

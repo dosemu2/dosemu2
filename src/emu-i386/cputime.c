@@ -25,6 +25,7 @@
 #include "video.h"
 #include "timers.h"
 #include "pic.h"
+#include "int.h"
 #include "speaker.h"
 #include "dosemu_config.h"
 
@@ -333,27 +334,36 @@ int bogospeed(unsigned long *spus, unsigned long *sptick)
 
 /* idle functions to let hogthreshold do its work .... */
 static int trigger1 = 0;
-void reset_idle(void)
+void reset_idle(int val)
 {
-  trigger1 = 0;
+  val *= config.hogthreshold;
+  if (-val < trigger1)
+    trigger1 = -val;
+}
+
+void alarm_idle(void)
+{
+  if (trigger1 < 0)
+    trigger1++;
 }
 
 void trigger_idle(void)
 {
-  trigger1++;
+  if (trigger1 >= 0)
+    trigger1++;
 }
 
 /* "strong" idle callers will have threshold1 = 0 so only the
    inner loop applies. Heuristic idlers (int16/ah=1, mouse)
    need the two loops -- the outer loop can be reset using
    reset_idle */
-int idle(int threshold1, int threshold, int usec, const char *who)
+int idle(int threshold1, int threshold, int threshold2, int usec, const char *who)
 {
   static int trigger = 0;
-
+  do_periodic_stuff();
   if (config.hogthreshold && CAN_SLEEP()) {
-    if(trigger1 >= config.hogthreshold *threshold1) {
-      if (trigger++ > (config.hogthreshold - 1) * threshold) {
+    if(trigger1 >= config.hogthreshold * threshold1) {
+      if (trigger++ > (config.hogthreshold - 1) * threshold + threshold2) {
 	usleep(usec);
 	trigger = 0;
       }

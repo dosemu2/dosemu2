@@ -45,7 +45,7 @@ int int17(void)
     return 1;
   }
 
-  reset_idle();
+  reset_idle(2);
 
   switch (HI(ax)) {
   case 0:			/* write char */
@@ -248,6 +248,7 @@ printer_tick(u_long secno)
     if (lpt[i].remaining >= 0) {
       p_printf("LPT: doing real tick for %d\n", i);
       if (lpt[i].remaining) {
+        reset_idle(2);
 	lpt[i].remaining--;
 	if (!lpt[i].remaining)
 	  printer_close(i);

@@ -120,8 +120,8 @@ static unsigned check_key_available(int extended)
     if(!port60_buffer || (port60_buffer & 0x80))
       trigger_idle();
     else
-      reset_idle();
-    if (idle(500, 20, INT2F_IDLE_USECS, "int16"))
+      reset_idle(0);
+    if (idle(500, 20, 0, INT2F_IDLE_USECS, "int16"))
       keyptr = get_key(extended);
   }
   return get_key(extended);

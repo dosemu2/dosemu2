@@ -161,6 +161,7 @@ io_select(fd_set fds)
 	  io_callback_func[i]();
 	}
       }
+      reset_idle(10);
       break;
     }
 }

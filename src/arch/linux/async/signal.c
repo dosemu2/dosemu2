@@ -591,6 +591,8 @@ static void SIGALRM_call(void)
   if (not_use_sigio)
     io_select(fds_no_sigio);
 
+  alarm_idle();
+
   /* Here we 'type in' prestrokes from commandline, as long as there are any
    * Were won't overkill dosemu, hence we type at a speed of 14cps
    */
