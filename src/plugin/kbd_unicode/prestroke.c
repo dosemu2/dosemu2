@@ -173,9 +173,9 @@ int type_in_pre_strokes(void)
 	if (pre_stroke) {
 		pre_stroke = type_one_key(pre_stroke);
 		if (!pre_stroke) {
-			config.pre_stroke = 0;
-			free(config.pre_stroke_mem);
+			free(config.pre_stroke);
 			free(pre_stroke_mem);
+			config.pre_stroke = 0;
 		}
 	}
 	return stroke_pause;
@@ -185,26 +185,18 @@ int type_in_pre_strokes(void)
 
 void append_pre_strokes(unsigned char *s)
 {
-  if (config.pre_stroke_mem) {
+  if (config.pre_stroke) {
     int l1,l2;
     unsigned char *n;
 
-    if (config.pre_stroke) {
-      l1 = strlen(config.pre_stroke);
-    }
-    else {
-      l1 = 0;
-    }
+    l1 = strlen(config.pre_stroke);
     l2 = strlen(s);
-    n = malloc(l1+l2+1);
+    n = realloc(config.pre_stroke, l1+l2+1);
     if (!n) return;
-    if (l1) memcpy(n, config.pre_stroke, l1);
     memcpy(n+l1, s, l2+1);
-    free(config.pre_stroke_mem);
     config.pre_stroke = n;
   }
   else {
     config.pre_stroke = strdup(s);
   }
-  config.pre_stroke_mem = config.pre_stroke;
 }

@@ -310,7 +310,6 @@ typedef struct vesamode_type_struct {
        unsigned short detach;
        unsigned char *debugout;
        unsigned char *pre_stroke;  /* pointer to keyboard pre strokes */
-       unsigned char *pre_stroke_mem;
 
        /* Lock File business */
        boolean full_file_locks;
