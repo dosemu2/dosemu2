@@ -298,10 +298,10 @@ char ci,cc;
   if(header_count>15) header_count=0;
   
   if(s2)
-  log_printf(1, "PIC: %c%2ld %c%2ld %08lx %08lx %08lx %s%02d%s\n",
+  log_printf(1, "PIC: %c%2d %c%2d %08lx %08lx %08lx %s%02d%s\n",
      cc, pic_icount, ci, pic_ilevel, pic_isr, pic_imr, pic_irr, s1, v1, s2);
   else
-  log_printf(1, "PIC: %c%2ld %c%2ld %08lx %08lx %08lx %s\n",
+  log_printf(1, "PIC: %c%2d %c%2d %08lx %08lx %08lx %s\n",
      cc, pic_icount, ci, pic_ilevel, pic_isr, pic_imr, pic_irr, s1);
 
 }
@@ -791,7 +791,7 @@ int do_irq(void)
       while(!fatalerr && test_bit(ilevel,&pic_isr))
       {
 	if (debug_level('r')>2)
-		r_printf("------ PIC: intr loop ---%06lx--%06lx----\n",
+		r_printf("------ PIC: intr loop ---%06x--%06x----\n",
 			pic_vm86_count,pic_dpmi_count);
 	if (in_dpmi ) {
           ++pic_dpmi_count;
@@ -1157,7 +1157,7 @@ void pic_sched(int ilevel, int interval)
 
 void pic_set_callback(Bit16u cs, Bit16u ip)
 {
-  r_printf("PIC: setting callback to %x:%x (pic_icount=%ld)\n",
+  r_printf("PIC: setting callback to %x:%x (pic_icount=%u)\n",
     cs, ip, pic_icount);
   cb_ip = ip;
   cb_cs = cs;
