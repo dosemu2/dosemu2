@@ -248,5 +248,6 @@ extern int get_ldt(void *buffer);
 void dpmi_return_request(void);
 void dpmi_check_return(struct sigcontext_struct *scp);
 void dpmi_init(void);
+extern inline void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *s);
 
 #endif /* DPMI_H */

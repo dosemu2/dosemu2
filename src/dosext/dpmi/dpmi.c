@@ -1136,7 +1136,7 @@ static void GetFreeMemoryInformation(unsigned int *lp)
   /*2ch*/	*++lp = 0xffffffff;
 }
 
-static inline void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *s)
+inline void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *s)
 {
 #ifdef DIRECT_DPMI_CONTEXT_SWITCH
 /* --------------------------------------------------------------
@@ -3502,6 +3502,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_int_23)) {
 	  struct sigcontext_struct old_ctx;
 	  unsigned long old_esp;
+	  unsigned short *ssp;
 	  int esp_delta;
 	  if (in_dpmi_pm_stack) {
 	    in_dpmi_pm_stack--;
@@ -3517,23 +3518,33 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  restore_pm_regs(&old_ctx);
 	  old_esp = in_dpmi_pm_stack ? D_16_32(old_ctx.esp) : D_16_32(DPMI_pm_stack_size);
 	  esp_delta = old_esp - D_16_32(_esp);
+	  ssp = (us *) SEL_ADR(_ss, _esp);
+	  copy_context(scp, &old_ctx);
 	  if (esp_delta) {
 	    unsigned char *rm_ssp;
-	    unsigned short *ssp;
 	    unsigned long sp;
 	    D_printf("DPMI: ret from int23 with esp_delta=%i\n", esp_delta);
 	    rm_ssp = (unsigned char *) (REG(ss) << 4);
 	    sp = (unsigned long) LWORD(esp);
-	    ssp = (us *) SEL_ADR(_ss, _esp);
 	    esp_delta >>= DPMI_CLIENT.is_32;
 	    if (esp_delta == 2) {
 	      pushw(rm_ssp, sp, *ssp);
-	      LWORD(esp) -= 2;
 	    } else {
 	      error("DPMI: ret from int23 with esp_delta=%i\n", esp_delta);
 	    }
+	    LWORD(esp) -= esp_delta;
+	    if (in_dpmi_pm_stack) {
+	      D_printf("DPMI: int23 invoked while on PM stack!\n");
+	      REG(eflags) &= ~CF;
+	    }
+	    if (REG(eflags) & CF) {
+	      struct vm86_regs saved_regs = REGS;
+	      D_printf("DPMI: int23 termination request\n");
+	      quit_dpmi(scp, 0);
+	      REGS = saved_regs;
+	      D_printf("DPMI: int23 termination performed\n");
+	    }
 	  }
-	  *scp = old_ctx;
 	  in_dpmi_dos_int = 1;
 
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_int_24)) {
