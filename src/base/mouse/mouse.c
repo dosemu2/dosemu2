@@ -43,6 +43,7 @@
 #include "keyboard.h"
 
 #include "iodev.h"
+#include "bitops.h"
 
 /* This is included for video mode support. Please DO NOT remove !
  * mousevid.h will become part of VGA emulator package */
@@ -50,10 +51,7 @@
 #include "gcursor.h"
 
 #define Mouse_INT	(0x33 * 16)
-#ifndef USE_NEW_INT
-/* I have not properly tested this INT74 - JES 96/10/20 */
 #define Mouse_INT74	(0x74 * 16)
-#else /* USE_NEW_INT */
 /* DANG_BEGIN_REMARK
  * I have not properly tested this INT74 - JES 96/10/20 
  * I have removed it.  INT74 is irq 12.  Which I suppose is the proper
@@ -62,9 +60,9 @@
  * acknowledges an irq.  That routine is probably what should be
  * acknowledging irq12, and what int 0x74 should point to.  
  * I have disabled int0x74 support for now. --EB 29 Oct 1997
+ * Got it working --BO 4 Nov 2004
  * DANG_END_REMARK
  */
-#endif /* USE_NEW_INT */
 
 static
 void mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
@@ -99,6 +97,7 @@ static void mouse_round_coords(void);
 static void mouse_hide_on_exclusion(void);
 static int last_mouse_call_read_mickeys = 0;
 
+static void call_mouse_event_handler(void);
 static int mouse_events = 0;
 static mouse_erase_t mouse_erase;
 static int sent_mouse_esc = FALSE;
@@ -190,9 +189,6 @@ mouse_helper(struct vm86_regs *regs)
     m_printf("MOUSE move iret !\n");
     mouse_enable_internaldriver();
     SETIVEC(0x33, Mouse_SEG, Mouse_INT);
-#if 0
-    SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
-#endif
     break;
   case 1:				/* Select Microsoft Mode */
     m_printf("MOUSE Microsoft Mouse (two buttons) selected.\n");
@@ -253,6 +249,10 @@ mouse_helper(struct vm86_regs *regs)
     mouse_reset_to_current_video_mode();
     /* replace cursor if necessary */
     mouse_cursor(1);
+    break;
+  case 0xf2:
+    m_printf("MOUSE int74 helper\n");
+    call_mouse_event_handler();
     break;
   case 0xff:
     m_printf("MOUSE Checking InternalDriver presence !!\n");
@@ -1620,58 +1620,40 @@ mouse_delta(int event)
 /*
  * call PS/2 (int15) event handler
  */
-static void do_mouse_irq_ps2(void)
+static void call_int15_mouse_event_handler(void)
 {
     int status;
     unsigned char *ssp;
     unsigned long sp;
-    static int old_mickeyx, old_mickeyy;
     int dx, dy;
-
-    if(in_dpmi && !in_dpmi_dos_int)
-      fake_pm_int();
-
-    /* push iret frame on _SS:_SP. At F000:2146 (bios.S) we get an
-     * iret and return to _CS:_IP */
-    fake_int(LWORD(cs), LWORD(eip));
-
-    /* push iret frame. At F000:20F7 (bios.S) we get an
-     * iret and return to F000:2140 for EOI */
-    fake_int(Mouse_SEG, Mouse_ROUTINE_OFF);
 
     ssp = (unsigned char *)(LWORD(ss)<<4);
     sp = (unsigned long) LWORD(esp);
 
-    dx = mouse.mickeyx - old_mickeyx;
-    old_mickeyx = mouse.mickeyx;
+    dx = mouse.mickeyx - mouse.old_mickeyx;
     /* PS/2 wants the y direction reversed */
-    dy = (old_mickeyy - mouse.mickeyy) * 2;
-    old_mickeyy = mouse.mickeyy;
+    dy = (mouse.old_mickeyy - mouse.mickeyy) * 2;
 
     status = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0) | 8;
     if (mouse.threebuttons)
       status |= (mouse.mbutton ? 4 : 0);
-    if (dx < 0) {
+    /* overflow; many DOS drivers do a simple cbw on the value... */
+    if (dx < -128 || dx > 127)
+      dx = dx < -128 ? -128 : 127;
+    if (dy < -128 || dy > 127)
+      dy = dy < -128 ? -128 : 127;
+    /* we'll call the handler again */
+    if (dx < 0)
       status |= 0x10;
-      dx += 0x100;
-    }
-    if (dy < 0) {
+    if (dy < 0)
       status |= 0x20;
-      dy += 0x100;
-    }
-    /* overflow */
-    if (dx < 0 || dx > 0xff) {
-      status |= 0x40;
-      dx = dx < 0 ? 0 : 0xff;
-    }
-    if (dy < 0 || dy > 0xff) {
-      status |= 0x80;
-      dy = dy < 0 ? 0 : 0xff;
-    }
+    mouse.old_mickeyx += dx;
+    mouse.old_mickeyy -= dy / 2;
+
     m_printf("PS2MOUSE data: dx=%x, dy=%x, status=%x\n", dx, dy, status);
     pushw(ssp, sp, status | 8);
-    pushw(ssp, sp, dx);
-    pushw(ssp, sp, dy);
+    pushw(ssp, sp, dx & 0xff);
+    pushw(ssp, sp, dy & 0xff);
     pushw(ssp, sp, 0);
     LWORD(esp) -= 8;
 
@@ -1685,24 +1667,10 @@ static void do_mouse_irq_ps2(void)
     m_printf("PS2MOUSE: .........jumping to %04x:%04x\n", LWORD(cs), LWORD(eip));
 }
 
-/*
- * call user event handler
- */
-static void do_mouse_irq_int33(void)
+static void call_int33_mouse_event_handler(void)
 {
-    if(in_dpmi && !in_dpmi_dos_int)
-      fake_pm_int();
-
-    /* push iret frame on _SS:_SP. At F000:2146 (bios.S) we get an
-     * iret and return to _CS:_IP */
-    fake_int(LWORD(cs), LWORD(eip));
-
-    /* push iret frame. At F000:20F7 (bios.S) we get an
-     * iret and return to F000:2140 for EOI */
-    fake_int(Mouse_SEG, Mouse_ROUTINE_OFF);
-
-    /* push all 16-bit regs plus _DS,_ES. At F000:20F4 (bios.S) we find
-     * 'pop es; pop ds; popa' */
+    /* push all 16-bit regs plus _DS,_ES. At F000:20F0 (bios.S) we find
+     * 'pop es; pop ds; popa; eoi' */
     fake_pusha();
 
     LWORD(eax) = mouse_events;
@@ -1728,24 +1696,53 @@ static void do_mouse_irq_int33(void)
     m_printf("MOUSE: .........jumping to %04x:%04x\n", LWORD(cs), LWORD(eip));
 }
 
+/* this function is called from int74 via inte6 */
+static void call_mouse_event_handler(void)
+{
+  unsigned char *ssp;
+  unsigned long sp;
+
+  ssp = (unsigned char *)(LWORD(ss)<<4);
+  sp = (unsigned long) LWORD(esp);
+
+  /* first pop bx and ax, which were changed to
+     call this function */
+  LWORD(ebx) = popw(ssp, sp);
+  LWORD(eax) = popw(ssp, sp);
+  LWORD(esp) += 4;
+
+  if (mouse_events && (mouse.ps2.cs || mouse.ps2.ip)) {
+    call_int15_mouse_event_handler();
+  } else {
+    mouse.old_mickeyx = mouse.mickeyx;
+    mouse.old_mickeyy = mouse.mickeyy;
+    if (mouse.mask & mouse_events && (mouse.cs || mouse.ip))
+      call_int33_mouse_event_handler();
+    else
+      m_printf("MOUSE: Skipping event handler, "
+	       "mask=0x%x, ev=0x%x, cs=0x%x, ip=0x%x\n",
+	       mouse.mask, mouse_events, mouse.cs, mouse.ip);
+  }
+}
+
 void
 do_mouse_irq()
 {
-  if (mouse.mask & mouse_events && (mouse.cs || mouse.ip))
-    do_mouse_irq_int33();
-  if (mouse_events && (mouse.ps2.cs || mouse.ps2.ip))
-    do_mouse_irq_ps2();
+  /* function called for xterm, X and SDL. Others do it directly */
+  if (mouse_events)
+    pic_request(PIC_IMOUSE);
 }
 
 static void mouse_event(int ilevel)
 {
-  if ((mouse.mask & mouse_events && (mouse.cs || mouse.ip)) ||
-      (mouse_events && (mouse.ps2.cs || mouse.ps2.ip)))
-    do_irq(ilevel);
+  /* we must always acknowledge EOI now, with int74 */
+  do_irq(ilevel);
+  if (mouse.old_mickeyx != mouse.mickeyx ||
+      mouse.old_mickeyy != mouse.mickeyy)
+    /* keep requesting until the mouse driver caught up */
+    pic_request(PIC_IMOUSE);
   else
-    m_printf("MOUSE: Skipping irq, mask=0x%x, ev=0x%x, cs=0x%x, ip=0x%x\n",
-      mouse.mask, mouse_events, mouse.cs, mouse.ip);
-  mouse_events = 0;
+    mouse_events = 0;
 }
 
 /* unconditional mouse cursor update */
@@ -1878,6 +1875,13 @@ static void mouse_client_init(void)
 
 void dosemu_mouse_reset(void)
 {
+  if (mice->intdrv) {
+    pic_seti(PIC_IMOUSE, DOSEMUMouseEvents, 0, NULL);
+    pic_unmaski(PIC_IMOUSE);
+    clear_bit (PIC_IMOUSE, &pic1_imr);
+    SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
+  }
+
   /* We set the defaults at the end so that we can test the mouse type */
   mouse_reset(1);		/* Let's set defaults now ! */
 }
@@ -1931,11 +1935,8 @@ dosemu_mouse_init(void)
 
   mouse_client_init();
 
-  if (mice->intdrv) {
+  if (mice->intdrv)
     memcpy(p,mouse_ver,sizeof(mouse_ver));
-    pic_seti(PIC_IMOUSE, DOSEMUMouseEvents, 0, do_mouse_irq);
-    pic_unmaski(PIC_IMOUSE);
-  }
 
   m_printf("MOUSE: INIT complete\n");
 }
@@ -1952,9 +1953,6 @@ void mouse_post_boot(void)
   mouse_reset_to_current_video_mode();
   mouse_enable_internaldriver();
   SETIVEC(0x33, Mouse_SEG, Mouse_INT);
-#if 0
-  SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
-#endif
   
   /* grab int10 back from video card for mouse */
   ptr = (us*)((BIOSSEG << 4) +

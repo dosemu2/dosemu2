@@ -451,5 +451,5 @@ static void SDL_handle_events(void)
      }	
    }
    busy = 0;
-   pic_request(PIC_IMOUSE);
+   do_mouse_irq();
 }

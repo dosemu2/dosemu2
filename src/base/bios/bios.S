@@ -177,24 +177,39 @@ irqnum  =       DOSHELPER_INT
 /* ======================= Addr = F000:20F0 (F20F0) */
    
 	/* 
-	mouse routine simulates the stack frame of an int, then does a 
-	"pusha" before here...so we just "popa; iret" to get back out
+	mouse routine does a "pusha" before here and then pushes this
+	address ...so we just "popa; EOI; iret" to get back out
 	*/
 	popw	%es
 	popw	%ds
 	popa
-	iret
+	jmp	Mouse_EOI
 
 /* ----------------------------------------------------------------- */
 	.org	((Mouse_SEG - BIOSSEG) << 4) + Mouse_PS2_OFF
 /* ======================= Addr = F000:2100 (F2100) */
 	addw	$8, %sp			/* pop PS/2 mouse information   */
-	iret
+	jmp	Mouse_EOI
         
         .org	((Mouse_SEG - BIOSSEG) << 4)+Mouse_ROUTINE_OFF
+/* ======================= Addr = F000:2140 (F2140) */
+
+	/* This is the int74 handler */
+	pushw	%ax	/* save everything */
+	pushw	%bx
+	movw	$DOS_HELPER_MOUSE_HELPER,%ax	/* mouse helper */
+	movw	$0xf2,%bx	/* call the user or PS/2 hook */
+	int	$DOSHELPER_INT
+	/* if an event handler is installed we will go to Mouse_OFF
+	   or Mouse_PS2_OFF;  otherwise return here.
+	   ax and bx are popped in mouse.c
+	*/      
+
+Mouse_EOI:
 	pushw	%ax
         movb    $0x20,%al
-        outb    %al,$0x20		/* flag interrupt complete	*/
+        outb    %al,$0xa0		/* flag interrupt complete	*/
+        outb    %al,$0x20
 	popw	%ax
 	iret
 

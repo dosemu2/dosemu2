@@ -421,7 +421,7 @@ static GC gc, fullscreengc, normalgc;
 static Font vga_font;
 static Atom proto_atom = None, delete_atom = None;
 static XFontStruct *font = NULL;
-static int font_width, font_height, font_shift, shift_x, shift_y;
+static int font_width, font_shift, shift_x, shift_y;
 
 #if CONFIG_X_SELECTION
 static u_char *sel_text = NULL;
@@ -1868,7 +1868,7 @@ static void X_handle_events(void)
 
   busy = 0;
 #if CONFIG_X_MOUSE  
-  pic_request(PIC_IMOUSE);
+  do_mouse_irq();
 #endif  
 
 #if 0

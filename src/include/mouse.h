@@ -116,6 +116,7 @@ struct mouse_struct {
 
   /* accumulated motion counters */
   short mickeyx, mickeyy;
+  short old_mickeyx, old_mickeyy;
 
   /* zero if cursor is on, negative if it's off */
   short cursor_on;

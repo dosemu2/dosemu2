@@ -52,7 +52,7 @@
 #define PIC_IRQ9  4        /*  int 0x71 revectors to  0x0a */
 #define PIC_IRQ10 5        /*             usually int 0x72 */
 #define PIC_IRQ11 6        /*             usually int 0x73 */
-#define PIC_IRQ12 7        /*             usually int 0x74 */
+#define PIC_IRQ12 7        /*  PS/2 mouse,usually int 0x74 */
 #define PIC_IRQ13 8        /*             usually int 0x75 */
 #define PIC_IRQ14 9        /*  disk       usually int 0x76 */
 #define PIC_IRQ15 10       /*             usually int 0x77 */
@@ -62,9 +62,10 @@
 #define PIC_IRQ6  14       /*  floppy     usually int 0x0e */
 #define PIC_IRQ7  15       /*  LPT 1      usually int 0x0f */
 #define PIC_NET   16       /*  packet receive check - no dos equivalent */
-#define PIC_IMOUSE 17      /*  internal mouse driver       */
-#define PIC_IPX    18      /*  IPX Signal */
-#define PIC_IPX_AES 19     /*  IPX AES Signal */
+#define PIC_IPX    17      /*  IPX Signal */
+#define PIC_IPX_AES 18     /*  IPX AES Signal */
+
+#define PIC_IMOUSE PIC_IRQ12 /*  internal mouse driver       */
 
 /* pic_irq_list translates irq numbers to pic_ilevels.  This is not used
    by pic routines; it is simply made available for configuration ease */
