@@ -1,3 +1,18 @@
+98/12/01 ver. 0.99.4.1 unofficial pre-release
+	From Alberto
+	- fix for TASMX not running (wrong handling of selectors in
+	  INT21,fn38). Good work Alberto!
+	From Hans
+	- first temp fix to 8-char-limit-pasting in Slang terminal
+	  (found during IRC by Eric, Alistair and me)
+	- introduced PORTABLE_BINARY compile condition together with -static
+	- workaraund for glibc static binaries running on libc5 systems
+	  (parsing /etc/passwd ourselves when /etc/nsswitch.conf not
+	  existing), enabled via PORTABLE_BINARY in base/misc/utilities.c
+	- some dualmon fixes (global.conf, video/dualmon.c)
+	- made 2.1.126 timerstuff _run_time instead of compiletime dependend
+	  (init/config.c, emu-i386/cputime.c)
+	- use --host=i386-any-linux for the binary distribution
 98/11/21 ver. 0.99.4 released
 	From Alberto
 	- changed all his mail addresses

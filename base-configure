@@ -3840,10 +3840,12 @@ if test "${enable_linkstatic+set}" = set; then
   enableval="$enable_linkstatic"
   echo "checking "Linking statically"" 1>&6
 echo "configure:3843: checking "Linking statically"" >&5
+               PORTABLE_BINARY="-DPORTABLE_BINARY"
+               
                LNKOPTS="${LNKOPTS} -static"
 else
   echo "checking "Linking for shared libraries"" 1>&6
-echo "configure:3847: checking "Linking for shared libraries"" >&5
+echo "configure:3849: checking "Linking for shared libraries"" >&5
 fi
 
 
@@ -3900,7 +3902,7 @@ fi
 
   if test "$cpuemu" = "yes" -a "$experimental" = "yes"; then
    echo "checking "Compiling with optional 386 emulation code"" 1>&6
-echo "configure:3904: checking "Compiling with optional 386 emulation code"" >&5;
+echo "configure:3906: checking "Compiling with optional 386 emulation code"" >&5;
    X86_EMULATOR="X86_EMULATOR=1"
    cat >> confdefs.h <<EOF
 #define X86_EMULATOR 1
@@ -3909,7 +3911,7 @@ EOF
    
   else
    echo "checking "Compiling for native x86"" 1>&6
-echo "configure:3913: checking "Compiling for native x86"" >&5;
+echo "configure:3915: checking "Compiling for native x86"" >&5;
   fi
  
 # -m486 is usually in the specs for the compiler
@@ -3929,7 +3931,7 @@ OPT="$OPT -MD" # this should give painless dependencies
 # OPT=-fno-inline
 if test "$CONFIG_HOST" = "linux"; then
  echo "checking "Linux Specific build options"" 1>&6
-echo "configure:3933: checking "Linux Specific build options"" >&5
+echo "configure:3935: checking "Linux Specific build options"" >&5
    # Check whether --enable-nonet or --disable-nonet was given.
 if test "${enable_nonet+set}" = set; then
   enableval="$enable_nonet"
@@ -3940,11 +3942,11 @@ fi
 
   if test "$nonet" = "yes"; then
     echo "checking "Compiling without network support"" 1>&6
-echo "configure:3944: checking "Compiling without network support"" >&5;
+echo "configure:3946: checking "Compiling without network support"" >&5;
     USING_NET=""
   else
     echo "checking "Compiling with network support"" 1>&6
-echo "configure:3948: checking "Compiling with network support"" >&5;
+echo "configure:3950: checking "Compiling with network support"" >&5;
     USING_NET="-DUSING_NET"
   fi
  PIPE=-pipe
@@ -4225,6 +4227,7 @@ s%@USE_SBEMU@%$USE_SBEMU%g
 s%@MONOTON_MICRO_TIMING@%$MONOTON_MICRO_TIMING%g
 s%@RUN_AS_ROOT@%$RUN_AS_ROOT%g
 s%@USE_NEW_INT@%$USE_NEW_INT%g
+s%@PORTABLE_BINARY@%$PORTABLE_BINARY%g
 s%@WANT_WINDOWS@%$WANT_WINDOWS%g
 s%@OPTIONALSUBDIRS@%$OPTIONALSUBDIRS%g
 s%@REQUIRED@%$REQUIRED%g

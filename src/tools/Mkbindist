@@ -7,5 +7,5 @@
 if [ "`basename $PWD`" = "tools" ]; then
   cd ../../
 fi
-echo ./src/tools/mkbindist -m -s -d usr/doc/dosemu
-exec ./src/tools/mkbindist -m -s -d usr/doc/dosemu
+echo ./src/tools/mkbindist -m -s -d usr/doc/dosemu -- --host=i386-any-linux
+exec ./src/tools/mkbindist -m -s -d usr/doc/dosemu -- --host=i386-any-linux

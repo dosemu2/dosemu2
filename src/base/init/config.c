@@ -128,7 +128,8 @@ config_defaults(void)
           /* bogospeed currently returns 0; should it deny
            * pentium features, fall back into 486 case */
 #if LX_KERNEL_VERSION > 201126
-	  if ((cpuflags = get_proc_string_by_key("cpu MHz"))) {
+	  if ((kernel_version_code > 0x20100+126)
+	       && (cpuflags = get_proc_string_by_key("cpu MHz"))) {
 	    int di,df;
 	    if (sscanf(cpuflags,"%d.%d",&di,&df)==2) {
 		/* speed division factor to get 1us from CPU clocks - for
@@ -151,6 +152,8 @@ config_defaults(void)
 	    else
 	      cpuflags=NULL;
 	  }
+	  else
+	    cpuflags=0;
 	  if (!cpuflags) {
 #else
 	  if (1) {

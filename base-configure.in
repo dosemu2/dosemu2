@@ -477,6 +477,8 @@ LNKOPTS="-Wl,-warn-common"
 AC_ARG_ENABLE(linkstatic,
               [  --enable-linkstatic     make statically linked binaries],
               [AC_CHECKING("Linking statically")
+               PORTABLE_BINARY="-DPORTABLE_BINARY"
+               AC_SUBST(PORTABLE_BINARY)
                LNKOPTS="${LNKOPTS} -static"],
 	      [AC_CHECKING("Linking for shared libraries")])
 

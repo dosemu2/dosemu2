@@ -66,6 +66,7 @@
 #include "serial.h"
 #include "ser_defs.h"
 #include "priv.h"
+#include "utilities.h"	/* due to getpwnam */
 
 /* See README.serial file for more information on the com[] structure 
  * The declarations for this is in ../include/serial.h

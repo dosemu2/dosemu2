@@ -27,7 +27,7 @@ extern t_shiftstate shiftstate;
 #define PRESS 1
 #define RELEASE 0
 
-#define KEYB_QUEUE_LENGTH 15
+#define KEYB_QUEUE_LENGTH (255)
 
 /* public function definitions */
 

@@ -17,7 +17,11 @@ endif
 
 export INCDIR=@INCDIR@
 
-export CFLAGS=@CFLAGS@
+ifneq "@PORTABLE_BINARY@" ""
+export PORTABLE_BINARY=@PORTABLE_BINARY@
+endif
+
+export CFLAGS=@CFLAGS@ $(PORTABLE_BINARY)
 export LDFLAGS=@LDFLAGS@
 export CC=@CC@
 

@@ -18,7 +18,7 @@
 #include "keyb_clients.h"
 #include "termio.h"
 
-#define KBBUF_SIZE 80
+#define KBBUF_SIZE (KEYB_QUEUE_LENGTH / 2)
 
 /* LED FLAGS (from Linux keyboard code) */
 #define LED_SCRLOCK	0

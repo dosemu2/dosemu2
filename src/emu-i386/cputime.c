@@ -173,6 +173,7 @@ hitimer_t GETusSYSTIME(void)
 
 void get_time_init (void)
 {
+  extern kernel_version_code;
   if ((config.realcpu > CPU_486) && config.rdtsc) {
     /* we are here if: a 586/686 was detected at startup, we are not
      * on a SMP machine and the user didn't say 'rdtsc off'. But
@@ -187,11 +188,12 @@ void get_time_init (void)
      * 'rdtsc off' into config file */
     RAWcpuTIME = rawC4time;
     GETcpuTIME = getC4time;
-#if LX_KERNEL_VERSION < 2001126
-    g_printf("TIMER: using gettimeofday\n");
-#else
-    g_printf("TIMER: using new gettimeofday with microsecond resolution\n");
-#endif
+    if (config.realcpu) {
+      if (kernel_version_code < 0x2017e)
+        g_printf("TIMER: using gettimeofday\n");
+      else
+        g_printf("TIMER: using new gettimeofday with microsecond resolution\n");
+    }
   }
   ZeroTimeBase.td = RAWcpuTIME();
 }

@@ -275,6 +275,18 @@ static void MDA_init()
   port_out(0x28,0x03b8);
 } 
 
+static void reinit_MDA_regs()
+{
+  /* some video BIOSes are disabling MDA after they were initialised
+   * (such as on S3). We have to re-init some registers
+   */
+
+  /* Graphics allowed with 1 page (half mode) */
+  port_out(1,0x03bf);
+  /* Texmode, screen & cursor visible, page 0 */
+  port_out(0x28,0x03b8);
+} 
+
 static int dualmon_init(void)
 {
 v_printf("VID: dualmon_init called\n");
@@ -296,6 +308,7 @@ static void dualmon_close(void)
 static int dualmon_setmode(int type, int xsize,int ysize)
 {
   if (type==7) {
+    if (config.dualmon == 2) reinit_MDA_regs();
     Video->is_mapped = 1;
     WRITE_WORD(BIOS_CONFIGURATION, READ_WORD(BIOS_CONFIGURATION) | 0x30);
     WRITE_WORD(BIOS_CURSOR_SHAPE, 0x0b0d);
