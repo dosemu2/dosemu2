@@ -64,7 +64,7 @@ extern unsigned long is_dos_device(const char *fname);
 extern void mangle_name_83(char *s, char *MangledMap);
 extern BOOL name_ufs_to_dos(char *dest, const char *src);
 extern BOOL do_fwd_mangled_map(char *s, char *MangledMap);
-extern BOOL name_convert(char *OutName,char *InName,BOOL mangle, char *MangledMap);
+extern BOOL name_convert(char *Name,BOOL mangle);
 extern BOOL is_mangled(char *s);
 extern BOOL check_mangled_stack(char *s, char *MangledMap);
 

@@ -91,8 +91,8 @@ static int vfat_search(char *dest, char *src, char *path, int alias)
 		if ((strcasecmp(de->d_long_name, src) == 0) ||
 		    (strcasecmp(de->d_name, src) == 0)) {
 			char *name = alias ? de->d_name : de->d_long_name;
-			if (alias || !name_ufs_to_dos(dest, name)) {
-				name_convert(dest, name, MANGLE, NULL);
+			if (!name_ufs_to_dos(dest, name) || alias) {
+				name_convert(dest, MANGLE);
 				strupperDOS(dest);
 			}
 			dos_closedir(dir);
@@ -129,8 +129,8 @@ void make_unmake_dos_mangled_path(char *dest, char *fpath,
 		if (!strcmp(src, "..") || !strcmp(src, ".")) {
 			strcpy(dest, src);
 		} else if (!vfat_search(dest, src, fpath, alias)) {
-			if (alias || !name_ufs_to_dos(dest, src)) {
-				name_convert(dest, src, MANGLE, NULL);
+			if (!name_ufs_to_dos(dest, src) || alias) {
+				name_convert(dest, MANGLE);
 				strupperDOS(dest);
 			}
 		}
@@ -597,10 +597,11 @@ static int wild_match(char *pattern, char *string)
 static int lfn_sfn_match(char *pattern, struct mfs_dirent *de, char *lfn, char *sfn)
 {
 	if (!name_ufs_to_dos(lfn, de->d_long_name)) {
-		name_convert(lfn, de->d_long_name, MANGLE, NULL);
+		name_convert(lfn, MANGLE);
 		strupperDOS(lfn);
 	}
-	name_convert(sfn, de->d_name, MANGLE, NULL);
+	name_ufs_to_dos(sfn, de->d_name);
+	name_convert(sfn, MANGLE);
 	return wild_match(pattern, lfn) != 0 &&
 		wild_match(pattern, sfn) != 0;
 }
@@ -1113,19 +1114,14 @@ int mfs_lfn(void)
 		break;
 	case 0xa8: /* generate short filename */
 	{
-		char name[8];
-		char ext[3];
 		src = (char *)SEGOFF2LINEAR(_DS, _SI);
-		build_ufs_path(fpath2, src, 0);
-		name_convert(fpath, strrchr(fpath2, '/') + 1, MANGLE, NULL);
+		StrnCpy(fpath, src, sizeof(fpath) - 1);
+		name_convert(fpath, MANGLE);
 		strupperDOS(fpath);
-		auspr(fpath, name, ext);
-		if (_DH == 0) {
-			memcpy(dest, name, 8);
-			memcpy(dest+8, ext, 3);
-		} else {
+		if (_DH == 0)
+			extract_filename(fpath, dest, dest + 8);
+		else
 			strcpy(dest, fpath);
-		}
 		d_printf("LFN: name convert %s %s %x\n", src, fpath, _DH);
 		break;
 	}

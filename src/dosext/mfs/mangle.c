@@ -481,31 +481,22 @@ BOOL name_ufs_to_dos(char *dest, const char *src)
 /****************************************************************************
 convert a filename to 8.3 format. return True if successful.
 ****************************************************************************/
-BOOL name_convert(char *OutName,char *InName,BOOL mangle, char *MangledMap)
+BOOL name_convert(char *Name, BOOL mangle)
 {
-  /* initially just copy or convert it */
-#if defined KANJI
-  strcpy(OutName, kj_dos_format (InName, False));
-#elif defined HAVE_UNICODE_TRANSLATION
-  name_ufs_to_dos(OutName,InName);
-#else
-  strcpy(OutName,InName);
-#endif
-
   /* check if it's already in 8.3 format */
-  if (is_8_3(OutName))
+  if (is_8_3(Name))
     return(True);
 
   if (!mangle)
     return(False);
 
-  DEBUG(5,("Converted name %s",OutName));
+  DEBUG(5,("Converted name %s",Name));
 
   /* mangle it into 8.3 */
-  push_mangled_name(OutName);
-  mangle_name_83(OutName, MangledMap);
+  push_mangled_name(Name);
+  mangle_name_83(Name, NULL);
 
-  DEBUG(5,("to %s\n",OutName));
+  DEBUG(5,("to %s\n",Name));
   
   return(True);
 }

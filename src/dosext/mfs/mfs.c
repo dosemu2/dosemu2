@@ -816,7 +816,7 @@ mfs_helper(state_t *regs)
    code as well. input: 8.3 filename, output name + ext
    validity of filename was already checked by name_convert.
 */
-static void extract_filename(const char *filename, char *name, char *ext)
+void extract_filename(const char *filename, char *name, char *ext)
 {
   char *dot_pos = strchr(filename, '.');
   size_t slen;
@@ -830,6 +830,15 @@ static void extract_filename(const char *filename, char *name, char *ext)
   memcpy(name, filename, slen);
   memset(name + slen, ' ', 8 - slen);
 
+  if (slen == 0) {
+    /* '.' or '..' */
+    memset(ext, ' ', 3);
+    name[0] = '.';
+    if (filename[1] == '.')
+      name[1] = '.';
+    return;
+  }
+
   slen = 0;
   if (dot_pos) {
     dot_pos++;
@@ -837,22 +846,6 @@ static void extract_filename(const char *filename, char *name, char *ext)
     memcpy(ext, dot_pos, slen);
   }
   memset(ext + slen, ' ', 3 - slen);
-
-#ifndef HAVE_UNICODE_TRANSLATION
-  for (pos = 0; pos < 8; pos++) {
-    char ch = name[pos];
-
-    if (isalphaDOS(ch) && islowerDOS(ch))
-      name[pos] = toupperDOS(ch);
-  }
-
-  for (pos = 0; pos < 3; pos++) {
-    char ch = ext[pos];
-
-    if (isalphaDOS(ch) && islowerDOS(ch))
-      ext[pos] = toupperDOS(ch);
-  }
-#endif
 }
 
 static struct dir_list *make_dir_list(int n)
@@ -964,7 +957,8 @@ static boolean_t convert_compare(char *d_name, char *fname, char *fext,
 
   maybe_mangled = (mname[5] == '~' || mname[5] == '?');
 
-  if (!name_convert(tmpname,d_name,maybe_mangled,NULL))
+  name_ufs_to_dos(tmpname, d_name);
+  if (!name_convert(tmpname, maybe_mangled))
     return FALSE;
 
   namlen = strlen(tmpname);
@@ -977,16 +971,9 @@ static boolean_t convert_compare(char *d_name, char *fname, char *fext,
     if ((namlen == 2) &&
 	(tmpname[1] != '.'))
       return FALSE;
-    memset(fname, ' ', 8);
-    memset(fext, ' ', 3);
-    fname[0] = '.';
-    if (namlen == 2)
-      fname[1] = '.';
   }
-  else {
-    strupperDOS(tmpname);
-    extract_filename(tmpname, fname, fext);
-  }
+  strupperDOS(tmpname);
+  extract_filename(tmpname, fname, fext);
   return compare(fname, fext, mname, mext);
 }
 
@@ -1108,7 +1095,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
  * Another useless specialized parsing routine!
  * Assumes that a legal string is passed in.
  */
-void auspr(const char *filestring, char *name, char *ext)
+static void auspr(const char *filestring, char *name, char *ext)
 {
   const char *bs_pos;
   char *star_pos;
@@ -1711,7 +1698,8 @@ scan_dir(char *path, char *name, int drive)
      then dosname will contain the uppercased name, and
      otherwise the name in the DOS character set */
   is_8_3 = maybe_mangled = 0;
-  if (name_convert(dosname, name, 0, NULL)) {
+  name_ufs_to_dos(dosname, name);
+  if (name_convert(dosname, 0)) {
     is_8_3 = 1;
     /* check if the name is, perhaps, mangled. If not then we don't
        need to mangle the readdir result as it can't be the same */
@@ -1735,13 +1723,11 @@ scan_dir(char *path, char *name, int drive)
   while ((cur_ent = dos_readdir(cur_dir))) {
     char tmpname[NAME_MAX + 1];
 
-    if (is_8_3) {
-      if (!name_convert(tmpname,cur_ent->d_name,maybe_mangled,NULL))
-	continue;
-    } else {
-      if (!name_ufs_to_dos(tmpname,cur_ent->d_long_name))
-	continue;
-    }
+    if (!name_ufs_to_dos(tmpname,cur_ent->d_long_name) && !is_8_3)
+      continue;
+
+    if (is_8_3 && !name_convert(tmpname,maybe_mangled))
+      continue;
 
     /* tmpname now contains the readdir name in the DOS character set */
     if (!strequalDOS(tmpname, dosname)) {
@@ -1754,7 +1740,7 @@ scan_dir(char *path, char *name, int drive)
       */
       if (name_ufs_to_dos(tmpname,cur_ent->d_long_name))
 	continue;
-      name_convert(tmpname,cur_ent->d_long_name,MANGLE,NULL);
+      name_convert(tmpname,MANGLE);
       if (!strequalDOS(tmpname, dosname))
 	continue;
     }

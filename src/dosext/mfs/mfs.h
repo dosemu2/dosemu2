@@ -354,7 +354,7 @@ extern int get_dos_attr(int mode,boolean_t hidden);
 extern int get_unix_attr(int mode, int attr);
 extern void time_to_dos(time_t clock, u_short *date, u_short *time);
 extern time_t time_to_unix(u_short dos_date, u_short dos_time);
-extern void auspr(const char *filestring0, char *name, char *ext);
+extern void extract_filename(const char *filestring0, char *name, char *ext);
 extern struct mfs_dir *dos_opendir(const char *name);
 extern struct mfs_dirent *dos_readdir(struct mfs_dir *);
 extern int dos_closedir(struct mfs_dir *dir);
