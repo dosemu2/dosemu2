@@ -755,6 +755,15 @@ CISH(DPMI_PS2_mouse_callback):
 CISH(DPMI_return_from_PS2_mouse_callback):
 	hlt
 /* ======================= Addr = F800:4A57 (FCA57) */
+	.globl	CISH(DPMI_XMS_call)
+CISH(DPMI_XMS_call):
+	hlt
+	lret
+/* ======================= Addr = F800:4A59 (FCA59) */
+	.globl	CISH(DPMI_return_from_XMS_call)
+CISH(DPMI_return_from_XMS_call):
+	hlt
+/* ======================= Addr = F800:4A5A (FCA5A) */
 	.globl	CISH(DPMI_dummy_end)
 CISH(DPMI_dummy_end):
 

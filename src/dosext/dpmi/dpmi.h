@@ -171,6 +171,7 @@ extern unsigned long pm_block_handle_used;       /* tracking handle */
 extern SEGDESC Segments[];
 /* used to store the dpmi client registers */
 extern RealModeCallBack mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
+extern far_t XMS_call;
 extern char *ldt_buffer;
 extern char *pm_stack;
 

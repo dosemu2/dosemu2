@@ -118,6 +118,7 @@ static int find_cli_in_blacklist(unsigned char *);
 static int dpmi_mhp_intxx_check(struct sigcontext_struct *scp, int intno);
 
 RealModeCallBack mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
+far_t XMS_call;
 
 struct vm86_regs DPMI_rm_stack[DPMI_max_rec_rm_func];
 int DPMI_rm_procedure_running = 0;
@@ -3155,6 +3156,22 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  } else
             _eflags |= CF;
 
+        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_XMS_call)) {
+	  D_printf("DPMI: XMS call to 0x%x:0x%x\n", XMS_call.segment, XMS_call.offset);
+	  save_rm_regs();
+	  REG(eflags) = eflags_VIF(_eflags);
+	  REG(eax) = _eax;
+	  REG(ebx) = _ebx;
+	  REG(ecx) = _ecx;
+	  REG(edx) = _edx;
+	  REG(esi) = _esi;
+	  REG(edi) = _edi;
+	  REG(ebp) = _ebp;
+	  REG(cs) = DPMI_SEG;
+	  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_XMS_call);
+	  in_dpmi_dos_int = 1;
+	  fake_call_to(XMS_call.segment, XMS_call.offset);
+
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_pm)) {
 	  if (in_dpmi_pm_stack) {
 	    in_dpmi_pm_stack--;
@@ -3743,6 +3760,22 @@ void dpmi_realmode_hlt(unsigned char * lina)
     if (config.pm_dos_api) {
 	msdos_post_extender(intr);
     }
+
+    restore_rm_regs();
+    in_dpmi_dos_int = 0;
+
+  } else if (lina == (unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_return_from_XMS_call))) {
+    D_printf("DPMI: Return from XMS call\n");
+
+    DPMI_CLIENT.stack_frame.eflags = 0x0202 | (0x0dd5 & REG(eflags)) |
+      dpmi_mhp_TF;
+    DPMI_CLIENT.stack_frame.eax = REG(eax);
+    DPMI_CLIENT.stack_frame.ebx = REG(ebx);
+    DPMI_CLIENT.stack_frame.ecx = REG(ecx);
+    DPMI_CLIENT.stack_frame.edx = REG(edx);
+    DPMI_CLIENT.stack_frame.esi = REG(esi);
+    DPMI_CLIENT.stack_frame.edi = REG(edi);
+    DPMI_CLIENT.stack_frame.ebp = REG(ebp);
 
     restore_rm_regs();
     in_dpmi_dos_int = 0;

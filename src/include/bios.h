@@ -277,6 +277,8 @@ void            DPMI_return_from_mouse_callback(void);
 void            DPMI_return_from_PS2_mouse_callback(void);
 void            DPMI_exception(void);
 void            DPMI_interrupt(void);
+void		DPMI_XMS_call(void);
+void		DPMI_return_from_XMS_call(void);
 
 void            DPMI_VXD_VMM(void);
 void            DPMI_VXD_PageFile(void);

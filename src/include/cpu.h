@@ -113,6 +113,7 @@ typedef struct {
 #define FP_SEG32(void_ptr)	(((unsigned int)void_ptr >> 4) & 0xffff)
 #define rFAR_PTR(type,far_ptr) ((type)((FP_SEG16(far_ptr) << 4)+(FP_OFF16(far_ptr))))
 #define FARt_PTR(f_t_ptr) ((void*)SEGOFF2LINEAR((f_t_ptr).segment, (f_t_ptr).offset))
+#define MK_FARt(seg, off) ((far_t){(off), (seg)})
 
 #define peek(seg, off)	(READ_WORD(SEGOFF2LINEAR(seg, off)))
 

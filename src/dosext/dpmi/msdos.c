@@ -38,6 +38,7 @@ static struct sigcontext SAVED_REGS;
 static struct sigcontext MOUSE_SAVED_REGS;
 static struct sigcontext VIDEO_SAVED_REGS;
 static struct sigcontext INT15_SAVED_REGS;
+static struct sigcontext INT2f_SAVED_REGS;
 #define S_REG(reg) (SAVED_REGS.reg)
 #endif
 
@@ -161,14 +162,22 @@ static void old_dos_terminate(struct sigcontext_struct *scp, int i)
 
 int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 {
+    D_printf("DPMI: pre_extender: int 0x%x, ax=0x%x\n", intr, _LWORD(eax));
+    DS_MAPPED = 0;
+    ES_MAPPED = 0;
+    if (DPMI_CLIENT.USER_DTA_SEL && intr == 0x21) {
+	switch (_HI(ax)) {	/* functions use DTA */
+	case 0x11: case 0x12:	/* find first/next using FCB */
+	case 0x4e: case 0x4f:	/* find first/next */
+	    MEMCPY_DOS2DOS(DTA_under_1MB, DTA_over_1MB, 0x80);
+	    break;
+	}
+    }
+
     /* only consider DOS and some BIOS services */
     switch (intr) {
-    case 0x10: case 0x15:
-    case 0x20: case 0x21:
-    case 0x25: case 0x26:
-    case 0x33:			/* mouse function */
-	break;
     case 0x2f:
+	INT2f_SAVED_REGS = *scp;
 	if (_LWORD(eax) == 0x1684) {
 	    D_printf("DPMI: Get VxD entry point BX = 0x%04x\n",
 		     _LWORD(ebx));
@@ -256,23 +265,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	return 0;
     case 0x41:			/* win debug */
 	return MSDOS_DONE;
-    default:
-	return 0;
-    }
 
-    if (DPMI_CLIENT.USER_DTA_SEL && intr == 0x21 ) {
-	switch (_HI(ax)) {	/* functions use DTA */
-	case 0x11: case 0x12:	/* find first/next using FCB */
-	case 0x4e: case 0x4f:	/* find first/next */
-	    MEMCPY_DOS2DOS(DTA_under_1MB, DTA_over_1MB, 0x80);
-	    break;
-	}
-    }
-
-    D_printf("DPMI: pre_extender: int 0x%x, ax=0x%x\n", intr, _LWORD(eax));
-    DS_MAPPED = 0;
-    ES_MAPPED = 0;
-    switch (intr) {
     case 0x10:			/* video */
 	VIDEO_SAVED_REGS = *scp;
 	switch (_HI(ax)) {
@@ -956,34 +949,6 @@ void msdos_post_exec(void)
 void msdos_post_extender(int intr)
 {
     D_printf("DPMI: post_extender: int 0x%x\n", intr);
-    switch (intr) {
-    case 0x10:			/* video */
-	if ((VIDEO_SAVED_REGS.eax & 0xffff) == 0x1130) {
-	    /* get current character generator infor */
-	    DPMI_CLIENT.stack_frame.es =
-		ConvertSegmentToDescriptor(REG(es));
-	    return;
-	} else
-	    break;
-    case 0x15:
-	/* we need to save regs at int15 because AH has the return value */
-	if ((INT15_SAVED_REGS.eax & 0xff00) == 0xc000) { /* Get Configuration */
-                if (REG(eflags)&CF)
-                        return;
-                if (!(DPMI_CLIENT.stack_frame.es =
-                         ConvertSegmentToDescriptor(REG(es)))) return;
-                break;
-      }
-        else
-                return;
-    /* only copy buffer for dos services */
-    case 0x21:
-    case 0x25: case 0x26:
-    case 0x33:			/* mouse */
-	break;
-    default:
-	return;
-    }
 
     if (DPMI_CLIENT.USER_DTA_SEL && intr == 0x21 ) {
 	switch (S_HI(ax)) {	/* functions use DTA */
@@ -1023,8 +988,37 @@ void msdos_post_extender(int intr)
 		(int)src, (int)dst, len);
 	MEMCPY_DOS2DOS(dst, src, len);
     } 
-	       
+
     switch (intr) {
+    case 0x10:			/* video */
+	if ((VIDEO_SAVED_REGS.eax & 0xffff) == 0x1130) {
+	    /* get current character generator infor */
+	    DPMI_CLIENT.stack_frame.es =
+		ConvertSegmentToDescriptor(REG(es));
+	    return;
+	} else
+	    break;
+    case 0x15:
+	/* we need to save regs at int15 because AH has the return value */
+	if ((INT15_SAVED_REGS.eax & 0xff00) == 0xc000) { /* Get Configuration */
+                if (REG(eflags)&CF)
+                        return;
+                if (!(DPMI_CLIENT.stack_frame.es =
+                         ConvertSegmentToDescriptor(REG(es)))) return;
+                break;
+      }
+        else
+                return;
+    case 0x2f:
+	switch (LO_WORD(INT2f_SAVED_REGS.eax)) {
+	    case 0x4310:
+                XMS_call = MK_FARt(REG(es), LWORD(ebx));
+                DPMI_CLIENT.stack_frame.es = DPMI_CLIENT.DPMI_SEL;
+                DPMI_CLIENT.stack_frame.ebx = DPMI_OFF + HLT_OFF(DPMI_XMS_call);
+		break;
+	}
+	return;
+
     case 0x21:
 	in_dos_21--;
 	switch (S_HI(ax)) {
