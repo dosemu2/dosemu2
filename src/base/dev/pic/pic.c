@@ -855,7 +855,7 @@ g_printf("+%d",(int)pic_ilevel);
           }
         pic_isr &= PIC_IRQALL;    /*  levels 0 and 16-31 are Auto-EOI  */
         serial_run();           /*  delete when moved to timer stuff */
-        if(pic_irr) run_irqs();
+        pic_run();
 #if 0
 #ifdef USING_NET
         /* check for available packets on the packet driver interface */

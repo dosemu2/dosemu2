@@ -1,3 +1,20 @@
+2002/03/19 ver 1.1.3 released
+	From Stas
+	- We must not sleep() immediately after mouse event happened, we
+	  have to let the program to handle the event (src/base/async/int.c).
+	- src/command detect.h adjustment and assemble tools which are not
+	  produced for coopthreads by default (isemu.com, mgarrot.com and
+	  fossil.com) (adjusted by Bart)
+	- remove wrong check for sb for dma_run in dpmi.c, use pic_run macro
+	  in pic.c
+	From Eric
+	- keyboard fix for int16.c
+	From Bart
+	- re-enable KEYBUF_HACK while taking care of pause key.
+	- regenerated documentation/DANG
+	- moved some of the more extensive unicode keyboard debug output
+	  to a higher level
+	- made compilation with gcc 2.7.2 possible for simx86
 2002/03/10 ver 1.1.2.9 unofficial pre-release
 	From Stas
 	- fix for incorrect Wolfenstein 3D Adlib detection

@@ -2538,7 +2538,7 @@ void dpmi_init()
     }
     run_dpmi();
     serial_run();
-    if (config.sb_irq) dma_run();
+    dma_run();
     run_irqs();
 #ifdef USE_SBEMU
     run_sb(); /* Suggested Karcher */

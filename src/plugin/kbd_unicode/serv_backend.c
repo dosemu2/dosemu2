@@ -43,7 +43,7 @@
  * shouldn't affect 'hardware' behaviour, but this seems the only way of knowing how
  * fast DOS is processing keystrokes, in particular for pasting.
  */
-#define KEYBUF_HACK 0
+#define KEYBUF_HACK 1
 
 /********** QUEUE ***********/
 
@@ -309,7 +309,8 @@ void int_check_queue(void)
 
    if (!port60_ready
 #if KEYBUF_HACK
-       && !bios_keybuf_full()
+       && (!bios_keybuf_full() || 
+	   (READ_BYTE(BIOS_KEYBOARD_FLAGS2) & PAUSE_MASK))
 #endif
        )
    {

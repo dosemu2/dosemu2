@@ -693,7 +693,7 @@ Alistair MacDonald
    
       $_chipset = "s3"        # one of: plainvga, trident, et4000, diamond, s3,
                               # avance, cirrus, matrox, wdvga, paradise, ati,
-                          # svgalib
+                              # sis, svgalib
 
    Note, `s3' is only an example, you must set the correct video chip
    else it most like will crash your screen.

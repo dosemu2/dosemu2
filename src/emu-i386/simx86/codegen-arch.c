@@ -3037,7 +3037,7 @@ unsigned char *CloseAndExec(unsigned char *PC, TNode *G, int mode, int ln)
 "		rdtsc\n"
 "		movl	%%eax,%0\n"	/* save time before execution   */
 "		movl	%%edx,%1\n"
-#if GCC_VERSION_CODE >= 2095
+#if GCC_VERSION_CODE >= 2007
 "		.byte	0x68\n"		/* push immediate RA		*/
 "		.long	2f\n"
 "		pushl	%3\n"		/* push and get TheCPU flags    */

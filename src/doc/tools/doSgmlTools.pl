@@ -11,7 +11,7 @@ use strict;
 use Getopt::Std;
 use File::Basename;
 
-my ($openJadeOptions) = "-V%generate-article-toc% -V%section-autolabel% -V%shade-verbatim% \\\"-V%indent-screen-lines%='    '\\\" -V'(define (toc-depth nd) 3 )'";
+my ($openJadeOptions) = "-V %generate-article-toc% -V %section-autolabel% -V %shade-verbatim% -V %indent-screen-lines%='    ' -V '(define (toc-depth nd) 3 )'";
 my ($lynxOptions) = "-force_html -nolist -dump";
 
 my ($softVer) = "0.99";
@@ -248,15 +248,15 @@ sub convertToHTML {
     
   } elsif (exists $versions{'sgmltools'} && $versions{'sgmltools'} ge "3.0") {
     # Assume Version 3 and above are.
-    $command = "sgmltools -b html -jade-opt=\"-Vnochunks $openJadeOptions -o $theOutputFile \" $theFile";
+    $command = "sgmltools -b html -jade-opt=\"-V nochunks $openJadeOptions -o $theOutputFile \" $theFile";
 
   } elsif (exists $versions{'openjade'} && $versions{'openjade'} ge "1.3") {
     # Try running openjade (>= 1.3) directly.
-    $command = "openjade -t sgml \"-Vnochunks $openJadeOptions\"  -d " .$theStylesheets{'html'} ." $theFile > $theOutputFile";
+    $command = "openjade -t sgml -V nochunks $openJadeOptions  -d " .$theStylesheets{'html'} ." $theFile > $theOutputFile";
 
   } elsif (exists $versions{'openjade'}) {
     # Try running openjade directly.
-    $command = "openjade -t sgml -Vnochunks $openJadeOptions  -d " .$theStylesheets{'html'} ." $theFile > $theOutputFile";
+    $command = "openjade -t sgml -V nochunks $openJadeOptions  -d " .$theStylesheets{'html'} ." $theFile > $theOutputFile";
 
   } elsif (exists $versions{'jade'}) {
     # Try running jade directly.

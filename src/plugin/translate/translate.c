@@ -509,7 +509,8 @@ static void unicode_to_charset_callback(void *p, t_unicode approximation)
 {
 	struct unicode_to_charset_state *state = p;
 
-	u_printf("U: symbol %04x approximation: %04x\n",
+	if (debug_level('u') > 1) 
+		u_printf("U: symbol %04x approximation: %04x\n",
 		state->symbol, approximation);
 	state->result = state->chars->ops->unicode_to_charset(
 		state->ostate, state->chars, 0, approximation, 
@@ -564,7 +565,7 @@ size_t unicode_to_charset(struct char_set_state *ostate, t_unicode symbol,
 		}
 	}
 
-	if (debug_level('u')) {
+	if (debug_level('u') > 1) {
 		int i;
 		u_printf("U: unicode->charset charset:%s symbol:%04x -> char:",
 			state.chars->names[0], symbol);
@@ -603,7 +604,7 @@ size_t charset_to_unicode(struct char_set_state *state,
 	}
 	result = chars->ops->charset_to_unicode(
 		state, chars, 0, symbol, inbuf, in_bytes_left);
-	if (debug_level('u')) {
+	if (debug_level('u') > 1) {
 		int i;
 		u_printf("U: charset->unicode charset:%s ", chars->names[0]);
 		for(i = 0; (result != -1) && (i < result); i++) {

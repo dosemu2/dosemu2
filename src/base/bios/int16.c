@@ -95,7 +95,7 @@ static unsigned get_key(extended)
         /* check for wrap around	*/
         if (keyptr == READ_WORD(BIOS_KEYBOARD_BUFFER_END)) {
           /* wrap - get buffer start	*/
-          keyptr = BIOS_KEYBOARD_BUFFER_START; 
+          keyptr = READ_WORD(BIOS_KEYBOARD_BUFFER_START); 
         }
         /* save it as new pointer	*/
         WRITE_WORD(BIOS_KEYBOARD_BUFFER_HEAD, keyptr);

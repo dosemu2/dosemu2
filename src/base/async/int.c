@@ -1946,7 +1946,7 @@ static void int33(u_char i) {
  * garrot control when the dos app is polling the mouse and the mouse is 
  * taking a break. */
   
-  static unsigned short int oldx=0, oldy=0, trigger=0;
+  static unsigned short int oldx=0, oldy=0, trigger=0, trigger1=0;
    
 /* Firstly do the actual mouse function. */   
 /* N.B. This code only works with the intdrv since default_interrupt() does not
@@ -1976,9 +1976,9 @@ static void int33(u_char i) {
  */
    if (LWORD(eax) ==0x0003)  {
      if (LWORD(ebx) == 0 && oldx == LWORD(ecx) && oldy == LWORD(edx) ) 
-        trigger++;
+        trigger1++;
       else  { 
-        trigger=0;
+        trigger1=0;
         oldx = LWORD(ecx);
         oldy = LWORD(edx);
       } 
@@ -1986,10 +1986,13 @@ static void int33(u_char i) {
 m_printf("Called/ing the mouse with AX=%x \n",LWORD(eax));
 /* Ok now we test to see if the mouse has been taking a break and we can let the 
  * system get on with some real work. :-) */
-   if (config.hogthreshold && trigger >= config.hogthreshold)  {
-     m_printf("Ignoring the quiet mouse.\n");
-     usleep(INT2F_IDLE_USECS);
-     trigger=0;
+   if (trigger1 >= config.hogthreshold*200) {
+     if (config.hogthreshold && ++trigger >= config.hogthreshold)  {
+       m_printf("Ignoring the quiet mouse.\n");
+       usleep(INT2F_IDLE_USECS);
+       trigger=0;
+     }
+     trigger1--;
    }
 }
 

@@ -10,11 +10,12 @@ export LD=$(CC)
 
 D=$(REALTOPDIR)/$(THISVERSION)/commands
 
-COM=$(D)/exitemu.com $(D)/vgaoff.com $(D)/vgaon.com $(D)/eject.com \
-	$(D)/bootoff.com $(D)/booton.com $(D)/fossil.com \
+COM1=$(D)/exitemu.com $(D)/vgaoff.com $(D)/vgaon.com $(D)/eject.com \
+	$(D)/bootoff.com $(D)/booton.com \
 	$(D)/ecpuon.com $(D)/ecpuoff.com \
-	$(D)/uchdir.com $(D)/speed.com $(D)/isemu.com $(D)/ugetcwd.com \
-	$(D)/system.com $(D)/mgarrot.com
+	$(D)/uchdir.com $(D)/speed.com $(D)/ugetcwd.com \
+	$(D)/system.com
+COM2=$(D)/isemu.com $(D)/mgarrot.com $(D)/fossil.com
 SYS=$(D)/emufs.sys $(D)/ems.sys $(D)/cdrom.sys $(D)/dumpconf.sys $(D)/aspi.sys
 
 # --------------- begin 'tcc via dosemu' --------------------
@@ -48,9 +49,9 @@ PD=precompiled
 
 INDIR=-I../include
 
-all: $(SYS)
+all: $(COM2) $(SYS)
 
-dosbin: $(COM) $(SYS)
+dosbin: $(COM1) $(COM2) $(SYS)
 
 $(D)/%.sys: %.S detect.h
 	$(LD) $(INDIR) -traditional -Wa,-a -Wl,-Ttext,0,-e,_start16,--oformat,binary -nostdlib -s -o $@ $< > $*.s.out

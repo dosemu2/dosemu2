@@ -34,13 +34,24 @@ GROUP:		Video doc/DANG/summary_Video env/video/vc.c
 			env/video/trident.c env/video/vga.c 
 			env/video/vgaemu.c include/vgaemu.h
 			env/video/instremu.c
-GROUP:		Keyboard doc/DANG/summary_Keyboard 
-			base/keyboard/keymaps.c
-			base/keyboard/serv_xlat.c
-			base/keyboard/serv_backend.c
-			base/keyboard/serv_8042.c
-			base/keyboard/keyb_raw.c
-			base/keyboard/keyb_slang.c
+GROUP:		New_Keyboard doc/DANG/summary_New_Keyboard
+			plugin/kbd_unicode/keyboard.c
+			plugin/kbd_unicode/keymaps.c
+			plugin/kbd_unicode/serv_xlat.c
+			plugin/kbd_unicode/serv_backend.c
+			plugin/kbd_unicode/serv_8042.c
+                        plugin/kbd_unicode/keyb_clients.c
+                        plugin/kbd_unicode/keyb_none.c
+			plugin/kbd_unicode/keyb_raw.c
+			plugin/term/keyb_slang.c
+			plugin/term/term_core.c
+GROUP:          Old_Keyboard doc/DANG/summary_Old_Keyboard
+                        plugin/keyboard/keymaps.c
+                        plugin/keyboard/serv_xlat.c
+                        plugin/keyboard/serv_backend.c
+                        plugin/keyboard/serv_8042.c
+                        plugin/keyboard/keyb_raw.c
+                        plugin/keyboard/keyb_slang.c
 GROUP:		Misc doc/DANG/summary_Misc dosext/misc/emm.c 
 			dosext/misc/xms.c 
 			base/async/int.c include/int.h
@@ -65,6 +76,7 @@ GROUP:		CPU_Intel doc/DANG/summary_CPU_Intel
 			emu-i386/fake_cpu.c
 			emu-i386/n_ports.c
 			emu-i386/cputime.c
+			emu-i386/simx86/sigsegv.c
 GROUP:		Serial doc/DANG/summary_Serial 
 			base/serial/ser_defs.h base/serial/ser_init.c
 			base/serial/ser_ports.c base/serial/ser_irq.c

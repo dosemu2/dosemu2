@@ -10,7 +10,7 @@
 <firstname> Alistair MacDonald, &lt;alistair@slitesys.demon.co.uk&gt; </firstname>
 </author>
 
-<pubdate> version dosemu-1.0.0.9 </pubdate>
+<pubdate> version dosemu-1.1.3 </pubdate>
 
 <abstract>
 
@@ -115,17 +115,6 @@ These are the functions defined in emu.c.
 call the emulate function by way of the dll headers. Always make sure
 that this line is the first of emu.c and link emu.o as the first object
 file to the lib
-</para>
-
-</sect3>
-
-<sect3>
-<title>SIG_int</title>
-
-<para>
-The IRQ numbers to monitor are taken from config.sillyint, each bit
-corresponding to one IRQ. The higher 16 bit are defining the use of
-SIGIO
 </para>
 
 </sect3>
@@ -446,46 +435,41 @@ value. These will be modified by the config parser.
 </sect3>
 
 <sect3>
-<title>config_init</title>
+<title>register_config_scrub</title>
 
 <para>
-This is called to parse the command-line arguments and config
-files. 
+register a function Enforce consistency upon the `config` structure after
+all values have been set to remove silly option combinations
 </para>
 
 </sect3>
 
 <sect3>
-<title>parse_debugflags</title>
+<title>unregister_config_scrub</title>
 
 <para>
-Arguments are:
-
-
-<itemizedlist>
-<listitem>
-
-<para>
-  s - string of options.
-</para>
-</listitem>
-
-</itemizedlist>
-
-This part is fairly flexible...you specify the debugging
-flags you wish with -D string.  The string consists of the following
-characters: +   turns the following options on (initial state) -
-turns the following options off a   turns all the options on/off,
-depending on whether +/- is set 0-9 sets debug levels (0 is off, 9 is
-most verbose) #   where # is a letter from the valid option list (see
-docs), turns that option off/on depending on the +/- state.
+Complement of register_config_scrub 
+This removes a scrub function.
 </para>
 
+</sect3>
+
+<sect3>
+<title>config_scrub</title>
+
 <para>
-Any option letter can occur in any place.  Even meaningless combinations,
-such as "01-a-1+0vk" will be parsed without error, so be careful. Some
-options are set by default, some are clear. This is subject to my whim.
-You can ensure which are set by explicitly specifying.
+Enforce consistency upon the `config` structure after
+all values have been set to remove silly option combinations
+</para>
+
+</sect3>
+
+<sect3>
+<title>config_init</title>
+
+<para>
+This is called to parse the command-line arguments and config
+files. 
 </para>
 
 </sect3>
@@ -592,6 +576,12 @@ and from WINDOWS 3.1 are handled here.
 All here unhandled exceptions are reflected to do_cpu_exception()
 </para>
 
+<para>
+Note for cpu-emu: exceptions generated from the emulator are handled
+here. 'Real' system exceptions (e.g. from an emulator fault) are
+redirected to emu_dpmi_fault() in fullemu mode
+</para>
+
 </sect3>
 
 </sect2>
@@ -644,24 +634,9 @@ dpmi_control is called only from dpmi_run when in_dpmi_dos_int==0
 which we are abandoning now. Especially the 'accessed-bit' will get
 updated in the ldt-cache with the code below.
 Most DPMI-clients fortunately _are_ using LAR also to get this info,
-however, some do not. Some of those which do _not_, atleast use the
+however, some do not. Some of those which do _not_, at least use the
 DPMI-GetDescriptor function, so this may solve the problem.
 (Hans Lermen, July 1996)
-</para>
-
-<para>
------
-</para>
-
-<para>
- Handling of the virtual interrupt flag is still not correct and there
-are many open questions since DPMI specifications are unclear in this
-point.
-An example: If IF=1 in protected mode and real mode code is called
-which is disabling interrupts via cli and returning to protected
-mode, is IF then still one or zero?
-I guess I have to think a lot about this and to write a small dpmi
-client running under a commercial dpmi server :-).
 </para>
 
 <para>
@@ -828,7 +803,7 @@ These are the functions defined in env/video/X.c.
 </para>
 
 <sect3>
-<title>X_close</title>
+<title>X_init</title>
 
 <para>
 Initialize everything X-related.
@@ -2376,10 +2351,395 @@ Arguments are:
 </sect1>
 
 <sect1>
-<title>The Keyboard group of Modules</title>
+<title>The New_Keyboard group of Modules</title>
 
 <para>
-All of the Keyboard handling code is in the "keyboard" subdirectory.
+Most of the New Keyboard handling code is in the "plugin/kbd_unicode" subdirectory.
+</para>
+
+<sect2>
+<title>Functions in plugin/kbd_unicode/serv_xlat.c</title>
+
+<para>
+These are the functions defined in plugin/kbd_unicode/serv_xlat.c.
+</para>
+
+<sect3>
+<title>compute_keynum</title>
+
+<para>
+The task of compute_keynum() is to 'collect' keyboard bytes (e.g.
+0xe0 prefixes) until it thinks it has assembled an entire keyboard
+event. The entire keyboard event is then returned, otherwise
+NUM_VOID is returned.
+</para>
+
+</sect3>
+
+<sect3>
+<title>translate_key</title>
+
+<para>
+translate_key takes a keysym event and calculates the appropriate
+bios translation.
+</para>
+
+<para>
+As a side effect translate_key updates the apropriate pieces of state
+to reflect the current keyboard state.
+</para>
+
+<para>
+Calling translate_key twice on the same data is likely to be hazardous.
+</para>
+
+</sect3>
+
+<sect3>
+<title>put_rawkey</title>
+
+<para>
+This function sends a raw keycode byte, e.g. read directly from the hardware,
+to DOS. It is both queued for the port60h emulation and processed for the
+BIOS keyboard buffer, using the national translation tables etc.
+</para>
+
+<para>
+For DOS applications using int16h we will therefore not have to load
+KEYB.EXE, others (e.g. games) need their own drivers anyway.
+</para>
+
+<para>
+This function is used if we are at the console and config.rawkeyboard=on.
+</para>
+
+</sect3>
+
+<sect3>
+<title>move_keynum</title>
+
+<para>
+This does all the work of sending a key event to DOS.
+Either pressing a key releasing one.  The key to move is
+the key specified by keynum.
+</para>
+
+<para>
+keynum - the keynum from keynum.h indicating a physical key
+make  - TRUE for key press, FALSE for release
+</para>
+
+<para>
+Applications using int16h will always see the appropriate ASCII code
+for the given keyboard key and the current keyboard state.  All the
+chracter translation is done for you to keep from reporting
+inconsistent key events.
+</para>
+
+<para>
+An emulated hardware scancode is also sent to port60h.
+</para>
+
+<para>
+Note that you have to send both MAKE (press) and BREAK (release) events.
+If no BREAK codes are available (e.g. terminal mode), send them
+immediately after the MAKE codes.
+</para>
+
+</sect3>
+
+<sect3>
+<title>keysym_to_keynum</title>
+
+<para>
+Allows peeking into the keytables.
+This returns the keynum a given keysym sits on.
+</para>
+
+</sect3>
+
+<sect3>
+<title>move_key</title>
+
+<para>
+This does all the work of sending a key event to DOS.
+Either pressing a key releasing one.  The key to move is
+the key that is labeled with the specified keysym.
+</para>
+
+<para>
+key  - the keysym, one of the KEY_ constants from new-kbd.h
+make  - TRUE for key press, FALSE for release
+</para>
+
+<para>
+Applications using int16h will always see the appropriate ASCII code
+for the given keyboard key and the current keyboard state.  All the
+chracter translation is done for you to keep from reporting
+inconsistent key events.
+</para>
+
+<para>
+An emulated hardware scancode is also sent to port60h.
+</para>
+
+<para>
+Note that you have to send both MAKE (press) and BREAK (release) events.
+If no BREAK codes are available (e.g. terminal mode), send them
+immediately after the MAKE codes.
+</para>
+
+</sect3>
+
+<sect3>
+<title>put_symbol</title>
+
+<para>
+This does all the work of sending a key event to DOS.
+sym -- The unicode value of the symbol you want to send
+</para>
+
+<para>
+Applications using int16h will always see the symbol passed
+here, if it is representable in the current dos character set.  The
+appropriate scancodes are generated automatically to keep the
+keyboard code consistent.  
+</para>
+
+<para>
+An emulated hardware scancode is also sent to port60h.
+</para>
+
+<para>
+Note that you have to send both MAKE (press) and BREAK (release) events.
+If no BREAK codes are available (e.g. terminal mode), send them
+immediately after the MAKE codes.
+</para>
+
+</sect3>
+
+<sect3>
+<title>put_modified_symbol</title>
+
+<para>
+This does all the work of sending a key event to DOS.
+sym -- The unicode value of the symbol you want to send
+modifiers  -- modifiers like alt etc you what to change your symbol with.
+</para>
+
+<para>
+This function is a concession to the reality, in which key events
+are a composed of active modifiers, and a key label.
+</para>
+
+<para>
+This function behaves as put_symbol does, except before pressing
+the key it adds the specified modifiers to the modifiers it would
+normally use.
+</para>
+
+<para>
+For cases where the symbol can only be created by an alt# combination
+or by pressing a dead key (Basically any case where more than one
+key is requried, after setting the shiftstate) it gives up and just
+sends the symbol.
+</para>
+
+<para>
+Note that you have to send both MAKE (press) and BREAK (release) events.
+If no BREAK codes are available (e.g. terminal mode), send them
+immediately after the MAKE codes.
+</para>
+
+</sect3>
+
+<sect3>
+<title>get_shiftstate</title>
+
+<para>
+This simply reads the keyboard server's shift state.
+</para>
+
+<para>
+This is intended to be used in conjunction with set_shiftstate
+to sync up a shiftstate with a source of key events.
+</para>
+
+<para>
+With the addition of this function the keyboard inteface is clean enough
+so if needed a completly different translation engine can be dropped in
+to support a totally different environment (windows or whatever).
+</para>
+
+</sect3>
+
+<sect3>
+<title>set_shiftstate</title>
+
+<para>
+This simply sets the keyboard server's shift state.
+</para>
+
+<para>
+If there are shiftstate bits you want to keep fixed simply grab them with 
+get_shiftstate, before calling this function.
+</para>
+
+<para>
+This changes the keyboard flags by generating the appropriate 
+shift key make/break codes that normally come along with such
+changes. So this function should be safe in any context.
+</para>
+
+<para>
+Note also that you can't simply write to the shiftstate variable
+instead of using this function.
+</para>
+
+</sect3>
+
+</sect2>
+
+<sect2>
+<title>Functions in plugin/kbd_unicode/keyb_clients.c</title>
+
+<para>
+These are the functions defined in plugin/kbd_unicode/keyb_clients.c.
+</para>
+
+<sect3>
+<title>keyb_client_init</title>
+
+<para>
+Figures out which keyboard client to use and initialises it.
+</para>
+
+<para>
+First it calls the probe method to see if it should use the client,
+Then it call init to set that client up.
+</para>
+
+<para>
+If probe or init fails it trys another client.
+</para>
+
+<para>
+Eventually falling back to Keyboard_none a dummy client, which does nothing.
+</para>
+
+</sect3>
+
+</sect2>
+
+<sect2>
+<title>Functions in plugin/kbd_unicode/keyb_none.c</title>
+
+<para>
+These are the functions defined in plugin/kbd_unicode/keyb_none.c.
+</para>
+
+<sect3>
+<title>none_probe</title>
+
+<para>
+Succeed if we can run the dummy keyboard client, (we always can).
+</para>
+
+</sect3>
+
+</sect2>
+
+<sect2>
+<title>Functions in plugin/kbd_unicode/keyb_raw.c</title>
+
+<para>
+These are the functions defined in plugin/kbd_unicode/keyb_raw.c.
+</para>
+
+<sect3>
+<title>raw_keyboard_init</title>
+
+<para>
+Initialize the keyboard for RAW mode.
+</para>
+
+</sect3>
+
+<sect3>
+<title>raw_keyboard_reset</title>
+
+<para>
+Reset the keyboard shiftstate to match the keyboard LED's
+</para>
+
+</sect3>
+
+</sect2>
+
+<sect2>
+<title>Functions in plugin/term/keyb_slang.c</title>
+
+<para>
+These are the functions defined in plugin/term/keyb_slang.c.
+</para>
+
+<sect3>
+<title>setup_pc_scancode_mode</title>
+
+<para>
+Initialize the keyboard in pc scancode mode.
+This functionality is ideal but rarely supported on a terminal.
+</para>
+
+</sect3>
+
+<sect3>
+<title>exit_pc_scancode_mode</title>
+
+<para>
+Set the terminal back to a keyboard mode other
+programs can understand.
+</para>
+
+</sect3>
+
+<sect3>
+<title>do_pc_scancode_getkeys</title>
+
+<para>
+Set the terminal back to a keyboard mode other
+programs can understand.
+</para>
+
+</sect3>
+
+<sect3>
+<title>slang_keyb_init()</title>
+
+<para>
+Code is called at start up to set up the terminal line for non-raw mode.
+</para>
+
+</sect3>
+
+<sect3>
+<title>slang_keyb_probe()</title>
+
+<para>
+Code is called at start up to see if we can use the slang keyboard.
+</para>
+
+</sect3>
+
+</sect2>
+
+</sect1>
+
+<sect1>
+<title>The Old_Keyboard group of Modules</title>
+
+<para>
+All of the Old Keyboard handling code is in the "plugin/keyboard" subdirectory.
 </para>
 
 <para>
@@ -2387,7 +2747,7 @@ Latest addition is SLANG.
 </para>
 
 <sect2>
-<title>Remarks in base/keyboard/keymaps.c</title>
+<title>Remarks in plugin/keyboard/keymaps.c</title>
 
 <para>
 The DEAD codes must refer to keys that don't exist on any language
@@ -2410,10 +2770,10 @@ Jon Tombs jon@gtex02.us.es
 </sect2>
 
 <sect2>
-<title>Functions in base/keyboard/serv_xlat.c</title>
+<title>Functions in plugin/keyboard/serv_xlat.c</title>
 
 <para>
-These are the functions defined in base/keyboard/serv_xlat.c.
+These are the functions defined in plugin/keyboard/serv_xlat.c.
 </para>
 
 <sect3>
@@ -2489,10 +2849,10 @@ this function.
 </sect2>
 
 <sect2>
-<title>Functions in base/keyboard/keyb_raw.c</title>
+<title>Functions in plugin/keyboard/keyb_raw.c</title>
 
 <para>
-These are the functions defined in base/keyboard/keyb_raw.c.
+These are the functions defined in plugin/keyboard/keyb_raw.c.
 </para>
 
 <sect3>
@@ -2507,10 +2867,10 @@ Initialize the keyboard for RAW mode.
 </sect2>
 
 <sect2>
-<title>Functions in base/keyboard/keyb_slang.c</title>
+<title>Functions in plugin/keyboard/keyb_slang.c</title>
 
 <para>
-These are the functions defined in base/keyboard/keyb_slang.c.
+These are the functions defined in plugin/keyboard/keyb_slang.c.
 </para>
 
 <sect3>
@@ -2736,6 +3096,17 @@ address, reason, etc.
 <para>
 These are the functions defined in arch/linux/async/signal.c.
 </para>
+
+<sect3>
+<title>SIG_init</title>
+
+<para>
+The IRQ numbers to monitor are taken from config.sillyint, each bit
+corresponding to one IRQ. The higher 16 bit are defining the use of
+SIGIO
+</para>
+
+</sect3>
 
 <sect3>
 <title>signal_init</title>
@@ -3485,6 +3856,16 @@ port I/O to ports not opened for I/O, etc ...
 
 </sect3>
 
+<sect3>
+<title>loopstep_run_vm86</title>
+
+<para>
+Here we collect all stuff, that has to be executed within
+_one_ pass (step) of a loop containing run_vm86().
+</para>
+
+</sect3>
+
 </sect2>
 
 <sect2>
@@ -3540,10 +3921,9 @@ gettimeofday() for 486 and TSC for pentium
 <title>GETusTIME(sc)</title>
 
 <para>
-GETusTIME returns the DOS ('stretched') time with 1-usec resolution
+GETusTIME returns the DOS time with 1-usec resolution
 using GETcpuTIME to get the implementation-dependent CPU time.
-The 'sc' parameter controls the granularity of the stretching
-algorithm (not yet there, see the docs)
+The 'sc' parameter is unused.
 </para>
 
 </sect3>
@@ -3552,9 +3932,9 @@ algorithm (not yet there, see the docs)
 <title>GETtickTIME(sc)</title>
 
 <para>
-GETtickTIME returns the DOS (stretched) time with 838ns resolution
+GETtickTIME returns the DOS time with 838ns resolution
 using GETcpuTIME to get the implementation-dependent CPU time.
-The 'sc' parameter works like in GETusTIME.
+The 'sc' parameter is unused.
 </para>
 
 </sect3>
@@ -3639,6 +4019,25 @@ avoid overflows in calculations, produce more readable and more easily
 comparable debug log files, and also because only int0x1a and BIOS
 timer require knowledge of the actual time, PIT and PIC are not sensitive.
 </para>
+
+</sect2>
+
+<sect2>
+<title>Functions in emu-i386/simx86/sigsegv.c</title>
+
+<para>
+These are the functions defined in emu-i386/simx86/sigsegv.c.
+</para>
+
+<sect3>
+<title>dosemu_fault(int, struct sigcontext_struct);</title>
+
+<para>
+All CPU exceptions (except 13=general_protection from V86 mode,
+which is directly scanned by the kernel) are handled here.
+</para>
+
+</sect3>
 
 </sect2>
 
@@ -4387,7 +4786,6 @@ pic_dos_time is advanced to the earliest time scheduled.
 <para>
 pic_sched schedules an interrupt for activation after a designated
 time interval.  The time measurement is in unis of 1193047/second,
-( or if using MONOTON_MICRO_TIMING in units of PIT_TICK_RATE/second )
 the same rate as the pit counters.  This is convenient for timer
 emulation, but can also be used for pacing other functions, such as
 serial emulation, incoming keystrokes, or video updates.  Some sample 
