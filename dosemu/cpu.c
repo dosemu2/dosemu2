@@ -11,12 +11,15 @@
  * taken over by:
  *          Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/11/13 00:40:45 $
- * $Source: /home/src/dosemu0.60/RCS/cpu.c,v $
- * $Revision: 2.10 $
+ * $Date: 1995/01/14 15:29:17 $
+ * $Source: /home/src/dosemu0.60/dosemu/RCS/cpu.c,v $
+ * $Revision: 2.11 $
  * $State: Exp $
  *
  * $Log: cpu.c,v $
+ * Revision 2.11  1995/01/14  15:29:17  root
+ * New Year checkin.
+ *
  * Revision 2.10  1994/11/13  00:40:45  root
  * Prep for Hans's latest.
  *
@@ -220,24 +223,16 @@
 #include "termio.h"
 #include "emu.h"
 #include "port.h"
+#include "int.h"
 
 #ifdef DPMI
 #include "../dpmi/dpmi.h"
 #endif
 
-extern void queue_hard_int(int i, void (*), void (*));
-extern inline void do_int(int);
-extern int int_queue_running;
-extern void int_queue_run();
 extern void xms_control(void);
-
-extern inline int can_revector(int);
-
 
 static struct vec_t orig[256];		/* "original" interrupt vectors */
 static struct vec_t snapshot[256];	/* vectors from last snapshot */
-
-extern u_char in_sigsegv, in_sighandler, ignore_segv;
 
 /* this is the array of interrupt vectors */
 struct vec_t {
@@ -278,11 +273,6 @@ cpu_init(void)
     if (!can_revector(i) && i!=0x21)
       set_revectored(i, &vm86s.int_revectored);
   set_revectored(0x0c, &vm86s.int21_revectored);
-
-#if 0 /* 94/07/02 Looked after in helper fnx... I think :-) */
-  if(config.hogthreshold)
-    set_revectored(0x16, &vm86s.int_revectored);
-#endif
 
 #ifdef INTERNAL_EMS
   set_revectored(0x3e, &vm86s.int21_revectored);

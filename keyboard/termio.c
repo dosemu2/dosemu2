@@ -20,11 +20,14 @@
  * DANG_BEGIN_CHANGELOG
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/11/06 02:36:40 $
- * $Source: /home/src/dosemu0.60/keyboard/termio.c,v $
- * $Revision: 1.1 $
+ * $Date: 1995/01/14 15:31:03 $
+ * $Source: /home/src/dosemu0.60/keyboard/RCS/termio.c,v $
+ * $Revision: 1.2 $
  * $State: Exp $
  * $Log: termio.c,v $
+ * Revision 1.2  1995/01/14  15:31:03  root
+ * New Year checkin.
+ *
  * Revision 1.1  1994/11/06  02:36:40  root
  * Initial revision
  *
@@ -151,6 +154,10 @@
  * DANG_END_CHANGELOG
  */
 
+#ifdef USE_SLANG
+#define USE_SLANG_KEYS
+#endif
+
 #include <stdio.h>
 #include <unistd.h>
 #include <linux/utsname.h>
@@ -161,7 +168,9 @@
 #include <string.h>
 #include <ctype.h>
 #include <sys/time.h>
+#ifndef USE_SLANG_KEYS
 #include <ncurses.h>
+#endif
 #include <sys/mman.h>
 #include <signal.h>
 #include <sys/stat.h>
@@ -178,17 +187,11 @@
 #include "dosio.h"
 #include "cpu.h"
 #include "keymaps.h"
+#include "int.h"
 #ifdef NEW_PIC
 #include "../timer/pic.h"
 #endif
 
-#ifdef USE_SLANG
-#define USE_SLANG_KEYS
-#endif
-
-/* int15 fn=4f will clear CF if scan code should not be used,
-   I set keepkey to reflect CF */
-u_char keepkey = 1;
 
 inline void child_set_flags(int);
 
@@ -209,13 +212,9 @@ void convascii(int *);
 /* Was a toggle key already port in'd */
 u_char ins_stat = 0, scroll_stat = 0, num_stat = 0, caps_stat = 0;
 
-extern struct config_info config;
-
 extern struct screen_stat scr_state;	/* main screen status variables */
 
 extern int sizes;		/* this is DEBUGGING code */
-
-extern int ignore_segv;
 
 unsigned int convscanKey(unsigned char);
 unsigned int queue;
@@ -329,6 +328,7 @@ int kbcount = 0;
 unsigned char kbbuf[KBBUF_SIZE], *kbp, erasekey;
 struct termios oldtermios;	/* original terminal modes */
 
+#ifndef USE_SLANG_KEYS
 char tc[1024], termcap[1024];
 int li, co;			/* lines, columns */
 
@@ -574,6 +574,8 @@ unsigned char highscan[256] =
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0	/* ASC 0xf0-0xff */
 };
 
+#endif /* NOT USE_SLANG_KEYS */
+
 #if 0 /* Not used anymore */
 int
 outch(int c)
@@ -589,8 +591,9 @@ gettermcap(void)
 {
   char *garb;
   struct winsize ws;		/* buffer for TIOCSWINSZ */
+#ifndef USE_SLANG_KEYS
   struct funkeystruct *fkp;
-
+#endif
   li = LI;
   co = CO;
   if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) >= 0) {
@@ -605,7 +608,8 @@ gettermcap(void)
   }
   else
     v_printf("VID: Setting windows size to li=%d, co=%d\n", li, co);
-
+   
+#ifndef USE_SLANG_KEYS
   /* This won't work with NCURSES version 1.8. */
   /* These routines have been tested with NCURSES version 1.8.5 */
   /* Can someone make this compatible with 1.8? */
@@ -616,6 +620,7 @@ gettermcap(void)
       /*if (!fkp->esc) error("ERROR: can't get terminfo %s\n", fkp->tce);*/
     }
   }
+#endif
 }
 
 void
@@ -772,7 +777,7 @@ keyboard_init(void)
   WRITE_WORD(KEYFLAG_ADDR, 0);
   /*key_flags = 0;*/
 
-  dbug_printf("TERMIO: $Header: /home/src/dosemu0.60/keyboard/termio.c,v 1.1 1994/11/06 02:36:40 root Exp root $\n");
+  dbug_printf("TERMIO: $Header: /home/src/dosemu0.60/keyboard/RCS/termio.c,v 1.2 1995/01/14 15:31:03 root Exp root $\n");
 
   return 0;
 }
@@ -1183,19 +1188,20 @@ keybuf_clear(void)
   ignore_segv--;
   dump_kbuffer();
 }
-
+#ifndef USE_SLANG_KEYS
 static int
 fkcmp(const void *a, const void *b)
 {
   return strcmp(((struct funkeystruct *) a)->esc, ((struct funkeystruct *) b)->esc);
 }
-
+#endif
 void
 termioInit()
 {
+#ifndef USE_SLANG_KEYS
   int numkeys;
   struct funkeystruct *fkp;
-
+#endif
   scr_state.current = 1;
 
   if (config.console_keyb) {
@@ -1206,18 +1212,24 @@ termioInit()
 
   if (config.X)
      return;
+#ifndef USE_SLANG_KEYS
   setupterm(NULL, 1, (int *) 0);
+#endif
   gettermcap();
   li = 25;
   co = 80;
-
+#ifndef USE_SLANG_KEYS
   numkeys = 0;
   for (fkp = funkey; fkp->code; fkp++) 
     numkeys++;
   qsort(funkey, numkeys, sizeof(struct funkeystruct), &fkcmp);
-   
+#endif
 #ifdef USE_SLANG_KEYS
-   init_slang_keymaps ();
+  if (-1 == init_slang_keymaps ())
+    {
+       error ("ERROR: Unable to initialize S-Lang keymaps.\n");
+       leavedos (31);
+    }
 #endif
 }
 

@@ -172,6 +172,7 @@ mousesystems		return(MOUSESYSTEMS);
 busmouse		return(BUSMOUSE);
 ps2			return(PS2);
 internaldriver		return(INTERNALDRIVER);
+emulate3buttons		return(EMULATE3BUTTONS);
 cleardtr		return(CLEARDTR);
 
 	/* video stuff */

@@ -1,25 +1,16 @@
 # CC   = gcc
-AS86 = as86 -0 -a
-LD86 = ld86 -0
 # INCDIR is exported from ..
 #INCDIR = -I../ -I../include/
 CFLAGS+= $(KERNEL)
 
-%.com: %.S
-	$(AS86) -0 -j -o $*.o $<
-	$(LD86) -T 0 -s -o $*.tmp $*.o
-	dd if=$*.tmp of=$@ bs=1 skip=288
-	rm -f $*.tmp $*.o
-
-ALL = dpmi.c dpmi.h meminfo.c meminfo.h \
-	testdpmi.S
+ALL = dpmi.c dpmi.h meminfo.c meminfo.h
 
 SUBDIR=dpmi
 
 OBJS = dpmi.o meminfo.o
 DEPENDS=dpmi.d meminfo.d
 
-all:  lib testdpmi.com
+all:  lib
 
 clean::
 	-rm  *.com 

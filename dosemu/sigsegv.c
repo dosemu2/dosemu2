@@ -1,10 +1,13 @@
 /* 
- * $Date: 1994/11/03 11:43:26 $
- * $Source: /home/src/dosemu0.60/RCS/sigsegv.c,v $
- * $Revision: 2.14 $
+ * $Date: 1995/01/14 15:29:17 $
+ * $Source: /home/src/dosemu0.60/dosemu/RCS/sigsegv.c,v $
+ * $Revision: 2.15 $
  * $State: Exp $
  *
  * $Log: sigsegv.c,v $
+ * Revision 2.15  1995/01/14  15:29:17  root
+ * New Year checkin.
+ *
  * Revision 2.14  1994/11/03  11:43:26  root
  * Checkin Prior to Jochen's Latest.
  *
@@ -124,22 +127,28 @@
 #include <sys/times.h>
 
 #include "emu.h"
-
 #include "bios.h"
 #include "mouse.h"
 #include "serial.h"
 #include "xms.h"
 #include "timers.h"
 #include "cmos.h"
-
 #include "memory.h"
 #include "cpu.h"
 #include "termio.h"
 #include "config.h"
+#include "port.h"
+#include "int.h"
+#include "hgc.h"
+#include "dosio.h"
+
 #ifdef NEW_PIC
 #include "../timer/pic.h"
 #endif
-#include "port.h"
+
+#ifdef DPMI
+#include "../dpmi/dpmi.h"
+#endif
 
 /* Needed for IPX support */
 #include "ipx.h"
@@ -147,20 +156,6 @@
 /* Needed for DIAMOND define */
 #include "vc.h"
 
-#ifdef DPMI
-#include "../dpmi/dpmi.h"
-#endif
-
-extern u_char in_sigsegv, in_sighandler, ignore_segv;
-
-int in_vm86 = 0;
-
-extern struct config_info config;
-
-#include "hgc.h"
-
-
-extern u_char keys_ready;
 
 /* PORT_DEBUG is to specify whether to record port writes to debug output.
  * 0 means disabled.
@@ -475,6 +470,7 @@ inb(int port)
     break;
     
   default:
+    r=0;
     /* SERIAL PORT I/O.  The base serial port must be a multiple of 8. */
     for (tmp = 0; tmp < config.num_ser; tmp++)
       if ((port & ~7) == com[tmp].base_port) {

@@ -39,6 +39,9 @@
 /* #include <sys/vm86.h> */
 #include "cpu.h"
 #include "emu.h"
+#ifdef DPMI
+#include "../dpmi/dpmi.h"
+#endif
 #undef us
 #define us unsigned
 
@@ -298,6 +301,11 @@ void run_irqs()
  int old_ilevel;
  int int_request;
 
+#ifdef DPMI
+ if (in_dpmi)
+   D_printf("DPMI: old run_irqs() called, isr=%x, irr=%x, imr=%x, pic_ilevel=%x\n", pic_isr, pic_irr, pic_imr, pic_ilevel);
+#endif
+
 /* check for and find any requested irqs.  Having found one, we atomic-ly
    clear it and verify it was there when we cleared it.  If it wasn't, we
    look for the next request.  There are two in_service bits for pic1 irqs.
@@ -305,10 +313,18 @@ void run_irqs()
    irq code actually runs, will reset the bits.  We also reset them here,
    since dos code won't necessarily run.  */
    
+#if 0
  if(!(pic_irr&~(pic_isr|pic_imr))) return;     /* exit if nothing to do */
+#else
+ if(!(pic_irr&~(pic_isr))) return;     /* exit if nothing to do */
+#endif
  old_ilevel=pic_ilevel;                          /* save old pic_ilevl   */
  
+#if 0
  while(int_request= pic_irr&~(pic_isr|pic_imr)) /* while something to do*/
+#else
+ while(int_request= pic_irr&~(pic_isr)) /* while something to do*/
+#endif
   {
       
   pic_ilevel=find_bit(&int_request);              /* find out what it is  */
@@ -329,7 +345,7 @@ void run_irqs()
    pic_ilevel=old_ilevel;
 }
 
-#endif
+#else
 
 /* I got inspired.  Here's an assembly language version, somewhat faster. */
 /* This is also much shorter - fewer checks needed, because there's no
@@ -338,6 +354,19 @@ void run_irqs()
 /* RE-ENTRANT CODE - uses 16 bytes of stack */
 void run_irqs()
 {
+
+ static int in_run_irqs=0;
+
+ if (in_run_irqs) {
+   return;
+ }
+ in_run_irqs = 1;
+
+#ifdef DPMI
+ if (in_dpmi)
+   D_printf("DPMI: new run_irqs() called, isr=%x, irr=%x, pic_ilevel=%x\n", pic_isr, pic_irr, pic_ilevel);
+#endif
+
   __asm__ __volatile__
   ("movl _pic_ilevel,%%ecx\n\t"      /* get old ilevel                  */
    "pushl %%ecx\n\t"                 /* save old ilevel                 */ 
@@ -370,7 +399,11 @@ void run_irqs()
    :                                 /* no output                       */ 
    :                                 /* no input                        */ 
    :"eax","ebx","ecx");              /* registers eax, ebx, ecx used    */
+
+ in_run_irqs = 0;
+
  } 
+#endif
                
    
 
@@ -405,11 +438,26 @@ int do_irq()
 #endif
 
      pic_cli();
-     run_int(intr);
-     pic_icount++;
+#ifdef DPMI
+     if (in_dpmi && !in_dpmi_dos_int) {
+      run_pm_int(intr);
+     } 
+#if 1
+     else
+#endif
+#endif
+       run_int(intr);
+      pic_icount++;
       while(!fatalerr && test_bit(pic_ilevel,&pic_isr))
       {
-        run_vm86();
+#ifdef DPMI
+	if (in_dpmi ) {
+	  run_dpmi();
+	}
+	else {
+#endif
+          run_vm86();
+	}
         pic_isr &= PIC_IRQALL;    /*  levels 0 and 16-31 are Auto-EOI  */
         run_irqs();
         serial_run();           /*  delete when moved to timer stuff */
@@ -429,6 +477,7 @@ int do_irq()
     return(1);
 #endif
 }
+
 /* DANG_BEGIN_FUNCTION pic_request
  *
  * pic_request triggers an interrupt.  There is presently no way to
@@ -450,9 +499,19 @@ void
 pic_request(inum)
 int inum;
 {
- if (pic_iinfo[inum].func == (void *)0) return; 
- if(pic_isr&(1<<inum) || inum==pic_ilevel)  pic_pirr|=(1<<inum);
- else pic_irr|=(1<<inum);
+ if (pic_iinfo[inum].func == (void *)0) {
+	return; 
+ }
+ if(pic_isr&(1<<inum) || inum==pic_ilevel){
+ 	pic_pirr|=(1<<inum);
+ }
+ else {
+	pic_irr|=(1<<inum);
+ }
+#ifdef DPMI
+ if (in_dpmi)
+   D_printf("DPMI: pic_request(0x%02x) set isr=%x, irr=%x\n", inum, pic_isr, pic_irr);
+#endif
  return;
 }
 /* DANG_BEGIN_FUNCTION pic_iret
@@ -478,6 +537,17 @@ pic_iret()
 /* if we've really come from an iret, cs:ip will have just been popped */
 
 unsigned short * tmp;
+
+#ifdef DPMI
+  if(in_dpmi /* && !in_vm86 */) {
+    if(pic_icount) 
+      if(!(--pic_icount)) {
+        pic_irr|=(pic_pirr&~pic_isr);
+        pic_pirr&=~pic_irr;
+      } 
+  return;
+  }
+#endif
 
 tmp = SEG_ADR((short *),ss,sp)-3;
  if (tmp[1] == REG(cs)) 

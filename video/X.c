@@ -96,6 +96,7 @@ void set_sizehints(int xsize,int ysize) {
 
 int X_init(void) {
    XGCValues gcv;
+   XClassHint xch;
    XSetWindowAttributes attr;
    XColor fg, bg;
    Font cfont, decfont;
@@ -180,6 +181,9 @@ int X_init(void) {
 
    XStoreName(dpy,W,config.X_title);
    XSetIconName(dpy,W,config.X_icon_name);
+   xch.res_name  = "XDosEmu";
+   xch.res_class = "XDosEmu";
+   XSetClassHint(dpy,W,&xch);
 
    /* Delete-Window-Message black magic copied from xloadimage */
    proto_atom  = XInternAtom(dpy,"WM_PROTOCOLS", False);
@@ -584,12 +588,17 @@ void m_setpos(int x,int y) {
    /* XXX - this works in text mode only */
    x = x*8/font_width;
    y = y*8/font_height;
+#if 0
+   if (x!=mouse.x) mouse.x=x;
+   if (y!=mouse.y) mouse.y=y;
+   if (x!=mouse.x || y!=mouse.y) mouse_move();
+#else
    if (x!=mouse.x || y!=mouse.y) {
       mouse.x=x; 
       mouse.y=y;
       mouse_move();
-		mouse_event();
    }
+#endif
 }   
 
 void m_setbuttons(int state) {
@@ -600,9 +609,9 @@ void m_setbuttons(int state) {
    mouse.mbutton = ((state & Button2Mask) != 0);
    mouse.rbutton = ((state & Button3Mask) != 0);
    if (mouse.lbutton!=mouse.oldlbutton) mouse_lb();
+   if (!mouse.mode)
    if (mouse.mbutton!=mouse.oldmbutton) mouse_mb();
-	if (mouse.rbutton!=mouse.oldrbutton) mouse_rb();
-	mouse_event();
+   if (mouse.rbutton!=mouse.oldrbutton) mouse_rb();
 }
 
 void X_handle_events()
@@ -703,6 +712,7 @@ void X_handle_events()
       }
    }
    busy=0;
+   mouse_event();
 }
 
 

@@ -116,7 +116,7 @@ extern void yyrestart(FILE *input_file);
 %token BASE IRQ INTERRUPT DEVICE CHARSET  BAUDRATE
 	/* mouse */
 %token MICROSOFT LOGITECH MMSERIES MOUSEMAN HITACHI MOUSESYSTEMS BUSMOUSE PS2
-%token INTERNALDRIVER CLEARDTR
+%token INTERNALDRIVER EMULATE3BUTTONS CLEARDTR
 	/* x-windows */
 %token L_DISPLAY L_TITLE ICON_NAME X_KEYCODE X_BLINKRATE X_FONT
 	/* video */
@@ -139,7 +139,7 @@ extern void yyrestart(FILE *input_file);
 	/* hardware ram mapping */
 %token HARDWARE_RAM
 
-%type <i_value> mem_bool irq_bool bool speaker method_val color_val
+%type <i_value> mem_bool irq_bool bool speaker method_val color_val floppy_bool
 
 %%
 
@@ -168,15 +168,10 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    config.emubat = $3;
 		    c_printf("CONF: config.emubat = '%s'\n", $3);
 		    }
-		| FASTFLOPPY INTEGER
+		| FASTFLOPPY floppy_bool
 			{ 
 			config.fastfloppy = $2;
 			c_printf("CONF: fastfloppy = %d\n", config.fastfloppy);
-			}
-		| FASTFLOPPY bool
-			{
-			config.fastfloppy = ($2) ? 2 : 0;
-			c_printf("CONF: fastfloppy = %d", config.fastfloppy);
 			}
 		| CPU INTEGER		{ vm86s.cpu_type = ($2/100)%10; }
 		| BOOTA			{ config.hdiskboot = 0; }
@@ -422,6 +417,7 @@ mouse_flags	: mouse_flag
 		;
 mouse_flag	: DEVICE STRING		{ strcpy(mptr->dev, $2); free($2); }
 		| INTERNALDRIVER	{ mptr->intdrv = TRUE; }
+		| EMULATE3BUTTONS	{ mptr->emulate3buttons = TRUE; }
 		| BAUDRATE INTEGER	{ mptr->baudRate = $2; }
 		| CLEARDTR
 		    { if (mptr->type == MOUSE_MOUSESYSTEMS)
@@ -694,6 +690,16 @@ bool		: L_YES		{ $$ = 1; }
                 | error         { yyerror("expected 'on' or 'off'"); }
 		;
 
+floppy_bool	: L_YES		{ $$ = 2; }
+		| L_NO		{ $$ = 0; }
+		| L_ON		{ $$ = 2; }
+		| L_OFF		{ $$ = 0; }
+		| INTEGER	{ $$ = $1; }
+		| STRING        { yyerror("got '%s', expected 'on' or 'off'", $1);
+				  free($1); }
+                | error         { yyerror("expected 'on' or 'off'"); }
+		;
+
 mem_bool	: L_OFF		{ $$ = 0; }
 		| INTEGER
 		| STRING        { yyerror("got '%s', expected 'off' or an integer", $1);
@@ -743,8 +749,8 @@ void stop_mouse(void)
   }
   c_mouse++;
   config.num_mice = c_mouse;
-  c_printf("MOUSE: %s type %x using internaldriver: %s, baudrate: %d\n", 
-        mptr->dev, mptr->type, mptr->intdrv ? "yes" : "no", mptr->baudRate);
+  c_printf("MOUSE: %s type %x using internaldriver: %s, emulate3buttons: %s baudrate: %d\n", 
+        mptr->dev, mptr->type, mptr->intdrv ? "yes" : "no", mptr->emulate3buttons ? "yes" : "no", mptr->baudRate);
 }
 
 	/* debug */

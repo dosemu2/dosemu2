@@ -47,6 +47,9 @@
  *
  * HISTORY: (DANG_BEGIN_CHANGELOG
  * $Log: bios_emm.c,v $
+ * Revision 2.10  1995/01/14  15:29:17  root
+ * New Year checkin.
+ *
  * Revision 2.9  1994/10/03  00:24:25  root
  * Checkin prior to pre53_25.tgz
  *
@@ -397,6 +400,45 @@ static boolean ems_mmap = 0;
 #endif
 
 void
+ems_helper(void) {
+  u_char *rhptr;		/* request header pointer */
+
+  switch (LWORD(ebx)) {
+  case 0:
+    E_printf("EMS Init called!\n");
+    break;
+  case 3:
+    E_printf("EMS IOCTL called!\n");
+    break;
+  case 4:
+    E_printf("EMS READ called!\n");
+    break;
+  case 8:
+    E_printf("EMS WRITE called!\n");
+    break;
+  case 10:
+    E_printf("EMS Output Status called!\n");
+    break;
+  case 12:
+    E_printf("EMS IOCTL-WRITE called!\n");
+    break;
+  case 13:
+    E_printf("EMS OPENDEV called!\n");
+    break;
+  case 14:
+    E_printf("EMS CLOSEDEV called!\n");
+    break;
+  case 0x20:
+    E_printf("EMS INT 0x67 called!\n");
+    break;
+  default:
+    error("UNKNOWN EMS HELPER FUNCTION %d\n", LWORD(ebx));
+  }
+  rhptr = SEG_ADR((u_char *), es, di);
+  E_printf("EMS RHDR: len %d, command %d\n", *rhptr, *(u_short *) (rhptr + 2));
+}
+
+void
 bios_emm_init()
 {
   int sh_base;
@@ -518,7 +560,7 @@ allocate_handle(pages_needed)
   for (i = 1; i < MAX_HANDLES; i++) {
     if (handle_info[i].active == 0) {
       obj = new_memory_object(pages_needed * EMM_PAGE_SIZE);
-      if (obj==NULL) {
+      if (obj==NULL && pages_needed > 0) {
          E_printf("EMS: Allocation failed!\n");
          emm_error = EMM_OUT_OF_LOG;
          return (EMM_ERROR);
@@ -873,7 +915,7 @@ SEG_TO_PHYS(int segaddr)
   if ((segaddr<0) || (segaddr >= EMM_MAX_PHYS*EMM_PAGE_SIZE/16) || (segaddr & 0x3ff != 0))
      return -1;
   else
-     return (segaddr-EMM_SEGMENT)/(EMM_PAGE_SIZE/16);
+     return (segaddr)/(EMM_PAGE_SIZE/16);
 
 #else
   if (segaddr == EMM_SEGMENT)

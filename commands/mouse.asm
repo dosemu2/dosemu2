@@ -1,25 +1,3 @@
-From popserver Mon Jan  8 23:18:36 GMT 1995
-Received: from post.demon.co.uk (post.demon.co.uk [158.152.1.72]) by Fox.nstn.ns.ca (8.6.8.1/8.6.6) with SMTP id TAA17225 for <jmaclean@fox.nstn.ns.ca>; Sun, 8 Jan 1995 19:20:16 -0400
-Received: from fairlite.demon.co.uk by post.demon.co.uk id aa23265;
-          8 Jan 95 23:19 GMT
-Received: by fairlite.demon.co.uk (Smail3.1.28.1 #1)
-	id m0rR6t5-000SCSC; Sun, 8 Jan 95 23:19 GMT
-Message-Id: <m0rR6t5-000SCSC@fairlite.demon.co.uk>
-From: Alan Hourihane <alanh@fairlite.demon.co.uk>
-Subject: MOUSE.ASM !
-To: jmaclean@fox.nstn.ns.ca
-Date: Sun, 8 Jan 1995 23:19:02 +0000 (GMT)
-X-Mailer: ELM [version 2.4 PL23]
-Content-Type: text
-Content-Length: 3989      
-
-Sorry, 
-
-	Here it is...
-
-	Sorry about the Control-M, Damn DOS files you see !
-
-
 ; mouse.asm for dosemu 0.53, 8/18/94
 ; Just to reset int 33 away from iret!
 ; Now to add more stuff.... 11/1/95....
@@ -43,8 +21,6 @@ main:   lea dx, mousehi
 	cmp ax, 0ffffh          ; Is internaldriver set ?
 	je brkout               ; Nope, then let's get out of here...
  
-;;;;;
-
 p000:   mov ah,30h              ; get dos version
 	int 21h
 	cmp al,0                ; is al zero?
@@ -139,7 +115,11 @@ micmode: mov al, 33h
 pcmmode: mov al, 33h
 	 mov bl, 2h             ; PC Mouse Mode please.
 	 int 0e6h
-	 jmp rpcmmode
+	 cmp ax, 0ffh
+	 jne out1
+	 lea dx, noemul
+	 call prtstr
+out1:    jmp rpcmmode
 
 	; work area
 
@@ -156,6 +136,8 @@ mousehi db 'Linux DOSEMU Mouse Driver.',0Dh,0Ah,'$'
 msebad  db 'Mouse InternalDriver option not set',0Dh,0Ah
 	 db 'Cannot install mouse handler, aborting.',0Dh,0Ah,'$'
 baddos  db 'Whoops !! Install DOS v2.00 or greater. BYE !',0Dh,0Ah,'$'
+noemul  db 'ERROR: Unable to set PC Mouse Mode, Check /etc/dosemu.conf for emulate3buttons.',0Dh,0Ah
+	db 'e.g. mouse { ps2 /dev/mouse internaldriver emulate3buttons }',0Dh,0Ah,'$'
 inquiry db 'Inquiry:',0Dh,0Ah,'           Emulation Mode:  $'
 mic     db 'MicroSoft (2 Buttons)',0Dh,0Ah,'$'
 pcm     db 'PC Mouse (3 Buttons)',0Dh,0Ah,'$'
@@ -167,3 +149,4 @@ nocomm  db 'Command line parameters are:',0Dh,0Ah
 	db '$'
 
 	; program data area
+

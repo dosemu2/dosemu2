@@ -1,3 +1,48 @@
+Fri Jan	 16	1995
+
+-	Release pl40
+-	Upsetting the DPMI apple cart during testing of timer.exe. Now
+	the following rules have been applied with hacking :
+	1) calls to realmode procedures do NOT run handle_signals() so
+	   that DPMI properly deals with them upon return.
+	2) hardware int's are first reflected to the possible
+	   protected mode interrupt handle, which may (and usually 
+	   does) reflect them back to the realmode handler.
+
+Fri Jan	 13	1995
+
+-	Added Alan's mouse patches
+-	Added Scotts big patch to make int.c and move signals into signal.c
+-	Small patch to bios_emm.c so that seg -> phy requests are properly
+	handled.
+Mon Jan  9	1995
+
+-	Small change to EMS so that Allocate pages allows allocation
+	of 0 pages. This allows Windows 3.0 to run small EMS frame.
+-	Scott has brought garrot into DOSEMU :).
+- 	Got Hans's ./tools/sh.kversion to work. sorry Hans.
+-	beck@informatik.hu-berlin.de Michael Beck
+	Here it comes. The patch is very stupid, and add the classname XDosEmu
+	when dosemu runs with X-Support. Use fvwm's ICON "XDosEmu"
+	to get the icon.
+	BTW, perhaps someone should change the config-parsing, so instead of
+	the Iconname the user can set the classname.
+	ALSO:
+	> > And last: I have converted a lot of fonts for DosEmu from
+	> > MS Wind**s FON files and some other sources (CPI and FEDIT files).
+	> > Sorryly The FON files are copyrighted, so I think I cannot distribute
+	> > them. However, perhaps I can distribute the converter, so at
+	> > least the millions of millions Wind**s owners can convert them ;-).
+	> > Mail me if you are interested.
+	>
+	> Yes, always interested. This means that vga.pcf would not be alone? I
+	> could just add it into the dosemu directory on tsx-11.
+	>
+
+	I send you the package, but my english is very bad, so perhaps someone
+	check it and rewrote my readme (sorry for that, but my time is
+	limited now, the hollidays are over :-(
+
 Sun Jan  8 	1995
 
 -	Released pre0.53_39

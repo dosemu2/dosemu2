@@ -7,6 +7,9 @@
 #include <sys/shm.h>
 
 #endif
+#include "extern.h"
+
+EXTERN u_char keys_ready INIT(0);
 
 void memory_setup(void), set_a20(int);
 

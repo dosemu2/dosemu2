@@ -1,6 +1,6 @@
 CFILES=tools86.c
 SFILES=
-ALL=$(CFILES) $(SFILES) as86ld86.doc
+ALL=$(CFILES) $(SFILES) as86ld86.doc kversion.sh
 
 OBJS=$(CFILES:.c=.o)
 OOBJS=
@@ -14,5 +14,6 @@ include ../Makefile.common
 
 tools86: tools86.c
 	$(CC) -O2 tools86.c -o tools86
+
 
 install: all

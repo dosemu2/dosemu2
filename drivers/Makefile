@@ -1,27 +1,14 @@
-AS86 = as86 -l
-LD86 = ld86 -0 -s
+# any misc. drivers (e.g. cdrom helper)
+# $Id: Makefile,v 1.1 1995/01/14 15:31:30 root Exp root $
+CFILES=cdrom.c
+SFILES=
+ALL=$(CFILES) $(SFILES)
 
-all: emufs.sys ems.sys cdrom.sys
+OBJS=$(CFILES:.c=.o)
+DEPENDS=$(CFILES:.c=.d)
 
-%.sys: %.S
-	$(AS86) -0 -o $*.o $< > $<.out
-	$(LD86) -T 0 -s -o $*.tmp $*.o
-	dd if=$*.tmp of=$@ bs=1 skip=32
-	rm $*.tmp $*.o
+SUBDIR=drivers
 
-checkin:
-	-ci emufs.S ems.S cdrom.S
+include ../Makefile.common
 
-checkout:
-	-co -M -l emufs.S ems.S cdrom.S
-
-clean:
-	rm -f emufs.sys ems.sys cdrom.sys *.o *.tmp *.out
-
-realclean: clean
-
-install:
-
-dist: Makefile emufs.S emufs.sys ems.S ems.sys cdrom.S cdrom.sys
-	install -d $(DISTPATH)/drivers
-	install -m 0644 $^ $(DISTPATH)/drivers
+install: all

@@ -4,7 +4,8 @@ LD86 = ld86 -0
 
 CFILES= ncurses.c
 HFILES= ncurses.h
-#INCDIR= -I../include -I.. -I/usr/include/ncurses -I/usr/local/include
+
+INCDIR := $(INCDIR) -I$(NCURSES_INC)
 LDFLAGS = -lncurses
 
 %.com: %.S

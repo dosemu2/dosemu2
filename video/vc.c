@@ -20,9 +20,9 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
- * $Date: 1994/11/13 00:42:17 $
+ * $Date: 1995/01/14 15:30:33 $
  * $Source: /home/src/dosemu0.60/video/RCS/vc.c,v $
- * $Revision: 1.10 $
+ * $Revision: 1.11 $
  * $State: Exp $
  *
  * Revision 1.3  1993/10/03  21:38:22  root
@@ -103,7 +103,9 @@
 #include <ctype.h>
 /*#include <termio.h>*/
 #include <sys/time.h>
+#ifndef USE_SLANG
 #include <ncurses.h>		/*termcap.h*/
+#endif
 #ifdef WHY_DONT_PEOPLE_HAVE_THIS
 #include <sys/mman.h>
 #else
@@ -351,6 +353,8 @@ SIGRELEASE_call (void)
 	{
 	  unsigned short pos;
 
+#if 0 /* 94/01/12 Why was this here :-( ? */
+
 	  /* Read the cursor position from the 6845 registers. */
 	  /* Must have bios_video_port initialized */
 	  asm volatile ("movw %1,%%dx; movb $0xe,%%al; outb %%al,%%dx; "
@@ -361,6 +365,7 @@ SIGRELEASE_call (void)
 
 	  /* Let kernel know the cursor location. */
 	  console_update_cursor (pos % 80, pos / 80, 1, 1);
+#endif
 
 	  set_linux_video ();
 	  put_video_ram ();

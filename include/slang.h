@@ -267,7 +267,7 @@ SLuser_Object_Type;
 
    extern int init_SLmatrix(void);
    
-   int SLang_add_table(SLang_Name_Type *, char *);
+   extern int SLang_add_table(SLang_Name_Type *, char *);
    /* add application dependent function table p1 to S-Lang.  A name p2 less 
     *  than 32 characters must also be supplied.      
     * Returns 0 upon failure or 1 upon success. */
@@ -595,6 +595,7 @@ extern int SLang_RL_EOF_Char;
 extern SLang_Read_Line_Type * SLang_rline_save_line (SLang_RLine_Info_Type *);
 extern int SLang_init_readline (SLang_RLine_Info_Type *);
 extern int SLang_read_line (SLang_RLine_Info_Type *);
+extern int SLang_rline_insert (char *);
 
 /* ---------------------------------------------------------------------- */
 
@@ -654,7 +655,7 @@ extern void SLtt_putchar(char);
 extern void SLtt_init_video (void);
 extern void SLtt_reset_video (void);
 extern void SLtt_get_terminfo(void);
-#if defined(VMS) || defined(unix)
+#if defined(VMS) || defined(unix) 
 extern void SLtt_enable_cursor_keys(void);
 extern void SLtt_set_term_vtxxx(int *);
 extern void SLtt_set_color_esc (int, char *);
@@ -695,6 +696,9 @@ extern void SLsmg_draw_hline (int);
 extern void SLsmg_draw_vline (int);
 extern void SLsmg_draw_object (int, int, unsigned char);
 extern void SLsmg_draw_box (int, int, int, int);
+
+extern int SLsmg_Display_Eight_Bit;
+extern int SLsmg_Tab_Width;
 
 #ifdef pc_system
 # define SLSMG_HLINE_CHAR	0xC4

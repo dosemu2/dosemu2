@@ -1,9 +1,9 @@
 /* cmos.c, for DOSEMU
  *   by Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/09/26 23:10:13 $
- * $Source: /home/src/dosemu0.60/RCS/cmos.c,v $
- * $Revision: 2.4 $
+ * $Date: 1995/01/14 15:29:17 $
+ * $Source: /home/src/dosemu0.60/dosemu/RCS/cmos.c,v $
+ * $Revision: 2.5 $
  * $State: Exp $
  */
 
@@ -74,7 +74,7 @@ cmos_init(void)
   /* information flags...my CMOS returns this */
   SET_CMOS(CMOS_INFO, 0xe1);
 
-  g_printf("CMOS initialized: \n$Header: /home/src/dosemu0.60/RCS/cmos.c,v 2.4 1994/09/26 23:10:13 root Exp root $\n");
+  g_printf("CMOS initialized: \n$Header: /home/src/dosemu0.60/dosemu/RCS/cmos.c,v 2.5 1995/01/14 15:29:17 root Exp root $\n");
 }
 
 static int

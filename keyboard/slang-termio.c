@@ -652,6 +652,35 @@ static int getkey_callback (void)
    return (int) *(kbp + Keystr_Len++);
 }
 
+static int sltermio_input_pending (void)
+{
+   struct timeval scr_tv, t_start, t_end;
+   fd_set fds;
+   long t_dif;
+
+#define THE_TIMEOUT 750000L
+   FD_ZERO(&fds);
+   FD_SET(kbd_fd, &fds);
+   scr_tv.tv_sec = 0L;
+   scr_tv.tv_usec = THE_TIMEOUT;
+   
+   gettimeofday(&t_start, NULL);
+   errno = 0;
+   while ((int) select(kbd_fd + 1, &fds, NULL, NULL, &scr_tv) < (int) 1) 
+     {
+	gettimeofday(&t_end, NULL);
+	t_dif = ((t_end.tv_sec * 1000000 + t_end.tv_usec) -
+		 (t_start.tv_sec * 1000000 + t_start.tv_usec));
+	
+	if ((t_dif >= THE_TIMEOUT) || (errno != EINTR))
+	  return 0;
+	errno = 0;
+	scr_tv.tv_sec = 0L;
+	scr_tv.tv_usec = THE_TIMEOUT - t_dif;
+     }
+   return 1;
+}
+
 void do_slang_getkeys (void)
 {
    SLang_Key_Type *key;
@@ -671,7 +700,21 @@ void do_slang_getkeys (void)
 	
 	SLang_Error = 0;
 
-	if (KeyNot_Ready) return;      /* try again next time */
+	if (KeyNot_Ready)
+	  {
+	     if ((Keystr_Len == 1) && (*kbp == 27) && (map == The_Normal_KeyMap))
+	       {
+		  /* We have an esc character.  If nothing else is available 
+		   * to be read after a brief period, assume user really
+		   * wants esc.
+		   */
+		  if (sltermio_input_pending ()) return;      
+		  DOS_setscan ((unsigned short) 0x011B);
+		  key = NULL;
+		  /* drop on through to the return for the undefined key below. */
+	       }
+	     else return; /* try again next time */
+	  }
 	
 	DOSemu_Keyboard_Keymap_Prompt = NULL;
 	

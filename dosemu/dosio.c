@@ -4,12 +4,15 @@
 /*
  * Robert Sanders, started 3/1/93
  *
- * $Date: 1994/11/06 02:35:24 $
- * $Source: /home/src/dosemu0.60/RCS/dosio.c,v $
- * $Revision: 2.12 $
+ * $Date: 1995/01/14 15:29:17 $
+ * $Source: /home/src/dosemu0.60/dosemu/RCS/dosio.c,v $
+ * $Revision: 2.13 $
  * $State: Exp $
  *
  * $Log: dosio.c,v $
+ * Revision 2.13  1995/01/14  15:29:17  root
+ * New Year checkin.
+ *
  * Revision 2.12  1994/11/06  02:35:24  root
  * Testing co -M.
  *
@@ -248,6 +251,7 @@
 #include "termio.h"
 #include "dosio.h"
 #include "mouse.h"
+#include "int.h"
 
 #ifdef NEW_PIC
 #include "../timer/pic.h"
@@ -260,11 +264,8 @@ inline void scan_to_buffer(void);
 extern void bios_emm_init(void);
 extern void xms_init(void);
 extern void dump_kbuffer(void);
-extern u_char keepkey;
 extern int_count[];
-extern struct config_info config;
 extern int in_readkeyboard, keybint;
-extern int ignore_segv;
 #ifdef SIG
 extern SillyG_t *SillyG;
 #endif
@@ -421,10 +422,9 @@ memory_setup(void)
 }
 
 #define SCANQ_LEN 100
-u_short scan_queue[SCANQ_LEN];
-int scan_queue_start = 0;
-int scan_queue_end = 0;
-u_char keys_ready = 0;
+static u_short scan_queue[SCANQ_LEN];
+static int scan_queue_start = 0;
+static int scan_queue_end = 0;
 extern int convKey();
 extern int InsKeyboard();
 

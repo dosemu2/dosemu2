@@ -1,9 +1,9 @@
 /* cpu.h, for the Linux DOS emulator
  *    Copyright (C) 1993 Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/10/14 17:58:38 $
- * $Source: /home/src/dosemu0.60/RCS/cpu.h,v $
- * $Revision: 2.5 $
+ * $Date: 1995/01/14 15:31:55 $
+ * $Source: /home/src/dosemu0.60/include/RCS/cpu.h,v $
+ * $Revision: 2.6 $
  * $State: Exp $
  */
 

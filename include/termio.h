@@ -3,12 +3,15 @@
 #define TERMIO_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/11/06 02:38:23 $
+ * $Date: 1995/01/14 15:31:55 $
  * $Source: /home/src/dosemu0.60/include/RCS/termio.h,v $
- * $Revision: 1.1 $
+ * $Revision: 1.2 $
  * $State: Exp $
  *
  * $Log: termio.h,v $
+ * Revision 1.2  1995/01/14  15:31:55  root
+ * New Year checkin.
+ *
  * Revision 1.1  1994/11/06  02:38:23  root
  * Initial revision
  *
@@ -99,6 +102,8 @@
  * Robert Sanders 12/12/92
  */
 
+#include "extern.h"
+
 #define KF_RSHIFT	0
 #define KF_LSHIFT	1
 #define KF_CTRL		2	/* either one */
@@ -166,5 +171,9 @@ struct screen_stat {
 };
 
 extern void set_leds(void);
+
+/* int15 fn=4f will clear CF if scan code should not be used,
+   I set keepkey to reflect CF */
+EXTERN u_char keepkey INIT(1);
 
 #endif /* TERMIO_H */

@@ -235,25 +235,24 @@ _INT16_dummy_start:			/* KEYBOARD BIOS ROUTINE        */
 	ja	INT16_3			/* >2 */
 	je	INT16_2			/* 2 => retn. shift flag stat. */
 	jp	INT16_1			/* 1 => return keyboard status */
+	jmp	INT16_0			/* 0 => read keyboard */
 
+INT16_0_idle:
+	sti
+	push	ax			/* buffer empty - 		*/
+	mov     ax,#0x1680		/* magic machine idle function  */
+	int     0x2f
+	pop	ax
 INT16_0:				/* 0 => read keyboard */
 	cli				/* READ KEYBOARD		*/
 	mov	bx,[KEYBUF_READ_PTR]    /* get address of next char	*/
 	cmp	bx,[KEYBUF_WRITE_PTR]	/* is buffer empty?		*/
-	jne     INT16_0_a		/* jump if not empty		*/
-
-	push	ax			/* buffer empty - 		*/
-	mov     al,#0x16		/* ask dosemu for another key	*/
-	sti
-	int     0xe6			/* sti with return to dosemu code */
-	pop	ax
-	jmp     INT16_0			/* got another key, go try again*/
+	je      INT16_0_idle		/* jump if not empty		*/
 INT16_0_a:
 	mov	ax,[bx]			/* get last key	*/
-	inc     bx			/* advance buffer pointer 2 bytes	*/
+	inc     bx			/* advance buffer pointer 2 bytes*/
 	inc     bx
-					/* save new pointer		*/	
-	mov	[KEYBUF_READ_PTR],bx
+	mov	[KEYBUF_READ_PTR],bx	/* save new pointer		*/
 	cmp	bx,[KEYBUFFER_END]	/* check for wrap around        */
 	jne	INT16_ex		/* no wrap - go return to caller*/
 					/* wrap - get buffer start	*/
@@ -263,10 +262,6 @@ INT16_0_a:
 	jmp	INT16_ex		/* return to caller		*/
 
 INT16_1:
-	push	ax			/* RETURN KEYBOARD STATUS	*/
-	movb    al,#0x16		/* anti hogging code	*/
-	int     0xe6			/* call delay routine 	*/
-	pop	ax
 	cli
 	mov	bx,[KEYBUF_READ_PTR]	/* get address of next char	*/
 	cmp	bx,[KEYBUF_WRITE_PTR]	/* set flag if buffer empty	*/
@@ -524,6 +519,9 @@ _DPMI_save_restore:
 _DPMI_API_extension:
 	hlt
 	retf
+	.globl	_DPMI_return_from_pm
+_DPMI_return_from_pm:
+	hlt
 	.globl	_DPMI_exception
 _DPMI_exception:
 	FILL_OPCODE(32,hlt)

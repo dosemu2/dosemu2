@@ -276,18 +276,22 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 	   break;
 	}
 
-	/* Provide 3 button emulation on 2 button mice.
+	/* Provide 3 button emulation on 2 button mice,
+	   But only when PC Mouse Mode is set, otherwise
+	   Microsoft Mode = 2 buttons.
 	   Middle press if left/right pressed together. 
 	   Middle release done for us by the above routines. 
 	   This bit also resets the left/right button, because
 	   we can't have all three buttons pressed at once. 
 	   Well, we could, but not under emulation on 2 button mice. 
+	   Alan Hourihane */
 
-	   I might provide an option for dosemu.conf for real three
-	   button mice if this is a problem. - Alan Hourihane */
-
-	if ((buttons & 0x04) && (buttons & 0x01)) 
-	  buttons = 0x02;	/* Set middle button */
+	if (mice->emulate3buttons == TRUE) {
+	  if (mouse.mode == FALSE) {	/* PC Mouse Mode 3 button emulation */
+	    if ((buttons & 0x04) && (buttons & 0x01)) 
+	      buttons = 0x02;	/* Set middle button */
+	  }
+	}
 	  
 	/*
 	 * calculate the new values for buttons, dx and dy
@@ -309,8 +313,10 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 	   mouse_move();
 	if (mouse.oldlbutton != mouse.lbutton)
 	   mouse_lb();
-	if (mouse.oldmbutton != mouse.mbutton)
-	   mouse_mb();
+        if (mouse.mode == FALSE) {
+	  if (mouse.oldmbutton != mouse.mbutton)
+	     mouse_mb();
+        }
 	if (mouse.oldrbutton != mouse.rbutton)
 	   mouse_rb();
 	/*
@@ -319,30 +325,6 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 	mouse_event();
 	pBufP = 0;
      }
-  }
-  else {
-     dx = ((int *) rBuf)[0] - mouse.x;
-     dy = ((int *) rBuf)[1] - mouse.y;
-     buttons = ((int *) rBuf)[2];
-     mouse.x = mouse.x + dx;
-     mouse.y = mouse.y + dy;
-     mouse.cx = mouse.x / 8;
-     mouse.cy = mouse.y / 8;
-     if (dx || dy)
-	mouse_move();
-     mouse.oldlbutton = mouse.lbutton;
-     mouse.oldmbutton = mouse.mbutton;
-     mouse.oldrbutton = mouse.rbutton;
-     mouse.lbutton = buttons & 0x04;
-     mouse.mbutton = buttons & 0x02;
-     mouse.rbutton = buttons & 0x01;
-     if (mouse.oldlbutton != mouse.lbutton)
-	mouse_lb();
-     if (mouse.oldmbutton != mouse.mbutton)
-	mouse_mb();
-     if (mouse.oldrbutton != mouse.rbutton)
-	mouse_rb();
-     mouse_event();
   }
 }
 
@@ -440,4 +422,3 @@ void DOSEMUMouseEvents()
 	DOSEMUMouseProtocol(rBuf, nBytes);
 	m_printf("MOUSE: Read %d bytes\n", nBytes);
 }
-

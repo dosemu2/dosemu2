@@ -2,6 +2,9 @@
 #define TIMERS_H
 
 #include "extern.h"
+
+#define TIMER_DIVISOR   3
+
 /* Programmable Interval Timer, 8253/8254 */
 /* ports 0x40 - 0x43 */
 struct pit {
@@ -19,7 +22,6 @@ struct pit {
 EXTERN struct pit pit;
 
 void timer_tick(void), set_ticks(unsigned long);
-extern inline int int28(void);
 
 #define BIOS_TICK_ADDR		(void *)0x46c
 #define TICK_OVERFLOW_ADDR	(void *)0x470

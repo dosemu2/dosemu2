@@ -1,3 +1,0 @@
-#ifndef KERNEL_VERSION
-#define KERNEL_VERSION 1001077
-#endif 

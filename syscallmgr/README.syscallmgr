@@ -112,22 +112,36 @@ The package mainly consists of
    The new insmod can replace the default one, because the special features
    are switched on by command line options. Usage is:
 
-   insmod [-o name] [-f] [-l] [-m | -M mapfile] module
+   insmod [-f] [-x] [-o name] [-m] [-l] [-z | -Z mapfile] module [[sym=value]...]
      module     Filename of a loadable kernel module (*.o)
      -o name    Set internal modulname to name
+     -x         do *not* export externs
+     -m         generate loadmap (so crashes can be traced down)
      -f         Force loading under wrong kernel version
-                (together with -m also disables mapfile check)
-     -m         At last use /usr/src/linux/zSystem.map to resolve
-     -M mapfile As -m, but use mapfile
-     -l         Together with -m, -M, also take local symbols from map
-                (But note, local symbols can be multiple defined, 
-                 last one is taken)
+                (together with -z also disables mapfile check)
+     -z         At last use /usr/src/linux/zSystem.map to resolve
+                (on Linux > 1.1.76:  System.map)
+     -Z mapfile As -z, but use mapfile
+     -l         Together with -z, -Z, also take local symbols from map
+                (But note, local symbols can be multiple defined, last one is taken)
+
+  NOTE: This feature was added to insmod by the DOSEMU-team
+        and released as part of the dosemu-distribution 
+        much *earlier* then the now released modules-1.1.67.
+        Unfortunately the meanings of the -m switch differs.
+        Because of this I decided to take over the meaning from the official
+        moduls release, but replaced the very dumb SHAME_ON_YOU-code
+        by the more sophisticated and *really* secure HACKER_TOOL-code.
+        So, for old users of dosemu's insmod:  -m, -M  becomes -z, -Z ! Ok?
+        Starting with Linux 1.1.76 the zSystem.map exists no longer,
+        and is replaced by System.map (same file structure), but don't worry,
+        if zSystem.map is not found, System.map is taken by default.
 
 
 3. You may test this stuff with:
 
      ./insmod syscallmgr.o
-     ./insmod -lm testsys.o
+     ./insmod -lz testsys.o
      ./testmain
      rmmod testsys
      rmmod syscall

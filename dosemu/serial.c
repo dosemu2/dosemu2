@@ -14,7 +14,7 @@
  *
  *
  * $Date: 1994/11/13 00:40:45 $
- * $Source: /home/src/dosemu0.60/RCS/serial.c,v $
+ * $Source: /home/src/dosemu0.60/dosemu/RCS/serial.c,v $
  * $Revision: 2.7 $
  * $State: Exp $
  * $Log: serial.c,v $
@@ -639,7 +639,7 @@ void
 serial_init(void)
 {
   int i;
-  fprintf(stderr, "SERIAL $Header: /home/src/dosemu0.60/RCS/serial.c,v 2.7 1994/11/13 00:40:45 root Exp root $\n");
+  fprintf(stderr, "SERIAL $Header: /home/src/dosemu0.60/dosemu/RCS/serial.c,v 2.7 1994/11/13 00:40:45 root Exp root $\n");
   s_printf("SER: Running serial_init, %d serial ports\n", config.num_ser);
 
   /* Clean the BIOS data area at 0040:0000 for serial ports */

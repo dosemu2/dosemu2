@@ -9,7 +9,7 @@ CFLAGS+=-DYYPURE
        -Wstrict-prototypes -ansi -pedantic -Wid-clash-31 -Wcast-qual
 #-Wwrite-strings
 
-CFILES = 
+CFILES = config.c
 LFILES = lexer.l
 YFILES = parser.y
 HFILES = 
@@ -20,8 +20,8 @@ ALL = $(YFILES) $(LFILES) $(CFILES) $(HFILES)
 
 # All object-files are included here.
 
-OBJS = parser.o lex.yy.o # parse.o 
-
+OBJS=parser.o lex.yy.o $(CFILES:.c=.o)
+DEPENDS=$(CFILES:.c=.d)
 
 SUBDIR=init
 

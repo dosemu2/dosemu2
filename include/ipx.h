@@ -1,6 +1,8 @@
 /* ipx.h header file for IPX for the DOS emulator
  * 		Tim Bird, tbird@novell.com
  */
+
+#ifdef USING_NET
 #ifndef IPXDMU_H
 #define IPXDMU_H
 
@@ -132,3 +134,4 @@ extern void AESTimerTick(void);
 extern int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks );
 
 #endif /* IPX_H */
+#endif /* USING_NET */

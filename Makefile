@@ -1,8 +1,8 @@
 # Makefile for Linux DOSEMU
 #
-# $Date: 1994/11/13 00:40:45 $
-# $Source: /fs3/src/dosemu0.53pl34/Makefile,v $
-# $Revision: 2.37 $
+# $Date: 1995/01/14 15:27:32 $
+# $Source: /home/src/dosemu0.60/RCS/Makefile,v $
+# $Revision: 2.38 $
 # $State: Exp $
 #
 # You should do a "make doeverything" or a "make most" (excludes TeX)
@@ -12,7 +12,7 @@
 # Want to try SLANG?
 USE_SLANG=-DUSE_SLANG
 ifdef USE_SLANG
-TCNTRL=-lslang -lncurses
+TCNTRL=-lslang
 export USE_SLANG
 else
 TCNTRL=-lncurses
@@ -48,6 +48,7 @@ export LINUX_INCLUDE
 
 #Change the following line to point to your ncurses include
 NCURSES_INC = /usr/include/ncurses
+export NCURSES_INC
 
 #Change the following line to point to your loadable modules directory
 BOOTDIR = /boot/modules
@@ -101,7 +102,7 @@ DEPENDS = dos.d emu.d
 EMUVER  =   0.53
 export EMUVER
 VERNUM  =   0x53
-PATCHL  =   39
+PATCHL  =   40
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -114,6 +115,10 @@ CFILES=emu.c dos.c $(X2CFILES)
 
 # For testing the internal IPX code
 # IPX = ipxutils
+
+# Change USING_NET to 0 and set NET to nothing to remove all net code.
+export USING_NET = 1
+export NET = net
 
 # SYNC_ALOT
 #   uncomment this if the emulator is crashing your machine and some debug info #   isn't being sync'd to the debug file (stdout). shouldn't happen. :-) #SYNC_ALOT = -DSYNC_ALOT=1 
@@ -141,15 +146,15 @@ CLIENTSSUB=clients
 
 OPTIONALSUBDIRS =examples v-net syscallmgr emumod
 
-LIBSUBDIRS=dosemu timer mfs video keyboard mouse init net $(IPX)
+LIBSUBDIRS=dosemu timer mfs video init keyboard mouse $(NET) $(IPX) drivers
 ifdef DPMI
 LIBSUBDIRS+=dpmi
 endif
 
-SUBDIRS= periph include boot commands drivers \
+SUBDIRS= periph include boot \
 	$(CLIENTSSUB) kernel
 
-REQUIRED=tools bios periph
+REQUIRED=tools bios periph commands
 
 # call all libraries the name of the directory
 LIBS=$(LIBSUBDIRS)
@@ -189,7 +194,11 @@ CONFIGINFO = $(CONFIGS) $(OPTIONAL) $(DEBUG) \
  
 # does this work if you do make -C <some dir>
 TOPDIR  := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
-INCDIR     = -I$(TOPDIR)/include  -I$(LINUX_INCLUDE) -I$(NCURSES_INC)
+INCDIR     = -I$(TOPDIR)/include  -I$(LINUX_INCLUDE)
+ifndef USE_SLANG
+INCDIR  := $(INCDIR) -I$(NCURSES_INC)
+endif
+ 
 ifdef X11LIBDIR
 INCDIR  := $(INCDIR) -I$(X11INCDIR)
 endif
@@ -199,7 +208,7 @@ export INCDIR
 
 # if NEWPIC is there, use it
 # if DPMI is there, use it
-export CFLAGS     = -N -s -O2 $(NEW_PIC) $(DPMI) $(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
+export CFLAGS     = -N -s -O2 -DUSING_NET=$(USING_NET) $(NEW_PIC) $(DPMI) $(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
 EMU_CFLAGS=-Idosemu $(CFLAGS)
 export ASFLAGS    = $(NEW_PIC)
 ifdef STATIC
@@ -357,7 +366,7 @@ $(DOCS) $(OPTIONALSUBDIRS) $(LIBSUBDIRS) $(REQUIRED):
 
 
 include/kversion.h:
-	./tools/kversion.sh $(LINUX_KERNEL) ./
+	$(SHELL) ./tools/kversion.sh $(LINUX_KERNEL) ./
 
 config: include/config.h include/kversion.h
 #	./dosconfig $(CONFIGINFO) > include/config.h
@@ -463,14 +472,14 @@ local_clean:
 	  dosconfig dosconfig.o *.tmp dosemu.map emu.o
 
 local_realclean:	
-	-rm -f include/config.h 
+	-rm -f include/config.h include/kversion.h
 
 clean::	local_clean
 
 realclean::   local_realclean local_clean
 
 clean realclean::
-	-@for i in $(REQUIRED) $(LIBS) $(SUBDIRS) $(OPTIONALSUBDIRS); do \
+	-@for i in $(REQUIRED) $(DOCS) $(LIBS) $(SUBDIRS) $(OPTIONALSUBDIRS); do \
 	  $(MAKE) -C $$i $@; \
 	done
 

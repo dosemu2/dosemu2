@@ -64,6 +64,11 @@ static int slang_update (void);
 static int Slsmg_is_not_initialized = 0;
 static int Use_IBM_Codes = 0;
 
+static void sl_exit_error (char *err)
+{
+	error ("ERROR: %s\n", err);
+	leavedos (32);
+}
 
 /* The following initializes the terminal.  This should be called at the
  * startup of DOSEMU if it's running in terminal mode.
@@ -93,7 +98,8 @@ terminal_initialize()
    
    Video_term.update_screen = slang_update;
    
-   SLtt_get_terminfo();
+   SLang_Exit_Error_Hook = sl_exit_error;
+   SLtt_get_terminfo ();
    SLtt_Screen_Rows = 25;   /* was: li */
    SLtt_Screen_Cols = 80;   /* was: co */
    
@@ -101,7 +107,8 @@ terminal_initialize()
    SLtt_Blink_Mode = 1;
    SLtt_Use_Ansi_Colors = is_color;
    
-   SLsmg_init_smg ();
+   if (!SLsmg_init_smg ())
+     sl_exit_error ("Unable to initialze SMG routines.");
    
    for (attr = 0; attr < 256; attr++)
      {
@@ -145,7 +152,9 @@ terminal_initialize()
       case CHARSET_IBM:     	
 	The_Charset = charset_ibm;
 	Use_IBM_Codes = 1;
+ 	SLsmg_Display_Eight_Bit = 0x80;
 	break;
+	
       case CHARSET_LATIN:
       default:
 	The_Charset = charset_latin;

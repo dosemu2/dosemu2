@@ -37,6 +37,9 @@
  *
  * HISTORY:
  * $Log: mfs.c,v $
+ * Revision 2.9  1995/01/14  15:30:22  root
+ * New Year checkin.
+ *
  * Revision 2.8  1994/11/03  11:43:26  root
  * Checkin Prior to Jochen's Latest.
  *
@@ -441,38 +444,42 @@ boolean_t mach_fs_enabled = FALSE;
 #define BACKSLASH	'\\'
 
 /* Need to know how many drives are redirected */
-u_char redirected_drives = 0;
+static u_char redirected_drives = 0;
 
-int calculate_drive_pointers(int);
+static int calculate_drive_pointers(int);
+static boolean_t dos_fs_dev(state_t *);
+static boolean_t find_file(char *, struct stat *);
+static boolean_t compare(char *, char *, char *, char *);
+static int dos_fs_redirect(state_t *);
 
 /* dos_disk.c */
 static struct dir_ent *get_dir();
 static void auspr();
 
-boolean_t drives_initialized = FALSE;
-char *dos_roots[MAX_DRIVE];
-int dos_root_lens[MAX_DRIVE];
-boolean_t read_onlys[MAX_DRIVE];
-boolean_t finds_in_progress[MAX_DRIVE];
-boolean_t find_in_progress = FALSE;
-int current_drive = 0;
-u_char first_free_drive = 0;
-int num_drives = 0;
-int process_mask = 0;
-boolean_t read_only = FALSE;
+static boolean_t drives_initialized = FALSE;
+static char *dos_roots[MAX_DRIVE];
+static int dos_root_lens[MAX_DRIVE];
+static boolean_t read_onlys[MAX_DRIVE];
+static boolean_t finds_in_progress[MAX_DRIVE];
+static boolean_t find_in_progress = FALSE;
+static int current_drive = 0;
+static u_char first_free_drive = 0;
+static int num_drives = 0;
+static int process_mask = 0;
+static boolean_t read_only = FALSE;
 
-lol_t lol = NULL;
-far_t cdsfarptr;
-cds_t cds_base;
-cds_t cds;
-sda_t sda;
-u_short com_psp = (u_short) NULL;
+static lol_t lol = NULL;
+static far_t cdsfarptr;
+static cds_t cds_base;
+static cds_t cds;
+static sda_t sda;
+static u_short com_psp = (u_short) NULL;
 
-int dos_major;
-int dos_minor;
+static int dos_major;
+static int dos_minor;
 
-char *dos_root = "";
-int dos_root_len = 0;
+static char *dos_root = "";
+static int dos_root_len = 0;
 
 /* initialize 'em to 3.1 to 3.3 */
 
@@ -772,7 +779,11 @@ get_dos_attr(int mode)
 static int
 get_unix_attr(int mode, int attr)
 {
+	enum { S_IWRITEA = S_IWUSR | S_IWGRP | S_IWOTH };
+
+#if 0
 #define S_IWRITEA (S_IWUSR | S_IWGRP | S_IWOTH)
+#endif
   mode &= ~(S_IFDIR | S_IWRITE | S_IEXEC);
   if (attr & DIRECTORY)
     mode |= S_IFDIR;
@@ -968,10 +979,8 @@ mfs_redirector(void)
   int dos_fs_redirect();
   int ret;
 
-#if DOSEMU
   if (!exchange_uids())
     return 0;
-#endif
 
   PS(MFS);
   ret = dos_fs_redirect(&REGS);
@@ -981,9 +990,7 @@ mfs_redirector(void)
 
   finds_in_progress[current_drive] = find_in_progress;
 
-#if DOSEMU
   exchange_uids();
-#endif
 
   switch (ret) {
   case FALSE:
@@ -1007,15 +1014,11 @@ mfs_inte6(void)
   boolean_t dos_fs_dev();
   boolean_t result;
 
-#if DOSEMU
   if (!exchange_uids())
     return 0;
-#endif
 
   result = dos_fs_dev(&REGS);
-#if DOSEMU
   exchange_uids();
-#endif
   return (result);
 }
 
@@ -1538,14 +1541,6 @@ init_dos_offsets(ver)
   }
 }
 
-#ifndef DOSEMU
-static void
-init_dos_side(void)
-{
-  mach_fs_enabled = TRUE;
-}
-
-#endif
 
 struct direct *
 dos_readdir(dir)
@@ -1558,7 +1553,7 @@ dos_readdir(dir)
   return (ret);
 }
 
-__inline__ int
+static inline int
 dos_read(fd, data, cnt)
      int fd;
      char *data;
@@ -1572,7 +1567,7 @@ dos_read(fd, data, cnt)
   return (ret);
 }
 
-__inline__ int
+static inline int
 dos_write(fd, data, cnt)
      int fd;
      char *data;
@@ -1588,7 +1583,7 @@ dos_write(fd, data, cnt)
   return (ret);
 }
 
-int
+static int
 calculate_drive_pointers(int dd)
 {
   far_t cdsfarptr;
@@ -1625,7 +1620,7 @@ calculate_drive_pointers(int dd)
   return (1);
 }
 
-__inline__ boolean_t
+static boolean_t
 dos_fs_dev(state)
      state_t *state;
 {
@@ -1871,7 +1866,7 @@ build_ufs_path(ufs, path)
 /*
  * scan a directory for a matching filename
  */
-__inline__ boolean_t
+static boolean_t
 scan_dir(char *path, char *name)
 {
   DIR *cur_dir;
@@ -1911,7 +1906,7 @@ scan_dir(char *path, char *name)
  * a new find_file that will do complete upper/lower case matching for the
  * whole path
  */
-__inline__ boolean_t
+static boolean_t
 _find_file(char *fpath, struct stat * st)
 {
   char *slash1, *slash2;
@@ -1990,7 +1985,7 @@ _find_file(char *fpath, struct stat * st)
   return (TRUE);
 }
 
-boolean_t
+static boolean_t
 find_file(fpath, st)
      char *fpath;
      struct stat *st;
@@ -2003,7 +1998,7 @@ find_file(fpath, st)
   return (r);
 }
 
-__inline__ boolean_t
+static boolean_t
 compare(fname, fext, mname, mext)
      char *fname;
      char *fext;
@@ -2080,7 +2075,7 @@ compare(fname, fext, mname, mext)
   return (TRUE);
 }
 
-__inline__ struct dir_ent *
+static struct dir_ent *
 _match_filename_prune_list(list, name, ext)
      struct dir_ent *list;
      char *name;
@@ -2122,7 +2117,7 @@ _match_filename_prune_list(list, name, ext)
   return (first_ptr);
 }
 
-__inline__ struct dir_ent *
+static __inline__ struct dir_ent *
 match_filename_prune_list(list, name, ext)
      struct dir_ent *list;
      char *name;
@@ -2141,11 +2136,11 @@ match_filename_prune_list(list, name, ext)
 #else
 #define HLIST_STACK_SIZE 256
 #endif
-int hlist_stack_indx = 0;
-struct dir_ent *hlist = NULL;
-struct dir_ent *hlist_stack[HLIST_STACK_SIZE];
+static int hlist_stack_indx = 0;
+static struct dir_ent *hlist = NULL;
+static struct dir_ent *hlist_stack[HLIST_STACK_SIZE];
 
-__inline__ boolean_t
+static __inline__ boolean_t
 hlist_push(hlist)
      struct dir_ent *hlist;
 {
@@ -2161,8 +2156,8 @@ hlist_push(hlist)
   return (TRUE);
 }
 
-__inline__ struct dir_ent *
-hlist_pop()
+static struct dir_ent *
+hlist_pop(void)
 {
   Debug0((dbg_fd, "hlist_pop: %x\n", hlist_stack_indx));
   if (hlist_stack_indx <= 0)
@@ -2171,7 +2166,7 @@ hlist_pop()
   return (hlist_stack[hlist_stack_indx]);
 }
 
-__inline__ void
+static void
 debug_dump_sft(handle)
      char handle;
 {
@@ -2236,7 +2231,7 @@ debug_dump_sft(handle)
 
 /* convert forward slashes to back slashes for DOS */
 
-__inline__ void
+static void
 path_to_dos(char *path)
 {
   char *s;
@@ -2245,7 +2240,7 @@ path_to_dos(char *path)
     *s = '\\';
 }
 
-__inline__ int
+static int
 GetRedirection(state, index)
      state_t *state;
      u_short index;
@@ -2322,7 +2317,7 @@ GetRedirection(state, index)
  * on exit:
  * notes:
  *****************************/
-__inline__ int
+static int
 RedirectDevice(state_t * state)
 {
   char *resourceName;
@@ -2385,7 +2380,7 @@ RedirectDevice(state_t * state)
  * on exit:
  * notes:
  *****************************/
-__inline__ int
+static int
 CancelRedirection(state_t * state)
 {
   char *deviceName;
@@ -2443,7 +2438,7 @@ CancelRedirection(state_t * state)
   return (TRUE);
 }
 
-int
+static int
 dos_fs_redirect(state)
      state_t *state;
 {
@@ -2634,7 +2629,7 @@ dos_fs_redirect(state)
       else {
          Debug0((dbg_fd,"close: not setting file date/time\n"));
       }
-      free(filename1);
+      /* free(filename1); Tim Josling says: prob not opened dont free stg */
       return (TRUE);
     }
   case READ_FILE:

@@ -5,7 +5,7 @@
 #define MOUSE_H
 
 #define MOUSE_BASE_VERSION	0x0700	/* minimum driver version 7.00 */
-#define MOUSE_EMU_VERSION	0x0006	/* my driver version 0.06 */
+#define MOUSE_EMU_VERSION	0x0001	/* my driver version 0.01 */
 /* this is the version returned to DOS programs */
 #define MOUSE_VERSION	  (MOUSE_BASE_VERSION + MOUSE_EMU_VERSION)
 
@@ -48,6 +48,7 @@ typedef struct mouse_structure {
   int type;
   int flags;
   boolean intdrv;
+  boolean emulate3buttons;
   boolean cleardtr;
   int baudRate;
   int sampleRate;
@@ -64,6 +65,9 @@ extern struct mouse_struct {
   /* positions for last press/release for each button */
   int lpx, lpy, mpx, mpy, rpx, rpy;
   int lrx, lry, mrx, mry, rrx, rry;
+
+  /* exclusion zone */
+  int exc_ux, exc_uy, exc_lx, exc_ly;
 
   /* these are for MOUSE position */
   int x, y;

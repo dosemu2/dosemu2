@@ -1,11 +1,14 @@
 /* for the Linux dos emulator versions 0.49 and newer
  *
- * $Date: 1994/09/26 23:10:13 $
- * $Source: /home/src/dosemu0.60/RCS/lpt.c,v $
- * $Revision: 2.5 $
+ * $Date: 1995/01/14 15:29:17 $
+ * $Source: /home/src/dosemu0.60/dosemu/RCS/lpt.c,v $
+ * $Revision: 2.6 $
  * $State: Exp $
  *
  * $Log: lpt.c,v $
+ * Revision 2.6  1995/01/14  15:29:17  root
+ * New Year checkin.
+ *
  * Revision 2.5  1994/09/26  23:10:13  root
  * Prep for pre53_22.
  *

@@ -27,7 +27,7 @@
  * Interrupt handling is not guaranteed:
  * - a real x86 will disable all interrupts for one instruction
  *   after a "mov ss,xx" to make stack handling atomic even without
- *   the 'lss' instruction. We can't guarantee this in V86 mode,
+ *   the 'lss' instruction. We can't guarantee this in v86 mode,
  *   as the next instruction might result in a page fault or similar.
  * - a real x86 will have interrupts disabled for one instruction
  *   past the 'sti' that enables them. We don't bother with all the
@@ -51,12 +51,13 @@
 /*
  * virtual flags (16 and 32-bit versions)
  */
+
 #if KERNEL_VERSION >= 1001075
-#define VFLAGS        (*(unsigned short *)&(current->tss.v86flags))
-#define VEFLAGS       (current->tss.v86flags)
+#define VFLAGS	(*(unsigned short *)&(current->tss.v86flags))
+#define VEFLAGS	(current->tss.v86flags)
 #else
-#define VFLAGS        (*(unsigned short *)&(current->v86flags))
-#define VEFLAGS       (current->v86flags)
+#define VFLAGS	(*(unsigned short *)&(current->v86flags))
+#define VEFLAGS	(current->v86flags)
 #endif
 
 #define set_flags(X,new,mask) \
@@ -82,9 +83,9 @@ asmlinkage struct pt_regs * save_v86_state(struct vm86_regs * regs)
 	memcpy_tofs(&current->tss.vm86_info->regs,regs,sizeof(*regs));
 	put_fs_long(current->tss.screen_bitmap,&current->tss.vm86_info->screen_bitmap);
 #else
-  	set_flags(regs->eflags, VEFLAGS, VIF_MASK | current->v86mask);
-  	memcpy_tofs(&current->vm86_info->regs,regs,sizeof(*regs));
-  	put_fs_long(current->screen_bitmap,&current->vm86_info->screen_bitmap);
+	set_flags(regs->eflags, VEFLAGS, VIF_MASK | current->v86mask);
+	memcpy_tofs(&current->vm86_info->regs,regs,sizeof(*regs));
+	put_fs_long(current->screen_bitmap,&current->vm86_info->screen_bitmap);
 #endif
 	tmp = current->tss.esp0;
 	current->tss.esp0 = current->saved_kernel_stack;
@@ -158,18 +159,16 @@ asmlinkage int sys_vm86(struct vm86_struct * v86)
 			break;
 #else
 		case CPU_286:
-			current->tss.v86mask = 0;
+			current->v86mask = 0;
 			break;
 		case CPU_386:
-			current->tss.v86mask = NT_MASK | IOPL_MASK;
+			current->v86mask = NT_MASK | IOPL_MASK;
 			break;
 		case CPU_486:
-			current->tss.v86mask = AC_MASK | NT_MASK | IOPL_MASK;
+			current->v86mask = AC_MASK | NT_MASK | IOPL_MASK;
 			break;
-		case CPU_586:
-			current->tss.v86mask = ID_MASK | AC_MASK | NT_MASK | IOPL_MASK | VIF_MASK | VIP_MASK;
 		default:
-			current->tss.v86mask = ID_MASK | AC_MASK | NT_MASK | IOPL_MASK;
+			current->v86mask = ID_MASK | AC_MASK | NT_MASK | IOPL_MASK;
 			break;
 #endif
 	}
@@ -229,15 +228,15 @@ static inline void clear_TF(struct vm86_regs * regs)
 static inline void set_vflags_long(unsigned long eflags, struct vm86_regs * regs)
 {
 #if KERNEL_VERSION >= 1001075
-      set_flags(VEFLAGS, eflags, current->tss.v86mask);
+	set_flags(VEFLAGS, eflags, current->tss.v86mask);
 #else
-      set_flags(VEFLAGS, eflags, current->v86mask);
+	set_flags(VEFLAGS, eflags, current->v86mask);
 #endif
-      set_flags(regs->eflags, eflags, SAFE_MASK);
+	set_flags(regs->eflags, eflags, SAFE_MASK);
 #if 1
-	if (VEFLAGS & IF_MASK)
-#else
 	if (eflags & IF_MASK)
+#else
+	if (VEFLAGS & IF_MASK)
 #endif
 		set_IF(regs);
 }
@@ -245,10 +244,11 @@ static inline void set_vflags_long(unsigned long eflags, struct vm86_regs * regs
 static inline void set_vflags_short(unsigned short flags, struct vm86_regs * regs)
 {
 #if KERNEL_VERSION >= 1001075
-      set_flags(VFLAGS, flags, current->tss.v86mask);
+	set_flags(VFLAGS, flags, current->tss.v86mask);
 #else
-      set_flags(VFLAGS, flags, current->v86mask);
+	set_flags(VFLAGS, flags, current->v86mask);
 #endif
+	set_flags(regs->eflags, flags, SAFE_MASK);
 	if (flags & IF_MASK)
 	if (VFLAGS & IF_MASK)
 		set_IF(regs);
@@ -261,9 +261,9 @@ static inline unsigned long get_vflags(struct vm86_regs * regs)
 	if (VEFLAGS & VIF_MASK)
 		flags |= IF_MASK;
 #if KERNEL_VERSION >= 1001075
-      return flags | (VEFLAGS & current->tss.v86mask);
+	return flags | (VEFLAGS & current->tss.v86mask);
 #else
-      return flags | (VEFLAGS & current->v86mask);
+	return flags | (VEFLAGS & current->v86mask);
 #endif
 }
 
@@ -354,7 +354,7 @@ static inline void do_int(struct vm86_regs *regs, int i, unsigned char * ssp, un
 
 #if KERNEL_VERSION >= 1001075
 	if (seg == BIOSSEG || regs->cs == BIOSSEG ||
-	is_revectored(i, &current->tss.vm86_info->int_revectored))
+	    is_revectored(i, &current->tss.vm86_info->int_revectored))
 		return_to_32bit(regs, VM86_INTx + (i << 8));
 	if (i==0x21 && is_revectored(AH(regs),&current->tss.vm86_info->int21_revectored))
 		return_to_32bit(regs, VM86_INTx + (i << 8));

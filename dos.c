@@ -12,12 +12,15 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
- * $Date: 1994/11/03 11:43:26 $
+ * $Date: 1995/01/14 15:28:03 $
  * $Source: /home/src/dosemu0.60/RCS/dos.c,v $
- * $Revision: 2.7 $
+ * $Revision: 2.8 $
  * $State: Exp $
  *
  * $Log: dos.c,v $
+ * Revision 2.8  1995/01/14  15:28:03  root
+ * New Year checkin.
+ *
  * Revision 2.7  1994/11/03  11:43:26  root
  * Checkin Prior to Jochen's Latest.
  *

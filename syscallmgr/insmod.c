@@ -1,16 +1,45 @@
 /*
  * Install a module in the kernel.
+ *
+ * Originally by Anonymous (as far as I know...)
+ * Linux version by Bas Laarhoven <bas@vimec.nl>
  * Modified by Jon Tombs.
  *
  * Support for transient and resident symbols
  * added by Bjorn Ekwall <bj0rn@blox.se> in 1994 (C)
  * See the file COPYING for your rights (GNU GPL)
  *
- * Support for zSystem.map resolving of unresolved symbols
+ * Load map option conceived by Derek Atkins <warlord@MIT.EDU>
+ *
+ * Support for (z)System.map resolving of unresolved symbols (HACKER_TOOL)
  * added by Hans Lermen <lermen@elserv.ffm.fgan.de>
+ * NOTE: This feature was added to insmod by the DOSEMU-team
+ *       and released as part of the dosemu-distribution 
+ *       much *earlier* then the release of modules-1.1.67.
+ *       Unfortunately the meanings of the -m switch differs.
+ *       Because of this I decided to take over the meaning from the official
+ *       moduls release, but replaced the very dumb SHAME_ON_YOU-code
+ *       by the more sophisticated and *really* secure HACKER_TOOL-code.
+ *       So, for old users of dosemu's insmod:  -m, -M  becomes -z, -Z ! Ok?
+ *       Starting with Linux 1.1.76 the zSystem.map exists no longer,
+ *       and is replaced by System.map (same file structure), but don't worry,
+ *       if zSystem.map is not found, System.map is taken by default.
  */
 
-#include "kversion.h"
+#if 1
+  #define HACKER_TOOL
+#endif
+
+#ifdef HACKER_TOOL
+  #if 0
+    #include "kversion.h"
+  #else
+    #define KERNEL_VERSION 1001080 /* last verified kernel version */
+  #endif
+#else
+  /*#define SHAME_ON_YOU*/
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,22 +85,79 @@ int nsymbols;
 struct symbol *symtab;
 char *stringtab;
 unsigned long addr;
+int export_flag = 1;
+int force_load = 0;
+int loadmap = 0;
 
 void relocate(char *, int, int, FILE *);
 void hidesym(const char *);
 int defsym(const char *, unsigned long, int, int);
 struct symbol *findsym(const char *, struct symbol *);
 unsigned long looksym(const char *);
-void *ckalloc(size_t);
 
-static int create_module(const char *name, unsigned long size);
-static int init_module(const char *, void *, unsigned, struct mod_routines *,
-		struct symbol_table *);
-static int delete_module(const char *);
-static int get_kernel_syms(struct kernel_sym *);
 struct kernel_sym nullsym;
 
-/* >>>>>>>>>>>>>>>>>>>>>>>>>>>>>> zSystem.map stuff <<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+void *
+ckalloc(size_t nbytes)
+{
+	void *p;
+
+	if ((p = malloc(nbytes)) == NULL) {
+		fputs("insmod:  malloc failed\n", stderr);
+		exit(2);
+	}
+	return p;
+}
+
+
+static int create_module(const char *name, unsigned long size)
+{
+	return syscall( __NR_create_module, name, size);
+}
+
+static int init_module(const char *name, void *code, unsigned codesize,
+		struct mod_routines *routines,
+		struct symbol_table *syms) {
+	return syscall( __NR_init_module, name, code, codesize, routines,
+		syms);
+}
+
+static int delete_module(const char *name)
+{
+	return syscall( __NR_delete_module, name);
+}
+
+static int get_kernel_syms(struct kernel_sym *buffer)
+{
+	return syscall( __NR_get_kernel_syms, buffer);
+}
+
+void check_version(int force_load)
+{
+	struct utsname uts_info;
+	unsigned long kernel_version;
+	int i;
+
+	/* Check if module and kernel version match */
+	if ((i = uname( &uts_info)) != 0) {
+		fprintf( stderr, "uname call failed with code %d\n", i);
+		exit( 2);
+	}
+	kernel_version = looksym( "_kernel_version");
+	if (strcmp( (char*) textseg + kernel_version, uts_info.release)) {
+		fprintf( stderr,
+			"Error: module's `kernel_version' doesn't match the current kernel.\n%s\n%s\n",
+			"       Check the module is correct for the current kernel, then",
+			"       recompile the module with the correct `kernel_version'.");
+		if (force_load)
+			fprintf(stderr, "       Loading it anyway...\n");
+		else
+			exit( 2);
+	}
+
+}
+
+#ifdef HACKER_TOOL   /* >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
 
 struct zSystem_entry {
   struct zSystem_entry *next;
@@ -167,19 +253,19 @@ static int check_for_right_zSystem_map(struct zSystem_entry *zsym, struct kernel
 }
 
 
+#endif  /* HACKER_TOOL <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
 
-/* >>>>>>>>>>>>>>>>>>>>>>>>>>>>> main <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
+
 int
-main(int argc, char **argv) {
+main(int argc, char **argv)
+{
 	FILE *fp;
 	struct kernel_sym *curr_module = &nullsym;
 	struct kernel_sym *ksymtab = NULL;
 	struct kernel_sym *ksym = NULL;
 	struct mod_routines routines;
 	struct symbol *sp;
-	struct utsname uts_info;
 	unsigned long init_func, cleanup_func;
-	unsigned long kernel_version;
 	long filesize;
 	int fatal_error;
 	int i;
@@ -187,7 +273,6 @@ main(int argc, char **argv) {
 	int nksyms;
 	int pos;
 	int progsize;
-	int force_load = 0;
 
 	struct symbol_table *newtab;
 	int module_refs = 0; /* number of references modules */
@@ -200,6 +285,11 @@ main(int argc, char **argv) {
 	char *filename;
 	char *modname = NULL;
 	char *p;
+#ifndef HACKER_TOOL
+#ifdef SHAME_ON_YOU
+	char *zfile = NULL;
+#endif
+#endif
 
 
 	while (argc > 1 && (argv[1][0] == '-')) {
@@ -215,17 +305,34 @@ main(int argc, char **argv) {
 			case 'f': /* force loading */
 				force_load = 1;
 				break;
-				
-			case 'M': /* resolve over zSystem map */
+
+			case 'x': /* do _not_ export externs */
+				export_flag = 0;
+				break;
+
+			case 'm': /* generate loadmap */
+				loadmap = 1;
+				break;
+#ifdef HACKER_TOOL
+			case 'Z': /* resolve over zSystem map */
 				++argv; --argc;
 				if (argv[1]) zsystem_map_name = argv[1];
 				/* fall through */
-			case 'm': /* resolve over zSystem map */
+			case 'z': /* resolve over zSystem map */
 				use_zSystem = 1;
 				break;
 			case 'l': /* resolve over zSystem map, take also local symbols */
 				use_zSystem_local = 1;
 				break;
+#else
+#ifdef SHAME_ON_YOU
+			case 'z': /* read from a "zSystems.map" file */
+				zfile = argv[2];
+				--argc;
+				++argv;
+				break;
+#endif
+#endif
 			}
 			++p;
 		}
@@ -234,16 +341,25 @@ main(int argc, char **argv) {
 	}
 
 	if (argc < 2) {
-		fputs("Usage: insmod [-o name] [-f] [-l] [-m | -M mapfile] module\n"
+#ifdef HACKER_TOOL
+		fputs("Usage:\n"
+		      "insmod [-f] [-x] [-o name] [-m] [-l] [-z | -Z mapfile] module [[sym=value]...]\n"
+		      "\n"
 		      "  module     Filename of a loadable kernel module (*.o)\n"
 		      "  -o name    Set internal modulname to name\n"
+		      "  -x         do *not* export externs\n"
+		      "  -m         generate loadmap (so crashes can be traced down)\n"
 		      "  -f         Force loading under wrong kernel version\n"
-		      "             (together with -m also disables mapfile check)\n"
-		      "  -m         At last use /usr/src/linux/zSystem.map to resolve\n"
-		      "  -M mapfile As -m, but use mapfile\n"
-		      "  -l         Together with -m, -M, also take local symbols from map\n"
-		      "	            (But note, local symbols can be multiple defined, last one is taken)\n"
+		      "             (together with -z also disables mapfile check)\n"
+		      "  -z         At last use /usr/src/linux/zSystem.map to resolve\n"
+		      "             (on Linux > 1.1.76:  System.map)\n" 
+		      "  -Z mapfile As -z, but use mapfile\n"
+		      "  -l         Together with -z, -Z, also take local symbols from map\n"
+		      "             (But note, local symbols can be multiple defined, last one is taken)\n"
 		      , stderr);
+#else
+		fputs("Usage: insmod [-f] [-x] [-o name] [-m] module [[sym=value]...]\n", stderr);
+#endif
 		exit(2);
 	}
 
@@ -260,6 +376,8 @@ main(int argc, char **argv) {
 		len = strlen(p);
 		if (len > 2 && strcmp(p + len - 2, ".o") == 0)
 			len -= 2;
+		else if (len > 4 && strcmp(p + len - 4, ".mod") == 0)
+			len -= 4;
 
 		modname = (char*) ckalloc(len + 1);
 		memcpy(modname, p, len);
@@ -271,11 +389,13 @@ main(int argc, char **argv) {
 		fprintf(stderr, "Cannot open %s\n", filename);
 		exit(2);
 	}
+
 	fread(&header, sizeof header, 1, fp);
 	if (feof(fp) || ferror(fp)) {
 		fprintf(stderr, "Could not read header of %s\n", filename);
 		exit(2);
 	}
+
 	if (N_MAGIC(header) != OMAGIC) {
 		fprintf(stderr, "%s: not an object file\n", filename);
 		exit(2);
@@ -296,17 +416,21 @@ main(int argc, char **argv) {
 	fseek(fp, N_SYMOFF(header), SEEK_SET);
 	nsymbols = header.a_syms / sizeof (struct nlist);
 	symtab = (struct symbol*) ckalloc(nsymbols * sizeof (*symtab));
+
 	for (i = nsymbols, sp = symtab ; --i >= 0 ; sp++) {
 		fread(&sp->n, sizeof sp->n, 1, fp);
 		sp->child[0] = sp->child[1] = NULL;
 	}
+
 	if (feof(fp) || ferror(fp)) {
 		fprintf(stderr, "Error reading %s\n", filename);
 		exit(2);
 	}
+
 	len = filesize - N_STROFF(header);
 	stringtab = (char*) ckalloc(len);
 	fread(stringtab, len, 1, fp);
+
 	if (feof(fp) || ferror(fp)) {
 		fprintf(stderr, "Error reading %s\n", filename);
 		exit(2);
@@ -325,22 +449,6 @@ main(int argc, char **argv) {
 			sp->n.n_other = DEF_BY_MODULE; /* abuse: mark extdef */
 		else
 			sp->n.n_other = 0; /* abuse: mark extref */
-	}
-	/* Now check if module and kernel version match */
-	if ((i = uname( &uts_info)) != 0) {
-		fprintf( stderr, "uname call failed with code %d\n", i);
-		exit( 2);
-	}
-	kernel_version = looksym( "_kernel_version");
-	if (strcmp( (char*) textseg + kernel_version, uts_info.release)) {
-		fprintf( stderr,
-			"Error: module's `kernel_version' doesn't match the current kernel.\n%s\n%s\n",
-			"       Check the module is correct for the current kernel, then",
-			"       recompile the module with the correct `kernel_version'.");
-		if (force_load)
-			fprintf(stderr, "       Loading it anyway...\n");
-		else
-			exit( 2);
 	}
 
 	/* get initialization and cleanup routines */
@@ -364,6 +472,9 @@ main(int argc, char **argv) {
 		}
 	}
 
+	/* check version info */
+	check_version(force_load);
+
 	/* bind undefined symbols */
 	defsym("_mod_use_count_", 0 - sizeof (int), N_BSS | N_EXT, TRANSIENT);
 	progsize = header.a_text + header.a_data + header.a_bss;
@@ -382,6 +493,7 @@ main(int argc, char **argv) {
 			curr_module = ksym;
 			continue;
 		}
+
 		if (defsym(ksym->name, ksym->value, N_ABS | N_EXT,
 		/* this is safe since curr_module was initialized properly */
 			(curr_module->name[1]) ?  TRANSIENT : RESIDENT)) {
@@ -393,6 +505,28 @@ main(int argc, char **argv) {
 			}
 		}
 	}
+
+#ifndef HACKER_TOOL
+#ifdef SHAME_ON_YOU
+	/* Fake it, by reading a zSystem.map file */
+	if (zfile) {
+		FILE *zfp;
+		char line[80];
+		char dummy[80];
+		struct kernel_sym zsym;
+
+		if ((zfp = fopen(zfile, "r")) == (FILE *)0) {
+			perror(zfile);
+		}
+		else {
+			while (fgets(line, 80, zfp)) {
+				sscanf(line, "%lx %s %s", &zsym.value, dummy, zsym.name);
+				defsym(zsym.name, zsym.value, N_ABS | N_EXT, RESIDENT);
+			}
+		}
+	}
+#endif
+#endif
 
 	/* Change values according to the parameters to "insmod" */
 	{
@@ -434,6 +568,7 @@ main(int argc, char **argv) {
 		}
 	}
 
+#ifdef HACKER_TOOL
 	/* now resolve over zSystem.map */
 	if (use_zSystem) {
 	  struct zSystem_entry *zsym;
@@ -457,6 +592,7 @@ main(int argc, char **argv) {
 	    zsym=zsym->next;
 	  }
 	}
+#endif
 
 	/* allocate space for "common" symbols */
 	/* and check for undefined symbols */
@@ -519,7 +655,7 @@ main(int argc, char **argv) {
 	 * Get size info for the new symbol table
 	 * we already have module_refs
 	 */
-	for (sp = symtab ; sp < symtab + nsymbols ; sp++) {
+	for (sp = symtab ; export_flag && (sp < symtab + nsymbols) ; sp++) {
 		if ((sp->n.n_type & N_EXT) && (sp->n.n_other & DEF_BY_MODULE)) {
 			string_table_size += strlen(sp->n.n_un.n_name) + 1;
 			++n_symboldefs;
@@ -529,10 +665,12 @@ main(int argc, char **argv) {
 		n_symboldefs * sizeof(struct internal_symbol) +
 		module_refs * sizeof(struct module_ref) +
 		string_table_size);
+
 	newtab->size = sizeof(struct symbol_table) +
 		n_symboldefs * sizeof(struct internal_symbol) +
 		module_refs * sizeof(struct module_ref) +
 		string_table_size;
+
 	newtab->n_symbols = n_symboldefs;
 	newtab->n_refs = module_refs;
 
@@ -541,7 +679,8 @@ main(int argc, char **argv) {
 		n_symboldefs * sizeof(struct internal_symbol) +
 		module_refs * sizeof(struct module_ref);
 
-	for (sp = symtab ; sp < symtab + nsymbols ; sp++) {
+	/* update the string pointer (to a string index) in the symbol table */
+	for (sp = symtab ; export_flag && (sp < symtab + nsymbols) ; sp++) {
 		if ((sp->n.n_type & N_EXT) && (sp->n.n_other & DEF_BY_MODULE)) {
 			symp->addr = (void *)(sp->n.n_value + addr);
 			symp->name = (char *)(stringp - (char *)newtab);
@@ -552,7 +691,6 @@ main(int argc, char **argv) {
 	}
 
 	refp = (struct module_ref *)symp;
-
 	for (ksym = ksymtab, i = 0 ; i < nksyms ; ++i, ksym++) {
 		if (ksym->name[0] == '+') {
 			refp->module = (struct module *)ksym->value;
@@ -575,6 +713,30 @@ main(int argc, char **argv) {
 			perror("init_module");
 		}
 		delete_module(modname);
+		exit(1);
+	}
+
+	/*
+	 * Print a loadmap so that kernel panics can be identified.
+	 * Load map option conceived by Derek Atkins <warlord@MIT.EDU>
+	 */
+	for (sp = symtab; loadmap && (sp < symtab + nsymbols) ; sp++) {
+		char symtype = 'u';
+
+		if ((sp->n.n_type & ~N_EXT) == N_ABS)
+			continue;
+
+		switch (sp->n.n_type & ~N_EXT) {
+		case N_TEXT | N_EXT: symtype = 'T'; break;
+		case N_TEXT: symtype = 't'; break;
+		case N_DATA | N_EXT: symtype = 'D'; break;
+		case N_DATA: symtype = 'd'; break;
+		case N_BSS | N_EXT: symtype = 'B'; break;
+		case N_BSS: symtype = 'b'; break;
+		}
+
+		printf("%08lx %c %s\n",
+			sp->n.n_value + addr, symtype, sp->n.n_un.n_name);
 	}
 
 	if (nksyms > 0)
@@ -585,7 +747,8 @@ main(int argc, char **argv) {
 
 
 void
-relocate(char *seg, int segsize, int len, FILE *fp) {
+relocate(char *seg, int segsize, int len, FILE *fp)
+{
 	struct relocation_info rel;
 	unsigned long val;
 	struct symbol *sp;
@@ -637,12 +800,14 @@ hidesym(const char *name)
 }
 
 int
-defsym(const char *name, unsigned long value, int type, int source) {
+defsym(const char *name, unsigned long value, int type, int source)
+{
 	struct symbol *sp;
 
 	if ((sp = findsym(name, NULL)) == NULL)
 		return 0; /* symbol not used */
 	/* else */
+
 	if (sp->n.n_type != (N_UNDF | N_EXT)) {
 		/*
 		 * Multiply defined?
@@ -674,7 +839,8 @@ defsym(const char *name, unsigned long value, int type, int source) {
  * the entry to the table.  The table is stored as a splay tree.
  */
 struct symbol *
-findsym(const char *key, struct symbol *add) {
+findsym(const char *key, struct symbol *add)
+{
 	struct symbol *left, *right;
 	struct symbol **leftp, **rightp;
 	struct symbol *sp1, *sp2, *sp3;
@@ -774,7 +940,8 @@ one_level_only:
 
 
 unsigned long
-looksym(const char *name) {
+looksym(const char *name)
+{
 	struct symbol *sp;
 
 	sp = findsym(name, NULL);
@@ -783,36 +950,4 @@ looksym(const char *name) {
 		exit(2);
 	}
 	return sp->n.n_value;
-}
-
-
-void *
-ckalloc(size_t nbytes) {
-	void *p;
-
-	if ((p = malloc(nbytes)) == NULL) {
-		fputs("insmod:  malloc failed\n", stderr);
-		exit(2);
-	}
-	return p;
-}
-
-
-static int create_module(const char *name, unsigned long size) {
-	return syscall( __NR_create_module, name, size);
-}
-
-static int init_module(const char *name, void *code, unsigned codesize,
-		struct mod_routines *routines,
-		struct symbol_table *syms) {
-	return syscall( __NR_init_module, name, code, codesize, routines,
-		syms);
-}
-
-static int delete_module(const char *name) {
-	return syscall( __NR_delete_module, name);
-}
-
-static int get_kernel_syms(struct kernel_sym *buffer) {
-	return syscall( __NR_get_kernel_syms, buffer);
 }

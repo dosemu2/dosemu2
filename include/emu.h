@@ -3,12 +3,15 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/11/13 00:40:45 $
- * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
- * $Revision: 2.21 $
+ * $Date: 1995/01/14 15:31:55 $
+ * $Source: /home/src/dosemu0.60/include/RCS/emu.h,v $
+ * $Revision: 2.22 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 2.22  1995/01/14  15:31:55  root
+ * New Year checkin.
+ *
  * Revision 2.21  1994/11/13  00:40:45  root
  * Prep for Hans's latest.
  *
@@ -254,10 +257,12 @@ typedef struct { int fd; int irq; } SillyG_t;
  * DANG_END_REMARK
 */ 
 EXTERN struct vm86_struct vm86s;
-extern int screen, max_page, screen_mode;
 EXTERN fd_set fds_sigio, fds_no_sigio;
 EXTERN unsigned int use_sigio INIT(0);
-EXTERN unsigned int  not_use_sigio INIT(0);
+EXTERN unsigned int not_use_sigio INIT(0);
+EXTERN int terminal_pipe;
+EXTERN int terminal_fd INIT(-1);
+extern int screen, max_page, screen_mode;
 
 extern char *cl,		/* clear screen */
 *le,				/* cursor left */
@@ -283,8 +288,7 @@ extern int in_readkeyboard;
 EXTERN int keypipe;
 EXTERN int mousepipe;
 
-
-extern int in_vm86;
+EXTERN int in_vm86 INIT(0);
 
 extern int li, co;	/* lines, columns */
 extern int scanseq;
@@ -651,6 +655,9 @@ extern int GetDebugFlagsHelper(char *);
 extern int SetDebugFlagsHelper(char *);
 extern void leavedos(int) NORETURN;
 extern void add_to_io_select(int, unsigned char);
+extern void sigio(int, struct sigcontext_struct);
+extern void sigquit(int);
+extern void sigalrm(int, struct sigcontext_struct);
 
 /* signals for Linux's process control of consoles */
 #define SIG_RELEASE     SIGWINCH

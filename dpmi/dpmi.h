@@ -17,8 +17,9 @@
 #define UCODESEL 0x23
 #define UDATASEL 0x2b
 
-extern u_char in_dpmi;
-extern u_char in_dpmi_dos_int;
+extern int in_dpmi;
+extern int in_dpmi_dos_int;
+extern int in_dpmi_dos_call;
 
 void dpmi_get_entry_point();
 
@@ -87,7 +88,7 @@ struct RealModeCallStructure {
   unsigned short ss;
 };
 
-#if 0
+#ifdef SHOWREGS
 #define DPMI_show_state \
     D_printf("eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n" \
 	     "trapno: 0x%02lx  errorcode: 0x%08lx  cr2: 0x%08lx\n" \

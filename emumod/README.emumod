@@ -13,8 +13,8 @@ The module and redirection stuff is in emumod.c, emumod.h
 And you need NO kernel patch.
 -----------------------------
 
-I tested it with Linux 1.1.50 (will work also ..1.1.54)
-and dosemu0.53.27.
+I tested it with Linux 1.1.50 (will work also ..1.1.80)
+and dosemu0.53.27. (last tested dosemu0.53.38)
 I had not the time to run many DOS programs, 
 but TC, TURBO PASCAL, TURBO DEBUGGER an my net-software
 directly driving WD8013 with sillyint are working well.
@@ -29,12 +29,12 @@ Some special notes:
     are then unlikely.
 
 2.  To load the emumodule you need the insmod from the syscall directory
-    and the /usr/src/linux/zSystem.map (which must fit the loaded kernel).
+    and the /usr/src/linux/(z)System.map (which must fit the loaded kernel).
     If there is any map-mismatch, don't worry, you will be told.
     Given you have replaced /sbin/insmod with ./dosemu/syscall/insmod
     you may (under suid) type:
 
-    insmod -m emumodule
+    insmod -z emumodule
 
 3.  Now you can start dosemu as usual.
 

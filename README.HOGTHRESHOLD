@@ -1,30 +1,30 @@
-From popserver Sun Jan  7 00:29:47 GMT 1995
-Received: from nymphe.m.isar.de (root@nymphe.m.ISAR.de [193.141.69.3]) by Fox.nstn.ns.ca (8.6.8.1/8.6.6) with SMTP id UAA10060 for <jmaclean@fox.nstn.ns.ca>; Fri, 6 Jan 1995 20:28:26 -0400
-Received: from andiunx.m.isar.de (Uandiunx@localhost) by nymphe.m.isar.de (8.6.9/ny-1.1) with UUCP id WAA19642 for fox.nstn.ns.ca!jmaclean; Fri, 6 Jan 1995 22:26:03 +0100
-Received: by andiunx.m.isar.de (Smail3.1.28.1 #6)
-	id m0rQN2l-000DiYC; Fri, 6 Jan 95 22:21 GMT
-Message-Id: <m0rQN2l-000DiYC@andiunx.m.isar.de>
-From: andi@andiunx.m.isar.de (Andreas Kies)
-Subject: Q&A for hogthreshold
-To: jmaclean@fox.nstn.ns.ca
-Date: Fri, 6 Jan 1995 22:21:58 +0000 (GMT)
-X-Mailer: ELM [version 2.4 PL21]
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Content-Length: 1901      
-Status: RO
+Greetings DOSEMU fans,
 
-Hi Jes,
+Well, I suspect that I am about to be attacked with truckloads of bricks.
+Yes, I have, in fact, changed the Hogthreshold code.
 
-Here comes the promised documentation for HogThreshold.
-It's not much, but anyway it might be helpful for some people.
-It you find it good enough, please include it in the next version
-of DOSEMU.
+Why?  Basically because 'garrot', that cute little utility sitting in your
+garrot02 directory does a fine job of doing it with much less effort than
+the ungainly timer-based hogthreshold code.
 
-Thanks
-Andi.
+So, the hogtreshold value has now become the same as the garrot value.
+This means that good values start hovering around 10 (apparently they
+should be "about half of your BogoMips value" -- see the garrot docs.)
+Setting the hogthreshold to 0, as before, disables the idling code.
 
+DOSEMU idles impressively using the new code.  On my 486-75 portable (no
+cache), I notice no performance difference between Hogthreshold 0 & 10,
+whereas the idle usage drops from 99.7% to 0.5%.
+
+P.S.  If some brave soul is up for it, to change the HogThreshold value
+during execution, simply call int e6h w/al=12h & bx=the new value.
+Hint.  Hint.
+
+Notes:  If your application is unkind enough to do waits using an int16h
+fcn 1h loop without calling the keyboard idle interrupt (int 28h), this
+code is not going to help much.  If someone runs into a program like this,
+let me (scottb@eecs.nwu.edu) know and I'll rewrite something into the
+int16 bios.
 
 ----------------------------------------------------------------------
 
@@ -65,7 +65,7 @@ Q.:
 What is a good value for HogThreshold to start with ?
 
 A.:
-On a 40 MHZ 486 start with a value of 7000.
+On a 40 MHZ 486 start with a value of 10.
 Increase this value if you to have your DOS application run faster,
 decrease it if you think too much CPU time is used.
 
@@ -73,7 +73,7 @@ Q.:
 It does not work on my machine.
 
 A.:
-You need to have at least dosemu0.53pl27 in order to have the
+You need to have at least dosemu0.53pl40 in order to have the
 anti-hog code in effect.
 
 

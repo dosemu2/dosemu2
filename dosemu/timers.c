@@ -3,12 +3,15 @@
  *     for dosemu 0.48+
  *     Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/09/22 23:51:57 $
- * $Source: /home/src/dosemu0.60/RCS/timers.c,v $
- * $Revision: 2.2 $
+ * $Date: 1995/01/14 15:29:17 $
+ * $Source: /home/src/dosemu0.60/dosemu/RCS/timers.c,v $
+ * $Revision: 2.3 $
  * $State: Exp $
  *
  * $Log: timers.c,v $
+ * Revision 2.3  1995/01/14  15:29:17  root
+ * New Year checkin.
+ *
  * Revision 2.2  1994/09/22  23:51:57  root
  * Prep for pre53_21.
  *
@@ -100,46 +103,6 @@ set_ticks(unsigned long new)
   *overflow = 0;
   /* warn("TIMER: update value of %d\n", (40 / (1000000 / UPDATE))); */
   ignore_segv--;
-}
-
-inline int
-int28(void)
-{				/* keyboard busy loop */
-  /* defining this reduces the CPU load, but slows Turbo Pascal and Turbo
- * C's pageup/pagedown tremendously
- */
-#ifdef BAD_SLOW_INT28
-  /* if this is an idle call :-), wait for a bit */
-  if (IS_IRET(0x28)) {
-    k_printf("In int28 keyboard busy loop\n");
-    usleep(INT28_IDLE_USECS);
-    return 1;
-  }
-  else
-    return 0;
-#else
-#if 1
-      static struct timeval tp1;
-      static struct timeval tp2;
-      static int time_count = 0;
-
-      if (time_count == 0){
-        gettimeofday(&tp1, NULL);
-        time_count++;
-      }
-      else {
-        time_count++;
-        gettimeofday(&tp2, NULL);
-        if ((tp2.tv_sec - tp1.tv_sec) * 1000000 +
-            ((int) tp2.tv_usec - (int) tp1.tv_usec) > config.hogthreshold) {
-          usleep(100);
-          time_count = 0;
-        }
-      }
-#else
-  return 0;
-#endif
-#endif
 }
 
 #undef TIMERS_C
