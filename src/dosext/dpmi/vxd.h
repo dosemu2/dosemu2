@@ -4,6 +4,7 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
+void get_VXD_entry( struct sigcontext *scp );
 void VXD_VMM(struct sigcontext *scp);
 void VXD_PageFile(struct sigcontext *scp);
 void VXD_Reboot(struct sigcontext *scp);

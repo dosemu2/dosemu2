@@ -2332,12 +2332,22 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
   switch (i) {
     case 0x2f:
       switch (_LWORD(eax)) {
-        case 0x168a:
-        return get_ext_API(scp);
+	case 0x1684:
+	  D_printf("DPMI: Get VxD entry point, BX = 0x%04x\n", _LWORD(ebx));
+#if 1
+	  get_VXD_entry(scp);
+#else
+	  D_printf("DPMI: VxD not supported\n");
+	  /* no entry point */
+	  _es = _edi = 0;
+#endif
+	  return;
 	case 0x1686:
-         _eax = 0;
-         D_printf("DPMI: CPU mode check in protected mode.\n");
-         return;
+          D_printf("DPMI: CPU mode check in protected mode.\n");
+          _eax = 0;
+          return;
+        case 0x168a:
+          return get_ext_API(scp);
       }
       break;
     case 0x31:
