@@ -336,17 +336,21 @@ static void pit_latch(int latch)
 #endif
 }
 
+/* This is called also by port 0x61 - some programs can use timer #2
+ * as a GP timer and read bit 5 of port 0x61 (e.g. Matrox BIOS)
+ */
 Bit8u pit_inp(ioport_t port)
 {
   int ret = 0;
   port -= 0x40;
 
-  if (port == 2 && config.speaker == SPKR_NATIVE) {
-    return safe_port_in_byte(0x42);
+  if (port == 2) {
+    if (config.speaker == SPKR_NATIVE) return safe_port_in_byte(0x42);
+    pit_latch(port);
+    return(pit[port].outpin);
   }
-
-  if (port == 1)
-    i_printf("PORT:  someone is reading the CMOS refresh time?!?");
+  else if (port == 1)
+    i_printf("PIT:  someone is reading the CMOS refresh time?!?");
 
   if (pit[port].read_latch == -1)
     pit_latch(port);
@@ -587,13 +591,36 @@ void timer_int_engine(void)
 
 #ifdef NEW_KBD_CODE
 /* reads/writes to the speaker control port (0x61)
+ * Port 0x61 is really more complex than a speaker enable bit... look here:
+ * [output]:
+ * Bit(s)	Description
+ *  7	pulse to 1 for IRQ1 reset (PC,XT)
+ *  6-4	reserved
+ *  3	I/O channel parity check disable
+ *  2	RAM parity check disable
+ *  1	speaker data enable
+ *  0	timer 2 gate to speaker enable
+ *
+ * [input]:
+ * Bit(s)	Description
+ *  7	RAM parity error occurred
+ *  6	I/O channel parity error occurred
+ *  5	mirrors timer 2 output condition
+ *  4	toggles with each refresh request
+ *  3	NMI I/O channel check status
+ *  2	NMI parity check status
+ *  1	speaker data status
+ *  0	timer 2 clock gate to speaker status
  */
 Bit8u spkr_io_read(ioport_t port) {
    if (port==0x61)  {
       if (config.speaker == SPKR_NATIVE)
          return port_safe_inb(0x61);
       else
-         return port61;
+	 /* keep the connection between port 0x61 and PIT timer#2 */
+         return (*((Bit8u *)&pic_sys_time)&0x10 | /* or anything that toggles quick enough */
+		(pit_inp(0x42)? 0x20:0) |	/* outpin: 00 or 80 */
+		(port61&0xcf));
    }
    return 0xff;
 }
@@ -611,7 +638,7 @@ void spkr_io_write(ioport_t port, Bit8u value) {
 	  break;
 
        case SPKR_OFF:
-          port61 = value & 0x0f;
+          port61 = value & 0x0c;
           break;
       }
    }
@@ -655,6 +682,10 @@ void pit_init(void)
   io_device.end_addr     = 0x0043;
   port_register_handler(io_device, 0);
 
+#ifdef NEW_KBD_CODE
+  /* register_handler for port 0x61 is in keyboard code */
+  port61 = (config.speaker==SPKR_OFF? 0x0c:0x0e);
+#endif
 #if 0
   io_device.start_addr   = 0x0047;
   io_device.end_addr     = 0x0047;
@@ -709,7 +740,7 @@ void pit_reset(void)
   timer_handle = timer_create(pit_timer_func, NULL, pit_timer_usecs(0x10000));
 #endif
 #ifdef NEW_KBD_CODE
-  port61 = 0;
+  port61 = (config.speaker==SPKR_OFF? 0x0c:0x0e);
   do_ioctl(console_fd,KIOCSOUND,0);    /* sound off */
 #endif
 }

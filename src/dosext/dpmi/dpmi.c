@@ -2595,6 +2595,7 @@ void dpmi_fault(struct sigcontext *scp, int code)
 {
 
 #define LWORD32(x) (DPMIclient_is_32 ? (unsigned long) _##x : _LWORD(x))
+#define _LWECX	   (DPMIclient_is_32 ^ prefix67 ? _ecx : _LWORD(ecx))
 
   us *ssp;
   unsigned char *csp;
@@ -2667,7 +2668,7 @@ if ((_ss & 7) == 7) {
     unsigned char *lina;
     Bit32u org_eip;
     int pref_seg;
-    int done,is_rep,prefix66;
+    int done,is_rep,prefix66,prefix67;
     
     csp = lina = (unsigned char *) SEL_ADR(_cs, _eip);
     ssp = (us *) SEL_ADR(_ss, _esp);
@@ -2683,12 +2684,13 @@ if ((_ss & 7) == 7) {
 
     done=0;
     is_rep=0;
-    prefix66=0;
+    prefix66=prefix67=0;
     pref_seg=-1;
 
     do {
       switch (*(csp++)) {
          case 0x66:      /* operant prefix */  prefix66=1; break;
+         case 0x67:      /* address prefix */  prefix67=1; break;
          case 0x2e:      /* CS */              pref_seg=_cs; break;
          case 0x3e:      /* DS */              pref_seg=_ds; break;
          case 0x26:      /* ES */              pref_seg=_es; break;
@@ -3043,9 +3045,18 @@ if ((_ss & 7) == 7) {
       _eip += 1;
       dpmi_sti();
       break;
-    case 0x6c:                    /* insb */
 
+    case 0x6c:                    /* [rep] insb */
       /* NOTE: insb uses ES, and ES can't be overwritten by prefix */
+#ifdef NEW_PORT_CODE
+      if (DPMIclient_is_32)
+	_edi += port_rep_inb(_LWORD(edx), (Bit8u *)SEL_ADR(_es,_edi),
+	        _LWORD(eflags)&DF, (is_rep?_LWECX:1));
+      else
+	_LWORD(edi) += port_rep_inb(_LWORD(edx), (Bit8u *)SEL_ADR(_es,_LWORD(edi)),
+        	_LWORD(eflags)&DF, (is_rep?_LWECX:1));
+      if (is_rep) _LWECX = 0;
+#else
       if (is_rep) {
         int delta = 1;
         if(_LWORD(eflags) &DF ) delta = -1;
@@ -3053,30 +3064,51 @@ if ((_ss & 7) == 7) {
                 LWORD32(ecx),delta);
         if (DPMIclient_is_32) {
           while (_ecx)  {
-             *((unsigned char *)SEL_ADR(_es,_edi)) = inb((int) _LWORD(edx));
+             *((Bit8u *)SEL_ADR(_es,_edi)) = inb((int) _LWORD(edx));
              _edi += delta;
              _ecx--;
           }
         }
         else {
           while (_LWORD(ecx))  {
-             *((unsigned char *)SEL_ADR(_es,_LWORD(edi))) = inb((int) _LWORD(edx));
+             *((Bit8u *)SEL_ADR(_es,_LWORD(edi))) = inb((int) _LWORD(edx));
              _LWORD(edi) += delta;
              _LWORD(ecx)--;
           }
         }
       }
       else {
-        *((unsigned char *)SEL_ADR(_es,_edi)) = inb((int) _LWORD(edx));
+        *((Bit8u *)SEL_ADR(_es,_edi)) = inb((int) _LWORD(edx));
         D_printf("DPMI: insb(0x%04x) value %02x\n",
-  	       _LWORD(edx),*((unsigned char *)SEL_ADR(_es,_edi)));   
-        if(LWORD(eflags) & DF) LWORD32(edi)--;
+  	       _LWORD(edx),*((Bit8u *)SEL_ADR(_es,_edi)));   
+        if(_LWORD(eflags) & DF) LWORD32(edi)--;
         else LWORD32(edi)++;
       }
+#endif	/* NEW_PORT_CODE */
       LWORD32(eip)++;
       break;
+
     case 0x6d:			/* [rep] insw/d */
       /* NOTE: insw/d uses ES, and ES can't be overwritten by prefix */
+#ifdef NEW_PORT_CODE
+      if (prefix66) {
+	if (DPMIclient_is_32)
+	  _edi += port_rep_inw(_LWORD(edx), (Bit16u *)SEL_ADR(_es,_edi),
+		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
+	else
+	  _LWORD(edi) += port_rep_ind(_LWORD(edx), (Bit32u *)SEL_ADR(_es,_LWORD(edi)),
+		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
+      }
+      else {
+	if (DPMIclient_is_32)
+	  _edi += port_rep_ind(_LWORD(edx), (Bit32u *)SEL_ADR(_es,_edi),
+		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
+	else
+	  _LWORD(edi) += port_rep_inw(_LWORD(edx), (Bit16u *)SEL_ADR(_es,_LWORD(edi)),
+		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
+      }
+      if (is_rep) _LWECX = 0;
+#else
       if (is_rep) {
         #define ___LOCALAUX(typ,iotyp,incr,x) \
           int delta =incr; \
@@ -3091,11 +3123,11 @@ if ((_ss & 7) == 7) {
 
         if (prefix66 ^ DPMIclient_is_32) {
                                   /* rep insd */
-          ___LOCALAUX((unsigned long *),ind,4,'d')
+          ___LOCALAUX((Bit32u *),ind,4,'d')
         }
         else {
                                   /* rep insw */
-          ___LOCALAUX((unsigned short *),inw,2,'w')
+          ___LOCALAUX((Bit16u *),inw,2,'w')
         }
         #undef  ___LOCALAUX
       }
@@ -3109,41 +3141,71 @@ if ((_ss & 7) == 7) {
         
         if (prefix66 ^ DPMIclient_is_32) {
                                   /* insd */
-          ___LOCALAUX((unsigned long *),ind,4,'d')
+          ___LOCALAUX((Bit32u *),ind,4,'d')
         }
         else {
                                   /* insw */
-          ___LOCALAUX((unsigned short *),inw,2,'w')
+          ___LOCALAUX((Bit16u *),inw,2,'w')
         }
         #undef  ___LOCALAUX
       }
+#endif	/* NEW_PORT_CODE */
       LWORD32(eip)++;
       break;
 
     case 0x6e:			/* [rep] outsb */
       if (pref_seg < 0) pref_seg = _ds;
+#ifdef NEW_PORT_CODE
+      if (DPMIclient_is_32)
+	_esi += port_rep_outb(_LWORD(edx), (Bit8u *)SEL_ADR(pref_seg,_esi),
+	        _LWORD(eflags)&DF, (is_rep?_LWECX:1));
+      else
+	_LWORD(esi) += port_rep_outb(_LWORD(edx), (Bit8u *)SEL_ADR(pref_seg,_LWORD(esi)),
+	        _LWORD(eflags)&DF, (is_rep?_LWECX:1));
+      if (is_rep) _LWECX = 0;
+#else
       if (is_rep) {
         int delta = 1;
         D_printf("DPMI: rep outsb\n");
-        if(LWORD(eflags) & DF) delta = -1;
+        if(_LWORD(eflags) & DF) delta = -1;
         while(LWORD32(ecx)) {
-          outb(_LWORD(edx), *((unsigned char *)SEL_ADR(pref_seg,_esi)));
+          outb(_LWORD(edx), *((Bit8u *)SEL_ADR(pref_seg,_esi)));
           LWORD32(esi) += delta;
           LWORD32(ecx)--;
         }
       }
       else {
         D_printf("DPMI: outsb port 0x%04x value %02x\n",
-              _LWORD(edx),*((unsigned char *)SEL_ADR(pref_seg,_esi)));
-        outb(_LWORD(edx), *((unsigned char *)SEL_ADR(pref_seg,_esi)));
+              _LWORD(edx),*((Bit8u *)SEL_ADR(pref_seg,_esi)));
+        outb(_LWORD(edx), *((Bit8u *)SEL_ADR(pref_seg,_esi)));
         if(_LWORD(eflags) & DF) LWORD32(esi)--;
         else LWORD32(esi)++;
       }
+#endif	/* NEW_PORT_CODE */
       LWORD32(eip)++;
       break;
 
-    case 0x6f:			/* [re] outsw/d */
+    case 0x6f:			/* [rep] outsw/d */
       if (pref_seg < 0) pref_seg = _ds;
+#ifdef NEW_PORT_CODE
+      if (prefix66) {
+        if (DPMIclient_is_32)
+	  _esi += port_rep_outw(_LWORD(edx), (Bit16u *)SEL_ADR(pref_seg,_esi),
+		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
+        else
+	  _LWORD(esi) += port_rep_outd(_LWORD(edx), (Bit32u *)SEL_ADR(pref_seg,_LWORD(esi)),
+		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
+      }
+      else {
+        if (DPMIclient_is_32)
+	  _esi += port_rep_outd(_LWORD(edx), (Bit32u *)SEL_ADR(pref_seg,_esi),
+		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
+        else
+	  _LWORD(esi) += port_rep_outw(_LWORD(edx), (Bit16u *)SEL_ADR(pref_seg,_LWORD(esi)),
+		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
+      } 
+      if (is_rep) _LWECX = 0;
+#else
       if (is_rep) {
         #define ___LOCALAUX(typ,iotyp,incr,x) \
           int delta = incr; \
@@ -3157,11 +3219,11 @@ if ((_ss & 7) == 7) {
         
         if (prefix66 ^ DPMIclient_is_32) {
                                   /* rep outsd */
-          ___LOCALAUX((unsigned long *),outd,4,'d')
+          ___LOCALAUX((Bit32u *),outd,4,'d')
         }
         else {
                                   /* rep outsw */
-          ___LOCALAUX((unsigned short *),outw,2,'w')
+          ___LOCALAUX((Bit16u *),outw,2,'w')
         }
         #undef  ___LOCALAUX
       }
@@ -3175,14 +3237,15 @@ if ((_ss & 7) == 7) {
         
         if (prefix66 ^ DPMIclient_is_32) {
                                   /* outsd */
-          ___LOCALAUX((unsigned long *),outd,4,'d')
+          ___LOCALAUX((Bit32u *),outd,4,'d')
         }
         else {
                                   /* outsw */
-          ___LOCALAUX((unsigned short *),outw,2,'w')
+          ___LOCALAUX((Bit16u *),outw,2,'w')
         }
         #undef  ___LOCALAUX
       } 
+#endif	/* NEW_PORT_CODE */
       LWORD32(eip)++;
       break;
 
@@ -3224,6 +3287,9 @@ if ((_ss & 7) == 7) {
       outb(_LWORD(edx), _LO(ax));
       LWORD32(eip) += 1;
       break;
+
+    case 0x0f:
+      if (!cpu_trap_0f(csp, scp)) break;
 
     default:
       _eip = org_eip;

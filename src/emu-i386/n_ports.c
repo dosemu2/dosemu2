@@ -152,7 +152,7 @@ static char *
 #define PORT_TRACE_D
 
 #if PORT_DEBUG_READ > 0
-  static unsigned char log_port_read(ioport_t port, unsigned char r)
+  static Bit8u log_port_read(ioport_t port, Bit8u r)
   {
     #if PORT_DEBUG_READ == 1
       if (port < 0x100)
@@ -162,7 +162,7 @@ static char *
       T_printf ("nPORTb: Rd 0x%04x -> 0x%02x %s\n", port, r, p2bin(r));
       return r;
   }
-  static unsigned short log_port_read_w(ioport_t port, unsigned short r)
+  static Bit16u log_port_read_w(ioport_t port, Bit16u r)
   {
     #if PORT_DEBUG_READ == 1
       if (port < 0x100)
@@ -173,7 +173,7 @@ static char *
       return r;
   }
 #ifdef PORT_TRACE_D
-  static unsigned int log_port_read_d(ioport_t port, unsigned int r)
+  static Bit32u log_port_read_d(ioport_t port, Bit32u r)
   {
     #if PORT_DEBUG_READ == 1
       if (port < 0x100)
@@ -194,7 +194,7 @@ static char *
 #endif
 
 #if PORT_DEBUG_WRITE > 0
-  static void log_port_write(ioport_t port, unsigned char w)
+  static void log_port_write(ioport_t port, Bit8u w)
   {
     #if PORT_DEBUG_WRITE == 1
       if (port < 0x100)
@@ -203,7 +203,7 @@ static char *
     #endif
       T_printf("PORTb: Wr 0x%04x <- %s 0x%02x\n", port, p2bin(w), w);
   }
-  static void log_port_write_w(ioport_t port, unsigned short w)
+  static void log_port_write_w(ioport_t port, Bit16u w)
   {
     #if PORT_DEBUG_WRITE == 1
       if (port < 0x100)
@@ -213,7 +213,7 @@ static char *
       T_printf("PORTw: Wr 0x%04x <- 0x%04x\n", port, w);
   }
 #ifdef PORT_TRACE_D
-  static void log_port_write_d(ioport_t port, unsigned int w)
+  static void log_port_write_d(ioport_t port, Bit32u w)
   {
     #if PORT_DEBUG_WRITE == 1
       if (port < 0x100)
@@ -258,7 +258,7 @@ Bit8u port_inb(ioport_t port)
 }
 
 /* 
- * SIDOC_BEGIN_FUNCTION port_outb(ioport_t port, unsigned char byte)
+ * SIDOC_BEGIN_FUNCTION port_outb(ioport_t port, Bit8u byte)
  *
  * Handles/simulates an outb() port IO write
  *
@@ -294,7 +294,7 @@ Bit16u port_inw(ioport_t port)
 }
 
 /* 
- * SIDOC_BEGIN_FUNCTION port_outw(ioport_t port, unsigned short word)
+ * SIDOC_BEGIN_FUNCTION port_outw(ioport_t port, Bit16u word)
  *
  * Handles/simulates an outw() port IO write
  *
@@ -314,7 +314,7 @@ void port_outw(ioport_t port, Bit16u word)
 
 /* 
  * SIDOC_BEGIN_FUNCTION port_ind(ioport_t port)
- * SIDOC_BEGIN_FUNCTION port_outd(ioport_t port, unsigned int dword)
+ * SIDOC_BEGIN_FUNCTION port_outd(ioport_t port, Bit32u dword)
  *
  * Handles/simulates an ind()/outd() port IO read/write.
  *
@@ -452,6 +452,134 @@ static void port_not_avail_outd(ioport_t port, Bit32u value)
 
 
 /* ---------------------------------------------------------------------- */
+/* SIDOC_BEGIN_REMARK
+ *
+ * optimized versions for rep - basically we avoid changing privileges
+ * and iopl on and off lots of times. We are safe letting iopl=3 here
+ * since we don't exit from this code until finished.
+ * This code is shared between VM86 and DPMI.
+ *
+ * SIDOC_END_REMARK
+ */
+
+int port_rep_inb(ioport_t port, Bit8u *base, int df, Bit32u count)
+{
+	register int incr = df? -1: 1;
+	Bit8u *dest = base;
+
+	if (count==0) return 0;
+	T_printf("Doing REP insb(%#x) %d bytes at %p, DF %d\n", port,
+		count, base, df);
+	if (EMU_HANDLER(port).read_portb == std_port_inb) {
+	    PORT_IOPLON(port,1);
+	    while (count--) { *dest = port_real_inb(port); dest += incr; }
+	    PORT_IOPLOFF(port,1);
+	}
+	else {
+	  while (count--)
+	    *dest = EMU_HANDLER(port).read_portb(port); dest += incr;
+	}
+	return dest-base;
+}
+
+int port_rep_outb(ioport_t port, Bit8u *base, int df, Bit32u count)
+{
+	register int incr = df? -1: 1;
+	Bit8u *dest = base;
+
+	if (count==0) return 0;
+	T_printf("Doing REP outsb(%#x) %d bytes at %p, DF %d\n", port,
+		count, base, df);
+	if (EMU_HANDLER(port).write_portb == std_port_outb) {
+	    PORT_IOPLON(port,1);
+	    while (count--) { port_real_outb(port, *dest); dest += incr; }
+	    PORT_IOPLOFF(port,1);
+	}
+	else {
+	  while (count--)
+	    EMU_HANDLER(port).write_portb(port, *dest); dest += incr;
+	}
+	return dest-base;
+}
+
+int port_rep_inw(ioport_t port, Bit16u *base, int df, Bit32u count)
+{
+	register int incr = df? -1: 1;
+	Bit16u *dest = base;
+
+	if (count==0) return 0;
+	T_printf("Doing REP insw(%#x) %d words at %p, DF %d\n", port,
+		count, base, df);
+	if (EMU_HANDLER(port).read_portw == std_port_inw) {
+	    PORT_IOPLON(port,2);
+	    while (count--) { *dest = port_real_inw(port); dest += incr; }
+	    PORT_IOPLOFF(port,2);
+	}
+	else if (EMU_HANDLER(port).read_portw == NULL) {
+	  Bit16u res;
+	  while (count--) {
+	    res = EMU_HANDLER(port).read_portb(port);
+	    *dest = ((Bit16u)EMU_HANDLER(port).read_portb(port+1) <<8) | res;
+	    dest += incr;
+	  }
+	}
+	else {
+	  while (count--)
+	    *dest = EMU_HANDLER(port).read_portw(port); dest += incr;
+	}
+	return (Bit8u *)dest-(Bit8u *)base;
+}
+
+int port_rep_outw(ioport_t port, Bit16u *base, int df, Bit32u count)
+{
+	register int incr = df? -1: 1;
+	Bit16u *dest = base;
+
+	if (count==0) return 0;
+	T_printf("Doing REP outsw(%#x) %d words at %p, DF %d\n", port,
+		count, base, df);
+	if (EMU_HANDLER(port).write_portw == std_port_outw) {
+	    PORT_IOPLON(port,2);
+	    while (count--) { port_real_outw(port, *dest); dest += incr; }
+	    PORT_IOPLOFF(port,2);
+	}
+	else if (EMU_HANDLER(port).write_portw == NULL) {
+	  Bit16u res;
+	  while (count--) {
+	    res = *dest, dest += incr;
+	    EMU_HANDLER(port).write_portb(port, res);
+	    EMU_HANDLER(port).write_portb(port+1, res>>8);
+	  }
+	}
+	else {
+	  while (count--)
+	    EMU_HANDLER(port).write_portw(port, *dest); dest += incr;
+	}
+	return (Bit8u *)dest-(Bit8u *)base;
+}
+
+int port_rep_ind(ioport_t port, Bit32u *base, int df, Bit32u count)
+{
+	register int incr = df? -1: 1;
+	Bit32u *dest = base;
+
+	if (count==0) return 0;
+	while (count--) { *dest = port_ind(port); dest += incr; }
+	return (Bit8u *)dest-(Bit8u *)base;
+}
+
+int port_rep_outd(ioport_t port, Bit32u *base, int df, Bit32u count)
+{
+	register int incr = df? -1: 1;
+	Bit32u *dest = base;
+
+	if (count==0) return 0;
+	while (count--) { port_outd(port, *dest); dest += incr; }
+	return (Bit8u *)dest-(Bit8u *)base;
+}
+
+
+/* ---------------------------------------------------------------------- */
 /* 
  * SIDOC_BEGIN_FUNCTION special_port_inb,special_port_outb
  *
@@ -463,9 +591,9 @@ static void port_not_avail_outd(ioport_t port, Bit32u value)
  * SIDOC_END_FUNCTION
  */
 
-static unsigned char special_port_inb(ioport_t port)
+static Bit8u special_port_inb(ioport_t port)
 {
-	unsigned char res = 0xff;
+	Bit8u res = 0xff;
 
 	if (config.usesX) {
 	/* HGC stuff */
@@ -488,7 +616,7 @@ static unsigned char special_port_inb(ioport_t port)
 	return res;
 }
 
-static void special_port_outb(ioport_t port, unsigned char byte)
+static void special_port_outb(ioport_t port, Bit8u byte)
 {
 	if (config.usesX) {
 	    if (port==0x3b8) {	/* HGC mode-reg */
@@ -530,7 +658,7 @@ static void special_port_outb(ioport_t port, unsigned char byte)
 		/* Writing to the 6845 */
 		static int last_port;
 		static int last_byte;
-		static int hi = 0, lo = 0;
+		static unsigned int hi = 0, lo = 0;
 		int pos;
 
 		v_printf("nPORT: 6845 outb [0x%04x]\n", port);
@@ -541,13 +669,13 @@ static void special_port_outb(ioport_t port, unsigned char byte)
 			   switch) while a new cursor location is being written
 			   to the 6845. */
 			if (last_byte == 14) {
-				hi = (unsigned char) byte;
+				hi = byte;
 				pos = (hi << 8) | lo;
 				cursor_col = pos % 80;
 				cursor_row = pos / 80;
 			}
 			else if (last_byte == 15) {
-				lo = (unsigned char) byte;
+				lo = byte;
 				pos = (hi << 8) | lo;
 				cursor_col = pos % 80;
 				cursor_row = pos / 80;
@@ -861,8 +989,8 @@ int port_register_handler(emu_iodev_t device, int flags)
  *
  * SIDOC_END_FUNCTION
  */
-Boolean port_allow_io(ioport_t start, unsigned short size, int permission,unsigned char ormask,
-	unsigned char andmask, unsigned int flags, char *device)
+Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
+	Bit8u andmask, unsigned int flags, char *device)
 {
 	static emu_iodev_t io_device;
 	FILE *fp;

@@ -1,3 +1,12 @@
+97/10/23 ver. 0.67.13.2 unofficial pre-release
+	From Alberto
+	- fix for Matrox _and_ 'speaker non-native', lots of port61 fixes.
+	- fixed bugs in dpmi.c (LWORD was used instead of _LWORD)
+	- replaced [rep]{in,out}s{bwd} in vm86.c and dpmi.c with calls
+	  to a common set of functions in n_ports.c.
+	- completed prefix handling for ports stuff, all combinations now
+	  are considered.
+	- aligned some (lot of) code to the Bitxxx type convention.
 97/10/22 ver. 0.67.13.1 unofficial pre-release
 	From Alberto
 	- rest of ioport_t fixes.

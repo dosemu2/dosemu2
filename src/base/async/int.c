@@ -292,19 +292,31 @@ static int dos_helper(void)
      
   case DOS_HELPER_VIDEO_INIT:
     v_printf("Starting Video initialization\n");
+    /* DANG_BEGIN_REMARK
+     * Some video BIOSes need access to the PIT timer 2, and some
+     * (e.g. Matrox) directly read the timer output on port 0x61.
+     * If we don't allow video port access, this will be totally
+     * emulated; else, we give temporary access to the needed ports
+     * (timer at 0x42, timer config at 0x43 and timer out/speaker at 0x61),
+     * provided they were not previously enabled by SPKR_NATIVE - AV
+     * DANG_END_REMARK
+     */
     if (config.allowvideoportaccess) {
       if (config.speaker != SPKR_NATIVE) {
-	v_printf("Giving access to port 0x42\n");
-	set_ioperm(0x42, 1, 1);
+	v_printf("Giving temporary access to PIT#2\n");
+	set_ioperm(0x42, 2, 1);		/* port 0x43 too! */
+	set_ioperm(0x61, 1, 1);
       }
       in_video = 1;
     }
-    /* Many video BIOSes use hi interrupt vector locations as
+    /* DANG_BEGIN_REMARK
+     * Many video BIOSes use hi interrupt vector locations as
      * scratchpad area - this is because they come before DOS and feel
      * safe to do it. But we are initializing vectors before video, so
      * this only causes trouble. I assume no video BIOS will ever:
      * - change vectors < 0xe0 (0:380-0:3ff area)
      * - change anything in the vector area _after_ installation - AV
+     * DANG_END_REMARK
      */
     v_printf("Save hi vector area\n");
     MEMCPY_2UNIX(save_hi_ints,0x380,128);
@@ -314,8 +326,9 @@ static int dos_helper(void)
     v_printf("Finished with Video initialization\n");
     if (config.allowvideoportaccess) {
       if (config.speaker != SPKR_NATIVE) {
-        v_printf("Removing access to port 0x42\n");
-        set_ioperm(0x42, 1, 0);
+        v_printf("Removing temporary access to PIT#2\n");
+        set_ioperm(0x42, 2, 0);
+        set_ioperm(0x61, 1, 0);
       }
       in_video = 0;
     }

@@ -47,14 +47,14 @@ typedef struct {
 
 static __inline__ void port_real_outb(ioport_t port, Bit8u value)
 {
-  __asm__ volatile ("outb %0,%1"
+  __asm__ __volatile__ ("outb %0,%1"
 		    ::"a" ((Bit8u) value), "d"((Bit16u) port));
 }
 
 static __inline__ Bit8u port_real_inb(ioport_t port)
 {
   Bit8u _v;
-  __asm__ volatile ("inb %1,%0"
+  __asm__ __volatile__ ("inb %1,%0"
 		    :"=a" (_v):"d"((Bit16u) port));
   return _v;
 }
@@ -107,6 +107,13 @@ extern Bit16u std_port_inw(ioport_t port);
 extern void   std_port_outw(ioport_t port, Bit16u word);
 extern Bit32u std_port_ind(ioport_t port);
 extern void   std_port_outd(ioport_t port, Bit32u word);
+
+extern int port_rep_inb(ioport_t port, Bit8u *dest, int df, Bit32u count);
+extern int port_rep_outb(ioport_t port, Bit8u *dest, int df, Bit32u count);
+extern int port_rep_inw(ioport_t port, Bit16u *dest, int df, Bit32u count);
+extern int port_rep_outw(ioport_t port, Bit16u *dest, int df, Bit32u count);
+extern int port_rep_ind(ioport_t port, Bit32u *dest, int df, Bit32u count);
+extern int port_rep_outd(ioport_t port, Bit32u *dest, int df, Bit32u count);
 
 #define inb			port_inb
 #define inw			port_inw
