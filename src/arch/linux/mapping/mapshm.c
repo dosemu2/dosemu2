@@ -130,11 +130,11 @@ static int open_mapping_shm(int cap)
     first = 0;
 
     /* first estimate the needed size of the shm region */
-    mapsize  = 2*16;		/* HMA */
+    mapsize  = HMASIZE >> 10;		/* HMA */
  				/* VGAEMU */
     mapsize += 2*(config.vgaemu_memsize ? config.vgaemu_memsize : 1024);
     mapsize += config.ems_size;	/* EMS */
-    mapsize += config.dpmi;	/* DPMI */
+    mapsize += LOWMEM_SIZE >> 10; /* Low Mem */
     estsize = mapsize;
 				/* keep heap fragmentation in mind */
     mapsize += (mapsize/4 < padsize ? padsize : mapsize/4);
@@ -238,8 +238,6 @@ static void close_mapping_shm(int cap)
 
 static void *alloc_mapping_shm(int cap, int mapsize, void *target)
 {
-  Q__printf("MAPPING: alloc, cap=%s, mapsize=%x\n",
-	cap, mapsize);
   Q__printf("MAPPING: alloc, cap=%s, mapsize=%x, target %p\n",
 	cap, mapsize, target);
   if (target) return 0;	/* we can't handle this case currently. However,
@@ -292,13 +290,6 @@ static void *mmap_mapping_shm(int cap, void *target, int mapsize, int protect, v
 {
   if (cap & MAPPING_ALIAS) {
     return (*alias_map)(target, mapsize, protect, source);
-  }
-  if (cap & MAPPING_SHM) {
-    int size = get_pgareasize(source);
-    int prot = PROT_READ|PROT_WRITE|PROT_EXEC;
-    if (protect) prot &= ~PROT_WRITE;
-    if (!size) return (void *)-1;
-    return alias_map(target, size, prot, source);
   }
   return (void *)-1;
 }

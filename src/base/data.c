@@ -25,7 +25,6 @@
 #include "mouse.h"
 #include "bios.h"
 #include "dpmi.h"
-#include "shared.h"
 #include "pic.h"
 #include "disks.h"
 #include "mhpdbg.h"

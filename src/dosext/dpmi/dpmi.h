@@ -131,8 +131,7 @@ typedef struct dpmi_pm_block_stuct {
   unsigned long handle;
   unsigned long size;
   char     *base;
-  char     *attrs;
-  char     from_pool;
+  u_short  *attrs;
 } dpmi_pm_block;
 
 typedef struct dpmi_pm_block_root_struc {
@@ -213,8 +212,8 @@ dpmi_pm_block *lookup_pm_block(unsigned long h);
 int
 DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
 			  unsigned long low_addr, unsigned long cnt);
-int DPMISetPageAttributes(unsigned long handle, int page, us attr);
-us DPMIGetPageAttributes(unsigned long handle, int page);
+int DPMISetPageAttributes(unsigned long handle, int offs, us attrs[], int count);
+int DPMIGetPageAttributes(unsigned long handle, int offs, us attrs[], int count);
 unsigned long dpmi_GetSegmentBaseAddress(unsigned short selector);
 unsigned long GetSegmentBaseAddress(unsigned short);
 unsigned long GetSegmentLimit(unsigned short);

@@ -53,6 +53,7 @@ int libless_munmap(caddr_t addr, size_t len)
 }
 
 static int init_done = 0;
+static char *lowmem_base = NULL;
 
 static struct mappingdrivers *mappingdrv[] = {
   &mappingdriver_shm,
@@ -79,12 +80,30 @@ void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source
     return mmap(target, mapsize, protect,
 		MAP_PRIVATE | fixed | MAP_ANONYMOUS, -1, 0);
   }
+  if (cap & (MAPPING_LOWMEM | MAPPING_HMA)) {
+    return (*mappingdriver.mmap)(cap, target, mapsize, protect,
+      lowmem_base + (off_t)source);
+  }
   return (*mappingdriver.mmap)(cap, target, mapsize, protect, source);
 }        
 
 void *mapscratch_mapping(int cap, void *target, int mapsize, int protect)
 {
   return mmap_mapping(cap|MAPPING_SCRATCH, target, mapsize, protect, 0);
+}
+
+void *mremap_mapping(int cap, void *source, int old_size, int new_size,
+  unsigned long flags, void *target)
+{
+  void *ptr;
+  Q__printf("MAPPING: remap, cap=%s, source=%p, old_size=%x, new_size=%x, target=%p\n",
+	cap, source, old_size, new_size, target);
+  if ((int)target != -1)	// Cant for now
+    return NULL;
+  ptr = mremap(source, old_size, new_size, flags);
+  if (ptr == MAP_FAILED)
+    return NULL;
+  return ptr;
 }
 
 int mprotect_mapping(int cap, void *addr, int mapsize, int protect)
@@ -184,8 +203,16 @@ void close_mapping(int cap)
 
 void *alloc_mapping(int cap, int mapsize, void *target)
 {
-  void *addr = mappingdriver.alloc(cap, mapsize, target);
+  void *addr;
+  addr = mappingdriver.alloc(cap, mapsize, target);
   mprotect_mapping(cap, addr, mapsize, PROT_READ | PROT_WRITE);
+
+  if (cap & MAPPING_INIT_LOWRAM) {
+    Q__printf("MAPPING: LOWRAM_INIT, cap=%s, base=%p\n", cap, addr);
+    lowmem_base = addr;
+    addr = mmap_mapping(MAPPING_INIT_LOWRAM | MAPPING_ALIAS, target, mapsize,
+      PROT_READ | PROT_WRITE | PROT_EXEC, lowmem_base);
+  }
   return addr;
 }
 

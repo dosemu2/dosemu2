@@ -66,6 +66,9 @@ void *realloc_mapping (int cap, void *addr, int oldsize, int newsize);
 typedef void *mmap_mapping_type(int cap, void *target, int mapsize, int protect, void *source);
 void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source);
 
+void *mremap_mapping(int cap, void *source, int old_size, int new_size,
+  unsigned long flags, void *target);
+
 typedef int munmap_mapping_type(int cap, void *addr, int mapsize);
 int munmap_mapping (int cap, void *addr, int mapsize);
 

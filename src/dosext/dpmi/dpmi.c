@@ -2034,26 +2034,16 @@ err:
     break;
 
   case 0x0506:			/* Get Page Attributes */
-    {
-      int i;
-      us *buf = (us *)SEL_ADR(_es, _edx);
-      for (i = 0; i < _ecx; i++)
-        buf[i] = DPMIGetPageAttributes(_esi, (_ebx >> PAGE_SHIFT) + i);
-      break;
-    }
+    D_printf("DPMI: Get Page Attributes for %li pages\n", _ecx);
+    if (!DPMIGetPageAttributes(_esi, _ebx, (us *)SEL_ADR(_es, _edx), _ecx))
+      _eflags |= CF;
+    break;
         
   case 0x0507:			/* Set Page Attributes */
-    {
-      int i;
-      us *buf = (us *)SEL_ADR(_es, _edx);
-      D_printf("DPMI: Set Page Attributes for %li pages\n", _ecx);
-      for (i = 0; i < _ecx; i++) {
-        D_printf("%i\t", i);
-        DPMISetPageAttributes(_esi, (_ebx >> PAGE_SHIFT) + i, buf[i]);
-	D_printf("(0x%x)\n", buf[i]);
-      }
-      break;
-    }
+    D_printf("DPMI: Set Page Attributes for %li pages\n", _ecx);
+    if (!DPMISetPageAttributes(_esi, _ebx, (us *)SEL_ADR(_es, _edx), _ecx))
+      _eflags |= CF;
+    break;
 
   case 0x0508:			/* ??? */
 

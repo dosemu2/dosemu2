@@ -576,7 +576,7 @@ EXTERN void map_video_bios(void);
 EXTERN void stdio_init(void);
 EXTERN void time_setting_init(void);
 EXTERN void timer_interrupt_init(void);
-EXTERN void low_mem_init(void);
+EXTERN void low_mem_init(int hack);
 EXTERN void print_version(void);
 EXTERN void keyboard_flags_init(void);
 EXTERN void video_config_init(void);

@@ -36,7 +36,6 @@
 #include "cmos.h"
 #include "dma.h"
 #include "xms.h"
-#include "shared.h"
 #include "iodev.h"
 #include "priv.h"
 #include "doshelpers.h"
@@ -417,7 +416,6 @@ void memory_init(void)
   if (first_call) {
     ems_init();                /* initialize ems */
     xms_init();                /* initialize xms */
-    shared_memory_init();
   }
   first_call = 0;
 }
@@ -471,13 +469,31 @@ void device_init(void)
  *
  * DANG_END_FUNCTION
  */
-void low_mem_init(void)
+void low_mem_init(int hack)
 {
-  char *result;
+  static int lowmem_hacked = 0;
+  char *result = NULL;
+  char *tmp = NULL;
 
-  g_printf ("DOS memory area being mapped in\n");
-  result = mmap_mapping(MAPPING_INIT_LOWRAM | MAPPING_SCRATCH, 0,
+  if (hack) {
+    g_printf ("DOS memory area being hacked in\n");
+    result = mmap_mapping(/*MAPPING_HACK | */MAPPING_SCRATCH, 0,
   		0x100000, PROT_EXEC | PROT_READ | PROT_WRITE, 0);
+    lowmem_hacked = 1;
+  } else {
+    if (lowmem_hacked) {
+      tmp = malloc(0x100000);
+      memcpy(tmp, 0, 0x100000);
+      munmap_mapping(/*MAPPING_HACK | */MAPPING_OTHER, 0, 0x100000);
+    }
+    open_mapping(MAPPING_INIT_LOWRAM);
+    g_printf ("DOS+HMA memory area being mapped in\n");
+    result = alloc_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE, 0);
+    if (lowmem_hacked) {
+      memcpy(0, tmp, 0x100000);
+      free(tmp);
+    }
+  }
   if (result != NULL)
     {
       perror ("anonymous mmap");

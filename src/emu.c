@@ -123,7 +123,6 @@ __asm__("___START___: jmp _emulate\n");
 #include "iodev.h"
 #include "mapping.h"
 #include "dosemu_config.h"
-#include "shared.h"
 #include "userhook.h"
 #include "pktdrvr.h"
 
@@ -354,7 +353,7 @@ emulate(int argc, char **argv)
     stdio_init();		/* initialize stdio & open debug file */
     print_version();            /* log version information */
     module_init();
-    low_mem_init();		/* initialize the lower 1Meg */
+    low_mem_init(1);		/* HACK */
     time_setting_init();	/* get the startup time */
     cpu_setup();		/* setup the CPU */
     pcibios_init();
@@ -380,6 +379,7 @@ emulate(int argc, char **argv)
     priv_drop();
     
     mapping_init();		/* initialize mapping drivers */
+    low_mem_init(0);		/* initialize the lower 1Meg */
     HMA_init();			/* HMA can only be done now after mapping
                                    is initialized*/
 #ifdef X_SUPPORT
@@ -575,7 +575,6 @@ leavedos(int sig)
     release_ports();
 
     g_printf("calling shared memory exit\n");
-    shared_memory_exit();
     g_printf("calling HMA exit\n");
     hma_exit();
     close_uhook();

@@ -32,7 +32,6 @@
 #include "emu.h"
 #include "cpu.h"
 #include "bios.h"
-#include "shared.h"
 #include "dpmi.h"
 #include "timers.h"
 

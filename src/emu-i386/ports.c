@@ -45,7 +45,6 @@
 #include "hgc.h"
 #include "bios.h"
 #include "vc.h"
-#include "shared.h"
 #include "serial.h"
 #include "bitops.h"
 #include "mapping.h"

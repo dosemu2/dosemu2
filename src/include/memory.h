@@ -206,6 +206,12 @@
 #define KBDFLAG_ADDR (unsigned short *)BIOS_DATA_PTR(0x17)
 #define KEYFLAG_ADDR (unsigned short *)BIOS_DATA_PTR(0x96)
 
+/* Correct HMA size is 64*1024 - 16, but IPC seems not to like this
+   hence I would consider that those 16 missed bytes get swapped back
+   and forth and may cause us grief - a BUG */
+#define HMASIZE (64*1024)
+#define LOWMEM_SIZE 0x100000
+
 #ifndef __ASM__
 /* memcheck memory conflict finder definitions */
 int  memcheck_addtype(unsigned char map_char, char *name);

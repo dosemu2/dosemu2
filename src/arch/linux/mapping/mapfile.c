@@ -76,11 +76,11 @@ static int open_mapping_file(int cap)
     int mapsize, estsize, padsize = 4*1024;
 
     /* first estimate the needed size of the mapfile */
-    mapsize  = 2*16;		/* HMA */
+    mapsize  = HMASIZE >> 10;	/* HMA */
  				/* VGAEMU */
     mapsize += 2*(config.vgaemu_memsize ? config.vgaemu_memsize : 1024);
     mapsize += config.ems_size;	/* EMS */
-    mapsize += config.dpmi;	/* DPMI */
+    mapsize += LOWMEM_SIZE >> 10; /* Low Mem */
     estsize = mapsize;
 				/* keep heap fragmentation in mind */
     mapsize += (mapsize/4 < padsize ? padsize : mapsize/4);
@@ -233,13 +233,6 @@ static void *mmap_mapping_file(int cap, void *target, int mapsize, int protect, 
 {
   if (cap & MAPPING_ALIAS) {
     return alias_map(target, mapsize, protect, source);
-  }
-  if (cap & MAPPING_SHM) {
-    int size = get_pgareasize(source);
-    int prot = PROT_READ|PROT_WRITE|PROT_EXEC;
-    if (protect) prot &= ~PROT_WRITE;
-    if (!size) return (void *)-1;
-    return alias_map(target, size, prot, source);
   }
   return (void *)-1;
 }

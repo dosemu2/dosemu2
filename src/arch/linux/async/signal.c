@@ -21,7 +21,6 @@
 #include "video.h"
 #include "timers.h"
 #include "int.h"
-#include "shared.h"
 #include "dpmi.h"
 #include "pic.h"
 #include "ipx.h"
