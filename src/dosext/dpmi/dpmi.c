@@ -2836,6 +2836,8 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
 
   mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
 
+  D_printf(DPMI_show_state(scp));
+
 #ifdef TRACE_DPMI
   if (debug_level('t') && (_trapno == 1)) {
     do_default_cpu_exception(scp, _trapno);
@@ -2852,7 +2854,6 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
       /* why should we let dpmi continue after this point and crash
        * the system? */
       flush_log();
-      D_printf(DPMI_show_state(scp));
       leavedos(0x5046);
   }
 #endif

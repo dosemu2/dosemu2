@@ -165,7 +165,7 @@ DPMImalloc(unsigned long size, int committed)
 	return NULL;
 
     block->base = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
-        size, committed ? PROT_READ | PROT_WRITE : PROT_NONE, 0);
+        size, committed ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE, 0);
     if (!block->base) {
 	free_pm_block(block);
 	return NULL;
@@ -220,7 +220,7 @@ DPMImallocFixed(unsigned long base, unsigned long size, int committed)
 	return NULL;
 
     block->base = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)base,
-        size, committed ? PROT_READ | PROT_WRITE : PROT_NONE, 0);
+        size, committed ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE, 0);
     if (!block->base) {
 	free_pm_block(block);
 	return NULL;
