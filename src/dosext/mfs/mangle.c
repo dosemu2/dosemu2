@@ -65,7 +65,7 @@ static int str_checksum(char *s)
 
 /****************************************************************************
 check if a name is a special msdos reserved name:
-the name is either a ffffull Unix name or an 8 character candidate
+the name is either a full Unix name or an 8 character candidate
 ****************************************************************************/
 unsigned long is_dos_device(const char *fname)
 {
