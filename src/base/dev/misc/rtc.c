@@ -181,6 +181,8 @@ static struct tm *sys_time_calib (void)
 
   time(&this_time);
   tm = localtime(&this_time);
+  tm->tm_year += 1900;
+  tm->tm_mon++;
 
   /* time since last midnight, in ticks */
   k = ((tm->tm_hour * 60 + tm->tm_min) * 60 + tm->tm_sec);
@@ -203,6 +205,12 @@ void rtc_init (void)
   SET_CMOS(CMOS_HOUR, tm->tm_hour);
   SET_CMOS(CMOS_MIN,  tm->tm_min);
   SET_CMOS(CMOS_SEC,  tm->tm_sec);
+
+  SET_CMOS(CMOS_DOM, tm->tm_mday);
+  SET_CMOS(CMOS_DOW,  tm->tm_wday);
+  SET_CMOS(CMOS_MONTH,  tm->tm_mon);
+  SET_CMOS(CMOS_YEAR,  tm->tm_year % 100);
+  SET_CMOS(CMOS_CENTURY,  tm->tm_year / 100);
 
   SET_CMOS(CMOS_HOURALRM, 0);
   SET_CMOS(CMOS_MINALRM,  0);
