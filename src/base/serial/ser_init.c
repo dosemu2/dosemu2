@@ -586,6 +586,11 @@ void serial_init(void)
      */
     if (com[i].mouse && !config.console)
       s_printf("SER%d: Not touching mouse outside of the console!\n",i);
+#ifdef USE_GPM    
+    else if (com[i].mouse && Mouse == &Mouse_gpm)
+      s_printf("SER%d: GPM competing with direct access is racy: "
+               "only using GPM\n",i);
+#endif    
     else
       do_ser_init(i);
   }

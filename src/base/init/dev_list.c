@@ -67,8 +67,8 @@ static int current_device = -1;
 static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "pit",     pit_init,     pit_reset,     NULL },
   { "cmos",    cmos_init,    cmos_reset,    NULL },
-  { "serial",  serial_init,  NULL,          serial_close },
   { "internal_mouse",  dosemu_mouse_init,  NULL, dosemu_mouse_close },
+  { "serial",  serial_init,  NULL,          serial_close },
   { "pic",     pic_init,     pic_reset,     NULL },
 #ifdef HAVE_KEYBOARD_V1
   { "keyb",    keyb_8042_init, keyb_8042_reset, NULL },
