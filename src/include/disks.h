@@ -158,6 +158,7 @@ void d_nullf(struct disk *);
 void image_auto(struct disk *);
 void hdisk_auto(struct disk *);
 void dir_auto(struct disk *);
+void disk_open(struct disk *dp);
 
 #define partition_auto	hdisk_auto
 #define floppy_auto	d_nullf
@@ -166,6 +167,8 @@ void dir_auto(struct disk *);
 #define hdisk_setup	d_nullf
 void partition_setup(struct disk *);
 void dir_setup(struct disk *);
+
+void fdkernel_boot_mimic(void);
 
 #define floppy_setup	d_nullf
 

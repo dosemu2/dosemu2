@@ -22,8 +22,7 @@
 
 int sectors = 17, heads = 4, cylinders = 40, header_size = 128;
 
-void
-usage(void)
+static void usage(void)
 {
   fprintf(stderr, "mkhdimage [-h <heads>] [-s <sectors>] [-c|-t <cylinders>]\n");
 }

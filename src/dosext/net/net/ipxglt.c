@@ -42,8 +42,8 @@ typedef struct
 } RipPacket_t;
 
 /* targetNet and network should be passed in in network order */
-int AddRoute( unsigned long targetNet, unsigned network,
-        unsigned char node[] )
+static int AddRoute( unsigned long targetNet, unsigned network,
+                     unsigned char node[] )
 {
 	struct rtentry rt;
 	struct sockaddr_ipx	*st = (struct sockaddr_ipx *)&rt.rt_dst;
@@ -71,8 +71,8 @@ int AddRoute( unsigned long targetNet, unsigned network,
         return(0);
 }
 
-int CheckRouteExist(unsigned long targetNet, unsigned network,
-        unsigned char node[])
+static int CheckRouteExist(unsigned long targetNet, unsigned network,
+                           unsigned char node[])
 {
 char buf_targ[9], buf_net[9], buf_node[13], proc_net[9], proc_node[13], *proc_str;
 

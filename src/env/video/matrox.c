@@ -71,7 +71,7 @@ static int UnMapVidMem (void *base, int size)
  * vgaProtect --
  *	Protect VGA registers and memory from corruption during loads.
  */
-void
+static void
 vgaProtect(Boolean on)
 {
   unsigned char tmp;
@@ -267,7 +267,7 @@ static Boolean matroxProbe(void)
  * the registers that have previously been saved in the vgaMGARec data 
  * structure.
  */
-void 
+static void
 MGA3026Restore(void)
 {
   int i;
@@ -315,7 +315,7 @@ void matrox_restore_ext_regs(u_char xregs[], u_short xregs16[])
  * This function saves the video state.	 It reads all of the SVGA registers
  * into the vgaMGARec data structure.
  */
-void
+static void
 MGA3026Save(void)
 {
   int i;

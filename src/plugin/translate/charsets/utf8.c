@@ -3,7 +3,7 @@
 #include "translate.h"
 /* utf8 */
 
-size_t utf8_to_unicode(
+static size_t utf8_to_unicode(
 	struct char_set_state *state, 
 	struct char_set *set, int offset,
 	t_unicode *symbol, const unsigned char *str, size_t len)
@@ -72,7 +72,7 @@ size_t utf8_to_unicode(
 
 
 
-size_t unicode_to_utf8(struct char_set_state *state,
+static size_t unicode_to_utf8(struct char_set_state *state,
 	struct char_set *set, int offset,
 	t_unicode value,
 	unsigned char *out_str, size_t out_len)

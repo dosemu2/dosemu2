@@ -49,6 +49,9 @@
 #define PCI_MODE2_FORWARD_REG 0xCFA
 #define PCI_MODE2_ENABLE_REG 0xCF8
 
+void pci_bios(void);
+int pcibios_init(void);
+
 int pci_check_conf(void);
 
 int pci_check_device_present_cfg1(unsigned char bus, unsigned char device,

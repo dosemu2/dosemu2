@@ -73,7 +73,6 @@ struct tcb {
 #endif
 
 void switch_to(struct tcb* new);
-void coopthreads_plugin_init(void);
 
 /* ============ com thread part =================== */
 

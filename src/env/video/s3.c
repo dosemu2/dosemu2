@@ -42,7 +42,10 @@ static int s3_memsize = 0;
 static int s3_series = 0;
 static int s3_Ramdac = 0;
 static int s3_8514_base = BASE_8514_1;
+#if 0
+/* code calling this array is #if 0'ed out too. Don't know why -- Bart */
 static unsigned short s3BtLowBits[] = { 0x3C8, 0x3C9, 0x3C6, 0x3C7 };
+#endif
 
 #define IS_TRIO (s3_series==S3_928 && (s3_chip&0xC0F0)==0x00E0)
 
@@ -488,10 +491,12 @@ static void s3_ext_video_port_out(ioport_t port, u_char value)
 	v_printf("S3: Bad Write on port 0x%04x with value 0x%02x\n", port, value);
 }
 
+#if 0
+/* code calling this function is #if 0'ed out too. Don't know why -- Bart */
 /*
  * this function was taken from XFree86, s3BtCursor.c
  */
-unsigned char s3InBtReg(unsigned short reg)
+static unsigned char s3InBtReg(unsigned short reg)
 {
 	unsigned char tmp, ret;
 	tmp = in_crt(0x55) & 0xFC;
@@ -501,7 +506,7 @@ unsigned char s3InBtReg(unsigned short reg)
 	return ret;
 }
 
-void s3OutBtReg(unsigned short reg, unsigned char mask, unsigned char data)
+static void s3OutBtReg(unsigned short reg, unsigned char mask, unsigned char data)
 {
 	unsigned char tmp;
 	unsigned char tmp1 = 0x00;
@@ -517,7 +522,7 @@ void s3OutBtReg(unsigned short reg, unsigned char mask, unsigned char data)
 	out_crt(0x55, tmp);
 }
 
-unsigned char s3InBtStatReg(void)
+static unsigned char s3InBtStatReg(void)
 {
    unsigned char tmp, ret;
 
@@ -533,6 +538,7 @@ unsigned char s3InBtStatReg(void)
    }
    return(ret);
 }
+#endif
 
 void vga_init_s3(void)
 {

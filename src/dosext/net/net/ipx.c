@@ -46,7 +46,7 @@ extern struct vm86_struct vm86s;
 #endif
 
 /* declare some function prototypes */
-extern u_char IPXCancelEvent(far_t ECBPtr);
+static u_char IPXCancelEvent(far_t ECBPtr);
 far_t ESRPopRegistersReturn;
 far_t ESRPopRegistersIRet;
 far_t ESRFarCall;
@@ -59,8 +59,7 @@ static unsigned char MyAddress[10] =
 {0x01, 0x01, 0x00, 0xe0,
  0x00, 0x00, 0x1b, 0x33, 0x2b, 0x13};
 
-int 
-GetMyAddress( void )
+static int GetMyAddress( void )
 {
   int sock;
   struct sockaddr_ipx ipxs;
@@ -296,8 +295,7 @@ ipx_find_socket(int port)
   return (NULL);
 }
 
-u_short
-SwapInt(u_short value)
+static u_short SwapInt(u_short value)
 {
   u_short temp;
 
@@ -305,8 +303,7 @@ SwapInt(u_short value)
   return (temp + (value >> 8));
 }
 
-void
-dumpBytes(u_char * memptr, int count)
+static void dumpBytes(u_char * memptr, int count)
 {
   int i, linecounter;
 
@@ -332,8 +329,7 @@ dumpBytes(u_char * memptr, int count)
   n_printf("\n");
 }
 
-void
-printECB(ECB_t * ECB)
+static void printECB(ECB_t * ECB)
 {
   int i;
    
@@ -363,8 +359,7 @@ printECB(ECB_t * ECB)
   }
 }
 
-void
-printIPXHeader(IPXPacket_t * IPXHeader)
+static void printIPXHeader(IPXPacket_t * IPXHeader)
 {
   if (debug_level('n')) {
     n_printf("--IPX Header (dump)--\n");
@@ -403,8 +398,7 @@ printIPXHeader(IPXPacket_t * IPXHeader)
   }
 }
 
-u_char
-IPXOpenSocket(u_short port, u_short * newPort)
+static u_char IPXOpenSocket(u_short port, u_short * newPort)
 {
   int sock;			/* sock here means Linux socket handle */
   int opt;
@@ -484,8 +478,7 @@ IPXOpenSocket(u_short port, u_short * newPort)
   return (RCODE_SUCCESS);
 }
 
-u_char
-IPXCloseSocket(u_short port)
+static u_char IPXCloseSocket(u_short port)
 {
   ipx_socket_t *mysock;
   far_t ECBPtr;
@@ -521,8 +514,7 @@ IPXCloseSocket(u_short port)
   return (RCODE_SUCCESS);
 }
 
-int
-GatherFragmentData(char *buffer, ECB_t * ECB)
+static int GatherFragmentData(char *buffer, ECB_t * ECB)
 {
   int i;
   int nextFragLen, totalDataCount;
@@ -557,8 +549,7 @@ GatherFragmentData(char *buffer, ECB_t * ECB)
   return (totalDataCount);
 }
 
-void
-PrepareForESR(int iretFlag, ECB_t * ECB, far_t ECBPtr, u_char AXVal)
+static void PrepareForESR(int iretFlag, ECB_t * ECB, far_t ECBPtr, u_char AXVal)
 {
   unsigned char *ssp;
   unsigned long sp;
@@ -602,8 +593,7 @@ PrepareForESR(int iretFlag, ECB_t * ECB, far_t ECBPtr, u_char AXVal)
 	   _regs.es, _regs.esi, LWORD(eax), LWORD(eflags) & VIF);
 }
 
-u_char
-IPXSendPacket(far_t ECBPtr)
+static u_char IPXSendPacket(far_t ECBPtr)
 {
   ECB_t *ECB;
   IPXPacket_t *IPXHeader;
@@ -672,8 +662,7 @@ IPXSendPacket(far_t ECBPtr)
   return RCODE_SUCCESS;
 }
 
-u_char
-IPXListenForPacket(far_t ECBPtr)
+static u_char IPXListenForPacket(far_t ECBPtr)
 {
   ECB_t *ECB;
   ipx_socket_t *mysock;
@@ -701,8 +690,7 @@ IPXListenForPacket(far_t ECBPtr)
   return (RCODE_SUCCESS);
 }
 
-u_char
-IPXScheduleEvent(far_t ECBPtr, u_char inUseCode, u_short delayTime)
+static u_char IPXScheduleEvent(far_t ECBPtr, u_char inUseCode, u_short delayTime)
 {
   ECB_t *ECB;
   ipx_socket_t *mysock;
@@ -732,8 +720,7 @@ IPXScheduleEvent(far_t ECBPtr, u_char inUseCode, u_short delayTime)
   return (RCODE_SUCCESS);
 }
 
-u_char
-IPXCancelEvent(far_t ECBPtr)
+static u_char IPXCancelEvent(far_t ECBPtr)
 {
   ECB_t *ECB;
   ipx_socket_t *mysock;
@@ -808,8 +795,7 @@ IPXCancelEvent(far_t ECBPtr)
   return (RCODE_CANNOT_CANCEL_EVENT);
 }
 
-void
-AESTimerTick(void)
+void AESTimerTick(void)
 {
   ipx_socket_t *mysock;
   far_t ECBPtr;
@@ -835,8 +821,7 @@ AESTimerTick(void)
   }
 }
 
-void
-ipx_fdset(fd_set * set)
+static void ipx_fdset(fd_set * set)
 {
   ipx_socket_t *s;
 
@@ -847,9 +832,8 @@ ipx_fdset(fd_set * set)
   }
 }
 
-int
-ScatterFragmentData(int size, char *buffer, ECB_t * ECB,
-		    struct sockaddr_ipx *sipx)
+static int ScatterFragmentData(int size, char *buffer, ECB_t * ECB,
+                               struct sockaddr_ipx *sipx)
 {
   int i;
   int nextFragLen, dataLeftCount;
@@ -913,8 +897,7 @@ ScatterFragmentData(int size, char *buffer, ECB_t * ECB,
   return (dataLeftCount);
 }
 
-int
-IPXReceivePacket(ipx_socket_t * s)
+static int IPXReceivePacket(ipx_socket_t * s)
 {
   struct sockaddr_ipx ipxs;
   char buffer[MAX_PACKET_DATA];
@@ -951,8 +934,7 @@ IPXReceivePacket(ipx_socket_t * s)
   return (ESRFired);
 }
 
-int
-IPXCheckForAESReady(void)
+static int IPXCheckForAESReady(void)
 {
   ipx_socket_t *s;
   far_t ECBPtr;
@@ -996,8 +978,7 @@ IPXCheckForAESReady(void)
   return (ESRFired);
 }
 
-int
-check_ipx_ready(fd_set * set)
+static int check_ipx_ready(fd_set * set)
 {
   ipx_socket_t *s;
   int ESRFired = 0;
@@ -1016,8 +997,7 @@ check_ipx_ready(fd_set * set)
   return (ESRFired);
 }
 
-void
-IPXRelinquishControl(void)
+static void IPXRelinquishControl(void)
 {
   /* DOS program has given us a time slice */
   /* let's use this as an opportunity to poll outstanding listens */

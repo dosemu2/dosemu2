@@ -11,6 +11,8 @@
 #include "config.h"
 #include "keyboard.h"
 #include "emu.h"
+#include "keyb_X.h"
+#include "../../env/video/X.h"
 
 /*
  * matching from keycode to scan code
@@ -145,8 +147,6 @@ static void put_keycode(unsigned int scan, int released)
       scan >>= 8;	 
    }
 }
-
-extern Display *display;
 
 void X_keycode_process_key(XKeyEvent *e)
 {

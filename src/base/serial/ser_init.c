@@ -353,8 +353,7 @@ static int ser_close(int num)
 }
 
 
-Bit8u
-com_readb(ioport_t port) {
+static Bit8u com_readb(ioport_t port) {
   int tmp;
   for (tmp = 0; tmp < config.num_ser; tmp++) {
     if (((u_short)(port & ~7)) == com[tmp].base_port) {
@@ -370,8 +369,7 @@ com_readb(ioport_t port) {
   return 0;
 }
 
-void
-com_writeb(ioport_t port, Bit8u value) {
+static void com_writeb(ioport_t port, Bit8u value) {
   int tmp;
   for (tmp = 0; tmp < config.num_ser; tmp++) {
     if (((u_short)(port & ~7)) == com[tmp].base_port) {

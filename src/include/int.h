@@ -23,6 +23,7 @@ void fake_call(int, int);
 void fake_pusha(void);
 void setup_interrupts(void);
 void version_init(void);
+void int_vector_setup(void);
 
 #define REVECT		0
 #define NO_REVECT	1

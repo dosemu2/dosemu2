@@ -9,6 +9,9 @@
 #include <sys/io.h>
 #include "emu.h"
 #include "priv.h"
+#include "dosemu_config.h"
+#include "mapping.h"
+#include "utilities.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
@@ -141,6 +144,8 @@ int priv_iopl(int pl)
 #ifdef X86_EMULATOR
   if (config.cpuemu) e_priv_iopl(pl);
 #endif
+  if (ret == 0)
+    current_iopl = 3;
   return ret;
 }
 
@@ -214,6 +219,9 @@ void priv_init(void)
   gid  = cur_gid  = getgid();
   egid = cur_egid = getegid();
 
+  /* must store the /proc/self/exe symlink contents before dropping
+     privs! */
+  dosemu_proc_self_exe = readlink_malloc("/proc/self/exe");
   if (under_root_login)
   {
     /* check for sudo and set to original user */
@@ -240,6 +248,13 @@ void priv_init(void)
       skip_priv_setting = 1;
       can_do_root_stuff = 0;
       fprintf(stderr,"\nRunning unpriviledged in low feature mode\n");
+    }
+  else if (euid != 0)
+    {
+      /* we must open /proc/self/mem before dropping privs.
+         it will then be closed if the mapfile or mapshm driver 
+         is used */
+      mappingdriver_self.open(MAPPING_PROBE);
     }
 
   num_groups = getgroups(0,0);

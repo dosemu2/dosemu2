@@ -145,5 +145,7 @@ extern void IPXEndCall(void);
 
 extern int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks );
 
+extern void ipx_close(void);
+
 #endif /* IPX_H */
 #endif /* USING_NET */

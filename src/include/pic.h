@@ -100,6 +100,8 @@ EXTERN unsigned long pic_dpmi_count INIT(0);   /* count of times 'round the dpmi
 
 EXTERN hitimer_t pic_dos_time;     /* dos time of last interrupt,1193047/sec.*/
 EXTERN hitimer_t pic_sys_time INIT(NEVER);     /* system time set by pic_watch */
+extern hitimer_t pic_itime[33];
+
 /* IRQ definitions.  Each entry specifies the emulator routine to call, and
    the dos interrupt vector to use.  pic_iinfo.func is set by pic_seti(),
    as are the interrupt vectors for all but [1] through [15], which  may be

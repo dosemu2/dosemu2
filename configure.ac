@@ -6,7 +6,7 @@ AC_PREREQ(2.57)
 # first check if we are called from default-configure and if not,
 # execute that to parse compiletime settings
 if test -z "$DOSEMU_DEFAULT_CONFIGURE" ; then
-  exec ./default-configure $@
+  exec ./default-configure "$@"
 fi
 
 AC_CONFIG_HEADER(src/include/config.h)
@@ -342,9 +342,13 @@ if test -x ./mkpluginhooks; then
     PLUGINSUBDIRS=`cat ./plugin_libdirs`
     AS_MESSAGE(checking "Including plugins: $PLUGINSUBDIRS"...);
     if test -f ./plugin_incdirs; then
-      for i in `cat ./plugin_incdirs`; do
-        PLUGININC="$PLUGININC -I\${SRCPATH}/${i}"
+      cd src
+      for i in `cat ../plugin_incdirs`; do
+        for j in $i/*; do
+          ln -sf ../../$j plugin/include/`basename $j`
+        done 
       done
+      cd ..
     fi
   else
     AS_MESSAGE(checking "Compiling without plug-ins"...)
@@ -403,10 +407,10 @@ AC_SUBST(PLUGINSUBDIRS)
 
 dnl Now CFLAGS and INCLUDES
 
-INCDIR="${PLUGININC} -I\${SRCPATH}/include -I\${SRCPATH}/dosext/dpmi ${SLANGINC}"
+INCDIR="-I\${SRCPATH}/plugin/include -I\${SRCPATH}/include ${SLANGINC}"
 AC_SUBST(INCDIR)
 
-CFLAGS="-Wall -Wstrict-prototypes"
+CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations -Wnested-externs -Wpointer-arith"
 if test "$dodebug" = "yes"; then
   CFLAGS="$CFLAGS -g"
   AC_DEFINE(_DEBUG)
@@ -539,7 +543,7 @@ if test "$GCC" = "yes" ; then
     fi
     GLIBC_VERSION_CODE=$((($major * 1000) + $minor))
     echo "yes, version code $GLIBC_VERSION_CODE"
-    if test $GLIBC_VERSION_CODE -le 2001; then
+    if test $GLIBC_VERSION_CODE -lt 2001; then
       echo Sorry, you need glibc-2.1.3 or newer.
       exit 1
     fi
@@ -585,7 +589,10 @@ AH_TOP([
 #define VERSION_OF(a,b,c,d) (((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
 #define IS_DEVEL_RELEASE (DOSEMU_VERSION_CODE && 65536)
 
-#ifndef __ASM__
+#ifdef __ASM__
+/* trick to comment out prototypes */
+#define extern #
+#else
 #include "extern.h"
 
 #include "confpath.h"
@@ -736,7 +743,7 @@ AH_TEMPLATE([ASM_PEDANTIC],
 
 AH_BOTTOM([
 #ifndef __ASM__
-EXTERN char *dosemu_map_file_name INIT(DOSEMULIB_DEFAULT "/dosemu-" VERSTR ".map");
+EXTERN char *dosemu_map_file_name INIT(0);
 #endif
 
 #include "plugin_config.h"

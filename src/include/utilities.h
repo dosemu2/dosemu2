@@ -12,6 +12,9 @@ struct cmd_db {
 	void (*cmdproc)(int, char *[]);
 };
 
+extern char *logptr, *logbuf;
+extern int logbuf_size, logfile_limit;
+
 int argparse(char *s, char *argvx[], int maxarg);
 typedef void cmdprintf_func(const char *fmt, ...);
 void call_cmd(const char *cmd, int maxargs, const struct cmd_db *cmdtab,
@@ -37,6 +40,7 @@ char *mkdir_under(char *basedir, char *dir, int append_pid);
 char *get_path_in_HOME(char *path);
 char *get_dosemu_local_home(void);
 long long libless_llseek(int fd, long long offset, int origin);
+char *readlink_malloc (const char *filename);
 
 /* returns y = sqrt(x), for y*y beeing a power of 2 below x
  */

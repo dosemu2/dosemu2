@@ -225,11 +225,18 @@ void fossil_int14(int num)
 
   /* Write character (without wait) */
   case 0x0b:
-    write_char(num, LO(ax));
+    if (!com[num].tx_overflow){
+      write_char(num, LO(ax));
+      LWORD(eax)= 1;
+    #if SER_DEBUG_FOSSIL_RW
+      s_printf("SER%d: FOSSIL 0x0b: Write char 0x%02x, return AX=%d\n", num, LO(ax), 1);
+    #endif
+    } else {
     #if SER_DEBUG_FOSSIL_RW
       s_printf("SER%d: FOSSIL 0x0b: Write char 0x%02x, return AX=%d\n", num, LO(ax), !com[num].tx_overflow);
     #endif
     LWORD(eax) = !com[num].tx_overflow;
+    }
     break;
 
   /* Block read */

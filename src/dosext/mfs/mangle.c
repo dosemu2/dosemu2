@@ -34,22 +34,17 @@ Modified by O.V.Zhirov, July 1998
 
 #ifdef DOSEMU
 #include "mangle.h"
+#include "mfs.h"
 #include "emu.h"
 #else
 #include "includes.h"
 #include "loadparm.h"
 #endif
 
-extern int DEBUGLEVEL;
-extern int case_default;
-extern BOOL case_mangle;
-
-extern int codepage;
-
 /****************************************************************************
 provide a checksum on a string
 ****************************************************************************/
-int str_checksum(char *s)
+static int str_checksum(char *s)
 {
   int res = 0;
   int c;
@@ -70,8 +65,6 @@ the name is either a full Unix name or an 8 character candidate
 unsigned long is_dos_device(const char *fname)
 {
   char *p;
-  extern unsigned char *lol;
-  extern int lol_nuldev_off;
   unsigned char *dev;
   unsigned long devfar;
   int i;
@@ -143,7 +136,7 @@ BOOL valid_dos_char[256];
 /****************************************************************************
 initialise the valid dos char array
 ****************************************************************************/
-void valid_initialise(void)
+static void valid_initialise(void)
 {
   static BOOL initialised = False;    
   int i;
@@ -164,7 +157,7 @@ void valid_initialise(void)
 /****************************************************************************
 return True if a name is in 8.3 dos format
 ****************************************************************************/
-BOOL is_8_3(char *fname)
+static BOOL is_8_3(char *fname)
 {
   int len = strlen(fname);
   char *dot_pos = strchr(fname,'.');
@@ -262,7 +255,7 @@ int mangled_stack_len = 0;
 /****************************************************************************
 create the mangled stack
 ****************************************************************************/
-void create_mangled_stack(int size)
+static void create_mangled_stack(int size)
 {
   if (mangled_stack)
     {
@@ -278,7 +271,7 @@ void create_mangled_stack(int size)
 /****************************************************************************
 push a mangled name onto the stack
 ****************************************************************************/
-void push_mangled_name(char *s)
+static void push_mangled_name(char *s)
 {
   int i;
   char *p;

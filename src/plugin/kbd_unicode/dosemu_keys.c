@@ -8,9 +8,6 @@
 #include "mouse.h"
 #include "keyb_clients.h"
 
-extern void     vt_activate(int);
-extern void handle_slang_keys(Boolean make, t_keysym key);
-
 /* handle special dosemu keys like Ctrl-Alt-PgDn
  * This should only be called with 'make' events!
  * returns 1 if key was handled.

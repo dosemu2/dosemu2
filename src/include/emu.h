@@ -40,6 +40,8 @@
 #define SIG 1
 typedef struct { int fd; int irq; } SillyG_t;
 extern SillyG_t *SillyG;
+extern int SillyG_do_irq(void);
+extern inline void irq_select(void);
 #endif
 
 #define inline __inline__
@@ -113,10 +115,7 @@ EXTERN int mousepipe;
 
 EXTERN int in_vm86 INIT(0);
 
-EXTERN int li, co;	/* lines, columns */
 EXTERN int scanseq;
-EXTERN int cursor_row;
-EXTERN int cursor_col;
 
 #if 0
 void dos_ctrl_alt_del(void);	/* disabled */
@@ -149,10 +148,7 @@ void getKeys(void);
      int queue_ioctl(int, int, int), do_ioctl(int, int, int);
      void keybuf_clear(void);
 
-     int set_ioperm(int, int, int);
-
- 
-EXTERN u_char in_sighandler, in_ioctl;
+EXTERN u_char in_sighandler;
 /* one-entry queue ;-( for ioctl's */
 EXTERN struct ioctlq iq INIT({0, 0, 0, 0}); 
 EXTERN u_char in_ioctl INIT(0);
@@ -405,22 +401,20 @@ EXTERN void real_run_int(int);
 EXTERN int mfs_redirector(void);
 EXTERN void int10(void);
 EXTERN void int13(u_char);
-EXTERN void int14(u_char);
 EXTERN void int16(u_char);
 EXTERN void int17(u_char);
 EXTERN void io_select(fd_set);
+EXTERN void io_select_init(void);
 EXTERN int pd_receive_packet(void);
-EXTERN int printer_tick(u_long);
 EXTERN int printer_tick(u_long);
 EXTERN void floppy_tick(void);
 EXTERN void open_kmem(void);
 EXTERN void close_kmem(void);
-EXTERN void CloseNetworkLink(int);
 EXTERN int parse_config(char *, char *);
+EXTERN void prepare_dexe_load(char *name);
 EXTERN void disk_init(void);
 EXTERN void serial_init(void);
 EXTERN void close_all_printers(void);
-EXTERN void release_ports(void);
 EXTERN void serial_close(void);
 EXTERN void disk_close_all(void);
 EXTERN void init_all_printers(void);
@@ -428,16 +422,16 @@ EXTERN int mfs_inte6(void);
 EXTERN void pkt_helper(void);
 EXTERN short pop_word(struct vm86_regs *);
 EXTERN void ems_init(void);
-EXTERN int GetDebugFlagsHelper(char *, int);
-EXTERN int SetDebugFlagsHelper(char *);
 EXTERN void leavedos(int) NORETURN;
 EXTERN void add_to_io_select(int, unsigned char);
 EXTERN void remove_from_io_select(int, unsigned char);
 EXTERN void sigquit(int);
 #ifdef __linux__
 EXTERN void sigalrm(int, struct sigcontext_struct);
+EXTERN void e_sigalrm(struct sigcontext_struct *context);
 EXTERN void sigio(int, struct sigcontext_struct);
 EXTERN int dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old);
+EXTERN void SIG_init(void);
 EXTERN void SIG_close(void);
 #endif
 
@@ -551,7 +545,11 @@ EXTERN void hardware_setup(void);
 EXTERN void memory_init(void);
 EXTERN void map_hardware_ram(void);
 EXTERN void map_video_bios(void);
+EXTERN void stdio_init(void);
+EXTERN void time_setting_init(void);
 EXTERN void timer_interrupt_init(void);
+EXTERN void low_mem_init(void);
+EXTERN void print_version(void);
 EXTERN void keyboard_flags_init(void);
 EXTERN void video_config_init(void);
 EXTERN void printer_init(void);
@@ -559,14 +557,16 @@ EXTERN void video_close(void);
 EXTERN void hma_exit(void);
 EXTERN void ems_helper(void);
 EXTERN boolean_t ems_fn(struct vm86_regs *);
-EXTERN void serial_helper(void);
 EXTERN void mouse_helper(void);
 EXTERN void cdrom_helper(void);
 EXTERN void boot(void);
 EXTERN int pkt_int(void);
 EXTERN void read_next_scancode_from_queue (void);
 EXTERN unsigned short detach (void);
+EXTERN void disallocate_vt (void);
+EXTERN void restore_vt (unsigned short vt);
 EXTERN void HMA_init(void);
+EXTERN void HMA_MAP(int HMA);
 
 extern char *Path_cdrom[];
 

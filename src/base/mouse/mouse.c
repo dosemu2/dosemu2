@@ -9,6 +9,7 @@
  *
  */
 
+#include "config.h"
 #include <stdio.h>
 #include <termios.h>
 #include <stdlib.h>
@@ -22,7 +23,10 @@
 #include <string.h>
 #include <sys/mman.h>
 
-#include "config.h"
+#ifdef X_SUPPORT
+#include "../env/video/X.h"
+#endif
+
 #include "emu.h"
 #include "bios.h"
 #include "int.h"
@@ -42,17 +46,10 @@
 
 #include "iodev.h"
 
-#ifdef X_SUPPORT
-extern void X_show_mouse_cursor(int yes);
-extern void X_set_mouse_cursor(int display, int x, int y, int x_range, int y_range);
-#endif
-
 /* This is included for video mode support. Please DO NOT remove !
  * mousevid.h will become part of VGA emulator package */
 #include "mousevid.h"
 #include "gcursor.h"
-
-void DOSEMUSetupMouse(void);
 
 #define Mouse_INT	(0x33 * 16)
 #ifndef USE_NEW_INT
@@ -89,8 +86,7 @@ void mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
  mouse_detpage(void), mouse_getmaxminvirt(void);
 
 /* mouse movement functions */
-void mouse_reset(int);
-void mouse_move(void), mouse_lb(void), mouse_rb(void);
+static void mouse_reset(int);
 static void mouse_do_cur(void), mouse_update_cursor(void);
 static void mouse_reset_to_current_video_mode(void);
 
@@ -977,8 +973,7 @@ mouse_reset_to_current_video_mode(void)
 }
 
 
-void 
-mouse_reset(int flag)
+static void mouse_reset(int flag)
 {
   m_printf("MOUSE: reset mouse/installed!\n");
   mouse_enable_internaldriver();
@@ -1073,7 +1068,6 @@ void
 mouse_setpos(void)
 {
 #if X_SUPPORT
-  extern int grab_active;
   /* WP reads mickeys, and then sets the cursor position to make certain
    * it doesn't loose any mickeys.  This will catch that case, and keeps
    * us from breaking all apps under X that set the mouse position.

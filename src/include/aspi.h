@@ -160,4 +160,7 @@ union SRB16 {
 
 typedef union SRB16 SRB16;
 
+extern char *aspi_add_device(char *name, char *devtype, int);
+extern void aspi_helper(int);
+
 #endif

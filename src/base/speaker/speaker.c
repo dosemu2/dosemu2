@@ -74,6 +74,7 @@
 #include "speaker.h"
 #include "port.h"
 #include "iodev.h"
+#include "timers.h"
 
 /*
  * Speaker info structure.
@@ -163,7 +164,6 @@ void speaker_pause (void)
 	}
 }
 
-void do_sound (Bit16u period);	/* from timers.c */
 void speaker_resume (void)
 {
 	switch (config.speaker)

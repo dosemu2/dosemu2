@@ -49,8 +49,6 @@
 #include "keyb_clients.h"
 #include "video.h"
 
-extern void     vt_activate(int);
-
 Bit32u rawprefix;   /* used in putrawkey() */
 uchar accent;       /* buffer for dead-key accents */
 int alt_num_buffer; /* used for alt-keypad entry mode */ 
@@ -735,7 +733,6 @@ void putrawkey(t_rawkeycode code) {
       if (   (config.keytable->flags & KT_USES_ALTMAP) && (shiftstate & ALT)
           && config.keytable->key_map[key] >= 'a' && config.keytable->key_map[key] <= 'z')
       {
-        extern const Bit8u ascii_keys[];
         key = ascii_keys[config.keytable->key_map[key] - 0x20];
       }
 

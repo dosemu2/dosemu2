@@ -68,7 +68,7 @@
 /* The following function sets the speed of the serial port.
  * num is the index, and speed is a baudrate divisor value.
  */
-void set_speed(int num, int speed)
+static void set_speed(int num, int speed)
 {
   write_DLL(num, speed & 0xFF);		/* Write baudrate divisor LSB */
   write_DLM(num, (speed >> 8) & 0xFF);	/* Write baudrate divisor MSB */

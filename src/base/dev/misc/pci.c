@@ -29,10 +29,6 @@
  *
  * SIDOC_END_FUNCTION
  */
-int pci_read_header_cfg1 (unsigned char bus, unsigned char device,
-			  unsigned char func, unsigned long *buf);
-int pci_read_header_cfg2 (unsigned char bus, unsigned char device,
-			  unsigned char func, unsigned long *buf);
 int (*pci_read_header) (unsigned char bus, unsigned char device,
 			unsigned char func, unsigned long *buf) = pci_read_header_cfg1;
 

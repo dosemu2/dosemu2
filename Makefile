@@ -20,15 +20,19 @@ src/include/config.h.in: configure.ac
 	touch configure
 
 Makefile.conf: Makefile.conf.in configure default-configure
-	@echo "You chose not to run ./default-configure, doing it now"; 
-	./default-configure; 
+	@echo "You chose not to run ./default-configure, doing it now";
+	@if [ -f config.status ]; then \
+	  ./config.status --recheck; ./config.status; \
+	else \
+	  ./default-configure; \
+	fi
 
 # Here we come when either when the user or we ourselves did run ./configure
 # We now can be sure that Makefile.conf exists, hence we include it
 #
 -include Makefile.conf
 
-export REALTOPDIR=$(srcdir)
+export REALTOPDIR=$(shell cd $(srcdir); pwd -P)
 export SRCPATH=$(REALTOPDIR)/src
 export TOPDIR=$(SRCPATH)
 export BINPATH=$(REALTOPDIR)/$(THISVERSION)
@@ -87,6 +91,7 @@ pristine distclean mrproper:  docsclean mididclean
 	rm -f core `find . -name config.log`
 	rm -f src/include/config.h
 	rm -f src/include/confpath.h
+	rm -f src/include/plugin_*.h
 	rm -f core `find . -name '*~'`
 	rm -f core `find . -name '*[\.]o'`
 	rm -f core `find . -name '*.d'`

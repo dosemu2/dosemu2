@@ -57,6 +57,8 @@ OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 #include "keyb_clients.h"
 #include "keyboard.h"
 #include "video.h"
+#include "../../env/video/X.h"
+#include "keyb_X.h"
 
 #define AltMask Mod1Mask
 #define XK_X386_SysReq 0x1007FF00
@@ -187,7 +189,6 @@ void X_process_key(XKeyEvent *e)
    int i;
 
    if (config.X_keycode) {
-	   void X_keycode_process_key(XKeyEvent *e);
 	   X_keycode_process_key(e);
 	   return;
    }

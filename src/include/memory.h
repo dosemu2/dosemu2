@@ -210,6 +210,7 @@ void memcheck_init(void);
 int  memcheck_isfree(int addr_start, int size);
 int  memcheck_findhole(int *start_addr, int min_size, int max_size);
 void memcheck_dump(void);
+void memcheck_type_init(void);
 #endif
 
 #endif /* MEMORY_H */

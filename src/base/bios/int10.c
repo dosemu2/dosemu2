@@ -49,10 +49,14 @@
  */
 
 
+#include "config.h"
+
 #include <string.h>
 #include <unistd.h>
 
-#include "config.h"
+#if X_GRAPHICS
+#include "X.h"
+#endif
 
 #include "emu.h"
 #include "video.h"
@@ -62,7 +66,6 @@
 #include "speaker.h"
 
 #if X_GRAPHICS
-#include "X.h"
 #include "vgaemu.h"
 #endif
 
@@ -117,7 +120,7 @@ static void int10_old(void);
 static void int10_new(void);
 #endif
 
-inline void set_cursor_shape(ushort shape) {
+static inline void set_cursor_shape(ushort shape) {
    int cs,ce;
 
    if (config.cardtype == CARD_NONE)
@@ -723,7 +726,7 @@ error:
 }    
 
 /* get the active and alternate display combination code */
-void get_dcc(int *active_dcc, int *alternate_dcc)
+static void get_dcc(int *active_dcc, int *alternate_dcc)
 {
 #if USE_DUALMON
   if (config.dualmon) {
@@ -743,7 +746,7 @@ void get_dcc(int *active_dcc, int *alternate_dcc)
 }
 
 /* INT 10 AH=1B - FUNCTIONALITY/STATE INFORMATION (PS,VGA/MCGA) */
-void return_state(Bit8u *statebuf) {
+static void return_state(Bit8u *statebuf) {
 	int active_dcc, alternate_dcc;
 	
 #ifdef X_GRAPHICS
@@ -802,7 +805,6 @@ void int10_old()
   static int last_equip=-1;
 
   if (config.dualmon && (last_equip != BIOS_CONFIG_SCREEN_MODE)) {
-    extern struct video_system *Video_default;
     v_printf("VID: int10 entry, equip-flags=0x%04x\n",READ_WORD(BIOS_CONFIGURATION));
     last_equip = BIOS_CONFIG_SCREEN_MODE;
     if (IS_SCREENMODE_MDA) Video->is_mapped = 1;

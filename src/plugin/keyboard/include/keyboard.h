@@ -35,8 +35,8 @@ void putrawkey(t_rawkeycode code);
 void putkey(Boolean make, t_keysym scan, unsigned char ascii);
 void set_shiftstate(t_shiftstate s);
 void clear_bios_keybuf(void);
-int keyb_queuelevel(void);
 void append_pre_strokes(unsigned char *s);
+int type_in_pre_strokes(void);
 
 int keyb_server_init(void);
 int keyb_server_reset(void);

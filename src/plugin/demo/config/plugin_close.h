@@ -9,17 +9,11 @@
  *
  * It should contain a valid call to the init function of the plug-in such as
  *
- *    {
- *       extern void my_plugin_close(void);
  *       my_plugin_close();
- *    }
  * 
  * This routine should do _nothing_, if its counterpart my_plugin_init()
  * did decide to disable the plugin.
  * Don't forget the curly brackets around your statement.
  */
 
-{
-	extern void demo_plugin_close(void);
-	demo_plugin_close();
-}
+demo_plugin_close();

@@ -11,7 +11,7 @@ SYSTEM_CONF_PATH=NOT_SYSTEM_WIDE
 SYSTEM_XFONTS_PATH=NOT_SYSTEM_WIDE
 test "$SYSTEM_INSTALL_PATH" != "NOT_SYSTEM_WIDE" && IS_SYSTEM_WIDE=1
 
-function usage {
+usage () {
   echo "
 USAGE:
 
@@ -20,7 +20,7 @@ USAGE:
   exit 1
 }
 
-function install_from_template {
+install_from_template () {
 # $1 = path to install to
   (cd $1
     tar -xzf $SYSTEM_INSTALL_PATH/dosemu-bin.tgz
@@ -64,7 +64,7 @@ ARG0="$0"
 
 unset DUMBTERM STRING_I LREDIRHOME PROPRIETARY QUIET USE_SUDO
 
-i=0;
+SUFFIX=""
 while [ $(( $# > 0 )) = 1 ] ; do
 #NOTE, this won't work on older BASHes: while (( $# )); do
   case $1 in
@@ -105,11 +105,8 @@ while [ $(( $# > 0 )) = 1 ] ; do
       shift
       ;;   
     *)
-      # process and accumulate remaining dosemu.bin args into an array
-      # in order to avoid resulting substitution odds
-      par[$i]=$1
-      if [ -z "par[$i]" ]; then par[$i]="''"; fi
-      i=$(( $i + 1 ))
+      # this should avoid avoid resulting substitution odds
+      SUFFIX="$SUFFIX \"$1\""
       shift
       ;;
   esac
@@ -118,7 +115,7 @@ done
 
 #echo "$PROPRIETARY $LREDIRHOME $DUMBTERM $*"; exit
 
-function w4l_check {
+w4l_check () {
   if grep mki_install_hook /proc/ksyms >/dev/null 2>/dev/null; then
     echo "
    Note: your kernel is patched for Win4Lin, this will most likely
@@ -233,6 +230,10 @@ if [ "`basename $ARG0`" = "xdosemu" ]; then
   fi
 fi
 
+if [ -z "$IS_SYSTEM_WIDE" ]; then
+  BOOT_DIR_PATH=`cat $BPATH_FILE`
+fi
+
 if [ -n "$XFLAG" ]; then
   XFLAG=-X
   if [ -z "$DISPLAY" ]; then
@@ -268,7 +269,6 @@ if [ -n "$XFLAG" ]; then
   fi
 
   if [ -z "$IS_SYSTEM_WIDE" ]; then
-     BOOT_DIR_PATH=`cat $BPATH_FILE`
      if [ "`xlsfonts -fn $FONT 2>/dev/null`" = "" ]; then
         if [ ! -f $BOOT_DIR_PATH/Xfonts/fonts.dir ]; then
            (cd $BOOT_DIR_PATH/Xfonts; mkfontdir)
@@ -300,7 +300,8 @@ if [ -n "$XFLAG" ]; then
     if [ -n "$LREDIRHOME" ]; then
       echo "   Redirecting \$HOME to DOS drive D:"
     else
-      echo -e "\n   Hint: if you want \$HOME as DOS drive D:, then use the '-home' option"
+      echo
+      echo "   Hint: if you want \$HOME as DOS drive D:, then use the '-home' option"
     fi
   fi
 else
@@ -321,9 +322,11 @@ else
     if [ -n "$LREDIRHOME" ]; then
       echo "   Redirecting \$HOME to DOS drive D:"
     else
-      echo -e "\n   Hint: if you want \$HOME as DOS drive D:, use '-home' option"
+      echo
+      echo "   Hint: if you want \$HOME as DOS drive D:, use '-home' option"
     fi
-    echo -e "\n   Now type ENTER to start DOSEMU or <Ctrl>C to cancel\n"
+    echo
+    echo "   Now type ENTER to start DOSEMU or <Ctrl>C to cancel\n"
     read dummy
   fi
 fi
@@ -359,8 +362,9 @@ if [ -n "$USE_SUDO" ] ; then
   SUDO=sudo
 fi
 
+eval "set -- $SUFFIX"
 if [ -n "$STRING_I" ] ; then
-  exec $SUDO $BINARY $XFLAG "-I $STRING_I" "${par[@]}"
+  exec $SUDO $BINARY $XFLAG "-I $STRING_I" "$@"
 else
-  exec $SUDO $BINARY $XFLAG "${par[@]}"
+  exec $SUDO $BINARY $XFLAG "$@"
 fi

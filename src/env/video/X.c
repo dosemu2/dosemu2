@@ -233,6 +233,7 @@
 #include "vgaemu.h"
 #include "keyb_server.h"
 #include "X.h"
+#include "dosemu_config.h"
 
 #ifdef HAVE_UNICODE_TRANSLATION
 #include "translate.h"
@@ -287,16 +288,6 @@ typedef struct { unsigned char r, g, b; } c_cube;
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-/* base/init/config.c */
-extern int dosemu_argc;
-extern char **dosemu_argv;
-
-/* base/keyboard/keyb_X.c */
-extern void X_process_key(XKeyEvent *);
-extern void X_process_keys(XKeymapEvent *);
-#ifndef HAVE_UNICODE_KEYB
-inline void X_process_keys(XKeymapEvent *event) { return; }
-#endif
 
 #ifndef HAVE_UNICODE_TRANSLATION
 static const u_char dos_to_latin[] = {
@@ -405,10 +396,10 @@ static unsigned _dga_height = 0;
 static Window dga_window;
 #endif
 
-Display *display;		/* used in base/keyboard/keyb_X_keycode.c */
+Display *display;		/* used in plugin/?/keyb_X_keycode.c */
 static int screen;
 static Visual *visual;
-static Window rootwindow, mainwindow, parentwindow;
+static Window rootwindow, mainwindow, parentwindow, normalwindow, fullscreenwindow;
 static Boolean our_window;     	/* Did we create the window? */
 
 static XImage *ximage;		/* Used as a buffer for the X-server */
@@ -421,7 +412,7 @@ static int snap_X = 0;
 static int mouse_cursor_visible = 0;
 #endif
 
-static GC gc;
+static GC gc, fullscreengc, normalgc;
 static Font vga_font;
 static Atom proto_atom = None, delete_atom = None;
 static XFontStruct *font = NULL;
@@ -466,7 +457,6 @@ int freeze_active = 0;
 #if CONFIG_X_MOUSE
 static char *grab_keystring = "Home";
 static KeySym grab_keysym = NoSymbol;
-static KeySym freeze_keysym = NoSymbol;
 static int mouse_x = 0, mouse_y = 0;
 #endif
 
@@ -498,14 +488,11 @@ static void X_keymap_init(void);
 
 /* error/event handler */
 static int NewXErrorHandler(Display *, XErrorEvent *);
-void X_handle_events(void);		/* used in arch/linux/async/signal.c */
 
 /* interface to xmode.exe */
 static char X_title_emuname [X_TITLE_EMUNAME_MAXLEN] = {0};
 char X_title_appname [X_TITLE_APPNAME_MAXLEN] = {0};		/* used in plugin/commands/comcom.c */
 static int X_title_show_appname = 1;
-
-int X_change_config(unsigned, void *);	/* used in base/async/int.c */
 
 /* colormap related stuff */
 static void graphics_cmap_init(void);
@@ -530,7 +517,6 @@ static void resize_ximage(unsigned, unsigned);
 static int X_set_videomode(int, int, int);
 static int X_setmode(int, int, int, int);
 static void X_modify_mode(void);
-void X_set_textsize(int, int);
 static void X_resize_text_screen(void);
 
 /* screen update/redraw functions */
@@ -551,7 +537,6 @@ static Cursor create_invisible_cursor(void);
 static void draw_cursor(int, int);
 static void redraw_cursor(void);
 static void X_update_cursor(void);
-void X_blink_cursor(void);		/* used in arch/linux/async/signal.c */
 static inline void restore_cell(int, int);
 
 #if CONFIG_X_MOUSE
@@ -605,7 +590,7 @@ struct video_system Video_X =
 /* utility function for opening a connection and making certain
  * I am either using or not using the X keyboard Extension.
  */
-Display *XKBOpenDisplay(char *display_name)
+static Display *XKBOpenDisplay(char *display_name)
 {
 	Display *dpy;
 #ifndef HAVE_XKB
@@ -727,14 +712,26 @@ int X_init()
     X_printf("X: X_init: using existing window (id = 0x%x)\n", i);
   }
   else {
+    XSetWindowAttributes xwa;
     our_window = TRUE;
     kdos_client = FALSE;
-    mainwindow = XCreateSimpleWindow(
+    mainwindow = normalwindow = XCreateSimpleWindow(
       display, rootwindow,
       0, 0,			/* Position */
       w_x_res, w_y_res,		/* Size */
       0, 0,			/* Border width & color */
       text_colors[0]		/* Background color */
+    );
+    xwa.override_redirect = True;
+    xwa.background_pixel = text_colors[0];
+    fullscreenwindow = XCreateWindow(
+      display, rootwindow,
+      0, 0,			/* Position */
+      DisplayWidth(display, screen), DisplayHeight(display, screen), /* Size */
+      0,			/* Border width */
+      CopyFromParent, CopyFromParent, CopyFromParent,
+      CWBackPixel | CWOverrideRedirect,
+      &xwa
     );
   }
 
@@ -766,7 +763,8 @@ int X_init()
   load_cursor_shapes();
 
   gcv.font = vga_font;
-  gc = XCreateGC(display, mainwindow, GCFont, &gcv);
+  normalgc = gc = XCreateGC(display, mainwindow, GCFont, &gcv);
+  fullscreengc = XCreateGC(display, fullscreenwindow, GCFont, &gcv);
 
   attr.event_mask =
     KeyPressMask | KeyReleaseMask | KeymapStateMask |
@@ -778,6 +776,7 @@ int X_init()
   attr.cursor = X_standard_cursor;
 
   XChangeWindowAttributes(display, mainwindow, CWEventMask | CWCursor, &attr);
+  XChangeWindowAttributes(display, fullscreenwindow, CWEventMask | CWCursor, &attr);
 
   XStoreName(display, mainwindow, config.X_title);
   XSetIconName(display, mainwindow, config.X_icon_name);
@@ -791,9 +790,12 @@ int X_init()
     wmhint.flags = WindowGroupHint | InputHint;
     XSetWMProperties(display, mainwindow, NULL, NULL, 
       dosemu_argv, dosemu_argc, NULL, &wmhint, &xch);
+    XSetWMProperties(display, fullscreenwindow, NULL, NULL, 
+      dosemu_argv, dosemu_argc, NULL, &wmhint, &xch);
   }
   else {
     XSetClassHint(display, mainwindow, &xch);
+    XSetClassHint(display, fullscreenwindow, &xch);
   }
 #if CONFIG_X_SELECTION
   /* Get atom for COMPOUND_TEXT type. */
@@ -804,6 +806,10 @@ int X_init()
   delete_atom = XInternAtom(display, "WM_DELETE_WINDOW", False);
   if ((proto_atom != None) && (delete_atom != None)) {
     XChangeProperty(display, mainwindow,
+      proto_atom, XA_ATOM, 32,
+      PropModePrepend, (char *) &delete_atom, 1
+    );
+    XChangeProperty(display, fullscreenwindow,
       proto_atom, XA_ATOM, 32,
       PropModePrepend, (char *) &delete_atom, 1
     );
@@ -828,7 +834,6 @@ int X_init()
 
   if(config.X_mgrab_key) grab_keystring = config.X_mgrab_key;
   if(*grab_keystring) grab_keysym = XStringToKeysym(grab_keystring);
-  freeze_keysym = XStringToKeysym("Pause");
   if(grab_keysym != NoSymbol) {
     X_printf("X: X_init: mouse grabbing enabled, use Ctrl+Mod1+%s to activate\n", grab_keystring);
   }
@@ -1491,6 +1496,7 @@ void X_handle_events()
 
 	case FocusOut:
 	  X_printf("X: focus out\n");
+	  if (mainwindow == fullscreenwindow) break;
 	  have_focus = FALSE;
 	  blink_state = TRUE;
 	  blink_count = config.X_blinkrate;
@@ -1565,13 +1571,40 @@ void X_handle_events()
                 X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
               }
               break;
-            } else if (keysym == freeze_keysym) {
+            } else if (keysym == XK_Pause) {
               if (freeze_active ^= 1) {
                 freeze_dosemu();
               } else {
                 unfreeze_dosemu();
               }
               break;
+            } else if (keysym == XK_f) {
+              XUnmapWindow(display, mainwindow);
+              if (mainwindow == normalwindow) {
+                X_printf("X: entering fullscreen mode\n");
+                mainwindow = fullscreenwindow;
+                gc = fullscreengc;
+                XCopyGC(display, normalgc, -1, gc);
+                XMapWindow(display, mainwindow);
+                XGrabKeyboard(display, mainwindow, True, GrabModeAsync,
+                              GrabModeAsync, CurrentTime);
+                resize_width = DisplayWidth(display, screen);
+                resize_height = DisplayHeight(display, screen);
+              } else {
+                X_printf("X: entering windowed mode!\n");
+                XUngrabKeyboard(display, CurrentTime);
+                mainwindow = normalwindow;
+                gc = normalgc;
+                XCopyGC(display, fullscreengc, -1, gc);
+                XMapWindow(display, mainwindow);
+              }
+              if(vga.mode_class == TEXT) {
+                X_resize_text_screen();
+              } else {	/* GRAPH */
+                resize_ximage(resize_width, resize_height);
+                dirty_all_video_pages();
+                X_update_screen();
+              }
             }
           }
 	case KeyRelease:
@@ -1701,7 +1734,7 @@ void X_handle_events()
       if(ximage->width == resize_width && ximage->height == resize_height) resize_event = 0;
     }
 
-    if(resize_event) {
+    if(resize_event && mainwindow == normalwindow) {
       resize_ximage(resize_width, resize_height);
       dirty_all_video_pages();
       X_update_screen();
@@ -2267,10 +2300,15 @@ int X_setmode(int mode, int text_width, int text_height, int init_vga)
     XSetNormalHints(display, mainwindow, &sh);
     XSync(display, False);
 
-    XResizeWindow(display, mainwindow, w_x_res, w_y_res);
+    if (mainwindow == normalwindow)
+      XResizeWindow(display, mainwindow, w_x_res, w_y_res);
 
     XSetForeground(display, gc, text_colors[0]);
-    XFillRectangle(display, mainwindow, gc, 0, 0, w_x_res, w_y_res);
+    if (mainwindow == normalwindow)
+      XFillRectangle(display, mainwindow, gc, 0, 0, w_x_res, w_y_res);
+    else
+      XFillRectangle(display, mainwindow, gc, 0, 0,
+                     DisplayWidth(display, screen), DisplayHeight(display, screen));
   }
   else {	/* GRAPH */
 
@@ -2301,6 +2339,11 @@ int X_setmode(int mode, int text_width, int text_height, int init_vga)
 
     if(config.X_aspect_43) {
       w_y_res = (w_x_res * 3) >> 2;
+    }
+
+    if(mainwindow == fullscreenwindow) {
+      w_x_res = DisplayWidth(display, screen);
+      w_y_res = DisplayHeight(display, screen);
     }
 
     remap_done(&remap_obj);
@@ -2400,7 +2443,8 @@ int X_setmode(int mode, int text_width, int text_height, int init_vga)
     veut.update_pos = veut.display_start;
 
     XSetNormalHints(display, mainwindow, &sh);
-    XResizeWindow(display, mainwindow, w_x_res, w_y_res);
+    if (mainwindow == normalwindow)
+      XResizeWindow(display, mainwindow, w_x_res, w_y_res);
   }
 
   /* unconditionally update the palette */
@@ -2509,10 +2553,15 @@ void X_resize_text_screen()
   sh.flags = PSize | PMinSize | PMaxSize;
   XSetNormalHints(display, mainwindow, &sh);
 
-  XResizeWindow(display, mainwindow, w_x_res, w_y_res);
+  if (mainwindow == normalwindow)
+    XResizeWindow(display, mainwindow, w_x_res, w_y_res);
 
   XSetForeground(display, gc, text_colors[0]);
-  XFillRectangle(display, mainwindow, gc, 0, 0, w_x_res, w_y_res);
+  if (mainwindow == normalwindow)
+    XFillRectangle(display, mainwindow, gc, 0, 0, w_x_res, w_y_res);
+  else
+    XFillRectangle(display, mainwindow, gc, 0, 0,
+      DisplayWidth(display, screen), DisplayHeight(display, screen));
 
   X_redraw_text_screen();
 }

@@ -21,6 +21,7 @@
 
 #include "config.h"
 #include "emu.h"
+#include "serial.h"
 #include "memory.h"
 #include "timers.h"
 #include "mouse.h"
@@ -39,8 +40,9 @@
 #include "doshelpers.h"
 #include "utilities.h"
 #include "redirect.h"
-
+#include "pci.h"
 #include "joystick.h"
+#include "aspi.h"
 
 #ifdef USING_NET
 #include "ipx.h"
@@ -61,8 +63,6 @@
 int X_change_config(unsigned, void *);
 #endif
 
-extern void pci_bios(void);
-
 /*
    This flag will be set when doing video routines so that special
    access can be given
@@ -80,7 +80,7 @@ static struct timeval scr_tv;        /* For translating UNIX <-> DOS times */
 /* set if some directories are mounted during startup */
 int redir_state = 0;
 
-void kill_time(long usecs) {
+static void kill_time(long usecs) {
    hitimer_t t_start, t_dif;
    scr_tv.tv_sec = 0L;
    scr_tv.tv_usec = usecs;
@@ -446,7 +446,6 @@ static int dos_helper(void)
 
   case DOS_HELPER_ASPI_HELPER: {
 #ifdef ASPI_SUPPORT
-      extern void aspi_helper(int);
       A_printf("ASPI: in 0x41 handler! ax=0x%04x, bx=0x%04x, dx=0x%04x, "
            "cx=0x%04x\n", LWORD(eax), LWORD(ebx), LWORD(edx), LWORD(ecx));
       aspi_helper(HI(ax));
@@ -475,7 +474,6 @@ static int dos_helper(void)
 
   case DOS_HELPER_0x53:
     {
-        extern int run_system_command(char *);
         LWORD(eax) = run_system_command(SEG_ADR((char *), es, dx));
 	break;
     }
@@ -564,7 +562,6 @@ static int dos_helper(void)
 	}
         break;
   case DOS_HELPER_BOOTSECT: {
-      extern void fdkernel_boot_mimic(void);
       fdkernel_boot_mimic();
       break;
     }

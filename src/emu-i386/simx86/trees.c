@@ -47,11 +47,6 @@
 #include "emu86.h"
 #include "codegen-arch.h"
 
-#ifdef DEBUG_TREE
-void DumpTree (FILE *fd);
-extern FILE *tLog;
-#endif
-
 IMeta	InstrMeta[MAXINODES];
 int	CurrIMeta = -1;
 

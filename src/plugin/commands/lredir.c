@@ -58,6 +58,7 @@
 #include "emu.h"
 #include "memory.h"
 #include "doshelpers.h"
+#include "lredir.h"
 #include "../coopthreads/coopthreads.h"
 
 #define printf	com_printf
@@ -94,7 +95,7 @@ typedef unsigned int uint16;
 
 #include "doserror.h"
 
-FAR_PTR /* char far * */
+static FAR_PTR /* char far * */
 GetListOfLists(void)
 {
     FAR_PTR LOL;
@@ -106,7 +107,7 @@ GetListOfLists(void)
     return (LOL);
 }
 
-FAR_PTR /* char far * */
+static FAR_PTR /* char far * */
 GetSDAPointer(void)
 {
     FAR_PTR SDA;
@@ -123,7 +124,7 @@ GetSDAPointer(void)
  * InitMFS - call Emulator to initialize MFS
  ********************************************/
 /* tej - changed return type to void as nothing returned */
-void InitMFS(void)
+static void InitMFS(void)
 {
     FAR_PTR LOL;
     FAR_PTR SDA;
@@ -163,7 +164,7 @@ void InitMFS(void)
  *  It is not actually saved and returned as specified by the redirector
  *  specification.  This type of usage is common among commercial redirectors.
  ********************************************/
-uint16 RedirectDevice(char *deviceStr, char *resourceStr, uint8 deviceType,
+static uint16 RedirectDevice(char *deviceStr, char *resourceStr, uint8 deviceType,
                       uint16 deviceParameter)
 {
     char slashedResourceStr[MAX_RESOURCE_PATH_LENGTH];
@@ -214,7 +215,7 @@ uint16 RedirectDevice(char *deviceStr, char *resourceStr, uint8 deviceType,
  * NOTES:
  *
  ********************************************/
-uint16 GetRedirection(uint16 redirIndex, char *deviceStr, char *resourceStr,
+static uint16 GetRedirection(uint16 redirIndex, char *deviceStr, char *resourceStr,
                       uint8 * deviceType, uint16 * deviceParameter)
 {
     uint16 ccode;
@@ -264,7 +265,7 @@ uint16 GetRedirection(uint16 redirIndex, char *deviceStr, char *resourceStr,
  * NOTES:
  *
  ********************************************/
-uint16 CancelRedirection(char *deviceStr)
+static uint16 CancelRedirection(char *deviceStr)
 {
     struct REGPACK preg;
     char *dStr;
@@ -291,7 +292,7 @@ uint16 CancelRedirection(char *deviceStr)
  *  I show the read-only attribute for each drive
  *    which is returned in deviceParam.
  *************************************/
-void
+static void
 ShowMyRedirections(void)
 {
     int driveCount;
@@ -339,7 +340,7 @@ ShowMyRedirections(void)
     }
 }
 
-void
+static void
 DeleteDriveRedirection(char *deviceStr)
 {
     uint16 ccode;
@@ -366,7 +367,9 @@ DeleteDriveRedirection(char *deviceStr)
  *  otherwise returns the DosC 'build' number
  *
  ********************************************/
-uint16 CheckForDosc(void)
+/* no longer used -- Bart */
+#if 0
+static uint16 CheckForDosc(void)
 {
     struct REGPACK preg;
 
@@ -380,6 +383,7 @@ uint16 CheckForDosc(void)
       return (preg.r_bx);
     }
 }
+#endif
 
 int lredir_main(int argc, char **argv)
 {

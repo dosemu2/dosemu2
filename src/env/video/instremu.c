@@ -192,8 +192,6 @@ static unsigned vga_base, vga_end;
 
 static unsigned arg_len(unsigned char *);
 
-/* from dosext/dpmi/dpmi.c */
-unsigned long dpmi_GetSegmentBaseAddress(unsigned short);
 static unsigned char instr_read_byte(unsigned addr);
 static unsigned instr_read_word(unsigned addr);
 static unsigned instr_read_dword(unsigned addr);
@@ -2381,12 +2379,6 @@ static void x86_regs_to_scp(x86_regs *x86, struct sigcontext_struct *scp, int pm
  
 void instr_emu(struct sigcontext_struct *scp, int pmode)
 {
-  extern int dis_8086(unsigned int, 
-                      const unsigned char *,
-                      unsigned char *, 
-                      int, unsigned int *,
-                      unsigned int *, 
-                      unsigned int, int);
 #if DEBUG_INSTR >= 1
   unsigned int ref;
   int refseg, rc;

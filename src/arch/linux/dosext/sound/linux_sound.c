@@ -75,7 +75,7 @@ static int oss_block_size = 0;
 static int mpu_fd = -1;	             /* -1 = closed */
 static boolean mpu_disabled = FALSE; /* TRUE if MIDI output disabled */
 
-void linux_sb_dma_set_blocksize(int blocksize, int fragsize)
+static void linux_sb_dma_set_blocksize(int blocksize, int fragsize)
 {
   int blockbits, oss_fragsize;
   
@@ -108,7 +108,7 @@ void linux_sb_dma_set_blocksize(int blocksize, int fragsize)
     num_sound_frag * (1 << sound_frag_size), sound_frag_size, num_sound_frag);
 }
 
-void linux_sb_write_mixer(int ch, uint8_t val)
+static void linux_sb_write_mixer(int ch, uint8_t val)
 {
   int newsetting, real_mixer_val;
   uint8_t driver_channel = -1;
@@ -163,7 +163,7 @@ void linux_sb_write_mixer(int ch, uint8_t val)
   mixer_fd = -1;
 }
 
-uint8_t linux_sb_read_mixer(int ch)
+static uint8_t linux_sb_read_mixer(int ch)
 {
   int x;
   uint8_t driver_channel = -1;
@@ -615,7 +615,6 @@ int linux_sb_set_speed (uint16_t speed, uint8_t stereo_mode)
  * This is required to set up the driver for future use.
  */
 int SB_driver_init () {
-  extern struct SB_driver_t SB_driver;
 
   S_printf ("SB:[Linux] SB Driver Initialisation Called\n");
 

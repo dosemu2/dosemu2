@@ -1872,7 +1872,7 @@ static int keysym_map_compare(const void *left, const void *right)
 	return lmap->xkey - rmap->xkey;
 }
 
-size_t X_keysym_to_unicode(struct char_set_state *state,
+static size_t X_keysym_to_unicode(struct char_set_state *state,
 	struct char_set *set, int offset,
 	t_unicode *symbol,
 	const unsigned char *str, size_t len)
@@ -1905,7 +1905,7 @@ size_t X_keysym_to_unicode(struct char_set_state *state,
 	return -1;
 }
 
-size_t unicode_to_X_keysym(struct char_set_state *state,
+static size_t unicode_to_X_keysym(struct char_set_state *state,
 	struct char_set *set, int offset,
 	t_unicode dosemu_key,
 	unsigned char *out_str, size_t out_len)
@@ -1929,7 +1929,7 @@ size_t unicode_to_X_keysym(struct char_set_state *state,
 	return -1;
 }
 
-void for_each_keysym_mapping(struct char_set *set, 
+static void for_each_keysym_mapping(struct char_set *set, 
 	int offset,
 	void *callback_data, foreach_callback_t callback)
 {

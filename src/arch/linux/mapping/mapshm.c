@@ -26,8 +26,10 @@
 #endif
 
 
+#include "dosemu_config.h"
 #include "priv.h"
 #include "mapping.h"
+#include "pagemalloc.h"
 
 #undef mmap
 #define mmap libless_mmap
@@ -65,13 +67,6 @@ static void *extended_mremap(void *addr, size_t old_len, size_t new_len,
 #define Q__printf(f,cap,a...) ({\
   Q_printf(f,decode_mapping_cap(cap),##a); \
 })
-
-extern int pgmalloc_init(int numpages, int lowater, void *pool);
-extern void *pgmalloc(int size);
-extern int pgfree(void *addr);
-extern int get_pgareasize(void *addr);
-extern void *pgrealloc(void *addr, int newsize);
-
 
 static int mpool_numpages = (32 * 1024) / 4;
 static char *mpool = 0;
@@ -122,7 +117,6 @@ static void *alloc_ipc_shm(int mapsize)
 
 static int open_mapping_shm(int cap)
 {
-  extern int kernel_version_code;
   static int first =1;
 
   if (kernel_version_code < (0x20300+33)) {
@@ -224,6 +218,7 @@ static int open_mapping_shm(int cap)
   }
 #endif
 
+  mappingdriver_self.close(MAPPING_ALL);
   return 1;
 }
 

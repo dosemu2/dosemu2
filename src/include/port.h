@@ -190,8 +190,9 @@ extern Boolean port_allow_io(ioport_t, Bit16u, int, Bit8u, Bit8u, unsigned int,
 extern int     set_ioperm(int start, int size, int flag);
 
 extern void init_port_traceing(void);
-extern int parse_debugflags(const char *s, unsigned char flag);
 extern void register_port_traceing(ioport_t firstport, ioport_t lastport);
 extern void clear_port_traceing(void);
+
+extern void do_r3da_pending (void);
 
 #endif /* _PORT_H */

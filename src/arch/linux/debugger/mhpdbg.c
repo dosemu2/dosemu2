@@ -39,8 +39,6 @@
 #define MHP_PRIVATE
 #include "mhpdbg.h"
 
-extern void handle_signals(void);
-
 #if 0
 /* NOTE: the below is already defined with #include "emu.h"
  *       Must NOT redefine it, else vm86plus won't work !!!
@@ -48,6 +46,7 @@ extern void handle_signals(void);
 extern struct vm86_struct vm86s;
 #endif
 
+static void vmhp_printf(const char *fmt, va_list args);
 static void mhp_poll(void);
 static void mhp_puts(char*);
 void mhp_putc(char);
@@ -57,10 +56,6 @@ static char mhp_banner[] = {
   "- type ? to get help on commands -\n"
 };
 struct mhpdbgc mhpdbgc ={0};
-
-extern int traceloop;
-extern char loopbuf[];
-static void vmhp_printf(const char *fmt, va_list args);
 
 /********/
 /* CODE */
@@ -132,7 +127,6 @@ int vmhp_log_intercept(int flg, const char *fmt, va_list args)
       mhp_send();
     }
     if (dosdebug_flags & DBGF_LOG_TO_BREAK){
-      extern void mhp_regex(const char *fmt, va_list args);
       mhp_regex(fmt, args);
     }
   }

@@ -50,10 +50,6 @@
 #undef  DEBUG_PIT
 #undef  ONE_MINUTE_TEST
 
-extern hitimer_t pic_itime[33];
-
-extern hitimer_t t_vretrace;	/* see env/video/miscemu.c */
-
 pit_latch_struct pit[PIT_TIMERS];   /* values of 3 PIT counters */
 
 static u_long timer_div;          /* used by timer int code */

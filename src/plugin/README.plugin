@@ -8,19 +8,17 @@ in at compiletime. The reason to have such mechanisme is to ease inclusion
 of code, that normally will not be part of the official DOSEMU; maybe
 because of copyright problems (GNU is very tricky in some cases) or
 because those parts are distributed separately for pratical reasons.
-Furthermore, allowing _binary_ plug-ins would result in severe security
-problems, and this we want to avoid.
 
 Nevertheless, we now have it and here is how it works:
 -----------------------------------------------------
 
- - all plugg-ins within src/plugin can be removed or added without
+ - all plug-ins within src/plugin can be removed or added without
    modification to the main DOSEMU source. You just have to make sure
    you do a
 
      make pristine
 
-   before adding/deleteing a plug-in and a
+   before adding/deleting a plug-in and a
 
      ./default-configure
 
@@ -29,10 +27,10 @@ Nevertheless, we now have it and here is how it works:
      make
 
    after changes to the contents of src/plugin. The ./default-configure
-   script will take care of all whats needed to insert/remove your plug-in.
+   script will take care of all what is needed to insert/remove your plug-in.
 
  - you should always add/delete _complete_ plugin trees, that is,
-   each directory (and its subdirectories) belong to exactly one
+   each directory (and its subdirectories) belongs to exactly one
    plug-in.
 
 
@@ -59,8 +57,8 @@ Nevertheless, we now have it and here is how it works:
  - The *.h header files in  src/plugin/*/config are accumulated into
    files of the same name under src/include. These are then included
    directly at the proper places in the dosemu code. If no plug-in
-   exists atall, all src/include/plugin_*.h will be empty and in a
-   pristine DOSEMU distribution tree they won't exist atall.
+   exists at all, then all src/include/plugin_*.h will be empty and in a
+   pristine DOSEMU distribution tree they won't exist at all.
 
  - The script ./mkpluginhooks in the DOSEMU root directory is responsible
    for actually do plug-in insertion. It is used by ./default-configure
@@ -135,11 +133,8 @@ The plugin_incdirs file
 
   If you have a plugin, which exports include files to the rest of DOSEMU
   (such as src/base/keyboard does), you need to list the include directory
-  here (same format as in plugin_dirs file). Note that the herein listed
-  directories are simply put into the INCDIR path of base-configure and
-  exported as '-Imy_indir' _before_ all other '-I' to the C compiler;
-  there are _no_ steps taken, which ensure the code actual has the needed
-  #include statements.
+  here (same format as in plugin_dirs file). The files in these directories
+  are then symbolically linked from src/plugin/include.
 
 
 The plugin_parser and plugin_lexer files
@@ -235,23 +230,16 @@ The plugin_*.h files
 
   will be included from the file
 
-     src/include/plugin_init.h
+     src/plugin/include/plugin_init.h
 
   which always is included in src/emu.c at startup of DOSEMU. In case no
   plug-in is configured, the file src/include/plugin_init.h will be empty,
   hence does not produce any code.
 
-  You should keep in mind, that the #include statement will be 'in the
-  middle' of the code, and no additional header files are included to
-  define prototypes for external references. Therefor the contents of
+  The contents of
   any plugin_*.h file (except plugin_config.h, see below) should look like
 
-    {
-          extern void my_plugin_init(void);
-          my_plugin_init();
-    }
-
-  (don't forget the curly brackets)
+    my_plugin_init();
 
   Currently there are the following hooks for plug-ins implemented, those are:
 
@@ -300,12 +288,8 @@ The plugin_*.h files
     - plugin_ioselect.h, which hooks within io_select(). This hook
       should look such as
 
-        {
-          extern int my_plugin_fd;
-          extern void my_plugin_ioselect(void);
           if (my_plugin_fd != -1)
                if (FD_ISSET(my_plugin_fd, &fds)) my_plugin_ioselect();
-        }
 
 
       You _must_ have add the fd within my_plugin_init() to the ioselect
@@ -321,11 +305,7 @@ The plugin_*.h files
     - plugin_poll.h, which hooks within run_vm86() of do_vm86.c
       and run_dpmi() of dpmi.c. This hook should look such as
 
-        {
-          extern int my_plugin_need_poll;
-          extern void my_plugin_poll(int);
-          if (my_plugin_need_poll) my_plugin_poll(VM86_RETURN_VALUE);
-        }
+        if (my_plugin_need_poll) my_plugin_poll(VM86_RETURN_VALUE);
 
       The my_plugin_poll() functions is then called on each return from
       vm86() after handle_signals() and uhook_poll(), but before
@@ -340,9 +320,10 @@ The plugin_*.h files
       my_plugin_ioselect() (see above), hence you may get a call to
       my_plugin_poll() directly after (without having returned to vm86 mode).
 
-    - plugin_config.h, which is a bit special as it doesn't need the
-      curly bracketed part. Its purpose is to include configuration
-      switches, which are exported to DOSEMU via src/include/config.h.
+    - plugin_config.h. Its purpose is to declare the prototypes and extern
+      declarations of all the functions and variables explained above, and
+      to include configuration switches, which are exported to DOSEMU 
+      via src/include/config.h.
       Each plugin_config.h will be included at the _buttom_ of config.h,
       such that you may redefine/interprete already set global
       configuration variables.

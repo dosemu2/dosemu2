@@ -1,3 +1,46 @@
+2003/02/01 ver 1.1.4.10 unofficial pre-release
+	From Stas
+	- pic_force_count->pic_watchdog correction
+	- fix VIP/IF releated race in DPMI code.
+	- allow DSP commands in high speed mode (fixed problem with
+	  Pinball Dreams 2)
+	- fix for AltGr&new keyboard code if X_keycode = (1)
+	From Stanislav Safronov <Stanislav_Safronov@f630.n5020.z2.fidonet.org>
+	- serial transmit fixes
+	From Clarence
+	- stop port server a little later.
+	From Bart
+	- moved all "extern" declarations to header files and added
+	  warnings for GCC to keep it that way.
+	- (inspired by an old fix from jt@npdaxp.fuw.edu.pl): 
+	  improve error codes for file region locking
+	- more portable and reliable way for passing parameters in
+	  default-configure and dist/dosemu (thanks to Mozilla)
+	- (reported by Esa Tikka) Glibc detection has to use -lt not -le.
+	- reorganized plugins a little bit so that all header files are
+	  symlinked into src/plugin/include and the extern declarations
+	  go into plugin_config.h
+	- (reported by Grigory Batalov) fix mkbindist and dosemu script
+	  for non-systemwide usage.
+	- dosdebug now gets a map of DOSEMU symbols on the fly instead
+	  of relying on some dosemu.map file. Hence installing dosemu.map
+	  is no longer necessary.
+	- added SIGCHLD signal handler to clean up the port server.
+	- install most signal handlers after forking the port server and
+	  let it ignore VT acquire and release signals.
+	- the mapself driver needs to open /proc/self/mem before dropping 
+	  privileges.
+	- (reported by Reinhard Karcher) only copy relevant things from
+	  40:xxxx real memory area when $_vbios_post = (0).
+	- reorganized port server so that it calls the normal port
+	  handlers, which in turn detect if iopl==3 so they can do in/out's
+	  directly.
+	- (reported by Claudia Neumann, but not quite fixed for everyone 
+	  though) fix Linux console terminal init if the external charset
+	  is "cp437".
+	- added initial support for full-screen X. Use ctrl+alt+f to
+	  toggle (using the XF86 video mode extension will come later, so
+	  text may still be small and graphics somewhat slow).
 2003/01/26 ver 1.1.4.9 unofficial pre-release
 	From Bart
 	- More makefile and autoconf fixes, cleanups and improvements:

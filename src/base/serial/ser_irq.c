@@ -101,7 +101,7 @@ void serial_timer_update(void)
  * and checking if it's time to generate a hardware interrupt (RDI).
  * [num = port]
  */
-void receive_engine(int num)		/* Internal 16550 Receive emulation */ 
+static void receive_engine(int num)	/* Internal 16550 Receive emulation */ 
 {
   if (com[num].MCR & UART_MCR_LOOP) return;	/* Return if loopback */
 
@@ -135,7 +135,7 @@ void receive_engine(int num)		/* Internal 16550 Receive emulation */
  * of the XMIT FIFO/THR register, and checking if it's time to generate
  * a hardware interrupt (THRI).    [num = port]
  */
-void transmit_engine(int num)	/* Internal 16550 Transmission emulation */
+static void transmit_engine(int num) /* Internal 16550 Transmission emulation */
 {
   static int rtrn;
   static int control;
@@ -160,13 +160,20 @@ void transmit_engine(int num)	/* Internal 16550 Transmission emulation */
     if (!(control & TIOCM_CTS)) return;		/* Return if CTS is low */
   }
   
-  if (com[num].tx_overflow) {		/* Is it in overflow state? */
-    rtrn = RPT_SYSCALL(write(com[num].fd, &com[num].TX, 1));  /* Write port */
-    if (rtrn == 1)                               /* Did it succeed? */
-      com[num].tx_overflow = 0;                  /* Exit overflow state */
-  }
-  else if (com[num].fifo_enable) {	/* Is FIFO enabled? */
+  if (com[num].fifo_enable) {  /* Is FIFO enabled? */
 
+    if (com[num].tx_overflow){
+      if(RPT_SYSCALL(write(com[num].fd,&com[num].tx_buf[com[num].tx_buf_start], 1))!=1){
+        return;  /* write error */
+      } else {
+        /* Squeeze char into FIFO */
+        com[num].tx_buf[com[num].tx_buf_end] = com[num].TX ;
+        /* Update FIFO queue pointers */
+        com[num].tx_buf_end = (com[num].tx_buf_end + 1) % TX_BUFFER_SIZE;
+        com[num].tx_buf_start = (com[num].tx_buf_start + 1) % TX_BUFFER_SIZE;
+        com[num].tx_overflow = 0;                  /* Exit overflow state */
+      }
+    }
     /* Clear as much of the transmit FIFO as possible! */
     while (com[num].tx_buf_bytes > 0) {		/* Any data in fifo? */
       rtrn = RPT_SYSCALL(write(com[num].fd, &com[num].tx_buf[com[num].tx_buf_start], 1));
@@ -184,6 +191,11 @@ void transmit_engine(int num)	/* Internal 16550 Transmission emulation */
     }
   }
   else {					/* Not in FIFO mode */
+    if (com[num].tx_overflow) {        /* Is it in overflow state? */
+      rtrn = RPT_SYSCALL(write(com[num].fd, &com[num].TX, 1));  /* Write port */
+      if (rtrn == 1)                               /* Did it succeed? */
+        com[num].tx_overflow = 0;                  /* Exit overflow state */
+    }
     if (com[num].tx_trigger) { 			/* Is it time to trigger int */
       com[num].tx_trigger = 0;
       com[num].LSRqueued |= UART_LSR_TEMT | UART_LSR_THRE;

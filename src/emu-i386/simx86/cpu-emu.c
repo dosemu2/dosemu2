@@ -45,6 +45,7 @@
 #include "emu86.h"
 #include "codegen-arch.h"
 #include "dpmi.h"
+#include "dis8086.h"
 
 #define e_set_flags(X,new,mask) \
 	((X) = ((X) & ~(mask)) | ((new) & (mask)))
@@ -62,14 +63,10 @@
 #ifdef PROFILE
 hitimer_t AddTime, SearchTime, ExecTime, CleanupTime; // for debug
 hitimer_t GenTime, LinkTime;
-extern int MaxDepth, MaxNodes, MaxNodeSize, TotalNodesParsed,
-	TotalNodesExecd, PageFaults, EmuSignals;
-extern int NodesFound, NodesFastFound, NodesNotFound, TreeCleanups;
 #endif
 
 hitimer_t TotalTime;
 static int iniflag = 0;
-extern TNode *LastXNode;
 
 hitimer_t sigEMUtime = 0;
 static hitimer_t lastEMUsig = 0;
@@ -165,9 +162,6 @@ struct sigcontext_struct e_scp = {
 	0,0,0,
 	0,0,0,0,0,0,0,0,0
 };
-
-extern void dosemu_fault1(int signal, struct sigcontext_struct *scp);
-extern void e_sigalrm(struct sigcontext_struct *scp);
 
 unsigned long io_bitmap[IO_BITMAP_SIZE+1];
 
@@ -395,10 +389,6 @@ char *e_print_scp_regs(struct sigcontext_struct *scp, int pmode)
 	return buf;
 }
 
-
-extern int  dis_8086(unsigned int, const unsigned char *,
-                     unsigned char *, int, unsigned int *, unsigned int *,
-                     unsigned int, int);
 
 char *e_emu_disasm(unsigned char *org, int is32)
 {

@@ -16,15 +16,16 @@
  * SIDOC_END_MODULE
  */
 
+#include "config.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include "config.h"
 #include "emu.h"
 #include "timers.h"
 #include "pic.h"
 #include "speaker.h"
+#include "dosemu_config.h"
 
 /* --------------------------------------------------------------------- */
 /*
@@ -172,7 +173,6 @@ hitimer_t GETusSYSTIME(void)
 
 void get_time_init (void)
 {
-  extern int kernel_version_code;
   if ((config.realcpu > CPU_486) && config.rdtsc) {
     /* we are here if: a 586/686 was detected at startup, we are not
      * on a SMP machine and the user didn't say 'rdtsc off'. But

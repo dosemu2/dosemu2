@@ -43,6 +43,8 @@
 #include "doshelpers.h"
 #include "../coopthreads/coopthreads.h"
 
+#include "dosdbg.h"
+
 #define printf  com_printf
 #define intr    com_intr
 #define strcmpi strcasecmp
@@ -59,8 +61,7 @@ typedef unsigned int uint16;
 #define MAX_DEBUG_STRING_LENGTH   100
 
 
-void
-Usage(void)
+static void Usage(void)
 {
     printf("Usage: DOSDBG [string|HELP]\n");
     printf("If no string is specified, then DOSDBG will show the current debug settings.\n");
@@ -103,7 +104,7 @@ T  I/O-trace    e  cpu-emu\n");
 }
 
 
-uint16 GetDebugString(char *debugStr)
+static uint16 GetDebugString(char *debugStr)
 {
     struct REGPACK preg;
     char *s = com_strdup(debugStr);
@@ -117,7 +118,7 @@ uint16 GetDebugString(char *debugStr)
 }
 
 
-uint16 SetDebugString(char *debugStr)
+static uint16 SetDebugString(char *debugStr)
 {
     struct REGPACK preg;
     char *s = com_strdup(debugStr);
@@ -130,8 +131,7 @@ uint16 SetDebugString(char *debugStr)
 }
 
 
-void
-printDebugClass(char class, char value)
+static void printDebugClass(char class, char value)
 {
     switch (class) {
 
@@ -274,8 +274,7 @@ printDebugClass(char class, char value)
 }
 
 
-void
-ShowDebugString(void)
+static void ShowDebugString(void)
 {
     uint16 ccode;
     char debugStr[MAX_DEBUG_STRING_LENGTH];
@@ -312,7 +311,7 @@ ShowDebugString(void)
 
 
 
-uint16 ParseAndSetDebugString(char *userDebugStr)
+static uint16 ParseAndSetDebugString(char *userDebugStr)
 {
     uint16 ccode;
 

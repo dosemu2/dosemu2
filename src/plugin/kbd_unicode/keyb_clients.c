@@ -20,7 +20,7 @@
 static t_unicode *paste_buffer = NULL;
 static int paste_len = 0, paste_idx = 0;
 
-int paste_unicode_text(const t_unicode *text, int len)
+static int paste_unicode_text(const t_unicode *text, int len)
 {
 	/* if previous paste in progress, ignore current request */
 	/* XXX - maybe this should append ? */

@@ -12,13 +12,15 @@
  *
  */
 
+#include "config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdarg.h>
 
-#include "config.h"
+#include "../../env/video/X.h"
 #include "emu.h"
 #include "memory.h"
 #include "bios.h"
@@ -26,11 +28,15 @@
 #include "doshelpers.h"
 #include "../coopthreads/coopthreads.h"
 
+#include "comcom.h"
+#include "msetenv.h"
+#include "commands.h"
+#include "lredir.h"
+#include "xmode.h"
+
 #define printf  com_printf
 
 #include "doserror.h"
-
-#include "../../env/video/X.h"
 
 /* ============== configurable options ================ */
 /* define this to use cached batchfile reading,
@@ -119,7 +125,6 @@ struct res_dta {
 };
 
 
-extern int com_msetenv(char *, char *, int);
 static int command_inter_preter_loop(int, char *, int, char **);
 static void print_prompt(int fd);
 static int com_exist_file(char *file);
@@ -150,7 +155,7 @@ static int dopath_exec(int argc, char **argv);
 	rdta->break_pending ? rdta->break_pending = 0, 1 : 0 )
 
 
-int getkey(void)
+static int getkey(void)
 {
 #ifdef USE_BIOSKBD
 	int ret = com_bioskbd(0);
@@ -251,7 +256,7 @@ static void builtin_funct0a(char *buf)
 	int screenw, screenpage, posx, posy, leftmostx, linelen;
 	int dumbterm = config.cardtype == CARD_NONE;
 
-	void start_line(void)
+	static void start_line(void)
 	{
 		screenw = com_biosvideo(0x0f00) >> 8;
 		if (dumbterm) screenw = 79;
@@ -266,14 +271,14 @@ static void builtin_funct0a(char *buf)
 		if (!attrib) attrib = 7;
 	}
 
-	void putkey(int key)
+	static void putkey(int key)
 	{
 		LWORD(ebx) = screenpage;
 		com_biosvideo((key & 255) | 0x0e00);
 		cursor++;
 	}
 
-	void setcursorpos(int x)
+	static void setcursorpos(int x)
 	{
 		HI(dx) = posy;
 		LO(dx) = posx + x;
@@ -281,7 +286,7 @@ static void builtin_funct0a(char *buf)
 		com_biosvideo(0x200);
 	}
 
-	void refresh_dumb(int len)
+	static void refresh_dumb(int len)
 	{
 		static char bspaces[128] = "";
 		int commonlen, i;
@@ -308,7 +313,7 @@ static void builtin_funct0a(char *buf)
 		lastblen = len;
 	}
 
-	void update_display(int forcerefresh)
+	static void update_display(int forcerefresh)
 	{
 		int len;
 
@@ -368,7 +373,7 @@ static void builtin_funct0a(char *buf)
 		setcursorpos(cursor);
 	}
 
-	void insert(int c)
+	static void insert(int c)
 	{
 		int i, j = winstart + cursor;
 		for (i = count; i > j; i--) p[i] = p[i-1];
@@ -377,7 +382,7 @@ static void builtin_funct0a(char *buf)
 		cursor++;
 	}
 
-	void insertstring(const char *s, const int len)
+	static void insertstring(const char *s, const int len)
 	{
 		int i, j = winstart + cursor;
 
@@ -389,7 +394,7 @@ static void builtin_funct0a(char *buf)
 		cursor += len;
 	}
 
-	void delete(int pos)
+	static void delete(int pos)
 	{
 		int i, j = cursor+pos+winstart;
 		if (j < 0) return;
@@ -404,7 +409,7 @@ static void builtin_funct0a(char *buf)
 		}
 	}
 
-	void replace_line(char *line)
+	static void replace_line(char *line)
 	{
 		memcpy(buf, line, line[0]+2);
 		p = buf+1;
@@ -416,7 +421,7 @@ static void builtin_funct0a(char *buf)
 		}
 	}
 
-	void from_history(int direction)
+	static void from_history(int direction)
 	{
 		if (history_empty) return;
 		switch (lastkey) {
@@ -442,7 +447,7 @@ static void builtin_funct0a(char *buf)
 		replace_line(history[histl]);
 	}
 
-	int readline(char *buf)
+	static int readline(char *buf)
 	{
 		int c, d;
 
@@ -806,7 +811,7 @@ static int read_next_command(void)
 	int ret, this_echo;
 	char *p;
 
-	void substitute_positional(char **t_, char **s_)
+	static void substitute_positional(char **t_, char **s_)
 	{
 		struct batchdata *pd = bdta->parent;
 		char *s = *s_, *t = *t_, *p;
@@ -827,7 +832,7 @@ static int read_next_command(void)
 		return;
 	}
 
-	void substitute_env(char **t, char **s_, char *p)
+	static void substitute_env(char **t, char **s_, char *p)
 	{
 		char *s = *s_;
 		char buf[128];
@@ -855,7 +860,7 @@ static int read_next_command(void)
 		*s_ = p + 1;
 	}
 
-	void variable_substitution(void)
+	static void variable_substitution(void)
 	{
 		char buf[1024];	/* big enough to catch overflows */
 		char *s = STR0A, *p, *t;
@@ -912,7 +917,7 @@ static int read_next_command(void)
 		LEN0A = len;
 	}
 
-	void echo_handling(void)
+	static void echo_handling(void)
 	{
 		this_echo = STR0A[0] != '@';
 		if (!this_echo) {
@@ -1316,7 +1321,7 @@ static int cmd_for(int argc, char **argv)
 	int repli, replen;
 	char replbuf[256], callbuf[256];
 
-	void do_command(char *varcontents)
+	static void do_command(char *varcontents)
 	{
 		int i, j, vlen = strlen(varcontents);
 		anyDTA saved_dta;
@@ -1539,7 +1544,7 @@ static int cmd_del(int argc, char **argv)
 	char s[256];
 	int len, opt_p;
 
-	int delit(void)
+	static int delit(void)
 	{
 		if (dta->attrib & DOS_ATTR_PROTECTED) return 0;
 		strcpy(s+len, dta->name);
@@ -1606,7 +1611,7 @@ static int cmd_dir(int argc, char **argv)
 	int excmask = DOS_ATTR_HIDDEN | DOS_ATTR_SYSTEM;
 	char commastring [100];
 
-	int expand_wild(char *b)
+	static int expand_wild(char *b)
 	{
 		if (isalpha(b[0]) && (b[1]==':')) {
 			char buf[256];
@@ -1630,7 +1635,7 @@ static int cmd_dir(int argc, char **argv)
 		return com_exist_file(b) ? 0 : DOS_ENOENT;
 	}
 
-	void cache_it(void)
+	static void cache_it(void)
 	{
 		if (cachei >= maxfiles) return; /* ... silently */
 		if (!dta->attrib) dta->attrib = 0x80;
@@ -1649,14 +1654,14 @@ static int cmd_dir(int argc, char **argv)
 		memcpy(cache+(cachei++), &dta->attrib, sizeof(struct tiny_dta));
 	}
 
-	void sort_it(void)
+	static void sort_it(void)
 	{
 		if (!cachei) return;
 		qsort(cache, cachei, sizeof(struct tiny_dta), qsort_dircmp);
 	}
 
 	/* returns num as a string, with commas separating groups of 3 digits */
-	char *get_comma_string (const unsigned num)
+	static char *get_comma_string (const unsigned num)
 	{
 		int i;
 		char *s;
@@ -1681,12 +1686,12 @@ static int cmd_dir(int argc, char **argv)
 		return commastring;
 	}
 
-	void displ_b(int i)
+	static void displ_b(int i)
 	{
 		com_printf("%s\n", cache[i].name);
 	}
 
-	void displ_w(int i)
+	static void displ_w(int i)
 	{
 		struct tiny_dta *e = &cache[i];
 		char b[32];
@@ -1699,7 +1704,7 @@ static int cmd_dir(int argc, char **argv)
 		else com_printf("%-16s", f);
 	}
 
-	void displ(int i)
+	static void displ(int i)
 	{
 		struct tiny_dta *e = &cache[i];
 		int d = e->filedate;
@@ -1725,7 +1730,7 @@ static int cmd_dir(int argc, char **argv)
 		);
 	}
 
-	void displ_header(void)
+	static void displ_header(void)
 	{
 		char *volume = "no label", *p;
 		char drive[] = "X:\\*.*";
@@ -1743,7 +1748,7 @@ static int cmd_dir(int argc, char **argv)
 		com_printf(" Directory of %s\n\n", dirname);
 	}
 
-	void displ_footer(void)
+	static void displ_footer(void)
 	{
 		unsigned info[4];
 		int ret;
@@ -1756,7 +1761,7 @@ static int cmd_dir(int argc, char **argv)
 						num_dirs, get_comma_string (info[0] * info[1] * info[2]));
 	}
 
-	void display_it(void)
+	static void display_it(void)
 	{
 		int i;
 		void (*xx)(int);
@@ -1775,7 +1780,7 @@ static int cmd_dir(int argc, char **argv)
 		displ_footer();
 	}
 
-	void flush_it(void)
+	static void flush_it(void)
 	{
 		com_printf("\n");
 	}
@@ -1848,7 +1853,7 @@ static int rename_wild(char *buf, char *fname, char *w1, char *w2)
 	char *w;
 	int i, j;
 
-	int next_wild(void)
+	static int next_wild(void)
 	{
 		int i;
 		if (*s && *w1) {
@@ -1901,7 +1906,7 @@ static int cmd_ren(int argc, char **argv)
 	int len1, len2, blen1, blen2;
 	int ret;
 
-	int rename_it(void)
+	static int rename_it(void)
 	{
 		char b[256];
 		int l = rename_wild(b, dta->name, b1, b2);
@@ -1982,7 +1987,7 @@ static int cmd_copy(int argc, char **argv)
 	char targd[256], targ[128];
 	char buf[256], *s;
 
-	int appendbslash(char *b)
+	static int appendbslash(char *b)
 	{
 		int l = strlen(b);
 		if (!l || (b[l-1] != '\\')) {
@@ -1992,7 +1997,7 @@ static int cmd_copy(int argc, char **argv)
 		return l;
 	}
 
-	int exist_dir(char *b)
+	static int exist_dir(char *b)
 	{
 		if (isalpha(b[0]) && (b[1]==':') && (b[2]=='\\') && !b[3]) {
 			char dummy[256];
@@ -2001,7 +2006,7 @@ static int cmd_copy(int argc, char **argv)
 		return com_exist_dir(b);
 	}
 
-	int expand_drive(char *b)
+	static int expand_drive(char *b)
 	{
 		if (isalpha(b[0]) && (b[1]==':') && !b[2]) {
 			if (com_getdriveandpath(toupper(b[0]) -'A' +1, b))
@@ -2011,7 +2016,7 @@ static int cmd_copy(int argc, char **argv)
 		return 0;
 	}
 
-	int set_target_to_CWD(void)
+	static int set_target_to_CWD(void)
 	{
 		if (com_getdriveandpath(0, targd)) return com_errno;
 		targdlen = appendbslash(targd);
@@ -2024,7 +2029,7 @@ static int cmd_copy(int argc, char **argv)
 		return 0;
 	}
 
-	int print_summary(int retcode)
+	static int print_summary(int retcode)
 	{
 		if (!fcount) return retcode;
 		com_fprintf(2,
@@ -2032,7 +2037,7 @@ static int cmd_copy(int argc, char **argv)
 		return retcode;
 	}
 
-	void touch_all(void)
+	static void touch_all(void)
 	{
 		int i, dlen, fd;
 		char dir[256];
@@ -2059,7 +2064,7 @@ static int cmd_copy(int argc, char **argv)
 		}
 	}
 
-	int overwrite_check(char *name)
+	static int overwrite_check(char *name)
 	{
 		/* NOTE: destroyes DTA */
 		int c;
@@ -2081,7 +2086,7 @@ static int cmd_copy(int argc, char **argv)
 		return 0;
 	}
 
-	int same_file(char *a, char *b)
+	static int same_file(char *a, char *b)
 	{
 		int ret;
 		char n1[256], n2[256];
@@ -2093,7 +2098,7 @@ static int cmd_copy(int argc, char **argv)
 		return ret;
 	}
 
-	int single_copy(char *a, char *b, int textmode)
+	static int single_copy(char *a, char *b, int textmode)
 	{
 		anyDTA saved_dta = PSP_DTA;
 		int fdi, fdo;
@@ -2150,7 +2155,7 @@ static int cmd_copy(int argc, char **argv)
 	}
 
 
-	int single_append(char *t, char *s, int textmode)
+	static int single_append(char *t, char *s, int textmode)
 	{
 		anyDTA saved_dta = PSP_DTA;
 		int ret, err, fdo, fdi;
@@ -2181,7 +2186,7 @@ static int cmd_copy(int argc, char **argv)
 		return ret;
 	}
 
-	int copy_wild(int matched)
+	static int copy_wild(int matched)
 	{
 		char *w1, *w2;
 		char s[256];
@@ -2189,7 +2194,7 @@ static int cmd_copy(int argc, char **argv)
 		int (*docopy)(void);
 		int (*initialcombine)(void);
 
-		int matchcopy(void)
+		static int matchcopy(void)
 		{
 			char b[256];
 			int l = rename_wild(b, dta->name, w1, w2);
@@ -2199,7 +2204,7 @@ static int cmd_copy(int argc, char **argv)
 			return single_copy(targd, s, src[0].istext);
 		}
 
-		int dircopy(void)
+		static int dircopy(void)
 		{
 			strcpy(s+slen, dta->name);
 			strcpy(targd+targdlen, dta->name);
@@ -2207,7 +2212,7 @@ static int cmd_copy(int argc, char **argv)
 		}
 
 
-		int combine(void)
+		static int combine(void)
 		{
 			int i, l;
 			char s2[256], b[256];
@@ -2250,7 +2255,7 @@ static int cmd_copy(int argc, char **argv)
 		return com_errno = 0;
 	}
 
-	int combine_to_single(void)
+	static int combine_to_single(void)
 	{
 		int i;
 		int slen;
@@ -2605,7 +2610,7 @@ static int cmd_date(int argc, char **argv)
 	char buf[128];
 	int ret, option_q = 0;
 
-	int changedate(char *s)
+	static int changedate(char *s)
 	{
 		int month, day, year;
 		char *p = s;
@@ -2660,7 +2665,7 @@ static int cmd_time(int argc, char **argv)
 	char buf[128];
 	int option_q = 0;
 
-	int entertime(char *s)
+	static int entertime(char *s)
 	{
 		int hour, min, sec;
 		char *p;
@@ -2828,28 +2833,6 @@ struct cmdlist {
 	com_program_type *cmd;
 	int flags;
 };
-
-/* protos for DOSEMU support commands */
-extern int exitemu_main(int argc, char **argv);
-extern int speed_main(int argc, char **argv);
-extern int bootoff_main(int argc, char **argv);
-extern int booton_main(int argc, char **argv);
-extern int ecpuon_main(int argc, char **argv);
-extern int ecpuoff_main(int argc, char **argv);
-extern int eject_main(int argc, char **argv);
-extern int emumouse_main(int argc, char **argv);
-extern int ugetcwd_main(int argc, char **argv);
-extern int vgaoff_main(int argc, char **argv);
-extern int vgaon_main(int argc, char **argv);
-#ifdef USE_HEAP_EATING_BUILTINS
-extern int lredir_main(int argc, char **argv);
-extern int unix_main(int argc, char **argv);
-extern int dosdbg_main(int argc, char **argv);
-extern int xmode_main(int argc, char **argv);
-extern int system_main(int argc, char **argv);
-extern int uchdir_main(int argc, char **argv);
-#endif
-
 
 struct cmdlist intcmdlist[] = {
 	{"cd",		cmd_cd, 0},
@@ -3110,7 +3093,6 @@ static int dopath_exec(int argc, char **argv)
 			int appname_len;
 			
 			/* save name of running app */
-			extern char X_title_appname [X_TITLE_APPNAME_MAXLEN];
 			snprintf (saved_title_appname, X_TITLE_APPNAME_MAXLEN, "%s", X_title_appname);
 			
 			/* get short name of running app */

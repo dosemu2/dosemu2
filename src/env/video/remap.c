@@ -73,9 +73,6 @@ static int base_init = 0;
 static FILE *rdm = NULL;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-void set_remap_debug_msg(FILE *);
-RemapObject remap_init(int, int, int);
-void remap_done(RemapObject *);
 
 static void do_base_init(void);
 
@@ -92,9 +89,6 @@ static int pseudo_col_palette_update(RemapObject *, unsigned, unsigned, unsigned
 
 void rgb_color_reduce(ColorSpaceDesc *, unsigned, RGBColor *);
 unsigned rgb_color_reduced_2int(ColorSpaceDesc *, RGBColor);
-unsigned rgb_color_2int(ColorSpaceDesc *, unsigned, RGBColor);
-RGBColor int_2rgb_color(ColorSpaceDesc *, unsigned, unsigned);
-void color_space_complete(ColorSpaceDesc *);
 void rgb_lin_filt(RGBColor, RGBColor *, RGBColor *);
 void rgb_bilin_filt(RGBColor, RGBColor *, RGBColor *, RGBColor *);
 
@@ -118,10 +112,6 @@ static void find_supported_modes(RemapObject *);
 static RectArea remap_mem_1(RemapObject *, int, int);
 static RectArea remap_rect_1(RemapObject *, int, int, int, int);
 static RectArea remap_mem_2(RemapObject *, int, int);
-
-CodeObj code_init(void);
-void code_done(CodeObj *);
-void code_append_ins(CodeObj *, int, void *);
 
 void _a_ret(CodeObj *);
 void _a_movb_dl_dh(CodeObj *);
@@ -529,7 +519,7 @@ static int pseudo_col_palette_update(RemapObject *ro, unsigned i, unsigned bits,
   return 0;
 }
 
-unsigned dit_col(int s_c, int d_c, int col, int dit, int lim)
+static unsigned dit_col(int s_c, int d_c, int col, int dit, int lim)
 {
   int k, l, k0, k1, kr;
 

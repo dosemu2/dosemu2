@@ -7,6 +7,7 @@
 /* this is for the DPMI support */
 #ifndef DPMI_H
 #define DPMI_H
+#include <errno.h>
 
 #define DPMI_VERSION   		0x00	/* major version 0 */
 #define DPMI_DRIVER_VERSION	0x5a	/* minor version 0.90 */
@@ -48,6 +49,11 @@
 #define dpmi_cli() 	({ dpmi_eflags &= ~IF; pic_cli(); })
 
 #define dpmi_sti() 	({ dpmi_eflags |= IF; is_cli = 0; pic_sti(); })
+
+#ifdef __linux__
+int modify_ldt(int func, void *ptr, unsigned long bytecount);
+#define LDT_WRITE 0x11
+#endif
 
 /* this is used like: SEL_ADR(_ss, _esp) */
 #define SEL_ADR(seg, reg) \
@@ -118,12 +124,11 @@ typedef struct dpmi_pm_block_stuct {
   struct   dpmi_pm_block_stuct *next;
   unsigned long handle;
   unsigned long size;
-  void     *base;
+  char     *base;
 } dpmi_pm_block;
 
 EXTERN int in_dpmi INIT(0);        /* Set to 1 when running under DPMI */
 EXTERN int in_win31 INIT(0);       /* Set to 1 when running Windows 3.1 */
-EXTERN int dpmi_eflags INIT(0);    /* used for virtual interruptflag and pending interrupts */
 EXTERN int in_dpmi_dos_int INIT(0);
 EXTERN int dpmi_mhp_TF INIT(0);
 EXTERN unsigned char dpmi_mhp_intxxtab[256] INIT({0});
@@ -135,12 +140,12 @@ extern int DPMIclient_is_32;
 extern unsigned long dpmi_free_memory; /* how many bytes memory client */
 				       /* can allocate */
 extern unsigned long pm_block_handle_used;       /* tracking handle */
-extern int fatalerr;
 extern INTDESC Interrupt_Table[0x100];
 extern SEGDESC Segments[];
 extern struct sigcontext_struct dpmi_stack_frame[DPMI_MAX_CLIENTS];
 /* used to store the dpmi client registers */
 extern RealModeCallBack mouseCallBack; /* user\'s mouse routine */
+extern char *ldt_buffer;
 
 void dpmi_get_entry_point(void);
 void indirect_dpmi_switch(struct sigcontext_struct *);
@@ -162,6 +167,7 @@ void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned long *lp);
 int dpmi_mhp_getselbase(unsigned short selector);
 unsigned long dpmi_mhp_getreg(int regnum);
 void dpmi_mhp_setreg(int regnum, unsigned long val);
+void dpmi_mhp_modify_eip(int delta);
 #endif
 
 void add_cli_to_blacklist(void);
@@ -175,6 +181,7 @@ dpmi_pm_block *lookup_pm_block(unsigned long h);
 int
 DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
 			  unsigned long low_addr, unsigned long cnt);
+unsigned long dpmi_GetSegmentBaseAddress(unsigned short selector);
 unsigned long GetSegmentBaseAddress(unsigned short);
 void CheckSelectors(struct sigcontext_struct *scp);
 

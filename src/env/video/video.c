@@ -31,10 +31,7 @@
 #include "termio.h"
 #include "vc.h"
 #include "mapping.h"
-
-extern int
-dosemu_sigaction(int sig, struct sigaction *, struct sigaction *);
-
+#include "vga.h"
 
 struct video_system *Video = NULL;
 
@@ -63,7 +60,7 @@ struct video_system Video_none = {
  *
  * DANG_END_FUNCTION
  */
-int video_init(void)
+static int video_init(void)
 {
   /* figure out which video front end we are to use */
   
@@ -103,10 +100,7 @@ int video_init(void)
   }
 
 #if USE_DUALMON
-  {
-    extern void init_dualmon(void);
-    init_dualmon();
-  }
+  init_dualmon();
 #endif
 
   Video->init();              /* call the specific init routine */

@@ -32,13 +32,15 @@
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <errno.h>
+#include <slang.h>
 
 #include "bios.h"
 #include "emu.h"
 #include "memory.h"
 #include "video.h" 
+#include "serial.h"
 #include "keyboard.h"
-#include <slang.h>
+#include "keyb_clients.h"
 #include "env_term.h"
 #include "translate.h"
 
@@ -64,7 +66,6 @@
  *      001          000           Underline
  *     anything else is invalid.
  */    
-extern int no_local_video;
 
 static int BW_Attribute_Map[256];
 static int Color_Attribute_Map[256];
@@ -149,7 +150,8 @@ static void set_char_set (void)
 	/* Slang should filter out the control sequences for us... 
 	 * So don't worry about characters 0x00 - 0x1f && 0x80 - 0x9f
 	 */
-	if (trconfig.output_charset == lookup_charset("cp437")) {
+	if (trconfig.output_charset == lookup_charset("cp437") || 
+	    trconfig.output_charset == lookup_charset("terminal_cp437")) {
 		Use_IBM_Codes = 1;
 		/* Should we be testing TERM here??? */
 		/* The following turns on the IBM character set mode of virtual console
@@ -163,8 +165,7 @@ static void set_char_set (void)
 /* The following initializes the terminal.  This should be called at the
  * startup of DOSEMU if it's running in terminal mode.
  */ 
-int
-terminal_initialize(void)
+static int terminal_initialize(void)
 {
    SLtt_Char_Type sltt_attr, fg, bg, attr, color_sltt_attr, bw_sltt_attr;
    int is_color = config.term_color;
@@ -279,7 +280,7 @@ terminal_initialize(void)
    return 0;
 }
 
-void terminal_close (void)
+static void terminal_close (void)
 {
    v_printf("VID: terminal_close() called\n");
    if (Slsmg_is_not_initialized == 0)
@@ -298,14 +299,15 @@ void terminal_close (void)
      }
 }
 
-void
-v_write(int fd, unsigned char *ch, int len)
+#if 0 /* unused -- Bart */
+static void v_write(int fd, unsigned char *ch, int len)
 {
   if (!config.console_video && !config.usesX)
     DOS_SYSCALL(write(fd, ch, len));
   else
     error("(video) v_write deferred for console_video\n");
 }
+#endif
 
 static char *Help[] = 
 {

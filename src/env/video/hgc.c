@@ -33,9 +33,6 @@
 #include "hgc.h"
 #include "mapping.h"
 
-void set_hgc_page(int page);
-void map_hgc_page( int fullmode );
-
 char hgc_Mode = 0;
 char hgc_Konv = 0;
 int hgc_Page = 0;
@@ -43,8 +40,6 @@ int hgc_ctrl = 0;
 static char * phgcp0;
 static char * phgcp1;
 static char * syncadr;
-
-extern int dos_has_vt;
 
 static void hga_restore_cursor(void)
 {
@@ -407,7 +402,7 @@ void map_hgc_page( int fullmode )
 {
 }
 
-int hgc_init(void)
+static int hgc_init(void)
 {
   hgc_meminit();
   mda_initialize();
@@ -423,14 +418,14 @@ int hgc_init(void)
   return 0;
 }
 
-int hgc_setmode(int type, int xsize,int ysize)
+static int hgc_setmode(int type, int xsize,int ysize)
 {
   mda_reinitialize();
     /* port_real_outb(0x03b8, 0x28); *//* 6845: text, visible, page0, cursor */
   return 0;
 }
 
-void do_hgc_update_cursor(void)
+static void do_hgc_update_cursor(void)
 {
   poshgacur(cursor_col,cursor_row);
   return;

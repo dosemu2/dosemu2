@@ -84,7 +84,6 @@ int signal, struct sigcontext_struct *scp
       case 0x07: /* device_not_available */
 #ifdef TRACE_DPMI
 		 if (_trapno==1) {
-	           extern char *e_scp_disasm();
 	           t_printf("\n%s",e_scp_disasm(scp,0));
 		 }
 #endif
@@ -156,7 +155,6 @@ sgleave:
 		 error("unexpected CPU exception 0x%02lx err=0x%08lx cr2=%08lx while in vm86 (DOS)\n",
 	  	 _trapno, _err, _cr2);
 		{
-		  extern FILE *dbg_fd;
 		  int auxg = debug_level('g');
 		  FILE *aux = dbg_fd;
 		  flush_log();  /* important! else we flush to stderr */

@@ -72,6 +72,7 @@ extern void  pit_reset(void);
 extern void  rtc_init(void);
 extern void  rtc_reset(void);
 extern void  rtc_update (void);
+extern void  rtc_int8 (void);	/* int70 */
 
 /*******************************************************************
  * CMOS support                                                    *
@@ -85,18 +86,8 @@ extern long  usr_delta_ticks;
 
 
 /*******************************************************************
- * PIC support                                                     *
- *******************************************************************/
-
-extern void  pic_init(void);
-extern void  pic_reset(void);
-
-/*******************************************************************
  * Dummy hardware support stubs                                    *
  *******************************************************************/
-
-extern void  dma_init(void);
-extern void  dma_reset(void);
 
 extern void  pos_init(void);
 extern void  pos_reset(void);

@@ -11,6 +11,7 @@
 #include <stdarg.h>
 #include "config.h"
 #include "extern.h"
+#include "machcompat.h"
 
 #if GCC_VERSION_CODE >= 2005
 # define FORMAT(T,A,B)  __attribute__((format(T,A,B)))
@@ -77,8 +78,6 @@ void p_dos_str(char *,...) FORMAT(printf, 1, 2);
  #define NO_DEBUGPRINT_AT_ALL
 #endif
 #undef DEBUG_LITE
-
-extern FILE *dbg_fd;
 
 EXTERN int shut_debug INIT(0);
 
@@ -177,6 +176,7 @@ extern int register_debug_class(
 extern int unregister_debug_class(int letter);
 extern void print_debug_usage(FILE *stream);
 extern int set_debug_level(int letter, int level);
+extern inline int debug_level(int letter);
 extern inline int debug_level(int letter)
 {
 	if (letter >= DEBUG_CLASSES) {
@@ -189,17 +189,17 @@ extern inline int debug_level(int letter)
 #else
 
 
-extern int inline parse_debugflags(const char *s, unsigned char flag) { return 0; }
-extern int inline SetDebugFlagsHelper(char *debugStr) { return 0; }
-extern int inline GetDebugFlagsHelper(char *debugStr) { debugStr[0] = '\0'; return 0; }
-extern int inline register_debug_class(
+extern inline int parse_debugflags(const char *s, unsigned char flag) { return 0; }
+extern inline int SetDebugFlagsHelper(char *debugStr) { return 0; }
+extern inline int GetDebugFlagsHelper(char *debugStr) { debugStr[0] = '\0'; return 0; }
+extern inline int register_debug_class(
 	int letter, void (*change_level)(int level), char *help_text)
 {
 	return 0;
 }
-extern int inline unregister_debug_class(int letter) { return 0; }
-extern void inline print_debug_usage(FILE *stream) { return; }
-extern int inline set_debug_level(int letter, int level) { return 0; }
+extern inline int unregister_debug_class(int letter) { return 0; }
+extern inline void print_debug_usage(FILE *stream) { return; }
+extern inline int set_debug_level(int letter, int level) { return 0; }
 extern inline int debug_level(int letter) { return 0; }
 #endif
 

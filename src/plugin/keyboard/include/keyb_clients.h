@@ -41,7 +41,6 @@ extern struct keyboard_client Keyboard_raw;
 extern struct keyboard_client Keyboard_slang;
 extern struct keyboard_client Keyboard_X;
 
-#if 0
 extern int raw_keyboard_init(void);
 extern void raw_keyboard_close(void);
 extern void do_raw_getkeys(void);
@@ -49,11 +48,15 @@ extern void do_raw_getkeys(void);
 extern int slang_keyb_init(void);
 extern void slang_keyb_close(void);
 extern void do_slang_getkeys(void);
-#endif
 
 extern void  dos_slang_redraw(void);
 extern void  dos_slang_suspend(void);
 extern void  dos_slang_smart_set_mono(void);
+
+extern int DOSemu_Slang_Got_Terminfo;
+extern int DOSemu_Slang_Show_Help;
+extern int DOSemu_Terminal_Scroll;
+extern char *DOSemu_Keyboard_Keymap_Prompt;
 
 #endif	/* _EMU_KEYB_CLNT_H */
 

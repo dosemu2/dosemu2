@@ -30,6 +30,7 @@ Since this code has been totally rewritten the pcemu license no longer applies
 #include <X11/XKBlib.h>
 #endif
 
+#include "../../env/video/X.h"
 #include "emu.h"
 #include "keyb_clients.h"
 #include "keyboard.h"
@@ -209,10 +210,17 @@ void X_sync_shiftstate(Boolean make, KeyCode kc, unsigned int e_state)
 		!!(shiftstate & MODIFIER_ALT) != !!(e_state & X_mi.AltMask))) {
 		shiftstate ^= MODIFIER_ALT;
 	}
-	if (X_mi.AltGrMask && (
+
+	if (!config.X_keycode) {
+	/* NOTE: AltGr usually performs a layout switching, so we don't touch
+	 * it here for X_keycode
+	 */
+	  if (X_mi.AltGrMask && (
 		!!(shiftstate & MODIFIER_ALTGR) != !!(e_state & X_mi.AltGrMask))) {
 		shiftstate ^= MODIFIER_ALTGR;
+	  }
 	}
+
 	if (X_mi.CapsLockMask && 
 	    (!!(shiftstate & MODIFIER_CAPS) != !!(e_state & X_mi.CapsLockMask))
 		&& (make || (kc != X_mi.CapsLockKeycode))) {

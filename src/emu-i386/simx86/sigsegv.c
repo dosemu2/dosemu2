@@ -49,12 +49,7 @@
 
 int TryMemRef = 0;
 
-extern int PageFaults;
-
 #if X_GRAPHICS
-
-extern int TrapVgaOn;
-extern unsigned long e_vga_base, e_vga_end;
 
 /* ======================================================================= */
 
@@ -193,7 +188,7 @@ vga2vgal:
 }
 
 
-int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
+static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 {
   int i, j;
   unsigned vga_page = 0, u=0;
@@ -402,12 +397,11 @@ badrw:
  *
  * DANG_END_FUNCTION
  */
-extern void dosemu_fault1(int signal, struct sigcontext_struct *scp);
 
 #define GetSegmentBaseAddress(s)	(((s) >= (MAX_SELECTORS << 3))? 0 :\
 					Segments[(s) >> 3].base_addr)
 
-void e_emu_fault1(int signal, struct sigcontext_struct *scp)
+static void e_emu_fault1(int signal, struct sigcontext_struct *scp)
 {
 
   if ((debug_level('e')>1) || (_trapno!=0x0e)) {

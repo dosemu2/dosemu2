@@ -15,8 +15,6 @@ CFILES = mhpdbg.c mhpdbgc.c dis8086.c dosdebug.c
 DEPENDS =  mhpdbg.d mhpdbgc.d dis8086.d dosdebug.d
 HFILES =
 
-CFLAGS += -DMAP_LOC=\"$(REALTOPDIR)/bin/dosemu.map\"
-
 # Insert all source- and header-files here.
 ALL = $(CFILES) $(HFILES) README.dosdebug README.recover Changelog
 
@@ -26,7 +24,7 @@ OBJS =  mhpdbg.o mhpdbgc.o dis8086.o
 all: lib $(BINPATH)/bin/dosdebug
 
 $(BINPATH)/bin/dosdebug: dosdebug.c
-	$(CC) -O2 $(LDFLAGS) -I$(TOPDIR)/include dosdebug.c -o $(BINPATH)/bin/dosdebug
+	$(CC) -O2 $(LDFLAGS) $(CPPFLAGS) dosdebug.c -o $(BINPATH)/bin/dosdebug
 
 
 install:

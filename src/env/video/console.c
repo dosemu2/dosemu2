@@ -19,8 +19,6 @@
 #include "video.h"
 #include "vc.h"
 
-extern int wait_vc_active(void);
-
 inline void
 console_update_cursor(int xpos, int ypos, int blinkflag, int forceflag)
 {
@@ -67,7 +65,7 @@ console_update_cursor(int xpos, int ypos, int blinkflag, int forceflag)
   oldx = xpos; oldy = ypos; oldblink = blinkflag;
 }
 
-void do_console_update_cursor(void) {
+static void do_console_update_cursor(void) {
    console_update_cursor(cursor_col,cursor_row,cursor_blink,0);
 }
 
@@ -192,15 +190,24 @@ void set_consoleX_video(void)
 /*  clear_screen(0, 7); */
 }
 
+#if 0
+/* unused ? -- Bart */
 void clear_consoleX_video(void)
 {
 
 }
-extern int terminal_initialize(void);
-extern void terminal_close(void);
+#endif
  
-#define console_init terminal_initialize
-#define console_close terminal_close
+static int console_init(void)
+{
+  return Video_term.init();
+}
+
+static void console_close(void)
+{
+  Video_term.close();
+}
+
 #define console_setmode NULL
 
 struct video_system Video_console = {

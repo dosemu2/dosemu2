@@ -150,9 +150,7 @@
 
 #undef us
 #define us unsigned
-void timer_tick(void);
-void pic_activate(void);
-extern void timer_int_engine(void);
+static void pic_activate(void);
 
 static unsigned long pic1_isr;         /* second isr for pic1 irqs */
 static unsigned long pic_irq2_ivec = 0;
@@ -323,7 +321,7 @@ char ci,cc;
 
  * DANG_END_REMARK pic_print
  */
-inline void pic_push(int val)
+static inline void pic_push(int val)
 {
     if(pic_sp<32){
        pic_stack[pic_sp++]=val;
@@ -332,7 +330,7 @@ inline void pic_push(int val)
     }
 }
 
-inline int pic_pop(void)
+static inline int pic_pop(void)
 {
     if(pic_sp) {
        return pic_stack[--pic_sp];
@@ -343,7 +341,7 @@ inline int pic_pop(void)
 }
 
 
-void set_pic0_base(unsigned char int_num)
+static void set_pic0_base(unsigned char int_num)
 {
   unsigned char int_n;
   int_n        = int_num & 0xf8;         /* it's not worth doing a loop */
@@ -359,7 +357,7 @@ void set_pic0_base(unsigned char int_num)
 }
 
 
-void set_pic1_base(unsigned char int_num)
+static void set_pic1_base(unsigned char int_num)
 {
   unsigned char int_n;
   int_n        = int_num & 0xf8;         /* it's not worth doing a loop */
@@ -1055,7 +1053,7 @@ int pic_pending(int ilevel)
  * pic_dos_time is advanced to the earliest time scheduled.
  * DANG_END_FUNCTION
  */
-void pic_activate(void)
+static void pic_activate(void)
 {
 hitimer_t earliest;
 int timer, count;

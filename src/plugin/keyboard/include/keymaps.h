@@ -101,5 +101,6 @@ struct keytable_entry {
 extern struct keytable_entry keytable_list[];
 
 int setup_default_keytable(void);
+void dump_keytable(FILE *f, struct keytable_entry *kt);
 
 #endif /* _EMU_KEYMAPS_H */

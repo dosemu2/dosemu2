@@ -14,6 +14,8 @@
 #include "doshelpers.h"
 #include "../coopthreads/coopthreads.h"
 
+#include "xmode.h"
+
 #define printf  com_printf
 #define fprintf	com_fprintf
 #undef	stderr

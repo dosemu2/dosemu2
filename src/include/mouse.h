@@ -166,6 +166,7 @@ extern void mouse_mb(void);
 extern void mouse_rb(void);
 
 extern void DOSEMUMouseEvents(void);
+extern void DOSEMUSetupMouse(void);
 
 extern void mouse_event(void);
 extern void do_mouse_irq(void);

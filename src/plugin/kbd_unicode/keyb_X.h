@@ -19,7 +19,6 @@ struct mapped_X_event {
 };
 extern void map_X_event(Display *, XKeyEvent *, struct mapped_X_event *);
 /* Globals shared with X.c */
-extern Display *display;
 #ifdef HAVE_XKB
 extern int using_xkb;
 #define USING_XKB (using_xkb)

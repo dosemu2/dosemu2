@@ -41,7 +41,7 @@ static unsigned char erasekey;
 
 /* unsigned char DOSemu_Slang_Escape_Character = 30; */
 
-const char *DOSemu_Keyboard_Keymap_Prompt = NULL;
+char *DOSemu_Keyboard_Keymap_Prompt = NULL;
 int DOSemu_Terminal_Scroll = 0;
 int DOSemu_Slang_Show_Help = 0;
 int DOSemu_Slang_Got_Terminfo = 0;

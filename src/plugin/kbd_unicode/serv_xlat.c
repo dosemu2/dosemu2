@@ -132,7 +132,6 @@
 static void sync_shift_state(t_modifiers desired, struct keyboard_state *state);
 static t_shiftstate translate_shiftstate(t_shiftstate cur_shiftstate,
 	struct translate_rule *rule, t_keynum key, t_shiftstate *mask);
-Bit16u translate_key(Boolean make, t_keynum key, struct keyboard_state *state);
 
 /*
  * various tables
@@ -785,7 +784,7 @@ static void init_active_keyboard_state(
 	state->raw_state.rawprefix = 0;
 }
 
-void init_rules(struct keyboard_rules *rules)
+static void init_rules(struct keyboard_rules *rules)
 {
 	int i;
 
@@ -803,7 +802,7 @@ static struct keyboard_rules keyboard_rules;
 struct keyboard_state input_keyboard_state;
 struct keyboard_state dos_keyboard_state;
 
-void keyb_init_state(void)
+static void keyb_init_state(void)
 {
 	init_rules(&keyboard_rules);
 	init_scancode_translation_rules(keyboard_rules.maps, config.keytable);
@@ -812,7 +811,7 @@ void keyb_init_state(void)
 	}
 	init_charset_keys(&keyboard_rules.charset, keyboard_rules.maps);
 }
-void keyb_reset_state(void)
+static void keyb_reset_state(void)
 {
 	init_active_keyboard_state(&input_keyboard_state, &keyboard_rules);
 	init_active_keyboard_state(&dos_keyboard_state, &keyboard_rules);

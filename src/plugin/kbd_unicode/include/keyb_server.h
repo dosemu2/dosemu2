@@ -81,9 +81,12 @@ void clear_bios_keybuf(void);
 int keyb_server_init(void);
 int keyb_server_reset(void);
 void keyb_server_close(void);
+void keyb_server_run(void);
 
 void backend_run(void);
 void backend_reset(void);
+
+void do_irq1(void);
 
 #endif  /* not __ASM__ */
 

@@ -106,11 +106,14 @@ typedef unsigned char uchar;
 #define MAX_REGS 100
 #define TEXT       0
 
+extern void check_console(void);
+extern void vt_activate(int con_num);
+extern int wait_vc_active (void);
+extern int vc_active(void);
 extern __inline__ void allow_switch(void);
 extern void dump_video_linux(void);
 extern void set_vc_screen_page(int);
 extern void get_video_ram(int);
-extern void clear_screen(int, int);
 extern void set_linux_video(void);
 extern void put_video_ram(void);
 extern void clear_process_control(void);
@@ -145,8 +148,6 @@ struct video_save_struct {
   unsigned char xregs[MAX_X_REGS];      /* These are EXT regs */
 };
 EXTERN struct video_save_struct linux_regs, dosemu_regs;
-extern void save_vga_state(struct video_save_struct *save_regs);
-extern void restore_vga_state(struct video_save_struct *save_regs);
 extern void load_vga_font(unsigned char);
 
 extern void vga_blink(unsigned char blink);
@@ -184,11 +185,6 @@ extern int vga_getcolors(void);
 
 extern int vga_setpalette(int index, int red, int green, int blue);
 extern int vga_getpalette(int index, int *red, int *green, int *blue);
-extern int dosemu_vga_setpalvec(int start, int num, uchar * pal);
-extern int dosemu_vga_getpalvec(int start, int num, uchar * pal);
-
-extern int dosemu_vga_screenoff(void);
-extern int dosemu_vga_screenon(void);
 
 extern int vga_setcolor(int color);
 extern int vga_drawpixel(int x, int y);
@@ -205,6 +201,7 @@ EXTERN int CRT_I, CRT_D, IS1_R, FCR_W;
 extern u_char att_d_index;
 EXTERN u_char permissions;
 EXTERN struct screen_stat scr_state;
+extern int dos_has_vt;
 
 EXTERN int user_vc_switch INIT(0);
 

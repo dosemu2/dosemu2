@@ -22,6 +22,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
+#include "dosemu_config.h"
 #include "mapping.h"
 
 #undef mmap
@@ -34,8 +35,6 @@
 static int selfmem_fd = -1;
 static int open_mapping_self(int cap)
 {
-  extern int kernel_version_code;
-
   if (cap) Q_printf("MAPPING: open, cap=%s\n",
 				decode_mapping_cap(cap));
   if (kernel_version_code >= (0x20300+27)) {

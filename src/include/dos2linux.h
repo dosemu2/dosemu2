@@ -19,5 +19,6 @@ extern int misc_e6_commandline (char *str);
 extern void misc_e6_store_command (char *str);
 
 extern void run_unix_command (char *buffer);
+extern int run_system_command(char *buffer);
 
 #endif /* DOS2LINUX_H */

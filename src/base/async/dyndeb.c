@@ -7,9 +7,10 @@
 /* dynamic debug handlers - by Tim Bird */
 /* modified to support debug levels -- peak */
 /* Rehash so we aren't changing the code all of the time. Eric Biederman */
-#include <string.h>
 #include "config.h"
+#include <string.h>
 #include "dosemu_debug.h"
+#include "dosemu_config.h"
 #include "init.h"
 #include "int.h"
 #include "port.h"
@@ -234,7 +235,6 @@ static void port_trace_change_level(int level)
 
 static void config_change_level(int level)
 {
-	extern int config_check_only;
 	if (config_check_only && !level) {
 		set_debug_level('c', 1);
 	}

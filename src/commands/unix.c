@@ -164,7 +164,6 @@ void do_execute_dos (int argc, char **argv)
 void do_set_dosenv (int argc, char **argv)
 {
   struct REGPACK preg;
-  extern int msetenv(char *,char *);
   char data[256];
 
   if (argc == 0) usage();

@@ -72,9 +72,6 @@ unsigned long e_vga_base, e_vga_end;
 int TrapVgaOn = 0;
 int UseLinker = 0;
 
-extern int TotalNodesParsed, TotalNodesExecd;
-extern int NodesParsed, NodesExecd, TryMemRef;
-
 /////////////////////////////////////////////////////////////////////////////
 
 #define	Offs_From_Arg()		(char)(va_arg(ap,int))
@@ -96,7 +93,6 @@ flgtmp RFL;
 /* empirical!! */
 //static int goodmemref(long m)
 //{
-//	extern long mMaxMem;
 //	if ((m>0) && (m<0x110000)) return 1;
 //	if ((m>0x40000000) && (m<mMaxMem)) return 1;
 //	return 0;

@@ -165,8 +165,7 @@ DOSEMUSetupMouse(void)
 #endif
 }
  
-int
-DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes)
+static int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes)
 {
   int                  i, buttons=0, dx=0, dy=0;
   mouse_t             *mice = &config.mouse;

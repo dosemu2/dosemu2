@@ -38,6 +38,8 @@
 #include "memory.h"
 #include "video.h" 
 #include "terminal.h"
+#include "keyb_clients.h"
+#include "serial.h"
 #include <slang.h>
 
 /* The interpretation of the DOS attributes depend upon if the adapter is 
@@ -62,18 +64,11 @@
  *      001          000           Underline
  *     anything else is invalid.
  */    
-extern int no_local_video;
-
 static int BW_Attribute_Map[256];
 static int Color_Attribute_Map[256];
 
 static int *Attribute_Map;
 /* if negative, char is invisible */
-
-extern char *DOSemu_Keyboard_Keymap_Prompt;
-extern int DOSemu_Terminal_Scroll;
-extern int DOSemu_Slang_Show_Help;
-extern int DOSemu_Slang_Got_Terminfo;
 
 int cursor_blink = 1;
 static unsigned char *The_Charset = charset_latin;
@@ -200,8 +195,7 @@ static void set_char_set (int cs)
 /* The following initializes the terminal.  This should be called at the
  * startup of DOSEMU if it's running in terminal mode.
  */ 
-int
-terminal_initialize(void)
+static int terminal_initialize(void)
 {
    SLtt_Char_Type sltt_attr, fg, bg, attr, color_sltt_attr, bw_sltt_attr;
    int is_color = config.term_color;
@@ -321,7 +315,7 @@ terminal_initialize(void)
    return 0;
 }
 
-void terminal_close (void)
+static void terminal_close (void)
 {
    v_printf("VID: terminal_close() called\n");
    if (Slsmg_is_not_initialized == 0)
@@ -339,14 +333,15 @@ void terminal_close (void)
      }
 }
 
-void
-v_write(int fd, unsigned char *ch, int len)
+#if 0
+static void v_write(int fd, unsigned char *ch, int len)
 {
   if (!config.console_video && !config.usesX)
     DOS_SYSCALL(write(fd, ch, len));
   else
     error("(video) v_write deferred for console_video\n");
 }
+#endif
 
 static char *Help[] = 
 {

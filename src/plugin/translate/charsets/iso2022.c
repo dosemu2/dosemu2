@@ -24,7 +24,7 @@ static int init_iso2022_state(struct char_set_state *ch_state)
 	return 0;
 }
 
-size_t iso2022_to_unicode(
+static size_t iso2022_to_unicode(
 	struct char_set_state *ch_state, 
 	struct char_set *set, int offset,
 	t_unicode *symbol_out, const unsigned char *str, size_t str_len)

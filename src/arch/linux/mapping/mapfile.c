@@ -4,8 +4,8 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-/* file mapshm.c
- * IPC shared memory mapping driver
+/* file mapfile.c
+ * file mapping driver
  *	Hans Lermen, lermen@fgan.de
  */
 
@@ -25,6 +25,7 @@
 
 #include "emu.h"
 #include "mapping.h"
+#include "pagemalloc.h"
 
 #undef mmap
 #define mmap libless_mmap
@@ -32,13 +33,6 @@
 #define munmap libless_munmap
 
 /* ------------------------------------------------------------ */
-
-extern int pgmalloc_init(int numpages, int lowater, void *pool);
-extern void *pgmalloc(int size);
-extern int pgfree(void *addr);
-extern int get_pgareasize(void *addr);
-extern void *pgrealloc(void *addr, int newsize);
-
 
 static int mpool_numpages = (32 * 1024) / 4;
 static char *mpool = 0;
@@ -199,6 +193,7 @@ static int open_mapping_file(int cap)
   }
 #endif
 
+  mappingdriver_self.close(MAPPING_ALL);
   return 1;
 }
 

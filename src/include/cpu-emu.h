@@ -7,6 +7,7 @@
 #ifndef DOSEMU_CPUEMU_H
 #define DOSEMU_CPUEMU_H
 
+#include <signal.h>
 #include "bitops.h"
 
 /*
@@ -89,5 +90,14 @@ unsigned short emu_do_LAR (unsigned short selector);
 
 /* called from mfs.c */
 int e_dos_read(int fd, char *data, int cnt);
+
+/* called from cpu.c */
+void init_emu_cpu (void);
+
+/* called/used from dpmi.c */
+int e_dpmi(struct sigcontext_struct *scp);
+void e_dpmi_b0x(int op,struct sigcontext_struct *scp);
+extern int emu_dpmi_retcode;
+extern int in_dpmi_emu;
 
 #endif	/*DOSEMU_CPUEMU_H*/

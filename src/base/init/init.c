@@ -46,6 +46,7 @@
 #include "speaker.h"
 
 #include "keyb_clients.h"
+#include "keyb_server.h"
 
 #include "mapping.h"
 
@@ -178,8 +179,6 @@ void timer_interrupt_init(void)
  */
 void hardware_setup(void)
 {
-  extern void  do_irq1(void);
-  extern void rtc_int8(void);
   /* PIC init */
   pic_seti(PIC_IRQ0, timer_int_engine, 0, NULL);  /* do_irq0 in pic.c */
   pic_unmaski(PIC_IRQ0);
@@ -221,7 +220,6 @@ void hardware_setup(void)
  */
 void map_video_bios(void)
 {
-  extern int load_file(char *name, int foffset, char *mstart, int msize);
   uint32_t int_area[256];
   uint16_t seg, off;
   int i;
@@ -263,8 +261,10 @@ void map_video_bios(void)
           video_ints[i] = 1;
         } else video_ints[i] = 0;
       }
-      g_printf("Now initialising 0x40:0-ff\n");
-      load_file("/dev/mem", 0x40 << 4, (char *)(0x40 << 4), 0x100);
+      g_printf("Now initialising 0x40:49-66, 84-8a and a8-ab\n");
+      load_file("/dev/mem", (0x40 << 4) + 0x49, (char *)(0x40 << 4) + 0x49, 0x67-0x49);
+      load_file("/dev/mem", (0x40 << 4) + 0x84, (char *)(0x40 << 4) + 0x84, 0x8b-0x84);
+      load_file("/dev/mem", (0x40 << 4) + 0xa8, (char *)(0x40 << 4) + 0xa8, 0xac-0xa8);
     }
   }
 }
@@ -441,7 +441,6 @@ void memory_init(void)
  */
 void device_init(void)
 {
-  extern void check_console(void);
   /* check whether we are running on the console */
   check_console();
 

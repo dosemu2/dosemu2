@@ -11,6 +11,8 @@
 #include <signal.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #include "config.h"
 #include "emu.h"
@@ -27,14 +29,11 @@
 #include "iodev.h"
 
 #include "keyb_clients.h"
+#include "keyb_server.h"
 
 #ifdef USE_SBEMU
 #include "sound.h"
 #endif
-
-extern void keyb_server_run(void);
-extern void irq_select(void);
-extern int type_in_pre_strokes(void);
 
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
@@ -86,6 +85,14 @@ dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
 }
 #endif /* __linux__ */
 
+/* this cleaning up is necessary to avoid the port server becoming
+   a zombie process */
+static void cleanup_child(void)
+{
+  int status;
+  wait(&status);
+}
+
 /* Silly Interrupt Generator Initialization/Closedown */
 
 #ifdef SIG
@@ -126,9 +133,7 @@ void SIG_init(void)
 		    sg->fd = -1;
 		    sg->irq = irq;
 		    g_printf("SIG: IRQ%d, enabling PIC-level %ld\n", irq, pic_irq_list[irq]);
-		    { extern int SillyG_do_irq(void);
 		    pic_seti(pic_irq_list[irq], SillyG_do_irq, 0, NULL);
-		    }
 		    pic_unmaski(pic_irq_list[irq]);
 		    sg++;
 		}
@@ -194,7 +199,7 @@ signal_init(void)
    SIGALRM		14	NQ	(SIG_TIME)sigalrm
    SIGTERM		15	S	leavedos
    SIGSTKFLT		16
-   SIGCHLD		17	unused?
+   SIGCHLD		17	S       cleanup_child
    SIGCONT		18
    SIGSTOP		19
    SIGTSTP		20
@@ -235,7 +240,7 @@ signal_init(void)
   }
   else
 #endif
-  {
+  if(!config.console_video && !config.console_keyb) {
     SETSIG(SIGWINCH, gettermcap); /* Adjust window sizes in DOS */
   }
 #ifdef X86_EMULATOR
@@ -246,6 +251,7 @@ signal_init(void)
 */
   NEWSETQSIG(SIGIO, sigio);
   NEWSETSIG(SIGSEGV, dosemu_fault);
+  SETSIG(SIGCHLD, cleanup_child);
 
   SIG_init();			/* silly int generator support */
 }
@@ -342,7 +348,7 @@ void handle_signals(void) {
  * counter here.
  * ============================================================== */
 
-void SIGALRM_call(void)
+static void SIGALRM_call(void)
 {
   static int first = 0;
   static hitimer_t cnt200 = 0;
@@ -561,7 +567,7 @@ inline void SIGNAL_save( void (*signal_call)(void) ) {
  * DANG_END_FUNCTION
  *
  */
-void SIGIO_call(void){
+static void SIGIO_call(void){
   /* Call select to see if any I/O is ready on devices */
   io_select(fds_sigio);
 }

@@ -68,6 +68,7 @@
 #include "keyb_server.h"
 #include "memory.h"
 #include "utilities.h"
+#include "aspi.h"
 
 #include "parsglob.h"
 
@@ -89,10 +90,8 @@ int dexe_running = 0;
 static int dexe_forbid_disk = 1;
 char own_hostname[128];
 
-extern int no_local_video;
-extern struct printer lpt[NUM_PRINTERS];
-static struct printer *pptr;
 static struct printer nullptr;
+static struct printer *pptr = &nullptr;
 static int c_printers = 0;
 
 static int ports_permission = IO_RDWR;
@@ -114,17 +113,8 @@ static char *file_being_parsed;
 static int parser_version_3_style_used = 0;
 #define CONFNAME_V3USED "version_3_style_used"
 
-	/* external procedures */
-
-extern int exchange_uids(void);
-extern void tell_lexer_if(int value);
-extern void tell_lexer_loop(int cfile, int value);
-
 	/* local procedures */
 
-void yyerror(char *, ...);
-void yywarn(char *, ...);
-void keyb_layout(int value);
 static void start_ports(void);
 static void start_mouse(void);
 static void stop_mouse(void);
@@ -156,14 +146,10 @@ static void write_to_syslog(char *message);
 static int set_hardware_ram(int addr);
 static void set_irq_value(int bits, int i1);
 static void set_irq_range(int bits, int i1, int i2);
-extern void append_pre_strokes(unsigned char *s);
-char *get_config_variable(char *name);
-int define_config_variable(char *name);
 static int undefine_config_variable(char *name);
 static void check_user_var(char *name);
 static char *run_shell(char *command);
 static int for_each_handling(int loopid, char *varname, char *delim, char *list);
-char *checked_getenv(const char *name);
 static void enter_user_scope(int incstackptr);
 static void leave_user_scope(int incstackptr);
 static void handle_features(int which, int value);
@@ -185,8 +171,6 @@ static int is_in_allowed_classes(int mask);
 
 	/* variables in lexer.l */
 
-extern FILE* yyin;
-extern void yyrestart(FILE *input_file);
 %}
 
 %start lines
@@ -238,10 +222,9 @@ extern void yyrestart(FILE *input_file);
 	/* main options */
 %token DOSBANNER FASTFLOPPY TIMINT HOGTHRESH SPEAKER IPXSUPPORT NOVELLHACK
 %token NETDEV VNET
-%token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO ALLOWVIDEOPORT EMURETRACE TIMER
+%token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO EMURETRACE TIMER
 %token MATHCO CPU CPUSPEED RDTSC BOOTA BOOTB BOOTC L_XMS L_DPMI PORTS DISK DOSMEM PRINTER
 %token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS L_SOUND L_JOYSTICK
-%token L_SECURE
 %token DEXE ALLOWDISK FORCEXDOS XDOSONLY
 %token ABORT WARN
 %token BOOTDISK L_FLOPPY EMUSYS EMUINI L_X
@@ -437,7 +420,6 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 			}
 		| CPU expression
 			{
-			extern int cpu_override(int);
 			int cpu = cpu_override (($2%100)==86?($2/100)%10:0);
 			if (cpu > 0) {
 				c_printf("CONF: CPU set to %d86\n",cpu);
@@ -528,8 +510,6 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    }
 		| LOGBUFSIZE expression
 		    {
-		      extern int logbuf_size;
-		      extern char *logbuf, *logptr;
 		      char *b;
 		      flush_log();
 		      b = malloc($2+1024);
@@ -542,7 +522,6 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    }
 		| LOGFILESIZE expression
 		    {
-		      extern int logfile_limit;
 		      logfile_limit = $2;
 		    }
 		| DOSBANNER bool
@@ -685,7 +664,6 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
                 | ASPI '{' string_expr DEVICETYPE string_expr TARGET expression '}'
                     {
 #ifdef ASPI_SUPPORT
-		    extern char *aspi_add_device(char *name, char *devtype, int);
 		    char *s = aspi_add_device($3, $5, $7);
 		    if (s) {
 			c_printf("CONF: aspi available for %s\n", s);
@@ -1727,7 +1705,6 @@ static void detect_vbios(void)
 {
   unsigned char c[0x21];
   int foffset;
-  extern int load_file(char *name, int foffset, char *mstart, int msize);
 
   if (auto_vbios_seg != -1) return;
   if (!can_do_root_stuff || config.vbios_file) return;
@@ -1817,29 +1794,19 @@ static void stop_terminal(void)
 
 static void start_printer(void)
 {
-  if (c_printers >= NUM_PRINTERS)
-    pptr = &nullptr;
-  else {
-    pptr = &lpt[c_printers];
-    /* this causes crashes ?? */
-#if 0
-    pptr->prtcmd = strdup("lpr");
-    pptr->prtopt = strdup("%s");
-#else
-    pptr->prtcmd = NULL;
-    pptr->prtopt = NULL;
-#endif
-    pptr->dev = NULL;
-    pptr->file = NULL;
-    pptr->remaining = -1;
-    pptr->delay = 10;
-  }
+  pptr->prtcmd = "lpr";
+  pptr->prtopt = "%s";
+  pptr->dev = NULL;
+  pptr->file = NULL;
+  pptr->remaining = -1;
+  pptr->delay = 10;
 }
 
 static void stop_printer(void)
 {
+  printer_config(c_printers, pptr);
   c_printf("CONF(LPT%d) f: %s   c: %s  o: %s  t: %d  port: %x\n",
-	   c_printers, pptr->dev, pptr->prtcmd, pptr->prtopt,
+           c_printers, pptr->dev, pptr->prtcmd, pptr->prtopt,
            pptr->delay, pptr->base_port);
   c_printers++;
   config.num_lpt = c_printers;
@@ -2489,7 +2456,6 @@ static int has_dexe_magic(char *name)
 static int stat_dexe(char *name)
 {
   struct stat s;
-  extern int is_in_groups(gid_t);
   if (stat(name, &s)) return 0;
   if ( ! S_ISREG(s.st_mode)) return 0;
   if ((s.st_mode & S_IXUSR) && (s.st_uid == get_orig_uid()))
@@ -2616,11 +2582,8 @@ static void do_parse(FILE* fp, char *confname, char *errtx)
 int parse_config(char *confname, char *dosrcname)
 {
   FILE *fd;
-  extern char *yy_vbuffer;
   int is_user_config;
 #if YYDEBUG != 0
-  extern int yydebug;
-
   yydebug  = 1;
 #endif
 

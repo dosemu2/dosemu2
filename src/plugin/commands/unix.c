@@ -23,6 +23,9 @@
 #include "doshelpers.h"
 #include "../coopthreads/coopthreads.h"
 
+#include "msetenv.h"
+#include "unix.h"
+
 #define printf  com_printf
 #define fprintf com_fprintf
 #undef stderr
@@ -167,7 +170,6 @@ static int do_execute_dos (int argc, char **argv)
 static int do_set_dosenv (int argc, char **argv)
 {
   struct REGPACK preg;
-  extern int msetenv(char *,char *);
   char *data = lowmem_alloc(256);
 
   if (argc == 0) return usage();

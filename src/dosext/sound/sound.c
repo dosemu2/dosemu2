@@ -543,7 +543,7 @@ Bit8u sb_get_mixer_IRQ_status (void)
  * DANG_END_FUNCTION
  */
 
-Bit8u adlib_io_read(ioport_t port)
+static Bit8u adlib_io_read(ioport_t port)
 {
   Bit8u result = 0xFF;
 
@@ -575,7 +575,6 @@ Bit8u adlib_io_read(ioport_t port)
 Bit8u fm_io_read (ioport_t port)
 {
   /* extern struct adlib_info_t adlib_info; - For reference - AM */
-  extern struct adlib_timer_t adlib_timers[2];
   Bit8u retval;
 
   switch (port){
@@ -754,7 +753,7 @@ void sb_io_write(ioport_t port, Bit8u value)
   case 0x0C:		/* dsp write register */
 		if (SB_dsp.dma_mode & HIGH_SPEED_DMA) {
 		  S_printf("SB: Commands are not permitted in High-Speed DMA mode!\n");
-		  break;
+		  /* break; */
 		}
 		sb_dsp_write ( value );
 		break;
@@ -1637,9 +1636,6 @@ void adlib_io_write(ioport_t port, Bit8u value)
 	
 void fm_io_write(ioport_t port, Bit8u value)
 {
-  extern struct adlib_info_t adlib_info;
-  extern struct adlib_timer_t adlib_timers[2];
-
     switch (port) {
 	case ADLIB_REGISTER:
 	  adlib_info.reg = value;
@@ -1852,7 +1848,7 @@ void restart_dsp_dma(void)
     dma_assert_DREQ(config.sb_dma);
 }
 
-void sb_dma_done_block(void)
+static void sb_dma_done_block(void)
 {
   S_printf("SB: DMA block completed\n");
   if (dma_test_DACK(config.sb_dma))
@@ -2425,9 +2421,6 @@ static void sb_reset (void)
 
 static void fm_reset (void)
 {
-  /* extern struct adlib_info_t adlib_info; - For reference - AM */
-  extern struct adlib_timer_t adlib_timers[2];
-
   S_printf ("SB: Resetting FM\n");
 
   adlib_timers[0].enabled = 0;
@@ -2540,8 +2533,6 @@ void sb_update_timers () {
   unsigned long elapsed;		/* No of 80useconds elapsed */
   Bit8u current_value;
   Bit16u int08_irq;
-  /* extern struct adlib_info_t adlib_info; - For reference - AM */
-  extern struct adlib_timer_t adlib_timers[2];
 
   if ( (adlib_timers[0].enabled != 1) 
        && (adlib_timers[1].enabled != 1) ) {

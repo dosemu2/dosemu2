@@ -48,7 +48,7 @@ static char *strbetween(char *s, char **next, char *pre, char *post)
    return p;
 }
 
-struct scsi_device_info *scan_scsi_proc_info(void) {
+static struct scsi_device_info *scan_scsi_proc_info(void) {
   struct scsi_device_info *devs;
   int maxdevs = 32;
   int dev = 0;
@@ -125,7 +125,7 @@ static void check_ids(struct scsi_device_info *devs)
   }
 }
 
-void print_scsi_devices(struct scsi_device_info *devs)
+static void print_scsi_devices(struct scsi_device_info *devs)
 {
   int i;
   char *s;

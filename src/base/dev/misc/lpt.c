@@ -23,12 +23,9 @@
 #include "dosio.h"
 #include "lpt.h"
 #include "utilities.h"
+#include "dos2linux.h"
 
-extern config_t config;
-extern int fatalerr;
-
-int printer_open(int), stub_printer_write(int, int), printer_close(int);
-int printer_write(int, int), printer_flush(int);
+static int stub_printer_write(int, int);
 
 struct p_fops def_pfops =
 {
@@ -39,7 +36,7 @@ struct p_fops def_pfops =
   printer_write
 };
 
-struct printer lpt[NUM_PRINTERS] =
+static struct printer lpt[NUM_PRINTERS] =
 {
   {NULL, "lpr", "%s", 5, 0x378},
   {NULL, "lpr", "%s", 5, 0x278},
@@ -138,7 +135,6 @@ printer_flush(int prnum)
   fflush(lpt[prnum].file);
 
   if (lpt[prnum].prtcmd) {
-    extern int run_system_command(char *);
     size_t cmdbuflen;
     char *cmdbuf;
     
@@ -245,6 +241,28 @@ printer_tick(u_long secno)
     }
   }
   return 0;
+}
+
+void printer_config(int prnum, struct printer *pptr)
+{
+  struct printer *destptr;
+
+  if (prnum < NUM_PRINTERS) {
+    destptr = &lpt[prnum];
+    destptr->prtcmd = pptr->prtcmd;
+    destptr->prtopt = pptr->prtopt;
+    destptr->dev = pptr->dev;
+    destptr->file = pptr->file;
+    destptr->remaining = pptr->remaining;
+    destptr->delay = pptr->delay;
+  }
+}
+
+void printer_print_config(int prnum, void (*print)(char *, ...))
+{
+  struct printer *pptr = &lpt[prnum];
+  (*print)("LPT%d command \"%s  %s\"  timeout %d  device \"%s\"  baseport 0x%03x\n",
+	  prnum+1, pptr->prtcmd, pptr->prtopt, pptr->delay, (pptr->dev ? pptr->dev : ""), pptr->base_port); 
 }
 
 #undef LPT_C

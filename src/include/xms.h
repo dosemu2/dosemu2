@@ -48,5 +48,6 @@ struct UMB {
 };
 
 void xms_control(void), xms_int15(void), xms_init(void);
+extern int a20;
 
 #endif /* XMS_H */

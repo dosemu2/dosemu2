@@ -81,7 +81,7 @@ static int switch_console(char new_console)
 }
 
 
-void handle_console_input(void)
+static void handle_console_input(void)
 {
   char buf[UHOOK_BUFFERSIZE];
   static char sbuf[UHOOK_BUFFERSIZE]="\n";
@@ -105,7 +105,7 @@ void handle_console_input(void)
 }
 
 
-void handle_uhook_input(void)
+static void handle_uhook_input(void)
 {
   char buf[UHOOK_BUFFERSIZE];
   int n;

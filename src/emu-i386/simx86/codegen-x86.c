@@ -105,12 +105,6 @@
 #include "emu86.h"
 #include "codegen-x86.h"
 
-extern TNode *LastXNode;
-
-#ifdef ASM_DUMP
-extern FILE *aLog;
-#endif
-
 /* Buffer and pointers to store generated code */
 unsigned char *CodePtr = NULL;
 
@@ -122,9 +116,6 @@ unsigned long e_vga_base, e_vga_end;
 
 int TrapVgaOn = 0;
 int UseLinker = USE_LINKER;
-
-extern int TotalNodesParsed, TotalNodesExecd;
-extern int NodesParsed, NodesExecd, TryMemRef;
 
 hitimer_u TimeStartExec, TimeEndExec;
 
@@ -162,7 +153,6 @@ static void _test_(void)
 /* empirical!! */
 static int goodmemref(long m)
 {
-	extern long mMaxMem;
 	if ((m>0) && (m<0x110000)) return 1;
 	if ((m>0x40000000) && (m<mMaxMem)) return 1;
 	return 0;

@@ -47,17 +47,15 @@ DOSINVOKE_KEEP='keystroke "$(BOOTUP)$(GOTARGET)COMMAND\r"'
 PD=precompiled
 # --------------- end 'tcc via dosemu' --------------------
 
-INDIR=-I../include
-
 all: $(COM2) $(SYS)
 
 dosbin: $(COM1) $(COM2) $(SYS)
 
 $(D)/%.sys: %.S detect.h
-	$(LD) $(INDIR) -traditional -Wa,-a -Wl,-Ttext,0,-e,_start16,--oformat,binary -nostdlib -s -o $@ $< > $*.s.out
+	$(LD) $(CPPFLAGS) -traditional -Wa,-a -Wl,-Ttext,0,-e,_start16,--oformat,binary -nostdlib -s -o $@ $< > $*.s.out
 
 $(D)/%.com: %.S detect.h
-	$(LD) $(INDIR) -traditional -Wa,-a -Wl,-Ttext,100,-e,_start16,--oformat,binary -nostdlib -s -o $@ $< > $*.s.out
+	$(LD) $(CPPFLAGS) -traditional -Wa,-a -Wl,-Ttext,100,-e,_start16,--oformat,binary -nostdlib -s -o $@ $< > $*.s.out
 
 precomp: $(PD)/unix.exe $(PD)/cmdline.exe $(PD)/emumouse.exe \
 		$(PD)/lredir.exe $(PD)/dosdbg.exe $(PD)/xmode.exe

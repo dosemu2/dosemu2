@@ -4,6 +4,7 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
+#include "emu.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>

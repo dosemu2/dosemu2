@@ -642,6 +642,9 @@ extern int eTimeCorrect;
 //
 extern unsigned long eTSSMASK;
 extern int Running;		/* into interpreter loop */
+extern long mMaxMem;
+extern int TryMemRef;
+extern int UseLinker;
 //
 unsigned char *do_hwint(int mode, int intno);
 unsigned char *Interp86(unsigned char *PC, int mode);
@@ -657,6 +660,7 @@ char *e_trace_fp(void);
 void GCPrint(unsigned char *cp, unsigned char *cbase, int len);
 char *showreg(signed char r);
 char *showmode(unsigned int m);
+int e_debug_check(unsigned char *PC);
 //
 void e_emu_fault(int, struct sigcontext_struct);
 //
@@ -675,5 +679,7 @@ void CollectStat(void);
 //
 /////////////////////////////////////////////////////////////////////////////
 void init_emu_npu(void);
+
+extern unsigned long e_vga_base, e_vga_end;
 
 #endif // _EMU86_EMU86_H

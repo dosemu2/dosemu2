@@ -149,6 +149,7 @@ static __inline__ hitimer_t _mul64x32_(hitimer_t v, unsigned long f)
 /* --------------------------------------------------------------------- */
 
 extern hitimer_u ZeroTimeBase;
+extern hitimer_t t_vretrace;
 
 EXTERN hitimer_t (*GETcpuTIME)(void) INIT(0);
 
@@ -306,5 +307,6 @@ extern Bit8u pit_control_inp(ioport_t);
 extern void pit_control_outp(ioport_t port, Bit8u val);
 extern void initialize_timers(void);
 extern void get_time_init(void);
+extern void do_sound(Bit16u period);
 
 #endif /* DOSEMU_TIMERS_H */

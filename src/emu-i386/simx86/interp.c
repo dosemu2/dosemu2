@@ -42,11 +42,6 @@ unsigned char *P0;
 #ifdef PROFILE
 int EmuSignals = 0;
 #endif
-extern int UseLinker;
-
-#ifdef ASM_DUMP
-extern FILE *aLog;
-#endif
 
 static int NewNode = 1;
 static int basemode = 0;
@@ -156,8 +151,8 @@ static int MAKESEG(int mode, int ofs, unsigned short sv)
 //	link	7x 06 e9 l l l l -- e9 l l l l --
 //
 
-unsigned char *JumpGen(unsigned char *P2, int mode, int cond,
-	int btype)
+static unsigned char *JumpGen(unsigned char *P2, int mode, int cond,
+			      int btype)
 {
 	unsigned char *P1;
 	int taken=0, tailjmp=0;

@@ -23,11 +23,12 @@
 #include "disks.h"
 #include "timers.h"
 #include "int.h"
+#include "iodev.h"
 
 struct timezone tz;
 long   sys_base_ticks = 0;
 long   usr_delta_ticks = 0;
-long   last_ticks = 0;
+unsigned long   last_ticks = 0;
 
 
 int cmos_date(int reg)

@@ -26,10 +26,6 @@
 #include "extern.h"
 
 
-extern void set_screen_origin(int), set_vc_screen_page(int);
-
-extern int vc_active(void);
-
 struct screen_stat {
   int console_no,		/* our console number */
    vt_allow,			/* whether to allow VC switches */

@@ -35,6 +35,7 @@ void put_symbol(Boolean make, t_keysym sym);
 void put_modified_symbol(Boolean make, t_modifiers modifiers, t_keysym sym);
 void set_shiftstate(t_modifiers s);
 t_modifiers get_shiftstate(void);
+int type_in_pre_strokes(void);
 void append_pre_strokes(unsigned char *s);
 struct char_set;
 

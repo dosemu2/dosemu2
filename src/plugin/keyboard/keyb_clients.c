@@ -13,6 +13,7 @@
 #include "termio.h"
 #include "keyboard.h"
 #include "keyb_clients.h"
+#include "keyb_server.h"
 #include "video.h"
 #include "vc.h"
 

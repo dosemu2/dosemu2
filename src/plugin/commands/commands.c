@@ -26,6 +26,13 @@
 #include "doshelpers.h"
 #include "../coopthreads/coopthreads.h"
 
+#include "commands.h"
+#include "lredir.h"
+#include "xmode.h"
+#include "unix.h"
+#include "dosdbg.h"
+#include "cmdline.h"
+#include "comcom.h"
 
 /* ============= old .com ported ================= */
 
@@ -303,14 +310,6 @@ void commands_plugin_init(void)
 {
 	static int done = 0;
 
-	extern int lredir_main(int argc, char **argv);
-	extern int xmode_main(int argc, char **argv);
-	extern int emumouse_main(int argc, char **argv);
-	extern int dosdbg_main(int argc, char **argv);
-	extern int unix_main(int argc, char **argv);
-	extern int cmdline_main(int argc, char **argv);
-	extern int comcom_main(int argc, char **argv);
-
 	if (done) return;
 	done = 1;
 
@@ -350,7 +349,6 @@ void commands_plugin_init(void)
 	/* try to load old history file for comcom */
 	chistname = get_path_in_HOME(".dosemu/comcom.history");
 	if (exists_file(chistname)) {
-		extern void load_comcom_history(char *fname);
 		load_comcom_history(chistname);
 	}
 #if 0
@@ -360,7 +358,6 @@ void commands_plugin_init(void)
 
 void commands_plugin_close(void)
 {
-	extern void save_comcom_history(char *fname);
 	if (!tcb0) return;
 
 	save_comcom_history(chistname);

@@ -473,10 +473,8 @@ inline Bit8u dma_read_count(int dma_c, int channel)
   return r;
 }
 
-void dma_recover_values(int controller, int channel)
+static void dma_recover_values(int controller, int channel)
 {
-  extern dma_t dma[2];
-
   h_printf("DMA: Recovering settings for Auto-Init transfer on %d, %d\n",
 	   controller, channel);
   /* Recover the values from the private store */
@@ -494,16 +492,18 @@ void dma_recover_values(int controller, int channel)
   dma[controller].i[channel].size = dma[controller].i[channel].set_size;
 }
 
+#if 0
 /* 
  * Obselete? 
  * Might make a useful public function if converted to just take a single
  * parameter - AM 
  */
-Bit16u length_transferred(int controller, int channel)
+static Bit16u length_transferred(int controller, int channel)
 {
   return (get_value(dma[controller].i[channel].length)
 	  - get_value(dma[controller].length[channel]));
 }
+#endif
 
 Bit8u dma_io_read(ioport_t port)
 {
@@ -898,7 +898,7 @@ static inline size_t dma_do_write(int controller, int channel, void *ptr,
   }
 }
 
-void dma_process_demand_mode_write(int controller, int channel)
+static void dma_process_demand_mode_write(int controller, int channel)
 {
   Bit32u target_addr;
   int amount_done = 0;
@@ -944,7 +944,7 @@ void dma_process_demand_mode_write(int controller, int channel)
   }
 }
 
-void dma_process_single_mode_write(int controller, int channel)
+static void dma_process_single_mode_write(int controller, int channel)
 {
   Bit32u target_addr;
   int amount_done = 0;
@@ -993,7 +993,7 @@ void dma_process_single_mode_write(int controller, int channel)
 }
 
 
-void dma_process_block_mode_write(int controller, int channel)
+static void dma_process_block_mode_write(int controller, int channel)
 {
   Bit32u target_addr;
   int amount_done = 0;
@@ -1044,7 +1044,7 @@ void dma_process_block_mode_write(int controller, int channel)
 /* 
  * Cascade mode Writes are not supported - Unimportant
  */
-void dma_process_cascade_mode_write(int controller, int channel)
+static void dma_process_cascade_mode_write(int controller, int channel)
 {
   int ch;
   /*      int mask; */
@@ -1059,7 +1059,7 @@ void dma_process_cascade_mode_write(int controller, int channel)
 }
 
 
-void dma_process_demand_mode_read(int controller, int channel)
+static void dma_process_demand_mode_read(int controller, int channel)
 {
   Bit32u target_addr;
   int amount_done = 0;
@@ -1106,7 +1106,7 @@ void dma_process_demand_mode_read(int controller, int channel)
 }
 
 
-void dma_process_single_mode_read(int controller, int channel)
+static void dma_process_single_mode_read(int controller, int channel)
 {
   Bit32u target_addr;
   size_t amount_done = 0;
@@ -1156,7 +1156,7 @@ void dma_process_single_mode_read(int controller, int channel)
 
 
 
-void dma_process_block_mode_read(int controller, int channel)
+static void dma_process_block_mode_read(int controller, int channel)
 {
   Bit32u target_addr;
   int amount_done = 0;
@@ -1207,7 +1207,7 @@ void dma_process_block_mode_read(int controller, int channel)
 /* 
  * DANG_FIXTHIS: Cascade Mode Reads are not supported 
  */
-void dma_process_cascade_mode_read(int controller, int channel)
+static void dma_process_cascade_mode_read(int controller, int channel)
 {
   int ch;
   /*      int mask; */
@@ -1224,7 +1224,7 @@ void dma_process_cascade_mode_read(int controller, int channel)
 /* 
  * DANG_FIXTHIS: The Verify Mode is not supported 
  */
-void dma_process_verify_mode(int controller, int channel)
+static void dma_process_verify_mode(int controller, int channel)
 {
   int ch;
   /*      int mask; */
@@ -1244,7 +1244,7 @@ void dma_process_verify_mode(int controller, int channel)
 /* 
  * DANG_FIXTHIS: The Invalid Mode is not supported (!) 
  */
-void dma_process_invalid_mode(int controller, int channel)
+static void dma_process_invalid_mode(int controller, int channel)
 {
   int ch;
   /*      int mask; */
@@ -1262,7 +1262,7 @@ void dma_process_invalid_mode(int controller, int channel)
 
 
 
-int dma_process_channel(int controller, int channel)
+static int dma_process_channel(int controller, int channel)
 {
   h_printf("DMA: processing controller %d, channel %d\n",
 	   controller + 1, channel);

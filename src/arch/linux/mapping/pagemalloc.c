@@ -55,6 +55,7 @@
  */
 #include "emu.h"
 #include "dosemu_debug.h"
+#include "pagemalloc.h"
 
 #define PAGE_SHIFT	12
 #define PAGE_SIZE	(1<<PAGE_SHIFT)

@@ -9,6 +9,7 @@
 #define _EMU_KEYB_CLNT_H
 
 #include "config.h"
+
 #include "emu.h"
 #include "keyboard.h"
 #include "translate.h"
@@ -20,6 +21,9 @@ void keyb_client_run(void);
 void keyb_client_set_leds(t_modifiers modifiers);
 
 int paste_text(const char *text, int len);
+
+/* this should really go somewhere else ... */
+void handle_slang_keys(Boolean make, t_keysym key);
 
 /* For the current sigio handler, this still has to be defined here. */
 EXTERN int kbd_fd INIT(-1);

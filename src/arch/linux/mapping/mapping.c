@@ -54,10 +54,6 @@ int libless_munmap(caddr_t addr, size_t len)
 
 static int init_done = 0;
 
-extern struct mappingdrivers mappingdriver_self;
-extern struct mappingdrivers mappingdriver_shm;
-extern struct mappingdrivers mappingdriver_file;
-
 static struct mappingdrivers *mappingdrv[] = {
   &mappingdriver_shm,
   /* 

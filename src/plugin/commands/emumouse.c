@@ -34,6 +34,8 @@
 #include "doshelpers.h"
 #include "../coopthreads/coopthreads.h"
 
+#include "emumouse.h"
+
 #define printf  com_printf
 
 #define MHLP(rin, rout) ({rin.x.ax = DOS_HELPER_MOUSE_HELPER; \
@@ -44,7 +46,7 @@ union com_REGS regs;
 
 
 /* Show help screen */
-int usage(void)
+static int usage(void)
 {
   printf("Usage: EMUMOUSE [option]\n");
   printf("Utility to control the internal mousedriver of DOSEMU\n\n");
@@ -70,7 +72,7 @@ int usage(void)
 
 
 /* Detect internal mouse driver of Linux */
-int detectInternalMouse(void)
+static int detectInternalMouse(void)
 {
   regs.x.bx = 0x00ff;
   MHLP(regs, regs);

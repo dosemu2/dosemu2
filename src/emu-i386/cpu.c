@@ -40,10 +40,9 @@
 #include "dpmi.h"
 #include "priv.h"
 
-extern void xms_control(void);
-
 #ifdef X86_EMULATOR
 #include "simx86/syncpu.h"
+#include "cpu-emu.h"
 #define CRs	TheCPU.cr
 #define DRs	TheCPU.dr
 #define TRs	TheCPU.tr
@@ -219,9 +218,6 @@ int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
  */
 void cpu_setup(void)
 {
-  extern void int_vector_setup(void);
-  extern void init_emu_cpu (void);
-
   int_vector_setup();
 
   /* ax,bx,cx,dx,si,di,bp,fs,gs can probably can be anything */

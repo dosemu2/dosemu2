@@ -14,6 +14,7 @@
  *			and Alistair MacDonald
  */
 
+#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -24,13 +25,12 @@
 #include <fcntl.h>
 #include <ctype.h>
 
-#include "config.h"
-#include "emu.h"
-#include "utilities.h"
-#include "disks.h"
 #if X_GRAPHICS
 #include "../../env/video/X.h"
 #endif
+#include "emu.h"
+#include "utilities.h"
+#include "disks.h"
 #include "userhook.h"
 #include "redirect.h"
 #include "keyboard.h"

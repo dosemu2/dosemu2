@@ -40,6 +40,7 @@
  * DANG_END_REMARK
  */
 
+#include "config.h"
 
 #ifndef __ELF__
 /*
@@ -85,11 +86,14 @@ __asm__("___START___: jmp _emulate\n");
 #include <syscall.h>
 #endif
 
-#include "config.h"
 #include "memory.h"
 
 #ifdef USE_MHPDBG
 #include "mhpdbg.h"
+#endif
+
+#ifdef X_SUPPORT
+#include "../env/video/X.h"
 #endif
 
 #include "emu.h"
@@ -118,7 +122,10 @@ __asm__("___START___: jmp _emulate\n");
 #include "utilities.h"
 #include "dos2linux.h"
 #include "iodev.h"
+#include "mapping.h"
 #include "dosemu_config.h"
+#include "shared.h"
+#include "userhook.h"
 
 #include "keyb_clients.h"
 
@@ -128,27 +135,6 @@ __asm__("___START___: jmp _emulate\n");
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
-#ifdef X_SUPPORT
-#include "../env/video/X.h"
-#endif
-
-extern void     stdio_init(void);
-extern void     time_setting_init(void);
-extern void     low_mem_init(void);
-extern void	mapping_init(void);
-extern void	mapping_close(void);
-extern void	pcibios_init(void);
-extern void     shared_memory_exit(void);
-extern void     restore_vt(u_short);
-extern void     disallocate_vt(void);
-extern void     vm86_GP_fault(void);
-extern void     config_init(int argc, char **argv);
-extern void	timer_int_engine(void);
-extern void	disk_open(struct disk *dp);
-extern void     print_version(void);
-
-extern void io_select_init(void);
-
 
 jmp_buf NotJEnv;
 
@@ -370,13 +356,13 @@ emulate(int argc, char **argv)
     module_init();
     low_mem_init();		/* initialize the lower 1Meg */
     time_setting_init();	/* get the startup time */
-    signal_init();		/* initialize sig's & sig handlers */
     device_init();		/* initialize keyboard, disk, video, etc. */
     cpu_setup();		/* setup the CPU */
     pcibios_init();
     pci_setup();
     hardware_setup();		/* setup any hardware */
     extra_port_init();		/* setup ports dependent on config */
+    signal_init();              /* initialize sig's & sig handlers */
     map_video_bios();           /* map the video bios */
     map_hardware_ram();         /* map the direct hardware ram */
 
@@ -428,7 +414,6 @@ emulate(int argc, char **argv)
 }
 
 #if 0    /* disable C-A-D until someone will fix it (if really needed) */
-extern void HMA_MAP(int);
 static int      special_nowait = 0;
 
 void
@@ -492,7 +477,6 @@ leavedos(int sig)
 {
     struct sigaction sa;
     struct itimerval itv;
-    extern void do_r3da_pending (void);	/* emuretrace stuff */
    
     if (leavedos_recurse_check)
       {
@@ -510,15 +494,11 @@ leavedos(int sig)
 #endif
     in_vm86 = 0;
 
-    /* terminate port server */
-    port_exit(sig);
-
     /* try to notify dosdebug */
-    {
-      extern void mhp_exit_intercept(int errcode);
-      mhp_exit_intercept(sig);
-    }
-
+#ifdef USE_MHPDBG
+    mhp_exit_intercept(sig);
+#endif
+    
     itv.it_interval.tv_sec = itv.it_interval.tv_usec = 0;
     itv.it_value = itv.it_interval;
     if (setitimer(ITIMER_REAL, &itv, NULL) == -1) {
@@ -584,6 +564,9 @@ leavedos(int sig)
       config.emuretrace = 0;
     }
 
+    /* terminate port server */
+    port_exit(sig);
+
     g_printf("releasing ports and blocked devices\n");
     release_ports();
 
@@ -591,10 +574,7 @@ leavedos(int sig)
     shared_memory_exit();
     g_printf("calling HMA exit\n");
     hma_exit();
-    {
-	extern void close_uhook(void);
-	close_uhook();
-    }
+    close_uhook();
 #ifdef USE_MHPDBG
     g_printf("closing debugger pipes\n");
     mhp_close();
@@ -609,10 +589,7 @@ leavedos(int sig)
     }
 
 #ifdef IPX
-    {
-      extern void ipx_close(void);
-      ipx_close();
-    }
+    ipx_close();
 #endif
 
     g_printf("calling close_all_printers\n");
@@ -664,11 +641,8 @@ d_ready(int fd)
     } else
 	return (0);
 }
-#endif
 
-
-void
-activate(int con_num)
+void activate(int con_num)
 {
     if (in_ioctl) {
 	k_printf("KBD: can't ioctl for activate, in a signal handler\n");
@@ -676,3 +650,4 @@ activate(int con_num)
     } else
 	do_ioctl(kbd_fd, VT_ACTIVATE, con_num);
 }
+#endif

@@ -39,7 +39,7 @@
   /* well, if we don't have llseek prototype,
    * we most likely won't have __loff_t too, hence using long long
    */
-long long libless_llseek(int fd, long long offset, int origin)
+static long long libless_llseek(int fd, long long offset, int origin)
 {
   long long result;
   int offlo = offset;
@@ -68,14 +68,12 @@ char *decfmt = "%sSector=%-6d   Offset=%-10d   Type=0x%02x%s\n";
 char *hexfmt = "%sSector=0x%-6x   Offset=0x%-8x   Type=0x%02x%s\n";
 char *fmtstring;
 
-void
-usage(void)
+static void usage(void)
 {
   fprintf(stderr, "usage: hdinfo [-h] <image file or disk device>\n");
 }
 
-void
-print_part(struct partition *part, size_t offset, int sect_off, int ext)
+static void print_part(struct partition *part, size_t offset, int sect_off, int ext)
 {
   char *indent = ext ? "       [" : "";
   char *exdent = ext ? "]" : "";
@@ -107,8 +105,7 @@ print_part(struct partition *part, size_t offset, int sect_off, int ext)
   }
 }
 
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
   int i, hdimage_off = 0;
   char *filename;

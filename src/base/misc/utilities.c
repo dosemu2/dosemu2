@@ -667,3 +667,26 @@ long long libless_llseek(int fd, long long offset, int origin)
   return result;
 }
 
+/* dynamic readlink, adapted from "info libc" */
+char *readlink_malloc (const char *filename)
+{
+  int size = 50;
+  int nchars;
+  char *buffer;
+
+  do {
+    size *= 2;
+    nchars = 0;
+    buffer = malloc(size);
+    if (buffer != NULL) {
+      nchars = readlink(filename, buffer, size);
+      if (nchars < 0) {
+        free(buffer);
+        buffer = NULL;
+      }
+    }
+  } while (nchars >= size);
+  if (buffer != NULL)
+    buffer[nchars] = '\0';
+  return buffer;
+}

@@ -59,9 +59,7 @@
 #include "video.h"
 #include "remap.h"
 #include "vgaemu.h"
-
-/* from dosext/dpmi/dpmi.c */
-unsigned long dpmi_GetSegmentBaseAddress(unsigned short);
+#include "dpmi.h"
 
 #define VBE_BIOS_MAXPAGES	2	/* max. 8k BIOS size, more than enough */
 

@@ -78,6 +78,7 @@
 #include "port.h"
 #include "dma.h"
 #include "timers.h"
+#include "userhook.h"
 
 #if X_GRAPHICS
 #include "vgaemu.h"
@@ -87,6 +88,8 @@
 /* FIXME: we really need to define those missing PAGE_SIZEs globally :-( */
 #define PAGE_SIZE       4096  
 #endif
+
+int dpmi_eflags = 0;
 
 unsigned long RealModeContext;
 /*
@@ -112,6 +115,7 @@ static unsigned char * cli_blacklist[CLI_BLACKLIST_LEN];
 static unsigned char * current_cli;
 static int cli_blacklisted = 0;
 static int find_cli_in_blacklist(unsigned char *);
+static int dpmi_mhp_intxx_check(struct sigcontext_struct *scp, int intno);
 
 RealModeCallBack mouseCallBack; /* user\'s mouse routine */
 
@@ -159,11 +163,9 @@ static struct sigcontext_struct *emu_stack_frame = &_emu_stack_frame;
 
 #ifdef __linux__
 _syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
-  #define LDT_WRITE 0x11
 #endif
 
-
-inline int get_ldt(void *buffer)
+static inline int get_ldt(void *buffer)
 {
 #ifdef __linux__
 #ifdef X86_EMULATOR
@@ -175,7 +177,7 @@ inline int get_ldt(void *buffer)
 #endif
 }
 
-int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
+static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 	      int seg_32bit_flag, int contents, int read_only_flag,
 	      int limit_in_pages_flag
 #ifdef WANT_WINDOWS
@@ -256,7 +258,7 @@ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   return 0;
 }
 
-void _print_dt(char *buffer, int nsel, int isldt) /* stolen from WINE */
+static void _print_dt(char *buffer, int nsel, int isldt) /* stolen from WINE */
 {
   static char *cdsdescs[] = {
 	"RO data", "RW data/upstack", "RO data", "RW data/dnstack",
@@ -328,7 +330,7 @@ void _print_dt(char *buffer, int nsel, int isldt) /* stolen from WINE */
   }
 }
 
-void print_ldt(void)
+static void print_ldt(void)
 {
   static char buffer[0x10000];
 
@@ -340,7 +342,7 @@ void print_ldt(void)
 
 /* client_esp return the proper value of client\'s esp, if scp != 0, */
 /* get esp from scp, otherwise get esp from dpmi_stack_frame         */
-unsigned long inline client_esp(struct sigcontext_struct *scp)
+static inline unsigned long client_esp(struct sigcontext_struct *scp)
 {
     if (scp) {
 	if( Segments[_ss >> 3].is_32)
@@ -737,7 +739,7 @@ static inline int ValidSelector(unsigned short selector)
   return 0;
 }
 
-int ValidAndUsedSelector(unsigned short selector)
+static int ValidAndUsedSelector(unsigned short selector)
 {
   if (ValidSelector(selector) && Segments[selector >> 3].used)
     return 1;
@@ -1113,7 +1115,6 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode)
 #ifdef X86_EMULATOR
  }
  else {
-    extern int emu_dpmi_retcode;
     if (retcode)
 	D_printf("DPMI: return %x to dosemu code\n", retcode);
     D_printf("DPMI: in_dpmi_dos_int=%d dpmi_eflags=%x\n",in_dpmi_dos_int,
@@ -1199,11 +1200,9 @@ void fake_pm_int(void)
   in_dpmi_dos_int = 1;
 }
 
-void do_int31(struct sigcontext_struct *scp, int inumber)
+static void do_int31(struct sigcontext_struct *scp, int inumber)
 {
 #ifdef X86_EMULATOR
-  extern void e_dpmi_b0x(int op,struct sigcontext_struct *);
-
   if (debug_level('M')) {
     D_printf("DPMI: int31, ax=%04x, ebx=%08lx, ecx=%08lx, edx=%08lx\n",
 	_LWORD(eax),_ebx,_ecx,_edx);
@@ -2132,9 +2131,6 @@ void run_dpmi(void)
 {
    int retval;
    unsigned char *csp;
-#ifdef X86_EMULATOR
-   extern int e_dpmi(struct sigcontext_struct *);
-#endif
 
   /* always invoke vm86() with this call.  all the messy stuff will
    * be in here.
@@ -2293,11 +2289,8 @@ void run_dpmi(void)
 freeze_idle:
     handle_signals();
 
-    { /* catch user hooks here */
-    	extern int uhook_fdin;
-    	extern void uhook_poll(void);
-    	if (uhook_fdin != -1) uhook_poll();
-    }
+    /* catch user hooks here */
+    if (uhook_fdin != -1) uhook_poll();
 
     /* here we include the hooks to possible plug-ins */
     #define VM86_RETURN_VALUE retval
@@ -2323,7 +2316,7 @@ freeze_idle:
   }
 }
 
-void dpmi_init(void)
+static void dpmi_init(void)
 {
   /* Holding spots for REGS and Return Code */
   unsigned short CS, DS, ES, SS;
@@ -2596,7 +2589,6 @@ void dpmi_init(void)
 void dpmi_sigio(struct sigcontext_struct *scp)
 {
 #ifdef X86_EMULATOR
-  extern int in_dpmi_emu;
   if (in_dpmi_emu || (_cs != UCODESEL)) {
 #else
   if (_cs != UCODESEL){
@@ -2640,7 +2632,6 @@ static  void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
     case 0x07: /* device_not_available */
 #ifdef TRACE_DPMI
 	       if (debug_level('t') && (trapno==1)) {
-	         extern char *e_scp_disasm();
 	         if (debug_level('t')>1)
 			dbug_printf("\n%s",e_scp_disasm(scp,1));
 		 return;
@@ -2916,7 +2907,6 @@ if ((_ss & 4) == 4) {
 #ifdef USE_MHPDBG
       if (mhpdbg.active) {
         if (dpmi_mhp_intxxtab[*csp]) {
-          static int dpmi_mhp_intxx_check(struct sigcontext_struct *scp, int intno);
           int ret=dpmi_mhp_intxx_check(scp, *csp);
           if (ret) {
             Return_to_dosemu_code(scp,ret);
@@ -3356,7 +3346,7 @@ if ((_ss & 4) == 4) {
       do_cpu_exception(scp);
 #endif
 
-  if (in_dpmi_dos_int || ((dpmi_eflags&(VIP|IF))==(VIP|IF)) ) {
+  if (in_dpmi_dos_int || (dpmi_eflags & VIP)) {
     dpmi_eflags &= ~VIP;
     Return_to_dosemu_code(scp,0);
   }

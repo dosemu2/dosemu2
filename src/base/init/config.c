@@ -28,7 +28,7 @@
 #include "dosemu_config.h"
 #include "init.h"
 #include "disks.h"
-#include "lpt.h"
+#include "userhook.h"
 
 #include "dos2linux.h"
 #include "utilities.h"
@@ -38,9 +38,6 @@
 #include "mhpdbg.h"
 
 #include "mapping.h"
-extern void mapping_init(void);
-extern void mapping_close(void);
-
 
 /*
  * XXX - the mem size of 734 is much more dangerous than 704. 704 is the
@@ -60,11 +57,10 @@ int config_check_only = 0;
 
 int dosemu_argc;
 char **dosemu_argv;
+char *dosemu_proc_self_exe = NULL;
 
 static void     check_for_env_autoexec_or_config(void);
-extern int     parse_debugflags(const char *s, unsigned char flag);
 static void     usage(char *basename);
-void memcheck_type_init(void);
 
 /*
  * DANG_BEGIN_FUNCTION cpu_override
@@ -245,10 +241,7 @@ void dump_config_status(void *printfunc)
 	GetDebugFlagsHelper(buf, 0);
 	(*print)("debug_flags \"%s\"\n", buf);
     }
-    {
-      extern void dump_keytable(FILE *f, struct keytable_entry *kt);
-      if (!printfunc) dump_keytable(stderr, config.keytable);
-    }
+    if (!printfunc) dump_keytable(stderr, config.keytable);
     (*print)("pre_stroke \"%s\"\n", (config.pre_stroke ? config.pre_stroke : (unsigned char *)""));
     (*print)("irqpassing= ");
     if (config.sillyint) {
@@ -285,13 +278,9 @@ void dump_config_status(void *printfunc)
 	config.ipxsup, config.vnet, config.pktflags);
     
     {
-	int i;
-	struct printer *pptr;
-	extern struct printer lpt[NUM_PRINTERS];
-	for (i = 0, pptr = lpt; i < config.num_lpt; i++, pptr++) {
-	  (*print)("LPT%d command \"%s  %s\"  timeout %d  device \"%s\"  baseport 0x%03x\n",
-	  i+1, pptr->prtcmd, pptr->prtopt, pptr->delay, (pptr->dev ? pptr->dev : ""), pptr->base_port); 
-	}
+        int i;
+	for (i = 0; i < config.num_lpt; i++)
+          printer_print_config(i, print);
     }
 
     {
@@ -424,7 +413,7 @@ void secure_option_preparse(int *argc, char **argv)
   char *opt;
   int runningsuid = get_orig_uid() != get_orig_euid();
 
-  char * get_option(char *key, int with_arg)
+  static char * get_option(char *key, int with_arg)
   {
     char *p;
     char *basename;
@@ -577,7 +566,6 @@ static void config_post_process(void)
     if (config.X) {
 #ifdef HAVE_KEYBOARD_V1
 	if (!config.X_keycode) {
-	    extern void keyb_layout(int layout);
 	    keyb_layout(-1);
 	    c_printf("CONF: Forcing neutral Keyboard-layout, X-server will translate\n");
 	}
@@ -715,8 +703,6 @@ static void config_scrub(void)
 void 
 config_init(int argc, char **argv)
 {
-    extern char *commandline_statements;
-    extern int dexe_running;
     int             c=0;
     char           *confname = NULL;
     char           *dosrcname = NULL;
@@ -834,17 +820,14 @@ config_init(int argc, char **argv)
 	    break;
 
 	case 'u': {
-		extern int define_config_variable(char *name);
 		char *s=malloc(strlen(optarg)+3);
 		s[0]='u'; s[1]='_';
 		strcpy(s+2,optarg);
 		define_config_variable(s);
 	    }
 	    break;
-	case 'U': {
-		extern void init_uhook(char *pipes);
-		init_uhook(optarg);
-	    }
+	case 'U':
+	    init_uhook(optarg);
 	    break;
 	}
     }
@@ -871,7 +854,6 @@ config_init(int argc, char **argv)
     if (config_check_only) set_debug_level('c',1);
 
     if (dexe_name || !strcmp(basename,"dosexec")) {
-	extern void prepare_dexe_load(char *name);
 	if (!dexe_name) dexe_name = argv[optind];
 	if (!dexe_name) {
 	  usage(basename);

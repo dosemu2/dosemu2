@@ -45,6 +45,7 @@
 #define RX_BUFFER_SIZE            128
 #define TX_BUFFER_SIZE            64
 
+extern int no_local_video; /* used by virtual port code */
 EXTERN u_char irq_source_num[255];	/* Index to map from IRQ no. to serial port */
 EXTERN u_char com_port_used[17];       /* Used for auto-assign comport config */
 

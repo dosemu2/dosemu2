@@ -15,7 +15,7 @@ struct print_state
 	int line;
 	int chars;
 };
-void start_line(struct print_state *state, int max) 
+static void start_line(struct print_state *state, int max) 
 {
 	if (state->chars > max) {
 		fprintf(state->out, "\n");
@@ -23,7 +23,7 @@ void start_line(struct print_state *state, int max)
 		state->chars = 0;
 	}
 }
-void print_header(struct print_state *state)
+static void print_header(struct print_state *state)
 {
 	start_line(state, 0);
 	fprintf(state->out,
@@ -37,7 +37,7 @@ void print_header(struct print_state *state)
 	state->chars = 0;
 }
 
-void print_trailer(struct print_state *state)
+static void print_trailer(struct print_state *state)
 {
 	start_line(state, 0);
 	fprintf(state->out, 
@@ -46,7 +46,7 @@ void print_trailer(struct print_state *state)
 	
 }
 
-void print_entry(struct print_state *state, int letter, int attrib)
+static void print_entry(struct print_state *state, int letter, int attrib)
 {
 	int amount;
 #if 0
@@ -62,7 +62,7 @@ void print_entry(struct print_state *state, int letter, int attrib)
 #endif
 }
 
-void dump_attributes(FILE *out, unsigned char *attributes)
+static void dump_attributes(FILE *out, unsigned char *attributes)
 {
 	int i;
 	struct print_state state[1];
@@ -82,7 +82,7 @@ struct entry {
 	char type[3];
 };
 
-unsigned char compute_attribute(char *type)
+static unsigned char compute_attribute(char *type)
 {
 	unsigned char attrib = KEYSYM_UNKNOWN;
 	
@@ -110,7 +110,7 @@ unsigned char compute_attribute(char *type)
 	return attrib;
 }
 
-void store_attributes(struct entry *entry, unsigned char *attributes)
+static void store_attributes(struct entry *entry, unsigned char *attributes)
 {
 	int i;
 	unsigned char attrib = compute_attribute(entry->type);
@@ -119,7 +119,7 @@ void store_attributes(struct entry *entry, unsigned char *attributes)
 	}
 }
 
-int compute_missing_attribute(int letter)
+static int compute_missing_attribute(int letter)
 {
 	int attrib = KEYSYM_UNKNOWN;
 	switch(letter) {
@@ -304,7 +304,7 @@ int compute_missing_attribute(int letter)
 	return attrib;
 }
 
-int read_next_entry(FILE *in, struct entry *entry)
+static int read_next_entry(FILE *in, struct entry *entry)
 {
 	char number_str1[5];
 	char number_str2[5];
@@ -334,7 +334,7 @@ int read_next_entry(FILE *in, struct entry *entry)
 	return 0;
 }
 
-void init_keysyms(unsigned char *attributes)
+static void init_keysyms(unsigned char *attributes)
 {
 	int i;
 	for(i = 0; i < NUM_KEYSYMS; i++) {
@@ -342,7 +342,7 @@ void init_keysyms(unsigned char *attributes)
 	}
 }
 
-void read_file(FILE *in, unsigned char *attributes)
+static void read_file(FILE *in, unsigned char *attributes)
 {
 	struct entry entry[1];
 	while(read_next_entry(in, entry) == 0) {
@@ -350,7 +350,7 @@ void read_file(FILE *in, unsigned char *attributes)
 	}
 }
 
-void process_file(FILE *in, FILE *out)
+static void process_file(FILE *in, FILE *out)
 {
 	static unsigned char attributes[NUM_KEYSYMS];
 	init_keysyms(attributes);

@@ -18,13 +18,7 @@
 #define FALSE  0
 #define TRUE   1
 
-#if 0
-extern void GetValueFromIniFile (char *, char *, char *, char *);
-extern void GetValueFromIniFilePath (char *, char *, char *, char *);
-extern void SetValueInIniFile (char *, char *, char *, char *);
-#else
 #include "inifile.h"
-#endif
 
 /****************************************
  * An ini file should have the extension .INI, and is formatted

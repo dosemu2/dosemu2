@@ -22,6 +22,7 @@
 
 EXTERN u_char *shared_qf_memory;
 EXTERN void shared_memory_init(void);
+EXTERN void shared_memory_exit(void);
 EXTERN void shared_keyboard_init (void);
 
 #endif

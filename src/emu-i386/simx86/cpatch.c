@@ -32,7 +32,7 @@
  *
  ***************************************************************************/
 
-#define asmlinkage
+#define asmlinkage static
 #include "emu86.h"
 #include "trees.h"
 #include "codegen-arch.h"
@@ -49,7 +49,7 @@ int s_mprotect(caddr_t addr)
 	return e_mprotect(addr,0);
 }
 
-int m_mprotect(caddr_t addr)
+__attribute__((unused)) static int m_mprotect(caddr_t addr)
 {
 	__asm__ ("cld");
 	if (debug_level('e')>3)
@@ -60,7 +60,7 @@ int m_mprotect(caddr_t addr)
 /*
  * Return address of the stub function is passed into eip
  */
-int m_munprotect(caddr_t addr, long eip)
+__attribute__((unused)) static int m_munprotect(caddr_t addr, long eip)
 {
 	__asm__ ("cld");
 	if (debug_level('e')>3) e_printf("\tM_MUNPROT %08lx:%08lx [%08lx]\n",
@@ -78,8 +78,7 @@ int m_munprotect(caddr_t addr, long eip)
 	return e_munprotect(addr,0);
 }
 
-
-int r_munprotect(caddr_t addr, long len, long flags)
+__attribute__((unused)) static int r_munprotect(caddr_t addr, long len, long flags)
 {
 	__asm__ ("cld");
 	if (flags & EFLAGS_DF) addr -= len;
@@ -92,7 +91,7 @@ int r_munprotect(caddr_t addr, long len, long flags)
 #endif
 	e_munprotect(addr,len);
 	return 0;
-}
+}  __attribute__((unused))
 
 /* ======================================================================= */
 

@@ -23,7 +23,7 @@ fi
 
 SUFFIX=""
 while [ "$1" != "" ]; do
-  SUFFIX="$SUFFIX $1"
+  SUFFIX="$SUFFIX \"$1\""
   shift
 done
 
@@ -95,6 +95,7 @@ done
 echo "mkpluginhooks enable $PLUGIN"
 ./mkpluginhooks enable $PLUGIN
 
-echo "exec ./configure $STRING $SUFFIX"
+eval "set -- $SUFFIX"
 export DOSEMU_DEFAULT_CONFIGURE=1
-exec ./configure $STRING $SUFFIX
+echo exec ./configure $STRING "$@"
+exec ./configure $STRING "$@"

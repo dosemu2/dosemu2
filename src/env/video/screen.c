@@ -25,14 +25,11 @@
 int selstartx = 0,selstarty = 0;
 int selected = SELECTION_CLEAR;
 
-
 static unsigned char *selection_text = NULL;
 
+#if 0 /* used at all?? */
 static int selection_length;		/* length of selection text */
 
-
-/* from X.c */
-extern int font_width,font_height;
 void scr_start_selection(int x,int y)
 { 
   char *text = "scr_start_selection";
@@ -193,6 +190,7 @@ void scr_send_selection(Display *dpy,int time,int requestor,int target,int prope
     }
   XSendEvent(dpy,requestor,False,0,&event);
 }
+#endif
 
 /***************************************************************************
  *  Request the current primary selection
@@ -274,7 +272,7 @@ void scr_paste_primary(Display *dpy,int window,int property,int Delete)
     } while (bytes_after > 0);
 }
 
-
+#if 0
 /***************************************************************************
  *  Clear the current selection.
  ***************************************************************************/
@@ -342,6 +340,10 @@ void scr_delete_selection(void)
 */
 }
 
+//#if 0
+
+This mess is no longer used ? -- Bart
+
 /*  Send count characters directly to the command.
  */
 /*
@@ -393,4 +395,4 @@ using that upsets the whole thing
     }
 }
 */
-
+#endif

@@ -17,6 +17,8 @@
 #include "doshelpers.h"
 #include "../coopthreads/coopthreads.h"
 
+#include "cmdline.h"
+
 #define printf	com_printf
 #define perror	com_printf
 #define read	com_dosread
@@ -25,7 +27,7 @@ int msetenv(char *,char *);
 
 #define CMDBUFFSIZE 256
 /* This program just reads stdin... */
-int cmdline_main(void)
+int cmdline_main(int argc, char **argv)
 {
 	char *buff = malloc(CMDBUFFSIZE), *p, *q, *endb;
 

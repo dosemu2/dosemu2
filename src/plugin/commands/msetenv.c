@@ -16,6 +16,8 @@
 #include "doshelpers.h"
 #include "../coopthreads/coopthreads.h"
 
+#include "msetenv.h"
+
 #define peek	com_peek
 #define MCB	com_MCB
 

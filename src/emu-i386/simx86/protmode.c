@@ -205,6 +205,7 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 	return 0;
 }
 
+#if 0
 /* not (yet) used */
 void ValidateAddr(unsigned char *addr, unsigned short sel)
 {
@@ -227,7 +228,7 @@ void ValidateAddr(unsigned char *addr, unsigned short sel)
 	    dbug_printf("selector %#x not present\n",sel);
 	leavedos(0);
 }
-
+#endif
 
 /* flags with 0x409e mask:
  *	0090	16 RO data

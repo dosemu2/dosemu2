@@ -8,6 +8,7 @@
 
 #define YY_NO_UNPUT		1
 #define USE_LOOP_HANDLING	1
+#define LEXER			1
 
 #if USE_LOOP_HANDLING
   #define YY_NEVER_INTERACTIVE 1 /* need this to avoid access to yyin within
@@ -42,6 +43,7 @@
 
 #include "parsglob.h"
 #include "parser.h"
+#include "dosemu_config.h"
 #include "lexer.h"
 int line_count;
 
@@ -61,9 +63,6 @@ static void push__active(void);
 static void pop__active(void);
 static void enter_includefile(char * fname);
 static void enter_macrofile(char *variable);
-extern char *get_config_variable(char *name);
-extern int config_check_only;
-extern char *checked_getenv(const char *name);
 
 #if 0 /* this just to test the conditional code */
   #define TESTACTIVE (({if(__active__)fprintf(stderr,">>>%s<<<\n", yytext);}),__active__)
@@ -91,10 +90,6 @@ else if (TESTACTIVE)
   } \
   else other_stuff \
 }
-
-
-extern void yyerror(char* string, ...);
-extern void yywarn(char* string, ...);
 
 char *yy_vbuffer=0;
 
@@ -142,9 +137,6 @@ char *yy_vbuffer=0;
 /*
  * We are intercepting the yylex() function calls from the parser
  */ 
-#define OUR_YY_DECL int yylex (YYSTYPE* yylval)
-OUR_YY_DECL;
-
 #undef YY_DECL
 #define YY_DECL static int real_yylex ( YYSTYPE* yylval )
 
@@ -805,8 +797,6 @@ int yywrap(void)    /* this gets called at EOF of a parsed file */
   return(0);
 }
 
-
-extern void yyerror(char* string, ...);
 
 static void push__active(void)
 {

@@ -72,7 +72,7 @@ static t_shiftstate get_kbd_flags(void)
   return s;
 }
 
-void do_raw_getkeys(void)
+static void do_raw_getkeys(void)
 {
   int i,count;
   Bit8u buf[KBBUF_SIZE];
@@ -199,7 +199,7 @@ static void raw_keyboard_reset(void)
 /* reset LEDs to normal mode, reflecting keyboard state */
 #define LED_NORMAL 0x08
 
-void raw_keyboard_close(void)
+static void raw_keyboard_close(void)
 {
   if (kbd_fd != -1) {
     k_printf("KBD(raw): raw_keyboard_close: resetting keyboard to K_XLATE mode\n");

@@ -62,32 +62,14 @@
 #include "cpu.h"
 #include "dpmi.h"
 #include "utilities.h"
+#include "dosemu_config.h"
+#include "xms.h"
+#include "dis8086.h"
 
 #define MHP_PRIVATE
 #include "mhpdbg.h"
 
 #define makeaddr(x,y) ((((unsigned long)x) << 4) + (unsigned long)y)
-
-#if 0 /* modify_ldt already defined in dpmi.c */
-_syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
-#endif
-extern int modify_ldt(int func, void *ptr, unsigned long bytecount);
-
-/* externs */
-extern struct mhpdbgc mhpdbgc;
-extern int a20;
-extern void mhp_send(void), mhp_close(void), mhp_putc(char c1);
-
-#if 0
-/* NOTE: the below is already defined with #include "emu.h"
- *       Must NOT redefine it, else vm86plus won't work !!!
- */
-extern struct vm86_struct vm86s;
-#endif
-
-extern int  dis_8086(unsigned int, const unsigned char *,
-                     unsigned char *, int, unsigned int *, unsigned int *,
-                     unsigned int, int);
 
 /* prototypes */
 static void* mhp_getadr(unsigned char *, unsigned int *, unsigned int *, unsigned int *);
@@ -388,7 +370,7 @@ static void mhp_rusermap(int argc, char *argv[])
 
 static void mhp_rmapfile(int argc, char *argv[])
 {
-  FILE * ifp;
+  FILE * ifp = NULL;
   unsigned char bytebuf[IBUFS];
   unsigned long a1;
   char *map_fname = DOSEMU_MAP_PATH;
@@ -396,7 +378,16 @@ static void mhp_rmapfile(int argc, char *argv[])
   if (argc >= 2) {
     map_fname = argv[1];
   }
-  ifp = fopen(map_fname, "r");
+  if (map_fname == NULL && dosemu_proc_self_exe != NULL) {
+    /* try to get symbols on the fly */
+    map_fname = malloc(strlen(dosemu_proc_self_exe) + 60);
+    strcpy(map_fname, "nm ");
+    strcat(map_fname, dosemu_proc_self_exe);
+    strcat(map_fname, " | grep -v '\\(compiled\\)\\|\\(\\.o$\\)\\|\\( a \\)' | sort");
+    ifp = popen(map_fname, "r");
+  } else if (map_fname != NULL) {
+    ifp = fopen(map_fname, "r");
+  }
   if (!ifp) {
      mhp_printf("unable to open map file %s\n", map_fname);
      return;
@@ -424,7 +415,12 @@ static void mhp_rmapfile(int argc, char *argv[])
      symbol_table[last_symbol].addr = a1;
      last_symbol++;
   }
-  fclose(ifp);
+  if (map_fname != argv[1] && map_fname != DOSEMU_MAP_PATH) {
+    pclose(ifp);
+    free(map_fname);
+  }
+  else
+    fclose(ifp);
   addrmax = symbol_table[last_symbol-1].addr;
   mhp_printf("%d symbol(s) processed\n", last_symbol);
   mhp_printf("highest address %08x(%s)\n", addrmax, getname(addrmax));
@@ -725,7 +721,6 @@ static void mhp_mode(int argc, char * argv[])
 
 static void mhp_disasm(int argc, char * argv[])
 {
-   extern int a20; /* a20 is defined in dosemu/xms.c */
    int rc;
    unsigned int nbytes;
    unsigned long org;
@@ -1030,7 +1025,7 @@ static void* mhp_getadr(unsigned char * a1, unsigned int * s1, unsigned int *o1,
    }
 
    *lim = limit - off1;
-   return (void *) base_addr + off1;
+   return (void *) (base_addr + off1);
 }
 
 int mhp_setbp(unsigned long seekval)
@@ -1421,7 +1416,6 @@ int mhp_getcsip_value()
 
 void mhp_modify_eip(int delta)
 {
-  extern int dpmi_mhp_modify_eip(int delta);
   if (IN_DPMI) dpmi_mhp_modify_eip(delta);
   else LWORD(eip) +=delta;
 }
@@ -1435,8 +1429,7 @@ void mhp_cmd(const char * cmd)
 static void mhp_print_ldt(int argc, char * argv[])
 {
   char buffer[0x10000];
-  extern unsigned long *ldt_buffer;
-  unsigned long *lp, *lp_=ldt_buffer;
+  unsigned long *lp, *lp_=(unsigned long *)ldt_buffer;
   unsigned long base_addr, limit;
   int type, type2, i;
   unsigned int seg;

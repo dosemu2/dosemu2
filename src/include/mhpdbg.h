@@ -49,6 +49,7 @@ void mhp_printf(const char *,...);
 int mhp_getaxlist_value(int v, int mask);
 int mhp_getcsip_value(void);
 void mhp_modify_eip(int delta);
+void mhp_exit_intercept(int errcode);
 
 void DBGload(void);
 void DBGload_CSIP(void);
@@ -80,7 +81,7 @@ EXTERN struct mhpdbg mhpdbg;
 #define IBUFS 100
 #define MAXARG 16
 #define MAXBP 64
-#define MAXSYM 3500
+#define MAXSYM 10000
 
 void mhp_cmd(const char *);
 void mhp_bpset(void);
@@ -88,6 +89,7 @@ void mhp_bpclr(void);
 int  mhp_bpchk(unsigned char *);
 int mhp_setbp(unsigned long seekval);
 int mhp_clearbp(unsigned long seekval);
+void mhp_regex(const char *fmt, va_list args);
 
 struct brkentry {
    unsigned char * brkaddr;
@@ -151,6 +153,11 @@ struct symbl2_entry {
    unsigned char type;
    unsigned char name[49];
 };
+
+extern int traceloop;
+extern char loopbuf[4];
+extern struct mhpdbgc mhpdbgc;
+
 #endif	 /* MHP_PRIVATE */
 
 #endif	 /* MHPDBG_H */

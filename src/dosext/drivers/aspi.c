@@ -817,7 +817,7 @@ static Bit16u ASPI_Inquiry(SRB_GDEVBlock16 *prb, FARPTR16 segptr_prb)
 
 #if 0 /* seems not to be used */
 
-Bit16u GetASPISupportInfo16()
+static Bit16u GetASPISupportInfo16()
 {
     A_printf("ASPI: GETASPISupportInfo\n");
     /* high byte SS_COMP - low byte number of host adapters.
@@ -833,7 +833,7 @@ Bit16u GetASPISupportInfo16()
  *             SendASPICommand16   (WINASPI.2)
  */
 
-Bit16u SendASPICommand16(FARPTR16 segptr_srb)
+static Bit16u SendASPICommand16(FARPTR16 segptr_srb)
 {
   LPSRB16 lpSRB = (LPSRB16)segptr_srb;
 

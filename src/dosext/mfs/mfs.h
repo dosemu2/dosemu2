@@ -357,6 +357,8 @@ typedef u_char *sda_t;
 #define lol_nuldev(lol)		        (&lol[lol_nuldev_off])
 
 typedef u_char *lol_t;
+extern lol_t lol;
+extern int lol_nuldev_off;
 
 #ifdef OLD_OBSOLETE
 typedef struct lol_record {
@@ -401,7 +403,3 @@ typedef struct lol_record {
 #define REDIRECT_DEVICE 3
 #define CANCEL_REDIRECTION 4
 #define EXTENDED_GET_REDIRECTION 5
-
-#ifdef X86_EMULATOR
-extern int e_dos_read(int fd, char *data, int cnt);
-#endif

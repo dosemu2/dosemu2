@@ -26,7 +26,10 @@
 #define VERSION_OF(a,b,c,d) (((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
 #define IS_DEVEL_RELEASE (DOSEMU_VERSION_CODE && 65536)
 
-#ifndef __ASM__
+#ifdef __ASM__
+/* trick to comment out prototypes */
+#define extern #
+#else
 #include "extern.h"
 
 #include "confpath.h"
@@ -365,7 +368,7 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 
 
 #ifndef __ASM__
-EXTERN char *dosemu_map_file_name INIT(DOSEMULIB_DEFAULT "/dosemu-" VERSTR ".map");
+EXTERN char *dosemu_map_file_name INIT(0);
 #endif
 
 #include "plugin_config.h"

@@ -35,6 +35,8 @@ int printer_open(int prnum);
 int printer_close(int prnum);
 int printer_flush(int prnum);
 int printer_write(int prnum, int outchar);
+void printer_config(int prnum, struct printer *pptr);
+void printer_print_config(int prnum, void (*print)(char *, ...));
 
 /* status bits */
 #define LPT_TIMEOUT	0x1

@@ -19,8 +19,7 @@
  * Don't forget the curly brackets around your statement.
  */
 
-case (DOS_HELPER_PLUGIN+1): {
-	extern int demo_plugin_inte6(void);
+case (DOS_HELPER_PLUGIN+1):
 	if ( ! demo_plugin_inte6() ) return 0;
 	break;
-}
+

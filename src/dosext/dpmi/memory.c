@@ -241,14 +241,14 @@ DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
      * (e.g. Video buffers, adapter RAM, etc).
      * This may lead to some incompatibilities.        --Hans, 2000/02/04
      */
-    void *mapped_base;
+    char *mapped_base;
 
     mapped_base = block->base + offset;
     /* it seems we can\'t map low_addr to mapped_base, we must map */
     /* mapped_base to low_addr, so first copy the content */
     dpmi_eflags &= ~IF;
     pic_cli();
-    memmove((void *)mapped_base, (void *)low_addr, cnt*DPMI_page_size);
+    memmove(mapped_base, (void *)low_addr, cnt*DPMI_page_size);
 
     if ((int)mmap_mapping(MAPPING_DPMI | MAPPING_ALIAS,
 	    (void *)low_addr, cnt*DPMI_page_size,

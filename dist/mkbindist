@@ -22,7 +22,7 @@ rm -rf $TMPBASE
 TMP=$TMPBASE/dosemu
 BIN=../bin
 SYS=../commands
-COM=../src/plugin/commands
+COM=../commands
 
 BLIST="dosemu.bin dosdebug"
 SLIST="aspi.sys cdrom.sys ems.sys emufs.sys fossil.com mgarrot.com"

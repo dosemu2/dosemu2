@@ -83,6 +83,9 @@
 #endif
 
 #include "dma.h"
+#include "userhook.h"
+
+static void callback_return(void);
 
 /*  */
 /* vm86_GP_fault @@@  32768 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/arch/linux/async/sigsegv.c --> src/emu-i386/do_vm86.c  */
@@ -295,7 +298,6 @@ void vm86_GP_fault(void)
 
     else if (lina == (unsigned char *) CBACK_ADD) {
       /* we are back from a callback routine */
-      static void callback_return(void);
       callback_return();
     }
 
@@ -487,11 +489,8 @@ run_vm86(void)
 freeze_idle:
     handle_signals();
 
-    { /* catch user hooks here */
-    	extern int uhook_fdin;
-    	extern void uhook_poll(void);
-    	if (uhook_fdin != -1) uhook_poll();
-    }
+    /* catch user hooks here */
+    if (uhook_fdin != -1) uhook_poll();
 
     /* here we include the hooks to possible plug-ins */
     #define VM86_RETURN_VALUE retval

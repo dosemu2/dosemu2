@@ -280,12 +280,6 @@
 /* table with video mode definitions */
 #include "vgaemu_modelist.h"
 
-/* from dosext/dpmi/dpmi.c */
-unsigned long dpmi_GetSegmentBaseAddress(unsigned short);
-
-/* env/video/video.c */
-int load_file(char *name, int foffset, char *mstart, int msize);
-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 /*
  * functions local to this file
@@ -2653,7 +2647,7 @@ unsigned vgaemu_xy2ofs(unsigned x, unsigned y)
 
 void vgaemu_move_vga_mem(unsigned dst, unsigned src, unsigned len)
 {
-  void *dp, *sp;
+  char *dp, *sp;
 
   if(len == 0) return;
 

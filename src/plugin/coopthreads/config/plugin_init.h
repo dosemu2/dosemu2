@@ -9,15 +9,8 @@
  *
  * It should contain a valid call to the init function of the plug-in such as
  *
- *    {
- *       extern void my_plugin_init(void);
  *       my_plugin_init();
- *    }
  * 
- * Don't forget the curly brackets around your statement.
  */
 
-{
-	extern void coopthreads_plugin_init(void);
-	coopthreads_plugin_init();
-}
+coopthreads_plugin_init();

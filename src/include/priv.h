@@ -20,7 +20,10 @@ EXTERN int can_do_root_stuff INIT(0);
  * unset, if dosemu was started from a 'user login'
  */
 EXTERN int under_root_login INIT(0);
-  
+/* gives the current i/o privilege level without needing to ask
+   the kernel */
+EXTERN int current_iopl INIT(0);
+
 typedef int saved_priv_status;
 
 #define PRIV_MAGIC 0x56697250	/* "PriV" */
@@ -43,7 +46,7 @@ uid_t get_orig_uid(void);  /* get the uid that was present at start of dosemu */
 uid_t get_orig_euid(void); /* get the euid that was present at start of dosemu */
 gid_t get_orig_gid(void);  /* get the gid that was present at start of dosemu */
 int priv_drop(void);
-
+int is_in_groups(gid_t gid);
 
 /*
    The 'priv stuff' works as follows:

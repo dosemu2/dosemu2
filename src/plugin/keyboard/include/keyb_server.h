@@ -55,6 +55,10 @@ void read_queue(Bit16u *bios_key, t_shiftstate *shift, t_rawkeycode *raw);
 void backend_run(void);
 void backend_reset(void);
 
+void keyb_server_run(void);
+
+void do_irq1(void);
+
 #endif  /* not __ASM__ */
 
 /* physical scancodes deviating from keysyms */
@@ -71,6 +75,5 @@ void backend_reset(void);
 #define SP_SYSRQ_BREAK	0xff05
 
 #define IS_SPECIAL(s) (((s)&0xff00) == 0xff00)
-
 
 #endif /* _EMU_KEYB_H */

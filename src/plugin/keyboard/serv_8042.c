@@ -30,6 +30,7 @@
 #include "keyboard.h"
 #include "keyb_server.h"
 #include "speaker.h"
+#include "dosio.h"
 
 
 /* accurate emulation of special 8042 and keyboard commands - currently untested...
@@ -162,7 +163,6 @@ static void write_port60(Bit8u value)
     case 0xd1:
       h_printf("8042: drive output port lines, value=0x%02x\n", value);
       switch (value) {
-	extern void set_a20(int);
         case 0xdf:	/* enable A20 */
 	  h_printf("8042: enable A20 line\n");
 	  if (config.xms_size < 64) {

@@ -200,6 +200,7 @@ TODO:
 #include "config.h"
 /* For passing through GetRedirection Status */
 #include "memory.h"
+#include "redirect.h"
 #include "mangle.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
@@ -1585,8 +1586,7 @@ dos_fs_dev(state_t *state)
   return (UNCHANGED);
 }
 
-__inline__ void
-time_to_dos(time_t clock, u_short *date, u_short *time)
+static inline void time_to_dos(time_t clock, u_short *date, u_short *time)
 {
   struct tm *tm;
 
@@ -1601,8 +1601,7 @@ time_to_dos(time_t clock, u_short *date, u_short *time)
 	   ((tm->tm_sec>>1) & 0x1f));
 }
 
-__inline__ time_t 
-time_to_unix(u_short dos_date, u_short dos_time) 
+static inline time_t time_to_unix(u_short dos_date, u_short dos_time) 
 {
    struct tm T;
    T.tm_sec  = (dos_time & 0x1f) << 1;    dos_time >>= 5;
@@ -3906,8 +3905,12 @@ dos_fs_redirect(state_t *state)
 		ret = fcntl (fd,F_SETLK,&larg);
 		Debug0((dbg_fd, "lock fd=%x rc=%x type=%x whence=%x start=%lx, len=%lx\n",
 			fd, ret, larg.l_type, larg.l_whence, larg.l_start,larg.l_len));
-		if (ret == -1) SETWORD(&(state->eax), ACCESS_DENIED);
-		return ret != -1 ? TRUE : FALSE;
+		if (ret != -1) return TRUE; /* no error */
+		ret = (errno == EAGAIN) ? FILE_LOCK_VIOLATION :
+		      (errno == ENOLCK) ? SHARING_BUF_EXCEEDED :
+		      ACCESS_DENIED;
+		SETWORD(&(state->eax), ret); 
+		return FALSE;
 	}
     break;
   case UNLOCK_FILE_REGION:	/* 0x0b */

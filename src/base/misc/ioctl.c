@@ -73,10 +73,6 @@
 #define PAGE_SIZE       4096
 #endif
 
-inline int process_interrupt(SillyG_t *sg);
-
-
-void io_select_init(void);
 #if defined(SIG)
 int SillyG_pendind_irq_bits=0;
 
@@ -89,7 +85,7 @@ int SillyG_do_irq(void)
 }
 #endif
 
-inline int process_interrupt(SillyG_t *sg)
+static inline int process_interrupt(SillyG_t *sg)
 {
   int irq, ret=0;
 

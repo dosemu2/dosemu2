@@ -45,7 +45,7 @@ static int disks_initiated = 0;
 #define FDISKS config.fdisks
 #define HDISKS config.hdisks
 
-inline void disk_close(void);
+static void set_part_ent(struct disk *dp, char *tmp_mbr);
 
 #define USE_FSYNC 1
 
@@ -491,7 +491,6 @@ partition_setup(struct disk *dp)
   int part_fd, i;
   unsigned char tmp_mbr[SECTOR_SIZE];
   char *hd_name;
-  void set_part_ent(struct disk *, char *);
 
 #define PART_BYTE(p,b)  *((unsigned char *)tmp_mbr + PART_INFO_START + \
 			  (PART_INFO_LEN * (p-1)) + b)
@@ -590,8 +589,7 @@ partition_setup(struct disk *dp)
  *       put in the dp->part_info.number'th entry in the part table.
  */
 
-void
-set_part_ent(struct disk *dp, char *tmp_mbr)
+static void set_part_ent(struct disk *dp, char *tmp_mbr)
 {
   long	length;		/* partition length in sectors		*/
   long	end;		/* last sector number offset		*/
@@ -967,8 +965,7 @@ disk_init(void)
   }
 }
 
-int
-checkdp(struct disk *disk)
+static int checkdp(struct disk *disk)
 {
   if (disk == NULL) {
     d_printf("DISK: null dp\n");

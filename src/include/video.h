@@ -8,12 +8,12 @@
 #define VIDEO_H
 
 #include "extern.h"
+#include "port.h"
 typedef unsigned char byte;
 
 typedef struct { byte end, start; } cshape;
 
 extern void gettermcap(int);
-extern void scr_state_init(void);
 
 /* if you set this to 1, the video memory dirty bit will be checked 
    before updating the screen.
@@ -34,6 +34,7 @@ extern void scr_state_init(void);
      from 0xa0000 to 0xbffff.
 */
 #define USE_DUALMON 1
+void init_dualmon(void);
 
 #if USE_DUALMON && VIDEO_CHECK_DIRTY
   #error "Currently USE_DUALMON can't be used together with VIDEO_CHECK_DIRTY"
@@ -147,7 +148,9 @@ struct video_system {
 };
 
 extern struct video_system *Video;
-
+#if USE_DUALMON
+extern struct video_system *Video_default;
+#endif
 extern struct video_system Video_graphics,  Video_X, Video_console, Video_hgc, Video_term;
 
 EXTERN ushort *screen_adr;   /* pointer to video memory of current page */
@@ -177,8 +180,6 @@ EXTERN int text_scanlines INIT(400);   /* # of scan lines in textmodes */
                              /* these have effect only on video mode sets! */
 
 EXTERN unsigned char video_initialized INIT(0);
-extern int vga_initialize(void);
-extern void mda_initialize(void);
 extern void install_int_10_handler(void);
 extern void clear_screen(int s,int att);
 extern boolean set_video_mode(int);
@@ -282,6 +283,8 @@ extern void set_console_video(void);
 extern void clear_console_video(void);
 extern void set_consoleX_video(void);
 extern inline void console_update_cursor (int, int, int, int);
+extern int load_file(char *name, int foffset, char *mstart, int msize);
+
 
 /* moved here from s3.c --AV  */
 #define BASE_8514_1	0x2e8

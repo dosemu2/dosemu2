@@ -4,7 +4,7 @@ HEADERS="config init close inte6 ioselect poll"
 
 PLUG=plugin
 DIR=src/$PLUG
-INC=src/include
+INC=$DIR/include
 PREF=plugin_
 CONF=config
 CONFIGURE=configure
@@ -13,7 +13,7 @@ PINC=plugin_incdirs
 PCONF=plugin_configure
 PARSDIR=src/base/init
 
-PDIRS=`cd $DIR; find ./ -maxdepth 1 -type d -printf ' %f'`
+PDIRS=`cd $DIR; find ./ -maxdepth 1 ! -name include -type d -printf ' %f'`
 
 function gendummy {
   for i in $HEADERS; do
@@ -53,9 +53,14 @@ if [ "$1" = "" -o "$1" = "clean" ]; then
   gendummy clean
   restore_enable
   rm -f $LIB $PINC $PCONF $PARSDIR/parser.y $PARSDIR/lexer.l
-elif [ "$1" = "clean" ]; then
+  rm -rf $INC
+fi
+
+if [ "$1" = "clean" ]; then
   exit 0
 fi
+
+mkdir -p $INC
 
 if [ "$1" = "" ]; then gendummy; fi
 if [ "$1" = "" -o "$1" = "parser" ]; then cp -fp $PARSDIR/parser.y.in $PARSDIR/parser.y; fi

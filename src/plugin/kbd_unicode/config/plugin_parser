@@ -6,7 +6,6 @@
 	/* for unicode keyboard plugin */
 static void keyb_mod(int wich, t_keysym keynum, int unicode);
 static void dump_keytable_part(FILE *f, t_keysym *map, int size);
-void dump_keytable(FILE *f, struct keytable_entry *kt);
 
 %}
 	/* special bison declaration */

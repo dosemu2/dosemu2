@@ -69,7 +69,7 @@ enum{TYPE_INB, TYPE_OUTB, TYPE_INW, TYPE_OUTW, TYPE_IND, TYPE_OUTD, TYPE_EXIT};
 /* any user or system device which creates a new handle can't be later
  * remapped by extra_port_init()
  */
-void SET_HANDLE_COND(int p, int h)
+static void SET_HANDLE_COND(int p, int h)
 {
   if (port_handle_table[(p)] < STD_HANDLES)
 	port_handle_table[(p)]=(h);
@@ -106,8 +106,6 @@ static char *
 #define PORTLOG_MASK		(~(-1 << PORTLOG_MAXBITS))
 #define SIZE_PORTLOGMAP		(1 << (PORTLOG_MAXBITS -3))
 static unsigned long *portlog_map = 0;
-
-void init_port_traceing(void);
 
 void register_port_traceing(ioport_t firstport, ioport_t lastport)
 {
@@ -311,6 +309,10 @@ static int port_fd_in[2];
 Bit8u std_port_inb(ioport_t port)
 {
         struct portreq pr;
+
+        if (current_iopl == 3) {
+		return port_real_inb(port);
+        }
         pr.port = port;
         pr.type = TYPE_INB;
 	write(port_fd_out[1], &pr, sizeof(pr));
@@ -321,6 +323,11 @@ Bit8u std_port_inb(ioport_t port)
 void std_port_outb(ioport_t port, Bit8u byte)
 {
         struct portreq pr;
+
+        if (current_iopl == 3) {
+		port_real_outb(port, byte);
+		return;
+        }
         pr.word = byte;
         pr.port = port;
         pr.type = TYPE_OUTB;
@@ -330,6 +337,10 @@ void std_port_outb(ioport_t port, Bit8u byte)
 Bit16u std_port_inw(ioport_t port)
 {
         struct portreq pr;
+
+        if (current_iopl == 3) {
+		return port_real_inw(port);
+        }
         pr.port = port;
         pr.type = TYPE_INW;
 	write(port_fd_out[1], &pr, sizeof(pr));
@@ -340,6 +351,11 @@ Bit16u std_port_inw(ioport_t port)
 void std_port_outw(ioport_t port, Bit16u word)
 {
         struct portreq pr;
+
+        if (current_iopl == 3) {
+		port_real_outw(port, word);
+		return;
+        }
         pr.word = word;
         pr.port = port;
         pr.type = TYPE_OUTW;
@@ -349,6 +365,10 @@ void std_port_outw(ioport_t port, Bit16u word)
 Bit32u std_port_ind(ioport_t port)
 {
         struct portreq pr;
+
+        if (current_iopl == 3) {
+		return port_real_ind(port);
+        }
         pr.port = port;
         pr.type = TYPE_IND;
 	write(port_fd_out[1], &pr, sizeof(pr));
@@ -359,6 +379,11 @@ Bit32u std_port_ind(ioport_t port)
 void std_port_outd(ioport_t port, Bit32u dword)
 {
         struct portreq pr;
+
+        if (current_iopl == 3) {
+		port_real_outd(port, dword);
+		return;
+        }
         pr.word = dword;
         pr.port = port;
         pr.type = TYPE_OUTD;
@@ -838,51 +863,41 @@ int port_init(void)
    Maybe this server should wrap DOSEMU rather than be forked from
    it.
 */
-void port_server(void)
+static void port_server(void)
 {
         struct portreq pr;
-        unsigned char port_type;
+	struct sigaction sa;
+	_port_handler *ph;
         priv_iopl(3);
 	priv_drop();
         close(port_fd_in[0]);
         close(port_fd_out[1]);
         g_printf("server started\n");
+	SETSIG(SIG_RELEASE, SIG_IGN);
+	SETSIG(SIG_ACQUIRE, SIG_IGN);
         for (;;) {
                 read(port_fd_out[0], &pr, sizeof(pr));
                 if (pr.type >= TYPE_EXIT)
                         exit((int)pr.word);
-                port_type = port_handle_table[pr.port];
-                if (port_type != 0 && port_type < STD_HANDLES)
+		ph = &EMU_HANDLER(pr.port);
                 switch (pr.type) {
                 case TYPE_INB:
-                        if(port_handler[port_type].read_portb !=
-                           port_not_avail_inb)
-                                pr.word = port_real_inb(pr.port);
+                        pr.word = ph->read_portb(pr.port);
                         break;
                 case TYPE_OUTB:
-                        if(port_handler[port_type].write_portb !=
-                           port_not_avail_outb)
-                                port_real_outb(pr.port, pr.word);
+                        ph->write_portb(pr.port, pr.word);
                         break;
                 case TYPE_INW:
-                        if(port_handler[port_type].read_portw !=
-                           port_not_avail_inw)                        
-                                pr.word = port_real_inw(pr.port);
+                        pr.word = ph->read_portw(pr.port);
                         break;
                 case TYPE_OUTW:
-                        if(port_handler[port_type].write_portw !=
-                           port_not_avail_outw)
-                                port_real_outw(pr.port, pr.word);
+                        ph->write_portw(pr.port, pr.word);
                         break;
                 case TYPE_IND:
-                        if(port_handler[port_type].read_portd !=
-                           port_not_avail_ind)
-                                pr.word = port_real_ind(pr.port);
+                        pr.word = ph->read_portd(pr.port);
                         break;
                 case TYPE_OUTD:
-                        if(port_handler[port_type].write_portd !=
-                           port_not_avail_outd)
-                                port_real_outd(pr.port, pr.word);
+                        ph->write_portd(pr.port, pr.word);
                         break;
                 }
                 if (!(pr.type & 1))

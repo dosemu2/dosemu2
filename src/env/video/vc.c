@@ -28,7 +28,6 @@
  */
 
 #include "config.h"
-#undef __USE_BSD
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -69,21 +68,13 @@
 #include "timers.h"
 
 static void set_dos_video (void);
-void put_video_ram (void);
 
-extern int
-  dosemu_sigaction (int sig, struct sigaction *, struct sigaction *);
 static void SIGRELEASE_call (void);
 static void SIGACQUIRE_call (void);
-
-void dump_video_regs (void);
 
 #ifdef WANT_DUMP_VIDEO
 static void dump_video (void);
 #endif
-
-void dump_video_linux (void);
-
 
 static int  color_text;
 
@@ -93,7 +84,6 @@ static int  color_text;
 
 static void release_vt (int sig, struct sigcontext_struct context);
 static void acquire_vt (int sig, struct sigcontext_struct context);
-void get_video_ram (int);
 
 static inline void
 forbid_switch (void)
@@ -514,11 +504,12 @@ void
 clear_process_control (void)
 {
   struct vt_mode vt_mode;
+  struct sigaction sa;
 
   vt_mode.mode = VT_AUTO;
   ioctl (console_fd, VT_SETMODE, (int) &vt_mode);
-  sysv_signal (SIG_RELEASE, SIG_IGN);
-  sysv_signal (SIG_ACQUIRE, SIG_IGN);
+  SETSIG (SIG_RELEASE, SIG_IGN);
+  SETSIG (SIG_ACQUIRE, SIG_IGN);
 }
 
 

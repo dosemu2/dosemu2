@@ -6,7 +6,6 @@
 /* for keyboard plugin */
 static void keyb_mod(int wich, int keynum, int dummy);
 static void dump_keytable_part(FILE *f, unsigned char *map, int size);
-void dump_keytable(FILE *f, struct keytable_entry *kt);
 
 %}
 	/* no special bison declaration for keyboard plugin so far */

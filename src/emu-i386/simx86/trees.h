@@ -81,6 +81,19 @@ typedef struct _imeta {
 
 extern IMeta InstrMeta[];
 extern int   CurrIMeta;
+extern int NodesExecd;
+extern int TotalNodesExecd;
+extern int NodesParsed;
+extern int TotalNodesParsed;
+extern int MaxNodes;
+extern int MaxNodeSize;
+extern int MaxDepth;
+extern int NodesNotFound;
+extern int NodesFastFound;
+extern int PageFaults;
+extern int EmuSignals;
+extern int NodesFound;
+extern int TreeCleanups;
 
 extern unsigned char *GenCodeBuf;
 extern int GenBufSize;
@@ -108,6 +121,8 @@ typedef struct avltr_node
 	linkdesc clink;
 } TNode;
 
+extern TNode *LastXNode;
+
 #define AHDRPTR(a)	*((TNode **)((a)->mblock))
 
 /* Used for traversing a right-threaded AVL tree. */
@@ -130,12 +145,12 @@ typedef struct avltr_tree
 
 extern avltr_tree CollectTree;
 
+void avltr_delete (const long key);
 //
 TNode *FindTree(long key);
 TNode *Move2Tree(void);
 //
 void InitTrees(void);
-void avltr_destroy(void);
 int  FindCodeNode(long addr);
 int  InvalidateSingleNode (long addr, long eip);
 int  InvalidateNodePage(long addr, int len, long eip, int *codehit);

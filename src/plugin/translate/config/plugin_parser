@@ -31,7 +31,7 @@ charset_flag	: INTERNAL STRING { set_internal_charset ($2); }
 %%
 
 	/* charset */
-struct char_set *get_charset(char *name)
+static struct char_set *get_charset(char *name)
 {
 	struct char_set *charset;
 

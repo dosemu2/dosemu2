@@ -22,6 +22,7 @@
 
 #include "config.h"
 #include "emu.h"
+#include "cpu.h"
 #include "memory.h"
 #include "doshelpers.h"
 
@@ -61,7 +62,6 @@ void dump_regs(char *file, int line)
   int i;
   unsigned char *sp;
   unsigned char *cp;
-  extern char *emu_disasm(int sga, unsigned int ip);
 
   cp = SEG_ADR((unsigned char *), cs, ip);
   if (!cp) {
