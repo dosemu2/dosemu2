@@ -803,16 +803,9 @@ int do_irq(void)
 	if (debug_level('r')>2)
 		r_printf("------ PIC: intr loop ---%06x--%06x----\n",
 			pic_vm86_count,pic_dpmi_count);
-	if (in_dpmi ) {
-          ++pic_dpmi_count;
-	  pic_print(2, "Initiating DPMI irq lvl ", ilevel, " in do_irq");
-	  run_dpmi();
-	}
-	else {
-	  ++pic_vm86_count;
-	  pic_print(2, "Initiating VM86 irq lvl ", ilevel, " in do_irq");
-          run_vm86();
-        }
+	++pic_vm86_count;
+	pic_print(2, "Initiating VM86 irq lvl ", ilevel, " in do_irq");
+	run_vm86();
 	if (!test_bit(ilevel,&pic_isr))
 	  break;
 
@@ -1148,9 +1141,6 @@ void pic_sched(int ilevel, int interval)
   *	[1u-15sec] range check?
   */
   if(interval > 0 && interval < 0x3fffffff) {
-     if (interval < 100) {
-       if (in_dpmi) run_dpmi();  /* we're surely out of int8 here */
-     }
      if(pic_ltime[ilevel]==NEVER) {
 	pic_itime[ilevel] = pic_itime[32] + interval;
      } else {

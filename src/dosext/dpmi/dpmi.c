@@ -2281,133 +2281,6 @@ void run_pm_int(int i)
 
 void run_dpmi(void)
 {
-   int retval;
-   unsigned char *csp;
-
-  /* always invoke vm86() with this call.  all the messy stuff will
-   * be in here.
-   */
-
-  if (in_dpmi_dos_int) {
-
-   csp = SEG_ADR((unsigned char *), cs, ip);
-
-   /* a little optimization - if we already know that next insn is a hlt
-    * and we are going to repeat it (same address as before)
-    * there's no need to lose time calling vm86() again - AV
-    */
-   if (*csp == 0xf4) {
-     if (debug_level('M')>3) D_printf("DPMI: skip 0xf4 at %p\n", csp);
-     retval=VM86_UNKNOWN;
-     /* kernel keeps IF always set */
-     REG(eflags) |= IF;
-   }
-   else {
-    if (
-#ifdef TRACE_DPMI
-	((debug_level('t')==0)||((REG(cs)!=0x70)&&(REG(eip)!=0x5b0)))&&
-#endif
-	(debug_level('M')>2)) {
-	D_printf ("DPMI: do_vm86,  %04x:%04lx %08lx %08lx %08x\n", REG(cs),
-		REG(eip), REG(esp), REG(eflags), dpmi_eflags);
-    }
-    in_vm86 = 1;
-    retval=DO_VM86(&vm86s);
-    in_vm86=0;
-
-#if 0
-    /* This will let foxpro run with cpu>=486 */
-    if (_EFLAGS & (AC|ID)) {
-      _EFLAGS &= ~(AC|ID);
-      if (debug_level('M')>3)
-	D_printf("BUG: AC,ID set; flags changed to %08x\n",_EFLAGS);
-    }
-#endif
-
-    if (
-#ifdef TRACE_DPMI
-	(retval!=1)&&
-#endif
-	(debug_level('M')>3)) {
-	D_printf ("DPMI: ret_vm86, %04x:%04lx %08lx %08lx %08x ret=%#x\n",
-		REG(cs), REG(eip), REG(esp), REG(eflags), dpmi_eflags, retval);
-#ifdef TRACE_DPMI
-	D_printf ("ax=%04x bx=%04x ss=%04x sp=%04x bp=%04x\n"
-	      		 "           cx=%04x dx=%04x ds=%04x cs=%04x ip=%04x\n"
-	      		 "           si=%04x di=%04x es=%04x flg=%08x\n",
-			_AX, _BX, _SS, _SP, _BP, _CX, _DX, _DS, _CS, _IP,
-			_SI, _DI, _ES, _EFLAGS);
-#endif
-    }
-  } /* not an HLT insn */
-
-    if (REG(eflags)&IF) {
-      if (!(dpmi_eflags&IF))
-        dpmi_sti();
-    } else {
-#ifdef X86_EMULATOR
-      if (config.cpuemu<2) D_printf("DPMI: strange...IF clear, why?\n");
-#endif
-      if (dpmi_eflags&IF)
-        dpmi_cli();
-    }
-
-    switch VM86_TYPE(retval) {
-	case VM86_UNKNOWN:
-		vm86_GP_fault();
-		break;
-	case VM86_STI:
-#ifdef X86_EMULATOR
-		D_printf("DPMI: Return from vm86() for timeout\n");
-#endif
-		pic_iret();
-		break;
-	case VM86_INTx:
-#ifdef X86_EMULATOR
-		D_printf("DPMI: Return from vm86() for interrupt\n");
-#endif
-#ifdef SHOWREGS
-    show_regs(__FILE__, __LINE__);
-#endif
-    D_printf("DPMI: retval=%x %x:%x\n", VM86_ARG(retval), _CS, _IP);
-		switch (VM86_ARG(retval)) {
-		  case 0x1c:	/* ROM BIOS timer tick interrupt */
-		  case 0x23:	/* DOS Ctrl+C interrupt */
-		  case 0x24:	/* DOS critical error interrupt */
-			if (SEGOFF2LINEAR(BIOSSEG, INT_OFF(VM86_ARG(retval))) !=
- 			    SEGOFF2LINEAR(_CS, _IP) -2)
-			  run_pm_int(VM86_ARG(retval));
-			else
-			  do_int(VM86_ARG(retval));
-			break;
-		  default:
-			do_int(VM86_ARG(retval));
-#ifdef USE_MHPDBG
-			mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 0, 0);
-#endif
-		}
-		break;
-#ifdef USE_MHPDBG
-	case VM86_TRAP:
-#ifdef X86_EMULATOR
-		D_printf("DPMI: Return from vm86() for trap\n");
-#endif
-		if (!mhp_debug(DBG_TRAP + (VM86_ARG(retval) << 8), 0, 0))
-#ifdef TRACE_DPMI
-		   if ((debug_level('t')==0)||(VM86_ARG(retval)!=1))
-#endif
-		   do_int(VM86_ARG(retval));
-		break;
-#endif
-	case VM86_PICRETURN:
-	case VM86_SIGNAL:
-		break;
-	default:
-		error("DPMI: unknown return value from vm86()=%x,%d-%x\n", VM86_TYPE(retval), VM86_TYPE(retval), VM86_ARG(retval));
-		fatalerr = 4;
-    }
-  }
-  else {
     int retcode;
     retcode = (
 #ifdef X86_EMULATOR
@@ -2421,21 +2294,6 @@ void run_dpmi(void)
       else mhp_debug(DBG_INTxDPMI + (retcode << 8), 0, 0);
     }
 #endif
-  }
-
-freeze_idle:
-  do_periodic_stuff();
-
-  if (dosemu_frozen) {
-    static int minpoll = 0;
-    if (!mhpdbg.active) {
-      if (!(++minpoll & 7)) usleep(10000);
-      g_printf("DPMI: freeze: signal loop\n");
-      goto freeze_idle;
-    } else {
-      unfreeze_dosemu();
-    }
-  }
 }
 
 static void dpmi_init(void)
@@ -2699,25 +2557,7 @@ static void dpmi_init(void)
   DPMI_CLIENT.stack_frame.esi = REG(esi);
   DPMI_CLIENT.stack_frame.edi = REG(edi);
   DPMI_CLIENT.stack_frame.ebp = REG(ebp);
-
-  if (in_dpmi>1) return; /* return immediately to the main loop */
-
-  for (; (!fatalerr && in_dpmi) ;) {
-    if (debug_level('M')>6) {
-#ifdef TRACE_DPMI
-	if (debug_level('t')==0)
-#endif
-	D_printf("------ DPMI: dpmi loop ---------------------\n");
-    }
-    run_dpmi();
-    dma_run();
-#ifdef USE_SBEMU
-    run_sb(); /* Suggested Karcher */
-#endif
-    pic_run();
-  }
-  if (debug_level('M')>6) D_printf("DPMI: end dpmi loop\n");
-  return;
+  return; /* return immediately to the main loop */
 
 err:
   FreeAllDescriptors();

@@ -378,7 +378,11 @@ op0ferr:
 void
 run_vm86(void)
 {
-    int      retval;
+  int retval;
+
+  if (in_dpmi && !in_dpmi_dos_int) {
+    run_dpmi();
+  } else {
     /*
      * always invoke vm86() with this call.  all the messy stuff will be
      * in here.
@@ -434,8 +438,7 @@ run_vm86(void)
 			_SI, _DI, _ES, _EFLAGS);
     }
 
-    switch VM86_TYPE
-	(retval) {
+    switch VM86_TYPE(retval) {
     case VM86_UNKNOWN:
 	vm86_GP_fault();
 	break;
@@ -444,10 +447,29 @@ run_vm86(void)
 	pic_iret();
 	break;
     case VM86_INTx:
-	do_int(VM86_ARG(retval));
+	if (in_dpmi) {
+	    switch (VM86_ARG(retval)) {
+		case 0x1c:	/* ROM BIOS timer tick interrupt */
+		case 0x23:	/* DOS Ctrl+C interrupt */
+		case 0x24:	/* DOS critical error interrupt */
+		    if (SEGOFF2LINEAR(BIOSSEG, INT_OFF(VM86_ARG(retval))) !=
+ 			SEGOFF2LINEAR(_CS, _IP) -2)
+			run_pm_int(VM86_ARG(retval));
+		    else
+			do_int(VM86_ARG(retval));
+		    break;
+		default:
+		    do_int(VM86_ARG(retval));
 #ifdef USE_MHPDBG
-	mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 0, 0);
+		    mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 0, 0);
 #endif
+	    }
+	} else {
+	    do_int(VM86_ARG(retval));
+#ifdef USE_MHPDBG
+	    mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 0, 0);
+#endif
+	}
 	break;
 #ifdef USE_MHPDBG
     case VM86_TRAP:
@@ -464,7 +486,23 @@ run_vm86(void)
     default:
 	error("unknown return value from vm86()=%x,%d-%x\n", VM86_TYPE(retval), VM86_TYPE(retval), VM86_ARG(retval));
 	fatalerr = 4;
-	}
+    }
+  }
+
+  if (in_dpmi) {
+    /* This is completely wrong, but that's how it was in dpmi.c,
+     * so leave for now */
+    if (REG(eflags)&IF) {
+      if (!(dpmi_eflags&IF))
+        dpmi_sti();
+    } else {
+#ifdef X86_EMULATOR
+      if (config.cpuemu<2) D_printf("DPMI: strange...IF clear, why?\n");
+#endif
+      if (dpmi_eflags&IF)
+        dpmi_cli();
+    }
+  }
 
 freeze_idle:
   do_periodic_stuff();
@@ -547,14 +585,11 @@ void do_call_back(Bit32u codefarptr)
 		if (fatalerr) leavedos(99);
 	/*
 	 * BIG WARNING: We should NOT use things like loopstep_run_vm86() here!
-	 * Only the plain run_vm86() and run_dpmi() are safe (also DPMI-safe).
-	 * -SS
+	 * Only the plain run_vm86() is safe (also DPMI-safe).
+	 * -stsp
 	 */
 		run_irqs();	/* this is essential to do BEFORE run_[vm86|dpmi]() */
-		if (!in_dpmi)
-			run_vm86();
-		else
-			run_dpmi();
+		run_vm86();
         }
 	/* ... and back we are */
 	REG(cs) = oldcs;
