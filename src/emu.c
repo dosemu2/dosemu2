@@ -356,12 +356,12 @@ emulate(int argc, char **argv)
     module_init();
     low_mem_init();		/* initialize the lower 1Meg */
     time_setting_init();	/* get the startup time */
-    device_init();		/* initialize keyboard, disk, video, etc. */
     cpu_setup();		/* setup the CPU */
     pcibios_init();
     pci_setup();
     extra_port_init();		/* setup ports dependent on config */
     signal_init();              /* initialize sig's & sig handlers */
+    device_init();		/* initialize keyboard, disk, video, etc. */
     map_video_bios();           /* map the video bios */
     map_hardware_ram();         /* map the direct hardware ram */
     pkt_priv_init();
