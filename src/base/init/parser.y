@@ -139,6 +139,8 @@ static void start_debug(void);
 static void start_video(void);
 static void stop_video(void);
 static void set_vesamodes(int width, int height, int color_bits);
+static int detect_vbios_seg(void);
+static int detect_vbios_size(void);
 static void start_ttylocks(void);
 static void stop_ttylocks(void);
 static void start_serial(void);
@@ -1092,8 +1094,9 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		   c_printf("CONF: VGA-BIOS-Segment %x\n", $2);
 		   if (($2 != 0xe000) && ($2 != 0xc000))
 		      {
-		      config.vbios_seg = 0xc000;
-		      c_printf("CONF: VGA-BIOS-Segment set to 0xc000\n");
+		      config.vbios_seg = detect_vbios_seg();
+		      if (config.vbios_seg == -1) config.vbios_seg = 0xc000;
+		      c_printf("CONF: VGA-BIOS-Segment set to 0x%x\n", config.vbios_seg);
 		      }
 		   }
 		| VBIOS_SIZE_TOK expression
@@ -1102,8 +1105,9 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		   c_printf("CONF: VGA-BIOS-Size %x\n", $2);
 		   if (($2 != 0x8000) && ($2 != 0x10000))
 		      {
-		      config.vbios_size = 0x10000;
-		      c_printf("CONF: VGA-BIOS-Size set to 0x10000\n");
+		      config.vbios_size = detect_vbios_size();
+		      if (config.vbios_size == -1) config.vbios_size = 0x10000;
+		      c_printf("CONF: VGA-BIOS-Size set to 0x%x\n", config.vbios_size);
 		      }
 		   }
 		| DUALMON		{ config.dualmon = 1; }
@@ -1763,6 +1767,41 @@ static void set_vesamodes(int width, int height, int color_bits)
     vmt->next = config.vesamode_list;
     config.vesamode_list = vmt;
   }
+}
+
+	/* vbios detection */
+static auto_vbios_seg = -1;
+static auto_vbios_size = -1;
+
+static void detect_vbios(void)
+{
+  unsigned char c[0x21];
+  int foffset;
+  extern int load_file(char *name, int foffset, char *mstart, int msize);
+
+  if (auto_vbios_seg != -1) return;
+  if (!can_do_root_stuff || config.vbios_file) return;
+  for (foffset = 0xc0000; foffset < 0xf0000; foffset += 0x800) {
+    load_file("/dev/mem", foffset, c, sizeof(c));
+    if (c[0]==0x55 && c[1]==0xaa
+        && c[0x1e]=='I' && c[0x1f]=='B' && c[0x20]=='M') {
+      auto_vbios_seg = foffset >> 4;
+      auto_vbios_size = c[2]*0x200;
+      break;
+    }
+  }
+}
+
+static int detect_vbios_seg(void)
+{
+  detect_vbios();
+  return auto_vbios_seg;
+}
+
+static int detect_vbios_size(void)
+{
+  detect_vbios();
+  return auto_vbios_size;
 }
 
         /* tty lock files */

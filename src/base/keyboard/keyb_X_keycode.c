@@ -184,6 +184,9 @@ void X_keycode_process_key(XKeyEvent *e)
 			scan=0;
 	X_printf("X_keycode_process_key: keycode=%d, scancode=%d, %s\n",
 		 e->keycode,scan,(e->type==KeyRelease)?"released":"pressed");
+#if 0	/* this seems to be wrong, caps/num lock doesn't works with it
+	 * 			-- Herbert Xu, 2000/07/22
+	 */
 	if (scan == 0x3a || scan == 0x45) {
 		/*
 		 * bring our lock flags in sync with the state of the server
@@ -194,6 +197,7 @@ void X_keycode_process_key(XKeyEvent *e)
 			put_keycode(scan, 1);
 		}
 	} else
+#endif
 		put_keycode(scan, (e->type==KeyRelease));
 	return;
 }

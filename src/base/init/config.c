@@ -35,6 +35,10 @@
 #endif
 #include "mhpdbg.h"
 
+#include "mapping.h"
+extern void mapping_init(void);
+extern void mapping_close(void);
+
 
 /*
  * XXX - the mem size of 734 is much more dangerous than 704. 704 is the
@@ -350,6 +354,7 @@ void dump_config_status(void *printfunc)
     }
     else (*print)("dumping the current runtime configuration:\n");
     (*print)("Version: dosemu-" VERSTR " versioncode = 0x%08x\n\n", DOSEMU_VERSION_CODE);
+    (*print)("Running Kernel Version: linux-%d.%d.%d\n", kernel_version_code >> 16, (kernel_version_code >> 8) & 255, kernel_version_code & 255);
     (*print)("cpu ");
     switch (vm86s.cpu_type) {
       case CPU_386: s = "386"; break;
@@ -375,7 +380,12 @@ void dump_config_status(void *printfunc)
     (*print)("cpuemu %d\n", config.cpuemu);
 #endif
 
-    (*print)("mappingdriver %s\n", config.mappingdriver ? config.mappingdriver : "auto");
+    if (config_check_only) mapping_init();
+    if (mappingdriver.name)
+      (*print)("mappingdriver %s\n", mappingdriver.name);
+    else
+      (*print)("mappingdriver %s\n", config.mappingdriver ? config.mappingdriver : "auto");
+    if (config_check_only) mapping_close();
     (*print)("hdiskboot %d\nmem_size %d\n",
         config.hdiskboot, config.mem_size);
     (*print)("ems_size 0x%x\nems_frame 0x%x\nsecure %d\n",

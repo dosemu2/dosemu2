@@ -21,7 +21,7 @@ ifneq "@PORTABLE_BINARY@" ""
 export PORTABLE_BINARY=@PORTABLE_BINARY@
 endif
 
-export CFLAGS=@CFLAGS@ $(PORTABLE_BINARY)
+export CFLAGS=@CFLAGS@
 export LDFLAGS=@LDFLAGS@
 export CC=@CC@
 

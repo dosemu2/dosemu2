@@ -1,6 +1,6 @@
 
-             Copyright of DOSEMU, February 2000
-             ==================================
+             Copyright of DOSEMU, October 2000
+             =================================
 
 1.   All sources in the official distribution of DOSEMU are
      (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team"
@@ -38,7 +38,12 @@
 
      We grant the right to use a proprietary DOS together with DOSEMU.
 
-5.   This file (COPYING) has to be distributed unchanged together with
+5.   Redistributors of DOSEMU sources must not re-package the official
+     DOSEMU packages, including the compression method.
+     Putting the unchanged compressed DOSEMU packages within envelops
+     (e.g. *.rpm, *.deb, double compress) is allowed.
+
+6.   This file (COPYING) has to be distributed unchanged together with
      the DOSEMU distribution or any derivative work. This prefix and
      the following appended GPL must not be separated.
 

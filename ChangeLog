@@ -1,3 +1,25 @@
+2000/10/05 ver. 1.1.0.1 unofficial pre-release
+	From Herbert Xu <herbert@gondor.apana.org.au>
+	- fix for not working caps/num lock with X_keycode
+	  (src/base/keyboard/keyb_X_keycode.c)
+	From Bart
+	- added vbioscheck program to get proper $_vbios_seg,$_vbios_size
+	  (src/tools/periph/vbioscheck.c)
+	- added builtin vbios autodetection to init/parser.y
+	  Any non legal value (e.g. 0) to $_vbios_s* forces autotetection
+	  (patch slightly changed by Hans)
+	From Hans
+	- forbidd redistribution of re-packaged DOSEMU distribution
+	  (involved file: COPYING)
+	  Reason: checking the integrity of a DOSEMU distribution must
+	  be possible without (re-)download simply by comparing the
+	  md5sum published at dosemu.org.
+	- fixed bug for compiling static under glibc: PORTABLE_BINARY
+	  had no effect (Makefile.conf.in, base-configure*)
+	- added printing kernel version on runtime option -h
+	- fixed printing of mapping driver type on runtime option -h
+	- fixed wrong behave, when a not working mapping driver was
+	  configured (defaulted to mapfile always).
 2000/07/09 ver. 1.1.0 released, starting new development tree
 	From Alberto
 	- new cpuemu stuff: new name: simx86

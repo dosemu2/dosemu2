@@ -78,7 +78,10 @@ void mapping_init(void)
     }
     if (found > 0) {
       found = -1;
-      i = 0;
+      /* As we want to restart the loop, because of 'i++' at end of loop,
+       * we need to set 'i = -1'
+       */
+      i = -1;
     }
   }
   error("MAPPING: cannot allocate an appropriate mapping driver\n");
