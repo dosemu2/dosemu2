@@ -5,6 +5,7 @@ start "Main Menu"
 menu "Main Menu" {
   description "Please select a setting:"
   input "Text Editor: " editor
+  input "From Address: " from
   text    "-----------------------------"
   input "File containing Debug Log:" debug_filename
   submenu "Bug Category"
@@ -74,9 +75,7 @@ menu "Bug Fix" {
 
 menu "Report Action" {
   description "Do What with the report ?"
-  list action {
-    "Email Now" email
-    "Save" save
-    "Abort" abort
-  }
+  submenu "Save Report"
+  submenu "Email Report"
+  submenu "Cancel Report"
 }

@@ -11,7 +11,8 @@ USEULTRA=OK
 
 CC=gcc
 CFLAGS=-Wall -pipe -O2
-LDFLAGS=-Wall
+LDFLAGS=@LDFLAGS@
+LDFLAGS += -Wall
 OBJECTS=midid.o null.o events.o io.o stats.o emulation.o oss.o
 
 ifdef USEULTRA

@@ -329,6 +329,7 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 	if ( (top > (TASK_SIZE - OUR_STACK)) /* we protect our stack */
 	  || ((bottom >= ((unsigned long)&_start)) && ( bottom < (unsigned long)&_end))
 	  || ((bottom < ((unsigned long)&_start)) && ( top >= (unsigned long)&_start)) ) {
+	  D_printf("DPMI: WARNING Request denied because of \"secure on\" option\n");
 		errno = EINVAL;
 		return -1;
 	}
@@ -1148,7 +1149,8 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     CHECK_SELECTOR(_LWORD(ebx));
     { int x;
       if ((x=SetDescriptorAccessRights(_LWORD(ebx), _ecx & (DPMIclient_is_32 ? 0xffff : 0x00ff))) !=0) {
-        if (x == -2) _LWORD(eax) = 0x8021;
+        if (x == -1) _LWORD(eax) = 0x8021;
+        else if (x == -2) _LWORD(eax) = 0x8022;
         else _LWORD(eax) = 0x8025;
         _eflags |= CF;
       }

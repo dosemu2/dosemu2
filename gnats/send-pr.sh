@@ -41,8 +41,6 @@ set_value() {
 }
 
 set_editor() {
-  local TMP
-
   if [ "@$EDITOR" != "@" ]
   then
     set_value editor $EDITOR
@@ -54,13 +52,18 @@ set_editor() {
   fi
 }
 
+set_email() {
+    set_value from `sh get-email.sh`
+}
+
+
 set_defaults() {
   set_editor
+  set_email
   set_value sendreport on
   set_value severity non-critical
   set_value category misc
-  set_value action save
-  touch "$TEMP.description"
+   touch "$TEMP.description"
   touch "$TEMP.repeat"
   touch "$TEMP.fix"
 }
@@ -80,7 +83,33 @@ MainMenu_End() {
   local STRING=""
 
   handle_Report_Action
+}
 
+handle_Save_Report() {
+  set_value action "save"
+  process_report
+
+  # Force an exit!
+  clean_up
+}
+
+handle_Email_Report() {
+  set_value action "email"
+  process_report
+
+  # Force an exit!
+  clean_up
+}
+
+handle_Cancel_Report() {
+  set_value action "cancel"
+  process_report
+
+  # Force an exit!
+  clean_up
+}
+
+process_report() {
   reportaction=""
   get_value reportaction action
   if [ "@$reportaction" = "@email" -o "@$reportaction" = "@save" ]
@@ -94,6 +123,15 @@ MainMenu_End() {
     if [ "@$value" != "@" ]
     then
       DEBUG_STRING="-d $value"
+    fi
+
+    # Check the FROM address. If this is blank then we let send-pr decide.
+    value=""
+    get_value value from
+    if [ "@$value" != "@" ]
+    then
+      LOGNAME=$value
+      export LOGNAME
     fi
 
     (cd ..; gnats/send-pr -P $DEBUG_STRING > "$TEMP.pr")

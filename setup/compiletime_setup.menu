@@ -13,6 +13,7 @@ menu "Main Menu" {
   boolean "force use of dosemu supplied Slang-lib" slangforce
   boolean "use monoton micro timing" tmonoton
   boolean "run as root mostly" runasroot
+  boolean "make static binaries" linkstatic
 }
 
 menu "Configure Action" {

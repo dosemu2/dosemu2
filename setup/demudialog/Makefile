@@ -3,7 +3,7 @@ CPP = gcc -E
 OPTIM = -O2 -Wall -fomit-frame-pointer
 
 CFLAGS = $(OPTIM) -DLOCALE 
-LDFLAGS = -s -L .
+LDFLAGS = $(STATIC) -s -L .
 LDLIBS = -lncurses
 
 ifeq (/usr/include/ncurses/ncurses.h, $(wildcard /usr/include/ncurses/ncurses.h))

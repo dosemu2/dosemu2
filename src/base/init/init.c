@@ -45,6 +45,7 @@
 #include "shared.h"
 #include "iodev.h"
 #include "priv.h"
+#include "doshelpers.h"
 
 #ifdef NEW_KBD_CODE
 #include "keyb_clients.h"
@@ -331,8 +332,8 @@ static inline void map_custom_bios(void)
   *ptr++ = 0xb8;                /* mov ax, 0xffff */
   *ptr++ = 0xff;
   *ptr++ = 0xff;
-  *ptr++ = 0xcd;                /* int 0xe6 */
-  *ptr++ = 0xe6;
+  *ptr++ = 0xcd;                /* int DOS_HELPER_INT(0xe6) */
+  *ptr++ = DOS_HELPER_INT;
 
 #if 0 /* for debugging only */
   f = fopen("/tmp/bios","w");

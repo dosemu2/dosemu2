@@ -48,6 +48,9 @@ while [ "$1" != "" ]; do
     runasroot)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-runasroot"; fi
       ;;
+    linkstatic)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-linkstatic"; fi
+      ;;
     *)
       ;;
   esac

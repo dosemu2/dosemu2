@@ -1200,7 +1200,7 @@ install_int_10_handler (void)
       *ptr++ = 0x08;		/* mov  al,08  ; Start Video init     */
 
       *ptr++ = 0xcd;
-      *ptr++ = 0xe6;		/* int  e6          */
+      *ptr++ = DOS_HELPER_INT;		/* int  e6          */
 
       if (config.vbios_seg == 0xe000)
 	{
@@ -1222,7 +1222,7 @@ install_int_10_handler (void)
       *ptr++ = 0x09;		/* move al,09   ; Finished video init    */
 
       *ptr++ = 0xcd;
-      *ptr++ = 0xe6;		/* int  e6          */
+      *ptr++ = DOS_HELPER_INT;		/* int  e6          */
 
       *ptr++ = 0x58;		/* pop ax           */
       *ptr++ = 0xfb;		/* start interrupts STI  */

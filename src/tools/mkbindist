@@ -1,0 +1,73 @@
+#! /bin/bash
+#
+# (C) 1997 under GPL, Hans Lermen <lermen@fgan.de>
+#
+# NOTE: you normally do not need this, its just a tool for the developers:
+# Compile and install a binary distribution of DOSEMU under
+#
+#   /tmp/dosemu-<version>/*
+#
+# To pack this into a tar file do something like
+#
+#   tar -cf- -C /tmp/dosemu-<version> . | gzip -9 >/tmp/dosemu-<version>-bin.tgz
+#
+
+cd ../../
+
+VER=`basename $PWD`
+
+DIR=/tmp/${VER}
+
+rm -rf /tmp/${VER}
+
+mkdir -p $DIR
+mkdir -p ${DIR}/usr/bin
+mkdir -p ${DIR}/var/lib/dosemu
+mkdir -p ${DIR}/var/lib/dosemu/setup/demudialog
+mkdir -p ${DIR}/var/run
+mkdir -p ${DIR}/usr/X11R6/lib/X11/fonts/misc
+
+cat > ${DIR}/compiletime-settings <<EOF
+config {  sbemu on novm86plus off mitshm on x on dodebug off newkbd off slangforce off tmonoton off runasroot off linkstatic on}
+EOF
+
+
+if [ "$1" = "make" ]; then
+  make pristine
+  default-configure ${DIR}/compiletime-settings
+  make 'WAIT='
+  (cd setup/demudialog; make 'STATIC=-static')
+  strip ./bin/dos
+  strip ./bin/dosdebug
+  strip ./src/tools/periph/dexeconfig
+  strip ./src/tools/periph/mkfatimage16
+fi
+
+install -c -o root -m 04755 ./bin/dos ${DIR}/usr/bin
+install -c -o root -m 0755 ./bin/dosdebug ${DIR}/usr/bin
+if [ ! -e ${DIR}/usr/bin/dosexec ]; then ln -s dos ${DIR}/usr/bin/dosexec; fi
+install -m 0755 ./etc/xtermdos ${DIR}/usr/bin
+if [ ! -e ${DIR}/usr/bin/xdos ]; then ln -s dos ${DIR}/usr/bin/xdos; fi
+install -m 0644 ./etc/vga.pcf ${DIR}/usr/X11R6/lib/X11/fonts/misc
+install -m 0755 src/tools/periph/mkfatimage16 ${DIR}/usr/bin
+install -m 0755 src/tools/periph/dexeconfig ${DIR}/usr/bin
+cp -ap ./dexe  ${DIR}/var/lib/dosemu
+(cd setup; cp -p parse* runtime* select* write* ${DIR}/var/lib/dosemu/setup)
+cp -p setup/demudialog/demudialog ${DIR}/var/lib/dosemu/setup/demudialog
+cat > ${DIR}/var/lib/dosemu/setup-dosemu <<EOF
+#!/bin/sh
+#
+# Front end to the runtime time script.
+
+TOPDIR=`pwd -P`
+export TOPDIR
+
+AWK=gawk
+export AWK
+
+USING_BIN_DIST="1"
+export USING_BIN_DIST
+(cd setup; ./runtime_setup.sh)
+EOF
+
+chmod 755 ${DIR}/var/lib/dosemu/setup-dosemu

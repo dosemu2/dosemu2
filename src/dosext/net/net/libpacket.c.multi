@@ -80,8 +80,10 @@ DosnetOpenNetworkType(unsigned short netid)
      assigned to this dosnet session. 
    */
   int s = socket(AF_INET, SOCK_PACKET, htons(GetDosnetID()));  
-  if (s == -1)
+  if (s == -1) {
+    if (errno == EPERM) warn("Must be root for virtual TCP/IP\n");
     return -1;
+  }
   fcntl(s, F_SETFL, O_NDELAY);
   return s;
 }

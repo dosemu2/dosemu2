@@ -38,6 +38,7 @@
 #include <stdlib.h>   /* exit                   */
 #include <string.h>
 #include "emulib.h"
+#include "doshelpers.h"
 
 typedef unsigned char uint8;
 typedef unsigned int uint16;
@@ -46,19 +47,6 @@ typedef unsigned int uint16;
 #define CC_SUCCESS    0
 
 #define MAX_DEBUG_STRING_LENGTH   100
-
-#define DOS_HELPER_INT            0xE6
-#define DOS_HELPER_DOSEMU_CHECK   0x00
-#define DOS_HELPER_SHOW_REGS      0x01
-#define DOS_HELPER_SHOW_INTS      0x02
-#define DOS_HELPER_ADJUST_IOPERMS 0x03  /* CY indicates get or set      */
-#define DOS_HELPER_CONTROL_VIDEO  0x04  /* BL indicates init or release */
-#define DOS_HELPER_SHOW_BANNER    0x05
-#define DOS_HELPER_MFS_HELPER     0x20
-#define DOS_HELPER_EMS_HELPER     0x21
-#define DOS_HELPER_EMS_BIOS       0x22
-#define DOS_HELPER_GET_DEBUG_STRING 0x10
-#define DOS_HELPER_SET_DEBUG_STRING 0x11
 
 
 void

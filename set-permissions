@@ -6,11 +6,13 @@
 chmod 755 set-permissions # myself ;-)
 chmod 755 config.guess config.sub configure default-configure
 chmod 755 setup-dosemu submit-bug-report gnats/send-pr gnats/send-pr.sh
+chmod 755 gnats/get-email.sh
 chmod 755 setup/compiletime_setup.sh setup/runtime_setup.sh
 chmod 755 install-sh rebuild
 chmod 755 first-test
 chmod 755 src/arch/linux/kversion.sh src/arch/NetBSD/kversion.sh
 chmod 755 src/tools/periph/getrom
 chmod 755 src/doc/DANG/DANG_c.pl src/doc/DANG/make_DANG
-chmod 755 dexe/do_mtools dexe/mkdexe dexe/extract-dos dexe/dosexec
+chmod 755 dexe/do_mtools dexe/mkdexe dexe/extract-dos
 chmod 755 dexe/myxcopy setup-hdimage
+chmod 755 src/tools/mkbindist

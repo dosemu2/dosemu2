@@ -251,7 +251,14 @@ static int dosnet_close(struct device *dev)
         return 0;
 }
 
+/*
+ * The driver is promiscious anyway, so don't care about multicasting.
+ */
 
+static void dosnet_set_multicast_list( struct device *dev )
+{
+   /* do nothing */
+}
 
 /* Initialize the rest of the DOSNET device. */
 int
@@ -272,6 +279,7 @@ dosnet_init(struct device *dev)
   /* dev->rebuild_header	= eth_rebuild_header; */
   dev->open		= dosnet_open;
   dev->stop		= dosnet_close;
+  dev->set_multicast_list = dosnet_set_multicast_list;
 
   /* New-style flags. */
   dev->flags		= IFF_BROADCAST;

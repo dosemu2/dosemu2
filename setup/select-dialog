@@ -29,6 +29,12 @@ set_geometry () {
 
 # Preference is 'lxdialog';'dialog 0.6';'dialog 0.4'
 select_dialog() {
+	if [ "$USING_BIN_DIST" = "1" ]; then
+		DIALOG=`pwd`/demudialog/demudialog
+		DIALOG_SUPPORTS_CURRENT=true
+		DIALOG_SUPPORTS_VALUE=true
+		return
+	fi
 	if [ ! -x ${TOPDIR}/setup/demudialog/demudialog ]; then
 	  if [ ! -f ${TOPDIR}/setup/demudialog/tried-compile ]; then
 		(cd ${TOPDIR}/setup/demudialog; make)

@@ -65,18 +65,23 @@ int AddRoute( unsigned long targetNet, unsigned network,
 	}	
 	sr->sipx_family = st->sipx_family = AF_IPX;
 	
+	enter_priv_on();
 	sock=socket(AF_IPX,SOCK_DGRAM,PF_IPX);
+	leave_priv_setting();
 	if(sock==-1) {
 		return( -1 );
 	}
 	
+	enter_priv_on();
 	if(ioctl(sock,SIOCADDRT,(void *)&rt) < 0) {
+		leave_priv_setting();
                 if( errno != EEXIST ) {
                         close( sock );
                         return( -2 );
                 }
 	}
         close( sock );
+	leave_priv_setting();
         return(0);
 }
 
@@ -96,21 +101,26 @@ int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks )
         int done, retCode, selrtn;
 
         retCode = -1;	
+	enter_priv_on();
 	sock=socket(AF_IPX,SOCK_DGRAM,PF_IPX);
+	leave_priv_setting();
 	if(sock==-1)
 	{
 		goto GLTExit;
 	}
 	
 	/* Socket debugging */
+	enter_priv_on();
 	if(setsockopt(sock,SOL_SOCKET,SO_DEBUG,&opt,sizeof(opt))==-1)
 	{
+		leave_priv_setting();
 		goto CloseGLTExit;
 	}
 	
 	/* Permit broadcast output */
 	if(setsockopt(sock,SOL_SOCKET,SO_BROADCAST, &opt,sizeof(opt))==-1)
 	{
+		leave_priv_setting();
 		goto CloseGLTExit;
 	}
 	
@@ -121,6 +131,7 @@ int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks )
 	
 	if(setsockopt(sock,SOL_SOCKET,IPX_TYPE,&opt,sizeof(opt))==-1)
 	{
+		leave_priv_setting();
 		goto CloseGLTExit;
 	}
 	
@@ -130,9 +141,11 @@ int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks )
 	
 	if(bind(sock,(struct sockaddr *)&ipxs,sizeof(ipxs))==-1)
 	{
+		leave_priv_setting();
 		goto CloseGLTExit;
 	}
-	
+	leave_priv_setting();
+
         /* prepare destination for send, broadcast to local net */
 	ipxs.sipx_port=htons(0x453);
 	memset(ipxs.sipx_node,0xff,6);
@@ -152,12 +165,15 @@ int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks )
         
         /* loop here sending RIP requests and trying to get a RIP response */
         while( !done ) {
+		enter_priv_on();
         	if(sendto(sock,(void *)&RipRequest,sizeof(RipRequest),0,
                         (struct sockaddr *)&ipxs,sizeof(ipxs))==-1)
 	        {
+			leave_priv_setting();
                         retCode = -2;
         		goto CloseGLTExit;
 	        }
+		leave_priv_setting();
                 
                 timeout.tv_sec = 0;
                 timeout.tv_usec = TIMEOUT;
@@ -183,9 +199,11 @@ RepeatSelect:
                 }
 		if (FD_ISSET(sock, &fds)) {
 			sz = sizeof(ipxs);
+			enter_priv_on();
         		size=recvfrom(sock,(char *)&RipResponse,
                                 sizeof(RipResponse),0,
                                 (struct sockaddr *)&ipxs,&sz);
+			leave_priv_setting();
         		if(size==-1 || size < sizeof (RipResponse) ||
                                 RipResponse.Operation != htons(2) ) {
                                 done = TRUE;
@@ -221,7 +239,9 @@ RepeatSelect:
                 printf("IPX: Error %d in GetLocalTarget main packet send/receive loop\n", retCode);
         }
 CloseGLTExit:
+	enter_priv_on();
         close( sock );
+	leave_priv_setting();
 GLTExit:
         return( retCode );
 }

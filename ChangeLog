@@ -1,3 +1,27 @@
+97/05/02 ver. 0.67.0.2 unofficial pre-release
+	From Alistair
+	- fixes and enhancements to gnats/send-pr
+	From Bart
+	- fix for a multicasting bug in dosnet.c
+	- warning in libpacket.c.multi, when insufficient privilege
+	From Karl Kiniger <ki@boss.kretz.co.at>
+	- some more enter_priv* brackets within src/dosext/net/net/ipx.c
+	  and src/dosext/net/net/ipxglt.c
+	From Uwe
+	- some 'secure on' warning, and a errorcode return fix (DPMI)
+	- (needed tools for developing win31 mouse.drv) some doshelper changes:
+	  - overall symbolic names now
+	  - new DOS_HELPER_DOSEMU_CHECK checks wether running under X
+	  - new DOS_HELPER_PRINT_STRING lets DOSapp print a string into
+	    our logfile.
+	From Hans
+	- first round to make a binary distribution (static).
+	  A complete tree gets generated via ./src/tools/mkbindist.
+	  We choose statically linked binaries, because of the many
+	  different libc versions floating around. Not all of them are
+	  down/upward compatible and some even aren't useable for dosemu.
+	  ( ... and surpise, the static binary runs a bit faster )
+	- new ./configure option: --enable-linkstatic
 97/04/30 ver. 0.67.0.1 unofficial pre-release
 	From Hans
 	- further enhancements to DEXE stuff

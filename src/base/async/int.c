@@ -29,6 +29,7 @@
 #include "video.h"
 #include "vc.h"
 #include "priv.h"
+#include "doshelpers.h"
 
 #ifdef USING_NET
 #include "ipx.h"
@@ -182,7 +183,7 @@ static void process_master_boot_record(void)
 static int dos_helper(void)
 {
   switch (LO(ax)) {
-  case 0:			/* Linux dosemu installation test */
+  case DOS_HELPER_DOSEMU_CHECK:			/* Linux dosemu installation test */
     LWORD(eax) = 0xaa55;
     LWORD(ebx) = VERSION * 0x100 + SUBLEVEL; /* major version 0.49 -> 0049 */
     /* The patch level in the form n.n is a float...
@@ -190,19 +191,27 @@ static int dos_helper(void)
      * This way we avoid usage of float instructions.
      */
     LWORD(ecx) = ((((int)(PATCHLEVEL * 100))/100) << 8) + (((int)(PATCHLEVEL * 100))%100);
+    LWORD(edx) = (config.X)? 0x1:0;  /* Return if running under X */
     g_printf("WARNING: dosemu installation check\n");
     show_regs(__FILE__, __LINE__);
     break;
 
-  case 1:			/* SHOW_REGS */
+  case DOS_HELPER_SHOW_REGS:     /* SHOW_REGS */
     show_regs(__FILE__, __LINE__);
     break;
 
-  case 2:			/* SHOW INTS, BH-BL */
+  case DOS_HELPER_SHOW_INTS:	/* SHOW INTS, BH-BL */
     show_ints(HI(bx), LO(bx));
     break;
 
-  case 3:			/* SET IOPERMS: bx=start, cx=range,
+  case DOS_HELPER_PRINT_STRING:	/* SHOW INTS, BH-BL */
+    g_printf("DOS likes us to print a string\n");
+    ds_printf("DOS to EMU: \"%s\"\n",SEG_ADR((char *), es, dx));
+    break;
+
+
+
+  case DOS_HELPER_ADJUST_IOPERMS:  /* SET IOPERMS: bx=start, cx=range,
 				   carry set for get, clear for release */
   {
     int cflag = LWORD(eflags) & CF ? 1 : 0;
@@ -223,7 +232,7 @@ static int dos_helper(void)
   }
   break;
 
-  case 4:			/* initialize video card */
+  case DOS_HELPER_CONTROL_VIDEO:	/* initialize video card */
     if (LO(bx) == 0) {
       if (set_ioperm(0x3b0, 0x3db - 0x3b0, 0))
 	warn("couldn't shut off ioperms\n");
@@ -256,7 +265,7 @@ static int dos_helper(void)
       card_init = 1;
     }
 
-  case 5:			/* show banner */
+  case DOS_HELPER_SHOW_BANNER:		/* show banner */
     p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: " VERDATE " $\n");
     p_dos_str("Last configured at %s on %s\n", CONFIG_TIME, CONFIG_HOST);
     p_dos_str("This is work in progress.\n");
@@ -268,22 +277,22 @@ static int dos_helper(void)
     break;
 
 #ifdef NEW_KBD_CODE
-   case 6:
+   case DOS_HELPER_INSERT_INTO_KEYBUFFER:
       k_printf("KBD: WARNING: outdated keyboard helper fn 6 was called!\n");
       break;
 
-   case 7:                       /* INT 09 "get bios key" helper */
+   case DOS_HELPER_GET_BIOS_KEY:                /* INT 09 "get bios key" helper */
       _AX=get_bios_key();
       k_printf("HELPER: get_bios_key() returned %04x\n",_AX);
       break;
 #else
-   case 6:			/* Do inline int09 insert_into_keybuffer() */
+   case DOS_HELPER_INSERT_INTO_KEYBUFFER:	/* Do inline int09 insert_into_keybuffer() */
     k_printf("KBD: Doing INT9 insert_into_keybuffer() bx=0x%04x\n", LWORD(ebx));
     scan_to_buffer();
     break;
 #endif
      
-  case 8:
+  case DOS_HELPER_VIDEO_INIT:
     v_printf("Starting Video initialization\n");
     if (config.allowvideoportaccess) {
       if (config.speaker != SPKR_NATIVE) {
@@ -303,7 +312,7 @@ static int dos_helper(void)
     MEMCPY_2UNIX(save_hi_ints,0x380,128);
     break;
 
-  case 9:
+  case DOS_HELPER_VIDEO_INIT_DONE:
     v_printf("Finished with Video initialization\n");
     if (config.allowvideoportaccess) {
       if (config.speaker != SPKR_NATIVE) {
@@ -325,34 +334,34 @@ static int dos_helper(void)
     }
     break;
 
-  case 0x10:
+  case DOS_HELPER_GET_DEBUG_STRING:
     /* TRB - handle dynamic debug flags in dos_helper() */
     LWORD(eax) = GetDebugFlagsHelper((char *) (((_regs.es & 0xffff) << 4) +
 					       (_regs.edi & 0xffff)));
     g_printf("DBG: Get flags\n");
     break;
 
-  case 0x11:
+  case DOS_HELPER_SET_DEBUG_STRING:
     g_printf("DBG: Set flags\n");
     LWORD(eax) = SetDebugFlagsHelper((char *) (((_regs.es & 0xffff) << 4) +
 					       (_regs.edi & 0xffff)));
     g_printf("DBG: Flags set\n");
     break;
 
-  case 0x12:
+  case DOS_HELPER_SET_HOGTHRESHOLD:
     g_printf("IDLE: Setting hogthreshold value to %u\n", LWORD(ebx));
     config.hogthreshold = LWORD(ebx);
     break;
 
-  case 0x20:
+  case DOS_HELPER_MFS_HELPER:
     mfs_inte6();
     return 1;
 
-  case 0x21:
+  case DOS_HELPER_EMS_HELPER:
     ems_helper();
     return 1;
 
-  case 0x22:
+  case DOS_HELPER_EMS_BIOS:
   {
     unsigned char *ssp;
     unsigned long sp;
@@ -373,7 +382,7 @@ static int dos_helper(void)
     break;
   }
 
-  case 0x28:                    /* Mouse garrot helper */
+  case DOS_HELPER_GARROT_HELPER:             /* Mouse garrot helper */
     if (!LWORD(ebx))   /* Wait sub-function requested */
       usleep(INT28_IDLE_USECS);
     else {             /* Get Hogthreshold value sub-function*/
@@ -382,43 +391,43 @@ static int dos_helper(void)
     }
     break;
 
-  case 0x29:			/* Serial helper */
+  case DOS_HELPER_SERIAL_HELPER:   /* Serial helper */
     serial_helper();
     break;
 
-  case 0x30:			/* set/reset use bootdisk flag */
+  case DOS_HELPER_BOOTDISK:	/* set/reset use bootdisk flag */
     use_bootdisk = LO(bx) ? 1 : 0;
     break;
 
-  case 0x33:			/* set mouse vector */
+  case DOS_HELPER_MOUSE_HELPER:	/* set mouse vector */
     mouse_helper();
     break;
 
-  case 0x40:{
+  case DOS_HELPER_CDROM_HELPER:{
       E_printf("CDROM: in 0x40 handler! ax=0x%04x, bx=0x%04x, dx=0x%04x, "
 	       "cx=0x%04x\n", LWORD(eax), LWORD(ebx), LWORD(edx), LWORD(ecx));
       cdrom_helper();
       break;
     }
 
-  case 0x50:
+  case DOS_HELPER_RUN_UNIX:
     g_printf("Running Unix Command\n");
     run_unix_command(SEG_ADR((char *), es, dx));
     break;   
 
-  case 0x51:
+  case DOS_HELPER_0x51:
     /* Get DOS command from UNIX in es:dx (a null terminated buffer) */
     g_printf("Locating DOS Command\n");
     LWORD(eax) = misc_e6_commandline(SEG_ADR((char *), es, dx));
     break;   
 
-  case 0x52:
+  case DOS_HELPER_GET_UNIX_ENV:
     /* Interrogate the UNIX environment in es:dx (a null terminated buffer) */
     g_printf("Interrogating UNIX Environment\n");
     LWORD(eax) = misc_e6_envvar(SEG_ADR((char *), es, dx));
     break;   
 
-  case 0x53:
+  case DOS_HELPER_0x53:
     if (config.secure) {
       CARRY;
       LWORD(eax) = 0;
@@ -430,34 +439,34 @@ static int dos_helper(void)
 	break;
 
 #ifdef IPX
-  case 0x7a:
+  case DOS_HELPER_IPX_CALL:
     if (config.ipxsup) {
       /* TRB handle IPX far calls in dos_helper() */
       IPXFarCallHandler();
     }
     break;
-  case 0x7b:
+  case DOS_HELPER_IPX_ENDCALL:
     if (config.ipxsup) {
       /* Allow notification of ESR etc... ends */
       IPXEndCall();
     }
     break;
 #endif
-    case 0x80:
+    case DOS_HELPER_GETCWD:
         LWORD(eax) = (short)((int)getcwd(SEG_ADR((char *), es, dx), (size_t)LWORD(eax)));
         break;
-  case 0x81:
+  case DOS_HELPER_CHDIR:
         LWORD(eax) = chdir(SEG_ADR((char *), es, dx));
         break;
-  case 0xfe:
+  case DOS_HELPER_MBR:
     if (LWORD(eax) == 0xfffe) {
       process_master_boot_record();
       break;
     }
     LWORD(eax) = 0xffff;
     /* ... and fall through */
-  case 0xff:
-    if (LWORD(eax) == 0xffff) {
+  case DOS_HELPER_EXIT:
+    if (LWORD(eax) == DOS_HELPER_REALLY_EXIT) {
       /* terminate code is in bx */
       dbug_printf("DOS termination requested\n");
       p_dos_str("\n\rLeaving DOS...\n\r");
@@ -465,34 +474,6 @@ static int dos_helper(void)
     }
     break;
 
-/*
- * DANG_BEGIN_REMARK
- * The Helper Interrupt uses the following groups:
- * 
- * 0x00      - Check for DOSEMU
- * 0x01-0x11 - Initialisation functions & Debugging
- * 0x12      - Set hogthreshold (aka garrot?)
- * 0x20      - MFS functions
- * 0x21-0x22 - EMS functions
- * 0x28      - Garrot Functions for use with the mouse
- * 0x29      - Serial functions
- * 0x30      - Whether to use the BOOTDISK predicate
- * 0x33      - Mouse Functions
- * 0x40      - CD-ROM functions
- * 0x50-0x52 - DOSEMU/Linux communications
- *      50 -- run unix command in ES:DX
- *      51,52?
- *      53 -- do system(ES:DX)
- * 0x7a      - IPX functions
- * 0x8x   -- utility functions
- *	0x80 -- getcwd(ES:DX, size AX)
- *	0x81 -- chdir(ES:DX)
- * 0xfe      - called from our MBR, emulate MBR-code.
- * 0xff      - Terminate DOSEMU
- *
- * There are (as yet) no guidelines on choosing areas for new functions.
- * DANG_END_REMARK
- */
 
 
   default:
@@ -1038,7 +1019,7 @@ int can_revector(int i)
 #endif
   case 0x28:                    /* keyboard idle interrupt */
   case 0x2f:			/* needed for XMS, redirector, and idling */
-  case 0xe6:			/* for redirector and helper (was 0xfe) */
+  case DOS_HELPER_INT:		/* e6 for redirector and helper (was 0xfe) */
   case 0xe7:			/* for mfs FCB helper */
   case 0xe8:			/* for int_queue_run return */
     return REVECT;
