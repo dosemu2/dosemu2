@@ -136,137 +136,11 @@ static Keymap_Scan_Type Dosemu_defined_fkeys[] =
   {"^@0", KEY_F10 },			/* F10 */
   {"^@-", KEY_F11 },			/* F11 */
   {"^@=", KEY_F12 },			/* F12 */
-#if 0 /* conflicts with alt-fn */
-  {"\033\033", KEY_ESC },		/* ESC */
-#endif
-  {"", 0}
-};
-
-static Keymap_Scan_Type Generic_backspace[] =
-{
-  {"^H",   KEY_BKSP },			/* Backspace */
-  {"\177", KEY_BKSP },
-  {"", 0}
-};
-
-#if 0
-static Keymap_Scan_Type Meta_ALT[] =
-{
-/* Alt keys (high bit set) */
-  {"\233", KEY_ESC         | ALT_MASK },	/* Alt Esc */
-#if 0
-  {"\377", KEY_BKSP        | ALT_MASK },	/* Alt Backspace */
-#endif
-  {"\361", KEY_Q           | ALT_MASK },	/* Alt Q */
-  {"\367", KEY_W           | ALT_MASK },	/* Alt W */
-  {"\345", KEY_E           | ALT_MASK },	/* Alt E */
-  {"\362", KEY_R           | ALT_MASK },	/* Alt R */
-  {"\364", KEY_T           | ALT_MASK },	/* Alt T */
-  {"\371", KEY_Y           | ALT_MASK },	/* Alt Y */
-  {"\365", KEY_U           | ALT_MASK },	/* Alt U */
-  {"\351", KEY_I           | ALT_MASK },	/* Alt I */
-  {"\357", KEY_O           | ALT_MASK },	/* Alt O */
-  {"\360", KEY_P           | ALT_MASK },	/* Alt P */
-  {"\333", KEY_LBRACK      | ALT_MASK },	/* Alt [ */
-  {"\335", KEY_RBRACK      | ALT_MASK },	/* Alt ] */
-  {"\215", KEY_RETURN      | ALT_MASK },	/* Alt Enter */
-  {"\341", KEY_A           | ALT_MASK },	/* Alt A */
-  {"\363", KEY_S           | ALT_MASK },	/* Alt S */
-/* {"\344", KEY_D           | ALT_MASK }, */	/* Alt D *//* This is not (always) true */
-  {"\346", KEY_F           | ALT_MASK },	/* Alt F */
-  {"\347", KEY_G           | ALT_MASK },	/* Alt G */
-  {"\350", KEY_H           | ALT_MASK },	/* Alt H */
-  {"\352", KEY_J           | ALT_MASK },	/* Alt J */
-  {"\353", KEY_K           | ALT_MASK },	/* Alt K */
-  {"\354", KEY_L           | ALT_MASK },	/* Alt L */
-  {"\273", KEY_SEMICOLON   | ALT_MASK },	/* Alt ; */
-  {"\247", KEY_APOSTROPHE  | ALT_MASK },	/* Alt ' */
-  {"\340", KEY_GRAVE       | ALT_MASK },	/* Alt ` */
-/* {"\334", KEY_BACKSLASH   | ALT_MASK }, *//* Alt \ *//* This is not (always) true */
-  {"\372", KEY_Z           | ALT_MASK },	/* Alt Z */
-  {"\370", KEY_X           | ALT_MASK },	/* Alt X */
-  {"\343", KEY_C           | ALT_MASK },	/* Alt C */
-/* {"\366", KEY_V           | ALT_MASK }, */	/* Alt V *//* This is not (always) true */
-  {"\342", KEY_B           | ALT_MASK },	/* Alt B */
-  {"\356", KEY_N           | ALT_MASK },	/* Alt N */
-  {"\355", KEY_M           | ALT_MASK },	/* Alt M */
-  {"\254", KEY_COMMA       | ALT_MASK },	/* Alt , */
-  {"\256", KEY_PERIOD      | ALT_MASK },	/* Alt . */
-  {"\257", KEY_SLASH       | ALT_MASK },	/* Alt / */
-  {"\261", KEY_1           | ALT_MASK },	/* Alt 1 */
-  {"\262", KEY_2           | ALT_MASK },	/* Alt 2 */
-  {"\263", KEY_3           | ALT_MASK },	/* Alt 3 */
-  {"\264", KEY_4           | ALT_MASK },	/* Alt 4 */
-  {"\265", KEY_5           | ALT_MASK },	/* Alt 5 */
-  {"\266", KEY_6           | ALT_MASK },	/* Alt 6 */
-  {"\267", KEY_7           | ALT_MASK },	/* Alt 7 */
-  {"\270", KEY_8           | ALT_MASK },	/* Alt 8 */
-  {"\271", KEY_9           | ALT_MASK },	/* Alt 9 */
-  {"\260", KEY_0           | ALT_MASK },	/* Alt 0 */
-  {"\255", KEY_DASH        | ALT_MASK },	/* Alt - */
-  {"\275", KEY_EQUALS      | ALT_MASK },	/* Alt = */
-  {"\211", KEY_TAB         | ALT_MASK },	/* Alt Tab */
-  {"", 0}
-};
-#endif
-
-static Keymap_Scan_Type Esc_ALT[] =
-{
-/* Another form of alt keys */
-  {"\033q", KEY_Q          | ALT_MASK },	/* Alt Q */
-  {"\033w", KEY_W          | ALT_MASK },	/* Alt W */
-  {"\033e", KEY_E          | ALT_MASK },	/* Alt E */
-  {"\033r", KEY_R          | ALT_MASK },	/* Alt R */
-  {"\033t", KEY_T          | ALT_MASK },	/* Alt T */
-  {"\033y", KEY_Y          | ALT_MASK },	/* Alt Y */
-  {"\033u", KEY_U          | ALT_MASK },	/* Alt U */
-  {"\033i", KEY_I          | ALT_MASK },	/* Alt I */
-  {"\033o", KEY_O          | ALT_MASK },	/* Alt O */
-  {"\033p", KEY_P          | ALT_MASK },	/* Alt P */
-  {"\033\015", KEY_RETURN  | ALT_MASK },	/* Alt Enter */
-  {"\033a", KEY_A          | ALT_MASK },	/* Alt A */
-  {"\033s", KEY_S          | ALT_MASK },	/* Alt S */
-  {"\033d", KEY_D          | ALT_MASK },	/* Alt D */
-  {"\033f", KEY_F          | ALT_MASK },	/* Alt F */
-  {"\033g", KEY_G          | ALT_MASK },	/* Alt G */
-  {"\033h", KEY_H          | ALT_MASK },	/* Alt H */
-  {"\033j", KEY_J          | ALT_MASK },	/* Alt J */
-  {"\033k", KEY_K          | ALT_MASK },	/* Alt K */
-  {"\033l", KEY_L          | ALT_MASK },	/* Alt L */
-  {"\033;", KEY_SEMICOLON  | ALT_MASK },	/* Alt ; */
-  {"\033'", KEY_APOSTROPHE | ALT_MASK },	/* Alt ' */
-  {"\033`", KEY_GRAVE      | ALT_MASK },	/* Alt ` */
-  {"\033\\", KEY_BACKSLASH | ALT_MASK },	/* Alt \ */
-  {"\033z", KEY_Z          | ALT_MASK },	/* Alt Z */
-  {"\033x", KEY_X          | ALT_MASK },	/* Alt X */
-  {"\033c", KEY_C          | ALT_MASK },	/* Alt C */
-  {"\033v", KEY_V          | ALT_MASK },	/* Alt V */
-  {"\033b", KEY_B          | ALT_MASK },	/* Alt B */
-  {"\033n", KEY_N          | ALT_MASK },	/* Alt N */
-  {"\033m", KEY_M          | ALT_MASK },	/* Alt M */
-  {"\033,", KEY_COMMA      | ALT_MASK },	/* Alt , */
-  {"\033.", KEY_PERIOD     | ALT_MASK },	/* Alt . */
-  {"\033/", KEY_SLASH      | ALT_MASK },	/* Alt / */
-  {"\0331", KEY_1          | ALT_MASK },	/* Alt 1 */
-  {"\0332", KEY_2          | ALT_MASK },	/* Alt 2 */
-  {"\0333", KEY_3          | ALT_MASK },	/* Alt 3 */
-  {"\0334", KEY_4          | ALT_MASK },	/* Alt 4 */
-  {"\0335", KEY_5          | ALT_MASK },	/* Alt 5 */
-  {"\0336", KEY_6          | ALT_MASK },	/* Alt 6 */
-  {"\0337", KEY_7          | ALT_MASK },	/* Alt 7 */
-  {"\0338", KEY_8          | ALT_MASK },	/* Alt 8 */
-  {"\0339", KEY_9          | ALT_MASK },	/* Alt 9 */
-  {"\0330", KEY_0          | ALT_MASK },	/* Alt 0 */
-  {"\033-", KEY_DASH       | ALT_MASK },	/* Alt - */
-  {"\033=", KEY_EQUALS     | ALT_MASK },	/* Alt = */
-  {"\033\011", KEY_TAB     | ALT_MASK },	/* Alt Tab */
   {"", 0}
 };
 
 static Keymap_Scan_Type CTRL[] =
 {
-  /* don't define ctrl for Tab = ^I, Enter == ^M, Esc = ^[, Ctrl-break ~ ^C
-     and (potentially) Backspace = ^H */
   {"^Q", KEY_Q | CTRL_MASK },
   {"^W", KEY_W | CTRL_MASK },
   {"^E", KEY_E | CTRL_MASK },
@@ -274,6 +148,7 @@ static Keymap_Scan_Type CTRL[] =
   {"^T", KEY_T | CTRL_MASK },
   {"^Y", KEY_Y | CTRL_MASK },
   {"^U", KEY_U | CTRL_MASK },
+  {"^I", KEY_TAB },
   {"^O", KEY_O | CTRL_MASK },
   {"^P", KEY_P | CTRL_MASK },
   {"^A", KEY_A | CTRL_MASK },
@@ -281,13 +156,19 @@ static Keymap_Scan_Type CTRL[] =
   {"^D", KEY_D | CTRL_MASK },
   {"^F", KEY_F | CTRL_MASK },
   {"^G", KEY_G | CTRL_MASK },
+  /* if backspace generates ^H then the terminfo definition
+     takes precedence here */
+  {"^H", KEY_H | CTRL_MASK },
   {"^J", KEY_J | CTRL_MASK },
   {"^K", KEY_K | CTRL_MASK },
   {"^L", KEY_L | CTRL_MASK },
   {"^Z", KEY_Z | CTRL_MASK },
   {"^X", KEY_X | CTRL_MASK },
+  {"^C", KEY_BREAK },
   {"^V", KEY_V | CTRL_MASK },
   {"^B", KEY_B | CTRL_MASK },
+  {"^N", KEY_N | CTRL_MASK },
+  {"^M", KEY_RETURN },
   {"^\\",KEY_BACKSLASH | CTRL_MASK },
   {"^]", KEY_RBRACK | CTRL_MASK },
   {"^^", KEY_6 | CTRL_MASK },
@@ -295,15 +176,24 @@ static Keymap_Scan_Type CTRL[] =
   {"", 0}
 };
 
+#if 0 /* better not to use this (see comment below) */
 static Keymap_Scan_Type Linux_Keypad[] =
 {
 /* Keypad keys */
-#if 0
-  {"\033OP", KEY_NUMLOCK },		/* Keypad Numlock */
-#endif
+  {"\033OP", KEY_NUM },			/* Keypad Numlock */
   {"\033OQ", KEY_PAD_SLASH },		/* Keypad / */
   {"\033OR", KEY_PAD_AST },		/* Keypad * */
   {"\033OS", KEY_PAD_MINUS },		/* Keypad - */
+  {"", 0}
+};
+#endif
+
+static Keymap_Scan_Type Xterm_Keypad[] =
+{
+/* Keypad keys */
+  {"\033Oo", KEY_PAD_SLASH },		/* Keypad / */
+  {"\033Oj", KEY_PAD_AST },		/* Keypad * */
+  {"\033Om", KEY_PAD_MINUS },		/* Keypad - */
   {"", 0}
 };
 
@@ -325,33 +215,10 @@ static Keymap_Scan_Type vtxxx_Keypad[] =
   {"", 0}
 };
 
-static Keymap_Scan_Type Linux_Xkeys[] =
-{
-  {"\033[2~",  KEY_INS | MOVE_MASK },	/* Ins */
-  {"\033[3~",  KEY_DEL },		/* Del    Another keyscan is 0x007F */
-  {"\033[1~",  KEY_HOME },		/* Ho     Another keyscan is 0x5c00 */
-  {"\033[4~",  KEY_END },		/* End    Another keyscan is 0x6100 */
-  {"\033[5~",  KEY_PGUP },		/* PgUp */
-  {"\033[6~",  KEY_PGDN },		/* PgDn */
-  {"\033[A",   KEY_UP },		/* Up */
-  {"\033[B",   KEY_DOWN },		/* Dn */
-  {"\033[C",   KEY_RIGHT },		/* Ri */
-  {"\033[D",   KEY_LEFT },		/* Le */
-  {"\033[M",   KEY_MOUSE },		/* Mouse */
-  {"", 0}
-};
-
 static Keymap_Scan_Type Xterm_Xkeys[] =
 {
   {"\033[2~",  KEY_INS | MOVE_MASK },	/* Ins */
-#if 0
-  {"\177",     KEY_DEL },		/* Del  Same as backspace! */
-#endif
   {"\033[H",   KEY_HOME },		/* Ho     (rxvt)  */
-#if 0
-  {"\033[^@",  KEY_HOME },		/* Ho     (xterm) Hmm, Would this work. */
-#endif
-  {"\033Ow",   KEY_END },		/* End    (rxvt) */
   {"\033[e",   KEY_END },		/* End    (color_xterm) */
   {"\033[K",   KEY_END },		/* End  - Where does this come from ? */
   {"\033[F",   KEY_END },		/* End  - another xterm */
@@ -367,7 +234,6 @@ static Keymap_Scan_Type Xterm_Xkeys[] =
   {"\033[B",   KEY_DOWN },		/* Dn */
   {"\033[C",   KEY_RIGHT },		/* Ri */
   {"\033[D",   KEY_LEFT },		/* Le */
-  {"\033[M",   KEY_MOUSE },		/* Mouse */
 
   {"\033[G",   KEY_PAD_5 },             /* 5 (putty) */
   {"\033OA",   KEY_UP | CTRL_MASK },    /* Up (putty) */
@@ -380,28 +246,95 @@ static Keymap_Scan_Type Xterm_Xkeys[] =
 
   /* some modern varieties of xterm recognize shift and ctrl (+ some others
      but these are the most important) */
-  {"\033[2A",   KEY_UP | SHIFT_MASK },  /* Up */
-  {"\033[2B",   KEY_DOWN | SHIFT_MASK },/* Dn */
+
+  /* not in application mode */
+  {"\033[2A",   KEY_UP | SHIFT_MASK },   /* Up */
+  {"\033[2B",   KEY_DOWN | SHIFT_MASK }, /* Dn */
   {"\033[2C",   KEY_RIGHT | SHIFT_MASK },/* Ri */
   {"\033[2D",   KEY_LEFT | SHIFT_MASK }, /* Le */
   {"\033[2H",   KEY_HOME | SHIFT_MASK }, /* Ho  */
   {"\033[2F",   KEY_END | SHIFT_MASK },  /* End */
+  {"\033[5A",   KEY_UP | CTRL_MASK },    /* Up */
+  {"\033[5B",   KEY_DOWN | CTRL_MASK },  /* Dn */
+  {"\033[5C",   KEY_RIGHT | CTRL_MASK }, /* Ri */
+  {"\033[5D",   KEY_LEFT | CTRL_MASK },  /* Le */
+  {"\033[5H",   KEY_HOME | CTRL_MASK },  /* Ho  */
+  {"\033[5F",   KEY_END | CTRL_MASK },   /* End */
+  {"\033[6A",   KEY_UP | CTRL_MASK | SHIFT_MASK },   /* Up */
+  {"\033[6B",   KEY_DOWN | CTRL_MASK | SHIFT_MASK }, /* Dn */
+  {"\033[6C",   KEY_RIGHT | CTRL_MASK | SHIFT_MASK },/* Ri */
+  {"\033[6D",   KEY_LEFT | CTRL_MASK | SHIFT_MASK }, /* Le */
+  {"\033[6H",   KEY_HOME | CTRL_MASK | SHIFT_MASK }, /* Ho */
+  {"\033[6F",   KEY_END | CTRL_MASK | SHIFT_MASK },  /* End */
+
+  /* application mode (konsole / some xterm / gnome-terminal) */
+  {"\033O2A",   KEY_UP | SHIFT_MASK },   /* Up */
+  {"\033O2B",   KEY_DOWN | SHIFT_MASK }, /* Dn */
+  {"\033O2C",   KEY_RIGHT | SHIFT_MASK },/* Ri */
+  {"\033O2D",   KEY_LEFT | SHIFT_MASK }, /* Le */
+  {"\033O2H",   KEY_HOME | SHIFT_MASK }, /* Ho  */
+  {"\033O2F",   KEY_END | SHIFT_MASK },  /* End */
+  {"\033O5A",   KEY_UP | CTRL_MASK },    /* Up */
+  {"\033O5B",   KEY_DOWN | CTRL_MASK },  /* Dn */
+  {"\033O5C",   KEY_RIGHT | CTRL_MASK }, /* Ri */
+  {"\033O5D",   KEY_LEFT | CTRL_MASK },  /* Le */
+  {"\033O5H",   KEY_HOME | CTRL_MASK },  /* Ho  */
+  {"\033O5F",   KEY_END | CTRL_MASK },   /* End */
+  {"\033O6A",   KEY_UP | CTRL_MASK | SHIFT_MASK },   /* Up */
+  {"\033O6B",   KEY_DOWN | CTRL_MASK | SHIFT_MASK }, /* Dn */
+  {"\033O6C",   KEY_RIGHT | CTRL_MASK | SHIFT_MASK },/* Ri */
+  {"\033O6D",   KEY_LEFT | CTRL_MASK | SHIFT_MASK }, /* Le */
+  {"\033O6H",   KEY_HOME | CTRL_MASK | SHIFT_MASK }, /* Ho */
+  {"\033O6F",   KEY_END | CTRL_MASK | SHIFT_MASK },  /* End */
+
+  /* semicolon scheme (newer xterm) */
+  {"\033[1;2A", KEY_UP | SHIFT_MASK },   /* Up */
+  {"\033[1;2B", KEY_DOWN | SHIFT_MASK }, /* Dn */
+  {"\033[1;2C", KEY_RIGHT | SHIFT_MASK },/* Ri */
+  {"\033[1;2D", KEY_LEFT | SHIFT_MASK }, /* Le */
+  {"\033[1;2H", KEY_HOME | SHIFT_MASK }, /* Ho  */
+  {"\033[1;2F", KEY_END | SHIFT_MASK },  /* End */
   {"\033[2;2~", KEY_INS | SHIFT_MASK },  /* Ins */
   {"\033[3;2~", KEY_DEL | SHIFT_MASK },  /* Del */
-  {"\033[5;2~", KEY_PGUP | SHIFT_MASK },/* PgUp */
-  {"\033[6;2~", KEY_PGDN | SHIFT_MASK },/* PgDn */
-
-  {"\033[5A",   KEY_UP | CTRL_MASK },   /* Up */
-  {"\033[5B",   KEY_DOWN | CTRL_MASK }, /* Dn */
-  {"\033[5C",   KEY_RIGHT | CTRL_MASK },/* Ri */
-  {"\033[5D",   KEY_LEFT | CTRL_MASK }, /* Le */
-  {"\033[5H",   KEY_HOME | CTRL_MASK }, /* Ho  */
-  {"\033[5F",   KEY_END | CTRL_MASK },  /* End */
-  {"\033[2;5~", KEY_INS | CTRL_MASK },  /* Ins */
-  {"\033[3;5~", KEY_DEL | CTRL_MASK },  /* Del */
-  {"\033[5;5~", KEY_PGUP | CTRL_MASK },/* PgUp */
-  {"\033[6;5~", KEY_PGDN | CTRL_MASK },/* PgDn */
+  {"\033[5;2~", KEY_PGUP | SHIFT_MASK }, /* PgUp */
+  {"\033[6;2~", KEY_PGDN | SHIFT_MASK }, /* PgDn */
+  {"\033[1;5A", KEY_UP | CTRL_MASK },    /* Up */
+  {"\033[1;5B", KEY_DOWN | CTRL_MASK },  /* Dn */
+  {"\033[1;5C", KEY_RIGHT | CTRL_MASK }, /* Ri */
+  {"\033[1;5D", KEY_LEFT | CTRL_MASK },  /* Le */
+  {"\033[1;5H", KEY_HOME | CTRL_MASK },  /* Ho  */
+  {"\033[1;5F", KEY_END | CTRL_MASK },   /* End */
+  {"\033[1;6A", KEY_UP | CTRL_MASK | SHIFT_MASK },   /* Up */
+  {"\033[1;6B", KEY_DOWN | CTRL_MASK | SHIFT_MASK }, /* Dn */
+  {"\033[1;6C", KEY_RIGHT | CTRL_MASK | SHIFT_MASK },/* Ri */
+  {"\033[1;6D", KEY_LEFT | CTRL_MASK | SHIFT_MASK }, /* Le */
+  {"\033[1;6H", KEY_HOME | CTRL_MASK | SHIFT_MASK }, /* Ho */
+  {"\033[1;6F", KEY_END | CTRL_MASK | SHIFT_MASK },  /* End */
+  {"\033[2;5~", KEY_INS | CTRL_MASK },   /* Ins */
+  {"\033[3;5~", KEY_DEL | CTRL_MASK },   /* Del */
+  {"\033[5;5~", KEY_PGUP | CTRL_MASK },  /* PgUp */
+  {"\033[6;5~", KEY_PGDN | CTRL_MASK },  /* PgDn */
   
+  /* rxvt keys */
+  {"\033[a",    KEY_UP | SHIFT_MASK },   /* Up */
+  {"\033[b",    KEY_DOWN | SHIFT_MASK }, /* Dn */
+  {"\033[c",    KEY_RIGHT | SHIFT_MASK },/* Ri */
+  {"\033[d",    KEY_LEFT | SHIFT_MASK }, /* Le */
+  {"\033Oa",    KEY_UP | CTRL_MASK },    /* Up */
+  {"\033Ob",    KEY_DOWN | CTRL_MASK },  /* Dn */
+  {"\033Oc",    KEY_RIGHT | CTRL_MASK }, /* Ri */
+  {"\033Od",    KEY_LEFT | CTRL_MASK },  /* Le */
+  {"\033[5^",   KEY_PGUP | CTRL_MASK },  /* PgUp */
+  {"\033[6^",   KEY_PGDN | CTRL_MASK },  /* PgDn */
+  {"\033[7^",   KEY_HOME | CTRL_MASK },  /* Ho */
+  {"\033[8^",   KEY_END | CTRL_MASK },   /* End */
+  {"\033[7$",   KEY_HOME | SHIFT_MASK }, /* Ho */
+  {"\033[8$",   KEY_END | SHIFT_MASK },  /* End */
+  {"\033[2^",   KEY_INS | CTRL_MASK },   /* Ins */
+  {"\033[3^",   KEY_DEL | CTRL_MASK },   /* Del */
+  {"\033[2$",   KEY_INS | SHIFT_MASK },  /* Ins */
+  {"\033[3$",   KEY_DEL | SHIFT_MASK },  /* Del */
+
   {"", 0}
 };
 
@@ -434,36 +367,6 @@ static Keymap_Scan_Type Xterm_fkeys[] =
   {"\033[13~", KEY_F3 },		/* F3 */
   {"\033[14~", KEY_F4 },		/* F4 */
   {"\033[15~", KEY_F5 },		/* F5 */
-  {"\033OP", KEY_F1 },			/* F1 */
-  {"\033OQ", KEY_F2 },			/* F2 */
-  {"\033OR", KEY_F3 },			/* F3 */
-  {"\033OS", KEY_F4 },			/* F4 */
-  {"\033[11;2~", KEY_F1 | SHIFT_MASK }, /* Shift F1 */
-  {"\033[12;2~", KEY_F2 | SHIFT_MASK }, /* Shift F2 */
-  {"\033[13;2~", KEY_F3 | SHIFT_MASK }, /* Shift F3 */
-  {"\033[14;2~", KEY_F4 | SHIFT_MASK }, /* Shift F4 */
-  {"\033O2P", KEY_F1 | SHIFT_MASK },    /* Shift F1 */
-  {"\033O2Q", KEY_F2 | SHIFT_MASK },    /* Shift F2 */
-  {"\033O2R", KEY_F3 | SHIFT_MASK },    /* Shift F3 */
-  {"\033O2S", KEY_F4 | SHIFT_MASK },    /* Shift F4 */
-  {"\033[15;2~", KEY_F5  | SHIFT_MASK },/* Shift F5 */
-  {"\033[17;2~", KEY_F6  | SHIFT_MASK },/* Shift F6 */
-  {"\033[18;2~", KEY_F7  | SHIFT_MASK },/* Shift F7 */
-  {"\033[19;2~", KEY_F8  | SHIFT_MASK },/* Shift F8 */
-  {"\033[20;2~", KEY_F9  | SHIFT_MASK },/* Shift F9 */
-  {"\033[21;2~", KEY_F10 | SHIFT_MASK },/* Shift F10 */
-  {"\033[23;2~", KEY_F11 | SHIFT_MASK },/* Shift F11 */
-  {"\033[24;2~", KEY_F12 | SHIFT_MASK },/* Shift F12 */
-  {"", 0}
-};
-
-static Keymap_Scan_Type Linux_fkeys[] =
-{
-  {"\033[[A",  KEY_F1 },		/* F1 */
-  {"\033[[B",  KEY_F2 },		/* F2 */
-  {"\033[[C",  KEY_F3 },		/* F3 */
-  {"\033[[D",  KEY_F4 },		/* F4 */
-  {"\033[[E",  KEY_F5 },		/* F5 */
   {"", 0}
 };
 
@@ -481,58 +384,9 @@ static Keymap_Scan_Type vtxxx_xkeys[] =
   {"", 0}
 };
 
-static Keymap_Scan_Type rxvt_alt_keys[] =
-{
-  {"\033\033[11~", ALT_MASK | KEY_F1 },		/* F1 */
-  {"\033\033[12~", ALT_MASK | KEY_F2 },		/* F2 */
-  {"\033\033[13~", ALT_MASK | KEY_F3 },		/* F3 */
-  {"\033\033[14~", ALT_MASK | KEY_F4 },		/* F4 */
-  {"\033\033[15~", ALT_MASK | KEY_F5 },		/* F5 */
-  {"\033\033[17~", ALT_MASK | KEY_F6 },		/* F6 */
-  {"\033\033[18~", ALT_MASK | KEY_F7 },		/* F7 */
-  {"\033\033[19~", ALT_MASK | KEY_F8 },		/* F8 */
-  {"\033\033[20~", ALT_MASK | KEY_F9 },		/* F9 */
-  {"\033\033[21~", ALT_MASK | KEY_F10 },		/* F10 */
-  {"\033\033[23~", ALT_MASK | KEY_F1  | SHIFT_MASK },	/* Shift F1  (F11 acts like
-					 			* Shift-F1) */
-  {"\033\033[24~", ALT_MASK | KEY_F2  | SHIFT_MASK },	/* Shift F2  (F12 acts like
-								 * Shift-F2) */
-  {"\033\033[25~", ALT_MASK | KEY_F3  | SHIFT_MASK },	/* Shift F3 */
-  {"\033\033[26~", ALT_MASK | KEY_F4  | SHIFT_MASK },	/* Shift F4 */
-  {"\033\033[28~", ALT_MASK | KEY_F5  | SHIFT_MASK },	/* Shift F5 */
-  {"\033\033[29~", ALT_MASK | KEY_F6  | SHIFT_MASK },	/* Shift F6 */
-  {"\033\033[31~", ALT_MASK | KEY_F7  | SHIFT_MASK },	/* Shift F7 */
-  {"\033\033[32~", ALT_MASK | KEY_F8  | SHIFT_MASK },	/* Shift F8 */
-  {"\033\033[33~", ALT_MASK | KEY_F9  | SHIFT_MASK },	/* Shift F9 */
-  {"\033\033[34~", ALT_MASK | KEY_F10 | SHIFT_MASK },	/* Shift F10 */
-
-  {"\033\033[2~",  ALT_MASK | MOVE_MASK | KEY_INS },	/* Ins */
-  {"\033\177",     ALT_MASK | KEY_DEL },		/* Del */
-  {"\033\033[H",   ALT_MASK | KEY_HOME },		/* Ho     (rxvt)  */
-  {"\033\033Ow",   ALT_MASK | KEY_END },		/* End    (rxvt) */
-  {"\033\033[5~",  ALT_MASK | KEY_PGUP },		/* PgUp */
-  {"\033\033[6~",  ALT_MASK | KEY_PGDN },		/* PgDn */
-  {"\033\033[A",   ALT_MASK | KEY_UP },			/* Up */
-  {"\033\033[B",   ALT_MASK | KEY_DOWN },		/* Dn */
-  {"\033\033[C",   ALT_MASK | KEY_RIGHT },		/* Ri */
-  {"\033\033[D",   ALT_MASK | KEY_LEFT },		/* Le */
-  {"", 0}
-};
-
-static Keymap_Scan_Type vtxxx_pfkey[] =
-{
-/* Keypad keys */
-  {"\033OP", KEY_F1 },		/* PF1 */
-  {"\033OQ", KEY_F2 },		/* PF2 */
-  {"\033OR", KEY_F3 },		/* PF3 */
-  {"\033OS", KEY_F4 },		/* PF4 */
-  {"", 0}
-};
-
 /* Keyboard map for terminfo keys */
 static Keymap_Scan_Type terminfo_keys[] =
 {
-#if SLANG_VERSION > 9934
    {"^(kb)",	KEY_BKSP},	       /* BackSpace */
    {"^(k1)",	KEY_F1},	       /* F1 */
    {"^(k2)",	KEY_F2},	       /* F2 */
@@ -570,11 +424,67 @@ static Keymap_Scan_Type terminfo_keys[] =
    {"^(%i)",	KEY_RIGHT|SHIFT_MASK}, /* Shift Right */
    {"^(kB)",	KEY_TAB|SHIFT_MASK},   /* Shift Tab -- BackTab */
    {"^(@8)",	KEY_PAD_ENTER}, /* KEY_RETURN? */	/* Enter */
+   {"^(Km)",	KEY_MOUSE },		/* Mouse */
 
    /* Special keys */
    {"^(&2)",	REDRAW_SCAN_CODE},	/* Refresh */
    {"^(%1)",	HELP_SCAN_CODE},	/* Help */
-#endif
+   {"", 0}
+};
+
+/* Keyboard map for basic terminfo keys F13--F20 */
+static Keymap_Scan_Type terminfo_basic_fkeys[] =
+{
+   {"^(F3)",	KEY_F3|SHIFT_MASK},    /* Shift F3 */
+   {"^(F4)",	KEY_F4|SHIFT_MASK},    /* Shift F4 */
+   {"^(F5)",	KEY_F5|SHIFT_MASK},    /* Shift F5 */
+   {"^(F6)",	KEY_F6|SHIFT_MASK},    /* Shift F6 */
+   {"^(F7)",	KEY_F7|SHIFT_MASK},    /* Shift F7 */
+   {"^(F8)",	KEY_F8|SHIFT_MASK},    /* Shift F8 */
+   {"^(F9)",	KEY_F9|SHIFT_MASK},    /* Shift F9 */
+   {"^(FA)",	KEY_F10|SHIFT_MASK},   /* Shift F10 */
+   {"", 0}
+};
+
+/* Keyboard map for extended terminfo keys F13--F48 */
+static Keymap_Scan_Type terminfo_ext_fkeys[] =
+{
+   {"^(F3)",	KEY_F1|SHIFT_MASK},    /* Shift F1 */
+   {"^(F4)",	KEY_F2|SHIFT_MASK},    /* Shift F2 */
+   {"^(F5)",	KEY_F3|SHIFT_MASK},    /* Shift F3 */
+   {"^(F6)",	KEY_F4|SHIFT_MASK},    /* Shift F4 */
+   {"^(F7)",	KEY_F5|SHIFT_MASK},    /* Shift F5 */
+   {"^(F8)",	KEY_F6|SHIFT_MASK},    /* Shift F6 */
+   {"^(F9)",	KEY_F7|SHIFT_MASK},    /* Shift F7 */
+   {"^(FA)",	KEY_F8|SHIFT_MASK},    /* Shift F8 */
+   {"^(FB)",	KEY_F9|SHIFT_MASK},    /* Shift F9 */
+   {"^(FC)",	KEY_F10|SHIFT_MASK},   /* Shift F10 */
+   {"^(FD)",	KEY_F11|SHIFT_MASK},   /* Shift F11 */
+   {"^(FE)",	KEY_F12|SHIFT_MASK},   /* Shift F12 */
+   {"^(FF)",	KEY_F1|CTRL_MASK},     /* Ctrl F1 */
+   {"^(FG)",	KEY_F2|CTRL_MASK},     /* Ctrl F2 */
+   {"^(FH)",	KEY_F3|CTRL_MASK},     /* Ctrl F3 */
+   {"^(FI)",	KEY_F4|CTRL_MASK},     /* Ctrl F4 */
+   {"^(FJ)",	KEY_F5|CTRL_MASK},     /* Ctrl F5 */
+   {"^(FK)",	KEY_F6|CTRL_MASK},     /* Ctrl F6 */
+   {"^(FL)",	KEY_F7|CTRL_MASK},     /* Ctrl F7 */
+   {"^(FM)",	KEY_F8|CTRL_MASK},     /* Ctrl F8 */
+   {"^(FN)",	KEY_F9|CTRL_MASK},     /* Ctrl F9 */
+   {"^(FO)",	KEY_F10|CTRL_MASK},    /* Ctrl F10 */
+   {"^(FP)",	KEY_F11|CTRL_MASK},    /* Ctrl F11 */
+   {"^(FQ)",	KEY_F12|CTRL_MASK},    /* Ctrl F12 */
+   {"^(FR)",	KEY_F1|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F1 */
+   {"^(FS)",	KEY_F2|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F2 */
+   {"^(FT)",	KEY_F3|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F3 */
+   {"^(FU)",	KEY_F4|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F4 */
+   {"^(FV)",	KEY_F5|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F5 */
+   {"^(FW)",	KEY_F6|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F6 */
+   {"^(FX)",	KEY_F7|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F7 */
+   {"^(FY)",	KEY_F8|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F8 */
+   {"^(FZ)",	KEY_F9|CTRL_MASK|SHIFT_MASK},     /* Ctrl Shift F9 */
+   {"^(Fa)",	KEY_F10|CTRL_MASK|SHIFT_MASK},    /* Ctrl Shift F10 */
+   {"^(Fb)",	KEY_F11|CTRL_MASK|SHIFT_MASK},    /* Ctrl Shift F11 */
+   {"^(Fc)",	KEY_F12|CTRL_MASK|SHIFT_MASK},    /* Ctrl Shift F12 */
    {"", 0}
 };
 
@@ -606,10 +516,6 @@ static Keymap_Scan_Type Dosemu_Xkeys[] =
 
 static Keymap_Scan_Type Dosemu_Ctrl_keys[] =
 {
-  /* Repair some of the mistakes from 'define_key_from_keymap()' */
-  /* REMEMBER, we're pretending this is a us-ascii keyboard */
-  {"^C",	KEY_BREAK },
-
   /* Now setup the shift modifier keys */
   {"^@a",	ALT_KEY_SCAN_CODE },
   {"^@c",	CTRL_KEY_SCAN_CODE },
@@ -643,10 +549,6 @@ static Keymap_Scan_Type Dosemu_Ctrl_keys[] =
   {"", 0}
 };
 
-
-#if SLANG_VERSION > 9929
-# define SLang_define_key1(s,f,t,m) SLkm_define_key((s), (FVOID_STAR)(f), (m))
-#endif
 
 /* shift state from previous keypress */
 static unsigned long old_flags = 0;
@@ -730,18 +632,14 @@ static int define_key(const unsigned char *key, unsigned long scan,
 	if (pre_key && (pre_key->str[0] == key_str[0]) &&
 		(memcmp(pre_key->str, key_str, key_str[0]) == 0)) {
 		unsigned long prev_scan;
-#if SLANG_VERSION < 9930
-		prev_scan = (unsigned long)pre_key->f;
-#else
 		prev_scan = (unsigned long)pre_key->f.f;
-#endif
 		
 		k_printf("KBD: Previously mapped to: %04lx:%04lx\n\n",
 			prev_scan >> 16, prev_scan & 0xFFFF);
 		return 0;
 	}
 
-	ret = SLang_define_key1((unsigned char *)key, (VOID *) scan, SLKEY_F_INTRINSIC, m);
+	ret = SLkm_define_key((unsigned char *)key, (VOID *) scan, m);
 	if (ret == -2) {  /* Conflicting key error, ignore it */
 		k_printf("KBD: Conflicting key: \n\n");
 		SLang_set_error(0);
@@ -768,10 +666,10 @@ static void define_remaining_characters(SLKeyMap_List_Type *m)
 {
 	int i;
 
-	for(i = 0; i < 256; i++) {
+	for(i = ' '; i < 256; i++) {
 		unsigned char str[2];
-		if (i == '\033' || (keyb_state.Esc_Char != '@' &&
-				    keyb_state.Esc_Char == '@' + i))
+		if (keyb_state.Esc_Char != '@' &&
+		    keyb_state.Esc_Char == '@' + i)
 		  continue;
 		str[0] = i;
 		str[1] = '\0';
@@ -788,6 +686,7 @@ static int init_slang_keymaps(void)
 	unsigned char buf[5];
 	unsigned long esc_scan;
 	char * term;
+	char * kf21;
 	
 	/* Do some sanity checking */
 	if (config.term_esc_char >= 32)
@@ -813,80 +712,59 @@ static int init_slang_keymaps(void)
 	
 	/* Everybody needs these */
 	define_keyset(Dosemu_defined_fkeys, m);
-	define_keyset(Generic_backspace, m);
 	
 	/* Keypad in a special way */
 	define_keyset(Dosemu_Xkeys, m);
+
+	/* Some terminals have kf13=shift+f1, some others kf11=f11=shift+f1:
+	   often the ones which stop with kf20 will have 2*10 function keys:
+	   for those we assume f11=shift+f1.
+	   The ones with more commonly have n*12 (xterm 4*12=48). That's
+	   much better for dosemu as there is no confusing anymore
+	   The Linux console is most problematic as the default mapping
+	   may be different from what loadkeys does. KDGKBENT works only
+	   locally and in that case raw keyboard is available anyway.
+	*/
+	kf21 = SLtt_tgetstr("FB");
+	define_keyset(terminfo_keys, m);
+	if (kf21) {
+		k_printf("KBD: Many function keys detected in terminfo, trust it\n");
+		define_keyset(terminfo_ext_fkeys, m);
+	} else {
+		define_keyset(terminfo_basic_fkeys, m);
+	}
+
 	define_keyset(CTRL, m);
 	
 	term = getenv("TERM");
 	if( using_xterm() ) {
 		/* Oh no, this is _BAD_, there are so many different things called 'xterm'*/
-#if 0
-/* This breaks the 8-bit charsets, disable it for now */		
-		define_keyset(Meta_ALT, m);		/* For xterms */
-#endif
-		define_keyset(Esc_ALT, m);		/* For rxvt */
-		define_keyset(vtxxx_fkeys, m);
+		if (!kf21) {
+			define_keyset(vtxxx_fkeys, m);
+			define_keyset(Xterm_fkeys, m);
+		}
+		define_keyset(vtxxx_Keypad, m);
+		define_keyset(Xterm_Keypad, m);
 		define_keyset(Xterm_Xkeys, m);
-		define_keyset(Xterm_fkeys, m);
-		/* The rxvt_alt_keys confilict with ESCESC == ESC in Dosemu_defined_fkeys */
-		define_keyset(rxvt_alt_keys, m);	/* For rxvt */
 	}
+#if 0
+	/* The linux terminfo entry is missing smkx/rmkx;
+	   manually setting keypad mode using an escape sequence
+	   causes some confusion (NumLock LED does not work) */
 	else if( term && !strncmp("linux", term, 5) ) {
-		/* This isn't too nasty */
-		
-		define_keyset(Esc_ALT, m);
-		define_keyset(vtxxx_fkeys, m);
+		/* This isn't too nasty; most is in terminfo */
 		define_keyset(vtxxx_Keypad, m);
 		define_keyset(Linux_Keypad, m);
-		define_keyset(Linux_fkeys, m);
-		define_keyset(Linux_Xkeys, m);
-		
-		/* Linux using Meta ALT is _very_ rare, it can only be
-		 * changed through an ioctl, which nobody uses (I hope!)
-		 */
 	}
+#endif
 	else if( term && strcmp("vt52", term) && 
 		!strncmp("vt", term, 2) && term[2] >= '1' && term[2] <= '9' ) {
 		/* A 'real' VT ... yesss, if you're sure ... */
-		
-		define_keyset(vtxxx_fkeys, m);
+		if (!kf21) define_keyset(vtxxx_fkeys, m);
 		define_keyset(vtxxx_xkeys, m);
-		define_keyset(vtxxx_pfkey, m);
 		define_keyset(vtxxx_Keypad, m);
-	}
-	else {
-		/* Ok, the terminfo Must be correct here, but add
-		   something to allow for keypad stuff. */
-		
-#if 0
-		/* S-lang codes appears to send ke/ks (Keypad enable/disable) --Eric,  
-		 * It might not if you are on the console _and_ you use the
-		 * slang keyboard but use a linux console for display, possible?
-		 */
-		/* NEED This for screen 'cause S-lang doesn't send ke/ks */
-		define_keyset(vtxxx_xkeys, m);
-#endif
-		
-#if SLANG_VERSION <= 9934
-		/* Then we haven't got terminfo keys - lets get guessing */
-		
-		define_keyset(vtxxx_xkeys, m);
-		define_keyset(vtxxx_fkeys, m);
-		define_keyset(vtxxx_pfkey, m);
-		define_keyset(vtxxx_Keypad, m);
-		define_keyset(Xterm_Xkeys, m);
-		define_keyset(Xterm_fkeys, m);
-		define_keyset(Linux_Keypad, m);
-		define_keyset(Linux_fkeys, m);
-		define_keyset(Linux_Xkeys, m);
-#endif
 	}
 
-	/* Just on the offchance they've done something right! */
-	define_keyset(terminfo_keys, m);
-	
   /* And more Dosemu keys */
 	define_keyset(Dosemu_Ctrl_keys, m);
 	
@@ -918,7 +796,7 @@ static int init_slang_keymaps(void)
 	buf[2] = '^';
 	buf[3] = keyb_state.Esc_Char;
 	buf[4] = 0;
-	SLang_define_key1(buf, (VOID *) esc_scan, SLKEY_F_INTRINSIC, m);
+	SLkm_define_key(buf, (VOID *) esc_scan, m);
 	if (SLang_get_error())
 		return -1;
 	
@@ -1332,6 +1210,7 @@ static void do_slang_getkeys(void)
 {
 	SLang_Key_Type *key;
 	int cc;
+	int used_alt = 0;
 
 	k_printf("KBD: do_slang_getkeys()\n");
 
@@ -1399,11 +1278,7 @@ static void do_slang_getkeys(void)
 		} 
 		
 		if (key) {
-#if SLANG_VERSION < 9930
-			scan = (unsigned long) key->f;
-#else
-			scan = (unsigned long) key->f.f;
-#endif
+			scan = (unsigned long) key->f.f | used_alt;
 			symbol = scan & 0xFFFF;
 		} 
 		if (symbol == KEY_VOID) {
@@ -1414,7 +1289,15 @@ static void do_slang_getkeys(void)
 			k_printf("KBD: got %08x\n", symbol);
 		}
 
-		
+		if (!used_alt && key == NULL && symbol == KEY_ESC &&
+		    keyb_state.Keystr_Len > 1) {
+			keyb_state.kbcount--;
+			keyb_state.kbp++;
+			used_alt = ALT_MASK;
+			continue;
+		}
+		used_alt = 0;
+
 		keyb_state.kbcount -= keyb_state.Keystr_Len;	/* update count */
 		keyb_state.kbp += keyb_state.Keystr_Len;
 		
@@ -1531,6 +1414,7 @@ static int slang_keyb_init(void)
 	keyb_state.Shift_Flags = 0;
 	init_charset_state(&keyb_state.translate_state, trconfig.keyb_charset);
 
+	SLtt_Force_Keypad_Init = 1;
 	term_init();
 	
 	set_shiftstate(0);
