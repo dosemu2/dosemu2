@@ -3650,7 +3650,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
       }
     } else if (_trapno == 0x0e) {
       if (_cr2 >= (int)ldt_buffer && _cr2 < (int)ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
-	instr_emu(scp, 1, 1);
+	instr_emu(scp, 1, 10);
 	return;
       }
     }
