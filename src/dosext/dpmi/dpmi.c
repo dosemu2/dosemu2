@@ -392,9 +392,14 @@ static inline unsigned long client_esp(struct sigcontext_struct *scp)
  */
 static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
 {
+  static struct pmaddr_s dpmi_switch_jmp;
   register int ret;
 
-  __asm__ volatile (
+  dpmi_switch_jmp.offset = dpmi_context->eip;
+  dpmi_switch_jmp.selector = dpmi_context->cs;
+  dpmi_context->esp_at_signal = dpmi_context->esp;
+
+  asm volatile (
 "      subl   $12,%%esp\n"		/* dummy, cr2,oldmask,fpstate */
 "      push   %%ss\n"
 "      pushl  %%esp\n"			/* dummy, esp_at_signal */
@@ -410,42 +415,21 @@ static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
 "      push   %%es\n"
 "      push   %%fs\n"
 "      push   %%gs\n"
-"      movl   %%esp,"CISH_INLINE(emu_stack_frame)"\n"
-
-      /* now we load the new context
-          we move it on our stack, and then pop it */
-
-"      movl   (14*4)(%1),%%eax\n"	/* p->eip */
-"      movl   %%eax,__neweip\n"
-"      movw   (15*4)(%1),%%ax\n"	/* p->cs */
-"      movw   %%ax,__newcs\n"
-"      pushl  18*4 (%1)\n"		/* p->ss */
-"      pushl  7*4 (%1)\n"		/* p->esp */
-"      pushl  16*4 (%1)\n"		/* p->eflags */
-"      movl   $12,%%ecx\n"
-"      subl   $12*4,%%esp\n"		/* make room on the stack */
-"      cld\n"
-"      movl   %%esp,%%edi\n"
-"      movl   %1,%%esi\n"
-"      rep; movsl\n"
+"      movl   %%esp,%1\n"
+    /* Now put ESP to new context and pop it up */
+"      movl   %2,%%esp\n"
 "      pop    %%gs\n"
 "      pop    %%fs\n"
 "      pop    %%es\n"
 "      pop    %%ds\n"
 "      popa\n"
+"      addl $4*4,%%esp\n"
 "      popfl\n"
 "      lss    (%%esp),%%esp\n"		/* this is: pop ss; pop esp */
-"      ljmp   *%%cs:__dpmi_switch_jmp\n"
-
-"      .data\n"
-"  __dpmi_switch_jmp:\n"
-"  __neweip:\n"
-"      .long  0x12345678\n"
-"  __newcs:\n"
-"      .short 0xabcd\n"
-"      .text\n"
-"  dpmi_switch_return:" \
-  :"=a" (ret): "d" (dpmi_context)
+"      ljmp   *%%cs:%3\n"
+"   dpmi_switch_return:"
+    : "=a"(ret), "=m"(emu_stack_frame)
+    : "m"(dpmi_context), "m"(dpmi_switch_jmp)
   );
   return ret;
 }
