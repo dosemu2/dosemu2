@@ -432,7 +432,7 @@ static void _do_unmap_page(caddr_t base, int size)
 
   munmap_mapping(MAPPING_EMS, base, size);
   /* MAPPING_LOWMEM is magic, mapping base->base does the correct thing here */
-  mmap_mapping(MAPPING_LOWMEM | MAPPING_ALIAS, base, size,
+  mmap_mapping(MAPPING_LOWMEM, base, size,
 	PROT_READ | PROT_WRITE | PROT_EXEC, base);
 }
 

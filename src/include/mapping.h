@@ -54,7 +54,7 @@ int open_mapping (int cap);
 typedef void close_mapping_type(int cap);
 void close_mapping(int cap);
 
-typedef void *alloc_mapping_type(int cap, int mapsize, void *target);
+typedef void *alloc_mapping_type(int cap, int mapsize);
 void *alloc_mapping (int cap, int mapsize, void *target);
 
 typedef void free_mapping_type(int cap, void *addr, int mapsize);
@@ -73,6 +73,9 @@ typedef int munmap_mapping_type(int cap, void *addr, int mapsize);
 int munmap_mapping (int cap, void *addr, int mapsize);
 
 int mprotect_mapping(int cap, void *addr, int mapsize, int protect);
+
+void *extended_mremap(void *addr, size_t old_len, size_t new_len,
+       int flags, void * new_addr);
 
 struct mappingdrivers {
   char *key;

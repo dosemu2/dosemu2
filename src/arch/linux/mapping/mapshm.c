@@ -20,23 +20,12 @@
 #include <sys/ioctl.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
-#include <sys/mman.h>
-#ifndef MREMAP_FIXED
-#define MREMAP_FIXED    2
-#endif
 
-
+#include "Linux/mman.h"
 #include "dosemu_config.h"
 #include "priv.h"
 #include "mapping.h"
 #include "pagemalloc.h"
-
-static void *extended_mremap(void *addr, size_t old_len, size_t new_len,
-	int flags, void * new_addr)
-{
-	return (void *)syscall(SYS_mremap, addr, old_len, new_len, flags, new_addr);
-	
-}
 
 /* ------------------------------------------------------------ */
 
@@ -65,12 +54,7 @@ static void *alias_map(void *target, int mapsize, int protect, void *source)
 		MREMAP_MAYMOVE | MREMAP_FIXED, target);
   if ((int)target == -1) return (void *) -1;
 
-  if (protect != (PROT_READ|PROT_WRITE|PROT_EXEC)) {
-    /* we inherited rwxz from IPC shm,
-     * need to set other protections explicitely
-     */
-    mprotect(target, mapsize, protect);
-  }
+  mprotect(target, mapsize, protect);
   return target;
 }
 
@@ -212,16 +196,9 @@ static void close_mapping_shm(int cap)
   Q_printf("MAPPING: close, cap=%s\n", decode_mapping_cap(cap));
 }
 
-static void *alloc_mapping_shm(int cap, int mapsize, void *target)
+static void *alloc_mapping_shm(int cap, int mapsize)
 {
-  Q__printf("MAPPING: alloc, cap=%s, mapsize=%x, target %p\n",
-	cap, mapsize, target);
-  if (target) return 0;	/* we can't handle this case currently. However,
-  			 * only DPMI is requesting this for DPMImallocFixed
-  			 * and along the DPMI specs we need not to fullfill
-  			 * it. DPMI function 0x504 will return with error
-  			 * 8012, good.
-  			 */
+  Q__printf("MAPPING: alloc, cap=%s, mapsize=%x\n", cap, mapsize);
   return pgmalloc(mapsize);
 }
 

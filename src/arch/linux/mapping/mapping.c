@@ -18,11 +18,12 @@
  *       ^^^^^^^^         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
  */
 
+#include "emu.h"
+#include "Linux/mman.h"
+#include "mapping.h"
 #include <string.h>
 #include <errno.h>
-
-#include "emu.h"
-#include "mapping.h"
+#include <unistd.h>
 
 static int init_done = 0;
 static char *lowmem_base = NULL;
@@ -36,6 +37,12 @@ static struct mappingdrivers *mappingdrv[] = {
   &mappingdriver_file,
   0
 };
+
+void *extended_mremap(void *addr, size_t old_len, size_t new_len,
+	int flags, void * new_addr)
+{
+	return (void *)syscall(SYS_mremap, addr, old_len, new_len, flags, new_addr);
+}
 
 void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source)
 {
@@ -180,8 +187,8 @@ void close_mapping(int cap)
 void *alloc_mapping(int cap, int mapsize, void *target)
 {
   void *addr;
-  addr = mappingdriver.alloc(cap, mapsize, target);
-  mprotect_mapping(cap, addr, mapsize, PROT_READ | PROT_WRITE | PROT_EXEC);
+  addr = mappingdriver.alloc(cap, mapsize);
+  mprotect_mapping(cap, addr, mapsize, PROT_READ | PROT_WRITE);
 
   if (cap & MAPPING_INIT_LOWRAM) {
     Q__printf("MAPPING: LOWRAM_INIT, cap=%s, base=%p\n", cap, addr);
@@ -196,7 +203,7 @@ void *alloc_mapping(int cap, int mapsize, void *target)
 
 void free_mapping(int cap, void *addr, int mapsize)
 {
-  mprotect_mapping(cap, addr, mapsize, PROT_READ | PROT_WRITE | PROT_EXEC);
+  mprotect_mapping(cap, addr, mapsize, PROT_READ | PROT_WRITE);
   mappingdriver.free(cap, addr, mapsize);
 }
 

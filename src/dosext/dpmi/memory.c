@@ -334,10 +334,8 @@ DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
 
     mapped_base = block->base + offset;
 
-    if ((int)mmap_mapping(MAPPING_LOWMEM | MAPPING_ALIAS,
-	    mapped_base, cnt*DPMI_page_size,
-	    PROT_READ | PROT_WRITE | PROT_EXEC, (void *)low_addr) !=
-	    (unsigned int)mapped_base) {
+    if (mmap_mapping(MAPPING_LOWMEM, mapped_base, cnt*DPMI_page_size,
+       PROT_READ | PROT_WRITE | PROT_EXEC, (void *)low_addr) != mapped_base) {
 
 	D_printf("DPMI MapConventionalMemory mmap failed, errno = %d\n",errno);
 	return -1;

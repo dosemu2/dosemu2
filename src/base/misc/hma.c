@@ -40,7 +40,7 @@ void HMA_MAP(int HMA)
   }
   E_printf("HMA: detached at %p\n", HMAAREA);
 
-  ipc_return = mmap_mapping(MAPPING_HMA | MAPPING_ALIAS, HMAAREA, HMASIZE,
+  ipc_return = mmap_mapping(MAPPING_HMA, HMAAREA, HMASIZE,
     PROT_READ | PROT_WRITE | PROT_EXEC, src);
   if ((int)ipc_return == -1) {
     E_printf("HMA: Mapping HMA to HMAAREA %p unsuccessful: %s\n",
