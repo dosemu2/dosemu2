@@ -1,0 +1,258 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <string.h>
+#include <ctype.h>
+#include <fcntl.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <time.h>
+#include <sys/time.h>
+#include "emu.h"
+
+const char prefix[] = "/usr/dos";
+int dos_open_modes[3] = {O_RDONLY, O_WRONLY, O_RDWR};
+char findpath[80];
+char findname[13];
+int dos_files[20] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1}; 
+
+int dos2unix(char *uni, char *dos)
+{
+	char drive;
+
+	if (strstr(dos, "Phantom.") != dos)
+		return -1;
+	dos += 8;
+	drive = *dos++;
+	if (*dos++ != ':') return -1;
+	strcpy(uni, prefix);
+	uni += strlen(prefix);
+	for (;;) {
+		switch (*dos) {
+			case '\\':
+				*uni++ = '/';
+				break;
+			case '\0':
+				*uni = '\0';
+				if (*--uni == '.') *uni = '\0';
+				return 0;
+			default :
+				*uni++ = tolower(*dos);
+		}
+		dos++;
+	}
+}
+
+void dos_time(time_t utime, short *time, short *date)
+{
+	struct tm *tp;
+
+	tp = localtime(&utime);
+	printf("%d.%d.%d   %d:%02d\n", tp->tm_mday, tp->tm_mon+1, tp->tm_year,
+		tp->tm_hour, tp->tm_min);
+	*time = (tp->tm_sec >>1) | (tp->tm_min <<5) | (tp->tm_hour <<11);
+	*date = tp->tm_mday | ((tp->tm_mon +1) <<5) | ((tp->tm_year -80) <<9);
+}
+struct fentry {
+	char fname[12];
+	long fsize;
+	short fdate, ftime;
+	char fattr;
+};
+
+int dir_entry(int first, int s_mode, struct fentry *fptr)
+{
+	char name[80], *cp, *np;
+	int c, mode;
+	static DIR *dirp;
+	struct dirent *dp;
+	struct stat stbuf;
+
+	printf("DIR %x, %s\n", s_mode, findname);
+
+	if (s_mode == 0x08) return 18; /* no name */
+	if (first) {
+		if (dirp != NULL) (void)closedir(dirp);
+		if ((dirp = opendir(findpath)) == NULL) return 3;
+	}
+	for (;;) {
+		if ((dp = readdir(dirp)) == NULL) { /* no more entries */
+			(void)closedir(dirp);
+			dirp = NULL;
+			return 18;
+		}
+		printf("dir: %s\n", dp->d_name);
+		np = dp->d_name;
+		cp = findname;
+		while (*cp) {
+			if (*cp == '?') {
+ 				if (*np != '\0' && *np != '.') np++;
+			} else if (*cp == *np) np++;
+			else if (*cp != '.' || *np != '\0') break;
+			cp++;
+		}
+		if (*np || *cp) continue;
+		if (*--np == '.') continue;
+		strcpy(name, findpath);
+		strcat(name, "/");
+		strcat(name, dp->d_name);
+		printf("matched %s\n", name);
+		if (stat(name, &stbuf) < 0) continue;
+		/* matched */
+		if ((s_mode & 0x10) == 0 && S_ISDIR(stbuf.st_mode)) continue;
+		break;
+	}
+	mode = 0;
+	if (S_ISDIR(stbuf.st_mode)) mode = 0x10;
+	np = dp->d_name;
+	if (fptr) {
+		cp = fptr->fname;
+		memset(cp, ' ', 12);
+		cp[11] = '\0';
+		for (c=0; c<11; c++) {
+			if (*np == '\0') break;
+			if (*np == '.' && c < 9) c = 7, np++;
+			else cp[c] = toupper(*np++);
+		}
+		fptr->fsize = stbuf.st_size;
+		dos_time(stbuf.st_mtime, &fptr->ftime, &fptr->fdate);
+		fptr->fattr = mode;
+	}
+	return 0; /* OK */
+}
+
+int ext_fs(int nr, char *p1, char *p2, int c)
+{
+	char name[80], *cp;
+	struct stat stbuf;
+	int r, m, a, f;
+
+	printf("EXT FS:\n");
+	switch(nr) {
+		case 1: /* CD */
+			if (dos2unix(name, p1)) return 0xf;
+			printf("CD %s --- %s\n", p1, name);
+			if (stat(name, &stbuf) < 0 || !S_ISDIR(stbuf.st_mode))
+				return 3;
+			return 0;
+		case 2: /* MD */
+			if (dos2unix(name, p1)) return 0xf;
+			printf("MD %s --- %s\n", p1, name);
+			if (mknod(name, S_IFDIR | 0755, 0) < 0) {
+				return (errno == EPERM) ? 5 : 3;
+			}
+			return 0;
+		case 3: /* RD */
+			if (dos2unix(name, p1)) return 0xf;
+			printf("RD %s --- %s\n", p1, name);
+			if (stat(name, &stbuf) < 0 || !S_ISDIR(stbuf.st_mode)) {
+				return 3;
+			}
+			printf("stat\n");
+			if (unlink(name) < 0) {
+				return (errno == EBUSY) ? 16 : 5;
+				break;
+			}
+			return 0;
+		case 4: /* GET FIRST */
+			if (dos2unix(findpath, p1)) return 0xf;
+			cp = findpath + strlen(findpath);
+			while (*--cp != '/');
+			*cp++ = '\0';
+			strcpy(findname, cp);
+			printf("GET FIRST %s  %d --- %s, %s (%x)\n", p1, c, findpath, findname, p2-(char *)0);
+			return dir_entry(1, c, (struct fentry *)p2);
+		case 5: /* GET NEXT */
+			printf("GET NEXT  %d --- %s, %s\n", c, findpath, findname);
+			return dir_entry(0, c, (struct fentry *)p2);
+		case 6: /* OPEN */
+		case 7: /* CREAT */
+			if (dos2unix(name, p1)) return 0xf;
+			printf("%s %d --- %s, %s\n", (nr==7) ? "CREAT" : "OPEN",
+				c, p1, name);
+			for (f=19; f>= 0; f--) if (dos_files[f] < 0) break;
+			if (f < 0) return 4;
+			m = c & 0xff;
+			if (m > 2) return 0xc;
+			dos_files[f] = open(name, dos_open_modes[m] | 
+					((nr==7) ? O_CREAT | O_TRUNC : 0), 0644);
+			if (dos_files[f] < 0) return 2;
+			if (fstat(dos_files[f], &stbuf) < 0) return 2;
+			if (S_ISDIR(stbuf.st_mode)) return 5;
+			if (nr == 6) {
+				r = lseek(dos_files[f], 0, SEEK_END);
+				a = lseek(dos_files[f], 0, SEEK_SET);
+				printf("SZ=%d\n", r);
+				*((int *)p2)++ = r;
+			} 
+			*(short *)p2 = (short)f;
+			printf("__%d\n", f);
+			return 0;
+		case 8: /* SPECIAL OPEN */
+			if (dos2unix(name, p1)) return 0xf;
+			printf("SPECIAL OPEN %x --- %s, %s\n", c, p1, name);
+			return 1;
+		case 9: /* CLOSE */
+			printf("CLOSE (%d) \n", c);
+			if (c >= 0 && c < 20)
+				dos_files[c] = -1;
+			return 0;
+		case 10: /* READ */
+			printf("READ (%d) \n", c);
+			if (c < 0 || c >= 20 || dos_files[c] < 0) r = 0;
+			else {
+				a = *(int *)(p2+2);
+				printf ("... %d - %d\n", a, lseek(dos_files[c], 0, SEEK_CUR));
+				lseek(dos_files[c], a, SEEK_SET);
+				printf ("... %d - %d (%d)\n", a, lseek(dos_files[c], 0, SEEK_CUR), *(unsigned short *)p2);
+				r = read(dos_files[c], p1, *(unsigned short *)p2);
+				if (r < 0) r = 0;
+			}
+			*(unsigned short *)p2 = (unsigned short)r;
+			return 0;
+		case 11: /* WRITE */
+			printf("WRITE (%d) \n", c);
+			if (c < 0 || c >= 20 || dos_files[c] < 0) r = 0;
+			else r = write(dos_files[c], p1, *(unsigned short *)p2);
+			if (r < 0) r = 0;
+			*(unsigned short *)p2 = (unsigned short)r;
+			return 0;
+		case 12: /* SEEK */
+			printf("SEEK (%d) %d\n", c, *(int *)p1);
+			if (c < 0 || c >= 20 || dos_files[c] < 0) return 6;
+			r = lseek(dos_files[c], *(off_t *)p1, SEEK_END);
+			printf("pos = %d\n", r);
+			if (r < 0) return 5;
+			*(int *)p1 = r;
+			return 0;
+		case 13: /* DELETE */
+			if (dos2unix(name, p1)) return 0xf;
+			printf("DELETE %s --- %s\n", p1, name);
+			return 0;
+		case 14: /* RENAME */
+			if (dos2unix(name, p1)) return 0xf;
+			printf("RENAME %s --- %s TO %s\n", p1, name, p2);
+			return 0;
+		case 15: /* SPACE */
+			printf("SPACE \n");
+			*(unsigned short *)p1 = 4;
+			return 0;
+		case 16: /* SETATT */
+			if (dos2unix(name, p1)) return 0xf;
+			printf("SETATT %s --- %s TO %x\n", p1, name, c);
+			return 0;
+		case 17: /* GETATT */
+			if (dos2unix(name, p1)) return 0xf;
+			printf("GETATT %s --- %s\n", p1, name);
+			if (stat(name, &stbuf) < 0)
+				return 2;
+			if (S_ISDIR(stbuf.st_mode)) m = 0x10; else m = 0;
+			printf(">>%x\n", m);
+			*(unsigned short *)p2 = m;
+			return 0;
+		default:
+			show_regs();
+			error = 1;
+	}
+}

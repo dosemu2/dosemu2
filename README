@@ -1,0 +1,54 @@
+DOS EMULATOR for LINUX 0.97 pl2
+
+This is a pre alpha version. This means thera are some bugs and lots of things
+aren't implemented such as
+- screen attributes
+- some video interrupts
+- some other bios calls
+- any port io
+- ...
+
+But MS DOS is running and programms using direct screen io are working if
+you use the periodic screen update option.
+This version needs no further patches to the kernel.
+
+INSTALLATION
+
+1. unpack the tar arcive and run make
+2. move libemu to /lib or make a symbolic link
+3. create the directory /usr/dos
+4. su to root because only root can do the ioctl GETFDPERM call
+5. insert a DOS boot disk into drive A: (/dev/fd0) without config.sys and
+   autoexec.bat
+6. run: dos > [debug msg file]
+   where [debug msg file] can be either a file, /dev/null, or the device
+   of another (console) window
+   Beware: dos output gets to stderr, debug to stdout 
+
+The file hdimage is mounted as drive C:
+
+On drive C: is a file LINUX.EXE. Run this with parameter D. Now you should
+have access to drive d: which is linked to the linux file system /usr/dos.
+LINUX.EXE may work only with DOS 3.3 cause I havn't tested it with other
+DOS versions. The rest should allthough I havn't tested too.
+Be carefull: this feature isn't totaly implemented and may have bugs but I'm
+working on.
+This program LINUX.EXE is derived from a version in the book 'undocumented
+dos' chapter 4. Due to unknown copyrights I don't post the sources.
+
+Now you can install DOS on C:, but don't format C: use sys.
+Use then 'dos c' to boot direct from C:
+
+To stop the DOS emulator use kill from another window.
+
+Using programms wich accesses the screen directly:
+
+This implemention of the VM86 system call doesn't support the 'DIRTY
+PAGE' testing so you need to do screen updating continuosly. If you run
+'dos u' or 'dos c u' every 1 second the screen will be updated. I will look
+how to implement the 'SCREEN DIRTY' feature in the kernel to get rid of
+this.
+
+Please mail any suggestions, bugs or fixes to me.
+
+Matthias	(lautner@informatik.uni-wuerzburg.de)
