@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -196,7 +196,6 @@
 #if GLIBC_VERSION_CODE == 2000
 #include <sigcontext.h>
 #endif
-#include <sys/mman.h>		/* root@sjoerd*/
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -212,6 +211,7 @@
 #include "remap.h"
 #include "vgaemu.h"
 #include "priv.h"
+#include "mapping.h"
 
 /* table with video mode definitions */
 #include "vgaemu_modelist.h"
@@ -584,7 +584,7 @@ static int vga_emu_protect_page(unsigned page, int prot)
 {
   vga_deb2_map("vga_emu_protect_page: 0x%02x = %s\n", page, prot ? "RW" : "RO");
 
-  return mprotect((void *) (page << 12), 1 << 12, prot ? VGA_EMU_RW_PROT : VGA_EMU_RO_PROT);
+  return mprotect_mapping(MAPPING_VGAEMU, (void *) (page << 12), 1 << 12, prot ? VGA_EMU_RW_PROT : VGA_EMU_RO_PROT);
 } 
 
 
@@ -779,16 +779,9 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
 
   if(vmt->pages + first_page > vga.mem.pages) return 2;
 
-  /* Touch all pages before mmap()-ing,
-   * else Linux >= 1.3.78 will return -EINVAL. (Hans, 96/04/16)
-   */
-  for (u = 0; u < vmt->pages; u++) *((volatile char *)(vga.mem.base + ((first_page + u) << 12)));
-
-  i = (int) mmap(
+  i = (int) mmap_mapping(MAPPING_VGAEMU | MAPPING_ALIAS,
     (caddr_t) (vmt->base_page << 12), vmt->pages << 12,
-    VGA_EMU_RW_PROT, MAP_SHARED | MAP_FIXED,
-    vga.mem.fd, (off_t) (vga.mem.base + (first_page << 12))
-  );
+    VGA_EMU_RW_PROT, vga.mem.base + (first_page << 12));
 
   if(i == -1) return 3;
 
@@ -819,10 +812,9 @@ static int vgaemu_unmap(unsigned page)
 
   *((volatile char *)(vga.mem.scratch_page << 12));
 
-  i = (int) mmap(
+  i = (int) mmap_mapping(MAPPING_VGAEMU | MAPPING_ALIAS,
     (caddr_t) (page << 12), 1 << 12,
-    VGA_EMU_RW_PROT, MAP_SHARED | MAP_FIXED,
-    vga.mem.fd, (off_t) (vga.mem.scratch_page  << 12)
+    VGA_EMU_RW_PROT, (void *) (vga.mem.scratch_page  << 12)
   );
 
   if(i == -1) return 3;
@@ -855,11 +847,12 @@ static int vgaemu_unmap(unsigned page)
 
 int vga_emu_init(vgaemu_display_type *vedt)
 {
-  PRIV_SAVE_AREA
   int i;
   vga_mapping_type vmt = {0, 0, 0};
   emu_iodev_t io_device;
   static unsigned char *lfb_base = NULL;
+
+  open_mapping(MAPPING_VGAEMU);
 
   vga.mode = vga.VGA_mode = vga.VESA_mode = 0;
 
@@ -876,7 +869,8 @@ int vga_emu_init(vgaemu_display_type *vedt)
   vga.mem.size = (vga.mem.size + ~(-1 << 18)) & (-1 << 18);
   vga.mem.pages = vga.mem.size >> 12;
 
-  if((vga.mem.base = (unsigned char *) valloc(vga.mem.size + (1 << 12))) == NULL) {
+  vga.mem.base = alloc_mapping(MAPPING_VGAEMU, vga.mem.size+ (1 << 12));
+  if(!vga.mem.base) {
     vga_msg("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
     return 1;
   }
@@ -885,7 +879,8 @@ int vga_emu_init(vgaemu_display_type *vedt)
   vga_msg("vga_emu_init: scratch_page at 0x%08x\n", vga.mem.scratch_page << 12);
 
   if(config.X_lfb) {
-    if((lfb_base = (unsigned char *) valloc(vga.mem.size)) == NULL) {
+    lfb_base = alloc_mapping(MAPPING_VGAEMU, vga.mem.size);
+    if(!lfb_base) {
       vga_msg("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
     }
   }
@@ -897,16 +892,6 @@ int vga_emu_init(vgaemu_display_type *vedt)
   if((vga.mem.dirty_map = (unsigned char *) malloc(vga.mem.pages)) == NULL) {
     vga_msg("vga_emu_init: not enough memory for dirty map\n");
     return 1;
-  }
-
-  /* map the bank of the allocated memory */
-  enter_priv_on();	/* for /proc/self/mem I need full privileges */
-  vga.mem.fd = open("/proc/self/mem", O_RDWR);
-  leave_priv_setting();
-
-  if (vga.mem.fd < 0) {
-    vga_msg("vga_emu_init: cannot open /proc/self/mem\n");
-    return 2;
   }
 
   dirty_all_video_pages();		/* all need an update */

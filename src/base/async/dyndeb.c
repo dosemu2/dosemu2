@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -66,6 +66,7 @@ GetDebugFlagsHelper(char *debugStr, int print)
   debugStr[i++] = DebugFlag(d.request);  debugStr[i++] = 'r';
   debugStr[i++] = DebugFlag(d.sound);    debugStr[i++] = 'S';
   debugStr[i++] = DebugFlag(d.aspi);     debugStr[i++] = 'A';
+  debugStr[i++] = DebugFlag(d.mapping);  debugStr[i++] = 'Q';
 #ifdef X86_EMULATOR
   debugStr[i++] = DebugFlag(d.emu);      debugStr[i++] = 'e';
 #endif

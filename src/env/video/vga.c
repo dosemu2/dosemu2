@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -666,12 +666,6 @@ void init_vga_card(void)
   unsigned char *ssp;
   unsigned long sp;
 
-#if 0
-#define ADDR 0x0000
-  u_char *bios_mem, buffer[0x1000];
-
-#endif
-
   if (!config.mapped_bios) {
     error("CAN'T DO VIDEO INIT, BIOS NOT MAPPED!\n");
     return;
@@ -681,36 +675,6 @@ void init_vga_card(void)
   config.vga = 1;
   set_vc_screen_page(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
 
-#if 0
-  open_kmem();
-  bios_mem =
-    (char *) mmap(
-		   (caddr_t) (0x0),
-		   (size_t) 0x1000,
-		   PROT_READ,
-		   MAP_SHARED /* | MAP_FIXED */ ,
-		   mem_fd,
-		   (off_t) (ADDR)
-    );
-  if ((caddr_t) bios_mem == (caddr_t) (-1)) {
-    perror("OOPS");
-    leavedos(0);
-  }
-
-  v_printf("Video interrupt is at %04x, mode=0x%02x\n",
-	   *(unsigned int *) (bios_mem + 0x40),
-	   (u_char) bios_mem[0x449]);
-
-  memmove(buffer, bios_mem, 0x1000);
-  munmap((caddr_t) bios_mem, 0x1000);
-
-  close_kmem();
-  v_printf("SEG=0x%02x, OFF=0x%02x\n", *(u_short *) (buffer + 0x42), *(u_short *) (buffer + 0x40));
-  SETIVEC(0x10, *(u_short *) (buffer + 0x42), *(u_short *) (buffer + 0x40));
-  memmove((caddr_t) 0x449, (caddr_t) (buffer + 0x449), 0x25);
-
-#else
-
   ssp = (unsigned char *)(READ_SEG_REG(ss)<<4);
   sp = (unsigned long) LWORD(esp);
   pushw(ssp, sp, READ_SEG_REG(cs));
@@ -718,7 +682,6 @@ void init_vga_card(void)
   LWORD(esp) -= 4;
   WRITE_SEG_REG(cs, INT10_SEG);
   LWORD(eip) = INT10_OFF;
-#endif
 }
 
 /* End of video/vga.c */

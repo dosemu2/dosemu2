@@ -1,31 +1,21 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
-#if 0
-#define NCU
-#endif
+
 /*
  * Robert Sanders, started 3/1/93
  *
+ * Hans Lermen, moved 'mapping' to generic mapping drivers, 2000/02/02
  *
  */
 #include <features.h>
 #include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-#ifndef __NetBSD__
-#if GLIBC_VERSION_CODE >= 2000
-#include <netinet/if_ether.h>
-#else
-#include <linux/if_ether.h>
-#endif
-#endif
 #include <signal.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -35,19 +25,6 @@
 #include <time.h>
 #include <string.h>
 #include <termios.h>			/* for mouse.h */
-#ifdef __NetBSD__
-#include <features.h>
-#endif
-#if GLIBC_VERSION_CODE >= 2000
-#include <features.h>
-#include <sys/mman.h>
-#else
-#define MAP_ANON MAP_ANONYMOUS
-extern caddr_t mmap __P ((caddr_t __addr, size_t __len,
-			  int __prot, int __flags, int __fd, off_t __off));
-extern int munmap __P ((caddr_t __addr, size_t __len));
-#include <linux/mman.h>
-#endif
 
 #include "memory.h"
 #include "emu.h"
@@ -58,7 +35,7 @@ extern int munmap __P ((caddr_t __addr, size_t __len));
 
 #include "pic.h"
 #include "bitops.h"
-#include "priv.h"
+#include "mapping.h"
 
 extern void DOSEMUMouseEvents(void);
 
@@ -87,48 +64,36 @@ sharedmem;
 #endif
 
 /* Used for all IPC HMA activity */
-static u_char *HMAkeepalive; /* Use this to keep shm_hma_alive */
-static int shm_hma_id;
-static int shm_wrap_id;
-#ifdef NCU
-static int shm_video_id;
-#endif
+static void *shm_hma;
+static void *shm_wrap;
 static caddr_t ipc_return;
 
 void HMA_MAP(int HMA)
 {
-  PRIV_SAVE_AREA
-  int retval;
-
   E_printf("Entering HMA_MAP with HMA=%d\n", HMA);
-  enter_priv_on();
-  retval = shmdt(HMAAREA);
-  leave_priv_setting();
-  if (retval < 0) {
+
+  if (munmap_mapping(MAPPING_HMA | MAPPING_SHM, HMAAREA, HMASIZE) < 0) {
     E_printf("HMA: Detaching HMAAREA unsuccessful: %s\n", strerror(errno));
     leavedos(48);
   }
   E_printf("HMA: detached at %p\n", HMAAREA);
   if (HMA){
-    enter_priv_on();
-    ipc_return = (caddr_t) shmat(shm_hma_id, HMAAREA, SHM_REMAP );
-    leave_priv_setting();
-    if (ipc_return == (caddr_t) 0xffffffff) {
-      E_printf("HMA: Mapping HMA id %x to HMAAREA %p unsuccessful: %s\n",
-	       shm_hma_id, HMAAREA, strerror(errno));
+    ipc_return = mmap_mapping(MAPPING_HMA | MAPPING_SHM, HMAAREA,
+				HMASIZE, 0, shm_hma);
+    if ((int)ipc_return == -1) {
+      E_printf("HMA: Mapping HMA master %p to HMAAREA %p unsuccessful: %s\n",
+	       shm_hma, HMAAREA, strerror(errno));
       leavedos(47);
     }
-    E_printf("HMA: mapped id %x to %p\n", shm_hma_id, ipc_return);
+    E_printf("HMA: mapped %p to %p\n", shm_hma, ipc_return);
   }
   else {
-    enter_priv_on();
-    ipc_return = (caddr_t) shmat(shm_wrap_id, HMAAREA, 0 );
-    leave_priv_setting();
-    if (ipc_return == (caddr_t) 0xffffffff) {
+    ipc_return = mmap_mapping(MAPPING_HMA | MAPPING_SHM, HMAAREA, HMASIZE, 0, shm_wrap);
+    if ((int)ipc_return == -1) {
       E_printf("HMA: Mapping WRAP to HMAAREA unsuccessful: %s\n", strerror(errno));
       leavedos(47);
     }
-    E_printf("HMA: mapped id %x to %p\n", shm_wrap_id, ipc_return);
+    E_printf("HMA: mapped WRAP (%p) to %p\n", shm_wrap, ipc_return);
   }
 }
 
@@ -151,93 +116,42 @@ set_a20(int enableHMA)
 void HMA_init(void)
 {
   /* initially, no HMA */
-  HMAkeepalive = valloc(HMASIZE); /* This is used only so that shmdt stays going */
   sharedmem.hmastate = 0;
 
-  if ((shm_hma_id = shmget(IPC_PRIVATE, HMASIZE, 0755)) < 0) {
+  open_mapping(MAPPING_HMA);
+  shm_hma = alloc_mapping(MAPPING_HMA | MAPPING_SHM, HMASIZE);
+  if (!shm_hma) {
     E_printf("HMA: Initial HMA mapping unsuccessful: %s\n", strerror(errno));
     E_printf("HMA: Do you have IPC in the kernel?\n");
-
     leavedos(43);
   }
-  if ((shm_wrap_id = shmget(IPC_PRIVATE, HMASIZE, 0755)) < 0) {
+  shm_wrap = alloc_mapping(MAPPING_HMA | MAPPING_SHM, HMASIZE);
+  if (!shm_wrap) {
     E_printf("HMA: Initial WRAP at 0x0 mapping unsuccessful: %s\n", strerror(errno));
     leavedos(43);
   }
 
-#ifdef NCU
-/* Here is an IPC shm area for looking at DOS's video area */
-  if ((shm_video_id = shmget(IPC_PRIVATE, GRAPH_SIZE, 0755)) < 0) {
-    E_printf("VIDEO: Initial IPC GET mapping unsuccessful: %s\n", strerror(errno));
-    leavedos(43);
-  }
-  else
-    v_printf("VIDEO: SHM_VIDEO_ID = 0x%x\n", shm_video_id);
-#endif
 
-  /* attach regions: page 0 (idt) at address 0 (must be specified as 1 and
-   * SHM_RND, and must specify new SHM_REMAP flag to overwrite existing
-   * memory (cannot munmap() it!) and code space.
+  /* attach regions: page 0 (idt) at address 0 and code space.
    */
-
-  if ((ipc_return = (caddr_t) shmat(shm_wrap_id, (u_char *)0x1, SHM_REMAP|SHM_RND)) == (caddr_t) 0xffffffff) {
+  ipc_return = mmap_mapping(MAPPING_HMA | MAPPING_SHM, (void *)0, HMASIZE, 0, shm_wrap);
+  if ((int)ipc_return == -1) {
     E_printf("HMA: Mapping to 0 unsuccessful: %s\n", strerror(errno));
     leavedos(44);
   }
-  E_printf("HMA: mapped id %x to %p\n", shm_wrap_id, ipc_return);
-  if ((ipc_return = (caddr_t) shmat(shm_wrap_id, HMAAREA, SHM_REMAP)) == (caddr_t) 0xffffffff) {
+  E_printf("HMA: mapped WRAP %p to %p\n", shm_wrap, ipc_return);
+
+  ipc_return = mmap_mapping(MAPPING_HMA | MAPPING_SHM, HMAAREA, HMASIZE, 0, shm_wrap);
+  if ((int)ipc_return == -1) {
     E_printf("HMA: Adding mapping to 0x100000 unsuccessful: %s\n", strerror(errno));
     leavedos(44);
   }
-  E_printf("HMA: mapped id %x to %p\n", shm_wrap_id, ipc_return);
-  if ((ipc_return = (caddr_t) shmat(shm_hma_id, HMAkeepalive, SHM_REMAP)) == (caddr_t) 0xffffffff) {
-    E_printf("HMA: Adding mapping to HMAkeepalive unsuccessful: %s\n", strerror(errno));
-    leavedos(45);
-  }
-  E_printf("HMA: mapped id %x to %p\n", shm_hma_id, ipc_return);
-#ifdef NCU
-  if ((ipc_return = (caddr_t) shmat(shm_video_id, (caddr_t)0xb0000, SHM_REMAP)) == (caddr_t) 0xffffffff) {
-    E_printf("VIDEO: Adding mapping to video memory unsuccessful: %s\n", strerror(errno));
-    leavedos(45);
-  }
-  else
-    v_printf("VIDEO: Video attached %x to %p\n", shm_video_id, ipc_return);
-#endif
-#ifdef __linux__
-  /* On other systems, you'll have to delete the segments in hma_exit... */
-  if (shmctl(shm_hma_id, IPC_RMID, (struct shmid_ds *) 0) < 0) {
-    E_printf("HMA: Shmctl HMA unsuccessful: %s\n", strerror(errno));
-  }
-  if (shmctl(shm_wrap_id, IPC_RMID, (struct shmid_ds *) 0) < 0) {
-    E_printf("HMA: Shmctl WRAP unsuccessful: %s\n", strerror(errno));
-  }
-#ifdef NCU
-  if (shmctl(shm_video_id, IPC_RMID, (struct shmid_ds *) 0) < 0) {
-    E_printf("VIDEO: Shmctl VIDEO unsuccessful: %s\n", strerror(errno));
-  }
-#endif
-#endif
+  E_printf("HMA: mapped WRAP %p to %p\n", shm_wrap, ipc_return);
 }
-
-
-
-
 
 
 void
 hma_exit(void)
 {
-#ifdef __NetBSD__
-  if (shmctl(shm_hma_id, IPC_RMID, (struct shmid_ds *) 0) < 0) {
-    E_printf("HMA: Shmctl HMA unsuccessful: %s\n", strerror(errno));
-  }
-  if (shmctl(shm_wrap_id, IPC_RMID, (struct shmid_ds *) 0) < 0) {
-    E_printf("HMA: Shmctl WRAP unsuccessful: %s\n", strerror(errno));
-  }
-#ifdef NCU
-  if (shmctl(shm_video_id, IPC_RMID, (struct shmid_ds *) 0) < 0) {
-    E_printf("VIDEO: Shmctl VIDEO unsuccessful: %s\n", strerror(errno));
-  }
-#endif
-#endif
+  close_mapping(MAPPING_HMA);
 }

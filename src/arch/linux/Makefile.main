@@ -1,5 +1,5 @@
 #
-# (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+# (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
 #
 # for details see file COPYING in the DOSEMU distribution
 #
@@ -65,7 +65,9 @@ endif
 
 OPTIONALSUBDIRS += $(MIDID)
 
-LIBSUBDIRS=env/video base/async arch/linux/async base/misc base/dev/misc\
+LIBSUBDIRS=env/video base/async \
+	arch/linux/async arch/linux/mapping \
+	base/misc base/dev/misc\
 	$(THREADS)\
 	emu-i386 $(XEMUIFC) $(XCPUEMU) env base/speaker \
 	base/dev/pic dosext/dpmi dosext/mfs dosext/misc\

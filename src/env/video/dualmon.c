@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -11,7 +11,7 @@
  * Dual-monitor support.
  * /REMARK
  *
- * (C) 1994 under GPL, Hans Lermen (lermen@elserv.ffm.fgan.de)
+ * (C) 1994 under GPL, Hans Lermen (lermen@fgan.de)
  * (put under DOSEMU-policy 1998, --Hans)
  *
  *          HGC-port-IO code is taken from hgc.c
@@ -61,7 +61,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/mman.h>
 #include <errno.h>
 #include <malloc.h>
 
@@ -74,6 +73,7 @@
 #include "vc.h"
 #include "vga.h"
 #include "hgc.h"
+#include "mapping.h"
 
 extern void close_kmem(), open_kmem();
 
@@ -138,15 +138,14 @@ static int map_MDA_for_dualmon()
          || _IS_VS(Video_console)
        ) && (!_IS_VS(Video_hgc))) {
     int size=TEXT_SIZE;
-    open_kmem();
-    if (mmap((caddr_t) MDA_PHYS_TEXT_BASE, (size_t) size,
-         PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, mem_fd, MDA_PHYS_TEXT_BASE) == (caddr_t) -1) {
+    if (mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
+         (caddr_t) MDA_PHYS_TEXT_BASE, (size_t) size, PROT_READ | PROT_WRITE,
+         (void *)MDA_PHYS_TEXT_BASE) == (caddr_t) -1) {
       error("mmap error in MDA video mapping %s\n", strerror(errno));
       return 0;
     }
     v_printf("VID: for dualmon, mapped MDA video ram at 0x%05x, size=0x%04x\n",
           MDA_PHYS_TEXT_BASE,size);                                 
-    close_kmem();
     return 1;
   }
   if (config.dualmon && (_IS_VS(Video_graphics) /* || _IS_VS(Video_console )*/ )) return 2;

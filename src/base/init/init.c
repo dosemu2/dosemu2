@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -11,7 +11,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/mman.h>
 #include <sys/times.h>
 #include <sys/time.h>
 #include <sys/stat.h>
@@ -62,6 +61,9 @@
 #include "speaker.h"
 
 #include "keyb_clients.h"
+
+#include "mapping.h"
+
 
 #ifdef USING_NET
 extern void pkt_check_receive_quick(void);
@@ -284,17 +286,14 @@ static inline void map_hardware_ram(void)
 {
   int i, j;
   unsigned int addr, size;
-#ifdef __NetBSD__
-  extern int errno;
-#endif
 
+  open_mapping(MAPPING_INIT_HWRAM);
   if (!config.must_spare_hardware_ram)
     return;
   if (!can_do_root_stuff) {
     fprintf(stderr, "can't use hardware ram in low feature (non-suid root) DOSEMU\n");
     return;
   }
-  open_kmem ();
   i = 0;
   do {
     if (config.hardware_pages[i++]) {
@@ -303,16 +302,14 @@ static inline void map_hardware_ram(void)
 	i++;		/* NOTE: last byte is always ZERO */
       addr = HARDWARE_RAM_START + (j << 12);
       size = (i - j) << 12;
-      if (mmap((caddr_t) addr, (size_t) size, PROT_READ | PROT_WRITE, 
-	       MAP_SHARED | MAP_FIXED, mem_fd, addr) == (caddr_t) -1) {
+      if ((int)mmap_mapping(MAPPING_INIT_HWRAM | MAPPING_KMEM, (caddr_t) addr,
+		size, PROT_READ | PROT_WRITE, (caddr_t) addr) == -1) {
 	error("mmap error in map_hardware_ram %s\n", strerror (errno));
-	close_kmem();
 	return;
       }
       g_printf("mapped hardware ram at 0x%05x .. 0x%05x\n", addr, addr+size-1);
     }
   } while (i < sizeof (config.hardware_pages) - 1);
-  close_kmem();
 }
 
 /*
@@ -388,16 +385,6 @@ void memory_init(void)
   /* first_call is a truly awful hack to keep some of these procedures from
      being called twice.  It should be fixed sometime. */
 
-#if 0
-  if( first_call == 0) {
-#ifdef __linux__
-    /* make interrupt vectors read-write */
-    mprotect((void *)(BIOSSEG<<4), 0x1000, PROT_WRITE|PROT_READ|PROT_EXEC);
-    /* make memory area 0xf8000 to 0xfffff read write */
-    mprotect((void *)(ROMBIOSSEG<<4), 0x8000, PROT_WRITE|PROT_READ|PROT_EXEC);
-#endif
-  }
-#endif
   map_video_bios();            /* map the video bios */
   if (first_call)
     map_hardware_ram();        /* map the direct hardware ram */
@@ -449,16 +436,6 @@ void memory_init(void)
     shared_memory_init();
   }
   first_call = 0;
-#if 0
-  /* make interrupts vector read-only */
-  mprotect((void *)(BIOSSEG<<4), 0x1000, PROT_READ|PROT_EXEC);
-  /* Thou shall not write protect location 0xfc26d, as the video code
-   * needs to write its vector there */
-  /* make memory area 0xf8000 to 0xfbfff read only */
-  mprotect((void *)(ROMBIOSSEG<<4), 0x4000, PROT_READ|PROT_EXEC);
-  /* make memory area 0xfc500 to 0xfffff read only */
-  mprotect((void *)(ROMBIOSSEG<<4) + 0x5000, 0x3000, PROT_READ|PROT_EXEC);
-#endif
 }
 
 /* 
@@ -511,11 +488,11 @@ void device_init(void)
 void low_mem_init(void)
 {
   char *result;
+
+  open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS memory area being mapped in\n");
-  result = mmap (NULL, 0x100000,
-                 PROT_EXEC | PROT_READ | PROT_WRITE,
-                 MAP_FIXED | MAP_PRIVATE | MAP_ANON,
-                 -1, 0);
+  result = mmap_mapping(MAPPING_INIT_LOWRAM | MAPPING_SCRATCH, 0,
+  		0x100000, PROT_EXEC | PROT_READ | PROT_WRITE, 0);
   if (result != NULL)
     {
       perror ("anonymous mmap");

@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -260,7 +260,7 @@ extern void yyrestart(FILE *input_file);
 %token DEXE ALLOWDISK FORCEXDOS XDOSONLY
 %token ABORT WARN
 %token BOOTDISK L_FLOPPY EMUSYS EMUBAT EMUINI L_X
-%token DOSEMUMAP LOGBUFSIZE LOGFILESIZE
+%token DOSEMUMAP LOGBUFSIZE LOGFILESIZE MAPPINGDRIVER
 	/* speaker */
 %token EMULATED NATIVE
 	/* keyboard */
@@ -429,6 +429,11 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 #else
 		    free($2);
 #endif
+		    }
+		| MAPPINGDRIVER string_expr
+		    {
+		    config.mappingdriver = $2;
+		    c_printf("CONF: mapping driver = '%s'\n", $2);
 		    }
  		| EMUBAT string_expr
 		    { IFCLASS(CL_FILEEXT){

@@ -1,6 +1,6 @@
 /* 
  * All modifications in this file to the original code are
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -37,10 +37,6 @@
  * This provides the EMM Memory Management for DOSEMU. It was originally part
  * of the Mach Dos Emulator. 
  *
- * Recent work in this area has involved a patch to the Kernel. If this is used
- * and the DEFINE MMAP_EMS line used, a faster form of EMS memory support is
- * included, using the /proc filesystem.
- * 
  * In contrast to some of the comments (Yes, _I_ know the adage about that...)
  * we appear to be supporting EMS 4.0, not 3.2.  The following EMS 4.0
  * functions are not supported (yet): 0x4f (partial page map functions),
@@ -56,77 +52,25 @@
  *
  */
 
-#define USE_DEVZERO_MAPPING
-
-#if defined(__linux__) || defined(__NetBSD__)
-
 #include <unistd.h>
 #include <string.h>
 #include <sys/errno.h>
-#include <sys/mman.h>
 #include <malloc.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
-/*#ifdef __NetBSD__*/
 #define new_utsname utsname
-/*#endif*/
 
 #include "emu.h"
 #include "memory.h"
 #include "machcompat.h"
+#include "mapping.h"
 
 static inline boolean_t unmap_page(int);
-
-#else
-#include "base.h"
-#include "bios.h"
-#endif
 
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include "priv.h"
-
-#if defined(__NetBSD__) || defined(__linux__)
-#define __freeunices__
-#endif
-
-#ifdef __linux__  /* we try to avoid syscalls over lib */
-
-/* NOTE: Do not optimize higher then  -O2, else GCC will optimize away what we
-         expect to be on the stack */
-caddr_t libless_mmap(caddr_t addr, size_t len,
-		int prot, int flags, int fd, off_t off) {
-	int __res;
-	__asm__ __volatile__("int $0x80\n"
-	:"=a" (__res):"a" ((int)90), "b" ((int)&addr));
-	if (((unsigned)__res) > ((unsigned)-4096)) {
-		errno = -__res;
-		__res=-1;
-	}
-	else errno = 0;
-	return (caddr_t)__res;
-}
-#undef mmap
-#define mmap libless_mmap
-
-static int libless_munmap(caddr_t addr, size_t len)
-{
-	int __res;
-	__asm__ __volatile__("int $0x80\n"
-	:"=a" (__res):"a" ((int)91), "b" ((int)addr), "c" ((int)len));
-	if (__res < 0) {
-		errno = -__res;
-		__res=-1;
-	}
-	else errno =0;
-	return __res;
-}
-#undef munmap
-#define munmap libless_munmap
-
-#endif
-
 
 
 /*****************************************************************************/
@@ -200,6 +144,7 @@ static int libless_munmap(caddr_t addr, size_t len)
 #define	MAX_HANDLES	255	/* must fit in a byte */
 /* this is in EMS pages, which MAX_EMS (defined in Makefile) is in K */
 #define MAX_EMM		(config.ems_size / 16)
+#define PAGE_SIZE	4096
 #define	EMM_PAGE_SIZE	(16*1024)
 #define EMM_MAX_PHYS	4
 #define NULL_HANDLE	-1
@@ -277,13 +222,6 @@ static u_short os_allow=1;
 #define SET_HANDLE_NAME(nameptr, name) \
 	{ memmove((nameptr), (name), 8); nameptr[8]=0; }
 
-#if 0
-#define CHECK_HANDLE(handle) \
-  if ((handle) < 0 || (handle) > MAX_HANDLES) { \
-    SETHIGH(&(state->eax), EMM_INV_HAN); \
-    return; \
-  }
-#else
 #define CHECK_HANDLE(handle) \
   if ((handle < 0) || (handle > MAX_HANDLES) || \
       (handle_info[handle].active == 0)) { \
@@ -292,7 +230,6 @@ static u_short os_allow=1;
     SETHIGH(&(state->eax), EMM_INV_HAN); \
     return; \
   }
-#endif
 
 /* this will have to change...0 counts are allowed */
 #define HANDLE_ALLOCATED(handle) \
@@ -309,15 +246,10 @@ static u_short os_allow=1;
 #define PHYS_PAGE_ADDR(i) \
   (PHYS_PAGE_SEGADDR(i) << 4)
 
-#ifdef __freeunices__
 #define E_Stub(arg1, s, a...)   E_printf("EMS: "s, ##a)
 #define Kdebug0(args)		E_Stub args
 #define Kdebug1(args)		E_Stub args
 #define Kdebug2(args)		E_Stub args
-
-static int     selfmem_fd = -1;
-static boolean ems_mmap = 0;
-#endif
 
 void
 ems_helper(void) {
@@ -361,61 +293,13 @@ ems_helper(void) {
 void
 ems_init(void)
 {
-  PRIV_SAVE_AREA
   int sh_base;
   int j;
-  struct new_utsname unames;
-
-#ifdef __freeunices__
 
   if (!config.ems_size)
     return;
 
-#endif
-
-  /* we need release 1.1.43 or higher to use the mmap stuff */
-#ifdef __linux__
-#define MIN_RELEASE "1.1.43"
-#define MEMFILE "/proc/self/mem"
-#endif
-#ifdef __NetBSD__
-#undef MIN_RELEASE /* processes have no permissions to open their own mem? */
-#define MEMFILE "/proc/curproc/mem"
-#endif
-  uname(&unames);
-  E_printf("EMS: coming up on release %s\n", unames.release);
-#ifdef MIN_RELEASE
-  if (strcmp(unames.release, MIN_RELEASE) >= 0) {
-    E_printf("EMS: using " MEMFILE " mmaping (yeah!!!)\n");
-    ems_mmap = 1;
-  }
-#endif
-
-  if (ems_mmap) {
-     E_printf("EMS: opening " MEMFILE "\n");
-
-     /* currently running Linux 2.0.17 I have to be root to open my
-      * own /proc/self/mem.  Is this a bug or a feature???
-      * It's certainly a pain. -- EB 6 Sept 1996
-      * Its a feature and behaves as follows (determined by trying;-):
-      * For a suid binary it gets the ownership of the fileowner.
-      * Hence, when DOSEMU is suid root its owned by root and then
-      * only root can access it. If you want access /proc/self/mem
-      * as user, just don't set the -s bit.
-      * This behave makes sense, because a suid root program dropping its
-      * priviledges may want to hide its sensible data to the  unpriviledged
-      * running part, thus restricting /proc/self/mem is reasonable.
-      *                        -- Hans May 26 1998
-      */
-     enter_priv_on();
-     selfmem_fd = open(MEMFILE, O_RDWR);
-     leave_priv_setting();
-     if (selfmem_fd < 0) {
-       error("EMS: cannot open " MEMFILE ": %s\n",strerror(errno));
-       ems_mmap = 0;
-     }
-  }
-
+  open_mapping(MAPPING_EMS);
   E_printf("EMS: initializing memory\n");
 
   for (sh_base = 0; sh_base < EMM_MAX_PHYS; sh_base++) {
@@ -428,13 +312,6 @@ ems_init(void)
   }
 
   /* should set up OS handle here */
-#if 0
-  /* Norton sysinfo reacts badly to having a system handle with a size... */
-  handle_info[OS_HANDLE].numpages = OS_PAGES;
-  handle_info[OS_HANDLE].object = (mach_port_t) OS_PORT;
-  handle_info[OS_HANDLE].objsize = OS_SIZE;
-  handle_info[OS_HANDLE].active = 1;
-#else
   handle_info[OS_HANDLE].numpages = 0;
   handle_info[OS_HANDLE].object = 0;
   handle_info[OS_HANDLE].objsize = 0;
@@ -442,7 +319,6 @@ ems_init(void)
   for (j = 0; j < EMM_MAX_PHYS; j++) {
     handle_info[OS_HANDLE].saved_mappings_handle[j] = NULL_PAGE;
   }
-#endif
 
   handle_total++;
   SET_HANDLE_NAME(handle_info[OS_HANDLE].name, "SYSTEM  ");
@@ -451,54 +327,13 @@ ems_init(void)
   memcheck_reserve('E', EMM_BASE_ADDRESS, EMM_MAX_PHYS * EMM_PAGE_SIZE);
 }
 
-#ifdef __freeunices__
 static mach_port_t
 new_memory_object(size_t bytes)
 {
-#ifdef USE_DEVZERO_MAPPING
-  int fd_zero;
   mach_port_t addr;
-  void * hole;
-  if ((fd_zero = open("/dev/zero", O_RDWR)) == -1 ) {
-    error("EMM: can't open /dev/zero\n");
-    return 0;
-  }
-  /* kludge to avoid kernel bug:
-   * If there exist a VMA _just_ before that what we get allocated
-   * _and_ has different attributes as we are mapping,
-   * then (for some unknown reasons) the kernel will return with -EINVAL
-   * when we do a shared mmap(selfmem_fd) later on this mapping.
-   * Making an address space hole before our block works around this bug.
-   * (strange, is the kernel joining the two different attributed VMAs ?)
-   * -- Hans, July 1997
-   */
- #define MEMSELF_KERNEL_KLUDGE
- #ifdef MEMSELF_KERNEL_KLUDGE
-  #define HOLE_SIZE	EMM_PAGE_SIZE
-  hole = mmap((void *)0, HOLE_SIZE,
-			PROT_READ | PROT_WRITE | PROT_EXEC,
-			MAP_PRIVATE|MAP_FILE, fd_zero, 0);
- #endif
 
-  addr = (mach_port_t) mmap((void *)0, bytes,
-			PROT_READ | PROT_WRITE | PROT_EXEC,
-			MAP_PRIVATE|MAP_FILE, fd_zero, 0);
-
- #ifdef MEMSELF_KERNEL_KLUDGE
-  munmap(hole, HOLE_SIZE);
- #endif
-
-  close(fd_zero);
-  if ((int)addr == -1) return 0;
-#else
-  /* NOTE: bytes has to be a multiple of PAGE-SIZE,
-   * else we go into trouble with mmap()-ing under Linux >= 1.3.78
-   * We use valloc(), because this is the correct way to get page-aligned
-   * chunks of memory ( malloc() of libc >5.3 won't do the job ).
-   */
-  mach_port_t addr = (mach_port_t) valloc(bytes);
-#endif
-
+  addr = alloc_mapping(MAPPING_EMS, bytes);
+  if (!addr) return 0;
   E_printf("EMS: allocating 0x%08x bytes @ %p\n", bytes, (void *) addr);
   return (addr);		/* allocate on a PAGE boundary */
 }
@@ -507,30 +342,16 @@ static inline void
 destroy_memory_object(mach_port_t object, int length)
 {
   E_printf("EMS: destroyed EMS object @ %p\n", (void *) object);
-#ifdef USE_DEVZERO_MAPPING
-  munmap((void *) object, (size_t) length);
-#else
-  free(object);
-#endif
+  free_mapping(MAPPING_EMS, object, length);
 }
 
 static inline mach_port_t realloc_memory_object(mach_port_t object, size_t oldsize, size_t bytes)
 {
-#ifdef USE_DEVZERO_MAPPING
-  mach_port_t addr;
-  addr = (mach_port_t) mremap((void *)object, oldsize, bytes,  MREMAP_MAYMOVE);
-  if ((int)addr == -1) {
-    E_printf("EMS: mremap(0x%p,0x%x,0x%x,MREMAP_MAYMOVE) failed, %s\n",
-		object, oldsize, bytes, sys_errlist[errno]);
-    return 0;
-  }
-  return addr;
-#else
-  return (mach_port_t) realloc((void *)object, bytes);
-#endif
+  void *addr = (mach_port_t)realloc_mapping(MAPPING_EMS, (void *)object,
+  	oldsize, bytes);
+  if ((int)addr == -1) return 0;
+  return (mach_port_t)addr;
 }
-
-#endif /* __freeunices__ */
 
 static int
 allocate_handle(pages_needed)
@@ -605,36 +426,16 @@ deallocate_handle(handle)
   return (TRUE);
 }
 
-#define TOUCH_EMM_PAGE(address) ({ \
-	int i; \
-	volatile char *p= (volatile char *)address; \
-	for (i=EMM_PAGE_SIZE-4096; i>=0 ; i-=4096) *(p+i) /* |= *(p+i) */; \
-})
-
-
 static void _do_map_page(caddr_t base, caddr_t logical)
 {
-  if (ems_mmap) {
-    /* Touch all pages before mmap()-ing,
-     * else Linux >= 1.3.78 will return -EINVAL. (Hans, 96/04/16)
-     */
-    TOUCH_EMM_PAGE(logical);
-    E_printf("EMS: mmap()ing from 0x%x to 0x%x\n", (int)base, (int)logical);
-    
-    if ((caddr_t)base != mmap(base,
+  E_printf("EMS: mmap()ing from 0x%x to 0x%x\n", (int)base, (int)logical);
+  
+  if ((caddr_t)base != mmap_mapping(MAPPING_EMS|MAPPING_ALIAS, base,
 			      EMM_PAGE_SIZE,
 			      PROT_READ | PROT_WRITE | PROT_EXEC,
-			      MAP_SHARED | MAP_FIXED,
-			      selfmem_fd,
-			      (off_t) logical))
-    {
-        E_printf("EMS: mmap() failed: %s\n",strerror(errno));
-        leavedos(2);
-    }
-  } else {
-    E_printf("EMS: COPY-MAP l=0x%x, bs=0x%x, d=0x%02x, s=0x%02x\n", 
-	     (int)logical, (int)base, *(u_short *)base, *(u_short *) logical);
-    memmove((u_char *) base, (u_char *) logical, EMM_PAGE_SIZE);
+			      (void *) logical)) {
+    E_printf("EMS: mmap() failed: %s\n",strerror(errno));
+    leavedos(2);
   }
 }
 
@@ -651,8 +452,6 @@ __map_page(physical_page)
   if (handle == NULL_HANDLE)
     return (FALSE);
 
-#ifdef __freeunices__
-
   E_printf("EMS: map()ing physical page 0x%01x, handle=%d, logical page 0x%x\n", 
            physical_page,handle,emm_map[physical_page].logical_page);
 
@@ -660,13 +459,6 @@ __map_page(physical_page)
   logical = (caddr_t) handle_info[handle].object + emm_map[physical_page].logical_page * EMM_PAGE_SIZE;
 
   _do_map_page(base, logical);
-
-#else /* __freeunices__ */
-  MACH_CALL((vm_allocate(mach_task_self(),
-			 EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE),
-			   EMM_PAGE_SIZE)), "unmap");
-#endif /* __freeunices__ */
-
   return (TRUE);
 }
 
@@ -683,32 +475,16 @@ __unmap_page(physical_page)
   if (handle == NULL_HANDLE)
     return (FALSE);
 
-#ifdef __freeunices__
-
   E_printf("EMS: unmap()ing physical page 0x%01x, handle=%d, logical page 0x%x\n", 
            physical_page,handle,emm_map[physical_page].logical_page);
 
   base = (caddr_t) EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE);
   logical = (caddr_t) handle_info[handle].object + emm_map[physical_page].logical_page * EMM_PAGE_SIZE;
 
-  if (ems_mmap) {
-    /* XXX - add error checking here */
-    munmap(base, EMM_PAGE_SIZE);
-    mmap(base, EMM_PAGE_SIZE, PROT_EXEC | PROT_READ | PROT_WRITE,
-	 MAP_PRIVATE | MAP_FIXED | MAP_ANON, -1, 0);
-  } else {
-
-    E_printf("EMS: COPY-UNMAP l=0x%08x, bs=0x%04x, d=0x%02x, s=0x%02x\n",
-	     (int)logical, (int)base, *(u_short *)logical, * (u_short *) base);
-    memmove((u_char *) logical, (u_char *) base, EMM_PAGE_SIZE);
-  }
-
-#else /* __freeunices__ */
-  MACH_CALL((vm_deallocate(mach_task_self(),
-			 EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE),
-			   EMM_PAGE_SIZE)), "unmap");
-#endif /* __freeunices__ */
-
+  munmap_mapping(MAPPING_EMS, base, EMM_PAGE_SIZE);
+  mapscratch_mapping(MAPPING_EMS, base, EMM_PAGE_SIZE,
+	PROT_EXEC | PROT_READ | PROT_WRITE);
+  	
   return (TRUE);
 }
 
@@ -754,17 +530,6 @@ map_page(handle, physical_page, logical_page)
   if (handle_info[handle].numpages <= logical_page)
     return (FALSE);
 
-#if 0
-/* don't use this for the sake of remap_page() */
-
-	if ((emm_map[physical_page].handle == handle) &&
-	    (emm_map[physical_page].logical_page == logical_page)) {
-		return(TRUE);
-	}
-#endif
-
-#ifdef __freeunices__
-
 #ifdef SYNC_ALOT
   sync();
 #endif
@@ -776,15 +541,6 @@ map_page(handle, physical_page, logical_page)
   logical = (caddr_t) handle_info[handle].object + logical_page * EMM_PAGE_SIZE;
    
   _do_map_page(base, logical);
-
-#else /* __freeunices__ */
-  memory_object_remap(
-		       handle_info[handle].object,
-		       logical_page * EMM_PAGE_SIZE,
-		       EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE),
-		       EMM_PAGE_SIZE
-    );
-#endif /* __freeunices__ */  
 
   emm_map[physical_page].handle = handle;
   emm_map[physical_page].logical_page = logical_page;
@@ -820,8 +576,6 @@ save_handle_state(handle)
 	emm_map[i].logical_page;
       handle_info[handle].saved_mappings_handle[i] =
 	emm_map[i].handle;
-      if (!ems_mmap)
-	reunmap_page(i);
     }
     else
       handle_info[handle].saved_mappings_logical[i] =
@@ -853,27 +607,6 @@ restore_handle_state(handle)
   }
   return 0;
 }
-
-#if 0		/* seems to be unused */
-static void
-test_handle(handle, numpages)
-     int handle, numpages;
-{
-  int i;
-
-  for (i = 0; i < numpages; i++) {
-    map_page(handle, 0, i);
-    *(int *) EMM_BASE_ADDRESS = i;
-  }
-  for (i = 0; i < numpages; i++) {
-    map_page(handle, 0, i);
-    if ((*(int *) EMM_BASE_ADDRESS) != i) {
-      fprintf(stderr, "bios_emm: test_handle, Mapping failure: %d, %d\n",
-	      i, (*(int *) EMM_BASE_ADDRESS));
-    }
-  }
-}
-#endif
 
 static int
 do_map_unmap(state_t * state, int handle, int physical_page, int logical_page)
@@ -920,25 +653,11 @@ SEG_TO_PHYS(int segaddr)
 {
   E_printf("SEG_TO_PHYS: segment: %x\n", segaddr);
 
-#if 1
   segaddr-=EMM_SEGMENT;
   if ((segaddr<0) || (segaddr >= EMM_MAX_PHYS*EMM_PAGE_SIZE/16) || ((segaddr & 0x3ff) != 0))
      return -1;
   else
      return (segaddr)/(EMM_PAGE_SIZE/16);
-
-#else
-  if (segaddr == EMM_SEGMENT)
-    return 0;
-  else if (segaddr == (EMM_SEGMENT + 0x400))
-    return 1;
-  else if (segaddr == (EMM_SEGMENT + 0x800))
-    return 2;
-  else if (segaddr == (EMM_SEGMENT + 0xc00))
-    return 3;
-  else
-    return (-1);
-#endif
 }
 
 /* EMS 4.0 functions start here */
@@ -1329,19 +1048,8 @@ static inline void
 load_move_mem(u_char * mem, struct mem_move_struct *mem_move)
 {
 
-#if 0
-  int seg;
-  int off;
-
-  seg = *(u_short *) mem;
-  mem += 2;
-  off = *(u_short *) mem;
-  mem += 2;
-  mem_move->size = seg * 16 + off;
-#else
   mem_move->size = *(int *) mem;
   mem += 4;
-#endif
 
   mem_move->source_type = *mem++;
   mem_move->source_handle = *(u_short *) mem;
@@ -1364,12 +1072,6 @@ move_memory_region(state_t * state)
 {
   struct mem_move_struct *mem_move=NULL;
   caddr_t dest, source, mem;
-  u_char i;
-
-  if (!ems_mmap) {
-    for (i = 0; i < EMM_MAX_PHYS; i++)
-      reunmap_page(i);
-  }
 
   (u_char *) mem = (u_char *) Addr(state, ds, esi);
   load_move_mem(mem, mem_move);
@@ -1422,12 +1124,6 @@ move_memory_region(state_t * state)
   E_printf("EMS: Move Memory Region from 0x%x -> 0x%x\n", (int)source, (int)dest);
   memmove((u_char *) dest, (u_char *) source, mem_move->size);
 
-  if (!ems_mmap) {
-    for (i = 0; i < EMM_MAX_PHYS; i++)
-      remap_page(i);
-    E_printf("EMS: remap_page\n");
-  }
-
   if (source < dest) {
     if (source + mem_move->size >= dest) {
       E_printf("EMS: Source overlaps Dest\n");
@@ -1448,12 +1144,6 @@ exchange_memory_region(state_t * state)
 {
   struct mem_move_struct *mem_move=NULL;
   caddr_t dest, source, mem, tmp;
-  u_char i;
-
-  if (!ems_mmap) {
-    for (i = 0; i < EMM_MAX_PHYS; i++)
-      reunmap_page(i);
-  }
 
   (u_char *) mem = (u_char *) Addr(state, ds, esi);
   load_move_mem(mem, mem_move);
@@ -1494,11 +1184,6 @@ exchange_memory_region(state_t * state)
   memmove(source, dest, mem_move->size);
   memmove(dest, tmp, mem_move->size);
   free(tmp);
-
-  if (!ems_mmap) {
-    for (i = 0; i < EMM_MAX_PHYS; i++)
-      remap_page(i);
-  }
 
   return (0);
 }
@@ -1548,11 +1233,7 @@ get_ems_hardinfo(state_t * state)
       case GET_ARRAY:{
         u_short *ptr = (u_short *) Addr(state, es, edi);
 
-#if 0
-        *ptr = (4 * 1024) / 16;
-#else
         *ptr = (16 * 1024) / 16;
-#endif
         ptr++;			/* raw page size in paragraphs, 4K */
         *ptr = 0;
         ptr++;			/* # of alternate register sets */
@@ -2186,11 +1867,9 @@ ems_fn(state)
     }
     break;
 
-#if 1
   case ALTERNATE_MAP_REGISTER: /* 0x5B */
       alternate_map_register(state); 
     break;     
-#endif
 
   case OS_SET_FUNCTION: /* 0x5D */
       os_set_function(state); 

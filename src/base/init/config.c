@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -186,6 +186,7 @@ config_defaults(void)
       config.realcpu, config.mathco);
 
     config.hdiskboot = 1;	/* default hard disk boot */
+    config.mappingdriver = 0;
 #ifdef X86_EMULATOR
     config.cpuemu = 0;
 #endif
@@ -370,6 +371,7 @@ void dump_config_status(void *printfunc)
     (*print)("emuspeed %d\ncpuemu %d\n", config.emuspeed, config.cpuemu);
 #endif
 
+    (*print)("mappingdriver %s\n", config.mappingdriver ? config.mappingdriver : "auto");
     (*print)("hdiskboot %d\nmem_size %d\n",
         config.hdiskboot, config.mem_size);
     (*print)("ems_size 0x%x\nems_frame 0x%x\nsecure %d\n",
@@ -1053,9 +1055,9 @@ int parse_debugflags(const char *s, unsigned char flag)
     char            c;
     int ret = 0;
 #ifdef X_SUPPORT
-    const char      allopts[] = "dARWDCvXkiTsm#pgcwhIExMnPrSeZ";
+    const char      allopts[] = "dARWDCvXkiTsm#pQgcwhIExMnPrSeZ";
 #else
-    const char      allopts[] = "dARWDCvkiTsm#pgcwhIExMnPrSeZ";
+    const char      allopts[] = "dARWDCvkiTsm#pQgcwhIExMnPrSeZ";
 #endif
 
     /*
@@ -1154,6 +1156,9 @@ int parse_debugflags(const char *s, unsigned char flag)
 	    break;
 	case 'P':		/* Packet driver */
 	    d.pd = flag;
+	    break;
+	case 'Q':		/* Mapping driver */
+	    d.mapping = flag;
 	    break;
 	case 'r':		/* PIC */
 	    d.request = flag;

@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -17,8 +17,6 @@
  *
  */
 #include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/socket.h>
@@ -31,17 +29,16 @@
 #include <unistd.h>
 #include <time.h>
 #include <string.h>
-#include <sys/mman.h>
 
 #include "config.h"
 #include "emu.h"
 #include "shared.h"
 #include "priv.h"
+#include "mapping.h"
+
+
 
 static char devname_[30];
-#ifdef __NetBSD__
-#define SHM_REMAP 0			/* XXX? */
-#endif
 
 /*
  * DANG_BEGIN_FUNCTION shared_qf_memory_init
@@ -50,73 +47,45 @@ static char devname_[30];
  *
  * DANG_END_FUNCTION
  */
-void shared_memory_init(void) {
+void shared_memory_init(void)
+{
   PRIV_SAVE_AREA
-  static int shm_qf_id=0;
-  static int shm_video_id=0;
-  static int ret_val;
   int        pid;
   char info[81];
   int tmpfile_fd;
 
+  open_mapping(MAPPING_SHARED);
 /*
  *
- * First the keyboard
- *
- */
-
-  if ((shm_qf_id = shmget(IPC_PRIVATE, SHARED_QUEUE_FLAGS_AREA, 0755)) < 0) {
-    E_printf("SHM: Initial QF IPC mapping unsuccessful: %s\n", strerror(errno));
-    E_printf("SHM: Do you have IPC in the kernel?\n");
-    leavedos(43);
-  }
-  else
-    E_printf("SHM: shm_qf_id=%x\n", shm_qf_id);
-
-  if (((caddr_t)shared_qf_memory = (caddr_t) shmat(shm_qf_id, (u_char *)0, 0)) == (caddr_t) 0xffffffff) {
-    E_printf("SHM: Mapping to QF 0 unsuccessful: %s\n", strerror(errno));
-    leavedos(44);
-  }
-  if (shmctl(shm_qf_id, IPC_RMID, (struct shmid_ds *) 0) < 0) {
-    E_printf("SHM: Shmctl QF SHM unsuccessful: %s\n", strerror(errno));
-  }
-
-/*
- *
- * Next the video area
+ * The video area
  *
  */
 
  if(!config.dualmon && !config.X && !config.vga && !config.console_video) {
 
-  if ((shm_video_id = shmget(IPC_PRIVATE, SHARED_VIDEO_AREA, 0755)) < 0) {
+  void *shm_video = alloc_mapping(MAPPING_SHARED | MAPPING_SHM, SHARED_VIDEO_AREA);
+  if (!shm_video) {
     E_printf("SHM: Initial Video IPC mapping unsuccessful: %s\n", strerror(errno));
     E_printf("SHM: Do you have IPC in the kernel?\n");
     leavedos(43);
   }
-  else
-    E_printf("SHM: shm_video_id=%x\n", shm_video_id);
+  E_printf("SHM: shm_video allocated, master mapping at %p\n", shm_video);
 
-  if (((caddr_t)ret_val = (caddr_t) shmat(shm_video_id, (u_char *)0xA0000, SHM_REMAP /* |SHM_RND */)) == (caddr_t) 0xffffffff) {
+  shm_video = mmap_mapping(MAPPING_SHARED | MAPPING_SHM, (void *)0xA0000,
+				-1, 0, shm_video);
+  if ((int)shm_video == -1) {
     E_printf("SHM: Mapping to Video 0 unsuccessful: %s\n", strerror(errno));
     leavedos(44);
   }
-  if (shmctl(shm_video_id, IPC_RMID, (struct shmid_ds *) 0) < 0) {
-    E_printf("SHM: Shmctl Video SHM unsuccessful: %s\n", strerror(errno));
-  }
  }
 
-/* 
- * DANG_BEGIN_REMARK
- *	Set to 0 all client request area
- * DANG_END_REMARK
- */
-*(int *)(shared_qf_memory + CLIENT_REQUEST_FLAG_AREA) = (int)0;
-E_printf("SHM: Client request area set to %04d\n", *(int *)(shared_qf_memory + CLIENT_REQUEST_FLAG_AREA));
 
 /* 
  * DANG_BEGIN_REMARK
  *	Output info required for client activity
+ *	(NOTE: 'client activity' as of 2000/02/02 totally disabled,
+ *	but left file structure compatible, --Hans)
+ *
  * DANG_END_REMARK
  */
   pid = getpid();
@@ -131,21 +100,16 @@ E_printf("SHM: Client request area set to %04d\n", *(int *)(shared_qf_memory + C
   sprintf(info, "dosemu-%s\n", VERSTR);
   write(tmpfile_fd, info, strlen(info));
 
-  sprintf(info, "SQF=%08d\n", shm_qf_id);
+  sprintf(info, "SQF=-1\nSVA=-1\n");
   write(tmpfile_fd, info, strlen(info));
-
-  sprintf(info, "SVA=%08d\n", shm_video_id);
-  write(tmpfile_fd, info, strlen(info));
-
 }
 
-void shared_memory_exit(void) {
+void shared_memory_exit(void)
+{
 
-#if 1
   PRIV_SAVE_AREA
   enter_priv_on();
   unlink(devname_);
   leave_priv_setting();
-#endif
-
+  close_mapping(MAPPING_SHARED);
 }

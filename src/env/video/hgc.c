@@ -1,6 +1,6 @@
 /* 
  * All modifications in this file to the original code are
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -28,7 +28,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/mman.h>
 #include <errno.h>
 #include <malloc.h>
 
@@ -39,6 +38,7 @@
 #include "vc.h"
 #include "vga.h"
 #include "hgc.h"
+#include "mapping.h"
 
 void set_hgc_page(int page);
 void map_hgc_page( int fullmode );
@@ -93,9 +93,8 @@ void hgc_meminit(void)
 {
   char *maperr;
 
+  open_mapping(MAPPING_HGC);
   hgc_ctrl = 1;
-
-  open_kmem();
 
   if ( ( phgcp0 = valloc( 32*1024 ) ) == NULL ) /* memory for page 0 */
     hgc_ctrl = 0;
@@ -107,21 +106,17 @@ void hgc_meminit(void)
     hgc_ctrl = 0;
 
   /* map real HGC-mem (page 0) */
-  maperr = (caddr_t) mmap(HGC_BASE0,
+  maperr = (caddr_t) mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
+     HGC_BASE0,
      HGC_PLEN,
      PROT_READ | PROT_WRITE,
-     MAP_SHARED | MAP_FIXED,
-     mem_fd,
-     (off_t) HGC_BASE0);
+     (void *) HGC_BASE0);
   if ( maperr == (caddr_t) -1 ){
     error("can't map HGC-mem: errno=%d, %s \n",
    errno, strerror(errno));
     leavedos(0);
     return;
   }
-
-  close_kmem();
-
 }
 
 void mda_initialize(void)
@@ -356,7 +351,6 @@ void set_hgc_page(int page)
   caddr_t Test;
 
   v_printf("HGC Map Page old: %d, new: %d\n",hgc_Page, page );
-  open_kmem();
 
   if ( hgc_ctrl ){
     if ( hgc_Page != page ){
@@ -365,15 +359,14 @@ void set_hgc_page(int page)
       if ( page == 0 ){
 
  /* unmap old visible pages */
- munmap( HGC_BASE1, HGC_PLEN );
+ munmap_mapping(MAPPING_HGC, HGC_BASE1, HGC_PLEN);
 
  /* map real HGC-mem to a place from where we can sync */
- Test = mmap(syncadr,
+ Test = mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
+      syncadr,
       HGC_PLEN,
       PROT_READ | PROT_WRITE,
-      MAP_SHARED | MAP_FIXED,
-      mem_fd,
-      (off_t) HGC_BASE0);
+      (void *) HGC_BASE0);
 
 
    v_printf("Syncadr: soll %u ist %u\n",
@@ -387,15 +380,14 @@ void set_hgc_page(int page)
  memcpy( syncadr, phgcp0, HGC_PLEN );
 
  /* unmap sync */
- munmap( syncadr, HGC_PLEN );
+ munmap_mapping(MAPPING_HGC, syncadr, HGC_PLEN );
 
  /* map real HGC-mem to page 0 */
- Test = mmap(HGC_BASE0,
+ Test = mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
+      HGC_BASE0,
       HGC_PLEN,
       PROT_READ | PROT_WRITE,
-      MAP_SHARED | MAP_FIXED,
-      mem_fd,
-      (off_t) HGC_BASE0);
+      (void *) HGC_BASE0);
 
    v_printf("MEM: soll %u ist %u\n",
      (unsigned int) HGC_BASE1,
@@ -410,15 +402,14 @@ void set_hgc_page(int page)
    v_printf("HGC Map Page 1 allowed\n" );
 
    /* unmap old visible pages */
-   munmap( HGC_BASE0, HGC_PLEN );
+   munmap_mapping(MAPPING_HGC, HGC_BASE0, HGC_PLEN);
 
    /* map real HGC-mem to a place from where we can sync */
-   Test = mmap(syncadr,
+   Test = mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
+    syncadr,
     HGC_PLEN,
     PROT_READ | PROT_WRITE,
-    MAP_SHARED | MAP_FIXED,
-    mem_fd,
-    (off_t) HGC_BASE0);
+    (void *) HGC_BASE0);
 
 
    v_printf("Syncadr: soll %u ist %u\n",
@@ -432,15 +423,14 @@ void set_hgc_page(int page)
    memcpy( syncadr, phgcp1, HGC_PLEN );
 
    /* unmap sync */
-   munmap( syncadr, HGC_PLEN );
+   munmap_mapping(MAPPING_HGC, syncadr, HGC_PLEN );
 
    /* map real HGC-mem to page 1 */
-   Test = mmap(HGC_BASE1,
+   Test = mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
+        HGC_BASE1,
         HGC_PLEN,
         PROT_READ | PROT_WRITE,
-        MAP_SHARED | MAP_FIXED,
-        mem_fd,
-        (off_t) HGC_BASE0);
+        (void *) HGC_BASE0);
    v_printf("MEM: soll %u ist %u\n",
      (unsigned int) HGC_BASE1,
      (unsigned int) Test);
@@ -452,45 +442,11 @@ void set_hgc_page(int page)
       }
     }
   }
-  close_kmem();
   return;
 }
 
 void map_hgc_page( int fullmode )
 {
-/*
-  int nullfd;
-*/
-  open_kmem();
-
-  if ( ( fullmode && ( hgc_Konv & 0x02 ) ) ||
-      ( !fullmode && !( hgc_Konv & 0x02 ) ) ) { /* is and was or is not an was not fullmode */
-  }
-  else if ( !fullmode && ( hgc_Konv & 0x02 ) ){ /* is not but was */
-    /* we have to move ram away: map /dev/null ?! */
-    v_printf("HGC Vor nullmap!\n");
-/*
-    nullfd = open("/dev/null", O_RDWR);
-    mmap(HGC_BASE1,
-  HGC_PLEN,
-  PROT_READ | PROT_WRITE,
-  MAP_SHARED | MAP_FIXED,
-  mem_fd,
-  (off_t) HGC_BASE0);
-    close( nullfd );
-*/
-    v_printf("HGC Nach nullmap!\n");
-  }
-  else if ( fullmode && !( hgc_Konv & 0x02 ) ){ /* is but was not */
-    /* and map ram to HGC_BASE1 */
-    /* because there was ram, we must unmap /dev/null! */
-/*
-    munmap( HGC_BASE1, HGC_PLEN );
-*/
-  }
-  close_kmem();
-  v_printf("HGC finished call!\n");
-  return;
 }
 
 int hgc_init(void)

@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -812,6 +812,18 @@ static void int15(u_char i)
   case 0xdb:
 	HI(ax) = 0x86;
 	break;
+
+  case 0xe8:
+    if (LO(ax) == 1) {
+	Bit32u mem = ((config.xms_size > config.ems_size) ?
+			 config.xms_size : config.ems_size);
+	LWORD(eax) = mem;
+	LWORD(ebx) = mem >>16;
+	NOCARRY;
+	return;
+    }
+    /* Fall through !! */
+
   default:
     g_printf("int 15h error: ax=0x%04x\n", LWORD(eax));
     CARRY;

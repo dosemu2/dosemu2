@@ -43,6 +43,7 @@
 #include <sys/param.h>	/* EXEC_PAGESIZE */
 
 #include "remap.h"
+#include "mapping.h"
 
 #define LUT_OFS_33  256 * 3
 #define LUT_OFS_67  256 * 4
@@ -1425,7 +1426,7 @@ void code_append_ins(CodeObj *co, int len, void *nc)
     text -= ((unsigned) text) & (EXEC_PAGESIZE - 1);
     size -= text - mem;
 
-    if(mprotect(text, size, PROT_READ|PROT_WRITE|PROT_EXEC) < 0) {
+    if(mprotect_mapping(MAPPING_VGAEMU, text, size, PROT_READ|PROT_WRITE|PROT_EXEC) < 0) {
       co->size = -1;
       co->exec = &do_nothing;
       free(mem);

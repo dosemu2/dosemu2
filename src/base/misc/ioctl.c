@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -48,19 +48,6 @@
 
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-#ifndef __NetBSD__
-#include <linux/if_ether.h>
-#endif
-#ifdef __NetBSD__
-#include <sys/mman.h>
-#else
-extern caddr_t mmap __P ((caddr_t __addr, size_t __len,
-                          int __prot, int __flags, int __fd, off_t __off));
-                          extern int munmap __P ((caddr_t __addr, size_t
-__len));
-#include <linux/mman.h>
-#endif
-
 
 
 #include "config.h"

@@ -1,9 +1,34 @@
 #! /usr/bin/perl
 
-$newyear = "1999";
+$newyear = "2000";
+$filelistname = "";
+
+$i = 0;
+
+while ($ARGV[$i] ne "") {
+  if ($ARGV[$i] eq "-y") {
+    $i++;
+    if ($ARGV[$i] ne "") {
+      $newyear = $ARGV[$i];
+      $i++;
+    }
+  }
+  if ($ARGV[$i] eq "-f") {
+    $i++;
+    if ($ARGV[$i] ne "") {
+      $filelistname = $ARGV[$i];
+      $i++;
+    }
+  }
+}
 
 print "building file list ...\n";
-@files = `grep -l '(C) Copyright 1992,' \`find -type f\``;
+if ($filelistname eq "") {
+  @files = `grep -l '(C) Copyright 1992,' \`find -type f\``;
+}
+else {
+  @files = `grep -l '(C) Copyright 1992,' \`cat $filelistname\``;
+}
 print "...Ok, now processing\n";
 
 $total = 0;

@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -98,7 +98,7 @@ EXTERN char *cl,		/* clear screen */
 /* the fd for the keyboard */ 
 EXTERN int console_fd INIT(-1);
 
-/* the file descriptor for /dev/mem when mmap'ing the video mem */
+/* the file descriptor for /dev/mem mmap'ing */
 EXTERN int mem_fd INIT(-1);
 EXTERN int in_readkeyboard;
 
@@ -150,9 +150,9 @@ void getKeys(void);
      int set_ioperm(int, int, int);
 
 #ifdef X86_EMULATOR
-EXTERN struct debug_flags d INIT({0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0});
+EXTERN struct debug_flags d INIT({0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0});
 #else
-EXTERN struct debug_flags d INIT({0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0});
+EXTERN struct debug_flags d INIT({0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0});
 #endif
 #ifdef DONT_DEBUG_BOOT
 EXTERN struct debug_flags d_save;
@@ -355,6 +355,9 @@ typedef struct vesamode_type_struct {
        char *tty_lockdir;	/* The Lock directory  */
        char *tty_lockfile;	/* Lock file pretext ie LCK.. */
        boolean tty_lockbinary;	/* Binary lock files ? */
+
+       /* type of mapping driver */
+       char *mappingdriver;
 
        /* list of arbitrary features
         * (at minimum 1, will be increased when needed)

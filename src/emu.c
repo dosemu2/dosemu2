@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -147,7 +147,8 @@ __asm__("___START___: jmp _emulate\n");
 extern void     stdio_init(void);
 extern void     time_setting_init(void);
 extern void     low_mem_init(void);
-
+extern void	mapping_init(void);
+extern void	mapping_close(void);
 extern void     shared_memory_exit(void);
 extern void     restore_vt(u_short);
 extern void     disallocate_vt(void);
@@ -440,6 +441,7 @@ emulate(int argc, char **argv)
 #endif
     get_time_init();
     stdio_init();		/* initialize stdio & open debug file */
+    mapping_init();		/* initialize mapping drivers */
     print_version();            /* log version information */
     module_init();
     low_mem_init();		/* initialize the lower 1Meg */
@@ -668,6 +670,10 @@ leavedos(int sig)
     g_printf("closing debugger pipes\n");
     mhp_close();
 #endif
+
+    g_printf("calling mapping_close()\n");
+    mapping_close();
+
     if (config.detach) {
 	restore_vt(config.detach);
 	disallocate_vt();

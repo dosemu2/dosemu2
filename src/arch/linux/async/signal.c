@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -447,6 +447,7 @@ void SIGALRM_call(void)
 
   timer_tick();
 
+#if 0
 /*
  * DANG_BEGIN_REMARK
  *  Check for keyboard coming from client
@@ -458,6 +459,7 @@ void SIGALRM_call(void)
    pic_request (PIC_IRQ1);
    *(u_char *)(shared_qf_memory + CLIENT_REQUEST_FLAG_AREA) &=  ~0x40;
  }
+#endif
 
   if (not_use_sigio)
     io_select(fds_no_sigio);

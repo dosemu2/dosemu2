@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -30,6 +30,7 @@
 #endif
 #include "termio.h"
 #include "vc.h"
+#include "mapping.h"
 
 extern void open_kmem();      /* from vc.c */
 extern void set_process_control();
@@ -318,8 +319,9 @@ gettermcap(int i)
 
 void
 video_config_init(void) {
-
   gettermcap(0);
+
+  open_mapping(MAPPING_VIDEO);
 
   switch (config.cardtype) {
   case CARD_MDA:

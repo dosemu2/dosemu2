@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -30,7 +30,21 @@
 #endif
 #endif
 
-/* "dRWDCvXkiTsm#pgcwhIExMnPrS" */
+/*
+ * The 'struct debug_flags' defines which features may print discrete debug
+ * messages. If you want to add one, also adapt the following places in the
+ * DOSEMU code:
+ *
+ *  src/base/init/config.c, parse_debugflags(), allopts[]
+ *  src/include/emu.h, 'EXTERN struct debug_flags d INIT({0..})'
+ *  src/base/async/dyndeb.c, GetDebugFlagsHelper()
+ *
+ * Here is an overview of which flags are used and which not, please keep
+ * this comment in sync with the reality:
+ *
+ *   used: aA  cCdD E  g h iI  k   mMn   pP QrRsS T  v wWxX      and '#'
+ *   free:   bB    e fF G H  jJ KlL   NoO  q     t uU V    yYzZ
+ */
 struct debug_flags {
   unsigned char
    disk,		/* disk msgs         "d" */
@@ -60,6 +74,7 @@ struct debug_flags {
    request,		/* PIC               "r" */
    sound, 		/* SOUND	     "S" */
    aspi,		/* ASPI interface    "A" */
+   mapping,		/* Mapping driver    "Q" */
    pci                  /* PCI               "Z" */
 #ifdef X86_EMULATOR
    ,emu			/* CPU emulation     "e" */
@@ -130,6 +145,7 @@ void verror(const char *fmt, va_list args);
 #define r_printf(f,a...)        ifprintf(d.request,f,##a)
 #define S_printf(f,a...)     	ifprintf(d.sound,f,##a)
 #define A_printf(f,a...)     	ifprintf(d.aspi,f,##a)
+#define Q_printf(f,a...)	ifprintf(d.mapping,f,##a)
 #define Z_printf(f,a...)        ifprintf(d.pci,f,##a)
 #ifdef X86_EMULATOR
 #define e_printf(f,a...)     	ifprintf(d.emu,f,##a)
@@ -168,6 +184,7 @@ void verror(const char *fmt, va_list args);
 #define S_printf(f,a...)
 #define A_printf(f,a...)
 #define e_printf(f,a...)
+#define Q_printf(f,a...)
 
 #define ALL_DEBUG_ON
 #define ALL_DEBUG_OFF

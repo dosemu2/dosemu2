@@ -1,6 +1,6 @@
 /* 
  * All modifications in this file to the original code are
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -27,7 +27,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
-#include <sys/mman.h>
 
 #include "emu.h"        /* for v_printf only */
 #include "port.h"
@@ -36,6 +35,7 @@
 #include "vga.h"
 #include "pci.h"
 #include "matrox.h"
+#include "mapping.h"
 
 static struct MGAextreg {
 	unsigned char ExtVga[6];
@@ -57,22 +57,13 @@ static unsigned char *MGAMMIOBase = NULL;
 
 static void *MapVidMem (unsigned long addr, int size)
 {
-  int fd;
-  void *p = NULL;
-
-  if ((fd = open("/dev/mem", O_RDWR)) >= 0) {
-	p = (char *)mmap((caddr_t)0, size,
-		     PROT_READ|PROT_WRITE,
-		     MAP_SHARED, fd,
-		     addr);
-	close(fd);
-  }
-  return p;
+  return (char *)mmap_mapping(MAPPING_VIDEO | MAPPING_KMEM,
+	(caddr_t)0, size, PROT_READ|PROT_WRITE, (caddr_t)addr);
 }
 
 static int UnMapVidMem (void *base, int size)
 {
-  return munmap (base, size);
+  return munmap_mapping(MAPPING_VIDEO, base, size);
 }
 
 

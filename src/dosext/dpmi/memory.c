@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -16,7 +16,6 @@
 #include <stdio.h>		/* for NULL */
 #include <stdlib.h>
 #include <string.h>		/* for memcpy */
-#include <sys/mman.h>
 #include <sys/types.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -25,12 +24,11 @@
 #include "dpmi.h"
 #include "pic.h"
 #include "priv.h"
+#include "mapping.h"
 
 unsigned long dpmi_free_memory;           /* how many bytes memory client */
 dpmi_pm_block *pm_block_root[DPMI_MAX_CLIENTS];
 unsigned long pm_block_handle_used;       /* tracking handle */
-static int fd_zero = -1;
-static int fd_self_mem = -1;
 
 /* ultilities routines */
 
@@ -96,22 +94,12 @@ DPMImalloc(unsigned long size)
     if ((block = alloc_pm_block()) == NULL)
 	return NULL;
 
-    if ( fd_zero == -1) {
-	if ((fd_zero = open("/dev/zero", O_RDWR)) == -1 ) {
-	    error("DPMI: can't open /dev/zero\n");
-	    return NULL;
-	}
-    }
-    block -> base = (void *) mmap((void *)0, size,
-				  PROT_READ | PROT_WRITE | PROT_EXEC,
-				  MAP_PRIVATE|MAP_FILE, fd_zero, 0);
-    close(fd_zero);
-    fd_zero = -1;
-
-    if ( block -> base == (void*)-1) {
+    block->base = alloc_mapping(MAPPING_DPMI, size);
+    if (!block->base) {
 	free_pm_block(block);
 	return NULL;
     }
+
     block -> handle = pm_block_handle_used++;
     block -> size = size;
     dpmi_free_memory -= size;
@@ -157,19 +145,8 @@ DPMImallocFixed(unsigned long base, unsigned long size)
     if ((block = alloc_pm_block()) == NULL)
 	return NULL;
 
-    if ( fd_zero == -1) {
-	if ((fd_zero = open("/dev/zero", O_RDWR)) == -1 ) {
-	    error("DPMI: can't open /dev/zero\n");
-	    return NULL;
-	}
-    }
-    block -> base = (void *) mmap((void *)base, size,
-				  PROT_READ | PROT_WRITE | PROT_EXEC,
-				  MAP_SHARED|MAP_FILE|MAP_FIXED, fd_zero, 0);
-    close(fd_zero);
-    fd_zero = -1;
-    
-    if ( block -> base == (void*)-1) {
+    block->base = alloc_mapping(MAPPING_DPMI | MAPPING_MAYSHARE, size);
+    if (!block->base) {
 	free_pm_block(block);
 	return NULL;
     }
@@ -185,7 +162,7 @@ int DPMIfree(unsigned long handle)
 
     if ((block = lookup_pm_block(handle)) == NULL)
 	return -1;
-    munmap(block -> base, block -> size);
+    free_mapping(MAPPING_DPMI, block->base, block->size);
     dpmi_free_memory += block -> size;
     free_pm_block(block);
     return 0;
@@ -195,6 +172,7 @@ dpmi_pm_block *
 DPMIrealloc(unsigned long handle, unsigned long newsize)
 {
     dpmi_pm_block *block;
+    void *ptr;
 
     if (!newsize)	/* DPMI spec. says resize to 0 is an error */
 	return NULL;
@@ -213,38 +191,15 @@ DPMIrealloc(unsigned long handle, unsigned long newsize)
 	return NULL;
     }
 
-    if (newsize > block -> size)  { /* we must mmap another block */
-	void *ptr;
-	
-#if 1	/* trying mremap() which is faster as it only moves pagetable entries */
-	ptr = (void *) mremap(block->base, block->size, newsize, MREMAP_MAYMOVE);
-	if ( ptr == (void *)-1)
-	    return NULL;
-#else
-        if ( fd_zero == -1) {
-  	    if ((fd_zero = open("/dev/zero", O_RDWR)) == -1 ) {
-	        error("DPMI: can't open /dev/zero\n");
-	        return NULL;
-	    }
-        }
-	ptr = (void *) mmap((void *)0, newsize,
-			                   PROT_READ | PROT_WRITE | PROT_EXEC,
-			                   MAP_PRIVATE|MAP_FILE, fd_zero, 0);
-	close(fd_zero);
-	fd_zero = -1;
+    /* NOTE: we rely on realloc_mapping() _not_ changing the address,
+     *       when shrinking the memory region.
+     */
+    ptr = realloc_mapping(MAPPING_DPMI | MAPPING_MAYSHARE,
+		 block->base, block->size, newsize);
+    if (!ptr)
+	return NULL;
 
-	if ( ptr == (void *)-1)
-	    return NULL;
-	/* copy memory content to new block */
-	memmove(ptr, block -> base, block -> size);
-
-	/* unmap the old block */
-	munmap(block -> base, block -> size);
-#endif
-	block -> base = ptr;
-    } else 			/* just unmap the extra part */
-	munmap(block -> base + newsize , block -> size - newsize);
-	
+    block->base = ptr;
     dpmi_free_memory += block -> size;
     dpmi_free_memory -= newsize;
     block -> size = newsize;
@@ -259,7 +214,7 @@ DPMIfreeAll(void)
 	while(p) {
 	    dpmi_pm_block *tmp;
 	    if (p->base) {
-		munmap(p -> base, p -> size);
+		free_mapping(MAPPING_DPMI, p->base, p->size);
 		dpmi_free_memory += p -> size;
 	    }
 	    tmp = p->next;
@@ -273,19 +228,15 @@ int
 DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
 			  unsigned long low_addr, unsigned long cnt)
 {
-    PRIV_SAVE_AREA
+    /* NOTE:
+     * This DPMI function makes appear memory from below 1Meg to
+     * address space allocated via DPMImalloc(). We use it only for
+     * DPMI function 0x0509 (Map convientional memory, DPMI version 1.0)
+     * We way, however, we implement it, doesn't cover mapping hardware RAM
+     * (e.g. Video buffers, adapter RAM, etc).
+     * This may lead to some imcompatibilities.        --Hans, 2000/02/04
+     */
     void *mapped_base;
-    if ( fd_self_mem == -1) {
-        enter_priv_on();  /* to open proc self mem takes I need to halve full permissions */
-                    /* Note: this isn't even the correct file name for BSD */
-                    /* -- EB 6 Sept 96 */
-        fd_self_mem = open("/proc/self/mem", O_RDWR);
-	leave_priv_setting();
-	if ((fd_self_mem) == -1 ) {
-	    error("DPMI: can't open /proc/self/mem\n");
-	    return -1;
-	}
-    }
 
     mapped_base = block->base + offset;
     /* it seems we can\'t map low_addr to mapped_base, we must map */
@@ -293,15 +244,17 @@ DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
     dpmi_eflags &= ~IF;
     pic_cli();
     memmove((void *)mapped_base, (void *)low_addr, cnt*DPMI_page_size);
-    if ((int)mmap((void *)low_addr, cnt*DPMI_page_size,
-	     PROT_READ | PROT_WRITE | PROT_EXEC,
-	     MAP_SHARED|MAP_FILE|MAP_FIXED, fd_self_mem, (off_t)mapped_base) !=
-	     low_addr) {
+
+    if ((int)mmap_mapping(MAPPING_DPMI | MAPPING_ALIAS,
+	    (void *)low_addr, cnt*DPMI_page_size,
+	    PROT_READ | PROT_WRITE | PROT_EXEC, mapped_base) != low_addr) {
+
 	D_printf("DPMI MapConventionalMemory mmap failed, errno = %d\n",errno);
 	dpmi_eflags |= IF;
 	pic_sti();
 	return -1;
     }
+
     dpmi_eflags |= IF;
     pic_sti();
     return 0;

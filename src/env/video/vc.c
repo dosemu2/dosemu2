@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 1999 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -38,20 +38,6 @@
 #include <ctype.h>
 #include <termios.h>			/* needed for mouse.h */
 #include <sys/time.h>
-#ifdef __NetBSD__
-#include <sys/mman.h>
-#endif
-#ifdef __linux__
-#if GLIBC_VERSION_CODE < 1000
-#define MAP_ANON MAP_ANONYMOUS
-extern caddr_t mmap __P ((caddr_t __addr, size_t __len,
-			  int __prot, int __flags, int __fd, off_t __off));
-extern int munmap __P ((caddr_t __addr, size_t __len));
-#include <linux/mman.h>
-#else
-#include <sys/mman.h>
-#endif
-#endif
 #include <signal.h>
 #include <sys/stat.h>
 #ifdef __linux__
@@ -86,6 +72,7 @@ extern int munmap __P ((caddr_t __addr, size_t __len));
 #include "trident.h"
 #include "et4000.h"
 #include "priv.h"
+#include "mapping.h"
 
 extern void child_close_mouse ();
 extern void child_open_mouse ();
@@ -442,12 +429,9 @@ get_video_ram (int waitflag)
 	{
 	  vgabuf = malloc (GRAPH_SIZE);
 	  memcpy (vgabuf, (caddr_t) GRAPH_BASE, GRAPH_SIZE);
-	  graph_mem = (char *) mmap ((caddr_t) GRAPH_BASE,
-				     GRAPH_SIZE,
-				     PROT_EXEC | PROT_READ | PROT_WRITE,
-				     MAP_PRIVATE | MAP_FIXED | MAP_ANON,
-				     -1,
-				     0);
+	  graph_mem = (char *)mmap_mapping(MAPPING_VC | MAPPING_SCRATCH,
+			(caddr_t) GRAPH_BASE, GRAPH_SIZE,
+			PROT_EXEC | PROT_READ | PROT_WRITE, 0);
 	  memcpy ((caddr_t) GRAPH_BASE, vgabuf, GRAPH_SIZE);
 	}
     }
@@ -458,12 +442,9 @@ get_video_ram (int waitflag)
 
       if (scr_state.mapped)
 	{
-	  graph_mem = (char *) mmap ((caddr_t) scr_state.virt_address,
-				     TEXT_SIZE,
-				     PROT_EXEC | PROT_READ | PROT_WRITE,
-				     MAP_PRIVATE | MAP_FIXED | MAP_ANON,
-				     -1,
-				     0);
+	  graph_mem = (char *)mmap_mapping(MAPPING_VC | MAPPING_SCRATCH,
+			(caddr_t) scr_state.virt_address, TEXT_SIZE,
+			PROT_EXEC | PROT_READ | PROT_WRITE, 0);
 	  memcpy (scr_state.virt_address, textbuf, TEXT_SIZE);
 	}
     }
@@ -478,15 +459,10 @@ get_video_ram (int waitflag)
 	  /*      else error("ERROR: no dosemu_regs.mem!\n"); */
 	}
       g_printf ("mapping GRAPH_BASE\n");
-      open_kmem ();
-      graph_mem = (char *) mmap ((caddr_t) GRAPH_BASE,
-				 (size_t) (GRAPH_SIZE),
-				 PROT_READ | PROT_WRITE,
-				 MAP_SHARED | MAP_FIXED,
-				 mem_fd,
-				 GRAPH_BASE);
+      graph_mem = (char *)mmap_mapping(MAPPING_VC | MAPPING_KMEM,
+			(caddr_t) GRAPH_BASE, GRAPH_SIZE,
+			PROT_READ | PROT_WRITE, (caddr_t)GRAPH_BASE);
 
-      close_kmem ();
       /* the code below is done by the video save/restore code */
     }
   else
@@ -497,26 +473,10 @@ get_video_ram (int waitflag)
 
       g_printf ("mapping PAGE_ADDR\n");
 
-      open_kmem ();
-#if 0
-      /* Map CGA, etc text memory to HGA memory.
-       Useful for debugging systems with HGA or MDA cards.
-     */
-      graph_mem = (char *) mmap ((caddr_t) 0xb8000,
-				 TEXT_SIZE,
-				 PROT_READ | PROT_WRITE,
-				 MAP_SHARED | MAP_FIXED,
-				 mem_fd,
-				 phys_text_base);
-#endif	/* 0 */
-
-      graph_mem = (char *) mmap ((caddr_t) PAGE_ADDR (READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)),
-				 TEXT_SIZE,
-				 PROT_READ | PROT_WRITE,
-				 MAP_SHARED | MAP_FIXED,
-				 mem_fd,
-				 phys_text_base);
-      close_kmem ();
+      graph_mem = (char *)mmap_mapping(MAPPING_VC | MAPPING_KMEM,
+			(caddr_t)PAGE_ADDR (READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)),
+			TEXT_SIZE, PROT_READ | PROT_WRITE,
+			(caddr_t)phys_text_base);
 
       if ((long) graph_mem < 0)
 	{
@@ -556,14 +516,9 @@ put_video_ram (void)
 
       if (config.vga)
 	{
-	  open_kmem();
-	  graph_mem = (char *) mmap ((caddr_t) GRAPH_BASE,
-				     GRAPH_SIZE,
-				     PROT_EXEC | PROT_READ | PROT_WRITE,
-				     MAP_PRIVATE | MAP_FIXED | MAP_ANON,
-				     -1,
-				     0);
-	  close_kmem();
+	  graph_mem = (char *)mmap_mapping(MAPPING_VC | MAPPING_SCRATCH,
+				(caddr_t) GRAPH_BASE, GRAPH_SIZE,
+				PROT_EXEC | PROT_READ | PROT_WRITE, 0);
 	  if (dosemu_regs.mem && READ_BYTE(BIOS_VIDEO_MODE) == 3 && READ_BYTE(BIOS_CURRENT_SCREEN_PAGE) < 8) {
 	    memcpy ((caddr_t) PAGE_ADDR(0), dosemu_regs.mem, dosemu_regs.save_mem_size[0]);
 	  }
@@ -571,12 +526,10 @@ put_video_ram (void)
       else
 	{
 	  memcpy (putbuf, scr_state.virt_address, TEXT_SIZE);
-	  graph_mem = (char *) mmap ((caddr_t) scr_state.virt_address,
-				     TEXT_SIZE,
-				     PROT_EXEC | PROT_READ | PROT_WRITE,
-				     MAP_PRIVATE | MAP_FIXED | MAP_ANON,
-				     -1,
-				     0);
+	  graph_mem = (char *)mmap_mapping(MAPPING_VC | MAPPING_SCRATCH,
+				(caddr_t)scr_state.virt_address,
+				TEXT_SIZE, PROT_EXEC | PROT_READ | PROT_WRITE,
+				0);
 	  memcpy (scr_state.virt_address, putbuf, TEXT_SIZE);
 	}
 

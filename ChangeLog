@@ -1,3 +1,33 @@
+2000/02/11 ver. 0.99.13.1 unofficial pre-release
+	From Hans
+	- added INT15,AX=e801 support (get extended mem >64Mb)
+	- Reworked the mapping stuff completely in order to make DOSEMU
+	  run on kernels >=2.3.27 (mmap(/proc/self/mem) has gone).
+	  - Implemented a generic mapping driver interface, which autodetects
+	    the needed mapping strategie. arch/linux/mapping/* and
+	    include/mapping.h
+	  - wrote three drivers to support the following startegie:
+	    - /proc/self/mem and IPC shm, exactly same behave as before.
+	    - using _one_ big IPC shm segment and mremap(addr, 0 ...)
+	      (Linus agreed on keeping shmat()+mremap(,0,..) functionality)
+	    - using file mapping (no IPC at all), if else fails.
+	  - These drivers also fix an existing (not yet known) security
+	    problem when running suid as user (_any_ user could read DOSEMU's
+	    IPC shm areas, IPC perms where set to 0755).
+	  - changed all instances of any kind of mapping (mmap,shmat) to
+	    use the above driver interface. Involved files are:
+	    base/misc/{dosio,shared,init}.c, dosext/misc/emm.c,
+            dosext/dpmi/memory.c,
+	    env/video/{video,vc,hgc,dualmon,vgaemu,matrox}.c
+	  - Disabled or deleted mapping stuff, that we in principal
+	    do not need any further. Involved files: signal.c,dosio.c,
+	    shared.c,ioctl.c,dos.c,dpmi/memory.c,emm.c,vc.c
+	  - Introduced a new debug flag (Q) for the mapping interface.
+	    put a comment in on how to add further flags;-)
+	  - New parser command to specify a discrete mapping driver.
+	    Usage: dos ... -I 'mappingdriver mapfile'. Known keywords for
+	    drivers are: mapself, mapshm, mapfile.
+	  - updated man/dos.1 to reflect -D+Q (debugging the mapping stuff)
 99/07/09 ver. 0.99.13 released
 	From Egbert Eich <eich@hilbert.ikp.physik.tu-darmstadt.de>
 	- implemented PCI-BIOS support (PCI Cfg Type 1 + 2)
