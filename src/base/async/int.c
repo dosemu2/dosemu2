@@ -1,6 +1,3 @@
-#if 0  /* set it 0 for the new INT1A AH=0 code */
-  #define USE_UNIX_TIME_FOR_INT1A_AH0
-#endif
 
 #include <stdio.h>
 #include <string.h>
@@ -23,6 +20,10 @@
 #include "mouse.h"
 #include "disks.h"
 #include "bios.h"
+#ifdef NEW_CMOS
+#include "iodev.h"
+#include "bitops.h"
+#endif
 #include "xms.h"
 #include "int.h"
 #include "dos2linux.h"
@@ -429,7 +430,7 @@ static int dos_helper(void)
     run_unix_command(SEG_ADR((char *), es, dx));
     break;   
 
-  case DOS_HELPER_0x51:
+  case DOS_HELPER_GET_USER_COMMAND:
     /* Get DOS command from UNIX in es:dx (a null terminated buffer) */
     g_printf("Locating DOS Command\n");
     LWORD(eax) = misc_e6_commandline(SEG_ADR((char *), es, dx));
@@ -557,15 +558,10 @@ static void int15(u_char i)
 	NOCARRY;
 */
     break;
-  case 0x80:			/* default BIOS device open event */
-    LWORD(eax) &= 0x00FF;
-    return;
-  case 0x81:
-    LWORD(eax) &= 0x00FF;
-    return;
-  case 0x82:
-    LWORD(eax) &= 0x00FF;
-    return;
+  case 0x80:		/* default BIOS hook: device open */
+  case 0x81:		/* default BIOS hook: device close */
+  case 0x82:		/* default BIOS hook: program termination */
+    HI(ax) = 0;
   case 0x83:
     h_printf("int 15h event wait:\n");
     show_regs(__FILE__, __LINE__);
@@ -760,41 +756,65 @@ static void int15(u_char i)
   }
 }
 
+#ifdef NEW_CMOS
+void set_ticks(unsigned long new)
+{
+  volatile unsigned long *ticks = BIOS_TICK_ADDR;
+  volatile unsigned char *overflow = TICK_OVERFLOW_ADDR;
+
+  ignore_segv++;
+  *ticks = new;
+  /* A timer read should reset the overflow flag */
+  *overflow = 0;
+  ignore_segv--;
+  h_printf("TICKS: update ticks to %ld\n", new);
+}
+#endif
+
 static void int1a(u_char i)
 {
+#ifdef NEW_CMOS
+  long t;
+#endif
   time_t time_val;
   struct timeval;
   struct timezone;
   struct tm *tm;
 
-#ifdef USE_UNIX_TIME_FOR_INT1A_AH0
-  time_t akt_time;
-  unsigned int test_date;
-#endif
-
   switch (HI(ax)) {
 
-    /* A timer read should reset the overflow flag */
+/*
+--------B-1A00-------------------------------
+INT 1A - TIME - GET SYSTEM TIME
+	AH = 00h
+Return: CX:DX = number of clock ticks since midnight
+	AL = midnight flag, nonzero if midnight passed since time last read
+Notes:	there are approximately 18.2 clock ticks per second, 1800B0h per 24 hrs
+	  (except on Tandy 2000, where the clock runs at 20 ticks per second)
+	IBM and many clone BIOSes set the flag for AL rather than incrementing
+	  it, leading to loss of a day if two consecutive midnights pass
+	  without a request for the time (e.g. if the system is on but idle)
+->	since the midnight flag is cleared, if an application calls this
+->	  function after midnight before DOS does, DOS will not receive the
+->	  midnight flag and will fail to advance the date
+*/
   case 0:			/* read time counter */
-#ifdef USE_UNIX_TIME_FOR_INT1A_AH0
-    time(&akt_time);
-    tm = localtime((time_t *) &akt_time);
-    test_date = tm->tm_year * 10000 + tm->tm_mon * 100 + tm->tm_mday;
-    if ( check_date != test_date ) {
-      start_time = akt_time;
-      check_date = tm->tm_year * 10000 + tm->tm_mon * 100 + tm->tm_mday;
-      g_printf("Over 24hrs forward or backward\n");
+#ifdef NEW_CMOS
+    /* it works because pic_sys_time has a zero reference. It doesn't
+     * account for timer speedups, but any decent DOS program should
+     * call back the original int8 at the 18.2 Hz rate... */
+    last_ticks = sys_base_ticks + usr_delta_ticks + (pic_sys_time >> 16);
+
+    /* has the midnight passed? */
+    if (last_ticks > 1573040) {
       *(u_char *) (TICK_OVERFLOW_ADDR) += 0x1;
+      last_ticks -= 1573040;
     }
-    last_ticks = (tm->tm_hour * 60 * 60 + tm->tm_min * 60 + tm->tm_sec) * 18.206;
     LO(ax) = *(u_char *) (TICK_OVERFLOW_ADDR);
     LWORD(ecx) = (last_ticks >> 16) & 0xffff;
     LWORD(edx) = last_ticks & 0xffff;
-  #if 0
-    g_printf("read timer st:%u ticks:%u act:%u, actdate:%d\n",
-	     start_time, last_ticks, akt_time, tm->tm_mday);
-  #endif
-    set_ticks(last_ticks);
+    g_printf("TIMER: read timer = %lu\n", last_ticks);
+    set_ticks(last_ticks);	/* set_ticks is in rtc.c */
 #else
     ignore_segv++;
     last_ticks = *((unsigned long *)(BIOS_TICK_ADDR));
@@ -805,15 +825,56 @@ static void int1a(u_char i)
     LWORD(edx) = last_ticks & 0xffff;
 #endif
     break;
+
+/*
+--------B-1A01-------------------------------
+INT 1A - TIME - SET SYSTEM TIME
+	AH = 01h
+	CX:DX = number of clock ticks since midnight
+Return: nothing
+Notes:	there are approximately 18.2 clock ticks per second, 1800B0h per 24 hrs
+	  (except on Tandy 2000, where the clock runs at 20 ticks per second)
+	this call resets the midnight-passed flag
+SeeAlso: AH=00h,AH=03h,INT 21/AH=2Dh
+*/
   case 1:			/* write time counter */
+#ifdef NEW_CMOS
+    t = sys_base_ticks + (pic_sys_time >> 16);
+    last_ticks = (LWORD(ecx) << 16) | (LWORD(edx) & 0xffff);
+    usr_delta_ticks = last_ticks - t;
+    set_ticks(last_ticks);
+    g_printf("INT1A: set timer to %#lx\n", last_ticks);
+#else
     last_ticks = (LWORD(ecx) << 16) | (LWORD(edx) & 0xffff);
     set_ticks(last_ticks);
-#ifdef USE_UNIX_TIME_FOR_INT1A_AH0
-    time(&start_time);
-#endif
     g_printf("set timer to %lu \n", last_ticks);
+#endif
     break;
+
+/*
+--------B-1A02-------------------------------
+INT 1A - TIME - GET REAL-TIME CLOCK TIME (AT,XT286,PS)
+	AH = 02h
+Return: CF clear if successful
+	    CH = hour (BCD)
+	    CL = minutes (BCD)
+	    DH = seconds (BCD)
+	    DL = daylight savings flag (00h standard time, 01h daylight time)
+	CF set on error (i.e. clock not running or in middle of update)
+Note:	this function is also supported by the Sperry PC, which predates the
+	  IBM AT; the data is returned in binary rather than BCD on the Sperry,
+	  and DL is always 00h
+SeeAlso: AH=00h,AH=03h,AH=04h,INT 21/AH=2Ch
+*/
   case 2:			/* get time */
+#ifdef NEW_CMOS
+    LOCK_CMOS;
+    HI(cx) = BCD(GET_CMOS(CMOS_HOUR));
+    LO(cx) = BCD(GET_CMOS(CMOS_MIN));
+    HI(dx) = BCD(GET_CMOS(CMOS_SEC));
+    UNLOCK_CMOS;
+    g_printf("INT1A: RTC time %02x:%02x:%02x\n",HI(cx),LO(cx),HI(dx));
+#else
     time(&time_val);
     tm = localtime((time_t *) &time_val);
     g_printf("get time %d:%02d:%02d\n", tm->tm_hour, tm->tm_min, tm->tm_sec);
@@ -832,18 +893,27 @@ static void int1a(u_char i)
     HI(dx) |= tm->tm_sec << 4;
     /* LO(dx) = tm->tm_isdst; */
     /* REG(eflags) &= ~CF; */
+#endif
     NOCARRY;
     break;
+
+/*
+--------B-1A04-------------------------------
+INT 1A - TIME - GET REAL-TIME CLOCK DATE (AT,XT286,PS)
+	AH = 04h
+Return: CF clear if successful
+	    CH = century (BCD)
+	    CL = year (BCD)
+	    DH = month (BCD)
+	    DL = day (BCD)
+	CF set on error
+SeeAlso: AH=02h,AH=04h"Sperry",AH=05h,INT 21/AH=2Ah,INT 4B/AH=02h"TI"
+*/
   case 4:			/* get date */
     time(&time_val);
     tm = localtime((time_t *) &time_val);
     tm->tm_year += 1900;
     tm->tm_mon++;
-    g_printf("get date %02d.%02d.%04d\n", tm->tm_mday, tm->tm_mon, tm->tm_year);
-#if 0
-    gettimeofday(&tp, &tzp);
-    ticks = tp.tv_sec - (tzp.tz_minuteswest * 60);
-#endif
     LWORD(ecx) = tm->tm_year % 10;
     tm->tm_year /= 10;
     LWORD(ecx) |= (tm->tm_year % 10) << 4;
@@ -858,14 +928,86 @@ static void int1a(u_char i)
     tm->tm_mon /= 10;
     HI(dx) |= tm->tm_mon << 4;
     /* REG(eflags) &= ~CF; */
+    g_printf("INT1A: RTC date %04x%02x%02x (DOS format)\n", _CX, _DH, _DL);
     NOCARRY;
     break;
 
+/*
+--------B-1A03-------------------------------
+INT 1A - TIME - SET REAL-TIME CLOCK TIME (AT,XT286,PS)
+	AH = 03h
+	CH = hour (BCD)
+	CL = minutes (BCD)
+	DH = seconds (BCD)
+	DL = daylight savings flag (00h standard time, 01h daylight time)
+Return: nothing
+Note:	this function is also supported by the Sperry PC, which predates the
+	  IBM AT; the data is specified in binary rather than BCD on the
+	  Sperry, and the value of DL is ignored
+--------B-1A05-------------------------------
+INT 1A - TIME - SET REAL-TIME CLOCK DATE (AT,XT286,PS)
+	AH = 05h
+	CH = century (BCD)
+	CL = year (BCD)
+	DH = month (BCD)
+	DL = day (BCD)
+Return: nothing
+*/
   case 3:			/* set time */
   case 5:			/* set date */
-    g_printf("WARNING: timer: can't set time/date\n");
+    g_printf("INT1A: RTC: can't set time/date\n");
     break;
 
+#ifdef NEW_CMOS
+  /* Notes: the alarm occurs every 24 hours until turned off, invoking INT 4A
+  	each time the BIOS does not check for invalid values for the time, so
+  	the CMOS clock chip's "don't care" setting (any values between C0h
+  	and FFh) may be used for any or all three parts.  For example, to
+  	create an alarm once a minute, every minute, call with CH=FFh, CL=FFh,
+  	and DH=00h. (R.Brown)
+   */
+  case 6:			/* set alarm */
+    {
+      int stb;
+      unsigned char h,m,s;
+
+      LOCK_CMOS;
+      stb=GET_CMOS(CMOS_STATUSB);
+      if (stb&0x20) {
+        CARRY;
+      } else {
+	/* bit 2 of register 0xb set=binary mode, clear=BCD mode */
+	if (stb & 4) {
+          SET_CMOS(CMOS_HOURALRM, (h=_CH));
+          SET_CMOS(CMOS_MINALRM, (m=_CL));
+          SET_CMOS(CMOS_SECALRM, (s=_DH));
+	}
+	else {
+          SET_CMOS(CMOS_HOURALRM, (h=BIN(_CH)));
+          SET_CMOS(CMOS_MINALRM, (m=BIN(_CL)));
+          SET_CMOS(CMOS_SECALRM, (s=BIN(_DH)));
+	}
+        r_printf("RTC: set alarm to %02d:%02d:%02d\n",h,m,s);  /* BIN! */
+        /* This has been VERIFIED on an AMI BIOS -- AV */
+        SET_CMOS(CMOS_STATUSB, stb|0x20);
+        clear_bit (PIC_IRQ8, &pic1_imr);
+        NOCARRY;
+      }
+      UNLOCK_CMOS;
+      break;
+    }
+
+  case 7:			/* clear alarm but NOT PIC mask */
+    /* This has been VERIFIED on an AMI BIOS -- AV */
+    LOCK_CMOS;
+    SET_CMOS(CMOS_STATUSB, GET_CMOS(CMOS_STATUSB)&~0x20);
+    UNLOCK_CMOS;
+#ifdef NEW_PIC
+    pic_untrigger(PIC_IRQ8);
+#endif
+    break;
+#endif
+ 
   case 0xb1:			/* Intel PCI BIOS v 2.0c */
     switch (LO(ax)) {
       case 1: case 0x81:	/* installation check */
@@ -890,12 +1032,22 @@ static void int1a(u_char i)
 }
 
 /* ========================================================================= */
-/* note that the emulation herein may cause problems with programs
+/*
+ * DANG_BEGIN_FUNCTION ms_dos
+ *
+ * int0x21 call
+ *
+ * we trap this for two functions: simulating the EMMXXXX0 device and
+ * fudging the CONFIG.XXX and AUTOEXEC.XXX bootup files.
+ *
+ * note that the emulation herein may cause problems with programs
  * that like to take control of certain int 21h functions, or that
  * change functions that the true int 21h functions use.  An example
  * of the latter is ANSI.SYS, which changes int 10h, and int 21h
  * uses int 10h.  for the moment, ANSI.SYS won't work anyway, so it's
  * no problem.
+ *
+ * DANG_END_FUNCTION
  */
 /* XXX - MAJOR HACK!!! this is bad bad wrong.  But it'll probably work
  * unless someone puts "files=200" in his/her config.sys
@@ -910,9 +1062,6 @@ static void int1a(u_char i)
 
 static int ms_dos(int nr)
 {
-  /* we trap this for two functions: simulating the EMMXXXX0 device and
-   * fudging the CONFIG.XXX and AUTOEXEC.XXX bootup files.
-   */
   switch (nr) {
   case 0x3d:       /* DOS handle open */
   {
@@ -986,7 +1135,8 @@ static int ms_dos(int nr)
     return 0;
 
   default:
-    g_printf("INT21 (0x%02x):  we shouldn't be here! ax=0x%04x, bx=0x%04x\n",
+    if (!in_dpmi)
+      g_printf("INT21 (0x%02x):  we shouldn't be here! ax=0x%04x, bx=0x%04x\n",
 	     nr, LWORD(eax), LWORD(ebx));
     return 0;
   }
@@ -1905,6 +2055,9 @@ void setup_interrupts(void) {
   SETIVEC(0x16, INT16_SEG, INT16_OFF);
   SETIVEC(0x09, INT09_SEG, INT09_OFF);
   SETIVEC(0x08, INT08_SEG, INT08_OFF);
+#ifdef NEW_CMOS
+  SETIVEC(0x70, INT70_SEG, INT70_OFF);
+#endif
 
   /* Install new handler for video-interrupt into bios_f000_int10ptr,
    * for video initialization at f800:4200

@@ -65,6 +65,8 @@ void p_dos_str(char *,...) FORMAT(printf, 1, 2);
 
 extern FILE *dbg_fd;
 
+EXTERN int shut_debug INIT(0);
+
 #ifdef DEBUG_LITE
 #define ifprintf(flg,fmt,a...)	do{ if (flg) log_printf(0x10000|__LINE__,fmt,##a); }while(0)
 #else

@@ -60,7 +60,8 @@
 #define bios_24_hours_flag              (*(unsigned char  *) 0x470)
 #define bios_keyboard_flags             (*(unsigned char  *) 0x471)
 #define bios_ctrl_alt_del_flag          (*(unsigned short *) 0x472)
-/* 0x474-0x477 is reserved */
+#define bios_harddisk_count		(*(unsigned short *) 0x475)
+/* 0x474, 0x476, 0x477 is reserved */
 #define bios_lpt1_timeout               (*(unsigned char  *) 0x478)
 #define bios_lpt2_timeout               (*(unsigned char  *) 0x479)
 #define bios_lpt3_timeout               (*(unsigned char  *) 0x47a)
@@ -170,7 +171,8 @@
 #define BIOS_24_HOURS_FLAG              0x470
 #define BIOS_KEYBOARD_FLAGS             0x471
 #define BIOS_CTRL_ALT_DEL_FLAG          0x472
-/* 0x474-0x477 is reserved */
+#define BIOS_HARDDISK_COUNT		0x475
+/* 0x474, 0x476, 0x477 is reserved */
 #define BIOS_LPT1_TIMEOUT               0x478
 #define BIOS_LPT2_TIMEOUT               0x479
 #define BIOS_LPT3_TIMEOUT               0x47a
@@ -214,7 +216,7 @@
  * with num > 4
  */
 #define CONF_NSER(c,num)	{c&=~(BIT(9)|BIT(10)|BIT(11)); c|=(num<<9);}
-#define CONF_NLPT(c,num) 	{c&=~(BIT(14)|BIT(14)); c|=(num<<14);}
+#define CONF_NLPT(c,num) 	{c&=~(BIT(14)|BIT(15)); c|=(num<<14);}
 #define CONF_NFLOP(c,num) 	{c&=~(CONF_FLOP|BIT(6)|BIT(7)); \
 				   if (num) c|=((num-1)<<6)|CONF_FLOP;}
 
@@ -231,6 +233,10 @@ void            INT09_dummy_start();
 void            INT09_dummy_end();
 void            INT08_dummy_start();
 void            INT08_dummy_end();
+#ifdef NEW_CMOS
+void            INT70_dummy_start();
+void            INT70_dummy_end();
+#endif
 void            DPMI_dummy_start();
 void            DPMI_dummy_end();
 void            DPMI_dpmi_init();

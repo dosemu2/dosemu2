@@ -49,11 +49,40 @@ Bit8u cmos_read(ioport_t);
 int cmos_date(int);
 
 struct CMOS {
-  unsigned char subst[64];
-  unsigned char flag[64];
+  Bit8u subst[64];
+  Bit8u flag[64];
   int address;
 };
 
 EXTERN struct CMOS cmos;
+
+#ifdef NEW_CMOS
+#define SET_CMOS(byte,val)  do { cmos.subst[byte&63] = (val); cmos.flag[byte&63] = 1; } while(0)
+#define GET_CMOS(byte)		 (cmos.subst[byte&63])
+
+static __inline__ Bit8u BCD(Bit8u binval)
+{
+  /* bit 2 of register 0xb set=binary mode, clear=BCD mode */
+  if (GET_CMOS(CMOS_STATUSB) & 4) return binval;
+  if (binval > 99) return 0x99;
+  return (((binval/10) << 4) | (binval%10));
+}
+
+static __inline__ Bit8u BIN(Bit8u bcdval)
+{
+  Bit8u h,l;
+  if (((l=(bcdval&0x0f))>9)||((h=(bcdval&0xf0))>0x90)) return 0xff;
+  return ((h>>1)+(h>>3)+l);	/* h*10/16+l */
+}
+
+#ifdef USE_THREADS
+extern struct lock_struct *resource_cmos;
+#define LOCK_CMOS	lock_resource(resource_cmos)
+#define UNLOCK_CMOS	unlock_resource(resource_cmos)
+#else
+#define LOCK_CMOS
+#define UNLOCK_CMOS
+#endif
+#endif	/* NEW_CMOS */
 
 #endif

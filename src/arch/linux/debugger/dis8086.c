@@ -189,6 +189,19 @@ static INLINE unsigned int   resolva (unsigned int addr)
    return(addr);
 }
 
+static INLINE unsigned char *modrm_disp(int d)
+{
+   static char buf[32];
+
+   if ((d>-256)&&(d<256))
+     sprintf(buf,"%+d",d);
+   else {
+     if (d>0) sprintf(buf,"+%#x",d);
+       else sprintf(buf,"-%#x",(-d));
+   }
+   return buf;
+}
+
 static const unsigned char *mod_rm(FILE *out, const unsigned char *code,
 					  const char *seg, const char **regs,
 					  int addr32)
@@ -252,13 +265,13 @@ static const unsigned char *mod_rm(FILE *out, const unsigned char *code,
       switch(rm >> 6)
 	{
 	case 2:
-	  d86_printf("%s[%s%s%s%+d]", seg, reg32[rm & 7],
-		  index, scale, immed32(code));
+	  d86_printf("%s[%s%s%s%s]", seg, reg32[rm & 7],
+		  index, scale, modrm_disp(immed32(code)));
 	  return code + 4;
 
 	case 1:
-	  d86_printf("%s[%s%s%s%+d]", seg, reg32[rm & 7], index, scale,
-		  (signed char)code[0]);
+	  d86_printf("%s[%s%s%s%s]", seg, reg32[rm & 7], index, scale,
+		  modrm_disp((signed char)code[0]));
 	  return code + 1;
 
 	case 0:
@@ -281,11 +294,13 @@ static const unsigned char *mod_rm(FILE *out, const unsigned char *code,
 	  return code;
 
 	case 2:
-	  d86_printf("%s[%s%+d]", seg, memref[rm & 7], (short)immed16(code));
+	  d86_printf("%s[%s%s]", seg, memref[rm & 7],
+	  	modrm_disp((short)immed16(code)));
 	  return code + 2;
 
 	case 1:
-	  d86_printf("%s[%s%+d]", seg, memref[rm & 7], (signed char)code[0]);
+	  d86_printf("%s[%s%s]", seg, memref[rm & 7],
+	  	modrm_disp((signed char)code[0]));
 	  return code + 1;
 
 	case 0:
@@ -1401,18 +1416,24 @@ int  dis_8086(unsigned int org,
 	  break;
 
 	case 0xf0:
-	  d86_printf("lock ");
-	  prefix = 1;
+	  { char buf[32];
+	    strcpy(buf,seg); strcpy(seg,"lock "); strcat(seg,buf);
+	    prefix = 1; i--;
+	  }
 	  break;
 
 	case 0xf2:
-	  d86_printf("rep ");
-	  prefix = 1;
+	  { char buf[32];
+	    strcpy(buf,seg); strcpy(seg,"repne "); strcat(seg,buf);
+	    prefix = 1; i--;
+	  }
 	  continue;
 
 	case 0xf3:
-	  d86_printf("repe ");
-	  prefix = 1;
+	  { char buf[32];
+	    strcpy(buf,seg); strcpy(seg,"repe "); strcat(seg,buf);
+	    prefix = 1; i--;
+	  }
 	  continue;
 
 	case 0xf4:

@@ -1381,7 +1381,13 @@ mouse_event()
     if(in_dpmi && !in_dpmi_dos_int 
           && !((mouse.cs == DPMI_SEG) && ((void *)(Bit32u)mouse.ip == DPMI_mouse_callback)))
                   fake_pm_int();
+
+    /* push iret frame on _SS:_SP. At F000:20F7 (bios.S) we get an
+     * iret and return to _CS:_IP */
     fake_int();
+
+    /* push all 16-bit regs plus _DS,_ES. At F000:20F4 (bios.S) we find
+     * 'pop es; pop ds; popa' */
     fake_pusha();
 
     LWORD(eax) = mouse_events;
@@ -1393,8 +1399,10 @@ mouse_event()
     if (mouse.threebuttons)
       LWORD(ebx) |= (mouse.mbutton ? 4 : 0);
 
+    /* push return address F000:20F4 */
     fake_call(Mouse_SEG, Mouse_OFF + 4);	/* skip to popa */
 
+    /* jump to mouse cs:ip */
     REG(cs) = mouse.cs;
     REG(eip) = mouse.ip;
 

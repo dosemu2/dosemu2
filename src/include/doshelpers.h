@@ -63,7 +63,7 @@
 #define DOS_HELPER_CDROM_HELPER     0x40
 
 #define DOS_HELPER_RUN_UNIX         0x50
-#define DOS_HELPER_0x51             0x51 /* How to describe it? */
+#define DOS_HELPER_GET_USER_COMMAND 0x51 /* How to describe it? */
 #define DOS_HELPER_GET_UNIX_ENV     0x52
 #define DOS_HELPER_0x53             0x53
 

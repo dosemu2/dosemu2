@@ -146,7 +146,7 @@ OUR_YY_DECL;
 #define YY_USER_ACTION if (__loop_handling__ > 0) \
 			if (dump_input(yy_act)) break;
 
-static __loop_handling__ = 0;
+static int __loop_handling__ = 0;
 static int dump_input(int rulenum);
 static void enter_cachefile(int cfile);
 static int cachefile_read(char *buf, int size, int cfile);

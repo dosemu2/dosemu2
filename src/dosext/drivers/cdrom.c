@@ -528,14 +528,15 @@ void cdrom_helper(void)
      case 0x0A: /* device status */
                 HI(ax) = 0; LO(ax) = 0;
                 if (eject_allowed) {
-                  if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl))
+                  if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
                     if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl))
                       { /* no disk in drive */
                         LWORD(ebx) = audio_status.status | 0x800;
 			C_printf("CDROM: subch failed: %s\n", strerror(errno));
                         break;
                       }
-                     else cdrom_reset();
+                    else cdrom_reset();
+		  }
                 }
                 /* disk in drive */
                 LWORD(ebx) = audio_status.status;

@@ -157,21 +157,6 @@ EXTERN u_char in_ioctl INIT(0);
 EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
 
 
-/* int 11h config single bit tests */
-#define CONF_FLOP	BIT(0)
-#define CONF_MATHCO	BIT(1)
-#define CONF_MOUSE	BIT(2)
-#define CONF_DMA	BIT(8)
-#define CONF_GAME	BIT(12)
-
-/* don't use CONF_NSER with num > 4, CONF_NLPT with num > 3, CONF_NFLOP
- * with num > 4
- */
-#define CONF_NSER(c,num)	{c&=~(BIT(9)|BIT(10)|BIT(11)); c|=(num<<9);}
-#define CONF_NLPT(c,num) 	{c&=~(BIT(14)|BIT(14)); c|=(num<<14);}
-#define CONF_NFLOP(c,num) 	{c&=~(CONF_FLOP|BIT(6)|BIT(7)); \
-				   if (num) c|=((num-1)<<6)|CONF_FLOP;}
-
 /* this macro can be safely wrapped around a system call with no side
  * effects; using a feature of GCC, it returns the same value as the
  * function call argument inside.

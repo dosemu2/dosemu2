@@ -552,6 +552,7 @@ static Boolean handle_dosemu_keys(t_keysym key) {
                 vc_num = (key>KEY_F10) ? (key-KEY_F11+11) : (key-KEY_F1+1);
                 k_printf("KBD: switching to console #%d\n",vc_num);
                 shiftstate &= ~(L_CTRL|R_CTRL|L_ALT|R_ALT);
+		user_vc_switch = 1;
                 vt_activate(vc_num);
 		return 1;
              }

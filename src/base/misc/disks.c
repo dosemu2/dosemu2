@@ -620,7 +620,7 @@ disk_open(struct disk *dp)
   dp->fdesc = SILENT_DOS_SYSCALL(open(dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR, 0));
   leave_priv_setting();
 
-  if (dp->fdesc < 0) 
+  if (dp->fdesc < 0) {
     if (errno == EROFS || errno == ENODEV) {
       enter_priv_on();
       dp->fdesc = DOS_SYSCALL(open(dp->dev_name, O_RDONLY, 0));
@@ -642,6 +642,7 @@ disk_open(struct disk *dp)
 #endif
       return;
     }
+  }
   else dp->rdonly = dp->wantrdonly;
 
 {
@@ -741,7 +742,7 @@ disk_init(void)
     bootdisk.fdesc = open(bootdisk.dev_name,
 			  bootdisk.rdonly ? O_RDONLY : O_RDWR, 0);
     leave_priv_setting();
-    if (bootdisk.fdesc < 0) 
+    if (bootdisk.fdesc < 0) {
       if (errno == EROFS) {
         enter_priv_on();
         bootdisk.fdesc = open(bootdisk.dev_name, O_RDONLY, 0);
@@ -757,6 +758,7 @@ disk_init(void)
         error("can't open bootdisk %s: %sn", dp->dev_name, strerror(errno));
         leavedos(23);
       }
+    }
     else bootdisk.rdonly = bootdisk.wantrdonly;
     bootdisk.removeable = 0;
   }
@@ -790,7 +792,7 @@ disk_init(void)
     enter_priv_on();
     dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
     leave_priv_setting();
-    if (dp->fdesc < 0) 
+    if (dp->fdesc < 0) {
       if (errno == EROFS || errno == EACCES) {
         enter_priv_on();
         dp->fdesc = open(dp->dev_name, O_RDONLY, 0);
@@ -806,6 +808,7 @@ disk_init(void)
         error("can't open %s: %s\n", dp->dev_name, strerror(errno));
         leavedos(25);
       }
+    }
     else dp->rdonly = dp->wantrdonly;
   }
   for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
@@ -1544,7 +1547,7 @@ void background_ioctl_thread(int start)
   if (!start) {
     /* we come here _before_ any thread is started
      * but threading is active and we run at scope of thread0.
-     * We now create the resoeurce we need.
+     * We now create the resource we need.
      */
      ioctlmbox_in = create_local_mailbox("diskioctl_in", 2);
      ioctlmbox_out = create_local_mailbox("diskioctl_out", 2);

@@ -23,7 +23,7 @@
 static unsigned char mem_map[MAX_PAGE];          /* Map of memory contents      */
 static char *mem_names[256];             /* List of id. strings         */
 
-static void round_addr(int *addr)
+static inline void round_addr(int *addr)
 {
   *addr = (*addr + PAGE_SIZE - 1) / PAGE_SIZE;
   *addr *= PAGE_SIZE;
@@ -81,7 +81,7 @@ void memcheck_reserve(unsigned char map_char, int addr_start, int size)
 
 void memcheck_type_init()
 {
-  static once = 0;
+  static int once = 0;
   if (once) return;
   once = 1;
   memcheck_addtype('d', "Base DOS memory (first 640K)");

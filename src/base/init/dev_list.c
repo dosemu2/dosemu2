@@ -44,12 +44,13 @@ struct io_dev_struct {
 
 static struct io_dev_struct io_devices[] = {
   { "pit",     pit_init,     pit_reset,     NULL },
+#if !defined(NEW_CMOS) || !defined(USE_THREADS)
   { "cmos",    cmos_init,    cmos_reset,    NULL },
+#endif
   { "serial",  serial_init,  NULL,          serial_close },
   { "pic",     pic_init,     pic_reset,     NULL },
   { "keyb",    keyb_8042_init, keyb_8042_reset, NULL },
 #if 0
-  { "rtc",     NULL,         rtc_reset,     NULL },
   { "pos",     pos_init,     pos_reset,     NULL },
   { "lpt",     lpt_init,     lpt_reset,     lpt_term },
 #endif

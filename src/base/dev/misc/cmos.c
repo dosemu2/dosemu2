@@ -1,5 +1,12 @@
-/* cmos.c, for DOSEMU
- *   by Robert Sanders, gt8134b@prism.gatech.edu
+/* 
+ * SIDOC_BEGIN_MODULE
+ *
+ * Description: CMOS handling routines
+ * 
+ * Originally by Robert Sanders, gt8134b@prism.gatech.edu
+ * New CMOS code by vignani@mbox.vol.it 1997-98
+ *
+ * SIDOC_END_MODULE
  *
  */
 
@@ -9,7 +16,7 @@
 #include "config.h"
 #include "emu.h"
 #include "port.h"
-#include "cmos.h"
+#include "iodev.h"
 #include "disks.h"
 
 
@@ -17,6 +24,8 @@
 		     config.ems_size)
 #define PEXTMEM_SIZE (((config.xms_size>config.ems_size)?config.xms_size : \
 		      config.ems_size)/1024)
+
+#ifndef NEW_CMOS
 #define SET_CMOS(byte,val)  do { cmos.subst[byte] = (val); cmos.flag[byte] = 1; } while(0)
 
 
@@ -56,7 +65,7 @@ cmos_init(void)
   SET_CMOS(CMOS_STATUSB, 2);
 
   /* 0xc and 0xd are read only */
-  SET_CMOS(CMOS_STATUSC, 0x50);
+  SET_CMOS(CMOS_STATUSC, 0);
   SET_CMOS(CMOS_STATUSD, 0x80);
 
   SET_CMOS(CMOS_DIAG, 0);
@@ -80,6 +89,7 @@ cmos_init(void)
   g_printf("CMOS initialized: \n$Header: /usr/src/dosemu0.60/dosemu/RCS/cmos.c,v 2.7 1995/05/06 16:25:30 root Exp root $\n");
 }
 #endif
+#endif	/* NEW_CMOS */
 
 static int
 cmos_chksum(void)
@@ -91,8 +101,11 @@ cmos_chksum(void)
    */
 
   for (i = 0x10; i < 0x21; i++)
+#ifdef NEW_CMOS
+    sum += GET_CMOS(i);
+#else
     sum += cmos.subst[i];
-
+#endif
   return sum;
 }
 
@@ -101,8 +114,9 @@ cmos_read(ioport_t port)
 {
   unsigned char holder = 0;
 
-  h_printf("CMOS read. from add: 0x%02x\n", cmos.address);
-
+#ifdef NEW_CMOS
+  LOCK_CMOS;
+#endif
   switch (cmos.address) {
   case CMOS_SEC:
   case CMOS_MIN:
@@ -111,19 +125,23 @@ cmos_read(ioport_t port)
   case CMOS_DOM:		/* day of month */
   case CMOS_MONTH:
   case CMOS_YEAR:
+#ifdef NEW_CMOS
+    holder = cmos_date(cmos.address); goto quit;
+#else
     return (cmos_date(cmos.address));
 
   case CMOS_SECALRM:
   case CMOS_MINALRM:
   case CMOS_HOURALRM:
     h_printf("CMOS alarm read %d...UNIMPLEMENTED!\n", cmos.address);
-    return cmos.subst[cmos.address];
+    holder = cmos.subst[cmos.address]; goto quit;
+#endif
 
   case CMOS_CHKSUML:
-    return (cmos_chksum() & 0xff);
+    holder = cmos_chksum() & 0xff; goto quit;
 
   case CMOS_CHKSUMM:
-    return (cmos_chksum() >> 8);
+    holder = cmos_chksum() >> 8; goto quit;
   }
 
   /* date functions return, so hereafter all values should be those set
@@ -131,39 +149,97 @@ cmos_read(ioport_t port)
    */
 
   if (cmos.flag[cmos.address]) {/* this reg has been written to */
+#ifdef NEW_CMOS
+    holder = GET_CMOS(cmos.address);
+    h_printf("CMOS: read cmos_subst = 0x%02x\n", holder);
+#else
     holder = cmos.subst[cmos.address];
     h_printf("CMOS: substituting written value 0x%02x for read\n", holder);
+#endif
   }
 #ifdef DANGEROUS_CMOS
   else if (!set_ioperm(0x70, 2, 1)) {
     h_printf("CMOS: really reading 0x%x!\n", cmos.address);
-    port_out((cmos.address & ~0xc0), 0x70);
-    holder = port_in(0x71);
+    port_real_outb(0x70, (cmos.address & ~0xc0));
+    holder = port_real_inb(0x71);
     set_ioperm(0x70, 2, 0);
   }
 #endif
   else {
     h_printf("CMOS: unknown CMOS read 0x%x\n", cmos.address);
+#ifdef NEW_CMOS
+    holder = GET_CMOS(cmos.address);
+#else
     holder = cmos.subst[cmos.address];
+#endif
   }
 
-  h_printf("CMOS read. add: 0x%02x = 0x%02x\n", cmos.address, holder);
+#if defined(NEW_CMOS) && defined(NEW_PIC)
+  if (cmos.address==CMOS_STATUSB)		/* safety code */
+    if ((holder&0x70)==0) pic_untrigger(PIC_IRQ8);
+#endif
+
+quit:
+#ifdef NEW_CMOS
+  UNLOCK_CMOS;
+#endif
+  h_printf("CMOS: read addr 0x%02x = 0x%02x\n", cmos.address, holder);
   return holder;
 }
 
 void
 cmos_write(ioport_t port, Bit8u byte)
 {
+#ifdef NEW_CMOS
+  LOCK_CMOS;
+#endif
   if (port == 0x70)
     cmos.address = byte & ~0xc0;/* get true address */
   else {
     if ((cmos.address != 0xc) && (cmos.address != 0xd)) {
       h_printf("CMOS: set address 0x%02x to 0x%02x\n", cmos.address, byte);
+#ifdef NEW_CMOS
+      switch (cmos.address) {
+	case CMOS_SEC:
+	case CMOS_MIN:
+	case CMOS_HOUR:
+	case CMOS_SECALRM:
+	case CMOS_MINALRM:
+	case CMOS_HOURALRM:
+	  byte = BIN(byte);
+	  break;
+	/* b7=r/o and unused
+	 * b4-6=always 010 (AT standard 32.768kHz)
+	 * b0-3=rate [65536/2^v], default 6, min 3, 0=disable
+	 */
+	case CMOS_STATUSA:
+	  if ((byte&0x70)!=0x20) dbug_printf("RTC: error clkin set\n");
+	  byte &= 0x0f;
+	  if ((byte>0)&&(byte<3)) byte=3;
+	  byte |= 0x20;
+	  break;
+	/* b7=set update cycle, 1=disable
+	 * b6=enable periodical int
+	 * b5=enable alarm int
+	 * b4=enable update int
+	 * b3=square wave out
+	 * b2=data mode, 1=BCD(default) 0=bin
+	 * b1=time mode, 1=24h(default) 0=12h
+	 * b0=DST
+	 */
+	case CMOS_STATUSB:
+	  byte = byte&0xf6;
+	  break;
+      }
+#endif
       SET_CMOS(cmos.address, byte);
     }
     else
       h_printf("CMOS: write to ref 0x%x blocked\n", cmos.address);
   }
+#ifdef NEW_CMOS
+  UNLOCK_CMOS;
+#endif
 }
 
 void cmos_init(void)
@@ -191,6 +267,9 @@ void cmos_reset(void)
 {
   int i;
 
+#ifdef NEW_CMOS
+  LOCK_CMOS;
+#endif
   for (i = 0; i < 64; i++)
     cmos.subst[i] = cmos.flag[i] = 0;
 
@@ -223,7 +302,7 @@ void cmos_reset(void)
   SET_CMOS(CMOS_STATUSB, 2);
 
   /* 0xc and 0xd are read only */
-  SET_CMOS(CMOS_STATUSC, 0x50);
+  SET_CMOS(CMOS_STATUSC, 0);
   SET_CMOS(CMOS_STATUSD, 0x80);
 
   SET_CMOS(CMOS_DIAG, 0);
@@ -243,6 +322,13 @@ void cmos_reset(void)
 
   /* information flags...my CMOS returns this */
   SET_CMOS(CMOS_INFO, 0xe1);
+
+#ifdef NEW_CMOS
+#ifndef USE_THREADS
+  rtc_init();
+#endif
+  UNLOCK_CMOS;
+#endif
 
   g_printf("CMOS initialized\n");
 }

@@ -611,9 +611,10 @@ static void mhp_dis(int argc, char * argv[])
    if (IN_DPMI && seg) data32=dpmi_mhp_get_selector_size(seg);
    for (i=0; i<nbytes; i++) {
       if ((i&0x0f) == 0x00) {
-         if (seg|off)
+         if (seg|off) {
             if (data32) mhp_printf("%s%04x:%08x ", IN_DPMI?"#":"" ,seg, off+i);
             else mhp_printf("%s%04x:%04x ", IN_DPMI?"#":"" ,seg, off+i);
+         }
          else
             mhp_printf( "%08lX ", (unsigned long)seekval+i);
       }

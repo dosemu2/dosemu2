@@ -101,9 +101,21 @@ void set_console_video(void)
     permtest = set_ioperm(0x3d4, 2, 1);	/* get 0x3d4 and 0x3d5 */
     permtest |= set_ioperm(0x3da, 1, 1);
     permtest |= set_ioperm(0x3c0, 2, 1);	/* get 0x3c0 and 0x3c1 */
-    if (config.chipset == S3) {
-      permtest |= set_ioperm(0x102, 1, 1);
+    if ((config.chipset == S3) ||
+        (config.chipset == CIRRUS) ||
+        (config.chipset == WDVGA) ||
+        (config.chipset == MATROX)) {
+      permtest |= set_ioperm(0x102, 2, 1);
       permtest |= set_ioperm(0x2ea, 4, 1);
+    }
+    if (config.chipset == ATI) {
+      permtest |= set_ioperm(0x102, 1, 1);
+      permtest |= set_ioperm(0x1ce, 2, 1);
+      permtest |= set_ioperm(0x2ec, 4, 1);
+    }
+    if ((config.chipset == MATROX) ||
+        (config.chipset == WDVGA)) {
+      permtest |= set_ioperm(0x3de, 2, 1);
     }
   }
 

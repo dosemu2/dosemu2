@@ -105,7 +105,7 @@ static int priv_lvl = 0;
 static char *file_being_parsed;
 
 			/* this to ensure we are parsing a new style */
-static parser_version_3_style_used = 0;
+static int parser_version_3_style_used = 0;
 
 	/* external procedures */
 
@@ -1985,7 +1985,7 @@ static void keyb_mod(int wich, int keynum)
 {
   static unsigned char *table = 0;
   static int count = 0;
-  static in_altmap = 0;
+  static int in_altmap = 0;
 
   switch (wich) {
     case ' ': {

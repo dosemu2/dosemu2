@@ -93,6 +93,9 @@
 /* Define this to use the new port I/O code */
 #undef NEW_PORT_CODE
 
+/* Define this to use the new CMOS code */
+#undef NEW_CMOS
+
 /*
  *  DEFINE this, if you have joystick support in the kernel
  *  or have the joystick module loaded (needing <linux/joystick.h>)

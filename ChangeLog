@@ -1,3 +1,10 @@
+98/01/30 ver. 0.97.1.2 unofficial pre-release
+	From Alberto
+	- the RTC/CMOS/int1a patches (tested with ndiags).
+	- removed egcs warnings ('ambiguous else' and 'default to int')
+	- enhancements to the disassembler
+	- new way of turning off debug log after console switch
+	- fixed bug in the definition of CONF_NLPT
 98/01/30 ver. 0.97.1.1 unofficial pre-release
 	From Marcus
 	- rest of dosnet rework

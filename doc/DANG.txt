@@ -1,6 +1,6 @@
   The DOSEMU Alterer Novices Guide
   Author: Alistair MacDonald, alistair@slitesys.demon.co.uk
-  version dosemu-0.97.1.1
+  version dosemu-0.97.1.2
 
   This Document is the DOSEMU Alterer Novices Guide. It is known as the
   DANG.
@@ -328,13 +328,15 @@
 
   7.4.1.  DEFAULT_INTERRUPT
 
-  7.4.2.  run_caller_func(i, from_int)
+  7.4.2.  ms_dos
 
-  7.4.3.  DO_INT
+  7.4.3.  run_caller_func(i, from_int)
 
-  7.4.4.  setup_interrupts
+  7.4.4.  DO_INT
 
-  7.4.5.  int_vector_setup
+  7.4.5.  setup_interrupts
+
+  7.4.6.  int_vector_setup
 
   7.5.    Remarks in base/async/int.c
 
@@ -724,6 +726,7 @@
   to "James B. MacLean" <macleajb@ednet.ns.ca> for supplying the
   original information. (It was mostly ripped out of a mail message.)
   "Jochen Hein" has made many useful comments & suggestions.
+
   At the end if this document is a section detailing how this guide is
   put together. This may help you when trying to locate the relevant
   pieces of code. If you add new code, it would be useful if the
@@ -1921,7 +1924,20 @@
   DEFAULT_INTERRUPT is the default interrupt service routine called when
   DOSEMU initializes.
 
-  77..44..22..  rruunn__ccaalllleerr__ffuunncc((ii,, ffrroomm__iinntt))
+  77..44..22..  mmss__ddooss
+
+  int0x21 call
+
+  we trap this for two functions: simulating the EMMXXXX0 device and
+  fudging the CONFIG.XXX and AUTOEXEC.XXX bootup files.
+
+  note that the emulation herein may cause problems with programs that
+  like to take control of certain int 21h functions, or that change
+  functions that the true int 21h functions use.  An example of the
+  latter is ANSI.SYS, which changes int 10h, and int 21h uses int 10h.
+  for the moment, ANSI.SYS won't work anyway, so it's no problem.
+
+  77..44..33..  rruunn__ccaalllleerr__ffuunncc((ii,, ffrroomm__iinntt))
 
   This function runs the specified caller function in response to an int
   instruction.  Where i is the interrupt function to execute and
@@ -1969,18 +1985,18 @@
   This improves consistency of interrupt handling, but not quite as much
   as if I could handle it the way I would like.  -- EB 30 Nov 1997
 
-  77..44..33..  DDOO__IINNTT
+  77..44..44..  DDOO__IINNTT
 
   DO_INT is used to deal with interrupts returned to DOSEMU by the
   kernel.
 
-  77..44..44..  sseettuupp__iinntteerrrruuppttss
+  77..44..55..  sseettuupp__iinntteerrrruuppttss
 
   SETUP_INTERRUPTS is used to initialize the interrupt_function array
   which directs handling of interrupts in protected mode and also
   initializes the base vector for interrupts in real mode.
 
-  77..44..55..  iinntt__vveeccttoorr__sseettuupp
+  77..44..66..  iinntt__vveeccttoorr__sseettuupp
 
   Setup initial interrupts which can be revectored so that the kernel
   does not need to return to DOSEMU if such an interrupt occurs.
@@ -2071,6 +2087,7 @@
 
   Check for keyboard coming from client For now, first byte is interrupt
   requests from Client
+
   77..1122..  iinncclluuddee//ppoorrttss..hh IInnffoorrmmaattiioonn
 
   77..1133..  bbaassee//mmiisscc//ddoossiioo..cc IInnffoorrmmaattiioonn
@@ -2160,7 +2177,6 @@
   This code has been replaced by interrupt scheduling code in pic.  The
   result is that we simply call pic_sched and run the dos interrupt.  If
   the new code causes no problems, I'll revise this section permanently.
-
   77..1199..  bbaassee//ssppeeaakkeerr//ssppeeaakkeerr..cc IInnffoorrmmaattiioonn
 
   The pc-speaker emulator for Dosemu.
@@ -2282,6 +2298,7 @@
 
      Add file handle to one of 2 select FDS_SET's depending on whether
      the kernel can handle SIGIO.
+
   77..2266..33..  rreemmoovvee__ffrroomm__iioo__sseelleecctt
 
   Arguments are:
@@ -2651,6 +2668,7 @@
   SER_DEBUG_HEAVY   (0 or 1) - super-heavy extra debug output, including
   all ports reads and writes, and every character received and
   transmitted!
+
   SER_DEBUG_INTERRUPT   (0 or 1) - additional debug output related to
   serial interrupt code, including flagging serial interrupts, or PIC-
   driven code.
@@ -3124,6 +3142,7 @@
   will remain queued.  Also, some programs fake an iret, so that it is
   possible for pic_iret to fail.  See pic_watch for the watchdog timer
   that catches and fixes this event.
+
   1122..22..1100..  ppiicc__wwaattcchh
 
   pic_watch is a watchdog timer for pending interrupts.  If pic_iret
@@ -3178,6 +3197,7 @@
   To assure proper repeat scheduling, pic_sched should be called from
   within the interrupt handler for the same interrupt.  The maximum
   interval is 15 minutes (0x3fffffff).
+
   1122..33..  RReemmaarrkkss iinn bbaassee//ddeevv//ppiicc//ppiicc..cc
 
   pic_push,pic_pop

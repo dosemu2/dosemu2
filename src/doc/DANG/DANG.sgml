@@ -3,7 +3,7 @@
 
 <title> The DOSEMU Alterer Novices Guide
 <author> Author: Alistair MacDonald, <tt/alistair\@slitesys.demon.co.uk/
-<date> version dosemu-0.97.1.1
+<date> version dosemu-0.97.1.2
 <abstract>
 This Document is the DOSEMU Alterer Novices Guide. It is known as the DANG.
 </abstract>
@@ -1792,6 +1792,26 @@ These are the functions defined in base/async/int.c.
  
  DEFAULT_INTERRUPT is the default interrupt service routine 
  called when DOSEMU initializes.
+
+ 
+
+
+<sect2>ms_dos
+
+
+<p>
+ 
+ int0x21 call
+
+ we trap this for two functions: simulating the EMMXXXX0 device and
+ fudging the CONFIG.XXX and AUTOEXEC.XXX bootup files.
+
+ note that the emulation herein may cause problems with programs
+ that like to take control of certain int 21h functions, or that
+ change functions that the true int 21h functions use.  An example
+ of the latter is ANSI.SYS, which changes int 10h, and int 21h
+ uses int 10h.  for the moment, ANSI.SYS won't work anyway, so it's
+ no problem.
 
  
 

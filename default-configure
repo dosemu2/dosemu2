@@ -72,6 +72,9 @@ while [ "$1" != "" ]; do
     newport)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-new-port"; fi
       ;;
+    newcmos)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-new-cmos"; fi
+      ;;
     *)
       ;;
   esac

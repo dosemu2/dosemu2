@@ -1355,14 +1355,14 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	  if ((Interrupt_Table[_LO(bx)].selector==DPMI_SEL) &&
 		(Interrupt_Table[_LO(bx)].offset==DPMI_OFF + HLT_OFF(DPMI_interrupt) + _LO(bx)))
 #ifdef __linux__
-	    if (can_revector(_LO(bx))==NO_REVECT)
-	      reset_revectored(_LO(bx),&vm86s.int_revectored);
+	    { if (can_revector(_LO(bx))==NO_REVECT)
+	      reset_revectored(_LO(bx),&vm86s.int_revectored); }
 	  else
 	    set_revectored(_LO(bx),&vm86s.int_revectored);
 #endif
 #ifdef __NetBSD__
-	    if (can_revector(_LO(bx))==NO_REVECT)
-	      reset_revectored(_LO(bx), vm86s.int_byuser);
+	    { if (can_revector(_LO(bx))==NO_REVECT)
+	      reset_revectored(_LO(bx), vm86s.int_byuser); }
 	  else
 	    set_revectored(_LO(bx), vm86s.int_byuser);
 #endif

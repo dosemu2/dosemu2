@@ -53,7 +53,9 @@ EXTERN int int_queue_running INIT(0);
 EXTERN void *interrupt_function[0x100];
 EXTERN unsigned int  check_date INIT(0);
 EXTERN time_t        start_time;
+#ifndef NEW_CMOS
 EXTERN unsigned long last_ticks;
+#endif
 EXTERN u_char in_sigsegv INIT(0);
 EXTERN u_char in_sighandler INIT(0);	/* so I know to not use non-reentrant
 					 * syscalls like ioctl() :-( */

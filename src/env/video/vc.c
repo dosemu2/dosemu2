@@ -88,10 +88,6 @@ extern inline void console_update_cursor (int, int, int, int);
 static void set_dos_video ();
 void put_video_ram ();
 
-#ifdef NO_VC_NO_DEBUG
-static struct debug_flags save_debug_flags;
-#endif
-
 extern int
   dosemu_sigaction (int sig, struct sigaction *, struct sigaction *);
 static void SIGRELEASE_call (void);
@@ -239,8 +235,10 @@ acquire_vt (int sig, struct sigcontext_struct context)
   dos_has_vt = 1;
 
 #ifdef NO_VC_NO_DEBUG
-  d = save_debug_flags;
+  if (user_vc_switch) shut_debug = 0;
 #endif
+  flush_log();
+
   v_printf ("VID: Acquiring VC\n");
   forbid_switch ();
 #ifdef __NetBSD__
@@ -307,10 +305,6 @@ set_linux_video (void)
 static void
 SIGRELEASE_call (void)
 {
-#ifdef NO_VC_NO_DEBUG
-  save_debug_flags = d;
-#endif
-
   if (scr_state.current == 1)
     {
       v_printf ("VID: Releasing VC\n");
@@ -362,7 +356,7 @@ SIGRELEASE_call (void)
    /* we don't want any debug activity while VC is not active */
     flush_log();
 #ifdef NO_VC_NO_DEBUG
-    memset(&d, 0, sizeof(struct debug_flags));
+    if (user_vc_switch) shut_debug = 1;
 #endif
   }
 }

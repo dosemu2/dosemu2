@@ -28,6 +28,7 @@
 #endif
 
 #define SHOW_TIME	1		/* 0 or 1 */
+#define SHOW_EIP	0
 
 #ifndef INITIAL_LOGBUFSIZE
 #define INITIAL_LOGBUFSIZE      0
@@ -79,12 +80,34 @@ static char *timestamp (char *p)
 #endif
 
 
+#if SHOW_EIP
+static char *eipstamp (char *p)
+{
+  if (in_dpmi) {
+    sprintf(p,"[ %08lx] ",trc__neweip);
+  }
+  else {
+    sprintf(p,"[%04x:%04x] ",REG(cs),LWORD(eip));
+  }
+  return p+12;
+}
+#else
+#define eipstamp(p)	(p)
+#endif
+
+
 int vlog_printf(int flg, const char *fmt, va_list args)
 {
   int i;
   static int is_cr = 1;
 
-  if (!flg || !dbg_fd ) return 0;
+  if (!flg || !dbg_fd || 
+#ifdef USE_MHPDBG
+      (shut_debug && (flg<10) && !mhpdbg.active)
+#else
+      (shut_debug && (flg<10))
+#endif
+     ) return 0;
 
 #ifdef USE_THREADS
   lock_resource(resource_libc);
@@ -93,6 +116,7 @@ int vlog_printf(int flg, const char *fmt, va_list args)
     char *q;
 
     q = (is_cr? timestamp(logptr) : logptr);
+    if (is_cr) q = eipstamp(q);
     i = vsprintf(q, fmt, args) + (q-logptr);
     if (i > 0) is_cr = (logptr[i-1]=='\n'); else i = 0;
   }

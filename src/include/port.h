@@ -61,14 +61,14 @@ static __inline__ Bit8u port_real_inb(ioport_t port)
 
 static __inline__ void port_real_outw(ioport_t port, Bit16u value)
 {
-  __asm__("outw %0,%1" :: "a" ((Bit16u) value),
+  __asm__ __volatile__ ("outw %0,%1" :: "a" ((Bit16u) value),
 		"d" ((Bit16u) port));
 }
 
 static __inline__ Bit16u port_real_inw(ioport_t port)
 {
   Bit16u _v;
-  __asm__("inw %1,%0":"=a" (_v) : "d" ((Bit16u) port));
+  __asm__ __volatile__ ("inw %1,%0":"=a" (_v) : "d" ((Bit16u) port));
   return _v;
 }
 

@@ -259,7 +259,6 @@ int bogospeed(unsigned long *spus, unsigned long *sptick)
 {
 	boolean first=1;
 	int mlt=0, dvs=0;
-	char *p;
 
 	if (config.realcpu < CPU_586) {
 		fprintf(stderr,"You can't access 586 features on CPU=%d\n",
@@ -268,6 +267,7 @@ int bogospeed(unsigned long *spus, unsigned long *sptick)
 	}
 	if (!first) return 0;
 #if 0
+	{ char *p;
 	/* user-defined speed */
 	if ((p=getenv("CPUSPEED"))!=NULL) {
 	  int v1;
@@ -276,7 +276,7 @@ int bogospeed(unsigned long *spus, unsigned long *sptick)
 	      mlt = 1; dvs = v1;
 	    }
 	  }
-	}
+	}}
 #endif
 	if (!mlt) {
 	/* last resort - do it yourself */

@@ -172,6 +172,9 @@
 /* Define this to use the new port I/O code */
 #undef NEW_PORT_CODE
 
+/* Define this to use the new CMOS code */
+#undef NEW_CMOS
+
 /*
  * This is DEFINED when SB emulation is required. Just changing this is not
  * enough - you must reconfigure.

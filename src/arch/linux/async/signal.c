@@ -12,6 +12,7 @@
 
 #include "config.h"
 #include "emu.h"
+#include "bios.h"
 #include "mouse.h"
 #include "video.h"
 #include "timers.h"
@@ -21,6 +22,9 @@
 #include "pic.h"
 #include "ipx.h"
 #include "pktdrvr.h"
+#ifdef NEW_CMOS
+#include "iodev.h"
+#endif
 
 #include "keyb_clients.h"
 
@@ -145,8 +149,40 @@ signal_init(void)
   g_printf("Initialized all signals to NOT-BLOCK\n");
 
 
-  /* init signal handlers */
-
+  /* init signal handlers - these are the defined signals:
+   ---------------------------------------------
+   SIGHUP		 1	S	leavedos
+   SIGINT		 2	S	leavedos
+   SIGQUIT		 3	S	sigquit
+   SIGILL		 4	N	dosemu_fault
+   SIGTRAP		 5	N	dosemu_fault
+   SIGABRT		 6	S	leavedos
+   SIGBUS		 7	N	dosemu_fault
+   SIGFPE		 8	N	dosemu_fault
+   SIGKILL		 9	na
+   SIGUSR1		10	?	threads
+   SIGSEGV		11	N	dosemu_fault
+   SIGUSR2		12	NQ	(SIG_ACQUIRE)
+   SIGPIPE		13
+   SIGALRM		14	NQ	(SIG_TIME)sigalrm
+   SIGTERM		15	S	leavedos
+   SIGSTKFLT		16
+   SIGCHLD		17	unused?
+   SIGCONT		18
+   SIGSTOP		19
+   SIGTSTP		20
+   SIGTTIN		21	unused	was SIG_SER??
+   SIGTTOU		22
+   SIGURG		23
+   SIGXCPU		24
+   SIGXFSZ		25
+   SIGVTALRM		26
+   SIGPROF		27	N	(SIG_CALIB)sigstretch
+   SIGWINCH		28	NQ	(SIG_RELEASE)
+   SIGIO		29	NQ	sigio
+   SIGPWR		30
+   SIGUNUSED		31	na
+  ------------------------------------------------ */
   NEWSETSIG(SIGILL, dosemu_fault);
   NEWSETQSIG(SIG_TIME, sigalrm);
   NEWSETSIG(SIGFPE, dosemu_fault);
@@ -271,15 +307,28 @@ void handle_signals(void) {
  * counter here.
  * ============================================================== */
 
-void SIGALRM_call(void){
-
+void SIGALRM_call(void)
+{
+  static int first = 0;
+  static hitimer_t cnt200 = 0;
+#if defined(NEW_CMOS) && !defined(USE_THREADS)
+  static hitimer_t cnt1000 = 0;
+#endif
   static volatile int running = 0;
-  static int partials = 0;
 #if VIDEO_CHECK_DIRTY
   static int update_pending = 0;
 #endif
   int retval;
   
+  if (first==0) {
+    cnt200 =
+#if defined(NEW_CMOS) && !defined(USE_THREADS)
+    cnt1000 =
+#endif
+    pic_sys_time;	/* initialize */
+    first = 1;
+  }
+
 #if defined(SIG) && defined(REQUIRES_VM86PLUS)
   irq_select();  /* we need this in order to catch lost IRQ-SIGIOs */
 #endif
@@ -405,21 +454,6 @@ void SIGALRM_call(void){
   if (not_use_sigio)
     io_select(fds_no_sigio);
 
-  /* this should be for per-second activities, it is actually at
-   * 180ms more or less */
-  partials++;
-  /* if you want a REAL second here use: config.freq*TIMER_DIVISOR */
-  if (partials == config.freq) {
-    partials = 0;
-#ifdef IPX
-  if (config.ipxsup)
-    pic_request (PIC_IPX);
-#endif
-    printer_tick((u_long) 0);
-    if (config.fastfloppy)
-      floppy_tick();
-  }
-
   /* Here we 'type in' prestrokes from commandline, as long as there are any
    * Were won't overkill dosemu, hence we type at a speed of 14cps
    */
@@ -430,6 +464,32 @@ void SIGALRM_call(void){
       if (count <0) count =7; /* with HZ=100 we have a stroke rate of 14cps */
     }
   }
+
+  /* this should be for per-second activities, it is actually at
+   * 200ms more or less (PARTIALS=5) */
+  if ((pic_sys_time-cnt200) >= (PIT_TICK_RATE/PARTIALS)) {
+    cnt200 += (PIT_TICK_RATE/PARTIALS);
+/*    g_printf("**** ALRM: %dms\n",(1000/PARTIALS)); */
+
+#ifdef IPX
+    if (config.ipxsup)
+      pic_request (PIC_IPX);
+#endif
+    printer_tick(0);
+    if (config.fastfloppy)
+      floppy_tick();
+  }
+
+/* We update the RTC from here if it has not been defined as a thread */
+
+#if defined(NEW_CMOS) && !defined(USE_THREADS)
+  /* this is for EXACT per-second activities (can produce bursts) */
+  if ((pic_sys_time-cnt1000) >= PIT_TICK_RATE) {
+    cnt1000 += PIT_TICK_RATE;
+/*    g_printf("**** ALRM: 1sec\n"); */
+    rtc_update();
+  }
+#endif
 
 }
 
@@ -553,7 +613,7 @@ sigquit(int sig)
   show_regs(__FILE__, __LINE__);
 
   ignore_segv++;
-  *(unsigned char *) 0x471 = 0x80;	/* ctrl-break flag */
+  *(unsigned char *)BIOS_KEYBOARD_FLAGS = 0x80;	/* ctrl-break flag */
   ignore_segv--;
 
   do_soft_int(0x1b);

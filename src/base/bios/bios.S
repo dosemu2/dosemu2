@@ -571,6 +571,25 @@ CISH(INT08_L2):
 CISH(INT08_dummy_end):
 
 /* ----------------------------------------------------------------- */   
+#ifdef NEW_CMOS
+	.org	((INT70_SEG-BIOSSEG) << 4)+INT70_OFF
+
+	.globl	CISH(INT70_dummy_start)
+/* ======================= Addr = F800:4100 (FC100) */
+CISH(INT70_dummy_start):		/* RTC INTERRUPT ROUTINE	*/
+
+	push	ax
+	int	0x4a
+        mov     al,#0x20
+        out     0xa0,al			/* flag interrupt complete	*/
+	out	0x20,al
+	pop	ax			/* restore registers            */
+	iret				/* return to interrupted code	*/
+	.globl  CISH(INT70_dummy_end)
+CISH(INT70_dummy_end):
+#endif
+
+/* ----------------------------------------------------------------- */   
 /* This is for video init only - it calls in order:
    - first helper function (int0xe6,al=8)
    - the video BIOS init entry point at C000:3 or E000:3

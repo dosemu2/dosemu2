@@ -104,6 +104,12 @@
 #define INT08_OFF	0x4000
 #define INT08_ADD	((INT08_SEG << 4) + INT08_OFF)
 
+#ifdef NEW_CMOS
+#define INT70_SEG	ROMBIOSSEG
+#define INT70_OFF	0x4100
+#define INT70_ADD	((INT70_SEG << 4) + INT70_OFF)
+#endif
+
 #define INT10_SEG	ROMBIOSSEG
 #define INT10_OFF	0x4200
 #define INT10_WATCHER_OFF	0x4240

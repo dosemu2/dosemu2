@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <ctype.h>
 #include <string.h>
 
 #include "config.h"
@@ -9,6 +10,45 @@
 #include "cpu.h"
 #include "port.h"
 #include "int.h"
+
+extern int  dis_8086(unsigned int, const unsigned char *,
+                     unsigned char *, int, unsigned int *, unsigned int *,
+                     unsigned int, int);
+
+
+char *emu_disasm(int sga, unsigned int ip)
+{
+   static unsigned char buf[256];
+   unsigned char frmtbuf[256];
+   int rc, i;
+   unsigned char *cp;
+   unsigned char *p;
+   unsigned int refseg;
+   unsigned int ref;
+
+   if (sga) {
+     cp = SEG_ADR((unsigned char *), cs, ip);
+     refseg = REG(cs);
+   }
+   else {
+     cp = (unsigned char *)ip;
+     refseg = 0;	/* ??? */
+   }
+
+   rc = dis_8086((unsigned long)cp, cp, frmtbuf, 0, &refseg, &ref, 0, 1);
+
+   p = buf;
+   for (i=0; i<rc && i<8; i++) {
+           p += sprintf(p, "%02x", *(cp+i));
+   }
+   sprintf(p,"%20s", " ");
+   if (sga)
+     sprintf(buf+20, "%04x:%04x %s", REG(cs), LWORD(eip), frmtbuf);
+   else
+     sprintf(buf+20, "%08x %s", ip, frmtbuf);
+
+   return buf;
+}
 
 
 /*  */
@@ -89,7 +129,7 @@ show_regs(char *file, int line)
   g_printf("-> ");
   for (i = 0; i < 10; i++)
     g_printf("%02x ", *cp++);
-  g_printf("\n");
+  g_printf("\n\t%s\n", emu_disasm(1,0));
 }
 
 void

@@ -71,12 +71,25 @@ extern void  pit_reset(void);
 
 extern void  rtc_init(void);
 extern void  rtc_reset(void);
+#ifdef NEW_CMOS
+extern void  rtc_update (void);
+#else
 extern Bit8u rtc_read(Bit32u port);
 extern void  rtc_write(Bit32u port, Bit8u byte);
+#endif
 
 /*******************************************************************
  * CMOS support                                                    *
  *******************************************************************/
+
+#include "cmos.h"
+
+#ifdef NEW_CMOS
+extern long  last_ticks;		/* for int1a */
+extern long  sys_base_ticks;
+extern long  usr_delta_ticks;
+
+#else
 
 #define CMOS_SEC	0	/* RTC time: seconds */
 #define CMOS_SECALRM	1	/* Alarm time: seconds */
@@ -116,6 +129,7 @@ extern void  rtc_write(Bit32u port, Bit8u byte);
 
 extern void  cmos_init(void);
 extern void  cmos_reset(void);
+#endif	/* NEW_CMOS */
 
 /*******************************************************************
  * PIC support                                                     *
