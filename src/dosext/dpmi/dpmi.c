@@ -1239,7 +1239,7 @@ static unsigned short *enter_lpms(struct sigcontext_struct *scp)
     D_printf("DPMI: Switching to locked stack\n");
     pmstack_sel = DPMI_CLIENT.PMSTACK_SEL;
     if (_ss == DPMI_CLIENT.PMSTACK_SEL)
-      error("DPMI: do_cpu_exception: App is working on host\'s PM locked stack, expect troubles!\n");
+      error("DPMI: App is working on host\'s PM locked stack, expect troubles!\n");
   }
   else {
     D_printf("DPMI: Not switching to locked stack, in_dpmi_pm_stack=%d\n",
@@ -2620,6 +2620,7 @@ void run_pm_int(int i)
 	| i_d_d_i  |
    --------------------------------------------------- */
   if (DPMI_CLIENT.is_32) {
+    ssp -= 2, *((unsigned long *) ssp) = 0;	/* reserved */
     ssp -= 2, *((unsigned long *) ssp) = (unsigned long) in_dpmi_dos_int;
     *--ssp = (us) 0;
     *--ssp = old_ss;
@@ -2632,8 +2633,10 @@ void run_pm_int(int i)
     *--ssp = (us) 0;
     *--ssp = DPMI_CLIENT.DPMI_SEL;
     ssp -= 2, *((unsigned long *) ssp) = DPMI_OFF + HLT_OFF(DPMI_return_from_pm);
-    DPMI_CLIENT.stack_frame.esp -= 36;
+    DPMI_CLIENT.stack_frame.esp -= 40;
   } else {
+    /* store the high word of ESP, because CPU corrupts it */
+    *--ssp = HI_WORD(old_esp);
     *--ssp = (unsigned short) in_dpmi_dos_int;
     *--ssp = old_ss;
     *--ssp = LO_WORD(old_esp);
@@ -2643,7 +2646,7 @@ void run_pm_int(int i)
     *--ssp = (unsigned short) get_vFLAGS(DPMI_CLIENT.stack_frame.eflags);
     *--ssp = DPMI_CLIENT.DPMI_SEL; 
     *--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_pm);
-    LO_WORD(DPMI_CLIENT.stack_frame.esp) -= 18;
+    LO_WORD(DPMI_CLIENT.stack_frame.esp) -= 20;
   }
   DPMI_CLIENT.stack_frame.cs = DPMI_CLIENT.Interrupt_Table[i].selector;
   DPMI_CLIENT.stack_frame.eip = DPMI_CLIENT.Interrupt_Table[i].offset;
@@ -2996,6 +2999,9 @@ static void return_from_exception(struct sigcontext_struct *scp)
     set_EFLAGS(_eflags, *ssp++);
     _LWORD(esp) = *ssp++;
     _ss = *ssp++;
+    /* get the high word of ESP from the extended stack frame */
+    *ssp += 8+12+1;
+    _HWORD(esp) = *ssp++;
   }
   if (!_ss) {
     D_printf("DPMI: ERROR: SS is zero, esp=0x%08lx, using old stack\n", _esp);
@@ -3493,6 +3499,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	    _ss = *ssp++;
 	    ssp++;
 	    in_dpmi_dos_int = ((int) *((unsigned long *) ssp)), ssp += 2;
+	    ssp += 2;
 	  } else {
 	    _LWORD(eip) = *ssp++;
 	    _cs = *ssp++;
@@ -3500,6 +3507,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	    _LWORD(esp) = *ssp++;
 	    _ss = *ssp++;
 	    in_dpmi_dos_int = (int) *ssp++;
+	    _HWORD(esp) = *ssp++;
 	  }
 /* Posibilities:
  * 1. If in_dpmi_dos_int==0, it is hardware interrupt: software pm ints are
