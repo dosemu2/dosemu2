@@ -51,6 +51,20 @@ static void mntruncate(struct memnode *pmn, size_t size)
   }
 }
 
+static struct memnode *find_mn_prev(struct memnode *mp, unsigned char *ptr)
+{
+  struct memnode *pmn;
+  assert(mp->used);
+  for (pmn = mp; pmn->next; pmn = pmn->next) {
+    struct memnode *mn = pmn->next;
+    if (mn->mem_area > ptr)
+      return NULL;
+    if (mn->mem_area == ptr)
+      return pmn;
+  }
+  return NULL;
+}
+
 void *smalloc(struct memnode *mp, size_t size)
 {
   struct memnode *mn;
@@ -80,11 +94,9 @@ void *smalloc(struct memnode *mp, size_t size)
 void smfree(struct memnode *mp, void *ptr)
 {
   struct memnode *mn, *pmn;
-  /* Find the region */
-  for (pmn = mp, mn = mp->next; mn; pmn = mn, mn = mn->next) {
-    if (mn->mem_area == ptr)
-      break;
-  }
+  if (!(pmn = find_mn_prev(mp, ptr)))
+    return;
+  mn = pmn->next;
   if (!mn || !mn->used)
     return;	/* bad pointer */
   assert(mn->size > 0);
@@ -113,11 +125,9 @@ void smfree(struct memnode *mp, void *ptr)
 void *smrealloc(struct memnode *mp, void *ptr, size_t size)
 {
   struct memnode *mn, *pmn;
-  /* Find the region */
-  for (pmn = mp, mn = mp->next; mn; pmn = mn, mn = mn->next) {
-    if (mn->mem_area == ptr)
-      break;
-  }
+  if (!(pmn = find_mn_prev(mp, ptr)))
+    return NULL;
+  mn = pmn->next;
   if (!mn || !mn->used)
     return NULL;	/* bad pointer */
   if (size == 0) {
