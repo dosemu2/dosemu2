@@ -419,8 +419,6 @@ unsigned char DAC_read_value()
   unsigned char ri = vga.dac.read_index;
 #endif
 
-  vga.dac.state = DAC_READ_MODE;
-  
   switch(vga.dac.pel_index) {
     case 'r':
       rv = vga.dac.rgb[vga.dac.read_index].r;
@@ -468,8 +466,6 @@ unsigned char DAC_read_value()
 void DAC_write_value(unsigned char value)
 {
   value &= (1 << vga.dac.bits) - 1;
-
-  vga.dac.state = DAC_WRITE_MODE;
 
   dac_deb(
     "DAC_write_value: dac.rgb[0x%02x].%c = 0x%02x\n",
