@@ -286,8 +286,8 @@ typedef struct vesamode_type_struct {
        struct keytable_entry *altkeytable;
 
        unsigned short detach;
-       unsigned char *debugout;
-       unsigned char *pre_stroke;  /* pointer to keyboard pre strokes */
+       char *debugout;
+       char *pre_stroke;        /* pointer to keyboard pre strokes */
 
        /* Lock File business */
        boolean full_file_locks;
