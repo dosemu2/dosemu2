@@ -30,6 +30,15 @@
  *
  * HISTORY:
  * $Log: bios_emm.c,v $
+ * Revision 1.12  1994/03/04  15:23:54  root
+ * Run through indent.
+ *
+ * Revision 1.11  1994/02/21  20:28:19  root
+ * Starting work on Set Alternate Page stuff for Windows 3.0.
+ *
+ * Revision 1.10  1994/02/20  10:00:16  root
+ * Changed return code when DOS tries to Get page count of OS handle.
+ *
  * Revision 1.9  1994/02/02  21:12:56  root
  * Tried IPC shared memory, unsuccessful.
  *
@@ -135,7 +144,7 @@ extern struct config_info config;
 #define	GET_AND_SET_REGISTERS	0x2
 #define GET_SIZE_FOR_PAGE_MAP	0x3
 
-#define PAGE_MAP_SIZE		(sizeof(u_short) * 8)
+#define PAGE_MAP_SIZE		(sizeof(u_short) * 2 * EMM_MAX_PHYS)
 
 #define PARTIAL_MAP_REGISTERS	0x4f	/* V4.0 */
 #define	PARTIAL_GET		0x0
@@ -364,6 +373,7 @@ bios_emm_init()
   handle_info[OS_HANDLE].numpages = OS_PAGES;
   handle_info[OS_HANDLE].object = (mach_port_t) OS_PORT;
   handle_info[OS_HANDLE].objsize = OS_SIZE;
+  handle_info[OS_HANDLE].active = 1;
 #else
   handle_info[OS_HANDLE].numpages = 1;
   handle_info[OS_HANDLE].object = 0;
@@ -475,19 +485,19 @@ v_munmap(caddr_t base, int size, caddr_t logical)
 {
 
 #if 0
-  int sh_base = ((int)base - EMM_BASE_ADDRESS) / (EMM_PAGE_SIZE);
+  int sh_base = ((int) base - EMM_BASE_ADDRESS) / (EMM_PAGE_SIZE);
 
   E_printf("EMS: UNMAP l=0x%08x, bs=0x%04x, sz=%x, d=0x%02x, 
-	   s = 0x%02x, sh_base=%d\n ", logical, base, size, *(u_short *)logical, 
+	   s = 0x % 02 x, sh_base = %d \ n ", logical, base, size, *(u_short *)logical, 
 	   * (u_short *) base, sh_base);
 
-  if (shmdt(base) < 0 ) {
-	E_printf("EMS: v_unmmap base unsuccessful: %s\n", strerror(errno));
-	leavedos();
+  if (shmdt(base) < 0) {
+    E_printf("EMS: v_unmmap base unsuccessful: %s\n", strerror(errno));
+    leavedos();
   }
-  if (shmdt(logical) < 0 ) {
-	E_printf("EMS: v_unmmap logical unsuccessful: %s\n", strerror(errno));
-	leavedos();
+  if (shmdt(logical) < 0) {
+    E_printf("EMS: v_unmmap logical unsuccessful: %s\n", strerror(errno));
+    leavedos();
   }
 #else
   memmove((u_char *) logical, (u_char *) base, size);
@@ -500,24 +510,25 @@ v_mmap(caddr_t base, int size, u_char access, u_char share, int fd, caddr_t logi
 {
 
 #if 0
-  u_char sh_base = ((int)base - EMM_BASE_ADDRESS) / (EMM_PAGE_SIZE);
+  u_char sh_base = ((int) base - EMM_BASE_ADDRESS) / (EMM_PAGE_SIZE);
+
   E_printf("EMS: MAP l=0x%08x, bs=0x%04x, sz=%x, d=0x%02x, s=0x%02x\n", logical, base, size, *(u_short *) base, *(u_short *) logical);
-  if ((shmid[sh_base] = shmget(IPC_PRIVATE, size, 0600 | IPC_CREAT) ) < 0) {
-	E_printf("EMS: v_mmap unsuccessful: %s\n", strerror(errno));
-	leavedos();
+  if ((shmid[sh_base] = shmget(IPC_PRIVATE, size, 0600 | IPC_CREAT)) < 0) {
+    E_printf("EMS: v_mmap unsuccessful: %s\n", strerror(errno));
+    leavedos();
   }
-  if (( base = (caddr_t) shmat(shmid[sh_base], base, SHM_REMAP)) == (caddr_t)0xffffffff ) {
-	E_printf("EMS: v_mmap shmat base unsuccessful: %s\n", strerror(errno));
-	leavedos();
+  if ((base = (caddr_t) shmat(shmid[sh_base], base, SHM_REMAP)) == (caddr_t) 0xffffffff) {
+    E_printf("EMS: v_mmap shmat base unsuccessful: %s\n", strerror(errno));
+    leavedos();
   }
-  if (( logical = (caddr_t) shmat(shmid[sh_base], logical, SHM_REMAP)) == (caddr_t)0xffffffff ) {
-	E_printf("EMS: v_mmap shmat logical unsuccessful: %s\n", strerror(errno));
-	leavedos();
+  if ((logical = (caddr_t) shmat(shmid[sh_base], logical, SHM_REMAP)) == (caddr_t) 0xffffffff) {
+    E_printf("EMS: v_mmap shmat logical unsuccessful: %s\n", strerror(errno));
+    leavedos();
   }
   E_printf("EMS: v_mmap base=%x, logical=%x\n", base, logical);
-  if (shmctl(shmid[sh_base], IPC_RMID, (struct shmid_ds *)0) < 0) {
-	E_printf("EMS: v_unmmap shmctl unsuccessful: %s\n", strerror(errno));
-/*
+  if (shmctl(shmid[sh_base], IPC_RMID, (struct shmid_ds *) 0) < 0) {
+    E_printf("EMS: v_unmmap shmctl unsuccessful: %s\n", strerror(errno));
+    /*
 	leavedos();
 */
   }
@@ -739,7 +750,7 @@ test_handle(handle, numpages)
     map_page(handle, 0, i);
     if ((*(int *) EMM_BASE_ADDRESS) != i) {
       fprintf(stderr, "bios_emm: test_handle, Mapping failure: %d, %d\n",
-	     i, (*(int *) EMM_BASE_ADDRESS));
+	      i, (*(int *) EMM_BASE_ADDRESS));
     }
   }
 }
@@ -899,11 +910,13 @@ reallocate_pages(state_t * state)
   }
 
   if (!handle_info[handle].active) {	/* no-handle */
+    Kdebug0((dbg_fd, "reallocate_pages handle %d invalid\n", handle));
     SETHIGH(&(state->eax), EMM_INV_HAN);
     return;
   }
 
   if (newcount == handle_info[handle].numpages) {	/* no-op */
+    Kdebug0((dbg_fd, "reallocate_pages handle %d no-change\n", handle));
     SETHIGH(&(state->eax), EMM_NO_ERR);
     return;
   }

@@ -3,12 +3,21 @@
  *
  * rudimentary attempt at config file parsing for dosemu
  *
- * $Date: 1994/02/09 20:10:24 $
- * $Source: /home/src/dosemu0.49pl4g/RCS/parse.c,v $
- * $Revision: 1.8 $
+ * $Date: 1994/03/04 15:23:54 $
+ * $Source: /home/src/dosemu0.50/RCS/parse.c,v $
+ * $Revision: 1.11 $
  * $State: Exp $
  *
  * $Log: parse.c,v $
+ * Revision 1.11  1994/03/04  15:23:54  root
+ * Run through indent.
+ *
+ * Revision 1.10  1994/03/04  00:01:58  root
+ * Readying for 0.50
+ *
+ * Revision 1.9  1994/02/21  20:28:19  root
+ * Serial patches of Ronnie's
+ *
  * Revision 1.8  1994/02/09  20:10:24  root
  * Added dosbanner config option for optionally displaying dosemu bannerinfo.
  * Added allowvideportaccess config option to deal with video ports.
@@ -94,7 +103,7 @@ typedef enum {
   D_PARTITION, D_WHOLEDISK, D_OFFSET, D_FILE, D_FIVEINCH,
   D_READONLY, D_HDIMAGE, D_THREEINCH, VAL_FASTFLOPPY, VAL_CPU,
   SEC_VIDEO, VAL_XMS, VAL_EMS, VAL_DOSMEM, PRED_RAWKEY,
-  SEC_PRINTER, VAL_MATHCO, LCCOM, PRED_BOOTA, PRED_BOOTC,
+  SEC_PRINTER, VAL_MATHCO, VAL_IPXSUP, LCCOM, PRED_BOOTA, PRED_BOOTC,
   VAL_DEBUG, EOL_COMMENT, P_COMMAND, P_OPTIONS, P_TIMEOUT,
   P_FILE, SEC_PORTS, PRT_RANGE, PRT_RDONLY, PRT_WRONLY,
   PRT_RDWR, PRT_ANDMASK, PRT_ORMASK, VAL_SPEAKER,
@@ -102,8 +111,9 @@ typedef enum {
   V_VBIOSC, V_CONSOLE, V_FULLREST, V_PARTIALREST, V_GRAPHICS,
   V_MEMSIZE, V_VBIOSM, VAL_HOGTHRESHOLD, VAL_TIMER,
   SEC_SERIAL, S_DEVICE, S_BASE, S_INTERRUPT, S_MODEM, S_MOUSE,
-  VAL_KEYBINT, VAL_DOSBANNER, VAL_TIMINT, VAL_EMUBAT, VAL_EMUSYS, 
-  SEC_BOOTDISK , VAL_DPMI , VAL_ALLOWVIDEOPORTACCESS
+  S_MICROSOFT, S_MOUSESYSTEMS3, S_MOUSESYSTEMS5, S_MMSERIES, S_LOGITECH,
+  VAL_KEYBINT, VAL_DOSBANNER, VAL_TIMINT, VAL_EMUBAT, VAL_EMUSYS,
+  SEC_BOOTDISK, VAL_DPMI, VAL_ALLOWVIDEOPORTACCESS
 } tok_t;
 
 typedef enum {
@@ -201,6 +211,11 @@ word_t serial_words[] =
   {"interrupt", S_INTERRUPT, VALUE, do_serial},
   {"modem", S_MODEM, PRED, do_serial},
   {"mouse", S_MOUSE, PRED, do_serial},
+  {"microsoft", S_MICROSOFT, PRED, do_serial},
+  {"mousesystems3", S_MOUSESYSTEMS3, PRED, do_serial},
+  {"mousesystems5", S_MOUSESYSTEMS5, PRED, do_serial},
+  {"mmseries", S_MMSERIES, PRED, do_serial},
+  {"logitech", S_LOGITECH, PRED, do_serial},
   NULL_WORD
 };
 
@@ -282,6 +297,7 @@ word_t top_words[] =
   {"allowvideoportaccess", VAL_ALLOWVIDEOPORTACCESS, VALUE, do_num, 0, 0, null_words},
   {"printer", SEC_PRINTER, SECTION, do_top, start_printer, stop_printer, printer_words},
   {"mathco", VAL_MATHCO, VALUE, do_num, 0, 0, null_words},
+  {"ipxsupport", VAL_IPXSUP, VALUE, do_num, 0, 0, null_words},
   {"speaker", VAL_SPEAKER, VALUE, do_num, 0, 0, null_words},
   {"rawkeyboard", PRED_RAWKEY, PRED, do_num, 0, 0, null_words},
   {"boota", PRED_BOOTA, PRED, do_num, 0, 0, null_words},
@@ -654,6 +670,9 @@ do_num(word_t * word, arg_t farg1, arg_t farg2)
     case VAL_MATHCO:
       config.mathco = (atoi(arg) != 0);
       break;
+    case VAL_IPXSUP:
+      config.ipxsup = (atoi(arg) != 0);
+      break;
     case VAL_SPEAKER:
       config.speaker = atoi(arg);
       if (config.speaker == SPKR_NATIVE) {
@@ -779,6 +798,8 @@ start_serial(word_t * word, arg_t farg1, arg_t farg2)
   else {
     sptr = &com[c_ser];
     sptr->mouse = 0;
+    sptr->mtype = MOUSE_MICROSOFT;
+    sptr->modem = 0;
     /* default first port */
     if (c_ser == 0) {
       strcpy(sptr->dev, "/dev/cua0");
@@ -839,9 +860,36 @@ do_serial(word_t * word, arg_t farg1, arg_t farg2)
     break;
   case S_MODEM:
     sptr->mouse = 0;
+    sptr->modem = 1;
     break;
   case S_MOUSE:
     sptr->mouse = 1;
+    sptr->modem = 0;
+    break;
+  case S_MICROSOFT:
+    sptr->mouse = 1;
+    sptr->mtype = MOUSE_MICROSOFT;
+    sptr->modem = 0;
+    break;
+  case S_MOUSESYSTEMS3:
+    sptr->mouse = 1;
+    sptr->mtype = MOUSE_MOUSESYSTEMS3;
+    sptr->modem = 0;
+    break;
+  case S_MOUSESYSTEMS5:
+    sptr->mouse = 1;
+    sptr->mtype = MOUSE_MOUSESYSTEMS5;
+    sptr->modem = 0;
+    break;
+  case S_MMSERIES:
+    sptr->mouse = 1;
+    sptr->mtype = MOUSE_MMSERIES;
+    sptr->modem = 0;
+    break;
+  case S_LOGITECH:
+    sptr->mouse = 1;
+    sptr->mtype = MOUSE_LOGITECH;
+    sptr->modem = 0;
     break;
   default:
     error("CONF: unknown serial token: %s\n", word->name);
@@ -1149,10 +1197,12 @@ parse_file(word_t * words, FILE * fd)
 
   while (gn && (funrtn != RBRACE)) {
     if (mword = match_name(words, gn)) {
-      if (mword->func)
+      if (mword->func) {
 	funrtn = (mword->func) (mword, 0, 0);
-      else
+      }
+      else {
 	funrtn = mword->token;
+      }
     }
     else if (state != SEC_COMMENT) {
       word_t badword;

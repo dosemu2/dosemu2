@@ -7,13 +7,13 @@ dosconfig.o : dosconfig.c
 dosipc.o : dosipc.c config.h memory.h emu.h cpu.h termio.h dosipc.h mutex.h 
 dyndeb.o : dyndeb.c emu.h cpu.h 
 emu.o : emu.c config.h memory.h emu.h cpu.h bios.h termio.h video.h timers.h \
-  cmos.h mouse.h dosipc.h mutex.h disks.h xms.h ipx.h 
-ipx.o : ipx.c ipx.h cpu.h 
+  cmos.h mouse.h dosipc.h mutex.h disks.h xms.h ipx.h serial.h 
+ipx.o : ipx.c 
 keymaps.o : keymaps.c config.h 
 libpacket.o : libpacket.c libpacket.h 
 lpt.o : lpt.c emu.h cpu.h dosipc.h mutex.h lpt.h 
 mfs.o : mfs.c mfs.h emu.h cpu.h config.h memory.h 
-mouse.o : mouse.c config.h emu.h cpu.h memory.h mouse.h 
+mouse.o : mouse.c config.h emu.h cpu.h memory.h video.h mouse.h 
 mutex.o : mutex.c config.h emu.h cpu.h mutex.h 
 parse.o : parse.c config.h emu.h cpu.h disks.h lpt.h video.h serial.h mutex.h 
 pktdrvr.o : pktdrvr.c pktdrvr.h cpu.h emu.h dosipc.h mutex.h 

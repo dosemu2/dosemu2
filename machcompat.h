@@ -24,12 +24,15 @@
  * the rights to redistribute these changes.
  */
 /*
- * File: $Source: /home/src/dosemu0.49pl4g/RCS/machcompat.h,v $
+ * File: $Source: /home/src/dosemu0.50/RCS/machcompat.h,v $
  *
  * Purpose:
  *
  * HISTORY:
  * $Log: machcompat.h,v $
+ * Revision 1.4  1994/03/04  15:23:54  root
+ * Run through indent.
+ *
  * Revision 1.3  1994/01/25  20:02:44  root
  * Exchange stderr <-> stdout.
  *
@@ -224,11 +227,11 @@ typedef int onoff_t;
 #define	private
 #else
 #define	private static
-#endif	/* _DEBUG_ */
+#endif /* _DEBUG_ */
 
 extern char *malloc();
 
-#endif	/* _BASE_H */
+#endif /* _BASE_H */
 
 /* from bios.h */
 /*
@@ -262,6 +265,9 @@ extern char *malloc();
  *
  * HISTORY:
  * $Log: machcompat.h,v $
+ * Revision 1.4  1994/03/04  15:23:54  root
+ * Run through indent.
+ *
  * Revision 1.3  1994/01/25  20:02:44  root
  * Exchange stderr <-> stdout.
  *
@@ -556,4 +562,4 @@ extern mutex_t cs_lock;
 #endif /* IDLE_WORK_IN_PROGRESS */
 #endif /* linux */
 
-#endif	/* _bios_ */
+#endif /* _bios_ */

@@ -1,7 +1,7 @@
 /* for the Linux dos emulator versions 0.49 and newer
  *
  * $Date: 1994/01/20 21:14:24 $
- * $Source: /home/src/dosemu0.49pl4g/RCS/lpt.c,v $
+ * $Source: /home/src/dosemu0.50/RCS/lpt.c,v $
  * $Revision: 1.4 $
  * $State: Exp $
  *

@@ -1,4 +1,4 @@
-/* ipx.h header file for IPX for the DOS emulator 
+/* ipx.h header file for IPX for the DOS emulator
  * 		Tim Bird, tbird@novell.com
  */
 #ifndef IPX_H
@@ -49,7 +49,7 @@
 #define RCODE_SOCKET_NOT_OPEN       0xff
 #define RCODE_SOCKET_TABLE_FULL		0xfe
 #define RCODE_CANNOT_CANCEL_EVENT	0xf9
-							
+
 #define IU_ECB_FREE			0
 #define IU_ECB_SENDING		0xff
 #define IU_ECB_LISTENING	0xfe
@@ -59,74 +59,71 @@
 #define IPX_ADDRESS_LENGTH	12
 
 typedef struct far_record {
-	u_short		offset __attribute__ ((packed));
-	u_short		segment __attribute__ ((packed));
+  u_short offset __attribute__((packed));
+  u_short segment __attribute__((packed));
 } far_t;
 
 typedef struct IPXAddressStruct {
-	u_char		Network[4] __attribute__ ((packed));
-	u_char		Node[6] __attribute__ ((packed));
-	u_char		Socket[2] __attribute__ ((packed));
+  u_char Network[4] __attribute__((packed));
+  u_char Node[6] __attribute__((packed));
+  u_char Socket[2] __attribute__((packed));
 } IPXAddress_t;
 
 typedef struct IPXPacketStructure {
-	u_short		Checksum __attribute__ ((packed));
-	u_short		Length __attribute__ ((packed));
-	u_char		TransportControl __attribute__ ((packed));
-	u_char		PacketType __attribute__ ((packed));
-	IPXAddress_t	Destination __attribute__ ((packed));
-	IPXAddress_t	Source __attribute__ ((packed));
+  u_short Checksum __attribute__((packed));
+  u_short Length __attribute__((packed));
+  u_char TransportControl __attribute__((packed));
+  u_char PacketType __attribute__((packed));
+  IPXAddress_t Destination __attribute__((packed));
+  IPXAddress_t Source __attribute__((packed));
 } IPXPacket_t;
 
 typedef struct FragStruct {
-	far_t	Address __attribute__ ((packed));
-	u_short	Length __attribute__ ((packed));
+  far_t Address __attribute__((packed));
+  u_short Length __attribute__((packed));
 } Frag_t;
 
 typedef struct ECBStruct {
-	far_t		Link __attribute__ ((packed));
-	far_t		ESRAddress __attribute__ ((packed));	/* 0 = no callback */
-	u_char		InUseFlag __attribute__ ((packed));
-	u_char		CompletionCode __attribute__ ((packed));
-	u_short		ECBSocket __attribute__ ((packed));
-		/* following 2 fields are not for user use */
-	u_char		IPXWorkspace[4] __attribute__ ((packed));
-	u_char		DriverWorkspace[12] __attribute__ ((packed));
-		/* not used because Linux IPX routes stuff */
-	u_char		ImmediateAddress[6] __attribute__ ((packed));
-	u_short		FragmentCount __attribute__ ((packed));
-	Frag_t		FragTable[4] __attribute__ ((packed));
+  far_t Link __attribute__((packed));
+  far_t ESRAddress __attribute__((packed));	/* 0 = no callback */
+  u_char InUseFlag __attribute__((packed));
+  u_char CompletionCode __attribute__((packed));
+  u_short ECBSocket __attribute__((packed));
+  /* following 2 fields are not for user use */
+  u_char IPXWorkspace[4] __attribute__((packed));
+  u_char DriverWorkspace[12] __attribute__((packed));
+  /* not used because Linux IPX routes stuff */
+  u_char ImmediateAddress[6] __attribute__((packed));
+  u_short FragmentCount __attribute__((packed));
+  Frag_t FragTable[4] __attribute__((packed));
 } ECB_t;
 
 typedef struct AESECBStruct {
-	far_t		Link __attribute__ ((packed));
-	far_t		ESRAddress __attribute__ ((packed));	/* 0 = no callback */
-	u_char		InUseFlag __attribute__ ((packed));
-	u_char		CompletionCode __attribute__ ((packed));
-	u_short		ECBSocket __attribute__ ((packed));
-		/* following 2 fields are not for user use */
-	u_short		TimeLeft __attribute__ ((packed));
+  far_t Link __attribute__((packed));
+  far_t ESRAddress __attribute__((packed));	/* 0 = no callback */
+  u_char InUseFlag __attribute__((packed));
+  u_char CompletionCode __attribute__((packed));
+  u_short ECBSocket __attribute__((packed));
+  /* following 2 fields are not for user use */
+  u_short TimeLeft __attribute__((packed));
 } AESECB_t;
 
-typedef struct ipx_socket_struct
-{	
-	struct ipx_socket_struct *next;
-    far_t       listenList;
-    int         listenCount;
-	far_t		AESList;
-	int			AESCount;
-	u_short		socket;
-	u_short		PSP;
-	int			fd;
-} ipx_socket_t;
-	   
-extern void InitIPXFarCallHelper( void );
-extern int IPXInt2FHandler( void );
-extern int IPXFarCallHandler( void );
-extern void AESTimerTick( void );
-										
+typedef struct ipx_socket_struct {
+  struct ipx_socket_struct *next;
+  far_t listenList;
+  int listenCount;
+  far_t AESList;
+  int AESCount;
+  u_short socket;
+  u_short PSP;
+  int fd;
+}
+
+ipx_socket_t;
+
+extern void InitIPXFarCallHelper(void);
+extern int IPXInt2FHandler(void);
+extern int IPXFarCallHandler(void);
+extern void AESTimerTick(void);
 
 #endif /* IPX_H */
-
-	
-	

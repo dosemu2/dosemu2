@@ -146,6 +146,20 @@ TODO:
  *
  * HISTORY:
  * $Log: mfs.c,v $
+ * Revision 1.27  1994/03/04  15:23:54  root
+ * Run through indent.
+ *
+ * Revision 1.26  1994/03/04  14:46:13  root
+ * Volume change by Harald Koenig (koenig@nova.tat.physik.uni-tuebingen.de).
+ *
+ * Revision 1.25  1994/02/20  10:00:16  root
+ * Removed an annoying show_regs();.
+ *
+ * Revision 1.24  1994/02/17  20:46:54  root
+ * Thanks to Jim jwest@master.ceat.okstate.edu for pointing out a bug
+ * I introduced into function 0x23. I also cleaned up another in the same
+ * function.
+ *
  * Revision 1.23  1994/02/10  20:41:14  root
  * Last cleanup prior to release of pl4.
  *
@@ -359,7 +373,6 @@ boolean_t mach_fs_enabled = FALSE;
 #define EOS		'\0'
 #define	SLASH		'/'
 #define BACKSLASH	'\\'
-
 
 /* Need to know how many drives are redirected */
 u_char redirected_drives = 0;
@@ -608,17 +621,12 @@ select_drive(state)
   }
 
   if (!found && check_dssi_fn) {
+
     char *nametmp;
     char *name = (char *) Addr(state, ds, esi);
 
-    if (name[0] == '.' && name[1] == '\\') {
-      nametmp = (char *) malloc(MAXPATHLEN);
-      strcpy(nametmp, cds_current_path(cds));
-      strcat(nametmp, &name[2]);
-      strcpy(name, nametmp);
-      Debug0((dbg_fd, "name changed to %s\n", name));
-      free(nametmp);
-    }
+    nametmp = (char *) malloc(MAXPATHLEN);
+    strcpy(nametmp, cds_current_path(cds));
     Debug0((dbg_fd, "FNX=%.15s\n", name));
     for (dd = 0; dd < num_drives && !found; dd++) {
       if (!dos_roots[dd])
@@ -627,6 +635,18 @@ select_drive(state)
 	  && (name[1] == ':' || name[1] == '\\'))
 	found = 1;
     }
+
+    if (found && name[0] == '.' && name[1] == '\\') {
+      fprintf(stderr, "MFS: ---> %s\n", nametmp);
+      if (nametmp[2] == '\\')
+	strcat(nametmp, &name[2]);
+      else
+	strcat(nametmp, &name[1]);
+      strcpy(name, nametmp);
+      Debug0((dbg_fd, "name changed to %s\n", name));
+    }
+
+    free(nametmp);
   }
 
   /* for find next we will check the drive letter in the
@@ -2953,9 +2973,9 @@ dos_fs_redirect(state)
 
       Debug0((dbg_fd, "FCB Open calling int2f 0x120c\n"));
       if (!LWORD(esp))
-        ssp = (SEG_ADR((us *), ss, sp)) + 0x8000;
+	ssp = (SEG_ADR((us *), ss, sp)) + 0x8000;
       else
-        ssp = SEG_ADR((us *), ss, sp);
+	ssp = SEG_ADR((us *), ss, sp);
       *--ssp = REG(eflags);
       *--ssp = REG(cs);
       *--ssp = REG(eip);
@@ -2974,7 +2994,7 @@ dos_fs_redirect(state)
   case CREATE_TRUNCATE_NO_CDS:	/* 0x18 */
   case CREATE_TRUNCATE_FILE:	/* 0x17 */
 
-    FCBcall =  sft_open_mode(sft) & 0x8000;
+    FCBcall = sft_open_mode(sft) & 0x8000;
     Debug0((dbg_fd, "FCBcall=0x%x\n", FCBcall));
 
     /* 01 in high byte = create new, 00 s just create truncate */
@@ -2996,7 +3016,7 @@ dos_fs_redirect(state)
     build_ufs_path(fpath, filename1);
     if (find_file(fpath, &st)) {
       Debug0((dbg_fd, "st.st_mode = 0x%02x, handles=%d\n", st.st_mode, sft_handle_cnt(sft)));
-      if (/* !(st.st_mode & S_IFREG) || */ create_file) {
+      if ( /* !(st.st_mode & S_IFREG) || */ create_file) {
 	SETWORD(&(state->eax), 0x50);
 	Debug0((dbg_fd, "File exists '%s'\n",
 		fpath));
@@ -3058,9 +3078,9 @@ dos_fs_redirect(state)
 
       Debug0((dbg_fd, "FCB Open calling int2f 0x120c\n"));
       if (!LWORD(esp))
-        ssp = (SEG_ADR((us *), ss, sp)) + 0x8000;
+	ssp = (SEG_ADR((us *), ss, sp)) + 0x8000;
       else
-        ssp = SEG_ADR((us *), ss, sp);
+	ssp = SEG_ADR((us *), ss, sp);
       *--ssp = REG(eflags);
       *--ssp = REG(cs);
       *--ssp = REG(eip);
@@ -3084,7 +3104,7 @@ dos_fs_redirect(state)
     Debug0((dbg_fd, "findfirst %s attr=%x\n", filename1, attr));
 
     if (!strncmp(&filename1[strlen(filename1) - 3], "NUL", 3)) {
-      Debug0((dng_fd, "Found a NUL, translating\n")); 
+      Debug0((dng_fd, "Found a NUL, translating\n"));
       filename1[strlen(filename1) - 4] = 0;
       attr = attr | DIRECTORY;
     }
@@ -3129,8 +3149,42 @@ dos_fs_redirect(state)
 	strncmp(sdb_template_name(sdb), "????????", 8) == 0 &&
 	strncmp(sdb_template_ext(sdb), "???", 3) == 0) {
       Debug0((dbg_fd, "DO LABEL!!\n"));
+#if 0
       auspr(VOLUMELABEL, fname, fext);
       sprintf(fext, "%d", current_drive);
+#else
+      {
+	char *label, *root, *p;
+
+	p = dos_roots[current_drive];
+	label = (char *) malloc(8 + 3 + 1);
+	root = (char *) malloc(strlen(p) + 1);
+	strcpy(root, p);
+	if (root[strlen(root) - 1] == '/' && strlen(root) > 1)
+	  root[strlen(root) - 1] = '\0';
+#if 0
+	sprintf(label, "%d:", current_drive);
+#else
+	label[0] = '\0';
+#endif
+	if (strlen(label) + strlen(root) <= 8 + 3) {
+	  strcat(label, root);
+	}
+	else {
+#if 0
+	  strcat(label, "...");
+#endif
+	  strcat(label, root + strlen(root) - (8 + 3 - strlen(label)));
+	}
+	for (p = label + strlen(label); p < label + 8 + 3; p++)
+	  *p = ' ';
+
+	strncpy(fname, label, 8);
+	strncpy(fext, label + 8, 3);
+	free(label);
+	free(root);
+      }
+#endif
       strncpy(sdb_file_name(sdb), fname, 8);
       strncpy(sdb_file_ext(sdb), fext, 3);
       sdb_file_attr(sdb) = VOLUME_LABEL;
@@ -3170,7 +3224,7 @@ dos_fs_redirect(state)
       sdb_file_attr(sdb) = get_dos_attr(hlist->mode);
 
       if (hlist->mode & S_IFDIR) {
-Debug0((dbg_fd, "Directory ---> YES\n"));
+	Debug0((dbg_fd, "Directory ---> YES\n"));
 	if (!(attr & DIRECTORY)) {
 	  tmp = hlist->next;
 	  free(hlist);
@@ -3408,7 +3462,6 @@ Debug0((dbg_fd, "Directory ---> YES\n"));
   default:
     Debug0((dbg_fd, "Default for undocumented function: %02x\n",
 	    (int) LOW(state->eax)));
-    show_regs();
     return (REDIRECT);
   }
   return (ret);

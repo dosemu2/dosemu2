@@ -1,4 +1,4 @@
-This file has been updated for dosemu0.49pl3.3.
+This file has been updated for dosemu0.49pl3.4.
 Send additions/corrections to deisher@dspsun.eas.asu.edu.
 
 Programs that work under the MSDOS Emulator:
@@ -29,6 +29,9 @@ Easytrax               layout editor     maehler@wrcd1.urz.uni-wuppertal.de
 Elvis                  vi clone          miguel@pinon.ccu.uniovi.es
 ET3.1                  Chinese program   tyuan!root@mp.cs.niu.edu
 Eureka 1.0             math package      miguel@pinon.ccu.uniovi.es
+Falcon 3.0             Fighter simulator rapatel@rockypc.rutgers.edu
+MS Flight Simulator 5  game              newcombe@aa.csc.peachnet.edu
+ (runs SLOW!!!)
 Foxpro 2.0             database
 Framework 4                              corey@amiganet.xnet.com
 Freelance Graphics 2.1 graph/drawing app jwest@jwest.ecen.okstate.edu
@@ -39,6 +42,7 @@ GNUish/MKS UNIX utils
 gmouse                 mouse driver      tk@pssparc2.oc.com
 Gravity                simulation pkg    miguel@pinon.ccu.uniovi.es
 Gzip 1.1.2             file compression  miguel@pinon.ccu.uniovi.es
+Harpoon                game              wielinga@physics.uq.oz.au
 Harvard Graphics 3.0   graph/drawing pkg miguel@pinon.ccu.uniovi.es
 HelpPC 2.1
 Hero's Quest I         game              lam836@cs.cuhk.hk
@@ -53,16 +57,21 @@ Lemmings                                 sdh@po.cwru.edu
 less 1.7.7             more than more    miguel@pinon.ccu.uniovi.es
 LHA                    file compression
 Lotus Manuscript       word processor    miguel@pinon.ccu.uniovi.es
+Managing Your Money    financial         newcombe@aa.csc.peachnet.edu
 MathCad 2.06           math package      miguel@pinon.ccu.uniovi.es
 Microemacs             editor            hjstein@MATH.HUJI.AC.IL
 MoneyCounts 7.0        accounting pkg    raeburn@cygnus.com
 mscmouse               mouse driver      tk@pssparc2.oc.com
+nnansi.com             ANSI driver       mdrejhon@undergrad.math.uwaterloo.ca
 Netzplan               GEM project mgr   jan@janhh.hanse.de
 NJStar 2.1             Chinese word proc aab2@cornell.edu
 PAF                    geneology package geek+@CMU.EDU
+Paradox                database          hp@vmars.tuwien.ac.at
 pcxlab 1.03            PCX viewer        miguel@pinon.ccu.uniovi.es
 Pinball Dreams         game              ronnie@lysator.liu.se
 PKzip/unzip            file compression
+Procomm Plus 2.0       communications    newcombe@aa.csc.peachnet.edu
+Q&A                    Word Proc/Databas newcombe@aa.csc.peachnet.edu
 Qbasic/edit            interpreter
  (from DOS 5.0)
 Qedit                  editor
@@ -71,6 +80,7 @@ Quicken 6.0 for DOS    accounting pkg
 Quicken 7.0 for DOS    accounting pkg    juphoff@astro.phys.vt.edu
 Railroad Tycoon                          juphoff@astro.phys.vt.edu
 ramdrive.sys
+Red Baron              game              wielinga@physics.uq.oz.au
 RM/COBOL               compiler          fjh@munta.cs.mu.OZ.AU
 scan109                antivirus         miguel@pinon.ccu.uniovi.es
 Scorch                 tank game         geek+@CMU.EDU
@@ -79,6 +89,7 @@ Stacker 3.1            compressed fs     mdrejhon@undergrad.math.uwaterloo.ca
 StatPhys               simulation pkg    miguel@pinon.ccu.uniovi.es
 Stunts                 game?             gt8134b@prism.gatech.EDU
 TAG 2.02               Polish word proc  rzm@oso.chalmers.se
+Topspeed Modula-2      compiler          mayersn@hermes.informatik.uni-stuttgart.de
 Turbo Assembler/tlink  assembler
 Turbo C++ 2.0          compiler
  (bug in highlighting) 
@@ -95,6 +106,7 @@ WordPerfect 6.0        word processor    lujian@texmd.minmet.mcgill.ca
  (needs >1M ram)
 XWing                  game              ronnie@lysator.liu.se
  (very slow)
+Zarkov 2.6             chess             a-acero@uchicago.edu      
 zoo                    file compression
 
 
@@ -111,11 +123,11 @@ FIPS 0.2.2             disk util
 (hdimage FAT problem)
 Howitzer               tank game            geek+@CMU.EDU
 Lahey Fortran          Fortran Compiler     hjstein@math.huji.ac.il
-nnansi.com
 Norton Utils 6.0       disk utils           miguel@pinon.ccu.uniovi.es
 (hdimage FAT problem)
 PCtools 4.20           disk utils           miguel@pinon.ccu.uniovi.es
 (hdimage FAT problem)
 Quattro Pro 4.0        spreadsheet          jwest@jwest.ecen.okstate.edu
+Ventura Publisher 3.0  desktop pub          niemann@swt.ruhr-uni-bochum.de
 wildunix               wildcards            miguel@pinon.ccu.uniovi.es
 Windows 3.1                                 juphoff@uppieland.async.vt.edu

@@ -1,5 +1,5 @@
 .\" -*- nroff -*-
-.TH DOS 1 "Mar 22, 1993" "Version ALPHA 0.49" "MS-DOS Emulation"
+.TH DOS 1 "Mar 04, 1994" "Version ALPHA 0.50" "MS-DOS Emulation"
 .SH NAME
 dos \- run MS-DOS and MS-DOS programs under Linux
 .SH SYNOPSIS
@@ -23,7 +23,7 @@ dos \- run MS-DOS and MS-DOS programs under Linux
 .B \-H|F 
 .I #disks
 ]
-\> dosdbg
+2\> dosdbg
 .SH DESCRIPTION
 .B dos
 invokes the Linux dos emulator, also known as dosemu.
@@ -38,8 +38,8 @@ written for DOS to operate in an environment similar to a standard IBM
 PC/AT or compatible with an Intel 80x86 processor in real mode.  
 .B dosemu
 provides such services as BIOS video, disk, keyboard, and printer; CMOS
-memory for configuration information; a real time clock; and extended memory
-allocation through the XMS specification.
+memory for configuration information; a real time clock; extended memory
+allocation through the XMS specification, and most of EMS 4.0.
 .PP
 Because 
 .B dosemu
@@ -50,14 +50,14 @@ DR-DOS 6.0 has also been reported to work.)
 See the files 
 .B QuickStart,
 .B ChangeLog, 
-.B doc/announce0.49pl3, 
+.B doc/announce0.50, 
 and the
 .B Makefile
 contained in the source distribution
 for information on how to configure, compile, and boot 
 .B dosemu.
 .SH KERNEL PATCHES - WARNING!!
-At present, you will need the 0.99pl7 or newer Linux kernel with Krishna
+At present, you will need the 0.99pl14 or newer Linux kernel with Krishna
 Balasubramanian's
 .B ipcdelta
 patches compiled in.  These patches add the System V InterProcess 

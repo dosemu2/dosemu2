@@ -1,0 +1,65 @@
+
+With only a couple weeks delay, here is DOSEMU 0.50. This release
+should prove to be a bit more stable than 0.49pl4, and add a much
+improved serial interface. Other code clean up, and added functionality
+should persuade everyone to upgrade to this release, as long as they
+have a kernel 0.99pl14+.
+
+  DOSEMU is a Linux specific application that allows Linux to run many
+DOS based programs. It requires a bootable DOS diskette and
+Linux 0.99pl14+ .
+
+  Definitely still consider this ALPHA software, and as such please
+beware it is not yet fully functional, or always smooth sailing.
+
+At this time, it should be locatable at:
+
+dspsun.eas.asu.edu:/pub/dosemu/dosemu0.50.tgz
+Thanks to deisher@enws125.EAS.ASU.EDU (Michael E. Deisher). Micheal
+may also have DOSEMU added to the Debian distribution down the road.
+
+and:
+tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.50.tgz
+
+And hopefuly soon at :
+sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.50.tgz
+when I get to ftp there :-).
+
+Updated in this release:
+
+-       VC switching in RAW mode now uses CTRL-ALT-x.
+ 
+-	Ronnies serial patches to allow more mice to roam and modems
+	to run faster/better. ronnie@epact.se
+
+-	Jochen's patches to straighten up video support and remove
+	unused DISKS statements. In keeping with the FSSTND-draft
+	our lib has been moved to /usr/lib. 
+	Thanks hein@centeotl.in.tu-clausthal.de
+
+-	Alanh patches to allow switching between linpkt and IPX
+	on the fly with the "ipxsupport" option. alanh@metro.co.uk
+
+-	Koenig@nova.tat.physik.uni-tuebingen.de (Harald Koenig)
+	patch to show last 10 characters of path on volume 
+	requests on the redirected drives in place of LINUX.1,
+	LINUX.2, etc...
+
+-	Lutz Molgedey has been making great advances in DPMI and
+	although not ready for household use, is included.
+	molgedey@theo-physik.uni-kiel.de.
+
+-	Fixed function 0x23 in mfs.c redirector
+
+  As always, many, thanks to all who have helped with this release, 
+either by sending in bug reports so we knew something was wrong, by 
+sending in bug fixes (which may not have made it into this release), 
+or by just providing a sounding board for ideas that come up.
+  My apologies for not having answered every letter, and possibly 
+missing some of the important information. If you know something you
+think we should, try to contact me again, please.
+
+Later,
+JES
+jmaclean@fox.nstn.ns.ca
+--

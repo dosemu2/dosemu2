@@ -1,9 +1,9 @@
 /* video.c - for the Linux DOS emulator
  *  Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/02/09 20:10:24 $
- * $Source: /home/src/dosemu0.49pl4g/RCS/video.c,v $
- * $Revision: 1.17 $
+ * $Date: 1994/03/04 15:23:54 $
+ * $Source: /home/src/dosemu0.50/RCS/video.c,v $
+ * $Revision: 1.21 $
  * $State: Exp $
  *
  * Revision 1.3  1993/10/03  21:38:22  root
@@ -89,6 +89,7 @@
 #include <sys/stat.h>
 #include <linux/vt.h>
 #include <linux/kd.h>
+#include <syscall.h>
 
 #include "config.h"
 #include "emu.h"
@@ -101,6 +102,10 @@
 #include "machcompat.h"
 
 extern struct config_info config;
+
+void show_cursor();
+
+extern char *cstack[4096];
 
 void dump_video_regs(void);
 u_char trident_ext_video_port_in(int port);
@@ -136,12 +141,39 @@ extern int mem_fd, kbd_fd, ioc_fd;
 
 int gfx_mode = TEXT;
 int max_page = 7;		/* number of highest vid page - 1*/
-int screen_mode = INIT_SCREEN_MODE;
+int screen_mode = 0;		/* Init Screen Mode in emu.c     */
+
+/* Values are set from emu.c depending on video-config */
+
+int phys_text_base = 0;
+int virt_text_base = 0;
+int video_combo = 0;
+int video_subsys = 0;
 
 #define SETSIG(sa, sig, fun)	sa.sa_handler = fun; \
 				sa.sa_flags = 0; \
 				sa.sa_mask = 0; \
 				sigaction(sig, &sa, NULL);
+static int
+dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
+{
+  __asm__("int $0x80":"=a"(sig)
+	  :"0"(SYS_sigaction), "b"(sig), "c"(new), "d"(old));
+  if (sig >= 0)
+    return 0;
+  errno = -sig;
+  return -1;
+}
+
+#define MYSETSIG(sa, sig, fun) \
+			sa.sa_handler = (__sighandler_t) fun; \
+			/* Point to the top of the stack, minus 4 just in case, and make \
+			   just in case, and make it aligned  */ \
+			sa.sa_restorer = \
+				(void (*)()) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
+			sa.sa_flags = 0; \
+			sa.sa_mask = 0; \
+			dosemu_sigaction(sig, &sa, NULL);
 
 inline void
 forbid_switch()
@@ -162,14 +194,12 @@ allow_switch()
 void
 parent_close_mouse(void)
 {
-  ipc_send2child(DMSG_MCLOSE);
   child_close_mouse();
 }
 
 void
 parent_open_mouse(void)
 {
-  ipc_send2child(DMSG_MOPEN);
   child_open_mouse();
 }
 
@@ -183,7 +213,7 @@ acquire_vt(int sig)
   forbid_switch();
 
   oldalrm = signal(SIGALRM, SIG_IGN);
-  SETSIG(siga, SIG_ACQUIRE, acquire_vt);
+  MYSETSIG(siga, SIG_ACQUIRE, acquire_vt);
 
   if (ioctl(ioc_fd, VT_RELDISP, VT_ACKACQ))	/* switch acknowledged */
     v_printf("VT_RELDISP failed (or was queued)!\n");
@@ -194,7 +224,7 @@ acquire_vt(int sig)
     /*      if (config.vga) dos_unpause(); */
   }
 
-  SETSIG(siga, SIGALRM, oldalrm);
+  MYSETSIG(siga, SIGALRM, oldalrm);
   scr_state.current = 1;
 
   parent_open_mouse();
@@ -259,7 +289,7 @@ release_vt(int sig)
 {
   struct sigaction siga;
 
-  SETSIG(siga, SIG_RELEASE, release_vt);
+  MYSETSIG(siga, SIG_RELEASE, release_vt);
 
   parent_close_mouse();
 
@@ -330,7 +360,7 @@ get_video_ram(int waitflag)
 	break;
     }
     while (errno == EINTR);
-    SETSIG(siga, SIG_ACQUIRE, oldhandler);
+    MYSETSIG(siga, SIG_ACQUIRE, oldhandler);
     config.console_video = 1;
   }
 
@@ -389,7 +419,7 @@ get_video_ram(int waitflag)
 			      PROT_READ | PROT_WRITE,
 			      MAP_SHARED | MAP_FIXED,
 			      mem_fd,
-			      PHYS_TEXT_BASE);
+			      phys_text_base);
 
     close_kmem();
     if ((long) graph_mem < 0) {
@@ -398,7 +428,7 @@ get_video_ram(int waitflag)
     }
     else
       v_printf("CONSOLE VIDEO address: %p %p %p\n", (void *) graph_mem,
-	       (void *) PHYS_TEXT_BASE, (void *) PAGE_ADDR(SCREEN));
+	       (void *) phys_text_base, (void *) PAGE_ADDR(SCREEN));
 
     get_permissions();
     /* copy contents of page onto video RAM */
@@ -459,8 +489,8 @@ set_process_control()
   scr_state.vt_requested = 0;	/* a switch has not been attempted yet */
   allow_switch();
 
-  SETSIG(siga, SIG_RELEASE, release_vt);
-  SETSIG(siga, SIG_ACQUIRE, acquire_vt);
+  MYSETSIG(siga, SIG_RELEASE, release_vt);
+  MYSETSIG(siga, SIG_ACQUIRE, acquire_vt);
 
   if (do_ioctl(ioc_fd, VT_SETMODE, (int) &vt_mode))
     v_printf("initial VT_SETMODE failed!\n");
@@ -473,8 +503,8 @@ clear_process_control()
 
   vt_mode.mode = VT_AUTO;
   ioctl(ioc_fd, VT_SETMODE, (int) &vt_mode);
-  SETSIG(siga, SIG_RELEASE, SIG_IGN);
-  SETSIG(siga, SIG_ACQUIRE, SIG_IGN);
+  MYSETSIG(siga, SIG_RELEASE, SIG_IGN);
+  MYSETSIG(siga, SIG_ACQUIRE, SIG_IGN);
 }
 
 u_char kmem_open_count = 0;
@@ -489,12 +519,13 @@ open_kmem()
 
   kmem_open_count++;
 
-  if (mem_fd != -1 ) return;
+  if (mem_fd != -1)
+    return;
   if ((mem_fd = open("/dev/kmem", O_RDWR)) < 0) {
     error("ERROR: can't open /dev/kmem: errno=%d, %s \n",
 	  errno, strerror(errno));
-      leavedos(0);
-      return;
+    leavedos(0);
+    return;
   }
   v_printf("Kmem opened successfully\n");
 }
@@ -504,8 +535,9 @@ close_kmem()
 
   if (kmem_open_count) {
     kmem_open_count--;
-    if (kmem_open_count) return;
-    close( mem_fd);
+    if (kmem_open_count)
+      return;
+    close(mem_fd);
     mem_fd = -1;
     v_printf("Kmem closed successfully\n");
   }
@@ -667,6 +699,7 @@ hide_cursor()
 #endif
 }
 
+void
 show_cursor()
 {
 #ifdef USE_NCURSES
@@ -686,8 +719,7 @@ int10(void)
   int x, y, i, tmp;
   unsigned int s;
   static int gfx_flag = 0;
-  char tmpchar;
-  char c, m;
+  char c;
   us *sm;
 
   if (d.video >= 3)
@@ -872,7 +904,7 @@ int10(void)
     if (LO(ax) == 0) {
       v_printf("get display combo!\n");
       LO(ax) = 0x1a;		/* valid function=0x1a */
-      LO(bx) = VID_COMBO;	/* active display */
+      LO(bx) = video_combo;	/* active display */
       HI(bx) = 0;		/* no inactive display */
     }
     else {
@@ -885,7 +917,7 @@ int10(void)
 	     LWORD(eax), LWORD(ebx));
     switch (LO(bx)) {
     case 0x10:
-      HI(bx) = VID_SUBSYS;
+      HI(bx) = video_subsys;
       /* this breaks qedit! (any but 0x10) */
       /* LO(bx)=3;  */
       v_printf("video subsystem 0x10 BX=0x%04x\n", LWORD(ebx));
@@ -1078,7 +1110,6 @@ int
 set_regs(u_char regs[])
 {
   int i;
-  int x;
 
   /* port_out(dosemu_regs.regs[FCR], FCR_W); */
   /* update misc output register */
@@ -1159,7 +1190,7 @@ reset_att()
 int
 store_vga_regs(char regs[])
 {
-  int i, j;
+  int i;
 
   /* Start with INDEXS */
   regs[CRTI] = port_in(CRT_I);
@@ -1595,8 +1626,6 @@ trident_save_ext_regs(u_char xregs[])
 void
 trident_restore_ext_regs(u_char xregs[])
 {
-  u_char dummy;
-
   trident_set_old_regs();
   port_out(0x0d, SEQ_I);
   port_out(xregs[1], SEQ_D);
@@ -1698,8 +1727,6 @@ et4000_save_ext_regs(u_char xregs[])
 void
 et4000_restore_ext_regs(u_char xregs[])
 {
-  u_char temp;
-
   port_out(0x03, 0x3bf);
   port_out(0xa0, 0x3d8);
   port_out(0x00, 0x3cd);
@@ -1849,7 +1876,7 @@ vga_initialize(void)
 /* Attempt to virtualize calls to video ports */
 
 static u_char att_d_index = 0;
-static isr_read = 0, crt_ok = 0;
+static isr_read = 0;
 
 u_char
 video_port_in(int port)

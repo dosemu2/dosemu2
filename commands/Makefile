@@ -24,7 +24,7 @@ checkout:
 	(cd linpkt ; make checkout)
 
 clean:
-	rm -f exitemu.com vgaoff.com vgaon.com *.o
+	rm -f exitemu.com vgaoff.com vgaon.com booton.com bootoff.com *.o
 
 dist: $(SRC) $(COM)
 	install -d $(DISTPATH)/commands

@@ -2,10 +2,16 @@ CC   = gcc
 AS86 = as86 -0 -a
 LD86 = ld86 -0
 
-ALL = dpmi.c ldtlib.c dpmi.h wine.h \
-	prototypes.h ldt.c call.S
+%.com: %.S
+	$(AS86) -0 -j -o $*.o $<
+	$(LD86) -T 0 -s -o $*.tmp $*.o
+	dd if=$*.tmp of=$@ bs=1 skip=288
+	rm -f $*.tmp $*.o
 
-all: dpmi.o ldtlib.o ldt.o call.o
+ALL = dpmi.c ldtlib.c dpmi.h \
+	ldt.c call.S testdpmi.S
+
+all: dpmi.o ldtlib.o ldt.o call.o testdpmi.com
 
 dpmi.o:
 	$(CC) -I../ -N -O6 -c -o $@ $<
@@ -25,7 +31,7 @@ checkout:
 	-co -l $(ALL) Makefile
 
 clean:
-	rm -f *.o
+	rm -f *.o *.com
 
 install:
 
@@ -35,6 +41,7 @@ dist: $(ALL) Makefile
 
 depend dep: $(CFILES) $(HFILES)
 	$(CPP) -MM $(CFLAGS) *.c -I../> .depend
+	echo "call.o : call.S" >>.depend
 
 dummy:
 

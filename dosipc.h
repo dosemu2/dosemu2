@@ -6,7 +6,7 @@
 #include "mutex.h"
 
 void start_dosipc(void), stop_dosipc(void), main_dosipc(void), ipc_send2child(int);
-extern int child_close_mouse(), child_open_mouse();
+extern void child_close_mouse(), child_open_mouse();
 
 void memory_setup(void), set_a20(int);
 
@@ -43,11 +43,8 @@ extern int ipc_fd[2], key_fd[2];
 #define DMSG_INT9		13
 #define DMSG_SETSCAN            14
 #define DMSG_SER		15
-#define DMSG_MOPEN		16	/* open mouse */
-#define DMSG_MCLOSE		17	/* close mouse */
 #define DMSG_SENDINT		18	/* Interrupt */
-#define DMSG_PKTDRVR            19      /* virtual pkt drvr */
-
+#define DMSG_PKTDRVR            19	/* virtual pkt drvr */
 
 struct ipcpkt {
   u_int cmd;
@@ -76,8 +73,10 @@ struct ipcpkt {
 
 /* these are for the shared parameter area */
 #define PARAM_SIZE	(64*1024)
+
+/* SER_QUEUE_LEN MUST be a power of 2 */
 /* #define SER_QUEUE_LEN	400 */
-#define SER_QUEUE_LEN	(1000)
+#define SER_QUEUE_LEN	(1024)
 
 struct ser_param {
   volatile char queue[SER_QUEUE_LEN];

@@ -3,10 +3,20 @@
 #define TERMIO_C 1
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/02/09 20:10:24 $
- * $Source: /home/src/dosemu0.49pl4g/RCS/termio.c,v $
- * $Revision: 1.15 $
+ * $Date: 1994/03/04 15:23:54 $
+ * $Source: /home/src/dosemu0.50/RCS/termio.c,v $
+ * $Revision: 1.19 $
  * $State: Exp $
+ * $Log: termio.c,v $
+ * Revision 1.19  1994/03/04  15:23:54  root
+ * Run through indent.
+ *
+ * Revision 1.18  1994/03/04  00:01:58  root
+ * Readying for 0.50
+ *
+ * Revision 1.17  1994/02/20  15:34:40  root
+ * Working on keyboard.
+ *
  */
 
 #include <stdio.h>
@@ -59,12 +69,6 @@ extern int sizes;		/* this is DEBUGGING code */
 int in_readkeyboard = 0;
 
 extern int ignore_segv;
-struct sigaction sa;
-
-#define SETSIG(sig, fun)	sa.sa_handler = fun; \
-				sa.sa_flags = 0; \
-				sa.sa_mask = 0; \
-				sigaction(sig, &sa, NULL);
 
 unsigned int convscanKey(unsigned char);
 unsigned int queue;
@@ -80,9 +84,9 @@ static void
 #else
 static void gettermcap(void),
 #endif
- CloseKeyboard(void), getKeys(void), sysreq(unsigned int),
- ctrl(unsigned int), alt(unsigned int), Unctrl(unsigned int), unalt(unsigned int),
- lshift(unsigned int), unlshift(unsigned int), rshift(unsigned int), unrshift(unsigned int),
+ CloseKeyboard(void), getKeys(void), sysreq(unsigned int), ctrl(unsigned int),
+ alt(unsigned int), Unctrl(unsigned int), unalt(unsigned int), lshift(unsigned int),
+ unlshift(unsigned int), rshift(unsigned int), unrshift(unsigned int),
  caps(unsigned int), uncaps(unsigned int), Scroll(unsigned int), unscroll(unsigned int),
  num(unsigned int), unnum(unsigned int), unins(unsigned int), do_self(unsigned int),
  cursor(unsigned int), func(unsigned int), slash(unsigned int), star(unsigned int),
@@ -91,8 +95,6 @@ static void gettermcap(void),
 
 void child_set_flags(int sc);
 
-void set_toggle_flag(int), clr_toggle_flag(int), chg_toggle_flag(int);
-
 void set_kbd_flag(int), clr_kbd_flag(int), chg_kbd_flag(int), child_set_kbd_flag(int),
  child_clr_kbd_flag(int), set_key_flag(int), clr_key_flag(int), chg_key_flag(int);
 
@@ -100,7 +102,6 @@ int kbd_flag(int), child_kbd_flag(int), key_flag(int);
 
 /* initialize these in OpenKeyboard! */
 unsigned int child_kbd_flags = 0;
-unsigned int toggle_flags = 0;
 
 #define key_flags *(KEYFLAG_ADDR)
 #define kbd_flags *(KBDFLAG_ADDR)
@@ -118,7 +119,7 @@ static fptr key_table[] =
   none, do_self, do_self, do_self,	/* 00-03 s0 esc 1 2 */
   do_self, do_self, do_self, do_self,	/* 04-07 3 4 5 6 */
   do_self, do_self, do_self, do_self,	/* 08-0B 7 8 9 0 */
-  do_self, do_self, backspace, Tab,   /* 0C-0F + ' bs tab */
+  do_self, do_self, backspace, Tab,	/* 0C-0F + ' bs tab */
   do_self, do_self, do_self, do_self,	/* 10-13 q w e r */
   do_self, do_self, do_self, do_self,	/* 14-17 t y u i */
   do_self, do_self, do_self, do_self,	/* 18-1B o p } ^ */
@@ -132,7 +133,7 @@ static fptr key_table[] =
   alt, spacebar, caps, func,	/* 38-3B alt sp caps f1 */
   func, func, func, func,	/* 3C-3F f2 f3 f4 f5 */
   func, func, func, func,	/* 40-43 f6 f7 f8 f9 */
-  func, num, Scroll, cursor,  /* 44-47 f10 num scr home */
+  func, num, Scroll, cursor,	/* 44-47 f10 num scr home */
   cursor, cursor, minus, cursor,/* 48-4B up pgup - left */
   cursor, cursor, plus, cursor,	/* 4C-4F n5 right + end */
   cursor, cursor, cursor, cursor,	/* 50-53 dn pgdn ins del */
@@ -154,7 +155,7 @@ static fptr key_table[] =
   none, none, none, none,	/* 90-93 br br br br */
   none, none, none, none,	/* 94-97 br br br br */
   none, none, none, none,	/* 98-9B br br br br */
-  none, Unctrl, none, none,   /* 9C-9F br unctrl br br */
+  none, Unctrl, none, none,	/* 9C-9F br unctrl br br */
   none, none, none, none,	/* A0-A3 br br br br */
   none, none, none, none,	/* A4-A7 br br br br */
   none, none, unlshift, none,	/* A8-AB br br unlshift br */
@@ -283,7 +284,7 @@ unsigned char highscan[256] =
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0	/* ASC 0xf0-0xff */
 };
 
-int 
+int
 outch(int c)
 {
   write(STDOUT_FILENO, (char *) &c, 1);
@@ -291,7 +292,7 @@ outch(int c)
 }
 
 #ifndef USE_NCURSES
-static void 
+static void
 gettermcap(void)
 {
   struct winsize ws;		/* buffer for TIOCSWINSZ */
@@ -356,6 +357,7 @@ gettermcap(void)
       error("ERROR: can't get termcap %s\n", fkp->tce);
   }
 }
+
 #endif
 
 static void
@@ -446,7 +448,6 @@ OpenKeyboard(void)
   if (config.console_keyb) {
     set_raw_mode();
     kbd_flags = 0;
-    toggle_flags = 0;
     child_kbd_flags = 0;
     key_flags = 0;
     get_leds();
@@ -457,7 +458,7 @@ OpenKeyboard(void)
   if (config.console_video)
     set_console_video();
 
-  dbug_printf("$Header: /home/src/dosemu0.49pl4g/RCS/termio.c,v 1.15 1994/02/09 20:10:24 root Exp root $\n");
+  dbug_printf("$Header: /home/src/dosemu0.50/RCS/termio.c,v 1.19 1994/03/04 15:23:54 root Exp root $\n");
 
   return 0;
 }
@@ -477,7 +478,7 @@ set_raw_mode()
 
 static struct termios save_termios;
 
-int 
+int
 tty_raw(int fd)
 {
   struct termios buf;
@@ -515,7 +516,7 @@ static us alt_nums[] =
   0x8100, 0x7800, 0x7900, 0x7a00, 0x7b00, 0x7c00,
   0x7d00, 0x7e00, 0x7f00, 0x8000};
 
-static void 
+static void
 getKeys(void)
 {
   int cc;
@@ -560,7 +561,7 @@ getKeys(void)
 
 }
 
-void 
+void
 child_set_flags(int sc)
 {
   switch (sc) {
@@ -616,7 +617,7 @@ child_set_flags(int sc)
   case 0x58:
     if (
 	 child_kbd_flag(3) &&
-	 !child_kbd_flag(2) &&
+	 child_kbd_flag(2) &&
 	 !child_kbd_flag(1)
       ) {
       int fnum = sc - 0x3a;
@@ -629,6 +630,8 @@ child_set_flags(int sc)
  * been called from a signal handler, and ioctl() is not reentrant.
  * hence the delay until out of the signal handler...
  */
+      child_clr_kbd_flag(3);
+      child_clr_kbd_flag(2);
       activate(fnum);
       return;
     }
@@ -650,7 +653,7 @@ child_set_flags(int sc)
   }
 }
 
-unsigned int 
+unsigned int
 convascii(int *cc)
 {
 
@@ -800,7 +803,7 @@ convascii(int *cc)
 /* InsKeyboard
    returns 1 if a character could be inserted into Kbuffer
    */
-int 
+int
 InsKeyboard(unsigned short scancode)
 {
   unsigned short nextpos;
@@ -820,7 +823,7 @@ InsKeyboard(unsigned short scancode)
   return 1;
 }
 
-/* static */ unsigned int 
+/* static */ unsigned int
 convKey(int scancode)
 {
   int i;
@@ -845,7 +848,7 @@ convKey(int scancode)
   }
 }
 
-void 
+void
 dump_kbuffer(void)
 {
   int i;
@@ -858,7 +861,7 @@ dump_kbuffer(void)
   k_printf("\n");
 }
 
-void 
+void
 keybuf_clear(void)
 {
   ignore_segv++;
@@ -872,7 +875,7 @@ keybuf_clear(void)
 /* PollKeyboard
    returns 1 if a character was found at poll
    */
-int 
+int
 PollKeyboard(void)
 {
   unsigned int key;
@@ -901,7 +904,7 @@ PollKeyboard(void)
     return 0;
 }
 
-int 
+int
 PollKeyboard2(void)
 {
   unsigned int key;
@@ -925,7 +928,7 @@ PollKeyboard2(void)
     return 0;
 }
 
-int 
+int
 CReadKeyboard(unsigned int *buf, int wait)
 {
   struct ipcpkt pkt;
@@ -978,7 +981,7 @@ CReadKeyboard(unsigned int *buf, int wait)
 /* ReadKeyboard
    returns 1 if a character could be read in buf
    */
-int 
+int
 ReadKeyboard(unsigned int *buf, int wait)
 {
   fd_set fds;
@@ -1007,7 +1010,7 @@ ReadKeyboard(unsigned int *buf, int wait)
    buf[0] ... length of string
    buf +1 ... string
    */
-void 
+void
 ReadString(int max, unsigned char *buf)
 {
   unsigned char ch, *cp = buf + 1, *ce = buf + max;
@@ -1048,13 +1051,13 @@ ReadString(int max, unsigned char *buf)
   *buf = (cp - buf) - 1;	/* length of string */
 }
 
-static int 
+static int
 fkcmp(const void *a, const void *b)
 {
   return strcmp(((struct funkeystruct *) a)->esc, ((struct funkeystruct *) b)->esc);
 }
 
-void 
+void
 termioInit()
 {
   scr_state.current = 1;
@@ -1068,22 +1071,22 @@ termioInit()
   qsort(funkey, FUNKEYS, sizeof(struct funkeystruct), &fkcmp);
 
 #ifdef USE_NCURSES
-  initscr();    /* Init curses */
+  initscr();			/* Init curses */
   keypad(stdscr, TRUE);
   cbreak();
-/*  noecho(); */
+  /*  noecho(); */
 #else
   if (ks)
     tputs(ks, 1, outch);
 #endif
 }
 
-void 
+void
 termioClose()
 {
   CloseKeyboard();
 #ifdef USE_NCURSES
-  endwin();    /* exit curses */
+  endwin();			/* exit curses */
 #else
   if (ke)
     tputs(ke, 1, outch);
@@ -1098,7 +1101,7 @@ termioClose()
 static unsigned char resetid = 0;
 static unsigned char firstid = 0;
 
-unsigned int 
+unsigned int
 convscanKey(unsigned char scancode)
 {
   static unsigned char rep = 0xff;
@@ -1161,7 +1164,7 @@ convscanKey(unsigned char scancode)
   return (queue);
 }
 
-static void 
+static void
 ctrl(unsigned int sc)
 {
   if (key_flag(KKF_E0)) {
@@ -1173,7 +1176,7 @@ ctrl(unsigned int sc)
   set_kbd_flag(KF_CTRL);
 }
 
-static void 
+static void
 alt(unsigned int sc)
 {
   if (key_flag(KKF_E0)) {
@@ -1185,7 +1188,7 @@ alt(unsigned int sc)
   set_kbd_flag(KF_ALT);
 }
 
-static void 
+static void
 Unctrl(unsigned int sc)
 {
   if (key_flag(KKF_E0)) {
@@ -1198,7 +1201,7 @@ Unctrl(unsigned int sc)
     clr_kbd_flag(KF_CTRL);
 }
 
-static void 
+static void
 unalt(unsigned int sc)
 {
   /*  if (!resetid) { */
@@ -1223,13 +1226,13 @@ unalt(unsigned int sc)
   /* } */
 }
 
-static void 
+static void
 lshift(unsigned int sc)
 {
   set_kbd_flag(KF_LSHIFT);
 }
 
-static void 
+static void
 unlshift(unsigned int sc)
 {
   if (!resetid) {
@@ -1237,13 +1240,13 @@ unlshift(unsigned int sc)
   }
 }
 
-static void 
+static void
 rshift(unsigned int sc)
 {
   set_kbd_flag(KF_RSHIFT);
 }
 
-static void 
+static void
 unrshift(unsigned int sc)
 {
   if (!resetid) {
@@ -1251,7 +1254,7 @@ unrshift(unsigned int sc)
   }
 }
 
-static void 
+static void
 caps(unsigned int sc)
 {
   if (kbd_flag(KKF_RCTRL) && kbd_flag(EKF_LCTRL)) {
@@ -1266,14 +1269,13 @@ caps(unsigned int sc)
       if (keepkey) {
 	chg_kbd_flag(KF_CAPSLOCK);	/* toggle; this means SET/UNSET */
       }
-      chg_toggle_flag(KF_CAPSLOCK);	/* toggle; this means SET/UNSET */
       set_leds();
       caps_stat = 1;
     }
   }
 }
 
-static void 
+static void
 uncaps(unsigned int sc)
 {
   if (!resetid) {
@@ -1282,14 +1284,14 @@ uncaps(unsigned int sc)
   }
 }
 
-static void 
+static void
 sysreq(unsigned int sc)
 {
   g_printf("Regs requested: SYSREQ\n");
   show_regs();
 }
 
-static void 
+static void
 Scroll(unsigned int sc)
 {
   if (key_flag(KKF_E0)) {
@@ -1326,21 +1328,20 @@ Scroll(unsigned int sc)
       if (keepkey) {
 	chg_kbd_flag(KF_SCRLOCK);
       }
-      chg_toggle_flag(KF_SCRLOCK);
       set_leds();
       scroll_stat = 1;
     }
   }
 }
 
-static void 
+static void
 unscroll(unsigned int sc)
 {
   clr_kbd_flag(EKF_SCRLOCK);
   scroll_stat = 0;
 }
 
-static void 
+static void
 num(unsigned int sc)
 {
   static int lastpause = 0;
@@ -1365,38 +1366,38 @@ num(unsigned int sc)
       if (keepkey) {
 	chg_kbd_flag(KF_NUMLOCK);
       }
-      chg_toggle_flag(KF_NUMLOCK);
-      k_printf("toggle=%d, kbd=%d\n", toggle_flag(KF_NUMLOCK), kbd_flag(KF_NUMLOCK));
+      k_printf("kbd=%d\n", kbd_flag(KF_NUMLOCK));
       set_leds();
       num_stat = 1;
     }
   }
 }
 
-static void 
+static void
 unnum(unsigned int sc)
 {
   num_stat = 0;
   clr_kbd_flag(EKF_NUMLOCK);
 }
 
+void
 set_leds()
 {
   unsigned int led_state = 0;
 
-  if (toggle_flag(KF_SCRLOCK)) {
+  if (kbd_flag(KF_SCRLOCK)) {
     led_state |= (1 << LED_SCRLOCK);
     set_key_flag(KKF_SCRLOCK);
   }
   else
     clr_key_flag(KKF_SCRLOCK);
-  if (toggle_flag(KF_NUMLOCK)) {
+  if (kbd_flag(KF_NUMLOCK)) {
     led_state |= (1 << LED_NUMLOCK);
     set_key_flag(KKF_NUMLOCK);
   }
   else
     clr_key_flag(KKF_NUMLOCK);
-  if (toggle_flag(KF_CAPSLOCK)) {
+  if (kbd_flag(KF_CAPSLOCK)) {
     led_state |= (1 << LED_CAPSLOCK);
     set_key_flag(KKF_CAPSLOCK);
   }
@@ -1415,34 +1416,28 @@ get_leds()
   move_kbd_key_flags = 1;
   if (led_state & (1 << LED_SCRLOCK)) {
     set_kbd_flag(KF_SCRLOCK);
-    set_toggle_flag(KF_SCRLOCK);
   }
   else {
     clr_kbd_flag(KF_SCRLOCK);
-    clr_toggle_flag(KF_SCRLOCK);
   }
   if (led_state & (1 << LED_NUMLOCK)) {
     set_kbd_flag(KF_NUMLOCK);
-    set_toggle_flag(KF_NUMLOCK);
   }
   else {
     clr_kbd_flag(KF_NUMLOCK);
-    clr_toggle_flag(KF_NUMLOCK);
   }
   if (led_state & (1 << LED_CAPSLOCK)) {
     set_kbd_flag(KF_CAPSLOCK);
-    set_toggle_flag(KF_CAPSLOCK);
   }
   else {
     clr_kbd_flag(KF_CAPSLOCK);
-    clr_toggle_flag(KF_CAPSLOCK);
   }
   move_kbd_key_flags = 0;
-  k_printf("key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
+  k_printf("KEY: GET LEDS key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
 	   *(u_char *) 0x496, *(u_char *) 0x497, *(u_char *) 0x417, *(u_char *) 0x418);
 }
 
-static void 
+static void
 do_self(unsigned int sc)
 {
   unsigned char ch;
@@ -1458,7 +1453,7 @@ do_self(unsigned int sc)
     if (kbd_flag(EKF_LALT))	/* Left-Alt-Key pressed ?            */
       ch = alt_map[0];		/* Return Key with Alt-modifier      */
     else			/* otherwise (this is Alt-Gr)        */
-# endif				/* or no GR_LATIN1-keyboard          */
+#  endif			/* or no GR_LATIN1-keyboard          */
       ch = alt_map[sc];		/* Return key from alt_map           */
     if ((sc >= 2) && (sc <= 0xb))	/* numbers */
       sc += 0x76;
@@ -1491,7 +1486,7 @@ do_self(unsigned int sc)
   put_queue((sc << 8) | ch);
 }
 
-static void 
+static void
 spacebar(unsigned int sc)
 {
   put_queue(0x3920);
@@ -1518,13 +1513,13 @@ unsigned short shift_cursor[] =
   0x5032, 0x5133, 0x5230, 0x532e
 };
 
-static void 
+static void
 unins(unsigned int sc)
 {
   ins_stat = 0;
 }
 
-static void 
+static void
 cursor(unsigned int sc)
 {
   int old_sc;
@@ -1594,7 +1589,7 @@ cursor(unsigned int sc)
     put_queue(old_sc << 8);
 }
 
-static void 
+static void
 backspace(unsigned int sc)
 {
   /* should be perfect */
@@ -1606,7 +1601,7 @@ backspace(unsigned int sc)
     put_queue(0x0e08);
 }
 
-static void 
+static void
 Tab(unsigned int sc)
 {
   if (kbd_flag(KF_CTRL))
@@ -1619,7 +1614,7 @@ Tab(unsigned int sc)
     put_queue(sc << 8 | key_map[sc]);
 }
 
-static void 
+static void
 func(unsigned int sc)
 {
   int fnum = sc - 0x3a;
@@ -1629,8 +1624,9 @@ func(unsigned int sc)
 
   /* this checks for the VC-switch key sequence */
   if (kbd_flag(EKF_LALT) && !key_flag(KKF_RALT) && !kbd_flag(KF_RSHIFT)
-      && !kbd_flag(KF_LSHIFT) && !kbd_flag(KF_CTRL)) {
+      && !kbd_flag(KF_LSHIFT) && kbd_flag(KF_CTRL)) {
     clr_kbd_flag(EKF_LALT);
+    clr_kbd_flag(KF_CTRL);
     if (!key_flag(KKF_RALT))
       clr_kbd_flag(KF_ALT);
 
@@ -1658,7 +1654,7 @@ func(unsigned int sc)
     put_queue(FCH(fnum, sc, (sc + 0x2e)) << 8);
 }
 
-int 
+int
 activate(int con_num)
 {
   if (in_ioctl) {
@@ -1700,7 +1696,7 @@ do_ioctl(int fd, int req, int param3)
   }
 }
 
-int 
+int
 queue_ioctl(int fd, int req, int param3)
 {
   if (iq.queued) {
@@ -1716,7 +1712,7 @@ queue_ioctl(int fd, int req, int param3)
   return 0;			/* success */
 }
 
-void 
+void
 do_queued_ioctl(void)
 {
   if (iq.queued) {
@@ -1725,7 +1721,7 @@ do_queued_ioctl(void)
   }
 }
 
-static void 
+static void
 slash(unsigned int sc)
 {
   if (!key_flag(KKF_E0)) {
@@ -1735,13 +1731,13 @@ slash(unsigned int sc)
     put_queue(sc << 8 | '/');
 }
 
-static void 
+static void
 star(unsigned int sc)
 {
   do_self(sc);
 }
 
-static void 
+static void
 enter(unsigned int sc)
 {
   if (kbd_flag(KF_CTRL))
@@ -1752,49 +1748,21 @@ enter(unsigned int sc)
     put_queue(sc << 8 | 0x0d);
 }
 
-static void 
+static void
 minus(unsigned int sc)
 {
   do_self(sc);
 }
 
-static void 
+static void
 plus(unsigned int sc)
 {
   do_self(sc);
 }
 
-static void 
+static void
 none(unsigned int sc)
 {
-}
-
-/*
- DOS messes with the toggle memory so we must keep our own here
-*/
-
-void 
-set_toggle_flag(int flag)
-{
-  toggle_flags |= (1 << flag);
-}
-
-void 
-clr_toggle_flag(int flag)
-{
-  toggle_flags &= ~(1 << flag);
-}
-
-void 
-chg_toggle_flag(int flag)
-{
-  toggle_flags ^= (1 << flag);
-}
-
-int 
-toggle_flag(int flag)
-{
-  return ((toggle_flags >> flag) & 1);
 }
 
 /**************** key-related functions **************/
@@ -1803,25 +1771,25 @@ toggle_flag(int flag)
  *       with our ALT flags, as we use no longer use those to change consoles.
  */
 
-void 
+void
 set_kbd_flag(int flag)
 {
   kbd_flags |= (1 << flag);
 }
 
-void 
+void
 clr_kbd_flag(int flag)
 {
   kbd_flags &= ~(1 << flag);
 }
 
-void 
+void
 chg_kbd_flag(int flag)
 {
   kbd_flags ^= (1 << flag);
 }
 
-int 
+int
 kbd_flag(int flag)
 {
   return ((kbd_flags >> flag) & 1);
@@ -1830,44 +1798,44 @@ kbd_flag(int flag)
 /* These are added to allow the CHILD process to keep its own flags on keyboard
    status */
 
-void 
+void
 child_set_kbd_flag(int flag)
 {
   child_kbd_flags |= (1 << flag);
 }
 
-void 
+void
 child_clr_kbd_flag(int flag)
 {
   child_kbd_flags &= ~(1 << flag);
 }
 
-int 
+int
 child_kbd_flag(int flag)
 {
   return ((child_kbd_flags >> flag) & 1);
 }
 
 /* these are the KEY flags */
-void 
+void
 set_key_flag(int flag)
 {
   key_flags |= (1 << flag);
 }
 
-void 
+void
 clr_key_flag(int flag)
 {
   key_flags &= ~(1 << flag);
 }
 
-void 
+void
 chg_key_flag(int flag)
 {
   key_flags ^= (1 << flag);
 }
 
-int 
+int
 key_flag(int flag)
 {
   return ((key_flags >> flag) & 1);

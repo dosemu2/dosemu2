@@ -1,12 +1,18 @@
 /* dos emulator, Matthias Lautner */
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/01/25 20:02:44 $
- * $Source: /home/src/dosemu0.49pl4g/RCS/dos.c,v $
- * $Revision: 1.3 $
+ * $Date: 1994/03/04 15:23:54 $
+ * $Source: /home/src/dosemu0.50/RCS/dos.c,v $
+ * $Revision: 1.5 $
  * $State: Exp $
  *
  * $Log: dos.c,v $
+ * Revision 1.5  1994/03/04  15:23:54  root
+ * Run through indent.
+ *
+ * Revision 1.4  1994/03/04  14:46:13  root
+ * Jochen patches.
+ *
  * Revision 1.3  1994/01/25  20:02:44  root
  * Exchange stderr <-> stdout
  *
@@ -31,7 +37,7 @@ char dummy[1088 * 1024];	/* ensure that the lower 1MB+64K is unused */
 
 #endif
 
-int 
+int
 main(int argc, char **argv)
 {
 #if STATIC
@@ -42,8 +48,8 @@ main(int argc, char **argv)
   fprintf(stderr, "WARNING: running static, emulate @ %x!\n", emulate);
   emulate(argc, argv);
 #else
-  if (uselib("/lib/libemu") != 0) {
-    fprintf(stderr, "cannot load shared lib\n");
+  if (uselib("/usr/lib/libdosemu") != 0) {
+    fprintf(stderr, "cannot load shared library /usr/lib/libemu!\n");
     exit(1);
   }
   dosemu = (void *) LIBSTART;

@@ -71,11 +71,14 @@
  * These are the definitions for the Interrupt Indentification Register
  */
 #define UART_IIR_NO_INT	0x01	/* No interrupts pending */
-#define UART_IIR_ID	0x06	/* Mask for the interrupt ID */
-
+#define UART_IIR_ID	0x0e	/* Mask for the interrupt ID */
 #define UART_IIR_MSI	0x00	/* Modem status interrupt */
 #define UART_IIR_THRI	0x02	/* Transmitter holding register empty */
 #define UART_IIR_RDI	0x04	/* Receiver data interrupt */
+#define UART_IIR_CTI     0x0c	/* Character timeout indication */
+#define UART_IIR_FIFO_ENABLE_1 0x40
+#define UART_IIR_FIFO_ENABLE_2 0x80
+#define UART_IIR_FIFO (UART_IIR_FIFO_ENABLE_1|UART_IIR_FIFO_ENABLE_2)
 #define UART_IIR_RLSI	0x06	/* Receiver line status interrupt */
 
 /*
@@ -94,7 +97,6 @@
 #define UART_MCR_OUT1	0x04	/* Out1 complement */
 #define UART_MCR_RTS	0x02	/* RTS complement */
 #define UART_MCR_DTR	0x01	/* DTR complement */
-
 /*
  * These are the definitions for the Modem Status Register
  */
@@ -109,8 +111,14 @@
 #define UART_MSR_ANY_DELTA 0x0F	/* Any of the delta bits! */
 
 #include <termios.h>
-
 #include "mutex.h"
+
+/* different types of mice */
+#define MOUSE_MICROSOFT     0
+#define MOUSE_MOUSESYSTEMS3 1
+#define MOUSE_MOUSESYSTEMS5 2
+#define MOUSE_MMSERIES      3
+#define MOUSE_LOGITECH      4
 
 typedef struct serial_struct {
   char dev[255];
@@ -119,11 +127,13 @@ typedef struct serial_struct {
 
   int fd;
 
-  sem_t sem;
   int dready;
-  u_char in_interrupt;
+  u_char in_rxinterrupt;
+  u_char in_txinterrupt;
 
-  boolean mouse;			/* set if mouse sharing activated */
+  boolean mouse;		/* set if mouse sharing activated */
+  int mtype;			/* type of mouse */
+  boolean modem;		/* modem */
 
   /* UART info */
   int dll, dlm;
@@ -132,19 +142,28 @@ typedef struct serial_struct {
   u_char IER;
   u_char IIR;
   u_char LCR;
+  u_char FCtrlR;
   u_char MCR;
   u_char LSR;
   u_char MSR;
   u_char SCR;
 
   struct termios oldsettings;
-  speed_t oldbaud;
+  u_char RX_FIFO[16];
+  u_char RX_FIFO_START;
+  u_char RX_FIFO_END;
+  u_char RX_FIFO_TRIGGER_VAL;
+  u_char RX_BYTES_IN_FIFO;
+  u_char TX_FIFO[16];
+  u_char TX_FIFO_START;
+  u_char TX_FIFO_END;
+  u_char DLAB;
   struct termios newsettings;
   speed_t newbaud;
 
 } serial_t;
 
-#define DLAB(num) (com[num].LCR & UART_LCR_DLAB)
+/*#define DLAB(num) (com[num].LCR & UART_LCR_DLAB)*/
 
 extern serial_t com[MAX_SER];
 

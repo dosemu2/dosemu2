@@ -2,7 +2,7 @@
 ! Robert Sanders, gt8134b@prism.gatech.edu
 !
 ! $Date: 1994/01/30 12:34:02 $
-! $Source: /home/src/dosemu0.49pl4g/commands/RCS/vgaoff.S,v $
+! $Source: /home/src/dosemu0.50/commands/RCS/vgaoff.S,v $
 ! $Revision: 1.2 $
 ! $State: Exp $
 !

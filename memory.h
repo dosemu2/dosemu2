@@ -50,24 +50,29 @@
 #define ROM_CONFIG_OFF  0xe6f5
 #define ROM_CONFIG_ADD	((ROM_CONFIG_SEG << 4) + ROM_CONFIG_OFF)
 
-/* raw console stuff */
-#ifdef MDA_VIDEO
-#define PHYS_TEXT_BASE  0xB0000
-#define VIRT_TEXT_BASE	0xB0000
-#else
-#define PHYS_TEXT_BASE	0xB8000
-#define VIRT_TEXT_BASE	0xB8000
-#endif
-
 #define VBIOS_START	0xc0000
 #define VBIOS_SIZE	(64*1024)
 
 #define GFX_CHARS	0xffa6e
 #define GFXCHAR_SIZE	1400
 
+/* Memory adresses for all common video adapters */
+
+#define MDA_PHYS_TEXT_BASE  0xB0000
+#define MDA_VIRT_TEXT_BASE  0xB0000
+
+#define CGA_PHYS_TEXT_BASE  0xB8000
+#define CGA_VIRT_TEXT_BASE  0xB8000
+
+#define EGA_PHYS_TEXT_BASE  0xB8000
+#define EGA_VIRT_TEXT_BASE  0xB8000
+
+#define VGA_PHYS_TEXT_BASE  0xB8000
+#define VGA_VIRT_TEXT_BASE  0xB8000
+
 #define TEXT_SIZE	4096	/* text page size */
-#define PAGE_ADDR(pg)	(caddr_t)(VIRT_TEXT_BASE + (pg*TEXT_SIZE))
-#define SCREEN_ADR(s)	(us *)(VIRT_TEXT_BASE + (s*TEXT_SIZE))
+#define PAGE_ADDR(pg)	(caddr_t)(virt_text_base + (pg*TEXT_SIZE))
+#define SCREEN_ADR(s)	((us *)(virt_text_base + (s*TEXT_SIZE)));
 
 #define GRAPH_BASE 0xA0000
 #define GRAPH_SIZE 0x20000

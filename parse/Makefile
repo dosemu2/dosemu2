@@ -18,7 +18,7 @@ parse.o: parse.c
 scan.o: scan.c parse.tab.h
 
 par: scan.o parse.o
-	$(CC) -o par scan.o parse.o
+	$(CC) -o par scan.o parse.o -lfl
 
 checkin:
 	-ci scan.l parse.y

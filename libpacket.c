@@ -30,23 +30,25 @@
  *	hell will break loose.
  */
 
-int OpenNetworkType(unsigned short netid)
+int 
+OpenNetworkType(unsigned short netid)
 {
-	int s=socket(AF_INET,SOCK_PACKET,htons(netid));
-	if(s==-1)
-		return -1;
-	fcntl(s,F_SETFL,O_NDELAY);
-	return s;
-}
+  int s = socket(AF_INET, SOCK_PACKET, htons(netid));
 
+  if (s == -1)
+    return -1;
+  fcntl(s, F_SETFL, O_NDELAY);
+  return s;
+}
 
 /*
  *	Close a file handle to a raw packet type.
  */
 
-void CloseNetworkLink(int sock)
+void 
+CloseNetworkLink(int sock)
 {
-	close(sock);
+  close(sock);
 }
 
 /*
@@ -59,14 +61,15 @@ void CloseNetworkLink(int sock)
  *		otherwise bytes written.
  */
 
-int WriteToNetwork(int sock,const char *device,const char *data,int len)
+int 
+WriteToNetwork(int sock, const char *device, const char *data, int len)
 {
-	struct sockaddr sa;
+  struct sockaddr sa;
 
-	sa.sa_family=AF_INET;
-	strcpy(sa.sa_data,device);
-	
-	return(sendto(sock,data,len,0,&sa,sizeof(sa)));
+  sa.sa_family = AF_INET;
+  strcpy(sa.sa_data, device);
+
+  return (sendto(sock, data, len, 0, &sa, sizeof(sa)));
 }
 
 /*
@@ -81,26 +84,25 @@ int WriteToNetwork(int sock,const char *device,const char *data,int len)
  *		otherwise  Size of packet received.
  */
 
-int ReadFromNetwork(int sock, char *device, char *data, int len)
+int 
+ReadFromNetwork(int sock, char *device, char *data, int len)
 {
-	struct sockaddr sa;
-	int sz=sizeof(sa);
-	int error;
+  struct sockaddr sa;
+  int sz = sizeof(sa);
+  int error;
 
-	error=recvfrom(sock,data,len,0,&sa,&sz);
+  error = recvfrom(sock, data, len, 0, &sa, &sz);
 
-	if(error==-1)
-		return -1;
+  if (error == -1)
+    return -1;
 
-	strcpy(device,sa.sa_data);
-	return error;	/* Actually size of received packet */
+  strcpy(device, sa.sa_data);
+  return error;			/* Actually size of received packet */
 }
-
 
 /*
  *	Handy support routines.
  */
-
 
 /*
  *	Obtain the hardware address of an interface.
@@ -111,21 +113,22 @@ int ReadFromNetwork(int sock, char *device, char *data, int len)
  *	-1	Error.
  */
 
-int GetDeviceHardwareAddress(char *device, char *addr)
+int 
+GetDeviceHardwareAddress(char *device, char *addr)
 {
-	int s=socket(AF_INET,SOCK_DGRAM,0);
-	struct ifreq req;
-	int err;
+  int s = socket(AF_INET, SOCK_DGRAM, 0);
+  struct ifreq req;
+  int err;
 
-	strcpy(req.ifr_name,device);
+  strcpy(req.ifr_name, device);
 
-	err=ioctl(s,SIOCGIFHWADDR,&req);
-	if(err==-1)
-		return err;
-	memcpy(addr,req.ifr_hwaddr,8);
-	return 0;
+  err = ioctl(s, SIOCGIFHWADDR, &req);
+  if (err == -1)
+    return err;
+  memcpy(addr, req.ifr_hwaddr, 8);
+  return 0;
 }
-	
+
 /*
  *	Obtain the maximum packet size on an interface.
  *
@@ -134,19 +137,17 @@ int GetDeviceHardwareAddress(char *device, char *addr)
  *	-1	Error.
  */
 
-int GetDeviceMTU(char *device)
+int 
+GetDeviceMTU(char *device)
 {
-	int s=socket(AF_INET,SOCK_DGRAM,0);
-	struct ifreq req;
-	int err;
+  int s = socket(AF_INET, SOCK_DGRAM, 0);
+  struct ifreq req;
+  int err;
 
-	strcpy(req.ifr_name,device);
+  strcpy(req.ifr_name, device);
 
-	err=ioctl(s,SIOCGIFMTU,&req);
-	if(err==-1)
-		return err;
-	return req.ifr_mtu;
+  err = ioctl(s, SIOCGIFMTU, &req);
+  if (err == -1)
+    return err;
+  return req.ifr_mtu;
 }
-	
-
-

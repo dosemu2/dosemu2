@@ -1,12 +1,18 @@
 /* mouse.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/01/20 21:14:24 $
- * $Source: /home/src/dosemu0.49pl4g/RCS/mouse.c,v $
- * $Revision: 1.4 $
+ * $Date: 1994/03/04 15:23:54 $
+ * $Source: /home/src/dosemu0.50/RCS/mouse.c,v $
+ * $Revision: 1.6 $
  * $State: Exp $
  *
  * $Log: mouse.c,v $
+ * Revision 1.6  1994/03/04  15:23:54  root
+ * Run through indent.
+ *
+ * Revision 1.5  1994/03/04  14:46:13  root
+ * Jochen patches.
+ *
  * Revision 1.4  1994/01/20  21:14:24  root
  * Indent.
  *
@@ -39,6 +45,7 @@
 #include "config.h"
 #include "emu.h"
 #include "memory.h"
+#include "video.h"		/* video base address */
 #include "mouse.h"
 
 extern struct config_info config;
@@ -132,7 +139,7 @@ mouse_int(void)
   }
 }
 
-void 
+void
 mouse_reset(void)
 {
   if (config.mouse_flag) {
@@ -171,14 +178,14 @@ mouse_reset(void)
   mouse.mickeyx = mouse.mickeyy = 0;
 }
 
-void 
+void
 mouse_cursor(int flag)
 {
   mouse.cursor_on = flag;
   m_printf("MOUSE: %s mouse cursor\n", flag ? "show" : "hide");
 }
 
-void 
+void
 mouse_pos(void)
 {
   m_printf("MOUSE: get mouse position x:%d, y:%d, b(l%d r%d)\n", mouse.x,
@@ -188,7 +195,7 @@ mouse_pos(void)
   LWORD(ebx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
 }
 
-void 
+void
 mouse_curpos(void)
 {
   m_printf("MOUSE: get cursor pos x:%d, y:%d\n", mouse.cx, mouse.cy);
@@ -196,7 +203,7 @@ mouse_curpos(void)
   LWORD(edx) = mouse.cy;
 }
 
-void 
+void
 mouse_bpressinfo(void)
 {
   if (LWORD(ebx) = 0) {		/* left button */
@@ -214,7 +221,7 @@ mouse_bpressinfo(void)
   LWORD(eax) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
 }
 
-void 
+void
 mouse_brelinfo(void)
 {
   if (LWORD(ebx) = 0) {		/* left button */
@@ -232,7 +239,7 @@ mouse_brelinfo(void)
   LWORD(eax) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
 }
 
-void 
+void
 mouse_setxminmax(void)
 {
   m_printf("MOUSE: set horz. min: %d, max: %d\n", LWORD(ecx), LWORD(edx));
@@ -242,7 +249,7 @@ mouse_setxminmax(void)
   mouse.maxx = (LWORD(ecx) > LWORD(edx)) ? LWORD(ecx) : LWORD(edx);
 }
 
-void 
+void
 mouse_setyminmax(void)
 {
   m_printf("MOUSE: set vert. min: %d, max: %d\n", LWORD(ecx), LWORD(edx));
@@ -252,21 +259,21 @@ mouse_setyminmax(void)
   mouse.maxy = (LWORD(ecx) > LWORD(edx)) ? LWORD(ecx) : LWORD(edx);
 }
 
-void 
+void
 mouse_set_gcur(void)
 {
   m_printf("MOUSE: set gfx cursor...hspot: %d, vspot: %d, masks: %04x:%04x\n",
 	   LWORD(ebx), LWORD(ecx), LWORD(es), LWORD(edx));
 }
 
-void 
+void
 mouse_set_tcur(void)
 {
   m_printf("MOUSE: set text cursor...type: %d, start: 0x%04x, end: 0x%04x\n",
 	   LWORD(ebx), LWORD(ecx), LWORD(edx));
 }
 
-void 
+void
 mouse_setsub(void)
 {
   mouse.cs = REG(es);
@@ -281,7 +288,7 @@ mouse_setsub(void)
 	   LWORD(es), LWORD(edx), LWORD(ecx));
 }
 
-void 
+void
 mouse_mickeys(void)
 {
   m_printf("MOUSE: read mickeys %d %d\n", mouse.mickeyx, mouse.mickeyy);
@@ -290,7 +297,7 @@ mouse_mickeys(void)
   mouse.mickeyx = mouse.mickeyy = 0;
 }
 
-void 
+void
 mouse_version(void)
 {
   LWORD(ebx) = MOUSE_VERSION;
@@ -298,7 +305,7 @@ mouse_version(void)
   m_printf("MOUSE: get version %04x\n", LWORD(ebx));
 }
 
-void 
+void
 mouse_keyboard(int sc)
 {
   switch (sc) {
@@ -329,7 +336,7 @@ mouse_keyboard(int sc)
   }
 }
 
-void 
+void
 mouse_down(void)
 {
   m_printf("MOUSE: mouse moved down from %d to %d\n", mouse.y, mouse.y + 1);
@@ -341,7 +348,7 @@ mouse_down(void)
   mouse_delta(DELTA_CURSOR);
 }
 
-void 
+void
 mouse_up(void)
 {
   m_printf("MOUSE: mouse moved up from %d to %d\n", mouse.y, mouse.y - 1);
@@ -353,7 +360,7 @@ mouse_up(void)
   mouse_delta(DELTA_CURSOR);
 }
 
-void 
+void
 mouse_right(void)
 {
   m_printf("MOUSE: mouse moved right from %d to %d\n", mouse.x, mouse.x + 1);
@@ -365,7 +372,7 @@ mouse_right(void)
   mouse_delta(DELTA_CURSOR);
 }
 
-void 
+void
 mouse_left(void)
 {
   m_printf("MOUSE: mouse moved left from %d to %d\n", mouse.x, mouse.x - 1);
@@ -377,7 +384,7 @@ mouse_left(void)
   mouse_delta(DELTA_CURSOR);
 }
 
-void 
+void
 mouse_lb(void)
 {
   m_printf("MOUSE: left button %s\n", mouse.lbutton ? "released" : "pressed");
@@ -397,7 +404,7 @@ mouse_lb(void)
   }
 }
 
-void 
+void
 mouse_rb(void)
 {
   m_printf("MOUSE: right button %s\n", mouse.rbutton ? "released" : "pressed");
@@ -417,7 +424,7 @@ mouse_rb(void)
   }
 }
 
-void 
+void
 fake_int(void)
 {
   unsigned short *ssp;
@@ -429,7 +436,7 @@ fake_int(void)
   REG(esp) -= 6;
 }
 
-void 
+void
 fake_call(int cs, int ip)
 {
   unsigned short *ssp;
@@ -442,7 +449,7 @@ fake_call(int cs, int ip)
   REG(esp) -= 4;
 }
 
-void 
+void
 fake_pusha(void)
 {
   unsigned short *ssp;
@@ -459,7 +466,7 @@ fake_pusha(void)
   REG(esp) -= 16;
 }
 
-void 
+void
 mouse_delta(int event)
 {
   mouse_do_cur();
@@ -491,7 +498,7 @@ mouse_delta(int event)
   }
 }
 
-void 
+void
 mouse_do_cur(void)
 {
   unsigned short *p = SCREEN_ADR(SCREEN);
@@ -506,11 +513,9 @@ mouse_do_cur(void)
   p[mouse.cx + mouse.cy * 80] = 0x0b5c;
 }
 
-void 
+void
 mouse_curtick(void)
 {
-  unsigned short *p = SCREEN_ADR(0);
-
   if (!mouse.cursor_on)
     return;
 
@@ -519,7 +524,7 @@ mouse_curtick(void)
 }
 
 /* are ip and cs in right order?? */
-void 
+void
 mouse_sethandler(void *f, us * cs, us * ip)
 {
   m_printf("MOUSE: sethandler...%p, %p, %p\n",

@@ -25,7 +25,7 @@
 
 int defs, lone_lvalues;
 
-void 
+void
 head(void)
 {
   printf("/* config.h, DOS emulator configuration file, Robert Sanders,\n");
@@ -34,14 +34,14 @@ head(void)
   printf(" */\n\n#ifndef CONFIG_H\n#define CONFIG_H 1\n\n");
 }
 
-void 
+void
 foot(void)
 {
   printf("\n#endif /* config.h */\n\n/* total defines: %3d\n", defs);
   printf(" * end of configuration information\n */\n");
 }
 
-void 
+void
 do_arg(int indx, char *arg)
 {
   char *lvalue, *rvalue;
@@ -62,7 +62,7 @@ do_arg(int indx, char *arg)
   printf(DEF_FORMAT, lvalue, rvalue ? rvalue : "");
 }
 
-void 
+void
 host_and_time(void)
 {
   time_t postepoch;
@@ -86,7 +86,7 @@ host_and_time(void)
   defs += 2;
 }
 
-int 
+int
 main(int argc, char **argv)
 {
   int indx;

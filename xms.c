@@ -1,12 +1,15 @@
 /* xms.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/01/25 20:02:44 $
- * $Source: /home/src/dosemu0.49pl4g/RCS/xms.c,v $
- * $Revision: 1.8 $
+ * $Date: 1994/03/04 15:23:54 $
+ * $Source: /home/src/dosemu0.50/RCS/xms.c,v $
+ * $Revision: 1.9 $
  * $State: Exp $
  *
  * $Log: xms.c,v $
+ * Revision 1.9  1994/03/04  15:23:54  root
+ * Run through indent.
+ *
  * Revision 1.8  1994/01/25  20:02:44  root
  * Exchange stderr <-> stdout.
  *
@@ -80,7 +83,7 @@
  * the 1 MEG mark.  ugly.  fix this.
  */
 
-static char RCSxms[] = "$Header: /home/src/dosemu0.49pl4g/RCS/xms.c,v 1.8 1994/01/25 20:02:44 root Exp root $";
+static char RCSxms[] = "$Header: /home/src/dosemu0.50/RCS/xms.c,v 1.9 1994/03/04 15:23:54 root Exp root $";
 
 #define	 XMS_GET_VERSION		0x00
 #define	 XMS_ALLOCATE_HIGH_MEMORY	0x01
@@ -563,7 +566,7 @@ xms_control(void)
   }
 }
 
-int 
+int
 FindFreeHandle(int start)
 {
   int i, h = 0;
@@ -581,7 +584,7 @@ FindFreeHandle(int start)
   return h;
 }
 
-int 
+int
 ValidHandle(unsigned short h)
 {
   if ((h <= NUM_HANDLES) && (handles[h].valid))
@@ -590,7 +593,7 @@ ValidHandle(unsigned short h)
     return 0;
 }
 
-void 
+void
 xms_query_freemem(int api)
 {
   unsigned long totalBytes = 0, subtotal;
@@ -638,7 +641,7 @@ xms_query_freemem(int api)
   LO(bx) = 0;			/* no error */
 }
 
-void 
+void
 xms_allocate_EMB(int api)
 {
   unsigned long h;
@@ -686,7 +689,7 @@ xms_allocate_EMB(int api)
   }
 }
 
-void 
+void
 xms_free_EMB(void)
 {
   unsigned short int h = LWORD(edx);
@@ -711,7 +714,7 @@ xms_free_EMB(void)
   }
 }
 
-void 
+void
 xms_move_EMB(void)
 {
   char *src, *dest;
@@ -751,7 +754,7 @@ xms_move_EMB(void)
   return;
 }
 
-void 
+void
 xms_lock_EMB(int flag)
 {
   int h = LWORD(edx);
@@ -781,7 +784,7 @@ xms_lock_EMB(int flag)
   }
 }
 
-void 
+void
 xms_EMB_info(int api)
 {
   int h = LWORD(edx);
@@ -809,7 +812,7 @@ xms_EMB_info(int api)
 }
 
 /* untested! if you test it, please tell me! */
-void 
+void
 xms_realloc_EMB(int api)
 {
   int h;
@@ -863,7 +866,7 @@ xms_realloc_EMB(int api)
   LWORD(eax) = 1;		/* success */
 }
 
-void 
+void
 xms_int15(void)
 {
   if (HI(ax) == 0x88) {
@@ -885,7 +888,7 @@ xms_int15(void)
   }
 }
 
-struct EMM 
+struct EMM
 get_emm(unsigned int seg, unsigned int off)
 {
   struct EMM e;
@@ -906,7 +909,7 @@ get_emm(unsigned int seg, unsigned int off)
   return e;
 }
 
-void 
+void
 show_emm(struct EMM e)
 {
   x_printf("XMS show_emm:\n");

@@ -67,4 +67,4 @@ void mouse_keyboard(int), mouse_curtick(void), mouse_sethandler(void *, unsigned
 #endif
 MEX int keyboard_mouse;
 
-#endif	/* MOUSE_H */
+#endif /* MOUSE_H */

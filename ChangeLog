@@ -1,3 +1,35 @@
+March 4, 1994	jmaclean@fox.nstn.ns.ca
+
+-	VC switching in RAW mode now uses CTRL-ALT-x.
+
+-	Ronnies serial patches to allow more mice to roam and modems
+	to run faster/better. ronnie@epact.se
+
+-	Jochen's patches to straighten up video support and remove
+	unused DISKS statements. In keeping with the FSSTND-draft
+	our lib has been moved to /usr/lib. 
+	Thanks hein@centeotl.in.tu-clausthal.de
+
+-	Alanh patches to allow switching between linpkt and IPX
+	on the fly with the "ipxsupport" option. alanh@metro.co.uk
+
+-	Koenig@nova.tat.physik.uni-tuebingen.de (Harald Koenig)
+	patch to show last 10 characters of path on volume 
+	requests on the redirected drives in place of LINUX.1,
+	LINUX.2, etc...
+
+-	Lutz Molgedey has been making great advances in DPMI and
+	although not ready for household use, is included.
+	molgedey@theo-physik.uni-kiel.de.
+
+February 20, 1994	jmaclean@fox.nstn.ns.ca
+
+-	Wordperfect HOME key stopped working :-( why ?????
+
+February 17, 1994	jmaclean@fox.nstn.ns.ca
+
+-	Fixed function 0x23 in mfs.c redirector
+
 February 9, 1994	jmaclean@fox.nstn.ns.ca
 
 -	Added config option dosbanner to optionally stop DOSEMU

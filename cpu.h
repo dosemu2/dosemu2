@@ -1,9 +1,9 @@
 /* cpu.h, for the Linux DOS emulator
  *    Copyright (C) 1993 Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/01/27 21:47:09 $
- * $Source: /home/src/dosemu0.49pl4g/RCS/cpu.h,v $
- * $Revision: 1.5 $
+ * $Date: 1994/03/04 15:23:54 $
+ * $Source: /home/src/dosemu0.50/RCS/cpu.h,v $
+ * $Revision: 1.8 $
  * $State: Exp $
  */
 
@@ -106,19 +106,70 @@ interrupt_stack_frame;
 
 inline void update_cpu(long), update_flags(long *);
 
-/* this was taken from the 0.99pl10 + ALPHA-diff kernel sources...
- * I believe the parts previous to linux_eflags correspond to the
- * SYSV ABI standard.
- */
-#define SIGSTACK int sig, long gs, long fs, long es, long ds, long edi, \
-     long esi, long ebp, long esp, long ebx, long edx, long ecx, long eax, \
-     long trapno, long err, long eip, long cs, long eflags, long esp2, \
-     long ss, long state387, long linux_eflags, long linux_eip
+struct sigcontext_struct {
+  unsigned short sc_gs, __gsh;
+  unsigned short sc_fs, __fsh;
+  unsigned short sc_es, __esh;
+  unsigned short sc_ds, __dsh;
+  unsigned long sc_edi;
+  unsigned long sc_esi;
+  unsigned long sc_ebp;
+  unsigned long sc_esp;
+  unsigned long sc_ebx;
+  unsigned long sc_edx;
+  unsigned long sc_ecx;
+  unsigned long sc_eax;
+  unsigned long sc_trapno;
+  unsigned long sc_err;
+  unsigned long sc_eip;
+  unsigned short sc_cs, __csh;
+  unsigned long sc_efl;
+  unsigned long esp_at_signal;
+  unsigned short sc_ss, __ssh;
+  unsigned long i387;
+  unsigned long oldmask;
+  unsigned long cr2;
+};
 
-void sigtrap(SIGSTACK);
-void sigill(SIGSTACK);
-void sigfpe(SIGSTACK);
-void sigsegv(SIGSTACK);
+#define _gs	scp->sc_gs
+#define _fs	scp->sc_fs
+#define _es	scp->sc_es
+#define _ds	scp->sc_ds
+#define _edi	scp->sc_edi
+#define _esi	scp->sc_esi
+#define _ebp	scp->sc_ebp
+#define _esp	scp->sc_esp
+#define _ebx	scp->sc_ebx
+#define _edx	scp->sc_edx
+#define _ecx	scp->sc_ecx
+#define _eax	scp->sc_eax
+#define _eip	scp->sc_eip
+#define _cs	scp->sc_cs
+#define _eflags	scp->sc_efl
+#define _ss	scp->sc_ss
+
+struct pm86 {
+  unsigned short gs;
+  unsigned short fs;
+  unsigned short es;
+  unsigned short ds;
+  unsigned long edi;
+  unsigned long esi;
+  unsigned long ebp;
+  unsigned long esp;
+  unsigned long ebx;
+  unsigned long edx;
+  unsigned long ecx;
+  unsigned long eax;
+  unsigned long eflags;
+  unsigned short cs;
+  unsigned short ip;
+};
+
+void sigtrap(int, struct sigcontext_struct);
+void sigill(int, struct sigcontext_struct);
+void sigfpe(int, struct sigcontext_struct);
+void sigsegv(int, struct sigcontext_struct);
 
 void show_regs(void), show_ints(int, int);
 inline int do_hard_int(int), do_soft_int(int);

@@ -3,12 +3,21 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/02/10 20:41:14 $
- * $Source: /home/src/dosemu0.49pl4g/RCS/emu.h,v $
- * $Revision: 1.13 $
+ * $Date: 1994/03/04 15:23:54 $
+ * $Source: /home/src/dosemu0.50/RCS/emu.h,v $
+ * $Revision: 1.16 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 1.16  1994/03/04  15:23:54  root
+ * Run through indent.
+ *
+ * Revision 1.15  1994/03/04  14:46:13  root
+ * Jochen's patches.
+ *
+ * Revision 1.14  1994/03/04  00:01:58  root
+ * Getting ready for 0.50
+ *
  * Revision 1.13  1994/02/10  20:41:14  root
  * Last cleanup prior to release of pl4.
  *
@@ -166,14 +175,14 @@ int InsKeyboard(unsigned short scancode);
 int PollKeyboard(void);
 void ReadString(int, unsigned char *);
 
-inline static void 
+inline static void
 port_out(char value, unsigned short port)
 {
   __asm__ volatile ("outb %0,%1"
 		    ::"a" ((char) value), "d"((unsigned short) port));
 }
 
-inline static char 
+inline static char
 port_in(unsigned short port)
 {
   char _v;
@@ -195,7 +204,7 @@ struct debug_flags {
    serial,			/* serial, "s" */
    defint,			/* default ints */
    printer, general, warning, all,	/* all non-classifiable messages */
-   hardware, xms, mouse, IPC, EMS, config, dpmi, network;     /* TRB - only IPX for now */
+   hardware, xms, mouse, IPC, EMS, config, dpmi, network;	/* TRB - only IPX for now */
 };
 
 #if __GNUC__ >= 2
@@ -206,9 +215,9 @@ struct debug_flags {
 
 extern void saytime();
 
-int 
+int
 ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
-void p_dos_str(char *,...) FORMAT(printf, 1, 2);
+     void p_dos_str(char *,...) FORMAT(printf, 1, 2);
 
 #if 1
 
@@ -231,22 +240,22 @@ void p_dos_str(char *,...) FORMAT(printf, 1, 2);
 #define E_printf(f,a...) 	ifprintf(d.EMS,f,##a)
 #define c_printf(f,a...) 	ifprintf(d.config,f,##a)
 #define e_printf(f,a...) 	ifprintf(1,f,##a)
-#define n_printf(f,a...)        ifprintf(d.network,f,##a)       /* TRB */
-#define pd_printf(f,a...)       ifprintf(0,f,##a)          /* pktdrvr  */
+#define n_printf(f,a...)        ifprintf(d.network,f,##a)	/* TRB */
+#define pd_printf(f,a...)       ifprintf(0,f,##a)	/* pktdrvr  */
 #define error(f,a...)	 	ifprintf(1,f,##a)
 
 #else
 #define dbug_printf(f,a...)	ifprintf(2,f,##a)
-#define k_printf(f,a...) 
+#define k_printf(f,a...)
 #define h_printf(f,a...)
 #define v_printf(f,a...)
 #define s_printf(f,a...)
 #define p_printf(f,a...)
 #define d_printf(f,a...)
-#define i_printf(f,a...) 
+#define i_printf(f,a...)
 #define R_printf(f,a...)
 #define W_printf(f,a...)
-#define warn(f,a...)    
+#define warn(f,a...)
 #define g_printf(f,a...)
 #define x_printf(f,a...)
 #define D_printf(f,a...)
@@ -256,8 +265,8 @@ void p_dos_str(char *,...) FORMAT(printf, 1, 2);
 #define c_printf(f,a...)
 #define e_printf(f,a...)
 #define n_printf(f,a...)
-#define pd_printf(f,a...)  
-#define error(f,a...)	 	
+#define pd_printf(f,a...)
+#define error(f,a...)
 
 #endif
      /* #define char_out(c,s,af)   char_out_att(c,7,s,af) */
@@ -298,23 +307,8 @@ void p_dos_str(char *,...) FORMAT(printf, 1, 2);
 #define CONF_NFLOP(c,num) 	{c&=~(CONF_FLOP|BIT(6)|BIT(7)); \
 				   if (num) c|=((num-1)<<6)|CONF_FLOP;}
 
-     /* initial reported video mode */
-#ifdef MDA_VIDEO
-#define INIT_SCREEN_MODE	7	/* 80x25 MDA monochrome */
-#define CONF_SCRMODE		(3<<4)	/* for int 11h info */
-#define VID_COMBO		1
-#define VID_SUBSYS		1	/* 1=mono */
-#define BASE_CRTC		0x3b4
-#else
-#define INIT_SCREEN_MODE	3	/* 80x25 VGA color */
-#define CONF_SCRMODE		(2<<4)	/* (2<<4)=80x25 color CGA, 0=EGA/VGA */
-#define VID_COMBO		4	/* 4=EGA (ok), 8=VGA (not ok??) */
-#define VID_SUBSYS		0	/* 0=color */
-#define BASE_CRTC		0x3d4
-#endif
-
      /* this macro can be safely wrapped around a system call with no side
- * effects; using a featuer of GCC, it returns the same value as the
+ * effects; using a feature of GCC, it returns the same value as the
  * function call argument inside.
  *
  * this is best used in places where the errors can't be sanely handled,
@@ -361,6 +355,7 @@ void p_dos_str(char *,...) FORMAT(printf, 1, 2);
        boolean console_keyb;
        boolean exitearly;
        boolean mathco;
+       boolean ipxsup;
        boolean keybint;
        boolean dosbanner;
        boolean allowvideoportaccess;
@@ -371,7 +366,7 @@ void p_dos_str(char *,...) FORMAT(printf, 1, 2);
        char *vbios_file;	/* loaded VBIOS file */
        boolean vbios_copy;
 
-       boolean bootdisk;		/* Special bootdisk defined */
+       boolean bootdisk;	/* Special bootdisk defined */
        boolean fastfloppy;
        char *emusys;		/* map CONFIG.SYS to CONFIG.EMU */
        char *emubat;		/* map AUTOEXEC.BAT to AUTOEXEC.EMU */

@@ -1,5 +1,6 @@
 This is the `Frequently Asked Questions' (FAQ) / HOWTO document for dosemu,
-(dosemu-HOWTO).
+(dosemu-HOWTO).  The most up-to-date version of the dosemu-HOWTO may
+be found in dspsun.eas.asu.edu:/pub/dosemu.
 
 Please read this document *to the very end*, before you post a question to a
 newsgroup / Linux-MSDOS channel / the developers.  This will reduce the number
@@ -7,7 +8,7 @@ of redundant questions, and releases us all to more constructive work (like
 improving dosemu).
 
 This HOWTO is edited and maintained by:  Mike Deisher
-Last update: February 5 1994, for dosemu 0.49pl3.3
+Last update: February 17 1994, for dosemu 0.49pl4
 
 Additions or corrections to the HOWTO should be directed to
 deisher@dspsun.eas.asu.edu
@@ -24,43 +25,50 @@ Q1.3	What documentation is available for dosemu?
 Section 2: Compiling and installing dosemu
 ------------------------------------------
 Q2.1	What does "emu.c:349: parse error before `outfuntype'" mean?
-Q2.2	How do I mount a linux directory as C:?
-Q2.3	I get an error message about my config.sys file but it looks fine.
-Q2.4	Can I use dosemu on a multi-user system?
+Q2.2	What does "scan.o: Undefined symbol _yywrap" mean?
+Q2.3	Can I use dosemu on a multi-user system?
 
 
-Section 3: Serial ports and mice
+Section 3: Hard disk setup
+--------------------------
+Q3.1	How do I use my hard disk with dosemu?
+Q3.2	Can I use my stacked/double-spaced/super-stored disk?
+Q3.3	I get an error message about my config.sys file but it looks fine.
+
+
+Section 4: Serial ports and mice
 --------------------------------
-Q3.1	Where are the (microsoft compatible) mouse drivers?
-Q3.2	Why doesn't the mouse driver work?
-Q3.3	How do I use dosemu over the serial ports?
+Q4.1	Where are the (microsoft compatible) mouse drivers?
+Q4.2	Why doesn't the mouse driver work?
+Q4.3	How do I use dosemu over the serial ports?
 
 
-Section 4: dosemu and X-windows
+Section 5: dosemu and X-windows
 ---------------------------------------
-Q4.1	Can I run dosemu in console mode while running X?
-Q4.2	Is it possible to run dosemu in an xterm?
+Q5.1	Can I run dosemu in console mode while running X?
+Q5.2	Is it possible to run dosemu in an xterm?
 
 
-Section 5: Video
+Section 6: Video
 ---------------------------------------
-Q5.1	Exiting from dosemu gives me a screen full of garbage.
-Q5.2	How do I get dosemu to work with my Trident or Actix video card?
+Q6.1	Exiting from dosemu gives me a screen full of garbage.
+Q6.2	How do I get dosemu to work with my Trident/Actix/other video card?
 
 
-Section 6: Problems and fixes
+Section 7: Problems and fixes
 -----------------------------
-Q6.1	Why does dosemu lock up after one keystroke?
-Q6.2	Why does my ethernet driver lock-up dosemu?
-Q6.3	Why are my keystrokes echoed ttwwiiccee??
-Q6.4	Why does give "divide overflow" errors after running for more
+Q7.1	Why does dosemu lock up after one keystroke?
+Q7.2	Why does my ethernet driver lock-up dosemu?
+Q7.3	Why are my keystrokes echoed ttwwiiccee??
+Q7.4	Why does give "divide overflow" errors after running for more
         than 24-hours? 
+Q7.5	Where did the debugging output go?
 
 
-Section 7: Contributing to the dosemu project
+Section 8: Contributing to the dosemu project
 ---------------------------------------------
-Q7.1	Who is responsible for dosemu?
-Q7.2	I want to help.  Who should I contact?
+Q8.1	Who is responsible for dosemu?
+Q8.2	I want to help.  Who should I contact?
 ========================================================================
 
 
@@ -129,40 +137,19 @@ A fix that works is:  Change the 'outfuntype c' parm in line 349 to
  incomplete termcap.h (termcap.h is not part of dosemu).]
 
 
-Q2.2	How do I mount a linux directory as C:?
------------------------------------------------
-Scott D. Heavner (sdh@po.cwru.edu) reported (11/22/93) that
+Q2.2	What does "scan.o: Undefined symbol _yywrap" mean?
+----------------------------------------------------------
+Alan David Modra (alan@spri.levels.unisa.edu.au) reported (2/16/94) that
 
-LREDIR -- a very nice program, you can finally get rid of the c: =
-hdimage problem, the docs I read weren't quite clear, but the usage
-seems to be
+Flex-2.4.6 generates code that requires linking in libfl.a
+You need to add -lfl to the linker command line:
 
-   LREDIR C: LINUX\FS/dos/drive
+  gcc -o par scan.o parse.o -lfl
 
-where "LINUX\FS" must appear and /dos/drive is the path to your dos
-drive.  I'm not sure what the comments of lredir.c is saying, but this
-works.
-
-Also, Tim Bird (Tim_R_Bird@Novell.COM) states that LREDIR users should
-
-be careful when they use LREDIR in the autoexec, because COMMAND.COM
-will continue parsing the autoexec.bat from the redirected drive as
-the same file offset where it left off in the autoexec.bat on the
-physical drive.  For this reason, it is safest to have the
-autoexec.bat on the redirected drive and the physical drive
-(diskimage) be the same.
+[Note:  edit parse/Makefile to incorporate this change]
 
 
-Q2.3	I get an error message about my config.sys file but it looks fine.
---------------------------------------------------------------------------
-Corey Sweeney (corey@amiganet.xnet.com) reported (12/8/93) that
-
-Sometimes when loading config.sys you will get a error message
-saying something like "error in line 6 of config.sys".  The problem
-will go away if you add several carriage returns at the end of your
-config.sys.
-
-Q2.4	Can I use dosemu on a multi-user system?
+Q2.3	Can I use dosemu on a multi-user system?
 ------------------------------------------------
 Corey Sweeney (corey@amiganet.xnet.com) reported (12/8/93) that
 
@@ -184,9 +171,71 @@ Note: you can use the new emufs.sys thing to mount a "public"
       person's home directory).
 
 
-Section 3:  Serial ports and mice
+Section 3: Hard disk setup
+==========================
+Q3.1	How do I use my hard disk with dosemu?
+----------------------------------------------
+
+First, mount your dos hard disk partition as a Linux subdirectory.
+For example, you could create a directory in Linux such as /dos (mkdir
+-m 755 /dos) and add a line like
+
+   /dev/hda1       /dos     msdos   umask=022
+
+to your /etc/fstab.  (In this example, the hard disk is mounted
+read-only.  You may want to mount it read/write by replacing "022"
+with "000" and using the -m 777 option with mkdir) Now "mount /dos".
+Now you can add a line like
+
+  lredir d: linux\fs/dos
+
+to the AUTOEXEC.BAT file in your hdimage (see the note on LREDIR
+below).  
+
+Tim Bird (Tim_R_Bird@Novell.COM) states that LREDIR users should
+
+be careful when they use LREDIR in the autoexec, because COMMAND.COM
+will continue parsing the autoexec.bat from the redirected drive as
+the same file offset where it left off in the autoexec.bat on the
+physical drive.  For this reason, it is safest to have the
+autoexec.bat on the redirected drive and the physical drive
+(diskimage) be the same.
+
+
+Q3.2	Can I use my stacked/double-spaced/super-stored disk?
+-------------------------------------------------------------
+
+At this time, compressed drives cannot be accessed via the redirector
+(lredir).  However, many people have had success by simply
+uncommenting the
+
+   disk { wholedisk "/dev/hda" }        # 1st partition on 1st disk
+
+line in their dosemu config file.  A few others have had success using
+
+   disk { partition "/dev/hda1" 1 }
+
+Holger Schemel (q99492@pbhrzx.uni-paderborn.de) reported (2/10/94) that
+
+Works even fine under DOSEMU with MS-DOS 6.0. If you have problems, then
+you have to edit the file 'DBLSPACE.INI' manually and change the disk
+letter to the letter your drive gets under DOSEMU.
+
+
+Q3.3	I get an error message about my config.sys file but it looks fine.
+--------------------------------------------------------------------------
+Corey Sweeney (corey@amiganet.xnet.com) reported (12/8/93) that
+
+Sometimes when loading config.sys you will get a error message
+saying something like "error in line 6 of config.sys".  The problem
+will go away if you add several carriage returns at the end of your
+config.sys.
+
+
+
+Section 4:  Serial ports and mice
 =================================
-Q3.1	Where are the (microsoft compatible) mouse drivers?
+Q4.1	Where are the (microsoft compatible) mouse drivers?
 -----------------------------------------------------------
 Tom Kimball (tk@pssparc2.oc.com) reported (11/24/93) that
 
@@ -197,7 +246,7 @@ some.  I found a couple that seem to work fine.
    oak.oakland.edu:/pub/msdos/mouse/gmous102.zip   (gmouse)
 
 
-Q3.2	Why doesn't the mouse driver work?
+Q4.2	Why doesn't the mouse driver work?
 ------------------------------------------
 sdh@fishmonger.nouucp (Scott D. Heavner) reported (11/27/93) that
 
@@ -207,7 +256,7 @@ mouse driver to start, remove any "timer" lines in your config
 file.
 
 
-Q3.3	How do I use dosemu over the serial ports?
+Q4.3	How do I use dosemu over the serial ports?
 --------------------------------------------------
 Corey Sweeney (corey@amiganet.xnet.com) reported (12/8/93) that
 
@@ -267,9 +316,9 @@ recognizes an ``F11''.
 Note:  The scancode for F12 is 0x8600.
 
 
-Section 4:  dosemu and X-windows
+Section 5:  dosemu and X-windows
 ================================
-Q4.1	Can I run dosemu in console mode while running X?
+Q5.1	Can I run dosemu in console mode while running X?
 ---------------------------------------------------------
 Ronald Schalk (R.Schalk@uci.kun.nl) reported (1/17/94) that
 
@@ -281,17 +330,24 @@ linux-application).  I've got almost always WP5.1 in a dos session.
 [Note:  Some people have reported problems when dosemu is started before X]
 
 
-Q4.2	Is it possible to run dosemu in an xterm?
+Q5.2	Is it possible to run dosemu in an xterm?
 -------------------------------------------------
 Evmorfopoulos Dimitris (devmorfo@mtu.edu) reported (12/10/93) that
 
 It is possible to run dosemu under an xterm, but without any
 graphics, and with no more than 128 characters.
 
+H. Peter Anvin (hpa@hook.eecs.nwu.edu) adds (2/6/94)
 
-Section 5:  Video
+no more than 128 characters... unless you use a special font.  Someone
+has an IBM PC (CP 437) X font for use with ANSI-graphics on BBS's, as
+well as a patch for Xterm that *might* include character translation
+(for letters like Å, Ä, Ö for example...)
+
+
+Section 6:  Video
 =================
-Q5.1	Exiting from dosemu gives me a screen full of garbage.
+Q6.1	Exiting from dosemu gives me a screen full of garbage.
 --------------------------------------------------------------
 Keith A Grider (kgrider@magnus.acs.ohio-state.edu) reported (12/5/93) that
 
@@ -317,8 +373,8 @@ XFree86 people know about the problem and are working on a solution
 as this is a bit of a kluge.
 
 
-Q5.2	How do I get dosemu to work with my Trident or Actix video card?
-------------------------------------------------------------------------
+Q6.2	How do I get dosemu to work with my Trident/Actix/other video card?
+---------------------------------------------------------------------------
 [The screen flickers violently, displays the video BIOS startup
 message, and hangs.]
 
@@ -353,9 +409,9 @@ where vbios is the file generated by typing
    getrom > vbios
 
 
-Section 6:  Problems and fixes
+Section 7:  Problems and fixes
 ==============================
-Q6.1	Why does dosemu lock up after one keystroke?
+Q7.1	Why does dosemu lock up after one keystroke?
 ----------------------------------------------------
 (12/17/93)
 
@@ -365,7 +421,7 @@ Add a line to the config file:
    keybint on
 
 
-Q6.2	Why does my ethernet driver lock-up dosemu?
+Q7.2	Why does my ethernet driver lock-up dosemu?
 ---------------------------------------------------
 James B. MacLean (jmaclean@fox.nstn.ns.ca) reported (1/16/94) that
 
@@ -383,15 +439,22 @@ Any interested parties should E-mail me (jmaclean@fox.nstn.ns.ca) and
 I'll pass along some directions.
 
 
-Q6.3	Why are my keystrokes echoed ttwwiiccee??
+Q7.3	Why are my keystrokes echoed ttwwiiccee??
 -------------------------------------------------
-(1/20/94)
+Nick Holloway (alfie@dcs.warwick.ac.uk) reported (2/22/94) that
 
-You have an old version of dosemu.  Get the latest version and apply
-all patches.
+After running dos after playing with some stty settings, I was getting
+doubled key presses.  I can now reveal what the reason is!
+
+It only happens when dos is run on the console with 'istrip' set.  This is
+(I think) because the raw scancodes are mutilated by the 'istrip',
+so that key release events look like key press events.
+
+So, the input processing needs to be turned off when using the scan
+codes on a console (it wouldn't be a good idea to do it for tty lines).
 
 
-Q6.4	Why does give "divide overflow" errors after running for more
+Q7.4	Why does give "divide overflow" errors after running for more
         than 24-hours? 
 ---------------------------------------------------------------------
 (1/17/94)
@@ -400,11 +463,19 @@ This is a known bug.  It will (hopefully) be fixed in an upcoming
 release.  For now, you can simply exit dosemu and start it again.
 
 
-Section 7:  Contributing to the dosemu project
+Q7.5	Where did the debugging output go?
+------------------------------------------
+
+As of dosemu0.49pl4, stderr is automatically redirected to /dev/null.
+Try "dos -D+a 2>debug" to turn on debugging information and redirect
+it to the file "debug".
+
+
+Section 8:  Contributing to the dosemu project
 ==============================================
-Q7.1	Who is responsible for dosemu?
+Q8.1	Who is responsible for dosemu?
 --------------------------------------
-(12/17/93)
+(2/17/94)
 
 Dosemu is built upon the work of Matthias Lautner and Robert Sanders.
 James B. MacLean (jmaclean@fox.nstn.ns.ca) is responsible for
@@ -426,9 +497,10 @@ organizing the latest releases of dosemu.
           0.49pl2    November 18, 1993   James MacLean
           0.49pl3    November 30, 1993   James MacLean
           0.49pl3.3  December 3, 1993    James MacLean
+          0.49pl4    February 10, 1994   James MacLean
 
 
-Q7.2	I want to help.  Who should I contact?
+Q8.2	I want to help.  Who should I contact?
 ----------------------------------------------
 The dosemu project is a team effort.  If you wish to contribute,
 see the DPR (DOSEMU Project Registry).  A current copy may be found in

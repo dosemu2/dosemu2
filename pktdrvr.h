@@ -11,7 +11,3 @@
 #define F_SEND_PKT     4
 #define F_GET_ADDRESS  6
 #define F_RECV_PKT    27
-
-
-
-

@@ -10,9 +10,14 @@ How to quickly get dosemu up and running:
 	automatically redirected to /dev/null.
 
 *** Note: This release has changed the dos_helper() function's interrupt
-	and therefore if you have a previous version of dosemu, you'll
+	and therefore if you have a version of dosemu <0.49pl4, you'll
 	need to replace all the dosemu utilities. (i.e. emufs.sys, ems.sys
 	lredir.exe, etc...)
+
+*** Note: If you've already successfully ran the dos emulator (version
+0.49 pl10 or later), and could sucessfully read from your linux
+partition, you may follow an abridged QuickStart procedure, detailed
+after the normal QuickStart.
 
 (Please refer to doc/announce0.49pl3 for info on patching kernel pl13[k-r].)
 
@@ -23,16 +28,16 @@ How to quickly get dosemu up and running:
 	- Copy c:\dos\sys.com to the diskette
 2) Make dosemu:
 	- Modify the Makefile if you need special keyboard, etc
-	- Do 'make doeverything'
+	- Do 'make'
 	- Copy an edited examples/config.dist to /etc/dosemu/config
 	  You'll see many options that can be set inside the config
 	- Copy exitemu.com from the ./commands subdirectory to the
 	  newly formatted diskette
-	- Copy ./hdimage.dist (located in dosemu0.49pl4) to ./hdimage
+	- Copy ./hdimage.dist (located in dosemu0.50) to ./hdimage
 	  The first disk statement in your /etc/dosemu/config should
 	  point to this file.
 3) Prepare DOSEMU:
-	- From the dosemu0.49pl4 directory, type dos -A
+	- From the dosemu0.50 directory, type dos -A
 	  After some delay, dosemu should boot and show the A:> prompt.
 	- From the a: drive do fdisk /mbr
 	  This will add a Master Boot Record to the current dosemu C:
@@ -61,6 +66,26 @@ How to quickly get dosemu up and running:
    like to get involved with. Maybe there is something that's not
    included in the DPR? Great, come aboard and do that :-).
 
+---------------------------------------------------------------------
+Abridged QuickStart
+-------------------
+
+Follow the normal QuickStart procedure, except skip step 1) and change
+step 3) to:
+
+3) Prepare DOSEMU
+        - Copy drivers/emufs.sys, drivers/ems.sys,
+          commands/bootoff.com, commands/booton.com,
+          commands/dumpconf.exe, commands/exitemu.com,
+          commands/lredir.exe, commands/vgaoff.com, and
+          commands/vgaon.com to a directory accessible to dosemu, such
+          as /tmp.
+          (their current directories are inaccessible since
+          dosemu0.50 is not a valid msdos directory).
+        - From the dosemu0.50 directory, type dos -D-a 2>/dev/null
+        - Copy the above files to c:/.
+-----------------------------------------------------------------------
+
   Some notes from Tim Bird (Tim_R_Bird@Novell.COM) on lredir found
 in the commands subdir :
 
@@ -77,10 +102,6 @@ where it left off in the autoexec.bat on the physical drive. For
 this reason, it is safest to have the autoexec.bat on the 
 redirected drive and the physical drive (diskimage) be the same.
  
-Notes:
- - A mouse driver that works is mscmouse found on Simtel and the 
-   mirrors.(msdos/mouse/mouse701.zip)
-
 Many thanks to all involved, including all those who submitted debug
 output for my viewing pleasure, keep it coming.
 

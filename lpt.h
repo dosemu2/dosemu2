@@ -33,4 +33,4 @@ struct printer {
 
 #define NUM_PRINTERS 3
 
-#endif	/* LPT_H */
+#endif /* LPT_H */

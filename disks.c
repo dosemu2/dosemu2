@@ -1,9 +1,9 @@
 /* dos emulator, Matthias Lautner
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/01/20 21:14:24 $
- * $Source: /home/src/dosemu0.49pl4g/RCS/disks.c,v $
- * $Revision: 1.5 $
+ * $Date: 1994/03/04 15:23:54 $
+ * $Source: /home/src/dosemu0.50/RCS/disks.c,v $
+ * $Revision: 1.6 $
  * $State: Exp $
  *
  * floppy disks, dos partitions or their images (files) (maximum 8 heads)
@@ -420,7 +420,7 @@ disk_open(struct disk *dp)
   DOS_SYSCALL(ioctl(dp->fdesc, FDMSGOFF, 0));
 }
 
-void 
+void
 disk_close_all(void)
 {
   struct disk *dp;
@@ -443,7 +443,7 @@ disk_close_all(void)
   }
 }
 
-void 
+void
 disk_init(void)
 {
   struct disk *dp;
@@ -549,7 +549,7 @@ disk_init(void)
   }
 }
 
-int 
+int
 checkdp(struct disk *disk)
 {
   if (disk == NULL) {
@@ -564,7 +564,7 @@ checkdp(struct disk *disk)
     return 0;
 }
 
-void 
+void
 int13(void)
 {
   unsigned int disk, head, sect, track, number;

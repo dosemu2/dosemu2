@@ -3,12 +3,21 @@
  * taken over by:
  *          Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/02/09 20:10:24 $
- * $Source: /home/src/dosemu0.49pl4g/RCS/cpu.c,v $
- * $Revision: 1.20 $
+ * $Date: 1994/03/04 15:23:54 $
+ * $Source: /home/src/dosemu0.50/RCS/cpu.c,v $
+ * $Revision: 1.23 $
  * $State: Exp $
  *
  * $Log: cpu.c,v $
+ * Revision 1.23  1994/03/04  15:23:54  root
+ * Run through indent.
+ *
+ * Revision 1.22  1994/03/04  00:01:58  root
+ * Readying for 0.50
+ *
+ * Revision 1.21  1994/02/21  20:28:19  root
+ * DPMI update by Lutz.
+ *
  * Revision 1.20  1994/02/09  20:10:24  root
  * Added dosbanner config option for optionally displaying dosemu bannerinfo.
  * Added allowvideportaccess config option to deal with video ports.
@@ -94,6 +103,9 @@
 #include "emu.h"
 /* Needed for DIAMOND define */
 #include "video.h"
+#ifdef DPMI
+#include "dpmi/dpmi.h"
+#endif
 
 extern int int_queue_running;
 extern void int_queue_run();
@@ -174,6 +186,7 @@ show_regs(void)
   unsigned char *sp;
   unsigned char *cp = SEG_ADR((unsigned char *), cs, ip);
   unsigned long vflags = REG(eflags);
+
   if (!LWORD(esp))
     sp = (SEG_ADR((u_char *), ss, sp)) + 0x8000;
   else
@@ -275,29 +288,32 @@ do_sti(void)
 /* this is the brain, the privileged instruction handler.
  * see cpu.h for the SIGSTACK definition (new in Linux 0.99pl10)
  */
-void
-sigsegv(SIGSTACK)
+void 
+sigsegv(int signal, struct sigcontext_struct context)
 {
+  struct sigcontext_struct *scp = &context;
   us *ssp;
-  unsigned char *csp, *lina;
+  unsigned char *csp, *csp2, *ssp2, *lina;
   static int haltcount = 0;
   int op32 = 0, ad32 = 0, i;
 
 #define MAX_HALT_COUNT 1
 
-#if 0
+#ifdef 0
   csp = SEG_ADR((unsigned char *), cs, ip);
   fprintf(stderr, "SIGSEGV *csp=0x%02x 0x%02x->0x%02x 0x%02x\n", csp[-1], csp[0], csp[1], csp[2]);
   show_regs();
 #endif
-
   if (ignore_segv) {
     error("ERROR: sigsegv ignored!\n");
     return;
   }
-
+#ifdef DPMI
+  if (!in_vm86 && !in_dpmi) {
+#else
   if (!in_vm86) {
-    csp = (char *) eip;
+#endif
+    csp = (char *) (_eip);
 
     /* This has been added temporarily as most illegal sigsegv's are attempt
    to call Linux int routines */
@@ -306,24 +322,24 @@ sigsegv(SIGSTACK)
       error("ERROR: NON-VM86 sigsegv!\n"
 	    "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%lx\n"
 	    "cs: 0x%04lx  ds: 0x%04lx  es: 0x%04lx  ss: 0x%04lx\n",
-	    eip, esp, eflags, cs, ds, es, ss);
+	    _eip, _esp, _eflags, _cs, _ds, _es, _ss);
 
       dbug_printf("  VFLAGS(b): ");
       for (i = (1 << 17); i; i >>= 1)
-	dbug_printf((eflags & i) ? "1" : "0");
+	dbug_printf((_eflags & i) ? "1" : "0");
       dbug_printf("\n");
 
       dbug_printf("EAX: %08lx  EBX: %08lx  ECX: %08lx  EDX: %08lx"
 		  "  VFLAGS(h): %08lx\n",
-		  eax, ebx, ecx, edx, eflags);
+		  _eax, _ebx, _ecx, _edx, _eflags);
       dbug_printf("ESI: %08lx  EDI: %08lx  EBP: %08lx\n",
-		  esi, edi, ebp);
+		  _esi, _edi, _ebp);
       dbug_printf("CS: %04lx  DS: %04lx  ES: %04lx  FS: %04lx  GS: %04lx\n",
-		  cs, ds, es, fs, gs);
+		  _cs, _ds, _es, _fs, _gs);
 
       /* display vflags symbolically...the #f "stringizes" the macro name */
 #undef PFLAG
-#define PFLAG(f)  if (eflags&(f)) dbug_printf(" " #f)
+#define PFLAG(f)  if ((_eflags)&(f)) dbug_printf(" " #f)
 
       dbug_printf("FLAGS:");
       PFLAG(CF);
@@ -339,13 +355,13 @@ sigsegv(SIGSTACK)
       PFLAG(RF);
       PFLAG(VM);
       PFLAG(AC);
-      dbug_printf("  IOPL: %u\n", (unsigned) ((eflags & IOPL_MASK) >> 12));
+      dbug_printf("  IOPL: %u\n", (unsigned) ((_eflags & IOPL_MASK) >> 12));
 
       /* display the 10 bytes before and after CS:EIP.  the -> points
        * to the byte at address CS:EIP
        */
       dbug_printf("OPS  : ");
-      csp = (unsigned char *) eip - 10;
+      csp = (unsigned char *) _eip - 10;
       for (i = 0; i < 10; i++)
 	dbug_printf("%02x ", *csp++);
       dbug_printf("-> ");
@@ -355,6 +371,128 @@ sigsegv(SIGSTACK)
 
     }
   }
+
+#ifdef DPMI
+  if (!in_vm86 && in_dpmi) {
+#if 1
+    D_printf("DPMI: Protected Mode Interrupt!\n"
+	     "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%lx\n"
+	     "cs: 0x%04lx  ds: 0x%04lx  es: 0x%04lx  ss: 0x%04lx\n",
+	     _eip, _esp, _eflags, _cs, _ds, _es, _ss);
+
+    D_printf("EAX: %08lx  EBX: %08lx  ECX: %08lx  EDX: %08lx\n",
+	     _eax, _ebx, _ecx, _edx, _eflags);
+    D_printf("ESI: %08lx  EDI: %08lx  EBP: %08lx\n",
+	     _esi, _edi, _ebp);
+    D_printf("CS: %04lx  DS: %04lx  ES: %04lx  FS: %04lx  GS: %04lx\n",
+	     _cs, _ds, _es, _fs, _gs);
+    /* display the 10 bytes before and after CS:EIP.  the -> points
+     * to the byte at address CS:EIP
+     */
+    if (!((_cs) & 0x0004)) {
+      /* GTD */
+      csp2 = (unsigned char *) _eip - 10;
+    }
+    else {
+      /* LDT */
+      csp2 = (unsigned char *) (get_base_addr(_cs >> 3) + _eip) - 10;
+    }
+    D_printf("OPS  : ");
+    for (i = 0; i < 10; i++)
+      D_printf("%02x ", *csp2++);
+    D_printf("-> ");
+    for (i = 0; i < 10; i++)
+      D_printf("%02x ", *csp2++);
+    D_printf("\n");
+    if (!((_ss) & 0x0004)) {
+      /* GTD */
+      ssp2 = (unsigned char *) _esp - 10;
+    }
+    else {
+      /* LDT */
+      if (DPMIclient_is_32)
+	ssp2 = (unsigned char *) (get_base_addr(_ss >> 3) + _esp) - 10;
+      else
+	ssp2 = (unsigned char *) (get_base_addr(_ss >> 3) + (_esp & 0x0000ffff)) - 10;
+    }
+    D_printf("STACK: ");
+    for (i = 0; i < 10; i++)
+      D_printf("%02x ", *ssp2++);
+    D_printf("-> ");
+    for (i = 0; i < 10; i++)
+      D_printf("%02x ", *ssp2++);
+    D_printf("\n");
+#endif /* 1 */
+    if (!((_cs) & 0x0004)) {
+      /* GTD */
+      D_printf("cs in GTD: this should never happen\n");
+      csp = (char *) _eip;
+    }
+    else {
+      /* LDT */
+      csp = (unsigned char *) (get_base_addr(_cs >> 3) + _eip);
+    }
+
+    if (!((_ss) & 0x0004)) {
+      /* GTD */
+      D_printf("ss in GTD: this should never happen\n");
+      ssp = (us *) _esp;
+    }
+    else {
+      /* LDT */
+      if (DPMIclient_is_32)
+	ssp = (us *) (get_base_addr(_ss >> 3) + _esp);
+      else
+	ssp = (us *) (get_base_addr(_ss >> 3) + (_esp & 0x0000ffff));
+    }
+
+    switch (*csp++) {
+
+    case 0xcd:			/* int xx */
+      if (*csp == 0x31) {
+	D_printf("DPMI: int31, ax=%4x\n", _eax);
+	_eflags |= CF;
+	/* Bypass the int instruction */
+	_eip += 2;
+      }
+      else {
+	/* Bypass the int instruction */
+	_eip += 2;
+	REG(eflags) = _eflags;
+	REG(eax) = _eax;
+	REG(ebx) = _ebx;
+	REG(ecx) = _ecx;
+	REG(edx) = _edx;
+	REG(esi) = _esi;
+	REG(edi) = _edi;
+	REG(ds) = (long) get_base_addr(_ds >> 3) >> 4;
+	REG(es) = (long) get_base_addr(_es >> 3) >> 4;
+	REG(cs) = DPMI_SEG;
+	REG(eip) = DPMI_OFF + 7;
+	in_dpmi_dos_int = 1;
+	do_int(*csp);
+      }
+      break;
+
+    case 0xf4:			/* hlt */
+      _eip += 1;
+      return;
+      break;
+
+    default:
+      error("Unexpected Protected Mode segfault %x\n", *--csp);
+      leavedos(fatalerr);	/* shouldn't return */
+      _exit(1000);
+    }				/* end of switch() */
+
+    *--ssp = (us) _cs;
+    *--ssp = (us) _eip;
+    _esp -= 4;
+    _cs = UCODESEL;
+    _eip = (unsigned long) ReturnFrom_dpmi_control;
+    return;
+  }
+#endif /* DPMI */
 
   if (in_sigsegv)
     error("ERROR: in_sigsegv=%d!\n", in_sigsegv);
@@ -377,7 +515,7 @@ sigsegv(SIGSTACK)
   lina = SEG_ADR((unsigned char *), cs, ip);
 
   if (REG(eflags) & TF) {
-    g_printf("SIGSEGV %d received\n", sig);
+    g_printf("SIGSEGV %d received\n", signal);
     show_regs();
   }
 
@@ -599,10 +737,40 @@ restart_segv:
     }
 #endif
 #ifdef DPMI
-/* The hlt instruction is 6 bytes in from DPMI_ADD */
-    else if (lina == (unsigned char *) (DPMI_ADD + 6) ) {
-      REG(eip) += 1;		/* skip halt to point to FAR RET */
-      dpmi_control();
+    /* The hlt instruction is 6 bytes in from DPMI_ADD */
+    else if (lina == (unsigned char *) (DPMI_ADD + 6)) {
+      REG(eip) += 2;		/* skip halt to point to FAR RET */
+      CARRY;
+      if (!in_dpmi)
+	dpmi_init();
+    }
+    else if (lina == (unsigned char *) (DPMI_ADD + 7)) {
+      D_printf("DPMI: Return from DOS Interrupt\n");
+
+      if (!((DPMI_SavedDOS_ss) & 0x0004)) {
+	/* GTD */
+	D_printf("ss in GTD: this should never happen\n");
+	ssp = (us *) DPMI_SavedDOS_esp;
+      }
+      else {
+	/* LDT */
+	if (DPMIclient_is_32)
+	  ssp = (us *) (get_base_addr(DPMI_SavedDOS_ss >> 3) + DPMI_SavedDOS_esp);
+	else
+	  ssp = (us *) (get_base_addr(DPMI_SavedDOS_ss >> 3) + (DPMI_SavedDOS_esp & 0x0000ffff));
+      }
+      {
+	struct pm86 *dpmir = (struct pm86 *) ssp;
+
+	dpmir->eflags = REG(eflags);
+	dpmir->eax = REG(eax);
+	dpmir->ebx = REG(ebx);
+	dpmir->ecx = REG(ecx);
+	dpmir->edx = REG(edx);
+	dpmir->esi = REG(esi);
+	dpmir->edi = REG(edi);
+      }
+      in_dpmi_dos_int = 0;
     }
 #endif
     else {
@@ -640,7 +808,7 @@ restart_segv:
 }
 
 void
-sigill(SIGSTACK)
+sigill(int sig, struct sigcontext_struct context)
 {
   unsigned char *csp;
   int i, dee;
@@ -738,7 +906,7 @@ sigill(SIGSTACK)
 }
 
 void
-sigfpe(SIGSTACK)
+sigfpe(int sig, struct sigcontext_struct context)
 {
   if (!in_vm86)
     error("ERROR: NON-VM86 SIGFPE insn!\n");
@@ -754,7 +922,7 @@ sigfpe(SIGSTACK)
 }
 
 void
-sigtrap(SIGSTACK)
+sigtrap(int sig, struct sigcontext_struct context)
 {
   in_vm86 = 0;
 
@@ -784,7 +952,7 @@ struct port_struct {
 int num_ports = 0;
 
 extern struct screen_stat scr_state;
-u_char video_port_io=0;
+u_char video_port_io = 0;
 
 /* find a matching entry in the ports array */
 int
@@ -809,16 +977,16 @@ find_port(int port, int permission)
       return (i);
     }
 
-/*
+  /*
    for now, video_port_io flag allows special access for video regs
 */
-  if ( ((LWORD(cs) & 0xf000) == 0xc000) && config.allowvideoportaccess && scr_state.current) {
+  if (((LWORD(cs) & 0xf000) == 0xc000) && config.allowvideoportaccess && scr_state.current) {
 #if 0
     v_printf("VID: checking port %x\n", port);
 #endif
     if (port > 0x200 || port == 0x42) {
-        video_port_io=1;
-        return 1;
+      video_port_io = 1;
+      return 1;
     }
   }
 
@@ -918,7 +1086,8 @@ read_port(int port)
     r &= ports[i].andmask;
     r |= ports[i].ormask;
   }
-  else video_port_io=0;
+  else
+    video_port_io = 0;
 
   h_printf("read port 0x%x gave %02x at %04x:%04x\n",
 	   port, r, LWORD(cs), LWORD(eip));
@@ -937,7 +1106,8 @@ write_port(int value, int port)
     value &= ports[i].andmask;
     value |= ports[i].ormask;
   }
-  else video_port_io=0;
+  else
+    video_port_io = 0;
 
   h_printf("write port 0x%x value %02x at %04x:%04x\n",
 	   port, value, LWORD(cs), LWORD(eip));

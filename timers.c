@@ -3,12 +3,15 @@
  *     for dosemu 0.48+
  *     Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/01/20 21:14:24 $
- * $Source: /home/src/dosemu0.49pl4g/RCS/timers.c,v $
- * $Revision: 1.4 $
+ * $Date: 1994/03/04 15:23:54 $
+ * $Source: /home/src/dosemu0.50/RCS/timers.c,v $
+ * $Revision: 1.5 $
  * $State: Exp $
  *
  * $Log: timers.c,v $
+ * Revision 1.5  1994/03/04  15:23:54  root
+ * Run through indent.
+ *
  * Revision 1.4  1994/01/20  21:14:24  root
  * Indent.
  *
@@ -57,7 +60,7 @@
 extern config_t config;
 extern int ignore_segv;
 
-unsigned long 
+unsigned long
 timer_tick(void)
 {
   unsigned long *ticks = BIOS_TICK_ADDR;
@@ -76,7 +79,7 @@ timer_tick(void)
   }
 }
 
-unsigned long 
+unsigned long
 set_ticks(unsigned long new)
 {
   unsigned long *ticks = BIOS_TICK_ADDR;
@@ -89,7 +92,7 @@ set_ticks(unsigned long new)
   ignore_segv--;
 }
 
-inline int 
+inline int
 int28(void)
 {				/* keyboard busy loop */
   /* defining this reduces the CPU load, but slows Turbo Pascal and Turbo

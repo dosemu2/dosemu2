@@ -1,14 +1,9 @@
 # Makefile for Linux DOS emulator
 #
-# $Date: 1994/02/10 20:44:22 $
-# $Source: /home/src/dosemu0.49pl4g/RCS/Makefile,v $
-# $Revision: 1.22 $
+# $Date: 1994/03/04 14:46:13 $
+# $Source: /home/src/dosemu0.50/RCS/Makefile,v $
+# $Revision: 1.26 $
 # $State: Exp $
-#
-# define LATIN1 if if you have defined KBD_XX_LATIN1 in your linux Makefile.
-# This assumes that <ALT>-X can be read as "\033x" instead of 'x'|0x80 
-#
-# DEFINES=-DLATIN1
 #
 # WARNING!  You'll have to do a 'make config' after changing the
 #           configuration settings in the Makefile.  You should also
@@ -31,38 +26,14 @@ LNKOPTS=-s
 #endif
 
 # dosemu version
-EMUVER  =   0.49pl4
-VERNUM  =   0x49
+EMUVER  =   0.50
+VERNUM  =   0x50
 
-# DON'T CHANGE THIS: this makes libemu start high enough to be safe. should be 
-# okay at...0x20000000 for .5 GB mark.
+# DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
+# should be okay at...0x20000000 for .5 GB mark.
 LIBSTART = 0x20000000
 
 ENDOFDOSMEM = 0x110000     # 1024+64 Kilobytes
-
-
-# path to your compiler's shared libraries
-#
-# IF YOU ARE NOT USING GCC 2.3.3, ENSURE THAT THE FOLLOWING LINE
-# POINTS TO YOUR SHARED LIBRARY STUBS!
-#
-# one of these ought to work:
- SHLIBS=
-# SHLIBS=-L/usr/lib/gcc-lib/i386-linux/2.2.2d/shared -L/usr/lib/shlib/jump
-
-#
-# VIDEO_CARD
-#    choose the correct one for your machine.
-#    currently, VGA/EGA/CGA are synonomous, and MDA is untested :-)
-#    I'd like to hear if it works for you (gt8134b@prism.gatech.edu)
-#
-
-  VIDEO_CARD = -DVGA_VIDEO
-# VIDEO_CARD = -DEGA_VIDEO
-# VIDEO_CARD = -DCGA_VIDEO
-# VIDEO_CARD = -DMDA_VIDEO
-
-
 
 # KEYBOARD
 #   choose the proper RAW-mode keyboard
@@ -87,17 +58,6 @@ ENDOFDOSMEM = 0x110000     # 1024+64 Kilobytes
 # KEYBOARD = -DKBD_SF_LATIN1 -DKBDFLAGS=0x9F
 # KEYBOARD = -DKBD_NO -DKBDFLAGS=0
 #
-
-
-# DISKS
-#
-# these are the DEFault numbers of disks
-#
-DEF_FDISKS = 2
-DEF_HDISKS = 2
-
-# DON'T CHANGE THE FOLLOWING LINE
-NUM_DISKS = -DDEF_FDISKS=$(DEF_FDISKS) -DDEF_HDISKS=$(DEF_HDISKS)
 
 XMS     = -DXMS=1
 XMSOBJS  = xms.o
@@ -151,15 +111,14 @@ OBJS=emu.o termio.o disks.o keymaps.o timers.o cmos.o mouse.o parse.o \
 DEFINES    = -Dlinux=1 
 OPTIONAL   = $(GFX)  # -DDANGEROUS_CMOS=1
 MEMORY     = $(XMS) 
-CONFIGS    = $(KEYBOARD) $(VIDEO_CARD) $(CONFIG_FILE)
+CONFIGS    = $(KEYBOARD) $(CONFIG_FILE)
 DEBUG      = $(SYNC_ALOT)
-DISKS      = $(NUM_DISKS) $(FLOPPY_CONFIG)
-CONFIGINFO = $(DEFINES) $(CONFIGS) $(OPTIONAL) $(DEBUG) $(DISKS) $(MOUSE) \
+CONFIGINFO = $(DEFINES) $(CONFIGS) $(OPTIONAL) $(DEBUG) \
 	     -DLIBSTART=$(LIBSTART) -DVERNUM=$(VERNUM) -DVERSTR=\"$(EMUVER)\" \
 	     $(MEMORY)
 
 CC         =   gcc # I use gcc-specific features (var-arg macros, fr'instance)
-COPTFLAGS  = -N -O6 -m486
+COPTFLAGS  = -N -O2 -m486 # -Wall
 ifdef DPMIOBJS
 DPMI = -DDPMI
 else
@@ -175,9 +134,9 @@ DISTNAME=dosemu$(EMUVER)
 DISTPATH=$(DISTBASE)/$(DISTNAME)
 DISTFILE=$(DISTBASE)/$(DISTNAME).tgz
 
-all:	warnconf dos dossubdirs libemu
-
 doeverything: clean config dep install
+
+all:	warnconf dos dossubdirs libdosemu
 
 .EXPORT_ALL_VARIABLES:
 
@@ -203,7 +162,7 @@ dos:	dos.c $(DOSOBJS)
 	@echo "Including dos.o " $(DOSOBJS)
 	$(CC) -DSTATIC=$(STATIC) $(LDFLAGS) -N -o $@ $< $(DOSOBJS) $(DOSLNK)
 
-libemu:	$(SHLIBOBJS) $(DPMIOBJS)
+libdosemu:	$(SHLIBOBJS) $(DPMIOBJS)
 	ld $(LDFLAGS) -T $(LIBSTART) -o $@ $(SHLIBOBJS) $(DPMIOBJS) $(SHLIBS) -ltermcap -lc
 # -lncurses
 
@@ -214,14 +173,15 @@ dossubdirs: dummy
 	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE)) || exit; done
 
 clean:
-	rm -f $(OBJS) $(GFXOBJS) $(XMSOBJS) dos libemu *.s core config.h .depend dosconfig dosconfig.o *.tmp
+	rm -f $(OBJS) $(GFXOBJS) $(XMSOBJS) dos libdosemu *.s core config.h .depend dosconfig dosconfig.o *.tmp
 	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) clean) || exit; done
 
 config: dosconfig
 	@./dosconfig $(CONFIGINFO) > config.h
 
 install: all /usr/bin/dos
-	install -m 0755 libemu /lib
+	@if [ -f /lib/libemu ]; then rm -f /lib/libemu
+	install -m 0755 libdosemu /usr/lib
 	install -d /etc/dosemu
 	touch -a /etc/dosemu/hdimage /etc/dosemu/diskimage
 	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) install) || exit; done
@@ -234,8 +194,8 @@ install: all /usr/bin/dos
 # this is a MS-DOS boot sector and partition table (empty).
 # (the dd is necessary to strip off the 32 byte Minix executable header)
 
-testlib:  libemu /usr/bin/dos 
-	cp libemu /lib
+testlib:  libdosemu /usr/bin/dos 
+	cp libdosemu /usr/lib
 
 converthd: hdimage
 	mv hdimage hdimage.preconvert
@@ -276,7 +236,7 @@ endif
 
 depend dep: 
 ifdef DPMIOBJS
-	cd dpmi;$(CPP) -MM -I../ $(CFLAGS) *.c > .depend
+	cd dpmi;$(CPP) -MM -I../ $(CFLAGS) *.c > .depend;echo "call.o : call.S" >>.depend
 endif
 	$(CPP) -MM $(CFLAGS) *.c > .depend
 

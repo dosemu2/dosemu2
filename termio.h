@@ -3,12 +3,15 @@
 #define TERMIO_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/01/20 21:14:24 $
- * $Source: /home/src/dosemu0.49pl4g/RCS/termio.h,v $
- * $Revision: 1.4 $
+ * $Date: 1994/02/20 10:55:25 $
+ * $Source: /home/src/dosemu0.50/RCS/termio.h,v $
+ * $Revision: 1.5 $
  * $State: Exp $
  *
  * $Log: termio.h,v $
+ * Revision 1.5  1994/02/20  10:55:25  root
+ * Added set_leds() for emu.c to get.
+ *
  * Revision 1.4  1994/01/20  21:14:24  root
  * Indent.
  *
@@ -148,5 +151,7 @@ struct screen_stat {
 
   int old_modecr, new_modecr;
 };
+
+void set_leds();
 
 #endif /* TERMIO_H */

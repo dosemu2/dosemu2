@@ -1,9 +1,9 @@
 /* cmos.c, for DOSEMU
  *   by Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/01/20 21:14:24 $
- * $Source: /home/src/dosemu0.49pl4g/RCS/cmos.c,v $
- * $Revision: 1.2 $
+ * $Date: 1994/03/04 15:23:54 $
+ * $Source: /home/src/dosemu0.50/RCS/cmos.c,v $
+ * $Revision: 1.4 $
  * $State: Exp $
  */
 
@@ -25,7 +25,7 @@ extern struct disk disktab[];
 int cmos_date(int);
 static struct CMOS cmos;
 
-void 
+void
 cmos_init(void)
 {
   int i;
@@ -77,7 +77,7 @@ cmos_init(void)
   /* information flags...my CMOS returns this */
   SET_CMOS(CMOS_INFO, 0xe1);
 
-  warn("CMOS initialized: \n$Header: /home/src/dosemu0.49pl4g/RCS/cmos.c,v 1.2 1994/01/20 21:14:24 root Exp root $\n");
+  warn("CMOS initialized: \n$Header: /home/src/dosemu0.50/RCS/cmos.c,v 1.4 1994/03/04 15:23:54 root Exp root $\n");
 }
 
 int
@@ -223,7 +223,7 @@ cmos_date(int reg)
     if (cmos.flag[8])
       return cmos.subst[8];
     else
-      return BCD(tm->tm_mon);
+      return BCD(1 + tm->tm_mon);
 
   case CMOS_YEAR:
     if (cmos.flag[9])

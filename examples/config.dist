@@ -31,11 +31,18 @@ keybint on
 timint on
 
 #******************* SERIAL ************************************
+# known mice :
+#    "microsoft"(default), "mousesystems3", "mousesystems5",
+#    "mmseries" or "logitech".
+serial { mouse microsoft device /dev/cua0 }
 
 # The first active serial statement will always go to COM1 and the 
 # second will map to COM2.
 #serial { mouse device /dev/cua0 }
 #serial { mouse device /dev/cua1 }
+
+# Are we testing IPX
+ipxsupport off
 
 #******************* VIDEO ************************************
 

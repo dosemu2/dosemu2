@@ -2,12 +2,24 @@
  *
  * Robert Sanders, started 3/1/93
  *
- * $Date: 1994/02/05 21:45:55 $
- * $Source: /home/src/dosemu0.49pl4g/RCS/dosipc.c,v $
- * $Revision: 1.22 $
+ * $Date: 1994/03/04 15:23:54 $
+ * $Source: /home/src/dosemu0.50/RCS/dosipc.c,v $
+ * $Revision: 1.26 $
  * $State: Exp $
  *
  * $Log: dosipc.c,v $
+ * Revision 1.26  1994/03/04  15:23:54  root
+ * Run through indent.
+ *
+ * Revision 1.25  1994/03/04  00:01:58  root
+ * Readying for 0.50
+ *
+ * Revision 1.24  1994/02/21  20:28:19  root
+ * Ronnie's serial patches
+ *
+ * Revision 1.23  1994/02/20  10:00:16  root
+ * More keyboard work :-(.
+ *
  * Revision 1.22  1994/02/05  21:45:55  root
  * Arranged keyboard to handle setting bios prior to calling int15 4f.
  *
@@ -108,6 +120,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <string.h>
+#include <syscall.h>
 
 #include "config.h"
 #include "memory.h"
@@ -140,11 +153,35 @@ param_t *param;
 #define SA_RESTART 0
 #endif
 
+extern char *cstack[4096];
+
 #define SETSIG(sa, sig, fun)	sa.sa_handler = fun; \
 				sa.sa_flags = SA_RESTART; \
                                 sigemptyset(&sa.sa_mask); \
 				sigaddset(&sa.sa_mask, SIGALRM);  \
 				sigaction(sig, &sa, NULL);
+
+static int
+dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
+{
+  __asm__("int $0x80":"=a"(sig)
+	  :"0"(SYS_sigaction), "b"(sig), "c"(new), "d"(old));
+  if (sig >= 0)
+    return 0;
+  errno = -sig;
+  return -1;
+}
+
+#define MYSETSIG(sa, sig, fun) \
+			sa.sa_handler = (__sighandler_t) fun; \
+			/* Point to the top of the stack, minus 4 just in case, and make \
+			   just in case, and make it aligned  */ \
+			sa.sa_restorer = \
+				(void (*)()) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
+			sa.sa_flags = SA_RESTART; \
+			sigemptyset(&sa.sa_mask); \
+			sigaddset(&sa.sa_mask, SIGALRM);  \
+			dosemu_sigaction(sig, &sa, NULL);
 
 pid_t parent_pid = -1, ipc_pid = -1;
 int ipc_fd[2] =
@@ -157,7 +194,7 @@ int readkey = 0;
 /* For the packet driver */
 us *cur_pd_size = (us *) 0xCFFFE;
 char *cur_pd_buf;
-int cpd_sock=0;
+int cpd_sock = 0;
 
 /* sent_key is is used to hold answers to a DMSG_READKEY request */
 u_short sent_key = 0;
@@ -186,7 +223,7 @@ struct {
 
 sharedmem;
 
-void 
+void
 set_a20(int enableHMA)
 {
   if (sharedmem.hmastate == enableHMA)
@@ -211,7 +248,7 @@ set_a20(int enableHMA)
  * this is very kludgy.  don't even ask.  you don't want to know
  */
 
-void 
+void
 memory_setup(void)
 {
   struct shmid_ds crap;
@@ -336,7 +373,7 @@ start_dosipc(void)
     error("ERROR: can't fork: %s (%d)\n", strerror(errno), errno);
     leavedos(1);
   }
-  if (ipc_pid) 
+  if (ipc_pid)
     return;			/* parent process: return */
 
 #ifdef SIG
@@ -387,8 +424,8 @@ start_dosipc(void)
   HMA_MAP(sharedmem.HMA);
   shmctl(sharedmem.HMA, IPC_RMID, &crap);
 
-  SETSIG(sig, SIGALRM, child_tick);
-  SETSIG(sig, SIGVTALRM, child_tick);
+  MYSETSIG(sig, SIGALRM, child_tick);
+  MYSETSIG(sig, SIGVTALRM, child_tick);
   secno = 0;
 
   itv.it_interval.tv_sec = 1;
@@ -416,10 +453,9 @@ stop_dosipc(void)
     }
 #endif
 
-  /* Close the packet driver socket */
-  if (pd_sock)
-    {
-      pd_printf("Closing the network pd_sock: %x\n",pd_sock);
+    /* Close the packet driver socket */
+    if (pd_sock) {
+      pd_printf("Closing the network pd_sock: %x\n", pd_sock);
       CloseNetworkLink(pd_sock);
     }
 
@@ -463,7 +499,7 @@ stop_dosipc(void)
   memory_shutdown();		/* kill all shared memory */
 }
 
-void 
+void
 dosipc_sighandler(int sig)
 {
   I_printf("IPC: dosipc_sighandler caught signal %d\n", sig);
@@ -472,7 +508,7 @@ dosipc_sighandler(int sig)
   _exit(1);
 }
 
-int 
+int
 ipc_waitingfromchild(void)
 {
   int num_ready;
@@ -481,19 +517,19 @@ ipc_waitingfromchild(void)
   return (num_ready);
 }
 
-void 
+void
 ipc_sendpkt2child(struct ipcpkt *pkt)
 {
   RPT_SYSCALL(write(PARENT_FD, pkt, MSGSIZE));
 }
 
-void 
+void
 ipc_sendpkt2parent(struct ipcpkt *pkt)
 {
   RPT_SYSCALL(write(CHILD_FD, pkt, MSGSIZE));
 }
 
-void 
+void
 ipc_recvpktfromchild(struct ipcpkt *pkt)
 {
   u_char *ptr = (u_char *) pkt;
@@ -510,7 +546,7 @@ ipc_recvpktfromchild(struct ipcpkt *pkt)
   } while (chars != MSGSIZE);
 }
 
-void 
+void
 ipc_recvpktfromparent(struct ipcpkt *pkt)
 {
   u_char *ptr = (u_char *) pkt;
@@ -528,7 +564,7 @@ ipc_recvpktfromparent(struct ipcpkt *pkt)
 /* ipc_send2child() *******************************************
  * parent calls this function to send messages to child
  */
-void 
+void
 ipc_send2child(int msg)
 {
   struct ipcpkt pkt;
@@ -537,7 +573,7 @@ ipc_send2child(int msg)
   RPT_SYSCALL(write(PARENT_FD, &pkt, MSGSIZE));
 }
 
-void 
+void
 ipc_send2parent(int msg)
 {
   struct ipcpkt pkt;
@@ -550,7 +586,7 @@ ipc_send2parent(int msg)
  * child calls this function to wait for an DMSG_ACK message from
  * the parent.
  */
-void 
+void
 wait_for_ack(void)
 {
   char abuf;
@@ -583,6 +619,7 @@ ipc_wakeparent()
 u_short scan_queue[SCANQ_LEN];
 int scan_queue_start = 0;
 int scan_queue_end = 0;
+u_char keys_ready = 0;
 u_char scanned = 0;
 extern int convKey();
 extern int InsKeyboard();
@@ -592,7 +629,7 @@ extern u_char move_kbd_key_flags;
  * restarting has traditionally not applied to select().
  */
 fd_set fds;
-void 
+void
 ipc_select(void)
 {
   int selrtn;
@@ -607,8 +644,6 @@ ipc_select(void)
     if (SillyG)
       FD_SET(SillyG, &fds);
 #endif
-
-    serial_fdset(&fds);
 
     switch (selrtn = RPT_SYSCALL(select(255, &fds, NULL, NULL, NULL))) {
     case 0:			/* none ready (timeout??? shouldn't happen) */
@@ -639,8 +674,6 @@ ipc_select(void)
 	ipc_command_channel();
       }
 
-      check_serial_ready(&fds);
-
       break;
     }
 
@@ -662,7 +695,7 @@ child_sigsegv(int sig)
 }
 
 /*****************************************************************/
-void 
+void
 main_dosipc(void)
 {
   I_printf("IPC: entering main process...\n");
@@ -696,7 +729,7 @@ main_dosipc(void)
 
 /*****************************************************************/
 
-void 
+void
 ipc_command(struct ipcpkt *pkt)
 {
   struct ipcpkt npkt;
@@ -756,18 +789,12 @@ ipc_command(struct ipcpkt *pkt)
   case DMSG_SER:
     error("ERROR: DMSG_SER???\n");
     break;
-  case DMSG_MOPEN:
-    child_open_mouse();
-    break;
-  case DMSG_MCLOSE:
-    child_close_mouse();
-    break;
   default:
     error("IPC: unknown command byte %d\n", pkt->cmd);
   }
 }
 
-void 
+void
 ipc_command_channel()
 {
   char command;
@@ -791,7 +818,7 @@ ipc_command_channel()
   } while (select(255, &fds, NULL, NULL, &tv) == 1);
 }
 
-void 
+void
 parent_setscan(u_short scan)
 {
   struct ipcpkt pkt;
@@ -810,48 +837,50 @@ void
 set_keyboard_bios(void)
 {
 
-    if (config.console_keyb) {
-      if (config.keybint) {
-        keepkey = 1;
-	inschr = convKey(HI(ax));
-      }
-      else
-	inschr = convKey(lastscan);
+  if (config.console_keyb) {
+    if (config.keybint) {
+      keepkey = 1;
+      inschr = convKey(HI(ax));
     }
     else
-      inschr = lastchr;
-    k_printf("parent nextscan found inschr=0x%02x, lastchr = 0x%02x, lastscan = 0x%04x scaned=%d\n", inschr, lastchr, lastscan, scanned);
-    k_printf("MOVING   key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
-	     *(u_char *) 0x496, *(u_char *) 0x497, *(u_char *) 0x417, *(u_char *) 0x418);
+      inschr = convKey(lastscan);
+  }
+  else
+    inschr = lastchr;
+  k_printf("parent nextscan found inschr=0x%02x, lastchr = 0x%02x, lastscan = 0x%04x scaned=%d\n", inschr, lastchr, lastscan, scanned);
+  k_printf("MOVING   key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
+	   *(u_char *) 0x496, *(u_char *) 0x497, *(u_char *) 0x417, *(u_char *) 0x418);
 }
 
 void
 insert_into_keybuffer(void)
 {
-    /* int15 fn=4f will reset CF if scan key is not to be used */
-    if (!config.keybint || LWORD(eflags) & CF)
-      keepkey = 1;
-    else
-      keepkey = 0;
+  /* int15 fn=4f will reset CF if scan key is not to be used */
+  if (!config.keybint || LWORD(eflags) & CF)
+    keepkey = 1;
+  else
+    keepkey = 0;
 
-    if (inschr && keepkey) {
-      k_printf("IPC/KBD: (child) putting key in buffer\n");
-      if (InsKeyboard(inschr))
-	dump_kbuffer();
-      else
-	error("ERROR: InsKeyboard could not put key into buffer!\n");
-    }
+  if (inschr && keepkey) {
+    k_printf("IPC/KBD: (child) putting key in buffer\n");
+    if (InsKeyboard(inschr))
+      dump_kbuffer();
+    else
+      error("ERROR: InsKeyboard could not put key into buffer!\n");
+  }
 }
 
-int 
+int
 parent_nextscan()
 {
 
   k_printf("ENTERING key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
 	   *(u_char *) 0x496, *(u_char *) 0x497, *(u_char *) 0x417, *(u_char *) 0x418);
   k_printf("scanned=%d, start=%d, end=%d\n", scanned, scan_queue_start, scan_queue_end);
+  keys_ready = 0;
   if (!scanned && (scan_queue_start != scan_queue_end)) {
     scanned = 1;
+    keys_ready = 1;
     lastchr = scan_queue[scan_queue_start];
     if (scan_queue_start != scan_queue_end)
       scan_queue_start = (scan_queue_start + 1) % SCANQ_LEN;
@@ -863,8 +892,6 @@ parent_nextscan()
     }
   }
   k_printf("parent nextscan lastscan = 0x%04x scaned=%d\n", lastscan, scanned);
-  k_printf("INSIDE   key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
-	   *(u_char *) 0x496, *(u_char *) 0x497, *(u_char *) 0x417, *(u_char *) 0x418);
   if (move_kbd_key_flags) {
 
     set_keyboard_bios();
@@ -875,7 +902,7 @@ parent_nextscan()
   return 0;			/* no error */
 }
 
-void 
+void
 sigipc(int sig)
 {
   struct ipcpkt npkt;
@@ -960,7 +987,7 @@ sigipc(int sig)
   } while (select(255, &fds, NULL, NULL, &tv) == 1);
 }
 
-void 
+void
 child_dokey(int fd)
 {
   int pollret;
@@ -973,7 +1000,7 @@ child_dokey(int fd)
 
 }
 
-void inline 
+void inline
 process_interrupt(int fd)
 {
   int pollret, rrtn;
@@ -993,7 +1020,7 @@ process_interrupt(int fd)
   }
 }
 
-void 
+void
 child_tick(int sig)
 {
   secno++;
