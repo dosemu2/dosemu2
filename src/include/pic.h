@@ -85,7 +85,7 @@ EXTERN unsigned long pic_irr;          /* interrupt request register */
 EXTERN unsigned long pic_isr;          /* interrupt in-service register */
 EXTERN unsigned int pic_iflag;        /* interrupt enable flag: en-/dis- =0/0xfffe */
 EXTERN unsigned int pic_icount;       /* iret counter (to avoid filling stack) */
-EXTERN unsigned long pic_irqall INIT(0xfffe | PIC_IMOUSE | PIC_NET);       /* bits for all IRQs set. */
+EXTERN unsigned long pic_irqall INIT(0xfffe);       /* bits for all IRQs set. */
 
 EXTERN unsigned long pic0_imr INIT(0xf800);  /* interrupt mask register, pic0 */
 EXTERN unsigned long pic1_imr INIT(0x07f8);         /* interrupt mask register, pic1 */
