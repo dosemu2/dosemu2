@@ -11,8 +11,7 @@
 
 #include <unistd.h>
 #include <string.h>
-#include <sys/errno.h>
-#include <malloc.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -21,7 +20,6 @@
 #include <sys/ioctl.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
-#include <syscall.h>
 #include <sys/mman.h>
 
 
@@ -295,7 +293,7 @@ static void *realloc_mapping_file(int cap, void *addr, int oldsize, int newsize)
     if ((int)addr_ == -1) {
       Q_printf("MAPPING: pgrealloc(0x%p,0x%x,) failed, %s\n",
 		addr, newsize,
-		sys_errlist[errno]);
+		strerror(errno));
       return (void *)-1;
     }
     return addr_;

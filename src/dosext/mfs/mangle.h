@@ -21,7 +21,6 @@ Modified by O.V.Zhirov, July 1998
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <malloc.h>
 #include <string.h>
 #include <stddef.h>
 #include <ctype.h>

@@ -11,8 +11,8 @@
 
 #include <unistd.h>
 #include <string.h>
-#include <sys/errno.h>
-#include <malloc.h>
+#include <errno.h>
+#include <stdlib.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
@@ -255,10 +255,10 @@ static void *alloc_dev_zero(int cap, int mapsize, void *target)
   #define HOLE_SIZE	EMM_PAGE_SIZE
   if (cap & MAPPING_EMS) hole = mmap((void *)0, HOLE_SIZE,
 			PROT_READ | PROT_WRITE | PROT_EXEC,
-			share | MAP_FILE, fd_zero, 0);
+			share, fd_zero, 0);
   addr = mmap(target, mapsize,
 			PROT_READ | PROT_WRITE | PROT_EXEC,
-			share | MAP_FILE, fd_zero, 0);
+			share, fd_zero, 0);
   if (cap & MAPPING_EMS) munmap(hole, HOLE_SIZE);
 
   close(fd_zero);
@@ -273,7 +273,9 @@ static void *alloc_mapping_self(int cap, int mapsize, void *target)
   if (cap & (MAPPING_EMS | MAPPING_DPMI))
 		return alloc_dev_zero(cap, mapsize, target);
   if (cap & MAPPING_SHM) return alloc_ipc_shm(mapsize);
-  if (cap & MAPPING_VGAEMU) return valloc(mapsize);
+  if (cap & MAPPING_VGAEMU) 
+    return mmap(NULL, mapsize, PROT_READ | PROT_WRITE | PROT_EXEC,
+		MAP_PRIVATE | MAP_ANON,	-1, 0);
   return 0;
 }
 
@@ -305,7 +307,7 @@ static void *realloc_mapping_self(int cap, void *addr, int oldsize, int newsize)
     if ((int)addr_ == -1) {
       Q_printf("MAPPING: mremap(0x%p,0x%x,0x%x,MREMAP_MAYMOVE) failed, %s\n",
 		addr, oldsize, newsize,
-		sys_errlist[errno]);
+		strerror(errno));
       return (void *)-1;
     }
     return addr_;

@@ -172,6 +172,8 @@ TODO:
 #endif
 
 #include <stdio.h>
+#include <fcntl.h>
+#include <sys/vfs.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
@@ -183,7 +185,6 @@ TODO:
 #include <errno.h>
 #include <sys/param.h>
 #include <stdlib.h>
-#include <malloc.h>
 #include <utime.h>
 
 #if !DOSEMU
@@ -3750,6 +3751,7 @@ dos_fs_redirect(state_t *state)
         return (FALSE);
       }
 				  
+      *bs_pos = '/';
       hlist_index = hlist_push(hlist, sda_cur_psp(sda), attr, fpath);
       sdb_dir_entry(sdb) = hlist_index;
       return (TRUE);
@@ -3770,6 +3772,7 @@ dos_fs_redirect(state_t *state)
     if (long_path) {
       set_long_path_on_dirs(hlist);
     }
+    *bs_pos = '/';
     hlist_index = hlist_push(hlist, sda_cur_psp(sda), attr, fpath);
     sdb_dir_entry(sdb) = hlist_index;
     firstfind = 1;

@@ -107,10 +107,10 @@ void linux_sb_dma_set_blocksize(int blocksize, int fragsize)
     num_sound_frag * (1 << sound_frag_size), sound_frag_size, num_sound_frag);
 }
 
-void linux_sb_write_mixer(int ch, __u8 val)
+void linux_sb_write_mixer(int ch, uint8_t val)
 {
   int newsetting, real_mixer_val;
-  __u8 driver_channel = -1;
+  uint8_t driver_channel = -1;
 
   if (strcmp(config.sb_mixer, "") == 0) {
     S_printf("SB [Linux]: Warning: Mixer is not configured.\n");
@@ -162,11 +162,11 @@ void linux_sb_write_mixer(int ch, __u8 val)
   mixer_fd = -1;
 }
 
-__u8 linux_sb_read_mixer(int ch)
+uint8_t linux_sb_read_mixer(int ch)
 {
   int x;
-  __u8 driver_channel = -1;
-  __u8 sb_mixer_value;
+  uint8_t driver_channel = -1;
+  uint8_t sb_mixer_value;
 
   if (strcmp(config.sb_mixer, "") == 0) {
     S_printf("SB [Linux]: Warning: Mixer is not configured.\n");
@@ -262,12 +262,12 @@ static int linux_set_OSS_fragsize (int frag_value)
     return DMA_HANDLER_OK;
 }
 
-static void linux_sb_DAC_write (int bits, __u8 value)
+static void linux_sb_DAC_write (int bits, uint8_t value)
 {
 #define BUF_LEN 4096
   static int sound_frag = 0x0200007;
-  static __u8 buffer[BUF_LEN];
-  static __u8 buffer_count = 0;
+  static uint8_t buffer[BUF_LEN];
+  static uint8_t buffer_count = 0;
 
   buffer[buffer_count] = value;
   if (buffer_count < BUF_LEN - 1)
@@ -554,7 +554,7 @@ void linux_sb_dma_complete(void)
 	S_printf ("SB:[Linux] DMA Completed\n");
 }
 
-int linux_sb_set_speed (__u16 speed, __u8 stereo_mode)
+int linux_sb_set_speed (uint16_t speed, uint8_t stereo_mode)
 {
   int rate = speed;
   int channels, result = 0;
@@ -661,7 +661,7 @@ int SB_driver_init () {
 }
 
 
-void linux_mpu401_data_write(__u8 data)
+void linux_mpu401_data_write(uint8_t data)
 {
 	/* Output a MIDI byte to an external file;
 	   'open on demand' strategy. */

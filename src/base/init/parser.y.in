@@ -317,13 +317,14 @@ extern void yyrestart(FILE *input_file);
 %token FEATURE
 	/* joystick */
 %token JOYSTICK JOY_DEVICE JOY_DOS_MIN JOY_DOS_MAX JOY_GRANULARITY JOY_LATENCY
+	/* Hacks */
+%token CLI_TIMEOUT
 
 	/* we know we have 1 shift/reduce conflict :-( 
 	 * and tell the parser to ignore that */
 	/* %expect 1 */
 
-/* %type <i_value> mem_bool irq_bool bool speaker method_val floppy_bool */
-%type <i_value> mem_bool irq_bool bool speaker floppy_bool
+%type <i_value> int_bool irq_bool bool speaker floppy_bool
 
 %%
 
@@ -452,7 +453,7 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    }}
 		| FASTFLOPPY floppy_bool
 			{ IFCLASS(CL_FLOPPY){ 
-			config.fastfloppy = $2;
+			config.fastfloppy = ($2!=0);
 			c_printf("CONF: fastfloppy = %d\n", config.fastfloppy);
 			}}
 		| CPU expression
@@ -513,7 +514,7 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    else
 			c_printf("CONF: Ignoring 'rdtsc' statement\n");
 		    }
-		| PCI bool	    { config.pci = $2; }
+		| PCI bool	    { config.pci = ($2!=0); }
 		| BOOTA
                     { IFCLASS(CL_BOOT){
 		      if (priv_lvl)
@@ -534,7 +535,7 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    }}
 		| TIMINT bool
 		    {
-		    config.timers = $2;
+		    config.timers = ($2!=0);
 		    c_printf("CONF: timint %s\n", ($2) ? "on" : "off");
 		    }
 		| TIMER expression
@@ -569,66 +570,66 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    }
 		| DOSBANNER bool
 		    {
-		    config.dosbanner = $2;
+		    config.dosbanner = ($2!=0);
 		    c_printf("CONF: dosbanner %s\n", ($2) ? "on" : "off");
 		    }
 		| ALLOWVIDEOPORT bool
 		    { IFCLASS(CL_VPORT){
 		    if ($2 && !config.allowvideoportaccess && priv_lvl)
 		      yyerror("Can not enable video port access in user config file");
-		    config.allowvideoportaccess = $2;
+		    config.allowvideoportaccess = ($2!=0);
 		    c_printf("CONF: allowvideoportaccess %s\n", ($2) ? "on" : "off");
 		    }}
 		| EMURETRACE bool
 		    { IFCLASS(CL_VPORT){
 		    if ($2 && !config.emuretrace && priv_lvl)
 		      yyerror("Can not modify video port access in user config file");
-		    config.emuretrace = $2;
+		    config.emuretrace = ($2!=0);
 		    c_printf("CONF: emu_retrace %s\n", ($2) ? "on" : "off");
 		    }}
 		| L_EMS '{' ems_flags '}'
-		| L_EMS mem_bool
+		| L_EMS int_bool
 		    {
-		    config.ems_size = $2;
+		    if ($2 >= 0) config.ems_size = $2;
 		    if ($2 > 0) c_printf("CONF: %dk bytes EMS memory\n", $2);
 		    }
-		| L_XMS mem_bool
+		| L_XMS int_bool
 		    {
-		    config.xms_size = $2;
+		    if ($2 >= 0) config.xms_size = $2;
 		    if ($2 > 0) c_printf("CONF: %dk bytes XMS memory\n", $2);
 		    }
 		| L_UMB bool
 		    {
-		    config.max_umb = $2;
+		    config.max_umb = ($2!=0);
 		    if ($2 > 0) c_printf("CONF: maximize umb's %s\n", ($2) ? "on" : "off");
 		    }
 		| L_SECURE bool
 		    { IFCLASS(CL_SECURE){
-		    if (priv_lvl && config.secure && (! $2))
+		    if (priv_lvl && config.secure && ($2==0))
 			yyerror("secure option is illegal in user config file");
-		    config.secure = $2;
+		    config.secure = ($2!=0);
 		    if (config.secure > 0) c_printf("CONF: security %s\n", ($2) ? "on" : "off");
 		    }}
-		| L_DPMI mem_bool
+		| L_DPMI int_bool
 		    { IFCLASS(CL_DPMI){
-		    config.dpmi = $2;
+		    if ($2>=0) config.dpmi = $2;
 		    c_printf("CONF: DPMI-Server %s\n", ($2) ? "on" : "off");
 		    }}
-		| DOSMEM mem_bool	{ config.mem_size = $2; }
-		| MATHCO bool		{ config.mathco = $2; }
+		| DOSMEM int_bool	{ if ($2>=0) config.mem_size = $2; }
+		| MATHCO bool		{ config.mathco = ($2!=0); }
 		| IPXSUPPORT bool
 		    {
-		    config.ipxsup = $2;
+		    config.ipxsup = ($2!=0);
 		    c_printf("CONF: IPX support %s\n", ($2) ? "on" : "off");
 		    }
 		| PKTDRIVER bool
 		    {
-			if ((config.pktdrv = $2))
+			if ((config.pktdrv = ($2!=0)))
 				c_printf("CONF: Packet Driver enabled.\n");
 		    }
 		| NETDEV string_expr	{ config.netdev = $2; }
-		| NOVELLHACK bool	{ config.pktflags = $2; }
-		| VNET bool		{ config.vnet = $2; }
+		| NOVELLHACK bool	{ config.pktflags = ($2!=0); }
+		| VNET bool		{ config.vnet = ($2!=0); }
 		| SPEAKER speaker
 		    {
 		    if ($2 == SPKR_NATIVE) {
@@ -759,6 +760,8 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    {
 			handle_features($3, $5);
 		    }
+		| CLI_TIMEOUT int_bool
+		    { config.cli_timeout = $2; }
 		| STRING
 		    { yyerror("unrecognized command '%s'", $1); free($1); }
 		| error
@@ -819,9 +822,9 @@ expression:
 		| string_expr STR_NEQ_OP string_expr
 			{B_VAL($$) = strcmp($1,$3) != 0; }
 		| NOT_OP expression {B_VAL($$) = (TOF($2) ? 0:1); }
-		| L_YES		{B_VAL($$) = 1; }
+		| L_YES		{B_VAL($$) = -2; }
 		| L_NO		{B_VAL($$) = 0; }
-		| L_ON		{B_VAL($$) = 1; }
+		| L_ON		{B_VAL($$) = -2; }
 		| L_OFF		{B_VAL($$) = 0; }
 		| L_AUTO	{I_VAL($$) = -1; }
 		| INTCAST '(' expression ')' {I_VAL($$) = TOF($3);}
@@ -997,9 +1000,9 @@ x_flag		: UPDATELINES expression	{ config.X_updatelines = $2; }
 		| X_BLINKRATE expression	{ config.X_blinkrate = $2; }
 		| X_SHARECMAP		{ config.X_sharecmap = 1; }
 		| X_MITSHM              { config.X_mitshm = 1; }
-		| X_MITSHM bool         { config.X_mitshm = $2; }
+		| X_MITSHM bool         { config.X_mitshm = ($2!=0); }
 		| X_FONT string_expr		{ config.X_font = $2; }
-		| X_FIXED_ASPECT bool   { config.X_fixed_aspect = $2; }
+		| X_FIXED_ASPECT bool   { config.X_fixed_aspect = ($2!=0); }
 		| X_ASPECT_43           { config.X_aspect_43 = 1; }
 		| X_LIN_FILT            { config.X_lin_filt = 1; }
 		| X_BILIN_FILT          { config.X_bilin_filt = 1; }
@@ -1021,8 +1024,8 @@ x_flag		: UPDATELINES expression	{ config.X_updatelines = $2; }
 		| VESAMODE expression ',' expression { set_vesamodes($2,$4,0);}
 		| VESAMODE expression ',' expression ',' expression
 			{ set_vesamodes($2,$4,$6);}
-		| X_LFB bool            { config.X_lfb = $2; }
-		| X_PM_INTERFACE bool   { config.X_pm_interface = $2; }
+		| X_LFB bool            { config.X_lfb = ($2!=0); }
+		| X_PM_INTERFACE bool   { config.X_pm_interface = ($2!=0); }
 		| X_MGRAB_KEY string_expr { config.X_mgrab_key = $2; }
 		;
 
@@ -1144,7 +1147,7 @@ term_flags	: term_flag
 term_flag	: ESCCHAR expression       { config.term_esc_char = $2; }
 		| UPDATEFREQ expression	{ config.term_updatefreq = $2; }
 		| CHARSET CHARSET_TYPE	{ config.term_charset = $2; }
-		| COLOR bool		{ config.term_color = $2; }
+		| COLOR bool		{ config.term_color = ($2!=0); }
 		| STRING
 		    { yyerror("unrecognized terminal option '%s'", $1);
 		      free($1); }
@@ -1160,30 +1163,30 @@ term_flag	: ESCCHAR expression       { config.term_esc_char = $2; }
 debug_flags	: debug_flag
 		| debug_flags debug_flag
 		;
-debug_flag	: VIDEO bool		{ set_debug_level('v', $2); }
+debug_flag	: VIDEO bool		{ set_debug_level('v', ($2!=0)); }
 		| L_OFF			{ set_debug_level('a', 0); }
-		| SERIAL bool		{ set_debug_level('s', $2); }
-		| CONFIG bool		{ set_debug_level('c', $2); }
-		| DISK bool		{ set_debug_level('d', $2); }
-		| READ bool		{ set_debug_level('R', $2); }
-		| WRITE bool		{ set_debug_level('W', $2); }
-		| KEYB bool		{ set_debug_level('k', $2); }
-		| KEYBOARD bool		{ set_debug_level('k', $2); }
-		| PRINTER bool		{ set_debug_level('p', $2); }
-		| IO bool		{ set_debug_level('i', $2); }
-		| PORT bool 		{ set_debug_level('i', $2); }
-		| WARNING bool		{ set_debug_level('w', $2); }
-		| GENERAL bool		{ set_debug_level('g', $2); }
-		| L_XMS bool		{ set_debug_level('X', $2); }
-		| L_DPMI bool		{ set_debug_level('M', $2); }
-		| MOUSE bool		{ set_debug_level('m', $2); }
-		| HARDWARE bool		{ set_debug_level('h', $2); }
-		| L_IPC bool		{ set_debug_level('I', $2); }
-		| L_EMS bool		{ set_debug_level('E', $2); }
-		| NETWORK bool		{ set_debug_level('n', $2); }
-		| L_X bool		{ set_debug_level('X', $2); }
-		| SOUND	bool		{ set_debug_level('S', $2); }
-		| JOYSTICK bool		{ set_debug_level('j', $2); }
+		| SERIAL bool		{ set_debug_level('s', ($2!=0)); }
+		| CONFIG bool		{ set_debug_level('c', ($2!=0)); }
+		| DISK bool		{ set_debug_level('d', ($2!=0)); }
+		| READ bool		{ set_debug_level('R', ($2!=0)); }
+		| WRITE bool		{ set_debug_level('W', ($2!=0)); }
+		| KEYB bool		{ set_debug_level('k', ($2!=0)); }
+		| KEYBOARD bool		{ set_debug_level('k', ($2!=0)); }
+		| PRINTER bool		{ set_debug_level('p', ($2!=0)); }
+		| IO bool		{ set_debug_level('i', ($2!=0)); }
+		| PORT bool 		{ set_debug_level('i', ($2!=0)); }
+		| WARNING bool		{ set_debug_level('w', ($2!=0)); }
+		| GENERAL bool		{ set_debug_level('g', ($2!=0)); }
+		| L_XMS bool		{ set_debug_level('X', ($2!=0)); }
+		| L_DPMI bool		{ set_debug_level('M', ($2!=0)); }
+		| MOUSE bool		{ set_debug_level('m', ($2!=0)); }
+		| HARDWARE bool		{ set_debug_level('h', ($2!=0)); }
+		| L_IPC bool		{ set_debug_level('I', ($2!=0)); }
+		| L_EMS bool		{ set_debug_level('E', ($2!=0)); }
+		| NETWORK bool		{ set_debug_level('n', ($2!=0)); }
+		| L_X bool		{ set_debug_level('X', ($2!=0)); }
+		| SOUND	bool		{ set_debug_level('S', ($2!=0)); }
+		| JOYSTICK bool		{ set_debug_level('j', ($2!=0)); }
 		| STRING
 		    { yyerror("unrecognized debug flag '%s'", $1); free($1); }
 		| error
@@ -1269,7 +1272,7 @@ keyboard_flag	: LAYOUT KEYB_LAYOUT	{ keyb_layout($2); }
 		| LAYOUT KEYB_LAYOUT {keyb_layout($2);} '{' keyboard_mods '}'
 		| LAYOUT L_NO		{ keyb_layout(KEYB_NO); }
 		| LAYOUT L_AUTO		{ keyb_layout(-1); }
-		| RAWKEYBOARD bool	{ config.console_keyb = $2; }
+		| RAWKEYBOARD bool	{ config.console_keyb = ($2!=0); }
 		| TOGGLE toggle_flags
 		| STRING
 		    { yyerror("unrecognized keyboard flag '%s'", $1);
@@ -1635,8 +1638,9 @@ bool:		expression
 floppy_bool:	expression
 		;
 
-mem_bool:	expression {
-			if ($1 == 1) {
+int_bool:	expression 
+		{
+			if ($1 == -2) {
 				yyerror("got 'on', expected 'off' or an integer");
 			}
 		}

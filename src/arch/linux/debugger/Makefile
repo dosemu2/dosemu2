@@ -26,7 +26,7 @@ OBJS =  mhpdbg.o mhpdbgc.o dis8086.o
 all: lib $(BINPATH)/bin/dosdebug
 
 $(BINPATH)/bin/dosdebug: dosdebug.c
-	$(CC) -O2 -D_GNU_SOURCE $(GLIBCFLAGS) $(ASM_PEDANTIC) $(GCC_VERSION_CODE) $(GLIBC_VERSION_CODE) $(LDFLAGS) -I$(TOPDIR)/include dosdebug.c -o $(BINPATH)/bin/dosdebug
+	$(CC) -O2 -D_GNU_SOURCE $(GLIBCFLAGS) $(ASM_PEDANTIC) $(GCC_VERSION_CODE) $(LDFLAGS) -I$(TOPDIR)/include dosdebug.c -o $(BINPATH)/bin/dosdebug
 
 
 install:

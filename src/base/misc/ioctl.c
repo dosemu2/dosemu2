@@ -5,7 +5,6 @@
  */
 
 
-#include <features.h>
 #include <stdio.h>
 #include <string.h>
 #include <termios.h>
@@ -68,7 +67,6 @@
   #include "mhpdbg.h"
 #endif
 
-#include "dosemu_select.h"
 #include "userhook.h"
   
 #ifndef PAGE_SIZE

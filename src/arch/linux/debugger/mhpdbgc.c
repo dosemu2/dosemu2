@@ -711,11 +711,11 @@ static void mhp_dump_to_file(int argc, char * argv[])
    leave_priv_setting();
 
    if (fd < 0) {
-      mhp_printf("cannot open/create file %s\n%s\n", argv[3], sys_errlist[errno]);
+      mhp_printf("cannot open/create file %s\n%s\n", argv[3], strerror(errno));
       return;
    }
    if (write(fd, buf, nbytes) != nbytes) {
-      mhp_printf("write error: %s\n", sys_errlist[errno]);
+      mhp_printf("write error: %s\n", strerror(errno));
    }
    close(fd);
 }

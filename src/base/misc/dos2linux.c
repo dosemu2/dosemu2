@@ -54,7 +54,6 @@
 #include "pic.h"
 #include "int.h"
 #include "vc.h"
-#include "dosemu_select.h"
 
 #ifndef max
 #define max(a,b)       ((a)>(b)? (a):(b))

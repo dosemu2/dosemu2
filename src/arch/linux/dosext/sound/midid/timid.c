@@ -24,7 +24,7 @@
 #include <unistd.h>
 
 #define seqbuf_dump timid_seqbuf_dump
-#include <linux/soundcard.h>
+#include <sys/soundcard.h>
 
 #define BUF_LOW_SYNC	0.1
 #define BUF_HIGH_SYNC	0.15

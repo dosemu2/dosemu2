@@ -7,7 +7,6 @@
 #ifndef DOSEMU_CPUEMU_H
 #define DOSEMU_CPUEMU_H
 
-#include "kversion.h"
 #include "bitops.h"
 
 /*

@@ -30,7 +30,6 @@
  *
  */
 
-#include <features.h>
 #include "emu.h"
 #include "pktdrvr.h"
 #include "dosio.h"
@@ -43,14 +42,9 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <netinet/in.h>
-#if GLIBC_VERSION_CODE >= 2000
-  #include <netinet/if_ether.h>
-#else
-  #include "Linux/if_ether.h"
-#endif
+#include <netinet/if_ether.h>
 #include "libpacket.h"
 #include "dosnet.h"
-#include "dosemu_select.h"
 
 /* flag to activate use of pic by packet driver */
 #ifdef PICPKT

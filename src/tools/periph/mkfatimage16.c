@@ -26,7 +26,6 @@
  * - There's no real boot sector code, just "dosemu exit" call.
  * 
  */
-#include <features.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,9 +34,6 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
-#if GLIBC_VERSION_CODE >= 2000
-#include <errno.h>
-#endif
 
 /* These can be changed -- at least in theory. In practise, it doesn't
  * seem to work very well (I don't know why). 
@@ -330,7 +326,7 @@ int main(int argc, char *argv[])
       break;
     case 'f':
       if ((outfile=fopen(optarg, "w")) == 0) {
-        fprintf(stderr, "Error: cannot open file %s: %s\n", optarg, sys_errlist[errno]);
+        fprintf(stderr, "Error: cannot open file %s: %s\n", optarg, strerror(errno));
         exit(1);
       }
       break;

@@ -5,7 +5,6 @@ config {
   x on
   net on
   dodebug off
-  slangforce on
   runasroot off
   linkstatic off
   cpuemu off
@@ -26,5 +25,6 @@ config {
   docdir ${datadir}/doc/dosemu
   syshdimagedir /var/lib/dosemu
   x11fontdir ${datadir}/dosemu/Xfonts
+  slangdir default
   fdtarball dosemu-freedos-bin.tgz
 }

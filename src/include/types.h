@@ -7,11 +7,8 @@
 #ifndef EMU_TYPES_H
 #define EMU_TYPES_H
 
-/* will include bitypes.h, linux/posix_types.h and asm/types.h */
+#include <stdint.h>
 #include <sys/types.h>
-#if GLIBC_VERSION_CODE >= 2000
-#  include "Asm/types.h"
-#endif
 
 #ifndef FALSE
 #define FALSE	0
@@ -32,11 +29,11 @@ typedef unsigned char boolean;
 #define DOSEMU_BOOL_IS_CHAR
 #endif
 
-typedef u_int64_t hitimer_t;
+typedef uint64_t hitimer_t;
 
 typedef union {
-  u_int64_t td;
-  struct { u_int32_t tl,th; } t;
+  uint64_t td;
+  struct { uint32_t tl,th; } t;
 } u_int64_u;
 
 typedef union {
@@ -47,26 +44,17 @@ typedef union {
 typedef u_int64_u hitimer_u;
 
 typedef unsigned char      Boolean;
-typedef u_int8_t           Bit8u;   /* type of 8 bit unsigned quantity */
-typedef   int8_t           Bit8s;   /* type of 8 bit signed quantity */
-typedef u_int16_t          Bit16u;  /* type of 16 bit unsigned quantity */
+typedef uint8_t            Bit8u;   /* type of 8 bit unsigned quantity */
+typedef  int8_t            Bit8s;   /* type of 8 bit signed quantity */
+typedef uint16_t           Bit16u;  /* type of 16 bit unsigned quantity */
 typedef   int16_t          Bit16s;  /* type of 16 bit signed quantity */
-typedef u_int32_t          Bit32u;  /* type of 32 bit unsigned quantity */
-typedef   int32_t          Bit32s;  /* type of 32 bit signed quantity */
-typedef u_int64_t          Bit64u;  /* type of 64 bit unsigned quantity */
-typedef   int64_t          Bit64s;  /* type of 64 bit signed quantity */
-
-/* Temporarily defined to allow dosemu to compile with glibc2 */
-#if (GLIBC_VERSION_CODE >= 2000) && !defined(_I386_TYPES_H)
-typedef u_int8_t	__u8;
-typedef u_int16_t	__u16;
-typedef u_int32_t	__u32;
-#endif
+typedef uint32_t           Bit32u;  /* type of 32 bit unsigned quantity */
+typedef  int32_t           Bit32s;  /* type of 32 bit signed quantity */
+typedef uint64_t           Bit64u;  /* type of 64 bit unsigned quantity */
+typedef  int64_t           Bit64s;  /* type of 64 bit signed quantity */
 
 typedef Bit32u ioport_t;	/* for compatibility */
 
-#if GLIBC_VERSION_CODE >= 2000
 #include <stddef.h> /* for ptrdiff_t & friends */
-#endif
 
 #endif /* EMU_TYPES_H */

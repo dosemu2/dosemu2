@@ -14,7 +14,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -31,7 +31,6 @@
 #include "timers.h"
 #include "utilities.h"
 #include "priv.h"
-#include "dosemu_select.h"
 #include "int.h"
 #include "fatfs.h"
 #include "utilities.h"
@@ -743,7 +742,7 @@ disk_open(struct disk *dp)
       dp->tracks = 0;
       return;
     }
-    error("can't get floppy parameter of %s (%s)\n", dp->dev_name, sys_errlist[errno]);
+    error("can't get floppy parameter of %s (%s)\n", dp->dev_name, strerror(errno));
     fatalerr = 5;
     return;
   }

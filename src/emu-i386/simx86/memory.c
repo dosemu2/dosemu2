@@ -34,10 +34,8 @@
 
 #include <unistd.h>
 #include <string.h>
-#include <malloc.h>
-#include <sys/errno.h>
+#include <errno.h>
 #include <sys/types.h>
-#include <syscall.h>
 #include <sys/mman.h>
 
 #include "emu86.h"

@@ -12,7 +12,6 @@
 
 /* Define if we want graphics in X (of course we want :-) (root@zaphod) */
 /* WARNING: This may not work in BSD, because it was written for Linux! */
-#include <features.h>
 #include <stdio.h>
 #include <termios.h>
 #include <stdlib.h>
@@ -34,11 +33,7 @@
 #include <sys/mman.h>           /* root@sjoerd*/
 #endif
 #ifdef __linux__
-#if GLIBC_VERSION_CODE >= 2000
 #include <sys/vt.h>
-#else
-#include "Linux/vt.h"
-#endif
 #include "Linux/fd.h"
 #include "Linux/hdreg.h"
 #include <sys/vm86.h>

@@ -15,7 +15,6 @@
  *	(c) 1994 Alan Cox	iiitac@pyr.swan.ac.uk	GW4PTS@GB7SWN
  */
 #include <stdio.h>
-#include <features.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
@@ -27,11 +26,7 @@
 #include <net/if.h>
 #include <netinet/in.h>
 #include "Linux/if_tun.h"
-#if GLIBC_VERSION_CODE >= 2000
-  #include <netinet/if_ether.h>
-#else
-  #include "Linux/if_ether.h"
-#endif
+#include <netinet/if_ether.h>
 
 #include "emu.h"
 #include "priv.h"

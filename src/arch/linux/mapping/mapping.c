@@ -31,20 +31,15 @@ extern struct mappingdrivers mappingdriver_file;
 
 static struct mappingdrivers *mappingdrv[] = {
   &mappingdriver_shm,
-#if (GCC_VERSION_CODE > 2007) || (GLIBC_VERSION_CODE >= 2000)
   /* 
    * It turns out, that binaries produced by gcc > 2.7.x and/or those
    * linked against glibc are prone to break our /proc/self/mem kludge
-   * (gcc-2.7.2/libc5 binaries work fine in here).
+   * (gcc-2.7.2/libc5 binaries worked fine in here).
    * Therefor we prefer the mapfile driver for those binaries.
    * For Linux 2.3.x the problem won't exist anyway.  --Hans 2000/02/27
    */
   &mappingdriver_file,
   &mappingdriver_self,
-#else
-  &mappingdriver_self,
-  &mappingdriver_file,
-#endif
   0
 };
 

@@ -50,13 +50,4 @@ static __inline__ int power_of_2_sqrt(int val)
 	return 1 << (res >> 1);
 }
 
-#if (GLIBC_VERSION_CODE >= 2000) && defined(PORTABLE_BINARY)
-  #include <pwd.h>
-  #include <sys/types.h>
-  struct passwd *our_getpwuid(uid_t uid);
-  struct passwd *our_getpwnam(const char *name);
-  #define getpwnam our_getpwnam
-  #define getpwuid our_getpwuid
-#endif
-
 #endif /* UTILITIES_H */

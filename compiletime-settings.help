@@ -53,14 +53,6 @@ dodebug		"compile with debug info"
 		This uses the '-g' switch for GCC, hence you can use GDB
 		to debug DOSEMU.
 
-slangforce	"force use of dosemu supplied Slang-lib"
-
-		If you set this switch off, DOSEMU tries to compile with
-		your system supplied Slang library. Do this with care,
-		because DOSEMU is tested against its supplied version
-		and may have problems in terminal mode if your Slanglib
-		isn't suiteable. Normal this switch is enabled per default.
-
 runasroot	"run as root mostly"
 
 		DOSEMU is suid root, but when started from a user account
@@ -140,6 +132,13 @@ docdir		"Directory for DOSEMU documentation" docdir
 syshdimagedir	"Default directory for images and boot directories" syshdimagedir
 
 x11fontdir	"Directory for X fonts" x11fontdir
+
+slangdir	"Specify location of the S-Lang library"
+
+		If you leave this switch to "default", then DOSEMU tries 
+		to compile with	your system supplied S-Lang library. 
+		Alternatively you can point it to an S-Lang source directory,
+		where S-Lang was compiled in.
 
 fdtarball	"Name of the FreeDOS tarball" fdtarball
 		This is normally named dosemu-freedos-bin.tgz, to be obtained from www.dosemu.org

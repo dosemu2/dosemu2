@@ -1919,9 +1919,10 @@ dosemu_mouse_init(void)
 void mouse_post_boot(void)
 {
   extern void bios_f000_int10_old();
+  us *ptr;
         
   if (!mice->intdrv) return;
-  us *ptr;
+  
   /* This is needed here to revectoring the interrupt, after dos
    * has revectored it. --EB 1 Nov 1997 */
   

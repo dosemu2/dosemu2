@@ -11,7 +11,7 @@
  * (C) Copyright 1999, Egbert Eich
  */
 #include <unistd.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include "pci.h"
 #include "emu.h"
 #include "cpu.h"

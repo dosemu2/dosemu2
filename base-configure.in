@@ -11,10 +11,22 @@ AC_PROG_GCC_TRADITIONAL
 dnl AC_PROG_AWK
 dnl AC_PROG_INSTALL
 AC_PROG_LEX
+AC_CHECK_PROG(lex_ok, $LEX, "yes", "no")
+if test "$lex_ok" != "yes"; then
+  AC_MSG_WARN( )
+  AC_MSG_WARN(Your system doesn't seem to have lex or flex available.)
+  AC_MSG_ERROR(Install lex or flex and retry.)
+fi
 AC_PROG_LN_S
 AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 AC_PROG_YACC
+dnl The bison problem
+if test -z "`echo $YACC | grep bison`" ; then
+  AC_MSG_WARN( )
+  AC_MSG_WARN(Your system doesn't seem to have bison available.)
+  AC_MSG_ERROR(Install bison and retry.)
+fi
 
 dnl Checks for libraries.
 
@@ -87,11 +99,11 @@ AC_ARG_WITH(x11fontdir,
   [                        (default: ${datadir}/dosemu/Xfonts)],
   x11fontdir="$withval", x11fontdir="${datadir}/dosemu/Xfonts")
 AC_ARG_WITH(syshdimagedir,
-  [  --with-syshdimagedir=dir  give the directory used for system wide boot directories and hdimages]
+  [  --with-syshdimagedir=dir give the directory used for system wide boot directories and hdimages]
   [                        (default: /var/lib/dosemu)],
   syshdimagedir="$withval", syshdimagedir="/var/lib/dosemu")
 AC_ARG_WITH(fdtarball,
-  [  --with-tarball=dir      give the name of the FreeDOS tarball or 'none']
+  [  --with-fdtarball=file   give the name of the FreeDOS tarball or 'none']
   [                        (default: dosemu-freedos-bin.tgz)],
   fdtarball="$withval", fdtarball="dosemu-freedos-bin.tgz")
 
@@ -147,8 +159,6 @@ LNKOPTS="-Wl,-warn-common"
 AC_ARG_ENABLE(linkstatic,
               [  --enable-linkstatic     make statically linked binaries],
               [AC_CHECKING("Linking statically")
-               PORTABLE_BINARY="-DPORTABLE_BINARY"
-               AC_SUBST(PORTABLE_BINARY)
                LNKOPTS="${LNKOPTS} -static"
 	       CFLAGS="-static $CFLAGS"],
 	      [AC_CHECKING("Linking for shared libraries")])
@@ -187,48 +197,42 @@ if test "$use_pthreads" = "yes"; then
 #  AC_CHECKING("compiling without pthreads support")
 fi
 
-dnl Do check wether we we shall force use of supplied Slanglib.
- AC_ARG_ENABLE(force-slang,
-               [  --enable-force-slang    force use of dosemu supplied Slang-lib],
-               [force_slang="yes"],[force_slang="no"])
-
-dnl Check for slang and if not found use the supplied version
-dnl I'm not really sure which slang function to choose
-dnl So I picked one at random, perhaps there is a better one?
-
-if test "$force_slang" = "no"; then
-  AC_CHECK_LIB(slang, SLkm_define_key, , force_slang="yes")
-fi
-
-if test "$force_slang" = "no"; then
-  if test -d "$oldincludedir/slang"; then
-    SLANGINC="-I$oldincludedir/slang"
-  else
-    if test -f "$oldincludedir/slang.h"; then
-      SLANGINC=""
+#S-Lang directory checking -- thanks to mutt's configure script.
+AC_ARG_WITH(slangdir, [  --with-slangdir=dir     Specify S-Lang directory],
+  AC_MSG_CHECKING(for S-Lang)
+  if test "$withval" = "default"; then
+    if test -d $srcdir/../slang; then
+      SLANGINC="-I ${srcdir}/../slang/src"
+      SLANGLIB="-L ${srcdir}/../slang/src/objs"
     else
-      if test -f "/usr/local/include/slang.h"; then
-        SLANGINC="-I/usr/local/include"
-      else
-        AC_CHECKING("no system supplied slang.h found -- forceing dosemu slang")
-        force_slang="yes"
+      if test -d $prefix/include/slang; then
+        SLANGINC="-I${prefix}/include/slang"
+      elif test -d /usr/include/slang; then
+        SLANGINC="-I/usr/include/slang"
       fi
     fi
+  else
+    dnl ---Check to see if $withval is a source directory
+    if test -f $withval/src/slang.h; then
+      SLANGINC="-I${withval}/src"
+      SLANGLIB="-L${withval}/src/objs"
+    else
+      dnl ---Must be installed somewhere
+      if test -d $withval/include/slang; then
+        SLANGINC="-I${withval}/include/slang"
+      elif test -d $withval/include; then
+        SLANGINC="-I${withval}/include"
+      fi
+      SLANGLIB="-L${withval}/lib"
+    fi
   fi
-fi
+  CFLAGS="$CFLAGS $SLANGINC $SLANGLIB -lm"
+  dnl --- now that we've found it, check the link
+  AC_CHECK_LIB(slang, SLtt_get_terminfo,
+                [SLANGLIB="$SLANGLIB -lslang -lm"],
+                [AC_MSG_ERROR(unable to compile.  check config.log)], -lm)
+)
 
-if test "$force_slang" = "no"; then
-  SLANGLIB="-lslang -lm"
-  AC_CHECKING("using system supplied libslang.a")
-else
- if test "$ELF" = "ELF=1"; then
-   SLANGLIB="-larch_${CONFIG_HOST}_slang-elf -lm"
-   AC_CHECKING("using dosemu supplied libarch_${CONFIG_HOST}_slang-elf.a")
- else
-   SLANGLIB="-larch_${CONFIG_HOST}_slang"
-   AC_CHECKING("using dosemu supplied libarch_${CONFIG_HOST}_slang.a")
- fi
-fi
 AC_SUBST(SLANGLIB)
 
 dnl check for X. This was reproduced from TKined
@@ -244,18 +248,6 @@ if test "$x_includes" = /usr/include; then
     XINCLUDES="# no special path needed"
 elif test "$x_includes" != "NONE"; then
     XINCLUDES="-I$x_includes"
-else
-    AC_CHECKING(for X11 header files)
-    XINCLUDES="# no special path needed"
-    AC_TRY_CPP([#include <X11/Intrinsic.h>], , XINCLUDES="nope")
-    if test "$XINCLUDES" = nope; then
-        dirs="/usr/unsupported/include /usr/local/include /usr/X386/include /usr/include/X11R4 /usr/X11R5/include /usr/include/X11R5 /usr/openwin/include /usr/X11/include"
-        for i in $dirs ; do
-	    if test -r $i/X11/Intrinsic.h; then
-	        XINCLUDES="-I$i"
-	    fi
-        done
-    fi
 fi
 if test "$XINCLUDES" = nope; then
   AC_WARN(Couldn't find any X11 include files)
@@ -279,7 +271,7 @@ else
     if test "$XLIBSWL" = nope; then
 	dirs="/usr/unsupported/lib /usr/local/lib /usr/X386/lib /usr/lib/X11R4 /usr/X11R5/lib /usr/lib/X11R5 /usr/openwin/lib /usr/X11/lib"
 	for i in $dirs ; do
-	    if test -r $i/libX11.a; then
+	    if test -r $i/libX11.so; then
 		XLIBSWL="-lX11"
 		XLIBSWD="-L$i"
 	    fi
@@ -520,10 +512,6 @@ dnl Now CFLAGS and INCLUDES
 TOPDIR=`nolinks=1;pwd`
 AC_SUBST(TOPDIR)
 
-if test "$force_slang" != "no"; then
- SLANGINC="-I\${SRCPATH}/include/slang"
-fi
-
 # BIG NOTE: XINCLUDES _must_ come last, because some joker did preset
 # it with a comment line (such as: XINCLUDES="# no special path needed")
 # We need to fix this, because this is a time bomb. --HL
@@ -576,7 +564,7 @@ fi
 rm -f dummy.o
 AC_DEFINE_UNQUOTED(GASCODE16, $GASCODE16)
 
-OPT="$OPT -MD" # this should give painless dependencies
+OPT="$OPT -MMD" # this should give painless dependencies
 
 # OPT=-fno-inline
 if test "$CONFIG_HOST" = "linux"; then
@@ -667,15 +655,17 @@ if test "$GCC" = "yes" ; then
     fi
     GLIBC_VERSION_CODE=$((($major * 1000) + $minor))
     echo "yes, version code $GLIBC_VERSION_CODE"
-    GLIBC_VERSION_CODE="-DGLIBC_VERSION_CODE=$GLIBC_VERSION_CODE"
+    if test $GLIBC_VERSION_CODE -le 2001; then
+      echo Sorry, you need glibc-2.1.3 or newer.
+      exit 1
+    fi
   fi
 fi
 AC_SUBST(GCC_VERSION_CODE)
 AC_SUBST(ASM_PEDANTIC)
-AC_SUBST(GLIBC_VERSION_CODE)
 AC_SUBST(GLIBCFLAGS)
 
-CFLAGS="-D_GNU_SOURCE ${PORTABLE_BINARY} ${OPT} ${EGCSFLAGS} ${GCC295FLAGS} ${GCC_VERSION_CODE} ${ASM_PEDANTIC} ${GLIBC_VERSION_CODE} ${GLIBCFLAGS} ${PIPE} ${USING_NET} ${CDEBUGOPTS} ${COPTFLAGS} ${INCDIR}"
+CFLAGS="-D_GNU_SOURCE ${OPT} ${EGCSFLAGS} ${GCC295FLAGS} ${GCC_VERSION_CODE} ${ASM_PEDANTIC} ${GLIBCFLAGS} ${PIPE} ${USING_NET} ${CDEBUGOPTS} ${COPTFLAGS} ${INCDIR}"
 
 
 
@@ -711,20 +701,6 @@ if test "$GCC" != "yes" ; then
   AC_MSG_WARN(sh/ksh/bash: CC=/usr/local/bin/gcc ; export CC)
   AC_MSG_WARN(Of course you could also include the gcc bin directory in)
   AC_MSG_WARN(your path.)
-fi
-
-dnl The bison problem
-if test -z "`echo $YACC | grep bison`" ; then
-  AC_MSG_WARN( )
-  AC_MSG_WARN(Your system doesn't seem to have bison available.)
-  AC_MSG_ERROR(Install bison and retry.)
-fi
-
-AC_CHECK_PROG(lex_ok, $LEX, "yes", "no")
-if test "$lex_ok" != "yes"; then
-  AC_MSG_WARN( )
-  AC_MSG_WARN(Your system doesn't seem to have lex or flex available.)
-  AC_MSG_ERROR(Install lex or flex and retry.)
 fi
 
 echo ""

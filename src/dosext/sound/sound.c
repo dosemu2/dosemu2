@@ -94,9 +94,9 @@
 
 /* Internal Functions */
 
-inline void dsp_write_output(__u8 value);
+inline void dsp_write_output(uint8_t value);
 inline void dsp_clear_output(void);
-inline __u8 dsp_read_output(void);
+inline uint8_t dsp_read_output(void);
 
 size_t sb_dma_read(void *ptr, size_t size);
 size_t sb_dma_write(void *ptr, size_t size);
@@ -110,12 +110,12 @@ void sb_irq_trigger (void);
 
 static void sb_enable_speaker (void);
 static void sb_disable_speaker(void);
-static void sb_write_DAC (int bits, __u8 value);
+static void sb_write_DAC (int bits, uint8_t value);
 
 static void dsp_do_copyright(void);
 
-static __u8 sb_read_mixer(__u8 ch);
-static void sb_write_mixer(int ch, __u8 value);
+static uint8_t sb_read_mixer(uint8_t ch);
+static void sb_write_mixer(int ch, uint8_t value);
 
 /* DANG_FIXTHIS The file header needs tidying up a _LOT_ ! */
 
@@ -181,7 +181,7 @@ int E2_incr_table[4][9] = {
  ************************************************************
  */
 
-void dsp_write_output(__u8 value)
+void dsp_write_output(uint8_t value)
 {
   /* There is no check for exceeding the length of the queue ... */
 
@@ -208,7 +208,7 @@ void dsp_clear_output(void)
   SB_dsp.data    = SB_DATA_UNAVAIL;
 }
 
-__u8 dsp_read_output(void)
+uint8_t dsp_read_output(void)
 {
   Bit8u r = 0xFF;
 
@@ -253,7 +253,7 @@ __u8 dsp_read_output(void)
 Bit8u sb_io_read(ioport_t port)
 {
   ioport_t addr;
-  __u8 value;
+  uint8_t value;
   Bit8u result;
 
   if (SB_info.version == SB_NONE)
@@ -1719,7 +1719,7 @@ void fm_io_write(ioport_t port, Bit8u value)
 
 void mpu401_io_write(ioport_t port, Bit8u value)
 {
-	__u32 addr;
+	uint32_t addr;
 
 	addr = port - config.mpu401_base;
 
@@ -1768,7 +1768,7 @@ static void dsp_do_copyright(void)
 		S_printf("SB: DSP Copyright requested.\n");
 		ptr = cs;
 		do {
-			dsp_write_output((__u8) * ptr);
+			dsp_write_output((uint8_t) * ptr);
 		} while (*ptr ++);
 	} else {
 		S_printf("SB: DSP copyright not supported by this SB Version.\n");
@@ -2443,7 +2443,7 @@ static void mpu401_reset (void)
   MPU_driver_reset();
 }
 
-static void sb_write_DAC (int bits, __u8 value)
+static void sb_write_DAC (int bits, uint8_t value)
 {
   S_printf ("SB: Direct DAC write (%u bits)\n", bits);
   
@@ -2493,7 +2493,7 @@ void sb_disable_speaker(void)
   SB_info.speaker = 0;
 }
 
-static __u8 sb_read_mixer(__u8 ch)
+static uint8_t sb_read_mixer(uint8_t ch)
 {
   S_printf ("SB: Read mixer setting on channel %u.\n", ch);
 
@@ -2506,7 +2506,7 @@ static __u8 sb_read_mixer(__u8 ch)
   }
 }
 
-static void sb_write_mixer (int ch, __u8 value)
+static void sb_write_mixer (int ch, uint8_t value)
 {
   S_printf ("SB: Write mixer setting on channel %u.\n", ch);
 

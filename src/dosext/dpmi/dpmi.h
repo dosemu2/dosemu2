@@ -24,44 +24,13 @@
 
 #define DPMI_private_paragraphs	((DPMI_max_rec_rm_func * DPMI_rm_stack_size)>>4)
 					/* private data for DPMI server */
+#define current_client (in_dpmi-1)
 
 /* Aargh!! Is this the only way we have to know if a signal interrupted
  * us in DPMI server or client code? */
 #ifdef __linux__
 #define UCODESEL 0x23
 #define UDATASEL 0x2b
-#endif
-
-EXTERN int in_dpmi INIT(0);        /* Set to 1 when running under DPMI */
-#define current_client (in_dpmi-1)
-EXTERN int in_win31 INIT(0);       /* Set to 1 when running Windows 3.1 */
-EXTERN int dpmi_eflags INIT(0);    /* used for virtual interruptflag and pending interrupts */
-EXTERN int in_dpmi_dos_int INIT(0);
-EXTERN int in_dpmi_timer_int INIT(0);
-EXTERN int dpmi_mhp_TF INIT(0);
-EXTERN unsigned char dpmi_mhp_intxxtab[256] INIT({0});
-
-void dpmi_get_entry_point();
-
-void indirect_dpmi_switch(struct sigcontext_struct *);
-#ifdef __linux__
-void dpmi_fault(struct sigcontext_struct *);
-#endif
-void dpmi_realmode_hlt(unsigned char *);
-void run_pm_int(int);
-void fake_pm_int(void);
-
-#ifdef __linux__
-int dpmi_mhp_regs(void);
-void dpmi_mhp_getcseip(unsigned int *seg, unsigned int *off);
-void dpmi_mhp_getssesp(unsigned int *seg, unsigned int *off);
-int dpmi_mhp_get_selector_size(int sel);
-int dpmi_mhp_getcsdefault(void);
-int dpmi_mhp_setTF(int on);
-void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned long *lp);
-int dpmi_mhp_getselbase(unsigned short selector);
-unsigned long dpmi_mhp_getreg(int regnum);
-void dpmi_mhp_setreg(int regnum, unsigned long val);
 #endif
 
 /* DANG_BEGIN_REMARK
@@ -78,7 +47,7 @@ void dpmi_mhp_setreg(int regnum, unsigned long val);
 
 #define dpmi_cli() 	({ dpmi_eflags &= ~IF; pic_cli(); })
 
-#define dpmi_sti() 	({ dpmi_eflags |= IF; pic_sti(); })
+#define dpmi_sti() 	({ dpmi_eflags |= IF; is_cli = 0; pic_sti(); })
 
 #define CHECK_SELECTOR(x) \
 { if ( (((x) >> 3) >= MAX_SELECTORS) || (!Segments[((x) >> 3)].used) \
@@ -136,8 +105,6 @@ typedef struct segment_descriptor_s
     unsigned int	used;		/* Segment in use by client # */
 } SEGDESC;
 
-extern SEGDESC Segments[];
-
 struct RealModeCallStructure {
   unsigned long edi;
   unsigned long esi;
@@ -174,6 +141,51 @@ typedef struct dpmi_pm_block_stuct {
   void     *base;
 } dpmi_pm_block;
 
+EXTERN int in_dpmi INIT(0);        /* Set to 1 when running under DPMI */
+EXTERN int in_win31 INIT(0);       /* Set to 1 when running Windows 3.1 */
+EXTERN int dpmi_eflags INIT(0);    /* used for virtual interruptflag and pending interrupts */
+EXTERN int in_dpmi_dos_int INIT(0);
+EXTERN int in_dpmi_timer_int INIT(0);
+EXTERN int dpmi_mhp_TF INIT(0);
+EXTERN unsigned char dpmi_mhp_intxxtab[256] INIT({0});
+EXTERN int is_cli INIT(0);
+
+extern dpmi_pm_block *pm_block_root[DPMI_MAX_CLIENTS];
+extern unsigned short DPMI_private_data_segment;
+extern int DPMIclient_is_32;
+extern unsigned long dpmi_free_memory; /* how many bytes memory client */
+				       /* can allocate */
+extern unsigned long pm_block_handle_used;       /* tracking handle */
+extern int fatalerr;
+extern INTDESC Interrupt_Table[0x100];
+extern SEGDESC Segments[];
+extern struct sigcontext_struct dpmi_stack_frame[DPMI_MAX_CLIENTS];
+/* used to store the dpmi client registers */
+extern RealModeCallBack mouseCallBack; /* user\'s mouse routine */
+
+void dpmi_get_entry_point(void);
+void indirect_dpmi_switch(struct sigcontext_struct *);
+#ifdef __linux__
+void dpmi_fault(struct sigcontext_struct *);
+#endif
+void dpmi_realmode_hlt(unsigned char *);
+void run_pm_int(int);
+void fake_pm_int(void);
+
+#ifdef __linux__
+int dpmi_mhp_regs(void);
+void dpmi_mhp_getcseip(unsigned int *seg, unsigned int *off);
+void dpmi_mhp_getssesp(unsigned int *seg, unsigned int *off);
+int dpmi_mhp_get_selector_size(int sel);
+int dpmi_mhp_getcsdefault(void);
+int dpmi_mhp_setTF(int on);
+void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned long *lp);
+int dpmi_mhp_getselbase(unsigned short selector);
+unsigned long dpmi_mhp_getreg(int regnum);
+void dpmi_mhp_setreg(int regnum, unsigned long val);
+#endif
+
+void add_cli_to_blacklist(void);
 dpmi_pm_block* DPMImalloc(unsigned long size);
 dpmi_pm_block* DPMImallocFixed(unsigned long base, unsigned long size);
 int DPMIfree(unsigned long handle);
@@ -189,5 +201,14 @@ unsigned long GetSegmentBaseAddress(unsigned short);
 extern void DPMI_show_state(struct sigcontext_struct *scp);
 extern void dpmi_sigio(struct sigcontext_struct *scp);
 extern void run_dpmi(void);
+
+extern int ConvertSegmentToDescriptor(unsigned short segment);
+extern int SetSegmentBaseAddress(unsigned short selector,
+					unsigned long baseaddr);
+extern int SetSegmentLimit(unsigned short, unsigned int);
+extern void save_pm_regs(struct sigcontext_struct *);
+extern void restore_pm_regs(struct sigcontext_struct *);
+extern unsigned short AllocateDescriptors(int);
+extern int FreeDescriptor(unsigned short selector);
 
 #endif /* DPMI_H */

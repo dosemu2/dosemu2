@@ -152,9 +152,9 @@ warning2:
 	 echo "    - Location and format of DOSEMU files have changed since 0.50pl1!"; \
 	 echo ""; \
 	 echo "-> REQUIREMENTS for DOSEMU:"; \
-	 echo '    - gcc 2.7.2 / egcs >= 2.91.66 / gcc >= 2.95.2'; \
-	 echo "    - libc 5.4.46 / glibc-2.0.6pre7 / glibc >= 2.1.3"; \
-	 echo '    - Linux >= 2.0.30, 2.1.x >= 2.1.27, 2.x.y, x >= 2'; \
+	 echo '    - egcs >= 2.91.66 (1.1.2) / gcc >= 2.95.2'; \
+	 echo "    - glibc >= 2.1.3"; \
+	 echo '    - Linux >= 2.0.30, 2.x.y >= 2.1.27 (>= 2.4.20 recommended)'; \
 	 echo "";
 
 ifeq ($(WAIT),yes)
@@ -250,7 +250,7 @@ version:	versetup
 versetup:
 	@mkdir -p $(BINPATH)/bin
 	@mkdir -p $(BINPATH)/commands
-	@cp -p commands/precompiled/*.{com,exe} $(BINPATH)/commands || true
+	@cp -p commands/precompiled/*.{com,exe} $(BINPATH)/commands 2> /dev/null || true
 	@rm -f ../bin ../commands
 	@ln -sf $(THISVERSION)/bin ../bin
 	@ln -sf $(THISVERSION)/commands ../commands

@@ -28,10 +28,6 @@ endif
 
 export INCDIR=@INCDIR@
 
-ifneq "@PORTABLE_BINARY@" ""
-export PORTABLE_BINARY=@PORTABLE_BINARY@
-endif
-
 export CFLAGS=@CFLAGS@
 export LDFLAGS=@LDFLAGS@
 export CC=@CC@
@@ -42,10 +38,6 @@ endif
 
 ifneq "@ASM_PEDANTIC@" ""
 export ASM_PEDANTIC=@ASM_PEDANTIC@
-endif
-
-ifneq "@GLIBC_VERSION_CODE@" ""
-export GLIBC_VERSION_CODE=@GLIBC_VERSION_CODE@
 endif
 
 ifneq "@GLIBCFLAGS@" ""

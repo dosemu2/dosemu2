@@ -38,7 +38,7 @@ int
 main(int argc, char **argv)
 {
   int mem_fd, file_fd, rd;
-  u_char *memptr = valloc(ROM_SIZE);
+  void *memptr;
   u_char *tmpptr = malloc(ROM_SIZE);
 
   if (argc != 2)
@@ -50,13 +50,13 @@ main(int argc, char **argv)
   if ((file_fd = open(argv[1], O_RDONLY)) == -1)
     diee("opening VBIOSFILE");
 
-  if (mmap(memptr,
+  if ((memptr = mmap(NULL,
 	   ROM_SIZE,
 	   PROT_READ | PROT_WRITE | PROT_EXEC,
 	   MAP_SHARED | MAP_FIXED,
 	   mem_fd,
 	   ROM_ADDR
-      ) == (void *) -1)
+      )) == (void *) -1)
     diee("mmaping");
 
   scan(memptr, ROM_SIZE);

@@ -309,7 +309,7 @@ int hsw_verw(unsigned short sel)
 
 static int emu_read_ldt(char *ptr, unsigned long bytecount)
 {
-	__u32 *lp = (__u32 *)LDT;
+	uint32_t *lp = (uint32_t *)LDT;
 	int i, size=0;
 
 	for (i = 0; (i < LGDT_ENTRIES) && (size < bytecount); i++) {

@@ -32,7 +32,7 @@
  *
  ***************************************************************************/
 
-#include <linux/linkage.h>
+#define asmlinkage
 #include "emu86.h"
 #include "trees.h"
 #include "codegen-arch.h"

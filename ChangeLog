@@ -1,3 +1,29 @@
+2003/01/15 ver 1.1.4.4 unofficial pre-release
+	From Stas
+	- implement $_cli_timeout (an official hack that is necessary
+	  to get sound working in DOOM.
+	- PrintScreen should print to LPT1 instead of LPT2.
+	- (heavily modified by Bart) add missing instructions (REP MOVSD
+	  et al) to instremu.c and cleanup prefixes a little bit.
+	From Bart
+	- Remove precompiled S-Lang library -- please install slang-devel
+	  if you want to compile DOSEMU; new setting "slangdir" to specify
+	  the S-Lang directory.
+	- Remove libc5 and gcc 2.7 support and associated headers that are
+	  no longer necessary.
+	- ./mkpluginhooks can now be used to just update parser.y and
+	  lexer.l; this happens automatically for "make".
+	- Some header/standards related cleanup: don't use <features.h>, 
+	  use <stdlib.h> instead of <malloc.h>, use strerror() instead of
+	  str_errlist[], use (u)int*_t instead of __u*/__s*, avoid valloc().
+	- Move code from dosext/dpmi/msdos.h to dosext/dpmi/msdos.c.
+	- Fix bug with nested findfirst()s in mfs.c
+	- Fix paste bug for xdosemu (newlines were translated to '0's).
+	- undo old temporary Insert key fix.
+	- Fix lexer problem if dosemu.conf misses an EOL at EOF
+	- parser: distinguish (on) from (1) by making (on) equivalent to (-2)
+	- use -MMD instead of -MD: we should not explicitly depend on
+	  system header files.
 2003/01/09 ver 1.1.4.3 unofficial pre-release
 	From Bart
 	- ./mknewyear
@@ -97,7 +123,8 @@
 	- improve the boot sector for mkfatimage[16].
 	- use ntohs() to correct packet driver debug messages.
 	- keep track of subsystems and devices they used to avoid clashes.
-	- fix the PSP and DTA translation for src/dosext/dpmi/msdos.h
+	- implement the PSP and fix the DTA translation for 
+	  src/dosext/dpmi/msdos.h
 	- fix MPU-401 initialisation.
 	- avoid pthreads DoS
 	- adjust fatfs.c to support PC-DOS

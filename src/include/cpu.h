@@ -20,6 +20,7 @@ extern int dpmi_eflags;  /* don't include 'dpmi.h' just for this! */
 #ifdef BIOSSEG
 #undef BIOSSEG
 #endif
+#include <signal.h>
 #ifdef __linux__
 #include <sys/vm86.h>
 #endif
@@ -179,7 +180,7 @@ static __inline__ void reset_revectored(int nr, struct revectored_struct * bitma
 
   /* Flag setting and clearing, and testing */
         /* interrupt flag */
-#define set_IF() ((_EFLAGS |= (VIF | IF)), (dpmi_eflags |= IF), pic_sti())
+#define set_IF() ((_EFLAGS |= (VIF | IF)), (dpmi_eflags |= IF), is_cli = 0, pic_sti())
 #define clear_IF() ((_EFLAGS &= ~(VIF | IF)), (dpmi_eflags &= ~IF), pic_cli())
 #define isset_IF() ((_EFLAGS & VIF) != 0)
        /* carry flag */
@@ -248,11 +249,6 @@ EXTERN struct vec_t *ivecs;
 /*
 #define WORD(i) (unsigned short)(i)
 */
-
-#ifdef __linux__
-  #include "Asm/sigcontext.h"
-#endif
-
 
 #ifdef __linux__
 #define _gs     (scp->gs)

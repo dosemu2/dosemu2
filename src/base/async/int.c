@@ -1389,15 +1389,15 @@ static void do_print_screen() {
 int x_pos, y_pos;
 ushort *base=SCREEN_ADR(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
     g_printf("PrintScreen: base=%p, lines=%i columns=%i\n", base, li, co);
-    printer_open(1);
+    printer_open(0);
     for (y_pos=0; y_pos < li; y_pos++) {
 	for (x_pos=0; x_pos < co; x_pos++) 
-	    printer_write(1, READ_BYTE(base + y_pos*co + x_pos));
-	printer_write(1, 0x0d);
-	printer_write(1, 0x0a);
+	    printer_write(0, READ_BYTE(base + y_pos*co + x_pos));
+	printer_write(0, 0x0d);
+	printer_write(0, 0x0a);
     }
-    printer_flush(1);
-    printer_close(1);
+    printer_flush(0);
+    printer_close(0);
 }
 
 static void int05(u_char i) 

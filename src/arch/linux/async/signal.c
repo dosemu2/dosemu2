@@ -11,10 +11,6 @@
 #include <signal.h>
 #include <string.h>
 #include <errno.h>
-#include <features.h>
-#ifdef __linux__
-#include <syscall.h>
-#endif
 
 #include "config.h"
 #include "emu.h"
@@ -58,7 +54,6 @@ static struct SIGNAL_queue signal_queue[MAX_SIG_QUEUE_SIZE];
 static sigset_t oldset;
 
 #ifdef __linux__
-#if GLIBC_VERSION_CODE >= 2000
 /*
  * Thomas Winder <thomas.winder@sea.ericsson.se> wrote:
  * glibc-2 uses a different struct sigaction type than the one used in
@@ -89,23 +84,6 @@ dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
 
   return(syscall(SYS_sigaction, sig, &my_sa, NULL));
 }
-
-#else		/* libc5 version */
-
-/* Similar to the sigaction function in libc, except it leaves alone the
-   restorer field
-   stolen from the wine-project */
-int
-dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
-{
-  __asm__("int $0x80":"=a"(sig)
-	  :"0"(SYS_sigaction), "b"(sig), "c"(new), "d"(old));
-  if (sig >= 0)
-    return 0;
-  errno = -sig;
-  return -1;
-}
-#endif /* not __GLIBC__ */
 #endif /* __linux__ */
 
 /* Silly Interrupt Generator Initialization/Closedown */

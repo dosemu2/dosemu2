@@ -53,7 +53,6 @@
 #define	DEBUG_VBE		/* general info */
 
 
-#include <features.h>
 #include <string.h>
 #include "cpu.h"
 #include "emu.h"

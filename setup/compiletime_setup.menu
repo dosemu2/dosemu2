@@ -10,7 +10,6 @@ menu "Main Menu" {
   boolean "Use X-Windows" x
   boolean "enable Linux net code" net
   boolean "compile with debug info" dodebug
-  boolean "force use of dosemu supplied Slang-lib" slangforce
   boolean "run as root mostly" runasroot
   boolean "make static binaries" linkstatic
   boolean "EXPERIMENTAL, enable CPU emulator" cpuemu
@@ -31,6 +30,7 @@ menu "Main Menu" {
   input "Directory for DOSEMU documentation" docdir
   input "Default directory for images and boot directories" syshdimagedir
   input "Directory for X fonts" x11fontdir
+  input "S-Lang directory (use default for system supplied S-Lang)" slangdir
   input "Name of the FreeDOS tarball" fdtarball
 }
 

@@ -8,7 +8,7 @@
  * In particular, the client initialisation and the paste routine.
  */
 #include <string.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include "emu.h"
 #include "termio.h"
 #include "keyboard.h"

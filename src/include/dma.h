@@ -10,7 +10,7 @@
 void dma_init(void);
 void dma_reset(void);
 
-EXTERN __u8 is_dma;     /* Active DMA channels mask */
+EXTERN uint8_t is_dma;     /* Active DMA channels mask */
 
 void dma_controller(void);
 

@@ -29,10 +29,8 @@
 #include <string.h>
 #include <signal.h>
 
-#include "Linux/vt.h"
+#include <sys/vt.h>
 #include <sys/ioctl.h>
-
-#include "dosemu_select.h"
 
 #define    TMPFILE_		"/var/run/dosemu."
 #define    TMPFILE_HOME		".dosemu/run/dosemu."

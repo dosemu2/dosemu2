@@ -28,7 +28,6 @@
 #endif
 #endif
 
-#include <features.h>
 #include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,7 +38,6 @@
 #include "vm86plus.h"
 
 #ifdef __linux__
-#include <syscall.h>
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
@@ -49,16 +47,6 @@
 #ifdef USE_SBEMU
 #include "sound.h"
 #endif
-
-#if 0
-  /* well, I would like to get TASK_SIZE  out of the header files,
-   * however, including them also defines stuff, that breaks compilation
-   */
-  #include "Linux/sched.h"
-#else
-  #define TASK_SIZE     (0xC0000000UL)
-#endif
-
 
 #include <string.h>
 #include <errno.h>
@@ -79,6 +67,7 @@
 #endif
 
 #include "dpmi.h"
+#include "msdos.h"
 #include "bios.h"
 #include "config.h"
 #include "bitops.h"
@@ -111,14 +100,20 @@ unsigned long RealModeContext;
 unsigned long RealModeContext_Stack[DPMI_max_rec_rm_func];
 unsigned long RealModeContext_Running = 0;
 
-static INTDESC Interrupt_Table[0x100];
+INTDESC Interrupt_Table[0x100];
 static INTDESC Exception_Table[0x20];
 SEGDESC Segments[MAX_SELECTORS];
 
 /* for real mode call back, DPMI function 0x303 0x304 */
 static RealModeCallBack realModeCallBack[DPMI_MAX_CLIENTS][0x10];
 
-static RealModeCallBack mouseCallBack; /* user\'s mouse routine */
+#define CLI_BLACKLIST_LEN 128
+static unsigned char * cli_blacklist[CLI_BLACKLIST_LEN];
+static unsigned char * current_cli;
+static int cli_blacklisted = 0;
+static int find_cli_in_blacklist(unsigned char *);
+
+RealModeCallBack mouseCallBack; /* user\'s mouse routine */
 
 struct vm86_regs DPMI_rm_stack[DPMI_max_rec_rm_func];
 int DPMI_rm_procedure_running = 0;
@@ -135,23 +130,16 @@ static char *pm_stack; /* locked protected mode stack */
 static int in_dpmi_pm_stack = 0; /* locked protected mode stack in use */
 
 static unsigned long dpmi_total_memory; /* total memory  of this session */
-extern unsigned long dpmi_free_memory; /* how many bytes memory client */
-				       /* can allocate */
-extern dpmi_pm_block *pm_block_root[DPMI_MAX_CLIENTS];
-extern unsigned long pm_block_handle_used;       /* tracking handle */
 
-static int DPMIclient_is_32 = 0;
-static unsigned short DPMI_private_data_segment;
+int DPMIclient_is_32 = 0;
+unsigned short DPMI_private_data_segment;
 unsigned short PMSTACK_SEL = 0;	/* protected mode stack selector */
 unsigned long PMSTACK_ESP = 0;	/* protected mode stack descriptor */
 unsigned short DPMI_SEL = 0;
-extern int fatalerr;
 
-static struct sigcontext_struct dpmi_stack_frame[DPMI_MAX_CLIENTS]; /* used to store the dpmi client registers */
+struct sigcontext_struct dpmi_stack_frame[DPMI_MAX_CLIENTS]; /* used to store the dpmi client registers */
 static struct sigcontext_struct _emu_stack_frame;  /* used to store emulator registers */
 static struct sigcontext_struct *emu_stack_frame = &_emu_stack_frame;
-
-#include "msdos.h"
 
 #ifdef __linux__
 _syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
@@ -637,7 +625,7 @@ static int SetSelector(unsigned short selector, unsigned long base_addr, unsigne
 } 
 
 
-static unsigned short AllocateDescriptors(int number_of_descriptors)
+unsigned short AllocateDescriptors(int number_of_descriptors)
 {
   int next_ldt=0x10, i;		/* first 0x10 descriptors are reserved */
   unsigned char isfree=1;
@@ -664,7 +652,7 @@ static unsigned short AllocateDescriptors(int number_of_descriptors)
   return (next_ldt<<3) | 0x0007;
 }
 
-static int FreeDescriptor(unsigned short selector)
+int FreeDescriptor(unsigned short selector)
 {
   unsigned short ldt_entry = selector >> 3;
 
@@ -692,7 +680,7 @@ static int FreeDescriptor(unsigned short selector)
 #endif
 }
 
-static int ConvertSegmentToDescriptor(unsigned short segment)
+int ConvertSegmentToDescriptor(unsigned short segment)
 {
   unsigned long baseaddr = segment << 4;
   unsigned short selector;
@@ -727,7 +715,7 @@ unsigned long dpmi_GetSegmentBaseAddress(unsigned short selector)
   return GetSegmentBaseAddress(selector);
 }
 
-static int SetSegmentBaseAddress(unsigned short selector, unsigned long baseaddr)
+int SetSegmentBaseAddress(unsigned short selector, unsigned long baseaddr)
 {
   unsigned short ldt_entry = selector >> 3;
   D_printf("DPMI: SetSegmentBaseAddress[0x%04x;0x%04x] 0x%08lx\n", ldt_entry, selector, baseaddr);
@@ -746,7 +734,7 @@ static int SetSegmentBaseAddress(unsigned short selector, unsigned long baseaddr
 );
 }
 
-static int SetSegmentLimit(unsigned short selector, unsigned int limit)
+int SetSegmentLimit(unsigned short selector, unsigned int limit)
 {
   unsigned short ldt_entry = selector >> 3;
   D_printf("DPMI: SetSegmentLimit[0x%04x;0x%04x] 0x%08x\n", ldt_entry, selector, limit);
@@ -1066,7 +1054,7 @@ static void restore_rm_regs(void)
   REGS = DPMI_rm_stack[--DPMI_rm_procedure_running];
 }
 
-static void save_pm_regs(struct sigcontext_struct *scp)
+void save_pm_regs(struct sigcontext_struct *scp)
 {
   if (DPMI_pm_procedure_running >= DPMI_max_rec_pm_func) {
     error("DPMI: DPMI_pm_procedure_running = 0x%x\n",DPMI_pm_procedure_running);
@@ -1075,7 +1063,7 @@ static void save_pm_regs(struct sigcontext_struct *scp)
   copy_context(&DPMI_pm_stack[DPMI_pm_procedure_running++], scp);
 }
 
-static void restore_pm_regs(struct sigcontext_struct *scp)
+void restore_pm_regs(struct sigcontext_struct *scp)
 {
   if (DPMI_pm_procedure_running > DPMI_max_rec_pm_func ||
     DPMI_pm_procedure_running < 1) {
@@ -1848,6 +1836,7 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
     if (ldt_buffer) free(ldt_buffer);
     if (pm_stack) free(pm_stack);
   }
+  cli_blacklisted = 0;
   in_dpmi_dos_int = 1;
   in_dpmi--;
   in_win31 = 0;
@@ -3107,7 +3096,14 @@ if ((_ss & 4) == 4) {
 	dbug_printf("OUCH! deadly loop, cannot continue");
 	leavedos(97);
       }
+      if (find_cli_in_blacklist(lina)) {
+        D_printf("DPMI: Ignoring blacklisted cli\n");
+	break;
+      }
+      current_cli = lina;
       dpmi_cli();
+      if (!is_cli)
+	is_cli = 1;
       break;
     case 0xfb:			/* sti */
       _eip += 1;
@@ -3846,5 +3842,34 @@ int dpmi_mhp_setTF(int on)
 
 
 #endif /* dosdebug support */
+
+void add_cli_to_blacklist(void)
+{
+  if (*current_cli != 0xfa) {
+    error("DPMI: add_cli_to_blacklist() called with no cli at %p (0x%x)!\n",
+      current_cli, *current_cli);
+    return;
+  }
+  if (cli_blacklisted < CLI_BLACKLIST_LEN) {
+    if (debug_level('M') > 5)
+      D_printf("DPMI: adding cli to blacklist: lina=%p\n", current_cli);
+    cli_blacklist[cli_blacklisted++] = current_cli;
+  }
+  else
+    D_printf("DPMI: Warning: cli blacklist is full!\n");
+}
+
+static int find_cli_in_blacklist(unsigned char * cur_cli)
+{
+int i;
+  if (debug_level('M') > 8)
+    D_printf("DPMI: searching blacklist (%d elements) for cli (lina=%p)\n",
+      cli_blacklisted, cur_cli);
+  for (i=0; i<cli_blacklisted; i++) {
+    if (cli_blacklist[i] == cur_cli)
+      return 1;
+  }
+  return 0;
+}
 
 #undef DPMI_C

@@ -134,15 +134,6 @@ extern int port_rep_outw(ioport_t port, Bit16u *dest, int df, Bit32u count);
 extern int port_rep_ind(ioport_t port, Bit32u *dest, int df, Bit32u count);
 extern int port_rep_outd(ioport_t port, Bit32u *dest, int df, Bit32u count);
 
-#if GLIBC_VERSION_CODE >= 2000
-  /* arrgh... we need this because <sys/io.h> in glibc includes asm/io.h :-( */
-  #undef inb
-  #undef inw
-  #undef ind
-  #undef outb
-  #undef outw
-  #undef outd
-#endif
 #define inb			port_inb
 #define inw			port_inw
 #define ind			port_ind

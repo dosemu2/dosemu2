@@ -64,21 +64,21 @@
  */
 
 struct sb_irq_t {
-  __u16 irq8;                  /* B-bit IRQ (internal PIC value) */
-  __u16 irq16;                 /* 16-bit IRQ (internal PIC value) */
-  __u16 midi;                  /* Midi IRQ (internal PIC value) */
+  uint16_t irq8;                  /* B-bit IRQ (internal PIC value) */
+  uint16_t irq16;                 /* 16-bit IRQ (internal PIC value) */
+  uint16_t midi;                  /* Midi IRQ (internal PIC value) */
 
-  __u8  pending;               /* Currently pending IRQs */
-  __u8  active;                /* Currently active IRQs */
+  uint8_t  pending;               /* Currently pending IRQs */
+  uint8_t  active;                /* Currently active IRQs */
 };
 
 EXTERN struct sb_information_t {
-  __u8  mixer_index;           /* Which Mixer channel to work on */
+  uint8_t  mixer_index;           /* Which Mixer channel to work on */
 
   struct sb_irq_t irq;         /* IRQ information */
 
-  __u8  speaker;               /* Speaker Status */
-  __u16 version;               /* Version of the SB being emulated */
+  uint8_t  speaker;               /* Speaker Status */
+  uint16_t version;               /* Version of the SB being emulated */
 } SB_info;
 
 /* 
@@ -86,14 +86,14 @@ EXTERN struct sb_information_t {
  */
 
 EXTERN struct DSP_information_t {
-  __u8  time_constant;         /* The current Time constant for writes */
-  __u16 sample_rate;           /* The current sample rate */
-  __u8  test;                  /* Storage for the test value */
-  __u8  stereo;                /* Is the device Stereo */
-  __u8  ready;                 /* Is DSP Ready ? */
-  __u8  data;                  /* Data is available */
-  __s32 length;                  /* Length of the DMA transfer */
-  __s32 bytes_left;	       /* No. of bytes left in current blk */
+  uint8_t  time_constant;         /* The current Time constant for writes */
+  uint16_t sample_rate;           /* The current sample rate */
+  uint8_t  test;                  /* Storage for the test value */
+  uint8_t  stereo;                /* Is the device Stereo */
+  uint8_t  ready;                 /* Is DSP Ready ? */
+  uint8_t  data;                  /* Data is available */
+  int32_t  length;                /* Length of the DMA transfer */
+  int32_t  bytes_left;	          /* No. of bytes left in current blk */
 /* 
  * This is the maximum number of bytes transferred via DMA. If you turn
  * it too low, the dosemu-overhead gets too big, so the transfer is
@@ -105,16 +105,16 @@ EXTERN struct DSP_information_t {
 #define START_DMA_AT_EMPTY 2
 #define DMA_CONTINUE 4		/* NOT for DMA pause/restart !!! */
 #define DREQ_AT_EOI 8
-  __u8  empty_state;	       /* what we have to do when transfer ends */ 
-  __u8  pause_state;	       /* is DMA transfer paused? */ 
+  uint8_t  empty_state;	       /* what we have to do when transfer ends */ 
+  uint8_t  pause_state;	       /* is DMA transfer paused? */ 
 #define SB_USES_DMA 1
 #define HIGH_SPEED_DMA 2
-  __u8  dma_mode;              /* Information we need on the DMA transfer */
-  __u8  command;               /* DSP command in progress */
+  uint8_t  dma_mode;              /* Information we need on the DMA transfer */
+  uint8_t  command;               /* DSP command in progress */
 #define SB_NO_DSP_COMMAND 0
 #define MAX_DSP_PARAMS 3
-  __u8  parameter[MAX_DSP_PARAMS];  /* value of parameter */
-  __u8  num_parameters;        /* do we have the parameter */
+  uint8_t  parameter[MAX_DSP_PARAMS];  /* value of parameter */
+  uint8_t  num_parameters;        /* do we have the parameter */
 } SB_dsp;
 
 
@@ -127,8 +127,8 @@ EXTERN struct SB_driver_t {
   /*
    * Mixer Functions
    */
-  void  (* write_mixer)(int channel, __u8 value);
-  __u8  (* read_mixer)(int channel);
+  void  (* write_mixer)(int channel, uint8_t value);
+  uint8_t  (* read_mixer)(int channel);
 
   /*
    * Speaker Control
@@ -139,7 +139,7 @@ EXTERN struct SB_driver_t {
   /*
    * Direct DAC access
    */
-  void  (* DAC_write)(int bits, __u8 value);
+  void  (* DAC_write)(int bits, uint8_t value);
 
   /*
    * DMA functions
@@ -158,8 +158,8 @@ EXTERN struct SB_driver_t {
   /*
    * Miscellaneous Functions
    */
-  int  (* set_speed)(__u16 speed, __u8 stereo);
-  void  (* play_buffer)(void *buffer, __u16 length);
+  int  (* set_speed)(uint16_t speed, uint8_t stereo);
+  void  (* play_buffer)(void *buffer, uint16_t length);
 
 } SB_driver; 
 
@@ -224,7 +224,7 @@ EXTERN struct mpu401_info_t {
 	/* MPU401 state data */
 	int isdata;         /* TRUE iff byte available at input */
 	/* Architecture specific procedures */
-	void (*data_write)(__u8 data); /* process 1 MIDI byte */
+	void (*data_write)(uint8_t data); /* process 1 MIDI byte */
 } mpu401_info;
 
 /*
@@ -233,7 +233,7 @@ EXTERN struct mpu401_info_t {
  ***************************************************************************
  */
 
-EXTERN __u8 sb_is_running; /* Do we need a tick ? */
+EXTERN uint8_t sb_is_running; /* Do we need a tick ? */
 
 #define FM_TIMER_RUN   1 /* Indicates FM sub-system in operation */
 #define DSP_OUTPUT_RUN 2 /* Indicates DSP sub-system in operation */
@@ -268,7 +268,7 @@ extern void sb_controller(void);
 #define DSP_QUEUE_SIZE  64
 
 EXTERN struct SB_queue_t {
-  __u8  output[DSP_QUEUE_SIZE];  /* Output Queue */
+  uint8_t  output[DSP_QUEUE_SIZE];  /* Output Queue */
   int   holds;                   /* Items in the Queue */
   int   start;                   /* Current Queue Start */
   int   end;                     /* Current Queue End */

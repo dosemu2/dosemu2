@@ -13,9 +13,6 @@ Andrew.Tridgell@anu.edu.au 30th March 1993
 
 #ifdef DOSEMU
 /* definitions to make mach emu code compatible with dosemu */
-#ifdef __linux__
-#include <sys/vfs.h>
-#endif
 #include "emu.h"
 
 #if 0

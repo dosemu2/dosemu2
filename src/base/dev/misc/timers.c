@@ -34,7 +34,6 @@
  *
  */
 
-#include <features.h>
 #include <sys/time.h>
 #include <sys/kd.h>
 #include "config.h"
@@ -153,6 +152,20 @@ void timer_tick(void)
   
   /* Save old value of the timer */
   time_old = time_curr;
+  
+  if (config.cli_timeout && in_dpmi && !in_dpmi_dos_int && is_cli) {
+/*
+   XXX as IF is not set by popf, we have to set it explicitly after a
+   reasonable delay. This will allow Doom to work with sound one day.
+   $_features="0:10" is recommended.
+*/
+    if (is_cli++ >= config.cli_timeout) {
+      D_printf("DPMI: Warning: Interrupts were disabled for too long, "
+      "re-enabling.\n");
+      add_cli_to_blacklist();
+      dpmi_sti();
+    }
+  }
   
   /* test for stuck interrupts, trigger any scheduled interrupts */
   pic_watch(&tp);

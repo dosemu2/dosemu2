@@ -18,7 +18,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <features.h>
 #include <sys/time.h>
 #include <unistd.h>
 #include "config.h"

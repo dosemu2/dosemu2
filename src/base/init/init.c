@@ -4,7 +4,6 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-#include <features.h>
 #include <stdio.h>
 #include <string.h>
 #include <termios.h>

@@ -22,7 +22,6 @@
 #include "video.h"
 #include "env_term.h"
 #include "translate.h"
-#include "dosemu_select.h"
 
 #ifndef VOID
 #  define VOID void

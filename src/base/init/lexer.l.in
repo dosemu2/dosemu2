@@ -670,6 +670,9 @@ aspi			RETURN(ASPI);
 devicetype		RETURN(DEVICETYPE);
 target			RETURN(TARGET);
 
+	/* hacks */
+cli_timeout		RETURN(CLI_TIMEOUT);
+
 	/* strings */
 
 \'[^\']*\'		{
@@ -710,7 +713,7 @@ $${IDENT}		MAY_BE { enter_macrofile(&yytext[2]);}
 
 	/* comments & whitespace */
 
-[#][^\n]*\n		line_count++;   /* comments to (and including) EOLN */
+[#][^\n]*		;               /* comments to (and excluding) EOLN */
 [ \t]+			;   		/* ignore all white space */
 \n			line_count++;	/* keep track of lines seen */
 .			;/* fprintf(stderr, "%s:%d discarding char '%c'\n", 

@@ -2035,8 +2035,7 @@ static void put_character_symbol(
 	if (key->key != NUM_VOID) {
 		if (make) {
 			/* Note: dead keys always have the same shiftstate */
-			sync_shift_state(new_shiftstate |
-			    (old_shiftstate & MODIFIER_INS), state);
+			sync_shift_state(new_shiftstate, state);
 			put_preceding_dead_keys(ch, state);
 			put_keynum_r(PRESS, key->key, state);
 		}

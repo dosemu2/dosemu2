@@ -11,7 +11,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <malloc.h>
 #include <sys/time.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -19,7 +18,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <ctype.h>
-#include "Linux/vt.h"
+#include <sys/vt.h>
 #include <sys/ioctl.h>
 #include <errno.h>
 
@@ -665,68 +664,3 @@ long long libless_llseek(int fd, long long offset, int origin)
   return result;
 }
 
-
-#if (GLIBC_VERSION_CODE >= 2000) && defined(PORTABLE_BINARY)
-/*
- * Under glibc we can't make portable static binaries due to libnss stuff.
- * As we only need to look at /etc/passwd (and which non-libnss system won't
- * have it?) we work around this problem by doing getpwuid() getpwnam()
- * ourselves, if we have no /etc/nsswitch.conf.
- *                                                -- Hans, 981201
- */
-
-static struct passwd *our_getpw(const char *name, uid_t uid)
-{
-  FILE *f;
-  static struct passwd pw;
-  static char buf[1024];
-  char *p;
-
-  f = fopen("/etc/passwd", "r");
-  if (!f) return 0;
-  buf[sizeof(buf)-1] = 0;
-  while (fgets(buf, sizeof(buf)-1, f)) {
-    pw.pw_name = strtok(buf, ":");
-    if (!pw.pw_name) continue;
-    if (name && strcmp(name, pw.pw_name)) continue;
-    pw.pw_passwd = strtok(0, ":");
-    if (!pw.pw_passwd) continue;
-    p = strtok(0, ":");
-    if (!p) continue;
-    pw.pw_uid = (uid_t)strtoul(p,0,0);
-    if (!name && pw.pw_uid != uid) continue;
-    p = strtok(0, ":");
-    if (!p) continue;
-    pw.pw_gid = (gid_t)strtoul(p,0,0);
-    /* we don't need more, hence we skip the rest */
-    fclose(f);
-    return &pw;
-  }
-  fclose(f);
-  return 0;
-}
-
-static int have_libnss()
-{
-  static int have_it = -1;
-  if (have_it >= 0 ) return have_it;
-  have_it = exists_file("/etc/nsswitch.conf") ? 1: 0;
-  return have_it;
-}
-
-#undef getpwuid
-#undef getpwnam
-
-struct passwd *our_getpwuid(uid_t uid)
-{
-  if (have_libnss()) return getpwuid(uid);
-  return our_getpw(0, uid);
-}
-
-struct passwd *our_getpwnam(const char *name)
-{
-  if (have_libnss()) return getpwnam(name);
-  return our_getpw(name, 0);
-}
-
-#endif /* GLIBC_VERSION_CODE >= 2000 */

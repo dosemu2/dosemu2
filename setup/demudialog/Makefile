@@ -13,15 +13,15 @@ OPTIM = -O2 -Wall -fomit-frame-pointer
 CFLAGS = $(OPTIM) -DLOCALE 
 ifdef USE_SLCURSES
 #STATIC = -static
-LDFLAGS = $(DBGFLAGS)  $(STATIC) -s -L . -L../../src/lib
-LDLIBS = -larch_linux_slang-elf
+LDFLAGS = $(DBGFLAGS)  $(STATIC) -s -L .
+LDLIBS = -lslang
 else
 LDFLAGS = $(STATIC) -s -L .
 LDLIBS = -lncurses
 endif
 
 ifdef USE_SLCURSES
-	CFLAGS += -I../../src/include/slang -DSLANG -DCURSES_LOC="<slcurses.h>"
+	CFLAGS += -DSLANG -DCURSES_LOC="<slcurses.h>"
 else
 ifeq (/usr/include/ncurses/ncurses.h, $(wildcard /usr/include/ncurses/ncurses.h))
         CFLAGS += -I/usr/include/ncurses -DCURSES_LOC="<ncurses.h>"

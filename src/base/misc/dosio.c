@@ -10,7 +10,6 @@
  * Hans Lermen, moved 'mapping' to generic mapping drivers, 2000/02/02
  *
  */
-#include <features.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/time.h>

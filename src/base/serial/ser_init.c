@@ -33,7 +33,6 @@
  *
  * DANG_END_MODULE
  */
-#include <features.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,9 +44,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
-#ifdef __linux__
 #include <limits.h>
-#endif
 #include <pwd.h>
 
 #include "config.h"

@@ -7,12 +7,7 @@
 #ifndef _EMU_IODEV_H
 #define _EMU_IODEV_H
 
-#include <features.h>
 #include <sys/time.h>
-#if 0
-#include "emu_defs.h"
-#include "keyb.h"
-#endif
 #include "port.h"
 #include "timers.h"
 

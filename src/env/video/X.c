@@ -3275,14 +3275,148 @@ void start_extend_selection(int x, int y)
   
 }
 
+#ifndef HAVE_UNICODE_TRANSLATION
+
+static void save_selection(int col1, int row1, int col2, int row2)
+{
+  size_t i;
+  int row, col, line_start_col, line_end_col;
+  u_char *sel_text_latin;
+  size_t sel_text_bytes;
+  u_char *p;
+
+  sel_text_latin = sel_text = malloc((row2-row1+1)*(co+1)+2);
+  
+  /* Copy the text data. */
+  for (row = row1; (row <= row2); row++)
+  {
+    line_start_col = ((row == row1) ? col1 : 0);
+    line_end_col = ((row == row2) ? col2 : co-1);
+    p = sel_text_latin;
+    for (col = line_start_col; (col <= line_end_col); col++)
+    {
+      *p++ = XCHAR(screen_adr+row*co+col);
+    }
+    /* Remove end-of-line spaces and add a newline. */
+    if (col == co)
+    { 
+      p--;
+      while ((*p == ' ') && (p > sel_text_latin))
+        p--;
+      p++;
+      *p++ = '\n';
+    }
+    
+    sel_text_bytes = p - sel_text_latin;
+    for (i=0; i<sel_text_bytes;i++)
+      switch (sel_text_latin[i]) 
+      {
+      case 21 : /* § */
+        sel_text_latin[i] = 0xa7;
+        break;
+      case 20 : /* ¶ */
+        sel_text_latin[i] = 0xb6;
+        break;
+      case 124 : /* ¦ */
+        sel_text_latin[i] = 0xa6;
+        break;
+      case 0x80 ... 0xff: 
+        switch (config.term_charset) {
+        case CHARSET_KOI8:
+          sel_text_latin[i]=dos_to_koi8[sel_text_latin[i] - 0x80];
+          break;
+        case CHARSET_LATIN1:
+          sel_text_latin[i]=dos_to_latin1[sel_text_latin[i] - 0x80];
+          break;
+        case CHARSET_LATIN2:
+          sel_text_latin[i]=dos_to_latin2[sel_text_latin[i] - 0x80];
+          break;
+        case CHARSET_LATIN:
+        default:
+          sel_text_latin[i]=dos_to_latin[sel_text_latin[i] - 0x80];
+          break;
+        }
+      }
+    sel_text_latin += sel_text_bytes;
+  }
+  *sel_text_latin = '\0';
+}
+
+#else /* HAVE_UNICODE_TRANSLATION */
+
+static void save_selection(int col1, int row1, int col2, int row2)
+{
+	int row, col, line_start_col, line_end_col;
+	u_char *sel_text_dos, *sel_text_latin, *sel_text_ptr, *prev_sel_text_latin;
+	size_t sel_space, sel_text_bytes;
+	u_char *p;
+        
+	struct char_set_state paste_state;
+	struct char_set_state video_state; /* must not have any... */
+
+	struct char_set *paste_charset = trconfig.paste_charset;
+	struct char_set *video_charset = trconfig.video_mem_charset;
+  
+	init_charset_state(&video_state, video_charset);
+	init_charset_state(&paste_state, paste_charset);
+	
+	p = sel_text_dos = malloc(co);
+	sel_space = (row2-row1+1)*(co+1)+102;
+	sel_text_latin = sel_text = malloc(sel_space);
+  
+	/* Copy the text data. */
+	for (row = row1; (row <= row2); row++)
+	{
+		prev_sel_text_latin = sel_text_latin;
+		line_start_col = ((row == row1) ? col1 : 0);
+		line_end_col = ((row == row2) ? col2 : co-1);
+		p = sel_text_ptr = sel_text_dos;
+		for (col = line_start_col; (col <= line_end_col); col++)
+		{
+			*p++ = XCHAR(screen_adr+row*co+col);
+		}
+		sel_text_bytes = line_end_col - line_start_col + 1;
+		while(sel_text_bytes) {
+			t_unicode symbol;
+			size_t result;
+			/* If we hit any run with what we have */
+			result = charset_to_unicode(&video_state, &symbol,
+						    sel_text_ptr, sel_text_bytes);
+			if (result == -1) break;
+			sel_text_bytes -= result;
+			sel_text_ptr += result;
+			result = unicode_to_charset(&paste_state, symbol,
+						    sel_text_latin, sel_space);
+			if (result == -1) break;
+			sel_text_latin += result;
+			sel_space -= result;
+		}
+		/* Remove end-of-line spaces and add a newline. */
+		if (col == co)
+		{ 
+			sel_text_latin--;
+			while ((*sel_text_latin == ' ') && (sel_text_latin > prev_sel_text_latin))
+				sel_text_latin--;
+			sel_text_latin++;
+			*sel_text_latin++ = '\n';
+		}
+	}
+	free(sel_text_dos);
+	*sel_text_latin = '\0';
+  
+	cleanup_charset_state(&video_state);
+	cleanup_charset_state(&paste_state);
+}
+
+#endif /* HAVE_UNICODE_TRANSLATION */
 
 /*
  * Copy the selected text to sel_text, and inform the X server about it.
  */
 void save_selection_data()
 {
-  int col, row, col1, row1, col2, row2, line_start_col, line_end_col;
-  u_char *p;
+  int col1, row1, col2, row2;
+
   if ((sel_end-sel_start) < 0)
   {
     visible_selection = FALSE;
@@ -3296,28 +3430,9 @@ void save_selection_data()
   /* Allocate space for text. */
   if (sel_text != NULL)
     free(sel_text);
-  p = sel_text = malloc((row2-row1+1)*(co+1)+2);
+
+  save_selection(col1, row1, col2, row2);
   
-  /* Copy the text data. */
-  for (row = row1; (row <= row2); row++)
-  {
-    line_start_col = ((row == row1) ? col1 : 0);
-    line_end_col = ((row == row2) ? col2 : co-1);
-    for (col = line_start_col; (col <= line_end_col); col++)
-    {
-      *p++ = XCHAR(screen_adr+row*co+col);
-    }
-    /* Remove end-of-line spaces and add a newline. */
-    if (col == co)
-    { 
-      p--;
-      while ((*p == ' ') && (p > sel_text))
-        p--;
-      p++;
-      *p++ = '\n';
-    }
-  }
-  *p = '\0';
   if (strlen(sel_text) == 0)
     return;
     
@@ -3327,12 +3442,13 @@ void save_selection_data()
   {
     X_printf("X: Couldn't get primary selection!\n");
     return;
-}
+  }
   XChangeProperty(display, rootwindow, XA_CUT_BUFFER0, XA_STRING,
     8, PropModeReplace, sel_text, strlen(sel_text));
 
   X_printf("X: Selection, %d,%d->%d,%d, size=%d\n", 
     col1, row1, col2, row2, strlen(sel_text));
+
 }
 
 
@@ -3347,90 +3463,13 @@ void end_selection()
   save_selection_data();
 }
 
-
-#ifndef HAVE_UNICODE_TRANSLATION
 /*
  * Send selection data to other window.
  */
 void send_selection(Time time, Window requestor, Atom target, Atom property)
 {
-  int i;
-  u_char *sel_text_latin;
-  XEvent e;
-  e.xselection.type = SelectionNotify;
-  e.xselection.selection = XA_PRIMARY;
-  e.xselection.requestor = requestor;
-  e.xselection.time = time;
-  if (sel_text == NULL) {
-    X_printf("X: Window 0x%lx requested selection, but it's empty!\n",   
-      (unsigned long) requestor);
-    e.xselection.property = None;
-  }
-  else if ((target == XA_STRING) || (target == compound_text_atom)) {
-    X_printf("X: selection (dos): %s\n",sel_text);   
-    e.xselection.target = target;
-    sel_text_latin = malloc(strlen(sel_text) + 1);
-    strcpy(sel_text_latin, sel_text);
-    for (i=0; i<strlen(sel_text_latin);i++)
-      switch (sel_text_latin[i]) 
-	{
-	case 21 : /* § */
-	  sel_text_latin[i] = 0xa7;
-	  break;
-	case 20 : /* ¶ */
-	  sel_text_latin[i] = 0xb6;
-	  break;
-	case 124 : /* ¦ */
-	  sel_text_latin[i] = 0xa6;
-	  break;
-	case 0x80 ... 0xff: 
-          switch (config.term_charset) {
-             case CHARSET_KOI8:
-                sel_text_latin[i]=dos_to_koi8[sel_text_latin[i] - 0x80];
-                break;
-             case CHARSET_LATIN1:
-                sel_text_latin[i]=dos_to_latin1[sel_text_latin[i] - 0x80];
-                break;
-             case CHARSET_LATIN2:
-                sel_text_latin[i]=dos_to_latin2[sel_text_latin[i] - 0x80];
-                break;
-             case CHARSET_LATIN:
-             default:
-                sel_text_latin[i]=dos_to_latin[sel_text_latin[i] - 0x80];
-                break;
-          }
-	} 
-    X_printf("X: selection (latin): %s\n",sel_text_latin);  
-    XChangeProperty(display, requestor, property, target, 8, PropModeReplace, 
-      sel_text_latin, strlen(sel_text_latin));
-    e.xselection.property = property;
-    X_printf("X: Selection sent to window 0x%lx as %s\n", 
-      (unsigned long) requestor, (target==XA_STRING)?"string":"compound_text");
-    free(sel_text_latin);
-  }
-  else
-  {
-    e.xselection.property = None;
-    X_printf("X: Window 0x%lx requested unknown selection format %ld\n",
-      (unsigned long) requestor, (unsigned long) target);
-  }
-  XSendEvent(display, requestor, False, 0, &e);
-}
-#else /* HAVE_UNICODE_TRANSLATION */
-void send_selection(Time time, Window requestor, Atom target, Atom property)
-{
-	size_t sel_text_bytes, sel_text_latin_bytes, sel_text_latin_space;
-	u_char *sel_text_ptr, *sel_text_latin, *sel_text_latin_ptr;
-	struct char_set_state paste_state;
-	struct char_set_state video_state; /* must not have any... */
-	
-	struct char_set *paste_charset = trconfig.paste_charset;
-	struct char_set *video_charset = trconfig.video_mem_charset;
 	XEvent e;
 
-	init_charset_state(&video_state, video_charset);
-	init_charset_state(&paste_state, paste_charset);
-	
 	e.xselection.type = SelectionNotify;
 	e.xselection.selection = XA_PRIMARY;
 	e.xselection.requestor = requestor;
@@ -3441,38 +3480,13 @@ void send_selection(Time time, Window requestor, Atom target, Atom property)
 		e.xselection.property = None;
 	}
 	else if ((target == XA_STRING) || (target == compound_text_atom)) {
-		X_printf("X: selection (dos): %s\n",sel_text);   
+		X_printf("X: selection: %s\n",sel_text);   
 		e.xselection.target = target;
-		sel_text_bytes = strlen(sel_text);
-		sel_text_latin_bytes = sel_text_bytes + 100;
-		sel_text_latin_space = sel_text_latin_bytes;
-		sel_text_latin = malloc(sel_text_latin_bytes);
-		sel_text_ptr = sel_text;
-		sel_text_latin_ptr = sel_text_latin;
-		while(sel_text_bytes) {
-			t_unicode symbol;
-			size_t result;
-			/* If we hit any run with what we have */
-			result = charset_to_unicode(&video_state, &symbol,
-				sel_text_ptr, sel_text_bytes);
-			if (result == -1) break;
-			sel_text_bytes -= result;
-			sel_text_ptr += result;
-			result = unicode_to_charset(&paste_state, 
-				symbol,
-				sel_text_latin_ptr, sel_text_latin_space);
-			if (result == -1) break;
-			sel_text_latin_ptr += result;
-			sel_text_latin_space -= result;
-		}
-		*sel_text_latin_ptr = '\0';
-		X_printf("X: selection (latin): %s\n",sel_text_latin);  
 		XChangeProperty(display, requestor, property, target, 8, PropModeReplace, 
-			sel_text_latin, strlen(sel_text_latin));
+			sel_text, strlen(sel_text));
 		e.xselection.property = property;
 		X_printf("X: Selection sent to window 0x%lx as %s\n", 
 			(unsigned long) requestor, (target==XA_STRING)?"string":"compound_text");
-		free(sel_text_latin);
 	}
 	else
 	{
@@ -3480,11 +3494,8 @@ void send_selection(Time time, Window requestor, Atom target, Atom property)
 		X_printf("X: Window 0x%lx requested unknown selection format %ld\n",
 			(unsigned long) requestor, (unsigned long) target);
 	}
-	cleanup_charset_state(&video_state);
-	cleanup_charset_state(&paste_state);
 	XSendEvent(display, requestor, False, 0, &e);
 }
-#endif /* HAVE_UNICODE_TRANSLATION */
 
 #endif /* CONFIG_X_SELECTION */
 

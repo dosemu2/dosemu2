@@ -55,7 +55,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <linux/soundcard.h>
+#include <sys/soundcard.h>
 
 Device *devices = NULL;		/* list of all drivers */
 int debugall;			/* 1 for all read bytes */

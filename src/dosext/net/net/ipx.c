@@ -22,11 +22,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/vm86.h>
-#if GLIBC_VERSION_CODE >= 2000
-#  include <netipx/ipx.h>
-#else
-#  include "Linux/ipx.h"
-#endif /* GLIBC_VERSION_CODE */
+#include <netipx/ipx.h>
 #include <netinet/in.h>
 #include <errno.h>
 
@@ -39,7 +35,6 @@
 #include "bios.h"
 #include "inifile.h"
 #include "doshelpers.h"
-#include "dosemu_select.h"
 
 #define MAX_PACKET_DATA		1500
 

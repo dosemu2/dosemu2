@@ -12,12 +12,8 @@
 #ifndef EMU_H
 #define EMU_H
 
-#include <features.h>
 #include <sys/types.h>
 #include <setjmp.h>
-#if GLIBC_VERSION_CODE == 2000
-#include <sigcontext.h>
-#endif
 #include <signal.h> 
 
 #include "config.h"
@@ -357,13 +353,13 @@ typedef struct vesamode_type_struct {
        int features[1];
 
        /* Sound emulation */
-       int sound; 
-       __u16 sb_base;
-       __u8 sb_dma;
-       __u8 sb_irq;
+       int sound;
+       uint16_t sb_base;
+       uint8_t sb_dma;
+       uint8_t sb_irq;
        char *sb_dsp;
        char *sb_mixer;
-       __u16 mpu401_base;
+       uint16_t mpu401_base;
 
        /* joystick */
        char *joy_device[2];
@@ -374,6 +370,8 @@ typedef struct vesamode_type_struct {
        
        int joy_granularity;	/* the higher, the less sensitive - for wobbly joysticks */
        int joy_latency;		/* delay between nonblocking linux joystick reads */
+
+       int cli_timeout;		/* cli timeout hack */
      }
 
 config_t;
@@ -484,9 +482,7 @@ do { \
 } while(0)
 
 #ifdef __linux__
-#if GLIBC_VERSION_CODE
 #define SignalHandler __sighandler_t
-#endif
 #define NEWSETQSIG(sig, fun)	sa.sa_handler = (__sighandler_t)fun; \
 			/* Point to the top of the stack, minus 4 \
 			   just in case, and make it aligned  */ \

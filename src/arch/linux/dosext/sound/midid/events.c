@@ -15,7 +15,7 @@
 #include "emulation.h"
 #include "device.h"
 #include <stdio.h>
-#include <linux/soundcard.h>
+#include <sys/soundcard.h>
 
 #define EOX 0xf7
 

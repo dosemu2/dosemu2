@@ -25,15 +25,15 @@
 /* sampling rate for direct DAC writes */
 #define DIRECT_WRITE_FREQ	6000
 
-void linux_sb_mixer_write_setting (int ch, __u8 val);
-__u8 linux_sb_mixer_read_setting(int ch);
+void linux_sb_mixer_write_setting (int ch, uint8_t val);
+uint8_t linux_sb_mixer_read_setting(int ch);
 
 int linux_sb_get_version(void);
 
 void linux_sb_disable_speaker(void);
 void linux_sb_enable_speaker (void);
 
-int linux_sb_set_speed (__u16 speed, __u8 stereo_mode);
+int linux_sb_set_speed (uint16_t speed, uint8_t stereo_mode);
 
 int linux_sb_dma_start_init(void);
 
@@ -46,6 +46,6 @@ int  linux_sb_dma_get_free_space(void);
 
 void linux_sb_dma_complete(void);
 
-void linux_mpu401_data_write(__u8 data);
+void linux_mpu401_data_write(uint8_t data);
 
 int linux_sb_get_free_fragments(int *total, int *free, int *bytes);

@@ -16,16 +16,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <features.h>
-#if defined (__GLIBC__) && __GLIBC__ >= 2
-  #define __need_timeval
-  #if __GLIBC__== 2 && __GLIBC_MINOR__ < 1
-    #include <timebits.h>
-    #include <sys/time.h>
-  #else
-    #include <bits/time.h>
-  #endif
-#endif
+#include <sys/time.h>
 #include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -36,10 +27,8 @@
 #include <string.h>
 #include <signal.h>
 
-#include "Linux/vt.h"
+#include <sys/vt.h>
 #include <sys/ioctl.h>
-
-#include "dosemu_select.h"
 
 static void usage(void)
 {

@@ -27,7 +27,6 @@
  *
  */
 
-#include <features.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -41,11 +40,7 @@
 #include <signal.h>
 #include <sys/stat.h>
 #ifdef __linux__
-#if GLIBC_VERSION_CODE >= 2000
 #include <sys/vt.h>
-#else
-#include "Linux/vt.h"
-#endif
 #include <sys/kd.h>
 #endif
 

@@ -22,7 +22,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#include <malloc.h>
+#include <stdlib.h>
 
 #include "config.h"
 #include "emu.h"
@@ -89,13 +89,10 @@ void hgc_meminit(void)
   open_mapping(MAPPING_HGC);
   hgc_ctrl = 1;
 
-  if ( ( phgcp0 = valloc( 32*1024 ) ) == NULL ) /* memory for page 0 */
+  if ( ( phgcp0 = malloc( 32*1024 ) ) == NULL ) /* memory for page 0 */
     hgc_ctrl = 0;
 
-  if ( ( phgcp1 = valloc( 32*1024 ) ) == NULL ) /* memory for page 1 */
-    hgc_ctrl = 0;
-
-  if ( ( syncadr = valloc( 32*1024 ) ) == NULL ) /* memory for sync */
+  if ( ( phgcp1 = malloc( 32*1024 ) ) == NULL ) /* memory for page 1 */
     hgc_ctrl = 0;
 
   /* map real HGC-mem (page 0) */
@@ -355,16 +352,15 @@ void set_hgc_page(int page)
  munmap_mapping(MAPPING_HGC, HGC_BASE1, HGC_PLEN);
 
  /* map real HGC-mem to a place from where we can sync */
- Test = mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
-      syncadr,
+ syncadr = mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
+      (void *)-1,
       HGC_PLEN,
       PROT_READ | PROT_WRITE,
       (void *) HGC_BASE0);
 
 
-   v_printf("Syncadr: soll %u ist %u\n",
-     (unsigned int) syncadr,
-     (unsigned int) Test);
+   v_printf("Syncadr: soll %u\n",
+     (unsigned int) syncadr);
 
  /* save old visible page (page 1) */
  memcpy( phgcp1, syncadr, HGC_PLEN );
@@ -398,8 +394,8 @@ void set_hgc_page(int page)
    munmap_mapping(MAPPING_HGC, HGC_BASE0, HGC_PLEN);
 
    /* map real HGC-mem to a place from where we can sync */
-   Test = mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
-    syncadr,
+   syncadr = mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
+    (void *)-1,
     HGC_PLEN,
     PROT_READ | PROT_WRITE,
     (void *) HGC_BASE0);

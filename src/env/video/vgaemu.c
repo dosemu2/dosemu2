@@ -256,10 +256,7 @@
 #endif
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-#include <features.h>
-#if GLIBC_VERSION_CODE == 2000
-#include <sigcontext.h>
-#endif
+#include <signal.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdlib.h>

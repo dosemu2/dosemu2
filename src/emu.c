@@ -55,7 +55,6 @@
 __asm__("___START___: jmp _emulate\n");
 #endif
 
-#include <features.h>
 #include <stdio.h>
 #include <termios.h>
 #include <unistd.h>
@@ -78,11 +77,7 @@ __asm__("___START___: jmp _emulate\n");
 #include <locale.h>
 
 #ifdef __linux__
-#if GLIBC_VERSION_CODE >= 2000
 #include <sys/vt.h>
-#else
-#include "Linux/vt.h"
-#endif
 #include <sys/kd.h>
 #include "Linux/fd.h"
 #include "Linux/hdreg.h"
