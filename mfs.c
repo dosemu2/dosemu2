@@ -146,6 +146,9 @@ TODO:
  *
  * HISTORY:
  * $Log: mfs.c,v $
+ * Revision 2.3  1994/07/26  01:12:20  root
+ * prep for pre53_6.
+ *
  * Revision 2.2  1994/06/24  14:51:06  root
  * Markks's patches plus.
  *
@@ -358,6 +361,7 @@ TODO:
 #include <sys/param.h>
 #include <stdlib.h>
 #include <malloc.h>
+#include <utime.h>
 
 #if !DOSEMU
 #include <mach/message.h>
@@ -1753,8 +1757,25 @@ time_to_dos(clock, date, time)
 	   (((tm->tm_mon + 1) & 0xf) << 5) |
 	   (tm->tm_mday & 0x1f));
 
-  *time = (((tm->tm_hour & 0x1f) << 0xb) |
-	   ((tm->tm_min & 0x3f) << 5));
+  *time = (((tm->tm_hour & 0x1f) << 11) |
+	   ((tm->tm_min & 0x3f) << 5) |
+	   ((tm->tm_sec>>1) & 0x1f));
+}
+
+__inline__ time_t 
+time_to_unix(u_short dos_date, u_short dos_time) 
+{
+   struct tm T;
+   T.tm_sec  = (dos_time & 0x1f) << 1;    dos_time >>= 5;
+   T.tm_min  = dos_time & 0x3f;           dos_time >>= 6;
+   T.tm_hour = dos_time;
+   T.tm_mday = dos_date & 0x1f;           dos_date >>= 5;
+   T.tm_mon  = (dos_date & 0x0f) - 1;     dos_date >>= 4;
+   T.tm_year = dos_date + 80;
+   
+   /* tm_wday, tm_yday, tm_isdst are ignored by mktime() */
+
+   return mktime(&T);
 }
 
 __inline__ int
@@ -2533,7 +2554,7 @@ dos_fs_redirect(state)
 
   sft = (u_char *) Addr(state, es, edi);
 
-  Debug0((dbg_fd, "Entering dos_fs_redirect\n"));
+  Debug0((dbg_fd, "Entering dos_fs_redirect, FN=%02X\n",LOW(state->eax)));
 
   if (!select_drive(state))
     return (REDIRECT);
@@ -2645,7 +2666,8 @@ dos_fs_redirect(state)
     return (TRUE);
   case CLOSE_FILE:		/* 0x06 */
     fd = sft_fd(sft);
-    Debug0((dbg_fd, "Close file %x\n", fd));
+    filename1 = (u_char *)sft_dev_drive_ptr(sft);
+    Debug0((dbg_fd, "Close file %x (%s)\n", fd, filename1));
     Debug0((dbg_fd, "Handle cnt %d\n",
 	    sft_handle_cnt(sft)));
     sft_handle_cnt(sft)--;
@@ -2655,10 +2677,31 @@ dos_fs_redirect(state)
     }
     else if (close(fd) != 0) {
       Debug0((dbg_fd, "Close file fails\n"));
+      free(filename1);
       return (FALSE);
     }
     else {
       Debug0((dbg_fd, "Close file succeeds\n"));
+
+      /* if bit 14 in device_info is set, dos requests to set the file 
+         date/time on closing. R.Brown states this incorrectly (inverted).
+      */
+         
+      if (sft_device_info(sft) & 0x4000) {  
+         struct utimbuf ut;
+         u_short dos_date=sft_date(sft),dos_time=sft_time(sft);
+         
+         Debug0((dbg_fd,"close: setting file date=%04x time=%04x [<- dos format]\n",
+                 dos_date,dos_time));
+         ut.actime=ut.modtime=time_to_unix(dos_date,dos_time);
+
+         if (filename1!=NULL && *filename1) 
+            utime(filename1,&ut);
+      }
+      else {
+         Debug0((dbg_fd,"close: not setting file date/time\n"));
+      }
+      free(filename1);
       return (TRUE);
     }
   case READ_FILE:
@@ -2990,7 +3033,9 @@ dos_fs_redirect(state)
       sft_open_mode(sft) |= 0x00f0;
     else
       sft_open_mode(sft) = sda_open_mode(sda) & 0x7f;
-    sft_dev_drive_ptr(sft) = 0;
+
+    /* store the name for FILE_CLOSE */
+    sft_dev_drive_ptr(sft) = (u_long)strdup(fpath);
     sft_directory_entry(sft) = 0;
     sft_directory_sector(sft) = 0;
 #ifdef NOTEST
@@ -3085,7 +3130,7 @@ dos_fs_redirect(state)
     }
 
     auspr(fpath + bs_pos + 1, sft_name(sft), sft_ext(sft));
-    sft_dev_drive_ptr(sft) = 0;
+    sft_dev_drive_ptr(sft) = (u_long)strdup(fpath);
 
     /* This caused a bug with temporary files so they couldn't be read,
    they were made write-only */

@@ -9,12 +9,15 @@
  *
  * First Attempted by James B. MacLean jmaclean@fox.nstn.ns.ca
  *
- * $Date: 1994/07/09 14:30:45 $
+ * $Date: 1994/07/26 01:13:20 $
  * $Source: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v $
- * $Revision: 2.5 $
+ * $Revision: 2.6 $
  * $State: Exp $
  *
  * $Log: dpmi.c,v $
+ * Revision 2.6  1994/07/26  01:13:20  root
+ * prep for pre53_6.
+ *
  * Revision 2.5  1994/07/09  14:30:45  root
  * prep for pre53_3.
  *
@@ -119,7 +122,7 @@ INTDESC Exception_Table[0x20];
 SEGDESC Segments[MAX_SELECTORS];
 char *ldt_buffer;
 
-static char RCSdpmi[] = "$Header: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v 2.5 1994/07/09 14:30:45 root Exp root $";
+static char RCSdpmi[] = "$Header: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v 2.6 1994/07/26 01:13:20 root Exp root $";
 
 /* Set to 1 when running under DPMI */
 u_char in_dpmi = 0;
@@ -945,6 +948,22 @@ inline void dpmi_sigalrm(struct sigcontext_struct *scp)
 
   if (_cs != UCODESEL){
     D_printf("DPMI: sigalrm\n");
+    ssp = (us *) SEL_ADR(_ss, _esp);
+    *--ssp = (us) 0;
+    *--ssp = (us) _cs;
+    *(--((unsigned long *) ssp)) = _eip;
+    _esp -= 8;
+    _cs = UCODESEL;
+    _eip = (unsigned long) ReturnFrom_dpmi_control;
+  }
+}
+
+inline void dpmi_sigio(struct sigcontext_struct *scp)
+{
+  us *ssp;
+
+  if (_cs != UCODESEL){
+    D_printf("DPMI: sigio\n");
     ssp = (us *) SEL_ADR(_ss, _esp);
     *--ssp = (us) 0;
     *--ssp = (us) _cs;

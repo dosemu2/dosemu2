@@ -494,6 +494,7 @@ void vga_initialize(void)
 	   dosemu_regs.banks);
 
   save_vga_state(&linux_regs);
+  save_vga_state(&dosemu_regs);
   vga_screenon();
   memset((caddr_t) linux_regs.mem, ' ', 8 * 1024);
   dump_video_linux();
@@ -507,29 +508,29 @@ void dump_video_regs()
   int i;
 
   /* save VGA registers */
-  v_printf("CRT=\n");
+  v_printf("CRT=");
   for (i = 0; i < CRT_C; i++) {
     port_out(i, CRT_I);
-    v_printf("0x%02x ", (u_char) port_in(CRT_D));
+    v_printf("%02x ", (u_char) port_in(CRT_D));
   }
   v_printf("\n");
-  v_printf("ATT=\n");
+  v_printf("ATT=");
   for (i = 0; i < ATT_C; i++) {
     port_in(IS1_R);
     port_out(i, ATT_IW);
-    v_printf("0x%02x ", (u_char) port_in(ATT_R));
+    v_printf("%02x ", (u_char) port_in(ATT_R));
   }
   v_printf("\n");
-  v_printf("GRA=\n");
+  v_printf("GRA=");
   for (i = 0; i < GRA_C; i++) {
     port_out(i, GRA_I);
-    v_printf("0x%02x ", (u_char) port_in(GRA_D));
+    v_printf("%02x ", (u_char) port_in(GRA_D));
   }
   v_printf("\n");
-  v_printf("SEQ=\n");
+  v_printf("SEQ=");
   for (i = 0; i < SEQ_C; i++) {
     port_out(i, SEQ_I);
-    v_printf("0x%02x ", (u_char) port_in(SEQ_D));
+    v_printf("%02x ", (u_char) port_in(SEQ_D));
   }
   v_printf("\n");
   v_printf("MIS=0x%02x\n", (u_char) port_in(MIS_R));
@@ -538,22 +539,22 @@ void dump_video_regs()
   if (config.chipset == TRIDENT) {
     trident_set_old_regs();
     port_out(0x0c, SEQ_I);
-    v_printf("0C=0x%02x\n", (u_char) port_in(SEQ_D));
+    v_printf("0C=0x%02x ", (u_char) port_in(SEQ_D));
     port_out(0x0d, SEQ_I);
-    v_printf("0D=0x%02x\n", (u_char) port_in(SEQ_D));
+    v_printf("0D=0x%02x ", (u_char) port_in(SEQ_D));
     port_out(0x0e, SEQ_I);
-    v_printf("0E=0x%02x\n", (u_char) port_in(SEQ_D));
+    v_printf("0E=0x%02x ", (u_char) port_in(SEQ_D));
     trident_set_new_regs();
     port_out(0x0d, SEQ_I);
-    v_printf("0D=0x%02x\n", (u_char) port_in(SEQ_D));
+    v_printf("0D=0x%02x ", (u_char) port_in(SEQ_D));
     port_out(0x0e, SEQ_I);
-    v_printf("0E=0x%02x\n", (u_char) port_in(SEQ_D));
+    v_printf("0E=0x%02x ", (u_char) port_in(SEQ_D));
     port_out(0x0f, SEQ_I);
-    v_printf("0F=0x%02x\n", (u_char) port_in(SEQ_D));
+    v_printf("0F=0x%02x ", (u_char) port_in(SEQ_D));
     port_out(0x1e, CRT_I);
-    v_printf("CRT 1E=0x%02x\n", (u_char) port_in(CRT_D));
+    v_printf("CRT 1E=0x%02x ", (u_char) port_in(CRT_D));
     port_out(0x1f, CRT_I);
-    v_printf("CRT 1F=0x%02x\n", (u_char) port_in(CRT_D));
+    v_printf("CRT 1F=0x%02x ", (u_char) port_in(CRT_D));
     port_out(0x0f, GRA_I);
     v_printf("GRA 0F=0x%02x\n", (u_char) port_in(GRA_D));
   }

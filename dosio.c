@@ -4,12 +4,15 @@
 /*
  * Robert Sanders, started 3/1/93
  *
- * $Date: 1994/06/12 23:15:37 $
+ * $Date: 1994/07/26 01:12:20 $
  * $Source: /home/src/dosemu0.60/RCS/dosio.c,v $
- * $Revision: 2.1 $
+ * $Revision: 2.2 $
  * $State: Exp $
  *
  * $Log: dosio.c,v $
+ * Revision 2.2  1994/07/26  01:12:20  root
+ * prep for pre53_6.
+ *
  * Revision 2.1  1994/06/12  23:15:37  root
  * Wrapping up prior to release of DOSEMU0.52.
  *
@@ -290,12 +293,6 @@ set_a20(int enableHMA)
 
   sharedmem.hmastate = enableHMA;
 }
-
-/* this is for the parent process...currently NOT compatible with
- * the -b map_bios flags!
- *
- * this is very kludgy.  don't even ask.  you don't want to know
- */
 
 void
 memory_setup(void)

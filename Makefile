@@ -1,8 +1,8 @@
 # Makefile for Linux DOS emulator
 #
-# $Date: 1994/07/14 23:19:20 $
+# $Date: 1994/07/26 01:12:20 $
 # $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.14 $
+# $Revision: 2.15 $
 # $State: Exp $
 #
 
@@ -26,7 +26,7 @@ NCURSES_INC = /usr/include/ncurses
 STATIC=0
 DOSOBJS=
 SHLIBOBJS=$(OBJS)
-LNKOPTS=-s
+#LNKOPTS=-s
 #MAGIC=-zmagic
 #endif
 
@@ -128,7 +128,8 @@ export INCDIR
 CFLAGS     = $(DPMI) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
 LDFLAGS    = $(LNKOPTS) # exclude symbol information
 AS86 = as86
-LD86 = ld86 -0 -s
+#LD86 = ld86 -s -0
+LD86 = ld86 -0
 
 DISTBASE=/tmp
 DISTNAME=dosemu$(EMUVER)
@@ -154,7 +155,7 @@ warning3:
 	@echo "Hopefully you have at least 12MB RAM+swap available during this compile."
 	@echo ""
 
-doeverything: warning2 clean config dep installnew
+doeverything: warning2 config dep installnew
 
 all:	warnconf dos dossubdirs warning3 libdosemu
 
@@ -199,11 +200,13 @@ installnew: dummy
 	$(MAKE) install
 
 install: all
-	install -c -o root -g root -m 04755 dos /usr/bin
+	install -c -o root -m 04755 dos /usr/bin
 	install -m 0755 xdosemu /usr/bin
 	@if [ -f /lib/libemu ]; then rm -f /lib/libemu ; fi
 	install -m 0755 libdosemu /usr/lib
 	install -d /var/lib/dosemu
+	nm libdosemu | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
+		sort > dosemu.map
 	@for i in $(SUBDIRS); do \
 	    (cd $$i && echo $$i && $(MAKE) install) || exit; \
 	done

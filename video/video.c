@@ -21,9 +21,9 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
- * $Date: 1994/07/05 22:00:23 $
+ * $Date: 1994/07/26 23:12:01 $
  * $Source: /home/src/dosemu0.60/video/RCS/video.c,v $
- * $Revision: 2.3 $
+ * $Revision: 2.5 $
  * $State: Exp $
  *
  * Revision 1.3  1993/10/03  21:38:22  root
@@ -125,8 +125,6 @@
 #include "s3.h"
 #include "trident.h"
 #include "et4000.h"
-
-u_char in_linux_video=1;
 
 extern void child_close_mouse();
 extern void child_open_mouse();
@@ -273,7 +271,6 @@ set_dos_video()
     get_perm();
     dump_video();
     restore_vga_state(&dosemu_regs);
-    in_linux_video=0;
   }
 
 }
@@ -297,7 +294,6 @@ set_linux_video()
       restore_vga_state(&linux_regs);
     }
     release_perm();
-    in_linux_video=1;
   }
 }
 
@@ -408,7 +404,15 @@ get_video_ram(int waitflag)
     if (scr_state.mapped) {
       vgabuf = malloc(GRAPH_SIZE);
       memcpy(vgabuf, (caddr_t) GRAPH_BASE, GRAPH_SIZE);
+#ifdef DO_UNMAP
       munmap((caddr_t) GRAPH_BASE, GRAPH_SIZE);
+#endif
+      graph_mem = (char *) mmap((caddr_t) GRAPH_BASE,
+			      GRAPH_SIZE,
+			      PROT_EXEC | PROT_READ | PROT_WRITE,
+			      MAP_PRIVATE | MAP_FIXED| MAP_ANON,
+			      -1,
+			      0);
       memcpy((caddr_t) GRAPH_BASE, vgabuf, GRAPH_SIZE);
     }
   }
@@ -417,7 +421,15 @@ get_video_ram(int waitflag)
     memcpy(textbuf, scr_state.virt_address, TEXT_SIZE);
 
     if (scr_state.mapped) {
+#ifdef DO_UNMAP
       munmap(scr_state.virt_address, TEXT_SIZE);
+#endif
+      graph_mem = (char *) mmap((caddr_t) scr_state.virt_address,
+			      TEXT_SIZE,
+			      PROT_EXEC | PROT_READ | PROT_WRITE,
+			      MAP_PRIVATE | MAP_FIXED| MAP_ANON,
+			      -1,
+			      0);
       memcpy(scr_state.virt_address, textbuf, TEXT_SIZE);
     }
   }
@@ -493,22 +505,58 @@ get_video_ram(int waitflag)
   scr_state.mapped = 1;
 }
 
+void 
+setup_low_mem(void)
+{
+  char * result;
+  result = mmap(NULL, 0x110000,
+#if 1
+         PROT_EXEC | PROT_READ | PROT_WRITE,
+         MAP_FIXED | MAP_SHARED | MAP_ANON,
+#else
+         PROT_READ | PROT_WRITE,
+         MAP_FIXED | MAP_SHARED,
+#endif
+         -1, 0);
+  if (result != NULL) {
+          perror("anonymous mmap");
+          exit(1);
+  }
+}
+
 void
 put_video_ram(void)
 {
   char *putbuf = (char *) malloc(TEXT_SIZE);
+  char * graph_mem;
 
   if (scr_state.mapped) {
     v_printf("put_video_ram called\n");
 
     if (config.vga) {
+#ifdef DO_UNMAP
       munmap((caddr_t) GRAPH_BASE, GRAPH_SIZE);
+#endif
+      graph_mem = (char *) mmap((caddr_t) GRAPH_BASE,
+			      GRAPH_SIZE,
+			      PROT_EXEC | PROT_READ | PROT_WRITE,
+			      MAP_PRIVATE | MAP_FIXED| MAP_ANON,
+			      -1,
+			      0);
       if (dosemu_regs.mem && bios_video_mode == 3 && bios_current_screen_page < 8)
 	memcpy((caddr_t) PAGE_ADDR(0), dosemu_regs.mem, TEXT_SIZE * 8);
     }
     else {
       memcpy(putbuf, scr_state.virt_address, TEXT_SIZE);
+#ifdef DO_UNMAP
       munmap(scr_state.virt_address, TEXT_SIZE);
+#endif
+      graph_mem = (char *) mmap((caddr_t) scr_state.virt_address,
+			      TEXT_SIZE,
+			      PROT_EXEC | PROT_READ | PROT_WRITE,
+			      MAP_PRIVATE | MAP_FIXED| MAP_ANON,
+			      -1,
+			      0);
       memcpy(scr_state.virt_address, putbuf, TEXT_SIZE);
     }
 
@@ -517,6 +565,7 @@ put_video_ram(void)
   }
   else
     warn("VID: put_video-ram but not mapped!\n");
+
 
   if (putbuf)
     free(putbuf);

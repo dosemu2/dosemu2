@@ -7,7 +7,7 @@
 
 <title>The dosemu HOWTO
 <author>edited by Mike Deisher, <tt/deisher@dspsun.eas.asu.edu/ 
-<date>v0.52, 13 June 1994
+<date>v0.52.1, 9 July 1994
 
 <abstract>
 This is the `Frequently Asked Questions' (FAQ) / HOWTO document for
@@ -97,29 +97,36 @@ found on <tt>dspsun.eas.asu.edu:/pub/dosemu</tt>.
 <p>The installation instructions are in the file, "QuickStart",
 included in the distribution.
 
-<sect1>What does <tt>emu.c:349: parse error before `outfuntype'</tt> mean?
+<sect1>Why won't dosemu 0.52 compile?
 
-<p>James B. MacLean (<tt>jmaclean@fox.nstn.ns.ca</tt>) reported
-(12/1/93) that
+<p>(7/9/94)
 
-A fix that works is:  Change the '<tt>outfuntype c</tt>' parm in
-line 349 to '<tt>int (*c())(int)</tt>', and try again. 
+There is a bug in the makefile of dosemu 0.52.  The makefile expects
+the source to be located in <tt>/usr/src/dosemu????</tt>.  Either
+install the source under <tt>/usr/src</tt> or try <tt>make clean ;
+make config ; make dep ; make all</tt>.
 
-<tt/[/Note: <tt/outfuntype/ is defined in <tt/termcap.h/.  You may
-have a bad or incomplete <tt/termcap.h/ (<tt/termcap.h/ is not part of
-dosemu).]
+Of course, this is not the only possible reason (see below).
 
-<sect1>What does <tt>scan.o: Undefined symbol _yywrap</tt> mean?
+<sect1>How can I be a bone-head when installing dosemu?
 
-<p>Alan David Modra (<tt>alan@spri.levels.unisa.edu.au</tt>) reported
-(2/16/94) that
+<p>a.k.a. Top Ten Stupid Mistakes installing dosemu (7/9/94)
 
-Flex-2.4.6 generates code that requires linking in libfl.a
-You need to add <tt>-lfl</tt> to the linker command line:
 <verb>
-  gcc -o par scan.o parse.o -lfl
+1. Don't read the QuickStart Guide.
+2. Try to compile with a kernel older than 1.0.8.
+3. Try to compile with an *unpatched* kernel >= 1.0.8.
+4. Try to compile with a kernel older than 1.1.12.
+5. Use dosemu with a kernel that does not have IPC compiled in.
+6. Compile with gcc older than 2.5.8 or libc older than 4.5.21.
+7. Forget to edit your /etc/dosemu.conf file.
+8. Forget to run "FDISK /mbr" on your hdimage.
+9. Forget to run "mkpartition" when using partition access.
+10. Don't compile dosemu with sufficient priveledges (i.e., root).
 </verb>
-<tt/[/Note:  edit <tt>parse/Makefile</tt> to incorporate this change]
+
+<tt/[/Please send me your stupid mistakes for inclusion in this list.
+I promise you will remain anonymous.  ;-)]
 
 <sect>Hard disk setup
 
@@ -182,6 +189,10 @@ line in their dosemu config file.  Others have had success using
 </verb>
 and running the <tt>mkpartition</tt> utility (included in the dosemu
 distribution).
+
+<tt/[/WARNING:  Make sure your dos partitions are not mounted and writeable
+from Linux while you are using dosemu with wholedisk or partition
+access.  This is an easy way to destroy the data on your dos partition.]
 
 Holger Schemel (<tt>q99492@pbhrzx.uni-paderborn.de</tt>) reported
 (2/10/94) that
@@ -484,6 +495,15 @@ mapped as the program expects. If it somehow manages to start DMA
 based recording with SB, the recorded sound doesn't find it's way to
 the application. It just destroys some data in the memory.
 
+<p>James B. MacLean (<tt>jmaclean@fox.nstn.ns.ca</tt>) reported
+(6/19/94) that
+
+Sorry to disappoint, but at this time DOSEMU does not support directly the 
+necessary interception of interrupts or DMA generally required for 
+sound card access via DOSEMU :-(.
+
+It's bound to happen at some future date though :-),
+
 <sect>Other Hardware
 
 <sect1>How do I get my xxxxx device working under dosemu?
@@ -517,33 +537,38 @@ Question: What if my card uses DMA?  Answer: Your screwed.
 
 <sect>Problems and fixes
 
-<sect1>Why does dosemu lock up after one keystroke?
+<sect1>Why is the cursor position wrong?
 
-<p>(12/17/93)
+<p>(7/9/94)
 
-You need to turn on the keyboard interrupt in the dosemu config file.
-Add a line to the config file:
+This is a known bug in dosemu 0.52.  It will be fixed in dosemu 0.53.
 
-<verb>
-   keybint on
-</verb>
 
-Shouldn't be a problem in dosemu0.52.
+<sect1>Why does my busmouse act funny under dosemu 0.52?
 
-<sect1>Why are my keystrokes echoed ttwwiiccee??
+<p>James B. MacLean (<tt>jmaclean@fox.nstn.ns.ca</tt>) reported
+(7/8/94) that
 
-<p>Nick Holloway (<tt>alfie@dcs.warwick.ac.uk</tt>) reported (2/22/94)
-that
+Busmouse support is quite ALPHA at this time (as is DOSEMU :-)), and
+will be continually refined for a while :-).  Look for better support
+in the upcoming releases.
 
-After running dos after playing with some stty settings, I was getting
-doubled key presses.  I can now reveal what the reason is!
+<sect1>Why won't dosemu run a second time after exiting in console mode?
 
-It only happens when dos is run on the console with 'istrip' set.  This is
-(I think) because the raw scancodes are mutilated by the 'istrip',
-so that key release events look like key press events.
+<p> Aldy Hernandez (<tt>aldy@sauron.cc.andrews.edu</tt>) reported
+(7/8/94) that
 
-So, the input processing needs to be turned off when using the scan
-codes on a console (it wouldn't be a good idea to do it for tty lines).
+You should disable your video and/or bios caching.
+
+<sect1> Some dos applications still do not detect DPMI under dosemu0.52.
+
+<p>James B. MacLean (<tt>jmaclean@fox.nstn.ns.ca</tt>) reported
+(6/19/94) that
+
+  At this time (as of 0.52 release) DOSEMU is still growing with
+respect to DPMI.  It will run certain DPMI programs, but has a ways to
+go yet.  As suggested there needs to be more of the calls implemented,
+etc.  Please be patient :-), as it's bound to come in time.
 
 <sect1>Why does dosemu give "divide overflow" errors after running for more than 24-hours? 
 
@@ -551,38 +576,6 @@ codes on a console (it wouldn't be a good idea to do it for tty lines).
 
 This is a known bug.  It will (hopefully) be fixed in an upcoming
 release.  For now, you can simply exit dosemu and start it again.
-
-<sect1>Where did the debugging output go?
-
-<p>As of dosemu0.49pl4, stderr is automatically redirected to
-/dev/null.  Try "dos -D+a 2>debug" to turn on debugging information
-and redirect it to the file "debug".
-
-<sect1>Why are characters <tt/</ 128 highlighted and blinking?
-
-<p>Chris Kuehnke
-(<tt>Christian.Kuehnke@Informatik.Uni-Oldenburg.DE</tt>) reported
-(3/21/94) that
-
-I think I've found a bug in dosemu0.50pl1; with a MDA card displayed
-characters <tt/>/ 128 automagically appeared as highlighted and
-blinking. 
-
-This patch fixed the problem for me <tt/[/but on the other hand, maybe
-I'm totally wrong ;-)]:
-<verb>
---- video.c~	Sat Mar 19 00:50:25 1994
-+++ video.c	Sat Mar 19 20:36:10 1994
-@@ -721,7 +721,7 @@
-   int x, y, i, tmp;
-   unsigned int s;
-   static int gfx_flag = 0;
--  char c;
-+  u_char c;
-   us *sm;
- 
-   if (d.video >= 3)
-</verb>
 
 <sect1>Why will dosemu run in a term but not in the console?
 
@@ -674,6 +667,66 @@ In Function: static int isofs_file_read ()
                 /* ORIGINAL: isofs_determine_filetype(inode);  */
            }	
   ...
+</verb>
+
+<sect1>Where did the debugging output go?
+
+<p>As of dosemu0.49pl4, stderr is automatically redirected to
+/dev/null.  Try "dos -D+a 2>debug" to turn on debugging information
+and redirect it to the file "debug".
+
+<sect1>Why does dosemu lock up after one keystroke?
+
+<p>(12/17/93)
+
+You need to turn on the keyboard interrupt in the dosemu config file.
+Add a line to the config file:
+
+<verb>
+   keybint on
+</verb>
+
+Shouldn't be a problem in dosemu0.52.
+
+<sect1>Why are my keystrokes echoed ttwwiiccee??
+
+<p>Nick Holloway (<tt>alfie@dcs.warwick.ac.uk</tt>) reported (2/22/94)
+that
+
+After running dos after playing with some stty settings, I was getting
+doubled key presses.  I can now reveal what the reason is!
+
+It only happens when dos is run on the console with 'istrip' set.  This is
+(I think) because the raw scancodes are mutilated by the 'istrip',
+so that key release events look like key press events.
+
+So, the input processing needs to be turned off when using the scan
+codes on a console (it wouldn't be a good idea to do it for tty lines).
+
+<sect1>Why are characters <tt/</ 128 highlighted and blinking?
+
+<p>Chris Kuehnke
+(<tt>Christian.Kuehnke@Informatik.Uni-Oldenburg.DE</tt>) reported
+(3/21/94) that
+
+I think I've found a bug in dosemu0.50pl1; with a MDA card displayed
+characters <tt/>/ 128 automagically appeared as highlighted and
+blinking. 
+
+This patch fixed the problem for me <tt/[/but on the other hand, maybe
+I'm totally wrong ;-)]:
+<verb>
+--- video.c~	Sat Mar 19 00:50:25 1994
++++ video.c	Sat Mar 19 20:36:10 1994
+@@ -721,7 +721,7 @@
+   int x, y, i, tmp;
+   unsigned int s;
+   static int gfx_flag = 0;
+-  char c;
++  u_char c;
+   us *sm;
+ 
+   if (d.video >= 3)
 </verb>
 
 <sect>Contributing to the dosemu project

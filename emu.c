@@ -12,12 +12,15 @@
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
- * $Date: 1994/07/14 23:19:20 $
+ * $Date: 1994/07/26 01:12:20 $
  * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 2.12 $
+ * $Revision: 2.13 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 2.13  1994/07/26  01:12:20  root
+ * prep for pre53_6.
+ *
  * Revision 2.12  1994/07/14  23:19:20  root
  * Markkk's patches.
  *
@@ -1172,7 +1175,7 @@ sigalrm(int sig, struct sigcontext_struct context)
 }
 
 void
-sigio(int sig)
+sigio(int sig, struct sigcontext_struct context)
 {
   static insigio = 0;
 
@@ -1181,6 +1184,11 @@ sigio(int sig)
     return;
   }
   insigio = 1;
+
+#ifdef DPMI
+  if (in_dpmi && !in_vm86)
+    dpmi_sigio(&context);
+#endif /* DPMI */
 
   /* Call select to see if any I/O is ready on devices */
   io_select();
@@ -1610,12 +1618,22 @@ void
 
 #endif
 
+#undef LOW_MEM
+
+#ifdef LOW_MEM
+extern void setup_low_mem(void);
+#endif
+
 void
  emulate(int argc, char **argv) {
   struct sigaction sa;
   int c;
   char *confname = NULL;
   struct stat statout, staterr;
+
+#ifdef LOW_MEM
+  setup_low_mem();
+#endif
 
   config_defaults();
 
@@ -1845,7 +1863,10 @@ void
   NEWSETSIG(SIG_TIME, sigalrm);
   NEWSETSIG(SIGFPE, dosemu_fault);
   NEWSETSIG(SIGTRAP, dosemu_fault);
+
+#ifdef SIGBUS
   NEWSETSIG(SIGBUS, dosemu_fault);
+#endif
 
   SETSIG(SIGHUP, leavedos);	/* for "graceful" shutdown */
   SETSIG(SIGTERM, leavedos);
@@ -2081,7 +2102,7 @@ int
 
 void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.12 1994/07/14 23:19:20 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.13 1994/07/26 01:12:20 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -2299,7 +2320,7 @@ dos_helper(void) {
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/07/14 23:19:20 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/07/26 01:12:20 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */

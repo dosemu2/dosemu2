@@ -1,6 +1,6 @@
   The dosemu HOWTO
   edited by Mike Deisher, deisher@dspsun.eas.asu.edu
-  v0.52, 13 June 1994
+  v0.52.1, 9 July 1994
 
   This is the `Frequently Asked Questions' (FAQ) / HOWTO document for
   dosemu.  The most up-to-date version of the dosemu-HOWTO may be found
@@ -95,30 +95,39 @@
   in the distribution.
 
 
-  2.2.  What does emu.c:349: parse error before `outfuntype' mean?
+  2.2.  Why won't dosemu 0.52 compile?
 
-  James B. MacLean (jmaclean@fox.nstn.ns.ca) reported (12/1/93) that
+  (7/9/94)
 
-  A fix that works is:  Change the 'outfuntype c' parm in line 349 to
-  'int (*c())(int)', and try again.
+  There is a bug in the makefile of dosemu 0.52.  The makefile expects
+  the source to be located in /usr/src/dosemu????.  Either install the
+  source under /usr/src or try make clean ; make config ; make dep ;
+  make all.
 
-  [Note: outfuntype is defined in termcap.h.  You may have a bad or
-  incomplete termcap.h (termcap.h is not part of dosemu).]
-
-
-  2.3.  What does scan.o: Undefined symbol _yywrap mean?
-
-  Alan David Modra (alan@spri.levels.unisa.edu.au) reported (2/16/94)
-  that
-
-  Flex-2.4.6 generates code that requires linking in libfl.a You need to
-  add -lfl to the linker command line:
-
-    gcc -o par scan.o parse.o -lfl
+  Of course, this is not the only possible reason (see below).
 
 
-  [Note:  edit parse/Makefile to incorporate this change]
-  [Note2: This shouldn't happen any more, because the parse-subdir is gone]
+  2.3.  How can I be a bone-head when installing dosemu?
+
+  a.k.a. Top Ten Stupid Mistakes installing dosemu (7/9/94)
+
+
+  1. Don't read the QuickStart Guide.
+  2. Try to compile with a kernel older than 1.0.8.
+  3. Try to compile with an *unpatched* kernel >= 1.0.8.
+  4. Try to compile with a kernel older than 1.1.12.
+  5. Use dosemu with a kernel that does not have IPC compiled in.
+  6. Compile with gcc older than 2.5.8 or libc older than 4.5.21.
+  7. Forget to edit your /etc/dosemu.conf file.
+  8. Forget to run "FDISK /mbr" on your hdimage.
+  9. Forget to run "mkpartition" when using partition access.
+  10. Don't compile dosemu with sufficient priveledges (i.e., root).
+
+
+
+  [Please send me your stupid mistakes for inclusion in this list.  I
+  promise you will remain anonymous.  ;-)]
+
 
 
   3.  Hard disk setup
@@ -130,6 +139,7 @@
   -m 755 /dos) and add a line like
 
      /dev/hda1       /dos     msdos   umask=022
+
 
   to your /etc/fstab.  (In this example, the hard disk is mounted read-
   only.  You may want to mount it read/write by replacing "022" with
@@ -185,11 +195,17 @@
 
   line in their dosemu config file.  Others have had success using
 
+
      disk { partition "/dev/hda1" 1 }
 
 
   and running the mkpartition utility (included in the dosemu distribu-
   tion).
+
+  [WARNING:  Make sure your dos partitions are not mounted and writeable
+  from Linux while you are using dosemu with wholedisk or partition
+  access.  This is an easy way to destroy the data on your dos
+  partition.]
 
   Holger Schemel (q99492@pbhrzx.uni-paderborn.de) reported (2/10/94)
   that
@@ -197,6 +213,7 @@
   Works even fine under DOSEMU with MS-DOS 6.0. If you have problems,
   then you have to edit the file 'DBLSPACE.INI' manually and change the
   disk letter to the letter your drive gets under DOSEMU.
+
   Darren J Moffat (moffatd@dcs.gla.ac.uk) also reported (3/27/94)
 
   "...use 6.2 if you can get it!!  Just make sure you have a lilo boot
@@ -245,7 +262,6 @@
   According to jmorriso@bogomips.ee.ubc.ca, "dosemu still clobbers COM4
   (0x2e8, IRQ 5). 0x2e8 isn't in ports{} in config.  I have to run
   setserial /dev/cua3 irq 5 on it after dosemu exits."
-
   This is caused by your VGA BIOS.  I have found that by enabling the IO
   port trace and seeing where it was clobbered.
 
@@ -312,7 +328,6 @@
   Then add a "ka" entry to your termcap.  After that, every time you hit
   the sequence stored in your termcap for ka, your dos program recog-
   nizes an "F11."
-
   Warning:  Make sure that ka is not in use in your termcap.  If it is
   you are headed for trouble.
 
@@ -392,9 +407,6 @@
   I'll pass along some directions.
 
 
-
-
-
   6.  dosemu and X-windows
 
   6.1.  Can I run dosemu in console mode while running X?
@@ -447,6 +459,7 @@
   the font information in tmp/fontdata.  I use a file called fix which
   consists of the line:
 
+
      restorefont -r /tmp/fontdata
 
 
@@ -461,6 +474,7 @@
 
   [The screen flickers violently, displays the video BIOS startup
   message, and hangs.]
+
   Andrew Tridgell (tridge@nimbus.anu.edu.au) reported (1/29/94) that
 
   I found with early versions it would work if I used:
@@ -508,6 +522,15 @@
   the application. It just destroys some data in the memory.
 
 
+  James B. MacLean (jmaclean@fox.nstn.ns.ca) reported (6/19/94) that
+
+  Sorry to disappoint, but at this time DOSEMU does not support directly
+  the necessary interception of interrupts or DMA generally required for
+  sound card access via DOSEMU :-(.
+
+  It's bound to happen at some future date though :-),
+
+
   8.  Other Hardware
 
   8.1.  How do I get my xxxxx device working under dosemu?
@@ -541,77 +564,51 @@
 
   9.  Problems and fixes
 
-  9.1.  Why does dosemu lock up after one keystroke?
+  9.1.  Why is the cursor position wrong?
 
-  (12/17/93)
+  (7/9/94)
 
-  You need to turn on the keyboard interrupt in the dosemu config file.
-  Add a line to the config file:
-
-
-     keybint on
+  This is a known bug in dosemu 0.52.  It will be fixed in dosemu 0.53.
 
 
 
-  Shouldn't be a problem in dosemu0.52.
+  9.2.  Why does my busmouse act funny under dosemu 0.52?
+
+  James B. MacLean (jmaclean@fox.nstn.ns.ca) reported (7/8/94) that
+
+  Busmouse support is quite ALPHA at this time (as is DOSEMU :-)), and
+  will be continually refined for a while :-).  Look for better support
+  in the upcoming releases.
 
 
-  9.2.  Why are my keystrokes echoed ttwwiiccee??
+  9.3.  Why won't dosemu run a second time after exiting in console
+  mode?
 
-  Nick Holloway (alfie@dcs.warwick.ac.uk) reported (2/22/94) that
+  Aldy Hernandez (aldy@sauron.cc.andrews.edu) reported (7/8/94) that
 
-  After running dos after playing with some stty settings, I was getting
-  doubled key presses.  I can now reveal what the reason is!
-
-  It only happens when dos is run on the console with 'istrip' set.
-  This is (I think) because the raw scancodes are mutilated by the
-  'istrip', so that key release events look like key press events.
-
-  So, the input processing needs to be turned off when using the scan
-  codes on a console (it wouldn't be a good idea to do it for tty
-  lines).
+  You should disable your video and/or bios caching.
 
 
-  9.3.  Why does dosemu give "divide overflow" errors after running for
+
+
+
+  9.4.  Some dos applications still do not detect DPMI under dosemu0.52.
+
+  James B. MacLean (jmaclean@fox.nstn.ns.ca) reported (6/19/94) that
+
+  At this time (as of 0.52 release) DOSEMU is still growing with respect
+  to DPMI.  It will run certain DPMI programs, but has a ways to go yet.
+  As suggested there needs to be more of the calls implemented, etc.
+  Please be patient :-), as it's bound to come in time.
+
+
+  9.5.  Why does dosemu give "divide overflow" errors after running for
   more than 24-hours?
 
   (1/17/94)
 
   This is a known bug.  It will (hopefully) be fixed in an upcoming
   release.  For now, you can simply exit dosemu and start it again.
-
-
-  9.4.  Where did the debugging output go?
-
-  As of dosemu0.49pl4, stderr is automatically redirected to /dev/null.
-  Try "dos -D+a 2>debug" to turn on debugging information and redirect
-  it to the file "debug".
-
-
-  9.5.  Why are characters < 128 highlighted and blinking?
-
-  Chris Kuehnke (Christian.Kuehnke@Informatik.Uni-Oldenburg.DE) reported
-  (3/21/94) that
-
-  I think I've found a bug in dosemu0.50pl1; with a MDA card displayed
-  characters > 128 automagically appeared as highlighted and blinking.
-
-  This patch fixed the problem for me [but on the other hand, maybe I'm
-  totally wrong ;-)]:
-
-  --- video.c~    Sat Mar 19 00:50:25 1994
-  +++ video.c     Sat Mar 19 20:36:10 1994
-  @@ -721,7 +721,7 @@
-     int x, y, i, tmp;
-     unsigned int s;
-     static int gfx_flag = 0;
-  -  char c;
-  +  u_char c;
-     us *sm;
-
-     if (d.video >= 3)
-
-
 
 
   9.6.  Why will dosemu run in a term but not in the console?
@@ -661,8 +658,6 @@
   much faster as well.  Realize that the consequence of this is a larger
   executable which eats a little more memory, even though it's demand
   loaded.
-
-
   Georg Wiegand (gw@gwcomp.e.open.de) reported (5/16/94) that
 
   You also can use the keyword HogThreshold in /etc/dosemu.conf.  The
@@ -709,6 +704,71 @@
 
 
 
+  9.9.  Where did the debugging output go?
+
+  As of dosemu0.49pl4, stderr is automatically redirected to /dev/null.
+  Try "dos -D+a 2>debug" to turn on debugging information and redirect
+  it to the file "debug".
+
+
+  9.10.  Why does dosemu lock up after one keystroke?
+
+  (12/17/93)
+
+  You need to turn on the keyboard interrupt in the dosemu config file.
+  Add a line to the config file:
+
+
+     keybint on
+
+
+
+
+  Shouldn't be a problem in dosemu0.52.
+
+
+  9.11.  Why are my keystrokes echoed ttwwiiccee??
+
+  Nick Holloway (alfie@dcs.warwick.ac.uk) reported (2/22/94) that
+
+  After running dos after playing with some stty settings, I was getting
+  doubled key presses.  I can now reveal what the reason is!
+
+  It only happens when dos is run on the console with 'istrip' set.
+  This is (I think) because the raw scancodes are mutilated by the
+  'istrip', so that key release events look like key press events.
+
+  So, the input processing needs to be turned off when using the scan
+  codes on a console (it wouldn't be a good idea to do it for tty
+  lines).
+
+
+  9.12.  Why are characters < 128 highlighted and blinking?
+
+  Chris Kuehnke (Christian.Kuehnke@Informatik.Uni-Oldenburg.DE) reported
+  (3/21/94) that
+
+  I think I've found a bug in dosemu0.50pl1; with a MDA card displayed
+  characters > 128 automagically appeared as highlighted and blinking.
+
+  This patch fixed the problem for me [but on the other hand, maybe I'm
+  totally wrong ;-)]:
+
+  --- video.c~    Sat Mar 19 00:50:25 1994
+  +++ video.c     Sat Mar 19 20:36:10 1994
+  @@ -721,7 +721,7 @@
+     int x, y, i, tmp;
+     unsigned int s;
+     static int gfx_flag = 0;
+  -  char c;
+  +  u_char c;
+     us *sm;
+
+     if (d.video >= 3)
+
+
+
+
   10.  Contributing to the dosemu project
 
   10.1.  Who is responsible for dosemu?
@@ -718,6 +778,11 @@
   Dosemu is built upon the work of Matthias Lautner and Robert Sanders.
   James B. MacLean (jmaclean@fox.nstn.ns.ca) is responsible for
   organizing the latest releases of dosemu.
+
+
+
+
+
 
 
 

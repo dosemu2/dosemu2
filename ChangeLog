@@ -1,3 +1,37 @@
+Tue Jul 26 1994 Jmaclean
+
+-	Thanks to Scottb which fixed the DOSEMU memory problems
+	with pointing out that mmap annonymous needed PRIVATE and
+	not SHARED to work :-) We're back on the road again .
+
+Sat Jul 23 1994 Rain
+
+ * Largely reworked {re}{un}map_page, removed v_mmap.
+   COPY/MMAP/IPC_EMS conditionals are now in map_page and friends.
+   Fixed MMAP_EMS: mmap() mapped the wrong way around  (-:
+   Still doesn't work, mmap() patch is broken :-(
+ * EMS_IPC is completely screwed up and probably not easy to make work.
+   The problem is that one cannot do partial mappings of shared
+   memory regions. Left it in, though.
+ * added COPY_EMS conditional (for the standard 'mapping' method)
+ * added UNMAP_BEFORE_MAP conditional to leave out unmapping
+   of old mappings in map_page for MMAP_EMS.
+   Shouldn't be necessary because the kernel'll do this for us.
+ * made some calls to re{un}map_page dependent on COPY_EMS
+   because they are only there to update the logical memory
+ * restore_handle_state: unmap pages which were previously unmapped
+ * reallocate_pages:
+   reunmap only pages belonging to the current handle.
+   Fixed a bug: pages above newcount were left mapped.
+ * some minor optimizations, fixes and cleanups...
+
+Thr Jul 21 1994 JES
+
+	- Patches from Rainer Zimmermann (zimmerm@Mathematik.UNi-Marburg.DE)
+	  for time-problems with mfs.c
+	- Added procedure to make dosemu.map which is usefull for 
+	  finding where DOSEMU bombs, like kernel. Thanks Daniel :-)
+
 Sat Jul 14 1994 JES
 
 	- Latest enhancements from Markkk.

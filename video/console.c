@@ -81,8 +81,6 @@ void set_console_video(void)
   clear_screen(0, 7);
 }
 
-extern u_char in_linux_video;
-
 void clear_console_video(void)
 {
 
