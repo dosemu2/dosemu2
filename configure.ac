@@ -134,7 +134,7 @@ AC_SUBST(CONFIG_HOST)
 
 dnl Do ELF if possible
 
-if ! echo -e '#ifdef __ELF__\n#define foo bar\n#endif\nfoo' \
+if !printf '%b\n' '#ifdef __ELF__\n#define foo bar\n#endif\nfoo' \
    | gcc -E - | grep bar > /dev/null; then
   if test "$CONFIG_HOST" = "linux"; then
     echo "------------------------------------------------------------"
@@ -554,7 +554,7 @@ if test "$GCC" = "yes" ; then
   fi
 
   AC_MSG_CHECKING(for glibc...)
-  set `echo -e '#include <features.h>\nXXAaZZ __GLIBC__ XXBbZZ __GLIBC_MINOR__'|gcc -E -|awk '/XXAaZZ/ {print $2 " " $4}'`
+  set `printf '%b\n' '#include <features.h>\nXXAaZZ __GLIBC__ XXBbZZ __GLIBC_MINOR__'|gcc -E -|awk '/XXAaZZ/ {print $2 " " $4}'`
   major=$1; minor=$2
   if test "$major" = "__GLIBC__"; then
     AC_MSG_ERROR([Sorry, you need glibc-2.1.3 or newer.])
