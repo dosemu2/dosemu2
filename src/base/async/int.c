@@ -517,8 +517,8 @@ static void int15(u_char i)
     HI(ax) = 0x86;
     /*k_printf("INT15 0x4f CARRY=%x AX=%x\n", (LWORD(eflags) & CF),LWORD(eax));*/
     k_printf("INT15 0x4f CARRY=%x AX=%x\n", (READ_FLAGS() & CF),LWORD(eax));
-/*
     CARRY;
+/*
     if (LO(ax) & 0x80 )
       if (1 || !(LO(ax)&0x80) ){
 	fprintf(stderr, "Carrying it out\n");

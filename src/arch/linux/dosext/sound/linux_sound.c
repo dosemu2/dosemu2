@@ -64,7 +64,7 @@ void linux_sb_dma_set_blocksize(__u16 val)
 
   sound_frag = i;
 
-  S_printf ("SB:[Linux] DMA blocksize set to %lu (%lu)\n", val, sound_frag);
+  S_printf ("SB:[Linux] DMA blocksize set to %u (%lu)\n", val, sound_frag);
 }
 
 void linux_sb_write_mixer(int ch, __u8 val)

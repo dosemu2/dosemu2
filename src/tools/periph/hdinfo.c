@@ -131,7 +131,7 @@ main(int argc, char **argv)
     hdimage_off = 0;
 
   printf("Partition info for %s %s\n=================================================\n",
-	 filename, hdimage_off ? "(a DOSEMU 0.49 hdimage file)" : "");
+	 filename, hdimage_off ? "(a DOSEMU hdimage file)" : "");
 
   for (i = 0; i < 4; i++)
     print_part((struct partition *) (mbr + 0x1be + hdimage_off + i * 16),

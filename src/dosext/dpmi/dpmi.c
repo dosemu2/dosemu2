@@ -2663,13 +2663,6 @@ if ((_ss & 7) == 7) {
     }
   }
 #endif
-#if 0 /* absolete because of ALberto's global AC handling (0.67.11.2) */
-  if (_trapno == 17) {
-    _eflags &= ~AC;
-    REG(eflags) &= ~AC;
-  }
-  else 
-#endif
   if (_trapno == 13) {
     unsigned char *lina;
     Bit32u org_eip;

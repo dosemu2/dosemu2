@@ -147,8 +147,14 @@ int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
 		  *srg = cdt[idx];
 		  g_printf("CPU: read =%08lx\n",*srg);
 		} else {
-		  cdt[idx] = *srg;
 		  g_printf("CPU: write=%08lx\n",*srg);
+		  if (cdt==CRs) {
+		    /* special cases... they are too many, I hope this
+		     * will suffice for all */
+		    if (idx==0) cdt[idx] = (*srg&0xe005002f)|0x10;
+		     else if ((idx==1)||(idx==4)) return 0;
+		  }
+		  else cdt[idx] = *srg;
 		}
 		(in_dpmi? scp->eip:LWORD(eip)) += 3;
 		return 1;

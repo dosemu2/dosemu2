@@ -195,7 +195,7 @@ printer_init(void)
     lpt[i].fops = def_pfops;
     if (i >= config.num_lpt) lpt[i].base_port = 0;
     /* set the port address for each printer in bios */
-    *((ioport_t *)(0x408) + i) = lpt[i].base_port;
+    *((u_short *)(0x408) + i) = lpt[i].base_port;
   }
 }
 

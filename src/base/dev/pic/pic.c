@@ -1148,9 +1148,6 @@ void pic_sched(int ilevel, int interval)
     sprintf(mesg,", delay= %d.",interval);
     pic_print(2,"Scheduling lvl= ",ilevel,mesg);
     pic_print(2,"pic_itime set to ",pic_itime[ilevel],"");
-#if 0
-/*TEST*/ r_printf("BIOS = %ld\n", *((long *)0x46c));
-#endif
   }
 }
 

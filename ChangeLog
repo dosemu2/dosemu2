@@ -1,3 +1,14 @@
+97/10/22 ver. 0.67.13.1 unofficial pre-release
+	From Alberto
+	- rest of ioport_t fixes.
+	- typedefs in src/include/types.h now based on <sys/bitypes.h>
+	- more opcodes 0F fixes in src/emu-i386/cpu.c.
+	- cleaned a lot of print format errors. (%lx versus %x)
+	From Hans
+	- fixed '<>|' keyboard bug. It turned out MSDOS-6.2 was destroying
+	  the CARRY in its INT15 AH=4F hook. The fix was not to rely on
+	  CARRY=1 when called (forcing it to 1) in src/base/async/int.c
+	- removed confusion '0.49' out of src/tools/peripher/hdinfo.c
 97/10/11 ver. 0.67.13 released
 	From Eric
 	- some keyboard fixes to solve problems with the sticky shifts.

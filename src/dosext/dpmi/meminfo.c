@@ -34,7 +34,7 @@ static int getvalue_by_key(char *buf, char *key)
   int val;
 
   if (p) {
-    if (sscanf(p, "%*[^ ]%ld",&val) == 1) return val;
+    if (sscanf(p, "%*[^ ]%d",&val) == 1) return val;
   }
   error("Unknown format on /proc/meminfo\n");
   leavedos(5);

@@ -17,7 +17,7 @@
 #include "timers.h"
 #include "int.h"
 #include "shared.h"
-#include "../dpmi/dpmi.h"
+#include "dpmi.h"
 #include "pic.h"
 #include "ipx.h"
 #include "pktdrvr.h"

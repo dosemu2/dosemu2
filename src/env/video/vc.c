@@ -534,7 +534,7 @@ get_video_ram (int waitflag)
 
       if ((long) graph_mem < 0)
 	{
-	  error ("ERROR: mmap error in get_video_ram (text): %lx, errno %d\n",
+	  error ("ERROR: mmap error in get_video_ram (text): %x, errno %d\n",
 		 (Bit32u)graph_mem, errno);
 	  return;
 	}

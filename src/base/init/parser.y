@@ -429,7 +429,7 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		| SPEAKER speaker
 		    {
 		    if ($2 == SPKR_NATIVE) {
-                      c_printf("CONF: allowing speaker port access!");
+                      c_printf("CONF: allowing speaker port access!\n");
 #if 0  /* this is now handled in timers.c */
 		      allow_io(0x42, 1, IO_RDWR, 0, 0xFFFF, 1, NULL);
 		      allow_io(0x61, 1, IO_RDWR, 0, 0xFFFF, 1, NULL);

@@ -560,7 +560,7 @@ run_vm86(void)
 #endif
     /* This will protect us from Mr.Norton's bugs */
     if (_EFLAGS & (AC|ID)) {
-      g_printf("BUG: flags changed to %08lx\n",_EFLAGS);
+      g_printf("BUG: flags changed to %08x\n",_EFLAGS);
       _EFLAGS &= ~(AC|ID);
     }
 
