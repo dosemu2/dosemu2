@@ -175,9 +175,9 @@ unsigned int portspeed, char *device)
       /* ports are occupied, try to open the according device */
       c_printf("PORT already registered as %s 0x%04x-0x%04x\n",
 	       portname,beg,end);
-      priv_on();
+      enter_priv_on();
       opendevice = open( device,O_RDWR );
-      priv_default();
+      leave_priv_setting();
       if (opendevice == -1)
 	switch (errno) {
 	case EBUSY : 
@@ -356,21 +356,21 @@ read_port(unsigned short port)
   if (i == -1)
     return (0xff);
 
-  if (!video_port_io) priv_on();
+  if (!video_port_io) enter_priv_on();
   if (port <= 0x3ff)
     set_ioperm(port, 1, 1);
   else
-    iopl(3);
-  if (!video_port_io) priv_default();
+    priv_iopl(3);
+  if (!video_port_io) leave_priv_setting();
 
   r = port_in(port);
 
-  if (!video_port_io) priv_on();
+  if (!video_port_io) enter_priv_on();
   if (port <= 0x3ff)
     set_ioperm(port, 1, 0);
   else
-    iopl(0);
-  if (!video_port_io) priv_default();
+    priv_iopl(0);
+  if (!video_port_io) leave_priv_setting();
 
   if (!video_port_io) {
     r &= ports[i].andmask;
@@ -408,21 +408,21 @@ read_port_w(unsigned short port)
   return(read_port(port) | 0xff00);
   }
 
-  if (!video_port_io) priv_on();
+  if (!video_port_io) enter_priv_on();
   if(port <= 0x3fe) {
      set_ioperm(port  ,2,1);
   }
   else
-     iopl(3);
-  if (!video_port_io) priv_default();
+     priv_iopl(3);
+  if (!video_port_io) leave_priv_setting();
 
   r = port_in_w(port);
-  if (!video_port_io) priv_on();
+  if (!video_port_io) enter_priv_on();
   if(port <= 0x3fe) 
      set_ioperm(port,2,0);
   else
-    iopl(0);
-  if (!video_port_io) priv_default();
+    priv_iopl(0);
+  if (!video_port_io) leave_priv_setting();
 
   if (
 #ifdef GUSPNP
@@ -462,21 +462,21 @@ write_port(unsigned int value, unsigned short port)
 
   LOG_IO(port,value,'<',0xff);
 
-  if (!video_port_io) priv_on();
+  if (!video_port_io) enter_priv_on();
   if (port <= 0x3ff)
     set_ioperm(port, 1, 1);
   else
-    iopl(3);
-  if (!video_port_io) priv_default();
+    priv_iopl(3);
+  if (!video_port_io) leave_priv_setting();
 
   port_out(value, port);
 
-  if (!video_port_io) priv_on();
+  if (!video_port_io) enter_priv_on();
   if (port <= 0x3ff)
     set_ioperm(port, 1, 0);
   else
-    iopl(0);
-  if (!video_port_io) priv_default();
+    priv_iopl(0);
+  if (!video_port_io) leave_priv_setting();
   video_port_io = 0;
 
   return (1);
@@ -512,21 +512,21 @@ write_port_w(unsigned int value,unsigned short port)
 
   LOG_IO(port,value,'{',0xffff);
 
-  if (!video_port_io) priv_on();
+  if (!video_port_io) enter_priv_on();
   if (port <= 0x3fe) 
     set_ioperm(port  ,2,1);
   else
-    iopl(3);
-  if (!video_port_io) priv_default();
+    priv_iopl(3);
+  if (!video_port_io) leave_priv_setting();
 
   port_out_w(value, port);
 
-  if (!video_port_io) priv_on();
+  if (!video_port_io) enter_priv_on();
   if (port <= 0x3fe) 
     set_ioperm(port, 2, 0);
   else
-    iopl(0);
-  if (!video_port_io) priv_default();
+    priv_iopl(0);
+  if (!video_port_io) leave_priv_setting();
   video_port_io = 0;
 
   return (1);

@@ -86,15 +86,15 @@ printer_open(int prnum)
   if (lpt[prnum].file == NULL) {
     if (!lpt[prnum].dev) {
       lpt[prnum].dev = tmpnam(NULL);
-      priv_off();
+      enter_priv_off();
       lpt[prnum].file = fopen(lpt[prnum].dev, "a");
-      priv_default();
+      leave_priv_setting();
       p_printf("LPT: opened tmpfile %s\n", lpt[prnum].dev);
     }
     else {
-      priv_off();
+      enter_priv_off();
       lpt[prnum].file = fopen(lpt[prnum].dev, "a");
-      priv_default();
+      leave_priv_setting();
     }
   }
   umask(um);

@@ -201,12 +201,12 @@ Bit8u port_safe_inb(Bit32u port)
 
   i_printf("PORT: safe_inb ");
   if (i_am_root) {
-    priv_on();
+    enter_priv_on();
     iopl(3);
     res = port_in(port);
     iopl(0);
 
-    priv_default();
+    leave_priv_setting();
   }
   else
     i_printf("want to ");
@@ -221,11 +221,11 @@ void port_safe_outb(Bit32u port, Bit8u byte)
 {
   i_printf("PORT: safe_outb ");
   if (i_am_root) {
-    priv_on();
+    enter_priv_on();
     iopl(3);
     port_out(byte, port);
     iopl(0);
-    priv_default();
+    leave_priv_setting();
   }
   else
     i_printf("want to ");
@@ -238,11 +238,11 @@ Bit16u port_safe_inw(Bit32u port)
 
   i_printf("PORT: safe_inw ");
   if (i_am_root) {
-    priv_on();
+    enter_priv_on();
     iopl(3);
     res = port_in_w(port);
     iopl(0);
-    priv_default();
+    leave_priv_setting();
   }
   else
     i_printf("want to ");
@@ -257,11 +257,11 @@ void port_safe_outw(Bit32u port, Bit16u word)
 {
   i_printf("PORT: safe_outw ");
   if (i_am_root) {
-    priv_on();
+    enter_priv_on();
     iopl(3);
     port_out_w(word, port);
     iopl(0);
-    priv_default();
+    leave_priv_setting();
   }
   else
     i_printf("want to ");
@@ -438,9 +438,9 @@ int set_ioperm(int start, int size, int flag)
   if (!i_am_root)
     return -1;		/* don't bother */
 
-  priv_on();
+  enter_priv_on();
   result = ioperm(start, size, flag);
-  priv_default();
+  leave_priv_setting();
   return result;
 }
 #endif

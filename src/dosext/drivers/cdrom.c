@@ -138,9 +138,9 @@ void cdrom_reset()
      Does some one knows a better way?                   */
     C_printf("cdrom reset\n");
    close (cdrom_fd);
-   priv_off();
+   enter_priv_off();
    cdrom_fd = open (_PATH_CDROM, O_RDONLY);
-   priv_default();
+   leave_priv_setting();
    if (cdrom_fd >= 0) ioctl (cdrom_fd, CDROMRESET, NULL);
 #ifdef __NetBSD__
    if (cdrom_fd >= 0) ioctl(cdrom_fd, CDIOCALLOW, 0);
@@ -184,9 +184,9 @@ void cdrom_helper(void)
    cdrom_subchnl.cdsc_format = CDROM_MSF;
 
    if ((cdu33a) && (cdrom_fd < 0)) {
-        priv_off();
+        enter_priv_off();
         cdrom_fd = open (_PATH_CDROM, O_RDONLY);
-        priv_default();
+        leave_priv_setting();
 #ifdef __NetBSD__
         if (cdrom_fd >= 0) ioctl(cdrom_fd, CDIOCALLOW, 0);
 #endif
@@ -221,9 +221,9 @@ void cdrom_helper(void)
                 audio_status.outchan2 = 2;
                 audio_status.outchan3 = 3;
 
-                priv_off();
+                enter_priv_off();
                 cdrom_fd = open (_PATH_CDROM, O_RDONLY);
-                priv_default();
+                leave_priv_setting();
 		error = errno;
 #ifdef __NetBSD__
                 if (cdrom_fd >= 0) ioctl(cdrom_fd, CDIOCALLOW, 0);

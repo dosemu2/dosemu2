@@ -463,9 +463,9 @@ unsigned char* vga_emu_init(void)
     v_printf("VGAemu: vga_emu_init: Allocated memory is NULL\n");
 
   /* mapping the bank of the allocated memory */
-  priv_on();  /* for /proc/self/mem I need full priveliges */
+  enter_priv_on();  /* for /proc/self/mem I need full priveliges */
   selfmem_fd = open("/proc/self/mem", O_RDWR);
-  priv_default();
+  leave_priv_setting();
   if (selfmem_fd < 0)
     v_printf("VGAemu: vga_emu_init: cannot open /proc/self/mem:\n");
 

@@ -3,50 +3,65 @@
 
 #include "config.h"
 
-extern int i_am_root;
+#ifndef i_am_root
+  #define i_am_root 1
+#endif
+
+extern int under_root_login;
 
 void priv_init(void);
-int internal_priv_on(void);
-int internal_priv_off(void);
+int enter_priv_on(void);
+int enter_priv_off(void);
+int leave_priv_setting(void);
+int priv_iopl(int pl);     /* do iopl() under forced priv_on */
+uid_t get_cur_uid(void);   /* get the current active uid */
+uid_t get_cur_euid(void);  /* get the current active euid */
+gid_t get_cur_egid(void);  /* get the current active egid */
+uid_t get_orig_uid(void);  /* get the uid that was present at start of dosemu */
+uid_t get_orig_euid(void); /* get the euid that was present at start of dosemu */
+gid_t get_orig_gid(void);  /* get the gid that was present at start of dosemu */
 int priv_drop(void);
 
-/* I've found about 99% of the places in dosemu where it is important
-   that you be root.  I have done the important thing though and at
-   least made the current usage consistent.  If someone else wants to
-   actually make this work with RUN_AS_USER, it would probably benefit
-   dosemu in the long run.  EB -- 11 Aug 1996
-   The proper formant for using priv_on, priv_off, and priv_default
-   is:
-   priv_on();       -* If you need to be root to do what you are doing next 
-   code();
-   priv_default;
 
-   priv_off();      -* If you definentily need to be the user who is running dosemu
-   code();
-   priv_default();
-   */
+/*
+   The 'priv stuff' works as follows:
 
-/* Having a priv_default routine isn't quite as good as a
-   the ability to arbitrarily nest which privs are in effect,
-   but it is much cleaner then ending arbitrary procedures with priv_on,
-   and possibly some better then ending them with priv_off.
+   1. All settings have to be done in 'pairs' such as
 
-   It at least simplifies concepts like RUN_AS_USER
+        enter_priv_on();   / * need to have root access for 'do_something' * /
+        do_something();
+        leave_priv_setting();
+      or
+        enter_priv_off();  / * need pure user access for 'do_something' * /
+        do_something();
+        leave_priv_setting();
 
-   Please keep priv_on / priv_off statements that are added as few and
-   as closely focused as possible so we can be assured that dosemu
-   does the right thing.
-   */
+   2. On enter_priv_XXX() the current state will be saved (pushed) on a
+      socalled 'privilege stack' and restored (popped) by leave_priv_setting();
+      Hence, you never again have to worry about previous priv settings,
+      and whenever you feel you need to switch off or on privs, you can do it
+      without coming into trouble.
 
-#ifdef RUN_AS_USER
-#define priv_default()  internal_priv_off()
-#define priv_on()       internal_priv_on()
-#define priv_off()      internal_priv_off()
-#else
-#define priv_default()  internal_priv_on()
-#define priv_on()       internal_priv_on()
-#define priv_off()      internal_priv_off()
-#endif /* RUN_AS_USER */
+   3. We now have the system calls (getuid, setreuid, e.t.c) _only_ in
+      src/base/misc/priv.c. We cash the setting and don't do unnecessary
+      systemcalls. Hence NEVER call 'getuid', 'setreuid' e.t.c yourself,
+      instead use the above supplied functions. The only places where I
+      broke this 'holy law' myself was when printing the log, showing both
+      values (the _real_ and the cashed on).
+
+   4. In case of dosemu was startet out of a root login, we skip 
+      _all_ priv-settings. There is a new variable 'under_root_login'
+      which is only set when dosemu is started from a root login.
+
+   5. On all places were iopl() is called outside a enter_priv...leave_priv
+      bracket, the new priv_iopl() function is to be used in order to
+      force privileges.
+
+   6. 'running as user' just needs to do _one_ priv_off at start of dosemu,
+      if we don't do it we are 'running as root' ;-)
+
+   -- Hans 970405
+*/
 
 #endif /* PRIV_H */
 

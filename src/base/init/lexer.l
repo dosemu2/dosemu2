@@ -280,7 +280,8 @@ sb_mixer                return(SB_MIXER);
 mpu_base                return(MPU_BASE);
 
 	/* packet driver */
-
+	/* NOTE: we need 'no' _before_ 'novell_hack', else the rule will not match */
+no			{ yylval->i_value = 0; return(L_NO); }
 novell_hack		return(NOVELLHACK);
 
 	/* debug flags */
@@ -320,7 +321,7 @@ fast			return(FAST);
 on			{ yylval->i_value = 1; return(L_ON); }
 off			{ yylval->i_value = 0; return(L_OFF); }
 yes			{ yylval->i_value = 1; return(L_YES); }
-no			{ yylval->i_value = 0; return(L_NO); }
+	/*no			{ yylval->i_value = 0; return(L_NO); } */
 
 	/* integers */
 
@@ -347,7 +348,9 @@ $[a-z0-9/\~@-_\+=:,\.]+ { yylval->s_value = strdup(getenv(&yytext[1]));
 [#\;\!][^\n]*\n		line_count++;   /* comments to (and including) EOLN */
 [ \t]+			;   		/* ignore all white space */
 \n			line_count++;	/* keep track of lines seen */
-.			fprintf(stderr, "discarding char '%c'\n", yytext[0]);
+	/* NOTE: the below rule will not have any effect, ... except */
+	/* printing a warning ;-) */
+	/*.			fprintf(stderr, "discarding char '%c'\n", yytext[0]); */
 
 %%
 

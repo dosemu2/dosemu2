@@ -13,6 +13,8 @@
 #include <sys/param.h>
 #include <sys/ioctl.h>
 
+#include "priv.h"
+
 /* 
  * Update to do console disallocation on exit of dosemu
  * (C) 1994 under GPL: Wayne Meissner
@@ -144,8 +146,7 @@ unsigned short detach (void) {
   fstat (0, &orig_stat);
 
   /* now set the console as owned by this user */
-  if (geteuid() == 0)
-    fchown (0, getuid(), getgid());
+  fchown (0, get_orig_uid(), get_orig_gid());
   
   /* set the permissions to stop other people accessing the vt */
   fchmod (0, S_IRUSR | S_IWUSR);

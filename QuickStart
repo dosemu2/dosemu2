@@ -41,7 +41,8 @@ or use setup-dosemu to toggle "disable VM86 enhancement"
 
 - Create a file /etc/dosemu.users which contains a list of users who are
   privileged to use dosemu.  The user "all" will allow anyone to run
-  dosemu.
+  dosemu. For a more detailed decription on 'running as user' have a look
+  at ./doc/README.runasuser.
 
 - Copy etc/hdimage.dist as /var/lib/dosemu/hdimage.  The first disk
   statement in your /etc/dosemu.conf should point to this file.
@@ -171,6 +172,8 @@ If you don't know how to copy files from/to the hdimage:
 	The announcement textfile for DOSEMU 0.64.
 ./doc/README.*
 	Readme files for various applications and settings.
+./doc/README.runasuser
+	Special hints on how to setup for running dosemu as normal user.
 ./doc/README.vm86plus
 	Specials of vm86plus (kernel patches and emumodule)
 ./README.bugreports

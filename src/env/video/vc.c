@@ -194,9 +194,9 @@ parent_open_mouse (void)
 {
   if (mice->intdrv)
     {
-      priv_on(); /* The mouse may not be a resource everyone can open. */
+      enter_priv_on(); /* The mouse may not be a resource everyone can open. */
       mice->fd = DOS_SYSCALL (open (mice->dev, O_RDWR | O_NONBLOCK));
-      priv_default();
+      leave_priv_setting();
       if (mice->fd > 0)
 	add_to_io_select(mice->fd, mice->add_to_io_select);
     }
@@ -617,9 +617,9 @@ clear_process_control (void)
   struct vt_mode vt_mode;
 
   vt_mode.mode = VT_AUTO;
-  priv_on();
+  enter_priv_on();
   ioctl (console_fd, VT_SETMODE, (int) &vt_mode);
-  priv_default();
+  leave_priv_setting();
   signal (SIG_RELEASE, SIG_IGN);
   signal (SIG_ACQUIRE, SIG_IGN);
 }
@@ -646,9 +646,9 @@ open_kmem (void)
 
   if (mem_fd != -1)
     return;
-  priv_on();
+  enter_priv_on();
   mem_fd = open("/dev/mem", O_RDWR);
-  priv_default();
+  leave_priv_setting();
   if (mem_fd < 0)
     {
       error ("ERROR: can't open /dev/mem: errno=%d, %s \n",

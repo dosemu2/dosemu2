@@ -92,18 +92,18 @@ void HMA_MAP(int HMA)
   int retval;
 
   E_printf("Entering HMA_MAP with HMA=%d\n", HMA);
-  priv_on();
+  enter_priv_on();
   retval = shmdt(HMAAREA);
-  priv_default();
+  leave_priv_setting();
   if (retval < 0) {
     E_printf("HMA: Detaching HMAAREA unsuccessful: %s\n", strerror(errno));
     leavedos(48);
   }
   E_printf("HMA: detached at %p\n", HMAAREA);
   if (HMA){
-    priv_on();
+    enter_priv_on();
     ipc_return = (caddr_t) shmat(shm_hma_id, HMAAREA, SHM_REMAP );
-    priv_default();
+    leave_priv_setting();
     if (ipc_return == (caddr_t) 0xffffffff) {
       E_printf("HMA: Mapping HMA id %x to HMAAREA %p unsuccessful: %s\n",
 	       shm_hma_id, HMAAREA, strerror(errno));
@@ -112,9 +112,9 @@ void HMA_MAP(int HMA)
     E_printf("HMA: mapped id %x to %p\n", shm_hma_id, ipc_return);
   }
   else {
-    priv_on();
+    enter_priv_on();
     ipc_return = (caddr_t) shmat(shm_wrap_id, HMAAREA, 0 );
-    priv_default();
+    leave_priv_setting();
     if (ipc_return == (caddr_t) 0xffffffff) {
       E_printf("HMA: Mapping WRAP to HMAAREA unsuccessful: %s\n", strerror(errno));
       leavedos(47);

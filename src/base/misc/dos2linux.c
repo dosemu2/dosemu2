@@ -334,16 +334,3 @@ void run_unix_command(char *buffer)
             WEXITSTATUS(status));
     }
 }
-
-/* interface to system -- run a real uid */
-int run_simple_system_command(const char *p)
-{
-	int result;
-	
-	priv_off();
-	result = system(p);
-	priv_default();
-		
-	return(result);
-}
-

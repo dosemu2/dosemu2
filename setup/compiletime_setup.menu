@@ -12,6 +12,7 @@ menu "Main Menu" {
   boolean "SB Emulation" sbemu
   boolean "force use of dosemu supplied Slang-lib" slangforce
   boolean "use monoton micro timing" tmonoton
+  boolean "run as root mostly" runasroot
 }
 
 menu "Configure Action" {

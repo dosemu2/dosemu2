@@ -45,6 +45,9 @@ while [ "$1" != "" ]; do
     tmonoton)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-monoton-timing"; fi
       ;;
+    runasroot)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-runasroot"; fi
+      ;;
     *)
       ;;
   esac

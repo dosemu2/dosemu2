@@ -263,11 +263,11 @@ DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
 {
     void *mapped_base;
     if ( fd_self_mem == -1) {
-        priv_on();  /* to open proc self mem takes I need to halve full permissions */
+        enter_priv_on();  /* to open proc self mem takes I need to halve full permissions */
                     /* Note: this isn't even the correct file name for BSD */
                     /* -- EB 6 Sept 96 */
         fd_self_mem = open("/proc/self/mem", O_RDWR);
-	priv_default();
+	leave_priv_setting();
 	if ((fd_self_mem) == -1 ) {
 	    error("DPMI: can't open /proc/self/mem\n");
 	    return -1;

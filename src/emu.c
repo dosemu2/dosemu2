@@ -239,8 +239,11 @@ SIG_init()
 	for (i = 0; i < sizeof(prio_table); i++) {
 	    irq = prio_table[i];
 	    if (config.sillyint & (1 << irq)) {
-		if (vm86_plus(VM86_REQUEST_IRQ, (SIGIO << 8) | irq) < 0) {
-		} else {
+		int ret;
+		enter_priv_on();
+		ret = vm86_plus(VM86_REQUEST_IRQ, (SIGIO << 8) | irq);
+		leave_priv_setting();
+		if ( ret > 0) {
 		    g_printf("Gonna monitor the IRQ %d you requested\n", irq);
 		    sg->fd = -1;
 		    sg->irq = irq;
@@ -503,7 +506,6 @@ leavedos(int sig)
     static int recurse_check = 0;
    
     warn("leavedos(%d) called - shutting down\n", sig);
-   
     if (recurse_check)
       {
        error("leavedos called recursively, forgetting the graceful exit!\n");
@@ -511,9 +513,6 @@ leavedos(int sig)
        _exit(sig);
       }
     recurse_check = 1;
-#if 0
-    priv_on();
-#endif
 #if 1 /* BUG CATCHER */
     if (in_vm86) {
       g_printf("\nkilled while in vm86(), trying to dump DOS-registers:\n");
@@ -622,39 +621,6 @@ d_ready(int fd)
 	return (0);
 }
 #endif
-
-static inline   uid_t
-be(uid_t who)
-{
-    if (getuid() != who)
-	return setreuid(geteuid(), getuid());
-    else
-	return 0;
-}
-
-static inline   uid_t
-be_me(void)
-{
-    if (geteuid() == 0) {
-	return setreuid(geteuid(), getuid());
-	return 0;
-    } else
-	return geteuid();
-}
-
-static inline   uid_t
-be_root(void)
-{
-    if (geteuid() != 0) {
-	setreuid(geteuid(), getuid());
-	return getuid();
-    } else
-	return 0;
-}
-
-
-
-
 
 
 void

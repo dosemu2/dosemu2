@@ -108,7 +108,7 @@ static int tty_lock(char *path, int mode)
   int cwrote;
 
   /* Check that lockfiles can be created! */
-  if((mode == 1 || mode == 2) && geteuid() != (uid_t)0) {
+  if((mode == 1 || mode == 2) && get_orig_euid() != (uid_t)0) {
     s_printf("DOSEMU: Need to be suid root to create Lock Files!\n"
 	     "        Serial port on %s not configured!\n", path);
     error("\nDOSEMU: Need to be suid root to create Lock Files!\n"
@@ -130,9 +130,9 @@ static int tty_lock(char *path, int mode)
         error("\nDOSEMU: attempt to use already locked tty %s\n", saved_path);
         return (-1);
       }
-      priv_on();
+      enter_priv_on();
       fd = fopen(saved_path, "w");
-      priv_default();
+      leave_priv_setting();
       if (fd == (FILE *)0) {
         s_printf("DOSEMU: lock: (%s): %s\n", saved_path, strerror(errno));
         error("\nDOSEMU: tty: lock: (%s): %s\n", saved_path, strerror(errno));
@@ -160,9 +160,9 @@ static int tty_lock(char *path, int mode)
   else if (mode == 2) { /* re-acquire a lock after a fork() */
     FILE *fd;
 
-     priv_on();
+     enter_priv_on();
      fd = fopen(saved_path,"w");
-     priv_default();
+     leave_priv_setting();
      if (fd == (FILE *)0) {
      s_printf("DOSEMU: tty_lock(%s) reaquire: %s\n", 
               saved_path, strerror(errno));
@@ -179,25 +179,25 @@ static int tty_lock(char *path, int mode)
 
     (void) fclose(fd);
     (void) chmod(saved_path, 0444);
-    (void) chown(saved_path, getuid(), getgid());
+    (void) chown(saved_path, get_orig_uid(), get_orig_gid());
     return(0);
   } 
   else {    /* unlock */
     FILE *fd;
     int retval;
 
-    priv_on();
+    enter_priv_on();
     fd = fopen(saved_path,"w");
-    priv_default();
+    leave_priv_setting();
     if (fd == (FILE *)0) {
       s_printf("DOSEMU: tty_lock: can't reopen to delete: %s\n",
              strerror(errno));
       return (-1);
     }
       
-    priv_on();
+    enter_priv_on();
     retval = unlink(saved_path);
-    priv_off();
+    leave_priv_setting();
     if (retval < 0) {
       s_printf("DOSEMU: tty: unlock: (%s): %s\n", saved_path,
              strerror(errno));

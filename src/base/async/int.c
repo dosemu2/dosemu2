@@ -28,6 +28,7 @@
 #include "dos2linux.h"
 #include "video.h"
 #include "vc.h"
+#include "priv.h"
 
 #ifdef USING_NET
 #include "ipx.h"
@@ -401,43 +402,31 @@ static int dos_helper(void)
     }
 
   case 0x50:
-    if (config.secure) {
-      CARRY;
-      break;
-    }
-    /* run the unix command in es:dx (a null terminated buffer) */
     g_printf("Running Unix Command\n");
     run_unix_command(SEG_ADR((char *), es, dx));
     break;   
 
   case 0x51:
-    if (config.secure) {
-      CARRY;
-      LWORD(eax) = 0;
-      break;
-    }
     /* Get DOS command from UNIX in es:dx (a null terminated buffer) */
     g_printf("Locating DOS Command\n");
     LWORD(eax) = misc_e6_commandline(SEG_ADR((char *), es, dx));
     break;   
 
   case 0x52:
-    if (config.secure) {
-      CARRY;
-      LWORD(eax) = 0;
-      break;
-    }
     /* Interrogate the UNIX environment in es:dx (a null terminated buffer) */
     g_printf("Interrogating UNIX Environment\n");
     LWORD(eax) = misc_e6_envvar(SEG_ADR((char *), es, dx));
     break;   
+
   case 0x53:
     if (config.secure) {
       CARRY;
       LWORD(eax) = 0;
       break;
     }
+	enter_priv_off();
 	LWORD(eax) = system(SEG_ADR((char *), es, dx));
+	leave_priv_setting();
 	break;
 
 #ifdef IPX

@@ -1,3 +1,12 @@
+97/04/04 ver. 0.66.1.4 unofficial pre-release
+	From Hans
+	- complete rework of the privs stuff, now we _really_ can
+	  run as user, and this is now the default!
+	  (note: run as user means that dosemu mostly has user privs)
+	  For more details see ./doc/README.runasuser and
+	  src/base/misc/README.privs
+	- updated the docs concernig 'run as user' and new privs stuff
+	- Fixed some warnings in lexer.l and parser.y
 97/04/04 ver. 0.66.1.3 unofficial pre-release
 	From Alberto
 	- (hopefully) final fix for >2G over mfs.

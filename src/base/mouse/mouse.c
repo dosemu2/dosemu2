@@ -1547,9 +1547,9 @@ mouse_init(void)
   if ( ! config.usesX ){
     if (mice->intdrv) {
       m_printf("Opening internal mouse: %s\n", mice->dev);
-      priv_on();  /* The mouse might need special permisions to open (esp r/w). */
+      enter_priv_on();  /* The mouse might need special permisions to open (esp r/w). */
       mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK));
-      priv_default();
+      leave_priv_setting();
       if (mice->fd == -1) {
  	mice->intdrv = FALSE;
  	mice->type = MOUSE_NONE;
@@ -1564,9 +1564,9 @@ mouse_init(void)
     }
 
     if ((mice->type == MOUSE_PS2) || (mice->type == MOUSE_BUSMOUSE)) {
-      priv_on();
+      enter_priv_on();
       mice->fd = open(mice->dev, O_RDWR | O_NONBLOCK);
-      priv_default();
+      leave_priv_setting();
       mice->add_to_io_select = 0;
       if (mice->fd == -1) {
 	  error("Cannot open internal mouse device %s\n",mice->dev);

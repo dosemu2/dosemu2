@@ -785,11 +785,13 @@ mfs_redirector(void)
   int ret;
 
   PS(MFS);
-  if (!priv_off())
+  if (!enter_priv_off()) {
+    leave_priv_setting();
     return 0;
+  }
 
   ret = dos_fs_redirect(&REGS);
-  priv_default();
+  leave_priv_setting();
   PE(MFS);
 
   Debug0((dbg_fd, "Finished dos_fs_redirect\n"));
@@ -818,11 +820,12 @@ mfs_inte6(void)
   boolean_t dos_fs_dev();
   boolean_t result;
 
-  if (!priv_off())
+  if (!enter_priv_off()) {
+    leave_priv_setting();
     return 0;
-
+  }
   result = dos_fs_dev(&REGS);
-  priv_default();
+  leave_priv_setting();
   return (result);
 }
 

@@ -171,9 +171,9 @@ config_defaults(void)
 static void 
 open_terminal_pipe(char *path)
 {
-    priv_off();
+    enter_priv_off();
     terminal_fd = DOS_SYSCALL(open(path, O_RDWR));
-    priv_default();
+    leave_priv_setting();
     if (terminal_fd == -1) {
 	terminal_pipe = 0;
 	error("ERROR: open_terminal_pipe failed - cannot open %s!\n", path);
@@ -247,11 +247,11 @@ config_init(int argc, char **argv)
     while ((c = getopt(argc, argv, "ABCcF:I:kM:D:P:VNtsgx:Km234e:E:dXY:Z:o:O")) != EOF) {
 	switch (c) {
 	case 'F':
-	    if (getuid()) {
+	    if (get_orig_uid()) {
 		FILE *f;
-		priv_off();
+		enter_priv_off();
 		f=fopen(optarg, "r");
-		priv_default();
+		leave_priv_setting();
 		if (!f) {
 		  fprintf(stderr, "Sorry, no access to configuration file %s\n", optarg);
 		  exit(1);
@@ -277,9 +277,9 @@ config_init(int argc, char **argv)
 	    break;
 	case 'o':
 	    config.debugout = strdup(optarg);
-	    priv_off();
+	    enter_priv_off();
 	    dbg_fd = fopen(config.debugout, "w");
-	    priv_default();
+	    leave_priv_setting();
 	    if (!dbg_fd) {
 		fprintf(stderr, "can't open \"%s\" for writing\n", config.debugout);
 		exit(1);
@@ -474,6 +474,16 @@ config_init(int argc, char **argv)
 	config.console_video = config.vga = config.graphics = 0;
     }
     check_for_env_autoexec_or_config();
+    if (under_root_login)  c_printf("CONF: running exclusively as ROOT:");
+    else {
+#ifdef RUN_AS_ROOT
+      c_printf("CONF: mostly running as ROOT:");
+#else
+      c_printf("CONF: mostly running as USER:");
+#endif
+    }
+    c_printf(" uid=%d (cached %d) gid=%d (cached %d)\n",
+        geteuid(), get_cur_euid(), getegid(), get_cur_egid());
 }
 
 

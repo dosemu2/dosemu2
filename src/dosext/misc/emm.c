@@ -386,9 +386,9 @@ ems_init(void)
       * own /proc/self/mem.  Is this a bug or a feature???
       * It's certainly a pain. -- EB 6 Sept 1996
       */
-     priv_on();
+     enter_priv_on();
      selfmem_fd = open(MEMFILE, O_RDWR);
-     priv_default();
+     leave_priv_setting();
      if (selfmem_fd < 0) {
        error("EMS: cannot open " MEMFILE ": %s\n",strerror(errno));
        ems_mmap = 0;

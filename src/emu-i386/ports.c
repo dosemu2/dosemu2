@@ -207,15 +207,19 @@ inb(unsigned int port)
   if (config.chipset && (port > 0x3b3) && (port < 0x3df) && config.mapped_bios)
     r = (video_port_in((u_int)port));
   else if (v_8514_base && ((port & 0x03fe) == v_8514_base) && (port & 0xfc00)) {
+    enter_priv_on();
     iopl(3);
     r = port_in((u_int)port) & 0xff;
     iopl(0);
+    leave_priv_setting();
     v_printf("8514 inb [0x%04x] = 0x%02x\n", port, r);
   }
   else if ((config.chipset == ATI) && isATIport(port) && (port & 0xfc00)) {
+    enter_priv_on();
     iopl(3);
     r = port_in(port) & 0xff;
     iopl(0);
+    leave_priv_setting();
     v_printf("ATI inb [0x%04x] = 0x%02x\n", port, r);
   }
 #endif
@@ -271,9 +275,11 @@ inb(unsigned int port)
     return r;
 
   case 0xa79:
+    enter_priv_on();
     iopl (3);
     r = port_in (port);
     iopl (0);
+    leave_priv_setting();
     break;
 #endif
   default:
@@ -306,9 +312,11 @@ inb(unsigned int port)
 
     /* The diamond bug */
     else if (config.chipset == DIAMOND && (port >= 0x23c0) && (port <= 0x23cf)) {
+      enter_priv_on();
       iopl(3);
       r = port_in(port);
       iopl(0);
+      leave_priv_setting();
       i_printf(" Diamond inb [0x%x] = 0x%x\n", port, r);
     }
     else {
@@ -337,18 +345,22 @@ inw(int port)
   if (v_8514_base && ((port & 0x03fd) == v_8514_base) && (port & 0xfc00)) {
     int value;
 
+    enter_priv_on();
     iopl(3);
     value = port_in_w(port) & 0xffff;
     iopl(0);
+    leave_priv_setting();
     v_printf("8514 inw [0x%04x] = 0x%04x\n", port, value);
     return value;
   }
   else if ((config.chipset == ATI) && isATIport(port) && (port & 0xfc00)) {
     int value;
 
+    enter_priv_on();
     iopl(3);
     value = port_in_w(port) & 0xffff;
     iopl(0);
+    leave_priv_setting();
     v_printf("ATI inw [0x%04x] = 0x%04x\n", port, value);
     return value;
   }
@@ -489,25 +501,31 @@ outb(unsigned int port, unsigned int byte)
     return;
   }
   if (v_8514_base && ((port & 0x03fe) == v_8514_base) && (port & 0xfc00)) {
+    enter_priv_on();
     iopl(3);
     port_out(byte, port);
     iopl(0);
+    leave_priv_setting();
     v_printf("8514 outb [0x%04x] = 0x%02x\n", port, byte);
     return;
   }
   if ((config.chipset == ATI) && isATIport(port) && (port & 0xfc00)) {
+    enter_priv_on();
     iopl(3);
     port_out(byte, port);
     iopl(0);
+    leave_priv_setting();
     v_printf("ATI outb [0x%04x] = 0x%02x\n", port, byte);
     return;
   }
 
   /* The diamond bug */
   if (config.chipset == DIAMOND && (port >= 0x23c0) && (port <= 0x23cf)) {
+    enter_priv_on();
     iopl(3);
     port_out(byte, port);
     iopl(0);
+    leave_priv_setting();
     i_printf(" Diamond outb [0x%x] = 0x%x\n", port, byte);
     return;
   }
@@ -561,9 +579,11 @@ outb(unsigned int port, unsigned int byte)
     break;
 
   case 0xa79:
+    enter_priv_on();
     iopl (3);
     port_out (byte, port);
     iopl (0);
+    leave_priv_setting();
   break;
 #endif
 
@@ -609,16 +629,20 @@ void
 outw(unsigned int port, unsigned int value)
 {
   if (v_8514_base && ((port & 0x03fd) == v_8514_base) && (port & 0xfc00)) {
+    enter_priv_on();
     iopl(3);
     port_out_w(value, port);
     iopl(0);
+    leave_priv_setting();
     v_printf("8514 outw [0x%04x] = 0x%04x\n", port, value);
     return;
   }
   if ((config.chipset == ATI) && isATIport(port) && (port & 0xfc00)) {
+    enter_priv_on();
     iopl(3);
     port_out(value, port);
     iopl(0);
+    leave_priv_setting();
     v_printf("ATI outb [0x%04x] = 0x%02x\n", port, value);
     return;
   }
@@ -651,9 +675,9 @@ set_ioperm(int start, int size, int flag)
     if (!i_am_root)
 	return -1;		/* don't bother */
 
-    priv_on();
+    enter_priv_on();
     tmp = ioperm(start, size, flag);
-    priv_default();
+    leave_priv_setting();
 
     return tmp;
 }

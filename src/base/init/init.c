@@ -140,9 +140,9 @@ void stdio_init(void)
 void tmpdir_init(void)
 {
   /* create tmpdir */
-  priv_off();
+  enter_priv_off();
   mkdir(tmpdir, S_IREAD | S_IWRITE | S_IEXEC);
-  priv_default();
+  leave_priv_setting();
 }
 
 /*

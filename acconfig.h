@@ -110,6 +110,13 @@
 /* Define this if you want to use a monoton micro timing (Bernd Paysan) */
 #undef MONOTON_MICRO_TIMING
 
+/* Define this if you want dosemu permanently run as (suid) root and only gain
+ * user privileges, when accessing secure relevant resources.
+ * Otherwise dosemu will permanently run as user and only temporary take over
+ * root privilege when needed.
+ */
+#undef RUN_AS_ROOT
+
 @BOTTOM@
 
 #endif /* CONFIG_H */
