@@ -21,66 +21,14 @@ static void config_translate_scrub(void)
     if (!trconfig.keyb_charset)
 	trconfig.keyb_charset = trconfig.paste_charset;
     switch (config.term_charset) {
-    case CHARSET_FULLIBM:
-	error("WARNING: 'charset fullibm' doesn't work.  Use 'charset ibm' instead.\n");
-	/* fallthrough */
-    case CHARSET_IBM:
-	if (!trconfig.video_mem_charset) 
-		trconfig.video_mem_charset = lookup_charset("cp437");
-	if (!trconfig.keyb_config_charset)
-		trconfig.keyb_config_charset = 
-			get_terminal_charset(lookup_charset("cp437"));
-	if (!trconfig.output_charset)
-		trconfig.output_charset = 
-			get_terminal_charset(lookup_charset("cp437"));
-	if (!trconfig.dos_charset)
-		trconfig.dos_charset = lookup_charset("cp437");
-	break;
     case CHARSET_LATIN1:
-	if (!trconfig.video_mem_charset) 
-		trconfig.video_mem_charset = lookup_charset("cp850");
-	if (!trconfig.keyb_config_charset)
-		trconfig.keyb_config_charset = 
-			get_terminal_charset(lookup_charset("cp850"));
-	if (!trconfig.output_charset)
-		trconfig.output_charset = lookup_charset("iso8859-1");
-	if (!trconfig.dos_charset)
-		trconfig.dos_charset = lookup_charset("cp850");
-	break;
     case CHARSET_LATIN2:
-	if (!trconfig.video_mem_charset) 
-		trconfig.video_mem_charset = lookup_charset("cp852");
-	if (!trconfig.keyb_config_charset)
-		trconfig.keyb_config_charset = 
-			get_terminal_charset(lookup_charset("cp852"));
-	if (!trconfig.output_charset)
-		trconfig.output_charset = lookup_charset("iso8859-2");
-	if (!trconfig.dos_charset)
-		trconfig.dos_charset = lookup_charset("cp852");
-	break;
     case CHARSET_LATIN:
-	k_printf("charset_latin\n");
-	if (!trconfig.video_mem_charset) 
-		trconfig.video_mem_charset = lookup_charset("cp437");
-	if (!trconfig.keyb_config_charset)
-		trconfig.keyb_config_charset = 
-			get_terminal_charset(lookup_charset("cp437"));
-	if (!trconfig.output_charset)
-		trconfig.output_charset = lookup_charset("iso8859-1");
-	if (!trconfig.dos_charset)
-		trconfig.dos_charset = lookup_charset("cp437");
-	break;
     case CHARSET_KOI8:
-	if (!trconfig.video_mem_charset) 
-		trconfig.video_mem_charset = lookup_charset("cp866");
-	if (!trconfig.keyb_config_charset)
-		trconfig.keyb_config_charset = 
-			get_terminal_charset(lookup_charset("cp866"));
-	if (!trconfig.output_charset)
-		trconfig.output_charset = lookup_charset("koi8-r");
-	if (!trconfig.dos_charset)
-		trconfig.dos_charset = lookup_charset("cp866");
-	break;
+    case CHARSET_FULLIBM:
+    case CHARSET_IBM:
+	error("WARNING: $_term_char_set is obsolete. "
+              "Use $_external_char_set and $_internal_char_set instead.");
     default:
 	if (!trconfig.video_mem_charset) 
 		trconfig.video_mem_charset = lookup_charset("cp437");
