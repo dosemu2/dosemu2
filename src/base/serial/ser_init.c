@@ -449,10 +449,10 @@ static void do_ser_init(int num)
 
   if (com[num].dev[0] == 0) {			/* Is the device file undef? */
     switch (com[num].real_comport) {		/* Define it using std devs */
-    case 4:  com[num].dev = "/dev/ttyS3"); break;
-    case 3:  com[num].dev = "/dev/ttyS2"); break;
-    case 2:  com[num].dev = "/dev/ttyS1"); break;
-    default: com[num].dev = "/dev/ttyS0"); break;
+    case 4:  com[num].dev = "/dev/ttyS3"; break;
+    case 3:  com[num].dev = "/dev/ttyS2"; break;
+    case 2:  com[num].dev = "/dev/ttyS1"; break;
+    default: com[num].dev = "/dev/ttyS0"; break;
     }
   }
   iodev_add_device(com[num].dev);
