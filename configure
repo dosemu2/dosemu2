@@ -8783,12 +8783,15 @@ echo "${ECHO_T}no" >&6
 
   # -m486 is usually in the specs for the compiler
   # but gcc-3.0 wants -mcpu=i486 instead
+  # and gcc-3.4 wants -mtune=i486 instead
   # let the compiler options be dependent of the _target_
   # where dosemu is compiled for, not the host
   if test "$target_cpu" = "athlon" -a $GCC_VERSION_CODE -le 2095 ;  then
     target_cpu="i686"
   fi
-  if test "$GCC_VERSION_CODE" -ge 2095 ; then
+  if test "$GCC_VERSION_CODE" -ge 3004 ; then
+     OPT="$OPT -mtune=$target_cpu"
+  elif test "$GCC_VERSION_CODE" -ge 2095 ; then
      OPT="$OPT -mcpu=$target_cpu"
   else
      case "$target_cpu" in
