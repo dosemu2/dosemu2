@@ -310,5 +310,7 @@ int ser_open(int num);
 void ser_set_params(int num);
 void receive_engine(int num);
 void transmit_engine(int num);
+void rx_buffer_slide(int num);
+void tx_buffer_slide(int num);
 
 #endif /* SER_DEFS_H */

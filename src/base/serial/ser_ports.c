@@ -97,19 +97,30 @@ static inline void flow_control_update(int num)
  * a circular buffer because this way, a single read() can easily
  * put data straight into our internal receive buffer!
  */
-static void rx_buffer_slide(int num)
+void rx_buffer_slide(int num)
 {
-  int i;
-
   if (com[num].rx_buf_start == 0)
     return;
   /* Move existing chars in receive buffer to the start of buffer */
-  for(i = 0; i < RX_BUF_BYTES(num); i++)
-    com[num].rx_buf[i] = com[num].rx_buf[com[num].rx_buf_start + i];
+  memmove(com[num].rx_buf, com[num].rx_buf + com[num].rx_buf_start,
+    RX_BUF_BYTES(num));
 
   /* Update start and end pointers in buffer */        
+  com[num].rx_buf_end -= com[num].rx_buf_start;
   com[num].rx_buf_start = 0;
-  com[num].rx_buf_end = i;
+}
+
+void tx_buffer_slide(int num)
+{
+  if (com[num].tx_buf_start == 0)
+    return;
+  /* Move existing chars in receive buffer to the start of buffer */
+  memmove(com[num].tx_buf, com[num].tx_buf + com[num].tx_buf_start,
+    TX_BUF_BYTES(num));
+
+  /* Update start and end pointers in buffer */        
+  com[num].tx_buf_end -= com[num].tx_buf_start;
+  com[num].tx_buf_start = 0;
 }
 
 
@@ -686,7 +697,7 @@ static void put_tx(int num, int val)
     return;
   }
   /* Else, not in loopback mode */
-  
+
   if (com[num].fifo_enable) {			/* Is FIFO enabled? */
     if (TX_BUF_BYTES(num) >= TX_BUFFER_SIZE) {	/* Is FIFO already full? */
       /* try to write the character directly to the tty, hoping it
@@ -695,19 +706,19 @@ static void put_tx(int num, int val)
       if (rtrn != 1) {				/* Did transmit fail? */
         com[num].tx_overflow = 1;		/* Set overflow flag */
       }
-      else {					
+      else {
+        /* char written */
+        com[num].tx_buf_start++;
         /* Squeeze char into FIFO */
+        tx_buffer_slide(num);
         com[num].tx_buf[com[num].tx_buf_end] = val;
-        
         /* Update FIFO queue pointers */
-        com[num].tx_buf_end = (com[num].tx_buf_end + 1) % TX_BUFFER_SIZE;
-        com[num].tx_buf_start = (com[num].tx_buf_start + 1) % TX_BUFFER_SIZE;
-        
+        com[num].tx_buf_end++;
       }
     } 
     else {					/* FIFO not full */
       com[num].tx_buf[com[num].tx_buf_end] = val;  /* Put char into FIFO */
-      com[num].tx_buf_end = (com[num].tx_buf_end +1) % TX_BUFFER_SIZE;
+      com[num].tx_buf_end++;
     } 
   } 
   else { 				/* Not in FIFO mode */

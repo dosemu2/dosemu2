@@ -161,23 +161,29 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
   if (com[num].fifo_enable) {  /* Is FIFO enabled? */
 
     if (com[num].tx_overflow){
-      if(RPT_SYSCALL(write(com[num].fd,&com[num].tx_buf[com[num].tx_buf_start], 1))!=1){
+      if(RPT_SYSCALL(write(com[num].fd,
+        &com[num].tx_buf[com[num].tx_buf_start], 1))!=1) {
         return;  /* write error */
       } else {
+        /* char was written */
+        com[num].tx_buf_start++;
         /* Squeeze char into FIFO */
+	tx_buffer_slide(num);
         com[num].tx_buf[com[num].tx_buf_end] = com[num].TX ;
         /* Update FIFO queue pointers */
-        com[num].tx_buf_end = (com[num].tx_buf_end + 1) % TX_BUFFER_SIZE;
-        com[num].tx_buf_start = (com[num].tx_buf_start + 1) % TX_BUFFER_SIZE;
+        com[num].tx_buf_end++;
+	if (com[num].tx_buf_end > TX_BUFFER_SIZE) {
+	  error("SER%d: BUG: transmit buffer overflowed, couldn't happen...\n", num);
+	}
         com[num].tx_overflow = 0;                  /* Exit overflow state */
       }
     }
     /* Clear as much of the transmit FIFO as possible! */
-    while (TX_BUF_BYTES(num) > 0) {		/* Any data in fifo? */
-      rtrn = RPT_SYSCALL(write(com[num].fd, &com[num].tx_buf[com[num].tx_buf_start], 1));
-      if (rtrn != 1) break;				/* Exit Loop if fail */
-      com[num].tx_buf_start = (com[num].tx_buf_start+1) % TX_BUFFER_SIZE;
-    }
+    rtrn = RPT_SYSCALL(write(com[num].fd,
+      &com[num].tx_buf[com[num].tx_buf_start], TX_BUF_BYTES(num)));
+    if (rtrn <= 0) return;				/* Exit Loop if fail */
+    com[num].tx_buf_start += rtrn;
+    tx_buffer_slide(num);
      
     /* Is FIFO empty, and is it time to trigger an xmit int? */
     if (!TX_BUF_BYTES(num) && com[num].tx_trigger) {
