@@ -12,17 +12,15 @@ TMP = $(abs_top_builddir)/tmp
 SYS = ../commands
 dosemudir = $(datadir)/dosemu
 
-export LD=$(CC)
-
-export NET=dosext/net/net
+NET=dosext/net/net
 
 #
 # This is defined when the SB Emulation is required. You should re-configure,
 # rather than just change this.
 #
 ifdef USE_SBEMU
-export SBEMU=dosext/sound arch/linux/dosext/sound
-export MIDID=arch/linux/dosext/sound/midid
+SBEMU=dosext/sound arch/linux/dosext/sound
+MIDID=arch/linux/dosext/sound/midid
 endif
 
 #
@@ -30,7 +28,7 @@ endif
 # re-configure, rather than just change this.
 #
 ifdef X86_EMULATOR
-export XCPUEMU=emu-i386/simx86
+XCPUEMU=emu-i386/simx86
 endif
 
 REQUIRED += $(MIDID)
