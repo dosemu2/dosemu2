@@ -2277,6 +2277,27 @@ GetRedirection(state, index)
 }
 
 /*****************************
+ * GetRedirectionRoot - get the root on the Linux fs of a redirected drive
+ * on entry:
+ * on exit:
+ *   Returns 0 on success, otherwise some error code.
+ * notes:
+ *   This function is used internally by DOSEMU (for userhooks)
+ *   Take care of freeing resourceName after calling this
+ *****************************/
+int
+GetRedirectionRoot(int dsk, char **resourceName,int *ro_flag)
+{
+  if (!dos_roots[dsk]) return (TRUE);
+  *resourceName = malloc(MAXPATHLEN + 1);
+  if (*resourceName == NULL) return (TRUE);
+  strcpy(*resourceName, dos_roots[dsk] );
+  *ro_flag=read_onlys[dsk];
+  return (FALSE);
+
+}
+
+/*****************************
  * RedirectDisk - redirect a disk to the Linux file system
  * on entry:
  * on exit:

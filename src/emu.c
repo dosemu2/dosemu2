@@ -365,6 +365,48 @@ changesegs()
 }
 #endif
 
+static void do_liability_disclaimer_prompt(void)
+{
+  FILE *f;
+  char buf[32];
+  char disclaimer_file_name[256];
+  static char text[] ="
+  The Linux DOSEMU, Copyright (C) 2000 the 'DOSEMU-Development-Team'.
+  This program is  distributed  in  the  hope that it will be useful,
+  but  WITHOUT  ANY  WARRANTY;   without even the implied warranty of
+  MERCHANTABILITY  or  FITNESS FOR A PARTICULAR PURPOSE. See the file
+  COPYING for more details.  Use  this  programm  at  your  own risk!
+
+  By continuing execution of this programm,  you are stating that you
+  have read the file  COPYING  and the above liability disclaimer and
+  that you accept these conditions.
+
+  Enter 'yes' to confirm/continue: ";
+
+
+  snprintf(disclaimer_file_name, 256, "%s/disclaimer", LOCALDIR);
+  if (exists_file(disclaimer_file_name)) return;
+
+  fputs(text, stdout);
+  fgets(buf, sizeof(buf), stdin);
+  if (strncmp(buf, "yes", 3)) {
+    exit(1);
+  }
+
+  /*
+   * We now remember this by writing the above text to a
+   * in LOCALDIR/disclaimer
+   */
+   f = fopen(disclaimer_file_name, "w");
+   if (!f) {
+     fprintf(stderr, "cannot create %s\n", disclaimer_file_name);
+     exit(1);
+   }
+   fprintf(f, "%s%s\n", text, buf);
+   fclose(f);
+}
+
+
 /*
  * DANG_BEGIN_FUNCTION emulate
  * 
@@ -426,6 +468,12 @@ emulate(int argc, char **argv)
      * says so and exit if needed.
      */
     parse_dosemu_users();
+
+    /*
+     * Do the 'liability disclaimer' stuff we need to avoid problems
+     * with laws in some countries.
+     */
+    do_liability_disclaimer_prompt();
 
     /* the transposal of (config_|stdio_)init allows the addition of -o */
     /* to specify a debug out filename, if you're wondering */

@@ -43,9 +43,9 @@ typedef int open_mapping_type(int cap);
 #define open_mapping (*mappingdriver.open)
 
 typedef void close_mapping_type(int cap);
-#define close_mapping (*mappingdriver.close)
+#define close_mapping(cap) if (mappingdriver.close) (*mappingdriver.close)(cap)
 
-typedef void *alloc_mapping_type(int cap, int mapsize);
+typedef void *alloc_mapping_type(int cap, int mapsize, void *target);
 #define alloc_mapping (*mappingdriver.alloc)
 
 typedef void free_mapping_type(int cap, void *addr, int mapsize);

@@ -338,10 +338,10 @@ static void do_ser_init(int num)
   /* The following section sets up default com port, interrupt, base
   ** port address, and device path if they are undefined. The defaults are:
   **
-  **   COM1:   irq = 4    base_port = 0x3F8    device = /dev/cua0
-  **   COM2:   irq = 3    base_port = 0x2F8    device = /dev/cua1
-  **   COM3:   irq = 4    base_port = 0x3E8    device = /dev/cua2
-  **   COM4:   irq = 3    base_port = 0x2E8    device = /dev/cua3
+  **   COM1:   irq = 4    base_port = 0x3F8    device = /dev/ttyS0
+  **   COM2:   irq = 3    base_port = 0x2F8    device = /dev/ttyS1
+  **   COM3:   irq = 4    base_port = 0x3E8    device = /dev/ttyS2
+  **   COM4:   irq = 3    base_port = 0x2E8    device = /dev/ttyS3
   **
   ** If COMx is unspecified, the next unused COMx port number is assigned.
   */
@@ -372,10 +372,10 @@ static void do_ser_init(int num)
 
   if (com[num].dev[0] == 0) {			/* Is the device file undef? */
     switch (com[num].real_comport) {		/* Define it using std devs */
-    case 4:  strcpy(com[num].dev, "/dev/cua3"); break;
-    case 3:  strcpy(com[num].dev, "/dev/cua2"); break;
-    case 2:  strcpy(com[num].dev, "/dev/cua1"); break;
-    default: strcpy(com[num].dev, "/dev/cua0"); break;
+    case 4:  strcpy(com[num].dev, "/dev/ttyS3"); break;
+    case 3:  strcpy(com[num].dev, "/dev/ttyS2"); break;
+    case 2:  strcpy(com[num].dev, "/dev/ttyS1"); break;
+    default: strcpy(com[num].dev, "/dev/ttyS0"); break;
     }
   }
 

@@ -332,7 +332,7 @@ new_memory_object(size_t bytes)
 {
   mach_port_t addr;
 
-  addr = alloc_mapping(MAPPING_EMS, bytes);
+  addr = alloc_mapping(MAPPING_EMS, bytes, 0);
   if (!addr) return 0;
   E_printf("EMS: allocating 0x%08x bytes @ %p\n", bytes, (void *) addr);
   return (addr);		/* allocate on a PAGE boundary */

@@ -226,10 +226,16 @@ static void close_mapping_file(int cap)
   if (cap == MAPPING_ALL && tmpfile_fd != -1) discardtempfile();
 }
 
-static void *alloc_mapping_file(int cap, int mapsize)
+static void *alloc_mapping_file(int cap, int mapsize, void *target)
 {
-  Q__printf("MAPPING: alloc, cap=%s, mapsize=%x\n",
-	cap, mapsize);
+  Q__printf("MAPPING: alloc, cap=%s, mapsize=%x, target %p\n",
+	cap, mapsize, target);
+  if (target) return 0;	/* we can't handle this case currently. However,
+  			 * only DPMI is requesting this for DPMImallocFixed
+  			 * and along the DPMI specs we need not to fullfill
+  			 * it. DPMI function 0x504 will return with error
+  			 * 8012, good.
+  			 */
   return pgmalloc(mapsize);
 }
 

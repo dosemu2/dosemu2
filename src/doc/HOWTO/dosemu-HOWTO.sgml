@@ -538,7 +538,7 @@ Holger Schemel (<bf>q99492@pbhrzx.uni-paderborn.de</bf>) reported
 (94/2/10) that
 
 Works even fine under dosemu with MS-DOS 6.0. If you have problems, then
-you have to edit the file 'DBLSPACE.INI' manually and change the disk
+you have to edit the file `DBLSPACE.INI' manually and change the disk
 letter to the letter your drive gets under dosemu.
 
 ---------------------
@@ -716,7 +716,7 @@ So I have a shell script named "<bf>DOS</bf>" which does something like
 </verb>
 and then a little trick to get "<bf>echo &dollar;* >
 &dollar;DOSTMP/startup.bat</bf>" really working (actually a small C Program 
-which turns '/' in '<bf>&bsol</bf>' and terminates lines correctly for
+which turns `/' in `<bf>&bsol</bf>' and terminates lines correctly for
 messy dos with cr/lf pairs and adds <bf>^Z</bf> at the end of the
 file), creates startup files, links and so on in this directory, and
 then starts dosemu. Within "<bf>autoexec.bat</bf>" drive c: is
@@ -985,7 +985,7 @@ and change some settings.
 3. The mouse cursor gets not painted by X, but by windows itself, so it depends
    on the refresh rate how often it gets updated, though the mouse coordinates
    movement itself will not get delayed.
-   ( In fact you have 2 cursors, but the X-cursor is given an 'invisible'
+   ( In fact you have 2 cursors, but the X-cursor is given an `invisible'
    cursor shape while within the DOS-Box. )
  
 4. Because the coordinates passed to windows are interpreted relatively, we
@@ -1040,7 +1040,7 @@ you think, it should be listed in EMUfailure.txt, report to
 There is a security hole when having enabled DPMI and having dosemu
 suid root (especially when using dos4gw-based games), the client is able
 to access the whole user space, hence also can modify the dosemu code
-itself. Use of the 'secure' option in /etc/dosemu.conf, e.g.
+itself. Use of the `secure' option in /etc/dosemu.conf, e.g.
 <tscreen>
 $_secure = "ngd" # secure for: n (normal users), g (guest), d (dexe)
 </tscreen>
@@ -1080,8 +1080,8 @@ README.dosdebug, dosdebug can aid you recovering.
 
 <sect1>Duke3d dosen't work
 <p>Hans Lermen <bf>&lt;lermen@elserv.ffm.fgan.de&gt;</bf> said (97/2/16):
-duke3d must be 'configured' via a setup, within this setup you have to choose 
-'keyboard + mouse', else it won't work.
+duke3d must be `configured' via a setup, within this setup you have to choose 
+`keyboard + mouse', else it won't work.
 
 <sect>Problems and fixes
 
@@ -1091,7 +1091,7 @@ Most dos programs don't need this however so when running under X you
 usually do not need to run dosemu as root.
 Dosemu runs as suid "root" only where it is needed, and releases this right
 thereafter. But with DPMI, the Dos client programm can access the whole user
-space, hence also can modify the dosemu code itself. Use of the 'secure'
+space, hence also can modify the dosemu code itself. Use of the `secure'
 option in /etc/dosemu.conf disables this.
 There are several other important security considerations discussed in the 
 Security section of the README.txt file.
@@ -1236,8 +1236,8 @@ that
 After running dos after playing with some stty settings, I was getting
 doubled key presses.  I can now reveal what the reason is!
 
-It only happens when dos is run on the console with 'istrip' set.  This is
-(I think) because the raw scancodes are mutilated by the 'istrip',
+It only happens when dos is run on the console with `istrip' set.  This is
+(I think) because the raw scancodes are mutilated by the `istrip',
 so that key release events look like key press events.
 
 So, the input processing needs to be turned off when using the scan

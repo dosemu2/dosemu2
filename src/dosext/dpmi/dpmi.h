@@ -11,7 +11,7 @@
 #define DPMI_VERSION   		0x00	/* major version 0 */
 #define DPMI_DRIVER_VERSION	0x5a	/* minor version 0.90 */
 
-#define DPMI_MAX_CLIENTS	8	/* maximal number of clients */
+#define DPMI_MAX_CLIENTS	32	/* maximal number of clients */
 
 #define DPMI_page_size		4096	/* 4096 bytes per page */
 

@@ -869,7 +869,7 @@ int vga_emu_init(vgaemu_display_type *vedt)
   vga.mem.size = (vga.mem.size + ~(-1 << 18)) & (-1 << 18);
   vga.mem.pages = vga.mem.size >> 12;
 
-  vga.mem.base = alloc_mapping(MAPPING_VGAEMU, vga.mem.size+ (1 << 12));
+  vga.mem.base = alloc_mapping(MAPPING_VGAEMU, vga.mem.size+ (1 << 12), 0);
   if(!vga.mem.base) {
     vga_msg("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
     return 1;
@@ -879,7 +879,7 @@ int vga_emu_init(vgaemu_display_type *vedt)
   vga_msg("vga_emu_init: scratch_page at 0x%08x\n", vga.mem.scratch_page << 12);
 
   if(config.X_lfb) {
-    lfb_base = alloc_mapping(MAPPING_VGAEMU, vga.mem.size);
+    lfb_base = alloc_mapping(MAPPING_VGAEMU, vga.mem.size, 0);
     if(!lfb_base) {
       vga_msg("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
     }

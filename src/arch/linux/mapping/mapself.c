@@ -228,12 +228,14 @@ static void free_ipc_shm(void *addr)
   p->id = -1;
 }
 
-static void *alloc_dev_zero(int cap, int mapsize)
+static void *alloc_dev_zero(int cap, int mapsize, void *target)
 {
   int fd_zero;
   void *addr;
   void *hole=0;
   int share = (cap & MAPPING_MAYSHARE) ? MAP_SHARED : MAP_PRIVATE;
+
+  if (target) share |= MAP_FIXED;
 
   if ((fd_zero = open("/dev/zero", O_RDWR)) == -1 ) {
     error("MAPPING: can't open /dev/zero\n");
@@ -252,7 +254,7 @@ static void *alloc_dev_zero(int cap, int mapsize)
   if (cap & MAPPING_EMS) hole = mmap((void *)0, HOLE_SIZE,
 			PROT_READ | PROT_WRITE | PROT_EXEC,
 			share | MAP_FILE, fd_zero, 0);
-  addr = mmap((void *)0, mapsize,
+  addr = mmap(target, mapsize,
 			PROT_READ | PROT_WRITE | PROT_EXEC,
 			share | MAP_FILE, fd_zero, 0);
   if (cap & MAPPING_EMS) munmap(hole, HOLE_SIZE);
@@ -262,11 +264,12 @@ static void *alloc_dev_zero(int cap, int mapsize)
   return addr;
 }
 
-static void *alloc_mapping_self(int cap, int mapsize)
+static void *alloc_mapping_self(int cap, int mapsize, void *target)
 {
   Q__printf("MAPPING: alloc, cap=%s, mapsize=%x\n",
 	cap, mapsize);
-  if (cap & (MAPPING_EMS | MAPPING_DPMI)) return alloc_dev_zero(cap, mapsize);
+  if (cap & (MAPPING_EMS | MAPPING_DPMI))
+		return alloc_dev_zero(cap, mapsize, target);
   if (cap & MAPPING_SHM) return alloc_ipc_shm(mapsize);
   if (cap & MAPPING_VGAEMU) return valloc(mapsize);
   return 0;
@@ -340,18 +343,23 @@ static void *mmap_mapping_self(int cap, void *target, int mapsize, int protect, 
 		MAP_PRIVATE | fixed | MAP_ANON, -1, 0);
   }
   if (cap & MAPPING_SHM) {
+    PRIV_SAVE_AREA
+    void *ret;
     struct shm_table *p = get_alloced_shm(source);
     if (!p) return (void *)-1;
     if (protect) protect = SHM_RDONLY;
+    enter_priv_on();
     if (fixed) {
       /* we need to make 'target' non zero and use SHM_RND,
        * else we would not be able to map fixed to address 0
        */
-      return shmat(p->id, (char *)target+1, SHM_REMAP | SHM_RND | protect);
+      ret = shmat(p->id, (char *)target+1, SHM_REMAP | SHM_RND | protect);
     }
     else {
-      return shmat(p->id, 0, protect);
+      ret = shmat(p->id, 0, protect);
     }
+    leave_priv_setting();
+    return ret;
   }
   return (void *)-1;
 }

@@ -208,7 +208,9 @@ mouse_handler:
 	.globl	CISH(PKTDRV_param)
 	.globl	CISH(PKTDRV_stats)
 	.globl	CISH(PKTDRV_signature)
+	.globl	CISH(PKTDRV_start)
 
+CISH(PKTDRV_start):
 	JMPL(int_pktdrv)
 
 /* The packet driver signature will be written here when the packet
@@ -217,7 +219,10 @@ CISH(PKTDRV_signature):
 		db	0,0,0,0,0,0,0,0,0
 
 CISH(PKTDRV_driver_name):
-	.ascii	"Linux$\0\0"
+		/* NOTE: "xx\0" is _not_ ASCIIZ "xx" but "xx0" !
+		 *	 as86 doesn't recognize \0 as escape */
+	.ascii	"Linux$"
+	db	0,0
 CISH(PKTDRV_size):	dw	0
 CISH(PKTDRV_handle):	dw	0
 CISH(PKTDRV_receiver): dd	0

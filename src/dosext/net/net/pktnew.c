@@ -127,12 +127,13 @@ extern void PKTDRV_signature();
 extern void PKTDRV_driver_name();
 extern void PKTDRV_param();
 extern void PKTDRV_stats();
+extern void PKTDRV_start();
 
 /* creates a pointer into the BIOS from the asm exported labels */
 #define MK_PTR(ofs) ( (void *)((long)(ofs)-(long)bios_f000+(BIOSSEG << 4)) )
 
 /* calculates offset of a label from the start of the packet driver */
-#define MK_PKT_OFS(ofs) ((long)(ofs)-(long)PKTDRV_signature)
+#define MK_PKT_OFS(ofs) ((long)(ofs)-(long)PKTDRV_start)
 
 #define pkt_buf ((char *)MK_PTR(PKTDRV_buf))
 
@@ -177,8 +178,8 @@ pkt_init(int vec)
     pg.type = 12;			/* dummy type (3c503) */
     pg.flags = config.pktflags;	/* global config flags */
 
-    p_param->major_rev = 9;		/* pkt driver spec */
-    p_param->minor_rev = 1;
+    p_param->major_rev = 1;		/* pkt driver spec */
+    p_param->minor_rev = 9;
     p_param->length = sizeof(struct pkt_param);
     p_param->addr_len = ETH_ALEN;
     p_param->mtu = GetDeviceMTU(devname);
@@ -235,6 +236,14 @@ pkt_int (void)
     {
     case F_DRIVER_INFO:
         pd_printf("Driver info called ...\n");
+
+	if( LO(ax) != 255 ) {
+	   /* entry condition AL=255 not given
+	    *         Frank <molzahn@cc.umanitoba.ca>, 2000/02/18
+	    */
+	   HI(dx) = E_BAD_COMMAND;
+	   break;
+	}
 	REG(eax) = 2;				/* basic+extended functions */
 	REG(ebx) = 1;				/* version */
 

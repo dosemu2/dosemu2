@@ -9,7 +9,7 @@
 #define PIC_H
 
 /* Priority Interrupt Controller Emulation 
-   Copyright (C) 1994, J. Lawrence Stephan  jlarry@ssnet.com 
+   Copyright (C) 1994, J. Lawrence Stephan  jlarry@delanet.com
 
    This software is distributed under the terms of the GNU General Public 
    License, there are NO WARRANTIES, expressed or implied.  Use at your own 

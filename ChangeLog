@@ -1,3 +1,58 @@
+2000/02/26 ver. 0.99.13.2 unofficial pre-release
+	From Hans
+	- fixed bug in close_mapping() giving SIGNAL11 on -h option
+	  (thanks to Eric, who pointed it out)
+	- fixed DPMImallocFixed for the mapself mapping driver driver.
+	- disabled DPMImallocFixed (dpmi/memory.c) for the mapfile and
+	  mapshm mapping drivers because it makes trouble.
+	  As a DPMI host is not forced to fullfill a function 0x504 request
+	  for a fixed mapping, this seems not to hurt, atleast with the apps
+	  I tested.
+	- variable order in which the mapping drivers will probe.
+	  It turns out, that binaries produced by gcc > 2.7.x and/or those
+	  linked against glibc are prone to break our /proc/self/mem kludge
+	  while gcc-2.7.2/libc5 binaries work fine in all cases.
+	  For this reason, depending on GCC_VERSION_CODE/GLIBC_VERSION_CODE,
+	  the mapfile or the mapself driver is prefered.
+	- new dosemu.conf variable: $_mapping, which hold the prefered
+	  mapping driver (dosemu.conf, global.conf)
+	- updated setup/* to reflect $_mapping
+	  (setup/parser/parser.y, setup/runtime_setup-new.menu)
+	- added -fno-strict-aliasing in case of gcc-2.95
+	  (base-configure.in)
+	- (finally) changed /dev/cua to /dev/ttyS (base/serial/ser_init.c)
+	- change Larry's address to jlarry@delanet.com
+	- dosemu-HOWTO.sgml: changed all 'blabla' to `blabla' to avoid
+	  broken formatting (however, no docs recompile yet).
+	- added 'liability disclaimer' prompt to avoid problems with
+	  laws in some countries. This was pointed out by a british
+	  journalist: "The problem arises from tort, or the ability the sue
+	  someone for negligence. Such liability can be overcome by making
+	  it clear that the software is used at the users own risk...
+	  ...The problem with this for Linux packaging systems is that the
+	  user must be warned of this disclaimer before they install the
+	  software."
+	  As I could verify, the journalist is right, so we print the
+	  disclaimer, ask for confirmation and save the disclaimer
+	  (including the confirmation) to ~/.dosemu/disclaimer. If that
+	  file exists, we won't prompt any more.
+	From Eric and Michael (both found the same bug synchronously;-)
+	- fix for mmap_mapping(MAPPING_SHM) in mapself.c not turning
+	  on privs before shmat().
+	From Arne
+	- fix bug in DPMI when using a mov sreg,reg in 32-bit operand mode
+	  (0x40 as sreg doesn't matter in 16 bit, but does in 32 bit, now
+	  the test is correct)
+	- fix typo in DPMI (FS was popped instad of GS)
+	From Andris Pavenis <andris@stargate.astr.lu.lv>
+	- GNU Pascal (DJGPP port) needs a higher number of DPMI clients,
+	  DPMI_MAX_CLIENTS set to 32
+	From Antonio
+	- addition to user_hook 'lredir' request to get the linux 'mountpoint'
+	  of a DOS drive redirection.
+	From Frank <molzahn@cc.umanitoba.ca>
+	- fixes to internal packet driver, involved files:
+	  bios.S, pktnew.c  (good spotting, --Hans)
 2000/02/11 ver. 0.99.13.1 unofficial pre-release
 	From Hans
 	- added INT15,AX=e801 support (get extended mem >64Mb)

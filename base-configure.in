@@ -608,6 +608,13 @@ if test "$GCC" = "yes" ; then
      else
        echo "no"
      fi
+     echo -n "checking for gcc-2.95..."
+     if test "$(( $GCC_VERSION_CODE >= 2095 ))" = "1"; then
+       echo "yes, using -fno-strict-aliasing to work around bugs"
+       GCC295FLAGS="-fno-strict-aliasing"
+     else
+       echo "no"
+     fi
   else
      echo "no"
   fi
@@ -642,7 +649,7 @@ AC_SUBST(ASM_PEDANTIC)
 AC_SUBST(GLIBC_VERSION_CODE)
 AC_SUBST(GLIBCFLAGS)
 
-CFLAGS="-D_GNU_SOURCE ${OPT} ${EGCSFLAGS} ${GCC_VERSION_CODE} ${ASM_PEDANTIC} ${GLIBC_VERSION_CODE} ${GLIBCFLAGS} ${PIPE} ${USING_NET} ${CDEBUGOPTS} ${COPTFLAGS} ${INCDIR}"
+CFLAGS="-D_GNU_SOURCE ${OPT} ${EGCSFLAGS} ${GCC295FLAGS} ${GCC_VERSION_CODE} ${ASM_PEDANTIC} ${GLIBC_VERSION_CODE} ${GLIBCFLAGS} ${PIPE} ${USING_NET} ${CDEBUGOPTS} ${COPTFLAGS} ${INCDIR}"
 
 
 # set for DPMI want windows

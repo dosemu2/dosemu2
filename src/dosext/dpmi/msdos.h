@@ -1433,12 +1433,13 @@ decode_modify_segreg_insn(struct sigcontext_struct *scp, unsigned
 	    decode_use_16bit = 1;
     }
 	
+    /* first try mov sreg, .. (equal for 16/32 bit operand size) */
+    if ((len = decode_8e(scp, segment, sreg))) {
+      _eip = old_eip;
+      return len + size_prfix;
+    }
+ 
     if (decode_use_16bit) {	/*  32bit decode not implemented yet */
-      /* first try mov sreg, .. */
-      if ((len = decode_8e(scp, segment, sreg))) {
-	_eip = old_eip;
-	return len + size_prfix;
-      }
       /* then try lds, les ... */
       if ((len = decode_load_descriptor(scp, segment, sreg))) {
 	_eip = old_eip;
@@ -1480,7 +1481,7 @@ decode_modify_segreg_insn(struct sigcontext_struct *scp, unsigned
 	case 0xa9:		/* pop gs */
 	    len = 2;
 	    *segment = *ssp;
-	    *sreg = FS_INDEX;
+	    *sreg = GS_INDEX;
 	    _esp += decode_use_16bit ? 2 : 4;
 	break;
 	}

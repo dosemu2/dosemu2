@@ -306,6 +306,7 @@ menu "Miscellaneous Items" {
   submenu "File Extensions"
   submenu "CPU Details"
   submenu "ASPI driver"
+  submenu "Mapping driver"
   boolean "Force use of PCI instructions" pci
   boolean "Emulate INT08 Timer Interrupts" timint
   boolean "Use Pentium Cycle counter if possible" rdtsc
@@ -338,6 +339,16 @@ description "Select the CPU details to modify"
 menu "ASPI driver" {
 description "Configure the ASPI driver"
   string "List of sg devices (/dev/sgX) to map to DOS" aspi
+}
+
+menu "Mapping driver" {
+description "Select the prefered mapping driver"
+  list mapping {
+    "automatic detection" auto
+    "use a temporary map file" mapfile
+    "use IPCshm/mremap (kernels > 2.3.37)" mapshm
+    "use /proc/self/mem mapping (kernels <= 2.2.x)" mapself
+  }
 }
 
 menu "Security settings" {

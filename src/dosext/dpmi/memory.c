@@ -94,7 +94,7 @@ DPMImalloc(unsigned long size)
     if ((block = alloc_pm_block()) == NULL)
 	return NULL;
 
-    block->base = alloc_mapping(MAPPING_DPMI, size);
+    block->base = alloc_mapping(MAPPING_DPMI, size, 0);
     if (!block->base) {
 	free_pm_block(block);
 	return NULL;
@@ -145,7 +145,7 @@ DPMImallocFixed(unsigned long base, unsigned long size)
     if ((block = alloc_pm_block()) == NULL)
 	return NULL;
 
-    block->base = alloc_mapping(MAPPING_DPMI | MAPPING_MAYSHARE, size);
+    block->base = alloc_mapping(MAPPING_DPMI | MAPPING_MAYSHARE, size, (void *)base);
     if (!block->base) {
 	free_pm_block(block);
 	return NULL;

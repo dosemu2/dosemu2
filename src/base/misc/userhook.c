@@ -299,6 +299,30 @@ static void uhook_lredir(int argc, char **argv)
 		return;
 	}
 
+	if ((argc == 2) && (strchr(argv[1], ':'))) {
+		/* get the redirection root */
+		char *rootdir=NULL;
+		int ro;
+		extern int GetRedirectionRoot(int,char **,int *);
+
+		drive = tolower(argv[1][0]) - 'a';
+
+		if (drive < 2) {
+                        uhook_printf("wrong drive, must be >= C:\n");
+                        return;
+                }
+
+                errorcode = GetRedirectionRoot(drive,&rootdir,&ro);
+		if (!errorcode) {
+			uhook_printf("%c: %s %s\n", argv[1][0],rootdir, ro ? "RO" : "RW");
+		        free(rootdir);
+		} else {
+			uhook_printf("Drive %c is not redirected\n",argv[1][0]);
+		}
+	
+
+                return;
+	}
 
 	if ((argc < 3) || (!strchr(argv[1], ':'))) {
 		uhook_printf("wrong arguments\n");

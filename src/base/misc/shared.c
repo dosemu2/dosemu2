@@ -63,7 +63,7 @@ void shared_memory_init(void)
 
  if(!config.dualmon && !config.X && !config.vga && !config.console_video) {
 
-  void *shm_video = alloc_mapping(MAPPING_SHARED | MAPPING_SHM, SHARED_VIDEO_AREA);
+  void *shm_video = alloc_mapping(MAPPING_SHARED | MAPPING_SHM, SHARED_VIDEO_AREA, 0);
   if (!shm_video) {
     E_printf("SHM: Initial Video IPC mapping unsuccessful: %s\n", strerror(errno));
     E_printf("SHM: Do you have IPC in the kernel?\n");

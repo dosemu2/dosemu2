@@ -119,13 +119,13 @@ void HMA_init(void)
   sharedmem.hmastate = 0;
 
   open_mapping(MAPPING_HMA);
-  shm_hma = alloc_mapping(MAPPING_HMA | MAPPING_SHM, HMASIZE);
+  shm_hma = alloc_mapping(MAPPING_HMA | MAPPING_SHM, HMASIZE, 0);
   if (!shm_hma) {
     E_printf("HMA: Initial HMA mapping unsuccessful: %s\n", strerror(errno));
     E_printf("HMA: Do you have IPC in the kernel?\n");
     leavedos(43);
   }
-  shm_wrap = alloc_mapping(MAPPING_HMA | MAPPING_SHM, HMASIZE);
+  shm_wrap = alloc_mapping(MAPPING_HMA | MAPPING_SHM, HMASIZE, 0);
   if (!shm_wrap) {
     E_printf("HMA: Initial WRAP at 0x0 mapping unsuccessful: %s\n", strerror(errno));
     leavedos(43);
