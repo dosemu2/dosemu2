@@ -451,10 +451,10 @@ void init_uhook(char *pipes)
 		outpipename[0] = 0;
 		outpipename++;
 	}
-	enter_priv_on();
-	/* NOTE: need to open the pipe read/write here, else if the sendinf side
+	enter_priv_off();
+	/* NOTE: need to open the pipe read/write here, else if the sending side
 	 * closes the pipe, we would get endless 0-byte reads
-	 * after this (select will trigger agin and agian)
+	 * after this (select will trigger again and again)
 	 */
 	fdin = open(inpipename, O_RDWR | O_NONBLOCK);
 	leave_priv_setting();
@@ -469,7 +469,7 @@ void init_uhook(char *pipes)
 		if (outpipename) {
 			/* NOTE: need to open read/write
 			 * else O_NONBLOCK would fail to open */
-			enter_priv_on();
+			enter_priv_off();
 			fdout = open(outpipename, O_RDWR | O_NONBLOCK);
 			leave_priv_setting();
 			if (fdout != -1) {
@@ -479,7 +479,15 @@ void init_uhook(char *pipes)
 					fdout = -1;
 				}
 			}
+			else {
+				fprintf(stderr,"cannot open output pipe %s\n", outpipename);
+				leavedos(1);
+			}
 		}
+	}
+	else {
+		fprintf(stderr,"cannot open input pipe %s\n", inpipename);
+		leavedos(1);
 	}
 }
 

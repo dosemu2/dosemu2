@@ -19,10 +19,13 @@
  * 0x30      - Whether to use the BOOTDISK predicate
  * 0x33      - Mouse Functions
  * 0x40      - CD-ROM functions
- * 0x50-0x52 - DOSEMU/Linux communications
+ * 0x50-0x5f - DOSEMU/Linux communications
  *      50 -- run unix command in ES:DX
  *      51,52?
  *      53 -- do system(ES:DX)
+ *	54 -- get CPU speed
+ *	55 -- get terminal type
+ * 0x60-0x6f - reserved for plug-ins
  * 0x7a      - IPX functions
  * 0x8x   -- utility functions
  *	0x80 -- getcwd(ES:DX, size AX)
@@ -76,6 +79,14 @@
 #define DOS_HELPER_0x53             0x53
 #define DOS_HELPER_GET_CPU_SPEED    0x54 /* return CPU clock frequency in EAX,
 					    Units: MHz * 0x10000, */
+#define DOS_HELPER_GET_TERM_TYPE    0x55 /* return type-bits in EAX:
+					    bit0...3 = Keyboard
+						0 = raw
+						1 = Slang
+						2 = X
+					    bit4 = console_video
+					    bit5 = console graphics
+					    bit6 = dualmon */
 
 #define DOS_HELPER_PLUGIN	    0x60 /* first reserved for plug-ins */
 #define DOS_HELPER_PLUGIN_LAST      0x6f /* last  reserved for plug-ins */

@@ -1,6 +1,6 @@
 #! /bin/bash
 
-HEADERS="init close inte6"
+HEADERS="init close inte6 ioselect poll"
 
 PLUG=plugin
 DIR=src/$PLUG

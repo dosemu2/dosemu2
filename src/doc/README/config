@@ -3,7 +3,7 @@
 
 This section of the document by Hans, 
 <htmlurl url="mailto:lermen@fgan.de" name="&lt;lermen@fgan.de&gt;">. Last
-updated on Jan 12, 1999.
+updated on Feb 12, 1999.
 
 <p>
 Most of DOSEMU configuration is done during runtime and per default it
@@ -506,10 +506,10 @@ NOTE: `video setting' can <em/not/ be overwritten by ~/.dosemurc.
 
 
 
-<sect2>Disks and floppies
+<sect2>Disks, boot directories and floppies
 <p>
 
-The parameter settings via dosemu.conf are tailored to fit the recomended
+The parameter settings via dosemu.conf are tailored to fit the recommended
 usage of disk and floppy access. There are other methods too, but for these
 you have to look at README-tech.txt (and you may need to modify global.conf).
 We strongly recommend that you use the proposed techique. Here the normal
@@ -551,17 +551,28 @@ directory (e.g. /var/lib/dosemu/bootdir), put
 </verb></tscreen>
 into your /etc/dosemu.conf, and up it goes. DOSEMU makes a lredir'ed
 drive out of it and can boot from it. You can edit the config.sys and the
-autoexec.bat within this directory before you start dosemu. There is, however,
-one drawback, you can't use the DosC kernel (FreeDos) for it, because it hasn't yet
-a working redirector (will hopefully be available some time in the future).
-But, if you just need a readonly drive C: for booting DosC, you can use
-the `bootdir' method anyway, because, befor the directory becomes
-redirected, it is converted into an emulated FAT type FS, which DosC
-<em/can/ cope with. This FAT FS emulation doesn't need much memory,
-because it only contains the FAT and the directory entries. You could have
-a hdimage as drive D: for writing and anyway use the convenient boot method.
-Your choice, just take what best fits your need.
+autoexec.bat within this directory before you start dosemu.
+Further more, you may have a more sohisticated setup. Given you want to run
+the same DOS drive as you normal have when booting into native DOS,
+then you just mount you DOS partition under Linux (say to /dos) and
+put links to its subdirectories into the boot dir. This way you can decide
+which files/directories have to be visible under DOSEMU and which have to be
+different. Here a small and not complete example bootdir setup:
+<tscreen><verb>
+  config.sys
+  autoexec.bat
+  command.com -> /dos/command.com
+  io.sys -> /dos/io.sys
+  msdos.sys -> /dos/msdos.sys
+  dos -> /dos/dos
+  bc -> /dos/bc
+  windows -> /dos/windows
+</verb></tscreen>
 
+There is, however, one drawback, you can't use the DosC kernel (FreeDos) for it, because it hasn't yet
+a working redirector (will hopefully be available some time in the future).
+
+<p>
 Now, what does the above `vbootfloppy' mean? Alternatively of booting
 from a virtual `disk' you may have an image of a virtual `floppy' which
 you just created such as `dd if=/dev/fd0 of=floppy_image'. If this

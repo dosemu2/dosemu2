@@ -317,6 +317,12 @@ void vm86_GP_fault(void)
       pic_iret();
     }
 
+    else if (lina == (unsigned char *) CBACK_ADD) {
+      /* we are back from a callback routine */
+      static void callback_return(void);
+      callback_return();
+    }
+
     else if (lina == (unsigned char *) XMSTrap_ADD) {
       LWORD(eip) += 2;  /* skip halt and info byte to point to FAR RET */
       xms_control();
@@ -536,6 +542,12 @@ run_vm86(void)
     	if (uhook_fdin != -1) uhook_poll();
     }
 
+    /* here we include the hooks to possible plug-ins */
+    #define VM86_RETURN_VALUE retval
+    #include "plugin_poll.h"
+    #undef VM86_RETURN_VALUE
+
+
 #ifdef USE_MHPDBG  
     if (mhpdbg.active) mhp_debug(DBG_POLL, 0, 0);
 #endif
@@ -563,4 +575,51 @@ run_vm86(void)
 /* @@@ MOVE_END @@@ 49152 */
 
 
+static callback_level = 0;
+
+static void callback_return(void)
+{
+	callback_level--;
+}
+
+/*
+ * do_call_back() calls a 16-bit DOS routine with a far call.
+ * NOTE: It does _not_ save any of the vm86 registers except old cs:ip !!
+ *       The _caller_ has to do this.
+ *
+ * FIXME: This does not yet handle DPMI stuff, it should not be called
+ *        while in_dpmi is active.
+ */
+void do_call_back(Bit32u codefarptr)
+{
+	unsigned char * ssp;
+	unsigned long sp;
+	Bit16u oldcs, oldip;
+	int level;
+
+	/* we push the address of our HLT place in the bios
+	 * as return address on the stack and run vm86 mode.
+	 * Hence we get awaoken by sigsegv, whih in return calls
+	 * callback_return() above, which then decreases callback_level
+	 * ... and then we return from here
+	 */
+	ssp = (unsigned char *)(LWORD(ss)<<4);
+	sp = (unsigned long) LWORD(esp);
+	pushw(ssp, sp, CBACK_SEG);	/* push our return cs:ip */
+	pushw(ssp, sp, CBACK_OFF);
+	LWORD(esp) = (LWORD(esp) - 4) & 0xffff;
+	oldcs = REG(cs);		/* save old cs:ip */
+	oldip = LWORD(eip);
+	REG(cs) = codefarptr >>16;	/* far jump to the vm86(DOS) routine */
+	LWORD(eip) = codefarptr & 0xffff;
+
+        level = callback_level++;
+        while (callback_level > level) {
+		run_vm86();
+		serial_run();
+        }
+	/* ... and back we are */
+	REG(cs) = oldcs;
+	LWORD(eip) = oldip;
+}
 

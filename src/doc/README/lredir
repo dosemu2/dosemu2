@@ -3,7 +3,7 @@
 
 This section of the document by Hans, 
 <htmlurl url="mailto:lermen@fgan.de" name="&lt;lermen@fgan.de&gt;">. Last
-updated on January 12, 1999.
+updated on April, 18 1999.
 
 <p>
 
@@ -47,7 +47,17 @@ below).  On a multi-user system you may want to use
 where "home" is the name of an environmental variable that contains
 the location of the dos directory (/dos in this example)
 
-However, you may want to have your native DOS partion as C: under dosemu.
+You may even redirect to a NFS mounted volume on a remote machine with
+a /etc/fstab entry like this
+<tscreen><verb>
+   otherhost:      /dos     nfs     nolock
+</verb></tscreen>
+Note that the <em/nolock/> option is <em/needed/ for 2.2.x kernels, because
+apparently the locks do not propagate fast enough and DOSEMU's (MFS code)
+share emulation will fail (seeing a lock on its own files).
+
+
+In addition, you may want to have your native DOS partion as C: under dosemu.
 To reach this aim you also can use Lredir to turn off the 'virtual'
 hdimage and switch on the <em/real/ drive C: such as this:
 

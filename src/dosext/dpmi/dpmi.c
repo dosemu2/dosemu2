@@ -2343,6 +2343,11 @@ void run_dpmi(void)
     	if (uhook_fdin != -1) uhook_poll();
     }
 
+    /* here we include the hooks to possible plug-ins */
+    #define VM86_RETURN_VALUE retval
+    #include "plugin_poll.h"
+    #undef VM86_RETURN_VALUE
+
 #ifdef USE_MHPDBG  
     if (mhpdbg.active) mhp_debug(DBG_POLL, 0, 0);
 #endif

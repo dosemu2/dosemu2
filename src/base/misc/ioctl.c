@@ -161,6 +161,8 @@ inline void irq_select()
 /*  */
 /* io_select @@@  24576 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/base/misc/dosio.c --> src/base/misc/ioctl.c  */
 
+static int numselectfd= 0;
+
 void
 io_select(fd_set fds)
 {
@@ -174,7 +176,7 @@ io_select(fd_set fds)
   irq_select();
 #endif
 
-  while ( ((selrtn = select(25, &fds, NULL, NULL, &tvptr)) == -1)
+  while ( ((selrtn = select(numselectfd, &fds, NULL, NULL, &tvptr)) == -1)
         && (errno == EINTR)) {
     tvptr.tv_sec=0L;
     tvptr.tv_usec=0L;
@@ -207,6 +209,11 @@ io_select(fd_set fds)
 	extern void uhook_input(void);
 	if (uhook_fdin != -1) if (FD_ISSET(uhook_fdin, &fds)) uhook_input();
       }
+
+      /* here we include the hooks to possible plug-ins */
+      #include "plugin_ioselect.h"
+
+
 #ifdef USE_MHPDBG
       if (mhpdbg.fdin != -1) if (FD_ISSET(mhpdbg.fdin, &fds)) mhp_input();
 #endif
@@ -260,6 +267,7 @@ io_select_init(void) {
 void 
 add_to_io_select(int new_fd, u_char want_sigio)
 {
+    if ((new_fd+1) > numselectfd) numselectfd = new_fd+1;
     if (use_sigio && want_sigio) {
 	int             flags;
 	flags = fcntl(new_fd, F_GETFL);

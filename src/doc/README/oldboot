@@ -1,10 +1,60 @@
 <sect>The old way of generating a bootable DOSEmu
 <p>
-Since dosemu-0.66.4 you will not need the complicated method of generating
-a bootable dosemu suite (see Quickstart). However, who knows, maybe you
-need the old information too ...
+Since dosemu-0.66.4 and once again since dosemu-0.99.6 you will not need the
+complicated method of generating a bootable dosemu suite (see Quickstart).
+However, who knows, maybe you need the old information too and in case you
+are using the DosC (FreeDos) kernel, you will <em/need/ the below info, because
+at the time of writing DosC can't cope with drive redirection.
 
-<sect1> Boot ( 'traditional' method )
+<sect1> Boot ( tool generated `hdimage' method )
+<p>
+
+Short reminder: a hdimage is a virtual disk the contents of which are
+put into a nomal Linux file. There is a tool to help you generating a
+bootable hdimage It doesn't require to boot native DOS (as decsribed
+below), nor do you need to fiddle with a floppy:
+
+<itemize>
+<item> You need to have mtools-3.8 for this to work
+
+<item> You need an already installed (native) bootable DOS in one of your
+  partitions (maybe a floppy). If this is the case, you just need to type
+<tscreen><verb>
+  ./setup-hdimage
+</verb></tscreen>
+  in the dosemu directory. It will prompt for needed information and
+  generate a bootable /var/lib/dosemu/hdimage.first
+
+<item> Make _CERTAIN_ that your first disk statement in /etc/dosemu.conf is
+  pointing to /var/lib/dosemu/hdimage.first!
+
+<item> Run 'dos -C', and dosemu should boot your DOS.
+  If not make certain that the /etc/dosemu.conf is setup correctly.
+  You can't do much DOS stuff at this moment, though you may use the tiny
+  ezedit.com editor to change the config.sys / autoexec.bat to your needs.
+
+<item> Exit dos by running "c:\exitemu".  If you have problems, hold down the
+   &lt;ctrl&gt; and  &lt;alt&gt; buttons simultaneously while pressing
+   &lt;pgdn&gt;. (&lt;ctrl&gt;&lt;alt&gt;&lt;pgdn&gt; will automatically
+   exit dosemu.)
+</itemize>
+
+If you <em/don't know how to copy files/ from/to the hdimage,
+have a look at the recent mtools package (version 3.6 at time of writeing).
+If you have the following line in /etc/mtools.conf
+<tscreen><verb>
+drive g: file="/var/lib/dosemu/hdimage.first" partition=1 offset=128
+</verb></tscreen>
+then you can use <em/all mtool commands/ to access it, such as
+<tscreen><verb>
+    # mcopy g:autoexec.bat -
+    Copying autoexec.bat
+    @echo off
+    echo "Welcome to dosemu 0.99!"
+</verb></tscreen>
+
+
+<sect1> Boot ( `traditional' method )
 <p>
 
 <sect2>If you are <em/new to DOSEMU/
@@ -53,7 +103,7 @@ need the old information too ...
     # mcopy g:autoexec.bat -
     Copying autoexec.bat
     @echo off
-    echo "Welcome to dosemu 0.66!"
+    echo "Welcome to dosemu 0.99!"
 </verb></tscreen>
 
 </itemize>

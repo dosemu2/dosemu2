@@ -125,6 +125,8 @@ extern jmp_buf NotJEnv;
 EXTERN void run_vm86(void);
 EXTERN void     vm86_GP_fault();
 
+EXTERN void do_call_back(Bit32u codefarptr);
+
 #define NOWAIT  0
 #define WAIT    1
 #define TEST    2

@@ -473,6 +473,22 @@ static int dos_helper(void)
 	break;
     }
 
+  case DOS_HELPER_GET_TERM_TYPE:
+    {
+	int i;
+
+	/* NOTE: we assume terminal/video init has completed before coming here */
+	if (config.X) i = 2;			/* X keyboard */
+	else if (config.console_keyb) i = 0;	/* raw keyboard */
+	else i = 1;				/* Slang keyboard */
+
+	if (config.console_video) i |= 0x10;
+	if (config.graphics)      i |= 0x20;
+	if (config.dualmon)       i |= 0x40;
+	LWORD(eax) = i;
+	break;
+    }
+
 #ifdef IPX
   case DOS_HELPER_IPX_CALL:
     if (config.ipxsup) {

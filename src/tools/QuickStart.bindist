@@ -1,23 +1,6 @@
 QuickStart: Instructions on how to quickly get DOSEMU up and running.
 ==========
 
-WARNING for old dosemu users:
-            ^^^^^^^^^^^^^^^^
-        The format of dosemu.conf and dosemu.users has changed !!!
-        Please take over the new config files as follows
-
-        # mv /etc/dosemu.config /etc/dosemu.conf.v2
-        # cd /var/lib/dosemu
-        # cp ./etc/dosemu.config /etc
-
-        and edit /etc/dosemu.config using DOCDIR/README.txt chapter 2
-
-        If you want to keep your old dosemu binary running, additionally do
-
-        # mv /etc/dosemu.conf /etc/dosemu.conf.v3
-        # cp etc/dosemu.conf.wrapper /etc/dosemu.conf
-
-
 --------------------------------------------------------------------------
 1.  Unpacking and installation (.rpm file)
 --------------------------------------------------------------------------
@@ -65,54 +48,53 @@ To install the binary package of DOSEMU do the following (in this order)
 4  Boot ( 'comfortable' method ;-)
 --------------------------------------------------------------------------
 
-There is a new tool to help you generating a bootable hdimage (the old
-method is described in DOCDIR/README-tech.txt, chapter 7).
-It doesn't require to boot native DOS, nor do you need to fiddle with a
-floppy any more:
+The most comfortable method to get DOSEMU booting your DOS is to
+prepare a socalled 'bootdir'. This is a Linux directory under
+/var/lib/dosemu, which contains all you normally have in the native
+DOS partition. You may use
 
-- cd to /var/lib/dosemu
+  ./setup-bootdir
 
-- You need to have mtools-3.6 for this to work
+to generate a /var/lib/dosemu/bootdir.first. But this one only serves
+as starting point, so you better do it manually (or enhance the
+./setup-bootdir generated one) as described:
 
-- You need an already installed (native) bootable DOS in one of your
-  partitions (maybe a floppy). If this is the case, you just need to type
+Just copy/symlink all your DOS system files (IO.SYS, MSDOS.SYS) into it,
+create a CONFIG.SYS and AUTOEXEC.BAT and symlink the rest of your (mounted)
+native DOS partition into it. Here the possible contents of a
+/var/lib/dosemu/bootdir.first (/dos beeing your mounted DOS):
 
-  ./setup-hdimage
+  config.sys
+  autoexec.bat
+  dosemu           # directory containing the DOSEMU supplied stuff
+  command.com -> /dos/command.com
+  io.sys -> /dos/io.sys
+  msdos.sys -> /dos/msdos.sys
+  dos -> /dos/dos
 
-  in the dosemu directory. It will prompt for needed information and
-  generate a bootable /var/lib/dosemu/hdimage.first
+If you have a special DOS, that needs a private bootsector, copy this
+one (using 'dd if=/dev/xxx of=boot.blk bs=512 count=1') into
+/var/lib/dosemu/bootdir/boot.blk.
+Then put a '$_hdimage = "bootdir.first"' in to your /etc/dosemu.conf
+and you can boot from this directory:
 
-- Make _CERTAIN_ that your first entry in $_hdimage of /etc/dosemu.conf is
-  pointing to hdimage.first!
+- Run 'dos -O 2>/tmp/error.out', ... and dosemu should boot your DOS...
+  ... If not make certain that the /etc/dosemu.conf and /etc/dosemu.users
+  are setup correctly. You can examine '/tmp/error.out' for errors/remarks
+  that were reported by DOSEMU.
 
-- Run 'dos -C', ... and dosemu should boot your DOS...
-  ... If not make certain that the /etc/dosemu.conf is setup correctly.
-  You can't do much DOS stuff at this moment, though you may use the tiny
-  ezedit.com editor to change the config.sys / autoexec.bat to your needs.
-
-- Exit dos by running "c:\exitemu".  If you have problems, hold down the
-  <ctrl> and <alt> buttons simultaneously while pressing <pgdn>.
+- Exit dos by running "c:\dosmeu\exitemu".  If you have problems, hold down
+  the <ctrl> and <alt> buttons simultaneously while pressing <pgdn>.
   (<ctrl><alt><pgdn> will automatically exit dosemu.)
 
-If you don't know how to copy files from/to the hdimage:
-       ----------------------------
-- Have a look at the recent mtools package (version 3.6 at time of writeing).
-  If you have the following line in /etc/mtools.conf
-
-     drive g: file="/var/lib/dosemu/hdimage.first" partition=1 offset=128
-
-  then you can use all mtool commands to access it, such as
-                   ^^^^^^^^^^^^^^^^^^
-    # mcopy g:autoexec.bat -
-    Copying autoexec.bat
-    @echo off
-    echo "Welcome to dosemu 0.98!"
-
-  ... all clear ? ;-)
+The bootdir method, however, doesn't work if you use the DosC (FreeDos)
+kernel, for this you have to use 'hdimages' and ./setup-hdimage.
+Have a look at DOCDIR/README.txt, chapter 2
+and DOCDIR/README-tech.txt, chapter 7.)
 
 
 --------------------------------------------------------------------------
-5. Some more hints after you've set up your HDIMAGE file
+5. Some more hints after you've set up your bootdir (or hdimage)
 --------------------------------------------------------------------------
 
 - If hitting Alt-FunctionKey doesn't switch virtual consoles from DOSEMU,
@@ -198,74 +180,6 @@ DOCDIR/configuration.txt
 /var/lib/dosemu/dexe/*
 	Tools to make directly bootable DOS-apps and hdimages
 
---------------------------------------------------------------------------
-8.  DOSEMU code browsers
---------------------------------------------------------------------------
-
->>>> Skip this section if you don't know how to program.
-
-The DOCDIR/DPR and DOCDIR/DANG.txt documents are great places to start
-looking if you are interested in looking inside DOSEMU code.
-
-The Linux MS-DOS Emulator is one of the best _FREE_ DOS emulator
-programs available in the world.  The DOSEMU development team
-includes university students and young adults, so lack of time
-can be a problem when it comes to DOSEMU when it comes to jobs
-an exams!  AAAAUUGGH! :-)
-
-However, don't let that stop getting into contact with us!
-DOSEMU is not as complicated to work with, as you may think,
-and we are happy to even receive a line or few, of code that
-fixes or improves DOSEMU in one way or the other!  Come on
-aboard with the DOSEMU development team!  All you need is
-your Linux system, your programming skills, and access to
-Internet Email.  :-)
-
-On the other hand, if you're really brilliant, we would also
-love to hear from people who can help DOSEMU get to work with
-any new video games, stabilizing stuff like Microsoft Windoze 3.1,
-and get FreeDOS more enhanced.
-
---------------------------------------------------------------------------
-10.  Other Notes
---------------------------------------------------------------------------
-
-Some notes from Tim Bird on lredir.exe included in the commands subdir:
-
-LREDIR allows you to redirect any drive, including one that is
-currently a physical drive, meaning that you can replace a drive with a
-redirected one.  When you delete the redirection, the physical drive is
-again visible.  I am currently using this so that the boot diskimage
-disappears, and is replaced by the mounted MSDOS file system in Linux,
-with the drive letter and root the same as when I just boot DOS.
-People who use LREDIR in this way should be careful when they use
-LREDIR in the autoexec, because COMMAND.COM will continue parsing
-the autoexec.bat from the redirected drive as the same file offset
-where it left off in the autoexec.bat on the physical drive. For
-this reason, it is safest to have the autoexec.bat on the
-redirected drive and the physical drive (diskimage) be the same.
-
-A suggestion from H. Peter Anvin (Peter.Anvin@linux.org):
-
-Note:  One interesting thing to do is the following:
-
-Suppose that I mount my DOS c: drive on /mnt/c: and d: drive on /mnt/d:
-
-in CONFIG.SYS:
-lastdrive=i
-
-in AUTOEXEC.BAT:
-subst i: c:\
-lredir e: linux\fs
-lredir d: linux\fs/mnt/d:
-lredir c: linux\fs/mnt/c:
-
-This redirects your HDIMAGE to i:\ so that you can continue to edit it
-and redirects your dos drives over the HDIMAGE.  NOTE:  (as above)
-COMMAND.COM will continue parsing the autoexec.bat from the redirected
-drive as the same file offset where it left off in the autoexec.bat on
-the physical drive. For this reason, it is safest to have the autoexec.bat
-on the  redirected drive and the physical drive (diskimage) be the same.
 
 ----------
 

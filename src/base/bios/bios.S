@@ -788,6 +788,16 @@ CISH(PIC_dummy_start):
 	hlt
 
 /* ----------------------------------------------------------------- */   
+/* This hlt address is used to return back from a call back */
+/* It uses one byte.  see sigsegv.c */
+	.org	((CBACK_SEG-BIOSSEG) << 4)+CBACK_OFF
+
+/* ======================= Addr = F800:47F1 (FC7F1) */
+	.globl	CISH(CBACK_return_from_dos)
+CISH(CBACK_return_from_dos):
+	hlt
+
+/* ----------------------------------------------------------------- */   
 	.org	((DPMI_SEG-BIOSSEG) << 4)+DPMI_OFF
 /* ======================= Addr = F800:4800 (FC800) */
 	.globl	CISH(DPMI_dummy_start)

@@ -467,14 +467,15 @@ new_memory_object(size_t bytes)
    * If there exist a VMA _just_ before that what we get allocated
    * _and_ has different attributes as we are mapping,
    * then (for some unknown reasons) the kernel will return with -EINVAL
-   * when we do a mmap(selfmem_fd) later on this mapping.
+   * when we do a shared mmap(selfmem_fd) later on this mapping.
    * Making an address space hole before our block works around this bug.
    * (strange, is the kernel joining the two different attributed VMAs ?)
    * -- Hans, July 1997
    */
  #define MEMSELF_KERNEL_KLUDGE
  #ifdef MEMSELF_KERNEL_KLUDGE
-  hole = mmap((void *)0, 0x1000,
+  #define HOLE_SIZE	EMM_PAGE_SIZE
+  hole = mmap((void *)0, HOLE_SIZE,
 			PROT_READ | PROT_WRITE | PROT_EXEC,
 			MAP_PRIVATE|MAP_FILE, fd_zero, 0);
  #endif
@@ -484,7 +485,7 @@ new_memory_object(size_t bytes)
 			MAP_PRIVATE|MAP_FILE, fd_zero, 0);
 
  #ifdef MEMSELF_KERNEL_KLUDGE
-  munmap(hole,0x1000);
+  munmap(hole, HOLE_SIZE);
  #endif
 
   close(fd_zero);

@@ -1,3 +1,33 @@
+99/03/26 ver. 0.99.10.1 unofficial pre-release
+        From Hans
+	- further kludges to /proc/self/mem mmap kernel bug, making the
+	  address space EMM_PAGE_SIZE big solve the problem in some
+	  other special cases (/src/dosext/misc/emm.c).
+	- fix for hang on floppy access (was a bug in utilities.c,
+	  sigalarm_onoff() )
+	- another security fix: userhook opened with root privs :-(
+	  (src/base/misc/userhook.c)
+	- introduced do_call_back(), which makes it possible to call
+	  vm86 code from within the dosemu 32bit code and return to
+	  that place afterwards. In volved files: bios.S, misc/ioctl.c
+	  do_vm86.c, emu.h, memory.h.
+	- new plugin hook 'plugin_ioselect', which hooks into io_select
+	  Updated src/plugin/demo to give an example on how to use it
+	  an the do_call_back() function.
+	- new doshelper: DOS_HELPER_GET_TERM_TYPE. This allows dosemu aware
+	  DOS applications to adapt to the terminal type (async/int.c,
+	  doshelpers.h). Look at doshelpers.h for details.
+	- added plugin_poll, this hooks into run_vm86() and run_dpmi()
+	  Involved files: src/plugin/{README.plugin,demo/*),do_vm86.c,
+	  dpmi.c,mkpluginhooks
+	- close possible security implication: forbidding partition access
+	  when $_hdimage set by .dosemurc _and_ running suid-root.
+	  Those who need it (and have _realy_ thought about alternatives)
+	  have to specify it in /etc/dosemu.conf.
+	- fixed bug in ./setup-hdimage not doing chmod/chown correctly
+	- took over doc changes from 0.98.6 (no doc compile yet)
+	- docs: hint for 2.2.x kernels & nfs mounts (option nolock needed)
+	  (src/doc/README/lredir)
 99/02/26 ver. 0.99.10 released
 	From Hans
 	- introducing 'plug-ins', though the name may not be exactly

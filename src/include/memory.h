@@ -142,6 +142,10 @@
 #define PIC_OFF       0x47f0
 #define PIC_ADD       ((PIC_SEG << 4) + PIC_OFF)
 
+#define CBACK_SEG	ROMBIOSSEG	/* callback return to dosemu */
+#define CBACK_OFF	0x47f1
+#define CBACK_ADD	((CBACK_SEG << 4) + CBACK_OFF)
+
 #define DPMI_SEG	ROMBIOSSEG
 #define DPMI_OFF	0x4800		/* need at least 512 bytes */
 #define DPMI_ADD	((DPMI_SEG << 4) + DPMI_OFF)
