@@ -693,6 +693,10 @@ CISH(DPMI_exception):
 CISH(DPMI_interrupt):
 	FILL_OPCODE 256,hlt
 /* ======================= Addr = F800:4A49 (FCA49) */
+	.globl	CISH(DPMI_return_from_ext_exception)
+CISH(DPMI_return_from_ext_exception):
+	hlt
+/* ======================= Addr = F800:4A4A (FCA4A) */
 	.globl	CISH(DPMI_dummy_end)
 CISH(DPMI_dummy_end):
 
