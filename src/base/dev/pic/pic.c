@@ -825,9 +825,6 @@ int pic_request(int inum)
 static char buf[81];
   int ret=PIC_REQ_NOP;
 
-  if (pic_iinfo[inum].func == (void *)0)
-    return ret; 
-
 #if 1		/* use this result mouse slowdown in winos2 */
   if (((pic_irr|pic_isr)&(1<<inum)) || (pic_icount>pic_icount_od))
 #else          /* this makes mouse work under winos2, but sometimes */
