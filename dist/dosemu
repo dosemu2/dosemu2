@@ -287,18 +287,26 @@ if [ -n "$XFLAG" ]; then
   fi
 
   if [ -z "$IS_SYSTEM_WIDE" ]; then
-     if [ "`xlsfonts -fn $FONT 2>/dev/null`" = "" ]; then
+     if [ "`xlsfonts -o -fn $FONT 2>/dev/null`" = "" ]; then
         if [ ! -f $BOOT_DIR_PATH/Xfonts/fonts.dir ]; then
            (cd $BOOT_DIR_PATH/Xfonts; mkfontdir)
         fi
-        xset +fp $BOOT_DIR_PATH/Xfonts 2>/dev/null
+        if ! xset +fp $BOOT_DIR_PATH/Xfonts 2>/dev/null; then
+	   # messed up font path -- last resort
+           xset fp default
+           xset +fp $BOOT_DIR_PATH/Xfonts 2>/dev/null
+        fi
      fi
   else
-     if [ "`xlsfonts -fn $FONT 2>/dev/null`" = "" ]; then
-        xset +fp $SYSTEM_XFONTS_PATH 2>/dev/null
+     if [ "`xlsfonts -o -fn $FONT 2>/dev/null`" = "" ]; then
+        if ! xset +fp $SYSTEM_XFONTS_PATH 2>/dev/null; then
+	   # messed up font path -- last resort
+           xset fp default
+           xset +fp $SYSTEM_XFONTS_PATH 2>/dev/null
+        fi
      fi
   fi
-  if [ "`xlsfonts -fn $FONT 2>/dev/null`" = "" ]; then
+  if [ "`xlsfonts -o -fn $FONT 2>/dev/null`" = "" ]; then
      echo "
    You do not have the DOSEMU $FONT font installed and are running
    remote X. You need to install the $FONT font on your _local_ Xserver.
