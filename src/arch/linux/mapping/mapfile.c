@@ -31,6 +31,7 @@
 
 /* ------------------------------------------------------------ */
 
+static struct pgm_pool pgmpool;
 static int mpool_numpages = (32 * 1024) / 4;
 static char *mpool = 0;
 
@@ -92,7 +93,7 @@ static int open_mapping_file(int cap)
     }
     mpool = mmap(0, mapsize, PROT_READ|PROT_WRITE|PROT_EXEC,
     		MAP_SHARED, tmpfile_fd, 0);
-    if (!mpool) {
+    if (mpool == MAP_FAILED) {
       error("MAPPING: cannot map temp file pool, %s\n",strerror(errno));
       discardtempfile();
       if (!cap)return 0;
@@ -100,7 +101,7 @@ static int open_mapping_file(int cap)
     }
     Q_printf("MAPPING: open, mpool (min %dK) is %d Kbytes at %p-%p\n",
 		estsize, mapsize/1024, mpool, mpool+mapsize-1);
-    if (pgmalloc_init(mpool_numpages, mpool_numpages/4, mpool)) {
+    if (pgmalloc_init(&pgmpool, mpool_numpages, mpool_numpages/4, mpool)) {
       discardtempfile();
       error("MAPPING: cannot get table mem for pgmalloc_init\n");
       if (!cap)return 0;
@@ -177,7 +178,7 @@ static void close_mapping_file(int cap)
 static void *alloc_mapping_file(int cap, int mapsize)
 {
   Q__printf("MAPPING: alloc, cap=%s, mapsize=%x\n", cap, mapsize);
-  return pgmalloc(mapsize);
+  return pgmalloc(&pgmpool, mapsize);
 }
 
 static void free_mapping_file(int cap, void *addr, int mapsize)
@@ -185,7 +186,7 @@ static void free_mapping_file(int cap, void *addr, int mapsize)
 {
   Q__printf("MAPPING: free, cap=%s, addr=%p, mapsize=%x\n",
 	cap, addr, mapsize);
-  pgfree(addr);
+  pgfree(&pgmpool, addr);
 }
 
 /*
@@ -197,7 +198,7 @@ static void *realloc_mapping_file(int cap, void *addr, int oldsize, int newsize)
   Q__printf("MAPPING: realloc, cap=%s, addr=%p, oldsize=%x, newsize=%x\n",
 	cap, addr, oldsize, newsize);
   if (cap & (MAPPING_EMS | MAPPING_DPMI)) {
-    int size = get_pgareasize(addr);
+    int size = get_pgareasize(&pgmpool, addr);
     void *addr_;
 
     if (!size || size != oldsize) return (void *)-1;
@@ -205,7 +206,7 @@ static void *realloc_mapping_file(int cap, void *addr, int oldsize, int newsize)
 		/* NOTE: pgrealloc() does not change addr,
 		 *       when shrinking the memory region.
 		 */
-    addr_ = pgrealloc(addr, newsize);
+    addr_ = pgrealloc(&pgmpool, addr, newsize);
     if ((int)addr_ == -1) {
       Q_printf("MAPPING: pgrealloc(0x%p,0x%x,) failed, %s\n",
 		addr, newsize,

@@ -127,8 +127,6 @@ unsigned short KSPACE_LDT_ALIAS = 0;
 static char *pm_stack; /* locked protected mode stack */
 static int in_dpmi_pm_stack = 0; /* locked protected mode stack in use */
 
-static unsigned long dpmi_total_memory; /* total memory  of this session */
-
 struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 
 unsigned long PMSTACK_ESP = 0;	/* protected mode stack descriptor */
@@ -2477,21 +2475,8 @@ static void dpmi_init(void)
     After the next task switch everything may have changed substantially
     bon@elektron.ikp.physik.th-darmstadt.de 2/16/97 */
     mi = readMeminfo();
-    if (mi) {
-      unsigned long maxmem = mi->free + mi->swapfree + mi->buffers + mi->cached;
-      dpmi_free_memory = (maxmem <
-			  (((unsigned long)config.dpmi)*1024))?
-                   	  maxmem:
-                	  ((unsigned long)config.dpmi)*1024;
-    }
-    else
-     dpmi_free_memory = ((unsigned long)config.dpmi)*1024;
+    dpmi_free_memory = dpmi_total_memory;
 
-    /* make it page aligned */
-    dpmi_free_memory = (dpmi_free_memory & 0xfffff000) +
-	                              ((dpmi_free_memory & 0xfff)
-				      ? DPMI_page_size : 0);
-    dpmi_total_memory = dpmi_free_memory;
     D_printf("DPMI: dpmi_free_memory available 0x%lx\n",dpmi_free_memory); 
     
     DPMI_rm_procedure_running = 0;

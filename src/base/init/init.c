@@ -18,6 +18,7 @@
 #include "config.h"
 #include "emu.h"
 #include "memory.h"
+#include "dpmi.h"
 #include "bios.h"
 #include "int.h"
 #include "timers.h"
@@ -420,6 +421,7 @@ void memory_init(void)
   if (first_call) {
     ems_init();                /* initialize ems */
     xms_init();                /* initialize xms */
+    dpmi_memory_init();
   }
   first_call = 0;
 }

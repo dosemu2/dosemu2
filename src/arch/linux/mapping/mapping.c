@@ -153,13 +153,13 @@ void *extended_mremap(void *addr, size_t old_len, size_t new_len,
 void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source)
 {
   int fixed = (int)target == -1 ? 0 : MAP_FIXED;
+  void *addr;
   Q__printf("MAPPING: map, cap=%s, target=%p, size=%x, protect=%x, source=%p\n",
 	cap, target, mapsize, protect, source);
   if (cap & MAPPING_KMEM) {
     int i;
 #ifndef HAVE_MREMAP_FIXED
     if (!have_mremap_fixed) {
-      void *addr;
       if (!can_do_root_stuff && mem_fd == -1) return MAP_FAILED;
       open_kmem();
       if (!fixed) target = 0;
@@ -213,15 +213,15 @@ void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source
 
   if (cap & MAPPING_SCRATCH) {
     if (!fixed) target = 0;
-    return mmap(target, mapsize, protect,
+    addr = mmap(target, mapsize, protect,
 		MAP_PRIVATE | fixed | MAP_ANONYMOUS, -1, 0);
-  }
-  if (cap & (MAPPING_LOWMEM | MAPPING_HMA)) {
-    return (*mappingdriver.mmap)(cap | MAPPING_ALIAS, target, mapsize, protect,
+  } else if (cap & (MAPPING_LOWMEM | MAPPING_HMA)) {
+    addr = mappingdriver.mmap(cap | MAPPING_ALIAS, target, mapsize, protect,
       lowmem_base + (size_t)source);
-  }
-
-  return (*mappingdriver.mmap)(cap, target, mapsize, protect, source);
+  } else
+    addr = mappingdriver.mmap(cap, target, mapsize, protect, source);
+  Q__printf("MAPPING: map success, cap=%s, addr=%p\n", cap, addr);
+  return addr;
 }        
 
 void *mremap_mapping(int cap, void *source, int old_size, int new_size,

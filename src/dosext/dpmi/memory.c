@@ -11,6 +11,28 @@
  * block does not change its base address, and for performance reason,
  * memory block allocated should be page aligned, so we use mmap()
  * instead malloc() here.
+ *
+ * It turned out that some DPMI clients are extremely sensitive to the
+ * memory allocation strategy. Many of them assume that the subsequent
+ * malloc will return the address higher than the one of a previous
+ * malloc. Some of them (GTA game) assume this even after doing free() i.e:
+ *
+ * addr1=malloc(size1); free(addr1); addr2=malloc(size2);
+ * assert(size1 > size2 || addr2 >= addr1);
+ * 
+ * This last assumption is not always true with the recent linux kernels
+ * (2.6.7-mm2 here). Thats why we have to allocate the pool and manage
+ * the memory ourselves.
+ * This gets problematic with the uncommited memory. The problem is that
+ * the program may allocate the arbitrary amount of uncommited space,
+ * while we can't extend our pool. That's why the uncommitted memory is
+ * being managed without the pool. This is not good that the commited
+ * and uncommitted memory are handled differently, because the client
+ * can convert the committed to uncommited and vise versa at any time.
+ * The assumpltion here is that the client that relies on a particular
+ * addresses for the subsequent uncommitted allocations, is completely 
+ * broken. The addresses returned by uncommitted malloc, are unpredictable.
+ * Allocations at fixed address are also handled without the pool.
  */
 
 #include "emu.h"
@@ -26,13 +48,19 @@
 #include "dpmi.h"
 #include "pic.h"
 #include "mapping.h"
+#include "pagemalloc.h"
 
 #ifndef PAGE_SHIFT
 #define PAGE_SHIFT		12
 #endif
 
+unsigned long dpmi_total_memory; /* total memory  of this session */
 unsigned long dpmi_free_memory;           /* how many bytes memory client */
 unsigned long pm_block_handle_used;       /* tracking handle */
+
+static struct pgm_pool mem_pool;
+#define IN_POOL(addr) (addr >= mem_pool.mpool && \
+  addr < mem_pool.mpool + (mem_pool.maxpages << PAGE_SHIFT))
 
 /* utility routines */
 
@@ -101,6 +129,29 @@ unsigned long base2handle( void *base )
 	if (tmp -> base == base)
 	    return tmp -> handle;
     return 0;
+}
+
+void dpmi_memory_init(void)
+{
+    int mpool_numpages, memsize;
+    void *mpool;
+
+    /* Create DPMI pool */
+    mpool_numpages = config.dpmi >> 2;
+    memsize = mpool_numpages << PAGE_SHIFT;
+
+    mpool = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
+        memsize, PROT_READ | PROT_WRITE | PROT_EXEC, 0);
+    if (mpool == MAP_FAILED) {
+      error("MAPPING: cannot create mem pool for DPMI, %s\n",strerror(errno));
+      leavedos(2);
+    }
+    D_printf("DPMI: mem init, mpool is %d bytes at %p\n", memsize, mpool);
+    if (pgmalloc_init(&mem_pool, mpool_numpages, mpool_numpages/4, mpool)) {
+      error("DPMI: cannot get table mem for pgmalloc_init\n");
+      leavedos(2);
+    }
+    dpmi_total_memory = memsize;
 }
 
 static int SetAttribsForPage(char *ptr, us attr, us old_attr)
@@ -204,9 +255,17 @@ DPMImalloc(unsigned long size, int committed)
     if ((block = alloc_pm_block(size)) == NULL)
 	return NULL;
 
-    block->base = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
-        size, committed ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE, 0);
-    if (!block->base) {
+    if (!committed) {
+	block->base = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
+    	    size, PROT_NONE, 0);
+    } else {
+	block->base = pgmalloc(&mem_pool, size);
+	if (block->base)
+	    mprotect_mapping(MAPPING_DPMI, block->base, size,
+    		PROT_READ | PROT_WRITE | PROT_EXEC);
+    }
+    
+    if (!block->base || block->base == MAP_FAILED) {
 	free_pm_block(block);
 	return NULL;
     }
@@ -281,7 +340,13 @@ int DPMIfree(unsigned long handle)
 
     if ((block = lookup_pm_block(handle)) == NULL)
 	return -1;
-    munmap_mapping(MAPPING_DPMI, block->base, block->size);
+    if (!IN_POOL(block->base)) {
+	munmap_mapping(MAPPING_DPMI, block->base, block->size);
+    } else {
+	mprotect_mapping(MAPPING_DPMI, block->base, block->size,
+    	    PROT_READ | PROT_WRITE | PROT_EXEC);
+	pgfree(&mem_pool, block->base);
+    }
     for (i = 0; i < block->size >> PAGE_SHIFT; i++) {
 	if ((block->attrs[i] & 7) == 1)    // if committed page, account it
 	    dpmi_free_memory += DPMI_page_size;
@@ -327,9 +392,17 @@ DPMIrealloc(unsigned long handle, unsigned long newsize)
     SetPageAttributes(block, 0, tmp, npages);
     free(tmp);
     /* Now we are safe - region merged. mremap() can be attempted now. */
-    ptr = mremap_mapping(MAPPING_DPMI, block->base, block->size, newsize,
-      MREMAP_MAYMOVE, (void*)-1);
-    if (ptr == MAP_FAILED)
+    if (!IN_POOL(block->base)) {
+	ptr = mremap_mapping(MAPPING_DPMI, block->base, block->size, newsize,
+	    MREMAP_MAYMOVE, (void*)-1);
+    } else {
+	ptr = pgrealloc(&mem_pool, block->base, newsize);
+	if (ptr)
+	    mprotect_mapping(MAPPING_DPMI, ptr, newsize,
+    		PROT_READ | PROT_WRITE | PROT_EXEC);
+    }
+
+    if (!ptr || ptr == MAP_FAILED)
 	return NULL;
 
     realloc_pm_block(block, newsize);

@@ -68,35 +68,24 @@
 #define MASKED_PTR(ptr) ( (union mentry *)((int)(ptr) & ~MENTRY_MASK) )
 #define MASKED_NEXT(ptr) MASKED_PTR(ptr->next)
 
-union mentry {
-  union mentry *next;
-  unsigned flags:2;
-};
-
-
-static union mentry *mtable;
-static union mentry *heap_ptr;
-static union mentry *heap_end;
-static union mentry *heap_lowater;
-
 #define reduce_heap_ptr(p) ({ \
-  heap_ptr->next = 0; \
-  heap_ptr = p; \
-  heap_ptr->next = 0; \
-  Q_printf("HEAP: heap_ptr reduced to %p\n", heap_ptr); \
+  pgmpool->heap_ptr->next = 0; \
+  pgmpool->heap_ptr = p; \
+  pgmpool->heap_ptr->next = 0; \
+  Q_printf("HEAP: heap_ptr reduced to %p\n", pgmpool->heap_ptr); \
 })
 
-static int do_garbage_collection(union mentry **mentry)
+static int do_garbage_collection(struct pgm_pool *pgmpool, union mentry **mentry)
 {
   union mentry *p = *mentry;
   union mentry *p_ = MASKED_NEXT(p);
   union mentry *p_bottom;
   int size;
 
-  Q_printf("HEAP: Garbage collection for %p, heap_ptr=%p\n", *mentry, heap_ptr);
+  Q_printf("HEAP: Garbage collection for %p, heap_ptr=%p\n", *mentry, pgmpool->heap_ptr);
   if (! p_->flags ) {
     /* only one area, just return size and increase pointer */
-    if (p_ == heap_ptr) {
+    if (p_ == pgmpool->heap_ptr) {
       /* we can reduce the heappointer */
       reduce_heap_ptr(p);
       return 0;	/* no size behind the heap pointer */
@@ -114,7 +103,7 @@ static int do_garbage_collection(union mentry **mentry)
     p = MASKED_NEXT(p);
     p_->next = 0;
   }
-  if (p == heap_ptr) {
+  if (p == pgmpool->heap_ptr) {
     /* we can reduce the heappointer */
     reduce_heap_ptr(p_bottom);
     return 0;	/* no size behind the heap pointer */
@@ -125,22 +114,22 @@ static int do_garbage_collection(union mentry **mentry)
   return size;
 }
 
-static void garbage_collection(void)
+static void garbage_collection(struct pgm_pool *pgmpool)
 {
-  union mentry *p = mtable;
+  union mentry *p = pgmpool->mtable;
   Q_printf("HEAP: Garbage collection\n");
   while (p) {
     if (!p->flags) {
       p = p->next;
       continue;
     }
-    do_garbage_collection(&p);
+    do_garbage_collection(pgmpool, &p);
   }
 }
 
-static union mentry *get_free_marea(int size)
+static union mentry *get_free_marea(struct pgm_pool *pgmpool, int size)
 {
-  union mentry *mentry = mtable;
+  union mentry *mentry = pgmpool->mtable;
   union mentry *p = mentry;
   union mentry *p_;
   int freesize, bestsize = 0;
@@ -150,7 +139,7 @@ static union mentry *get_free_marea(int size)
   size = SIZE2MENTRY(size);
   if (!size) return 0;
   
-  if ((heap_ptr > heap_lowater)  || ((heap_ptr + size) >= heap_end)) {
+  if ((pgmpool->heap_ptr > pgmpool->heap_lowater)  || ((pgmpool->heap_ptr + size) >= pgmpool->heap_end)) {
     /* need to search for deleted areas */
     while (p) {
       if (!p->flags) {
@@ -161,7 +150,7 @@ static union mentry *get_free_marea(int size)
 
       /* found a free piece, trying garbage collection and get size */
       p_ = p;
-      freesize = do_garbage_collection(&p_);
+      freesize = do_garbage_collection(pgmpool, &p_);
       if (!freesize) {
         break;	/* we reduced the heap to this point */
       }
@@ -187,7 +176,7 @@ static union mentry *get_free_marea(int size)
       }
       p = MASKED_NEXT(p);
     }
-    freesize = (heap_end - heap_ptr -1);
+    freesize = (pgmpool->heap_end - pgmpool->heap_ptr -1);
     if ((bestsize >= size) && ((freesize >= bestsize) || (size >= freesize))) {
       /* ok, this is the smallest piece available */
       if (bestsize > size) {
@@ -203,11 +192,11 @@ static union mentry *get_free_marea(int size)
     /* fallen through, if no deleted area could/should be used */
   }
 
-  if ((heap_ptr + size) < heap_end) {
-    heap_ptr[size].next = 0;
-    heap_ptr->next = heap_ptr + size;
-    p = heap_ptr;
-    heap_ptr = heap_ptr->next;
+  if ((pgmpool->heap_ptr + size) < pgmpool->heap_end) {
+    pgmpool->heap_ptr[size].next = 0;
+    pgmpool->heap_ptr->next = pgmpool->heap_ptr + size;
+    p = pgmpool->heap_ptr;
+    pgmpool->heap_ptr = pgmpool->heap_ptr->next;
     return p;
   }
 
@@ -215,28 +204,28 @@ static union mentry *get_free_marea(int size)
   return 0;
 }
 
-static int delete_marea(union mentry *mentry)
+static int delete_marea(struct pgm_pool *pgmpool, union mentry *mentry)
 {
-  int i = (int)(mentry-mtable);
+  int i = (int)(mentry-pgmpool->mtable);
   Q_printf("HEAP: delete_area %p, size=0x%x\n", mentry, AREA_SIZE_OF(mentry));
-  if (!mentry || !mentry->next || i<0 || i>(heap_end-mtable)) {
+  if (!mentry || !mentry->next || i<0 || i>(pgmpool->heap_end-pgmpool->mtable)) {
     return -1;
   }
-  if (MASKED_NEXT(mentry) == heap_ptr) {
+  if (MASKED_NEXT(mentry) == pgmpool->heap_ptr) {
     reduce_heap_ptr(MASKED_PTR(mentry));
-    garbage_collection();	/* there can be a hole behind this area */
+    garbage_collection(pgmpool);	/* there can be a hole behind this area */
   }
   else mentry->flags = 1;
   return 0;
 }
 
-static union mentry *resize_marea(union mentry *mentry, int newsize)
+static union mentry *resize_marea(struct pgm_pool *pgmpool, union mentry *mentry, int newsize)
 {
-  int i = (int)(mentry-mtable);
+  int i = (int)(mentry-pgmpool->mtable);
   int size, padsize;
   union mentry *p, *p_;
 
-  if (!mentry  || i<0 || i>(heap_end-mtable) || !mentry->next || mentry->flags) {
+  if (!mentry  || i<0 || i>(pgmpool->heap_end-pgmpool->mtable) || !mentry->next || mentry->flags) {
     return 0;
   }
 
@@ -259,14 +248,14 @@ static union mentry *resize_marea(union mentry *mentry, int newsize)
   /* Ok, have to do something more, but first we do garbage collection
    * as it mat be important to find unused chunks behind our area
    */
-  garbage_collection();
+  garbage_collection(pgmpool);
 
   p = mentry->next;
-  if ((p == heap_ptr) && ((mentry+newsize) < heap_end)) {
+  if ((p == pgmpool->heap_ptr) && ((mentry+newsize) < pgmpool->heap_end)) {
     /* we are at end of heap and can expand */
-    heap_ptr->next = 0;
-    mentry->next = heap_ptr = mentry+newsize;
-    heap_ptr->next = 0;
+    pgmpool->heap_ptr->next = 0;
+    mentry->next = pgmpool->heap_ptr = mentry+newsize;
+    pgmpool->heap_ptr->next = 0;
     return mentry;
   }
   if (p->flags &&  ((size + AREA_SIZE_OF(p)) >= newsize)) {
@@ -284,9 +273,9 @@ static union mentry *resize_marea(union mentry *mentry, int newsize)
 
   Q_printf("Cant resize, moving region\n");
   /* Ok, nothing other helps than moving */
-  p = get_free_marea(newsize << PAGE_SHIFT);
+  p = get_free_marea(pgmpool, newsize << PAGE_SHIFT);
   if (!p) return 0;
-  delete_marea(mentry);
+  delete_marea(pgmpool, mentry);
   return p;
 }
 
@@ -301,12 +290,6 @@ static union mentry *resize_marea(union mentry *mentry, int newsize)
 #include <stdlib.h>
 #include <string.h>
 
-static char *mpool;
-#ifdef NEED_USAGE_COUNT
-static char *musage;
-#endif
-static int maxpages;
-
 /*
  * Init the allocation stuff.
  *
@@ -320,25 +303,25 @@ static int maxpages;
  *		and reusage of deleted areas is starting.
  *		'lowater' is a page number within pool.
  */
-int pgmalloc_init(int numpages, int lowater, void *pool)
+int pgmalloc_init(struct pgm_pool *pgmpool, int numpages, int lowater, void *pool)
 {
   int size = sizeof(union mentry) * numpages;
-  if (mtable) return 0;
+  if (pgmpool->mtable) return 0;
 
-  maxpages = numpages;
-  mtable = malloc(size);
-  if (!mtable) return -1;
-  memset(mtable, 0, size);
+  pgmpool->maxpages = numpages;
+  pgmpool->mtable = malloc(size);
+  if (!pgmpool->mtable) return -1;
+  memset(pgmpool->mtable, 0, size);
 #ifdef NEED_USAGE_COUNT
   musage = malloc(numpages);
   if (!musage) return -1;
   memset(musage, 0, numpages);
 #endif
-  heap_ptr = mtable;
-  heap_end = mtable + maxpages;
-  heap_lowater = mtable + lowater;
-  mpool = pool;
-  Q_printf("HEAP: init, heap_ptr=%p\n", heap_ptr);
+  pgmpool->heap_ptr = pgmpool->mtable;
+  pgmpool->heap_end = pgmpool->mtable + pgmpool->maxpages;
+  pgmpool->heap_lowater = pgmpool->mtable + lowater;
+  pgmpool->mpool = pool;
+  Q_printf("HEAP: init, heap_ptr=%p\n", pgmpool->heap_ptr);
   return 0;
 }
 
@@ -346,15 +329,15 @@ int pgmalloc_init(int numpages, int lowater, void *pool)
  * Allocates size bytes from pool and returns an address within pool.
  * On error returns NULL.
  */
-void *pgmalloc(int size)
+void *pgmalloc(struct pgm_pool *pgmpool, int size)
 {
   union mentry *p;
   void *addr;
 
   size = PAGE_ALIGN(size);
-  p = get_free_marea(size);
+  p = get_free_marea(pgmpool, size);
   if (!p) return 0;
-  addr = mpool + ((int)(p-mtable) << PAGE_SHIFT);
+  addr = pgmpool->mpool + ((int)(p-pgmpool->mtable) << PAGE_SHIFT);
   memset(addr, 0, size);
   return addr;
 }
@@ -363,20 +346,20 @@ void *pgmalloc(int size)
  * Frees a previously allocated area in pool. 'addr' must be the
  * address returned by pgmalloc(). If the adress is invalid -1 is returned.
  */
-int pgfree(void *addr)
+int pgfree(struct pgm_pool *pgmpool, void *addr)
 {
-  return delete_marea(mtable + SIZE2MENTRY(((char *)addr - mpool)));
+  return delete_marea(pgmpool, pgmpool->mtable + SIZE2MENTRY(((char *)addr - pgmpool->mpool)));
 }
 
 /*
  * Return the size of a valid allocated area in pool, else return 0.
  */
-int get_pgareasize(void *addr)
+int get_pgareasize(struct pgm_pool *pgmpool, void *addr)
 {
-  int i = SIZE2MENTRY(((char *)addr - mpool));
-  union mentry *p = mtable+i;
+  int i = SIZE2MENTRY(((char *)addr - pgmpool->mpool));
+  union mentry *p = pgmpool->mtable+i;
 
-  if (i < 0 || i >= maxpages || !p || !p->next) return 0;
+  if (i < 0 || i >= pgmpool->maxpages || !p || !p->next) return 0;
   return AREA_SIZE_OF(p) << PAGE_SHIFT;
 }
 
@@ -384,7 +367,7 @@ int get_pgareasize(void *addr)
 /*
  * Maintain use count of a valid allocated area in pool.
  */
-int pgusage(void *addr, int delta_count)
+int pgusage(struct pgm_pool *pgmpool, void *addr, int delta_count)
 {
   int i = SIZE2MENTRY(((char *)addr - mpool));
   union mentry *p = mtable+i;
@@ -403,17 +386,17 @@ int pgusage(void *addr, int delta_count)
  * has been moved to some other free place.
  * On error returns NULL.
  */
-void *pgrealloc(void *addr, int newsize)
+void *pgrealloc(struct pgm_pool *pgmpool, void *addr, int newsize)
 {
   char *newaddr;
   union mentry *p;
-  int size = get_pgareasize(addr);
+  int size = get_pgareasize(pgmpool, addr);
 
   if (!size || !newsize) return 0;
   newsize = PAGE_ALIGN(newsize);
-  p = resize_marea(mtable + SIZE2MENTRY(((char *)addr - mpool)), newsize);
+  p = resize_marea(pgmpool, pgmpool->mtable + SIZE2MENTRY(((char *)addr - pgmpool->mpool)), newsize);
   if (!p) return 0;
-  newaddr = mpool + ((int)(p-mtable) << PAGE_SHIFT);
+  newaddr = pgmpool->mpool + ((int)(p-pgmpool->mtable) << PAGE_SHIFT);
   if (newaddr != (char *)addr) {
     /* area was moved, need to copy the old stuff.
      * This does only happen on growing the area

@@ -169,6 +169,7 @@ EXTERN volatile int dpmi_mhp_TF INIT(0);
 EXTERN unsigned char dpmi_mhp_intxxtab[256] INIT({0});
 EXTERN volatile int is_cli INIT(0);
 
+extern unsigned long dpmi_total_memory; /* total memory  of this session */
 extern unsigned long dpmi_free_memory; /* how many bytes memory client */
 				       /* can allocate */
 extern unsigned long pm_block_handle_used;       /* tracking handle */
@@ -237,5 +238,6 @@ extern int SetSelector(unsigned short selector, unsigned long base_addr, unsigne
                        unsigned char is_big, unsigned char seg_not_present, unsigned char useable);
 extern int FreeDescriptor(unsigned short selector);
 extern void FreeSegRegs(struct sigcontext_struct *scp, unsigned short selector);
+extern void dpmi_memory_init(void);
 
 #endif /* DPMI_H */
