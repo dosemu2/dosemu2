@@ -259,11 +259,8 @@ config_defaults(void)
     config.dosbanner = 1;
     config.allowvideoportaccess = 0;
 
-    config.keyboard = KEYB_US;	/* What's the current keyboard  */
-    config.key_map = key_map_us;/* pointer to the keyboard-maps */
-    config.shift_map = shift_map_us;	/* Here the Shilt-map           */
-    config.alt_map = alt_map_us;/* And the Alt-map              */
-    config.num_table = num_table_dot;	/* Numeric keypad has a dot     */
+    config.keytable = &keytable_list[KEYB_USER]; /* What's the current keyboard  */
+
     config.detach = 0;		/* Don't detach from current tty and open
 				 * new VT. */
     config.debugout = NULL;	/* default to no debug output file */

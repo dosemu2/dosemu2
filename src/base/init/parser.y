@@ -112,6 +112,10 @@ static void stop_serial(void);
 static void start_printer(void);
 static void stop_printer(void);
 static void start_keyboard(void);
+static void keytable_start(int layout);
+static void keytable_stop(void);
+static void keyb_mod(int wich, int keynum);
+static void dump_keytables_to_file(char *name);
 static void start_terminal(void);
 static void stop_terminal(void);
 static void start_disk(void);
@@ -189,6 +193,8 @@ extern void yyrestart(FILE *input_file);
 	/* keyboard */
 %token KEYBINT RAWKEYBOARD
 %token PRESTROKE
+%token KEYTABLE SHIFT ALT NUMPAD DUMP
+%token DGRAVE DACUTE DCIRCUM DTILDE DBREVE DABOVED DDIARES DABOVER DDACUTE DCEDILLA DIOTA
 	/* ipx */
 %token NETWORK PKTDRIVER
         /* lock files */
@@ -227,6 +233,10 @@ extern void yyrestart(FILE *input_file);
 %token SB_BASE SB_IRQ SB_DMA SB_MIXER SB_DSP MPU_BASE
 	/* CD-ROM */
 %token CDROM
+
+	/* we know we have 1 shift/reduce conflict :-( 
+	 * and tell the parser to ignore that */
+%expect 1
 
 /* %type <i_value> mem_bool irq_bool bool speaker method_val color_val floppy_bool */
 %type <i_value> mem_bool irq_bool bool speaker color_val floppy_bool
@@ -480,11 +490,19 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		| KEYBOARD
 		    { start_keyboard(); }
 	          '{' keyboard_flags '}'
+		| KEYTABLE KEYB_LAYOUT
+			{keytable_start($2);}
+		  '{' keyboard_mods '}'
+		  	{keytable_stop();}
  		| PRESTROKE STRING
 		    {
 		    append_pre_strokes($2);
 		    c_printf("CONF: appending pre-strokes '%s'\n", $2);
 		    free($2);
+		    }
+		| KEYTABLE DUMP STRING {
+			dump_keytables_to_file($3);
+			free($3);
 		    }
 		| PORTS
 		    { IFCLASS(CL_PORT) start_ports(); }
@@ -825,6 +843,7 @@ keyboard_flags	: keyboard_flag
 		| keyboard_flags keyboard_flag
 		;
 keyboard_flag	: LAYOUT KEYB_LAYOUT	{ keyb_layout($2); }
+		| LAYOUT KEYB_LAYOUT {keyb_layout($2);} '{' keyboard_mods '}'
 		| LAYOUT L_NO		{ keyb_layout(KEYB_NO); }
 		| RAWKEYBOARD bool	{ config.console_keyb = $2; }
 		| KEYBINT bool		{ config.keybint = $2; }
@@ -832,6 +851,39 @@ keyboard_flag	: LAYOUT KEYB_LAYOUT	{ keyb_layout($2); }
 		    { yyerror("unrecognized keyboard flag '%s'", $1);
 		      free($1);}
 		| error
+		;
+
+keyboard_mods	: keyboard_mod
+		| keyboard_mods keyboard_mod
+		;
+
+keyboard_mod	: INTEGER '=' { keyb_mod(' ', $1); } keyboard_modvals
+		| SHIFT INTEGER '=' { keyb_mod('S', $2); } keyboard_modvals
+		| ALT INTEGER '=' { keyb_mod('A', $2); } keyboard_modvals
+		| NUMPAD INTEGER '=' { keyb_mod('N', $2); } keyboard_modvals
+		;
+
+keyboard_modvals: keyboard_modval
+		| keyboard_modvals ',' keyboard_modval
+		;
+
+keyboard_modval : INTEGER { keyb_mod(0, $1); }
+		| DGRAVE { keyb_mod(0, DEAD_GRAVE); }
+		| DACUTE { keyb_mod(0, DEAD_ACUTE); }
+		| DCIRCUM { keyb_mod(0, DEAD_CIRCUMFLEX); }
+		| DTILDE { keyb_mod(0, DEAD_TILDE); }
+		| DBREVE { keyb_mod(0, DEAD_BREVE); }
+		| DABOVED { keyb_mod(0, DEAD_ABOVEDOT); }
+		| DDIARES { keyb_mod(0, DEAD_DIAERESIS); }
+		| DABOVER { keyb_mod(0, DEAD_ABOVERING); }
+		| DDACUTE { keyb_mod(0, DEAD_DOUBLEACUTE); }
+		| DCEDILLA { keyb_mod(0, DEAD_CEDILLA); }
+		| DIOTA { keyb_mod(0,DEAD_IOTA); }
+		| STRING {
+			char *p = $1;
+			while (*p) keyb_mod(0, *p++);
+			free($1);
+		}
 		;
 
 	/* lock files */
@@ -1271,11 +1323,14 @@ static void stop_serial(void)
 
 	/* keyboard */
 
+static int keyboard_statement_already = 0;
+
 static void start_keyboard(void)
 {
-  keyb_layout(-1);
+  keyb_layout(KEYB_USER); /* NOTE: the default has changed, --Hans, 971204 */
   config.console_keyb = 0;
   config.keybint = 0;
+  keyboard_statement_already = 1;
 }
 
 	/* terminal */
@@ -1542,220 +1597,174 @@ static void stop_disk(int token)
 
 void keyb_layout(int layout)
 {
+  struct keytable_entry *kt = keytable_list;
   if (layout == -1)
     layout = KEYB_US;
-  switch (layout) {
-  case KEYB_FINNISH:
-    c_printf("CONF: Keyboard-layout finnish\n");
-    config.keyboard  = KEYB_FINNISH;
-    config.key_map   = key_map_finnish;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_finnish;
-    config.alt_map   = alt_map_finnish;
-    config.num_table = num_table_comma;
-    break;
-  case KEYB_FINNISH_LATIN1:
-    c_printf("CONF: Keyboard-layout finnish-latin1\n");
-    config.keyboard  = KEYB_FINNISH_LATIN1;
-    config.key_map   = key_map_finnish_latin1;
-    config.shift_map = shift_map_finnish_latin1;
-    config.alt_map   = alt_map_finnish_latin1;
-    config.num_table = num_table_comma;
-    break;
-  case KEYB_US:
-    c_printf("CONF: Keyboard-layout us\n");
-    config.keyboard  = KEYB_US;
-    config.key_map   = key_map_us;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_us;
-    config.alt_map   = alt_map_us;
-    config.num_table = num_table_dot;
-    break;
-  case KEYB_UK:
-    c_printf("CONF: Keyboard-layout uk\n");
-    config.keyboard  = KEYB_UK;
-    config.key_map   = key_map_uk;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_uk;
-    config.alt_map   = alt_map_uk;
-    config.num_table = num_table_dot;
-    break;
-  case KEYB_DE:
-    c_printf("CONF: Keyboard-layout de\n");
-    config.keyboard  = KEYB_DE;
-    config.key_map   = key_map_de;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_de;
-    config.alt_map   = alt_map_de;
-    config.num_table = num_table_comma;
-    break;
-  case KEYB_DE_LATIN1:
-    c_printf("CONF: Keyboard-layout de-latin1\n");
-    config.keyboard  = KEYB_DE_LATIN1;
-    config.key_map   = key_map_de_latin1;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_de_latin1;
-    config.alt_map   = alt_map_de_latin1;
-    config.num_table = num_table_comma;
-    break;
-  case KEYB_FR:
-    c_printf("CONF: Keyboard-layout fr\n");
-    config.keyboard  = KEYB_FR;
-    config.key_map   = key_map_fr;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_fr;
-    config.alt_map   = alt_map_fr;
-    config.num_table = num_table_dot;
-    break;
-  case KEYB_FR_LATIN1:
-    c_printf("CONF: Keyboard-layout fr-latin1\n");
-    config.keyboard  = KEYB_FR_LATIN1;
-    config.key_map   = key_map_fr_latin1;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_fr_latin1;
-    config.alt_map   = alt_map_fr_latin1;
-    config.num_table = num_table_dot;
-    break;
-  case KEYB_DK:
-    c_printf("CONF: Keyboard-layout dk\n");
-    config.keyboard  = KEYB_DK;
-    config.key_map   = key_map_dk;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_dk;
-    config.alt_map   = alt_map_dk;
-    config.num_table = num_table_comma;
-    break;
-  case KEYB_DK_LATIN1:
-    c_printf("CONF: Keyboard-layout dk-latin1\n");
-    config.keyboard  = KEYB_DK_LATIN1;
-    config.key_map   = key_map_dk_latin1;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_dk_latin1;
-    config.alt_map   = alt_map_dk_latin1;
-    config.num_table = num_table_comma;
-    break;
-  case KEYB_DVORAK:
-    c_printf("CONF: Keyboard-layout dvorak\n");
-    config.keyboard  = KEYB_DVORAK;
-    config.key_map   = key_map_dvorak;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_dvorak;
-    config.alt_map   = alt_map_dvorak;
-    config.num_table = num_table_comma;
-    break;
-  case KEYB_SG:
-    c_printf("CONF: Keyboard-layout sg\n");
-    config.keyboard  = KEYB_SG;
-    config.key_map   = key_map_sg;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_sg;
-    config.alt_map   = alt_map_sg;
-    config.num_table = num_table_comma;
-    break;
-  case KEYB_SG_LATIN1:
-    c_printf("CONF: Keyboard-layout sg-latin1\n");
-    config.keyboard  = KEYB_SG_LATIN1;
-    config.key_map   = key_map_sg_latin1;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_sg_latin1;
-    config.alt_map   = alt_map_sg_latin1;
-    config.num_table = num_table_comma;
-    break;
-  case KEYB_NO:
-    c_printf("CONF: Keyboard-layout no\n");
-    config.keyboard  = KEYB_NO;
-    config.key_map   = key_map_no;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_no;
-    config.alt_map   = alt_map_no;
-    config.num_table = num_table_comma;
-    break;
-  case KEYB_NO_LATIN1:
-    c_printf("CONF: Keyboard-layout no-latin1\n");
-    config.keyboard  = KEYB_NO_LATIN1;
-    config.key_map   = key_map_no_latin1;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_no_latin1;
-    config.alt_map   = alt_map_no_latin1;
-    config.num_table = num_table_comma;
-    break;
-  case KEYB_SF:
-    c_printf("CONF: Keyboard-layout sf\n");
-    config.keyboard  = KEYB_SF;
-    config.key_map   = key_map_sf;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_sf;
-    config.alt_map   = alt_map_sf;
-    config.num_table = num_table_comma;
-    break;
-  case KEYB_SF_LATIN1:
-    c_printf("CONF: Keyboard-layout sf-latin1\n");
-    config.keyboard  = KEYB_SF_LATIN1;
-    config.key_map   = key_map_sf_latin1;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_sf_latin1;
-    config.alt_map   = alt_map_sf_latin1;
-    config.num_table = num_table_comma;
-    break;
-  case KEYB_ES:
-    c_printf("CONF: Keyboard-layout es\n");
-    config.keyboard  = KEYB_ES;
-    config.key_map   = key_map_es;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_es;
-    config.alt_map   = alt_map_es;
-    config.num_table = num_table_comma;
-    break;
-  case KEYB_ES_LATIN1:
-    c_printf("CONF: Keyboard-layout es-latin1\n");
-    config.keyboard  = KEYB_ES_LATIN1;
-    config.key_map   = key_map_es_latin1;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_es_latin1;
-    config.alt_map   = alt_map_es_latin1;
-    config.num_table = num_table_comma;
-    break;
-  case KEYB_BE:
-    c_printf("CONF: Keyboard-layout be\n");
-    config.keyboard  = KEYB_BE;
-    config.key_map   = key_map_be;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_be;
-    config.alt_map   = alt_map_be;
-    config.num_table = num_table_dot;
-    break;
-  case KEYB_PO:
-    c_printf("CONF: Keyboard-layout po\n");
-    config.keyboard  = KEYB_PO;
-    config.key_map   = key_map_po;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_po;
-    config.alt_map   = alt_map_po;
-    config.num_table = num_table_dot;
-    break;
-  case KEYB_IT:
-    c_printf("CONF: Keyboard-layout it\n");
-    config.keyboard  = KEYB_IT;
-    config.key_map   = key_map_it;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_it;
-    config.alt_map   = alt_map_it;
-    config.num_table = num_table_dot;
-    break;
-  case KEYB_SW:
-    c_printf("CONF: Keyboard-layout sw\n");
-    config.keyboard  = KEYB_SW;
-    config.key_map   = key_map_sw;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_sw;
-    config.alt_map   = alt_map_sw;
-    config.num_table = num_table_comma;
-    break;
-  case KEYB_HU:
-    c_printf("CONF: Keyboard-layout hu\n");
-    config.keyboard  = KEYB_HU;
-    config.key_map   = key_map_hu;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_hu;
-    config.alt_map   = alt_map_hu;
-    config.num_table = num_table_comma;
-    break;
-  case KEYB_HU_CWI:
-    c_printf("CONF: Keyboard-layout hu-cwi\n");
-    config.keyboard  = KEYB_HU_CWI;
-    config.key_map   = key_map_hu_cwi;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_hu_cwi;
-    config.alt_map   = alt_map_hu_cwi;
-    config.num_table = num_table_comma;
-    break;
-  case KEYB_HU_LATIN2:
-    c_printf("CONF: Keyboard-layout hu-latin2\n");
-    config.keyboard  = KEYB_HU_LATIN2;
-    config.key_map   = key_map_hu_latin2;  /* pointer to the keyboard-map */
-    config.shift_map = shift_map_hu_latin2;
-    config.alt_map   = alt_map_hu_latin2;
-    config.num_table = num_table_comma;
-    break;
-  default:
-    c_printf("CONF: ERROR -- Keyboard has incorrect number!!!\n");
+  while (kt->name) {
+    if (kt->keyboard == layout) {
+      c_printf("CONF: Keyboard-layout %s\n", kt->name);
+      config.keytable = kt;
+      return;
+    }
+    kt++;
   }
+  c_printf("CONF: ERROR -- Keyboard has incorrect number!!!\n");
+}
+
+static void keytable_start(int layout)
+{
+  static struct keytable_entry *saved_kt = 0;
+  if (layout == -1) {
+    if (keyboard_statement_already) {
+      if (config.keytable != saved_kt) {
+        yywarn("keytable changed to %s table, but previously was defined %s\n",
+                config.keytable->name, saved_kt->name);
+      }
+    }
+  }
+  else {
+    saved_kt = config.keytable;
+    keyb_layout(layout);
+  }
+}
+
+static void keytable_stop(void)
+{
+  keytable_start(-1);
+}
+
+static void keyb_mod(int wich, int keynum)
+{
+  static unsigned char *table = 0;
+  static int count = 0;
+  static in_altmap = 0;
+
+  switch (wich) {
+    case ' ': {
+      in_altmap = 0;
+      switch (keynum & 0x300) {
+        case 0: table = config.keytable->key_map;
+        	count=config.keytable->sizemap;
+        	break;
+        case 0x100: table = config.keytable->shift_map;
+        	count=config.keytable->sizemap;
+        	break;
+        case 0x200: table = config.keytable->alt_map;
+        	count=config.keytable->sizemap;
+        	in_altmap = 1;
+        	break;
+        case 0x300: table = config.keytable->num_table;
+        	count=config.keytable->sizepad;
+        	break;
+      }
+      break;
+    }
+    case 'S': table = config.keytable->shift_map;
+    	count=config.keytable->sizemap;
+	in_altmap = 0;
+    	break;
+    case 'A': table = config.keytable->alt_map;
+    	count=config.keytable->sizemap;
+    	in_altmap = 1;
+    	break;
+    case 'N': table = config.keytable->num_table;
+    	count=config.keytable->sizepad;
+	in_altmap = 0;
+    	break;
+  }
+
+  keynum &= 0xff;
+  if (wich) {
+    if (keynum >= count) return;
+    table += keynum;
+    count -= keynum;
+    return;
+  }
+  if (count > 0) {
+    *table++ = keynum;
+    if (in_altmap && keynum)
+      config.keytable->flags |= KT_USES_ALTMAP;
+    count--;
+  }
+}
+
+
+static void dump_keytable_part(FILE *f, unsigned char *map, int size)
+{
+  int i, in_string=0, is_deadkey;
+  unsigned char c, *cc, comma=' ', buf[16];
+  static unsigned char dead_key_list[] = {FULL_DEADKEY_LIST, 0};
+  static char *dead_key_names[] = {
+    "dgrave", "dacute", "dcircum", "dtilde", "dbreve", "daboved", "ddiares",
+    "dabover", "ddacute", "dcedilla", "diota"
+  };
+
+  size--;
+  for (i=0; i<=size; i++) {
+    c = map[i];
+    if (!(i & 15)) fprintf(f,"    ");
+    is_deadkey = c ? (int)strchr(dead_key_list, c) : 0;
+    if (!is_deadkey && isprint(c) && !strchr("\\\"\'`", c)) {
+      if (in_string) fputc(c,f);
+      else {
+        fprintf(f, "%c\"%c", comma, c);
+        in_string = 1;
+      }
+    }
+    else {
+      if (is_deadkey) cc = dead_key_names[is_deadkey - (int)(&dead_key_list)];
+      else {
+        sprintf(buf, "%d", c);
+        cc = buf;
+      }
+      if (!in_string) fprintf(f, "%c%s", comma, cc);
+      else {
+        fprintf(f, "\",%s", cc);
+        in_string = 0;
+      }
+    }
+    if ((i & 15) == 15) {
+      if (in_string) fputc('"', f);
+      if (i < size) fputc(',', f);
+      fputc('\n', f);
+      in_string = 0;
+      comma = ' ';
+    }
+    else comma = ',';
+  }
+  if (in_string) fputc('"', f);
+  fputc('\n', f);
+}
+
+
+static void dump_keytables_to_file(char *name)
+{
+  FILE * f;
+  struct keytable_entry *kt = keytable_list;
+
+  enter_priv_off();
+  f = fopen(name, "w");
+  leave_priv_setting();
+  if (!f) {
+    error("cannot create keytable file %s\n", name);
+    exit(1);
+  }
+  
+  while (kt->name) {
+    fprintf(f, "keytable %s {\n", kt->name);
+    fprintf(f, "  0=\n");
+    dump_keytable_part(f, kt->key_map, kt->sizemap);
+    fprintf(f, "  shift 0=\n");
+    dump_keytable_part(f, kt->shift_map, kt->sizemap);
+    fprintf(f, "  alt 0=\n");
+    dump_keytable_part(f, kt->alt_map, kt->sizemap);
+    fprintf(f, "  numpad 0=\n");
+    dump_keytable_part(f, kt->num_table, kt->sizepad-1);
+    fprintf(f, "}\n\n\n");
+    kt++;
+  }
+  fclose(f);
+  exit(0);
 }
 
 static int set_hardware_ram(int addr)

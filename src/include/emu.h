@@ -347,11 +347,8 @@ typedef struct vesamode_type_struct {
        int sillyint;            /* IRQ numbers for Silly Interrupt Generator 
        				   (bitmask, bit3..15 ==> IRQ3 .. IRQ15) */
 
-       int keyboard;
-       unsigned char *key_map;     /* pointer to the correct keyboard-map */
-       unsigned char *shift_map;
-       unsigned char *alt_map;
-       unsigned char *num_table;
+       struct keytable_entry *keytable;
+
        unsigned short detach;
        unsigned char *debugout;
        unsigned char *pre_stroke;  /* pointer to keyboard pre strokes */
@@ -377,32 +374,6 @@ config_t;
 #define SPKR_NATIVE	1
 #define SPKR_EMULATED	2
 
-#define KEYB_FINNISH           0
-#define KEYB_FINNISH_LATIN1    1
-#define KEYB_US                2
-#define KEYB_UK                3
-#define KEYB_DE                4
-#define KEYB_DE_LATIN1         5
-#define KEYB_FR                6
-#define KEYB_FR_LATIN1         7
-#define KEYB_DK                8
-#define KEYB_DK_LATIN1         9
-#define KEYB_DVORAK           10
-#define KEYB_SG               11
-#define KEYB_SG_LATIN1        12
-#define KEYB_NO               13
-#define KEYB_NO_LATIN1        14
-#define KEYB_SF               15
-#define KEYB_SF_LATIN1        16
-#define KEYB_ES               17
-#define KEYB_ES_LATIN1        18
-#define KEYB_BE               19
-#define KEYB_PO               20
-#define KEYB_IT               21
-#define KEYB_SW		      22
-#define KEYB_HU		      23
-#define KEYB_HU_CWI	      24
-#define KEYB_HU_LATIN2	      25
 /*
  * Right now, dosemu only supports two serial ports.
  */

@@ -9,7 +9,7 @@
 #include "keyboard.h"
 #include "keymaps.h"
 
-#define NUM_KEYS 97 /* (sizeof(key_map_us)) */
+#define NUM_KEYS (config.keytable->sizemap)
 
 
 static int scantable(unsigned char *table, unsigned char ch)
@@ -58,8 +58,8 @@ static unsigned char *recode(unsigned int *out, unsigned char *in)
                                  \r  == \^M  == <Ctrl>M == <ENTER> */
           if (esc >= 0) ch = ctrl[esc];
           else ch=*(in++);
-          if (((keynum = scantable(config.key_map, ch)) >0) ||
-              ((keynum = scantable(config.shift_map, ch)) >0 )) {
+          if (((keynum = scantable(config.keytable->key_map, ch)) >0) ||
+              ((keynum = scantable(config.keytable->shift_map, ch)) >0 )) {
             if (keynum == 50) {
               *(out++) = 0x0d1c;
               *(out++) = 0x0d1c | 0x80;
@@ -77,8 +77,8 @@ static unsigned char *recode(unsigned int *out, unsigned char *in)
         }
         case 'A': { /* example:  \Az  == <Alt>z */
           ch=*(in++);
-          if (((keynum = scantable(config.key_map, ch)) >0) ||
-              ((keynum = scantable(config.shift_map, ch)) >0 )) {
+          if (((keynum = scantable(config.keytable->key_map, ch)) >0) ||
+              ((keynum = scantable(config.keytable->shift_map, ch)) >0 )) {
             *(out++) = 0x38;           /* Alt pressed */
             *(out++) = keynum;         /* key pressed */
             *(out++) = keynum | 0x80;  /* key released */
@@ -119,14 +119,14 @@ static unsigned char *recode(unsigned int *out, unsigned char *in)
       }
     }
     default: {
-      if ((keynum = scantable(config.key_map, ch)) >0 ) {
+      if ((keynum = scantable(config.keytable->key_map, ch)) >0 ) {
         keynum |= ch <<8;
         *(out++) = keynum;         /* key pressed */
         *(out++) = keynum | 0x80;  /* key released */
         *(out++) = 0;
         return in;
       }
-      if ((keynum = scantable(config.shift_map, ch)) >0 ) {
+      if ((keynum = scantable(config.keytable->shift_map, ch)) >0 ) {
         keynum |= ch <<8;
         *(out++) = 0x2a;           /* shift pressed */
         *(out++) = keynum;         /* key pressed */
@@ -135,14 +135,14 @@ static unsigned char *recode(unsigned int *out, unsigned char *in)
         *(out++) = 0;
         return in;
       }
-      if ((keynum = scantable(config.alt_map, ch)) >0 ) {
+      if ((keynum = scantable(config.keytable->alt_map, ch)) >0 ) {
         keynum |= ch <<8;
-	if (config.keyboard != KEYB_US)
+	if (config.keytable->flags & KT_USES_ALTMAP)
 		*(out++) = 0xe00038; /* right ALT pressed */
         else	*(out++) = 0x38;   /* Alt pressed */
         *(out++) = keynum;         /* key pressed */
         *(out++) = keynum | 0x80;  /* key released */
-	if (config.keyboard != KEYB_US)
+	if (config.keytable->flags & KT_USES_ALTMAP)
 		*(out++) = 0xe000b8; /* right ALT released */
         else	*(out++) = 0xb8;   /* Alt released */
         *(out++) = 0;

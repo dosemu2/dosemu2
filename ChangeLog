@@ -1,3 +1,41 @@
+97/12/04 ver. 0.67.16.3 unofficial pre-release
+	From Hans
+	- further working on keyboard cleanup. In principal no functionality
+	  change was done (except keytable loading), the keyboard code behaves
+	  exactly as before.
+	  - moved all key map related config.xxx stuff into one pointer
+	    config.keytable, which is a struct, that holds all needed
+	    information. The keymaps.c has a list those struct for
+	    keytable aivalable (keytable_list[]), such that this list is
+	    searched in parser.c to set the appropriate config.keytable.
+	  - this new struct also contains 'flags' for special handling
+	    currently it only hold KT_USES_ALTMAP, which know is used to
+	    determin wether the R_ALT handling should be done
+	    (former check against KEYB_US)
+	  - cleaned up the various DEAD_* references, know all is defined
+	    in keymaps.h
+	  - removed double definitions of KEYB_* in emu.h, keymaps.h
+	  - introduced a new kbd layout: 'keyb-user', this one is identical
+	    to 'us', but is intended to hold complete user defined keymaps.
+	    Its know the default, when nothing is specified, so the US table
+	    won't be overwritten, when doing a keytable load.
+	  - new dosemu.conf statement: 'keytable', for more see README.txt
+	    It makes it possible to either change an existing key map
+	    or to replace (load) it completely. It is also possible to
+	    dump all keytables to a (asscii) file, the format is suitable
+	    fo direct include into dosemu.conf.
+	  - deleted 
+	  - discrete "dumped" keytables now in ./etc/keymap, which will
+	    be copied on install to /var/lib/dosemu/keymap. Here the user
+	    may change them to fit his/her needs and load them such as
+	    -I 'include "keymap/de-latin1"'
+	  - some cleanup in the lexer.l rules. To avoid clashes between
+	    the special characters "|{}=," and the _not_ quoted strings.
+	    Now you need to quote a string, when it contains those
+	    characters, e.g.  file,xxx   or  file+xxx.c  has to become
+            "file,xxx" and "file+xxx.c" respectively.
+	  - the keymap 'no' now is named 'keyb-no' to avoid name clash with
+	    the boolean 'no'. (in lexer.l)
 97/11/30 ver. 0.67.16.2 unofficial pre-release
 	From Eric
 	- back ported keycodes stuff to new kbd

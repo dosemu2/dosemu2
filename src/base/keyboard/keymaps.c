@@ -15,9 +15,6 @@
  */
 
 
-  #define _DEAD_ACUTE_ DEAD_ACUTE
-  #define _DEAD_GRAVE_ DEAD_GRAVE
-
 CONST unsigned char key_map_finnish[] =
 {
   0, 27, '1', '2', '3', '4', '5', '6',
@@ -279,7 +276,7 @@ CONST unsigned char alt_map_de[] =
 CONST unsigned char key_map_de_latin1[] =
 {
   0, 27, '1', '2', '3', '4', '5', '6',
-  '7', '8', '9', '0', 225, _DEAD_ACUTE_, 127, 9,
+  '7', '8', '9', '0', 225, DEAD_ACUTE, 127, 9,
   'q', 'w', 'e', 'r', 't', 'z', 'u', 'i',
   'o', 'p', 129, '+', 13, 0, 'a', 's',
   'd', 'f', 'g', 'h', 'j', 'k', 'l', 148,
@@ -295,7 +292,7 @@ CONST unsigned char key_map_de_latin1[] =
 CONST unsigned char shift_map_de_latin1[] =
 {
   0, 27, '!', '"', 21, '$', '%', '&',
-  '/', '(', ')', '=', '?', _DEAD_GRAVE_, 127, 9,
+  '/', '(', ')', '=', '?', DEAD_GRAVE, 127, 9,
   'Q', 'W', 'E', 'R', 'T', 'Z', 'U', 'I',
   'O', 'P', 154, '*', 13, 0, 'A', 'S',
   'D', 'F', 'G', 'H', 'J', 'K', 'L', 153,
@@ -1155,7 +1152,7 @@ CONST unsigned char key_map_hu[] =
 CONST unsigned char shift_map_hu[] =
 {
   0, 27, '\'', '"', '+', '!', '%', '/',
-  '=', '(', ')', 153, 154, '\'O', 127, 9,
+  '=', '(', ')', 153, 154, '\'', 127, 9,
   'Q', 'W', 'E', 'R', 'T', 'Z', 'U', 'I',
   'O', 'P', 138, 233, 13, 0, 'A', 'S',
   'D', 'F', 'G', 'H', 'J', 'K', 'L', 144,
@@ -1280,6 +1277,59 @@ CONST unsigned char alt_map_hu_latin2[] =
   0, 0, 0, 0, 0, 0, 0, 0,
   0};
 
+/* this prefereable is overloaded via '-I keytable keyb-user'
+ * and is preset with an US keyboard layout
+ */
+
+CONST unsigned char key_map_user[] =
+{
+  0, 27, '1', '2', '3', '4', '5', '6',
+  '7', '8', '9', '0', '-', '=', 127, 9,
+  'q', 'w', 'e', 'r', 't', 'y', 'u', 'i',
+  'o', 'p', '[', ']', 13, 0, 'a', 's',
+  'd', 'f', 'g', 'h', 'j', 'k', 'l', ';',
+  '\'', '`', 0, '\\', 'z', 'x', 'c', 'v',
+  'b', 'n', 'm', ',', '.', '/', 0, '*',
+  0, 32, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, '-', 0, 0, 0, '+', 0,
+  0, 0, 0, 0, 0, 0, '<', 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0};
+
+CONST unsigned char shift_map_user[] =
+{
+  0, 27, '!', '@', '#', '$', '%', '^',
+  '&', '*', '(', ')', '_', '+', 127, 9,
+  'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I',
+  'O', 'P', '{', '}', 13, 0, 'A', 'S',
+  'D', 'F', 'G', 'H', 'J', 'K', 'L', ':',
+  '"', '~', '0', '|', 'Z', 'X', 'C', 'V',
+  'B', 'N', 'M', '<', '>', '?', 0, '*',
+  0, 32, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, '-', 0, 0, 0, '+', 0,
+  0, 0, 0, 0, 0, 0, '>', 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0};
+
+CONST unsigned char alt_map_user[] =
+{
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0};
+
+
 CONST unsigned char num_table_dot[]   = "789-456+1230.";
 CONST unsigned char num_table_comma[] = "789-456+1230,";
 
@@ -1294,9 +1344,7 @@ CONST unsigned char num_table_comma[] = "789-456+1230,";
  * DANG_END_REMARK
  */
 
-CONST unsigned char dead_key_table[] = {DEAD_GRAVE,DEAD_ACUTE,DEAD_CIRCUMFLEX,
-DEAD_TILDE,DEAD_BREVE,DEAD_ABOVEDOT,DEAD_DIAERESIS,DEAD_ABOVERING,
-DEAD_DOUBLEACUTE,DEAD_CEDILLA,DEAD_IOTA, 0};
+CONST unsigned char dead_key_table[] = {FULL_DEADKEY_LIST, 0};
 
 /* DANG_BEGIN_REMARK
  *
@@ -1342,3 +1390,114 @@ CONST struct dos_dead_key dos850_dead_map[] = {
         {0, 0, 0}
 };
 
+struct keytable_entry keytable_list[] = {
+  {"finnish", KEYB_FINNISH, KT_USES_ALTMAP, sizeof(key_map_finnish), sizeof(num_table_comma),
+    key_map_finnish, shift_map_finnish, alt_map_finnish,
+    num_table_comma, dead_key_table,
+    dos850_dead_map},
+  {"finnish-latin1", KEYB_FINNISH_LATIN1, KT_USES_ALTMAP, sizeof(key_map_finnish_latin1), sizeof(num_table_comma),
+    key_map_finnish_latin1, shift_map_finnish_latin1, alt_map_finnish_latin1,
+    num_table_comma, dead_key_table,
+    dos850_dead_map},
+  {"us", KEYB_US, 0, sizeof(key_map_us), sizeof(num_table_comma),
+    key_map_us, shift_map_us, alt_map_us,
+    num_table_dot, dead_key_table,
+    dos850_dead_map},
+  {"uk", KEYB_UK, KT_USES_ALTMAP, sizeof(key_map_uk), sizeof(num_table_comma),
+    key_map_uk, shift_map_uk, alt_map_uk,
+    num_table_dot, dead_key_table,
+    dos850_dead_map},
+  {"de", KEYB_DE, KT_USES_ALTMAP, sizeof(key_map_de), sizeof(num_table_comma),
+    key_map_de, shift_map_de, alt_map_de,
+    num_table_comma, dead_key_table,
+    dos850_dead_map},
+  {"de-latin1", KEYB_DE_LATIN1, KT_USES_ALTMAP, sizeof(key_map_de_latin1), sizeof(num_table_comma),
+    key_map_de_latin1, shift_map_de_latin1, alt_map_de_latin1,
+    num_table_comma, dead_key_table,
+    dos850_dead_map},
+  {"fr", KEYB_FR, KT_USES_ALTMAP, sizeof(key_map_fr), sizeof(num_table_comma),
+    key_map_fr, shift_map_fr, alt_map_fr,
+    num_table_dot, dead_key_table,
+    dos850_dead_map},
+  {"fr-latin1", KEYB_FR_LATIN1, KT_USES_ALTMAP, sizeof(key_map_fr_latin1), sizeof(num_table_comma),
+    key_map_fr_latin1, shift_map_fr_latin1, alt_map_fr_latin1,
+    num_table_dot, dead_key_table,
+    dos850_dead_map},
+  {"dk", KEYB_DK, KT_USES_ALTMAP, sizeof(key_map_dk), sizeof(num_table_comma),
+    key_map_dk, shift_map_dk, alt_map_dk,
+    num_table_comma, dead_key_table,
+    dos850_dead_map},
+  {"dk-latin1", KEYB_DK_LATIN1, KT_USES_ALTMAP, sizeof(key_map_dk_latin1), sizeof(num_table_comma),
+    key_map_dk_latin1, shift_map_dk_latin1, alt_map_dk_latin1,
+    num_table_comma, dead_key_table,
+    dos850_dead_map},
+  {"dvorak", KEYB_DVORAK, KT_USES_ALTMAP, sizeof(key_map_dvorak), sizeof(num_table_comma),
+    key_map_dvorak, shift_map_dvorak, alt_map_dvorak,
+    num_table_comma, dead_key_table,
+    dos850_dead_map},
+  {"sg", KEYB_SG, KT_USES_ALTMAP, sizeof(key_map_sg), sizeof(num_table_comma),
+    key_map_sg, shift_map_sg, alt_map_sg,
+    num_table_comma, dead_key_table,
+    dos850_dead_map},
+  {"sg-latin1", KEYB_SG_LATIN1, KT_USES_ALTMAP, sizeof(key_map_sg_latin1), sizeof(num_table_comma),
+    key_map_sg_latin1, shift_map_sg_latin1, alt_map_sg_latin1,
+    num_table_comma, dead_key_table,
+    dos850_dead_map},
+  {"keyb-no", KEYB_NO, KT_USES_ALTMAP, sizeof(key_map_no), sizeof(num_table_comma),
+    key_map_no, shift_map_no, alt_map_no,
+    num_table_comma, dead_key_table,
+    dos850_dead_map},
+  {"no-latin1", KEYB_NO_LATIN1, KT_USES_ALTMAP, sizeof(key_map_no_latin1), sizeof(num_table_comma),
+    key_map_no_latin1, shift_map_no_latin1, alt_map_no_latin1,
+    num_table_comma, dead_key_table,
+    dos850_dead_map},
+  {"sf", KEYB_SF, KT_USES_ALTMAP, sizeof(key_map_sf), sizeof(num_table_comma),
+    key_map_sf, shift_map_sf, alt_map_sf,
+    num_table_comma, dead_key_table,
+    dos850_dead_map},
+  {"sf-latin1", KEYB_SF_LATIN1, KT_USES_ALTMAP, sizeof(key_map_sf_latin1), sizeof(num_table_comma),
+    key_map_sf_latin1, shift_map_sf_latin1, alt_map_sf_latin1,
+    num_table_comma, dead_key_table,
+    dos850_dead_map},
+  {"es", KEYB_ES, KT_USES_ALTMAP, sizeof(key_map_es), sizeof(num_table_comma),
+    key_map_es, shift_map_es, alt_map_es,
+    num_table_comma, dead_key_table,
+    dos850_dead_map},
+  {"es-latin1", KEYB_ES_LATIN1, KT_USES_ALTMAP, sizeof(key_map_es_latin1), sizeof(num_table_comma),
+    key_map_es_latin1, shift_map_es_latin1, alt_map_es_latin1,
+    num_table_comma, dead_key_table,
+    dos850_dead_map},
+  {"be", KEYB_BE, KT_USES_ALTMAP, sizeof(key_map_be), sizeof(num_table_comma),
+    key_map_be, shift_map_be, alt_map_be,
+    num_table_dot, dead_key_table,
+    dos850_dead_map},
+  {"po", KEYB_PO, KT_USES_ALTMAP, sizeof(key_map_po), sizeof(num_table_comma),
+    key_map_po, shift_map_po, alt_map_po,
+    num_table_dot, dead_key_table,
+    dos850_dead_map},
+  {"it", KEYB_IT, KT_USES_ALTMAP, sizeof(key_map_it), sizeof(num_table_comma),
+    key_map_it, shift_map_it, alt_map_it,
+    num_table_dot, dead_key_table,
+    dos850_dead_map},
+  {"sw", KEYB_SW, KT_USES_ALTMAP, sizeof(key_map_sw), sizeof(num_table_comma),
+    key_map_sw, shift_map_sw, alt_map_sw,
+    num_table_dot, dead_key_table,
+    dos850_dead_map},
+  {"hu", KEYB_HU, KT_USES_ALTMAP, sizeof(key_map_hu), sizeof(num_table_comma),
+    key_map_hu, shift_map_hu, alt_map_hu,
+    num_table_comma, dead_key_table,
+    dos850_dead_map},
+  {"hu-cwi", KEYB_HU_CWI, KT_USES_ALTMAP, sizeof(key_map_hu_cwi), sizeof(num_table_comma),
+    key_map_hu_cwi, shift_map_hu_cwi, alt_map_hu_cwi,
+    num_table_comma, dead_key_table,
+    dos850_dead_map},
+  {"hu-latin2", KEYB_HU_LATIN2, KT_USES_ALTMAP, sizeof(key_map_hu_latin2), sizeof(num_table_comma),
+    key_map_hu_latin2, shift_map_hu_latin2, alt_map_hu_latin2,
+    num_table_comma, dead_key_table,
+    dos850_dead_map},
+  {"keyb-user", KEYB_USER, 0, sizeof(key_map_user), sizeof(num_table_comma),
+    key_map_user, shift_map_user, alt_map_user,
+    num_table_dot, dead_key_table,
+    dos850_dead_map},
+  {0}
+};

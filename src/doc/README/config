@@ -377,20 +377,134 @@ then /dev/cdrom you may define
 
 <sect2>Keyboard settings
 <p>
-With the "layout" keyword, you can specify your country's keyboard
-layout.  The following layouts are implemented:
+For defining the keyboard layouts you are using there is the "keyboard"
+statement such as
+
+<tscreen><verb>
+  keyboard {  layout us  .... }
+
+or
+
+  keyboard {  layout us {alt 66=230} ... }
+</verb></tscreen>
+
+The later modifies the US keyboard layout such that it will allow you to
+type a character 230 (micro) with right ALT-M.
+
+The same can be done via a "keytable" statement such as
+
+<tscreen><verb>
+  keytable keyb-user {alt 66=230}
+</verb></tscreen>
+
+The "keyb-user" is preset with an US layout and is intended to be used
+as "buffer" for user defined keyboard tables.
+
+The format of the "{}" modification list (either in the "keyboard" or the
+"keytable" statement) is as follows:
+
+<tscreen><verb>
+  [submap] key_number = value [,value [,...]]
+</verb></tscreen>
+
+Given we call the above  a "definition" then it may be repeated 
+(blank separated) such as
+
+<tscreen><verb>
+  definition [definition [...]]
+</verb></tscreen>
+
+"key_number" is the physical number, that the keybord send to the machine
+when you hit the key, its the index into the keytable. "value" may be
+any integer between 0...255, a string, or one of the following keywords
+for "dead keys" (NOTE: deadkeys have a value below 32, so be carefull).
+
+<tscreen><verb>
+  dgrave        (dead grave)
+  dacute        (dead acute)
+  dcircum       (dead circumflex)
+  dtilde        (dead tilde)
+  dbreve        (dead breve)
+  daboved       (dead above dot)
+  ddiares       (dead diaresis)
+  dabover       (dead above ring)
+  ddacute       (dead double acute)
+  dcedilla      (dead cedilla)
+</verb></tscreen>
+
+After a "key_number =" there may be any number of comma separated values,
+which will go into the table starting with "key_number", hence all below
+examples are equivalent
+
+<tscreen><verb>
+  { 2="1" 3="2" }
+  { 2="1","2" }
+  { 2="12" }
+  { 2=0x31,50 }
+</verb></tscreen>
+
+"submap" tells in about something about the shift state for which the
+definition is to use or wether we mean the numpad:
+
+<tscreen><verb>
+  shift  16="Q"      (means key 16 + SHIFT pressed)
+  alt    16="@"      (means key 16 + right ALT pressed (so called AltGr))
+  numpad 12=","      (means numpad index 12)
+</verb></tscreen>
+
+You may even replace the whole table with a comma/blank separated list of
+values. In order to make it easy for you, you may use dosemu to create
+such a list. The following statement will dump all current key tables out
+into a file "kbdtables", which is directly suitable for inclusion into
+dosemu.conf (hence it follows the syntax):
+
+<tscreen><verb>
+  keytable dump "kbdtables"
+</verb></tscreen>
+
+However, don't put this not into your dosemu.conf, because dosemu will
+exit after generating the tablefile. Instead use the -I commandline option
+such as
+
+<tscreen><verb>
+  $ dos -I 'keytable dump "kbdtables"'
+</verb></tscreen>
+
+After installation of dosemu ("make install") you'll find the current dosemu
+keytables in /var/lib/dosemu/keymap (and in ./etc/keymap, where they are
+copied from). These tables are generated via "keytable dump" and split into
+discrete files, such that you may modify them to fit your needs.
+You may load them such as
+
+<tscreen><verb>
+  $ dos -I 'include "keymap/de-latin1"'
+</verb></tscreen>
+
+(when an include file is starting with "keymap/" it is taken out of
+/var/lib/dosemu). When there was a keytable previously defined (e.g.
+in /etc/dosemu.conf), they new one will be take anyway and a warning will
+be printed on stderr.
+
+
+Anyway, you are not forced to modify or load a keytable, and
+with the "layout" keyword from the "keyboard" statement, you can specify
+your country's keyboard layout.
+The following builtin layouts are implemented:
 
 <tscreen><verb>
     finnish           us           dvorak       sf
     finnish-latin1    uk           sg           sf-latin1
     de                dk           sg-latin1    es
     de-latin1         dk-latin1    fr           es-latin1
-    be                no           fr-latin1    portuguese
-    it                sw
-    hu                hu-cwi       hu-latin2
+    be                keyb-no      fr-latin1    po
+    it                no-latin1    sw
+    hu                hu-cwi       hu-latin2    keyb-user
 </verb></tscreen>
 
-The us-layout is selected by default if the "layout" keyword is omitted.
+
+The keyb-user is selected by default if the "layout" keyword is omitted,
+and this in fact is identical to us-layout, as long as it got not
+overloaded by the "keytable" statement (see above).
 
 The keyword "keybint" allows more accurate of keyboard interrupts,
 It is a bit unstable, but makes keyboard work better when set to "on".

@@ -29,13 +29,14 @@ all:  lib
 install:
 
 parser.c : parser.y
-	$(YACC) -do $@  $<
+	$(YACC) -v -do $@  $<
 
 lex.yy.c : lexer.l parser.y
 	$(LEX) -i $< 
 
 clean::
-	rm -f  parser.[ch] lex.yy.c
+	rm -f  parser.[ch] parser.output lex.yy.c
+
 # how do we generate dependencies?
 
 

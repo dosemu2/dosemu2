@@ -8,6 +8,9 @@
 
 #include "emu.h"
 
+#define KEYMAP_LOAD_BASE_PATH "/var/lib/dosemu/"
+#define KEYMAP_DIR "keymap/"
+
 /* Keyboard-Layout for the alphanumeric part of the keyboard */
 
 #define KEYB_FINNISH           0
@@ -24,6 +27,7 @@
 #define KEYB_SG               11
 #define KEYB_SG_LATIN1        12
 #define KEYB_NO               13
+#define KEYB_NO_LATIN1        14
 #define KEYB_SF               15
 #define KEYB_SF_LATIN1        16
 #define KEYB_ES               17
@@ -32,121 +36,18 @@
 #define KEYB_PO               20
 #define KEYB_IT               21
 #define KEYB_SW		      22
+#define KEYB_HU		      23
+#define KEYB_HU_CWI	      24
+#define KEYB_HU_LATIN2	      25
+#define KEYB_USER	      26
+#define NUM_KEYB	      27
 
 #define CONST
 
-extern unsigned char key_map_finnish[];
-extern unsigned char shift_map_finnish[];
-extern unsigned char alt_map_finnish[];
-
-extern unsigned char key_map_finnish_latin1[];
-extern unsigned char shift_map_finnish_latin1[];
-extern unsigned char alt_map_finnish_latin1[];
 
 extern unsigned char key_map_us[];
 extern unsigned char shift_map_us[];
 extern unsigned char alt_map_us[];
-
-extern unsigned char key_map_uk[];
-extern unsigned char shift_map_uk[];
-extern unsigned char alt_map_uk[];
-
-extern unsigned char key_map_de[];
-extern unsigned char shift_map_de[];
-extern unsigned char alt_map_de[];
-
-extern unsigned char key_map_de_latin1[];
-extern unsigned char shift_map_de_latin1[];
-extern unsigned char alt_map_de_latin1[];
-
-extern unsigned char key_map_fr[];
-extern unsigned char shift_map_fr[];
-extern unsigned char alt_map_fr[];
-
-extern unsigned char key_map_fr_latin1[];
-extern unsigned char shift_map_fr_latin1[];
-extern unsigned char alt_map_fr_latin1[];
-
-extern unsigned char key_map_dk[];
-extern unsigned char shift_map_dk[];
-extern unsigned char alt_map_dk[];
-
-extern unsigned char key_map_dk_latin1[];
-extern unsigned char shift_map_dk_latin1[];
-extern unsigned char alt_map_dk_latin1[];
-
-extern unsigned char key_map_dvorak[];
-extern unsigned char shift_map_dvorak[];
-extern unsigned char alt_map_dvorak[];
-
-extern unsigned char key_map_sg[];
-extern unsigned char shift_map_sg[];
-extern unsigned char alt_map_sg[];
-
-extern unsigned char key_map_sg_latin1[];
-extern unsigned char shift_map_sg_latin1[];
-extern unsigned char alt_map_sg_latin1[];
-
-extern unsigned char key_map_no[];
-extern unsigned char shift_map_no[];
-extern unsigned char alt_map_no[];
-
-extern unsigned char key_map_no_latin1[];
-extern unsigned char shift_map_no_latin1[];
-extern unsigned char alt_map_no_latin1[];
-
-extern unsigned char key_map_sf[];
-extern unsigned char shift_map_sf[];
-extern unsigned char alt_map_sf[];
-
-extern unsigned char key_map_sf_latin1[];
-extern unsigned char shift_map_sf_latin1[];
-extern unsigned char alt_map_sf_latin1[];
-
-extern unsigned char key_map_es[]; 
-extern unsigned char shift_map_es[]; 
-extern unsigned char alt_map_es[]; 
-
-extern unsigned char key_map_es_latin1[]; 
-extern unsigned char shift_map_es_latin1[]; 
-extern unsigned char alt_map_es_latin1[]; 
-
-extern unsigned char key_map_be[];
-extern unsigned char shift_map_be[];
-extern unsigned char alt_map_be[];
-
-extern unsigned char key_map_po[];
-extern unsigned char shift_map_po[];
-extern unsigned char alt_map_po[];
-
-extern unsigned char key_map_it[];
-extern unsigned char shift_map_it[];
-extern unsigned char alt_map_it[];
-
-extern unsigned char key_map_sw[];
-extern unsigned char shift_map_sw[];
-extern unsigned char alt_map_sw[];
-
-extern unsigned char key_map_hu[];
-extern unsigned char shift_map_hu[];
-extern unsigned char alt_map_hu[];
-
-extern unsigned char key_map_hu_cwi[];
-extern unsigned char shift_map_hu_cwi[];
-extern unsigned char alt_map_hu_cwi[];
-
-extern unsigned char key_map_hu_latin2[];
-extern unsigned char shift_map_hu_latin2[];
-extern unsigned char alt_map_hu_latin2[];
-
-/* Keyboard-Layout for the numeric part of the keyboard */
-
-extern unsigned char num_table_comma[];
-extern unsigned char num_table_dot[];
-
-extern struct dos_dead_key dos850_dead_map[];
-extern unsigned char dead_key_table[];
- 
 
 
 /*  dead keys for accents */
@@ -162,11 +63,28 @@ extern unsigned char dead_key_table[];
 #define DEAD_CEDILLA       11
 #define DEAD_IOTA          12
 
+#define FULL_DEADKEY_LIST  DEAD_GRAVE, DEAD_ACUTE, DEAD_CIRCUMFLEX, \
+  DEAD_TILDE, DEAD_BREVE, DEAD_ABOVEDOT, DEAD_DIAERESIS, DEAD_ABOVERING, \
+  DEAD_DOUBLEACUTE, DEAD_CEDILLA, DEAD_IOTA
+
 struct dos_dead_key {
   unsigned char d_key;
   unsigned char in_key;
   unsigned char out_key;
 };
 
+struct keytable_entry {
+  char *name;
+  int keyboard;
+  int flags;
+#define KT_USES_ALTMAP     1
+  int sizemap;
+  int sizepad;
+  unsigned char *key_map, *shift_map, *alt_map, *num_table;
+  unsigned char *dead_key_table;
+  struct dos_dead_key *dead_map;
+};
+
+extern struct keytable_entry keytable_list[];
 
 #endif /* _EMU_KEYMAPS_H */

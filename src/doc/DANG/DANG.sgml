@@ -3,7 +3,7 @@
 
 <title> The DOSEMU Alterer Novices Guide
 <author> Author: Alistair MacDonald, <tt/alistair\@slitesys.demon.co.uk/
-<date> version dosemu-0.67.14.2
+<date> version dosemu-0.67.16.3
 <abstract>
 This Document is the DOSEMU Alterer Novices Guide. It is known as the DANG.
 </abstract>
@@ -1575,23 +1575,6 @@ All of the Keyboard handling code is in the &dquot;keyboard&dquot; subdirectory.
 Latest addition is SLANG.
 
 
-<sect1>base/keyboard/Xkeyb.c Information
-
-<p>
- This file contains X keyboard tables and handling routines
- for dosemu. 
-<p><verb>
-   exports:  X_process_key(XKeyEvent *)
-   exports:  X_process_char(char)
-   uses:     put_key(ushort scan, short charcode)
-    
-</verb>
-   
- Part of this code is taken from pcemu written by David Hedley 
- (hedley@cs.bris.ac.uk) and is
- 
-   Copyright (C) 1994 University of Bristol, England
- 
 <sect1>base/keyboard/keymaps.c Information
 
 <p>
@@ -1618,10 +1601,7 @@ Latest addition is SLANG.
  Jon Tombs jon@gtex02.us.es
  
  
-<sect1>base/keyboard/slang-termio.c Information
-
-<p>
-<sect1>base/keyboard/n_serv_xlat.c Information
+<sect1>base/keyboard/serv_xlat.c Information
 
 <p>
  This module contains the the translation part of the keyboard 'server',
@@ -1643,10 +1623,10 @@ Latest addition is SLANG.
 <P>Maintainers:
 <p>
 Rainer Zimmermann  <htmlurl url="mailto:zimmerm@mathematik.uni-marburg.de" name="&lt;zimmerm@mathematik.uni-marburg.de&gt;">&nl;
-<sect1>Functions in base/keyboard/n_serv_xlat.c
+<sect1>Functions in base/keyboard/serv_xlat.c
 
 <p>
-These are the functions defined in base/keyboard/n_serv_xlat.c.
+These are the functions defined in base/keyboard/serv_xlat.c.
 
 <sect2>putrawkey
 
@@ -1707,7 +1687,7 @@ These are the functions defined in base/keyboard/n_serv_xlat.c.
  
 
 
-<sect1>base/keyboard/n_serv_backend.c Information
+<sect1>base/keyboard/serv_backend.c Information
 
 <p>
  This module handles interfacing to the DOS side both on int9/port60h level
@@ -1720,19 +1700,19 @@ These are the functions defined in base/keyboard/n_serv_xlat.c.
 <P>Maintainers:
 <p>
 Rainer Zimmermann  <htmlurl url="mailto:zimmerm@mathematik.uni-marburg.de" name="&lt;zimmerm@mathematik.uni-marburg.de&gt;">&nl;
-<sect1>base/keyboard/n_serv_8042.c Information
+<sect1>base/keyboard/serv_8042.c Information
 
 <p>
  This code provides truly rudimentary 8042 controller emulation.
  Not having any documentation on the 8042 makes it hard to improve. :)
 
-<sect1>base/keyboard/n_keyb_raw.c Information
+<sect1>base/keyboard/keyb_raw.c Information
 
 <p>
-<sect1>Functions in base/keyboard/n_keyb_raw.c
+<sect1>Functions in base/keyboard/keyb_raw.c
 
 <p>
-These are the functions defined in base/keyboard/n_keyb_raw.c.
+These are the functions defined in base/keyboard/keyb_raw.c.
 
 <sect2>raw_keyboard_init
 
@@ -1744,13 +1724,13 @@ These are the functions defined in base/keyboard/n_keyb_raw.c.
  
 
 
-<sect1>base/keyboard/n_keyb_slang.c Information
+<sect1>base/keyboard/keyb_slang.c Information
 
 <p>
-<sect1>Functions in base/keyboard/n_keyb_slang.c
+<sect1>Functions in base/keyboard/keyb_slang.c
 
 <p>
-These are the functions defined in base/keyboard/n_keyb_slang.c.
+These are the functions defined in base/keyboard/keyb_slang.c.
 
 <sect2>slang_keyb_init()
 
@@ -3400,7 +3380,7 @@ These are the functions defined in base/dev/pic/pic.c.
 
  Callers:
  base/misc/ioctl.c
- base/keyboard/n_serv_8042.c
+ base/keyboard/serv_8042.c
  base/keyboard/keyboard-server.c
  base/serial/ser_irq.c
  dosext/sound/sound.c

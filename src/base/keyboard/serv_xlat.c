@@ -221,7 +221,7 @@ static Bit16u make_bios_code(Boolean make, t_keysym key, uchar ascii) {
             if (key&0xff00)  {
                bios_scan=0;
                ascii=0;
-            } else if (config.keyboard==KEYB_US || (shiftstate&L_ALT)) {
+            } else if (!(config.keytable->flags & KT_USES_ALTMAP) || (shiftstate&L_ALT)) {
                bios_scan=bios_alt_scancodes[key];
                ascii=0;
             }
@@ -435,7 +435,7 @@ static uchar translate(t_keysym key, Boolean *is_accent) {
       if (((!!(shiftstate & NUM_LOCK)) ^ (!!(shiftstate & SHIFT))) ||
           (shiftstate&ALT) || (key==KEY_PAD_PLUS) || (key==KEY_PAD_MINUS) )
       {
-        ch = config.num_table[key-0x47];
+        ch = config.keytable->num_table[key-0x47];
       }
    }
    else {
@@ -446,14 +446,14 @@ static uchar translate(t_keysym key, Boolean *is_accent) {
           * characters are generated. On US keyboards, translation is done 
           * with both ALT keys.
           */
-         if (config.keyboard == KEYB_US || (shiftstate & R_ALT))
-            ch = config.alt_map[key];
+         if (!(config.keytable->flags & KT_USES_ALTMAP) || (shiftstate & R_ALT))
+            ch = config.keytable->alt_map[key];
       }
       else if (shiftstate & SHIFT) {
-         ch = config.shift_map[key];
+         ch = config.keytable->shift_map[key];
       }
       else {   /* unshifted */
-         ch = config.key_map[key];
+         ch = config.keytable->key_map[key];
       }
    }
 
@@ -490,8 +490,8 @@ static uchar translate(t_keysym key, Boolean *is_accent) {
     */
    if (!is_ctrl) {
       /* check for a dead key */
-      for (i = 0; dead_key_table[i] != 0; i++) {
-        if (ch == dead_key_table[i]) {
+      for (i = 0; config.keytable->dead_key_table[i] != 0; i++) {
+        if (ch == config.keytable->dead_key_table[i]) {
           if (accent != ch) {
              accent = ch;
              k_printf("KBD: got accent %c\n",accent);
@@ -505,14 +505,14 @@ static uchar translate(t_keysym key, Boolean *is_accent) {
 
       if (ch==' ') ch=accent;
 
-      for (i = 0; dos850_dead_map[i].d_key != 0; i++) {
-         if (accent == dos850_dead_map[i].d_key &&
-             dos850_dead_map[i].in_key == ch) 
+      for (i = 0; config.keytable->dead_map[i].d_key != 0; i++) {
+         if (accent == config.keytable->dead_map[i].d_key &&
+             config.keytable->dead_map[i].in_key == ch) 
          {
-            ch = dos850_dead_map[i].out_key;
+            ch = config.keytable->dead_map[i].out_key;
             k_printf("KBD: accented key: %c + %c = %c\n",
                      accent,
-                     dos850_dead_map[i].in_key,
+                     config.keytable->dead_map[i].in_key,
                      ch);
 
             *is_accent=TRUE;
@@ -650,11 +650,11 @@ void putrawkey(t_rawkeycode code) {
       ascii = (make && !is_shift) ? translate(key, &is_accent) : (is_accent=0);
 
       /* quick hack: translate ALT+letter keys */
-      if (   config.keyboard != KEYB_US && (shiftstate & ALT)
-          && config.key_map[key] >= 'a' && config.key_map[key] <= 'z')
+      if (   (config.keytable->flags & KT_USES_ALTMAP) && (shiftstate & ALT)
+          && config.keytable->key_map[key] >= 'a' && config.keytable->key_map[key] <= 'z')
       {
         extern const Bit8u ascii_keys[];
-        key = ascii_keys[config.key_map[key] - 0x20];
+        key = ascii_keys[config.keytable->key_map[key] - 0x20];
       }
 
 #if 1     

@@ -332,6 +332,10 @@ install:
 	  install -d $(INSTROOT)/usr/bin; \
 	fi
 	@install -d $(INSTROOT)/var/lib/dosemu
+	@if [ ! -d $(INSTROOT)/var/lib/dosemu/keymap ]; then \
+	  install -d $(INSTROOT)/var/lib/dosemu/keymap; \
+	  install -m 0744 ../etc/keymap/* $(INSTROOT)/var/lib/dosemu/keymap; \
+	fi
 	@install -d $(INSTROOT)/var/run
 	@if [ -f $(INSTROOT)/lib/libemu ]; then rm -f $(INSTROOT)/lib/libemu ; fi
 	@install -c -o root -m 04755 $(BINPATH)/bin/dos $(INSTROOT)/usr/bin
@@ -383,8 +387,8 @@ ifdef X_SUPPORT
 	 echo "		xmodmap -e \"key 108 = 0xff0d\"  [Return = 0xff0d]"; \
 	 echo ""
 endif
-	@echo "  - Try ./commands/emumouse.com -r if your INTERNAL mouse won't work"; \
-	 echo "  - Try ./commands/unix.com to run a Unix command under DOSEMU"; \
+	@echo "  - Try ./commands/emumouse.exe -r if your INTERNAL mouse won't work"; \
+	 echo "  - Try ./commands/unix.exe to run a Unix command under DOSEMU"; \
 	 echo ""
 ifdef REQUIRES_VM86PLUS
 	@echo "  - You compiled with VM86PLUS support, make sure you have booted"; \

@@ -1,6 +1,6 @@
   The DOSEMU Alterer Novices Guide
   Author: Alistair MacDonald, alistair@slitesys.demon.co.uk
-  version dosemu-0.67.14.2
+  version dosemu-0.67.16.3
 
   This Document is the DOSEMU Alterer Novices Guide. It is known as the
   DANG.
@@ -286,39 +286,35 @@
 
   6.      The Keyboard group of Modules
 
-  6.1.    base/keyboard/Xkeyb.c Information
+  6.1.    base/keyboard/keymaps.c Information
 
-  6.2.    base/keyboard/keymaps.c Information
+  6.2.    Remarks in base/keyboard/keymaps.c
 
-  6.3.    Remarks in base/keyboard/keymaps.c
+  6.3.    base/keyboard/serv_xlat.c Information
 
-  6.4.    base/keyboard/slang-termio.c Information
+  6.4.    Functions in base/keyboard/serv_xlat.c
 
-  6.5.    base/keyboard/n_serv_xlat.c Information
+  6.4.1.  putrawkey
 
-  6.6.    Functions in base/keyboard/n_serv_xlat.c
+  6.4.2.  putkey
 
-  6.6.1.  putrawkey
+  6.4.3.  set_shiftstate
 
-  6.6.2.  putkey
+  6.5.    base/keyboard/serv_backend.c Information
 
-  6.6.3.  set_shiftstate
+  6.6.    base/keyboard/serv_8042.c Information
 
-  6.7.    base/keyboard/n_serv_backend.c Information
+  6.7.    base/keyboard/keyb_raw.c Information
 
-  6.8.    base/keyboard/n_serv_8042.c Information
+  6.8.    Functions in base/keyboard/keyb_raw.c
 
-  6.9.    base/keyboard/n_keyb_raw.c Information
+  6.8.1.  raw_keyboard_init
 
-  6.10.   Functions in base/keyboard/n_keyb_raw.c
+  6.9.    base/keyboard/keyb_slang.c Information
 
-  6.10.1. raw_keyboard_init
+  6.10.   Functions in base/keyboard/keyb_slang.c
 
-  6.11.   base/keyboard/n_keyb_slang.c Information
-
-  6.12.   Functions in base/keyboard/n_keyb_slang.c
-
-  6.12.1. slang_keyb_init()
+  6.10.1. slang_keyb_init()
 
   7.      The Misc group of Modules
 
@@ -724,6 +720,7 @@
   to "James B. MacLean" <macleajb@ednet.ns.ca> for supplying the
   original information. (It was mostly ripped out of a mail message.)
   "Jochen Hein" has made many useful comments & suggestions.
+
   At the end if this document is a section detailing how this guide is
   put together. This may help you when trying to locate the relevant
   pieces of code. If you add new code, it would be useful if the
@@ -1748,20 +1745,7 @@
 
   Latest addition is SLANG.
 
-  66..11..  bbaassee//kkeeyybbooaarrdd//XXkkeeyybb..cc IInnffoorrmmaattiioonn
-
-  This file contains X keyboard tables and handling routines for dosemu.
-
-     exports:  X_process_key(XKeyEvent *)
-     exports:  X_process_char(char)
-     uses:     put_key(ushort scan, short charcode)
-
-  Part of this code is taken from pcemu written by David Hedley
-  (hedley@cs.bris.ac.uk) and is
-
-  Copyright (C) 1994 University of Bristol, England
-
-  66..22..  bbaassee//kkeeyybbooaarrdd//kkeeyymmaappss..cc IInnffoorrmmaattiioonn
+  66..11..  bbaassee//kkeeyybbooaarrdd//kkeeyymmaappss..cc IInnffoorrmmaattiioonn
 
   These are definitions, giving which key is related to which scancode
   in raw keyboard mode. Basically, the code of 'x' on a US keyboard may
@@ -1769,7 +1753,7 @@
   can be represented under DOSEMU. Also, the right ALT-key is often a
   function key in it's own right.
 
-  66..33..  RReemmaarrkkss iinn bbaassee//kkeeyybbooaarrdd//kkeeyymmaappss..cc
+  66..22..  RReemmaarrkkss iinn bbaassee//kkeeyybbooaarrdd//kkeeyymmaappss..cc
 
   The DEAD codes must refer to keys that don't exist on any language
   keyboard. I hope nobody has a smily face key :-) dead_key_table is a
@@ -1783,9 +1767,7 @@
   If you uses a different code page, please create a map!  Jon Tombs
   jon@gtex02.us.es
 
-  66..44..  bbaassee//kkeeyybbooaarrdd//ssllaanngg--tteerrmmiioo..cc IInnffoorrmmaattiioonn
-
-  66..55..  bbaassee//kkeeyybbooaarrdd//nn__sseerrvv__xxllaatt..cc IInnffoorrmmaattiioonn
+  66..33..  bbaassee//kkeeyybbooaarrdd//sseerrvv__xxllaatt..cc IInnffoorrmmaattiioonn
 
   This module contains the the translation part of the keyboard
   'server', which translates keysyms into the form in which they can be
@@ -1807,11 +1789,11 @@
 
   Rainer Zimmermann  <zimmerm@mathematik.uni-marburg.de>
 
-  66..66..  FFuunnccttiioonnss iinn bbaassee//kkeeyybbooaarrdd//nn__sseerrvv__xxllaatt..cc
+  66..44..  FFuunnccttiioonnss iinn bbaassee//kkeeyybbooaarrdd//sseerrvv__xxllaatt..cc
 
-  These are the functions defined in base/keyboard/n_serv_xlat.c.
+  These are the functions defined in base/keyboard/serv_xlat.c.
 
-  66..66..11..  ppuuttrraawwkkeeyy
+  66..44..11..  ppuuttrraawwkkeeyy
 
   This function sends a raw keycode byte, e.g. read directly from the
   hardware, to DOS. It is both queued for the port60h emulation and
@@ -1824,7 +1806,7 @@
   This function is used if we are at the console and
   config.rawkeyboard=on.
 
-  66..66..22..  ppuuttkkeeyy
+  66..44..22..  ppuuttkkeeyy
 
   This does all the work of sending a key event to DOS.  scan  - the
   keycode, one of the KEY_ constants from new-kbd.h make  - TRUE for key
@@ -1843,7 +1825,7 @@
   them immediately after the MAKE codes.  Also, shift keys should be
   sent (with ascii = 0).
 
-  66..66..33..  sseett__sshhiiffttssttaattee
+  66..44..33..  sseett__sshhiiffttssttaattee
 
   This simply sets the keyboard server's shift state.
 
@@ -1851,11 +1833,10 @@
   the appropriate shift key make/break codes that normally come along
   with such changes. This function is mostly intended for start-up
   shiftstate synchronisation.
-
   Note also that you can't simply write to the shiftstate variable
   instead of using this function.
 
-  66..77..  bbaassee//kkeeyybbooaarrdd//nn__sseerrvv__bbaacckkeenndd..cc IInnffoorrmmaattiioonn
+  66..55..  bbaassee//kkeeyybbooaarrdd//sseerrvv__bbaacckkeenndd..cc IInnffoorrmmaattiioonn
 
   This module handles interfacing to the DOS side both on int9/port60h
   level (if keybint=on), or on the bios buffer level.  Keycodes are
@@ -1868,28 +1849,28 @@
 
   Rainer Zimmermann  <zimmerm@mathematik.uni-marburg.de>
 
-  66..88..  bbaassee//kkeeyybbooaarrdd//nn__sseerrvv__88004422..cc IInnffoorrmmaattiioonn
+  66..66..  bbaassee//kkeeyybbooaarrdd//sseerrvv__88004422..cc IInnffoorrmmaattiioonn
 
   This code provides truly rudimentary 8042 controller emulation.  Not
   having any documentation on the 8042 makes it hard to improve. :)
 
-  66..99..  bbaassee//kkeeyybbooaarrdd//nn__kkeeyybb__rraaww..cc IInnffoorrmmaattiioonn
+  66..77..  bbaassee//kkeeyybbooaarrdd//kkeeyybb__rraaww..cc IInnffoorrmmaattiioonn
 
-  66..1100..  FFuunnccttiioonnss iinn bbaassee//kkeeyybbooaarrdd//nn__kkeeyybb__rraaww..cc
+  66..88..  FFuunnccttiioonnss iinn bbaassee//kkeeyybbooaarrdd//kkeeyybb__rraaww..cc
 
-  These are the functions defined in base/keyboard/n_keyb_raw.c.
+  These are the functions defined in base/keyboard/keyb_raw.c.
 
-  66..1100..11..  rraaww__kkeeyybbooaarrdd__iinniitt
+  66..88..11..  rraaww__kkeeyybbooaarrdd__iinniitt
 
   Initialize the keyboard for RAW mode.
 
-  66..1111..  bbaassee//kkeeyybbooaarrdd//nn__kkeeyybb__ssllaanngg..cc IInnffoorrmmaattiioonn
+  66..99..  bbaassee//kkeeyybbooaarrdd//kkeeyybb__ssllaanngg..cc IInnffoorrmmaattiioonn
 
-  66..1122..  FFuunnccttiioonnss iinn bbaassee//kkeeyybbooaarrdd//nn__kkeeyybb__ssllaanngg..cc
+  66..1100..  FFuunnccttiioonnss iinn bbaassee//kkeeyybbooaarrdd//kkeeyybb__ssllaanngg..cc
 
-  These are the functions defined in base/keyboard/n_keyb_slang.c.
+  These are the functions defined in base/keyboard/keyb_slang.c.
 
-  66..1122..11..  ssllaanngg__kkeeyybb__iinniitt(())
+  66..1100..11..  ssllaanngg__kkeeyybb__iinniitt(())
 
   Code is called at start up to set up the terminal line for non-raw
   mode.
@@ -1947,7 +1928,6 @@
   SETUP_INTERRUPTS is used to initialize the interrupt_function array
   which directs handling of interrupts in protected mode and also
   initializes the base vector for interrupts in real mode.
-
   77..44..44..  iinntt__vveeccttoorr__sseettuupp
 
   Setup initial interrupts which can be revectored so that the kernel
@@ -2635,6 +2615,7 @@
   You must recompile dosemu everytime one of these constants are
   modified.  Just type 'make' in the dosemu dir and it will recompile
   the changes only.
+
   -----
 
   IMPORTANT INFO about com[] variable array structure used in serial.c
@@ -2802,6 +2783,7 @@
   certain point.   However, it should be self-compensating if it
   executes 10 times or even 1000 times per second.   Serial performance
   increases with frequency of execution of serial_run.
+
   Serial mouse performance becomes more smooth if the time between calls
   to serial_run are smaller.
 
@@ -2975,7 +2957,6 @@
   flag (+, -, or blank) current interrupt level interrupt in-service
   register interrupt mask register interrupt request register message
   part one decimal data value message part two
-
   If the message part 2 pointer is a null pointer, then only message
   part one (without the data value) is printed.
 
@@ -3050,7 +3031,7 @@
   routine, which may call do_irq().  Be Careful!  !!!!!!!!!!!!!!!!!!  No
   single interrupt is ever re-entered.
 
-  Callers: base/misc/ioctl.c base/keyboard/n_serv_8042.c
+  Callers: base/misc/ioctl.c base/keyboard/serv_8042.c
   base/keyboard/keyboard-server.c base/serial/ser_irq.c
   dosext/sound/sound.c dosext/net/net/pktnew.c
 
@@ -3517,6 +3498,7 @@
   valloc().  However, you can't free that memory later. For this purpose
   you may use the below functions, which are put on top of
   malloc()/free().
+
   void *page_malloc(size_t size)
 
   void page_free(void *ptr)
@@ -3746,7 +3728,6 @@
   be solved by putting all this data into a private structure and
   starting the thread by passing it a pointer to this structure. Now,
   within scope of the thread one has access to this pointer via.
-
    OWN_TCB->params;
 
   The TCB itself always is on bottom of the stack, hence it is also
@@ -3907,7 +3888,6 @@
 
   In addition there are some keywords, that are recognized within a
   bracket.
-
   VERB ... /VERB This formats the enclosed text verbatim. This is valid
   within *_MODULE, *_REMARK, *_STRUCT, *_FUNCTION
 

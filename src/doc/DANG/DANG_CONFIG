@@ -34,13 +34,12 @@ GROUP:		Video doc/DANG/summary_Video env/video/vc.c
 			env/video/trident.c env/video/vga.c 
 			env/video/vgaemu.c include/vgaemu.h
 GROUP:		Keyboard doc/DANG/summary_Keyboard 
-			base/keyboard/Xkeyb.c base/keyboard/keymaps.c
-			base/keyboard/slang-termio.c
-			base/keyboard/n_serv_xlat.c
-			base/keyboard/n_serv_backend.c
-			base/keyboard/n_serv_8042.c
-			base/keyboard/n_keyb_raw.c
-			base/keyboard/n_keyb_slang.c
+			base/keyboard/keymaps.c
+			base/keyboard/serv_xlat.c
+			base/keyboard/serv_backend.c
+			base/keyboard/serv_8042.c
+			base/keyboard/keyb_raw.c
+			base/keyboard/keyb_slang.c
 GROUP:		Misc doc/DANG/summary_Misc dosext/misc/emm.c 
 			dosext/misc/xms.c 
 			base/async/int.c include/int.h

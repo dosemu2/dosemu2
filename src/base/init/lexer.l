@@ -106,8 +106,7 @@ char *yy_vbuffer=0;
 
 	/* special characters */
 
-"{"|"}"			RETURN(yytext[0]);
-
+[\|{}=,]		RETURN(yytext[0]);
 
 	/* conditionals */
 
@@ -202,11 +201,29 @@ floppy			RETURN(L_FLOPPY);
 cdrom			RETURN(CDROM);
 diskcyl4096		RETURN(DISKCYL4096);
 
-	/* keyboard - !!conflict between 'no' and boolean 'no' */
+	/* keyboard */
 
+keytable		RETURN(KEYTABLE);
 layout			RETURN(LAYOUT);
 keybint			RETURN(KEYBINT);
 rawkeyboard		RETURN(RAWKEYBOARD);
+shift			RETURN(SHIFT);
+alt			RETURN(ALT);
+numpad			RETURN(NUMPAD);
+dump			RETURN(DUMP);
+		/* dead keys for accents in keytable */
+dgrave			RETURN(DGRAVE);
+dacute			RETURN(DACUTE);
+dcircum			RETURN(DCIRCUM);
+dtilde			RETURN(DTILDE);
+dbreve			RETURN(DBREVE);
+daboved			RETURN(DABOVED);
+ddiares			RETURN(DDIARES);
+dabover			RETURN(DABOVER);
+ddacute			RETURN(DDACUTE);
+dcedilla		RETURN(DCEDILLA);
+diota			RETURN(DIOTA);
+
 
 finnish			MAY_BE { yylval->i_value = KEYB_FINNISH;
 			  return(KEYB_LAYOUT); }
@@ -223,7 +240,7 @@ fr-latin1		MAY_BE { yylval->i_value = KEYB_FR_LATIN1;
 dk			MAY_BE { yylval->i_value = KEYB_DK; return(KEYB_LAYOUT); }
 dk-latin1		MAY_BE { yylval->i_value = KEYB_DK_LATIN1;
 			  return(KEYB_LAYOUT); }
-no			MAY_BE { yylval->i_value = KEYB_NO; return(KEYB_LAYOUT); }
+keyb-no			MAY_BE { yylval->i_value = KEYB_NO; return(KEYB_LAYOUT); }
 no-latin1		MAY_BE { yylval->i_value = KEYB_NO_LATIN1;
 			  return(KEYB_LAYOUT); }
 dvorak			MAY_BE { yylval->i_value = KEYB_DVORAK; return(KEYB_LAYOUT); }
@@ -244,6 +261,7 @@ hu			MAY_BE { yylval->i_value = KEYB_HU; return(KEYB_LAYOUT); }
 hu-cwi			MAY_BE { yylval->i_value = KEYB_HU_CWI; return(KEYB_LAYOUT); }
 hu-latin2		MAY_BE { yylval->i_value = KEYB_HU_LATIN2;
 			  return(KEYB_LAYOUT); }
+keyb-user		MAY_BE { yylval->i_value = KEYB_USER; return(KEYB_LAYOUT); }
 
 	/* serial stuff */
 
@@ -423,9 +441,9 @@ yes			MAY_BE { yylval->i_value = 1; return(L_YES); }
 \'[^\']*\'		MAY_BE { yytext[strlen(yytext)-1] = '\0';
 			  yylval->s_value = strdup(&yytext[1]);
 			  return(STRING); }
-[a-z0-9/\~@-_\+=:,\.]+	MAY_BEFORME { yylval->s_value = strdup(yytext);
+[a-z0-9/\~@-_\+:\.]+	MAY_BEFORME { yylval->s_value = strdup(yytext);
 			  return(STRING); }
-$[a-z0-9/\~@-_\+=:,\.]+	MAY_BE { yylval->s_value = strdup(getenv(&yytext[1]));
+$[a-z0-9/\~@-_\+:\.]+	MAY_BE { yylval->s_value = strdup(getenv(&yytext[1]));
 			  return(STRING); }
 
 	/* comments & whitespace */
@@ -436,7 +454,6 @@ $[a-z0-9/\~@-_\+=:,\.]+	MAY_BE { yylval->s_value = strdup(getenv(&yytext[1]));
 	/* NOTE: the below rule will not have any effect, ... except */
 	/* printing a warning ;-) */
 	/*.			fprintf(stderr, "discarding char '%c'\n", yytext[0]); */
-
 %%
 
 #define MAX_INCLUDE_DEPTH 10
@@ -458,7 +475,10 @@ static void enter_includefile(char * fname)
    */
   if (fname[0] != '/')  {
     int i;
-    strcpy(fname_,include_fnames[0]);
+    if (!strncmp(fname, KEYMAP_DIR, strlen(KEYMAP_DIR)))
+      strcpy(fname_, KEYMAP_LOAD_BASE_PATH);
+    else
+      strcpy(fname_,include_fnames[0]);
     i=strlen(fname_);
     while (i && (fname_[i] != '/')) i--;
     if (i) {
