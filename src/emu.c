@@ -385,6 +385,7 @@ emulate(int argc, char **argv)
 #endif
 {
     extern void parse_dosemu_users(void);
+    extern void secure_option_preparse(int *argc, char **argv);
     int e;
 
     srand(time(NULL));
@@ -401,6 +402,12 @@ emulate(int argc, char **argv)
 
     /* NOW! it is safe to touch the priv code.  */
     priv_init();  /* This must come first! */
+
+    /* Before we even try to give options to the parser,
+     * we pre-filter some dangerous options and delete them
+     * from the arguments list
+     */
+    secure_option_preparse(&argc, argv);
 
     /* This has to come next:
      * Parse dosemu.users _before_ any argument usage to catch

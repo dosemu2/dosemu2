@@ -294,7 +294,7 @@ static int dos_helper(void)
     p_dos_str("This is work in progress.\n");
     p_dos_str("Please test against a recent version before reporting bugs and problems.\n");
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
-    p_dos_str("Bugs, Patches & New Code to linux-msdos@vger.rutgers.edu\n\n");
+    p_dos_str("Bugs, Patches & New Code to linux-msdos@vger.kernel.org\n\n");
     if (config.dpmi)
       p_dos_str("DPMI-Server Version 0.9 installed\n\n");
     break;

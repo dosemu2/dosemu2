@@ -1,3 +1,16 @@
+2001/10/28 ver. 1.1.1.5 unofficial pre-release
+	From Hans
+	- fixed typo in emm.c, error code wrongly went into BH instead AH
+	- changed forgotten vger.rutgers.edu to vger.kernel.org in
+	  async/int.c
+	- introduced --Fusers option to bypass /etc/dosemu.users in case
+	  the binary is _not_ suid-root. This allows to distribute isolated
+	  packages (other then DEXE), which have their completely own
+	  configuration.
+	- introduced arg-list preparsing. As some options are dangerous
+	  when parsed too late, those are done in the special function 
+	  secure_option_preparse(), which discards all options known
+	  to be dangerous from the arg list (currently only --Fusers).
 2001/10/28 ver. 1.1.1.4 unofficial pre-release
 	From Herbert Xu <herbert@gondor.apana.org.au>
 	- fixed typo in mfs mangling, src/dosext/mfs/util.c

@@ -988,7 +988,7 @@ handle_dir(state_t * state)
   case GET_TOTAL:{
 	Kdebug0((dbg_fd, "GET_TOTAL %d\n", MAX_HANDLES));
 	SETWORD(&(state->ebx), MAX_HANDLES);
-	SETHIGH(&(state->ebx), EMM_NO_ERR);
+	SETHIGH(&(state->eax), EMM_NO_ERR);
 	break;
       }
 

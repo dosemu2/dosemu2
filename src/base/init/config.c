@@ -630,6 +630,61 @@ static void restore_usedoptions(char *usedoptions)
     }
 }
 
+static int find_option(char *option, int argc, char **argv)
+{
+  int i;
+  if (argc <=1 ) return 0;
+  for (i=1; i < argc; i++) {
+    if (!strcmp(argv[i], option)) {
+      return i;
+    }
+  }
+  return 0;
+}
+
+static int option_delete(int option, int *argc, char **argv)
+{
+  int i;
+  if (option >= *argc) return 0;
+  for (i=option; i < *argc; i++) {
+    argv[i] = argv[i+1];
+  }
+  *argc -= 1;
+  return option;
+}
+
+void secure_option_preparse(int *argc, char **argv)
+{
+  PRIV_SAVE_AREA
+  int o;
+
+  if (*argc <=1 ) return;
+  enter_priv_off();
+                                                  
+  if ( (o = find_option("--Fusers", *argc, argv)) != 0) {
+    o = option_delete(o, argc, argv);
+    if (o < *argc) {
+      if (argv[o][0] == '-') {
+        usage();
+        exit(0);
+      }
+      if (get_orig_uid() != get_orig_euid()) {
+        fprintf(stderr, "Bypassing /etc/dosemu.users not allowed for suid-root\n");
+        exit(0);
+      }
+      /* We are _not_ running suid,
+       * either we are root or are real user without privileges.
+       * So no danger to allow bypassing /etc/dosemu.users
+       */
+      DOSEMU_USERS_FILE = strdup(argv[o]);
+      option_delete(o, argc, argv);
+    }
+  }
+
+  leave_priv_setting();
+}
+
+
 /*
  * DANG_BEGIN_FUNCTION config_init
  * 
