@@ -11,13 +11,13 @@
 #include "bitops.h"
 
 /*
- * Size of io_bitmap in longwords: 32 is ports 0-0x3ff.
+ * Size of io_bitmap in longwords: 2048 is ports 0-0xffff.
  */
-#define IO_BITMAP_SIZE	32
+#define IO_BITMAP_SIZE	2048
 
 extern unsigned long	io_bitmap[IO_BITMAP_SIZE+1];
 extern void e_priv_iopl(int);
-#define test_ioperm(a)	((a)>0x3ff? 0:test_bit((a),io_bitmap))
+#define test_ioperm(a)	(test_bit((a),io_bitmap))
 
 /* ------------------------------------------------------------------------
  * if this is defined, cpuemu will only start when explicitly activated

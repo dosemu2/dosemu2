@@ -56,8 +56,8 @@
 
 _port_handler port_handler[EMU_MAX_IO_DEVICES];
 unsigned char port_handle_table[0x10000];
-unsigned char port_andmask[0x400];
-unsigned char port_ormask[0x400];
+unsigned char port_andmask[0x10000];
+unsigned char port_ormask[0x10000];
 pid_t portserver_pid = 0;
 
 static unsigned char port_handles;	/* number of io_handler's */
@@ -1129,14 +1129,12 @@ int port_register_handler(emu_iodev_t device, int flags)
 	device.end_addr, (int)(device.fd>=0? devstat.st_dev:device.fd));
 
     if (flags & PORT_FAST) {
-	if (device.start_addr < 0x400) {
-	  i_printf("PORT: giving fast access to ports [0x%04x-0x%04x]\n",
-		device.start_addr, device.end_addr);
-	  set_ioperm (device.start_addr, device.end_addr-device.start_addr+1, 1);
+	i_printf("PORT: trying to give fast access to ports [0x%04x-0x%04x]\n",
+		 device.start_addr, device.end_addr);
+	if (set_ioperm (device.start_addr, device.end_addr-device.start_addr+1, 1) == -1) {
+	  i_printf("PORT: fast failed: using perm/iopl for ports [0x%04x-0x%04x]\n",
+		   device.start_addr, device.end_addr);
 	}
-	else
-	  i_printf("PORT: using perm/iopl for ports [0x%04x-0x%04x]\n",
-		device.start_addr, device.end_addr);
     }
     return 0;
 }
@@ -1166,9 +1164,7 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 		 start, size, permission, ormask, andmask);
 
 	if ((ormask != 0) || (andmask != 0xff)) {
-		if ((start+size) > 0x400)
-			i_printf("PORT: andmask & ormask not supported for ports>=0x400\n");
-		else if (size > 1)
+		if (size > 1)
 			i_printf("PORT: andmask & ormask not supported for multiple ports\n");
 		else
 			usemasks = 1;
@@ -1290,7 +1286,7 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 /* 
  * SIDOC_BEGIN_FUNCTION set_ioperm
  *
- * wrapper for the ioperm() syscall, returns -1 if port>=0x400
+ * wrapper for the ioperm() syscall, returns -1 if not successful.
  *
  * SIDOC_END_FUNCTION
  */
@@ -1300,9 +1296,8 @@ set_ioperm(int start, int size, int flag)
 	PRIV_SAVE_AREA
 	int tmp;
 
-	if ((!can_do_root_stuff && flag == 1) || (start>0x3ff))
+	if ((!can_do_root_stuff && flag == 1))
 	    return -1;		/* don't bother */
-	if ((start+size)>0x3ff) size=0x400-start;
 
 	/* While possibly not the best behavior I figure we ought to,
 	   turn the privilege on here instead of in every caller.
@@ -1310,7 +1305,7 @@ set_ioperm(int start, int size, int flag)
 	   call ioperm.
 	 */
 	enter_priv_on();
-	tmp = DOS_SYSCALL(ioperm(start, size, flag));
+	tmp = ioperm(start, size, flag);
 	leave_priv_setting();
 
 #ifdef X86_EMULATOR
