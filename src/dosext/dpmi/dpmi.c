@@ -1046,26 +1046,6 @@ static int SetDescriptor(unsigned short selector, unsigned long *lp)
 			(*lp >> 23) & 1, ((*lp >> 15) & 1) ^1, (*lp >> 20) & 1);
 }
 
-static int AllocateSpecificDescriptor(us selector)
-{
-  int ldt_entry = selector >> 3;
-  if (ldt_entry >= MAX_SELECTORS)
-    return -1;
-  if (Segments[ldt_entry].used)
-    return -1;
-  if (SystemSelector(selector))
-    return -1;
-  /* dpmi spec says, the descriptor allocated should be "data" with */
-  /* base and limit set to 0 */
-  if (SetSelector((ldt_entry << 3) | 0x0007, 0, 0, DPMI_CLIENT.is_32,
-                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return -1;
-  if (in_dpmi)
-    Segments[ldt_entry].used = in_dpmi;
-  else
-    Segments[ldt_entry].used = 1;
-  return 0;
-}
-
 static  void GetFreeMemoryInformation(unsigned int *lp)
 {
   struct meminfo *mi = readMeminfo();
@@ -1440,7 +1420,7 @@ static void do_int31(struct sigcontext_struct *scp)
     }
     break;
   case 0x000d:
-    if (AllocateSpecificDescriptor(_LWORD(ebx))) {
+    if (!AllocateDescriptorsAt(_LWORD(ebx), 1)) {
       _LWORD(eax) = 0x8022;
       _eflags |= CF;
     }
