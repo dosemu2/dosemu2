@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2002 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -119,24 +119,16 @@ irqnum	=	0x1c
 	iret
 
 
-			/* system-soft ints 0x1d .. 0x44 */
+			/* system-soft ints 0x1d .. 0x5f */
 irqnum	=	0x1d
 	.org	irqnum*16
-.REPT (0x45-0x1d) 
+.REPT (0x60-0x1d) 
 	.align 16,0
 	int	$irqnum
 	lret	$2
 irqnum	=	irqnum+1
 .ENDR
 
-			/* soft ints 0x45 .. 0x5f */
-irqnum	=	0x45
-	.org	irqnum*16
-.REPT (0x60-0x45) 
-	.align 16,0
-	iret
-irqnum	=	irqnum+1
-.ENDR
 
 irqnum	=	0x60
 	.org	irqnum*16
@@ -144,8 +136,7 @@ int_pktdrv:
 	int	$irqnum
 	lret	$2
 
-/* ??? Where are 0x61-0x67 ??? */
-		
+
 			/* soft ints 0x68 .. 0x6f */
 irqnum	=	0x68
 	.org	irqnum*16
@@ -162,21 +153,23 @@ irqnum	=	0x70
 .REPT (0x78-0x70) 
 	.align 16,0
 	int	$irqnum
-	lret	$2	/* NOTE: this should be "iret", isn't it?
-				 NEED TO BE CHECKED ! */
+	iret
 irqnum	=	irqnum+1
 .ENDR
 
 
-			/* soft ints 0x78 .. 0xff */
-irqnum	=	0x78
+			/* soft int 0x7a (IPX dummy) */
+irqnum	=	0x7a
 	.org	irqnum*16
-.REPT (0x100-0x78) 
-	.align 16,0
-	int	$irqnum
-	lret	$2
-irqnum	=	irqnum+1
-.ENDR
+	iret
+
+                        /* soft int 0xe6 (DOS helper int) */
+irqnum  =       DOSHELPER_INT  
+        .org    irqnum*16
+	int	$DOSHELPER_INT
+        lret	$2
+
+
 
 /* ----------------------------------------------------------------- */
 	/* this is the mouse handler */

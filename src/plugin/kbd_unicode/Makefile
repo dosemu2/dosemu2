@@ -1,5 +1,5 @@
 #
-# (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+# (C) Copyright 1992, ..., 2002 the "DOSEMU-Development-Team".
 #
 # for details see file COPYING in the DOSEMU distribution
 #
@@ -37,8 +37,8 @@ all: lib
 
 install:
 
-distclean::
-	rm -f config.log config.status
+realclean::
+	rm -f config.log config.status include/kbd_unicode_config.h
 
 
 include $(REALTOPDIR)/src/Makefile.common

@@ -244,7 +244,7 @@ sub convertToHTML {
 
   if (exists $versions{'sgmltools'} && $versions{'sgmltools'} ge "3.0") {
     # Assume Version 3 and above are.
-    $command = "sgmltools -b html -jade-opt=\"$openJadeOptions -o $theOutputFile \" $theFile";
+    $command = "sgmltools -b html --jade-opt=\"$openJadeOptions -o $theOutputFile \" $theFile";
 
   } elsif (exists $versions{'openjade'} && $versions{'openjade'} ge "1.3") {
     # Try running openjade (>= 1.3) directly.

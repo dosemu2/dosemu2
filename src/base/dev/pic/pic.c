@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2002 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -892,6 +892,10 @@ static char buf[81];
 
   if (pic_iinfo[inum].func == (void *)0)
     return ret; 
+
+  REG(eflags) |= VIP;
+  if (in_dpmi)
+    dpmi_eflags |= VIP;
 
 #if 1		/* use this result mouse slowdown in winos2 */
   if (((pic_irr|pic_isr)&(1<<inum)) || (pic_icount>pic_icount_od))

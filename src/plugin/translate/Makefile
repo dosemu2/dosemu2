@@ -1,5 +1,5 @@
 #
-# (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+# (C) Copyright 1992, ..., 2002 the "DOSEMU-Development-Team".
 #
 # for details see file COPYING in the DOSEMU distribution
 #
@@ -42,7 +42,7 @@ all: lib
 install:
 
 clean::
-	-rm -f keysym_attributes.c make_attributes crunch_UnicodeData UnicodeCrunchedAttributes
+	-rm -f keysym_attributes.c make_attributes crunch_UnicodeData
 
 ifndef REALTOPDIR
 REALTOPDIR=../../../..

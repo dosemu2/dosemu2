@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2002 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -2119,12 +2119,13 @@ void setup_interrupts(void) {
     /* don't overwrite; these have been set during video init */
     if(i == 0x1f || i == 0x43) continue;
 
-    if ((i & 0xf8) == 0x60 || (i >= 0x78 && i != 0x7a && i<= 0xfd &&
+    /* interrupts >= 0xc0 are scratch (BIOS stack), 
+       unless defined by DOSEMU */	
+    if ((i & 0xf8) == 0x60 || (i >= 0x78 && i < 0xc0 &&
       can_revector(i) == NO_REVECT)) { /* user interrupts */
 	/* show also EMS (int0x67) as disabled */
-	/* 0xfa = IPX should not be 0'ed       */
 	SETIVEC(i, 0, 0);
-    } else {
+    } else if (i < 0xc0 || can_revector(i) == REVECT) {
 #ifndef USE_NEW_INT
 	SETIVEC(i, BIOSSEG, 16 * i);
 #else /* USE_NEW_INT */
@@ -2220,6 +2221,12 @@ void setup_interrupts(void) {
   /* This is an int e7 used for FCB opens */
   SETIVEC(0xe7, INTE7_SEG, INTE7_OFF);
   /* End of int 0xe7 for FCB opens */
+
+#ifdef IPX
+  /* IPX. Dummy but should not crash */
+  if (config.ipxsup)
+    SETIVEC(0x7a, BIOSSEG, 0x7a * 16);
+#endif
 
   /* set up relocated video handler (interrupt 0x42) */
   if (config.dualmon == 2) {

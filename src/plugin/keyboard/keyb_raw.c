@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2002 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -13,7 +13,6 @@
 #include <sys/kd.h>
 
 #include "emu.h"
-#include "vc.h"
 #include "keyboard.h"
 #include "keyb_clients.h"
 #include "termio.h"
@@ -27,7 +26,6 @@
 
 extern void set_process_control();
 extern void clear_process_control();
-extern void clear_console_video();
 
 static int save_kbd_flags = -1;  	/* flags for STDIN before our fcntl */
 static struct termios save_termios;	/* original terminal modes */
@@ -79,13 +77,6 @@ void do_raw_getkeys(void)
   int i,count;
   Bit8u buf[KBBUF_SIZE];
 
-#if 0   /* XXX */
-    if (scr_state.current != 1) {
-    k_printf("KBD(raw): Not current screen!\n");
-    return;
-  }
-#endif
-   
   count = RPT_SYSCALL(read(kbd_fd, &buf, KBBUF_SIZE - 1));
   k_printf("KBD(raw): do_raw_getkeys() found %d characters (Raw)\n", count);
   if (count == -1) {
@@ -171,7 +162,6 @@ int raw_keyboard_init(void)
   save_kbd_flags = fcntl(kbd_fd, F_GETFL);
   fcntl(kbd_fd, F_SETFL, O_RDONLY | O_NONBLOCK);
 
-  scr_state.current = 1;
   set_raw_mode();
 
   /* initialise the server's shift state to the current keyboard state */ 
@@ -207,11 +197,6 @@ void raw_keyboard_close(void)
       k_printf("KBD(raw): Resetting keyboard termios failed.\n");
     }
     fcntl(kbd_fd, F_SETFL, save_kbd_flags);
-
-    if (config.console_video) {
-        k_printf("KBD(raw): keyboard_close:clear console video\n");
-        clear_console_video();
-    }
 
     if (!config.usesX)
        clear_process_control();

@@ -1,7 +1,7 @@
 /***************************************************************************
  * 
  * All modifications in this file to the original code are
- * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2002 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  *

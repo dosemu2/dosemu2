@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2002 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -2472,12 +2472,10 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       u = vga.seq.data[4] & 4 ? 0 : 1;
       u = vga.seq.data[4] & 8 ? 2 : u;
       vga.seq.addr_mode = u;
-      if(u != u0 && vga.mode_type == P8) {	/* ++HACK++ */
-        u1 = vga.seq.addr_mode == 0 ? 4 : 1;
-        if(u1 != vga.mem.planes) {
-          vga.mem.planes = u1; vga.reconfig.mem = 1;   
-          vga_msg("vgaemu_adj_cfg: mem reconfig (%u planes)\n", u1);
-        }
+      u1 = vga.seq.addr_mode == 0 ? 4 : 1;
+      if(u1 != vga.mem.planes) {
+        vga.mem.planes = u1; vga.reconfig.mem = 1;   
+        vga_msg("vgaemu_adj_cfg: mem reconfig (%u planes)\n", u1);
       }
       if(msg || u != u0) vga_msg("vgaemu_adj_cfg: seq.addr_mode = %s\n", txt1[u]); 
     break;

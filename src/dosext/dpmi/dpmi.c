@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2002 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -2556,13 +2556,17 @@ void dpmi_sigio(struct sigcontext_struct *scp)
 #else
   if (_cs != UCODESEL){
 #endif
-#if 1
+#if 0
     if (in_win31 || (dpmi_eflags & IF)) {
       D_printf("DPMI: return to dosemu code for handling signals\n");
       Return_to_dosemu_code(scp,0);
     } else dpmi_eflags |= VIP;
 #else
 /* DANG_FIXTHIS We shouldn't return to dosemu code if IF=0, but it helps - WHY? */
+/*
+   Because IF is not set by popf and because dosemu have to do some background
+   job (like DMA transfer) regardless whether IF is set or not.
+*/
     D_printf("DPMI: return to dosemu code for handling signals\n");
     Return_to_dosemu_code(scp,0);
 #endif

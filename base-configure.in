@@ -92,10 +92,6 @@ if test "$CONFIG_HOST" = "Linux"; then
 fi
 AC_SUBST(CONFIG_HOST)
 
-if grep -q "^vendor.*AuthenticAMD" /proc/cpuinfo && grep -q "^model.*Athlon" /proc/cpuinfo; then
-   target_cpu="athlon"
-fi
-
 dnl Do ELF if possible
 
  if ! $CC -v 2>&1|grep specs >/dev/null 2>&1; then

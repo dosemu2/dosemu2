@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2002 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -199,12 +199,6 @@ int keyb_client_init()  {
    else {
       Keyboard = &Keyboard_slang;
    }
-   if (config.console_video && config.vga && (Keyboard == &Keyboard_slang)) {
-      /* we need this for proper save/restore on console switch
-       * when doing graphics but not are using raw keyboard
-       */
-      scr_state.current = 1;
-   }
    k_printf("KBD: initialising '%s' mode keyboard client\n",Keyboard->name);
    ok = Keyboard->init ? Keyboard->init() : TRUE;
    if (ok) {
@@ -218,15 +212,8 @@ int keyb_client_init()  {
 
 
 void keyb_client_close() {
-   extern void clear_console_video(void);
    if (Keyboard!=NULL && Keyboard->close!=NULL)
       Keyboard->close();
-   if (config.console_video && config.vga && (Keyboard == &Keyboard_slang)) {
-      /* we need this for proper restoring the console
-       * when doing graphics but not are using raw keyboard
-       */
-      clear_console_video();
-   }
 }
 
 void keyb_client_run() {

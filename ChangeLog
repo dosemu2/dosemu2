@@ -1,3 +1,26 @@
+2002/01/12 ver 1.1.2.7 unofficial pre-release
+	From Stas
+	- set VIP on pic_request() to activate the int ASAP.
+	  Without this, some games fail to detect SoundBlaster IRQ under DPMI.
+	- DPMI: always return to dosemu code for handling signals.
+	  IF is not set by popf and dosemu has to do some background
+	  job (like DMA transfer) regardless whether IF is set or not.
+	- Fix cmdline.c.
+	- remove clear_console_video() from old keyboard code.
+	  also remove scr_state.current init (Bart)
+	From Bart
+	- leave interrupts >= 0xc0 untouched. int 0x7a special cased by other
+	  means. Do not special case 0x45-0x5f any more in bios.S (from Stas)
+	  Make slave irq behaviour equal to master irq (iret, not lret 2).
+	- documentation generation: sgmltools needs --jade-opt not -jade-opt
+	- remove HACK in vgaemu.c.
+	- add missing files from keyboard plugin. 
+	- Eric's new keyboard plugin is still disabled by default for non-devel
+	  builds, so relevant plugin_enables should be set to no.
+        - ./mknewyear
+	- remove Athlon detection from /proc/cpuinfo in base-configure.in: use 
+	  ./default-configure --target=athlon-pc-linux-gnu
+	  if you want Athlon optimizations for now.
 2002/01/06 ver 1.1.2.6 unofficial pre-release
 	From Eric
 	- Enable new keyboard code in compiletime-settings.devel

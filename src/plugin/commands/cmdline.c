@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2002 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -23,23 +23,27 @@
 
 int msetenv(char *,char *);
 
-#define CMDBUFFSIZE 10000
+#define CMDBUFFSIZE 256
 /* This program just reads stdin... */
 int cmdline_main()
 {
 	char *buff = malloc(CMDBUFFSIZE), *p, *q, *endb;
 
 
-	if (!buff)
+	if (!buff) {
 	    perror("malloc failure");
 	    return(1);
+	}
 	*(endb = buff + read(0,buff,CMDBUFFSIZE)) = '\0';
 	for (p = buff; p < endb; p = q + strlen(q)+1)
 		 if (*p != '-' && ((q = strchr(p,'='))!=0)) {
 		     *q++ = '\0';
-		     if (msetenv(p,q))
+		     if (msetenv(p,q)) {
+		         free(buff);
 			 return (1);
 		     }
+		 }
 		 else q = p;
+	free(buff);
 	return 0;
 }
