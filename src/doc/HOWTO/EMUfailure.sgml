@@ -116,56 +116,150 @@ Pharlap programs may work.
 
 <sect2>
 <title>
-Fundamental problem with the timer
+Fundamental problem with the Linux kernel
 </title>
 <para>
-We are emulating a high-resolution timer (PIT) while the Linux
-kernel programs the timer (which can be used via setitimer(2)) at
-100Hz. The interrupts are so saturated that the main loop never
-gets much of a chance. We are using "bursts" to catch up with an 
-emulated frequency, which causes races for the interrupt handlers.
-Scream tracker 3 and Cosmo suffer from this problem. Possibly
-a workaround may be found in future DOSEMU development.
+The PC Internal Timer (PIT) can be programmed to produce interrupts
+with frequencies up to almost 2MHz. Linux sets this to
+only 100Hz (2.6 kernels can set it to 1KHz) and doesn't allow the
+software to change that. This limits the minimal interval between subsequent
+SIGALRM notifications for software that uses the setitimer(2) syscall.
+To emulate the PIT frequencies that are higher than the frequency Linux
+sets the PIT to, dosemu uses "interrupt bursts": on every SIGALRM
+reception dosemu triggers the timer interrupt as many times as necessary
+to compensate the gap since the previous SIGALRM reception. This allows
+to keep a precise timing but causes problems for some programs. When
+the timer interrupt handler is invoked more than once without letting
+the main thread to execute, some programs can lock up. The game "Cosmo" is
+one of those.
+</para>
+<para>
+Another problem is that due to the aforementioned low timer frequency
+dosemu is not able to properly emulate the timings for different
+emulated hardware. That also causes problems for some programs.
+Scream Tracker 3, for example, can lock up at startup because the
+interrupt from an emulated SB card can be triggered earlier than it
+should be in a real system.
+</para>
+<para>
+Possibly a workaround may be found in future DOSEMU versions.
 </para>
 </sect2>
 
 <sect2>
 <title>
-Fundamental problem with the CPU
+Fundamental problems with the CPU
 </title>
 <para>
-Intel's design defect described here:
+There are several defects in Intel's x86 CPUs that are causing
+problems for some software. Below is a description of the defects
+that are known to cause problems for software running under dosemu.
+</para>
+
+<sect3>
+<title>
+Problem with the virtualization of the IF flag
+</title>
+
+<para>
+Intel's manual
+<ulink url="http://www.intel.com/design/intarch/techinfo/pentium/inout.htm">
+http://www.intel.com/design/intarch/techinfo/pentium/inout.htm
+</ulink>
+says:
+</para>
+<para>
+" A procedure may use the POPF instruction to change the setting of the IF
+ flag only if the CPL is less than or equal to the current IOPL. An attempt
+ by a less privileged procedure to change the IF flag does not result in
+ an exception; the IF flag simply remains unchanged. "
+</para>
+<para>
+The fact that the exception is not being generated, prevents dosemu from
+catching and properly simulating the POPF instruction executed in protected
+mode. That, in particular, means that the following code, executed in
+protected mode (not in v86 mode) under dosemu, will end up with interrupts
+disabled (IF cleared):
+</para>
+
+<para>
+<screen>
+sti
+pushf
+cli
+popf
+</screen>
+[ the interrupts are still disabled here ]
+</para>
+<para>
+This bug can only affect DPMI programs, as using DPMI is the only way
+to execute protected mode code under dosemu.
+Known programs that are affected are the games from ID software, namely
+Doom2 and Duke Nukem 3D, but only when configured with sound.
+An optional work-around was added to dosemu, which just re-enables the
+interrupts if they were disabled for too long in protected mode.
+Additionally the address of the instruction that disabled the interrupts,
+is added to a black-list and this instruction is ignored for subsequent
+passes so that it can't disable the interrupts any more.
+This is potentially unsafe, but if the timeout is long enough, no harm
+was observed so far.
+The timeout is configured via the $_cli_timeout option, which is measured
+in a 10ms timer ticks. Setting that option to 0 disables the workaround
+completely, making Doom2 unplayable with sound enabled.
+</para>
+
+</sect3>
+<sect3>
+<title>ESP register corruption</title>
+
+<para>
+Intel's x86 CPUs have a defect described here:
 <ulink url="http://www.intel.com/design/intarch/specupdt/27287402.PDF">
 http://www.intel.com/design/intarch/specupdt/27287402.PDF
 </ulink>
-chapter "Specification Clarifications" section 4:
-"Use Of ESP In 16-Bit Code With 32-Bit Interrupt Handlers"
-causes problems since the Linux kernel uses 32-Bit
-interrupt handlers and will trash the stack pointer, ESP.
-This is never a problem in real DOS where, normally, no
-32-bit interrupt are present.
+chapter "Specification Clarifications"
+section 4: "Use Of ESP In 16-Bit Code With 32-Bit Interrupt Handlers",
+which reads as follows:
 </para>
 <para>
-It may be possible to work around this problem by using a
-different DOS extender, e.g. DOS32A at
-<ulink url="http://dos32a.sf.net">
-http://dos32a.sf.net,
-</ulink>
-as follows: <command>DOS32A progname.exe</command> (at the DOS prompt)
+" ISSUE: When a 32-bit IRET is used to return to another privilege level,
+and the old level uses a 4G stack (D/B bit in the segment register = 1),
+while the new level uses a 64k stack (D/B bit = 0), then only the 
+lower word of ESP is updated. The upper word remains unchanged. This is 
+fine for pure 16-bit code, as well as pure 32-bit code. However, when
+ 32-bit interrupt handlers are present, 16-bit code should avoid any
+dependence on the upper word of ESP. No changes are necessary in existing
+16-bit code, since the only way to access ESP in USE16 segments is 
+through the 32-bit address size prefix. "
 </para>
 <para>
-The following programs are examples that are problematic because
-of this misfeature:
+The corruption happens when the Linux kernel returns control to the dosemu
+process, while a 32-bit DPMI client that uses a 16-bit data segment for
+the stack is active. This is not the usual case, but unfortunately some
+32-bit DPMI clients are actually using a 16-bit segment for the stack,
+and even the dos4gw extender behaves that way sometimes.
+Intel was contacted to comment on that issue, and their comment follows:
 </para>
+<para>
+" We understand your concern, but at this time we do not have anyone to look
+ at this. This part has been out for nearly 20 years and all of the
+ designers are currently working on new projects.  We will make a note of
+ this and see if somewhere down the road someone in software can take a look
+ at this. "
+</para>
+<para>
+The reliable workaround on the dosemu side was not found, but there are some
+hopes that this can be worked around on the kernel's side.
+Programs that are known to be affected by this issue are:
 <itemizedlist>
 <listitem>
 <para>
-Need For Speed 1 (demo version at least)
+Need For Speed 1 (demo version at least, when configured with sound)
 </para>
 </listitem>
 <listitem>
 <para>
-Syndicate Wars with dos4gw 0.8
+Syndicate Wars (when used with dos4gw 0.8)
 </para>
 </listitem>
 <listitem>
@@ -174,11 +268,37 @@ Open Cubic Player
 </para>
 </listitem>
 </itemizedlist>
+</para>
 
 <para>
-It may be possible in the future to work around this using CPU
-emulation and/or a 4G/4G code/data split in the Linux kernel.
+These programs are crashing shortly after startup, but this problem
+is difficult to detect reliably, so there may be many more programs
+that experience a random crashes due to this CPU bug.
 </para>
+
+<para>
+It appeared that it may be possible to work around this problem by using
+a different DOS extender with the programs that are using the dos4gw
+extender by default.
+The DOS32A extender at 
+<ulink url="http://dos32a.sf.net">
+http://dos32a.sf.net,
+</ulink>
+seems not to trigger the problem.
+It can be used as follows:
+<command>DOS32A progname.exe</command> (at the DOS prompt).
+CauseWay dos extender also seems to help.
+</para>
+
+<para>
+It may be possible in the future to work around this problem by using the CPU
+emulation. It is already possible to run dosemu under a CPU emulator called
+Qemu (http://savannah.nongnu.org/projects/qemu), where this problem doesn't
+exist.
+</para>
+
+</sect3>
+
 </sect2>
 
 </sect1>
@@ -189,13 +309,10 @@ emulation and/or a 4G/4G code/data split in the Linux kernel.
 <sect2>
 <title>Things YOU may help changing</title>
 
-<para>
-This is a list of currently known bugs in Dosemu 1.2.0.
-Some of these are in the bug tracking system at 
-<ulink url="http://dosemu.sf.net">
-http://dosemu.sf.net.
-</ulink>
-
+<sect3>
+<title>
+List of currently known bugs in Dosemu 1.2.0.
+</title>
 <itemizedlist>
 
 <listitem>
@@ -206,19 +323,13 @@ Some documentation is known to be well out of date.
 
 <listitem>
 <para>
-Some video BIOS will start very slowly with the serial ports enabled.
+Windows 3.1 will not run very well because for some reasons.
 </para>
 </listitem>
 
 <listitem>
 <para>
-Windows 3.1 will not run very well because of timer problems.
-</para>
-</listitem>
-
-<listitem>
-<para>
-OPL3 FM sound doesn't work (but Midi, SB8 and SB16 work)
+OPL3 FM is not implemented yet (but Midi, SB8 and SB16 work)
 </para>
 </listitem>
 
@@ -226,7 +337,7 @@ OPL3 FM sound doesn't work (but Midi, SB8 and SB16 work)
 <para>
 IPX doesn't play well with DPMI. You might be able to use
 the packet driver in combination with DOS TSR drivers such
-as LSL, IPXPD/PDETHER/PDIPX and IPXODI. See NOVELL-HOWTO.txt
+as LSL, PDETHER and IPXODI. See NOVELL-HOWTO.txt
 and README.txt for details.
 </para>
 </listitem>
@@ -256,6 +367,43 @@ fbdev graphical consoles.
 
 <listitem>
 <para>
+DPMI interrupt handling may be unreliable.
+</para>
+</listitem>
+
+<listitem>
+<para>
+Mortal Kombat 1 and 2 are not producing any sound for unknown reasons.
+</para>
+</listitem>
+
+<listitem>
+<para>
+X-COM Apocalypse locks up at startup if configured with sound.
+</para>
+</listitem>
+
+<listitem>
+<para>
+RTC periodic interrupts are not implemented yet.
+</para>
+</listitem>
+</itemizedlist>
+
+</sect3>
+<sect3>
+<title>
+Bug reports that are currently open at
+<emphasis remap="bf"><ulink
+url="http://www.dosemu.org/"
+>http://www.dosemu.org/</ulink
+></emphasis>. but that were
+not yet confirmed by dosemu developers.
+</title>
+<itemizedlist>
+
+<listitem>
+<para>
 An (unknown) DPMI clipper program hangs when run on a SMP machine
 </para>
 </listitem>
@@ -277,29 +425,14 @@ CD in the CDROM drive.
 
 <listitem>
 <para>
-DPMI interrupt handling may be unreliable. This problem
-exhibits itself in a program named "Screamer 2".
-</para>
-</listitem>
-
-<listitem>
-<para>
 Watcom C may fail freeze on AMD but not PIV.
-</para>
-</listitem>
-
-<listitem>
-<para>
-Ishar only works fine if sound is disabled or uses the pc-speaker
 </para>
 </listitem>
 
 </itemizedlist>
 
-</para>
-
+</sect3>
 </sect2>
-
 <sect2>
 <title> Problems probably solved</title>
 
@@ -336,24 +469,10 @@ Borland's) may not work.  Try switching to a real mode make.
 </para>
 </listitem>
 
-</itemizedlist>
-
-</para>
-
-</sect2>
-
-</sect1>
-
-<sect1>
-<title>Programs not working yet</title>
-
+<listitem>
 <para>
-Here are programs listed, where someone has reported that it does
-not work.
+dd2demo.exe
 </para>
-
-<sect2>
-<title>dd2demo.exe</title>
 
 <para>
  This is a game found at 
@@ -381,10 +500,9 @@ This demo is no longer for download. But if you can test please let us
 know for completeness.
 </para>
 
-</sect2>
-
-<sect2>
-<title>bae.exe</title>
+</listitem>
+<listitem>
+<para>bae.exe</para>
 
 <para>
 This is a demo version of an Electronic CAD programm, found at
@@ -408,6 +526,10 @@ However, this demo is no longer for download, and, moreover, they
 have a native Linux version. 
 </para>
 
+</listitem>
+</itemizedlist>
+
+</para>
 </sect2>
 
 <sect2>

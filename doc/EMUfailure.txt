@@ -21,24 +21,28 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
         1.3. MSDOS enhanced mode Windows kernel krnl386.exe
         1.4. Windows programs using Win32s
         1.5. Does my failing program belong to these groups?
-        1.6. Fundamental problem with the timer
-        1.7. Fundamental problem with the CPU
+        1.6. Fundamental problem with the Linux kernel
+        1.7. Fundamental problems with the CPU
+
+              1.7.1. Problem with the virtualization of the IF flag
+              1.7.2. ESP register corruption
 
    2. Known bugs
 
         2.1. Things YOU may help changing
+
+              2.1.1. List of currently known bugs in Dosemu 1.2.0.
+              2.1.2. Bug reports that are currently open at
+                      http://www.dosemu.org/. but that were not yet
+                      confirmed by dosemu developers.
+
         2.2. Problems probably solved
+        2.3. QIC tape programs
 
-   3. Programs not working yet
+   3. Programs exhibiting graphical problems in xdosemu
 
-        3.1. dd2demo.exe
-        3.2. bae.exe
-        3.3. QIC tape programs
-
-   4. Programs exhibiting graphical problems in xdosemu
-
-        4.1. Text programs with custom fonts
-        4.2. Games with graphical problems
+        3.1. Text programs with custom fonts
+        3.2. Games with graphical problems
 
 1. Fundamental problems
 
@@ -77,63 +81,152 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
 
 1.5. Does my failing program belong to these groups?
 
-   Check with "strings <program.exe> | less" if the programm contains
-   some of these keywords vcpi, pharlap and win32s. Newer Pharlap
-   programs may work.
+   Check with "strings <program.exe> | less" if the program contains some
+   of these keywords vcpi, pharlap and win32s. Newer Pharlap programs may
+   work.
      _________________________________________________________________
 
-1.6. Fundamental problem with the timer
+1.6. Fundamental problem with the Linux kernel
 
-   We are emulating a high-resolution timer (PIT) while the Linux kernel
-   programs the timer (which can be used via setitimer(2)) at 100Hz. The
-   interrupts are so saturated that the main loop never gets much of a
-   chance. We are using "bursts" to catch up with an emulated frequency,
-   which causes races for the interrupt handlers. Scream tracker 3 and
-   Cosmo suffer from this problem. Possibly a workaround may be found in
-   future DOSEMU development.
+   The PC Internal Timer (PIT) can be programmed to produce interrupts
+   with frequencies up to almost 2MHz. Linux sets this to only 100Hz (2.6
+   kernels can set it to 1KHz) and doesn't allow the software to change
+   that. This limits the minimal interval between subsequent SIGALRM
+   notifications for software that uses the setitimer(2) syscall. To
+   emulate the PIT frequencies that are higher than the frequency Linux
+   sets the PIT to, dosemu uses "interrupt bursts": on every SIGALRM
+   reception dosemu triggers the timer interrupt as many times as
+   necessary to compensate the gap since the previous SIGALRM reception.
+   This allows to keep a precise timing but causes problems for some
+   programs. When the timer interrupt handler is invoked more than once
+   without letting the main thread to execute, some programs can lock up.
+   The game "Cosmo" is one of those.
+
+   Another problem is that due to the aforementioned low timer frequency
+   dosemu is not able to properly emulate the timings for different
+   emulated hardware. That also causes problems for some programs. Scream
+   Tracker 3, for example, can lock up at startup because the interrupt
+   from an emulated SB card can be triggered earlier than it should be in
+   a real system.
+
+   Possibly a workaround may be found in future DOSEMU versions.
      _________________________________________________________________
 
-1.7. Fundamental problem with the CPU
+1.7. Fundamental problems with the CPU
 
-   Intel's design defect described here:
+   There are several defects in Intel's x86 CPUs that are causing
+   problems for some software. Below is a description of the defects that
+   are known to cause problems for software running under dosemu.
+     _________________________________________________________________
+
+1.7.1. Problem with the virtualization of the IF flag
+
+   Intel's manual
+   http://www.intel.com/design/intarch/techinfo/pentium/inout.htm says:
+
+   " A procedure may use the POPF instruction to change the setting of
+   the IF flag only if the CPL is less than or equal to the current IOPL.
+   An attempt by a less privileged procedure to change the IF flag does
+   not result in an exception; the IF flag simply remains unchanged. "
+
+   The fact that the exception is not being generated, prevents dosemu
+   from catching and properly simulating the POPF instruction executed in
+   protected mode. That, in particular, means that the following code,
+   executed in protected mode (not in v86 mode) under dosemu, will end up
+   with interrupts disabled (IF cleared):
+
+    sti
+    pushf
+    cli
+    popf
+
+   [ the interrupts are still disabled here ]
+
+   This bug can only affect DPMI programs, as using DPMI is the only way
+   to execute protected mode code under dosemu. Known programs that are
+   affected are the games from ID software, namely Doom2 and Duke Nukem
+   3D, but only when configured with sound. An optional work-around was
+   added to dosemu, which just re-enables the interrupts if they were
+   disabled for too long in protected mode. Additionally the address of
+   the instruction that disabled the interrupts, is added to a black-list
+   and this instruction is ignored for subsequent passes so that it can't
+   disable the interrupts any more. This is potentially unsafe, but if
+   the timeout is long enough, no harm was observed so far. The timeout
+   is configured via the $_cli_timeout option, which is measured in a
+   10ms timer ticks. Setting that option to 0 disables the workaround
+   completely, making Doom2 unplayable with sound enabled.
+     _________________________________________________________________
+
+1.7.2. ESP register corruption
+
+   Intel's x86 CPUs have a defect described here:
    http://www.intel.com/design/intarch/specupdt/27287402.PDF chapter
    "Specification Clarifications" section 4: "Use Of ESP In 16-Bit Code
-   With 32-Bit Interrupt Handlers" causes problems since the Linux kernel
-   uses 32-Bit interrupt handlers and will trash the stack pointer, ESP.
-   This is never a problem in real DOS where, normally, no 32-bit
-   interrupt are present.
+   With 32-Bit Interrupt Handlers", which reads as follows:
 
-   It may be possible to work around this problem by using a different
-   DOS extender, e.g. DOS32A at http://dos32a.sf.net, as follows: DOS32A
-   progname.exe (at the DOS prompt)
+   --- ISSUE: When a 32-bit IRET is used to return to another privilege
+   level, and the old level uses a 4G stack (D/B bit in the segment
+   register = 1), while the new level uses a 64k stack (D/B bit = 0),
+   then only the lower word of ESP is updated. The upper word remains
+   unchanged. This is fine for pure 16-bit code, as well as pure 32-bit
+   code. However, when 32-bit interrupt handlers are present, 16-bit code
+   should avoid any dependence on the upper word of ESP. No changes are
+   necessary in existing 16-bit code, since the only way to access ESP in
+   USE16 segments is through the 32-bit address size prefix. ---
 
-   The following programs are examples that are problematic because of
-   this misfeature:
+   The corruption happens when the Linux kernel returns the control to
+   dosemu process, while the 32-bit DPMI client that uses a 16-bit data
+   segment for the stack is active. This is not an usual case, but
+   unfortunately some 32-bit DPMI clients are actually using a 16-bit
+   segment for the stack, and even the dos4gw extender behaves that way
+   sometimes. Intel was contacted to comment on that issue, and their
+   comment follows:
 
-     * Need For Speed 1 (demo version at least)
-     * Syndicate Wars with dos4gw 0.8
+   --- We understand your concern, but at this time we do not have anyone
+   to look at this. This part has been out for nearly 20 years and all of
+   the designers are currently working on new projects. We will make a
+   note of this and see if somewhere down the road someone in software
+   can take a look at this. ---
+
+   The reliable work-around on dosemu side was not found, but there are
+   some hopes that this can be worked around on a kernel's side. The
+   programs that are known to be affected by that issue:
+
+     * Need For Speed 1 (demo version at least, when configured with
+       sound)
+     * Syndicate Wars (when used with dos4gw 0.8)
      * Open Cubic Player
 
-   It may be possible in the future to work around this using CPU
-   emulation and/or a 4G/4G code/data split in the Linux kernel.
+   That programs are crashing shortly after the startup, but this problem
+   is difficult to detect reliably, so there may be many more programs
+   that experience a random crashes due to that CPU bug.
+
+   It appeared that it may be possible to work around this problem by
+   using a different DOS extender with the programs that are using the
+   dos4gw extender by default. DOS32A extender at http://dos32a.sf.net,
+   seems to not trigger that problem. It can be used as follows: DOS32A
+   progname.exe (at the DOS prompt) CauseWay dos extender also seems to
+   help.
+
+   It may be possible in the future to work around this problem by using
+   the CPU emulation. It is already possible to run dosemu under a CPU
+   emulator called Qemu (http://savannah.nongnu.org/projects/qemu), where
+   this problem doesn't exist.
      _________________________________________________________________
 
 2. Known bugs
 
 2.1. Things YOU may help changing
 
-   This is a list of currently known bugs in Dosemu 1.2.0. Some of these
-   are in the bug tracking system at http://dosemu.sf.net.
+2.1.1. List of currently known bugs in Dosemu 1.2.0.
 
      * Some documentation is known to be well out of date.
-     * Some video BIOS will start very slowly with the serial ports
-       enabled.
-     * Windows 3.1 will not run very well because of timer problems.
-     * OPL3 FM sound doesn't work (but Midi, SB8 and SB16 work)
+     * Windows 3.1 will not run very well because for some reasons.
+     * OPL3 FM is not implemented yet (but Midi, SB8 and SB16 work)
      * IPX doesn't play well with DPMI. You might be able to use the
        packet driver in combination with DOS TSR drivers such as LSL,
-       IPXPD/PDETHER/PDIPX and IPXODI. See NOVELL-HOWTO.txt and
-       README.txt for details.
+       PDETHER and IPXODI. See NOVELL-HOWTO.txt and README.txt for
+       details.
      * Some database programs (Clipper, FoxPro) have problems with
        locking in certain configurations. smbfs doesn't support locking.
        $_full_file_locks=(on) may or may not help.
@@ -142,15 +235,22 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
      * Console graphics (especially switching VCs) can be problematic
        with certain video cards, in particular in combination with fbdev
        graphical consoles.
+     * DPMI interrupt handling may be unreliable.
+     * Mortal Kombat 1 and 2 are not producing any sound for unknown
+       reasons.
+     * X-COM Apocalypse locks up at startup if configured with sound.
+     * RTC periodic interrupts are not implemented yet.
+     _________________________________________________________________
+
+2.1.2. Bug reports that are currently open at http://www.dosemu.org/. but
+that were not yet confirmed by dosemu developers.
+
      * An (unknown) DPMI clipper program hangs when run on a SMP machine
      * A chess program (VChess) may crash in xdosemu when the mouse is
        moved (there are still some issues with the internal mouse driver)
      * Another chess program (Nimzo 3) crashes when there is no CD in the
        CDROM drive.
-     * DPMI interrupt handling may be unreliable. This problem exhibits
-       itself in a program named "Screamer 2".
      * Watcom C may fail freeze on AMD but not PIV.
-     * Ishar only works fine if sound is disabled or uses the pc-speaker
      _________________________________________________________________
 
 2.2. Problems probably solved
@@ -168,60 +268,49 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
      * The internal mouse driver is known to have problems.
      * Running a protected mode 'make' and a protected mode compiler
        (e.g. Borland's) may not work. Try switching to a real mode make.
-     _________________________________________________________________
+     * dd2demo.exe
+       This is a game found at
 
-3. Programs not working yet
+    http://www.psygnosis.com/
 
-   Here are programs listed, where someone has reported that it does not
-   work.
-     _________________________________________________________________
+       Reported by Hans Lermen, it kills dosemu, giving an output like:
 
-3.1. dd2demo.exe
-
-   This is a game found at
-       http://www.psygnosis.com/
-
-   Reported by Hans Lermen, it kills dosemu, giving an output like:
     general protection at 0x1fba: a7
     ERROR: SIGSEGV, protected insn...exiting!
 
-   The crash happens in DMPI Call 0x0302 At least DMPI Call 0x0506 is not
-   yet implemented.
+       The crash happens in DMPI Call 0x0302 At least DMPI Call 0x0506 is
+       not yet implemented.
+       This demo is no longer for download. But if you can test please
+       let us know for completeness.
+     * bae.exe
+       This is a demo version of an Electronic CAD programm, found at
 
-   This demo is no longer for download. But if you can test please let us
-   know for completeness.
+    http://www.bartels.de/
+
+       Reported by Uwe Bonnes, it stops dosemu with a blank screen in an
+       unusable state. You have to do a remote login to kill dosemu, or
+       hit reset with all it's possible fatal result. The possible reason
+       is the missing implementation of DMPI Call 0x0800, as Uwe Bonnes
+       reported it once working on the console with some hack.
+       However, this demo is no longer for download, and, moreover, they
+       have a native Linux version.
      _________________________________________________________________
 
-3.2. bae.exe
-
-   This is a demo version of an Electronic CAD programm, found at
-       http://www.bartels.de/
-
-   Reported by Uwe Bonnes, it stops dosemu with a blank screen in an
-   unusable state. You have to do a remote login to kill dosemu, or hit
-   reset with all it's possible fatal result. The possible reason is the
-   missing implementation of DMPI Call 0x0800, as Uwe Bonnes reported it
-   once working on the console with some hack.
-
-   However, this demo is no longer for download, and, moreover, they have
-   a native Linux version.
-     _________________________________________________________________
-
-3.3. QIC tape programs
+2.3. QIC tape programs
 
    Reported by vignani@mail.tin.it (Alberto Vignani): Tape is not
    supported. Worse, if you use a floppy under dosemu, you have sometimes
    to remove/reinstall the ftape module.
      _________________________________________________________________
 
-4. Programs exhibiting graphical problems in xdosemu
+3. Programs exhibiting graphical problems in xdosemu
 
    The following programs work perfectly on the Linux console
    (suid/sudo/root) with graphics enabled but exhibit minor or major
    glitches in xdosemu.
      _________________________________________________________________
 
-4.1. Text programs with custom fonts
+3.1. Text programs with custom fonts
 
    Programs such as Norton Commander and the Watcom Debugger use custom
    characters to display icons, radio buttons and similar characters.
@@ -229,7 +318,7 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
    fixes will likely be backported to a later version of DOSEMU 1.2.x
      _________________________________________________________________
 
-4.2. Games with graphical problems
+3.2. Games with graphical problems
 
    The following games exhibit glitches or don't work at all in xdosemu.
    Please let us know when any problems are solved or even better, help
