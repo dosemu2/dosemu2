@@ -100,4 +100,9 @@ extern int have_mremap_fixed;
 void mapping_init(void);
 void mapping_close(void);
 
+void map_hardware_ram(void);
+int register_hardware_ram(int type, size_t base, size_t size);
+void *get_hardware_ram(size_t addr);
+void list_hardware_ram(void (*print)(char *, ...));
+
 #endif /* _MAPPING_H_ */

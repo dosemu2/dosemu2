@@ -67,6 +67,7 @@
 #include "keymaps.h"
 #include "keyb_server.h"
 #include "memory.h"
+#include "mapping.h"
 #include "utilities.h"
 #include "aspi.h"
 #include "pktdrvr.h"
@@ -144,7 +145,6 @@ static void start_vnet(char *);
 static FILE* open_file(char* filename);
 static void close_file(FILE* file);
 static void write_to_syslog(char *message);
-static int set_hardware_ram(int addr);
 static void set_irq_value(int bits, int i1);
 static void set_irq_range(int bits, int i1, int i2);
 static int undefine_config_variable(char *name);
@@ -1541,39 +1541,29 @@ hardware_ram_flags : hardware_ram_flag
 		;
 hardware_ram_flag : INTEGER
 	           {
-                     if (!set_hardware_ram($1)) {
-                       yyerror("wrong hardware ram address : 0x%05x", $1);
+                     if (!register_hardware_ram('h', $1, PAGE_SIZE)) {
+                       yyerror("wrong hardware ram address : 0x%08x", $1);
                      }
 	           }
 		| '(' expression ')'
 	           {
-                     if (!set_hardware_ram($2)) {
-                       yyerror("wrong hardware ram address : 0x%05x", $2);
+                     if (!register_hardware_ram('h', $2, PAGE_SIZE)) {
+                       yyerror("wrong hardware ram address : 0x%08x", $2);
                      }
 	           }
 		| RANGE INTEGER INTEGER
 		   {
-                     int i;
-                     for (i=$2; i<= $3; i+=0x1000) {
-                       if (set_hardware_ram(i))
-	                   c_printf("CONF: hardware ram page at 0x%05x\n", i);
-                       else {
-                         yyerror("wrong hardware ram address : 0x%05x", i);
-                         break;
-                       }
-                     }
+                     if (register_hardware_ram('h', $2, $3 - $2))
+	               c_printf("CONF: hardware ram pages at 0x%08x-%08x\n", $2, $3);
+                     else
+                       yyerror("wrong hardware ram address : 0x%08x", $2);
 		   }
 		| RANGE expression ',' expression
 		   {
-                     int i;
-                     for (i=$2; i<= $4; i+=0x1000) {
-                       if (set_hardware_ram(i))
-	                   c_printf("CONF: hardware ram page at 0x%05x\n", i);
-                       else {
-                         yyerror("wrong hardware ram address : 0x%05x", i);
-                         break;
-                       }
-                     }
+                     if (register_hardware_ram('h', $2, $4 - $2))
+	               c_printf("CONF: hardware ram pages at 0x%08x-%08x\n", $2, $4);
+                     else
+                       yyerror("wrong hardware ram address : 0x%08x", $2);
 		   }
 		| STRING
 		    { yyerror("unrecognized hardware ram command '%s'", $1);
@@ -2083,17 +2073,6 @@ static void dump_keytables_to_file(char *name)
   fclose(f);
   exit(0);
 }
-
-static int set_hardware_ram(int addr)
-{
-  if ((addr>=0xc800) && (addr<0xf000))   addr *= 0x10;
-  if ((addr<0xc8000) || (addr>=0xf0000)) return 0;
-  memcheck_reserve('h', addr, 4096);
-  config.must_spare_hardware_ram=1;
-  config.hardware_pages[(addr-0xc8000) >> 12]=1;
-  return 1;
-}
-
 
 static void set_irq_value(int bits, int i1)
 {

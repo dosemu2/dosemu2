@@ -179,10 +179,6 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
 #define RPT_SYSCALL(sc) (sc)
 #endif
 
-/* would like to have this in memory.h (but emu.h is included before memory.h !) */
-#define HARDWARE_RAM_START 0xc8000
-#define HARDWARE_RAM_STOP  0xf0000
-
 typedef struct vesamode_type_struct {
   struct vesamode_type_struct *next;
   unsigned width, height, color_bits;
@@ -286,9 +282,6 @@ typedef struct vesamode_type_struct {
 
        int mem_size, xms_size, ems_size, dpmi, pm_dos_api, max_umb;
        unsigned int ems_frame;
-       char must_spare_hardware_ram;
-       char hardware_pages[ ((HARDWARE_RAM_STOP-HARDWARE_RAM_START) >> 12)+1 ];
-
 
        int sillyint;            /* IRQ numbers for Silly Interrupt Generator 
        				   (bitmask, bit3..15 ==> IRQ3 .. IRQ15) */
@@ -474,7 +467,6 @@ EXTERN void signal_init(void);
 EXTERN void device_init(void);
 EXTERN void hardware_setup(void);
 EXTERN void memory_init(void);
-EXTERN void map_hardware_ram(void);
 EXTERN void map_video_bios(void);
 EXTERN void stdio_init(void);
 EXTERN void time_setting_init(void);

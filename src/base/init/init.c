@@ -263,44 +263,6 @@ void map_video_bios(void)
 }
 
 /*
- * DANG_BEGIN_FUNCTION map_hardware_ram
- *
- * description:
- *  Initialize the hardware direct-mapped pages
- * 
- * DANG_END_FUNCTION
- */
-void map_hardware_ram(void)
-{
-  int i, j;
-  unsigned int addr, size;
-
-  if (!config.must_spare_hardware_ram)
-    return;
-  if (!can_do_root_stuff) {
-    fprintf(stderr, "can't use hardware ram in low feature (non-suid root) DOSEMU\n");
-    return;
-  }
-  i = 0;
-  do {
-    if (config.hardware_pages[i++]) {
-      j = i - 1;
-      while (config.hardware_pages[i])
-	i++;		/* NOTE: last byte is always ZERO */
-      addr = HARDWARE_RAM_START + (j << 12);
-      size = (i - j) << 12;
-      alloc_mapping(MAPPING_INIT_HWRAM | MAPPING_KMEM, size, (caddr_t) addr);
-      if (mmap_mapping(MAPPING_INIT_HWRAM | MAPPING_KMEM, (caddr_t) addr,
-		size, PROT_READ | PROT_WRITE, (caddr_t) addr) == MAP_FAILED) {
-	error("mmap error in map_hardware_ram %s\n", strerror (errno));
-	return;
-      }
-      g_printf("mapped hardware ram at 0x%05x .. 0x%05x\n", addr, addr+size-1);
-    }
-  } while (i < sizeof (config.hardware_pages) - 1);
-}
-
-/*
  * DANG_BEGIN_FUNCTION map_custom_bios
  *
  * description:

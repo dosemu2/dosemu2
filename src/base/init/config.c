@@ -271,22 +271,7 @@ void dump_config_status(void *printfunc)
       (*print)("\n");
     }
     else (*print)("none\n");
-    (*print)("must_spare_hardware_ram %d\n",
-        config.must_spare_hardware_ram);
-    {
-      int need_header_line =1;
-      int i;
-      for (i=0; i<(sizeof(config.hardware_pages)); i++) {
-        if (config.hardware_pages[i]) {
-          if (need_header_line) {
-            (*print)("hardware_pages:\n");
-            need_header_line = 0;
-          }
-          (*print)("%05x ", (i << 12) + 0xc8000);
-        }
-      }
-      if (!need_header_line) (*print)("\n");
-    }
+    list_hardware_ram(print);
     (*print)("ipxsup %d\nvnet %d\npktflags 0x%x\n",
 	config.ipxsup, config.vnet, config.pktflags);
     

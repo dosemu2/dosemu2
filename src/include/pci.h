@@ -58,7 +58,6 @@ typedef struct _pciRec {
     struct {
         int type;
         unsigned long base;
-        unsigned long vbase;
         unsigned long size;
         unsigned long rawsize;
     } region[7];

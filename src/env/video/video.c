@@ -212,10 +212,10 @@ reserve_video_memory(void)
       c_printf("CONF: Unable to maximize UMB's due to dual monitor setup\n");
     if (config.mem_size > 640) {
       int addr_start = config.mem_size * 1024;
-      memcheck_reserve('v', addr_start, 0xC0000 - addr_start);
+      register_hardware_ram('v', addr_start, 0xC0000 - addr_start);
     }
     else
-      memcheck_reserve('v', GRAPH_BASE, GRAPH_SIZE);
+      register_hardware_ram('v', GRAPH_BASE, GRAPH_SIZE);
   } else {
     int graph_base, graph_size;
 
@@ -266,7 +266,7 @@ reserve_video_memory(void)
       }
     }
 
-    memcheck_reserve('v', graph_base, graph_size);
+    register_hardware_ram('v', graph_base, graph_size);
   }
 }
 

@@ -23,7 +23,7 @@
 #include "lowmem.h"
 #include "vbe.h"
 #include "vesa.h"
-#include "pci.h"
+#include "mapping.h"
 #include "dosemu_config.h"
 
 static void *vesa_pm_code;
@@ -113,20 +113,9 @@ static void vesa_reinit(void)
     vesa_granularity= VBE_vmWinGran;
     vesa_read_write = VBE_vmWinAAttrib & 6;
     if (vesa_version >= 0x200 && (VBE_vmModeAttrib & 0x80) && config.pci_video) {
-      size_t vesa_linear_base = VBE_vmPhysBasePtr;
-      int i;
-      pciRec *pcirec = pcibios_find_class(PCI_CLASS_DISPLAY_VGA << 8, 0);
-      if (pcirec) for (i = 0; i < 7; i++) {
-	if (pcirec->region[i].type == PCI_BASE_ADDRESS_SPACE_MEMORY &&
-	    pcirec->region[i].base <= vesa_linear_base &&
-	    vesa_linear_base < pcirec->region[i].base + pcirec->region[i].size ) {
-	  vesa_linear_vbase = pcirec->region[i].vbase +
-	    vesa_linear_base - pcirec->region[i].base;
-	  v_printf("VESA: physical base = %x, virtual base = %x\n",
-		   vesa_linear_base, vesa_linear_vbase);
-	  break;
-	}
-      }
+      vesa_linear_vbase = (size_t)get_hardware_ram(VBE_vmPhysBasePtr);
+      v_printf("VESA: physical base = %x, virtual base = %x\n",
+	       VBE_vmPhysBasePtr, vesa_linear_vbase);
     }
   } else {
     v_printf("VESA: Can't get mode info\n");

@@ -434,3 +434,87 @@ int munmap_mapping(int cap, void *addr, int mapsize)
 
   return mappingdriver.munmap(cap, addr, mapsize);
 }
+
+struct hardware_ram {
+  size_t base;
+  void *vbase;
+  size_t size;
+  int type;
+  struct hardware_ram *next;
+};
+
+static struct hardware_ram *hardware_ram;
+
+/*
+ * DANG_BEGIN_FUNCTION map_hardware_ram
+ *
+ * description:
+ *  Initialize the hardware direct-mapped pages
+ * 
+ * DANG_END_FUNCTION
+ */
+void map_hardware_ram(void)
+{
+  struct hardware_ram *hw;
+  int cap;
+
+  for (hw = hardware_ram; hw != NULL; hw = hw->next) {
+    if (!hw->type) /* virtual hardware ram, base==vbase */      
+      continue;
+    cap = (hw->type == 'v' ? MAPPING_VC : MAPPING_INIT_HWRAM) | MAPPING_KMEM;
+    if (hw->base >= LOWMEM_SIZE)
+      hw->vbase = (void *)-1;
+    alloc_mapping(cap, hw->size, (void *)hw->base);
+    hw->vbase = mmap_mapping(cap, hw->vbase, hw->size, PROT_READ | PROT_WRITE,
+			     (void *)hw->base);
+    if (hw->vbase == MAP_FAILED) {
+      error("mmap error in map_hardware_ram %s\n", strerror (errno));
+      return;
+    }
+    g_printf("mapped hardware ram at 0x%08x .. 0x%08x at %p\n",
+	     hw->base, hw->base+hw->size-1, hw->vbase);
+  }
+}
+
+int register_hardware_ram(int type, size_t base, size_t size)
+{
+  struct hardware_ram *hw;
+
+  if (!can_do_root_stuff && type) {
+    fprintf(stderr, "can't use hardware ram in low feature (non-suid root) DOSEMU\n");
+    return 0;
+  }
+  hw = malloc(sizeof(*hw));
+  hw->base = base;
+  hw->vbase = (void *)base;
+  hw->size = size;
+  hw->type = type;
+  hw->next = hardware_ram;
+  hardware_ram = hw;
+  if ((size_t)base < LOWMEM_SIZE)
+    memcheck_reserve(type, base, size);
+  return 1;
+}
+
+/* given physical address addr, gives the corresponding vbase or NULL */
+void *get_hardware_ram(size_t addr)
+{
+  struct hardware_ram *hw;
+
+  for (hw = hardware_ram; hw != NULL; hw = hw->next)
+    if (hw->vbase != MAP_FAILED &&
+	hw->base <= addr && addr < hw->base + hw->size)
+      return hw->vbase +  addr - hw->base;
+  return NULL;
+}
+
+void list_hardware_ram(void (*print)(char *, ...))
+{
+  struct hardware_ram *hw;
+
+  (*print)("hardware_ram: %s\n", hardware_ram ? "" : "no");
+  if (!hardware_ram) return;
+  (*print)("hardware_pages:\n");
+  for (hw = hardware_ram; hw != NULL; hw = hw->next)
+    (*print)("%08x-%08x\n", hw->base, hw->base + hw->size - 1);
+}

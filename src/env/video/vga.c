@@ -489,8 +489,7 @@ static void pcivga_init(void)
     size = pcirec->region[i].size;
     if (pcirec->region[i].type == PCI_BASE_ADDRESS_SPACE_IO) {
       emu_iodev_t io_device;
-      v_printf("PCIVGA: found IO region at %#lx [%#lx]\n",
-	       base, size);
+      v_printf("PCIVGA: found IO region at %#lx [%#lx]\n", base, size);
 
       /* register PCI VGA ports */
       io_device.irq = EMU_NO_IRQ;
@@ -500,15 +499,8 @@ static void pcivga_init(void)
       io_device.end_addr = base + size;
       port_register_handler(io_device, PORT_FAST);
     } else {
-      char *vbase;
-      v_printf("PCIVGA: found MEM region at %#lx [%#lx]\n",
-	       base, size);
-      alloc_mapping(MAPPING_VC | MAPPING_KMEM, size,
-		    (void*)base);
-      vbase = mmap_mapping(MAPPING_VC|MAPPING_KMEM,(void*)-1,
-			   size, PROT_READ | PROT_WRITE,
-			   (void *)base);
-      pcirec->region[i].vbase = (unsigned long)vbase;
+      v_printf("PCIVGA: found MEM region at %#lx [%#lx]\n", base, size);
+      register_hardware_ram('v', base, size);
     }
   }
 }
