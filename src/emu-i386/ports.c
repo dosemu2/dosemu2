@@ -768,6 +768,14 @@ defout:
 	std_port_outb (port, byte);
 }
 
+/* temporary signal handler to check if we can catch i/o */
+static volatile int io_sigsegv = 0;
+static void port_sigsegv(int sig, struct sigcontext scp)
+{
+	io_sigsegv = 1;
+	scp.eip++; /* get past opcode ee == out dx, al */
+}
+
 /* ---------------------------------------------------------------------- */
 /* 
  * SIDOC_BEGIN_FUNCTION port_init()
@@ -781,7 +789,24 @@ defout:
  */
 int port_init(void)
 {
-  int i;
+	int i;
+	struct sigaction sa;
+
+	/* first check if writing to a port results in a SIGSEGV ...
+	   this could be broken with kernel 2.6.5 */
+	sa.sa_handler = (SignalHandler)port_sigsegv;
+	sa.sa_flags = SA_RESETHAND;
+	sigemptyset(&sa.sa_mask);
+	sigaction(SIGSEGV, &sa, NULL);
+	port_real_outb(0x20, 0x20);
+	if (io_sigsegv == 0) {
+		/* Oops! no sigsegv */
+		error("We can't intercept port i/o. If you are using a "
+		      "2.6 kernel older than 2.6.6,\nthen you should upgrade "
+		      "your Linux kernel. Otherwise please report this bug\n");
+		leavedos(1);
+	}
+
 	/* set unused elements to appropriate values */
 	for (i=0; i < EMU_MAX_IO_DEVICES; i++) {
 	  port_handler[i].read_portb   = NULL;
