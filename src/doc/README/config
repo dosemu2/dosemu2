@@ -341,6 +341,14 @@ get printed to the log file via the debug-flag '+c')
   warn "message text"
 </verb></tscreen>
 
+When you want to use the CDrom driver and the Linux device is other
+then /dev/cdrom you may define
+
+<tscreen><verb>
+  cdrom /dev/xxx
+</verb></tscreen>
+
+
 
 <sect2>Keyboard settings
 <p>

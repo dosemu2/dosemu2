@@ -15,7 +15,8 @@ url="mailto:rucker@astro.uni-bonn.de" name="&lt;rucker@astro.uni-bonn.de&gt;">
 
 To install it:
 <itemize>
-<item> Create a (symbolic) link /dev/cdrom to the device file of your drive.
+<item> Create a (symbolic) link /dev/cdrom to the device file of your drive
+	or use the cdrom statement in /etc/dosemu.conf to define it.
 <item> Make sure that you have read/write access to the device file of your
   drive, otherwise you won't be able to use the cdrom under Dosemu
   directly because of security reasons.

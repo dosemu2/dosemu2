@@ -1,8 +1,13 @@
-/* drivers/cdrom.c
+/* 
+ * DANG_BEGIN_MODULE
+ * 
+ * drivers/cdrom.c
  *
  * Author: Karsten Rucker (rucker@astro.uni-bonn.de)
  *
- * See dosemu/doc/README.CDROM for further information
+ * REMARK
+ * See dosemu/doc/README.txt (8. Using CDROMS) for further information
+ * /REMARK
  *
  * History:
  *   May 25, 95, Karsten Rucker (rucker@astro.uni-bonn.de)
@@ -12,6 +17,8 @@
  *   Dec 3, 95, lee
  *   - Debugging output changed from *printf()/error() to C_printf()
  *   - Minor editing, no real changes
+ *
+ * DANG_END_MODULE
  */
 
 #include <stdio.h>
@@ -32,13 +39,8 @@
 #endif
 
 #include "emu.h"
-#include "priv.h"
 
-extern int errno;
-
-#if 0
-  #define CDROM_DEBUG	1
-#endif
+#undef CDROM_DEBUG
 
 int cdrom_fd = -1;
 int cdu33a = 0;
@@ -53,6 +55,38 @@ int cdu33a = 0;
 
 int eject_allowed = 1;
 
+/*
+ * From mscdex21.doc:
+ *
+ * The device driver will return a 32-bit value. Bit 0 is the least significant
+ * bit. The bits are interpreted as follows (* = dosemu defaults):
+ *
+ *  Bit 0     0    Door closed
+ *            1    Door open
+ *  Bit 1     0    Door locked
+ *            1    Door unlocked
+ *  Bit 2     0    Supports only cooked reading (*)
+ *            1    Supports cooked and raw reading
+ *  Bit 3     0    Read only (*)
+ *            1    Read/write
+ *  Bit 4     0    Data read only
+ *            1    Data read and plays audio/video tracks (*)
+ *  Bit 5     0    No interleaving (*)
+ *            1    Supports interleaving
+ *  Bit 6     0    Reserved
+ *  Bit 7     0    No prefetching (*)
+ *            1    Supports prefetching requests
+ *  Bit 8     0    No audio channel manipulation
+ *            1    Supports audio channel manipulation (*)
+ *  Bit 9     0    Supports HSG addressing mode
+ *            1    Supports HSG and Red Book addressing modes (*)
+ *  "Bit 10-31 0    Reserved (all 0)"
+ *  Bit 10    0    Ignore XA directory entries (?)
+ *            1    Read XA directory entries (*)(?)
+ *  Bit 11    0    Disk present (?)
+ *            1    No disk (?)
+ *
+ */
 unsigned int device_status;
 struct audio_status { unsigned int status;
 		      unsigned char media_changed;
@@ -110,10 +144,10 @@ struct audio_status { unsigned int status;
 #define MSCD_CTRL_VOLUME3          8
 
 #ifdef __linux__
-#define _PATH_CDROM "/dev/cdrom"
+char path_cdrom[32]="/dev/cdrom";
 #endif
 #ifdef __NetBSD__
-#define _PATH_CDROM "/dev/rcd0a"
+char path_cdrom[32]="/dev/rcd0a";
 #endif
 
 #ifdef CDROM_DEBUG
@@ -173,7 +207,7 @@ void cdrom_reset()
    C_printf("CDROM: cdrom reset\n");
    close (cdrom_fd);
    enter_priv_off();
-   cdrom_fd = open (_PATH_CDROM, O_RDONLY);
+   cdrom_fd = open (path_cdrom, O_RDONLY);
    if (cdrom_fd >= 0) ioctl (cdrom_fd, CDROMRESET, NULL);
    leave_priv_setting();
 #ifdef __NetBSD__
@@ -216,7 +250,7 @@ void cdrom_helper(void)
 
    if ((cdu33a) && (cdrom_fd < 0)) {
         enter_priv_off();
-        cdrom_fd = open (_PATH_CDROM, O_RDONLY);
+        cdrom_fd = open (path_cdrom, O_RDONLY);
         leave_priv_setting();
 #ifdef __NetBSD__
         if (cdrom_fd >= 0) ioctl(cdrom_fd, CDIOCALLOW, 0);
@@ -245,7 +279,23 @@ void cdrom_helper(void)
 #endif
 
    switch (HI(ax)) {
-     case 0x01: audio_status.status = 0x00000310;
+     case 0x01:	/* NOTE: you can't see XA data disks if bit 10 of status
+		 * is cleared, MSCDEX will test it and skip XA entries!
+		 * Actually the entries skipped must have this pattern:
+		 *   xxxx1xxx xxxxxxxx 0x58 0x41
+		 * and the mscdex 2.25 code is:
+		 *	test	word ptr [bx+1Eh],400h
+		 *	jz	[check for XA]
+		 *	[return 0 = valid entry]
+		 * [check for XA]
+		 * ...
+		 *	cmp	word ptr es:[bx+6],4158h  'XA'
+		 *	jne	[return 0]
+		 *	mov	ax,es:[bx+4]
+		 *	and	ax,8
+		 *	[return ax]
+		 */
+		audio_status.status = 0x00000710; /* see function 0x0A below */
                 audio_status.paused_bit = 0;
                 audio_status.media_changed = 0;
                 audio_status.volume0 = 0xFF;
@@ -258,7 +308,7 @@ void cdrom_helper(void)
                 audio_status.outchan3 = 3;
 
                 enter_priv_off();
-                cdrom_fd = open (_PATH_CDROM, O_RDONLY);
+                cdrom_fd = open (path_cdrom, O_RDONLY);
                 leave_priv_setting();
 		error = errno;
 #ifdef __NetBSD__
@@ -266,8 +316,8 @@ void cdrom_helper(void)
 #endif
 
                 if (cdrom_fd < 0) {
-		  C_printf("CDROM: cdrom open (" _PATH_CDROM ") failed: %s\n",
-			    strerror(error));
+		  C_printf("CDROM: cdrom open (%s) failed: %s\n",
+			    path_cdrom, strerror(error));
                   if (error == EIO) {
                     /* drive which cannot be opened if no
                        disc is inserted!                   */
@@ -704,18 +754,18 @@ void cdrom_helper(void)
                 *CALC_PTR(req_buf,MSCD_AUDCHAN_VOLUME2-1,u_char) = audio_status.outchan2;
                 *CALC_PTR(req_buf,MSCD_AUDCHAN_VOLUME3-1,u_char) = audio_status.outchan3;
                 break;
-     default: C_printf ("CDROM: unknown request !\n");
+     default: C_printf ("CDROM: unknown request %#x!\n",HI(ax));
    }
 
 #ifdef CDROM_DEBUG
-                if (d.cdrom>5) {
-                  C_printf ("CDROM: return  ");
-                  req_buf = SEG_ADR((char *), ds, si);
-                  for (n = 0; n <= 9; ++n)
-                     C_printf ("  %3x", req_buf[n]);
-                  C_printf ("\n");
-                 }
-                C_printf ("Leave cdrom request with return status %d.\n", LWORD(eax));
+   if (d.cdrom>5) {
+     C_printf ("CDROM: req_buf ");
+     req_buf = SEG_ADR((char *), es, di);
+     for (n = 0; n < 22; ++n)
+       C_printf ("%02x", req_buf[n]);
+       C_printf ("\n");
+     }
 #endif
-   return ;
+   C_printf ("Leave cdrom request with return status %#x\n", LWORD(eax));
+   return;
 }

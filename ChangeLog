@@ -1,3 +1,11 @@
+97/10/10 ver. 0.67.12.1 unofficial pre-release
+	From Alberto
+	- fixes to CDrom driver (undocumented bit 10 in CD status)
+	  look at the comments in src/dosext/drivers/cdrom.c.
+	- new config variable 'cdrom' added for more than 1 CDrom
+	From Hans
+	- (instead of Alberto;-) did update the README/config
+	  to reflect the above config variable 'cdrom'.
 97/09/26 ver. 0.67.12 released
 	From Eric
 	- new speaker code. Changes against old code:

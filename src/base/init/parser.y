@@ -222,6 +222,8 @@ extern void yyrestart(FILE *input_file);
 %token HARDWARE_RAM
         /* Sound Emulation */
 %token SB_BASE SB_IRQ SB_DMA SB_MIXER SB_DSP MPU_BASE
+	/* CD-ROM */
+%token CDROM
 
 /* %type <i_value> mem_bool irq_bool bool speaker method_val color_val floppy_bool */
 %type <i_value> mem_bool irq_bool bool speaker color_val floppy_bool
@@ -481,6 +483,11 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    { IFCLASS(CL_FLOPPY) start_floppy(); }
 		  '{' disk_flags '}'
 		    { stop_disk(L_FLOPPY); }
+                | CDROM '{' STRING '}'
+                    { IFCLASS(CL_DISK){
+		    strncpy(path_cdrom, $3, 30);
+                    c_printf("CONF: cdrom on %s\n", $3);
+		    }}
 		| PRINTER
 		    { IFCLASS(CL_PRINTER) start_printer(); }
 		  '{' printer_flags '}'
