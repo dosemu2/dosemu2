@@ -1,5 +1,5 @@
 .\" -*- nroff -*-  (This is for Emacs)
-.TH DOSEMU.BIN 1 "Jan, 2003" "Version 1.1.4.1" "DOS Emulation"
+.TH DOSEMU.BIN 1 "Jun, 2003" "Version 1.1.5" "DOS Emulation"
 .SH NAME
 dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 .SH SYNOPSIS
@@ -109,13 +109,13 @@ memory allocation through the XMS 3.0 specification, EMS 4.0 and DPMI 0.9.
 Because 
 .B DOSEMU
 is not really a DOS emulator, a copy of FreeDos is required, which now is
-preconfigured and part of the official DOSEMU binary distribution.
+pre-configured and part of the official DOSEMU binary distribution.
 In addition any currently available proprietary DOS (such as MS-DOS, PC-DOS,
 DR-DOS) can be booted, when properly configured.
 
 .SH KERNEL REQUIREMENTS
 At present, you will need Linux 2.0.28 or above with the SYSV IPC option
-(System V InterProcess Communication facilities, see 
+(System V Inter-Process Communication facilities, see 
 .BR ipc (2))
 compiled. SYSV IPC is an option in the configuration setup during a Linux
 kernel compile.
@@ -269,7 +269,7 @@ into 286-mode.)
 .I -U
 define inpipe and outpipe for asynchronous control of
 .B DOSEMU
-from an other process. The format is (whithout white spaces between)
+from another process. The format is (without white spaces between)
 .TP
 		inpipe:outpipe
 
@@ -570,13 +570,13 @@ developer team - even just good detailed debug reports are all you need!
 .SH FILES
 .PD 0
 .TP
-.I /usr/local/bin/dosemu.bin
+.I dosemu.bin
 The binary
 .TP
-.I /usr/local/bin/dosemu
+.I dosemu
 The wrapper script, it is recommended not to invoke dosemu.bin directly.
 .TP
-.I /usr/local/bin/xdosemu
+.I xdosemu
 Same, but invoking DOS in an X window.
 .TP
 .I $HOME/.dosemu
@@ -598,7 +598,7 @@ including debugger pipes.
 .TP
 .TP
 .I $HOME/dosemu/freedos
-Bootdirectory containig the FreeDos part.
+Bootdirectory containing the FreeDos part.
 .TP
 .I dosemu.conf
 Main configuration file for
@@ -607,11 +607,14 @@ which is included by
 .I global.conf
 (global.conf is included in dosemu.bin by default).
 .TP
+.I $HOME/.dosemurc
+Per-user configuration file.
+.TP
 .I /etc/dosemu.users
 or
 .TP
 .I /etc/dosemu/dosemu.users
-For suid-root running binaries: Defines the access rights to
+For suid-root or sudo running binaries: Defines the access rights to
 .BR DOSEMU
 on a per user basis and sets some vital configuration. This is the only
 fix-location configuration file,
@@ -634,11 +637,6 @@ For more information see
 IPX configuration file.
 
 .TP
-.I doc/DPR
-Dosemu development team: Who is doing which part of the
-.B DOSEMU
-project?
-.TP
 .I doc/DANG
 To help you hack
 .B DOSEMU
@@ -647,7 +645,7 @@ code.
 .I doc/README.*
 Various documentation.
 .TP
-.I QuickStart
+.I QuickStart, README and INSTALL
 To set up
 .B DOSEMU
 quickly.
@@ -660,11 +658,6 @@ since the last release.
 .I README.bindist
 Information on how to use the DOSEMU/FreeDos ready-to-use binary
 distribution.
-.TP
-.I README.distributors
-Informations for Linux distributors on how to package systemwide
-installations of
-.B DOSEMU.
 .TP
 .I MSDOS mailing list
 For more information, mail to

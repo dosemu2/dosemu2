@@ -91,16 +91,17 @@ Alistair MacDonald
    14. Keymaps
    15. Networking using DOSEMU
 
-        15.1. The DOSNET virtual device.
-        15.2. Setup for virtual TCP/IP
-        15.3. Full Details
+        15.1. TUN/TAP support.
+        15.2. The DOSNET virtual device (deprecated).
+        15.3. Setup for virtual TCP/IP
+        15.4. Full Details
 
-              15.3.1. Introduction
-              15.3.2. Design
-              15.3.3. Implementation
-              15.3.4. Virtual device 'dsn0'
-              15.3.5. Packet driver code
-              15.3.6. Conclusion
+              15.4.1. Introduction
+              15.4.2. Design
+              15.4.3. Implementation
+              15.4.4. Virtual device 'dsn0'
+              15.4.5. Packet driver code
+              15.4.6. Conclusion
 
    16. Using Windows and Winsock
 
@@ -901,19 +902,24 @@ ium
 
          $_novell_hack = (on)
 
-   If you make use of the dosnet device driver, you may turn on 'multi'
-   packet driver support via
+   If you make use of TUN/TAP or the dosnet device driver, then you can
+   select it via
 
-         $_vnet = (on)
+         $_vnet = "tap"
+
+   or
+         $_vnet = "dosnet"
 
    But if you just need 'single' packet driver support that talks to, for
    instance, your ethernet card eth0 then you need to set
 
          $_netdev = "eth0"
 
-   Note that this requires raw packet access, and hence (suid)-root. If
-   $_vnet = (on), the $_netdev will default to "dsn0". For more on this
-   look at chapter 15 (Net code).
+   Note that dosnet and eth0 requires raw packet access, and hence
+   (suid)-root. If $_vnet = "dosnet", then $_netdev will default to
+   "dsn0". If you would like to use persistent TUN/TAP devices then you
+   need to specifify the TAP device in $_netdev. For more on this look at
+   chapter 15 (Networking using DOSEMU).
      _________________________________________________________________
 
 2.1.14. Settings for enabling direct hardware access
@@ -2158,15 +2164,42 @@ is,
 15. Networking using DOSEMU
 
    A mini-HOWTO from Bart Hartgers <barth@stack.nl> ( for the detailed
-   original description see below )
+   original description see below ) updated by Bart Oldeman, June 2003.
      _________________________________________________________________
 
-15.1. The DOSNET virtual device.
+15.1. TUN/TAP support.
+
+   Using TUN/TAP it is possible to have a networked DOSEMU without
+   needing root privileges, although some setup (as root, depending on
+   the distribution) is still needed.
+
+   First make sure that you have TUN/TAP support is configured in your
+   kernel; for details check Documentation/networking/tuntap.txt from the
+   Linux kernel source. The user who runs DOSEMU should have read/write
+   access to /dev/net/tun. Then either:
+
+    1. Set $_pktdriver=(on), $_vnet = "tap" and $_netdev = "". Start
+       DOSEMU as usual and configure the network device while DOSEMU is
+       running (using ifconfig manually as root, a script, or usernetctl
+       if your distribution supplies that), e.g. ifconfig tap0
+       192.168.74.1. Configure the DOS network clients to have another IP
+       address withing the same domain (e.g. 192.168.74.2). Your network
+       should now be up and running, but it will be down is soon as you
+       exit DOSEMU.
+    2. or set $_pktdriver=(on), $_vnet = "tap" and $_netdev = "tap0".
+       Obtain tunctl from the user mode linux project. Then setup a
+       persistent TAP device using tunctl (use the -u owner option if you
+       do that as root). Configure the network using ifconfig as above,
+       but now before starting DOSEMU. Now start DOSEMU as often as you
+       like and you can use the network in the same way as you did above.
+     _________________________________________________________________
+
+15.2. The DOSNET virtual device (deprecated).
 
    Dosnet.o is a kernel module that implements a special virtual network
    device. In combination with pktdrv.c and libpacket.c, this will enable
    multiple dosemu sessions and the linux kernel to be on a virtual
-   network. Each has it's own network device and ethernet address.
+   network. Each has its own network device and ethernet address.
 
    This means that you can telnet or ftp from the dos-session to your
    telnetd/ftpd running in linux and, with IP forwarding enabled in the
@@ -2179,7 +2212,7 @@ is,
    manipulate raw sockets.
      _________________________________________________________________
 
-15.2. Setup for virtual TCP/IP
+15.3. Setup for virtual TCP/IP
 
    Go to ./src/dosext/net/v-net and make dosnet.o. As root, insmod
    dosnet.o. Now as root, configure the dsn0 interface (for example:
@@ -2195,7 +2228,7 @@ is,
    telnet client to telnet to your own machine!
      _________________________________________________________________
 
-15.3. Full Details
+15.4. Full Details
 
    Modified description of Vinod G Kulkarni <vinod@cse.iitb.ernet.in>
 
@@ -2204,7 +2237,7 @@ is,
    Resulting in multiple dosemu's to use netware, ncsa telnet etc.
      _________________________________________________________________
 
-15.3.1. Introduction
+15.4.1. Introduction
 
    Allowing network access from dosemu is an important functionality. For
    pc based network product developers, it will offer an easy development
@@ -2220,7 +2253,7 @@ is,
    the packets to the actual stacks which run as user programs.
      _________________________________________________________________
 
-15.3.2. Design
+15.4.2. Design
 
    Have a virtual device which provides routing interface at one end (so
    it is a network device from linux side) and at other end, it
@@ -2240,7 +2273,7 @@ is,
    Every user stack will have a unique virtual ethernet address.
      _________________________________________________________________
 
-15.3.3. Implementation
+15.4.3. Implementation
 
    This package includes:
 
@@ -2263,7 +2296,7 @@ is,
        implementing this rfc.
      _________________________________________________________________
 
-15.3.4. Virtual device 'dsn0'
+15.4.4. Virtual device 'dsn0'
 
    Compile the module dosnet and insmod it, and give it an IP address,
    with a new IP network number. And You have to set up proper routing
@@ -2329,7 +2362,7 @@ is,
           duplicated if more than one SOCK_PACKET asks for same type. )
      _________________________________________________________________
 
-15.3.5. Packet driver code
+15.4.5. Packet driver code
 
    I have add the code for handling multiple protocols.
 
@@ -2356,7 +2389,7 @@ is,
        handler table... how to reduce?
      _________________________________________________________________
 
-15.3.6. Conclusion
+15.4.6. Conclusion
 
    So at last one can open multiple DOSEMU's and access network from each
    of them ... However, you HAVE TO set up ROUTING TABLES etc.
@@ -2364,7 +2397,7 @@ is,
    Vinod G Kulkarni <vinod@cse.iitb.ernet.in>
      _________________________________________________________________
 
-15.3.6.1. Telnetting to other Systems
+15.4.6.1. Telnetting to other Systems
 
    Other systems need to have route to this "new" network. The easiest
    way to do this is to have static route for dosnet IP network included
@@ -2380,7 +2413,7 @@ is,
    if you need to connect to outside of 144.16.98.0.
      _________________________________________________________________
 
-15.3.6.2. Accessing Novell netware
+15.4.6.2. Accessing Novell netware
 
    Since dosemu is now on "different device", IPX needs to be either
    bridged or routed. If it is bridged, then there is no requirement for

@@ -8,16 +8,61 @@ url="mailto:barth@stack.nl"
 >&#60;barth@stack.nl&#62;</ulink
 >
 ( for the detailed original description see below )
+updated by Bart Oldeman, June 2003.
 </para>
 
 <sect2>
-<title>The DOSNET virtual device.</title>
+<title>TUN/TAP support.</title>
+<para>
+Using TUN/TAP it is possible to have a networked DOSEMU without
+needing root privileges, although some setup (as root, depending
+on the distribution) is still needed.
+</para>
+
+<para>
+First make sure that you have TUN/TAP support is configured
+in your kernel; for details check Documentation/networking/tuntap.txt
+from the Linux kernel source. The user who runs DOSEMU should have 
+read/write access to /dev/net/tun. Then either:
+
+<orderedlist>
+<listitem>
+Set $_pktdriver=(on), $_vnet = "tap" and $_netdev = "". Start DOSEMU as usual 
+and configure the network device while DOSEMU is running (using ifconfig
+manually as root, a script, or usernetctl if your distribution supplies 
+that), e.g. ifconfig tap0 192.168.74.1. Configure the DOS 
+network clients to have another IP address withing the same domain (e.g.
+192.168.74.2). Your network should now be up and running, but it will
+be down is soon as you exit DOSEMU.
+</listitem>
+
+<listitem>
+or set $_pktdriver=(on), $_vnet = "tap" and $_netdev = "tap0". Obtain tunctl
+from the user mode linux project. Then setup a persistent TAP device using
+tunctl (use the -u owner option if you do that as root). Configure
+the network using ifconfig as above, but now before starting DOSEMU.
+Now start DOSEMU as often as you like and you can use the network in
+the same way as you did above.
+</listitem>
+
+Note, however, that multiple DOSEMU sessions that run at the same time
+need to use multiple tapxx devices. $_netdev can be changed without
+editing dosemu.conf/~./dosemurc (if you leave it commented out there)
+by setting the dosemu__netdev environment variable or by using something
+like [x]dosemu -I "netdev tap1".
+</orderedlist>
+</para>
+
+</sect2>
+
+<sect2>
+<title>The DOSNET virtual device (deprecated).</title>
 
 <para>
 Dosnet.o is a kernel module that implements a special virtual network
 device. In combination with pktdrv.c and libpacket.c, this will
 enable multiple dosemu sessions and the linux kernel to be on a virtual
-network. Each has it's own network device and ethernet address.
+network. Each has its own network device and ethernet address.
 </para>
 
 <para>

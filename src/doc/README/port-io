@@ -7,7 +7,7 @@ This section written by Alberto Vignani
 url="mailto:vignani@mbox.vol.it"
 >&#60;vignani@mbox.vol.it&#62;</ulink
 >
-, Aug 10, 1997
+, Aug 10, 1997 and updated by Bart Oldeman, June 2003.
 </para>
 
 <sect2>
@@ -197,6 +197,29 @@ user listed in /etc/dosemu.users to use dosemu, (s)he must know what (s)he is
 doing. Port access is inherently dangerous, as the system can easily be
 screwed up if something goes wrong: just think of the blank screen you get
 when dosemu crashes without restoring screen registers...
+</para>
+
+</sect3>
+
+<sect3>
+<title>The port server</title>
+<para>
+Starting with version 1.1.4.5 the exception mechanism uses a port server.
+If any slow ports from $_ports, any ports above 0x3ff (including some video
+cards and $_pci), or the native speaker are selected (timer 2 of port 
+0x43 cannot be fast), DOSEMU will fork. The main DOSEMU will then drop 
+its root privileges and communicates
+via pipes with the (forked) privileged port server. The server then checks 
+if it is allowed to access the port and acts appropriately. This way it is
+impossible for a DPMI program to manipulate any forbidden ports (separate
+address spaces). Fortunately the overhead of pipes and process switching 
+seems to be negligible compared to the time it takes to trap the port access.
+</para>
+
+<para>
+If the speaker is emulated and all ports are "fast", or if DOSEMU is 
+non-suid-root and run by a normal user, then the above forking is unnecessary
+and does not occur.
 </para>
 
 </sect3>

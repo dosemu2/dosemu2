@@ -54,6 +54,7 @@ Alistair MacDonald
 
               3.2.1. System Integrity
               3.2.2. System Security
+              3.2.3. The port server
 
    4. The Virtual Flags
    5. New Keyboard Code
@@ -2043,7 +2044,7 @@ isk }
 3. Accessing ports with dosemu
 
    This section written by Alberto Vignani <vignani@mbox.vol.it> , Aug
-   10, 1997
+   10, 1997 and updated by Bart Oldeman, June 2003.
      _________________________________________________________________
 
 3.1. General
@@ -2158,6 +2159,25 @@ isk }
    system can easily be screwed up if something goes wrong: just think of
    the blank screen you get when dosemu crashes without restoring screen
    registers...
+     _________________________________________________________________
+
+3.2.3. The port server
+
+   Starting with version 1.1.4.5 the exception mechanism uses a port
+   server. If any slow ports from $_ports, any ports above 0x3ff
+   (including some video cards and $_pci), or the native speaker are
+   selected (timer 2 of port 0x43 cannot be fast), DOSEMU will fork. The
+   main DOSEMU will then drop its root privileges and communicates via
+   pipes with the (forked) privileged port server. The server then checks
+   if it is allowed to access the port and acts appropriately. This way
+   it is impossible for a DPMI program to manipulate any forbidden ports
+   (separate address spaces). Fortunately the overhead of pipes and
+   process switching seems to be negligible compared to the time it takes
+   to trap the port access.
+
+   If the speaker is emulated and all ports are "fast", or if DOSEMU is
+   non-suid-root and run by a normal user, then the above forking is
+   unnecessary and does not occur.
      _________________________________________________________________
 
 4. The Virtual Flags

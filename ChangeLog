@@ -1,3 +1,9 @@
+2003/06/07 ver 1.1.5 released
+	From Bart:
+	- documented TUN/TAP support and the port server.
+	- adjusted man pages
+	- set int 23 to iret at the right place in dpmi.c
+	- unmap the first 1 MB of (DOS) memory in the port server.
 2003/06/04 ver 1.1.4.16 unofficial pre-release
 	From Stas:
 	- midid update

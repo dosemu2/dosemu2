@@ -1296,14 +1296,18 @@ Enable Novell 8137-&#62;raw 802.3 translation hack in new packet driver.
 </para>
 
 <para>
-If you make use of the dosnet device driver, you may turn on 'multi'
-packet driver support via
+If you make use of TUN/TAP or the dosnet device driver, then you can
+select it via
 </para>
 
 <para>
 
 <screen>
-  $_vnet = (on)
+  $_vnet = "tap"
+</screen>
+or
+<screen>
+  $_vnet = "dosnet"
 </screen>
 
 </para>
@@ -1322,9 +1326,11 @@ instance, your ethernet card eth0 then you need to set
 </para>
 
 <para>
-Note that this requires raw packet access, and hence (suid)-root.
-If $_vnet = (on), the $_netdev will default to "dsn0".
-For more on this look at chapter 15 (Net code).
+Note that dosnet and eth0 requires raw packet access, and hence 
+(suid)-root. If $_vnet = "dosnet", then $_netdev will default to "dsn0".
+If you would like to use persistent TUN/TAP devices then you
+need to specifify the TAP device in $_netdev.
+For more on this look at chapter 15 (Networking using DOSEMU).
 </para>
 
 </sect3>

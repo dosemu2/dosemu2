@@ -1961,11 +1961,6 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
   in_dpmi_dos_int = 1;
   in_dpmi_pm_stack = 0;
   in_dpmi--;
-
-  /* set int 23 to "iret" so that DOS doesn't terminate the program
-     behind our back */
-  SETIVEC(0x23, BIOSSEG, INT_OFF(0x68));
-
   in_win31 = 0;
   if(pic_icount) {
     D_printf("DPMI: Warning: trying to leave DPMI when pic_icount=%li\n",
@@ -2533,6 +2528,10 @@ static void dpmi_init(void)
 
   REG(cs) = DPMI_SEG;
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
+
+  /* set int 23 to "iret" so that DOS doesn't terminate the program
+     behind our back */
+  SETIVEC(0x23, BIOSSEG, INT_OFF(0x68));
 
   in_win31 = 0;
   in_dpmi_dos_int = 0;
