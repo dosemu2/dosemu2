@@ -1,0 +1,10 @@
+--- dosc.org/src/kernel/task.c	Wed Jan 22 13:18:14 1997
++++ dosc/src/kernel/task.c	Sun Mar 30 01:55:14 1997
+@@ -778,6 +778,7 @@
+                 printf("Internal IPL error - Read failure (read %d != %d)",
+                  nNumRead, sizeof(exe_header));
+ #endif
++		if (header.exSignature == MAGIC)
+                 return DE_INVLDDATA;
+         }
+         dos_close(rc);

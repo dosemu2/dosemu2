@@ -412,12 +412,23 @@ void pit_control_outp(Bit32u port, Bit8u val)
       /* nobreak; */
     case 0:
     case 1:
+#ifdef MONOTON_MICRO_TIMING
+      pit[latch].mode        = (val >> 1) & 0x07;
+      if ((val & 4)==0) {      /* modes 0,1,4,5 */
+      /* set the time base for the counter - safety code for programs
+       * which use a non-periodical mode without reloading the counter
+       */
+       gettimeofday(&pit[latch].time, NULL);
+      }
+#endif
       if ((val & 0x30) == 0)
 	pit_latch(latch);
       else {
 	pit[latch].read_state  = (val >> 4) & 0x03;
 	pit[latch].write_state = (val >> 4) & 0x03;
+#ifndef MONOTON_MICRO_TIMING
 	pit[latch].mode        = (val >> 1) & 0x07;
+#endif
       }
 #if 0
       i_printf("PORT: writing outp(0x43, 0x%x)\n", val);

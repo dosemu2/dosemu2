@@ -79,6 +79,7 @@ struct input_file
   int size_in_clusters;
 };
 
+static char *bootsect_file=0;
 static struct input_file input_files[ROOT_DIRECTORY_ENTRIES];
 static int input_file_count = 0;
 static char *volume_label = "";
@@ -129,7 +130,7 @@ static void put_fat(int n, int value)
     fat[2*n] = value & 0xff;
     fat[2*n+1] = value >> 8;
   } else {
-    fprintf(stderr, "Error: FAT type %d unknown\n", p_type);
+    fprintf(stderr, "Error: FAT type %ld unknown\n", p_type);
     exit(1);
   }
 }
@@ -220,7 +221,7 @@ static void add_input_file(char *filename)
 
 static void usage(void)
 {
-  fprintf(stderr, "Usage: mkfatimage [-t tracks] [-l volume-label] [file...]\n");
+  fprintf(stderr, "Usage: mkfatimage [-b bsectfile] [-t tracks] [-l volume-label] [file...]\n");
 }
 
 
@@ -234,10 +235,13 @@ int main(int argc, char *argv[])
     usage();
     exit(1);
   }
-  while ((n = getopt(argc, argv, "l:t:")) != EOF)
+  while ((n = getopt(argc, argv, "b:l:t:")) != EOF)
   {
     switch (n)
     {
+    case 'b':
+      bootsect_file = strdup(optarg);
+      break;
     case 'l':
       volume_label = strdup(optarg);
       for (n = 0; (volume_label[n] != '\0'); n++)
@@ -248,7 +252,7 @@ int main(int argc, char *argv[])
     case 't':
       tracks = atoi(optarg);
       if (tracks <= 0) {
-	fprintf(stderr, "Error: %d tracks specified - must be positive \n", tracks);
+	fprintf(stderr, "Error: %ld tracks specified - must be positive \n", tracks);
 	exit(1);
       }
       break;
@@ -268,7 +272,7 @@ int main(int argc, char *argv[])
   p_ending_track = tracks-1;
   bytes_per_cluster = sectors_per_cluster*BYTES_PER_SECTOR;
   if (!(fat = malloc(sectors_per_fat*BYTES_PER_SECTOR))) {
-    fprintf(stderr, "Memory error: Cannot allocate fat of %d sectors\n",
+    fprintf(stderr, "Memory error: Cannot allocate fat of %ld sectors\n",
 	    sectors_per_fat);
     exit(1);
   }
@@ -314,16 +318,31 @@ int main(int argc, char *argv[])
     write_buffer();
 
   /* Write partition boot sector. */
-  clear_buffer();
-  buffer[0] = 0xeb;                     /* Jump to dosemu exit code. */
-  buffer[1] = 0x3c;                     /* (jmp 62; nop) */
-  buffer[2] = 0x90; 
-  buffer[62] = 0xb8;                    /* Exit dosemu. */
-  buffer[63] = 0xff;                    /* (mov ax,0xffff; int 0xe6) */
-  buffer[64] = 0xff;
-  buffer[65] = 0xcd;
-  buffer[66] = 0xe6;
-  memmove(buffer + 3, "DOSEMU  ", 8);
+  if (bootsect_file) {
+    FILE *f = fopen(bootsect_file, "rb");
+    if (f == NULL) {
+      fprintf(stderr, "%s: %s\n", bootsect_file, strerror(errno));
+      fprintf(stderr, "taking builtin boot sector\n");
+      bootsect_file = 0;
+    }
+    else {
+      fread(buffer, 1, BYTES_PER_SECTOR, f);
+      fclose(f);
+      memset(buffer+11, 0, 51);
+    }
+  }
+  if (!bootsect_file) {
+    clear_buffer();
+    buffer[0] = 0xeb;                     /* Jump to dosemu exit code. */
+    buffer[1] = 0x3c;                     /* (jmp 62; nop) */
+    buffer[2] = 0x90; 
+    buffer[62] = 0xb8;                    /* Exit dosemu. */
+    buffer[63] = 0xff;                    /* (mov ax,0xffff; int 0xe6) */
+    buffer[64] = 0xff;
+    buffer[65] = 0xcd;
+    buffer[66] = 0xe6;
+    memmove(buffer + 3, "DOSEMU  ", 8);
+  }
   put_word(&buffer[11], BYTES_PER_SECTOR);
   buffer[13] = sectors_per_cluster;
   put_word(&buffer[14], RESERVED_SECTORS);

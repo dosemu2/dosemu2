@@ -1,3 +1,17 @@
+97/04/12 ver. 0.66.2 released
+	From Alberto
+	- minimal patch needed to fix the mode-0 timer bug for
+	  MONOTON_MICRO_TIMING
+	From Hans
+	- added direct bootable 'tiny' FreeDos etc/hdimage.test.
+	  This can be started via ./first-test. For more have a look
+	  at ./Quickstart and ./contrib/dosC/readme.dosemu.
+	- Added option -b to src/tools/periph/mkfatimage16.c in order
+	  to allow inserting the FreeDos bootsector.
+	- fixed a remaining security hole:
+	  'secure' was off by default and when a user uses -F it
+	  was left 'off' :-(
+	- udapted docs.
 97/04/09 ver. 0.66.1.5 unofficial pre-release
 	From Hans
 	- added 'keystroke' feature, you may now feed DOSEMU with key

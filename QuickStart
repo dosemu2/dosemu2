@@ -33,7 +33,24 @@ If you don't want to use vm86plus you need to configure dosemu either with
 or use setup-dosemu to toggle "disable VM86 enhancement"
 
 --------------------------------------------------------------------------
-2.  Configure
+2.  First tiny test
+--------------------------------------------------------------------------
+
+You may want to instantaneously start dosemu. We supply a ready to boot
+hdimage with a tiny FreeDos installation (just the kernel). This may
+be booted via
+
+- ./first-test
+
+FreeDos kernel will show up, and you can leave it via
+
+- C:> exitemu
+or
+- C:> exit
+      ... oh well, FreeDos also exits on top level command.com :-(
+
+--------------------------------------------------------------------------
+3.  Configure  ... the _real_ stuff
 --------------------------------------------------------------------------
 
 - Copy etc/config.dist to /etc/dosemu.conf if you are installing for
@@ -48,7 +65,7 @@ or use setup-dosemu to toggle "disable VM86 enhancement"
   statement in your /etc/dosemu.conf should point to this file.
 
 --------------------------------------------------------------------------
-3.  Boot
+4.  Boot
 --------------------------------------------------------------------------
 
 If you are new to DOSEMU:
@@ -91,7 +108,7 @@ If you don't know how to copy files from/to the hdimage:
   ... all clear ? ;-)
 
 --------------------------------------------------------------------------
-4.  Now that you've set up your HDIMAGE file
+5.  Now that you've set up your HDIMAGE file
 --------------------------------------------------------------------------
 
 - After setting up your HDIMAGE file and exiting DOSEMU, run 'dos'.  This
@@ -178,6 +195,7 @@ If you don't know how to copy files from/to the hdimage:
 	Specials of vm86plus (kernel patches and emumodule)
 ./README.bugreports
 ./README.configuration
+./contrib/dosC/readme.dosemu
 
 --------------------------------------------------------------------------
 8.  DOSEMU code browsers

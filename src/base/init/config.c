@@ -55,7 +55,8 @@ config_defaults(void)
     config.xms_size = 0;
     config.max_umb = 0;
     config.dpmi = 0;
-    config.secure = 0;
+    config.secure = 1;  /* need to have it 'on', else user may trick it out
+                           via -F option */
     config.mathco = 1;
     config.mouse_flag = 0;
     config.mapped_bios = 0;
@@ -695,6 +696,7 @@ usage(void)
     fprintf(stdout, "    -E STRING pass DOS command on command line\n");
     fprintf(stdout, "    -e SIZE enable SIZE K EMS RAM\n");
     fprintf(stdout, "    -F use config-file File\n");
+    fprintf(stdout, "    -I insert config statements (on commandline)\n");
     fprintf(stdout, "    -g enable graphics modes (!%%#)\n");
     fprintf(stdout, "    -K Do int9 (!#)\n");
     fprintf(stdout, "    -k use PC console keyboard (!)\n");

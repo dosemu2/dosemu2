@@ -1,0 +1,26 @@
+DOSEMU distributes the GPL version of DosC (FreeDOS version). The source
+of this can be found at the following places:
+
+  ftp://sunsite.unc.edu/pub/micro/pc-stuff/freedos/
+  ftp://ftp.gui.uva.es/.1/pc/freedos/
+
+and of course Pat's home site:
+
+  ftp://ftp.iop.com/pub/freedos/
+  http://www.iop.com/~patv
+
+The part of the DosC kernel from Pat Villani <patv@iop.com> that comes
+with DOSEMU has a little patch (dosc.patch), which fixes a bug when a
+*.com file was smaller then 256 bytes (which is normal for most dosemu
+suplied DOS tools). The rest of the original is untouched, so we hope
+not to violate the GPL, when we just only distribute this small patch
+as 'source part'. NOTE: the file COPYING is in the root dosemu directory.
+
+For FreeDos in DOSEMU you need not to do any special installation, all
+is done by the dosemu 'make' process. As a result you'll have in
+./etc/hdimage.test a DOSEMU-bootable hdimage. We currently have only
+the absolute minimum (just Pat's kernel) as a first step in supporting
+FreeDos, but we plan much more for future ;-)
+
+Hans Lermen, April 12. 1997
+<lermen@fgan.de>
