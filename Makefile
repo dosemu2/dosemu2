@@ -1,8 +1,8 @@
 # Makefile for Linux DOSEMU
 #
-# $Date: 1994/09/23 01:29:36 $
+# $Date: 1994/09/26 23:10:13 $
 # $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.30 $
+# $Revision: 2.31 $
 # $State: Exp $
 #
 # You should do a "make doeverything" or a "make most" (excludes TeX)
@@ -26,6 +26,9 @@ X11LIBDIR = /usr/X386/lib
 
 #Change the following line to point to your ncurses include
 NCURSES_INC = /usr/include/ncurses
+
+#Change the following line to point to your loadable modules directory
+BOOTDIR = /boot/modules
 
 # The following sets up the X windows support for DOSEMU.
 ifdef X_SUPPORT
@@ -63,7 +66,7 @@ DOSLNK=
 # dosemu version
 EMUVER  =   0.53
 VERNUM  =   0x53
-PATCHL  =   21
+PATCHL  =   22
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -120,7 +123,7 @@ SFILES=bios.S
 OFILES= Makefile ChangeLog dosconfig.c QuickStart \
 	DOSEMU-HOWTO.txt DOSEMU-HOWTO.ps DOSEMU-HOWTO.sgml \
 	README.ncurses vga.pcf vga.bdf xtermdos xinstallvgafont README.X \
-	README.CDROM README.video Configure
+	README.CDROM README.video Configure DANG_CONFIG
 
 BFILES=
 
@@ -274,6 +277,9 @@ install: all
 		install -m 0700 /usr/bin/xdosemu /tmp; \
 		rm -f /usr/bin/xdosemu; \
 	fi
+	@if [ -f $(BOOTDIR)/sillyint.o ]; then rm -f $(BOOTDIR)/sillyint.o ; fi
+	@install -m 0755 -d $(BOOTDIR)
+	@install -c -o root -g root -m 0750 sig/sillyint.o $(BOOTDIR)
 ifdef X_SUPPORT
 	@ln -sf dos xdos
 	@install -m 0755 xtermdos /usr/bin
@@ -298,12 +304,14 @@ endif
 	@echo "  - Update your /etc/dosemu.conf by editing a copy of './examples/config.dist'"
 	@echo "  - Using your old DOSEMU 0.52 configuration file might not work."
 	@echo "  - After configuring DOSEMU, you can type 'dos' to run DOSEMU."
+	@echo "  - If you have sillyint defined, you must load sillyint.o prior"
+	@echo "  - to running DOSEMU (see sig/HowTo)"
 ifdef X_SUPPORT
 	@echo "  - Use 'xdos' instead of 'dos' to cause DOSEMU to open its own Xwindow."
 	@echo "  - Type 'xset fp rehash' before running 'xdos' for the first time."
 	@echo "  - To make your backspace and delete key work properly in 'xdos', type:"
-	@echo '        xmodmap -e "keycode 107 = 0xffff"'
-	@echo '        xmodmap -e "keycode 22 = 0xff08"'
+	@echo '		xmodmap -e "keycode 107 = 0xffff"'
+	@echo '		xmodmap -e "keycode 22 = 0xff08"'
 endif
 	@echo ""
 

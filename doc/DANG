@@ -1,6 +1,6 @@
   The DOSEMU Alterer Novices Guide DANG
   Alistair MacDonald, am20@unix.york.ac.uk
-  For DOSEMU v0.53 pl21
+  For DOSEMU v0.53 pl22
 
   This Document is the DOSEMU Alterer Novices Guide. It is known as the
   DANG.
@@ -124,8 +124,8 @@
 
   2.2.1.3.  signal_init
 
-  Initialize the signals to have NONE being blocked.  Initialize the
-  signal_queue.
+  Initialize the signals to have NONE being blocked.  Currently this is
+  NOT of much use to DOSEMU.
 
 
 
@@ -176,8 +176,9 @@
   o  signal_call - signal handling routine to be called.
 
      Save into an array structure queue the signal context of the
-     current signal. This is a queue because any signal may occur
-     multiple times before DOSEMU deals with it down the road
+     current signal as well as the function to call for dealing with
+     this signal.  This is a queue because any signal may occur multiple
+     times before DOSEMU deals with it down the road.
 
 
 
@@ -218,17 +219,28 @@
 
   2.2.1.13.  SIG_int
 
-  Allow DOSEMU to be made aware when a hard interrupt occurs Require a
-  kernel patch.
+  Allow DOSEMU to be made aware when a hard interrupt occurs Requires
+  the sig/sillyint.o driver loaded (using NEW modules package), or a
+  kernel patch (implementing sig/int.c driver).	The IRQ numbers to
+  monitor are taken from config.sillyint, each bit corresponding to one
+  IRQ. The higher 16 bit are defining the use of SIGIO
 
 
 
-  2.2.1.14.  emulate
+  2.2.1.14.  check_special_mapping
+
+  This is called after all configuration stuff is done to make sure that
+  no mapped areas are overlapping.  It checks EMS, VBIOS, HARDWARE_RAM
+  and exits with "false", if any of it overlapp.
 
 
-  o  argc - Arguement count.
 
-  o  argv - Arguements.
+  2.2.1.15.  emulate
+
+
+  o  argc - Argument count.
+
+  o  argv - Arguments.
 
      Emulate gets called from dos.c. It initializes DOSEMU to prepare it
      for running in vm86 mode. This involves catching signals, preparing
@@ -238,27 +250,25 @@
 
 
 
-  2.2.1.15.  hardware_init
+  2.2.1.16.  hardware_init
 
   Initialize any leftover hardware.
 
 
 
-  2.2.1.16.  version_init
+  2.2.1.17.  version_init
 
   Find version of OS running and set necessary global parms.
 
 
 
-  2.2.1.17.  add_to_io_select
+  2.2.1.18.  add_to_io_select
 
 
   o  fd - File handle to add to select statment.
 
      Add file handle to one of 2 select FDS_SET's depending on whether
      the kernel can handle SIGIO.
-
-
 
 
 
@@ -282,7 +292,7 @@
   -----
 
   The var `fatalerr` can be given a true value at any time to have
-  DOSEMU exit on the next exit from vm86 mode.
+  DOSEMU exit on the next return from vm86 mode.
 
   -----
 
@@ -315,6 +325,9 @@
   These are the functions defined in emu.h.
 
 
+
+
+
   2.3.1.1.  NEWSETQSIG
 
 
@@ -328,9 +341,11 @@
      define and use SETQSIG(). To that end they will also need to be set
      up in an order such as SIGIO.
 
+
+
   2.3.2.  Remarks in emu.h
 
-  we assume system call restarting... under linux 0.99pl8 and earlier,
+  We assume system call restarting... under linux 0.99pl8 and earlier,
   this was the default.	SA_RESTART was defined in 0.99pl8 to explicitly
   request restarting (and thus does nothing).  However, if this ever
   changes, I want to be safe
@@ -379,8 +394,6 @@
      grabs the shared memory used to hold the current Video data and
      makes some comments about its current screen.
 
-
-
   3.1.2.  Remarks in clients/ncurses.c
 
   Some of the functions are undocumented. These are the trivial ones.
@@ -390,7 +403,6 @@
 
   You must be mad if you want to get involved in all of this Shared
   memory stuff .... 8-)
-
 
 
 
@@ -447,6 +459,7 @@
 
 
 
+
   4.1.1.3.  dpmi_fault
 
   This is the brain of DPMI. All CPU exceptions are first reflected
@@ -454,9 +467,6 @@
   instructions INT XX, STI, CLI, HLT and from WINDOWS 3.1 are handled
   here.	All here unhandled exceptions are reflected to
   do_cpu_exception()
-
-
-
 
 
 
@@ -502,16 +512,17 @@
 
   5.1.	video/vc.c Information
 
-  Here's all the code to try and properly save & restore the video state
-  between VC's and the attempts to control updates to the VC whilst the
-  user is using another. We map between the real screen address and that
-  used by DOSEMU here too.
+  Here's all the calls to the code to try and properly save & restore
+  the video state between VC's and the attempts to control updates to
+  the VC whilst the user is using another. We map between the real
+  screen address and that used by DOSEMU here too.
 
   Attempts to use a cards own bios require the addition of the parameter
   "graphics" to the video statement in "/etc/dosemu.conf". This will
   make the emulator try to execute the card's initialization routine
   which is normally located at address c000:0003. This can now be
   changed as an option.
+
 
 
 
@@ -523,7 +534,6 @@
   5.1.2.  Remarks in video/vc.c
 
   Apparently, no-one has anything interesting to say about video/vc.c.
-
 
 
   5.1.3.  Items for Fixing in video/vc.c
@@ -581,6 +591,7 @@
 
 
 
+
   5.3.1.  Functions in termio.c
 
   These are the functions defined in termio.c.
@@ -592,9 +603,11 @@
   the configs if allowable.
 
 
+
   5.3.2.  Remarks in termio.c
 
-  This code is called to set up the terminal line for non-raw mode.
+  Code is called at start up to set up the terminal line for non-raw
+  mode.
 
 
 
@@ -653,7 +666,7 @@
   6.2.	xms.c Information
 
   Currently the XMS 3.0 spec is covered in this file. XMS is fairly
-  simple as it onbly deals with allocating extended memory and then
+  simple as it only deals with allocating extended memory and then
   moving it around in specific calls. This spec also includes the
   allocation of UMB's, so they are also included as part of this file.
   The amount of xms memory returned to DOS programs via the XMS
@@ -682,49 +695,7 @@
   Apparently, there are no new ideas for xms.c.
 
 
-  6.3.	termio.c Information
-
-  This handles the keyboard.
-
-  Two keyboard modes are handled 'raw' and 'xlate'. 'Raw' works with
-  codes as sent out by the kernel and 'xlate' uses plain ASCII as used
-  over serial lines. The mapping for different languages & the two ALT-
-  keys is done here, but the definitions are elsewhere. Only the default
-  (US) keymap is stored here.
-
-
-
-  6.3.1.  Functions in termio.c
-
-  These are the functions defined in termio.c.
-
-
-  6.3.1.1.  keyboard_init
-
-  Initialize the keyboard to DOSEMU deafaults plus those requested in
-  the configs if allowable.
-
-
-
-  6.3.2.  Remarks in termio.c
-
-  This code is called to set up the terminal line for non-raw mode.
-
-
-
-  6.3.3.  Items for Fixing in termio.c
-
-  Apparently, nothing needs fixing in termio.c.
-
-
-  6.3.4.  New Ideas for termio.c
-
-  Apparently, there are no new ideas for termio.c.
-
-
-
-
-  6.4.	keymaps.c Information
+  6.3.	keymaps.c Information
 
   These are definitions, giving which key is related to which scancode
   in raw keyboard mode. Basically, the code of 'x' on a US keyboard may
@@ -734,221 +705,224 @@
 
 
 
-  6.4.1.  Functions in keymaps.c
+  6.3.1.  Functions in keymaps.c
 
   We appear to have no information on the functions in keymaps.c.
 
 
-  6.4.2.  Remarks in keymaps.c
+  6.3.2.  Remarks in keymaps.c
 
   Apparently, no-one has anything interesting to say about keymaps.c.
 
 
-  6.4.3.  Items for Fixing in keymaps.c
+  6.3.3.  Items for Fixing in keymaps.c
 
   Apparently, nothing needs fixing in keymaps.c.
 
 
-  6.4.4.  New Ideas for keymaps.c
+  6.3.4.  New Ideas for keymaps.c
 
   Apparently, there are no new ideas for keymaps.c.
 
-
-  6.5.	sigsegv.c Information
+  6.4.	sigsegv.c Information
 
   There appears to be no MODULE information for this file.
 
 
-  6.5.1.  Functions in sigsegv.c
+  6.4.1.  Functions in sigsegv.c
 
   These are the functions defined in sigsegv.c.
 
 
-  6.5.1.1.  void
+  6.4.1.1.  vm86_GP_fault
 
   All from the kernel unhandled general protection faults from V86 mode
   are handled here. This are mainly port IO and the HLT instruction.
 
 
 
-  6.5.1.2.  void
+  6.4.1.2.  dosemu_fault
 
   All CPU exceptions (except 13=general_protection from V86 mode, which
   is directly scaned by the kernel) are handled here.
 
 
 
-  6.5.2.  Remarks in sigsegv.c
+  6.4.2.  Remarks in sigsegv.c
 
   Apparently, no-one has anything interesting to say about sigsegv.c.
 
 
-  6.5.3.  Items for Fixing in sigsegv.c
+  6.4.3.  Items for Fixing in sigsegv.c
 
   Apparently, nothing needs fixing in sigsegv.c.
 
 
-
-
-  6.5.4.  New Ideas for sigsegv.c
+  6.4.4.  New Ideas for sigsegv.c
 
   Apparently, there are no new ideas for sigsegv.c.
 
 
-  6.6.	int.h Information
+  6.5.	int.h Information
 
   Centralized area for interrupt service routine calls and support
   functions.
 
 
 
-  6.6.1.  Functions in int.h
+  6.5.1.  Functions in int.h
 
   These are the functions defined in int.h.
 
 
-  6.6.1.1.  DO_INT
+  6.5.1.1.  DO_INT
 
   DO_INT is used to deal with interrupts returned to DOSEMU by the
   kernel.
 
 
 
-  6.6.1.2.  DEFAULT_INTERRUPT
+  6.5.1.2.  DEFAULT_INTERRUPT
 
   DEFAULT_INTERRUPT is the default interrupt service routine called when
   DOSEMU initializes.
 
 
 
-  6.6.1.3.  SETUP_INTERRUPTS
+
+  6.5.1.3.  SETUP_INTERRUPTS
 
   SETUP_INTERRUPTS is used to initialize those interrupt calls that we
   are specifically handling in protected mode.
 
 
 
-  6.6.2.  Remarks in int.h
+  6.5.2.  Remarks in int.h
 
   Apparently, no-one has anything interesting to say about int.h.
 
 
-  6.6.3.  Items for Fixing in int.h
+  6.5.3.  Items for Fixing in int.h
 
   Apparently, nothing needs fixing in int.h.
 
 
-  6.6.4.  New Ideas for int.h
+  6.5.4.  New Ideas for int.h
 
   Apparently, there are no new ideas for int.h.
 
 
-  6.7.	ports.h Information
+  6.6.	ports.h Information
 
   There appears to be no MODULE information for this file.
 
 
-  6.7.1.  Functions in ports.h
+  6.6.1.  Functions in ports.h
 
   These are the functions defined in ports.h.
 
 
-
-
-
-  6.7.1.1.  inline
+  6.6.1.1.  inb
 
   INB is used to do controlled emulation of input from ports.
 
 
 
-  6.7.2.  Remarks in ports.h
+  6.6.2.  Remarks in ports.h
 
   Apparently, no-one has anything interesting to say about ports.h.
 
 
-  6.7.3.  Items for Fixing in ports.h
+  6.6.3.  Items for Fixing in ports.h
 
   Apparently, nothing needs fixing in ports.h.
 
 
-  6.7.4.  New Ideas for ports.h
+  6.6.4.  New Ideas for ports.h
 
   Apparently, there are no new ideas for ports.h.
 
 
-  6.8.	dosio.c Information
+  6.7.	dosio.c Information
 
   There appears to be no MODULE information for this file.
 
 
-  6.8.1.  Functions in dosio.c
+  6.7.1.  Functions in dosio.c
 
   These are the functions defined in dosio.c.
 
 
-  6.8.1.1.  memory_setup
+
+
+
+  6.7.1.1.  memory_setup
 
   Setup HMA area via IPC. Call EMS and XMS initialization routines.
 
 
 
-  6.8.2.  Remarks in dosio.c
+  6.7.2.  Remarks in dosio.c
 
   Apparently, no-one has anything interesting to say about dosio.c.
 
 
-  6.8.3.  Items for Fixing in dosio.c
+  6.7.3.  Items for Fixing in dosio.c
 
   Apparently, nothing needs fixing in dosio.c.
 
 
-  6.8.4.  New Ideas for dosio.c
+  6.7.4.  New Ideas for dosio.c
 
   Apparently, there are no new ideas for dosio.c.
 
 
-  6.9.	mouse/mouse.c Information
+  6.8.	mouse/mouse.c Information
 
   There appears to be no MODULE information for this file.
 
 
-  6.9.1.  Functions in mouse/mouse.c
+  6.8.1.  Functions in mouse/mouse.c
 
   These are the functions defined in mouse/mouse.c.
 
 
-  6.9.1.1.  mouse_init
+  6.8.1.1.  mouse_init
 
   Initialize internal mouse.
 
-  6.9.2.  Remarks in mouse/mouse.c
+
+
+  6.8.2.  Remarks in mouse/mouse.c
 
   Apparently, no-one has anything interesting to say about
   mouse/mouse.c.
 
 
-  6.9.3.  Items for Fixing in mouse/mouse.c
+  6.8.3.  Items for Fixing in mouse/mouse.c
 
   Apparently, nothing needs fixing in mouse/mouse.c.
 
 
-  6.9.4.  New Ideas for mouse/mouse.c
+  6.8.4.  New Ideas for mouse/mouse.c
 
   Apparently, there are no new ideas for mouse/mouse.c.
 
 
-  6.10.	serial.c Information
+  6.9.	serial.c Information
 
   There appears to be no MODULE information for this file.
 
 
-  6.10.1.  Functions in serial.c
+  6.9.1.  Functions in serial.c
 
   These are the functions defined in serial.c.
 
 
-  6.10.1.1.  serial_init
+
+
+
+  6.9.1.1.  serial_init
 
   The following is the master serial initialization function called
   externally (from this serial.c module) during DOSEMU startup. It
@@ -956,117 +930,162 @@
 
 
 
-  6.10.2.  Remarks in serial.c
+  6.9.2.  Remarks in serial.c
 
   Apparently, no-one has anything interesting to say about serial.c.
 
 
-  6.10.3.  Items for Fixing in serial.c
+  6.9.3.  Items for Fixing in serial.c
 
   Apparently, nothing needs fixing in serial.c.
 
 
-  6.10.4.  New Ideas for serial.c
+  6.9.4.  New Ideas for serial.c
 
   Apparently, there are no new ideas for serial.c.
 
 
-  6.11.	disks.c Information
+  6.10.	disks.c Information
 
   There appears to be no MODULE information for this file.
 
 
-  6.11.1.  Functions in disks.c
+  6.10.1.  Functions in disks.c
 
   These are the functions defined in disks.c.
 
 
-  6.11.1.1.  disk_init
+  6.10.1.1.  disk_init
 
   Test by opening all floppies/hardrives configured.
 
 
 
-
-  6.11.2.  Remarks in disks.c
+  6.10.2.  Remarks in disks.c
 
   Apparently, no-one has anything interesting to say about disks.c.
 
 
-  6.11.3.  Items for Fixing in disks.c
+  6.10.3.  Items for Fixing in disks.c
 
   Apparently, nothing needs fixing in disks.c.
 
 
-  6.11.4.  New Ideas for disks.c
+  6.10.4.  New Ideas for disks.c
 
   Apparently, there are no new ideas for disks.c.
 
 
-  6.12.	cpu.c Information
+  6.11.	cpu.c Information
 
   CPU/V86 support for dosemu
 
 
 
-  6.12.1.  Functions in cpu.c
+  6.11.1.  Functions in cpu.c
 
   These are the functions defined in cpu.c.
 
 
-  6.12.1.1.  cpu_init
+
+  6.11.1.1.  cpu_init
 
   Setup initial interrupts which can be revectored so that the kernel
   does not need to return to DOSEMU if such an interrupt occurs.
 
 
 
-  6.12.2.  Remarks in cpu.c
+  6.11.2.  Remarks in cpu.c
 
   Apparently, no-one has anything interesting to say about cpu.c.
 
 
-  6.12.3.  Items for Fixing in cpu.c
+  6.11.3.  Items for Fixing in cpu.c
 
   Apparently, nothing needs fixing in cpu.c.
 
 
-  6.12.4.  New Ideas for cpu.c
+  6.11.4.  New Ideas for cpu.c
 
   Apparently, there are no new ideas for cpu.c.
 
 
-  6.13.	lpt.c Information
+  6.12.	lpt.c Information
 
   There appears to be no MODULE information for this file.
 
 
-  6.13.1.  Functions in lpt.c
+  6.12.1.  Functions in lpt.c
 
   These are the functions defined in lpt.c.
 
 
-  6.13.1.1.  printer_init
+  6.12.1.1.  printer_init
 
   Initialize printer control structures
 
 
 
-
-
-  6.13.2.  Remarks in lpt.c
+  6.12.2.  Remarks in lpt.c
 
   Apparently, no-one has anything interesting to say about lpt.c.
 
 
-  6.13.3.  Items for Fixing in lpt.c
+  6.12.3.  Items for Fixing in lpt.c
 
   Apparently, nothing needs fixing in lpt.c.
 
 
-  6.13.4.  New Ideas for lpt.c
+  6.12.4.  New Ideas for lpt.c
 
   Apparently, there are no new ideas for lpt.c.
+
+
+  6.13.	sig/int.c Information
+
+  Silly Interrupt Generator device driver for Linux 1.1.47 or higher.
+  Needs the new modules utilities.
+
+  The driver uses MAJOR 19, the minors can be from 3 .. 15 and represent
+  the IRQ-level, which is intercepted for use with DOSEMU.  This driver
+  must be compiled on the system it is running on, see the doc in the
+  modules packages.  To load it (must be the superuser) type insmod
+  sillyint.o or insmod sillyint.o SIG_MAJOR=mm if you want to use MAJOR
+  mm intstead of the default 19.
+
+
+  To make the devices go into your /dev directory and create a
+  subdirectory called int. Change into this directory and add a node for
+  the IRQ you wish to use. Bare in mind that in the future if you use
+  another interrupt, you'll have to come to /dev/int and add it too.  To
+  MaKe this NODe, type: mknod <x> c 19 <x> where <x> is the IRQ number
+  you wish to use. I will add at this time that SIG will not open an
+  interrupt up that is already in use. This will mean that some
+  applications that access their interrupts from boot up like ethernet
+  cards, must not be configured into the kernel or must be given port
+  bases, that are not probed by the kernel. You may use the kernel
+  command line feature, either from LILO or LOADLIN to change those
+  ports at boot time of Linux.
+
+
+  6.13.1.  Functions in sig/int.c
+
+  We appear to have no information on the functions in sig/int.c.
+
+
+  6.13.2.  Remarks in sig/int.c
+
+  Apparently, no-one has anything interesting to say about sig/int.c.
+
+
+  6.13.3.  Items for Fixing in sig/int.c
+
+  Apparently, nothing needs fixing in sig/int.c.
+
+
+  6.13.4.  New Ideas for sig/int.c
+
+  Apparently, there are no new ideas for sig/int.c.
 
 
   7.  And Finally ...
@@ -1096,6 +1115,53 @@
 
   DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG Changelogs - very useful for
   bug fixing, and avvailable for use with DPR (or that's the theory)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -1,7 +1,26 @@
 Intructions for Silly Interrupt Generator:
 
+You have two options for putting the driver into the kernel
+
+A) Use the loadable driver sillyint.o, which is compiled together with
+   DOSEMU (will be installed in /boot/modules). This has the advantage
+   of beeing able to change the MAJOR without recompilation and avoids
+   patching the kernel all the times you upgrade your kernel release.
+   To load the driver you must have the *new* modules package installed
+   and compiled (ftp.funet.fi:/pub/OS/Linux/PEOPLE/Linus/v1.1/modules.tar.gz).
+   Of course you then need one of the newer kernels (>1.1.45).
+   After booting your Linux login as root and type
+     insmod /boot/modules/sillyint.o
+   or
+     insmod /boot/modules/sillyint.o SIG_MAJOR=mm
+   where mm is the major device number you want to use. You may put this
+   line into your /etc/rc.d/rc.local for every day use.
+
+B) Patching and recompiling the kernel (not recommended, but needed if
+   you are using an older kernel < 1.1.46).
+
 1) Move the generator file int.c into the directory of drivers/char
-    under the Linux root source dir.
+   under the Linux root source dir.
 
 2) Modify the mem.c file in the same directory to include the
    initialization of this driver. The included SIG.gz has a mem.c
@@ -12,30 +31,7 @@ Intructions for Silly Interrupt Generator:
    the OBJS's  and SRCS's listings. Again the included drivers.gz has a
    1.1.X Makefile already modified.
 
-4) Go into your /dev directory and create a subdirectory called int. Change
-   into this directory and add a node for the interrupt you wish to use.
-   Bare in mind that in the future if you use another interrupt, you'll have
-   to come to /dev/int and add it too. To MaKe this NODe, type:
-   mknod <x> c 19 <x>
-   where <x> is the interrupt number you wish to use. I will add at this time
-   that SIG will not open an interrupt up that is already in use. This will
-   mean that some applications that access their interrupts from boot up
-   like ethernet cards, must not be configured into the kernel. Serial
-   does not suffer this problem, but doesn't work well anyway :-).
-
-5) In your DOSEMU directory of goodies, Uncomment the #define SIG 1 
-   statement to your emu.h file around line 198.
-
-6) Edit emu.c around line 1678, changing the opened file to be that of the
-   device created in step 5 above.
-
-7) Edit your /etc/dosemu/config file to add a port{ccccccc} statement(s) to
-   allow access to all ports used by your device. For example my
-   Accton card needs the following:
-   ports { range 0x300 0x320 }
-   to operate.
-
-8) Make a new Linux kernel, and boot it verifying that you see the line:
+4) Make a new Linux kernel, and boot it verifying that you see the line:
    Silly Interrupt Generator installed
    go by. At this time I am using MAJOR 19 and honestly don't know if this
    conflicts with anything. If you get an error saying it can't
@@ -43,14 +39,49 @@ Intructions for Silly Interrupt Generator:
    Of course it may also not be able to install because you err'ed in your
    mknod command.
 
-10) In your DOSEMU directory, make install a new dos. I would strongly
-    suggest having keybint on, and timmer on. I have noticed that network
-    programs I have tried, use the keybint at least. Also the HogThreshold
-    setting should be 0 to start.
 
-11) Boot your dos, and load up a driver for the interrupt. At this point
-    you ARE on your own, as I have not done much testing of this stage.
+For both cases A) or B) you must create appropriate devices and allow port
+access for your special hardware (which needs the IRQ) as follows:
+
+1) Go into your /dev directory and create a subdirectory called int. Change
+   into this directory and add a node for the interrupt you wish to use.
+   Bare in mind that in the future if you use another interrupt, you'll have
+   to come to /dev/int and add it too. To MaKe this NODe, type:
+     mknod <x> c 19 <x>
+   where <x> is the IRQ number (3..15) you wish to use. You may repeat this
+   for all possible IRQs, only those which are defined in /etc/dosemu.conf
+   are really used.
+   I will add at this time that SIG will not open an interrupt up that is 
+   already in use. This will mean that some applications that access their
+   interrupts from boot up like ethernet cards, must not be configured into
+   the kernel. Serial does not suffer this problem, but doesn't work well
+   anyway. You may also trick out the kernel with wrong ports using LILO
+   or LOADLIN and the boot time command line feature of the kernel.
+   On my machine I came around with:
+    ... ether=15,0x2a0,eth0
+   The probe failed, so my ether card at 0x300 wasn't taken by the kernel.
+
+2) Edit your /etc/dosemu/config file and change the statement
+     sillyint off
+   to
+     sillyint { 15 }
+   or what ever IRQ number you use.
+   Also you must add a port{ccccccc} statement(s) to
+   allow access to all ports used by your device. For example my
+   Accton card needs the following:
+     ports { range 0x300 0x320 }
+   to operate.
+
+3) In your DOSEMU directory, make install a new dos. I would strongly
+   suggest having keybint on, and timer on. I have noticed that network
+   programs I have tried, use the keybint at least. Also the HogThreshold
+   setting should be 0 to start.
+
+4) Boot your dos, and load up a driver for the interrupt. At this point
+   you ARE on your own, as I have not tested much hardware and/or drivers
+   (as is the same with Hans).
+
 
 Let me know how it goes,
-JES (jmaclean@fox.nstn.ns.ca)
+JES  (jmaclean@fox.nstn.ns.ca)
 ---

@@ -1,9 +1,9 @@
 /* cmos.c, for DOSEMU
  *   by Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/09/22 23:51:57 $
+ * $Date: 1994/09/26 23:10:13 $
  * $Source: /home/src/dosemu0.60/RCS/cmos.c,v $
- * $Revision: 2.3 $
+ * $Revision: 2.4 $
  * $State: Exp $
  */
 
@@ -77,7 +77,7 @@ cmos_init(void)
   /* information flags...my CMOS returns this */
   SET_CMOS(CMOS_INFO, 0xe1);
 
-  g_printf("CMOS initialized: \n$Header: /home/src/dosemu0.60/RCS/cmos.c,v 2.3 1994/09/22 23:51:57 root Exp root $\n");
+  g_printf("CMOS initialized: \n$Header: /home/src/dosemu0.60/RCS/cmos.c,v 2.4 1994/09/26 23:10:13 root Exp root $\n");
 }
 
 int
@@ -190,11 +190,17 @@ cmos_date(int reg)
   struct timezone tzp;
   struct tm *tm;
   int tmp;
+  time_t this_time;
 
   /* get the time */
+#if 0
   gettimeofday(&tp, &tzp);
   ticks = tp.tv_sec - (tzp.tz_minuteswest * 60);
   tm = localtime((time_t *) & ticks);
+#else
+  time(&this_time);
+  tm = localtime((time_t *) &this_time);
+#endif
 
   switch (reg) {
   case CMOS_SEC:

@@ -16,7 +16,7 @@ dosio.o : dosio.c memory.h emu.h machcompat.h cpu.h termio.h dosio.h /home/src/d
 cpu.o : cpu.c config.h memory.h cpu.h termio.h emu.h machcompat.h /home/src/dosemu0.60/include/port.h \
   dpmi/dpmi.h 
 mfs.o : mfs.c mfs.h emu.h machcompat.h cpu.h config.h memory.h 
-bios_emm.o : bios_emm.c emu.h machcompat.h cpu.h 
+bios_emm.o : bios_emm.c emu.h machcompat.h cpu.h memory.h 
 lpt.o : lpt.c emu.h machcompat.h cpu.h dosio.h lpt.h 
 serial.o : serial.c config.h cpu.h emu.h machcompat.h dosio.h serial.h /home/src/dosemu0.60/include/mouse.h 
 dyndeb.o : dyndeb.c emu.h machcompat.h cpu.h 

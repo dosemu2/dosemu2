@@ -1,5 +1,97 @@
+Mon Sep 26 1994 Jmaclean
+
+-	Pre53_22.tgz released.
+-	Added isemu.com from dan@fch.wimsey.bc.ca (Dan Fandrich) to give a
+	return code for testing if DOSEMU is running.
+-	Added MDA as valid card selection in dosemu.conf (=MGA)
+-	Some goodies from Hans Lerman:
+
+Well, here now is the summery of things that are in my patches which
+I have tested under Linux-1.1.50.
+( the patches come in a separate mail, because my mailer cannot handle
+too large mails )
+
+1. Loadable driver sillyint.o
+   It is compiled via a normal "make doeverything"
+   and put into the directory /boot/modules.
+   I changed the sig/Makefile, it also needs to know where the kernel
+   sources are (USRSRCDIR).
+   The source needs a -DMAKE_LOADABLE_DRIVER to compile sillyint.o
+   The same source can be used (without the -DMAKE..) to compile the
+   kernel linked in driver. I changed the sig/HowTo.
+
+   The device major is put into an global variable SIG_MAJOR, so it
+   can be changed on loadtime by
+     insmod /boot/modules SIG_MAJOR=31
+
+
+2. Multiple SIG IRQ's can be defined in /etc/dosemu.conf and
+   also wether to use SIGIO or not. (see examples/config.dist)
+   Because of "sillint off", there is no need to disable SIG
+   via compile time option SIG. I recommend to let it be #define SIG 1.
+   I did not succeed with setting up a test for two IRQs at the same time,
+   so me and other people have to test it in the future.
+
+
+3. Mapping of hardware ram is configurable via
+
+     hardware_ram { 0xc8000 }  # one 4K page mapped
+   or
+     hardware_ram { 0xc8000 range 0xcc000 0xcffff }  # multiple mapped pages
+
+   I added an overlap test to avoid wrong mapping, it is done after
+   configuration is finished, so it should catch all errors.
+   It relates to EMS, VBIOS and HARDWARE_RAM.
+
+
+4. EMS-frame is now movable (needed for ram conflicts).
+   The ems keyword is expanded as follows:
+     ems { 1024 ems_frame 0xe000}
+   or
+     ems { ems_size 1024 }  # defaults to old size of 0x10000
+
+   But the old syntax is valid too.
+
+
+5. Size of VBIOS now configurable (most BIOSes at 0xc0000 have only 32K
+      so I can gain some space for hardware ram and/or UMBs).
+      /etc/dosemu.conf line:
+        added flag "vbios_size"
+
+
+6. I corrected a situation (not a bug) concerning the "c" debug flag.
+   If "c" was switched off in /etc/dosemu.conf, you could not get
+   the config printout via
+     dos -D+c
+   Now this is possible.
+
+
+
+That's all for now, ...so long,
+Hans
+<lermen@elserv.ffm.fgan.de>
+
+Sat Sep 24 1994 Jmaclean
+
+-	Messed more with timer interrupt so that setting date backwards
+	doesn't cause divide overflow. Seems to fix it for going
+	ahead and back through time. Only problem is that when DOS
+	sees it's past 24hrs, it always moves its date ahead a day :-(.
+-	Changed config.graphics to config.vga in emu.c to control 
+	setting allowvideoportaccess to 0.
+-	Added vc switching (set_process_control) to new signal_queue.
+	From conversation with JL I'm not sure this is gonna be solid
+	since now the signal_queue being run to switch VC's will rely
+	on returns from vm86().
+	Still doesn't fix bad crashing when running Windows3.0 which
+	takes down my whole UNIX box :-(.
+-	Stopped DOSEMU from exiting when no diskette in drive.
+-	Added note to add users to /etc/dosemu.users in QuickStart.
+-	Fixed parsing of -C option to NOT expect arguements.
+
 Thr Sep 22 1994 Jmaclean
 
+-	PRE53_21 Released.
 -	Messed with timer code. Changed tick setting to different
 	method and relied on time() to give acurate time.
 	Found what seems to be the 24 hour bug and inilated it!!!!!!

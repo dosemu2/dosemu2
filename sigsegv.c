@@ -1,12 +1,15 @@
 #define SIGSEGV_C 1
 
 /* 
- * $Date: 1994/09/23 01:29:36 $
+ * $Date: 1994/09/26 23:10:13 $
  * $Source: /home/src/dosemu0.60/RCS/sigsegv.c,v $
- * $Revision: 2.9 $
+ * $Revision: 2.10 $
  * $State: Exp $
  *
  * $Log: sigsegv.c,v $
+ * Revision 2.10  1994/09/26  23:10:13  root
+ * Prep for pre53_22.
+ *
  * Revision 2.9  1994/09/23  01:29:36  root
  * Prep for pre53_21.
  *
@@ -150,7 +153,7 @@ extern struct config_info config;
 extern inline void do_int(int);
 
 /*
- * DANG_BEGIN_FUNCTION void vm86_GP_fault();
+ * DANG_BEGIN_FUNCTION vm86_GP_fault();
  *
  * description:
  * All from the kernel unhandled general protection faults from V86 mode
@@ -337,7 +340,7 @@ inline void vm86_GP_fault()
 }
 
 /*
- * DANG_BEGIN_FUNCTION void dosemu_fault(int, struct sigcontext_struct);
+ * DANG_BEGIN_FUNCTION dosemu_fault(int, struct sigcontext_struct);
  *
  * All CPU exceptions (except 13=general_protection from V86 mode,
  * which is directly scaned by the kernel) are handled here.

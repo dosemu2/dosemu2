@@ -1,11 +1,10 @@
 /*
  * DANG_BEGIN_MODULE
  *
- * Here's
- * all the code to try and properly save & restore the video state between
- * VC's and the attempts to control updates to the VC whilst the user is
- * using another. We map between the real screen address and that used by
- * DOSEMU here too.
+ * Here's all the calls to the code to try and properly save & restore
+ * the video state between VC's and the attempts to control updates to
+ * the VC whilst the user is using another. We map between the real 
+ * screen address and that used by DOSEMU here too.
  *
  * Attempts to use a cards own bios require the addition of the parameter
  * "graphics" to the video statement in "/etc/dosemu.conf". This will make
@@ -21,9 +20,9 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
- * $Date: 1994/09/23 01:32:36 $
+ * $Date: 1994/09/26 23:11:48 $
  * $Source: /home/src/dosemu0.60/video/RCS/vc.c,v $
- * $Revision: 1.7 $
+ * $Revision: 1.8 $
  * $State: Exp $
  *
  * Revision 1.3  1993/10/03  21:38:22  root
@@ -144,6 +143,9 @@ void put_video_ram();
 
 extern char *cstack[4096];
 
+void SIGRELEASE_call(void);
+void SIGACQUIRE_call(void);
+
 void dump_video_regs(void);
 void dump_video();
 void dump_video_linux();
@@ -162,7 +164,8 @@ u_char video_initialized = 0;
 /* flags from dos.c */
 
 struct screen_stat scr_state;	/* main screen status variables */
-void release_vt(), acquire_vt();
+void release_vt(int sig, struct sigcontext_struct context),
+     acquire_vt(int sig, struct sigcontext_struct context);
 void get_video_ram(int), open_kmem();
 extern int mem_fd;
 
@@ -196,7 +199,7 @@ allow_switch()
   scr_state.vt_allow = 1;
   if (scr_state.vt_requested) {
     v_printf("VID: clearing old vt request\n");
-    release_vt(0);
+    SIGRELEASE_call();
   }
 }
 
@@ -233,36 +236,26 @@ parent_open_mouse(void)
 }
 
 void
-acquire_vt(int sig)
+SIGACQUIRE_call(void)
 {
-  struct sigaction siga;
-  void *oldalrm;
-
   v_printf("VID: Acquiring VC\n");
   forbid_switch();
-
-#if 1
-  oldalrm = signal(SIGALRM, SIG_IGN);
-  SETSIG(siga, SIG_ACQUIRE, acquire_vt);
-#endif
-
   if (ioctl(kbd_fd, VT_RELDISP, VT_ACKACQ))	/* switch acknowledged */
     v_printf("VT_RELDISP failed (or was queued)!\n");
-
   if (config.console_video) {
     get_video_ram(WAIT);
     set_dos_video();
     /*      if (config.vga) dos_unpause(); */
   }
-
-#if 1
-  SETSIG(siga, SIGALRM, oldalrm);
-#endif
   scr_state.current = 1;
-
   parent_open_mouse();
-
   allow_switch();
+}
+
+void
+acquire_vt(int sig, struct sigcontext_struct context)
+{
+  SIGNAL_save(&context, SIGACQUIRE_call);
 }
 
 void
@@ -319,17 +312,11 @@ set_linux_video()
 }
 
 void
-release_vt(int sig)
+SIGRELEASE_call(void)
 {
-  struct sigaction siga;
 
   v_printf("VID: Releasing VC\n");
-#if 1
-  SETSIG(siga, SIG_RELEASE, release_vt);
-#endif
-
   parent_close_mouse();
-
   if (!scr_state.vt_allow) {
     v_printf("disallowed vt switch!\n");
 #if 0
@@ -376,6 +363,12 @@ wait_vc_active(void)
     return 0;
 }
 
+void
+release_vt(int sig, struct sigcontext_struct context)
+{
+  SIGNAL_save(&context, SIGRELEASE_call);
+}
+
 /* allows remapping even if memory is mapped in...this is useful, as it
  * remembers where the video mem *was* mapped, unmaps from that, and then
  * remaps it to where the text page number says it should be
@@ -384,9 +377,6 @@ void
 get_video_ram(int waitflag)
 {
   char *graph_mem;
-  void (*oldhandler) ();
-  struct sigaction siga;
-
   char *sbase;
   size_t ssize;
 
@@ -408,17 +398,12 @@ get_video_ram(int waitflag)
 #endif
     v_printf("VID: get_video_ram WAITING\n");
     /* XXX - wait until our console is current (mixed signal functions) */
-    oldhandler = signal(SIG_ACQUIRE, SIG_IGN);
     do {
       if (!wait_vc_active())
 	break;
       v_printf("Keeps waiting...And\n");
     }
     while (errno == EINTR);
-#if 1
-    SETSIG(siga, SIG_ACQUIRE, oldhandler);
-    config.console_video = 1;
-#endif
   }
 
   if (config.vga) {
@@ -598,8 +583,8 @@ set_process_control()
   scr_state.vt_requested = 0;	/* a switch has not been attempted yet */
   allow_switch();
 
-  SETSIG(sa, SIG_RELEASE, release_vt);
-  SETSIG(sa, SIG_ACQUIRE, acquire_vt);
+  NEWSETQSIG(SIG_RELEASE, release_vt);
+  NEWSETQSIG(SIG_ACQUIRE, acquire_vt);
 
   if (do_ioctl(kbd_fd, VT_SETMODE, (int) &vt_mode))
     v_printf("initial VT_SETMODE failed!\n");
@@ -610,7 +595,6 @@ void
 clear_process_control()
 {
   struct vt_mode vt_mode;
-  struct sigaction sa;
 
   vt_mode.mode = VT_AUTO;
   ioctl(kbd_fd, VT_SETMODE, (int) &vt_mode);
@@ -703,6 +687,37 @@ map_bios(void)
     g_printf("SYSTEM BIOS address: 0x%x\n", system_bios_mem);
 #endif
 }
+
+
+/*
+ * ... I know, I know, this is not the right place for this piece of software
+ * but I didn't found some place appropriate, so here it is along with its
+ * needed subroutines.
+ */  
+void map_hardware_ram()
+{
+  int i,j;
+  unsigned int addr,size;
+  if (!config.must_spare_hardware_ram) return;
+  open_kmem();
+  i=0;
+  do {
+    if (config.hardware_pages[i++]) {
+      j=i-1;
+      while (config.hardware_pages[i]) i++; /* NOTE: last byte is always ZERO */
+      addr=HARDWARE_RAM_START+(j << 12);
+      size=(i-j) <<12;
+      if (mmap((caddr_t) addr, (size_t) size,
+           PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, mem_fd, addr) <0) {
+        error("ERROR: mmap error in map_hardware_ram %s\n", strerror(errno));
+        return;
+      }
+      g_printf("mapped hardware ram at 0x%05x .. 0x%05x\n", addr, addr+size-1);                                 
+    }
+  } while (i < sizeof(config.hardware_pages)-1);
+  close_kmem();
+}
+
 
 int
 vc_active(void)

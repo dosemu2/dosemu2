@@ -1,9 +1,9 @@
 /* dos emulator, Matthias Lautner
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/09/20 01:53:26 $
+ * $Date: 1994/09/26 23:10:13 $
  * $Source: /home/src/dosemu0.60/RCS/disks.c,v $
- * $Revision: 2.5 $
+ * $Revision: 2.6 $
  * $State: Exp $
  *
  * floppy disks, dos partitions or their images (files) (maximum 8 heads)
@@ -409,7 +409,9 @@ try_readonly:
        dp->rdonly = 1;
        goto try_readonly;
     }
+#if 0
     fatalerr = 5;
+#endif
     return;
   }
   if (ioctl(dp->fdesc, FDGETPRM, &fl) == -1) {

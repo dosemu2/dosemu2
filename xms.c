@@ -4,7 +4,7 @@
  * DANG_BEGIN_MODULE
  *
  * Currently the XMS 3.0 spec is covered in this file. XMS is fairly simple
- * as it onbly deals with allocating extended memory and then moving it 
+ * as it only deals with allocating extended memory and then moving it 
  * around in specific calls. This spec also includes the allocation of UMB's,
  * so they are also included as part of this file. The amount of xms memory
  * returned to DOS programs via the XMS requests, or int15 fnc88 is set in
@@ -13,12 +13,15 @@
  * DANG_END_MODULE
  * DANG_BEGIN_CHANGELOG
  *
- * $Date: 1994/06/27 02:15:58 $
+ * $Date: 1994/09/26 23:10:13 $
  * $Source: /home/src/dosemu0.60/RCS/xms.c,v $
- * $Revision: 2.3 $
+ * $Revision: 2.4 $
  * $State: Exp $
  *
  * $Log: xms.c,v $
+ * Revision 2.4  1994/09/26  23:10:13  root
+ * Prep for pre53_22.
+ *
  * Revision 2.3  1994/06/27  02:15:58  root
  * Prep for pre53
  *
@@ -128,7 +131,7 @@ int umb_find_unused(void);
  * the 1 MEG mark.  ugly.  fix this.
  */
 
-static char RCSxms[] = "$Header: /home/src/dosemu0.60/RCS/xms.c,v 2.3 1994/06/27 02:15:58 root Exp root $";
+static char RCSxms[] = "$Header: /home/src/dosemu0.60/RCS/xms.c,v 2.4 1994/09/26 23:10:13 root Exp root $";
 
 #define	 XMS_GET_VERSION		0x00
 #define	 XMS_ALLOCATE_HIGH_MEMORY	0x01
@@ -181,9 +184,21 @@ int FindFreeHandle(int);
 #define UMB_PAGE 4096
 #define UMB_NULL -1
 
+#if 0
 /* EMS page frame 0xd0000-0xdffff.  DOSEMU uses 0xe0000-0xeffff */
 #define IN_EMM_SPACE(addr) (config.ems_size && (int)(addr) >= 0xd0000 \
 			    && (int)(addr) <= 0xdffff)
+#else
+/*  EMS page frame now is configurable via /etc/dosemu.conf */
+#define SPACE_64K   0x10000
+#define IN_EMM_SPACE(addr) (config.ems_size && (int)(addr) >= EMM_BASE_ADDRESS \
+                            && (int)(addr) < (EMM_BASE_ADDRESS+SPACE_64K))
+
+#define IN_HARDWARE_PAGES(addr) ( config.must_spare_hardware_ram\
+                                  && ((int)addr >= HARDWARE_RAM_START) \
+                                  && ((int)addr < HARDWARE_RAM_STOP) \
+                                  && ( config.hardware_pages[((int)addr-HARDWARE_RAM_START) >> 12] ) )
+#endif
 
 /* XXX - I have assumed 32k of BIOS... */
 #define IN_BIOS_SPACE(addr) ((int)(addr) >= VBIOS_START && \
@@ -239,7 +254,7 @@ umb_setup()
 
     umbs[umb].in_use = TRUE;
     umbs[umb].free = FALSE;
-    umbs[umb].addr = (caddr_t) 0xd0000;
+    umbs[umb].addr = (caddr_t) EMM_BASE_ADDRESS;
     umbs[umb].size = 0x10000;
   }
 
@@ -273,8 +288,13 @@ umb_setup()
 
   for (addr = UMB_BASE; addr < (vm_address_t) (UMB_BASE + UMB_SIZE);
        addr += UMB_PAGE) {
-    if (IN_EMM_SPACE(addr) || IN_EMU_SPACE(addr))
+    if (IN_EMM_SPACE(addr) || IN_EMU_SPACE(addr) || IN_HARDWARE_PAGES(addr)) {
+#if 1
+      Debug0((dbg_fd, "skipped UMB region: %p EMM-%d EMU=%d hardw=%d\n",(void *) addr, 
+               IN_EMM_SPACE(addr),IN_EMU_SPACE(addr),IN_HARDWARE_PAGES(addr)));
+#endif
       continue;
+    }
     if (umb_memory_empty(addr, UMB_PAGE)) {
       if ((umbs[umb].addr + umbs[umb].size) == addr) {
 	umbs[umb].size += UMB_PAGE;

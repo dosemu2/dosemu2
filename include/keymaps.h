@@ -84,6 +84,14 @@ extern unsigned char key_map_be[];
 extern unsigned char shift_map_be[];
 extern unsigned char alt_map_be[];
 
+extern unsigned char key_map_po[];
+extern unsigned char shift_map_po[];
+extern unsigned char alt_map_po[];
+
+extern unsigned char key_map_it[];
+extern unsigned char shift_map_it[];
+extern unsigned char alt_map_it[];
+
 /* Keyboard-Layout for the numeric part of the keyboard */
 
 extern unsigned char num_table_comma[];

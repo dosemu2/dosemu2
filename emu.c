@@ -20,12 +20,15 @@
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
- * $Date: 1994/09/23 01:29:36 $
+ * $Date: 1994/09/26 23:10:13 $
  * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 2.25 $
+ * $Revision: 2.26 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 2.26  1994/09/26  23:10:13  root
+ * Prep for pre53_22.
+ *
  * Revision 2.25  1994/09/23  01:29:36  root
  * Prep for pre53_21.
  *
@@ -563,8 +566,9 @@ inline void int_queue_run();
 struct timeval scr_tv;
 struct itimerval itv;
 
-long start_time;		/* Keep track of times for DOS calls */
+time_t start_time;		/* Keep track of times for DOS calls */
 unsigned long last_ticks;
+unsigned int check_date;
 
 extern void video_config_init(void);
 extern int keyboard_init(void);
@@ -595,7 +599,7 @@ extern struct vm86_struct vm86s;
 /*
  * DANG_BEGIN_REMARK
  * The var `fatalerr` can be given a true value at any time to have DOSEMU 
- * exit on the next exit from vm86 mode.
+ * exit on the next return from vm86 mode.
  * DANG_END_REMARK
  */
 int fatalerr;
@@ -728,7 +732,7 @@ dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
  *
  * description:
  *  Initialize the signals to have NONE being blocked.
- *  Initialize the signal_queue.
+ * Currently this is NOT of much use to DOSEMU.
  *
  * DANG_END_FUNCTION
  *
@@ -840,6 +844,7 @@ run_vm86(void)
 		do_int(VM86_ARG(retval));
 		break;
 	case VM86_SIGNAL:
+		I_printf("Return for SIGNAL\n");
 		break;
 	default:
 		error("unknown return value from vm86()=%x,%d-%x\n", VM86_TYPE(retval), VM86_TYPE(retval), VM86_ARG(retval));
@@ -1223,29 +1228,6 @@ boot(void)
   ignore_segv--;
 }
 
-/* DANG_BEGIN_FUNCTION SIGNAL_save
- *
- * arguments:
- * context     - signal context to save.
- * signal_call - signal handling routine to be called.
- *
- * description:
- *  Save into an array structure queue the signal context of the current
- * signal. This is a queue because any signal may occur multiple times before
- * DOSEMU deals with it down the road
- *
- * DANG_END_FUNCTION
- *
- */
-inline void SIGNAL_save(
-			struct sigcontext_struct *context, 
-			void (*signal_call)() ) {
-  signal_queue[SIGNAL_tail].context = *context;
-  signal_queue[SIGNAL_tail].signal_handler=signal_call;
-  SIGNAL_tail = (SIGNAL_tail + 1) % MAX_SIG_QUEUE_SIZE;
-  REG(eflags) |= (VIP) ;
-}
-
 void SIGALRM_call(void){
   static volatile int running = 0;
   static volatile inalrm = 0;
@@ -1377,6 +1359,30 @@ void SIGALRM_call(void){
       floppy_tick();
   }
 
+}
+
+/* DANG_BEGIN_FUNCTION SIGNAL_save
+ *
+ * arguments:
+ * context     - signal context to save.
+ * signal_call - signal handling routine to be called.
+ *
+ * description:
+ *  Save into an array structure queue the signal context of the current
+ * signal as well as the function to call for dealing with this signal.
+ * This is a queue because any signal may occur multiple times before
+ * DOSEMU deals with it down the road.
+ *
+ * DANG_END_FUNCTION
+ *
+ */
+inline void SIGNAL_save(
+			struct sigcontext_struct *context, 
+			void (*signal_call)() ) {
+  signal_queue[SIGNAL_tail].context = *context;
+  signal_queue[SIGNAL_tail].signal_handler=signal_call;
+  SIGNAL_tail = (SIGNAL_tail + 1) % MAX_SIG_QUEUE_SIZE;
+  REG(eflags) |= VIP;
 }
 
 void
@@ -1621,6 +1627,7 @@ config_defaults(void)
 
   config.mem_size = 640;
   config.ems_size = 0;
+  config.ems_frame = 0xd000;
   config.xms_size = 0;
   config.dpmi_size = 0;
   config.mathco = 1;
@@ -1630,6 +1637,7 @@ config_defaults(void)
   config.vbios_file = NULL;
   config.vbios_copy = 0;
   config.vbios_seg = 0xc000;
+  config.vbios_size = 0x10000;
   config.console_keyb = 0;
   config.console_video = 0;
   config.fdisks = 0;
@@ -1686,8 +1694,11 @@ config_defaults(void)
   config.alt_map = alt_map_us;	/* And the Alt-map              */
   config.num_table = num_table_dot;	/* Numeric keypad has a dot     */
   config.detach = 0; /* Don't detach from current tty and open new VT. */
-  config.sillyint = 0;
 
+  config.sillyint = 0;
+  config.must_spare_hardware_ram =0;
+  memset(config.hardware_pages,0,sizeof(config.hardware_pages));
+  
   mice->fd         = -1;
   mice->type       = 0;
   mice->flags      = 0;
@@ -1745,7 +1756,7 @@ int_queue_run()
   }
 
   if (!*OUTB_ADD) {
-    if (++vif_counter & 0x08) {
+    if (++vif_counter > 0x08) {
       I_printf("OUTB interrupts renabled after %d attempts\n", vif_counter);
     }
     else {
@@ -1794,8 +1805,6 @@ int_queue_run()
     /* save our regs */
     int_queue_head[int_queue_running].saved_regs = REGS;
 
-    cli();
-
     /* push an illegal instruction onto the stack */
     /*  pushw(ssp, sp, 0xffff); */
     pushw(ssp, sp, 0xe8cd);
@@ -1810,8 +1819,6 @@ int_queue_run()
     LWORD(esp) -= 8;
   }
   else {
-
-    cli();
 
     pushw(ssp, sp, vflags);
     /* the code segment of our iret */
@@ -1834,12 +1841,11 @@ int_queue_run()
    */
 
   REG(eflags) &= ~(VIF | TF | IF | NT);
-  REG(eflags) |= VIP;
+  if (int_queue[int_queue_start].callstart)
+    REG(eflags) |= VIP;
 
   int_queue_start = (int_queue_start + 1) % IQUEUE_LEN;
   h_printf("int_queue: running int %x if applicable, return_addr=%x\n", current_interrupt, int_queue_head[int_queue_running].int_queue_return_addr);
-
-  sti();
 
   return;
 }
@@ -1847,54 +1853,120 @@ int_queue_run()
 /* Silly Interrupt Generator Initialization/Closedown */
 
 #ifdef SIG
-int SillyG = 0;
+int *SillyG = 0;
+static int SillyG_[16+1];
 
 /* 
  * DANG_BEGIN_FUNCTION SIG_int
  *
  * description:
  *  Allow DOSEMU to be made aware when a hard interrupt occurs
- *  Require a kernel patch.
+ *  Requires the sig/sillyint.o driver loaded (using NEW modules package),
+ *  or a kernel patch (implementing sig/int.c driver).
+ *
+ *  The IRQ numbers to monitor are taken from config.sillyint, each bit
+ *  corresponding to one IRQ. The higher 16 bit are defining the use of SIGIO
  *
  * DANG_END_FUNCTION
  */
 void 
 SIG_init()
 {
-  /* Get in touch with my Silly Interupt Driver */
+  /* Get in touch with my Silly Interrupt Driver */
   if (config.sillyint) {
     char devname[20];
-    sprintf(devname, "/dev/int/%d", config.sillyint);
-    if ((SillyG = open(devname, O_RDWR)) < 1) {
-      fprintf(stderr, "Not gonna touch IRQ %d you requested!\n",config.sillyint);
-      SillyG = 0;
+    char prio_table[]={9,10,11,12,14,15,3,4,5,6,7};
+    int i,irq,fd;
+    int *sg=SillyG_;
+    for (i=0; i<sizeof(prio_table); i++) {
+      irq=prio_table[i];
+      if (config.sillyint & (1 << irq)) {
+        sprintf(devname, "/dev/int/%d", irq);
+        if ((fd = open(devname, O_RDWR)) < 1) {
+          fprintf(stderr, "Not gonna touch IRQ %d you requested!\n",irq);
+        }
+        else {
+          /* Reset interupt incase it went off already */
+          write(fd, NULL, (int) NULL);
+          fprintf(stderr, "Gonna monitor the IRQ %d you requested, Return=0x%02x\n", irq ,fd);
+          if (config.sillyint & (0x10000 << irq)) {
+            /* Try to use SIGIO,
+               this should be faster, if SIGIO is used, 
+               but it doesn't always work (as I tested with my hardware) */
+            add_to_io_select(fd);
+          }
+          else {
+            /* Don't use SIGIO,
+               this is slow, but it always works */
+            FD_SET(fd, &fds_no_sigio);
+            not_use_sigio++;
+          }
+          *sg++=fd;
+        }
+      }
     }
-    else {
-      /* Reset interupt incase it went off already */
-      write(SillyG, NULL, (int) NULL);
-      fprintf(stderr, "Gonna monitor the IRQ %d you requested, Return=0x%02x\n", config.sillyint ,SillyG);
-      FD_SET(SillyG, &fds_no_sigio);
-      not_use_sigio++;
-    }
+    *sg=0;
+    if (sg != SillyG_) SillyG=SillyG_;
   }
 }
 
 void
  SIG_close() {
   if (SillyG) {
-    close(SillyG);
-    fprintf(stderr, "Closing INT you opened!\n");
+    int *sg=SillyG;
+    while (*sg) close(*sg++);
+    fprintf(stderr, "Closing all IRQ you opened!\n");
   }
 }
 
 #endif
 
+
+
+/*
+ * DANG_BEGIN_FUNCTION check_special_mapping
+ *
+ * description:
+ *  This is called after all configuration stuff is done to make sure
+ *  that no mapped areas are overlapping.
+ *  It checks EMS, VBIOS, HARDWARE_RAM
+ *  and exits with "false", if any of it overlapp. 
+ * DANG_END_FUNCTION
+ *
+ */
+static int check_special_mapping()
+{
+  #define _I_ ((i-0xc0000) >> 12)
+  char map[(0x100000 - 0xc0000) >> 12];
+  int i;
+  memset(map,0,sizeof(map));
+  if (config.ems_size) {
+    for (i=EMM_BASE_ADDRESS; i<(EMM_BASE_ADDRESS+0x10000); i+=0x1000) map[_I_]=1;
+  }
+  for (i=VBIOS_START; i < (VBIOS_START+VBIOS_SIZE); i+=0x1000) {
+    if (map[_I_]) return 0;
+    map[_I_]=1;
+  }
+  if (config.must_spare_hardware_ram) {
+    for (i=HARDWARE_RAM_START; i < HARDWARE_RAM_STOP; i+=0x1000) {
+      if (config.hardware_pages[_I_ - ((HARDWARE_RAM_START-0xc0000)>>12)]) {
+        if (map[_I_]) return 0;
+      }
+    }
+  }
+  return 1;
+  #undef _I_
+}
+
+
+
+
 /*
  * DANG_BEGIN_FUNCTION emulate
  *
  * arguments:
- * argc - Arguement count.
- * argv - Arguements.
+ * argc - Argument count.
+ * argv - Arguments.
  *
  * description:
  *  Emulate gets called from dos.c. It initializes DOSEMU to prepare it
@@ -1912,6 +1984,7 @@ void
   int c;
   char *confname = NULL;
   struct stat statout, staterr;
+  extern void map_hardware_ram(void);
 
  /* DANG_BEGIN_REMARK
   * If DOSEMU starts up with stderr == stdout, then stderr gets 
@@ -1952,7 +2025,7 @@ void
      
   opterr = 0;
   confname = NULL;
-  while ((c = getopt(argc, argv, "ABC:cF:kM:D:P:VNtsgx:Km234e:dXY:Z:")) != EOF) {
+  while ((c = getopt(argc, argv, "ABCcF:kM:D:P:VNtsgx:Km234e:dXY:Z:")) != EOF) {
     switch (c) {
     case 'F':
       confname = optarg;
@@ -1962,8 +2035,12 @@ void
         break;
       config.detach = (unsigned short)detach();
       break;
+    case 'D':
+      parse_debugflags(optarg);
+      break;
     }
   }
+
   parse_config(confname);
 
   if (config.exitearly)
@@ -1971,7 +2048,7 @@ void
 
   optind = 0;
   opterr = 0;
-  while ((c = getopt(argc, argv, "ABC:cF:kM:D:P:VNtT:sgx:Km234e:dXY:Z:")) != EOF) {
+  while ((c = getopt(argc, argv, "ABCcF:kM:D:P:VNtT:sgx:Km234e:dXY:Z:")) != EOF) {
     switch (c) {
     case 'F':			/* previously parsed config file argument */
     case 'd':
@@ -2115,6 +2192,8 @@ void
     config.console_video = config.vga = config.graphics = 0;
   }
 
+  if (!check_special_mapping()) error("ERROR: You have overlapping mappings (EMS,VBIOS,HARDWARE_RAM)\n");
+
   setup_low_mem();
 
   /* Set up hard interrupt array */
@@ -2149,6 +2228,7 @@ void
     ticks = tp.tv_sec - (tzp.tz_minuteswest * 60);
 #endif
     last_ticks = (tm->tm_hour * 60 * 60 + tm->tm_min * 60 + tm->tm_sec) * 18.206;
+    check_date = tm->tm_year * 10000 + tm->tm_mon * 100 + tm->tm_mday;
     set_ticks(last_ticks);
   };
 
@@ -2168,7 +2248,11 @@ void
 
   SETSIG(SIGHUP, leavedos);	/* for "graceful" shutdown */
   SETSIG(SIGTERM, leavedos);
+#if 0 /* Richard Stevens says it can't be caught. It's returning an
+       * error anyway
+       */
   SETSIG(SIGKILL, leavedos);
+#endif
   SETSIG(SIGQUIT, sigquit);
 /*
   SETSIG(SIGUNUSED, timint);
@@ -2194,6 +2278,12 @@ void
    */
   memory_setup();
 
+  /* 
+   * map in some ram locations we need for some adapter's memory mapped IO 
+   * (those, who are defined via hardware_ram config)
+   */
+  map_hardware_ram();  
+
   serial_init();
   mouse_init();
   printer_init();
@@ -2206,7 +2296,7 @@ void
     error("ERROR: can't open keyboard\n");
     leavedos(19);
   }
-  if (!config.graphics)
+  if (!config.vga)
     config.allowvideoportaccess = 0;
 
   /* initialize some video config variables, possibly map video bios,
@@ -2385,7 +2475,7 @@ int
 
 void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.25 1994/09/23 01:29:36 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.26 1994/09/26 23:10:13 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -2415,18 +2505,6 @@ void
   fprintf(stdout, "\n     (!) means BE CAREFUL! READ THE DOCS FIRST!\n");
   fprintf(stdout, "     (%%) marks those options which require dos be run as root (i.e. suid)\n");
   fprintf(stdout, "     (#) marks options which do not fully work yet\n");
-}
-
-void
- saytime(char *m_str) {
-  clock_t m_clock;
-  struct tms l_time;
-  long clktck = sysconf(_SC_CLK_TCK);
-
-  m_clock = times(&l_time);
-  fprintf(stderr, "%s %7.2f\n",
-	  m_str, m_clock * 1.00 / clktck);
-
 }
 
 int
@@ -3083,7 +3161,7 @@ dos_helper(void) {
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/09/23 01:29:36 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/09/26 23:10:13 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
@@ -3148,6 +3226,10 @@ dos_helper(void) {
 	if ((tp2.tv_sec - tp1.tv_sec) * 1000000 +
 	    ((int) tp2.tv_usec - (int) tp1.tv_usec) > config.hogthreshold) {
 	  usleep(100);
+/*
+ * Should be safe here
+ */
+	  handle_signals();
 	  time_count = 0;
 	}
       }
@@ -3268,7 +3350,7 @@ void add_to_io_select(int new_fd) {
     fcntl(new_fd, F_SETFL, flags | use_sigio);
     FD_SET(new_fd, &fds_sigio);
   } else {
-    FD_SET(kbd_fd, &fds_no_sigio);
+    FD_SET(new_fd, &fds_no_sigio);
     not_use_sigio++;
   }
 }

@@ -1,0 +1,29 @@
+#
+# DANG configuration Data - For v0.3
+#
+
+# BASEDIR sets a path fragment which is prepended to _all_ paths.
+BASEDIR: 	../dosemu0.53/
+
+# GROUPs are formed from :
+# <group_name> <summary_file> <file1> ... <fileN>
+# These may be split over multiple lines, and use and whitespace characters
+# as separators (assuming the Perl lives up to it's claims ! 8-)  )
+GROUP:		Main ../DANG_c/summary_Main dos.c emu.c emu.h
+GROUP:		Clients ../DANG_c/summary_Clients clients/ncurses.c
+GROUP:		DPMI ../DANG_c/summary_DPMI dpmi/dpmi.c
+GROUP:		Video ../DANG_c/summary_Video video/vc.c
+			video/video.c termio.c
+GROUP:		Misc ../DANG_c/summary_Misc bios_emm.c xms.c 
+			keymaps.c sigsegv.c int.h ports.h
+			dosio.c mouse/mouse.c serial.c disks.c cpu.c
+			lpt.c sig/int.c
+
+# INTRODUCTION is the location of Introduction. There may be
+# more than one of these.
+INTRODUCTION:	../DANG_c/DANG_intro
+
+# FINALLY is the location of a section to place at the end. There may be
+# more than one of these.
+FINALLY:	../DANG_c/DANG_outro
+

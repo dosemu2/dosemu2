@@ -76,7 +76,10 @@ void start_floppy(void);
 void stop_disk(int token);
 FILE* open_file(char* filename);
 void close_file(FILE* file);
-void parse_dosemu_users();
+void parse_dosemu_users(void);
+static int set_hardware_ram(int addr);
+static void set_irq_value(int bits, int i1);
+static void set_irq_range(int bits, int i1, int i2);
 
 	/* variables in lexer.l */
 
@@ -98,7 +101,8 @@ extern void yyrestart(FILE *input_file);
 	/* main options */
 %token DOSBANNER FASTFLOPPY TIMINT HOGTHRESH SPEAKER IPXSUPPORT NOVELLHACK
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO ALLOWVIDEOPORT TIMER
-%token MATHCO CPU BOOTA BOOTC L_XMS L_EMS L_DPMI PORTS DISK DOSMEM PRINTER
+%token MATHCO CPU BOOTA BOOTB BOOTC L_XMS L_DPMI PORTS DISK DOSMEM PRINTER
+%token L_EMS EMS_SIZE EMS_FRAME
 %token BOOTDISK L_FLOPPY EMUSYS EMUBAT L_X
 	/* speaker */
 %token EMULATED NATIVE
@@ -115,7 +119,7 @@ extern void yyrestart(FILE *input_file);
 %token L_DISPLAY L_TITLE ICON_NAME
 	/* video */
 %token VGA MGA CGA EGA CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
-%token MEMSIZE VBIOS_SEG VBIOS_FILE VBIOS_COPY VBIOS_MMAP
+%token MEMSIZE VBIOS_SIZE VBIOS_SEG VBIOS_FILE VBIOS_COPY VBIOS_MMAP
 	/* terminal */
 %token UPDATEFREQ UPDATELINES COLOR CORNER METHOD NORMAL XTERM NCURSES FAST
 	/* debug */
@@ -128,8 +132,12 @@ extern void yyrestart(FILE *input_file);
 %token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE
 	/* ports/io */
 %token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE
+	/* Silly interrupts */
+%token SILLYINT USE_SIGIO
+	/* hardware ram mapping */
+%token HARDWARE_RAM
 
-%type <i_value> mem_bool bool speaker method_val color_val
+%type <i_value> mem_bool irq_bool bool speaker method_val color_val
 
 %%
 
@@ -162,6 +170,7 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		| CPU INTEGER		{ vm86s.cpu_type = ($2/100)%10; }
 		| BOOTA			{ config.hdiskboot = 0; }
 		| BOOTC			{ config.hdiskboot = 1; }
+		| BOOTB			{ config.hdiskboot = 2; }
 		| TIMINT bool
 		    {
 		    config.timers = $2;
@@ -182,6 +191,7 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    config.allowvideoportaccess = $2;
 		    c_printf("CONF: allowvideoportaccess %s\n", ($2) ? "on" : "off");
 		    }
+		| L_EMS { config.ems_size=0; }  '{' ems_flags '}'
 		| L_EMS mem_bool
 		    {
 		    config.ems_size = $2;
@@ -252,6 +262,14 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		  '{' printer_flags '}'
 		    { stop_printer(); }
 		| L_X '{' x_flags '}'
+		| SILLYINT { config.sillyint=0; }  '{' sillyint_flags '}'
+		| SILLYINT irq_bool	{ config.sillyint = 1 << $2; }
+		| HARDWARE_RAM 
+                   { 
+                     config.must_spare_hardware_ram=0;
+                      memset(config.hardware_pages,0,sizeof(config.hardware_pages)); 
+                   }  
+                   '{' hardware_ram_flags '}'
 		| STRING
 		    { yyerror("unrecognized command '%s'", $1); free($1); }
 		| error
@@ -308,6 +326,16 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		      c_printf("CONF: VGA-BIOS-Segment set to 0xc000\n");
 		      }
 		   }
+		| VBIOS_SIZE INTEGER
+		   {
+		   config.vbios_size = $2;
+		   c_printf("CONF: VGA-BIOS-Size %x\n", $2);
+		   if (($2 != 0x8000) && ($2 != 0x10000))
+		      {
+		      config.vbios_size = 0x10000;
+		      c_printf("CONF: VGA-BIOS-Size set to 0x10000\n");
+		      }
+		   }
 		| STRING
 		    { yyerror("unrecognized video option '%s'", $1);
 		      free($1); }
@@ -348,7 +376,7 @@ debug_flags	: debug_flag
 		;
 debug_flag	: VIDEO bool		{ d.video = $2; }
 		| SERIAL bool		{ d.serial = $2; }
-		| CONFIG bool		{ d.config = $2; }
+		| CONFIG bool		{ if (!d.config) d.config = $2; }
 		| DISK bool		{ d.disk = $2; }
 		| READ bool		{ d.read = $2; }
 		| WRITE bool		{ d.write = $2; }
@@ -569,6 +597,79 @@ port_flag	: INTEGER
 		| error
 		;
 
+	/* IRQ definition for Silly Interrupt Generator */
+
+sillyint_flags	: sillyint_flag
+		| sillyint_flags sillyint_flag
+		;
+sillyint_flag	: INTEGER { set_irq_value(1, $1); }
+		| USE_SIGIO INTEGER { set_irq_value(0x10001, $2); }
+		| RANGE INTEGER INTEGER { set_irq_range(1, $2, $3); }
+		| USE_SIGIO RANGE INTEGER INTEGER { set_irq_range(0x10001, $3, $4); }
+		| STRING
+		    { yyerror("unrecognized sillyint command '%s'", $1);
+		      free($1); }
+		| error
+		;
+
+	/* EMS definitions  */
+
+ems_flags	: ems_flag
+		| ems_flags ems_flag
+		;
+ems_flag	: INTEGER
+	           {
+		     config.ems_size = $1;
+		     if ($1 > 0) c_printf("CONF: %dk bytes EMS memory\n", $1);
+	           }
+		| EMS_SIZE INTEGER
+		   {
+		     config.ems_size = $2;
+		     if ($2 > 0) c_printf("CONF: %dk bytes EMS memory\n", $2);
+		   }
+		| EMS_FRAME INTEGER
+		   {
+		     if ( (($2 & 0xfc00)>0xc800) && (($2 & 0xfc00)<=0xe000) ) {
+		       config.ems_frame = $2 & 0xfc00;
+		       c_printf("CONF: EMS-frame = 0x%04x\n", config.ems_frame);
+		     }
+		     else yyerror("wrong EMS-frame: 0x%04x\n", $2);
+		   }
+		| STRING
+		    { yyerror("unrecognized ems command '%s'", $1);
+		      free($1); }
+		| error
+		;
+
+	/* memory areas to spare for hardware (adapter) ram */
+
+hardware_ram_flags : hardware_ram_flag
+		| hardware_ram_flags hardware_ram_flag
+		;
+hardware_ram_flag : INTEGER
+	           {
+                     if (!set_hardware_ram($1)) {
+                       yyerror("wrong hardware ram address : 0x%05x", $1);
+                     }
+	           }
+		| RANGE INTEGER INTEGER
+		   {
+                     int i;
+                     for (i=$2; i<= $3; i+=0x1000) {
+                       if (set_hardware_ram(i))
+	                   c_printf("CONF: hardware ram page at 0x%05x\n", i);
+                       else {
+                         yyerror("wrong hardware ram address : 0x%05x", i);
+                         break;
+                       }
+                     }
+		   }
+		| STRING
+		    { yyerror("unrecognized sillyint command '%s'", $1);
+		      free($1); }
+		| error
+		;
+
 	/* booleans */
 
 bool		: L_YES		{ $$ = 1; }
@@ -586,6 +687,16 @@ mem_bool	: L_OFF		{ $$ = 0; }
 		| STRING        { yyerror("got '%s', expected 'off' or an integer", $1);
 				  free($1); }
 		| error         { yyerror("expected 'off' or an integer"); }
+		;
+
+irq_bool	: L_OFF		{ $$ = 0; }
+		| INTEGER       { if ( ($1 < 2) || ($1 > 15) ) {
+                                    yyerror("got '%d', expected 'off' or an integer 2..15", $1);
+                                  } 
+                                }
+		| STRING        { yyerror("got '%s', expected 'off' or an integer 2..15", $1);
+				  free($1); }
+		| error         { yyerror("expected 'off' or an integer 2..15"); }
 		;
 
 	/* speaker values */
@@ -641,7 +752,9 @@ void start_debug(void)
 
   d.video = flag;               /* For all options */
   d.serial = flag;
+#if 0
   d.config = flag;
+#endif
   d.disk = flag;
   d.read = flag;
   d.write = flag;
@@ -1019,10 +1132,60 @@ void keyb_layout(int layout)
     config.alt_map   = alt_map_be;
     config.num_table = num_table_dot;
     break;
+  case KEYB_PO:
+    c_printf("CONF: Keyboard-layout po\n");
+    config.keyboard  = KEYB_PO;
+    config.key_map   = key_map_po;  /* pointer to the keyboard-map */
+    config.shift_map = shift_map_po;
+    config.alt_map   = alt_map_po;
+    config.num_table = num_table_dot;
+    break;
+  case KEYB_IT:
+    c_printf("CONF: Keyboard-layout it\n");
+    config.keyboard  = KEYB_IT;
+    config.key_map   = key_map_it;  /* pointer to the keyboard-map */
+    config.shift_map = shift_map_it;
+    config.alt_map   = alt_map_it;
+    config.num_table = num_table_dot;
+    break;
   default:
     c_printf("CONF: ERROR -- Keyboard has incorrect number!!!\n");
   }
 }
+
+static int set_hardware_ram(int addr)
+{
+  if ((addr<0xc8000) || (addr>=0xf0000)) return 0;
+  config.must_spare_hardware_ram=1;
+  config.hardware_pages[(addr-0xc8000) >> 12]=1;
+  return 1;
+}
+
+
+static void set_irq_value(int bits, int i1)
+{
+  if ((i1>2) && (i1<=15)) {
+    config.sillyint |= (bits << i1);
+    c_printf("CONF: IRQ %d for sillyint", i1);
+    if (bits & 0x10000)  c_printf(" uses SIGIO\n");
+    else c_printf("\n");
+  }
+  else yyerror("wrong IRQ for sillyint command: %d", i1);
+}
+
+static void set_irq_range(int bits, int i1, int i2) {
+  int i;
+  if ( (i1<3) || (i1>15) || (i2<3) || (i2>15) || (i1 > i2 ) ) {
+    yyerror("wrong IRQ range for sillyint command: %d .. %d", i1, i2);
+  }
+  else {
+    for (i=i1; i<=i2; i++) config.sillyint |= (bits << i);
+    c_printf("CONF: range of IRQs for sillyint %d .. %d", i1, i2);
+    if (bits & 0x10000)  c_printf(" uses SIGIO\n");
+    else c_printf("\n");
+  }
+}
+
 
 	/* errors & warnings */
 
@@ -1089,7 +1252,7 @@ void close_file(FILE * file)
 
 /* Parse Users for DOSEMU, by Alan Hourihane, alanh@fairlite.demon.co.uk */
 void
-parse_dosemu_users()
+parse_dosemu_users(void)
 {
   FILE *volatile fp;
   struct passwd *pwd;

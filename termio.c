@@ -20,11 +20,14 @@
  * DANG_BEGIN_CHANGELOG
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/09/22 23:51:57 $
+ * $Date: 1994/09/26 23:10:13 $
  * $Source: /home/src/dosemu0.60/RCS/termio.c,v $
- * $Revision: 2.15 $
+ * $Revision: 2.16 $
  * $State: Exp $
  * $Log: termio.c,v $
+ * Revision 2.16  1994/09/26  23:10:13  root
+ * Prep for pre53_22.
+ *
  * Revision 2.15  1994/09/22  23:51:57  root
  * Prep for pre53_21.
  *
@@ -303,7 +306,7 @@ extern int ipc_fd[2];
 
 int kbcount = 0;
 unsigned char kbbuf[KBBUF_SIZE], *kbp, erasekey;
-static struct termio oldtermio;	/* original terminal modes */
+struct termio oldtermio;	/* original terminal modes */
 
 char tc[1024], termcap[1024];
 int li, co;			/* lines, columns */
@@ -708,7 +711,7 @@ keyboard_init(void)
 /*
  * DANG_BEGIN_REMARK
  *
- *  This code is called to set up the terminal line for non-raw
+ *  Code is called at start up to set up the terminal line for non-raw
  *  mode.
  *
  * DANG_END_REMARK
@@ -717,7 +720,7 @@ keyboard_init(void)
   newtermio.c_iflag &= (ISTRIP | IGNBRK);  /* (IXON|IXOFF|IXANY|ISTRIP|IGNBRK);*/
   /* newtermio.c_oflag &= ~OPOST;
   newtermio.c_cflag &= ~(HUPCL); */
-  newtermio.c_cflag &= ~(CSIZE | PARENB);
+  newtermio.c_cflag &= ~(CLOCAL | CSIZE | PARENB);
   newtermio.c_cflag |= CS8;
   newtermio.c_lflag &= 0;                  /* ISIG */
   newtermio.c_cc[VMIN] = 1;
@@ -731,7 +734,7 @@ keyboard_init(void)
   child_kbd_flags = 0;
   key_flags = 0;
 
-  dbug_printf("TERMIO: $Header: /home/src/dosemu0.60/RCS/termio.c,v 2.15 1994/09/22 23:51:57 root Exp root $\n");
+  dbug_printf("TERMIO: $Header: /home/src/dosemu0.60/RCS/termio.c,v 2.16 1994/09/26 23:10:13 root Exp root $\n");
 
   return 0;
 }

@@ -91,6 +91,8 @@ QuickStart: Instructions on how to quickly get DOSEMU up and running.
 	  section 6 first, with your existing hard disk configuration.
 	- From the dosemu0.53 directory, type dos -A (to boot off drive A:)
 	  After some delay, dosemu should boot and show the A> prompt.
+	  *** If you are NOT running as root you must add your userid
+	      to the /etc/dosemu.users file.
 	- From the A: drive, try viewing the drive C: drive, to make sure
 	  you are using the disk image file.
 	- Type 'FDISK /MBR'.  This will add the Master Boot Record to the 

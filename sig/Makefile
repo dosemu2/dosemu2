@@ -7,6 +7,7 @@
 
 CC   = gcc
 LD   = ld
+USRSRCDIR=/usr/src
 
 # If INCDIR exists, it was exported from the master Makefile.
 ifndef INCDIR
@@ -35,10 +36,13 @@ OBJS =
 .c.o:
 	$(CC) $(CFLAGS) $(XDEFS) $(INCDIR) -c $<
  
-all: ../video.o
+all: ../video.o sillyint.o
 
 ../video.o: $(OBJS)
 	ld -r -o ../video.o $(OBJS)
+
+sillyint.o:    int.c  $(USRSRCDIR)/linux/tools/version.h
+	$(CC) -m486 -Wall -I$(USRSRCDIR) -DMAKE_LOADABLE_MODULE int.c -c -O6 -D__KERNEL__ -DLINUX -o sillyint.o
 
 checkin:
 	-ci $(ALL) Makefile

@@ -1,11 +1,14 @@
 /* for the Linux dos emulator versions 0.49 and newer
  *
- * $Date: 1994/09/20 01:53:26 $
+ * $Date: 1994/09/26 23:10:13 $
  * $Source: /home/src/dosemu0.60/RCS/lpt.c,v $
- * $Revision: 2.4 $
+ * $Revision: 2.5 $
  * $State: Exp $
  *
  * $Log: lpt.c,v $
+ * Revision 2.5  1994/09/26  23:10:13  root
+ * Prep for pre53_22.
+ *
  * Revision 2.4  1994/09/20  01:53:26  root
  * Prep for pre53_21.
  *
@@ -125,25 +128,23 @@ printer_open(int prnum)
 {
   int um;
 
+  exchange_uids();
   um = umask(026);
   if (lpt[prnum].file == NULL) {
     if (!lpt[prnum].dev) {
-      exchange_uids();
       lpt[prnum].dev = tmpnam(NULL);
       lpt[prnum].file = fopen(lpt[prnum].dev, "a");
-      exchange_uids();
       p_printf("LPT: opened tmpfile %s\n", lpt[prnum].dev);
     }
     else {
-      exchange_uids();
       lpt[prnum].file = fopen(lpt[prnum].dev, "a");
-      exchange_uids();
     }
   }
   umask(um);
 
   p_printf("LPT: opened printer %d to %s, file %p\n", prnum,
 	   lpt[prnum].dev, (void *) lpt[prnum].file);
+  exchange_uids();
   return 0;
 }
 

@@ -4,7 +4,7 @@ LD86 = ld86 -0
 SRC=exitemu.S vgaoff.S vgaon.S eject.S lredir.c lredir.readme dumpconf.asm \
 	bootoff.S booton.S dosdbg.c dosdbg.readme
 COM=exitemu.com vgaoff.com vgaon.com eject.com bootoff.com booton.com pdipx.com
-EXE=lredir.exe dumpconf.exe dosdbg.exe lancheck.exe
+EXE=lredir.exe dumpconf.exe dosdbg.exe lancheck.exe isemu.com
 
 all: $(COM)
 

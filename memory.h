@@ -18,6 +18,10 @@
 #define EMS_OFF		0x0000
 #define EMS_ADD		((EMS_SEG << 4) + EMS_OFF)
 
+#define EMM_BASE_ADDRESS        (config.ems_frame << 4)
+#define EMM_SEGMENT             (config.ems_frame)
+
+
 #define Banner_SEG	BIOSSEG
 #define Banner_OFF	0x3000
 #define Banner_ADD	((Banner_SEG << 4) + Banner_OFF)
@@ -77,8 +81,8 @@
 #define ROM_CONFIG_ADD	((ROM_CONFIG_SEG << 4) + ROM_CONFIG_OFF)
 
 #define VBIOS_START	(config.vbios_seg << 4 )
-#define VBIOS_SIZE	(64*1024)
-
+/*#define VBIOS_SIZE	(64*1024)*/
+#define VBIOS_SIZE	(config.vbios_size)
 #define GFX_CHARS	0xffa6e
 #define GFXCHAR_SIZE	1400
 

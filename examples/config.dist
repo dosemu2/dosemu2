@@ -247,6 +247,8 @@ video { vga  console }          # Use this line, if you are using VGA
 #   - If your VGA-Bios resides at E000-EFFF, turn off video BIOS shadow
 #     for this address range and add the statement vbios_seg 0xe000
 #     to the correct vios-statement, see the example below
+#   - If your VBios size is only 32K you set it with  vbios_size 0x8000,
+#     you then gain some space for UMB or hardware ram locations.
 #   - Set "allowvideoportaccess on" earlier in this configuration file
 #     if DOSEMU wont boot properly, such as hanging with a blank screen,
 #     beeping, or the video card bootup message.
@@ -273,6 +275,8 @@ allowvideoportaccess on
 #
 #   ET4000 SVGA card with 1 megabyte on board:
 #video { vga  console  graphics  chipset et4000  memsize 1024 }
+# or
+#video { vga  console  graphics  chipset et4000  memsize 1024 vbios_size=0x8000 }
 #
 #   S3-based SVGA video card with 1 megabyte on board:
 #video { vga  console  graphics  chipset s3  memsize 1024 }
@@ -303,9 +307,43 @@ bootA               # Startup drive valid values:  bootA  bootC
 #    reduce these values.  Also, DPMI is still somewhat unstable,
 #    (as of early April 1994) so be careful with DPMI paramters.
 #
+#    For ems, you now can set the frame to any 16K between 0xc800..0xe000
+#
+#    If you have adapters, which have memory mapped IO, you may now
+#    map those regions with hardware_ram { .. }. You can only map in
+#    entities of 4k, you give the address, not the segment.
+# 
 xms 1024            # XMS size in K,  or "off"
+
 ems 1024            # EMS size in K,  or "off"
+# or:
+#ems { 1024 ems_frame 0xe000 }
+#ems { ems_size 2048 emsframe 0xd000 }
+
+#hardware_ram { 0xc8000 range 0xcc000 0xcffff }
+#             the above mappes 0xc8000..0xc8fff and 0xcc000..0xcffff
+  
 dpmi off            # DPMI size in K, or "off"  Be careful with DPMI!
+
+
+#*********************** IRQ ******************************************
+#
+# QuickStart:
+#    These are parameters needed for SIG, the Silly Interrupt Generator
+#    To use this feature, you also must have the sillyint.o driver
+#    loaded. For more details see sig/HowTo.
+#
+#    The sillyint statement accepts IRQ values between 3..15,
+#    if using the { .. } syntax each value or range can be prefixed
+#    by the keyword use_sigio to monitor the IRQ via SIGIO. 
+#    If this is missing the IRQ is monitored by SIGALRM. 
+#
+
+sillyint off    # this disables IRQ monitoring
+#sillyint 15
+#sillyint { 15 }
+#sillyint { use_sigio 15 }
+#sillyint { 10  use_sigio range 3 5 }
 
 
 #********************** PORT ACCESS **************************************

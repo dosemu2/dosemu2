@@ -233,11 +233,11 @@ video_config_init(void) {
       warn("WARN: copying VBIOS file from /dev/kmem\n");
       load_file("/dev/kmem", VBIOS_START, (char *) VBIOS_START, VBIOS_SIZE);
     }
-  }
 
   /* copy graphics characters from system BIOS */
   load_file("/dev/kmem", GFX_CHARS, (char *) GFX_CHARS, GFXCHAR_SIZE);
 
+  }
 
   if ((config.console_keyb || config.console_video) && !config.usesX)
     set_process_control();

@@ -12,12 +12,15 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
- * $Date: 1994/09/23 01:29:36 $
+ * $Date: 1994/09/26 23:10:13 $
  * $Source: /home/src/dosemu0.60/RCS/dos.c,v $
- * $Revision: 2.5 $
+ * $Revision: 2.6 $
  * $State: Exp $
  *
  * $Log: dos.c,v $
+ * Revision 2.6  1994/09/26  23:10:13  root
+ * Prep for pre53_22.
+ *
  * Revision 2.5  1994/09/23  01:29:36  root
  * Prep for pre53_21.
  *

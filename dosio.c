@@ -4,12 +4,15 @@
 /*
  * Robert Sanders, started 3/1/93
  *
- * $Date: 1994/09/22 23:51:57 $
+ * $Date: 1994/09/26 23:10:13 $
  * $Source: /home/src/dosemu0.60/RCS/dosio.c,v $
- * $Revision: 2.8 $
+ * $Revision: 2.9 $
  * $State: Exp $
  *
  * $Log: dosio.c,v $
+ * Revision 2.9  1994/09/26  23:10:13  root
+ * Prep for pre53_22.
+ *
  * Revision 2.8  1994/09/22  23:51:57  root
  * Prep for pre53_21.
  *
@@ -249,7 +252,7 @@ extern struct config_info config;
 extern int in_readkeyboard, keybint;
 extern int ignore_segv;
 #ifdef SIG
-extern int SillyG;
+extern int *SillyG;
 #endif
 
 #define PAGE_SIZE	4096
@@ -432,11 +435,16 @@ io_select(fd_set fds)
     default:			/* has at least 1 descriptor ready */
 
 #ifdef SIG
-      if (SillyG)
-	if (FD_ISSET(SillyG, &fds)) {
-	  k_printf("SIG: We have an interrupt\n");
-	  process_interrupt(SillyG);
+      if (SillyG) {
+        int *sg=SillyG;
+        while (*sg) {
+	  if (FD_ISSET(*sg, &fds)) {
+	    k_printf("SIG: We have an interrupt\n");
+	    process_interrupt(*sg);
+	  }
+	  sg++;
 	}
+      }
 #endif
       if (mice->intdrv)
 	if (FD_ISSET(mice->fd, &fds)) {

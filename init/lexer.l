@@ -61,11 +61,21 @@ ems			return(L_EMS);
 dpmi			return(L_DPMI);
 dosmem			return(DOSMEM);
 ports			return(PORTS);
+sillyint		return(SILLYINT);
+hardware_ram		return(HARDWARE_RAM);
 disk			return(DISK);
 bootdisk		return(BOOTDISK);
 printer			return(PRINTER);
 emusys                  return(EMUSYS);
 emubat                  return(EMUBAT);
+
+
+	/* sillyint values */
+use_sigio		return(USE_SIGIO);
+
+	/* ems values */
+ems_size		return(EMS_SIZE);
+ems_frame		return(EMS_FRAME);
 
 	/* speaker values */
 
@@ -120,6 +130,8 @@ es			{ yylval->i_value = KEYB_ES; return(KEYB_LAYOUT); }
 es-latin1		{ yylval->i_value = KEYB_ES_LATIN1;
 			  return(KEYB_LAYOUT); }
 be			{ yylval->i_value = KEYB_BE; return(KEYB_LAYOUT); }
+po                      { yylval->i_value = KEYB_PO; return(KEYB_LAYOUT); }
+it                      { yylval->i_value = KEYB_IT; return(KEYB_LAYOUT); }
 
 	/* serial stuff */
 
@@ -168,6 +180,7 @@ vga			return(VGA);
 ega			return(EGA);
 cga			return(CGA);
 mga			return(MGA);
+mda			return(MGA);
 console			return(CONSOLE);
 graphics		return(GRAPHICS);
 chipset			return(CHIPSET);
@@ -178,6 +191,7 @@ vbios_file		return(VBIOS_FILE);
 vbios_copy		return(VBIOS_COPY);
 vbios_mmap		return(VBIOS_MMAP);
 vbios_seg		return(VBIOS_SEG);
+vbios_size		return(VBIOS_SIZE);
 plainvga		{ yylval->i_value = 0; return(CHIPSET_TYPE); }
 trident			{ yylval->i_value = 1; return(CHIPSET_TYPE); }
 et4000			{ yylval->i_value = 2; return(CHIPSET_TYPE); }

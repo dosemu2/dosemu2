@@ -1,12 +1,15 @@
 #define PORTS_H 1
 
 /*
- * $Date: 1994/09/23 01:29:36 $
+ * $Date: 1994/09/26 23:10:13 $
  * $Source: /home/src/dosemu0.60/RCS/ports.h,v $
- * $Revision: 2.12 $
+ * $Revision: 2.13 $
  * $State: Exp $
  *
  * $Log: ports.h,v $
+ * Revision 2.13  1994/09/26  23:10:13  root
+ * Prep for pre53_22.
+ *
  * Revision 2.12  1994/09/23  01:29:36  root
  * Prep for pre53_21.
  *
@@ -107,7 +110,7 @@ extern int char_blink;
 u_short microsoft_port_check = 0;
 
 /*
- * DANG_BEGIN_FUNCTION inline int inb(int port)
+ * DANG_BEGIN_FUNCTION inb(int port)
  *
  * description:
  *  INB is used to do controlled emulation of input from ports.

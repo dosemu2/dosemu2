@@ -3,12 +3,15 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/09/23 01:29:36 $
+ * $Date: 1994/09/26 23:10:13 $
  * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
- * $Revision: 2.16 $
+ * $Revision: 2.17 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 2.17  1994/09/26  23:10:13  root
+ * Prep for pre53_22.
+ *
  * Revision 2.16  1994/09/23  01:29:36  root
  * Prep for pre53_21.
  *
@@ -204,7 +207,7 @@
 #include "cpu.h"
 #include <sys/types.h>
 
-#if 0 /* Set to 1 to use Silly Interrupt generator */
+#if 1 /* Set to 1 to use Silly Interrupt generator */
 #define SIG 1
 #endif
 
@@ -427,6 +430,11 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 
      typedef unsigned char boolean;
 
+/* would like to have this in memory.h (but emu.h is included before memory.h !) */
+#define HARDWARE_RAM_START 0xc8000
+#define HARDWARE_RAM_STOP  0xf0000
+
+
      typedef struct config_info {
        int hdiskboot;
 
@@ -467,6 +475,8 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
        char *vbios_file;	/* loaded VBIOS file */
        boolean vbios_copy;
        int vbios_seg;           /* VGA-BIOS-segment for mapping */
+       int vbios_size;          /* size of VGA-BIOS (64K for vbios_seg=0xe000
+       						     32K for vbios_seg=0xc000) */
 
        boolean bootdisk;	/* Special bootdisk defined */
        boolean fastfloppy;
@@ -487,7 +497,12 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 
        int mem_size, xms_size, ems_size, dpmi_size;
 
-       int sillyint;            /* IRQ number for Silly Interrupt Generator */
+       int sillyint;            /* IRQ numbers for Silly Interrupt Generator 
+       				   (bitmask, bit3..15 ==> IRQ3 .. IRQ15) */
+       unsigned int ems_frame;
+       char must_spare_hardware_ram;
+       char hardware_pages[ ((HARDWARE_RAM_STOP-HARDWARE_RAM_START) >> 12)+1 ];
+
 
        int keyboard;
        unsigned char *key_map;     /* pointer to the correct keyboard-map */
@@ -525,6 +540,7 @@ extern config_t config;
 #define KEYB_ES_LATIN1        18
 #define KEYB_BE               19
 #define KEYB_PO               20
+#define KEYB_IT               21
 
 /*
  * Right now, dosemu only supports two serial ports.
@@ -585,7 +601,7 @@ extern void add_to_io_select(int);
 #define SIG_ACQUIRE     SIGUSR1
 
  /* DANG_BEGIN_REMARK
-  * we assume system call restarting... under linux 0.99pl8 and earlier,
+  * We assume system call restarting... under linux 0.99pl8 and earlier,
   * this was the default.  SA_RESTART was defined in 0.99pl8 to explicitly
   * request restarting (and thus does nothing).  However, if this ever
   * changes, I want to be safe
@@ -611,7 +627,7 @@ extern void add_to_io_select(int);
  * DANG_END_FUNCTION
  *
  */
-#define SIGNALS_THAT_QUEUE SIGIO|SIGALRM
+#define SIGNALS_THAT_QUEUE SIGIO|SIGALRM|SIG_RELEASE|SIG_ACQUIRE
 
 #define NEWSETQSIG(sig, fun)	sa.sa_handler = (__sighandler_t)fun; \
 			/* Point to the top of the stack, minus 4 \
@@ -639,5 +655,9 @@ extern void add_to_io_select(int);
 			sigemptyset(&sa.sa_mask); \
 			sigaddset(&sa.sa_mask, SIG_TIME); \
 			dosemu_sigaction(sig, &sa, NULL);
+
+extern inline void SIGNAL_save( struct sigcontext_struct *, 
+				void (*signal_call)() );
+extern inline void handle_signals(void);
 
 #endif /* EMU_H */

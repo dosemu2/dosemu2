@@ -7,12 +7,15 @@
  *
  * DANG_END_MODULE
  *
- * $Date: 1994/09/23 01:29:36 $
+ * $Date: 1994/09/26 23:10:13 $
  * $Source: /home/src/dosemu0.60/RCS/int.h,v $
- * $Revision: 2.12 $
+ * $Revision: 2.13 $
  * $State: Exp $
  *
  * $Log: int.h,v $
+ * Revision 2.13  1994/09/26  23:10:13  root
+ * Prep for pre53_22.
+ *
  * Revision 2.12  1994/09/23  01:29:36  root
  * Prep for pre53_21.
  *
@@ -169,8 +172,9 @@ int dos_helper(void);           /* handle int's created especially for DOSEMU */
 /* Function to set up all memory area for DOS, as well as load boot block */
 extern void boot();
 
-extern long start_time;                /* Keep track of times for DOS calls */
+extern time_t start_time;                /* Keep track of times for DOS calls */
 extern unsigned long last_ticks;
+extern unsigned int check_date;
  
 /* Used to keep track of when xms calls are made */
 extern int xms_grab_int15;
@@ -442,29 +446,35 @@ int2f(void)
 inline void
 int1a(u_char i)
 {
-  unsigned long ticks;
-  long akt_time, elapsed;
+  unsigned int test_date;
+  time_t akt_time; 
   time_t time_val;
   struct timeval tp;
   struct timezone tzp;
-  struct tm *tm;
+  struct tm *tm, *tm2;
 
   switch (HI(ax)) {
 
     /* A timer read should reset the overflow flag */
   case 0:			/* read time counter */
     time(&akt_time);
-    elapsed = (akt_time - start_time)%(24L*60L*60L);
-    ticks = (elapsed * 18206) / 1000 + last_ticks;
+    tm = localtime((time_t *) &akt_time);
+    test_date = tm->tm_year * 10000 + tm->tm_mon * 100 + tm->tm_mday;
+    if ( check_date != test_date ) {
+      start_time = akt_time;
+      check_date = tm->tm_year * 10000 + tm->tm_mon * 100 + tm->tm_mday;
+      g_printf("Over 24hrs forward or backward\n");
+      *(u_char *) (TICK_OVERFLOW_ADDR) += 0x1;
+    }
+    last_ticks = (tm->tm_hour * 60 * 60 + tm->tm_min * 60 + tm->tm_sec) * 18.206;
     LO(ax) = *(u_char *) (TICK_OVERFLOW_ADDR);
-    *(u_char *) (TICK_OVERFLOW_ADDR) = 0;
-    LWORD(ecx) = (ticks >> 16) & 0xffff;
-    LWORD(edx) = ticks & 0xffff;
+    LWORD(ecx) = (last_ticks >> 16) & 0xffff;
+    LWORD(edx) = last_ticks & 0xffff;
 #if 0
-    g_printf("read timer st: %ud %ud t=%d\n",
-				    start_time, ticks, akt_time);
+    g_printf("read timer st:%u ticks:%u act:%u, actdate:%d\n",
+				    start_time, last_ticks, akt_time, tm->tm_mday);
 #endif
-    set_ticks(ticks);
+    set_ticks(last_ticks);
     break;
   case 1:			/* write time counter */
     last_ticks = (LWORD(ecx) << 16) | (LWORD(edx) & 0xffff);

@@ -43,6 +43,9 @@
  *
  * HISTORY: (DANG_BEGIN_CHANGELOG
  * $Log: bios_emm.c,v $
+ * Revision 2.8  1994/09/26  23:10:13  root
+ * Prep for pre53_22.
+ *
  * Revision 2.7  1994/08/13  01:13:46  root
  * Added Scottb's cleanup for proc/self/mmap.
  *
@@ -183,6 +186,7 @@
 #include <linux/utsname.h>
 
 #include "emu.h"
+#include "memory.h"
 #include "machcompat.h"
 
 extern struct config_info config;
@@ -258,8 +262,12 @@ inline boolean_t unmap_page(int);
 #define GET_ARRAY		0
 #define GET_RAW_PAGECOUNT	1
 
+#if 0
 #define	EMM_BASE_ADDRESS 0xd0000
 #define	EMM_SEGMENT 	 0xd000
+#else
+/* now defined in emu.h */
+#endif
 
 #define	MAX_HANDLES	255	/* must fit in a byte */
 /* this is in EMS pages, which MAX_EMS (defined in Makefile) is in K */

@@ -111,7 +111,13 @@ void set_console_video(void)
 #endif
     if (!config.vga) {
       ioctl(kbd_fd, VT_ACTIVATE, other_no);
+/*
+ *    Fake running signal_handler() engine to process release/acquire
+ *    vt's.
+ */
+      while(vc_active())handle_signals();
       ioctl(kbd_fd, VT_ACTIVATE, scr_state.console_no);
+      while(!vc_active())handle_signals();
     }
   }
   else
