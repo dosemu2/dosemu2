@@ -139,8 +139,6 @@ unsigned long is_dos_device(const char *fname)
 
 BOOL valid_dos_char[256];
 
-#define VALID_DOS_PCHAR(p) (valid_dos_char[*(unsigned char *)(p)])
-
 /****************************************************************************
 initialise the valid dos char array
 ****************************************************************************/

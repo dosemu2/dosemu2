@@ -91,6 +91,10 @@ void array_promote(char *array,int elsize,int element);
 BOOL strequal(char *s1,char *s2);
 
 
+extern BOOL valid_dos_char[256];
+
+#define VALID_DOS_PCHAR(p) (valid_dos_char[*(unsigned char *)(p)])
+
 
 #ifndef MANGLE
 #define MANGLE 1

@@ -74,11 +74,11 @@ static int vfat_search(char *dest, char *src, char *path, int alias)
 }      
 
 /* input: fpath = unix path
-          current_drive = drive for DOS path
-          alias=1: mangle, alias=0: don't mangle
+	  current_drive = drive for DOS path
+	  alias=1: mangle, alias=0: don't mangle
    output: dest = DOS path
 */
-static void make_unmake_dos_mangled_path(char *dest, const char *fpath,
+static void make_unmake_dos_mangled_path(char *dest, char *fpath,
 					 int current_drive, int alias)
 {
 	char *src;
@@ -233,6 +233,77 @@ static void call_dos_helper(int ax)
 }
 
 
+static int wildcard_delete(char *fpath, int drive)
+{
+	struct mfs_dir *dir;
+	struct mfs_dirent *de;
+	struct stat st;
+	unsigned dirattr = _CX;
+	char pattern[PATH_MAX];
+	char *slash;
+	int dotpos;
+	int errcode;
+
+	slash = strrchr(fpath, '/');
+	d_printf("LFN: posix:%s\n", fpath);
+	if (slash - 2 > fpath && slash[-2] == '/' && slash[-1] == '.')
+		slash -= 2;
+	*slash = '\0';
+	if (slash == fpath)
+		strcpy(fpath, "/");
+	strcpy(pattern, slash + 1);
+	dotpos = strlen(pattern) - 2;
+	if (dotpos > 0 && strcmp(&pattern[dotpos], ".*") == 0)
+		pattern[dotpos] = '*';
+	/* XXX check for device (special dir entry) */
+	if (!find_file(fpath, &st, drive) || is_dos_device(fpath)) {
+		Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
+		return lfn_error(PATH_NOT_FOUND);
+	}
+	slash = fpath + strlen(fpath);
+	dir = dos_opendir(fpath);
+	if (dir == NULL) {
+		Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
+		free(dir);
+		return lfn_error(PATH_NOT_FOUND);
+	}
+	d_printf("LFN: wildcard delete %s %s %x\n", pattern, fpath, dirattr);
+	while ((de = dos_readdir(dir))) {
+		if (fnmatch(pattern, de->d_long_name, FNM_CASEFOLD) == 0) {
+			*slash = '/';
+			strcpy(slash + 1, de->d_long_name);
+
+			d_printf("LFN: wildcard delete %s\n", fpath);
+			stat(fpath, &st);
+			/* don't remove directories */
+			if (st.st_mode & S_IFDIR)
+				continue;
+
+			if ((dirattr >> 8) & DIRECTORY)
+				continue;
+
+			if (access(fpath, W_OK) == -1) {
+				errcode = EACCES;
+			} else {
+				errcode = unlink(fpath) ? errno : 0;
+			}
+			if (errcode != 0) {
+				Debug0((dbg_fd, "Delete failed(%s) %s\n",
+					strerror(errcode), fpath));
+				if (errcode == EACCES) {
+					return lfn_error(ACCESS_DENIED);
+				} else {
+					return lfn_error(FILE_NOT_FOUND);
+				}
+			}
+			Debug0((dbg_fd, "Deleted %s\n", fpath));
+		}
+	}
+	dos_closedir(dir);
+	return 1;
+}
+
+
 /* the general idea here is:
   - convert given pathname to a Unix path by prepending the relevant
     "lredir" directory and flipping slashes
@@ -308,7 +379,9 @@ int mfs_lfn(void)
 	case 0x41: /* remove file */
 		drive = build_posix_path(fpath, src);
 		if (drive == -1)
-			return 0;			 
+			return 0;
+		if (_SI == 1)
+			return wildcard_delete(fpath, drive);
 		if (!find_file(fpath, &st, drive))
 			return lfn_error(FILE_NOT_FOUND);
 		d_printf("LFN: deleting %s\n", fpath);
@@ -383,7 +456,7 @@ int mfs_lfn(void)
 		find_file(fpath, &st, drive);
 		d_printf("LFN: getcwd %s %s\n", cwd, fpath);
 		d_printf("LFN: %p %d %p %s\n", drive_cds(drive), drive, dest,
-                         fpath+drives[drive].root_len);
+			 fpath+drives[drive].root_len);
 		make_unmake_dos_mangled_path(dest, fpath, drive, 0);
 		memmove(dest, dest + 3, strlen(dest + 3) + 1);
 		break;
@@ -410,7 +483,7 @@ int mfs_lfn(void)
 		dir = malloc(sizeof *dir);
 		if (slash == fpath + 1)
 			strcpy(dir->dirbase, "/");
-                else
+		else
 			strcpy(dir->dirbase, fpath);
 		dir->dirattr = _CX;
 		dir->drive = drive;
@@ -494,8 +567,20 @@ int mfs_lfn(void)
 		break;
 	}	
 	case 0x60: /* truename */
+	{
+		int i;
+	  
 		src = (char *)SEGOFF2LINEAR(_DS, _SI);
 		d_printf("LFN: truename %s, cl=%d\n", src, _CL);
+		i = 0;
+		if (src[0] && src[1] == ':') i = 2;
+		for (; src[i]; i++) {
+			if (!VALID_DOS_PCHAR(src + i) &&
+			    strchr("\\/.",src[i]) == 0 &&
+			    (_CL == 2 || strchr(" +,;=[]",src[i])==0)) {
+				return lfn_error(FILE_NOT_FOUND);
+			}
+		}
 		drive = build_posix_path(fpath, src);
 		if (drive == -1)
 			return 0;			 
@@ -516,6 +601,7 @@ int mfs_lfn(void)
 		}
 		d_printf("LFN: %s %s\n", dest, drives[drive].root);
 		break;
+	}
 	case 0x6c: /* create/open */
 		src = (char *)SEGOFF2LINEAR(_DS, _SI);
 		dest = LFN_string - (long)bios_f000 + (BIOSSEG << 4);
