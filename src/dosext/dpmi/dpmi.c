@@ -1996,7 +1996,9 @@ void run_pm_int(int i)
 {
   us *ssp;
 
+#ifndef USE_NEW_INT
   dpmi_cli();	/* put it here, D_printf might got interrupted */
+#endif /* not USE_NEW_INT */
 
   D_printf("DPMI: run_pm_int(0x%02x) called, in_dpmi_dos_int=0x%02x\n",i,in_dpmi_dos_int);
 
@@ -2007,10 +2009,14 @@ void run_pm_int(int i)
       REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
       in_dpmi_dos_int = 1;
     }
+#ifndef USE_NEW_INT
     if (can_revector(i)==REVECT)
 	do_int(i);
     else
 	run_int(i);
+#else /* USE_NEW_INT */
+    do_int(i);
+#endif /* USE_NEW_INT */
     return;
   }
 
@@ -2061,6 +2067,9 @@ void run_pm_int(int i)
   dpmi_stack_frame[current_client].esp = PMSTACK_ESP;
   in_dpmi_pm_int = i;
   in_dpmi_dos_int = 0;
+#ifdef USE_NEW_INT
+  dpmi_cli();
+#endif /* USE_NEW_INT */
 }
 
 void run_dpmi(void)
@@ -2486,8 +2495,10 @@ static  void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
 	       save_rm_regs();
 	       REG(cs) = DPMI_SEG;
 	       REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
+#ifndef USE_NEW_INT
 	       REG(eflags) &= ~(IF|TF);
 	       dpmi_cli();
+#endif /* not USE_NEW_INT */
 	       in_dpmi_dos_int = 1;
 	       return (void) do_int(trapno);
     default:

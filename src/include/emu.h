@@ -397,7 +397,12 @@ EXTERN int write_port(unsigned int, unsigned short);
 EXTERN __inline__ void parent_nextscan(void);
 EXTERN __inline__ void disk_close(void);
 EXTERN void cpu_setup(void);
-EXTERN __inline__ void run_int(int);
+EXTERN void real_run_int(int);
+#ifdef USE_NEW_INT
+  #define run_int do_int
+#else
+  #define run_int real_run_int
+#endif
 EXTERN int mfs_redirector(void);
 EXTERN void int10(void);
 EXTERN void int13(u_char);

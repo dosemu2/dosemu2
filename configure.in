@@ -474,6 +474,13 @@ AC_ARG_ENABLE(runasroot,
 	       AC_SUBST(RUN_AS_ROOT)],
 	      [AC_CHECKING("Compiling for dosemu mostly running as user")])
 
+AC_ARG_ENABLE(new-intcode,
+              [  --enable-new-intcode    use new interrupt handling code],
+              [AC_CHECKING("Compiling with new interrupt handling code")
+               AC_DEFINE(USE_NEW_INT)
+	       AC_SUBST(USE_NEW_INT)],
+	      [AC_CHECKING("Compiling with norma interrupt handling code")])
+
 LNKOPTS="-Wl,-warn-common"
 
 AC_ARG_ENABLE(linkstatic,

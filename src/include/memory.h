@@ -37,13 +37,10 @@
 #define BIOSSEG		0xf000
 #endif
 
-#if 0
-#define INT09_SEG	(BIOSSEG + 0x100)
-#define INT09_OFF	0xD987
-#else
+#define INT_OFF(i) ((i) << 4)
+
 #define INT09_SEG	BIOSSEG
 #define INT09_OFF	0xe987		/* for 100% IBM compatibility */
-#endif
 #define INT09_ADD	((INT09_SEG << 4) + INT09_OFF)
 
 #define LASTSCAN_SEG	(BIOSSEG + 0x100)

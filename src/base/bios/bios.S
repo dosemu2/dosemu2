@@ -112,6 +112,9 @@ irqnum	set	irqnum+1
 			/* user timer tick, should be an IRET */
 irqnum	set	0x1c
 	.org	irqnum*16
+#ifdef USE_NEW_INT
+	int	irqnum
+#endif /* USE_NEW_INT */
 	iret
 
 
@@ -854,8 +857,16 @@ CISH(INT09_dummy_end):
 /* ----------------------------------------------------------------- */
 	.org	0xf065
 	/* relocated video handler (interrupt 0x42) */
+#ifndef USE_NEW_INT
 	int	0x42  /* this will be overwritten with iret, if no dualmon */
 	retf	#2
+#else /* USE_NEW_INT */
+        /* Note:	 A conforming video-bios will redirect int 42 here if
+          it doesn't find anything else.  Another fun suprise :	(
+          I'll have to implement this in my video-bios. --EB  13 Jan 97 */
+       JMPL(INT_OFF(0x42))  /* redirect this back to our magic location */
+#endif /* USE_NEW_INT */
+
 
 	.globl  CISH(bios_f000_end)
 

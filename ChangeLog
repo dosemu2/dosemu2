@@ -1,3 +1,38 @@
+97/12/06 ver. 0.67.16.5 unofficial pre-release
+	From Eric
+	- new interrupt handling stuff (do_int patch).
+	  - do_int changed such that caller_function is called only if an
+	    interrupt vector is not revectored.
+	  - run_int now handles calls pic_cli()
+	  - In do_irq 'do_int' is called instead of run_int.
+	  - Added a function 'run_caller_func'.
+	  - int08, int09, int_a_b_c_d_e_f, int_16  removed.
+	  - Disabled redirection of the default case for int1c.
+	  - Updated mouse code to use the proper address for redirection the
+	    first time.
+	  - int33:  Replied to question about post_interrupt handlers.
+	  - src/emu-i386/do_vm86.c (run_vm86): Sync IF, VIF and the
+	    pic_state immediately after returning from the kernel.
+	    Removed bogus IF/VIF handling in vm86_GP_fault..
+	  - src/dosext/dpmi/dpmi.c (run_pm_int): Never call run_int now,
+	    always use do_int instead. Moved dpmi_cli out of vm86 path.
+	    do_int handles that chore on the vm86 path and doesn't always
+	    clear the interrupt flag.
+	  - src/base/mouse/mouse.c: Disabled unused support for int 0x74
+	  - src/base/dev/pic/pic.c (do_irq): do_irq noe calls do_int.
+	    Removed the unnecessary run_int sanity check.
+	    Removed pic_cli, on the way to call do_int as do_int will not
+	    call that itself it needed.
+	  - src/base/bios/bios.S: Slightly modified the default interrupt 0x42
+	    entry point so that it works in the new scheme.
+	    Modified the entry point of int1c to call into dosemu.
+	From Hans
+	- due to some problems with X refresh (why?) made the do_int patch
+	  a compile time option (--enable-new-intcode). I don't expect this
+	  problem to stay for ever, so its only put in base-configure.
+	  ( './default-configure --enable-new-intcode; make' )
+	- run_int became 'real_run_int' and, depending on new or old int
+	  code, a macro 'run_int' is pointing to 'real_run_int' or 'do_int'.
 97/12/05 ver. 0.67.16.4 unofficial pre-release
 	From Eric
 	- bug fixer for the disk code, sometimes disk_close_all called

@@ -419,8 +419,10 @@ void vm86_GP_fault(void)
 
   case 0xf4:			/* hlt...I use it for various things,
 		  like trapping direct jumps into the XMS function */
+#ifndef USE_NEW_INT
        /* set VIF (only if necessary) */
     if (REG(eflags) & IF_MASK) REG(eflags) |= VIF_MASK;
+#endif /* not USE_NEW_INT */
           /* return with STI if VIP was set from run_dpmi; this happens
            * if pic_count is >0 and the VIP flag in dpmi_eflags was on
            */
@@ -600,6 +602,16 @@ run_vm86(void)
   PFLAG(VIP);
   k_printf(" IOPL: %u\n", (unsigned) ((vflags & IOPL_MASK) >> 12));
 #endif
+
+#ifdef USE_NEW_INT
+  /* sync the pic interrupt state with the flags && sync VIF & IF */
+    if (_EFLAGS & VIF) {
+      set_IF();
+    } else {
+      clear_IF();
+    }
+#endif /* USE_NEW_INT */
+
     /* This will protect us from Mr.Norton's bugs */
     if (_EFLAGS & (AC|ID)) {
       g_printf("BUG: flags changed to %08x\n",_EFLAGS);
@@ -656,6 +668,7 @@ run_vm86(void)
     if (iq.queued)
 	do_queued_ioctl();
     /* update the pic to reflect IEF */
+#ifndef USE_NEW_INT
     if (REG(eflags) & VIF_MASK) {
 	if (pic_iflag)
 	    pic_sti();
@@ -663,6 +676,7 @@ run_vm86(void)
 	if (!pic_iflag)
 	    pic_cli();		/* pic_iflag=0 => enabled */
     }
+#endif /* not USE_NEW_INT */
 }
 /* @@@ MOVE_END @@@ 49152 */
 

@@ -49,8 +49,21 @@ extern void X_change_mouse_cursor(void);
 void DOSEMUSetupMouse(void);
 
 #define Mouse_INT	(0x33 * 16)
+#ifndef USE_NEW_INT
 /* I have not properly tested this INT74 - JES 96/10/20 */
 #define Mouse_INT74	(0x74 * 16)
+#else /* USE_NEW_INT */
+/* DANG_BEGIN_REMARK
+ * I have not properly tested this INT74 - JES 96/10/20 
+ * I have removed it.  INT74 is irq 12.  Which I suppose is the proper
+ * irq for a ps2 mouse.  It appears initial support was planned to
+ * support irq 12 and at Mouse_ROUTINE_OFF is a routine that
+ * acknowledges an irq.  That routine is probably what should be
+ * acknowledging irq12, and what int 0x74 should point to.  
+ * I have disabled int0x74 support for now. --EB 29 Oct 1997
+ * DANG_END_REMARK
+ */
+#endif /* USE_NEW_INT */
 
 static
 void mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
@@ -150,7 +163,13 @@ mouse_helper(void)
   case 0:				/* Reset iret for mouse */
     m_printf("MOUSE move iret !\n");
     SETIVEC(0x33, Mouse_SEG, Mouse_INT);
+#ifndef USE_NEW_INT
     SETIVEC(0x74, Mouse_SEG, Mouse_INT74);
+#else /* USE_NEW_INT */
+#if 0
+    SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
+#endif
+#endif /* USE_NEW_INT */
     break;
   case 1:				/* Select Microsoft Mode */
     m_printf("MOUSE Microsoft Mouse (two buttons) selected.\n");
@@ -569,7 +588,13 @@ mouse_software_reset(void)
   mouse.cs=0;
   mouse.ip=0;
   SETIVEC(0x33, Mouse_SEG, Mouse_INT);
+#ifndef USE_NEW_INT
   SETIVEC(0x74, Mouse_SEG, Mouse_INT74);
+#else /* USE_NEW_INT */
+#if 0
+  SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
+#endif
+#endif /* USE_NEW_INT */
 
 #ifdef X_SUPPORT
 #ifndef X_SLOW_CHANGE_CURSOR
@@ -779,7 +804,13 @@ mouse_reset(int flag)
 {
   m_printf("MOUSE: reset mouse/installed!\n");
   SETIVEC(0x33, Mouse_SEG, Mouse_INT);
+#ifndef USE_NEW_INT
   SETIVEC(0x74, Mouse_SEG, Mouse_INT74);
+#else /* USE_NEW_INT */
+#if 0
+  SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
+#endif
+#endif /* USE_NEW_INT */
 
   /* Return 0xffff on mouse installed, 0x0000 - no mouse driver installed */
   /* Return number of mouse buttons */
@@ -1104,7 +1135,13 @@ mouse_enable_internaldriver()
 {
   mice->intdrv = TRUE;
   SETIVEC(0x33, Mouse_SEG, Mouse_INT);
+#ifndef USE_NEW_INT
   SETIVEC(0x74, Mouse_SEG, Mouse_INT74);
+#else /* USE_NEW_INT */
+#if 0
+  SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
+#endif
+#endif /* USE_NEW_INT */
   m_printf("MOUSE: Enable InternalDriver\n");
 }
 

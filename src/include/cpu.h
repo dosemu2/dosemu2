@@ -280,7 +280,12 @@ EXTERN struct vec_t *ivecs;
 
 #define OP_IRET			0xcf
 
+#ifndef USE_NEW_INT
 #define IS_REDIRECTED(i)	(ISEG(i) != BIOSSEG)
+#else /* USE_NEW_INT */
+#include "memory.h" /* for INT_OFF */
+#define IS_REDIRECTED(i)	(IVEC(i) != SEGOFF2LINEAR(BIOSSEG, INT_OFF(i)))
+#endif /* USE_NEW_INT */
 #define IS_IRET(i)		(*(unsigned char *)IVEC(i) == OP_IRET)
 
 /*

@@ -770,7 +770,9 @@ int do_irq()
 
     if(pic_ilevel==PIC_IRQ9)      /* unvectored irq9 just calls int 0x0a.. */
       if(!IS_REDIRECTED(intr)) {intr=0x0a;pic1_isr&= 0xffef;} /* & one EOI */
+#ifndef USE_NEW_INT
     if(IS_REDIRECTED(intr)||pic_ilevel<=PIC_IRQ1||in_dpmi)
+#endif /* not USE_NEW_INT */
     {
 #if 1 /* BUG CATCHER (if 1) */
 /* outputting more then one character here will change dynamic behave such that
@@ -782,7 +784,9 @@ g_printf("+%d",(int)pic_ilevel);
      if (in_dpmi) {
       run_pm_int(intr);
      } else {
+#ifndef USE_NEW_INT
       pic_cli();
+#endif /* not USE_NEW_INT */
       ssp = (unsigned char *)(LWORD(ss)<<4);
       sp = (unsigned long) LWORD(esp);
 

@@ -93,7 +93,11 @@ static void default_interrupt(u_char i) {
     dbug_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
 
   if (!IS_REDIRECTED(i) ||
+#ifndef USE_NEW_INT
       (LWORD(cs) == BIOSSEG && LWORD(eip) == (i * 16 + 2))) {
+#else /* USE_NEW_INT */
+      ((SEGOFF2LINEAR(BIOSSEG, INT_OFF(i)) +2) == SEGOFF2LINEAR(_CS, _IP))) {
+#endif /* USE_NEW_INT */
     g_printf("DEFIVEC: int 0x%02x @ 0x%04x:0x%04x\n", i, ISEG(i), IOFF(i));
 
     /* This is here for old SIGILL's that modify IP */
@@ -103,7 +107,7 @@ static void default_interrupt(u_char i) {
     if ((i != 0x2a) && (i != 0x28))
       g_printf("just an iret 0x%02x\n", i);
   } else
-    run_int(i);
+    real_run_int(i);
 }
 
 static void process_master_boot_record(void)
@@ -235,7 +239,11 @@ static int dos_helper(void)
     if (LO(bx) == 0) {
       if (set_ioperm(0x3b0, 0x3db - 0x3b0, 0))
 	warn("couldn't shut off ioperms\n");
+#ifndef USE_NEW_INT
       SETIVEC(0x10, BIOSSEG, 0x10 * 0x10);	/* restore our old vector */
+#else /* USE_NEW_INT */
+      SETIVEC(0x10, BIOSSEG, INT_OFF(0x10));	/* restore our old vector */
+#endif /* USE_NEW_INT */
       config.vga = 0;
     } else {
       unsigned char *ssp;
@@ -498,13 +506,15 @@ static int dos_helper(void)
   return 1;
 }
 
+#ifndef USE_NEW_INT
 static void int08(u_char i)
 {
-  run_int(0x1c);
+  real_run_int(0x1c);
   /* REG(eflags) |= VIF; */
   WRITE_FLAGSE(READ_FLAGSE() | VIF);
   return;
 }
+#endif /* not USE_NEW_INT */
 
 static void int15(u_char i)
 {
@@ -918,10 +928,9 @@ static int ms_dos(int nr)
  ext_fix(config.emuini);
       sprintf(ptr+2, "\\WINDOWS\\SYSTEM.%s", config.emuini);
       d_printf("DISK: Substituted %s for system.ini\n", ptr);
-#ifndef INTERNAL_EMS
     }
-#else
-    } else if (config.ems_size && !strncmp(ptr, "EMMXXXX0", 8)) {
+#ifdef INTERNAL_EMS
+    else if (config.ems_size && !strncmp(ptr, "EMMXXXX0", 8)) {
       E_printf("EMS: opened EMM file!\n");
       LWORD(eax) = EMM_FILE_HANDLE;
       NOCARRY;
@@ -981,12 +990,14 @@ static int ms_dos(int nr)
   return 1;
 }
 
-void
-run_int(int i)
+/* ========================================================================= */
+
+void real_run_int(int i)
 {
   unsigned char *ssp;
   unsigned long sp;
 
+#ifndef USE_NEW_INT
   /* ssp = (unsigned char *)(REG(ss)<<4); */
   ssp = (unsigned char *)(READ_SEG_REG(ss)<<4);
   sp = (unsigned long) LWORD(esp);
@@ -1000,14 +1011,123 @@ run_int(int i)
   WRITE_SEG_REG(cs, ((us *) 0)[(i << 1) + 1]);
   LWORD(eip) = ((us *) 0)[i << 1];
 
+#else /* USE_NEW_INT */
+  ssp = (unsigned char *)(_SS<<4);
+  sp = (unsigned long) _SP;
+
+  pushw(ssp, sp, read_FLAGS());
+  pushw(ssp, sp, _CS);
+  pushw(ssp, sp, _IP);
+  _SP -= 6;
+  _CS = ISEG(i);
+  _IP = IOFF(i);
+#endif /* USE_NEW_INT */
+
   /* clear TF (trap flag, singlestep), VIF/IF (interrupt flag), and
    * NT (nested task) bits of EFLAGS
    * NOTE: IF-flag only, because we are not sure that we will test it in
    *       some of our own software (...we all are human beings)
    *       For vm86() 'VIF' is the candidate to reset in order to do CLI !
    */
+#ifndef USE_NEW_INT
   WRITE_FLAGSE(READ_FLAGSE() & ~(VIF | TF | IF | NT));
+#else /* USE_NEW_INT */
+  clear_TF();
+  clear_NT();
+  clear_IF();
+#endif /* USE_NEW_INT */
 }
+
+#ifdef USE_NEW_INT
+/* DANG_BEGIN_FUNCTION run_caller_func(i, from_int)
+ *
+ * This function runs the specified caller function in response to an
+ * int instruction.  Where i is the interrupt function to execute and
+ * from_int specifies if we are comming directly from an int
+ * instruction.
+ *
+ * This function runs the instruction with the following model _CS:_IP is the
+ * address to start executing at after the caller function terminates, and
+ * _EFLAGS are the flags to use after termination.  For the simple case of an
+ * int instruction this is easy.  _CS:_IP = retCS:retIP and _FLAGS = retFLAGS
+ * as well equally the current values (retIP = curIP +2 technically).
+ *
+ * However if the function is called (from dos) by simulating an int instruction
+ * (something that is common with chained interrupt vectors) 
+ * _CS:_IP = BIOS_SEG:HLT_OFF(i) and _FLAGS = curFLAGS 
+ * while retCS, retIP, and retFlags are on the stack.  These I pop and place in
+ * the appropriate registers.  
+ *
+ * This functions actions certainly correct for functions executing an int/iret
+ * discipline.  And almost certianly correct for functions executing an
+ * int/retf#2 discipline (with flag changes), as an iret is always possilbe.
+ * However functions like dos int 0x25 and 0x26 executing with a int/retf will
+ * not be handled correctlty by this function and if you need to handle them
+ * inside dosemu use a halt handler instead.
+ *
+ * Finally there is a possible trouble spot lurking in this code.  Interrupts
+ * are only implicitly disabled when it calls the caller function, so if for
+ * some reason the main loop would be entered before the caller function returns
+ * wrong code may execute if the retFLAGS have interrupts enabled!  
+ *
+ * This is only a real handicap for sequences of dosemu code execute for long
+ * periods of time as we try to improve timer response and prevent signal queue
+ * overflows! -- EB 10 March 1997
+ *
+ * Grumble do to code that executes before interrupts, and the
+ * semantics of default_interupt, I can't implement this function as I
+ * would like.  In the tricky case of being called from dos by
+ * simulating an int instruction, I must leave retCS, retIP, on the
+ * stack.  But I can safely read retFlags so I do.  
+ * I pop retCS, and retIP just before returning to dos, as well as
+ * dropping the stack slot  that held retFlags.
+ *
+ * This improves consistency of interrupt handling, but not quite as
+ * much as if I could handle it the way I would like.
+ * -- EB 30 Nov 1997
+ *
+ * DANG_END_FUNCTION
+ */
+
+static void run_caller_func(int i, Boolean from_int)
+{
+	void (*caller_function)(int i);
+	ifprintf((d.dos > 1), "DO_INT0x%02x: Using caller_function()\n", i);
+
+#if 0	 /* This causes problems with default_interrupt disable this for now
+          * --EB 13 March 1997 
+	  */
+
+	if (!from_int) {
+		_IP = POPW(_SS, _SP);
+		_CS = POPW(_SS, _SP);
+		set_FLAGS(POPW(_SS, _SP));
+	}
+#else
+	/* Do to a misfeature I must leave retCS & retIP on the stack, but I
+	 * can still read retFlags.
+	 */
+	if (!from_int) {
+		unsigned char *ssp = (unsigned char *)(_SS<<4);
+		unsigned long sp = (Bit16u)(_SP +4);
+		set_FLAGS(popw(ssp, sp));
+	}
+#endif
+	caller_function = interrupt_function[i];
+	if (caller_function) {
+
+		caller_function(i);
+	}
+	if (!from_int) {
+		unsigned char *ssp = (unsigned char *)(_SS<<4);
+		unsigned long sp = _SP;
+		_SP += 6;
+		_IP = popw(ssp, sp);
+		_CS = popw(ssp, sp);
+		/* set_FLAGS(popw(ssp, sp)); */
+	}
+}
+#endif /* USE_NEW_INT */
 
 int can_revector(int i)
 {
@@ -1104,6 +1224,7 @@ static void int05(u_char i) {
     return;
 }
 
+#ifndef USE_NEW_INT
 void int_a_b_c_d_e_f(u_char i) {
     g_printf("IRQ->interrupt %x\n", i);
     show_regs(__FILE__, __LINE__);
@@ -1114,9 +1235,10 @@ void int_a_b_c_d_e_f(u_char i) {
 /* IRQ1, keyb data ready */
 static void int09(u_char i) {
     fprintf(stderr, "IRQ->interrupt %x\n", i);
-    run_int(0x09);
+    real_run_int(0x09);
     return;
 }
+#endif /* not USE_NEW_INT */
 
 /* CONFIGURATION */
 static void int11(u_char i) {
@@ -1130,11 +1252,13 @@ static void int12(u_char i) {
     return;
 }
 
+#ifndef USE_NEW_INT
 /* KEYBOARD */
 static void int16(u_char i) {
-    run_int(0x16);
+    real_run_int(0x16);
     return;
 }
+#endif /* not USE_NEW_INT */
 
 /* BASIC */
 static void int18(u_char i) {
@@ -1163,7 +1287,7 @@ static void int23(u_char i)
   if (in_dpmi)
 	NOCARRY;
   else
-	run_int(0x23);
+	real_run_int(0x23);
   return; 
 }
 #endif
@@ -1179,11 +1303,19 @@ static void int28(u_char i) {
       SETIVEC(0x9, BIOSSEG, 16 * 0x8 + 2);  /* point to the IRET before INT9 */
     }
     if (mice->intdrv) {
+      /* This is needed here to revectoring the interrupt, after dos has revectored 
+	 it. --EB 1 Nov 1997 */
       /* This code is dupped for now in base/mouse/mouse.c - JES 96/10/20 */
       #define Mouse_INT       (0x33 * 16)
-      #define Mouse_INT74     (0x74 * 16)
       SETIVEC(0x33, Mouse_SEG, Mouse_INT);
+#ifndef USE_NEW_INT
+      #define Mouse_INT74     (0x74 * 16)
       SETIVEC(0x74, Mouse_SEG, Mouse_INT74);
+#else /* USE_NEW_INT */
+#if 0
+      SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
+#endif
+#endif /* USE_NEW_INT */
     }
   }
 
@@ -1318,7 +1450,7 @@ static void int2f(u_char i)
     return;
   }
 
-  if IS_REDIRECTED(i)
+  if (IS_REDIRECTED(i))
     default_interrupt(i);
 }
 
@@ -1337,6 +1469,9 @@ static void int33(u_char i) {
  * reschedules dosemu it will then start executing the real mode mouse handler). :-( 
  * Do we need/have we got post_interrupt (IRET) handlers? 
  */
+#ifdef USE_NEW_INT
+/* We have post_interrupt handlers in dpmi --EB 28 Oct 1997 */
+#endif /* USE_NEW_INT */
   if (mice->intdrv) 
     mouse_int();
   else 
@@ -1389,7 +1524,7 @@ static void inte6(u_char i) {
 /* mfs FCB call */
 static void inte7(u_char i) {
   SETIVEC(0xe7, INTE7_SEG, INTE7_OFF);
-  run_int(0xe7);
+  real_run_int(0xe7);
 }
 
 #ifdef USE_INT_QUEUE
@@ -1436,29 +1571,18 @@ static void inte8(u_char i) {
  * DANG_END_FUNCTION
  */
 
-void
-do_int(int i)
+void do_int(int i)
 {
+#ifndef USE_NEW_INT
   void (* caller_function)();
 
-#if 0 /* 94/07/02 Just for reference */
-  saytime("do_int");
-#endif
-#if 0 /* 94/07/02 Just for reference */
-if (i== 0x2f) {
-  show_regs(__FILE__, __LINE__);
-  k_printf("Do INT0x%02x, eax=0x%04x, ebx=0x%04x ss=0x%04x esp=0x%04x cs=0x%04x ip=0x%04x CF=%d \n", i, LWORD(eax), LWORD(ebx), LWORD(ss), LWORD(esp), LWORD(cs), LWORD(eip), (int)REG(eflags) & CF);
-}
-#endif
-
   if ((LWORD(cs) != BIOSSEG) && IS_REDIRECTED(i) && can_revector(i)){
-    run_int(i);
+    real_run_int(i);
     return;
   }
 
   caller_function = interrupt_function[i];
   caller_function(i);
-#if 1 
   /* This is a kludge to avoid immediate respawning of dosemu
    * if we have cs:ip pointing to the BIOS stubs' IRET
    * We do the IRET ourselves, so we directly let the DOSapp
@@ -1482,8 +1606,51 @@ if (i== 0x2f) {
       else  WRITE_FLAGSE((READ_FLAGSE() | IF) & ~VIF);
     }
   }
+#else /* USE_NEW_INT */
+ 	unsigned long magic_address;
+	
+ 	if ((d.dos > 2) && (((i != 0x28) && (i != 0x2f)) || in_dpmi)) {
+ 		ds_printf("Do INT0x%02x eax=0x%08x ebx=0x%08x ss=0x%08x esp=0x%08x\n"
+ 			  "           ecx=0x%08x edx=0x%08x ds=0x%08x  cs=0x%08x ip=0x%08x\n"
+ 			  "           esi=0x%08x edi=0x%08x es=0x%08x flg=0x%08x\n",
+ 			  i, _EAX, _EBX, _SS, _ESP,
+ 			  _ECX, _EDX, _DS, _CS, _IP,
+ 			  _ESI, _EDI, _ES, (int) read_EFLAGS());
+ 	}
+	
+#if 1  /* This test really ought to be in the main loop before
+ 	*  instruction execution not here. --EB 10 March 1997 
+ 	*/
+	
+ 	/* try to catch jumps to 0:0 (e.g. uninitialized user interrupt vectors),
+ 	   which sometimes can crash the whole system, not only dosemu... */
+ 	if (SEGOFF2LINEAR(_CS, _IP) < 1024) {
+ 		dbug_printf("OUCH! attempt to execute interrupt table - quickly dying\n");
+ 		leavedos(57);
+ 	}
 #endif
+  
+  
+ 	/* see if I want to use the caller function */
+ 	/* I want to use it if I must always use it, or I am calling into the
+ 	   interrupt table at the start of the dosemu bios */
+ 	/* assume IP was just incremented by 2 past int int instruction which set us
+ 	   off */
+	
+ 	magic_address = SEGOFF2LINEAR(BIOSSEG, INT_OFF(i));
+ 	if (magic_address == (SEGOFF2LINEAR(_CS, _IP) -2)) {
+ 		run_caller_func(i, FALSE);
+ 	}
+ 	else if ((magic_address == IVEC(i)) ||
+ 		 (can_revector(i) == REVECT)) {
+ 		run_caller_func(i, TRUE);
+ 	}
+ 	else {
+ 		real_run_int(i);
+ 	}
+#endif /* USE_NEW_INT */
 }
+
 
 #ifdef USE_INT_QUEUE
 /*
@@ -1638,21 +1805,21 @@ void setup_interrupts(void) {
 
   /* init trapped interrupts called via jump */
   for (i = 0; i < 256; i++) {
-#if 0 /* Rick's BUG FIXER */
-    /* Go figure? */
-    if (i == 115)
-      continue;
-#endif
     interrupt_function[i] = default_interrupt;
     if ((i & 0xf8) == 0x60) { /* user interrupts */
 	/* show also EMS (int0x67) as disabled */
 	SETIVEC(i, 0, 0);
     } else {
+#ifndef USE_NEW_INT
 	SETIVEC(i, BIOSSEG, 16 * i);
+#else /* USE_NEW_INT */
+	SETIVEC(i, BIOSSEG, INT_OFF(i));
+#endif /* USE_NEW_INT */
     }
   }
   
   interrupt_function[5] = int05;
+#ifndef USE_NEW_INT
   interrupt_function[8] = int08;
   interrupt_function[9] = int09;
   interrupt_function[0xa] = int_a_b_c_d_e_f;
@@ -1661,6 +1828,7 @@ void setup_interrupts(void) {
   interrupt_function[0xd] = int_a_b_c_d_e_f;
   interrupt_function[0xe] = int_a_b_c_d_e_f;
   interrupt_function[0xf] = int_a_b_c_d_e_f;
+#endif /* not USE_NEW_INT */
   /* This is called only when revectoring int10 */
   interrupt_function[0x10] = int10;
   interrupt_function[0x11] = int11;
@@ -1668,7 +1836,9 @@ void setup_interrupts(void) {
   interrupt_function[0x13] = int13;
   interrupt_function[0x14] = int14;
   interrupt_function[0x15] = int15;
+#ifndef USE_NEW_INT
   interrupt_function[0x16] = int16;
+#endif /* not USE_NEW_INT */
   interrupt_function[0x17] = int17;
   interrupt_function[0x18] = int18;
   interrupt_function[0x19] = int19;
@@ -1691,7 +1861,13 @@ void setup_interrupts(void) {
 #endif
 
   /* Let kernel handle this, no need to return to DOSEMU */
+#ifndef USE_NEW_INT
   SETIVEC(0x1c, 0xf010, 0xc0);
+#else /* USE_NEW_INT */
+ #if 0
+  SETIVEC(0x1c, BIOSSEG + 0x10, INT_OFF(0x1c) +2 - 0x100);
+ #endif
+#endif /* USE_NEW_INT */
 
   /* show EMS as disabled */
   SETIVEC(0x67, 0, 0);
@@ -1703,11 +1879,25 @@ void setup_interrupts(void) {
     seg = (u_short *) (Mouse_ADD + 10);
     /* tell the mouse driver where we are...exec add, seg, offset */
     mouse_sethandler(ptr, seg, off);
+#ifndef USE_NEW_INT
     SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
     SETIVEC(0x33, Mouse_SEG, Mouse_ROUTINE_OFF);
   }
   else
     *(unsigned char *) (BIOSSEG * 16 + 16 * 0x33) = 0xcf;	/* IRET */
+#else /* USE_NEW_INT */
+ #if 0
+    SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
+ #endif
+    /* This code is dupped for now in base/mouse/mouse.c - JES 96/10/20 */
+    #define Mouse_INT       (0x33 * 16)
+    SETIVEC(0x33, Mouse_SEG, Mouse_INT);
+  }
+  else {
+    /* point to the retf#2 immediately after the int 33 entry point. */
+    SETIVEC(0x33, BIOSSEG, INT_OFF(0x33)+2);
+  }
+#endif /* USE_NEW_INT */
 
   SETIVEC(0x16, INT16_SEG, INT16_OFF);
   SETIVEC(0x09, INT09_SEG, INT09_OFF);
@@ -1728,7 +1918,9 @@ void setup_interrupts(void) {
   if (config.dualmon == 2) {
     interrupt_function[0x42] = interrupt_function[0x10];
   }
+#ifndef USE_NEW_INT
   else *(u_char *) 0xff065 = 0xcf;	/* IRET */
+#endif /* not USE_NEW_INT */
 }
 
 /*
