@@ -289,8 +289,6 @@ void mouse_ps2bios(void)
       CARRY;
       HI(ax) = 1;
     } else {
-      mouse.speed_x = 64/(1<<HI(bx));
-      mouse.speed_y = 128/(1<<HI(bx));
       NOCARRY;
       HI(ax) = 0;
     }
@@ -1647,7 +1645,7 @@ static void do_mouse_irq_ps2(void)
     dx = mouse.mickeyx - old_mickeyx;
     old_mickeyx = mouse.mickeyx;
     /* PS/2 wants the y direction reversed */
-    dy = old_mickeyy - mouse.mickeyy;
+    dy = (old_mickeyy - mouse.mickeyy) * 2;
     old_mickeyy = mouse.mickeyy;
 
     status = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0) | 8;
@@ -1735,14 +1733,14 @@ do_mouse_irq()
 {
   if (mouse.mask & mouse_events && (mouse.cs || mouse.ip))
     do_mouse_irq_int33();
-  if (mouse.ps2.cs || mouse.ps2.ip)
+  if (mouse_events && (mouse.ps2.cs || mouse.ps2.ip))
     do_mouse_irq_ps2();
 }
 
 static void mouse_event(int ilevel)
 {
   if ((mouse.mask & mouse_events && (mouse.cs || mouse.ip)) ||
-      (mouse.ps2.cs || mouse.ps2.ip))
+      (mouse_events && (mouse.ps2.cs || mouse.ps2.ip)))
     do_irq(ilevel);
   else
     m_printf("MOUSE: Skipping irq, mask=0x%x, ev=0x%x, cs=0x%x, ip=0x%x\n",
