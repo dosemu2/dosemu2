@@ -43,9 +43,8 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-#include <sys/mman.h>
 #include "emu86.h"
-#include "codegen.h"
+#include "codegen-x86.h"
 
 /* debug dump */
 #undef  DEBUG_TREE
@@ -62,10 +61,10 @@ avltr_traverser Traverser;
 int MaxDepth = 0;
 int ninodes = 0;
 int MaxNodes = 0;
+int MaxNodeSize = 0;
 int NodesCleaned = 0;
 long PrevMp = 0;
-TNode *NextNode = NULL;
-long NextKey = -1;
+TNode *LastXNode = NULL;
 
 #define NODES_IN_POOL	12000
 TNode *TNodePool;
@@ -116,7 +115,8 @@ static inline TNode *Tmalloc(void)
 
 static inline void Tfree(TNode *G)
 {
-  G->key = 0; G->addr = NULL;
+  G->key = G->jcount = G->nxkey = 0;
+  G->addr = NULL; G->nxnode = NULL;
   G->link[0] = TNodePool->link[0];
   TNodePool->link[0] = G;
 }
@@ -128,7 +128,7 @@ static inline void datacopy(TNode *nd, TNode *ns)
   char *s = (char *)&(ns->key);
   char *d = (char *)&(nd->key);
   int l = sizeof(TNode)-offsetof(TNode,key);
-  memcpy(d,s,l);
+  __memcpy(d,s,l);
 }
 
 static TNode *avltr_probe (const long key, int *found)
@@ -378,8 +378,6 @@ static void avltr_delete (const long key)
 	    }
 
 	    if (t->addr) free(t->addr);
-	    if (NextKey==s->key) NextNode=t;
-	      else if (NextKey==t->key) NextKey=-1;
 // e_printf("<03 node exchange %08lx->%08lx>\n",(long)s,(long)t);
 	    datacopy(t, s);
 	    s->addr = NULL;
@@ -394,7 +392,6 @@ static void avltr_delete (const long key)
 
 /**/ if (Traverser.p==p) Traverser.init=0;
   if (d.emu>DT_LEV) e_printf("Removed ITree-node %08lx\n",(long)p);
-  if (NextKey==p->key) NextKey=-1;
   if (p->addr) free(p->addr);
   Tfree(p);
 
@@ -634,12 +631,13 @@ TNode *Move2ITree(void)
 
   nI->npc = G0->npc;
   nI->cklen = G0->cklen;
+  if (nI->cklen > MaxNodeSize) MaxNodeSize = nI->cklen;
   nI->len = len = G0->len + sizeof(TailCode);
   nI->jcount = NODELIFE(nI);
   nI->addr = (unsigned char *)malloc(len+8);
   if (d.emu>(DT_LEV+1)) e_printf("Move sequence from %08lx to %08lx l=%d\n",
 	(long)G0->addr, (long)nI->addr, len);
-  memcpy(nI->addr, G0->addr, len);
+  __memcpy(nI->addr, G0->addr, len);
 
   if ((long)nI->npc >= 0x1000) {
     long mp = ((long)nI->npc)&~(PAGE_SIZE-1);
@@ -672,15 +670,20 @@ TNode *FindTree(unsigned char *addr)
   t0 = GETTSC();
   key = makekey((long)addr);
 
-  /* cache hits on next key are about 30% */
-  if (key==NextKey) {
-	I = NextNode;
+  if (LastXNode) {
+	TNode *G = LastXNode->nxnode;
+	if (G && (G->key==key) && (G->jcount>0)) {
+	e_printf("LastXNode found at %08lx p-> key=%08lx addr=%08lx\n",
+		(long)LastXNode,key,(long)G->addr);
+	    G->jcount = NODELIFE(G);
+	    return G;
+	}
   }
-  else {
-    I = CollectTree.root.link[0];
-    if (I == NULL) return NULL;
 
-    for (;;) {
+  I = CollectTree.root.link[0];
+  if (I == NULL) return NULL;
+
+  for (;;) {
       int diff = (key - I->key);
 
       if (diff < 0) {
@@ -692,17 +695,12 @@ TNode *FindTree(unsigned char *addr)
 	  I = I->link[1];
       }
       else break;
-    }
   }
 
   if (I && I->addr && (I->jcount>0)) {
-	TNode *G;
 	I->jcount = NODELIFE(I);
 	if (d.emu>(DT_LEV+1)) e_printf("Found key %08lx count=%d\n",
 		key, I->jcount);
-
-	G = I; NEXTNODE(G); NextNode = G;
-	NextKey = (NextNode==&CollectTree.root? -1 : NextNode->key);
 
 	SearchTime += (GETTSC() - t0);
 	return I;
@@ -834,7 +832,6 @@ void InvalidateTreePaged (unsigned char *addr, int len)
 	  e_printf("Invalidated node %08lx at %08lx\n",(long)G,G->key);
 	  /* do not free the code block, as we can be executing from it */
 	  G->jcount = 0;
-	  if (G->key==NextKey) NextKey = -1;
 	  NodesCleaned++;
 	}
       }
@@ -942,7 +939,8 @@ void InitTrees(void)
 	ForwIRef = NULL;
 	LastIMeta = NULL;
 	PrevMp = 0;
-	MaxDepth = MaxNodes = 0;
+	MaxDepth = MaxNodes = MaxNodeSize = 0;
+	LastXNode = NULL;
 }
 
 void EndGen(void)

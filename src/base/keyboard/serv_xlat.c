@@ -310,7 +310,7 @@ static Bit16u make_bios_code(Boolean make, t_keysym key, uchar ascii)
                   bios_scan=0x0f; ascii=0; break;
           case KEY_RETURN:
                   bios_scan=0x1c; ascii=0x0d; break;
-          case KEY_F1...KEY_F10:
+          case KEY_F1 ... KEY_F10:
                   bios_scan=key+(0x54-KEY_F1); break;
           case KEY_F11:
                   bios_scan=0x87; break;

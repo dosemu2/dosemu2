@@ -37,6 +37,7 @@
 
 #include <unistd.h>
 #include <stdio.h>
+#include <sys/mman.h>
 #include "config.h"
 #include <setjmp.h>
 #include "emu.h"

@@ -49,16 +49,9 @@
 #define A_DI_2D		5
 #define A_SR_SH4	6
 
-#define L_REG		7
-#define L_SI_R1		8
-#define L_DI_R1		9
-#define S_DI		10
-#define S_SI		11
-#define S_REG		12
 #define L_IMM		13
 #define L_IMM_R1	14
 #define S_DI_R		15
-#define L_XREG1		16
 #define L_MOVZS		17
 #define L_LXS1		18
 #define L_LXS2		19
@@ -113,19 +106,20 @@
 #define O_POPA		84
 #define O_PUSH1		85
 #define O_PUSH2		86
-#define O_PUSH3		87
-#define O_POP1		88
-#define O_POP2		89
-#define O_POP3		90
+#define O_PUSH2F	87
+#define O_PUSH3		88
+#define O_POP1		89
+#define O_POP2		90
+#define O_POP3		91
 
-#define O_MOVS_SetA	91
-#define O_MOVS_MovD	92
-#define O_MOVS_SavA	93
-#define O_MOVS_LodD	94
-#define O_MOVS_StoD	95
-#define O_MOVS_ScaD	96
-#define O_MOVS_CmpD	97
-#define O_RDTSC		98
+#define O_MOVS_SetA	92
+#define O_MOVS_MovD	93
+#define O_MOVS_SavA	94
+#define O_MOVS_LodD	95
+#define O_MOVS_StoD	96
+#define O_MOVS_ScaD	97
+#define O_MOVS_CmpD	98
+#define O_RDTSC		99
 
 #define O_INPDX		100
 #define O_INPPC		101
@@ -255,6 +249,7 @@ extern unsigned char TailCode[8];
 				(p)+=4;}
 #define GNX(d,s,l)	{__memcpy((d),(s),(l));(d)+=(l);}
 
+/////////////////////////////////////////////////////////////////////////////
 //
 void InitGen(void);
 IMeta *NewIMeta(unsigned char *newa, int mode, int *rc, void *aux);

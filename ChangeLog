@@ -1,3 +1,15 @@
+2000/10/13 ver. 1.1.0.3 unofficial pre-release
+	From Alberto
+	- cpuemu stuff: started moving some often used code generator
+	  sequences into macros
+	- ecpuoff did not restore memory protections and did not
+	  reinitialise the cpuemu; corrected.
+	- new cached search in the node tree; every node
+	  now stores information about the next one in execution order.
+	  This drastically cuts down search time.
+	- several speed improvements to the code generator
+	- src/base/keyboard/serv_xlat.c: missing spaces in a case range,
+	  gcc 2.96 will not like it.
 2000/10/06 ver. 1.1.0.2 unofficial pre-release
 	From Alberto
 	- cpuemu stuff: reworked the tree structures to use an AVL

@@ -657,6 +657,43 @@ static int Scp2CpuD (struct sigcontext_struct *scp)
 /* ======================================================================= */
 
 
+static void unprotmem(void)
+{
+  char Line[256];
+  FILE *fp;
+  fp = fopen("/proc/self/maps","rt");
+  if (fp==NULL) {
+    error("Ouch - no /proc/self/maps\n");
+    leavedos(0x7765);
+  }
+  while (fgets(Line,250,fp)) {
+    char pn[128];
+    unsigned sa,ea,dv;
+    char wp;
+    // at least for kernel 2.4 this is the format:
+    // map->vm_start
+    // map->vm_end
+    // read/write/exec/share flags
+    // map->vm_pgoff << 12
+    // kdevname(map->vm_file->f_dentry->d_inode->i_dev)
+    // map->vm_file->f_dentry->d_inode->i_ino
+    // 00000000-00002000 rw-s 00010000 00:01 8          /.IPC_00080008
+    sscanf(Line,"%x-%x %*c%c%*c%*c %*x %d:%*d %*d %s",&sa,&ea,&wp,&dv,pn);
+
+    // are these checks enough?
+    if ((wp!='w') && (dv==0)) {
+	e_printf("[%08x-%08x %c %d %s] -> RW\n",sa,ea,wp,dv,pn);
+	if (mprotect((void *)sa, (ea-sa), PROT_READ|PROT_WRITE|PROT_EXEC))
+		perror("munprotect");
+    }
+  }
+  fclose(fp);
+}
+
+
+/* ======================================================================= */
+
+
 void init_emu_cpu (void)
 {
   extern void init_emu_npu();
@@ -750,8 +787,8 @@ void enter_cpu_emu(void)
 	config.cpuemu=3;	/* for saving CPU flags */
 	emu_dpmi_retcode = -1;
 	GDT = NULL; IDT = NULL;
-	  /* allocate the LDT used by dpmi (w/o GDT) */
-	  if (LDT==NULL) {
+	/* allocate the LDT used by dpmi (w/o GDT) */
+	if (LDT==NULL) {
 		alloc_LDT = LDT = (Descriptor *)calloc(LGDT_ENTRIES, sizeof(Descriptor));
 		e_printf("LDT allocated at %08lx\n",(long)LDT);
 		TheCPU.LDTR.Base = (long)LDT;
@@ -792,7 +829,7 @@ void enter_cpu_emu(void)
 void leave_cpu_emu(void)
 {
 	struct sigaction sa;
-	extern int MaxDepth, MaxNodes;
+	extern int MaxDepth, MaxNodes, MaxNodeSize;
 	if (config.cpuemu > 1) {
 		config.cpuemu=1;
 #ifdef SKIP_EMU_VBIOS
@@ -808,7 +845,9 @@ void leave_cpu_emu(void)
 		NEWSETQSIG(SIGALRM, sigalrm);
 		SETSIG(SIGPROF, SIG_IGN);
 		EndGen();
-		if (alloc_LDT!=NULL) free(alloc_LDT);
+		unprotmem();
+
+		if (alloc_LDT!=NULL) { free(alloc_LDT); alloc_LDT=NULL; }
 		GDT = NULL; IDT = NULL;
 		dbug_printf("======================= LEAVE CPU-EMU ===============\n");
 		dbug_printf("Total cpuemu time %16Ld us\n",TotalTime/config.CPUSpeedInMhz);
@@ -817,7 +856,10 @@ void leave_cpu_emu(void)
 		dbug_printf("Total exec   time %16Ld us\n",ExecTime/config.CPUSpeedInMhz);
 		dbug_printf("Total clean  time %16Ld us\n",CleanupTime/config.CPUSpeedInMhz);
 		dbug_printf("Max tree nodes    %16d\n",MaxNodes);
+		dbug_printf("Max node size     %16d\n",MaxNodeSize);
 		dbug_printf("Max tree depth    %16d\n",MaxDepth);
+
+		/*re*/init_emu_cpu();
 	}
 	flush_log();
 }

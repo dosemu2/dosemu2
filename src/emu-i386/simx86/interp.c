@@ -34,7 +34,7 @@
 
 #include <stddef.h>
 #include "emu86.h"
-#include "codegen.h"
+#include "codegen-x86.h"
 #include "port.h"
 #include "dpmi.h"
 
@@ -389,13 +389,13 @@ override:
 			int m = mode | MBYTE;
 			int op = (opc==TESTbrm? O_AND_R:ArOpsR[D_MO(opc)]);
 			PC += ModRM(PC, m);	// SI=reg DI=mem
-			Gen(L_DI_R1, m);		// mov al,[edi]
+			GenL_DI_R1_byte(m);		// mov al,[edi]
 			Gen(op, m, REG1);		// op  al,[ebx+reg]
 			if ((opc!=CMPbfrm)&&(opc!=TESTbrm)) {
 				if (opc & 2)
-					Gen(S_REG, m, REG1);	// mov [ebx+reg],al		reg=mem op reg
+					GenS_REG_byte(m, REG1);	// mov [ebx+reg],al		reg=mem op reg
 				else
-					Gen(S_DI, m);		// mov [edi],al			mem=mem op reg
+					GenS_DI_byte(m);	// mov [edi],al			mem=mem op reg
 			} }
 			break; 
 /*1a*/	case SBBbtrm:
@@ -404,10 +404,10 @@ override:
 			int m = mode | MBYTE;
 			int op = ArOpsM[D_MO(opc)];
 			PC += ModRM(PC, m);	// SI=reg DI=mem
-			Gen(L_REG, m, REG1);		// mov al,[ebx+reg]
+			GenL_REG_byte(m, REG1);		// mov al,[ebx+reg]
 			Gen(op, m);			// op  al,[edi]
 			if (opc != CMPbtrm)
-				Gen(S_REG, m, REG1);	// mov [ebx+reg],al		reg=reg op mem
+				GenS_REG_byte(m, REG1);	// mov [ebx+reg],al		reg=reg op mem
 			}
 			break; 
 /*01*/	case ADDwfrm:
@@ -426,13 +426,13 @@ override:
 /*85*/	case TESTwrm: {
 			int op = (opc==TESTwrm? O_AND_R:ArOpsR[D_MO(opc)]);
 			PC += ModRM(PC, mode);	// SI=reg DI=mem
-			Gen(L_DI_R1, mode);		// mov (e)ax,[edi]
+			GenL_DI_R1_wl(mode);		// mov (e)ax,[edi]
 			Gen(op, mode, REG1);		// op  (e)ax,[ebx+reg]
 			if ((opc!=CMPwfrm)&&(opc!=TESTwrm)) {
 				if (opc & 2)
-					Gen(S_REG, mode, REG1);	// mov [ebx+reg],(e)ax	reg=mem op reg
+					GenS_REG_wl(mode, REG1);	// mov [ebx+reg],(e)ax	reg=mem op reg
 				else
-					Gen(S_DI, mode);	// mov [edi],(e)ax	mem=mem op reg
+					GenS_DI_wl(mode);	// mov [edi],(e)ax	mem=mem op reg
 			} }
 			break; 
 /*1b*/	case SBBwtrm:
@@ -440,10 +440,10 @@ override:
 /*3b*/	case CMPwtrm: {
 			int op = ArOpsM[D_MO(opc)];
 			PC += ModRM(PC, mode);	// SI=reg DI=mem
-			Gen(L_REG, mode, REG1);		// mov (e)ax,[ebx+reg]
+			GenL_REG_wl(mode, REG1);	// mov (e)ax,[ebx+reg]
 			Gen(op, mode);			// op  (e)ax,[edi]
 			if (opc != CMPwtrm)
-				Gen(S_REG, mode, REG1);	// mov [ebx+reg],(e)ax	reg=reg op mem
+				GenS_REG_wl(mode, REG1);	// mov [ebx+reg],(e)ax	reg=reg op mem
 			}
 			break; 
 /*a8*/	case TESTbi:
@@ -457,7 +457,7 @@ override:
 			Gen(L_IMM_R1, m, Fetch(PC+1)); PC+=2;	// mov al,#imm
 			Gen(op, m, Ofs_AL);			// op al,[ebx+reg]
 			if (opc != TESTbi)
-				Gen(S_REG, m, Ofs_AL);		// mov [ebx+reg],al
+				GenS_REG_byte(m, Ofs_AL);	// mov [ebx+reg],al
 			}
 			break; 
 /*1c*/	case SBBbi:
@@ -465,10 +465,10 @@ override:
 /*3c*/	case CMPbi: {
 			int m = mode | MBYTE;
 			int op = ArOpsM[D_MO(opc)];
-			Gen(L_REG, m, Ofs_AL);			// mov al,[ebx+reg]
+			GenL_REG_byte(m, Ofs_AL);		// mov al,[ebx+reg]
 			Gen(op, m|IMMED, Fetch(PC+1)); PC+=2;	// op al,#imm
 			if (opc != CMPbi)
-				Gen(S_REG, m, Ofs_AL);		// mov [ebx+reg],al
+				GenS_REG_byte(m, Ofs_AL);	// mov [ebx+reg],al
 			}
 			break; 
 /*a9*/	case TESTwi:
@@ -482,7 +482,7 @@ override:
 			INC_WL_PC(mode,1);
 			Gen(op, mode, SEL_WL(mode, Ofs_EAX));
 			if (opc != TESTwi)
-				Gen(S_REG, mode, SEL_WL(mode,Ofs_EAX));
+				GenS_REG_wl(mode, SEL_WL(mode,Ofs_EAX));
 			}
 			break; 
 /*1d*/	case SBBwi:
@@ -490,11 +490,11 @@ override:
 /*3d*/	case CMPwi: {
 			int m = mode;
 			int op = ArOpsM[D_MO(opc)];
-			Gen(L_REG, m, SEL_WL(mode,Ofs_EAX));	// mov (e)ax,[ebx+reg]
+			GenL_REG_wl(m, SEL_WL(mode,Ofs_EAX));	// mov (e)ax,[ebx+reg]
 			Gen(op, m|IMMED, DataFetchWL_U(mode,PC+1));	// op (e)ax,#imm
 			INC_WL_PC(mode,1);
 			if (opc != CMPwi)
-				Gen(S_REG, m, SEL_WL(mode,Ofs_EAX));	// mov [ebx+reg],(e)ax
+				GenS_REG_wl(m, SEL_WL(mode,Ofs_EAX));	// mov [ebx+reg],(e)ax
 			}
 			break; 
 /*69*/	case IMULwrm:
@@ -509,8 +509,8 @@ override:
 			break;
 
 /*9c*/	case PUSHF: {
-			CODE_FLUSH();
 			if (V86MODE() && (IOPL<3)) {
+				CODE_FLUSH();
 				/* virtual-8086 monitor:
 				 * 1) move VIP from dosemu flags to veflags */
 				temp =  (eVEFLAGS&~EFLAGS_VIP) |
@@ -523,13 +523,15 @@ override:
 				if ((temp&EFLAGS_IF)&&(vm86s.vm86plus.force_return_for_pic))
 					CEmuStat |= CeS_RPIC;
 				temp = (EFLAGS & 0xeff) | (temp & eTSSMASK);
+				PUSH(mode, &temp);
+				if (d.emu>1)
+				    e_printf("Pushed flags %08lx->%08lx\n",EFLAGS,temp);
 			}
 			else {
-				temp = EFLAGS & 0xfcfeff;
+				Gen(O_PUSH1, mode);
+				Gen(O_PUSH2F, mode);
+				Gen(O_PUSH3, mode);
 			}
-			PUSH(mode, &temp);
-			if (d.emu>1)
-				e_printf("Pushed flags %08lx->%08lx\n",EFLAGS,temp);
 			PC++; }
 			break;
 /*9e*/	case SAHF:
@@ -735,7 +737,7 @@ override:
 			//	as index we use the value AFTER the pop
 			PC += ModRM(PC, mode);
 			// store data
-			Gen(S_DI, mode);
+			GenS_DI_wl(mode);
 			break;
 
 /*70*/	case JO:
@@ -786,19 +788,19 @@ override:
 			int m = mode | MBYTE;
 			int op = ArOpsR[D_MO(Fetch(PC+1))];
 			PC += ModRM(PC, m);	// DI=mem
-			Gen(L_DI_R1, m);		// mov al,[edi]
+			GenL_DI_R1_byte(m);		// mov al,[edi]
 			Gen(op, m|IMMED, Fetch(PC));	// op al,#imm
 			if (op!=O_CMP_R)
-				Gen(S_DI, m);		// mov [edi],al		mem=mem op #imm
+				GenS_DI_byte(m);	// mov [edi],al		mem=mem op #imm
 			PC++; }
 			break;
 /*81*/	case IMMEDwrm: {
 			int op = ArOpsR[D_MO(Fetch(PC+1))];
 			PC += ModRM(PC, mode);	// DI=mem
-			Gen(L_DI_R1, mode);		// mov ax,[edi]
+			GenL_DI_R1_wl(mode);		// mov ax,[edi]
 			Gen(op, mode|IMMED, DataFetchWL_U(mode,PC)); // op ax,#imm
 			if (op!=O_CMP_R)
-				Gen(S_DI, mode);	// mov [edi],ax		mem=mem op #imm
+				GenS_DI_wl(mode);	// mov [edi],ax		mem=mem op #imm
 			INC_WL_PC(mode,0);
 			}
 			break;
@@ -807,10 +809,10 @@ override:
 			long v;
 			PC += ModRM(PC, mode);	// DI=mem
 			v = (signed char)Fetch(PC);
-			Gen(L_DI_R1, mode);		// mov ax,[edi]
+			GenL_DI_R1_wl(mode);		// mov ax,[edi]
 			Gen(op, mode|IMMED, v);		// op ax,#imm
 			if (op != O_CMP_R)
-				Gen(S_DI, mode);	// mov [edi],ax		mem=mem op #imm
+				GenS_DI_wl(mode);	// mov [edi],ax		mem=mem op #imm
 			PC++; }
 			break;
 /*86*/	case XCHGbrm:
@@ -823,30 +825,30 @@ override:
 			break;
 /*88*/	case MOVbfrm:
 			PC += ModRM(PC, mode|MBYTE);	// mem=reg
-			Gen(L_REG, mode|MBYTE, REG1);
-			Gen(S_DI, mode|MBYTE);
+			GenL_REG_byte(mode|MBYTE, REG1);
+			GenS_DI_byte(mode|MBYTE);
 			break; 
 /*89*/	case MOVwfrm:
 			PC += ModRM(PC, mode);
-			Gen(L_REG, mode, REG1);
-			Gen(S_DI, mode);
+			GenL_REG_wl(mode, REG1);
+			GenS_DI_wl(mode);
 			break; 
 /*8a*/	case MOVbtrm:
 			PC += ModRM(PC, mode|MBYTE);	// reg=mem
-			Gen(L_DI_R1, mode|MBYTE);
-			Gen(S_REG, mode|MBYTE, REG1);
+			GenL_DI_R1_byte(mode|MBYTE);
+			GenS_REG_byte(mode|MBYTE, REG1);
 			break; 
 /*8b*/	case MOVwtrm:
 			PC += ModRM(PC, mode);
-			Gen(L_DI_R1, mode);
-			Gen(S_REG, mode, REG1);
+			GenL_DI_R1_wl(mode);
+			GenS_REG_wl(mode, REG1);
 			break; 
 /*8c*/	case MOVsrtrm:
 			PC += ModRM(PC, mode|SEGREG);
-			Gen(L_REG, mode|DATA16, REG1);
+			GenL_REG_wl(mode|DATA16, REG1);
 			if (REG1==Ofs_SS) CEmuStat |= CeS_LOCK;
 			//Gen(L_ZXAX, mode);
-			Gen(S_DI, mode|DATA16);
+			GenS_DI_wl(mode|DATA16);
 			break; 
 /*8d*/	case LEA:
 			PC += ModRM(PC, mode|MLEA);
@@ -902,8 +904,8 @@ override:
 /*8e*/	case MOVsrfrm:
 			if (REALADDR()) {
 			    PC += ModRM(PC, mode|SEGREG);
-			    Gen(L_DI_R1, mode|DATA16);
-			    Gen(S_REG, mode|DATA16, REG1);
+			    GenL_DI_R1_wl(mode|DATA16);
+			    GenS_REG_wl(mode|DATA16, REG1);
 			    AddrGen(A_SR_SH4, mode, REG1, SBASE);
 			}
 			else {
@@ -947,26 +949,26 @@ override:
 
 /*a0*/	case MOVmal:
 			AddrGen(A_DI_0, mode|IMMED, OVERR_DS, AddrFetchWL_U(mode,PC+1));
-			Gen(L_DI_R1, mode|MBYTE);
-			Gen(S_REG, mode|MBYTE, Ofs_AL);
+			GenL_DI_R1_byte(mode|MBYTE);
+			GenS_REG_byte(mode|MBYTE, Ofs_AL);
 			INC_WL_PCA(mode,1);
 			break;
 /*a1*/	case MOVmax:
 			AddrGen(A_DI_0, mode|IMMED, OVERR_DS, AddrFetchWL_U(mode,PC+1));
-			Gen(L_DI_R1, mode);
-			Gen(S_REG, mode, SEL_WL(mode,Ofs_EAX));
+			GenL_DI_R1_wl(mode);
+			GenS_REG_wl(mode, SEL_WL(mode,Ofs_EAX));
 			INC_WL_PCA(mode,1);
 			break;
 /*a2*/	case MOValm:
 			AddrGen(A_DI_0, mode|IMMED, OVERR_DS, AddrFetchWL_U(mode,PC+1));
-			Gen(L_REG, mode|MBYTE, Ofs_AL);
-			Gen(S_DI, mode|MBYTE);
+			GenL_REG_byte(mode|MBYTE, Ofs_AL);
+			GenS_DI_byte(mode|MBYTE);
 			INC_WL_PCA(mode,1);
 			break;
 /*a3*/	case MOVaxm:
 			AddrGen(A_DI_0, mode|IMMED, OVERR_DS, AddrFetchWL_U(mode,PC+1));
-			Gen(L_REG, mode, SEL_WL(mode,Ofs_EAX));
-			Gen(S_DI, mode);
+			GenL_REG_wl(mode, SEL_WL(mode,Ofs_EAX));
+			GenS_DI_wl(mode);
 			INC_WL_PCA(mode,1);
 			break;
 
@@ -995,25 +997,25 @@ override:
 			} break;
 /*a6*/	case CMPSb:
 			Gen(O_MOVS_SetA, mode|MBYTE);
-			Gen(L_REG, mode|MBYTE, Ofs_AL);
+			GenL_REG_byte(mode|MBYTE, Ofs_AL);
 			Gen(O_MOVS_CmpD, mode|MBYTE);
 			Gen(O_MOVS_SavA, mode|MBYTE);
 			PC++; break;
 /*a7*/	case CMPSw:
 			Gen(O_MOVS_SetA, mode);
-			Gen(L_REG, mode, SEL_WL(mode,Ofs_EAX));
+			GenL_REG_wl(mode, SEL_WL(mode,Ofs_EAX));
 			Gen(O_MOVS_CmpD, mode);
 			Gen(O_MOVS_SavA, mode);
 			PC++; break;
 /*aa*/	case STOSb:
 			Gen(O_MOVS_SetA, mode|MBYTE);
-			Gen(L_REG, mode|MBYTE, Ofs_AL);
+			GenL_REG_byte(mode|MBYTE, Ofs_AL);
 			Gen(O_MOVS_StoD, mode|MBYTE);
 			Gen(O_MOVS_SavA, mode|MBYTE);
 			PC++; break;
 /*ab*/	case STOSw: {	int m = mode;
 			Gen(O_MOVS_SetA, m);
-			Gen(L_REG, mode, SEL_WL(m,Ofs_EAX));
+			GenL_REG_wl(mode, SEL_WL(m,Ofs_EAX));
 #if defined(OPTIMIZE_COMMON_SEQ) && !defined(SINGLESTEP)
 			do {
 				Gen(O_MOVS_StoD, m);
@@ -1028,7 +1030,7 @@ override:
 /*ac*/	case LODSb:
 			Gen(O_MOVS_SetA, mode|MBYTE);
 			Gen(O_MOVS_LodD, mode|MBYTE);
-			Gen(S_REG, mode|MBYTE, Ofs_AL); PC++;
+			GenS_REG_byte(mode|MBYTE, Ofs_AL); PC++;
 #if defined(OPTIMIZE_COMMON_SEQ) && !defined(SINGLESTEP)
 			/* optimize common sequence LODSb-STOSb */
 			if (Fetch(PC) == STOSb) {
@@ -1041,7 +1043,7 @@ override:
 /*ad*/	case LODSw:
 			Gen(O_MOVS_SetA, mode);
 			Gen(O_MOVS_LodD, mode);
-			Gen(S_REG, mode, SEL_WL(mode,Ofs_EAX)); PC++;
+			GenS_REG_wl(mode, SEL_WL(mode,Ofs_EAX)); PC++;
 #if defined(OPTIMIZE_COMMON_SEQ) && !defined(SINGLESTEP)
 			/* optimize common sequence LODSw-STOSw */
 			if (Fetch(PC) == STOSw) {
@@ -1053,13 +1055,13 @@ override:
 			break;
 /*ae*/	case SCASb:
 			Gen(O_MOVS_SetA, mode|MBYTE);
-			Gen(L_REG, mode|MBYTE, Ofs_AL);
+			GenL_REG_byte(mode|MBYTE, Ofs_AL);
 			Gen(O_MOVS_ScaD, mode|MBYTE);
 			Gen(O_MOVS_SavA, mode|MBYTE);
 			PC++; break;
 /*af*/	case SCASw:
 			Gen(O_MOVS_SetA, mode);
-			Gen(L_REG, mode, SEL_WL(mode,Ofs_EAX));
+			GenL_REG_wl(mode, SEL_WL(mode,Ofs_EAX));
 			Gen(O_MOVS_ScaD, mode);
 			Gen(O_MOVS_SavA, mode);
 			PC++; break;
@@ -1244,13 +1246,11 @@ override:
 			break;
 /*c6*/	case MOVbirm:
 			PC += ModRM(PC, mode|MBYTE);
-			Gen(L_XREG1, mode, Fetch(PC));
-			Gen(S_DI, mode|MBYTE);
+			GenS_DI_byte_imm(mode|MBYTE, Fetch(PC));
 			PC++; break;
 /*c7*/	case MOVwirm:
 			PC += ModRM(PC, mode);
-			Gen(L_XREG1, mode, DataFetchWL_U(mode,PC));
-			Gen(S_DI, mode);
+			GenS_DI_wl_imm(mode, DataFetchWL_U(mode,PC));
 			INC_WL_PC(mode,0);
 			break;
 /*c8*/	case ENTER: {
@@ -1434,39 +1434,39 @@ repag0:
 				case CMPSb:
 					repmod |= MBYTE;
 					Gen(O_MOVS_SetA, repmod);
-					Gen(L_REG, repmod|MBYTE, Ofs_AL);
+					GenL_REG_byte(repmod|MBYTE, Ofs_AL);
 					Gen(O_MOVS_CmpD, repmod);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case CMPSw:
 					Gen(O_MOVS_SetA, repmod);
-					Gen(L_REG, repmod, SEL_WL(repmod,Ofs_EAX));
+					GenL_REG_wl(repmod, SEL_WL(repmod,Ofs_EAX));
 					Gen(O_MOVS_CmpD, repmod);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case STOSb:
 					repmod |= MBYTE;
 					Gen(O_MOVS_SetA, repmod);
-					Gen(L_REG, repmod|MBYTE, Ofs_AL);
+					GenL_REG_byte(repmod|MBYTE, Ofs_AL);
 					Gen(O_MOVS_StoD, repmod);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case STOSw:
 					Gen(O_MOVS_SetA, repmod);
-					Gen(L_REG, repmod, SEL_WL(repmod,Ofs_EAX));
+					GenL_REG_wl(repmod, SEL_WL(repmod,Ofs_EAX));
 					Gen(O_MOVS_StoD, repmod);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case SCASb:
 					repmod |= MBYTE;
 					Gen(O_MOVS_SetA, repmod);
-					Gen(L_REG, repmod|MBYTE, Ofs_AL);
+					GenL_REG_byte(repmod|MBYTE, Ofs_AL);
 					Gen(O_MOVS_ScaD, repmod);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
 				case SCASw:
 					Gen(O_MOVS_SetA, repmod);
-					Gen(L_REG, repmod, SEL_WL(repmod,Ofs_EAX));
+					GenL_REG_wl(repmod, SEL_WL(repmod,Ofs_EAX));
 					Gen(O_MOVS_ScaD, repmod);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
@@ -1509,7 +1509,7 @@ repag0:
 			switch(REG1) {
 			case Ofs_AL:	/*0*/	/* TEST */
 			case Ofs_CL:	/*1*/	/* undocumented */
-				Gen(L_DI_R1, mode|MBYTE);		// mov al,[edi]
+				GenL_DI_R1_byte(mode|MBYTE);		// mov al,[edi]
 				Gen(O_AND_R, mode|MBYTE|IMMED, Fetch(PC));	// op al,#imm
 				PC++;
 				break;
@@ -1538,7 +1538,7 @@ repag0:
 			switch(REG1) {
 			case Ofs_AX:	/*0*/	/* TEST */
 			case Ofs_CX:	/*1*/	/* undocumented */
-				Gen(L_DI_R1, mode);		// mov al,[edi]
+				GenL_DI_R1_wl(mode);		// mov al,[edi]
 				Gen(O_AND_R, mode|IMMED, DataFetchWL_U(mode,PC));	// op al,#imm
 				INC_WL_PC(mode,0);
 				break;
@@ -1998,7 +1998,7 @@ end0xef:
 				    /* Store Machine Status Word */
 				    PC++; PC += ModRM(PC, mode);
 				    Gen(L_CR0, mode);
-				    Gen(S_DI, mode|DATA16);
+				    GenS_DI_wl(mode|DATA16);
 				    break;
 				case 5: /* Illegal */
 				case 6: /* LMSW, 80286 compatibility, Privileged */

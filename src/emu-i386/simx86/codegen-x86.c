@@ -104,13 +104,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include "emu86.h"
-#include "codegen.h"
-
-/* If you define this, in 16-bit stack mode the stack pointer will be
- * masked after every inc/dec operation. If undefined (faster) it can
- * temporarily over- or underflow (but this should trigger a fault
- * anyway). For 32-bit stacks this masking is only a waste of time. */
-#undef  STACK_WRAP_MP
+#include "codegen-x86.h"
 
 /* If you undefine this, in 16-bit stack mode the high 16 bits of ESP
  * will be zeroed after every push/pop operation. There's a small
@@ -119,6 +113,7 @@
 #undef KEEP_ESP
 
 extern int NextFreeIMeta;
+extern TNode *LastXNode;
 
 /* Buffer and pointers to store generated code */
 unsigned char CodeBuf[CODEBUFSIZE];
@@ -147,27 +142,6 @@ char OVERR_DS=Ofs_XDS, OVERR_SS=Ofs_XSS;
 unsigned char TailCode[8] =
 	{ 0x9c,0x5a,0xb8,0,0,0,0,0xc3 };
 
-#ifndef __KERNEL__
-/* This comes from the kernel, include/asm/string.h */
-static inline void * __memcpy(void * to, const void * from, size_t n)
-{
-int d0, d1, d2;
-__asm__ __volatile__(
-	"rep ; movsl\n\t"
-	"testb $2,%b4\n\t"
-	"je 1f\n\t"
-	"movsw\n"
-	"1:\ttestb $1,%b4\n\t"
-	"je 2f\n\t"
-	"movsb\n"
-	"2:"
-	: "=&c" (d0), "=&D" (d1), "=&S" (d2)
-	:"0" (n/4), "q" (n),"1" ((long) to),"2" ((long) from)
-	: "memory");
-return (to);
-}
-#endif
-
 /*
  * This function is here just for looking at the generated binary code
  * with objdump.
@@ -175,95 +149,10 @@ return (to);
 static void _test_(void)
 {
 	__asm__ __volatile__ ("
-		.byte	0xec
 		nop
 		" : : : "memory" );
 }
 
-/////////////////////////////////////////////////////////////////////////////
-
-unsigned e_VgaRead(unsigned offs, int mode);
-void e_VgaWrite(unsigned offs, unsigned u, int mode);
-
-#if X_GRAPHICS
-static inline void TRAPVGAR(unsigned char *Cp, int mode)
-{
-	if (!Cp) {	/* gcc-2.95 trick */
-_cf_0s:	__asm__ ("
-		pushfl
-		cmpl	e_vga_end,%%edi
-		jge	1f
-		cmpl	e_vga_base,%%edi
-		jl	1f
-		pushl	%%ebp" : : );
-_cf_01:	__asm__ ("
-		pushl	$0
-		movl	$e_VgaRead,%%ecx
-		pushl	%%edi
-		call	*%%ecx
-		addl	$0x08,%%esp
-		popl	%%ebp
-1:		popfl"	: : );
-	}
-_cf_0e:	if (TrapVgaOn) {
-		int SIZ = (&&_cf_0e - &&_cf_0s);
-		*((char *)(&&_cf_01+1)) = (char)mode;
-		__memcpy(Cp,&&_cf_0s,SIZ); Cp += SIZ;
-	}
-}
-
-static inline void TRAPVGAW(unsigned char *Cp, int mode)
-{
-	if (!Cp) {	/* gcc-2.95 trick */
-_cf_0s:	__asm__ ("
-		pushfl
-		cmpl	e_vga_end,%%edi
-		jge	1f
-		cmpl	e_vga_base,%%edi
-		jl	1f
-		pushl	%%ebp" : : );
-_cf_01:	__asm__ ("
-		pushl	$0
-		pushl	%%eax
-		movl	$e_VgaWrite,%%ecx
-		pushl	%%edi
-		call	*%%ecx
-		addl	$0x0c,%%esp
-		popl	%%ebp
-1:		popfl"	: : );
-	}
-_cf_0e:	if (TrapVgaOn) {
-		int SIZ = (&&_cf_0e - &&_cf_0s);
-		*((char *)(&&_cf_01+1)) = (char)mode;
-		__memcpy(Cp,&&_cf_0s,SIZ); Cp += SIZ;
-	}
-}
-#else
-#define TRAPVGAR(c)
-#define TRAPVGAW(c)
-#endif
-
-#define GenLeaECX(o)	if (((o) > -128) && ((o) < 128)) {\
-			G2(0x498d,Cp); G1((o),Cp); } else {\
-			G2(0x898d,Cp); G4((o),Cp); }
-
-#define GenLeaEDI(o)	if (((o) > -128) && ((o) < 128)) {\
-			G2(0x7f8d,Cp); G1((o),Cp); } else {\
-			G2(0xbf8d,Cp); G4((o),Cp); }
-
-#define StackMaskEBP	{G3(0x6b239c,Cp); G1(Ofs_STACKM,Cp); G1(0x9d,Cp);}
-
-/////////////////////////////////////////////////////////////////////////////
-//
-//	given addr in edi and data in eax:
-//		mov	edi,edx
-//		sub	#vga_base,edx	if >=0 this is over 0xa0000
-//		jl	isnovga
-//		cmp	#vga_size,edx	if > this is over vga
-//		jge	isnovga
-//	call Logical_VGA_{read|write}(edx,eax)
-//	else mov eax,[edi]
-//
 /////////////////////////////////////////////////////////////////////////////
 
 
@@ -345,28 +234,30 @@ void AddrGen(int op, int mode, ...)
 				G3M(0x8d,0x3c,0x39,Cp);
 			}
 			else {
-				// movl offs(%%ebx),%%ecx
-				G2M(0x8b,0x4b,Cp); Offs_From_Arg(Cp);
-				// leal (%%edi,%%ecx,1),%%edi
-				G3M(0x8d,0x3c,0x39,Cp);
+				// pushfl; addl offs(%%ebx),%%edi
+				G3(0x7b039c,Cp); Offs_From_Arg(Cp);
 				if (op==A_DI_2)	{
 					// movl offs(%%ebx),%%ecx
 					G2M(0x8b,0x4b,Cp); Offs_From_Arg(Cp);
 					if (mode & RSHIFT) {
 					    unsigned char sh = (unsigned char)(va_arg(ap,int));
 					    if (sh) {
-						// pushfl; shll $1,%%ecx; popfl
-						if (sh==1) { G3M(0x9c,0xd1,0xe1,Cp); G1(0x9d,Cp); }
-						// pushfl; shll $count,%%ecx; popfl
-						else { G3M(0x9c,0xc1,0xe1,Cp); G1(sh,Cp); G1(0x9d,Cp); }
+						// shll $1,%%ecx
+						if (sh==1) { G2(0xe1d1,Cp); }
+						// shll $count,%%ecx
+						else { G2(0xe1c1,Cp); G1(sh,Cp); }
 					    }
 					}
-					// leal (%%edi,%%ecx,1),%%edi
-					G3M(0x8d,0x3c,0x39,Cp);
 				}
 				if ((mode&IMMED) && idsp) {
 				    GenLeaEDI(idsp);
 				}
+				if (op==A_DI_2)	{
+					// addl %%ecx,%%edi
+					G2(0xcf01,Cp);
+				}
+				// popfl
+				G1(0x9d,Cp);
 			}
 		}
 		break;
@@ -386,18 +277,18 @@ void AddrGen(int op, int mode, ...)
 			}
 			if (!(mode & IMMED)) {
 				unsigned char sh;
-				// movl offs(%%ebx),%%ecx
-				G2M(0x8b,0x4b,Cp); Offs_From_Arg(Cp);
+				// pushfl; movl offs(%%ebx),%%ecx
+				G3(0x4b8b9c,Cp); Offs_From_Arg(Cp);
 				// shll $count,%%ecx
 				sh = (unsigned char)(va_arg(ap,int));
 				if (sh)	{
-				    // pushfl; shll $1,%%ecx; popfl
-				    if (sh==1) { G3M(0x9c,0xd1,0xe1,Cp); G1(0x9d,Cp); }
-				    // pushfl; shll $count,%%ecx; popfl
-				    else { G3M(0x9c,0xc1,0xe1,Cp); G1(sh,Cp); G1(0x9d,Cp); }
+				    // shll $1,%%ecx
+				    if (sh==1) { G2(0xe1d1,Cp); }
+				    // shll $count,%%ecx
+				    else { G2(0xe1c1,Cp); G1(sh,Cp); }
 				}
-				// leal (%%edi,%%ecx,1),%%edi
-				G3M(0x8d,0x3c,0x39,Cp);
+				// addl %%ecx,%%edi; popfl
+				G3(0x9dcf01,Cp);
 			}
 		}
 		break;
@@ -431,11 +322,6 @@ void Gen(int op, int mode, ...)
 		}
 		*((unsigned long *)Cp)=va_arg(ap,int); Cp+=rcod;
 		break;
-	// Load Accumulator from CPU register
-	case L_XREG1:
-		// movl $immed,%%eax
-		G1(0xb8,Cp); G4(va_arg(ap,int),Cp);
-		break;
 	// Special case: CR0&0x3f
 	case L_CR0:
 		// movl Ofs_CR0(%%ebx),%%eax
@@ -444,41 +330,6 @@ void Gen(int op, int mode, ...)
 		G4(0x3fe0839c,Cp); G1(0x9d,Cp);
 		break;
 
-	// mov eax, reg
-	// mov eax,[esi]	8b 06
-	// mov ax,[esi]		66 8b 06
-	// mov al,[esi]		8a 06
-	case L_DI_R1:				// [edi]->ax
-		rcod |= 0x1;
-	case L_SI_R1:				// [esi]->ax
-		TRAPVGAR(Cp,mode); /* check address in VGA range if under X */
-		if (mode&MBYTE)	{
-			// movb (%%e{ds}i),%%al
-			G2M(0x8a,rcod+6,Cp);
-		}
-		else {
-			// mov{wl} (%%e{ds}i),%%{e}ax
-			if (mode&DATA16) G1(OPERoverride,Cp);
-			G2M(0x8b,rcod+6,Cp);
-		}
-		break;
-	// mov [esi],eax	89 06
-	// mov [esi],ax		66 89 06
-	// mov [esi],al		88 06
-	case S_DI:					// al,(e)ax->[edi]
-		rcod = 0x1;
-	case S_SI:					// al,(e)ax->[esi]
-		TRAPVGAW(Cp,mode); /* check address in VGA range if under X */
-		if (mode&MBYTE)	{
-			// movb %%al,(%e{ds}i)
-			G2M(0x88,rcod+6,Cp);
-		}
-		else {
-			// mov{wl} %%{e}ax,(%%e{ds}i)
-			if (mode&DATA16) G1(OPERoverride,Cp);
-			G2M(0x89,rcod+6,Cp);
-		}
-		break;
 	case S_DI_R:
 		// mov{wl} %%{e}ax,offs(%%ebx)
 		if (mode&DATA16) G1(OPERoverride,Cp);
@@ -560,10 +411,6 @@ void Gen(int op, int mode, ...)
 		G3(0xc0b70f,Cp);
 		break;
 
-	case L_REG:
-		rcod = 0x8a; goto arith0;
-	case S_REG:
-		rcod = 0x88; goto arith0;
 	case O_ADD_R:				// acc = acc op	reg
 		rcod = ADDbtrm; goto arith0;
 	case O_OR_R:
@@ -1076,58 +923,57 @@ shrot0:
 
 	case O_PUSH: {
 		static char pseq16[] = {
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
+			// movw (%%edi),%%ax
+			0x66,0x8b,0x07,0x90,
+			// pushfl; movl Ofs_XSS(%%ebx),%%esi
+			0x9c,0x8b,0x73,Ofs_XSS,
 			// movl Ofs_ESP(%%ebx),%%ebp
 			0x8b,0x6b,Ofs_ESP,
 			// leal -2(%%ebp),%%ebp
 			0x8d,0x6d,0xfe,
-			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
-			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
-			// movw (%%edi),%%ax
-/*0e*/			0x66,0x8b,0x07,0x90,
+			// andl StackMask(%%ebx),%%ebp
+			0x23,0x6b,Ofs_STACKM,
 			// movw %%ax,(%%esi,%%ebp,1)
 			0x66,0x89,0x04,0x2e,
-			// movl %%ebp,Ofs_ESP(%%ebx)
-			0x89,0x6b,Ofs_ESP
+			// movl %%ebp,Ofs_ESP(%%ebx); popfl
+			0x89,0x6b,Ofs_ESP,0x9d
 		};
 		static char pseq32[] = {
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
+			// movl (%%edi),%%eax
+			0x90,0x8b,0x07,0x90,
+			// pushfl; movl Ofs_XSS(%%ebx),%%esi
+			0x9c,0x8b,0x73,Ofs_XSS,
 			// movl Ofs_ESP(%%ebx),%%ebp
 			0x8b,0x6b,Ofs_ESP,
 			// leal -4(%%ebp),%%ebp
 			0x8d,0x6d,0xfc,
-			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
-			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
-			// movl (%%edi),%%eax
-/*0e*/			0x90,0x8b,0x07,0x90,
+			// andl StackMask(%%ebx),%%ebp
+			0x23,0x6b,Ofs_STACKM,
 			// movl %%eax,(%%esi,%%ebp,1)
 			0x89,0x04,0x2e,
 #if 0	/* keep high 16-bits of ESP in small-stack mode */
-			// pushfl; movl StackMask(%%ebx),%%edx
-			0x9c,0x8b,0x53,Ofs_STACKM,
+			// movl StackMask(%%ebx),%%edx
+			0x8b,0x53,Ofs_STACKM,
 			// notl %%edx
 			0xf7,0xd2,
 			// andl Ofs_ESP(%%ebx),%%edx
 			0x23,0x53,Ofs_ESP,
-			// orl %%edx,%%ebp; popfl
+			// orl %%edx,%%ebp
 			0x09,0xd5,
-			0x9d,
 #endif
-			// movl %%ebp,Ofs_ESP(%%ebx)
-			0x89,0x6b,Ofs_ESP
+			// popfl; movl %%ebp,Ofs_ESP(%%ebx)
+			0x9d,0x89,0x6b,Ofs_ESP
 		};
 		register char *p; int sz;
 		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
 			else p=pseq32,sz=sizeof(pseq32);
 		if (mode&MEMADR) {
-			*((short *)(p+0x10)) = 0x9007;
+			*((short *)(p+2)) = 0x9007;
 		}
 		else {
 			// mov{wl} offs(%%ebx),%%{e}ax
-			p[0x10] = 0x43;
-			p[0x11] = va_arg(ap,char);
+			p[2] = 0x43;
+			p[3] = va_arg(ap,char);
 		}
 		GNX(Cp, p, sz);
 		} break;
@@ -1135,14 +981,12 @@ shrot0:
 /* PUSH derived (sub-)sequences: */
 	case O_PUSH1: {
 		static char pseq[] = {
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
+			// pushfl; movl Ofs_XSS(%%ebx),%%esi
+			0x9c,0x8b,0x73,Ofs_XSS,
 			// movl Ofs_ESP(%%ebx),%%ebp
 			0x8b,0x6b,Ofs_ESP,
-#ifndef STACK_WRAP_MP	/* mask before decrementing */
-			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
-			0x9c,0x23,0x6b,Ofs_STACKM,0x9d
-#endif
+			// andl StackMask(%%ebx),%%ebp
+			0x23,0x6b,Ofs_STACKM
 		};
 		GNX(Cp, pseq, sizeof(pseq));
 		} break;
@@ -1151,48 +995,63 @@ shrot0:
 		static char pseq16[] = {
 			// leal -2(%%ebp),%%ebp
 			0x8d,0x6d,0xfe,
-#ifdef STACK_WRAP_MP	/* mask after decrementing */
-			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
-			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
-#endif
 			// movw (%%edi),%%ax
-/*03|08*/		0x66,0x8b,0x07,0x90,
+/*03*/			0x66,0x8b,0x07,0x90,
 			// movw %%ax,(%%esi,%%ebp,1)
 			0x66,0x89,0x04,0x2e
 		};
 		static char pseq32[] = {
 			// leal -4(%%ebp),%%ebp
 			0x8d,0x6d,0xfc,
-#ifdef STACK_WRAP_MP	/* mask after decrementing */
-			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
-			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
-#endif
 			// movw (%%edi),%%ax
-/*03|08*/		0x90,0x8b,0x07,0x90,
-			// movw %%ax,(%%esi,%%ebp,1)
+/*03*/			0x90,0x8b,0x07,0x90,
+			// movl %%eax,(%%esi,%%ebp,1)
 			0x89,0x04,0x2e
 		};
 		register char *p; int sz;
-#ifdef STACK_WRAP_MP
-		const int ix = 10;
-#else
-		const int ix = 5;
-#endif
 		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
 			else p=pseq32,sz=sizeof(pseq32);
 		if (mode&MEMADR) {
-			*((short *)(p+ix)) = 0x9007;
+			*((short *)(p+5)) = 0x9007;
 		}
 		else {
 			// mov{wl} offs(%%ebx),%%{e}ax
-			p[ix] = 0x43;
-			p[ix+1] = va_arg(ap,char);
+			p[5] = 0x43;
+			p[6] = va_arg(ap,char);
 		}
 		GNX(Cp, p, sz);
 		} break;
 
+	case O_PUSH2F: {
+		static char pseq16[] = {
+			// leal -2(%%ebp),%%ebp
+			0x8d,0x6d,0xfe,
+			// movw Ofs_EFLAGS(%%ebx),%%eax
+			0x8b,0x43,Ofs_EFLAGS,
+			// andl 0xfcfeff,%%eax
+			0x25,0xff,0xfe,0xfc,0x00,
+			// movw %%ax,(%%esi,%%ebp,1)
+			0x66,0x89,0x04,0x2e
+		};
+		static char pseq32[] = {
+			// leal -4(%%ebp),%%ebp
+			0x8d,0x6d,0xfc,
+			// movw Ofs_EFLAGS(%%ebx),%%eax
+			0x8b,0x43,Ofs_EFLAGS,
+			// andl 0xfcfeff,%%eax
+			0x25,0xff,0xfe,0xfc,0x00,
+			// movl %%eax,(%%esi,%%ebp,1)
+			0x89,0x04,0x2e
+		};
+		register char *p; int sz;
+		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
+			else p=pseq32,sz=sizeof(pseq32);
+		GNX(Cp, p, sz);
+		} break;
+
 	case O_PUSH3:
-		G2(0x6b89,Cp); G1(Ofs_ESP,Cp);
+		// popfl; movl %%ebp,Ofs_ESP(%%ebx)
+		G3(0x6b899d,Cp); G1(Ofs_ESP,Cp);
 		break;
 
 	case O_PUSHI: {
@@ -1281,42 +1140,24 @@ shrot0:
 			0x5e,0x89,0x6b,Ofs_ESP
 		};
 		static char pseq32[] = {
-			// movl Ofs_XSS(%%ebx),%%esi
-			0x8b,0x73,Ofs_XSS,
+			// movl Ofs_XSS(%%ebx),%%edi
+			0x8b,0x7b,Ofs_XSS,
 			// movl Ofs_ESP(%%ebx),%%ebp
 			0x8b,0x6b,Ofs_ESP,
 			// leal -32(%%ebp),%%ebp
 			0x8d,0x6d,0xe0,
-			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
-			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
-			// pushl %%esi; leal (%%esi,%%ebp,1),%%esi
-			0x56,0x8d,0x34,0x2e,
-			// movl Ofs_EDI(%%ebx),%%eax
-			// movl Ofs_ESI(%%ebx),%%edx
-			0x8b,0x43,Ofs_EDI,0x8b,0x53,Ofs_ESI,
-			// movl %%eax,0(%%esi)
-			// movl %%edx,4(%%esi)
-			0x89,0x46,0x00,0x89,0x56,0x04,
-			// movl Ofs_EBP(%%ebx),%%eax
-			// movl Ofs_ESP(%%ebx),%%edx
-			0x8b,0x43,Ofs_EBP,0x8b,0x53,Ofs_ESP,
-			// movl %%eax,8(%%esi)
-			// movl %%edx,12(%%esi)
-			0x89,0x46,0x08,0x89,0x56,0x0c,
-			// movl Ofs_EBX(%%ebx),%%eax
-			// movl Ofs_EDX(%%ebx),%%edx
-			0x8b,0x43,Ofs_EBX,0x8b,0x53,Ofs_EDX,
-			// movl %%eax,16(%%esi)
-			// movl %%edx,20(%%esi)
-			0x89,0x46,0x10,0x89,0x56,0x14,
-			// movl Ofs_ECX(%%ebx),%%eax
-			// movl Ofs_EAX(%%ebx),%%edx
-			0x8b,0x43,Ofs_ECX,0x8b,0x53,Ofs_EAX,
-			// movl %%eax,24(%%esi)
-			// movl %%edx,28(%%esi)
-			0x89,0x46,0x18,0x89,0x56,0x1c,
-			// popl %%esi; movl %%ebp,Ofs_ESP(%%ebx)
-			0x5e,0x89,0x6b,Ofs_ESP
+			// pushfl; andl StackMask(%%ebx),%%ebp
+			0x9c,0x23,0x6b,Ofs_STACKM,
+			// leal (%%edi,%%ebp,1),%%edi
+			0x8d,0x3c,0x2f,
+			// cld; leal Ofs_EDI(%%ebx),%%esi
+			0xfc,0x8d,0x73,Ofs_EDI,
+			// mov $8,%%ecx
+			0xb9,8,0,0,0,
+			// rep; movsl; popfl
+			0xf3,0xa5,0x9d,
+			// movl %%ebp,Ofs_ESP(%%ebx)
+			0x89,0x6b,Ofs_ESP
 		};
 		register char *p; int sz;
 		if (mode&DATA16) {
@@ -1511,34 +1352,18 @@ shrot0:
 			0x8b,0x73,Ofs_XSS,
 			// movl Ofs_ESP(%%ebx),%%ebp
 			0x8b,0x6b,Ofs_ESP,
-			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
-			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
-			// pushl %%esi; leal (%%esi,%%ebp,1),%%esi
-			0x56,0x8d,0x34,0x2e,
-			// movl 0(%%esi),%%eax
-			// movl 4(%%esi),%%edx
-			0x8b,0x46,0x00,0x8b,0x56,0x04,
-			// movl %%eax,Ofs_EDI(%%ebx)
-			// movl %%edx,Ofs_ESI(%%ebx)
-			0x89,0x43,Ofs_EDI,0x89,0x53,Ofs_ESI,
-			// movl 8(%%esi),%%eax
-			0x8b,0x46,0x08,
-			// movl %%eax,Ofs_EBP(%%ebx)
-			0x89,0x43,Ofs_EBP,
-			// movl 16(%%esi),%%eax
-			// movl 20(%%esi),%%edx
-			0x8b,0x46,0x10,0x8b,0x56,0x14,
-			// movl %%eax,Ofs_EBX(%%ebx)
-			// movl %%edx,Ofs_EDX(%%ebx)
-			0x89,0x43,Ofs_EBX,0x89,0x53,Ofs_EDX,
-			// movl 24(%%esi),%%eax
-			// movl 28(%%esi),%%edx
-			0x8b,0x46,0x18,0x8b,0x56,0x1c,
-			// movl %%eax,Ofs_ECX(%%ebx)
-			// movl %%edx,Ofs_EAX(%%ebx)
-			0x89,0x43,Ofs_ECX,0x89,0x53,Ofs_EAX,
-			// popl %%esi; leal 32(%%ebp),%%ebp
-			0x5e,0x8d,0x6d,0x20,
+			// pushfl; andl StackMask(%%ebx),%%ebp
+			0x9c,0x23,0x6b,Ofs_STACKM,
+			// leal (%%esi,%%ebp,1),%%esi
+			0x8d,0x34,0x2e,
+			// cld; leal Ofs_EDI(%%ebx),%%edi
+			0xfc,0x8d,0x7b,Ofs_EDI,
+			// mov $8,%%ecx
+			0xb9,8,0,0,0,
+			// rep; movsl; popfl
+			0xf3,0xa5,0x9d,
+			// leal 32(%%ebp),%%ebp
+			0x8d,0x6d,0x20,
 #ifdef STACK_WRAP_MP	/* mask after incrementing */
 			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
 			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
@@ -2032,11 +1857,12 @@ unsigned char *CloseAndExec(unsigned char *PC, int mode)
 	static unsigned char *ePC;
 	static unsigned short seqflg, fpuc, ofpuc;
 	unsigned char *SeqStart;
+	TNode *G = NULL;
 	int ifl;
 
 	if (mode & XECFND) {
 		/* sorry for the reuse of parameter PC this way */
-		TNode *G = (TNode *)PC;
+		G = (TNode *)PC;
 		PC = G->addr;
 		SeqStart = PC;
 		seqflg = mode >> 16;
@@ -2157,11 +1983,21 @@ unsigned char *CloseAndExec(unsigned char *PC, int mode)
 				*((unsigned long *)mem_ref));
 	}
 	if (!(mode & XECFND)) {
-		Move2ITree();
+		G = Move2ITree();
 	    if ((d.emu>2) && (ePC != PC)) {
 		e_printf("## Return %08lx instead of %08lx\n",(long)ePC,
 			(long)PC);
 	    }
+	}
+	if (G) {
+	    if (LastXNode) {
+		LastXNode->nxnode = G;
+		LastXNode->nxkey = G->key;
+		if (d.emu>2) e_printf("LastXNode=%08lx nxnode=%08lx nxkey=%08lx\n",
+			(long)LastXNode,(long)G,G->key);
+	    }
+	    LastXNode = G;
+	    if (d.emu>2) e_printf("New LastXNode=%08lx\n",(long)G);
 	}
 	return ePC;
 }

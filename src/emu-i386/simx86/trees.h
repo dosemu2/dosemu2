@@ -60,6 +60,8 @@ typedef struct avltr_node
 	unsigned char *addr, *npc;
 	int jcount;
 	unsigned short len, flags, cklen;
+	struct avltr_node *nxnode;
+	long nxkey;
 } TNode;
 
 /* Used for traversing a right-threaded AVL tree. */

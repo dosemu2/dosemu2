@@ -36,7 +36,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-#include <sys/mman.h>
 #include "emu86.h"
 #include "codegen.h"
 #include "dpmi.h"
