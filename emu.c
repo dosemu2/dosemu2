@@ -1555,8 +1555,6 @@ int08(void) {
 
 	run_int(0x1c);
 	/*	printf("Run 0x1c\n"); */
-/* update the Bios Data Area timer dword if interrupts enabled */
-	if (cpu.iflag) timer_tick();
 	return;
 }
 
@@ -2219,10 +2217,10 @@ if (in16) {
       case 0x0f  :
       case 0x09  : /* IRQ1, keyb data ready */
 	g_printf("IRQ->interrupt %x\n", i);
+	goto default_handling;
       case 0x08  :
 	int08();
-/*	goto default_handling; */
-	return;
+	goto default_handling;
       case 0x10 : /* VIDEO */
 	int10();
 	return;
@@ -2416,6 +2414,9 @@ sigalrm(int sig)
     setitimer(TIMER_TIME, &itv, NULL);
 
     /* if (config.mouse_flag) mouse_curtick(); */
+
+/* update the Bios Data Area timer dword if interrupts enabled */
+    if (cpu.iflag) timer_tick();
 
     /* this is severely broken */
     if (config.timers)
