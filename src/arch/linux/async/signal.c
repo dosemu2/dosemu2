@@ -70,6 +70,11 @@ static int have_working_sigaltstack;
 #undef HAVE_SIGALTSTACK
 #endif
 
+/* my glibc doesn't define this guy */
+#ifndef SA_RESTORER
+#define SA_RESTORER 0x04000000
+#endif
+
 /*
  * Thomas Winder <thomas.winder@sea.ericsson.se> wrote:
  * glibc-2 uses a different struct sigaction type than the one used in
@@ -101,6 +106,21 @@ dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
 
   return(syscall(SYS_sigaction, sig, &my_sa, NULL));
 }
+
+/* glibc non-pthread sigaction installs this restore
+   function, which GDB recognizes as a signal trampoline.
+   So it's a good idea for us to do the same
+*/
+#define RESTORE2(name, syscall) asm (	\
+   ".text\n"				\
+   "    .align 8\n"			\
+   #name"__:\n"				\
+   "    popl %eax\n"			\
+   "    movl $" #syscall ", %eax\n" 	\
+   "    int  $0x80");
+#define RESTORE(restore, SYS_sigreturn) RESTORE2(restore, SYS_sigreturn)
+RESTORE(restore, SYS_sigreturn)
+void restore (void) asm ("restore__");
 
 static void
 dosemu_sigaction_wrapper(int sig, void *fun, int flags)
@@ -143,8 +163,8 @@ dosemu_sigaction_wrapper(int sig, void *fun, int flags)
 	and sem_post(), and we (most probably) don't use these */
   kernel_sa.kernel_sa_handler = (__sighandler_t)fun;
   kernel_sa.sa_mask = *((unsigned long *) &mask);
-  kernel_sa.sa_flags = flags;
-  kernel_sa.sa_restorer = NULL;
+  kernel_sa.sa_flags = flags | SA_RESTORER;
+  kernel_sa.sa_restorer = restore;
   syscall(SYS_sigaction, sig, &kernel_sa, NULL);
 }
 
