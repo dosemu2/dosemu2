@@ -418,6 +418,7 @@ void WINAPI VXD_Timer( CONTEXT86 *scp )
 void WINAPI VXD_TimerAPI ( CONTEXT86 *scp )
 {
     static WORD System_Time_Selector;
+    DWORD cur_time;
 
     unsigned service = AX_reg(scp);
 
@@ -429,6 +430,13 @@ void WINAPI VXD_TimerAPI ( CONTEXT86 *scp )
         SET_AX( scp, VXD_WinVersion() );
         RESET_CFLAG(scp);
         break;
+
+    case 0x0004: /* current VM time, msecs */
+	cur_time = GETusTIME(0) / 1000;
+	scp->edx = HI_WORD(cur_time);
+	scp->eax = LO_WORD(cur_time);
+        RESET_CFLAG(scp);
+	break;
 
     case 0x0009: /* get system time selector */
         if ( !System_Time_Selector )
