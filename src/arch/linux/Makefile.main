@@ -72,7 +72,8 @@ LIBSUBDIRS=env/video base/async arch/linux/async base/misc base/dev/misc\
 	base/dev/pic dosext/dpmi dosext/mfs dosext/misc\
 	base/init base/serial base/keyboard base/mouse\
 	base/dev/dma \
-	$(DEBUGGER) $(NET) $(IPX) $(SBEMU) dosext/drivers base/bios
+	$(DEBUGGER) $(NET) $(IPX) $(SBEMU) dosext/drivers base/bios \
+	$(PLUGINSUBDIRS)
 
 
 # call all libraries the name of the directory

@@ -1,3 +1,11 @@
+99/02/26 ver. 0.99.10 released
+	From Hans
+	- introducing 'plug-ins', though the name may not be exactly
+	  appropriate;-) It means to insert whole trees of code under
+	  the directory src/plugin and configuring them automatically
+	  into DOSEMU at compiletime. Those trees could be distributed
+	  separately, not necessary by DOSEMU itself.
+	  For more details look at src/plugin/README.plugin
 99/03/11 ver. 0.99.9.1 unofficial pre-release
 	From Dima <dima@service.baltnet.ru>
 	- fix for MFS (SEEK_FROM_EOF) assembling a wrong offset

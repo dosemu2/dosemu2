@@ -96,6 +96,7 @@ pristine distclean mrproper:  docsclean mididclean
 	(cd setup/parser; make clean)
 	rm -rf ./bindist
 	rm -f Makefile.conf
+	./mkpluginhooks clean
 
 endif
 

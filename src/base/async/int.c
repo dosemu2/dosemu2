@@ -530,7 +530,8 @@ static int dos_helper(void)
     }
     break;
 
-
+  /* here we try to hook a possible plugin */
+  #include "plugin_inte6.h"
 
   default:
     error("bad dos helper function: AX=0x%04x\n", LWORD(eax));

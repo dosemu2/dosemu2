@@ -77,6 +77,8 @@
 #define DOS_HELPER_GET_CPU_SPEED    0x54 /* return CPU clock frequency in EAX,
 					    Units: MHz * 0x10000, */
 
+#define DOS_HELPER_PLUGIN	    0x60 /* first reserved for plug-ins */
+#define DOS_HELPER_PLUGIN_LAST      0x6f /* last  reserved for plug-ins */
 
 #define DOS_HELPER_IPX_CALL         0x7a
 #define DOS_HELPER_IPX_ENDCALL      0x7b

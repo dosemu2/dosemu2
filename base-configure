@@ -3662,6 +3662,21 @@ echo "configure:3659: checking "Compiling without vm86plus support"" >&5;
 fi
 
 
+if test -x ./mkpluginhooks; then
+  ./mkpluginhooks
+  if test -f ./plugin_libdirs; then
+    echo "checking "Including plugins: `cat ./plugin_libdirs`"" 1>&6
+echo "configure:3670: checking "Including plugins: `cat ./plugin_libdirs`"" >&5;
+    PLUGINSUBDIRS=`cat ./plugin_libdirs`
+  else
+    echo "checking "Compiling without plug-ins"" 1>&6
+echo "configure:3674: checking "Compiling without plug-ins"" >&5
+  fi
+else
+  echo "checking "Compiling without plug-ins"" 1>&6
+echo "configure:3678: checking "Compiling without plug-ins"" >&5
+fi
+
  # Check whether --enable-dodebug or --disable-dodebug was given.
 if test "${enable_dodebug+set}" = set; then
   enableval="$enable_dodebug"
@@ -3672,10 +3687,10 @@ fi
 
   if test "$dodebug" = "yes"; then
    echo "checking "Compiling with debug info"" 1>&6
-echo "configure:3676: checking "Compiling with debug info"" >&5;
+echo "configure:3691: checking "Compiling with debug info"" >&5;
   else
    echo "checking "Compiling without debug info"" 1>&6
-echo "configure:3679: checking "Compiling without debug info"" >&5;
+echo "configure:3694: checking "Compiling without debug info"" >&5;
   fi
 
  # Check whether --enable-threads or --disable-threads was given.
@@ -3688,7 +3703,7 @@ fi
 
   if test "$threads" = "yes" -a "$experimental" = "yes"; then
    echo "checking "Compiling with clone-threading code"" 1>&6
-echo "configure:3692: checking "Compiling with clone-threading code"" >&5;
+echo "configure:3707: checking "Compiling with clone-threading code"" >&5;
    USE_THREADS="USE_THREADS=1"
    cat >> confdefs.h <<EOF
 #define USE_THREADS 1
@@ -3697,7 +3712,7 @@ EOF
    
   else
    echo "checking "Compiling single process code"" 1>&6
-echo "configure:3701: checking "Compiling single process code"" >&5;
+echo "configure:3716: checking "Compiling single process code"" >&5;
   fi
  
  # Check whether --enable-aspi or --disable-aspi was given.
@@ -3710,7 +3725,7 @@ fi
 
   if test "$aspi" = "yes"; then
    echo "checking "Compiling with ASPI support"" 1>&6
-echo "configure:3714: checking "Compiling with ASPI support"" >&5;
+echo "configure:3729: checking "Compiling with ASPI support"" >&5;
    ASPI_SUPPORT="ASPI_SUPPORT=1"
    cat >> confdefs.h <<EOF
 #define ASPI_SUPPORT 1
@@ -3719,24 +3734,24 @@ EOF
    
   else
    echo "checking "Compiling without ASPI support"" 1>&6
-echo "configure:3723: checking "Compiling without ASPI support"" >&5;
+echo "configure:3738: checking "Compiling without ASPI support"" >&5;
   fi
  
  # Check whether --enable-nosbemu or --disable-nosbemu was given.
 if test "${enable_nosbemu+set}" = set; then
   enableval="$enable_nosbemu"
   echo "checking "Compiling without SB Emulation"" 1>&6
-echo "configure:3730: checking "Compiling without SB Emulation"" >&5
+echo "configure:3745: checking "Compiling without SB Emulation"" >&5
 else
   echo "checking "Compiling with SB Emulation"" 1>&6
-echo "configure:3733: checking "Compiling with SB Emulation"" >&5
+echo "configure:3748: checking "Compiling with SB Emulation"" >&5
                 cat >> confdefs.h <<\EOF
 #define USE_SBEMU 1
 EOF
 
                 USE_SBEMU="USE_SBEMU=1"
 		echo $ac_n "checking for gus_close in -lgus""... $ac_c" 1>&6
-echo "configure:3740: checking for gus_close in -lgus" >&5
+echo "configure:3755: checking for gus_close in -lgus" >&5
 ac_lib_var=`echo gus'_'gus_close | sed 'y%./+-%__p_%'`
 if eval "test \"`echo '$''{'ac_cv_lib_$ac_lib_var'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
@@ -3744,7 +3759,7 @@ else
   ac_save_LIBS="$LIBS"
 LIBS="-lgus  $LIBS"
 cat > conftest.$ac_ext <<EOF
-#line 3748 "configure"
+#line 3763 "configure"
 #include "confdefs.h"
 /* Override any gcc2 internal prototype to avoid an error.  */
 /* We use char because int might match the return type of a gcc2
@@ -3755,7 +3770,7 @@ int main() {
 gus_close()
 ; return 0; }
 EOF
-if { (eval echo configure:3759: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest; then
+if { (eval echo configure:3774: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest; then
   rm -rf conftest*
   eval "ac_cv_lib_$ac_lib_var=yes"
 else
@@ -3771,7 +3786,7 @@ fi
 if eval "test \"`echo '$ac_cv_lib_'$ac_lib_var`\" = yes"; then
   echo "$ac_t""yes" 1>&6
   echo "checking "Compiling Midid with Ultra support"" 1>&6
-echo "configure:3775: checking "Compiling Midid with Ultra support"" >&5
+echo "configure:3790: checking "Compiling Midid with Ultra support"" >&5
 			USE_ULTRA="USE_ULTRA=1"
 			cat >> confdefs.h <<\EOF
 #define USE_ULTRA 1
@@ -3791,7 +3806,7 @@ fi
 if test "${enable_monoton_timing+set}" = set; then
   enableval="$enable_monoton_timing"
   echo "checking "Compiling with monoton micro timing"" 1>&6
-echo "configure:3795: checking "Compiling with monoton micro timing"" >&5
+echo "configure:3810: checking "Compiling with monoton micro timing"" >&5
                cat >> confdefs.h <<\EOF
 #define MONOTON_MICRO_TIMING 1
 EOF
@@ -3799,7 +3814,7 @@ EOF
 	       
 else
   echo "checking "Compiling with normal timing code"" 1>&6
-echo "configure:3803: checking "Compiling with normal timing code"" >&5
+echo "configure:3818: checking "Compiling with normal timing code"" >&5
 fi
 
 
@@ -3807,7 +3822,7 @@ fi
 if test "${enable_runasroot+set}" = set; then
   enableval="$enable_runasroot"
   echo "checking "Compiling for dosemu mostly running as root"" 1>&6
-echo "configure:3811: checking "Compiling for dosemu mostly running as root"" >&5
+echo "configure:3826: checking "Compiling for dosemu mostly running as root"" >&5
                cat >> confdefs.h <<\EOF
 #define RUN_AS_ROOT 1
 EOF
@@ -3815,7 +3830,7 @@ EOF
 	       
 else
   echo "checking "Compiling for dosemu mostly running as user"" 1>&6
-echo "configure:3819: checking "Compiling for dosemu mostly running as user"" >&5
+echo "configure:3834: checking "Compiling for dosemu mostly running as user"" >&5
 fi
 
 
@@ -3823,7 +3838,7 @@ fi
 if test "${enable_new_intcode+set}" = set; then
   enableval="$enable_new_intcode"
   echo "checking "Compiling with new interrupt handling code"" 1>&6
-echo "configure:3827: checking "Compiling with new interrupt handling code"" >&5
+echo "configure:3842: checking "Compiling with new interrupt handling code"" >&5
                cat >> confdefs.h <<\EOF
 #define USE_NEW_INT 1
 EOF
@@ -3831,7 +3846,7 @@ EOF
 	       
 else
   echo "checking "Compiling with normal interrupt handling code"" 1>&6
-echo "configure:3835: checking "Compiling with normal interrupt handling code"" >&5
+echo "configure:3850: checking "Compiling with normal interrupt handling code"" >&5
 fi
 
 
@@ -3839,7 +3854,7 @@ fi
 if test "${enable_old_slangcode+set}" = set; then
   enableval="$enable_old_slangcode"
   echo "checking "Compiling with old Slang keyboard code"" 1>&6
-echo "configure:3843: checking "Compiling with old Slang keyboard code"" >&5
+echo "configure:3858: checking "Compiling with old Slang keyboard code"" >&5
               USE_OLD_SLANG_KBD="USE_OLD_SLANG_KBD=1"
                cat >> confdefs.h <<\EOF
 #define USE_OLD_SLANG_KBD 1
@@ -3848,7 +3863,7 @@ EOF
 	       
 else
   echo "checking "Compiling with normal Slang keyboard code"" 1>&6
-echo "configure:3852: checking "Compiling with normal Slang keyboard code"" >&5
+echo "configure:3867: checking "Compiling with normal Slang keyboard code"" >&5
 fi
 
 
@@ -3858,13 +3873,13 @@ LNKOPTS="-Wl,-warn-common"
 if test "${enable_linkstatic+set}" = set; then
   enableval="$enable_linkstatic"
   echo "checking "Linking statically"" 1>&6
-echo "configure:3862: checking "Linking statically"" >&5
+echo "configure:3877: checking "Linking statically"" >&5
                PORTABLE_BINARY="-DPORTABLE_BINARY"
                
                LNKOPTS="${LNKOPTS} -static"
 else
   echo "checking "Linking for shared libraries"" 1>&6
-echo "configure:3868: checking "Linking for shared libraries"" >&5
+echo "configure:3883: checking "Linking for shared libraries"" >&5
 fi
 
 
@@ -3878,6 +3893,7 @@ WANT_WINDOWS="WANT_WINDOWS=-DWANT_WINDOWS"
   else
 WANT_WINDOWS=""
   fi
+
 
 
 
@@ -3921,7 +3937,7 @@ fi
 
   if test "$cpuemu" = "yes" -a "$experimental" = "yes"; then
    echo "checking "Compiling with optional 386 emulation code"" 1>&6
-echo "configure:3925: checking "Compiling with optional 386 emulation code"" >&5;
+echo "configure:3941: checking "Compiling with optional 386 emulation code"" >&5;
    X86_EMULATOR="X86_EMULATOR=1"
    cat >> confdefs.h <<EOF
 #define X86_EMULATOR 1
@@ -3930,7 +3946,7 @@ EOF
    
   else
    echo "checking "Compiling for native x86"" 1>&6
-echo "configure:3934: checking "Compiling for native x86"" >&5;
+echo "configure:3950: checking "Compiling for native x86"" >&5;
   fi
  
 # -m486 is usually in the specs for the compiler
@@ -3950,7 +3966,7 @@ OPT="$OPT -MD" # this should give painless dependencies
 # OPT=-fno-inline
 if test "$CONFIG_HOST" = "linux"; then
  echo "checking "Linux Specific build options"" 1>&6
-echo "configure:3954: checking "Linux Specific build options"" >&5
+echo "configure:3970: checking "Linux Specific build options"" >&5
    # Check whether --enable-nonet or --disable-nonet was given.
 if test "${enable_nonet+set}" = set; then
   enableval="$enable_nonet"
@@ -3961,11 +3977,11 @@ fi
 
   if test "$nonet" = "yes"; then
     echo "checking "Compiling without network support"" 1>&6
-echo "configure:3965: checking "Compiling without network support"" >&5;
+echo "configure:3981: checking "Compiling without network support"" >&5;
     USING_NET=""
   else
     echo "checking "Compiling with network support"" 1>&6
-echo "configure:3969: checking "Compiling with network support"" >&5;
+echo "configure:3985: checking "Compiling with network support"" >&5;
     USING_NET="-DUSING_NET"
   fi
  PIPE=-pipe
@@ -4252,6 +4268,7 @@ s%@WANT_WINDOWS@%$WANT_WINDOWS%g
 s%@OPTIONALSUBDIRS@%$OPTIONALSUBDIRS%g
 s%@REQUIRED@%$REQUIRED%g
 s%@REQUIRES_VM86PLUS@%$REQUIRES_VM86PLUS%g
+s%@PLUGINSUBDIRS@%$PLUGINSUBDIRS%g
 s%@TOPDIR@%$TOPDIR%g
 s%@INCDIR@%$INCDIR%g
 s%@X86_EMULATOR@%$X86_EMULATOR%g

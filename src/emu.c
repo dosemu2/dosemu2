@@ -448,6 +448,10 @@ emulate(int argc, char **argv)
     hardware_setup();		/* setup any hardware */
     extra_port_init();		/* setup ports dependent on config */
     memory_init();		/* initialize the memory contents */
+
+    /* here we include the hooks to possible plug-ins */
+    #include "plugin_init.h"
+
     boot();			/* read the boot sector & get moving */
 
     if (not_use_sigio)
@@ -597,6 +601,9 @@ leavedos(int sig)
     SETSIG(SIGFPE, ign_sigs);
     SETSIG(SIGTRAP, ign_sigs);
     warn("leavedos(%d) called - shutting down\n", sig);
+
+    /* here we include the hooks to possible plug-ins */
+    #include "plugin_close.h"
 
     if (config.speaker == SPKR_EMULATED) {
       g_printf("SPEAKER: sound off\n");
