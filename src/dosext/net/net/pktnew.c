@@ -379,22 +379,13 @@ pkt_int (void)
 	return 1;
 
     case F_SEND_PKT: {
-	/* unfortunately, a handle is not passed as a parameter for the */
-	/* SEND_PKT call.  so, we will have to scan the handle table to */
-	/* find a handle which is in use, and use its socket for the send */
-	int handle;
-
 	p_stats->packets_out++;
 	p_stats->bytes_out += LWORD(ecx);
 
 	pd_printf("========Sending packet======\n");
 	printbuf("packet to send:", SEG_ADR((struct ethhdr *), ds, si)); 
-	for (handle = 0; handle < MAX_HANDLE; handle++) {
-	    hdlp = &pg.handle[handle];
-
-	    if (hdlp->in_use) {
-		if (pg.flags & FLAG_NOVELL)	/* Novell hack? */
-		{
+	if (pg.flags & FLAG_NOVELL)	/* Novell hack? */
+	{
 		    char *p;
 		    short len;
 		    
@@ -413,19 +404,15 @@ pkt_int (void)
 			p[0] = len >> 8;
 			p[1] = (char)len;
 		    }
-		}
+	}
 
-		if (write(pkt_fd, SEG_ADR((char *), ds, si),
-				   LWORD(ecx)) >= 0) {
+	if (write(pkt_fd, SEG_ADR((char *), ds, si), LWORD(ecx)) >= 0) {
 		    pd_printf("Write to net was ok\n");
 		    return 1;
-		} 
-		else {
+	} else {
 		    warn("WriteToNetwork(%d,buffer,%u): error %d\n",
 			 pkt_fd, LWORD(ecx), errno);
 		    break;
-		}
-	    }
 	}
 	
 	p_stats->errors_out++;
