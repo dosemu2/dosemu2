@@ -1,12 +1,15 @@
 #define EMU_C 1
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/05/30 00:08:20 $
+ * $Date: 1994/06/03 00:58:55 $
  * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 1.87 $
+ * $Revision: 1.88 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 1.88  1994/06/03  00:58:55  root
+ * pre51_23 prep, Daniel's fix for scrbuf malloc().
+ *
  * Revision 1.87  1994/05/30  00:08:20  root
  * Prep for pre51_22 and temp kludge fix for dir a: error.
  *
@@ -506,8 +509,7 @@ void boot(void);
 extern void map_bios(void);	/* map in VIDEO bios */
 extern int open_kmem();		/* Get access to physical memory */
 
-void leavedos(int),		/* function to stop DOSEMU */
- usage(void),			/* Print parameters of DOSEMU */
+ void usage(void),		/* Print parameters of DOSEMU */
  hardware_init(void);		/* Initialize info on hardware */
 
 int dos_helper(void);		/* handle int's created especially for DOSEMU */
@@ -1679,11 +1681,6 @@ void
   mkdir(tmpdir, S_IREAD | S_IWRITE | S_IEXEC);
   exchange_uids();
 
-  /* allocate screen buffer for non-console video compare speedup */
-  scrbuf = (u_char *)malloc(CO * LI * 2);
-  scrbuf = (u_char *)malloc(CO * LI * 2);
-  v_printf("SCREEN saves at: %p of %d size\n", scrbuf, CO * LI * 2);
-
   /* setup DOS memory, whether shared or not */
   memory_setup();
 
@@ -1773,6 +1770,11 @@ void
   mouse_init();
   disk_init();
   termioInit();
+
+  /* allocate screen buffer for non-console video compare speedup */
+  scrbuf = (u_char *)malloc(CO * LI * 2);
+  v_printf("SCREEN saves at: %p of %d size\n", scrbuf, CO * LI * 2);
+
   DPMISETSIG(SIGSEGV, sigsegv, segv_stack);
   hardware_init();
   if (config.vga)
@@ -1979,7 +1981,7 @@ int
 
 void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 1.87 1994/05/30 00:08:20 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 1.88 1994/06/03 00:58:55 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -2197,7 +2199,7 @@ int
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: 1994/05/30 00:08:20 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: 1994/06/03 00:58:55 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /*      p_dos_str("maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */

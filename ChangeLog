@@ -1,3 +1,10 @@
+Thu Jun 02 1994 JES
+
+-	Patches from Rob including updates to s3 code.
+-	Daniels idea about malloc problem worked into emu.c by
+	moving where scrbuf is allocated. Wonder why it was allocated
+	where it was.
+
 Sun May 29 1994 JES
 
 -	Stuck in a fix for DIR a: error. It's a KLUDGE  for now, but

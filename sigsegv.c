@@ -1,12 +1,15 @@
 #define SIGSEGV_C 1
 
 /* 
- * $Date: 1994/05/26 23:15:01 $
+ * $Date: 1994/06/03 00:58:55 $
  * $Source: /home/src/dosemu0.60/RCS/sigsegv.c,v $
- * $Revision: 1.19 $
+ * $Revision: 1.20 $
  * $State: Exp $
  *
  * $Log: sigsegv.c,v $
+ * Revision 1.20  1994/06/03  00:58:55  root
+ * pre51_23 prep, Daniel's fix for scrbuf malloc().
+ *
  * Revision 1.19  1994/05/26  23:15:01  root
  * Prep. for pre51_21.
  *
@@ -296,7 +299,6 @@ inline void vm86_sigsegv()
     error("ERROR: SIGSEGV, protected insn...exiting!\n");
     fatalerr = 4;
     leavedos(fatalerr);		/* shouldn't return */
-    _exit(1000);
   }				/* end of switch() */
 
   if (LWORD(eflags) & TF) {
@@ -400,7 +402,6 @@ sigsegv(int signal, struct sigcontext_struct context)
 
     fatalerr = 4;
     leavedos(fatalerr);		/* shouldn't return */
-    _exit(1000);
   }
 }
 

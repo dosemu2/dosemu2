@@ -38,8 +38,6 @@ int s3_8514_base = 0;
 #define BASE_8514_1	0x2e8
 #define BASE_8514_2	0x148
 
-#define DEB(x) x
-
 static void out_crt(const int index, const int value)
 {
 	port_out(index, CRT_I);
@@ -67,7 +65,7 @@ static short s3_crt_regs[0x60] = {
 
 static void s3_save_ext_regs(u_char xregs[], u_short xregs16[])
 {
-	DEB(fprintf(stderr, "s3_save_ext_regs(): start.\n");)
+	v_printf("s3_save_ext_regs(): start.\n");
 
 	/*
 	 * Save status of the extensions enable/disable regs
@@ -113,7 +111,7 @@ static void s3_save_ext_regs(u_char xregs[], u_short xregs16[])
 		/*
 		 * I have an S3-911, so this part is untested
 		 */
-		DEB(fprintf(stderr,"s3_save_ext_regs(): saving additional regs\n");)
+		v_printf("s3_save_ext_regs(): saving additional regs\n");
 		xregs[24] = in_crt(0x50);
 		xregs[25] = in_crt(0x51);
 
@@ -145,7 +143,7 @@ static void s3_save_ext_regs(u_char xregs[], u_short xregs16[])
 
 static void s3_restore_ext_regs(u_char xregs[], u_short xregs16[])
 {
-        DEB(fprintf(stderr, "s3_restore_ext_regs(): start.\n");)
+        v_printf("s3_restore_ext_regs(): start.\n");
 
         /*
          * Enable extensions
@@ -186,7 +184,7 @@ static void s3_restore_ext_regs(u_char xregs[], u_short xregs16[])
 		/*
 		 * I have an S3-911, so this part is untested
 		 */
-		DEB(fprintf(stderr,"s3_restore_ext_regs(): restoring additional regs\n");)
+		v_printf("s3_restore_ext_regs(): restoring additional regs\n");
 		out_crt(0x50,xregs[24]);
 		out_crt(0x51,xregs[25]);
 
@@ -223,7 +221,7 @@ static void s3_set_bank(u_char bank)
 	int mode = in_crt(0x38);
 	int old_reg;
 
-	DEB(fprintf(stderr, "s3_set_bank(%d)\n", bank);)
+	v_printf("s3_set_bank(%d)\n", bank);
 
 	out_crt(0x38, 0x48);
 	old_reg = in_crt(0x35);
@@ -355,11 +353,11 @@ void vga_init_s3(void)
 		case 0xA4:	name = "801/805C"; s3_type = 1;		break;
 		case 0xA5:	name = "801/805D"; s3_type = 1;		break;
 		case 0xB0:	name = "928PCI"; s3_type = 1;		break;
-		default:	fprintf(stderr, "Unknown S3-chip, type = 0x%xd\n", chip);
+		default:	v_printf("Unknown S3-chip, type = 0x%xd\n", chip);
 	}
 
 	if (name)
-		fprintf(stderr, "S3 chip 86c%s detected.\n", name);
+		v_printf("S3 chip 86c%s detected.\n", name);
 
 	mode2 = in_crt(0x39);
         out_crt(0x39, 0xa5);
@@ -384,8 +382,8 @@ void vga_init_s3(void)
 			s3_memsize = 1024;
 	}
 
-	fprintf(stderr, "S3 base address: 0x%x\n", s3_8514_base);
-	fprintf(stderr, "S3 memory size : %d kbyte\n", s3_memsize);
+	v_printf("S3 base address: 0x%x\n", s3_8514_base);
+	v_printf("S3 memory size : %d kbyte\n", s3_memsize);
 
 	out_crt(0x38, mode);
 }

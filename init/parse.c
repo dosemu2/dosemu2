@@ -5,12 +5,15 @@
  *
  * The parser is a hand-written state machine.
  *
- * $Date: 1994/05/18 00:16:55 $
+ * $Date: 1994/06/03 00:59:58 $
  * $Source: /home/src/dosemu0.60/init/RCS/parse.c,v $
- * $Revision: 1.6 $
+ * $Revision: 1.7 $
  * $State: Exp $
  *
  * $Log: parse.c,v $
+ * Revision 1.7  1994/06/03  00:59:58  root
+ * pre51_23 prep, Daniel's fix for scrbuf malloc().
+ *
  * Revision 1.6  1994/05/18  00:16:55  root
  * pre15_17
  *
@@ -529,8 +532,7 @@ syn_t global_syns[] =
 #define istoken(c) (!isspace(c) && !iscomment(c))
 #define read_until_eol(fd) read_until_rtn_previous(fd, '\n')
 
-#define die(reason) do { error("ERROR: par dead: %s\n", reason); \
-			      longjmp(exitpar,1); } while(0)
+void die(char *reason) NORETURN;
 
 /****************************** globals ************************/
 FILE *globl_file = NULL;
@@ -680,6 +682,12 @@ do_ports(word_t * word, arg_t a1, arg_t a2)
   if (arg2)
     free(arg2);
   return word->token;
+}
+
+void die(char *reason)
+{
+  error("ERROR: par dead: %s\n", reason);
+  leavedos(0);
 }
 
 int
@@ -2006,7 +2014,6 @@ parse_config(char *confname)
 
   if (!fd && !(fd = open_file(CONFIG_FILE))) {
     die("cannot open configuration files!");
-    return 0;
   }
 
   c_hdisks = 0;

@@ -3,12 +3,15 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/05/26 23:15:01 $
+ * $Date: 1994/06/03 00:58:55 $
  * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
- * $Revision: 1.31 $
+ * $Revision: 1.32 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 1.32  1994/06/03  00:58:55  root
+ * pre51_23 prep, Daniel's fix for scrbuf malloc().
+ *
  * Revision 1.31  1994/05/26  23:15:01  root
  * Prep. for pre51_21.
  *
@@ -241,6 +244,12 @@ struct debug_flags {
 # define FORMAT(T,A,B)  __attribute__((format(T,A,B)))
 #else
 # define FORMAT(T,A,B)
+#endif
+
+#if __GNUC__ >= 2
+# define NORETURN	__attribute__((noreturn))
+#else
+# define NORETURN
 #endif
 
 extern void saytime(char *m_str);
@@ -509,6 +518,6 @@ extern short pop_word(struct vm86_regs *);
 extern boolean_t bios_emm_fn(state_t *);
 extern int GetDebugFlagsHelper(char *);
 extern int SetDebugFlagsHelper(char *);
-extern void leavedos(int);
+extern void leavedos(int) NORETURN;
 
 #endif /* EMU_H */
