@@ -17,9 +17,12 @@ pristine:
 	@$(MAKE) -C src $@
 	rm -f config.cache config.status config.log src/include/config.h
 	rm -f src/Makefile.common src/arch/linux/Makefile.main
-	rm -f `find . -name Makefile`
+	rm -f `find src -name Makefile`
+	rm -f doc/Makefile
 	rm -f `find . -name '*~'`
 	rm -f `find . -name '*.d'`
 	rm -f `find . -name '*[\.]orig'`
 	rm -f `find . -name '*[\.]rej'`
 	rm -vf `find . -size 0`
+	(cd setup/demudialog; make clean)
+	rm -f Makefile

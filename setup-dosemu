@@ -3,6 +3,8 @@
 # Front end to the runtime & compile time scripts.
 #
 
+TOPDIR=`pwd -P`
+export TOPDIR
 TEMP=/tmp/$0.$$
 
 . setup/select-dialog
@@ -17,7 +19,7 @@ while [ $FINISHED -ne 1 ]
 do
   $DIALOG --backtitle "DOSEmu Configuration" \
     --title "Select Configuration to perform" \
-    --menu "Choose the Configuration to perform:" 9 60 3 $CURRENT \
+    --menu "Choose the Configuration to perform:" 10 60 3 $CURRENT \
       1 "Compile time (runs ./configure)" \
       2 "Runtime (both System Wide, and personal)" \
       3 "Exit" 2> $TEMP
@@ -43,6 +45,9 @@ do
         FINISHED=1
         ;;
     esac
+  elif [ $RETVAL -eq 2 ]
+  then
+    $DIALOG --backtitle 'DOSEmu configuration' --title 'Help' --msgbox 'Select "Compile time" to configure the DOSEmu compilation process and select which optional features are included. Select "Runtime" to configure the variables DOSEmu uses when it runs, such as the amount and type of memory to provide to applications.' 10 65
   else
     FINISHED=1
   fi

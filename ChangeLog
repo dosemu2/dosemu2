@@ -1,3 +1,14 @@
+97/03/07 ver. 0.65.99.13 unofficial pre-release
+	From Alistair
+	- fixes for setup & gnats
+	  (Yeah, now it works fine; and Alistair has time for his sound ;-)
+	From Hans
+	- send-pr gets dosemu-version out of ./configure.in
+	- stole lxdialog, named it 'demudialog' and adapted setup gnats
+	  to use that. (normal dialog shows a strange handling, when used
+	  for Alistairs stuff)
+	  I hope Alistair will enhance 'demudialog' to fit our needs
+	  again better ;-)
 97/02/29 ver. 0.65.99.12 unofficial pre-release
 	From Alistair
 	- setup stuff from 0.65

@@ -1,0 +1,28 @@
+Featured in this release is an automatic BUG Reporting system.
+
+Simply run ./submit-bug-report and fill in as much information as you 
+can about the bug. The system will automatically make copies of your
+/etc/dosemu.conf and your .dosrc (if you have one). It also allows you
+to include a file containing debug information.
+
+Please try to fill in as much detail as possible and select a suitable 
+category as this will help us to trace and deal with the bug quickly.
+
+The default action is to save the report in a file which you can then
+send later or from another machine.[1] If you have a direct internet 
+connection then the bug report can be sent straight away if you set 
+the 'Report Action' to 'email'. 
+
+You should recieve a response within about 24hrs confirming that the 
+bug report has been recieved and details of who is tracking the bug.
+You will also be notified of our progress.
+
+If you have any problems then please get in touch!
+
+Alistair MacDonald
+<alistair@slitesys.demon.co.uk>
+
+[1] You will probably need to edit the file before you can send it. 
+Please try and preserver the headers as they are important. If you 
+have access to another unix system then the best method for sending 
+the file is to feed the file to '/usr/lib/sendmail -t'.

@@ -194,7 +194,6 @@ function write_menu_action () {
       print "RESULT=`cat $TEMP`"
       print "set_value " var_name( menu_var[i]) " \"$RESULT\""
       print "ITEM" i "=\"$RESULT\""
-print "else echo error $RESULT >> /tmp/als-out"
       print "fi"
       print ";;"
 
@@ -221,8 +220,7 @@ print "else echo error $RESULT >> /tmp/als-out"
 
   print "elif [ $RESULT -eq 2 ]"
   print "then"
-  print "$DIALOG --backtitle \'Missing Help\' --msgbox \'The help system is not yet written. Please read etc/config.dist for full details of the options.\' 8 60 "
-#  print "CURRENT=`cat $TEMP`"
+  print "$DIALOG --backtitle \'Missing Help\' --msgbox \'Sorry: The help system is not yet written.\' 8 60 "
   print "else"
   print "FINISHED=1"
   print "fi"
@@ -235,7 +233,7 @@ function write_menu_menu_footer () {
 function write_menu_exit () {
   if (menu_class == "menu") {
     if ( menu_exit != "" ) {
-      print menu_exit " || $DIALOG --backtitle \'Missing Exit Function Error\' --msgbox \'The exit function " menu_exit " appears to be missing.\' 8 60 "
+      print menu_exit " || $DIALOG --backtitle \'Exit Function Error\' --msgbox \'The exit function " menu_exit " appears to be missing or has been aborted.\' 8 60 "
 
     }
   }

@@ -29,10 +29,16 @@ set_geometry () {
 
 # Preference is 'lxdialog';'dialog 0.6';'dialog 0.4'
 select_dialog() {
-	if [ -x /usr/src/linux/scripts/lxdialog/lxdialog ]
+	if [ ! -x ${TOPDIR}/setup/demudialog/demudialog ]; then
+	  if [ ! -f ${TOPDIR}/setup/demudialog/tried-compile ]; then
+		(cd ${TOPDIR}/setup/demudialog; make)
+		touch ${TOPDIR}/setup/demudialog/tried-compile
+	  fi
+	fi
+	if [ -x ${TOPDIR}/setup/demudialog/demudialog ]
 	then
 #		DIALOG=support/lxdialog-wrap
-		DIALOG=/usr/src/linux/scripts/lxdialog/lxdialog
+		DIALOG=${TOPDIR}/setup/demudialog/demudialog
 		DIALOG_SUPPORTS_CURRENT=true
 		DIALOG_SUPPORTS_VALUE=true
 	elif (grep "version 0\.4" `which dialog` > /dev/null)

@@ -20,6 +20,11 @@
 # along with GNU GNATS; see the file COPYING.  If not, write to
 # the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
+# extract dosemu version
+__VER=`grep VERSION= configure.in|head -n1|cut '-d"' -f2`
+__SUB=`grep SUBLEVEL= configure.in|cut '-d"' -f2`
+__PATCH=`grep PATCHLEVEL= configure.in|cut '-d"' -f2`
+
 # The version of this send-pr.
 VERSION=3.99d-am0.1
 
@@ -28,7 +33,7 @@ SUBMITTER=net
 
 # Where the GNATS directory lives, if at all.
 [ -z "$GNATS_ROOT" ] && 
-GNATS_ROOT=/usr/src/dosemu-0.65.0.0
+GNATS_ROOT=/usr/src/dosemu-${__VER}.${__SUB}.${__PATCH}
 
 # The default mail address for PR submissions. 
 GNATS_ADDR=dosemu-bugs@slitesys.demon.co.uk
@@ -42,7 +47,7 @@ DATADIR=.
 
 
 # The default release for this host.
-DEFAULT_RELEASE="dosemu-0.65.0.0"
+DEFAULT_RELEASE="dosemu-${__VER}.${__SUB}.${__PATCH}"
 
 # The default organization.
 DEFAULT_ORGANIZATION="user"
@@ -55,8 +60,7 @@ GNATS_SITE=dosemu
 
 # What mailer to use.  This must come after the config file, since it is
 # host-dependent.
-#MAIL_AGENT="/usr/lib/sendmail -oi -t"
-MAIL_AGENT="less"
+MAIL_AGENT="/usr/lib/sendmail -oi -t"
 
 # How to read the passwd database.
 PASSWD="cat /etc/passwd"
@@ -378,19 +382,29 @@ __EOF__
 >System-Config:
 	$SYSTEM_CONFIG_C
 __EOF__
+      if [ -e /etc/dosemu.conf ] 
+      then
       grep -vh "^[\t ]*#\|^[\t ]*$" /etc/dosemu.conf /dev/null > $file.t
-      cat $file.t | ( gzip | uuencode dosemu.conf 2> /dev/null >> $file )
+        cat $file.t | ( gzip | uuencode dosemu.conf.gz 2> /dev/null >> $file )
       if [ $? -ne 0 ]; then cat $file.t >> $file; fi
       rm $file.t
+      else
+        echo "No /etc/dosemu.conf" >> $file
+      fi
       cat >> $file << __EOF__
 
 >Personal-Config:
 	$PERSONAL_CONFIG_C
 __EOF__
-      grep -vh "^[\t ]*#\|^[\t ]*$" /etc/dosemu.conf /dev/null > $file.t
-      cat $file.t | ( gzip | uuencode dosrc 2> /dev/null >> $file )
+      if [ -e $HOME/.dosrc ] 
+      then
+        grep -vh "^[\t ]*#\|^[\t ]*$" $HOME/.dosrc /dev/null > $file.t
+        cat $file.t | ( gzip | uuencode dosrc.gz 2> /dev/null >> $file )
       if [ $? -ne 0 ]; then cat $file.t >> $file; fi
       rm $file.t
+      else
+        echo "No .dosrc" >> $file
+      fi
       echo >> $file
     done
   fi
@@ -507,6 +521,7 @@ while [ -z "$REQUEST_ID" ]; do
         input=a
       fi
     fi
+    echo ""
     case "$input" in
       a*)
 	if [ -z "$BATCH" ]; then

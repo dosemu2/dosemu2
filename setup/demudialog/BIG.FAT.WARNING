@@ -1,0 +1,10 @@
+
+1. This is stolen from the Linux kernel source (linux/scripts/lxdialog)
+   All credits for the good enhancements to the kernel team.
+   We have it here, because most dosemu will not have a compiled one
+   available and we want to ease installation of dosemu.
+
+2. This is NOT the official version of dialog.  This version has been
+   significantly modified from the original.  It is for use by the dosemu
+   configuration script.  Please do not bother Savio Lam with 
+   questions about this program.

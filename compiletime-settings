@@ -1,0 +1,1 @@
+config {  sbemu on mitshm on x on }

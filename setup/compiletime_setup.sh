@@ -15,7 +15,7 @@
 
 # A Few settings
 TEMP="/tmp/$0.$$"
-CONF_FILE="../.compiletime-settings"
+CONF_FILE="../compiletime-settings"
 
 . select-dialog
 
@@ -27,13 +27,15 @@ clean_up() {
 }
 
 get_defaults() {
-  awk -f 'parse-config' -f 'parse-misc' -f 'parse-config-sh' $CONF_FILE > $TEMP
-  . $TEMP
+  awk -f 'parse-config' -f 'parse-misc' -f 'parse-config-sh' $CONF_FILE > $TEMP 2> /dev/null
+  . $TEMP 2> /dev/null
 }
 
 get_value() {
   local TMP
-  eval "TMP=\${LOCAL_$2:-\$SYSTEM_$2}"
+
+  eval "TMP=\$config_$2"
+
   if [ "@$TMP" != "@" ]
   then
     eval "$1=$TMP"
@@ -41,7 +43,7 @@ get_value() {
 }
 
 set_value() {
-  eval "$1=$2"
+  eval "config_$1=$2"
 }
 
 handle_response_value() {
@@ -63,7 +65,7 @@ form_pairs () {
   while [ $# -gt 1 ]
   do
     val=""
-    get_value val "${prefix}_$1"
+    get_value val $1
     if [ "@$val" != "@" -a "@$val" != "@\*" ]; 
     then
       str="$str $1 $val"
@@ -120,79 +122,78 @@ write_single() {
   fi
 }
 
-MainMenu_End() {
+write_out() {
   local value
   local STRING=""
 
+  handle_Configure_Action
+
   value=""
+  get_value value configure
+  if [ "@$value" = "@save" ]
+  then
+    value=""
   get_value value novm86plus
-  if [ "@$value" != "@" ]
+  if [ "@$value" = "@on" ]
   then
     STRING="$STRING --enable-novm86plus"
   fi
 
   value=""
   get_value value dodebug
-  if [ "@$value" != "@" ]
+  if [ "@$value" = "@on" ]
   then
     STRING="$STRING --enable-dodebug"
   fi
 
   value=""
-  get_value value new-kbd
-  if [ "@$value" != "@" ]
+    get_value value newkbd
+  if [ "@$value" = "@on" ]
   then
     STRING="$STRING --enable-new-kbd"
   fi
 
   value=""
   get_value value x
-  if [ "@$value" != "@" ]
+  if [ "@$value" != "@on" ]
   then
-    STRING="$STRING --with-x"
-  else
     STRING="$STRING --without-x"
   fi
 
   value=""
   get_value value mitshm
-  if [ "@$value" != "@" ]
+  if [ "@$value" != "@on" ]
   then
-    STRING="$STRING --enable-mitshm"
-  else
-    STRING="$STRING --disable-mitshm"
+    STRING="$STRING --enable-nomitshm"
   fi
 
   value=""
   get_value value sbemu
-  if [ "@$value" != "@" ]
+  if [ "@$value" != "@on" ]
   then
-    STRING="$STRING --enable-sbemu"
-  else
-    STRING="$STRING --disable-sbemu"
+    STRING="$STRING --enable-nosbemu"
   fi
 
   (cd ..; clear; ./configure $STRING)
-}
+  echo ""
+  echo "   ... type ENTER to return to menu"
+  read
 
-write_out() {
   echo "function setup_config () {" > $TEMP
 
-  write_single  sbemu
-  write_single  novm86plus
-  write_single  mitshm
-  write_single  x
-  write_single  dodebug
-  write_single  new-kbd
+  write_pairs  config  sbemu novm86plus mitshm x dodebug newkbd
 
   echo "}" >> $TEMP
 
   $DIALOG --backtitle "DOSEmu Compile-Time Configuration" \
     --infobox "Writing Configuration ..." 3 50 2> /dev/null
 
-  cp $CONF_FILE $CONF_FILE.bak
+  cp -f $CONF_FILE ${CONF_FILE}~ 2> /dev/null
+  touch $CONF_FILE
   awk -f 'parse-misc' -f 'write-config' -f $TEMP $CONF_FILE > $CONF_FILE.tmp
   mv $CONF_FILE.tmp $CONF_FILE  
+  fi
+
 }
 
 load_menus() {
@@ -208,6 +209,8 @@ load_menus() {
 
 main() {
   get_defaults
+
+  set_value configure save
 
   load_menus
 

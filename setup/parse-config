@@ -537,3 +537,9 @@ tolower($1) == "sound_emu" {
   handle_multiline("sound_emu_")
   next
 }
+
+tolower($1) == "config" {
+  handle_multiline("config_")
+  next
+}
+

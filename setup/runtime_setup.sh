@@ -666,7 +666,7 @@ write_out() {
   $DIALOG --backtitle "DOSEmu Run-Time Configuration" \
     --infobox "Writing Configuration ..." 3 50 2> /dev/null
 
-  cp $CONF_FILE $CONF_FILE.bak
+  cp $CONF_FILE ${CONF_FILE}.old
   awk -f 'parse-misc' -f 'write-config' -f $TEMP $CONF_FILE > $CONF_FILE.tmp
   mv $CONF_FILE.tmp $CONF_FILE  
 }

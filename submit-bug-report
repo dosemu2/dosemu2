@@ -1,0 +1,9 @@
+#!/bin/bash
+#
+# Call the bug-reporting script.
+#
+# (We do it like this so we can provide an X windows front end at some point)
+#
+TOPDIR=`pwd -P`
+export TOPDIR
+(cd gnats ; ./send-pr.sh)

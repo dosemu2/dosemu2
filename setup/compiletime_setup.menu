@@ -5,10 +5,17 @@ start "Main Menu"
 menu "Main Menu" {
   description "Please select a setting:"
   boolean "disable VM86 enhancement" novm86plus
-  boolean "compile for with debug info" dodebug
-  boolean "use the new keyboard code" new-kbd
+  boolean "compile with debug info" dodebug
+  boolean "use the new keyboard code" newkbd
   boolean "Use X-Windows" x
   boolean "Use MIT Shared Memory extensions under X" mitshm
   boolean "SB Emulation" sbemu
-  exit MainMenu_End
+}
+
+menu "Configure Action" {
+  description "Do What with the Configuration ?"
+  list configure {
+    "Save and Run ./configure" save
+    "Abort" abort
+  }
 }
