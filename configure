@@ -7395,76 +7395,7 @@ echo "${ECHO_T}" >&6
   else
    echo "$as_me:$LINENO: result: $SLANGINC $SLANGLIB" >&5
 echo "${ECHO_T}$SLANGINC $SLANGLIB" >&6
-   echo "$as_me:$LINENO: checking for SLsmg_write_nwchars in -lslang" >&5
-echo $ECHO_N "checking for SLsmg_write_nwchars in -lslang... $ECHO_C" >&6
-if test "${ac_cv_lib_slang_SLsmg_write_nwchars+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lslang -lm -ldl $LIBS"
-cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-
-/* Override any gcc2 internal prototype to avoid an error.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-/* We use char because int might match the return type of a gcc2
-   builtin and then its argument prototype would still apply.  */
-char SLsmg_write_nwchars ();
-int
-main ()
-{
-SLsmg_write_nwchars ();
-  ;
-  return 0;
-}
-_ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
-if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
-  (eval $ac_link) 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } &&
-	 { ac_try='test -z "$ac_c_werror_flag"			 || test ! -s conftest.err'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; } &&
-	 { ac_try='test -s conftest$ac_exeext'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; }; then
-  ac_cv_lib_slang_SLsmg_write_nwchars=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-ac_cv_lib_slang_SLsmg_write_nwchars=no
-fi
-rm -f conftest.err conftest.$ac_objext \
-      conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-echo "$as_me:$LINENO: result: $ac_cv_lib_slang_SLsmg_write_nwchars" >&5
-echo "${ECHO_T}$ac_cv_lib_slang_SLsmg_write_nwchars" >&6
-if test $ac_cv_lib_slang_SLsmg_write_nwchars = yes; then
-  { echo "$as_me:$LINENO: WARNING: Rejecting system S-Lang with UTF-8 support. It is incompatible with DOSEMU. Using supplied S-Lang." >&5
-echo "$as_me: WARNING: Rejecting system S-Lang with UTF-8 support. It is incompatible with DOSEMU. Using supplied S-Lang." >&2;}
-    buggy_slang=yes
-    $srcdir/mkpluginhooks enable slang yes
-else
-  echo "$as_me:$LINENO: checking for SLtt_get_terminfo in -lslang" >&5
+   echo "$as_me:$LINENO: checking for SLtt_get_terminfo in -lslang" >&5
 echo $ECHO_N "checking for SLtt_get_terminfo in -lslang... $ECHO_C" >&6
 if test "${ac_cv_lib_slang_SLtt_get_terminfo+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
@@ -7533,8 +7464,6 @@ else
   { echo "$as_me:$LINENO: WARNING: No S-Lang library found. Using supplied S-Lang." >&5
 echo "$as_me: WARNING: No S-Lang library found. Using supplied S-Lang." >&2;}
 		$srcdir/mkpluginhooks enable slang yes
-fi
-
 fi
 
   fi
@@ -11363,12 +11292,6 @@ echo "$as_me: WARNING: Of course you could also include the gcc bin directory in
 echo "$as_me: WARNING: your path." >&2;}
 fi
 
-if test "$buggy_slang" = "yes" ; then
-  { echo "$as_me:$LINENO: WARNING: " >&5
-echo "$as_me: WARNING: " >&2;}
-  { echo "$as_me:$LINENO: WARNING: Rejecting system S-Lang with UTF-8 support. It is incompatible with DOSEMU. Forcing use of the supplied S-Lang plugin." >&5
-echo "$as_me: WARNING: Rejecting system S-Lang with UTF-8 support. It is incompatible with DOSEMU. Forcing use of the supplied S-Lang plugin." >&2;}
-fi
 if test "$have_x" = "no" ; then
   { echo "$as_me:$LINENO: WARNING: " >&5
 echo "$as_me: WARNING: " >&2;}

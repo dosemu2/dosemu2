@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <limits.h>
 #include <termios.h>
 #include <errno.h>
 #include <slang.h>
@@ -43,6 +44,7 @@
 #include "keyb_clients.h"
 #include "env_term.h"
 #include "translate.h"
+#include "dosemu_charset.h"
 #include "vgaemu.h"
 #include "vgatext.h"
 
@@ -78,7 +80,11 @@ static int *Attribute_Map;
 /* if negative, char is invisible */
 
 int cursor_blink = 1;
-static unsigned char The_Charset[256];
+struct mbchar {
+  size_t len;
+  unsigned char *mbstring;
+};
+static struct mbchar The_Charset[256];
 static int slang_update (void);
 
 static int Slsmg_is_not_initialized = 1;
@@ -118,8 +124,7 @@ void get_screen_size (void)
 
 static void set_char_set (void)
 {
-	struct char_set *term_charset = trconfig.output_charset;
-	struct char_set *display_charset = trconfig.video_mem_charset;
+	struct char_set *term_charset, *display_charset;
 	/* For now neither encoding can be a stateful encoding... */
 	/* The video charset can never be a stateful encoding
 	 * it is a hardware limitation.
@@ -127,13 +132,29 @@ static void set_char_set (void)
 	struct char_set_state term_state;
 	struct char_set_state display_state;
 	int i;
+	struct mbchar *mbc;
+        char *term = getenv("TERM");
+
+	if ( term && strncmp(term, "linux", 5) == 0 && MB_CUR_MAX == 1 &&
+	     strstr( "cp437", trconfig.video_mem_charset->names[0] ) ) {
+		Use_IBM_Codes = 1;
+		/* The following turns on the IBM character set mode of virtual console
+		 * The same code is echoed twice, then just in case the escape code
+		 * not recognized and was printed, erase it with spaces.
+		 */
+		SLtt_write_string ("\033(U\033(U\r        \r");
+		trconfig.output_charset = get_terminal_charset(lookup_charset("cp437"));
+	}
+
+	term_charset = trconfig.output_charset;
+	display_charset = trconfig.video_mem_charset;
 
 	/* Initial don't allow the high control characters. */
 	SLsmg_Display_Eight_Bit = 0xA0;
 	/* Build the translate tables */
 	v_printf("mapping internal characters to terminal characters:\n");
-	for(i= 0; i <= 0xff; i++) {
-		unsigned char buff[1];
+	for(i= 0, mbc = The_Charset; i <= 0xff; i++, mbc++) {
+		unsigned char buff[MB_CUR_MAX + 1];
 		t_unicode uni;
 		size_t result;
 
@@ -141,15 +162,20 @@ static void set_char_set (void)
 		init_charset_state(&display_state, display_charset);
 
 		buff[0] = i;
+		buff[1] = '\0';
 		result = charset_to_unicode(&display_state, &uni, buff, 1);
-		result = unicode_to_charset(&term_state, uni, The_Charset + i, 1);
-		v_printf("mapping: %c -> %04x -> %c\n", i, uni, The_Charset[i]);
+		result = unicode_to_charset(&term_state, uni, buff, MB_LEN_MAX);
+		mbc->len = result > 1 ? result : 1;
+		buff[mbc->len] = '\0';
+		mbc->mbstring = strdup(buff);
+		v_printf("mapping: %x -> %04x -> %s (len=%d)\n", i, uni,
+			 mbc->mbstring, result);
 
 		/* If we have any non control charcters in 0x80 - 0x9f
 		 * set up  the slang code up so we can send them. 
 		 */
-		if ((The_Charset[i] >= 0x80) && ((The_Charset[i] <= 0x9F)) &&
-			(((uni >= 0x20) && (uni < 0x80)) || (uni > 0x9f))) {
+		if (mbc->len > 1 || (buff[0] >= 0x80 && buff[0] <= 0x9f
+		    && (((uni >= 0x20) && (uni < 0x80)) || (uni > 0x9f)))) {
 			/* Allow us to use chars 0x80 to 0x9F */
 			SLsmg_Display_Eight_Bit = 0x80;
 		}
@@ -160,16 +186,6 @@ static void set_char_set (void)
 	/* Slang should filter out the control sequences for us... 
 	 * So don't worry about characters 0x00 - 0x1f && 0x80 - 0x9f
 	 */
-	if (trconfig.output_charset == lookup_charset("cp437") || 
-	    trconfig.output_charset == lookup_charset("terminal_cp437")) {
-		Use_IBM_Codes = 1;
-		/* Should we be testing TERM here??? */
-		/* The following turns on the IBM character set mode of virtual console
-		 * The same code is echoed twice, then just in case the escape code
-		 * not recognized and was printed, erase it with spaces.
-		 */
-		SLtt_write_string ("\033(U\033(U\r        \r");
-	}
 }
 
 int using_xterm(void)
@@ -522,21 +538,27 @@ static int slang_update (void)
 
 static void term_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
 {
-   int i;
-   unsigned char buf[len];
+   int i, buflen;
+   unsigned char buf[len * MB_LEN_MAX + 1];
    int this_obj = Attribute_Map[attr];
 
    y -= DOSemu_Terminal_Scroll_Min;
    if (y < 0 || y >= SLtt_Screen_Rows) return;
    SLsmg_gotorc (y, x);
    SLsmg_set_color (abs(this_obj));
-   for (i = 0; i < len; i++) {
-      buf[i] = The_Charset [text[i]];
+   for (i = 0, buflen = 0; i < len; i++) {
       /* take care of invisible character */
-      if (this_obj < 0) buf[i] = ' ';
+      if (this_obj < 0) {
+	 buf[buflen++] = ' ';
+      } else {
+	 struct mbchar *mbc = The_Charset + text[i];
+	 memcpy(buf + buflen,  mbc->mbstring, mbc->len);
+         buflen += mbc->len;
+      }
    }
-   SLsmg_write_nchars (buf, len);
-   v_printf("term_draw_string %d %d %d %s\n", x, y, len, text);
+   buf[buflen] = '\0';
+   SLsmg_write_nchars(buf, buflen);
+   v_printf("term_draw_string %d %d %d %s\n", x, y, len, buf);
 }
 
 static void term_update(void)

@@ -247,15 +247,11 @@ AC_ARG_WITH(slangdir, [  --with-slangdir=dir     Specify S-Lang directory],
    AC_MSG_RESULT() 
   else
    AC_MSG_RESULT($SLANGINC $SLANGLIB)
-   AC_CHECK_LIB(slang, SLsmg_write_nwchars,
-    AC_MSG_WARN([Rejecting system S-Lang with UTF-8 support. It is incompatible with DOSEMU. Using supplied S-Lang.])
-    buggy_slang=yes
-    $srcdir/mkpluginhooks enable slang yes,
    AC_CHECK_LIB(slang, SLtt_get_terminfo, 
                 LIBS="$LIBS -lslang -lm -ldl";LDFLAGS="$LDFLAGS $SLANGLIB",
                 [AC_MSG_WARN([No S-Lang library found. Using supplied S-Lang.])]
 		$srcdir/mkpluginhooks enable slang yes,
-   -lm -ldl), -lm -ldl)
+   -lm -ldl)
   fi
 )
 
@@ -817,10 +813,6 @@ if test "$GCC" != "yes" ; then
   AC_MSG_WARN(your path.)
 fi
   
-if test "$buggy_slang" = "yes" ; then
-  AC_MSG_WARN( )
-  AC_MSG_WARN([Rejecting system S-Lang with UTF-8 support. It is incompatible with DOSEMU. Forcing use of the supplied S-Lang plugin.])
-fi
 if test "$have_x" = "no" ; then
   AC_MSG_WARN( )
   AC_MSG_WARN(Compiling without X support.)
