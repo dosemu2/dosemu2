@@ -100,6 +100,11 @@ typedef struct vm86_regs state_t;
  *
  * HISTORY:
  * $Log$
+ * Revision 1.6  2003/08/17 12:24:37  bartoldeman
+ * MFS cleanup, fix exists() and wildcard delete.
+ * Also make findfirst on a single file more efficient again and get it to
+ * honour devices again.
+ *
  * Revision 1.5  2003/08/16 14:01:17  bartoldeman
  * Add support (using the translate plugin) to the MFS to translate between
  * the external and internal charset for filenames.
@@ -273,6 +278,7 @@ typedef struct vm86_regs state_t;
 struct dir_ent {
   char name[8];			/* dos name and ext */
   char ext[3];
+  char d_name[256];             /* unix name as in readdir */
   u_short mode;			/* unix st_mode value */
   u_short hidden;
   u_short long_path;            /* directory has long path */

@@ -291,6 +291,8 @@ static boolean_t dos_fs_dev(state_t *);
 static boolean_t compare(char *, char *, char *, char *);
 static int dos_fs_redirect(state_t *);
 static int is_long_path(const char *s);
+static void path_to_ufs(char *ufs, size_t ufs_offset, const char *path,
+                        int PreserveEnvVar, int lowercase);
 
 static boolean_t drives_initialized = FALSE;
 
@@ -956,33 +958,46 @@ static struct dir_ent *make_entry(struct dir_list *dir_list)
   return entry;
 }
 
-/* check if name/mname.mext exists as such if it does not contain
-   wildcards */
-static boolean_t exists(char *name, char *mname, char *mext, struct stat *st, int drive)
+/* construct (lowercase) unix name from (uppercase) DOS mname and DOS mext */
+static void dos83_to_ufs(char *name, const char *mname, const char *mext)
 {
-  char fullname[MAXPATHLEN];
+  char filename[8+1+3+1];
   size_t len;
-  int rc;
-    
-  len = strlen(name);
-  strcpy(fullname, name);
-  fullname[len++] = '/';
-  memcpy(fullname + len, mname, 8);
-  len += 8;
-  while (fullname[len - 1] == ' ')
+
+  len = 8;
+  while (mname[len - 1] == ' ')
     len--;
-  fullname[len++] = '.';
-  memcpy(fullname + len, mext, 3);
+  memcpy(filename, mname, len);
+  filename[len++] = '.';
+  memcpy(filename + len, mext, 3);
   len += 3;
-  while (fullname[len - 1] == ' ')
+  while (filename[len - 1] == ' ')
     len--;
-  while (fullname[len - 1] == '.')
+  while (filename[len - 1] == '.')
     len--;
-  fullname[len] = '\0';
-  rc = find_file(fullname, st, drive);
-  return rc;
+  filename[len] = '\0';
+  path_to_ufs(name, 0, filename, 0, 1);
 }
 
+/* check if name/filenae exists as such if it does not contain wildcards */
+static boolean_t exists(const char *name, const char *filename,
+                        struct stat *st, int drive)
+{
+  char fullname[MAXPATHLEN];
+
+  strcpy(fullname, name);
+  strcat(fullname, "/");
+  strcat(fullname, filename);
+  Debug0((dbg_fd, "exists() result = %s\n", fullname));
+  return find_file(fullname, st, drive);
+}
+
+/* get directory;
+   name = UNIX directory name
+   mname = DOS (uppercase) name to match (can have wildcards)
+   mext = DOS (uppercase) extension to match (can have wildcards)
+   drive = drive on which the directory lives
+*/
 static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
 {
   struct mfs_dir *cur_dir;
@@ -1021,6 +1036,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
 
     memcpy(entry->name, mname, 8);
     memset(entry->ext, ' ', 3);
+    dos83_to_ufs(entry->d_name, entry->name, entry->ext);
     entry->mode = S_IFREG;
     entry->size = 0;
     entry->time = time(NULL);
@@ -1032,7 +1048,8 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
   else if (!memchr(mname, '?', 8) && !memchr(mname, '*', 8) &&
            !memchr(mext, '?', 3) && !memchr(mext, '*', 3))
   {
-    if (exists(name, mname, mext, &sbuf, drive))
+    dos83_to_ufs(buf, mname, mext);
+    if (exists(name, buf, &sbuf, drive))
     {
       Debug0((dbg_fd, "filename exists, %s %.8s%.3s\r\n", name, mname, mext));
       dir_list = make_dir_list(1);
@@ -1040,6 +1057,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
 
       memcpy(entry->name, mname, 8);
       memcpy(entry->ext, mext, 3);
+      strcpy(entry->d_name, buf);
       entry->mode = sbuf.st_mode;
       entry->size = sbuf.st_size;
       entry->time = sbuf.st_mtime;
@@ -1092,6 +1110,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
 
       memcpy(entry->name, fname, 8);
       memcpy(entry->ext, fext, 3);
+      strcpy(entry->d_name, cur_ent->d_name);
 
       entry->hidden = is_hidden(cur_ent->d_name);
 
@@ -1651,7 +1670,7 @@ time_t time_to_unix(u_short dos_date, u_short dos_time)
    return mktime(&T);
 }
 
-__inline__ static void
+static void
 path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar,
             int lowercase)
 {
@@ -2059,7 +2078,7 @@ static inline int hlist_push(struct dir_list *hlist, unsigned psp, char *fpath)
 
   Debug0((dbg_fd, "hlist_push: %d hlist=%p PSP=%d path=%s\n", hlists.tos, hlist, psp, fpath));
 
-  for (se = hlists.stack; se < &hlists.stack[hlists.tos]; se++) {
+  if (fpath[0]) for (se = hlists.stack; se < &hlists.stack[hlists.tos]; se++) {
     if (se->hlist && se->fpath && strcmp(se->fpath, fpath) == 0) {
       Debug0((dbg_fd, "hlist_push: found duplicate\n"));
       /* if the list is owned by the current PSp then we must not
@@ -2919,7 +2938,7 @@ dos_fs_redirect(state_t *state)
   u_short FCBcall = 0;
   u_char create_file=0;
   int fd, drive;
-  int cnt, cnt1;
+  int cnt;
   int ret = REDIRECT;
   cds_t my_cds;
   sft_t sft;
@@ -3372,20 +3391,12 @@ dos_fs_redirect(state_t *state)
 	return (TRUE);
       }
 
-      cnt1 = strlen(fpath);
-      fpath[cnt1] = SLASH;
+      cnt = strlen(fpath);
+      fpath[cnt++] = SLASH;
       de = &dir_list->de[0];
       for(i = 0; i < dir_list->nr_entries; i++, de++) {
 	if ((de->mode & S_IFMT) == S_IFREG) {
-	  cnt = cnt1;
-	  memcpy(&fpath[cnt+1], de->name, 8);
-	  for (cnt += 8; fpath[cnt] == ' '; cnt--);
-	  fpath[++cnt] = '.';
-	  memcpy(&fpath[cnt+1], de->ext, 3);
-	  for (cnt += 3; fpath[cnt] == ' '; cnt--);
-	  fpath[++cnt] = EOS;
-	  if (fpath[cnt - 1] == '.')
-	    fpath[cnt - 1] = EOS;
+	  strcpy(fpath + cnt, de->d_name);
 	  if (find_file(fpath, &st, drive)) {
             if (access(fpath, W_OK) == -1) {
               errcode = EACCES;
@@ -3797,7 +3808,6 @@ dos_fs_redirect(state_t *state)
       memcpy(sdb_file_ext(sdb), fext, 3);
       sdb_file_attr(sdb) = VOLUME_LABEL;
       sdb_dir_entry(sdb) = 0x0;
-      auspr(filename1, fname, fext);
 
       /* We fill the hlist for labels not here,
        * we do it a few lines later. --ms
@@ -3811,7 +3821,17 @@ dos_fs_redirect(state_t *state)
 
     bs_pos = getbasename(fpath);
     *bs_pos = '\0';
-    hlist = get_dir(fpath, "????????", "???", drive);
+    /* for efficiency we don't read everything if there are no wildcards */
+    if (!memchr(sdb_template_name(sdb), '?', 8) &&
+        !memchr(sdb_template_name(sdb), '*', 8) &&
+        !memchr(sdb_template_ext(sdb), '?', 3) &&
+        !memchr(sdb_template_ext(sdb), '*', 3)) {
+      hlist = get_dir(fpath, sdb_template_name(sdb),
+                      sdb_template_ext(sdb), drive);
+      fpath[0] = '\0';
+    }
+    else
+      hlist = get_dir(fpath, "????????", "???", drive);
     if (hlist==NULL)  {
       SETWORD(&(state->eax), NO_MORE_FILES);
       return (FALSE);
