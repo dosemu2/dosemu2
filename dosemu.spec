@@ -1,7 +1,7 @@
 #
 # RPM spec file for dosemu
 # 
-# Copyright (c) 1998 DOSEMU-Development-Team
+# Copyright (c) 2000 DOSEMU-Development-Team
 #
 # Note: set 'defaultdocdir:' in your .rpmrc to fit your needs,
 #       mkbindist uses this to update the docs and scripts.
@@ -17,9 +17,9 @@ Provides:     dosemu
 #Requires:     mtools tcltk
 Packager:     Hans Lermen <lermen@dosemu.org>
 
-Version:      1.0.0
+Version:      1.0.1
 Summary:      The Linux DOS emulator
-Source:       dosemu-1.0.0.tgz
+Source:       dosemu-1.0.1.tgz
 Url:          http://www.dosemu.org
 Buildroot:    /var/tmp/dosemu
 

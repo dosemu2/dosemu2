@@ -1,3 +1,14 @@
+2000/07/03 ver. 1.0.1 released
+	From Hans
+	- fixed a diabolic bug in mapping/mapfile.c (s/\|/,/) :-(
+	- made sure we realy have root-only access on the mapfile when
+	  running suid root. On NFS mounted $HOME we will come into trouble,
+	  when we have no root_squash. For security reasons we cannot
+	  allow suid-root DOSEMUs publish its mapped executable space
+	  on a NFS mounted volume, that isn't trusted enough to have
+	  root_squash.
+	- removed contrib/twin (forgotten in 1.0.0)
+	- updated dosemu.spec for 1.0.1
 2000/07/02 ver. 1.0.0.11 unofficial pre-release
 	From Alistair
 	- new doc stuff, now using DocBook. For good results you need

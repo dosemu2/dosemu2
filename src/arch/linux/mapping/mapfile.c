@@ -136,11 +136,35 @@ static int open_mapping_file(int cap)
     snprintf(tmp_mapfile_name, 256, "%smapfile.%d", TMPFILE, getpid());
     enter_priv_on();	/* file needs root ownership
     			 * else we have a security problem */
-    tmpfile_fd = open(tmp_mapfile_name, O_RDWR | O_CREAT | S_IRWXU);
+    tmpfile_fd = open(tmp_mapfile_name, O_RDWR | O_CREAT, S_IRWXU);
+    if (tmpfile_fd == -1) {
+      leave_priv_setting();
+      error("MAPPING: cannot open mapfile %s\n", tmp_mapfile_name);
+      if (!cap)return 0;
+      leavedos(2);
+    }
+    if (can_do_root_stuff) {
+      /* We need to check wether we really created a file under root
+       * ownership, else we have a security hole.
+       * If $HOME is NFS mounted without root_squash, we can't put
+       * the mapfile here under this conditions.
+       */
+       struct stat s;
+       int ret;
+       ret = fchown(tmpfile_fd, 0, 0);	/* force root.root ownership */
+       if (!ret) ret = fstat(tmpfile_fd, &s);
+       if (ret || s.st_uid || s.st_gid) {
+         leave_priv_setting();
+         error("MAPPING: cannot open mapfile %s with root rights\n", tmp_mapfile_name);
+         discardtempfile();
+         if (!cap)return 0;
+         leavedos(2);
+       }
+    }
     leave_priv_setting();
     ftruncate(tmpfile_fd, 0);
     if (ftruncate(tmpfile_fd, mapsize) == -1) {
-      error("MAPPING: cannot size temp file pool\n",strerror(errno));
+      error("MAPPING: cannot size temp file pool, %s\n",strerror(errno));
       discardtempfile();
       if (!cap)return 0;
       leavedos(2);
@@ -148,7 +172,7 @@ static int open_mapping_file(int cap)
     mpool = mmap(0, mapsize, PROT_READ|PROT_WRITE|PROT_EXEC,
     		MAP_SHARED, tmpfile_fd, 0);
     if (!mpool) {
-      error("MAPPING: cannot map temp file pool\n",strerror(errno));
+      error("MAPPING: cannot map temp file pool, %s\n",strerror(errno));
       discardtempfile();
       if (!cap)return 0;
       leavedos(2);
@@ -157,7 +181,7 @@ static int open_mapping_file(int cap)
 		estsize, mapsize/1024, mpool, mpool+mapsize-1);
     if (pgmalloc_init(mpool_numpages, mpool_numpages/4, mpool)) {
       discardtempfile();
-      error("MAPPING: cannot get table mem for pgmalloc_init \n",strerror(errno));
+      error("MAPPING: cannot get table mem for pgmalloc_init\n");
       if (!cap)return 0;
       leavedos(2);
     }
