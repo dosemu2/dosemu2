@@ -244,7 +244,8 @@ extern u_char permissions;
 extern struct screen_stat scr_state;
 extern int cursor_row;
 extern int cursor_col;
-extern int mode_blink;
+extern int cursor_blink;
+extern int char_blink;
 
 /* The following defines are for terminal (curses) mode */
 

@@ -12,12 +12,15 @@
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
- * $Date: 1994/08/01 14:58:59 $
+ * $Date: 1994/08/02 00:08:51 $
  * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 2.15 $
+ * $Revision: 2.16 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 2.16  1994/08/02  00:08:51  root
+ * Markk's latest.
+ *
  * Revision 2.15  1994/08/01  14:58:59  root
  * Added detach (-d) option from Karl Hakimian.
  *
@@ -461,8 +464,7 @@ extern struct pit pit;
 
 extern inline void disk_open(struct disk *);
 extern inline void vm86_GP_fault();
-extern int cursor_row;
-extern int cursor_col;
+extern int cursor_row, cursor_col, cursor_blink;
 
 unsigned int use_sigio=0;
 
@@ -735,7 +737,6 @@ dos_ctrl_alt_del(void)
   dbug_printf("DOS ctrl-alt-del requested.  Rebooting!\n");
   disk_close();
   clear_screen(bios_current_screen_page, 7);
-  show_cursor();
   special_nowait = 0;
   p_dos_str("Rebooting DOS.  Be careful...this is partially implemented\r\n");
   boot();
@@ -1080,8 +1081,6 @@ sigalrm(int sig, struct sigcontext_struct context)
   static int partials = 0;
   static u_char timals = 0;
   static int anychanges = 0;
-  static int old_row = -1;
-  static int old_col = -1;
 
   if (inalrm || in_sighandler) {
     error("ERROR: Reentering SIGALRM! alrm=%d, in_sig=%d\n", inalrm, in_sighandler);
@@ -1117,10 +1116,8 @@ sigalrm(int sig, struct sigcontext_struct context)
         running--;
       }
     }
-    else if ((old_row != cursor_row) || (old_col != cursor_col)) {
-      console_poscur(cursor_col, cursor_row);
-      old_col = cursor_col;
-      old_row = cursor_row;
+    else {
+      console_update_cursor(cursor_col, cursor_row, cursor_blink, 0);
     }
   }
 
@@ -1639,10 +1636,6 @@ void
   char *confname = NULL;
   struct stat statout, staterr;
 
-#ifdef LOW_MEM
-  setup_low_mem();
-#endif
-
   config_defaults();
 
   /* initialize cli() and sti() */
@@ -1798,6 +1791,10 @@ void
       exit(-1);
     }
   }
+
+#ifdef LOW_MEM
+  setup_low_mem();
+#endif
 
   /* Set up hard interrupt array */
   {
@@ -2123,7 +2120,7 @@ int
 
 void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.15 1994/08/01 14:58:59 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.16 1994/08/02 00:08:51 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -2341,7 +2338,7 @@ dos_helper(void) {
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/08/01 14:58:59 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/08/02 00:08:51 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */

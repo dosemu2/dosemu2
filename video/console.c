@@ -1,4 +1,3 @@
-/* #include <ncurses.h>       termcap.h*/
 #include <stdio.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -12,24 +11,61 @@
 
 extern int wait_vc_active(void);
 
-void console_poscur(int xpos, int ypos)
+inline void
+console_update_cursor(int xpos, int ypos, int blinkflag, int forceflag)
 {
-  /* Position cursor on Linux's screen.  The linux console recognizes 
-   * the ANSI code "\033[y;xH" where y is the cursor row, and x is the 
-   * cursor position.  For example "\033[15;8H" printed to stdout will 
-   * move the cursor to row 15, column 8. 
+  /* This routine updates the state of the cursor, including its cursor
+   * position and visibility.  The linux console recognizes the ANSI code 
+   * "\033[y;xH" where y is the cursor row, and x is the cursor position.  
+   * For example "\033[15;8H" printed to stdout will move the cursor to 
+   * row 15, column 8.   The "\033[?25l" string hides the cursor and the 
+   * "\033[?25h" string shows the cursor.
    */
-  fprintf(stdout,"\033[%d;%dH",ypos+1,xpos+1);
+
+  /* Static integers to preserve state of variables from last call. */
+  static int oldx = -1;
+  static int oldy = -1;
+  static int oldblink = 0;
+  
+  /* If forceflag is set, then this ensures that the cursor is actually
+   * updated irregardless of its previous state. */
+  if (forceflag) {
+    oldx = -1;
+    oldy = -1;
+    oldblink = !blinkflag;
+  }
+
+  /* The cursor is off-screen, so disable its blinking */
+  if ((unsigned) xpos > co || (unsigned) ypos > li)
+    blinkflag = 0;
+  
+  if (blinkflag) {
+    /* Enable blinking if it has not already */
+    if (!oldblink)
+      fprintf(stdout,"\033[?25h");
+    /* Update cursor position if it has moved since last time in this func */
+    if ((xpos != oldx) || (ypos != oldy)) 
+      fprintf(stdout,"\033[%d;%dH",ypos+1,xpos+1);
+  }
+  else {
+    /* Disable blinking if it hasnt already */ 
+    if (oldblink)
+      fprintf(stdout,"\033[?25l");
+  }
+  
+  /* Save current state of cursor for next call to this function. */
+  oldx = xpos; oldy = ypos; oldblink = blinkflag;
 }
 
 void set_console_video(void)
 {
   /* Clear the Linux console screen. The console recognizes these codes: 
+   * \033[?25h = show cursor.
    * \033[0m = reset color.  
    * \033[H = Move cursor to upper-left corner of screen.  
    * \033[2J = Clear screen.  
    */
-  fprintf(stdout,"\033[0m\033[H\033[2J");
+  fprintf(stdout,"\033[?25h\033[0m\033[H\033[2J");
 
   scr_state.mapped = 0;
   allow_switch();
@@ -83,7 +119,6 @@ void set_console_video(void)
 
 void clear_console_video(void)
 {
-
   if (scr_state.current) {
     set_linux_video();
     put_video_ram();		/* unmap the screen */
@@ -91,15 +126,14 @@ void clear_console_video(void)
 
   /* XXX - must be current console! */
 
-  if (!config.vga)
-    show_cursor();		/* restore the cursor */
-  else {
-    ioctl(ioc_fd, KIOCSOUND, 0);/* turn off any sound */
-  }
+  if (config.vga) 
+    ioctl(ioc_fd, KIOCSOUND, 0);	/* turn off any sound */
+  else
+    fprintf(stdout,"\033[?25h");        /* Turn on the cursor */
+
   if (config.console_video) {
     v_printf("VID: Release mouse control\n");
     ioctl(ioc_fd, KDSETMODE, KD_TEXT);
   }
-
 }
 

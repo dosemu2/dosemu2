@@ -5,8 +5,10 @@
 
 # The following variables may go into the Makfile in the parent-directory
 
-CC   = gcc
-LD   = ld
+CC    = gcc
+LD    = ld
+BISON = bison
+LEX   = flex
 
 # If INCDIR exists, it was exported from the master Makefile.
 ifndef INCDIR
@@ -15,28 +17,37 @@ endif
 
 # let gcc do extended checking
 
+DEFINES=-DYYDEBUG -DYYERROR_VERBOSE -DYYPURE
 CFLAGS=-O2 -Wall -Wmissing-prototypes \
        -Wstrict-prototypes -ansi -pedantic -Wid-clash-31 -Wcast-qual
 #-Wwrite-strings
 
-CFILES = parse.c inifile.c
+CFILES = inifile.c
+LFILES = lexer.l
+YFILES = parser.y
 HFILES = 
 
 # Insert all source- and header-files here.
 
-ALL = $(CFILES) $(HFILES)
+ALL = $(YFILES) $(LFILES) $(CFILES) $(HFILES)
 
 # All object-files are included here.
 
-OBJS = parse.o inifile.o
+OBJS = parser.o lex.yy.o inifile.o
 
 .c.o:
-	$(CC) $(CFLAGS) $(INCDIR) -c $<
- 
+	$(CC) $(CFLAGS) $(DEFINES) $(INCDIR) -c $<
+
 all: ../init.o
 
 ../init.o: $(OBJS)
 	ld -r -o ../init.o $(OBJS)
+
+parser.c : parser.y
+	$(BISON) -do parser.c parser.y
+
+lex.yy.c : lexer.l parser.y
+	$(LEX) -i lexer.l
 
 checkin:
 	-ci $(ALL) Makefile 
@@ -45,7 +56,7 @@ checkout:
 	-co -l $(ALL) Makefile 
 
 clean:
-	rm -f *.o .depend
+	rm -f *.o .depend parser.[ch] lex.yy.c
 
 install:
 

@@ -1,12 +1,15 @@
 #define PORTS_H 1
 
 /* 
- * $Date: 1994/08/01 14:26:23 $
+ * $Date: 1994/08/02 00:08:51 $
  * $Source: /home/src/dosemu0.60/RCS/ports.h,v $
- * $Revision: 2.8 $
+ * $Revision: 2.9 $
  * $State: Exp $
  *
  * $Log: ports.h,v $
+ * Revision 2.9  1994/08/02  00:08:51  root
+ * Markk's latest.
+ *
  * Revision 2.8  1994/08/01  14:26:23  root
  * Prep for pre53_7  with Markks latest, EMS patch, and Makefile changes.
  *
@@ -234,7 +237,7 @@ outb(int port, int byte)
     flip_flop = !flip_flop;
     if (flip_flop) {
       if (last_index = 0x10)
-        mode_blink = (byte & 8) ? 1 : 0;
+        char_blink = (byte & 8) ? 1 : 0;
       last_byte = byte;
     }
     else {

@@ -1,5 +1,24 @@
 Mon Aug 01 1994 Jmaclean
 
+-	Added new parser combo lexer.l/parser.y from Scott for all
+	to play with. A bit rough but Scott would enjoy feedback :-).
+-	Note from Markkk about new ansi_xterm :
+
+"ANSI Xterm 2.0 is a specially modified Xterm that is compatible with DOSEMU
+and to enable the use of all 16 colors, and the entire PC character set.
+This makes DOSEMU just like xdos in this area!
+
+Furthermore, just follow the instructions included with ANSI Xterm 2.0
+for an easy compile.  Then all you need to do is type "xdosemu" to bring
+up an Xwindow running DOSEMU.   The xdosemu command automatically detects
+for the existence of ansi_xterm.  If it does not exist, it detects for
+a regular xterm and rxvt next.
+
+Try it, and let Mark Rejhon know at mdrejhon@csclub.uwaterloo.ca
+as he is responsible for this."
+
+Mon Aug 01 1994 Jmaclean
+
 -	Markks latest and greatest additions to the Xterm capabilities
 	of DOSEMU. Best to get ansi_xterm from a site at this time :-).
 -	Detach capability added, thanks to Karl Hakimian. Now with 

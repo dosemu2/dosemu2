@@ -40,7 +40,7 @@ chtype *noutp = noutbuf;
 unsigned char outbuf[CHBUFSIZE + 5];
 unsigned char *outp = outbuf;
 
-int cursor_row, cursor_col, mode_blink;
+int cursor_row, cursor_col, cursor_blink, char_blink;
 int ibm_codes;
 
 /* The following initializes the terminal.  This should be called at the
@@ -53,7 +53,8 @@ terminal_initialize()
   
   cursor_row = 0;
   cursor_col = 0;
-  mode_blink = 1;
+  cursor_blink = 1;
+  char_blink = 1;
 
   if (config.term_charset == CHARSET_FULLIBM) {
      error("WARNING: 'charset fullibm' doesn't work.  Use 'charset ibm' instead.\n");
@@ -177,7 +178,7 @@ void
 terminal_close()
 {
   if (config.term_method != METHOD_NCURSES) {
-    fprintf(stdout,"\033[%dH",li);
+    fprintf(stdout,"\033[?25h\033[%dH",li);
   }
   else {
     mvcur(-1,-1,li,0);
@@ -365,31 +366,36 @@ ncurses_update()
 
   /* position the cursor on the output fd */
   void
-  poscur(int x, int y)
+  poscur(int x, int y, int carefulflag)
   {
-    /* were "co" and "li" */
-    if ((unsigned) x >= co || (unsigned) y >= li) return;
+    if (carefulflag) {
+      if ((!cursor_blink) || (unsigned) x > co || (unsigned) y > li) {
+        x = 0; 
+        y = 0;
+      }
+    }
     NFLUSH;
     wmove(win, y, x);
   }
 
-  us *sadr;		/* Ptr to start of screen memory of curr page */
-  us *srow;		/* Ptr to start of screen row updated */
-  us *schar;		/* Ptr to character being updated */
-  uchar *bufrow;	/* Ptr to start of buffer row corresp to screen row */
-  int x, y;		/* X and Y position of character being updated */
-  int scanx;		/* Index for comparing screen and buffer rows */
-  int endx;     	/* Last character for line loop index */
-  int xdiff;    	/* Counter for scan checking used for optimization */
-  int lines;    	/* Number of lines to redraw */
-  int numscan;  	/* counter for number of lines scanned */
-  int numdone;  	/* counter for number of lines actually updated */
-  static int newattr = 0;
-  static int a, c;
-  static int oa = 256;
+  static us *sadr;      /* Ptr to start of screen memory of curr page */
+  static us *schar;     /* Ptr to character being updated */
+  static us scrrow[256];/* Array to hold screen memory row temporarily */
+  static us *temprow;   /* Temporary buffer pointer for scrrow[] */
+  static uchar *bufrow; /* Ptr to start of buffer row corresp to screen row */
+  static int x, y;      /* X and Y position of character being updated */
+  static int scanx;     /* Index for comparing screen and buffer rows */
+  static int endx;      /* Last character for line loop index */
+  static int xdiff;     /* Counter for scan checking used for optimization */
+  static int lines;     /* Number of lines to redraw */
+  static int numscan;   /* counter for number of lines scanned */
+  static int numdone;   /* counter for number of lines actually updated */
+  static int a, c;          /* Attrib and character temp variables */
   static int yloop = -1;    /* Row index for loop */
   static int oldx = 0;      /* Previous x cursor position */
   static int oldy = 0;      /* Previous y cursor position */
+  static int attrbits = 0;
+  static int oldattr = -1;
 
   sadr = SCREEN_ADR(bios_current_screen_page);
 
@@ -456,11 +462,20 @@ ncurses_update()
     /* Only update if the line has changed.  Note that sadr is an unsigned
      * short ptr, so co is not multiplied by 2...I'll clean this up later.
      */
-    bufrow = scrbuf + y * co * 2; /* Position of first char in row in sadr */
-    srow = sadr + y * co;	  /* p is unsigned short ptr to char in sadr */   
-    
+    bufrow = scrbuf + y * co * 2;  /* Position of first char in row in sadr */
+
+    /* Copy screen mem line to temporary buffer row */
+    memcpy(scrrow, sadr + y * co, co * 2);
+
+    /* Strip all blinking bits from temp buffer row if blinking disabled */
+    if (!char_blink) {
+      temprow = scrrow;
+      for (scanx = 0; scanx < co; scanx++, temprow++)
+        *temprow &= 0x7FFF;
+    }
+
     /* If the line matches, then no updated is needed, and skip the line. */
-    if (!memcmp(bufrow, srow, endx * 2)) continue;
+    if (!memcmp(bufrow, scrrow, endx * 2)) continue;
 
     /* Increment the number of successfully updated lines counter */
     numdone++;
@@ -469,8 +484,8 @@ ncurses_update()
      * time.  It does a little bit optimization now, thanks to Mark D. Rejhon,
      * to avoid redundant updates.
      */
-    schar = srow;         /* Pointer to start of row in screen memory */
-    xdiff = 0;            /* scan check counter */
+    schar = scrrow;         /* Pointer to start of row in screen memory */
+    xdiff = 0;              /* scan check counter */
     for (x = 0; x < endx; x++) {
 
       /* The following checks if it needs to scan the line for the first
@@ -483,10 +498,10 @@ ncurses_update()
 
         /* Scan for first character that needs to be updated */
         for (scanx = x; scanx < endx; scanx++)
-          if (memcmp(bufrow + scanx * 2, sadr + y * co + scanx, 2))
+          if (memcmp(bufrow + scanx * 2, scrrow + scanx, 2))
             break;
       
-        /* Do Next row if there are no more chars needing to be updated */
+        /* Do next row if there are no more chars needing to be updated */
         if (scanx >= endx) break;
 
         /* If the character to be updated is at least 7 cursor positions */
@@ -498,28 +513,35 @@ ncurses_update()
           schar += xdiff;
           xdiff = 0;
           NFLUSH;
-          poscur(x,y);
+          poscur(x,y,0);
         }
       }
 
       /* The following outputs attributes if necessary, then outputs the */
       /* character onscreen. */
       c = chartrans[ ((unsigned char *) schar)[0] ];
-      a = attrtrans[ ((unsigned char *) schar)[1] ];
-      if (a != oa) {     /*(a != oa) {*/
-        newattr = attrlookup[a];
+ 
+      /* Strip blinking bit if blinking characters are disabled */
+      if (char_blink)
+        a = attrtrans[ ((unsigned char *) schar)[1] ];
+      else
+        a = attrtrans[ ((unsigned char *) schar)[1] ] & 0x7F;
+ 
+      if (a != oldattr) {
+        attrbits = attrlookup[a];
         /* This is a workaround for some of NCURSES bugs messing up screen */
+        /* Unfortunately there are still other NCURSES bugs in 1.8.5 :( */
         if (config.term_color)
-          if (((oa & 0x77) == (a & 0x77)) && (a & 0x70) && (oa & 0x8))
-            newattr |= A_BOLD;
-        oa = a;			/* save old attr as current */
+          if (((oldattr & 0x77) == (a & 0x77)) && (a & 0x70) && (oldattr & 0x8))
+            attrbits |= A_BOLD;
+        oldattr = a;			/* save old attr as current */
       }
       /* Output character to buffer */
-      NOUT(c | newattr);                    /* Output the actual char */
+      NOUT(c | attrbits);                    /* Output the actual char */
       schar++;                              /* Increment screen pointer */
       if (xdiff) xdiff--;                   /* Decrement scan check counter */
     }
-    memcpy(bufrow, srow, co * 2);  /* Copy screen mem line to buffer */
+    memcpy(bufrow, scrrow, co * 2);  /* Copy screen mem line to buffer */
   }
 
   /* If any part of the screen was updated, then reset the attributes */
@@ -528,13 +550,15 @@ ncurses_update()
     oldx = cursor_col;
     oldy = cursor_row;
     NFLUSH;
-    poscur(oldx, oldy);
+    poscur(oldx, oldy,1);
     wrefresh(win);
   }
+
   /* The updates look a bit cleaner when reset to top of the screen
    * if nothing had changed on the screen in this call to screen_restore
    */
   if (!numdone) yloop = -1;
+
   return numdone;
 }
 
@@ -563,29 +587,39 @@ ansi_update()
   }
 
   void 
-  fast_buffer_poscur(int oldx, int oldy, int x, int y)
+  fast_buffer_poscur(int *oldx, int *oldy, int x, int y, int carefulflag)
   {
     static char cursor[20];
-    if ((oldx == x) && (oldy == y)) return;
+    
+    if (carefulflag) {
+      if ((!cursor_blink) || (unsigned) x > co || (unsigned) y > li) {
+        x = 0; 
+        y = 0;
+      }
+    }
+
+    if ((*oldx == x) && (*oldy == y)) return;
     strcpy(cursor,"\033[");
     strcat(cursor,num_string[y+1]);
     strcat(cursor,";");
     strcat(cursor,num_string[x+1]);
     strcat(cursor,"H");
     STROUT(cursor);
+    *oldx = x; 
+    *oldy = y;
   }
 
   void
-  fast_buffer_setcolor(int oldatt, int newatt)
+  fast_buffer_setcolor(int *oldatt, int newatt)
   {
     static obold, oblink, nbold, nblink;
     static char color[20];
     
     if (config.term_color) {
-      if (oldatt == newatt) return;
-      obold = oldatt & 0x08;
+      if (*oldatt == newatt) return;
+      obold = *oldatt & 0x08;
       nbold = newatt & 0x08;
-      oblink = oldatt & 0x80;
+      oblink = *oldatt & 0x80;
       nblink = newatt & 0x80;
       if ((obold > nbold) || (oblink > nblink)) {
         strcpy(color,"\033[0;");
@@ -602,11 +636,11 @@ ansi_update()
         strcpy(color,"\033[");
         if (obold  < nbold)  strcat(color,"1;");
         if (oblink < nblink) strcat(color,"5;");
-        if ((newatt & 0x70) != (oldatt & 0x70)) {
+        if ((newatt & 0x70) != (*oldatt & 0x70)) {
           strcat(color,bg_color_string[(newatt & 0x70) >> 4]);
           strcat(color,";");
         }
-        if ((newatt & 0x07) != (oldatt & 0x07)) { 
+        if ((newatt & 0x07) != (*oldatt & 0x07)) { 
           strcat(color,fg_color_string[newatt & 0x7]);
           strcat(color,";");
         }
@@ -614,7 +648,7 @@ ansi_update()
       }    
     }
     else {
-      if ((oldatt & 0xF8) == (newatt & 0xF8)) return;
+      if ((*oldatt & 0xF8) == (newatt & 0xF8)) return;
       strcpy(color,"\033[0;");
       if (newatt & 0x08) strcat(color,"1;"); 
       if (newatt & 0x80) strcat(color,"5;");
@@ -622,6 +656,7 @@ ansi_update()
       color[strlen(color)-1] = 'm';
     }
     STROUT(color);
+    *oldatt = newatt;
   }
 
   static us *sadr;	/* Ptr to start of screen memory of curr page */
@@ -639,8 +674,8 @@ ansi_update()
   static int a, c;          /* Attrib and character temp variables */
   static int yloop = -1;    /* Row index for loop */
   static int oldattr = 0;   /* Previous attributes */
-  static int oldx = 1;      /* Previous x cursor position */
-  static int oldy = 1;      /* Previous y cursor position */
+  static int oldx = 0;      /* Previous x cursor position */
+  static int oldy = 0;      /* Previous y cursor position */
 
   sadr = SCREEN_ADR(bios_current_screen_page);
 
@@ -711,7 +746,7 @@ ansi_update()
     memcpy(scrrow, sadr + y * co, co * 2);  
     
     /* Strip all blinking bits from temp buffer row if blinking disabled */
-    if (!mode_blink) {
+    if (!char_blink) {
       temprow = scrrow;
       for (scanx = 0; scanx < co; scanx++, temprow++)
         *temprow &= 0x7FFF;
@@ -755,8 +790,7 @@ ansi_update()
           x += xdiff;
           schar += xdiff;
           xdiff = 0;
-          fast_buffer_poscur(oldx,oldy,x,y);
-          oldx = x; oldy = y;
+          fast_buffer_poscur(&oldx,&oldy,x,y,0);
         }
       }
 
@@ -765,15 +799,13 @@ ansi_update()
       c = chartrans[ ((unsigned char *) schar)[0] ];
 
       /* Strip blinking bit if blinking characters are disabled */
-      if (mode_blink)
+      if (char_blink)
         a = attrtrans[ ((unsigned char *) schar)[1] ];
       else
         a = attrtrans[ ((unsigned char *) schar)[1] ] & 0x7F;
 
-      if (oldattr != a) {
-        fast_buffer_setcolor(oldattr, a);
-        oldattr = a;
-      }
+      if (oldattr != a) 
+        fast_buffer_setcolor(&oldattr, a);
 
       /* Output character to buffer */
       CHOUT(c);                      /* Output the actual char */
@@ -784,15 +816,13 @@ ansi_update()
     memcpy(bufrow, scrrow, co * 2);  /* Copy screen mem line to buffer */
   }
 
-  fast_buffer_poscur(oldx,oldy,cursor_col,cursor_row);
-  oldx = cursor_col; oldy = cursor_row; 
+  fast_buffer_poscur(&oldx,&oldy,cursor_col,cursor_row,1);
   CHFLUSH;
-  if (!numdone) {
-    /* The updates look a bit cleaner when reset to top of the screen
-     * if nothing had changed on the screen in this call to screen_restore
-     */
-    yloop = -1;
-  }
+
+  /* The updates look a bit cleaner when reset to top of the screen
+   * if nothing had changed on the screen in this call to screen_restore
+   */
+  if (!numdone) yloop = -1;
 
   return numdone;
 }

@@ -1,8 +1,8 @@
 # Makefile for Linux DOS emulator
 #
-# $Date: 1994/08/01 15:05:16 $
+# $Date: 1994/08/02 00:31:45 $
 # $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.18 $
+# $Revision: 2.19 $
 # $State: Exp $
 #
 
@@ -189,7 +189,7 @@ dos:	dos.c $(DOSOBJS)
 
 libdosemu:	$(SHLIBOBJS) $(DPMIOBJS)
 	ld $(LDFLAGS) $(MAGIC) -T $(LIBSTART) -o $@ \
-	   $(SHLIBOBJS) $(DPMIOBJS) $(SHLIBS) -lncurses -lc
+	   $(SHLIBOBJS) $(DPMIOBJS) $(SHLIBS) -lncurses -lc -lfl
 
 dossubdirs: dummy
 	@for i in $(SUBDIRS); do \

@@ -1,36 +1,6 @@
-From popserver Wed Jul 26 00:37:52 GMT 1994
-Received: from magic (root@elvex10.acns.nwu.edu [129.105.9.30]) by Fox.nstn.ca (8.6.8.1/8.6.6) with SMTP id OAA09767 for <jmaclean@fox.nstn.ns.ca>; Mon, 25 Jul 1994 14:20:40 -0300
-Message-Id: <m0qSTeI-0005fmC@magic>
-From: scottb@rose.eecs.nwu.edu (Scott Buchholz)
-Subject: /proc/self/mem mmap v1.1.34+
-To: torvalds@cs.Helsinki.FI (Linus Torvalds)
-Date: Mon, 25 Jul 1994 12:17:09 -0500 (CDT)
-Cc: jmaclean@fox.nstn.ns.ca (James MacLean)
-In-Reply-To: <199406262017.XAA08557@keos.Helsinki.FI> from "Linus Torvalds" at Jun 26, 94 11:17:04 pm
-X-Mailer: ELM [version 2.4 PL23]
-Content-Type: text
-Content-Length: 8632      
-Status: RO
-
-Hello,
-
-Patching the kernel is a trip these days as the thing seems to be a moving
-target.
-
-The patch which I sent you which provides mmap for /proc/self/mem was for
-v1.1.30 or so.  Since some of the virtual memory stuff has changed, I've
-fixed it up for version 1.1.34.
-
-Here's the patch.
-
-Thanks!
-
-Scott Buchholz
-
---- /proc/self/mem patch diff file ---
-diff -c --recursive linux.1.1.34/fs/proc/base.c linux/fs/proc/base.c
-*** linux.1.1.34/fs/proc/base.c	Sun Jul 24 09:50:35 1994
---- linux/fs/proc/base.c	Sun Jul 24 19:58:34 1994
+diff -c --recursive linux.1.1.37/fs/proc/base.c linux/fs/proc/base.c
+*** linux.1.1.37/fs/proc/base.c	Sun Jul 24 09:50:35 1994
+--- linux/fs/proc/base.c	Sun Jul 31 21:46:14 1994
 ***************
 *** 114,119 ****
 --- 114,122 ----
@@ -43,9 +13,9 @@ diff -c --recursive linux.1.1.34/fs/proc/base.c linux/fs/proc/base.c
   		ino = (pid << 16) + base_dir[i].low_ino;
   	for (i = 0 ; i < NR_TASKS ; i++)
   		if (task[i] && task[i]->pid == pid)
-diff -c --recursive linux.1.1.34/fs/proc/inode.c linux/fs/proc/inode.c
-*** linux.1.1.34/fs/proc/inode.c	Mon May  2 10:34:29 1994
---- linux/fs/proc/inode.c	Sun Jul 24 19:58:33 1994
+diff -c --recursive linux.1.1.37/fs/proc/inode.c linux/fs/proc/inode.c
+*** linux.1.1.37/fs/proc/inode.c	Mon May  2 10:34:29 1994
+--- linux/fs/proc/inode.c	Sun Jul 31 21:46:14 1994
 ***************
 *** 165,170 ****
 --- 165,174 ----
@@ -59,9 +29,9 @@ diff -c --recursive linux.1.1.34/fs/proc/inode.c linux/fs/proc/inode.c
   	}
   	switch (ino >> 8) {
   		case 1:
-diff -c --recursive linux.1.1.34/fs/proc/mem.c linux/fs/proc/mem.c
-*** linux.1.1.34/fs/proc/mem.c	Wed Dec  1 06:44:15 1993
---- linux/fs/proc/mem.c	Sun Jul 24 20:31:11 1994
+diff -c --recursive linux.1.1.37/fs/proc/mem.c linux/fs/proc/mem.c
+*** linux.1.1.37/fs/proc/mem.c	Wed Dec  1 06:44:15 1993
+--- linux/fs/proc/mem.c	Sun Jul 31 22:31:22 1994
 ***************
 *** 8,13 ****
 --- 8,17 ----
@@ -77,7 +47,7 @@ diff -c --recursive linux.1.1.34/fs/proc/mem.c linux/fs/proc/mem.c
   #include <asm/io.h>
 ***************
 *** 138,143 ****
---- 142,260 ----
+--- 142,220 ----
   	}
   }
   
@@ -97,101 +67,61 @@ diff -c --recursive linux.1.1.34/fs/proc/mem.c linux/fs/proc/mem.c
 + 
 + int
 + selfmem_mmap(struct inode * inode, struct file * file,
-+ 	unsigned long addr, size_t len, int prot, unsigned long off)
++ 	     struct vm_area_struct * vma)
 + {
 +   unsigned long *src_table, *dest_table;
 +   unsigned long stmp, dtmp;
-+   struct vm_area_struct *mpnt, *vma;
++   struct vm_area_struct *src_vma;
 +   int error;
 +   
-+   if (!len) 
-+     return (unsigned long) -EINVAL;
-+ 
-+   if ((off >= addr && off < (addr+len)) || (addr >= off && addr < (off+len))) 
-+     return (unsigned long) -ENXIO;
-+ 
-+   error = verify_area((prot & PROT_WRITE) ? VERIFY_WRITE : VERIFY_READ,
-+ 		      (void *)off, len);
++   error = verify_area((vma->vm_flags & VM_WRITE) ? VERIFY_WRITE : VERIFY_READ,
++ 		      (void *)vma->vm_offset, vma->vm_end - vma->vm_start);
 +   if (error)
 +     return error;
 + 
-+   vma = current->mm->mmap;
-+   while (vma && vma->vm_end < off)
-+     vma = vma->vm_next;
++   src_vma = current->mm->mmap;
++   while (src_vma && src_vma->vm_end < vma->vm_offset)
++     src_vma = src_vma->vm_next;
 + 
-+   for (stmp=off, dtmp=addr;
-+        stmp < off+len; stmp += PAGE_SIZE, dtmp += PAGE_SIZE) { 
++   for (stmp=vma->vm_offset, dtmp=vma->vm_start;  dtmp < vma->vm_end;
++        stmp += PAGE_SIZE, dtmp += PAGE_SIZE) { 
 + 
-+     while (vma && stmp > vma->vm_end)
-+       vma = vma->vm_next;
++     while (src_vma && stmp > src_vma->vm_end)
++       src_vma = src_vma->vm_next;
 + 
 +     src_table = PAGE_DIR_OFFSET(current->tss.cr3, stmp);
-+ 
-+     /* is there a directory entry? */
-+     if (! *src_table) {
-+       *src_table = get_free_page(GFP_KERNEL);
-+       if (! *src_table) { oom(current); *src_table=BAD_PAGE; }
-+       else *src_table |= PAGE_TABLE;
-+     }
++     if (!*src_table) goto bad_source;
 + 
 +     src_table = (unsigned long *)((*src_table & PAGE_MASK) + PAGE_PTR(stmp));
-+ 
-+     /* is there a page entry?  -- if not, get one. */
-+     if (!*src_table) {
-+       *src_table = get_free_page(GFP_KERNEL);
-+       if (!*src_table) { oom(current); *src_table=BAD_PAGE; }
-+       else *src_table |= PAGE_SHARED | PAGE_DIRTY;
-+     }
++     if (!*src_table) goto bad_source;
 + 
 +     dest_table = PAGE_DIR_OFFSET(current->tss.cr3, dtmp);
 + 
-+     /* is there a directory entry? */
-+     if (! *dest_table) {
++     if (!*dest_table) {
 +       *dest_table = get_free_page(GFP_KERNEL);
-+       if (! *dest_table) { oom(current); *dest_table=BAD_PAGE; }
++       if (!*dest_table) { oom(current); *dest_table=BAD_PAGE; }
 +       else *dest_table |= PAGE_TABLE;
 +     }
 +     
 +     dest_table = (unsigned long *)((*dest_table & PAGE_MASK) + PAGE_PTR(dtmp));
 + 
-+     /* is there a page entry?  -- if so, free it */
-+     if (*dest_table) {
-+       if (*dest_table & PAGE_PRESENT) free_page(*dest_table);
-+       else swap_free(*dest_table);
-+     }
-+ 
 +     if (!(*src_table & PAGE_PRESENT)) 
-+       do_no_page(vma, stmp, PAGE_PRESENT);
++       do_no_page(src_vma, stmp, PAGE_PRESENT);
 + 
-+     if ((prot & PROT_WRITE) && !(*src_table & PAGE_RW))
-+       do_wp_page(vma, stmp, PAGE_RW | PAGE_PRESENT);
++     if ((vma->vm_flags & VM_WRITE) && !(*src_table & PAGE_RW))
++       do_wp_page(src_vma, stmp, PAGE_RW | PAGE_PRESENT);
 + 
-+     /* set page dirty so it won't be swapped if mem_map[] > 1 */
 +     *src_table |= PAGE_DIRTY;
 +     *dest_table = *src_table;
 +     mem_map[MAP_NR(*src_table)]++;
 +   }
 + 
-+   mpnt = (struct vm_area_struct *)kmalloc(sizeof(*mpnt), GFP_KERNEL);
-+   if (!mpnt)
-+     return (unsigned long) -ENOMEM;
-+ 
-+   mpnt->vm_task = current;
-+   mpnt->vm_start = addr;
-+   mpnt->vm_end = addr + len;
-+   mpnt->vm_page_prot = prot;
-+   mpnt->vm_flags = 0;
-+   mpnt->vm_share = NULL;
-+   mpnt->vm_inode = inode;
-+   mpnt->vm_offset = off;
-+   mpnt->vm_ops = NULL;
-+   inode->i_count++;
-+ 
-+   insert_vm_struct(current, mpnt);
-+   merge_segments(current->mm->mmap, NULL, NULL);
-+ 
 +   invalidate();
-+   return addr;
++   return 0;
++ 
++ bad_source:
++   unmap_page_range(vma->vm_offset, vma->vm_end - vma->vm_start);
++   return (unsigned long) -EINVAL;
 + }
 + 
   static struct file_operations proc_mem_operations = {
@@ -199,7 +129,7 @@ diff -c --recursive linux.1.1.34/fs/proc/mem.c linux/fs/proc/mem.c
   	mem_read,
 ***************
 *** 153,158 ****
---- 270,306 ----
+--- 230,266 ----
   
   struct inode_operations proc_mem_inode_operations = {
   	&proc_mem_operations,	/* default base directory file-ops */
@@ -237,9 +167,9 @@ diff -c --recursive linux.1.1.34/fs/proc/mem.c linux/fs/proc/mem.c
   	NULL,			/* create */
   	NULL,			/* lookup */
   	NULL,			/* link */
-diff -c --recursive linux.1.1.34/include/linux/proc_fs.h linux/include/linux/proc_fs.h
-*** linux.1.1.34/include/linux/proc_fs.h	Wed Dec  1 06:44:15 1993
---- linux/include/linux/proc_fs.h	Sun Jul 24 19:58:33 1994
+diff -c --recursive linux.1.1.37/include/linux/proc_fs.h linux/include/linux/proc_fs.h
+*** linux.1.1.37/include/linux/proc_fs.h	Wed Dec  1 06:44:15 1993
+--- linux/include/linux/proc_fs.h	Sun Jul 31 21:46:13 1994
 ***************
 *** 27,32 ****
 --- 27,33 ----
@@ -250,31 +180,11 @@ diff -c --recursive linux.1.1.34/include/linux/proc_fs.h linux/include/linux/pro
   extern struct inode_operations proc_array_inode_operations;
   extern struct inode_operations proc_kmsg_inode_operations;
   extern struct inode_operations proc_link_inode_operations;
-diff -c --recursive linux.1.1.34/mm/mmap.c linux/mm/mmap.c
-*** linux.1.1.34/mm/mmap.c	Sun Jul 24 11:54:46 1994
---- linux/mm/mmap.c	Sun Jul 24 19:58:32 1994
+diff -c --recursive linux.1.1.37/mm/swap.c linux/mm/swap.c
+*** linux.1.1.37/mm/swap.c	Sun Jul 31 11:40:49 1994
+--- linux/mm/swap.c	Sun Jul 31 21:46:11 1994
 ***************
-*** 378,384 ****
-  		     vmp->vm_end < mpnt->vm_end))
-  			printk("insert_vm_struct: ins area %lx-%lx in area %lx-%lx\n",
-  			       vmp->vm_start, vmp->vm_end,
-! 			       mpnt->vm_start, vmp->vm_end);
-  	}
-  	
-  	vmp->vm_next = mpnt;
---- 380,386 ----
-  		     vmp->vm_end < mpnt->vm_end))
-  			printk("insert_vm_struct: ins area %lx-%lx in area %lx-%lx\n",
-  			       vmp->vm_start, vmp->vm_end,
-! 			       mpnt->vm_start, mpnt->vm_end);
-  	}
-  	
-  	vmp->vm_next = mpnt;
-diff -c --recursive linux.1.1.34/mm/swap.c linux/mm/swap.c
-*** linux.1.1.34/mm/swap.c	Sun Jul 24 11:58:08 1994
---- linux/mm/swap.c	Sun Jul 24 19:58:29 1994
-***************
-*** 320,326 ****
+*** 299,305 ****
   		return 0;
   	if (page >= high_memory)
   		return 0;
@@ -282,12 +192,12 @@ diff -c --recursive linux.1.1.34/mm/swap.c linux/mm/swap.c
   		return 0;
   	
   	if ((PAGE_DIRTY & page) && delete_from_swap_cache(page))  {
---- 320,327 ----
+--- 299,306 ----
   		return 0;
   	if (page >= high_memory)
   		return 0;
 ! 	if ((mem_map[MAP_NR(page)] & MAP_PAGE_RESERVED) ||
-! 	    (mem_map[MAP_NR(page)] != 1))
+! 	    (mem_map[MAP_NR(page)] > 1))
   		return 0;
   	
   	if ((PAGE_DIRTY & page) && delete_from_swap_cache(page))  {

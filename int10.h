@@ -3,9 +3,7 @@
  */
 
 extern void Scroll(int, int, int, int, int, int);
-extern void hide_cursor(void);
-extern int cursor_row;
-extern int cursor_col;
+extern int cursor_row, cursor_col, cursor_blink;
 
 __inline__ void int10(u_char ii)
 {
@@ -60,12 +58,9 @@ __inline__ void int10(u_char ii)
 
   case 0x1:			/* define cursor shape */
     v_printf("define cursor: 0x%04x\n", LWORD(ecx));
-    /* 0x20 is the cursor no blink/off bit */
-    /*	if (HI(cx) & 0x20) */
-    if (REG(ecx) == 0x2000)
-      hide_cursor();
-    else
-      show_cursor();
+    /* 0x20 is the cursor no blink/off bit but may have some problems */
+    /* Others to try may be (HI(cx) & 0x20) or (REG(ecx) == 0x2000) */
+    cursor_blink = !(HI(cx) == 0x20);
     CARRY;
     break;
 
@@ -184,11 +179,11 @@ __inline__ void int10(u_char ii)
     break;
 
   case 0x10:			/* ega palette */
-    /* Sets blinking or bold background mode.  This is important for Norton
-     * and PCTools type programs that uses bright background colors.
+    /* Sets blinking or bold background mode.  This is important for 
+     * PCTools type programs that uses bright background colors.
      */
     if (LO(ax) = 3) {      
-      mode_blink = LO(bx) & 1;
+      char_blink = LO(bx) & 1;
     }
 
 #if 0

@@ -49,8 +49,9 @@ detach()
 		return(0);
 	}
 
-	if (pid)
+	if (pid) {
 		exit(0);
+	}
 
 	close(fd);
 	close(2);
