@@ -30,6 +30,7 @@
 #define SLASH '/'
 
 struct lfndir {
+	int drive;
 	struct mfs_dir *dir;
 	unsigned dirattr;
 	char pattern[PATH_MAX];
@@ -38,8 +39,6 @@ struct lfndir {
 
 #define MAX_OPEN_DIRS 20
 struct lfndir *lfndirs[MAX_OPEN_DIRS];
-
-static int current_drive;
 
 static unsigned long long unix_to_win_time(time_t ut)
 {
@@ -75,13 +74,14 @@ static int vfat_search(char *dest, char *src, char *path, int alias)
 	return 0;
 }      
 
-static void make_unmake_dos_mangled_path(char *dest, char *fpath, int alias)
+static void make_unmake_dos_mangled_path(char *dest, char *fpath,
+					 int current_drive, int alias)
 {
 	char *src;
 	*dest++ = current_drive + 'A';
 	*dest++ = ':';
 	*dest = '\\';
-	src = fpath + strlen(dos_root);
+	src = fpath + strlen(drives[current_drive].root);
 	if (*src == '/') src++;
 	while (src != NULL && *src != '\0') {
 		char *src2 = strchr(src, '/');
@@ -125,28 +125,24 @@ static int build_posix_path(char *dest, const char *src)
 	} else {
 		dd = sda_cur_drive(sda);
 	}
-	if (dd < 0 || dd >= MAX_DRIVE || !dos_roots[dd])
-		return 0;
-	current_drive = dd;
-	dos_root = dos_roots[current_drive];
-	dos_root_len = dos_root_lens[current_drive];
-	cds = drive_cds(current_drive);
+	if (dd < 0 || dd >= MAX_DRIVE || !drives[dd].root)
+		return -1;
 	while(src[0] == '.' && (src[1] == '/' || src[1] == '\\'))
 		src += 2;
 	if (src[0] != '/' && src[0] != '\\') {
-		strcpy(filename, cds_current_path(cds));
+		strcpy(filename, cds_current_path(drive_cds(dd)));
 		strcat(filename, "/");
 		strcat(filename, src);
-		build_ufs_path(dest, filename);
+		build_ufs_path(dest, filename, dd);
 	} else {
-		build_ufs_path(dest, src);
+		build_ufs_path(dest, src, dd);
 	}
 	dest = strchr(dest, '\r');
 	if (dest) *dest = '\0';
-	return 1;
+	return dd;
 }
 
-static int getfindnext(char *fpath, struct mfs_dirent *de, int attr)
+static int getfindnext(char *fpath, struct mfs_dirent *de, int attr, int drive)
 {
 	struct stat st;
 	char *dest = (char *)SEGOFF2LINEAR(_ES, _DI);
@@ -154,7 +150,7 @@ static int getfindnext(char *fpath, struct mfs_dirent *de, int attr)
 	
 	memset(dest, 0, 0x20);
 	d_printf("LFN: findnext %s\n", fpath);
-	if (!find_file(fpath, &st))
+	if (!find_file(fpath, &st, drive))
 		return 0;
 	if (st.st_mode & S_IFDIR) {
 		if ((attr & DIRECTORY) == 0)
@@ -249,7 +245,7 @@ int mfs_lfn(void)
 	char fpath[PATH_MAX];
 	char fpath2[PATH_MAX];
 	
-	int dd, dirhandle = 0;
+	int drive, dirhandle = 0;
 	char *dest = (char *)SEGOFF2LINEAR(_ES, _DI);
 	char *src = (char *)SEGOFF2LINEAR(_DS, _DX);
 	struct stat st;
@@ -266,23 +262,25 @@ int mfs_lfn(void)
 		break;
 	case 0x39: /* mkdir */
 		d_printf("LFN: mkdir %s\n", src);
-		if (!build_posix_path(fpath, src))
-			return 0;
+		drive = build_posix_path(fpath, src);
+		if (drive == -1)
+			return 0;			 
 		if (is_dos_device(fpath))
 			return lfn_error(PATH_NOT_FOUND);
 		slash = strrchr(fpath, '/');
 		strcpy(fpath2, slash);
 		*slash = '\0';
-		if (!find_file(fpath, &st))
+		if (!find_file(fpath, &st, drive))
 			return lfn_error(PATH_NOT_FOUND);
 		strcat(fpath, fpath2);
-		if (find_file(fpath, &st) || (mkdir(fpath, 0755) != 0))
+		if (find_file(fpath, &st, drive) || (mkdir(fpath, 0755) != 0))
 			return lfn_error(ACCESS_DENIED);
 		break;
 	case 0x3a: /* rmdir */
-		if (!build_posix_path(fpath, src))
-			return 0;
-		if (!find_file(fpath, &st))
+		drive = build_posix_path(fpath, src);
+		if (drive == -1)
+			return 0;			 
+		if (!find_file(fpath, &st, drive))
 			return lfn_error(PATH_NOT_FOUND);
 		d_printf("LFN: rmdir %s\n", fpath);
 		if (rmdir(fpath) != 0)
@@ -292,18 +290,20 @@ int mfs_lfn(void)
 		dest = LFN_string - (long)bios_f000 + (BIOSSEG << 4);
 		Debug0((dbg_fd, "set directory to: %s\n", src));
 		d_printf("LFN: chdir %s %d\n", src, strlen(src));
-		if (!build_posix_path(fpath, src))
+		drive = build_posix_path(fpath, src);
+		if (drive == -1)
 			return 0;			 
-		if (!find_file(fpath, &st) || !S_ISDIR(st.st_mode))
+		if (!find_file(fpath, &st, drive) || !S_ISDIR(st.st_mode))
 			return lfn_error(PATH_NOT_FOUND);
-		make_unmake_dos_mangled_path(dest, fpath, 1);
+		make_unmake_dos_mangled_path(dest, fpath, drive, 1);
 		d_printf("LFN: New CWD will be %s\n", dest);
 		call_dos_helper(0x3b00);
 		break;
 	case 0x41: /* remove file */
-		if (!build_posix_path(fpath, src))
+		drive = build_posix_path(fpath, src);
+		if (drive == -1)
 			return 0;			 
-		if (!find_file(fpath, &st))
+		if (!find_file(fpath, &st, drive))
 			return lfn_error(FILE_NOT_FOUND);
 		d_printf("LFN: deleting %s\n", fpath);
 		if (unlink(fpath) != 0)
@@ -311,9 +311,10 @@ int mfs_lfn(void)
 		break;
 	case 0x43: /* get/set file attributes */
 		d_printf("LFN: attribute %s %d\n", src, _BL);
-		if (!build_posix_path(fpath, src))
+		drive = build_posix_path(fpath, src);
+		if (drive == -1)
 			return 0;			 
-		if (!find_file(fpath, &st) || is_dos_device(fpath)) {
+		if (!find_file(fpath, &st, drive) || is_dos_device(fpath)) {
 			Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
 			return lfn_error(FILE_NOT_FOUND);
 		}
@@ -361,33 +362,31 @@ int mfs_lfn(void)
 		break;
 	case 0x47: /* get current directory */
 		if (_DL == 0)
-			dd = sda_cur_drive(sda);
+			drive = sda_cur_drive(sda);
 		else
-			dd = _DL - 1;
-		if (dd < 0 || dd >= MAX_DRIVE)
+			drive = _DL - 1;
+		if (drive < 0 || drive >= MAX_DRIVE)
 			return lfn_error(DISK_DRIVE_INVALID);
-		if (!dos_roots[dd])
+		if (!drives[drive].root)
 			return 0;
 			
-		current_drive = dd;
-		dos_root = dos_roots[current_drive];
-		dos_root_len = dos_root_lens[current_drive];
-		cds = drive_cds(current_drive);
-		cwd = cds_current_path(cds);
+		cwd = cds_current_path(drive_cds(drive));
 		dest = (char *)SEGOFF2LINEAR(_DS, _SI);
-		build_ufs_path(fpath, cwd);
-		d_printf("LFN: getcwd %s %s %s\n", cwd, fpath, dos_root);
-		find_file(fpath, &st);
-		d_printf("LFN: getcwd %s %s %s\n", cwd, fpath, dos_root);
-		d_printf("LFN: %p %d %p %s\n", cds, current_drive, dest, fpath+strlen(dos_root));
-		make_unmake_dos_mangled_path(dest, fpath, 0);
+		build_ufs_path(fpath, cwd, drive);
+		d_printf("LFN: getcwd %s %s\n", cwd, fpath);
+		find_file(fpath, &st, drive);
+		d_printf("LFN: getcwd %s %s\n", cwd, fpath);
+		d_printf("LFN: %p %d %p %s\n", drive_cds(drive), drive, dest,
+                         fpath+drives[drive].root_len);
+		make_unmake_dos_mangled_path(dest, fpath, drive, 0);
 		memmove(dest, dest + 3, strlen(dest + 3) + 1);
 		break;
 	case 0x4e: /* find first */
 	{
 		int dotpos;
 
-		if (!build_posix_path(fpath, src))
+		drive = build_posix_path(fpath, src);
+		if (drive == -1)
 			return 0;			 
 		slash = strrchr(fpath, '/');
 		d_printf("LFN: posix:%s\n", fpath);
@@ -405,12 +404,13 @@ int mfs_lfn(void)
 		dir = malloc(sizeof *dir);
 		strcpy(dir->dirbase, fpath);
 		dir->dirattr = _CX;
+		dir->drive = drive;
 		strcpy(dir->pattern, slash);
 		dotpos = strlen(dir->pattern) - 2;
 		if (dotpos > 0 && strcmp(&dir->pattern[dotpos], ".*") == 0)
 			dir->pattern[dotpos] = '*';
 		/* XXX check for device (special dir entry) */
-		if (!find_file(fpath, &st) || is_dos_device(fpath)) {
+		if (!find_file(fpath, &st, drive) || is_dos_device(fpath)) {
 			Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
 			return lfn_error(NO_MORE_FILES);
 		}
@@ -446,7 +446,7 @@ int mfs_lfn(void)
 				strcpy(fpath, dir->dirbase);
 				strcat(fpath, "/");
 				strcat(fpath, de->d_long_name);
-				if (!getfindnext(fpath, de, dir->dirattr))
+				if (!getfindnext(fpath, de, dir->dirattr, dir->drive))
 					continue;
 				if (_AL != 0x4e)
 					_AX = 0x4f00 + dirhandle;
@@ -461,20 +461,22 @@ int mfs_lfn(void)
 	case 0x56: /* rename file */
 	{
 		d_printf("LFN: rename to %s\n", dest);
-		if (!build_posix_path(fpath2, dest))
+		drive = build_posix_path(fpath2, dest);
+		if (drive == -1)
 			return 0;			 
 		slash = strrchr(fpath2, '/');
 		strcpy(fpath, slash);
 		*slash = '\0';
-		if (!find_file(fpath2, &st))
+		if (!find_file(fpath2, &st, drive))
 			return lfn_error(PATH_NOT_FOUND);
 		strcat(fpath2, fpath);
 		if (is_dos_device(fpath2))
 			return lfn_error(FILE_NOT_FOUND);
 		d_printf("LFN: rename from %s\n", src);
-		if (!build_posix_path(fpath, src))
-			return 1;			 
-		if (!find_file(fpath, &st) || is_dos_device(fpath)) {
+		drive = build_posix_path(fpath, src);
+		if (drive == -1)
+			return 1;
+		if (!find_file(fpath, &st, drive) || is_dos_device(fpath)) {
 			Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
 			return lfn_error(FILE_NOT_FOUND);
 		}
@@ -485,41 +487,43 @@ int mfs_lfn(void)
 	case 0x60: /* truename */
 		src = (char *)SEGOFF2LINEAR(_DS, _SI);
 		d_printf("LFN: truename %s, cl=%d\n", src, _CL);
-		if (!build_posix_path(fpath, src))
-			return 0;
-		find_file(fpath, &st);
-		d_printf("LFN: %s %s\n", fpath, dos_root);
+		drive = build_posix_path(fpath, src);
+		if (drive == -1)
+			return 0;			 
+		find_file(fpath, &st, drive);
+		d_printf("LFN: %s %s\n", fpath, drives[drive].root);
 		if (_CL == 1) {
-			make_unmake_dos_mangled_path(dest, fpath, 1);
+			make_unmake_dos_mangled_path(dest, fpath, drive, 1);
 		} else if (_CL == 2) {
-			make_unmake_dos_mangled_path(dest, fpath, 0);
+			make_unmake_dos_mangled_path(dest, fpath, drive, 0);
 		} else {
-			dest[0] = current_drive + 'A';
+			dest[0] = drive + 'A';
 			dest[1] = ':';
 			dest[2] = '\\';
-			strcpy(dest + 3, fpath+strlen(dos_root));
+			strcpy(dest + 3, fpath+drives[drive].root_len);
 			for (cwd = dest; *cwd; cwd++)
 				if (*cwd == '/')
 					*cwd = '\\';
 		}
-		d_printf("LFN: %s %s\n", dest, dos_root);
+		d_printf("LFN: %s %s\n", dest, drives[drive].root);
 		break;
 	case 0x6c: /* create/open */
 		src = (char *)SEGOFF2LINEAR(_DS, _SI);
 		dest = LFN_string - (long)bios_f000 + (BIOSSEG << 4);
 		d_printf("LFN: open %s\n", src);
-		if (!build_posix_path(fpath, src))
-			return 0;		 
+		drive = build_posix_path(fpath, src);
+		if (drive == -1)
+			return 0;			 
 		if (is_dos_device(fpath)) {
 			strcpy(dest, strrchr(fpath, '/') + 1);
 		} else {
 			slash = strrchr(fpath, '/');
 			strcpy(fpath2, slash);
 			*slash = '\0';
-			if (!find_file(fpath, &st))
+			if (!find_file(fpath, &st, drive))
 				return lfn_error(PATH_NOT_FOUND);
 			strcat(fpath, fpath2);
-			if (!find_file(fpath, &st) && (_DX & 0x10)) {
+			if (!find_file(fpath, &st, drive) && (_DX & 0x10)) {
 				int fd = open(fpath, (O_RDWR | O_CREAT),
 					      get_unix_attr(0664, _CL |
 							    ARCHIVE_NEEDED));
@@ -532,12 +536,12 @@ int mfs_lfn(void)
 				d_printf("LFN: open: created %s\n", fpath);
 				close(fd);
 			}
-			make_unmake_dos_mangled_path(dest, fpath, 1);
+			make_unmake_dos_mangled_path(dest, fpath, drive, 1);
 		}
 		call_dos_helper(0x6c00);
 		break;
 	case 0xa0: /* get volume info */
-		if (!build_posix_path(fpath, src))
+		if (build_posix_path(fpath, src) == -1)
 			return 0;			 
 		size = _CX;
 		_AX = 0;

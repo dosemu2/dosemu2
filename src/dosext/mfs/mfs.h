@@ -100,6 +100,10 @@ typedef struct vm86_regs state_t;
  *
  * HISTORY:
  * $Log$
+ * Revision 1.4  2003/08/10 18:06:44  bartoldeman
+ * MFS cleanup: avoid use of some global variables and pass the drive number
+ * around as a parameter instead.
+ *
  * Revision 1.3  2003/07/18 22:42:41  bartoldeman
  * Fix LFN's for VFAT.
  * Make use of the VFAT_IOCTL_READDIR_BOTH ioctl to obtain the short
@@ -342,7 +346,6 @@ typedef u_char *sft_t;
 
 typedef u_char *cds_t;
 extern cds_t cds_base;
-extern cds_t cds;
 extern int cds_current_path_off;
 extern int cds_rootlen_off;
 extern int cds_record_size;
@@ -372,10 +375,13 @@ typedef u_char *sda_t;
 extern sda_t sda;
 extern int sda_cur_drive_off;
 
-extern char *dos_roots[MAX_DRIVE];
-extern char *dos_root;
-extern int dos_root_lens[MAX_DRIVE];
-extern int dos_root_len;
+struct drive_info 
+{
+  char *root;
+  int root_len;
+  boolean_t read_only;
+};
+extern struct drive_info drives[MAX_DRIVE];
 
 #define	sda_current_dta(sda)	((char *)(FARPTR((far_t *)&sda[sda_current_dta_off])))
 #define	sda_error_code(sda)		(*(u_short *)&sda[4])
@@ -452,8 +458,8 @@ typedef struct lol_record {
 #define CANCEL_REDIRECTION 4
 #define EXTENDED_GET_REDIRECTION 5
 
-extern int build_ufs_path(char *ufs, const char *path);
-extern boolean_t find_file(char *fpath, struct stat *st);
+extern int build_ufs_path(char *ufs, const char *path, int drive);
+extern boolean_t find_file(char *fpath, struct stat *st, int drive);
 extern boolean_t is_hidden(char *fname);
 extern int get_dos_attr(int mode,boolean_t hidden);
 extern int get_unix_attr(int mode, int attr);

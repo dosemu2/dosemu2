@@ -281,6 +281,7 @@ struct file_fd
 
 /* Need to know how many drives are redirected */
 static u_char redirected_drives = 0;
+struct drive_info drives[MAX_DRIVE];
 
 static int calculate_drive_pointers(int);
 static boolean_t dos_fs_dev(state_t *);
@@ -289,29 +290,19 @@ static int dos_fs_redirect(state_t *);
 static int is_long_path(const char *s);
 
 static boolean_t drives_initialized = FALSE;
-char *dos_roots[MAX_DRIVE];
-int dos_root_lens[MAX_DRIVE];
-static boolean_t read_onlys[MAX_DRIVE];
-static boolean_t finds_in_progress[MAX_DRIVE];
+
 static struct file_fd open_files[256];
-static boolean_t find_in_progress = FALSE;
-static int current_drive = 0;
 static u_char first_free_drive = 0;
 static int num_drives = 0;
 static int process_mask = 0;
-static boolean_t read_only = FALSE;
 
 lol_t lol = NULL;
 static far_t cdsfarptr;
 cds_t cds_base;
-cds_t cds;
 sda_t sda;
 
 static int dos_major;
 static int dos_minor;
-
-char *dos_root = "";
-int dos_root_len = 0;
 
 /* initialize 'em to 3.1 to 3.3 */
 
@@ -477,7 +468,7 @@ select_drive(state_t *state)
 	where the cds flags seem to be unset. This allows me to reclaim a
  	drive in the strange and unnatural case where the cds has moved. */
   for (dd = 0; dd < num_drives; dd++)
-    if (dos_roots[dd] && (cds_flags(drive_cds(dd)) &
+    if (drives[dd].root && (cds_flags(drive_cds(dd)) &
 			  (CDS_FLAG_REMOTE | CDS_FLAG_READY)) !=
 	(CDS_FLAG_REMOTE | CDS_FLAG_READY)) {
       calculate_drive_pointers(dd);
@@ -488,13 +479,13 @@ select_drive(state_t *state)
 
   if (!found && check_cds) {
     dd = cds_drive(sda_cds);
-    if (dd >= 0 && dos_roots[dd])
+    if (dd >= 0 && drives[dd].root)
       found = 1;
   }
 
   if (!found && check_esdi_cds) {
     dd = cds_drive(esdi_cds);
-    if (dd >= 0 && dos_roots[dd])
+    if (dd >= 0 && drives[dd].root)
       found = 1;
   }
 
@@ -507,7 +498,7 @@ select_drive(state_t *state)
           a non-zero value in the second four bits of the entry.
 	  2002/01/08: apparently PTSDOS doesn't like bit 9 though...
 	*/
-    if (dd >= 0 && dd < MAX_DRIVE && dos_roots[dd]) {
+    if (dd >= 0 && dd < MAX_DRIVE && drives[dd].root) {
       found = 1;
     }
   }
@@ -516,7 +507,7 @@ select_drive(state_t *state)
     char *fn1 = sda_filename1(sda);
 
     dd = toupperDOS(fn1[0]) - 'A';
-    if (dd >= 0 && dd < MAX_DRIVE && dos_roots[dd]) {
+    if (dd >= 0 && dd < MAX_DRIVE && drives[dd].root) {
       /* removed ':' check so DRDOS would be happy,
 	     there is a slight worry about possible device name
 	     troubles with this - will PRN ever be interpreted as P:\RN ? */
@@ -532,7 +523,7 @@ select_drive(state_t *state)
     } else {
       dd = sda_cur_drive(sda);
     }
-    if (dd >= 0 && dd < MAX_DRIVE && dos_roots[dd])
+    if (dd >= 0 && dd < MAX_DRIVE && drives[dd].root)
       found = 1;
   }
 
@@ -541,7 +532,7 @@ select_drive(state_t *state)
   if (!found && fn == FIND_NEXT) {
     u_char *dta = sda_current_dta(sda);
     dd = (*dta & ~0x80);
-    if (dd >= 0 && dd < MAX_DRIVE && dos_roots[dd])
+    if (dd >= 0 && dd < MAX_DRIVE && drives[dd].root)
       found = 1;
   }
 
@@ -552,18 +543,11 @@ select_drive(state_t *state)
       Debug0((dbg_fd, "Passing %d to PRINTER SETUP anyway\n",
 	      (int) WORD(state->ebx)));
     }
-    return (0);
+    return (-1);
   }
 
-  current_drive = dd;
-  cds = drive_cds(current_drive);
-  find_in_progress = finds_in_progress[current_drive];
-  dos_root = dos_roots[current_drive];
-  dos_root_len = dos_root_lens[current_drive];
-  read_only = read_onlys[current_drive];
-
-  Debug0((dbg_fd, "selected drive %d: %s\n", current_drive, dos_root));
-  return (1);
+  Debug0((dbg_fd, "selected drive %d: %s\n", dd, drives[dd].root));
+  return (dd);
 }
 
 boolean_t is_hidden(char *fname)
@@ -633,10 +617,9 @@ init_all_drives(void)
     Debug0((dbg_fd, "Inside initialization\n"));
     drives_initialized = TRUE;
     for (dd = 0; dd < MAX_DRIVE; dd++) {
-      dos_roots[dd] = NULL;
-      dos_root_lens[dd] = 0;
-      finds_in_progress[dd] = FALSE;
-      read_onlys[dd] = FALSE;
+      drives[dd].root = NULL;
+      drives[dd].root_len = 0;
+      drives[dd].read_only = FALSE;
     }
     process_mask = umask(0);
     umask(process_mask);
@@ -736,6 +719,7 @@ init_drive(int dd, char *path, char *options)
 {
   struct stat st;
   char *new_path;
+  int new_len;
 
   new_path = malloc(MAXPATHLEN + 1);
   if (new_path == NULL) {
@@ -745,33 +729,34 @@ init_drive(int dd, char *path, char *options)
     return ((int) NULL);
   }
   get_unix_path(new_path, path);
+  new_len = strlen(new_path);
   Debug0((dbg_fd, "new_path=%s\n", new_path));
-  dos_roots[dd] = new_path;
-  dos_root_lens[dd] = strlen(dos_roots[dd]);
   Debug0((dbg_fd, "next_aval %d path %s opts %s root %s length %d\n",
-	  dd, path, options, dos_roots[dd], dos_root_lens[dd]));
+	  dd, path, options, new_path, new_len));
 
   /* now a kludge to find the true name of the path */
-  if (dos_root_lens[dd] != 1) {
-    dos_roots[dd][dos_root_lens[dd] - 1] = 0;
-    dos_root_len = 1;
-    dos_root = "/";
-    if (!find_file(dos_roots[dd], &st)) {
-      error("MFS: couldn't find root path %s\n", dos_roots[dd]);
+  if (new_len != 1) {
+    new_path[new_len - 1] = 0;
+    drives[dd].root_len = 1;
+    drives[dd].root = "/";
+    if (!find_file(new_path, &st, dd)) {
+      error("MFS: couldn't find root path %s\n", new_path);
       return (0);
     }
     if (!(st.st_mode & S_IFDIR)) {
-      error("MFS: root path is not a directory %s\n", dos_roots[dd]);
+      error("MFS: root path is not a directory %s\n", new_path);
       return (0);
     }
-    dos_roots[dd][dos_root_lens[dd] - 1] = '/';
+    new_path[new_len - 1] = '/';
   }
 
+  drives[dd].root = new_path;
+  drives[dd].root_len = new_len;
   if (num_drives <= dd)
     num_drives = dd + 1;
-  read_onlys[dd] = (options && (toupperDOS(options[0]) == 'R'));
-  Debug0((dbg_fd, "initialised drive %d as %s with access of %s\n", dd, dos_roots[dd],
-	  read_onlys[dd] ? "READ_ONLY" : "READ_WRITE"));
+  drives[dd].read_only = (options && (toupperDOS(options[0]) == 'R'));
+  Debug0((dbg_fd, "initialised drive %d as %s with access of %s\n", dd, drives[dd].root,
+	  drives[dd].read_only ? "READ_ONLY" : "READ_WRITE"));
 #if 0  
   calculate_drive_pointers (dd);
 #endif
@@ -795,8 +780,6 @@ mfs_redirector(void)
   sigalarm_onoff(1);
 
   Debug0((dbg_fd, "Finished dos_fs_redirect\n"));
-
-  finds_in_progress[current_drive] = find_in_progress;
 
   switch (ret) {
   case FALSE:
@@ -970,7 +953,7 @@ static struct dir_ent *make_entry(struct dir_list *dir_list)
 
 /* check if name/mname.mext exists as such if it does not contain
    wildcards */
-static boolean_t exists(char *name, char *mname, char *mext, struct stat *st)
+static boolean_t exists(char *name, char *mname, char *mext, struct stat *st, int drive)
 {
   char fullname[MAXPATHLEN];
   size_t len;
@@ -991,11 +974,11 @@ static boolean_t exists(char *name, char *mname, char *mext, struct stat *st)
   while (fullname[len - 1] == '.')
     len--;
   fullname[len] = '\0';
-  rc = find_file(fullname, st);
+  rc = find_file(fullname, st, drive);
   return rc;
 }
 
-static struct dir_list *get_dir(char *name, char *mname, char *mext)
+static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
 {
   struct mfs_dir *cur_dir;
   struct mfs_dirent *cur_ent;
@@ -1008,7 +991,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext)
   char fname[8];
   char fext[3];
 
-  if(is_dos_device(name) || !find_file(name, &sbuf))
+  if(is_dos_device(name) || !find_file(name, &sbuf, drive))
     return NULL;
 
   if ((cur_dir = dos_opendir(name)) == NULL) {
@@ -1044,7 +1027,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext)
   else if (!memchr(mname, '?', 8) && !memchr(mname, '*', 8) &&
            !memchr(mext, '?', 3) && !memchr(mext, '*', 3))
   {
-    if (exists(name, mname, mext, &sbuf))
+    if (exists(name, mname, mext, &sbuf, drive))
     {
       Debug0((dbg_fd, "filename exists, %s %.8s%.3s\r\n", name, mname, mext));
       dir_list = make_dir_list(1);
@@ -1079,7 +1062,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext)
       if (tmpname[0] == '.') {
 	if (namlen > 2)
 	  continue;
-	if (strncasecmpDOS(name, dos_root, strlen(name)) == 0)
+	if (strncasecmpDOS(name, drives[drive].root, strlen(name)) == 0)
 	  continue;
 	if ((namlen == 2) &&
 	    (tmpname[1] != '.'))
@@ -1113,7 +1096,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext)
       buf[slen] = '/';
       strcpy(sptr, cur_ent->d_name);
 
-      if (!find_file(buf, &sbuf)) {
+      if (!find_file(buf, &sbuf, drive)) {
 	Debug0((dbg_fd, "Can't findfile %s\n", buf));
 	entry->mode = S_IFREG;
 	entry->size = 0;
@@ -1476,11 +1459,11 @@ calculate_drive_pointers(int dd)
 {
   far_t cdsfarptr;
   char *cwd;
-  cds_t cds_base;
+  cds_t cds_base, cds;
 
   if (!lol)
     return (0);
-  if (!dos_roots[dd])
+  if (!drives[dd].root)
     return (0);
 
   cdsfarptr = lol_cdsfarptr(lol);
@@ -1602,7 +1585,7 @@ dos_fs_dev(state_t *state)
 
       if (strncmpDOS(dirnameptr - 10, "directory ", 10) == 0) {
 	*dirnameptr = 0;
-	strncpy(dirnameptr, dos_roots[drive_to_redirect], 128);
+	strncpy(dirnameptr, drives[drive_to_redirect].root, 128);
 	strcat(dirnameptr, "\n\r$");
       }
       else
@@ -1689,21 +1672,21 @@ path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar)
   Debug0((dbg_fd, "dos_gen: path_to_ufs '%s'\n", ufs));
 }
 
-int build_ufs_path(char *ufs, const char *path)
+int build_ufs_path(char *ufs, const char *path, int drive)
 {
   int i;
 
   Debug0((dbg_fd, "dos_fs: build_ufs_path for DOS path '%s'\n", path));
 
-  /* Set ufs to dos_roots[current_drive] */
-  strcpy(ufs, dos_root);
+  strcpy(ufs, drives[drive].root);
   /* Skip over leading <drive>:\ in the path */
   if (path[1]==':')
-    path += cds_rootlen(cds);
+    path += cds_rootlen(drive_cds(drive));
   
-  Debug0((dbg_fd,"dos_gen: ufs '%s', path '%s', l=%d\n", ufs, path, dos_root_len));
+  Debug0((dbg_fd,"dos_gen: ufs '%s', path '%s', l=%d\n", ufs, path,
+          drives[drive].root_len));
   
-  path_to_ufs(ufs, dos_root_len, path, 0);
+  path_to_ufs(ufs, drives[drive].root_len, path, 0);
   
   /* remove any double slashes */
   i = 0;
@@ -1721,7 +1704,7 @@ int build_ufs_path(char *ufs, const char *path)
  * scan a directory for a matching filename
  */
 static boolean_t
-scan_dir(char *path, char *name)
+scan_dir(char *path, char *name, int drive)
 {
   struct mfs_dir *cur_dir;
   struct mfs_dirent *cur_ent;
@@ -1755,7 +1738,7 @@ scan_dir(char *path, char *name)
         continue;
 
       if (tmpname[0] == '.' &&
-	  strncasecmpDOS(path, dos_root, strlen(path)) != 0)
+	  strncasecmpDOS(path, drives[drive].root, strlen(path)) != 0)
         continue;
 
       if (strcasecmpDOS(name, tmpname) != 0)
@@ -1784,7 +1767,7 @@ scan_dir(char *path, char *name)
  * a new find_file that will do complete upper/lower case matching for the
  * whole path
  */
-boolean_t find_file(char *fpath, struct stat * st)
+boolean_t find_file(char *fpath, struct stat * st, int drive)
 {
   char *slash1, *slash2;
 
@@ -1819,7 +1802,7 @@ boolean_t find_file(char *fpath, struct stat * st)
 
   /* slash1 will point to the beginning of the section we're looking
      at, and slash2 will point at the end */
-  slash1 = fpath + dos_root_len - 1;
+  slash1 = fpath + drives[drive].root_len - 1;
 
   /* maybe if we make it all lower case, this is a "best guess" */
   {
@@ -1861,7 +1844,7 @@ boolean_t find_file(char *fpath, struct stat * st)
 	remainder[0] = '/';
 	strcpy(remainder+1,slash2+1);
       }
-      if (!scan_dir(fpath, slash1 + 1)) {
+      if (!scan_dir(fpath, slash1 + 1, drive)) {
 	*slash1 = '/';
 	Debug0((dbg_fd, "find_file(): no match: %s\n", fpath));
 	if (slash2)
@@ -2311,17 +2294,17 @@ GetRedirection(state_t *state, u_short index)
   /* I'm going to cheat and return a read-only flag in it */
   Debug0((dbg_fd, "GetRedirection, index=%d\n", index));
   for (dd = 0; dd < num_drives; dd++) {
-    if (dos_roots[dd]) {
+    if (drives[dd].root) {
       if (index == 0) {
 	/* return information for this drive */
-	Debug0((dbg_fd, "redirection root =%s\n", dos_roots[dd]));
+	Debug0((dbg_fd, "redirection root =%s\n", drives[dd].root));
 	deviceName = (u_char *) Addr(state, ds, esi);
 	deviceName[0] = 'A' + dd;
 	deviceName[1] = ':';
 	deviceName[2] = EOS;
 	resourceName = (u_char *) Addr(state, es, edi);
 	strcpy(resourceName, LINUX_RESOURCE);
-	strcat(resourceName, dos_roots[dd]);
+	strcat(resourceName, drives[dd].root);
 	path_to_dos(resourceName);
 	Debug0((dbg_fd, "resource name =%s\n", resourceName));
 	Debug0((dbg_fd, "device name =%s\n", deviceName));
@@ -2333,7 +2316,7 @@ GetRedirection(state_t *state, u_short index)
 
 	/* set the high bit of the return CL so that */
 	/* NetWare shell doesn't get confused */
-	returnCX = read_onlys[dd] | 0x80;
+	returnCX = drives[dd].read_only | 0x80;
 
 	Debug0((dbg_fd, "GetRedirection "
 		"user stack=%p, CX=%x\n",
@@ -2373,11 +2356,11 @@ GetRedirection(state_t *state, u_short index)
 int
 GetRedirectionRoot(int dsk, char **resourceName,int *ro_flag)
 {
-  if (!dos_roots[dsk]) return (TRUE);
+  if (!drives[dsk].root) return (TRUE);
   *resourceName = malloc(MAXPATHLEN + 1);
   if (*resourceName == NULL) return (TRUE);
-  strcpy(*resourceName, dos_roots[dsk] );
-  *ro_flag=read_onlys[dsk];
+  strcpy(*resourceName, drives[dsk].root );
+  *ro_flag=drives[dsk].read_only;
   return (FALSE);
 
 }
@@ -2397,6 +2380,7 @@ RedirectDisk(int dsk, char *resourceName, int ro_flag)
   char path[256];
   unsigned char *p;
   int i;
+  cds_t cds;
 
   *path = 0;
 
@@ -2405,12 +2389,10 @@ RedirectDisk(int dsk, char *resourceName, int ro_flag)
   cdsfarptr = lol_cdsfarptr(lol);
   cds_base = (cds_t) Addr_8086(cdsfarptr.segment, cdsfarptr.offset);
 
-  current_drive = dsk;
-
   /* see if drive is in range of valid drives */
-  if(current_drive < 0 || current_drive > lol_last_drive(lol)) return 1;
+  if(dsk < 0 || dsk > lol_last_drive(lol)) return 1;
 
-  cds = drive_cds(current_drive);
+  cds = drive_cds(dsk);
 
   /* see if drive is already redirected */
   if(cds_flags(cds) & CDS_FLAG_REMOTE) return 2;
@@ -2420,7 +2402,7 @@ RedirectDisk(int dsk, char *resourceName, int ro_flag)
 
   path_to_ufs(path, 0, &resourceName[strlen(LINUX_RESOURCE)], 1);
 
-  i = init_drive(current_drive, path, ro_flag ? "R" : NULL) == 0 ? 4 : 0;
+  i = init_drive(dsk, path, ro_flag ? "R" : NULL) == 0 ? 4 : 0;
 
   if(!i) {
     /* Make drive known to DOS.
@@ -2429,14 +2411,14 @@ RedirectDisk(int dsk, char *resourceName, int ro_flag)
      * However, the command line parse function (int 0x21, ah=0x29) will not.
      * -- sw
      */
-    p = drive_cds(current_drive);
+    p = drive_cds(dsk);
     p[cds_flags_off] = 0x80;
     p[cds_flags_off + 1] = 0xc0;
   }
 
 #if 0
   {
-    unsigned char *p = drive_cds(current_drive);
+    unsigned char *p = drive_cds(dsk);
     unsigned char c;
     int i, j;
 
@@ -2469,6 +2451,8 @@ RedirectDevice(state_t * state)
   char *resourceName;
   char *deviceName;
   char path[256];
+  int drive;
+  cds_t cds;
 
   /* first, see if this is our resource to be redirected */
   resourceName = (u_char *) Addr(state, es, edi);
@@ -2487,14 +2471,14 @@ RedirectDevice(state_t * state)
     SETWORD(&(state->eax), FUNC_NUM_IVALID);
     return (FALSE);
   }
-  current_drive = toupperDOS(deviceName[0]) - 'A';
+  drive = toupperDOS(deviceName[0]) - 'A';
 
   /* see if drive is in range of valid drives */
-  if (current_drive < 0 || current_drive > lol_last_drive(lol)) {
+  if (drive < 0 || drive > lol_last_drive(lol)) {
     SETWORD(&(state->eax), DISK_DRIVE_INVALID);
     return (FALSE);
   }
-  cds = drive_cds(current_drive);
+  cds = drive_cds(drive);
   /* see if drive is already redirected */
   if (cds_flags(cds) & CDS_FLAG_REMOTE) {
     SETWORD(&(state->eax), DUPLICATE_REDIR);
@@ -2511,7 +2495,7 @@ RedirectDevice(state_t * state)
   /* if low bit of CX is set, then set for read only access */
   Debug0((dbg_fd, "read-only attribute = %d\n",
 	  (int) (state->ecx & 1)));
-  if (init_drive(current_drive, path, (state->ecx & 1) ? "R" : NULL) == 0) {
+  if (init_drive(drive, path, (state->ecx & 1) ? "R" : NULL) == 0) {
     SETWORD(&(state->eax), NETWORK_NAME_NOT_FOUND);
     return (FALSE);
   }
@@ -2534,35 +2518,33 @@ CancelDiskRedirection(int dsk)
 {
   char *path;
   far_t DBPptr;
+  cds_t cds;
 
   Debug0((dbg_fd, "CancelDiskRedirection on %c:\n", dsk + 'A'));
 
   cdsfarptr = lol_cdsfarptr(lol);
   cds_base = (cds_t) Addr_8086(cdsfarptr.segment, cdsfarptr.offset);
 
-  current_drive = dsk;
-
   /* see if drive is in range of valid drives */
-  if(current_drive < 0 || current_drive > lol_last_drive(lol)) return 1;
+  if(dsk < 0 || dsk > lol_last_drive(lol)) return 1;
 
-  cds = drive_cds(current_drive);
+  cds = drive_cds(dsk);
 
   /* Do we own this drive? */
-  if(dos_roots[current_drive] == NULL) return 2;
+  if(drives[dsk].root == NULL) return 2;
 
   /* first, clean up my information */
-  free(dos_roots[current_drive]);
-  dos_roots[current_drive] = NULL;
-  dos_root_lens[current_drive] = 0;
-  finds_in_progress[current_drive] = FALSE;
-  read_onlys[current_drive] = FALSE;
+  free(drives[dsk].root);
+  drives[dsk].root = NULL;
+  drives[dsk].root_len = 0;
+  drives[dsk].read_only = FALSE;
 
   /* reset information in the CDS for this drive */
   cds_flags(cds) = 0;		/* default to a "not ready" drive */
 
   path = cds_current_path(cds);
   /* set the current path for the drive */
-  path[0] = current_drive + 'A';
+  path[0] = dsk + 'A';
   path[1] = ':';
   path[2] = '\\';
   path[3] = EOS;
@@ -2592,6 +2574,8 @@ CancelRedirection(state_t * state)
   char *deviceName;
   char *path;
   far_t DBPptr;
+  int drive;
+  cds_t cds;
 
   /* first, see if this is one of our current redirections */
   deviceName = (u_char *) Addr(state, ds, esi);
@@ -2601,32 +2585,31 @@ CancelRedirection(state_t * state)
     /* we only handle drive redirections, pass it through */
     return (REDIRECT);
   }
-  current_drive = toupperDOS(deviceName[0]) - 'A';
+  drive = toupperDOS(deviceName[0]) - 'A';
 
   /* see if drive is in range of valid drives */
-  if (current_drive < 0 || current_drive > lol_last_drive(lol)) {
+  if (drive < 0 || drive > lol_last_drive(lol)) {
     SETWORD(&(state->eax), DISK_DRIVE_INVALID);
     return (FALSE);
   }
-  cds = drive_cds(current_drive);
-  if (dos_roots[current_drive] == NULL) {
+  cds = drive_cds(drive);
+  if (drives[drive].root == NULL) {
     /* we don't own this drive, pass it through to next redirector */
     return (REDIRECT);
   }
 
   /* first, clean up my information */
-  free(dos_roots[current_drive]);
-  dos_roots[current_drive] = NULL;
-  dos_root_lens[current_drive] = 0;
-  finds_in_progress[current_drive] = FALSE;
-  read_onlys[current_drive] = FALSE;
+  free(drives[drive].root);
+  drives[drive].root = NULL;
+  drives[drive].root_len = 0;
+  drives[drive].read_only = FALSE;
 
   /* reset information in the CDS for this drive */
   cds_flags(cds) = 0;		/* default to a "not ready" drive */
 
   path = cds_current_path(cds);
   /* set the current path for the drive */
-  path[0] = current_drive + 'A';
+  path[0] = drive + 'A';
   path[1] = ':';
   path[2] = '\\';
   path[3] = EOS;
@@ -2677,7 +2660,7 @@ static int lock_file_region(int fd, int cmd, struct flock *fl, long long start, 
 }
 
 static boolean_t
-share(int fd, int mode, sft_t sft)
+share(int fd, int mode, int drive, sft_t sft)
 {
   /*
    * Return whether FD doesn't break any sharing rules.  FD was opened for
@@ -2714,13 +2697,13 @@ share(int fd, int mode, sft_t sft)
   if ( ret == -1 ) {
   /* work around Linux's NFS locking problems (June 1999) -- sw */
     static unsigned char u[26] = { 0, };
-    if(current_drive < 26) {
-      if(!u[current_drive])
+    if(drive < 26) {
+      if(!u[drive])
         fprintf(stderr,
                 "SHAREing doesn't work on drive %c: (probably NFS volume?)\n",
-                current_drive + 'A'
+                drive + 'A'
           );
-      u[current_drive] = 1;
+      u[drive] = 1;
     }
     return (TRUE);
   }
@@ -2828,7 +2811,7 @@ Values of DOS 2-6.22 file sharing behavior:
     lock_file_region( fd, F_SETLK, &fl, 0x100000000LL, 1 );
   Debug0((dbg_fd,
     "internal SHARE: locking: drive %c:, fd %d, type %d whence %d pid %d\n",
-     current_drive + 'A', fd, fl.l_type, fl.l_whence, fl.l_pid
+     drive + 'A', fd, fl.l_type, fl.l_whence, fl.l_pid
   ));
 
   return (TRUE);
@@ -2866,7 +2849,7 @@ dos_fs_redirect(state_t *state)
   u_short dos_mode, unix_mode;
   u_short FCBcall = 0;
   u_char create_file=0;
-  int fd;
+  int fd, drive;
   int cnt, cnt1;
   int ret = REDIRECT;
   cds_t my_cds;
@@ -2901,7 +2884,8 @@ dos_fs_redirect(state_t *state)
 
   Debug0((dbg_fd, "Entering dos_fs_redirect, FN=%02X\n",(int)LOW(state->eax)));
 
-  if (!select_drive(state))
+  drive = select_drive(state);
+  if (drive == -1)
     return (REDIRECT);
 
   filename1 = sda_filename1(sda);
@@ -2926,13 +2910,13 @@ dos_fs_redirect(state_t *state)
   case REMOVE_DIRECTORY:	/* 0x01 */
   case REMOVE_DIRECTORY_2:	/* 0x02 */
     Debug0((dbg_fd, "Remove Directory %s\n", filename1));
-    if (read_only) {
+    if (drives[drive].read_only) {
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
 
-    build_ufs_path(fpath, filename1);
-    if (find_file(fpath, &st) && !is_dos_device(fpath)) {
+    build_ufs_path(fpath, filename1, drive);
+    if (find_file(fpath, &st, drive) && !is_dos_device(fpath)) {
       if (rmdir(fpath) != 0) {
 	Debug0((dbg_fd, "failed to remove directory %s\n", fpath));
 	SETWORD(&(state->eax), ACCESS_DENIED);
@@ -2948,12 +2932,12 @@ dos_fs_redirect(state_t *state)
   case MAKE_DIRECTORY:		/* 0x03 */
   case MAKE_DIRECTORY_2:	/* 0x04 */
     Debug0((dbg_fd, "Make Directory %s\n", filename1));
-    if (read_only || is_long_path(filename1)) {
+    if (drives[drive].read_only || is_long_path(filename1)) {
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
-    build_ufs_path(fpath, filename1);
-    if (find_file(fpath, &st) || is_dos_device(fpath)) {
+    build_ufs_path(fpath, filename1, drive);
+    if (find_file(fpath, &st, drive) || is_dos_device(fpath)) {
       Debug0((dbg_fd, "make failed already dir or file '%s'\n",
 	      fpath));
       SETWORD(&(state->eax), ACCESS_DENIED);
@@ -2966,7 +2950,7 @@ dos_fs_redirect(state_t *state)
     if (mkdir(fpath, 0775) != 0) {
       strcpy(buf, bs_pos);
       *bs_pos = EOS;
-      find_file(fpath, &st);
+      find_file(fpath, &st, drive);
       strcat(fpath, buf);
       Debug0((dbg_fd, "trying '%s'\n", fpath));
       if (mkdir(fpath, 0755) != 0) {
@@ -2984,11 +2968,11 @@ dos_fs_redirect(state_t *state)
       SETWORD(&(state->eax), PATH_NOT_FOUND);
       return (FALSE);
     }
-    build_ufs_path(fpath, filename1);
+    build_ufs_path(fpath, filename1, drive);
     Debug0((dbg_fd, "set directory to ufs path: %s\n", fpath));
 
     /* Try the given path */
-    if (!find_file(fpath, &st) || is_dos_device(fpath)) {
+    if (!find_file(fpath, &st, drive) || is_dos_device(fpath)) {
       SETWORD(&(state->eax), PATH_NOT_FOUND);
       return (FALSE);
     }
@@ -3105,7 +3089,7 @@ dos_fs_redirect(state_t *state)
       return (return_val);
     }
   case WRITE_FILE:		/* 0x09 */
-    if (open_files[sft_fd(sft)].name == NULL || read_only) {
+    if (open_files[sft_fd(sft)].name == NULL || drives[drive].read_only) {
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
@@ -3165,9 +3149,9 @@ dos_fs_redirect(state_t *state)
       unsigned int free, tot;
 
       Debug0((dbg_fd, "Get Disk Space\n"));
-      build_ufs_path(fpath, cds_current_path(cds));
+      build_ufs_path(fpath, cds_current_path(drive_cds(drive)), drive);
 
-      if (find_file(fpath, &st)) {
+      if (find_file(fpath, &st, drive)) {
 	if (get_disk_space(fpath, &free, &tot)) {
 	  /* return unit = 512-byte blocks @ 1 spc, std for floppy */
 	  int spc = 1;
@@ -3210,14 +3194,14 @@ dos_fs_redirect(state_t *state)
       u_short att = *(u_short *) Addr(state, ss, esp);
 
       Debug0((dbg_fd, "Set File Attributes %s 0%o\n", filename1, att));
-      if (read_only || is_long_path(filename1)) {
+      if (drives[drive].read_only || is_long_path(filename1)) {
 	SETWORD(&(state->eax), ACCESS_DENIED);
 	return (FALSE);
       }
 
-      build_ufs_path(fpath, filename1);
+      build_ufs_path(fpath, filename1, drive);
       Debug0((dbg_fd, "Set attr: '%s' --> 0%o\n", fpath, att));
-      if (!find_file(fpath, &st) || is_dos_device(fpath)) {
+      if (!find_file(fpath, &st, drive) || is_dos_device(fpath)) {
 	SETWORD(&(state->eax), FILE_NOT_FOUND);
 	return (FALSE);
       }
@@ -3231,8 +3215,8 @@ dos_fs_redirect(state_t *state)
     break;
   case GET_FILE_ATTRIBUTES:	/* 0x0f */
     Debug0((dbg_fd, "Get File Attributes %s\n", filename1));
-    build_ufs_path(fpath, filename1);
-    if (!find_file(fpath, &st) || is_dos_device(fpath)) {
+    build_ufs_path(fpath, filename1, drive);
+    if (!find_file(fpath, &st, drive) || is_dos_device(fpath)) {
       Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
       SETWORD(&(state->eax), FILE_NOT_FOUND);
       return (FALSE);
@@ -3250,12 +3234,12 @@ dos_fs_redirect(state_t *state)
     return (TRUE);
   case RENAME_FILE:		/* 0x11 */
     Debug0((dbg_fd, "Rename file fn1=%s fn2=%s\n", filename1, filename2));
-    if (read_only) {
+    if (drives[drive].read_only) {
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
-    build_ufs_path(fpath, filename2);
-    if (find_file(fpath, &st) || is_dos_device(fpath)) {
+    build_ufs_path(fpath, filename2, drive);
+    if (find_file(fpath, &st, drive) || is_dos_device(fpath)) {
         Debug0((dbg_fd,"Rename, %s already exists\n", fpath));
         SETWORD(&state->eax, ACCESS_DENIED);
         return (FALSE);
@@ -3265,11 +3249,11 @@ dos_fs_redirect(state_t *state)
       bs_pos = fpath;
     strcpy(buf, bs_pos);
     *bs_pos = EOS;
-    find_file(fpath, &st);
+    find_file(fpath, &st, drive);
     strcat(fpath, buf);
 
-    build_ufs_path(buf, filename1);
-    if (!find_file(buf, &st) || is_dos_device(buf)) {
+    build_ufs_path(buf, filename1, drive);
+    if (!find_file(buf, &st, drive) || is_dos_device(buf)) {
       Debug0((dbg_fd, "Rename '%s' error.\n", buf));
       SETWORD(&(state->eax), PATH_NOT_FOUND);
       return (FALSE);
@@ -3292,11 +3276,11 @@ dos_fs_redirect(state_t *state)
       struct dir_ent *de;
 
       Debug0((dbg_fd, "Delete file %s\n", filename1));
-      if (read_only) {
+      if (drives[drive].read_only) {
 	SETWORD(&(state->eax), ACCESS_DENIED);
 	return (FALSE);
       }
-      build_ufs_path(fpath, filename1);
+      build_ufs_path(fpath, filename1, drive);
       if (is_dos_device(fpath))
       {
 	SETWORD(&(state->eax), FILE_NOT_FOUND);
@@ -3312,11 +3296,11 @@ dos_fs_redirect(state_t *state)
 	strcpy(fpath, "/");
       }
 
-      dir_list = get_dir(fpath, fname, fext);
+      dir_list = get_dir(fpath, fname, fext, drive);
 
       if (dir_list == NULL) {
-	build_ufs_path(fpath, filename1);
-	if (!find_file(fpath, &st)) {
+	build_ufs_path(fpath, filename1, drive);
+	if (!find_file(fpath, &st, drive)) {
 	  SETWORD(&(state->eax), FILE_NOT_FOUND);
 	  return (FALSE);
 	}
@@ -3351,7 +3335,7 @@ dos_fs_redirect(state_t *state)
 	  fpath[++cnt] = EOS;
 	  if (fpath[cnt - 1] == '.')
 	    fpath[cnt - 1] = EOS;
-	  if (find_file(fpath, &st)) {
+	  if (find_file(fpath, &st, drive)) {
             if (access(fpath, W_OK) == -1) {
               errcode = EACCES;
             } else {
@@ -3419,16 +3403,16 @@ dos_fs_redirect(state_t *state)
     Debug0((dbg_fd, "Open existing file %s\n", filename1));
 
   do_open_existing:
-    if (read_only && dos_mode != READ_ACC) {
+    if (drives[drive].read_only && dos_mode != READ_ACC) {
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
-    build_ufs_path(fpath, filename1);
+    build_ufs_path(fpath, filename1, drive);
     bs_pos = strrchr(fpath, '/');
     if (bs_pos == NULL)
       bs_pos = fpath;
     auspr(bs_pos + 1, fname, fext);    
-    if (!find_file(fpath, &st)) {
+    if (!find_file(fpath, &st, drive)) {
       Debug0((dbg_fd, "open failed: '%s'\n", fpath));
       SETWORD(&(state->eax), FILE_NOT_FOUND);
       return (FALSE);
@@ -3461,7 +3445,7 @@ dos_fs_redirect(state_t *state)
       Debug0((dbg_fd, "Illegal access_mode 0x%x\n", dos_mode));
       unix_mode = O_RDONLY;
     }
-    if (read_only && unix_mode != O_RDONLY) {
+    if (drives[drive].read_only && unix_mode != O_RDONLY) {
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
@@ -3471,7 +3455,7 @@ dos_fs_redirect(state_t *state)
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
-    if (!share(fd, unix_mode & O_ACCMODE, sft)) {
+    if (!share(fd, unix_mode & O_ACCMODE, drive, sft)) {
       close( fd );
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
@@ -3489,7 +3473,7 @@ dos_fs_redirect(state_t *state)
     sft_directory_entry(sft) = 0;
     sft_directory_sector(sft) = 0;
     sft_attribute_byte(sft) = attr;
-    sft_device_info(sft) = current_drive + (0x8040);
+    sft_device_info(sft) = drive + (0x8040);
     time_to_dos(st.st_mtime,
 		&sft_date(sft), &sft_time(sft));
     sft_size(sft) = st.st_size;
@@ -3565,17 +3549,17 @@ dos_fs_redirect(state_t *state)
     Debug0((dbg_fd, "Create truncate file %s attr=%x\n", filename1, attr));
 
   do_create_truncate:
-    if (read_only) {
+    if (drives[drive].read_only) {
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
-    build_ufs_path(fpath, filename1);
+    build_ufs_path(fpath, filename1, drive);
     bs_pos=strrchr(fpath, '/');
     if (bs_pos == NULL)
       bs_pos = fpath;
     strlowerDOS(bs_pos);
     auspr(bs_pos + 1, fname, fext);
-    if (find_file(fpath, &st)) {
+    if (find_file(fpath, &st, drive)) {
       devptr = is_dos_device(fpath);
       if (devptr) {
         open_device (devptr, fname, sft);
@@ -3597,7 +3581,7 @@ dos_fs_redirect(state_t *state)
         bs_pos = fpath;
       strcpy(buf, bs_pos);
       *bs_pos = EOS;
-      find_file(fpath, &st);
+      find_file(fpath, &st, drive);
       strcat(fpath, buf);
       Debug0((dbg_fd, "trying '%s'\n", fpath));
       if ((fd = open(fpath, (O_RDWR | O_CREAT),
@@ -3613,7 +3597,7 @@ dos_fs_redirect(state_t *state)
       }
     }
 
-    if (!share(fd, O_RDWR, sft) || ftruncate(fd, 0) != 0) {
+    if (!share(fd, O_RDWR, drive, sft) || ftruncate(fd, 0) != 0) {
       Debug0((dbg_fd, "unable to truncate %s: %s (%d)\n",
 	      fpath, strerror(errno), errno));
       close(fd);
@@ -3641,7 +3625,7 @@ dos_fs_redirect(state_t *state)
     sft_directory_entry(sft) = 0;
     sft_directory_sector(sft) = 0;
     sft_attribute_byte(sft) = attr;
-    sft_device_info(sft) = current_drive + (0x8040);
+    sft_device_info(sft) = drive + (0x8040);
     time_to_dos(st.st_mtime, &sft_date(sft),
 		&sft_time(sft));
 
@@ -3715,7 +3699,7 @@ dos_fs_redirect(state_t *state)
     /* check if path is long */
     long_path = is_long_path(filename1);
 
-    if (!build_ufs_path(fpath, filename1)) {
+    if (!build_ufs_path(fpath, filename1, drive)) {
       sdb_p_cluster(sdb) = 0xffff; /* no findnext */
       sdb_file_attr(sdb) = 0;
       time_to_dos(time(NULL), &sdb_file_date(sdb), &sdb_file_time(sdb));
@@ -3736,7 +3720,7 @@ dos_fs_redirect(state_t *state)
     memcpy(sdb_template_name(sdb), fname, 8);
     memcpy(sdb_template_ext(sdb), fext, 3);
     sdb_attribute(sdb) = attr;
-    sdb_drive_letter(sdb) = 0x80 + current_drive;
+    sdb_drive_letter(sdb) = 0x80 + drive;
     sdb_p_cluster(sdb) = 0xffff;  /* correct value later */
 
     Debug0((dbg_fd, "Find first %8.8s.%3.3s\n",
@@ -3752,7 +3736,7 @@ dos_fs_redirect(state_t *state)
       {
         char *label, *root, *p;
 
-        p = dos_roots[current_drive];
+        p = drives[drive].root;
         label = (char *) malloc(8 + 3 + 1);
         root = strdup(p);
         if (root[strlen(root) - 1] == '/' && strlen(root) > 1)
@@ -3796,7 +3780,7 @@ dos_fs_redirect(state_t *state)
     if (bs_pos == fpath)
       strcpy(fpath, "/");
 
-    hlist = get_dir(fpath, "????????", "???");
+    hlist = get_dir(fpath, "????????", "???", drive);
     if (hlist==NULL)  {
       SETWORD(&(state->eax), NO_MORE_FILES);
       return (FALSE);
@@ -4074,8 +4058,8 @@ dos_fs_redirect(state_t *state)
       Debug0((dbg_fd, "Mode, action, attr = %x, %x, %x\n",
 	      mode, action, attr));
       
-      build_ufs_path(fpath, filename1);
-      file_exists = find_file(fpath, &st);
+      build_ufs_path(fpath, filename1, drive);
+      file_exists = find_file(fpath, &st, drive);
       if (file_exists && is_dos_device(fpath))
         goto do_open_existing;
 
