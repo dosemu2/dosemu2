@@ -65,7 +65,8 @@ endif
 endif
 
 #Change the following line if the right kernel includes reside elsewhere
-LINUX_KERNEL = /usr/src/linux
+#LINUX_KERNEL = /usr/src/linux
+LINUX_KERNEL = $(shell sh ./tools/kversion.sh -find -print)
 LINUX_INCLUDE = $(LINUX_KERNEL)/include
 export LINUX_KERNEL
 export LINUX_INCLUDE  
@@ -128,7 +129,7 @@ DEPENDS = dos.d emu.d
 EMUVER  =   0.53
 export EMUVER
 VERNUM  =   0x53
-PATCHL  =   57
+PATCHL  =   58
 LIBDOSEMU = libdosemu$(EMUVER).$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -452,17 +453,10 @@ include/kversion.h:
 	echo '#define KERNEL_VERSION $(KERNEL_VERSION)' >>$@
 	echo '#endif' >>$@
 else
-ifeq ($(LINUX_KERNEL)/tools/version.h,$(wildcard $(LINUX_KERNEL)/tools/version.h))
 include/kversion.h:
 	 $(SHELL) ./tools/kversion.sh $(LINUX_KERNEL) ./
-else
-KERNEL_VERSION=1001088
-include/kversion.h:
-	echo '#ifndef KERNEL_VERSION' >$@
-	echo '#define KERNEL_VERSION $(KERNEL_VERSION)' >>$@
-	echo '#endif' >>$@
 endif
-endif
+
 
 
 config: include/config.h include/kversion.h

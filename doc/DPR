@@ -1,6 +1,3 @@
-
-
-
                  _____________________________________
                 |                                     |
                 |       Dosemu Project Registry       |
@@ -34,7 +31,11 @@ A special welcome to all the new members of the dosemu team!
         The following projects are activly being worked on by thier
 respective participants:
 
+General architecture, building,  debugging: - Marty Leisner
 
+	Marty has many goals with DOSEMU. He currently has totally
+restructured the Makefile setup, sent in numerous patches, and is
+constantly testing new ideas.
 
 Bug fix collection & distribution: - James B. MacLean
 
@@ -218,10 +219,12 @@ someone wants to help speed it up, please let me know.  I'm sure there are
 plenty of pieces to keep a few people people busy.
  
 
-*DPMI support: - Lutz
+*DPMI support: - Lutz Dong
 
 Lutz (molgedey@solid.theo-physik.uni-kiel.de) is the champion of the DPMI
 code propegating into DOSEMU. He's is already able to run emtex386.
+Now Dong has come on stream and finally we have to DPMI gurus that can
+understand each other :-).
 Specs for DPMI 0.9 are available from ftp.qdeck.com in /pub/memory or
 for DPMI 1.0 from ftp.intel.com:/pub/???????. You may have a look too in
 http://www.theo-physik.uni-kiel.de/~molgedey/projects/computing/linux/dosemu.
@@ -453,6 +456,9 @@ James Maclean           - jmaclean@fox.nstn.ns.ca
 Larry Stephan           - jlarry@ssnet.com
 Lutz Molgedey           - molgedey@solid.theo-physik.uni-kiel.de
 Amit Margalt            - amit@tavis.enet.dec.com
+Marty Leisner		- leisner@sdsp.mc.xerox.com
+Dong Liu		- dliu@faraday-gw.njit.edu
+
 
 Corey Sweeney
 corey@bbs.xnet.com

@@ -309,7 +309,7 @@ static inline void map_custom_bios(void)
 }
 
 /* 
- * DANG_BEGIN_FUNCTION memory_init
+ * DANG_BEGIN_FUNCTION bios_mem_setup
  * 
  * description:
  *  Set up all memory areas as would be present on a typical i86 during

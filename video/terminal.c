@@ -78,8 +78,8 @@ static int Columns = 80;
 
 static void sl_exit_error (char *err)
 {
-	error ("ERROR: %s\n", err);
-	leavedos (32);
+   error ("ERROR: %s\n", err);
+   leavedos (32);
 }
 
 
@@ -100,6 +100,9 @@ void get_screen_size (void)
 	SLtt_Screen_Cols = 80;
 	SLtt_Screen_Rows = 24;
      }
+   Rows = SLtt_Screen_Rows;
+   Columns = SLtt_Screen_Cols;
+   if (Rows < 25) Rows = 25;
 }
 
 static void set_char_set (int cs)

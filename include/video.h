@@ -192,12 +192,12 @@ EXTERN int video_subsys;
 #define CHARSET_FULLIBM	3
 
 /* Color set defines */
-#define COLOR_NORMAL	1
-#define COLOR_XTERM	2
+/* #define COLOR_NORMAL	1 */
+/* #define COLOR_XTERM	2 */
 
 /* Terminal update defines. For using direct ANSI sequences, or NCURSES */
-#define METHOD_FAST	1
-#define METHOD_NCURSES	2
+/* #define METHOD_FAST	1 */
+/* #define METHOD_NCURSES	2 */
 
 /* Various defines for all common video adapters */
 

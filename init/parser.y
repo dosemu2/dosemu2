@@ -57,6 +57,8 @@ static int warnings = 0;
 
 static int priv_lvl = 0;
 
+static char *file_being_parsed;
+
 	/* external procedures */
 
 extern int allow_io(int, int, int, int, int);
@@ -139,7 +141,8 @@ extern void yyrestart(FILE *input_file);
 %token VGA MGA CGA EGA CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
 %token MEMSIZE VBIOS_SIZE VBIOS_SEG VBIOS_FILE VBIOS_COPY VBIOS_MMAP DUALMON
 	/* terminal */
-%token UPDATEFREQ UPDATELINES COLOR CORNER METHOD NORMAL XTERM NCURSES FAST
+%token UPDATEFREQ UPDATELINES COLOR ESCCHAR
+/* %token UPDATEFREQ UPDATELINES COLOR CORNER METHOD NORMAL XTERM NCURSES FAST */
 	/* debug */
 %token IO PORT CONFIG READ WRITE KEYB PRINTER WARNING GENERAL HARDWARE
 %token L_IPC
@@ -155,7 +158,8 @@ extern void yyrestart(FILE *input_file);
 	/* hardware ram mapping */
 %token HARDWARE_RAM
 
-%type <i_value> mem_bool irq_bool bool speaker method_val color_val floppy_bool
+/* %type <i_value> mem_bool irq_bool bool speaker method_val color_val floppy_bool */
+%type <i_value> mem_bool irq_bool bool speaker color_val floppy_bool
 
 %%
 
@@ -409,12 +413,13 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 term_flags	: term_flag
 		| term_flags term_flag
 		;
-term_flag	: METHOD method_val	{ config.term_method = $2; }
-		| UPDATELINES INTEGER	{ config.term_updatelines = $2; }
+term_flag	/* : METHOD method_val	{ config.term_method = $2; } */
+		/* | UPDATELINES INTEGER	{ config.term_updatelines = $2; } */
+                : ESCCHAR INTEGER       { config.term_esc_char = $2; }
 		| UPDATEFREQ INTEGER	{ config.term_updatefreq = $2; }
 		| CHARSET CHARSET_TYPE	{ config.term_charset = $2; }
 		| COLOR color_val	{ config.term_color = $2; }
-		| CORNER bool		{ config.term_corner = $2; }
+		/* | CORNER bool		{ config.term_corner = $2; } */
 		| STRING
 		    { yyerror("unrecognized terminal option '%s'", $1);
 		      free($1); }
@@ -422,14 +427,14 @@ term_flag	: METHOD method_val	{ config.term_method = $2; }
 		;
 
 color_val	: L_OFF			{ $$ = 0; }
-		| L_ON			{ $$ = COLOR_NORMAL; }
-		| NORMAL		{ $$ = COLOR_NORMAL; }
-		| XTERM			{ $$ = COLOR_XTERM; }
+		| L_ON			{ $$ = 1; }
+		/* | NORMAL		{ $$ = COLOR_NORMAL; } */
+		/* | XTERM			{ $$ = COLOR_XTERM; } */
 		;
 
-method_val	: FAST			{ $$ = METHOD_FAST; }
-		| NCURSES		{ $$ = METHOD_NCURSES; }
-		;
+/* method_val	: FAST			{ $$ = METHOD_FAST; } */
+/* 		| NCURSES		{ $$ = METHOD_NCURSES; } */
+/* 		; */
 
 	/* debugging */
 
@@ -970,12 +975,13 @@ static void start_keyboard(void)
 
 static void start_terminal(void)
 {
-  config.term_method = METHOD_FAST;
-  config.term_updatelines = 25;
-  config.term_updatefreq = 2;
+   /* config.term_method = METHOD_FAST; */
+   /* config.term_updatelines = 25; */
+  config.term_updatefreq = 4;
   config.term_charset = CHARSET_LATIN;
-  config.term_color = COLOR_NORMAL;
-  config.term_corner = 1;
+  config.term_color = 1;
+   config.term_esc_char = 20;	       /* Ctrl-^ */
+   /* config.term_corner = 1; */
 }
 
 static void stop_terminal(void)
@@ -1409,7 +1415,7 @@ static void yyerror(char* string, ...)
 {
   va_list vars;
   va_start(vars, string);
-  fprintf(stderr, "Error: (line %.3d) ", line_count);
+  fprintf(stderr, "Error in %s: (line %.3d) ", file_being_parsed, line_count);
   vfprintf(stderr, string, vars);
   fprintf(stderr, "\n");
   va_end(vars);
@@ -1543,6 +1549,8 @@ parse_config(char *confname)
     yyin = fd;
     line_count = 1;
     c_printf("Parsing %s file.\n", confname);
+    file_being_parsed = malloc(strlen(confname) + 1);
+    strcpy(file_being_parsed, confname);
     if (yyparse())
       yyerror("error in configuration file %s", confname);
     close_file(fd);
@@ -1550,6 +1558,9 @@ parse_config(char *confname)
     priv_lvl = 1;
     if ((fd = open_file(name)) != 0) {
       c_printf("Parsing %s file.\n", name);
+      free(file_being_parsed);
+      file_being_parsed = malloc(strlen(name) + 1);
+      strcpy(file_being_parsed, name);
       yyin = fd;
       line_count = 1;
       yyrestart(fd);
@@ -1557,6 +1568,7 @@ parse_config(char *confname)
 	yyerror("error in user's configuration file %s", name);
       close_file(fd);
     }
+    free(file_being_parsed);
   }
 
 #ifdef TESTING

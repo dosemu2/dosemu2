@@ -156,52 +156,33 @@ ipxsupport off
 #       There is a number of keywords for the terminal { } configuration line.
 #    "charset" latin, ibm                                  (default latin)
 #       Select the character set to use with DOSEMU. 
-#    "color" off, normal, xterm                            (default normal)
-#       Enable or disable color terminal support.  "normal" means to use the
-#       normal color set, and "xterm" uses the color set enhanced for use on
-#       terminals that can only display 8 colors instead of 16 colors.
-#    "updatefreq" value                                    (default 2)
+#    "color" off, on                                       (default on)
+#       Enable or disable color terminal support.
+#    "updatefreq" value                                    (default 4)
 #       A number indicating the frequency of terminal updates of the screen.  
 #       The smaller the number, the more frequent.  A value of 20 gives a 
 #       frequency of about one per second, which is very slow.  However, more
 #       CPU time is given to DOS applications when updates are less frequent.
-#       A value of 2 is recommended in most cases, but if you have a fast
+#       A value of 4 is recommended in most cases, but if you have a fast
 #       system or link, you can decrease this to 0. 
-#    "updatelines" value                                   (default 25)
-#       The size of each screen update in number of lines.  This is 
-#       extremely useful for modem users to improve typing and interactive 
-#       response.  The smaller this number, the better the typing response, 
-#       but the slower the update becomes.  A value of 1 is good for 2400bps
-#       modem links, and a value of 5 is good for 14400bps modem links.
-#    "method" fast, ncurses                                (default fast)
-#       This selects the screen-update engine to use.  It is highly
-#       recommended that you select the "fast" update system, unless you
-#       are running on a nonstandard terminal that does not support ANSI 
-#       or VT100 sequences.  In this case, use "ncurses". 
-#    "corner" on, off                                      (default on)
-#       Enable/disable printing of the character at the bottom-right corner of
-#       the screen.  Some terminals, especially DOS based ones, scroll the 
-#       screen when something is printed in the corner. 
-#
-#    Note: DOSEMU will automatically detect for the prescence of 
-#    ANSI Xterm 2.0 which enables all 16 colors and 256 colors for DOSEMU,
-#    and adjust terminal parameters accordingly.
-#
+#    "escchar"  value                                      (default 30)
+#       A number that specifies the control character used as a prefix 
+#       character for sending alt, shift, ctrl, and function keycodes.  The
+#       default value is 30 which is Ctrl-^.  So, for example, F1 is 
+#       'Ctrl-^ 1', Alt-F7 is 'Ctrl-^ a Ctrl-^ 7'.  For online help, press
+#       'Ctrl-^ h'.
+@
 #    Use the following to enable the IBM character set.
-#terminal { charset ibm  color on  method fast }
+#terminal { charset ibm  color on}
 #
 #    Use this for color xterms or rxvt's with no IBM font, with only 8 colors.
-#terminal { charset latin  color xterm  method fast }
+#terminal { charset latin  color on}
 #
 #    Use this for color xterms or rxvt's with IBM font, with only 8 colors.
-#terminal { charset ibm  color xterm  method fast }
-#
-#    Use the following for terminals not compatible with vt100 or xterms.
-#terminal { charset latin  color on  method ncurses }
+#terminal { charset ibm  color on}
 #
 #    More detailed line for user configuration:
-#terminal { charset latin  updatefreq 2  updatelines 25  color on 
-#           method fast  corner on }
+terminal { charset latin  updatefreq 4  color on }
 
 #************************* X SUPPORT **************************************
 #
@@ -212,11 +193,6 @@ ipxsupport off
 #       The smaller the number, the more frequent.  A value of 20 gives a 
 #       frequency of about one per second, which is very slow.  However, more
 #       CPU time is given to DOS applications when updates are less frequent.
-#
-#    "updatelines" value                                   (default 25)
-#       The size of each screen update in number of lines.  
-#       The smaller this number, the better the typing response, but the
-#       slower the update becomes.
 #
 #    "display" string                                      (default ":0")
 #       The X server to use. If this is not specified, dosemu will use
@@ -237,7 +213,7 @@ ipxsupport off
 #    "font" value					(default vga)
 #	Used to pick a font other than vga. Must be monospaced.
 #
-X { updatefreq 8 updatelines 25 title "DOS in a BOX" icon_name "xdos" }
+X { updatefreq 8 title "DOS in a BOX" icon_name "xdos" }
 
 
 
@@ -364,9 +340,9 @@ ems 1024		# EMS size in K,  or "off"
 #*********************** IRQ ******************************************
 #
 # QuickStart:
-#    These are parameters needed for SIG, the Silly Interrupt Generator
-#    To use this feature, you also must have the sillyint.o driver
-#    loaded. For more details see sig/HowTo.
+#    These are parameters needed for SIG, the Silly Interrupt Generator.
+#    To use this feature, you also must have the emumodule.o driver
+#    loaded. For more details see emumod/README.emumod.
 #
 #    The sillyint statement accepts IRQ values between 3..15,
 #    if using the { .. } syntax each value or range can be prefixed

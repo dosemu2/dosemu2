@@ -1,51 +1,75 @@
-
-I've also created a
-BOGUS-Notes file for the latest pre-release. If you like to see
-how this can be done automatically, look into my nlsutils-0.5 at
-ftp.tu-clausthal.de in /pub/systems/Linux/SLT/nls.
-
-Jochen
-
------------------------- dosemu0.53pl37.bin.Notes --------------
 Linux DOSemulator
 %n dosemu
-%v 0.53pl37
+%v 0.53.57
 %c *
 %l *
 %b *
 %d *
-%f tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/Development
-%t pre0.53pl37.tar.gz
+%f ftp:/funet/BETA/dosemu/Development
+%t pre0.53.53.tgz
+%p1 pre0.53.54.dif.gz
+%p2 pre0.53.55.dif.gz
+%p3 pre0.53.56.dif.gz
+%p4 pre0.53.57.dif.gz
 %w usr.bin
+Note:   dosemu.0.53.57.bin.Notes
 %%
+# This Notes file is in the PUBLIC DOMAIN.
+# Contributed by Karl Eichwalder <keichwa@gwdg.de>.
 
-#if [ ! -e $BUILDDIR ]; then mkdir -p $BUILDDIR; fi
+if [ ! -e $BUILDDIR ]; then mkdir -p $BUILDDIR; fi
 cd $BUILDDIR
-#rm -rf $NAME$VERSION
-#tar xvzf $SRCTARDIR/$TARFILE
-cd $NAME$VERSION
+rm -rf $NAME$VERSION $NAME-$VERSION
+tar xvzf $SRCTARDIR/$TARFILE
+mv dosemu0.53.53 $NAME-$VERSION
+cd $NAME-$VERSION
+# exit
 
-#make config
-#make depend
+zcat $SRCTARDIR/$PATCHFILE1 | patch -s -p1
+zcat $SRCTARDIR/$PATCHFILE2 | patch -s -p1
+zcat $SRCTARDIR/$PATCHFILE3 | patch -s -p1
+zcat $SRCTARDIR/$PATCHFILE4 | patch -s -p1
+
+patch -p1 -s << 'EO_PATCH' &&
+--- dosemu-0.53.57/Makefile	Sat Apr  1 13:51:45 1995
++++ /tmp/Makefile	Sat Apr  1 13:55:31 1995
+@@ -103,3 +103,3 @@
+ # Uncomment the following if you still have your UUCP locks in /usr/spool/uucp
+-PATH_LOCKD = -DPATH_LOCKD=\"/usr/spool/uucp\"
++PATH_LOCKD = -DPATH_LOCKD=\"/var/spool/uucp\"
+ # Uncomment the following if you your UUCP locks in /var/locks
+
+EO_PATCH
+
+sh tools/kversion.sh  /usr/src/linux .
 make all
 
-%doc DOSEMU-HOWTO.txt README.CDROM README.X README.ncurses README.video
-%doc doc/DANG doc/DPR doc/EMUsuccess.txt
+%doc doc/[A-Z]*
+# %doc doc/DOSEMU-HOWTO.txt README.CDROM README.X README.ncurses README.video
+# %doc doc/DANG* doc/DPR doc/EMUsuccess.txt
 
 * make install
-* install -m 644 doc/dosemu.info /usr/info
-* echo Copy examples/config.dist into /etc/dosemu.conf and edit that file
-* echo Add all users that are allowed to run dosemu to /etc/dosemu.users
-* echo Add dosemu to you Emacs-Info-Dir.
+* install -m 644 -o root -g system dosemu.xpm $ROOTDIR/usr/X386/include/pixmaps
+* cd doc
+* rm -f dosemu.info
+* makeinfo dosemu.texinfo
+* install -m 644 dosemu.info* $ROOTDIR/usr/info
+# * rm -f $ROOTDIR/usr/info/dosemu.info*.gz
+# * gzip -f9 $ROOTDIR/usr/info/dosemu.info*
+* echo 'Add dosemu to you Emacs-Info-Dir.'
+* install -m 644 -o root -g system dos.1 $ROOTDIR/usr/man/man1
+* echo 'Copy examples/config.dist into /etc/dosemu.conf and edit that file'
+* echo 'Add all users that are allowed to run dosemu to /etc/dosemu.users'
+exit
+# * usr/lib/dosemu
 %%
-* /usr/lib/libdosemu
-* /usr/lib/libdosemu0.53pl37
-* /usr/lib/dosemu/getrom
-* /usr/lib/dosemu/mkhdimage
-* /usr/lib/dosemu/mkpartition
-* /usr/lib/dosemu/putrom
-* /var/lib/dosemu
-* /usr/bin/dos
-* /usr/bin/xdos
-* /usr/bin/xtermdos
-* /usr/man/man1/dos.1
+* usr/lib/libdosemu
+* usr/lib/libdosemu0.53.57
+* usr/bin/dos
+* usr/bin/xdos
+* usr/bin/xtermdos
+* usr/man/man1/dos.1
+* usr/X386/lib/X11/fonts/misc/vga.pcf
+* usr/info/dosemu.info*
+* usr/X386/include/pixmaps/dosemu.xpm
+

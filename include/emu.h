@@ -353,12 +353,13 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
        u_short cardtype;
        u_short chipset;
        u_short gfxmemsize;		/* for SVGA card, in K */
-       u_short term_method;		/* Terminal method: ANSI or NCURSES */
+       /* u_short term_method; */		/* Terminal method: ANSI or NCURSES */
        u_short term_color;		/* Terminal color support on or off */
-       u_short term_updatelines;	/* Amount to update at a time */
+       /* u_short term_updatelines; */	/* Amount to update at a time */
        u_short term_updatefreq;		/* Terminal update frequency */
        u_short term_charset;		/* Terminal Character set */
-       u_short term_corner;             /* Update char at lower-right corner */
+       u_short term_esc_char;	       /* ASCII value used to access slang help screen */
+       /* u_short term_corner; */             /* Update char at lower-right corner */
        u_short X_updatelines;           /* Amount to update at a time */
        u_short X_updatefreq;            /* X update frequency */
        char    *X_display;              /* X server to use (":0") */

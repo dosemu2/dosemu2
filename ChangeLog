@@ -1,3 +1,15 @@
+Sun Apr 02	1995
+
+-	Release pl58
+-	John's cleanup of SLANG including screen size fix.
+-	Preparing for the onslaught of user E-mail from above,
+	I added the file name being parsed to yyerror().
+-	JL's PIC patch for serial, etc...
+-	Hans' latest. It removes the KERNEL_VERSION hack too :-).
+-	Dong's DPMI patches to get the BCC IDE going. Also includes
+	small patch to serial.c to dissallow mice from being
+	initialized if not at the console.
+
 Thu Mar 30	1995
 
 -	Release pl57

@@ -43,7 +43,13 @@
  */
 
 #ifdef _LOADABLE_VM86_
-#include "emumod.h"
+  #include "emumod.h"
+  #ifdef JONS_VM86_TIME
+    #if KERNEL_VERSION < 1001075
+      #error "can't compile Jon's timer patch for kernels < 1.1.75"
+    #endif
+    #include "vm86plus.h"
+  #endif
 #endif
 
 /*
@@ -88,6 +94,18 @@ asmlinkage struct pt_regs * save_v86_state(struct vm86_regs * regs)
 	set_flags(regs->eflags, VEFLAGS, VIF_MASK | current->tss.v86mask);
 	memcpy_tofs(&current->tss.vm86_info->regs,regs,sizeof(*regs));
 	put_fs_long(current->tss.screen_bitmap,&current->tss.vm86_info->screen_bitmap);
+  #if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+	{
+	  struct timeval tp;
+	  struct vm86plus_struct *vmp=(void *)(current->tss.vm86_info);
+	  long vmpmagic;
+	  memcpy_fromfs(&vmpmagic,&vmp->vm86plus_magic,sizeof(long));
+	  if ( vmpmagic == VM86PLUS_MAGIC ) {
+	    do_gettimeofday(&tp);
+	    memcpy_tofs(&vmp->tv, &tp, sizeof(struct timeval));
+	  }
+	}
+  #endif
 #else
 	set_flags(regs->eflags, VEFLAGS, VIF_MASK | current->v86mask);
 	memcpy_tofs(&current->vm86_info->regs,regs,sizeof(*regs));
@@ -182,7 +200,11 @@ asmlinkage int sys_vm86(struct vm86_struct * v86)
 	if (current->saved_kernel_stack)
 		return -EPERM;
 	/* v86 must be readable (now) and writable (for save_v86_state) */
+#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+	error = verify_area(VERIFY_WRITE,v86,sizeof(struct vm86plus_struct));
+#else
 	error = verify_area(VERIFY_WRITE,v86,sizeof(*v86));
+#endif
 	if (error)
 		return error;
 	memcpy_fromfs(&info,v86,sizeof(info));
@@ -440,10 +462,21 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 	unsigned char *csp, *ssp;
 	unsigned long ip, sp;
 
+#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+	struct vm86plus_struct *vmp=(void *)(current->tss.vm86_info);
+	int is_vm86plus;
+	long vmpmagic;
+#endif
+
 #if defined(_LOADABLE_VM86_) && defined(_VM86_STATISTICS_)
 	extern int vm86_fault_count;
 	extern int vm86_count_cli,vm86_count_sti;
 	vm86_fault_count++;
+#endif
+
+#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+	memcpy_fromfs(&vmpmagic,&vmp->vm86plus_magic,sizeof(long));
+	is_vm86plus=( vmpmagic == VM86PLUS_MAGIC );
 #endif
 
 	csp = (unsigned char *) (regs->cs << 4);
@@ -462,14 +495,24 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 			SP(regs) -= 4;
 			IP(regs) += 2;
 			pushl(ssp, sp, get_vflags(regs));
+#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+			if (is_vm86plus) break;
+			else return;
+#else
 			return;
+#endif
 
 		/* popfd */
 		case 0x9d:
 			SP(regs) += 4;
 			IP(regs) += 2;
 			set_vflags_long(popl(ssp, sp), regs);
+#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+			if (is_vm86plus) break;
+			else return;
+#else
 			return;
+#endif
 		}
 
 	/* pushf */
@@ -477,14 +520,24 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 		SP(regs) -= 2;
 		IP(regs)++;
 		pushw(ssp, sp, get_vflags(regs));
+#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+		if (is_vm86plus) break;
+		else return;
+#else
 		return;
+#endif
 
 	/* popf */
 	case 0x9d:
 		SP(regs) += 2;
 		IP(regs)++;
 		set_vflags_short(popw(ssp, sp), regs);
+#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+		if (is_vm86plus) break;
+		else return;
+#else
 		return;
+#endif
 
 #if KERNEL_VERSION < 1001089
 #if 0
@@ -507,7 +560,12 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 		IP(regs) = popw(ssp, sp);
 		regs->cs = popw(ssp, sp);
 		set_vflags_short(popw(ssp, sp), regs);
+#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+		if (is_vm86plus) break;
+		else return;
+#else
 		return;
+#endif
 
 	/* cli */
 	case 0xfa:
@@ -516,7 +574,12 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 #endif
 		IP(regs)++;
 		clear_IF(regs);
+#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+		if (is_vm86plus) break;
+		else return;
+#else
 		return;
+#endif
 
 	/* sti */
 	/*
@@ -531,11 +594,26 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 #endif          
 		IP(regs)++;
 		set_IF(regs);
+#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+		if (is_vm86plus) break;
+		else return;
+#else
 		return;
+#endif
 
 	default:
 		return_to_32bit(regs, VM86_UNKNOWN);
 	}
+#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+	if (is_vm86plus) {
+		struct timeval tv, vmptv;
+		memcpy_fromfs(&vmptv,&vmp->tv,sizeof(struct timeval));
+		do_gettimeofday(&tv);
+		if (tv.tv_sec >= vmptv.tv_sec&&
+		    tv.tv_usec >= vmptv.tv_usec)
+			return_to_32bit(regs, VM86_UNKNOWN);
+ 	}
+#endif
 }
 
 void handle_vm86_trap(struct vm86_regs * regs, long error_code, int trapno)

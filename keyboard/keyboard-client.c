@@ -194,6 +194,7 @@ keyboard_X_init(void)
     scr_state.console_no = 0;
     config.console_keyb = 0;
     config.console_video = 0;
+    config.console = 0;
     config.mapped_bios = 0;
     config.vga = 0;
     config.graphics = 0;

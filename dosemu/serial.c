@@ -848,8 +848,9 @@ serial_init(void)
      * - If using mouse, only initialize port for using the mouse directly 
      *    if at the console and not running in an Xwindow (since in Xwindows,
      *    dosemu will use Xwindows mouse events instead of direct access
+     * - not init if using mouse, but not in a console.
      */
-    if ( (!com[i].mouse) || (!config.usesX) ) do_ser_init(i);
+    if ( (!com[i].mouse) || (!(config.usesX || !config.console))) do_ser_init(i);
   }
 }
 
@@ -863,7 +864,7 @@ serial_close(void)
   static int i;
   s_printf("SER: Running serial_close\n");
   for (i = 0; i < config.num_ser; i++) {
-    if ( (!com[i].mouse) || (!config.usesX) ){
+    if ( ( !com[i].mouse) || (!(config.usesX || !config.console))) {
       RPT_SYSCALL(tcsetattr(com[i].fd, TCSANOW, &com[i].oldset));
       ser_close(i);
     }
@@ -879,7 +880,7 @@ void
 child_close_mouse(void)
 {
   static u_char i, rtrn;
-  if ( !config.usesX ) {
+  if (!(config.usesX || !config.console)) {
     s_printf("MOUSE: CLOSE function starting. num_ser=%d\n", config.num_ser);
     for (i = 0; i < config.num_ser; i++) {
       s_printf("MOUSE: CLOSE port=%d, dev=%s, fd=%d, valid=%d\n", 
@@ -906,7 +907,7 @@ void
 child_open_mouse(void)
 {
   static u_char i;
-  if ( ! config.usesX ) {
+  if (!(config.usesX || !config.console)) {
     s_printf("MOUSE: OPEN function starting.\n");
     for (i = 0; i < config.num_ser; i++) {
       s_printf("MOUSE: OPEN port=%d, type=%d, dev=%s, valid=%d\n",

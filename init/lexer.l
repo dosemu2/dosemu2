@@ -154,14 +154,15 @@ binary                 return(BINARY);
 
 charset			return(CHARSET);
 updatefreq		return(UPDATEFREQ);
-updatelines		return(UPDATELINES);
+	/* updatelines		return(UPDATELINES); */
 color			return(COLOR);
-corner			return(CORNER);
-method			return(METHOD);
-normal			return(NORMAL);
-xterm			return(XTERM);
-fast			return(FAST);
-ncurses			return(NCURSES);
+escchar			return(ESCCHAR);
+	/* corner			return(CORNER); */
+	/* method			return(METHOD); */
+	/* normal			return(NORMAL); */
+	/* xterm			return(XTERM); */
+	/* fast			return(FAST); */
+	/* ncurses			return(NCURSES); */
 latin			{ yylval->i_value = CHARSET_LATIN;
 			  return(CHARSET_TYPE); }
 ibm			{ yylval->i_value = CHARSET_IBM;

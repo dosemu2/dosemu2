@@ -68,7 +68,8 @@ emumodule.o: ${OBJS}
 	ld -r -o emumodule.o $(OBJS)
 
 vm86.o:  vm86.c emumod.h ${KVFILE}
-	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c vm86.c -o vm86.o
+#	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c vm86.c -o vm86.o
+	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_ -DJONS_VM86_TIME -c vm86.c -o vm86.o
 
 ifdef DPMI_MODULE
 

@@ -546,14 +546,18 @@ int inum;
 {
   if (pic_iinfo[inum].func == (void *)0)
     return; 
- 
-  if(pic_isr&(1<<inum) || inum==pic_ilevel)
+#if 1		/* use this result mouse slowndown in winos2 */
+  if(pic_isr&(1<<inum) || (inum==pic_ilevel && pic_icount !=0))
+#else          /* this make mouse work under winos2, but sometime */
+	       /* result in internal stack overflow  */
+  if(pic_isr&(1<<inum) || pic_irr&(1<<inum))
+#endif
     pic_pirr|=(1<<inum);
   else
     pic_irr|=(1<<inum);
 
 #ifdef DPMI
-  if (in_dpmi) D_printf("DPMI: pic_request(0x%02x) set isr=%x, irr=%x\n", inum, pic_isr, pic_irr);
+  if (in_dpmi) D_printf("DPMI: pic_request(0x%02x) set isr=%x, irr=%x, pirr=%x, ilevel=%x\n", inum, pic_isr, pic_irr, pic_pirr, pic_ilevel);
 #endif
 
   return;
@@ -592,7 +596,6 @@ unsigned short * tmp;
         pic_pirr&=~pic_irr;
         pic_wirr&=~pic_irr;		/* clear watchdog timer */
 	dpmi_eflags &= ~VIP;
-	timer_int_engine();   /* Experimental TIMER-IRQ CHAIN code! */
       } 
   return;
   }
@@ -608,7 +611,6 @@ tmp = SEG_ADR((short *),ss,sp)-3;
         pic_pirr&=~pic_irr;
         pic_wirr&=~pic_irr;		/* clear watchdog timer */
         REG(eflags)&=~(VIP);
-       timer_int_engine();   /* Experimental TIMER-IRQ CHAIN code! */
     }
 /* if return is to PIC_ADD, pop the real cs:ip */
     if(tmp[0] == PIC_OFF && tmp[1] == PIC_SEG) {
@@ -650,6 +652,7 @@ void do_irq0()
 {
 	pic_watch();
 	do_irq();
+	timer_int_engine();
 } 
    
 

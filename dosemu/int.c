@@ -954,18 +954,19 @@ static void int2f(u_char i)
     return;
 
   case 0x1686:            /* Are we in protected mode? */
-    if (in_dpmi)
-      REG(eax) = 0;
-    D_printf("DPMI 1686 returns %x\n", (int)REG(eax));
+    D_printf("DPMI CPU mode check in real mode.\n");
     return;
 
   case 0x1600:		/* WINDOWS ENHANCED MODE INSTALLATION CHECK */
-#if 1			/* it seens this confuse winos2 */
-    if (in_dpmi && in_win31)
-      LO(ax) = 3;	/* let's try enhaced mode :-))))))) */
-#endif    
     D_printf("DPMI: WINDOWS ENHANCED MODE INSTALLATION CHECK\n");
-    return;
+#if 0			/* it seens this confuse winos2 */
+    if (in_dpmi && in_win31) {
+      LO(ax) = 3;	/* let's try enhaced mode :-))))))) */
+      return;
+    } else
+      break;
+#endif    
+    break;
 
 #endif
   }

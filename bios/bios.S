@@ -594,6 +594,10 @@ CISH(DPMI_return_from_dos_memory):
 	.globl   CISH(DPMI_realmode_callback)
 CISH(DPMI_realmode_callback):
 	FILL_OPCODE(0x10,hlt)
+	.globl	CISH(DPMI_mouse_callback)
+CISH(DPMI_mouse_callback):
+	hlt
+	retf
 	.globl	CISH(DPMI_raw_mode_switch)
 CISH(DPMI_raw_mode_switch):
 	hlt
@@ -613,6 +617,9 @@ CISH(DPMI_return_from_exception):
 	hlt
 	.globl	CISH(DPMI_return_from_rm_callback)
 CISH(DPMI_return_from_rm_callback):
+	hlt
+	.globl	CISH(DPMI_return_from_mouse_callback)
+CISH(DPMI_return_from_mouse_callback):
 	hlt
 	.globl	CISH(DPMI_exception)
 CISH(DPMI_exception):

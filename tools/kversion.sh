@@ -21,11 +21,43 @@ function zeropad() {
   fi
 }
 
-
 if [ -z "$1" ]; then
-  KERNELSRC="/usr/src/linux"
+  KERNELSRC="-find"
 else
   KERNELSRC=$1
+fi
+
+if [ "$KERNELSRC" = "-find" ]; then
+  KERNELSRC=""
+  if [ -d /usr/include/linux ]; then
+    xxxx=`(cd /usr/include/linux; set -P; pwd)`
+    KERNELSRC=`(cd $xxxx/../..; pwd)`
+  else
+    if [ -d /usr/src/linux ]; then
+      KERNELSRC=`(cd /usr/src/linux; set -P; pwd)`
+    else
+      if [ -d /linux ]; then
+        KERNELSRC=`(cd /linux; set -P; pwd)`
+      else
+        echo "kversion.sh: cannot find any of the standard linux trees, giving up"
+        echo "You have to edit LINUX_KERNEL in the main Makefile so that it"
+        echo "points to your Linux source tree, which at least must contain ./include/*"
+        echo 'In addition (if your ./linux/include lacks the version.h file):'
+        echo "You may edit and uncomment KERNEL_VERSION in the main Makefile,"
+        echo "but this is not recommended !"
+        echo "The format is:"
+        echo "  KERNEL_VERSION=x0yy0zz meaning Linux version x.yy.zz"
+        echo "Example:"
+        echo "  KERNEL_VERSION=1002002 meaning Linux version 1.2.2"
+        exit 1
+      fi
+    fi
+  fi
+fi
+
+if [ "$2" = "-print" ]; then
+  echo "$KERNELSRC"
+  exit 0
 fi
 
 if [ -z "$2" ]; then

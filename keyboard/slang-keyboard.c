@@ -1,6 +1,6 @@
 #include "../include/slang.h"
 
-unsigned char DOSemu_Slang_Escape_Character = 30;
+/* unsigned char DOSemu_Slang_Escape_Character = 30; */
 
 char *DOSemu_Keyboard_Keymap_Prompt = NULL;
 int DOSemu_Terminal_Scroll = 0;
@@ -239,12 +239,12 @@ static Keymap_Scan_Type Normal_Map [] =
 static SLKeyMap_List_Type *The_Normal_KeyMap;
 
 static unsigned char Esc_Char;
-int define_key (unsigned char *key, unsigned long scan, 
-		SLKeyMap_List_Type *m, int esc_flag)
+int define_key (unsigned char *key, unsigned long scan, SLKeyMap_List_Type *m)
 {
    unsigned char buf[16], k1;
    
-   if ((*key == '^') && (Esc_Char != '@') && esc_flag)
+   if (SLang_Error) return -1;
+   if ((*key == '^') && (Esc_Char != '@'))
      {
 	k1 = key[1];
 	if (k1 == Esc_Char) return 0;  /* ^Esc_Char is not defined here */
@@ -255,7 +255,13 @@ int define_key (unsigned char *key, unsigned long scan,
 	     key = buf;
 	  }
      }
-   return SLang_define_key1 (key, (VOID *) scan, SLKEY_F_INTRINSIC, m);
+   SLang_define_key1 (key, (VOID *) scan, SLKEY_F_INTRINSIC, m);
+   if (SLang_Error)
+     {
+	fprintf (stderr, "Bad key: %s\n", key);
+	return -1;
+     }
+   return 0;
 }
 
 /* The entries with 0x0000 are not going to be used by any sane person. */
@@ -295,30 +301,59 @@ unsigned long Ctrl_Char_Scan_Codes[32] =
    0x0C1F			       /* ^_ */
 };
 
+static define_key_from_keymap (unsigned char *map, unsigned long mask, int flag)
+{
+   unsigned char buf[3], ch;
+   int i, imax;
+   static unsigned char mapped_already[256];
+   
+   imax = 97;
+   buf[1] = 0; buf[2] = 0;
+   for (i = 0; i < imax; i++)
+     {
+	if (((ch = map[i]) == 0) || (ch == 27) 
+	    || (ch == config.term_esc_char)) continue;
+	
+	if (!mapped_already [ch])
+	  {
+	     buf[0] = ch;
+	     define_key (buf, mask | ((unsigned long) i << 8), The_Normal_KeyMap);
+	  }
+	mapped_already[ch] = 1;
+	
+	if (flag && (ch < '@'+ 32) && (ch > '@') && (ch != '[')
+	    && (0 == mapped_already[ch - '@']))
+	  {
+	     mapped_already[ch - '@'] = 1;
+	     buf[0] = '^'; buf[1] = ch; 
+	     define_key (buf, CTRL_MASK | ((unsigned long) i << 8), The_Normal_KeyMap);
+	     buf[1] = 0;
+	  }
+     }
+}
+
 	
 int init_slang_keymaps (void)
 {
    char *str;
    SLKeyMap_List_Type *m;
    Keymap_Scan_Type *k;
-   unsigned char buf[5], *current_map;
+   unsigned char buf[5];
    unsigned long esc_scan;
-   int i, imax;
    
    /* Do some sanity checking */
-   if (DOSemu_Slang_Escape_Character >= 32)
-     DOSemu_Slang_Escape_Character = 0;
+   if (config.term_esc_char >= 32) config.term_esc_char = 30;
    
-   esc_scan = Ctrl_Char_Scan_Codes[DOSemu_Slang_Escape_Character];
+   esc_scan = Ctrl_Char_Scan_Codes[config.term_esc_char];
    if (esc_scan == 0) 
      {
-	DOSemu_Slang_Escape_Character = 0;
-	esc_scan = Ctrl_Char_Scan_Codes[0];
+	config.term_esc_char = 30;
+	esc_scan = Ctrl_Char_Scan_Codes [30];
      }
 
    esc_scan |= CTRL_MASK;
    
-   Esc_Char = DOSemu_Slang_Escape_Character + '@';
+   Esc_Char = config.term_esc_char + '@';
    
    
    if (The_Normal_KeyMap != NULL) return 0;
@@ -327,73 +362,43 @@ int init_slang_keymaps (void)
      return -1;
 
    k = Normal_Map; m = The_Normal_KeyMap;
-   
-   /* EXtract as much information as possible from the configed keypaps */
-   imax = 97;
-   current_map = config.key_map;
-   buf[1] = 0; buf[2] = 0;
-   for (i = 0; i < imax; i++)
-     {
-	unsigned char ch;
-	if ((ch = current_map[i]) == 0) continue;
-	buf[0] = ch;
-	define_key (buf, (unsigned long) i << 8, m, 1);
-	if ((ch < '@'+ 32) && (ch >= '@'))
-	  {
-	     buf[0] = '^'; buf[1] = ch; 
-	     define_key (buf, CTRL_MASK | ((unsigned long) i << 8), m, 0);
-	     buf[1] = 0;
-	  }
-     }
-   
-   current_map = config.shift_map;
-   buf[1] = 0; buf[2] = 0;
-   for (i = 0; i < imax; i++)
-     {
-	unsigned char ch;
-	if ((ch = current_map[i]) == 0) continue;
-	buf[0] = ch;
-	define_key (buf, SHIFT_MASK | ((unsigned long) i << 8), m, 1);
-	if ((ch < '@'+ 32) && (ch >= '@'))
-	  {	     
-	     buf[0] = '^'; buf[1] = ch; 
-	     define_key (buf, CTRL_MASK | ((unsigned long) i << 8), m, 0);
-	     buf[1] = 0;
-	  }
-     }
-   
-   
+  
    while ((str = k->keystr), (*str != 0))
      {
-	define_key (str, k->scan_code, m, 1);
+	define_key (str, k->scan_code, m);
 	k++;
      }
 
+   /* Extract as much information as possible from the configed keypaps */
+   define_key_from_keymap (config.key_map, 0, 1);
+   define_key_from_keymap (config.shift_map, SHIFT_MASK, 1);
+   define_key_from_keymap (config.alt_map, ALT_MASK, 0);
+  
    /* Now setup the shift modifier keys */
-   define_key ("^@a", ALT_KEY_SCAN_CODE, m, 1);
-   define_key ("^@c", CTRL_KEY_SCAN_CODE, m, 1);
-   define_key ("^@s", SHIFT_KEY_SCAN_CODE, m, 1);
+   define_key ("^@a", ALT_KEY_SCAN_CODE, m);
+   define_key ("^@c", CTRL_KEY_SCAN_CODE, m);
+   define_key ("^@s", SHIFT_KEY_SCAN_CODE, m);
 	
-   define_key ("^@A", STICKY_ALT_KEY_SCAN_CODE, m, 1);
-   define_key ("^@C", STICKY_CTRL_KEY_SCAN_CODE, m, 1);
-   define_key ("^@S", STICKY_SHIFT_KEY_SCAN_CODE, m, 1);
+   define_key ("^@A", STICKY_ALT_KEY_SCAN_CODE, m);
+   define_key ("^@C", STICKY_CTRL_KEY_SCAN_CODE, m);
+   define_key ("^@S", STICKY_SHIFT_KEY_SCAN_CODE, m);
 	
-   define_key ("^@?", HELP_SCAN_CODE, m, 1);
-   define_key ("^@h", HELP_SCAN_CODE, m, 1);
+   define_key ("^@?", HELP_SCAN_CODE, m);
+   define_key ("^@h", HELP_SCAN_CODE, m);
 	
-   define_key ("^@^R", REDRAW_SCAN_CODE, m, 1);
-   define_key ("^@^L", REDRAW_SCAN_CODE, m, 1);
-   define_key ("^@^Z", SUSPEND_SCAN_CODE, m, 1);
-   define_key ("^@ ", RESET_SCAN_CODE, m, 1);
-   define_key ("^@B", SET_MONO_SCAN_CODE, m, 1);
+   define_key ("^@^R", REDRAW_SCAN_CODE, m);
+   define_key ("^@^L", REDRAW_SCAN_CODE, m);
+   define_key ("^@^Z", SUSPEND_SCAN_CODE, m);
+   define_key ("^@ ", RESET_SCAN_CODE, m);
+   define_key ("^@B", SET_MONO_SCAN_CODE, m);
 	
-   define_key ("^@\033[A", SCROLL_UP_SCAN_CODE, m, 1);
-   define_key ("^@\033OA", SCROLL_UP_SCAN_CODE, m, 1);
-   define_key ("^@U", SCROLL_UP_SCAN_CODE, m, 1);
+   define_key ("^@\033[A", SCROLL_UP_SCAN_CODE, m);
+   define_key ("^@\033OA", SCROLL_UP_SCAN_CODE, m);
+   define_key ("^@U", SCROLL_UP_SCAN_CODE, m);
    
-   define_key ("^@\033[B", SCROLL_DOWN_SCAN_CODE, m, 1);
-   define_key ("^@\033OB", SCROLL_DOWN_SCAN_CODE, m, 1);
-   define_key ("^@D", SCROLL_DOWN_SCAN_CODE, m, 1);
+   define_key ("^@\033[B", SCROLL_DOWN_SCAN_CODE, m);
+   define_key ("^@\033OB", SCROLL_DOWN_SCAN_CODE, m);
+   define_key ("^@D", SCROLL_DOWN_SCAN_CODE, m);
 	
    if (SLang_Error) return -1;
    
@@ -499,7 +504,8 @@ static unsigned long Shift_Flags;
 static void slang_add_scancode (unsigned long lscan)
 {
    unsigned long flags = 0;
-   
+
+   /* fprintf (stderr, "Scancode: %X\n", lscan); */
    if ((lscan & SHIFT_MASK)
        && ((lscan & STICKY_SHIFT_MASK) == 0))
      {
@@ -731,3 +737,4 @@ void do_slang_getkeys (void)
      DOSemu_Keyboard_Keymap_Prompt = "[Ctrl]";
    else DOSemu_Keyboard_Keymap_Prompt = NULL;
 }
+
