@@ -8,6 +8,12 @@
 CC   = gcc
 LD   = ld
 
+ifdef X_SUPPORT
+XCFILES	= X.c
+XHDRS	= X.h
+XOBJS	= X.o
+endif
+
 # If INCDIR exists, it was exported from the master Makefile.
 ifndef INCDIR
   INCDIR=-I/usr/include/ncurses -I../include -I..
@@ -20,19 +26,19 @@ CFLAGS=-O2 -Wall # -Wmissing-prototypes \
 
 # ANSI isn't possible right now, because some header-file aren't ANSI
 
-CFILES = video.c vga.c et4000.c s3.c trident.c console.c terminal.c
-HFILES =         vga.h et4000.h s3.h trident.h terminal.h
+CFILES = video.c vga.c et4000.c s3.c trident.c console.c terminal.c $(XCFILES)
+HFILES =         vga.h et4000.h s3.h trident.h terminal.h $(XHDRS)
 
 # Insert all source- and header-files here.
 
-ALL = $(CFILES) $(HFILES)
+ALL = $(CFILES) $(HFILES) $(XCFILES) $(XHDRS)
 
 # All object-files are included here.
 
-OBJS = video.o vga.o et4000.o s3.o trident.o console.o terminal.o
+OBJS = video.o vga.o et4000.o s3.o trident.o console.o terminal.o $(XOBJS)
 
 .c.o:
-	$(CC) $(CFLAGS) $(INCDIR) -c $<
+	$(CC) $(CFLAGS) $(XDEFS) $(INCDIR) -c $<
  
 all: ../video.o
 

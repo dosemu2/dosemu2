@@ -58,9 +58,18 @@ __inline__ void int10(u_char ii)
 
   case 0x1:			/* define cursor shape */
     v_printf("define cursor: 0x%04x\n", LWORD(ecx));
-    /* 0x20 is the cursor no blink/off bit but may have some problems */
-    /* Others to try may be (HI(cx) & 0x20) or (REG(ecx) == 0x2000) */
+    /* 0x20 is the cursor no blink/off bit */
+    /*	if (HI(cx) & 0x20) */
+#ifdef X_SUPPORT
+    if (!config.X) {
+#endif
     cursor_blink = !(HI(cx) == 0x20);
+#ifdef X_SUPPORT
+    }
+    else 
+       X_setcursorshape(LWORD(ecx));
+#endif
+    bios_cursor_shape = LWORD(ecx);
     CARRY;
     break;
 
@@ -75,6 +84,14 @@ __inline__ void int10(u_char ii)
     }
     if (x >= CO || y >= LI)
       break;
+
+#if 0
+#ifdef X_SUPPORT
+    if (config.X) {
+       X_move_cursor(cursor_col,cursor_row,x,y);
+    }
+#endif
+#endif
 
     bios_cursor_x_position(screen) = x;
     bios_cursor_y_position(screen) = y;
@@ -91,6 +108,7 @@ __inline__ void int10(u_char ii)
     }
     REG(edx) = (bios_cursor_y_position(screen) << 8) 
               | bios_cursor_x_position(screen);
+    REG(ecx) = bios_cursor_shape;
     break;
 
   case 0x5:

@@ -26,9 +26,21 @@ NCURSES_INC = /usr/include/ncurses
 STATIC=0
 DOSOBJS=
 SHLIBOBJS=$(OBJS)
+DOSLNK=
 #LNKOPTS=-s
 #MAGIC=-zmagic
 #endif
+
+X_SUPPORT = 1
+export X_SUPPORT
+
+ifdef X_SUPPORT
+XCFILES = 
+XOBJS   =
+#the -u forces the X11 shared library to be linked into ./dos
+XLIBS   = -lX11 -u _XOpenDisplay
+XDEFS   = -DX_SUPPORT
+endif
 
 # dosemu version
 EMUVER  =   0.53
@@ -88,7 +100,7 @@ SFILES=bios.S
 
 OFILES= Makefile ChangeLog dosconfig.c QuickStart \
 	DOSEMU-HOWTO.txt DOSEMU-HOWTO.ps DOSEMU-HOWTO.sgml \
-	README.ncurses vga.pcf xdosemu xinstallvgafont
+	README.ncurses vga.pcf xdosemu xinstallvgafont README.X
 
 BFILES=
 
@@ -104,7 +116,7 @@ F_PERIPH=debugobj.S getrom hdinfo.c mkhdimage.c mkpartition putrom.c
 
 OBJS=emu.o termio.o disks.o keymaps.o timers.o cmos.o mouse.o \
      dosio.o cpu.o xms.o mfs.o bios_emm.o lpt.o \
-     serial.o dyndeb.o sigsegv.o video.o bios.o init.o net.o detach.o
+     serial.o dyndeb.o sigsegv.o video.o bios.o init.o net.o detach.o $(XOBJS)
 
 OPTIONAL   = # -DDANGEROUS_CMOS=1
 CONFIGS    = $(CONFIG_FILE)
@@ -127,7 +139,7 @@ endif
 TOPDIR  := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
 INCDIR     = -I$(TOPDIR)/include -I$(TOPDIR) -I$(LINUX_INCLUDE) -I$(NCURSES_INC)
 export INCDIR
-CFLAGS     = $(DPMI) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
+CFLAGS     = $(DPMI) $(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
 LDFLAGS    = $(LNKOPTS) # exclude symbol information
 AS86 = as86
 #LD86 = ld86 -s -0
@@ -185,11 +197,12 @@ dos.o: config.h dos.c
 
 dos:	dos.c $(DOSOBJS)
 	@echo "Including dos.o " $(DOSOBJS)
-	$(CC) $(DOSLNK) -DSTATIC=$(STATIC) $(LDFLAGS) -N -o $@ $< $(DOSOBJS)
+	$(CC) $(DOSLNK) -DSTATIC=$(STATIC) $(LDFLAGS) -N -o $@ $< $(DOSOBJS) \
+              $(XLIBS)
 
 libdosemu:	$(SHLIBOBJS) $(DPMIOBJS)
 	ld $(LDFLAGS) $(MAGIC) -T $(LIBSTART) -o $@ \
-	   $(SHLIBOBJS) $(DPMIOBJS) $(SHLIBS) -lncurses -lc -lfl
+	   $(SHLIBOBJS) $(DPMIOBJS) $(SHLIBS) $(XLIBS) -lncurses -lc
 
 dossubdirs: dummy
 	@for i in $(SUBDIRS); do \

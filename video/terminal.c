@@ -23,6 +23,9 @@
 #include "memory.h"
 #include "video.h"
 #include "terminal.h" 
+#ifdef X_SUPPORT
+#include "X.h"
+#endif
 
 /* The default character set is to use the latin character set */
 unsigned char *chartrans = charset_latin;
@@ -838,8 +841,17 @@ ansi_update()
 int
 restore_screen()
 {
-  if (config.term_method == METHOD_NCURSES)
-    return ncurses_update();
-  else
-    return ansi_update(); 
+#if X_SUPPORT
+  if (config.X) {
+     return X_update_screen();
+  }
+  else {
+#endif
+     if (config.term_method == METHOD_NCURSES)
+       return ncurses_update();
+     else
+       return ansi_update(); 
+#if X_SUPPORT
+   }
+#endif
 }

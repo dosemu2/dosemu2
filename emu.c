@@ -1647,7 +1647,7 @@ void
 
   opterr = 0;
   confname = NULL;
-  while ((c = getopt(argc, argv, "ABC:cF:kM:D:P:VNtsgx:Km234e:d")) != EOF) {
+  while ((c = getopt(argc, argv, "ABC:cF:kM:D:P:VNtsgx:Km234e:dX")) != EOF) {
     switch (c) {
     case 'F':
       confname = optarg;
@@ -1666,7 +1666,7 @@ void
 
   optind = 0;
   opterr = 0;
-  while ((c = getopt(argc, argv, "ABC:cF:kM:D:P:VNtT:sgx:Km234e:d")) != EOF) {
+  while ((c = getopt(argc, argv, "ABC:cF:kM:D:P:VNtT:sgx:Km234e:dX")) != EOF) {
     switch (c) {
     case 'F':			/* previously parsed config file argument */
     case 'd':
@@ -1685,6 +1685,13 @@ void
       break;
     case 'k':
       config.console_keyb = 1;
+      break;
+    case 'X':
+#ifdef X_SUPPORT
+      config.X = 1;
+#else
+      error("X support not compiled in\n");
+#endif
       break;
     case 'K':
       warn("Keyboard interrupt enabled...this is still buggy!\n");
@@ -1780,6 +1787,9 @@ void
     }
   }
 
+  if (config.X) {
+    config.console_video = config.console_keyb = config.vga = config.graphics = 0;
+  }
   if (!config.graphics)
     config.allowvideoportaccess = 0;
 
@@ -1910,6 +1920,14 @@ void
   mouse_init();
   disk_init();
   termioInit();
+
+#ifdef X_SUPPORT
+  /* when X supports keyboard input, the termioInit call above should
+     be removed for X support. 
+  */
+  if (config.X)
+     X_init();
+#endif
 
   /* allocate screen buffer for non-console video compare speedup */
   scrbuf = (u_char *)malloc(CO * LI * 2);
@@ -2127,6 +2145,9 @@ void
   fprintf(stdout, "    -C boot from first defined hard disk (C)\n");
   fprintf(stdout, "    -c use PC console video (kernel 0.99pl3+) (!%%)\n");
   fprintf(stdout, "    -k use PC console keyboard (kernel 0.99pl3+) (!)\n");
+#ifdef X_SUPPORT
+  fprintf(stdout, "    -X run in X Window (#)\n");
+#endif
   fprintf(stdout, "    -D set debug-msg mask to flags (+-)(vsdDRWkpiwghxmIEc01)\n");
   fprintf(stdout, "    -M set memory size to SIZE kilobytes (!)\n");
   fprintf(stdout, "    -P copy debugging output to FILE\n");

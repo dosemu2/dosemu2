@@ -1,7 +1,25 @@
+Wed Aug 03 1994 Jmaclean
+
+-	Added patches from Tomi, Scottb to new parse generator...
+	but put back in old parse generator fot this release. Well
+	step back to this one hopefully in the next release.
+-	Added Rain's Xdos patches. Folks, we're well on our way :-).
+	Please read README.X and thank Rain for getting everything on
+	it's way.
+
 Mon Aug 01 1994 Jmaclean
 
 -	Added new parser combo lexer.l/parser.y from Scott for all
 	to play with. A bit rough but Scott would enjoy feedback :-).
+- 	Fix for bug in cursor positioning that causes garbage sometimes
+  	This can be a MAJOR improvement to some people because it's appliation-
+  	specific.
+- 	Invisible cursor support in console mode.  More visually pleasing.
+- 	Cursor in ANSI and NCURSES is now put at position 0,0 whenever the
+  	cursor is invisible or off-screen.
+- 	Improvements to character blinking disable/enable code (this stops the
+  	annoying blinking when you run PCTools over a telnet line)
+
 -	Note from Markkk about new ansi_xterm :
 
 "ANSI Xterm 2.0 is a specially modified Xterm that is compatible with DOSEMU

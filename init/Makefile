@@ -22,7 +22,7 @@ CFLAGS=-O2 -Wall -Wmissing-prototypes \
        -Wstrict-prototypes -ansi -pedantic -Wid-clash-31 -Wcast-qual
 #-Wwrite-strings
 
-CFILES = inifile.c
+CFILES = inifile.c parse.c
 LFILES = lexer.l
 YFILES = parser.y
 HFILES = 
@@ -33,7 +33,7 @@ ALL = $(YFILES) $(LFILES) $(CFILES) $(HFILES)
 
 # All object-files are included here.
 
-OBJS = parser.o lex.yy.o inifile.o
+OBJS = parser.o lex.yy.o inifile.o parse.o
 
 .c.o:
 	$(CC) $(CFLAGS) $(DEFINES) $(INCDIR) -c $<
@@ -41,7 +41,8 @@ OBJS = parser.o lex.yy.o inifile.o
 all: ../init.o
 
 ../init.o: $(OBJS)
-	ld -r -o ../init.o $(OBJS)
+	ld -r -o ../init.o parse.o
+#	ld -r -o ../init.o $(OBJS)
 
 parser.c : parser.y
 	$(BISON) -do parser.c parser.y

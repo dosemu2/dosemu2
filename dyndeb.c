@@ -25,6 +25,10 @@ SetDebugFlagsHelper(char *debugStr)
     case 'v':
       d.video = value;
       break;
+#ifdef X_SUPPORT
+      d.X = value;
+      break;
+#endif
     case 'k':
       d.keyb = value;
       break;
@@ -111,6 +115,13 @@ GetDebugFlagsHelper(char *debugStr)
   else
     debugStr[i++] = '-';
   debugStr[i++] = 'v';
+#ifdef X_SUPPORT
+  if (d.X)
+    debugStr[i++] = '+';
+  else
+    debugStr[i++] = '-';
+  debugStr[i++] = 'X';
+#endif
   if (d.keyb)
     debugStr[i++] = '+';
   else

@@ -3,15 +3,12 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/08/02 00:08:51 $
+ * $Date: 1994/08/01 14:58:59 $
  * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
- * $Revision: 2.9 $
+ * $Revision: 2.8 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
- * Revision 2.9  1994/08/02  00:08:51  root
- * Markk's latest.
- *
  * Revision 2.8  1994/08/01  14:58:59  root
  * Added detach (-d) option from Karl Hakimian.
  *
@@ -250,6 +247,7 @@ struct debug_flags {
    write,			/* disk write "W" */
    dos,				/* unparsed int 21h, "D" */
    video,			/* video, "v" */
+   X,				/* X support, "X" */
    keyb,			/* keyboard, "k" */
    debug, io,			/* port I/O, "i" */
    serial,			/* serial, "s" */
@@ -282,6 +280,7 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 #define k_printf(f,a...) 	ifprintf(d.keyb,f,##a)
 #define h_printf(f,a...) 	ifprintf(d.hardware,f,##a)
 #define v_printf(f,a...) 	ifprintf(d.video,f,##a)
+#define X_printf(f,a...)        ifprintf(d.X,f,##a)
 #define s_printf(f,a...) 	ifprintf(d.serial,f,##a)
 #define p_printf(f,a...) 	ifprintf(d.printer,f,##a)
 #define d_printf(f,a...) 	ifprintf(d.disk,f,##a)
@@ -405,6 +404,7 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
        boolean console_video;
        boolean graphics;
        boolean vga;
+       boolean X;
        u_short cardtype;
        u_short chipset;
        u_short gfxmemsize;		/* for SVGA card, in K */

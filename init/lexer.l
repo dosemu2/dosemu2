@@ -143,6 +143,7 @@ irq			return(IRQ);
 interrupt		return(INTERRUPT);
 baudrate		return(BAUDRATE);
 device			return(DEVICE);
+com                     return(COM);
 
 	/* terminal stuff */
 
@@ -152,11 +153,16 @@ updatelines		return(UPDATELINES);
 color			return(COLOR);
 corner			return(CORNER);
 method			return(METHOD);
-fast			{ yylval->i_value = 1; return(METHOD_TYPE); }
-ncurses			{ yylval->i_value = 2; return(METHOD_TYPE); }
-latin			{ yylval->i_value = 1; return(CHARSET_TYPE); }
-ibm			{ yylval->i_value = 2; return(CHARSET_TYPE); }
-fullibm			{ yylval->i_value = 3; return(CHARSET_TYPE); }
+normal			return(NORMAL);
+xterm			return(XTERM);
+fast			return(FAST);
+ncurses			return(NCURSES);
+latin			{ yylval->i_value = CHARSET_LATIN;
+			  return(CHARSET_TYPE); }
+ibm			{ yylval->i_value = CHARSET_IBM;
+			  return(CHARSET_TYPE); }
+fullibm			{ yylval->i_value = CHARSET_FULLIBM;
+			  return(CHARSET_TYPE); }
 
 	/* mouse types */
 

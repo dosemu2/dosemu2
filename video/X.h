@@ -1,0 +1,10 @@
+void           get_vga_colors (void);
+int            X_init         (void);
+void           X_close        (void);
+void           X_redraw_screen (void);
+int            X_update_screen (void);
+void           X_handler      (void);
+void X_draw_cursor(int x,int y);
+void X_restore_cell(int x,int y);
+void X_move_cursor(int from_x,int from_y,int to_x,int to_y);
+void X_setcursorshape(unsigned short shape);

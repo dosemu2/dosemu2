@@ -63,6 +63,7 @@ void stop_mouse(void);
 void start_debug(void);
 void stop_video(void);
 void start_serial(void);
+void stop_serial(void);
 void start_printer(void);
 void stop_printer(void);
 void start_disk(void);
@@ -87,7 +88,7 @@ extern void yyrestart(FILE *input_file);
   };
 
 %token <i_value> INTEGER L_OFF L_ON L_YES L_NO L_SPEAKER CHIPSET_TYPE
-%token <i_value> CHARSET_TYPE METHOD_TYPE KEYB_LAYOUT
+%token <i_value> CHARSET_TYPE KEYB_LAYOUT
 %token <s_value> STRING
 	/* main options */
 %token DOSBANNER FASTFLOPPY TIMINT HOGTHRESH SPEAKER IPXSUPPORT NOVELLHACK
@@ -107,7 +108,7 @@ extern void yyrestart(FILE *input_file);
 %token VGA MGA CGA EGA CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
 %token MEMSIZE VBIOS_SEG VBIOS_FILE VBIOS_COPY VBIOS_MMAP
 	/* terminal */
-%token UPDATEFREQ UPDATELINES COLOR CORNER METHOD
+%token UPDATEFREQ UPDATELINES COLOR CORNER METHOD NORMAL XTERM NCURSES FAST
 	/* debug */
 %token IO PORT CONFIG READ WRITE KEYB PRINTER WARNING GENERAL HARDWARE
 %token L_IPC
@@ -119,7 +120,7 @@ extern void yyrestart(FILE *input_file);
 	/* ports/io */
 %token RDONLY WRONLY RDWR ORMASK ANDMASK
 
-%type <i_value> mem_bool bool speaker
+%type <i_value> mem_bool bool speaker method_val color_val
 
 %%
 
@@ -165,6 +166,7 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		| SERIAL
 		    { start_serial(); }
 		  '{' serial_flags '}'
+		  { stop_serial(); }
 		| KEYBOARD '{' keyboard_flags '}'
 		| PORTS
 		    { start_ports(); }
@@ -221,12 +223,22 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 term_flags	: term_flag
 		| term_flags term_flag
 		;
-term_flag	: METHOD METHOD_TYPE	{ config.term_method = $2; }
+term_flag	: METHOD method_val	{ config.term_method = $2; }
 		| UPDATELINES INTEGER	{ config.term_updatelines = $2; }
 		| UPDATEFREQ INTEGER	{ config.term_updatefreq = $2; }
 		| CHARSET CHARSET_TYPE	{ config.term_charset = $2; }
-		| COLOR bool		{ config.term_color = $2; }
-		| CORNER INTEGER	{ config.term_corner = $2; }
+		| COLOR color_val	{ config.term_color = $2; }
+		| CORNER bool		{ config.term_corner = $2; }
+		;
+
+color_val	: L_OFF			{ return 0; }
+		| L_ON			{ return COLOR_NORMAL; }
+		| NORMAL		{ return COLOR_NORMAL; }
+		| XTERM			{ return COLOR_XTERM; }
+		;
+
+method_val	: FAST			{ return METHOD_FAST; }
+		| NCURSES		{ return METHOD_NCURSES; }
 		;
 
 	/* debugging */
@@ -533,6 +545,15 @@ void start_serial(void)
     sptr->fd = -1;
     sptr->mouse = 0;
   }
+}
+
+
+void stop_serial(void)
+{
+  c_ser++;
+  config.num_ser = c_ser;
+  c_printf("SERIAL: com%i int = %i\n", sptr->real_comport, sptr->interrupt);
+
 }
 
 	/* printer */

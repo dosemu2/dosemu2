@@ -44,6 +44,7 @@
 #define bios_cursor_y_position(screen) \
                         (*(unsigned char *)(0x451 + 2*(screen)))
  
+#define bios_cursor_shape               (*(unsigned short *) 0x460)
 #define bios_cursor_last_line           (*(unsigned char  *) 0x460)
 #define bios_cursor_first_line          (*(unsigned char  *) 0x461)
 #define bios_current_screen_page        (*(unsigned char  *) 0x462)
