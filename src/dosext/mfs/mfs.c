@@ -1785,7 +1785,7 @@ scan_dir(char *path, char *name, int drive)
   struct mfs_dir *cur_dir;
   struct mfs_dirent *cur_ent;
   size_t len;
-  int is_8_3, maybe_mangled;
+  int maybe_mangled;
   char dosname[strlen(name)+1];
 
   /* handle null paths */
@@ -1802,13 +1802,17 @@ scan_dir(char *path, char *name, int drive)
 
   len = strlen(path);
 
-  /* check if the name is an LFN or not; if it's 8.3 then dosname
-     contains the uppercased name */
-  is_8_3 = name_convert(dosname, name, 0, NULL);
-
   /* check if the name is, perhaps, mangled. If not then we don't
      need to mangle the readdir result as it can't be the same */
-  maybe_mangled = (is_8_3 && is_mangled(dosname)) ? MANGLE : 0;
+  maybe_mangled = 0;
+  if (is_mangled(name)) {
+    /* check if the maybe mangled name is an LFN or not; if it's 8.3
+       then dosname will contain the uppercased name;
+       if it's not 8.3 then it's not mangled after all.
+    */
+    if (name_convert(dosname, name, 0, NULL) && is_mangled(dosname))
+      maybe_mangled = MANGLE;
+  }
 
   /* VFAT is already case insensitive: the kernel did the hard
      work for us already */
@@ -1843,10 +1847,9 @@ scan_dir(char *path, char *name, int drive)
 	    continue;
 	}
       }
-    } else if (is_8_3) {
-      if (strcasecmp(name, cur_ent->d_name) != 0)
-	continue;
-    } else if (strcasecmp(name, cur_ent->d_long_name) != 0) {
+    } else if (strcasecmp(name, cur_ent->d_name) != 0) {
+      /* here name is certainly not mangled and d_name == d_long_name
+	 because on VFAT we already left before the loop */
       continue;
     }
 
