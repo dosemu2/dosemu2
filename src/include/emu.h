@@ -218,7 +218,7 @@ typedef struct vesamode_type_struct {
        u_short chipset;
        boolean pci;
        boolean pci_video;
-       u_short gfxmemsize;		/* for SVGA card, in K */
+       u_long gfxmemsize;		/* for SVGA card, in K */
        /* u_short term_method; */	/* Terminal method: ANSI or NCURSES */
        u_short term_color;		/* Terminal color support on or off */
        /* u_short term_updatelines; */	/* Amount to update at a time */
@@ -247,7 +247,7 @@ typedef struct vesamode_type_struct {
        int     X_mode13fact;            /* initial size factor for mode 0x13 */
        int     X_winsize_y;             /* initial window height */
        unsigned X_gamma;		/* gamma correction value */
-       u_short vgaemu_memsize;		/* for VGA emulation */
+       u_long vgaemu_memsize;		/* for VGA emulation */
        vesamode_type *vesamode_list;	/* chained list of VESA modes */
        int     X_lfb;			/* support VESA LFB modes */
        int     X_pm_interface;		/* support protected mode interface */
