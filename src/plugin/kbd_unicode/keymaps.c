@@ -2454,7 +2454,7 @@ static int read_kbd_table(struct keytable_entry *kt)
 			kc = U_VOID;
 		}
 		/* As a special case filter [ctrl][tab] */
-		if ((dosemu = NUM_TAB) && (kc == 0x09)) {
+		if ((dosemu == NUM_TAB) && (kc == 0x09)) {
 			kc = U_VOID;
 		}
 		kt->key_map[dosemu]   = kp;

@@ -26,97 +26,10 @@ It also is capable to handle PL4 color modes in addition to 256 color modes,
 so bgidemo from Borland runs fine.
 </para>
 
-<para>
-If it doesn't work for you as expected, please check out the following:
-</para>
-
-<para>
-
-<itemizedlist>
-<listitem>
-
-<para>
-Specify "keycode" for X-support only for local X-servers, in most cases
-it should work without it.
-The keycode-option is something specific for a special X-server, here
-XFree86, and so isn't portable and I disencourage its use.
-</para>
-</listitem>
-<listitem>
-
-<para>
- Check out whether your key sends a sensible ksym, with e.g."xev". If it sends
-something sensible which you think should be mapped by xdosemu, please let me
-know details.
-</para>
-</listitem>
-<listitem>
-<para>
- If you are running xdosemu on XFree86, version 3.1.1 and newer and the keys
-of the keypad-area don't work, you have two options:
-</para>
-
-<para>
-
-<itemizedlist>
-<listitem>
-
-<para>
- Comment out the line "    ServerNumLock " in /usr/X11R6/lib/X11/XFConfig
-</para>
-</listitem>
-<listitem>
-<para>
-Feed the following file to xmodmap. From what I understand from the docs,
-XFree-3.1.1 should do that intrinsicly, but for me it didn't. This is a part
-of the file /usr/X11R6/lib/X11/etc/xmodmap.std 
-</para>
-
-<para>
-
-<screen>
-! When using ServerNumLock in your XF86Config, the following codes/symbols
-! are available in place of 79-81, 83-85, 87-91
-keycode  136 = KP_7
-keycode  137 = KP_8
-keycode  138 = KP_9
-keycode  139 = KP_4
-keycode  140 = KP_5
-keycode  141 = KP_6
-keycode  142 = KP_1
-keycode  143 = KP_2
-keycode  144 = KP_3
-keycode  145 = KP_0
-keycode  146 = KP_Decimal
-keycode  147 = Home
-keycode  148 = Up
-keycode  149 = Prior
-keycode  150 = Left
-keycode  151 = Begin
-keycode  152 = Right
-keycode  153 = End
-keycode  154 = Down
-keycode  155 = Next
-keycode  156 = Insert
-keycode  157 = Delete
-</screen>
-
-</para>
-</listitem>
-
-</itemizedlist>
-
-</para>
-</listitem>
-
-</itemizedlist>
-
-</para>
-
 </sect2>
 
 <sect2>
-<title>Slightly older information</title>
+<title> Older information</title>
 
 <para>
 From Rainer Zimmermann
@@ -141,13 +54,14 @@ What you should take care of:
 <listitem>
 
 <para>
- Do a 'xmodmap -e "keycode 22 = 0xff08"' to get use of your backspace key.
+If backspace and delete do not work, you can try
+ 'xmodmap -e "keycode 22 = 0xff08"' to get use of your backspace key, and
 </para>
 </listitem>
 <listitem>
 
 <para>
- Do a 'xmodmap -e "keycode 107 = 0xffff"' to get use of your delete key.
+ 'xmodmap -e "keycode 107 = 0xffff"' to get use of your delete key.
 </para>
 </listitem>
 <listitem>
@@ -188,16 +102,6 @@ See ./etc/dosemu.conf for details.
 <para>
  starting xdosemu in the background (like from a window manager menu)
 appears not to work for some reason.
-</para>
-</listitem>
-<listitem>
-
-<para>
- Keyboard support in the DOSEMU window isn't perfect yet. It probably
-could be faster, some key combos still don't work (e.g. Ctrl-Fn), etc.
-However, input through the terminal window (i.e. the window you started
-DOSEMU from) is still supported. If you have problems, you *might* be
-better off putting your focus in there.
 </para>
 </listitem>
 <listitem>

@@ -27,6 +27,8 @@
 #include "int.h"
 #include "dosemu_config.h"
 #include "init.h"
+#include "disks.h"
+#include "lpt.h"
 
 #include "dos2linux.h"
 #include "priv.h"
@@ -62,7 +64,7 @@ char **dosemu_argv;
 
 static void     check_for_env_autoexec_or_config(void);
 extern int     parse_debugflags(const char *s, unsigned char flag);
-static void     usage(void);
+static void     usage(char *basename);
 void memcheck_type_init(void);
 
 /*
@@ -108,6 +110,9 @@ config_defaults(void)
 {
     char *cpuflags;
     int k = 386;
+    struct disk *dptr;
+    struct printer *pptr;
+    extern struct printer lpt[NUM_PRINTERS];
 
     vm86s.cpu_type = CPU_386;
     /* defaults - used when /proc is missing, cpu!=x86 etc. */
@@ -126,7 +131,6 @@ config_defaults(void)
       case 6: case 686:
       case 15:
         config.realcpu = CPU_586;
-        config.pci = 1;	/* fair guess */
         cpuflags = get_proc_string_by_key("features");
         if (!cpuflags) {
           cpuflags = get_proc_string_by_key("flags");
@@ -213,25 +217,51 @@ config_defaults(void)
     config.cpuemu = 0;
 #endif
     config.mem_size = 640;
-    config.ems_size = 0;
-    config.ems_frame = 0xd000;
-    config.xms_size = 0;
+    config.ems_size = 2048;
+    config.ems_frame = 0xe000;
+    config.xms_size = 1024;
     config.max_umb = 0;
-    config.dpmi = 0;
-    config.secure = 1;  /* need to have it 'on', else user may trick it out
-                           via -F option */
+    config.dpmi = (!under_root_login && can_do_root_stuff) ? 0 : 0x2000;
+    config.secure = 0;
     config.mouse_flag = 0;
     config.mapped_bios = 0;
     config.vbios_file = NULL;
     config.vbios_copy = 0;
-    config.vbios_seg = 0xc000;
-    config.vbios_size = 0x10000;
+    config.vbios_seg = 0;
+    config.vbios_size = 0;
     config.console = 0;
     config.console_keyb = 0;
     config.console_video = 0;
     config.kbd_tty = 0;
-    config.fdisks = 0;
-    config.hdisks = 0;
+    config.fdisks = 1;
+    dptr = &disktab[0];
+    dptr->type    = FLOPPY;
+    dptr->default_cmos = THREE_INCH_FLOPPY;
+    dptr->sectors = 0;
+    dptr->heads   = 0;
+    dptr->tracks  = 0;
+    dptr->timeout = 0;
+    dptr->dev_name = "/dev/fd0";              /* default-values */
+    dptr->boot_name = NULL;
+    dptr->wantrdonly = 0;
+    dptr->header = 0;
+    dptr->dexeflags = 0;
+
+    config.hdisks = 1;
+    dptr = &hdisktab[0];
+    dptr->type    = DIR_TYPE;
+    dptr->sectors = -1;
+    dptr->heads   = -1;
+    dptr->tracks  = -1;
+    dptr->timeout = 0;
+    dptr->dev_name = malloc(strlen(DOSEMU_HDIMAGE_DIR) + 8 + 1);   /* default-values */
+    strcpy(dptr->dev_name, DOSEMU_HDIMAGE_DIR);
+    strcat(dptr->dev_name, "/freedos"); 
+    dptr->boot_name = NULL;
+    dptr->wantrdonly = 0;
+    dptr->header = 0;
+    dptr->dexeflags = 0;
+
     config.bootdisk = 0;
     config.exitearly = 0;
     config.term_esc_char = 30;	       /* Ctrl-^ */
@@ -242,22 +272,22 @@ config_defaults(void)
     config.term_charset = CHARSET_LATIN;
     /* config.term_corner = 1; */
     config.X_updatelines = 25;
-    config.X_updatefreq = 8;
+    config.X_updatefreq = 5;
     config.X_display = NULL;	/* NULL means use DISPLAY variable */
-    config.X_title = "dosemu";
-    config.X_icon_name = "dosemu";
-    config.X_blinkrate = 8;
+    config.X_title = "DOS in a BOX";
+    config.X_icon_name = "xdos";
+    config.X_blinkrate = 12;
     config.X_sharecmap = 0;     /* Don't share colourmap in graphics modes */
-    config.X_mitshm = 0;
+    config.X_mitshm = 1;
     config.X_fixed_aspect = 1;
-    config.X_aspect_43 = 0;
+    config.X_aspect_43 = 1;
     config.X_lin_filt = 0;
     config.X_bilin_filt = 0;
     config.X_mode13fact = 2;
     config.X_winsize_x = 0;
     config.X_winsize_y = 0;
     config.X_gamma = 100;
-    config.vgaemu_memsize = 0;
+    config.vgaemu_memsize = 1024;
     config.vesamode_list = NULL;
     config.X_lfb = 1;
     config.X_pm_interface = 1;
@@ -265,14 +295,14 @@ config_defaults(void)
     config.X_font = "vga";
     config.usesX = 0;
     config.X = 0;
-    config.X_mgrab_key = "";	/* off , NULL = "Home" */
-    config.hogthreshold = 10;	/* bad estimate of a good garrot value */
+    config.X_mgrab_key = NULL;	/* on , NULL = "Home" */
+    config.hogthreshold = 1;	/* bad estimate of a good garrot value */
     config.chipset = PLAINVGA;
     config.cardtype = CARD_VGA;
     config.pci_video = 0;
     config.fullrestore = 0;
     config.graphics = 0;
-    config.gfxmemsize = 256;
+    config.gfxmemsize = 1024;
     config.vga = 0;		/* this flags BIOS graphics */
     config.dualmon = 0;
     config.force_vt_switch = 0;
@@ -298,16 +328,15 @@ config_defaults(void)
     config.tty_lockbinary = FALSE;      /* Binary lock files ? */
 
     config.num_ser = 0;
-    config.num_lpt = 0;
     config.fastfloppy = 1;
 
     config.emusys = (char *) NULL;
     config.emuini = (char *) NULL;
     config.dosbanner = 1;
-    config.allowvideoportaccess = 0;
+    config.allowvideoportaccess = 1;
     config.emuretrace = 0;
 
-    config.keytable = &keytable_list[KEYB_USER]; /* What's the current keyboard  */
+    config.keytable = &keytable_list[KEYB_AUTO]; /* What's the current keyboard  */
 		config.altkeytable = NULL;
 		config.toggle_mask = 0;
 
@@ -332,6 +361,15 @@ config_defaults(void)
     mice->sampleRate = 0;
     mice->lastButtons = 0;
     mice->chordMiddle = 0;
+
+    config.num_lpt = 1;
+    pptr = &lpt[0];
+    pptr->prtcmd = "lpr";
+    pptr->prtopt = "%s";
+    pptr->dev = NULL;
+    pptr->file = NULL;
+    pptr->remaining = -1;
+    pptr->delay = 20;
 
     config.sb_base = 0x220;
     config.sb_dma = 1;
@@ -678,13 +716,16 @@ void secure_option_preparse(int *argc, char **argv)
   char * get_option(char *key, int with_arg)
   {
     char *p;
+    char *basename;
     int o = find_option(key, *argc, argv);
     if (!o) return 0;
     o = option_delete(o, argc, argv);
     if (!with_arg) return "";
     if (!with_arg || o >= *argc) return "";
     if (argv[o][0] == '-') {
-      usage();
+      basename = strrchr(argv[0], '/');   /* parse the program name */
+      basename = basename ? basename + 1 : argv[0];
+      usage(basename);
       exit(0);
     }
     p = strdup(argv[o]);
@@ -714,7 +755,6 @@ void secure_option_preparse(int *argc, char **argv)
       exit(0);
     }
     DOSEMU_LIB_DIR = opt;
-    DOSEMU_USERS_FILE = "none";
   }
 
   opt = get_option("--Fimagedir", 1);
@@ -882,8 +922,11 @@ config_init(int argc, char **argv)
     char           *dexe_name = 0;
     char usedoptions[256];
 
+    basename = strrchr(argv[0], '/');   /* parse the program name */
+    basename = basename ? basename + 1 : argv[0];
+
     if (argv[1] && !strcmp("--version",argv[1])) {
-      usage();
+      usage(basename);
       exit(0);
     }
 
@@ -894,8 +937,6 @@ config_init(int argc, char **argv)
     memcheck_type_init();
     our_envs_init(0);
     config_defaults();
-    basename = strrchr(argv[0], '/');	/* parse the program name */
-    basename = basename ? basename + 1 : argv[0];
 
 #ifdef X_SUPPORT
     /*
@@ -1021,7 +1062,7 @@ config_init(int argc, char **argv)
 	extern void prepare_dexe_load(char *name);
 	if (!dexe_name) dexe_name = argv[optind];
 	if (!dexe_name) {
-	  usage();
+	  usage(basename);
 	  exit(1);
 	}
 	prepare_dexe_load(dexe_name);
@@ -1187,7 +1228,7 @@ config_init(int argc, char **argv)
 	case '?':
 	default:
 	    fprintf(stderr, "unrecognized option: -%c\n\r", c);
-	    usage();
+	    usage(basename);
 	    fflush(stdout);
 	    fflush(stderr);
 	    _exit(1);
@@ -1197,7 +1238,7 @@ config_init(int argc, char **argv)
     config_scrub();
     if (config_check_only) {
 	dump_config_status(0);
-	usage();
+	usage(basename);
 	leavedos(0);
     }
 }
@@ -1224,15 +1265,15 @@ check_for_env_autoexec_or_config(void)
 }
 
 static void
-usage(void)
+usage(char *basename)
 {
     fprintf(stderr,
 	"dosemu-" VERSTR "\n\n"
 	"USAGE:\n"
-	"  dos  [-ABCckbVNtsgxKm23456ez] [-h{0|1|2}] [-H dflags \\\n"
+	"  %s  [-ABCckbVNtsgxKm23456ez] [-h{0|1|2}] [-H dflags \\\n"
 	"       [-D flags] [-M SIZE] [-P FILE] [ {-F|-L} File ] \\\n"
 	"       [-u confvar] [-f dosrcFile] [-o dbgfile] 2> vital_logs\n"
-	"  dos --version\n\n"
+	"  %s --version\n\n"
 	"    -2,3,4,5,6 choose 286, 386, 486 or 586 or 686 CPU\n"
 	"    -A boot from first defined floppy disk (A)\n"
 	"    -B boot from second defined floppy disk (B) (#)\n"
@@ -1247,7 +1288,7 @@ usage(void)
 	"    -Y NAME use MDA direct and FIFO NAME for keyboard (only with x2dos!)\n"
 	"    -Z NAME use FIFO NAME for mouse (only with x2dos!)\n"
 */
-    );
+    ,basename, basename);
     print_debug_usage(stderr);
     fprintf(stderr,
 	"    -E STRING pass DOS command on command line\n"
@@ -1275,9 +1316,9 @@ usage(void)
 	"    -x SIZE enable SIZE K XMS RAM\n"
 	"    --version, print version of dosemu\n"
 	"    (!) BE CAREFUL! READ THE DOCS FIRST!\n"
-	"    (%%) require dos be run as root (i.e. suid)\n"
+	"    (%%) require DOSEMU be run as root (i.e. suid)\n"
 	"    (#) options do not fully work yet\n\n"
-	"xdos [options]           == dos [options] -X\n"
-	"dosexec [options] <file> == dos [options] -L <file>\n"
-    );
+	"xdos [options]           == %s [options] -X\n"
+	"dosexec [options] <file> == %s [options] -L <file>\n"
+    ,basename, basename);
 }

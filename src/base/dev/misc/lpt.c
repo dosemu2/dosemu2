@@ -11,6 +11,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
@@ -137,7 +138,6 @@ int
 printer_flush(int prnum)
 {
   int returnstat;
-  extern int errno;
 
   p_printf("LPT: flushing printer %d, %s\n", prnum, lpt[prnum].dev);
 

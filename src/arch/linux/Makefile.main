@@ -8,13 +8,18 @@
 # You should do a "make" to compile and a "make install" as root to
 # install DOSEMU.
 
+INSTALL = install -c -o root
+TMP = ../tmp
+COM = ../src/plugin/commands
+SYS = ../commands
+dosemudir = $(datadir)/dosemu
 
 PICOBJS = libpic.a
 export PICOBJS
 
 export LD=$(CC)
 OBJS	= dos.o
-DEPENDS = version dos.d emu.d
+DEPENDS = version dos.d emu.d base/data.d dosstatic.d
 
 
 # dosemu version
@@ -103,6 +108,7 @@ DEBUG      = $(SYNC_ALOT)
 # CFLAGS+=-DSIMPLE_FORK
 # set to debug fork with environment
 # CFLAGS+=-DFORK_DEBUG
+CFLAGS += -DDOSEMULIB_DEFAULT=$(datadir)/dosemu -DDOSEMUHDIMAGE_DEFAULT=$(syshdimagedir)
 
 # We need to use the C_RUN_IRQS with -fno-inline (TBD why)
 # this is in pic/pic.c
@@ -150,8 +156,8 @@ warning2:
 	 echo "    - Location and format of DOSEMU files have changed since 0.50pl1!"; \
 	 echo ""; \
 	 echo "-> REQUIREMENTS for DOSEMU:"; \
-	 echo '    - gcc 2.7.2 (best result) / egcs >= 2.91.66 / gcc >= 2.95.2'; \
-	 echo "    - libc 5.4.46 (best result) / glibc-2.0.6pre7 / glibc >= 2.1.3"; \
+	 echo '    - gcc 2.7.2 / egcs >= 2.91.66 / gcc >= 2.95.2'; \
+	 echo "    - libc 5.4.46 / glibc-2.0.6pre7 / glibc >= 2.1.3"; \
 	 echo '    - Linux >= 2.0.30, 2.1.x >= 2.1.27, 2.x.y, x >= 2'; \
 	 echo "";
 
@@ -210,14 +216,6 @@ dosstatic:	$(DOSSTATICFILES) ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
 	@echo >> ../etc/xinstallvgafont
 	@cat ../etc/xinstallvgafont.sh >> ../etc/xinstallvgafont
 
-# NOTE:                                                             
-# Due to heavy moving around the stuff, we will not get resolved/linked
-# all modules out of the *.a libs, if we do not put them twice on the
-# linker commandline. 
-# Therefore: $(addprefix -l, $(LIBS_)) $(addprefix -l, $(LIBS_))
-#           is NOT a typo !!!
-# (Hans Lermen, at state of 0.63.0.1)
-
 $(BINPATH)/bin/$(DOSBIN): 	emu.o base/data.o dossubdirs
 	$(LD) $(LDFLAGS) -o $@ \
 	   emu.o base/data.o $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
@@ -226,7 +224,6 @@ $(BINPATH)/bin/$(DOSBIN): 	emu.o base/data.o dossubdirs
 	@nm $(BINPATH)/bin/$(DOSBIN) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > $(BINPATH)/bin/dosemu.map
 	@ln -sf $(DOSBIN) $(BINPATH)/bin/dos
-	@ln -sf $(DOSBIN) $(BINPATH)/bin/dosexec
 ifdef X_SUPPORT
 	@ln -sf $(DOSBIN) $(BINPATH)/bin/xdos
 endif
@@ -262,8 +259,6 @@ doslibnew: doslib
 
 
 doslib: $(REQUIRED) all
-
-notusedanymore:
 	@echo ""
 	@echo "---------------------------------DONE compiling-------------------------------"
 	@echo ""
@@ -276,63 +271,114 @@ installnew: doslib
 	$(MAKE) install
 
 install:
-	@echo "***"
-	@echo "There is no support anymore for a systemwide DOSEMU installation, period."
-	@echo "Just copy ./bin/{dos,dosdebug} to ./bin of an installed dosemu-freedos tree."
-	@echo "***"
-
-systemwide_install_no_longer_supported:
-	@if [ ! -d /etc/dosemu ]; then \
-	  install -d /etc/dosemu; \
+	@rm -rf $(TMP)
+	@mkdir -p -m 0755 $(TMP)/dosemu/freedos/dosemu
+	@if [ ! -d $(dosemudir) ]; then \
+	  $(INSTALL) -d $(dosemudir); \
 	fi
-	@if [ ! -f /etc/dosemu/dosemu.conf ]; then \
-	  install -m 0644 ../etc/dosemu/dosemu.conf /etc/dosemu/dosemu.conf; \
+	@if [ ! -d $(syshdimagedir) ]; then \
+	  $(INSTALL) -d $(syshdimagedir); \
 	fi
-	@if [ ! -d $(prefix)/share/dosemu/keymap ]; then \
-	  install -d $(prefix)/share/dosemu/keymap; \
-	  install -m 0744 ../etc/keymap/* $(prefix)/share/dosemu/keymap; \
+	@for i in aspi.sys cdrom.sys ems.sys emufs.sys fossil.com mgarrot.com; do \
+	  $(INSTALL) -m 0644 $(SYS)/$$i $(TMP)/dosemu/freedos/dosemu; \
+	done
+	@$(INSTALL) -m 0644 $(COM)/{generic,comcom}.com $(TMP)/dosemu/freedos/dosemu
+	@for i in `(cd $(COM); for i in *.com; do if [ -L $$i ]; then echo -n " $$i";fi;done)`; do \
+	  ln -sf generic.com $(TMP)/dosemu/freedos/dosemu/$$i; \
+	done
+	@tar -cf- -C $(TMP) dosemu/freedos | gzip -9 > $(TMP)/dosemu/dosemu-bin.tgz
+	@$(INSTALL) -m 0644 $(TMP)/dosemu/dosemu-bin.tgz $(dosemudir)
+	@rm -rf $(TMP)
+	@mkdir -p -m 0755 $(TMP)/dosemu/freedos/dosemu
+	@if [ -f ../$(fdtarball) ]; then \
+	  tar -C $(dosemudir)/.. -xpzf ../dosemu-freedos-bin.tgz; \
+	  tar -C $(TMP) -xpzf ../dosemu-freedos-bin.tgz; \
+	  cd $(TMP)/dosemu; \
+	  rm -f FDchange.log $(dosemudir)/FDchange.log; \
+	  rm -f README.bindist $(dosemudir)/README.bindist; \
+	  for i in `find freedos -type f | grep -v autoexec.bat | grep -v config.sys` ; do \
+	    ln -snf $(dosemudir)/$$i $$i; \
+	  done; \
+	  $(INSTALL) $(dosemudir)/freedos/config.sys freedos; \
+	  $(INSTALL) $(dosemudir)/freedos/autoexec.bat freedos; \
+	  cd .. ; tar -cf- dosemu |gzip -9 >$(dosemudir)/dosemu-freedos-bin.tgz; \
+	elif test $(fdtarball) -ne none; then \
+	  echo No $(fdtarball) found. Please download one from http://www.dosemu.org; \
+	  echo or set fdtarball to none in compiletime-settings and use another DOS, \
+          echo which can be installed using dosemu -install or referred to; \
+	  echo using $_hdimage in your dosemu.conf or .dosemurc.; \
 	fi
-	@if [ -f $(INSTROOT)/lib/libemu ]; then rm -f $(INSTROOT)/lib/libemu ; fi
-	@install -c -o root -m 0755 $(BINPATH)/bin/$(DOSBIN) $(prefix)/bin
+	@sed -e "s|SYSTEM_INSTALL_PATH=NOT_SYSTEM_WIDE|SYSTEM_INSTALL_PATH=$(dosemudir)|" \
+	     -e "s|SYSTEM_CONF_PATH=NOT_SYSTEM_WIDE|SYSTEM_CONF_PATH=$(sysconfdir)|" \
+	              ../dist/dosemu > $(TMP)/dosemu/dosemu
+	@if [ ! -d $(sysconfdir) ]; then \
+	  $(INSTALL) -d $(sysconfdir); \
+	fi
+	@if [ ! -f $(sysconfdir)/dosemu.conf ]; then \
+	  $(INSTALL) -m 0644 ../etc/dosemu.conf ../etc/dosemu.users.easy ../etc/dosemu.users.secure $(sysconfdir); \
+	  $(INSTALL) -m 0644 ../etc/global.conf $(sysconfdir)/global.conf.example; \
+	fi
+	@if [ ! -d $(dosemudir)/keymap ]; then \
+	  $(INSTALL) -d $(dosemudir)/keymap; \
+	  $(INSTALL) -m 0644 ../etc/keymap/* $(dosemudir)/keymap; \
+	fi
+	@$(INSTALL) -m 0755 ../bin/$(DOSBIN) $(bindir)
+	@$(INSTALL) -m 0755 $(TMP)/dosemu/dosemu $(bindir)
+	@$(INSTALL) -m 0644 ../bin/dosemu.map $(dosemudir)/dosemu-$(THISVERSION).map
+	@$(INSTALL) -m 0755 ../src/tools/periph/mkfatimage $(bindir)
+	@$(INSTALL) -m 0755 ../src/tools/periph/mkfatimage16 $(bindir)
 ifdef  USE_MHPDBG
-	@install -c -o root -m 0755 $(BINPATH)/bin/dosdebug $(prefix)/bin
+	@$(INSTALL) -m 0755 ../bin/dosdebug $(bindir)
 endif
-	@if [ -f $(prefix)/bin/xdosemu ]; then \
-		install -m 0700 $(INSTROOT)/usr/bin/xdosemu /tmp; \
-		rm -f $(INSTROOT)/usr/bin/xdosemu; \
+	@if [ -f $(bindir)/xdosemu ]; then \
+		$(INSTALL) -m 0700 $(bindir)/xdosemu /tmp; \
+		rm -f $(bindir)/xdosemu; \
 	fi
-	@if [ ! -e $(INSTROOT)/usr/bin/dosexec ]; then ln -s dos $(INSTROOT)/usr/bin/dosexec; fi
+	@if [ ! -d $(docdir) ]; then \
+	  $(INSTALL) -d $(docdir); \
+	fi
+	@$(INSTALL) -m 0644 ../README.bindist $(docdir)
+	@$(INSTALL) -m 0644 ../doc/{README,README-tech,dosemu-HOWTO,sound-usage}.txt \
+	   ../doc/announce $(docdir)
+	@if [ ! -d $(mandir)/man1 ]; then \
+	  $(INSTALL) -d $(mandir)/man1; \
+	fi
+	@$(INSTALL) -m 0644 ../man/{mkfatimage16,dosemu,dosemu.bin,dosdebug}.1 \
+	   $(mandir)/man1
+	@ln -sf dosemu.1 $(mandir)/man1/xdosemu.1
 ifdef X_SUPPORT
-	@install -m 0755 ../etc/xtermdos $(INSTROOT)/usr/bin
-	@if [ ! -e $(INSTROOT)/usr/bin/xdos ]; then ln -s dos $(INSTROOT)/usr/bin/xdos; fi
+	@if [ ! -e $(prefix)/xdosemu ]; then ln -s dosemu $(bindir)/xdosemu; fi
 	@echo ""
-	@if [ "$(INSTROOT)" = "" ]; then \
-	 if [ -w $(X11LIBDIR)/X11/fonts/misc ] && \
-	    [ -d $(X11LIBDIR)/X11/fonts/misc ] && \
-	    [ ! -e $(X11LIBDIR)/X11/fonts/misc/vga.pcf ] && \
-	    [ ! -e $(X11LIBDIR)/X11/fonts/misc/vga.pcf.Z ]; then \
-		echo "-> Main DOSEMU files installation done. Installing the Xwindows PC-8 font..."; \
-		install -m 0644 ../etc/vga.pcf $(X11LIBDIR)/X11/fonts/misc; \
-		cd $(X11LIBDIR)/X11/fonts/misc; \
-		mkfontdir; \
-	fi; \
-	else \
-	 install -d $(INSTROOT)$(X11LIBDIR)/X11/fonts/misc; \
-	 install -m 0644 ../etc/vga.pcf $(INSTROOT)/$(X11LIBDIR)/X11/fonts/misc; \
+	@if [ ! -d $(x11fontdir) ]; then \
+	  $(INSTALL) -d $(x11fontdir); \
 	fi
+	@if [ -w $(x11fontdir) ] && \
+	    [ -d $(X11fontdir) ] && \
+	    [ ! -e $(x11fontdir)/vga.pcf ] && \
+	    [ ! -e $(x11fontdir)/vga.pcf.Z ] && \
+	    [ ! -e $(x11fontdir)/vga.pcf.gz ]; then \
+		echo "-> Main DOSEMU files installation done. Installing the X PC-8 font..."; \
+		$(INSTALL) -m 0644 ../etc/vga.pcf $(x11fontdir); \
+		gzip -9 $(x11fontdir)/vga.pcf; \
+		if [ ! -f $(x11fontdir)/fonts.alias ]; then \
+		  $(INSTALL) -m 0644 ../etc/dosemu.alias $(x11fontdir); \
+		elif [ grep ^vga $(x11fontdir)/fonts.alias ]; then \
+	          cat ../etc/dosemu.alias >> $(x11fontdir)/fonts.alias; \
+		fi; \
+		cd $(x11fontdir); \
+		mkfontdir; \
+	fi;
 endif
-	$(MAKE) -C ../man install
+	@/bin/rm -rf $(TMP)
 	@echo ""; \
 	 echo "---------------------------------DONE Installing-------------------------------"; \
 	 echo ""; \
-	 echo "  - You need to configure DOSEMU. Read './doc/README.txt' and update your"; \
-	 echo "  - configuration by copying/editing dosemu.conf from './etc' to '/etc'"; \
-	 echo "  - After configuring DOSEMU, you can type 'dos' to run DOSEMU."; \
-	 echo "  - Use 'dosexec' instead of 'dos' to cause DOSEMU execute a DEXE."
+	 echo "  - You can type 'dosemu' to run DOSEMU. This will setup a directory structure"; \
+	 echo "    in your home directory. "
 ifdef X_SUPPORT
-	@echo "  - Use 'xdos' instead of 'dos' to cause DOSEMU to open its own Xwindow."; \
-	 echo "  - Type 'xset fp rehash' before running 'xdos' for the first time ever."; \
-	 echo "  - To make your backspace and delete key work properly in 'xdos', type:"; \
+	@echo "  - Use 'xdosemu' instead of 'dosemu' to cause DOSEMU to open its own Xwindow."; \
+	 echo "  - Type 'xset fp rehash' before running 'xdosemu' for the first time ever."; \
+	 echo "  - If your backspace and delete key do not work properly in 'xdosemu', try:"; \
 	 echo "		xmodmap -e \"keycode 107 = 0xffff\""; \
 	 echo "		xmodmap -e \"keycode 22 = 0xff08\""; \
 	 echo "		xmodmap -e \"key 108 = 0xff0d\"  [Return = 0xff0d]"; \
@@ -340,8 +386,9 @@ ifdef X_SUPPORT
 endif
 	@echo "  - Try emumouse.exe -r if your INTERNAL mouse won't work"; \
 	 echo "  - Try unix.exe to run a Unix command under DOSEMU"; \
-	 echo -e "\n  NOTE: DOSEMU no longer is installed suid-root by default!"; \
-	 echo -e   "        If you need it, do a \'chmod u+s $(prefix)/bin/$(DOSBIN)\'"; \
+	 echo -e "\n  NOTE: DOSEMU is no longer installed suid-root by default!"; \
+	 echo -e   "        If you need it (NOT recommended), do a 'chmod u+s $(bindir)/$(DOSBIN)'"; \
+	 echo "See the QuickStart file for additional information."; \
 	 echo ""
 
 
@@ -379,7 +426,7 @@ dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
 
 local_clean:
 	-rm -f $(OBJS) $(X2CEXE) $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/xdos \
-	  $(BINPATH)/bin/dos $(BINPATH)/bin/dosexec $(BINPATH)/bin/libdosemu *.s core \
+	  $(BINPATH)/bin/dos $(BINPATH)/bin/libdosemu *.s core \
 	  dosstatic *.tmp $(BINPATH)/bin/dosemu.map *.o $(BINPATH)/bin/dosdebug base/data.o
 
 local_realclean:

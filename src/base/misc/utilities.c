@@ -147,7 +147,6 @@ static int vlog_printf(int flg, const char *fmt, va_list args)
 
   if (dosdebug_flags & DBGF_INTERCEPT_LOG) {
     /* we give dosdebug a chance to interrupt on given logoutput */
-    extern int vmhp_log_intercept(int flg, const char *fmt, va_list args);
     i = vmhp_log_intercept(flg, fmt, args);
     if ((dosdebug_flags & DBGF_DISABLE_LOG_TO_FILE) || !dbg_fd) return i;
   }

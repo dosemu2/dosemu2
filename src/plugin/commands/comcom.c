@@ -1228,6 +1228,14 @@ static int cmd_for(int argc, char **argv)
 		}
 	} while (p);
 
+	/* transform dir/p to dir /p and cd\ to cd \ */
+	printf("\n%s\n", replbuf);
+	p = replbuf;
+	while (isalnum(*p)) p++;
+	if (*p == '\\' || *p == '/') {
+		memmove(p+1, p, sizeof(replbuf) - (p - replbuf) - 1);
+		*p = ' ';
+	}
 
 	/* Ok, now for the real work */
 	for (i=g1; i <= gn; i++) {

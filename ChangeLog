@@ -1,3 +1,47 @@
+2002/12/14 ver 1.1.3.8 unofficial pre-release
+	From Bart
+	- revive "make install" - this uses a private boot directory setup
+	  using symlinks by default, but users can opt out using "none".
+	- ~/.dosemurc now replaces the role of ~/dosemu/conf/dosemu.conf
+	  and ~/dosemu/conf/dosemurc
+	- use ~/.dosemu/boot.log instead of ~/dosemu/boot.log to allow
+	  execution of the dosemu script without a boot directory under
+	  $HOME.
+	- allow execution of the dosemu script for suid-root dosemu.bin (with
+	  the usual restrictions for ~/.dosemurc).
+	- add compile-time paths to compiletime-settings; disable setup-dosemu
+	  for now since it cannot handle these.
+	- allow all dosemu.conf settings to be optional where DOSEMU has 
+	  built-in defaults; reflect this situation by commenting out 
+	  everything by default
+	- allow absolute paths in $_hdimage in dosemu.conf and ~/.dosemurc
+	- remove "restricted" and "guest" restrictions when running DOSEMU
+	  non-suid-root.
+	- allow change of $_rdtsc, $_hogthreshold, $_rawkeyboard and 
+          $_ttylocks in ~/.dosemurc by non-privileged suid-root users.
+	- disallow change of $_ports in ~/.dosemurc.
+	- removed $_keybint: it is no longer used anywhere.
+	- hide pthreads support since it can be extremely unstable
+	- fix typo in kbd_unicode keymaps.c so that the "auto" keyboard layout
+	  works again
+	- first stage of removing externs
+	- fix newline replacement in bisonpp.pl for compatibility with newer
+	  Bisons
+	- remove "extern int errno" and use #include <errno.h> instead
+	- move new keyboard documentation into the mainline.
+	- removed old old keyboard documentation and some misc doc adjustments
+	- add option to generate multiple HTML documents for use on dosemu.org
+	- Use indirect file descriptors in the MFS to avoid the possibility
+	  that DOS programs can close or manipulate random file descriptors
+	  that are in use by DOSEMU.
+	- MFS: FIND_FIRST should return NO_MORE_FILES and not FILE_NOT_FOUND
+	  if no file is found.
+	From Emmanuel Jeandel
+	- add %pure-parser to parser.y.in; else we get a crash with newer
+	  Bisons or gcc's
+	- remove a strlower to fix an MFS bug for "lredir e: $HOME/Games"
+	From Stas
+	- update sound-usage documentation
 2002/11/03 ver 1.1.3.7 unofficial pre-release
 	From Stas
 	- Change $_sound to on and $_mixer to "" by default (Bart:

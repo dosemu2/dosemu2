@@ -32,6 +32,9 @@
 #if X_GRAPHICS
 #include "../../env/video/X.h"
 #endif
+#include "userhook.h"
+#include "redirect.h"
+#include "keyboard.h"
 
 static char *inpipename = 0;
 static char *outpipename = 0;
@@ -148,7 +151,6 @@ static void uhook_version(int argc, char **argv)
 
 static void uhook_keystroke(int argc, char **argv)
 {
-	extern void append_pre_strokes(unsigned char *s);
 	int bufsize = 256, i=0, j;
 	char *s = malloc(bufsize);
 
@@ -282,14 +284,12 @@ static void uhook_lredir(int argc, char **argv)
 	char *s = "\\\\LINUX\\FS";
 	char *n;
 	int drive, ret;
-	extern int RedirectDisk(int, char *, int);
 
 	do_syn(argv[0]);
 	errorcode = 1;
 
 	if ((argc == 3) && (!strcmp(argv[1], "del")) && (strchr(argv[2], ':'))) {
 		/* delete a redirection */
-		extern int CancelDiskRedirection(int);
 		drive = tolower(argv[2][0]) - 'a';
 		if (drive < 2) {
 			uhook_printf("wrong drive, must be >= C:\n");
@@ -303,7 +303,6 @@ static void uhook_lredir(int argc, char **argv)
 		/* get the redirection root */
 		char *rootdir=NULL;
 		int ro;
-		extern int GetRedirectionRoot(int,char **,int *);
 
 		drive = tolower(argv[1][0]) - 'a';
 
@@ -371,8 +370,6 @@ static void uhook_ecpu(int argc, char **argv)
 
 static void uhook_config(int argc, char **argv)
 {
-	extern void dump_config_status(void *);
-
 	do_syn(argv[0]);
 #if 0
 /* FIXME

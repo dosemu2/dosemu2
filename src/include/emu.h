@@ -42,6 +42,7 @@
 #if 1 /* Set to 1 to use Silly Interrupt generator */
 #define SIG 1
 typedef struct { int fd; int irq; } SillyG_t;
+extern SillyG_t *SillyG;
 #endif
 
 #define inline __inline__
@@ -564,6 +565,7 @@ EXTERN int fatalerr INIT(0);
 EXTERN int running_DosC INIT(0);
 EXTERN int dosc_interface(void);
 
+EXTERN void dump_config_status(void *);
 EXTERN void signal_init(void);
 EXTERN void device_init(void);
 EXTERN void hardware_setup(void);

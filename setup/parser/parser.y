@@ -28,7 +28,6 @@ static char *dosemurc_varlist[] = {
 	"_features", "_mapping",
 	"_emusys", "_emuini",
 	"_term_char_set", "_term_color", "_term_updfreq", "_escchar", "_layout",
-	"_keybint",
 	"_X_updfreq", "_X_title", "_X_icon_name", "_X_keycode", "_X_blinkrate",
 	"_X_font", "_X_mitshm", "_X_sharecmap", "_X_fixed_aspect", "_X_aspect_43",
 	"_X_lin_filt", "_X_bilin_filt", "_X_mode13fact", "_X_winsize", "_X_gamma",

@@ -68,7 +68,6 @@ template "Hardware Ram" {
 menu "Keyboard" {
   description "Select the keyboard area to configure:"
   submenu "Keyboard Layout"
-  boolean "Keyboard Interrupts" keyboard_keybint
   boolean "Raw Keyboard" keyboard_rawkeyboard
 }
 

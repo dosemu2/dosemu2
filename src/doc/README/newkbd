@@ -1,8 +1,8 @@
 <sect1>
-<title>New Keyboard Code</title>
+<title>Old Keyboard Code</title>
 
 <para>
-This file describes the new keyboard code which was written in late '95 for
+This file describes the old keyboard code which was written in late '95 for
 scottb's dosemu-0.61, and adapted to the mainstream 0.63 in mid-'96.
 </para>
 
@@ -106,11 +106,6 @@ I'll remove it.
 ( *HH: the old code <emphasis>is</emphasis> made workeable and remains ON per default, it will
 stay maintained for a while, so we can easily check where the bugs come
 from )
-</para>
-
-<para>
-Just like the old keyboard code, we still have the rawkeyboard=on/off and
-keybint=on/off modes.
 </para>
 
 </sect2>
@@ -420,7 +415,7 @@ placed into the queue.
 <title>The Back End</title>
 
 <sect4>
-<title>Queue Back End in keybint=on mode</title>
+<title>Queue Back End</title>
 
 <para>
 
@@ -447,29 +442,6 @@ QUEUE      .....&#62; out_b_8042() --&#62; [ port 60h ] ----:---&#62; other_int9
 Abbreviations:
 int_chk_q() = int_check_queue()
 out_b_8042() = output_byte_8042()
-</screen>
-
-</para>
-
-</sect4>
-
-<sect4>
-<title>Queue Back End in keybint=off mode</title>
-
-<para>
-
-<screen>
-                  EMULATOR SIDE         |    x86 SIDE
-                                        |
-             kbd_process()              |
-                  :     :               |
-                  :     v               |
- QUEUE -----------:--&#62; put_keybuf() ----+-------------&#62; bios keyb buffer
-     \            v                     |
-      \--------&#62; copy_shift_state() ----+-------------&#62; bios shiftstate
-                                        |
-                                        |   
-                                        |
 </screen>
 
 </para>
@@ -524,27 +496,10 @@ static void kbd_process(void);
 </para>
 
 <para>
-Transfer of the keyboard events from the dosemu queue to DOS is done in
-two completely different ways, depending on the keybint setting in
-dosemu.conf:
+Transfer of the keyboard events from the dosemu queue to DOS is done as
+follows:
 </para>
 
-<para>
-<variablelist>
-
-<varlistentry>
-<term>keybint=off</term>
-<listitem>
-<para>
-kbd_process() simply reads the queue until it finds a bios keycode
-(as we're not interested in raw scancodes without int9 emulation),
-which it stores in the bios keyboard buffer, while also copying
-the shift state to the appropriate bios variables.
-</para>
-</listitem></varlistentry>
-<varlistentry>
-<term>keybint=on</term>
-<listitem>
 <para>
 As soon as a key is stored into the empty queue, kbd_process() triggers
 IRQ1 through the PIC emulation, which some time later will call do_irq1().
@@ -558,7 +513,7 @@ run the actual DOS interrupt handler.
 </para>
 
 <para>
-again, there are two cases:
+There are two cases:
 
 <itemizedlist>
 <listitem>
@@ -629,8 +584,6 @@ same result.)
 
 </para>
 </listitem>
-</varlistentry>
-</variablelist>
 </para>
 
 <para>

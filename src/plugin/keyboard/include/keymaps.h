@@ -43,15 +43,14 @@
 #define KEYB_HU_CWI	      24
 #define KEYB_HU_LATIN2	      25
 #define KEYB_USER	      26
-#define NUM_KEYB	      27
-#define KEYB_JP106	      28
-#define KEYB_PL               29
-#define KEYB_HR_CP852	      30
-#define KEYB_HR_LATIN2	      31
-#define KEYB_CZ_QWERTY        32
-#define KEYB_CZ_QWERTZ        33
-#define KEYB_AUTO             34
-#define KEYB_RU               35
+#define KEYB_JP106	      27
+#define KEYB_PL               28
+#define KEYB_HR_CP852	      29
+#define KEYB_HR_LATIN2	      30
+#define KEYB_CZ_QWERTY        31
+#define KEYB_CZ_QWERTZ        32
+#define KEYB_AUTO             33
+#define KEYB_RU               34
 #define CONST
 
 

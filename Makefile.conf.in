@@ -11,6 +11,16 @@
 
 export DOSBIN = dosemu.bin
 
+export prefix=@prefix@
+export bindir=@bindir@
+export sysconfdir=@sysconfdir@
+export datadir=@datadir@
+export mandir=@mandir@
+export docdir=@docdir@
+export syshdimagedir=@syshdimagedir@
+export x11fontdir=@x11fontdir@
+export fdtarball=@fdtarball@
+
 @SET_MAKE@
 ifdef MAKE
   export MAKE

@@ -24,7 +24,7 @@ the same directory in your HOME, such as:
   $ mkdir mydos
   $ cd mydos
   $ tar -zxf dosemu-freedos-bin.tgz
-  $ tar -zxf dosemu-1.0.2-bin.tgz
+  $ tar -zxf dosemu-1.0.2.1-bin.tgz
   $ cd dosemu
 
 Now execute DOSEMU
@@ -37,22 +37,23 @@ For a more detailed description have a look at README.bindist.
 2. Compile
 --------------------------------------------------------------------------
 
+- adjust compiletime-settings; see compiletime-settings.help for help.
 - make
 
 --------------------------------------------------------------------------
 2a. Want to install systemwide? 
 --------------------------------------------------------------------------
 
-- download dosemu-freedos-bin.tgz from dosemu.org or its mirrors
+- download dosemu-freedos-bin.tgz from dosemu.org or one of its mirrors
 - su -		(become root)
-- ./install_systemwide -fd dosemu-freedos-bin.tgz
+- make install
 
 --------------------------------------------------------------------------
 2b. Want to update a systemwide installation? 
 --------------------------------------------------------------------------
 
 - su -		(become root)
-- ./install_systemwide
+- make install
 
 --------------------------------------------------------------------------
 3.  Want to use a non-standard configuration ?
@@ -76,31 +77,32 @@ the appropriate action ...
 4.  Configure for a system wide suid-root installation
 --------------------------------------------------------------------------
 
-(Note: You normally don't need it for a non-suid-root DOSEMU.
-       and for a suid-root one your Linux distributor will have done
-       it for you)
+(Note: You normally don't need it for a non-suid-root DOSEMU).
 
 (BIG FAT WARNING: you have to be _very_ skilled to do it right !!)
 
-- Copy ./etc/dosemu.conf to /etc if you are installing for the first time.
-  ( make install would have done this, if /etc/dosemu.conf doesn't exist )
-  Modify /etc/dosemu.setup by using the info in the file ./doc/README.txt
+- Install system-wide, as explained above in section 2.
+  Modify /etc/dosemu/dosemu.conf by using the info in the file ./doc/README.txt
   chapter 2
 
-- Copy ./etc/dosemu.users.easy to /etc/dosemu.users which contains a list of
-  users who are privileged to use dosemu.  The user "all" will allow anyone
-  to run dosemu. example:
+- Copy /etc/dosemu/dosemu.users.easy to /etc/dosemu/dosemu.users which 
+  contains a list of users who are privileged to use dosemu.  The user "all" 
+  will allow anyone to run dosemu. example:
 
     root c_all
     all c_all
 
   Note that the above example is _insecure_, because it allows all to any
-  user. If you want security, then copy ./etc/dosemu.users.secure to
-  /etc/dosemu.users and have a look at an other example in
+  user. If you want security, then copy /etc/dosemu/dosemu.users.secure to
+  /etc/dosemu/dosemu.users and have a look at an other example in
   ./doc/README.txt chapter 2.
 
   For a more detailed description on 'running as user' have a look
   at ./doc/README.txt 'Running dosemu as a normal user' (chapter 7).
+
+- The dosemu boot directory or hard disk image (specified by $_hdimage) is 
+  relative to /var/lib/dosemu instead of $HOME/dosemu. Symbolic links are
+  also allowed.
 
 --------------------------------------------------------------------------
 5.  Something's not right!!!
@@ -124,11 +126,12 @@ the appropriate action ...
 
 - If no luck, please send us a debug report by typing 'dosemu -D+a -o debug'
   and send the file debug together with your config files and a
-  description of your problem to
+  description of your problem to the SF bug tracking system that you can
+  reach from
 
-    dosemu-bugs@dosemu.org
+    http://www.dosemu.org
 
-  Don't forget to mention the versions of DOSEMU, GCC, LIBC, Binutils e.t.c.
+  Don't forget to mention the versions of DOSEMU, GCC, LIBC, Binutils etc.
   For problems with the packaging of DOSEMU by Linux distributors,
   please bother them directly - we won't hunt after those bugs.
 

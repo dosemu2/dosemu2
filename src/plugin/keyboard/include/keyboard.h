@@ -36,6 +36,7 @@ void putkey(Boolean make, t_keysym scan, unsigned char ascii);
 void set_shiftstate(t_shiftstate s);
 void clear_bios_keybuf();
 int keyb_queuelevel();
+void append_pre_strokes(unsigned char *s);
 
 int keyb_server_init();
 int keyb_server_reset();

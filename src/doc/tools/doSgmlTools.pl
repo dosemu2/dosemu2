@@ -77,6 +77,9 @@ $0 usage:
   -h, --html
     Convert to HTML
 
+  -s, --htmls
+    Convert to multiple HTML files
+
   -t, --text
     Convert to Text
 

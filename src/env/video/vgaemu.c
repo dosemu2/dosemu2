@@ -2508,9 +2508,9 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       screen_adr = SCREEN_ADR(0) + vga.display_start;
       vga.crtc.cursor_location =  (vga.crtc.data[0x0f] + (vga.crtc.data[0x0e] << 8)) <<
               vga.crtc.addr_mode;
+      vga.scan_len = vga.crtc.data[0x13] << (vga.crtc.addr_mode + 1);
       cursor_row = (vga.crtc.cursor_location - vga.display_start) / vga.scan_len;
       cursor_col = ((vga.crtc.cursor_location - vga.display_start) % vga.scan_len) / 2;
-      vga.scan_len = vga.crtc.data[0x13] << (vga.crtc.addr_mode + 1);
       if (u1 != vga.scan_len) vga.reconfig.mem = 1;
       if(msg || u != u0) vga_msg("vgaemu_adj_cfg: crtc.addr_mode = %s, scan_len = %d\n",
 	txt2[u], vga.scan_len);

@@ -23,7 +23,6 @@ sbemu		"SB Emulation"
 		Linux Kernel. Hence, your DOS-Box sees a SoundBlaster
 		even if you don't have it. Keep that in mind
 		when you setup your DOSish software.
-		Note: the code is ALPHA and may not work on all systems.
 
 mitshm		"Use MIT Shared Memory extensions under X"
 
@@ -112,10 +111,37 @@ svgalib		"compile with svgalib support" svgalib
 		cards and your console may freeze anyway. Currently reported
 		as 'working' are riva TNT 128 and sis.
 
-pthreads	"compile with phtreads support" pthreads
-		
-		This enables support for pthreads. The only code that
-		currently is able to use those is the joystick code.
-		The joystick support will be a little faster with
-		pthread support. On the other hand it can cause
-		instability with DPMI applications. If unsure, say "off".
+plugin_keyboard	"Use old keyboard code" plugin_keyboard
+
+plugin_kbd_unicode "Use new keyboard code" plugin_kbd_unicode
+
+plugin_extra_charsets "Use extra character sets" plugin_extra_charsets
+
+plugin_term     "Use new terminal plugin"
+
+plugin_translate "Use Unicode translation plugin" plugin_translate
+
+plugin_demo 	"Use demo plugin" plugin_demo
+
+target_cpu	"Target cpu" target_cpu
+
+prefix		"Prefix for DOSEMU system-wide directory structure" prefix
+
+bindir		"Directory for DOSEMU binaries" bindir
+
+sysconfdir 	"Directory for system-wide configuration files" sysconfdir
+
+datadir		"Directory for DOSEMU data" datadir
+
+mandir		"Directory for DOSEMU man pages" mandir
+
+docdir		"Directory for DOSEMU documentation" docdir
+
+syshdimagedir	"Default directory for images and boot directories" syshdimagedir
+
+x11fontdir	"Directory for X fonts" x11fontdir
+
+fdtarball	"Name of the FreeDOS tarball" fdtarball
+		This is normally named dosemu-freedos-bin.tgz, to be obtained from www.dosemu.org
+		Use "none" if you don't want to use FreeDOS.
+

@@ -412,7 +412,6 @@ diskcyl4096		RETURN(DISKCYL4096);
 
 keytable		RETURN(KEYTABLE);
 layout			RETURN(LAYOUT);
-keybint			RETURN(KEYBINT);
 rawkeyboard		RETURN(RAWKEYBOARD);
 shift			RETURN(SHIFT_MAP);
 alt			RETURN(ALT_MAP);

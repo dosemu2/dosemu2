@@ -642,7 +642,7 @@ write_out() {
 	video write xms ems serial keyb dpmi printer mouse sound
   write_single  dosbanner
   write_single  timint
-  write_pairs  keyboard  layout keybint rawkeyboard
+  write_pairs  keyboard  layout rawkeyboard
   write_serial
   write_mouse
   write_ttylocks

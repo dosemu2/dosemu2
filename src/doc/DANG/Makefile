@@ -15,6 +15,8 @@ $(TXT): %.txt: %.sgml
 $(HTML): %.html: %.sgml
 	../tools/doSgmlTools.pl -h -v $<
 
+$(HTMLS):
+	../tools/doSgmlTools.pl -s -v $<
 
 clean:
 	rm -f *.txt DANG*.html *~ *.tex *.log *.aux *.toc *.dvi *.ps

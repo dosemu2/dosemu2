@@ -476,7 +476,6 @@ leavedos(int sig)
 {
     struct sigaction sa;
     struct itimerval itv;
-    extern int errno;
     extern void SIG_close(); /* obsolete now; integrated into the kernel */
     extern void do_r3da_pending (void);	/* emuretrace stuff */
    
@@ -609,7 +608,7 @@ leavedos(int sig)
     /* remove per process tmpdir and its contents */
     priv_drop(); /* drop any priviledges before running system() !! */
     /* first try rmdir; if the directory is not empty, try system */
-    if (!rmdir(TMPDIR_PROCESS)) {
+    if (rmdir(TMPDIR_PROCESS) != 0) {
        char *command = strcatdup("/bin/rm -rf >/dev/null 2>&1 ", TMPDIR_PROCESS);
        if (command == NULL || system(command) != 0) {
           g_printf("Failed to remove ");

@@ -88,4 +88,7 @@ int s_mprotect(caddr_t addr);
 void emu_mhp_SetTypebyte (unsigned short selector, int typebyte);
 unsigned short emu_do_LAR (unsigned short selector);
 
+/* called from mfs.c */
+int e_dos_read(int fd, char *data, int cnt);
+
 #endif	/*DOSEMU_CPUEMU_H*/

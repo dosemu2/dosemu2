@@ -269,6 +269,12 @@ boolean_t mach_fs_enabled = FALSE;
 
 #define MAX_PATH_LENGTH 66
 
+struct file_fd
+{
+  char *name;
+  int fd;
+};
+
 /* Need to know how many drives are redirected */
 static u_char redirected_drives = 0;
 
@@ -286,6 +292,7 @@ static char *dos_roots[MAX_DRIVE];
 static int dos_root_lens[MAX_DRIVE];
 static boolean_t read_onlys[MAX_DRIVE];
 static boolean_t finds_in_progress[MAX_DRIVE];
+static struct file_fd open_files[256];
 static boolean_t find_in_progress = FALSE;
 static int current_drive = 0;
 static u_char first_free_drive = 0;
@@ -1008,7 +1015,6 @@ static boolean_t exists(char *name, char *mname, char *mext, struct stat *st)
   while (fullname[len - 1] == '.')
     len--;
   fullname[len] = '\0';
-  strlowerDOS(fullname);
   rc = find_file(fullname, st);
   return rc;
 }
@@ -2887,8 +2893,9 @@ dos_fs_redirect(state_t *state)
     Debug0((dbg_fd, "New CWD is %s\n", cds_current_path(cds)));
     return (TRUE);
   case CLOSE_FILE:		/* 0x06 */
-    fd = sft_fd(sft);
-    filename1 = (u_char *)sft_dev_drive_ptr(sft);
+    cnt = sft_fd(sft);
+    filename1 = open_files[cnt].name;
+    fd = open_files[cnt].fd;
     Debug0((dbg_fd, "Close file %x (%s)\n", fd, filename1));
     Debug0((dbg_fd, "Handle cnt %d\n",
 	    sft_handle_cnt(sft)));
@@ -2897,9 +2904,12 @@ dos_fs_redirect(state_t *state)
       Debug0((dbg_fd, "Still more handles\n"));
       return (TRUE);
     }
-    else if (close(fd) != 0) {
+    else if (filename1 == NULL || close(fd) != 0) {
       Debug0((dbg_fd, "Close file fails\n"));
-      free(filename1);
+      if (filename1 != NULL) {
+        free(filename1);
+        open_files[cnt].name = NULL;
+      }
       return (FALSE);
     }
     else {
@@ -2923,9 +2933,10 @@ dos_fs_redirect(state_t *state)
       else {
          Debug0((dbg_fd,"close: not setting file date/time\n"));
       }
-      free(filename1); 
-      /* Tim Josling says: prob not opened dont free stg -
-       * but needs to be freed according to Manfred Scherer */
+      if (filename1 != NULL) {
+        free(filename1);
+        open_files[cnt].name = NULL;
+      }
       return (TRUE);
     }
   case READ_FILE:
@@ -2934,7 +2945,11 @@ dos_fs_redirect(state_t *state)
       int itisnow;
 
       cnt = WORD(state->ecx);
-      fd = sft_fd(sft);
+      if (open_files[sft_fd(sft)].name == NULL) {
+        SETWORD(&(state->eax), ACCESS_DENIED);
+        return (FALSE);
+      }
+      fd = open_files[sft_fd(sft)].fd;
       Debug0((dbg_fd, "Read file fd=%x, dta=%p, cnt=%d\n",
 	      fd, (void *) dta, cnt));
       Debug0((dbg_fd, "Read file pos = %ld\n",
@@ -2976,14 +2991,14 @@ dos_fs_redirect(state_t *state)
       return (return_val);
     }
   case WRITE_FILE:		/* 0x09 */
-    cnt = WORD(state->ecx);
-    fd = sft_fd(sft);
-
-    Debug0((dbg_fd, "Write file fd=%x count=%x sft_mode=%x\n", fd, cnt, sft_open_mode(sft)));
-    if (read_only) {
+    if (open_files[sft_fd(sft)].name == NULL || read_only) {
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
+    
+    cnt = WORD(state->ecx);
+    fd = open_files[sft_fd(sft)].fd;
+    Debug0((dbg_fd, "Write file fd=%x count=%x sft_mode=%x\n", fd, cnt, sft_open_mode(sft)));
 
     /* According to U DOS 2, any write with a (cnt)=CX=0 should truncate fd to
    sft_size , do to how ftruncate works, I'll only do an ftruncate
@@ -3354,7 +3369,6 @@ dos_fs_redirect(state_t *state)
 #endif
 
     /* store the name for FILE_CLOSE */
-    sft_dev_drive_ptr(sft) = (u_long)strdup(fpath);
     sft_directory_entry(sft) = 0;
     sft_directory_sector(sft) = 0;
     sft_attribute_byte(sft) = attr;
@@ -3363,7 +3377,20 @@ dos_fs_redirect(state_t *state)
 		&sft_date(sft), &sft_time(sft));
     sft_size(sft) = st.st_size;
     sft_position(sft) = 0;
-    sft_fd(sft) = fd;
+    for (cnt = 0; cnt < 255; cnt++)
+    {
+      if (open_files[cnt].name == NULL) {
+        open_files[cnt].name = strdup(fpath);
+        open_files[cnt].fd = fd;
+        sft_fd(sft) = cnt;
+        break;
+      }
+    }
+    if (cnt == 255)
+    {
+      error("Panic: too many open files\n");
+      leavedos(1);
+    }
     Debug0((dbg_fd, "open succeeds: '%s' fd = 0x%x\n", fpath, fd));
     Debug0((dbg_fd, "Size : %ld\n", (long) st.st_size));
 
@@ -3480,7 +3507,6 @@ dos_fs_redirect(state_t *state)
 
     memcpy(sft_name(sft), fname, 8);
     memcpy(sft_ext(sft), fext, 3);
-    sft_dev_drive_ptr(sft) = (u_long)strdup(fpath);
 
     /* This caused a bug with temporary files so they couldn't be read,
    they were made write-only */
@@ -3506,7 +3532,20 @@ dos_fs_redirect(state_t *state)
     /* file size starts at 0 bytes */
     sft_size(sft) = 0;
     sft_position(sft) = 0;
-    sft_fd(sft) = fd;
+    for (cnt = 0; cnt < 255; cnt++)
+    {
+      if (open_files[cnt].name == NULL) {
+        open_files[cnt].name = strdup(fpath);
+        open_files[cnt].fd = fd;
+        sft_fd(sft) = cnt;
+        break;
+      }
+    }
+    if (cnt == 255)
+    {
+      error("Panic: too many open files\n");
+      leavedos(1);
+    }
     Debug0((dbg_fd, "create succeeds: '%s' fd = 0x%x\n", fpath, fd));
     Debug0((dbg_fd, "size = 0x%lx\n", sft_size(sft)));
 
@@ -3657,7 +3696,7 @@ dos_fs_redirect(state_t *state)
       hlist =
         match_filename_prune_list(get_dir(fpath, fname, fext), fname, fext);
       if (hlist==NULL)  {
-         SETWORD(&(state->eax), FILE_NOT_FOUND);
+         SETWORD(&(state->eax), NO_MORE_FILES);
          return (FALSE);
       }
 				  
@@ -3675,8 +3714,6 @@ dos_fs_redirect(state_t *state)
     hlist =
       match_filename_prune_list(get_dir(fpath, fname, fext), fname, fext);
     if (hlist==NULL)  {
-      /* XXX this should be either PATH_NOT_FOUND or NO_MORE_FILES!
-         needs reorganization -- Bart, 2002-05-26 */
        SETWORD(&(state->eax), NO_MORE_FILES);
        return (FALSE);
     }
@@ -3793,7 +3830,11 @@ dos_fs_redirect(state_t *state)
   case SEEK_FROM_EOF:		/* 0x21 */
     {
       int offset = (state->ecx << 16) + WORD(state->edx);
-      fd = sft_fd(sft);
+      if (open_files[sft_fd(sft)].name == NULL) {
+        SETWORD(&(state->eax), ACCESS_DENIED);
+        return (FALSE);
+      }
+      fd = open_files[sft_fd(sft)].fd;
       Debug0((dbg_fd, "Seek From EOF fd=%x ofs=%d\n",
 	      fd, offset));
       if (offset > 0)
@@ -3822,7 +3863,7 @@ dos_fs_redirect(state_t *state)
 	/* I don't know how to find out from here which DOS is running */
 	{
 		int is_lock = !(state->ebx & 1);
-		int fd = sft_fd(sft);
+		int fd = open_files[sft_fd(sft)].fd;
 		int ret;
 		struct LOCKREC{
 			long offset,size;
@@ -3830,6 +3871,10 @@ dos_fs_redirect(state_t *state)
 		struct flock larg;
 		unsigned long mask = 0xC0000000;
 
+                if (open_files[sft_fd(sft)].name == NULL) {
+                  SETWORD(&(state->eax), ACCESS_DENIED);
+                  return (FALSE);
+                }
 
 #if 1   /* The kernel can't place F_WRLCK on files opened read-only and
          * FoxPro fails. IMHO the right solution is:         --Maxim Ruchko */
@@ -3910,7 +3955,11 @@ dos_fs_redirect(state_t *state)
     break;
   case COMMIT_FILE:		/* 0x07 */
     Debug0((dbg_fd, "Commit\n"));
-    fd = sft_fd(sft);
+    if (open_files[sft_fd(sft)].name == NULL) {
+      SETWORD(&(state->eax), ACCESS_DENIED);
+      return (FALSE);
+    }    
+    fd = open_files[sft_fd(sft)].fd;
     return (dos_flush(fd));
     break;
   case MULTIPURPOSE_OPEN:

@@ -78,6 +78,28 @@ AC_CHECK_FUNCS(gettimeofday)
 
 dnl Here is where we do our stuff
 
+AC_ARG_WITH(docdir,
+  [  --with-docdir=dir       give the directory used to install documentation]
+  [                        (default: ${prefix}/share/doc/dosemu)],
+  docdir="$withval", docdir="${prefix}/share/doc/dosemu")
+AC_ARG_WITH(x11fontdir,
+  [  --with-x11fontdir=dir   give the directory used to install the VGA X11 font]
+  [                        (default: ${datadir}/dosemu/Xfonts)],
+  x11fontdir="$withval", x11fontdir="${datadir}/dosemu/Xfonts")
+AC_ARG_WITH(syshdimagedir,
+  [  --with-syshdimagedir=dir  give the directory used for system wide boot directories and hdimages]
+  [                        (default: /var/lib/dosemu)],
+  syshdimagedir="$withval", syshdimagedir="/var/lib/dosemu")
+AC_ARG_WITH(fdtarball,
+  [  --with-tarball=dir      give the name of the FreeDOS tarball or 'none']
+  [                        (default: dosemu-freedos-bin.tgz)],
+  fdtarball="$withval", fdtarball="dosemu-freedos-bin.tgz")
+
+AC_SUBST(docdir)
+AC_SUBST(x11fontdir)
+AC_SUBST(syshdimagedir)
+AC_SUBST(fdtarball)
+
 CONFIG_HOST=`uname -s`
 if test "$CONFIG_HOST" = "Linux"; then
   CONFIG_HOST='linux'
@@ -134,7 +156,7 @@ AC_ARG_ENABLE(linkstatic,
 dnl Do check wether we have svgalib and whether to use it
 
 AC_ARG_ENABLE(use-svgalib,
-	[ --enable-use-svgalib     use svgalib if available],
+	[  --enable-use-svgalib    use svgalib if available],
 	[use_svgalib="yes"],[use_svgalib="no"])
 if test "$use_svgalib" = "yes"; then
   AC_CHECK_LIB(vga, vga_simple_init, , use_svgalib="no", -lm)
@@ -151,7 +173,7 @@ fi
 dnl Do check wether we have pthreads and whether to use it
 
 AC_ARG_ENABLE(use-pthreads,
-	[ --enable-use-pthreads     use pthreads if available],
+	,
 	[use_pthreads="yes"],[use_pthreads="no"])
 if test "$use_pthreads" = "yes"; then
   AC_CHECK_LIB(pthread, pthread_create, , use_pthreads="no", -lm)
@@ -306,20 +328,6 @@ dnl All the X2 specs
     X2CEXE="x2dos ../etc/xtermdos ../etc/xinstallvgafont"
     AC_SUBST(X2CEXE)
 
-dnl the -u forces the X11 shared library to be linked into ./dos
-
-  if test "$XLIBSWD" != ""; then
-    x_libraries=`echo $XLIBSWD | sed 's/^-L//'`
-  else
-    x_libraries=/usr/X11R6/lib
-  fi
-    if test "$ELF" != "" ; then
-#      XLIBSWL="-lX11"
-      XLIBSWD="-Wl,-rpath,$x_libraries -L$x_libraries"
-    else
-#      XLIBSWL="-lX11"
-      XLIBSWD="-L$x_libraries -u _XOpenDisplay"
-    fi
 fi
 
 

@@ -1742,9 +1742,17 @@ where XXX is one of
 <term>ibm</term>
 <listitem>
 <para>
- the text is taken whithout translation, it is to the user
-to load a proper DOS font (cp437.f16, cp850.f16 or cp852.f16 on the
-console).
+With the new (default) unicode keyboard plugin, 
+the text is processed using cp437->cp437 for the display,
+so the font used must be cp437 (eq cp437.f16 on the console).
+This is no longer a passthrough to the local character set,
+it never really was, but it acted like it.  When reading characters
+they are assumed to be in iso-8859-1 from the terminal.
+</para>
+<para>
+With the old keyboard code, the text is taken whithout translation, 
+it is to the user to load a proper DOS font 
+(cp437.f16, cp850.f16 or cp852.f16 on the console).
 </para>
 </listitem></varlistentry>
 <varlistentry>
@@ -1783,6 +1791,64 @@ and/or the terminal behave may vary. You need to know the correct code page
 your DOS is configured for in order to get the correct results.
 For most western european countries 'latin' should be the correct setting.
 </para>
+
+<para>
+With the advent of handling all characters internally to dosemu 
+things have gotten more flexible, and more interesting.  The following
+form of the charset option has been added.
+<screen>
+  charset { external "iso8859_1" internal "cp437" }
+</screen>
+</para>
+
+<para>
+For external character set the allowable character sets are:
+<screen>
+"cp437", "cp737", "cp775", "cp850", "cp852", "cp857", "cp860","cp861",
+"cp862", "cp863", "cp864", "cp865", "cp866", "cp869", "cp874",
+"iso8859-1", "iso8859-2", "iso8859-3", "iso8859-4", "iso8859-5", 
+"iso8859-6", "iso8859-7", "iso8859-8", "iso8859-9", "iso8859-14",
+"iso8859-15"
+</screen>
+</para>
+
+<para>
+For the internal character set the allowable character sets are:
+<screen>
+"cp437", "cp737", "cp775", "cp850", "cp852", "cp857", "cp860","cp861",
+"cp862", "cp863", "cp864", "cp865", "cp866", "cp869", "cp874"
+</screen>
+</para>
+
+<para>
+The external character set is used to:
+<itemizedlist>
+<listitem> <para> 
+    compute the unicode values of characters coming in from the terminal 
+</para> </listitem>
+<listitem> <para> 
+    compute the character set index of unicode characters output to a 
+    terminal display screen. 
+</para> </listitem>
+<listitem> <para> 
+    compute the unicode values of characters pasted into dosemu.
+</para> </listitem>
+</itemizedlist>
+</para>
+
+<para>
+The internal character set is used to:
+<itemizedlist>
+<listitem> <para> 
+    compute the unicode value of characters of video memory 
+</para> </listitem>
+<listitem> <para> 
+    compute the character set index of unicode characters 
+    returned by bios keyboard translation services. 
+</para> </listitem>
+</itemizedlist>
+</para>
+
 
 </sect3>
 
@@ -1860,7 +1926,7 @@ Given we call the above  a "definition" then it may be repeated
 "key_number" is the physical number, that the keybord send to the machine
 when you hit the key, its the index into the keytable. "value" may be
 any integer between 0...255, a string, or one of the following keywords
-for "dead keys" (NOTE: deadkeys have a value below 32, so be carefull).
+for "dead keys" (NOTE: deadkeys have a value below 32, so be careful).
 </para>
 
 <para>
@@ -1880,6 +1946,47 @@ for "dead keys" (NOTE: deadkeys have a value below 32, so be carefull).
   dcaron        (dead caron)
 </screen>
 
+</para>
+
+<para>
+With the addition of internal unicode support "value" may be
+any integer between 0..65535 (specifying a unicode value), a hexadecimal
+integer in the form \uFFFF all 4 hexadecimal digits are mandatory,
+a string interpreted in the internal character set.  
+</para>
+
+<para>
+The implementation of dead keys has changed, and values of the 
+unicode combining characters are used for dead key character caps.
+In particular:
+<screen>
+0x0300          U_COMBINING_GRAVE_ACCENT        dgrave
+0x0301          U_COMBINING_ACUTE_ACCENT        dacute
+0x0302          U_COMBINING_CIRCUMFLEX_ACCENT   dcircum
+0x0303          U_COMBINING_TILDE               dtilde
+0x0306          U_COMBINING_BREVE               dbreve
+0x0307          U_COMBINING_DOT_ABOVE           daboved
+0x0308          U_COMBINING_DIAERESIS           ddiares
+0x030A          U_COMBINING_RING_ABOVE          dabover
+0x030B          U_COMBINING_DOUBLE_ACUTE_ACCENT ddacute
+0x0327          U_COMBINING_CEDILLA             dcedilla
+0x0328          U_COMBINING_OGONEK              dogonek
+0x030C          U_COMBINING_CARON               dcaron
+</screen>
+</para>
+
+<para>
+In unicode there is a private range of characters 0xE000 - 0xEFFF that
+an application can use as it wishes.  In dosemu the exact usage
+of this range is defined in src/include/keyboard.h.  Current
+this range is broke up as follows: 
+<screen>
+0xEF00 - 0xEFFF is defined as a pass through to whatever
+                character set is being displayed.  
+0xE100 - 0xE1FF are used for special keycaps
+0xE200 - 0xE2FF are used for any extra dead keys we may need to make up
+0xE300 - 0xE3FF are used for special dosemu function keys
+</screen>
 </para>
 
 <para>
@@ -1907,9 +2014,12 @@ definition is to use or wether we mean the numpad:
 <para>
 
 <screen>
-  shift  16="Q"      (means key 16 + SHIFT pressed)
-  alt    16="@"      (means key 16 + right ALT pressed (so called AltGr))
-  numpad 12=","      (means numpad index 12)
+  shift     16="Q"      (means key 16 + SHIFT pressed)
+  alt       16="@"      (means key 16 + right ALT pressed (so called AltGr))
+  numpad    12=","      (means numpad index 12 (depricated))
+  ctrl      16=\u0011   (means key 16 +  ctrl pressed)
+  shift-alt 16=\u02A0   (means key 16 + AltGR pressed and shift pressed)
+  ctrl-alt  209=\uE30A  (means key 209 (PGDN) + ctrl pressed and alt pressed)
 </screen>
 
 </para>
@@ -2132,7 +2242,7 @@ COM1 on IRQ 4 in DOSEMU!
 </para>
 
 <para>
-<emphasis>NOTE:</emphasis> You must have /usr/spool/uucp for LCK-file generation !
+<emphasis>NOTE:</emphasis> You must have /var/lock for LCK-file generation !
 You may change this path and the lockfile name via the
 below 'ttylocks' statement.
 </para>
@@ -2217,10 +2327,8 @@ For tty locking capabilities:
 The serial lines are locked by dosemu via usual lock file technique,
 which is compatible with most other unix apps (such as mgetty, dip,
 e.t.c). However, you carefully need to check _where_ those other apps
-expect the lock files. The most common used (old) place is
-/usr/spool/uucp, but newer distributions following the FSSTND will have
-it in /var/lock. The dosemu default one is /usr/spool/uucp.
-The below defines /var/lock
+expect the lock files. The most common used place is /var/lock.
+The dosemu default one is /var/lock. The below defines /var/lock
 </para>
 
 <para>

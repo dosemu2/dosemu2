@@ -68,9 +68,6 @@
 
 char misc_dos_command[MAX_DOS_COMMAND_LEN + 1];
 
-extern void handle_signals(void);
-
-
 int misc_e6_envvar (char *str)
 {
   char *tmp;

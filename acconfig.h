@@ -30,7 +30,6 @@
 #define  DOSEMU_RC          ".dosemurc"       /* per user config file */
 #define  OLD_DOS_RC         ".dosrc"          /* old, obsolete user config file */
 #define  LOCALDIR_BASE_NAME ".dosemu"         /* base directory in $HOME */
-#define  DOSEMULIB_DEFAULT  "/var/lib/dosemu" /* system wide dosemu directory */
 #define  DOSEMU_CONF        "dosemu.conf"     /* standard configuration file */
 #define  DOSEMU_USERS       "dosemu.users"    /* access right configuration file */
 #define  DEFAULT_CONFIG_SCRIPT "builtin"      /* main configuration script */
@@ -38,7 +37,6 @@
 #define  ALTERNATE_ETC      "/etc/dosemu"     /* alternate config. directory */
 #define  DOSEMU_MIDI        "dosemu-midi"     /* fifo for midi daemon */
 
-/* overridable file/path constants */
 EXTERN char *config_file_path INIT("/etc/" DOSEMU_CONF);
 EXTERN char *config_script_name INIT(DEFAULT_CONFIG_SCRIPT);
 EXTERN char *config_script_path INIT(0);
@@ -49,16 +47,19 @@ EXTERN char *dosemu_tmpdir_path INIT("~/" LOCALDIR_BASE_NAME "/tmp");
 EXTERN char *dosemu_tmpdir_process_path INIT("~/" LOCALDIR_BASE_NAME "/tmp/<pid>");
 EXTERN char *dosemu_rundir_path INIT("~/" LOCALDIR_BASE_NAME "/run");
 EXTERN char *dosemu_localdir_path INIT("~/" LOCALDIR_BASE_NAME);
-EXTERN char *dosemu_lib_dir_path INIT(DOSEMULIB_DEFAULT);
-EXTERN char *dosemu_hdimage_dir_path INIT(DOSEMULIB_DEFAULT);
-EXTERN char *keymap_load_base_path INIT(DOSEMULIB_DEFAULT "/");
+
+#define config_xstr(s) config_str(s)
+#define config_str(s) #s
+
+EXTERN char *dosemu_lib_dir_path INIT(config_xstr(DOSEMULIB_DEFAULT));
+EXTERN char *dosemu_hdimage_dir_path INIT(config_xstr(DOSEMUHDIMAGE_DEFAULT));
+EXTERN char *keymap_load_base_path INIT(config_xstr(DOSEMULIB_DEFAULT) "/");
 EXTERN char *keymap_dir_path INIT("keymap/");
 EXTERN char *owner_tty_locks INIT("uucp");
 EXTERN char *tty_locks_dir_path INIT("/var/lock");
 EXTERN char *tty_locks_name_path INIT("LCK..");
-EXTERN char *dexe_load_path INIT(DOSEMULIB_DEFAULT);
+EXTERN char *dexe_load_path INIT(config_xstr(DOSEMUHDIMAGE_DEFAULT));
 EXTERN char *ipx_dos_ini_path INIT(ALTERNATE_ETC "/dos.ini");
-EXTERN char *dosemu_map_file_name INIT("/usr/src/dosemu/bin/dosemu.map");
 EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 
 #define    CONFIG_FILE           config_file_path
@@ -184,6 +185,10 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 #undef NEED_LLSEEK_PROTOTYPE
 
 @BOTTOM@
+
+#ifndef __ASM__
+EXTERN char *dosemu_map_file_name INIT(config_xstr(DOSEMULIB_DEFAULT) "/dosemu-" VERSTR ".map");
+#endif
 
 #include "plugin_config.h"
 

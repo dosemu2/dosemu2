@@ -21,11 +21,7 @@
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
-
-extern int  dis_8086(unsigned int, const unsigned char *,
-                     unsigned char *, int, unsigned int *, unsigned int *,
-                     unsigned int, int);
-
+#include "dis8086.h"
 
 char *emu_disasm(int sga, unsigned int ip)
 {

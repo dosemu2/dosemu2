@@ -214,6 +214,8 @@ extern void yyrestart(FILE *input_file);
 
 %start lines
 
+%pure-parser
+
 %union {
 	int i_value;
 	char *s_value;
@@ -267,7 +269,7 @@ extern void yyrestart(FILE *input_file);
 	/* speaker */
 %token EMULATED NATIVE
 	/* keyboard */
-%token KEYBINT RAWKEYBOARD
+%token RAWKEYBOARD
 %token PRESTROKE
 %token KEYTABLE SHIFT_MAP ALT_MAP NUMPAD_MAP DUMP
 %token TOGGLE TG_CS TG_SS TG_AS
@@ -1275,7 +1277,6 @@ keyboard_flag	: LAYOUT KEYB_LAYOUT	{ keyb_layout($2); }
 		| LAYOUT L_NO		{ keyb_layout(KEYB_NO); }
 		| LAYOUT L_AUTO		{ keyb_layout(-1); }
 		| RAWKEYBOARD bool	{ config.console_keyb = $2; }
-		| KEYBINT bool		{ /* Now a dummy */ }
 		| TOGGLE toggle_flags
 		| STRING
 		    { yyerror("unrecognized keyboard flag '%s'", $1);
@@ -2310,10 +2311,13 @@ static FILE *open_dosemu_users(void)
   return 0;
 }
 
+#define xstr(s) str(s)
+#define str(s) #s
+
 static void setup_home_directories(void)
 {
-  if (strcmp(DOSEMU_LIB_DIR, DOSEMULIB_DEFAULT)) {
-    if (!strcmp(DOSEMU_HDIMAGE_DIR, DOSEMULIB_DEFAULT)) {
+  if (strcmp(DOSEMU_LIB_DIR, xstr(DOSEMULIB_DEFAULT) )) {
+    if (!strcmp(DOSEMU_HDIMAGE_DIR, xstr(DOSEMULIB_DEFAULT) )) {
       /* boot path is the default one, but libdir has moved
        * so move the boot path too
        */
@@ -2329,23 +2333,16 @@ static void setup_home_directories(void)
   DOSEMU_MIDI_PATH = assemble_path(RUNDIR, DOSEMU_MIDI, 0);
 }
 
-static int lax_user_checking(void)
+static void lax_user_checking(void)
 {
   char *p;
-  if (strcmp(DOSEMU_USERS_FILE, "none")) return 0;
-  if (!strcmp(DOSEMU_LIB_DIR, DOSEMULIB_DEFAULT)) {
-    fprintf(stderr, "users file = none, but no libdir defined\n");
-    exit(1);
-  }
   define_config_variable("c_all");
-  setenv("DOSEMU_CONF_DIR", DOSEMU_LIB_DIR, 1);
   move_dosemu_lib_dir(DOSEMU_LIB_DIR);
   p = getenv("USER");
   if (!p) p = "guest";
   setenv("DOSEMU_USER", p, 1);
   setenv("DOSEMU_REAL_USER", p, 1);
   setup_home_directories();
-  return 1;
 }
 
 /* Parse Users for DOSEMU, by Alan Hourihane, alanh@fairlite.demon.co.uk */
@@ -2384,11 +2381,6 @@ parse_dosemu_users(void)
   after_secure_check = 0;
   priv_lvl = 0;
 
-  if (lax_user_checking()) {
-    after_secure_check = 1;
-    return;
-  }
-
   /* We first have to find out where the dosemu.users file is placed
    * by the system administrator.
    * We first look for /etc/dosemu.users, then for /etc/dosemu/dosemu.users
@@ -2402,10 +2394,17 @@ parse_dosemu_users(void)
   if (!exists_file(DOSEMU_USERS_FILE)) {
     DOSEMU_USERS_FILE = ALTERNATE_ETC "/" DOSEMU_USERS;
     if (!exists_file(DOSEMU_USERS_FILE)) {
-      static char *tx = "neither /etc nor " ALTERNATE_ETC " do contain " DOSEMU_USERS "\n";
-      fprintf(stderr, tx);
-      fprintf(stdout, tx);
-      exit(1);
+      if (can_do_root_stuff && !under_root_login) {
+        static char *tx = "neither /etc nor " ALTERNATE_ETC " do contain " DOSEMU_USERS "\n";
+        fprintf(stderr, tx);
+        fprintf(stdout, tx);
+        exit(1);
+      } else {
+        /* simply ignore -- we're not suid-root */
+        lax_user_checking();
+        after_secure_check = 1;
+        return;
+      }
     }
     DOSEMU_LOGLEVEL_FILE = ALTERNATE_ETC "/" DOSEMU_LOGLEVEL;
     setenv("DOSEMU_CONF_DIR", ALTERNATE_ETC, 1);
@@ -2415,7 +2414,7 @@ parse_dosemu_users(void)
   /* we check for some vital global settings
    * which we need before proceeding
    */
-  setenv("DOSEMU_LIB_DIR", DOSEMULIB_DEFAULT, 1);
+  setenv("DOSEMU_LIB_DIR", xstr(DOSEMULIB_DEFAULT), 1);
   fp = open_dosemu_users();
   if (!fp) exit(1);
   while (fgets(buf, PBUFLEN, fp) != NULL) {
@@ -2760,7 +2759,6 @@ int parse_config(char *confname, char *dosrcname)
 
   { 
     PRIV_SAVE_AREA
-    uid_t uid = get_orig_uid();
 
     char *name;
     int skip_dosrc = 0;
@@ -2779,7 +2777,7 @@ int parse_config(char *confname, char *dosrcname)
 
     /* privileged options allowed? */
     is_user_config = (confname && config_script_path && strcmp(confname, config_script_path));
-    priv_lvl = uid != 0 && is_user_config;
+    priv_lvl = !under_root_login && can_do_root_stuff && is_user_config;
 
     /* DEXE together with option F ? */
     if (priv_lvl && dexe_running) {
@@ -2824,7 +2822,7 @@ int parse_config(char *confname, char *dosrcname)
     }
 
     /* privileged options allowed for user's config? */
-    priv_lvl = uid != 0;
+    priv_lvl = !under_root_login && can_do_root_stuff;
     if (priv_lvl) define_config_variable("c_user");
 
     /* Now we parse any commandline statements from option '-I'

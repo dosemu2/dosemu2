@@ -18,6 +18,7 @@
 #ifndef MHPDBG_H
 #define MHPDBG_H
 
+#include <stdarg.h>
 #include "extern.h"
 
 #if 0  /* now defined in include/vm86plus */
@@ -46,6 +47,8 @@ void mhp_input();
 void mhp_close();
 void mhp_printf(const char *,...);
 int mhp_getaxlist_value(int v, int mask);
+
+int vmhp_log_intercept(int flg, const char *fmt, va_list args);
  
 #define MHP_BUFFERSIZE 8192
 struct mhpdbg

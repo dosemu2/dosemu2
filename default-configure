@@ -24,7 +24,7 @@ while [ "$1" != "" ]; do
 done
 
 CONF=`cat $CONF_FILE`
-CONF=`echo -n "$CONF"|tr '\n' ' '|cut '-d{' -f2|cut '-d}' -f1`
+CONF=`echo -n "$CONF"| sed '/^config {/d' | sed '/^}/d' | tr '\n' ' ' `
 
 set $CONF
 
@@ -73,8 +73,14 @@ while [ "$1" != "" ]; do
     svgalib)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-use-svgalib"; fi
       ;;
-    pthreads)
-      if [ "$2" = "on" ]; then STRING="$STRING --enable-use-pthreads"; fi
+    docdir|x11fontdir|syshdimagedir|fdtarball)
+      STRING="$STRING --with-$1=$2"
+      ;;
+    mandir|datadir|sysconfdir|bindir|prefix)
+      STRING="$STRING --$1=`echo $2`"
+      ;;
+    target_cpu)
+      if [ "$2" != "auto" ]; then STRING="$STRING --target_cpu=$2"; fi
       ;;
     plugin_*)
       plugin=`expr substr $1 8 100`

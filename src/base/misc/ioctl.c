@@ -69,11 +69,8 @@
 #endif
 
 #include "dosemu_select.h"
+#include "userhook.h"
   
-#ifdef SIG
-extern SillyG_t *SillyG;
-#endif
-
 #ifndef PAGE_SIZE
 #define PAGE_SIZE       4096
 #endif
@@ -176,8 +173,6 @@ io_select(fd_set fds)
         }
       }
       {
-	extern int uhook_fdin;
-	extern void uhook_input(void);
 	if (uhook_fdin != -1) if (FD_ISSET(uhook_fdin, &fds)) uhook_input();
       }
 

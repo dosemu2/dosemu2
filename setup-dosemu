@@ -3,7 +3,7 @@
 # Front end to the runtime & compile time scripts.
 #
 
-if hash wish >/dev/null 2>&1; then
+if false; then #hash wish >/dev/null 2>&1; then
   if [ "$DISPLAY" != "" ]; then
     echo "
 *** NOTE: setup-dosemu currently is only able to handle setup
@@ -17,13 +17,14 @@ fi
 
 echo "
 *** NOTE: setup-dosemu isn't correctly updated to the recent changes
-***       in the configuration stuff. Though it can handle the runtime setup
-***       via TclTk, you either don't have that installed or are not running X.
+***       in the configuration. 
 ***       Hence, don't use setup-dosemu at the moment !!
-***       We will fix this in the near future though.
+***       We will fix this later though.
 ***
 ***       In the meantime just do 'make' to compile DOSEMU and edit
-***       the /etc/dosemu.conf manually.              --Hans, 980531
+***       the dosemu.conf, ~/.dosemurc and compiletime-settings files
+***       manually.
+***              --Bart, 20021214 
 "
 exit 1
 

@@ -157,7 +157,7 @@ and further more:
 <listitem>
 
 <para>
- wether the lib dir (DOSEMU_LIB_DIR) resides elsewhere.
+ whether the lib dir (DOSEMU_LIB_DIR) resides elsewhere.
 </para>
 </listitem>
 <listitem>
@@ -402,10 +402,6 @@ you may overide it such as
 </para>
 
 <para>
-NOTE: `$_rdtsc' and `$_cpuspeed' can <emphasis>not</emphasis> be overwritten by ~/.dosemurc.
-</para>
-
-<para>
 If you have a PCI board you may allow DOSEMU to access the PCI
 configuration space by defining the below
 
@@ -413,6 +409,10 @@ configuration space by defining the below
   $_pci = (on)    # or off
 </screen>
 
+</para>
+
+<para>
+NOTE: `$_pci' can <emphasis>not</emphasis> be overwritten by ~/.dosemurc.
 </para>
 
 <para>
@@ -650,7 +650,17 @@ where XXX is one of
 <term>ibm</term>
 <listitem>
 <para>
-the text is taken whithout translation, it is to the user
+With the kbd_unicode plugin (the default), the text is processed using 
+cp437->cp437 for the display, so the font used must be cp437 
+(eg cp437.f16 on the console).
+The text is no longer taken without translation.  It never really
+was but it was close enough it apparently was used that way.
+When reading characters they are assumed to be in iso-8859-1 from
+the terminal.
+</para>
+<para>
+If the old keyboard code is used, then the text is taken whithout translation.
+It is to the user
 to load a proper DOS font (cp437.f16, cp850.f16 or cp852.f16 on the
 console).
 </para>
@@ -690,6 +700,60 @@ Depending on the charset setting the (below described) keyboard layouts
 and/or the terminal behave may vary. You need to know the correct code page
 your DOS is configured for in order to get the correct results.
 For most western european countries 'latin' should be the correct setting.
+</para>
+
+<para>
+<screen>
+  $_external_char_set = "XXX"
+</screen>
+where XXX is one of
+<screen>
+"cp437", "cp737", "cp775", "cp850", "cp852", "cp857", "cp860","cp861",
+"cp862", "cp863", "cp864", "cp865", "cp866", "cp869", "cp874",
+"iso8859-1", "iso8859-2", "iso8859-3", "iso8859-4", "iso8859-5", 
+"iso8859-6", "iso8859-7", "iso8859-8", "iso8859-9", "iso8859-14",
+"iso8859-15"
+</screen>
+</para>
+
+<para>
+The external character set is used to:
+<itemizedlist>
+<listitem> <para>
+    compute the unicode values of characters coming in from the terminal
+</para> </listitem>
+<listitem> <para>
+    compute the character set index of unicode characters output to
+    a terminal display screen.
+</para> </listitem>
+<listitem> <para>
+     compute the unicode values of characters pasted into dosemu.
+</para> </listitem>
+</itemizedlist>
+</para>
+
+<para>
+<screen>
+  $_internal_char_set = "XXX"
+</screen>
+where XXX is one of:
+<screen>
+"cp437", "cp737", "cp775", "cp850", "cp852", "cp857", "cp860","cp861",
+"cp862", "cp863", "cp864", "cp865", "cp866", "cp869", "cp874"
+</screen>
+</para>
+
+<para>
+The internal character set is used to:
+<itemizedlist>
+<listitem> <para>
+       compute the unicode value of characters of video memory 
+</para> </listitem>
+<listitem> <para>
+       compute the character set index of unicode characters 
+       returned by bios keyboard translation services.
+</para> </listitem>
+</itemizedlist>
 </para>
 
 </sect3>
@@ -786,7 +850,7 @@ keyboard layout itself. This involves 2 parts and can be done by setting
   $_X_keycode = (auto)
 </screen>
 
-which  checks for existence of a  XFree/Xaccel-Server and if yes,
+which  checks for existence of the X keyboard extension and if yes,
 it sets $_X_keycode to 'on', that means the DOSEMU keytables
 are active. The second part (which is independent from $_X_keycode)
 can be set by
@@ -816,20 +880,6 @@ keystrokes.
 However, be carefull, when the application locks, you may not be able
 to switch your console and recover from this. For details on recovering
 look at README-tech.txt (Recovering the console after a crash).
-</para>
-
-<para>
-NOTE: `$_rawkeyboard' can <emphasis>not</emphasis> be overwritten by ~/.dosemurc.
-</para>
-
-<para>
-The `keybint (on)' allows more accurate of keyboard interrupts, It
-is a bit unstable, but makes keyboard work better when set to "on".
-
-<screen>
-  $_keybint = (on)     # emulate PCish keyboard interrupt
-</screen>
-
 </para>
 
 </sect3>

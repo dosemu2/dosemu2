@@ -62,14 +62,8 @@ endif
 export do_DEBUG=no
 
 
-default clean realclean echo help depend version:
+default clean realclean echo help depend version install:
 	@$(MAKE) -C src $@
-
-install:
-	@echo "***"
-	@echo "There is no support anymore for a systemwide DOSEMU installation, period."
-	@echo "Just copy ./bin/{dos,dosdebug} to ./bin of an installed dosemu-freedos tree."
-	@echo "***"
 
 all:
 	@$(MAKE) -C src default

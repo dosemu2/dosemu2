@@ -7,6 +7,7 @@
 
 # the below line gets patched, when a systemwide install is done
 SYSTEM_INSTALL_PATH=NOT_SYSTEM_WIDE
+SYSTEM_CONF_PATH=NOT_SYSTEM_WIDE
 test "$SYSTEM_INSTALL_PATH" != "NOT_SYSTEM_WIDE" && IS_SYSTEM_WIDE=1
 
 function usage {
@@ -20,23 +21,23 @@ USAGE:
 
 function install_from_template {
 # $1 = path to install to
-  rm -rf $1/dosemu
+  (cd $1
+    tar -xzf $SYSTEM_INSTALL_PATH/dosemu-bin.tgz
+  )
   if [ -z "$PROPRIETARY" ]; then
     (cd $1
+      cat $SYSTEM_CONF_PATH/dosemu.conf | \
+       sed -e "s#\#\([[:space:]]*\$_hdimage[[:space:]]*=[[:space:]]*\"\)freedos#\1$1/dosemu/freedos#" \
+	  > $HOME/.dosemurc
       tar -xzf $SYSTEM_INSTALL_PATH/dosemu-freedos-bin.tgz
-      tar -xzf $SYSTEM_INSTALL_PATH/dosemu-bin.tgz
     )
   else
     (cd $1
-      tar -xzf $SYSTEM_INSTALL_PATH/dosemu-bin.tgz
       mv dosemu/freedos/dosemu dosemu/commands
       rmdir dosemu/freedos
-#     perl -i -pe 's|(^\s*\$_hdimage\s*=\s*\")freedos|$1'"$PROPRIETARY|" dosemu/conf/dosemu.conf
-      cat dosemu/conf/dosemu.conf | \
-          sed -e "s#\([[:space:]]*\$_hdimage[[:space:]]*=[[:space:]]*\"\)freedos#\1$PROPRIETARY#" \
-	  > dosemu/conf/dosemu.conf
-      mkdir -p ~/.dosemu
-      echo "$1/dosemu" > $BPATH_FILE
+      cat $SYSTEM_CONF_PATH/dosemu.conf | \
+          sed -e "s#\#\([[:space:]]*\$_hdimage[[:space:]]*=[[:space:]]*\"\)freedos#\1$PROPRIETARY#" \
+	  > $HOME/.dosemurc
     )
     echo "
   The DOSEMU part of the proprietary installation has been done.
@@ -48,7 +49,7 @@ function install_from_template {
   to make the DOSEMU support commands available within $PROPRIETARY.
 
   After you finished installing $PROPRIETARY (which simply may be a symlink
-  to your mounted DOS partition) _and_ have checked conf/dosemu.conf,
+  to your mounted DOS partition) _and_ have checked ~/.dosemurc,
   you can rerun [x]dosemu again (without the -install option) to boot this DOS.
 
   Good luck
@@ -122,63 +123,18 @@ function w4l_check {
 }
 
 BPATH_FILE=~/.dosemu/bindist_path
-FDPART_CHECK_FILE=freedos/dosemu/lcd.exe
-test -f conf/dosemurc && HAVECONF=1
-test -x bin/dosemu.bin && HAVEBIN=1
-test -n "$HAVECONF" -a -n "$HAVEBIN" && HAVEDOSEMUPART=1
-test -f $BPATH_FILE && PATHSAVED=1;
 
-#
-# we assume, that if the user cd'ed into an unpacked dosemu-freedos directory
-# _and_ started this script from there, he wants to execute this one,
-# regardless what has been configured before.
-#
-if [ -n "$HAVECONF" -a -n "$HAVEBIN" ]; then
-  # make sure we can access the script via $0 (exec over $PATH may hide)
-  if [ -x $ARG0 ]; then
-    # make sure the script is the same as within this directory
-    if [ $ARG0 -ef dosemu ]; then
-      rm -f $BPATH_FILE
-      unset PATHSAVED
-    fi
-  fi
-fi
+# check whether this user has already got his private installation
+if [ ! -f $HOME/.dosemurc ]; then
 
-# check wether the user wants to install a DOS other then freedos
-if [ -n "$PROPRIETARY" ]; then
-  rm -f $BPATH_FILE
-  unset PATHSAVED
-fi
-
-# check wether this user has already got his private installation
-if [ -n "$PATHSAVED" ]; then
-
-  # Yes, there exists an already setup installation
-
-  BOOT_DIR_PATH=`cat ~/.dosemu/bindist_path`
-  if [ ! -f $BOOT_DIR_PATH/conf/dosemu.conf ]; then
-    echo "
-  There is some thing wrong with your private installation,
-  ~/.dosemu/bindist_path points to $BOOT_DIR_PATH,
-  but this directory seems not to contain valid stuff.
-  Check your installed directory, repair what's missing and rerun $ARG0
-  out of this directory. If else fails, cd into your $HOME and rerun $ARG0,
-  which then will install a fresh new instance.
-"
-    rm -f $BPATH_FILE
-    exit 1
-  fi
-
-else
-
-  # No, this either is the first time this user calls 'dosemu'
+  # This either is the first time this user calls 'dosemu'
   # or the user cd'ed here and we forced a 'take over'
 
   if [ -z "$IS_SYSTEM_WIDE" ]; then
     # we assume this is a fresh unpacked dosemu-freedos distribution
     # In this case this script has to be called _from_ this directory.
 
-    if [ -z "$HAVEDOSEMUPART" ]; then
+    if [ ! -x bin/dosemu.bin ]; then
       echo "
   You are starting this script from the wrong directory.
   e.g. if you unpacked dosemu-freedos-bin.tgz within
@@ -190,6 +146,8 @@ else
       exit 1
     fi
     BOOT_DIR_PATH=$THISDIR
+    mkdir -p ~/.dosemu
+    cat $BOOT_DIR_PATH > $BPATH_FILE
 
   else
 
@@ -204,19 +162,36 @@ else
       exit 1;
     fi
 
-    if [ -n "$HAVEDOSEMUPART" ]; then
-      # we come here just because the user cd'ed into an already
-      # installed directory.
-      BOOT_DIR_PATH=$THISDIR
+    if [ -f $BPATH_FILE ]; then
+      BOOT_DIR_PATH=`cat $BPATH_FILE`
+      echo "
+  Upgrading an existing dosemu configuration: your local configuration is now
+  in ~/.dosemurc instead of $BOOT_DIR_PATH/conf/dosemu.conf
+  and the boot.log file is in $HOME/.dosemu.
+  Please adapt ~/.dosemurc to your situation; the old settings are not kept.
+      "
+      cat $SYSTEM_CONF_PATH/dosemu.conf | \
+       sed -e "s#\#\([[:space:]]*\$_hdimage[[:space:]]*=[[:space:]]*\"\)freedos#\1$BOOT_DIR_PATH/freedos#" \
+	  > $HOME/.dosemurc
     else
       # We copy the binaries from the directory SYSTEM_INSTALL_PATH
       # to the users $HOME.
       echo "
   Going to install your private DOSEMU files into the directory
   $HOME/dosemu
-  Enter an empty string to confirm or a new path:"
+  Enter an empty string to confirm, a new path, or "none" (without
+  the quotes) if you don't want this:"
       read BOOT_DIR_PATH
-      if [ -n "$BOOT_DIR_PATH" ]; then
+      if [ "$BOOT_DIR_PATH" == "none" ]; then
+	if [ ! -f $HOME/.dosemu/disclaimer ]; then
+          echo "
+  Please put the paths of your DOSEMU DOS drives in \$_hdimage in
+  $SYSTEM_CONF_PATH/dosemu.conf or copy that file to $HOME/.dosemurc and
+  adjust it there if you haven't already done so.
+          "
+          touch ~/.dosemurc
+        fi
+      elif [ "$BOOT_DIR_PATH" != "" ]; then
         if [ "${BOOT_DIR_PATH#/*}" != "$BOOT_DIR_PATH" ]; then
           echo "  You gave an absolute path, type ENTER to confirm or Ctrl-C"
           read x
@@ -236,30 +211,6 @@ else
         BOOT_DIR_PATH="$HOME/dosemu"
       fi
     fi
-  fi
-fi
-
-if [ -u $BOOT_DIR_PATH/bin/dosemu.bin ]; then
-  echo "
-  You (or your distributor) made the dosemu binary suid-root. The local
-  configuration within this DOSEMU installation is not intended for secure
-  operation.  You need to run this non-suid-root as normal unprivileged user.
-"
-  exit 1
-fi
-
-# Now check wether we have freedos configured. If not, the user has to
-# care himself. If yes, check wether the user did an incomplete installation.
-if grep freedos $BOOT_DIR_PATH/conf/dosemu.conf >/dev/null 2>&1; then
-  if [ ! -f $BOOT_DIR_PATH/$FDPART_CHECK_FILE ]; then
-    echo "
-  You have an only partially unpacked DOSEMU binary distribution. You need
-  to unpack _both_ tarballs (in this order)
-    dosemu-freedos-bin.tgz
-    dosemu-<version>-bin.tgz
-  into the same directory.
-"
-    exit 1
   fi
 fi
 
@@ -295,32 +246,30 @@ if [ -n "$XFLAG" ]; then
     exit 1
   fi
   
-  FONT=`grep '$_X_font' $BOOT_DIR_PATH/conf/dosemurc | \
-        sed -e 's#[[:space:]]*\$_X_font[[:space:]]*=[[:space:]]*\"\(.*\)\".*#\1#'`
-
-  if [ "$FONT" = "" ]; then
-     FONT=`grep '$_X_font' $BOOT_DIR_PATH/conf/dosemu.conf | \
-           sed -e 's#[[:space:]]*\$_X_font[[:space:]]*=[[:space:]]*\"\(.*\)\".*#\1#'`
-  fi
+  FONT=`grep '$_X_font' $HOME/.dosemurc | \
+        sed -e 's|[#[:space:]]*\$_X_font[[:space:]]*=[[:space:]]*\"\(.*\)\".*|\1|'`
 
   if [ "$FONT" = "" ]; then
      FONT="vga"
   fi
 
+  if [ -z "$IS_SYSTEM_WIDE" ]; then
+     BOOT_DIR_PATH=`cat $BPATH_FILE`
+     if [ "`xlsfonts -fn $FONT 2>/dev/null`" = "" ]; then
+        if [ ! -f $BOOT_DIR_PATH/Xfonts/fonts.dir ]; then
+           (cd $BOOT_DIR_PATH/Xfonts; mkfontdir)
+        fi
+        xset +fp $BOOT_DIR_PATH/Xfonts 2>/dev/null
+     fi
+  fi
   if [ "`xlsfonts -fn $FONT 2>/dev/null`" = "" ]; then
-    if [ ! -f $BOOT_DIR_PATH/Xfonts/fonts.dir ]; then
-      (cd $BOOT_DIR_PATH/Xfonts; mkfontdir)
-    fi
-    xset +fp $BOOT_DIR_PATH/Xfonts 2>/dev/null
-    if [ "`xlsfonts -fn $FONT 2>/dev/null`" = "" ]; then
-      echo "
+     echo "
    You do not have the DOSEMU $FONT font installed and are running
    remote X. You need to install the $FONT font on your _local_ Xserver.
    Look at the readme for details. For now we start with an fixed font,
    which does not display all national characters correctly.
    ... be warned
 "
-    fi
   fi
   w4l_check
   if [ -z "$QUIET" ]; then
@@ -333,7 +282,7 @@ if [ -n "$XFLAG" ]; then
     if [ -n "$LREDIRHOME" ]; then
       echo "   Redirecting \$HOME to DOS drive D:"
     else
-      echo -e "\n   Hint: if you want \$HOME as DOS drive D:, use '-home' option"
+      echo -e "\n   Hint: if you want \$HOME as DOS drive D:, then use the '-home' option"
     fi
   fi
 else
@@ -366,39 +315,32 @@ if [ -n "$LREDIRHOME" ]; then
 fi
 
 if [ $UID = 0 ]; then
-  # User is logged in as root. Need to check wether the config files
+  # User is logged in as root. Need to check whether the config files
   # are safe and not world writeable
 
-  if ! su - nobody -c "\
-	test -w $BOOT_DIR_PATH/conf && exit 1; \
-	test -w $BOOT_DIR_PATH/conf/global.conf && exit 1; \
-	test -w $BOOT_DIR_PATH/conf/dosemu.conf && exit 1; \
-	test -w $BOOT_DIR_PATH/conf/dosemurc && exit 1; \
-	exit 0  "; then
+  if /bin/ls -l $HOME/.dosemurc 2> /dev/null | /bin/grep ^........w > /dev/null; then
     echo "
-  Your are logged in as user root. The local configuration within
+  You are logged in as user root. The local configuration within
   this DOSEMU installation is world writeable and may compromise your system.
   Either use a normal unprivileged user installation or protect the following
   directories/files against everybody except root:
-	$BOOT_DIR_PATH/conf
-	$BOOT_DIR_PATH/conf/global.conf
-	$BOOT_DIR_PATH/conf/dosemu.conf
-	$BOOT_DIR_PATH/conf/dosemurc
+	$HOME/.dosemurc
 "
     exit 1
   fi
 fi
 
-
-BINARY=$BOOT_DIR_PATH/bin/dosemu.bin
-LOG=$BOOT_DIR_PATH/boot.log
-MAINARGS="$XFLAG --Flibdir $BOOT_DIR_PATH/conf --Fimagedir $BOOT_DIR_PATH \
-	-f $BOOT_DIR_PATH/conf/dosemurc -O"
+if [ -n "$IS_SYSTEM_WIDE" ] ; then
+  BINARY=dosemu.bin
+else
+  BINARY=$BOOT_DIR_PATH/bin/dosemu.bin
+fi
+LOG=$HOME/.dosemu/boot.log
 
 if [ -z "$STRING_I" ]; then
-  $BINARY 2>$LOG $MAINARGS "${par[@]}"
+  $BINARY 2>$LOG $XFLAG -O "${par[@]}"
 else
-  $BINARY 2>$LOG $MAINARGS -I "$STRING_I" "${par[@]}"
+  $BINARY 2>$LOG $XFLAG -I "$STRING_I" -O "${par[@]}"
 fi
 
 if [ -n "XFLAG" ]; then
@@ -426,5 +368,4 @@ if [ -n "XFLAG" ]; then
 fi
 
 umask 077
-echo "$BOOT_DIR_PATH" > $BPATH_FILE
 exit 0

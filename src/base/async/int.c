@@ -37,6 +37,7 @@
 #include "priv.h"
 #include "doshelpers.h"
 #include "utilities.h"
+#include "redirect.h"
 
 #include "joystick.h"
 
@@ -1522,8 +1523,6 @@ static void int19(u_char i) {
  */
 static void redirect_devices()
 {
-  extern int RedirectDisk(int, char *, int);
-
   static char s[256] = "\\\\LINUX\\FS", *t = s + 10;
   int i, j;
 

@@ -79,7 +79,7 @@ sub merge_grammar_rule {
   $i = $$dir{$key};
   $$grammar[$i] =~ /^\S+?\s*:\s*(.*)/s;
   $rest = $1;
-  $rule =~ s/[ \t]*;\s*$//s;	# remove trailing ';'
+  $rule =~ s/[ \t]*;\s*\n//s;	# remove trailing ';'
   $rule =~ s/^(\S+?\s*:\s*)\|\s*/$1/s; # to be save: remove leading '|'
   $$grammar[$i] = "$rule\t\t| $rest";
 }

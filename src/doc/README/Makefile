@@ -12,7 +12,7 @@ HTML = $(DOCSOURCES:.sgml=.html)
 SECTIONS = config SECURITY sound lredir runasuser CDROM \
 	X Windows mouse mgarrot batch commands keymap dosnet Winnet
 
-TECHSECTIONS = config-tech port-io vif newkbd \
+TECHSECTIONS = config-tech port-io vif newnewkbd newkbd \
 	HOGTHRESHOLD priv timing pentium DANG-tech mkfatimage mkfatimage16 doc sound-tech \
 	dma pic dosdebug serial recover net cpuemu mfsnls
 
@@ -21,6 +21,8 @@ all:    txt html tex
 txt:    $(TXT)
 
 html:   $(HTML)
+
+htmls:  $(HTMLS)
 
 tex:    $(DVI)
 
@@ -32,6 +34,9 @@ $(TXT): %.txt: %.sgml
 
 $(DVI): %.dvi: %.sgml
 	sgmltools -b dvi $<
+
+$(HTMLS):
+	../tools/doSgmlTools.pl -s $<
 
 $(HTML): %.html: %.sgml
 	../tools/doSgmlTools.pl -h $<

@@ -11,11 +11,20 @@ config {
   cpuemu on
   aspi on
   svgalib on
-  pthreads off
   plugin_keyboard off
   plugin_kbd_unicode on
   plugin_extra_charsets on
   plugin_term on
   plugin_translate on
   plugin_demo off
+  target_cpu auto
+  prefix /usr/local
+  bindir ${prefix}/bin
+  sysconfdir /etc/dosemu
+  datadir ${prefix}/share
+  mandir ${datadir}/man
+  docdir ${datadir}/doc/dosemu
+  syshdimagedir /var/lib/dosemu
+  x11fontdir ${datadir}/dosemu/Xfonts
+  fdtarball dosemu-freedos-bin.tgz
 }
