@@ -10,7 +10,6 @@
 struct p_fops {
   int (*open) (int prtnum);
   int (*write) (int prtnum, int data);
-  int (*flush) (int prnum);
   int (*close) (int prtnum);
   int (*realwrite) (int prnum, int data);
 };

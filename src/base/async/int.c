@@ -1510,7 +1510,6 @@ ushort *base=SCREEN_ADR(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
 	printer_write(0, 0x0d);
 	printer_write(0, 0x0a);
     }
-    printer_flush(0);
     printer_close(0);
 }
 

@@ -74,113 +74,85 @@ int int17(void)
   return 1;
 }
 
-static int file_printer_open(int prnum)
+static int dev_printer_open(int prnum)
 {
-  int um;
-
-  um = umask(026);
-  if (lpt[prnum].file == NULL) {
-    if (!lpt[prnum].dev) {
-      lpt[prnum].file = tmpfile();
-      p_printf("LPT: opened tmpfile\n");
-    }
-    else {
-      lpt[prnum].file = fopen(lpt[prnum].dev, "a");
-    }
-  }
+  int um = umask(026);
+  lpt[prnum].file = fopen(lpt[prnum].dev, "a");
   umask(um);
+  return 0;
+}
 
-  p_printf("LPT: opened printer %d to %s, file %p\n", prnum,
-	   lpt[prnum].dev ? lpt[prnum].dev : "<<NODEV>>",
-           (void *) lpt[prnum].file);
+static int pipe_printer_open(int prnum)
+{
+  size_t cmdbuflen;
+  char *cmdbuf;
+  
+  cmdbuflen = strlen(lpt[prnum].prtcmd) + 1 +
+    strlen(lpt[prnum].prtopt) + 1;
+
+  cmdbuf = malloc(cmdbuflen);
+  if (!cmdbuf) {
+    fprintf(stderr, "out of memory, giving up\n");
+    longjmp(NotJEnv, 0x4d);
+  }
+
+  strcpy(cmdbuf, lpt[prnum].prtcmd);
+  strcat(cmdbuf, " ");
+  strcat(cmdbuf, lpt[prnum].prtopt);
+  p_printf("LPT: doing printer command ..%s..\n",
+	   cmdbuf);
+
+  lpt[prnum].file = popen(cmdbuf, "w");
+  if (lpt[prnum].file == NULL)
+    error("system(\"%s\") in lpt.c failed, cannot print!\
+  Command returned error %s\n", cmdbuf, strerror(errno));
+  free(cmdbuf);
   return 0;
 }
 
 int printer_open(int prnum)
 {
-  return lpt[prnum].fops.open(prnum);
+  int rc;
+
+  if (lpt[prnum].file != NULL)
+    return 0;
+
+  rc = lpt[prnum].fops.open(prnum);
+  /* use line buffering so we don't need to have a long wait for output */
+  setvbuf(lpt[prnum].file, NULL, _IOLBF, 0);
+  p_printf("LPT: opened printer %d to %s, file %p\n", prnum,
+	   lpt[prnum].dev ? lpt[prnum].dev : "<<NODEV>>",
+           (void *) lpt[prnum].file);
+  return rc;
 }
 
-static int file_printer_close(int prnum)
+static int dev_printer_close(int prnum)
 {
-  p_printf("LPT: closing printer %d, %s\n", prnum,
-	   lpt[prnum].dev ? lpt[prnum].dev : "<<NODEV>>");
   if (lpt[prnum].file != NULL)
     fclose(lpt[prnum].file);
+  return 0;
+}
+
+static int pipe_printer_close(int prnum)
+{
+  if (lpt[prnum].file != NULL)
+    pclose(lpt[prnum].file);
   lpt[prnum].file = NULL;
-
-  /* delete any temporary files */
-  if (lpt[prnum].prtcmd && lpt[prnum].dev) {
-    unlink(lpt[prnum].dev);
-    free(lpt[prnum].dev);
-    lpt[prnum].dev = NULL;
-  }
-
-  lpt[prnum].remaining = -1;
   return 0;
 }
 
 int printer_close(int prnum)
 {
-  if (lpt[prnum].fops.close)
+  if (lpt[prnum].fops.close) {
+    p_printf("LPT: closing printer %d, %s\n", prnum,
+	     lpt[prnum].dev ? lpt[prnum].dev : "<<NODEV>>");
+
     lpt[prnum].fops.close(prnum);
-  return 0;
-}
-
-static int file_printer_flush(int prnum)
-{
-  p_printf("LPT: flushing printer %d\n", prnum);
-
-  fflush(lpt[prnum].file);
-
-  if (lpt[prnum].prtcmd) {
-    size_t cmdbuflen, bufsize;
-    FILE *pipe;
-    char *buf, *cmdbuf;
-    
-    cmdbuflen = strlen(lpt[prnum].prtcmd) + 1 +
-                strlen(lpt[prnum].prtopt) + 1;
-
-    cmdbuf = malloc(cmdbuflen);
-    if (!cmdbuf) {
-      fprintf(stderr, "out of memory, giving up\n");
-      longjmp(NotJEnv, 0x4d);
-    }
-
-    strcpy(cmdbuf, lpt[prnum].prtcmd);
-    strcat(cmdbuf, " ");
-    strcat(cmdbuf, lpt[prnum].prtopt);
-    p_printf("LPT: doing printer command ..%s..\n",
-	     cmdbuf);
-
-    pipe = popen(cmdbuf, "w");
-    if (pipe == NULL)
-      error("system(\"%s\") in lpt.c failed, cannot print!\
-  Command returned error %s\n", cmdbuf, strerror(errno));
-    free(cmdbuf);
-
-    bufsize = ftell(lpt[prnum].file);
-    buf = malloc(bufsize);
-    if (!buf) {
-      fprintf(stderr, "out of memory, giving up\n");
-      longjmp(NotJEnv, 0x4d);
-    }
-    fseek(lpt[prnum].file, 0, SEEK_SET);
-    fread(buf, 1, bufsize, lpt[prnum].file);
-    fwrite(buf, 1, bufsize, pipe);
-    pclose(pipe);
-    free(buf);
-    fseek(lpt[prnum].file, 0, SEEK_SET);
+    lpt[prnum].file = NULL;
+    lpt[prnum].remaining = -1;
   }
-
-  /* mark not accessed */
-  lpt[prnum].remaining = -1;
+  lpt[prnum].fops.write = stub_printer_write;
   return 0;
-}
-
-int printer_flush(int prnum)
-{
-  return lpt[prnum].fops.flush(prnum);
 }
 
 static int stub_printer_write(int prnum, int outchar)
@@ -223,14 +195,21 @@ printer_mem_setup(void)
  *
  * DANG_END_FUNCTIONS
  */
-static struct p_fops def_pfops =
+static struct p_fops dev_pfops =
 {
-  file_printer_open,
+  dev_printer_open,
   stub_printer_write,
-  file_printer_flush,
-  file_printer_close,
+  dev_printer_close,
   file_printer_write
 };
+static struct p_fops pipe_pfops =
+{
+  pipe_printer_open,
+  stub_printer_write,
+  pipe_printer_close,
+  file_printer_write
+};
+
 void
 printer_init(void)
 {
@@ -240,7 +219,10 @@ printer_init(void)
     p_printf("LPT: initializing printer %s\n", lpt[i].dev ? lpt[i].dev : "<<NODEV>>");
     lpt[i].file = NULL;
     lpt[i].remaining = -1;	/* mark not accessed yet */
-    lpt[i].fops = def_pfops;
+    if (lpt[i].dev)
+      lpt[i].fops = dev_pfops;
+    else
+      lpt[i].fops = pipe_pfops;
     if (i >= config.num_lpt) lpt[i].base_port = 0;
   }
 }
@@ -266,10 +248,9 @@ printer_tick(u_long secno)
     if (lpt[i].remaining >= 0) {
       p_printf("LPT: doing real tick for %d\n", i);
       if (lpt[i].remaining) {
-        reset_idle();
 	lpt[i].remaining--;
 	if (!lpt[i].remaining)
-	  printer_flush(i);
+	  printer_close(i);
       }
     }
   }
