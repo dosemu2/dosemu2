@@ -1886,7 +1886,7 @@
 
   1144..  mmkkffaattiimmaaggee ---- MMaakkee aa FFAATT hhddiimmaaggee pprree--llooaaddeedd wwiitthh ffiilleess
 
-  This section from Pasi Eronen <peronen@vipunen.hut.fi> (1995-08-28)
+  This section from Pasi Eronen <pe@iki.fi> (1995-08-28)
 
   To put it brief, mkfatimage creates a hdimage file for dosemu that's
   pre-loaded with the files specified on the command line. It's purpose

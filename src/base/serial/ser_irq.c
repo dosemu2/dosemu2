@@ -368,25 +368,11 @@ void serial_int_engine(int num, int int_requested)
   /* Safety code to avoid receive and transmit while DLAB is set high */
   if (com[num].DLAB) int_requested &= ~(RX_INTR | TX_INTR);
 
-  /* At this point, we don't much care which function is requested; that  
-   * is taken care of in the serial_int_engine.  However, if interrupts are
-   * disabled, then the Interrupt Identification Register must be set.
-   */
-
-  /* See if a requested interrupt is enabled */
-  if (!com[num].int_pend && com[num].int_enab && com[num].interrupt) {
-    if ((int_requested | com[num].int_condition) & com[num].IER) {
-      if(s3_printf) s_printf("SER%d: Func pic_request intlevel=%d, int_requested=%d\n", 
-                 num, com[num].interrupt, int_requested);
-      /*irq_source_num[com[num].interrupt] = num;*/ /* Permit shared IRQ */
-      com[num].int_pend = 1;			/* Interrupt is now pending */
-      pic_request(com[num].interrupt);		/* Flag PIC for interrupt */
-      return;
-    }
+  if (com[num].tx_trigger) {
+    com[num].tx_timer = 0;
+    transmit_engine(num);
   }
-  /* Else, the below code executes if we aren't going to invoke interrupt */
-
-  /* Update the UART status immediately */
+  
   check_and_update_uart_status(num);
    
   /* Update the IIR status immediately */
@@ -401,6 +387,23 @@ void serial_int_engine(int num, int int_requested)
     flag_IIR_transmit(num);		/* Transmit */
   else if (tmp & MS_INTR)
     flag_IIR_modstat(num);		/* Modem Status */
+  
+  /* At this point, we don't much care which function is requested; that  
+   * is taken care of in the serial_int_engine.  However, if interrupts are
+   * disabled, then the Interrupt Identification Register must be set.
+   */
+
+  /* See if a requested interrupt is enabled */
+  if (!com[num].int_pend && com[num].int_enab && com[num].interrupt) {
+    
+    if ((int_requested | com[num].int_condition) & com[num].IER) {
+      if(s3_printf) s_printf("SER%d: Func pic_request intlevel=%d, int_requested=%d\n", 
+                 num, com[num].interrupt, int_requested);
+      /*irq_source_num[com[num].interrupt] = num;*/ /* Permit shared IRQ */
+      com[num].int_pend = 1;			/* Interrupt is now pending */
+      pic_request(com[num].interrupt);		/* Flag PIC for interrupt */
+    }
+  }
 }  
 
 

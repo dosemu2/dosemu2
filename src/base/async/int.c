@@ -521,7 +521,8 @@ static void int15(u_char i)
     switch (LO(ax))
     {
     case 0x00:			/* giveup timeslice */
-      usleep(INT15_IDLE_USECS);
+      if (config.hogthreshold)
+        usleep(INT15_IDLE_USECS);
       return;
     }
     CARRY;
@@ -1208,7 +1209,8 @@ static void int2f(u_char i)
 {
   switch (LWORD(eax)) {
   case INT2F_IDLE_MAGIC:   /* magic "give up time slice" value */
-    usleep(INT2F_IDLE_USECS);
+    if (config.hogthreshold)
+      usleep(INT2F_IDLE_USECS);
     LWORD(eax) = 0;
     return;
 

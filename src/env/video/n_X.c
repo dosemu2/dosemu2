@@ -48,7 +48,7 @@
  *
  * 1995-08-22: Lots of cleaning and rewriting, more comments, MappingNotify 
  * event support, selection support (cut only), fixed some cursor redrawing 
- * bugs. -- Pasi Eronen (peronen@vipunen.hut.fi)
+ * bugs. -- Pasi Eronen (pe@iki.fi)
  *
  *
  * 1996/04/29: Added the ability to use MIT-SHM X extensions to speed

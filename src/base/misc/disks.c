@@ -26,6 +26,7 @@
 #include "disks.h"
 #include "priv.h"
 
+static int disks_initiated = 0;
 
 #define FDISKS config.fdisks
 #define HDISKS config.hdisks
@@ -522,6 +523,7 @@ disk_close(void)
 {
   struct disk *dp;
 
+  if (!disks_initiated) return;  /* just to be safe */
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
     if (dp->removeable && dp->fdesc >= 0) {
       d_printf("DISK: Closing a disk\n");
@@ -684,10 +686,12 @@ void
 disk_close_all(void)
 {
   struct disk *dp;
-
+  
+  if (!disks_initiated) return;  /* prevent idiocy */
   if (config.bootdisk && bootdisk.fdesc >= 0) {
+    d_printf("Boot disk Closing %x\n", bootdisk.fdesc);
     (void) close(bootdisk.fdesc);
-    bootdisk.fdesc = 0;
+    bootdisk.fdesc = -1;
     d_printf("BOOTDISK Closing\n");
   }
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
@@ -704,6 +708,7 @@ disk_close_all(void)
       dp->fdesc = -1;
     }
   }
+  disks_initiated = 0;
 }
 
 /*
@@ -726,6 +731,7 @@ disk_init(void)
 
 #endif
 
+  disks_initiated = 1;  /* disk_init has been called */
   if (config.bootdisk) {
     enter_priv_on();
     bootdisk.fdesc = open(bootdisk.dev_name,

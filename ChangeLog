@@ -1,3 +1,18 @@
+97/12/05 ver. 0.67.16.4 unofficial pre-release
+	From Eric
+	- bug fixer for the disk code, sometimes disk_close_all called
+	  before disk_init and closing stdin. (src/base/misc/disks.c)
+	- If the hogthreshold code is disabled _don't_ sleep.
+	  (src/base/async/int.c)
+	- Fix to make pic_sti and pic_cli more robust.
+	  (src/include/pic.h)
+	- Modifications to cpu.h in preperation for the do_int patch
+	From "Robert de Bath" <rd103891@mayday.cix.co.uk>
+	- fix to allow Ctrl-Alt-Fx keys to be pressed on the Slang & the X
+	  keyboards, don't eat them. (base/keyboard/serv_xlat.c)
+	From Pasi Eronen <pe@iki.fi> (note his new E-mail address!)
+	- fix for serial stuff in ser_irq.c
+	- changed E-mail address
 97/12/04 ver. 0.67.16.3 unofficial pre-release
 	From Hans
 	- further working on keyboard cleanup. In principal no functionality

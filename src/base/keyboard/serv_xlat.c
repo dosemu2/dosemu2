@@ -554,8 +554,10 @@ static Boolean handle_dosemu_keys(t_keysym key) {
                 k_printf("KBD: switching to console #%d\n",vc_num);
                 shiftstate &= ~(L_CTRL|R_CTRL|L_ALT|R_ALT);
                 vt_activate(vc_num);
+		return 1;
              }
-             return 1;
+	     /* Slang & X can have C-A-Fx */
+             return 0;
          
        case KEY_LEFT:
        case KEY_RIGHT:

@@ -4,6 +4,12 @@
 
 #ifndef CPU_H
 #define CPU_H
+
+/* pic.h & dpmi.h are just for set_IF() & clear_IF() */
+#include "pic.h"
+extern int dpmi_eflags;  /* don't include 'dpmi.h' just for this! */
+#include "types.h"
+
 #ifdef BIOSSEG
 #undef BIOSSEG
 #endif
@@ -94,17 +100,8 @@
 #define _FS      ((__u16)(vm86s.regs.fs))
 #define _GS      ((__u16)(vm86s.regs.gs))
 #define _EFLAGS  ((__u32)(vm86s.regs.eflags))
+#define _FLAGS   (*(__u16 *)&vm86s.regs.eflags)
 
-#define __sti__  (WRITE_FLAGS(READ_FLAGS() | IF))
-#define __cli__  (WRITE_FLAGS(READ_FLAGS() & ~IF))
-#define __stc__  (WRITE_FLAGS(READ_FLAGS() | CF))
-#define __clc__  (WRITE_FLAGS(READ_FLAGS() & ~CF))
-#define __std__  (WRITE_FLAGS(READ_FLAGS() | DF))
-#define __cld__  (WRITE_FLAGS(READ_FLAGS() & ~DF))
-#if 0
-#define CARRY    __stc__
-#define NOCARRY  __clc__
-#endif
 
 /* these are used like:  LO(ax) = 2 (sets al to 2) */
 #define LO(reg)  (*(unsigned char *)&REG(e##reg))
@@ -122,6 +119,9 @@
 
 /* this is used like: SEG_ADR((char *), es, bx) */
 #define SEG_ADR(type, seg, reg)  type((LWORD(seg) << 4) + LWORD(e##reg))
+
+/* alternative SEG:OFF to linear conversion macro */
+#define SEGOFF2LINEAR(seg, off)  ((((Bit32u)(seg)) << 4) + (off))
 
 #define WRITE_FLAGS(val)    LWORD(eflags) = (val)
 #define WRITE_FLAGSE(val)    REG(eflags) = (val)
@@ -220,8 +220,41 @@ static __inline__ void reset_revectored(int nr, unsigned char * bitmap)
 #define IOPL_MASK  (3 << 12)
 #endif
 
-/*#define vflags ((REG(eflags) & VIF)? LWORD(eflags) | IF : LWORD(eflags) & ~IF)*/
-#define vflags ((READ_FLAGSE() & VIF)? READ_FLAGS() | IF : READ_FLAGS() & ~IF)
+  /* Flag setting and clearing, and testing */
+        /* interrupt flag */
+#define set_IF() ((_EFLAGS |= (VIF | IF)), (dpmi_eflags |= IF), pic_sti())
+#define clear_IF() ((_EFLAGS &= ~(VIF | IF)), (dpmi_eflags &= ~IF), pic_cli())
+#define isset_IF() ((_EFLAGS & VIF) != 0)
+       /* carry flag */
+#define set_CF() (_EFLAGS |= CF)
+#define clear_CF() (_EFLAGS &= ~CF)
+#define isset_CF() ((_EFLAGS & CF) != 0)
+       /* direction flag */
+#define set_DF() (_EFLAGS |= DF)
+#define clear_DF() (_EFLAGS &= ~DF)
+#define isset_DF() ((_EFLAGS & DF) != 0)
+       /* nested task flag */
+#define set_NT() (_EFLAGS |= NT)
+#define clear_NT() (_EFLAGS &= ~NT)
+#define isset_NT() ((_EFLAGS & NT) != 0)
+       /* trap flag */
+#define set_TF() (_EFLAGS |= TF)
+#define clear_TF() (_EFLAGS &= ~TF)
+#define isset_TF() ((_EFLAGS & TF) != 0)
+       /* Virtual Interrupt Pending flag */
+#define set_VIP()   (_EFLAGS |= VIP)
+#define clear_VIP() (_EFLAGS &= ~VIP)
+#define isset_VIP()   ((_EFLAGS & VIP) != 0)
+
+#define set_EFLAGS(eflags) ((_EFLAGS = eflags), ((_EFLAGS & IF)? set_IF(): clear_IF()))
+#define set_FLAGS(flags) ((_FLAGS = flags), ((_FLAGS & IF)? set_IF(): clear_IF()))
+#define read_EFLAGS() (isset_IF()? (_EFLAGS | IF):(_EFLAGS & ~IF))
+#define read_FLAGS()  (isset_IF()? (_FLAGS | IF):(_FLAGS & ~IF))
+
+#define CARRY   set_CF()
+#define NOCARRY clear_CF()
+
+#define vflags read_FLAGS()
 
 #if 0
 /* this is the array of interrupt vectors */
@@ -253,15 +286,6 @@ EXTERN struct vec_t *ivecs;
 /*
 #define WORD(i) (unsigned short)(i)
 */
-
-#if 0
-#define CARRY (LWORD(eflags) |= CF)
-#define NOCARRY (LWORD(eflags) &= ~CF)
-#else 
-#define CARRY   ( WRITE_FLAGS(READ_FLAGS() |  CF) )
-#define NOCARRY ( WRITE_FLAGS(READ_FLAGS() & ~CF) )
-#endif
-
 
 #ifdef __linux__
   #include <asm/sigcontext.h>

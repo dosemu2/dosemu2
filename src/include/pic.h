@@ -36,6 +36,7 @@
 
 
 #include "extern.h"
+#include "types.h"
 #define NEVER 0x80000000
 #define PIC_NMI   0        /*  non-maskable interrupt 0x02 */
 #define PIC_IRQ0  1        /*  timer -    usually int 0x08 */
@@ -126,8 +127,8 @@ void pic_sched(int ilevel, int interval);          /* schedule an interrupt */
 /* The following are too simple to be anything but in-line */
 
 #define pic_set_mask pic_imr=(pic0_imr|pic1_imr|pice_imr|pic_iflag)
-#define pic_sti() pic_iflag=0;pic_set_mask          /*    emulate STI      */
-#define pic_cli() pic_iflag=PIC_IRQALL;pic_set_mask /*    emulate CLI      */
+#define pic_sti() (pic_iflag=0,pic_set_mask, (void)0)          /*    emulate STI      */
+#define pic_cli() (pic_iflag=PIC_IRQALL,pic_set_mask, (void)0) /*    emulate CLI      */
 
 /* Experimental TIMER-IRQ CHAIN code */
 extern void timer_int_engine(void);

@@ -1,8 +1,8 @@
 <sect>mkfatimage -- Make a FAT hdimage pre-loaded with files
 <p>
 This section from Pasi Eronen 
-<htmlurl url="mailto:peronen@vipunen.hut.fi"
-name="&lt;peronen@vipunen.hut.fi&gt;"> (1995-08-28)
+<htmlurl url="mailto:pe@iki.fi"
+name="&lt;pe@iki.fi&gt;"> (1995-08-28)
 <p>
 To put it brief, mkfatimage creates a hdimage file for dosemu that's
 pre-loaded with the files specified on the command line. It's purpose is to
