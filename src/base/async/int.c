@@ -1953,7 +1953,7 @@ static int int33(void) {
 /* New code introduced by Ed Sirett (ed@cityscape.co.uk)  26/1/95 to give 
  * garrot control when the dos app is polling the mouse and the mouse is 
  * taking a break. */
-  
+#if 0
   /* set the mouse int33 back to where it should be in case DOS put it to iret */
   if (config.mouse.intdrv && IS_IRET(0x33)) {
     SETIVEC(0x33, BIOSSEG, INT_OFF(0x33));
@@ -1969,8 +1969,10 @@ static int int33(void) {
     fake_int_to(Mouse_SEG, Mouse_HLT_OFF);
     return 0;
   }
+#endif
   mouse_int();
-  return int33_check_hog();
+  int33_check_hog();
+  return 1;
 }
 
 static int int33_check_hog(void)
