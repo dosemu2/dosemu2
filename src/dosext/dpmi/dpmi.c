@@ -730,9 +730,12 @@ static int ConvertSegmentToDescriptor32(unsigned short segment, int limit_is_32)
   int i;
   D_printf("DPMI: convert seg %#x to desc\n", segment);
   for (i=1;i<MAX_SELECTORS;i++)
-    if ((Segments[i].base_addr==baseaddr) && (Segments[i].limit==limit) &&
-	(Segments[i].type==MODIFY_LDT_CONTENTS_DATA) && Segments[i].used)
+    if ((Segments[i].base_addr==baseaddr) && (Segments[i].limit>=0xffff ||
+	 Segments[i].limit==0xff /* 0xff is the limit of the PSP seg */) &&
+	(Segments[i].type==MODIFY_LDT_CONTENTS_DATA) && Segments[i].used) {
+      D_printf("DPMI: found descriptor at %#x\n", (i<<3) | 0x0007);
       return (i<<3) | 0x0007;
+    }
   D_printf("DPMI: SEG at base=%#lx not found, allocate a new one\n", baseaddr);
   if (!(selector = AllocateDescriptors(1))) return 0;
   if (SetSelector(selector, baseaddr, limit, DPMIclient_is_32,
