@@ -138,9 +138,9 @@ static inline void set_cursor_shape(ushort shape) {
    cs&=0x0F;
    ce&=0x0F;
    if (ce>3 && ce<12 && (config.cardtype != CARD_MDA)) {
-      if (cs>ce-3) cs+=font_height-ce-1;
-      else if (cs>3) cs=font_height/2;
-      ce=font_height-1;
+      if (cs>ce-3) cs+=vga_font_height-ce-1;
+      else if (cs>3) cs=vga_font_height/2;
+      ce=vga_font_height-1;
    }
    i10_msg("mapped cursor: start %d, end %d\n", cs, ce);
    CURSOR_START(cursor_shape)=cs;
