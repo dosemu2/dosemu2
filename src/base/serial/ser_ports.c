@@ -713,7 +713,11 @@ static void put_tx(int num, int val)
     rtrn = RPT_SYSCALL(write(com[num].fd, &val, 1));   /* Attempt char xmit */
     if (rtrn != 1) 				/* Did transmit fail? */
       com[num].tx_overflow = 1; 		/* Set overflow flag */
+#if 0
+    /* This slows the transfer. There might be better way of avoiding
+     * queueing. */
     else tcdrain(com[num].fd);
+#endif
   }
   if (!com[num].fifo_enable ||
        com[num].tx_buf_bytes >= (TX_BUFFER_SIZE-1)) 	/* Is FIFO full? */
