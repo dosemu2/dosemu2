@@ -10,6 +10,7 @@ config {
   cpuemu off
   aspi on
   svgalib off
+  gpm on
   plugin_keyboard off
   plugin_kbd_unicode on
   plugin_extra_charsets on

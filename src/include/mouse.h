@@ -31,6 +31,7 @@
 #define MOUSE_X 9
 #define MOUSE_IMPS2 10
 #define MOUSE_XTERM 11
+#define MOUSE_GPM 12
 
 /* types of mouse events */
 #define DELTA_CURSOR		1

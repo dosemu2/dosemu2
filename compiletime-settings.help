@@ -96,6 +96,12 @@ svgalib		"compile with svgalib support" svgalib
 		cards and your console may freeze anyway. Currently reported
 		as 'working' are riva TNT 128 and sis.
 
+gpm		"compile with gpm support" gpm
+
+		This enables support for using GPM, the mouse server for the
+		Linux console; it is only used when you run DOSEMU on the 
+		Linux console without graphics (unprivileged).
+
 plugin_keyboard	"Use old keyboard code" plugin_keyboard
 
 plugin_kbd_unicode "Use new keyboard code" plugin_kbd_unicode

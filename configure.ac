@@ -174,6 +174,22 @@ else
   AC_MSG_NOTICE(Compiling without svgalib support...)
 fi
 
+dnl Check whether we have gpm and whether to use it
+
+AC_ARG_WITH(gpm,
+	[  --without-gpm           don't use gpm if available])
+if test "$with_gpm" != "no"; then
+  AC_CHECK_LIB(gpm, Gpm_Open, , with_gpm="no")
+fi
+if test "$with_gpm" != "no"; then
+  AC_MSG_NOTICE(Compiling with GPM support...)
+  AC_DEFINE(USE_GPM)
+  USE_GPM="USE_GPM=1"
+  AC_SUBST(USE_GPM)
+else
+  AC_MSG_NOTICE(Compiling without GPM support...)
+fi
+
 dnl Check whether we have pthreads and whether to use it
 
 AC_ARG_WITH(pthreads)
@@ -712,6 +728,9 @@ AH_TEMPLATE([WANT_WINDOWS],
 
 AH_TEMPLATE([USE_SVGALIB],
 [ DEFINE this, if you want svgalib support ])
+
+AH_TEMPLATE([USE_GPM],
+[ DEFINE this, if you want GPM support ])
 
 AH_TEMPLATE([USE_PTHREADS],
 [ DEFINE this, if you want pthreads support ])

@@ -47,6 +47,11 @@
 #include "emu.h"
 #include "mouse.h"
 
+#ifdef USE_GPM
+#include <gpm.h>
+#include "video.h"
+#endif
+
 static void DOSEMUSetMouseSpeed(int old, int new, unsigned cflag);
 
 /*
@@ -453,11 +458,39 @@ void DOSEMUMouseEvents(void)
         
 	int nBytes, nBytesProc;
 
+	nBytes = 0;
+#ifdef USE_GPM
+	if (mice->type == MOUSE_GPM) {
+          static unsigned char buttons;
+	  Gpm_Event ev;
+	  Gpm_GetEvent(&ev);
+	  m_printf("MOUSE: Get GPM Event, %d\n", ev.type);
+	  switch (GPM_BARE_EVENTS(ev.type)) {
+	  case GPM_MOVE:
+	  case GPM_DRAG:
+	    mouse_move_absolute(ev.x, ev.y, co, li);
+	    break;
+	  case GPM_UP:
+	    if (ev.buttons & GPM_B_LEFT) buttons &= ~GPM_B_LEFT;
+	    if (ev.buttons & GPM_B_MIDDLE) buttons &= ~GPM_B_MIDDLE;
+	    if (ev.buttons & GPM_B_RIGHT) buttons &= ~GPM_B_RIGHT;
+	    ev.buttons = buttons;
+            /* fall through */
+	  case GPM_DOWN:
+	    mouse_move_buttons(ev.buttons & GPM_B_LEFT,
+			       ev.buttons & GPM_B_MIDDLE,
+			       ev.buttons & GPM_B_RIGHT);
+            buttons = ev.buttons;
+            /* fall through */
+	  default:
+	    break;
+	  }
+	}
+	else
+#endif
 	if (!config.X && mice->type != MOUSE_XTERM)
 	  nBytes = RPT_SYSCALL(read(mice->fd, (char *)(rBuf+qEnd),
 	    sizeof(rBuf)-qEnd));
-	else
-	  nBytes = 0;
 	if (nBytes>0)
 	  qEnd += nBytes;
 	if (qBeg < qEnd) {

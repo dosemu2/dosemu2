@@ -22,9 +22,13 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <slang.h>
 
 #ifdef X_SUPPORT
 #include "../env/video/X.h"
+#endif
+#ifdef USE_GPM
+#include <gpm.h>
 #endif
 
 #include "emu.h"
@@ -36,6 +40,7 @@
 #include "serial.h"
 #include "port.h"
 #include "termio.h"
+#include "utilities.h"
 
 #include "dpmi.h"
 
@@ -1203,7 +1208,7 @@ mouse_set_gcur(void)
   memcpy((void *)mouse.graphcursormask,ptr+16,32);
 
   /* compile it so that it can acutally be drawn. */
-  if (mice->type != MOUSE_X && mice->type != MOUSE_XTERM) {
+  if (mice->type != MOUSE_X && mice->type != MOUSE_XTERM && mice->type != MOUSE_GPM) {
     define_graphics_cursor((short *)mouse.graphscreenmask,(short *)mouse.graphcursormask);
   }
 }
@@ -1804,6 +1809,19 @@ void mouse_sethandler(void)
   }
 }
 
+static int has_xterm_mouse_support(void)
+{
+  char *term = getenv("TERM");
+  char *term_entry, *xmouse_seq;
+
+  if (mice->fd >= 0 || term == NULL || config.vga || is_console(0))
+    return 0;
+
+  term_entry = SLtt_tigetent(term);
+  xmouse_seq = SLtt_tigetstr ("Km", &term_entry);
+  return xmouse_seq || !strncmp(term, "xterm", 5);
+}
+
 /*
  * DANG_BEGIN_FUNCTION mouse_init
  *
@@ -1843,9 +1861,10 @@ dosemu_mouse_init(void)
   else
   	mouse.threebuttons = FALSE;
 
+  mice->fd = -1;
+
 #ifdef X_SUPPORT
   if (config.X) {
-    mice->fd = -1;
     mice->intdrv = TRUE;
     mice->type = MOUSE_X;
     memcpy(p,mouse_ver,sizeof(mouse_ver));
@@ -1854,9 +1873,28 @@ dosemu_mouse_init(void)
   else 
 #endif
   {
-    char *term = getenv("TERM");
-    if( term && !strncmp("xterm", term, 5) ) {
-      mice->fd = -1;
+#ifdef USE_GPM
+    if (!config.vga && is_console( 0 )) {
+      Gpm_Connect conn;
+
+      conn.eventMask   = ~0;
+      conn.defaultMask = GPM_MOVE;
+      conn.minMod      = 0;
+      conn.maxMod      = 0;
+
+      mice->fd = Gpm_Open(&conn, 0);
+      if (mice->fd >= 0) {
+        mice->type = MOUSE_GPM;
+        mice->intdrv = TRUE;
+        add_to_io_select(mice->fd, mice->async_io, mouse_io_callback);
+        memcpy(p,mouse_ver,sizeof(mouse_ver));
+        m_printf("GPM MOUSE: Using GPM Mouse\n");
+      } else {
+        mice->fd = -1;
+      }
+    }
+#endif
+    if (has_xterm_mouse_support()) {
       mice->intdrv = TRUE;
       mice->type = MOUSE_XTERM;
       memcpy(p,mouse_ver,sizeof(mouse_ver));
@@ -1867,7 +1905,7 @@ dosemu_mouse_init(void)
       fflush (stdout);
       m_printf("XTERM MOUSE: Remote terminal mouse tracking enabled\n");
     }
-    else if (mice->intdrv) {
+    else if (mice->fd == -1 && mice->intdrv) {
       struct stat buf;
       m_printf("Opening internal mouse: %s\n", mice->dev);
       if (!parent_open_mouse())
@@ -1886,7 +1924,7 @@ dosemu_mouse_init(void)
       memcpy(p,mouse_ver,sizeof(mouse_ver));
       iodev_add_device(mice->dev);
     }
-    else {
+    else if (mice->fd == -1) {
       int x;
       for (x=0;x<config.num_ser;x++){
         sptr = &com[x];
@@ -2011,6 +2049,13 @@ dosemu_mouse_close(void)
   }
   
   if (mice->intdrv && mice->fd != -1 ) {
+#ifdef USE_GPM
+    if (mice->type == MOUSE_GPM) {
+      Gpm_Close();
+      m_printf("GPM MOUSE: Mouse tracking deinitialized\n");
+      return;
+    }
+#endif
     if (mice->oldset) {
       m_printf("mouse_close: calling tcsetattr\n");
       result=tcsetattr(mice->fd, TCSANOW, mice->oldset);
