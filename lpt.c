@@ -1,18 +1,26 @@
-#define LPT_C 1
-
 /* for the Linux dos emulator versions 0.49 and newer
  *
- * $Date: 1993/05/04 05:29:22 $
- * $Source: /usr/src/dos/RCS/lpt.c,v $
- * $Revision: 1.1 $
+ * $Date: 1993/11/12 12:43:18 $
+ * $Source: /home/src/dosemu0.49pl2/RCS/lpt.c,v $
+ * $Revision: 1.2 $
  * $State: Exp $
  *
  * $Log: lpt.c,v $
+ * Revision 1.2  1993/11/12  12:43:18  root
+ * Added patch from sdh.po.cwru.edu to stop mouse grabs.
+ *
+ * Revision 1.1  1993/11/12  12:32:17  root
+ * Initial revision
+ *
+ * Revision 1.1  1993/07/07  00:49:06  root
+ * Initial revision
+ *
  * Revision 1.1  1993/05/04  05:29:22  root
  * Initial revision
  *
  *
  */
+#define LPT_C 1
 
 #include <sys/types.h>
 #include <stdio.h>
@@ -40,6 +48,7 @@ struct p_fops def_pfops =
   printer_write
 };
 
+
 struct printer lpt[NUM_PRINTERS] =
 {
   { NULL   , "lpr", "%s", 5 },
@@ -47,33 +56,13 @@ struct printer lpt[NUM_PRINTERS] =
   { "lpt3" , NULL, NULL, 10 }
 };
 
-#if CHILD_PRINTER
-/* this function ALONE is run from the parent */
-void int17(void)
-{
-  struct ipcpkt int17pkt;
 
-  int17pkt.cmd = DMSG_PRINT;
-  int17pkt.u.params.param1 = LWORD(eax);
-  int17pkt.u.params.param2 = LWORD(edx);
-
-  ipc_sendpkt2child(&int17pkt);
-  ipc_recvpktfromchild(&int17pkt);
-
-  LWORD(eax) = int17pkt.u.params.param1;
-  LWORD(edx) = int17pkt.u.params.param2;
-}
-
-
-void child_int17(void)
-{
-#else
-void int17(void)
+void 
+int17(void)
   {
-#endif
 	int num;
 
-	if ((LWORD(edx)+1) > config.num_lpt)
+	if (LWORD(edx)+1 > config.num_lpt)
 	  {
 	    p_printf("LPT: print to non-defined printer LPT%d\n", 
 		     LWORD(edx)+1);
@@ -109,8 +98,12 @@ void int17(void)
 }
 
 
-int printer_open(int prnum)
+int 
+printer_open(int prnum)
 {
+  int um;
+  
+  um = umask(026);
   if (lpt[prnum].file == NULL) {
     if ( !lpt[prnum].dev) {
      lpt[prnum].dev = tmpnam(NULL);
@@ -123,10 +116,12 @@ int printer_open(int prnum)
 
   p_printf("LPT: opened printer %d to %s, file %x\n", prnum, 
 	   lpt[prnum].dev, lpt[prnum].file);
+  umask(um);
 }
 
 
-int printer_close(int prnum)
+int 
+printer_close(int prnum)
 {
   p_printf("LPT: closing printer %d, %s\n", prnum, lpt[prnum].dev);
   if (lpt[prnum].file != NULL) fclose(lpt[prnum].file);
@@ -142,7 +137,8 @@ int printer_close(int prnum)
 }
 
 
-int printer_flush(int prnum)
+int 
+printer_flush(int prnum)
 {
   int returnstat;
 
@@ -173,7 +169,8 @@ int printer_flush(int prnum)
 }
 
 
-int stub_printer_write(int prnum, int outchar)
+int 
+stub_printer_write(int prnum, int outchar)
 {
   (lpt[prnum].fops.open)(prnum);
 
@@ -184,7 +181,8 @@ int stub_printer_write(int prnum, int outchar)
 }
 
 
-int printer_write(int prnum, int outchar)
+int 
+printer_write(int prnum, int outchar)
 {
   lpt[prnum].remaining = lpt[prnum].delay;
 
@@ -193,7 +191,8 @@ int printer_write(int prnum, int outchar)
 }
 
 
-void init_all_printers(void)
+void 
+init_all_printers(void)
 {
   int i;
 
@@ -207,7 +206,8 @@ void init_all_printers(void)
 }
 
 
-void close_all_printers(void)
+void 
+close_all_printers(void)
 {
   int loop;
 
@@ -218,7 +218,9 @@ void close_all_printers(void)
     }
 }
 
-int printer_tick(u_long secno)
+
+int 
+printer_tick(u_long secno)
 {
   int i;
 

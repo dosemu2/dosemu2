@@ -1,12 +1,18 @@
 /* mutex.c for the DOS emulator 
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1993/05/04 05:29:22 $
- * $Source: /usr/src/dos/RCS/mutex.c,v $
+ * $Date: 1993/11/12 12:32:17 $
+ * $Source: /home/src/dosemu0.49pl2/RCS/mutex.c,v $
  * $Revision: 1.1 $
  * $State: Exp $
  *
  * $Log: mutex.c,v $
+ * Revision 1.1  1993/11/12  12:32:17  root
+ * Initial revision
+ *
+ * Revision 1.1  1993/07/07  00:49:06  root
+ * Initial revision
+ *
  * Revision 1.1  1993/05/04  05:29:22  root
  * Initial revision
  *

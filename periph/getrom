@@ -1,0 +1,8 @@
+# getrom: get VBIOS ROM image from /dev/mem
+#
+# $Date: 1993/11/12 12:41:41 $
+# $Source: /home/src/dosemu0.49pl2/periph/RCS/getrom,v $
+# $Revision: 1.1 $
+# $State: Exp $
+#
+dd if=/dev/mem bs=32k skip=24 count=2

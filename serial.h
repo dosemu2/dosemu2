@@ -108,6 +108,7 @@
 #define UART_MSR_DCTS	0x01	/* Delta CTS */
 #define UART_MSR_ANY_DELTA 0x0F	/* Any of the delta bits! */
 
+#include <termios.h>
 
 #include "mutex.h"
 
@@ -136,6 +137,8 @@ typedef struct serial_struct
   u_char LSR;
   u_char MSR;
   u_char SCR;
+
+  struct termios oldsettings;
   
 } serial_t;
 

@@ -3,12 +3,25 @@
  *
  * rudimentary attempt at config file parsing for dosemu
  *
- * $Date: 1993/05/04 05:29:22 $
- * $Source: /usr/src/dos/RCS/parse.c,v $
+ * $Date: 1993/11/12 12:32:17 $
+ * $Source: /home/src/dosemu0.49pl2/RCS/parse.c,v $
  * $Revision: 1.1 $
  * $State: Exp $
  *
  * $Log: parse.c,v $
+ * Revision 1.1  1993/11/12  12:32:17  root
+ * Initial revision
+ *
+ * Revision 1.3  1993/07/07  21:42:04  root
+ * minor changes for -Wall
+ *
+ * Revision 1.2  1993/07/07  01:32:28  root
+ * added support for ~/.dosrc and parse_config() now takes a filename
+ * argument to override .dosrc check.
+ *
+ * Revision 1.1  1993/07/07  00:49:06  root
+ * Initial revision
+ *
  * Revision 1.1  1993/05/04  05:29:22  root
  * Initial revision
  *
@@ -21,6 +34,7 @@
 #include <ctype.h>
 #include <malloc.h>
 #include <string.h>
+#include <setjmp.h>
 
 #include "config.h"
 #include "emu.h"
@@ -32,7 +46,8 @@
 
 extern struct config_info config;
 extern struct CPU cpu;
-extern int hdiskboot;
+
+jmp_buf exitpar;
 
 #define MAX_SER 2
 extern serial_t com[MAX_SER];
@@ -40,8 +55,8 @@ serial_t *sptr;
 serial_t nullser;
 int c_ser=0;
 
-#define MAX_HDISKS 4
 #define MAX_FDISKS 4
+#define MAX_HDISKS 4
 extern struct disk disktab[MAX_FDISKS];
 extern struct disk hdisktab[MAX_HDISKS];
 struct disk *dptr;
@@ -64,12 +79,13 @@ typedef enum { NULLTOK=0, LBRACE, RBRACE, TOP, SEC_COMMENT, SEC_FLOPPY,
 		 SEC_VIDEO, VAL_XMS, VAL_EMS, VAL_DOSMEM, PRED_RAWKEY,
 		 SEC_PRINTER, VAL_MATHCO, LCCOM, PRED_BOOTA, PRED_BOOTC,
 		 VAL_DEBUG, EOL_COMMENT, P_COMMAND, P_OPTIONS, P_TIMEOUT,
-		 P_FILE, SEC_PORTS, PRT_RANGE, VAL_SPEAKER, 
+		 P_FILE, SEC_PORTS, PRT_RANGE, PRT_RDONLY, PRT_WRONLY,
+		 PRT_RDWR, PRT_ANDMASK, PRT_ORMASK, VAL_SPEAKER, 
 		 V_CHUNKS, V_CHIPSET, V_MDA, V_VGA, V_CGA, V_EGA, V_VBIOSF,
 		 V_VBIOSC, V_CONSOLE, V_FULLREST, V_PARTIALREST, V_GRAPHICS,
 		 V_MEMSIZE, V_VBIOSM,  VAL_HOGTHRESHOLD, VAL_TIMER,
 		 SEC_SERIAL, S_DEVICE, S_BASE, S_INTERRUPT, S_MODEM, S_MOUSE,
-		 VAL_KEYBINT, VAL_TIMINT
+		 VAL_KEYBINT, VAL_TIMINT, VAL_EMUBAT, VAL_EMUSYS
 	       } tok_t;
 
 typedef enum { NULLFORM=0, ODELIM, CDELIM, COMMENT, SECTION, PRED,
@@ -126,14 +142,6 @@ int nullf(word_t *, arg_t, arg_t);
 
 #define NULL_WORD	{NULL,NULLTOK,NULLFORM,glob_bad,0,0,}
 #define NULL_SYN	{NULL,NULL}
-
-/* these will be changed for an I/O allowance linked list later...also
- * a mask will be defined
- */
-#define IO_RDONLY	1
-#define IO_RDWR		2
-#define allow_io(start,size,type) set_ioperm(start, size, 1)
-#define forbid_io(start,size,type) set_ioperm(start, size, 0)
 
 int
 nullf(word_t *word, arg_t a1, arg_t a2)
@@ -196,6 +204,11 @@ word_t port_words[] =
   {"{", LBRACE, ODELIM, do_ports,},
   {"}", RBRACE, CDELIM, do_ports},
   {"range", PRT_RANGE, VALUE2, do_ports},
+  {"readonly", PRT_RDONLY, PRED, do_ports},
+  {"writeonly", PRT_WRONLY, PRED, do_ports},
+  {"readwrite", PRT_RDWR, PRED, do_ports},
+  {"ormask", PRT_ORMASK, VALUE, do_ports},
+  {"andmask", PRT_ANDMASK, VALUE, do_ports},
   NULL_WORD
 };
 
@@ -266,6 +279,8 @@ word_t top_words[] =
   {"keybint", VAL_KEYBINT, VALUE, do_num, nullf, nullf, null_words},
   {"timint", VAL_TIMINT, VALUE, do_num, nullf, nullf, null_words},
   {"fastfloppy", VAL_FASTFLOPPY, VALUE, do_num, nullf, nullf, null_words},
+  {"emusys", VAL_EMUSYS, VALUE, do_num, nullf, nullf, null_words},
+  {"emubat", VAL_EMUBAT, VALUE, do_num, nullf, nullf, null_words},
   NULL_WORD
 };
 
@@ -286,17 +301,13 @@ syn_t global_syns[] =
   NULL_SYN
 };
 
-#define iscomment(c) (c=='#' || c=='!')
+#define iscomment(c) (c=='#' || c=='!' || c==';')
 #define istoken(c) (!isspace(c) && !iscomment(c))
-#define die(reason) error("ERROR: par dead: %s\n", reason)
-#define same_name(n1, n2)  (!strcmp(n1,n2))
-
-#if 0
-#define read_until_eol() \
-  while ( fgetc(globl_file) != '\n') ;
-#else
 #define read_until_eol(fd) read_until_rtn_previous(fd, '\n')
-#endif
+
+#define die(reason) do { error("ERROR: par dead: %s\n", reason); \
+			      longjmp(exitpar,1); } while(0)
+
 
 /****************************** globals ************************/
 FILE *globl_file = NULL;
@@ -306,6 +317,7 @@ char *statestr = "top";
 struct disk *dptr=NULL;
 int hdiskno=0;
 int diskno=0;
+
 
 /***************************** functions ***********************/
 int 
@@ -332,16 +344,17 @@ glob_bad(word_t *word, arg_t a1, arg_t a2)
   return word->token;
 }
 
+int ports_permission = IO_RDWR;
+unsigned int ports_ormask = 0;
+unsigned int ports_andmask = 0xFFFF;
 
 int
 porttok(word_t *word, arg_t a1, arg_t a2)
 {
   long num;
   char *end;
-
   num = strtol(word->name, &end, 0);
-  c_printf("CONF: I/O port 0x%x\n", num);
-  allow_io(num, 1, IO_RDWR);
+  allow_io(num, 1, ports_permission,ports_ormask,ports_andmask);
 }
 
 
@@ -350,10 +363,16 @@ do_ports(word_t *word, arg_t a1, arg_t a2)
 {
   char *arg=NULL, *arg2=NULL;
 
-/* c_printf("do_ports: %s %d\n", word->name, word->token, farg1, farg2); */
+/*  c_printf("do_ports: %s %d\n", word->name, word->token); */
 
   switch (word->form) 
     {
+    case ODELIM:
+    case CDELIM:
+      ports_permission = IO_RDWR;
+      ports_ormask = 0;
+      ports_andmask = 0xFFFF;
+      break;
     case VALUE2:
       arg = get_name(globl_file);
       arg2 = get_name(globl_file);
@@ -369,19 +388,36 @@ do_ports(word_t *word, arg_t a1, arg_t a2)
 
   switch (word->token)
     {
+      char *end;
     case PRT_RANGE: {
       long num1, num2;
-      char *end;
 
       num1 = strtol(arg, &end, 0);
       num2 = strtol(arg2, &end, 0);
       c_printf("CONF: range of I/O ports 0x%x-0x%x\n", num1, num2);
-      allow_io(num1, num2-num1+1, O_RDWR);
+      allow_io(num1, num2-num1+1, ports_permission,ports_ormask,ports_andmask);
       break;
     }
+    case PRT_RDONLY:
+      ports_permission = IO_READ;
+      break;
+    case PRT_WRONLY:
+      ports_permission = IO_WRITE;
+      break;
+    case PRT_RDWR:
+      ports_permission = IO_RDWR;
+      break;
+    case PRT_ORMASK:
+      ports_ormask = strtol(arg,&end,0);
+      break;
+    case PRT_ANDMASK:
+      ports_andmask = strtol(arg,&end,0);
+      break;
     default:
       break;
     }
+  if (arg) free(arg);
+  if (arg2) free(arg2);
   return word->token;
 }
 
@@ -428,7 +464,7 @@ get_name(FILE *fd)
     tmpc = fgetc(fd);
     while ( tmpc != QUOTE && !feof(fd) )
     { 
-      *p++ = tolower(tmpc); 
+      *p++ = tmpc; 
       tmpc = fgetc(fd); 
     } 
   }
@@ -436,7 +472,7 @@ get_name(FILE *fd)
     {
       while ( istoken(tmpc) && !feof(fd))
 	{
-	  *p++ = tolower(tmpc);
+	  *p++ = tmpc;
 	  tmpc = fgetc(fd);
 	};
       if (iscomment(tmpc)) read_until_eol(globl_file);
@@ -448,6 +484,20 @@ get_name(FILE *fd)
   p = malloc(strlen(tmps) + 1);
   strcpy(p, tmps);
   return p;
+}
+
+
+/* case-insensitive match of two strings */
+int
+same_name(char *str1, char *str2)
+{
+  for ( ; *str1 && *str2 && tolower(*str1) == tolower(*str2) ; 
+       str1++, str2++)
+    /* empty loop */    
+    ;
+
+  if (!*str1 && !*str2) return 1;
+  else return 0;
 }
 
 
@@ -469,7 +519,11 @@ get_arg(FILE *fd)
   char *str, *str2;
 
   str=get_name(fd);
-  if (str2=synonym(global_syns, str)) { free(str); str=strdup(str2); }
+  if (str2=synonym(global_syns, str)) 
+    { 
+      free(str); 
+      str=strdup(str2); 
+    }
 
   return str;
 }
@@ -512,10 +566,10 @@ do_num (word_t *word, arg_t farg1, arg_t farg2)
       switch (word->token) 
 	{
 	case PRED_BOOTA:
-	  hdiskboot = 0;
+	  config.hdiskboot = 0;
 	  break;
 	case PRED_BOOTC:
-	  hdiskboot = 1;
+	  config.hdiskboot = 1;
 	  break;
 	case PRED_RAWKEY:
 	  config.console_keyb = 1;
@@ -531,6 +585,12 @@ do_num (word_t *word, arg_t farg1, arg_t farg2)
 
       switch (word->token) 
 	{
+	case VAL_EMUBAT:
+	  config.emubat = strdup(arg);
+	  break;
+	case VAL_EMUSYS:
+	  config.emusys = strdup(arg);
+	  break;
 	case VAL_FASTFLOPPY:
 	  config.fastfloppy = atoi(arg);
 	  break;
@@ -545,9 +605,11 @@ do_num (word_t *word, arg_t farg1, arg_t farg2)
 	  break;
 	case VAL_TIMINT:
 	  config.timers = atoi(arg);
+	  c_printf("CONF: timers %s!\n", config.timers ? "on" : "off");
 	  break;
 	case VAL_KEYBINT:
 	  config.keybint = atoi(arg);
+	  c_printf("CONF: keybint %s!\n", config.keybint ? "on" : "off");
 	  break;
 	case VAL_TIMER:
 	  config.freq = atoi(arg);
@@ -567,11 +629,12 @@ do_num (word_t *word, arg_t farg1, arg_t farg2)
 	  break;
 	case VAL_SPEAKER:
 	  config.speaker = atoi(arg);
-	  if (config.speaker == SPKR_NATIVE) {
-	    warn("CONF: allowing access to the speaker ports!\n");
-	    allow_io(0x42, 1, IO_RDWR);
-	    allow_io(0x61, 1, IO_RDWR);
-	  }
+	  if (config.speaker == SPKR_NATIVE) 
+	    {
+	      warn("CONF: allowing access to the speaker ports!\n");
+	      allow_io(0x42, 1, IO_RDWR, 0, 0xFFFF);
+	      allow_io(0x61, 1, IO_RDWR, 0, 0xFFFF);
+	    }
 	  else c_printf("CONF: not allowing speaker port access\n");
 	  break;
 	default:
@@ -793,8 +856,8 @@ start_printer (word_t *word, arg_t farg1, arg_t farg2)
 int
 stop_printer (word_t *word, arg_t farg1, arg_t farg2)
 {
-  c_printf("n: %d f: %s   c: %s  o: %s  t: %d\n", c_printers, pptr->dev, 
-	   pptr->prtcmd, pptr->prtopt, pptr->delay);
+  c_printf("CONF(LPT%d) f: %s   c: %s  o: %s  t: %d\n", 
+	   c_printers, pptr->dev, pptr->prtcmd, pptr->prtopt, pptr->delay);
   c_printers++;
   config.num_lpt = c_printers;
 }
@@ -944,7 +1007,6 @@ stop_disk (word_t *word, arg_t arg1, arg_t arg2)
 
     c_fdisks++;
     config.fdisks = c_fdisks;
-    c_printf("CONF: now %d floppies\n",config.fdisks);
     
   } else {
     if (!dptr->dev_name) die("no device name!");
@@ -963,7 +1025,6 @@ stop_disk (word_t *word, arg_t arg1, arg_t arg2)
 
     c_hdisks++;
     config.hdisks = c_hdisks;
-    c_printf("CONF: now %d hdisks\n", config.hdisks);
   }
 }
 
@@ -1091,25 +1152,29 @@ parse_file(word_t *words, FILE *fd)
 }
 
 int
-parse_config()
+parse_config(const char *confname)
 {
   FILE *fd;
+  char name[500];
 
-  if ( !(fd = open_file("~/.dosrc")) ) {
+  if (confname) strcpy(name,confname);
+  else sprintf(name,"%s/.dosrc", getenv("HOME"));  /* clean me up */
+
+  if ( !(fd = open_file(name)) ) {
     if ( !(fd = open_file(CONFIG_FILE)) ) 
       {
 	die("cannot open configuration files!");
-	return;
+	return 0;
       }
   }
 
   c_hdisks=0;
   c_fdisks=0;
 
-  parse_file(top_words, fd);
+  if (! setjmp(exitpar))
+    parse_file(top_words, fd);
 
   close_file(fd);
-
   return 1;
 }
 

@@ -3,44 +3,53 @@
 #
 
 # debug +Idv-kmx           # "debug -a" turns all messages off
-debug -a
+debug +gIvk-dmx    
+# debug -a
 
 # These two are set to the defaults.  keybint is still unstable,
 # and timint is necessary for many programs.  These are mostly
 # useful as debugging aids.
 
-keybint off
+keybint on
 timint on
 
 #serial { mouse device /dev/cua0 }
 #serial { mouse device /dev/cua1 }
 
-#video { vga console graphics chipset et4000 memsize 1024 }
+#video { vga console graphics chipset trident memsize 1024 }
 #video { vga console graphics }
 #video { vga console graphics chipset et4000 memsize 1024 vbios_file /etc/dosemu/vbios }
-video {  vga console  }
+
+# If you have a Trident card, uncomment the next line, and comment 
+# the current video statement
+#video { vga console graphics chipset trident memsize 512 }
+video {  vga console graphics }
 
 RawKeyboard         # don't include this if you don't want it
-mathco on           # on or off
-cpu 80486           # or 80286 or 80386
-bootC               # or bootA
+mathco off           # on or off
+cpu 80286           # or 80286 or 80386
+bootc               # or bootA
 xms 1000            # XMS size in K, or off
 #ems 1000            # EMS size in K, or off
 
-ports { 0x388 0x389 }  # for SimEarth
+# ports { 0x388 0x389 }  # for SimEarth
+# ports { 0x42 }  # for SimEarth
+# ports { 0x2f8 0x2f9 0x2fa 0x2fb 0x2fc 0x2fd 0x2fe }
+# ports { 0x3f8 0x3f9 0x3fa 0x3fb 0x3fc 0x3fd 0x3fe }
 #speaker native         # also off or emulated
 
-ports { 0x21e 0x22e 0x23e 0x24e 0x25e 0x26e 0x27e 0x28e 0x29e } # for jill
+# ports { 0x21e 0x22e 0x23e 0x24e 0x25e 0x26e 0x27e 0x28e 0x29e } # for jill
 
 #******************* HARD DISKS ******************************* 
 disk { image "hdimage" }
+#disk { partition "/dev/sda2" 1 readonly }        # 1st partition on 1st disk
 #disk { partition "/dev/hda1" 1 readonly }        # 1st partition on 1st disk
 #disk { wholedisk "/dev/hda" }        # 1st partition on 1st disk
 
 #******************* FLOPPY DISKS *****************************
 #floppy { heads 2 sectors 18 tracks 80 threeinch file diskimage }  
-floppy { device /dev/fd0 fiveinch }  
-floppy { device /dev/fd1 threeinch }  
+floppy { device /dev/fd0 threeinch }  
+floppy { device /dev/fd1 fiveinch }  
 
 #printer { options "%s" command "lpr" timeout 20 }
 #printer { options "-p %s" command "lpr" timeout 10 }    # pr format it

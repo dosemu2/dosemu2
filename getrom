@@ -1,1 +1,0 @@
-dd if=/dev/mem bs=32k skip=24 count=2

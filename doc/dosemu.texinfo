@@ -5,13 +5,12 @@
 @setchapternewpage odd
 @comment %**end of header
 
-@c $Author: Robert Sanders$
-@c $Date$
-@c $Source$
-@c $Revision$
-@c $State$
-@c
-@c $Log$
+@c $Author: root $
+@c $Date: 1993/11/12 12:41:35 $
+@c $Source: /home/src/dosemu0.49pl2/doc/RCS/dosemu.texinfo,v $
+@c $Revision: 1.1 $
+@c $State: Exp $
+
 
 @set emuver 0.49
 @set docver 1
@@ -1633,7 +1632,10 @@ This has the advantage of making the @sc{rom} write-protected, and is
 slightly more memory efficient.
 
 @var{vbios_copy} causes dosemu to copy the entire @sc{rom} from
-@file{/dev/mem} into the dosemu's address space.
+@file{/dev/mem} into the dosemu's address space.  As this moves all of
+the video handling code from slow @sc{rom} into fast @sc{ram}, this
+method will probably give better performance.  Think of this as dosemu's
+built-in @sc{bios} shadowing.
 
 @var{vbios_file} causes dosemu to read the disk file @var{filename} into
 memory.  This is useful for experimenting with alternate @sc{bios}
@@ -2420,6 +2422,9 @@ Using XMS along with this line, I have well over 600K of memory left
 for DOS executables; with both SMARTDRV and RAMDRIVE loaded high
 I have 621K of memory left for DOS executables.
 
+You cannot and need not run any other @sc{XMS} driver, such as HIMEM.SYS.  
+dosemu uses its own internal driver to provide @sc{XMS} services.
+
 @node EMS, Memory Configuration, XMS, Memory
 @section EMS
 @cindex EMS
@@ -2444,6 +2449,8 @@ EMS requires a kernel patch, included with dosemu.  It adds an
 @code{mmap()} operation for the device /proc/self/mem, which dosemu uses
 to manipulate regions of its address space.
 
+You cannot and need not run any other @sc{EMS} driver, such as EMM386.EXE.
+dosemu uses its own internal driver to provide @sc{EMS} services.
 
 @node Memory Configuration, , EMS, Memory
 @section Memory Configuration

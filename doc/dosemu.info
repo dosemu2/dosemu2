@@ -1,0 +1,68 @@
+This is Info file dosemu.info, produced by Makeinfo-1.49 from the input
+file dosemu.texinfo.
+
+   This file documents the Linux MS-DOS emulator version 0.49.
+
+   Copyright (C) 1993 Robert Sanders
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies (see the GNU General Public License).
+
+Indirect:
+dosemu.info-1: 398
+dosemu.info-2: 49391
+dosemu.info-3: 97392
+
+Tag Table:
+(Indirect)
+Node: Top400
+Node: Introductory Stuff1098
+Node: Greetings3769
+Node: Mach4841
+Node: Porting to 386BSD8250
+Node: Contribution9569
+Node: Thanks12015
+Node: Installation13442
+Node: General Info17930
+Node: Updating from 0.48pl119823
+Node: Configuration21793
+Node: Requirements22164
+Node: Compile-time Configuration23579
+Node: Run-time Configuration24560
+Node: Running dosemu32863
+Node: Booting33048
+Node: Exiting34587
+Node: Debugging Messages35338
+Node: Input/Output38323
+Node: Keyboard38601
+Node: Console Video43186
+Node: VGA45909
+Node: Video Configuration49393
+Node: Peripherals53835
+Node: Serial Ports54061
+Node: Printers57631
+Node: Disk Redirector61884
+Node: Hard Disks66974
+Node: Whole Disk Access69536
+Node: Single Partition Access70786
+Node: Disk Images72828
+Node: Creating hdimage73250
+Node: Creating diskimage75130
+Node: Disk Configuration76510
+Node: Memory78812
+Node: DOS memory79106
+Node: XMS79817
+Node: EMS80961
+Node: Memory Configuration82133
+Node: Miscellaneous82947
+Node: BIOS83235
+Node: CPU type84305
+Node: TTY copy85789
+Node: Programs That Work86212
+Node: Bugs88503
+Node: Changes91526
+Node: Concept Index97394
+Node: Program/File Index102316
+
+End Tag Table

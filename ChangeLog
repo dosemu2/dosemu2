@@ -1,0 +1,576 @@
+Tue Jul 13 19:54:13 1993  rsanders
+
+	* Makefile: cleanups...
+
+Tue Jul 13 19:24:54 1993  root
+
+	* cpu.c, cpu.h, emu.c:
+	changes for using the new (0.99pl10) signal stacks
+
+Wed Jul  7 21:44:51 1993  root
+
+	* emu.c: hook for parse_config(name);
+
+	* parse.c:
+	added support for ~/.dosrc and parse_config() now takes a filename
+	argument to override .dosrc check.
+
+Mon Jun  7 20:26:09 1993    (root@hrothgar)
+
+	* emu.c (char_out): more BIOS-like handling of int
+	0x29...character attributes are now reserved, and scrollup now
+	uses the attribute from the previous char (needs more work).
+
+Fri Jun  4 01:43:39 1993    (root@hrothgar)
+
+	* cpu.c (find_port): added Andrew's patches diff1-6, which include
+	the maskable port I/O.  Began fixes to allow ports beyond 0x3ff.
+
+Thu Jun  3 23:05:26 1993    (root@hrothgar)
+
+	* emu.c (ms_dos): fixed up the EmuSys and EmuBat directives.  They
+	now take string arguments.
+
+Thu May 27 21:38:08 1993    (root@hrothgar)
+
+	* bios_emm.c (bios_emm_init): moved into dosipc.c: memory_setup().
+	Now checks that /proc/self/mem is mmap()able, and turns off EMS
+	support if it isn't.
+
+Wed May 26 01:09:23 1993    (root at hrothgar)
+
+	* moved 0xE000 segment routines to 0xF000.  also changed reboot
+	code to use inte5, ax=0xffff
+
+Tue May 25 01:41:53 1993    (root at hrothgar)
+
+	* added early support for the EmuSys and EmuBat directives, which
+	remap CONFIG.SYS to CONFIG.EMU and AUTOEXEC.BAT to AUTOEXEC.EMU.
+	This works now, but I'm not sure when I should disable it.
+
+Mon May 24 21:50:33 1993    (root at hrothgar)
+
+	* added CMOS checksum.
+
+	* dosemu 0.49 released!
+
+Fri May 14 00:41:08 1993    (root at hrothgar)
+
+	* cleaned up the int10h ah=9/0xA calls...they now work correctly
+	except for possible bounds checking.
+
+	* made floppies safe, but slow...work on this.
+
+Wed May  5 02:18:23 1993    (root at hrothgar)
+
+	* added mouse support and console switching even in graphics
+	mode.
+
+Tue Apr 20 00:49:07 1993    (root at hrothgar)
+
+	* added DMSG_PAUSE for pausing the parent...
+
+	* fixed a lot of int10() problems, including cursor positioning
+	and int10h 0xa/0x9.
+
+Fri Apr 16 08:58:43 1993    (root at hrothgar)
+
+	* added VGA BIOS support...user vgaon.com to allow it, vgaoff.com
+	to stop it. 
+
+Wed Apr 14 03:44:36 1993    (root at hrothgar)
+
+	* now have mfs.c updated all the way to diff9, which has multiple
+	drive support...(not my doing!).  also translated linux.asm into
+	emufs.S. 
+
+Mon Apr 12 22:08:39 1993    (root at hrothgar)
+
+	* added the 1-second tick in dosipc.c.  the child gets a SIGALRM
+	every second, which child_tick() handles.  currently only calls
+	print_tick(). 
+
+Tue Apr  6 00:20:05 1993    (root at hrothgar)
+
+	* stold the Mach DOS emulator's UMB routines. PCShell no longer
+	crashes, PKZIP now uses it.  PKZIP 2.04e won't use EMS :-( and
+	neither will debug.
+
+	* ported bios_emm.c (EMS emulation) from the Mach DOS emulator. It
+	relies on my kernel hack of mmap(/dev/selfmem). Works pretty well,
+	emulates EMS version 3.2.
+
+	* applied diff1,diff2,and diff3 from Andrew Tridgell. MFS works
+	better, faster.  MFS also adjusts for being run suid root.  The
+	default interrupt (0xfe) conflicts with Turbo Debugger.  I suggest
+	a change to 0xe5.
+
+Thu Apr  1 03:08:22 1993    (root at hrothgar)
+
+	* translated the bootsect.S code for as86.  This is nice for
+	general interest, and for the distribution hdimage (which requires
+	fdisk /mbr to fix it, by the way).
+
+Wed Mar 31 01:00:37 1993    (root at hrothgar)
+
+	* integrated Andrew Tridgell's port of the Mach mfs redirector.
+	Seems to work okay, if not blazingly fast.  Sure beats linux.exe.
+
+	* changed VIRT_SCREEN_BASE and INIT_VIDEO_MODE for MDA to actually
+	show MDA mode 7 and base of 0xb0000.
+
+	* added PARTITION type.  only works with /dev/hd?1. relies upon
+	the file "/etc/dosemu/partition" to be the first sector (Master
+	Boot Record) of /dev/hd?.  
+
+Tue Mar 30 02:51:33 1993    (root at hrothgar)
+
+	* changed disks.c a lot, added the IMAGE file header code (to
+	auto-detect geometry from an image file).
+
+Mon Mar 29 00:47:41 1993    (root at hrothgar)
+
+	* added the int 0x2f, ax=0x1680 "give up time slice" function.
+	does a usleep()...is this best?  thanks to Andrew Tridgell.
+
+	* changed disks.c to simply accept FLOPPY_A as defined
+
+	* changed -f option to take an argument
+
+Sun Mar 28 02:07:50 1993    (root at hrothgar)
+
+	* wrote dosconfig.c to replace dosconfig.sh.  
+
+	* changed the int16h ah=0x55 to return eax=0 for MS-WORD 5 (check
+	this with Andrew Tridgell). 
+
+	* fixed up some of the CONFIGURATION (int 11h value) stuff.  see
+	emu.c, config_init()
+
+Mon Mar  8 00:37:07 1993    (root at hrothgar)
+
+	* added dosconfig.sh for "make config", rearranged Makefile to be
+	a little safer.  It tries to keep the user's config.h updated, but
+	not to recompile too often.  (dosconfig.sh uses awk)
+
+	* cleaned up get_video_ram()...Turbo debugger 3.0 now works, at
+	least the video stuff does.
+
+	* added some fixes so that leavedos() will timeout after 3
+	seconds or so, but I still need to find out why/where it hangs.
+
+	* added memory.h and video.c.  added "make dep" to Makefile.
+
+Sun Mar  7 15:05:10 1993    (root at hrothgar)
+
+	* added an ugly hack for multiple screen pages...nasty. works okay
+	for Turbo Debugger 1.0, though.  also began marking hacks with
+	XXX...most everything new&old is a hack, sadly enough.  termio.c &
+	emu.c need to be robbed of the screen functions, which will be put
+	in screen.c. also the emu.h and termio.h headers...clean the
+	get_video_ram & put_video_ram stuff...
+
+Thu Mar  4 01:23:04 1993    (root at hrothgar)
+
+	* added the proper set-iflag-after-instruction STI emulation.  it
+	doesn't seem worth it, so I disabled it be default (define
+	PROPER_STI in cpu.c or the Makefile to get it working).
+
+	* got the HMA working perfectly.  moved the IPC_RMIDs into
+	memory_shutdown(), called by stop_dosipc, so that the HMA area,
+	which isn't always attached, wouldn't go away unexpectedly.
+
+	* used krishna's new ipcdelta stuff (the SHM_REMAP flag) to make
+	the low page shared, too. I should break this out of the main
+	segment1. verified that it works.
+
+	* added SIGCHLD handler, fixed up the DMSG_ACK situation. still
+	need to design a rational, interrupt-like protocol for this.
+
+	* added shared memory to dosemu. I haven't gotten Krishna's new
+	stuff yet, so I don't share the first page (I NEED TO!). 2 segments,
+	one from 0x1000-0x9ffff, the other 0xc0000-0xfffff.  Because of
+	stupid mmap(), I can't share the segment from 0xa0000-0xbffff, as
+	mmap() needs memory under, and IPC can't have memory under.
+
+Tue Mar  2 02:07:57 1993    (root at hrothgar)
+
+	* apparently, whatever badness in DOS 5.0 that caused the SIGSEGV
+	when booting has gone away, or I've fixed it, so I took the
+	boot_in_progress checks out (partially, I'm a little wary).  We'll
+	see how it goes.
+
+	* made the child process munmap() everything from page 2 (address
+	4096) to the page before LIBSTART.  this should cut down on memory
+	usage a little, as well as make attaching shm a little easier.
+	still doesn't fix first page problem, but Krishna is doing that.
+
+	* changed the format of the DOS HELPER function to show interrupts
+	(now takes low int in BH,high int in BL).  Also added a parameter
+	to show_ints(). also added -2 option for 80286 flags emulation.
+	(real-mode 80286 keeps upper 4 flag bits (15,14,13,12) clear.
+
+	* added two new switches, -3 and -4, that allow you to choose 386
+	or 486 "emulation"...this currently only changes the behavior of
+	the AC (alignment check) bit of EFLAGS, but since that IS the
+	Intel-recommended test...I need to add emulation for BSWAP, XADD,
+	and CMPXCHG instructions for 386 users running in 486 mode (just for
+	kicks :-). I wonder if PKZIP 2.04 is much faster in 386/486 mode...
+
+Mon Mar  1 01:35:53 1993    (root at hrothgar)
+
+	* added code to keep virtual IOPL, NT, bit15 of eflags register.
+	this means I also have to interpret the 0x66 and 0x67 instruction
+	prefixes (32-bit operand and address, respectively).  this must be
+	done in sigsegv()...it's just ignored now
+
+	* split dosemu into 2 processes, one of which currently only
+	monitors keypresses.  I use UNIX domain sockets--pipe() returns a
+	uni-directional pipe :-(
+
+	* tried to speed up clear_screen() for non-console video.
+
+Thu Feb 25 21:19:10 1993    (root at hrothgar)
+
+	* fixed show_regs() to display an iflag-adjusted eflags.  I should
+	make access functions to _regs.eflags so that "virtualized" bits
+	are always handled correctly.
+
+	* fixed iflag/IF handling...Matthias had forgotten to adjust iflag
+	on popf and iret. Silly boy.  I wasn't doing much better, testing
+	IF directly from the _regs.eflags after return from vm86(), which
+	of course corresponded to the system IF...someone should write a
+	virtual-8086 mode tutorial!
+
+Wed Feb 24 11:33:59 1993    (root at hrothgar)
+
+	* fixed the key-repeat bug.
+
+Tue Feb 23 01:36:17 1993    (root at hrothgar)
+
+	* well, the ugliness with indirect far calling can be
+	skipped...however, I can only get pcshell to work with the mouse,
+	and it doesn't use callbacks!  added lctrl+rctrl+capslock = toggle
+	kayboard mouse...arrow keys are direction, home is left and end
+	is right button.
+
+	* made the first brain-dead changes for mouse support.
+
+Mon Feb 22 16:26:17 1993    (root at hrothgar)
+
+	* cleaned up the show_regs() a bit, better display of flags, shows
+	10 bytes before and after CS:EIP.
+
+	* added the define FAST_BUT_WRONG29, which, if defined, makes
+	int29 fast char output faster, but makes programs that hook int29
+	fail.  ANSI.SYS is one of these.  I leave FAST_... defined, as
+	ANSI.SYS doesn't work now anyway.
+
+	* added the extended (32-bit) XMS 3.0 API.  cleaned up xms.c to be
+	a little more 32-bit clean (i.e. doesn't fudge upper 16 bits of
+	register if it's not supposed to).  Added the macros LWORD() and
+	HWORD() to emu.h...
+
+Sat Feb 20 17:43:50 1993    (root at hrothgar)
+
+	* added Bill Bogstad's (bogstad@cs.jhu.edu)
+	auto-hd-geometry-detect code.  It seems to work okay.
+
+Thu Feb 18 01:38:21 1993    (root at hrothgar)
+
+	* RELEASE: released these changes as 0.48.patch1.  Peter Macdonald
+	(pmacdona@sanjuan.uvic.ca) says he'll incorporate this into his SLS.
+
+	* changes NUM_HANDLES for XMS to 64. took out handle_mask.
+
+	* added the screen-buffer-and-compare code to restore_screen().
+	this ought to really speed up the non-console users
+
+Wed Feb 17 15:40:54 1993    (root at hrothgar)
+
+	* fixed up the Makefile to make libemu start at 1 GB... this is
+	really really important, as the dosemu0.48 distribution's MAX_XMS
+	of 3072 could overrun into libemu...I don't know why it works this
+	way, but it does (actually, I do know why, I just don't know why
+	sbrk() lets you move into a shared lib).  Anyway, now xms.c checks
+	that you have space left for MAX_XMS (at compile time, will have
+	to be dynamic-ized to run time XMS size setting)
+
+	* removed the check for console_keyb before calling
+	PollKeyboard...non-console users deserve a keyboard, too!
+
+Tue Feb 16 00:29:58 1993    (root at hrothgar)
+
+	* cmos RTC now returns values in BCD if appropriate (usually is)
+
+	* fixed the keypad number keys.  forgot to put scancode in upper
+	byte. also fixed the F11 and F12 keys.
+
+	* added man page, and the rest is history.
+	  DOSEMU 0.48 DISTRIBUTION
+
+Mon Feb 15 00:24:50 1993    (root at hrothgar)
+
+	* added all the ctrl and alt cursor keys.
+
+	* added the files cmos.c and cmos.h.  these will eventually
+	contain all the CMOS values needed and provide CMOS real-time
+	clock and alarm support.  current code covers time/date, disk
+	setup, memory size, CMOS status.
+
+Sun Feb 14 16:50:28 1993    (root at hrothgar)
+
+	* put the special_nowait call into read Extended keycode also.
+	I've really gotta verify this.
+
+Sat Feb 13 15:26:20 1993    (root at hrothgar)
+
+	* uh, fixed the XMS EMB alloc. problem.  I swear I checked for
+	this when I first had problems, but apparently not...I was
+	malloc()ing the actual K size, instead of the K size * 1024.
+
+	* added some XMS functions, made the XMSControl entry point
+	conform to the spec (for hookability).
+
+Fri Feb 12 14:19:30 1993    (root at hrothgar)
+
+	* put the 101-key keyboard flag in the BIOS
+
+	* Added the timer_tick() routine. this fixes a LOAD of
+	stuff...4DOS beep lockup, 4HELP, Norton utilities, checkit,
+	autocnf, bunches and bunches of stuff, basically.  This still
+	needs a LOT of work, like keeping track of round off error, higher
+	frequency, but it'll do for now.
+
+Thu Feb 11 01:53:27 1993    (root at hrothgar)
+
+	* changed ReadString to accept almost any characters.  I'm still
+	not sure about the ones below space.
+
+	* char_out now treats \n as \n\r.  I wonder about this.  also,
+	ctrl-c checking is done a little more properly (look for dos_ctrlc())
+
+	* added the hold-alt-and-type keypad numbers entry method.  still
+	need to add alt/shift/ctrl-cursor keys.
+
+Wed Feb 10 13:08:05 1993    (root at hrothgar)
+
+	* WordPerfect works perfectly now :-). almost.
+
+	* added Rshift-scrlock for int8, lshift-scrlock for int9.  funny
+	thing is, these work better than the flags.  makes me wonder about
+	the whole signal handler thing, and maybe I should check the IF.
+
+	* added the -K flag.  sorta makes QBASIC/EDIT work.  if I use the
+	-t switch (timer int), then msdos will crash eventually with a GP
+	fault on 0xe8.
+
+Tue Feb  9 15:45:54 1993    (root at hrothgar)
+
+	* XMS can now allocate the HMA and a single UMB at 0xc000.  I
+	really need to make sure that 0xc000 isn't BIOS-mapped, but I'm
+	just playing now, anyway.  This is fun!  I can put dos=high,umb in
+	my config.sys and get 702K posible executable size! (with -m 720)
+
+	* began the XMS stuff.  Have a driver that can mark its presence
+	and claim no HMA. :-) 
+
+	* fixed the dir /w problem by allowing int 21h to do its own char
+	out.  however, I found an anomaly in the get video combination
+	code.  I can return 4 (color EGA), but not 8 (color VGA).  If I
+	do, qedit freaks and puts the menu up off the screen as if the video
+	memory started at 0xb000:0000.  The same thing happens if I change
+	BL in video subsystem.
+
+Mon Feb  8 02:05:07 1993    (root at hrothgar)
+
+        * this (or herabouts) is RELEASE 0.47.7
+
+	* fixed the heavy-load miss characters thing.  The keybuffer code
+	Stephen Tweedie gave me would advance the buffer even if ReadKeyboard
+	was called with wait=TEST.
+
+Fri Feb  5 01:51:08 1993    (root at hrothgar)
+
+	* okay, fixed the lost characters thing for real: Matthias' int29h
+	handler (fast DOS tty output) was calling int 10h/ah=e.  int 29h
+	output always goes to the current screen, and Matthias wasn't
+	taking that into account.
+
+Thu Feb  4 00:35:57 1993    (root at hrothgar)
+
+	* i know why...I'm doing that damn WAITACTIVE ioctl(). damn damn
+	damn! I see no way around that. (later note: it might in fact
+	be the fact that I was often deleting libemu out from under
+	dosemu's feet with rm -f, and now that I've stopped that,
+	everything's better. Should I keep the ioctl queue?)
+
+	* well, it seems that my ioctl queue hasn't stopped the kernel
+	panics. here's what I get (raw keyboard mode):
+ general protection: 0000
+ EIP:    0008:00047325
+ EFLAGS: 00010286
+ fs: 0017
+ base: 00000000, limit: C0000000
+ Pid: 464, process nr: 16
+ 64 88 08 4e 85 ed 74 13 8b 15 
+ 
+ wait_queue is bad (eip = 00000201)
+         q = 0017b864
+        *q = 00236f6c
+       tmp = 00236f6c
+
+(repeat the wait_queue block 7 times)
+
+ Unable to handle kernel paging request at address c0000004
+ Oops: 0000
+ EIP:    0008:0004748B
+ EFLAGS: 00010093
+ fs: 0017
+ base: 00000000, limit: C0000000
+ Pid: 31, process nr: 8
+ 39 50 04 75 f8 8b 4c 24 1c 89 
+
+	* well, pkzip 2.04e uses int10h/ah=e with a seemingly random
+	screen page.  PC-DOS 4.01 seems to do the same thing. so, in my
+	infinite wisdom, if it writes to a screen page > 7, i make it
+	write to the current screen page.  this is probably wrong, but it
+	works for pkzip 2.04e.
+
+	* fixed the PollKeyboard() thing, I think.  I use a "queue" for
+	ioctl()'s started from within an interrupt handler.  this is
+	nasty, but it'll have to do.  I can make this a lot pretier.
+
+	* AAARRRRRGH! PollKeyboard() was crashing the emulator (kernel
+	panics and such) because I was using select()...and looky here,
+	pg. 278 of the Stevens book, select() is NOT listed as one of the
+	reentrant functions.  I'm a fool. A FOOL, I tell you!
+
+	* these changes I will call dosemu0.47.5
+
+	* also added choice of PHANTOMDIR and VIDEO_CARD to the Makefile.
+	VIDEO_CARD only has effect if it is set to MDA: the
+	PHYS_SCREEN_BASE will then be set to 0xb0000 instead of 0xb8000.
+
+	* Now you can choose your RAW keyboard nationality in the Makefile
+	(like with a kernel compile).  Gotta clean this up later with a
+	keymaps subdir, and all the keymaps therein.  Also noticed that
+	when 4dos freezes up during a beep, ctrl-break (in RAW mode, of
+	course), fixes it :-).  Added these keys to RAW (-k) mode:
+	   ctrl-alt-pgup  ... exit the emulator
+	   ctrl-alt-pgdn  ... "reboot" the emulator (not recommended)
+	   ctrl-break     ... as in DOS
+	   ctrl-scrollock ... show first 0x30 interrupt vectors
+	   alt-scrollock  ... show registers
+	for some reason, keypad cursor keys (pgup/pgdn/delete) when
+	combined with the ctrl-alt keys will cause nasty things to happen.
+	Things like kernel panics, hard system reboots, etc.  Is this my
+	fault, or Linux's? (I'm sure it's mine, but I can't figure out how)
+
+Wed Feb  3 12:07:16 1993    (root at hrothgar)
+
+	* Added some elementary key-polling in sigalrm() with
+	PollKeyboard(). This works okay for now, but I really need to make
+	in general purpose (not just for console_keyb) and make the key
+	buffer use the BDA for real. Then we've got keyboard about done,
+	except for the multi-national keyboard maps.
+
+	* Added Stephen Tweedie's small patches for insert-key into
+	keyboard buffer (InsKeyboard).  This needs to be rewritten to use
+	the real BDA queue.
+
+	* made the parse-debugflags kinda recursive, so a and 0 don't
+	terminate the parsing.  This allows for handy option strings like
+	"-a+v" or "0+v" for debugging just video.  
+
+Tue Feb  2 15:21:59 1993    (root at hrothgar)
+
+	* note that DOSKEY works now! Nathan says it didn't before.  Oh,
+	well. I thought it didn't.
+
+	* cleaned up the debug-msg flags a bit.  now the -D option
+	specifies a list of options.  also cleaned up the int-revectoring
+	a tad.  moved a little of the stuff into emu.h (a lot more needs
+	to go)
+
+	* added the -f option to flip A: and B: floppies.  I also have the
+	-B flag to boot from the b: drive, but I don't think DOS will ever
+	be happy with that.  might take it out before release.
+
+Mon Feb  1 23:53:52 1993    (root at hrothgar)
+
+	* NEED to find out what int 16h/ah=0x55 does.  it seems to control
+	timeout for get_char (int 16h/ah=1), and is necessary for dosshell
+	and qbasic (which freeze occasionally otherwise).
+
+	* added some wacky int-revectoring code.  all but int 16h is broke
+	right now, and that is even special-case, too.
+
+Wed Jan 27 00:21:06 1993    (root at hrothgar)
+
+	* fixed problem with CloseKeyboard() sometimes restoring flags
+	that had never been read.  now, kbd_fd==-1 at startup, as it should.
+
+	* fixed time problem - now DOS time is set properly at boot to be
+	in sync w/Linux's clock.  After that, DOS can change it.
+
+	* moved the port_[out,in] functions to emu.h
+
+	* fixed a problem in get_leds() arising from the fact that &= is
+	not the same operator as &. silly me.  now it works.
+
+Tue Jan 26 16:48:31 1993    (root at hrothgar)
+
+	* well, had to put ioperm()s to disable the emulator's I/O
+	permissions before I re-enter the vm86() call. (of course, the
+	vm86 "task" inherits the emulator's ioperms).  This means that if
+	I'm not careful, I may leave an I/O port open to DOS :-(.
+
+	* Added two options: -N exits the emulator before booting DOS (but
+	after all the initialization), and -V allows VGA video.  This
+	presently only includes the changing of the blink attribute bit to
+	the high intensity background bit, but it will one day also enable
+	VGA graphics.
+
+Mon Jan 25 22:19:20 1993    (root at hrothgar)
+
+	* the linux.exe problem was found: linux.exe will fail if there
+	are more than 2 floppy drives defined.  i defaulted the number of
+	floppies and hard drives to 2 each; this is changeable by the -H
+	and -F options.
+
+Thu Jan 21 21:10:06 1993    (root at hrothgar)
+
+	* filled the highscan[] table for all chars <= 0x80 (ASCII).  the
+	rest are alt-chars (from a terminal's point of view, META at least).
+
+	* note that the below change required that I no longer open
+	/dev/tty, but use STDIN_FILENO and dup() that.  whatever that implies.
+
+	* fixed the console-video/keyb code.  dosemu can now detect if you
+	are on a console, and refuse to run if not.  it also retrieves the
+	console number for future use. (very system-dependent checking of the
+	major/minor numbers! this is dangerous! if dev_t changes from 16
+	bits, this breaks.)  console_video console switching should now be
+	completely safe, thanks to WAITACTIVE.  currently, it blocks until
+	the dos console is current.  I might want to change this so that
+	it just doesn't map it if the console isn't current--using
+	GETSTATE (and wait for later acquire_vt() calls to do so.)]
+
+	* made the int13 disk-sensing functions more sensible. also made
+	the dp->tracks, dp->heads stuff orthogonal (for some reason,
+	matthias had made exceptions for floppys??).  You can now
+	format/unformat a floppy, as well as a floppy disk image. added a
+	default CMOS type to the disk table struct.
+
+Sat Jan 16 10:28:23 1993    (root at hrothgar)
+
+	* fixed alt-numkey bug in termio.c.  for some reason, alt-numkey
+	scancodes get bumped up by 0x76. also fixed alt-- and alt-=
+
+	* can't find bug that causes repeated extended keystrokes to kill
+	the emulator: to find it, run tv.com on some file, go the bottom,
+	and press & hold pgdn.  bam, crash.
+
+	* fixed int21h, ah=1,7,or 8 problem with extended keycodes;
+          (was supposed to return 0 first, then scancode on next call).

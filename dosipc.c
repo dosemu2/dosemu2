@@ -2,12 +2,21 @@
  *
  * Robert Sanders, started 3/1/93 
  *
- * $Date: 1993/05/04 05:29:22 $
- * $Source: /usr/src/dos/RCS/dosipc.c,v $
- * $Revision: 1.4 $
+ * $Date: 1993/11/17 22:29:33 $
+ * $Source: /home/src/dosemu0.49pl2/RCS/dosipc.c,v $
+ * $Revision: 1.2 $
  * $State: Exp $
  *
  * $Log: dosipc.c,v $
+ * Revision 1.2  1993/11/17  22:29:33  root
+ * Keyboard char behind patch
+ *
+ * Revision 1.1  1993/11/12  12:32:17  root
+ * Initial revision
+ *
+ * Revision 1.1  1993/07/07  00:49:06  root
+ * Initial revision
+ *
  * Revision 1.4  1993/05/04  05:29:22  root
  * added console switching, new parse commands, and serial emulation
  *
@@ -27,6 +36,7 @@
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <signal.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -73,6 +83,9 @@ int exitipc=0;
 int in_int16=0;
 
 int readkey=0;
+
+/* sent_key is is used to hold answers to a DMSG_READKEY request */
+u_short sent_key = 0;
 
 u_long secno=0;
 
@@ -190,11 +203,14 @@ void memory_setup(void)
   shmctl(sharedmem.low, IPC_RMID, &crap);
   shmctl(sharedmem.param, IPC_RMID, &crap);
 
-  /* zero the DOS address space... it apparently wants this zeroed */
+#if 0
+  /* zero the DOS address space... is this really necessary? */
   memset(NULL, 0, 640*1024);
+#endif
 
   /* for EMS */
   bios_emm_init();
+  xms_init();
 }
 
 
@@ -204,10 +220,12 @@ memory_shutdown(void)
   I_printf("IPC: do-nothing memory_shutdown()\n");
 }
 
+
 void
 post_dosipc(void)
 {
 }
+
 
 void 
 start_dosipc(void)
@@ -255,7 +273,7 @@ start_dosipc(void)
   /* this is actually incorrect, memory from 0xa0000 to 0xbffff is not
    * shared...so we unmap it. once/if this gets shared, leave it in.
    */
-  g_printf("IPC: not munmap()ing child memory because it is shared!\n");
+
   if (munmap((caddr_t)0xa0000, (size_t)(0xc0000-0xa0000)) == -1)
     error("ERROR: child munmap1 failed errno=%d, %s\n", strerror(errno));
 
@@ -282,7 +300,9 @@ start_dosipc(void)
   main_dosipc();
 }
 
-void stop_dosipc(void)
+
+void 
+stop_dosipc(void)
 {
   int status;
 
@@ -323,6 +343,13 @@ void dosipc_sighandler(int sig)
   _exit(1);
 }
 
+
+int ipc_waitingfromchild(void)
+{
+  int num_ready;
+  RPT_SYSCALL( ioctl(PARENT_FD,FIONREAD,&num_ready) );
+  return(num_ready);
+}
 
 void ipc_sendpkt2child(struct ipcpkt *pkt)
 {
@@ -531,24 +558,6 @@ void ipc_command(struct ipcpkt *pkt)
 	k_printf("IPC/KBD: (child) got NOreadkey request\n");
 	readkey=0;
 	break;
-
-#if CHILD_PRINTER
-      case DMSG_PRINT: {
-	struct ipcpkt pkt2;
-
-	p_printf("LPT: print command!\n");
-	LWORD(eax) = pkt->u.params.param1;
-	LWORD(edx) = pkt->u.params.param2;
-
-	child_int17();
-
-	pkt2.cmd = DMSG_PRINT;
-	pkt2.u.params.param1 = LWORD(eax);
-	pkt2.u.params.param2 = LWORD(edx);
-	ipc_sendpkt2parent(&pkt2);
-	break;
-      }
-#endif
       case DMSG_ACK:
 	/* the exit routines send an extraneous IPC_ACK... */
 	if (!exitipc) error("IPC: IPC_ACK message out of place!\n");
@@ -642,8 +651,21 @@ int parent_nextscan()
 void sigipc(int sig)
 {
   struct ipcpkt pkt;
+  struct timeval tv;
+  fd_set fds;
+
+  in_vm86 = 0;
+   /* signals dont queue while packets do */
+ do{
+
 
   I_printf("IPC: (parent) sigipc!!\n");
+
+  if (!ipc_waitingfromchild())
+	{
+	  I_printf("IPC: (parent) no data ready\n");
+	  return;
+	}
 
   ipc_recvpktfromchild(&pkt);
 
@@ -686,9 +708,27 @@ void sigipc(int sig)
       I_printf("IPC: child requested exit\n");
       leavedos(0);
       break;
+    case DMSG_SENDKEY:
+      I_printf("IPC: (par) got SENDKEY\n");
+      sent_key = pkt.u.key;
+      break;
     default:
       I_printf("IPC: (par) unknown packet type %d\n", pkt.cmd);
     }
+    /* check if any other packet has arrived with the same si */
+    FD_ZERO(&fds);
+    FD_SET(PARENT_FD,&fds);
+    tv.tv_sec=0;
+    tv.tv_usec=0;
+  } while( select(255,&fds,NULL,NULL,&tv)==1 );
+
+
+  if (ipc_waitingfromchild())
+	{
+	  I_printf("sigipc() more data\n");
+	  sigipc(sig);
+	}
+
 }
 
 
@@ -697,7 +737,7 @@ void child_dokey(int fd)
   int pollret;
   u_int chr;
 
-  if (ReadKeyboard(&chr, NOWAIT))
+  while (ReadKeyboard(&chr, NOWAIT))
     {
       k_printf("IPC/KBD: readret = 0x%04x\n", chr);
       
@@ -707,8 +747,10 @@ void child_dokey(int fd)
 	k_printf("IPC/KBD: (child) sending key to parent\n");
 	pkt.cmd = DMSG_SENDKEY;
 	pkt.u.key = chr;
+	ipc_wakeparent();
 	ipc_sendpkt2parent(&pkt);
-	
+	if (chr != 0)
+	  readkey = 0;	
       } else {
 	
 	k_printf("IPC/KBD: (child) putting key in buffer\n");

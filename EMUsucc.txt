@@ -1,0 +1,41 @@
+Programs that work under the MSDOS Emulator:
+
+turbo assembler/tlink
+d86/a86
+HelpPC 2.1
+Turbo Pascal 5.5
+Turbo C++ 2.0 (bug in highlighting)
+4DOS
+doskey
+RAMDRIVE.SYS
+pkzip/unzip
+zoo
+gzip
+CHECKIT
+Qedit
+intervue
+GNUish and MKS UNIX utilities
+HP48SX RPL compiler.assembler
+LHA compressor/uncompressor
+pkunzip
+Qbasic/edit from DOS 5.0
+WordPerfect 5.1
+Foxpro 2.0
+Aseasy Spreadsheet
+
+From Miguel Alvarez Blanco (iguel@hobbit.quimica.uniovi.es):
+Lotus Manuscript, a word processor (nice, with postscript output very clean)
+Axum, a scientific graph program (very powerful, its own spreadsheet)
+Harvard Graphics 3.0 (surely you know this package, it can do all kind of
+                      business graphs, scientific and drawings too).
+Derive, Eureka, MathCad: mathematical programs
+Gravity, StatPhys: simulation programs
+
+
+Programs that DO NOT work with the emulator (yet):
+
+dosshell task swapper with DOS 5.0
+Microsoft QuickC
+ANSI.SYS/NNANSI.COM
+Serial ports are limited in speed and function.
+

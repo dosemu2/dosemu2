@@ -20,7 +20,7 @@
 #define M_DELTA			8
 
 /* don't change these for now, they're hardwired! */
-#define Mouse_SEG  0xe000
+#define Mouse_SEG  BIOSSEG
 #define Mouse_OFF  0x1500
 #define Mouse_ADD  ((Mouse_SEG << 4)+Mouse_OFF)
 

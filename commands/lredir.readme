@@ -1,0 +1,14 @@
+From Tim Bird (Tim_R_Bird@Novell.COM) :
+
+LREDIR allows you to redirect any drive, including one that is currently a
+physical drive, meaning that you can replace a drive with a redirected one.
+When you delete the redirection, the physical drive is again visible.  I am
+currently using this so that the boot diskimage disappears, and is replaced by
+the mounted MSDOS file system in Linux, with the drive letter and root the same
+as when I just boot DOS.  People who use LREDIR in this way should be careful
+when they use LREDIR in the autoexec, because COMMAND.COM will continue parsing
+the autoexec.bat from the redirected drive as the same file offset where it
+left off in the autoexec.bat on the physical drive.  For this reason, it is
+safest to have the autoexec.bat on the redirected drive and the physical drive
+(diskimage) be the same.
+

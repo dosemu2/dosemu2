@@ -5,6 +5,7 @@
 /* in the hope that it will be useful, but without any warranty;   */
 /* without even the implied warranty of merchantability or fitness */
 /* for a particular purpose.					   */
+/* $Log:                  */
 
 #ifndef VGA_H
 #define VGA_H
@@ -40,9 +41,16 @@
 #define SEQ_D   0x3C5   /* Sequencer Data Register */
 #define MIS_R   0x3CC   /* Misc Output Read Register */
 #define MIS_W   0x3C2   /* Misc Output Write Register */
+#define IS0_R   0x3C2   /* Input Status Register 0 */
 #define IS1_RC  0x3DA   /* Input Status Register 1 - color emulation */
 #define IS1_RM  0x3BA   /* Input Status Register 1 - mono emulation */
 #define PEL_D   0x3C9   /* PEL Data Register */
+#define FCR_R   0x3CA   /* Feature Control Read */
+#define FCR_WM  0x3BA   /* Feature Control Write Mono */
+#define FCR_WC  0x3DA   /* Feature Control Write Color */
+#define PEL_M   0x3C6   /* Palette MASK                */
+#define GR1_P   0x3CC   /* Graphics 1                  */
+#define GR2_P   0x3CA   /* Graphics 2                  */
 
 /* VGA indexes max counts */
 #define CRT_C   24      /* 24 CRT Controller Registers */
@@ -50,6 +58,17 @@
 #define GRA_C   9       /* 9  Graphics Controller Registers */
 #define SEQ_C   5       /* 5  Sequencer Registers */
 #define MIS_C   1       /* 1  Misc Output Register */
+#define ISR1_C  1       /* 1  ISR reg */
+#define GRAI_C  1       /* 1  GRAphic Index */
+#define CRTI_C  1       /* 1  CRT Index */
+#define SEQI_C  1       /* 1  SEQ Index */
+#define FCR_C   1       /* 1  Feature Control Register */
+#define ISR0_C  1       /* 1  Input Status Register 0  */
+#define PELIR_C 1       /* 1  Pallette Read Index */
+#define PELIW_C 1       /* 1  Pallette Write Index */
+#define PELM_C  1       /* 1  Pallette MASK        */
+#define GR1P_C  1       /* 1  Pallette MASK        */
+#define GR2P_C  1       /* 1  Pallette MASK        */
 
 /* VGA registers saving indexes */
 #define CRT     0               /* CRT Controller Registers start */
@@ -57,7 +76,17 @@
 #define GRA     ATT+ATT_C       /* Graphics Controller Registers start */
 #define SEQ     GRA+GRA_C       /* Sequencer Registers */
 #define MIS     SEQ+SEQ_C       /* General Registers */
-#define EXT     MIS+MIS_C       /* SVGA Extended Registers */
+#define ISR1    MIS+MIS_C       /* SVGA Extended Registers */
+#define GRAI    ISR1+ISR1_C       /* SVGA Extended Registers */
+#define CRTI    GRAI+GRAI_C       
+#define SEQI    CRTI+CRTI_C      
+#define FCR     SEQI+SEQI_C     
+#define ISR0    FCR+FCR_C      
+#define PELIR   ISR0+ISR0_C    
+#define PELIW   PELIR+PELIR_C
+#define PELM    PELIW+PELIW_C
+#define GR1P    PELM+PELM_C
+#define GR2P    GR1P+GR1P_C
 
 #define SEG_SELECT 0x3CD
 #define MAX_REGS 100
@@ -74,12 +103,14 @@ extern void vga_initialize();
 
 /* Struct to hold necessary elements during a save/restore */
 struct video_save_struct {
- unsigned char regs[75]; /* This includes 16 EXT regs */
+ unsigned char regs[71];
+ unsigned char xregs[18]; /* These are 18 EXT regs */
  unsigned char *mem;
  unsigned char pal[3*256];
  unsigned char save_mem_size[4];
  unsigned char banks;
  unsigned char video_mode;
+ unsigned char *video_name; /* Debugging only */
  unsigned char release_video;
  unsigned char *textmem;  /* for saving page 0 memory */
 } ;
@@ -146,6 +177,6 @@ extern int vga_dumpregs();
 #define TRIDENT		1
 #define ET4000		2
 
+extern u_char video_port_in(int port);
+extern void   video_port_out(u_char value, int port);
 #endif /* VGA_H */
-
-

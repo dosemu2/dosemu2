@@ -42,7 +42,7 @@ void foot(void)
 }
 
 
-do_arg(int indx, char *arg)
+void do_arg(int indx, char *arg)
 {
   char *lvalue, *rvalue;
 
@@ -86,7 +86,7 @@ void host_and_time(void)
 }
 
 
-main (int argc, char **argv)
+int main (int argc, char **argv)
 {
   int indx;
 

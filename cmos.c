@@ -1,9 +1,9 @@
 /* cmos.c, for DOSEMU
  *   by Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1993/05/04 05:29:22 $ 
- * $Source: /usr/src/dos/RCS/cmos.c,v $
- * $Revision: 1.6 $
+ * $Date: 1993/11/12 12:32:17 $ 
+ * $Source: /home/src/dosemu0.49pl2/RCS/cmos.c,v $
+ * $Revision: 1.1 $
  * $State: Exp $
  */
 
@@ -18,8 +18,7 @@
 extern struct config_info config;
 #define EXTMEM_SIZE ((config.xms_size>config.ems_size)?config.xms_size : \
 		     config.ems_size)
-		     
-
+#define SET_CMOS(byte,val)  do { cmos.subst[byte] = (val); cmos.flag[byte] = 1; } while(0)
 extern struct disk disktab[];
 
 int cmos_date(int);
@@ -33,51 +32,68 @@ void cmos_init(void)
     cmos.subst[i]=cmos.flag[i]=0;
 
   /* CMOS floppies...is this correct? */
-  cmos.subst[0x10]=(config.fdisks ?  (disktab[0].default_cmos << 4) : 0) | 
-    ((config.fdisks > 1) ? disktab[1].default_cmos&0xf : 0);
-  cmos.flag[0x10]=1;
+  SET_CMOS( CMOS_DISKTYPE, (config.fdisks ?  (disktab[0].default_cmos << 4) : 0) | 
+    ((config.fdisks > 1) ? disktab[1].default_cmos&0xf : 0) );
 
   /* CMOS equipment byte..top 2 bits are 01 for 2 drives, 00 for 1 
    * bit 1 is 1 for math coprocessor installed
    * bit 0 is 1 for floppies installed, 0 for none */
+
   cmos.subst[0x14]=((config.fdisks ? config.fdisks-1 : 0)<<5)+(config.fdisks ? 1 : 0);
   if (config.mathco) cmos.subst[0x14]|=2;
   cmos.flag[0x14]=1;
 
   /* CMOS hard disks...type 47 for both. */
-  cmos.subst[0x12]=(config.hdisks ? 0xf0 : 0) + ((config.hdisks - 1) ? 0xf : 0);
-  cmos.subst[0x19]=47;
-  cmos.subst[0x1a]=47;
-  cmos.flag[0x12]=cmos.flag[0x19]=cmos.flag[0x1a]=1;
+  SET_CMOS( CMOS_HDTYPE, (config.hdisks ? 0xf0 : 0) + ((config.hdisks - 1) ? 0xf : 0) );
+  SET_CMOS( CMOS_HD1EXT, 47 );
+  if (config.hdisks == 2) SET_CMOS( CMOS_HD2EXT, 47 );
+  else SET_CMOS( CMOS_HD2EXT, 0 );
 
   /* this is the CMOS status */
-  cmos.subst[0xa]=0x26;
-  cmos.flag[0xa]=1;
-  cmos.subst[0xb]=2;
-  cmos.flag[0xb]=1;
-  cmos.subst[0xc]=0x50;  /* 0xc and 0xd are read only */
-  cmos.flag[0xc]=1;
-  cmos.subst[0xd]=0x80;  /* CMOS has power */
-  cmos.flag[0xd]=1;
-  cmos.subst[0xe]=0;
-  cmos.flag[0xe]=1;
+  SET_CMOS( CMOS_STATUSA, 0x26 );
+  SET_CMOS( CMOS_STATUSB, 2 );
+
+  /* 0xc and 0xd are read only */
+  SET_CMOS( CMOS_STATUSC, 0x50 );
+  SET_CMOS( CMOS_STATUSD, 0x80 );
+
+  SET_CMOS( CMOS_DIAG, 0 );
 
   /* memory counts */
-  cmos.subst[0x15]=config.mem_size & 0xff;   /* base mem LSB */
-  cmos.subst[0x16]=config.mem_size >> 8;
-  cmos.subst[0x17]=EXTMEM_SIZE & 0xff;    /* extended mem LSB */
-  cmos.subst[0x18]=EXTMEM_SIZE >> 8;
-  cmos.flag[0x15]=cmos.flag[0x16]=cmos.flag[0x17]=cmos.flag[0x18]=1;
+  SET_CMOS( CMOS_BASEMEML, config.mem_size & 0xff );   /* base mem LSB */
+  SET_CMOS( CMOS_BASEMEMM, config.mem_size >> 8 );   /* base mem MSB */
+
+  SET_CMOS( CMOS_EXTMEML, EXTMEM_SIZE & 0xff );
+  SET_CMOS( CMOS_EXTMEMM, EXTMEM_SIZE >> 8 );
+
+  /* say protected mode test 7 passed (?) */
+  SET_CMOS( CMOS_SHUTDOWN, 6 );
 
   /* information flags...my CMOS returns this */
-  cmos.subst[0x33] = 0xe1;
-  cmos.flag[0x33] = 1;
+  SET_CMOS( CMOS_INFO, 0xe1 );
 
-  warn("CMOS initialized: \n$Header: /usr/src/dos/RCS/cmos.c,v 1.6 1993/05/04 05:29:22 root Exp root $\n");
+  warn("CMOS initialized: \n$Header: /home/src/dosemu0.49pl2/RCS/cmos.c,v 1.1 1993/11/12 12:32:17 root Exp root $\n");
 }
 
 
-int cmos_read(int port)
+int
+cmos_chksum(void)
+{
+  int i, sum=0;
+
+  /* return the checksum over bytes 0x10-0x20. These are static values,
+   * so no need to call cmos_read()
+   */
+
+  for (i=0x10; i<0x21; i++)
+    sum += cmos.subst[i];
+
+  return sum;
+}
+
+
+int 
+cmos_read(int port)
 {
   unsigned char holder=0;
 
@@ -85,23 +101,30 @@ int cmos_read(int port)
 
   switch(cmos.address)
     {
-      case 0:  /* RTC seconds */
-      case 2:  /* minutes */
-      case 4:  /* hours */
-      case 6:  /* day of week */
-      case 7:  /* day of month */
-      case 8:  /* month */
-      case 9:  /* year */
+      case CMOS_SEC:
+      case CMOS_MIN:
+      case CMOS_HOUR:
+      case CMOS_DOW:  /* day of week */
+      case CMOS_DOM:  /* day of month */
+      case CMOS_MONTH:
+      case CMOS_YEAR:
         return (cmos_date(cmos.address)); 
-      case 1:  /* RTC seconds alarm */
-      case 3:  /* minutes alarm */
-      case 5:  /* hours alarm */
+
+      case CMOS_SECALRM:
+      case CMOS_MINALRM:
+      case CMOS_HOURALRM:
 	h_printf("CMOS alarm read %d...UNIMPLEMENTED!\n", cmos.address);
 	return cmos.subst[cmos.address];
+
+      case CMOS_CHKSUML:
+	return (cmos_chksum() & 0xff);
+
+      case CMOS_CHKSUMM:
+	return (cmos_chksum() >> 8);
     }
 
-  /* date functions return, so hereafter all values should be static
-   * after boot time...
+  /* date functions return, so hereafter all values should be those set
+   * either at boot time or changed by DOS programs...
    */
 
   if (cmos.flag[cmos.address])  /* this reg has been written to */
@@ -113,19 +136,24 @@ int cmos_read(int port)
   else if (!set_ioperm(0x70,2,1))
     {
       h_printf("CMOS: really reading 0x%x!\n", cmos.address);
-      port_out((cmos.address & ~0xc0)|0x80, 0x70);
+      port_out((cmos.address & ~0xc0), 0x70);
       holder=port_in(0x71);
       set_ioperm(0x70,2,0);
     }
 #endif
-  else error("CMOS: unknown CMOS read 0x%x\n", cmos.address);
+  else 
+    {
+      error("CMOS: unknown CMOS read 0x%x\n", cmos.address);
+      holder=cmos.subst[cmos.address];
+    }
 
   h_printf("CMOS read. add: 0x%02x = 0x%02x\n", cmos.address, holder);
   return holder;
 }
 
 
-void cmos_write(int port, int byte)
+void 
+cmos_write(int port, int byte)
 {
   if (port == 0x70)
       cmos.address=byte & ~0xc0;  /* get true address */
@@ -134,19 +162,20 @@ void cmos_write(int port, int byte)
       if ((cmos.address != 0xc) && (cmos.address != 0xd))
 	{
 	  h_printf("CMOS: set address 0x%02x to 0x%02x\n", cmos.address,byte);
-	  cmos.subst[cmos.address]=byte;
-	  cmos.flag[cmos.address]=1;
+	  SET_CMOS( cmos.address, byte );
 	}
       else h_printf("CMOS: write to ref 0x%x blocked\n", cmos.address);
     }
 }
 
-unsigned short BCD(int binval)
+
+u_short 
+BCD(int binval)
 {
   unsigned short tmp1, tmp2;
 
   /* bit 2 of register 0xb set=binary mode, clear=BCD mode */
-  if (cmos.subst[0xb] & 4) return binval;
+  if (cmos.subst[CMOS_STATUSB] & 4) return binval;
 
   if (binval > 99) binval = 99;
 
@@ -155,7 +184,9 @@ unsigned short BCD(int binval)
   return ((tmp1 << 4) | tmp2);
 }
 
-int cmos_date(int reg)
+
+int 
+cmos_date(int reg)
 {
   unsigned long ticks;
   struct timeval tp;
@@ -168,41 +199,43 @@ int cmos_date(int reg)
   ticks = tp.tv_sec - (tzp.tz_minuteswest*60);
   tm = localtime((time_t *)&ticks);
 
-#if 0
-  h_printf("CMOS: get time %d:%02d:%02d\n", tm->tm_hour, tm->tm_min, tm->tm_sec);
-  h_printf("CMOS: get date %d.%d.%d\n", tm->tm_mday, tm->tm_mon, tm->tm_year);
-#endif
-
   switch(reg)
     {
-    case 0:  /* RTC seconds */
+    case CMOS_SEC:
       return BCD(tm->tm_sec);
-    case 2:  /* RTC minutes */
+
+    case CMOS_MIN:
       return BCD(tm->tm_min);
-    case 4:  /* RTC hour...bit 1 of 0xb set=24 hour mode, clear 12 hour */
+
+    case CMOS_HOUR:  /* RTC hour...bit 1 of 0xb set=24 hour mode, clear 12 hour */
       tmp=BCD(tm->tm_hour);
-      if (cmos.subst[0xb]&2) return tmp;
-      else {
+      if (! (cmos.subst[CMOS_STATUSB] & 2))
+      {
 	if (tmp == 0) return 12;
 	else if (tmp > 12) return tmp-12;
       }
-      break;
-    case 6:  /* RTC weekday */
+      return tmp;
+
+    case CMOS_DOW:
       return BCD(tm->tm_wday);
-    case 7:  /* RTC day of month */
+
+    case CMOS_DOM:
       return BCD(tm->tm_mday);
-    case 8: /* RTC month */
+
+    case CMOS_MONTH:
       if (cmos.flag[8]) return cmos.subst[8];
       else return BCD(tm->tm_mon);
-    case 9: /* RTC year */
+
+    case CMOS_YEAR:
       if (cmos.flag[9]) return cmos.subst[9];
       else return BCD(tm->tm_year);
+
     default:
       h_printf("CMOS: cmos_time() register 0x%02x defaulted to 0\n",reg);
       return 0;
     }
 
-  /* the reason for month and year I return the substituted valus is this:
+  /* XXX - the reason for month and year I return the substituted values is this:
    * Norton Sysinfo checks the CMOS operation by reading the year, writing
    * a new year, reading THAT year, and then rewriting the old year,
    * apparently assuming that the CMOS year can be written to, and only

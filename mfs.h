@@ -14,12 +14,14 @@ typedef unsigned char boolean_t;
 #define d_namlen d_reclen
 
 #ifndef MAX_DRIVE
-#define MAX_DRIVE 128
+#define MAX_DRIVE 26
 #endif
 
 #define USE_DF_AND_AFS_STUFF
 
 #define VOLUMELABEL "Linux"
+
+#define LINUX_RESOURCE "\\\\LINUX\\FS"
 
 #define FALSE 0
 #define TRUE 1
@@ -81,6 +83,15 @@ typedef struct vm86_regs state_t;
  *
  * HISTORY: 
  * $Log: mfs.h,v $
+ * Revision 1.2  1993/11/17  22:29:33  root
+ * *** empty log message ***
+ *
+ * Revision 1.1  1993/11/12  12:32:17  root
+ * Initial revision
+ *
+ * Revision 1.1  1993/07/07  00:49:06  root
+ * Initial revision
+ *
  * Revision 1.3  1993/05/04  05:29:22  root
  * added console switching, new parse commands, and serial emulation
  *
@@ -176,8 +187,14 @@ typedef struct vm86_regs state_t;
 #define DISK_CHANGE_INVALID	0x22
 #define FCB_UNAVAILABLE		0x23
 #define SHARING_BUF_EXCEEDED	0x24
+
+#define NETWORK_NAME_NOT_FOUND	0x35
+
 #define FILE_ALREADY_EXISTS	0x50
-/* about 20 more I'm not going to type in.... */
+
+#define DUPLICATE_REDIR		0x55
+
+
 
 struct dir_ent {
 	char	name[8];	/* dos name and ext */
@@ -242,7 +259,17 @@ typedef u_char * sft_t;
 typedef u_char * cds_t;
 #define	cds_current_path(cds)	((char	   *)&cds[cds_current_path_off])
 #define	cds_flags(cds)		(*(u_short *)&cds[cds_flags_off])
+#define cds_DBP_pointer(cds)	(*(far_t *)&cds[cds_DBP_pointer_off])
+#define cds_cur_cluster(cds)	(*(u_short *)&cds[cds_cur_cluster_off])
 #define	cds_rootlen(cds)	(*(u_short *)&cds[cds_rootlen_off])
+#define drive_cds(dd) ((cds_t)(((int)cds_base)+(cds_record_size*(dd))))
+
+#define CDS_FLAG_REMOTE		0x8000
+#define CDS_FLAG_READY		0x4000
+#define CDS_FLAG_SUBST		0x1000
+#define CDS_DEFAULT_ROOT_LEN	2
+
+
 
 #define FAR(x) (Addr_8086(x.segment, x.offset))
 #define FARPTR(x) (Addr_8086((x)->segment, (x)->offset))
@@ -262,6 +289,7 @@ typedef u_char * sda_t;
 #define sda_search_attribute(sda)	(*(u_char *)&sda[sda_search_attribute_off])
 #define sda_open_mode(sda)		(*(u_char *)&sda[sda_open_mode_off])
 #define sda_rename_source(sda)		((sdb_t    )&sda[sda_rename_source_off])
+#define sda_user_stack(sda)		((char *)(FARPTR((far_t *)&sda[sda_user_stack_off])))
 
 /*
  *  Data for extended open/create operations, DOS 4 or greater:
@@ -314,5 +342,10 @@ typedef struct lol_record {
 #define B_DRIVE		0x02
 #define C_DRIVE		0x03
 #define D_DRIVE		0x04
+
+#define GET_REDIRECTION	2
+#define REDIRECT_DEVICE 3
+#define CANCEL_REDIRECTION 4
+#define EXTENDED_GET_REDIRECTION 5
 
 

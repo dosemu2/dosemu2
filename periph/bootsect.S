@@ -1,6 +1,12 @@
 !  Boot record program (C) Copyright Peter Norton 1986
 !  modified by Robert Sanders, gt8134b@prism.gatech.edu
 !   for dosemu 0.49, 4/1/93
+!
+! $Date: 1993/11/12 12:41:41 $
+! $Source: /home/src/dosemu0.49pl2/periph/RCS/bootsect.S,v $
+! $Revision: 1.1 $
+! $State: Exp $
+!
 
 .text
 .data

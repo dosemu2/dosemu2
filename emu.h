@@ -3,12 +3,21 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1993/05/04 05:29:22 $
- * $Source: /usr/src/dos/RCS/emu.h,v $
- * $Revision: 1.13 $
+ * $Date: 1993/11/12 12:32:17 $
+ * $Source: /home/src/dosemu0.49pl2/RCS/emu.h,v $
+ * $Revision: 1.1 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 1.1  1993/11/12  12:32:17  root
+ * Initial revision
+ *
+ * Revision 1.2  1993/07/07  21:42:04  root
+ * minor changes for -Wall
+ *
+ * Revision 1.1  1993/07/07  00:49:06  root
+ * Initial revision
+ *
  * Revision 1.13  1993/05/04  05:29:22  root
  * added console switching, new parse commands, and serial emulation
  *
@@ -78,6 +87,8 @@ extern char *cl,	/* clear screen */
 
 extern int kbd_fd, mem_fd, ioc_fd;
 extern int in_readkeyboard;
+
+extern int in_vm86;
 
 extern int  li, co, li2, co2;	/* lines, columns */     
 extern int lastscan, scanseq;
@@ -154,8 +165,8 @@ struct debug_flags
     config;
 };
 
-int ifprintf(unsigned char,const char *, ...),
-    p_dos_str(char *, ...);
+int ifprintf(unsigned char,const char *, ...);
+void p_dos_str(char *, ...);
 
 #define dbug_printf(f,a...)	ifprintf(1,f,##a)
 #define k_printf(f,a...) 	ifprintf(d.keyb,f,##a)
@@ -177,7 +188,8 @@ int ifprintf(unsigned char,const char *, ...),
 #define e_printf(f,a...) 	ifprintf(1,f,##a)
 #define error(f,a...)	 	ifprintf(1,f,##a)
 
-#define char_out(c,s,af)   char_out_att(c,7,s,af)
+/* #define char_out(c,s,af)   char_out_att(c,7,s,af) */
+void char_out(u_char, int, int);
 
 struct ioctlq
 {
@@ -239,7 +251,7 @@ extern struct ioctlq iq, curi;
  * this is best used in places where the errors can't be sanely handled,
  * or are not expected...
  */
-#define DOS_SYSCALL(sc) ({ int s_tmp = sc; \
+#define DOS_SYSCALL(sc) ({ int s_tmp = (int)sc; \
   if (s_tmp == -1) \
     error("SYSCALL ERROR: %d, *%s* in file %s, line %d: expr=\n\t%s\n", \
 	  errno, strerror(errno), __FILE__, __LINE__, #sc); \
@@ -257,7 +269,9 @@ extern struct ioctlq iq, curi;
 
 typedef unsigned char bool;
 
-typedef struct config_info {
+typedef struct config_info 
+{
+  int hdiskboot;
 
   /* for video */
   bool console_video;
@@ -281,6 +295,8 @@ typedef struct config_info {
   bool vbios_copy;
 
   bool fastfloppy;
+  char *emusys;		/* map CONFIG.SYS to CONFIG.EMU */
+  char *emubat;		/* map AUTOEXEC.BAT to AUTOEXEC.EMU */
 
   u_short speaker;  /* 0 off, 1 native, 2 emulated */
   u_short fdisks, hdisks;
@@ -317,15 +333,12 @@ typedef struct config_info {
 
 #define SIG_SER		SIGTTIN
 
-#if 1
 #define SIG_TIME	SIGALRM
 #define TIMER_TIME	ITIMER_REAL
-#else
-#define SIG_TIME	SIGVTALRM
-#define TIMER_TIME	ITIMER_VIRTUAL
-#endif
 
-
+#define IO_READ  1
+#define IO_WRITE 2
+#define IO_RDWR	 (IO_READ | IO_WRITE)
 
 #endif /* EMU_H */
 

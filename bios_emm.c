@@ -30,6 +30,12 @@
  *
  * HISTORY: 
  * $Log: bios_emm.c,v $
+ * Revision 1.1  1993/11/12  12:32:17  root
+ * Initial revision
+ *
+ * Revision 1.1  1993/07/07  00:48:01  root
+ * Initial revision
+ *
  * Revision 1.3  1993/05/04  05:29:22  root
  * added console switching, new parse commands, and serial emulation
  *
@@ -199,19 +205,19 @@ struct handle_record {
 #define OS_PAGES	(OS_SIZE / (16*1024))
 
 #define CHECK_OS_HANDLE(handle) \
-      if (handle == OS_HANDLE) \
+      if ((handle) == OS_HANDLE) \
 	Kdebug0((dbg_fd,"trying to use OS handle in MAP_UNMAP!\n"));
 
 #define CLEAR_HANDLE_NAME(nameptr) \
-	bzero(&nameptr, 9);
+	bzero((nameptr), 9);
 
 #define SET_HANDLE_NAME(nameptr, name) \
-	{ memmove(nameptr, name, 8); nameptr[8]=0; }
+	{ memmove((nameptr), (name), 8); nameptr[8]=0; }
 
 #define CHECK_HANDLE(handle) \
-  if ((handle < 0) || (handle > MAX_HANDLES)) { \
+  if ((handle) < 0 || (handle) > MAX_HANDLES) { \
     SETHIGH(&(state->eax), EMM_INV_HAN); \
-    return(UNCHANGED); \
+    return; \
   }
 
 /* this will have to change...0 counts are allowed */
@@ -223,7 +229,7 @@ struct handle_record {
     Kdebug0((dbg_fd, "function not supported: 0x%04x\n", WORD(state->eax))); }
 
 #define PHYS_PAGE_SEGADDR(i) \
-  (EMM_SEGMENT + (0x400 * i))
+  (EMM_SEGMENT + (0x400 * (i)))
 
 #define PHYS_PAGE_ADDR(i) \
   (PHYS_PAGE_SEGADDR(i) << 4)
@@ -234,12 +240,76 @@ struct handle_record {
 #define Kdebug1(args)		E_Stub args
 #define Kdebug2(args)		E_Stub args
 
-int selfmem_fd;
+int selfmem_fd=-1;
 #endif
 
-void bios_emm_init()
+
+#ifdef __linux__
+
+boolean_t
+probe_mmap()
+{
+  char *page1=NULL, *page2=NULL;
+  char *maperr;
+
+  /* open our fd for mmap()ing */
+  selfmem_fd = open("/proc/self/mem", O_RDWR);
+  if (selfmem_fd < 0) return (FALSE);
+
+  if ( !(page1 = valloc(4096*1024)) ) return(FALSE);
+  if ( !(page2 = valloc(4096*1024)))
+    {
+      free(page1);
+      return(FALSE);
+    }
+
+  errno=0;
+  maperr = (caddr_t) mmap(page1,
+			  4096*1024,
+			  PROT_READ|PROT_WRITE|PROT_EXEC,
+			  MAP_SHARED|MAP_FIXED,
+			  selfmem_fd, 
+			  (u_long)page2);
+
+  munmap(page1, 4096*1024);
+  munmap(page2, 4096*1024);
+  free(page1);
+  free(page2);
+
+#if 0
+  error("EMM: maperr was %d %x, errno was %d %s\n", maperr, maperr,
+	errno, strerror(errno));
+#endif
+
+  if (maperr != (char *)-1) return(TRUE);
+  else 
+    {
+      error("ERROR: probe mmap() failed (%d, %s) - turning EMS off\n",
+	       errno, strerror(errno));
+      return(FALSE);
+    }
+}
+
+#endif /* __linux__ */
+
+
+
+void 
+bios_emm_init()
 {
 	int i;
+
+#ifdef __linux__
+
+	if (! config.ems_size) return;
+
+	/* check that the kernel can mmap /proc/self/mem */
+	if ( !probe_mmap() )
+	  {
+	    config.ems_size = 0;
+	    return;
+	  }
+#endif
 
 	E_printf("EMS: initializing memory\n");
 
@@ -265,16 +335,6 @@ void bios_emm_init()
 
 	handle_total++;
 	SET_HANDLE_NAME(handle_info[OS_HANDLE].name, "SYSTEM");
-
-#ifdef __linux__
-	/* open our fd for mmap()ing */
-	if (config.ems_size) {
-	  selfmem_fd = open("/proc/self/mem", O_RDWR);
-	  warn("EMS: opened fd for /proc/self/mem: %d\n", selfmem_fd);
-	}
-	else
-	  warn("EMS: Not opening /proc/self/mem\n");
-#endif
 }
 
 #ifdef __linux__
@@ -454,7 +514,7 @@ int restore_handle_state(handle)
 }
 
 void test_handle(handle, numpages)
-	int handle;
+	int handle, numpages;
 {
 	int i;
 
@@ -525,7 +585,7 @@ partial_map_registers(state_t *state)
 }
 
 
-int
+void
 map_unmap_multiple(state_t *state)
 {
   int handle;
@@ -573,7 +633,7 @@ map_unmap_multiple(state_t *state)
 
 	if (phys == -1) {
 	  SETHIGH(&(state->eax), EMM_ILL_PHYS); 
-	  return(UNCHANGED);
+	  return;
 	}
 	else {
 	  do_map_unmap(state, handle, phys, log);
@@ -592,7 +652,7 @@ map_unmap_multiple(state_t *state)
 }
 
 
-int
+void
 reallocate_pages(state_t *state)
 {
   int handle = WORD(state->edx);
@@ -603,12 +663,12 @@ reallocate_pages(state_t *state)
 
   if ((handle < 0) || (handle > MAX_HANDLES)) {
     SETHIGH(&(state->eax), EMM_INV_HAN);
-    return(UNCHANGED);
+    return;
   }
 
   if (newcount == handle_info[handle].numpages) { /* no-op */
     SETHIGH(&(state->eax), EMM_NO_ERR);
-    return(UNCHANGED);
+    return;
   }
 }
 
@@ -650,7 +710,7 @@ handle_attribute(state_t *state)
 }
 
 
-int
+void
 handle_name(state_t *state)
 {
   switch(LOW(state->eax))
@@ -685,12 +745,12 @@ handle_name(state_t *state)
        default:
 	 Kdebug0((dbg_fd, "bad handle_name function %d\n", LOW(state->eax)));
 	 SETHIGH(&(state->eax), EMM_FUNC_NOSUP);
-	 return(UNCHANGED);
+	 return;
      }
 }
 
 
-int
+void
 handle_dir(state_t *state)
 {
   Kdebug0((dbg_fd,"handle_dir %d called\n", LOW(state->eax)));
@@ -728,12 +788,12 @@ handle_dir(state_t *state)
 	  Kdebug0((dbg_fd, "name match %s!\n", array));
 	  SETHIGH(&(state->eax), EMM_NO_ERR);
 	  SETWORD(&(state->edx), handle);
-	  return(TRUE);
+	  return;
 	}
       }
       /* got here, so search failed */
       SETHIGH(&(state->eax), EMM_NOT_FOUND);
-      return(FALSE);
+      return;
     }
 
     case GET_TOTAL: {
@@ -746,7 +806,7 @@ handle_dir(state_t *state)
     default:
 	 Kdebug0((dbg_fd, "bad handle_dir function %d\n", LOW(state->eax)));
 	 SETHIGH(&(state->eax), EMM_FUNC_NOSUP);
-	 return(UNCHANGED);
+	 return;
     }
     }
 }

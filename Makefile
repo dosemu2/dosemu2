@@ -1,5 +1,9 @@
 # Makefile for Linux DOS emulator
-
+#
+# $Date: 1993/11/17 22:29:33 $
+# $Source: /home/src/dosemu0.49pl2/RCS/Makefile,v $
+# $Revision: 1.4 $
+# $State: Exp $
 #
 # define LATIN1 if if you have defined KBD_XX_LATIN1 in your linux Makefile.
 # This assumes that <ALT>-X can be read as "\033x" instead of 'x'|0x80 
@@ -13,19 +17,21 @@
 
 #ifdef DEBUG
 #STATIC=1
-#DOSOBJS=debugobj.o $(OBJS)
+#DOSOBJS=$(OBJS)
 #SHLIBOBJS=
 #DOSLNK=-ltermcap -lipc
-#LNKOPTS=-g
+#CDEBUGOPTS=-g -DSTATIC=1
+#LNKOPTS=
 #else
 STATIC=0
 DOSOBJS=
 SHLIBOBJS=$(OBJS)
+CDEBUGOPTS=
 LNKOPTS=-s
 #endif
 
 # dosemu version
-EMUVER  =   0.49
+EMUVER  =   0.49pl2
 VERNUM  =   0x49
 
 # DON'T CHANGE THIS: this makes libemu start high enough to be safe. should be 
@@ -107,17 +113,27 @@ GFX = -DCHEAP_GFX=1
 CONFIG_FILE = -DCONFIG_FILE=\"/etc/dosemu/config\"
 
 ###################################################################
-CFILES=cmos.c dos.c emu.c termio.c xms.c disks.c dosvga.c keymaps.c \
+SUBDIRS= boot commands doc drivers examples parse periph 
+
+CFILES=cmos.c dos.c emu.c termio.c xms.c disks.c keymaps.c \
 	timers.c mouse.c dosipc.c cpu.c video.c mfs.c bios_emm.c lpt.c \
-        parse.c serial.c mutex.c putrom.c
+        parse.c serial.c mutex.c 
+
 HFILES=cmos.h dosvga.h emu.h termio.h timers.h xms.h mouse.h dosipc.h \
         cpu.h bios.h mfs.h disks.h memory.h machcompat.h lpt.h \
         serial.h mutex.h modes.h
-OFILES=Makefile README.first dosconfig.c bootsect.S mkhdimage.c \
-       mkpartition exitemu.S mkbkup emufs.S  \
-	vgaon.S vgaoff.S config.dist mmap.diff getrom 
-DOCFILES=dosemu.texinfo Makefile dos.1 wp50
-BFILES=emufs.sys hdimage.head exitemu.com vgaon.com vgaoff.com
+OFILES= Makefile ChangeLog dosconfig.c QuickStart
+BFILES=
+
+F_DOC=dosemu.texinfo Makefile dos.1 wp50
+F_DRIVERS=emufs.S emufs.sys
+F_COMMANDS=exitemu.S exitemu.com vgaon.S vgaon.com vgaoff.S vgaoff.com \
+            lredir.exe lredir.c makefile.mak
+F_EXAMPLES=config.dist
+F_PARSE=parse.y scan.l parse.c scan.c parse.tab.h
+F_PERIPH=debugobj.S getrom hdinfo.c mkhdimage.c mkpartition putrom.c 
+ 
+
 ###################################################################
 
 OBJS=emu.o termio.o disks.o keymaps.o timers.o cmos.o mouse.o parse.o \
@@ -135,12 +151,15 @@ CONFIGINFO = $(DEFINES) $(CONFIGS) $(OPTIONAL) $(DEBUG) $(DISKS) $(MOUSE) \
 	     $(MEMORY)
 
 CC         =   gcc # I use gcc-specific features (var-arg macros, fr'instance)
-CFLAGS     = -m486 -DAJT=1 # -O6 # -Wall
+COPTFLAGS  = # -O6 -m486
+CFLAGS     = -DAJT=1 $(CDEBUGOPTS) $(COPTFLAGS) # -Wall
 LDFLAGS    = $(LNKOPTS) # exclude symbol information
 AS86 = as86
 LD86 = ld86 -0 -s
 
-all:	warnconf dos libemu mkhdimage bootsect exitemu.com emufs.sys vgaon.com vgaoff.com
+all:	warnconf dos libemu dossubdirs
+
+.EXPORT_ALL_VARIABLES:
 
 debug:
 	rm dos
@@ -157,106 +176,87 @@ else
 endif
 warnconf: config.h
 
+dos.o: config.h dos.c
+	$(CC) -DSTATIC=$(STATIC) -c dos.c
+
 dos:	dos.c $(DOSOBJS)
-	@echo "Including dos.o &" $(DOSOBJS)
+	@echo "Including dos.o " $(DOSOBJS)
 	$(CC) -DSTATIC=$(STATIC) $(LDFLAGS) -N -o $@ $< $(DOSOBJS) $(DOSLNK)
 
 libemu:	$(SHLIBOBJS)
-	ld $(LDFLAGS) -T $(LIBSTART) -o $@ $(SHLIBOBJS) $(SHLIBS) -lc -ltermcap -lipc
+	ld $(LDFLAGS) -T $(LIBSTART) -o $@ $(SHLIBOBJS) $(SHLIBS) -lc -ltermcap
+
+map:
+	(cd debug; make map)
+
+dossubdirs: dummy
+	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE)) || exit; done
 
 clean:
-	rm -f $(OBJS) $(GFXOBJS) $(XMSOBJS) dos libemu *.s core config.h .depend dosconfig dosconfig.o bootsect bootsect.o exitemu.o exitemu.com mkhdimage *.tmp
+	rm -f $(OBJS) $(GFXOBJS) $(XMSOBJS) dos libemu *.s core config.h .depend dosconfig dosconfig.o *.tmp
+	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) clean) || exit; done
 
 config: dosconfig
 	@./dosconfig $(CONFIGINFO) > config.h
 
 install: all /usr/bin/dos
-	cp libemu /lib
-	cp dos.1 /usr/man/man1
-	mkdir -p /etc/dosemu
-	cp mkhdimage mkpartition getrom /etc/dosemu
-	chmod 755 /etc/dosemu/mkhdimage /etc/dosemu/mkpartition /etc/dosemu/getrom
-	touch hdimage diskimage
-	@echo "Remember to edit config.dist and copy it to /etc/dosemu/config!"
+	install -m 0755 libemu /lib
+	install -d /etc/dosemu
+	touch -a /etc/dosemu/hdimage /etc/dosemu/diskimage
+	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) install) || exit; done
+	@echo "Remember to edit examples/config.dist and copy it to /etc/dosemu/config!"
 
 /usr/bin/dos: dos
-	cp dos /usr/bin
-	chmod 4755 /usr/bin/dos
-
-mkhdimage: mkhdimage.c
-	$(CC) $(CFLAGS) -o mkhdimage -s -N mkhdimage.c
+	install -m 04755 dos /usr/bin
 
 # this should produce a 512 byte file that ends with 0x55 0xaa
 # this is a MS-DOS boot sector and partition table (empty).
 # (the dd is necessary to strip off the 32 byte Minix executable header)
-bootsect: bootsect.S
-	$(AS86) -a -0 -o bootsect.o bootsect.S # -l bootsect.lst
-	$(LD86) -s -o boot.tmp bootsect.o
-	dd if=boot.tmp of=bootsect bs=1 skip=32
-	rm boot.tmp
 
-emufs.sys: emufs.S
-	$(AS86) -0 -o emufs.o emufs.S -l emufs.lst
-	$(LD86) -s -o emufs.tmp emufs.o
-	dd if=emufs.tmp of=emufs.sys bs=1 skip=32
-	rm emufs.tmp
-
-comfiles = exitemu.com vgaon.com vgaoff.com
-
-%.com: %.S
-	$(AS86) -0 -o $*.o $<
-	$(LD86) -T 0 -s -o $*.tmp $*.o
-	dd if=$*.tmp of=$@ bs=1 skip=32
-	rm $*.tmp $*.o
-
-testlib: all /usr/bin/dos
+testlib:  libemu /usr/bin/dos 
 	cp libemu /lib
 
 converthd: hdimage
 	mv hdimage hdimage.preconvert
-	mkhdimage -h 4 -s 17 -c 40 | cat - hdimage.preconvert > hdimage
+	periph/mkhdimage -h 4 -s 17 -c 40 | cat - hdimage.preconvert > hdimage
 	@echo "Your hdimage is now converted and ready to use with 0.49!"
 
-newhd: bootsect diskutil
-	mkhdimage -h 4 -s 17 -c 40 | cat - bootsect > newhd
+newhd: periph/bootsect
+	periph/mkhdimage -h 4 -s 17 -c 40 | cat - periph/bootsect > newhd
 	@echo "You now have a hdimage file called 'newhd'"
 
 checkin:
 	ci $(CFILES) $(HFILES) $(OFILES)
-	cd doc
-	ci $(DOCFILES)
+	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) checkin) || exit; done
 
 checkout:
 	co -l $(CFILES) $(HFILES) $(OFILES)
-	cd doc
-	co $(DOCFILES)
-
-bkup: 
-	@echo "Backing up tmpdir"
-	./mkbkup /tmp/dosemu /usr/src/dos/bkup $(CFILES) $(HFILES) $(OFILES) $(BFILES) 
-
-usrdos: 
-	@echo "Copying files to /usr/src/dos"
-	cp $(CFILES) $(HFILES) $(OFILES) $(BFILES) /usr/src/dos
-	cd doc
-	cp $(DOCFILES) /usr/src/dos/doc
+	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) checkout) || exit; done
 
 dist: $(CFILES) $(HFILES) $(OFILES) $(BFILES)
-	mkdir -p /tmp/dosemu$(EMUVER)
-	mkdir -p /tmp/dosemu$(EMUVER)/doc
-	cp $(CFILES) $(HFILES) $(OFILES) $(BFILES) announce$(EMUVER) \
-	       /tmp/dosemu$(EMUVER)
-	(cd doc; cp $(DOCFILES) /tmp/dosemu$(EMUVER)/doc)
-	cp hds/hdimage.dist /tmp/dosemu$(EMUVER)/hdimage
-	touch /tmp/dosemu$(EMUVER)/diskimage
-	(cd /tmp; tar cf - dosemu$(EMUVER) | gzip -9 > \
-	     dosemu$(EMUVER).tar.z)
-	rm -rf /tmp/dosemu$(EMUVER)
+DISTBASE=/tmp
+DISTNAME=dosemu$(EMUVER)
+DISTPATH=$(DISTBASE)/$(DISTNAME)
+DISTFILE=$(DISTBASE)/$(DISTNAME).tar.z
+	install -d $(DISTPATH)
+	install -m 0644 $(CFILES) $(HFILES) $(OFILES) $(BFILES) .depend \
+	       $(DISTPATH)
+	mkdir -p $(DISTPATH)/debug
+	cp TODO $(DISTPATH)/.todo
+	cp TODO.JES $(DISTPATH)/.todo.jes
+	cp EMUsucc.txt $(DISTPATH)/
+	install -m 0644 hdimages/hdimage.dist $(DISTPATH)/hdimage.dist
+	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) dist) || exit; done
+	(cd $(DISTBASE); tar cf - $(DISTNAME) | gzip -9 > \
+	     $(DISTFILE))
+	rm -rf $(DISTPATH)
 	@echo "FINAL .tar.z FILE:"
-	@ls -l /tmp/dosemu$(EMUVER).tar.z
+	@ls -l $(DISTFILE) 
 
-depend dep: 
+depend dep: $(CFILES) $(HFILES)
 	$(CPP) -MM $(CFLAGS) *.c > .depend
+
+dummy:
 
 #
 # include a dependency file if one exists

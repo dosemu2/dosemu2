@@ -39,6 +39,11 @@
 ! translated into as86 form by Robert Sanders ('murrcan style date!) 4/13/93
 ! (I probably broke something, but it seems to work)
 !
+! $Date: 1993/11/12 12:41:37 $
+! $Source: /home/src/dosemu0.49pl2/drivers/RCS/emufs.S,v $
+! $Revision: 1.1 $
+! $State: Exp $
+!
 
 use16
 

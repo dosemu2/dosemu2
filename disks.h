@@ -109,4 +109,17 @@ void hdisk_auto(struct disk *);
 void partition_setup(struct disk *);
 #define floppy_setup	d_nullf
 
+/* int13 error returns */
+#define DERR_NOERR	0
+#define DERR_BADCMD 	1
+#define DERR_BADSEC 	2
+#define DERR_WP 	3
+#define DERR_NOTFOUND 	4
+#define DERR_CHANGE 	6
+#define DERR_ECCERR 	0x10
+#define DERR_CONTROLLER	0x20
+#define DERR_SEEK	0x40
+#define DERR_NOTREADY	0x80
+#define DERR_WRITEFLT	0xcc
+
 #endif /* DISKS_H */

@@ -2,9 +2,9 @@
 #define TERMIO_C 1
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1993/05/04 05:29:22 $
- * $Source: /usr/src/dos/RCS/termio.c,v $
- * $Revision: 1.25 $
+ * $Date: 1993/11/12 12:32:17 $
+ * $Source: /home/src/dosemu0.49pl2/RCS/termio.c,v $
+ * $Revision: 1.1 $
  * $State: Exp $
  */
 
@@ -311,7 +311,7 @@ struct funkeystruct *fkp;
     /* this is DEBUGGING code! */
     if (sizes)
       {
-	warn("using real found screen sizes!\n");
+	warn("using real found screen sizes: %d x %d!\n", co, li);
 	co2 = co;
 	li2 = li;
       } else {
@@ -330,6 +330,7 @@ struct funkeystruct *fkp;
   if (li == 0 || co == 0) {
     li = tgetnum("li");      /* lines   */
     co = tgetnum("co");      /* columns */
+    v_printf("TERMCAP screen size: %d x %d\n", co, li);
   }
   tp = tc;
   cl = tgetstr("cl", &tp);   /* clear entire screen */
@@ -360,7 +361,8 @@ struct funkeystruct *fkp;
   }
 }
 
-static void CloseKeyboard(void)
+static void 
+CloseKeyboard(void)
 {
   if (kbd_fd != -1)
     {
@@ -380,7 +382,8 @@ static void CloseKeyboard(void)
     }
 }
 
-static int OpenKeyboard(void)
+static int 
+OpenKeyboard(void)
 {
 	struct termio	newtermio;	/* new terminal modes */
 	struct stat chkbuf;
@@ -457,7 +460,7 @@ static int OpenKeyboard(void)
 	if (config.console_video)
 	    set_console_video();
 
-	dbug_printf("$Header: /usr/src/dos/RCS/termio.c,v 1.25 1993/05/04 05:29:22 root Exp root $\n");
+	dbug_printf("$Header: /home/src/dosemu0.49pl2/RCS/termio.c,v 1.1 1993/11/12 12:32:17 root Exp root $\n");
 
 	return 0;
 }
@@ -556,11 +559,6 @@ static void getKeys(void)
 
 	if (config.console_keyb)
 	  {
-#ifdef CHECK_RAW
-	    do_ioctl(ioc_fd, KDGKBMODE, &kbd_mode);   /* get kb mode */
-	    if (kbd_mode == K_RAW)
-	      {
-#endif
 		unsigned char scancode = *kbp & 0xff;
 		unsigned int tmpcode = 0;
 	
@@ -573,10 +571,6 @@ static void getKeys(void)
 		tmpcode = convscanKey(scancode);
 
 		return tmpcode;
-#ifdef CHECK_RAW
-	      }
-	    else goto xlate;
-#endif
 	  }
 
 	xlate:
@@ -584,8 +578,11 @@ static void getKeys(void)
 	if (*kbp == '\033') {
 	        in_readkeyboard=1;
 		if (kbcount == 1) {
+		char contin;
+		do {
+			contin=kbcount;
 			scr_tv.tv_sec = 0;
-			scr_tv.tv_usec = 500000;
+			scr_tv.tv_usec = 100000;
 			FD_ZERO(&fds);
 
 			/* IPC change here! */
@@ -593,6 +590,7 @@ static void getKeys(void)
 			RPT_SYSCALL( select(kbd_fd+1, &fds, NULL, NULL,
 					   &scr_tv) );
 			getKeys();
+		} while (contin!=kbcount);
 
 			if (kbcount == 1) {
 				kbcount--;
@@ -619,10 +617,10 @@ static void getKeys(void)
 
 		for (i=1;;) {
 		  if (fkp->esc == NULL || 
-		      fkp->esc[i] < kbp[i]) {
+		      (unsigned char)fkp->esc[i] < kbp[i]) {
 		    if (++fkp >= &funkey[FUNKEYS])
 		      break;
-		  } else if (fkp->esc[i] == kbp[i]) {
+		  } else if ((unsigned char)fkp->esc[i] == kbp[i]) {
 		    if (fkp->esc[++i] == '\0') {
 		      kbcount -= i;
 		      kbp += i;
@@ -678,15 +676,17 @@ int InsKeyboard (unsigned short scancode)
 	int n;
 	unsigned short *Kbuffer = KBDA_ADDR;
 
+/* Some major hacking going on here, too many '/2' staments etc.. */
+
 	/* read the BDA pointers */
 	Kbuff_next_avail = *(unsigned short *)0x41a - 0x1e;
 	Kbuff_next_free = *(unsigned short *)0x41c - 0x1e;
 
-        n = (Kbuff_next_free+1) % KBUFLEN;
-	if (n == Kbuff_next_avail)
+        n = ((Kbuff_next_free/2)+1) % (KBUFLEN+1);
+	if (n == (Kbuff_next_avail/2))
 		return 0;
-	Kbuffer[Kbuff_next_free] = scancode;
-	Kbuff_next_free = n;
+	Kbuffer[Kbuff_next_free/2] = scancode;
+	Kbuff_next_free = n*2;
 
 	ignore_segv++;
 	/* these are the offsets from 0x400 to the head & tail */
@@ -714,7 +714,7 @@ void keybuf_clear(void)
 {
   ignore_segv++;
 
-  Kbuff_next_free = Kbuff_next_free = 0;
+  Kbuff_next_free = Kbuff_next_avail = 0;
   *(unsigned short *)0x41a = 0x1e + Kbuff_next_avail;
   *(unsigned short *)0x41c = 0x1e + Kbuff_next_free;
 
@@ -733,7 +733,7 @@ int PollKeyboard (void)
   if (in_readkeyboard) 
     {
       error("ERROR: Polling while in_readkeyboard!!!!!\n");
-      return;
+      return 0;
     }
 
   if (CReadKeyboard(&key, POLL))
@@ -783,8 +783,8 @@ int CReadKeyboard(unsigned int *buf, int wait)
 {
 	struct ipcpkt  pkt;
 	unsigned short *Kbuffer=KBDA_ADDR;
-
 	in_readkeyboard=1;
+
 
 	/* XXX - need semaphores here to keep child process 
 	 * out of keyboard buffer...
@@ -796,9 +796,9 @@ int CReadKeyboard(unsigned int *buf, int wait)
 
 	if (Kbuff_next_free != Kbuff_next_avail)
 	{
-	  *buf = (int) (Kbuffer[Kbuff_next_avail]);
+	  *buf = (int) (Kbuffer[Kbuff_next_avail/2]);
 	  if (wait != TEST) 
-	      Kbuff_next_avail = (Kbuff_next_avail + 1) % KBUFLEN;
+	      Kbuff_next_avail = (((Kbuff_next_avail/2) + 1) % (KBUFLEN+1))*2; 
 
 	  ignore_segv++;
 	  /* update the BDA pointers */
@@ -809,21 +809,28 @@ int CReadKeyboard(unsigned int *buf, int wait)
 	  in_readkeyboard=0;
 	  return 1;
 	}
-	else if (wait == TEST || wait == NOWAIT) return 0;
+	else if (wait == TEST || wait == NOWAIT) {
+	  in_readkeyboard=0;
+ 	  return 0;
+	}
 
 	error("IPC/KBD: (par) sending request message\n");
 	ipc_send2child(DMSG_READKEY);
 
 	/* got here if no key in keybuffer and not TEST */
-	do {
-	  error("IPC/KBD: (par) waiting for key\n");
-	  ipc_recvpktfromchild(&pkt);
-	  error("IPC/KBD: (par) got key 0x%04x\n", pkt.u.key);
-	  *buf = pkt.u.key;
-	} while (*buf == 0);
+	error("IPC/KBD: (par) waiting for key\n");
+	{
+	  extern u_short sent_key;
+	  /* loop until the DMSG_READKEY request has been answered */
+	  sent_key=0;
 
-	ipc_send2child(DMSG_NOREADKEY);
-
+  	  while (sent_key == 0)
+	    usleep(100);
+	  *buf = sent_key;
+	  sent_key=0;
+	  error("IPC/KBD: (par) got key (sent_key) 0x%04x\n", *buf);
+	}
+	in_readkeyboard=0;
 	return 1;
 }
 
@@ -940,6 +947,7 @@ void termioClose()
 {
 	CloseKeyboard();
 	if (ke) tputs(ke, 1, outc);
+	tputs(cl, 1, outc);
 }
 
 /**************************************************************
@@ -1102,7 +1110,7 @@ static void scroll(unsigned int sc)
       *(us *)0x41c = 0x1e;	/* key buf end ofs */
       *(us *)0x41e = 0;		/* put 0 word in buffer */
       ignore_segv--;
-      Kbuff_next_free = Kbuff_next_avail;  /* clear our buffer */
+      Kbuff_next_free = Kbuff_next_avail =0;  /* clear our buffer */
 
       ipc_send2parent(DMSG_CTRLBRK);
       ipc_wakeparent();
@@ -1188,11 +1196,11 @@ static void do_self(unsigned int sc)
 
 	if (kbd_flag(KF_ALT))
 	  {
+	    ch = alt_map[sc];
 	    if ((sc >= 2) && (sc <= 0xb))  /* numbers */
 	      sc += 0x76;
 	    else if (sc == 0xd) sc = 0x83;  /* = */
 	    else if (sc == 0xc) sc = 0x82;  /* - */
-	    ch = 0;
 	  }
 
 	else if (kbd_flag(KF_LSHIFT) || kbd_flag(KF_RSHIFT) ||
@@ -1377,7 +1385,9 @@ int activate(int con_num)
       do_ioctl(ioc_fd, VT_ACTIVATE, con_num); 
 }
 
-int do_ioctl(int fd, int req, int param3)
+
+int 
+do_ioctl(int fd, int req, int param3)
 {
   int tmp;
 

@@ -98,7 +98,7 @@ diff --recursive --exclude=*.o -c linux.old/fs/proc/mem.c linux/fs/proc/mem.c
 + 	free_page(*dest_table & ~0xfff);
 + 	current->rss--;
 +       } else  /* if not present but some info in page_table, swapped out */
-+ 	swap_free (*dest_table);
++ 	swap_free (*dest_table >> 1);  /* low bit is page present bit */
 +     }
 + 
 + /* NOTE: sysv ipc shared memory pages look like normal swapped pages.

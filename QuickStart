@@ -1,0 +1,69 @@
+
+How to quickly get dosemu up and running:
+
+1) Make a DOS bootable disk:
+	- Boot DOS
+	- Format a: /S
+	- Copy fdisk.exe to the diskette
+	- Copy sys.com to the diskette
+2) Make dosemu:
+	- Modify the Makefile if you need special keyboard, etc
+	- Do make config
+	- Do make dep
+	- Do make install
+	- Copy an edited examples/config.dist to /etc/dosemu/config
+	- Copy exitemu.com from the commands subdirectory to the
+	  diskette
+	- Copy hdimage.dist to hdimage
+3) Prepare DOSEMU:
+	- From the dosemu0.49pl2 directory, type dos -A >/dev/null
+	- From the a: drive do fdisk /mbr
+	- From the a: drive do sys c:
+	- type exitemu
+4) Go for it:
+	- type dos >/dev/null
+	- From here you are on your own. Please read the documentation
+	  in the doc subdirectory, and most of all ENJOY!!!!!
+
+  Some notes from Tim Bird (Tim_R_Bird@Novell.COM) on lredir found
+in the commands subdir :
+
+LREDIR allows you to redirect any drive, including one that is
+currently a physical drive, meaning that you can replace a drive with a
+redirected one. When you delete the redirection, the physical drive is
+again visible. I am currently using this so that the boot diskimage
+disappears, and is replaced by the mounted MSDOS file system in Linux, 
+with the drive letter and root the same as when I just boot DOS.  
+People who use LREDIR in this way should be careful when they use 
+LREDIR in the autoexec, because COMMAND.COM will continue parsing
+the autoexec.bat from the redirected drive as the same file offset
+where it left off in the autoexec.bat on the physical drive. For 
+this reason, it is safest to have the autoexec.bat on the 
+redirected drive and the physical drive (diskimage) be the same.
+ 
+Notes:
+ - Don't put more that 2 emufs.sys statements in your config.sys if
+   you are running MS DOS. LREDIR them after the boot, maybe in your
+   config.sys. DR. DOS accepts any number.
+ - A mouse driver that works is mscmouse found on Simtel and the 
+   mirrors.
+ - Various reports have been received that showed DR.DOS is not up
+   to 100% under emufs.sys. I'm thinking it's something invalid in
+   the expected data area's used, but we have yet to track it down.
+   If emufs.sys is not working correctly under DR.DOS for you, please
+   send a debug into me after verifying that all's well when you do
+   the same thing under MS.DOS. If MSDOS also exhibits the same the
+   problems then I really want a debug output. Oh what the heck,
+   send a debug output anyway :-).
+
+Many thanks to all involved, including all those who submitted debug
+output for my viewing pleasurei, keep it coming.
+
+jmaclean@fox.nstn.ns.ca
+James B. MacLean
+Department of Education
+Student Assistance Division
+2021 Brunswick Street
+Halifax, N.S., Canada
+B3M 4B2
+(902) 424-8438

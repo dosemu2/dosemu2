@@ -3,12 +3,24 @@
  *
  * Basic 16450 UART emulation.  16550 FIFOs to come later?
  *
- * $Date: 1993/05/04 05:29:22 $
- * $Source: /usr/src/dos/RCS/serial.c,v $
+ * $Date: 1993/11/12 12:32:17 $
+ * $Source: /home/src/dosemu0.49pl2/RCS/serial.c,v $
  * $Revision: 1.1 $
  * $State: Exp $
  *
  * $Log: serial.c,v $
+ * Revision 1.1  1993/11/12  12:32:17  root
+ * Initial revision
+ *
+ * Revision 1.3  1993/07/19  16:37:37  rsanders
+ * minor change
+ *
+ * Revision 1.2  1993/07/14  04:27:33  rsanders
+ * removed erroneous error message
+ *
+ * Revision 1.1  1993/07/07  00:49:06  root
+ * Initial revision
+ *
  * Revision 1.1  1993/05/04  05:29:22  root
  * Initial revision
  *
@@ -24,6 +36,7 @@
 #include <sys/types.h>
 #include <termios.h>
 #include <signal.h>
+#include <sys/ioctl.h>
 
 #include "config.h"
 #include "cpu.h"
@@ -235,7 +248,7 @@ ser_termios(int num)
 
 
 void
-do_ser_init(num)
+do_ser_init(int num)
 {
   com[num].in_interrupt = 0;
   com[num].fd = ser_open(com[num].dev);
@@ -252,10 +265,13 @@ do_ser_init(num)
   /* set both up for 1200 baud.  no workee yet */
   com[num].dll=0x60;   
   com[num].dlm=0;
+
+  DOS_SYSCALL( tcgetattr(com[num].fd, &com[num].oldsettings) ); 
+
   ser_termios(num);
 
   *((u_short *)(0x400) + num) = com[num].base_port;
-  error("ERROR: num %d, port 0x%x, address 0x%x, mem 0x%x\n", num,
+  g_printf("SERIAL: num %d, port 0x%x, address 0x%x, mem 0x%x\n", num,
 	com[num].base_port, ((u_short *)(0x400) + num), *((u_short *)(0x400) + num));
   
   com[num].LSR = UART_LSR_TEMT | UART_LSR_THRE;
@@ -325,7 +341,11 @@ serial_close(void)
   int i;
   s_printf("COM: serial_close\n");
   for (i=0; i<config.num_ser; i++)
-    mutex_deinit(com[i].sem);
+    {
+      mutex_deinit(com[i].sem);
+      DOS_SYSCALL( tcsetattr(com[i].fd, TCSANOW, &com[i].oldsettings) ); 
+      close(com[i].fd);
+    }
   mutex_deinit(param->ser_locked);
 }
 
@@ -410,6 +430,30 @@ get_lsr(int num)
 inline int
 get_msr(int num)
 {
+  int control;
+  int oldmsr = com[num].MSR;
+
+#define MSR_BIT(c,s,d) ((c & s) ? d : 0)
+#define DELTA_BIT(o,n,b) ((o ^ n) & b)
+
+  ioctl (com[num].fd,TIOCMGET,&control);
+
+  com[num].MSR = 0;
+
+  com[num].MSR |= MSR_BIT(control, TIOCM_CTS, UART_MSR_CTS);
+  com[num].MSR |= MSR_BIT(control, TIOCM_DSR, UART_MSR_DSR);
+  com[num].MSR |= MSR_BIT(control, TIOCM_CAR, UART_MSR_DCD);
+  com[num].MSR |= MSR_BIT(control, TIOCM_RNG, UART_MSR_RI);
+
+  if (DELTA_BIT(oldmsr, com[num].MSR, UART_MSR_DCD)) 
+    com[num].MSR |= UART_MSR_DDCD;
+
+  if (DELTA_BIT(oldmsr, com[num].MSR, UART_MSR_DSR)) 
+    com[num].MSR |= UART_MSR_DDSR;
+
+  if (DELTA_BIT(oldmsr, com[num].MSR, UART_MSR_CTS)) 
+    com[num].MSR |= UART_MSR_DCTS;
+
   return com[num].MSR;
 }
 
@@ -485,9 +529,11 @@ put_mcr(int num, int val)
 {
   int changed = com[num].MCR ^ (u_char)val;
   int intr=0;
+  int control=0;
 
   com[num].MCR = val;
 
+#if 0
   if ((changed & UART_MCR_DTR) && (com[num].MCR & UART_MCR_DTR)) {
     com[num].MSR |= UART_MSR_DSR;
     com[num].MSR |= UART_MSR_DDSR;
@@ -498,6 +544,7 @@ put_mcr(int num, int val)
     com[num].MSR |= UART_MSR_DCTS;
     intr = 1;
   }
+#endif
 
   if (intr && (com[num].IER & UART_IER_MSI)) 
     queue_hard_int(com[num].interrupt, beg_msi, end_msi);
@@ -505,6 +552,9 @@ put_mcr(int num, int val)
   if (! (com[num].MCR & UART_MCR_DTR)) {
     s_printf("COM: dropped DTR!\n");
   }
+  control=((com[num].MCR & UART_MCR_RTS)?TIOCM_RTS:0) 
+        | ((com[num].MCR & UART_MCR_DTR)?TIOCM_DTR:0);
+  ioctl (com[num].fd,TIOCMSET,&control);
 }
 
 
@@ -563,6 +613,10 @@ do_serial_in(int num, int port)
     case UART_SCR:
       val = com[num].SCR;
       break;
+
+    default:
+      val = 0;
+      break;
     }
 
   return val;
@@ -584,7 +638,10 @@ do_serial_out(int num, int port, int val)
     case UART_IER:
 /*  case UART_DLM: */
       if (DLAB(num)) { com[num].dlm = val; ser_termios(num); }
-      else com[num].IER = val;
+      else {
+	 com[num].IER = val;
+	 s_printf ("IER%d = 0x%02x\n",num,val);
+      }
       break;
 
     case UART_IIR:
@@ -596,7 +653,8 @@ do_serial_out(int num, int port, int val)
       break;
 
     case UART_MCR:
-      com[num].MCR = val;
+/*      com[num].MCR = val;*/
+      put_mcr(num, val);
       break;
 
     case UART_LSR:
@@ -663,7 +721,7 @@ int14(void)
 			s_printf("extended serial initialize\n");
 			return;
 		default:
-			error("ERROR: serial error\n");
+			error("ERROR: serial error (unknown interrupt)\n");
 			show_regs();
 			/* fatalerr = 5; */
 			return;
@@ -704,7 +762,7 @@ do_ser(int num)
       com[num].in_interrupt=1;
       /* must dequeue RX in begin_serint() */
       queue_hard_int(com[num].interrupt,begin_serint,end_serint);
-      /* s_printf("COM: queuing interrupt!\n"); */
+      s_printf("COM: queuing interrupt!\n");
     }
   else {
     com[num].RX = ser_dequeue(num);
@@ -726,15 +784,14 @@ int
 serial_run(void)
 {
   static int first=0;
-  int rtn;
-#define OTHER (first ? 0 : 1)
+  int rtn, other = first ? 0 : 1;
 
   rtn=1;
   if (!com[first].in_interrupt && param->ser[first].num_ints) do_ser(first);
-  else if (!com[OTHER].in_interrupt && param->ser[OTHER].num_ints) do_ser(OTHER);
+  else if (!com[other].in_interrupt && param->ser[other].num_ints) do_ser(other);
   else rtn=0;
 
-  first = OTHER;
+  first = other;
   return rtn;
 }
 

@@ -1,12 +1,18 @@
 /* xms.c for the DOS emulator 
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1993/05/04 05:29:22 $
- * $Source: /usr/src/dos/RCS/xms.c,v $
- * $Revision: 1.10 $
+ * $Date: 1993/11/12 12:32:17 $
+ * $Source: /home/src/dosemu0.49pl2/RCS/xms.c,v $
+ * $Revision: 1.1 $
  * $State: Exp $
  *
  * $Log: xms.c,v $
+ * Revision 1.1  1993/11/12  12:32:17  root
+ * Initial revision
+ *
+ * Revision 1.1  1993/07/07  00:49:06  root
+ * Initial revision
+ *
  * Revision 1.10  1993/05/04  05:29:22  root
  * added console switching, new parse commands, and serial emulation
  *
@@ -53,7 +59,7 @@
  * the 1 MEG mark.  ugly.  fix this.
  */
 
-static char RCSxms[]="$Header: /usr/src/dos/RCS/xms.c,v 1.10 1993/05/04 05:29:22 root Exp root $";
+static char RCSxms[]="$Header: /home/src/dosemu0.49pl2/RCS/xms.c,v 1.1 1993/11/12 12:32:17 root Exp root $";
 
 #define	 XMS_GET_VERSION		0x00
 #define	 XMS_ALLOCATE_HIGH_MEMORY	0x01
@@ -114,15 +120,15 @@ int FindFreeHandle(int);
 #define UMB_NULL -1
 
 /* EMS page frame 0xd0000-0xdffff.  DOSEMU uses 0xe0000-0xeffff */
-#define IN_EMM_SPACE(addr) (config.ems_size && (int)addr >= 0xd0000 \
-			    && (int)addr <= 0xdffff)
+#define IN_EMM_SPACE(addr) (config.ems_size && (int)(addr) >= 0xd0000 \
+			    && (int)(addr) <= 0xdffff)
 
 /* XXX - I have assumed 32k of BIOS... */
-#define IN_BIOS_SPACE(addr) ((int)addr >= VBIOS_START && \
-      (int)addr < (VBIOS_START + VBIOS_SIZE) && config.mapped_bios)
+#define IN_BIOS_SPACE(addr) ((int)(addr) >= VBIOS_START && \
+      (int)(addr) < (VBIOS_START + VBIOS_SIZE) && config.mapped_bios)
 
-#define IN_EMU_SPACE(addr) ((int)addr >= 0xe0000 && (int)addr <= 0xeffff \
-			    || IN_BIOS_SPACE(addr))
+#define IN_EMU_SPACE(addr) (((int)(addr) >= (BIOSSEG*16) && (int)(addr) <= \
+			    (BIOSSEG*16 + 0xffff)) || IN_BIOS_SPACE(addr))
 
 struct umb_record {
 	vm_address_t	addr;
@@ -183,7 +189,7 @@ umb_setup()
 
 	umbs[umb].in_use = TRUE;
 	umbs[umb].free = FALSE;
-	umbs[umb].addr = (caddr_t)0xe0000;
+	umbs[umb].addr = (caddr_t)(BIOSSEG*16);
 	umbs[umb].size = 0x10000;
 
 	/* set up 32K VGA BIOS mem if necessary */
@@ -312,9 +318,12 @@ umb_query()
 
 /* end of stuff from Mach */
 
-void xms_init(void)
+void 
+xms_init(void)
 {
   int i;
+
+  if (! config.xms_size) return;
 
   x_printf("XMS: initializing XMS...\nRCS: %s\n%d handles\n\n", 
 	   RCSxms, NUM_HANDLES);
@@ -331,7 +340,9 @@ void xms_init(void)
       handles[i].valid=0;
 }
 
-void xms_control(void)
+
+void 
+xms_control(void)
 {
   /* the int15 get memory size call (& block copy, unimplemented) are
    * supposed to be unrevectored until the first non-version XMS call

@@ -1,6 +1,11 @@
 /* dos emulator, Matthias Lautner 
  * Extensions by Robert Sanders, 1992-93 
  *
+ * $Date: 1993/11/12 12:32:17 $
+ * $Source: /home/src/dosemu0.49pl2/RCS/disks.c,v $
+ * $Revision: 1.1 $
+ * $State: Exp $
+ *
  * floppy disks, dos partitions or their images (files) (maximum 8 heads)
  */
 
@@ -29,8 +34,14 @@ extern int fatalerr;
 
 inline void disk_close(void);
 
+#define USE_FSYNC 1
+
 #if 1
-#define FLUSHDISK(dp) if (dp->removeable && !config.fastfloppy) disk_close()
+#  ifdef USE_FSYNC
+#     define FLUSHDISK(dp) if (dp->removeable && !config.fastfloppy) fsync(dp->fdesc);
+#  else
+#     define FLUSHDISK(dp) if (dp->removeable && !config.fastfloppy) disk_close();
+#  endif
 #else
 #define FLUSHDISK(dp) if (dp->removeable && !config.fastfloppy) \
   ioctl(dp->fdesc, FDFLUSH, 0)
@@ -167,9 +178,7 @@ read_sectors(struct disk *dp, char *buffer, long head, long sector,
 
       if (dp->type != PARTITION) {
 	error("ERROR: negative offset on non-partition disk type\n");
-	LWORD(eax) = 0x400; /* sector not found */
-	_regs.eflags |= CF;
-	return(-1);
+	return -DERR_NOTFOUND;
       }
 
       if (readsize >= -pos) { mbrcount=-pos; mbrinc=-pos; }
@@ -213,16 +222,14 @@ read_sectors(struct disk *dp, char *buffer, long head, long sector,
     }
   
   if (pos != lseek(dp->fdesc, pos, SEEK_SET)) {
-    error("ERROR: Sector not found in read_sector!\n");
-    show_regs();
-    LWORD(eax) = 0x400; /* sector not found */
-    _regs.eflags |= CF;
-    return 0;
+    error("ERROR: Sector not found in read_sector, error = %s!\n",
+	  strerror(errno));
+    return -DERR_NOTFOUND;
   }
 
   tmpread = RPT_SYSCALL(read(dp->fdesc, buffer, count * SECTOR_SIZE));
   if (tmpread != -1) return(tmpread + already);
-  else return -1;
+  else return -DERR_ECCERR;
 }
 
 
@@ -235,10 +242,12 @@ write_sectors(struct disk *dp, char *buffer, long head, long sector,
 
   if (dp->rdonly) {
     d_printf("ERROR: write to readonly disk %s\n", dp->dev_name);
+#if 0
     LO(ax) = 0;  /* no sectors written */
     CARRY;       /* error */
     HI(ax) = 0xcc; /* write fault */
-    return;
+#endif
+    return -DERR_WRITEFLT;
   }
 
   /* XXX - header hack */
@@ -255,10 +264,7 @@ write_sectors(struct disk *dp, char *buffer, long head, long sector,
    */
   if (pos != lseek(dp->fdesc, pos, SEEK_SET)) {
     error("ERROR: Sector not found in write_sector!\n");
-    show_regs();
-    LWORD(eax) = 0x400; /* sector not found */
-    _regs.eflags |= CF;
-    return;
+    return -DERR_NOTFOUND;
   }
 
   tmpwrite = RPT_SYSCALL( write(dp->fdesc, buffer, count * SECTOR_SIZE) );
@@ -269,17 +275,12 @@ write_sectors(struct disk *dp, char *buffer, long head, long sector,
    *    Also look into detecting floppy change so we can close/reopen
    *    it.  perhaps the FDFLUSH ioctl()?
    */
-  /* if (dp->removeable) fsync(dp->fdesc); */
-
-  /* the FDFLUSH ioctl causes spurious "VFS: disk change detected"
-   * messages
-   */
-  /* if (dp->removeable) ioctl(dp->fdesc, FDFLUSH, 0); */
 
   FLUSHDISK(dp);
 
   return tmpwrite;
 }
+
 
 void 
 image_auto(struct disk *dp)
@@ -410,7 +411,7 @@ partition_setup(struct disk *dp)
 	   dp->part_info.beg_cyl,
 	   dp->part_info.end_head, dp->part_info.end_sec, 
 	   dp->part_info.end_cyl);
-  d_printf("pre_secs %ld, num_secs %ld = %lx, -dp->header %d = %x\n", 
+  d_printf("pre_secs %ld, num_secs %ld = %lx, -dp->header %d = 0x%x\n", 
 	   dp->part_info.pre_secs, dp->part_info.num_secs,
 	   dp->part_info.num_secs, -dp->header, -dp->header);
 
@@ -602,7 +603,8 @@ checkdp(struct disk *disk)
 
 void int13(void)
 {
-  unsigned int disk, head, sect, track, number, pos, res;
+  unsigned int disk, head, sect, track, number, res;
+  long pos;
   char *buffer;
   struct disk *dp;
   
@@ -621,12 +623,12 @@ void int13(void)
     {
     case 0: /* init */
       d_printf("DISK init %d\n", disk);
-      LWORD(eax) &= ~0xff;
+      HI(ax) = DERR_NOERR;
       NOCARRY;
       break;
       
-    case 1: /* read error code */	
-      LWORD(eax) &= ~0xff;
+    case 1: /* read error code into AL */
+      LO(ax) = DERR_NOERR;
       NOCARRY;
       d_printf("DISK error code\n");
       break;
@@ -645,23 +647,30 @@ void int13(void)
 	  sect >= dp->sectors || track >= dp->tracks) {
 	error("ERROR: Sector not found 1!\n");
 	show_regs();
-	LWORD(eax) = 0x400; /* sector not found */
+	HI(ax) = DERR_NOTFOUND;
 	_regs.eflags |= CF;
 	break;
       }
       
       res = read_sectors(dp, buffer, head, sect, track, number);
-      
-      if (res & 0x1ff != 0) { /* must read multiple of 512 bytes  and res != -1 */
-	error("ERROR: sector_corrupt 1!\n");
-	show_regs();
-	LWORD(eax) = 0x200; /* sector corrrupt */
-	_regs.eflags |= CF;
+
+      if (res < 0)
+	{
+	  HI(ax) = -res;
+	  CARRY;
+	}
+      else  if (res & 511) { /* must read multiple of 512 bytes */
+	error("ERROR: sector_corrupt 1, return = %d!\n", res);
+	/* show_regs(); */
+	HI(ax) = DERR_BADSEC; /* sector corrrupt */
+	CARRY;
 	break;
       }
+
       LWORD(eax) = res >> 9;
       _regs.eflags &= ~CF;
-      R_printf("DISK read @%d (%d) OK.\n", pos, res >> 9); 
+      R_printf("DISK read @%d/%d/%d (%d) OK.\n",
+	       head, track, sect, res >> 9); 
       break;
       
     case 3: /* write */
@@ -674,37 +683,48 @@ void int13(void)
       buffer = SEG_ADR((char *), es, bx);
       number = LO(ax);
       W_printf("DISK write [h%d,s%d,t%d](%d)->0x%x\n", head, sect, track, number, buffer); 
+
       if (checkdp(dp) || head >= dp->heads || 
 	  sect >= dp->sectors || track >= dp->tracks) {
 	error("ERROR: Sector not found 3!\n");
 	show_regs();
-	LWORD(eax) = 0x400; /* sector not found */
+	HI(ax) = DERR_NOTFOUND;
 	_regs.eflags |= CF;
 	break;
       }
+
       if (dp->rdonly) {
 	error("ERROR: write protect!\n");
 	show_regs();
 	if (dp->removeable)
-	  LWORD(eax) = 0x300; /* write protect */
+	  HI(ax) = DERR_WP;
 	else
-	  LWORD(eax) = 0xcc00; /* write error */
+	  HI(ax) = DERR_WRITEFLT;
 	_regs.eflags |= CF;
 	break;
       }
+
       if (dp->rdonly) error("CONTINUED!!!!!\n");
       res = write_sectors(dp, buffer, head, sect, track, number);
       
-      if (res & 0x1ff != 0) { /* must read multiple of 512 bytes  and res != -1 */
-	error("ERROR: Sector corrupt 2!\n");
-	show_regs();
-	LWORD(eax) = 0x200; /* sector corrrupt */
-	_regs.eflags |= CF;
+      if ( res < 0 )
+	{
+	  W_printf("DISK write error: %d\n", -res);
+	  HI(ax) = -res;
+	  CARRY;
+	  break;
+	}
+      else if (res & 511) { /* must write multiple of 512 bytes */
+	error("ERROR: Write sector corrupt 2 (wrong size)!\n");
+	HI(ax) = DERR_BADSEC;
+	CARRY;
 	break;
       }
+
       LWORD(eax) = res >> 9;
       _regs.eflags &= ~CF;
-      W_printf("DISK write @%d (%d) OK.\n", pos, res >> 9); 
+      W_printf("DISK write @%d/%d/%d (%d) OK.\n",
+	       head, track, sect, res >> 9); 
       break;
       
     case 4: /* test */
@@ -718,33 +738,33 @@ void int13(void)
       d_printf("DISK %d test [h%d,s%d,t%d](%d)\n", disk, head, sect, track, number);
       if (checkdp(dp) || head >= dp->heads || 
 	  sect >= dp->sectors || track >= dp->tracks) {
-	LWORD(eax) = 0x400; /* sector not found */
+	HI(ax) = DERR_NOTFOUND;
 	_regs.eflags |= CF;
 	error("ERROR: test: sector not found 5\n");
 	dbug_printf("hds: %d, sec: %d, tks: %d\n",
 		    dp->heads, dp->sectors, dp->tracks);
 	break;
       }
-      pos = ((track * dp->heads + head) * dp->sectors + sect) << 9;
+      pos = (long)((track * dp->heads + head) * dp->sectors + sect) << 9;
       /* XXX - header hack */
       pos += dp->header;
       
       if (pos != lseek(dp->fdesc, pos, 0)) {
-	LWORD(eax) = 0x400; /* sector not found */
+	HI(ax) = DERR_NOTFOUND;
 	_regs.eflags |= CF;
 	error("ERROR: test: sector not found 6\n");
 	break;
       }
 #if 0
-      res = lseek(dp->fdesc, number << 9);
-      if (res & 0x1ff != 0) { /* must read multiple of 512 bytes  and res != -1 */
-	LWORD(eax) = 0x200; /* sector corrrupt */
+      res = lseek(dp->fdesc, number << 9, 0);
+      if (res & 0x1ff) { /* must read multiple of 512 bytes  and res != -1 */
+	HI(ax) = DERR_BADSEC;
 	_regs.eflags |= CF;
 	error("ERROR: test: sector corrupt 3\n");
 	break;
       }
-#endif
       LWORD(eax) = res >> 9;
+#endif
       _regs.eflags &= ~CF;
       break;
       
@@ -787,13 +807,13 @@ void int13(void)
 	LO(dx) = (disk < 0x80) ? FDISKS : HDISKS;
 	LO(cx) = dp->sectors | ((dp->tracks & 0x300) >> 2);
 	LO(ax) = 0;
-	/* show_regs(); */
+	HI(ax) = DERR_NOERR;
 	_regs.eflags &= ~CF; /* no error */
       } else {
 	LWORD(edx) = 0; /* no hard disks */
 	LWORD(ecx) = 0;
 	LO(bx) = 0;
-	LO(ax) = 1; /* bad command */
+	HI(ax) = DERR_BADCMD;
 	_regs.eflags |= CF; /* error */
       }	
       break;
@@ -806,26 +826,23 @@ void int13(void)
     case 0x0A:	/* We dont have access to ECC info */
     case 0x0B:
       CARRY;
-      _regs.eax&=0xFF;
-      _regs.eax|=0x0100;	/* unsupported opn. */
+      HI(ax) = DERR_BADCMD;	/* unsupported opn. */
       break;
 
     case 0x0C:	/* explicit seek heads. - bit hard */
       CARRY;
-      _regs.eax&=0xFF;
-      _regs.eax|=0x0100;
+      HI(ax) = DERR_BADCMD;
       break;
 
     case 0x0D:	/* Drive reset (hd only) */
       NOCARRY;
-      _regs.eax&=0xFF;
+      HI(ax) = DERR_NOERR;
       break;
 
     case 0x0E:	/* XT only funcs */
     case 0x0F:
       CARRY;
-      _regs.eax&=0xFF;
-      _regs.eax|=0x0100;
+      HI(ax) = DERR_NOERR;
       break;
 
     case 0x10:	/* Test drive is ok */
@@ -833,13 +850,15 @@ void int13(void)
       disk=LO(dx);
       if(disk<0x80||disk>=0x80+HDISKS)
 	{
-	  _regs.eax&=0xFF;
-	  _regs.eax|=0x2000;	/* Controller didnt respond */
+	  /* Controller didnt respond */
+	  HI(ax) = DERR_CONTROLLER;
 	  CARRY;
 	  break;
 	}
-      _regs.eax&=0xFF;
-      NOCARRY;
+      else {
+	HI(ax) = DERR_CONTROLLER;
+	NOCARRY;
+      }
       break;
 
     case 0x12:	/* XT diagnostics */
@@ -893,7 +912,7 @@ void int13(void)
 	 our disks dont have a changed line we are kind of ok */
       warn("int13: CHECK DISKCHANGE LINE\n");
       disk=LO(dx);
-      if(disk<0 || disk>=FDISKS || disktab[disk].removeable)
+      if(disk>=FDISKS || disktab[disk].removeable)
 	{
 	  d_printf("int13: DISK CHANGED\n");
 	  CARRY;
@@ -919,8 +938,8 @@ void int13(void)
     case 0x18: /* Set media type for format */
       track = HI(cx) + ((LO(cx) & 0xc0) << 2);
       sect = LO(cx) & 0x3f;
-      d_printf("disk: set media type %x, %d sectors, %d tracks\n", disk, sect, track);
-      HI(ax) = 1; /* function not avilable */
+      d_printf("disk: set media type %x failed, %d sectors, %d tracks\n", disk, sect, track);
+      HI(ax) = DERR_BADCMD; /* function not avilable */
       break;
  
    case 0x20: /* ??? */
@@ -931,17 +950,16 @@ void int13(void)
       break;
     case 0x5:  /* format */
       NOCARRY;  /* successful */
-      HI(ax)=0; /* no error */
+      HI(ax) = DERR_NOERR;
       break;
     case 0xdc:
       d_printf("int 13h, ax=%04x...weird windows disk interrupt\n",
 	       LWORD(eax));
       break;
     default:
-      error("ERROR: disk IO error: int13, ax=0x%x\n",
+      error("ERROR: disk error, unknown command: int13, ax=0x%x\n",
 	    LWORD(eax));
       show_regs();
-      fatalerr = 5;
       return;
     }
 }

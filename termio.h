@@ -3,12 +3,18 @@
 #define TERMIO_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1993/05/04 05:29:22 $
- * $Source: /usr/src/dos/RCS/termio.h,v $
- * $Revision: 1.14 $
+ * $Date: 1993/11/12 12:32:17 $
+ * $Source: /home/src/dosemu0.49pl2/RCS/termio.h,v $
+ * $Revision: 1.1 $
  * $State: Exp $
  *
  * $Log: termio.h,v $
+ * Revision 1.1  1993/11/12  12:32:17  root
+ * Initial revision
+ *
+ * Revision 1.1  1993/07/07  00:49:06  root
+ * Initial revision
+ *
  * Revision 1.14  1993/05/04  05:29:22  root
  * added console switching, new parse commands, and serial emulation
  *

@@ -1,3 +1,19 @@
+/* putrom.c; put VBIOS ROM image into /dev/mem (should fail except for weird caches!)
+ *
+ * $Date: 1993/11/12 12:41:41 $
+ * $Source: /home/src/dosemu0.49pl2/periph/RCS/putrom.c,v $
+ * $Revision: 1.1 $
+ * $State: Exp $
+ *
+ * $Log: putrom.c,v $
+ * Revision 1.1  1993/11/12  12:41:41  root
+ * Initial revision
+ *
+ * Revision 1.1  1993/07/07  21:20:03  root
+ * Initial revision
+ *
+ */
+
 #include <stdio.h>
 #include <sys/mman.h>
 #include <fcntl.h>
