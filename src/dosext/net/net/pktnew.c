@@ -121,9 +121,11 @@ void pkt_priv_init(void)
 
     pktdrvr_installed = 1; /* Will be cleared if some error occurs */
 
-    if (config.vnet == VNET_TYPE_DSN && Open_sockets() < 0) {
-	error("Cannot open dosnet device\n");
-        pktdrvr_installed = -1;
+    if (config.vnet == VNET_TYPE_ETH || config.vnet == VNET_TYPE_DSN) {
+        if (Open_sockets() < 0) {
+          error("Cannot open raw sockets: %s\n", strerror(errno));
+          pktdrvr_installed = -1;
+	}
     }
 }
 
@@ -141,6 +143,7 @@ pkt_init(int vec)
       case VNET_TYPE_ETH:
         strncpy(devname, config.netdev, sizeof(devname) - 1);
         devname[sizeof(devname) - 1] = 0;
+	add_to_io_select(pkt_fd, 1, pkt_receive_async);
 	break;
 
       case VNET_TYPE_DSN:
@@ -157,7 +160,9 @@ pkt_init(int vec)
         }
         pkt_fd = tun_alloc(devname);
         if (pkt_fd < 0) {
-          error("Cannot allocate TAP device %s\n", devname);
+          error("Cannot allocate TAP device %s: %s\n",
+	    strcmp(devname, TAP_DEVICE) ? devname : "(dynamic)",
+	    strerror(errno));
           goto fail;
         }
 	max_pkt_fd = pkt_fd + 1;
@@ -354,23 +359,8 @@ pkt_int (void)
 		    }
 		}
 	    }
-	    if (config.vnet) {
-		Insert_Type(free_handle, hdlp->packet_type_len, 
+	    Insert_Type(free_handle, hdlp->packet_type_len, 
 			    hdlp->packet_type);
-	    } else {
-		hdlp->sock = OpenNetworkType(type); /* open the socket */
-
-		if (hdlp->sock < 0) {
-		    hdlp->in_use = 0;		/* forget about this handle */
-		    HI(dx) = E_BAD_TYPE;
-		    break;
-		}
-
-		FD_SET(hdlp->sock, &pg.sockset); /* keep track of sockets */
-		add_to_io_select(hdlp->sock, 1, pkt_receive_async);
-		if (hdlp->sock >= pg.nfds)
-		    pg.nfds = hdlp->sock + 1;
-	    }
 	    REG(eax) = free_handle;		/* return the handle */
 	}
 	return 1;
@@ -381,32 +371,15 @@ pkt_int (void)
 	    break;
 	}
 
-	if (config.vnet)
-	    Remove_Type(hdlp_handle);
-	else {
-	    if (hdlp->in_use) {
-		int i, n;
-		
-		CloseNetworkLink(hdlp->sock);      /* close the socket */
-		FD_CLR(hdlp->sock, &pg.sockset);  /* keep track of sockets */
-		remove_from_io_select(hdlp->sock, 1);
-		n = pg.nfds;
-		pg.nfds = 0;
-
-		for (i = 0; i < n; i++)
-		    if (FD_ISSET(i,&pg.sockset))
-			pg.nfds = i + 1;
-	    }
-	}
-	if (hdlp->in_use)
-	    hdlp->in_use = 0;	/* no longer in use */
+	Remove_Type(hdlp_handle);
+	hdlp->in_use = 0;	/* no longer in use */
 	return 1;
 
     case F_SEND_PKT: {
 	/* unfortunately, a handle is not passed as a parameter for the */
 	/* SEND_PKT call.  so, we will have to scan the handle table to */
 	/* find a handle which is in use, and use its socket for the send */
-	int handle, socket;
+	int handle;
 
 	p_stats->packets_out++;
 	p_stats->bytes_out += LWORD(ecx);
@@ -438,12 +411,8 @@ pkt_int (void)
 			p[1] = (char)len;
 		    }
 		}
-		if (config.vnet)
-		    socket = pkt_fd;
-		else
-		    socket = hdlp->sock;
 
-		if (WriteToNetwork(socket, devname, 
+		if (WriteToNetwork(pkt_fd, devname, 
 				   SEG_ADR((char *), ds, si),
 				   LWORD(ecx)) >= 0) {
 		    pd_printf("Write to net was ok\n");
@@ -451,7 +420,7 @@ pkt_int (void)
 		} 
 		else {
 		    warn("WriteToNetwork(%d,\"%s\",buffer,%u): error %d\n",
-			 socket, devname, LWORD(ecx), errno);
+			 pkt_fd, devname, LWORD(ecx), errno);
 		    break;
 		}
 	    }
@@ -548,12 +517,14 @@ Open_sockets(void)
       These are really speaking broadcast packets meant to be received by
       all dosemus. Their destination addresses are changed by dosemu, and
       are changed back to 'ffffff..' when these packets are received by dosemu.    */
-    pkt_broadcast_fd = OpenBroadcastNetworkType();
-    if (pkt_broadcast_fd < 0)
+    if (config.vnet == VNET_TYPE_DSN) {
+      pkt_broadcast_fd = OpenBroadcastNetworkType();
+      if (pkt_broadcast_fd < 0)
 	return pkt_broadcast_fd;
+    }
 
     /* The socket for normal packets */
-    pkt_fd = OpenNetworkType((u_short)0);
+    pkt_fd = OpenNetworkType(ETH_P_ALL);
     if (pkt_fd < 0)
 	return pkt_fd;
 
@@ -663,41 +634,40 @@ static int pkt_receive(void)
     tv.tv_usec = 0;
 
     /* anything ready? */
-    if (config.vnet) {
-	FD_ZERO(&readset);
-	FD_SET(pkt_fd, &readset);
-	if (config.vnet == VNET_TYPE_DSN) {
-	  FD_SET(pkt_broadcast_fd, &readset);
-	}
-	/* anything ready? */
-	if (select(max_pkt_fd,&readset,NULL,NULL,&tv) <= 0)
-	    return 0;
+    FD_ZERO(&readset);
+    FD_SET(pkt_fd, &readset);
+    if (config.vnet == VNET_TYPE_DSN) {
+      FD_SET(pkt_broadcast_fd, &readset);
+    }
+    /* anything ready? */
+    if (select(max_pkt_fd,&readset,NULL,NULL,&tv) <= 0)
+        return 0;
 
-	if(FD_ISSET(pkt_fd, &readset)) 
-	    fd = pkt_fd;
-	else if(config.vnet == VNET_TYPE_DSN && FD_ISSET(pkt_broadcast_fd, &readset)) 
-	    fd = pkt_broadcast_fd;
-	else return 0;
+    if(FD_ISSET(pkt_fd, &readset)) 
+        fd = pkt_fd;
+    else if(config.vnet == VNET_TYPE_DSN && FD_ISSET(pkt_broadcast_fd, &readset)) 
+        fd = pkt_broadcast_fd;
+    else return 0;
 
-	strcpy(device, devname);
-	size = ReadFromNetwork(fd, device, pkt_buf, PKT_BUF_SIZE);
-	if (size < 0) {
-	    p_stats->errors_in++;		/* select() somehow lied */
-	    return 0;
-	}
-	if (strcmp(device, devname)) {
-	    pd_printf("strcmp(device != devname) ...\n");
-	    return 0;
-	}
+    strcpy(device, devname);
+    size = ReadFromNetwork(fd, device, pkt_buf, PKT_BUF_SIZE);
+    if (size < 0) {
+        p_stats->errors_in++;		/* select() somehow lied */
+        return 0;
+    }
+    if (strcmp(device, devname)) {
+        pd_printf("strcmp(device != devname) ...\n");
+        return 0;
+    }
    
-	pd_printf("========Processing New packet======\n");
-	handle = Find_Handle(pkt_buf);
-	if (handle == -1) 
-	    return 0;
-	pd_printf("Found handle %d\n", handle);
+    pd_printf("========Processing New packet======\n");
+    handle = Find_Handle(pkt_buf);
+    if (handle == -1) 
+        return 0;
+    pd_printf("Found handle %d\n", handle);
 
-	hdlp = &pg.handle[handle];
-	if (hdlp->in_use) {
+    hdlp = &pg.handle[handle];
+    if (hdlp->in_use) {
 	    printbuf("received packet:", (struct ethhdr *)pkt_buf); 
 
             /* VINOD: If it is broadcast type, translate it back ... */
@@ -743,72 +713,10 @@ static int pkt_receive(void)
 	    p_helper_handle = handle;
 	    pd_printf("Called the helpvector ... \n");
 	    return 1;
-	} else {
-	    p_stats->packets_lost++;	/* not really lost... */
-	    pd_printf("Handle not in use, ignored this packet\n");
-	    return 0;
-	}
-    }
-    else { /* !config.vnet */
-	readset = pg.sockset;
-	if (select(pg.nfds, &readset, NULL, NULL, &tv) <= 0)
-	    return 0;
-
-	for (handle = 0; handle < MAX_HANDLE; handle++) {
-	    hdlp = &pg.handle[handle];
-	    
-	    if (hdlp->in_use && FD_ISSET(hdlp->sock,&readset)) {
-		/* something is available on this handle's socket */
-		/* attempt to read it. Should always succeed. */
-
-		size = ReadFromNetwork(hdlp->sock, device, 
-				       pkt_buf, PKT_BUF_SIZE);
-
-		/* check if something has been received */
-		/* there was a check for "not multicast" here, but I think */
-		/* it should not be there... */
-
-		if (size >= 0) {
-		    /* verify the source of the packet. when not from eth0, */
-		    /* discard it for now (multiple network cards are next) */
-
-		    if (strcmp(device,devname))
-			continue;
-
-		    /* check if the packet's type matches the specified type */
-		    /* in the ACCESS_TYPE call.  the position depends on the */
-		    /* driver class! */
-		    if (hdlp->class == ETHER_CLASS)
-			p = pkt_buf + 2 * ETH_ALEN;	/* Ethernet-II */
-		    else
-			p = pkt_buf + 2 * ETH_ALEN + 2;	/* IEEE 802.3 */
-		    
-		    if (size >= ((p - pkt_buf) + hdlp->packet_type_len) &&
-			!memcmp(p,hdlp->packet_type,hdlp->packet_type_len))
-		    {
-			p_stats->packets_in++;
-			p_stats->bytes_in += size;
-			
-			if (hdlp->flags & FLAG_NOVELL) {
-			    /* overwrite length with type */
-			    *--p = (char)ETH_P_IPX;
-			    *--p = (char)(ETH_P_IPX >> 8);
-			}
-			
-		    /* stuff things in global vars and queue a hardware */
-		    /* interrupt which will perform the upcall */
-			p_helper_size = size;
-			p_helper_receiver = hdlp->receiver;
-			p_helper_handle = handle;
-			pd_printf("Called the helpvector ... \n");
-			return 1;
-		    } else
-			p_stats->packets_lost++; /* not really lost... */
-		} else
-		    p_stats->errors_in++; /* select() somehow lied */
-	    }
-	}
-	return 0;
+    } else {
+        p_stats->packets_lost++;	/* not really lost... */
+        pd_printf("Handle not in use, ignored this packet\n");
+        return 0;
     }
     return 0;
 }

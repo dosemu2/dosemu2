@@ -70,7 +70,7 @@ OpenNetworkType(unsigned short netid)
 	PRIV_SAVE_AREA
 	int s, proto;
 
-	if (config.vnet)
+	if (config.vnet == VNET_TYPE_DSN || config.vnet == VNET_TYPE_TAP)
 		/* netid is ignored, and we use a special netid for the 
 		   dosnet session */
 		proto = htons(GetDosnetID());
@@ -161,7 +161,7 @@ WriteToNetwork(int sock, const char *device, const char *data, int len)
 #else
 	sa.sa_family = AF_INET;
 #endif
-	if (config.vnet)
+	if (config.vnet == VNET_TYPE_DSN)
 		strcpy(sa.sa_data, DOSNET_DEVICE);
 	else
 		strcpy(sa.sa_data, device);
@@ -223,7 +223,7 @@ ReadFromNetwork(int sock, char *device, char *data, int len)
 int 
 GetDeviceHardwareAddress(char *device, char *addr)
 {  
-	if (config.vnet) {
+	if (config.vnet == VNET_TYPE_DSN || config.vnet == VNET_TYPE_TAP) {
 		/* This routine is totally local; doesn't make 
 		   request to actual device. */
 		int i;
