@@ -486,7 +486,38 @@ floppy { device /dev/fd0 threeinch }
 #    command such as "lpr".  Don't bother fiddling with this configuration
 #    until you've got DOSEMU up and running already.
 #
+#    NOTE: Printers are assigned to LPT1:, LPT2:, and LPT3: on a one for
+#    one basis with each line below.  The first printer line is assigned
+#    to LPT1:, second to LPT2:, and third to LPT3:.  If you do not specify
+#    a base port, the emulator will setup the bios to report 0x378, 0x278,
+#    and 0x3bc for LPT1:, LPT2:, and LPT3: respectively.
+#
+#    To use standard unix lpr command for printing use this line:
+#
 #printer { options "%s"  command "lpr"  timeout 20 }
+#
+#    And for any special options like using pr to format files,
+#    add it to the options parameter:
+#
 #printer { options "-p %s"  command "lpr"  timeout 10 }    # pr format it
+#
+#    To just have your printer output end up in a file, use the following line:
+#
 #printer { file "lpt3" }
+#
+#    If you have a DOS application that is looking to access the printer
+#    port directly, and uses the bios LPT: setting to find out the port to use, 
+#    you can modify the base port the bios will report with the following:
+#
+#printer { options "%s"  command "lpr"  base 0x3bc }
+#
+#    Be sure to also add a port line to allow the application access to
+#    the port:
+#
+#ports { 0x3bc 0x3bd 0x3be }
+#
+#    NOTE: applications that require this will not interfere with applications
+#    that continue to use the standard bios calls.  These applications will
+#    continue to send the output piped to the file or unix command.
+#
 

@@ -94,7 +94,6 @@ int do_irq();                                /* run dos portion of irq code */
 void pic_request(int inum);                            /* interrupt trigger */
 void pic_creq(int inum);                   /* conditional interrupt trigger */
 void pic_iret();                             /* interrupt completion notify */
-void pic_return();			     /* interrupt completion notify */
 void pic_watch();		       /* interrupt pendiong watchdog timer */
 void do_irq0();						 /* timer interrupt */
 
@@ -104,3 +103,6 @@ void do_irq0();						 /* timer interrupt */
 #define pic_sti() pic_iflag=0;pic_set_mask          /*    emulate STI      */
 #define pic_cli() pic_iflag=PIC_IRQALL;pic_set_mask /*    emulate CLI      */
 #endif
+
+/* Experimental TIMER-IRQ CHAIN code */
+extern void timer_int_engine(void);

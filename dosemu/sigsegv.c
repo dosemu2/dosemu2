@@ -294,38 +294,13 @@ inb(int port)
     r = cmos_read(port);
     break;
 
-#define COUNTER 2
-#if 1 /*Nov-21-94*/
   case 0x40:
-    r = do_40(1, 0);
-    break;
   case 0x41:
-    r = do_40(1, 0);
-    break;
-#else
-  case 0x40:
-    pit.CNTR0 -= COUNTER;
-    i_printf("inb [0x40] = 0x%02x  1st timer inb\n", pit.CNTR0);
-    r = pit.CNTR0;
-    break;
-  case 0x41:
-    pit.CNTR1 -= COUNTER;
-    i_printf("inb [0x41] = 0x%02x  2nd timer inb\n", pit.CNTR1);
-    r = pit.CNTR1;
-    break;
-#endif
   case 0x42:
-#if 0
-    r = do_42(1, 0);
+    r = pit_inp(port - 0x40);
     break;
-#else
-    pit.CNTR2 -= COUNTER;
-    i_printf("inb [0x42] = 0x%02x  3rd timer inb\n", pit.CNTR2);
-    r = pit.CNTR2;
-    break;
-#endif
   case 0x43:
-    r = safe_port_in_byte(0x43);
+    r = inport_43();
     break;
 
   case 0x3ba:
@@ -584,34 +559,12 @@ outb(int port, int byte)
     break;
 #endif
   case 0x40:
-	do_40(0, byte);
-	break;
   case 0x41:
-	do_40(0, byte);
-	break;
-  case 0x43:
-#if 1
-        do_43(0, byte);
-        break;
-#else
-        safe_port_out_byte(port,  byte);
-	break;
-#endif
   case 0x42:
-#if 0
-	safe_port_out_byte(port, byte);
-#endif
-    pit.CNTR2 = byte;
-    if ((port == 0x42) && (lastport == 0x42)) {
-      if ((timer_beep == 1) &&
-	  (config.speaker == SPKR_EMULATED)) {
-	putchar('\007');
-	timer_beep = 0;
-      }
-      else {
-	timer_beep = 1;
-      }
-    }
+    pit_outp(port - 0x40, byte);
+    break;
+  case 0x43:
+    outport_43(byte);
     break;
 
   default:
@@ -853,6 +806,12 @@ void vm86_GP_fault(void)
       LWORD(eip) += 2;		/* skip halt and info byte to point to FAR RET */
       xms_control();
     }
+#ifdef NEW_PIC	
+    else if (lina == (unsigned char *) PIC_ADD) {
+      pic_iret();
+    }
+#endif /* NEW_PIC */
+
 #ifdef DPMI
     else if ((lina >=(unsigned char *)DPMI_ADD) &&
 	(lina <(unsigned char *)(DPMI_ADD+(unsigned long)DPMI_dummy_end-(unsigned long)DPMI_dummy_start)))

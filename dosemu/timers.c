@@ -3,8 +3,8 @@
  *
  * Description: Timer emulation for DOSEMU.
  * 
- * Maintainers: Scott Bucholz
- *              J. Lawrence Stephan
+ * Maintainers: J. Lawrence Stephan
+ *              Scott Buchholz
  *
  * This is the timer emulation for DOSEMU.  It emulates the Programmable
  * Interval Timer (PIT), and also handles IRQ0 interrupt events.
@@ -103,40 +103,19 @@
 
 #define CLOCK_TICK_RATE   1193180     /* underlying clock rate in HZ */
 
-static int timer0_read_latch_value = 0;
-static int timer0_read_latch_value_orig = 0;
-static int timer0_latched_value = 0;
-static int timer0_new_value = 0;
-static boolean_t latched_counter_msb = FALSE;
+typedef struct {
+  int            state;
+  int            mode;
+  int            read_latch;
+  int            write_latch;
+  long           cntr;
+  struct timeval time;
+} pit_latch;
 
+static pit_latch pit[3];          /* values of 3 PIT counters */
 static u_long timer_div;          /* used by timer int code */
-static struct timeval clock0;     /* start time of port 0 timer */
 static u_long ticks_accum;        /* For timer_tick function, 100usec ticks */
 
-/*
- * DANG_BEGIN_FUNCTION set_timer_latch0
- *
- * description:
- *  DOS programs latch values into port 0x40 to change the timer interrupt
- *  rate.  This procedure calculates the values to attemp to generate the
- *  requested interrupt rate.
- *
- * DANG_END_FUNCTION
- */
-static void set_timer_latch0(u_long latch_value)
-{
-  ticks_accum   = 0;
-  gettimeofday(&clock0, NULL);
-
-  if (latch_value == 0)
-    latch_value = 0x10000;
-  timer_div     = (latch_value * 10000) / CLOCK_TICK_RATE;
-  if (timer_div == 0)
-    timer_div = 1;
-
-  i_printf("timer_interrupt_rate requested %.3g Hz, granted %.3g Hz\n",
-           CLOCK_TICK_RATE / (double)latch_value, 10000.0 / timer_div);
-}
 
 /*
  * DANG_BEGIN_FUNCTION initialize_timers
@@ -147,8 +126,32 @@ static void set_timer_latch0(u_long latch_value)
  */
 void initialize_timers(void)
 {
-   set_timer_latch0(0x10000);
+  struct timeval cur_time;
+
+  gettimeofday(&cur_time, NULL);
+
+  pit[0].mode = 3;
+  pit[0].cntr = 0x10000;
+  pit[0].time = cur_time;
+  pit[0].read_latch = 0;
+  pit[0].write_latch = 0;
+
+  pit[1].mode = 2;
+  pit[1].cntr = 18;
+  pit[1].time = cur_time;
+  pit[0].read_latch = 0;
+  pit[1].write_latch = 18;
+
+  pit[2].mode = 0;
+  pit[2].cntr = 0x10000;
+  pit[2].time = cur_time;
+  pit[0].read_latch = 0;
+  pit[2].write_latch = 0;
+
+  ticks_accum   = 0;
+  timer_div     = (pit[0].cntr * 10000) / CLOCK_TICK_RATE;
 }
+
 
 /*
  * DANG_BEGIN_FUNCTION initialize_timers
@@ -175,34 +178,24 @@ void timer_tick(void)
   gettimeofday(&tp, NULL);
 
   /* compute the number of 100usecs since we started */
-  time_curr  = (tp.tv_sec - clock0.tv_sec) * 10000;
-  time_curr += (tp.tv_usec - clock0.tv_usec) / 100;
+  time_curr  = (tp.tv_sec - pit[0].time.tv_sec) * 10000;
+  time_curr += (tp.tv_usec - pit[0].time.tv_usec) / 100;
   
   /* Reset old timer value to 0 if time_curr wrapped around back to 0 */
   if (time_curr < time_old) time_old = 0;
   
   /* Compute number of 100usec ticks since the last time this function ran */
   ticks_accum += (time_curr - time_old);
-  pit.CNTR2 -= ticks_accum;
   
   /* Save old value of the timer */
   time_old = time_curr;
 
-  /* Add any missing timer events to the queue */
-  while (ticks_accum > timer_div) {
-    ticks_accum -= timer_div;
-    /* h_printf("starting timer int 8...\n"); */ /* Slows down game testing */
-#ifndef NEW_PIC
-    if (!do_hard_int(8)) h_printf("CAN'T DO TIMER INT 8...IF CLEAR\n");
-#else
-#if NEW_PIC==2
-    /* This line will be obsolete with the new serial PIC coming soon */
+  timer_int_engine();
+  #if NEW_PIC==2 /* Will be obsolete with new serial PIC soon */
     age_transmit_queues();
-#endif
-    pic_request(PIC_IRQ0);
-#endif
-  }
+  #endif
 }
+
 
 void set_ticks(unsigned long new)
 {
@@ -216,121 +209,213 @@ void set_ticks(unsigned long new)
   /* warn("TIMER: update value of %d\n", (40 / (1000000 / UPDATE))); */
 }
 
-int do_40(boolean_t in_out, int val)
-{
-  int ret;
 
-  if (in_out) {  /* true => in, false => out */
-    if (timer0_latched_value == 0) {
-      timer0_latched_value = timer_div*850;
+static void latch(int latch)
+{
+  struct timeval cur_time;
+  u_long         ticks;
+
+  gettimeofday(&cur_time, NULL);
+    
+  /* get the number of clock ticks since the start of the timer */
+  
+  ticks = (cur_time.tv_sec - pit[latch].time.tv_sec) * CLOCK_TICK_RATE +
+          ((cur_time.tv_usec - pit[latch].time.tv_usec) * 1193) / 1000;
+  
+  switch (pit[latch].mode) {
+    case 0x00:  /* mode 0   -- countdown, interrupt, wait*/
+    case 0x01:  /* mode 1   -- countdown, wait */
+    case 0x04:  /* mode 4   -- countdown, wait */
+    case 0x05:  /* mode 5   -- countdown, wait */
+      if (pit[latch].cntr == -1 || ticks > pit[latch].cntr) {
+	pit[latch].cntr = -1;
+	pit[latch].read_latch = 0;
+      } else {
+	pit[latch].read_latch = pit[latch].cntr - ticks;
+      }
+      break;
+
+    case 0x02:  /* mode 2,6 -- countdown, reload */
+    case 0x06:
+    case 0x03:  /* mode 3,7 -- countdown by 2(?), interrupt, reload */
+    case 0x07:
+      pit[latch].read_latch = pit[latch].cntr - (ticks % pit[latch].cntr);
+      break;
     }
-    switch (timer0_read_latch_value) {
-      case 0x30:
-        ret = timer0_latched_value&0xf;
-	timer0_read_latch_value = 0x20;
-	break;
-      case 0x10:
-	ret = timer0_latched_value&0xf;
-	timer0_read_latch_value = 0x0;
-	break;
-      case 0x20:
-	ret = (timer0_latched_value&0xf0)>>8;
-	timer0_read_latch_value = 0x0;
-	timer0_latched_value = 0;
-	break;
-      case 0x0:
-	if (!latched_counter_msb) {
-	  struct timeval tp;
-	  u_long count;
-	  gettimeofday(&tp, NULL);
+}
 
-	  count = (tp.tv_sec - clock0.tv_sec) * CLOCK_TICK_RATE +
-	          ((tp.tv_usec - clock0.tv_usec) * 1193) / 1000;
 
-	  timer0_latched_value = 0x10000 - count;
+int pit_inp(int port)
+{
+  int ret = 0;
 
-	  ret = timer0_latched_value & 0xff;
-	} else {
-	  ret = (timer0_latched_value >> 8) & 0xff;
-	  timer0_latched_value = 0;
-	}
-	latched_counter_msb = !latched_counter_msb;
-	break;
-      }
-    i_printf("PORT: do_40, in = 0x%x\n",ret);
-  } else {
-    switch (timer0_read_latch_value) {
-      case 0x0:
-      case 0x30:
-        timer0_new_value = val;
-	timer0_read_latch_value = 0x20;
-	break;
-      case 0x10:
-	timer0_new_value = val;
-	timer0_read_latch_value = 0x0;
-	break;
-      case 0x20:
-	timer0_new_value |= (val<<8);
-	timer0_read_latch_value = 0x0;
-	break;
-      }
-    i_printf("PORT: do_40, out = 0x%x\n",val);
-    if (timer0_read_latch_value == 0)
-      set_timer_latch0(timer0_new_value);
+  if (port == 1)
+    i_printf("PORT:  someone is reading the CMOS refresh time?!?");
+
+  switch (pit[port].state) {
+    case 0: /* latch & read */
+      latch(port);
+    case 3: /* read LSB followed by MSB */
+      ret = (pit[port].read_latch & 0xff);
+      pit[port].state = 1;
+      break;
+    case 1: /* read MSB */
+      ret = (pit[port].read_latch >> 8) & 0xff;
+      pit[port].state = 0;
+      break;
+    case 2: /* read LSB */
+      ret = (pit[port].read_latch & 0xff);
+      pit[port].state = 0;
+      break;
   }
-  return(ret);
+  i_printf("PORT: inport_%x, in = 0x%x\n", port+0x40, ret);
+  return ret;
 }
 
-#if 0
-/* return value of port -- what happens when output?  Stack trash? */
-int do_42(in_out, val)
-	boolean_t in_out;
-	int val;
-{
-	int ret;
-	if (in_out) {  /* true => in, false => out */
-		ioperm(0x42,1,1);
-		ret = port_in(0x42);
-		ioperm(0x42,1,0);
-		i_printf( "PORT: do_42, in = 0x%x\n",ret);
-	} else {
-		ioperm(0x42,1,1);
-		port_out(val, 0x42);
-		ioperm(0x42,1,0);
-		i_printf( "PORT: do_42, out = 0x%x\n",val);
-	}
-	return(ret);
-}
 
-#endif
-
-int do_43(boolean_t in_out, int val)
+void pit_outp(int port, int val)
 {
-  int ret;
-	
-  if (in_out) {  /* true => in, false => out */
-    i_printf( "PORT: do_43, in = 0x%x\n",ret);
-  } else {
-    i_printf( "PORT: do_43, out = 0x%x\n",val);
-    switch(val>>6) {
-    case 0:
-      timer0_read_latch_value = (val&0x30);
-      timer0_read_latch_value_orig = (val&0x30);
-      if (timer0_read_latch_value == 0) {
-	latched_counter_msb = FALSE;
+  static int timer_beep;
+
+  if (port == 1)
+    i_printf("PORT:  someone is writing the CMOS refresh time?!?");
+
+  /* someone should check this code!!! */
+  if (port == 2) {
+    if (config.speaker == SPKR_NATIVE) {
+      safe_port_out_byte(0x42, val);
+      i_printf("PORT: Really do_42\n");
+    } else if (config.speaker == SPKR_EMULATED) {
+      if (timer_beep) {
+	putchar('\007');
+	timer_beep = 0;
+      } else {
+	timer_beep = 1;
       }
+    }
+  }
+
+  switch (pit[port].state) {
+    case 0:
+    case 3:
+      pit[port].write_latch = val;
+      pit[port].state = 2;
+      break;
+    case 1:
+      pit[port].write_latch = (pit[port].write_latch & 0xff00) | (val&0xff);
+      pit[port].state = 0;
       break;
     case 2:
-#if 0
-      ioperm(0x43,1,1);
-      port_out(val, 0x43);
-      ioperm(0x43,1,0);
-#else
-      safe_port_out_byte(0x43, val);
-#endif
-      i_printf( "PORT: Really do_43\n");
+      pit[port].write_latch = (pit[port].write_latch & 0xff) | (val << 8);
+      pit[port].state = 0;
       break;
     }
+  i_printf("PORT: outport_%x = 0x%x\n", port+0x40, val);
+
+  if (pit[port].state == 0) {
+    if (pit[port].write_latch == 0)
+      pit[port].cntr = 0x10000;
+    else
+      pit[port].cntr = pit[port].write_latch;
+
+    gettimeofday(&pit[port].time, NULL);
+
+    if (port == 0) {
+      ticks_accum   = 0;
+      timer_div     = (pit[0].cntr * 10000) / CLOCK_TICK_RATE;
+      if (timer_div == 0)
+	timer_div = 1;
+
+      i_printf("timer_interrupt_rate requested %.3g Hz, granted %.3g Hz\n",
+	       CLOCK_TICK_RATE/(double)pit[0].cntr, 10000.0/timer_div);
+    }
   }
-  return(ret);
+}
+
+
+int inport_43()
+{
+  return safe_port_in_byte(0x43);
+}
+
+
+void outport_43(int val)
+{
+  int mode, latch, state;
+
+  i_printf("PORT: outport_43 = 0x%x\n",val);
+
+  mode  = (val >> 1) & 0x07;
+  state = (val >> 4) & 0x03;
+  latch = (val >> 6) & 0x03;
+
+  switch (latch) {
+    case 0:
+    case 1:
+      pit[latch].state = state;
+      pit[latch].mode  = mode;
+      break;
+    case 2:
+      pit[latch].mode = mode;
+      pit[latch].state = state;
+      if (config.speaker == SPKR_NATIVE) {
+        safe_port_out_byte(0x43, val);
+        i_printf("PORT: Really do_43\n");
+      }
+      break;
+    case 3:
+      safe_port_out_byte(0x43, val);
+      i_printf("PORT: Really do_43\n");
+      break;
+  }
+}
+
+
+/* DANG_BEGIN_FUNCTION timer_int_engine
+ *
+ * This is experimental TIMER-IRQ CHAIN code!
+ * This is a function to determine whether it is time to invoke a
+ * new timer irq 0 event.  Normally it is 18 times a second, but
+ * many video games set it to 100 times per second or more.  Since
+ * the kernel cannot keep an accurate timer interrupt, the job of this
+ * routine is to perform a chained timer irq 0 right after the previous
+ * timer irq 0.  This routine should, ideally, be called right after
+ * the end of a timer irq, if possible.
+ *
+ * This would speed up high frequency timer interrupts if this code
+ * can be converted into an assembly macro equivalent!
+ *
+ * DANG_END_FUNCTION
+ */
+void timer_int_engine(void)
+{
+  static continuous = 0;
+
+  if (ticks_accum < timer_div)
+    continuous = 0;                     /* Reset overflow guard */
+  else {
+
+    /* Overflow guard so that there is no more than 50 irqs in a chain */
+    continuous++;
+    
+    if (continuous > 50) 
+      continuous = 0;                   /* Reset overflow guard */
+    else {
+      #ifdef NEW_PIC
+        pic_request(PIC_IRQ0);            /* Start a timer irq */
+      #else
+        if (!do_hard_int(8)) h_printf("CAN'T DO TIMER INT 8...IF CLEAR\n");
+      #endif
+    }
+
+    /* Decrement the ticks accumulator */
+    ticks_accum -= timer_div;
+    
+    /* Prevent more than 250 ms of extra timer ticks from building up.
+     * This ensures that if timer_int_engine get called less frequently
+     * than every 250ms, the code won't choke on an overload of timer 
+     * interrupts.
+     */
+    if (ticks_accum > 250) ticks_accum -= 250;
+  }
 }

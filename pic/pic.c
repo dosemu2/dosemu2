@@ -70,24 +70,23 @@ static struct lvldef pic_iinfo[32] =
                       {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00},
                       {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00}};   
 /*
-
-run_irq)        checks for and runs any interrupts requested in pic_irr
-do_irq()          runs the dos interrupt for the current irq
-set_pic0_imr()  sets pic0 interrupt mask register       \\
-set_pic1_imr()  sets pic1 interrupt mask register       ||
-get_pic0_imr()  returns pic0 interrupt mask register    ||
-get_pic1_imr()  returns pic1 interrupt mask register    || called by read_
-get_pic0_isr()  returns pic0 in-service register        || and write_ picX
-get_pic1_isr()  returns pic1 in-service register        ||
-get_pic0_irr()  returns pic0 interrupt request register ||
-get_pic1_irr()  returns pic1 interrupt request register ||
-set_pic0_base() sets base interrupt for irq0 - irq7     ||
-set_pic1_base() sets base interrupt for irq8 - irq15    //
-write_pic0()    processes write to pic0 i/o 
-write_pic1()    processes write to pic1 i/o
-read_pic0()     processes read from pic0 i/o
-read_pic1()     processes read from pic1 i/o
-                                                                     */
+ * run_irq()       checks for and runs any interrupts requested in pic_irr
+ * do_irq()        runs the dos interrupt for the current irq
+ * set_pic0_imr()  sets pic0 interrupt mask register       \\
+ * set_pic1_imr()  sets pic1 interrupt mask register       ||
+ * get_pic0_imr()  returns pic0 interrupt mask register    ||
+ * get_pic1_imr()  returns pic1 interrupt mask register    || called by read_
+ * get_pic0_isr()  returns pic0 in-service register        || and write_ picX
+ * get_pic1_isr()  returns pic1 in-service register        ||
+ * get_pic0_irr()  returns pic0 interrupt request register ||
+ * get_pic1_irr()  returns pic1 interrupt request register ||
+ * set_pic0_base() sets base interrupt for irq0 - irq7     ||
+ * set_pic1_base() sets base interrupt for irq8 - irq15    //
+ * write_pic0()    processes write to pic0 i/o 
+ * write_pic1()    processes write to pic1 i/o
+ * read_pic0()     processes read from pic0 i/o
+ * read_pic1()     processes read from pic1 i/o
+ */
 
 #define set_pic0_imr(x) pic0_imr=pic0_to_emu(x);pic_set_mask
 #define set_pic1_imr(x) pic1_imr=(((long)x)<<3);pic_set_mask
@@ -106,37 +105,41 @@ static unsigned char pic1_icw_state;
 static unsigned char pic0_cmd; /* 0-3=>last port 0 write was none,ICW1,OCW2,3*/
 static unsigned char pic1_cmd;
                     
+
 void set_pic0_base(int_num)
 unsigned char int_num;
 {
-unsigned char int_n;
-int_n        = int_num & 0xf8;         /* it's not worth doing a loop */
-pic_iinfo[1].ivec  = int_n++;  /* irq  0 */
-pic_iinfo[2].ivec  = int_n++;  /* irq  1 */
-pic_irq2_ivec      = int_n++;  /* irq  2 */
-pic_iinfo[11].ivec = int_n++;  /* irq  3 */
-pic_iinfo[12].ivec = int_n++;  /* irq  4 */
-pic_iinfo[13].ivec = int_n++;  /* irq  5 */
-pic_iinfo[14].ivec = int_n++;  /* irq  6 */
-pic_iinfo[15].ivec = int_n;    /* irq  7 */
-return;
+  unsigned char int_n;
+  int_n        = int_num & 0xf8;         /* it's not worth doing a loop */
+  pic_iinfo[1].ivec  = int_n++;  /* irq  0 */
+  pic_iinfo[2].ivec  = int_n++;  /* irq  1 */
+  pic_irq2_ivec      = int_n++;  /* irq  2 */
+  pic_iinfo[11].ivec = int_n++;  /* irq  3 */
+  pic_iinfo[12].ivec = int_n++;  /* irq  4 */
+  pic_iinfo[13].ivec = int_n++;  /* irq  5 */
+  pic_iinfo[14].ivec = int_n++;  /* irq  6 */
+  pic_iinfo[15].ivec = int_n;    /* irq  7 */
+  return;
 }
+
 
 void set_pic1_base(int_num)
 unsigned char int_num;
 {
-unsigned char int_n;
-int_n        = int_num & 0xf8;         /* it's not worth doing a loop */
-pic_iinfo[3].ivec  = int_n++;  /* irq  8 */
-pic_iinfo[4].ivec  = int_n++;  /* irq  9 */
-pic_iinfo[5].ivec  = int_n++;  /* irq 10 */
-pic_iinfo[6].ivec  = int_n++;  /* irq 11 */
-pic_iinfo[7].ivec  = int_n++;  /* irq 12 */
-pic_iinfo[8].ivec  = int_n++;  /* irq 13 */
-pic_iinfo[9].ivec  = int_n++;  /* irq 14 */
-pic_iinfo[10].ivec = int_n;    /* irq 15 */
-return;
+  unsigned char int_n;
+  int_n        = int_num & 0xf8;         /* it's not worth doing a loop */
+  pic_iinfo[3].ivec  = int_n++;  /* irq  8 */
+  pic_iinfo[4].ivec  = int_n++;  /* irq  9 */
+  pic_iinfo[5].ivec  = int_n++;  /* irq 10 */
+  pic_iinfo[6].ivec  = int_n++;  /* irq 11 */
+  pic_iinfo[7].ivec  = int_n++;  /* irq 12 */
+  pic_iinfo[8].ivec  = int_n++;  /* irq 13 */
+  pic_iinfo[9].ivec  = int_n++;  /* irq 14 */
+  pic_iinfo[10].ivec = int_n;    /* irq 15 */
+  return;
 }
+
+
 /* DANG_BEGIN_FUNCTION write_pic0,write_pic1
  *
  * write_pic_0() and write_pic1() implement dos writes to the pic ports.
@@ -151,8 +154,9 @@ void write_pic0(port,value)
 unsigned char port,value;
 {
 
-/* if port == 0 this must be either an ICW1, OCW2, or OCW3 */
-/* if port == 1 this must be either ICW2, ICW3, ICW4, or load IMR */
+/* if port == 0 this must be either an ICW1, OCW2, or OCW3
+ * if port == 1 this must be either ICW2, ICW3, ICW4, or load IMR 
+ */
 
 #if 0
 static char  icw_state,              /* !=0 => port 1 does icw 2,3,(4) */
@@ -192,12 +196,13 @@ else                                /* icw2, icw3, icw4, or mask register */
   }
 }  
 
+
 void write_pic1(port,value)
 unsigned char port,value;
 {
 /* if port == 0 this must be either an ICW1, OCW2, or OCW3 */
 /* if port == 1 this must be either ICW2, ICW3, ICW4, or load IMR */
-static char /* icw_state,       /* !=0 => port 1 does icw 2,3,(4) */
+static char /* icw_state, */     /* !=0 => port 1 does icw 2,3,(4) */
                icw_max_state;    /* number of icws expected        */
 
 if(!port){                            /* icw1, ocw2, ocw3 */
@@ -230,6 +235,8 @@ else                         /* icw2, icw3, icw4, or mask register */
        if(pic1_icw_state++ >= icw_max_state) pic1_icw_state=0; 
   }
 }  
+
+
 /* DANG_BEGIN_FUNCTION read_pic0,read_pic1
  *
  * read_pic0 and read_pic1 return the values for the interrupt mask register
@@ -240,7 +247,6 @@ else                         /* icw2, icw3, icw4, or mask register */
  *
  * DANG_END_FUNCTION
  */
-
 unsigned char read_pic0(port)
 unsigned char port;
 {
@@ -249,6 +255,7 @@ unsigned char port;
                          return((unsigned char)get_pic0_irr());
 }
 
+
 unsigned char read_pic1(port)
 unsigned char port;
 {
@@ -256,6 +263,7 @@ unsigned char port;
   if(pic1_isr_requested) return((unsigned char)get_pic1_isr());
                          return((unsigned char)get_pic1_irr());
 }
+
 
 /* DANG_BEGIN_FUNCTION pic_mask,pic_unmask
  *
@@ -268,7 +276,6 @@ unsigned char port;
  *
  * DANG_END_FUNCTION
  */
- 
 void pic_unmaski(level)
 int level;
 {
@@ -282,6 +289,8 @@ int level;
 {
   set_bit(level,&pice_imr);
 }
+
+
 /* DANG_BEGIN_FUNCTION pic_seti
  *
  * pic_seti is used to initialize an interrupt for dosemu.  It requires
@@ -295,21 +304,22 @@ int level;
  *
  * DANG_END_FUNCTION
  */
-   
-
 void pic_seti(level,func,ivec)
 unsigned int level,ivec;
 void (*func);
 {
- if(level>=32) return;
- pic_iinfo[level].func = func;
- if(level>16) pic_iinfo[level].ivec = ivec;
- if(func == (void*)0) pic_maski(level);
+  if(level>=32) return;
+  pic_iinfo[level].func = func;
+  if(level>16) pic_iinfo[level].ivec = ivec;
+  if(func == (void*)0) pic_maski(level);
 }
 
-/* this is the guts if the irq processor. it should be called from an
-  if:   if(pic_irr) run_irqs();   This will maximize speed  */
 
+/* this is the guts if the irq processor. it should be called from an if:
+ * if(pic_irr) run_irqs();     
+ * This will maximize speed.
+ */
+ 
 /* DANG_BEGIN_FUNCTION run_irqs
  *
  * run_irqs, which is initiated via the macro pic_run, is the "brains" of
@@ -324,7 +334,6 @@ void (*func);
  *
  * DANG_END_FUNCTION
  */
-
 #ifdef C_RUN_IRQS
 /* see assembly language version below */
 void run_irqs()
@@ -335,11 +344,12 @@ void run_irqs()
 #warning using C run_irqs
 
 /* check for and find any requested irqs.  Having found one, we atomic-ly
-   clear it and verify it was there when we cleared it.  If it wasn't, we
-   look for the next request.  There are two in_service bits for pic1 irqs.
-   This is needed, because irq 8-15 must do 2 outb20s, which, if the dos
-   irq code actually runs, will reset the bits.  We also reset them here,
-   since dos code won't necessarily run.  */
+ * clear it and verify it was there when we cleared it.  If it wasn't, we
+ * look for the next request.  There are two in_service bits for pic1 irqs.
+ * This is needed, because irq 8-15 must do 2 outb20s, which, if the dos
+ * irq code actually runs, will reset the bits.  We also reset them here,
+ * since dos code won't necessarily run.  
+ */
    
 #if 0
  if(!(pic_irr&~(pic_isr|pic_imr))) return;     /* exit if nothing to do */
@@ -375,11 +385,12 @@ void run_irqs()
 
 #else
 
-/* I got inspired.  Here's an assembly language version, somewhat faster. */
-/* This is also much shorter - fewer checks needed, because there's no
-   question of compiler behavior, and less code because we can use both 
-   results and flags from an instruction . */
-/* RE-ENTRANT CODE - uses 16 bytes of stack */
+/* I got inspired.  Here's an assembly language version, somewhat faster.
+ * This is also much shorter - fewer checks needed, because there's no
+ * question of compiler behavior, and less code because we can use both 
+ * results and flags from an instruction.
+ * RE-ENTRANT CODE - uses 16 bytes of stack
+ */
 void run_irqs()
 {
 
@@ -421,7 +432,6 @@ void run_irqs()
 #endif
                
    
-
 /* DANG_BEGIN_FUNCTION do_irq
  *
  *  do_irq() calls the correct do_int().
@@ -431,9 +441,9 @@ void run_irqs()
  *  Returns: 0 = complete, 1 = interrupt not run because it directly
  *  calls our "bios"   See run_timer_tick() in timer.c for an example
  *  To assure notification when the irq completes, we push flags, ip, and cs
- *  here and fake cs:ip to INTE8_[SEG,OFF].  This makes the irq call
- *  interrupt e8 (which calls pic_return) when it completes.  int e8
- *  then pops the real cs:ip from the stack.
+ *  here and fake cs:ip to PIC_[SEG,OFF], where there is a hlt.  This makes 
+ *  the irq generate a sigsegv, which calls pic_iret when it completes.
+ *  pic_iret then pops the real cs:ip from the stack.
  *  This routine is RE-ENTRANT - it calls run_irqs, which
  *  which may call an interrupt routine,
  *  which may call do_irq().  Be Careful!  !!!!!!!!!!!!!!!!!! 
@@ -473,8 +483,8 @@ int do_irq()
       tmp[1] = REG(cs);
       tmp[0] = LWORD(eip);
       LWORD(esp) -= 6;
-      REG(cs) = INTE8_SEG;
-      LWORD(eip) = INTE8_OFF;
+      REG(cs) = PIC_SEG;
+      LWORD(eip) = PIC_OFF;
       
       run_int(intr);
      }
@@ -514,6 +524,7 @@ int do_irq()
 #endif
 }
 
+
 /* DANG_BEGIN_FUNCTION pic_request
  *
  * pic_request triggers an interrupt.  There is presently no way to
@@ -529,27 +540,25 @@ int do_irq()
  *
  * DANG_END_FUNCTION
  */
-
-
-void
-pic_request(inum)
+void pic_request(inum)
 int inum;
 {
- if (pic_iinfo[inum].func == (void *)0) {
-	return; 
- }
- if(pic_isr&(1<<inum) || inum==pic_ilevel){
- 	pic_pirr|=(1<<inum);
- }
- else {
-	pic_irr|=(1<<inum);
- }
+  if (pic_iinfo[inum].func == (void *)0)
+    return; 
+ 
+  if(pic_isr&(1<<inum) || inum==pic_ilevel)
+    pic_pirr|=(1<<inum);
+  else
+    pic_irr|=(1<<inum);
+
 #ifdef DPMI
- if (in_dpmi)
-   D_printf("DPMI: pic_request(0x%02x) set isr=%x, irr=%x\n", inum, pic_isr, pic_irr);
+  if (in_dpmi) D_printf("DPMI: pic_request(0x%02x) set isr=%x, irr=%x\n", inum, pic_isr, pic_irr);
 #endif
- return;
+
+  return;
 }
+
+
 /* DANG_BEGIN_FUNCTION pic_iret
  *
  * pic_iret is used to sense that all active interrupts are really complete,
@@ -598,49 +607,15 @@ tmp = SEG_ADR((short *),ss,sp)-3;
         pic_wirr&=~pic_irr;		/* clear watchdog timer */
         REG(eflags)&=~(VIP);
     }
-/* if return is to int 0xe8, pop the real cs:ip */
-    if(tmp[0] == INTE8_SEG && tmp[1] == INTE8_OFF) {
-      LWORD(eip) == tmp[3];
-      REG(cs) == tmp[4];
+/* if return is to PIC_ADD, pop the real cs:ip */
+    if(tmp[0] == PIC_OFF && tmp[1] == PIC_SEG) {
+      LWORD(eip) = tmp[3];
+      REG(cs) = tmp[4];
       LWORD(esp) += 6;
       }
     }
  return;
 }
-
-/* DANG_BEGIN_FUNCTION pic_return
- * pic_return is called by interrupt e8.  It does the same thing as pic_iret,
- * but expects cs:ip pointing to INTE8_ [SEG,OFF] instead.  
- * DPMI never calls this function since it uses his own stackframe to indicate
- * an iret.
- */
-void
-pic_return()
-{
-unsigned short * tmp;
-
-/* if we've come from the right place, cs:ip will point to the BIOS */
-tmp = SEG_ADR((short *),ss,sp)-3;
- if (INTE8_SEG == REG(cs)) 
-  if(INTE8_OFF+2 == LWORD(eip)) {
-    if(pic_icount) 
-      if(!(--pic_icount)) {
-        pic_irr|=(pic_pirr&~pic_isr);
-        pic_pirr&=~pic_irr;
-        pic_wirr&=~pic_irr;		/* clear watchdog timer */
-        REG(eflags)&=~(VIP);
-    }
-/* simulate an iret (without the flags - they should be OK) */
-/* Note that this stuff was pushed on the stack before the irq began */
-    if(tmp[0] == INTE8_SEG && tmp[1] == INTE8_OFF) {
-      LWORD(eip) == tmp[3];
-      REG(cs) == tmp[4];
-      LWORD(esp) += 6;
-      }
-   }     
- return;
-}
-
 
  
 /* DANG_BEGIN_FUNCTION pic_watch
@@ -652,17 +627,14 @@ tmp = SEG_ADR((short *),ss,sp)-3;
  *
  * DANG_END_FUNCTION
  */
-  
-
-
-inline void 
-pic_watch()
+inline void pic_watch()
 {
-        pic_irr|=(pic_wirr&~pic_isr);	/* activate anything still pending */
-        pic_pirr&=~pic_irr;
-        pic_wirr&=~pic_irr;
-        pic_wirr|=pic_pirr;   	/* set a new pending list for next time    */
+  pic_irr|=(pic_wirr&~pic_isr);   /* activate anything still pending */
+  pic_pirr&=~pic_irr;
+  pic_wirr&=~pic_irr;
+  pic_wirr|=pic_pirr;   	  /* set a new pending list for next time */
 }      
+
 
 /* DANG_BEGIN_FUNCTION do_irq0
  *
@@ -671,8 +643,7 @@ pic_watch()
  *
  * DANG_END_FUNCTION
  */
-void
-do_irq0()
+void do_irq0()
 {
 	pic_watch();
 	do_irq();

@@ -72,11 +72,14 @@ static void start_ports(void);
 static void start_mouse(void);
 static void stop_mouse(void);
 static void start_debug(void);
+static void start_video(void);
 static void stop_video(void);
 static void start_serial(void);
 static void stop_serial(void);
 static void start_printer(void);
 static void stop_printer(void);
+static void start_keyboard(void);
+static void start_terminal(void);
 static void stop_terminal(void);
 static void start_disk(void);
 static void do_part(char *);
@@ -252,18 +255,24 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		| PKTDRIVER NOVELLHACK	{ config.pktflags = 1; }
 		| SPEAKER speaker
 		    {
-		    if ($2 == SPKR_NATIVE) {
-                      yywarn("allowing access to the speaker ports!");
-		      allow_io(0x42, 1, IO_RDWR, 0, 0xFFFF);
-		      allow_io(0x61, 1, IO_RDWR, 0, 0xFFFF);
-		      }
-		    else
-                      c_printf("CONF: not allowing speaker port access\n");
-		    config.speaker = $2;
+		    if ($2 != config.speaker) {
+		      if ($2 == SPKR_NATIVE) {
+                        yywarn("allowing access to the speaker ports!");
+		        allow_io(0x42, 1, IO_RDWR, 0, 0xFFFF);
+		        allow_io(0x61, 1, IO_RDWR, 0, 0xFFFF);
+		        }
+		      else
+                        c_printf("CONF: not allowing speaker port access\n");
+		      config.speaker = $2;
+                      }
 		    }
-		| VIDEO	'{' video_flags '}'
+		| VIDEO
+		    { start_video(); }
+		  '{' video_flags '}'
 		    { stop_video(); }
-		| TERMINAL '{' term_flags '}'
+		| TERMINAL
+		    { start_terminal(); }
+                  '{' term_flags '}'
 		    { stop_terminal(); }
 		| DEBUG
 		    { start_debug(); }
@@ -275,8 +284,10 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		| SERIAL
 		    { start_serial(); }
 		  '{' serial_flags '}'
-		  { stop_serial(); }
-		| KEYBOARD '{' keyboard_flags '}'
+		    { stop_serial(); }
+		| KEYBOARD
+		    { start_keyboard(); }
+	          '{' keyboard_flags '}'
 		| PORTS
 		    { start_ports(); }
 		  '{' port_flags '}'
@@ -563,6 +574,8 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		| OFFSET INTEGER	{ dptr->header = $2; }
 		| DEVICE STRING
 		  {
+                  if (priv_lvl)
+                    yyerror("Can not use DISK/DEVICE in the user config file\n");
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a disk-image file or device given.");
 		  dptr->dev_name = $2;
@@ -583,6 +596,8 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		  }
 		| WHOLEDISK STRING
 		  {
+                  if (priv_lvl)
+                    yyerror("Can not use DISK/WHOLEDISK in the user config file\n");
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a harddisk given.");
 		  dptr->type = HDISK;
@@ -590,6 +605,8 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		  }
 		| L_FLOPPY STRING
 		  {
+                  if (priv_lvl)
+                    yyerror("Can not use DISK/FLOPPY in the user config file\n");
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a floppy-device given.");
 		  dptr->type = FLOPPY;
@@ -597,6 +614,8 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		  }
 		| L_PARTITION STRING INTEGER
 		  {
+                  if (priv_lvl)
+                    yyerror("Can not use DISK/PARTITION in the user config file\n");
                   yywarn("{ partition \"%s\" %d } the"
 			 " token '%d' is ignored and can be removed.",
 			 $2,$3,$3);
@@ -832,6 +851,23 @@ static void start_debug(void)
 
 	/* video */
 
+static void start_video(void)
+{
+  config.vbios_file = NULL;
+  config.vbios_copy = 0;
+  config.vbios_seg  = 0xc000;
+  config.vbios_size = 0x10000;
+  config.console_video = 0;
+  config.cardtype = CARD_VGA;
+  config.chipset = PLAINVGA;
+  config.mapped_bios = 0;
+  config.graphics = 0;
+  config.vga = 0;
+  config.gfxmemsize = 256;
+  config.fullrestore = 0;
+  config.dualmon = 1;
+}
+
 static void stop_video(void)
 {
   if ((config.cardtype != CARD_VGA) || !config.console_video) {
@@ -880,7 +916,31 @@ static void stop_serial(void)
 	   sptr->interrupt);
 }
 
+	/* keyboard */
+
+static void start_keyboard(void)
+{
+  keyb_layout(0);
+  config.console_keyb = 0;
+  config.keybint = 0;
+  config.keyboard = KEYB_US;	/* What's the current keyboard  */
+  config.key_map = key_map_us;	/* pointer to the keyboard-maps */
+  config.shift_map = shift_map_us;	/* Here the Shilt-map           */
+  config.alt_map = alt_map_us;	/* And the Alt-map              */
+  config.num_table = num_table_dot;	/* Numeric keypad has a dot     */
+}
+
 	/* terminal */
+
+static void start_terminal(void)
+{
+  config.term_method = METHOD_FAST;
+  config.term_updatelines = 25;
+  config.term_updatefreq = 2;
+  config.term_charset = CHARSET_LATIN;
+  config.term_color = COLOR_NORMAL;
+  config.term_corner = 1;
+}
 
 static void stop_terminal(void)
 {
@@ -971,9 +1031,6 @@ static void start_floppy(void)
 
 static void start_disk(void)
 {
-  if (priv_lvl)
-    yyerror("Can not change the disk settings in the user config file\n");
-
   if (c_hdisks >= MAX_HDISKS) 
     {
     yyerror("There are too many hard disks defined");
@@ -995,7 +1052,7 @@ static void start_disk(void)
 static void do_part(char *dev)
 {
   if (priv_lvl)
-    yyerror("Can not change disk settings in user config file");
+    yyerror("Can not use DISK/PARTITION in the user config file\n");
 
   if (dptr->dev_name != NULL)
     yyerror("Two names for a partition given.");

@@ -5,23 +5,12 @@
 
 #define TIMER_DIVISOR   3
 
-/* Programmable Interval Timer, 8253/8254 */
-/* ports 0x40 - 0x43 */
-struct pit {
-  unsigned short
-   CNTR0,			/* 0x40, time of day clock (usu/ mode 3) */
-   CNTR1,			/* 0x41, RAM refresh cntr (usu. mode 2) */
-   CNTR2,			/* 0x42, cassette/spkr */
-   MCR;				/* 0x43, mode control register */
-  unsigned char
-   s0,				/* states */
-   s1, s2, sm;
-  unsigned long update, freq;
-};
-
-EXTERN struct pit pit;
-
-void timer_tick(void), set_ticks(unsigned long);
+extern void timer_tick(void);
+extern void set_ticks(unsigned long);
+extern int  pit_inp(int);
+extern void pit_outp(int, int);
+extern int  inport_43();
+extern void outport_43(int);
 
 #define BIOS_TICK_ADDR		(void *)0x46c
 #define TICK_OVERFLOW_ADDR	(void *)0x470

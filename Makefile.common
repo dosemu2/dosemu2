@@ -32,7 +32,7 @@ $(LIB):	$(OBJS)
 .PHONY:	clean realclean 
 
 clean::
-	rm -f $(OBJS) $(LIB) *~
+	-rm -f $(OBJS) $(LIB) *~
 
 realclean::	clean
 	rm -f *.d

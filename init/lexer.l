@@ -267,7 +267,9 @@ no			{ yylval->i_value = 0; return(L_NO); }
 \'[^\']*\'		{ yytext[strlen(yytext)-1] = '\0';
 			  yylval->s_value = strdup(&yytext[1]);
 			  return(STRING); }
-[a-z0-9/\~@$-_\+=:,\.]+ { yylval->s_value = strdup(yytext);
+[a-z0-9/\~@-_\+=:,\.]+  { yylval->s_value = strdup(yytext);
+			  return(STRING); }
+$[a-z0-9/\~@-_\+=:,\.]+ { yylval->s_value = strdup(getenv(&yytext[1]));
 			  return(STRING); }
 
 	/* comments & whitespace */

@@ -282,7 +282,7 @@ static int dos_helper(void)
     break;
 #endif
     case 0x80:
-        LWORD(eax) = getcwd(SEG_ADR((char *), es, dx), LWORD(eax));
+        LWORD(eax) = getcwd(SEG_ADR((char *), es, dx), (u_short *)LWORD(eax));
         break;
   case 0x81:
         LWORD(eax) = chdir(SEG_ADR((char *), es, dx));

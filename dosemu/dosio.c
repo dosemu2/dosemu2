@@ -469,7 +469,12 @@ io_select(fd_set fds)
       if (mice->intdrv || mice->type == MOUSE_PS2)
 	if (FD_ISSET(mice->fd, &fds)) {
 		m_printf("MOUSE: We have data\n");
+#ifdef NEW_PIC
+	  pic_request(PIC_IRQ12);
+	  m_printf("MOUSE: PIC will be requesting it\n");
+#else
 	  DOSEMUMouseEvents();
+#endif
 	}
 
       if (FD_ISSET(kbd_fd, &fds)) {

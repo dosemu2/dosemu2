@@ -393,7 +393,28 @@ void config_init(int argc, char **argv)
   if (config.X) {
     config.console_video = config.vga = config.graphics = 0;
   }
+
+  check_for_env_autoexec_or_config();
 }
+
+
+static void check_for_env_autoexec_or_config(void)
+{
+      char *cp;
+      cp = getenv("AUTOEXEC");
+      if(cp)
+              config.emubat = cp;
+      cp = getenv("CONFIG");
+      if(cp)
+              config.emusys = cp;
+
+
+      if(config.emubat)
+              fprintf(stderr, "autoexec extension = %s\n", config.emubat);
+      if(config.emusys)
+              fprintf(stderr, "config extension = %s\n", config.emusys);
+
+} 
 
 /* 
  * DANG_BEGIN_FUNCTION parse_debugflags

@@ -491,6 +491,15 @@ CISH(bios_f000_int10ptr):
 	iret
 
 /* ----------------------------------------------------------------- */   
+/* This hlt address is used to guarantee a return from a real-mode irq */
+/* It uses one byte.  see sigsegv.c */
+	.org	((PIC_SEG-BIOSSEG) << 4)+PIC_OFF
+
+	.globl	CISH(PIC_dummy_start)
+CISH(PIC_dummy_start):
+	hlt
+
+/* ----------------------------------------------------------------- */   
 	.org	((DPMI_SEG-BIOSSEG) << 4)+DPMI_OFF
 
 	.globl	CISH(DPMI_dummy_start)

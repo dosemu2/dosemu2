@@ -88,9 +88,9 @@
 #define INTE7_OFF	0x4500
 #define INTE7_ADD	((INTE7_SEG << 4) + INTE7_OFF)
 
-#define INTE8_SEG       (BIOSSEG)
-#define INTE8_OFF       0xe80
-#define INTE8_ADD       ((INTE8_SEG << 4) + INTE8_OFF)
+#define PIC_SEG       (BIOSSEG + 0x100)
+#define PIC_OFF       0x47f0
+#define PIC_ADD       ((PIC_SEG << 4) + PIC_OFF)
 
 #define DPMI_SEG	(BIOSSEG + 0x100)
 #define DPMI_OFF	0x4800		/* need at least 512 bytes */

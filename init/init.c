@@ -181,6 +181,10 @@ void hardware_setup(void)
   pic_unmaski(PIC_IRQ0);
   pic_seti(PIC_IRQ1, do_irq1, 0); /* do_irq1 in dosio.c   */
   pic_unmaski(PIC_IRQ1);
+  if (mice->intdrv || mice->type == MOUSE_PS2) {
+    pic_seti(PIC_IRQ12, DOSEMUMouseEvents, 0);
+    pic_unmaski(PIC_IRQ12);
+  }
 #else 
   for (i = 0; i < 2; i++) {
     pics[i].OCW1 = 0;		/* no IRQ's serviced */

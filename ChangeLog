@@ -1,3 +1,15 @@
+Fri Mar 17	1995
+
+-	Release pre0.53.52
+-	Larry's mods to use HLT code for IRETS
+-	Markky's code to make the timer faster
+-	Scott's latest PIT additions (some probs here)
+-	Added Dong's kernel patch to ./dpmi/kernel.diff
+-	Added back in network code :-(
+-	David's updates for LPT to ./examples/config.dist
+-	Put the internal mouse call on IRQ12.
+-	Some of this and a little of that.
+
 Thr Mar 16	1995
 
 -	Release pre0.53.51

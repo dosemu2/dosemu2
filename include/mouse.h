@@ -131,6 +131,8 @@ extern void mouse_lb(void);
 extern void mouse_mb(void);
 extern void mouse_rb(void);
 
+extern void DOSEMUMouseEvents(void);
+
 extern void mouse_event(void);
 
 #endif /* MOUSE_H */

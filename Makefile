@@ -68,7 +68,11 @@ ifdef X11LIBDIR
 X_SUPPORT  = 1
 X2_SUPPORT = 1
 #the -u forces the X11 shared library to be linked into ./dos
+ifdef ELF
+XLIBS = -Wl,-rpath,$(X11LIBDIR)/elf -lX11
+else
 XLIBS   = -L$(X11LIBDIR) -lX11 -u _XOpenDisplay
+endif
 XDEFS   = -DX_SUPPORT
 endif
 
@@ -84,10 +88,10 @@ export XDEFS
 #  The next lines are for testing the new pic code.  You must do a
 #  make clean, make config if you change these lines.
 # Uncomment the next line to try new pic code on keyboard and timer only.
-NEW_PIC = -DNEW_PIC=1
+# NEW_PIC = -DNEW_PIC=1
 # Uncomment the next line to try new pic code on keyboard, timer, and serial.
 # NOTE:  The serial pic code is known to have bugs.
-# NEW_PIC = -DNEW_PIC=2
+NEW_PIC = -DNEW_PIC=2
 ifdef NEW_PIC
 PICOBJS = libpic.a
 export NEW_PIC
@@ -114,7 +118,7 @@ DEPENDS = dos.d emu.d
 EMUVER  =   0.53
 export EMUVER
 VERNUM  =   0x53
-PATCHL  =   51
+PATCHL  =   52
 LIBDOSEMU = libdosemu$(EMUVER).$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -129,7 +133,7 @@ CFILES=emu.c dos.c $(X2CFILES) data.c dosstatic.c
 # IPX = ipxutils
 
 
-# export USING_NET = -DUSING_NET
+export USING_NET = -DUSING_NET
 ifdef USING_NET
 export NET = net
 endif
@@ -494,6 +498,8 @@ ifdef X_SUPPORT
 endif
 	@echo "  - Try the ./commands/mouse.exe if your INTERNAL mouse won't work"
 	@echo "  - Try ./commands/unix.exe to run a Unix command under DOSEMU"
+	@echo "  BEWARE: This release breaks certain things like WP so "
+	@echo " 	 Do not E-mail if it does work in pl49 - Thanks " 
 	@echo ""
 
 converthd: hdimage
@@ -542,6 +548,7 @@ realclean::   local_realclean local_clean
 DIRLIST=$(REQUIRED) $(DOCS) $(LIBS) $(SUBDIRS) $(OPTIONALSUBDIRS)
 CLEANDIRS=$(addsuffix .clean, $(DIRLIST))
 REALCLEANDIRS=$(addsuffix .realclean, $(DIRLIST))
+
 clean:: $(CLEANDIRS)
 
 realclean:: $(REALCLEANDIRS)
@@ -557,7 +564,7 @@ $(REALCLEANDIRS):
 
 
 pristine:	realclean
-	-rm lib/*
+	-rm -f lib/*
 
 # DEPENDS=dos.d emu.d 
 # this is to do make subdir.depend to make a dependency
