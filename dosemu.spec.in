@@ -74,6 +74,8 @@ fi
 %doc %{_datadir}/doc/dosemu/NOVELL-HOWTO.txt
 %doc %{_datadir}/doc/dosemu/README.gdb
 %doc %{_datadir}/doc/dosemu/DANG.txt
+%doc %{_datadir}/doc/dosemu/NEWS
+%doc %{_datadir}/doc/dosemu/THANKS
 %config(noreplace) %{_sysconfdir}/dosemu/dosemu.conf
 %config(noreplace) %{_sysconfdir}/dosemu/drives/c
 %config(noreplace) %{_sysconfdir}/dosemu/dosemu.users

@@ -33,6 +33,8 @@ Version 1.3.1 (2004-07-11)
 * Fix NPTL issues when switching VC's on the console.
 * Check /proc/net/ipx/route etc for kernel 2.6.x.
 * LFN (long file name) fixes. Still needs more testing
+* Fixed read/write problem for files with negative file offsets on
+  lredir'ed drives.
 
 List of SourceForge tracker numbers with bugs that were closed:
 #885692 (Support) Serial port problem
