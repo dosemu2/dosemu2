@@ -270,11 +270,6 @@ struct dos_name {
   char ext[3];
 };
 
-typedef struct far_record {
-  u_short offset;
-  u_short segment;
-} far_t;
-
 struct mfs_dirent
 {
   char *d_name;

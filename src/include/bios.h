@@ -290,10 +290,6 @@ void            DPMI_VXD_ENABLE(void);
 void            DPMI_VXD_APM(void);
 void            DPMI_VXD_VTDAPI(void);
 
-void		bios_IPX_PopRegistersReturn(void);
-void		bios_IPX_PopRegistersIRet(void);
-void		bios_IPX_FarCall(void);
-
 /* various declarations for interfacing with the packet driver code in
    bios.S */
 

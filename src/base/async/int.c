@@ -500,20 +500,6 @@ int dos_helper(void)
 	break;
     }
 
-#ifdef IPX
-  case DOS_HELPER_IPX_CALL:
-    if (config.ipxsup) {
-      /* TRB handle IPX far calls in dos_helper() */
-      IPXFarCallHandler();
-    }
-    break;
-  case DOS_HELPER_IPX_ENDCALL:
-    if (config.ipxsup) {
-      /* Allow notification of ESR etc... ends */
-      IPXEndCall();
-    }
-    break;
-#endif
     case DOS_HELPER_GETCWD:
         LWORD(eax) = (short)((int)getcwd(SEG_ADR((char *), es, dx), (size_t)LWORD(ecx)));
         break;
@@ -2133,6 +2119,10 @@ void setup_interrupts(void) {
 #ifdef USING_NET
   if (config.pktdrv)
     interrupt_function[0x60] = pkt_int;
+#endif
+#ifdef IPX
+  if (config.ipxsup)
+    interrupt_function[0x7a] = ipx_int7a;
 #endif
   interrupt_function[0xe6] = inte6;
   interrupt_function[0xe7] = inte7;

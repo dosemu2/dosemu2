@@ -190,8 +190,10 @@ void hardware_setup(void)
   pic_unmaski(PIC_IRQ8);
 #ifdef USING_NET
 #ifdef IPX
-  pic_seti(PIC_IPX, do_irq, 0, IPXCallRel);
+  pic_seti(PIC_IPX, ipx_receive, 0, ipx_recv_esr_call);
+  pic_seti(PIC_IPX_AES, IPXCheckForAESReady, 0, ipx_aes_esr_call);
   pic_unmaski(PIC_IPX);
+  pic_unmaski(PIC_IPX_AES);
 #endif
   pic_seti(PIC_NET, pkt_check_receive, 0, pkt_receiver_callback);
   pic_unmaski(PIC_NET);
@@ -359,7 +361,7 @@ void memory_init(void)
 
 #ifdef IPX
   if (config.ipxsup)
-    InitIPXFarCallHelper();    /* TRB - initialize IPX in boot() */
+    ipx_init();    /* TRB - initialize IPX in boot() */
 #endif
 
 #ifdef USING_NET

@@ -521,50 +521,8 @@ CISH(bios_f000_bootdrive):
 	.org	((IPX_SEG - BIOSSEG) << 4) + IPX_OFF
 /* ======================= Addr = F800:4320 (FC320) */
 ipx_handler:
-	pushw	%ax	/* FarCallHandler removes this before returning */
-	movb	$DOS_HELPER_IPX_CALL,%al
-	int	$DOSHELPER_INT
+	int	$0x7a
 	lret
-
-	.globl	CISH(bios_IPX_FarCall)
-CISH(bios_IPX_FarCall):
-	pushw	%bx
-	movw	$0x0a,%bx
-	lcall   $IPX_SEG, $IPX_OFF
-	/*.byte	0x9a		Official JES hack for call far ipx_handler */
-	/*.long	0xf8003100	### This is address of bios_IPX_FarCall */
-        /* Of course I can only comment out an official hack, never remove - Bart */
-	popw	%bx
-	lret
-
-	.globl	CISH(bios_IPX_PopRegistersReturn)
-CISH(bios_IPX_PopRegistersReturn):
-	popw	%es
-	popw	%ds
-	popw	%bp
-	popw	%di
-	popw	%si
-	popw	%dx
-	popw	%cx
-	popw	%bx
-	movb	$DOS_HELPER_IPX_ENDCALL,%al	/* Allow IPX to know ESR completed */
-	int	$DOSHELPER_INT
-	popw	%ax
-	lret
-	.globl	CISH(bios_IPX_PopRegistersIRet)
-CISH(bios_IPX_PopRegistersIRet):
-	popw	%es
-	popw	%ds
-	popw	%bp
-	popw	%di
-	popw	%si
-	popw	%dx
-	popw	%cx
-	popw	%bx
-	movb	$DOS_HELPER_IPX_ENDCALL,%al
-	int	$DOSHELPER_INT
-	popw	%ax
-	iret
 
 /* ----------------------------------------------------------------- */
 	.org	((INT16_SEG-BIOSSEG) << 4)+INT16_OFF

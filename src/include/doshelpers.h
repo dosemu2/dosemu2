@@ -94,10 +94,6 @@
 #define DOS_HELPER_PLUGIN	    0x60 /* first reserved for plug-ins */
 #define DOS_HELPER_PLUGIN_LAST      0x6f /* last  reserved for plug-ins */
 
-#define DOS_HELPER_IPX_CALL         0x7a
-#define DOS_HELPER_IPX_ENDCALL      0x7b
-
-
 #define DOS_HELPER_GETCWD           0x80
 #define DOS_HELPER_CHDIR            0x81
 #define DOS_HELPER_GETPID           0x82

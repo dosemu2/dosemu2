@@ -64,6 +64,7 @@
 #define PIC_NET   16       /*  packet receive check - no dos equivalent */
 #define PIC_IMOUSE 17      /*  internal mouse driver       */
 #define PIC_IPX    18      /*  IPX Signal */
+#define PIC_IPX_AES 19     /*  IPX AES Signal */
 
 /* pic_irq_list translates irq numbers to pic_ilevels.  This is not used
    by pic routines; it is simply made available for configuration ease */

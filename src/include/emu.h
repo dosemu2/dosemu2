@@ -488,6 +488,7 @@ EXTERN void mouse_helper(void);
 EXTERN void cdrom_helper(void);
 EXTERN void boot(void);
 EXTERN int pkt_int(void);
+EXTERN int ipx_int7a(void);
 EXTERN void read_next_scancode_from_queue (void);
 EXTERN unsigned short detach (void);
 EXTERN void disallocate_vt (void);

@@ -12,8 +12,6 @@
  *
  */
 
-#include "ipx.h"
-#ifdef IPX
 #include <stdio.h>
 #include <stdlib.h> 
 #include <unistd.h>
@@ -28,6 +26,8 @@
 
 #include "emu.h"
 #include "utilities.h"
+#include "ipx.h"
+#ifdef IPX
 
 #define FALSE   0
 #define TRUE    1
@@ -35,11 +35,11 @@
 
 typedef struct
 {
-	short Operation __attribute__ ((packed));
-	unsigned long Network __attribute__ ((packed));
-        short Hops __attribute__ ((packed));
-        short Ticks __attribute__ ((packed));
-} RipPacket_t;
+	short Operation;
+	unsigned long Network;
+        short Hops;
+        short Ticks;
+} __attribute__((packed)) RipPacket_t;
 
 /* targetNet and network should be passed in in network order */
 static int AddRoute( unsigned long targetNet, unsigned network,
@@ -188,6 +188,7 @@ int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks )
 
         /* loop here sending RIP requests and trying to get a RIP response */
         while( !done ) {
+		n_printf("IPX: sending RIP request\n");
         	if(sendto(sock,(void *)&RipRequest,sizeof(RipRequest),0,
                         (struct sockaddr *)&ipxs,sizeof(ipxs))==-1)
 	        {
@@ -196,12 +197,13 @@ int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks )
         		goto CloseGLTExit;
 	        }
 
-RepeatSelect:
                 timeout.tv_sec = 0;
                 timeout.tv_usec = TIMEOUT;
+RepeatSelect:
                 FD_ZERO( &fds );
                 FD_SET( sock, &fds);
-                selrtn = select( 255, &fds, NULL, NULL, &timeout );
+                n_printf("IPX: waiting for RIP response, retries=%i\n", retries);
+                selrtn = select( sock + 1, &fds, NULL, NULL, &timeout );
 
                 if( selrtn == -1 ) {
                         if( errno != EINTR ) {

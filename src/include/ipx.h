@@ -73,55 +73,50 @@
 
 #define IPX_ADDRESS_LENGTH	12
 
-typedef struct far_record {
-  u_short offset __attribute__((packed));
-  u_short segment __attribute__((packed));
-} far_t;
-
 typedef struct IPXAddressStruct {
-  u_char Network[4] __attribute__((packed));
-  u_char Node[6] __attribute__((packed));
-  u_char Socket[2] __attribute__((packed));
-} IPXAddress_t;
+  u_char Network[4];
+  u_char Node[6];
+  u_char Socket[2];
+} __attribute__((packed)) IPXAddress_t;
 
 typedef struct IPXPacketStructure {
-  u_short Checksum __attribute__((packed));
-  u_short Length __attribute__((packed));
-  u_char TransportControl __attribute__((packed));
-  u_char PacketType __attribute__((packed));
-  IPXAddress_t Destination __attribute__((packed));
-  IPXAddress_t Source __attribute__((packed));
-} IPXPacket_t;
+  u_short Checksum;
+  u_short Length;
+  u_char TransportControl;
+  u_char PacketType;
+  IPXAddress_t Destination;
+  IPXAddress_t Source;
+} __attribute__((packed)) IPXPacket_t;
 
 typedef struct FragStruct {
-  far_t Address __attribute__((packed));
-  u_short Length __attribute__((packed));
-} Frag_t;
+  far_t Address;
+  u_short Length;
+} __attribute__((packed)) Frag_t;
 
 typedef struct ECBStruct {
-  far_t Link __attribute__((packed));
-  far_t ESRAddress __attribute__((packed));	/* 0 = no callback */
-  u_char InUseFlag __attribute__((packed));
-  u_char CompletionCode __attribute__((packed));
-  u_short ECBSocket __attribute__((packed));
+  far_t Link;
+  far_t ESRAddress;	/* 0 = no callback */
+  u_char InUseFlag;
+  u_char CompletionCode;
+  u_short ECBSocket;
   /* following 2 fields are not for user use */
-  u_char IPXWorkspace[4] __attribute__((packed));
-  u_char DriverWorkspace[12] __attribute__((packed));
+  u_char IPXWorkspace[4];
+  u_char DriverWorkspace[12];
   /* not used because Linux IPX routes stuff */
-  u_char ImmediateAddress[6] __attribute__((packed));
-  u_short FragmentCount __attribute__((packed));
-  Frag_t FragTable[4] __attribute__((packed));
-} ECB_t;
+  u_char ImmediateAddress[6];
+  u_short FragmentCount;
+  Frag_t FragTable[4];
+} __attribute__((packed)) ECB_t;
 
 typedef struct AESECBStruct {
-  far_t Link __attribute__((packed));
-  far_t ESRAddress __attribute__((packed));	/* 0 = no callback */
-  u_char InUseFlag __attribute__((packed));
-  u_char CompletionCode __attribute__((packed));
-  u_short ECBSocket __attribute__((packed));
+  far_t Link;
+  far_t ESRAddress;	/* 0 = no callback */
+  u_char InUseFlag;
+  u_char CompletionCode;
+  u_short ECBSocket;
   /* following 2 fields are not for user use */
-  u_short TimeLeft __attribute__((packed));
-} AESECB_t;
+  u_short TimeLeft;
+} __attribute__((packed)) AESECB_t;
 
 typedef struct ipx_socket_struct {
   struct ipx_socket_struct *next;
@@ -136,15 +131,15 @@ typedef struct ipx_socket_struct {
 
 ipx_socket_t;
 
-extern void InitIPXFarCallHelper(void);
+extern void ipx_init(void);
 extern int IPXInt2FHandler(void);
-extern int IPXFarCallHandler(void);
 extern void AESTimerTick(void);
-extern void IPXCallRel(void);
-extern void IPXEndCall(void);
-
+extern void ipx_receive(int ilevel);
+extern void IPXCheckForAESReady(int ilevel);
+extern void ipx_recv_esr_call(void);
+extern void ipx_send_esr_call(void);
+extern void ipx_aes_esr_call(void);
 extern int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks );
-
 extern void ipx_close(void);
 
 #endif /* IPX_H */

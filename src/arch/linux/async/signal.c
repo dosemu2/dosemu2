@@ -592,10 +592,6 @@ static void SIGALRM_call(void)
     cnt200 = pic_sys_time;
 /*    g_printf("**** ALRM: %dms\n",(1000/PARTIALS)); */
 
-#ifdef IPX
-    if (config.ipxsup)
-      pic_request (PIC_IPX);
-#endif
     printer_tick(0);
     if (config.fastfloppy)
       floppy_tick();
