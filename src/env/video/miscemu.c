@@ -300,7 +300,7 @@ unsigned char Misc_get_input_status_1()
   hretrace ^= 0x01; vretrace++;
   retval = 0xc6 | hretrace | (vretrace & 0xfc ? 0 : 0x09);
 #else
-  t = pic_sys_time = GETusTIME(0);
+  t = GETusTIME(0);
 
   if(first) { t_vretrace = t; first = 0; }
   tdiff = t - t_vretrace;
