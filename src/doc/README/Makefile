@@ -14,7 +14,7 @@ SECTIONS = config SECURITY dexe sound lredir runasuser CDROM loglevel \
 
 TECHSECTIONS = config-tech port-io vif vm86plus video oldboot newkbd ibmset \
 	HOGTHRESHOLD priv timing pentium DANG-tech mkfatimage mkfatimage16 doc sound-tech \
-	dma pic dosdebug serial recover net cpuemu
+	dma pic dosdebug serial recover net cpuemu mfsnls
 
 all:    txt html tex
 

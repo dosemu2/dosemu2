@@ -1,3 +1,9 @@
+98/10/03 ver. 0.99.1.3 unofficial pre-release
+	From Oleg V. Zhirov <O.V.Zhirov@inp.nsk.su>
+	- (partial) NLS support for MFS
+	  see src/doc/README/mfsnsl for details
+	From Hans
+	- converted Oleg's docs to sgml (no docs recompile yet)
 98/10/03 ver. 0.99.1.2 unofficial pre-release
 	From Alexander R.Adams <a.r.adams@twi.tudelft.nl>
 	- Changes to 80x86 disassembler (src/arch/linux/debugger/dis8086.c)

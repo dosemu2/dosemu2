@@ -25,6 +25,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
+/*
+Modified by O.V.Zhirov, July 1998
+
+*/
+
+
+
 #ifdef DOSEMU
 #include "mangle.h"
 #else
@@ -36,6 +43,7 @@ extern int DEBUGLEVEL;
 extern int case_default;
 extern BOOL case_mangle;
 
+extern int codepage;
 
 /****************************************************************************
 provide a checksum on a string
@@ -68,7 +76,7 @@ char *is_reserved_msdos(char *fname)
   p=strchr(upperFname,'.');
   if (p)
    *p='\0';
-  strupper (upperFname);
+  strupperDOS (upperFname);
   if ((strcmp(upperFname,"CLOCK$") == 0) ||
     (strcmp(upperFname,"CON") == 0) ||
     (strcmp(upperFname,"AUX") == 0) ||
@@ -102,31 +110,8 @@ void valid_initialise(void)
   if (initialised)
     return;
 
-  for (i=0;i<128;i++)
-    valid_dos_char[i] = (isalnum(i) || strchr("._^$~!#%&-{}()@'`",i));
-  for (i=128;i<256;i++) 
-    valid_dos_char[i] = False;	
-  
-  /*    When the special char exists both cases, windows uses
-	the uppercase code for DOS filename */
-  
-  /* any code page, low and uppercase, valid for all DOS PC */
-  valid_dos_char[142] = True;     /* A trema      */
-  valid_dos_char[143] = True;     /* A o          */
-  valid_dos_char[144] = True;     /* E '          */
-  valid_dos_char[146] = True;     /* AE           */
-  valid_dos_char[153] = True;     /* O trema      */
-  valid_dos_char[154] = True;     /* U trema      */
-  valid_dos_char[165] = True;     /* N tilda      */
-  
-  /* any code page, valid for all PC */
-  valid_dos_char[128] = True;     /* C cedille    */
-  valid_dos_char[156] = True;     /* Pound        */
-  
-  /* code page 850 (most common)*/
-  valid_dos_char[183] = True;     /* A `     (WIN)*/
-  valid_dos_char[157] = True;     /* Phi     (WIN)*/
-  valid_dos_char[212] = True;     /* E`      (WIN)*/
+  for (i=0;i<256;i++)
+    valid_dos_char[i] = is_valid_DOS_char(i);
 
 #ifdef DOSEMU
   valid_dos_char['?'] = True;
@@ -145,17 +130,6 @@ BOOL is_8_3(char *fname)
   int l;
 
   DEBUG(5,("checking %s for 8.3\n",fname));
-
-  if (case_mangle)
-    switch (case_default)
-      {
-      case CASE_LOWER:
-	if (strhasupper(fname)) return(False);
-	break;
-      case CASE_UPPER:
-	if (strhaslower(fname)) return(False);
-	break;
-      }
 
   /* can't be longer than 12 chars */
   if (len == 0 || len > 12)
@@ -290,7 +264,7 @@ void push_mangled_name(char *s)
 	      sizeof(fstring)*MIN(mangled_stack_len,mangled_stack_size-1));
   strcpy(mangled_stack[0],s);
   p = strrchr(mangled_stack[0],'.');
-  if (p && (!strhasupper(p+1)) && (strlen(p+1) < 4))
+  if (p && (!strhasupperDOS(p+1)) && (strlen(p+1) < 4))
     *p = 0;
   mangled_stack_len = MIN(mangled_stack_size,mangled_stack_len+1);
 }
@@ -312,7 +286,7 @@ BOOL check_mangled_stack(char *s, char *MangledMap)
     {
       check_extension = True;
       StrnCpy(extension,p,4);
-      strlower(extension); /* XXXXXXX */
+      strlowerDOS(extension); /* XXXXXXX */
     }
 
   for (i=0;i<mangled_stack_len;i++)
@@ -360,7 +334,7 @@ BOOL is_mangled(char *s)
   char *m = strchr(s,magic_char);
   if (!m) return(False);
 
-  /* we use two base 36 chars efore the extension */
+  /* we use two base 36 chars before the extension */
   if (m[1] == '.' || m[1] == 0 ||
       m[2] == '.' || m[2] == 0 ||
       (m[3] != '.' && m[3] != 0))
@@ -415,14 +389,14 @@ void mangle_name_83(char *s, char *MangledMap)
     }
       
 
-  strupper(s);
+  strupperDOS(s);
 
   DEBUG(5,("Mangling name %s to ",s));
 
   if (p)
     {
       if (p == s)
-	strcpy(extension,"___");
+	strcpy(extension,"___");                   /* ??? */
       else
 	{
 	  *p++ = 0;
@@ -623,7 +597,7 @@ BOOL do_fwd_mangled_map(char *s, char *MangledMap)
       *np++ = '\0';             /* NULL terminate it. */
       DEBUG(5,("End of second in pair '%s'\n", end));
       strcpy(s, new_string);    /* Substitute with the new name. */
-      strupper(s);
+      strupperDOS(s);
       DEBUG(5,("s is now '%s'\n", s));
       return True;              /* DONE! */
     } else {
@@ -634,6 +608,8 @@ BOOL do_fwd_mangled_map(char *s, char *MangledMap)
   }
   return False;
 }
+
+/******************************************************/
 
 
 #ifndef DOSEMU
@@ -846,7 +822,7 @@ void unix_convert_83(char *s,char *home,BOOL mangle, char *MangledMap)
       else
 	strcpy(name,s);
 
-      strupper(name);
+      strupperDOS(name);
       /* now search through the directory for a matching name */
       mangle_search_83(name,home,directory, MangledMap);
       string_replace(name,magic_char,1);

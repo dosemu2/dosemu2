@@ -9,6 +9,8 @@
 
 Andrew Tridgell
 March 1995
+
+Modified by O.V.Zhirov, July 1998
 */
 
 #if defined(__linux__) || defined(__NetBSD__)
@@ -36,8 +38,8 @@ March 1995
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #endif
 
-#define strnorm(s) strlower(s)
-#define strisnormal(s) (!strhasupper(s))
+#define strnorm(s) strlowerDOS(s)
+#define strisnormal(s) (!strhasupperDOS(s))
 
 #define safe_memcpy(x,y,s) memmove(x,y,s)
 
@@ -66,12 +68,25 @@ extern BOOL is_mangled(char *s);
 extern BOOL check_mangled_stack(char *s, char *MangledMap);
 
 /* prototypes, found in util.c */
+BOOL isupperDOS(int c);
+int  toupperDOS(int c);
+BOOL islowerDOS(int c);
+int  tolowerDOS(int c);
+void strupperDOS(char *s);
+BOOL strhasupperDOS(char *s);
+BOOL strhaslowerDOS(char *s);
+void strlowerDOS(char *s);
+BOOL isalphaDOS(int c);
+BOOL isalnumDOS(int c);
+BOOL is_valid_DOS_char(int c);
+int chrcmpDOS(int c1, int c2);
+int strncmpDOS(char *s1, char *s2,int n);
+int strcmpDOS(char *s1, char *s2);
+int strncasecmpDOS(char *s1, char *s2,int n);
+int strcasecmpDOS(char *s1, char *s2);
+
 char *StrnCpy(char *dest,char *src,int n);
-void strupper(char *s);
-BOOL strhasupper(char *s);
-BOOL strhaslower(char *s);
 void array_promote(char *array,int elsize,int element);
-void strlower(char *s);
 BOOL strequal(char *s1,char *s2);
 
 
@@ -81,5 +96,11 @@ BOOL strequal(char *s1,char *s2);
 #endif
 
 #ifndef MANGLED_STACK
-#define MANGLED_STACK 50
+#define MANGLED_STACK 150
 #endif
+
+#ifndef CODEPAGE
+#define CODEPAGE 866
+#endif
+
+
