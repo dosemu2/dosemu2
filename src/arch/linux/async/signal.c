@@ -114,13 +114,13 @@ dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
 #define RESTORE2(name, syscall) asm (	\
    ".text\n"				\
    "    .align 8\n"			\
-   #name"__:\n"				\
+   "__"#name":\n"				\
    "    popl %eax\n"			\
    "    movl $" #syscall ", %eax\n" 	\
    "    int  $0x80");
 #define RESTORE(restore, SYS_sigreturn) RESTORE2(restore, SYS_sigreturn)
 RESTORE(restore, SYS_sigreturn)
-void restore (void) asm ("restore__");
+void restore (void) asm ("__restore");
 
 static void
 dosemu_sigaction_wrapper(int sig, void *fun, int flags)
