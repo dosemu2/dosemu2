@@ -384,7 +384,7 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
 
        unsigned int hogthreshold;
 
-       int mem_size, xms_size, ems_size, dpmi_size, max_umb;
+       int mem_size, xms_size, ems_size, dpmi, max_umb;
        unsigned int ems_frame;
        char must_spare_hardware_ram;
        char hardware_pages[ ((HARDWARE_RAM_STOP-HARDWARE_RAM_START) >> 12)+1 ];
@@ -483,6 +483,7 @@ extern int GetDebugFlagsHelper(char *);
 extern int SetDebugFlagsHelper(char *);
 extern void leavedos(int) NORETURN;
 extern void add_to_io_select(int, unsigned char);
+extern void remove_from_io_select(int, unsigned char);
 extern void sigio(int, struct sigcontext_struct);
 extern void sigquit(int);
 extern void sigalrm(int, struct sigcontext_struct);

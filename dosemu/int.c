@@ -240,7 +240,7 @@ static int dos_helper(void)
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
     p_dos_str("Bugs, Patches & New Code to James MacLean, jmaclean@fox.nstn.ns.ca\n\n");
 #ifdef DPMI
-    if (config.dpmi_size)
+    if (config.dpmi)
       p_dos_str("DPMI-Server Version 0.9 installed\n\n");
 #endif
     break;

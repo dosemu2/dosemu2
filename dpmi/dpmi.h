@@ -5,6 +5,8 @@
 #define DPMI_VERSION   		0x00	/* major version 0 */
 #define DPMI_DRIVER_VERSION	0x5a	/* minor version 0.90 */
 
+#define DPMI_MAX_CLIENTS	8	/* maximal number of clients */
+
 #define DPMI_page_size		4096	/* 4096 bytes per page */
 
 #define DPMI_pm_stack_size	0x1000	/* locked protected mode stack for exceptions, */
@@ -21,6 +23,7 @@
 #define UDATASEL 0x2b
 
 extern int in_dpmi;
+#define current_client (in_dpmi-1)
 extern int in_win31;
 extern int dpmi_eflags;
 extern int in_dpmi_dos_int;
@@ -65,7 +68,7 @@ typedef struct segment_descriptor_s
     unsigned int	used;		/* Segment in use by client # */
 } SEGDESC;
 
-#define MAX_SELECTORS	0x0100
+#define MAX_SELECTORS	0x0400
 #define MODIFY_LDT_CONTENTS_DATA        0
 #define MODIFY_LDT_CONTENTS_STACK       1
 #define MODIFY_LDT_CONTENTS_CODE        2

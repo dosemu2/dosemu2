@@ -865,6 +865,7 @@ void emulate(int argc, char **argv)
 
   stdio_init();                /* initialize stdio & stderr */
   config_init(argc, argv);     /* parse the commands & config file(s) */
+  module_init();
   low_mem_init();              /* initialize the lower 1Meg */
   time_setting_init();         /* get the startup time */
   signal_init();               /* initialize sig's & sig handlers */
@@ -889,6 +890,13 @@ void emulate(int argc, char **argv)
     run_irqs();      /*  trigger any hardware interrupts requested */
 #endif
     serial_run();
+#if 1
+#ifdef USING_NET
+    /* check for available packets on the packet driver interface */
+    /* (timeout=0, so it immediately returns when none are available) */
+    pkt_check_receive(0);
+#endif
+#endif
     int_queue_run();
   }
 
@@ -1161,6 +1169,35 @@ void add_to_io_select(int new_fd, u_char want_sigio) {
   } else {
     FD_SET(new_fd, &fds_no_sigio);
     g_printf("GEN: fd=%d does not get SIGIO\n", new_fd);
+    not_use_sigio++;
+  }
+}
+
+/*
+ * DANG_BEGIN_FUNCTION remove_from_io_select
+ * 
+ * arguments:
+ *  fd - File handle to remove from select statment.
+ *  used_sigio - Specifiy whether you used SIGIO (1) if it's available, or
+ * 		 not (0).
+ *
+ * description:
+ *  Remove a file handle from one of 2 select FDS_SET's depending on 
+ *  whether the kernel can handle SIGIO.
+ *
+ * DANG_END_FUNCTION
+ */
+void remove_from_io_select(int new_fd, u_char used_sigio) {
+  if ( use_sigio && used_sigio ) {
+    int flags;
+    flags = fcntl(new_fd, F_GETFL);
+    fcntl(new_fd, F_SETOWN,  NULL);
+    fcntl(new_fd, F_SETFL, flags & ~(use_sigio));
+    FD_CLR(new_fd, &fds_sigio);
+    g_printf("GEN: fd=%d removed from select SIGIO\n", new_fd);
+  } else {
+    FD_CLR(new_fd, &fds_no_sigio);
+    g_printf("GEN: fd=%d removed from select\n", new_fd);
     not_use_sigio++;
   }
 }

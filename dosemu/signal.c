@@ -173,10 +173,12 @@ void SIGALRM_call(void){
      X_handle_events();
 #endif
 
+#if 0
 #ifdef USING_NET
   /* check for available packets on the packet driver interface */
   /* (timeout=0, so it immediately returns when none are available) */
   pkt_check_receive(0);
+#endif
 #endif
 
   /* If it is running in termcap mode, then update the screen.

@@ -11,7 +11,7 @@ SUBDIR=net
 
 
 CFILES = ipx.c ipxglt.c libpacket.c pktnew.c inifile.c
-HFILES =       libpacket.h pktdrvr.h
+HFILES =       libpacket.h 
 DEPENDS= $(CFILES:.c=.d)
 OBJS=$(CFILES:.c=.o)
 

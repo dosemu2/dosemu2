@@ -53,7 +53,7 @@ config_defaults(void)
   config.ems_frame = 0xd000;
   config.xms_size = 0;
   config.max_umb = 0;
-  config.dpmi_size = 0;
+  config.dpmi = 0;
   config.mathco = 1;
   config.mouse_flag = 0;
   config.mapped_bios = 0;
@@ -81,7 +81,7 @@ config_defaults(void)
   config.X_title       = "dosemu";
   config.X_icon_name   = "dosemu";
   config.X_blinkrate   = 8;
-  config.X_keycode     = 0;
+  config.X_keycode     = 1;
   config.X_font = "vga";
   config.usesX   = 0;
   config.X   = 0;

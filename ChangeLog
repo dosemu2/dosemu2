@@ -1,3 +1,16 @@
+Thr Feb  16	1995
+
+-	Release pl45
+-	Lutz et Dongs latest
+-	Hacked ipxutils to compile again.
+
+Sun Feb  12	1995
+
+-	Added ipx.h to ./init/init.c
+-	Fixed VC hangs due to GP on memcpy in vc.c
+-	Added back in ctrl-G beep in init10.c
+-	Added some code to get keyboard working in non-keybint mode.
+
 Fri Feb  10	1995
 
 -	Release pl44

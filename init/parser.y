@@ -237,10 +237,10 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    config.max_umb = $2;
 		    if ($2 > 0) c_printf("CONF: maximize umb's %s\n", ($2) ? "on" : "off");
 		    }
-		| L_DPMI mem_bool
+		| L_DPMI bool
 		    {
-		    config.dpmi_size = $2;
-		    if ($2 > 0) c_printf("CONF: %dk bytes DPMI memory\n", $2);
+		    config.dpmi = $2;
+		    c_printf("CONF: DPMI-Server %s\n", ($2) ? "on" : "off");
 		    }
 		| DOSMEM mem_bool	{ config.mem_size = $2; }
 		| MATHCO bool		{ config.mathco = $2; }

@@ -689,8 +689,11 @@ outb(int port, int byte)
   case 0x61:
     port61 = byte & 0x0f;
     k_printf("8255 0x61 outb = 0x%x\n", byte);
-    if (((byte & 3) == 3) && (timer_beep == 1) &&
-	(config.speaker == SPKR_EMULATED)) {
+    if (((byte & 3) == 3) 
+#if 1
+    && (timer_beep == 1) 
+#endif
+    && (config.speaker == SPKR_EMULATED)) {
       i_printf("beep!\n");
       putchar('\007');
       timer_beep = 0;

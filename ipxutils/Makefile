@@ -3,24 +3,12 @@
 # for Linux.
 #
 
-# The following variables may go into the Makfile in the parent-directory
-
-CC   = gcc
-LD   = ld
-
-# INCDIR is exported from ..
-#INCDIR= -I../include -I..
 SUBDIR=ipxutils
 
 # let gcc do extended checking
 
-CFLAGS=-O2 # -Wall # -Wmissing-prototypes \
-#       -Wstrict-prototypes -ansi -pedantic 
-
-# ANSI isn't possible right now, because some header-file aren't ANSI
-
 CFILES = ipx_configure.c ipx_internal_net.c ipx_interface.c ipx_route.c
-OBJS   = ipx_configure   ipx_internal_net   ipx_interface ipx_route.o
+BINS   = ipx_configure   ipx_internal_net   ipx_interface ipx_route
 HFILES = 
 
 # Insert all source- and header-files here.
@@ -29,10 +17,10 @@ ALL = $(CFILES) $(HFILES) startipx README
 
 # All object-files are included here.
 
-all: $(OBJS)
+all: $(BINS)
 
-$(OBJS): $(CFILES)
-	$(CC) -o $@ $< 
+$(BINS): $(CFILES)
+	$(CC) -o $@ $@.c 
 
 checkin:
 	-ci $(ALL) Makefile
@@ -41,7 +29,7 @@ checkout:
 	-co -M -l $(ALL) Makefile
 
 clean:
-	rm -f ipxbind ipxroute
+	rm -f  ipx_configure ipx_internal_net ipx_interface ipx_route
 
 realclean: clean
 	rm -f .depend 

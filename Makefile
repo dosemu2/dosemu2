@@ -121,7 +121,7 @@ DEPENDS = dos.d emu.d
 EMUVER  =   0.53
 export EMUVER
 VERNUM  =   0x53
-PATCHL  =   44
+PATCHL  =   45
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -164,7 +164,7 @@ endif
 
 CLIENTSSUB=clients
 
-OPTIONALSUBDIRS =examples v-net syscallmgr emumod
+OPTIONALSUBDIRS =examples v-net syscallmgr emumod ipxutils
 
 LIBSUBDIRS= dosemu timer mfs video init keyboard mouse $(NET) $(IPX) drivers
 
@@ -462,7 +462,7 @@ ifdef X_SUPPORT
 	@echo ""
 endif
 	@echo "  - Try the ./commands/mouse.exe if your INTERNAL mouse won't work"
-	@echo "  - Try ./commands/unix.com to run a Unix command under DOSEMU"
+	@echo "  - Try ./commands/unix.exe to run a Unix command under DOSEMU"
 	@echo ""
 
 converthd: hdimage

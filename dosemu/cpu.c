@@ -370,9 +370,6 @@ show_ints(int min, int max)
 int
 do_hard_int(int intno)
 {
-#ifdef DPMI
-  /* send hardware interrupts first to protected mode */
-#endif /* DPMI */
   queue_hard_int(intno, NULL, NULL);
   return (1);
 }

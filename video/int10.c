@@ -225,10 +225,14 @@ char_out(unsigned char ch, int s)
     break;
 
   case 7:           /* Bell */
+#if 0
     /* Bell should be sounded here, but it's more trouble than its */
     /* worth for now, because printf, addch or addstr or out_char  */
     /* would all interfere by possibly interrupting terminal codes */
     /* Ignore this for now, since this is a hack til NCURSES.      */
+#else
+    putchar(0x07);
+#endif
     break;
 
   default:          /* Printable character */

@@ -442,6 +442,13 @@ int do_irq()
         pic_isr &= PIC_IRQALL;    /*  levels 0 and 16-31 are Auto-EOI  */
         run_irqs();
         serial_run();           /*  delete when moved to timer stuff */
+#if 0
+#ifdef USING_NET
+        /* check for available packets on the packet driver interface */
+        /* (timeout=0, so it immediately returns when none are available) */
+        pkt_check_receive(0);
+#endif
+#endif
         int_queue_run();        /*  delete when moved to timer stuff */
       }
 #if 0

@@ -6,7 +6,7 @@ ALL = bios.h cmos.h cpu.h disks.h dosio.h dosnet.h emu.h \
 	emusys.h hgc.h inifile.h ipx.h keymaps.h \
 	lpt.h machcompat.h memory.h mouse.h mutex.h port.h \
 	serial.h slang.h syscallmgr.h termio.h timers.h video.h xms.h \
-	macros86.h vc.h extern.h int.h shared.h
+	macros86.h vc.h extern.h int.h shared.h pktdrvr.h
 
 OBJS = 
 

@@ -429,7 +429,7 @@ io_select(fd_set fds)
     }
   }
 #endif
-  while ( ((selrtn = select(15, &fds, NULL, NULL, &tvptr)) == -1)
+  while ( ((selrtn = select(25, &fds, NULL, NULL, &tvptr)) == -1)
         && (errno == EINTR)) {
     tvptr.tv_sec=0L;
     tvptr.tv_usec=0L;

@@ -2087,7 +2087,15 @@ set_keyboard_bios(void)
 				  inschr = 0;
 		  }
 	  } else
+	    if(config.X_keycode)
 		  inschr = convKey(*LASTSCAN_ADD);
+	    else {
+		  if(*LASTSCAN_ADD & 0x80)
+			inschr = 0x0;
+		  else
+		  	inschr = *LASTSCAN_ADD >> 8;
+		  k_printf("KBD: non-keybint X inschr = 0x%x\n", inschr);
+	    }
 #ifdef NEW_PIC
 /*                  *LASTSCAN_ADD=1;   /* flag character as read */
                   keys_ready = 0;	/* flag character as read	*/

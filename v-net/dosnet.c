@@ -95,6 +95,8 @@ unsigned char *dosnet_generic_address=DOSNET_FAKED_ETH_ADDRESS ;
 */
 
 
+unsigned short (*_eth_type_trans) (struct sk_buff *skb, struct device *dev);
+
 /*
  *	Determine the packet's "special" protocol ID if the destination
  *      ethernet addresses start with  precisely chars "db". Protocol
@@ -130,7 +132,7 @@ unsigned short int dosnet_eth_type_trans(struct sk_buff *skb, struct device *dev
                   (eth->h_source[1] == dosnet_generic_address[1]) &&
                   (eth->h_source[3] == dosnet_generic_address[3])  ) 
         {
-              return(eth_type_trans(skb, dev)); 	
+              return(_eth_type_trans(skb, dev)); 	
         }
         /* cases 4 and 5 are ignored. */
         return( htons(DOSNET_INVALID_TYPE) );
@@ -263,12 +265,13 @@ dosnet_init(struct device *dev)
   }
   ether_setup(dev);  
 
-  dev->hard_header	= eth_header;
+  /* dev->hard_header	= eth_header; */	/* done by ether_setup()! */
   dev->hard_header_len	= ETH_HLEN;		/* 14			*/
   dev->addr_len		= ETH_ALEN;		/* 6			*/
   dev->type		= ARPHRD_ETHER;		/* 0x0001		*/
+  _eth_type_trans	= dev->type_trans;
   dev->type_trans	= dosnet_eth_type_trans;
-  dev->rebuild_header	= eth_rebuild_header;
+  /* dev->rebuild_header	= eth_rebuild_header; */
   dev->set_multicast_list = set_multicast_list ;
   dev->open		= dosnet_open;
   dev->stop		= dosnet_close;

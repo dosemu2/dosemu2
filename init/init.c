@@ -19,6 +19,7 @@
 #include "timers.h"
 #include "termio.h"
 #include "mouse.h"
+#include "../include/ipx.h"
 #ifdef NEW_PIC
 #include "../timer/bitops.h"
 #include "../timer/pic.h"

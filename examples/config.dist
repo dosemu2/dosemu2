@@ -347,7 +347,7 @@ bootA               # Startup drive valid values:  bootA  bootC
  
 #umb_max on		# be more aggressive about finding XMS UMB blocks
 
-dpmi off		# DPMI size in K, or "off"  Be careful with DPMI!
+dpmi off		# DPMI-Server "on" or "off"
 xms 1024		# XMS size in K,  or "off"
 ems 1024		# EMS size in K,  or "off"
 #ems { ems_size 1024 ems_frame 0xe000 }

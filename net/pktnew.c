@@ -314,6 +314,7 @@ pkt_int ()
 	    }
 
 	    FD_SET(hdlp->sock,&pg->sockset);	/* keep track of sockets */
+	    add_to_io_select(hdlp->sock, 1);
 	    if (hdlp->sock >= pg->nfds)
 		pg->nfds = hdlp->sock + 1;
 
@@ -332,6 +333,7 @@ pkt_int ()
 
 	    CloseNetworkLink(hdlp->sock);	/* close the socket */
 	    FD_CLR(hdlp->sock,&pg->sockset);	/* keep track of sockets */
+	    remove_from_io_select(hdlp->sock, 1);
 	    n = pg->nfds;
 	    pg->nfds = 0;
 
@@ -503,7 +505,7 @@ int timeout;
     tv.tv_usec = timeout;
     readset = pg->sockset;
 
-    if (RPT_SYSCALL(select(pg->nfds,&readset,NULL,NULL,&tv)) <= 0) /* anything ready? */
+    if (select(pg->nfds,&readset,NULL,NULL,&tv) <= 0) /* anything ready? */
 	return 0;
 
     for (handle = 0; handle < MAX_HANDLE; handle++) {
@@ -550,11 +552,7 @@ int timeout;
 		    /* interrupt which will perform the upcall */
 		    pg->size = size;
 		    pg->receiver = hdlp->receiver;
-#ifndef PIC
 		    run_int(pg->helpvec);
-#else
-		    run_int(pg->helpvec);
-#endif
 		    return 1;
 		} else
 		    pg->stats.packets_lost++;	/* not really lost... */

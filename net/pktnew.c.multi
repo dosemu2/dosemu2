@@ -582,6 +582,8 @@ int timeout;
 
     FD_SET(pkt_fd, &readset);
     FD_SET(pkt_broadcast_fd, &readset);
+    add_to_io_select(pkt_broadcast_fd, 1);
+    add_to_io_select(pkt_fd, 1);
 
     if (select(max_pkt_fd,&readset,NULL,NULL,&tv) <= 0) /* anything ready? */
 	return 0;
@@ -676,11 +678,7 @@ int timeout;
 		    /* interrupt which will perform the upcall */
 	     pg->size = size;
 	     pg->receiver = hdlp->receiver;
-#ifndef PIC
-	     do_hard_int(pg->helpvec);
-#else
 	     run_int(pg->helpvec);
-#endif
              pd_printf("Called the helpvector ... \n");
 	     return 1;
     } else

@@ -3,7 +3,7 @@
 #INCDIR = -I../ -I../include/
 CFLAGS+= $(KERNEL)
 
-ALL = dpmi.c dpmi.h meminfo.c meminfo.h win31.h
+ALL = dpmi.c dpmi.h meminfo.c meminfo.h win31.h bcc.h
 
 SUBDIR=dpmi
 

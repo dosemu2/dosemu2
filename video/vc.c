@@ -467,7 +467,7 @@ get_video_ram (int waitflag)
       if (READ_BYTE(BIOS_VIDEO_MODE) == 3)
 	{
 	  if (dosemu_regs.mem && textbuf)
-	    memcpy (dosemu_regs.mem, textbuf, TEXT_SIZE * 8);
+	    memcpy (dosemu_regs.mem, textbuf, dosemu_regs.save_mem_size[0]);
 	  /*      else error("ERROR: no dosemu_regs.mem!\n"); */
 	}
       g_printf ("mapping GRAPH_BASE\n");
@@ -550,14 +550,17 @@ put_video_ram (void)
 
       if (config.vga)
 	{
+	  open_kmem();
 	  graph_mem = (char *) mmap ((caddr_t) GRAPH_BASE,
 				     GRAPH_SIZE,
 				     PROT_EXEC | PROT_READ | PROT_WRITE,
 				     MAP_PRIVATE | MAP_FIXED | MAP_ANON,
 				     -1,
 				     0);
-	  if (dosemu_regs.mem && READ_BYTE(BIOS_VIDEO_MODE) == 3 && READ_BYTE(BIOS_CURRENT_SCREEN_PAGE) < 8)
-	    memcpy ((caddr_t) PAGE_ADDR (0), dosemu_regs.mem, TEXT_SIZE * 8);
+	  close_kmem();
+	  if (dosemu_regs.mem && READ_BYTE(BIOS_VIDEO_MODE) == 3 && READ_BYTE(BIOS_CURRENT_SCREEN_PAGE) < 8) {
+	    memcpy ((caddr_t) PAGE_ADDR(0), dosemu_regs.mem, dosemu_regs.save_mem_size[0]);
+	  }
 	}
       else
 	{
