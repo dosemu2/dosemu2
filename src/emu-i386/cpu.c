@@ -96,12 +96,6 @@ unsigned long TRs[2] =
 };
 #endif
 
-/* DOSEMU code selector and data selector. Initialized at startup.
- * These used to be 0x23 and 0x2b, but change to 0x73 and 0x7b
- * in Linux kernel 2.6
- */
-unsigned short ucodesel, udatasel;
-
 /* 
  * DANG_BEGIN_FUNCTION cpu_trap_0f
  *
@@ -255,11 +249,21 @@ void cpu_setup(void)
 #endif
 
   /* initialize user data & code selector values (used by DPMI code) */
+  /* And save %fs, %gs for NPTL */
   __asm__ volatile (
   " movw %%cs, %0\n"
   " movw %%ds, %1\n"
-  " movl %%esp, %2\n"
-  :"=m"(ucodesel),"=m"(udatasel),"=m"(stk_ptr):);
+  " movw %%fs, %2\n"
+  " movw %%gs, %3\n"
+  " pushfl\n"
+  " popl %4\n"
+  " movl %%esp, %5\n"
+  :"=m"(_emu_stack_frame.cs),
+   "=m"(_emu_stack_frame.ds),
+   "=m"(_emu_stack_frame.fs),
+   "=m"(_emu_stack_frame.gs),
+   "=m"(_emu_stack_frame.eflags),
+   "=m"(stk_ptr):);
 
   if ((fp = fopen("/proc/self/maps", "r"))) {
     while(fgets(line, 100, fp)) {

@@ -137,18 +137,6 @@ typedef unsigned long FAR_PTR;	/* non-normalized seg:off 32 bit DOS pointer */
 	"m"(_emu_stack_frame.fs), \
 	"m"(_emu_stack_frame.gs))
 
-  
-  /* Save %fs and %gs for NPTL */
-#define save_eflags_fs_gs() \
-  __asm__ __volatile__ ( \
-	"pushfl\n" \
-	"popl	%0\n" \
-	"movw	%%fs, %1\n" \
-	"movw	%%gs, %2\n" \
-	: \
-	"=m"(_emu_stack_frame.eflags), \
-	"=m"(_emu_stack_frame.fs), \
-	"=m"(_emu_stack_frame.gs))
 /*
  * nearly directly stolen from Linus : linux/kernel/vm86.c
  *
@@ -328,7 +316,5 @@ int cpu_trap_0f (unsigned char *, struct sigcontext_struct *);
 extern unsigned int read_port_w(unsigned short port);
 extern int write_port_w(unsigned int value,unsigned short port);
 int do_soft_int(int intno);
-
-extern unsigned short ucodesel, udatasel;
 
 #endif /* CPU_H */

@@ -44,8 +44,8 @@
 /* Aargh!! Is this the only way we have to know if a signal interrupted
  * us in DPMI server or client code? */
 #ifdef __linux__
-#define UCODESEL ucodesel
-#define UDATASEL udatasel
+#define UCODESEL _emu_stack_frame.cs
+#define UDATASEL _emu_stack_frame.ds
 #endif
 
 /* DANG_BEGIN_REMARK

@@ -187,8 +187,6 @@ signal_init(void)
   struct sigaction sa;
   sigset_t set;
 
-  save_eflags_fs_gs();
-
 #ifdef HAVE_SIGALTSTACK
   {
     stack_t ss;
