@@ -3343,6 +3343,9 @@ dos_fs_redirect(state_t *state)
 	return (FALSE);
       }
       if (chmod(fpath, get_unix_attr(st.st_mode, att)) != 0) {
+	error("Failed to chmod %s: %s.\n"
+	  "If you are using the FAT file system, use \"quiet\" mount option.\n",
+	   fpath, strerror(errno));
 	SETWORD(&(state->eax), ACCESS_DENIED);
 	return (FALSE);
       }
