@@ -1604,24 +1604,7 @@ err:
     break;
   case 0x0205:	/* Set Protected Mode Interrupt vector */
     DPMI_CLIENT.Interrupt_Table[_LO(bx)].selector = _LWORD(ecx);
-    DPMI_CLIENT.Interrupt_Table[_LO(bx)].offset = (DPMI_CLIENT.is_32 ? _edx : _LWORD(edx));
-    if (in_dpmi==1) { /* current_client==0 */
-      switch (_LO(bx)) {
-        case 0x1c:	/* ROM BIOS timer tick interrupt */
-        case 0x23:	/* DOS Ctrl+C interrupt */
-        case 0x24:	/* DOS critical error interrupt */
-	  if ((DPMI_CLIENT.Interrupt_Table[_LO(bx)].selector==DPMI_CLIENT.DPMI_SEL) &&
-		(DPMI_CLIENT.Interrupt_Table[_LO(bx)].offset==DPMI_OFF + HLT_OFF(DPMI_interrupt) + _LO(bx)))
-#ifdef __linux__
-	    { if (can_revector(_LO(bx))==NO_REVECT)
-	      reset_revectored(_LO(bx),&vm86s.int_revectored); }
-	  else
-	    set_revectored(_LO(bx),&vm86s.int_revectored);
-#endif
-	break;
-/*        default: break; */
-      }
-    }
+    DPMI_CLIENT.Interrupt_Table[_LO(bx)].offset = D_16_32(_edx);
     D_printf("DPMI: Put Prot. vec. bx=%x sel=%x, off=%lx\n", _LO(bx),
       _LWORD(ecx), DPMI_CLIENT.Interrupt_Table[_LO(bx)].offset);
     break;

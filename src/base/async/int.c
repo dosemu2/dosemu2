@@ -1405,6 +1405,11 @@ static int can_revector_from_int(int i, Boolean from_int)
   case DOS_HELPER_INT:		/* e6 for redirector and helper (was 0xfe) */
   case 0xe7:			/* for mfs FCB helper */
     return REVECT;
+  /* following 3 vectors must be revectored for DPMI */
+  case 0x1c:			/* ROM BIOS timer tick interrupt */
+  case 0x23:			/* DOS Ctrl+C interrupt */
+  case 0x24:			/* DOS critical error interrupt */
+    return config.dpmi ? REVECT : NO_REVECT;
 
   case 0x33:			/* Mouse. Wrapper for mouse-garrot as well*/
     /* the mouse is a bit of a special case:
