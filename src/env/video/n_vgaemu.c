@@ -602,6 +602,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
 
 int vga_emu_init(vgaemu_display_type *vedt)
 {
+  PRIV_SAVE_AREA
   int i;
   vga_mapping_type vmt = {0, 0, 0};
 #ifdef NEW_PORT_CODE

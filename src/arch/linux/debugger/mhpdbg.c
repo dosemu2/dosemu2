@@ -107,6 +107,7 @@ static  char pipename_in[128], pipename_out[128];
 
 void mhp_close(void)
 {
+   PRIV_SAVE_AREA
    if (mhpdbg.fdin == -1) return;
    if (mhpdbg.active) {
      mhp_putc(1); /* tell debugger terminal to also quit */
@@ -123,6 +124,7 @@ void mhp_close(void)
 
 static void mhp_init(void)
 {
+  PRIV_SAVE_AREA
   int retval;
 
   mhpdbg.fdin = mhpdbg.fdout = -1;

@@ -1,3 +1,14 @@
+97/12/10 ver. 0.67.16.7 unofficial pre-release
+	From Karl Kiniger <ki@kretz.co.at> ( ... ASPI-Karl ;-)
+	- fix for src/dosext/misc/emm.c returning wrong error code
+	  on 'get handle by name'.
+	From Eric
+	- patch to make the enter/leav_priv* stuff working with threads
+	  (see README.txt, chapter 'Priveleges and Running as User')
+	From Hans
+	- small changes to Eric's patch such that it checks the depth.
+	- adapted the the newer 0.67.16.x stuff to the new priv stuff
+	- docs recompile
 97/12/07 ver. 0.67.16.6 unofficial pre-release
 	From Xavier Perramon <xavi@altair.ac.upc.es>
 	- fix to make creation of SOCK_PACKET possible for a user in

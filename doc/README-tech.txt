@@ -1391,7 +1391,8 @@
   rewrite something into the int16 bios.
 
   1100..  TThhiiss sseeccttiioonn wwrriitttteenn bbyy HHaannss LLeerrmmeenn <<lleerrmmeenn@@ffggaann..ddee>> ,, AApprr 66,,
-  11999977 PPrriivveelleeggeess aanndd RRuunnnniinngg aass UUsseerr
+  11999977..  AAnndd uuppddaatteedd bbyy EErriicc BBiieeddeerrmmaann <<eebbiieeddeerrmm++eerriicc@@nnppwwtt..nneett>> 3300 NNoovv
+  11999977..  PPrriivveelleeggeess aanndd RRuunnnniinngg aass UUsseerr
 
   1100..11..  WWhhaatt wwee wweerree ssuuffffeerriinngg ffrroomm
 
@@ -1421,6 +1422,47 @@
   (promise: I'll also will run dosemu as user before releasing, so that
   I can see, if something goes wrong with it ;-)
 
+  Enter Eric:
+
+  What we have been suffering from lately is that threads were added to
+  dosemu, and the stacks Hans added when he did it 'the right way (tm)'
+  were all of a sudden large static variables that could not be kept
+  consistent.  That and hans added caching of the curent uids for
+  efficiency in dosemu, again more static variables.
+
+  When I went through the first time and added all of the strange
+  unmaintainable things Hans complains of above, and found where
+  priveleges where actually needed I hand't thought it was as bad as
+  Hans perceived it, so I had taken the lazy way out.  That and my main
+  concern was to make the privelege setting consistent enough to not
+  give mysterous erros in dosemu.  But I had comtemplated doing it 'the
+  right way (tm)' and my scheme for doing it was a bit different from
+  the way Hans did it.
+
+  With Hans the stack was explicit but hidden behind the scenes.  With
+  my latest incarnation the stack is even more explicit.  The elements
+  of the privelege stack are now local variables in subroutines.  And
+  these local variables need to be declared explicitly in a given
+  subroutine.  This method isn't quite a fool proof as Han's method, but
+  a fool could mess up Hans's method up as well.  And any competent
+  person should be able to handle a local variable, safely.
+
+  For the case of the static cached uid I have simply placed them in the
+  thread control block.  The real challenge in integrating the with the
+  thread code is the thread code was using root priveleges and changing
+  it's priveleges with the priv code during it's initialization.   For
+  the time being I have disabled all of the thread code's mucking with
+  root priveleges, and placed it's initialization before the privelege
+  code's initialization.  We can see later if I can make Han's thread
+  code work `the right way (tm)' as he did for my privelege code.
+
+  ReEnter Hans:  ;-)
+
+  In order to have more checking wether we (not an anonymous fool) are
+  forgetting something on the road, I modified Erics method such that
+  the local variable is declared by a macro and preset with a magic,
+  that is checked in priv.c. The below explanations reflect this change.
+
   1100..22..  TThhee nneeww ''pprriivv ssttuuffff''
 
   This works as follows
@@ -1433,24 +1475,31 @@
 
   or
 
-          enter_priv_off();  /* need pure user access for 'do_something' */
-          do_something();
-          leave_priv_setting();
+               enter_priv_off();  /* need pure user access for 'do_something' */
+               do_something();
+               leave_priv_setting();
 
   +o  On enter_priv_XXX() the current state will be saved (pushed) on a
-     socalled 'privilege stack' and restored (popped) by
-     leave_priv_setting(); Hence, you never again have to worry about
-     previous priv settings, and whenever you feel you need to switch
-     off or on privs, you can do it without coming into trouble.
+     local variable on the stack and later restored from that on
+     leave_priv_setting(). This variable is has to be defined at entry
+     of each function (or block), that uses a enter/leave_priv bracket.
+     To avoid errors it has to be defined via the macro PRIV_SAVE_AREA.
+     The 'stack depth' is just _one_ and is checked to not overflow.
+     The enter/leave_priv_* in fact are macros, that pass a pointer to
+     the local privs save area to the appropriate 'real_' functions.  (
+     this way, we can't forget to include priv.h and PRIV_SAVE_AREA )
+     Hence, you never again have to worry about previous priv settings,
+     and whenever you feel you need to switch off or on privs, you can
+     do it without coming into trouble.
 
   +o  We now have the system calls (getuid, setreuid, etc.) _o_n_l_y in
      src/base/misc/priv.c. We cash the setting and don't do unnecessary
      systemcalls. Hence NEVER call 'getuid', 'setreuid' etc. yourself,
      instead use the above supplied functions. The only places where I
      broke this 'holy law' myself was when printing the log, showing
-     both values (the _r_e_a_l and the cached on).
+     both values (the _r_e_a_l and the cached one).
 
-  +o  In case of dosemu was startet out of a root login, we skip _a_l_l
+  +o  In case of dosemu was started out of a root login, we skip _a_l_l
      priv-settings. There is a new variable 'under_root_login' which is
      only set when dosemu is started from a root login.
 
@@ -1471,6 +1520,23 @@
   checks for it.  We will leave 'i_am_root' in, maybe there is some day
   in the future that gives us a kernel allowing a ports stuff without
   root privilege,
+
+  Enter Eric:
+
+  The current goal is to have a non suid-root dosemu atleast in X,
+  lacking some features. But the reason I disabled it when I first
+  introduced the infamous in this file priv_on/priv_default mechanism is
+  that it hasn't been tested yet, still stands.  What remains to do is
+  an audit of what code _needs_ root permissions, what code could
+  benefit with a sgid dosemu, and what code just uses root permissions
+  because when we are suid root some operations can only been done as
+  root.
+
+  When the audit is done (which has started with my most recent patch (I
+  now know what code to look at)).  It should be possible to disable
+  options that are only possible when we are suid root, at dosemu
+  configuration time.  Then will be the task of finding ways to do
+  things without root permissions.
 
   1111..  TTiimmiinngg iissssuueess iinn ddoosseemmuu
 
@@ -1646,7 +1712,6 @@
   The last method used is the autocalibration, which compares the values
   of gettimeofday() and TSC over an interval of several hundred
   milliseconds, and is quite accurate AFAIK.
-
   You can further override the speed determination by using the
   statement
 
@@ -1656,6 +1721,7 @@
   specify almost any possible speed (e.g. 133.33... will become '400
   3'). You can even slow down dosemu for debugging purposes (only if
   using TSC, however).
+
   The speed value is internally converted into two pairs of integers of
   the form {multiplier,divider}, to avoid float calculations. The first
   pair is used for the 1-usec clock, the second one for the tick(838ns)
@@ -1757,18 +1823,18 @@
 
   Example:
 
-  /*
-   * DANG_BEGIN_MODULE
-   *
-   * This is the goobledygook module. It provides BAR services. Currently there
-   * are no facilities for mixing a 'FOO' cocktail. The stubs are in 'mix_foo()'.
-   *
-   * Maintainer:
-   *      Alistair MacDonald      <alistair@slitesys.demon.co.uk>
-   *      Foo Bar                 <foobar@inter.net.junk>
-   *
-   * DANG_END_MODULE
-   */
+       /*
+        * DANG_BEGIN_MODULE
+        *
+        * This is the goobledygook module. It provides BAR services. Currently there
+        * are no facilities for mixing a 'FOO' cocktail. The stubs are in 'mix_foo()'.
+        *
+        * Maintainer:
+        *      Alistair MacDonald      <alistair@slitesys.demon.co.uk>
+        *      Foo Bar                 <foobar@inter.net.junk>
+        *
+        * DANG_END_MODULE
+        */
 
   1133..55..11..  DDAANNGG__BBEEGGIINN__FFUUNNCCTTIIOONN // DDAANNGG__EENNDD__FFUUNNCCTTIIOONN
 
@@ -1808,18 +1874,17 @@
   be used to describe some particularly interesting or complex code. It
   should be borne in mind that this will be out of context in DANG, and
   that DANG is intended for Novice DOSEmu hackers too ...
-
   Example:
 
-  /*
-   * DANG_BEGIN_REMARK
-   *
-   * We select the method of preparation of the cocktail, according to the type
-   * of cocktail being prepared. To do this we divide the cocktails up into :
-   * VERY_ALCHOHOLIC, MILDLY_ALCHOHOLIC & ALCOHOL_FREE
-   *
-   * DANG_END_REMARK
-   */
+       /*
+        * DANG_BEGIN_REMARK
+        *
+        * We select the method of preparation of the cocktail, according to the type
+        * of cocktail being prepared. To do this we divide the cocktails up into :
+        * VERY_ALCHOHOLIC, MILDLY_ALCHOHOLIC & ALCOHOL_FREE
+        *
+        * DANG_END_REMARK
+        */
 
   1133..55..33..  DDAANNGG__BBEEGGIINN__NNEEWWIIDDEEAA // DDAANNGG__EENNDD__NNEEWWIIDDEEAA
 
@@ -1922,7 +1987,6 @@
   linuxdoc-sgml is like HTML, which is hardly surprising as they are
   both SGMLs. The source to this document may make useful reading (This
   is the file './src/doc/README/doc')
-
   1166..11..  SSeeccttiioonnss
 
   There are 5 section levels you can use. They are all automatically

@@ -294,6 +294,7 @@ int
 allow_io(unsigned int start, int size, int permission, int ormask, int andmask,
 unsigned int portspeed, char *device)
 {
+  PRIV_SAVE_AREA
   FILE *fp;
   int opendevice= -1;
   char line[100];
@@ -493,6 +494,7 @@ port_writeable(unsigned short port)
 unsigned char
 read_port(unsigned short port)
 {
+  PRIV_SAVE_AREA
   unsigned char r;
   int i = find_port(port, IO_READ);
 
@@ -590,6 +592,7 @@ read_port_w(unsigned short port)
 int
 write_port(unsigned int value, unsigned short port)
 {
+  PRIV_SAVE_AREA
   int i = find_port(port, IO_WRITE);
 
   if (i == -1)

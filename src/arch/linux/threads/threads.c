@@ -4,7 +4,6 @@
 
 #include <stdio.h>
 #include "emu.h"
-#include "priv.h"
 
 #include "lt-threads.h"
 
@@ -30,9 +29,9 @@ void treads_init(void)
 #if 1
 	if (!*tf) return;
 #endif
-	enter_priv_on();
+#if 0   /* NOTE: we realy don't need the below, 8Meg of stack are enough */
 	make_stack_unlimited(0); /* 0 = do not drop privs totally */
-	leave_priv_setting();
+#endif
 	thread0 = init_zero_thread(THREAD_STACK_SIZE);
 #if 0
 	fprintf(stdout, "THREADS: thread0 = %p\n", thread0); fflush(stdout);

@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include "emu.h"
 #include "priv.h"
+#include "lt-threads.h"
 
 #if 0
 #define PRIV_TESTING
@@ -10,8 +11,15 @@
 /* Some handy information to have around */
 static uid_t uid,euid;
 static gid_t gid,egid;
+#ifndef USE_THREADS
 static uid_t cur_uid, cur_euid;
 static gid_t cur_gid, cur_egid;
+#else
+#define cur_uid  (OWN_TCB->uid)
+#define cur_euid (OWN_TCB->euid)
+#define cur_gid  (OWN_TCB->gid)
+#define cur_egid (OWN_TCB->egid)
+#endif
 
 #ifdef __NetBSD__
 /* NOTE: Sorry, but the NetBSD stuff is broken currently,
@@ -39,34 +47,34 @@ int internal_priv_off(void)
 
 #define PRIVS_ARE_ON (euid == cur_euid)
 #define PRIVS_ARE_OFF (uid == cur_euid)
-#define PRIVS_WERE_ON (pop_priv())
+#define PRIVS_WERE_ON(privs) (pop_priv(privs))
 
-#define PRIV_STACK_SIZE 32
-static int priv_stack[PRIV_STACK_SIZE+1];
-static int privsp=0;
 
-static __inline__  void push_priv(void)
+static __inline__  void push_priv(saved_priv_status *privs)
 {
-  if (privsp >= PRIV_STACK_SIZE) {
-    error("Aiiiee... overflow on privilege stack\n");
+  if (!privs || *privs != PRIV_MAGIC) {
+    error("Aiiiee... not in-sync saved priv status on push_priv\n");
     leavedos(99);
   }
-  priv_stack[privsp++] = PRIVS_ARE_ON;
+  *privs = PRIVS_ARE_ON;
 #ifdef PRIV_TESTING
-  c_printf("PRIV: pushing %d sp=%d\n", priv_stack[privsp-1], privsp);
+  c_printf("PRIV: pushing %d privs_ptr=%p\n", *privs, privs);
 #endif
 }
 
-static __inline__  int pop_priv(void)
+static __inline__  int pop_priv(saved_priv_status *privs)
 {
-  if (privsp <= 0) {
-    error("Aiiiee... underflow on privilege stack\n");
+  int ret;
+  if (!privs || *privs == PRIV_MAGIC) {
+    error("Aiiiee... not in-sync saved priv status on pop_priv\n");
     leavedos(99);
   }
 #ifdef PRIV_TESTING
-  c_printf("PRIV: poping %d sp=%d\n", priv_stack[privsp-1], privsp);
+  c_printf("PRIV: poping %d privs_ptr=%p\n", *privs, privs);
 #endif
-  return priv_stack[--privsp];
+  ret = (int)*privs;
+  *privs = PRIV_MAGIC;
+  return ret;
 }
 
 static __inline__ int _priv_on(void) {
@@ -117,24 +125,24 @@ static __inline__ int _priv_off(void) {
   return 1;
 }
 
-int enter_priv_on(void)
+int real_enter_priv_on(saved_priv_status *privs)
 {
   if (under_root_login) return 1;
-  push_priv();
+  push_priv(privs);
   return _priv_on();
 }
   
-int enter_priv_off(void)
+int real_enter_priv_off(saved_priv_status *privs)
 {
   if (under_root_login) return 1;
-  push_priv();
+  push_priv(privs);
   return _priv_off();
 }
   
-int leave_priv_setting(void)
+int real_leave_priv_setting(saved_priv_status *privs)
 {
   if (under_root_login) return 1;
-  if (PRIVS_WERE_ON) return _priv_on();
+  if (PRIVS_WERE_ON(privs)) return _priv_on();
   return _priv_off();
 }
   

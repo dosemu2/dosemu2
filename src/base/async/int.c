@@ -447,10 +447,13 @@ static int dos_helper(void)
       LWORD(eax) = 0;
       break;
     }
+    {
+	PRIV_SAVE_AREA
 	enter_priv_off();
 	LWORD(eax) = system(SEG_ADR((char *), es, dx));
 	leave_priv_setting();
 	break;
+    }
 
 #ifdef IPX
   case DOS_HELPER_IPX_CALL:

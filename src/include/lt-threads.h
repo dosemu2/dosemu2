@@ -45,7 +45,7 @@
 #include <setjmp.h>
 
 
-#define LT_THREADS_VERSION	0x000402	/* 0.4.2 */
+#define LT_THREADS_VERSION	0x000403	/* 0.4.3 */
 
 #define MAX_THREADS	27	/* NOTE: don't make it > 27
 				 * atomic_reserve/free rely on that
@@ -278,6 +278,8 @@ struct tcb {
 	jmp_buf exit_jmpbuf;
 	thread_exit_function_type *exit_func;
 	int exit_code;
+	uid_t uid, euid;
+	gid_t gid, egid;
 /* 
  * SIDOC_END_STRUCT
  */

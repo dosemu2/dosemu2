@@ -109,6 +109,7 @@ static int tty_already_locked(char *nam)
  */
 static int tty_lock(char *path, int mode)
 {
+  PRIV_SAVE_AREA
   char saved_path[PATH_MAX];
   char dev_nam[20];
   struct passwd *pw;

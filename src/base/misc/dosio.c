@@ -92,6 +92,7 @@ static caddr_t ipc_return;
 
 void HMA_MAP(int HMA)
 {
+  PRIV_SAVE_AREA
   int retval;
 
   E_printf("Entering HMA_MAP with HMA=%d\n", HMA);

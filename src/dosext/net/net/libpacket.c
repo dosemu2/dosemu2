@@ -45,6 +45,7 @@
 int 
 OpenNetworkType(unsigned short netid)
 {
+  PRIV_SAVE_AREA
   int s;
 
   if (!config.secure) enter_priv_on();

@@ -45,6 +45,7 @@ static char devname_[30];
  * DANG_END_FUNCTION
  */
 void shared_memory_init(void) {
+  PRIV_SAVE_AREA
   static int shm_qf_id=0;
   static int shm_video_id=0;
   static int ret_val;
@@ -135,6 +136,7 @@ E_printf("SHM: Client request area set to %04d\n", *(int *)(shared_qf_memory + C
 void shared_memory_exit(void) {
 
 #if 1
+  PRIV_SAVE_AREA
   enter_priv_on();
   unlink(devname_);
   leave_priv_setting();

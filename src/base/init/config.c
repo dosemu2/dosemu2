@@ -274,6 +274,7 @@ config_defaults(void)
 static void 
 open_terminal_pipe(char *path)
 {
+    PRIV_SAVE_AREA
     enter_priv_off();
     terminal_fd = DOS_SYSCALL(open(path, O_RDWR));
     leave_priv_setting();
@@ -322,6 +323,7 @@ open_Xmouse_pipe(char *path)
 void 
 config_init(int argc, char **argv)
 {
+    PRIV_SAVE_AREA
     extern char *commandline_statements;
     extern int dexe_running;
     int             c;

@@ -403,6 +403,7 @@ printIPXHeader(IPXPacket_t * IPXHeader)
 u_char
 IPXOpenSocket(u_short port, u_short * newPort)
 {
+  PRIV_SAVE_AREA
   int sock;			/* sock here means Linux socket handle */
   int opt;
   struct sockaddr_ipx ipxs;

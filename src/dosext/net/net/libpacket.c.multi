@@ -88,6 +88,7 @@ GetDosnetID()
 int 
 DosnetOpenNetworkType(unsigned short netid)
 {
+  PRIV_SAVE_AREA
   /* Here, netid is ignored, and instead, we send our own netid. 
      assigned to this dosnet session. 
    */

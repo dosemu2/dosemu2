@@ -145,6 +145,7 @@ int isATIport(int port)
 unsigned char
 inb(unsigned int port)
 {
+  PRIV_SAVE_AREA
 
   static unsigned int cga_r = 0;
   static unsigned char r;
@@ -348,6 +349,7 @@ inb(unsigned int port)
 unsigned int
 inw(int port)
 {
+  PRIV_SAVE_AREA
   if (v_8514_base && ((port & 0x03fd) == v_8514_base) && (port & 0xfc00)) {
     int value;
 
@@ -376,6 +378,7 @@ inw(int port)
 unsigned int
 ind(int port)
 {
+  PRIV_SAVE_AREA
   int v;
   if (config.pci && (port >= 0xcf8) && (port < 0xd00)) {
     enter_priv_on();
@@ -392,6 +395,7 @@ ind(int port)
 void
 outb(unsigned int port, unsigned int byte)
 {
+  PRIV_SAVE_AREA
   static int lastport = 0;
   static unsigned int tmp = 0;
 
@@ -654,6 +658,7 @@ outb(unsigned int port, unsigned int byte)
 void
 outw(unsigned int port, unsigned int value)
 {
+  PRIV_SAVE_AREA
   if (v_8514_base && ((port & 0x03fd) == v_8514_base) && (port & 0xfc00)) {
     enter_priv_on();
     iopl(3);
@@ -701,6 +706,7 @@ outd(unsigned int port, unsigned int value)
 
 Bit8u port_safe_inb(Bit32u port)
 {
+  PRIV_SAVE_AREA
   Bit8u res = 0;
 
   i_printf("PORT: safe_inb ");
@@ -723,6 +729,7 @@ Bit8u port_safe_inb(Bit32u port)
 
 void port_safe_outb(Bit32u port, Bit8u byte)
 {
+  PRIV_SAVE_AREA
   i_printf("PORT: safe_outb ");
   if (i_am_root) {
     enter_priv_on();
@@ -738,6 +745,7 @@ void port_safe_outb(Bit32u port, Bit8u byte)
 
 Bit16u port_safe_inw(Bit32u port)
 {
+  PRIV_SAVE_AREA
   Bit16u res = 0;
 
   i_printf("PORT: safe_inw ");
@@ -759,6 +767,7 @@ Bit16u port_safe_inw(Bit32u port)
 
 void port_safe_outw(Bit32u port, Bit16u word)
 {
+  PRIV_SAVE_AREA
   i_printf("PORT: safe_outw ");
   if (i_am_root) {
     enter_priv_on();
@@ -786,6 +795,7 @@ int port_init(void)
 int
 set_ioperm(int start, int size, int flag)
 {
+    PRIV_SAVE_AREA
     int             tmp;
 
     if (!i_am_root)

@@ -217,7 +217,7 @@ static int libless_munmap(caddr_t addr, size_t len)
 #define EMM_FEAT_NOSUP	0x91
 #define EMM_MOVE_OVLAP	0x92
 #define EMM_MOVE_OVLAPI	0x97
-#define EMM_NOT_FOUND	0xa1
+#define EMM_NOT_FOUND	0xa0  /* 971120 <ki@kretz.co.at> acc to R.Brown's int list */
 
 #define EMM_ERROR -1
 static u_char emm_error;
@@ -354,6 +354,7 @@ ems_helper(void) {
 void
 ems_init(void)
 {
+  PRIV_SAVE_AREA
   int sh_base;
   int j;
   struct new_utsname unames;
@@ -1226,9 +1227,10 @@ handle_dir(state_t * state)
 
   case SEARCH_NAMED:{
 	int handle;
+	char xxx[9]; 
 	u_char *array = (u_char *) Addr(state, ds, esi);
-
-	Kdebug0((dbg_fd, "SEARCH_NAMED function called\n"));
+	strncpy(xxx,array,8); xxx[8]=0;
+	Kdebug0((dbg_fd, "SEARCH_NAMED '%s' function called\n",xxx));
 
 	for (handle = 0; handle < MAX_HANDLES; handle++) {
 	  if (!HANDLE_ALLOCATED(handle))

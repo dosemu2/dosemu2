@@ -206,6 +206,7 @@ parent_close_mouse (void)
 static void
 parent_open_mouse (void)
 {
+  PRIV_SAVE_AREA
   if (mice->intdrv)
     {
       enter_priv_on(); /* The mouse may not be a resource everyone can open. */
@@ -634,6 +635,7 @@ set_process_control (void)
 void
 clear_process_control (void)
 {
+  PRIV_SAVE_AREA
   struct vt_mode vt_mode;
 
   vt_mode.mode = VT_AUTO;
@@ -652,6 +654,7 @@ static u_char kmem_open_count = 0;
 void
 open_kmem (void)
 {
+  PRIV_SAVE_AREA
   /* as I understad it, /dev/kmem is the kernel's view of memory,
      * and /dev/mem is the identity-mapped (i.e. physical addressed)
      * memory. Currently under Linux, both are the same.

@@ -464,6 +464,7 @@ static int include_lines[MAX_INCLUDE_DEPTH] = {0};
 
 static void enter_includefile(char * fname)
 {
+  PRIV_SAVE_AREA
   FILE * new_yyin;
   char fname_[256];
   if ( include_stack_ptr >= MAX_INCLUDE_DEPTH ) {

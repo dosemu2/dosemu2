@@ -200,6 +200,7 @@ void dump_cd_sect (char *tb)
 
 void cdrom_reset()
 {
+  PRIV_SAVE_AREA
   /* after a disk change a new read access will
      return an error. In order to unlock this condition
      the drive must be reopened.
@@ -222,6 +223,7 @@ void cdrom_reset()
 
 void cdrom_helper(void)
 {
+   PRIV_SAVE_AREA
    unsigned char *req_buf,*transfer_buf;
    unsigned int Sector_plus_150,Sector;
    struct cdrom_msf cdrom_msf;

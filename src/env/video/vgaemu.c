@@ -479,6 +479,7 @@ static inline caddr_t vga_mmap(caddr_t  addr,  size_t  len,
  */     
 unsigned char* vga_emu_init(void)
 {
+  PRIV_SAVE_AREA
 #ifdef NEW_PORT_CODE
   emu_iodev_t io_device;
 #endif

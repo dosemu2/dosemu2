@@ -1739,6 +1739,7 @@ static void dump_keytable_part(FILE *f, unsigned char *map, int size)
 
 static void dump_keytables_to_file(char *name)
 {
+  PRIV_SAVE_AREA
   FILE * f;
   struct keytable_entry *kt = keytable_list;
 
@@ -1891,6 +1892,7 @@ parse_dosemu_users(void)
 #define ALL_USERS "all"
 #define PBUFLEN 80
 
+  PRIV_SAVE_AREA
   FILE *volatile fp;
   struct passwd *pwd;
   char buf[PBUFLEN];
@@ -2040,6 +2042,7 @@ char *commandline_statements=0;
 
 static int has_dexe_magic(char *name)
 {
+  PRIV_SAVE_AREA
   int fd, magic, ret;
   enter_priv_off();
   fd = open(name, O_RDONLY);
@@ -2104,6 +2107,7 @@ static char *resolve_exec_path(char *dexename, char *ext)
 
 void prepare_dexe_load(char *name)
 {
+  PRIV_SAVE_AREA
   char *n, *cbuf;
   int fd, csize;
   struct image_header ihdr;
@@ -2192,6 +2196,7 @@ parse_config(char *confname)
   /* If that doesn't exist we will default to CONFIG_FILE */
 
   { 
+    PRIV_SAVE_AREA
     uid_t uid = get_orig_uid();
 
     char *home = getenv("HOME");

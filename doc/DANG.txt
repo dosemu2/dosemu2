@@ -1,6 +1,6 @@
   The DOSEMU Alterer Novices Guide
   Author: Alistair MacDonald, alistair@slitesys.demon.co.uk
-  version dosemu-0.67.16.3
+  version dosemu-0.67.16.7
 
   This Document is the DOSEMU Alterer Novices Guide. It is known as the
   DANG.
@@ -328,11 +328,13 @@
 
   7.4.1.  DEFAULT_INTERRUPT
 
-  7.4.2.  DO_INT
+  7.4.2.  run_caller_func(i, from_int)
 
-  7.4.3.  setup_interrupts
+  7.4.3.  DO_INT
 
-  7.4.4.  int_vector_setup
+  7.4.4.  setup_interrupts
+
+  7.4.5.  int_vector_setup
 
   7.5.    Remarks in base/async/int.c
 
@@ -570,6 +572,8 @@
 
   10.2.1. mouse_init
 
+  10.3.   Remarks in base/mouse/mouse.c
+
   11.     The Bios group of Modules
 
   11.1.   base/bios/bios.S Information
@@ -720,7 +724,6 @@
   to "James B. MacLean" <macleajb@ednet.ns.ca> for supplying the
   original information. (It was mostly ripped out of a mail message.)
   "Jochen Hein" has made many useful comments & suggestions.
-
   At the end if this document is a section detailing how this guide is
   put together. This may help you when trying to locate the relevant
   pieces of code. If you add new code, it would be useful if the
@@ -1918,17 +1921,66 @@
   DEFAULT_INTERRUPT is the default interrupt service routine called when
   DOSEMU initializes.
 
-  77..44..22..  DDOO__IINNTT
+  77..44..22..  rruunn__ccaalllleerr__ffuunncc((ii,, ffrroomm__iinntt))
+
+  This function runs the specified caller function in response to an int
+  instruction.  Where i is the interrupt function to execute and
+  from_int specifies if we are comming directly from an int instruction.
+
+  This function runs the instruction with the following model _CS:_IP is
+  the address to start executing at after the caller function
+  terminates, and _EFLAGS are the flags to use after termination.  For
+  the simple case of an int instruction this is easy.  _CS:_IP =
+  retCS:retIP and _FLAGS = retFLAGS as well equally the current values
+  (retIP = curIP +2 technically).
+
+  However if the function is called (from dos) by simulating an int
+  instruction (something that is common with chained interrupt vectors)
+  _CS:_IP = BIOS_SEG:HLT_OFF(i) and _FLAGS = curFLAGS while retCS,
+  retIP, and retFlags are on the stack.  These I pop and place in the
+  appropriate registers.
+
+  This functions actions certainly correct for functions executing an
+  int/iret discipline.  And almost certianly correct for functions
+  executing an int/retf#2 discipline (with flag changes), as an iret is
+  always possilbe.  However functions like dos int 0x25 and 0x26
+  executing with a int/retf will not be handled correctlty by this
+  function and if you need to handle them inside dosemu use a halt
+  handler instead.
+
+  Finally there is a possible trouble spot lurking in this code.
+  Interrupts are only implicitly disabled when it calls the caller
+  function, so if for some reason the main loop would be entered before
+  the caller function returns wrong code may execute if the retFLAGS
+  have interrupts enabled!
+
+  This is only a real handicap for sequences of dosemu code execute for
+  long periods of time as we try to improve timer response and prevent
+  signal queue overflows! -- EB 10 March 1997
+
+  Grumble do to code that executes before interrupts, and the semantics
+  of default_interupt, I can't implement this function as I would like.
+  In the tricky case of being called from dos by simulating an int
+  instruction, I must leave retCS, retIP, on the stack.  But I can
+  safely read retFlags so I do.  I pop retCS, and retIP just before
+  returning to dos, as well as dropping the stack slot  that held
+  retFlags.
+
+  This improves consistency of interrupt handling, but not quite as much
+  as if I could handle it the way I would like.  -- EB 30 Nov 1997
+
+  77..44..33..  DDOO__IINNTT
 
   DO_INT is used to deal with interrupts returned to DOSEMU by the
   kernel.
 
-  77..44..33..  sseettuupp__iinntteerrrruuppttss
+  77..44..44..  sseettuupp__iinntteerrrruuppttss
 
   SETUP_INTERRUPTS is used to initialize the interrupt_function array
   which directs handling of interrupts in protected mode and also
   initializes the base vector for interrupts in real mode.
-  77..44..44..  iinntt__vveeccttoorr__sseettuupp
+
+  77..44..55..  iinntt__vveeccttoorr__sseettuupp
 
   Setup initial interrupts which can be revectored so that the kernel
   does not need to return to DOSEMU if such an interrupt occurs.
@@ -2019,7 +2071,6 @@
 
   Check for keyboard coming from client For now, first byte is interrupt
   requests from Client
-
   77..1122..  iinncclluuddee//ppoorrttss..hh IInnffoorrmmaattiioonn
 
   77..1133..  bbaassee//mmiisscc//ddoossiioo..cc IInnffoorrmmaattiioonn
@@ -2231,7 +2282,6 @@
 
      Add file handle to one of 2 select FDS_SET's depending on whether
      the kernel can handle SIGIO.
-
   77..2266..33..  rreemmoovvee__ffrroomm__iioo__sseelleecctt
 
   Arguments are:
@@ -2601,7 +2651,6 @@
   SER_DEBUG_HEAVY   (0 or 1) - super-heavy extra debug output, including
   all ports reads and writes, and every character received and
   transmitted!
-
   SER_DEBUG_INTERRUPT   (0 or 1) - additional debug output related to
   serial interrupt code, including flagging serial interrupts, or PIC-
   driven code.
@@ -2876,6 +2925,16 @@
 
   Initialize internal mouse.
 
+  1100..33..  RReemmaarrkkss iinn bbaassee//mmoouussee//mmoouussee..cc
+
+  I have not properly tested this INT74 - JES 96/10/20 I have removed
+  it.  INT74 is irq 12.  Which I suppose is the proper irq for a ps2
+  mouse.  It appears initial support was planned to support irq 12 and
+  at Mouse_ROUTINE_OFF is a routine that acknowledges an irq.  That
+  routine is probably what should be acknowledging irq12, and what int
+  0x74 should point to.  I have disabled int0x74 support for now. --EB
+  29 Oct 1997
+
   1111..  TThhee BBiiooss ggrroouupp ooff MMoodduulleess
 
   All of the Bios code is in the "bios" subdirectory.
@@ -2957,6 +3016,7 @@
   flag (+, -, or blank) current interrupt level interrupt in-service
   register interrupt mask register interrupt request register message
   part one decimal data value message part two
+
   If the message part 2 pointer is a null pointer, then only message
   part one (without the data value) is printed.
 
@@ -3064,7 +3124,6 @@
   will remain queued.  Also, some programs fake an iret, so that it is
   possible for pic_iret to fail.  See pic_watch for the watchdog timer
   that catches and fixes this event.
-
   1122..22..1100..  ppiicc__wwaattcchh
 
   pic_watch is a watchdog timer for pending interrupts.  If pic_iret
@@ -3119,7 +3178,6 @@
   To assure proper repeat scheduling, pic_sched should be called from
   within the interrupt handler for the same interrupt.  The maximum
   interval is 15 minutes (0x3fffffff).
-
   1122..33..  RReemmaarrkkss iinn bbaassee//ddeevv//ppiicc//ppiicc..cc
 
   pic_push,pic_pop
@@ -3728,6 +3786,7 @@
   be solved by putting all this data into a private structure and
   starting the thread by passing it a pointer to this structure. Now,
   within scope of the thread one has access to this pointer via.
+
    OWN_TCB->params;
 
   The TCB itself always is on bottom of the stack, hence it is also
@@ -3844,6 +3903,10 @@
 
   +o  int exit_code;
 
+  +o  uid_t uid, euid;
+
+  +o  gid_t gid, egid;
+
   1166..  AAnndd FFiinnaallllyy ......
 
   The Following items are used to delimit the text used to create this
@@ -3888,6 +3951,7 @@
 
   In addition there are some keywords, that are recognized within a
   bracket.
+
   VERB ... /VERB This formats the enclosed text verbatim. This is valid
   within *_MODULE, *_REMARK, *_STRUCT, *_FUNCTION
 

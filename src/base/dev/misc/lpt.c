@@ -80,6 +80,7 @@ int17(u_char ii)
 int
 printer_open(int prnum)
 {
+  PRIV_SAVE_AREA
   int um;
 
   um = umask(026);

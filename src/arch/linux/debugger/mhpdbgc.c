@@ -644,6 +644,7 @@ static void mhp_dis(int argc, char * argv[])
 
 static void mhp_dump_to_file(int argc, char * argv[])
 {
+   PRIV_SAVE_AREA
    unsigned int nbytes;
    unsigned long seekval;
    unsigned char * buf = 0;

@@ -1059,6 +1059,7 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 		 * port access was granted.
 		 * SIDOC_END_REMARK
 		 */
+		PRIV_SAVE_AREA
 		int devperm;
 
 		devrname=strrchr(device,'/');
@@ -1137,6 +1138,7 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 int
 set_ioperm(int start, int size, int flag)
 {
+	PRIV_SAVE_AREA
 	int tmp;
 
 	if (!i_am_root || (start>0x3ff))

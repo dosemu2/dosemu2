@@ -1,7 +1,11 @@
 <sect>Priveleges and Running as User<label id="priv">
 This section written by Hans Lermen 
 <htmlurl url="mailto:lermen@fgan.de" name="&lt;lermen@fgan.de&gt;">
-, Apr 6, 1997
+, Apr 6, 1997.
+And updated by Eric Biederman
+<htmlurl url="mailto:ebiederm+eric@npwt.net" name="&lt;ebiederm+eric@npwt.net&gt;">
+30 Nov 1997.
+
 
 <p>
 <sect1>What we were suffering from
@@ -32,6 +36,51 @@ This section written by Hans Lermen
    (promise: I'll also will run dosemu as user before releasing,
     so that I can see, if something goes wrong with it ;-)
 
+<p>
+<verb>Enter Eric: </verb>
+<p>
+   What we have been suffering from lately is that threads were added to
+   dosemu, and the stacks Hans added when he did it 'the right way (tm)'
+   were all of a sudden large static variables that could not be kept
+   consistent.  That and hans added caching of the curent uids for
+   efficiency in dosemu, again more static variables.  
+<p>
+   When I went through the first time and added all of the strange
+   unmaintainable things Hans complains of above, and found where
+   priveleges where actually needed I hand't thought it was as bad as Hans
+   perceived it, so I had taken the lazy way out.  That and my main concern
+   was to make the privelege setting consistent enough to not give
+   mysterous erros in dosemu.  But I had comtemplated doing it 'the right
+   way (tm)' and my scheme for doing it was a bit different from the way
+   Hans did it. 
+<p>
+   With Hans the stack was explicit but hidden behind the scenes.  With my
+   latest incarnation the stack is even more explicit.  The elements of the
+   privelege stack are now local variables in subroutines.  And these local
+   variables need to be declared explicitly in a given subroutine.  This
+   method isn't quite a fool proof as Han's method, but a fool could mess up
+   Hans's method up as well.  And any competent person should be able to
+   handle a local variable, safely.
+<p>
+   For the case of the static cached uid I have simply placed them in the
+   thread control block.  The real challenge in integrating the with the
+   thread code is the thread code was using root priveleges and changing
+   it's priveleges with the priv code during it's initialization.   For the
+   time being I have disabled all of the thread code's mucking with root
+   priveleges, and placed it's initialization before the privelege code's
+   initialization.  We can see later if I can make Han's thread code work
+   `the right way (tm)' as he did for my privelege code.
+
+<p>
+<verb>ReEnter Hans:  ;-) </verb>
+<p>
+
+   In order to have more checking wether we (not an anonymous fool) are
+   forgetting something on the road, I modified Erics method such that
+   the local variable is declared by a macro and preset with a magic,
+   that is checked in priv.c. The below explanations reflect this change.
+
+
 <sect1>The new 'priv stuff'
 <p>
 This works as follows
@@ -52,7 +101,14 @@ This works as follows
 </verb></tscreen>
 
    <item> On enter_priv_XXX() the current state will be saved (pushed) on a
-      socalled 'privilege stack' and restored (popped) by leave_priv_setting();
+      local variable on the stack and later restored from that on
+      leave_priv_setting(). This variable is has to be defined at
+      entry of each function (or block), that uses a enter/leave_priv bracket.
+      To avoid errors it has to be defined via the macro PRIV_SAVE_AREA.
+      The 'stack depth' is just _one_ and is checked to not overflow.
+      The enter/leave_priv_* in fact are macros, that pass a pointer to
+      the local privs save area to the appropriate 'real_' functions.
+      ( this way, we can't forget to include priv.h and PRIV_SAVE_AREA )
       Hence, you never again have to worry about previous priv settings,
       and whenever you feel you need to switch off or on privs, you can do it
       without coming into trouble.
@@ -62,9 +118,9 @@ This works as follows
       systemcalls. Hence NEVER call 'getuid', 'setreuid' etc. yourself,
       instead use the above supplied functions. The only places where I
       broke this 'holy law' myself was when printing the log, showing both
-      values (the <em/real/ and the cached on).
+      values (the <em/real/ and the cached one).
 
-   <item> In case of dosemu was startet out of a root login, we skip 
+   <item> In case of dosemu was started out of a root login, we skip 
       <em/all/ priv-settings. There is a new variable 'under_root_login'
       which is only set when dosemu is started from a root login.
 
@@ -87,3 +143,21 @@ This works as follows
    We will leave 'i_am_root' in, maybe there is some day in the future
    that gives us a kernel allowing a ports stuff without root privilege,
    ... never say never ;-)
+
+<p>
+<verb>Enter Eric: </verb>
+<p>
+   The current goal is to have a non suid-root dosemu atleast in X,
+   lacking some features. But the reason I disabled it when I first introduced
+   the infamous in this file priv_on/priv_default mechanism is that it hasn't
+   been tested yet, still stands.  What remains to do is an audit of what
+   code _needs_ root permissions, what code could benefit with a sgid dosemu,
+   and what code just uses root permissions because when we are suid root some
+   operations can only been done as root.
+<p>
+   When the audit is done (which has started with my most recent patch (I
+   now know what code to look at)).  It should be possible to disable
+   options that are only possible when we are suid root, at dosemu
+   configuration time.  Then will be the task of finding ways to do things
+   without root permissions.
+

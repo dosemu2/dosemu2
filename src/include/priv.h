@@ -9,10 +9,19 @@
 
 extern int under_root_login;
 
+typedef int saved_priv_status;
+
+#define PRIV_MAGIC 0x56697250	/* "PriV" */
+#define PRIV_LOCAL_VAR		OdDnAmE_dont_forget_priv_save_area
+#define PRIV_SAVE_AREA		saved_priv_status PRIV_LOCAL_VAR = PRIV_MAGIC;
+#define enter_priv_on()		real_enter_priv_on(&PRIV_LOCAL_VAR)
+#define enter_priv_off()	real_enter_priv_off(&PRIV_LOCAL_VAR)
+#define leave_priv_setting()	real_leave_priv_setting(&PRIV_LOCAL_VAR)
+
 void priv_init(void);
-int enter_priv_on(void);
-int enter_priv_off(void);
-int leave_priv_setting(void);
+int real_enter_priv_on(saved_priv_status *);
+int real_enter_priv_off(saved_priv_status *);
+int real_leave_priv_setting(saved_priv_status *);
 int priv_iopl(int pl);     /* do iopl() under forced priv_on */
 uid_t get_cur_uid(void);   /* get the current active uid */
 uid_t get_cur_euid(void);  /* get the current active euid */
@@ -37,7 +46,14 @@ int priv_drop(void);
         leave_priv_setting();
 
    2. On enter_priv_XXX() the current state will be saved (pushed) on a
-      socalled 'privilege stack' and restored (popped) by leave_priv_setting();
+      local variable on the stack and later restored from that on
+      leave_priv_setting(). This variable is has to be defined at
+      entry of each function (or block), that uses a enter/leave_priv bracket.
+      To avoid errors it has to be defined via the macro PRIV_SAVE_AREA.
+      The 'stack depth' is just _one_ and is checked to not overflow.
+      The enter/leave_priv_* in fact are macros, that pass a pointer to
+      the local privs save area to the appropriate 'real_' functions.
+      ( this way, we can't forget to include priv.h and PRIV_SAVE_AREA )
       Hence, you never again have to worry about previous priv settings,
       and whenever you feel you need to switch off or on privs, you can do it
       without coming into trouble.
@@ -61,6 +77,8 @@ int priv_drop(void);
       if we don't do it we are 'running as root' ;-)
 
    -- Hans 970405
+   -- Updated: Eric Biederman 30 Nov 1997
+   -- Updated: Hans 971210
 */
 
 #endif /* PRIV_H */

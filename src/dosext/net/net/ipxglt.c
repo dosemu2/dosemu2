@@ -51,6 +51,7 @@ typedef struct
 int AddRoute( unsigned long targetNet, unsigned network,
         unsigned char node[] )
 {
+	PRIV_SAVE_AREA
 	struct rtentry rt;
 	struct sockaddr_ipx	*st = (struct sockaddr_ipx *)&rt.rt_dst;
 	struct sockaddr_ipx	*sr = (struct sockaddr_ipx *)&rt.rt_gateway;
@@ -89,6 +90,7 @@ int AddRoute( unsigned long targetNet, unsigned network,
 /* returns 0 on success, less than 0 on failure */
 int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks )
 {
+	PRIV_SAVE_AREA
  	int sock;
 	struct sockaddr_ipx ipxs;
 	int opt=1;

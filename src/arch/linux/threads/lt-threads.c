@@ -1091,6 +1091,10 @@ struct tcb *create_thread(thread_function_type *thread_code, void *params)
 		tcb->tcb_id = i;
 		tcb->thread_code = thread_code;
 		tcb->params = params;
+		tcb->uid = OWN_TCB->uid;
+		tcb->gid = OWN_TCB->gid;
+		tcb->euid = OWN_TCB->euid;
+		tcb->egid = OWN_TCB->egid;
 		pid = sys_thread_start(tcb);
 		if (pid < 0) {
 			lock_resource(resource_sys);
@@ -1176,6 +1180,10 @@ struct tcb *init_zero_thread(int stacksize)
 	tcb->stack_size = TCB_GRAN;
 	tcb->thread_code = 0;	/* parent of parent has no thread function */
 	tcb->pid = getpid();
+	tcb->uid = getuid();
+	tcb->gid = getgid();
+	tcb->euid = geteuid();
+	tcb->egid = getegid();
 	thread_list[0] = tcb;
 
 	/* disbale locking during startup */

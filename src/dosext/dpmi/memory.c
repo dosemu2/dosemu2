@@ -267,6 +267,7 @@ int
 DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
 			  unsigned long low_addr, unsigned long cnt)
 {
+    PRIV_SAVE_AREA
     void *mapped_base;
     if ( fd_self_mem == -1) {
         enter_priv_on();  /* to open proc self mem takes I need to halve full permissions */

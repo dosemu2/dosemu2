@@ -147,6 +147,7 @@ void stdio_init(void)
 void tmpdir_init(void)
 {
   /* create tmpdir */
+  PRIV_SAVE_AREA
   enter_priv_off();
   mkdir(tmpdir, S_IREAD | S_IWRITE | S_IEXEC);
   leave_priv_setting();

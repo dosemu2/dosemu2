@@ -244,6 +244,7 @@ static inline void
 SIG_init()
 {
 #if defined(SIG) && defined(REQUIRES_VM86PLUS)
+    PRIV_SAVE_AREA
     /* Get in touch with Silly Interrupt Handling */
     if (config.sillyint) {
 	char            prio_table[] =
@@ -387,6 +388,15 @@ emulate(int argc, char **argv)
     changesegs();
 #endif
 
+#ifdef USE_THREADS
+    treads_init();		/* init the threads system,
+				 * after this we will be thread0.
+				 * Because treads_init() captures SIGTERM
+				 * and signal_init() also does it,
+				 * we capture it via 'exit'.
+    				 */
+#endif
+    /* NOW! it is safe to touch the priv code.  */
     priv_init();  /* This must come first! */
 
     /* the transposal of (config_|stdio_)init allows the addition of -o */
@@ -397,14 +407,6 @@ emulate(int argc, char **argv)
     port_init();		/* setup port structures, before config! */
     config_init(argc, argv);	/* parse the commands & config file(s) */
     get_time_init();
-#ifdef USE_THREADS
-    treads_init();		/* init the threads system,
-				 * after this we will be thread0.
-				 * Because treads_init() captures SIGTERM
-				 * and signal_init() also does it,
-				 * we capture it via 'exit'.
-    				 */
-#endif
     stdio_init();		/* initialize stdio & open debug file */
     module_init();
     low_mem_init();		/* initialize the lower 1Meg */

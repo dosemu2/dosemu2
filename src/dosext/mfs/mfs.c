@@ -783,6 +783,7 @@ init_drive(int dd, char *path, char *options)
 int
 mfs_redirector(void)
 {
+  PRIV_SAVE_AREA
   int dos_fs_redirect();
   int ret;
 
@@ -819,6 +820,7 @@ mfs_redirector(void)
 int
 mfs_inte6(void)
 {
+  PRIV_SAVE_AREA
   boolean_t dos_fs_dev();
   boolean_t result;
 

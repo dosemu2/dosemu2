@@ -1547,6 +1547,7 @@ mouse_sethandler(void *f, us * cs, us * ip)
 void
 mouse_init(void)
 {
+  PRIV_SAVE_AREA
   serial_t *sptr=NULL;
   char mouse_ver[]={2,3,4,5,0x14,0x7,0x38,0x39,0x3a,0x3b,0x3c,0x3d,0x3e,0x3f};
 #if 1 /* BUG CATCHER */

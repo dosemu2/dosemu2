@@ -353,6 +353,7 @@ hdisk_auto(struct disk *dp)
 void
 partition_setup(struct disk *dp)
 {
+  PRIV_SAVE_AREA
   int part_fd, i;
   unsigned char tmp_mbr[SECTOR_SIZE];
   char *hd_name;
@@ -537,6 +538,7 @@ disk_close(void)
 void
 disk_open(struct disk *dp)
 {
+  PRIV_SAVE_AREA
   struct fd_type fl;
 
   if (dp == NULL || dp->fdesc >= 0)
@@ -608,6 +610,7 @@ static void sigalarm_onoff(int on)
 void
 disk_open(struct disk *dp)
 {
+  PRIV_SAVE_AREA
   struct floppy_struct fl;
 
   if (dp == NULL || dp->fdesc >= 0)
@@ -722,6 +725,7 @@ disk_close_all(void)
 void
 disk_init(void)
 {
+  PRIV_SAVE_AREA
   struct disk *dp=NULL;
   struct stat stbuf;
 
