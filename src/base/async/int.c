@@ -942,6 +942,30 @@ SeeAlso: AH=00h,AH=03h,AH=04h,INT 21/AH=2Ch
     break;
 
 /*
+--------B-1A03-------------------------------
+INT 1A - TIME - SET REAL-TIME CLOCK TIME (AT,XT286,PS)
+	AH = 03h
+	CH = hour (BCD)
+	CL = minutes (BCD)
+	DH = seconds (BCD)
+	DL = daylight savings flag (00h standard time, 01h daylight time)
+Return: nothing
+Note:	this function is also supported by the Sperry PC, which predates the
+	  IBM AT; the data is specified in binary rather than BCD on the
+	  Sperry, and the value of DL is ignored
+*/
+  case 3:			/* set time */
+	  
+    LOCK_CMOS;
+    SET_CMOS(CMOS_HOUR, BIN(HI(cx)));
+    SET_CMOS(CMOS_MIN,  BIN(LO(cx)));
+    SET_CMOS(CMOS_SEC,  BIN(HI(dx)));
+    UNLOCK_CMOS;
+    g_printf("INT1A: RTC set time %02x:%02x:%02x\n",HI(cx),LO(cx),HI(dx));
+    NOCARRY;
+    break;
+	  
+/*
 --------B-1A04-------------------------------
 INT 1A - TIME - GET REAL-TIME CLOCK DATE (AT,XT286,PS)
 	AH = 04h
@@ -977,17 +1001,6 @@ SeeAlso: AH=02h,AH=04h"Sperry",AH=05h,INT 21/AH=2Ah,INT 4B/AH=02h"TI"
     break;
 
 /*
---------B-1A03-------------------------------
-INT 1A - TIME - SET REAL-TIME CLOCK TIME (AT,XT286,PS)
-	AH = 03h
-	CH = hour (BCD)
-	CL = minutes (BCD)
-	DH = seconds (BCD)
-	DL = daylight savings flag (00h standard time, 01h daylight time)
-Return: nothing
-Note:	this function is also supported by the Sperry PC, which predates the
-	  IBM AT; the data is specified in binary rather than BCD on the
-	  Sperry, and the value of DL is ignored
 --------B-1A05-------------------------------
 INT 1A - TIME - SET REAL-TIME CLOCK DATE (AT,XT286,PS)
 	AH = 05h
@@ -997,9 +1010,8 @@ INT 1A - TIME - SET REAL-TIME CLOCK DATE (AT,XT286,PS)
 	DL = day (BCD)
 Return: nothing
 */
-  case 3:			/* set time */
   case 5:			/* set date */
-    g_printf("INT1A: RTC: can't set time/date\n");
+    g_printf("INT1A: RTC: can't set date\n");
     break;
 
   /* Notes: the alarm occurs every 24 hours until turned off, invoking INT 4A
