@@ -285,6 +285,8 @@ static void SDL_change_mode(int *x_res, int *y_res)
       }
     }
     flags |= SDL_FULLSCREEN;
+  } else {
+    flags |= SDL_RESIZABLE;
   }
   v_printf("SDL: using mode %d %d %d\n", *x_res, *y_res, SDL_csd.bits);
   surface =  SDL_SetVideoMode(*x_res, *y_res, SDL_csd.bits, flags);
@@ -411,6 +413,13 @@ static void SDL_handle_events(void)
 	   if (vga.mode_class == TEXT) text_lose_focus();
 	 }
        }
+       break;
+     case SDL_VIDEORESIZE:
+       SDL_resize_image(event.resize.w, event.resize.h);
+       dirty_all_video_pages();
+       if (vga.mode_class == TEXT)
+	 vga.reconfig.mem = 1;
+       SDL_update_screen();
        break;
      case SDL_KEYUP:
      case SDL_KEYDOWN:
