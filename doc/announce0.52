@@ -1,6 +1,4 @@
-
-
-Here comes the great, new, improved DOSEMU....Version 0.52!
+Here comes the great, new, improved DOSEMU....Version 0.52!  
 
     DOSEMU is a Linux specific application that allows Linux to run many
 DOS based programs. It requires a bootable DOS disk and Linux 1.1.12+
@@ -8,18 +6,31 @@ DOS based programs. It requires a bootable DOS disk and Linux 1.1.12+
 kernels after recompiling your kernel with kernel patches included
 with the DOSEMU package.
 
+    This release could not have gotten out the door without the work of
+the our relentless development team and friends, currently consisting
+of atleast:
+
+Corey Sweeney, Jason Gorden, Tim Bird, Rob Jenneson, Jon Tombs,
+Aaron, Alan Hourihane, Ronnie, Karl Kiniger, Michael Deisher, 
+Daniel R. Barrlow, Scott Buchholz, Christoph Niemann, Mark Rejhon,
+Theadore Tso, Lutz Molgedey, Larry Stephen, Derek Fawcus, Jochen Hein,
+Alistair MacDonald, Linus Torvalds, Alan Cox, Bob Amstadt, 
+alessandro rubini and possibly myself from time to time.
+
     Definitely still consider this ALPHA software, and as such please
 beware it is not yet fully functional, or always smooth sailing.
 
-Very soon, (As of May 22) it should be locatable at:
+Very soon, (As of June 16) it should be locatable at:
   tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.52.tgz
   sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.52.tgz
   dspsun.eas.asu.edu:/pub/dosemu/dosemu0.52.tgz
 
     Thanks to deisher@enws125.EAS.ASU.EDU (Michael E. Deisher) for dspsun.
 Micheal may also have DOSEMU added to the Debian distribution down the 
-road, now that DOSEMU 0.52 conforms to the Debian distribution format.
+road, now that DOSEMU 0.52 almost conforms to the Debian distribution
+format.
 
+*** NOTE ***
     There has been many changes since DOSEMU 0.50pl1, so please go to 
 great caution to read the "QuickStart" file included with DOSEMU since 
 the location and format of files (including the configuration file) has 
@@ -31,19 +42,25 @@ Updated in this release:
 	 Many thanks to Linus for the kernel enhancement, and always helpfull
 	 feedback.
      -  EMS 4.0 support is now near-complete.
+     -  Support for Novell Netware and other things are now via a
+	built in packet driver at int 0x60. Rob Janssen has been busy.
      -  Improved foreign keyboard support.
      -  Improved DPMI support, although far from complete.  Someday, 
-         maybe this summer, programs like Borland C++ or Maple V will work.
+         maybe this fall, programs like Borland C++ or Maple V will work.
 	 Some RSX extender based programs like emtex386 are allready runing.
      -  Improved serial support for modems.  More flexible with up to 4
          ports, thanks to mdrejhon@csclub.uwaterloo.ca (Mark Rejhon)
      -  Mice work a bit better, too, although not all drivers work.
+     -  Busmice support well underway thanks to Alan Hourihane.
      -  S3 video code updated by niemann@swt.ruhr-uni-bochum.de 
          (Christoph Niemann)
      -  Real time clocks will become more accurate in the future, thanks to
          preparation of new code.  Should make some video games run faster.
+	 Many Thanks to Jochen Hein for his continous efforts to clean up
+	 what the rest of us leave behind.
      -  Easier Debug reports for you to send :-).
-     -  Major reorganization and cleanup.
+     -  More updates by Tim Bird to his internal IPX code.
+     -  Major reorganization and cleanup. Way to go Jochen :-)
 
     As always, many, thanks to all who have helped with this release, 
 either by sending in bug reports so we knew something was wrong, by 
@@ -51,7 +68,7 @@ sending in bug fixes (which may not have made it into this release),
 or by just providing a sounding board for ideas that come up.
     My apologies for not having answered every letter, and possibly 
 missing some of the important information. If you know something you
-think we should, try to contact me again, please.
+think we should, try to contact me again, PLEASE.
 
 Later,
 JES

@@ -3,12 +3,15 @@
 #include "ipx.h"
 
 /* 
- * $Date: 1994/05/30 00:08:20 $
- * $Source: /home/src/dosemu0.60/RCS/int.h,v $
- * $Revision: 1.26 $
+ * $Date: 1994/06/12 23:15:37 $
+ * $Source: /home/src/dosemu0.52/RCS/int.h,v $
+ * $Revision: 2.1 $
  * $State: Exp $
  *
  * $Log: int.h,v $
+ * Revision 2.1  1994/06/12  23:15:37  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 1.26  1994/05/30  00:08:20  root
  * Prep for pre51_22 and temp kludge fix for dir a: error.
  *
@@ -175,8 +178,8 @@ int15(void)
   case 0x4f:			/* Keyboard intercept */
     HI(ax) = 0x86;
     k_printf("INT15 0x4f CARRY=%x AX=%x\n", (LWORD(eflags) & CF),LWORD(eax));
-/*
     CARRY;
+/*
     if (LO(ax) & 0x80 )
       if (1 || !(LO(ax)&0x80) ){
 	fprintf(stderr, "Carrying it out\n");

@@ -1,12 +1,15 @@
 /* mouse.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/06/10 23:22:02 $
- * $Source: /home/src/dosemu0.60/mouse/RCS/mouse.c,v $
- * $Revision: 1.4 $
+ * $Date: 1994/06/12 23:17:50 $
+ * $Source: /home/src/dosemu0.52/mouse/RCS/mouse.c,v $
+ * $Revision: 2.1 $
  * $State: Exp $
  *
  * $Log: mouse.c,v $
+ * Revision 2.1  1994/06/12  23:17:50  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 1.4  1994/06/10  23:22:02  root
  * prep for pre51_25.
  *
@@ -273,6 +276,13 @@ mouse_int(void)
     mouse_version();
     break;
 
+  case 0x26:			/* Return Maximal Co-ordinates */
+    LWORD(ebx) = !mouse.cursor_on;
+    LWORD(ecx) = mouse.maxx;
+    LWORD(edx) = mouse.maxy;
+    m_printf("MOUSE: COORDINATES: x: %d, y: %d\n",mouse.maxx,mouse.maxy);
+    break;
+
   case 0x25:
     LWORD(eax) = 0x4103;	/* Set interrupt rate to 30 times sec */
     break;
@@ -303,8 +313,17 @@ mouse_reset(void)
     LWORD(ebx)=2; 
 
   mouse.minx = mouse.miny = 0;
-  mouse.maxx = bios_rows_on_screen_minus_1;
-  mouse.maxy = bios_screen_columns;
+
+  /* Set up Mouse Maximum co-ordinates, then convert to pixel resolution 
+   * Here we assume a maximum text mode of 132x50, reasonable assumption ?
+   * Possibly, but could run into problems. FIX ME! But Later.... */
+  mouse.maxx = bios_screen_columns;
+  mouse.maxy = bios_rows_on_screen_minus_1;
+  mouse.maxx = ((mouse.maxx <= 132) ? (mouse.maxx * 8) : (mouse.maxx));
+  mouse.maxy = ((mouse.maxy <= 50) ? ((mouse.maxy+1) * 8) : (mouse.maxy));
+  mouse.maxx -= 1;
+  mouse.maxy -= 1;
+
   mouse.points = (*(unsigned short *)0x485);
   mouse.ratio = 1;
   mouse.cursor_on = 0;
@@ -500,15 +519,13 @@ mouse_keyboard(int sc)
 void 
 mouse_move(void)
 {
-  if (mouse.y < 0)
-    mouse.y = 0;
-  if (mouse.y > mouse.maxy)
-    mouse.y = mouse.maxy;
+  if (mouse.x <= mouse.minx) mouse.x = mouse.minx;
+  if (mouse.y <= mouse.miny) mouse.y = mouse.miny;
+  if (mouse.x >= mouse.maxx) mouse.x = mouse.maxx;
+  if (mouse.y >= mouse.maxy) mouse.y = mouse.maxy;
+  mouse.cx = mouse.x / 8;
+  mouse.cy = mouse.y / 8;
   mouse.mickeyy -= MICKEY;
-  if (mouse.x < 0)
-    mouse.x = 0;
-  if (mouse.x > mouse.maxx)
-    mouse.x = mouse.maxx;
   mouse.mickeyx -= MICKEY;
   mouse_delta(DELTA_CURSOR);
 }
@@ -651,9 +668,8 @@ mouse_do_cur(void)
 				GRAPH_BASE);
     close_kmem();
  
-    for (i = 0; i < HEIGHT; i++) {
-      graph_mem[mouse.x / 8 +((mouse.y + i) * 80)] = mousecursormask[i];
-    }
+    for (i = 0; i < HEIGHT; i++)
+      graph_mem[mouse.x / 8 +((mouse.y + i - 4) * 80)] = (long)mousecursormask[i];
 
   } else {
     unsigned short *p = SCREEN_ADR(bios_current_screen_page);

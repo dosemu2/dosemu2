@@ -1,12 +1,15 @@
 #define NCURSES_H 1
 
 /* 
- * $Date: 1994/04/27 21:37:08 $
- * $Source: /home/src/dosemu0.60/clients/RCS/ncurses.h,v $
- * $Revision: 1.3 $
+ * $Date: 1994/06/12 23:18:11 $
+ * $Source: /home/src/dosemu0.52/clients/RCS/ncurses.h,v $
+ * $Revision: 2.1 $
  * $State: Exp $
  *
  * $Log: ncurses.h,v $
+ * Revision 2.1  1994/06/12  23:18:11  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 1.3  1994/04/27  21:37:08  root
  * Jochen's Latest.
  *

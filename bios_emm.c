@@ -30,6 +30,9 @@
  *
  * HISTORY:
  * $Log: bios_emm.c,v $
+ * Revision 2.1  1994/06/12  23:15:37  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 1.24  1994/05/26  23:15:01  root
  * Prep. for pre51_21.
  *

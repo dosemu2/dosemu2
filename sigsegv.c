@@ -1,12 +1,15 @@
 #define SIGSEGV_C 1
 
 /* 
- * $Date: 1994/06/03 00:58:55 $
- * $Source: /home/src/dosemu0.60/RCS/sigsegv.c,v $
- * $Revision: 1.20 $
+ * $Date: 1994/06/12 23:15:37 $
+ * $Source: /home/src/dosemu0.52/RCS/sigsegv.c,v $
+ * $Revision: 2.1 $
  * $State: Exp $
  *
  * $Log: sigsegv.c,v $
+ * Revision 2.1  1994/06/12  23:15:37  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 1.20  1994/06/03  00:58:55  root
  * pre51_23 prep, Daniel's fix for scrbuf malloc().
  *

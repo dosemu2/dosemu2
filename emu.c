@@ -1,12 +1,15 @@
 #define EMU_C 1
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/06/05 21:17:35 $
- * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 1.89 $
+ * $Date: 1994/06/12 23:15:37 $
+ * $Source: /home/src/dosemu0.52/RCS/emu.c,v $
+ * $Revision: 2.1 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 2.1  1994/06/12  23:15:37  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 1.89  1994/06/05  21:17:35  root
  * Prep for pre51_24.
  *
@@ -1984,7 +1987,7 @@ int
 
 void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 1.89 1994/06/05 21:17:35 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.52/RCS/emu.c,v 2.1 1994/06/12 23:15:37 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -2202,7 +2205,7 @@ int
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: 1994/06/05 21:17:35 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: 1994/06/12 23:15:37 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /*      p_dos_str("maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */

@@ -2,12 +2,15 @@
  *
  * cheesy program to create an hdimage header
  *
- * $Date: 1994/03/13 01:08:52 $
- * $Source: /home/src/dosemu0.60/periph/RCS/mkhdimage.c,v $
- * $Revision: 1.3 $
+ * $Date: 1994/06/12 23:17:32 $
+ * $Source: /home/src/dosemu0.52/periph/RCS/mkhdimage.c,v $
+ * $Revision: 2.1 $
  * $State: Exp $
  *
  * $Log: mkhdimage.c,v $
+ * Revision 2.1  1994/06/12  23:17:32  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 1.3  1994/03/13  01:08:52  root
  * Poor attempt to optimize.
  *

@@ -1,12 +1,15 @@
 #define NCURSES_C 1
 
 /* 
- * $Date: 1994/04/29 23:53:20 $
- * $Source: /home/src/dosemu0.60/clients/RCS/ncurses.c,v $
- * $Revision: 1.8 $
+ * $Date: 1994/06/12 23:18:11 $
+ * $Source: /home/src/dosemu0.52/clients/RCS/ncurses.c,v $
+ * $Revision: 2.1 $
  * $State: Exp $
  *
  * $Log: ncurses.c,v $
+ * Revision 2.1  1994/06/12  23:18:11  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 1.8  1994/04/29  23:53:20  root
  * Prior to Lutz's latest 94/04/29
  *

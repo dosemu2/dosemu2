@@ -1,12 +1,15 @@
 /* xms.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/06/10 23:21:21 $
- * $Source: /home/src/dosemu0.60/RCS/xms.c,v $
- * $Revision: 1.16 $
+ * $Date: 1994/06/12 23:15:37 $
+ * $Source: /home/src/dosemu0.52/RCS/xms.c,v $
+ * $Revision: 2.1 $
  * $State: Exp $
  *
  * $Log: xms.c,v $
+ * Revision 2.1  1994/06/12  23:15:37  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 1.16  1994/06/10  23:21:21  root
  * prep for pre51_25.
  *
@@ -105,7 +108,7 @@ int umb_find_unused(void);
  * the 1 MEG mark.  ugly.  fix this.
  */
 
-static char RCSxms[] = "$Header: /home/src/dosemu0.60/RCS/xms.c,v 1.16 1994/06/10 23:21:21 root Exp root $";
+static char RCSxms[] = "$Header: /home/src/dosemu0.52/RCS/xms.c,v 2.1 1994/06/12 23:15:37 root Exp root $";
 
 #define	 XMS_GET_VERSION		0x00
 #define	 XMS_ALLOCATE_HIGH_MEMORY	0x01

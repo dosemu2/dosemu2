@@ -1,5 +1,8 @@
 /*
  * $Log: serial.h,v $
+ * Revision 2.1  1994/06/12  23:15:37  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 1.20  1994/05/13  17:21:00  root
  * pre51_15.
  *

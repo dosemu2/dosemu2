@@ -1,12 +1,15 @@
 #define PORTS_H 1
 
 /* 
- * $Date: 1994/06/05 21:17:35 $
- * $Source: /home/src/dosemu0.60/RCS/ports.h,v $
- * $Revision: 1.15 $
+ * $Date: 1994/06/12 23:15:37 $
+ * $Source: /home/src/dosemu0.52/RCS/ports.h,v $
+ * $Revision: 2.1 $
  * $State: Exp $
  *
  * $Log: ports.h,v $
+ * Revision 2.1  1994/06/12  23:15:37  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 1.15  1994/06/05  21:17:35  root
  * Prep for pre51_24.
  *
@@ -123,24 +126,19 @@ inb(int port)
   case 0x71:
     return cmos_read(port);
 
+#define COUNTER 2
   case 0x40:
-#if 1 /* 05/17/94 Added to sigalrm */
-    pit.CNTR0 += 0x2221;
-#endif
+    pit.CNTR0 -= COUNTER;
     i_printf("inb [0x40] = 0x%02x  1st timer inb\n",
 	     pit.CNTR0);
     return pit.CNTR0;
   case 0x41:
-#if 1 /* 05/17/94 Added to sigalrm */
-    pit.CNTR1 += 0x2221;
-#endif
+    pit.CNTR1 -= COUNTER;
     i_printf("inb [0x41] = 0x%02x  2nd timer inb\n",
 	     pit.CNTR1);
     return pit.CNTR1;
   case 0x42:
-#if 1 /* 05/17/94 Added to sigalrm */
-    pit.CNTR2 += 0x2221;
-#endif
+    pit.CNTR2 -= COUNTER;
     i_printf("inb [0x42] = 0x%02x  3rd timer inb\n",
 	     pit.CNTR2);
     return pit.CNTR2;

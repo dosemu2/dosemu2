@@ -1,11 +1,14 @@
 /* putrom.c; put VBIOS ROM image into /dev/mem (should fail except for weird caches!)
  *
- * $Date: 1994/03/23 23:26:14 $
- * $Source: /home/src/dosemu0.60/periph/RCS/putrom.c,v $
- * $Revision: 1.5 $
+ * $Date: 1994/06/12 23:17:32 $
+ * $Source: /home/src/dosemu0.52/periph/RCS/putrom.c,v $
+ * $Revision: 2.1 $
  * $State: Exp $
  *
  * $Log: putrom.c,v $
+ * Revision 2.1  1994/06/12  23:17:32  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 1.5  1994/03/23  23:26:14  root
  * Add support for Video Bios at E000
  *

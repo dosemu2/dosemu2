@@ -5,7 +5,7 @@
 #define MOUSE_H
 
 #define MOUSE_BASE_VERSION	0x0700	/* minimum driver version 7.00 */
-#define MOUSE_EMU_VERSION	0x0001	/* my driver version 0.01 */
+#define MOUSE_EMU_VERSION	0x0006	/* my driver version 0.06 */
 /* this is the version returned to DOS programs */
 #define MOUSE_VERSION	  (MOUSE_BASE_VERSION + MOUSE_EMU_VERSION)
 

@@ -1,12 +1,15 @@
 /* dos emulator, Matthias Lautner */
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/04/13 00:07:09 $
- * $Source: /home/src/dosemu0.60/RCS/dos.c,v $
- * $Revision: 1.6 $
+ * $Date: 1994/06/12 23:15:37 $
+ * $Source: /home/src/dosemu0.52/RCS/dos.c,v $
+ * $Revision: 2.1 $
  * $State: Exp $
  *
  * $Log: dos.c,v $
+ * Revision 2.1  1994/06/12  23:15:37  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 1.6  1994/04/13  00:07:09  root
  * Jochen's patches.
  *

@@ -35,7 +35,7 @@
 
   1.2.  What's the newest version of dosemu and where can I get it?
 
-  The  newest  version of dosemu is dosemu0.50pl1 and can be ftp'ed from
+  The  newest  version of dosemu is dosemu0.52 and can be ftp'ed from
   the following sites:
 
        dspsun.eas.asu.edu:/pub/dosemu/
@@ -145,15 +145,15 @@
 
   If  you  running  dosemu on a system in which more then one person may
   want to run dosemu, then you may want to change the directory of  your
-  hard  drive  image.   Currently  in  the /etc/dosemu/config file there
+  hard drive image. Currently  in  the /usr/lib/dosemu/config file there
   exists the line saying that the hard drive image is "hdimage".  If you
-  change  this  to  /etc/dosemu/hdimage then people do not have to worry
+  change this to /usr/lib/dosemu/hdimage then people do not have to worry
   about what directory they are in when they  run  dosemu,  and  hdimage
   does  not  have  to  be  moved each time you upgrade to the next patch
   level.
 
   If you do do this for multi-user dosemu, then you will  want  to  make
-  the  hdimage  in  /etc/dosemu  read-only  for  everyone but the dosemu
+  the hdimage in /usr/lib/dosemu read-only  for  everyone but the dosemu
   administrator.
 
   Note that you can use the new emufs.sys  thing  to  mount  a  "public"
@@ -356,6 +356,8 @@
   fine.  When you then have problems with the video, try to enable  more
   selective ranges of IO addresses (e.g., 40-43).
 
+  This should be fixed in dosemu0.52.
+
 
   5.  dosemu and X-windows
 
@@ -367,7 +369,7 @@
   Virtual Console (VC), and you can run any Linux application (dosemu is
   a  linux-application).  I've got almost always WP5.1 in a dos session.
 
-  [Note:  Use alt-F7 to switch back to X from dosemu.]
+  [Note:  Use ctrl-alt-F7 to switch back to X from dosemu.]
 
   [Note: Some people have  reported  problems  when  dosemu  is  started
   before X]
@@ -483,22 +485,35 @@
 
      keybint on
 
+  Shouldn't be a problem in dosemu0.52.
 
 
 
-  7.2.  Why does my ethernet driver lock-up dosemu?
+
+  7.2.  Why does my ethernet driver lock-up dosemu or how do I get 
+	Netware access ?
 
   James B. MacLean (jmaclean@fox.nstn.ns.ca) reported (1/16/94) that
 
-  If  you  have  Linux  networking  turned  on  for your card, it is not
-  accessible to DOSEMU at this time.  It is also true that  the  default
+  Dosemu now supports  pdipx  (an IPX over pktdrvr)  and  pdether  (uses 
+  Novell's  MLID spec)  to  access  Novell LAN's via the built in packet
+  driver.   The  packet  driver sits at interrupt 0x60, and abids by the 
+  normal paket driver rules.  That said, beware of trying any DOS TCP/IP
+  just yet. To use Netware, simply:
+  
+  1) Compile support for your NIC into the kernel.
+  2) Boot dosemu.
+  3) Run ./commands/pdipx.
+  4) Run netx or whatever you use.
+
+  If you  need  special  access  to  your  NIC,  read  on.   By  default
   dosemu  will  not  get interrupts from the kernel. That said, if you'd
   like to give your NIC to dosemu for it to control, maybe for access to
   Netware  on  the  network  through  a  NETX client, I do have a driver
   (Silly Interrupt Generator) to put in the  kernel  that  any  program,
   like dosemu can use to get at the interrupt for your NIC.  I use it in
-  DOSEMU to access a Novell Lite network.  Speed is not it's high point,
-  but it does seem to work :-).
+  DOSEMU to access a Novell Lite network in the  past  until  the packet
+  driver existed.
 
   Any  interested parties should E-mail me (jmaclean@fox.nstn.ns.ca) and
   I'll pass along some directions.
@@ -535,21 +550,6 @@
   As of dosemu0.49pl4, stderr is automatically redirected to  /dev/null.
   Try  "dos  -D+a 2>debug" to turn on debugging information and redirect
   it to the file "debug".
-
-
-  7.6.  Why do I get a segmentation fault error when I start dosemu?
-
-  James MacLean (jmaclean@fox.nstn.ns.ca) reported (3/10/94) that
-
-  For everyone suffering from seg faults, please try these 2 things:
-
-  1)  In  emu.c,  function  video_config_init(), add *(u_char *)0x462=0;
-  after the switch statement ends.
-
-  2) In emu.c, function  emulate(),  move  video_config_init()  to  just
-  after memory_setup() in the same function emulate().
-
-  [Note:  this applies only to dosemu0.50]
 
 
   7.7.  Why are characters < 128 highlighted and blinking?
@@ -686,6 +686,7 @@
             0.49pl3.3  December 3, 1993    James MacLean
             0.50       March 4, 1994       James MacLean
             0.50pl1    March 18, 1994      James MacLean
+            0.52       June 16, 1994       James MacLean
 
 
 

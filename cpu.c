@@ -3,12 +3,15 @@
  * taken over by:
  *          Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/05/26 23:15:01 $
- * $Source: /home/src/dosemu0.60/RCS/cpu.c,v $
- * $Revision: 1.49 $
+ * $Date: 1994/06/12 23:15:37 $
+ * $Source: /home/src/dosemu0.52/RCS/cpu.c,v $
+ * $Revision: 2.1 $
  * $State: Exp $
  *
  * $Log: cpu.c,v $
+ * Revision 2.1  1994/06/12  23:15:37  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 1.49  1994/05/26  23:15:01  root
  * Prep. for pre51_21.
  *

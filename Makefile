@@ -1,8 +1,8 @@
 # Makefile for Linux DOS emulator
 #
-# $Date: 1994/06/05 21:17:35 $
-# $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 1.61 $
+# $Date: 1994/06/12 23:15:37 $
+# $Source: /home/src/dosemu0.52/RCS/Makefile,v $
+# $Revision: 2.1 $
 # $State: Exp $
 #
 
@@ -28,8 +28,8 @@ LNKOPTS=-s
 #endif
 
 # dosemu version
-EMUVER  =   0.51
-VERNUM  =   0x51
+EMUVER  =   0.52
+VERNUM  =   0x52
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
 # should be okay at...0x20000000 for .5 GB mark.
@@ -235,6 +235,7 @@ clean:
 
 
 depend dep: 
+	@echo TOPDIR=$(TOPDIR)
 ifdef DPMIOBJS
 	cd dpmi;$(CPP) -MM -I../ -I../include $(CFLAGS) *.c > .depend;echo "call.o : call.S" >>.depend
 endif

@@ -5,12 +5,15 @@
  *
  * The parser is a hand-written state machine.
  *
- * $Date: 1994/06/03 00:59:58 $
- * $Source: /home/src/dosemu0.60/init/RCS/parse.c,v $
- * $Revision: 1.7 $
+ * $Date: 1994/06/12 23:18:22 $
+ * $Source: /home/src/dosemu0.52/init/RCS/parse.c,v $
+ * $Revision: 2.1 $
  * $State: Exp $
  *
  * $Log: parse.c,v $
+ * Revision 2.1  1994/06/12  23:18:22  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 1.7  1994/06/03  00:59:58  root
  * pre51_23 prep, Daniel's fix for scrbuf malloc().
  *

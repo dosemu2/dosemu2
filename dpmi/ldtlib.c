@@ -1,4 +1,4 @@
-static char RCSId[] = "$Id: ldtlib.c,v 1.5 1994/03/10 23:53:36 root Exp root $";
+static char RCSId[] = "$Id: ldtlib.c,v 2.1 1994/06/12 23:18:03 root Exp root $";
 static char Copyright[] = "Copyright  Robert J. Amstadt, 1993";
 
 #include <stdio.h>

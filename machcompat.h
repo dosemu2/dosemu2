@@ -24,12 +24,15 @@
  * the rights to redistribute these changes.
  */
 /*
- * File: $Source: /home/src/dosemu0.60/RCS/machcompat.h,v $
+ * File: $Source: /home/src/dosemu0.52/RCS/machcompat.h,v $
  *
  * Purpose:
  *
  * HISTORY:
  * $Log: machcompat.h,v $
+ * Revision 2.1  1994/06/12  23:15:37  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 1.7  1994/04/27  21:34:15  root
  * Jochen's Latest.
  *
@@ -274,6 +277,9 @@ typedef int onoff_t;
  *
  * HISTORY:
  * $Log: machcompat.h,v $
+ * Revision 2.1  1994/06/12  23:15:37  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 1.7  1994/04/27  21:34:15  root
  * Jochen's Latest.
  *

@@ -146,6 +146,9 @@ TODO:
  *
  * HISTORY:
  * $Log: mfs.c,v $
+ * Revision 2.1  1994/06/12  23:15:37  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 1.39  1994/05/30  00:08:20  root
  * Prep for pre51_22 and temp kludge fix for dir a: error.
  *

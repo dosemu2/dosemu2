@@ -1,9 +1,9 @@
 /* video.c - for the Linux DOS emulator
  *  Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/06/10 23:21:58 $
- * $Source: /home/src/dosemu0.60/video/RCS/video.c,v $
- * $Revision: 1.11 $
+ * $Date: 1994/06/12 23:17:39 $
+ * $Source: /home/src/dosemu0.52/video/RCS/video.c,v $
+ * $Revision: 2.1 $
  * $State: Exp $
  *
  * Revision 1.3  1993/10/03  21:38:22  root

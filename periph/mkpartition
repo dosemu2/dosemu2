@@ -2,9 +2,9 @@
 # mkpartition - for dosemu 0.51
 #    Robert Sanders, gt8134b@prism.gatech.edu
 #
-# $Date: 1994/05/05 00:17:35 $
-# $Source: /home/src/dosemu0.60/periph/RCS/mkpartition,v $
-# $Revision: 1.4 $
+# $Date: 1994/06/12 23:17:32 $
+# $Source: /home/src/dosemu0.52/periph/RCS/mkpartition,v $
+# $Revision: 2.1 $
 # $State: Exp $
 #
 # For details about Direct Partition Access (DPA) read the manual

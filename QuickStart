@@ -1,14 +1,13 @@
-
 How to quickly get dosemu up and running:
 
 If you use linux v1.1.x update to v1.1.12 or above.
-If you use linux v1.0.x and don't want to update to v1.1.12+
+If you use linux v1.0.8+ and don't want to update to v1.1.12+
 patch the kernel with kernel.1.0.x.diff
 
 This version of DOSEMU puts libdosemu from /etc/dosemu to /var/lib/dosemu.
 Also /etc/dosemu/config is now /etc/dosemu.conf.
 
-*** Note: This release redirects stderr, not stdout as before, therefore
+*** Note: This release redirects stderr, not stdout, therefore
 	attempts to redirect the debug output should be done on stderr.
 	This has been in preparation for a future release including
 	ncurses support. (ie dos 2>err not dos >err)
@@ -25,8 +24,6 @@ Also /etc/dosemu/config is now /etc/dosemu.conf.
 0.49 pl10 or later), and could sucessfully read from your linux
 partition, you may follow an abridged QuickStart procedure, detailed
 after the normal QuickStart.
-
-(Please refer to doc/announce0.49pl3 for info on patching kernel pl13[k-r].)
 
 1) Make a DOS bootable disk:
 	- Boot DOS on a system. That's standalone DOS, not DOSemu.
@@ -61,7 +58,7 @@ after the normal QuickStart.
 	- From here you are on your own. Please read the documentation
 	  in the ./doc subdirectory, and most of all ENJOY!!!!!
 5) Something not right?:
-   First read the dosemu-HOWTO for Q&A's, then if no luck ...
+   First read the DOSEMU-HOWTO for Q&A's, then if no luck ...
    Please run a session 'dos -D+a 2>debug' and send jmaclean@fox.nstn.ns.ca
    me your debug (gzip|uuencoded if large), your /etc/dosemu.conf
    file, and background on the system your running (video card, linux 

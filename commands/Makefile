@@ -12,9 +12,8 @@ all: $(COM)
 	rm -f $*.tmp $*.o
 
 checkin:
-	-ci exitemu.S vgaoff.S vgaon.S dumpconf.exe dumpconf.asm
-	-ci bootoff.S booton.S Makefile dosdbg.c lredir.c
-	-ci pdipx.com 
+	-ci exitemu.S vgaoff.S vgaon.S dumpconf.exe dumpconf.asm \
+	bootoff.S booton.S Makefile dosdbg.c lredir.c pdipx.com 
 
 checkout:
 	-co -l exitemu.S vgaoff.S vgaon.S dumpconf.exe dumpconf.asm

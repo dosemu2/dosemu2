@@ -1,9 +1,9 @@
 ! vgaon.S, for dosemu 0.49, 4/16/93
 ! Robert Sanders, gt8134b@prism.gatech.edu
 !
-! $Date: 1994/02/02 21:14:44 $
-! $Source: /home/src/dosemu0.60/commands/RCS/vgaon.S,v $
-! $Revision: 1.3 $
+! $Date: 1994/06/12 23:16:59 $
+! $Source: /home/src/dosemu0.52/commands/RCS/vgaon.S,v $
+! $Revision: 2.1 $
 ! $State: Exp $
 !
 ! this is dangerous!

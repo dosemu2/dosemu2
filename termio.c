@@ -3,11 +3,14 @@
 #define TERMIO_C 1
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/05/30 00:08:20 $
- * $Source: /home/src/dosemu0.60/RCS/termio.c,v $
- * $Revision: 1.36 $
+ * $Date: 1994/06/12 23:15:37 $
+ * $Source: /home/src/dosemu0.52/RCS/termio.c,v $
+ * $Revision: 2.1 $
  * $State: Exp $
  * $Log: termio.c,v $
+ * Revision 2.1  1994/06/12  23:15:37  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 1.36  1994/05/30  00:08:20  root
  * Prep for pre51_22 and temp kludge fix for dir a: error.
  *
@@ -531,7 +534,7 @@ OpenKeyboard(void)
   if (config.console_video)
     set_console_video();
 
-  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 1.36 1994/05/30 00:08:20 root Exp root $\n");
+  dbug_printf("$Header: /home/src/dosemu0.52/RCS/termio.c,v 2.1 1994/06/12 23:15:37 root Exp root $\n");
 
   return 0;
 }

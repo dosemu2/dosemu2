@@ -6,9 +6,9 @@
 @comment %**end of header
 
 @c $Author: root $
-@c $Date: 1994/04/07 00:19:25 $
-@c $Source: /home/src/dosemu0.60/doc/RCS/dosemu.texinfo,v $
-@c $Revision: 1.3 $
+@c $Date: 1994/06/12 23:17:14 $
+@c $Source: /home/src/dosemu0.52/doc/RCS/dosemu.texinfo,v $
+@c $Revision: 2.1 $
 @c $State: Exp $
 
 

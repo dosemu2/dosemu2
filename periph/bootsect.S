@@ -2,9 +2,9 @@
 !  modified by Robert Sanders, gt8134b@prism.gatech.edu
 !   for dosemu 0.49, 4/1/93
 !
-! $Date: 1993/11/12 12:41:41 $
-! $Source: /home/src/dosemu0.60/periph/RCS/bootsect.S,v $
-! $Revision: 1.1 $
+! $Date: 1994/06/12 23:17:32 $
+! $Source: /home/src/dosemu0.52/periph/RCS/bootsect.S,v $
+! $Revision: 2.1 $
 ! $State: Exp $
 !
 

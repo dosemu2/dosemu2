@@ -3,12 +3,15 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/06/03 00:58:55 $
- * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
- * $Revision: 1.32 $
+ * $Date: 1994/06/12 23:15:37 $
+ * $Source: /home/src/dosemu0.52/RCS/emu.h,v $
+ * $Revision: 2.1 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 2.1  1994/06/12  23:15:37  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 1.32  1994/06/03  00:58:55  root
  * pre51_23 prep, Daniel's fix for scrbuf malloc().
  *
