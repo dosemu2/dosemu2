@@ -12,6 +12,7 @@
  *
  * maintainer:
  * Alistair MacDonald <alistair@slitesys.demon.co.uk>
+ * David Brauman <crisk@netvision.net.il>
  *
  * DANG_END_MODULE
  */
@@ -46,11 +47,24 @@
 static int mixer_fd = -1;
 static int dsp_fd   = -1;
 static long int block_size = 0;
+static long int sound_frag = 0xc;
 /* MPU static vars */
 static int mpu_fd = -1;	             /* -1 = closed */
 static boolean mpu_disabled = FALSE; /* TRUE if MIDI output disabled */
 
 extern void sb_set_speed (void);   /* From sound.c */
+
+void linux_sb_dma_set_blocksize(__u16 val)
+{
+  __u16 i, tmp;
+
+  for (i = 0, tmp = val; tmp > 1; i++, tmp = tmp >> 1)
+    ;
+
+  sound_frag = i;
+
+  S_printf ("SB:[Linux] DMA blocksize set to %lu (%lu)\n", val, sound_frag);
+}
 
 void linux_sb_write_mixer(int ch, __u8 val)
 {
@@ -136,8 +150,12 @@ void linux_sb_disable_speaker(void)
 {
   if (dsp_fd != -1)
   {
+    S_printf ("SB:[Linux] Syncing DSP\n");
+    ioctl(dsp_fd, SNDCTL_DSP_SYNC);
     close (dsp_fd);
     dsp_fd = -1;
+  } else {
+    S_printf ("SB:[Linux] DSP already closed\n");
   }
 }
 
@@ -194,7 +212,7 @@ static void linux_sb_DAC_write (int bits, __u8 value)
 
 int linux_sb_get_version(void)
 {
-#ifdef 0
+#if 0
   long int sound_frag = SOUND_FRAG;
 #endif
   int tmp, version = 0;
@@ -231,7 +249,7 @@ int linux_sb_get_version(void)
         version = SB_16;
     }
 
-#ifdef 0
+#if 0
     /* reset to 8 bit per sample and mono */
     tmp = 0;
     ioctl(dsp_fd, SNDCTL_DSP_STEREO, &tmp);
@@ -271,14 +289,20 @@ void linux_sb_dma_start_init(__u32 command)
 #ifndef SOUND_FRAG
 #error SOUND_FRAG not defined!
 #endif
-  long int sound_frag = SOUND_FRAG;
+/*  long int sound_frag = SOUND_FRAG; */
   long int samplesize = AFMT_U8;
 
+  extern long int sound_frag;
   extern long int block_size;
+
+  long int fragments = 0x0020000 | sound_frag;
 
   switch(command)
   {
   case 0x14: /* 8-bit DMA */
+    S_printf ("SB:[Linux] 8-bit DMA starting\n");
+    break;
+  case 0x1C: /* 8-bit DMA (Auto-Init) */
     S_printf ("SB:[Linux] 8-bit DMA (Auto-Init) starting\n");
     break;
   case 0x90: /* 8-bit DMA (Auto-Init, High Speed) */
@@ -290,7 +314,7 @@ void linux_sb_dma_start_init(__u32 command)
     break;
   };
 
-  ioctl(dsp_fd, SNDCTL_DSP_SETFRAGMENT, &sound_frag);
+  ioctl(dsp_fd, SNDCTL_DSP_SETFRAGMENT, &fragments);
   ioctl(dsp_fd, SNDCTL_DSP_SAMPLESIZE, &samplesize);
 
   ioctl(dsp_fd, SNDCTL_DSP_GETBLKSIZE, &block_size);
@@ -298,8 +322,9 @@ void linux_sb_dma_start_init(__u32 command)
 
 
 void linux_sb_dma_start_complete (void) {
-  extern long int block_size;
-
+   extern long int block_size; 
+   long int fragsize;
+   
   /*
    * This is the important part:
    *
@@ -316,10 +341,26 @@ void linux_sb_dma_start_complete (void) {
    * 
    * The final value sets the number of bytes to try and transfer.
    */
-
-/*dma_install_handler(config.sb_dma, -1, dsp_fd, sb_dma_handler, block_size);*/
+   
+   /* 
+    * **CRISK**
+    * 
+    * Now using the "blocksize" as set by the user, when set.
+    * Potential bug -> this may need resetting. No idea how the actual
+    * thing works.
+    *
+    */
+   
+   fragsize = (1 << sound_frag);
+   if (!fragsize) 
+     {
+	fragsize = block_size;
+	S_printf("SB:[Linux] Using default blocksize\n");
+     }
+   S_printf ("SB:[Linux] DMA start completed (blocksize %lu)\n",fragsize);
+   dma_install_handler(config.sb_dma, -1, dsp_fd, sb_dma_handler, fragsize);
 /*dma_install_handler(config.sb_dma, -1, dsp_fd, sb_dma_handler, 1);*/
-  dma_install_handler(config.sb_dma, -1, dsp_fd, sb_dma_handler, SOUND_SIZE);
+/*dma_install_handler(config.sb_dma, -1, dsp_fd, sb_dma_handler, SOUND_SIZE);*/
 }
 
 int linux_sb_dma_complete_test(void)
@@ -351,7 +392,7 @@ void linux_sb_dma_complete(void)
 	S_printf ("SB:[Linux] DMA Completed\n");
 }
 
-#ifdef 0
+#if 0
 void start_dsp_dma(void)
 {
   int real_speed, trash;
@@ -435,7 +476,8 @@ int SB_driver_init (void) {
   SB_driver.DMA_stop            = NULL;
   SB_driver.DMA_complete_test   = linux_sb_dma_complete_test;
   SB_driver.DMA_complete        = linux_sb_dma_complete;
-
+  SB_driver.DMA_set_blocksize   = linux_sb_dma_set_blocksize;
+   
   /* Miscellaneous Functions */
   SB_driver.set_speed           = linux_sb_set_speed;
 

@@ -64,7 +64,12 @@ typedef struct {
   int     run;           /* Running */
   int     eop;           /* End Of Process */
   int     size;          /* Preferred Transfer Size */
-  int     (* handler)(int);  /* Handler Function */
+  int     (* handler)(int, Bit16u);  /* Handler Function */
+
+  multi_t address;       /* Backup address - for Auto-init modes */
+  multi_t length;        /* Backup length - for Auto-init modes */
+  int     set_size;      /* Backup transfer size - for Auto-init modes */
+
 } internal_t;
 
 typedef struct {
@@ -388,6 +393,30 @@ inline Bit8u dma_read_count (int dma_c, int channel)
   return r;
 }
 
+void dma_recover_values (int controller, int channel)
+{
+  extern dma_t dma[2];
+
+  h_printf ("DMA: Recovering settings for Auto-Init transfer on %d, %d\n",
+	    controller, channel);
+  /* Recover the values from the private store */
+  dma[controller].address[channel].data[0] 
+    = dma[controller].i[channel].address.data[0];
+  dma[controller].address[channel].data[1]
+    = dma[controller].i[channel].address.data[1];
+  dma[controller].length[channel].data[0]
+    = dma[controller].i[channel].length.data[0];
+  dma[controller].length[channel].data[1]
+    = dma[controller].i[channel].length.data[1];
+  
+  dma[controller].i[channel].size = dma[controller].i[channel].set_size;
+}
+
+Bit16u length_transferred (int controller, int channel)
+{
+  return (get_value (dma[controller].i[channel].length)
+	  - get_value (dma[controller].length[channel]) );
+}
 
 Bit8u dma_io_read(Bit32u port)
 {
@@ -634,8 +663,8 @@ void dma_io_write(Bit32u port, Bit8u value)
 
 
 
-void dma_install_handler (int ch, int wfd, int rfd, int (* handler) (int), 
-			  int size)
+void dma_install_handler (int ch, int wfd, int rfd, 
+			  int (* handler) (int, Bit16u), int size)
 {
   int channel, dma_c;
 
@@ -656,6 +685,7 @@ void dma_install_handler (int ch, int wfd, int rfd, int (* handler) (int),
   dma[dma_c].i[channel].handler = handler;
 
   dma[dma_c].i[channel].size = size;
+  dma[dma_c].i[channel].set_size = size;
 }
 
 
@@ -674,6 +704,16 @@ int dma_initialise_channel (int controller, int channel)
 
 	h_printf ("DMA: Initialising transfer for channel %d, controller %d\n",
 		  ch, controller +1);
+
+	/* Backup the values into the private store - in case we need them */
+	dma[controller].i[channel].address.data[0] 
+	  = dma[controller].address[channel].data[0];
+	dma[controller].i[channel].address.data[1] 
+	  = dma[controller].address[channel].data[1];
+	dma[controller].i[channel].length.data[0] 
+	  = dma[controller].length[channel].data[0];
+	dma[controller].i[channel].length.data[1] 
+	  = dma[controller].length[channel].data[1];
 
 	if (pipe(tmp_pipe)) {
 	  /* Failed to create the pipe */
@@ -765,22 +805,30 @@ void dma_process_demand_mode_write (int controller, int channel)
 	}
 
 	if (!get_value (dma[controller].length[channel])) {
-	    /* Transfer is complete */ 
+	  /* Transfer is complete */ 
+	  if ( dma[controller].ch_mode[channel] & DMA_AUTO_INIT ) {
+	    /* Auto-Init means re-start, so we re-start not stop */
+	    if (dma[controller].i[channel].handler != NULL) {
+	      dma[controller].i[channel].handler (DMA_HANDLER_WRITE, 0);
+	    }
+
+	    dma_recover_values (controller, channel);
+	  } else {
 	    dma[controller].status |= (1 << channel);
 
-		is_dma &= ~ (1 << (ch -1));
-				
-		if (dma[controller].i[channel].handler != NULL) {
-			/* The handler is expected to close any descriptors */
-	      dma[controller].i[channel].handler (DMA_HANDLER_DONE);
-		} else {
-			close (dma[controller].i[channel].wfd);
-		}
+	    is_dma &= ~ (1 << (ch -1));
+	    
+	    if (dma[controller].i[channel].handler != NULL) {
+	      /* The handler is expected to close any descriptors */
+	      dma[controller].i[channel].handler (DMA_HANDLER_DONE, 0);
+	    } else {
+	      close (dma[controller].i[channel].wfd);
+	    }
 		
-		dma[controller].i[channel].wfd = -1; 
-
-	    return; 
+	    dma[controller].i[channel].wfd = -1; 
 	  }
+	  return; 
+	}
 
 	if (dma_test_eop(ch)) {
 	    /* Stop the Transfer */
@@ -815,7 +863,8 @@ void dma_process_demand_mode_write (int controller, int channel)
 		sub_value (&dma[controller].length[channel], amount_done);
 
 		if (dma[controller].i[channel].handler != NULL) {
-	      dma[controller].i[channel].handler (DMA_HANDLER_WRITE);
+	      dma[controller].i[channel].handler (DMA_HANDLER_WRITE,
+				 length_transferred (controller, channel));
 	  }
 	}
 }
@@ -842,7 +891,7 @@ void dma_process_single_mode_write (int controller, int channel)
 				
 		if (dma[controller].i[channel].handler != NULL) {
 			/* The handler is expected to close any descriptors */
-	      dma[controller].i[channel].handler (DMA_HANDLER_DONE);
+	      dma[controller].i[channel].handler (DMA_HANDLER_DONE, 0);
 		} else {			
 			close (dma[controller].i[channel].wfd);
 		}
@@ -879,7 +928,8 @@ void dma_process_single_mode_write (int controller, int channel)
 		sub_value (&dma[controller].length[channel], amount_done);
 
 		if (dma[controller].i[channel].handler != NULL) {
-	      dma[controller].i[channel].handler (DMA_HANDLER_WRITE);
+	      dma[controller].i[channel].handler (DMA_HANDLER_WRITE,
+				 length_transferred (controller, channel));
 	  }
 	}
 }	
@@ -906,22 +956,31 @@ void dma_process_block_mode_write (int controller, int channel)
 	}
 
 	if (! get_value (dma[controller].length[channel]) ) {
-	    /* Transfer is complete */
+	  /* Transfer is complete */
+	  if ( dma[controller].ch_mode[channel] & DMA_AUTO_INIT ) {
+	    /* Auto-Init means re-start, so we re-start not stop */
+	    if (dma[controller].i[channel].handler != NULL) {
+	      dma[controller].i[channel].handler (DMA_HANDLER_WRITE, 0);
+	    }
+
+	    dma_recover_values (controller, channel);
+	  } else {
 	    dma[controller].status |= (1 << channel);
 
-		is_dma &= ~mask;
+	    is_dma &= ~mask;
 		
-		if (dma[controller].i[channel].handler != NULL) {
-			/* The handler is expected to close any descriptors */
-	      dma[controller].i[channel].handler (DMA_HANDLER_DONE);
-		} else {
-			close (dma[controller].i[channel].wfd);
-		}
+	    if (dma[controller].i[channel].handler != NULL) {
+	      /* The handler is expected to close any descriptors */
+	      dma[controller].i[channel].handler (DMA_HANDLER_DONE,0);
+	    } else {
+	      close (dma[controller].i[channel].wfd);
+	    }
 
-		dma[controller].i[channel].wfd = -1;
-
-	    return;
+	    dma[controller].i[channel].wfd = -1;
 	  }
+
+	  return;
+	}
 
 	if (dma_test_eop(ch)) {
 	    /* Stop the Transfer */
@@ -957,7 +1016,8 @@ void dma_process_block_mode_write (int controller, int channel)
 		sub_value (&dma[controller].length[channel], amount_done);
 	    
 		if (dma[controller].i[channel].handler != NULL) {
-	      dma[controller].i[channel].handler (DMA_HANDLER_WRITE);
+	      dma[controller].i[channel].handler (DMA_HANDLER_WRITE,
+				 length_transferred (controller, channel));
 	  }
 	}
 }
@@ -983,7 +1043,7 @@ void dma_process_cascade_mode_write (int controller, int channel)
 	is_dma &= ~mask;
 
 	if (dma[controller].i[channel].handler != NULL) {
-		dma[controller].i[channel].handler(DMA_HANDLER_DONE);
+		dma[controller].i[channel].handler(DMA_HANDLER_DONE, 0);
 	}
 }
 
@@ -1009,22 +1069,30 @@ void dma_process_demand_mode_read (int controller, int channel)
 	}
 
 	if (! get_value(dma[controller].length[channel]) ) {
-	    /* Transfer is complete */
+	  /* Transfer is complete */
+	  if ( dma[controller].ch_mode[channel] & DMA_AUTO_INIT ) {
+	    /* Auto-Init means re-start, so we re-start not stop */
+	    if (dma[controller].i[channel].handler != NULL) {
+	      dma[controller].i[channel].handler (DMA_HANDLER_READ, 0);
+	    }
+
+	    dma_recover_values (controller, channel);
+	  } else {
 	    dma[controller].status |= (1 << channel);
 
-		is_dma &= ~mask;
-				
-		if (dma[controller].i[channel].handler != NULL) {
-			/* The handler is expected to close any descriptors */
-	      dma[controller].i[channel].handler (DMA_HANDLER_DONE);
-		} else {
-			close (dma[controller].i[channel].rfd);
-		}
-
-		dma[controller].i[channel].rfd = -1;
-
-	    return;
+	    is_dma &= ~mask;
+	    
+	    if (dma[controller].i[channel].handler != NULL) {
+	      /* The handler is expected to close any descriptors */
+	      dma[controller].i[channel].handler (DMA_HANDLER_DONE, 0);
+	    } else {
+	      close (dma[controller].i[channel].rfd);
+	    }
+	    
+	    dma[controller].i[channel].rfd = -1;
 	  }
+	  return;
+	}
 
 	if (dma_test_eop(ch)) {
 	    /* Stop the Transfer */
@@ -1060,7 +1128,8 @@ void dma_process_demand_mode_read (int controller, int channel)
 			   amount_done);
 
 		if (dma[controller].i[channel].handler != NULL) {
-	      dma[controller].i[channel].handler (DMA_HANDLER_READ);
+	      dma[controller].i[channel].handler (DMA_HANDLER_READ,
+				 length_transferred (controller, channel));
 		}
 	}
 }
@@ -1085,28 +1154,36 @@ void dma_process_single_mode_read (int controller, int channel)
 		 dma[controller].i[channel].size);
 
 	if (!get_value (dma[controller].length[channel])) {
-	    /* Transfer is complete */
-		h_printf("DMA: [crisk] Transfer is complete\n");    
-		if (dma[controller].i[channel].handler != NULL) {
-			/* The handler is expected to close any descriptors */
-			if ((*dma[controller].i[channel].handler)(DMA_HANDLER_DONE) 
-			    != DMA_HANDLER_OK) {
-			  h_printf ("DMA: Handler indicates incomplete.\n");
-			  return;
-			} else {
-			  h_printf ("DMA: Handler indicates complete.\n");
-			}
-		} else {
-			close (dma[controller].i[channel].rfd);
-	  }
+	  /* Transfer is complete */
+	  h_printf("DMA: [crisk] Transfer is complete\n");    
+	  if ( dma[controller].ch_mode[channel] & DMA_AUTO_INIT ) {
+	    /* Auto-Init means re-start, so we re-start not stop */
+	    if (dma[controller].i[channel].handler != NULL) {
+	      dma[controller].i[channel].handler (DMA_HANDLER_READ, 0);
+	    }
+	    
+	    dma_recover_values (controller, channel);
+	  } else {
+	    if (dma[controller].i[channel].handler != NULL) {
+	      /* The handler is expected to close any descriptors */
+	      if ((*dma[controller].i[channel].handler)(DMA_HANDLER_DONE, 0) 
+		  != DMA_HANDLER_OK) {
+		h_printf ("DMA: Handler indicates incomplete.\n");
+		return;
+	      } else {
+		h_printf ("DMA: Handler indicates complete.\n");
+	      }
+	    } else {
+	      close (dma[controller].i[channel].rfd);
+	    }
 
 	    dma[controller].status |= (1 << channel);
 
-		is_dma &= ~mask;
+	    is_dma &= ~mask;
 				
-		dma[controller].i[channel].rfd = -1;
-				
-		return;
+	    dma[controller].i[channel].rfd = -1;
+	  }		
+	  return;
 	}
 			
 	h_printf("DMA: [crisk] SM read (%d && %d) || (%d && %d)\n",
@@ -1145,7 +1222,8 @@ void dma_process_single_mode_read (int controller, int channel)
 		sub_value (&dma[controller].length[channel], amount_done);
 
 		if (dma[controller].i[channel].handler != NULL) {
-	      dma[controller].i[channel].handler (DMA_HANDLER_READ);
+	      dma[controller].i[channel].handler (DMA_HANDLER_READ,
+				 length_transferred (controller, channel));
 	  }
 	}
 	h_printf("DMA: [crisk] DMA single read end trace\n");
@@ -1174,22 +1252,30 @@ void dma_process_block_mode_read (int controller, int channel)
 	}
 
 	if (! get_value (dma[controller].length[channel]) ) {
-	    /* Transfer is complete */
+	  /* Transfer is complete */
+	  if ( dma[controller].ch_mode[channel] & DMA_AUTO_INIT ) {
+	    /* Auto-Init means re-start, so we re-start not stop */
+	    if (dma[controller].i[channel].handler != NULL) {
+	      dma[controller].i[channel].handler (DMA_HANDLER_READ, 0);
+	    }
+
+	    dma_recover_values (controller, channel);
+	  } else {
 	    dma[controller].status |= (1 << channel);
 
-		is_dma &= ~mask;
+	    is_dma &= ~mask;
 
-		if (dma[controller].i[channel].handler != NULL) {
-			/* The handler is expected to close any descriptors */
-	      dma[controller].i[channel].handler (DMA_HANDLER_DONE);
-		} else {
-			close (dma[controller].i[channel].rfd);
-		}
-
-		dma[controller].i[channel].rfd = -1;
-
-	    return;
+	    if (dma[controller].i[channel].handler != NULL) {
+	      /* The handler is expected to close any descriptors */
+	      dma[controller].i[channel].handler (DMA_HANDLER_DONE, 0);
+	    } else {
+	      close (dma[controller].i[channel].rfd);
+	    }
+	    
+	    dma[controller].i[channel].rfd = -1;
 	  }
+	  return;
+	}
 
 	if (dma_test_eop(ch)) {
 	    /* Stop the Transfer */
@@ -1227,7 +1313,8 @@ void dma_process_block_mode_read (int controller, int channel)
 		sub_value (&dma[controller].length[channel], amount_done);
 	    
 		if (dma[controller].i[channel].handler != NULL) {
-	      dma[controller].i[channel].handler (DMA_HANDLER_READ);
+	      dma[controller].i[channel].handler (DMA_HANDLER_READ,
+				 length_transferred (controller, channel));
 	  }
 	}
 }
@@ -1249,7 +1336,7 @@ void dma_process_cascade_mode_read (int controller, int channel)
 	is_dma &= ~mask;
 
 	if (dma[controller].i[channel].handler != NULL) {
-	    dma[controller].i[channel].handler (DMA_HANDLER_DONE);
+	    dma[controller].i[channel].handler (DMA_HANDLER_DONE, 0);
 	} else {
 		close (dma[controller].i[channel].rfd);
 	}
@@ -1272,7 +1359,7 @@ void dma_process_verify_mode  (int controller, int channel)
 		  controller +1, channel);
 	
 	if (dma[controller].i[channel].handler != NULL) {
-		dma[controller].i[channel].handler(DMA_HANDLER_DONE);
+		dma[controller].i[channel].handler(DMA_HANDLER_DONE,0);
 	} else {
 	close (dma[controller].i[channel].rfd);
 		close(dma[controller].i[channel].wfd);
@@ -1300,7 +1387,7 @@ void dma_process_invalid_mode  (int controller, int channel)
 		  controller +1, channel);
 
 	if (dma[controller].i[channel].handler != NULL) {
-		dma[controller].i[channel].handler(DMA_HANDLER_DONE);
+		dma[controller].i[channel].handler(DMA_HANDLER_DONE, 0);
 	} else {
 	close (dma[controller].i[channel].rfd);
 		close(dma[controller].i[channel].wfd);

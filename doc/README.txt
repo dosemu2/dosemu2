@@ -2471,7 +2471,7 @@
   Make use of the keystroke configure option and the -I commandline
   option of DOSEMU (>=dosemu-0.66.2) such as
 
-          dos -D-a -I 'keystroke "dir > C:\\garbage\rexitemu\r"'
+       dos -D-a -I 'keystroke "dir > C:\\garbage\rexitemu\r"'
 
   The "..." will be 'typed in' by dosemu exactly as if you had them
   typed at the keyboard. The advantage of this technique is, that all
@@ -2479,2055 +2479,523 @@
   interpreted as in C and leads in ESC-codes. Here a list of of the
   current implemented ones:
 
-        Carriage return == <ENTER>
-  v
-  n
-  e  00ffRR
-  -     LF
-  g
-  a
-  t     tab
-  -
-  p.   di
-  o
-  pbackspace
-  *ffRR
-  rffoorrmmffeeeedd
-  a..........
-  pbell
-  ..    par*pop-tag-env
-  vertical tab
+       \r     Carriage return == <ENTER>
+       \n     LF
+       \t     tab
+       \b     backspace
+       \f     formfeed
+       \a     bell
+       \v     vertical tab
 
-  xx
-  <Ctrl>x, where X is one of the usual C,M,L,[ ...
-  (e.g.: [ == <Ctrl>[ == ESC )
+       \^x    <Ctrl>x, where X is one of the usual C,M,L,[ ...
+              (e.g.: \^[ == <Ctrl>[ == ESC )
 
-  0.   par*pop-tag-env
-  <Alt>x, hence  0
+       \Ax    <Alt>x, hence  \Ad means <Alt>d
 
-  FFnn;;
-  Function key Fn. Note that the trailing ';' is needed.
-  (e.g.:  F10;  == F10 )
-  PPnn;;
-  Set the virtual typematic rate, thats the speed for autotyping in.
-  It is given in unix timer ticks to wait between two strokes.
-  A value of 7 for example leads to a rate of 100/7=14 cps.
+       \Fn;   Function key Fn. Note that the trailing ';' is needed.
+              (e.g.:  \F10;  == F10 )
 
-  nn;;
-  Before typing the next stroke wait 'n' unix ticks.
-  This is useful, when the DOS-application flushes the keybord buffer
-  on startup. Your strokes would be discared if you don't wait.
-  When
-  using
-  X,
-  the
-  keystroke
-  feature
-  can
-  be
-  used
-  to
-  directly
-  fire
-  up
-  a
-  DOS
-  application
-  with
-  one
-  click,
-  if
-  you
-  have
-  the
-  right
-  entry
-  in
-  your
+       \Pn;   Set the virtual typematic rate, thats the speed for
+              autotyping in. It is given in unix timer ticks to wait
+              between two strokes. A value of 7 for example leads to
+              a rate of 100/7=14 cps.
+
+       \pn;   Before typing the next stroke wait n unix ticks.
+              This is usefull, when the DOS-application fushes the
+              keybord buffer on startup. Your strokes would be discared,
+              if you don't wait.
+
+  When using X, the keystroke feature can be used to directly fire up a
+  DOS application with one click, if you have the right entry in your
   .fvwmrc
 
-  1133..22..
-  UUssiinngg
-  aann
-  iinnppuutt
-  ffiillee
-  +o
-  Make a file "FILE" containing all keystrokes you need to boot dosemu
-  and to start your dos-application, ... and don't forget to have CRLF
-  for 'ENTER'. FILE may look like this (as on my machine):
+  1133..22..  UUssiinngg aann iinnppuutt ffiillee
+
+  +o  Make a file "FILE" containing all keystrokes you need to boot
+     dosemu and to start your dos-application, ... and don't forget to
+     have CRLF for 'ENTER'. FILE may look like this (as on my machine):
 
             2^M                    <== this chooses point 2 of the boot menu
             dir > C:\garbage^M     <== this executes 'dir', result to 'garbage'
             exitemu^M              <== this terminates dosemu
 
-  (the
-  ^M
-  stands
-  for
-  CR)
-  +o
-  execute dosemu on a spare (not used) console, maybe /dev/tty20
-  such like this:
+  (the ^M stands for CR)
 
+  +o  execute dosemu on a spare (not used) console, maybe /dev/tty20 such
+     like this:
           # dos -D-a 2>/dev/null <FILE >/dev/tty20
 
-  This
-  will
-  _not_
-  switch
-  to
-  /dev/tty20,
-  but
-  silently
-  exe-
-  cute
-  dosemu
-  and
-  you
-  will
-  get
-  the
-  '#'
-  prompt
-  back,
-  when
-  dosemu
-  returns.
-  I
-  tested
-  this
-  with
-  dosemu-0.64.4/Linux-2.0.28
-  and
-  it
-  works
-  fine.
-  When
-  your
-  dos-
-  app
-  does
-  only
-  normal
-  printout
-  (text),
-  then
-  you
-  may
-  even
-  do
-  this
+  This will _not_ switch to /dev/tty20, but silently execute dosemu and
+  you will get the '#' prompt back, when dosemu returns.
+
+  I tested this with dosemu-0.64.4/Linux-2.0.28 and it works fine.
+
+  When your dos-app does only normal printout (text), then you may even
+  do this
 
           # dos -D-a 2>/dev/null <FILE >FILE.out
 
-  FILE.out
-  then
-  contains
-  the
-  output
-  from
-  the
-  dos-
-  app,
-  but
-  merged
-  with
-  ESC-
-  sequences
-  from
-  Slang.
-  You
-  may
-  elaborate
-  this
-  technique
-  by
-  writing
-  a
-  script,
-  which
-  gets
-  the
-  dos-
-  command
-  to
-  execute
-  from
-  the
-  commandline
-  and
-  generate
-  'FILE'
-  for
+  FILE.out then contains the output from the dos-app, but merged with
+  ESC-sequences from Slang.
+
+  You may elaborate this technique by writing a script, which gets the
+  dos-command to execute from the commandline and generate 'FILE' for
   you.
-  When
-  you
-  try
-  to
-  use
-  one
-  of
-  the
-  above
-  to
-  start
-  dosemu
-  out
-  of
-  a
-  crontab,
-  then
-  you
-  have
-  to
-  asure,
-  that
-  the
-  process
-  has
-  a
-  proper
-  environement
-  set
-  up
-  (
-  especially
-  the
-  TERM
-  and/or
-  TERMCAP
-  variable
-  ).
 
-  1144..
-  SSeett--
-  ttiinngg
-  HHooggTThh--
-  rreesshh--
-  oolldd
-  Greetings
-  DOSEMU
-  fans,
-  Hogthreshold
-  is
-  a
-  value
-  that
-  you
-  may
-  modify
-  in
-  your
-  DOSEMU.CONF
-  file.
-  It
-  is
-  a
-  measure
-  of
-  the
-  "niceness"
-  of
-  Dosemu.
-  That
-  is
-  to
-  say,
-  it
-  attempts
-  to
-  return
-  to
-  Linux
-  while
-  DOS
-  is
-  'idling'
-  so
-  that
-  DOSEMU
-  does
-  not
-  hog
-  all
-  the
-  CPU
-  cycles
-  while
-  waiting
-  at
-  the
-  DOS
-  prompt.
-  Determining
-  the
-  optimal
-  Hogthreshold
-  value
-  involves
-  a
-  little
-  bit
-  of
-  magic
-  (but
-  not
-  so
-  much
-  really.)
-  One
-  way
-  is
-  to
-  try
-  different
-  values
-  and
-  look
-  at
-  the
-  'top'
-  reading
-  in
-  another
-  console.
-  Setting
-  the
-  value
-  too
-  low
-  may
-  mildly
-  slow
-  Dosemu
-  performance.
-  Setting
-  the
-  value
-  too
-  high
-  will
-  keep
-  the
-  idling
-  code
-  from
-  working.
-  That
-  said,
-  a
-  good
-  basic
-  value
-  to
-  try
-  is
-  "half
-  of
-  your
-  Bogo-
-  Mips
-  value".
-  (The
-  Bogo-
-  Mips
-  value
-  is
-  displayed
-  when
-  the
-  kernel
-  is
-  booting,
-  it's
-  an
-  imaginary
-  value
-  somewhat
-  related
-  to
-  CPU
-  performance.)
-  Setting
-  the
-  value
-  to
-  0
-  will
-  disable
-  idling
-  entirely.
-  The
-  default
-  value
-  is
-  10.
-  This
-  files
-  is
-  some
-  kind
-  of
-  FAQ
-  on
-  how
-  to
-  use
-  the
-  'HogThreshold'
-  value
-  in
-  the
-  dosemu
-  config
-  file.
-  In
-  case
-  you
-  have
-  more
-  questions
-  feel
-  free
-  to
-  ask
-  me
-  (
+  When you try to use one of the above to start dosemu out of a crontab,
+  then you have to asure, that the process has a proper environement set
+  up ( especially the TERM and/or TERMCAP variable ).
+
+  1144..  SSeettttiinngg HHooggTThhrreesshhoolldd
+
+  Greetings DOSEMU fans,
+
+  Hogthreshold is a value that you may modify in your DOSEMU.CONF file.
+  It is a measure of the "niceness" of Dosemu.  That is to say, it
+  attempts to return to Linux while DOS is 'idling' so that DOSEMU does
+  not hog all the CPU cycles while waiting at the DOS prompt.
+
+  Determining the optimal Hogthreshold value involves a little bit of
+  magic (but not so much really.)  One way is to try different values
+  and look at the 'top' reading in another console.  Setting the value
+  too low may mildly slow Dosemu performance.  Setting the value too
+  high will keep the idling code from working.
+
+  That said, a good basic value to try is "half of your Bogo-Mips
+  value".  (The Bogo-Mips value is displayed when the kernel is booting,
+  it's an imaginary value somewhat related to CPU performance.)
+
+  Setting the value to 0 will disable idling entirely.  The default
+  value is 10.
+
+  This files is some kind of FAQ on how to use the 'HogThreshold' value
+  in the dosemu config file.
+
+  In case you have more questions feel free to ask me (
   <andi@andiunx.m.isar.de>).
-  Those
-  of
-  you
-  who
-  simply
-  want
-  to
-  have
-  DOSEMU
-  running
-  at
-  highest
-  possible
-  speed
-  simply
-  leave
-  the
-  value
-  to
-  zero,
-  but
-  if
-  you
-  are
-  concerned
-  about
-  DOSEMU
-  eating
-  too
-  much
-  CPU
-  time
-  it's
-  worth
-  playing
-  with
-  the
-  HogThreshold
-  value.
-  WWhhyy ddoo II nneeeedd ttoo sseett tthhee HHooggTThhrreesshhoolldd vvaalluuee,, wwhhyy ccaann''tt DDOOSSEEMMUU
-  jjuusstt ssttoopp iiff iitt iiss wwaaiittiinngg ffoorr aa kkeeyyssttrrookkee ??"
-  The reason is the way how DOS and a lot of applications have implemented
 
-  It's most often done by something similar to the following code fragment :
+  Those of you who simply want to have DOSEMU running at highest
+  possible speed simply leave the value to zero, but if you are
+  concerned about DOSEMU eating too much CPU time it's worth playing
+  with the HogThreshold value.
+     WWhhyy ddoo II nneeeedd ttoo sseett tthhee HHooggTThhrreesshhoolldd vvaalluuee,, wwhhyy ccaann''tt DDOOSSEEMMUU
+        just stop if it is waiting for a keystroke ?"  The reason is the
+        way how DOS and a lot of applications have implemented
 
-       wait_for_key:
-               ; do something
-               mov ah,1
-               int 0x16 ; check key status
-               jz      wait_for_key ; jump if no key
-               ; found a key
-               mov ah,0
-               int 0x16 ; get key
+        It's most often done by something similar to the following code
+        fragment :
 
-  This
-  means
-  that
-  the
-  application
-  is
-  busy
-  waiting
-  for
-  the
-  keystroke.
+          wait_for_key:
+                  ; do something
+                  mov ah,1
+                  int 0x16 ; check key status
+                  jz      wait_for_key ; jump if no key
+                  ; found a key
+                  mov ah,0
+                  int 0x16 ; get key
 
-  WWhhaatt iiss aa ggoooodd vvaalluuee ffoorr HHooggTThhrreesshhoolldd ttoo ssttaarrtt wwiitthh ??
-  On a 40 MHZ 486 start with a value of 10.
-  Increase this value if you to have your DOS application run faster,
-  decrease it if you think too much CPU time is used.
+     This means that the application is busy waiting for the keystroke.
 
-  IItt ddooeess nnoott wwoorrkk oonn mmyy mmaacchhiinnee..
-  You need to have at least dosemu0.53pl40 in order to have the
-  anti-hog code in effect.
+     WWhhaatt iiss aa ggoooodd vvaalluuee ffoorr HHooggTThhrreesshhoolldd ttoo ssttaarrtt wwiitthh ??
+        On a 40 MHZ 486 start with a value of 10.  Increase this value
+        if you to have your DOS application run faster, decrease it if
+        you think too much CPU time is used.
 
-  WWhhyy nnoott ssiimmppllyy uussee aa vveerryy llooww vvaalluuee ooff
-  DDoo II rreeaallllyy hhaavvee ttoo ttrryy aann iinnddiivviidduuaall vvaalluuee ooff HHooggTThhrreesshhoolldd ??"
-  This would slow down your DOS application. But why not, DOS is slow
-  anyway :-).
+     IItt ddooeess nnoott wwoorrkk oonn mmyy mmaacchhiinnee..
+        You need to have at least dosemu0.53pl40 in order to have the
+        anti-hog code in effect.
 
-  HHooww ddoo II ffoouunndd oouutt aabboouutt CCPPUU uussaaggee ooff DDOOSSEEMMUU ??
-  Simply use 'top'. It displays cpu and memory usage.
-  P.S.
-  If
-  you
-  want
-  to
-  change
-  the
-  HogThreshold
-  value
-  during
-  execution,
-  simply
-  call
-  int
-  e6h
-  w/al=12h
-  &
-  bx=the
-  new
-  value.
-  This
-  is
-  what
-  speed.com
-  does.
-  If
-  you
-  are
-  interested,
-  please
-  take
-  a
-  look
-  at
-  speed.c.
-  Notes:
-  If
-  your
-  application
-  is
-  unkind
-  enough
-  to
-  do
-  waits
-  using
-  an
-  int16h
-  fcn
-  1h
-  loop
-  without
-  calling
-  the
-  keyboard
-  idle
-  interrupt
-  (int
-  28h),
-  this
-  code
-  is
-  not
-  going
-  to
-  help
-  much.
-  If
-  someone
-  runs
-  into
-  a
-  program
-  like
-  this,
-  let
-  me
-  (
-  <scottb@eecs.nwu.edu>
-  )
-  know
-  and
-  I'll
-  rewrite
-  something
-  into
-  the
-  int16
-  bios.
+     WWhhyy nnoott ssiimmppllyy uussee aa vveerryy llooww vvaalluuee ooff
+        Do I really have to try an individual value of HogThreshold ?"
+        This would slow down your DOS application. But why not, DOS is
+        slow anyway :-).
 
-  1155..
-  CCoomm--
-  mmaannddss
-  &&
-  UUttiill--
-  ii--
-  ttiieess
-  These
-  are
-  some
-  utitlies
-  to
-  assist
-  you
-  in
-  using
-  Dosemu.
+     HHooww ddoo II ffoouunndd oouutt aabboouutt CCPPUU uussaaggee ooff DDOOSSEEMMUU ??
+        Simply use 'top'. It displays cpu and memory usage.
 
-  1155..11..
-  PPrroo--
-  ggrraammss
-  bboooottooffff..ccoomm
-  switch off the bootfile to access disk
-  see examples/config.dist at bootdisk option
+  P.S.  If you want to change the HogThreshold value during execution,
+  simply call int e6h w/al=12h & bx=the new value.  This is what
+  speed.com does. If you are interested, please take a look at speed.c.
 
-  bboooottoonn..ccoomm
-  switch on the bootfile to access bootfile
-  see examples/config.dist at bootdisk option
+  Notes:  If your application is unkind enough to do waits using an
+  int16h fcn 1h loop without calling the keyboard idle interrupt (int
+  28h), this code is not going to help much.  If someone runs into a
+  program like this, let me ( <scottb@eecs.nwu.edu> ) know and I'll
+  rewrite something into the int16 bios.
 
-  cchhddiirr..ccoomm
-  change the Unix directory for Dosemu (use chdir(2))
+  1155..  CCoommmmaannddss && UUttiilliittiieess
 
-  ddoossddbbgg..ccoomm
-  change the debug setting from within Dosemu
-  +o
-  dosdbg -- show current state
-  +o
-  dosdbg <string>
-  +o
-  dosdbg help -- show usage information
+  These are some utitlies to assist you in using Dosemu.
 
-  dduummppccoonnff..eexxee
-  ???
+  1155..11..  PPrrooggrraammss
 
-  eejjeecctt..ccoomm
-  eject CD-ROM from drive
+     bboooottooffff..ccoomm
+        switch off the bootfile to access disk see examples/config.dist
+        at bootdisk option
 
-  eemmuummoouussee..ccoomm
-  fine tune internal mousedriver of Dosemu
-  +o
-  emumouse h -- display help screen
+     bboooottoonn..ccoomm
+        switch on the bootfile to access bootfile see
+        examples/config.dist at bootdisk option
 
-  eexxiitteemmuu..ccoomm
-  terminate Dosemu
+     cchhddiirr..ccoomm
+        change the Unix directory for Dosemu (use chdir(2))
 
-  ggeettccwwdd..ccoomm
-  get the Unix directory for Dosemu (use getcwd(2))
-  iisseemmuu..ccoomm
-  detects Dosemu version and returns greater 0 if running under
-  Dosemu
+     ddoossddbbgg..ccoomm
+        change the debug setting from within Dosemu
 
-  llaanncchheecckk..eexxee
-  ???
+     +o  dosdbg -- show current state
 
-  llrreeddiirr..ccoomm
-  redirect Linux directory to Dosemu
-  +o
-  lredir -- show current redirections
-  +o
-  lredir D: LINUXFSmp -- redirects /tmp to drive D:
-  +o
-  lredir help -- display help screen
+     +o  dosdbg <string>
 
-  mmggaarrrroott..ccoomm
-  give up cpu time when Dosemu is idle
+     +o  dosdbg help -- show usage information
 
-  ssppeeeedd..ccoomm
-  set cpu usage (HogThreshold) from inside Dosemu
+     dduummppccoonnff..eexxee
+        ???
 
-  ssyysstteemm..ccoomm
-  interface to system(2)...
+     eejjeecctt..ccoomm
+        eject CD-ROM from drive
 
-  uunniixx..ccoomm
-  execute Unix commands from Dosemu
-  +o
-  unix -- display help screen
-  +o
-  unix ls -al -- list current Linux directory
-  +o
-  caution! try "unix" and read the help screen
+     eemmuummoouussee..ccoomm
+        fine tune internal mousedriver of Dosemu
 
-  ccmmddlliinnee..eexxee
-  Read /proc/self/cmdline and put strings such as "var=xxx"
-  found on the commandline into the DOS enviroment.
-  Example having this as the dos commandine:
+     +o  emumouse h -- display help screen
 
-                        dos "autoexec=echo This is a test..."
+     eexxiitteemmuu..ccoomm
+        terminate Dosemu
 
-  then
-  doing
+     ggeettccwwdd..ccoomm
+        get the Unix directory for Dosemu (use getcwd(2))
 
-                        C:\cmdline < D:\proc\self\cmdline
-                        %autoexec%
+     iisseemmuu..ccoomm
+        detects Dosemu version and returns greater 0 if running under
+        Dosemu
 
-  would
-  dis-
-  play
-  "This
-  is
-  a
-  test..."
-  on
-  the
-  DOS-
-  Ter-
-  mi-
-  nal
+     llaanncchheecckk..eexxee
+        ???
 
-  vvggaaooffff..ccoomm
-  disable vga option
-  vvggaaoonn..ccoomm
-  enable vga option
+     llrreeddiirr..ccoomm
+        redirect Linux directory to Dosemu
 
-  1155..22..
-  DDrriivveerrss
-  These
-  are
-  useful
-  drivers
-  for
-  Dosemu
-  ccddrroomm..ssyyss
-  allow direct access to CD-ROM drives from Dosemu
+     +o  lredir -- show current redirections
 
-  eemmss..ssyyss
-  enable EMM in Dosemu
+     +o  lredir D: LINUXFSmp -- redirects /tmp to drive D:
 
-  eemmuuffss..ssyyss
-  redirect Unix directory to Dosemu
+     +o  lredir help -- display help screen
 
-  1166..
-  KKeeyymmaappss
-  This
-  keymap
-  is
-  for
-  using
-  dosemu
-  over
-  telnet,
-  and
-  having
-  *all*
-  your
-  keys
-  work.
-  This
-  keymap
-  is
-  not
-  complete.
-  But
-  hopefully
-  with
-  everyones
-  help
-  it
-  will
-  be
-  someday
-  :)
-  There
-  are
-  a
-  couple
-  of
-  things
-  that
-  are
-  intentionally
-  broken
-  with
-  this
-  keymap,
-  most
-  noteably
-  F11
-  and
-  F12.
-  This
-  is
-  because
-  they
-  are
-  not
-  working
-  though
-  slang
-  correctly
-  at
-  the
-  current
-  instant.
-  I
-  have
-  them
-  mapped
-  to
-  "greyplus"
-  and
-  "greyminus".
-  Also
-  the
-  scroll
-  lock
-  is
-  mapped
-  to
-  shift-
-  f3.
-  This
-  is
-  because
-  the
-  scroll
-  lock
-  dosn't
-  work
-  right
-  at
-  all.
-  Please
-  feel
-  free
-  to
-  send
-  keymap
-  patches
-  in
-  that
-  fix
-  anything
-  but
+     mmggaarrrroott..ccoomm
+        give up cpu time when Dosemu is idle
+
+     ssppeeeedd..ccoomm
+        set cpu usage (HogThreshold) from inside Dosemu
+
+     ssyysstteemm..ccoomm
+        interface to system(2)...
+
+     uunniixx..ccoomm
+        execute Unix commands from Dosemu
+
+     +o  unix -- display help screen
+
+     +o  unix ls -al -- list current Linux directory
+
+     +o  caution! try "unix" and read the help screen
+
+     ccmmddlliinnee..eexxee
+        Read /proc/self/cmdline and put strings such as "var=xxx" found
+        on the commandline into the DOS enviroment.  Example having this
+        as the dos commandine:
+
+                           dos "autoexec=echo This is a test..."
+
+     then doing
+
+                           C:\cmdline < D:\proc\self\cmdline
+                           %autoexec%
+
+     would display "This is a test..." on the DOS-Terminal
+
+     vvggaaooffff..ccoomm
+        disable vga option
+
+     vvggaaoonn..ccoomm
+        enable vga option
+
+  1155..22..  DDrriivveerrss
+
+  These are useful drivers for Dosemu
+
+     ccddrroomm..ssyyss
+        allow direct access to CD-ROM drives from Dosemu
+
+     eemmss..ssyyss
+        enable EMM in Dosemu
+
+     eemmuuffss..ssyyss
+        redirect Unix directory to Dosemu
+  1166..  KKeeyymmaappss
+
+  This keymap is for using dosemu over telnet, and having *all* your
+  keys work.  This keymap is not complete.  But hopefully with everyones
+  help it will be someday :)
+
+  There are a couple of things that are intentionally broken with this
+  keymap, most noteably F11 and F12.  This is because they are not
+  working though slang correctly at the current instant.  I have them
+  mapped to "greyplus" and "greyminus".  Also the scroll lock is mapped
+  to shift-f3.  This is because the scroll lock dosn't work right at
+  all.  Please feel free to send keymap patches in that fix anything but
   these.
-  If
-  you
-  want
-  to
-  patch
-  _d_o_s_e_m_u
-  to
-  fix
-  either
-  of
-  those
-  problems,
-  i'd
-  be
-  _g_l_a_d
-  to
-  accept
-  those
-  :)
-  to
-  figure
-  out
-  how
-  to
-  edit
-  this,
-  read
-  the
-  keystroke-
-  howto.
-  as
-  of
-  3/30/95,
-  control/shift/alternate
-  home/insert/delete/end/pageup/pagedown
-  should
-  work.
-  Major
-  issues
-  will
-  be:
-  Do
-  we
-  move
-  "alt-<fkey>"
-  to
-  "control-<fkey>"
-  to
-  switch
-  virtual
+
+  If you want to patch _d_o_s_e_m_u to fix either of those problems, i'd be
+  _g_l_a_d to accept those :)
+
+  to figure out how to edit this, read the keystroke-howto.
+
+  as of 3/30/95, control/shift/alternate
+  home/insert/delete/end/pageup/pagedown should work.
+
+  Major issues will be:
+
+  Do we move "alt-<fkey>" to "control-<fkey>" to switch virtual
   consoles?
-  who
-  is
-  going
-  to
-  fix
-  the
-  linux
-  keyboard
-  device
-  to
-  be
-  able
-  to
-  handle
-  multiple
-  keymaps
-  at
-  the
-  same
-  time?
+
+  who is going to fix the linux keyboard device to be able to handle
+  multiple keymaps at the same time?
+
   --------------------------------------------------------
-  to
-  use
-  it:
-  as
-  root
-  type
+
+  to use it:
+
+  as root type
 
                loadkeys dosemu.new.keymap
 
-  (then
-  run
-  dosemu
-  via
-  telnet,
-  or
-  something
-  in
-  slang
-  mode)
-  when
-  your
-  done,
-  find
-  your
-  old
-  keymap,
-  and
-  load
-  it
-  back,
-  cause
-  control-
-  home
-  won't
-  work
-  in
-  emacs
-  anymore
-  (or
-  any
-  other
-  special
-  key
-  in
-  any
-  applicaion
-  that
-  uses
-  xlate)
-  if
-  you
-  find
-  a
-  key
-  missing,
-  please
-  add
-  it
-  and
-  send
-  me
-  the
-  patch.
-  (test
-  it
-  first!
-  :)
+  (then run dosemu via telnet, or something in slang mode)
 
-  if
-  you
-  find
-  a
-  key
-  missing,
-  and
-  don't
-  feel
-  like
-  coding
-  it,
-  _d_o_n_'_t
-  _t_e_l_l
-  _m_e!
-  I
-  already
-  know
-  that
-  there
-  are
-  a
-  lot
-  of
-  keys
-  missing.
-  corey
-  sweeney
-  <corey@interaccess.com
-  >
-  Sytron
-  Computers
+  when your done, find your old keymap, and load it back, cause control-
+  home won't work in emacs anymore (or any other special key in any
+  applicaion that uses xlate)
 
-  1177..
-  NNeett--
-  wwoorrkk--
-  iinngg
-  uussiinngg
-  DDOOSSEEmmuu
-  A
-  mini-
-  HOWTO
-  from
-  Bart
-  Hartgers
-  <barth@stack.nl>
-  (
-  for
-  the
-  detailed
-  original
-  description
-  see
-  below
-  )
+  if you find a key missing, please add it and send me the patch.  (test
+  it first! :)
 
-  1177..11..
-  TThhee
-  DDOOSS--
-  NNEETT
-  vviirr--
-  ttuuaall
-  ddeevviiccee..
-  Dosnet.o
-  is
-  a
-  kernel
-  module
-  that
-  implements
-  a
-  special
-  virtual
-  network
-  device.
-  In
-  combination
-  with
-  pktdrv.c.multi
-  and
-  libpacket.c.multi,
-  this
-  will
-  enable
-  multiple
-  dosemu
-  sessions
-  and
-  the
-  linux
-  kernel
-  to
-  be
-  on
-  a
-  virtual
-  network.
-  Each
-  has
-  it's
-  own
-  network
-  device
-  and
-  ethernet
+  if you find a key missing, and don't feel like coding it, _d_o_n_'_t _t_e_l_l
+  _m_e!  I already know that there are a lot of keys missing.
+
+  corey sweeney <corey@interaccess.com >
+
+  Sytron Computers
+
+  1177..  NNeettwwoorrkkiinngg uussiinngg DDOOSSEEmmuu
+
+  A mini-HOWTO from Bart Hartgers <barth@stack.nl> ( for the detailed
+  original description see below )
+
+  1177..11..  TThhee DDOOSSNNEETT vviirrttuuaall ddeevviiccee..
+
+  Dosnet.o is a kernel module that implements a special virtual network
+  device. In combination with pktdrv.c.multi and libpacket.c.multi, this
+  will enable multiple dosemu sessions and the linux kernel to be on a
+  virtual network. Each has it's own network device and ethernet
   address.
-  This
-  means
-  that
-  you
-  can
-  telnet
-  or
-  ftp
-  from
-  the
-  dos-
-  session
-  to
-  your
-  telnetd/ftpd
-  running
-  in
-  linux
-  and,
-  with
-  IP
-  forwarding
-  enabled
-  in
-  the
-  kernel,
-  connect
-  to
-  any
-  host
-  on
-  your
-  network.
 
-  1177..22..
-  SSeettuupp
-  ffoorr
-  vviirr--
-  ttuuaall
-  TTCCPP//IIPP
-  First
-  replace
-  ./src/dosext/net/net/libpacket.c
-  with
-  libpacket.c.multi
-  and
-  are
-  also
-  in
-  ./src/dosext/net/net).
-  Now
-  (re)build
-  dosemu.
-  Go
-  to
-  ./src/dosext/net/v-
-  net
-  and
-  make
-  dosnet.o.
-  As
-  root,
-  insmod
-  dosnet.o.
-  Now
-  as
-  root,
-  configure
-  the
-  dsn0
-  interface
-  (for
-  example:
-  ifconfig
-  dsn0
-  192.168.74.1
-  netmask
-  255.255.255.0),
-  and
-  add
-  a
-  route
-  for
-  it
-  (for
-  example:
-  route
-  add
-  -net
-  192.168.74.0
-  netmask
-  255.255.255.0
+  This means that you can telnet or ftp from the dos-session to your
+  telnetd/ftpd running in linux and, with IP forwarding enabled in the
+  kernel, connect to any host on your network.
+
+  1177..22..  SSeettuupp ffoorr vviirrttuuaall TTCCPP//IIPP
+
+  First replace ./src/dosext/net/net/libpacket.c with libpacket.c.multi
+  and are also in ./src/dosext/net/net). Now (re)build dosemu.
+
+  Go to ./src/dosext/net/v-net and make dosnet.o. As root, insmod
+  dosnet.o. Now as root, configure the dsn0 interface (for example:
+  ifconfig dsn0 192.168.74.1 netmask 255.255.255.0), and add a route for
+  it (for example: route add -net 192.168.74.0 netmask 255.255.255.0
   dsn0).
-  Finally,
-  start
-  dosemu,
-  and
-  give
-  your
-  TCP/IP
-  client
-  and
-  ip-
-  address
-  in
-  the
-  subnet
-  you
-  just
-  configured.
-  This
-  address
-  should
-  be
-  unique,
-  i.e.
-  no
-  other
-  dosemu,
-  or
-  the
-  kernel,
-  should
-  have
-  this
-  address.
-  For
-  the
-  example
-  addresses
-  given
-  above,
-  192.168.74.2-192.168.74.254
-  would
-  be
-  good.
-  Now
-  you
-  can
-  use
-  a
-  dos
-  telnet
-  client
-  to
-  telnet
-  to
-  your
-  own
-  machine!
 
-  1177..33..
-  FFuullll
-  DDeettaaiillss
-  Detailed
-  original
-  description
-  of
-  Vinod
-  G
-  Kulkarni
+  Finally, start dosemu, and give your TCP/IP client and ip-address in
+  the subnet you just configured. This address should be unique, i.e. no
+  other dosemu, or the kernel, should have this address. For the example
+  addresses given above, 192.168.74.2-192.168.74.254 would be good. Now
+  you can use a dos telnet client to telnet to your own machine!
+
+  1177..33..  FFuullll DDeettaaiillss
+
+  Detailed original description of Vinod G Kulkarni
   <vinod@cse.iitb.ernet.in>
-  Allowing
-  a
-  program
-  to
-  have
-  its
-  own
-  network
-  protocol
-  stacks.
-  Resulting
-  in
-  multiple
-  dosemu's
-  to
-  use
-  netware,
-  ncsa
-  telnet
-  etc.
 
-  1177..33..11..
-  IInnttrroo--
-  dduucc--
-  ttiioonn
-  Allowing
-  network
-  access
-  from
-  dosemu
-  is
-  an
-  important
-  functionality.
-  For
-  pc
-  based
-  network
-  product
-  developers,
-  it
-  will
-  offer
-  an
-  easy
-  development
-  environment
-  will
-  full
-  control
-  over
-  all
-  the
-  traffic
-  without
-  having
-  to
-  run
-  around
-  and
-  use
-  several
-  machines.
-  It
-  will
-  allow
-  already
-  available
-  client-
-  server
-  based
-  "front-
-  ends"
-  to
-  run
-  on
-  dosemulator.
-  (Assuming
-  that
-  they
-  are
-  all
-  packet
-  driver
-  based
-  --
-  as
-  of
-  now
-  ;-)
-  )
-  To
-  accomplish
-  that,
-  we
-  require
-  independent
-  protocol
-  stacks
-  to
-  coexist
-  along
-  with
-  linux'
-  IP
-  stack.
-  One
-  way
-  is
-  to
-  add
-  independent
-  network
-  card.
-  However,
-  it
-  is
-  cumbersome
-  and
-  allows
-  at
-  most
-  only
-  2-3
-  stacks.
-  Other
-  option
-  is
-  to
-  use
-  the
-  a
-  virtual
-  network
-  device
-  that
-  will
-  route
-  the
-  packets
-  to
-  the
-  actual
-  stacks
-  which
-  run
-  as
-  user
-  programs.
+  Allowing a program to have its own network protocol stacks.
+
+  Resulting in multiple dosemu's to use netware, ncsa telnet etc.
+
+  1177..33..11..  IInnttrroodduuccttiioonn
+
+  Allowing network access from dosemu is an important functionality.
+  For pc based network product developers, it will offer an easy
+  development environment will full control over all the traffic without
+  having to run around and use  several machines.  It will allow already
+  available client-server based "front-ends" to run on dosemulator.
+  (Assuming that they are all packet driver based -- as of now ;-) )
+
+  To accomplish that, we require independent protocol stacks to coexist
+  along with linux' IP stack. One way is to add independent network
+  card.  However, it is cumbersome and allows at most only 2-3 stacks.
+  Other option is to use the a virtual network device that will route
+  the packets to the actual stacks which run as user programs.
 
   1177..33..22..
 
   DDeessiiggnn
-  Have
-  a
-  virtual
-  device
-  which
-  provides
-  routing
-  interface
-  at
-  one
-  end
-  (so
-  it
-  is
-  a
-  network
-  device
-  from
-  linux
-  side)
-  and
-  at
-  other
-  end,
-  it
-  sends/receives
-  packets
-  from/to
-  user
-  stacks.
-  All
-  the
-  user
-  stacks
-  AND
-  virtual
-  device
-  are
-  virtually
-  connected
-  by
-  a
-  network
-  (equavalent
-  to
-  a
-  physical
-  cable).
-  Any
-  broadcast
-  packet
-  (sent
-  by
-  either
-  user
-  stack
-  or
-  router
-  interface
-  of
-  the
-  virtual
-  device)
-  should
-  be
-  sent
-  to
-  all
-  the
-  user
-  stacks
-  and
-  router.
-  All
-  non-
-  broadcast
-  packets
-  can
-  be
-  sent
-  by
-  communicating
-  with
-  each
-  other.
 
-  Each
-  user
-  stack
-  (here
-  dosemu
-  process)
-  will
-  have
-  an
-  base
-  interface
-  which
-  allows
-  sending
-  and
-  receiving
-  of
-  packets.
-  On
-  the
-  top
-  of
-  this,
-  a
-  proper
-  interface
-  (such
-  as
-  packet
-  driver
-  interface)
-  can
-  be
-  built.
-  In
-  dosemu,
-  a
-  packet
-  driver
-  interface
-  is
-  emulated.
-  Every
-  user
-  stack
-  will
-  have
-  a
-  unique
-  virtual
-  ethernet
-  address.
+  Have a virtual device which provides  routing interface at one end (so
+  it is a network device from linux side) and at other end, it
+  sends/receives packets from/to user stacks.
 
-  1177..33..33..
-  IImmppllee--
-  mmeenn--
-  ttaa--
-  ttiioonn
-  This
-  package
-  includes:
-  1.
-  dosnet module. Acts as virtual network device introducing
-  It provides usual network interface AND also facility to
-  communicate with dosemu's.
-  2.
-  Modified  packet driver code (pktnew.c and libdosemu.c)
-  to enable the above. Modifications include these:
-  a.
-  Generate an unique ethernet address for each dosemu .
-  I have used minor no. of the tty in use as part
-  of ethernet address. This works unless you start
-  two dosemu's in same tty.
-  b.
-  Communication with dosnet device is done by opening
-  a SOCK_PACKET socket of special type.
+  All the user stacks AND virtual device are virtually connected by a
+  network (equavalent to a physical cable). Any broadcast packet (sent
+  by either user stack or router interface of the virtual device) should
+  be sent to all the user stacks and router.  All non-broadcast packets
+  can be sent by communicating with each other.
 
-  3.
-  IPX bridge code. Between eth0 and dsn0 so that multiple
-  lan accesses can be made. 0.1 is non-intelligent.
-  (both versions are alpha codes.)
-  Actually IPX routing code is there in kernel.  Has anyone been
-  successful in using this?
-  Yet another alternative is to use IPTunnelling of IPX
-  packets (rfc 1234). Novell has NLMs for this on the netware
-  side. On linux, we should run a daemon implementing this
-  rfc.
-  1177..33..44..
-  VViirr--
-  ttuuaall
-  ddeevviiccee
-  ''ddssnn00''
-  Compile
-  the
-  module
-  dosnet
-  and
-  insmod
-  it,
-  and
-  give
-  it
-  an
-  IP
-  address,
-  with
-  a
-  new
-  IP
-  network
-  number.
-  And
-  You
-  have
-  to
-  set
-  up
-  proper
-  routing
-  tables
-  on
-  all
-  machines
-  you
-  want
-  to
-  connect
-  to.
-  So
-  linux
-  side
-  interface
-  is
-  easy
-  to
-  set
-  up.
-  _N_o_t_e_:
-  Some
-  3
-  kernel
-  symbols
-  are
-  used
-  by
-  the
-  module,
-  which
-  are
-  not
-  exported
-  by
-  kernel/ksyms.c
-  in
-  the
-  kernel
-  code.
-  You
-  could
-  either
-  add
-  these
-  symbols
-  there,
-  or
-  use
-  Hans'
-  improved
-  'insmod'
-  (part
-  of
-  syscall
-  Manager
-  package).
-  (In
-  that
-  case,
-  it
-  will
-  resolve
-  the
-  symbols
-  from
-  the
-  zSystem.map
-  file.
-  This
-  device
-  is
-  assigned
-  a
-  virtual
-  ethernet
-  address,
-  defined
-  in
+  Each user stack (here dosemu process) will have an base interface
+  which allows sending and receiving of packets. On the top of this, a
+  proper interface (such as  packet driver interface) can be built.  In
+  dosemu, a packet driver interface is emulated.
+
+  Every user stack will have a unique  virtual ethernet address.
+
+  1177..33..33..  IImmpplleemmeennttaattiioonn
+
+  This package includes:
+
+  1. dosnet module. Acts as virtual network device introducing It
+     provides usual network interface AND also facility to communicate
+     with dosemu's.
+
+  2. Modified  packet driver code (pktnew.c and libdosemu.c) to enable
+     the above. Modifications include these:
+
+     a. Generate an unique ethernet address for each dosemu .  I have
+        used minor no. of the tty in use as part of ethernet address.
+        This works unless you start two dosemu's in same tty.
+
+     b. Communication with dosnet device is done by opening a
+        SOCK_PACKET socket of special type.
+
+  3. IPX bridge code. Between eth0 and dsn0 so that multiple lan
+     accesses can be made. 0.1 is non-intelligent.  (both versions are
+     alpha codes.)  Actually IPX routing code is there in kernel.  Has
+     anyone been successful in using this?  Yet another alternative is
+     to use IPTunnelling of IPX packets (rfc 1234). Novell has NLMs for
+     this on the netware side. On linux, we should run a daemon
+     implementing this rfc.
+
+  1177..33..44..  VViirrttuuaall ddeevviiccee ''ddssnn00''
+
+  Compile the module dosnet and insmod it, and give it an IP address,
+  with a new IP network number. And You have to set up proper routing
+  tables on all machines you want to connect to.  So linux side
+  interface is easy to set up.
+
+  _N_o_t_e_: Some 3 kernel symbols are used by the module, which are not
+  exported by kernel/ksyms.c in the kernel code. You could either add
+  these symbols there, or use Hans' improved 'insmod'  (part of syscall
+  Manager package). (In that case, it will resolve the symbols from the
+  zSystem.map file.
+
+  This device is assigned a virtual ethernet address, defined in
   dosnet.h.
-  This
-  device
-  is
-  usual
-  loadable
-  module.
-  (Someone
-  please
-  check
-  if
-  it
-  can
-  be
-  made
-  more
-  efficient.)
-  However,
-  what
-  is
-  interesting
-  is
-  the
-  way
-  it
-  allows
-  access
-  to
-  user
-  stacks
-  (i.e.
-  dosemu's.)
-  i.e.
-  its
-  media
+
+  This device is usual loadable module. (Someone please check if it can
+  be made more efficient.) However, what is interesting is the way it
+  allows access to user stacks (i.e. dosemu's.) i.e.  its media
   interface.
-  A
-  packet
-  arrives
-  to
-  dosnet
-  from
-  linux
-  for
-  our
-  virtual
-  internal
-  network
-  (after
-  routing
-  process).
-  If
-  it
-  is
-  broadcast
-  packet,
-  dosnet
-  should
-  send
-  it
-  to
-  all
-  dosemu's/user
-  stacks.
-  If
-  it
-  is
-  normal
-  packet,
-  it
-  should
-  send
-  it
-  only
-  particular
-  user
-  stack
-  which
-  has
-  same
-  destination
-  ethernet
-  address
-  .
-  It
-  performs
-  this
-  process
-  by
-  the
-  following
-  method,
-  using
-  SOCK_PACKET
-  interface
-  ,
-  (and
-  not
-  introducing
-  new
-  devices).:
-  The
-  dosemu
-  opens
-  a
-  SOCK_PACKET
-  interface
-  for
-  type
-  'x'
-  with
-  the
-  dosnet
-  device.
-  The
-  result
-  of
-  this
-  will
-  be
-  an
-  addition
-  of
-  entry
-  into
-  type
-  handler
-  table
-  for
-  type
-  'x'.
-  This
-  table
-  stores
-  the
-  type
-  and
-  corresponding
-  handler
-  function
-  (called
-  when
-  a
-  packet
-  of
-  this
-  type
+
+  A packet arrives to dosnet from linux for our virtual internal network
+  (after routing process). If it is broadcast packet, dosnet should send
+  it to all dosemu's/user stacks.  If it is normal packet, it should
+  send it only particular user stack which has same destination ethernet
+  address .
+
+  It performs this process by the following method, using SOCK_PACKET
+  interface , (and not introducing new devices).:
+
+  The dosemu opens a SOCK_PACKET interface for type 'x' with the dosnet
+  device. The result of this will be an addition of entry into type
+  handler table for type 'x'.  This table stores the type and
+  corresponding handler function  (called when a packet of this type
   arrives.)
-  Each
-  dosemu
-  will
-  open
-  the
-  interface
-  with
-  unique
-  'x'
-  .
-  sseennddiinngg ppaacckkeettss ffrroomm ddoosseemmuu ttoo ddoossnneett
-  SOCK_PACKET  allows you to send the packet "as is".
-  So not a problem at all.
-  ddoossnneett -->> ddoosseemmuu
-  this is tricky. The packet is simply given by dosnet
-  device to upper layers. However, the upper layer calls
-  function to find out the type of the packet which is
-  device specific (default is eth_type_trans().).
-  This routine, which returns type of given packet, is to
-  be implemented in each device. So in dosnet, this plays
-  a special role. If the packet is identified as
-  type 'x',  the upper layers (net/inet/dev.c) call the
-  type handler for 'x'.
 
-  Looking at destination ethernet address of a packet, we can say
-  deduct that it is packet for dosemu, and its type is
-  address.)  Type handler function for 'x' is essentially
-  SOCK_PACKET receiver function which sends packet back to
-  dosemu.
+  Each dosemu will open the interface with unique 'x'  .
 
-  _N_O_T_E_: the "type" field is in destination ethernet address
-  and not its usual place (which depends on frame type.) So
-  the packet is left intact -- there is no wrapper function
-  etc.  We should use type "x" which is unused by others;
-  so the packet can carry _ANY_ protocol since the data
-  field is left untouched.
+     sseennddiinngg ppaacckkeettss ffrroomm ddoosseemmuu ttoo ddoossnneett
+        SOCK_PACKET  allows you to send the packet "as is".  So not a
+        problem at all.
 
-  BBrrooaaddccaasstt ppaacckkeettss
-  We use a common type "y" for dosnet
-  broadcasts. Each dosemu "registers" for "y" along
-  with usual "x" type packet using SOCK_PACKET. This
-  "y" is same for all dosemu's.
-  (The packet is duplicated  if  more than one SOCK_PACKET
-  asks for same type. )
+     ddoossnneett -->> ddoosseemmuu
+        this is tricky. The packet is simply given by dosnet device to
+        upper layers. However, the upper layer calls function to find
+        out the type of the packet which is device specific (default is
+        eth_type_trans().).  This routine, which returns type of given
+        packet, is to be implemented in each device. So in dosnet, this
+        plays a special role. If the packet is identified as type 'x',
+        the upper layers (net/inet/dev.c) call the type handler for 'x'.
 
-  1177..33..55..
-  PPaacckkeett
-  ddrriivveerr
-  ccooddee
-  I
-  have
-  add
-  the
-  code
-  for
-  handling
-  multiple
-  protocols.
-  When
-  a
-  packet
-  arrives,
-  it
-  arrives
-  on
-  one
-  of
-  the
-  two
-  SOCK_PACKET
-  handle
-  we
-  need
-  to
-  find
-  out
-  which
-  of
-  the
-  registered
-  protocols
-  should
-  be
-  handled
-  this
-  code.
-  (Earlier
-  code
-  opened
-  multiple
-  sockets,
-  one
-  for
-  each
-  IPX
+        Looking at destination ethernet address of a packet, we can say
+        deduct that it is packet for dosemu, and its type is address.)
+        Type handler function for 'x' is essentially SOCK_PACKET
+        receiver function which sends packet back to dosemu.
+
+        _N_O_T_E_: the "type" field is in destination ethernet address and
+        not its usual place (which depends on frame type.) So the packet
+        is left intact -- there is no wrapper function etc.  We should
+        use type "x" which is unused by others; so the packet can carry
+        _ANY_ protocol since the data field is left untouched.
+
+     BBrrooaaddccaasstt ppaacckkeettss
+        We use a common type "y" for dosnet broadcasts. Each dosemu
+        "registers" for "y" along with usual "x" type packet using
+        SOCK_PACKET. This "y" is same for all dosemu's.  (The packet is
+        duplicated  if  more than one SOCK_PACKET asks for same type. )
+
+  1177..33..55..  PPaacckkeett ddrriivveerr ccooddee
+
+  I have add the code for handling multiple protocols.
+
+  When a packet arrives,  it arrives on  one of the two SOCK_PACKET
+  handle we need to find out which of the registered protocols  should
+  be handled this code.  (Earlier code opened multiple sockets, one for
+  each IPX type.  However it is not useful now because we use *any*
+  type.) When a new type is registered, it is added to a Type list. When
+  a new packet arrives, first we find out the frame type(and hence the
+  position of type field in the packet, and then try matching it with
+  registered types.  [ ----  I missed comparing class; I will add it
+  later.]  Then call the helper corresponding to the handle of that
   type.
-  However
-  it
-  is
-  not
-  useful
-  now
-  because
-  we
-  use
-  *any*
-  type.)
-  When
-  a
-  new
-  type
-  is
-  registered,
-  it
-  is
-  added
-  to
-  a
-  Type
-  list.
-  When
-  a
-  new
-  packet
-  arrives,
-  first
-  we
-  find
-  out
-  the
-  frame
-  type(and
-  hence
-  the
-  position
-  of
-  type
-  field
-  in
-  the
-  packet,
-  and
-  then
-  try
-  matching
-  it
-  with
-  registered
-  types.
-  [
-  ----
-  I
-  missed
-  comparing
-  class;
-  I
-  will
-  add
-  it
-  later.]
-  Then
-  call
-  the
-  helper
-  corresponding
-  to
-  the
-  handle
-  of
-  that
-  type.
-  Rob,
-  you
-  should
-  help
-  in
-  the
-  following:
-  1.
-  Packet driver code ...
 
-  We should now open only two sockets: one specific to dosemu and
-  other broadcast. So we have to add code to demultiplex
-  into packet types... I couldn't succeed. Even
-  broadcast packets are not getting to dosemu.
-  2.
-  Which virtual ethernet  addresses to use (officially)?
-  3.
-  Which  special packet type can be used?
-  4.
-  Kernel overhead .. lots of packet types getting introduced
-  in type handler table... how to reduce?
+  Rob, you should help in the following:
 
-  1177..33..66..
-  CCoonn--
-  cclluu--
-  ssiioonn
-  ....
-  So
-  at
-  last
-  one
-  can
-  open
-  multiple
-  DOSEMU's
-  and
-  access
-  network
-  from
-  each
-  of
-  them
-  ...
-  However,
-  you
-  HAVE
-  TO
-  set
-  up
-  ROUTING
-  TABLES
-  etc.
-  Vinod
-  G
-  Kulkarni
-  <vinod@cse.iitb.ernet.in>
+  1. Packet driver code ...
+
+     We should now open only two sockets: one specific to dosemu and
+     other broadcast. So we have to add code to demultiplex into packet
+     types... I couldn't succeed. Even broadcast packets are not getting
+     to dosemu.
+
+  2. Which virtual ethernet  addresses to use (officially)?
+
+  3. Which  special packet type can be used?
+
+  4. Kernel overhead .. lots of packet types getting introduced in type
+     handler table... how to reduce?
+
+  1177..33..66..  CCoonncclluussiioonn ....
+
+  So at last one can open multiple DOSEMU's and access network from each
+  of them ...  However, you HAVE TO set up ROUTING TABLES etc.
+
+  Vinod G Kulkarni <vinod@cse.iitb.ernet.in>
 
                From macleajb@ednet.ns.ca Mon Oct 10 06:16:35 1994
                Return-Path: <macleajb@ednet.ns.ca>
@@ -4539,75 +3007,13 @@
                _eth_header undefined
                _eth_rebuild_header undefined
 
-  [
-  Note
-  from
-  JES
-  :
-  If
-  you
-  wish,
-  you
-  may
-  use
-  Hans
-  ../syscallmgr/insmod
-  with
-  the
-  -m
-  flag
-  instead
-  of
-  patching
-  the
-  kernel
-  as
-  elluded
-  below
-  ]
-  I
-  forgot
-  to
-  mention
-  this:
-  The
-  kernel
-  sources
-  need
-  to
-  be
-  patched
-  slightly.
-  (This
-  is
-  happening
-  with
-  any
-  new
-  loadable
-  module
-  these
-  days
-  ;-)
-  Here
-  is
-  what
-  you
-  need
-  to
-  do:
-  The
-  only
-  file
-  that
-  gets
-  affected
-  is
-  kernel/ksyms.c
-  in
-  the
-  linux
-  sources:
+  [ Note from JES : If you wish, you may use Hans ../syscallmgr/insmod
+  with the -m flag instead of patching the kernel as elluded below ]
+
+  I forgot to mention this: The kernel sources need to be patched
+  slightly. (This is happening with any new loadable module these days
+  ;-) Here is what you need to do:  The only file that gets affected is
+  kernel/ksyms.c in the linux sources:
 
   *** ksyms.c.old Mon Oct 10 11:12:01 1994
   --- ksyms.c     Mon Oct 10 11:13:31 1994
@@ -4639,735 +3045,156 @@
 
           /********************************************************
 
-  After
-  this,
-  recompile
-  the
-  kernel.
-  You
-  should
-  compile
-  with
-  "IP
-  FORWARD"
-  config
-  option
-  enabled
-  (for
-  allowing
-  routing).
-  With
-  this
-  kernel,
-  'insmod
-  dosnet'
-  will
-  work.
-  After
-  this
-  step,
-  After
-  this
-  it
-  is
-  admin
-  stuff:
-  I
-  run
-  these
-  commands:
-  144.16.112.1
-  is
-  "special"
-  address.
-  'dsn0'
-  is
-  the
-  new
-  interface
-  name.
+  After this, recompile the kernel. You should compile with "IP FORWARD"
+  config option enabled (for allowing routing).  With this kernel,
+  'insmod dosnet' will work. After this step,
+
+  After this it is admin stuff:
+
+  I run these commands: 144.16.112.1 is "special" address. 'dsn0' is the
+  new interface name.
 
        ifconfig dsn0 144.16.112.1 broadcast 144.16.112.255 netmask 255.255.255.0
        route add -net 144.16.112.0 dsn0
 
-  Compile
-  dosemu
-  with
-  new
-  pktnew.c
-  and
-  libpacket.c
-  sources
-  (to
-  be
-  put
-  in
-  net
-  directory.)
-  Start
-  dosemu.
-  You
-  could
-  start
-  'telbin
-  144.16.112.1'
-  after
-  assigning
-  IP
-  address
-  (say
-  144.16.112.10)
-  for
-  the
-  dosemu
-  in
-  CONFIG.TEL
-  file.
-  Each
-  dosemu
-  should
-  get
-  a
-  new
-  IP
-  address.
+  Compile dosemu with  new pktnew.c and libpacket.c sources (to be put
+  in net directory.) Start dosemu. You could start 'telbin 144.16.112.1'
+  after assigning IP address (say 144.16.112.10) for the dosemu in
+  CONFIG.TEL file. Each dosemu should get a new IP address.
 
-  1177..33..66..11..
-  TTeell--
-  nneett--
-  ttiinngg
-  ttoo
-  ootthheerr
-  SSyyss--
-  tteemmss
+  1177..33..66..11..  TTeellnneettttiinngg ttoo ootthheerr SSyysstteemmss
 
-  Other
-  systems
-  need
-  to
-  have
-  route
-  to
-  this
-  "new"
-  network.
-  The
-  easiest
-  way
-  to
-  do
-  this
-  is
-  to
-  have
-  static
-  route
-  for
-  dosnet
-  IP
-  network
-  included
-  in
-  remote
-  machine
-  you
-  want
-  to
-  connect
-  to.
-  After
-  all
-  tests
-  are
-  carried
-  out,
-  one
-  could
-  include
-  them
-  permanently
-  (i.e.
-  in
-  gated
-  configurations
-  etc.).
-  However,
-  the
-  "new"
-  IP
-  address
-  should
-  only
-  be
-  internal
-  to
-  your
-  organisation,
-  and
-  not
-  allowed
-  to
-  route
-  outside.
-  There
-  is
-  some
-  rfc
-  in
-  this
-  regard,
-  I
-  will
-  let
-  you
-  know
-  later.
-  For
-  e.g.,
-  I
-  am
-  working
-  on
-  144.16.98.20.
-  Internal
-  network
-  I
-  created
-  was
-  144.16.112.0.
-  (See
-  the
-  above
-  route
-  command.)
-  To
-  connect
-  to
-  another
-  linux
-  system
-  144.16.98.26
-  from
-  dosemu,
-  I
-  include
-  static
-  route
-  by
-  running
-  'route
-  add
-  -net
-  144.16.112.0
-  gw
-  144.16.98.20'
-  on
-  that
-  system.
-  It
-  becomes
-  more
-  complex
-  if
-  you
-  need
-  to
-  connect
-  to
-  outside
-  of
-  144.16.98.0.
+  Other systems need to have route to this "new" network. The easiest
+  way to do this is to have  static route for dosnet IP network included
+  in remote machine you want to connect to.  After all tests are carried
+  out, one could include them permanently (i.e. in gated configurations
+  etc.). However, the "new" IP address should only be internal to your
+  organisation, and not allowed to route outside.  There is some rfc in
+  this regard, I will let you know later.  For e.g., I am working on
+  144.16.98.20. Internal network I created was 144.16.112.0. (See the
+  above route command.)  To connect to another linux system 144.16.98.26
+  from dosemu, I include static route by running 'route add -net
+  144.16.112.0 gw 144.16.98.20' on that system. It becomes more complex
+  if you need to connect to outside of 144.16.98.0.
 
-  1177..33..66..22..
-  AAcccceessss--
-  iinngg
-  NNoovv--
-  eellll
-  nneett--
-  wwaarree
-  Since
-  dosemu
-  is
-  now
-  on
-  "different
-  device",
-  IPX
-  needs
-  to
-  be
-  either
-  bridged
-  or
-  routed.
-  If
-  it
-  is
-  bridged,
-  then
-  there
-  is
-  no
-  requirement
-  for
-  any
-  extra
-  administration
-  ;
-  simply
-  run
-  'ipxbridge'
-  program
-  supplied
-  with
-  the
-  dosnet
-  sources.
-  (There
-  are
-  two
-  versions
-  of
-  it;
-  0.1
-  copies
-  all
-  packets
-  to
-  from/to
-  both
-  interface.
-  0.2
-  is
-  "intelligent
-  bridge",
-  it
-  copies
-  packet
-  to
-  other
-  interface
-  only
-  if
-  the
-  destination
-  lies
-  on
-  other
-  interface.
-  )
-  If
-  you
-  instead
-  want
-  to
-  use
-  "routing"
-  for
-  IPX,
-  then
-  you
-  need
-  to
-  enable
-  IPX
-  config
-  option
-  in
-  the
-  kernel.
-  Next,
-  you
-  should
-  select
-  a
-  network
-  number
-  that
-  won't
-  clash
-  with
-  others.
-  Set
-  up
-  static
-  direct
-  ipx
-  routes
-  in
-  linux,
-  and
-  then
-  in
-  one
-  Novell
-  netware
-  server
-  which
-  is
-  directly
-  connected
-  (i.e.
-  without
-  any
-  router
-  inbetween.).
-  (That
-  is
-  where
-  you
-  should
-  contact
-  Novell
-  sysadm's
-  ;-)
-  The
-  idea
-  is,
-  the
-  server
-  acts
-  as
-  route
-  broadcaster.
-  (I
-  haven't
-  actually
-  tested
-  this;
-  and
-  we
-  are
-  working
-  on
-  getting
-  proper
-  daemons
-  etc.
-  which
-  will
-  make
-  linux
-  act
-  as
-  IPX
-  router
+  1177..33..66..22..  AAcccceessssiinngg NNoovveellll nneettwwaarree
+
+  Since dosemu is now on "different device", IPX needs to be either
+  bridged or routed. If it is bridged, then there is no requirement for
+  any extra administration ; simply run 'ipxbridge' program supplied
+  with the dosnet sources. (There are two versions of it; 0.1 copies all
+  packets to from/to both interface. 0.2 is "intelligent bridge", it
+  copies packet to other interface only if the destination lies on other
+  interface. )
+
+  If you instead want to use "routing" for IPX, then you need to enable
+  IPX config option in the kernel.  Next, you should select a network
+  number that won't clash with others. Set up static direct ipx routes
+  in linux, and then in one Novell netware server which is directly
+  connected (i.e. without any router inbetween.). (That is where you
+  should contact Novell sysadm's ;-) The idea is, the server acts as
+  route broadcaster. (I haven't actually tested this; and we are working
+  on getting proper daemons etc. which will make linux act as IPX router
   proper.)
-  (You
-  could
-  include
-  this
-  info
-  along
-  with
-  other
-  documentation...)
-  Hope
-  this
-  helps,
-  Vinod.
-  I
-  just
-  realised
-  one
-  more
-  thing:
-  The
-  ipxbridge-0.2
-  code
-  assumes
-  that
-  you
-  have
-  'eth0'
-  and
-  'eth1'
-  as
-  the
-  two
-  interfaces.
-  And
-  it
-  uses
-  this
-  fact
-  while
-  choosing
-  the
-  interface
-  to
-  put
-  the
-  packet.
-  So
-  it
-  won't
-  recognise
-  when
-  'dsn0'
-  is
-  used.
-  ipxbridge-0.1
-  will
-  work
-  though.
-  Also,
-  note
-  that
-  both
-  these
-  programs
-  put
-  the
-  card
-  in
-  promiscuous
-  mode.
-  So
-  my
-  suggestion
-  is
-  to
-  "somehow"
-  get
-  IPX
-  routing
-  done
-  by
-  linux!
+
+  (You could include this info along with other documentation...)
+
+  Hope this helps,
+
   Vinod.
 
-  1188..
-  UUssiinngg
-  WWiinn--
-  ddoowwss
-  aanndd
-  WWiinnssoocckk
-  This
-  is
-  the
-  Windows
-  Net
-  Howto
-  by
-  Frisoni
-  Gloriano
-  <gfrisoni@hi-
-  net.it>
-  on
-  15
-  may
-  1997
-  This
-  document
-  tries
-  to
-  describe
-  how
-  to
-  run
-  the
-  Windows
-  trumpet
-  winsock
-  over
-  the
-  dosemu
-  built-
-  in
-  packet
-  driver,
-  and
-  then
-  run
-  all
-  TCP/IP
-  winsock-
-  based
-  application
-  (netscape,
-  eudora,
-  mirc,
-  free
-  agent
-  .....)
-  in
-  windows
-  environment.
-  This
-  is
-  a
-  very
-  long
-  step-
-  by-
-  step
-  list
-  of
-  operation,
-  but
-  you
-  can
-  make
-  little
-  scripts
-  to
-  do
-  all
-  very
-  quickly
-  ;-)
-  In
-  this
-  example,
-  I
-  use
-  the
-  dosnet
-  based
-  packet
-  driver.
-  It
-  is
-  very
-  powerful
-  because
-  you
-  can
-  run
-  a
-  "Virtual
-  net"
-  between
-  your
-  dos-
-  windows
-  session
-  and
-  the
-  linux,
-  and
-  run
-  tcp/application
-  application
-  without
-  a
-  real
-  (hardware)
-  net.
+  I just realised one more thing: The ipxbridge-0.2 code assumes that
+  you have 'eth0' and 'eth1' as the two interfaces. And it uses this
+  fact while choosing the interface to put the packet. So it won't
+  recognise when 'dsn0' is used.
 
-  1188..11..
-  LLIISSTT
-  OOFF
-  RREEQQUUIIRREEDD
-  SSOOFFTT--
-  WWAARREE
-  +o
-  The WINPKT.COM virtual packet driver, version 11.2
-  I have found this little tsr in the Crynwr packet driver distribution
-  file PKTD11.ZIP
-  +o
-  The Trumpet Winsock 2.0 revision B winsock driver for windows.
+  ipxbridge-0.1 will work though.
 
-  1188..22..
-  SSTTEEPP
-  BBYY
-  SSTTEEPP
-  OOPPEERR--
-  AA--
-  TTIIOONN
-  ((LLIINNUUXX
-  SSIIDDEE))
-  +o
-  Enable "dosnet" based dosemu packet driver:
+  Also, note that both these programs put the card in promiscuous mode.
+
+  So my suggestion is to "somehow" get IPX routing done by linux!
+
+  Vinod.
+
+  1188..  UUssiinngg WWiinnddoowwss aanndd WWiinnssoocckk
+
+  This is the Windows Net Howto by Frisoni Gloriano <gfrisoni@hi-net.it>
+  on 15 may 1997
+
+  This document tries to describe how to run the Windows trumpet winsock
+  over the dosemu built-in packet driver, and then run all TCP/IP
+  winsock-based application (netscape, eudora, mirc, free agent .....)
+  in windows environment.
+
+  This is a very long step-by-step list of operation, but you can make
+  little scripts to do all very quickly ;-)
+
+  In this example, I use the dosnet based packet driver. It is very
+  powerful because you can run a "Virtual net"  between your dos-windows
+  session and the linux, and run tcp/application application without a
+  real (hardware) net.
+
+  1188..11..  LLIISSTT OOFF RREEQQUUIIRREEDD SSOOFFTTWWAARREE
+
+  +o  The WINPKT.COM virtual packet driver, version 11.2 I have found
+     this little tsr in the Crynwr packet driver distribution file
+     PKTD11.ZIP
+
+  +o  The Trumpet Winsock 2.0 revision B winsock driver for windows.
+
+  1188..22..  SSTTEEPP BBYY SSTTEEPP OOPPEERRAATTIIOONN ((LLIINNUUXX SSIIDDEE))
+
+  +o  Enable "dosnet" based dosemu packet driver:
 
              cd ./src/dosext/net/net
              select_packet      (Ask  single or multi ->  m)
 
-  +o
-  Make the dosnet linux module:
+  +o  Make the dosnet linux module:
 
              cd ./src/dosext/net/v-net
              make
 
-  +o
-  Make the new dosemu, with right packet driver support built-in:
+  +o  Make the new dosemu, with right packet driver support built-in:
 
              make
              make install
 
-  +o
-  Now you must load the dosnet module:
+  +o  Now you must load the dosnet module:
 
              insmod ./src/dosext/net/v-net/dosnet.o
 
-  +o
-  Some linux-side network setup (activate device, routing). This stuff depends
-  from your environment, so I write an example setup.
+  +o  Some linux-side network setup (activate device, routing). This
+     stuff depends from your environment, so I write an example setup.
 
-  Here you configure a network interface dsn0 (the dosnet interface) with
-  the ip address 144.16.112.1 and add a route to this interface.
+     Here you configure a network interface dsn0 (the dosnet interface)
+     with the ip address 144.16.112.1 and add a route to this interface.
 
-  This is a good example to make a "virtul network" from your dos/windows
-  environment and the linux environment.
+     This is a good example to make a "virtul network" from your
+     dos/windows environment and the linux environment.
 
-             ifconfig dsn0 144.16.112.1 broadcast 144.16.112.255 netmask 255.255.255.0
-             route add -net 144.16.112.0 dsn0
+        ifconfig dsn0 144.16.112.1 broadcast 144.16.112.255 netmask 255.255.255.0
+        route add -net 144.16.112.0 dsn0
 
-  1188..33..
-  SSTTEEPP
-  BBYY
-  SSTTEEPP
-  OOPPEERR--
-  AA--
-  TTIIOONN
-  ((DDOOSS
-  SSIIDDEE))
-  I
-  suppose
-  you
-  know
-  how
-  to
-  run
-  windows
-  in
-  dosemu.
-  You
-  can
-  read
-  the
-  ``Running
-  Windows''
-  document
-  if
-  you
-  need
-  more
-  information.
-  Windows
-  is
-  not
-  very
-  stable,
-  but
-  works.
-  +o
-  start dosemu.
-  +o
-  copy the winpkt.com driver and the trumpet winsock driver in some
-  dos directory.
-  +o
-  start the winpkt TSR. (dosemu assign the 0x60 interrupt vector to the
-  built-in packet driver)
+  1188..33..  SSTTEEPP BBYY SSTTEEPP OOPPEERRAATTIIOONN ((DDOOSS SSIIDDEE))
+
+  I suppose you know how to run windows in dosemu. You can read the
+  ``Running Windows'' document if you need more information. Windows is
+  not very stable, but works.
+
+  +o  start dosemu.
+
+  +o  copy the winpkt.com driver and the trumpet winsock driver in some
+     dos directory.
+
+  +o  start the winpkt TSR. (dosemu assign the 0x60 interrupt vector to
+     the built-in packet driver)
 
                winpkt 0x60
 
-  +o
-  edit the trumpet winsock setup file trumpwsk.ini. Here is an example of
-  how to setup this file:
-  (I think you can use less parameters, if you have the time to play with
-  this file. You can also setup this stuff from the winsock setup dialog-box).
+  +o  edit the trumpet winsock setup file trumpwsk.ini. Here is an
+     example of how to setup this file: (I think you can use less
+     parameters, if you have the time to play with this file. You can
+     also setup this stuff from the winsock setup dialog-box).
 
           [Trumpet Winsock]
           netmask=255.255.255.0  <-- class C netmask.
@@ -5412,11 +3239,8 @@
 
           [default vars]
 
-  +o
-  Now you can run windows, startup trumpet winsock and .....
-  enjoy with your windoze tcp/ip :-)
-  Gloriano
-  Frisoni.
-  <gfrisoni@hi-
-  net.it>
+  +o  Now you can run windows, startup trumpet winsock and .....  enjoy
+     with your windoze tcp/ip :-)
+
+  Gloriano Frisoni.  <gfrisoni@hi-net.it>
 

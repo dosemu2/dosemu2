@@ -65,6 +65,10 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+/* for gettimeofday */
+#include <sys/time.h>
+#include <unistd.h>
+
 /* Internal Functions */
 
 inline void dsp_write_output(__u8 value);
@@ -75,7 +79,7 @@ static void start_dsp_dma(void);
 static void restart_dsp_dma(void);
 static void pause_dsp_dma(void);
 
-int sb_dma_handler(int status);
+int sb_dma_handler(int status, Bit16u amount);
 void sb_irq_trigger (void);
 
 void sb_set_speed (void);
@@ -128,6 +132,8 @@ void sb_do_reset (Bit8u value);
 
 int sb_set_length(Bit16u *variable);
 
+
+void sound_update_timers (void);
 
 /*
  ************************************************************
@@ -390,11 +396,27 @@ Bit8u adlib_io_read(Bit32u port)
 
 Bit8u fm_io_read (Bit32u port)
 {
+  extern struct adlib_info_t adlib_info;
+  extern struct adlib_timer_t adlib_timers[2];
+  Bit8u retval;
+
   switch (port){
   case ADLIB_STATUS:
 		/* DANG_FIXTHIS Adlib status reads are unimplemented */
-    return 31;
+    /* retval = 31; - according to sblast.doc ? */
+    retval = 0; /* - according to adlib_sb.txt */
+    if ( (adlib_timers[0].expired == 1) 
+	 && (adlib_timers[0].enabled == 1) ) {
+      retval |= (64 | 128);
+    }
+    if ( (adlib_timers[1].expired == 1) 
+	 && (adlib_timers[1].enabled == 1) ) {
+      retval |= (32 | 128) ;
+    }
+    S_printf ("Adlib: Status read - %d\n", retval);
+    return retval;
     break;
+
   case ADV_ADLIB_STATUS:
 		/* DANG_FIXTHIS Advanced adlib reads are unimplemented */
     return 31;
@@ -886,6 +908,10 @@ void sb_dsp_write ( Bit8u value )
 		break;
 
 
+        case 0x91:
+	        /* **CRISK** DMA-8 bit DAC (High Speed) */
+	        start_dsp_dma();
+	 
 	/* == INPUT == */
 	
 	case 0x98:
@@ -1156,13 +1182,68 @@ void adlib_io_write(Bit32u port, Bit8u value)
 	
 void fm_io_write(Bit32u port, Bit8u value)
 {
+  extern struct adlib_info_t adlib_info;
+  extern struct adlib_timer_t adlib_timers[2];
+
     switch (port) {
 	case ADLIB_REGISTER:
 		/* DANG_FIXTHIS Adlib register writes are unimplemented */
+	  adlib_info.reg = value;
+
 	break;
 
 	case ADLIB_DATA:
 		/* DANG_FIXTHIS Adlib data writes are unimplemented */
+	  switch (adlib_info.reg) {
+	  case 0x01: /* Test LSI/Enable Waveform control */
+	    break;
+	  case 0x02: /* Timer 1 data */
+	    S_printf ("Adlib: Timer 1 register set to %d\n", value);
+	    adlib_timers[0].reg = value;
+	    break;
+	  case 0x03: /* Timer 2 data */
+	    S_printf ("Adlib: Timer 2 register set to %d\n", value);
+	    adlib_timers[1].reg = value;
+	    break;
+	  case 0x04: /* Timer control flags */
+	    if (value & 128) {
+	      S_printf ("Adlib: Resetting both timers\n");
+	      adlib_timers[0].enabled = 0;
+	      adlib_timers[1].enabled = 0;
+	      adlib_timers[0].expired = 0;
+	      adlib_timers[1].expired = 0;
+	      return;
+	    }
+ 	    if ( !(value & 64) ) {
+	      if (value & 1) {
+		S_printf ("Adlib: Timer 1 counter set to %d\n", adlib_timers[0].reg);
+		adlib_timers[0].counter = adlib_timers[0].reg;
+		adlib_timers[0].enabled = 1;
+		adlib_timers[0].expired = 0;
+	      } else {
+		S_printf ("Adlib: Timer 1 disabled\n");
+		adlib_timers[0].enabled = 0;
+	      }
+	    }
+ 	    if ( !(value & 32) ) {
+	      if (value & 2) {
+		S_printf ("Adlib: Timer 2 counter set to %d\n", adlib_timers[1].reg);
+		adlib_timers[1].counter = adlib_timers[1].reg;
+		adlib_timers[1].enabled = 1;
+		adlib_timers[1].expired = 0;
+	      } else {
+		S_printf ("Adlib: Timer 2 disabled\n");
+		adlib_timers[1].enabled = 0;
+	      }
+	    }
+
+	    sound_update_timers();
+
+	    break;
+	  default: /* unhandled */
+	    S_printf ("Adlib: Data Writes are unimplemented\n");
+	    break;
+	  }
 		break;
 	
 	case ADV_ADLIB_REGISTER:
@@ -1562,7 +1643,7 @@ int sb_set_length(Bit16u *variable)
 			return 0;
 		}
 		else {
-			*variable += (SB_dsp.parameter << 8) + 1;
+			*variable += (SB_dsp.parameter << 8) /* + 1 */ ;
 			SB_dsp.write_size_mode = !SB_dsp.write_size_mode;
 			return 1;
 		}
@@ -1576,6 +1657,8 @@ void start_dsp_dma(void)
   Bit8u command;
 
   command = SB_dsp.command;
+
+  SB_dsp.dma_mode = 0;
 
   switch (command) {
 	case 0x14:
@@ -1602,6 +1685,7 @@ void start_dsp_dma(void)
 			SB_dsp.command = SB_NO_DSP_COMMAND;
 			return;
 		}
+		SB_dsp.dma_mode |= DMA_AUTO_INIT;
 		break;
 
 	case 0x1F:
@@ -1636,14 +1720,22 @@ void start_dsp_dma(void)
 		}
 		break;
 
-	case 0x90:
-		if (SB_info.version < SB_20 || SB_info.version > SB_PRO) {
-			S_printf ("SB: 8-bit Auto-Init High Speed DMA DAC not supported on this SB version.\n");
-			SB_dsp.command = SB_NO_DSP_COMMAND;
-			return;
-		}
-		break;
+   /*
+    * Huh?? My SB16 sure does support this. And 0x91, too. **CRISK**
+    *
+    * 
+    *	case 0x90:
+    *		if (SB_info.version < SB_20 || SB_info.version > SB_PRO) {
+    *			S_printf ("SB: 8-bit Auto-Init High Speed DMA DAC not supported on this SB version.\n");
+    *			SB_dsp.command = SB_NO_DSP_COMMAND;
+    *			return;
+    *		}
+    *		break;
+    */   
+        case 0x90: 
+        case 0x91: break; /* **CRISK** */
 
+     
 	case 0x98:
 		if (SB_info.version < SB_20 || SB_info.version > SB_PRO) {
 			S_printf ("SB: 8-bit Auto-Init High Speed DMA ADC not supported on this SB version.\n");
@@ -1689,6 +1781,9 @@ void start_dsp_dma(void)
   case 0x90: /* 8-bit DMA (Auto-Init, High Speed) */
     S_printf ("SB: 8-bit DMA (High Speed, Auto-Init) starting\n");
     break;
+  case 0x91: /* **CRISK** 8-bit DMA (High Speed) */
+    S_printf ("SB: 8-bit DMA (High Speed) starting\n");
+    break;
   default:
 		S_printf("SB: Unsupported DMA type (0x%x)\n", command);
     return;
@@ -1723,18 +1818,21 @@ void stop_dsp_dma(void)
 
 void set_dma_blocksize(void) 
 {
-	if (SB_info.version >= SB_20) {
-		if (sb_set_length (&SB_dsp.length)) {
-			/* Always need to move 1 more byte */
-			SB_dsp.length++;
-			S_printf("SB: DMA blocksize set to %u.\n", 
-				 SB_dsp.length);
-		}
+   if (SB_info.version >= SB_20) {
+      if (sb_set_length (&SB_dsp.blocksize)) 
+	{
+	   /* Always need to move 1 more byte */
+	   /* SB_dsp.blocksize++; */
+           if (SB_driver.DMA_set_blocksize != NULL)
+	     (*SB_driver.DMA_set_blocksize)(SB_dsp.blocksize);
+	   S_printf("SB: DMA blocksize set to %u.\n", 
+		    SB_dsp.blocksize);
+	   SB_dsp.command = SB_NO_DSP_COMMAND; /* **CRISK** multibyte fix */
 	}
-	SB_dsp.command = SB_NO_DSP_COMMAND;
+   } 
 }
 
-int sb_dma_handler (int status)
+int sb_dma_handler (int status, Bit16u amount)
 {
   int result;
 
@@ -1751,9 +1849,18 @@ int sb_dma_handler (int status)
 #endif /* EXCESSIVE_DEBUG */
     dma_assert_DACK(config.sb_dma);
 
-/* AM - Never starts up if we do this! */
-/*		S_printf("SB: [crisk] ... and dropping DREQ\n"); */
-/*		dma_drop_DREQ(config.sb_dma); */
+    if (SB_dsp.dma_mode & DMA_AUTO_INIT) {
+      if (amount + SB_dsp.blocksize > SB_dsp.last_block) {
+	SB_dsp.last_block = amount + SB_dsp.blocksize;
+	/* Trigger the interrupt */
+	pic_request(SB_info.irq);
+      } else if (amount == 0) {
+	SB_dsp.last_block = 0;
+	/* Trigger the interrupt */
+	pic_request(SB_info.irq);
+      }
+    }
+
     return DMA_HANDLER_OK;
     break;
 
@@ -1971,7 +2078,13 @@ static void sb_reset (void)
 
 static void fm_reset (void)
 {
+  extern struct adlib_info_t adlib_info;
+  extern struct adlib_timer_t adlib_timers[2];
+
   S_printf ("SB: Resetting FM\n");
+
+  adlib_timers[0].enabled = 0;
+  adlib_timers[1].enabled = 0;
 
   FM_driver_reset();
 }
@@ -2057,5 +2170,83 @@ static void sb_write_mixer (int ch, __u8 value)
   }
   else {
     return (*SB_driver.write_mixer)(ch, value);
+  }
+}
+
+
+/*
+ * BEWARE: Experimental Code !
+ *
+ */
+
+void sound_run(void) {
+  sound_update_timers ();
+}
+
+/* Blatant rip-off of serial_update_timers */
+void sound_update_timers () {
+  static struct timeval tp;		/* Current timer value */
+  static struct timeval oldtp;		/* Timer value from last call */
+  static long int elapsed;		/* No of 80useconds elapsed */
+  static int i;				/* Loop index */
+
+  void (* caller_function)();
+  Bit8u current_value;
+  Bit16u int08_irq;
+
+  extern struct adlib_info_t adlib_info;
+  extern struct adlib_timer_t adlib_timers[2];
+
+  if ( (adlib_timers[0].enabled != 1) 
+       && (adlib_timers[1].enabled != 1) ) {
+    return;
+  }
+
+  /* Get system time.  PLEASE DONT CHANGE THIS LINE, unless you can 
+   * _guarantee_ that the substitute/stored timer value _is_ up to date 
+   * at _this_ instant!  (i.e: vm86s exit time did not not work well)
+   */
+  gettimeofday(&tp, NULL);
+
+  /* compute the number of 80uS since last timer update */
+  elapsed  = (tp.tv_sec - oldtp.tv_sec) * 12500;
+  elapsed += ((tp.tv_usec - oldtp.tv_usec) / 80);
+
+  /* Reset to 0 if the timer had wrapped around back to 0, just in case */
+  if (elapsed < 0) {
+    S_printf("SB: Timer wrapped around back to 0!\n");
+    elapsed = 0;
+  }
+
+  /* Save the old timer values for next time */
+  oldtp.tv_sec  = tp.tv_sec;
+  oldtp.tv_usec = tp.tv_usec;
+
+  caller_function = interrupt_function[i];
+  int08_irq = pic_irq_list[0x08];
+
+  if (adlib_timers[0].enabled == 1) {
+    current_value = adlib_timers[0].counter;
+    adlib_timers[0].counter += elapsed;
+    S_printf ("Adlib: timer1 %d\n", adlib_timers[0].counter);
+    if (current_value > adlib_timers[0].counter) {
+      S_printf ("Adlib: timer1 has expired \n");
+      adlib_timers[0].expired = 1;
+      pic_request(int08_irq);    
+      /* caller_function(i); */
+      /* Raise interrupt ! */
+    }
+  }
+  if (adlib_timers[1].enabled == 1) {
+    current_value = adlib_timers[1].counter;
+    S_printf ("Adlib: timer2 %d\n", adlib_timers[1].counter);
+    adlib_timers[1].counter += (elapsed / 4);
+    if (current_value > adlib_timers[1].counter) {
+      S_printf ("Adlib: timer2 has expired \n");
+      adlib_timers[1].expired = 1;
+      pic_request(int08_irq);    
+      /* caller_function(i); */
+      /* Raise interrupt ! */
+    }
   }
 }

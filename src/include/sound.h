@@ -77,6 +77,9 @@ EXTERN struct DSP_information_t {
   __u8  write_size_mode;       /* Are we writing the upper or lower byte */
   __u8  last_write;            /* First part of a multi-byte instruction */
   __u16 length;                /* Length of the DMA transfer */
+  __u16 blocksize;             /* **CRISK** Block size of transfer */
+  __u16 last_block;            /* AM - Last block which triggered IRQ */
+  __u8  dma_mode;              /* Information we need on the DMA transfer */
   __u8  command;               /* DSP command in progress */
 #define SB_NO_DSP_COMMAND 0
   __u8  parameter;             /* value of parameter */
@@ -119,7 +122,8 @@ EXTERN struct SB_driver_t {
   void  (* DMA_stop)(void);
   int   (* DMA_complete_test)(void);
   void  (* DMA_complete)(void);
-
+  void  (* DMA_set_blocksize)(__u16); /* **CRISK** */
+   
   /*
    * Miscellaneous Functions
    */
@@ -159,6 +163,19 @@ EXTERN struct SB_driver_t {
 #define ADLIB_ADV      2
 #define ADLIB_NONE     0
 
+EXTERN struct adlib_timer_t {
+  Bit8u reg; /* Timer register */
+  Bit8u counter;  /* Timer counter */
+  Bit8u enabled;  /* Enabled flag */
+  Bit8u expired;  /* Expired flag */
+} adlib_timers[2];
+
+EXTERN struct adlib_info_t {
+  Bit8u reg; /* Register currently in use */
+  /*  struct adlib_timer_t timers[2]; */
+
+} adlib_info;
+
 /*
  ***************************************************************************
  * MPU-401 Support                                                         *
@@ -176,6 +193,13 @@ EXTERN struct mpu401_info_t {
 	void (*data_write)(__u8 data); /* process 1 MIDI byte */
 } mpu401_info;
 
+/*
+ ***************************************************************************
+ * Misc Code                                                               *
+ ***************************************************************************
+ */
+
+extern void sound_run(void);
 
 /*
  ***************************************************************************
@@ -213,7 +237,7 @@ EXTERN struct SB_queue_t {
  */
 
 extern void adlib_io_write  (Bit32u addr, Bit8u value); /* Stray */
-extern int sb_dma_handler (int status); /* Stray */
+extern int sb_dma_handler (int status, Bit16u amount); /* Stray */
 
 extern void sb_io_write     (Bit32u addr, Bit8u value);
 extern void fm_io_write     (Bit32u addr, Bit8u value);

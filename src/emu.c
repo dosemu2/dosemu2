@@ -129,6 +129,10 @@ __asm__("___START___: jmp _emulate\n");
 #include "keyb_clients.h"
 #endif
 
+#ifdef USE_SBEMU
+#include "sound.h"
+#endif
+
 extern void     stdio_init(void);
 extern void     time_setting_init(void);
 extern void     tmpdir_init(void);
@@ -437,6 +441,9 @@ emulate(int argc, char **argv)
 #endif
 #ifdef USE_INT_QUEUE
 	int_queue_run();
+#endif
+#ifdef USE_SBEMU
+	sound_run();
 #endif
     }
 

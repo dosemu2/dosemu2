@@ -302,6 +302,10 @@ inb(unsigned int port)
     }
     /* It seems that we might need 388, but this is write-only, at least in the
        older chip... */
+    if ((port & ~3) == 0x388) {
+      r=adlib_io_read(port);
+      return r;
+    }
     /* MPU401 */
     if ((port & ~1) == config.mpu401_base) {
 	r=mpu401_io_read(port);
@@ -635,7 +639,7 @@ outb(unsigned int port, unsigned int byte)
       sb_io_write(port, byte);
       break;
     }
-    else if ((port & ~3) == 388) {
+    else if ((port & ~3) == 0x388) {
       adlib_io_write(port, byte);
       break;
     }

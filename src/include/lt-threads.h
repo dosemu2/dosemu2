@@ -53,7 +53,7 @@
 
 /* --------------------- for clone stuff */
 #include <linux/version.h>
-#if LINUX_VERSION_CODE < 0x040000
+#if LINUX_VERSION_CODE < 0x020100
  /* Note: Linux-2.1.x don't like that :-( */
  #include <linux/sched.h>
 #else

@@ -1,3 +1,16 @@
+97/07/24 ver. 0.67.8.1 unofficial pre-release
+	From Alistair
+	- first round sound&dma&timer patches
+	From Jan van.de.Werken <WERKEN@greefa.nl>
+	- little bug fix for fossil.c
+	From Alberto
+	- small fix for n_X.c to compile without mitshm.
+	From Hans
+	- fixed the 'Linux-4.0.0' bug in lt-threads ;-)
+	- corrected src/doc/README/batch, chapter 13 of README.txt was
+	  garbage.
+	- made config.X_mitshm = 0 default again. When Steffen fixed
+	  the problems with X-color allocation, we'll re-change it.
 97/07/19 ver. 0.67.8 released
 	From Hans
 	- lot of work on DANG (hey Alistair, hope you don't mind)

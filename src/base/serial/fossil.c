@@ -249,11 +249,9 @@ void fossil_int14(int num)
     unsigned char *p = SEG_ADR((unsigned char *), es, di);
     int n = 0, len = LWORD(ecx);
     while (n < len) {
-      write_char(num, p[n]);
-      if (com[n].tx_overflow)
+      if (com[num].tx_overflow)
         break;
-      else
-        n++;
+      write_char(num, p[n++]);
     }
     LWORD(eax) = n;
     #if SER_DEBUG_FOSSIL_RW

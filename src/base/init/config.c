@@ -89,7 +89,7 @@ config_defaults(void)
     config.X_icon_name = "dosemu";
     config.X_blinkrate = 8;
     config.X_sharecmap = 0;     /* Don't share colourmap in graphics modes */
-    config.X_mitshm = 1;
+    config.X_mitshm = 0;
     config.X_fixed_aspect = 1;
     config.X_aspect_43 = 0;
     config.X_lin_filt = 0;

@@ -38,8 +38,8 @@ void dma_assert_DACK(int channel);
 
 #define DMA_HANDLER_ERROR  -1
 
-void dma_install_handler (int ch, int wfd, int rfd, int (* handler) (int),
-			  int size);
+void dma_install_handler (int ch, int wfd, int rfd, 
+			  int (* handler) (int, Bit16u), int size);
 
 
 /* From <asm/dma.h> */
@@ -133,8 +133,7 @@ and probably is unimportant since dosemu uses its own bios, not the pc's */
 
 #define DMA_DIR_MASK          0x0C
 
-/* The next bit causes it to automatically go on to a different address
-when it's finished */
+/* The next bit causes it to automatically repeat when it's finished */
 #define DMA_AUTO_INIT         0x10
 
 /* The next bit is set to decrement the address, otherwise it's incremented */

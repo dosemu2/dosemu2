@@ -810,17 +810,19 @@ void put_ximage(int src_x, int src_y, int dest_x, int dest_y, unsigned width, un
 
 int NewXErrorHandler(Display *dsp, XErrorEvent *xev)
 {
-  if(xev->request_code == shm_error_base + 1) {
 #ifdef HAVE_MITSHM
+  if(xev->request_code == shm_error_base + 1) {
     X_printf("X::NewXErrorHandler: error using shared memory\n");
     shm_ok = 0;
-#endif
   }
-  else {
+  else
+#endif
+  {
     return OldXErrorHandler(dsp, xev);
   }
-
+#ifdef HAVE_MITSHM
   return 0;
+#endif
 }
 
 
