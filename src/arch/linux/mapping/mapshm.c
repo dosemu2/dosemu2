@@ -86,6 +86,7 @@ static int open_mapping_shm(int cap)
 				decode_mapping_cap(cap));
 
   if (first) {
+    void *ptr1 = NULL, *ptr2 = NULL;
     int mapsize, estsize, padsize = 4*1024;
     first = 0;
 
@@ -114,16 +115,21 @@ static int open_mapping_shm(int cap)
       if (!cap)return 0;
       leavedos(2);
     }
-    /* do a test HMA mapping. kernel 2.6.1 doesn't support our mremap trick */
-    if ((int)extended_mremap(mpool, 0, PAGE_SIZE,
-			     MREMAP_MAYMOVE | MREMAP_FIXED, (void *)0x100000) == -1) {
+    /* do a test alias mapping. kernel 2.6.1 doesn't support our mremap trick */
+    ptr1 = mmap(0, PAGE_SIZE, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (ptr1 != MAP_FAILED) {
+      ptr2 = extended_mremap(mpool, 0, PAGE_SIZE,
+			     MREMAP_MAYMOVE | MREMAP_FIXED, ptr1);
+      munmap(ptr1, PAGE_SIZE);
+    }
+    if (ptr2 != ptr1) {
       Q_printf("MAPPING: not using mapshm because alias mapping does not work\n");
       shmdt(mpool);
       mpool = 0;
       if (!cap)return 0;
       leavedos(2);
     }
-    munmap((void *)0x100000, PAGE_SIZE);
+
     if (pgmalloc_init(mpool_numpages, mpool_numpages/4, mpool)) {
       error("MAPPING: cannot get table mem for pgmalloc_init \n",strerror(errno));
       if (!cap)return 0;
