@@ -91,7 +91,7 @@ static int vfat_search(char *dest, char *src, char *path, int alias)
 		if ((strcasecmp(de->d_long_name, src) == 0) ||
 		    (strcasecmp(de->d_name, src) == 0)) {
 			char *name = alias ? de->d_name : de->d_long_name;
-			if (alias || !name_ufs_to_dos(dest, name));
+			if (alias || !name_ufs_to_dos(dest, name))
 				name_convert(dest, name, MANGLE, NULL);
 			dos_closedir(dir);
 			return 1;
