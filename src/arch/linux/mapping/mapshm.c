@@ -81,7 +81,7 @@ static void *alloc_ipc_shm(int mapsize)
   int id;
 
   errno = 0;
-  id = shmget(IPC_PRIVATE, mapsize, 0700);
+  id = shmget(IPC_PRIVATE, mapsize, IPC_CREAT | S_IRWXU);
   if (id < 0) return 0;
   addr = shmat(id, 0, 0);
   if ((int)addr == -1) addr = 0;

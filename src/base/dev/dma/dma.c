@@ -16,7 +16,7 @@
  *
  * maintainer:
  * Alistair MacDonald <alistair@slitesys.demon.co.uk>
- * Stas Sergeev <stssppnn@yahoo.com>
+ * Stas Sergeev <stsp@users.sourceforge.net>
  *
  * Previous maintainers:
  * David Brauman <crisk@netvision.net.il>

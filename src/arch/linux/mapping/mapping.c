@@ -172,7 +172,7 @@ void *alloc_mapping(int cap, int mapsize, void *target)
 {
   void *addr;
   addr = mappingdriver.alloc(cap, mapsize, target);
-  mprotect_mapping(cap, addr, mapsize, PROT_READ | PROT_WRITE);
+  mprotect_mapping(cap, addr, mapsize, PROT_READ | PROT_WRITE | PROT_EXEC);
 
   if (cap & MAPPING_INIT_LOWRAM) {
     Q__printf("MAPPING: LOWRAM_INIT, cap=%s, base=%p\n", cap, addr);
@@ -185,7 +185,7 @@ void *alloc_mapping(int cap, int mapsize, void *target)
 
 void free_mapping(int cap, void *addr, int mapsize)
 {
-  mprotect_mapping(cap, addr, mapsize, PROT_READ | PROT_WRITE);
+  mprotect_mapping(cap, addr, mapsize, PROT_READ | PROT_WRITE | PROT_EXEC);
   mappingdriver.free(cap, addr, mapsize);
 }
 

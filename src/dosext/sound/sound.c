@@ -11,7 +11,7 @@
  * 
  * maintainer: 
  *   Alistair MacDonald <alistair@slitesys.demon.co.uk>
- *   Stas Sergeev <stssppnn@yahoo.com>
+ *   Stas Sergeev <stsp@users.sourceforge.net>
  *   Ben Davis <entheh@users.sf.net>
  *
  * DANG_END_MODULE

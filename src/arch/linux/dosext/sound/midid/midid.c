@@ -14,7 +14,7 @@
    
    (c)1997 R.Nijlunsing <rutger@null.net>
    (c)2002 Robert Komar <rkomar@telus.net>
-   (c)2002 Stas Sergeev <stssppnn@yahoo.com>
+   (c)2002 Stas Sergeev <stsp@users.sourceforge.net>
 
    #include GNU copyright
 
@@ -237,7 +237,7 @@ int main(int argc, char **argv)
   if (comments)
     fprintf(stderr, "Midi Daemon / interpreter v1.04\n"
 	    "(c)1997 R.Nijlunsing <rutger@null.net>\n"
-	    "(c)2002 Stas Sergeev <stssppnn@yahoo.com>\n"
+	    "(c)2002 Stas Sergeev <stsp@users.sourceforge.net>\n"
 	    "Use '%s --help' for options\n\n", argv[0]);
 
   /* Open input */

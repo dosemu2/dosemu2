@@ -108,12 +108,12 @@ static int SetAttribsForPage(char *ptr, us attr)
         D_printf("N/A-%i ", attr & 7);
         break;
     }
-    prot = PROT_READ;
+    prot = PROT_READ | PROT_EXEC;
     if (attr & 8) {
-      D_printf("RW ");
+      D_printf("RW(X) ");
       prot |= PROT_WRITE;
     } else {
-      D_printf("R/O ");
+      D_printf("R/O(X) ");
     }
     if (attr & 16) D_printf("Set-ACC ");
     else D_printf("Not-Set-ACC ");
