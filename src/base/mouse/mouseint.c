@@ -480,6 +480,9 @@ static void raw_mouse_getevent(void)
 void parent_close_mouse (void)
 {
   mouse_t *mice = &config.mouse;
+  if (mice->intdrv && (mice->type == MOUSE_GPM ||
+      mice->type == MOUSE_XTERM || mice->type == MOUSE_X))
+    return;
   if (mice->intdrv)
      {
 	if (mice->fd > 0) {
@@ -494,6 +497,9 @@ void parent_close_mouse (void)
 int parent_open_mouse (void)
 {
   mouse_t *mice = &config.mouse;
+  if (mice->intdrv && (mice->type == MOUSE_GPM ||
+      mice->type == MOUSE_XTERM || mice->type == MOUSE_X))
+    return 1;
   if (mice->intdrv)
     {
       struct stat buf;
