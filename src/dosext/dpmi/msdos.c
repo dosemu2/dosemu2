@@ -195,6 +195,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	}
     }
 
+    D_printf("DPMI: pre_extender: int 0x%x, ax=0x%x\n", intr, _LWORD(eax));
     DS_MAPPED = 0;
     ES_MAPPED = 0;
     switch (intr) {
@@ -868,6 +869,7 @@ void msdos_post_exec(void)
 
 void msdos_post_extender(int intr)
 {
+    D_printf("DPMI: post_extender: int 0x%x\n", intr);
     switch (intr) {
     case 0x10:			/* video */
 	if ((VIDEO_SAVED_REGS.eax & 0xffff) == 0x1130) {
@@ -1670,51 +1672,41 @@ int msdos_fault(struct sigcontext_struct *scp)
 
     D_printf("DPMI: try mov to a invalid selector 0x%04x\n", segment);
 
-#if 1
+#if 0
     /* only allow using some special GTD\'s */
     if ((segment != 0x0040) && (segment != 0xa000) &&
 	(segment != 0xb000) && (segment != 0xb800) &&
 	(segment != 0xc000) && (segment != 0xe000) && (segment != 0xf000))
 	return 0;
+#endif    
 
     if (!(desc = ConvertSegmentToDescriptor(segment)))
 	return 0;
-    desc = desc >>3;
 
-#else						     
-    base_addr = ((unsigned long)segment) << 4;
-    for(desc=0; desc < MAX_SELECTORS; desc++)
-	if ((Segments[desc].base_addr == base_addr)&&
-	    Segments[desc].used)
-	    break;
-    if (desc >= MAX_SELECTORS) {
-	if (!(desc = ConvertSegmentToDescriptor(segment)))
-	    return 0;
-	desc = desc >>3;
-    }
-#endif    
-    _eip += len;
     switch (reg) {
     case ES_INDEX:
-	_es = ( desc << 3 ) | 7;
-	return 1;
+	_es = desc;
+	break;
     case CS_INDEX:
-	_cs = ( desc << 3 ) | 7;
-	return 1;
+	_cs = desc;
+	break;
     case SS_INDEX:
-	_ss = ( desc << 3 ) | 7;
-	return 1;
+	_ss = desc;
+	break;
     case DS_INDEX:
-	_ds = ( desc << 3 ) | 7;
-	return 1;
+	_ds = desc;
+	break;
     case FS_INDEX:
-	_fs = ( desc << 3 ) | 7;
-	return 1;
+	_fs = desc;
+	break;
     case GS_INDEX:
-	_gs = ( desc << 3 ) | 7;
-	return 1;
+	_gs = desc;
+	break;
+    default :
+	error("DPMI: Invalid segreg %#x\n", reg);
+	return 0;
     }
 
-    _eip -= len;
-    return 0;
+    _eip += len;
+    return 1;
 }
