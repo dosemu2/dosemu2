@@ -271,14 +271,7 @@ toggle windowed/fullscreen mode in X
 copy debugging output to FILE
 .TP
 .I -2,3,4
-choose 286, 386, or 486 processor (BE CAREFUL!
-.B DOSEMU
-is not yet 32-bit clean,
-so if your program detects a 386 or 486 processor and uses 32-bit registers,
-it might be confused by BIOS functions.  If you think this is happening, use
--2 to force
-.B DOSEMU
-into 286-mode.)
+choose 286, 386, or 486 processor to simulate.
 .TP
 .I -U
 define inpipe and outpipe for asynchronous control of
