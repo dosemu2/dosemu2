@@ -50,7 +50,9 @@ void usage(void)
   printf("  y value - Set vertical speed.\n");
   printf("  a       - Ignore application's setting of vert/horz speed settings.\n");
   printf("  b       - Take application's settings of vert/horz speed settings.\n");
-  printf("  h       - Display this screen.\n\n");
+  printf("  h       - Display this screen.\n");
+  printf("  Mx val  - Set minimum internal horizontal resolution.\n");
+  printf("  My val  - Set minimum internal vertical resolution.\n\n");
   printf("Valid range for \"value\" is from 1 (fastest) to 255 (slowest).\n\n");
   printf("Example: EMUMOUSE r a x 10 i\n");
   printf("reset, fixed speed setting, set horizontal speed to 10 and show current\n");
@@ -144,6 +146,13 @@ int main(int argc, char *argv[])
 	printf  ("  Horizontal Speed (X) - %d\n", regs.h.cl);
 	printf  ("  Vertical Speed   (Y) - %d\n", regs.h.ch);
 	printf  ("  Speed Setting        - %s\n\n", regs.h.dl ? "fixed" : "variable");
+	regs.x.ax = 0x0033;
+	regs.x.bx = 0x0007;
+	MHLP(regs, regs);
+	if (regs.x.ax == 0) {
+	  printf  ("  Minimum Internal Horizontal Resolution - %d\n", regs.x.cx);
+          printf  ("  Minimum Internal Vertical Resolution   - %d\n", regs.x.dx);
+	}
 	break;
 
       case '3':
@@ -201,6 +210,69 @@ int main(int argc, char *argv[])
 	if (regs.x.ax == 1) {
 	  printf("ERROR! Selected speed is out of range. Unable to set speed.\n");
 	  exit(1);
+	}
+	break;
+
+      case 'M':
+      case 'm':
+        switch (argv[i][1]) {
+	case 'X':
+	case 'x':
+	  i++;
+	  if (i == argc) {
+	    printf("ERROR! No value for \"Mx\" found.\n");
+	    exit(1);
+	  }
+	  value = atoi(argv[i]);
+	  printf("Selecting minimum horizontal resolution to %d.\n", value);
+	  regs.x.ax = 0x0033;
+	  regs.x.bx = 0x0007;
+	  MHLP(regs, regs);
+	  if (regs.x.ax == 1) {
+	    printf("ERROR! Setting minimum horizontal resolution not supported.\n");
+	    break;
+	  }
+	  regs.x.ax = 0x0033;
+	  regs.x.bx = 0x0008;
+	  regs.x.cx = value;
+	  MHLP(regs, regs);
+	  if (regs.x.ax == 1) {
+	    printf("ERROR! Setting minimum horizontal resolution not supported.\n");
+	    break;
+	  }
+	  break;
+
+	case 'Y':
+	case 'y':
+	  i++;
+	  if (i == argc) {
+	    printf("ERROR! No value for \"My\" found.\n");
+	    exit(1);
+	  }
+	  value = atoi(argv[i]);
+	  printf("Selecting minimum vertical resolution to %d.\n", value);
+	  regs.x.ax = 0x0033;
+	  regs.x.bx = 0x0007;
+	  MHLP(regs, regs);
+	  if (regs.x.ax == 1) {
+	    printf("ERROR! Setting minimum vertical resolution not supported.\n");
+	    break;
+	  }
+	  regs.x.ax = 0x0033;
+	  regs.x.bx = 0x0008;
+	  regs.x.dx = value;
+	  MHLP(regs, regs);
+	  if (regs.x.ax == 1) {
+	    printf("ERROR! Setting minimum vertical resolution not supported.\n");
+	    break;
+	  }
+	  break;
+
+	default: 
+          printf("ERROR! Unknown option \"%s\".\n\n", argv[i]);
+	  usage();
+	  /* never reached */
+	  break;
 	}
 	break;
 

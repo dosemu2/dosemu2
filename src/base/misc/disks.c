@@ -19,9 +19,21 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #ifdef __linux__
-#include <linux/hdreg.h>
-#include <linux/fd.h>
-#include <linux/fs.h>
+  #include <linux/hdreg.h>
+  #include <linux/fd.h>
+  #include "kversion.h"
+  #if (LX_KERNEL_VERSION < 2004000)
+    #include <linux/fs.h>
+  #else
+    #if (GLIBC_VERSION_CODE >= 2000)
+      #include <sys/mount.h>
+    #else
+      #ifndef BLKGETSIZE
+			/* Note: _IO() being defined in <sys/ioctl.h> */
+        #define BLKGETSIZE _IO(0x12,96) /* return device size */
+      #endif
+    #endif
+  #endif
 #endif
 #include <sys/stat.h>
 #include <sys/time.h>

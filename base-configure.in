@@ -567,14 +567,14 @@ if test "$GCC" = "yes" ; then
   GCC_VERSION_CODE="-DGCC_VERSION_CODE=$GCC_VERSION_CODE"
 
   echo -n "checking for glibc..."
-  major=`echo '#include <features.h>' |${CC-cc} -E -dM -|awk '/__GLIBC__/{print $3}'`
+  major=`echo '#include <features.h>' |${CC-cc} -E -dM -|awk '/#define.+__GLIBC__/{print $3}'`
   if test "$major" = ""; then
     echo "no"
   else
     if test "$(( $major > 1 ))" = "1"; then
       GLIBCFLAGS="-D_XOPEN_SOURCE"
     fi
-    minor=`echo '#include <features.h>' |${CC-cc} -E -dM -|awk '/__GLIBC_MINOR__/{print $3}'`
+    minor=`echo '#include <features.h>' |${CC-cc} -E -dM -|awk '/#define.+__GLIBC_MINOR__/{print $3}'`
     if test "$minor" = ""; then
       minor=0;
     fi

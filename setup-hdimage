@@ -36,7 +36,7 @@ fi
 
 cd $DDIR
 
-echo "checking you partitions, wait..."
+echo "checking your partitions, wait..."
 PARTS=`$FDISK -l 2>&1| awk '/DOS 16/ || /DOS 12/ {print $1 " " $2}'|tr '* ' 'B:'| grep ':B'`
 if [ "$PARTS" = "" ]; then
   PARTS2=`$FDISK -l 2>&1| awk '/DOS 16/ || /DOS 12/ {print $1}'`
@@ -88,7 +88,7 @@ IOSYS=$2
 MSDOSSYS=$3
 
 case $TYPE in
-  MSDOS | WIN95 | NOVELL | IBMorOpenDos | FreeDos) ;;
+  MSDOS | WIN95 | NOVELL | IBMorOpenDos | FreeDos | FreeDosNoIPL) ;;
   *)
   echo "
 

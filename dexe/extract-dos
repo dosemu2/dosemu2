@@ -70,6 +70,9 @@ EOF
 function exist_file {
 # $1 = device
 # $2 = file on device
+
+  if [ $2 = "N/A" ]; then return 0; fi
+
   if do_mtool $1 mdir -faw w:${2} | grep 'not found' >/dev/null; then
     return 1
   else
@@ -117,6 +120,12 @@ function check_bootsect {
         IOSYS="ipl.sys"
         MSDOS="kernel.exe"
         TYPE="FreeDos"
+      else
+        if strings ${tmp} |grep 'KERNEL  SYS' >/dev/null 2>&1; then
+          IOSYS="kernel.sys"
+          MSDOS="N/A"
+          TYPE="FreeDosNoIPL"
+        fi
       fi
     fi
   fi
@@ -171,4 +180,8 @@ fi
 echo "System type is $TYPE. sysfiles: ${IOSYS}, ${MSDOS}, $COMCOM"
 mkdir -p $TARGDIR
 get_bootsect $DEVICE ${TARGDIR}/boot.bin
-do_mtool $DEVICE mcopy -an w:/${IOSYS} w:/${MSDOS} w:/${COMCOM} $TARGDIR
+if [ "$MSDOS" = "N/A" ]; then
+  do_mtool $DEVICE mcopy -an w:/${IOSYS} w:/${COMCOM} $TARGDIR
+else
+  do_mtool $DEVICE mcopy -an w:/${IOSYS} w:/${MSDOS} w:/${COMCOM} $TARGDIR
+fi

@@ -461,29 +461,7 @@ emulate(int argc, char **argv)
     timer_interrupt_init();	/* start sending int 8h int signals */
 
     while (!fatalerr) {
-	++pic_vm86_count;
-	if (d.general>6)
-	  g_printf("------ EMU: main loop -- %06ld -----------\n",pic_vm86_count);
-	run_vm86();
-#if 0
-	timer_int_engine();
-#endif
-	serial_run();
-	/*run_irqs();*/ pic_run();		/* trigger any hardware interrupts
-				 * requested */
-#if 0
-#ifdef USING_NET
-	/* check for available packets on the packet driver interface */
-	/* (timeout=0, so it immediately returns when none are available) */
-	pic_request(16);
-#endif
-#endif
-#ifdef USE_INT_QUEUE
-	int_queue_run();
-#endif
-#ifdef USE_SBEMU
-	run_sb(); /* Beat Karcher to this one .. 8-) - AM */
-#endif
+	loopstep_run_vm86();
     }
 
     error("error exit: (%d,0x%04x) in_sigsegv: %d ignore_segv: %d\n",

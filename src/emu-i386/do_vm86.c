@@ -80,6 +80,10 @@
 /* Needed for DIAMOND define */
 #include "vc.h"
 
+#ifdef USE_SBEMU
+#include "sound.h"
+#endif
+
 #include "dma.h"
 
 /*  */
@@ -540,6 +544,29 @@ freeze_idle:
 }
 /* @@@ MOVE_END @@@ 49152 */
 
+/*
+ * DANG_BEGIN_FUNCTION loopstep_run_vm86
+ * 
+ * description: 
+ * Here we collect all stuff, that has to be executed within
+ * _one_ pass (step) of a loop containing run_vm86().
+ * DANG_END_FUNCTION
+ */
+void loopstep_run_vm86(void)
+{
+	++pic_vm86_count;
+	run_vm86();
+	serial_run();
+	pic_run();		/* trigger any hardware interrupts
+				 * requested */
+#ifdef USE_INT_QUEUE
+	int_queue_run();
+#endif
+#ifdef USE_SBEMU
+	run_sb(); /* Beat Karcher to this one .. 8-) - AM */
+#endif
+}
+
 
 static int callback_level = 0;
 
@@ -581,8 +608,8 @@ void do_call_back(Bit32u codefarptr)
 
         level = callback_level++;
         while (callback_level > level) {
-		run_vm86();
-		serial_run();
+		if (fatalerr) leavedos(99);
+		loopstep_run_vm86();
         }
 	/* ... and back we are */
 	REG(cs) = oldcs;

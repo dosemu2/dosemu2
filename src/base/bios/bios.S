@@ -707,7 +707,7 @@ CISH(bios_f000_int10ptr):
 	mouse driver is in use.  It watches for mouse set commands and
 	resets the mouse driver when it sees one. */
 /* Was: Comments and bugs to David Etherton, etherton@netcom.com
- * Current Maintainer:	Eric W. Biederman <ebiederm+eric@npwt.net>
+ * Current Maintainer:	Eric W. Biederman <eric@biederman.org>
  */	
 
 	.org	((INT10_WATCHER_SEG-BIOSSEG) << 4)+INT10_WATCHER_OFF

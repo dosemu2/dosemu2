@@ -62,7 +62,7 @@
  *
  * /REMARK
  * maintainer: 
- * Eric W. Biederman <ebiederm+eric@npwt.net>
+ * Eric W. Biederman <eric@biederman.org>
  * DANG_END_MODULE
  *
  * Changes:	Hans 970926 (at time of patch inclusion)

@@ -116,6 +116,7 @@ void dos_ctrl_alt_del(void);	/* disabled */
 extern jmp_buf NotJEnv;
 
 EXTERN void run_vm86(void);
+EXTERN void loopstep_run_vm86(void);
 EXTERN void     vm86_GP_fault();
 
 EXTERN void do_call_back(Bit32u codefarptr);

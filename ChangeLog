@@ -1,3 +1,20 @@
+2000/06/17 ver. 1.0.0.10 unofficial pre-release
+	From Eric
+	- changed Mailaddress (but not in src/doc/*, Alistair will do)
+	- changes to src/commands/emumouse.c (new options -Mx -My)
+	From Eric, Alistair & Hans
+	- fixed global.conf to take care of GNU sh-utils > 1.16
+	  ( default behaviour of 'who' isn't backward compatible anymore)
+	From TWISTI <twisti@gmx.net> (what ever real name he/she has ;-)
+	- changes to base-configure.in to reflect glibc-2.2 changes
+	From Alistair
+	- fixed DEXE for newer FD kernels, that have no IPL.SYS
+	From Alistair & Hans
+	- prepare src/base/misc/disks.c for linux-2.4.x
+	  (BLKGETSIZE no long defineable via <linux/fs.h>)
+	From Hans
+	- cleaned up run_vm86() loop for do_call_back, now the same
+	  as the main loop.
 2000/06/05 ver. 1.0.0.9 unofficial pre-release
 	From Bart
 	- patch to make SiS chipset card run on console
