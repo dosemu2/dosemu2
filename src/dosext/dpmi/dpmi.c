@@ -3869,7 +3869,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 void dpmi_realmode_hlt(unsigned char * lina)
 {
   if (!in_dpmi) {
-    g_printf("DPMI call while not in dpmi!\n");
+    D_printf("ERROR: DPMI call while not in dpmi!\n");
     LWORD(eip)++;
     return;
   }
@@ -4033,6 +4033,11 @@ done:
     unsigned short CLIENT_PMSTACK_SEL;
 
     REG(eip) += 1;            /* skip halt to point to FAR RET */
+    if (!Segments[DPMI_CLIENT.mouseCallBack.selector >> 3].used) {
+      D_printf("DPMI: ERROR: mouse callback to unused segment\n");
+      CARRY;
+      return;
+    }
     D_printf("DPMI: starting mouse callback\n");
     save_pm_regs(&DPMI_CLIENT.stack_frame);
     rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
@@ -4088,6 +4093,11 @@ done:
     unsigned short CLIENT_PMSTACK_SEL;
 
     REG(eip) += 1;            /* skip halt to point to FAR RET */
+    if (!Segments[DPMI_CLIENT.PS2mouseCallBack.selector >> 3].used) {
+      D_printf("DPMI: ERROR: PS2 mouse callback to unused segment\n");
+      CARRY;
+      return;
+    }
     D_printf("DPMI: starting PS2 mouse callback\n");
     save_pm_regs(&DPMI_CLIENT.stack_frame);
     DPMI_CLIENT.stack_frame.eflags = 0x0202 | (0x0dd5 & REG(eflags)) |
@@ -4159,6 +4169,10 @@ done:
     in_dpmi_dos_int = 0;
 
   } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_raw_mode_switch))) {
+    if (!Segments[LWORD(esi) >> 3].used) {
+      error("DPMI: PM switch to unused segment\n");
+      leavedos(61);
+    }
     D_printf("DPMI: switching from real to protected mode\n");
 #ifdef SHOWREGS
     show_regs(__FILE__, __LINE__);
