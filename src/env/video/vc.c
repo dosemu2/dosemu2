@@ -70,6 +70,7 @@
 #include "et4000.h"
 #include "priv.h"
 #include "mapping.h"
+#include "timers.h"
 
 extern void child_close_mouse ();
 extern void child_open_mouse ();
@@ -200,6 +201,7 @@ SIGACQUIRE_call (void)
       get_video_ram (WAIT);
       set_dos_video ();
       /*      if (config.vga) dos_unpause(); */
+      unfreeze_dosemu();
     }
   parent_open_mouse ();
 }
@@ -313,6 +315,7 @@ SIGRELEASE_call (void)
 
 	  /*      if (config.vga) dos_pause(); */
 	  scr_state.current = 0;
+	  freeze_dosemu();
 	}
     }
 

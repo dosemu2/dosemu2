@@ -222,6 +222,23 @@ int restart_cputime (int quiet)
   return 0;
 }
 
+/* --------------------------------------------------------------------- */
+int dosemu_frozen = 0;
+
+void freeze_dosemu(void)
+{
+  if (dosemu_frozen) return;
+  stop_cputime(0);
+  dosemu_frozen = 1;
+}
+
+void unfreeze_dosemu(void)
+{
+  if (!dosemu_frozen) return;
+  restart_cputime(0);
+  dosemu_frozen = 0;
+}
+
 
 /* --------------------------------------------------------------------- */
 

@@ -95,6 +95,7 @@
 #include "serial.h"
 #include "port.h"
 #include "dma.h"
+#include "timers.h"
 
 #if X_GRAPHICS
 #include "vgaemu.h"
@@ -2113,6 +2114,8 @@ void run_dpmi(void)
     }
 #endif
   }
+
+freeze_idle:
     handle_signals();
 
     { /* catch user hooks here */
@@ -2133,6 +2136,11 @@ void run_dpmi(void)
   if (iq.queued)
     do_queued_ioctl();
 
+  if (dosemu_frozen) {
+    static int minpoll = 0;
+    if (!(++minpoll & 7)) usleep(10000);
+    goto freeze_idle;
+  }
 }
 
 void dpmi_init()

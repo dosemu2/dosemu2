@@ -1,3 +1,10 @@
+2000/05/26 ver. 1.0.0.6 unofficial pre-release
+	From Eric
+	- patch to src/env/video/remap.c to make bpp24 work
+	From Hans
+	- freezing dosemu completely when on console and switched
+	  away while still handling async stuff (e.g. handle signals).
+	  involved files: dpmi.c, do_vm86.c, cputime.c, vc.c, timers.h
 2000/05/25 ver. 1.0.0.5 unofficial pre-release
 	From Bart
 	- fix to do_vm86.c (vm86_GP_fault()) to simulate INT codes correctly

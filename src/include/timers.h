@@ -274,6 +274,10 @@ int restart_cputime (int);
 extern int cpu_time_stop;	/* for dosdebug */
 int bogospeed(unsigned long *spus, unsigned long *sptick);
 
+void freeze_dosemu(void);
+void unfreeze_dosemu(void);
+extern int dosemu_frozen;
+
 /* --------------------------------------------------------------------- */
 
 extern Bit8u pit_control_inp(ioport_t);

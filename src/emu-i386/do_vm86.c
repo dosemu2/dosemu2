@@ -493,6 +493,7 @@ run_vm86(void)
 	fatalerr = 4;
 	}
 
+freeze_idle:
     handle_signals();
 
     { /* catch user hooks here */
@@ -530,6 +531,12 @@ run_vm86(void)
 	    pic_cli();		/* pic_iflag=0 => enabled */
     }
 #endif /* not USE_NEW_INT */
+
+  if (dosemu_frozen) {
+    static int minpoll = 0;
+    if (!(++minpoll & 7)) usleep(10000);
+    goto freeze_idle;
+  }
 }
 /* @@@ MOVE_END @@@ 49152 */
 
