@@ -1,3 +1,8 @@
+Wed Aug 17 1994 Jmaclean
+
+-	Added scan to charcode returned in Xkeyb.c by put_key()
+-	Tried to get lexer.l back up :-(
+
 Tue Aug 16 1994 Jmaclean
 
 -	Messed around with Rain's patches until all modes started

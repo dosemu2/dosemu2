@@ -37,6 +37,7 @@ extern char* strdup(const char *); /* Not defined in string.h :-( */
 
 	/* keywords */
 
+x			return(L_X);
 dosbanner		return(DOSBANNER);
 fastfloppy		return(FASTFLOPPY);
 timint			return(TIMINT);
@@ -95,7 +96,7 @@ rawkeyboard		return(RAWKEYBOARD);
 
 finnish			{ yylval->i_value = KEYB_FINNISH;
 			  return(KEYB_LAYOUT); }
-finnish-latin1\,1	{ yylval->i_value = KEYB_FINNISH_LATIN1;
+finnish-latin1		{ yylval->i_value = KEYB_FINNISH_LATIN1;
 			  return(KEYB_LAYOUT); }
 us			{ yylval->i_value = KEYB_US; return(KEYB_LAYOUT); }
 uk			{ yylval->i_value = KEYB_UK; return(KEYB_LAYOUT); }
@@ -183,6 +184,12 @@ et4000			{ yylval->i_value = 2; return(CHIPSET_TYPE); }
 diamond			{ yylval->i_value = 3; return(CHIPSET_TYPE); }
 s3			{ yylval->i_value = 4; return(CHIPSET_TYPE); }
 
+	/* xwindows stuff */
+
+display			return(L_DISPLAY);
+title			return(L_TITLE);
+icon_name		return(ICON_NAME);
+
 	/* packet driver */
 
 novell_hack		return(NOVELLHACK);
@@ -200,7 +207,6 @@ general			return(GENERAL);
 hardware		return(HARDWARE);
 ipc			return(L_IPC);
 network			return(NETWORK);
-x			return(L_X);
 
 	/* printer stuff */
 
@@ -250,4 +256,11 @@ no			{ yylval->i_value = 0; return(L_NO); }
 \n			line_count++;	/* keep track of lines seen */
 .			fprintf(stderr, "discarding char '%c'\n", yytext[0]);
 
+%%
 
+#ifndef yywrap
+  int yywrap(void)    /* do this to avoid needing to do -lfl */
+     {
+     return(1);
+     }
+#endif

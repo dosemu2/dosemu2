@@ -131,7 +131,7 @@ void put_key(ushort scan, short charcode) {
    X_printf("put_key(0x%X,'%c')\n",scan,charcode>=0x20?charcode:'?');
 #endif
    if (charcode!=-1) {
-      if (scan&0x80) DOS_setscan(charcode);
+      if (scan&0x80) DOS_setscan(((scan & 0x7f)<< 8) | charcode);
    }
    else {
       if (scan & 0xFF00) DOS_setscan(scan&0xFF00);
