@@ -1330,14 +1330,15 @@ int vbe_palette_data(unsigned sub_func, unsigned len, unsigned first, unsigned c
     case    0:
     case 0x80:	/* set palette */
       while(first < 256 && len) {
-        DAC_set_entry(buffer[1], buffer[2], buffer[3], first);	/* r, g, b, index */
+        DAC_set_entry(first, buffer[1], buffer[2], buffer[3]);	/* index, r, g, b */
         first++; len--; buffer += 4;
       }
       break;
 
     case 1:
       while(first < 256 && len) {
-        DAC_get_entry(&dac, first);
+        dac.index = first;
+        DAC_get_entry(&dac);
         buffer[1] = dac.r;
         buffer[2] = dac.g;
         buffer[3] = dac.b;

@@ -127,7 +127,7 @@
  * Text mode now works on all X servers incl. 16 color & mono servers.
  * -- sw
  *
- * 1998/09/20: Removed quite a lot of DAC/color init code. Was (hopefully)
+ * 1998/09/20: Removed quite a lot of DAC/color init code. Were (hopefully)
  * all unnecessary. :-)
  * -- sw
  *
@@ -1507,17 +1507,24 @@ void refresh_palette()
  */
 void refresh_text_palette()
 {
-  DAC_entry color;
+  DAC_entry col[16];
   XColor xc;
-  int i, n, shift = 16 - dac_bits;
+  int i, j, k, shift = 16 - dac_bits;
   int read_cmap = 1;
 
-  for (n = 0; ((i = pixel2RGB_dirty(&color)) != -1) && n < 16 && i < 16; n++) {
+  if(vga.pixel_size > 4) {
+    X_printf("X: refresh_text_palette: invalid color size - no updates made\n");
+    return;
+  }
+
+  j = changed_vga_colors(col);
+
+  for(k = 0; k < j; k++) {
     xc.flags = DoRed | DoGreen | DoBlue;
-    xc.pixel = text_colors[i];
-    xc.red   = color.r << shift;
-    xc.green = color.g << shift;
-    xc.blue  = color.b << shift;
+    xc.pixel = text_colors[i = col[k].index];
+    xc.red   = col[k].r << shift;
+    xc.green = col[k].g << shift;
+    xc.blue  = col[k].b << shift;
 
     if(text_col_stats[i]) XFreeColors(display, text_cmap, &xc.pixel, 1, 0);
 
@@ -1541,12 +1548,15 @@ void refresh_text_palette()
  */
 void refresh_truecolor()
 {
-  DAC_entry color;
+  DAC_entry col[256];
   Boolean colchanged = False;
-  int i;
+  int i, j;
 
-  while((i = pixel2RGB_dirty(&color)) != -1) {
-    colchanged |= remap_obj.palette_update(&remap_obj, i, dac_bits, color.r, color.g, color.b);
+  j = changed_vga_colors(col);
+
+  for(i = 0; i < j; i++) {
+    colchanged |=
+    remap_obj.palette_update(&remap_obj, col[i].index, dac_bits, col[i].r, col[i].g, col[i].b);
   }
   if(colchanged) dirty_all_video_pages();
 }
@@ -1557,10 +1567,10 @@ void refresh_truecolor()
  */
 void refresh_private_palette()
 {
-  DAC_entry color;
-  RGBColor c;
+  DAC_entry col[256];
   XColor xcolor[256];
-  int i, n;
+  RGBColor c;
+  int i, j, k;
   unsigned bits, shift;
 
   /*
@@ -1568,25 +1578,37 @@ void refresh_private_palette()
    * incorrect displays at screens with less than 8 bit color depth.
    * --> So don't use private palettes with less than 256 colors.
    */
-  for(n = 0; ((i = pixel2RGB_dirty(&color)) != -1) && n < cmap_colors; n++) {
-    c.r = color.r; c.g = color.g; c.b = color.b;
-    bits = dac_bits;
-    gamma_correct(&remap_obj, &c, &bits);
-    shift = 16 - bits;
-    xcolor[n].flags = DoRed | DoGreen | DoBlue;
-    xcolor[n].pixel = i;
-    xcolor[n].red   = c.r << shift;
-    xcolor[n].green = c.g << shift;
-    xcolor[n].blue  = c.b << shift;
-    X_printf(
-      "X: refresh_private_palette: %d: (%u %u %u)->(%u, %u, %u)\n",
-      i, c.r, c.g, c.b,
-      xcolor[n].red, xcolor[n].green, xcolor[n].blue
-    );
+
+  j = changed_vga_colors(col);
+
+  for(i = k = 0; k < j; k++) {
+    if(col[k].index < cmap_colors) {
+      c.r = col[k].r; c.g = col[k].g; c.b = col[k].b;
+      bits = dac_bits;
+      gamma_correct(&remap_obj, &c, &bits);
+      shift = 16 - bits;
+      xcolor[i].flags = DoRed | DoGreen | DoBlue;
+      xcolor[i].pixel = col[k].index;
+      xcolor[i].red   = c.r << shift;
+      xcolor[i].green = c.g << shift;
+      xcolor[i].blue  = c.b << shift;
+#if 0
+      X_printf(
+        "X: refresh_private_palette: color 0x%02x (0x%02x 0x%02x 0x%02x) -> (0x%04x 0x%04x 0x%04x)\n",
+        (unsigned) col[k].index, (unsigned) c.r, (unsigned) c.g, (unsigned) c.b,
+        (unsigned) xcolor[i].red, (unsigned) xcolor[i].green, (unsigned) xcolor[i].blue
+      );
+#else
+      X_printf("X: refresh_private_palette: color 0x%02x\n", (unsigned) col[k].index);
+#endif
+      i++;
+    }
+    else {
+      X_printf("X: refresh_private_palette: color 0x%02x not updated\n", (unsigned) col[k].index);
+    }
   }
 
-  /* hopefully this is faster */
-  if(graphics_cmap) XStoreColors(display, graphics_cmap, xcolor, n);
+  if(graphics_cmap && i) XStoreColors(display, graphics_cmap, xcolor, i);
 }
 
 
@@ -1617,31 +1639,6 @@ void get_approx_color(XColor *xc, Colormap cmap, int read_cmap)
 
   if(ind >= 0) *xc = xcols[ind];
 }
-
-
-#if 0
-/*
- * The following code is currently *NEVER* called. Maybe this
- * will change sometimes, so I keep it for now.
- * Note that this made the function pixel2RGB() redundant as well.
- * -- sw
- */
-
-/*
- * Keep colormap up to date. Typically called when entering
- * a graphics mode to initialize the whole colormap.
- */
-void update_all_colors()
-{
-  DAC_entry c;
-  int i;
-
-  for(i = 0; i < cmap_colors; i++) {
-    pixel2RGB(i, &c);
-    remap_obj.palette_update(&remap_obj, i, dac_bits, c.r, c.g, c.b);
-  }
-}
-#endif
 
 
 /*
@@ -2021,8 +2018,6 @@ static void X_modify_mode()
         X_printf("X: X_modify_mode: chain4 addressing turned %s\n", vga.mem.planes == 1 ? "on" : "off");
         remap_done(&remap_obj);
         remap_obj = tmp_ro;
-        /* Should not be not needed, as no colors have changed. -- sw */
-        /* update_all_colors(); */
       }
 
       dirty_all_video_pages();

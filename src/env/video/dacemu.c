@@ -34,15 +34,14 @@
  * This code emulates the DAC (Digital to Analog Converter) on a VGA
  * (Video Graphics Array, a video adapter for IBM PC's) for VGAemu.
  *
- * Lots of VGA information comes from Finn Thoergersen's VGADOC3, available
- * at every Simtel mirror in vga/vgadoc3.zip, and in the dosemu directory at 
- * tsx-11.mit.edu.
+ * For an excellent reference to programming SVGA cards see Finn Thøgersen's
+ * VGADOC4, available at http://www.datashopper.dk/~finth
  *
  *
  * DANG_BEGIN_MODULE
  *
  * REMARK
- * The DAC emulator for DOSemu.
+ * The DAC emulator for DOSEMU.
  * /REMARK
  *
  * DANG_END_MODULE
@@ -50,30 +49,50 @@
  * DANG_BEGIN_CHANGELOG
  *
  * 1998/09/20: Added proper DAC init values for all graphics modes.
+ * -- sw
+ *
+ * 1998/10/25: Cleaned up the interface, removed unnecessary parts.
+ * Working PEL mask support.
+ * -- sw
  *
  * DANG_END_CHANGELOG
  */
 
 
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * some configurable options
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 /* define to debug the DAC */
 #undef DEBUG_DAC
-#undef DEBUG_DAC_2
 
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+#define DAC_READ_MODE 0
+#define DAC_WRITE_MODE 3
 
 #if !defined True
 #define False 0
 #define True 1
 #endif
 
+#ifdef DEBUG_DAC
+#define dac_deb(x...) v_printf(x)
+#else
+#define dac_deb(x...)
+#endif
 
-
-
-/* **************** include files **************** */
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 #include "emu.h"
 #include "vgaemu.h"
 
 
-static DAC_entry dac_ega[64] = {
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+typedef struct { unsigned char r, g, b; } _DAC_entry;
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+static _DAC_entry dac_ega[64] = {
   {0x00, 0x00, 0x00}, {0x00, 0x00, 0x2a}, {0x00, 0x2a, 0x00}, {0x00, 0x2a, 0x2a},
   {0x2a, 0x00, 0x00}, {0x2a, 0x00, 0x2a}, {0x2a, 0x2a, 0x00}, {0x2a, 0x2a, 0x2a},
   {0x00, 0x00, 0x15}, {0x00, 0x00, 0x3f}, {0x00, 0x2a, 0x15}, {0x00, 0x2a, 0x3f},
@@ -92,7 +111,7 @@ static DAC_entry dac_ega[64] = {
   {0x3f, 0x15, 0x15}, {0x3f, 0x15, 0x3f}, {0x3f, 0x3f, 0x15}, {0x3f, 0x3f, 0x3f}
 };
 
-static DAC_entry dac_vga[256] = {
+static _DAC_entry dac_vga[256] = {
   {0x00, 0x00, 0x00}, {0x00, 0x00, 0x2a}, {0x00, 0x2a, 0x00}, {0x00, 0x2a, 0x2a},
   {0x2a, 0x00, 0x00}, {0x2a, 0x00, 0x2a}, {0x2a, 0x15, 0x00}, {0x2a, 0x2a, 0x2a},
   {0x15, 0x15, 0x15}, {0x15, 0x15, 0x3f}, {0x15, 0x3f, 0x15}, {0x15, 0x3f, 0x3f},
@@ -163,81 +182,137 @@ static DAC_entry dac_vga[256] = {
 };
 
 
-#define DAC_READ_MODE 0
-#define DAC_WRITE_MODE 3
-
-static DAC_entry DAC[256];
-static int DAC_dirty[256];
-
-/*
- * The pelmask is a bit difficult to implement. It has to be stored 
- * here, but the implementation should be in the part that really draws 
- * the screen (a vgaemu client, for example X.c)
- */
-static unsigned char DAC_pel_mask = 0xff;
-static unsigned char DAC_state = DAC_READ_MODE;
-static unsigned char DAC_read_index = 0;
-static unsigned char DAC_write_index = 0;
-static int DAC_pel_index = 'r';
-
-#define VGA_DAC_BITS vga.dac.bits
-
-
-/* **************** DAC emulation functions **************** */
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
  * DANG_BEGIN_FUNCTION DAC_init
  *
  * Initializes the DAC.
+ * It depends on a correct value in vga.pixel_size. This function should be
+ * called during VGA mode initialization.
+ * This is an interface function.
  *
  * DANG_END_FUNCTION
+ *
  */
-void DAC_init(void)
+void DAC_init()
 {
-  DAC_entry dac_zero = {0, 0, 0};
+  DAC_entry dac_zero = {True, 0, 0, 0}, de = dac_zero;
   int i;
 
-#ifdef DEBUG_DAC
-  v_printf("VGAEmu: DAC_init()\n");
-#endif
-
   if(vga.pixel_size <= 4) {
-    for(i = 0; i < 64; i++) DAC[i] = dac_ega[i];
-    while(i < 256) DAC[i++] = dac_zero;
+    for(i = 0; i < 64; i++) {
+      de.r = dac_ega[i].r;
+      de.g = dac_ega[i].g;
+      de.b = dac_ega[i].b;
+      vga.dac.rgb[i] = de;
+    }
+    while(i < 256) vga.dac.rgb[i++] = dac_zero;
   }
   else {
-    for(i = 0; i < 256; i++) DAC[i] = dac_vga[i];
+    for(i = 0; i < 256; i++) {
+      de.r = dac_vga[i].r;
+      de.g = dac_vga[i].g;
+      de.b = dac_vga[i].b;
+      vga.dac.rgb[i] = de;
+    }
   }
 
-  for(i = 0; i < 256; i++) DAC_dirty[i] = True;
+  vga.dac.bits = 6;
+  vga.color_modified = True;
+  vga.dac.pel_index = 'r';
+  vga.dac.pel_mask = 0xff;
+  vga.dac.state = DAC_READ_MODE;
+  vga.dac.read_index = 0;
+  vga.dac.write_index = 0;
 
-  DAC_pel_mask = 0xff;
-  DAC_state=DAC_READ_MODE;
-  DAC_read_index = 0;
-  DAC_write_index = 0;
-  DAC_pel_index = 'r';
+  v_printf("VGAEmu: DAC_init done\n");
 }
 
 
-#if 0
 /*
- * never called -- sw
- */
-
-/* DANG_BEGIN_FUNCTION DAC_dirty_all
+ * DANG_BEGIN_FUNCTION DAC_set_width
  *
- * Dirty all DAC entries.  Usefull for a mode set.
+ * Sets the DAC width. Typical values are 6 or 8 bits.
+ * In theory, we support other values as well (untested).
+ * This is an interface function.
  *
  * DANG_END_FUNCTION
+ *
  */
-void DAC_dirty_all(void)
+void DAC_set_width(unsigned bits)
 {
-	int i;
-	for(i = 0; i < 256; i++) {
-		DAC_dirty[i]=True;
-	}
+  int i;
+
+  if(bits > 8) bits = 8;
+  if(bits < 4) bits = 4;	/* it's no use to allow other values than 6 or 8, but anyway... */
+
+  dac_deb("VGAEmu: DAC_set_width: width = %u bits\n", vga.dac.bits);
+
+  if(vga.dac.bits != bits) {
+    vga.reconfig.dac = 1;
+    vga.dac.bits = bits;
+    vga.color_modified = True;
+    for(i = 0; i < 256; i++) vga.dac.rgb[i].index = True;	/* index = dirty flag ! */
+  }
 }
-#endif
+
+
+/*
+ * DANG_BEGIN_FUNCTION DAC_get_entry
+ *
+ * Returns a complete DAC entry (r, g, b).
+ * Don't forget to set DAC_entry.index first!
+ * This is an interface function.
+ *
+ * DANG_END_FUNCTION
+ *
+ */
+void DAC_get_entry(DAC_entry *entry)
+{
+  unsigned char u;
+
+  *entry = vga.dac.rgb[u = entry->index]; entry->index = u;
+
+  dac_deb(
+    "VGAEmu: DAC_get_entry: dac.rgb[0x%02x] = 0x%02x 0x%02x 0x%02x\n",
+    entry->index, entry->r, entry->g, entry->b
+  );
+}
+
+
+/*
+ * DANG_BEGIN_FUNCTION DAC_set_entry
+ *
+ * Sets a complete DAC entry (r,g,b).
+ * This is an interface function.
+ *
+ * DANG_END_FUNCTION
+ *
+ */
+void DAC_set_entry(unsigned char index, unsigned char r, unsigned char g, unsigned char b)
+{
+  unsigned mask = (1 << vga.dac.bits ) - 1;
+
+  r &= mask; g &= mask; b &= mask;
+
+  dac_deb(
+    "VGAEmu: DAC_set_entry: dac.rgb[0x%02x] = 0x%02x 0x%02x 0x%02x\n",
+    (unsigned) index, (unsigned) r, (unsigned) g, (unsigned) b);
+
+  if(
+    vga.dac.rgb[index].r != r ||
+    vga.dac.rgb[index].g != g ||
+    vga.dac.rgb[index].b != b
+  ) {
+    vga.color_modified = True;
+    vga.dac.rgb[index].index = True;
+    vga.dac.rgb[index].r = r;
+    vga.dac.rgb[index].g = g;
+    vga.dac.rgb[index].b = b;
+  }
+}
+
 
 /*
  * DANG_BEGIN_FUNCTION DAC_set_read_index
@@ -248,18 +323,14 @@ void DAC_dirty_all(void)
  * DANG_END_FUNCTION
  *
  */
-inline void DAC_set_read_index(unsigned char index)
+void DAC_set_read_index(unsigned char index)
 {
-#ifdef DEBUG_DAC
-  v_printf("VGAEmu: DAC_set_read_index(%i)\n", index);
-#endif
+  dac_deb("VGAEmu: DAC_set_read_index: index = 0x%02x\n", (unsigned) index);
 
-  DAC_read_index=index;
-  DAC_pel_index='r';
-  DAC_state=DAC_READ_MODE;
+  vga.dac.read_index = index;
+  vga.dac.pel_index = 'r';
+  vga.dac.state = DAC_READ_MODE;
 }
-
-
 
 
 /*
@@ -271,18 +342,14 @@ inline void DAC_set_read_index(unsigned char index)
  * DANG_END_FUNCTION
  *
  */
-inline void DAC_set_write_index(unsigned char index)
+void DAC_set_write_index(unsigned char index)
 {
-#ifdef DEBUG_DAC
-  v_printf("VGAEmu: DAC_set_write_index(%i)\n", index);
-#endif
+  dac_deb("VGAEmu: DAC_set_write_index: index = 0x%02x\n", (unsigned) index);
 
-  DAC_write_index=index;
-  DAC_pel_index='r';
-  DAC_state=DAC_WRITE_MODE;
+  vga.dac.write_index = index;
+  vga.dac.pel_index = 'r';
+  vga.dac.state = DAC_WRITE_MODE;
 }
-
-
 
 
 /*
@@ -290,57 +357,61 @@ inline void DAC_set_write_index(unsigned char index)
  *
  * Read a value from the DAC. Each read will cycle through the registers for
  * red, green and blue. After a ``blue read'' the read index will be 
- * incremented. Read vgadoc3 if you want to know more about the DAC.
+ * incremented. Read VGADOC4 if you want to know more about the DAC.
  * This is a hardware emulation function.
  *
  * DANG_END_FUNCTION
  *
  */
-unsigned char DAC_read_value(void)
+unsigned char DAC_read_value()
 {
   unsigned char rv;
 
-  DAC_state=DAC_READ_MODE;
+#ifdef DEBUG_DAC
+  char c = vga.dac.pel_index;
+  unsigned char ri = vga.dac.read_index;
+#endif
+
+  vga.dac.state = DAC_READ_MODE;
   
-  switch(DAC_pel_index)
-    {
+  switch(vga.dac.pel_index) {
     case 'r':
-      rv=DAC[DAC_read_index].r;
-      DAC_pel_index='g';
+      rv = vga.dac.rgb[vga.dac.read_index].r;
+      vga.dac.pel_index = 'g';
       break;
 
     case 'g':
-      rv=DAC[DAC_read_index].g;
-      DAC_pel_index='b';
+      rv = vga.dac.rgb[vga.dac.read_index].g;
+      vga.dac.pel_index = 'b';
       break;
 
     case 'b':
-      rv=DAC[DAC_read_index].b;
-      DAC_pel_index='r';
-      DAC_read_index++;
+      rv = vga.dac.rgb[vga.dac.read_index].b;
+      vga.dac.pel_index = 'r';
+      vga.dac.read_index++;
       break;
 
     default:
-      error("VGAemu: DAC_read_value(): DAC_pel_index out of range\n");
-      rv=0;
-      DAC_pel_index='r';
+      v_printf("VGAEmu: DAC_read_value: ERROR: pel_index out of range\n");
+      vga.dac.pel_index = 'r';
+      rv = 0;
       break;
     }
 
-#ifdef DEBUG_DAC
-  v_printf("VGAemu: DAC_read_value() returns %i\n", rv);
-#endif
-  return(rv);
+  dac_deb(
+    "VGAEmu: DAC_read_value: dac.rgb[0x%02x].%c = 0x%02x\n",
+    (unsigned) ri, c, (unsigned) rv
+  );
+
+  return rv;
 }
-
-
 
 
 /*
  * DANG_BEGIN_FUNCTION DAC_write_value
  *
  * Write a value to the DAC. Each write will cycle through the registers for
- * red, green and blue. After a ``blue write'' the write index will be 
+ * red, green and blue. After a ``blue write'' the write index will be
  * incremented.
  * This is a hardware emulation function.
  *
@@ -349,285 +420,97 @@ unsigned char DAC_read_value(void)
  */
 void DAC_write_value(unsigned char value)
 {
-  value &= (1 << VGA_DAC_BITS) - 1;
+  value &= (1 << vga.dac.bits) - 1;
 
-  DAC_state = DAC_WRITE_MODE;
+  vga.dac.state = DAC_WRITE_MODE;
 
-#ifdef DEBUG_DAC_2
-  v_printf(
-    "VGAEmu: DAC_write_value: DAC[0x%02x].%c = 0x%02x\n",
-    (unsigned) DAC_write_index, (char) DAC_pel_index, (unsigned) value
+  dac_deb(
+    "VGAEmu: DAC_write_value: dac.rgb[0x%02x].%c = 0x%02x\n",
+    (unsigned) vga.dac.read_index, vga.dac.pel_index, (unsigned) value
   );
-#endif
 
-  DAC_dirty[DAC_write_index]=True;
+  vga.dac.rgb[vga.dac.write_index].index = True;	/* index = dirty flag ! */
+  vga.color_modified = True;
 
-  switch(DAC_pel_index) {
+  switch(vga.dac.pel_index) {
     case 'r':
-      DAC[DAC_write_index].r = value;
-      DAC_pel_index='g';
+      vga.dac.rgb[vga.dac.write_index].r = value;
+      vga.dac.pel_index = 'g';
       break;
 
     case 'g':
-      DAC[DAC_write_index].g = value;
-      DAC_pel_index='b';
+      vga.dac.rgb[vga.dac.write_index].g = value;
+      vga.dac.pel_index = 'b';
       break;
 
     case 'b':
-      DAC[DAC_write_index].b = value;
-      DAC_pel_index='r';
-      DAC_write_index++;
+      vga.dac.rgb[vga.dac.write_index].b = value;
+      vga.dac.pel_index = 'r';
+      vga.dac.write_index++;
       break;
 
     default:
-      error("VGAEmu: DAC_write_value: DAC_pel_index out of range\n");
-      DAC_pel_index='r';
+      v_printf("VGAEmu: DAC_write_value: ERROR: pel_index out of range\n");
+      vga.dac.pel_index = 'r';
       break;
   }
-}
-
-
-
-
-/*
- * DANG_BEGIN_FUNCTION DAC_set_pel_mask
- *
- * Sets the pel mask and marks all DAC entries as dirty.
- * This is a hardware emulation function.
- *
- * DANG_END_FUNCTION
- *
- */
-inline void DAC_set_pel_mask(unsigned char mask)
-{
-#ifdef DEBUG_DAC
-  v_printf("VGAemu: DAC_set_pel_mask(%i)\n", mask);
-#endif
-
-  DAC_pel_mask=mask;
-}
-
-
-
-
-/* **************** DAC Interface functions **************** */
-
-/*
- * DANG_BEGIN_FUNCTION DAC_get_entry
- *
- * Returns a complete DAC entry (r,g,b). Color values are AND-ed with the
- * pel mask.
- * This is an interface function.
- *
- * DANG_END_FUNCTION
- *
- */
-void DAC_get_entry(DAC_entry *entry, unsigned char index)
-{
-  entry->r=DAC[index].r & DAC_pel_mask;
-  entry->g=DAC[index].g & DAC_pel_mask;
-  entry->b=DAC[index].b & DAC_pel_mask;
-#if 0 /* This function is too general, to always clear the dirty flag */
-  DAC_dirty[index] = False;
-#endif
-
-#ifdef DEBUG_DAC_2
-  v_printf(
-    "VGAEmu: DAC_get_entry: DAC[0x%02x] = 0x%02x 0x%02x 0x%02x (rgb)\n",
-    (unsigned) index, (unsigned) entry->r, (unsigned) entry->g, (unsigned) entry->b
-  );
-#endif
-}
-
-/*
- * DANG_BEGIN_FUNCTION DAC_read_entry
- *
- * Returns a complete DAC entry (r,g,b), doesn't un-dirty it.
- * Color values are _not_ maked.
- * This is an interface function.
- *
- * DANG_END_FUNCTION
- *
- */
-void DAC_read_entry(DAC_entry *entry, unsigned char index)
-{
-  entry->r=DAC[index].r;
-  entry->g=DAC[index].g;
-  entry->b=DAC[index].b;
-
-#ifdef DEBUG_DAC
-  v_printf("VGAemu: DAC_read_entry(0x%02x): (0x%02x, 0x%02x, "
-           "0x%02x)\n", index, entry->r, entry->g, entry->b);
-#endif
-}
-
-
-
-
-/*
- * DANG_BEGIN_FUNCTION DAC_get_dirty_entry
- *
- * Searches the DAC_dirty list for the first dirty entry. Returns the 
- * changed entrynumber and fills in the entry if a dirty entry is found or
- * returns -1 otherwise.
- * This is an interface function.
- *
- * DANG_END_FUNCTION
- *
- * Note: currently not called from the outside, hence 'static'.
- * Use pixel2RGB_dirty() instead.
- * 
- */
-static int DAC_get_dirty_entry(DAC_entry *entry)
-{
-  int i;
-
-  for(i = 0; i < 256; i++) {
-    if(DAC_dirty[i] == True) {
-      DAC_get_entry(entry, i);
-      DAC_dirty[i] = False;
-#ifdef DEBUG_DAC
-      v_printf("VGAemu: DAC_get_dirty_entry: entry 0x%02x\n", i);
-#endif
-      return i;
-    }
-  }
-
-#ifdef DEBUG_DAC
-  v_printf("VGAemu: DAC_get_dirty_entry: no dirty entry\n");
-#endif
-
-  return -1;
-}
-
-/*
- * DANG_BEGIN_FUNCTION DAC_set_entry
- *
- * Sets a complete DAC entry (r,g,b).
- * This is an interface function for the int 10 handler.
- *
- * DANG_END_FUNCTION
- *
- */
-void DAC_set_entry(unsigned char r, unsigned char g, unsigned char b, unsigned char index)
-{
-  unsigned mask = (1 << VGA_DAC_BITS ) - 1;
-
-  r &= mask; g &= mask; b &= mask;
-
-#ifdef DEBUG_DAC_2
-  v_printf(
-    "VGAEmu: DAC_set_entry: DAC[0x%02x] = 0x%02x 0x%02x 0x%02x (rgb)\n",
-    (unsigned) index, (unsigned) r, (unsigned) g, (unsigned) b);
-#endif
-
-  if(DAC[index].r != r || DAC[index].g != g || DAC[index].b != b) DAC_dirty[index] = True;
-
-  DAC[index].r=r;
-  DAC[index].g=g;
-  DAC[index].b=b;
 }
 
 
 /*
  * DANG_BEGIN_FUNCTION DAC_get_pel_mask
  *
- * Returns the current pel mask. Drawing functions should get the pel
- * mask and AND it with the pixel values to get the correct pixel value.
- * This is *very* slow to implement and fortunately this register is used
- * very rare. Maybe the implementation should be in vgaemu, maybe in the
- * vgaemu client...
- * This is an interface function. 
+ * Returns the current PEL mask. Note that changed_vga_colors() already
+ * applies the PEL mask; so applications should not worry too much about it.
+ * This is a hardware emulation function.
  *
  * DANG_END_FUNCTION
  *
  */
-unsigned char DAC_get_pel_mask(void)
+unsigned char DAC_get_pel_mask()
 {
-#ifdef DEBUG_DAC
-  v_printf("VGAemu: DAC_get_pel_mask() returns 0x%02x\n", DAC_pel_mask);
-#endif
+  dac_deb("VGAEmu: DAC_get_pel_mask: mask = 0x%02x\n", (unsigned) vga.dac.pel_mask);
 
-  return(DAC_pel_mask);
+  return vga.dac.pel_mask;
 }
 
 
+/*
+ * DANG_BEGIN_FUNCTION DAC_set_pel_mask
+ *
+ * Sets the PEL mask and marks all DAC entries as dirty.
+ * This is a hardware emulation function.
+ *
+ * DANG_END_FUNCTION
+ *
+ */
+void DAC_set_pel_mask(unsigned char mask)
+{
+  int i;
+
+  dac_deb("VGAEmu: DAC_set_pel_mask: mask = 0x%02x\n", (unsigned) mask);
+
+  if(vga.dac.pel_mask != mask) {
+    vga.dac.pel_mask = mask;
+    vga.color_modified = True;
+    for(i = 0; i < 256; i++) { vga.dac.rgb[i].index = True; }	/* index = dirty flag ! */
+  }
+}
 
 
 /*
  * DANG_BEGIN_FUNCTION DAC_get_state
  *
- * Returns the current state of the DAC
- * This is an interface function.
+ * Returns the current state of the DAC.
+ * This is a hardware emulation function.
  *
  * DANG_END_FUNCTION
  *
  */
-unsigned char DAC_get_state(void)
+unsigned char DAC_get_state()
 {
-#ifdef DEBUG_DAC
-  v_printf("VGAemu: DAC_get_state() returns 0x%02x\n", DAC_state);
-#endif
+  dac_deb("VGAEmu: DAC_get_state: state = 0x%02x\n", vga.dac.state);
 
-  return(DAC_state);
+  return vga.dac.state;
 }
-
-void DAC_set_width(unsigned bits)
-{
-  int i;
-
-  if(bits > 8) bits = 8;
-  if(bits < 4) bits = 4;	/* it's no use to allow other values than 6 or 8, but anyway... */
-  if(VGA_DAC_BITS != bits) {
-    vga.reconfig.dac = 1;
-    VGA_DAC_BITS = bits;
-    for(i = 0; i < 256; i++) DAC_dirty[i] = True;
-  }
-}
-
-
-#if 0
-/*
- * See X.c for details.
- */
-void pixel2RGB(unsigned char index, DAC_entry *de)
-{
-  DAC_get_entry(de, vga.pixel_size <= 4 ? Attr_get_entry(index) : index);
-}
-#endif
-
-/*
- * Should go into vgaemu.c but kept here for now, as DAC_dirty[] is (and should
- * not be) globally accessible. -- sw
- */
-int pixel2RGB_dirty(DAC_entry *de)
-{
-  int i;
-  unsigned cols = 1 << vga.pixel_size;
-  unsigned char a;
-
- /*
-  * Modes with 16 colors or less will use palette regs.
-  */
-  if(vga.pixel_size > 4) return DAC_get_dirty_entry(de);
-
-  for(i = 0; i < cols; i++) {
-    a =  Attr_get_entry(i);
-    if(DAC_dirty[a] == True || Attr_is_dirty(i) == True) {
-      DAC_get_entry(de, a);
-      DAC_dirty[a] = False;
-#ifdef DEBUG_DAC
-      v_printf("VGAEmu: pixel2RGB_dirty: pixel 0x%02x, DAC entry 0x%02x\n", i, a);
-#endif
-      return i;
-    }
-  }
-
-#ifdef DEBUG_DAC
-  v_printf("VGAEmu: pixel2RGB_dirty: no dirty entry\n");
-#endif
-
-  return -1;
-}
-
 

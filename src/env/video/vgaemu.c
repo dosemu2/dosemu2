@@ -84,9 +84,13 @@
  * 1997/07/07: Added linear frame buffer (LFB) support, simplified and
  * generalized video mode definitions (now possible via dosemu.conf).
  * vga_emu_init() now gets some info about the display it is actually
- * running on (needed dor VESA emulation).
+ * running on (needed for VESA emulation).
  * vga_emu_setmode() now accepts VESA mode numbers.
  * Hi/true-color modes now work.
+ * -- sw
+ *
+ * 1998/10/25: Added changed_vga_colors(). It replaces the former
+ * DAC_get_dirty_entry() functions. PEL mask support now works.
  * -- sw
  *
  * DANG_END_CHANGELOG
@@ -94,14 +98,14 @@
  */
 
 /*
- * define some the following to generate various debug output
+ * define some of the following to generate various debug output
  */
 
 #undef	DEBUG_IO		/* port emulation */
 #undef	DEBUG_MAPPING		/* VGA memory mapping */
 #undef	DEBUG_UPDATE		/* screen update process */
 #undef	DEBUG_BANK_SWITCHING	/* bank switching */
-
+#undef	DEBUG_COL_CHANGE	/* color interpretation changes */
 
 #include <features.h>
 #if __GLIBC__ == 2 && __GLIBC_MINOR__ == 0
@@ -281,7 +285,7 @@ Bit8u VGA_emulate_inb(ioport_t port)
       break;
 
     case ATTRIBUTE_INDEX:
-      uc = Attr_get_index();	/* undefined, in fact */
+      uc = Attr_get_index();
       break;
     
     case ATTRIBUTE_DATA:
@@ -1239,8 +1243,6 @@ int vga_emu_setmode(int mode, int width, int height)
     vga_emu_map(VGAEMU_MAP_LFB_MODE, 0);	/* map the VGA memory to LFB */
   }
 
-  vga.dac.bits = 6;
-
   DAC_init();		/* Re-initialize the DAC */
   Attr_init();
   Seq_init();
@@ -1307,4 +1309,100 @@ int vga_emu_set_text_page(unsigned page, unsigned page_size)
 
   return 0;
 }
+
+
+/*
+ * DANG_BEGIN_FUNCTION changed_vga_colors
+ *
+ * description:
+ * Checks DAC and Attribute Controller to find all colors with
+ * changed RGB-values.
+ * Returns number of changed colors.
+ * Note: the list _must_ be large enough, that is, have at least
+ * min(256, (1 << vga.pixel_size)) entries!
+ *
+ * arguments:
+ * de - list of DAC entries to store changed colors in
+ *
+ * DANG_END_FUNCTION                        
+ *
+ * Note: vga.dac.rgb[i].index holds the dirty flag but in the returned
+ * DAC entries .index is the VGA color number.
+ *
+ */     
+
+int changed_vga_colors(DAC_entry *de)
+{
+  int i, j;
+  unsigned cols;
+  unsigned char a;
+
+#if 0	/* change attr.c first! */
+  if(!vga.color_modified) return 0;
+#endif
+
+  cols = 1 << vga.pixel_size;
+  if(cols > 256) cols = 256;	/* We do not really support > 8 bit palettes. */
+
+ /*
+  * Modes with more than 16 colors will not use palette regs.
+  * Note: index = dirty flag!
+  */
+  if(vga.pixel_size > 4) {
+    for(i = j = 0; i < cols; i++) {
+      if(vga.dac.rgb[i].index == True) {
+        de[j] = vga.dac.rgb[i]; de[j++].index = i;
+        vga.dac.rgb[i].index = False;
+#ifdef DEBUG_COL_CHANGE
+        v_printf("VGAEmu: changed_vga_colors: color 0x%02x\n", i);
+#endif
+      }
+    }
+  }
+  else {
+    for(i = j = 0; i < cols; i++) {
+
+      /* ATTR_MODE_CTL   == 0x10 */
+      /* ATTR_COL_SELECT == 0x14 */
+
+      /*
+       * Supply bits 6-7 resp. 4-7 from Attribute Controller;
+       * see VGADOC for details.
+       * Note: palette entries have only 6 bits.
+       */
+      if(vga.attr.data[0x10] & 0x80) {
+        a = (vga.attr.data[i] & 0x0f) |
+            ((vga.attr.data[0x14] & 0x0f) << 4);	/* bits 7-5 */
+      }
+      else {
+        a = vga.attr.data[i] |
+            ((vga.attr.data[0x14] & 0x0c) << 4);	/* bits 7-6 */
+      }
+      
+      if(
+        vga.dac.rgb[a].index == True ||
+        vga.attr.dirty[i] == True
+      ) {
+        vga.attr.dirty[i] = False;
+        de[j] = vga.dac.rgb[a]; de[j++].index = i;
+        vga.dac.rgb[a].index = False;
+#ifdef DEBUG_COL_CHANGE
+        v_printf("VGAEmu: changed_vga_colors: color 0x%02x, dac entry 0x%02x\n", i, a);
+#endif
+      }
+    }
+  }
+
+  vga.color_modified = False;
+
+  /* apply PEL mask */
+  if(j && vga.dac.pel_mask != 0xff) {
+    for(i = 0, a = vga.dac.pel_mask; i < j; i++) {
+      de[i].r &= a; de[i].g &= a; de[i].b &= a;
+    }
+  }
+
+  return j;
+}
+
 

@@ -947,8 +947,8 @@ void int10()
             break;
 
           case 0x10:
-            DAC_set_entry((unsigned char)HI(dx), (unsigned char)HI(cx),
-                          (unsigned char)LO(cx), (unsigned char)LO(bx));
+            DAC_set_entry((unsigned char)LO(bx), (unsigned char)HI(dx),
+                          (unsigned char)HI(cx), (unsigned char)LO(cx));
             break;
 
           case 0x12:
@@ -965,7 +965,8 @@ void int10()
             break;
 
           case 0x15:  /* Read Individual DAC Register */
-            DAC_read_entry(&rgb, (unsigned char)LO(bx));
+            rgb.index = (unsigned char) LO(bx);
+            DAC_get_entry(&rgb);
             (unsigned char)HI(dx) = rgb.r;
             (unsigned char)HI(cx) = rgb.g;
             (unsigned char)LO(cx) = rgb.b;
@@ -977,10 +978,11 @@ void int10()
             src=SEG_ADR((unsigned char*),es,dx);
             for(i=0; i<count; i++, index++)
               {
-                DAC_read_entry(&rgb, index); 
-                src[i*3]=rgb.r;
-                src[i*3+1]=rgb.g;
-                src[i*3+2]=rgb.b;
+                rgb.index = index;
+                DAC_get_entry(&rgb); 
+                src[i*3    ] = rgb.r;
+                src[i*3 + 1] = rgb.g;
+                src[i*3 + 2] = rgb.b;
               }
             break;
 

@@ -138,10 +138,13 @@
 /*
  * A DAC entry. Note that r, g, b may be 6 or 8 bit values,
  * depending on the current DAC width (stored in vga.dac.bits).
+ *
+ * Note that the 'index'-entry is (ab)used internally to hold the
+ * dirty flag.
  */
 
 typedef struct {
-  unsigned char r, g, b;	/* red, green, blue */
+  unsigned char index, r, g, b;		/* index, red, green, blue */
 } DAC_entry;
 
 
@@ -273,12 +276,33 @@ typedef struct {
 
 
 /*
- * All DAC data. (in future -- sw)
+ * All DAC data.
  */
 
 typedef struct {
-  unsigned bits;
+  unsigned bits;			/* DAC bits, usually 6 or 8 */
+  char pel_index;			/* 'r', 'g', 'b' */
+  unsigned char pel_mask;
+  unsigned char state;
+  unsigned char read_index;
+  unsigned char write_index;
+  DAC_entry rgb[256];			/* Note: rgb.index holds dirty flag! */
 } vga_dac_type;
+
+
+/*
+ * All Attribute Controller data.
+ */
+
+#define ATTR_MAX_INDEX 0x14		/* 21 registers */
+
+typedef struct {
+  unsigned flipflop;			/* index/data */
+  unsigned char index;			/* index reg (5 bit) */
+  unsigned char cpu_video;		/* pal regs unreadable if 1 */
+  unsigned char data[ATTR_MAX_INDEX + 1];
+  unsigned char dirty[ATTR_MAX_INDEX + 1];
+} vga_attr_type;
 
 
 /*
@@ -324,8 +348,10 @@ typedef struct {
   int pixel_size;			/* bits / pixel (including reserved bits) */
   int display_start;			/* offset for the 1st pixel */
   int power_state;			/* display power state (cf. VBE functions) */
+  int color_modified;			/* set if some palette/dac data have been changed */
   vga_mem_type mem;
   vga_dac_type dac;
+  vga_attr_type attr;
   vga_crtc_type crtc;
   vga_seq_type seq;
 } vga_type;
@@ -386,6 +412,7 @@ vga_mode_info *vga_emu_find_mode(int, vga_mode_info *);
 int vga_emu_setmode(int, int, int);
 void dirty_all_video_pages(void);
 int vga_emu_set_text_page(unsigned, unsigned);
+int changed_vga_colors(DAC_entry *);
 
 
 /*
@@ -402,23 +429,20 @@ int vesa_emu_fault(struct sigcontext_struct *scp);
  */
 
 void DAC_init(void);
-/* void DAC_dirty_all(void); */			/* no longer needed  -- sw */
-void DAC_get_entry(DAC_entry *, unsigned char);
-void DAC_read_entry(DAC_entry *, unsigned char);
-/* int DAC_get_dirty_entry(DAC_entry *); */	/* no longer needed -- sw */
+void DAC_set_width(unsigned);
+void DAC_get_entry(DAC_entry *);
 void DAC_set_entry(unsigned char, unsigned char, unsigned char, unsigned char);
-unsigned char DAC_get_pel_mask(void);
-unsigned char DAC_get_state(void);
 
-inline void DAC_set_read_index(unsigned char);
-inline void DAC_set_write_index(unsigned char);
+void DAC_set_read_index(unsigned char);
+void DAC_set_write_index(unsigned char);
+
 unsigned char DAC_read_value(void);
 void DAC_write_value(unsigned char);
-inline void DAC_set_pel_mask(unsigned char);
-void DAC_set_width(unsigned);
 
+unsigned char DAC_get_pel_mask(void);
+void DAC_set_pel_mask(unsigned char);
 
-void pixel2RGB(unsigned char, DAC_entry *);
+unsigned char DAC_get_state(void);
 
 
 /*
@@ -426,14 +450,15 @@ void pixel2RGB(unsigned char, DAC_entry *);
  */
 
 void Attr_init(void);
-void Attr_write_value(unsigned char);
-unsigned char Attr_read_value(void);
-inline unsigned char Attr_get_index(void);
-unsigned char Attr_get_input_status_1(void);
-
 unsigned char Attr_get_entry(unsigned char);
 void Attr_set_entry(unsigned char, unsigned char);
-int Attr_is_dirty(unsigned char);
+
+unsigned char Attr_read_value(void);
+void Attr_write_value(unsigned char);
+
+unsigned char Attr_get_index(void);
+
+unsigned char Attr_get_input_status_1(void);
 
 
 /*

@@ -1,3 +1,10 @@
+98/10/30 ver. 0.99.2.3 unofficial pre-release
+	From Steffen
+	- faster palette updates
+	- VGA compliant treatment of palette registers
+	- correct implementation of the Attribute Controller interface
+	- PEL-mask support
+	- simplification of DAC emulator interface
 98/10/30 ver. 0.99.2.2 unofficial pre-release
 	( syncing changes from 0.98 to 0.99 )
 	From Hans

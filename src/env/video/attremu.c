@@ -35,9 +35,21 @@
  * The Attribute Controller is part of the VGA (Video Graphics Array,
  * a video adapter for IBM compatible PC's).
  *
- * Lots of VGA information comes from Finn Thoergersen's VGADOC3, available
- * at every Simtel mirror in vga/vgadoc3.zip, and in the dosemu directory at 
- * tsx-11.mit.edu.
+ * For an excellent reference to programming SVGA cards see Finn Thøgersen's
+ * VGADOC4, available at http://www.datashopper.dk/~finth
+ *
+ * VGADOC says about the attribute controller:
+ * Port 3C0h is special in that it is both address and data-write register.
+ * Data reads happen from port 3C1h. An internal flip-flop remembers whether 
+ * it is currently acting as an address or data register.
+ * Reading port 3DAh will reset the flip-flop to address mode.
+ *
+ * What the DOC does not say, but my card does:
+ * - index reg, bit 5 affects only the palette regs (index < 16) (Not even the
+ *   overscan color reg!)
+ * - a read from an inaccessible reg (or a nonexistent reg) returns the index reg
+ * - all unspecified bits are zero and cannot be set
+ * -- sw
  *
  * DANG_BEGIN_MODULE
  *
@@ -58,110 +70,141 @@
  * 1998/09/20: Added proper init values for all graphics modes.
  * -- sw
  *
+ * 1998/10/25: Restructured code, removed unnecessary parts, added some code.
+ * The emulation is now (as far as I could test) identical to my VGA chip's
+ * controller (S3 968).
+ * -- sw
+ *
  * DANG_END_CHANGELOG
  */
 
-/* Define to debug the Attribute controller */
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * some configurable options
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* define to debug the Attribute Controller */
 #undef DEBUG_ATTR
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+#define ATTR_INDEX_FLIPFLOP	0
+#define ATTR_DATA_FLIPFLOP	1
+
+#define ATTR_MODE_CTL	0x10
+#define ATTR_OVERSCAN	0x11
+#define ATTR_COL_PLANE	0x12
+#define ATTR_HOR_PAN	0x13
+#define ATTR_COL_SELECT	0x14
 
 #if !defined True
 #define False 0
 #define True 1
 #endif
 
+#ifdef DEBUG_ATTR
+#define attr_deb(x...) v_printf(x)
+#else
+#define attr_deb(x...)
+#endif
 
 
-
-/* **************** include files **************** */
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 #include "config.h"
 #include "emu.h"
 #include "timers.h"
 #include "vgaemu.h"
 
 
-/* **************** Attribute Controller data **************** */
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+static unsigned char attr_ival[9][ATTR_MAX_INDEX + 1] = {
+  {	/* 0  TEXT, 4 bits */
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x14, 0x07,
+    0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
+    0x0c, 0x00, 0x0f, 0x08, 0x00
+  },
+  {	/* 1  CGA, 2 bits */
+    0x00, 0x13, 0x15, 0x17, 0x02, 0x04, 0x06, 0x07,
+    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+    0x01, 0x00, 0x03, 0x00, 0x00
+  },
+  {	/* 2  CGA: PL1, 1 bit (mode 0x06) */
+    0x00, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17,
+    0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17,
+    0x01, 0x00, 0x01, 0x00, 0x00
+  },
+  {	/* 3  TEXT, 1 bit */
+    0x00, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
+    0x10, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18,
+    0x0e, 0x00, 0x0f, 0x08, 0x00
+  },
+  {	/* 4  EGA: PL4, 4 bits (modes 0x0d, 0x0e) */
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+    0x01, 0x00, 0x0f, 0x00, 0x00
+  },
+  {	/* 5  EGA: PL1, 1 bit (mode 0x0f) */
+    0x00, 0x08, 0x00, 0x00, 0x18, 0x18, 0x00, 0x00,
+    0x00, 0x08, 0x00, 0x00, 0x00, 0x18, 0x00, 0x00,
+    0x0b, 0x00, 0x05, 0x00, 0x00
+  },
+  {	/* 6  VGA: PL4, 4 bit */
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x14, 0x07,
+    0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
+    0x01, 0x00, 0x0f, 0x00, 0x00
+  },
+  {	/* 7  VGA: PL1, 1 bit */
+    0x00, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f,
+    0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f,
+    0x01, 0x00, 0x01, 0x00, 0x00
+  },
+  {	/* 8  P8, 8 bit */
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+    0x41, 0x00, 0x0f, 0x00, 0x00
+  }
+};
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
- * vgadoc3 says about the attribute controller:
- *  Port 3C0h is special in that it is both address and data-write register.
- *  Data reads happen from port 3C1h. An internal flip-flop remembers whether 
- *  it is currently acting as an address or data register.
- *  Reading port 3dAh will reset the flip-flop to address mode.
+ * Set unspecified bits to zero.
  */
-
-#define ATTR_INDEX_FLIPFLOP 0
-#define ATTR_DATA_FLIPFLOP 1
-#define ATTR_MAX_INDEX 0x14
-
-unsigned char attr_ival[9][ATTR_MAX_INDEX + 2] = {
-  /* 0  TEXT, 4 bits */
-  {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x14, 0x07, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,  0x0c, 0x00, 0x0f, 0x08, 0x00,  0x00},
-  /* 1  CGA, 2 bits */
-  {0x00, 0x13, 0x15, 0x17, 0x02, 0x04, 0x06, 0x07, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,  0x01, 0x00, 0x03, 0x00, 0x00,  0x00},
-  /* 2  CGA: PL1, 1 bit (mode 0x06) */
-  {0x00, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17,  0x01, 0x00, 0x01, 0x00, 0x00,  0x00},
-  /* 3  TEXT, 1 bit */
-  {0x00, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x10, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18,  0x0e, 0x00, 0x0f, 0x08, 0x00,  0x00},
-  /* 4  EGA: PL4, 4 bits (modes 0x0d, 0x0e) */
-  {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,  0x01, 0x00, 0x0f, 0x00, 0x00,  0x00},
-  /* 5  EGA: PL1, 1 bit (mode 0x0f) */
-  {0x00, 0x08, 0x00, 0x00, 0x18, 0x18, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x18, 0x00, 0x00,  0x0b, 0x00, 0x05, 0x00, 0x00,  0x00},
-  /* 6  VGA: PL4, 4 bit */
-  {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x14, 0x07, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,  0x01, 0x00, 0x0f, 0x00, 0x00,  0x00},
-  /* 7  VGA: PL1, 1 bit */
-  {0x00, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f,  0x01, 0x00, 0x01, 0x00, 0x00,  0x00},
-  /* 8  P8, 8 bit */
-  {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,  0x41, 0x00, 0x0f, 0x00, 0x00,  0x00}
-};
-
-
-static unsigned char Attr_index = 0;
-static int Attr_flipflop = ATTR_INDEX_FLIPFLOP;
-static indexed_register Attr_data[ATTR_MAX_INDEX + 2] =
+static unsigned char clear_undef_bits(unsigned char i, unsigned char v)
 {
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x00 */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x01 */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x02 */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x03 */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x04 */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x05 */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x06 */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x07 */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x08 */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x09 */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x0a */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x0b */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x0c */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x0d */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x0e */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x0f */
-  {0x00, 0x00, reg_read_write, False},        /* Mode ctrl */
-  {0x00, 0x00, reg_read_write, False},        /* Overscan color */
-  {0x00, 0x00, reg_read_write, False},        /* Colorplane enable */
-  {0x00, 0x00, reg_read_write, False},        /* Horizontal PEL panning */
-  {0x00, 0x00, reg_read_write, False},        /* Color select */
-  {0x00, 0x00, reg_read_write, False}         /* Dummy register for wrong indices */
-};
+  unsigned char m;
+
+  if(i > ATTR_MAX_INDEX) return v;
+
+  switch(i) {
+    case ATTR_MODE_CTL  : m = ~0x10; break;
+    case ATTR_HOR_PAN   :
+    case ATTR_COL_SELECT: m = 0x0f; break;
+    default             : m = 0x3f;
+  }
+
+  return v & m;
+}
 
 
-/* *************** Attribute controller emulation functions *************** */
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
  * DANG_BEGIN_FUNCTION Attr_init
  *
  * Initializes the attribute controller.
+ * This is an interface function.
  *
  * DANG_END_FUNCTION
+ *
  */
-void Attr_init(void)
+void Attr_init()
 {
   int i = 0, j;
   vga_mode_info *vmi = vga.mode_info;
 
   if(vmi == NULL) {
-#ifdef DEBUG_ATTR
     v_printf("VGAEmu: Attr_init failed\n");
-#endif
   }
   else {
     switch(vmi->mode) {
@@ -185,69 +228,69 @@ void Attr_init(void)
     }
   }
 
-  for(j = 0; j < ATTR_MAX_INDEX + 2; j++) {
-    Attr_data[j].read = Attr_data[j].write = attr_ival[i][j];
-    Attr_data[j].dirty = True;
+  for(j = 0; j <= ATTR_MAX_INDEX; j++) {
+    vga.attr.data[j] = attr_ival[i][j];
+    vga.attr.dirty[j] = True;
   }
 
-  Attr_index = 0;
-  Attr_flipflop = ATTR_INDEX_FLIPFLOP;
+  vga.color_modified = True;
+  vga.attr.index = 0;
+  vga.attr.cpu_video = 0x20;
+  vga.attr.flipflop = ATTR_INDEX_FLIPFLOP;
 
   v_printf("VGAEmu: Attr_init done\n");
 }
 
 
-
-
 /*
- * DANG_BEGIN_FUNCTION Attr_write_value
+ * DANG_BEGIN_FUNCTION Attr_get_entry
  *
- * Emulates writes to attribute controller combined index and data
- * register. Read vgadoc3 for details.
- * This is a hardware emulation function.
+ * Directly reads the Attribute Controller's registers.
+ * This is an interface function.
  *
  * DANG_END_FUNCTION
+ *
  */
-void Attr_write_value(unsigned char data)
+unsigned char Attr_get_entry(unsigned char index)
 {
-  if(Attr_flipflop==ATTR_INDEX_FLIPFLOP)
-    {
-      Attr_flipflop=ATTR_DATA_FLIPFLOP;
-      
-      if(data>ATTR_MAX_INDEX)
-        {
-          Attr_index=ATTR_MAX_INDEX+1;
+  unsigned char u;
 
-#ifdef DEBUG_ATTR
-          v_printf("VGAemu: Attr_write_value(0x%02x): ERROR index too big. "
-                   "Attr_index set to 0x%02x\n", data, ATTR_MAX_INDEX+1);
-#endif
-        }
-      else
-        {
-          Attr_index=data;
+  u = index <= ATTR_MAX_INDEX ? vga.attr.data[index] : 0xff;
 
-#ifdef DEBUG_ATTR
-          v_printf("VGAemu: Attr_write_value(0x%02x): Attr_index set\n", data);
-#endif
-        }
-    }
-  else /* Attr_flipflop==ATTR_DATA_FLIPFLOP */
-    {
-      Attr_flipflop=ATTR_INDEX_FLIPFLOP;
-      
-#ifdef DEBUG_ATTR
-      v_printf("VGAemu: Attr_write_value(0x%02x): data written in port "
-               "0x%02x\n", data, Attr_index);
-#endif
-      Attr_data[Attr_index].write=data;
-      Attr_data[Attr_index].read=data;
-      Attr_data[Attr_index].dirty=True;
-    }
+  attr_deb("VGAEmu: Attr_get_entry: data[0x%02x] = 0x%02x\n", (unsigned) index, (unsigned) u);
+
+  return u;
 }
 
 
+/*
+ * DANG_BEGIN_FUNCTION Attr_set_entry
+ *
+ * Directly sets the Attribute Controller's registers.
+ * This is an interface function.
+ *
+ * DANG_END_FUNCTION
+ *
+ */
+void Attr_set_entry(unsigned char index, unsigned char value)
+{
+  unsigned i;
 
+  attr_deb("VGAEmu: Attr_set_entry: data[0x%02x] = 0x%02x\n", (unsigned) index, (unsigned) value);
+
+  if(index > ATTR_MAX_INDEX) return;
+
+  value = clear_undef_bits(index, value);
+
+  if(vga.attr.data[index] != value) {
+    vga.attr.data[index] = value;
+    vga.attr.dirty[index] = True;
+    vga.color_modified = True;
+    if(index == ATTR_MODE_CTL || index == ATTR_COL_SELECT) {
+      for(i = 0; i < 16; i++) vga.attr.dirty[i] = True;
+    }
+  }
+}
 
 
 /*
@@ -257,26 +300,71 @@ void Attr_write_value(unsigned char data)
  * This is a hardware emulation function.
  *
  * DANG_END_FUNCTION
+ *
  */
-unsigned char Attr_read_value(void)
+unsigned char Attr_read_value()
 {
-#ifdef DEBUG_ATTR
-  v_printf("VGAemu: Attr_read_value() returns 0x%02x\n", 
-           Attr_data[Attr_index].read);
-#endif
+  unsigned i = vga.attr.index;
+  unsigned char uc = i | vga.attr.cpu_video;
 
-/*
- * I don't know if the next line is OK. It seems reasonable that the
- * flipflop for port 0x3c0 is set to index if you read the data from
- * 0x3c1, but vgadoc3 says nothing about it and I don't have any other
- * documentation here at the moment :-( -- EM
- */
-  Attr_flipflop=ATTR_INDEX_FLIPFLOP;
-  
-  return(Attr_data[Attr_index].read);
+  if(i <= ATTR_MAX_INDEX && (vga.attr.cpu_video == 0 ||i > 15)) {
+    uc = vga.attr.data[i];
+
+    attr_deb("VGAEmu: Attr_read_value: attr[0x%02x] = 0x%02x\n", i, (unsigned) uc);
+  }
+  else {
+    attr_deb("VGAEmu: Attr_read_value: data reg inaccessible, index = 0x%02x\n", (unsigned) uc);
+  }
+
+  return uc;
 }
 
 
+/*
+ * DANG_BEGIN_FUNCTION Attr_write_value
+ *
+ * Emulates writes to attribute controller combined index and data
+ * register. Read VGADOC for details.
+ * This is a hardware emulation function.
+ *
+ * DANG_END_FUNCTION
+ *
+ */
+void Attr_write_value(unsigned char data)
+{
+  unsigned i, j;
+
+  if(vga.attr.flipflop == ATTR_INDEX_FLIPFLOP) {
+    vga.attr.flipflop = ATTR_DATA_FLIPFLOP;
+
+    vga.attr.index = data & 0x1f;
+    vga.attr.cpu_video = data & 0x20;
+
+    attr_deb(
+      "VGAEmu: Attr_write_value: index = 0x%02x\n",
+      (unsigned) (vga.attr.index | vga.attr.cpu_video)
+    );
+  }
+  else {	/* Attr_flipflop == ATTR_DATA_FLIPFLOP */
+    vga.attr.flipflop = ATTR_INDEX_FLIPFLOP;
+
+    i = vga.attr.index;
+
+    if(i <= ATTR_MAX_INDEX && (vga.attr.cpu_video == 0 || i > 15)) {
+      vga.attr.data[i] = clear_undef_bits(i, data);
+      vga.attr.dirty[i] = True;
+      vga.color_modified = True;
+      if(i == ATTR_MODE_CTL || i == ATTR_COL_SELECT) {
+        for(j = 0; j < 16; j++) vga.attr.dirty[j] = True;
+      }
+
+      attr_deb("VGAEmu: Attr_write_value: attr[0x%02x] = 0x%02x\n", i, (unsigned) data);
+    }
+    else {
+      attr_deb("VGAEmu: Attr_write_value: data ignored\n");
+    }
+  }
+}
 
 
 /*
@@ -285,29 +373,34 @@ unsigned char Attr_read_value(void)
  * Returns the current index of the attribute controller.
  * This is a hardware emulation function, though in fact this function
  * is undefined in a real attribute controller.
+ * Well, it is exactly what my VGA board (S3) does. -- sw
+ * This is a hardware emulation function.
  *
  * DANG_END_FUNCTION
  *
  */
-inline unsigned char Attr_get_index(void)
+unsigned char Attr_get_index()
 {
-#ifdef DEBUG_ATTR
-  v_printf("VGAemu: Attr_get_index() returns 0x%02x\n", Attr_index);
-#endif
+  unsigned char uc = vga.attr.index | vga.attr.cpu_video;
 
-  return(Attr_index);
+  attr_deb("VGAEmu: Attr_get_index: index = 0x%02x\n", (unsigned) uc);
+
+  return uc;
 }
-
-
 
 
 /*
  * DANG_BEGIN_FUNCTION Attr_get_input_status_1
  *
+ * Emulate input status #1 register. The essential part is to
+ * simulate the retrace signals.
+ * Clears the Attribute Controller's flip-flop.
+ * This is a hardware emulation function.
+ *
  * DANG_END_FUNCTION
  *
  */
-unsigned char Attr_get_input_status_1(void)
+unsigned char Attr_get_input_status_1()
 {
   /* 
    * Graphic status - many programs will use this port to sync with
@@ -339,11 +432,7 @@ unsigned char Attr_get_input_status_1(void)
 #endif
   unsigned char retval;
 
-#ifdef DEBUG_ATTR
-  v_printf("VGAemu: Attr_get_input_status_1() resets flipflop to index\n");
-#endif
-
-  Attr_flipflop=ATTR_INDEX_FLIPFLOP;
+  vga.attr.flipflop = ATTR_INDEX_FLIPFLOP;
 
 #ifdef HAVE_GETTIMEOFDAY
   t=GETusTIME(0);
@@ -374,66 +463,8 @@ unsigned char Attr_get_input_status_1(void)
   retval=((cga_r ^= 1) ? 0xcf : 0xc6);
 #endif
 
-#ifdef DEBUG_ATTR
-  v_printf("VGAemu: Attr_get_input_status_1() returns 0x%02x\n", retval);
-#endif
+  attr_deb("VGAEmu: Attr_get_input_status_1: status = 0x%02x\n", retval);
 
-  return(retval);
+  return retval;
 }
-
-
-
-
-/*
- * Attribute controller interface function should come here.
- */
-
-
-unsigned char Attr_get_entry(unsigned char index)
-{
-  unsigned char u;
-
-  u = index < ATTR_MAX_INDEX + 2 ? Attr_data[index].read : 0xff;
-
-#ifdef DEBUG_ATTR
-  v_printf("VGAEmu: Attr_get_entry: data[0x%02x] = 0x%02x\n", (unsigned) index, (unsigned) u);
-#endif
-
-  return u;
-}
-
-void Attr_set_entry(unsigned char index, unsigned char value)
-{
-#ifdef DEBUG_ATTR
-  v_printf("VGAEmu: Attr_set_entry: data[0x%02x] = 0x%02x\n", (unsigned) index, (unsigned) value);
-#endif
-
-  if(index >= ATTR_MAX_INDEX + 2) return;
-
-  if(Attr_data[index].read != value || Attr_data[index].write != value) {
-    Attr_data[index].read = value;
-    Attr_data[index].write = value;
-    Attr_data[index].dirty = True;
-  }
-}
-
-int Attr_is_dirty(unsigned char index)
-{
-  int u;
-
-  if(index < ATTR_MAX_INDEX + 2) {
-    u = Attr_data[index].dirty;
-    Attr_data[index].dirty = False;
-  }
-  else {
-    u = False;
-  }
-
-#ifdef DEBUG_ATTR
-  v_printf("VGAEmu: Attr_is_dirty: data[0x%02x] = 0x%02x\n", (unsigned) index, (unsigned) u);
-#endif
-
-  return u;
-}
-
 
