@@ -43,7 +43,7 @@ Modified by O.V.Zhirov, July 1998
 
 #define safe_memcpy(x,y,s) memmove(x,y,s)
 
-#define lp_strip_dot() 0
+#define lp_strip_dot() 1
 
 #define BOOL int
 #ifndef True

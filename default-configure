@@ -76,6 +76,9 @@ while [ "$1" != "" ]; do
     svgalib)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-use-svgalib"; fi
       ;;
+    pthreads)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-use-pthreads"; fi
+      ;;
     plugin_*)
       plugin=`expr substr $1 8 100`
       if [ "$2" = "on" ]; then PLUGIN="$PLUGIN $plugin yes"; fi

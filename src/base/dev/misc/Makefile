@@ -8,7 +8,7 @@
 #  src/base/misc/timers.c -> ../dev/misc/timers.c
 
 
-CFILES=cmos.c timers.c lpt.c rtc.c pci.c
+CFILES=cmos.c timers.c lpt.c rtc.c pci.c joystick.c
 
 SFILES=
 ALL=$(CFILES) $(SFILES)

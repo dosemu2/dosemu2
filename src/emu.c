@@ -75,6 +75,7 @@ __asm__("___START___: jmp _emulate\n");
 #include <limits.h>
 #include <getopt.h>
 #include <assert.h>
+#include <locale.h>
 
 #ifdef __linux__
 #if GLIBC_VERSION_CODE >= 2000
@@ -326,6 +327,8 @@ emulate(int argc, char **argv)
 	kill(0, SIGKILL);
 	_exit(1);		/* just in case */
     }
+
+		setlocale(LC_ALL,"");
 
     /* NOW! it is safe to touch the priv code.  */
     priv_init();  /* This must come first! */

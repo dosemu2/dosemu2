@@ -61,4 +61,4 @@ test.com: generic.S detect.h
 install: all
 
 clean::
-	rm -f *~ *.o *.s *.out *.d *.com
+	rm -f *~ *.o *.s *.out *.d *.com mkcomstub

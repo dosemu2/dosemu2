@@ -143,8 +143,8 @@ void keyb_server_close();
 #define KEY_LBRACK	0x1a
 #define KEY_RBRACK	0x1b
 #define KEY_SEMICOLON	0x27
-#define KEY_GRAVE	0x28   /* ` */
-#define KEY_APOSTROPHE	0x29   /* ' */
+#define KEY_APOSTROPHE 0x28   /* ' */
+#define KEY_GRAVE      0x29   /* ` */
 #define KEY_BACKSLASH	0x2b
 #define KEY_COMMA	0x33
 #define KEY_PERIOD	0x34

@@ -31,7 +31,10 @@ function install_from_template {
       tar -xzf $SYSTEM_INSTALL_PATH/dosemu-bin.tgz
       mv dosemu/freedos/dosemu dosemu/commands
       rmdir dosemu/freedos
-      perl -i -pe 's|(^\s*\$_hdimage\s*=\s*\")freedos|$1'"$PROPRIETARY|" dosemu/conf/dosemu.conf
+#     perl -i -pe 's|(^\s*\$_hdimage\s*=\s*\")freedos|$1'"$PROPRIETARY|" dosemu/conf/dosemu.conf
+      cat dosemu/conf/dosemu.conf | \
+          sed -e "s#\([[:space:]]*\$_hdimage[[:space:]]*=[[:space:]]*\"\)freedos#\1$PROPRIETARY#" \
+	  > dosemu/conf/dosemu.conf
       mkdir -p ~/.dosemu
       echo "$1/dosemu" > $BPATH_FILE
     )
@@ -291,15 +294,28 @@ if [ -n "$XFLAG" ]; then
 "
     exit 1
   fi
-  if [ "`xlsfonts -fn vga 2>/dev/null`" = "" ]; then
+  
+  FONT=`grep '$_X_font' $BOOT_DIR_PATH/conf/dosemurc | \
+        sed -e 's#[[:space:]]*\$_X_font[[:space:]]*=[[:space:]]*\"\(.*\)\".*#\1#'`
+
+  if [ "$FONT" = "" ]; then
+     FONT=`grep '$_X_font' $BOOT_DIR_PATH/conf/dosemu.conf | \
+           sed -e 's#[[:space:]]*\$_X_font[[:space:]]*=[[:space:]]*\"\(.*\)\".*#\1#'`
+  fi
+
+  if [ "$FONT" = "" ]; then
+     FONT="vga"
+  fi
+
+  if [ "`xlsfonts -fn $FONT 2>/dev/null`" = "" ]; then
     if [ ! -f $BOOT_DIR_PATH/Xfonts/fonts.dir ]; then
       (cd $BOOT_DIR_PATH/Xfonts; mkfontdir)
     fi
     xset +fp $BOOT_DIR_PATH/Xfonts 2>/dev/null
-    if [ "`xlsfonts -fn vga 2>/dev/null`" = "" ]; then
+    if [ "`xlsfonts -fn $FONT 2>/dev/null`" = "" ]; then
       echo "
-   You do not have the DOSEMU vga font installed and are running
-   remote X. You need to install the vga font on your _local_ Xserver.
+   You do not have the DOSEMU $FONT font installed and are running
+   remote X. You need to install the $FONT font on your _local_ Xserver.
    Look at the readme for details. For now we start with an fixed font,
    which does not display all national characters correctly.
    ... be warned

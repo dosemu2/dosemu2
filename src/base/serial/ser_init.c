@@ -141,8 +141,8 @@ static int tty_lock(char *path, int mode)
     {
       FILE *fd;
       if (tty_already_locked(saved_path) == 1) {
-        s_printf("DOSEMU: attempt to use already locked tty %s\n", saved_path);
-        error("\nDOSEMU: attempt to use already locked tty %s\n", saved_path);
+        s_printf("attempt to use already locked tty %s\n", saved_path);
+        error("attempt to use already locked tty %s\n", saved_path);
         return (-1);
       }
       enter_priv_on();
@@ -393,7 +393,7 @@ static void do_ser_init(int num)
   if(com[num].interrupt < 16) {
     com[num].interrupt = pic_irq_list[com[num].interrupt];
     s_printf("SER%d: enabling interrupt %d\n", num, com[num].interrupt);
-    pic_seti(com[num].interrupt,pic_serial_run,0);
+    pic_seti(com[num].interrupt, pic_serial_run, 0, NULL);
     pic_unmaski(com[num].interrupt);
   }
   irq_source_num[com[num].interrupt] = num;	/* map interrupt to port */

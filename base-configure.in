@@ -131,7 +131,7 @@ AC_ARG_ENABLE(linkstatic,
 	       CFLAGS="-static $CFLAGS"],
 	      [AC_CHECKING("Linking for shared libraries")])
 
-dnl Do check wether we have svgalib and wether to use it
+dnl Do check wether we have svgalib and whether to use it
 
 AC_ARG_ENABLE(use-svgalib,
 	[ --enable-use-svgalib     use svgalib if available],
@@ -146,6 +146,23 @@ if test "$use_svgalib" = "yes"; then
   AC_SUBST(USE_SVGALIB)
 else
   AC_CHECKING("compiling without svgalib support")
+fi
+
+dnl Do check wether we have pthreads and whether to use it
+
+AC_ARG_ENABLE(use-pthreads,
+	[ --enable-use-pthreads     use pthreads if available],
+	[use_pthreads="yes"],[use_pthreads="no"])
+if test "$use_pthreads" = "yes"; then
+  AC_CHECK_LIB(pthread, pthread_create, , use_pthreads="no", -lm)
+fi
+if test "$use_pthreads" = "yes"; then
+  AC_CHECKING("compiling with pthreads support")
+  AC_DEFINE(USE_PTHREADS)
+  USE_PTHREADS="USE_PTHREADS=1"
+  AC_SUBST(USE_PTHREADS)
+else
+  AC_CHECKING("compiling without pthreads support")
 fi
 
 dnl Do check wether we we shall force use of supplied Slanglib.

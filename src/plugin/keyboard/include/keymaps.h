@@ -51,6 +51,7 @@
 #define KEYB_CZ_QWERTY        32
 #define KEYB_CZ_QWERTZ        33
 #define KEYB_AUTO             34
+#define KEYB_RU               35
 #define CONST
 
 
@@ -90,6 +91,7 @@ struct keytable_entry {
   int keyboard;
   int flags;
 #define KT_USES_ALTMAP     1
+#define KT_ALTERNATE       2
   int sizemap;
   int sizepad;
   unsigned char *key_map, *shift_map, *alt_map, *num_table;

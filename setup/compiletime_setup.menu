@@ -17,6 +17,7 @@ menu "Main Menu" {
   boolean "EXPERIMENTAL, enable CPU emulator" cpuemu
   boolean "compile with ASPI driver" aspi
   boolean "compile with svgalib support" svgalib
+  boolean "compile with pthreads support" pthreads
 }
 
 menu "Configure Action" {

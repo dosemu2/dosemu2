@@ -39,9 +39,13 @@
 #include "disks.h"
 #include "dosemu_debug.h"
 
+#include <string.h>
+
 #ifdef USE_SBEMU
 #include "sound.h"
 #endif
+
+#include "joystick.h"
 
 struct io_dev_struct {
   const char * name;
@@ -72,6 +76,7 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
 #ifdef USE_SBEMU
   { "sound",   sound_init,   sound_reset,   NULL }, 
 #endif
+  { "joystick", joy_init,    joy_reset,     joy_term },
   { NULL,      NULL,         NULL,          NULL }
 };
 

@@ -149,7 +149,7 @@ void SIG_init()
 		    sg->irq = irq;
 		    g_printf("SIG: IRQ%d, enabling PIC-level %ld\n", irq, pic_irq_list[irq]);
 		    { extern int SillyG_do_irq(void);
-		    pic_seti(pic_irq_list[irq], SillyG_do_irq, 0);
+		    pic_seti(pic_irq_list[irq], SillyG_do_irq, 0, NULL);
 		    }
 		    pic_unmaski(pic_irq_list[irq]);
 		    sg++;

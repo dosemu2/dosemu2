@@ -54,7 +54,10 @@
 #define KEYB_CZ_QWERTY        32
 #define KEYB_CZ_QWERTZ        33
 #define KEYB_AUTO             34
+#define KEYB_RU               35
 #define CONST
+
+#define KT_ALTERNATE	1
 
 struct keytable_entry {
   char *name;

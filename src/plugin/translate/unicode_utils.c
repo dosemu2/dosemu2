@@ -58,7 +58,7 @@ size_t charset_to_unicode_string(struct char_set_state *state,
 		}
 		if (consumed) {
 			src_len -= consumed;
-			src += consumed;
+			*src += consumed;
 			characters++;
 			dst++;
 		}

@@ -65,8 +65,6 @@
 #define PIC_IMOUSE 17      /*  internal mouse driver       */
 #define PIC_IPX    18      /*  IPX Signal */
 
-#define PIC_IRQALL 0xfffe  /*  bits for all IRQs set. This never changes  */
-
 /* pic_irq_list translates irq numbers to pic_ilevels.  This is not used
    by pic routines; it is simply made available for configuration ease */
 EXTERN unsigned long pic_irq_list[] INIT({PIC_IRQ0,  PIC_IRQ1,  PIC_IRQ9,  PIC_IRQ3,
@@ -87,6 +85,7 @@ EXTERN unsigned long pic_irr;          /* interrupt request register */
 EXTERN unsigned long pic_isr;          /* interrupt in-service register */
 EXTERN unsigned long pic_iflag;        /* interrupt enable flag: en-/dis- =0/0xfffe */
 EXTERN unsigned long pic_icount;       /* iret counter (to avoid filling stack) */
+EXTERN unsigned long pic_irqall INIT(0xfffe);       /* bits for all IRQs set. */
 EXTERN unsigned long pic_ilevel INIT(32);    /* current interrupt level */
 
 EXTERN unsigned long pic0_imr INIT(0xf800);  /* interrupt mask register, pic0 */
@@ -108,6 +107,7 @@ EXTERN hitimer_t pic_sys_time INIT(NEVER);     /* system time set by pic_watch *
    
 struct lvldef {
        void (*func)();
+       void (*callback)();
        int    ivec;
        };
 
@@ -120,7 +120,7 @@ Bit8u read_pic0(ioport_t port);             /* read from PIC 0 */
 Bit8u read_pic1(ioport_t port);             /* read from PIC 1 */
 void pic_unmaski(int level);                 /* clear dosemu's irq mask bit */
 void pic_maski(int level);                   /*  set  dosemu's irq mask bit */
-void pic_seti(unsigned int level, void (*func), unsigned int ivec); 
+void pic_seti(unsigned int, void (*), unsigned int, void (*)); 
                                        /* set function and interrupt vector */
 void run_irqs();                                      /* run requested irqs */
 #define pic_run() if(pic_irr)run_irqs()   /* the right way to call run_irqs */
@@ -144,7 +144,7 @@ void pic_sched(int ilevel, int interval);          /* schedule an interrupt */
 
 #define pic_set_mask pic_imr=(pic0_imr|pic1_imr|pice_imr|pic_iflag)
 #define pic_sti() (pic_iflag=0,pic_set_mask, (void)0)          /*    emulate STI      */
-#define pic_cli() (pic_iflag=PIC_IRQALL,pic_set_mask, (void)0) /*    emulate CLI      */
+#define pic_cli() (pic_iflag=pic_irqall,pic_set_mask, (void)0) /*    emulate CLI      */
 
 /* Experimental TIMER-IRQ CHAIN code */
 extern void timer_int_engine(void);

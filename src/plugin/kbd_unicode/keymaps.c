@@ -1817,6 +1817,77 @@ CONST t_keysym alt_map_cz_qwertz[] =
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID
 };
+
+CONST t_keysym key_map_ru[] =
+{
+  U_VOID, 27, '1', '2', '3', '4', '5', '6',
+  '7', '8', '9', '0', '-', '=', 127, 9,
+  0x439,0x446,0x443,0x43A,0x435,0x43D,0x433,0x448,0x449,0x437,0x445,0x44A,
+  13, U_VOID,
+  0x444,0x44B,0x432,0x430,0x43F,0x440,0x43E,0x43B,0x434,0x436,0x44D,0x451,
+  U_VOID, '\\',
+  0x44F,0x447,0x441,0x43C,0x438,0x442,0x44C,0x431,0x44E,
+  '/', U_VOID, '*',
+  U_VOID, 32, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, '-', U_VOID, U_VOID, U_VOID, '+', U_VOID,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, '<', U_VOID,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID
+};
+
+CONST t_keysym shift_map_ru[] =
+{
+  U_VOID, 27, '!', '@', '#', '$', '%', '^',
+  '&', '*', '(', ')', '_', '+', 127, 9,
+  0x419,0x426,0x423,0x41A,0x415,0x41D,0x413,0x428,0x429,0x417,0x425,0x42A,
+  13, U_VOID,
+  0x424,0x42B,0x412,0x410,0x41F,0x420,0x41E,0x41B,0x414,0x416,0x42D,0x401,
+  U_VOID, '\\',
+  0x42F,0x427,0x421,0x41C,0x418,0x422,0x42C,0x411,0x42E,
+  '/', U_VOID, '*',
+  U_VOID, 32, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, '-', U_VOID, U_VOID, U_VOID, '+', U_VOID,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, '<', U_VOID,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID
+};
+
+CONST t_keysym alt_map_ru[] =
+{
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID
+};
+
+CONST t_keysym ctrl_map_ru[] =
+{
+  U_VOID, 0x1b,   U_VOID, 0x00,   U_VOID, U_VOID, U_VOID, 0x1e,
+  U_VOID, U_VOID, U_VOID, U_VOID, 0x1f,   U_VOID, 0x7f,   U_VOID,
+  0x11,   0x17,   0x05,   0x12,   0x14,   0x19,   0x15,   0x09,
+  0x0f,   0x10,   0x1b,   0x1d,   0x0a,   U_VOID, 0x01,   0x13,
+  0x04,   0x06,   0x07,   0x08,   0x0a,   0x0b,   0x0c,   U_VOID,
+  U_VOID, U_VOID, U_VOID, 0x1c,   0x1a,   0x18,   0x03,   0x16,
+  0x02,   0x0e,   0x0d,   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, 0x20,   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
+  U_VOID
+};
+
 /* this prefereable is overloaded via '-I keytable keyb-user'
  * and is preset with an US keyboard layout
  */
@@ -1974,6 +2045,9 @@ struct keytable_entry keytable_list[] = {
   {"cz-qwertz", KEYB_CZ_QWERTZ, 0, CT(key_map_cz_qwertz), CT(num_table_comma),
     key_map_cz_qwertz, shift_map_cz_qwertz, alt_map_cz_qwertz,
     num_table_comma,},                                       
+  {"ru", KEYB_RU, KT_ALTERNATE, CT(key_map_ru), CT(num_table_dot),
+    key_map_ru, shift_map_ru, alt_map_ru,
+    num_table_dot, ctrl_map_ru},
   {"keyb-user", KEYB_USER, 0, CT(key_map_user), CT(num_table_dot),
     key_map_user, shift_map_user, alt_map_user,
     num_table_dot,},
@@ -2325,7 +2399,7 @@ static int read_kbd_table(struct keytable_entry *kt)
 		kc = dosemu_val(vc);
 		if ((kp == KEY_MODE_SWITCH) || (ks == KEY_MODE_SWITCH) ||
 			(ka == KEY_MODE_SWITCH) || (kc == KEY_MODE_SWITCH)) {
-			printf("mode_switch\n");
+			k_printf("mode_switch\n");
 			altgr_present = 1;
 		}
 		if (ka == kp) {

@@ -97,6 +97,12 @@ ifdef USE_SVGALIB
   export SVGALIB=-lvga
 endif
 
+@USE_PTHREADS@
+ifdef USE_PTHREADS
+  export USE_PTHREADS
+  export PTHREADS=-lpthread
+endif
+
 @X86_EMULATOR@
 ifdef X86_EMULATOR
   export X86_EMULATOR

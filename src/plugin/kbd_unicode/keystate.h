@@ -15,6 +15,7 @@ struct press_state {
 	t_keynum	key;
 	t_keysym	deadsym;
 	t_modifiers	shiftstate;
+	int 		map;
 };
 
 struct character_translate_rules {
@@ -23,6 +24,7 @@ struct character_translate_rules {
 
 
 struct scancode_translate_rules {
+	int keyboard;
 	t_keysym plain[NUM_KEY_NUMS];
 	t_keysym shift[NUM_KEY_NUMS];
 	t_keysym ctrl[NUM_KEY_NUMS];
@@ -36,9 +38,12 @@ struct raw_key_state {
 	Bit32u rawprefix;
 };
 
+#define MAPS_MAX 4
 struct keyboard_rules {
 	struct character_translate_rules charset;
-	struct scancode_translate_rules map;
+	struct scancode_translate_rules maps[MAPS_MAX];
+	int activemap, stickymap;
+	int toggle_mask;
 };
 
 struct keyboard_state {

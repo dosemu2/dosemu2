@@ -30,6 +30,7 @@
 #include "vc.h"
 #include "mouse.h"
 #include "port.h"
+#include "joystick.h"
 #ifdef USING_NET
 #include "pktdrvr.h"
 #include "ipx.h"
@@ -191,26 +192,26 @@ void hardware_setup(void)
   extern void  do_irq1(void);
   extern void rtc_int8(void);
   /* PIC init */
-  pic_seti(PIC_IRQ0, timer_int_engine, 0);  /* do_irq0 in pic.c */
+  pic_seti(PIC_IRQ0, timer_int_engine, 0, NULL);  /* do_irq0 in pic.c */
   pic_unmaski(PIC_IRQ0);
   pic_request(PIC_IRQ0);  /* start timer */
-  pic_seti(PIC_IRQ1, do_irq1, 0); /* do_irq1 in dosio.c   */
+  pic_seti(PIC_IRQ1, do_irq1, 0, NULL); /* do_irq1 in dosio.c   */
   pic_unmaski(PIC_IRQ1);
-  pic_seti(PIC_IRQ8, rtc_int8, 0);
+  pic_seti(PIC_IRQ8, rtc_int8, 0, NULL);
   pic_unmaski(PIC_IRQ8);
   if (mice->intdrv || mice->type == MOUSE_PS2 || mice->type == MOUSE_IMPS2) {
-    pic_seti(PIC_IMOUSE, DOSEMUMouseEvents, 0);
+    pic_seti(PIC_IMOUSE, DOSEMUMouseEvents, 0, do_mouse_irq);
     pic_unmaski(PIC_IMOUSE);
   }
 #ifdef USING_NET
 #ifdef IPX
-  pic_seti(PIC_IPX, IPXCallRel, 0);
+  pic_seti(PIC_IPX, IPXCallRel, 0, NULL);
   pic_unmaski(PIC_IPX);
 #endif
 #ifdef PICPKT
-  pic_seti(PIC_NET, pkt_check_receive_quick, 0x61);
+  pic_seti(PIC_NET, pkt_check_receive_quick, 0x61, NULL);
 #else
-  pic_seti(PIC_NET, pkt_check_receive_quick, 0);
+  pic_seti(PIC_NET, pkt_check_receive_quick, 0, NULL);
 #endif
   pic_unmaski(PIC_NET);
 #endif
@@ -333,7 +334,7 @@ static inline void bios_mem_setup(void)
 {
   int b;
 
-  /* show 0 serial ports and 3 parallel ports, maybe a mouse, and the
+  /* show 0 serial ports and 3 parallel ports, maybe a mouse, game card and the
    * configured number of floppy disks
    */
   CONF_NFLOP(configuration, config.fdisks);
@@ -341,6 +342,12 @@ static inline void bios_mem_setup(void)
   CONF_NLPT(configuration, config.num_lpt);
   if ((mice->type == MOUSE_PS2) || (mice->type == MOUSE_IMPS2) || (mice->intdrv))
     configuration |= CONF_MOUSE;
+
+  /* 
+   * real BIOS' don't seem to set this bit but setting it can't do any harm
+   * and improves joystick detection for the game, Alley Cat, anyway :)
+   */
+  if (joy_exist ()) configuration |= CONF_GAME;
 
   if (config.mathco)
     configuration |= CONF_MATHCO;

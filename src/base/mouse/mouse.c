@@ -1538,18 +1538,18 @@ void mouse_move_absolute(int x, int y, int x_range, int y_range)
 }
 
 void 
-fake_int(void)
+fake_int(int cs, int ip)
 {
   unsigned char *ssp;
   unsigned long sp;
 
-  m_printf("MOUSE: fake_int: CS:IP %04x:%04x\n",LWORD(cs),LWORD(eip));
+  m_printf("MOUSE: fake_int: CS:IP %04x:%04x\n", cs, ip);
   ssp = (unsigned char *)(LWORD(ss)<<4);
   sp = (unsigned long) LWORD(esp);
 
   pushw(ssp, sp, vflags);
-  pushw(ssp, sp, LWORD(cs));
-  pushw(ssp, sp, LWORD(eip));
+  pushw(ssp, sp, cs);
+  pushw(ssp, sp, ip);
   LWORD(esp) -= 6;
 #if 0
   do_hard_int(0x74);
@@ -1609,17 +1609,20 @@ mouse_delta(int event)
  * call user event handler
  */
 void
-mouse_event()
+do_mouse_irq()
 {
-  if (mouse.mask & mouse_events && (mouse.cs || mouse.ip)) {
     if(in_dpmi && !in_dpmi_dos_int 
           && !((mouse.cs == DPMI_SEG) && 
           ((Bit32u)mouse.ip == (DPMI_OFF+HLT_OFF(DPMI_mouse_callback)))))
                   fake_pm_int();
 
-    /* push iret frame on _SS:_SP. At F000:20F7 (bios.S) we get an
+    /* push iret frame on _SS:_SP. At F000:2146 (bios.S) we get an
      * iret and return to _CS:_IP */
-    fake_int();
+    fake_int(LWORD(cs), LWORD(eip));
+
+    /* push iret frame. At F000:20F7 (bios.S) we get an
+     * iret and return to F000:2140 for EOI */
+    fake_int(Mouse_SEG, Mouse_ROUTINE_OFF);
 
     /* push all 16-bit regs plus _DS,_ES. At F000:20F4 (bios.S) we find
      * 'pop es; pop ds; popa' */
@@ -1654,11 +1657,16 @@ mouse_event()
 	     "should call %04x:%04x (actually %04x:%04x)"
 	     ".........jumping to %04x:%04x\n",
 	     mouse.cs, mouse.ip, *mouse.csp, *mouse.ipp,
-	     LWORD(cs), LWORD(eip));	
-  }
-  mouse_events = 0;
+	     LWORD(cs), LWORD(eip));
 }
 
+void
+mouse_event()
+{
+  if (mouse.mask & mouse_events && (mouse.cs || mouse.ip))
+    do_irq();
+  mouse_events = 0;
+}
 
 /* unconditional mouse cursor update */
 static void

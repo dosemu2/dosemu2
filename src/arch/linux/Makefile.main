@@ -194,7 +194,7 @@ dosstatic:	$(DOSSTATICFILES) ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
 	$(LD) $(LDFLAGS) -o $@ $(DOSSTATICFILES) \
 		$(addprefix -L,$(LIBPATH)) \
 		-L. $(addprefix -l, $(LIBS_)) \
-		$(SVGALIB) $(SLANGLIB) $(XLIBSW)
+		$(PTHREADS) $(SVGALIB) $(SLANGLIB) $(XLIBSW)
 
 ../etc/xtermdos:	../etc/xtermdos.sh
 	@echo "#!/bin/sh" > ../etc/xtermdos
@@ -222,7 +222,7 @@ $(BINPATH)/bin/$(DOSBIN): 	emu.o base/data.o dossubdirs
 	$(LD) $(LDFLAGS) -o $@ \
 	   emu.o base/data.o $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
 	-Wl,--whole-archive $(addprefix -l, $(LIBS_))  -Wl,--no-whole-archive \
-	    $(SVGALIB) $(XLIBSW) $(SLANGLIB) -lc 
+	    $(PTHREADS) $(SVGALIB) $(XLIBSW) $(SLANGLIB) -lc 
 	@nm $(BINPATH)/bin/$(DOSBIN) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > $(BINPATH)/bin/dosemu.map
 	@ln -sf $(DOSBIN) $(BINPATH)/bin/dos

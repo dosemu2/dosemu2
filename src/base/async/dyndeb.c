@@ -264,6 +264,7 @@ CONSTRUCTOR(static void init(void))
 	register_debug_class('w', 0, "warnings");
 	register_debug_class('h', 0, "hardware");
 	register_debug_class('I', 0, "IPC");
+	register_debug_class('j', 0, "joystick");
 	register_debug_class('E', 0, "EMS");
 	register_debug_class('x', 0, "XMS");
 	register_debug_class('M', 0, "DPMI");

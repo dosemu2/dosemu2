@@ -115,6 +115,8 @@ void write_queue(Bit16u bios_key,t_shiftstate shift,Bit32u raw) {
      raw &= 0xff;
    }
 #endif
+    if (bios_key == 0x23e0)  /* Cyrillic_er work around */
+	 bios_key &= 0x00FF;
    k_printf("KBD: writing to queue: bios_key=%04x shift=%04x scan=%08x\n",
             bios_key,shift,(unsigned int)raw);
    

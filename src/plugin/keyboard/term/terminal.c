@@ -128,6 +128,14 @@ static void set_char_set (int cs)
    int i;
    switch (cs)
      {
+		 case CHARSET_KOI8:     	
+			 if (Use_IBM_Codes) 
+				 SLtt_write_string ("\033(K\033(K\r        \r");
+			 The_Charset = charset_koi8;
+			 Use_IBM_Codes = 0;
+			 SLsmg_Display_Eight_Bit = 0x80;
+			 break;
+			 
       case CHARSET_FULLIBM:
 	error("WARNING: 'charset fullibm' doesn't work.  Use 'charset ibm' instead.\n");
 	/* The_Charset = charset_fullibm; */
@@ -176,10 +184,12 @@ static void set_char_set (int cs)
     * the character set map to reflect this fact (only if not ibmpc codes).
     */
    
+#if 0 /* XXX (by solt) this breaks pseudographics.*/
    if (!Use_IBM_Codes) for (i = 0; i < 256; i++)
      {
 	if ((The_Charset[i] & 0x7F) < 32) The_Charset[i] |= 32;
      }
+#endif
    
     /* The following turns on the IBM character set mode of virtual console
      * The same code is echoed twice, then just in case the escape code

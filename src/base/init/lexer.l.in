@@ -373,6 +373,7 @@ emubat                  RETURN(EMUBAT);
 emuini                  RETURN(EMUINI);
 ttylocks		RETURN(TTYLOCKS);
 sound_emu               RETURN(L_SOUND);
+joystick_emu		RETURN(L_JOYSTICK);
 dosemumap               RETURN(DOSEMUMAP);
 logbufsize              RETURN(LOGBUFSIZE);
 logfilesize		RETURN(LOGFILESIZE);
@@ -418,6 +419,10 @@ shift			RETURN(SHIFT_MAP);
 alt			RETURN(ALT_MAP);
 numpad			RETURN(NUMPAD_MAP);
 dump			RETURN(DUMP);
+toggle			RETURN(TOGGLE);
+ctrl_shift		RETURN(TG_CS);
+shift_shift		RETURN(TG_SS);
+alt_shift		RETURN(TG_AS);
 		/* dead keys for accents in keytable */
 dgrave			RETURN(DGRAVE);
 dacute			RETURN(DACUTE);
@@ -480,6 +485,8 @@ cz-qwertz		MAY_BE { yylval->i_value = KEYB_CZ_QWERTZ;
 			  return(KEYB_LAYOUT); }
 hr-latin2		MAY_BE { yylval->i_value = KEYB_HR_LATIN2;
 			  return(KEYB_LAYOUT); }
+ru 			MAY_BE { yylval->i_value = KEYB_RU; 
+				return(KEYB_LAYOUT); }
 keyb-user		MAY_BE { yylval->i_value = KEYB_USER; return(KEYB_LAYOUT); }
 
 	/* serial stuff */
@@ -520,6 +527,8 @@ ibm			MAY_BE { yylval->i_value = CHARSET_IBM;
 			  return(CHARSET_TYPE); }
 fullibm			MAY_BE { yylval->i_value = CHARSET_FULLIBM;
 			  return(CHARSET_TYPE); }
+koi8r		MAY_BE { yylval->i_value = CHARSET_KOI8;
+				return(CHARSET_TYPE); }
 
 	/* mouse types */
 
@@ -606,6 +615,13 @@ sb_dsp                  RETURN(SB_DSP);
 sb_mixer                RETURN(SB_MIXER);
 mpu_base                RETURN(MPU_BASE);
 
+        /* Joystick stuff */
+
+joy_device              RETURN(JOY_DEVICE);
+joy_dos_min             RETURN(JOY_DOS_MIN);
+joy_dos_max             RETURN(JOY_DOS_MAX);
+joy_granularity         RETURN(JOY_GRANULARITY);
+
 	/* packet driver */
 novell_hack		RETURN(NOVELLHACK);
 	/* Vinod's dosnet stuff (when to use former libpacket.c.multi */
@@ -624,6 +640,7 @@ hardware		RETURN(HARDWARE);
 ipc			RETURN(L_IPC);
 network			RETURN(NETWORK);
 sound			RETURN(SOUND);
+joystick		RETURN(JOYSTICK);
 
 	/* printer stuff */
 

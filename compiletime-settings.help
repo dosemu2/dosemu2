@@ -120,3 +120,11 @@ svgalib		"compile with svgalib support" svgalib
 		NOTE: this doesn't help for all svgalib supported graphic
 		cards and your console may freeze anyway. Currently reported
 		as 'working' are riva TNT 128 and sis.
+
+pthreads	"compile with phtreads support" pthreads
+		
+		This enables support for pthreads. The only code that
+		currently is able to use those is the joystick code.
+		The joystick support will be a little faster with
+		pthread support. On the other hand it can cause
+		instability with DPMI applications. If unsure, say "off".

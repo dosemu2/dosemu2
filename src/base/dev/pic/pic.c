@@ -219,15 +219,16 @@ static   hitimer_t pic_ltime[33] =     /* timeof last pic request honored */
                  NEVER};
   
 #define PNULL	(void *) 0
-static struct lvldef pic_iinfo[32] =
-                     {{PNULL,0x02}, {PNULL,0x08}, {PNULL,0x09}, {PNULL,0x70},
-                      {PNULL,0x71}, {PNULL,0x72}, {PNULL,0x73}, {PNULL,0x74},
-                      {PNULL,0x75}, {PNULL,0x76}, {PNULL,0x77}, {PNULL,0x0b},
-                      {PNULL,0x0c}, {PNULL,0x0d}, {PNULL,0x0e}, {PNULL,0x0f},
-                      {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00},
-                      {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00},
-                      {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00},
-                      {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00}};   
+static struct lvldef pic_iinfo[32] = {
+{PNULL,PNULL,0x02}, {PNULL,PNULL,0x08}, {PNULL,PNULL,0x09}, {PNULL,PNULL,0x70},
+{PNULL,PNULL,0x71}, {PNULL,PNULL,0x72}, {PNULL,PNULL,0x73}, {PNULL,PNULL,0x74},
+{PNULL,PNULL,0x75}, {PNULL,PNULL,0x76}, {PNULL,PNULL,0x77}, {PNULL,PNULL,0x0b},
+{PNULL,PNULL,0x0c}, {PNULL,PNULL,0x0d}, {PNULL,PNULL,0x0e}, {PNULL,PNULL,0x0f},
+{PNULL,PNULL,0x00}, {PNULL,PNULL,0x00}, {PNULL,PNULL,0x00}, {PNULL,PNULL,0x00},
+{PNULL,PNULL,0x00}, {PNULL,PNULL,0x00}, {PNULL,PNULL,0x00}, {PNULL,PNULL,0x00},
+{PNULL,PNULL,0x00}, {PNULL,PNULL,0x00}, {PNULL,PNULL,0x00}, {PNULL,PNULL,0x00},
+{PNULL,PNULL,0x00}, {PNULL,PNULL,0x00}, {PNULL,PNULL,0x00}, {PNULL,PNULL,0x00}
+};
 
 /*
  * run_irq()       checks for and runs any interrupts requested in pic_irr
@@ -593,22 +594,32 @@ int level;
 /* DANG_BEGIN_FUNCTION pic_seti
  *
  * pic_seti is used to initialize an interrupt for dosemu.  It requires
- * three parameters.  The first parameter is the interrupt level, which
- * man select the NMI, any of the IRQs, or any of the 16 extra levels
+ * four parameters.  The first parameter is the interrupt level, which
+ * may select the NMI, any of the IRQs, or any of the 16 extra levels
  * (16 - 31).  The second parameter is the dosemu function to be called
  * when the interrupt is activated.  This function should call do_irq()
- * if the DOS interruptis really to be activated.  If there is no special
+ * if the DOS interrupt is really to be activated.  If there is no special
  * dosemu code to call, the second parameter can specify do_irq(), but
- * see that description for some special considerations.
+ * see that description for some special considerations. 
+ * The third parameter is a number of an interrupt to activate if there is
+ * no default interrupt for this ilevel.
+ * The fourth parameter is the dosemu function to be called from do_irq().
+ * Required by some internal dosemu drivers that needs some additional code
+ * before calling an actual handler. This function MUST provide a EOI at
+ * the end of a callback.
  *
  * DANG_END_FUNCTION
  */
-void pic_seti(level,func,ivec)
+void pic_seti(level,func,ivec,callback)
 unsigned int level,ivec;
-void (*func);
+void (*func),(*callback);
 {
   if(level>=32) return;
   pic_iinfo[level].func = func;
+  if(callback) {
+    pic_iinfo[level].callback = callback;
+    set_bit(level, &pic_irqall);
+  }
   if(level>15) pic_iinfo[level].ivec = ivec;
   if(func == (void*)0) pic_maski(level);
 }
@@ -831,9 +842,10 @@ int do_irq()
  */
 g_printf("+%d",(int)pic_ilevel);
 #endif
-     if(pic_ilevel < 16) pic_push(pic_ilevel);
+     if(test_bit(pic_ilevel, &pic_irqall)) pic_push(pic_ilevel);
      if (in_dpmi) {
-      run_pm_int(intr);
+      if (!pic_iinfo[pic_ilevel].callback) run_pm_int(intr);
+      else pic_iinfo[pic_ilevel].callback();
      } else {
 #ifndef USE_NEW_INT
       pic_cli();
@@ -859,7 +871,8 @@ g_printf("+%d",(int)pic_ilevel);
       LWORD(eip) = PIC_OFF;
       
  /* schedule the requested interrupt, then enter the vm86() loop */
-      run_int(intr);
+      if (!pic_iinfo[pic_ilevel].callback) run_int(intr);
+      else pic_iinfo[pic_ilevel].callback();
      }
       pic_icount++;
       pic_wcount++;
@@ -880,7 +893,7 @@ g_printf("+%d",(int)pic_ilevel);
 	  pic_print(2, "Initiating VM86 irq lvl ", pic_ilevel, " in do_irq");
           run_vm86();
           }
-        pic_isr &= PIC_IRQALL;    /*  levels 0 and 16-31 are Auto-EOI  */
+        pic_isr &= pic_irqall;    /*  levels 0 and 16-31 are Auto-EOI  */
         serial_run();           /*  delete when moved to timer stuff */
         pic_run();
 #if 0
@@ -1256,22 +1269,22 @@ void pic_reset(void)
   }
 
   /* PIC reset on reboot and at bootup */
-  pic_seti(PIC_IRQ0, timer_int_engine, 0);  /* do_irq0 in pic.c */
+  pic_seti(PIC_IRQ0, timer_int_engine, 0, NULL);  /* do_irq0 in pic.c */
   pic_unmaski(PIC_IRQ0);
   pic_request(PIC_IRQ0);                    /* start timer */
   if (mice->intdrv || mice->type == MOUSE_PS2 || mice->type == MOUSE_IMPS2) {
-    pic_seti(PIC_IMOUSE, DOSEMUMouseEvents, 0);
+    pic_seti(PIC_IMOUSE, DOSEMUMouseEvents, 0, do_mouse_irq);
     pic_unmaski(PIC_IMOUSE);
   }
 #ifdef USING_NET
 #ifdef CONFIG_IPX
-  pic_seti(PIC_IPX, IPXRelinquishControl, 0);
+  pic_seti(PIC_IPX, IPXRelinquishControl, 0, NULL);
   pic_unmaski(PIC_IPX);
 #endif
 #ifdef CONFIG_IPXPICPKT
-  pic_seti(PIC_NET, pkt_check_receive_quick, 0x61);
+  pic_seti(PIC_NET, pkt_check_receive_quick, 0x61, NULL);
 #else
-  pic_seti(PIC_NET, pkt_check_receive_quick, 0);
+  pic_seti(PIC_NET, pkt_check_receive_quick, 0, NULL);
 #endif
   pic_unmaski(PIC_NET);
 #endif

@@ -74,7 +74,7 @@ GetMyAddress( void )
   sock=socket(AF_IPX,SOCK_DGRAM,PF_IPX);
   if(sock==-1)
   {
-    n_printf("IPX: could not open socket in GetMyAddress\n");
+    n_printf("IPX: could not open socket in GetMyAddress: %s\n", strerror(errno));
     return(-1);
   }
 
@@ -85,14 +85,14 @@ GetMyAddress( void )
   
   if(bind(sock,(struct sockaddr *)&ipxs,sizeof(ipxs))==-1)
   {
-    n_printf("IPX: could bind to network 0 in GetMyAddress\n");
+    n_printf("IPX: could not bind to network 0 in GetMyAddress: %s\n", strerror(errno));
     close( sock );
     return(-1);
   }
   
   len = sizeof(ipxs2);
   if (getsockname(sock,(struct sockaddr *)&ipxs2,&len) < 0) {
-    n_printf("IPX: could not get socket name in GetMyAddress\n");
+    n_printf("IPX: could not get socket name in GetMyAddress: %s\n", strerror(errno));
     close( sock );
     return(-1);
   }
@@ -172,7 +172,7 @@ InitIPXFarCallHelper(void)
       MyAddress[0], MyAddress[1], MyAddress[2], MyAddress[3] );
     n_printf("IPX: using node address of %02X%02X%02X%02X%02X%02X\n",
       MyAddress[4], MyAddress[5], MyAddress[6], MyAddress[7],
-      MyAddress[8], MyAddress[6] );
+      MyAddress[8], MyAddress[9] );
   }
    
 #if 0
@@ -435,7 +435,7 @@ IPXOpenSocket(u_short port, u_short * newPort)
   /* do a socket call, then bind to this port */
   sock = socket(AF_IPX, SOCK_DGRAM, PF_IPX);
   if (sock == -1) {
-    n_printf("IPX: could not open IPX socket.\n");
+    n_printf("IPX: could not open IPX socket: %s.\n", strerror(errno));
     /* I can't think of anything else to return */
     return (RCODE_SOCKET_TABLE_FULL);
   }
@@ -446,7 +446,7 @@ IPXOpenSocket(u_short port, u_short * newPort)
     enter_priv_on();
     if (setsockopt(sock, SOL_SOCKET, SO_DEBUG, &opt, sizeof(opt)) == -1) {
       leave_priv_setting();
-      n_printf("IPX: could not set socket option for debugging.\n");
+      n_printf("IPX: could not set socket option for debugging: %s.\n", strerror(errno));
       /* I can't think of anything else to return */
       return (RCODE_SOCKET_TABLE_FULL);
     }
@@ -459,7 +459,7 @@ IPXOpenSocket(u_short port, u_short * newPort)
 		 &opt, sizeof(opt)) == -1) {
     leave_priv_setting();
     /* I can't think of anything else to return */
-    n_printf("IPX: could not set socket option for broadcast.\n");
+    n_printf("IPX: could not set socket option for broadcast: %s.\n", strerror(errno));
     return (RCODE_SOCKET_TABLE_FULL);
   }
   /* allow setting the type field in the IPX header */
@@ -477,7 +477,7 @@ IPXOpenSocket(u_short port, u_short * newPort)
 #endif
     leave_priv_setting();
     /* I can't think of anything else to return */
-    n_printf("IPX: could not set socket option for type.\n");
+    n_printf("IPX: could not set socket option for type: %s.\n", strerror(errno));
     return (RCODE_SOCKET_TABLE_FULL);
   }
   ipxs.sipx_family = AF_IPX;
@@ -489,7 +489,7 @@ IPXOpenSocket(u_short port, u_short * newPort)
   /* now bind to this port */
   if (bind(sock, (struct sockaddr *) &ipxs, sizeof(ipxs)) == -1) {
     /* I can't think of anything else to return */
-    n_printf("IPX: could not bind socket to address\n");
+    n_printf("IPX: could not bind socket to address: %s\n", strerror(errno));
     close( sock );
     leave_priv_setting();
     return (RCODE_SOCKET_TABLE_FULL);
@@ -499,7 +499,7 @@ IPXOpenSocket(u_short port, u_short * newPort)
     len = sizeof(ipxs2);
     if (getsockname(sock,(struct sockaddr *)&ipxs2,&len) < 0) {
       /* I can't think of anything else to return */
-      n_printf("IPX: could not get socket name in IPXOpenSocket\n");
+      n_printf("IPX: could not get socket name in IPXOpenSocket: %s\n", strerror(errno));
       close( sock );
       leave_priv_setting();
       return(RCODE_SOCKET_TABLE_FULL);
@@ -535,13 +535,15 @@ IPXCloseSocket(u_short port)
   n_printf("IPX: canceling all listen events on socket %x\n", port);
   ECBPtr = mysock->listenList;
   while (ECBPtr.segment | ECBPtr.offset) {
-    IPXCancelEvent(ECBPtr);
+    if (IPXCancelEvent(ECBPtr) != RCODE_SUCCESS)
+      return RCODE_CANNOT_CANCEL_EVENT;
     ECBPtr = mysock->listenList;
   }
   n_printf("IPX: canceling all AES events on socket %x\n", port);
   ECBPtr = mysock->AESList;
   while (ECBPtr.segment | ECBPtr.offset) {
-    IPXCancelEvent(ECBPtr);
+    if (IPXCancelEvent(ECBPtr) != RCODE_SUCCESS)
+      return RCODE_CANNOT_CANCEL_EVENT;
     ECBPtr = mysock->AESList;
   }
   /* now close the file descriptor for the socket, and free it */
@@ -633,7 +635,7 @@ PrepareForESR(int iretFlag, ECB_t * ECB, far_t ECBPtr, u_char AXVal)
 	   _regs.es, _regs.esi, LWORD(eax), LWORD(eflags) & VIF);
 }
 
-void
+u_char
 IPXSendPacket(far_t ECBPtr)
 {
   ECB_t *ECB;
@@ -649,7 +651,7 @@ IPXSendPacket(far_t ECBPtr)
   if (dataLen == -1) {
     ECB->InUseFlag = IU_ECB_FREE;
     ECB->CompletionCode = CC_FRAGMENT_ERROR;
-    return;
+    return RCODE_ECB_NOT_IN_USE;	/* FIXME - what is to return here?? */;
   }
   IPXHeader = (IPXPacket_t *) ((ECB->FragTable[0].Address.segment << 4)
 			       + ECB->FragTable[0].Address.offset);
@@ -678,13 +680,14 @@ IPXSendPacket(far_t ECBPtr)
     /* DANG_FIXTHIS - should do a bind, send, close here */
     /* DOS IPX allows sending on unopened sockets */
     n_printf("IPX: send to unopened socket %04x\n", htons( ECB->ECBSocket ));
-    return;
+    return RCODE_SOCKET_NOT_OPEN;
   }
   if (sendto(mysock->fd, (void *) &data, dataLen, 0,
 	     (struct sockaddr *) &ipxs, sizeof(ipxs)) == -1) {
-    n_printf("IPX: error sending packet\n");
+    n_printf("IPX: error sending packet: %s\n", strerror(errno));
     ECB->InUseFlag = IU_ECB_FREE;
     ECB->CompletionCode = CC_HARDWARE_ERROR;
+    return RCODE_CANNOT_FIND_ROUTE;	/* FIXME - what is to return here?? */
   }
   else {
     ECB->InUseFlag = IU_ECB_FREE;
@@ -699,7 +702,7 @@ IPXSendPacket(far_t ECBPtr)
     PrepareForESR(0 /* not an iret, just a normal return */ ,
 		  ECB, ECBPtr, ESR_CALLOUT_IPX);
   }
-  return;
+  return RCODE_SUCCESS;
 }
 
 u_char
@@ -926,6 +929,7 @@ ScatterFragmentData(int size, char *buffer, ECB_t * ECB,
       /* IPX stack returns data count including IPX header */
       /*			dataLeftCount -= 30; */
       memptr += 30;
+      printIPXHeader(IPXHeader);
     }
     if (nextFragLen > dataLeftCount) {
       nextFragLen = dataLeftCount;
@@ -1151,7 +1155,7 @@ IPXFarCallHandler(void)
     ECBPtr.offset = LWORD(esi);
     n_printf("IPX: send packet ECB at %x:%x\n",
 	     ECBPtr.segment, ECBPtr.offset);
-    IPXSendPacket(ECBPtr);
+    LO(ax) = IPXSendPacket(ECBPtr);
     break;
   case IPX_LISTEN_FOR_PACKET:
     ECBPtr.segment = _regs.es & 0xffff;

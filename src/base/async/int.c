@@ -38,6 +38,8 @@
 #include "doshelpers.h"
 #include "utilities.h"
 
+#include "joystick.h"
+
 #ifdef USING_NET
 #include "ipx.h"
 #endif
@@ -75,14 +77,6 @@ static struct timeval scr_tv;        /* For translating UNIX <-> DOS times */
 
 /* set if some directories are mounted during startup */
 int redir_state = 0;
-
-#ifdef USE_MRP_JOYSTICK
-#error "FIXME: joystick support is broken. Sorry"
-#include "Linux/joystick.h"
-#include <fcntl.h>
-#include <string.h>
-static void mrp_read_joystick(void);
-#endif
 
 void kill_time(long usecs) {
    hitimer_t t_start;
@@ -625,10 +619,16 @@ static void int15(u_char i)
   case 0x10:			/* TopView/DESQview */
     switch (LO(ax))
     {
-    case 0x00:			/* giveup timeslice */
-      if (config.hogthreshold)
-        usleep(INT15_IDLE_USECS);
-      return;
+      case 0x00: {		/* giveup timeslice */
+        static int trigger = 0;
+        if (config.hogthreshold) {
+          if (trigger++ >= (config.hogthreshold - 1) * 100) {
+            usleep(INT15_IDLE_USECS);
+	    trigger = 0;
+	  }
+        }
+        return;
+      }
     }
     CARRY;
     break;
@@ -659,14 +659,8 @@ static void int15(u_char i)
     CARRY;
     return;			/* no event wait */
   case 0x84:
-#ifdef USE_MRP_JOYSTICK
-    mrp_read_joystick ();
-    h_printf ("int 15h joystick int: %d %d\n", (int)(LWORD(eax)), (int)(LWORD(ebx)));
+  	joy_bios_read ();
     return;
-#else
-    CARRY;
-    return;			/* no joystick */
-#endif
   case 0x85:
     num = LWORD(eax) & 0xFF;	/* default bios handler for sysreq key */
     if (num == 0 || num == 1) {
@@ -1250,10 +1244,16 @@ static int ms_dos(int nr)
   return 0;
 #endif
 
-  case 0x2C:                    /* get time & date */
-    if (config.hogthreshold)    /* allow linux to idle */
-      usleep(INT2F_IDLE_USECS);
-    return 0;
+  case 0x2C: {                   /* get time & date */
+      static int trigger = 0;
+      if (config.hogthreshold) {
+        if (trigger++ >= (config.hogthreshold - 1) * 100) {
+          usleep(INT2F_IDLE_USECS);
+	  trigger = 0;
+	}
+      }
+      return 0;
+    }
 
   default:
 #ifndef USE_NEW_INT
@@ -1795,7 +1795,7 @@ static void int28(u_char i) {
   if (config.hogthreshold) {
     /* the hogthreshold value just got redefined to be the 'garrot' value */
     static int time_count = 0;
-    if (++time_count >= config.hogthreshold) {
+    if (++time_count >= config.hogthreshold * 50) {
       usleep(INT28_IDLE_USECS);
       time_count = 0;
     }
@@ -1818,11 +1818,17 @@ static void int2f(u_char i)
        LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
 #endif
   switch (LWORD(eax)) {
-  case INT2F_IDLE_MAGIC:   /* magic "give up time slice" value */
-    if (config.hogthreshold)
-      usleep(INT2F_IDLE_USECS);
-    LWORD(eax) = 0;
-    return;
+  case INT2F_IDLE_MAGIC: {  /* magic "give up time slice" value */
+      static int trigger = 0;
+      if (config.hogthreshold) {
+        if (trigger++ >= config.hogthreshold * 100) {
+          usleep(INT2F_IDLE_USECS);
+	  trigger = 0;
+	}
+      }
+      LWORD(eax) = 0;
+      return;
+    }
 
 #ifdef IPX
   case INT2F_DETECT_IPX:  /* TRB - detect IPX in int2f() */
@@ -2308,39 +2314,3 @@ void int_vector_setup(void)
 #endif
 
 }
-
-#ifdef USE_MRP_JOYSTICK
-void mrp_read_joystick(void)
-{
-  /* This only reads the first joystick and doesn't handle the buttons. */
-  /* You will need to install the joystick module for this to work. */
-  static int fd =0;
-  static const char * const fname = "/dev/js0" ;
-  int status;
-  struct JS_DATA_TYPE js;
-
-  if (fd == 0) {
-    fd = open (fname, O_RDONLY);
-    if (fd < 0)
-      perror ("mrp_read_joystick (open)");
-  }
-  if (fd < 0) {
-    CARRY; /* fail */
-    return;
-  }
-
-  status = read (fd, &js, JS_RETURN);
-  if (status != JS_RETURN) {
-    perror ("mrp_read_joystick (read)");
-    fd = -1;
-    CARRY; /* fail */
-    return;
-  }
-  LWORD(eax) = js.x;
-  LWORD(ebx) = js.y;
-  LWORD(ecx) = 0;		/* second joystick x */
-  LWORD(edx) = 0;		/* second joystick y */
-  NOCARRY;
-  return;
-}
-#endif

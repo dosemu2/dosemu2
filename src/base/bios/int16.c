@@ -124,7 +124,7 @@ static unsigned check_key_available(int extended)
       trigger1=0;
     if(trigger1 >= config.hogthreshold*500) {
       if(oldESP==_ESP) {
-        if (++trigger >= config.hogthreshold*50) {
+        if (++trigger >= config.hogthreshold*20) {
           usleep(INT2F_IDLE_USECS);
           trigger=0;
           keyptr = get_key(extended);

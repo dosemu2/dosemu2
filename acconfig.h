@@ -140,6 +140,9 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 /* DEFINE this, if you want svgalib support */
 #undef USE_SVGALIB
 
+/* DEFINE this, if you want pthreads support */
+#undef USE_PTHREADS
+
 /* DEFINE this, if you want the dosdebugger (mhpdbg) */
 #undef USE_MHPDBG
 
@@ -147,12 +150,6 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 #undef X_SUPPORT
 #undef X2_SUPPORT
 #undef X_GRAPHICS
-
-/*
- *  DEFINE this, if you have joystick support in the kernel
- *  or have the joystick module loaded (needing <linux/joystick.h>)
- */
-#undef USE_MRP_JOYSTICK
 
 /*
  * This is DEFINED when SB emulation is required. Just changing this is not

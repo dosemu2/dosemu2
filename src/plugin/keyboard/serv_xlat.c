@@ -46,6 +46,8 @@
 #include "keymaps.h"
 #include "keyboard.h"
 #include "keyb_server.h"
+#include "keyb_clients.h"
+#include "video.h"
 
 extern void     vt_activate(int);
 
@@ -53,6 +55,7 @@ Bit32u rawprefix;   /* used in putrawkey() */
 uchar accent;       /* buffer for dead-key accents */
 int alt_num_buffer; /* used for alt-keypad entry mode */ 
                                        
+int lockaltmap;
 
 /*
  * various tables
@@ -426,6 +429,13 @@ static Boolean do_shift_keys(Boolean make, t_keysym key) {
    }
 #endif
 
+	 if (config.altkeytable && config.toggle_mask &&
+			 (shiftstate & config.toggle_mask) == config.toggle_mask) {
+		 lockaltmap = !lockaltmap;
+		 k_printf("KBD: locking alt map %d\n", lockaltmap);
+	 }
+
+
    return is_shift;
 }
 
@@ -482,6 +492,9 @@ static uchar translate(t_keysym key, Boolean *is_accent) {
           * ch >= 32 should be "ch is not DEAD_KEY"
           */ 
           if (!(config.keytable->flags & KT_USES_ALTMAP) || (shiftstate & R_ALT)) {
+            if (lockaltmap)
+              ch = config.altkeytable->alt_map[key];
+            else
             ch = config.keytable->alt_map[key];
             if (ch >= 32) goto NEXT_CONDITION;
             accent=ch;
@@ -489,9 +502,15 @@ static uchar translate(t_keysym key, Boolean *is_accent) {
           else goto NEXT_CONDITION; 
       }
       if (shiftstate & SHIFT) {
+        if (lockaltmap)
+          ch = config.altkeytable->shift_map[key];
+        else
 	ch = config.keytable->shift_map[key];
       }
       else {   /* unshifted */
+        if (lockaltmap && !(shiftstate & CTRL))
+          ch = config.altkeytable->key_map[key];
+        else
         ch = config.keytable->key_map[key];
       }
    }
@@ -521,6 +540,13 @@ static uchar translate(t_keysym key, Boolean *is_accent) {
       ch=toupper(ch);
       if (ch>=0x80 && ch<=0xa5) ch=uppercase_table[ch-0x80];
    }
+
+	 if (ch>=0xa0) {
+		 /* Does latin need translate too? */
+		 switch (config.term_charset) {
+		 case CHARSET_KOI8:   ch=koi8_to_dos[ch-0xa0]; break;
+		 }
+	 }
    
    k_printf("KBD: translated key = %02x\n",ch);
 

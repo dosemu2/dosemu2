@@ -50,8 +50,8 @@ extern void mapping_close(void);
 
 #if 0  /* initialized in data.c (via emu.h) */
 struct debug_flags d =
-{  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-/* d  R  W  D  C  v  X  k  i  T  s  m  #  p  g  c  w  h  I  E  x  M  n  P  r  S */
+{  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+/* d  R  W  D  C  v  X  k  i  T  s  m  #  p  g  c  w  h  I  E  x  M  n  P  r  S  j */
 #endif
 
 int kernel_version_code = 0;
@@ -308,6 +308,8 @@ config_defaults(void)
     config.emuretrace = 0;
 
     config.keytable = &keytable_list[KEYB_USER]; /* What's the current keyboard  */
+		config.altkeytable = NULL;
+		config.toggle_mask = 0;
 
     config.detach = 0;		/* Don't detach from current tty and open
 				 * new VT. */
@@ -611,6 +613,10 @@ static void our_envs_init(char *usedoptions)
         }
         buf[j] = 0;
         setenv("DOSEMU_OPTIONS", buf, 1);
+        if (usedoptions['X']) {
+	    strcpy(buf, "0");
+            setenv("DOSEMU_STDIN_IS_CONSOLE", buf, 1);
+        }
         return;
     }
     uname(&unames);

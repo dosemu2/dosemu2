@@ -72,6 +72,19 @@ static void config_translate_scrub(void)
 	if (!trconfig.keyb_charset)
 		trconfig.keyb_charset = lookup_charset("iso8859-1");
 	break;
+    case CHARSET_KOI8:
+			if (!trconfig.video_mem_charset) 
+				trconfig.video_mem_charset = lookup_charset("cp866");
+			if (!trconfig.keyb_config_charset)
+				trconfig.keyb_config_charset = 
+					get_terminal_charset(lookup_charset("cp866"));
+			if (!trconfig.output_charset)
+				trconfig.output_charset = lookup_charset("koi8-r");
+			if (!trconfig.paste_charset)
+				trconfig.paste_charset = lookup_charset("koi8-r");
+			if (!trconfig.keyb_charset)
+				trconfig.keyb_charset = lookup_charset("koi8-r");
+			break;
     default:
 	if (!trconfig.video_mem_charset) 
 		trconfig.video_mem_charset = lookup_charset("cp437");

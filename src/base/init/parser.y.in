@@ -64,6 +64,7 @@
 #include "serial.h"
 #include "timers.h"
 #include "keymaps.h"
+#include "keyb_server.h"
 #include "memory.h"
 #include "utilities.h"
 
@@ -131,6 +132,7 @@ extern void clear_port_traceing(void);
 
 void yyerror(char *, ...);
 void yywarn(char *, ...);
+void keyb_toggle(int mask);
 void keyb_layout(int value);
 static void start_ports(void);
 static void start_mouse(void);
@@ -175,6 +177,7 @@ char *checked_getenv(const char *name);
 static void enter_user_scope(int incstackptr);
 static void leave_user_scope(int incstackptr);
 static void handle_features(int which, int value);
+static void set_joy_device(char *devstring);
 
 	/* class stuff */
 #define IFCLASS(m) if (is_in_allowed_classes(m))
@@ -198,6 +201,7 @@ static void handle_features(int which, int value);
 #define CL_PRINTER	 0x800000
 #define CL_HARDRAM	0x1000000
 #define CL_SHELL	0x2000000
+#define CL_JOYSTICK	0x4000000
 
 static int is_in_allowed_classes(int mask);
 
@@ -253,7 +257,7 @@ extern void yyrestart(FILE *input_file);
 %token VNET
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO ALLOWVIDEOPORT EMURETRACE TIMER
 %token MATHCO CPU CPUSPEED RDTSC BOOTA BOOTB BOOTC L_XMS L_DPMI PORTS DISK DOSMEM PRINTER
-%token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS L_SOUND
+%token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS L_SOUND L_JOYSTICK
 %token L_SECURE
 %token DEXE ALLOWDISK FORCEXDOS XDOSONLY
 %token ABORT WARN
@@ -265,6 +269,7 @@ extern void yyrestart(FILE *input_file);
 %token KEYBINT RAWKEYBOARD
 %token PRESTROKE
 %token KEYTABLE SHIFT_MAP ALT_MAP NUMPAD_MAP DUMP
+%token TOGGLE TG_CS TG_SS TG_AS
 %token DGRAVE DACUTE DCIRCUM DTILDE DBREVE DABOVED DDIARES DABOVER DDACUTE DCEDILLA DIOTA DOGONEK DCARON
 	/* ipx */
 %token NETWORK PKTDRIVER
@@ -310,6 +315,8 @@ extern void yyrestart(FILE *input_file);
 %token ASPI DEVICETYPE TARGET
 	/* features */
 %token FEATURE
+	/* joystick */
+%token JOYSTICK JOY_DEVICE JOY_DOS_MIN JOY_DOS_MAX JOY_GRANULARITY
 
 	/* we know we have 1 shift/reduce conflict :-( 
 	 * and tell the parser to ignore that */
@@ -732,6 +739,8 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		| L_X { IFCLASS(CL_X); } '{' x_flags '}'
 		| L_SOUND bool	{ if (! $2) config.sb_irq = 0; }
                 | L_SOUND { IFCLASS(CL_SOUND); } '{' sound_flags '}'
+		| L_JOYSTICK bool { if (! $2) { config.joy_device[0] = config.joy_device[1] = ""; } }
+                | L_JOYSTICK { IFCLASS(CL_JOYSTICK); } '{' joystick_flags '}'
 		| SILLYINT
                     { IFCLASS(CL_IRQ) config.sillyint=0; }
                   '{' sillyint_flags '}'
@@ -1053,6 +1062,17 @@ sound_flag	: SB_BASE expression	{ config.sb_base = $2; }
 		| MPU_BASE expression	{ config.mpu401_base = $2; }
 		;
 
+	/* joystick emulation */
+ 
+joystick_flags	: joystick_flag
+		| joystick_flags joystick_flag
+		;
+joystick_flag	: JOY_DEVICE string_expr      	{ set_joy_device($2); }
+		| JOY_DOS_MIN expression	{ config.joy_dos_min = $2; }
+		| JOY_DOS_MAX expression	{ config.joy_dos_max = $2; }
+                | JOY_GRANULARITY expression	{ config.joy_granularity = $2; }
+		;
+
 	/* video */
 
 video_flags	: video_flag
@@ -1174,6 +1194,7 @@ debug_flag	: VIDEO bool		{ set_debug_level('v', $2); }
 		| NETWORK bool		{ set_debug_level('n', $2); }
 		| L_X bool		{ set_debug_level('X', $2); }
 		| SOUND	bool		{ set_debug_level('S', $2); }
+		| JOYSTICK bool		{ set_debug_level('j', $2); }
 		| STRING
 		    { yyerror("unrecognized debug flag '%s'", $1); free($1); }
 		| error
@@ -1261,8 +1282,18 @@ keyboard_flag	: LAYOUT KEYB_LAYOUT	{ keyb_layout($2); }
 		| LAYOUT L_AUTO		{ keyb_layout(-1); }
 		| RAWKEYBOARD bool	{ config.console_keyb = $2; }
 		| KEYBINT bool		{ /* Now a dummy */ }
+		| TOGGLE toggle_flags
 		| STRING
 		    { yyerror("unrecognized keyboard flag '%s'", $1);
+		      free($1);}
+		| error
+		;
+
+toggle_flags  : TG_SS { keyb_toggle(R_SHIFT | L_SHIFT); }
+		| TG_CS { keyb_toggle(R_CTRL | R_SHIFT); }
+		| TG_AS { keyb_toggle(R_ALT | R_SHIFT); }
+		| STRING
+		    { yyerror("unrecognized toggle flag '%s'", $1);
 		      free($1);}
 		| error
 		;
@@ -1646,6 +1677,21 @@ static void handle_features(int which, int value)
   }
   config.features[which] = value;
   c_printf("CONF: feature %d set to %d\n", which, value);
+}
+
+	/* joystick */
+
+static void set_joy_device(char *devstring)
+{
+  char *spacepos;
+
+  config.joy_device[0] = devstring;
+  config.joy_device[1] = "";
+  spacepos = strchr(devstring, ' ');
+  if (spacepos != NULL) {
+    *spacepos = '\0';
+    config.joy_device[1] = spacepos + 1;
+  }
 }
 
 	/* mouse */
@@ -2060,6 +2106,10 @@ static void stop_disk(int token)
 
 	/* keyboard */
 
+void keyb_toggle(int mask) {
+	config.toggle_mask = mask;
+}
+
 void keyb_layout(int layout)
 {
   struct keytable_entry *kt = keytable_list;
@@ -2069,8 +2119,13 @@ void keyb_layout(int layout)
   }
   while (kt->name) {
     if (kt->keyboard == layout) {
+      if (kt->flags & KT_ALTERNATE) {
+        c_printf("CONF: Alternate keyboard-layout %s\n", kt->name);
+        config.altkeytable = kt;
+      } else {
       c_printf("CONF: Keyboard-layout %s\n", kt->name);
       config.keytable = kt;
+      }
       return;
     }
     kt++;
@@ -2818,12 +2873,10 @@ int parse_config(char *confname, char *dosrcname)
     }
   }
 
-
 #ifdef TESTING
   error("TESTING: parser is terminating program\n");
   leavedos(0);
 #endif
-
   return 1;
 }
 
@@ -2870,6 +2923,7 @@ struct config_classes {
 	{"c_printer", CL_PRINTER},
 	{"c_hardram", CL_HARDRAM},
 	{"c_shell", CL_SHELL},
+	{"c_joystick", CL_JOYSTICK},
 	{0,0}
 };
 

@@ -400,7 +400,7 @@ void keyb_8042_init(void)
   io_device.end_addr     = 0x0061;
   port_register_handler(io_device, config.speaker==SPKR_NATIVE? PORT_FAST:0);
   if (1 /* config.keybint, now always enabled */) {
-     pic_seti(PIC_IRQ1, do_irq1, 0);     /* init keyboard interrupt */
+     pic_seti(PIC_IRQ1, do_irq1, 0, NULL);     /* init keyboard interrupt */
      pic_unmaski(PIC_IRQ1);
   }
 }

@@ -1670,7 +1670,7 @@ path_to_ufs(char *ufs, size_t ufs_offset, char *path, int PreserveEnvVar)
     switch (ch) {
     case BACKSLASH:
       if (PreserveEnvVar && 	/* Check for environment variable */
-          (*(path+1) == '$') && (*(path+2) == '{'))
+          path[0] == '$' && path[1] == '{')
         inenv = 1;
       else
 	ch = SLASH;

@@ -340,6 +340,8 @@ typedef struct vesamode_type_struct {
        				   (bitmask, bit3..15 ==> IRQ3 .. IRQ15) */
 
        struct keytable_entry *keytable;
+       struct keytable_entry *altkeytable;
+       int toggle_mask;
 
        unsigned short detach;
        unsigned char *debugout;
@@ -378,6 +380,15 @@ typedef struct vesamode_type_struct {
        char *sb_dsp;
        char *sb_mixer;
        __u16 mpu401_base;
+
+       /* joystick */
+       char *joy_device[2];
+       /* # range for joystick axis readings */
+       int joy_dos_min; /* must be > 0 */
+       int joy_dos_max; /* avoid setting this to > 250 */
+       /* # the higher, the less sensitive -
+          useful if you have a wobbly joystick */
+       int joy_granularity;
      }
 
 config_t;

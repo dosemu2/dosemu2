@@ -2408,7 +2408,7 @@ static void sb_init(void)
   SB_info.irq.irq8 = pic_irq_list[config.sb_irq];
 
   /* We let DOSEMU handle the interrupt */
-  pic_seti(SB_info.irq.irq8, sb_irq_trigger, 0);
+  pic_seti(SB_info.irq.irq8, sb_irq_trigger, 0, NULL);
   pic_unmaski(SB_info.irq.irq8);
 
   S_printf ("SB: Initialisation - Base 0x%03x, IRQ %d, DMA %d\n", 

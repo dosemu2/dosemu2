@@ -12,6 +12,7 @@ config {
   cpuemu on
   aspi on
   svgalib on
+  pthreads off
   plugin_keyboard off
   plugin_kbd_unicode on
   plugin_extra_charsets on

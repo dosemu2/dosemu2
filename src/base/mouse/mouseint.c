@@ -173,7 +173,7 @@ DOSEMUSetupMouse(void)
   m_printf("MOUSE: INIT complete\n");
 }
  
-void
+int
 DOSEMUMouseProtocol(rBuf, nBytes)
      unsigned char *rBuf;
      int nBytes;
@@ -364,13 +364,12 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 	 */
 	mouse_move_buttons(buttons & 0x04, buttons & 0x02, buttons & 0x01);
 	mouse_move_relative(dx, dy);
-	/*
-	 * check if user events need to be processed
-	 */
-	mouse_event();
+
 	pBufP = 0;
+	return (i + 1);
      }	/* assembly full package */
   }	/* !config.usesX */
+  return nBytes;
 }
 
 void DOSEMUSetMouseSpeed(int old, int new, unsigned cflag)
@@ -459,12 +458,27 @@ void DOSEMUMouseEvents(void)
 {
 /* We define a large buffer, because of high overheads with other processes */
 #define MOUSE_BUFFER 1024
-	unsigned char rBuf[MOUSE_BUFFER];
-	int nBytes;
+	static unsigned char rBuf[MOUSE_BUFFER];
+	static int qBeg = 0, qEnd = 0;
+	int nBytes, nBytesProc;
 
-	nBytes = RPT_SYSCALL(read(mice->fd, (char *)rBuf, sizeof(rBuf)));
-	if (nBytes>0 && !config.usesX) {
-	  m_printf("MOUSE: Read %d bytes\n", nBytes);
-	  DOSEMUMouseProtocol(rBuf, nBytes);
+	nBytes = RPT_SYSCALL(read(mice->fd, (char *)(rBuf+qEnd),
+	    sizeof(rBuf)-qEnd));
+	if (nBytes>0 && !config.usesX)
+	  qEnd += nBytes;
+	if (qBeg < qEnd) {
+	  m_printf("MOUSE: Read %d bytes. %d bytes in queue\n",
+	    nBytes>0 ? nBytes : 0, qEnd-qBeg);
+	  nBytesProc = DOSEMUMouseProtocol(rBuf+qBeg, qEnd-qBeg);
+	  qBeg += nBytesProc;
+	  m_printf("MOUSE: Processed %d bytes. %d bytes still in queue\n",
+	    nBytesProc, qEnd-qBeg);
+	  if (qBeg >= qEnd)
+	    qBeg = qEnd = 0;
+	}
+	mouse_event();
+	if (qBeg < qEnd) {
+	  m_printf("MOUSE: Requesting for the next event\n");
+	  pic_request(PIC_IMOUSE);
 	}
 }

@@ -205,6 +205,7 @@ EXTERN int v_8514_base INIT(0);
 #define CHARSET_FULLIBM	3
 #define CHARSET_LATIN1  4
 #define CHARSET_LATIN2  5
+#define CHARSET_KOI8    6
 
 
 /* Color set defines */

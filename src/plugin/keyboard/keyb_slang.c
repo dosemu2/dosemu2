@@ -765,9 +765,14 @@ static int init_slang_keymaps(void)
   /* Just on the offchance they've done something right! */
   define_keyset(terminfo_keys, m);
 
-  define_key_from_keymap(key_map_us,   0, 1);
-  define_key_from_keymap(shift_map_us, SHIFT_MASK, 1);
-  define_key_from_keymap(alt_map_us,   ALT_MASK, 0);
+  define_key_from_keymap(config.keytable->key_map,   0, 1);
+  define_key_from_keymap(config.keytable->shift_map, SHIFT_MASK, 1);
+  define_key_from_keymap(config.keytable->alt_map,   ALT_MASK, 0);
+  if (config.altkeytable) {
+    define_key_from_keymap(config.altkeytable->key_map,   0, 1);
+    define_key_from_keymap(config.altkeytable->shift_map, SHIFT_MASK, 1);
+    define_key_from_keymap(config.altkeytable->alt_map,   ALT_MASK, 0);
+  }
 
   /* And more Dosemu keys */
   define_keyset(Dosemu_Ctrl_keys, m);
@@ -1019,6 +1024,13 @@ static void slang_send_scancode(unsigned long lscan, unsigned char ch)
 
   if (lscan & (STICKY_ALT_MASK | ALT_MASK | ALTGR_MASK | STICKY_ALTGR_MASK)) {
     ch = 0;
+  }
+
+  if (ch>=0xa0) {
+    /* Does latin need translate too? */
+    switch (config.term_charset) {
+    case CHARSET_KOI8:   ch=koi8_to_dos[ch-0xa0]; break;
+    }
   }
 
   presskey(lscan & 0x0000ffff, ch); 

@@ -1666,6 +1666,54 @@ CONST unsigned char alt_map_cz_qwertz[] =
   0, 0, 0, 0, 0, 0, '<', 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0};
+
+
+CONST unsigned char key_map_ru[] = {
+  0,   27,  '1', '2', '3', '4', '5', '6', 
+ '7', '8', '9', '0', '-', '=', 127, 9,
+  202, 195, 213, 203, 197, 206, 199, 219, 
+  221, 218, 200, 223, 13,  0,   198, 217, 
+  215, 193, 208, 210, 207, 204, 196, 214, 
+  220, 163, 0,  '\\', 209, 222, 211, 205, 
+  201, 212, 216, 194, 192, '/', 0, '*',
+  0, 32, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, '-', 0, 0, 0, '+', 0,
+  0, 0, 0, 0, 0, 0, '<', 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0
+};
+CONST unsigned char shift_map_ru[] = {
+  0, 27, '!', '@', '#', '$', '%', '^',
+  '&', '*', '(', ')', '_', '+', 127, 9,
+  234, 227, 245, 235, 229, 238, 231, 251,
+  253, 250, 232, 255, 13,  0,   230, 249,
+  247, 225, 240, 242, 239, 236, 228, 246,
+  252, 179, 0,   '|', 241, 254, 243, 237,
+  233, 244, 248, 226, 224, '?', 0, '*',
+  0, 32, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, '-', 0, 0, 0, '+', 0,
+  0, 0, 0, 0, 0, 0, '>', 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0
+};
+CONST unsigned char alt_map_ru[] = {
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0
+};
+
 /* this prefereable is overloaded via '-I keytable keyb-user'
  * and is preset with an US keyboard layout
  */
@@ -1717,6 +1765,7 @@ CONST unsigned char alt_map_user[] =
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0};
+
 
 
 CONST unsigned char num_table_dot[]   = "789-456+1230.";
@@ -1976,6 +2025,10 @@ struct keytable_entry keytable_list[] = {
     key_map_cz_qwertz, shift_map_cz_qwertz, alt_map_cz_qwertz,
     num_table_comma, dead_key_table,
     dos852_dead_map},                                       
+  {"ru", KEYB_RU, KT_ALTERNATE, sizeof(key_map_ru), sizeof(num_table_comma),
+    key_map_ru, shift_map_ru, alt_map_ru,
+    num_table_comma, dead_key_table,
+    dos850_dead_map},
   {"keyb-user", KEYB_USER, 0, sizeof(key_map_user), sizeof(num_table_comma),
     key_map_user, shift_map_user, alt_map_user,
     num_table_dot, dead_key_table,

@@ -47,6 +47,7 @@ OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 ***********************************************************************
 */
 
+#define XK_CYRILLIC
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -130,6 +131,47 @@ static const struct
 
 #define NUM_OTHER (sizeof(other_keys)/sizeof(other_keys[0]))
 
+static const struct 
+{
+	KeySym xkey;
+	t_keysym dosemu_key;
+} cyrillic_keys[] = {
+	{XK_Cyrillic_shorti,KEY_Q},     {XK_Cyrillic_SHORTI,KEY_Q},
+	{XK_Cyrillic_tse,KEY_W},        {XK_Cyrillic_TSE,KEY_W},
+	{XK_Cyrillic_u,KEY_E},  {XK_Cyrillic_U,KEY_E},
+	{XK_Cyrillic_ka,KEY_R}, {XK_Cyrillic_KA,KEY_R},
+	{XK_Cyrillic_ie,KEY_T}, {XK_Cyrillic_IE,KEY_T},
+	{XK_Cyrillic_en,KEY_Y}, {XK_Cyrillic_EN,KEY_Y},
+	{XK_Cyrillic_ghe,KEY_U},        {XK_Cyrillic_GHE,KEY_U},
+	{XK_Cyrillic_sha,KEY_I},        {XK_Cyrillic_SHA,KEY_I},
+	{XK_Cyrillic_shcha,KEY_O},      {XK_Cyrillic_SHCHA,KEY_O},
+	{XK_Cyrillic_ze,KEY_P}, {XK_Cyrillic_ZE,KEY_P},
+	{XK_Cyrillic_ha,KEY_LBRACK},    {XK_Cyrillic_HA,KEY_LBRACK},
+	{XK_Cyrillic_hardsign,KEY_RBRACK},      {XK_Cyrillic_HARDSIGN,KEY_RBRACK},
+	{XK_Cyrillic_ef,KEY_A}, {XK_Cyrillic_EF,KEY_A},
+	{XK_Cyrillic_yeru,KEY_S},       {XK_Cyrillic_YERU,KEY_S},
+	{XK_Cyrillic_ve,KEY_D}, {XK_Cyrillic_VE,KEY_D},
+	{XK_Cyrillic_a,KEY_F},  {XK_Cyrillic_A,KEY_F},
+	{XK_Cyrillic_pe,KEY_G}, {XK_Cyrillic_PE,KEY_G},
+	{XK_Cyrillic_er,KEY_H}, {XK_Cyrillic_ER,KEY_H},
+	{XK_Cyrillic_o,KEY_J},  {XK_Cyrillic_O,KEY_J},
+	{XK_Cyrillic_el,KEY_K}, {XK_Cyrillic_EL,KEY_K},
+	{XK_Cyrillic_de,KEY_L}, {XK_Cyrillic_DE,KEY_L},
+	{XK_Cyrillic_zhe,KEY_SEMICOLON},        {XK_Cyrillic_ZHE,KEY_SEMICOLON},
+	{XK_Cyrillic_e,KEY_APOSTROPHE}, {XK_Cyrillic_E,KEY_APOSTROPHE},
+	{XK_Cyrillic_ya,KEY_Z}, {XK_Cyrillic_YA,KEY_Z},
+	{XK_Cyrillic_che,KEY_X},        {XK_Cyrillic_CHE,KEY_X},
+	{XK_Cyrillic_es,KEY_C}, {XK_Cyrillic_ES,KEY_C},
+	{XK_Cyrillic_em,KEY_V}, {XK_Cyrillic_EM,KEY_V},
+	{XK_Cyrillic_i,KEY_B},  {XK_Cyrillic_I,KEY_B},
+	{XK_Cyrillic_te,KEY_N}, {XK_Cyrillic_TE,KEY_N},
+	{XK_Cyrillic_softsign,KEY_M},   {XK_Cyrillic_SOFTSIGN,KEY_M},
+	{XK_Cyrillic_be,KEY_COMMA},     {XK_Cyrillic_BE,KEY_COMMA},
+	{XK_Cyrillic_yu,KEY_PERIOD},    {XK_Cyrillic_YU,KEY_PERIOD},
+	{XK_Cyrillic_io,KEY_GRAVE}, {XK_Cyrillic_IO,KEY_GRAVE}
+};
+
+#define NUM_CYR (sizeof(cyrillic_keys)/sizeof(cyrillic_keys[0]))
 
 
 #define MAXCHARS 3
@@ -179,6 +221,14 @@ void X_process_key(XKeyEvent *e)
     case 0x20 ... 0x7e:                     /* ascii keys */
           key = ascii_keys[xkey - 0x20];
           break;
+
+   case 0x6c0 ... 0x6ff:
+     for (i = 0; i < NUM_CYR; i++)
+       if (cyrillic_keys[i].xkey == xkey) {
+         key = cyrillic_keys[i].dosemu_key;
+         break;
+       }
+     break;
 
     case XK_F13 ... XK_F22:
           xkey-=12;
@@ -238,6 +288,7 @@ void X_process_key(XKeyEvent *e)
           break;
 
     case XK_Tab:
+	 case XK_ISO_Left_Tab:
           key = KEY_TAB;
           if ((e->state & (ShiftMask | ControlMask | AltMask)))
              ch = 0;
@@ -253,6 +304,7 @@ void X_process_key(XKeyEvent *e)
    /* do iso->dos translation */
    if (ch>=0xa0)
      switch (config.term_charset) {
+	case CHARSET_KOI8:   ch=koi8_to_dos[ch-0xa0]; break;
 	case CHARSET_LATIN1: ch=latin1_to_dos[ch-0xa0]; break;
 	case CHARSET_LATIN2: ch=latin2_to_dos[ch-0xa0]; break;
 	case CHARSET_LATIN:

@@ -3345,11 +3345,8 @@ void run_pm_mouse()
        D_printf("DPMI: starting mouse callback, in_cb=%d count=%d\n",
 	in_mouse_callback,mouseCallBackCount);
     /*
-     * Internal mouse driver and mouse under X does not understand pic yet,
-     * so to prevent stack overflow, we queue mouse callback events  here.
      * To improve performance, motion events are compacted.
      */
-
 
     /*
      * It seems that both serial and internal mouse driver are not

@@ -30,7 +30,7 @@ int paste_unicode_text(const t_unicode *text, int len)
 		return 0;
 	}
 	paste_buffer = malloc(sizeof(t_unicode) * len);
-	memcpy(paste_buffer, text, len);
+	memcpy(paste_buffer, text, sizeof(t_unicode) * len);
 	paste_len = len;
 	paste_idx = 0;
 	return 1;

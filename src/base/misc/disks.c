@@ -1607,7 +1607,8 @@ floppy_tick(void)
 
   if (++ticks >= config.fastfloppy) {
     disk_close();
-    d_printf("FLOPPY: flushing after %d ticks\n", ticks);
+    if (debug_level('d') > 2)
+      d_printf("FLOPPY: flushing after %d ticks\n", ticks);
     ticks = 0;
   }
 }
