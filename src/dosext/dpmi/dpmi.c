@@ -1728,7 +1728,7 @@ err:
       dpmi_pm_block *block;
       unsigned long mem_required = (_LWORD(ebx))<<16 | (_LWORD(ecx));
 
-      if ((block = DPMImalloc(mem_required, 1)) == NULL) {
+      if ((block = DPMImalloc(mem_required)) == NULL) {
 	D_printf("DPMI: client allocate memory failed.\n");
 	_eflags |= CF;
 	break;
@@ -1788,10 +1788,7 @@ err:
 	      _LWORD(eax) = 0x8025; /* not page aligned */
 	      break;
 	  }
-	  if (!base_address)
-	      block = DPMImalloc(length, _edx);
-	  else
-	      block = DPMImallocFixed(base_address, length, _edx);
+	  block = DPMImallocLinear(base_address, length, _edx & 1);
 	  if (block == NULL) {
 	      if (!base_address)
 		  _LWORD(eax) = 0x8013;	/* mem not available */
@@ -1826,7 +1823,7 @@ err:
 	    break;
 	}
 
-	D_printf("DPMI: Resize linear mem to size %lx\n", newsize);
+	D_printf("DPMI: Resize linear mem to size %lx, flags %lx\n", newsize, _edx);
 	D_printf("DPMI: For Mem Blk. for handle   0x%08lx\n", handle);
 	block = lookup_pm_block(handle);
 	if(block == NULL || block -> handle != handle) {
@@ -1842,7 +1839,7 @@ err:
 	    D_printf("DPMI: update descriptor required\n");
 	    dpmi_cli();
 	}
-	if((block = DPMIrealloc(handle, newsize)) == NULL) {
+	if((block = DPMIreallocLinear(handle, newsize, _edx & 1)) == NULL) {
 	    _LWORD(eax) = 0x8012;
 	    if(_edx & 0x2)
 		dpmi_sti();

@@ -33,6 +33,10 @@
 
 #define D_16_32(reg)		(DPMI_CLIENT.is_32 ? reg : reg & 0xffff)
 
+#define PAGE_MASK	(~(PAGE_SIZE-1))
+/* to align the pointer to the (next) page boundary */
+#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
+
 /* Aargh!! Is this the only way we have to know if a signal interrupted
  * us in DPMI server or client code? */
 #ifdef __linux__
@@ -132,6 +136,7 @@ typedef struct dpmi_pm_block_stuct {
   unsigned long size;
   char     *base;
   u_short  *attrs;
+  int linear;
 } dpmi_pm_block;
 
 typedef struct dpmi_pm_block_root_struc {
@@ -202,10 +207,12 @@ void dpmi_mhp_modify_eip(int delta);
 #endif
 
 void add_cli_to_blacklist(void);
-dpmi_pm_block* DPMImalloc(unsigned long size, int committed);
-dpmi_pm_block* DPMImallocFixed(unsigned long base, unsigned long size, int committed);
+dpmi_pm_block* DPMImalloc(unsigned long size);
+dpmi_pm_block* DPMImallocLinear(unsigned long base, unsigned long size, int committed);
 int DPMIfree(unsigned long handle);
 dpmi_pm_block *DPMIrealloc(unsigned long handle, unsigned long size);
+dpmi_pm_block *DPMIreallocLinear(unsigned long handle, unsigned long size,
+  int committed);
 void DPMIfreeAll(void);
 unsigned long base2handle(void *);
 dpmi_pm_block *lookup_pm_block(unsigned long h);

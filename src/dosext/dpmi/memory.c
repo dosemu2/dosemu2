@@ -23,16 +23,6 @@
  * This last assumption is not always true with the recent linux kernels
  * (2.6.7-mm2 here). Thats why we have to allocate the pool and manage
  * the memory ourselves.
- * This gets problematic with the uncommited memory. The problem is that
- * the program may allocate the arbitrary amount of uncommited space,
- * while we can't extend our pool. That's why the uncommitted memory is
- * being managed without the pool. This is not good that the commited
- * and uncommitted memory are handled differently, because the client
- * can convert the committed to uncommited and vise versa at any time.
- * The assumpltion here is that the client that relies on a particular
- * addresses for the subsequent uncommitted allocations, is completely 
- * broken. The addresses returned by uncommitted malloc, are unpredictable.
- * Allocations at fixed address are also handled without the pool.
  */
 
 #include "emu.h"
@@ -113,7 +103,7 @@ static int free_pm_block(dpmi_pm_block *p)
 }
 
 /* lookup_pm_block returns a dpmi_pm_block struct from its handle */
-dpmi_pm_block *lookup_pm_block(unsigned long h)
+dpmi_pm_block * lookup_pm_block(unsigned long h)
 {
     dpmi_pm_block *tmp;
     for(tmp = DPMI_CLIENT.pm_block_root->first_pm_block; tmp; tmp = tmp->next)
@@ -220,7 +210,6 @@ static int SetAttribsForPage(char *ptr, us attr, us old_attr)
     return 1;
 }
 
-#define PRIVATE_DIRTY (1 << 8)
 static int SetPageAttributes(dpmi_pm_block *block, int offs, us attrs[], int count)
 {
   u_short *attr;
@@ -228,93 +217,87 @@ static int SetPageAttributes(dpmi_pm_block *block, int offs, us attrs[], int cou
 
   for (i = 0; i < count; i++) {
     attr = block->attrs + (offs >> PAGE_SHIFT) + i;
-    if (*attr == attrs[i] && !(*attr & PRIVATE_DIRTY)) {
+    if (*attr == attrs[i]) {
       continue;
     }
     D_printf("%i\t", i);
     if (!SetAttribsForPage(block->base + offs + (i << PAGE_SHIFT),
 	attrs[i], *attr))
       return 0;
-    /* mark as dirty, only necessary to properly restore attrs after realloc */
-    *attr |= PRIVATE_DIRTY;
   }
   return 1;
 }
+
+static void restore_page_protection(dpmi_pm_block *block)
+{
+  int i;
+  for (i = 0; i < block->size >> PAGE_SHIFT; i++) {
+    if ((block->attrs[i] & 7) == 0)
+      mprotect_mapping(MAPPING_DPMI, block->base + (i << PAGE_SHIFT),
+        DPMI_page_size, PROT_NONE);
+  }
+}
 	 
-dpmi_pm_block *
-DPMImalloc(unsigned long size, int committed)
+dpmi_pm_block * DPMImalloc(unsigned long size)
 {
     dpmi_pm_block *block;
     int i;
 
    /* aligned size to PAGE size */
-    size = (size & 0xfffff000) + ((size & 0xfff)
-				      ? DPMI_page_size : 0);
-    if (committed && size > dpmi_free_memory)
+    size = PAGE_ALIGN(size);
+    if (size > dpmi_free_memory)
 	return NULL;
     if ((block = alloc_pm_block(size)) == NULL)
 	return NULL;
 
-    if (!committed) {
-	block->base = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
-    	    size, PROT_NONE, 0);
-    } else {
-	block->base = pgmalloc(&mem_pool, size);
-	if (block->base)
-	    mprotect_mapping(MAPPING_DPMI, block->base, size,
-    		PROT_READ | PROT_WRITE | PROT_EXEC);
-    }
-    
-    if (!block->base || block->base == MAP_FAILED) {
+    if (!(block->base = pgmalloc(&mem_pool, size))) {
 	free_pm_block(block);
 	return NULL;
     }
+    block->linear = 0;
     for (i = 0; i < size >> PAGE_SHIFT; i++)
-	block->attrs[i] = committed ? 9 : 8;
-    if (committed)
-	dpmi_free_memory -= size;
-    block -> handle = pm_block_handle_used++;
-    block -> size = size;
+	block->attrs[i] = 9;
+    dpmi_free_memory -= size;
+    block->handle = pm_block_handle_used++;
+    block->size = size;
     return block;
 }
 
-/* DPMImallocFixed allocate a memory block at a fixed address, since */
+/* DPMImallocLinear allocate a memory block at a fixed address, since */
 /* we can not allow memory blocks be overlapped, but linux kernel */
 /* doesn\'t support a way to find a block is mapped or not, so we */
 /* parse /proc/self/maps instead. This is a kluge! */
-
-dpmi_pm_block *
-DPMImallocFixed(unsigned long base, unsigned long size, int committed)
+dpmi_pm_block * DPMImallocLinear(unsigned long base, unsigned long size, int committed)
 {
     dpmi_pm_block *block;
     int i;
     FILE *fp;
     char line[100];
     unsigned long beg, end;
-    
-    if (base == 0)		/* we choose an address to allocate */
-	return DPMImalloc(size, committed);
-    
+
    /* aligned size to PAGE size */
-    size = (size & 0xfffff000) + ((size & 0xfff)
-				      ? DPMI_page_size : 0);
+    size = PAGE_ALIGN(size);
     if (committed && size > dpmi_free_memory)
 	return NULL;
-
-    /* find out whether the address request is available */
-    if ((fp = fopen("/proc/self/maps", "r")) == NULL) {
-	D_printf("DPMI: can't open /proc/self/maps\n");
-	return NULL;
+    if (base != 0) {
+	/* find out whether the address request is available */
+	if ((fp = fopen("/proc/self/maps", "r")) == NULL) {
+	    D_printf("DPMI: can't open /proc/self/maps\n");
+	    return NULL;
+	}
+    	while(fgets(line, 100, fp)) {
+	    sscanf(line, "%lx-%lx", &beg, &end);
+	    if ((base + size) < beg ||  base >= end) {
+		continue;
+	    } else {
+		fclose(fp);
+		return NULL;	/* overlap */
+	    }
+	}
+	fclose(fp);
+    } else {
+      base = -1;
     }
-    
-    while(fgets(line, 100, fp)) {
-	sscanf(line, "%lx-%lx", &beg, &end);
-	if ((base + size) < beg ||  base >= end)
-	    continue;
-	else
-	    return NULL;	/* overlap */
-    }
-
     if ((block = alloc_pm_block(size)) == NULL)
 	return NULL;
 
@@ -324,6 +307,7 @@ DPMImallocFixed(unsigned long base, unsigned long size, int committed)
 	free_pm_block(block);
 	return NULL;
     }
+    block->linear = 1;
     for (i = 0; i < size >> PAGE_SHIFT; i++)
 	block->attrs[i] = committed ? 9 : 8;
     if (committed)
@@ -332,7 +316,7 @@ DPMImallocFixed(unsigned long base, unsigned long size, int committed)
     block -> size = size;
     return block;
 }
-    
+
 int DPMIfree(unsigned long handle)
 {
     dpmi_pm_block *block;
@@ -340,11 +324,11 @@ int DPMIfree(unsigned long handle)
 
     if ((block = lookup_pm_block(handle)) == NULL)
 	return -1;
-    if (!IN_POOL(block->base)) {
+    if (block->linear) {
 	munmap_mapping(MAPPING_DPMI, block->base, block->size);
     } else {
 	mprotect_mapping(MAPPING_DPMI, block->base, block->size,
-    	    PROT_READ | PROT_WRITE | PROT_EXEC);
+	    PROT_READ | PROT_WRITE | PROT_EXEC);
 	pgfree(&mem_pool, block->base);
     }
     for (i = 0; i < block->size >> PAGE_SHIFT; i++) {
@@ -355,22 +339,42 @@ int DPMIfree(unsigned long handle)
     return 0;
 }
 
-dpmi_pm_block *
-DPMIrealloc(unsigned long handle, unsigned long newsize)
+static void finish_realloc(dpmi_pm_block *block, unsigned long newsize,
+  int committed)
+{
+    int npages, new_npages, i;
+    npages = block->size >> PAGE_SHIFT;
+    new_npages = newsize >> PAGE_SHIFT;
+    if (newsize > block->size) {
+	realloc_pm_block(block, newsize);
+	for (i = npages; i < new_npages; i++)
+	    block->attrs[i] = committed ? 9 : 8;
+	if (committed) {
+	    dpmi_free_memory -= newsize - block->size;
+	}
+    } else {
+	for (i = new_npages; i < npages; i++)
+	    if ((block->attrs[i] & 7) == 1)
+		dpmi_free_memory += DPMI_page_size;
+	realloc_pm_block(block, newsize);
+    }
+}
+
+dpmi_pm_block * DPMIrealloc(unsigned long handle, unsigned long newsize)
 {
     dpmi_pm_block *block;
     void *ptr;
-    u_short *tmp;
-    int npages, new_npages, i;
 
     if (!newsize)	/* DPMI spec. says resize to 0 is an error */
 	return NULL;
-   /* aligned newsize to PAGE size */
-    newsize = (newsize & 0xfffff000) + ((newsize & 0xfff)
-					    ? DPMI_page_size : 0);
     if ((block = lookup_pm_block(handle)) == NULL)
 	return NULL;
+    if (block->linear) {
+	return DPMIreallocLinear(handle, newsize, 1);
+    }
 
+   /* align newsize to PAGE size */
+    newsize = PAGE_ALIGN(newsize);
     if (newsize == block -> size)     /* do nothing */
 	return block;
     
@@ -380,48 +384,68 @@ DPMIrealloc(unsigned long handle, unsigned long newsize)
 	return NULL;
     }
 
+    if (block->size > newsize) {
+      /* make sure free space in the pool have the RWX protection */
+      mprotect_mapping(MAPPING_DPMI, block->base + newsize,
+        block->size - newsize, PROT_READ | PROT_WRITE | PROT_EXEC);
+    }
+    if (!(ptr = pgrealloc(&mem_pool, block->base, newsize)))
+	return NULL;
+
+    finish_realloc(block, newsize, 1);
+    block->base = ptr;
+    block->size = newsize;
+    return block;
+}
+
+dpmi_pm_block * DPMIreallocLinear(unsigned long handle, unsigned long newsize,
+  int committed)
+{
+    dpmi_pm_block *block;
+    void *ptr;
+
+    if (!newsize)	/* DPMI spec. says resize to 0 is an error */
+	return NULL;
+    if ((block = lookup_pm_block(handle)) == NULL)
+	return NULL;
+    if (!block->linear) {
+	D_printf("DPMI: Attempt to realloc memory region with inappropriate function\n");
+	return NULL;
+    }
+
+   /* aligned newsize to PAGE size */
+    newsize = PAGE_ALIGN(newsize);
+    if (newsize == block -> size)     /* do nothing */
+	return block;
+    
+    if ((newsize > block -> size) && committed &&
+	((newsize - block -> size) > dpmi_free_memory)) {
+	D_printf("DPMI: DPMIrealloc failed: Not enough dpmi memory\n");
+	return NULL;
+    }
+
    /*
     * We have to make sure the whole region have the same protection, so that
     * it can be merged into a single VMA. Otherwise mremap() will fail!
     */
-    npages = block->size >> PAGE_SHIFT;
-    new_npages = newsize >> PAGE_SHIFT;
-    tmp = malloc(npages * sizeof(u_short));
-    for (i = 0; i < npages; i++)
-      tmp[i] = 9;
-    SetPageAttributes(block, 0, tmp, npages);
-    free(tmp);
+    mprotect_mapping(MAPPING_DPMI, block->base, block->size,
+      PROT_READ | PROT_WRITE | PROT_EXEC);
     /* Now we are safe - region merged. mremap() can be attempted now. */
-    if (!IN_POOL(block->base)) {
-	ptr = mremap_mapping(MAPPING_DPMI, block->base, block->size, newsize,
-	    MREMAP_MAYMOVE, (void*)-1);
-    } else {
-	ptr = pgrealloc(&mem_pool, block->base, newsize);
-	if (ptr)
-	    mprotect_mapping(MAPPING_DPMI, ptr, newsize,
-    		PROT_READ | PROT_WRITE | PROT_EXEC);
-    }
-
-    if (!ptr || ptr == MAP_FAILED)
+    ptr = mremap_mapping(MAPPING_DPMI, block->base, block->size, newsize,
+      MREMAP_MAYMOVE, (void*)-1);
+    if (ptr == MAP_FAILED) {
+	restore_page_protection(block);
 	return NULL;
-
-    realloc_pm_block(block, newsize);
-    if (newsize > block->size) {
-	for (i = npages; i < new_npages; i++)
-	    block->attrs[i] = 9;
     }
-    dpmi_free_memory += block -> size;
-    dpmi_free_memory -= newsize;
+
+    finish_realloc(block, newsize, committed);
     block->base = ptr;
-    block -> size = newsize;
-    /* We have to restore attrs only for the old size - new ones are OK */
-    /* But of course not touching the freed pages! */
-    SetPageAttributes(block, 0, block->attrs, MIN(npages, new_npages));
+    block->size = newsize;
+    restore_page_protection(block);
     return block;
 }
 
-void 
-DPMIfreeAll(void)
+void DPMIfreeAll(void)
 {
     dpmi_pm_block **p = &DPMI_CLIENT.pm_block_root->first_pm_block;
     while(*p) {
@@ -429,8 +453,7 @@ DPMIfreeAll(void)
     }
 }
 
-int
-DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
+int DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
 			  unsigned long low_addr, unsigned long cnt)
 {
     /* NOTE:
@@ -458,6 +481,10 @@ int DPMISetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
 
   if ((block = lookup_pm_block(handle)) == NULL)
     return 0;
+  if (!block->linear) {
+    D_printf("DPMI: Attempt to set page attributes for inappropriate mem region\n");
+    /* But we can handle that */
+  }
 
   if (!SetPageAttributes(block, offs, attrs, count))
     return 0;
