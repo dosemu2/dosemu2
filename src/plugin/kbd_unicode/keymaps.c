@@ -2497,7 +2497,7 @@ static t_unicode keysym_to_unicode(t_unicode ch)
 static int X11_DetectLayout (void)
 {
   Display *display;
-  unsigned match, mismatch, seq, i, syms;
+  unsigned match, mismatch, seq, i, syms, startsym;
   int score, keyc, key, pkey, ok = 0;
   KeySym keysym;
   unsigned max_seq = 0;
@@ -2525,6 +2525,9 @@ static int X11_DetectLayout (void)
   init_charset_state(&X_charset, lookup_charset("X_keysym"));
   for (kt = keytable_list; kt->name; kt++) {
     k_printf("Attempting to match against \"%s\"\n", kt->name);
+    startsym = 0;
+    if (kt->flags & KT_ALTERNATE)
+      startsym = 2;
     match = 0;
     mismatch = 0;
     score = 0;
@@ -2532,11 +2535,13 @@ static int X11_DetectLayout (void)
     pkey = -1;
     for (keyc = min_keycode; keyc <= max_keycode; keyc++) {
       /* get data for keycode from X server */
-      for (i = 0; i < syms; i++) {
+      for (i = startsym; i < syms; i++) {
         keysym = XKeycodeToKeysym (display, keyc, i);
-	charset_to_unicode(&X_charset, &ckey[i],
+	charset_to_unicode(&X_charset, &ckey[i - startsym],
                 (const char *)&keysym, sizeof(keysym));
       }
+      for (i = 0; i < startsym; i++)
+	ckey[syms - startsym + i] = U_VOID;
       if (ckey[0] != U_VOID && (ckey[0] & 0xf000) != 0xe000) {
         /* search for a match in layout table */
         /* right now, we just find an absolute match for defined positions */
@@ -2582,7 +2587,13 @@ static int X11_DetectLayout (void)
     }
     k_printf("matches=%d, mismatches=%d, seq=%d, score=%d\n",
            match, mismatch, seq, score);
-    if (score > max_score ||
+    if ((kt->flags & KT_ALTERNATE) && score > 20) {
+      /* at the moment there's only one alternate layout so we can
+	 just use a threshold */
+      c_printf("CONF: detected alternate layout: %s\n", kt->name);
+      config.altkeytable = kt;
+    }
+    else if (score > max_score ||
        (score == max_score && ((seq > max_seq) ||
                                (seq == max_seq && kt->keyboard == KEYB_AUTO)))) {
       /* best match so far */
@@ -2601,14 +2612,6 @@ static int X11_DetectLayout (void)
 
   c_printf("CONF: detected layout is \"%s\"\n", config.keytable->name);
   XCloseDisplay(display);
-  for (kt = keytable_list; kt->name; kt++) {
-    if (kt->keyboard == config.keytable->keyboard &&
-	(kt->flags & KT_ALTERNATE)) {
-      c_printf("CONF: Alternate keyboard-layout %s\n", kt->name);
-      config.altkeytable = kt;
-      break;
-    }
-  }
   return 0;
 }
 #endif
