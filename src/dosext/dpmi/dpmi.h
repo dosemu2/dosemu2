@@ -31,8 +31,8 @@
 /* Aargh!! Is this the only way we have to know if a signal interrupted
  * us in DPMI server or client code? */
 #ifdef __linux__
-#define UCODESEL 0x23
-#define UDATASEL 0x2b
+#define UCODESEL ucodesel
+#define UDATASEL udatasel
 #endif
 
 /* DANG_BEGIN_REMARK

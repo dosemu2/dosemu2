@@ -96,6 +96,12 @@ unsigned long TRs[2] =
 };
 #endif
 
+/* DOSEMU code selector and data selector. Initialized at startup.
+ * These used to be 0x23 and 0x2b, but change to 0x73 and 0x7b
+ * in Linux kernel 2.6
+ */
+unsigned short ucodesel, udatasel;
+
 /* 
  * DANG_BEGIN_FUNCTION cpu_trap_0f
  *
@@ -241,6 +247,12 @@ void cpu_setup(void)
 #else
   REG(eflags) |= (VIF | VIP);
 #endif
+
+  /* initialize user data & code selector values (used by DPMI code) */
+  __asm__ volatile (
+  " movw %%cs, ucodesel\n"
+  " movw %%ds, udatasel\n"
+  ::);
 
 #ifdef X86_EMULATOR
   if (config.cpuemu) {

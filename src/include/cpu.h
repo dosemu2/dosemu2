@@ -301,4 +301,6 @@ extern unsigned int read_port_w(unsigned short port);
 extern int write_port_w(unsigned int value,unsigned short port);
 int do_soft_int(int intno);
 
+extern unsigned short ucodesel, udatasel;
+
 #endif /* CPU_H */
