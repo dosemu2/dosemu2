@@ -345,22 +345,6 @@ void dosemu_fault(int signal, struct sigcontext_struct context)
 
   fault_cnt++;
 
-  if (fault_cnt > 4) {
-   /*
-    * OK, we can't exit. Lets deadlock rather than hang the entire system.
-    * But if we are here, then the system is already trashed most likely.
-    */
-    while(1) sleep(100);
-  }    
-  if (fault_cnt > 3) {
-   /* 
-    * At this point we already tried _exit(2). So we have nothing to do
-    * but kill ourselves. We shouldn't print any messages here - otherwise
-    * we can recurse. Neither can we use raise(3), as glibc may be
-    * in an unreliable state if we are here.
-    */
-    kill(getpid(), SIGKILL);
-  }
   if (fault_cnt > 2) {
    /*
     * At this point we already tried leavedos(). Now try _exit()
