@@ -250,9 +250,9 @@ void cpu_setup(void)
 
   /* initialize user data & code selector values (used by DPMI code) */
   __asm__ volatile (
-  " movw %%cs, ucodesel\n"
-  " movw %%ds, udatasel\n"
-  ::);
+  " movw %%cs, %0\n"
+  " movw %%ds, %1\n"
+  :"=m"(ucodesel),"=m"(udatasel):);
 
 #ifdef X86_EMULATOR
   if (config.cpuemu) {
