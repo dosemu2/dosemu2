@@ -27,7 +27,6 @@
 #include "mapping.h"
 
 unsigned long dpmi_free_memory;           /* how many bytes memory client */
-dpmi_pm_block *pm_block_root[DPMI_MAX_CLIENTS];
 unsigned long pm_block_handle_used;       /* tracking handle */
 
 /* utility routines */
