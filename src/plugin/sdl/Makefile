@@ -20,9 +20,12 @@ OBJS=$(CFILES:.c=.o)
 OOBJS=
 DEPENDS=$(CFILES:.c=.d)
 
-
 include $(REALTOPDIR)/src/Makefile.common
 
 all: lib
 
 install: all
+
+realclean::
+	rm -f Makefile.conf config.log config.status config/plugin_config.h
+	rm -rf autom4te*.cache

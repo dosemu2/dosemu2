@@ -41,6 +41,6 @@ install:
 
 realclean::
 	rm -f config.log config.status include/kbd_unicode_config.h
-
+	rm -rf autom4te*.cache
 
 include $(REALTOPDIR)/src/Makefile.common
