@@ -39,7 +39,7 @@ static struct hostent * serv;
 static long long start_time;
 static int timebase = 100;
 
-static void timid_seqbuf_dump(void);
+void timid_seqbuf_dump(void);
 
 SEQ_USE_EXTBUF();
 
@@ -327,7 +327,7 @@ void timid_flush(void)
   SEQ_DUMPBUF();
 }
 
-static void timid_seqbuf_dump(void)
+void timid_seqbuf_dump(void)
 {
   if (_seqbufptr)
     send(data_sock, _seqbuf, _seqbufptr, 0);
