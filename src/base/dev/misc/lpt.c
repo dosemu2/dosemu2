@@ -20,6 +20,7 @@
 #include <sys/wait.h>
 
 #include "emu.h"
+#include "timers.h"
 #include "lpt.h"
 #include "utilities.h"
 #include "dos2linux.h"
@@ -53,11 +54,13 @@ int int17(void)
     return 1;
   }
 
+  reset_idle();
+
   switch (HI(ax)) {
   case 0:			/* write char */
     /* p_printf("print character on lpt%d : %c (%d)\n",
 			       LO(dx), LO(ax), LO(ax)); */
-    HI(ax) = (lpt[LO(dx)].fops.write) (LO(dx), LO(ax));
+    HI(ax) = printer_write(LO(dx), LO(ax));
     break;
 
   case 1:			/* init */
@@ -178,12 +181,12 @@ printer_flush(int prnum)
 int
 stub_printer_write(int prnum, int outchar)
 {
-  (lpt[prnum].fops.open) (prnum);
+  printer_open(prnum);
 
   /* from now on, use real write */
   lpt[prnum].fops.write = lpt[prnum].fops.realwrite;
 
-  return ((lpt[prnum].fops.write) (prnum, outchar));
+  return printer_write(prnum, outchar);
 }
 
 int
@@ -234,8 +237,7 @@ close_all_printers(void)
   for (loop = 0; loop < NUM_PRINTERS; loop++) {
     p_printf("LPT: closing printer %d (%s)\n", loop,
 	     lpt[loop].dev ? lpt[loop].dev : "<<NODEV>>");
-    if (lpt[loop].fops.close)
-       (lpt[loop].fops.close) (loop);
+    printer_close(loop);
   }
 }
 
@@ -248,9 +250,10 @@ printer_tick(u_long secno)
     if (lpt[i].remaining >= 0) {
       p_printf("LPT: doing real tick for %d\n", i);
       if (lpt[i].remaining) {
+        reset_idle();
 	lpt[i].remaining--;
 	if (!lpt[i].remaining)
-	  (lpt[i].fops.flush) (i);
+	  printer_flush(i);
       }
     }
   }
