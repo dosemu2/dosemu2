@@ -257,10 +257,8 @@ SIGRELEASE_call (void)
 
 	  set_linux_video ();
 	  if (can_do_root_stuff) 
-	    { 
-	      release_perm ();
-	      put_video_ram ();
-	    }
+	    release_perm ();
+	  put_video_ram ();
 
 	  /*      if (config.vga) dos_pause(); */
 	  scr_state.current = 0;
@@ -324,64 +322,49 @@ release_vt (int sig, struct sigcontext_struct context)
 
 static void unmap_video_ram(int copyback)
 {
-  char *putbuf = NULL, *base = (char *)GRAPH_BASE;
+  char *base = (char *)GRAPH_BASE;
   size_t size = GRAPH_SIZE;
+  int cap = MAPPING_VC | MAPPING_KMEM;
 
   if (!config.vga) {
     size = TEXT_SIZE;
     base = scr_state.virt_address;
   }
-  if (copyback) {
-    putbuf = malloc(TEXT_SIZE);
-    memcpy (putbuf, base, size);
-  }
-  mmap_mapping(MAPPING_VC | MAPPING_SCRATCH, base, size,
-	       PROT_EXEC | PROT_READ | PROT_WRITE, 0);
-  if (copyback) {
-    memcpy (base, putbuf, TEXT_SIZE);
-    free (putbuf);
-  }
+  if (copyback) cap |= MAPPING_COPYBACK;
+  munmap_mapping(cap, base, size);
   scr_state.mapped = 0;
 }
 
 static void map_video_ram(void)
 { 
   char *graph_mem;
-  size_t  ssize = GRAPH_SIZE;
   char *pbase = (char *) GRAPH_BASE;
   char *vbase = pbase;
-  char *textbuf = NULL;
+  size_t ssize = GRAPH_SIZE;
+  int cap = MAPPING_VC | MAPPING_KMEM;
 
   if (!config.vga) {
     pbase = (char *)phys_text_base; /* physical page address    */
     vbase = scr_state.virt_address; /* new virtual page address */
     ssize = TEXT_SIZE;
     /* this is used for page switching */
-    textbuf = malloc(ssize);
-    if (textbuf)
-      memcpy (textbuf, vbase, ssize); 
+    cap |= MAPPING_COPYBACK;
   }
 
   g_printf ("mapping %s\n", config.vga ? "GRAPH_BASE" : "PAGE_ADDR");
 
-  graph_mem = mmap_mapping(MAPPING_VC | MAPPING_KMEM, vbase, ssize,
-			   PROT_READ | PROT_WRITE, pbase);
+  graph_mem = mmap_mapping(cap, vbase, ssize, PROT_READ | PROT_WRITE, pbase);
 
   /* the code below is done by the video save/restore code for config.vga */
   if (!config.vga) {
     if ((long) graph_mem < 0) {
+      if (!can_do_root_stuff && mem_fd == -1) return;
       error("mmap error in get_video_ram (text): %x, errno %d\n",
 	    (Bit32u)graph_mem, errno);
       return;
     } else
       v_printf ("CONSOLE VIDEO address: %p %p %p\n", (void *) graph_mem,
 		(void *) pbase, vbase);
-
-    /* copy contents of page onto video RAM */
-    if (textbuf) {
-      memcpy (vbase, textbuf, ssize);
-      free(textbuf);
-    }
   }
   scr_state.phys_address = graph_mem;
   scr_state.mapped = 1;
@@ -409,7 +392,6 @@ void get_video_ram (int waitflag)
 {
   int page;
 
-  if (!can_do_root_stuff && mem_fd == -1) return;
   v_printf ("get_video_ram STARTED\n");
   if (waitflag == WAIT)
     wait_for_active_vc();

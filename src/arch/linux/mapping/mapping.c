@@ -61,11 +61,11 @@ static struct mappingdrivers *mappingdrv[] = {
 };
 
 static int map_find_idx(struct mem_map_struct *map, int max,
-  unsigned char *addr)
+  unsigned char *addr, int d)
 {
   int i;
   for (i = 0; i < max; i++) {
-    if (map[i].src == addr)
+    if ((d ? map[i].dst : map[i].src) == addr)
       return i;
   }
   return -1;
@@ -98,6 +98,15 @@ static int map_find(struct mem_map_struct *map, int max,
   return idx;
 }
 
+static void kmem_unmap_single(int cap, int idx)
+{
+  kmem_map[idx].base = mmap(0, kmem_map[idx].len, PROT_NONE,
+	       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  mremap_mapping(cap, kmem_map[idx].dst, kmem_map[idx].len,
+      kmem_map[idx].len, MREMAP_MAYMOVE | MREMAP_FIXED, kmem_map[idx].base);
+  kmem_map[idx].mapped = 0;
+}
+
 static void kmem_unmap_mapping(int cap, void *addr, int mapsize)
 {
   int i;
@@ -108,12 +117,15 @@ static void kmem_unmap_mapping(int cap, void *addr, int mapsize)
   if (addr == (void*)-1)
     return;
   while ((i = map_find(kmem_map, kmem_mappings, addr, mapsize, 1)) != -1) {
-    kmem_map[i].base = mmap(0, kmem_map[i].len, PROT_NONE,
-               MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    mremap_mapping(cap, kmem_map[i].dst, kmem_map[i].len,
-      kmem_map[i].len, MREMAP_MAYMOVE | MREMAP_FIXED, kmem_map[i].base);
-    kmem_map[i].mapped = 0;
+    kmem_unmap_single(cap, i);
   }
+}
+
+static void kmem_map_single(int cap, int idx)
+{
+  mremap_mapping(cap, kmem_map[idx].base, kmem_map[idx].len, kmem_map[idx].len,
+      MREMAP_MAYMOVE | MREMAP_FIXED, kmem_map[idx].dst);
+  kmem_map[idx].mapped = 1;
 }
 
 #if 0
@@ -127,9 +139,7 @@ static void kmem_map_mapping(int cap, void *addr, int mapsize)
   if (addr == (void*)-1)
     return;
   while ((i = map_find(kmem_map, kmem_mappings, addr, mapsize, 0)) != -1) {
-    mremap_mapping(cap, kmem_map[i].base, kmem_map[i].len, kmem_map[i].len,
-      MREMAP_MAYMOVE | MREMAP_FIXED, kmem_map[i].dst);
-    kmem_map[i].mapped = 1;
+    kmem_map_single(cap, i);
   }
 }
 #endif
@@ -142,7 +152,6 @@ void *extended_mremap(void *addr, size_t old_len, size_t new_len,
 
 void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source)
 {
-  void *addr;
   int fixed = (int)target == -1 ? 0 : MAP_FIXED;
   Q__printf("MAPPING: map, cap=%s, target=%p, size=%x, protect=%x, source=%p\n",
 	cap, target, mapsize, protect, source);
@@ -150,16 +159,17 @@ void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source
     int i;
 #ifndef HAVE_MREMAP_FIXED
     if (!have_mremap_fixed) {
-      i = kmem_mappings++;
+      void *addr;
+      if (!can_do_root_stuff && mem_fd == -1) return MAP_FAILED;
       open_kmem();
       if (!fixed) target = 0;
       addr = mmap(target, mapsize, protect, MAP_SHARED | fixed,
-		  mem_fd, (off_t) source);
+		  mem_fd, (size_t) source);
       close_kmem();
     } else
 #endif
     {
-      i = map_find_idx(kmem_map, kmem_mappings, source);
+      i = map_find_idx(kmem_map, kmem_mappings, source, 0);
       if (i == -1) {
 	error("KMEM mapping for %p was not allocated!\n", source);
 	return MAP_FAILED;
@@ -169,14 +179,14 @@ void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source
 	      source, kmem_map[i].len, mapsize);
 	return MAP_FAILED;
       }
-      addr = mremap_mapping(cap, kmem_map[i].base, kmem_map[i].len, mapsize,
-			    MREMAP_MAYMOVE | MREMAP_FIXED, target);
+      kmem_map[i].dst = target;
+      kmem_map_single(cap, i);
     }
-    kmem_map[i].dst = addr;
-    kmem_map[i].len = mapsize;
-    kmem_map[i].mapped = 1;
-    mprotect_mapping(cap, addr, mapsize, protect);
-    return addr;
+    if (cap & MAPPING_COPYBACK)
+      /* copy from low shared memory to the /dev/mem memory */
+      memcpy(target, lowmem_base + (size_t)target, mapsize);
+    mprotect_mapping(cap, target, mapsize, protect);
+    return target;
   }
 
   kmem_unmap_mapping(MAPPING_OTHER, target, mapsize);
@@ -188,7 +198,7 @@ void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source
   }
   if (cap & (MAPPING_LOWMEM | MAPPING_HMA)) {
     return (*mappingdriver.mmap)(cap | MAPPING_ALIAS, target, mapsize, protect,
-      lowmem_base + (off_t)source);
+      lowmem_base + (size_t)source);
   }
 
   return (*mappingdriver.mmap)(cap, target, mapsize, protect, source);
@@ -309,6 +319,7 @@ char *decode_mapping_cap(int cap)
   if (cap & MAPPING_ALIAS) p += sprintf(p, " ALIAS");
   if (cap & MAPPING_MAYSHARE) p += sprintf(p, " MAYSHARE");
   if (cap & MAPPING_SHM) p += sprintf(p, " SHM");
+  if (cap & MAPPING_COPYBACK) p += sprintf(p, " COPYBACK");
   return dbuf;
 }
 
@@ -335,13 +346,13 @@ void *alloc_mapping(int cap, int mapsize, void *target)
       error("KMEM mapping without target\n");
       leavedos(64);
     }
-    if (map_find_idx(kmem_map, kmem_mappings, target) != -1) {
+    if (map_find_idx(kmem_map, kmem_mappings, target, 0) != -1) {
       error("KMEM mapping for %p allocated twice!\n", target);
       return MAP_FAILED;
     }
     open_kmem();
     addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd,
-		(off_t)target);
+		(size_t)target);
     close_kmem();
     if (addr == MAP_FAILED)
       return addr;
@@ -385,10 +396,35 @@ void *realloc_mapping(int cap, void *addr, int oldsize, int newsize)
 
 int munmap_mapping(int cap, void *addr, int mapsize)
 {
-  /* First of all remap the kmem mappings */
+  if (cap & MAPPING_KMEM) {
+    int i;
+    if (cap & MAPPING_COPYBACK)
+      /* save memory contents to the shared low memory */
+      memcpy(lowmem_base + (size_t)addr, addr, mapsize);
+#ifndef HAVE_MREMAP_FIXED
+    if (!have_mremap_fixed) {
+      if (!can_do_root_stuff && mem_fd == -1) return MAP_FAILED;
+    } else
+#endif
+    {
+      i = map_find_idx(kmem_map, kmem_mappings, addr, 1);
+      if (i == -1 || !kmem_map[i].mapped) {
+        error("KMEM mapping for %p was not mapped!\n", addr);
+        return -1;
+      }
+      if (kmem_map[i].len != mapsize) {
+        error("KMEM mapping for %p allocated for size %#x, but %#x requested\n",
+             addr, kmem_map[i].len, mapsize);
+        return -1;
+      }
+      kmem_unmap_single(cap, i);
+    }
+    mmap_mapping(MAPPING_LOWMEM, addr, mapsize, PROT_READ | PROT_WRITE, addr);
+    return 0;
+  }
   kmem_unmap_mapping(MAPPING_OTHER, addr, mapsize);
 
-#ifndef MAPPING_KMEM
+#ifndef HAVE_MREMAP_FIXED
   if (have_mremap_fixed)
 #endif
     if (cap & MAPPING_KMEM) {
