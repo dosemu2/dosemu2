@@ -69,7 +69,7 @@ void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source
 		MAP_PRIVATE | fixed | MAP_ANONYMOUS, -1, 0);
   }
   if (cap & (MAPPING_LOWMEM | MAPPING_HMA)) {
-    return (*mappingdriver.mmap)(cap, target, mapsize, protect,
+    return (*mappingdriver.mmap)(cap | MAPPING_ALIAS, target, mapsize, protect,
       lowmem_base + (off_t)source);
   }
   return (*mappingdriver.mmap)(cap, target, mapsize, protect, source);
