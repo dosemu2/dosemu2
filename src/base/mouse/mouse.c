@@ -345,7 +345,7 @@ int
 mouse_int(void)
 {
   /* delayed mouse init for xterms; should be done cleaner in 1.3.x */
-  if (mice->type == MOUSE_XTERM) {
+  if (mice->type == MOUSE_XTERM && !sent_mouse_esc) {
     /* save old highlight mouse tracking */
     printf("\033[?1001s");
     /* enable mouse tracking */
