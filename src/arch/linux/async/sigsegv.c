@@ -9,6 +9,7 @@
 #ifdef USE_MHPDBG
 #include "mhpdbg.h"
 #endif /* USE_MHPDBG */
+#include "debug.h"
 
 /* Define if we want graphics in X (of course we want :-) (root@zaphod) */
 /* WARNING: This may not work in BSD, because it was written for Linux! */
@@ -323,6 +324,8 @@ bad:
     dbug_printf("\n");
  
     show_regs(__FILE__, __LINE__);
+
+    gdb_debug();
 
     fatalerr = 4;
     leavedos(fatalerr);		/* shouldn't return */

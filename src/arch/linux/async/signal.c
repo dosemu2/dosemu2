@@ -27,6 +27,7 @@
 #include "pktdrvr.h"
 #include "iodev.h"
 #include "serial.h"
+#include "debug.h"
 
 #include "keyb_clients.h"
 #include "keyb_server.h"
@@ -93,8 +94,10 @@ static void cleanup_child(void)
   restore_eflags_fs_gs();
   if (portserver_pid &&
       waitpid(portserver_pid, &status, WNOHANG) > 0 &&
-      WIFSIGNALED(status))
+      WIFSIGNALED(status)) {
+    gdb_debug();
     leavedos(1);
+  }
 }
 
 static void leavedos_signal(int sig)
