@@ -217,6 +217,7 @@ extern void dpmi_sigio(struct sigcontext_struct *scp);
 extern void run_dpmi(void);
 
 extern int ConvertSegmentToDescriptor(unsigned short segment);
+extern int ConvertSegmentToCodeDescriptor(unsigned short segment);
 extern int SetSegmentBaseAddress(unsigned short selector,
 					unsigned long baseaddr);
 extern int SetSegmentLimit(unsigned short, unsigned int);

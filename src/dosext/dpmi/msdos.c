@@ -1492,6 +1492,72 @@ decode_pop_segreg(struct sigcontext_struct *scp, unsigned short
     return len;
 }
 
+static  int
+decode_retf_iret(struct sigcontext_struct *scp, unsigned short *segment,
+    unsigned char * sreg, int decode_use_16bit)
+{
+    unsigned short *ssp;
+    unsigned char *csp;
+    int len;
+
+    csp = (unsigned char *) SEL_ADR(_cs, _eip);
+    ssp = (unsigned short *) SEL_ADR(_ss, _esp);
+    len = 0;
+    switch (*csp) {
+	case 0xca:			/* retf imm16 */
+	case 0xcb:			/* retf */
+	case 0xcf:			/* iret */
+	    len = 1;
+	    _eip = decode_use_16bit ? ssp[0] : ((unsigned int *) ssp)[0];
+	    *segment = decode_use_16bit ? ssp[1] : ((unsigned int *) ssp)[1];
+	    *sreg = CS_INDEX;
+	    _esp += decode_use_16bit ? 4 : 8;
+	    break;
+    }
+    if (!len)
+	return 0;
+
+    switch (*csp) {
+	case 0xca:			/* retf imm16 */
+	    len += 2;
+	    _esp += ((unsigned short *) (csp + 1))[0];
+	    break;
+	case 0xcf:			/* iret */
+	    _eflags = decode_use_16bit ? ssp[2] : ((unsigned int *) ssp)[2];
+	    _esp += decode_use_16bit ? 2 : 4;
+	    break;
+    }
+    if (len)
+	error("retf decoded\n");
+    return len;
+}
+
+static  int
+decode_jmp_f(struct sigcontext_struct *scp, unsigned short *segment,
+    unsigned char * sreg, int decode_use_16bit)
+{
+    unsigned short *ssp;
+    unsigned char *csp;
+    int len;
+
+    csp = (unsigned char *) SEL_ADR(_cs, _eip);
+    ssp = (unsigned short *) SEL_ADR(_ss, _esp);
+    len = 0;
+    switch (*csp) {
+	case 0xea:			/* jmp seg:off16/off32 */
+	    len = decode_use_16bit ? 5 : 7;
+	    _eip = decode_use_16bit ? ((unsigned short *)(csp + 1))[0] :
+		((unsigned int *)(csp + 1))[0];
+	    *segment = decode_use_16bit ? ((unsigned short *)(csp + 3))[0] :
+		((unsigned short *)(csp + 5))[0];
+	    *sreg = CS_INDEX;
+	    break;
+    }
+    if (len)
+	error("jmp decoded\n");
+    return len;
+}
+
 /*
  * decode_modify_segreg_insn tries to decode instructions which would modify a
  * segment register, returns the length of the insn.
@@ -1531,6 +1597,18 @@ decode_modify_segreg_insn(struct sigcontext_struct *scp, unsigned
     if ((len = decode_pop_segreg(scp, segment, sreg))) {
       _esp += decode_use_16bit ? 2 : 4;
       _eip += len;
+      return len+size_prfix;
+    }
+
+    /* try retf, iret */
+    if ((len = decode_retf_iret(scp, segment, sreg, decode_use_16bit))) {
+      /* eip, esp and eflags are modified! */
+      return len+size_prfix;
+    }
+
+    /* try far jmp */
+    if ((len = decode_jmp_f(scp, segment, sreg, decode_use_16bit))) {
+      /* eip is modified! */
       return len+size_prfix;
     }
 
@@ -1673,11 +1751,14 @@ int msdos_fault(struct sigcontext_struct *scp)
     /* only allow using some special GTD\'s */
     if ((segment != 0x0040) && (segment != 0xa000) &&
 	(segment != 0xb000) && (segment != 0xb800) &&
-	(segment != 0xc000) && (segment != 0xe000) && (segment != 0xf000))
+	(segment != 0xc000) && (segment != 0xe000) &&
+	(segment != 0xf000) && (segment != 0xbf8) &&
+	(segment != 0xf800) && (segment != 0xff00))
 	return 0;
 #endif    
 
-    if (!(desc = ConvertSegmentToDescriptor(segment)))
+    if (!(desc = (reg != CS_INDEX ? ConvertSegmentToDescriptor(segment) :
+	ConvertSegmentToCodeDescriptor(segment))))
 	return 0;
 
     /* OKay, all the sanity checks passed. Now we go and fix the selector */

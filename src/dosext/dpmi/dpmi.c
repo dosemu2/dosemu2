@@ -744,6 +744,27 @@ static int ConvertSegmentToDescriptor16(unsigned short segment)
   return ConvertSegmentToDescriptor32(segment, 0);
 }
 
+int ConvertSegmentToCodeDescriptor(unsigned short segment)
+{
+  unsigned long baseaddr = segment << 4;
+  unsigned long limit = DPMI_CLIENT.is_32 ? 0xfffff : 0xffff;
+  unsigned short selector;
+  int i;
+  D_printf("DPMI: convert seg %#x to *code* desc\n", segment);
+  for (i=1;i<MAX_SELECTORS;i++)
+    if ((Segments[i].base_addr==baseaddr) && (Segments[i].limit>=0xffff) &&
+	(Segments[i].type==MODIFY_LDT_CONTENTS_CODE) && Segments[i].used &&
+	 !Segments[i].is_32) {
+      D_printf("DPMI: found *code* descriptor at %#x\n", (i<<3) | 0x0007);
+      return (i<<3) | 0x0007;
+    }
+  D_printf("DPMI: SEG at base=%#lx not found, allocate a new one\n", baseaddr);
+  if (!(selector = AllocateDescriptors(1))) return 0;
+  if (SetSelector(selector, baseaddr, limit, DPMI_CLIENT.is_32,
+                  MODIFY_LDT_CONTENTS_CODE, 0, DPMI_CLIENT.is_32, 0, 0)) return 0;
+  return selector;
+}
+
 static inline unsigned short GetNextSelectorIncrementValue(void)
 {
   return 8;
