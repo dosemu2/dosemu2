@@ -35,3 +35,32 @@
   access to another unix system then the best method for sending the
   file is to feed the file to '/usr/lib/sendmail -t'.
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -7,151 +7,164 @@
   were created to deal with the lack of DOSEmu documentation.
   ______________________________________________________________________
 
-  Table of Contents:
+  Table of Contents
 
-  1.      Introduction
 
-  2.      Runtime Configuration Options
 
-  2.1.    Format of /etc/dosemu.conf
 
-  2.1.1.  Controling amount of debug output
 
-  2.1.2.  Basic emulaton settings
 
-  2.1.3.  Code page and character set
 
-  2.1.4.  Terminals
 
-  2.1.5.  Keyboard settings
 
-  2.1.6.  X Support settings
 
-  2.1.7.  Video settings ( console only )
 
-  2.1.8.  Disks and floppies
 
-  2.1.9.  COM ports and mices
 
-  2.1.10. Printers
 
-  2.1.11. Networking under DOSEMU
 
-  2.1.12. Sound
 
-  3.      Security
 
-  4.      Directly executable DOS applications using dosemu (DEXE)
 
-  4.1.    Making and Using DEXEs
 
-  4.2.    Using binfmt_misc to spawn DEXEs directly
 
-  4.3.    Making a bootable hdimage for general purpose
 
-  4.4.    Accessing hdimage files using mtools
 
-  5.      Sound
 
-  5.1.    Using the MPU-401 "Emulation".
 
-  5.2.    The MIDI daemon
 
-  5.3.    Disabling the Emulation at Runtime
 
-  6.      Using Lredir
 
-  6.1.    how do you use it?
 
-  6.2.    Other alternatives using Lredir
 
-  7.      Running dosemu as a normal user
 
-  8.      Using CDROMS
 
-  8.1.    The built in driver
 
-  9.      Logging from DOSEmu
 
-  10.     Using X
 
-  10.1.   Latest Info
 
-  10.2.   Slightly older information
 
-  10.3.   Status of X support (Sept 5, 1994)
 
-  10.3.1. Done
 
-  10.3.2. ToDo (in no special order)
 
-  10.4.   The appearance of Graphics modes (November 13, 1995)
 
-  10.4.1. vgaemu
 
-  10.4.2. vesa
 
-  10.4.3. X
 
-  10.5.   The new VGAEmu/X code (July 11, 1997)
 
-  11.     Running Windows under DOSEmu
 
-  11.1.   Windows 3.0 Real Mode
 
-  11.2.   Windows 3.1 Protected Mode
 
-  11.3.   Windows 3.x in xdos
 
-  12.     Mouse Garrot
 
-  13.     Running a DOS-application directly from Unix shell
 
-  13.1.   Using the keystroke and commandline options.
 
-  13.2.   Using an input file
 
-  14.     Setting HogThreshold
 
-  15.     Commands & Utilities
 
-  15.1.   Programs
 
-  15.2.   Drivers
 
-  16.     Keymaps
+  1. Introduction
 
-  17.     Networking using DOSEmu
+  2. Runtime Configuration Options
 
-  17.1.   The DOSNET virtual device.
+     2.1 Format of /etc/dosemu.conf
+        2.1.1 Controling amount of debug output
+        2.1.2 Basic emulaton settings
+        2.1.3 Code page and character set
+        2.1.4 Terminals
+        2.1.5 Keyboard settings
+        2.1.6 X Support settings
+        2.1.7 Video settings ( console only )
+        2.1.8 Disks and floppies
+        2.1.9 COM ports and mices
+        2.1.10 Printers
+        2.1.11 Networking under DOSEMU
+        2.1.12 Sound
 
-  17.2.   Setup for virtual TCP/IP
+  3. Security
 
-  17.3.   Full Details
+  4. Directly executable DOS applications using dosemu (DEXE)
 
-  17.3.1. Introduction
+     4.1 Making and Using DEXEs
+     4.2 Using binfmt_misc to spawn DEXEs directly
+     4.3 Making a bootable hdimage for general purpose
+     4.4 Accessing hdimage files using mtools
 
-  17.3.2. Design
+  5. Sound
 
-  17.3.3. Implementation
+     5.1 Using the MPU-401 "Emulation".
+     5.2 The MIDI daemon
+     5.3 Disabling the Emulation at Runtime
 
-  17.3.4. Virtual device 'dsn0'
+  6. Using Lredir
 
-  17.3.5. Packet driver code
+     6.1 how do you use it?
+     6.2 Other alternatives using Lredir
 
-  17.3.6. Conclusion
+  7. Running dosemu as a normal user
 
-  17.3.6.1.       Telnetting to other Systems
+  8. Using CDROMS
 
-  17.3.6.2.       Accessing Novell netware
+     8.1 The built in driver
 
-  18.     Using Windows and Winsock
+  9. Logging from DOSEmu
 
-  18.1.   LIST OF REQUIRED SOFTWARE
+  10. Using X
 
-  18.2.   STEP BY STEP OPERATION (LINUX SIDE)
+     10.1 Latest Info
+     10.2 Slightly older information
+     10.3 Status of X support (Sept 5, 1994)
+        10.3.1 Done
+        10.3.2 ToDo (in no special order)
+     10.4 The appearance of Graphics modes (November 13, 1995)
+        10.4.1 vgaemu
+        10.4.2 vesa
+        10.4.3 X
+     10.5 The new VGAEmu/X code (July 11, 1997)
 
-  18.3.   STEP BY STEP OPERATION (DOS SIDE)
+  11. Running Windows under DOSEmu
+
+     11.1 Windows 3.0 Real Mode
+     11.2 Windows 3.1 Protected Mode
+     11.3 Windows 3.x in xdos
+
+  12. Mouse Garrot
+  13. Running a DOS-application directly from Unix shell
+
+     13.1 Using the keystroke and commandline options.
+     13.2 Using an input file
+
+  14. Setting HogThreshold
+
+  15. Commands & Utilities
+
+     15.1 Programs
+     15.2 Drivers
+
+  16. Keymaps
+
+  17. Networking using DOSEmu
+
+     17.1 The DOSNET virtual device.
+     17.2 Setup for virtual TCP/IP
+     17.3 Full Details
+        17.3.1 Introduction
+        17.3.2 Design
+        17.3.3 Implementation
+        17.3.4 Virtual device 'dsn0'
+        17.3.5 Packet driver code
+        17.3.6 Conclusion
+           17.3.6.1 Telnetting to other Systems
+           17.3.6.2 Accessing Novell netware
+
+  18. Using Windows and Winsock
+
+     18.1 LIST OF REQUIRED SOFTWARE
+     18.2 STEP BY STEP OPERATION (LINUX SIDE)
+     18.3 STEP BY STEP OPERATION (DOS SIDE)
+
+
   ______________________________________________________________________
 
   11..  IInnttrroodduuccttiioonn
@@ -164,8 +177,10 @@
 
   22..  RRuunnttiimmee CCoonnffiigguurraattiioonn OOppttiioonnss
 
+
   This section of the document by Hans, <lermen@fgan.de>. Last updated
   on Mar 20, 1998.
+
 
   Most of DOSEMU configuration is done during runtime and per default it
   expects the system wide configuration file /etc/dosemu.conf optionally
@@ -184,15 +199,18 @@
   (after you got familar with DOSEMU) you may need to have a look there.
 
   In DOSEMU prior to 0.97.5 the private configuration file was called
-   /.dosrc (not to be confused with the new  /.dosemurc). This will work
+  /.dosrc (not to be confused with the new  /.dosemurc). This will work
   as expected formerly, but is subject to be nolonger supported in the
   near future.  This (old)  /.dosrc is processed _a_f_t_e_r global.conf and
   follows (same as -I) the syntax of global.conf (see README-tech.txt).
+
+
 
   The first file expected (and interpreted) before any other
   configuration (such as global.conf, dosemu.conf and  /.dosemurc) is
   /etc/dosemu.users.  Within /etc/dosemu.users the general permissions
   are set:
+
 
   +o  which users are allowed to use DOSEMU.
 
@@ -210,14 +228,20 @@
 
   +o  setting the loglevel.
 
+
   Except for lines starting with `xxx=' (explanation below), each line
   in dosemu.user corresponds to exactly _o_n_e valid user count, the
   special user `all' means any user not mentioned earlier. Format:
 
+
          [ <login> | all ] [ confvar [ confvar [ ... ] ] ]
+
+
+
 
   The below example is from etc/dosemu.users.secure, which you may copy
   to /etc/dosemu.users.
+
 
          root c_all     # root is allowed to do all weird things
          nobody nosuidroot guest # variable 'guest' is checked in global.conf
@@ -227,6 +251,9 @@
          myboss nosuidroot restricted private_setup
          all nosuidroot restricted # all other users have normal user restrictions
 
+
+
+
   Note that the above `restricted' is checked in global.conf and will
   disable all secure relevant feature. Setting `guest' will force set-
   ting `restricted' too.
@@ -235,7 +262,6 @@
   the user may however use a non-suid root copy of the binary.  For more
   information on this look at README-tech, chapter 11.1 `Privileges and
   Running as User'
-
   Giving the keyword `private_setup' to a user means he/she can have a
   private DOSEMU lib under $HOME/.dosemu/lib. If this directory is
   existing, DOSEMU will expect all normally under /var/lib/dosemu within
@@ -247,8 +273,13 @@
 
   In addition, dosemu.users can be used to define some global settings,
   which must be known before any other file is accessed, such as:
+
+
          default_lib_dir= /opt/dosemu  # replaces /var/lib/dosemu
          log_level= 2                  # highest log level
+
+
+
 
   With `default_lib_dir=' you may move /var/lib/dosemu elsewere, this
   mostly is interesting for distributors, who want it elswere but won't
@@ -264,11 +295,17 @@
   Nevertheless, for a first try of DOSEMU you may prefer
   etc/dosemu.users.easy, which just contains
 
+
          root c_all
          all c_all
 
+
+
+
   to allow evrybody all weird things. For more details on security
   issues have a look at README-tech.txt chapter 2.
+
+
 
   After /etc/dosemu.users /etc/dosemu.conf (via global.conf) is
   interpreted, and only during global.conf parsing access to all
@@ -278,8 +315,9 @@
   transparently are prefixed with `dosemu_' such that the normal
   namespace cannot be polluted (and a hacker cannot overwrite security
   relevant enviroment variables). Within global.conf only those
-   /.dosemurc created variables, that are needed are taken over and may
+  /.dosemurc created variables, that are needed are taken over and may
   overwrite those defined in /etc/dosemu.conf.
+
 
   The dosemu.conf (global.conf) may check for the configuration
   variables, that are set in /etc/dosemu.users and optionaly include
@@ -292,72 +330,120 @@
   for now (using DOSEMU the first time) you should need only the below
   description of /etc/dosemu.conf ( /.dosemurc)
 
+
   22..11..  FFoorrmmaatt ooff //eettcc//ddoosseemmuu..ccoonnff
 
   All settings in dosemu.conf are just variables, that are interpreted
   in /var/lib/dosemu/global.conf and have the form of
 
-    $_xxx = (n)
-  or
-    $_zzz = "s"
+
+
+         $_xxx = (n)
+       or
+         $_zzz = "s"
+
+
+
 
   where `n' ist a numerical or boolean value and `s' is a string.  Note
   that the brackets are important, else the parser won't decide for a
   number expression. For numers you may have complete expressions ( such
   as (2*1024) ) and strings may be concatenated such as
 
+
+
          $_zzz = "This is a string containing '", '"', "' (quotes)"
+
+
+
 
   Hence a comma separated list of strings is concatenated.
 
+
   22..11..11..  CCoonnttrroolliinngg aammoouunntt ooff ddeebbuugg oouuttppuutt
+
 
   DOSEMU will help you finding problems, when you enable its debug
   messages.  These will go into the file, that you defined via the `-o
   file' or `-O' commandline option (the later prints to stderr). In
   dosemu.conf you can preset this via
 
+
+
          $_debug = "-a"
+
+
+
 
   where the string contains all you normally may pass to the `-D' com-
   mandline option (look at the man page for details).
 
+
   22..11..22..  BBaassiicc eemmuullaattoonn sseettttiinnggss
+
 
   To enable INT08 type timer interrupts set the below on or off
 
+
          $_timint = (on)
+
+
+
 
   Wether a numeric processor should be shown to the DOS space
 
-         $_mathco = (on)
+
+
+    $_mathco = (on)
+
+
+
 
   Which type of CPU should be emulated (NOTE: this is not the one you
   are running on, but your setting may not exeed the capabilities of the
-  running CPU). Valid values are:  8034586
+  running CPU). Valid values are:  80[345]86
 
-    $_cpu = (80386)
+
+         $_cpu = (80386)
+
+
+
 
   To let DOSEMU use the Pentium cycle counter (if availabe) to do better
   timing use the below
 
+
+
          $_rdtsc = (on)   # or off
+
+
+
 
   For the above `rdtsc' feature DOSEMU needs to know the exact CPU
   clock, it normally calibrates it itself, but is you encounter a wrong
   mesurement you may overide it such as
 
+
          $_cpuspeed = (166.666)  # 0 = let DOSEMU calibrate
 
+
+
+
   NOTE: `$_rdtsc' and `$_cpuspeed' can _n_o_t be overwritten by
-   /.dosemurc.
+  /.dosemurc.
 
   If you have a PCI board you may allow DOSEMU to access the PCI
   configuration space by defining the below
 
+
          $_pci = (on)    # or off
 
+
+
+
+
   Defining the memory layout, which DOS should see:
+
 
          $_xms = (1024)          # in Kbyte
          $_ems = (1024)          # in Kbyte
@@ -365,39 +451,57 @@
          $_dpmi = (off)          # in Kbyte
          $_dosmem = (640)        # in Kbyte, < 640
 
+
+
+
   Note that (other as in native DOS) each piece of mem is separate,
   hence DOS perhaps will show other values for 'extended' memory. To
   enable DPMI (by giving it memory) is a security concern, so you should
   either _n_o_t give access to dosemu for normal users (via
   /etc/dosemu.users) or give those users the `restricted' attribute (see
   above).
-
   There are some features in DOSEMU, that may violate system security
   and which you should not use on machines, which are `net open'. To
   have atleast a minimum of protection against intruders, use the
   folling:
 
+
          $_secure ="ngd"  # secure for: n (normal users), g (guest), d (dexe)
                           # empty string: depending on 'restricted'
 
+
+
+
   The above is a string of which may be given or not, hence
 
+
          $_secure ="d"
+
+
+
 
   would only effect execution of DEXEs. If you are not a `restricted'
   user (as given via /etc/dosemu.users) the above settings won't apply.
   To disable security checking atall set
 
+
          $_secure ="0"
+
+
+
 
   NOTE: `$_secure' can _n_o_t be overwritten by  /.dosemurc.
 
   For the similar reasons you may `backout' some host, which you don't
   like to have access to dosemu
 
+
          $_odd_hosts = ""    # black list such as
                              #      "lucifer.hell.com billy.the.cat"
          $_diskless_hosts="" # black list such as "hacker1 newbee gateway1"
+
+
+
 
   The items in the lists are blank separated, `odd_hosts' checks for
   remote logins, `diskless_hosts' are meant to be maschines, that mount
@@ -413,45 +517,74 @@
   a different file extension, so DOS will get other files when running
   under DOSEMU.
 
+
+
          $_emusys = ""    # empty or 3 char., config.sys   -> config.XXX
          $_emubat = ""    # empty or 3 char., autoexec.bat -> autoexec.XXX
          $_emuini = ""    # empty or 3 char., system.ini   -> system.XXX
+
+
+
 
   As you would realize at the first glance: DOS will _n_o_t have the the
   CPU for its own. But how much it gets from Linux, depends on the
   setting of `hogthreshold'.  The HogThreshold value determines how nice
   Dosemu will be about giving other Linux processes a chance to run.
 
+
+
          $_hogthreshold = (1)   # 0 == all CPU power to DOSEMU
                                 # 1 == max power for Linux
                                 # >1   the higher, the slower DOSEMU will be
 
+
+
+
   If you have hardware, that is not supported under Linux but you have a
   DOS driver for, it may be necessary to enable IRQ passing to DOS.
+
 
          $_irqpassing = ""  # list of IRQ number (2-15) to pass to DOS such as
                             # "3 8 10"
 
+
+
+
   Here you tell DOSEMU what to do when DOS wants let play the speaker:
 
+
          $_speaker = ""     # or "native" or "emulated"
+
+
+
 
   And with the below may gain control over _r_e_a_l ports on you machine.
   But: WWAARRNNIINNGG:: GGIIVVIINNGG AACCCCEESSSS TTOO PPOORRTTSS IISS BBOOTTHH AA SSEECCUURRIITTYY CCOONNCCEERRNN AANNDD
   SSOOMMEE PPOORRTTSS AARREE DDAANNGGEERROOUUSS TTOO UUSSEE..  PPLLEEAASSEE SSKKIIPP TTHHIISS SSEECCTTIIOONN,, AANNDD DDOONN''TT
   FFIIDDDDLLEE WWIITTHH TTHHIISS SSEECCTTIIOONN UUNNLLEESSSS YYOOUU KKNNOOWW WWHHAATT YYOOUU''RREE DDOOIINNGG..
 
+
+
          $_ports = ""  # list of portnumbers such as "0x1ce 0x1cf 0x238"
                        # or "0x1ce range 0x280,0x29f 310"
                        # or "range 0x1a0,(0x1a0+15)"
 
+
+
+
   NOTE: `$_ports' can _n_o_t be overwritten by  /.dosemurc.
+
+
 
   22..11..33..  CCooddee ppaaggee aanndd cchhaarraacctteerr sseett
 
   To select the character set and code page for use with DOSEMU you have
 
+
          $_term_char_set = "XXX"
+
+
+
 
   where XXX is one of
 
@@ -459,7 +592,6 @@
         the text is taken whithout translation, it is to the user to
         load a proper DOS font (cp437.f16, cp850.f16 or cp852.f16 on the
         console).
-
      llaattiinn
         the text is processed using cp437->iso-8859-1 translation, so
         the font used must be iso-8859-1 (eg iso01.f16 on console);
@@ -483,15 +615,22 @@
   correct results.  For most western european countries 'latin' should
   be the correct setting.
 
+
+
   22..11..44..  TTeerrmmiinnaallss
 
   This section applies whenever you run DOSEMU remotely or in an xterm.
   Color terminal support is now built into DOSEMU.  Skip this section
   for now to use terminal defaults, until you get DOSEMU to work.
 
+
+
          $_term_color = (on)   # terminal with color support
          $_term_updfreq = (4)  # time between refreshs (units: 20 == 1 second)
          $_escchar = (30)      # 30 == Ctrl-^, special-sequence prefix
+
+
+
 
   `term_updfreq' is a number indicating the frequency of terminal
   updates of the screen. The smaller the number, the more frequent.  A
@@ -501,10 +640,17 @@
   ctrl, and function keycodes.  The default value is 30 which is Ctrl-^.
   So, for example,
 
+
+
          F1 is 'Ctrl-^1', Alt-F7 is 'Ctrl-^s Ctrl-^7'.
          For online help, press 'Ctrl-^h' or 'Ctrl-^?'.
 
+
+
+
+
   22..11..55..  KKeeyybbooaarrdd sseettttiinnggss
+
 
   When running DOSEMU from console (also remote from console) or X you
   may need to define a proper keyboard layout. This is done either by
@@ -512,7 +658,6 @@
   keytable from /var/lib/dosemu/keymap/* (which you may modify according
   to your needs). Both sets have identical names (though you may add any
   new one to /var/lib/dosemu/keymap/*):
-
          be              es-latin1       hu-latin2       sg
          de              finnish         it              sg-latin1
          de-latin1       finnish-latin1  keyb-no         sw
@@ -521,18 +666,34 @@
          dvorak          hu              sf
          es              hu-cwi          sf-latin1       jp106
 
+
+
+
   You define an internal keytable such as
 
+
          $_layout = "name"
+
+
+
 
   where `name' is one of the above. To load a keytable you just prefix
   the string with "load" such as
 
+
          $_layout = "load de-latin1"
+
+
+
 
   Note, however, that you have to set
 
+
+
          $_X_keycode = (on)
+
+
+
 
   to use this feature under X, because per default the keytable is
   forced to be neutral (us). Normally you will have the correct settings
@@ -542,7 +703,11 @@
   together with some games, that don't use the BIOS/DOS to get their
   keystrokes.
 
+
          $_rawkeyboard = (1)
+
+
+
 
   However, be carefull, when the application locks, you may not be able
   to switch your console and recover from this. For details on recover-
@@ -550,10 +715,14 @@
 
   NOTE: `$_rawkeyboard' can _n_o_t be overwritten by  /.dosemurc.
 
+
   The `keybint (on)' allows more accurate of keyboard interrupts, It is
   a bit unstable, but makes keyboard work better when set to "on".
 
+
          $_keybint = (on)     # emulate PCish keyboard interrupt
+
+
 
   22..11..66..  XX SSuuppppoorrtt sseettttiinnggss
 
@@ -561,6 +730,8 @@
   tailor it to your needs. Here a summary of the settings and a brief
   description what they mean. A more detailed description of values one
   can be found at chapter 2.2.14 (X Support settings) of README-tech.txt
+
+
 
        $_X_updfreq = (5)       # time between refreshs (units: 20 == 1 second)
        $_X_title = "DOS in a BOX" # Title in the top bar of the window
@@ -587,13 +758,21 @@
                                # List of vesamodes to add. The list has to contain
                                # SPACE separated "xres,yres" pairs
 
+
+
+
+
+
   22..11..77..  VViiddeeoo sseettttiinnggss (( ccoonnssoollee oonnllyy ))
+
 
   _!_!_W_A_R_N_I_N_G_!_!_: _I_F _Y_O_U _E_N_A_B_L_E _G_R_A_P_H_I_C_S _O_N _A_N _I_N_C_O_M_P_A_T_I_B_L_E _A_D_A_P_T_O_R_, _Y_O_U
   _C_O_U_L_D _G_E_T _A _B_L_A_N_K _S_C_R_E_E_N _O_R _M_E_S_S_Y _S_C_R_E_E_N _E_V_E_N _A_F_T_E_R _E_X_I_T_I_N_G _D_O_S_E_M_U_.
   _R_e_a_d _d_o_c_/_R_E_A_D_M_E_-_t_e_c_h_._t_x_t _(_R_e_c_o_v_e_r_i_n_g _t_h_e _c_o_n_s_o_l_e _a_f_t_e_r _a _c_r_a_s_h_)_.
 
   Start with only text video using the following setup in dosemu.conf
+
+
 
          $_video = "vga"         # one of: plainvga, vga, ega, mda, mga, cga
          $_console = (0)         # use 'console' video
@@ -605,31 +784,47 @@
          $_chipset = ""
          $_dualmon = (0)         # if you have one vga _plus_ one hgc (2 monitors)
 
+
+
+
   After you get it `somehow' working and you have one of the DOSEMU
   supported graphic cards you may switch to graphics mode changing the
   below
-
          $_graphics = (1)        # use the cards BIOS to set graphics
+
+
+
 
   If you have a 100% compatible standard VGA card that _m_a_y work,
   however, you get better results, if your card has one of the DOSEMU
   supported video chips and you tell DOSEMU to use it such as
 
+
+
          $_chipset = "s3"        # one of: plainvga, trident, et4000, diamond,
                                  # avance, cirrus, matrox, wdvga, paradise
+
+
+
 
   Note, `s3' is only an example, you _m_u_s_t set the correct video chip
   else it most like will crash your screen.
 
   NOTE: `video setting' can _n_o_t be overwritten by  /.dosemurc.
 
+
+
+
   22..11..88..  DDiisskkss aanndd ffllooppppiieess
+
 
   The parameter settings via dosemu.conf are tailored to fit the
   recomended usage of disk and floppy access. There are other methods
   too, but for these you have to look at README-tech.txt (and you may
   need to modify global.conf).  We strongly recommend that you use the
   proposed techique. Here the normal setup:
+
+
 
          $_vbootfloppy = ""    # if you want to boot from a virtual floppy:
                                # file name of the floppy image under /var/lib/dosemu
@@ -642,6 +837,9 @@
                                # assigned in this order such as
                                # "hdimage_c hdimage_d hdimage_e"
          $_hdimage_r = $_hdimage # hdimages for 'restricted access (if different)
+
+
+
 
   When you installed DOSEMU (`make install') you will have a bootable
   hdimage in the file /var/lib/dosemu/hdimage.first. It contains a very
@@ -658,15 +856,22 @@
   from a virtual `disk' you may have an image of a virtual `floppy'
   which you just created such as `dd if=/dev/fd0 of=floppy_image'. If
   this floppy contains a bootable DOS, then
-
          $_vbootfloppy = "floppy_image"
+
+
+
 
   will boot that floppy. Once running in DOS you can make the floppy
   available by (virtually) removing the `media' via `bootoff.com'.  If
   want the disk access specified via `$_hdimage' anyway, you may add the
   keyword `+hd' such as
 
+
+
          $_vbootfloppy = "floppy_image +hd"
+
+
+
 
   In some rare cases you may have problems accessing Lredir'ed drives
   (especially when your DOS application refuses to run on a 'network
@@ -681,19 +886,32 @@
   disk, hence destroying the partition.  Anyway, if you think you need
   it, here is how you `assign' real DOS partitions to DOSEMU:
 
+
+
          $_hdimage = "hdimage.first /dev/hda1 /dev/sdc4:ro"
+
+
+
 
   The above will have `hdimage.first' as booted drive C:, /dev/hda1 as
   D: (read/write) and /dev/sdc4 as E: (readonly). You may have any kind
   of order within `$_hdimage', hence
 
+
+
          $_hdimage = "/dev/hda1 hdimage.first /dev/sdc4:ro"
+
+
+
 
   would have /dev/hda1 as booted drive C:. Note that the access to the
   /dev/* devices _m_u_s_t be exclusive (no other process should use it)
   except for `:ro'.
 
+
+
   22..11..99..  CCOOMM ppoorrttss aanndd mmiicceess
+
 
   We have simplified the configuration for mices and serial ports and
   check for depencies between them. If all strings in the below example
@@ -701,15 +919,21 @@
   need _n_o mouse.com driver installed in your DOS environment, DOSEMU has
   the mousedriver builtin. The below example is such a setup
 
+
+
+
     $_com1 = ""           # e.g. "/dev/mouse" or "/dev/cua0"
     $_com2 = "/dev/modem" # e.g. "/dev/modem" or "/dev/cua1"
 
     $_mouse = "microsoft" # one of: microsoft, mousesystems, logitech,
                           # mmseries, mouseman, hitachi, busmouse, ps2
     $_mouse_dev = "/dev/mouse" # one of: com1, com2 or /dev/mouse
-    $_mouse_flags = ""    # list of none or one or more of:
+    $_mouse_flags = ""        # list of none or one or more of:
                           # "emulate3buttons cleardtr"
     $_mouse_baud = (0)    # baudrate, 0 == don't set
+
+
+
 
   The above example lets you have your modem on COM2, COM1 is spare (as
   you may have your mouse under native DOS there and don't want to
@@ -720,24 +944,44 @@
   drive COM1 by changing the below variables (rest of variables
   unchanged)
 
+
+
          $_com1 = "/dev/mouse"
          $_mouse_dev = "com1"
+
+
+
 
   And finaly, when having a PS2 mouse running on your Linuxbox you use
   the builtin mousedriver (not your mouse.com) to get it work: ( again
   leaving the rest of variables unchanged)
 
+
+
          $_mouse = "ps2"
          $_mouse_dev = "/dev/mouse"
+
+
+
 
   When using a PS2 mouse or when having more then 2 serial ports you may
   of course assign _any_ free serialdevice to COM1, COM2. The order
   doesn't matter:
 
+
+
          $_com1 = "/dev/cua2"
          $_com2 = "/dev/cua0"
 
+
+
+
+
+
+
+
   22..11..1100..  PPrriinntteerrss
+
 
   Printer is emulated by piping printer data to your normal Linux
   printer.  The belows tells DOSEMU which printers to use. The `timeout'
@@ -748,31 +992,55 @@
                                # LPT1 ... LPT3 (not all are needed, empty for none)
        $_printer_timeout = (20)# idle time in seconds before spooling out
 
+
+
+
+
   22..11..1111..  NNeettwwoorrkkiinngg uunnddeerr DDOOSSEEMMUU
+
 
   Turn the following option `on' if you require IPX/SPX emulation, there
   is no need to load IPX.COM within the DOS session.  ( the option does
   not emulate LSL.COM, IPXODI.COM, etc. ) And NOTE: You must have IPX
   protocol configured into the kernel.
 
+
+
          $_ipxsupport = (on)
+
+
+
 
   Enable Novell 8137->raw 802.3 translation hack in new packet driver.
 
+
+
          $_novell_hack = (on)
+
+
+
 
   If you make use of the dosnet device driver, you may turn on 'multi'
   packet driver support via
 
+
+
          $_vnet = (on)
+
+
+
 
   For more on this look at chapter 24 (Net code)
 
+
   22..11..1122..  SSoouunndd
+
 
   The sound driver is more or less likely to be broken at the moment.
   Anyway, here are the settings you would need to emulate a SB-sound
   card by passing the control to the Linux soundrivers.
+
+
 
        $_sound = (off)           # sound support on/off
        $_sb_base = (0x220)       # base IO-address (HEX)
@@ -783,14 +1051,19 @@
        $_mpu_base = "0x330"      # base address for the MPU-401 chip (HEX)
                                  # (not yet implemented)
 
+
+
+
   33..  SSeeccuurriittyy
 
   This part of the document by Hans Lermen, <lermen@fgan.de> on Apr 6,
   1997.
 
+
   These are the hints we give you, when running dosemu on a machine that
   is (even temporary) connected to the internet or other machines, or
   that otherwise allows 'foreign' people login to your machine.
+
 
   +o  Don't set the -s bit, as of dosemu-0.97.10 DOSEMU can run in
      lowfeature mode without the -s bit set. If you want fullfeatures
@@ -815,6 +1088,7 @@
 
   +o  Never allow DPMI programms to run, when dosemu is suid root.
 
+
      (in /etc/dosemu.conf set 'dpmi off' to disable)
 
      It is possible to overwrite sensitive parts of the emulator code,
@@ -832,6 +1106,7 @@
 
      Anyway, better 'secure on' then nothing.
 
+
   +o  Never allow the 'system.com' command (part of dosemu) to be
      executed.  It makes dosemu execute the libc 'system() function'.
      Though privileges are turned off, the process inherits the switched
@@ -842,14 +1117,18 @@
 
      The 'unix.com' command (also part of dosemu) does _not_ have this
      security hole: before execution a separate process is forked that
-     completely drops prililege,
+     completely drops prililege, ... hence no danger (will no longer be
+     disbaled by 'secure on').
 
   44..  DDiirreeccttllyy eexxeeccuuttaabbllee DDOOSS aapppplliiccaattiioonnss uussiinngg ddoosseemmuu ((DDEEXXEE))
+
 
   This section of the document by Hans, <lermen@fgan.de>. Last updated
   on June 16, 1997.
 
+
   44..11..  MMaakkiinngg aanndd UUssiinngg DDEEXXEEss
+
 
   Well, you may have wondered what these *.dexe file extension stands
   for.  Looking at the title above you now know it ;-)
@@ -866,6 +1145,7 @@
 
   In detail you need the following to make a *.dexe:
 
+
   +o  have _m_t_o_o_l_s_-_3_._6 available.
 
   +o  have dosemu already compiled _a_n_d did _n_o_t 'make pristine'
@@ -874,6 +1154,7 @@
      application (may be whole directories)
 
   +o  have the following info handy before starting 'mkdexe':
+
 
   +o  The partition size needed for the hdimage
 
@@ -884,22 +1165,39 @@
 
   +o  The contents of the config.sys and autoexec.bat.
 
+
   +o  then (as root) do
+
+
 
               # cd ./dexe
               # mkdexe myapp.zip -x myapp.exe -o confirm
 
+
+
+
+
   +o  If all went ok, you then have a /var/lib/dosemu/myapp.dexe and this
      one can be executed via
 
+
+
               # dos -L myapp.dex [ dosemu-options ]
+
+
 
   or
 
+
               # dosexec myapp.dex [ dosemu-options ]
+
+
+
 
   Here is what ./mkdexe will print as help, when called without
   argument:
+
+
 
           USAGE:
             mkdexe [{ application | hdimage}]
@@ -936,15 +1234,28 @@
                            noapp     Make a simple bootable hdimage for standard
                                      DOSEMU usage (replacement for hdimage.dist)
 
+
+
+
   If you want to change the builtin configuration file, you may use
   ./src/tools/periph/dexeconfig to extract/re-insert the configuration.
 
+
+
          # dexeconfig -x configfile dexefile
+
+
+
 
   extracts the configuration out of 'dexefile' and puts it into
   'configfile'
 
+
+
     # dexeconfig -i configfile dexefile
+
+
+
 
   does the reverse.
 
@@ -960,10 +1271,17 @@
   (complicated, isn't it?). To set such a permission, you (again) need
   `dexeconfig':
 
+
+
          # dexeconfig -p W dexefile
+
+
+
 
   Here is what 'dexeconfig' will print as help, when called without
   argument:
+
+
 
           USAGE:
              dexeconfig [-M] [-p {w|W}] -i configfile dexefile
@@ -978,6 +1296,9 @@
              -p W    set write permission
              -v      view status information
 
+
+
+
   It would be great, if we could collect an archive of working, free
   distributatble *.dexe files, and I'm herein asking for contribution.
   However, _B_I_G _N_O_T_E, if you want to contribute a *.dexe file to the
@@ -989,23 +1310,41 @@
   If you _h_a_v_e assembled a *.dexe and you wnat to contribute it, please
   send me a mail and upload the stuff to
 
+
+
           tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/Development/Incoming
+
+
+
+
 
   I'll then put it into
 
+
+
           tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dexe/*
           ftp.suse.com:/pub/dosemu/dexe/*
+
+
+
 
   There currently only is one in that archive: fallout.dexe Its a nice
   Tetris like games that I found on an old CDrom and which runs in
   300x200 on console and X (not Slang-terminal). When you put it into
   you /var/lib/dosemu/* directory, you may start it via:
 
+
+
           dosexec fallout.dexe -X
+
+
+
 
   Hope we get more of *.dexe in the future ....
 
+
   44..22..  UUssiinngg bbiinnffmmtt__mmiisscc ttoo ssppaawwnn DDEEXXEEss ddiirreeccttllyy
+
 
   There is a nifty kernel patch flying around from Richard Guenther
   <zxmpm11@student.uni-tuebingen.de>. This can be obtained via
@@ -1016,12 +1355,19 @@
   execute a DEXE just by typing its name at the Bash prompt. To register
   DEXE format using binfmt_misc you do (in your /etc/rc.-whatever)
 
+
+
          cd /proc/sys/fs/binfmt_misc
          echo :DEXE:M::\\x0eDEXE::/usr/bin/dosexec: >register
 
+
+
+
   thats all.
 
+
   44..33..  MMaakkiinngg aa bboooottaabbllee hhddiimmaaggee ffoorr ggeenneerraall ppuurrppoossee
+
 
   You may also use './mkdexe' do generate a _normal_ bootable hdimage,
   it then has the advantage, that you no longer need to fiddle with a
@@ -1034,8 +1380,15 @@
   Example: Given you have a bootable DOS-partition in /dev/hda1, then
   this ...
 
+
+
+
+
     # cd ./dexe
     # ./mkdexe myhdimage -b /dev/hda1 -o noapp
+
+
+
 
   will generate a direct bootable 'myhdimage' from your existing DOS
   installation. You need not to make a boot floppy, nor need you to
@@ -1047,14 +1400,23 @@
   helps more to firsttime install DOSEMU's hdimage. It prompts for
   needed things and should work on most machines.
 
+
+
          # cd /where/I/have/dosemu
          # ./setup-hdimage
 
+
+
+
+
   44..44..  AAcccceessssiinngg hhddiimmaaggee ffiilleess uussiinngg mmttoooollss
+
 
   In the ./dexe directory there is also a script, that allows you to
   directly access the hdimage's files, even without changing your
   /etc/mtools.conf. The usage of this script is:
+
+
 
           USAGE:
             do_mtools device mcommand [ arg1 [...] ]
@@ -1069,6 +1431,9 @@
           example:
             do_mtools /var/lib/dosemu/hdimage mcopy W:/autoexec.bat -
 
+
+
+
   55..  SSoouunndd
 
   The SB code is currently in a state of flux. Some changes to the code
@@ -1076,6 +1441,7 @@
   the rest of the SB code, making the main case statements simpler. In
   the meantime, Rutger Nijlunsing has provided a method for redirecting
   access to the MPU-401 chip into the main OS.
+
 
   55..11..  UUssiinngg tthhee MMPPUU--440011 ""EEmmuullaattiioonn""..
 
@@ -1086,12 +1452,21 @@
   midi' to the relevant part of the sound driver eg:
        % ln -s /dev/midi /var/run/dosemu-midi
 
+
+
+
   This will send all output straight to the default midi device and use
   whatever instruments happen to be loaded.
 
+
   55..22..  TThhee MMIIDDII ddaaeemmoonn
 
+
+
          make midid
+
+
+
 
   This compiles and installs the midi daemon. The daemon currently has
   support for the 'ultra' driver and partial support for the 'OSS'
@@ -1104,16 +1479,27 @@
 
   Before you run DOSEmu for the first time, do the following:
 
+
          mkdir -p ~/.dosemu/run           # if it doesen't exist
          rm -f ~/.dosemu/run/dosemu-midi
          mknod ~/.dosemu/run/dosemu-midi p
 
+
+
+
+
   Then you can use the midi daemon like this:
+
 
          ./midid < ~/.dosemu/run/dosemu-midi &; dos
 
+
+
+
+
   (Assuming that you put the midid executeable in the directory you run
   DOSEmu from.)
+
 
   55..33..  DDiissaabblliinngg tthhee EEmmuullaattiioonn aatt RRuunnttiimmee
 
@@ -1124,8 +1510,11 @@
 
   66..  UUssiinngg LLrreeddiirr
 
+
   This section of the document by Hans, <lermen@fgan.de>. Last updated
   on June 16, 1997.
+
+
 
   What is it? Well, its simply a small DOS program that tells the MFS
   (Mach File System) code what 'network' drives to redirect.  With this
@@ -1134,25 +1523,42 @@
   simultaneously access the same drives, what you can't when using
   partition access.
 
+
   66..11..  hhooww ddoo yyoouu uussee iitt??
+
 
   First, mount your dos hard disk partition as a Linux subdirectory.
   For example, you could create a directory in Linux such as /dos (mkdir
   -m 755 /dos) and add a line like
 
+
+
           /dev/hda1       /dos     msdos   umask=022
+
+
+
 
   to your /etc/fstab.  (In this example, the hard disk is mounted read-
   only.  You may want to mount it read/write by replacing "022" with
   "000" and using the -m 777 option with mkdir).  Now mount /dos.  Now
   you can add a line like
 
+
+
          lredir d: linux\fs/dos
+
+
+
 
   to the AUTOEXEC.BAT file in your hdimage (but see the comments below).
   On a multi-user system you may want to use
 
+
+
          lredir d: linux\fs\${home}
+
+
+
 
   where "home" is the name of an environmental variable that contains
   the location of the dos directory (/dos in this example)
@@ -1161,21 +1567,30 @@
   dosemu.  To reach this aim you also can use Lredir to turn off the
   'virtual' hdimage and switch on the _r_e_a_l drive C: such as this:
 
-  Assuming you have a c:osemu directory on both drives (the virtual and
-  the real one) _a_n_d have mounted your DOS partition as /dosc, you then
-  should have the following files on the virtual drive:
+  Assuming you have a c:\dosemu directory on both drives (the virtual
+  and the real one) _a_n_d have mounted your DOS partition as /dosc, you
+  then should have the following files on the virtual drive:
 
   autoexec.bat:
+
+
 
          lredir z: linux\fs\dosc
          copy c:\dosemu\auto2.bat z:\dosemu\auto2.bat
          lredir del z:
          c:\dosemu\auto2.bat
 
-  dosemuuto2.bat:
+
+
+  dosemu\auto2.bat:
+
+
 
          lredir c: linux\fs\dosc
          rem further autoexec stuff
+
+
+
 
   To make the reason clear _w_h_y the batch file (not necessaryly
   autoexec.bat) _m_u_s_t be identical:
@@ -1187,17 +1602,30 @@
   command.com suddenly reads the next line from the batchfile of that
   newly 'redired' drive.  ... you see what is meant?
 
+
+
   66..22..  OOtthheerr aalltteerrnnaattiivveess uussiinngg LLrreeddiirr
+
 
   To have a redirected drive available at time of config.sys you may
   either use emufs.sys such as
 
+
+
           device=c:\emufs.sys /dosc
+
+
+
 
   or make use of the install instruction of config.sys (but not both)
   such as
 
+
+
           install=c:\lredir.exe c: linux\fs\dosc
+
+
+
 
   The later has the advantage, that you are on your native C: from the
   beginning, _b_u_t, as with autoexec.bat, both config.sys must be
@@ -1208,8 +1636,12 @@
 
   77..  RRuunnnniinngg ddoosseemmuu aass aa nnoorrmmaall uusseerr
 
+
   This section of the document by Hans, <lermen@fgan.de>. Last updated
   on June 16, 1997.
+
+
+
 
   1. You have to make 'dos' suid root, if want a fullfeature DOSEMU,
      this normally is done when you run 'make install'.  But as od
@@ -1223,15 +1655,27 @@
   3. Have the users that are allow to execute dosemu in
      /etc/dosemu.user.  The format is:
 
+
+
             loginname [ c_strict ] [ classes ...] [ c_dexeonly ] [ other ]
+
+
+
+
 
   For details see ``Configuring DOSEmu''. For a first time _e_a_s_y instal-
   lation you may set it as follows (but don't forget to enhance it later
   !!!):
 
+
+
             root c_all
             lermen c_all
             all nosuidroot c_all
+
+
+
+
 
   4. The msdos partitions, that you want to be accessable through
      ``lredir'' should be mounted with proper permissions. I recommend
@@ -1239,21 +1683,36 @@
      group 'dosemu' for this and want to give the user 'lermen' access,
      then the following should be
 
+
   +o  in /etc/passwd:
+
 
             lermen:x:500:100:Hans Lermen:/home/lermen:/bin/bash
                          ^^^-- note: this is NOT the group id of 'dosemu'
 
+
+
+
+
   +o  in /etc/group:
+
 
             users:x:100:
             dosemu:x:200:dosemu,lermen
                      ^^^
 
+
+
+
+
   +o  in /etc/fstab:
+
 
             /dev/hda1 /dosc msdos defaults,gid=200,umask=002 0 0
                                                ^^^
+
+
+
 
   _N_o_t_e_: the changes to /etc/passwd and /etc/group only take place the
   _n_e_x_t time you login, so don't forget to re-login.
@@ -1261,11 +1720,21 @@
   The fstab entry will mount /dosc such that is has the proper permis-
   sions
 
+
           ( drwxrwxr-x  22 root     dosemu      16384 Jan  1  1970 /dosc )
+
+
+
+
 
   You can do the same with an explicit mount command:
 
+
              mount -t msdos -o gid=200,umask=002 /dev/hda1 /dosc
+
+
+
+
 
   Of course normal lredir'ed unix directories should have the same per-
   missions.
@@ -1284,7 +1753,10 @@
   when needed and in case of non-suid root (as of dosemu-0.97.10), it
   will run in lowfeature mode without any priviledges.
 
+
   88..  UUssiinngg CCDDRROOMMSS
+
+
 
   88..11..  TThhee bbuuiilltt iinn ddrriivveerr
 
@@ -1307,13 +1779,25 @@
      your drive, otherwise you won't be able to use the cdrom under
      Dosemu directly because of security reasons.
 
+
   +o  Load cdrom.sys within your config.sys file with e.g.:
+
+
 
            devicehigh=c:\emu\cdrom.sys
 
+
+
+
+
   +o  Start Microsoft cdrom extension as follows:
 
+
+
            mscdex /d:mscd0001 /l:driveletter
+
+
+
 
   To change the cd while Dosemu is running, use the DOS program
   'eject.com'.  It is not possible to change the disk, when the drive
@@ -1329,6 +1813,7 @@
   file). With the mcd.c and aztcd.c Linux drivers this may cause your
   system to hang for some 30 seconds (or even indefinitely), so don't
   change the default value 'eject_allowed = 0'.
+
 
   History: Release with dosemu.0.60.0 Karsten Rucker (rucker@astro.uni-
   bonn.de) April 1995
@@ -1348,6 +1833,7 @@
   you can set the loglevel for both mail and syslog with a very simple
   format. Only four keywords are recognized:
 
+
      mmaaiill__eerrrroorr
         mail errors about mis-usage to root
 
@@ -1363,6 +1849,8 @@
   A line starting with a '#' is a comment.
 
   Some samples:
+
+
 
        #
        # mail everything to root, but don't log
@@ -1381,9 +1869,14 @@
        #
        syslog_errors
 
+
+
+
   1100..  UUssiinngg XX
 
   Please read all of this for a more complete X information ;-)
+
+
 
   1100..11..  LLaatteesstt IInnffoo
 
@@ -1395,8 +1888,10 @@
   MF-Keyboard) and numlock and keyevents in the range of the latin
   characters, even when you run xdos from a remote X-terminal.
 
+
   If it dosen't work for you as expected, please check out the
   following:
+
 
   +o  Don't specify "keycode" for X-support.  The keycode-option is
      something specific for a special X-server, here XFree86, and so
@@ -1408,6 +1903,7 @@
 
   +o  If you are running xdos on XFree86, version 3.1.1 and newer and the
      keys of the keypad-area don't work, you have two options:
+
 
   +o  Comment out the line "    ServerNumLock " in
      /usr/X11R6/lib/X11/XFConfig
@@ -1441,14 +1937,24 @@
        keycode  156 = Insert
        keycode  157 = Delete
 
+
+
+
+
+
+
   1100..22..  SSlliigghhttllyy oollddeerr iinnffoorrmmaattiioonn
 
   From Rainer Zimmermann <zimmerm@mathematik.uni-marburg.de>
 
+
+
   Some basic information about dosemu's X support.  Sometimes it's even
   sort of useable now.
 
+
   What you should take care of:
+
 
   +o  Do a 'xmodmap -e "keycode 22 = 0xff08"' to get use of your
      backspace key.
@@ -1485,6 +1991,7 @@
 
   +o  using the provided icon (dosemu.xpm):
 
+
   +o  you need the xpm (pixmaps) package. If you're not sure, look for a
      file like /lib/libXpm.so.*
 
@@ -1497,7 +2004,14 @@
   +o  tell your window manager to use it. For fvwm, add the following
      line to your fvwmrc file:
 
+
+
+
             Icon "xdos"   dosemu.xpm
+
+
+
+
 
   This assumes you have defined a PixmapPath. Otherwise, specify the
   entire pathname.
@@ -1508,22 +2022,27 @@
   +o  restart the window manager. There's usually an option in the root
      menu to do so.
 
+
      Now you should see the icon whenever you iconify xdos.
 
      Note that the xdos program itself does not include the icon -
      that's why you have to tell the window manager. I chose to do it
      this way to avoid xdos _r_e_q_u_i_r_i_n_g the Xpm library.
 
+
   +o  If anything else does not work as expected, don't panic :-)
      Remember the thing is still under construction.  However, if you
      think it's a real bug, please tell me.
 
+
   important changes to previous version (pre53_17):
+
 
   +o  fixed focus handling at startup
 
   +o  support for 21/28/43/50 line modes!  (43+50 look a bit funny,
      though... I use the 8x16 font for all modes)
+
 
   +o
 
@@ -1531,9 +2050,14 @@
 
   +o  limited window size
 
+
   1100..33..  SSttaattuuss ooff XX ssuuppppoorrtt ((SSeepptt 55,, 11999944))
 
+
+
   1100..33..11..  DDoonnee
+
+
 
   +o  X_update_screen    (video output)
 
@@ -1576,11 +2100,15 @@
 
   +o  create icon :-)
 
+
   1100..33..22..  TTooDDoo ((iinn nnoo ssppeecciiaall oorrddeerr))
+
+
 
   +o  xor cursor? blinking cursor?
 
   +o  use mark's scroll detector
+
 
   +o  jump scroll?
 
@@ -1591,6 +2119,7 @@
   +o  allow non-standard font heights via bios
 
   +o  cut & paste
+
 
   1100..44..  TThhee aappppeeaarraannccee ooff GGrraapphhiiccss mmooddeess ((NNoovveemmbbeerr 1133,, 11999955))
 
@@ -1603,7 +2132,9 @@
   established, we'll put the cut-and-paste stuff back). The graphics is
   done through vgaemu, the VGA emulator. Status of the work:
 
+
   1100..44..11..  vvggaaeemmuu
+
 
   +o  Video memory. 1 Mb is allocated. It is mapped with mmap() in the
      VGA memory region of dosemu (0xa00000-0xbfffff) to support bank
@@ -1628,7 +2159,10 @@
      support, better bank switching, write the X code out of vgaemu to
      get it more generic.
 
+
   1100..44..22..  vveessaa
+
+
 
   +o  VESA set/get mode, get information and bankswitch functions work.
 
@@ -1641,7 +2175,10 @@
 
   +o  To do: implement the other VESA functions.
 
+
   1100..44..33..  XX
+
+
 
   +o  Added own colormap support for the 256 color modes.
 
@@ -1661,14 +2198,19 @@
   /proc/self/mem and mprotect() magic in vgaemu are very (i386) Linux
   specific.
 
+
   Erik
+
+
 
   1100..55..  TThhee nneeww VVGGAAEEmmuu//XX ccooddee ((JJuullyy 1111,, 11999977))
 
   Steffen Winterfeldt <Steffen.Winterfeldt@itp.uni-leipzig.de>
 
+
   I've been working on the X code and the VGA emulation over the last
   few months. This is the outcome so far:
+
 
   +o  graphics support in X now works on all X servers with color depth
      >= 8
@@ -1691,14 +2233,18 @@
 
   +o  initial graphics window size is configurable
 
+
   The current implementation supports 4 and 8 bit SVGA modes on all
   types of X display. Hi-color modes are supported only on displays
   matching the exact color depth (15 or 16); true color modes are
   supported only on true color X displays, but always both 24 bit and 32
   bit SVGA modes.
 
+
+
   In addition, the current hi- and true color support does not allow
   resizing of the graphics window and gamma correction is ignored.
+
 
   As the typical graphics mode with 320x200x8 will be used often with
   large scalings and modern graphics boards are pretty fast, I added
@@ -1708,13 +2254,16 @@
   it's plain C for now).  If the bilinear filter is too slow, you might
   instead try the linear filter which interpolates only horizontally.
 
+
   Note that (bi)linear filtering is not available on all VGA/X display
   combinations. The standard drawing routines are used instead in such
   cases.
 
+
   If a VGA mode is not supported on your current X display, the graphics
   screen will just remain black. Note that this ddooeess nnoott mean that xdos
   has crashed.
+
 
   The VESA support is (or should be) nearly VBE 2.0 compatible. As a
   reference I used several documents including the unofficial VBE 2.0
@@ -1724,27 +2273,33 @@
   implementations and specs disagree at some points.  In such cases I
   assumed the actual implementation to be correct.
 
+
   The only unsupported VBE function is VGA state save/restore. But this
   functionality is rarely used and its lack should not cause too much
   problems.
 
+
   VBE allows you to use the horizontal and vertical scrolling function
   even in text modes. This feature is not implemented.
+
 
   If you think it causes problems, the linear frame buffer (LFB) can be
   turned of via dosemu.conf as well as the protected mode interface.
   Note, however, that LFB modes are faster than banked modes, even in
   DOSEmu.
 
+
   The default VBE mode list defines a lot of medium resolution modes
   suitable for games (like Duke3D). You can still create your own modes
   via dosemu.conf. Note that you cannot define the same mode twice; the
   second (and all subsequent) definitions will be ignored.
 
+
   Modes that are defined but cannot be supported due to lack of video
   memory or because they cannot be displayed on your X display, are
   marked as unsupported in the VBE mode list (but are still in it).
   Note that there is currently no support of 4 bit VESA modes.
+
 
   The current interface between VGAEmu and X will try to update all
   invalid video pages at a time. This may, particularly in hi-res
@@ -1752,11 +2307,13 @@
   cannot be helped for the moment, but will be addressed soon (by
   running an extra update thread).
 
+
   If you really think that this is the cause of your problem, you might
   try to play with veut.max_max_len in env/video/n_X.c, near line 2005.
   This variable limits the amount of video memory that is updated during
   one timer interrupt. This way you can dramatically reduce the load of
   screen updates, but at the same rate reduce your display quality.
+
 
   Gamma correction works in both 4 and 8 bit modes. As the dosemu.conf
   parser doesn't support float values, it must be specified as a
@@ -1764,11 +2321,13 @@
   graphics, lower make them darker. Reasonable values are within a range
   of 50 ... 200.
 
+
   You can specify the video memory size that the VGA emulator should use
   in dosemu.conf. The value will be rounded up to the nearest 256 kbyte
   boundary. You should stick to typical values like 1024, 2048 or 4096
   as not to confuse DOS applications.  Note that whatever value you
   give, 4 bit modes are only supported up to a size of 800x600.
+
 
   You can influence the initial size of the graphics window in various
   ways. Normally it will have the same size (in pixel) as the VGA
@@ -1776,6 +2335,7 @@
   be scaled by the value of _m_o_d_e_1_3_f_a_c_t (defaults to 2).  Alternatively,
   you can directly specify a window size in dosemu.conf via _w_i_n_s_i_z_e. You
   can still resize the window later.
+
 
   The config option _f_i_x_e_d___a_s_p_e_c_t allows you to fix the aspect ratio of
   the graphics window while resizing it. Alternatively, _a_s_p_e_c_t___4_3 ties
@@ -1785,10 +2345,12 @@
   modes such as 640x200 (or even 320x200) which would look somewhat
   distorted otherwise.
 
+
   1111..  RRuunnnniinngg WWiinnddoowwss uunnddeerr DDOOSSEEmmuu
 
   Okay, perhaps you've heard the hooplah.  DOSEMU can run Windows (sort
   of.)
+
 
   1111..11..  WWiinnddoowwss 33..00 RReeaall MMooddee
 
@@ -1796,7 +2358,21 @@
   now.  If you really, really, really want to run Windows under DOSEMU,
   this is the route to take for the moment.
 
+
   1111..22..  WWiinnddoowwss 33..11 PPrrootteecctteedd MMooddee
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   ***************************************************************
   *    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
@@ -1808,6 +2384,9 @@
   *                                                             *
   *    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
   ***************************************************************
+
+
+
 
   What, you're still reading?
 
@@ -1828,6 +2407,7 @@
   TO BOMBARD THE DOSEMU DEVELOPERS WITH "MS Word 6.0 doesn't run!!!"
   MESSAGES
 
+
   +o  Get DOSEMU & the Linux source distributions.
 
   +o  Unpack DOSEMU.
@@ -1843,8 +2423,9 @@
      mirror it. ,,,, you see the problem?  However, use 'archie' to find
      it, it will be around somewhere on the net ,,, for some time ;-)
 
-  +o  Unpack the OS2WIN31 files into your WINDOWSTEM directory.  (Infact
-     you only need WINDOWS/SYSTEM/os2k386.exe and the mouse driver)
+  +o  Unpack the OS2WIN31 files into your WINDOWS\SYSTEM directory.
+     (Infact you only need WINDOWS/SYSTEM/os2k386.exe and the mouse
+     driver)
 
   +o  Startup dosemu (make certain that DPMI is set to a value such as
      4096)
@@ -1858,7 +2439,9 @@
   RREEMMEEMMBBEERR::  TTHHIISS IISS NNOOTT AATT AALLLL RREECCOOMMMMEENNDDEEDD!!!!!!  TTHHIISS IISS NNOOTT
   RREECCOOMMMMEENNDDEEDD!!!!!!  WWEE DDOO NNOOTT RREECCOOMMMMEENNDD YYOOUU TTRRYY TTHHIISS!!!!!!
 
+
   1111..33..  WWiinnddoowwss 33..xx iinn xxddooss
+
 
   As of version 0.64.3 DOSEMU is able to run Windows in xdos. Of course,
   this is not recommended at all, but if you really want to try, it is
@@ -1866,6 +2449,7 @@
   crashes, it doesn't block your keyboard or freeze your screen.
 
   Hints:
+
 
   +o  Get Dosemu & Linux source.
 
@@ -1895,13 +2479,20 @@
 
   Notes for the mouse under win31-in-xdos:
 
+
   +o  In order to let the mouse properly work you need the following in
      your win.ini file:
+
+
 
             [windows]
             MouseThreshold1=0
             MouseThreshold2=0
             MouseSpeed=0
+
+
+
+
 
   +o  The mouse cursor gets not painted by X, but by windows itself, so
      it depends on the refresh rate how often it gets updated, though
@@ -1920,17 +2511,21 @@
   This section, and Mouse Garrot were written by Ed Sirett
   <ed@cityscape.co.uk> on 30 Jan 1995.
 
+
   Mouse Garrot is an extension to the Linux Dos Emulator that tries to
   help the emulator give up CPU time to the rest of the Linux system.
+
 
   It tries to detect the fact the the mouse is not doing anything and
   thus to release up CPU time, as is often the case when a mouse-aware
   program is standing idle, such programs are often executing a loop
   which is continually checking the mouse buttons & position.
 
+
   Mouse Garrot is built directly into dosemu _i_f _a_n_d _o_n_l_y _i_f you are
   using the internal mouse driver of dosemu. All you have to do is make
   sure that the HOGTHRESHOLD value in the config file is non-zero.
+
 
   If you are loading a (DOS based) mouse driver when you boot then you
   will also need to load MGARROT.COM It is essential that you load
@@ -1940,28 +2535,42 @@
   fails to install and no memory will be lost. When MGARROT is installed
   it costs about 0.4k.  MGARROT may loaded `high' if UMBs are available.
 
+
   Mouse Garrot will work with many (maybe most) mouse-aware programs
   including Works, Dosshell and the Norton Commander.  Unfortunately,
   there are some programs which get the mouse driver to call the program
   whenever the mouse moves or a button is pressed. Programs that work in
   this way are immune to the efforts of Mouse Garrot.
 
+
   1133..  RRuunnnniinngg aa DDOOSS--aapppplliiccaattiioonn ddiirreeccttllyy ffrroomm UUnniixx sshheellll
+
 
   This part of the document was written by Hans <lermen@fgan.de>.
 
+
   1133..11..  UUssiinngg tthhee kkeeyyssttrrookkee aanndd ccoommmmaannddlliinnee ooppttiioonnss..
+
 
   Make use of the keystroke configure option and the -I commandline
   option of DOSEMU (>=dosemu-0.66.2) such as
 
+
+
        dos -D-a -I 'keystroke "dir > C:\\garbage\rexitemu\r"'
+
+
+
 
   The "..." will be 'typed in' by dosemu exactly as if you had them
   typed at the keyboard. The advantage of this technique is, that all
-  DOS applications will accept them, even interactive ones. A '' is
+  DOS applications will accept them, even interactive ones. A '\' is
   interpreted as in C and leads in ESC-codes. Here a list of of the
   current implemented ones:
+
+
+
+
 
   \r     Carriage return == <ENTER>
   \n     LF
@@ -1970,6 +2579,7 @@
   \f     formfeed
   \a     bell
   \v     vertical tab
+
 
   \^x    <Ctrl>x, where X is one of the usual C,M,L,[ ...
          (e.g.: \^[ == <Ctrl>[ == ESC )
@@ -1989,26 +2599,44 @@
          keybord buffer on startup. Your strokes would be discared,
          if you don't wait.
 
+
+
+
+
   When using X, the keystroke feature can be used to directly fire up a
   DOS application with one click, if you have the right entry in your
   .fvwmrc
 
+
+
   1133..22..  UUssiinngg aann iinnppuutt ffiillee
+
 
   +o  Make a file "FILE" containing all keystrokes you need to boot
      dosemu and to start your dos-application, ... and don't forget to
      have CRLF for 'ENTER'. FILE may look like this (as on my machine):
 
+
+
             2^M                    <== this chooses point 2 of the boot menu
             dir > C:\garbage^M     <== this executes 'dir', result to 'garbage'
             exitemu^M              <== this terminates dosemu
+
+
+
+
 
   (the ^M stands for CR)
 
   +o  execute dosemu on a spare (not used) console, maybe /dev/tty20 such
      like this:
 
+
+
           # dos -D-a 2>/dev/null <FILE >/dev/tty20
+
+
+
 
   This will _not_ switch to /dev/tty20, but silently execute dosemu and
   you will get the '#' prompt back, when dosemu returns.
@@ -2018,7 +2646,12 @@
   When your dos-app does only normal printout (text), then you may even
   do this
 
+
+
           # dos -D-a 2>/dev/null <FILE >FILE.out
+
+
+
 
   FILE.out then contains the output from the dos-app, but merged with
   ESC-sequences from Slang.
@@ -2053,8 +2686,10 @@
   Setting the value to 0 will disable idling entirely.  The default
   value is 10.
 
+
   This files is some kind of FAQ on how to use the 'HogThreshold' value
   in the dosemu config file.
+
 
   In case you have more questions feel free to ask me (
   <andi@andiunx.m.isar.de>).
@@ -2064,6 +2699,8 @@
   concerned about DOSEMU eating too much CPU time it's worth playing
   with the HogThreshold value.
 
+
+
      WWhhyy ddoo II nneeeedd ttoo sseett tthhee HHooggTThhrreesshhoolldd vvaalluuee,, wwhhyy ccaann''tt DDOOSSEEMMUU
         just stop if it is waiting for a keystroke ?"  The reason is the
         way how DOS and a lot of applications have implemented `waiting
@@ -2071,6 +2708,8 @@
 
         It's most often done by something similar to the following code
         fragment :
+
+
 
           wait_for_key:
                   ; do something
@@ -2081,21 +2720,29 @@
                   mov ah,0
                   int 0x16 ; get key
 
+
+
+
      This means that the application is busy waiting for the keystroke.
+
 
      WWhhaatt iiss aa ggoooodd vvaalluuee ffoorr HHooggTThhrreesshhoolldd ttoo ssttaarrtt wwiitthh ??
         On a 40 MHZ 486 start with a value of 10.  Increase this value
         if you to have your DOS application run faster, decrease it if
         you think too much CPU time is used.
 
+
      IItt ddooeess nnoott wwoorrkk oonn mmyy mmaacchhiinnee..
         You need to have at least dosemu0.53pl40 in order to have the
         anti-hog code in effect.
+
+
 
      WWhhyy nnoott ssiimmppllyy uussee aa vveerryy llooww vvaalluuee ooff
         Do I really have to try an individual value of HogThreshold ?"
         This would slow down your DOS application. But why not, DOS is
         slow anyway :-).
+
 
      HHooww ddoo II ffoouunndd oouutt aabboouutt CCPPUU uussaaggee ooff DDOOSSEEMMUU ??
         Simply use `top'. It displays cpu and memory usage.
@@ -2103,9 +2750,13 @@
   P.S.  If you want to change the HogThreshold value during execution,
   simply call
 
+
         mov al,12h
         mov bx,the_new_value
         int e6h
+
+
+
 
   This is what speed.com does. If you are interested, please take a look
   at speed.c.
@@ -2116,22 +2767,31 @@
   program like this, let me ( <scottb@eecs.nwu.edu> ) know and I'll
   rewrite something into the int16 bios.
 
+
+
+
   1155..  CCoommmmaannddss && UUttiilliittiieess
 
   These are some utitlies to assist you in using Dosemu.
 
+
   1155..11..  PPrrooggrraammss
+
+
 
      bboooottooffff..ccoomm
         switch off the bootfile to access disk see examples/config.dist
         at bootdisk option
 
+
      bboooottoonn..ccoomm
         switch on the bootfile to access bootfile see
         examples/config.dist at bootdisk option
 
+
      cchhddiirr..ccoomm
         change the Unix directory for Dosemu (use chdir(2))
+
 
      ddoossddbbgg..ccoomm
         change the debug setting from within Dosemu
@@ -2142,46 +2802,58 @@
 
      +o  dosdbg help -- show usage information
 
+
      dduummppccoonnff..eexxee
         ???
 
+
      eejjeecctt..ccoomm
         eject CD-ROM from drive
+
 
      eemmuummoouussee..ccoomm
         fine tune internal mousedriver of Dosemu
 
      +o  emumouse h -- display help screen
 
+
      eexxiitteemmuu..ccoomm
         terminate Dosemu
 
+
      ggeettccwwdd..ccoomm
         get the Unix directory for Dosemu (use getcwd(2))
+
 
      iisseemmuu..ccoomm
         detects Dosemu version and returns greater 0 if running under
         Dosemu
 
+
      llaanncchheecckk..eexxee
         ???
+
 
      llrreeddiirr..ccoomm
         redirect Linux directory to Dosemu
      +o  lredir -- show current redirections
 
-     +o  lredir D: LINUXFSmp -- redirects /tmp to drive D:
+     +o  lredir D: LINUX\FS\tmp -- redirects /tmp to drive D:
 
      +o  lredir help -- display help screen
+
 
      mmggaarrrroott..ccoomm
         give up cpu time when Dosemu is idle
 
+
      ssppeeeedd..ccoomm
         set cpu usage (HogThreshold) from inside Dosemu
 
+
      ssyysstteemm..ccoomm
         interface to system(2)...
+
 
      uunniixx..ccoomm
         execute Unix commands from Dosemu
@@ -2192,35 +2864,51 @@
 
      +o  caution! try "unix" and read the help screen
 
+
      ccmmddlliinnee..eexxee
         Read /proc/self/cmdline and put strings such as "var=xxx" found
         on the commandline into the DOS enviroment.  Example having this
         as the dos commandine:
 
+
                            dos "autoexec=echo This is a test..."
 
+
+
+
      then doing
+
+
 
                            C:\cmdline < D:\proc\self\cmdline
                            %autoexec%
 
+
+
+
      would display "This is a test..." on the DOS-Terminal
+
 
      vvggaaooffff..ccoomm
         disable vga option
 
+
      vvggaaoonn..ccoomm
         enable vga option
 
+
   1155..22..  DDrriivveerrss
+
 
   These are useful drivers for Dosemu
 
      ccddrroomm..ssyyss
         allow direct access to CD-ROM drives from Dosemu
 
+
      eemmss..ssyyss
         enable EMM in Dosemu
+
 
      eemmuuffss..ssyyss
         redirect Unix directory to Dosemu
@@ -2230,6 +2918,7 @@
   This keymap is for using dosemu over telnet, and having *all* your
   keys work.  This keymap is not complete.  But hopefully with everyones
   help it will be someday :)
+
 
   There are a couple of things that are intentionally broken with this
   keymap, most noteably F11 and F12.  This is because they are not
@@ -2261,13 +2950,20 @@
 
   as root type
 
+
                loadkeys dosemu.new.keymap
 
+
+
+
   (then run dosemu via telnet, or something in slang mode)
+
 
   when your done, find your old keymap, and load it back, cause control-
   home won't work in emacs anymore (or any other special key in any
   applicaion that uses xlate)
+
+
 
   if you find a key missing, please add it and send me the patch.  (test
   it first! :)
@@ -2275,14 +2971,19 @@
   if you find a key missing, and don't feel like coding it, _d_o_n_'_t _t_e_l_l
   _m_e!  I already know that there are a lot of keys missing.
 
+
   corey sweeney <corey@interaccess.com >
 
   Sytron Computers
+
+
+
 
   1177..  NNeettwwoorrkkiinngg uussiinngg DDOOSSEEmmuu
 
   A mini-HOWTO from Bart Hartgers <barth@stack.nl> ( for the detailed
   original description see below )
+
 
   1177..11..  TThhee DDOOSSNNEETT vviirrttuuaall ddeevviiccee..
 
@@ -2294,6 +2995,7 @@
   This means that you can telnet or ftp from the dos-session to your
   telnetd/ftpd running in linux and, with IP forwarding enabled in the
   kernel, connect to any host on your network.
+
 
   1177..22..  SSeettuupp ffoorr vviirrttuuaall TTCCPP//IIPP
 
@@ -2308,6 +3010,8 @@
   other dosemu, or the kernel, should have this address. For the example
   addresses given above, 192.168.74.2-192.168.74.254 would be good. Now
   you can use a dos telnet client to telnet to your own machine!
+
+
 
   1177..33..  FFuullll DDeettaaiillss
 
@@ -2332,6 +3036,7 @@
   Other option is to use the a virtual network device that will route
   the packets to the actual stacks which run as user programs.
 
+
   1177..33..22..
 
   DDeessiiggnn
@@ -2346,12 +3051,15 @@
   be sent to all the user stacks and router.  All non-broadcast packets
   can be sent by communicating with each other.
 
+
   Each user stack (here dosemu process) will have an base interface
   which allows sending and receiving of packets. On the top of this, a
   proper interface (such as  packet driver interface) can be built.  In
   dosemu, a packet driver interface is emulated.
 
   Every user stack will have a unique  virtual ethernet address.
+
+
 
   1177..33..33..  IImmpplleemmeennttaattiioonn
 
@@ -2371,6 +3079,7 @@
      b. Communication with dosnet device is done by opening a
         SOCK_PACKET socket of special type.
 
+
   3. IPX bridge code. Between eth0 and dsn0 so that multiple lan
      accesses can be made. 0.1 is non-intelligent.  (both versions are
      alpha codes.)  Actually IPX routing code is there in kernel.  Has
@@ -2378,6 +3087,7 @@
      to use IPTunnelling of IPX packets (rfc 1234). Novell has NLMs for
      this on the netware side. On linux, we should run a daemon
      implementing this rfc.
+
 
   1177..33..44..  VViirrttuuaall ddeevviiccee ''ddssnn00''
 
@@ -2388,6 +3098,7 @@
 
   This device is assigned a virtual ethernet address, defined in
   dosnet.h.
+
 
   This device is usual loadable module. (Someone please check if it can
   be made more efficient.) However, what is interesting is the way it
@@ -2435,6 +3146,7 @@
         use type "x" which is unused by others; so the packet can carry
         _ANY_ protocol since the data field is left untouched.
 
+
      BBrrooaaddccaasstt ppaacckkeettss
         We use a common type "y" for dosnet broadcasts. Each dosemu
         "registers" for "y" along with usual "x" type packet using
@@ -2472,12 +3184,14 @@
   4. Kernel overhead .. lots of packet types getting introduced in type
      handler table... how to reduce?
 
+
   1177..33..66..  CCoonncclluussiioonn
 
   So at last one can open multiple DOSEMU's and access network from each
   of them ...  However, you HAVE TO set up ROUTING TABLES etc.
 
   Vinod G Kulkarni <vinod@cse.iitb.ernet.in>
+
 
   1177..33..66..11..  TTeellnneettttiinngg ttoo ootthheerr SSyysstteemmss
 
@@ -2493,6 +3207,7 @@
   from dosemu, I include static route by running 'route add -net
   144.16.112.0 gw 144.16.98.20' on that system. It becomes more complex
   if you need to connect to outside of 144.16.98.0.
+
 
   1177..33..66..22..  AAcccceessssiinngg NNoovveellll nneettwwaarree
 
@@ -2515,6 +3230,7 @@
   proper.)
 
   (You could include this info along with other documentation...)
+
 
   Hope this helps,
 
@@ -2551,7 +3267,10 @@
   session and the linux, and run tcp/application application without a
   real (hardware) net.
 
+
+
   1188..11..  LLIISSTT OOFF RREEQQUUIIRREEDD SSOOFFTTWWAARREE
+
 
   +o  The WINPKT.COM virtual packet driver, version 11.2 I have found
      this little tsr in the Crynwr packet driver distribution file
@@ -2559,26 +3278,53 @@
 
   +o  The Trumpet Winsock 2.0 revision B winsock driver for windows.
 
+
   1188..22..  SSTTEEPP BBYY SSTTEEPP OOPPEERRAATTIIOONN ((LLIINNUUXX SSIIDDEE))
 
+
   +o  Enable "dosnet" based dosemu packet driver:
+
+
 
              cd ./src/dosext/net/net
              select_packet      (Ask  single or multi ->  m)
 
+
+
+
+
   +o  Make the dosnet linux module:
+
+
+
 
         cd ./src/dosext/net/v-net
         make
 
+
+
+
+
   +o  Make the new dosemu, with right packet driver support built-in:
+
+
 
              make
              make install
 
+
+
+
+
   +o  Now you must load the dosnet module:
 
+
+
              insmod ./src/dosext/net/v-net/dosnet.o
+
+
+
+
 
   +o  Some linux-side network setup (activate device, routing). This
      stuff depends from your environment, so I write an example setup.
@@ -2589,14 +3335,22 @@
      This is a good example to make a "virtul network" from your
      dos/windows environment and the linux environment.
 
+
+
              ifconfig dsn0 144.16.112.1 broadcast 144.16.112.255 netmask 255.255.255.0
              route add -net 144.16.112.0 dsn0
 
+
+
+
+
   1188..33..  SSTTEEPP BBYY SSTTEEPP OOPPEERRAATTIIOONN ((DDOOSS SSIIDDEE))
+
 
   I suppose you know how to run windows in dosemu. You can read the
   ``Running Windows'' document if you need more information. Windows is
   not very stable, but works.
+
 
   +o  start dosemu.
 
@@ -2606,12 +3360,16 @@
   +o  start the winpkt TSR. (dosemu assign the 0x60 interrupt vector to
      the built-in packet driver)
 
+
+
                winpkt 0x60
 
   +o  edit the trumpet winsock setup file trumpwsk.ini. Here is an
      example of how to setup this file: (I think you can use less
      parameters, if you have the time to play with this file. You can
      also setup this stuff from the winsock setup dialog-box).
+
+
 
                [Trumpet Winsock]
                netmask=255.255.255.0  <-- class C netmask.
@@ -2656,8 +3414,19 @@
 
                [default vars]
 
+
+
+
+
   +o  Now you can run windows, startup trumpet winsock and .....  enjoy
      with your windoze tcp/ip :-)
 
   Gloriano Frisoni.  <gfrisoni@hi-net.it>
+
+
+
+
+
+
+
 

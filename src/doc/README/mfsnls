@@ -52,7 +52,7 @@ However, <em/new problems occur/:
 <item> If you mount VFAT partition in LINUX as VFAT, some of filenames are
   long. I fact, curent dosemu MFS system can `mangle' them, converting into
   short aliases. There is NO vay to reconstruct the <em/true/ DOS alias from
-  <em/long_name_/, since in DOS created SFNAME~[index]  index value depends
+  <em/long_name_/, since in DOS created SFNAME&tilde;<em/index/  index value depends
   exceptionaly on the _history_ of file creation. As a result, `mangled'
   names differs from true DOS shortnames.
 </enum>
@@ -103,7 +103,7 @@ and then compile dosemu as usual.
 <p>
 To mount dos VFAT partition in Linux filesystem I do like as
 
-</verb></tscreen>
+<tscreen><verb>
 mount -t vfat -o noexec,umask=022,gid=107,codepage=866,iocharset=cp866 /dev/hda1 /dos_C
 </verb></tscreen>
 
@@ -125,7 +125,7 @@ and creating files with russian names is completely safe.
 In DOSEMU I load DOS (DOS-7) from hdimage.
 To access dos partition in DOSEMU I have in config.sys two lines
 
-<verb><tscreen>
+<tscreen><verb>
      install=c:\subst.exe L: C:\
      install=c:\lredir.exe C: linux\fs/dos_C
 </verb></tscreen>

@@ -5,7 +5,11 @@
 #
 # Makefile for speaker code.
 
-CFILES=speaker.c X_speaker.c console_speaker.c
+ifdef X_SUPPORT
+X_CFILES=X_speaker.c
+endif
+
+CFILES=speaker.c $(X_CFILES) console_speaker.c
 
 SFILES=
 ALL=$(CFILES) $(SFILES)

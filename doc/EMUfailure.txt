@@ -11,39 +11,32 @@
   look at the dosemu-howto how to do so.
   ______________________________________________________________________
 
-  Table of Contents:
+  Table of Contents
 
-  1.      Fundamental problem
 
-  1.1.    Virtual Control Program Interface (VCPI)
+  1. Fundamental problem
 
-  1.2.    Programs using older Versions of the Pharlap Extender
+     1.1 Virtual Control Program Interface (VCPI)
+     1.2 Programs using older Versions of the Pharlap Extender
+     1.3 MSDOS enhanced mode Windows kernel krnl386.exe
+     1.4 Windows programs using Win32s
+     1.5 Does my failing program belong to these groups?
 
-  1.3.    MSDOS enhanced mode Windows kernel krnl386.exe
+  2. Known bugs
 
-  1.4.    Windows programs using Win32s
+     2.1 Things YOU may help changing
+     2.2 Problems probably solved
 
-  1.5.    Does my failing program belong to these groups?
+  3. Programs not working yet
 
-  2.      Known bugs
+     3.1 dd2demo.exe
+     3.2 bae.exe
+     3.3 tasmx.exe
+     3.4 xaos.exe
+     3.5 QIC tape programs
+     3.6 Any program using SCSI
 
-  2.1.    Things YOU may help changing
 
-  2.2.    Problems probably solved
-
-  3.      Programs not working yet
-
-  3.1.    dd2demo.exe
-
-  3.2.    bae.exe
-
-  3.3.    tasmx.exe
-
-  3.4.    xaos.exe
-
-  3.5.    QIC tape programs
-
-  3.6.    Any program using SCSI
   ______________________________________________________________________
 
   11..  FFuunnddaammeennttaall pprroobblleemm
@@ -54,12 +47,14 @@
   Win3.x/Win95/WinNT in a Dosbox and under OS/2 either. These programs
   are characterized by using any of these features:
 
+
   11..11..  VViirrttuuaall CCoonnttrrooll PPrrooggrraamm IInntteerrffaaccee ((VVCCPPII))
 
   VCPI allows programs to run in ring 0. This is kernel mode in Linux
   and not sensible.
 
   Example: sim2181.exe from Analog Devices DSP Kit
+
 
   11..22..  PPrrooggrraammss uussiinngg oollddeerr VVeerrssiioonnss ooff tthhee PPhhaarrllaapp EExxtteennddeerr
 
@@ -68,19 +63,23 @@
 
   Example:Autocad Version 12c1 For DOS
 
+
   11..33..  MMSSDDOOSS eennhhaanncceedd mmooddee WWiinnddoowwss kkeerrnneell kkrrnnll338866..eexxee
 
   krnl386.exe needs Ring 0 access too.
 
+
   11..44..  WWiinnddoowwss pprrooggrraammss uussiinngg WWiinn3322ss
 
   Win32s needs Ring 0 access too.
+
 
   11..55..  DDooeess mmyy ffaaiilliinngg pprrooggrraamm bbeelloonngg ttoo tthheessee ggrroouuppss??
 
   Check with "strings <program.exe> | less" if the programm contains
   some of these keywords  vvccppii,, pphhaarrllaapp aanndd wwiinn3322ss. Newer Pharlap
   programs may work.
+
 
   22..  KKnnoowwnn bbuuggss
 
@@ -110,6 +109,7 @@
   - There may be periodic "internal stack overflows" using the mouse,
   especially under Windows (correct, all?)
 
+
   22..22..  PPrroobblleemmss pprroobbaabbllyy ssoollvveedd
 
   Here reported problems with older versions are listed. The current
@@ -133,10 +133,12 @@
   - Running a protected mode 'make' and a protected mode compiler (e.g.
   Borland's) may not work.  Try switching to a real mode make.
 
+
   33..  PPrrooggrraammss nnoott wwoorrkkiinngg yyeett
 
   Here are programs listed, where someone has reported that it does not
   work.
+
 
   33..11..  dddd22ddeemmoo..eexxee
 
@@ -144,13 +146,16 @@
 
        http://www.psygnosis.com/
 
+
   Reported by Hans Lermen, it kills dosemu, giving an output like:
 
        general protection at 0x1fba: a7 ERROR: SIGSEGV, protected
        insn...exiting!
 
+
   The crash happens in DMPI Call 0x0302 At least DMPI Call 0x0506 is not
   yet implemented.
+
 
   33..22..  bbaaee..eexxee
 
@@ -158,11 +163,13 @@
 
        http://www.bartels.de/
 
+
   Reported by Uwe Bonnes, it stops dosemu with a blank screen in an
   unusable state. You have to do a remote login to kill dosemu, or hit
   reset with all it's possible fatal result. The possible reason is the
   missing implementation of DMPI Call 0x0800, as Uwe Bonnes reported it
   once working on the console with some hack.
+
 
   33..33..  ttaassmmxx..eexxee
 
@@ -170,6 +177,7 @@
   Protected-mode version of the Borland Turbo Assembler. It crashes with
   "out of memory" at startup. I traced it at the assembly level, no
   result until now. Maybe a DPMI problem (97/03/04).
+
 
   33..44..  xxaaooss..eexxee
 
@@ -179,15 +187,78 @@
   movement (in console mode with a button pressed) crashes it
   (97/03/04).
 
+
   33..55..  QQIICC ttaappee pprrooggrraammss
 
   Reported by alberto.vignani@torino.alpcom.it (Alberto Vignani): Tape
   is not supported. Worse, if you use a floppy under dosemu, you have
   sometimes to remove/reinstall the ftape module.
 
+
+
   33..66..  AAnnyy pprrooggrraamm uussiinngg SSCCSSII
 
   Reported by alberto.vignani@torino.alpcom.it (Alberto Vignani):
 
   No ASPI support until now(97/03/04).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
