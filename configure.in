@@ -204,7 +204,10 @@ fi
 if test "$XLIBSWL" = nope ; then
     AC_CHECK_LIB(Xwindow, main, XLIBSWL=-lXwindow)
 fi
-if test "$XLIBSWL" = nope -a "${with_x+set}" = set; then
+if test "$with_x" = "no"; then
+  XLIBSWL=nope
+fi
+if test "$XLIBSWL" = nope ; then
     AC_WARN(Couldn't find the X11 library archive.)
     AC_CHECKING(Compiling without X support)
     XLIBSWL=""
@@ -285,8 +288,8 @@ AC_SUBST(x_libraries)
 
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
-SUBLEVEL="65"
-PATCHLEVEL="99.26"
+SUBLEVEL="66"
+PATCHLEVEL="0.0"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`

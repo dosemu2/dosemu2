@@ -1,5 +1,7 @@
-<!-- This is the dosemu EMUproblem SGML source -- >
-<!-- Last edited: Time-stamp: <97/03/15 22:53:11 bon> -->
+<!-- This is the dosemu EMUproblem SGML source -->
+<!-- Last edited: Time-stamp: <97/03/16 12:39:22 bon> -->
+
+<!--97/03/16 Added Known Bugs -->
 
 <!doctype linuxdoc system>
 
@@ -8,7 +10,7 @@
 <author>Uwe Bonnes, 
 <bf><htmlurl url="mailto:bon@elektron.ikp.physik.th-darmstadt.de"
 name="bon@elektron.ikp.physik.th-darmstadt.de"></bf>
-<date> Feb 16, 1997 for dosemu 0.64.4 (and possibly earlier versions)
+<date> Mar 21, 1997 for dosemu 0.66.0 (and possibly earlier versions)
 
 <abstract>
 This file list programs and groups of programms not running or running
@@ -55,6 +57,52 @@ Example:Autocad Version 12c1 For DOS
 <p>Check with "strings &lt;program.exe&gt; | less" if the programm
 contains some of these keywords <bf> vcpi, pharlap and win32s</bf>. Newer
 Pharlap programs may work.
+
+<sect>Known bugs
+
+<sect1>Things YOU may help changing
+
+<p>This is a list of currently known bugs in Dosemu0.53pl58, currently
+in the process of adaptation to 0.66.0
+
+- Some documentation is known to be well out of date. 
+
+- Some video BIOS will start very slowly with the serial ports enabled.
+
+- If you are having troubles with EMS, try moving your page frame or
+  disabling umb_max if it is set to 'on'.
+
+- Programs (like MFT.EXE from QEMM) may crash due to inadequate timer
+  resolution. A fast machine will have less problems
+
+- Quattro Pro for DOS is rumored not to work (anyone with a copy willing to
+  look into why?)
+
+- Windows 3.1 will not run very well.  We do NOT recommend running it.
+
+- There may be periodic "internal stack overflows" using the mouse,
+  especially under Windows (correct, all?)
+
+<sect1> Problems probably solved
+<p>Here reported problems with older versions are listed. The current version
+should have solved them, but this has to be validated. Please report if you
+had problems in the listed areas and these problems are now solved. 
+
+- If you seem to be getting corrupt files, try switching away from Linux
+  v1.1.50-v1.1.65, since there are known disk access bugs.
+
+- DPMI emulation is known to be somewhat buggy.
+
+- There are known problems with xdos (e.g. it may not work at all for you.)
+
+- xdos sessions accessed from remote, non-Linux X-sessions (e.g. SUN stations
+  and others) may not work correctly.
+
+- The internal mouse driver is known to have problems.
+
+- Running a protected mode 'make' and a protected mode compiler (e.g.
+  Borland's) may not work.  Try switching to a real mode make.
+<!-- Can anybody validate? -->
 
 <sect>Programs not working yet
 <p>Here are programs listed, where someone has reported that it does

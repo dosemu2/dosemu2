@@ -3,42 +3,43 @@
 #
 
 # BASEDIR sets a path fragment which is prepended to _all_ paths.
-BASEDIR: 	../src/
+BASEDIR: 	../../
 
 # GROUPs are formed from :
 # <group_name> <summary_file> <file1> ... <fileN>
 # These may be split over multiple lines, and use and whitespace characters
 # as separators (assuming the Perl lives up to it's claims ! 8-)  )
-GROUP:		Main ../doc/DANG/summary_Main dos.c emu.c include/emu.h
-#GROUP:		Clients ../doc/DANG/summary_Clients clients/ncurses.c
-GROUP:		DPMI ../doc/DANG/summary_DPMI dosext/dpmi/dpmi.c
-GROUP:		Video ../doc/DANG/summary_Video env/video/vc.c
+GROUP:		Main doc/DANG/summary_Main dos.c emu.c include/emu.h
+#GROUP:		Clients doc/DANG/summary_Clients clients/ncurses.c
+GROUP:		DPMI doc/DANG/summary_DPMI dosext/dpmi/dpmi.c
+GROUP:		Video doc/DANG/summary_Video env/video/vc.c
 			env/video/video.c env/video/X.c env/video/console.c
 			env/video/dualmon.c env/video/et4000.c env/video/hgc.c
 			base/bios/int10.c env/video/s3.c env/video/terminal.c
 			env/video/trident.c env/video/vga.c 
-GROUP:		Keyboard ../doc/DANG/summary_Keyboard 
+GROUP:		Keyboard doc/DANG/summary_Keyboard 
 			base/keyboard/Xkeyb.c base/keyboard/keymaps.c
 			base/keyboard/slang-termio.c
-GROUP:		Misc ../doc/DANG/summary_Misc dosext/misc/emm.c 
+GROUP:		Misc doc/DANG/summary_Misc dosext/misc/emm.c 
 			dosext/misc/xms.c 
 			arch/linux/async/sigsegv.c include/int.h 
 			include/ports.h base/misc/dosio.c base/misc/disks.c 
 			emi-i386/cpu.c dev/misc/lpt.c 
-GROUP:		Serial ../doc/DANG/summary_Serial 
+GROUP:		Serial doc/DANG/summary_Serial 
 			base/serial/ser_defs.h base/serial/ser_init.c
 			base/serial/ser_ports.c base/serial/ser_irq.c
 #base/serial/README.serial
-GROUP:		Mouse ../doc/DANG/summary_Mouse base/mouse/mouse.c 
-GROUP:		Bios ../doc/DANG/summary_BIOS base/bios/bios.S 
-GROUP:		PIC ../doc/DANG/summary_PIC dev/pic/pic.c devpic/pic.h
-#GROUP:		Shared ../doc/DANG/summary_SHARED dosemu/shared.c
+GROUP:		Mouse doc/DANG/summary_Mouse base/mouse/mouse.c 
+GROUP:		Bios doc/DANG/summary_BIOS base/bios/bios.S 
+GROUP:		PIC doc/DANG/summary_PIC dev/pic/pic.c devpic/pic.h
+GROUP:		Sound doc/DANG/summary_Sound dosext/sound/sound.c
+#GROUP:		Shared doc/DANG/summary_SHARED dosemu/shared.c
 
 # INTRODUCTION is the location of Introduction. There may be
 # more than one of these.
-INTRODUCTION:	../doc/DANG/DANG_intro
+INTRODUCTION:	doc/DANG/DANG_intro
 
 # FINALLY is the location of a section to place at the end. There may be
 # more than one of these.
-FINALLY:	../doc/DANG/DANG_outro
+FINALLY:	doc/DANG/DANG_outro
 

@@ -3100,7 +3100,10 @@ else
 fi
 
 fi
-if test "$XLIBSWL" = nope -a "${with_x+set}" = set; then
+if test "$with_x" = "no"; then
+  XLIBSWL=nope
+fi
+if test "$XLIBSWL" = nope ; then
     echo "configure: warning: Couldn't find the X11 library archive." 1>&2
     echo "checking Compiling without X support" 1>&6
     XLIBSWL=""
@@ -3176,12 +3179,12 @@ if eval "test \"`echo '$''{'ac_cv_header_$ac_safe'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 3180 "configure"
+#line 3183 "configure"
 #include "confdefs.h"
 #include <X11/extensions/XShm.h>
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:3185: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:3188: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out`
 if test -z "$ac_err"; then
   rm -rf conftest*
@@ -3230,8 +3233,8 @@ XLIBSW="$XLIBSWD $XLIBSWL"
 
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
-SUBLEVEL="65"
-PATCHLEVEL="99.26"
+SUBLEVEL="66"
+PATCHLEVEL="0.0"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`

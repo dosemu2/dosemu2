@@ -1,10 +1,11 @@
 <!-- This is the dosemu HOWTO, SGML source -- >
 <!-- Mike Deisher, deisher@dspsun.eas.asu.edu -->
 <!-- Now Uwe Bonnes, bon@elektron.ikp.physik.th-darmstadt.de -->
-<!-- Last edited: Time-stamp: <97/02/28 16:50:09 bon> -->
+<!-- Last edited: Time-stamp: <97/03/07 10:15:51 bon> -->
 <!--PLEASE DON'T REDISTRIBUTE THIS TRANSITORY EDITION-->
 
 <!-- Changelog -->
+<!-- 97/3/07: Msdos.sys settings to boot Dos7 -->
 <!-- 97/2/28: Considerations on command.com and different Dos-Versions -->
 <!--          Numbering scheme -->
 <!-- 97/2/17: Tell about use_sigio -->
@@ -406,10 +407,19 @@ Caldera's site
       name="http://www.caldera.com/dos">
 Hopefully this will change soon, so dosemu can distribute a bootable
 hdimage.
-MsDos-6.22 is known to work with dosemu too.
-<!-- FIXME How about MsDos 7 from Win95-->
-<!-- END FIXME-->
-(97/2/10)
+<bf>MsDos-6.22</bf> is known to work with dosemu.
+<bf>MsDos-7</bf> aka <bf>Win95</bf> works with dosemu to, supposed you have
+the boot logo switched off and you don't start the graphic shell at
+bootup. If you make the hdimage bootable with the so called "Rescue Disk"
+you are offered to make during the Windows installation, you get the right
+settings. If you use your normal Win95 installation to transfer the system
+files, have a look at the msdos.sys written on the hdimage and change the
+settings under the section [Options] to have entries like
+[Options]
+Logo=0
+BootGUI=0
+
+(97/3/7)
 
 <sect>Hard disk setup
 

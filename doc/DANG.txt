@@ -1,6 +1,6 @@
   The DOSEMU Alterer Novices Guide DANG
   Alistair MacDonald, alistair@slitesys.demon.co.uk
-  For DOSEMU v0.65 pl99.26
+  For DOSEMU v0.66 pl0.0
 
   This Document is the DOSEMU Alterer Novices Guide. It is known as the
   DANG.

@@ -16,7 +16,7 @@ many DOS applications. These are capabilities of DOSEMU worth noting:
   - Graphics capability at the console with most compatible video cards.
   - Graphics emulation in X for 256 color modes.
     (X-server may be in true color mode)
-  - Much-improved DPMI support
+  - DPMI support
   - able to run (handicapped) Windows-3.1 either on console or in X.
     (you need the os2win31.zip package, and licenses for both,
     Windows-3.1 and OS/2. see doc/README.Windows)
@@ -24,9 +24,10 @@ many DOS applications. These are capabilities of DOSEMU worth noting:
   - Runs Borlandc C++ 3.x IDE
   - Runs several 32-bit DPMI-compilant video games, including DOS/4GW,
      at the Linux console.
-  - NetBSD verison of DOSEMU appreciating a growing success,
+  - NetBSD version of DOSEMU appreciating a growing success,
      contact jtk@atria.com.
   - CDROM support.
+  - Sound support (including emulated sound DMA)
   - NetWare and other network connectivity via builtin IPX and pktdrvr
      support.
 
@@ -62,7 +63,8 @@ of at least:
   Wayne P Meissner 	Vinod G Kulkarni 	Andries
   David Etherton 	Alberto Vignani		Eric W. Biederman
   Erik Mouw		Arjan Filius		Uwe Bonnes
-  Rainer Zimmermann	Steffen Winterfeld
+  Rainer Zimmermann	Steffen Winterfeld	David Brauman
+  Rutger Nijlunsing
 
   and others too important to mention.
 
@@ -84,4 +86,5 @@ not having answered every letter, and possibly missing some important
 information. If you know something you think we should know, contact
 us, PLEASE! We can be reached at:
 
-linux-msdos@vger.rutgers.edu (The DOSEMU team)
+"The DOSEMU team" <linux-msdos@vger.rutgers.edu>
+http://www.suse.com/~dosemu/

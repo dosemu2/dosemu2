@@ -112,13 +112,18 @@ If you already have a HDIMAGE file:
 - Read all documentation files carefully, and try to get some help from
   others who have used DOSEMU.
 
-- Read the DOSEMU-HOWTO for Q&A's.
+- Read the dosemu-HOWTO for Q&A's.
 
-- If no luck, please send a debug report by typing 'dos -D+a -o debug'
-  and send the file 'debug' to linux-msdos@vger.rutgers.edu
-  Also, send your /etc/dosemu.conf file and a description of the
-  system you're running on.  (Video card, linux version, CPU, memory)
-  Please gzip and uuencode these files if they are large.
+- If no luck, please send us a debug report by typing 'dos -D+a -o debug'
+  and prepare this mail via the tool we supply:
+
+    ./submit-bug-report
+
+  The tool will either send directly or save the mail to a file.
+  For more on this please read the file README.bugreports
+
+  For general discussion on dosemu use the mailing list
+  linux-msdos@vger.rutgers.edu
 
 - Please be patient with us.  We get flooded with bug reports and do our
   best to respond in a timely fashion.
@@ -133,7 +138,7 @@ If you already have a HDIMAGE file:
 ./ChangeLog
 	This is a log file of progress that have been done on
 	DOSEMU since previous versions.
-./doc/DANG
+./doc/DANG.txt
 	The Dosemu Alterning Novice's Guide, for interested hackers
 	and programmers alike, if they want to look at the internals
 	of DOSEMU and how it works.
@@ -152,6 +157,8 @@ If you already have a HDIMAGE file:
 	Readme files for various applications and settings.
 ./doc/README.vm86plus
 	Specials of vm86plus (kernel patches and emumodule)
+./README.bugreports
+./README.configuration
 
 --------------------------------------------------------------------------
 8.  DOSEMU code browsers
@@ -159,7 +166,7 @@ If you already have a HDIMAGE file:
 
 >>>> Skip this section if you don't know how to program.
 
-The ./doc/DPR and ./doc/DANG documents are great places to start
+The ./doc/DPR and ./doc/DANG.txt documents are great places to start
 looking if you are interested in looking inside DOSEMU code.
 
 The Linux MS-DOS Emulator is one of the best _FREE_ DOS emulator
@@ -178,15 +185,14 @@ Internet Email.  :-)
 
 On the other hand, if you're really brilliant, we would also
 love to hear from people who can help DOSEMU get to work with
-video games like DOOM to run, and stuff like Microsoft Windoze
-3.1.  Competition for WABI and WINE! ;-)
+any new video games, stibilizing stuff like Microsoft Windoze 3.1,
+and get FreeDOS bootable.
 
 --------------------------------------------------------------------------
 10.  Other Notes
 --------------------------------------------------------------------------
 
-Some notes from Tim Bird (Tim_R_Bird@Novell.COM) on lredir.exe included
-in the commands subdir:
+Some notes from Tim Bird on lredir.exe included in the commands subdir:
 
 LREDIR allows you to redirect any drive, including one that is
 currently a physical drive, meaning that you can replace a drive with a

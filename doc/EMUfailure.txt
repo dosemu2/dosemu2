@@ -1,6 +1,6 @@
   EMUfailure.txt
   Uwe Bonnes, bboonn@@eelleekkttrroonn..iikkpp..pphhyyssiikk..tthh--ddaarrmmssttaaddtt..ddee
-  Feb 16, 1997 for dosemu 0.64.4 (and possibly earlier ver-
+  Mar 21, 1997 for dosemu 0.66.0 (and possibly earlier ver-
   sions)
 
   This file list programs and groups of programms not running or running
@@ -25,19 +25,25 @@
 
   1.5.    Does my failing program belong to these groups?
 
-  2.      Programs not working yet
+  2.      Known bugs
 
-  2.1.    dd2demo.exe
+  2.1.    Things YOU may help changing
 
-  2.2.    bae.exe
+  2.2.    Problems probably solved
 
-  2.3.    tasmx.exe
+  3.      Programs not working yet
 
-  2.4.    xaos.exe
+  3.1.    dd2demo.exe
 
-  2.5.    QIC tape programs
+  3.2.    bae.exe
 
-  2.6.    Any program using SCSI
+  3.3.    tasmx.exe
+
+  3.4.    xaos.exe
+
+  3.5.    QIC tape programs
+
+  3.6.    Any program using SCSI
   ______________________________________________________________________
 
   11..  FFuunnddaammeennttaall pprroobblleemm
@@ -76,12 +82,60 @@
   some of these keywords  vvccppii,, pphhaarrllaapp aanndd wwiinn3322ss. Newer Pharlap
   programs may work.
 
-  22..  PPrrooggrraammss nnoott wwoorrkkiinngg yyeett
+  22..  KKnnoowwnn bbuuggss
+
+  22..11..  TThhiinnggss YYOOUU mmaayy hheellpp cchhaannggiinngg
+
+  This is a list of currently known bugs in Dosemu0.53pl58, currently in
+  the process of adaptation to 0.66.0
+
+  - Some documentation is known to be well out of date.
+
+  - Some video BIOS will start very slowly with the serial ports
+  enabled.
+
+  - If you are having troubles with EMS, try moving your page frame or
+  disabling umb_max if it is set to 'on'.
+
+  - Programs (like MFT.EXE from QEMM) may crash due to inadequate timer
+  resolution. A fast machine will have less problems
+
+  - Quattro Pro for DOS is rumored not to work (anyone with a copy
+  willing to look into why?)
+
+  - Windows 3.1 will not run very well.  We do NOT recommend running it.
+
+  - There may be periodic "internal stack overflows" using the mouse,
+  especially under Windows (correct, all?)
+
+  22..22..  PPrroobblleemmss pprroobbaabbllyy ssoollvveedd
+
+  Here reported problems with older versions are listed. The current
+  version should have solved them, but this has to be validated. Please
+  report if you had problems in the listed areas and these problems are
+  now solved.
+
+  - If you seem to be getting corrupt files, try switching away from
+  Linux v1.1.50-v1.1.65, since there are known disk access bugs.
+
+  - DPMI emulation is known to be somewhat buggy.
+
+  - There are known problems with xdos (e.g. it may not work at all for
+  you.)
+  - xdos sessions accessed from remote, non-Linux X-sessions (e.g. SUN
+  stations and others) may not work correctly.
+
+  - The internal mouse driver is known to have problems.
+
+  - Running a protected mode 'make' and a protected mode compiler (e.g.
+  Borland's) may not work.  Try switching to a real mode make.
+
+  33..  PPrrooggrraammss nnoott wwoorrkkiinngg yyeett
 
   Here are programs listed, where someone has reported that it does not
   work.
 
-  22..11..  dddd22ddeemmoo..eexxee
+  33..11..  dddd22ddeemmoo..eexxee
 
   This is a game found at
 
@@ -95,7 +149,7 @@
   The crash happens in DMPI Call 0x0302 At least DMPI Call 0x0506 is not
   yet implemented.
 
-  22..22..  bbaaee..eexxee
+  33..22..  bbaaee..eexxee
 
   This is a demo version of an Electronic CAD programm, found at
 
@@ -107,14 +161,14 @@
   missing implementation of DMPI Call 0x0800, as Uwe Bonnes reported it
   once working on the console with some hack.
 
-  22..33..  ttaassmmxx..eexxee
+  33..33..  ttaassmmxx..eexxee
 
   Reported by alberto.vignani@torino.alpcom.it (Alberto Vignani):
   Protected-mode version of the Borland Turbo Assembler. It crashes with
   "out of memory" at startup. I traced it at the assembly level, no
   result until now. Maybe a DPMI problem (97/03/04).
 
-  22..44..  xxaaooss..eexxee
+  33..44..  xxaaooss..eexxee
 
   Reported by alberto.vignani@torino.alpcom.it (Alberto Vignani):
   Mandelbrot zoomer, version 2.2 under djgpp, using Allegro 2.1 library.
@@ -122,13 +176,13 @@
   movement (in console mode with a button pressed) crashes it
   (97/03/04).
 
-  22..55..  QQIICC ttaappee pprrooggrraammss
+  33..55..  QQIICC ttaappee pprrooggrraammss
 
   Reported by alberto.vignani@torino.alpcom.it (Alberto Vignani): Tape
   is not supported. Worse, if you use a floppy under dosemu, you have
   sometimes to remove/reinstall the ftape module.
 
-  22..66..  AAnnyy pprrooggrraamm uussiinngg SSCCSSII
+  33..66..  AAnnyy pprrooggrraamm uussiinngg SSCCSSII
 
   Reported by alberto.vignani@torino.alpcom.it (Alberto Vignani):
 

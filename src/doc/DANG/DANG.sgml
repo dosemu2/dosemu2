@@ -4,7 +4,7 @@
 <title>DANG
 The DOSEMU Alterer Novices Guide
 <author>Alistair MacDonald, <tt/alistair@slitesys.demon.co.uk/
-<date>For DOSEMU v0.63.1
+<date>For DOSEMU v0.66 pl0.0
 <abstract>
 This Document is the DOSEMU Alterer Novices Guide. It is known as the DANG.
 </abstract>
@@ -20,7 +20,7 @@ this document to create new dosemu hackers.  This concept was inspired
 by the linux kernel hackers guide.
 
 This Guide was concieved and originally written by &dquot;Corey Sweeney&dquot;
-&lt;corey@&gt;. It has been completely revised. It is now
+&lt;corey@interaccess.com&gt;. It has been completely revised. It is now
 generated automatically directly from the source code. Special thanks to
 &dquot;James B. MacLean&dquot; &lt;macleajb@ednet.ns.ca&gt; for supplying the original
 information. (It was mostly ripped out of a mail message.) &dquot;Jochen Hein&dquot;
@@ -86,8 +86,6 @@ These are the functions defined in emu.c.
 
 
 <p>
- Requires the sig/sillyint.o driver loaded (using NEW modules package),
- or a kernel patch (implementing sig/int.c driver).
  The IRQ numbers to monitor are taken from config.sillyint, each bit
  corresponding to one IRQ. The higher 16 bit are defining the use of
  SIGIO
@@ -117,15 +115,6 @@ These are the functions defined in emu.c.
  conflict with other shared libs. If DOSEMU is compiled statically
  (without shared libs), and org instruction is used to provide the jump
  above 1 meg. 
- 
------
-
- At this time we have to use
- SIGALRM in addition to SIGIO I don't (yet) know why
- the SIGIO signal gets lost sometimes (once per
- minute or longer). But if it happens, we can
- retrigger this way over SIGALRM. Normally SIGIO
- happens before SIGALARM, so nothing hurts. (Hans)
  
 <sect1>include/emu.h Information
 
@@ -240,7 +229,7 @@ These are the functions defined in dosext/dpmi/dpmi.c.
 <p>
  This is the brain of DPMI. All CPU exceptions are first
  reflected (from the signal handlers) to this code.
- Exception from nonpriveleged instructions INT XX, STI, CLI, HLT
+ Exception from nonprivileged instructions INT XX, STI, CLI, HLT
  and from WINDOWS 3.1 are handled here.
  All here unhandled exceptions are reflected to do_cpu_exception()
 
@@ -266,10 +255,28 @@ These are the functions defined in dosext/dpmi/dpmi.c.
  will later (with version 0.9 or similar :-)) start with it to
  get a really fast dos emulator...............
  
+ NOTE: Using DIRECT_DPMI_CONTEXT_SWITCH we avoid these 4  taskswitches
+       actually doing 0. We don't need a 'physical' taskswitch
+       (not having different TSS for us and DPMI), we only need a complete
+       register (context) replacement. For back-switching, however, we need
+       the sigcontext technique, so we build a proper sigcontext structure
+       even for 'hand made taskswitch'. (Hans Lermen, June 1996)
+
+
  
 -----
 
- Handling of the virtuell interruptflag is still not correct and there
+ Hopefully the below LAR can serve as a replacement for the KERNEL_LDT,
+ which we are abandoning now. Especially the 'accessed-bit' will get
+ updated in the ldt-cache with the code below.
+ Most DPMI-clients fortunately _are_ using LAR also to get this info,
+ however, some do not. Some of those which do _not_, atleast use the
+ DPMI-GetDescriptor function, so this may solve the problem.
+                      (Hans Lermen, July 1996)
+ 
+-----
+
+ Handling of the virtual interrupt flag is still not correct and there
  are many open questions since DPMI specifications are unclear in this
  point.
  An example: If IF=1 in protected mode and real mode code is called
@@ -278,9 +285,21 @@ These are the functions defined in dosext/dpmi/dpmi.c.
  I guess I have to think a lot about this and to write a small dpmi
  client running under a commercial dpmi server :-).
  
+-----
+
+ Here we handle all prefixes prior switching to the appropriate routines
+ The exception CS:EIP will point to the first prefix that effects the
+ the faulting instruction, hence, 0x65 0x66 is same as 0x66 0x65.
+ So we collect all prefixes and remember them.
+ - Hans Lermen
+ 
 <sect2>Items for Fixing in dosext/dpmi/dpmi.c
 
 <p>
+ Should we really care for the Memory info? 
+
+-----
+
  We shouldn't return to dosemu code if IF=0, but it helps - WHY? 
 
 -----
@@ -560,7 +579,15 @@ These are the functions defined in arch/linux/async/sigsegv.c.
 
 <p>
  All CPU exceptions (except 13=general_protection from V86 mode,
- which is directly scaned by the kernel) are handled here.
+ which is directly scanned by the kernel) are handled here.
+
+
+<sect3>print_exception_info
+
+
+<p>
+ Prints information about an exception: exception number, error code,
+ address, reason, etc.
 
 
 <sect1>include/int.h Information
@@ -598,6 +625,7 @@ These are the functions defined in base/misc/disks.c.
 <p>
 This is the code that works our serial emulation. This needs to be very fast
 if we are to convince DOS that we have a very fast serial port.
+
 
 <sect1>base/serial/ser_defs.h Information
 
@@ -806,7 +834,6 @@ These are the functions defined in base/serial/ser_irq.c.
   There are only 2 main files, mouse.c and mouseint.c.
 
 
-
 <sect1>base/mouse/mouse.c Information
 
 <p>
@@ -847,6 +874,177 @@ These are the functions defined in base/mouse/mouse.c.
 <sect1>devpic/pic.h Information
 
 <p>
+<sect>The Sound group of Modules
+
+<p>
+The sound code provides emulation of the SB. The actual emulation provided
+depends upon the support available from the kernel sound driver. Because
+this is very OS dependant the driver code itself is kept in architecture
+specifc files under src/arch/osname/dosext/sound/. Communication is via
+a set of interface functions and the device independant structures.
+
+
+
+<sect1>dosext/sound/sound.c Information
+
+<p>
+<sect2>Maintainers
+<p>
+Alistair MacDonald  <htmlurl url="mailto:alistair@slitesys.demon.co.uk" name="&lt;alistair@slitesys.demon.co.uk&gt;">&nl;
+David Brauman  <htmlurl url="mailto:crisk@netvision.net.il" name="&lt;crisk@netvision.net.il&gt;">&nl;
+Rutger Nijlunsing  <htmlurl url="mailto:rutger@null.net" name="&lt;rutger@null.net&gt;">&nl;
+<sect2>Functions in dosext/sound/sound.c
+
+<p>
+These are the functions defined in dosext/sound/sound.c.
+
+<sect3>sb_io_read
+
+
+<p>
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  port - The I/O port being read from.
+</itemize>
+ This handles all of the reads for the SB emulation. The value read is
+ returned. The value of 0xFF indicates an invalid read. (assumes the ports
+ float high when not pulled low by the hardware.)
+
+
+<sect3>adlib_io_read
+
+
+<p>
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  port - The I/O port being read from.
+</itemize>
+ This handles all of the reads for the adlib (FM) emulation. The value read 
+ is returned. The value of 0xFF indicates an invalid read. (assumes the ports
+ float high when not pulled low by the hardware.)
+ The FM emulation is not written yet. The current plan is to use the midi
+ emulation where available as this is the most common use for the FM sound.
+
+
+<sect3>mpu401_io_read
+
+
+<p>
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  port - The I/O port being read from.
+</itemize>
+ The MPU-401 functionality is primarily provided by 'midid' - a standalone
+ program. This makes most of the MPU-401 code simply a pass-through driver.
+
+
+<sect3>sb_io_write
+
+
+<p>
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  port - The I/O port being written to.
+<ITEM>  value - The value being output.
+</itemize>
+ This handles the writes for the SB emulation. Very little of the processing
+ is performed in this function as it basically consists of a very large
+ switch() statement. The processing here is limited to trivial (1 line) items
+ and distinguishing between the different actions and responses that the
+ different revisions of the SB series give.
+
+
+<sect3>sb_dsp_write
+
+
+<p>
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  value - The value being written to the DSP.
+</itemize>
+ The SB DSP is a complete I/O system in itself controlled via a number of
+ data bytes. The number of bytes depends upon the function. The function
+ to be executed is determined by the first byte.
+ If there is no existing command then the command is stored. This then used
+ in the switch to identify the action to be taken. When the command has 
+ supplied all of its arguments, or failed, then the command storage is 
+ cleared. Each DSP function is responsible for clearing this itself.
+ Again, this function relies on other functions to do the real work, and
+ apart from storing details of the command and parameters is basically a
+ large switch statement.
+
+
+<sect2>Remarks in dosext/sound/sound.c
+
+<p>
+ Write silence could probably be implemented by setting up a
+ &dquot;DMA&dquot; transfer from /dev/null - AM
+ 
+<sect2>Items for Fixing in dosext/sound/sound.c
+
+<p>
+ The file header needs tidying up a _LOT_ ! 
+
+-----
+
+ Adlib status reads are unimplemented 
+
+-----
+
+ Advanced adlib reads are unimplemented 
+
+-----
+
+ CMS Writes are unimplemented.
+
+-----
+
+ DSP Status is unimplemented 
+
+-----
+
+ Write Silence is not implemented.
+
+-----
+
+ Adlib register writes are unimplemented 
+
+-----
+
+ Adlib data writes are unimplemented 
+
+-----
+
+ Advanced Adlib register writes are unimplemented 
+
+-----
+
+ Advanced Adlib data writes are unimplemented 
+
+-----
+
+ SB Midi is Unimplemented 
+
+-----
+
+ Sine Generation is unimplemented 
+
+-----
+
+ AUX Status is Unimplemented 
+
+-----
+
+ Stero Input is no implemented
+
+-----
+
+ ADC is Unimplemented
+
+-----
+
+ Stopping Auto-Init DMA is not implemented
+
 <sect>And Finally ...
 
 <p>
