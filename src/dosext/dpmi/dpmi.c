@@ -2703,7 +2703,6 @@ void dpmi_sigio(struct sigcontext_struct *scp)
    Because IF is not set by popf and because dosemu have to do some background
    job (like DMA transfer) regardless whether IF is set or not.
 */
-    D_printf("DPMI: return to dosemu code for handling signals\n");
     Return_to_dosemu_code(scp,0);
   }
 }

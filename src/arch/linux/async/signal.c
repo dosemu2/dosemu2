@@ -617,7 +617,6 @@ void
 sigalrm(int sig, struct sigcontext_struct context)
 {
   restore_eflags_fs_gs();
-  r_printf("SIGALRM, head=%i tail=%i\n", SIGNAL_head, SIGNAL_tail);
   if (in_dpmi && !in_vm86)
     dpmi_sigio(&context);
   SIGNAL_save(SIGALRM_call);
