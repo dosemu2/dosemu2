@@ -1419,7 +1419,9 @@ int vga_emu_init(vgaemu_display_type *vedt)
 
   vga_emu_setup_mode_table();
 
-  vbe_init(vedt);
+  if(vedt != NULL) {
+    vbe_init(vedt);
+  }
 
   /*
    * Make the VGA-BIOS ROM read-only; some dirty programs try to write to the ROM!

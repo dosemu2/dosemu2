@@ -24,13 +24,17 @@ struct text_system
 
 };
 
+struct RemapObjectStruct;
+struct RectArea;
+
 int register_text_system(struct text_system *text_system);
 void blink_cursor(void);
 void reset_redraw_text_screen(void);
 void update_cursor(void);
-RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
-			       Bit8u attr, RemapObject *remap_obj);
-int update_text_screen(RemapObject *remap_obj);
+struct RectArea convert_bitmap_string(int x, int y, unsigned char *text,
+				      int len, Bit8u attr,
+				      struct RemapObjectStruct *remap_obj);
+int update_text_screen(struct RemapObjectStruct *remap_obj);
 void redraw_text_screen(void);
 void text_gain_focus(void);
 void text_lose_focus(void);

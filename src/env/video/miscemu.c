@@ -78,12 +78,6 @@ hitimer_t t_vretrace = 0;		/* cf. base/dev/misc/timers.c */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
- * Misc_get_input_status_1() is used not only by VGAEmu (cf. emu-i386/ports.c);
- * hence the following #ifdef X_SUPPORT.
- */
-
-#ifdef X_SUPPORT
-/*
  * DANG_BEGIN_FUNCTION Misc_init
  *
  * Initializes the Miscellaneous Output Register.
@@ -293,8 +287,6 @@ unsigned char Misc_get_input_status_0()
 
   return u;
 }
-#endif	/* X_SUPPORT */
-
 
 /*
  * DANG_BEGIN_FUNCTION Misc_get_input_status_1
@@ -340,9 +332,7 @@ unsigned char Misc_get_input_status_1()
   hitimer_t t, tdiff;
   unsigned char retval;
 
-#ifdef X_SUPPORT
   vga.attr.flipflop = 0;	 	/* ATTR_INDEX_FLIPFLOP */
-#endif
 
 #ifdef OLD_CGA_SNOW_CODE
   /* old 'cga snow' code with the new variables - looks terrible,
@@ -378,13 +368,11 @@ unsigned char Misc_get_input_status_1()
 
   retval = 0xc4 | hretrace | vretrace;
 
-#ifdef X_SUPPORT
   /*
    * Hercules cards use bit 7 for vertical retrace. This bit is not used
    * by VGA cards, so there should be no conflict here. -- sw
    */
   if(vga.config.mono_port && vretrace) retval &= ~0x80;
-#endif
 
 #endif	/* OLD_CGA_SNOW_CODE */
 

@@ -43,6 +43,10 @@
 #include "keyb_clients.h"
 #include "env_term.h"
 #include "translate.h"
+#include "vgaemu.h"
+#include "vgatext.h"
+
+struct text_system Text_term;
 
 /* The interpretation of the DOS attributes depend upon if the adapter is 
  * color or not.
@@ -83,6 +87,11 @@ static int Use_IBM_Codes = 0;
 /* I think this is what is assumed. */
 static int Rows = 25;
 static int Columns = 80;
+
+/* sliding window for terminals < 25 lines */
+static int DOSemu_Terminal_Scroll_Min = 0;
+
+Boolean have_focus = TRUE;
 
 void get_screen_size (void)
 {
@@ -243,6 +252,16 @@ static int terminal_initialize(void)
      }
 #endif
    
+   /* initialize VGA emulator */
+   use_bitmap_font = FALSE;
+   config.X_updatelines = li;
+   if (vga_emu_init(NULL)) {
+     error("X: X_init: VGAEmu init failed!\n");
+     leavedos(99);
+   }
+   register_text_system(&Text_term);
+   vga_emu_setmode(video_mode, Columns, Rows);
+
    SLtt_Use_Blink_For_ACS = 1;
    SLtt_Blink_Mode = 1;
    
@@ -415,18 +434,13 @@ static void show_help (void)
  */
 static int slang_update (void)
 {
-   register unsigned short *line, *prev_line, *line_max, char_attr;
-   int i, pn, sn, row_len = Columns * 2;
-   unsigned char buf[256], *bufp;
-   int last_obj = 1000, this_obj;
-   int changed = 0;
-   int imin, imax;
-   
+   int changed, imin;
+
    static int last_row, last_col, help_showing;
    static const char *last_prompt = NULL;
-   
+
    SLtt_Blink_Mode = char_blink;
-   
+
    if (DOSemu_Slang_Show_Help) 
      {
 	if (help_showing == 0) show_help ();
@@ -435,60 +449,22 @@ static int slang_update (void)
      }
    help_showing = 0;
    
+   imin = Rows - SLtt_Screen_Rows;
    if (((DOSemu_Terminal_Scroll == 0) && 
 	(cursor_row < SLtt_Screen_Rows))
        || (DOSemu_Terminal_Scroll == -1))
      {
 	imin = 0;
-	imax = SLtt_Screen_Rows;
      }
-   else 
-     {
-	imax = Rows;
-	imin = imax - SLtt_Screen_Rows;
-	if (imin < 0) imin = 0;
-     }
-   
-   pn = 0;
-   sn = imin * Columns;
-   for (i = imin; i < imax; i++)
-     {
-#if 0
-	if (memcmp(screen_adr + sn, prev_screen + pn, row_len))
-#else
-	if (MEMCMP_DOS_VS_UNIX(screen_adr + sn, prev_screen + pn, row_len))
-#endif
-	  {
-	     line = screen_adr + sn;
-	     prev_line = prev_screen + pn;
-	     line_max = line + Columns;
-	     bufp = buf;
-	     SLsmg_gotorc (i - imin, 0);
-	     while (line < line_max)
-	       {
-		  /* *prev_line = char_attr = *line++; */
-		  *prev_line = char_attr = READ_WORD(line++);
-		  prev_line++;
-		  this_obj = Attribute_Map[(unsigned int) (char_attr >> 8)];
-		  if (this_obj != last_obj)
-		    {
-		       if (bufp != buf) 
-		       	 SLsmg_write_nchars ((char *) buf, (int) (bufp - buf));
-		       bufp = buf;
-		       SLsmg_set_color (abs(this_obj));
-		       last_obj = this_obj;
-		    }
-		  /* take care of invisible character */
-		  if (this_obj < 0) char_attr = (unsigned short) ' ';
-		  *bufp++ = The_Charset [char_attr & 0xFF];
-		  changed = 1;
-	       }
-	     SLsmg_write_nchars ((char *) buf, (int) (bufp - buf));
-	  }
-	pn += Columns;
-	sn += Columns;
-     }
-   
+
+   changed = 1;
+   if (imin != DOSemu_Terminal_Scroll_Min) {
+      DOSemu_Terminal_Scroll_Min = imin;
+      redraw_text_screen();
+   } else {
+      changed = update_text_screen(NULL);
+   }
+
    if (changed || (last_col != cursor_col) || (last_row != cursor_row)
        || (DOSemu_Keyboard_Keymap_Prompt != last_prompt))
      {
@@ -524,13 +500,37 @@ static int slang_update (void)
    return 1;
 }
 
+static void term_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
+{
+   int i;
+   unsigned char buf[len];
+   int this_obj = Attribute_Map[attr];
+
+   y -= DOSemu_Terminal_Scroll_Min;
+   if (y < 0 || y >= SLtt_Screen_Rows) return;
+   SLsmg_gotorc (y, x);
+   SLsmg_set_color (abs(this_obj));
+   for (i = 0; i < len; i++) {
+      buf[i] = The_Charset [text[i]];
+      /* take care of invisible character */
+      if (this_obj < 0) buf[i] = ' ';
+   }
+   SLsmg_write_nchars (buf, len);
+   v_printf("term_draw_string %d %d %d %s\n", x, y, len, text);
+}
+
+static void term_update(void)
+{
+   /* could be SLsmg_refresh (); but it's spurious with the keymap
+      prompts */
+}
+
 void dos_slang_redraw (void)
 {
    if (Slsmg_is_not_initialized) return;
    
-   SLsmg_cls ();
-   memset ((char *) prev_screen, 0xFF, 2 * Rows * Columns);
-   slang_update ();
+   redraw_text_screen();
+   SLsmg_refresh ();
 }
 
 void dos_slang_suspend (void)
@@ -593,6 +593,18 @@ void dos_slang_smart_set_mono (void)
    SLsmg_cls ();
 }
 
+static void term_draw_text_cursor(int x, int y, Bit8u attr, int first, int last, Boolean focus)
+{
+}
+
+static void term_set_text_palette(DAC_entry color)
+{
+}
+
+static void term_resize_text_screen(void)
+{
+}
+
 #define term_setmode NULL
 #define term_update_cursor NULL
 
@@ -607,4 +619,12 @@ struct video_system Video_term = {
    NULL
 };
 
-
+struct text_system Text_term =
+{
+   term_update,
+   term_draw_string, 
+   NULL,
+   term_draw_text_cursor,
+   term_set_text_palette,
+   term_resize_text_screen
+};

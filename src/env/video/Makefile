@@ -14,13 +14,10 @@ include $(top_builddir)/Makefile.conf
 # $Id$
 
 
-# if you want to disable graphics in X, delete vgaemu.[co], vesa.[cho],
-# vgaemu_inside.h, vesabios.S and vesabios.o
-# you should also delete the #define XG in int10.c and sigsegv.c
 ifdef X_SUPPORT
-XCFILES	= X.c vgaemu.c vesa.c screen.c dacemu.c attremu.c seqemu.c crtcemu.c gfxemu.c hercemu.c instremu.c remap.c vgafonts.c
-XHDRS	= X.h screen.h remap.h
-XOBJS	= X.o vgaemu.o vesa.o screen.o dacemu.o attremu.o seqemu.o crtcemu.o gfxemu.o hercemu.o instremu.o remap.o vgafonts.o
+XCFILES	= X.c screen.c
+XHDRS	= X.h screen.h
+XOBJS	= X.o screen.o
 endif
 
 ifdef USE_SVGALIB
@@ -37,10 +34,12 @@ ASFILES = remap_asm.S vesabios_pm.S
 ASOBJS  = remap_asm.o vesabios_pm.o
 
 CFILES = miscemu.c text.c video.c vc.c vga.c et4000.c s3.c trident.c avance.c ati.c cirrus.c \
-	 matrox.c wdvga.c sis.c $(VCFILES) console.c $(XCFILES) hgc.c dualmon.c $(ASOBJS) vesabios.o
-HFILES = vga.h et4000.h s3.h trident.h avance.h ati.h cirrus.h matrox.h wdvga.h sis.h $(VHDRS) terminal.h $(XHDRS)
+	 matrox.c wdvga.c sis.c $(VCFILES) console.c $(XCFILES) hgc.c dualmon.c $(ASOBJS) vesabios.o \
+         vgaemu.c vesa.c dacemu.c attremu.c seqemu.c crtcemu.c gfxemu.c hercemu.c instremu.c remap.c vgafonts.c
+HFILES = vga.h et4000.h s3.h trident.h avance.h ati.h cirrus.h matrox.h wdvga.h sis.h $(VHDRS) remap.h $(XHDRS)
 OFILES = miscemu.o text.o video.o vc.o vga.o et4000.o s3.o avance.o trident.o ati.o cirrus.o \
-	 matrox.o wdvga.o sis.o $(VOBJS) console.o $(XOBJS) hgc.o dualmon.o terminal.o
+	 matrox.o wdvga.o sis.o $(VOBJS) console.o $(XOBJS) hgc.o dualmon.o \
+         vgaemu.o vesa.o dacemu.o attremu.o seqemu.o crtcemu.o gfxemu.o hercemu.o instremu.o remap.o vgafonts.o
 #OBJS = $(OFILES)
 
 ALL = $(CFILES) $(HFILES) #$(SFILES)

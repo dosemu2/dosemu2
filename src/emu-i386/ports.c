@@ -980,7 +980,7 @@ int extra_port_init(void)
 		for (i=0x3b4; i<0x3df; i++)
 			SET_HANDLE_COND(i,HANDLE_VID_IO);
 	}
-	if (!config.X) {
+	if (config.cardtype == CARD_NONE || config.console_video) {
  	  SET_HANDLE_COND(0x3b8,HANDLE_SPECIAL);
 	  SET_HANDLE_COND(0x3bf,HANDLE_SPECIAL);
 	  SET_HANDLE_COND(0x3c0,HANDLE_SPECIAL);	/* W */

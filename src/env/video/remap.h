@@ -72,7 +72,7 @@
 
 #define REMAP_DESC(FL, SRC, DST, F, INI) {FL, SRC, DST, F, #F, INI, NULL}
 
-typedef struct {
+typedef struct RectArea {
   int x, y, width, height;
 } RectArea;
 
