@@ -68,6 +68,6 @@ pristine distclean mrproper:  docsclean mididclean
 	(cd setup/demudialog; make clean)
 	(cd setup/parser; make clean)
 	rm -rf ./dist/tmp
-	rm -rf autom4te.cache
+	rm -rf autom4te*.cache
 	$(srcdir)/mkpluginhooks clean
 

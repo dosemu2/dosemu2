@@ -78,7 +78,6 @@ INSTALL:=@INSTALL@
 VPATH:=$(srcdir)
 REALTOPDIR:=$(top_srcdir)
 SRCPATH:=$(top_srcdir)/src
-BINPATH:=$(top_builddir)/$(THISVERSION)
 VERSION:=$(shell echo $(PACKAGE_VERSION) | cut -d. -f1)
 SUBLEVEL:=$(shell echo $(PACKAGE_VERSION) | cut -d. -f2)
 PATCHLEVEL1:=$(shell echo $(PACKAGE_VERSION) | cut -d. -f3)
@@ -92,6 +91,7 @@ else
   PACKETNAME:=dosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
 endif
 THISVERSION:=$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
+BINPATH:=$(top_builddir)/$(THISVERSION)
 EMUVER:=$(VERSION).$(SUBLEVEL)
 
 CFLAGS += $(XXXCFLAGS)
