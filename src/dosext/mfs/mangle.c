@@ -41,6 +41,7 @@ Modified by O.V.Zhirov, July 1998
 #ifdef HAVE_UNICODE_TRANSLATION
 #include "translate.h"
 #include <wctype.h>
+#include <errno.h>
 #endif
 #else
 #include "includes.h"
@@ -470,22 +471,56 @@ void mangle_name_83(char *s, char *upcase_s, char *MangledMap)
 convert a filename from a UNIX to a DOS character set.
 ****************************************************************************/
 #ifdef HAVE_UNICODE_TRANSLATION
+/* this is the fast table for single byte DOS character sets,
+   used to avoid expensive translate calls
+*/
+static unsigned char unicode_to_dos_table[0x10000];
+static void init_unicode_to_dos_table(void)
+{
+  static int initialized;
+
+  struct char_set_state dos_state;
+  unsigned char *dest;
+  t_unicode symbol;
+  int result;
+
+  if (initialized) return;
+  initialized = 1;
+
+  dest = unicode_to_dos_table;
+
+  /* these are either invalid or ascii: no replacement '_' ! */
+  for (symbol = 0; symbol <= 0x7f; symbol++)
+    *dest++ = symbol;
+
+  for (symbol = 0x80; symbol <= 0xffff; symbol++) {
+    init_charset_state(&dos_state, trconfig.dos_charset);
+    result = unicode_to_charset(&dos_state, symbol, dest, 1);
+    if (result == -1 && errno == -E2BIG)
+      error("BUG: Internal multibyte character sets can't happen\n");
+    if ((result == -1 && errno == EILSEQ) ||
+	(result == 1 && *dest == '?')) 
+      *dest = '_';
+    else
+      *dest = '\0';
+    cleanup_charset_state(&dos_state);
+    dest++;
+  }
+}
+
 BOOL name_ufs_to_dos(char *dest, const char *src, char *udest)
 {
-  struct char_set_state dos_state;
-  struct char_set_state udos_state;
   struct char_set_state unix_state;
 
   int retval = 1;
   
   t_unicode symbol;
-  size_t slen, dlen, udlen, result;
+  size_t slen, result;
 
+  init_unicode_to_dos_table();
   init_charset_state(&unix_state, trconfig.unix_charset);
-  init_charset_state(&dos_state, trconfig.dos_charset);
-  if (udest) init_charset_state(&udos_state, trconfig.dos_charset);
 
-  dlen = slen = udlen = strlen(src);
+  slen = strlen(src);
   while (*src) {
     result = charset_to_unicode(&unix_state, &symbol, src, slen);
     if (result == -1) {
@@ -494,43 +529,25 @@ BOOL name_ufs_to_dos(char *dest, const char *src, char *udest)
     }
     src += result;
     slen -= result;
-    result = unicode_to_charset(&dos_state, symbol, dest, dlen);
-    if (result == -1) {
-      *dest = '_';
-      result = 1;
-    }
-    if (result == 1 && *dest == '?') {
-      *dest = '_';
-    }
-    if (!VALID_DOS_PCHAR(dest) && strchr(" +,;=[]",*dest)==0) {
+    *dest = unicode_to_dos_table[symbol];
+    if (udest) {
+      wint_t wupper = towupper(symbol);
+      if ((wchar_t)wupper >= 0x10000)
+	*udest = '_';
+      else
+	*udest = unicode_to_dos_table[wupper];
+      udest++;
+      /* with udest != NULL set we never care about the retval */
+    } else if (!VALID_DOS_PCHAR(dest) && strchr(" +,;=[]",*dest)==0) {
       retval = 0;
     }
-    dest += result;
-    dlen -= result;
-    if (udest) {
-      symbol = towupper(symbol);
-      result = unicode_to_charset(&udos_state, symbol, udest, udlen);
-      if (result == -1) {
-        *udest = '_';
-        result = 1;
-      }
-      if (result == 1 && *udest == '?') {
-        *udest = '_';
-      }
-      if (!VALID_DOS_PCHAR(udest) && strchr(" +,;=[]",*udest)==0) {
-        retval = 0;
-      }
-      udest += result;
-      udlen -= result;
-    }
+    dest++;
   }
   *dest = '\0';
   if (udest) {
     *udest = '\0';
-    cleanup_charset_state(&udos_state);
   }
   cleanup_charset_state(&unix_state);
-  cleanup_charset_state(&dos_state);
   return retval;
 }
 #endif
