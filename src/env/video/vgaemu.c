@@ -2307,7 +2307,7 @@ void dirty_all_video_pages()
  * Set visible text page.
  *
  * `vga.display_start' is set to `page' * `page_size'.
- * In graphics modes to 'page' * 'page_size' * 8 (quick workaround, FIXME!)
+ * In graphics modes the page_size is determined from memory/vga settings
  *
  * arguments:
  * page      - Number of the text page.
@@ -2320,7 +2320,13 @@ void dirty_all_video_pages()
 int vga_emu_set_text_page(unsigned page, unsigned page_size)
 {
   if(vga.mode_class != TEXT) {
-    page_size *= 8;
+    page_size = vga.scan_len * vga.height;
+    if (page_size != 0) {
+      page_size = vga.mem.bank_pages * 4096 / page_size;
+      if (page_size != 0) {
+	page_size = vga.mem.bank_pages * 4096 / page_size;
+      }
+    }
   }
 
   if((page + 1) * page_size > vga.mem.size) {
