@@ -209,6 +209,7 @@ void mhp_input()
 
 static void mhp_poll_loop(void)
 {
+   char *ptr, *ptr1;
    for (;;) {
       handle_signals();
       /* NOTE: if there is input on mhpdbg.fdin, as result of handle_signals
@@ -243,8 +244,16 @@ static void mhp_poll_loop(void)
          return;
       }
       mhpdbg.recvbuf[mhpdbg.nbytes] = 0x00;
-      mhp_cmd(mhpdbg.recvbuf);
-      mhp_send();
+      ptr = mhpdbg.recvbuf;
+      while (ptr && *ptr) {
+	ptr1 = strsep(&ptr, "\r\n");
+	if (!ptr1)
+	  ptr1 = ptr;
+	if (!ptr1)
+	  break;
+        mhp_cmd(ptr1);
+        mhp_send();
+      }
       mhpdbg.nbytes = 0;
    }
 }
@@ -298,6 +307,7 @@ void mhp_intercept(char *msg, char *logflags)
    if (!mhpdbg.active || (mhpdbg.fdin == -1)) return;
    mhpdbgc.stopped = 1;
    mhpdbgc.want_to_stop = 0;
+   traceloop = 0;
    mhp_printf(msg);
    mhp_cmd("r0");
    mhp_send();
