@@ -363,11 +363,11 @@ void SDL_put_image(int x, int y, unsigned width, unsigned height)
 
 void SDL_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
 {
+  RectArea ra;
    v_printf(
     "SDL_draw_string: %d chars at (%d, %d), attr = 0x%02x\n",
     len, x, y, (unsigned) attr
 	);
-  RectArea ra;
   SDL_LockSurface(surface);
   ra = convert_bitmap_string(x, y, text, len, attr);
   SDL_UnlockSurface(surface);
