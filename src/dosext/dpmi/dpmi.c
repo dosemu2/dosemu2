@@ -2018,10 +2018,10 @@ err:
 	    break;
 	}
 
-	_LWORD(edi) = (block -> handle)&0xffff;
-	_LWORD(esi) = ((block -> handle) >> 16) & 0xffff;
-	_LWORD(ecx) = (unsigned long)block -> base & 0xffff;
-	_LWORD(ebx) = ((unsigned long)block -> base >> 16) & 0xffff;
+	_LWORD(edi) = LO_WORD(block->size);
+	_LWORD(esi) = HI_WORD(block->size);
+	_LWORD(ecx) = LO_WORD(block->base);
+	_LWORD(ebx) = HI_WORD(block->base);
     }
     break;
   case 0x0600:	/* Lock Linear Region */
