@@ -56,6 +56,7 @@ typedef struct {
   int    irq, fd;
 } _port_handler;
 
+extern int in_crit_section;
 
 static __inline__ void port_real_outb(ioport_t port, Bit8u value)
 {
@@ -196,5 +197,8 @@ extern void register_port_traceing(ioport_t firstport, ioport_t lastport);
 extern void clear_port_traceing(void);
 
 extern void do_r3da_pending (void);
+
+void port_enter_critical_section(const char *caller);
+void port_leave_critical_section(void);
 
 #endif /* _PORT_H */

@@ -556,10 +556,9 @@ static void callback_return(void)
  */
 void do_call_back(Bit32u codefarptr)
 {
-	unsigned char * ssp;
-	unsigned long sp;
 	Bit16u oldcs, oldip;
 	int level;
+	int old_frozen;
 
 	if (in_dpmi && !in_dpmi_dos_int) {
 		error("do_call_back() cannot call protected mode code\n");
@@ -576,17 +575,15 @@ void do_call_back(Bit32u codefarptr)
 	 * callback_return() above, which then decreases callback_level
 	 * ... and then we return from here
 	 */
-	ssp = (unsigned char *)(LWORD(ss)<<4);
-	sp = (unsigned long) LWORD(esp);
-	pushw(ssp, sp, CBACK_SEG);	/* push our return cs:ip */
-	pushw(ssp, sp, CBACK_OFF);
-	LWORD(esp) = (LWORD(esp) - 4) & 0xffff;
+	fake_call(CBACK_SEG, CBACK_OFF);/* push our return cs:ip */
 	oldcs = REG(cs);		/* save old cs:ip */
 	oldip = LWORD(eip);
-	REG(cs) = codefarptr >>16;	/* far jump to the vm86(DOS) routine */
-	LWORD(eip) = codefarptr & 0xffff;
+	REG(cs) = FP_SEG16(codefarptr);	/* far jump to the vm86(DOS) routine */
+	LWORD(eip) = FP_OFF16(codefarptr);
 
         level = callback_level++;
+	old_frozen = dosemu_frozen;
+	unfreeze_dosemu();
         while (callback_level > level) {
 		if (fatalerr) leavedos(99);
 	/*
@@ -597,6 +594,8 @@ void do_call_back(Bit32u codefarptr)
 		run_irqs();	/* this is essential to do BEFORE run_[vm86|dpmi]() */
 		run_vm86();
         }
+	if (old_frozen)
+		freeze_dosemu();
 	/* ... and back we are */
 	REG(cs) = oldcs;
 	LWORD(eip) = oldip;
@@ -613,5 +612,5 @@ void do_intr_call_back(int intno)
 	clear_AC();
 	clear_NT();
 
-	do_call_back((ISEG(intno) << 16) + IOFF(intno));
+	do_call_back(MK_FP16(ISEG(intno), IOFF(intno)));
 }

@@ -30,6 +30,8 @@
 #include "wdvga.h"
 #include "sis.h"
 #include "pci.h"
+#include "dpmi.h"
+#include "lowmem.h"
 #include "mapping.h"
 #ifdef USE_SVGALIB
 #include "svgalib.h"
@@ -182,6 +184,46 @@ static inline void enable_vga_card(void)
   emu_video_retrace_on();
   /* disable video */
 }
+
+#define RM_STACK_SIZE 0x200
+static void *rm_stack = NULL;
+
+static void do_int10_callback(struct vm86_regs *regs)
+{
+  struct vm86plus_struct saved_vm86;
+  char *p;
+
+  if(in_dpmi && !in_dpmi_dos_int)
+    fake_pm_int();
+  saved_vm86 = vm86s;
+  memset(&vm86s, 0, sizeof(vm86s));
+  REGS = *regs;
+  /* always use the special stack to avoid corrupting DOS memory
+     -- an int 10 handler may need more space than an irq and
+     we can come in at any time */
+  REG(ss) = FP_SEG32(rm_stack);
+  REG(esp) = FP_OFF32(rm_stack) + RM_STACK_SIZE;
+  v_printf("VGA: call interrupt 0x10, ax=%#x\n", LWORD(eax));
+  REG(eflags) = IOPL_MASK;
+  /* we don't want the BIOS to call the mouse helper */
+  p = &bios_in_int10_callback - (long)bios_f000 + (BIOSSEG << 4);
+  *p = 1;
+  pic_cli();
+  do_intr_call_back(0x10);
+  pic_sti();
+  *p = 0;
+  v_printf("VGA: interrupt returned, ax=%#x\n", LWORD(eax));
+  *regs = REGS;
+  vm86s = saved_vm86;
+}
+
+static void do_int10_setmode(int mode)
+{
+  struct vm86_regs r;
+  r.eax = mode;
+  do_int10_callback(&r);
+}
+
 /* Store current EGA/VGA regs */
 static void store_vga_regs(char regs[])
 {
@@ -323,6 +365,7 @@ void save_vga_state(struct video_save_struct *save_regs)
 {
 
   v_printf("Saving data for %s\n", save_regs->video_name);
+  port_enter_critical_section(__FUNCTION__);
   dosemu_vga_screenoff();
   disable_vga_card();
   store_vga_regs(save_regs->regs);
@@ -348,6 +391,7 @@ void save_vga_state(struct video_save_struct *save_regs)
   dosemu_vga_getpalvec(0, 256, save_regs->pal);
   restore_vga_regs(save_regs->regs, save_regs->xregs, save_regs->xregs16);
   enable_vga_card();
+  port_leave_critical_section();
 
   v_printf("Store_vga_state complete\n");
 }
@@ -357,6 +401,16 @@ void restore_vga_state(struct video_save_struct *save_regs)
 {
 
   v_printf("Restoring data for %s\n", save_regs->video_name);
+  port_enter_critical_section(__FUNCTION__);
+  /* do a BIOS setmode to the original mode before restoring registers.
+     This helps if we don't restore all registers ourselves or if the
+     VESA BIOS is buggy */
+  if (config.chipset == PLAINVGA) {
+    char bios_data_area[0x100];
+    memcpy(bios_data_area, (void *)BIOS_DATA_SEG, 0x100);
+    do_int10_setmode(save_regs->video_mode);
+    memcpy((void *)BIOS_DATA_SEG, bios_data_area, 0x100);
+  }
   dosemu_vga_screenoff();
   disable_vga_card();
   restore_vga_regs(save_regs->regs, save_regs->xregs, save_regs->xregs16);
@@ -371,6 +425,7 @@ void restore_vga_state(struct video_save_struct *save_regs)
   v_printf("Permissions=%d\n", permissions);
   enable_vga_card();
   dosemu_vga_screenon();
+  port_leave_critical_section();
 
   v_printf("Restore_vga_state complete\n");
 }
@@ -499,9 +554,9 @@ int vga_initialize(void)
   }
 
   linux_regs.video_name = "Linux Regs";
-  /* just pretend it's text; we simply restore the wrong video memory
-     for fbdev but fbdev can redraw itself */
-  linux_regs.video_mode = 3;
+  /* the mode at /dev/mem:0x449 will be correct for both vgacon and vesafb.
+     Other fbs and X can often restore themselves */
+  load_file("/dev/mem", 0x449, &linux_regs.video_mode, 1);
   linux_regs.release_video = 0;
 
   dosemu_regs.video_name = "Dosemu Regs";
@@ -626,6 +681,10 @@ void init_vga_card(void)
     error("CAN'T DO VIDEO INIT, BIOS NOT MAPPED!\n");
     return;
   }
+
+  if (config.chipset == PLAINVGA)
+    rm_stack = lowmem_heap_alloc(RM_STACK_SIZE);
+
   save_vga_state(&linux_regs);
   dosemu_vga_screenon();
   dump_video_linux();

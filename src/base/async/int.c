@@ -2270,6 +2270,9 @@ static void update_xtitle(void)
 
 void do_periodic_stuff(void)
 {
+    if (in_crit_section)
+	return;
+
     handle_signals();
 
     /* catch user hooks here */

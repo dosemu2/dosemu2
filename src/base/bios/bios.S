@@ -451,6 +451,9 @@ WINT10:
 	cmpw	$0x4F02,%ax
 	jne	L10	/* svga mode set */
 L9:
+	cmpb	$1, %cs:bios_in_int10_callback
+	je	L10
+
 	pushw 	%ax	/* save everything */
 	pushw	%bx
 	movw	$DOS_HELPER_MOUSE_HELPER,%ax	/* mouse helper */
@@ -480,6 +483,9 @@ L10:	/* chain to original handler (probably the video bios) */
 	.globl	CISH(bios_f000_int10_old)
 CISH(bios_f000_int10_old):
 	.word	0,0
+	.globl	CISH(bios_in_int10_callback)
+CISH(bios_in_int10_callback):
+	.byte	0
 
 #ifdef X86_EMULATOR
 	.org	((INT10_WATCHER_SEG-BIOSSEG) << 4)+(INT10_WATCHER_OFF+0x60)

@@ -21,6 +21,7 @@ extern void bios_f000_end(void);	/* BIOS end at 0xfffff */
 extern void bios_f000_int10ptr(void);
 extern void bios_f000_bootdrive(void);
 extern void bios_f000_int10_old(void);
+extern char bios_in_int10_callback;
 
 extern char LFN_string[];
 

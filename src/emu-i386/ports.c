@@ -65,6 +65,9 @@ static unsigned char port_handles;	/* number of io_handler's */
 
 static const char *irq_handler_name[EMU_MAX_IRQS];
 
+int in_crit_section = 0;
+static const char *crit_sect_caller;
+
 #define SET_HANDLE(p,h)		port_handle_table[(Bit16u)(p)]=(h)
 #define EMU_HANDLER(port)	port_handler[port_handle_table[(Bit16u)(port)]]
 enum{TYPE_INB, TYPE_OUTB, TYPE_INW, TYPE_OUTW, TYPE_IND, TYPE_OUTD, TYPE_EXIT};
@@ -302,39 +305,56 @@ static void pna_emsg(ioport_t port, char ch, char *s)
 	i_printf("PORT%c: %x not available for %s\n", ch, port, s);
 }
 
+static void check_crit_section(ioport_t port, char *function)
+{
+	if (in_crit_section) {
+		error("Port %#x is not available (%s), \"%s\" failed.\n"
+			"Adjust your dosemu.conf\n",
+			port, function, crit_sect_caller);
+		in_crit_section = 0;
+		leavedos(46);
+	}
+}
+
 static Bit8u port_not_avail_inb(ioport_t port)
 {
 /* it is a fact of (hardware) life that unused locations return all
    (or almost all) the bits at 1; some software can try to detect a
    card basing on this fact and fail if it reads 0x00 - AV */
+	check_crit_section(port, "inb");
 	if (debug_level('i')) pna_emsg(port,'b',"read");
 	return 0xff;
 }
 
 static void port_not_avail_outb(ioport_t port, Bit8u byte)
 {
+	check_crit_section(port, "outb");
 	if (debug_level('i')) pna_emsg(port,'b',"write");
 }
 
 static Bit16u port_not_avail_inw(ioport_t port)
 {
+	check_crit_section(port, "inw");
 	if (debug_level('i')) pna_emsg(port,'w',"read");
 	return 0xffff;
 }
 
 static void port_not_avail_outw(ioport_t port, Bit16u value)
 {
+	check_crit_section(port, "outw");
 	if (debug_level('i')) pna_emsg(port,'w',"write");
 }
 
 static Bit32u port_not_avail_ind(ioport_t port)
 {
+	check_crit_section(port, "ind");
 	if (debug_level('i')) pna_emsg(port,'d',"read");
 	return 0xffffffff;
 }
 
 static void port_not_avail_outd(ioport_t port, Bit32u value)
 {
+	check_crit_section(port, "outd");
 	if (debug_level('i')) pna_emsg(port,'d',"write");
 }
 
@@ -1339,7 +1359,25 @@ set_ioperm(int start, int size, int flag)
 	return tmp;
 }
 
+void port_enter_critical_section(const char *caller)
+{
+	if (in_crit_section) {
+	    error("Critical section conflict for %s and %s\n",
+		    crit_sect_caller, caller);
+	    in_crit_section = 0;
+	    leavedos(49);
+	}
+	in_crit_section++;
+	crit_sect_caller = caller;
+}
+
+void port_leave_critical_section(void)
+{
+	if (!in_crit_section) {
+	    error("leave_critical_section without enter\n");
+	    leavedos(49);
+	}
+	in_crit_section--;
+}
 
 /* ====================================================================== */
-
-
