@@ -55,6 +55,7 @@ typedef struct  {
   int flags;
   boolean async_io;
   boolean intdrv;
+  boolean use_absolute; /* use absolute mouse addressing */
   boolean emulate3buttons;
   boolean has3buttons;
   boolean cleardtr;
@@ -62,6 +63,7 @@ typedef struct  {
   int sampleRate;
   int lastButtons;
   int chordMiddle;
+  short init_speed_x, init_speed_y;
 
   struct termios *oldset;
 
@@ -108,7 +110,7 @@ struct mouse_struct {
   short virtual_minx, virtual_maxx, virtual_miny, virtual_maxy;
 
   /* these are for sensitivity options */
-  short speed_x, speed_y, init_speed_x, init_speed_y;
+  short speed_x, speed_y;
   short threshold;
   short language;
 
@@ -141,6 +143,22 @@ struct mouse_struct {
   } ps2;
 };
 
+struct mouse_client {
+  const char *name;
+  int    (*init)(void);
+  void   (*close)(void);
+  void   (*run)(void);         /* handle mouse events */
+  void   (*set_cursor)(int action, int mx, int my, int x_range, int y_range);
+};
+
+extern struct mouse_client *Mouse;
+extern struct mouse_client Mouse_serial;
+extern struct mouse_client Mouse_raw;
+extern struct mouse_client Mouse_X;
+extern struct mouse_client Mouse_xterm;
+extern struct mouse_client Mouse_gpm;
+extern struct mouse_client Mouse_none;
+
 #ifdef HAVE_UNICODE_KEYB
 #include "keyboard.h"
 void mouse_keyboard(Boolean make, t_keysym key);
@@ -168,9 +186,7 @@ extern void mouse_mb(void);
 extern void mouse_rb(void);
 
 extern void DOSEMUMouseEvents(void);
-extern void DOSEMUSetupMouse(void);
 
-extern void mouse_event(void);
 extern void do_mouse_irq(void);
 extern void mouse_io_callback(void);
 

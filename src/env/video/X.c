@@ -581,6 +581,8 @@ static void set_mouse_position(int, int);
 static void set_mouse_buttons(int);
 static void toggle_mouse_grab(void);
 #endif
+static void X_show_mouse_cursor(int yes);
+static void X_set_mouse_cursor(int yes, int mx, int my, int x_range, int y_range);
 
 #if CONFIG_X_SELECTION
 static int x_to_col(int);
@@ -1419,7 +1421,7 @@ int NewXErrorHandler(Display *dsp, XErrorEvent *xev)
  * So please, don't 'optimize' X_show_mouse_cursor away (;-), its
  * not bogus.		--Hans, 2000/06/01
  */
-void X_show_mouse_cursor(int yes)
+static void X_show_mouse_cursor(int yes)
 {
    if (yes || vga.mode_class != GRAPH) {
       if (force_grab && grab_active) {
@@ -1448,6 +1450,7 @@ void X_show_mouse_cursor(int yes)
 static void toggle_mouse_grab(void)
 {
   if(grab_active ^= 1) {
+    config.mouse.use_absolute = 0;
     X_printf("X: mouse grab activated\n");
     if (mainwindow != fullscreenwindow) {
 #ifdef ENABLE_KEYBOARD_GRAB
@@ -1459,6 +1462,7 @@ static void toggle_mouse_grab(void)
     X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
   }
   else {
+    config.mouse.use_absolute = 1;
     X_printf("X: mouse grab released\n");
     if (mainwindow != fullscreenwindow) {
       XUngrabPointer(display, CurrentTime);
@@ -1480,14 +1484,18 @@ static void toggle_mouse_grab(void)
  * DANG_END_FUNCTION
  *
  */  
-void X_set_mouse_cursor(int yes, int mx, int my, int x_range, int y_range)
+static void X_set_mouse_cursor(int action, int mx, int my, int x_range, int y_range)
 {
 #if CONFIG_X_MOUSE
+        int yes = action & 1;
 	static Cursor *last_cursor = 0;
 	Cursor *mouse_cursor_on, *mouse_cursor_off, *new_cursor;
 	int x,y;
 
-	/* Figure out what cursor we want to show for visible/invisible */
+        if (action & 2)
+          X_show_mouse_cursor(action >> 1);
+
+        /* Figure out what cursor we want to show for visible/invisible */
 	mouse_cursor_on = &X_standard_cursor;
 	mouse_cursor_off = &X_mouse_nocursor;
 
@@ -3681,6 +3689,30 @@ void set_mouse_buttons(int state)
 }
 #endif /* CONFIG_X_MOUSE */
 
+/* do this even without CONFIG_XMOUSE; otherwise xterm mouse
+   events may be tried... */
+static int X_mouse_init(void)
+{
+  mouse_t *mice = &config.mouse;
+  if (!config.X)
+    return FALSE;
+  mice->intdrv = TRUE;
+  mice->type = MOUSE_X;
+  mice->use_absolute = 1;
+  m_printf("MOUSE: X Mouse being set\n");
+  /* default to 1 to 1 scaling for apps tha read mickeys */
+  mice->init_speed_x = 8;
+  mice->init_speed_y = 8;
+  return TRUE;
+}
+
+struct mouse_client Mouse_X =  {
+  "X",          /* name */
+  X_mouse_init, /* init */
+  NULL,		/* close */
+  NULL,		/* run */
+  X_set_mouse_cursor /* set_cursor */
+};
 
 #if CONFIG_X_SELECTION
 /*

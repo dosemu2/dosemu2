@@ -43,14 +43,14 @@
 #include <termios.h>
 #include <errno.h>
 #include <time.h>
+#include <string.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 #include "emu.h"
 #include "mouse.h"
-
-#ifdef USE_GPM
-#include <gpm.h>
-#include "video.h"
-#endif
+#include "serial.h"
+#include "iodev.h"
 
 static void DOSEMUSetMouseSpeed(int old, int new, unsigned cflag);
 
@@ -59,8 +59,7 @@ static void DOSEMUSetMouseSpeed(int old, int new, unsigned cflag);
  *	Sets up the mouse parameters
  */
 
-void
-DOSEMUSetupMouse(void)
+static void DOSEMUSetupMouse(void)
 {
       mouse_t *mice = &config.mouse;
       m_printf("MOUSE: DOSEMUSetupMouse called\n");
@@ -448,7 +447,7 @@ static void DOSEMUSetMouseSpeed(int old, int new, unsigned cflag)
 	}
 }
 
-void DOSEMUMouseEvents(void)
+static void raw_mouse_getevent(void)
 {
 /* We define a large buffer, because of high overheads with other processes */
 #define MOUSE_BUFFER 1024
@@ -459,35 +458,6 @@ void DOSEMUMouseEvents(void)
 	int nBytes, nBytesProc;
 
 	nBytes = 0;
-#ifdef USE_GPM
-	if (mice->type == MOUSE_GPM) {
-          static unsigned char buttons;
-	  Gpm_Event ev;
-	  Gpm_GetEvent(&ev);
-	  m_printf("MOUSE: Get GPM Event, %d\n", ev.type);
-	  switch (GPM_BARE_EVENTS(ev.type)) {
-	  case GPM_MOVE:
-	  case GPM_DRAG:
-	    mouse_move_absolute(ev.x - 1, ev.y - 1, co, li);
-	    break;
-	  case GPM_UP:
-	    if (ev.buttons & GPM_B_LEFT) buttons &= ~GPM_B_LEFT;
-	    if (ev.buttons & GPM_B_MIDDLE) buttons &= ~GPM_B_MIDDLE;
-	    if (ev.buttons & GPM_B_RIGHT) buttons &= ~GPM_B_RIGHT;
-	    ev.buttons = buttons;
-            /* fall through */
-	  case GPM_DOWN:
-	    mouse_move_buttons(ev.buttons & GPM_B_LEFT,
-			       ev.buttons & GPM_B_MIDDLE,
-			       ev.buttons & GPM_B_RIGHT);
-            buttons = ev.buttons;
-            /* fall through */
-	  default:
-	    break;
-	  }
-	}
-	else
-#endif
 	if (!config.X && mice->type != MOUSE_XTERM)
 	  nBytes = RPT_SYSCALL(read(mice->fd, (char *)(rBuf+qEnd),
 	    sizeof(rBuf)-qEnd));
@@ -503,9 +473,114 @@ void DOSEMUMouseEvents(void)
 	  if (qBeg >= qEnd)
 	    qBeg = qEnd = 0;
 	}
-	mouse_event();
 	if (qBeg < qEnd) {
 	  m_printf("MOUSE: Requesting for the next event\n");
 	  pic_request(PIC_IMOUSE);
 	}
 }
+
+void parent_close_mouse (void)
+{
+  mouse_t *mice = &config.mouse;
+  if (mice->intdrv)
+     {
+	if (mice->fd > 0) {
+   	   remove_from_io_select(mice->fd, mice->async_io);
+           DOS_SYSCALL(close (mice->fd));
+	}
+    }
+  else
+    child_close_mouse ();
+}
+
+int parent_open_mouse (void)
+{
+  mouse_t *mice = &config.mouse;
+  if (mice->intdrv)
+    {
+      struct stat buf;
+      int mode = O_RDWR | O_NONBLOCK;
+  
+      stat(mice->dev, &buf);
+      if (S_ISFIFO(buf.st_mode) || mice->type == MOUSE_BUSMOUSE || mice->type == MOUSE_PS2) {
+	/* no write permission is necessary for FIFO's (eg., gpm) */
+        mode = O_RDONLY | O_NONBLOCK;
+      }
+      mice->fd = -1;
+      /* gpm + non-graphics mode doesn't work */
+      if (!S_ISFIFO(buf.st_mode) || config.vga)
+      {
+        mice->fd = DOS_SYSCALL(open(mice->dev, mode));
+        if (mice->fd == -1) {
+          error("Cannot open internal mouse device %s\n",mice->dev);
+        }
+      }
+      if (mice->fd == -1) {
+ 	mice->intdrv = FALSE;
+ 	mice->type = MOUSE_NONE;
+ 	mice->async_io = 0;
+ 	return 0;
+      }
+      /* want_sigio causes problems with internal mouse driver */
+      add_to_io_select(mice->fd, mice->async_io, mouse_io_callback);
+    }
+  else
+    child_open_mouse ();
+  return 1;
+}
+
+static int raw_mouse_init(void)
+{
+  mouse_t *mice = &config.mouse;
+  struct stat buf;
+
+  if (!mice->intdrv)
+    return FALSE;
+  
+  m_printf("Opening internal mouse: %s\n", mice->dev);
+  if (!parent_open_mouse())
+    return FALSE;
+
+  fstat(mice->fd, &buf);
+  if (!S_ISFIFO(buf.st_mode) && mice->type != MOUSE_BUSMOUSE && mice->type != MOUSE_PS2)
+    DOSEMUSetupMouse();
+  /* this is only to try to get the initial internal driver two/three
+     button mode state correct; user can override it later. */ 
+  if (mice->type == MOUSE_MICROSOFT || mice->type == MOUSE_MS3BUTTON ||
+      mice->type == MOUSE_BUSMOUSE || mice->type == MOUSE_PS2)
+    mice->has3buttons = FALSE;
+  else
+    mice->has3buttons = TRUE;
+  iodev_add_device(mice->dev);
+  return TRUE;
+}
+
+static void raw_mouse_close(void)
+{
+  int result;
+  mouse_t *mice = &config.mouse;
+
+  if (mice->fd == -1)
+    return;
+
+  if (mice->oldset) {
+    m_printf("mouse_close: calling tcsetattr\n");
+    result=tcsetattr(mice->fd, TCSANOW, mice->oldset);
+    if (result==0)
+      m_printf("mouse_close: tcsetattr ok\n");
+    else
+      m_printf("mouse_close: tcsetattr failed: %s\n",strerror(errno));
+  }
+  m_printf("mouse_close: closing mouse device, fd=%d\n",mice->fd);
+  close(mice->fd);
+  m_printf("mouse_close: ok\n");
+}
+
+struct mouse_client Mouse_raw =  {
+  "raw",              /* name */
+  raw_mouse_init,     /* init */
+  raw_mouse_close,    /* close */
+  raw_mouse_getevent,  /* run */
+  NULL
+};
+

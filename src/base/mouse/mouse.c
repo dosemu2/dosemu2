@@ -24,20 +24,11 @@
 #include <sys/mman.h>
 #include <slang.h>
 
-#ifdef USE_GPM
-#include <gpm.h>
-#endif
-
 #include "emu.h"
 #include "bios.h"
 #include "int.h"
 #include "memory.h"
 #include "video.h"		/* video base address */
-#ifdef X_SUPPORT
-#undef True
-#undef False
-#include "../env/video/X.h"
-#endif
 #include "mouse.h"
 #include "serial.h"
 #include "port.h"
@@ -164,6 +155,22 @@ static short default_graphscreenmask[HEIGHT] =  {
   0xfcff   /*1111110011111111*/
 };
 
+static struct mouse_client *mouse_clients[] =
+{
+#ifdef X_SUPPORT
+  &Mouse_X,
+#endif
+#ifdef USE_GPM
+  &Mouse_gpm,
+#endif
+  &Mouse_xterm,
+  &Mouse_raw,
+  &Mouse_serial,
+  &Mouse_none,  /* This must be last */
+};
+
+struct mouse_client *Mouse;
+
 void
 mouse_helper(void) 
 {
@@ -205,14 +212,14 @@ mouse_helper(void)
       m_printf("MOUSE Vertical speed out of range. ERROR!\n");
       LWORD(eax) = 1;
     } else 
-      mouse.init_speed_y = mouse.speed_y = LO(cx);
+      mice->init_speed_y = mouse.speed_y = LO(cx);
     break;
   case 5:				/* Set horizontal speed */
     if (LO(cx) < 1) {
       m_printf("MOUSE Horizontal speed out of range. ERROR!\n");
       LWORD(eax) = 1;
     } else
-      mouse.init_speed_x = mouse.speed_x = LO(cx);
+      mice->init_speed_x = mouse.speed_x = LO(cx);
     break;
   case 6:				/* Ignore horz/vert selection */
     if (LO(cx) == 1) 
@@ -356,16 +363,12 @@ mouse_int(void)
 
   case 0x01:			/* Show Mouse Cursor */
     mouse_cursor(1);
-#ifdef X_SUPPORT
-    if (config.X) X_show_mouse_cursor(1);
-#endif
+    if (Mouse->set_cursor) Mouse->set_cursor(3, 0, 0, 0, 0);
     break;
 
   case 0x02:			/* Hide Mouse Cursor */
     mouse_cursor(-1);
-#ifdef X_SUPPORT
-    if (config.X) X_show_mouse_cursor(0);
-#endif
+    if (Mouse->set_cursor) Mouse->set_cursor(2, 0, 0, 0, 0);
     break;
 
   case 0x03:			/* Get Mouse Position and Button Status */
@@ -873,8 +876,8 @@ mouse_reset_to_current_video_mode(void)
    * then in mouse_reset, as it gets called more often.
    * -- Eric Biederman 29 May 2000
    */
-   mouse.speed_x = mouse.init_speed_x;
-   mouse.speed_y = mouse.init_speed_y;
+   mouse.speed_x = mice->init_speed_x;
+   mouse.speed_y = mice->init_speed_y;
 
  /*
   * Here we make sure text modes are resolved properly, according to the
@@ -1079,16 +1082,14 @@ mouse_pos(void)
 void 
 mouse_setpos(void)
 {
-#if X_SUPPORT
   /* WP reads mickeys, and then sets the cursor position to make certain
    * it doesn't loose any mickeys.  This will catch that case, and keeps
    * us from breaking all apps under X that set the mouse position.
    */
-  if (last_mouse_call_read_mickeys && config.X && !grab_active) {
+  if (last_mouse_call_read_mickeys && mice->use_absolute) {
     m_printf("MOUSE: ignoring 'set cursor pos' in X with no grab active\n");
     return;
   }
-#endif  
   mouse.x = LWORD(ecx);
   mouse.y = LWORD(edx);
   mouse_round_coords();
@@ -1210,7 +1211,7 @@ mouse_set_gcur(void)
   memcpy((void *)mouse.graphcursormask,ptr+16,32);
 
   /* compile it so that it can acutally be drawn. */
-  if (mice->type != MOUSE_X && mice->type != MOUSE_XTERM && mice->type != MOUSE_GPM) {
+  if (Mouse == &Mouse_raw) {
     define_graphics_cursor((short *)mouse.graphscreenmask,(short *)mouse.graphcursormask);
   }
 }
@@ -1668,8 +1669,7 @@ do_mouse_irq()
 	     LWORD(cs), LWORD(eip));
 }
 
-void
-mouse_event()
+static void mouse_event(void)
 {
   if (mouse.mask & mouse_events && (mouse.cs || mouse.ip))
     do_irq();
@@ -1680,29 +1680,21 @@ mouse_event()
 }
 
 /* unconditional mouse cursor update */
-static void
-mouse_do_cur(void)
+static void mouse_do_cur(void)
 {
-#ifdef X_SUPPORT
-  /* Handle the X mouse
-   * -- Eric Biederman 31 May 2000
-   */
-  if (mice->type == MOUSE_X) {
+  if (Mouse->set_cursor) {
     int minx, maxx, miny, maxy;
 
     minx = mouse.minx<mouse.virtual_minx ? mouse.minx : mouse.virtual_minx;
     maxx = mouse.maxx>mouse.virtual_maxx ? mouse.maxx : mouse.virtual_maxx;
     miny = mouse.miny<mouse.virtual_miny ? mouse.miny : mouse.virtual_miny;
     maxy = mouse.maxy>mouse.virtual_maxy ? mouse.maxy : mouse.virtual_maxy;
-    X_set_mouse_cursor(mouse.cursor_on == 0?1: 0, 
+
+    Mouse->set_cursor(mouse.cursor_on == 0?1: 0, 
       mouse.x - minx, mouse.y - miny,
       maxx - minx +1, maxy - miny +1);
     return;
   }
-#endif
-  /* It seems better to avoid next code for XTERM MOUSE */
-  if (mice->type == MOUSE_XTERM)
-    return;
 
   if (!scr_state.current) 
   	return;
@@ -1781,7 +1773,7 @@ graph_cursor(void)
 void
 mouse_curtick(void)
 {
-  if (!mice->intdrv || mouse.cursor_on != 0 || mice->type == MOUSE_X)
+  if (!mice->intdrv || mouse.cursor_on != 0 || Mouse != &Mouse_raw)
     return;
 
   m_printf("MOUSE: curtick x:%d  y:%d\n", mouse.rx, mouse.ry);
@@ -1811,17 +1803,28 @@ void mouse_sethandler(void)
   }
 }
 
-static int has_xterm_mouse_support(void)
+static void mouse_client_init(void)
 {
-  char *term = getenv("TERM");
-  char *term_entry, *xmouse_seq;
+  int i;
+  int ok;
 
-  if (mice->fd >= 0 || term == NULL || config.vga || is_console(0))
-    return 0;
-
-  term_entry = SLtt_tigetent(term);
-  xmouse_seq = SLtt_tigetstr ("Km", &term_entry);
-  return xmouse_seq || !strncmp(term, "xterm", 5);
+  i = 0;
+  Mouse = mouse_clients[i++];
+  while(TRUE) {
+    m_printf("MOUSE: initialising '%s' mode mouse client\n",
+             Mouse->name);
+    
+    ok = Mouse->init?Mouse->init():TRUE;
+    if (ok) {
+      m_printf("MOUSE: Mouse init ok, '%s' mode\n", Mouse->name);
+      break;
+    }
+    else {
+      m_printf("MOUSE: Mouse init ***failed***, '%s' mode\n",
+               Mouse->name);
+    }
+    Mouse = mouse_clients[i++];
+  }
 }
 
 /*
@@ -1835,7 +1838,6 @@ static int has_xterm_mouse_support(void)
 void
 dosemu_mouse_init(void)
 {
-  serial_t *sptr=NULL;
   char mouse_ver[]={2,3,4,5,0x14,0x7,0x38,0x39,0x3a,0x3b,0x3c,0x3d,0x3e,0x3f};
 #if 1 /* BUG CATCHER */
   char p[32];
@@ -1865,93 +1867,14 @@ dosemu_mouse_init(void)
 
   mice->fd = -1;
 
-#ifdef X_SUPPORT
-  if (config.X) {
-    mice->intdrv = TRUE;
-    mice->type = MOUSE_X;
+  mice->init_speed_x = 8;
+  mice->init_speed_y = 16;
+
+  mouse_client_init();
+
+  if (mice->intdrv)
     memcpy(p,mouse_ver,sizeof(mouse_ver));
-    m_printf("MOUSE: X Mouse being set\n");
-  }
-  else 
-#endif
-  {
-#ifdef USE_GPM
-    if (!config.vga && is_console( 0 )) {
-      Gpm_Connect conn;
 
-      conn.eventMask   = ~0;
-      conn.defaultMask = GPM_MOVE;
-      conn.minMod      = 0;
-      conn.maxMod      = 0;
-
-      mice->fd = Gpm_Open(&conn, 0);
-      if (mice->fd >= 0) {
-        mice->type = MOUSE_GPM;
-        mice->intdrv = TRUE;
-        fcntl(mice->fd, F_SETFL, fcntl(mice->fd, F_GETFL) | O_NONBLOCK);
-        add_to_io_select(mice->fd, mice->async_io, mouse_io_callback);
-        memcpy(p,mouse_ver,sizeof(mouse_ver));
-        m_printf("GPM MOUSE: Using GPM Mouse\n");
-      } else {
-        mice->fd = -1;
-      }
-    }
-#endif
-    if (has_xterm_mouse_support()) {
-      mice->intdrv = TRUE;
-      mice->type = MOUSE_XTERM;
-      memcpy(p,mouse_ver,sizeof(mouse_ver));
-      /* save old highlight mouse tracking */
-      printf("\033[?1001s");
-      /* enable mouse tracking */
-      printf("\033[?9h\033[?1000h\033[?1002h\033[?1003h");	
-      fflush (stdout);
-      m_printf("XTERM MOUSE: Remote terminal mouse tracking enabled\n");
-    }
-    else if (mice->fd == -1 && mice->intdrv) {
-      struct stat buf;
-      m_printf("Opening internal mouse: %s\n", mice->dev);
-      if (!parent_open_mouse())
- 	return;
-
-      fstat(mice->fd, &buf);
-      if (!S_ISFIFO(buf.st_mode) && mice->type != MOUSE_BUSMOUSE && mice->type != MOUSE_PS2)
-        DOSEMUSetupMouse();
-      /* this is only to try to get the initial internal driver two/three
-         button mode state correct; user can override it later. */ 
-      if (mice->type == MOUSE_MICROSOFT || mice->type == MOUSE_MS3BUTTON ||
-        mice->type == MOUSE_BUSMOUSE || mice->type == MOUSE_PS2)
-        mice->has3buttons = FALSE;
-      else
-        mice->has3buttons = TRUE;
-      memcpy(p,mouse_ver,sizeof(mouse_ver));
-      iodev_add_device(mice->dev);
-    }
-    else if (mice->fd == -1) {
-      int x;
-      for (x=0;x<config.num_ser;x++){
-        sptr = &com[x];
-        if (sptr->mouse) break;
-      }
-      if (!(sptr->mouse)) {
-        m_printf("MOUSE: No mouse configured in serial config! num_ser=%d\n",config.num_ser);
- 	mice->intdrv = FALSE;
-      }
-      else {
-        m_printf("MOUSE: Mouse configured in serial config! num_ser=%d\n",config.num_ser);
-      }
-    }
-  }
-
-  if (mice->type != MOUSE_X) {
-    mouse.init_speed_x = 8;
-    mouse.init_speed_y = 16;
-  } else {
-    /* default to 1 to 1 scaling for apps tha read mickeys */
-    mouse.init_speed_x = 8;
-    mouse.init_speed_y = 8;
-  }
-  
   /* We set the defaults at the end so that we can test the mouse type */
   mouse_reset(1);		/* Let's set defaults now ! */
   m_printf("MOUSE: INIT complete\n");
@@ -1987,95 +1910,58 @@ void mouse_io_callback(void)
   }
 }
 
-void parent_close_mouse (void)
-{
-  if (mice->intdrv)
-     {
-	if (mice->fd > 0) {
-   	   remove_from_io_select(mice->fd, mice->async_io);
-           DOS_SYSCALL(close (mice->fd));
-	}
-    }
-  else
-    child_close_mouse ();
-}
-
-int parent_open_mouse (void)
-{
-  if (mice->intdrv)
-    {
-      struct stat buf;
-      int mode = O_RDWR | O_NONBLOCK;
-  
-      stat(mice->dev, &buf);
-      if (S_ISFIFO(buf.st_mode) || mice->type == MOUSE_BUSMOUSE || mice->type == MOUSE_PS2) {
-	/* no write permission is necessary for FIFO's (eg., gpm) */
-        mode = O_RDONLY | O_NONBLOCK;
-      }
-      mice->fd = -1;
-      /* gpm + non-graphics mode doesn't work */
-      if (!S_ISFIFO(buf.st_mode) || config.vga)
-      {
-        mice->fd = DOS_SYSCALL(open(mice->dev, mode));
-        if (mice->fd == -1) {
-          error("Cannot open internal mouse device %s\n",mice->dev);
-        }
-      }
-      if (mice->fd == -1) {
- 	mice->intdrv = FALSE;
- 	mice->type = MOUSE_NONE;
- 	mice->async_io = 0;
- 	return 0;
-      }
-      /* want_sigio causes problems with internal mouse driver */
-      add_to_io_select(mice->fd, mice->async_io, mouse_io_callback);
-    }
-  else
-    child_open_mouse ();
-  return 1;
-}
-
 void
 dosemu_mouse_close(void)
 {
-  int result;
+  if (Mouse->close) Mouse->close(); 
+}
 
-  if (mice->type == MOUSE_X) return;   
-  if (mice->type == MOUSE_XTERM) {
-    /* disable mouse tracking */
-    printf("\033[?1003l\033[?1002l\033[?1000l\033[9l");
-    /* restore old highlight mouse tracking */
-    printf("\033[?1001r");
 
-    m_printf("XTERM MOUSE: Mouse tracking deinitialized\n");
-    return;
+static int serial_mouse_init(void)
+{
+  int x;
+  serial_t *sptr=NULL;
+  if (mice->intdrv)
+    return FALSE;
+  for (x=0;x<config.num_ser;x++){
+    sptr = &com[x];
+    if (sptr->mouse) break;
   }
-  
-  if (mice->intdrv && mice->fd != -1 ) {
-#ifdef USE_GPM
-    if (mice->type == MOUSE_GPM) {
-      Gpm_Close();
-      m_printf("GPM MOUSE: Mouse tracking deinitialized\n");
-      return;
-    }
-#endif
-    if (mice->oldset) {
-      m_printf("mouse_close: calling tcsetattr\n");
-      result=tcsetattr(mice->fd, TCSANOW, mice->oldset);
-      if (result==0)
-        m_printf("mouse_close: tcsetattr ok\n");
-      else
-        m_printf("mouse_close: tcsetattr failed: %s\n",strerror(errno));
-    }
-    m_printf("mouse_close: closing mouse device, fd=%d\n",mice->fd);
-    close(mice->fd);
-    m_printf("mouse_close: ok\n");
-    return;
+  if (!(sptr->mouse)) {
+    m_printf("MOUSE: No mouse configured in serial config! num_ser=%d\n",config.num_ser);
+    return FALSE;
   }
+  else {
+    m_printf("MOUSE: Mouse configured in serial config! num_ser=%d\n",config.num_ser);
+  }
+  return TRUE;
+}
 
-  if (((mice->type == MOUSE_PS2) || (mice->type == MOUSE_IMPS2) ||
-       (mice->type == MOUSE_BUSMOUSE)) && (mice->fd != -1))
-    close(mice->fd);
+struct mouse_client Mouse_serial =  {
+  "No Mouse",   /* name */
+  serial_mouse_init,	/* init */
+  NULL,		/* close */
+  NULL,		/* run */
+  NULL
+};
+
+static int none_init(void)
+{
+  return TRUE;
+}
+
+struct mouse_client Mouse_none =  {
+  "No Mouse",   /* name */
+  none_init,	/* init */
+  NULL,		/* close */
+  NULL,		/* run */
+  NULL
+};
+
+void DOSEMUMouseEvents(void)
+{
+  if (Mouse->run) Mouse->run();
+  mouse_event();
 }
 
 /* TO DO LIST: (in no particular order)

@@ -10,3 +10,4 @@ extern int DOSemu_Slang_Show_Help;
 int term_init(void);
 void term_close(void);
 int using_xterm(void);
+void xtermmouse_get_event (char **kbp, int *kb_count);

@@ -922,60 +922,6 @@ static int init_slang_keymaps(void)
 	return 0;
 }
 
-/* XTERM MOUSE suport by M.Laak */
-static void xtermmouse_get_event (void)
-{
-	int btn;
-	static int last_btn = 0;
-	int x_pos, y_pos;
-    
-	/* Decode Xterm mouse information to a GPM style event */
-
-	if (keyb_state.kbcount >= 3) {
-
-		x_pos = *(keyb_state.kbp+1) - 32;
-		y_pos = *(keyb_state.kbp+2) - 32;
-		mouse_move_absolute(x_pos-1, y_pos-1, co, li);
-		m_printf("XTERM MOUSE: movement (click follows) detected to pos x=%d: y=%d\n", x_pos, y_pos);
-
-		/* Variable btn has following meaning: */
-		/* 0 = btn1 dn, 1 = btn2 dn, 2 = btn3 dn, 3 = btn up */
-		btn = *keyb_state.kbp & 3;
-    
-		/* There seems to be no way of knowing which button was released */
-		/* So we assume all the buttons were released */
-		if (btn == 3){
-			if (last_btn) {
-                                mouse_move_buttons(0, 0, 0);
-				m_printf("XTERM MOUSE: button release detected\n");
-				last_btn = 0;
-			}
-		} else {
-			switch (btn) {
-			case 0:
-				mouse_move_buttons(1, 0, 0);
-				m_printf("XTERM MOUSE: left button click detected\n");
-				last_btn = 1;
-				break;
-			case 1:
-				mouse_move_buttons(0, 1, 0);
-				m_printf("XTERM MOUSE: middle button click detected\n");
-				last_btn = 2;
-				break;
-			case 2:
-				mouse_move_buttons(0, 0, 1);
-				m_printf("XTERM MOUSE: right button click detected\n");
-				last_btn = 3;
-				break;
-			}
-		}
-		keyb_state.kbcount -= 3;	/* update count */
-		keyb_state.kbp += 3;
-
-		pic_request(PIC_IMOUSE);
-	}
-}
-
 /*
  * Global variables this module uses: int kbcount : number of characters
  * in the keyboard buffer to be processed. unsigned char kbbuf[KBBUF_SIZE]
@@ -1067,8 +1013,8 @@ static void slang_send_scancode(unsigned long ls_flags, unsigned long lscan)
 		ls_flags, lscan);
 
 	if (lscan == KEY_MOUSE) {
-		// Xtermmouse support
-		xtermmouse_get_event();
+		/* Xtermmouse support */
+		xtermmouse_get_event(&keyb_state.kbp, &keyb_state.kbcount);
 		return;
 	}
 	if (ls_flags & KEYPAD_MASK) {

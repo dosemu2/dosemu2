@@ -21,7 +21,6 @@
 #define X_TITLE_EMUNAME_MAXLEN TITLE_EMUNAME_MAXLEN
 #define X_TITLE_APPNAME_MAXLEN TITLE_APPNAME_MAXLEN
 
-extern int grab_active;
 extern Display *display;
 
 void           get_vga_colors (void);
@@ -30,8 +29,6 @@ void X_draw_cursor(int x,int y);
 void X_restore_cell(int x,int y);
 void X_set_textsize(int, int);
 void X_init_videomode(void);
-void X_show_mouse_cursor(int yes);
-void X_set_mouse_cursor(int yes, int mx, int my, int x_range, int y_range);
 
 void X_process_key(XKeyEvent *); 
 #ifdef HAVE_UNICODE_KEYB
