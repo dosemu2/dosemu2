@@ -151,8 +151,8 @@ warning2:
 	 echo ""; \
 	 echo "-> REQUIREMENTS for DOSEMU:"; \
 	 echo '    - gcc 2.7.2 (best result) / egcs >= 2.91.66 / gcc >= 2.95.2'; \
-	 echo "    - libc 5.4.46 (best result) / glibc-2.0.6pre7 / glibc-2.1.3"; \
-	 echo '    - Linux >= 2.0.28, 2.1.x >= 2.1.15, 2.2.x, 2.3.x'; \
+	 echo "    - libc 5.4.46 (best result) / glibc-2.0.6pre7 / glibc >= 2.1.3"; \
+	 echo '    - Linux >= 2.0.30, 2.1.x >= 2.1.27, 2.x.y, x >= 2'; \
 	 echo "";
 
 ifeq ($(WAIT),yes)

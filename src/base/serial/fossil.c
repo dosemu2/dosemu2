@@ -63,6 +63,8 @@
 #define FOSSIL_REVISION 5
 #define FOSSIL_MAX_FUNCTION 0x1b
 
+static void fossil_check_info(void);
+
 /* These are the address of the FOSSIL id string, which is located
  * in FOSSIL.COM. These are set by serial_helper when FOSSIL.COM
  * is installed.
@@ -275,6 +277,11 @@ void fossil_int14(int num)
     int ifree = RX_BUFFER_SIZE-com[num].rx_buf_bytes,
       ofree = TX_BUFFER_SIZE-com[num].tx_buf_bytes,
       bufsize = (LWORD(ecx) <= 19) ? LWORD(ecx) : 19;
+    if (LO(dx) == 0xff)
+    {
+      fossil_check_info();
+      return;
+    }
     /* Fill in some values that aren't constant. */
     com[num].fossil_info[10] = ifree & 0xff;
     com[num].fossil_info[11] = ifree >> 8;
@@ -366,3 +373,37 @@ void serial_helper(void)
     s_printf("SER: FOSSIL helper 0x%02x: Unknown function!\n", HI(ax));
   }
 }
+
+static void fossil_check_info()
+{
+if (fossil_tsr_installed)
+  {
+    unsigned char *p = SEG_ADR((unsigned char *), es, di);
+    u_char def_fossil_info[19]; /* FOSSIL driver info buffer */
+    int bufsize = (LWORD(ecx) <= 19) ? LWORD(ecx) : 19;
+    def_fossil_info[0] = 19;       /* Structure size */
+    def_fossil_info[1] = 0;
+    def_fossil_info[2] = FOSSIL_REVISION;
+    def_fossil_info[3] = 0;        /* Driver revision (not used) */
+    def_fossil_info[4] = fossil_id_offset & 0xff;
+    def_fossil_info[5] = fossil_id_offset >> 8;
+    def_fossil_info[6] = fossil_id_segment & 0xff;
+    def_fossil_info[7] = fossil_id_segment >> 8;
+    def_fossil_info[8] = RX_BUFFER_SIZE & 0xff;
+    def_fossil_info[9] = RX_BUFFER_SIZE >> 8;
+    def_fossil_info[12] = TX_BUFFER_SIZE & 0xff;
+    def_fossil_info[13] = TX_BUFFER_SIZE >> 8;
+    def_fossil_info[16] = 80;   /* Screen width */
+    def_fossil_info[17] = 25;   /* Screen height */
+    def_fossil_info[18] = 0;       /* Bps rate (not used) */
+    /* Copy data to user area. */
+    memcpy(p, def_fossil_info, bufsize);
+    LWORD(eax)=bufsize;
+    #if SER_DEBUG_FOSSIL_STATUS
+      s_printf("SER%d: FOSSIL 0x1b: Driver info, i=%d/%d, o=%d/%d, AX=%d\n", 
+      		num, ifree, RX_BUFFER_SIZE, ofree, TX_BUFFER_SIZE, bufsize);
+    #endif
+    return;
+  }
+}
+

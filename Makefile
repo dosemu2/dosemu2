@@ -94,7 +94,10 @@ mididclean:
 
 pristine distclean mrproper:  docsclean mididclean
 	@$(MAKE) -C src pristine
-	rm -f config.cache config.status config.log src/include/config.h
+	rm -f core `find . -name config.cache`
+	rm -f core `find . -name config.status`
+	rm -f core `find . -name config.log`
+	rm -f src/include/config.h
 	rm -f core `find . -name '*~'`
 	rm -f core `find . -name '*[\.]o'`
 	rm -f core `find . -name '*.d'`

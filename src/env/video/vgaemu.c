@@ -2474,21 +2474,24 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       vga.seq.addr_mode = u;
       if(u != u0 && vga.mode_type == P8) {	/* ++HACK++ */
         u1 = vga.seq.addr_mode == 0 ? 4 : 1;
-        vga.scan_len = (vga.scan_len * vga.mem.planes) / u1;
         if(u1 != vga.mem.planes) {
           vga.mem.planes = u1; vga.reconfig.mem = 1;   
           vga_msg("vgaemu_adj_cfg: mem reconfig (%u planes)\n", u1);
         }
       }
-      if(msg || u != u0) vga_msg("vgaemu_adj_cfg: seq.addr_mode = %s\n", txt1[u]);
+      if(msg || u != u0) vga_msg("vgaemu_adj_cfg: seq.addr_mode = %s\n", txt1[u]); 
     break;
 
     case CFG_CRTC_ADDR_MODE:
       u0 = vga.crtc.addr_mode;
+      u1 = vga.scan_len;
       u = vga.crtc.data[0x17] & 0x40 ? 0 : 1;
       u = vga.crtc.data[0x14] & 0x40 ? 2 : u;
       vga.crtc.addr_mode = u;
-      if(msg || u != u0) vga_msg("vgaemu_adj_cfg: crtc.addr_mode = %s\n", txt2[u]);
+      vga.scan_len = vga.crtc.data[0x13] << (vga.crtc.addr_mode + 1); 
+      if (u1 != vga.scan_len) vga.reconfig.mem = 1;
+      if(msg || u != u0) vga_msg("vgaemu_adj_cfg: crtc.addr_mode = %s, 
+	scan_len = %d\n", txt2[u], vga.scan_len);
     break;
 
     case CFG_CRTC_HEIGHT:
@@ -2531,8 +2534,10 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       vga_msg("vgaemu_adj_cfg: vertical_display_end = %d\n", vertical_display_end);
       vga_msg("vgaemu_adj_cfg: vertical_multiplier = %d\n", vertical_multiplier);
       vga_msg("vgaemu_adj_cfg: height = %d\n", height);
-      vga.height = height;
-      vga.reconfig.display = 1;
+      if (vga.height != height) {
+        vga.height = height;
+        vga.reconfig.display = 1;
+      }
       break;
     }
     case CFG_CRTC_WIDTH:
@@ -2552,8 +2557,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       horizontal_blanking_end = vga.crtc.data[0x3] & 0xF;
       horizontal_retrace_start = vga.crtc.data[0x4];
       horizontal_retrace_end = vga.crtc.data[0x5] & 0xF;
-      multiplier = 8; /* Can this be 9? */
-      /* Do I need to do something special for text modes? */
+      multiplier = (vga.mode_class == TEXT) ? 9 : (vga.mode_type == P8) ? 4 : 8;
       width = horizontal_display_end * multiplier;
       vga_msg("vgaemu_adj_cfg: horizontal_total = %d\n", horizontal_total);
       vga_msg("vgaemu_adj_cfg: horizontal_retrace_start = %d\n", horizontal_retrace_start);
@@ -2563,8 +2567,10 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       vga_msg("vgaemu_adj_cfg: horizontal_display_end = %d\n", horizontal_display_end);
       vga_msg("vgaemu_adj_cfg: multiplier = %d\n", multiplier);
       vga_msg("vgaemu_adj_cfg: width = %d\n", width);
-      vga.width = width;
-      vga.reconfig.display = 1;
+      if (vga.width != width) {
+	 vga.width = width;
+	 vga.reconfig.display = 1;
+      }
       break;
     }
     default:

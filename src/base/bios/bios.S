@@ -365,8 +365,10 @@ ipx_handler:
 CISH(bios_IPX_FarCall):
 	pushw	%bx
 	movw	$0x0a,%bx
-	.byte	0x9a		/* Official JES hack for call far ipx_handler */
-	.long	0xf8003100	/* ### This is address of bios_IPX_FarCall */
+	lcall   $IPX_SEG, $IPX_OFF
+	/*.byte	0x9a		Official JES hack for call far ipx_handler */
+	/*.long	0xf8003100	### This is address of bios_IPX_FarCall */
+        /* Of course I can only comment out an official hack, never remove - Bart */
 	popw	%bx
 	lret
 

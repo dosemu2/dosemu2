@@ -1416,14 +1416,6 @@ int can_revector(int i)
  */
 
   switch (i) {
-  case 0: case 4: case 5: case 7:
-#if 1 /* temp fix for bug in kernel vm86plus code
-       * (fixing kernel patch is in 2.1.27 and will appear in 2.0.30, as Linus promised)
-       * we will remove this, when time goes by --Hans 970225
-       */
-    if (running_kversion > 2001026 || (running_kversion > 2000029 && running_kversion < 2000000) )
-      return NO_REVECT;
-#endif
   case 0x21:			/* we want it first...then we'll pass it on */
 #ifdef DJGPP_HACK
   case 0x23:			/* TMP FIX for ^C under DPMI */
@@ -1491,15 +1483,14 @@ static int can_revector_int21(int i)
   }
 }
 
-static void int05(u_char i) {
+static void int05(u_char i) 
+{
+     /* FIXME does this test actually catch an unhandled bound exception */
     if( *SEG_ADR((Bit8u *), cs, ip) == 0x62 ) {	/* is this BOUND ? */
-	if(!IS_REDIRECTED(5)) {	/* avoid deadlock: eip is not advanced! */
+	    /* avoid deadlock: eip is not advanced! */
 	    error("Unhandled BOUND exception!\n");
 	    leavedos(54);
-	}
-	g_printf("BOUND exception\n");
     }
-    default_interrupt(i);
     return;
 }
 
@@ -2128,9 +2119,10 @@ void setup_interrupts(void) {
     /* don't overwrite; these have been set during video init */
     if(i == 0x1f || i == 0x43) continue;
 
-    if ((i & 0xf8) == 0x60 || (i >= 0x78 && i<= 0xfd &&
+    if ((i & 0xf8) == 0x60 || (i >= 0x78 && i != 0x7a && i<= 0xfd &&
       can_revector(i) == NO_REVECT)) { /* user interrupts */
 	/* show also EMS (int0x67) as disabled */
+	/* 0xfa = IPX should not be 0'ed       */
 	SETIVEC(i, 0, 0);
     } else {
 #ifndef USE_NEW_INT

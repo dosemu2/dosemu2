@@ -1,3 +1,23 @@
+2002/01/06 ver 1.1.2.6 unofficial pre-release
+	From Eric
+	- Enable new keyboard code in compiletime-settings.devel
+	- Clean up the kernel revector bug work around.
+        - removed dead code in int05 left over from when it was called
+	  with REVECT
+        From Bart (reported by Reinhard Karcher, help from Stas)
+        - don't zero out int 7a entry (int.c) , unhack and comment out 
+          official JES hack (bios.S)
+        - remove kernel < 2.0.30 code and adjust requirements
+        From Stas
+        - serial code irq fixes
+        From Thomas Langhammer <Thomas.Langhammer@gmx.de>
+        - dosemu fossil driver enhancement: support the GetDriverInfo
+          function (1Bh) without specifying an existing port number
+        From Emmanuel Jeandel <ejeandel@ens-lyon.fr> (adjusted: Bart)
+        - CRT scan_len adjustments and related fixes to get some
+          Mode-X modes (eg. 360x480) working correctly.
+          You can see the difference with games like Battle Isle 2 
+          or Scorched Earth (the latter is a shareware).
 2002/01/06 ver 1.1.2.5 unofficial pre-release
 	From Eric   
 	- compiletime-settings, compiletime-settings.devel 

@@ -42,7 +42,7 @@ all: lib
 install:
 
 clean::
-	-rm -f keysym_attributes.c
+	-rm -f keysym_attributes.c make_attributes crunch_UnicodeData UnicodeCrunchedAttributes
 
 ifndef REALTOPDIR
 REALTOPDIR=../../../..

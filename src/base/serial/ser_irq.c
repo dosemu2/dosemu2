@@ -112,7 +112,8 @@ void receive_engine(int num)		/* Internal 16550 Receive emulation */
     if (com[num].fifo_enable) {		/* Is it in FIFO mode? */
       if (com[num].rx_timeout) {		/* Has get_rx run since int? */
         com[num].rx_timeout--;			/* Decrement counter */
-        if (!com[num].rx_timeout) {		/* Has timeout counted down? */
+        if (!com[num].rx_timeout && 	/* Has timeout counted down? */
+	 !(com[num].int_condition & RX_INTR)) {	/* and the int is not requested already */
           com[num].LSRqueued |= UART_LSR_DR;
           if(s3_printf) s_printf("SER%d: Func receive_engine requesting RX_INTR\n",num);
           serial_int_engine(num, RX_INTR);	/* Update interrupt status */
@@ -120,7 +121,8 @@ void receive_engine(int num)		/* Internal 16550 Receive emulation */
       }
     }
     else { 				/* Not in FIFO mode */
-      if (com[num].rx_timeout) {		/* Has get_rx run since int? */
+      if (com[num].rx_timeout &&		/* Has get_rx run since int? */
+       !(com[num].int_condition & RX_INTR)) {
         com[num].LSRqueued |= UART_LSR_DR;
         com[num].rx_timeout = 0;		/* Reset timeout counter */
         if(s3_printf) s_printf("SER%d: Func receive_engine requesting RX_INTR\n",num);
@@ -177,7 +179,8 @@ void transmit_engine(int num)	/* Internal 16550 Transmission emulation */
     }
      
     /* Is FIFO empty, and is it time to trigger an xmit int? */
-    if (!com[num].tx_buf_bytes && com[num].tx_trigger) {
+    if (!com[num].tx_buf_bytes && com[num].tx_trigger && 
+     !(com[num].int_condition & TX_INTR)) {
       com[num].tx_trigger = 0;
       com[num].LSRqueued |= UART_LSR_TEMT | UART_LSR_THRE;
       if(s3_printf) s_printf("SER%d: Func transmit_engine requesting TX_INTR\n",num);
@@ -185,7 +188,8 @@ void transmit_engine(int num)	/* Internal 16550 Transmission emulation */
     }
   }
   else {					/* Not in FIFO mode */
-    if (com[num].tx_trigger) { 			/* Is it time to trigger int */
+    if (com[num].tx_trigger && 			/* Is it time to trigger int */
+     !(com[num].int_condition & TX_INTR)) {
       com[num].tx_trigger = 0;
       com[num].LSRqueued |= UART_LSR_TEMT | UART_LSR_THRE;
       if(s3_printf) s_printf("SER%d: Func transmit_engine requesting TX_INTR\n",num);
@@ -229,7 +233,7 @@ void modstat_engine(int num)		/* Internal Modem Status processing */
   
   com[num].MSRqueued = (com[num].MSRqueued & UART_MSR_DELTA) | newmsr | delta;
 
-  if (delta) {
+  if (delta && !(com[num].int_condition & MS_INTR)) {
     if(s2_printf) s_printf("SER%d: Modem Status Change: MSR -> 0x%x\n",num,newmsr);
     if(s3_printf) s_printf("SER%d: Func modstat_engine requesting MS_INTR\n",num);
     serial_int_engine(num, MS_INTR);		/* Update interrupt status */
@@ -392,13 +396,13 @@ void serial_int_engine(int num, int int_requested)
   tmp = (com[num].int_condition & com[num].IER);
   if (!tmp)
     flag_IIR_noint(num);		/* No interrupt */
-  else if (tmp & LS_INTR)
+  if (tmp & LS_INTR)
     flag_IIR_linestat(num);		/* Line Status */
-  else if (tmp & RX_INTR)
+  if (tmp & RX_INTR)
     flag_IIR_receive(num);		/* Receive */
-  else if (tmp & TX_INTR)
+  if (tmp & TX_INTR)
     flag_IIR_transmit(num);		/* Transmit */
-  else if (tmp & MS_INTR)
+  if (tmp & MS_INTR)
     flag_IIR_modstat(num);		/* Modem Status */
   
   /* At this point, we don't much care which function is requested; that  
@@ -474,26 +478,17 @@ pic_serial_run(void)
              com[num].int_condition);
 
   /* Execute any pre-interrupt code that may be necessary */
-  if (tmp & LS_INTR) {			/* Receiver Line Status Interrupt */
+  if (tmp & LS_INTR)			/* Receiver Line Status Interrupt */
     flag_IIR_linestat(num);
-    com[num].int_condition &= ~LS_INTR;
-    do_irq();
-  }
-  else if (tmp & RX_INTR) {		/* Received Data Interrupt */
+  if (tmp & RX_INTR)		/* Received Data Interrupt */
     flag_IIR_receive(num);
-    com[num].int_condition &= ~RX_INTR;
-    do_irq();
-  }
-  else if (tmp & TX_INTR) {		/* Transmit Data Interrupt */
+  if (tmp & TX_INTR)		/* Transmit Data Interrupt */
     flag_IIR_transmit(num);
-    com[num].int_condition &= ~TX_INTR;
-    do_irq();
-  }
-  else if (tmp & MS_INTR) {		/* Modem Status Interrupt */
+  if (tmp & MS_INTR)		/* Modem Status Interrupt */
     flag_IIR_modstat(num);
-    com[num].int_condition &= ~MS_INTR;
+
+  if (tmp)
     do_irq();
-  }
   else {				/* What?  We can't be this far! */
     flag_IIR_noint(num);
     s_printf("SER%d: Interrupt Error: cancelled serial interrupt!\n",num);  
