@@ -344,7 +344,10 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 			free($3);
 		}
 		| VARIABLE '=' strarglist { IFCLASS(CL_VAR) {
-			parser_version_3_style_used = 1;
+			if (!parser_version_3_style_used) {
+			    parser_version_3_style_used = 1;
+			    define_config_variable("version_3_style_used");
+			}
 			if ((strpbrk($1, "uhc") != $1) || ($1[1] != '_'))
 			    setenv($1, $3, 1);
 			else
@@ -434,9 +437,9 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		| CPUSPEED expression
 			{ 
 			if (config.realcpu >= CPU_586) {
-			  config.cpu_spd = LLF_US/$2;
-			  config.cpu_tick_spd = LLF_TICKS/$2;
-			  c_printf("CONF: CPU speed = %d\n", $2);
+			  config.cpu_spd = ((double)LLF_US)/TOF($2);
+			  config.cpu_tick_spd = ((double)LLF_TICKS)/TOF($2);
+			  c_printf("CONF: CPU speed = %g\n", ((double)TOF($2)));
 			}
 			}
 		| CPUSPEED INTEGER INTEGER
@@ -2547,10 +2550,10 @@ int parse_config(char *confname, char *dosrcname)
 
   /* Parse valid users who can execute DOSEMU */
   parse_dosemu_users();
-  if (get_config_variable("c_strict") && strcmp(confname, CONFIG_FILE)) {
+  if (get_config_variable("c_strict") && strcmp(confname, CONFIG_SCRIPT)) {
      c_printf("CONF: use of option -F %s forbidden by /etc/dosemu.users\n",confname);
      c_printf("CONF: using " CONFIG_FILE " instead\n");
-     confname = CONFIG_FILE;
+     confname = CONFIG_SCRIPT;
   }
 
   /* Let's try confname if not null, and fail if not found */
@@ -2573,7 +2576,7 @@ int parse_config(char *confname, char *dosrcname)
     }
 
     /* privileged options allowed? */
-    is_user_config = strcmp(confname, CONFIG_FILE);
+    is_user_config = strcmp(confname, CONFIG_SCRIPT);
     priv_lvl = uid != 0 && is_user_config;
 
     /* DEXE together with option F ? */
@@ -2611,14 +2614,14 @@ int parse_config(char *confname, char *dosrcname)
     if (priv_lvl) undefine_config_variable("c_user");
     else undefine_config_variable("c_system");
 
-    if (!parser_version_3_style_used) {
+    if (!get_config_variable("version_3_style_used")) {
 	/* we obviously have an old configuration file
          * ( or a too simple one )
 	 * giving up
 	 */
-	yyerror("\nYour %s configuration file is obviously\n"
+	yyerror("\nYour %s script or %s configuration file is obviously\n"
 		"an old style or a too simple one\n"
-		"Please read README.txt on how to upgrade\n", confname);
+		"Please read README.txt on how to upgrade\n", confname, CONFIG_FILE);
 	exit(1);
     }
 

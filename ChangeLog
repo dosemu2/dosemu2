@@ -1,3 +1,19 @@
+98/02/02 ver. 0.97.2 released
+	From Hans
+	- Due to arguments from Steffen, decided to rearange dosemu.conf
+	  again. Now dosemu.conf just contains the GLOBAL_SETTINGS part.
+	  The 'script' part is moved to /var/lib/dosemu/global.conf. Hope this
+	  makes it more easy for our (normal) users to fiddle with the
+	  configuration.
+	- fixed $$_speaker bug in global.conf (dosemu.conf of 0.97.1)
+	- (fixed) $_secure such that 'secure off' can be set.
+	- added $_rdtsc, $_cpuspeed, $_pci to dosemu.conf
+	- fixed cpuspeed setting in parser.y (now 'cpuspeed 166.666' works)
+	- added some missing printouts for -h opion (config.c)
+	- updated the docs
+	  - chapter 2 of README.txt -> chapter 2 README-tech.txt
+	  - new chapter 2 of README.txt describes new dosemu.conf
+	  - updated Quickstart and man/dos.1
 98/01/30 ver. 0.97.1.2 unofficial pre-release
 	From Alberto
 	- the RTC/CMOS/int1a patches (tested with ndiags).

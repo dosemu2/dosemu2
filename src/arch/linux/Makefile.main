@@ -332,6 +332,12 @@ install:
 	  install -d $(INSTROOT)/usr/bin; \
 	fi
 	@install -d $(INSTROOT)/var/lib/dosemu
+	@if [ ! -f $(INSTROOT)/var/lib/dosemu/global.conf ]; then \
+	  install -m 0644 ../etc/global.conf $(INSTROOT)/var/lib/dosemu/global.conf; \
+	fi
+	@if [ ! -f $(INSTROOT)/etc/dosemu.conf ]; then \
+	  install -m 0644 ../etc/dosemu.conf $(INSTROOT)/etc/dosemu.conf; \
+	fi
 	@if [ ! -d $(INSTROOT)/var/lib/dosemu/keymap ]; then \
 	  install -d $(INSTROOT)/var/lib/dosemu/keymap; \
 	  install -m 0744 ../etc/keymap/* $(INSTROOT)/var/lib/dosemu/keymap; \
@@ -374,8 +380,8 @@ endif
 	@echo ""; \
 	 echo "---------------------------------DONE Installing-------------------------------"; \
 	 echo ""; \
-	 echo "  - You need to configure DOSEMU. Read 'etc/config.dist'."; \
-	 echo "  - Update your /etc/dosemu.conf by editing a copy of './etc/config.dist'"; \
+	 echo "  - You need to configure DOSEMU. Read './doc/README.txt' and update your"; \
+	 echo "  - configuration by copying/editing dosemu.conf from './etc' to '/etc'"; \
 	 echo "  - After configuring DOSEMU, you can type 'dos' to run DOSEMU."; \
 	 echo "  - Use 'dosexec' instead of 'dos' to cause DOSEMU execute a DEXE."
 ifdef X_SUPPORT

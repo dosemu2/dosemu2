@@ -13,59 +13,29 @@
 
   2.      Runtime Configuration Options
 
-  2.1.    Format of /etc/dosemu.users
+  2.1.    Format of /etc/dosemu.conf
 
-  2.2.    Format of /etc/dosemu.conf (.dosrc, -I option)
+  2.1.1.  Controling ammount of debug output
 
-  2.2.1.  Enviroment variables and configuration variables
+  2.1.2.  Basic emulaton settings
 
-  2.2.2.  Conditional statements
+  2.1.3.  Terminals
 
-  2.2.3.  Include files
+  2.1.4.  Keyboard settings
 
-  2.2.4.  Macro substitution
+  2.1.5.  X Support settings
 
-  2.2.5.  Expressions
+  2.1.6.  Video settings ( console only )
 
-  2.2.6.  String expressions
+  2.1.7.  Disks and floppies
 
-  2.2.7.  `Dry' testing your configuration
+  2.1.8.  COM ports and mices
 
-  2.2.8.  Debug statement
+  2.1.9.  Printers
 
-  2.2.9.  Miscellaneous
+  2.1.10. Networking under DOSEMU
 
-  2.2.10. Keyboard settings
-
-  2.2.11. Serial stuff
-
-  2.2.12. Networking Support
-
-  2.2.13. Terminals
-
-  2.2.14. X Support settings
-
-  2.2.15. Video settings ( console only )
-
-  2.2.16. Memory settings
-
-  2.2.17. IRQ passing
-
-  2.2.18. Port Access
-
-  2.2.19. Speaker
-
-  2.2.20. Hard disks
-
-  2.2.21. DOSEMU boot
-
-  2.2.22. Floppy disks
-
-  2.2.23. Printers
-
-  2.2.24. Sound
-
-  2.2.25. DEXE support
+  2.1.11. Sound
 
   3.      Security
 
@@ -193,15 +163,25 @@
   22..  RRuunnttiimmee CCoonnffiigguurraattiioonn OOppttiioonnss
 
   This section of the document by Hans, <lermen@fgan.de>. Last updated
-  on January 15, 1998.
+  on January 31, 1998.
+
   Most of DOSEMU configuration is done during runtime and per default it
-  expects the system wide configuration file /etc/dosemu.conf,
-  optionally folowed by the users  /.dosrc and additional configurations
+  expects the system wide configuration file /etc/dosemu.conf optionally
+  followed by the users  /.dosrc and additional configurations
   statements on the commandline (-I option). The builtin configuration
   file of a DEXE file is passed using the -I technique, hence the rules
   of -I apply.
 
-  However, the first file expected (and interpreted before) is
+  In fact /etc/dosemu.conf is included by the systemwide configuration
+  script /var/lib/dosemu/global.conf, but as a normal user you won't
+  ever think on editing this, only dosemu.conf.  The syntax of
+  global.conf is described in detail in README-tech.txt, so this is
+  skipped here. However,  /.dosrc and -I too use the same syntax as
+  global.conf, hence, if you are doing some special stuff (after you got
+  familar with DOSEMU) you may need to have a look there.
+
+  The first file expected (and interpreted before) any other
+  configuration (such as global.conf and dosemu.conf) is
   /etc/dosemu.users.  Within /etc/dosemu.users the general permissions
   are set:
 
@@ -209,1699 +189,463 @@
 
   +o  what kind of access class the user belongs to.
 
-  +o  wether the user is allowed to define a private dosemu.conf that
-     replaces /etc/dosemu.conf (option -F).
+  +o  wether the user is allowed to define a private global.conf that
+     replaces /var/lib/dosemu/global.conf (option -F).
 
   +o  what special configuration stuff the users needs
 
-  This is done via setting configuration variables.
+  Each line in dosemu.user corresponds to exactly _o_n_e valid user count,
+  the special user `all' means any user not mentioned earlier. Format:
 
-  After /etc/dosemu.users /etc/dosemu.conf is interpreted, and only if
-  its _r_e_a_l_l_y this file (not a -F one) access to all configuration
-  options is allowed.
+         [ <login> | all ] [ confvar [ confvar [ ... ] ] ]
 
-  The /etc/dosemu.conf may check for the configuration variables, that
-  are set in /etc/dosemu.users and optionaly include further
-  configuration files. But once /etc/dosemu.conf has finished
-  interpretation, the access to secure relevant configurations is
-  (class-wise) restricted while the following interpretation of .dosrc
-  and -I statements.
+  The below example is from etc/dosemu.users.secure, which you may copy
+  to /etc/dosemu.users.
 
-  For an example of a 'sophisticated' configuration look at the end of
-  this readme. For an example of a general configuration  look at
-  ./etc/dosemu.conf. The later behaves insecure, when /etc/dosemu.users
-  is a copy of ./etc/dosemu.users.easy and behave 'secure', when
-  /etc/dosemu.users is a copy of ./etc/dosemu.users.secure.
+         root c_all     # root is allowed to do all weird things
+         nobody guest   # variable 'guest' is checked in global.conf
+                        # to allow only DEXE execution
+         guest guest    # login guest treated as `nobody'
+         all restricted # all other users have normal user restrictions
 
-  22..11..  FFoorrmmaatt ooff //eettcc//ddoosseemmuu..uusseerrss
+  Note that the above `restricted' is checked in global.conf and will
+  disable all secure relevant feature. Setting `guest' will force set-
+  ting `restricted' too.
 
-  Each line corresponds to exactly _one_ valid user count:
+  Nevertheless, for a first try of DOSEMU you may prefer
+  etc/dosemu.users.easy, which just contains
 
-         loginname [ c_strict ] [ classes ...] [ c_dexeonly ] [ other ]
+         root c_all
+         all c_all
 
-  where the elements are:
+  to allow evrybody all weird things. For more details on security
+  issues have a look at README-tech.txt chapter 2.
 
-     llooggiinnnnaammee
-        valid login name (root also is one) or 'all'. The later means
-        any user not mentioned in previous lines.
+  After /etc/dosemu.users /etc/dosemu.conf (via global.conf) is
+  interpreted, and only during global.conf parsing access to all
+  configuration options is allowed.
 
-     cc__ssttrriicctt
-        Do not allow -F option (/etc/dosemu.conf can't be replaced)
-     cc__ddeexxeeoonnllyy
-        Only allow execution of DEXE files, forbid any other use.
+  The dosemu.conf (global.conf) may check for the configuration
+  variables, that are set in /etc/dosemu.users and optionaly include
+  further configuration files. But once /etc/dosemu.conf (global.conf)
+  has finished interpretation, the access to secure relevant
+  configurations is (class-wise) restricted while the following
+  interpretation of .dosrc and -I statements.
 
-     ccllaasssseess
-        One or more of the following:
+  For more details on security setings/issues look at README-tech.txt,
+  for now (using DOSEMU the first time) you should need only the below
+  description of /etc/dosemu.conf.
 
-        cc__aallll
-           no restriction
+  22..11..  FFoorrmmaatt ooff //eettcc//ddoosseemmuu..ccoonnff
 
-        cc__nnoorrmmaall
-           normal restrictions, all but the following classes: c_var,
-           c_boot, c_vport, c_secure, c_irq, c_hardram.
+  All settings in dosemu.conf are just variables, that are interpreted
+  in /var/lib/dosemu/global.conf and have the form of
 
-        cc__vvaarr
-           allow (un)setting of configuration- and environment variables
+         $_xxx = (n)
+       or
+         $_zzz = "s"
 
-        cc__nniiccee
-           allow `HogThreshold' setting
+  where `n' ist a numerical or boolean value and `s' is a string.  Note
+  that the brackets are important, else the parser won't decide for a
+  number expression. For numers you may have complete expressions ( such
+  as (2*1024) ) and strings may be concatenated such as
 
-        cc__ffllooppppyy
-           allow floppy access
+         $_zzz = "This is a string containing '", '"', "' (quotes)"
 
-        cc__bboooott
-           allow definition of boot file/device
+  Hence a comma separated list of strings is concatenated.
 
-        cc__sseeccuurree
-           allow setting of 'secure off'
+  22..11..11..  CCoonnttrroolliinngg aammmmoouunntt ooff ddeebbuugg oouuttppuutt
 
-        cc__vvppoorrtt
-           allow setting of 'allowvideoportaccess'
+  DOSEMU will help you finding problems, when you enable its debug
+  messages.  These will go into the file, that you defined via the `-o
+  file' or `-O' commandline option (the later prints to stderr). In
+  dosemu.conf you can preset this via
 
-        cc__ddppmmii
-           allow DPMI setting
+         $_debug = "-a"
 
-        cc__vviiddeeoo
-           allow `video' setting
+  where the string contains all you normally may pass to the `-D' com-
+  mandline option (look at the man page for details).
 
-        cc__ppoorrtt
-           allow `port' setting
+  22..11..22..  BBaassiicc eemmuullaattoonn sseettttiinnggss
 
-        cc__ddiisskk
-           allow `disk'  settings
+  To enable INT08 type timer interrupts set the below on or off
 
-        cc__xx
-           allow X support settings
+         $_timint = (on)
 
-        cc__ssoouunndd
-           allow sound settings
+  Wether a numeric processor should be shown to the DOS space
 
-        cc__iirrqq
-           allow `irqpassing' statement
+         $_mathco = (on)
 
-        cc__ddeexxee
-           allow `dexe' settings
+  Which type of CPU should be emulated (NOTE: this is not the one you
+  are running on, but your setting may not exeed the capabilities of the
+  running CPU). Valid values are:  8034586
 
-        cc__pprriinntteerr
-           allow printer settings
+         $_cpu = (80386)
 
-        cc__hhaarrddrraamm
-           allow 'hardware_ram' settings
+  To let DOSEMU use the Pentium cycle counter (if availabe) to do better
+  timing use the below
 
-        cc__sshheellll
-           allow the parser's `shell()' function
+         $_rdtsc = (on)   # or off
 
-     ootthheerr
-        Here you may define any configuration variable, that you want to
-        test in /etc/dosemu.conf (or .dosrc, -I), see 'ifdef', 'ifndef'
-        When this variable is intended to be unset in lower privilege
-        configuration files (.dosrc, -I), then the variable name has to
-        be prefixed with 'u_'.
+  For the above `rdtsc' feature DOSEMU needs to know the exact CPU
+  clock, it normally calibrates it itself, but is you encounter a wrong
+  mesurement you may overide it such as
 
-  A line with '#' at colum 1 is treated as comment line. When only the
-  login name is given (no further parameters, old format) the following
-  setting is assumed:
-
-         if 'root'  c_all
-         else       c_normal
-
-  Other than with previous DOSEMU versions, the /etc/dosemu.users now is
-  mandatory. Also note, that you may restrict 'root' doing something
-  silly ;-)
-
-  22..22..  FFoorrmmaatt ooff //eettcc//ddoosseemmuu..ccoonnff ((..ddoossrrcc,, --II ooppttiioonn))
-
-  The configuration files are not line oriented, instead are consisting
-  of `statements' (optionally separated by `;'), whitespaces are removed
-  and all behind a '#' up to the end of the line is treated as comment.
-  ( Note that older DOSEMUs also allowed `!' and `;' as comment
-  character, but those are no longer supported ).
-
-  22..22..11..  EEnnvviirroommeenntt vvaarriiaabblleess aanndd ccoonnffiigguurraattiioonn vvaarriiaabblleess
-
-  They existed already in very early versions of DOSEMU (until now), but
-  now evironment variables are much more useful in /etc/dosemu.conf as
-  before, because you now can set them, test them in the new 'if'
-  statement and compute them in expressions.  The problem with the
-  enviroment variables is, however, that the user may set and fake them
-  _b_e_f_o_r_e calling DOSEMU, hence this is a security problem. To avoid
-  this, we have the above mentioned _c_o_n_f_i_g_u_r_a_t_i_o_n _v_a_r_i_a_b_l_e_s, which are
-  of complete different name space and are not visible outside of
-  DOSEMU's configuration parser. On the other hand it may be useful to
-  export settings from /etc/dosemu.conf to the running DOS environment,
-  which can be achieved by the 'unix.exe -e' DOS programm.
-
-  To summarize:
-
-     ccoonnffiigguurraattiioonn vvaarriiaabblleess
-        have their own namespace only within the configuration parser.
-        They usual are prefixed by _c__, _u__ and _h__ and cannot be made
-        visible outside. They do not contain any value and are only
-        tested for existence.
-
-     eennvviirroonnmmeenntt vvaarriiaabblleess
-        are inherited from the calling process, can be set within
-        /etc/dosemu.conf and passed to DOSEMU running DOS-applications.
-        Within /etc/dosemu.conf they always are prefixed by '$' (Hence
-        TERM becomes $TERM, even on the left side of an assigment).
-        However, _s_e_t_t_i_n_g them is controled by the configuration variable
-        'c_var' (see above) and may be disallowed within the user
-        supplied .dosrc and alike.
-
-  At startup DOSEMU generates the following environment variables, which
-  may be used to let the configuration adapt better:
-
-     KKEERRNNEELL__VVEERRSSIIOONN__CCOODDEE
-        holds the numerical coded version of the running linux kernel
-        (same format as within linux/version.h)
-
-     DDOOSSEEMMUU__VVEERRSSIIOONN__CCOODDEE
-        holds the numerical coded version of the running DOSEMU version
-        (format: MSB ... LSB == major, minor, patchlevel, sublevel)
-
-     DDOOSSEEMMUU__EEUUIIDD
-        effective uid
-
-     DDOOSSEEMMUU__UUIIDD
-        uid. You may protect security relevant parts of the
-        configuration such as:
-
-             if ( ! $DOSEMU_EUID && ($DOSEMU_EUID != $DOSEMU_UID) )
-               warn "running suid root"
-             endif
-
-     DDOOSSEEMMUU__HHOOSSTT
-        Name of the host DOSEMU is running on. This is same as what
-        follows the `h_' configuration variable, see below.  ( if not
-        available, then DOSEMU_HOST contains `unknown' )
-
-     DDOOSSEEMMUU__UUSSEERR
-        The user name, that got matched in /etc/dosemu.users.  This
-        needs not to be the _real_ user name, it may be `all' or
-        `unknown'.
-
-     DDOOSSEEMMUU__RREEAALL__UUSSEERR
-        The user name out of getpwuid(uid).
-
-     DDOOSSEEMMUU__SSHHEELLLL__RREETTUURRNN
-        The exitcode (0-255) from the recently executed _s_h_e_l_l_(_) command.
-
-     DDOOSSEEMMUU__OOPPTTIIOONNSS
-        A string of all commandline options used (one character per
-        option). You may remove a character from this string, such that
-        the normal override of dosemu.conf settings will not take place
-        for that option. However, parsing the command line options
-        happens in two stages, one _before_ parsing dosemu.conf and one
-        _after_. The options 'FfhIdLoO23456' have already gotten
-        processed before dosemu.conf, so they can be disabled.
-
-  22..22..22..  CCoonnddiittiioonnaall ssttaatteemmeennttss
-
-  You may control execution of configuration statements via the
-  following conditional statement:
-
-         ifdef <configuration variable>
-
-  or
-
-         ifndef <configuration variable>
-           ...
-         else
-           ...
-         endif
-
-  where _v_a_r_i_a_b_l_e is a _c_o_n_f_i_g_u_r_a_t_i_o_n _v_a_r_i_a_b_l_e (not an environment
-  variable). Additionally there is a `normal' _i_f _s_t_a_t_e_m_e_n_t, a _w_h_i_l_e
-  _s_t_a_t_e_m_e_n_t and a _f_o_r_e_a_c_h _s_t_a_t_e_m_e_n_t such as
-
-         if ( expression )
-         endif
-         while ( expression )
-         done
-         foreach loop_variable (delim, list)
-         done
-
-  but these behaves a bit different and are described later.
-
-  The 'else' clause may be ommitted and 'ifndef' is the opposite to
-  'ifdef'.  The <variable> can't be tested for its contents, only if it
-  is set or not.  Clauses also may contain further if*def..endif clause
-  up to a depth of 15.  All stuff in /etc/dosemu.users behind the
-  'loginname' in fact are _c_o_n_f_i_g_u_r_a_t_i_o_n _v_a_r_i_a_b_l_e_s that are set. Hence,
-  what you set there, can be tested here in the config file. Further
-  more you may set/unset  _c_o_n_f_i_g_u_r_a_t_i_o_n _v_a_r_i_a_b_l_e_s in the config files
-  itself:
-
-         define <configuration variable>
-         undef  <configuration variable>
-
-  However, use of define/undef is restricted to scope of
-  /etc/dosemu.conf, as long as you don't 'define c_var' _within_
-  /etc/dosemu.conf.  If you are under scope of a 'user config file'
-  (e.g. outside /etc/dosemu.conf) you have to prefix the _c_o_n_f_i_g_u_r_a_t_i_o_n
-  _v_a_r_i_a_b_l_e name with 'u_', else it will not be allowed to be set/unset
-  (hence 'c_' type variables can't be unset out of scope of
-  /etc/dosemu.conf).
-
-  There are some _c_o_n_f_i_g_u_r_a_t_i_o_n _v_a_r_i_a_b_l_e_s (besides the ones described
-  above for dosemu.users) implicitely predefined by DOSEMU itself:
-
-     cc__ssyysstteemm
-        set while being in /etc/dosemu.conf
-
-     cc__uusseerr
-        set while parsing a user configuration file
-
-     cc__ddoossrrcc
-        set while parsing .dosrc
-
-     cc__ccoommlliinnee
-        set while parsing -I option statements
-
-     cc__ddeexxeerruunn
-        set if a DEXE will be executed
-
-     hh__<<oowwnnhhoosstt>>
-        defined on startup as 'h_<host>.<domain>' of the host DOSEMU is
-        running on. If <domain> can't be resolved, the pure hostname is
-        taken. This makes sense only if a file system containing DOSEMU
-        is mounted on diskless machines and you want restrict access.
-        Note however, h_<ownhost> is set using
-        gethostname/getdomainname. Hence, if the user on the diskless
-        machine has root access, this is _not_ secure, because he could
-        fake a valid address.
-
-  Also, you may define any 'u_' type variable at start of DOSEMU via the
-  new option -u such as
-
-       # dos -u myspecialfun
-
-  this will then define the config variable 'u_myspecialfun' _before_
-  parsing any configuration file. You then may check this in your
-  ./dosrc or /etc/dosemu.conf to do the needed special configuration.
-
-  Now, what's this with the _i_f _s_t_a_t_e_m_e_n_t and _w_h_i_l_e _s_t_a_t_e_m_e_n_t?  All those
-  conditionals via _i_f_d_e_f and _i_n_d_e_f are completly handled _b_e_f_o_r_e the
-  remaining input is passed to the parser. Hence you even may use them
-  _w_i_t_h_i_n a configuration statement such as
-
-       terminal { charset
-         ifdef u_likeibm
-           ibm
-         else
-           latin
-         endif
-         updatefreq 4  color on }
-
-  This is not the case with the (above mentioned) _i_f _s_t_a_t_e_m_e_n_t, this one
-  is of course processed within the parser itself and can only take
-  place within the proper syntax context such as
-
-         if ( defined( u_likeibm ) )
-           $mycharset = "ibm"
-         else
-           $mycharset = "latin"
-         endif
-         terminal { charset $mycharset updatefreq 4  color on }
-
-  but it has the advantage, that you can put any (even complex)
-  _e_x_p_r_e_s_s_i_o_n (see chapter `expressions') between the brackets.  If the
-  expression's numerical value is 0, then false is assumed, else true.
-
-  Same rules apply to the _w_h_i_l_e _s_t_a_t_e_m_e_n_t, the loop will be executed as
-  long as `expression' is not 0. The loop end is given by the keyword
-  _d_o_n_e such as in
-
-         $counter = (3)
-         while ($counter > 0)
-           # what ever should loop
-           $counter = ($counter -1)
-         done
-
-         # or some kind of list processing
-         # ... but look below, `foreach' does it better
-         $list = "aa bbb ccc"
-         while (strlen($list))
-           $item = strdel($list, strchr($list," "), 999)
-           $list = strsplit($list, (strlen($item)+1),9999);
-           warn "doing something with ", $item
-         done
-
-  The _f_o_r_e_a_c_h _s_t_a_t_e_m_e_n_t behaves a bit like the /bin/sh `for i in', but
-  you can specify a list of delimiters.
-
-         $list = "anton, berta; caesar dora"
-         $delim = " ,;"
-         foreach $xx ($delim, $list)
-           warn "My name is ", $xx
-         done
-
-         $list = "a b c : 1 2 3"
-         $delim = ":"
-         foreach $xx ($delim, $list)
-           if ($delim eq ":")
-             $delim = " ";
-           else
-             warn "processing number ", $xx
-           endif
-         done
-
-  The later example jumps to the colon (`:') in one step and after that
-  process the numbers step by step.
-
-  For all loops and `if' statement the allowed depth is 32 (totally).
-
-  22..22..33..  IInncclluuddee ffiilleess
-
-  If you for some reason want to bundle some major settings in a
-  separate file you can include it via
-
-         include "somefile"
-
-  If 'somefile' doesn't have a leading '/', it is assumed to be relative
-  to /etc.  Also includeing may be nested up to a max depth of 10 files.
-  Note however, that the privilege is inherited from the main file from
-  which is included, hence all what is included by /etc/dosemu.conf has
-  its privilege.
-
-  However, there are restrictions for `while' loops: You can't have
-  _i_n_c_l_u_d_e _s_t_a_t_e_m_e_n_t_s within loops without beeing prepared for unexpected
-  behave. In fact you may try, but due to the technique used, include
-  files within loops are loaded completely _p_r_i_o_r loop execution.  Hence,
-  if you do conditional including this won't work.
-
-  A further restriction is, that the name of the include file must not
-  be a variable. However, you can work around this with a macro (see
-  next chapter) as shows the following example:
-
-         $file = $HOME, "/.my_dosrc_include"
-         shell("test -f ", $file)
-         if ( ! $DOSEMU_SHELL_RETURN)
-           # we can include
-           $INC = ' include "', $file, '"';
-           $$INC
-         endif
-
-  22..22..44..  MMaaccrroo ssuubbssttiittuuttiioonn
-
-  There is a _v_e_r_y rudimentary macro substitution available, which does
-  allow recursion but no arguments: Whenever you write
-
-         $MYMACRO = "warn 'this is executed as macro'" ;
-         $$MYMACRO
-
-  it will expand to
-
-         warn 'this is executed as macro'
-
-  Note, that the `;' is required for parser to recognize the end of the
-  statement and to set the variable _b_e_f_o_r_e it tries to read the next
-  token (which will let the lexer process `$$MYMACRO'). Macro
-  substitution is completely done on the input stream before the parser
-  gets the data.
-
-  For what is it worth then? Now, this enables you to insert text into
-  the input stream, that otherwise would be expected to be constant. Or
-  simple, it allows you to be lazy to write the same things more then
-  once.
-
-         $loop = '
-           while ($xxx)
-             warn "loop in macro ",$xxx
-             $xxx = ($xxx -1)
-           done
-         ';
-         $xxx = (2); $$loop; $xxx = (3); $$loop;
-
-         $_X_keycode = (off)
-         $_X_lin_filt = (on)
-         ...
-         if ($_X_keycode) $_X_keycode = "keycode" else $_X_keycode = "" endif
-         if ($_X_lin_filt) $_X_lin_filt = "lin_filt" else $_X_lin_filt = "" endif
-         X { icon_name "xdos" $$_X_keycode $$_X_lin_filt }
-
-  You see, that in cases the variables are `false', the (parameterless)
-  `keycode' and/or `lin_filt' keywords would not appear in the `X{}'
-  statement.
-
-  22..22..55..  EExxpprreessssiioonnss
-
-  Expression within the configuration files follow the usual numerical
-  rules and may be as complex as you wish. At some places, the parser
-  only can `understand' expressions, when you enclose them in brackets,
-  but mostly you just can type
-
-         123 + 456 + 2 * 1.2
-
-  Though, if you want be sure, you better type them as
-
-         ( 123 + 456 + 2 * 1.2 )
-
-  You may place expressions whenever a numerical value is expected and
-  there is no ambiguity in the syntax. Such an ambiguity is given, when
-  a statement needs more then one successive number such as
-
-    ... winsize x y ...
-    ... vesamode width heigh ...
-    ... range from to ...
-
-  If you want to place expression herein, you need the new syntax for
-  those statements / terms which have a coma (instead of a blank) as
-  delimiter:
-
-         ... winsize x , y ...
-         ... vesamode width , heigh ...
-         ... range from , to ...
-
-  The old syntax is left for compatibility and is only parsed correcty,
-  if pure numbers (integers) are used.
-
-  Valid constant numbers (not only in expressions) are
-
-         123     decimal, integer
-         0x1a    hexadecimal, integer
-         0b10101 bitstream, integer
-         1.2     float number, real
-         0.5e3   exponential form, real
-         off     boolean false, integer
-         on      boolean true, integer
-         no      boolean false, integer
-         yes     boolean true, integer
-
-  The following operator are recognized:
-
-         + - *   as usual
-         / div   division, the '/' _must_ be surrounded by whitespaces, else
-                 it conflicts with pathnames on quoteless strings
-         |       bitwise or
-         ^       bitwise exclusive or
-         ~       bitwise not
-         &       bitwise and
-         >>      shift right
-         <<      shift left
-         <       less then
-         <=      less or equal
-         >       greater then
-         >=      greater or equal
-         ||      boolean or
-         &&      boolean and
-         !       boolean not
-         ==      numerical equivalence
-         eq      string equivalence
-         !=      numerical, not equal
-         ne      string not equal
-
-  The type of the expression result may be real (float) or integer,
-  depending on which type is on the `left side'. Conversion is mostly
-  done automaticaly, but you may force it using the (below mentioned)
-  int() and real() functions such as:
-
-          $is_real =    ( 3.1415 * 100 )
-          $is_integer = ( int( 3.1415 * 100) )
-          $is_integer = ( 100 * 3.1415 )
-          $is_real =  ( real($is_integer) )
-
-  The above also shows, how environment variables can be set: if you
-  want to place `expressions' (which are always numbers) onto a
-  variable, you have to surround them with brackets, else the parser
-  won't be able to detect them. In principal, all $xxx settings are
-  string-settings and numbers will be converted correctly before. In
-  fact the `$xxx =' statement accepts a complete coma separated list,
-  which it will concatenate, examples:
-
-         $termnum = (1)
-         $MYTERM = "/dev/ttyp", $termnum       # results in "/dev/ttyp1"
-         $VER = (($DOSEMU_VERSION_CODE >> 24) & 255)
-         $MINOR = (($DOSEMU_VERSION_CODE >> 16) & 255)
-         $running_dosemu = "dosemu-", $VER, ".", $MINOR
-
-  Several builtin functions, which can be used in expressions, are
-  available:
-
-     iinntt((rreeaall))
-        converts a float expression to integer
-
-     rreeaall((iinntteeggeerr))
-        converts a integer expression to float
-
-     ssttrrlleenn((ssttrriinngg))
-        returns the length of `string'
-
-     ssttrrttooll((ssttrriinngg))
-        returns the integer value of `string'
-
-     ssttrrnnccmmpp((ssttrr11,,ssttrr22,,eexxpprreessssiioonn))
-        compares strings, see `man strncmp'
-
-     ssttrrppbbrrkk((ssttrr11,,ssttrr22))
-        like `man strpbrk', but returns an index or -1 instead of a char
-        pointer.
-
-     ssttrrcchhrr((ssttrr11,,ssttrr22))
-        like `man strchr', but returns an index or -1 instead of a char
-        pointer.
-
-     ssttrrrrcchhrr((ssttrr11,,ssttrr22))
-        like `man strrchr', but returns an index or -1 instead of a char
-        pointer.
-
-     ssttrrssttrr((ssttrr11,,ssttrr22))
-        like `man strstr', but returns an index or -1 instead of a char
-        pointer.
-
-     ssttrrssppnn((ssttrr11,,ssttrr22))
-        as `man strspn'
-
-     ssttrrccssppnn((ssttrr11,,ssttrr22))
-        as `man strcspn'
-
-     ddeeffiinneedd((vvaarrnnaammee))
-        returns true, if the configuration variable `varname' exists.
-
-  22..22..66..  SSttrriinngg eexxpprreessssiioonnss
-
-  For manipulation of strings there are the following builtin functions,
-  which all return a new string. These very well may be placed as
-  argument to a numerical function's string argument, but within an
-  `expression' they may be only used together with the `eq' or `ne'
-  operator.
-
-     ssttrrccaatt((ssttrr11,, ,,ssttrrnn))
-        concatenates any number of strings, the result is a string
-        again.
-
-     ssttrrsspplliitt((ssttrriinngg,, eexxpprr11,, eexxpprr22))
-        cuts off parts of `string', starting at index `expr1' with
-        length of `expr2'.  If either `expr1' is < 0 or `expr2' is < 1,
-        an empty string is returned.
-
-     ssttrrddeell((ssttrriinngg,, eexxpprr11,, eexxpprr22))
-        deletes parts of `string', starting at index `expr1' with length
-        of `expr2'.  If either `expr1' or `expr2' is < 0, nothing is
-        deleted (the original strings is returned).
-
-     sshheellll((ssttrriinngg))
-        executes the command in `string' and returns its stdout result
-        in a string. The exit code of executed command is put into
-        $DOSEMU_SHELL_RETURN (value between 0 and 255). You may also
-        call shell() as a standalone statement (hence discarding the
-        returned string), if you only need $DOSEMU_SHELL_RETURN (or not
-        even that).  However, to avoid security implications all
-        privilegdes are dropped and executions is under control of
-        _c___s_h_e_l_l configuration variable. The default is, that it can only
-        be executed from within /etc/dosemu.conf.
-
-  With these tools you should be able to make your /etc/dosemu.conf
-  adapt to any special case, such as different terminal types, different
-  hdimages for different users and/or different host, adapt to different
-  (future) dosemu and/or kernel versions. Here some small examples:
-
-    $whoami = shell("who am i")
-    if ( strchr($whoami, "(" ) < 0 )
-      # beeing on console
-    else
-      if (strstr($whoami, "(:") < 0)
-        # beeing remote logged in
-      endif
-      if ($TERM eq "xterm")
-        # beeing on xterm
-      else
-        if (strstr("linux console", $TERM) < 0)
-          # remote side must be some type of real terminal
-        else
-          # remote side is a Linux console
-        endif
-      endif
-    endif
-
-    if ($DISPLAY ne "")
-      # we can rely on reaching an Xserver
-      if (strsplit($DISPLAY, 0, 1) ne ":")
-        # the X server is remote
-      endif
-    endif
-
-    if ($DOSEMU_REAL_USER eq "alistair")
-      # ha, this one is allowed to do odds sound tricks :-)
-    endif
-
-    if (strsplit($DOSEMU_HOST, 0, strchr($DOSEMU_HOST,"."))
-                                                     eq $DOSEMU_HOST)
-      # we have no domain suffix for this host, should be a local one
-    endif
-
-    # disable setting graphics mode per commandline option -g
-    $DOSEMU_OPTIONS = strdel($DOSEMU_OPTIONS, strchr($DOSEMU_OPTIONS,"g"),1);
-
-  22..22..77..  ``DDrryy'' tteessttiinngg yyoouurr ccoonnffiigguurraattiioonn
-
-  It may be usefull to verify, that your /etc/dosemu.conf does what you
-  want before starting a real running DOSEMU. For this purpose there is
-  a new commandline option (-h), which just runs the parser, print some
-  useful output, dumps the main configuration structure and then exits.
-  The option has an argument (0,1,2), which sets the amount of parser
-  debug output: 0 = no parser debug, 1 = print loop debugs, 2 = same as
-  1 plus if_else_endif-stack debug. This feature can be used such as
-
-         $ dos -h0 -O 2>&1 | less
-
-  The output of `-h2' looks like
-
-    PUSH 1->2 1 >foreach__yy__<
-    PUSH 2->3 1 >if<
-    POP 2<-3 0 >endif< -1
-    POP 1<-2 1 >done< -1
-    PUSH 1->2 1 >foreach__yy__<
-    PUSH 2->3 1 >if<
-    POP 2<-3 1 >endif< -1
-    POP 1<-2 1 >done< -1
-        |  | |         +-------`cached' read status (0 = not cached)
-        |  | +-----------------`if' or `loop' test result (0 = false = skipped)
-        |  +-------------------inner level
-        +----------------------outer level (1 = no depth)
-
-  There are also some configuration statements, which aren't of any use
-  except for help debugging your /etc/dosemu.conf such as
-
-         exprtest ($DOSEMU_VERSION_CODE)   # will just print the result
-         warn "content of DOSEMU_VERSION_CODE: ", $DOSEMU_VERSION_CODE
-
-  22..22..88..  DDeebbuugg ssttaatteemmeenntt
-
-  This section is of interest mainly to programmers.  This is useful if
-  you are having problems with DOSEMU and you want to enclose debug info
-  when you make bug reports to a member of the DOSEMU development team.
-  Simply set desired flags to "on" or "off", then redirect stderr of
-  DOSEMU to a file using "dos -o debug" to record the debug information
-  if desired.  Skip this section if you're only starting to set up.
-
-         debug { config  off   disk    off     warning off     hardware off
-               port    off     read    off     general off     IPC      off
-               video   off     write   off     xms     off     ems      off
-               serial  off     keyb    off     dpmi    off
-               printer off     mouse   off     sound   off
-         }
-
-  Alternatively you may use the same format as -D commandline option
-  (but without the -D in front), look at the dos.1 man page.
-
-         debug "+a-v"     # all messages but video
-         debug "+4r"      # default + maximum of PIC debug
-
-  or simply (to turn off all debugging)
-
-    debug { off }
-
-  22..22..99..  MMiisscceellllaanneeoouuss
-
-  The HogThreshold value determines how nice Dosemu will be about giving
-  other Linux processes a chance to run.  Setting the HogThreshold value
-  to approximately half of you BogoMips value will slightly degrade
-  Dosemu performance, but significantly increase overall system idle
-  time.  A zero value runs Dosemu at full tilt.
-
-         HogThreshold 0
-
-  Want startup DOSEMU banner messages?  Of course :-)
-
-         dosbanner on
-
-  Timint is necessary for many programs to work.
-
-         timint on
-
-  For "mathco", set this to "on" to enable the coprocessor during
-  DOSEMU.  This really only has an effect on kernels prior to 1.0.3.
-
-         mathco on
-
-  For "cpu", set this to the CPU you want recognized during DOSEMU.
-
-         cpu 80386
-
-  If you have DOSEMU configured to use the 386-emulator, you can enable
-  the emulator via
-
-         cpu emulated
-
-  You may ask why we need to emulate a 386 on an 386 ;-) Well, for
-  normal purpose its not needed (and will be slower anyway), but the
-  emulator offers a better way to debug DOS applications, especially
-  DPMI code.  Also, we hope that some day we may be able to run DOSEMU
-  on other machines than 386. At the time of writing this, the cpu
-  emulators is very alpha and you should not use it except you are
-  willing to help us. So please, don't even try to report 'bugs' except
-  you have a patch for the bug too.
-
-  If you have a pentium, DOSEMU can make use of the pentium cycle
-  counter to do better timing. DOSEMU detects the pentium and will use
-  the RDTSC instruction for get time per default. To disable this
-  feature use
-
-         rdtsc off
-
-  Also, to use the pentium cycle counter correctly DOSEMU needs to know
-  the CPU-clock which your chip is running. This per default is
-  calibrated automatically, however, that may be not exact enough. In
-  this case you have to set it yourself via
-
-         cpuspeed 180
-
-  or, for values like 166.6666 you may give two numbers such as
-
-         cpuspeed 500 3
-
-  which will be calculated as 'cpuspeed=500/3'
+         $_cpuspeed = (166.666)  # 0 = let DOSEMU calibrate
 
   If you have a PCI board you may allow DOSEMU to access the PCI
   configuration space by defining the below
 
-         pci on | off
+         $_pci = (on)    # or off
 
-  PCI is assumed to be present on CPUs better then a pentium, otherwise
-  the default is 'pci off'
+  Defining the memory layout, which DOS should see:
 
-  For "bootA"/"bootC", set this to the bootup drive you want to use.  It
-  is strongly recommended you start with "bootA" to get DOSEMU going,
-  and during configuration of DOSEMU to recognize hard disks.
+         $_xms = (1024)          # in Kbyte
+         $_ems = (1024)          # in Kbyte
+         $_ems_frame = (0xe000)
+         $_dpmi = (off)          # in Kbyte
+         $_dosmem = (640)        # in Kbyte, < 640
 
-    bootA
+  Note that (other as in native DOS) each piece of mem is separate,
+  hence DOS perhaps will show other values for 'extended' memory. To
+  enable DPMI (by giving it memory) is a security concern, so you should
+  either _n_o_t give access to dosemu for normal users (via
+  /etc/dosemu.users) or give those users the `restricted' attribute (see
+  above).
 
-  During compile there will be a symbol map generated, this usually then
-  is ./bin/dosemu.map. You may wnt to save it to an other places and let
-  'dosdebug' know where to find it:
+  There are some features in DOSEMU, that may violate system security
+  and which you should not use on machines, which are `net open'. To
+  have atleast a minimum of protection against intruders, use the
+  folling:
 
-         dosemumap /var/lib/dosemu/dosemu.map
+    $_secure ="ngd"  # secure for: n (normal users), g (guest), d (dexe)
+                     # empty string: depending on 'restricted'
 
-  Normally all debug logging is done _imediately_ (unbuffered). However,
-  when dumping big amounts of logdata, the dynamic behave of DOSEMU may
-  change, hence hiding the real problem (or causing a new one) Using the
-  below switches buffering on and sets the buffer size.
+  The above is a string of which may be given or not, hence
 
-         logbufsize 0x20000
+         $_secure ="d"
 
-  In addition, you may want to limit the file size of the log file,
-  especially when you expect huge amounts of data (such as with -D+e).
-  This can be done via
+  would only effect execution of DEXEs. If you are not a `restricted'
+  user (as given via /etc/dosemu.users) the above settings won't apply.
+  To disable security checking atall set
 
-         logfilesize 0x200000
+         $_secure ="0"
 
-  which (in this case) will limit the size to 2Mbytes. The default
-  setting is a file size of 10Mbytes.
+  For the similar reasons you may `backout' some host, which you don't
+  like to have access to dosemu
 
-  When you want to abort DOSEMU from within a configuration file
-  (because you detected something weird) then do
+         $_odd_hosts = ""    # black list such as
+                             #      "lucifer.hell.com billy.the.cat"
+         $_diskless_hosts="" # black list such as "hacker1 newbee gateway1"
 
-         abort
+  The items in the lists are blank separated, `odd_hosts' checks for
+  remote logins, `diskless_hosts' are meant to be maschines, that mount
+  a complete tree, hence the checked host is the host DOSEMU is running
+  on (not the remote host). However, read README-tech,txt for more
+  details on what actually is disabled.
 
-  or
+  If you want mixed operation on the filesystem, from which you boot
+  DOSEMU (native and via DOSEMU), it may be necessary to have two
+  separate sets of `config.sys,autoexec.bat,system.ini'. DOSEMU can fake
+  a different file extension, so DOS will get other files when running
+  under DOSEMU.
 
-         abort "message text"
+         $_emusys = ""    # empty or 3 char., config.sys   -> config.XXX
+         $_emubat = ""    # empty or 3 char., autoexec.bat -> autoexec.XXX
+         $_emuini = ""    # empty or 3 char., system.ini   -> system.XXX
 
-  When you want just to warn the user use the following (the message
-  will get printed to the log file via the debug-flag '+c')
+  As you would realize at the first glance: DOS will _n_o_t have the the
+  CPU for its own. But how much it gets from Linux, depends on the
+  setting of `hogthreshold'.  The HogThreshold value determines how nice
+  Dosemu will be about giving other Linux processes a chance to run.
 
-    warn "message text"
+    $_hogthreshold = (1)   # 0 == all CPU power to DOSEMU
+                           # 1 == max power for Linux
+                           # >1   the higher, the slower DOSEMU will be
 
-  When you want to use the CDrom driver and the Linux device is other
-  then /dev/cdrom you may define
+  If you have hardware, that is not supported under Linux but you have a
+  DOS driver for, it may be necessary to enable IRQ passing to DOS.
 
-         cdrom /dev/xxx
+         $_irqpassing = ""  # list of IRQ number (2-15) to pass to DOS such as
+                            # "3 8 10"
 
-  22..22..1100..  KKeeyybbooaarrdd sseettttiinnggss
+  Here you tell DOSEMU what to do when DOS wants let play the speaker:
 
-  For defining the keyboard layouts you are using there is the
-  "keyboard" statement such as
+         $_speaker = ""     # or "native" or "emulated"
 
-         keyboard {  layout us  .... }
+  And with the below may gain control over _r_e_a_l ports on you machine.
+  But: WWAARRNNIINNGG:: GGIIVVIINNGG AACCCCEESSSS TTOO PPOORRTTSS IISS BBOOTTHH AA SSEECCUURRIITTYY CCOONNCCEERRNN AANNDD
+  SSOOMMEE PPOORRTTSS AARREE DDAANNGGEERROOUUSS TTOO UUSSEE..  PPLLEEAASSEE SSKKIIPP TTHHIISS SSEECCTTIIOONN,, AANNDD DDOONN''TT
+  FFIIDDDDLLEE WWIITTHH TTHHIISS SSEECCTTIIOONN UUNNLLEESSSS YYOOUU KKNNOOWW WWHHAATT YYOOUU''RREE DDOOIINNGG..
 
-       or
+         $_ports = ""  # list of portnumbers such as "0x1ce 0x1cf 0x238"
+                       # or "0x1ce range 0x280,0x29f 310"
+                       # or "range 0x1a0,(0x1a0+15)"
 
-         keyboard {  layout us {alt 66=230} ... }
-
-  The later modifies the US keyboard layout such that it will allow you
-  to type a character 230 (micro) with right ALT-M.
-
-  The same can be done via a "keytable" statement such as
-
-         keytable keyb-user {alt 66=230}
-
-  The "keyb-user" is preset with an US layout and is intended to be used
-  as "buffer" for user defined keyboard tables.
-
-  The format of the "{}" modification list (either in the "keyboard" or
-  the "keytable" statement) is as follows:
-
-         [submap] key_number = value [,value [,...]]
-
-  Given we call the above  a "definition" then it may be repeated (blank
-  separated) such as
-
-         definition [definition [...]]
-
-  "key_number" is the physical number, that the keybord send to the
-  machine when you hit the key, its the index into the keytable. "value"
-  may be any integer between 0...255, a string, or one of the following
-  keywords for "dead keys" (NOTE: deadkeys have a value below 32, so be
-  carefull).
-
-         dgrave        (dead grave)
-         dacute        (dead acute)
-         dcircum       (dead circumflex)
-         dtilde        (dead tilde)
-         dbreve        (dead breve)
-         daboved       (dead above dot)
-         ddiares       (dead diaresis)
-         dabover       (dead above ring)
-         ddacute       (dead double acute)
-         dcedilla      (dead cedilla)
-
-  After a "key_number =" there may be any number of comma separated
-  values, which will go into the table starting with "key_number", hence
-  all below examples are equivalent
-
-         { 2="1" 3="2" }
-         { 2="1","2" }
-         { 2="12" }
-         { 2=0x31,50 }
-
-  "submap" tells in about something about the shift state for which the
-  definition is to use or wether we mean the numpad:
-
-         shift  16="Q"      (means key 16 + SHIFT pressed)
-         alt    16="@"      (means key 16 + right ALT pressed (so called AltGr))
-         numpad 12=","      (means numpad index 12)
-
-  You may even replace the whole table with a comma/blank separated list
-  of values. In order to make it easy for you, you may use dosemu to
-  create such a list. The following statement will dump all current key
-  tables out into a file "kbdtables", which is directly suitable for
-  inclusion into dosemu.conf (hence it follows the syntax):
-
-         keytable dump "kbdtables"
-
-  However, don't put this not into your dosemu.conf, because dosemu will
-  exit after generating the tablefile. Instead use the -I commandline
-  option such as
-
-         $ dos -I 'keytable dump "kbdtables"'
-
-  After installation of dosemu ("make install") you'll find the current
-  dosemu keytables in /var/lib/dosemu/keymap (and in ./etc/keymap, where
-  they are copied from). These tables are generated via "keytable dump"
-  and split into discrete files, such that you may modify them to fit
-  your needs.  You may load them such as
-
-         $ dos -I 'include "keymap/de-latin1"'
-
-  (when an include file is starting with "keymap/" it is taken out of
-  /var/lib/dosemu). When there was a keytable previously defined (e.g.
-  in /etc/dosemu.conf), they new one will be take anyway and a warning
-  will be printed on stderr.
-
-  Anyway, you are not forced to modify or load a keytable, and with the
-  "layout" keyword from the "keyboard" statement, you can specify your
-  country's keyboard layout.  The following builtin layouts are
-  implemented:
-
-           finnish           us           dvorak       sf
-           finnish-latin1    uk           sg           sf-latin1
-           de                dk           sg-latin1    es
-           de-latin1         dk-latin1    fr           es-latin1
-           be                keyb-no      fr-latin1    po
-           it                no-latin1    sw
-           hu                hu-cwi       hu-latin2    keyb-user
-
-  The keyb-user is selected by default if the "layout" keyword is
-  omitted, and this in fact is identical to us-layout, as long as it got
-  not overloaded by the "keytable" statement (see above).
-
-  The keyword "keybint" allows more accurate of keyboard interrupts, It
-  is a bit unstable, but makes keyboard work better when set to "on".
-
-  The keyword "rawkeyboard" allows for accurate keyboard emulation for
-  DOS programs, and is only activated when DOSEMU starts up at the
-  console.  It only becomes a problem when DOSEMU prematurely exits with
-  a "Segmentation Fault" fatal error, because the keyboard would have
-  not been reset properly.  In that case, you would have to run kbd_mode
-  -a remotely, or use the RESET button.  In reality, this should never
-  happen.  But if it does, please do report to the dosemu development
-  team, of the problem and detailed circumstances, we're trying our
-  best!  If you don't need near complete keyboard emulation (needed by
-  major software package), set it to "off"
-
-  recommended:
-
-    keyboard {  layout us  keybint on  rawkeyboard off  }
-
-  or
-
-         keyboard {  layout de-latin1  keybint on  rawkeyboard on  }
-
-  If you want DOSEMU feed with keystrokes, that are typed in
-  automagically, then you may define them such as
-
-         keystroke "cd c:\\mysource\r"
-
-  You may have any number of 'keystroke' statements, they all will be
-  concatenated.
-
-  This feature however doesn't make much sense _here_ in the
-  configuration file, instead together with the commandine option -I you
-  can start dosemu and execute any arbitrary dos command such as
-
-         # dos -D-a -I 'keystroke "c:\rcd \\windows\rwinemu\r"'
-
-  For more details please look at ./doc/README.batch
-
-  Ah, but _one_ sensible useage _here_ is to 'pre-strike' that damned F8
-  that is needed for DOS-7.0, when you don't want to edit the msdos.sys:
-
-        keystroke "\F8;"
-
-  22..22..1111..  SSeerriiaall ssttuuffff
-
-  You can specify up to 4 simultaneous serial ports here.  If more than
-  one ports have the same IRQ, only one of those ports can be used at
-  the same time.  Also, you can specify the com port, base address, irq,
-  and device path!  The defaults are:
-
-  +o  COM1 default is base 0x03F8, irq 4, and device /dev/cua0
-
-  +o  COM2 default is base 0x02F8, irq 3, and device /dev/cua1
-
-  +o  COM3 default is base 0x03E8, irq 4, and device /dev/cua2
-
-  +o  COM4 default is base 0x02E8, irq 3, and device /dev/cua3
-
-  If the "com" keyword is omitted, the next unused COM port is assigned.
-  Also, remember, these are only how you want the ports to be emulated
-  in DOSEMU.  That means what is COM3 on IRQ 5 in real DOS, can become
-  COM1 on IRQ 4 in DOSEMU!
-
-  _N_O_T_E_: You must have /usr/spool/uucp for LCK-file generation !  You may
-  change this path and the lockfile name via the below 'ttylocks'
-  statement.
-
-  Also, as an example of defaults, these two lines are functionally
-  equal:
-
-         serial { com 1  mouse }
-         serial { com 1  mouse  base 0x03F8  irq 4  device /dev/cua0 }
-
-  If you want to use a serial mouse with DOSEMU, the "mouse" keyword
-  should be specified in only one of the serial lines.  (For PS/2 mice,
-  it is not necessary, and device path is in mouse line instead)
-
-  Use/modify any of the following if you want to support a modem: (or
-  any other serial device.)
-
-         serial { com 1  device /dev/modem }
-         serial { com 2  device /dev/modem }
-         serial { com 3  device /dev/modem }
-         serial { com 4  device /dev/modem }
-         serial { com 3  base 0x03E8  irq 5  device /dev/cua2 }
-
-  If you are going to load a msdos mouse driver for mouse support
-  use/modify one of the following
-
-         serial { mouse  com 1  device /dev/mouse }
-         serial { mouse  com 2  device /dev/mouse }
-
-  What type is your mouse?  Use one of the following.  Use the
-  'internaldriver' option to try Dosemu internaldriver.  Use the
-  'emulate3buttons' for 3button mice.
-
-    mouse { microsoft }
-    mouse { logitech }
-    mouse { mmseries }
-    mouse { mouseman }
-    mouse { hitachi }
-    mouse { mousesystems }
-    mouse { busmouse }
-    mouse { ps2  device /dev/mouse internaldriver emulate3buttons }
-    mouse { mousesystems device /dev/mouse internaldriver cleardtr }
-
-  For tty locking capabilities:
-
-  The serial lines are locked by dosemu via usual lock file technique,
-  which is compatible with most other unix apps (such as mgetty, dip,
-  e.t.c). However, you carefully need to check _where_ those other apps
-  expect the lock files. The most common used (old) place is
-  /usr/spool/uucp, but newer distributions following the FSSTND will
-  have it in /var/lock. The dosemu default one is /usr/spool/uucp.  The
-  below defines /var/lock
-
-         ttylocks { directory /var/lock }
-
-  _N_o_t_e_: you are responsible for ensuring that the directory exists !  If
-  you want to define the lock prefix stub also, use this one
-
-         ttylocks { directory /var/lock namestub LCK.. }
-
-  If the lockfile should contain the PID in binary form (instead of
-  ASCII}, you may use the following
-
-         ttylocks { directory /var/lock namestub LCK.. binary }
-
-  22..22..1122..  NNeettwwoorrkkiinngg SSuuppppoorrtt
-
-  Turn the following option 'on' if you require IPX/SPX emulation.
-  Therefore, there is no need to load IPX.COM within the DOS session.
-  The following option does not emulate LSL.COM, IPXODI.COM, etc.  _N_O_T_E_:
-  _Y_O_U _M_U_S_T _H_A_V_E _I_P_X _P_R_O_T_O_C_O_L _E_N_A_B_L_E_D _I_N _K_E_R_N_E_L _!_!
-
-         ipxsupport off
-
-  Enable Novell 8137->raw 802.3 translation hack in new packet driver.
-
-         pktdriver novell_hack
-
-  22..22..1133..  TTeerrmmiinnaallss
+  22..11..33..  TTeerrmmiinnaallss
 
   This section applies whenever you run DOSEMU remotely or in an xterm.
   Color terminal support is now built into DOSEMU.  Skip this section
   for now to use terminal defaults, until you get DOSEMU to work.
 
-  There are a number of keywords for the terminal { } configuration
-  line.
+         $_term_char_set = ""  # empty == automatic, else 'ibm' or 'latin'
+         $_term_color = (on)   # terminal with color support
+         $_term_updfreq = (4)  # time between refreshs (units: 20 == 1 second)
+         $_escchar = (30)      # 30 == Ctrl-^, special-sequence prefix
 
-     cchhaarrsseett
-        Select the character set to use with DOSEMU. One of ``latin''
-        (default) or ``ibm''.
+  `term_updfreq' is a number indicating the frequency of terminal
+  updates of the screen. The smaller the number, the more frequent.  A
+  value of 20 gives a frequency of about one per second, which is very
+  slow.  `escchar' is a number (ascii code below 32) that specifies the
+  control character used as a prefix character for sending alt, shift,
+  ctrl, and function keycodes.  The default value is 30 which is Ctrl-^.
+  So, for example,
 
-     ccoolloorr
-        Enable or disable color terminal support. One of ``on''
-        (default) or ``off''.
+         F1 is 'Ctrl-^1', Alt-F7 is 'Ctrl-^s Ctrl-^7'.
+         For online help, press 'Ctrl-^h' or 'Ctrl-^?'.
 
-     uuppddaatteeffrreeqq
-        A number indicating the frequency of terminal updates of the
-        screen.  The smaller the number, the more frequent.  A value of
-        20 gives a frequency of about one per second, which is very
-        slow.  However, more CPU time is given to DOS applications when
-        updates are less frequent.  A value of 4 (default) is
-        recommended in most cases, but if you have a fast system or
-        link, you can decrease this to 0.
+  22..11..44..  KKeeyybbooaarrdd sseettttiinnggss
 
-     eesscccchhaarr
-        A number (ascii code below 32) that specifies the control
-        character used as a prefix character for sending alt, shift,
-        ctrl, and function keycodes.  The default value is 30 which is
-        Ctrl-^. So, for example,
+  When running DOSEMU from console (also remote from console) or X you
+  may need to define a proper keyboard layout. This is done either by
+  choosing one on the internal keytables or by loading an external
+  keytable from /var/lib/dosemu/keymap/* (which you may modify according
+  to your needs). Both sets have identical names (though you may add any
+  new one to /var/lib/dosemu/keymap/*):
 
-            F1 is 'Ctrl-^1', Alt-F7 is 'Ctrl-^s Ctrl-^7'.
-            For online help, press 'Ctrl-^h' or 'Ctrl-^?'.
+         be              es-latin1       hu-latin2       sg
+         de              finnish         it              sg-latin1
+         de-latin1       finnish-latin1  keyb-no         sw
+         dk              fr              no-latin1       uk
+         dk-latin1       fr-latin1       po              us
+         dvorak          hu              sf
+         es              hu-cwi          sf-latin1
 
-  Use the following to enable the IBM character set.
+  You define an internal keytable such as
 
-         terminal { charset ibm  color on }
+         $_layout = "name"
 
-  Use this for color xterms or rxvt's with no IBM font, with only 8
-  colors.
+  where `name' is one of the above. To load a keytable you just prefix
+  the string with "load" such as
 
-    terminal { charset latin  color on }
+         $_layout = "load de-latin1"
 
-  Use this for color xterms or rxvt's with IBM font, with only 8 colors.
+  Note, however, that you have to set
 
-         terminal { charset ibm  color on }
+         $_X_keycode = (on)
 
-  More detailed line for user configuration:
+  to use this feature under X, because per default the keytable is
+  forced to be neutral (us). Normally you will have the correct settings
+  of your keyboard given by the X-server.
 
-         terminal { charset latin  updatefreq 4  color on }
+  When being on console you might wish to use raw keyboard, especially
+  together with some games, that don't use the BIOS/DOS to get their
+  keystrokes.
 
-  22..22..1144..  XX SSuuppppoorrtt sseettttiinnggss
+         $_rawkeyboard = (1)
+
+  However, be carefull, when the application locks, you may not be able
+  to switch your console and recover from this. For details on recover-
+  ing look at README-tech.txt (Recovering the console after a crash).
+
+  The `keybint (on)' allows more accurate of keyboard interrupts, It is
+  a bit unstable, but makes keyboard work better when set to "on".
+
+         $_keybint = (on)     # emulate PCish keyboard interrupt
+
+  22..11..55..  XX SSuuppppoorrtt sseettttiinnggss
 
   If DOSEMU is running in its own X-window (not xterm), you may need to
-  tailor it to your needs. Valid keywords for the X { } config line:
-
-     uuppddaatteeffrreeqq
-        A number indicating the frequency of X updates of the screen.
-        The smaller the number, the more frequent.  A value of 20 gives
-        a frequency of about one per second, which is very slow.
-        However, more CPU time is given to DOS applications when updates
-        are less frequent.  The default is 8.
+  tailor it to your needs. Here a summary of the settings and a brief
+  description what they mean. A more detailed description of values one
+  can be found at chapter 2.2.14 (X Support settings) of README-tech.txt
+
+       $_X_updfreq = (5)       # time between refreshs (units: 20 == 1 second)
+       $_X_title = "DOS in a BOX" # Title in the top bar of the window
+       $_X_icon_name = "xdos"  # Text for icon, when minimized
+       $_X_keycode = (off)     # on == translate keybord via dosemu keytables
+       $_X_blinkrate = (8)     # blink rate for the cursor
+       $_X_font = ""           # basename from /usr/X11R6/lib/X11/fonts/misc/*
+                               # (without extension) e.g. "vga"
+       $_X_mitshm = (on)       # Use shared memory extensions
+       $_X_sharecmap = (off)   # share the colormap with other applications
+       $_X_fixed_aspect = (on) # Set fixed aspect for resize the graphics window
+       $_X_aspect_43 = (on)    # Always use an aspect ratio of 4:3 for graphics
+       $_X_lin_filt = (off)    # Use linear filtering for >15 bpp interpol.
+       $_X_bilin_filt = (off)  # Use bi-linear filtering for >15 bpp interpol.
+       $_X_mode13fact = (2)    # initial factor for video mode 0x13 (320x200)
+       $_X_winsize = ""        # "x,y" of initial windows size
+       $_X_gamma = (1.0)       # gamma correction
+       $_X_vgaemu_memsize = (1024) # size (in Kbytes) of the frame buffer
+                               # for emulated vga
+       $_X_lfb = (on)  # use linear frame buffer in VESA modes
+       $_X_pm_interface = (on) # use protected mode interface for VESA modes
+       $_X_vesamode = ""       # "xres,yres ... xres,yres"
+                               # List of vesamodes to add. The list has to
+                               # comma separated "xres,yres" pairs
+
+  22..11..66..  VViiddeeoo sseettttiinnggss (( ccoonnssoollee oonnllyy ))
+
+  _!_!_W_A_R_N_I_N_G_!_!_: _I_F _Y_O_U _E_N_A_B_L_E _G_R_A_P_H_I_C_S _O_N _A_N _I_N_C_O_M_P_A_T_I_B_L_E _A_D_A_P_T_O_R_, _Y_O_U
+  _C_O_U_L_D _G_E_T _A _B_L_A_N_K _S_C_R_E_E_N _O_R _M_E_S_S_Y _S_C_R_E_E_N _E_V_E_N _A_F_T_E_R _E_X_I_T_I_N_G _D_O_S_E_M_U_.
+  _R_e_a_d _d_o_c_/_R_E_A_D_M_E_-_t_e_c_h_._t_x_t _(_R_e_c_o_v_e_r_i_n_g _t_h_e _c_o_n_s_o_l_e _a_f_t_e_r _a _c_r_a_s_h_)_.
+
+  Start with only text video using the following setup in dosemu.conf
+
+    $_video = "vga"         # one of: plainvga, vga, ega, mda, mga, cga
+    $_console = (0)         # use 'console' video
+    $_graphics = (0)        # use the cards BIOS to set graphics
+    $_videoportaccess = (1) # allow videoportaccess when 'graphics' enabled
+    $_vbios_seg = (0xc000)  # set the address of your VBIOS (e.g. 0xe000)
+    $_vbios_size = (0x10000)# set the size of your BIOS (e.g. 0x8000)
+    $_vmemsize = (1024)     # size of regen buffer
+    $_chipset = ""
+    $_dualmon = (0)         # if you have one vga _plus_ one hgc (2 monitors)
+
+  After you get it `somehow' working and you have one of the DOSEMU
+  supported graphic cards you may switch to graphics mode changing the
+  below
+
+         $_graphics = (1)        # use the cards BIOS to set graphics
+
+  If you have a 100% compatible standard VGA card that _m_a_y work,
+  however, you get better results, if your card has one of the DOSEMU
+  supported video chips and you tell DOSEMU to use it such as
+
+         $_chipset = "s3"        # one of: plainvga, trident, et4000, diamond,
+                                 # avance, cirrus, matrox, wdvga, paradise
+
+  Note, `s3' is only an example, you _m_u_s_t set the correct video chip
+  else it most like will crash your screen.
+
+  22..11..77..  DDiisskkss aanndd ffllooppppiieess
+
+  The parameter settings via dosemu.conf are tailored to fit the
+  recomended usage of disk and floppy access. There are other methods
+  too, but for these you have to look at README-tech.txt (and you may
+  need to modify global.conf).  We strongly recommend that you use the
+  proposed techique. Here the normal setup:
+
+         $_vbootfloppy = ""    # if you want to boot from a virtual floppy:
+                               # name of the floppy image under /var/lib/dosemu
+         $_floppy_a ="threeinch" # or "fiveinch" or empty, if not existing
+         $_floppy_b = ""       # dito for B:
+
+         $_hdimage = "hdimage.first" # list of hdimages under /var/lib/dosemu
+                               # assigned in this order such as
+                               # "hdimage_c hdimage_d hdimage_e"
+         $_hdimage_r = $_hdimage # hdimages for 'restricted access (if different)
+
+  When you installed DOSEMU (`make install') you will have a bootable
+  hdimage in the file /var/lib/dosemu/hdimage.first. It contains a very
+  tiny installation of FreeDos, just to show you that it works. A
+  hdimage is a file containing a virtual image of a DOS-FAT filesystem.
+  Once you have booted it, you (or autoexec.bat) can use `lredir' to
+  access any directory in your Linux tree as DOS drive (a -t msdos
+  mounted too). Look at chapter 6 (Using Lredir) and for more details on
+  creating your own (better) hdimage look at chapter 4.3 of this README
+  (Making a bootable hdimage for general purpose). Chapter 4.4 also
+  describes how to import/export files from/to a hdimage.
+
+  Now, what does the above `vbootfloppy' mean? Alternatively of booting
+  from a virtual `disk' you may have an image of a virtual `floppy'
+  which you just created such as `dd if=/dev/fd0 of=floppy_image'. If
+  this floppy contains a bootable DOS, then
+
+         $_vbootfloppy = "floppy_image"
+
+  will boot that floppy. Once running in DOS you can make the floppy
+  available by (virtually) removing the `media' via `bootoff.com'.
+
+  22..11..88..  CCOOMM ppoorrttss aanndd mmiicceess
 
-     ddiissppllaayy
-        The X server to use. If this is not specified, dosemu will use
-        the DISPLAY environment variable. (This is the normal case) The
-        default is ":0".
+  We have simplified the configuration for mices and serial ports and
+  check for depencies between them. If all strings in the below example
+  are empty, then no mouse and/or COM port is available. Note. that you
+  need _n_o mouse.com driver installed in your DOS environment, DOSEMU has
+  the mousedriver builtin. The below example is such a setup
 
-     ttiittllee
-        What you want dosemu to display in the title bar of its window.
-        The default is "dosemu".
+         $_com1 = ""           # e.g. "/dev/mouse" or "/dev/cua0"
+         $_com2 = "/dev/modem" # e.g. "/dev/modem" or "/dev/cua1"
 
-     iiccoonn__nnaammee
-        Used when the dosemu window is iconified. The default is
-        "dosemu".
+         $_mouse = "microsoft" # one of: microsoft, mousesystems, logitech,
+                               # mmseries, mouseman, hitachi, busmouse, ps2
+         $_mouse_dev = "/dev/mouse" # one of: com1, com2 or /dev/mouse
+         $_mouse_flags = ""    # list of none or one or more of:
+                               # "emulate3buttons cleardtr"
+         $_mouse_baud = (0)    # baudrate, 0 == don't set
 
-     kkeeyyccooddee
-        Used to give Xdos access to keycode part of XFree86. The default
-        is off.
+  The above example lets you have your modem on COM2, COM1 is spare (as
+  you may have your mouse under native DOS there and don't want to
+  change the configuration of your modem software between boots of
+  native DOS and Linux)
 
-        _N_O_T_E_:
+  However, you may use your favorite DOS mousedriver and directly let it
+  drive COM1 by changing the below variables (rest of variables
+  unchanged)
 
-     +o  You should _not_ use this when using X remotely (the remote site
-        may have other raw keyboard settings).
+         $_com1 = "/dev/mouse"
+         $_mouse_dev = "com1"
 
-     +o  _I_f you use "keycode", you also _m_u_s_t define an appropriate
-        keyboard layout (see above).
+  And finaly, when having a PS2 mouse running on your Linuxbox you use
+  the builtin mousedriver (not your mouse.com) to get it work: ( again
+  leaving the rest of variables unchanged)
 
-     +o  If you do _n_o_t use "keycode" then under X a neutral keyboard
-        layout is forced ( keyboard {layout us} ) regardless of what you
-        have set above.
+         $_mouse = "ps2"
+         $_mouse_dev = "/dev/mouse"
 
-        Anyway, a cleaner way than using "keycode" is to let the X-
-        server fiddle with keyboard translation and customize it via
-        .xmodmaps.
+  When using a PS2 mouse or when having more then 2 serial ports you may
+  of course assign _any_ free serialdevice to COM1, COM2. The order
+  doesn't matter:
 
-     bblliinnkkrraattee
-        A number which sets the blink rate for the cursor. The default
-        is 8.
+         $_com1 = "/dev/cua2"
+         $_com2 = "/dev/cua0"
 
-     ffoonntt
-        Used to pick a font other than vga (default). Must be
-        monospaced.
-
-     mmiittsshhmm
-        Use shared memory extensions. The default is ``on''.
+  22..11..99..  PPrriinntteerrss
 
-     sshhaarreeccmmaapp
-        Used to share the colormap with other applications in graphics
-        mode.  If not set, a private colormap is used. The default is
-        off.
-
-     ffiixxeedd__aassppeecctt
-        Set fixed aspect for resize the graphics window. One of ``on''
-        (default) or ``off''.
-
-     aassppeecctt__4433
-        Always use an aspect ratio of 4:3 for graphics. The default is
-        ``floating''.
-
-     lliinn__ffiilltt
-        Use linear filtering for >15 bpp interpolation. The default is
-        off.
-
-     bbiilliinn__ffiilltt
-        Use bi-linear filtering for >15 bpp interpolation. The default
-        is off.
-
-     mmooddee1133ffaacctt
-        A number which sets the initial size factor for video mode 0x13
-        (320x200).  The default is 2.
-
-     wwiinnssiizzee
-        A pair of numbers which set the initial width and height of the
-        window to a fixed value. The default is to float.
+  Printer is emulated by piping printer data to your normal Linux
+  printer.  The belows tells DOSEMU which printer to use. The `timeout'
+  tells DOSEMU how long to wait after the last output to LPT1 before
+  considering the print job as `done' and to to spool out the data to
+  the printer.
 
-     ggaammmmaa
-        Set value for gamma correction, a value of 100 means gamma 1.0.
-        The default is 100.
+       $_printer = "lp"        # name of (/etc/printcap) printer to appear as LPT1
+       $_printer_timeout = (20)# idle time in seconds before spooling out
 
-     vvggaaeemmuu__mmeemmssiizzee
-        Set the size (in Kbytes) of the frame buffer for emulated vga
-        under X. The default is 1024.
+  22..11..1100..  NNeettwwoorrkkiinngg uunnddeerr DDOOSSEEMMUU
 
-     llffbb
-        Enable or disable the linear frame buffer in VESA modes. The
-        default is ``on''.
+  Turn the following option `on' if you require IPX/SPX emulation, there
+  is no need to load IPX.COM within the DOS session.  ( the option does
+  not emulate LSL.COM, IPXODI.COM, etc. ) And NOTE: You must have IPX
+  protocol configured into the kernel.
 
-     ppmm__iinntteerrffaaccee
-        Enable or disable the protected mode interface for VESA modes.
-        The default is ``on''.
+         $_ipxsupport = (on)
 
-     vveessaammooddee
-        Define a VESA mode. Two variants are supported: vesamode width
-        height and vesamode width height color_bits. The first adds the
-        specified resolution in all supported color depths (currently 8,
-        15, 16, 24 and 32 bit).
+  Enable Novell 8137->raw 802.3 translation hack in new packet driver.
 
-  Recommended X statement:
+    $_novell_hack = (on)
 
-         X { updatefreq 8 title "DOS in a BOX" icon_name "xdos" }
+  If you make use of the dosnet device driver, you may turn on 'multi'
+  packet driver support via
 
-  22..22..1155..  VViiddeeoo sseettttiinnggss (( ccoonnssoollee oonnllyy ))
+         $_vnet = (on)
 
-  _!_!_W_A_R_N_I_N_G_!_!_: _A _L_O_T _O_F _T_H_I_S _V_I_D_E_O _C_O_D_E _I_S _A_L_P_H_A_!  _I_F _Y_O_U _E_N_A_B_L_E
-  _G_R_A_P_H_I_C_S _O_N _A_N _I_N_C_O_M_P_A_T_I_B_L_E _A_D_A_P_T_O_R_, _Y_O_U _C_O_U_L_D _G_E_T _A _B_L_A_N_K _S_C_R_E_E_N _O_R
-  _M_E_S_S_Y _S_C_R_E_E_N _E_V_E_N _A_F_T_E_R _E_X_I_T_I_N_G _D_O_S_E_M_U_.  _J_U_S_T _R_E_B_O_O_T _(_B_L_I_N_D_L_Y_) _A_N_D
-  _T_H_E_N _M_O_D_I_F_Y _C_O_N_F_I_G_.
+  For more on this look at chapter 24 (Net code)
 
-  Start with only text video using the following line, to get started.
-  then when DOSEMU is running, you can set up a better video
-  configuration.
-
-         video { vga }                    Use this line, if you are using VGA
-         video { cga  console }           Use this line, if you are using CGA
-         video { ega  console }           Use this line, if you are using EGA
-         video { mda  console }           Use this line, if you are using MDA
-
-  Notes for Graphics:
-
-  +o  If your VGA-Bios resides at E000-EFFF, turn off video BIOS shadow
-     for this address range and add the statement vbios_seg 0xe000 to
-     the correct vios-statement, see the example below
-
-  +o  If your VBios size is only 32K you set it with  vbios_size 0x8000,
-     you then gain some space for UMB or hardware ram locations.
-
-  +o  Set "allowvideoportaccess on" earlier in this configuration file if
-     DOSEMU won't boot properly, such as hanging with a blank screen,
-     beeping, leaving Linux video in a bad state, or the video card
-     bootup message seems to stick.
-  +o  Video BIOS shadowing (in your CMOS setup) at C000-CFFF must be
-     disabled.
-
-     _C_A_U_T_I_O_N_: TURN OFF VIDEO BIOS SHADOWING BEFORE ENABLING GRAPHICS!
-     This is not always necessary, but a word to the wise shall be
-     sufficient.
-
-  +o  If you have a dual-monitor configuration (e.g. MDA as second
-     display), you then may run CAD programs on 2 displays or let play
-     your debugger on the MDA while debugging a graphics program on the
-     VGA (e.g TD -do ).  You also may switch to the MDA display by using
-     the DOS command mode mono (mode co80 returns to your normal
-     display).  This feature can be enabled by the switch "dualmon" like
-     this:
-
-             video { vga  console  graphics dualmon }
-
-  and can be used on a xterm and the console, but of course not, if you
-  have the MDA as your primary display.  You also must set USE_DUALMON 1
-  in include/video.h.  _N_O_T_E_: Make sure no more then one process is using
-  this feature !  ( you will get funny garbage on your MDA display. )
-  Also, you must NOT have the dualmon-patches for kernel applied ( hav-
-  ing the MDA as Linux console )
-
-  +o  If you want to run dosemu in situations when human doesn't sit at
-     console (for instance to run it by cron) and want console option be
-     enabled you should use option forcevtswitch.
-
-                  { vga console forcevtswitch }
-
-  Without the option dosemu waits for becoming virtual terminal on which
-  dosemu is run active (i.e. user must press Alt-F?).  With this option
-  dosemu perform the switch itself.  Be careful with this option because
-  with it user sat at console may face with unexpected switch.
-
-  It may be necessary to set this to "on" if DOSEMU can't boot up
-  properly on your system when it's set "off" and when graphics are
-  enabled.  _N_o_t_e_: May interfere with serial ports when using certain
-  video boards.
-
-         allowvideoportaccess on
-
-  Any 100% compatible standard VGA card _M_A_Y work with this:
-
-         video { vga  console  graphics }
-
-  If your VGA-BIOS is at segment E000, this may work for you:
-
-         video { vga  console  graphics  vbios_seg 0xe000 }
-
-  Trident SVGA with 1 megabyte on board
-
-         video { vga  console  graphics  chipset trident  memsize 1024 }
-
-  Diamond SVGA (not S3 chip)
-
-         video { vga  console  graphics  chipset diamond }
-
-  Cirrus SVGA
-
-         video { vga  console  graphics  chipset cirrus }
-
-  ET4000 SVGA card with 1 megabyte on board:
-
-         video { vga  console  graphics  chipset et4000  memsize 1024 }
-
-  or
-
-         video { vga  console  graphics  chipset et4000  memsize 1024 vbios_size 0x8000 }
-
-  S3-based SVGA video card with 1 megabyte on board:
-
-         video { vga  console  graphics  chipset s3  memsize 1024 }
-
-  Avance Logic (ALI) 230x SVGA
-
-         video { vga  console  graphics  chipset avance }
-
-  For ATI graphic mode
-
-         ports { 0x1ce 0x1cf 0x238 0x23b 0x23c 0x23f 0x9ae8 0x9ae9 0x9aee 0x9aef }
-
-  Matrox millenium:
-
-         video { vga  console  graphics  chipset matrox }
-
-  VGA-cards with a WD(Paradise) chip:
-
-         video { vga  console  graphics  chipset wdvga }
-
-  22..22..1166..  MMeemmoorryy sseettttiinnggss
-
-  These are memory parameters, stated in number of kilobytes.  If you
-  get lots of disk swapping while DOSEMU runs, you should reduce these
-  values.
-
-  umb_max is a new parameter which tells DOSEMU to be more aggressive
-  about finding upper memory blocks.  The default is 'off'.
-
-  To be more aggressive about finding XMS UMB blocks use this:
-
-         umb_max on
-
-  To be more secure use 'secure on'. If "on", then it disables DPMI
-  access to dosemu code and also disables execution of dosemu supplied
-  'system' commands, which may execute arbitrary Linux-commands
-  otherwise.  The background is, that DPMI clients are allowed to create
-  selectors that span the whole user space, hence may hack into the
-  dosemu code, and (when dosemu runs root or is suid root) can be a
-  security hole.  "secure on" closes this hole, though this would very
-  likely also disable some dos4gw games :(.  Therfore _N_O_T_E_: You may not
-  be able to run some DPMI programs, hence, before reporting such a
-  program as 'not running', first try to set 'secure off'.
-
-    secure on                # "on" or "off"
-
-  The below enables/disables DPMI and sets the size of DPMI memory.
-
-         dpmi 4086                # DPMI size in K, or "off"
-
-  XMS is enabled by the following statement
-
-         xms 1024                 # XMS size in K,  or "off"
-
-  For ems, you now can set the frame to any 16K between 0xc800..0xe000
-
-         ems 1024                 # EMS size in K,  or "off"
-
-  or
-
-         ems { ems_size 1024 ems_frame 0xe000 }
-
-  or
-
-         ems { ems_size 2048 ems_frame 0xd000 }
-
-  If you have adapters, which have memory mapped IO, you may map those
-  regions with hardware_ram { .. }. You can only map in entities of 4k,
-  you give the address, not the segment.  The below maps
-  0xc8000..0xc8fff and 0xcc000..0xcffff:
-
-         hardware_ram { 0xc8000 range 0xcc000 0xcffff }
-
-  With the below you define the maximum conventional RAM to show apps:
-
-    dosmem 640
-
-  22..22..1177..  IIRRQQ ppaassssiinngg
-
-  The irqpassing statement accepts IRQ values between 3..15, if using
-  the { .. } syntax each value or range can be prefixed by the keyword
-  use_sigio to monitor the IRQ via SIGIO.  If this is missing the IRQ is
-  monitored by SIGALRM.
-
-  Use/modify one of the below statements
-
-         irqpassing off    # this disables IRQ monitoring
-         irqpassing 15
-         irqpassing { 15 }
-         irqpassing { use_sigio 15 }
-         irqpassing { 10  use_sigio range 3 5 }
-
-  22..22..1188..  PPoorrtt AAcccceessss
-
-  WWAARRNNIINNGG:: GGIIVVIINNGG AACCCCEESSSS TTOO PPOORRTTSS IISS BBOOTTHH AA SSEECCUURRIITTYY CCOONNCCEERRNN AANNDD SSOOMMEE
-  PPOORRTTSS AARREE DDAANNGGEERROOUUSS TTOO UUSSEE..  PPLLEEAASSEE SSKKIIPP TTHHIISS SSEECCTTIIOONN,, AANNDD DDOONN''TT
-  FFIIDDDDLLEE WWIITTHH TTHHIISS SSEECCTTIIOONN UUNNLLEESSSS YYOOUU KKNNOOWW WWHHAATT YYOOUU''RREE DDOOIINNGG..
-
-  These keywords are allowable on a "ports" line.
-
-     rraannggee aaddddrr11 aaddddrr22
-        This allow access to this range of ports
-
-     oorrmmaasskk vvaalluuee
-        The default is 0
-
-     aannddmmaasskk vvaalluuee
-        The default is 0xffff
-
-     rrddoonnllyy||wwrroonnllyy||rrddwwrr
-        This specifies what kind of access to allow to the ports. The
-        default is "rdwr"
-
-     ffaasstt
-        Put port(s) in the ioperm bitmap (only valid for ports below
-        0x400) An access doesn't trap and isn't logged, but as vm86()
-        isn't interrupted, it's much faster. The default is not fast.
-
-     ddeevviiccee nnaammee
-        If the ports are registered, open this device to block access.
-        The open() must be successfull or access to the ports will be
-        denied. If you know what you are doing, use /dev/null to fake a
-        device to block
-
-         ports { 0x388 0x389 }   # for SimEarth
-         ports { 0x21e 0x22e 0x23e 0x24e 0x25e 0x26e 0x27e 0x28e 0x29e } # for jill
-
-  22..22..1199..  SSppeeaakkeerr
-
-  These keywords are allowable on the "speaker" line:
-
-     nnaattiivvee
-        Enable DOSEMU direct access to the speaker ports.
-
-     eemmuullaatteedd
-        Enable simple beeps at the terminal.
-
-     ooffff
-        Disable speaker emulation.
-
-  Recommended:
-
-         speaker off
-
-  22..22..2200..  HHaarrdd ddiisskkss
-
-  WWAARRNNIINNGG:: DDAAMMAAGGEE MMIIGGHHTT RREESSUULLTT TTOO YYOOUURR HHAARRDD DDIISSKK ((LLIINNUUXX AANNDD//OORR DDOOSS)) IIFF
-  YYOOUU FFIIDDDDLLEE WWIITTHH TTHHIISS SSEECCTTIIOONN WWIITTHHOOUUTT KKNNOOWWIINNGG WWHHAATT YYOOUU''RREE DDOOIINNGG!!
-
-  The best way to get started is to start with a hdimage, and set
-  "bootC" and "disk {image "var/lib/dosemu/hdimage.first" }/" in
-  /etc/dosemu.conf.  To generate this first working and bootable
-  hdimage, you should use "setup-hdimage" in the dosemu root directory.
-  This script extracts your DOS from any native bootable DOS-partition
-  and builts a bootable hdimage.  (for experience dosemu users: you need
-  not to fiddle with floppies any more) Keep using the hdimage while you
-  are setting this hard disk configuration up for DOSEMU, and testing by
-  using DIR C: or something like that.  Whenever possible, use hdimage,
-  mount your DOS partition under Linux and "lredir" it into dosemu. Look
-  at ``Using Lredir'', ``Running as a user'', QuickStart etc. on how to
-  use "lredir".
-
-  As a last resort, if you want DOSEMU to be able to access a DOS
-  partition, the safer type of access is "partition" access, because
-  "wholedisk" access gives DOSEMU write access to a whole physical disk,
-  including any vulnerable Linux partitions on that drive!
-
-  _I_M_P_O_R_T_A_N_T
-
-  You must not have LILO installed on the partition for dosemu to boot
-  off.  As of 04/26/94, doublespace and stacker 3.1 will work with
-  wholedisk or partition only access.  Stacker 4.0 has been reported to
-  work with wholedisk access.
-
-  Please read the documentation in the "doc" subdirectory for info on
-  how to set up access to real hard disk.
-
-  These are meanings of the keywords:
-
-     iimmaaggee
-        specifies a hard disk image file.
-
-     ppaarrttiittiioonn
-        specifies partition access, with device and partition number.
-
-     wwhhoolleeddiisskk
-        specifies full access to entire hard drive.
-
-     rreeaaddoonnllyy
-        for read only access.  A good idea to set up with.
-
-     ddiisskkccyyll44009966
-        INT13 support for more then 1024 cylinders, bits 6/7 of DH
-        (head) used to build a 12 bit cylinder number.
-
-     bboooottffiillee
-        to specify an image of a boot sector to boot from.
-
-  Use/modify one (or more) of the folling statements:
-
-         disk { image "/var/lib/dosemu/hdimage" }      # use diskimage file.
-         disk { partition "/dev/hda1" readonly }       # 1st partition on 1st IDE.
-         disk { partition "/dev/hda1" bootfile "/var/lib/bootsect.dos" }
-                                                       # 1st partition on 1st IDE
-                                                       # booting from the specified
-                                                       # file.
-         disk { partition "/dev/hda6" readonly }       # 6th logical partition.
-         disk { partition "/dev/sdb1" readonly }       # 1st partition on 2nd SCSI.
-         disk { wholedisk "/dev/hda" }                 # Entire disk drive unit
-
-  Recommended:
-
-         disk { image "/var/lib/dosemu/hdimage" }
-
-  22..22..2211..  DDOOSSEEMMUU bboooott
-
-  Use the following option to boot from the specified file, and then
-  once booted, have bootoff execute in autoexec.bat. Thanks Ted :-).
-  Notice it follows a typical floppy spec. To create this file use:
-
-       dd if=/dev/fd0 of=/var/lib/dosemu/bdisk bs=16k
-
-         bootdisk { heads 2 sectors 18 tracks 80 threeinch file /var/lib/dosemu/bdisk }
-
-  Specify extensions for the CONFIG and AUTOEXEC files.  If the below
-  are uncommented, the extensions become CONFIG.EMU and AUTOEXEC.EMU.
-  NOTE: this feature may affect file naming even after boot time.  If
-  you use MSDOS 6+, you may want to use a CONFIG.SYS menu instead.
-
-         EmuSys EMU
-         EmuBat EMU
-
-  22..22..2222..  FFllooppppyy ddiisskkss
-
-  This part is fairly easy.  Make sure that the first (/dev/fd0) and
-  second (/dev/fd1) floppy drives are of the correct size, "threeinch"
-  and/or "fiveinch".  A floppy disk image can be used instead, however.
-
-  FFOORR SSAAFFEETTYY,, UUNNMMOOUUNNTT AALLLL FFLLOOPPPPYY DDRRIIVVEESS FFRROOMM YYOOUURR FFIILLEESSYYSSTTEEMM BBEEFFOORREE
-  SSTTAARRTTIINNGG UUPP DDOOSSEEMMUU!!  DDAAMMAAGGEE TTOO TTHHEE FFLLOOPPPPYY MMAAYY RREESSUULLTT OOTTHHEERRWWIISSEE!!
-
-  Use/modify one of the below:
-
-         floppy { device /dev/fd0 threeinch }
-         floppy { device /dev/fd1 fiveinch }
-         floppy { heads 2  sectors 18  tracks 80
-                  threeinch  file /var/lib/dosemu/diskimage }
-
-  If floppy disk speed is very important, uncomment the following line.
-  However, this makes the floppy drive a bit unstable.  This is best
-  used if the floppies are write-protected.  Use an integer value to set
-  the time between floppy updates.
-
-         FastFloppy 8
-
-  22..22..2233..  PPrriinntteerrss
-
-  Printer is emulated by piping printer data to a file or via a unix
-  command such as "lpr".  Don't bother fiddling with this configuration
-  until you've got DOSEMU up and running already.
-
-  NOTE: Printers are assigned to LPT1:, LPT2:, and LPT3: on a one for
-  one basis with each line below.  The first printer line is assigned to
-  LPT1:, second to LPT2:, and third to LPT3:.  If you do not specify a
-  base port, the emulator will setup the bios to report 0x378, 0x278,
-  and 0x3bc for LPT1:, LPT2:, and LPT3: respectively.
-
-  To use standard unix lpr command for printing use this line:
-
-         printer { options "%s"  command "lpr"  timeout 20 }
-
-  And for any special options like using pr to format files, add it to
-  the options parameter:
-
-         printer { options "-p %s"  command "lpr"  timeout 10 }     pr format it
-
-  To just have your printer output end up in a file, use the following
-  line:
-
-         printer { file "lpt3" }
-
-  If you have a DOS application that is looking to access the printer
-  port directly, and uses the bios LPT: setting to find out the port to
-  use, you can modify the base port the bios will report with the
-  following:
-
-         printer { options "%s"  command "lpr"  base 0x3bc }
-
-  Be sure to also add a port line to allow the application access to the
-  port:
-
-         ports { device /dev/lp0 0x3bc 0x3bd 0x3be }
-
-  NOTE: applications that require this will not interfere with
-  applications that continue to use the standard bios calls.  These
-  applications will continue to send the output piped to the file or
-  unix command.
-
-  22..22..2244..  SSoouunndd
+  22..11..1111..  SSoouunndd
 
   The sound driver is more or less likely to be broken at the moment.
+  Anyway, here are the settings you would need to emulate a SB-sound
+  card by passing the control to the Linux soundrivers.
 
-     ssbb__bbaassee
-        base address of the SB (HEX)
-
-     ssbb__iirrqq
-        IRQ for the SB
-
-     ssbb__ddmmaa
-        DMA channel for the SB
-
-     ssbb__ddsspp
-        Path the sound device
-
-     ssbb__mmiixxeerr
-        path to the mixer control
-
-     mmppuu__bbaassee
-        base address for the MPU-401 chip (HEX) (Not Implemented)
-
-  Use this to disable sound support even if it is configured in
-
-         sound_emu off
-
-  Linux defaults
-
-         sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/dsp
-                      sb_mixer /dev/mixer mpu_base 0x330 }
-
-  NetBSD defaults
-
-         sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/sound
-                     sb_mixer /dev/mixer mpu_base 0x330 }
-
-  22..22..2255..  DDEEXXEE ssuuppppoorrtt
-
-  These are the setting for DEXE type DOS application, which are
-  executed by DOSEMU via the -L option.  ( for what DEXE is look at
-  ./doc/README.dexe
-
-  set the below to force 'secure on', when -L option is used _and_ the
-  user isn't root.
-
-         dexe { secure }
-
-  set the below, if you want that a dexe may be allowed to have
-  additional disks. Normally the hdimage containing the DOS app (the
-  .dexe itself) is the only available disk, all other 'disk {}'
-  statement are ignored.
-
-         dexe { allowdisk }
-
-  set the below, if you want a DEXE to be forced to 'xdos', when X
-  available. This mainly is intended for beeing included into the
-  configuration of a DEXE file (see mkdexe). e.g. when the application
-  needs graphic it should not run on slang-terminal.
-
-         dexe { forcexdos }
-
-  set the below, if you want a DEXE _only_ running on X (because it
-  otherwise would not run)
-
-         dexe { xdosonly }
+       $_sound = (off)           # sound support on/off
+       $_sb_base = (0x220)       # base IO-address (HEX)
+       $_sb_irq = (5)            # IRQ
+       $_sb_dma = (1)            # DMA channel
+       $_sb_dsp = "/dev/dsp"     # Path the sound device
+       $_sb_mixer = "/dev/mixer" # path to the mixer control
+       $_mpu_base = "0x330"      # base address for the MPU-401 chip (HEX)
+                                 # (not yet implemented)
 
   33..  SSeeccuurriittyy
 

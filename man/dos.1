@@ -1,5 +1,5 @@
 .\" -*- nroff -*-  (This is for Emacs)
-.TH DOS 1 "January, 1998" "Version ALPHA 0.97.1" "MS-DOS Emulation"
+.TH DOS 1 "January, 1998" "Version ALPHA 0.97.2" "MS-DOS Emulation"
 .SH NAME
 dos, xdos, dosexec, dosdebug \- run MS-DOS and MS-DOS programs under Linux
 .SH SYNOPSIS
@@ -333,17 +333,17 @@ use VGA specific video optimizations
 use RAW console Keyboard (must be at the console)
 .TP
 .I -F
-Parse this config-file instead of /etc/dosemu.conf
+Parse this config-script instead of /var/lib/dosemu/global.conf
 (you need to run as root on suid DOSEMU for this)
 .TP
 .I -f
 Parse this config-file instead of .doserc
 .TP
 .I -u
-set a user configuation variable. An
+set a user configuration variable. An
 .B u_
 is prefixed to the name to avoid name clashes. This variable then can be
-checked in /etc/dosemu.conf to do some special configuration.
+checked in /etc/dosemu.conf or /var/lib/dosemu/global.conf to do some special configuration.
 .TP
 .I -L
 Load and start a DEXE file (special preconfigured bootable hdimage
@@ -352,7 +352,7 @@ containing just one DOS application)
 .I -I
 Parse the string behind
 .I -I
-with the same syntax as /etc/dosemu.conf or .dosrc such as
+with the same syntax as /var/lib/dosemu/global.conf or .dosrc such as
 .TP
 		dos ... -I 'video { mda }'
 
@@ -442,7 +442,7 @@ hard disk resources is done by editing
 .B /etc/dosemu.conf
 before running
 .BR DOSEMU .
-You find an example in etc/config.dist
+Look at doc/README.txt.
 
 .SH FLOPPY DISKS
 .B DOSEMU
@@ -477,7 +477,7 @@ and
 .I \-V
 switches, explained more thoroughly in
 .B QuickStart.
-There is also some brief documentation in the file etc/config.dist,
+There is also some brief documentation in the file etc/dosemu.conf,
 which can be copied to /etc/dosemu.conf and edited for your needs.
 .PP
 In brief, proper use of the console device and the corresponding switches
@@ -711,9 +711,15 @@ Various files used by
 .B DOSEMU
 including diskimages and disk config files.
 .TP
+.I /var/lib/dosemu/global.conf
+Global configuration script for
+.BR DOSEMU .
+.TP
 .I /etc/dosemu.conf
 Main configuration file for
 .BR DOSEMU .
+which is included by
+.I /var/lib/dosemu/global.conf
 .TP
 .I /etc/dosemu.users
 Contains the usernames that are allowed to use

@@ -9,11 +9,11 @@
 #   [ <login> | all ] [ confvar [ confvar [ ... ] ] ]
 #
 #   <login>  the login name of a user
-#   canvar   under this name a configuration variable is set which
+#   confvar  under this name a configuration variable is set which
 #            can be checked via 'ifdef' in /etc/dosemu.conf
 #            Variables starting with 'c_' define class permission
 #
-# For more details look at ./doc/README.conf
+# For more details look at ./doc/README.txt
 
 root c_all  
 all c_all

@@ -5,15 +5,15 @@ WARNING for old dosemu users:
         The format of dosemu.conf and dosemu.users has changed !!!
         Please take over the new config files as follows
 
-        # cd /where/I/have/dosemu
         # mv /etc/dosemu.config /etc/dosemu.conf.v2
+        # cd /where/I/have/dosemu
         # cp ./etc/dosemu.config /etc
 
         and edit /etc/dosemu.config using ./doc/README.txt chapter 2
 
         If you want to keep your old dosemu binary running, additionally do
 
-        # mv etc/dosemu.conf /etc/dosemu.conf.v3
+        # mv /etc/dosemu.conf /etc/dosemu.conf.v3
         # cp etc/dosemu.conf.wrapper /etc/dosemu.conf
 
 --------------------------------------------------------------------------
@@ -73,8 +73,8 @@ or
 3.  Configure  ... the _real_ stuff
 --------------------------------------------------------------------------
 
-- Copy ./etc/{dosemu.conf,dosemu.setup} to /etc if you are installing for
-  the first time.
+- Copy ./etc/dosemu.conf to /etc if you are installing for the first time.
+  ( make install would have done this, if /etc/dosemu.conf dosen't exist )
   Modify /etc/dosemu.setup by using the info in the file ./doc/README.txt
   chapter 2
 
@@ -166,13 +166,13 @@ If you don't know how to copy files from/to the hdimage:
 
 - Check your /etc/dosemu.users file (maybe insufficient privileges set)
 
-- Read your /etc/dosemu.setup file carefully and make corrections.
+- Read your /etc/dosemu.config file carefully and make corrections.
 
 - Try disabling certain features.  The video options and some of the
   rawkeyboard options sometimes cause problems.
 
 - If the video support does not work, ensure that the video BIOS address
-  in /etc/dosemu.setup (variable $_vbios_seg) is correct.
+  in /etc/dosemu.conf (variable $_vbios_seg) is correct.
 
 - Read all documentation files carefully, and try to get some help from
   others who have used DOSEMU.

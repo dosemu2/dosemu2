@@ -303,6 +303,8 @@ void dump_config_status(void)
       default:  s = "386"; break;
     }
     fprintf(out, "%s\n", s);
+    fprintf(out, "CPUclock %gMHz\ncpu_spd 0x%lx\ncpu_tick_spd 0x%lx\n",
+	(((double)LLF_US)/config.cpu_spd), config.cpu_spd, config.cpu_tick_spd);
 
     fprintf(out, "pci %d\nrdtsc %d\nmathco %d\nsmp %d\n",
                  config.pci, config.rdtsc, config.mathco, config.smp);
@@ -390,8 +392,8 @@ void dump_config_status(void)
         config.timers, config.keybint);
     fprintf(out, "tty_lockdir \"%s\"\ntty_lockfile \"%s\"\nconfig.tty_lockbinary %d\n",
         config.tty_lockdir, config.tty_lockfile, config.tty_lockbinary);
-    fprintf(out, "num_ser %d\nnum_lpt %d\nconfig.fastfloppy %d\n",
-        config.num_ser, config.num_lpt, config.fastfloppy);
+    fprintf(out, "num_ser %d\nnum_lpt %d\nnum_mice %d\nfastfloppy %d\n",
+        config.num_ser, config.num_lpt, config.num_mice, config.fastfloppy);
     fprintf(out, "emusys \"%s\"\nemubat \"%s\"\nemuini \"%s\"\n",
         (config.emusys ? config.emusys : ""), (config.emubat ? config.emubat : ""), (config.emuini ? config.emuini : ""));
     fprintf(out, "dosbanner %d\nallowvideoportaccess %d\ndetach %d\n",
@@ -434,6 +436,9 @@ void dump_config_status(void)
       }
       if (!need_header_line) fprintf(out, "\n");
     }
+    fprintf(out, "ipxsup %d\nvnet %d\npktflags 0x%x\n",
+	config.ipxsup, config.vnet, config.pktflags);
+
     fprintf(out, "\nSOUND:\nsb_base 0x%x\nsb_dma %d\nsb_irq %d\nmpu401_base 0x%x\nsb_dsp \"%s\"\nsb_mixer \"%s\"\n",
         config.sb_base, config.sb_dma, config.sb_irq, config.mpu401_base, config.sb_dsp, config.sb_mixer);
     fprintf(out, "\n--------------end of runtime configuration dump -------------\n");
@@ -568,7 +573,7 @@ config_init(int argc, char **argv)
 #endif
 
     opterr = 0;
-    confname = CONFIG_FILE;
+    confname = CONFIG_SCRIPT;
     while ((c = getopt(argc, argv, "ABCcF:f:I:kM:D:P:VNtsgh:x:KL:m23456e:E:dXY:Z:o:Ou:")) != EOF) {
 	usedoptions[(unsigned char)c] = c;
 	switch (c) {
@@ -587,7 +592,7 @@ config_init(int argc, char **argv)
 		f=fopen(optarg, "r");
 		leave_priv_setting();
 		if (!f) {
-		  fprintf(stderr, "Sorry, no access to configuration file %s\n", optarg);
+		  fprintf(stderr, "Sorry, no access to configuration script %s\n", optarg);
 		  exit(1);
 		}
 		fclose(f);
@@ -1073,7 +1078,7 @@ usage(void)
 	"USAGE:\n"
 	"  dos  [-ABCckbVNtsgxKm23456ez] [-h{0|1|2}] \\\n"
 	"       [-D flags] [-M SIZE] [-P FILE] [ {-F|-L} File ] \\\n"
-	"       [-f dosrcFile] [-o dbgfile] 2> vital_logs\n"
+	"       [-u confvar] [-f dosrcFile] [-o dbgfile] 2> vital_logs\n"
 	"  dos --version\n\n"
 	"    -2,3,4,5,6 choose 286, 386, 486 or 586 or 686 CPU\n"
 	"    -A boot from first defined floppy disk (A)\n"
@@ -1115,6 +1120,7 @@ usage(void)
 	"    -P copy debugging output to FILE\n"
 	"    -T DIR set tmpdir\n"
 	"    -t try new timer code (#)\n"
+	"    -u set user configuration variable 'confvar' prefixed by 'u_'.\n"
 	"    -V use BIOS-VGA video modes (!#%%)\n"
 	"    -v NUM force video card type\n"
 	"    -x SIZE enable SIZE K XMS RAM\n"

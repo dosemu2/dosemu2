@@ -17,6 +17,7 @@
 #define CONFIG_H 1
 
 #define    CONFIG_FILE           "/etc/dosemu.conf"
+#define    CONFIG_SCRIPT         "/var/lib/dosemu/global.conf"
 #define    DOSEMU_USERS_FILE     "/etc/dosemu.users"
 #define    DOSEMU_LOGLEVEL_FILE  "/etc/dosemu.loglevel"
 
