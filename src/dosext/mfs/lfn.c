@@ -52,10 +52,9 @@ static time_t win_to_unix_time(unsigned long long wt)
 	return (wt / 10000000) - (369 * 365 + 89)*24*60*60ULL;
 }
 
-static void make_dos_mangled_path(char *fpath)
+static void make_dos_mangled_path(char *dest, char *fpath)
 {
-	char *src, *dest;
-	dest = LFN_string - (long)bios_f000 + (BIOSSEG << 4);
+	char *src;
 	*dest++ = current_drive + 'A';
 	*dest++ = ':';
 	*dest = '\\';
@@ -234,13 +233,14 @@ int mfs_lfn(void)
 			return lfn_error(PATH_NOT_FOUND);
 		break;
 	case 0x3b: /* chdir */
+		dest = LFN_string - (long)bios_f000 + (BIOSSEG << 4);
 		Debug0((dbg_fd, "set directory to: %s\n", src));
 		d_printf("LFN: chdir %s %d\n", src, strlen(src));
 		if (!build_posix_path(fpath, src))
 			return 0;			 
 		if (!find_file(fpath, &st) || !S_ISDIR(st.st_mode))
 			return lfn_error(PATH_NOT_FOUND);
-		make_dos_mangled_path(fpath);
+		make_dos_mangled_path(dest, fpath);
 		d_printf("LFN: New CWD will be %s\n", dest);
 		call_dos_helper(0x3b00);
 		break;
@@ -449,24 +449,26 @@ int mfs_lfn(void)
 			return 0;
 		find_file(fpath, &st);
 		d_printf("LFN: %s %s\n", fpath, dos_root);
-		for (cwd = fpath; *cwd; cwd++)
-			if (*cwd == '/')
-				*cwd = '\\';
-		dest[0] = current_drive + 'A';
-		dest[1] = ':';
-		dest[2] = '\\';
-		strcpy(dest + 3, fpath+strlen(dos_root));
-		if (_CL == 1)
-			make_dos_mangled_path(dest + 3);
+		if (_CL == 1) {
+			make_dos_mangled_path(dest, fpath);
+		} else {
+			dest[0] = current_drive + 'A';
+			dest[1] = ':';
+			dest[2] = '\\';
+			strcpy(dest + 3, fpath+strlen(dos_root));
+			for (cwd = dest; *cwd; cwd++)
+				if (*cwd == '/')
+					*cwd = '\\';
+		}
 		d_printf("LFN: %s %s\n", dest, dos_root);
 		break;
 	case 0x6c: /* create/open */
 		src = (char *)SEGOFF2LINEAR(_DS, _SI);
+		dest = LFN_string - (long)bios_f000 + (BIOSSEG << 4);
 		d_printf("LFN: open %s\n", src);
 		if (!build_posix_path(fpath, src))
 			return 0;		 
 		if (is_dos_device(fpath)) {
-                        dest = LFN_string - (long)bios_f000 + (BIOSSEG << 4);
 			strcpy(dest, strrchr(fpath, '/') + 1);
 		} else {
 			slash = strrchr(fpath, '/');
@@ -488,7 +490,7 @@ int mfs_lfn(void)
 				d_printf("LFN: open: created %s\n", fpath);
 				close(fd);
 			}
-			make_dos_mangled_path(fpath);
+			make_dos_mangled_path(dest, fpath);
 		}
 		call_dos_helper(0x6c00);
 		break;
