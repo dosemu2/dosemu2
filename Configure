@@ -1,13 +1,15 @@
 #!/bin/sh
 #
-# Configure 0.01
+# Configure 0.1
 # configuration program for dosemu
+# WARNIG : This program is pre-alpha !
+#
 # (c) 1994 Jan 'TWP' VANDENBERGHE
 #          jvdbergh@wins.uia.ac.be
 #
 
 # tempory file
-TEMP=/tmp/Configure.answers
+TEMP=/tmp/dosconfig.answers
 
 # config file
 CONFIG=/etc/dosemu.conf
@@ -633,6 +635,85 @@ echo "" >> $CONFIG
 }
 
 
+select_terminals() {
+
+echo "## TERMINAL ##" >> $CONFIG
+
+dialog --title "TERMINAL" --yesno "Do you want to use a TERMINAL ?"\
+ 5 50 
+
+if [ "$?" = "0" ]
+then
+   echo -n "terminal { " >> $CONFIG
+   dialog --title "TERMINAL" --radiolist "which charset ?" 9 50 2\
+   1 "latin" on \
+   2 "IBM" off 2> $TEMP
+
+   check_status
+   choice=`cat $TEMP`
+   case $choice in
+      1) echo -n "charset latin  " >> $CONFIG;;
+      2) echo -n "charset ibm  " >> $CONFIG;;
+   esac
+   dialog --title "TERMINAL" --radiolist "color ?" 10 30 3\
+   1 "off" off \
+   2 "normal" on \
+   3 "xterm" off 2> $TEMP
+
+   check_status
+   choice=`cat $TEMP`
+   case $choice in
+      1) echo -n "color off  " >> $CONFIG;;
+      2) echo -n "color normal  " >> $CONFIG;;
+      3) echo -n "color xterm  " >> $CONFIG;;
+   esac
+   
+
+dialog --title "TERMINALS" --inputbox "give updatefreq (def = 2):" 8 40 2> $TEMP
+
+check_status
+choice=`cat $TEMP`
+echo -n "updatefreq $choice  " >> $CONFIG
+
+dialog --title "TERMINALS" --inputbox "give updatelines (def = 25):" 8 40 2> $TEMP
+
+check_status
+choice=`cat $TEMP`
+echo -n "updatelines $choice  " >> $CONFIG
+
+
+   dialog --title "TERMINAL" --radiolist "methode ?" 9 40 2\
+   1 "fast" on \
+   2 "ncurses" off 2> $TEMP
+
+   check_status
+   choice=`cat $TEMP`
+   case $choice in
+      1) echo -n "methode fast  " >> $CONFIG;;
+      2) echo -n "methode ncurses  " >> $CONFIG;;
+   esac
+
+   dialog --title "TERMINAL" --radiolist "corner ?" 9 40 2\
+   1 "on" on \
+   2 "off" off 2> $TEMP
+
+   check_status
+   choice=`cat $TEMP`
+   case $choice in
+      1) echo -n "corner on  " >> $CONFIG;;
+      2) echo -n "corner off  " >> $CONFIG;;
+   esac
+   echo "}" >> $CONFIG
+fi
+ 
+
+echo "" >> $CONFIG
+
+}
+
+
+
+
 
 select_printers() {
 
@@ -643,8 +724,64 @@ echo "" >> $CONFIG
 
 }
 
+
+select_X() {
+
+echo "## X SUPPORT ##" >> $CONFIG
+
+dialog --title "X SUPPORT" --yesno "Do you want to use a X ?"\
+ 5 50 
+
+if [ "$?" = "0" ]
+then
+   echo -n "X { " >> $CONFIG
+   
+
+   dialog --title "X SUPPORT" --inputbox "give updatefreq (def = 8):" 8 40 2> $TEMP
+  
+   check_status
+   choice=`cat $TEMP`
+   echo -n "updatefreq $choice  " >> $CONFIG
+
+   dialog --title "X SUPPORT" --inputbox "give updatelines (def = 25):" 8 40 2> $TEMP
+
+   check_status
+   choice=`cat $TEMP`
+   echo -n "updatelines $choice  " >> $CONFIG
+
+   dialog --title "X SUPPORT" --inputbox "give display string (def = :0):" \
+8 50 2> $TEMP
+  
+   check_status
+   choice=`cat $TEMP`
+   echo -n "display \"$choice\"  " >> $CONFIG
+
+
+  dialog --title "X SUPPORT" --inputbox "give title string (def = dosemu):" \
+8 50 2> $TEMP
+  
+   check_status
+   choice=`cat $TEMP`
+   echo -n "title \"$choice\"  " >> $CONFIG
+
+   dialog --title "X SUPPORT" --inputbox "give icon name string (def = dosemu):"\
+ 8 50 2> $TEMP
+  
+   check_status
+   choice=`cat $TEMP`
+   echo -n "icon_name \"$choice\"  " >> $CONFIG
+
+   echo "}" >> $CONFIG
+
+fi
+ 
+echo "" >> $CONFIG
+
+}
+
 main_menu() {
-echo -e "## configuration file for DOSEMU created by Configure 0.01##\n" > $CONFIG
+cp -b /etc/dosemu.conf /etc/dosemu.conf.backup
+echo -e "## configuration file for DOSEMU created by dosconfig 0.1##\n" > $CONFIG
 select_debug
 select_miscallenous
 select_keyboard
@@ -654,6 +791,8 @@ select_speaker
 select_serial
 select_network
 select_video
+select_terminals
+select_X
 select_floppy
 select_printers
 select_harddisk

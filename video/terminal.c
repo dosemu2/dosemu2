@@ -90,7 +90,9 @@ terminal_initialize()
     break;
   }
 
+  initscr();
   raw();
+
   if (config.console_video || config.usesX) {
     config.term_method = METHOD_FAST;
     config.term_color = 0;
@@ -112,7 +114,6 @@ terminal_initialize()
 
   Video_term.update_screen = ncurses_update;
   
-  initscr();
   if (!has_colors()) config.term_color = 0;
   if (config.term_color) start_color();
   win = newwin(0,0,0,0);

@@ -1,12 +1,15 @@
 #define SIGSEGV_C 1
 
 /* 
- * $Date: 1994/09/26 23:10:13 $
+ * $Date: 1994/09/28 00:55:59 $
  * $Source: /home/src/dosemu0.60/RCS/sigsegv.c,v $
- * $Revision: 2.10 $
+ * $Revision: 2.11 $
  * $State: Exp $
  *
  * $Log: sigsegv.c,v $
+ * Revision 2.11  1994/09/28  00:55:59  root
+ * Prep for pre53_23.tgz
+ *
  * Revision 2.10  1994/09/26  23:10:13  root
  * Prep for pre53_22.
  *
@@ -193,7 +196,8 @@ inline void vm86_GP_fault()
   /* in_vm86 = 0; */
   in_sigsegv++;
 
-  /* In a properly functioning emulator :-), sigsegv's will never come
+  /* DANG_BEGIN_REMARK 
+   * In a properly functioning emulator :-), sigsegv's will never come
    * while in a non-reentrant system call (ioctl, select, etc).  Therefore,
    * there's really no reason to worry about them, so I say that I'm NOT
    * in a signal handler (I might make this a little clearer later, to
@@ -202,6 +206,8 @@ inline void vm86_GP_fault()
    * I reiterate: sigsegv's should only happen when I'm running the vm86
    * system call, so I really shouldn't be in a non-reentrant system call
    * (except maybe vm86)
+   * - Robert Sanders
+   * DANG_END_REMARK
    */
   in_sighandler = 0;
 

@@ -1,8 +1,8 @@
 # Makefile for Linux DOSEMU
 #
-# $Date: 1994/09/26 23:10:13 $
+# $Date: 1994/09/28 00:55:59 $
 # $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.31 $
+# $Revision: 2.32 $
 # $State: Exp $
 #
 # You should do a "make doeverything" or a "make most" (excludes TeX)
@@ -10,18 +10,22 @@
 #
 # PLEASE, PLEASE, PLEASE, PLEASE make a provision to automatically detect
 # an xwindows installation!  A dirty hack example is the following:
+
 #ifdef X_SUPPORT
 #	if [ ! -e /usr/X11/bin ] || \
 #	   [ ! -e /lib/libX11* ] || \
 #	   [ ! -e /usr/lib/X11/fonts ]; then undef X_SUPPORT; fi
 #endif
 
-# Set X_SUPPORT to 0 if you don't have X windows installed.
+# Until then, if you do NOT have X support, comment out the following
+#  2 lines.
 X_SUPPORT = 1
 X2_SUPPORT = 1
 
 #Change the following line if the right kernel includes reside elsewhere
 LINUX_INCLUDE = /usr/src/linux/include
+
+#Change the following line if the your X libs are elsewhere.
 X11LIBDIR = /usr/X386/lib
 
 #Change the following line to point to your ncurses include
@@ -38,8 +42,10 @@ XOBJS   = Xkeyb.o
 XLIBS   = -L$(X11LIBDIR) -lX11 -u _XOpenDisplay
 XDEFS   = -DX_SUPPORT
 endif
+
 ifdef X2_SUPPORT
 X2CFILES = x2dos.c
+X2CEXE = x2dos
 X2DEFS   = -DX_SUPPORT
 endif
 
@@ -66,7 +72,7 @@ DOSLNK=
 # dosemu version
 EMUVER  =   0.53
 VERNUM  =   0x53
-PATCHL  =   22
+PATCHL  =   23
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -204,7 +210,7 @@ doeverything: warning2 config dep installnew docsubdirs
 
 most: warning2 config dep installnew
 
-all:	warnconf x2dos dos dossubdirs warning3 $(LIBDOSEMU)
+all:	warnconf $(X2CEXE) dos dossubdirs warning3 $(LIBDOSEMU)
 
 .EXPORT_ALL_VARIABLES:
 
@@ -310,8 +316,8 @@ ifdef X_SUPPORT
 	@echo "  - Use 'xdos' instead of 'dos' to cause DOSEMU to open its own Xwindow."
 	@echo "  - Type 'xset fp rehash' before running 'xdos' for the first time."
 	@echo "  - To make your backspace and delete key work properly in 'xdos', type:"
-	@echo '		xmodmap -e "keycode 107 = 0xffff"'
-	@echo '		xmodmap -e "keycode 22 = 0xff08"'
+	@echo "		xmodmap -e \"keycode 107 = 0xffff\""
+	@echo "		xmodmap -e \"keycode 22 = 0xff08\""
 endif
 	@echo ""
 

@@ -247,8 +247,8 @@ void store_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
 
       memcpy((caddr_t) (mem + position), (caddr_t) GRAPH_BASE, p[plane]);
       position = position + p[plane];
+      v_printf("READ Bank=%d, plane=0x%02x, mem=%08x\n", banks, plane, *(int *) GRAPH_BASE);
     }
-    v_printf("READ Bank=%d, plane=0x%02x, mem=%08x\n", banks, plane, *(int *) GRAPH_BASE);
   }
   else {
     for (cbank = 0; cbank < banks; cbank++) {
@@ -306,8 +306,8 @@ void restore_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
 
       memcpy((caddr_t) GRAPH_BASE, (caddr_t) (mem + position), p[plane]);
       position = position + p[plane];
+      v_printf("WRITE Bank=%d, plane=0x%02x, *mem=%08x, mem=%p\n", banks, plane, *(caddr_t) mem, (caddr_t) mem);
     }
-    v_printf("WRITE Bank=%d, plane=0x%02x, mem=%08x\n", banks, plane, *(caddr_t) mem);
   }
   else {
     plane = 0;
@@ -317,14 +317,15 @@ void restore_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
 	for (plane = 0; plane < 4; plane++) {
 	  set_bank_write((cbank * 4) + plane);
 	  memcpy((caddr_t) GRAPH_BASE, (caddr_t) (mem + (bsize * cbank) + position), p[plane]);
-	  position = position + p[plane];
-	  for (counter = 0; counter < 20; counter++)
+	  for (counter = 0; counter < 20; counter++) {
 	    v_printf("0x%02x ", *(u_char *) (mem + (bsize * cbank) + position + counter));
+	  }
 	  v_printf("\n");
+	  position = position + p[plane];
 	}
       }
+      v_printf("BANK WRITE Bank=%d, plane=0x%02x, mem=%08x\n", cbank, plane, *(int *) (mem + (bsize * cbank)));
     }
-    v_printf("BANK WRITE Bank=%d, plane=0x%02x, mem=%08x\n", cbank, plane, *(int *) (mem + (bsize * cbank)));
   }
   v_printf("mem to GRAPH_BASE complete!\n");
 }
@@ -498,7 +499,10 @@ int vga_initialize(void)
 	   dosemu_regs.banks);
 
   save_vga_state(&linux_regs);
+#if 0
   save_vga_state(&dosemu_regs);
+  restore_vga_state(&dosemu_regs);
+#endif
   vga_screenon();
   memset((caddr_t) linux_regs.mem, ' ', 8 * 1024);
   dump_video_linux();

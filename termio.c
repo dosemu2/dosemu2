@@ -2,7 +2,7 @@
 
 #define TERMIO_C 1
 
-/* 
+/*
  * DANG_BEGIN_MODULE
  *
  * This handles the keyboard.
@@ -16,15 +16,18 @@
  * DANG_END_MODULE
  */
 
-/* 
+/*
  * DANG_BEGIN_CHANGELOG
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/09/26 23:10:13 $
+ * $Date: 1994/09/28 00:55:59 $
  * $Source: /home/src/dosemu0.60/RCS/termio.c,v $
- * $Revision: 2.16 $
+ * $Revision: 2.17 $
  * $State: Exp $
  * $Log: termio.c,v $
+ * Revision 2.17  1994/09/28  00:55:59  root
+ * Prep for pre53_23.tgz
+ *
  * Revision 2.16  1994/09/26  23:10:13  root
  * Prep for pre53_22.
  *
@@ -167,7 +170,7 @@
    I set keepkey to reflect CF */
 u_char keepkey = 1;
 
-inline void child_set_flags(int );
+inline void child_set_flags(int);
 
 void clear_raw_mode();
 extern void clear_console_video();
@@ -191,7 +194,6 @@ extern struct config_info config;
 extern struct screen_stat scr_state;	/* main screen status variables */
 
 extern int sizes;		/* this is DEBUGGING code */
-int in_readkeyboard = 0;
 
 extern int ignore_segv;
 
@@ -200,8 +202,7 @@ unsigned int queue;
 
 #define put_queue(psc) (queue = psc)
 
-static void gettermcap(void),
- sysreq(unsigned int), ctrl(unsigned int),
+static void gettermcap(void), sysreq(unsigned int), ctrl(unsigned int),
  alt(unsigned int), Unctrl(unsigned int), unalt(unsigned int), lshift(unsigned int),
  unlshift(unsigned int), rshift(unsigned int), unrshift(unsigned int),
  caps(unsigned int), uncaps(unsigned int), ScrollLock(unsigned int), unscroll(unsigned int),
@@ -230,83 +231,83 @@ typedef void (*fptr) (unsigned int);
 
 static fptr key_table[] =
 {
-  none,    do_self,  do_self,   do_self, /* 00-03 s0 esc 1 2 */
-  do_self, do_self,  do_self,   do_self, /* 04-07 3 4 5 6 */
-  do_self, do_self,  do_self,   do_self, /* 08-0B 7 8 9 0 */
-  do_self, do_self,  backspace, Tab,     /* 0C-0F + ' bs tab */
-  do_self, do_self,  do_self,   do_self, /* 10-13 q w e r */
-  do_self, do_self,  do_self,   do_self, /* 14-17 t y u i */
-  do_self, do_self,  do_self,   do_self, /* 18-1B o p } ^ */
-  enter,   ctrl,     do_self,   do_self, /* 1C-1F enter ctrl a s */
-  do_self, do_self,  do_self,   do_self, /* 20-23 d f g h */
-  do_self, do_self,  do_self,   do_self, /* 24-27 j k l | */
-  do_self, do_self,  lshift,    do_self, /* 28-2B { para lshift , */
-  do_self, do_self,  do_self,   do_self, /* 2C-2F z x c v */
-  do_self, do_self,  do_self,   do_self, /* 30-33 b n m , */
-  do_self, slash,    rshift,    star,    /* 34-37 . / rshift * */
-  alt,     spacebar, caps,      func,    /* 38-3B alt sp caps f1 */
-  func,    func,     func,      func,    /* 3C-3F f2 f3 f4 f5 */
-  func,    func,     func,      func,    /* 40-43 f6 f7 f8 f9 */
-  func,    num,      ScrollLock, cursor, /* 44-47 f10 num scr home */
-  cursor,  cursor,   minus,     cursor,  /* 48-4B up pgup - left */
-  cursor,  cursor,   plus,      cursor,  /* 4C-4F n5 right + end */
-  cursor,  cursor,   cursor,    cursor,  /* 50-53 dn pgdn ins del */
-  sysreq,  none,     do_self,   func,    /* 54-57 sysreq ? < f11 */
-  func,    none,     none,      none,    /* 58-5B f12 ? ? ? */
-  none,    none,     none,      none,    /* 5C-5F ? ? ? ? */
-  none,    none,     none,      none,    /* 60-63 ? ? ? ? */
-  none,    none,     none,      none,    /* 64-67 ? ? ? ? */
-  none,    none,     none,      none,    /* 68-6B ? ? ? ? */
-  none,    none,     none,      none,    /* 6C-6F ? ? ? ? */
-  none,    none,     none,      none,    /* 70-73 ? ? ? ? */
-  none,    none,     none,      none,    /* 74-77 ? ? ? ? */
-  none,    none,     none,      none,    /* 78-7B ? ? ? ? */
-  none,    none,     none,      none,    /* 7C-7F ? ? ? ? */
-  none,    none,     none,      none,    /* 80-83 ? br br br */
-  none,    none,     none,      none,    /* 84-87 br br br br */
-  none,    none,     none,      none,    /* 88-8B br br br br */
-  none,    none,     none,      none,    /* 8C-8F br br br br */
-  none,    none,     none,      none,    /* 90-93 br br br br */
-  none,    none,     none,      none,    /* 94-97 br br br br */
-  none,    none,     none,      none,    /* 98-9B br br br br */
-  none,    Unctrl,   none,      none,    /* 9C-9F br unctrl br br */
-  none,    none,     none,      none,    /* A0-A3 br br br br */
-  none,    none,     none,      none,    /* A4-A7 br br br br */
-  none,    none,     unlshift,  none,    /* A8-AB br br unlshift br */
-  none,    none,     none,      none,    /* AC-AF br br br br */
-  none,    none,     none,      none,    /* B0-B3 br br br br */
-  none,    none,     unrshift,  none,    /* B4-B7 br br unrshift br */
-  unalt,   none,     uncaps,    none,    /* B8-BB unalt br uncaps br */
-  none,    none,     none,      none,    /* BC-BF br br br br */
-  none,    none,     none,      none,    /* C0-C3 br br br br */
-  none,    unnum,    unscroll,  none,    /* C4-C7 br br br br */
-  none,    none,     none,      none,    /* C8-CB br br br br */
-  none,    none,     none,      none,    /* CC-CF br br br br */
-  none,    none,     unins,     none,    /* D0-D3 br br unins br */
-  none,    none,     none,      none,    /* D4-D7 br br br br */
-  none,    none,     none,      none,    /* D8-DB br ? ? ? */
-  none,    none,     none,      none,    /* DC-DF ? ? ? ? */
-  none,    none,     none,      none,    /* E0-E3 e0 e1 ? ? */
-  none,    none,     none,      none,    /* E4-E7 ? ? ? ? */
-  none,    none,     none,      none,    /* E8-EB ? ? ? ? */
-  none,    none,     none,      none,    /* EC-EF ? ? ? ? */
-  none,    none,     none,      none,    /* F0-F3 ? ? ? ? */
-  none,    none,     none,      none,    /* F4-F7 ? ? ? ? */
-  none,    none,     none,      none,    /* F8-FB ? ? ? ? */
-  none,    none,     none,      none     /* FC-FF ? ? ? ? */
+  none, do_self, do_self, do_self,	/* 00-03 s0 esc 1 2 */
+  do_self, do_self, do_self, do_self,	/* 04-07 3 4 5 6 */
+  do_self, do_self, do_self, do_self,	/* 08-0B 7 8 9 0 */
+  do_self, do_self, backspace, Tab,	/* 0C-0F + ' bs tab */
+  do_self, do_self, do_self, do_self,	/* 10-13 q w e r */
+  do_self, do_self, do_self, do_self,	/* 14-17 t y u i */
+  do_self, do_self, do_self, do_self,	/* 18-1B o p } ^ */
+  enter, ctrl, do_self, do_self,/* 1C-1F enter ctrl a s */
+  do_self, do_self, do_self, do_self,	/* 20-23 d f g h */
+  do_self, do_self, do_self, do_self,	/* 24-27 j k l | */
+  do_self, do_self, lshift, do_self,	/* 28-2B { para lshift , */
+  do_self, do_self, do_self, do_self,	/* 2C-2F z x c v */
+  do_self, do_self, do_self, do_self,	/* 30-33 b n m , */
+  do_self, slash, rshift, star,	/* 34-37 . / rshift * */
+  alt, spacebar, caps, func,	/* 38-3B alt sp caps f1 */
+  func, func, func, func,	/* 3C-3F f2 f3 f4 f5 */
+  func, func, func, func,	/* 40-43 f6 f7 f8 f9 */
+  func, num, ScrollLock, cursor,/* 44-47 f10 num scr home */
+  cursor, cursor, minus, cursor,/* 48-4B up pgup - left */
+  cursor, cursor, plus, cursor,	/* 4C-4F n5 right + end */
+  cursor, cursor, cursor, cursor,	/* 50-53 dn pgdn ins del */
+  sysreq, none, do_self, func,	/* 54-57 sysreq ? < f11 */
+  func, none, none, none,	/* 58-5B f12 ? ? ? */
+  none, none, none, none,	/* 5C-5F ? ? ? ? */
+  none, none, none, none,	/* 60-63 ? ? ? ? */
+  none, none, none, none,	/* 64-67 ? ? ? ? */
+  none, none, none, none,	/* 68-6B ? ? ? ? */
+  none, none, none, none,	/* 6C-6F ? ? ? ? */
+  none, none, none, none,	/* 70-73 ? ? ? ? */
+  none, none, none, none,	/* 74-77 ? ? ? ? */
+  none, none, none, none,	/* 78-7B ? ? ? ? */
+  none, none, none, none,	/* 7C-7F ? ? ? ? */
+  none, none, none, none,	/* 80-83 ? br br br */
+  none, none, none, none,	/* 84-87 br br br br */
+  none, none, none, none,	/* 88-8B br br br br */
+  none, none, none, none,	/* 8C-8F br br br br */
+  none, none, none, none,	/* 90-93 br br br br */
+  none, none, none, none,	/* 94-97 br br br br */
+  none, none, none, none,	/* 98-9B br br br br */
+  none, Unctrl, none, none,	/* 9C-9F br unctrl br br */
+  none, none, none, none,	/* A0-A3 br br br br */
+  none, none, none, none,	/* A4-A7 br br br br */
+  none, none, unlshift, none,	/* A8-AB br br unlshift br */
+  none, none, none, none,	/* AC-AF br br br br */
+  none, none, none, none,	/* B0-B3 br br br br */
+  none, none, unrshift, none,	/* B4-B7 br br unrshift br */
+  unalt, none, uncaps, none,	/* B8-BB unalt br uncaps br */
+  none, none, none, none,	/* BC-BF br br br br */
+  none, none, none, none,	/* C0-C3 br br br br */
+  none, unnum, unscroll, none,	/* C4-C7 br br br br */
+  none, none, none, none,	/* C8-CB br br br br */
+  none, none, none, none,	/* CC-CF br br br br */
+  none, none, unins, none,	/* D0-D3 br br unins br */
+  none, none, none, none,	/* D4-D7 br br br br */
+  none, none, none, none,	/* D8-DB br ? ? ? */
+  none, none, none, none,	/* DC-DF ? ? ? ? */
+  none, none, none, none,	/* E0-E3 e0 e1 ? ? */
+  none, none, none, none,	/* E4-E7 ? ? ? ? */
+  none, none, none, none,	/* E8-EB ? ? ? ? */
+  none, none, none, none,	/* EC-EF ? ? ? ? */
+  none, none, none, none,	/* F0-F3 ? ? ? ? */
+  none, none, none, none,	/* F4-F7 ? ? ? ? */
+  none, none, none, none,	/* F8-FB ? ? ? ? */
+  none, none, none, none	/* FC-FF ? ? ? ? */
 };
 
 #define us unsigned short
 
 int kbd_fd = -1,		/* the fd for the keyboard */
- old_kbd_flags = -1;			/* flags for STDIN before our fcntl */
+ old_kbd_flags = -1;		/* flags for STDIN before our fcntl */
 
 /* these are in DOSIPC.C */
 extern int ipc_fd[2];
 
 int kbcount = 0;
 unsigned char kbbuf[KBBUF_SIZE], *kbp, erasekey;
-struct termio oldtermio;	/* original terminal modes */
+struct termios oldtermios;	/* original terminal modes */
 
 char tc[1024], termcap[1024];
 int li, co;			/* lines, columns */
@@ -318,7 +319,7 @@ struct funkeystruct {
 };
 
 /* The funkeystruct structures have been moved to termio.h
-/* This is a translation table for esc-prefixed terminal keyboard codes 
+/* This is a translation table for esc-prefixed terminal keyboard codes
  * to PC computer keyboard codes.
  */
 static struct funkeystruct funkey[] =
@@ -327,7 +328,7 @@ static struct funkeystruct funkey[] =
   {NULL, "kdch1", 0x5300},	/* kD     Del   0x007F */
   {NULL, "khome", 0x4700},	/* kh     Ho    0x5C00 */
   {NULL, "kend", 0x4f00},	/* kH     End   0x6100 */
-  {NULL, "kcuu1", 0x4800},	/* ku     Up */  
+  {NULL, "kcuu1", 0x4800},	/* ku     Up */
   {NULL, "kcud1", 0x5000},	/* kd     Dn */
   {NULL, "kcuf1", 0x4d00},	/* kr     Ri */
   {NULL, "kcub1", 0x4b00},	/* kl     Le */
@@ -353,7 +354,7 @@ static struct funkeystruct funkey[] =
   {"\033[K", NULL, 0x4f00},	/* End */
   {"\033[5~", NULL, 0x4900},	/* PgUp */
   {"\033[6~", NULL, 0x5100},	/* PgDn */
-  {"\033[A", NULL, 0x4800},	/* Up */  
+  {"\033[A", NULL, 0x4800},	/* Up */
   {"\033OA", NULL, 0x4800},	/* Up */
   {"\033[B", NULL, 0x5000},	/* Dn */
   {"\033OB", NULL, 0x5000},	/* Dn */
@@ -460,7 +461,7 @@ static struct funkeystruct xfunkey[] =
   {"\341", NULL, 0x1e00},	/* Alt A */
   {"\342", NULL, 0x3000},	/* Alt B */
   {"\343", NULL, 0x2e00},	/* Alt C */
-/*  {"\344", NULL, 0x2000}, */  /* Alt D */  /* This is not (always) true */
+/*  {"\344", NULL, 0x2000}, *//* Alt D *//* This is not (always) true */
   {"\345", NULL, 0x1200},	/* Alt E */
   {"\346", NULL, 0x2100},	/* Alt F */
   {"\347", NULL, 0x2200},	/* Alt G */
@@ -478,7 +479,7 @@ static struct funkeystruct xfunkey[] =
   {"\363", NULL, 0x1f00},	/* Alt S */
   {"\364", NULL, 0x1400},	/* Alt T */
   {"\365", NULL, 0x1600},	/* Alt U */
-/*  {"\366", NULL, 0x2f00}, */	/* Alt V */  /* This is not (always) true */
+/*  {"\366", NULL, 0x2f00}, *//* Alt V *//* This is not (always) true */
   {"\367", NULL, 0x1100},	/* Alt W */
   {"\370", NULL, 0x2d00},	/* Alt X */
   {"\371", NULL, 0x1500},	/* Alt Y */
@@ -496,7 +497,7 @@ static struct funkeystruct xfunkey[] =
   {"\340", NULL, 0x2900},	/* Alt ` */
   {"\255", NULL, 0x8200},	/* Alt - */
   {"\275", NULL, 0x8300},	/* Alt = */
-/*  {"\334", NULL, 0x2B00}, */	/* Alt \ */  /* This is not (always) true */
+/*  {"\334", NULL, 0x2B00}, *//* Alt \ *//* This is not (always) true */
   {"\273", NULL, 0x2700},	/* Alt ; */
   {"\247", NULL, 0x2800},	/* Alt ' */
   {"\254", NULL, 0x3300},	/* Alt , */
@@ -520,15 +521,14 @@ static struct funkeystruct xfunkey[] =
   {NULL, NULL, 0}		/* Ending delimiter */
 };
 
-
 /* this table is used by convKey() to give the int16 functions the
- * correct scancode in the high byte of the returned key (AH) 
+ * correct scancode in the high byte of the returned key (AH)
  * this might need changing per country, like the RAW keyboards, but I
  * don't think so.  I think that it'll make every keyboard look like
  * a U.S. keyboard to DOS, which maybe "keyb" does anyway.  Sorry
  * it's so ugly.
  * this is a table of scancodes, indexed by the ASCII value of the character
- * to be completed 
+ * to be completed
  */
 unsigned char highscan[256] =
 {
@@ -557,7 +557,7 @@ unsigned char highscan[256] =
 int
 outch(int c)
 {
-  addch((u_char)c); 
+  addch((u_char) c);
   refresh();
   return 1;
 }
@@ -565,7 +565,7 @@ outch(int c)
 static void
 gettermcap(void)
 {
-  char *garb; 
+  char *garb;
   struct winsize ws;		/* buffer for TIOCSWINSZ */
   struct funkeystruct *fkp;
 
@@ -575,11 +575,11 @@ gettermcap(void)
     li = ws.ws_row;
     co = ws.ws_col;
   }
-    
+
   if (li == 0 || co == 0) {
-    error("ERROR: unknown window sizes li=%d  co=%d, setting to 80x25\n",li,co);
-    li=25;
-    co=80;
+    error("ERROR: unknown window sizes li=%d  co=%d, setting to 80x25\n", li, co);
+    li = 25;
+    co = 80;
   }
 
   /* This won't work with NCURSES version 1.8. */
@@ -612,13 +612,13 @@ keyboard_close(void)
       clear_consoleX_video();
     }
 
-    if ( (config.console_keyb || config.console_video) && !config.usesX ) {
+    if ((config.console_keyb || config.console_video) && !config.usesX) {
       k_printf("KBD: keyboard_close: clear process control\n");
       clear_process_control();
     }
 
     fcntl(kbd_fd, F_SETFL, old_kbd_flags);
-    ioctl(kbd_fd, TCSETAF, &oldtermio);
+    tcsetattr(kbd_fd, TCSANOW, &oldtermios);
 
     close(kbd_fd);
     kbd_fd = -1;
@@ -627,18 +627,20 @@ keyboard_close(void)
 
 struct termios save_termios;
 
-void print_termios(struct termios term) {
- k_printf("KBD: TERMIOS Structure:\n");
- k_printf("KBD: 	c_iflag=%x\n", term.c_iflag);
- k_printf("KBD: 	c_oflag=%x\n", term.c_oflag);
- k_printf("KBD: 	c_cflag=%x\n", term.c_cflag);
- k_printf("KBD: 	c_lflag=%x\n", term.c_lflag);
- k_printf("KBD: 	c_line =%x\n", term.c_line);
+void
+print_termios(struct termios term)
+{
+  k_printf("KBD: TERMIOS Structure:\n");
+  k_printf("KBD: 	c_iflag=%x\n", term.c_iflag);
+  k_printf("KBD: 	c_oflag=%x\n", term.c_oflag);
+  k_printf("KBD: 	c_cflag=%x\n", term.c_cflag);
+  k_printf("KBD: 	c_lflag=%x\n", term.c_lflag);
+  k_printf("KBD: 	c_line =%x\n", term.c_line);
 }
 
-/* 
+/*
  * DANG_BEGIN_FUNCTION keyboard_init
- * 
+ *
  * description:
  *  Initialize the keyboard to DOSEMU deafaults plus those requested
  *  in the configs if allowable.
@@ -648,28 +650,31 @@ void print_termios(struct termios term) {
 int
 keyboard_init(void)
 {
-  struct termio newtermio;	/* new terminal modes */
+  struct termios newtermio;	/* new terminal modes */
   struct stat chkbuf;
   int major, minor;
 
-  if ( ( config.usesX ) /* && ( config.usesX != 2) */ ){
-    kbd_fd = dup( keypipe );
+  if ((config.usesX) /* && ( config.usesX != 2) */ ) {
+    kbd_fd = dup(keypipe);
   }
   else {
+#if 0
     kbd_fd = dup(STDIN_FILENO);
+#else
+    kbd_fd = STDIN_FILENO;
+#endif
   }
 
-  if (kbd_fd < 0)
-    {
-      error("ERROR: Couldn't duplicate STDIN !\n");
-      return -1;
-    }
+  if (kbd_fd < 0) {
+    error("ERROR: Couldn't duplicate STDIN !\n");
+    return -1;
+  }
 
   old_kbd_flags = fcntl(kbd_fd, F_GETFL);
   fcntl(kbd_fd, F_SETFL, O_RDONLY | O_NONBLOCK);
 
   if (use_sigio)
-      k_printf("KBD: Using SIGIO\n");
+    k_printf("KBD: Using SIGIO\n");
   add_to_io_select(kbd_fd);
 
   scr_state.vt_allow = 0;
@@ -682,13 +687,13 @@ keyboard_init(void)
   major = chkbuf.st_rdev >> 8;
   minor = chkbuf.st_rdev & 0xff;
 
-  if ( !(config.usesX) ) {
+  if (!(config.usesX)) {
     /* console major num is 4, minor 64 is the first serial line */
     if ((major == 4) && (minor < 64))
-      scr_state.console_no = minor; /* get minor number */
+      scr_state.console_no = minor;	/* get minor number */
     else {
       if (config.console_keyb || config.console_video)
-        error("ERROR: STDIN not a console-can't do console modes!\n");
+	error("ERROR: STDIN not a console-can't do console modes!\n");
       scr_state.console_no = 0;
       config.console_keyb = 0;
       config.console_video = 0;
@@ -696,19 +701,19 @@ keyboard_init(void)
       config.vga = 0;
       config.graphics = 0;
       if (config.speaker == SPKR_NATIVE)
-        config.speaker = SPKR_EMULATED;
+	config.speaker = SPKR_EMULATED;
     }
   }
   else {
-    scr_state.console_no =0;
+    scr_state.console_no = 0;
   }
 
-  if (ioctl(kbd_fd, TCGETA, &oldtermio) < 0) {
-    error("ERROR: Couldn't ioctl(STDIN,TCGETA,...) !\n");
+  if (tcgetattr(kbd_fd, &oldtermios) < 0) {
+    error("ERROR: Couldn't tcgetattr(STDIN,...) !\n");
     /* close(kbd_fd); kbd_fd = -1; return -1; <------ XXXXXXX Remove this */
   }
 
-/*
+  /*
  * DANG_BEGIN_REMARK
  *
  *  Code is called at start up to set up the terminal line for non-raw
@@ -716,25 +721,27 @@ keyboard_init(void)
  *
  * DANG_END_REMARK
  */
-  newtermio = oldtermio;
-  newtermio.c_iflag &= (ISTRIP | IGNBRK);  /* (IXON|IXOFF|IXANY|ISTRIP|IGNBRK);*/
+  newtermio = oldtermios;
+  newtermio.c_iflag &= (ISTRIP | IGNBRK);	/* (IXON|IXOFF|IXANY|ISTRIP|IGNBRK);*/
   /* newtermio.c_oflag &= ~OPOST;
   newtermio.c_cflag &= ~(HUPCL); */
   newtermio.c_cflag &= ~(CLOCAL | CSIZE | PARENB);
   newtermio.c_cflag |= CS8;
-  newtermio.c_lflag &= 0;                  /* ISIG */
+  newtermio.c_lflag &= 0;	/* ISIG */
   newtermio.c_cc[VMIN] = 1;
   newtermio.c_cc[VTIME] = 0;
   erasekey = newtermio.c_cc[VERASE];
-  if (ioctl(kbd_fd, TCSETAF, &newtermio) < 0) {
-    error("ERROR: Couldn't ioctl(STDIN,TCSETAF,...) !\n");
+  cfgetispeed(&newtermio);
+  cfgetospeed(&newtermio);
+  if (tcsetattr(kbd_fd, TCSANOW, &newtermio) < 0) {
+    error("ERROR: Couldn't tcsetattr(STDIN,TCSETAF,...) !\n");
   }
 
   kbd_flags = 0;
   child_kbd_flags = 0;
   key_flags = 0;
 
-  dbug_printf("TERMIO: $Header: /home/src/dosemu0.60/RCS/termio.c,v 2.16 1994/09/26 23:10:13 root Exp root $\n");
+  dbug_printf("TERMIO: $Header: /home/src/dosemu0.60/RCS/termio.c,v 2.17 1994/09/28 00:55:59 root Exp root $\n");
 
   return 0;
 }
@@ -777,7 +784,7 @@ tty_raw(int fd)
   buf.c_cc[VMIN] = 1;
   buf.c_cc[VTIME] = 0;
 
-  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &buf) < 0) { 
+  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &buf) < 0) {
     k_printf("KBD: Setting to RAW mode failed.\n");
     return (-1);
   }
@@ -795,26 +802,28 @@ getKeys(void)
 {
   int cc;
 
-  if (config.console_keyb) { /* Keyboard at the console */
+  if (config.console_keyb) {	/* Keyboard at the console */
     kbcount = 0;
     kbp = kbbuf;
 
     /* IPC change here!...was read(kbd_fd... */
     cc = read(kbd_fd, &kbp[kbcount], KBBUF_SIZE - 1);
     k_printf("KBD: cc found %d characters (Raw)\n", cc);
-    if (cc == -1) return;
+    if (cc == -1)
+      return;
 
     if (cc > 0) {
       int i;
+
       for (i = 0; i < cc; i++) {
-        k_printf("KEY: readcode: %d \n", kbp[kbcount + i]);
-        child_set_flags(kbp[kbcount + i]);
-        DOS_setscan(kbp[kbcount + i]);
-        k_printf("KBD: cc pushing %d'th character\n", i);
+	k_printf("KEY: readcode: %d \n", kbp[kbcount + i]);
+	child_set_flags(kbp[kbcount + i]);
+	DOS_setscan(kbp[kbcount + i]);
+	k_printf("KBD: cc pushing %d'th character\n", i);
       }
     }
   }
-  else { /* Not keyboard at the console (not config.console_keyb) */
+  else {			/* Not keyboard at the console (not config.console_keyb) */
 
     if (kbcount == 0)
       kbp = kbbuf;
@@ -826,16 +835,17 @@ getKeys(void)
     /* IPC change here!...was read(kbd_fd... */
     cc = read(kbd_fd, &kbp[kbcount], KBBUF_SIZE - kbcount - 1);
     k_printf("KBD: cc found %d characters (Xlate)\n", cc);
-    if (cc == -1) return;
+    if (cc == -1)
+      return;
 
     if (cc > 0) {
       if (kbp + kbcount + cc > &kbbuf[KBBUF_SIZE])
 	error("ERROR: getKeys() has overwritten the buffer!\n");
       kbcount += cc;
       while (cc) {
-        k_printf("KBD: Converting cc=%d\n", cc);
-        convascii(&cc);
-        k_printf("KBD: Converted\n");
+	k_printf("KBD: Converting cc=%d\n", cc);
+	convascii(&cc);
+	k_printf("KBD: Converted\n");
       }
     }
   }
@@ -899,15 +909,15 @@ child_set_flags(int sc)
   case 0x57:
   case 0x58:
     child_clr_kbd_flag(4);
-    if ( !config.X && 
-				 (child_kbd_flag(3) && child_kbd_flag(2) && !child_kbd_flag(1)) ) {
+    if (!config.X &&
+	(child_kbd_flag(3) && child_kbd_flag(2) && !child_kbd_flag(1))) {
       int fnum = sc - 0x3a;
 
       k_printf("KDB: Doing VC switch\n");
       if (fnum > 10)
 	fnum -= 0x12;		/* adjust if f11 or f12 */
 
- /* can't just do the ioctl() here, as ReadKeyboard will probably have
+      /* can't just do the ioctl() here, as ReadKeyboard will probably have
  * been called from a signal handler, and ioctl() is not reentrant.
  * hence the delay until out of the signal handler...
  */
@@ -918,8 +928,8 @@ child_set_flags(int sc)
     }
     return;
   case 0x51:
-    if ( !config.X &&
-				 (child_kbd_flag(2) && child_kbd_flag(3) && !child_kbd_flag(1)) ) {
+    if (!config.X &&
+	(child_kbd_flag(2) && child_kbd_flag(3) && !child_kbd_flag(1))) {
       dbug_printf("ctrl-alt-pgdn\n");
       leavedos(42);
     }
@@ -931,49 +941,67 @@ child_set_flags(int sc)
   }
 }
 
+/*
+ * DANG_BEGIN_FUNCTION convascii
+ *
+ * arguments:
+ *  cc - count of characters on queue
+ *
+ * description:
+ *  For dealing with translating esc character sequences received 
+ * in XLATE mode. Every effort is made to give the characters a time 
+ * slice of approx. 3/4 of a second to arrive at DOSEMU.
+ * Also handles alt-keys and other character translations.
+ *
+ * DANG_END_FUNCTION
+ *
+ */
 void
 convascii(int *cc)
 {
   /* get here only if in cooked mode (i.e. K_XLATE) */
   int i;
-  struct timeval scr_tv;
-  struct funkeystruct *fkp;
-  fd_set fds;
- 
+  static struct timeval scr_tv, t_start, t_end;
+  static struct funkeystruct *fkp;
+  static fd_set fds;
+  static int handles;
+  static long t_dif;
+
   if (*kbp == '\033') {
     int ccc;
 
-    in_readkeyboard = 1;
-    if (kbcount == 1) {
-      do {
+    fkp = funkey;
+    i = 1;
+    k_printf("About to do\n");
+    do {
+#define WAITTIME 750000L
+      if (kbcount == i) {
 	FD_ZERO(&fds);
 	FD_SET(kbd_fd, &fds);
 	scr_tv.tv_sec = 0L;
-	scr_tv.tv_usec = 20000L;
-	select(kbd_fd + 1, &fds, NULL, NULL, &scr_tv);
-	ccc = read(kbd_fd, &kbp[kbcount], KBBUF_SIZE - kbcount - 1);
-	if (ccc > 0) {
-	  kbcount += ccc;
-	  *cc += ccc;
+	scr_tv.tv_usec = WAITTIME;
+	handles = 0;
+	gettimeofday(&t_start, NULL);
+	while ((int) select(kbd_fd + 1, &fds, NULL, NULL, &scr_tv) < (int) 1) {
+	  gettimeofday(&t_end, NULL);
+	  t_dif = ((t_end.tv_sec * 1000000 + t_end.tv_usec) -
+		   (t_start.tv_sec * 1000000 + t_start.tv_usec));
+	  if (t_dif >= WAITTIME || errno != EINTR)
+	    break;
+	  scr_tv.tv_sec = 0L;
+	  scr_tv.tv_usec = WAITTIME - t_dif;
 	}
-      } while (ccc > 0);
-
-      if (kbcount == 1) {
-	kbcount--;
-	(*cc)--;
-	DOS_setscan((highscan[*kbp] << 8) + (unsigned char) *kbp++);
-	return;
       }
-
-    }
-k_printf("ESC > 1 key\n");
-
-    fkp = funkey;
-    i = 1;
-    while (1) {
+      ccc = read(kbd_fd, &kbp[kbcount], KBBUF_SIZE - kbcount - 1);
+      if (ccc > 0) {
+	kbcount += ccc;
+	*cc += ccc;
+      }
       if (fkp->esc == NULL || (unsigned char) fkp->esc[i] < kbp[i]) {
-        fkp++;
-        if (!fkp->code) break;
+	fkp++;
+	if (!fkp->code) {
+	  break;
+	}
       }
       else if ((unsigned char) fkp->esc[i] == kbp[i]) {
 	if (fkp->esc[++i] == '\0') {
@@ -983,43 +1011,32 @@ k_printf("ESC > 1 key\n");
 	  DOS_setscan(fkp->code);
 	  return;
 	}
-	if (kbcount <= i) {
-	  char contin;
-	  do {
-	    scr_tv.tv_sec = 0L;
-	    scr_tv.tv_usec = 200000L;
-	    FD_ZERO(&fds);              /* IPC change here! */
-	    FD_SET(kbd_fd, &fds);
-	    select(kbd_fd + 1, &fds, NULL, NULL, &scr_tv);
-	    ccc = read(kbd_fd, &kbp[0 + kbcount], KBBUF_SIZE - kbcount - 1);
-	    if (ccc > 0) {
-	      kbcount += ccc;
-	      *cc += ccc;
-	    }
-	  } while (ccc > 0);
-	  if (kbcount <= i) break;
-	}
       }
-      else {
-	break;
-      }
+      else break;
+    } while (i < kbcount);
+
+    if (kbcount == 1) {
+      kbcount--;
+      (*cc)--;
+      DOS_setscan((highscan[*kbp] << 8) + (unsigned char) *kbp++);
+      return;
     }
-    in_readkeyboard = 0;
-  } /* if (*kbp == '\033') */
+
+  }				/* if (*kbp == '\033') */
 
   else if (*kbp >= 128) {
     for (fkp = xfunkey; fkp->code; fkp++) {
-      if ( (unsigned char) (*kbp) == fkp->esc[0] ) {
-        DOS_setscan(fkp->code);
-        break;
+      if ((unsigned char) (*kbp) == fkp->esc[0]) {
+	DOS_setscan(fkp->code);
+	break;
       }
     }
     kbcount--;
     (*cc)--;
     kbp++;
     return;
-  } /* if (*kbp >= 128) */
-  
+  }				/* if (*kbp >= 128) */
+
   else if (*kbp == erasekey) {
     kbcount--;
     (*cc)--;
@@ -1125,13 +1142,13 @@ termioInit()
     set_key_flag(KKF_KBD102);
   }
 
-  setupterm(NULL, 1, (int *)0);
+  setupterm(NULL, 1, (int *) 0);
   gettermcap();
   li = 25;
   co = 80;
-  
+
   numkeys = 0;
-  for (fkp = funkey; fkp->code; fkp++) 
+  for (fkp = funkey; fkp->code; fkp++)
     numkeys++;
   qsort(funkey, numkeys, sizeof(struct funkeystruct), &fkcmp);
 }
@@ -1493,10 +1510,10 @@ do_self(unsigned int sc)
       if (kbd_flag(EKF_LALT))	/* Left-Alt-Key pressed ?            */
 	ch = config.alt_map[0];	/* Return Key with Alt-modifier      */
       else			/* otherwise (this is Alt-Gr)        */
-	ch = config.alt_map[sc]; /* Return key from alt_map          */    
+	ch = config.alt_map[sc];/* Return key from alt_map          */
     }
-    else                        /* or no GR_LATIN1-keyboard          */
-      ch = config.alt_map[sc];	/* Return key from alt_map           */    
+    else			/* or no GR_LATIN1-keyboard          */
+      ch = config.alt_map[sc];	/* Return key from alt_map           */
 
     if ((sc >= 2) && (sc <= 0xb))	/* numbers */
       sc += 0x76;

@@ -251,10 +251,13 @@ video { vga  console }          # Use this line, if you are using VGA
 #     you then gain some space for UMB or hardware ram locations.
 #   - Set "allowvideoportaccess on" earlier in this configuration file
 #     if DOSEMU wont boot properly, such as hanging with a blank screen,
-#     beeping, or the video card bootup message.
+#     beeping, leaving Linux video in a bad state, or the video card 
+#     bootup message seems to stick.
 #   - Video BIOS shadowing (in your CMOS setup) at C000-CFFF must be disabled. 
 #
 #     *> CAUTION <*: TURN OFF VIDEO BIOS SHADOWING BEFORE ENABLING GRAPHICS!
+#                    This is not always necessary, but a word to the wise
+#                    shall be sufficient.
 #
 #   It may be necessary to set this to "on" if DOSEMU can't boot up properly
 #   on your system when it's set "off" and when graphics are enabled.

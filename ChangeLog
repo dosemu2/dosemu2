@@ -1,3 +1,19 @@
+Tue Sep 27 1994 Jmaclean
+
+-	Released pre53_23.tgz in diff form only.
+-	Added Jan's latest Configure script with X support. Modified
+	it to cp with backups /etc/dosemu.conf to /etc/dosemu.conf.backup.
+-	Remade first part of convascii of termio.c where esc seq's
+	are translated. Involved working around select getting 
+	interrupted.
+-	Fixs to serial woes added in termio.c - keyboard_init().
+	Moral of this story? A baud rate of 0 (B0) is equivalent to 
+	sending the process -SIGHUP. Real fix added to ./video/terminal.c
+	by moving raw() statement to AFTER initscr() as spec'd in ncurses.
+-	Fixed to memory access errors in vga.c. Funny they seem to have
+	been OK when handled in a signal?. Now folks should be able to
+	resume switching VC's :-).
+
 Mon Sep 26 1994 Jmaclean
 
 -	Pre53_22.tgz released.
