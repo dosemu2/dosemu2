@@ -274,6 +274,12 @@ void mhp_intercept(char *msg)
    mhp_send();
    mhp_cmd("r0");
    mhp_send();
+   if (!(dosdebug_flags & DBGF_IN_LEAVEDOS)) {
+     set_VIP();
+     if (in_dpmi)
+       dpmi_eflags |= VIP;
+     return;
+   }
    for (;;) {
       mhp_input();
       if (mhpdbg.nbytes <= 0) {
@@ -303,7 +309,6 @@ void mhp_intercept(char *msg)
       mhp_cmd(mhpdbg.recvbuf);
       mhp_send();
       mhpdbg.nbytes = 0;
-      if (!(dosdebug_flags & DBGF_IN_LEAVEDOS)) return;
    }
 }
 
