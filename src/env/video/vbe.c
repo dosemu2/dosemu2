@@ -26,7 +26,6 @@
 #include "mapping.h"
 #include "dosemu_config.h"
 
-static void *vesa_pm_code;
 static int vesa_regs_size, vesa_granularity, vesa_read_write;
 static char *vesa_oemstring;
 static size_t vesa_linear_vbase;
@@ -71,31 +70,6 @@ static void vesa_reinit(void)
 
   config.gfxmemsize = VBE_viMemory*64;
   vesa_version = VBE_viVESAVersion;
-
-  if (vesa_version >= 0x200) {
-    /* Get pm interface, used for a faster setbank */
-    unsigned short int *pm_info, *pm_list;
-    vesa_r.eax = 0x4f0a;
-    vesa_r.ebx = 0;
-    do_int10_callback(&vesa_r);
-    pm_info = MK_FP32(vesa_r.es, vesa_r.edi & 0xffff);
-    vesa_pm_code = (char *)pm_info + pm_info[0];
-
-    pm_list = (unsigned short *)((char *)pm_info + pm_info[3]);
-    if (pm_list != pm_info) {
-      while(*pm_list != 0xffff) {
-	if(*pm_list >= 0x400 && kernel_version_code < 0x20608)
-	  /* can't use slow ports in the main DOSEMU code */
-	  vesa_pm_code = NULL;
-	pm_list++;
-      }
-      if(pm_list[1] != 0xffff) {
-	v_printf("VESA: no support for MMIO selectors\n");
-	vesa_pm_code = NULL;
-      }
-    }
-    v_printf("VESA: protected mode bank switch code at %p\n", vesa_pm_code);
-  }
 
   vbe_buffer += VBE_viSize;
   memset(&vesa_r, 0, sizeof(vesa_r));
@@ -187,27 +161,18 @@ static void vesa_restore_ext_regs(u_char xregs[], u_short xregs16[])
   lowmem_heap_free(lowmem);
 }
 
-static inline void call_vesa_pm_code(unsigned long ebx, unsigned long edx)
-{
-  v_printf("VESA: calling protected mode bankswitch code\n");
-  __asm__ __volatile__(
-		       "call *(%%edi)"
-		       : /* no return value */
-		       : "a" (0x4f05),
-		       "b" (ebx),
-		       "d" (edx),
-		       "D" (&vesa_pm_code));
-}
+/* setbank read/write functions: these are only called by
+   the save/restore routines if no LFB is available.
+   An alternative to int10/ax=4f0x here is to call protected
+   mode routines, but they are harder to set up (would
+   have to go via a DPMI style setup to handle cli/sti) */
 
 static void vesa_setbank_read(unsigned char bank)
 {
   vesa_r.eax = 0x4f05;
   vesa_r.ebx = (vesa_read_write & 2) ? 0 : 1;
   vesa_r.edx = bank*64/vesa_granularity;
-  if (vesa_pm_code)
-    call_vesa_pm_code(vesa_r.ebx, vesa_r.edx);
-  else
-    do_int10_callback(&vesa_r);
+  do_int10_callback(&vesa_r);
 }
 
 static void vesa_setbank_write(unsigned char bank)
@@ -215,10 +180,7 @@ static void vesa_setbank_write(unsigned char bank)
   vesa_r.eax = 0x4f05;
   vesa_r.ebx = (vesa_read_write & 4) ? 0 : 1;
   vesa_r.edx = bank*64/vesa_granularity;
-  if (vesa_pm_code)
-    call_vesa_pm_code(vesa_r.ebx, vesa_r.edx);
-  else
-    do_int10_callback(&vesa_r);
+  do_int10_callback(&vesa_r);
 }
 
 void vesa_init(void)
