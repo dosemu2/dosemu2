@@ -27,15 +27,6 @@
 
 static int stub_printer_write(int, int);
 
-struct p_fops def_pfops =
-{
-  printer_open,
-  stub_printer_write,
-  printer_flush,
-  printer_close,
-  printer_write
-};
-
 static struct printer lpt[NUM_PRINTERS] =
 {
   {NULL, "lpr", "", 5, 0x378},
@@ -83,8 +74,7 @@ int int17(void)
   return 1;
 }
 
-int
-printer_open(int prnum)
+static int file_printer_open(int prnum)
 {
   int um;
 
@@ -106,8 +96,12 @@ printer_open(int prnum)
   return 0;
 }
 
-int
-printer_close(int prnum)
+int printer_open(int prnum)
+{
+  return lpt[prnum].fops.open(prnum);
+}
+
+static int file_printer_close(int prnum)
 {
   p_printf("LPT: closing printer %d, %s\n", prnum,
 	   lpt[prnum].dev ? lpt[prnum].dev : "<<NODEV>>");
@@ -126,8 +120,14 @@ printer_close(int prnum)
   return 0;
 }
 
-int
-printer_flush(int prnum)
+int printer_close(int prnum)
+{
+  if (lpt[prnum].fops.close)
+    lpt[prnum].fops.close(prnum);
+  return 0;
+}
+
+static int file_printer_flush(int prnum)
 {
   p_printf("LPT: flushing printer %d\n", prnum);
 
@@ -178,8 +178,12 @@ printer_flush(int prnum)
   return 0;
 }
 
-int
-stub_printer_write(int prnum, int outchar)
+int printer_flush(int prnum)
+{
+  return lpt[prnum].fops.flush(prnum);
+}
+
+static int stub_printer_write(int prnum, int outchar)
 {
   printer_open(prnum);
 
@@ -189,13 +193,17 @@ stub_printer_write(int prnum, int outchar)
   return printer_write(prnum, outchar);
 }
 
-int
-printer_write(int prnum, int outchar)
+static int file_printer_write(int prnum, int outchar)
 {
   lpt[prnum].remaining = lpt[prnum].delay;
 
   fputc(outchar, lpt[prnum].file);
   return (LPT_NOTBUSY | LPT_ACK | LPT_ONLINE);
+}
+
+int printer_write(int prnum, int outchar)
+{
+  return lpt[prnum].fops.write(prnum, outchar);
 }
 
 void
@@ -215,6 +223,14 @@ printer_mem_setup(void)
  *
  * DANG_END_FUNCTIONS
  */
+static struct p_fops def_pfops =
+{
+  file_printer_open,
+  stub_printer_write,
+  file_printer_flush,
+  file_printer_close,
+  file_printer_write
+};
 void
 printer_init(void)
 {
