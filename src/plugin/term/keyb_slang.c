@@ -971,6 +971,8 @@ static void xtermmouse_get_event (void)
 		}
 		keyb_state.kbcount -= 3;	/* update count */
 		keyb_state.kbp += 3;
+
+		pic_request(PIC_IMOUSE);
 	}
 }
 
