@@ -3128,7 +3128,7 @@ dos_fs_redirect(state)
 	Debug0((dbg_fd, "can't open %s: %s (%d)\n",
 		fpath, strerror(errno), errno));
 	SETWORD(&(state->eax), ACCESS_DENIED);
-	return (FALSE);
+	return (TRUE);
       }
     }
 

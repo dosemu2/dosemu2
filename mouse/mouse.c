@@ -667,7 +667,7 @@ fake_call(int cs, int ip)
   unsigned char *ssp;
   unsigned long sp;
 
-  ssp = (unsigned char *)(REG(ss)<<4);
+  ssp = (unsigned char *)(LWORD(ss)<<4);
   sp = (unsigned long) LWORD(esp);
 
   m_printf("MOUSE: fake_call() shows S: %04x:%04x\n",

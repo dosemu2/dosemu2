@@ -29,8 +29,6 @@ clean:
 	rm -f dosemu.ky dosemu.kys dosemu.log dosemu.pg dosemu.pgs dosemu.toc 
 	rm -f dosemu.tp dosemu.tps dosemu.vr dosemu.vrs
 
-dist: dosemu.texinfo dosemu.info dos.1 DPR DANG EMUsuccess.txt
+dist: dosemu.texinfo dosemu.info dos.1 DPR EMUsuccess.txt
 	install -d $(DISTPATH)/doc
 	install -m 0644 Makefile dosemu.texinfo dosemu.info dos.1 announce$(EMUVER) DPR DANG EMUsuccess.txt lsm $(DISTPATH)/doc
-	install -d $(DISTPATH)/html
-	install -m 0644 html/* $(DISTPATH)/html

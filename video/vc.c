@@ -8,7 +8,7 @@
  * DOSEMU here too.
  *
  * Attempts to use a cards own bios require the addition of the parameter
- * 'graphics' to the video statement in "/etc/dosemu.conf". This will make
+ * "graphics" to the video statement in "/etc/dosemu.conf". This will make
  * the emulator try to execute the card's initialization routine which is
  * normally located at address c000:0003. This can now be changed as an
  * option.

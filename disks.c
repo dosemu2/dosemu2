@@ -403,7 +403,7 @@ try_readonly:
   dp->fdesc = DOS_SYSCALL(open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0));
   if (dp->fdesc < 0) {
     d_printf("ERROR: (disk) can't open %s: %s\n", dp->dev_name, strerror(errno));
-    if (errno==EACCES && !dp->rdonly) {
+    if ((errno==EROFS || errno==EACCES) && !dp->rdonly) {
        /* try to open readonly */
        d_printf("trying to open read-only\n");
        dp->rdonly = 1;

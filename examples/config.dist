@@ -276,6 +276,8 @@ allowvideoportaccess on
 #
 #   S3-based SVGA video card with 1 megabyte on board:
 #video { vga  console  graphics  chipset s3  memsize 1024 }
+# For ATI graphic mode
+#ports { 0x1ce 0x1cf 0x238 0x23b 0x23c 0x23f 0x9ae8 0x9ae9 0x9aee 0x9aef }
 
 
 #************************** MISCALLENOUS **********************************
