@@ -2274,6 +2274,9 @@ void do_periodic_stuff(void)
 	return;
 
     handle_signals();
+    io_select(fds_sigio);	/* we need this in order to catch lost SIGIOs */
+    if (not_use_sigio)
+      io_select(fds_no_sigio);
 
     /* catch user hooks here */
     if (uhook_fdin != -1) uhook_poll();
