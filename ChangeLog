@@ -1,3 +1,9 @@
+2000/05/25 ver. 1.0.0.5 unofficial pre-release
+	From Bart
+	- fix to do_vm86.c (vm86_GP_fault()) to simulate INT codes correctly
+	- make 32-bit code run in instremu.c
+	From Hans
+	- re-activated mouse snapping in X.c (no dependency on PL4 modes)
 2000/05/23 ver. 1.0.0.4 unofficial pre-release
 	From Bart
 	- further work on PL4 stuff

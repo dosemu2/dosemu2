@@ -193,6 +193,19 @@ void vm86_GP_fault(void)
   LWORD(eip) += (csp-lina);
 
   switch (*csp) {
+  
+       /* interrupt calls after prefix: we go back to vm86 */
+  case 0xcc:    /* int 3       and let it generate an */
+  case 0xcd:    /* int         interrupt (don't advance eip) */
+  case 0xce:    /* into */
+    break;
+  case 0xcf:                   /* iret */
+    if (prefix67) goto op0ferr; /* iretd */
+    break;
+  case 0xf1:                   /* int 1 */
+    LWORD(eip)++; /* emulated "undocumented" instruction */
+    do_int(1);
+    break;
 
   case 0x6c:                    /* insb */
     /* NOTE: ES can't be overwritten; prefixes 66,67 should use esi,edi,ecx
