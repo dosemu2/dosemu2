@@ -139,7 +139,7 @@ static union mentry *get_free_marea(struct pgm_pool *pgmpool, int size)
   size = SIZE2MENTRY(size);
   if (!size) return 0;
   
-  if ((pgmpool->heap_ptr > pgmpool->heap_lowater)  || ((pgmpool->heap_ptr + size) >= pgmpool->heap_end)) {
+  if ((pgmpool->heap_ptr > pgmpool->heap_lowater)  || ((pgmpool->heap_ptr + size) > pgmpool->heap_end)) {
     /* need to search for deleted areas */
     while (p) {
       if (!p->flags) {
@@ -176,7 +176,7 @@ static union mentry *get_free_marea(struct pgm_pool *pgmpool, int size)
       }
       p = MASKED_NEXT(p);
     }
-    freesize = (pgmpool->heap_end - pgmpool->heap_ptr -1);
+    freesize = (pgmpool->heap_end - pgmpool->heap_ptr);
     if ((bestsize >= size) && ((freesize >= bestsize) || (size >= freesize))) {
       /* ok, this is the smallest piece available */
       if (bestsize > size) {
@@ -192,7 +192,7 @@ static union mentry *get_free_marea(struct pgm_pool *pgmpool, int size)
     /* fallen through, if no deleted area could/should be used */
   }
 
-  if ((pgmpool->heap_ptr + size) < pgmpool->heap_end) {
+  if ((pgmpool->heap_ptr + size) <= pgmpool->heap_end) {
     pgmpool->heap_ptr[size].next = 0;
     pgmpool->heap_ptr->next = pgmpool->heap_ptr + size;
     p = pgmpool->heap_ptr;
@@ -251,7 +251,7 @@ static union mentry *resize_marea(struct pgm_pool *pgmpool, union mentry *mentry
   garbage_collection(pgmpool);
 
   p = mentry->next;
-  if ((p == pgmpool->heap_ptr) && ((mentry+newsize) < pgmpool->heap_end)) {
+  if ((p == pgmpool->heap_ptr) && ((mentry+newsize) <= pgmpool->heap_end)) {
     /* we are at end of heap and can expand */
     pgmpool->heap_ptr->next = 0;
     mentry->next = pgmpool->heap_ptr = mentry+newsize;
