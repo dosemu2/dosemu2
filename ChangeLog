@@ -20,6 +20,9 @@
 	  DOS!
 	* src/base/mouse/mouse.c: Enable mouse at startup in case the
 	  program doesn't do that manually.
+	* src/base/async/int.c: hogthreshold adjustment for the mouse code.
+	* src/plugin/kbd_unicode/: Makefile, getfd.c, getfd.h, keymaps.c:
+	  Update the getfd() console detection code with the one from kbd 1.08
 2003/07/15 ver 1.1.5.5 unofficial pre-release
 	From Bart
 	- Add support for the Long File Name (int21/ah=71) interface
