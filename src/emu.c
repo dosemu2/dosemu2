@@ -372,6 +372,7 @@ emulate(int argc, char **argv)
     mapping_init();		/* initialize mapping drivers */
     low_mem_init();		/* initialize the lower 1Meg */
     map_hardware_ram();         /* map the direct hardware ram */
+    video_post_init();          /* map the Video RAM, init VC switch */
     map_video_bios();           /* map (really: copy) the video bios */
     close_kmem();
 

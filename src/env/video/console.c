@@ -71,25 +71,6 @@ static void do_console_update_cursor(void) {
 
 void set_console_video(void)
 {
-  if (config.console_video) {
-    int kdmode;
-    k_printf("KBD: Taking mouse control\n");  /* Actually only in KD_GRAPHICS... */
-    /* Some escape sequences don't work in KD_GRAPHICS... */
-    kdmode = config.vga? KD_GRAPHICS: KD_TEXT;
-    ioctl(console_fd, KDSETMODE, kdmode);
-  }
-
-  /* Clear the Linux console screen. The console recognizes these codes: 
-   * \033[?25h = show cursor.
-   * \033[0m = reset color.  
-   * \033[H = Move cursor to upper-left corner of screen.  
-   * \033[2J = Clear screen.  
-   */
-  fprintf(stdout,"\033[?25h\033[0m\033[H\033[2J");
-
-  scr_state.mapped = 0;
-  allow_switch();
-
   /* warning! this must come first! the VT_ACTIVATES which some below
      * cause set_dos_video() and set_linux_video() to use the modecr
      * settings.  We have to first find them here.
@@ -117,6 +98,28 @@ void set_console_video(void)
       permtest |= set_ioperm(0x3de, 2, 1);
     }
   }
+}
+
+void console_video_post_init(void)
+{
+  if (config.console_video) {
+    int kdmode;
+    k_printf("KBD: Taking mouse control\n");  /* Actually only in KD_GRAPHICS... */
+    /* Some escape sequences don't work in KD_GRAPHICS... */
+    kdmode = config.vga? KD_GRAPHICS: KD_TEXT;
+    ioctl(console_fd, KDSETMODE, kdmode);
+  }
+
+  /* Clear the Linux console screen. The console recognizes these codes: 
+   * \033[?25h = show cursor.
+   * \033[0m = reset color.  
+   * \033[H = Move cursor to upper-left corner of screen.  
+   * \033[2J = Clear screen.  
+   */
+  fprintf(stdout,"\033[?25h\033[0m\033[H\033[2J");
+
+  scr_state.mapped = 0;
+  allow_switch();
 
   /*
      Switch to dosemu VT if config.forcevtswitch is set.

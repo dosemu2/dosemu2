@@ -423,15 +423,40 @@ video_config_init(void) {
   screen_mask = 1 << (((int)phys_text_base-0xA0000)/4096);
   screen_adr = SCREEN_ADR(0);
 
-  if (config.console_video) {
-    set_process_control();
+  if (config.console_video)
     set_console_video();
-  }
 
   video_init();
 
   reserve_video_memory();
 }
+
+/* this function sets up the video ram mmaps and initializes
+   vc switch routines */
+void video_post_init(void)
+{
+  if (config.console_video) {
+    if (config.vga) {
+      WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
+      WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
+    }
+    set_process_control();
+    console_video_post_init();
+    if (config.vga) {
+      save_vga_state(&linux_regs);
+#if 0
+      save_vga_state(&dosemu_regs);
+      restore_vga_state(&dosemu_regs);
+#endif
+      dosemu_vga_screenon();
+      memset((caddr_t) linux_regs.mem, ' ', 8 * 1024);
+      dump_video_linux();
+      video_initialized = 1;
+  /* release_perm(); */
+    }
+  }
+}
+
 #define graphics_init vga_initialize
 #define graphics_close NULL
 #define graphics_setmode NULL

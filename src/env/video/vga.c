@@ -499,17 +499,6 @@ int vga_initialize(void)
 
   v_printf("VGA: mem size %d, banks %d\n", config.gfxmemsize,
 	   dosemu_regs.banks);
-
-  save_vga_state(&linux_regs);
-#if 0
-  save_vga_state(&dosemu_regs);
-  restore_vga_state(&dosemu_regs);
-#endif
-  dosemu_vga_screenon();
-  memset((caddr_t) linux_regs.mem, ' ', 8 * 1024);
-  dump_video_linux();
-  video_initialized = 1;
-  /* release_perm(); */
   return 0;
 }
 

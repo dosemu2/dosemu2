@@ -581,6 +581,7 @@ EXTERN void low_mem_init(void);
 EXTERN void print_version(void);
 EXTERN void keyboard_flags_init(void);
 EXTERN void video_config_init(void);
+EXTERN void video_post_init(void);
 EXTERN void video_mem_setup(void);
 EXTERN void printer_init(void);
 EXTERN void printer_mem_setup(void);

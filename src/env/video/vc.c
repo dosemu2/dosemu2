@@ -323,16 +323,10 @@ get_video_ram (int waitflag)
   int video_mode = 3;
   static int first_time = 1;
 
-  if (!can_do_root_stuff) return;
+  if (!can_do_root_stuff && mem_fd == -1) return;
 
-  /* XXX - the console code is actively flipping at the init stage;
-   * and Video isn't set then
-   * checking for Video is just a quick workaround, to be
-   * cleaned up later */
-  if (Video) {
-    page = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
-    video_mode = READ_BYTE(BIOS_VIDEO_MODE);
-  }
+  page = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
+  video_mode = READ_BYTE(BIOS_VIDEO_MODE);
 
   v_printf ("get_video_ram STARTED\n");
   if (config.vga)
@@ -364,7 +358,7 @@ get_video_ram (int waitflag)
 
   if (config.vga && !first_time)
     {
-      if (video_mode == 3 && page < 8 && Video)
+      if (video_mode == 3 && page < 8)
 	{
 	  textbuf = malloc (TEXT_SIZE * 8);
 	  memcpy (textbuf, PAGE_ADDR (0), TEXT_SIZE * 8);

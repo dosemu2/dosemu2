@@ -132,43 +132,6 @@ static void kmem_map_mapping(int cap, void *addr, int mapsize)
   }
 }
 
-static size_t kmem_check(void)
-{
-  size_t lowmem_base_size = LOWMEM_SIZE;
-  int i;
-
-  for (i = 0; i < kmem_mappings; i++) {
-    if ((size_t)(kmem_map[i].dst) < lowmem_base_size)
-      lowmem_base_size = (size_t)(kmem_map[i].dst);
-  }
-  return lowmem_base_size;
-}
-
-static void kmem_check_back(size_t lowmem_base_size)
-{
-  size_t q = lowmem_base_size;
-  size_t p;
-  int i, j;
-
-  j = map_find(kmem_map, kmem_mappings, (char *)q, PAGE_SIZE, 1);
-  for (p = lowmem_base_size + PAGE_SIZE; p <= LOWMEM_SIZE; p += PAGE_SIZE) {
-    i = j;
-    j = map_find(kmem_map, kmem_mappings, (char *)p, PAGE_SIZE, 1);
-    if (p == LOWMEM_SIZE || j != i) {
-      if (i != -1) {
-	q = p;
-      } else {
-	if (p == LOWMEM_SIZE)
-	  p += HMASIZE; /* for HMA */
-	mmap_mapping(MAPPING_LOWMEM, (char *)q, p - q,
-		     PROT_READ | PROT_WRITE | PROT_EXEC, (char *)q);
-	if (p == LOWMEM_SIZE + HMASIZE)
-	  p -= HMASIZE; /* for HMA (don't copy) */
-      }
-    }
-  }
-}
-
 void *extended_mremap(void *addr, size_t old_len, size_t new_len,
 	int flags, void * new_addr)
 {
@@ -400,17 +363,10 @@ void *alloc_mapping(int cap, int mapsize, void *target)
   mprotect_mapping(cap, addr, mapsize, PROT_READ | PROT_WRITE);
 
   if (cap & MAPPING_INIT_LOWRAM) {
-    size_t lowmem_base_size;
     Q__printf("MAPPING: LOWRAM_INIT, cap=%s, base=%p\n", cap, addr);
     lowmem_base = addr;
-    lowmem_base_size = kmem_check();
-    if (lowmem_base_size == LOWMEM_SIZE)
-      lowmem_base_size += HMASIZE;
     addr = mmap_mapping(MAPPING_INIT_LOWRAM | MAPPING_ALIAS, target,
-	    lowmem_base_size, PROT_READ | PROT_WRITE | PROT_EXEC, lowmem_base);
-    if (lowmem_base_size > LOWMEM_SIZE)
-      lowmem_base_size = LOWMEM_SIZE;
-    kmem_check_back(lowmem_base_size);
+	    mapsize, PROT_READ | PROT_WRITE | PROT_EXEC, lowmem_base);
   }
   return addr;
 }
