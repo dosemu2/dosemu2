@@ -1941,6 +1941,13 @@ void fake_call(int cs, int ip)
   LWORD(esp) -= 4;
 }
 
+void fake_call_to(int cs, int ip)
+{
+  fake_call(REG(cs), LWORD(eip));
+  REG(cs) = cs;
+  REG(eip) = ip;
+}
+
 void fake_pusha(void)
 {
 #ifdef X86_EMULATOR

@@ -1581,15 +1581,6 @@ err:
       REG(ds) = rmreg->ds;
       REG(fs) = rmreg->fs;
       REG(gs) = rmreg->gs;
-      if (_LWORD(eax)==0x0300) {
-        if (_LO(bx)==0x21)
-          D_printf("DPMI: int 0x21 fn %04x\n",LWORD(eax));
-	REG(cs) = ((us *) 0)[(_LO(bx) << 1) + 1];
-	REG(eip) = ((us *) 0)[_LO(bx) << 1];
-      } else {
-	REG(cs) = rmreg->cs;
-	REG(eip) = (long) rmreg->ip;
-      }
       if (!(rmreg->sp==0)) {
 	REG(ss) = rmreg->ss;
 	REG(esp) = (long) rmreg->sp;
@@ -1606,36 +1597,29 @@ err:
       if (tmp) E_MPROT_STACK(tmp_ssp);
 #endif
       LWORD(esp) -= 2 * (_LWORD(ecx));
-      if (_LWORD(eax)==0x0301)
-	       LWORD(esp) -= 4;
-      else {
-	LWORD(esp) -= 6;
-#ifdef X86_EMULATOR
-	tmp_ssp = rm_ssp+rm_sp;
-	tmp = E_MUNPROT_STACK(tmp_ssp);
-#endif
-	pushw(rm_ssp, rm_sp, LWORD(eflags));
-#ifdef X86_EMULATOR
-	if (tmp) E_MPROT_STACK(tmp_ssp);
-#endif
-	REG(eflags) &= ~(IF|TF);
+      in_dpmi_dos_int=1;
+      REG(cs) = DPMI_SEG;
+      LWORD(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_realmode);
+      switch (_LWORD(eax)) {
+        case 0x0300:
+          if (_LO(bx)==0x21)
+            D_printf("DPMI: int 0x21 fn %04x\n",LWORD(eax));
+	  do_int(_LO(bx));
+	  break;
+        case 0x0301:
+	  fake_call_to(rmreg->cs, rmreg->ip);
+	  break;
+        case 0x0302:
+	  fake_int_to(rmreg->cs, rmreg->ip);
+	  break;
       }
+
 /* --------------------------------------------------- 0x300:
      RM |  FC90C   |
 	| dpmi_seg |
 	|  flags   |
 	| cx words |
    --------------------------------------------------- */
-#ifdef X86_EMULATOR
-      tmp_ssp = rm_ssp+rm_sp;
-      tmp = E_MUNPROT_STACK(tmp_ssp);
-#endif
-      pushw(rm_ssp, rm_sp, DPMI_SEG);
-      pushw(rm_ssp, rm_sp, DPMI_OFF + HLT_OFF(DPMI_return_from_realmode));
-#ifdef X86_EMULATOR
-      if (tmp) E_MPROT_STACK(tmp_ssp);
-#endif
-      in_dpmi_dos_int=1;
     }
 #ifdef SHOWREGS
     if (debug_level('e')==0) {
@@ -2285,7 +2269,6 @@ void run_dpmi(void)
 	D_printf ("DPMI: do_vm86,  %04x:%04lx %08lx %08lx %08x\n", REG(cs),
 		REG(eip), REG(esp), REG(eflags), dpmi_eflags);
     }
-
     in_vm86 = 1;
     retval=DO_VM86(&vm86s);
     in_vm86=0;
@@ -2344,6 +2327,7 @@ void run_dpmi(void)
 #ifdef SHOWREGS
     show_regs(__FILE__, __LINE__);
 #endif
+    D_printf("DPMI: retval=%x %x:%x", VM86_ARG(retval), _CS, _IP);
 		switch (VM86_ARG(retval)) {
 		  case 0x1c:	/* ROM BIOS timer tick interrupt */
 		  case 0x23:	/* DOS Ctrl+C interrupt */
