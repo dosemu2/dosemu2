@@ -27,15 +27,23 @@ as -I) the syntax of global.conf.
 <p>
 The first file expected (and interpreted) before any other configuration
 (such as global.conf, dosemu.conf and ~/.dosemurc) is /etc/dosemu.users.
-Within /etc/dosemu.users the general permissions are set:
+If /etc/dosemu.users doesn't exist, DOSEMU check for /etc/dosemu/dosemu.users,
+this makes people happy, which prefer to have to configuration stuff in
+a separate directory under /etc.
+Within dosemu.users the general permissions are set:
 
 <itemize>
   <item> which users are allowed to use DOSEMU.
   <item> which users are allowed to use DOSEMU suid root.
+  <item> which users are allowed to have a private lib dir.
   <item> what kind of access class the user belongs to.
-  <item> wether the user is allowed to define a private global.conf
-    that replaces /var/lib/dosemu/global.conf (option -F).
   <item> what special configuration stuff the users needs
+</itemize>
+
+and further more:
+<itemize>
+  <item> wether the lib dir (/var/lib/dosemu) resides elsewhere.
+  <item> setting the loglevel.
 </itemize>
 
 <p>
@@ -69,7 +77,8 @@ is a copy of ./etc/dosemu.users.easy and behave 'secure', when
 <sect1>Format of /etc/dosemu.users
 
 <p>
-Each line corresponds to exactly _one_ valid user count:
+Except for lines starting with x=' (explanation below),
+each line corresponds to exactly _one_ valid user count:
 
 <tscreen><verb>
   loginname [ c_strict ] [ classes ...] [ c_dexeonly ] [ other ]
@@ -116,10 +125,22 @@ Each line corresponds to exactly _one_ valid user count:
   </descrip>
   <tag/other/      Here you may define any configuration variable, that you
              want to test
-             in global.conf (or (old) .dosrc, -I), see 'ifdef', 'ifndef'
+             in global.conf (or (old) .dosrc, -I), see `ifdef', `ifndef'
              When this variable is intended to be unset in lower privilege
              configuration files (.dosrc, -I), then the variable name
-             has to be prefixed with 'u_'.
+             has to be prefixed with `u_'.
+  <tag/private_setup/ Keyword, this makes dosemu to accept a private DOSEMU lib
+             under  $HOME/.dosemu/lib. If this directory is existing, DOSEMU
+             will expect all normally under /var/lib/dosemu within that
+             directory,including lobal.conf'. As this would be a security
+             risc, it only will be allowed, if the used DOSEMU binary is
+             non-suid-root. If you realy trust a user you may additionally
+             give the keyword `unrestricted', which will allow this user to
+             execute a suid-root binary even on a private lib directory
+            (though, be aware).
+   <tag/unrestricted/ Keyword, used to allow `private_setup' on suid-root
+            binaries too. USE WITH CARE !
+
 </descrip>
 <p>
 A line with '#' at colum 1 is treated as comment line. When only the login
@@ -134,6 +155,25 @@ assumed:
 <p>
 Other than with previous DOSEMU versions, the /etc/dosemu.users now is
 mandatory. Also note, that you may restrict 'root' doing something silly ;-)
+
+In addition, dosemu.users can be used to define some global settings, which
+must be known before any other file is accessed, such as:
+<tscreen><verb>
+  default_lib_dir= /opt/dosemu  # replaces /var/lib/dosemu
+  log_level= 2                  # highest log level
+</verb></tscreen>
+
+With `default_lib_dir=' you may move /var/lib/dosemu elsewere, this mostly
+is interesting for distributors, who want it elswere but won't patch the
+DOSEMU source just for this purpose. But note, the dosemu supplied scripts
+and helpers may need some adaption too in order to fit your new directory.
+
+The `log_level=' can be 0 (never log) or 1 (log only errors) or 2 (log all)
+and controls the ammount written to the systems log facility (notice).
+This keyword replaces the former /etc/dosemu.loglevel file, which now is
+obsolete.
+
+
 
 <sect1>Format of /var/lib/dosemu/global.conf ( (old) .dosrc, -I option)
 

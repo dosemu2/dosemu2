@@ -1,5 +1,0 @@
-# Log settings for DOSEMU
-#
-# uncomment one of the following:
-#syslog_error
-#syslog_always

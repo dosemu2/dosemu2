@@ -36,14 +36,20 @@ Within /etc/dosemu.users the general permissions are set:
 <itemize>
   <item> which users are allowed to use DOSEMU.
   <item> which users are allowed to use DOSEMU suid root.
+  <item> which users are allowed to have a private lib dir.
   <item> what kind of access class the user belongs to.
-  <item> wether the user is allowed to define a private global.conf
-    that replaces /var/lib/dosemu/global.conf (option -F).
   <item> what special configuration stuff the users needs
 </itemize>
 
+and further more:
+<itemize>
+  <item> wether the lib dir (/var/lib/dosemu) resides elsewhere.
+  <item> setting the loglevel.
+</itemize>
+
 <p>
-Each line in dosemu.user corresponds to exactly <em/one/ valid user count,
+Except for lines starting with `xxx=' (explanation below),
+each line in dosemu.user corresponds to exactly <em/one/ valid user count,
 the special user `all' means any user not mentioned earlier. Format:
 <tscreen><verb>
   [ <login> | all ] [ confvar [ confvar [ ... ] ] ]
@@ -56,6 +62,8 @@ to /etc/dosemu.users.
   nobody nosuidroot guest # variable 'guest' is checked in global.conf
                           # to allow only DEXE execution
   guest nosuidroot guest  # login guest treated as `nobody'
+  myfriend c_all unrestricted private_setup
+  myboss nosuidroot restricted private_setup
   all nosuidroot restricted # all other users have normal user restrictions
 </verb></tscreen>
 Note that the above `restricted' is checked in global.conf and will
@@ -65,12 +73,38 @@ setting `restricted' too.
 The use of `nosuidroot' will force a suid root dosemu binary to exit,
 the user may however use a non-suid root copy of the binary.
 For more information on this look at README-tech,
-chapter 11.1 `Priveleges and Running as User'
+chapter 11.1 `Privileges and Running as User'
+
+Giving the keyword `private_setup' to a user means he/she can have a private
+DOSEMU lib under $HOME/.dosemu/lib. If this directory is existing, DOSEMU
+will expect all normally under /var/lib/dosemu within that directory,
+including `global.conf'. As this would be a security risc, it only will
+be allowed, if the used DOSEMU binary is non-suid-root. If you realy trust
+a user you may additionally give the keyword `unrestricted', which will
+allow this user to execute a suid-root binary even on a private lib
+directory (though, be aware).
+
+In addition, dosemu.users can be used to define some global settings, which
+must be known before any other file is accessed, such as:
+<tscreen><verb>
+  default_lib_dir= /opt/dosemu  # replaces /var/lib/dosemu
+  log_level= 2                  # highest log level
+</verb></tscreen>
+
+With `default_lib_dir=' you may move /var/lib/dosemu elsewere, this mostly
+is interesting for distributors, who want it elswere but won't patch the
+DOSEMU source just for this purpose. But note, the dosemu supplied scripts
+and helpers may need some adaption too in order to fit your new directory.
+
+The `log_level=' can be 0 (never log) or 1 (log only errors) or 2 (log all)
+and controls the ammount written to the systems log facility (notice).
+This keyword replaces the former /etc/dosemu.loglevel file, which now is
+obsolete.
 
 Nevertheless, for a first try of DOSEMU you may prefer etc/dosemu.users.easy,
 which just contains
 <tscreen><verb>
-  root c_all  
+  root c_all
   all c_all
 </verb></tscreen>
 to allow evrybody all weird things. For more details on security issues

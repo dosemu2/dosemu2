@@ -38,14 +38,15 @@ can run it easily.
 <p>
 Before you run DOSEmu for the first time, do the following:
 <tscreen><verb>
-  rm -f /var/run/dosemu-midi
-  mknod /var/run/dosemu-midi p
+  mkdir -p ~/.dosemu/run           # if it doesen't exist
+  rm -f ~/.dosemu/run/dosemu-midi
+  mknod ~/.dosemu/run/dosemu-midi p
 </verb></tscreen>
 
 <p>
 Then you can use the midi daemon like this:
 <tscreen><verb>
-  ./midid < /var/run/dosemu-midi &; dos
+  ./midid < ~/.dosemu/run/dosemu-midi &; dos
 </verb></tscreen>
 
 <p>

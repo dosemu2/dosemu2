@@ -474,6 +474,7 @@ void memory_init(void)
  */
 void device_init(void)
 {
+  extern void check_console(void);
   /* check whether we are running on the console */
   check_console();
 

@@ -8,9 +8,6 @@
 
 #include "emu.h"
 
-#define KEYMAP_LOAD_BASE_PATH "/var/lib/dosemu/"
-#define KEYMAP_DIR "keymap/"
-
 /* Keyboard-Layout for the alphanumeric part of the keyboard */
 
 #define KEYB_FINNISH           0

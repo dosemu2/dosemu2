@@ -1,3 +1,30 @@
+98/08/24 ver. 0.97.10.4 unofficial pre-release
+	From Robert Rendell <rendell@csse.monash.edu.au>
+	- fix for rep_outb in n_ports.c (wrong while loop)
+	From Hans
+	- fixed all similar instances of Robert's fix (above) in
+	  n_ports.c. What do we learn from this? Never put more then one
+	  statement (following a conditional) into one line ;-)
+	- fixed -I 'keyload "keymap/xxx"', which was broken since 0.97.8.2
+	- added com3/com3 and ttylocks to {global,dosemu}.conf;
+	  updated setup-dosemu to reflect this addition.
+	- default lock dir now is /var/lock.
+	- moved all remaining 'hardcoded' paths (hope I found them all)
+	  into acconfig.h (config,h.in) making them runtime configurable.
+	- made /var/lib/dosemu movable to ~/.dosemu/lib on a per user basis.
+	  made /var/lib/dosemu (systemwide) changable via dosemu.users
+          ('default_lib_dir='). With this change only dosemu.users remains
+          hardcoded (though, look next item).
+	- Now checking for /etc/dosemu.users, if this doesn't exist,
+	  check if /etc/dosemu/dosemu.users does exist (this makes people
+	  happy, who like to have a dosemu directory in /etc).
+	- moved /var/run/dosemu-midi to ~/.dosemu/run/dosemu-midi.
+	- removed /etc/dosemu.loglevel, setting of log level now is done
+	  in dosemu.users ('log_level=2').
+	- removed src/dosconfig.c (way too old and obsolete)
+	- fixed some more compiler warnings.
+	- removed old 'rcs-IDs'
+	- updated docs (but did not recompile, have to check my SGML tools).
 98/08/23 ver. 0.97.10.3 unofficial pre-release
 	From Alexander V. Lukyanov <lav@long.yar.ru>
 	- fix for S3-Trio not saving/restoring all extra regs.

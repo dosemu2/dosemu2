@@ -90,7 +90,6 @@ static struct disk nulldisk;
 static int c_hdisks = 0;
 static int c_fdisks = 0;
 
-#define DEXE_LOAD_PATH "/var/lib/dosemu"
 int dexe_running = 0;
 static int dexe_forbid_disk = 1;
 static int dexe_secure = 1;
@@ -416,11 +415,11 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		| DOSEMUMAP string_expr
 		    {
 #ifdef USE_MHPDBG
-		    extern char dosemu_map_file_name[];
-		    strcpy(dosemu_map_file_name, $2);
+		    DOSEMU_MAP_PATH = $2;
 		    c_printf("CONF: dosemu.map path = '%s'\n", $2);
-#endif
+#else
 		    free($2);
+#endif
 		    }
  		| EMUBAT string_expr
 		    { IFCLASS(CL_FILEEXT){
@@ -2289,9 +2288,34 @@ static void write_to_syslog(char *message)
   closelog();
 }
 
+static void move_dosemu_lib_dir(char *path)
+{
+  CONFIG_SCRIPT = assemble_path(path, CONFIG_SCRIPT_NAME, 0);
+  DOSEMU_LIB_DIR = strdup(path);
+  setenv("DOSEMU_LIB_DIR", DOSEMU_LIB_DIR, 1);
+  DEXE_LOAD_PATH = strdup(DOSEMU_LIB_DIR);
+  KEYMAP_LOAD_BASE_PATH = assemble_path(path, "", 0);
+}
+
+static FILE *open_dosemu_users(void)
+{
+  PRIV_SAVE_AREA
+  FILE *fp;
+  static char *tx = "Cannot open %s, Please check installation via System Admin.\n";
+  enter_priv_off();
+  fp = open_file(DOSEMU_USERS_FILE);
+  leave_priv_setting();
+  if (fp) return fp;
+  fprintf(stderr, tx, DOSEMU_USERS_FILE);
+  fprintf(stdout, tx, DOSEMU_USERS_FILE);
+  return 0;
+}
+
 /* Parse Users for DOSEMU, by Alan Hourihane, alanh@fairlite.demon.co.uk */
 /* Jan-17-1996: Erik Mouw (J.A.K.Mouw@et.tudelft.nl)
  *  - added logging facilities
+ * In 1998:     Hans
+ *  - havy changes and re-arangments
  */
 void
 parse_dosemu_users(void)
@@ -2299,7 +2323,6 @@ parse_dosemu_users(void)
 #define ALL_USERS "all"
 #define PBUFLEN 256
 
-  PRIV_SAVE_AREA
   FILE *volatile fp;
   struct passwd *pwd;
   char buf[PBUFLEN];
@@ -2324,6 +2347,67 @@ parse_dosemu_users(void)
   after_secure_check = 0;
   priv_lvl = 0;
 
+  /* We first have to find out where the dosemu.users file is placed
+   * by the system administrator.
+   * We first look for /etc/dosemu.users, then for /etc/dosemu/dosemu.users
+   * Once we know that, most other pathes are runtime configurable:
+   *
+   *  - dosemu.users tells were to find the dosemu-lib-dir
+   *    (/var/lib/dosemu per default) which _must_ hold global.conf.
+   *  - global.conf includes $DOSEMU_CONF_DIR/dosemu.conf
+   *    (which could be changed by the owner of global.conf).
+   */
+  if (!exists_file(DOSEMU_USERS_FILE)) {
+    DOSEMU_USERS_FILE = ALTERNATE_ETC "/" DOSEMU_USERS;
+    if (!exists_file(DOSEMU_USERS_FILE)) {
+      static char *tx = "neither /etc nor " ALTERNATE_ETC " do contain " DOSEMU_USERS "\n";
+      fprintf(stderr, tx);
+      fprintf(stdout, tx);
+      exit(1);
+    }
+    DOSEMU_LOGLEVEL_FILE = ALTERNATE_ETC "/" DOSEMU_LOGLEVEL;
+    setenv("DOSEMU_CONF_DIR", ALTERNATE_ETC, 1);
+  }
+  else setenv("DOSEMU_CONF_DIR", "/etc", 1);
+
+  /* we check for some vital global settings
+   * which we need before proceeding
+   */
+  setenv("DOSEMU_LIB_DIR", DOSEMULIB_DEFAULT, 1);
+  fp = open_dosemu_users();
+  if (!fp) exit(1);
+  while (fgets(buf, PBUFLEN, fp) != NULL) {
+    int l = strlen(buf);
+    if (l && (buf[l-1] == '\n')) buf[l-1] = 0;
+    ustr = strtok(buf, " \t\n=,;:");
+    if (ustr && (ustr[0] != '#')) {
+      if (!strcmp(ustr, "default_lib_dir")) {
+        ustr=strtok(0, " \t\n=,;:");
+        if (ustr) {
+          if (!exists_dir(ustr)) {
+            static char *tx = "default_lib_dir %s not existing\n";
+            fprintf(stderr, tx, ustr);
+            fprintf(stdout, tx, ustr);
+            exit(1);
+          }
+          move_dosemu_lib_dir(ustr);
+        }
+      }
+      else if (!strcmp(ustr, "log_level")) {
+        int ll = 0;
+        ustr=strtok(0, " \t\n=,;:");
+        if (ustr) {
+          ll = atoi(ustr);
+          if (ll < 0) ll = 0;
+          if (ll > 2) ll = 2;
+        }
+        log_syslog = ll;
+      }
+    }
+  }
+  fclose(fp);
+
+
   /* get our own hostname and define it as 'h_hostname'
    * and in $DOSEMU_HOST
    */
@@ -2343,23 +2427,6 @@ parse_dosemu_users(void)
       }
     }
   }
-
-  /* Get the log level*/
-  if((fp = open_file(DOSEMU_LOGLEVEL_FILE)))
-     {
-       while (!feof(fp))
-	 {
-	   fgets(buf, PBUFLEN, fp);
-	   if(buf[0]!='#')
-	     {
-	       if(strstr(buf, "syslog_error")!=NULL)
-		 log_syslog=1;
-	       else if(strstr(buf, "syslog_always")!=NULL)
-		 log_syslog=2;
-	     }
-	 }
-       fclose(fp);
-     }
 
   /* We want to test if the _user_ is allowed to run Dosemu,             */
   /* so check if the username connected to the get_orig_uid() is in the  */
@@ -2383,11 +2450,9 @@ parse_dosemu_users(void)
   setenv("DOSEMU_REAL_USER", pwd->pw_name, 1);
 
   {
-       enter_priv_on();
-       fp = open_file(DOSEMU_USERS_FILE);
-       leave_priv_setting();
-       if (fp)
-	 {
+       int can_have_privsetup = 0;
+       fp = open_dosemu_users();
+       if (fp) {
 	   for(userok=0; fgets(buf, PBUFLEN, fp) != NULL && !userok; ) {
 	     int l = strlen(buf);
 	     if (l && (buf[l-1] == '\n')) buf[l-1] = 0;
@@ -2409,6 +2474,9 @@ parse_dosemu_users(void)
                        "but you may run a non-suid root copy of it\n\n");
                      exit(1);
                    }
+                   if (!strcmp(ustr,"private_setup")) {
+                     can_have_privsetup = 1;
+                   }
 		 }
 		 if (!have_vars) {
 		   if (uid) define_config_variable("c_normal");
@@ -2418,21 +2486,49 @@ parse_dosemu_users(void)
 	       }
 	     }
 	   }
-	 } 
-       else 
-	 {
-	   fprintf(stderr,
-		   "Cannot open %s, Please check installation via System Admin.\n",
-		   DOSEMU_USERS_FILE);
-	   fprintf(stdout,
-		   "Cannot open %s, Please check installation via System Admin.\n",
-		   DOSEMU_USERS_FILE);
-	 }
-       fclose(fp);
+           fclose(fp);
+       }
+
+       if (can_have_privsetup
+              && (   get_config_variable("unrestricted")
+                  || under_root_login || !can_do_root_stuff)) {
+         /* this user is allowed to have a privat ~/.dosemu/lib
+          * (which replaces DOSEMULIB_DEFAULT if existing).
+          * Hence this user can have its own global.conf e.t.c.
+          * However, this is only possible with non-suid-root
+          * binary or when running under root loggin or when 'unrestricted'
+          * also is set.       -- Hans
+          */
+         char *lpath = get_path_in_HOME(LOCALDIR_BASE_NAME "/lib");
+         if (exists_dir(lpath)) move_dosemu_lib_dir(lpath);
+         free(lpath);
+       }
   }
+
   if (uid == 0) {
      if (!have_vars) define_config_variable("c_all");
      userok=1;  /* This must be root, so always allow DOSEMU start */
+  }
+
+  if(userok==0) {
+       fprintf(stderr,
+	       "Sorry %s. You are not allowed to use DOSEMU. Contact System Admin.\n",
+	       pwd->pw_name);
+       if(log_syslog>=1) {
+	   fprintf(stderr, "This event will be logged!\n");
+           sprintf(buf, "Illegal DOSEMU start attempt by %s (uid=%i)", 
+           pwd->pw_name, uid);
+	   write_to_syslog(buf);
+       }
+       exit(1);
+  }
+  else {
+    if(log_syslog>=2) {
+       sprintf(buf, "DOSEMU started%s by %s (uid/euid=%i/%i)",
+            (can_do_root_stuff && !under_root_login)? " suid root" : "",
+            pwd->pw_name, uid, get_orig_euid());
+       write_to_syslog(buf);
+    }
   }
 
   /* now we setup up our local DOSEMU home directory, where we
@@ -2444,41 +2540,8 @@ parse_dosemu_users(void)
   TMPDIR_PROCESS = mkdir_under(TMPDIR, "temp.", 1);
   RUNDIR = mkdir_under(LOCALDIR, "run", 0);
   TMPFILE = assemble_path(RUNDIR, "dosemu.", 0);
-  
-  /* check wether we are we are running non-suid root
-   * If so eventually rearange some file locations.
-   */
-#if 0 /* we currently need not, but will need later for an enhanced non-suid */
-  if (!can_do_root_stuff) {
-	/* maybe ~/.dosemu/etc, ~/.dosemu/lib, e.t.c. */
-  }
-#endif
+  DOSEMU_MIDI_PATH = assemble_path(RUNDIR, DOSEMU_MIDI, 0);
 
-  if(userok==0) {
-       fprintf(stderr,
-	       "Sorry %s. You are not allowed to use DOSEMU. Contact System Admin.\n",
-	       pwd->pw_name);
-
-       sprintf(buf, "Illegal DOSEMU start attempt by %s (uid=%i)", 
-       pwd->pw_name, uid);
-            
-       if(log_syslog>=1)
-         {
-	   fprintf(stderr, "This event will be logged!\n");
-	   write_to_syslog(buf);
-	 }
-	 
-       exit(1);
-  }
-  else {
-       sprintf(buf, "DOSEMU started%s by %s (uid/euid=%i/%i)",
-            (can_do_root_stuff && !under_root_login)? " suid root" : "",
-            pwd->pw_name, uid, get_orig_euid());
-            
-       if(log_syslog>=2)
-         write_to_syslog(buf);
-
-  }
   after_secure_check = 1;
 }
 
@@ -2534,7 +2597,7 @@ static char *resolve_exec_path(char *dexename, char *ext)
   }
 
   /* next try the standard path for DEXE files */
-  snprintf(n, maxn, DEXE_LOAD_PATH "/%s", name);
+  snprintf(n, maxn, "%s/%s", DEXE_LOAD_PATH, name);
   if (stat_dexe(n)) return n;
 
   /* now search in the users normal PATH */
@@ -2641,11 +2704,13 @@ int parse_config(char *confname, char *dosrcname)
 
   define_config_variable(PARSER_VERSION_STRING);
 
+#if 0 /* no longer needed, config.c only allows -F for root or non-suid-root */
   if (get_config_variable("c_strict") && strcmp(confname, CONFIG_SCRIPT)) {
      c_printf("CONF: use of option -F %s forbidden by /etc/dosemu.users\n",confname);
      c_printf("CONF: using %s instead\n", CONFIG_SCRIPT);
      confname = CONFIG_SCRIPT;
   }
+#endif
 
   /* Let's try confname if not null, and fail if not found */
   /* Else try the user's own .dosrc (old) or .dosemurc (new) */
@@ -2655,15 +2720,14 @@ int parse_config(char *confname, char *dosrcname)
     PRIV_SAVE_AREA
     uid_t uid = get_orig_uid();
 
-    char *home = getenv("HOME");
     char *name;
     int skip_dosrc = 0;
 
     if (!dosrcname) {
-      name = malloc(strlen(home) + 20);
-      sprintf(name, "%s/.dosemurc", home);
-      setenv("DOSEMU_RC",name,1);
-      sprintf(name, "%s/.dosrc", home);
+      name = get_path_in_HOME(DOSEMU_RC);
+      setenv("DOSEMU_RC", name, 1);
+      free(name);
+      name = get_path_in_HOME(OLD_DOS_RC);
     }
     else {
       name = strdup(dosrcname);
@@ -3069,7 +3133,7 @@ main(int argc, char **argv)
   if (argc != 2)
     die("no filename!");
 
-  if (!parse_config(argv[1]))
+  if (!parse_config(argv[1], argv[2] /* will be NULL if not given */))
     die("parse failed!\n");
 }
 

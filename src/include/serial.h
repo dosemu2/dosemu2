@@ -28,17 +28,6 @@
 #include <termios.h>
 #include "extern.h"
 
-/* the Lock file stuff.  Default user is uucp! */
-#ifndef OWNER_LOCKS
-#define OWNER_LOCKS        "uucp"                /* Owner of locks  */
-#endif
-#ifndef PATH_LOCKD
-#define PATH_LOCKD         "/usr/spool/uucp"     /* Lock files */
-#endif
-#ifndef NAME_LOCKF
-#define NAME_LOCKF         "LCK.."               /* Lock filename prefix */
-#endif
-
 /* These are sizes for the internal recieve and transmit buffers.
  * They must be at least 16 bytes because these double as FIFO's,
  * The 16-byte limitation is emulated, though, for compatibility

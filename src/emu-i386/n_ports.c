@@ -472,12 +472,17 @@ int port_rep_inb(ioport_t port, Bit8u *base, int df, Bit32u count)
 		count, base, df);
 	if (EMU_HANDLER(port).read_portb == std_port_inb) {
 	    PORT_IOPLON(port,1);
-	    while (count--) { *dest = port_real_inb(port); dest += incr; }
+	    while (count--) {
+	      *dest = port_real_inb(port);
+	      dest += incr;
+	    }
 	    PORT_IOPLOFF(port,1);
 	}
 	else {
-	  while (count--)
-	    *dest = EMU_HANDLER(port).read_portb(port); dest += incr;
+	  while (count--) {
+	    *dest = EMU_HANDLER(port).read_portb(port);
+	    dest += incr;
+	  }
 	}
 	return dest-base;
 }
@@ -492,12 +497,17 @@ int port_rep_outb(ioport_t port, Bit8u *base, int df, Bit32u count)
 		count, base, df);
 	if (EMU_HANDLER(port).write_portb == std_port_outb) {
 	    PORT_IOPLON(port,1);
-	    while (count--) { port_real_outb(port, *dest); dest += incr; }
+	    while (count--) {
+	      port_real_outb(port, *dest);
+	      dest += incr;
+	    }
 	    PORT_IOPLOFF(port,1);
 	}
 	else {
-	  while (count--)
-	    EMU_HANDLER(port).write_portb(port, *dest); dest += incr;
+	  while (count--) {
+	    EMU_HANDLER(port).write_portb(port, *dest);
+	    dest += incr;
+	  }
 	}
 	return dest-base;
 }
@@ -512,7 +522,10 @@ int port_rep_inw(ioport_t port, Bit16u *base, int df, Bit32u count)
 		count, base, df);
 	if (EMU_HANDLER(port).read_portw == std_port_inw) {
 	    PORT_IOPLON(port,2);
-	    while (count--) { *dest = port_real_inw(port); dest += incr; }
+	    while (count--) {
+	      *dest = port_real_inw(port);
+	      dest += incr;
+	    }
 	    PORT_IOPLOFF(port,2);
 	}
 	else if (EMU_HANDLER(port).read_portw == NULL) {
@@ -524,8 +537,10 @@ int port_rep_inw(ioport_t port, Bit16u *base, int df, Bit32u count)
 	  }
 	}
 	else {
-	  while (count--)
-	    *dest = EMU_HANDLER(port).read_portw(port); dest += incr;
+	  while (count--) {
+	    *dest = EMU_HANDLER(port).read_portw(port);
+	    dest += incr;
+	  }
 	}
 	return (Bit8u *)dest-(Bit8u *)base;
 }
@@ -540,7 +555,10 @@ int port_rep_outw(ioport_t port, Bit16u *base, int df, Bit32u count)
 		count, base, df);
 	if (EMU_HANDLER(port).write_portw == std_port_outw) {
 	    PORT_IOPLON(port,2);
-	    while (count--) { port_real_outw(port, *dest); dest += incr; }
+	    while (count--) {
+	      port_real_outw(port, *dest);
+	      dest += incr;
+	    }
 	    PORT_IOPLOFF(port,2);
 	}
 	else if (EMU_HANDLER(port).write_portw == NULL) {
@@ -552,8 +570,10 @@ int port_rep_outw(ioport_t port, Bit16u *base, int df, Bit32u count)
 	  }
 	}
 	else {
-	  while (count--)
-	    EMU_HANDLER(port).write_portw(port, *dest); dest += incr;
+	  while (count--) {
+	    EMU_HANDLER(port).write_portw(port, *dest);
+	    dest += incr;
+	  }
 	}
 	return (Bit8u *)dest-(Bit8u *)base;
 }
@@ -564,7 +584,10 @@ int port_rep_ind(ioport_t port, Bit32u *base, int df, Bit32u count)
 	Bit32u *dest = base;
 
 	if (count==0) return 0;
-	while (count--) { *dest = port_ind(port); dest += incr; }
+	while (count--) {
+	  *dest = port_ind(port);
+	  dest += incr;
+	}
 	return (Bit8u *)dest-(Bit8u *)base;
 }
 
@@ -574,7 +597,10 @@ int port_rep_outd(ioport_t port, Bit32u *base, int df, Bit32u count)
 	Bit32u *dest = base;
 
 	if (count==0) return 0;
-	while (count--) { port_outd(port, *dest); dest += incr; }
+	while (count--) {
+	  port_outd(port, *dest);
+	  dest += incr;
+	}
 	return (Bit8u *)dest-(Bit8u *)base;
 }
 

@@ -691,16 +691,16 @@ static void enter_includefile(char * fname)
     yyerror("Includes nested too deeply" );
     return;
   }
-#if 0
   /* we want to have the include files in the same directory as
    * the main config file, if we have no leading  '/'
+   * and we want "keymap/xxx" mapped to e.g. "/var/lib/dosemu/keymap/xxx"
    */
-  if (!strchr("/.", fname[0])) {
+  if (fname[0] != '/') {
     int i;
     if (!strncmp(fname, KEYMAP_DIR, strlen(KEYMAP_DIR)))
       strcpy(fname_, KEYMAP_LOAD_BASE_PATH);
     else
-      strcpy(fname_,include_fnames[0]);
+      strcpy(fname_, include_fnames[include_stack_ptr]);
     i=strlen(fname_);
     while (i && (fname_[i] != '/')) i--;
     if (i) {
@@ -709,22 +709,6 @@ static void enter_includefile(char * fname)
       fname=fname_;
     }
   }
-#else
-  /* we want to have the include files in the same directory as
-   * the file that includes them, if we have no leading '/'
-   */
-  if (fname[0] != '/') {
-	  int i;
-	  strcpy(fname_,include_fnames[include_stack_ptr]);
-	  i=strlen(fname_);
-	  while (i && (fname_[i] != '/')) i--;
-	  if (i) {
-		  i++;
-		  strcpy(fname_+i, fname);
-		  fname=fname_;
-	  }
-  }
-#endif
   if (get_config_variable("c_system")) enter_priv_on();
   else enter_priv_off();
   new_yyin = fopen( fname, "r" );

@@ -582,7 +582,7 @@ void linux_mpu401_data_write(__u8 data)
 	if (mpu_fd == -1) {
 	  	if (mpu_disabled) return;
 		/* Added NONBLOCK to prevent hanging - Karcher */
-		mpu_fd = open("/var/run/dosemu-midi", 
+		mpu_fd = open(DOSEMU_MIDI_PATH,
 			      O_WRONLY | O_CREAT | O_NONBLOCK, 0777);
 		if (mpu_fd == -1) {
 			mpu_disabled = TRUE;

@@ -26,6 +26,7 @@
 #include "keyb_server.h"
 #include "bios.h"
 #include "pic.h"
+#include "cpu.h"
 
 /* If this is set to 1, the server will check whether the BIOS keyboard buffer is
  * full even in keybint mode.

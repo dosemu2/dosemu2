@@ -15,5 +15,7 @@
 #
 # For more details look at ./doc/README.txt
 
+default_lib_dir= /var/lib/dosemu
+log_level= 0
 root c_all  
 all c_all

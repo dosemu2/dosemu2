@@ -13,10 +13,6 @@
  *
  */
 
-#ifndef lint
-static char *rcsid = "$Header: /usr/src/dosemu0.60/dpmi/RCS/msdos.h,v 1.2 1995/05/06 16:25:48 root Exp root $";
-#endif
-
 enum { ES_INDEX = 0, CS_INDEX = 1, SS_INDEX = 2,  DS_INDEX = 3,
        FS_INDEX = 4, GS_INDEX = 5 };
 

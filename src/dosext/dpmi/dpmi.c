@@ -172,10 +172,6 @@ extern unsigned long dpmi_free_memory; /* how many bytes memory client */
 extern dpmi_pm_block *pm_block_root[DPMI_MAX_CLIENTS];
 extern unsigned long pm_block_handle_used;       /* tracking handle */
 
-#ifndef lint
-static char RCSdpmi[] = "$Header: /usr/src/dosemu0.60/dpmi/RCS/dpmi.c,v 1.2 1995/05/06 16:25:48 root Exp root $";
-#endif
-
 static int DPMIclient_is_32 = 0;
 static unsigned short DPMI_private_data_segment;
 unsigned short PMSTACK_SEL = 0;	/* protected mode stack selector */

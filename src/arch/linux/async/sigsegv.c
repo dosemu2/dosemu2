@@ -7,10 +7,6 @@
 /* Define if we want graphics in X (of course we want :-) (root@zaphod) */
 /* WARNING: This may not work in BSD, because it was written for Linux! */
 
-#ifndef lint
-static char rcsid[]="$Id: sigsegv.c,v 2.20 1995/04/08 22:30:40 root Exp $";
-#endif /* lint */
-
 #include <stdio.h>
 #include <termios.h>
 #include <stdlib.h>

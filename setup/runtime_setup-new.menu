@@ -252,6 +252,9 @@ menu "Serial" {
   description "Set up the Serial Ports:"
   string "Device for COM1:" com1
   string "Device for COM2:" com2
+  string "Device for COM3:" com3
+  string "Device for COM4:" com4
+  string "Lock directory:"  ttylocks
 }
 
 menu "Mouse" {
@@ -267,7 +270,7 @@ menu "Mouse" {
     "Bus Mouse" busmouse
     "PS/2 Mouse" ps2
   }
-  string "Device - com1, com2 or device name" mouse_dev
+  string "Device - com1, com2, com3, com4 or device name" mouse_dev
   string "Optional Flags - emulate3buttons and/or cleardtr" mouse_flags
   integer "Baud Rate - 0 is dont set" mouse_baud
 }

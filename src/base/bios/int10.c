@@ -42,6 +42,7 @@
 #include "memory.h"
 #include "bios.h"
 #include "vc.h"
+#include "speaker.h"
 
 #if X_GRAPHICS
 #include "X.h"

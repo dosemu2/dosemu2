@@ -18,15 +18,38 @@
 #ifndef __ASM__
 #include "extern.h"
 
-EXTERN char *config_file_path INIT("/etc/dosemu.conf");
-EXTERN char *config_script_path INIT("/var/lib/dosemu/global.conf");
-EXTERN char *dosemu_users_file_path INIT("/etc/dosemu.users");
-EXTERN char *dosemu_loglevel_file_path INIT("/etc/dosemu.loglevel");
-EXTERN char *dosemu_tmpfile_path INIT("/var/run/dosemu.");
-EXTERN char *dosemu_tmpdir_path INIT("~/.dosemu/tmp");
-EXTERN char *dosemu_tmpdir_process_path INIT("~/.dosemu/tmp/<pid>");
-EXTERN char *dosemu_rundir_path INIT("~/.dosemu/run");
-EXTERN char *dosemu_localdir_path INIT("~/.dosemu");
+/* not overridable file/path constants */
+#define  DOSEMU_RC          ".dosemurc"       /* per user config file */
+#define  OLD_DOS_RC         ".dosrc"          /* old, obsolete user config file */
+#define  LOCALDIR_BASE_NAME ".dosemu"         /* base directory in $HOME */
+#define  DOSEMULIB_DEFAULT  "/var/lib/dosemu" /* system wide dosemu directory */
+#define  DOSEMU_CONF        "dosemu.conf"     /* standard configuration file */
+#define  DOSEMU_USERS       "dosemu.users"    /* access right configuration file */
+#define  CONFIG_SCRIPT_NAME "global.conf"     /* main configuration script */
+#define  DOSEMU_LOGLEVEL    "dosemu.loglevel" /* logging configuration file */
+#define  ALTERNATE_ETC      "/etc/dosemu"     /* alternate config. directory */
+#define  DOSEMU_MIDI        "dosemu-midi"     /* fifo for midi daemon */
+
+/* overridable file/path constants */
+EXTERN char *config_file_path INIT("/etc/" DOSEMU_CONF);
+EXTERN char *config_script_path INIT(DOSEMULIB_DEFAULT "/" CONFIG_SCRIPT_NAME);
+EXTERN char *dosemu_users_file_path INIT("/etc/" DOSEMU_USERS);
+EXTERN char *dosemu_loglevel_file_path INIT("/etc/" DOSEMU_LOGLEVEL);
+EXTERN char *dosemu_tmpfile_path INIT("~/" LOCALDIR_BASE_NAME "/run/dosemu.");
+EXTERN char *dosemu_tmpdir_path INIT("~/" LOCALDIR_BASE_NAME "/tmp");
+EXTERN char *dosemu_tmpdir_process_path INIT("~/" LOCALDIR_BASE_NAME "/tmp/<pid>");
+EXTERN char *dosemu_rundir_path INIT("~/" LOCALDIR_BASE_NAME "/run");
+EXTERN char *dosemu_localdir_path INIT("~/" LOCALDIR_BASE_NAME);
+EXTERN char *dosemu_lib_dir_path INIT(DOSEMULIB_DEFAULT);
+EXTERN char *keymap_load_base_path INIT(DOSEMULIB_DEFAULT "/");
+EXTERN char *keymap_dir_path INIT("keymap/");
+EXTERN char *owner_tty_locks INIT("uucp");
+EXTERN char *tty_locks_dir_path INIT("/var/lock");
+EXTERN char *tty_locks_name_path INIT("LCK..");
+EXTERN char *dexe_load_path INIT(DOSEMULIB_DEFAULT);
+EXTERN char *ipx_dos_ini_path INIT(ALTERNATE_ETC "/dos.ini");
+EXTERN char *dosemu_map_file_name INIT("/usr/src/dosemu/bin/dosemu.map");
+EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 
 #define    CONFIG_FILE           config_file_path
 #define    CONFIG_SCRIPT         config_script_path
@@ -37,11 +60,18 @@ EXTERN char *dosemu_localdir_path INIT("~/.dosemu");
 #define    TMPDIR_PROCESS        dosemu_tmpdir_process_path
 #define    RUNDIR                dosemu_rundir_path
 #define    LOCALDIR              dosemu_localdir_path
-#endif /* not __ASM__ */
+#define    DOSEMU_LIB_DIR        dosemu_lib_dir_path
+#define    KEYMAP_LOAD_BASE_PATH keymap_load_base_path
+#define    KEYMAP_DIR            keymap_dir_path
+#define    OWNER_LOCKS           owner_tty_locks
+#define    PATH_LOCKD            tty_locks_dir_path
+#define    NAME_LOCKF            tty_locks_name_path
+#define    DEXE_LOAD_PATH        dexe_load_path
+#define    IPX_DOS_INI_PATH      ipx_dos_ini_path
+#define    DOSEMU_MAP_PATH       dosemu_map_file_name
+#define    DOSEMU_MIDI_PATH      dosemu_midi_path
 
-/* Do not worry about these */
-#define    LIBSTART  0x20000000
-#define    lint      1
+#endif /* not __ASM__ */
 
 @TOP@
 

@@ -120,7 +120,7 @@ InitIPXFarCallHelper(void)
     n_printf("IPX: trying to read network and node address from DOS.INI\n");
     
     /* take some time here to read my address from the DOS.INI file */
-    GetValueFromIniFile( "/etc/dosemu/dos.ini", "ipx", "network", value );
+    GetValueFromIniFile(IPX_DOS_INI_PATH, "ipx", "network", value );
     if( strlen( value )==0 ) {
       n_printf("IPX: cannot read IPX network address from dos.ini file\n");
       n_printf("IPX: please create an [IPX] section in your dos.ini file\n");
@@ -142,7 +142,7 @@ InitIPXFarCallHelper(void)
       }
     }
     
-    GetValueFromIniFile( "/etc/dosemu/dos.ini", "ipx", "node", value );
+    GetValueFromIniFile(IPX_DOS_INI_PATH, "ipx", "node", value );
     if( strlen( value )==0 ) {
       n_printf("IPX: cannot read IPX node address from dos.ini file\n");
     } else {

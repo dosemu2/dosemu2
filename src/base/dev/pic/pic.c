@@ -988,7 +988,10 @@ unsigned long pic_newirr;
 inline void pic_watch(s_time)
 hitimer_u *s_time;	/* time in us, 64-bit unsigned */
 {
-int timer,t_time;
+#ifndef MONOTON_MICRO_TIMING
+int timer;
+#endif
+int t_time;
 unsigned long pic_newirr;
 
   pic_newirr=pic_wirr&~pic_irr&~pic_isr;

@@ -19,6 +19,8 @@
 #
 # For more details look at ./doc/README.txt
 
+default_lib_dir= /var/lib/dosemu
+log_level= 0
 root c_all		# root is allowed to do all weird things
 nobody nosuidroot guest	# variable 'guest' is checked in /etc/dosemu.conf
 			# to allow only DEXE execution

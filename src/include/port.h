@@ -40,7 +40,7 @@ typedef struct {
   void          (* write_portw)(ioport_t port, Bit16u word);
   Bit32u        (* read_portd)(ioport_t port);
   void          (* write_portd)(ioport_t port, Bit32u word);
-  const char    *handler_name;
+  char          *handler_name;
   ioport_t      start_addr;
   ioport_t      end_addr;
   int           irq, fd;
