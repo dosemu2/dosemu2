@@ -87,12 +87,12 @@ static size_t unicode_to_utf8(struct char_set_state *state,
 	}
 	else if ((value >= 0x0000) && (value <= 0x007F)) {
 		length = 1;
-		data[0] = value & 0x80;
+		data[0] = value;
 	}
 	else if ((value >= 0x0080) && (value <= 0x07FF)) {
 		length = 2;
 		data[0] = 0xC0 + (value >> 6);
-		data[0] = 0x80 + ((value >> 0) & 0x3F);
+		data[1] = 0x80 + ((value >> 0) & 0x3F);
 	}
 	else if ((value >= 0x0800) && (value <= 0xFFFF)) {
 		length = 3;

@@ -26,7 +26,7 @@ static size_t unicode_to_multibyte(struct char_set_state *state,
 	t_unicode symbol, unsigned char *outbuf, size_t out_bytes_left)
 {
 	size_t result;
-	if (MB_CUR_MAX < out_bytes_left) {
+	if (MB_CUR_MAX > out_bytes_left) {
 		errno = E2BIG;
 		return -1;
 	}
