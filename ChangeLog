@@ -1,3 +1,22 @@
+97/06/29 ver. 0.67.6 released
+	From Hans
+	- fixes to EMM code (these bugs were long time in :-( )
+	  The bug was introduced as HJ Lu recommended to use valloc() instead
+	  of malloc() because of the page alignment of the malloc request.
+	  So far so good, but we forgot that we do a realloc() and even
+	  a free() on these allocations, ... and this _not_ complient with
+	  the GNU specs of valloc(). In the old libc though it nevertheless
+	  seemed to work, but not together with newer libc: The 0.66.6
+	  binary distribution _is_ compiled against libc-5.4.23 and with
+	  this the old EMM-test program that I once got from Jim is
+	  crashing.
+          In addition I also saw, that we did no proper handling for cases
+	  when the new size for realloc() was ZERO. The realloc() returned
+	  pointer isn't pagealigned (I even guess that realloc() should
+	  not given a new zero size).
+	  As a fix we now are using mmapp() (/dev/null) and mremap() also
+	  for EMM. Though I could not test it under all conditions it
+	  atleast fixed the bug for me. ... and it should be faster anyway.
 97/06/28 ver. 0.67.5.1 unofficial pre-release
 	From Michael an Reinhard Karcher <kar@dpk.berlin.fido.de>
 	- fix for extended key-code (E0) in new and old kbd code.

@@ -47,6 +47,8 @@
  *
  */
 
+#define USE_DEVZERO_MAPPING
+
 #if defined(__linux__) || defined(__NetBSD__)
 
 #include <unistd.h>
@@ -434,22 +436,56 @@ ems_init(void)
 static mach_port_t
 new_memory_object(size_t bytes)
 {
+#ifdef USE_DEVZERO_MAPPING
+  int fd_zero;
+  mach_port_t addr;
+  if ((fd_zero = open("/dev/zero", O_RDWR)) == -1 ) {
+    error("EMM: can't open /dev/zero\n");
+    return 0;
+  }
+  addr = (mach_port_t) mmap((void *)0, bytes,
+			PROT_READ | PROT_WRITE | PROT_EXEC,
+			MAP_PRIVATE|MAP_FILE, fd_zero, 0);
+  close(fd_zero);
+  if ((int)addr == -1) return 0;
+#else
   /* NOTE: bytes has to be a multiple of PAGE-SIZE,
    * else we go into trouble with mmap()-ing under Linux >= 1.3.78
    * We use valloc(), because this is the correct way to get page-aligned
    * chunks of memory ( malloc() of libc >5.3 won't do the job ).
    */
   mach_port_t addr = (mach_port_t) valloc(bytes);
+#endif
 
   E_printf("EMS: allocating 0x%08x bytes @ %p\n", bytes, (void *) addr);
   return (addr);		/* allocate on a PAGE boundary */
 }
 
 static inline void
-destroy_memory_object(mach_port_t object)
+destroy_memory_object(mach_port_t object, int length)
 {
   E_printf("EMS: destroyed EMS object @ %p\n", (void *) object);
+#ifdef USE_DEVZERO_MAPPING
+  munmap((void *) object, (size_t) length);
+#else
   free(object);
+#endif
+}
+
+static inline mach_port_t realloc_memory_object(mach_port_t object, size_t oldsize, size_t bytes)
+{
+#ifdef USE_DEVZERO_MAPPING
+  mach_port_t addr;
+  addr = (mach_port_t) mremap((void *)object, oldsize, bytes,  MREMAP_MAYMOVE);
+  if ((int)addr == -1) {
+    E_printf("EMS: mremap(0x%p,0x%x,0x%x,MREMAP_MAYMOVE) failed, %s\n",
+		object, oldsize, bytes, sys_errlist[errno]);
+    return 0;
+  }
+  return addr;
+#else
+  return (mach_port_t) realloc((void *)object, bytes);
+#endif
 }
 
 #endif /* __freeunices__ */
@@ -517,7 +553,7 @@ deallocate_handle(handle)
   }
   numpages = handle_info[handle].numpages;
   object = handle_info[handle].object;
-  destroy_memory_object(object);
+  destroy_memory_object(object,numpages*EMM_PAGE_SIZE);
   handle_info[handle].numpages = 0;
   handle_info[handle].active = 0;
   handle_info[handle].object = MACH_PORT_NULL;
@@ -776,6 +812,7 @@ restore_handle_state(handle)
   return 0;
 }
 
+#if 0		/* seems to be unused */
 static void
 test_handle(handle, numpages)
      int handle, numpages;
@@ -794,6 +831,7 @@ test_handle(handle, numpages)
     }
   }
 }
+#endif
 
 static int
 do_map_unmap(state_t * state, int handle, int physical_page, int logical_page)
@@ -981,16 +1019,54 @@ reallocate_pages(state_t * state)
      if (emm_map[i].handle == handle)
         reunmap_page(i);
 
-  obj = realloc(handle_info[handle].object, newcount * EMM_PAGE_SIZE);
+  Kdebug0((dbg_fd, "want reallocate_pages handle %d num %d called object=%p\n",
+	   handle, newcount, handle_info[handle].object));
 
-  if (obj==NULL) {
+  if (newcount && handle_info[handle].object) {
+    /*
+     * No special handling required, we savely can realloc() or mremap()
+     */
+    obj = realloc_memory_object(handle_info[handle].object, handle_info[handle].numpages*EMM_PAGE_SIZE ,newcount * EMM_PAGE_SIZE);
+    if (obj==NULL) {
      Kdebug0((dbg_fd, "failed to realloc pages!\n"));
      SETHIGH(&(state->eax), EMM_OUT_OF_LOG);
-  }
-  else {
+    }
+    else {
      handle_info[handle].object = obj;
      handle_info[handle].numpages = newcount;
      SETHIGH(&(state->eax), EMM_NO_ERR);
+    }
+  }
+  else {
+    obj = 0;
+    if (handle_info[handle].object) {
+      /*
+       * Here we come, when reallocation would lead to a ZERO sized block.
+       * This would be bad for mremap(), because this is equal to munmap()
+       * We destroy the objekt instead
+       */
+      destroy_memory_object(handle_info[handle].object,handle_info[handle].numpages*EMM_PAGE_SIZE);
+      handle_info[handle].object = 0;
+      handle_info[handle].numpages = 0;
+      SETHIGH(&(state->eax), EMM_NO_ERR);
+    }
+    else {
+      /*
+       * Here we come, when a reallocation for an above destroyed object
+       * is requested.
+       * We simply create a new one.
+       */
+      if (newcount) obj= new_memory_object(newcount*EMM_PAGE_SIZE);
+      if (obj==NULL) {
+        Kdebug0((dbg_fd, "failed to realloc pages!\n"));
+        SETHIGH(&(state->eax), EMM_OUT_OF_LOG);
+      }
+      else {
+        handle_info[handle].object = obj;
+        handle_info[handle].numpages = newcount;
+        SETHIGH(&(state->eax), EMM_NO_ERR);
+      }
+    }
   }
   
   Kdebug0((dbg_fd, "reallocate_pages handle %d num %d called object=%p\n",
@@ -1000,6 +1076,12 @@ reallocate_pages(state_t * state)
 
   for (i = 0; i < EMM_MAX_PHYS; i++) {
     if (emm_map[i].handle == handle) {
+       /*
+        * NOTE: In case of the above critical case (newcount==0)
+        *       We _always_ have emm_map[i].logical_page >= newcount
+        *       because even NULL_PAGE is > 0
+        *       Hence we need no special treatment here
+        */
        if (emm_map[i].logical_page >= newcount) {
           emm_map[i].handle = NULL_HANDLE;
           emm_map[i].logical_page = NULL_PAGE;
