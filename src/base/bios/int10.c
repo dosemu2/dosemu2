@@ -678,6 +678,9 @@ void int10()
               case 0x07 : /* beep */
 #if 0  /* ignored, we have to check wether it breaks the speaker stuff --Hans */
                 putchar(0x07);
+#else
+                /* this should do what we want, says Eric 980425 */
+                speaker_on(125, 0x637);
 #endif
                 x--;
                 src++;

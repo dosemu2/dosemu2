@@ -369,11 +369,11 @@ video_config_init(void) {
      if (config.speaker == SPKR_NATIVE)
         config.speaker = SPKR_EMULATED;
   }
+  video_page = 0;
+  screen_mask = 1 << (((int)phys_text_base-0xA0000)/4096);
+  screen_adr = SCREEN_ADR(0);
   if (!config.vga) {
     WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0x0);	/* Current Screen Page */
-    video_page = 0;
-    screen_mask = 1 << (((int)phys_text_base-0xA0000)/4096);
-    screen_adr = SCREEN_ADR(0);
     WRITE_WORD(BIOS_CURSOR_SHAPE, (configuration&MDA_CONF_SCREEN_MODE)?0x0A0B:0x0607);
     
     /* This is needed in the video stuff. Grabbed from boot(). */

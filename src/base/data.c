@@ -7,6 +7,7 @@ static char *id= "$Id: data.c,v 1.4 1995/04/08 22:29:37 root Exp $";
 
 #include <termios.h>
 #include <sys/types.h>
+#include "config.h"
 #include "emu.h"
 #include "xms.h"
 #include "disks.h"

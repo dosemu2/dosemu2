@@ -2592,14 +2592,14 @@ int parse_config(char *confname, char *dosrcname)
   {
     /* preset the 'include-stack', so files without '/' can be found */
     extern char * include_fnames[];
-    include_fnames[0]=strdup("/etc/dosemu.conf");
+    include_fnames[0]=strdup(CONFIG_FILE);
   }
 
   /* Parse valid users who can execute DOSEMU */
   parse_dosemu_users();
   if (get_config_variable("c_strict") && strcmp(confname, CONFIG_SCRIPT)) {
      c_printf("CONF: use of option -F %s forbidden by /etc/dosemu.users\n",confname);
-     c_printf("CONF: using " CONFIG_FILE " instead\n");
+     c_printf("CONF: using %s instead\n", CONFIG_SCRIPT);
      confname = CONFIG_SCRIPT;
   }
 
@@ -2883,6 +2883,7 @@ static int undefine_config_variable(char *name)
   }
   if (get_config_variable(name)) {
     int i;
+    if (!strcmp(name, CONFNAME_V3USED)) parser_version_3_style_used = 0;
     free(config_variables[config_variables_last]);
     for (i=config_variables_last; i<(config_variables_count-1); i++) {
       config_variables[i] = config_variables[i+1];

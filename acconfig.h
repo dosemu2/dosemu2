@@ -15,10 +15,19 @@
 #ifndef CONFIG_H
 #define CONFIG_H 1
 
-#define    CONFIG_FILE           "/etc/dosemu.conf"
-#define    CONFIG_SCRIPT         "/var/lib/dosemu/global.conf"
-#define    DOSEMU_USERS_FILE     "/etc/dosemu.users"
-#define    DOSEMU_LOGLEVEL_FILE  "/etc/dosemu.loglevel"
+#ifndef __ASM__
+#include "extern.h"
+
+EXTERN char *config_file_path INIT("/etc/dosemu.conf");
+EXTERN char *config_script_path INIT("/var/lib/dosemu/global.conf");
+EXTERN char *dosemu_users_file_path INIT("/etc/dosemu.users");
+EXTERN char *dosemu_loglevel_file_path INIT("/etc/dosemu.loglevel");
+
+#define    CONFIG_FILE           config_file_path
+#define    CONFIG_SCRIPT         config_script_path
+#define    DOSEMU_USERS_FILE     dosemu_users_file_path
+#define    DOSEMU_LOGLEVEL_FILE  dosemu_loglevel_file_path
+#endif /* not __ASM__ */
 
 /* Do not worry about these */
 #define    LIBSTART  0x20000000

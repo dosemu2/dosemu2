@@ -1,4 +1,13 @@
-98/04/25 ver. 0.97.5 released
+98/05/03 ver. 0.97.6.1 unofficial pre-release
+	From Eric
+	- fix for the 'beep' in INT10 AH=13: speaker_on(125, 0x637);
+	From Arne
+	- fix for video.c not setting screen_adr
+	From Hans
+	- fix for global.conf not correctly detecting an old style dosemu.conf
+	  ( to make Alistair happy ;-)
+	- first step to remove 'fix pathes' (for config stuff)
+98/04/25 ver. 0.97.6 released
 	From Steffen
 	- rework of set_video_mode (int10.c)
 	- using backing store now in text modes (n_X.c, X_USE_BACKING_STORE)
