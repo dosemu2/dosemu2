@@ -425,9 +425,16 @@ static int font_width, font_height, font_shift, shift_x, shift_y;
 
 #if CONFIG_X_SELECTION
 static u_char *sel_text = NULL;
-static Atom compound_text_atom = None;
-static Atom utf8_text_atom = None;
-static Atom text_atom = None;
+enum {
+  TARGETS_ATOM,
+  TIMESTAMP_ATOM,
+  COMPOUND_TARGET,
+  UTF8_TARGET,
+  TEXT_TARGET,
+  STRING_TARGET,
+  NUM_TARGETS
+};
+static Atom targets[NUM_TARGETS];
 #endif
 
 static Boolean is_mapped = FALSE;
@@ -811,9 +818,12 @@ int X_init()
   }
 #if CONFIG_X_SELECTION
   /* Get atom for COMPOUND_TEXT/UTF8/TEXT type. */
-  compound_text_atom = XInternAtom(display, "COMPOUND_TEXT", False);
-  utf8_text_atom = XInternAtom(display, "UTF8_STRING", False);
-  text_atom = XInternAtom(display, "TEXT", False);
+  targets[TARGETS_ATOM] = XInternAtom(display, "TARGETS", False);
+  targets[TIMESTAMP_ATOM] = XInternAtom(display, "TIMESTAMP", False);
+  targets[COMPOUND_TARGET] = XInternAtom(display, "COMPOUND_TEXT", False);
+  targets[UTF8_TARGET] = XInternAtom(display, "UTF8_STRING", False);
+  targets[TEXT_TARGET] = XInternAtom(display, "TEXT", False);
+  targets[STRING_TARGET] = XA_STRING;
 #endif
   /* Delete-Window-Message black magic copied from xloadimage. */
   proto_atom  = XInternAtom(display, "WM_PROTOCOLS", False);
@@ -2920,9 +2930,20 @@ void send_selection(Time time, Window requestor, Atom target, Atom property)
 			(unsigned long) requestor);
 		e.xselection.property = None;
 	}
-	
-	else if ((target == XA_STRING) || (target == compound_text_atom) ||
-		 (target == utf8_text_atom) || (target == text_atom)) {
+	else if (target == targets[TARGETS_ATOM]) {
+		X_printf("X: selection: TARGETS\n");
+		XChangeProperty(display, requestor, property, XA_ATOM, 32,
+			PropModeReplace, (char *)targets, NUM_TARGETS);
+	}
+	else if (target == targets[TIMESTAMP_ATOM]) {
+		X_printf("X: timestamp atom\n");
+		XChangeProperty(display, requestor, property, XA_INTEGER, 32,
+			PropModeReplace, (char *)&e.xselection.time, 1);
+	}
+	else if (target == targets[STRING_TARGET] ||
+		 target == targets[COMPOUND_TARGET] ||
+		 target == targets[UTF8_TARGET] ||
+		 target == targets[TEXT_TARGET]) {
 		X_printf("X: selection: %s\n",sel_text);
 		e.xselection.target = target;
 		XChangeProperty(display, requestor, property, target, 8, PropModeReplace, 
@@ -2934,8 +2955,9 @@ void send_selection(Time time, Window requestor, Atom target, Atom property)
 	else
 	{
 		e.xselection.property = None;
-		X_printf("X: Window 0x%lx requested unknown selection format %ld\n",
-			(unsigned long) requestor, (unsigned long) target);
+		X_printf("X: Window 0x%lx requested unknown selection format %ld %s\n",
+			(unsigned long) requestor, (unsigned long) target,
+			 XGetAtomName(display, target));
 	}
 	XSendEvent(display, requestor, False, 0, &e);
 }
