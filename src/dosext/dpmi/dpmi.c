@@ -126,8 +126,6 @@ struct sigcontext_struct DPMI_pm_stack[DPMI_max_rec_pm_func];
 int DPMI_pm_procedure_running = 0;
 
 char *ldt_buffer;
-char *pm_stack; /* locked protected mode stack */
-static int in_dpmi_pm_stack = 0; /* locked protected mode stack in use */
 
 struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 struct RSP_s RSP_callbacks[DPMI_MAX_CLIENTS];
@@ -1223,7 +1221,7 @@ static unsigned short *enter_lpms(struct sigcontext_struct *scp)
 {
   unsigned short pmstack_sel;
   unsigned long pmstack_esp;
-  if (!in_dpmi_pm_stack) {
+  if (!DPMI_CLIENT.in_dpmi_pm_stack) {
     D_printf("DPMI: Switching to locked stack\n");
     pmstack_sel = DPMI_CLIENT.PMSTACK_SEL;
     if (_ss == DPMI_CLIENT.PMSTACK_SEL)
@@ -1231,32 +1229,32 @@ static unsigned short *enter_lpms(struct sigcontext_struct *scp)
   }
   else {
     D_printf("DPMI: Not switching to locked stack, in_dpmi_pm_stack=%d\n",
-      in_dpmi_pm_stack);
+      DPMI_CLIENT.in_dpmi_pm_stack);
     pmstack_sel = _ss;
   }
 
-  if (_ss == DPMI_CLIENT.PMSTACK_SEL || in_dpmi_pm_stack)
+  if (_ss == DPMI_CLIENT.PMSTACK_SEL || DPMI_CLIENT.in_dpmi_pm_stack)
     pmstack_esp = client_esp(scp);
   else
     pmstack_esp = D_16_32(DPMI_pm_stack_size);
 
   if (pmstack_esp < 100) {
-      error("PM stack overflowed: in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
+      error("PM stack overflowed: in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
       leavedos(25);
   }
 
   _ss = pmstack_sel;
   _esp = D_16_32(pmstack_esp);
-  in_dpmi_pm_stack++;
+  DPMI_CLIENT.in_dpmi_pm_stack++;
 
   return (us *) (GetSegmentBaseAddress(pmstack_sel) + D_16_32(pmstack_esp));
 }
 
 static void leave_lpms(struct sigcontext_struct *scp)
 {
-  if (in_dpmi_pm_stack) {
-    in_dpmi_pm_stack--;
-    if (!in_dpmi_pm_stack && _ss != DPMI_CLIENT.PMSTACK_SEL) {
+  if (DPMI_CLIENT.in_dpmi_pm_stack) {
+    DPMI_CLIENT.in_dpmi_pm_stack--;
+    if (!DPMI_CLIENT.in_dpmi_pm_stack && _ss != DPMI_CLIENT.PMSTACK_SEL) {
       error("DPMI: Client's PM Stack corrupted during PM callback!\n");
 //    leavedos(91);
     }
@@ -2412,12 +2410,10 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
 
   /* do this all before doing RSP call */
   in_dpmi_dos_int = 1;
-  if (in_dpmi==1) {
-    if(in_dpmi_pm_stack) {
+  if (DPMI_CLIENT.in_dpmi_pm_stack) {
       error("DPMI: Warning: trying to leave DPMI when in_dpmi_pm_stack=%i\n",
-        in_dpmi_pm_stack);
-    }
-    in_dpmi_pm_stack = 0;
+        DPMI_CLIENT.in_dpmi_pm_stack);
+    DPMI_CLIENT.in_dpmi_pm_stack = 0;
   }
 
   if (DPMI_CLIENT.RSP_state == 0) {
@@ -2748,6 +2744,12 @@ void dpmi_init(void)
 
   DPMI_CLIENT.private_data_segment = REG(es);
 
+  DPMI_CLIENT.pm_stack = malloc(DPMI_pm_stack_size);
+  if (DPMI_CLIENT.pm_stack == NULL) {
+    error("DPMI: can't allocate memory for locked protected mode stack\n");
+    leavedos(2);
+  }
+
 /*
  * DANG_BEGIN_NEWIDEA
  * Simulate Local Descriptor Table for MS-Windows 3.1
@@ -2770,7 +2772,8 @@ void dpmi_init(void)
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
     
     if (!(DPMI_CLIENT.PMSTACK_SEL = AllocateDescriptors(1))) goto err;
-    if (SetSelector(DPMI_CLIENT.PMSTACK_SEL, (unsigned long) pm_stack, DPMI_pm_stack_size-1, DPMI_CLIENT.is_32,
+    if (SetSelector(DPMI_CLIENT.PMSTACK_SEL, (unsigned long) DPMI_CLIENT.pm_stack,
+		  DPMI_pm_stack_size-1, DPMI_CLIENT.is_32,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
     if (!(DPMI_CLIENT.DPMI_SEL = AllocateDescriptors(1))) goto err;
@@ -2951,7 +2954,7 @@ static void return_from_exception(struct sigcontext_struct *scp)
   unsigned long saved_esp = _esp;
   leave_lpms(scp);
   D_printf("DPMI: Return from client exception handler, "
-    "in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
+    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
 
   ssp = (us *)SEL_ADR(_ss,_esp);
 
@@ -3452,7 +3455,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_pm)) {
 	  leave_lpms(scp);
           D_printf("DPMI: Return from protected mode interrupt handler, "
-	    "in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
+	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
 /* ---------------------------------------------------
 	|(000FC925)|
 	|(dpmi_sel)|
@@ -3521,7 +3524,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_ext_exception)) {
 	  leave_lpms(scp);
           error("DPMI: Return from client extended exception handler, "
-	    "in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
+	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
 
 	  /* poping error code */
 	  ssp += 2;
@@ -3549,7 +3552,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 		                + D_16_32(_edi));
 	  leave_lpms(scp);
 	  D_printf("DPMI: Return from client realmode callback procedure, "
-	    "in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
+	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
 
 	  REG(edi) = rmreg->edi;
 	  REG(esi) = rmreg->esi;
@@ -3574,7 +3577,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_mouse_callback)) {
 	  leave_lpms(scp);
 	  D_printf("DPMI: Return from mouse callback, in_dpmi_pm_stack=%i\n",
-	    in_dpmi_pm_stack);
+	    DPMI_CLIENT.in_dpmi_pm_stack);
 
 	  pm_to_rm_regs(scp, ~0);
 	  restore_pm_regs(scp);
@@ -3583,7 +3586,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_PS2_mouse_callback)) {
 	  leave_lpms(scp);
 	  D_printf("DPMI: Return from PS2 mouse callback, in_dpmi_pm_stack=%i\n",
-	    in_dpmi_pm_stack);
+	    DPMI_CLIENT.in_dpmi_pm_stack);
 
 	  pm_to_rm_regs(scp, ~0);
 	  restore_pm_regs(scp);
@@ -3592,7 +3595,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_int_1c)) {
 	  leave_lpms(scp);
 	  D_printf("DPMI: Return from int1c, in_dpmi_pm_stack=%i\n",
-	    in_dpmi_pm_stack);
+	    DPMI_CLIENT.in_dpmi_pm_stack);
 
 	  pm_to_rm_regs(scp, ~0);
 	  restore_pm_regs(scp);
@@ -3605,11 +3608,11 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  int esp_delta;
 	  leave_lpms(scp);
 	  D_printf("DPMI: Return from int23 callback, in_dpmi_pm_stack=%i\n",
-	    in_dpmi_pm_stack);
+	    DPMI_CLIENT.in_dpmi_pm_stack);
 
 	  pm_to_rm_regs(scp, ~0);
 	  restore_pm_regs(&old_ctx);
-	  old_esp = in_dpmi_pm_stack ? D_16_32(old_ctx.esp) : D_16_32(DPMI_pm_stack_size);
+	  old_esp = DPMI_CLIENT.in_dpmi_pm_stack ? D_16_32(old_ctx.esp) : D_16_32(DPMI_pm_stack_size);
 	  esp_delta = old_esp - D_16_32(_esp);
 	  ssp = (us *) SEL_ADR(_ss, _esp);
 	  copy_context(scp, &old_ctx);
@@ -3626,7 +3629,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	      error("DPMI: ret from int23 with esp_delta=%i\n", esp_delta);
 	    }
 	    LWORD(esp) -= esp_delta;
-	    if (in_dpmi_pm_stack) {
+	    if (DPMI_CLIENT.in_dpmi_pm_stack) {
 	      D_printf("DPMI: int23 invoked while on PM stack!\n");
 	      REG(eflags) &= ~CF;
 	    }
@@ -3643,7 +3646,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_int_24)) {
 	  leave_lpms(scp);
 	  D_printf("DPMI: Return from int24 callback, in_dpmi_pm_stack=%i\n",
-	    in_dpmi_pm_stack);
+	    DPMI_CLIENT.in_dpmi_pm_stack);
 
 	  pm_to_rm_regs(scp, ~(1 << ebp_INDEX));
 	  restore_pm_regs(scp);
@@ -3657,7 +3660,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	    in_dpmi_dos_int = (int) *ssp++;
 	  }
 	  D_printf("DPMI: Return from RSPcall, in_dpmi_pm_stack=%i, in_dpmi_dos_int=%i\n",
-	    in_dpmi_pm_stack, in_dpmi_dos_int);
+	    DPMI_CLIENT.in_dpmi_pm_stack, in_dpmi_dos_int);
 	  restore_pm_regs(scp);
 	  if (in_dpmi_dos_int) {
 	    /* app terminated */

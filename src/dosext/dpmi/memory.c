@@ -151,12 +151,6 @@ void dpmi_memory_init(void)
       leavedos(2);
     }
 
-    pm_stack = malloc(DPMI_pm_stack_size);
-    if (pm_stack == NULL) {
-      error("DPMI: can't allocate memory for locked protected mode stack\n");
-      leavedos(2);
-    }
-
     get_ldt(ldt_buffer);
     memset(Segments, 0, sizeof(Segments));
     for (i = 0; i < MAX_SELECTORS; i++) {

@@ -149,6 +149,8 @@ struct DPMIclient_struct {
   dpmi_pm_block_root *pm_block_root;
   unsigned short private_data_segment;
   int in_dpmi_rm_stack;
+  char *pm_stack;
+  int in_dpmi_pm_stack;
   /* for real mode call back, DPMI function 0x303 0x304 */
   RealModeCallBack realModeCallBack[0x10];
   INTDESC Interrupt_Table[0x100];
@@ -200,7 +202,6 @@ extern unsigned long dpmi_free_memory; /* how many bytes memory client */
 				       /* can allocate */
 extern unsigned long pm_block_handle_used;       /* tracking handle */
 extern char *ldt_buffer;
-extern char *pm_stack;
 
 void dpmi_get_entry_point(void);
 void indirect_dpmi_switch(struct sigcontext_struct *);
