@@ -144,6 +144,7 @@ int priv_iopl(int pl)
     _priv_on();
     ret = iopl(pl);
     _priv_off();
+    return ret;
   }
   return iopl(pl);
 }

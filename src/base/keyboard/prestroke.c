@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "emu.h"
+#include "keyboard.h"
 #include "keymaps.h"
 
 #define NUM_KEYS 97 /* (sizeof(key_map_us)) */
@@ -60,10 +61,11 @@ static unsigned char *recode(unsigned short *out, unsigned char *in)
           if (((keynum = scantable(config.key_map, ch)) >0) ||
               ((keynum = scantable(config.shift_map, ch)) >0 )) {
             if (keynum == 50) {
-              *(out++) = 0x1c;
-              *(out++) = 0x1c | 0x80;
+              *(out++) = 0x0d1c;
+              *(out++) = 0x0d1c | 0x80;
             }
             else {
+              keynum |= (ch & 31) << 8;
               *(out++) = 0x1d;           /* Ctrl pressed */
               *(out++) = keynum;         /* key pressed */
               *(out++) = keynum | 0x80;  /* key released */
@@ -118,13 +120,14 @@ static unsigned char *recode(unsigned short *out, unsigned char *in)
     }
     default: {
       if ((keynum = scantable(config.key_map, ch)) >0 ) {
-        if (keynum == 13) keynum |= 0xd00;
+        keynum |= ch <<8;
         *(out++) = keynum;         /* key pressed */
         *(out++) = keynum | 0x80;  /* key released */
         *(out++) = 0;
         return in;
       }
       if ((keynum = scantable(config.shift_map, ch)) >0 ) {
+        keynum |= ch <<8;
         *(out++) = 0x2a;           /* shift pressed */
         *(out++) = keynum;         /* key pressed */
         *(out++) = keynum | 0x80;  /* key released */
@@ -145,7 +148,12 @@ int type_in_pre_strokes()
     if (config.pre_stroke) {
       o=out;
       while (*o) {
-        add_scancode_to_queue(*(o++));
+#ifdef NEW_KBD_CODE
+        putkey((*o & 0x80)==0, (t_keysym)*o & 0xff, *o >>8);
+        o++;
+#else
+        add_scancode_to_queue(*(o++) & 0xff);
+#endif
       }
     }
   }

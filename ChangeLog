@@ -1,3 +1,8 @@
+97/04/16 ver. 0.66.2.1 unofficial pre-release
+	From Hans
+	- 'keystroke' feature now also available for new-kbd
+	From Alberto
+	- fix for src/base/misc/priv.c (forgotten return)
 97/04/12 ver. 0.66.2 released
 	From Alberto
 	- minimal patch needed to fix the mode-0 timer bug for
