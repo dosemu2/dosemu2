@@ -9,9 +9,9 @@
 
 #define XMS_MAGIC      		0x0043
 #define XMS_VERSION    		0x0300  /* version 3.00 */
-#define XMS_DRIVER_VERSION	0x0002  /* my driver version 0.01 */
+#define XMS_DRIVER_VERSION	0x0003  /* my driver version 0.03 */
 
-#define NUM_HANDLES     32
+#define NUM_HANDLES     64
 #define FIRST_HANDLE    1
 
 #define PARAGRAPH       16		/* bytes in a paragraph */
@@ -42,3 +42,4 @@ void xms_control(void),
      xms_init(void);
 
 #endif /* XMS_H */
+

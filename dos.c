@@ -1,12 +1,16 @@
 /* dos emulator, Matthias Lautner */
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1993/02/05 02:54:02 $
+ * $Date: 1993/02/18 18:53:41 $
  * $Source: /usr/src/dos/RCS/dos.c,v $
- * $Revision: 1.5 $
+ * $Revision: 1.6 $
  * $State: Exp $
  *
  * $Log: dos.c,v $
+ * Revision 1.6  1993/02/18  18:53:41  root
+ * this is for 0.48patch1, mainly to fix the XMS bug (moved libemu up to
+ * the 1 GB mark), and to try out the faster termcap buffer-compare code.
+ *
  * Revision 1.5  1993/02/05  02:54:02  root
  * this is for 0.47.6
  *
@@ -23,19 +27,15 @@
  * One day I should look into this, but for now, we'll just deal with
  * the interruptions.
  *
- * Revision 1.2  1993/01/11  21:26:48  root
- * just put some comments in.
- *
  */
 
 #include <stdio.h>
 
-#define LIBSTART 	0x400000
-
 void (*dosemu)();
 char dummy[1088*1024 + 64*1024]; /* ensure that the lower 1MB+64K is unused */
 
-/* the "+ 64*1024" reserves 64k second video buffer */
+/* the "+ 64*1024" reserves 64k second video buffer...should be moved into
+ * a simple malloc()ed global variable.  dunno why I did it this way */
 
 int main(int argc, char **argv)
 {
@@ -46,3 +46,4 @@ int main(int argc, char **argv)
   dosemu = (void *) LIBSTART;
   dosemu(argc, argv);
 }
+

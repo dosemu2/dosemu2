@@ -1,6 +1,6 @@
 ========================== DOS EMULATOR 0.48 ===========================
       Robert Sanders                           gt8134b@prism.gatech.edu
-$Header: /usr/src/dos/RCS/README.first,v 1.4 1993/02/16 00:21:29 root Exp $
+$Header: /usr/src/dos/RCS/README.first,v 1.5 1993/02/18 18:53:41 root Exp $
 ========================================================================
 
 						January  27, 1993  0.47
@@ -467,8 +467,9 @@ Try to save the debugging messages (dbg file) for any bugs or
 problems that you find.  They are more helpful to me than descriptions
 alone.
 
-DR-DOS 6.0 apparently works under the emulator now.  If you have any
-problems, write me.
+DR-DOS 6.0 apparently works under the emulator now.  I have been told that,
+because it uses a variety of temporary files, your boot disk (whataver it
+may be) should be un-write-protected. If you have any problems, write me.
 
 People have had some success using Stacker and SuperStor to access
 their compressed "partitions" under the emulator.  I don't have either
@@ -484,7 +485,7 @@ Here are some programs that I use/test under dosemu:
 Here are some programs that are reported to work:
   DR-DOS 6.0, SuperStor, Stacker, uEmacs (don't even think about demacs!),
   Minitab, the Big Mouth Voicemail card (Ed Carp, erc@apple.com posted
-  some patches to get it to work)
+  some patches to get it to work), Managing Your Money
 
 Things that almost work:
   Currently, I'm trying to coax QBASIC/EDIT into working. They do
@@ -586,5 +587,6 @@ Enjoy!
 
 Robert Sanders
 gt8134b@prism.gatech.edu
+
 
 

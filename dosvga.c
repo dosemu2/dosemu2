@@ -1544,3 +1544,4 @@ int save_vga_setmode(int mode)
 
   vga_setmode(mode);
 }
+

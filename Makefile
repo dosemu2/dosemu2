@@ -12,6 +12,10 @@
 # just do "make disks" then a "make all" (or "make install") to rebuild
 # the emulator after changing the FLOPPY_CONFIG variable.
 
+# DON'T CHANGE THIS: this makes libemu start high enough to be safe. should be 
+# okay at...0x10000000 for 1 GB mark.  nobody should ever use 1 GB on a PC.
+LIBSTART = 0x10000000
+
 # path to your compiler's shared libraries
 #
 # IF YOU ARE NOT USING GCC 2.3.3, ENSURE THAT THE FOLLOWING LINE
@@ -33,7 +37,8 @@ PHANTOMDIR = -DPHANTOMDIR=\"/usr/dos\"
 #
 # VIDEO_CARD
 #    choose the correct one for your machine.
-#    currently, VGA/EGA/CGA are synonomous
+#    currently, VGA/EGA/CGA are synonomous, and MDA is untested :-)
+#    I'd like to hear if it works for you (gt8134b@prism.gatech.edu)
 #
 
   VIDEO_CARD = -DVGA_VIDEO
@@ -45,7 +50,8 @@ PHANTOMDIR = -DPHANTOMDIR=\"/usr/dos\"
 
 # KEYBOARD
 #   choose the proper RAW-mode keyboard
-#   nationality 
+#   nationality...foreign keyboards are probably not
+#   well-supported because of lack of dead-key/diacritical code
 #
 
   KEYBOARD = -DKBD_US -DKBDFLAGS=0
@@ -68,9 +74,6 @@ PHANTOMDIR = -DPHANTOMDIR=\"/usr/dos\"
 
 
 # DISKS
-#   choose fron one of the standard configs,
-#   or put together one of your own.  Leave
-#   only one FLOPPY_CONFIG line uncommented!
 #
 # these are the DEFault numbers of disks
 # note that LINUX.EXE will fail if there are more than two
@@ -144,12 +147,12 @@ MATHCO = -DMATHCO=1
 #
 XMS     = -DXMS=1
 XMSOBS  = xms.o
-MAX_XMS = 3072
+MAX_XMS = 4096        # max 4 megs XMS
 
 #
 # SYNC_ALOT
-#  uncomment this if the emulator is crashing and some debug info isn't
-#  being written to the file
+#  uncomment this if the emulator is crashing your machine and some debug info
+# isn't being sync'd to the debug file (stdout). shouldn't happen. :-)
 # SYNC_ALOT = -DSYNC_ALOT=1
 
 
@@ -167,15 +170,16 @@ OPTIONAL  = $(GFX) $(XMS) -DMAX_XMS=$(MAX_XMS) # -DDANGEROUS_CMOS=1
 CONFIGS   = $(KEYBOARD) $(PHANTOMDIR) $(VIDEO_CARD) $(MATHCO)
 DEBUG     = $(SYNC_ALOT)
 DISKS     = $(NUM_DISKS) $(FLOPPY_CONFIG)
-CFLAGS    = $(DEFINES) $(CONFIGS) $(OPTIONAL) $(DEBUG) $(DISKS) #-O6 -Wall
+CFLAGS    = $(DEFINES) $(CONFIGS) $(OPTIONAL) $(DEBUG) $(DISKS) \
+	    -DLIBSTART=$(LIBSTART) # -O6 -Wall
 
 all:	dos libemu
 
-dos:	dos.c
-	$(CC) -N -o $@ $<
+dos:	dos.c Makefile
+	$(CC) -N -DLIBSTART=$(LIBSTART) -o $@ $<
 
 libemu:	$(OBJS)
-	ld -T 400000 -o $@ $(OBJS) $(SHLIBS) -lc -ltermcap
+	ld -T $(LIBSTART) -o $@ $(OBJS) $(SHLIBS) -lc -ltermcap
 
 clean:
 	rm -f $(OBJS) $(GFXOBS) $(XMSOBS) dos libemu *.s core
@@ -201,7 +205,7 @@ dist: $(CFILES) $(HFILES) $(OFILES) dos.1
 	@echo "FINAL TAR.Z FILE:"
 	@ls -l /tmp/dosemu0.48.tar.Z
 
-emu.o:		emu.h dosvga.h xms.h timers.h Makefile
+emu.o:		emu.h dosvga.h xms.h timers.h cmos.h Makefile
 linuxfs.o:	emu.h 
 termio.o:	emu.h termio.h dosvga.h
 disks.o:	emu.h Makefile
@@ -209,4 +213,4 @@ keymaps.o:	Makefile
 dosvga.o:	emu.h dosvga.h
 xms.o:		emu.h xms.h Makefile
 timers.o:	emu.h timers.h
-cmos.o:		emu.h cmos.h
+cmos.o:		emu.h cmos.h Makefile

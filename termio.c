@@ -2,9 +2,9 @@
 #define TERMIO_C 1
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1993/02/16 00:21:29 $
+ * $Date: 1993/02/18 18:53:41 $
  * $Source: /usr/src/dos/RCS/termio.c,v $
- * $Revision: 1.17 $
+ * $Revision: 1.19 $
  * $State: Exp $
  */
 
@@ -454,7 +454,7 @@ static int OpenKeyboard(void)
 	    ioctl(kbd_fd, VT_ACTIVATE, other_no);
 	    ioctl(kbd_fd, VT_ACTIVATE, console_no);
 	  }
-	dbug_printf("$Header: /usr/src/dos/RCS/termio.c,v 1.17 1993/02/16 00:21:29 root Exp $\n");
+	dbug_printf("$Header: /usr/src/dos/RCS/termio.c,v 1.19 1993/02/18 18:53:41 root Exp $\n");
 	return 0;
 }
 
@@ -707,6 +707,10 @@ clear_process_control()
 
 open_kmem()
 {
+    /* as I understad it, /dev/kmem is the kernel's view of memory,
+     * and /dev/mem is the identity-mapped (i.e. physical addressed)
+     * memory. Currently under Linux, both are the same.
+     */
     if ((mem_fd = open("/dev/mem", O_RDWR) ) < 0) {
 	error("ERROR: can't open /dev/mem \n");
 	return (-1);
@@ -1533,7 +1537,7 @@ static void cursor(unsigned int sc)
     put_queue(ctrl_cursor[sc]);
   else if (kbd_flag(KF_NUMLOCK) || kbd_flag(KF_LSHIFT)
       || kbd_flag(KF_RSHIFT)) 
-    put_queue(num_table[sc]);
+    put_queue((old_sc << 8) | num_table[sc]);
   else
     put_queue(old_sc << 8);
 }
@@ -1562,14 +1566,8 @@ static void tab(unsigned int sc)
 
 static void func(unsigned int sc)
 {
-/* should be pretty close to perfect 
- * is the precedence right ? */
-
-  static int fkey_table[]=
-    {
-      0x3b, 0x3c, 0x3d, 0x3e, 0x41, 0x3f,
-      0x40, 0x42, 0x43, 0x44, 0x57, 0x58 
-    };
+  int fnum=sc-0x3a;
+  if (fnum > 10) fnum -= 0x12;   /* adjust if f11 or f12 */
 
   /* this checks for the VC-switch key sequence */
   if (kbd_flag(EKF_LALT) && !kbd_flag(EKF_RALT) && !kbd_flag(KF_RSHIFT)
@@ -1583,20 +1581,29 @@ static void func(unsigned int sc)
        * been called from a signal handler, and ioctl() is not reentrant.
        * hence the delay until out of the signal handler...
        */
-      activate(sc-0x3a);
-
+      activate(fnum);
       return;
     }
 
+/* FCH (Fkey CHoose):   returns a if n is f11 or f12, else it returns b
+ * PC scancodes for fkeys are "orthogonal" except F11 and F12.
+ */
+
+#define FCH(n,a,b) ((n <= 10) ? a : b)
+
   if (kbd_flag(KF_LSHIFT) || kbd_flag(KF_RSHIFT))
-    put_queue((sc + 0x19) << 8);
+    put_queue( (sc + FCH(fnum,0x19,0x30)) << 8);
+
   else if (kbd_flag(KF_CTRL))
-    put_queue((sc + 0x23) << 8);
+    put_queue( (sc + FCH(fnum,0x23,0x32)) << 8);
+
   else if (kbd_flag(KF_ALT))
-    put_queue((sc + 0x2d) << 8);
+    put_queue( (sc + FCH(fnum,0x2d,0x34)) << 8);
+
   else
-    put_queue(sc << 8);
+    put_queue( FCH(fnum,sc,sc+0x2e) << 8);
 }
+
 
 int activate(int con_num)
 {
@@ -1762,3 +1769,4 @@ static void none(unsigned int sc)
 }
 /************* end of key-related functions *************/
 #undef TERMIO_C
+

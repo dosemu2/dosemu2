@@ -2,9 +2,9 @@
 #define EMU_C 1
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1993/02/16 00:21:29 $
+ * $Date: 1993/02/18 18:53:41 $
  * $Source: /usr/src/dos/RCS/emu.c,v $
- * $Revision: 1.18 $
+ * $Revision: 1.19 $
  * $State: Exp $
  *
  * Revision 1.11  1993/01/25  22:59:38  root
@@ -69,6 +69,7 @@
 			*outp++ = (c);
 #define CHFLUSH    if (outp > outbuf) { v_write(2, outbuf, outp - outbuf); \
 						outp = outbuf; }
+
 #define SETIVEC(i, seg, ofs)	((us *)0)[ (i<<1) +1] = (us)seg; \
 				((us *)0)[  i<<1    ] = (us)ofs
 
@@ -94,7 +95,10 @@ struct itimerval itv;
 unsigned char outbuf[OUTBUFSIZE], *outp = outbuf;
 int iflag;
 int hdiskboot =0;
-int scrtest_bitmap;
+
+int scrtest_bitmap, update_screen;
+unsigned char *scrbuf;  /* the previously updated screen */
+
 long start_time;
 unsigned long last_ticks;
 int screen, xpos[8], ypos[8];
@@ -297,8 +301,9 @@ int outcbuf(int c)
 int dostputs(char *a, int b, outfuntype c)
 {
   /* discard c right now */
-  CHFLUSH;
-  tputs(a,b,outc);
+/*  CHFLUSH; */
+/* was "CHFLUSH; tputs(a,b,outcbuf);" */
+  tputs(a,b,c);
 }
 
 void poscur(int x, int y)
@@ -312,11 +317,9 @@ void scrollup(int x0, int y0 , int x1, int y1, int l, int att)
 	int dx, dy, x, y, ofs;
 	us *sadr, *p, *q, blank = ' ' | (att << 8);
 
-
 	if(l==0)		/* Wipe mode */
 	{
 		sadr=SCREEN_ADR(screen);
-/*		must_update=1; */
 		for(dy=y0;dy<=y1;dy++)
 			for(dx=x0;dx<=x1;dx++)
 				sadr[dy*CO+dx]=blank;
@@ -325,6 +328,7 @@ void scrollup(int x0, int y0 , int x1, int y1, int l, int att)
 
 	sadr = SCREEN_ADR(screen);
 	sadr += x0 + CO * (y0 + l);
+
 	dx = x1 - x0 +1;
 	dy = y1 - y0 - l +1;
 	ofs = -CO * l;
@@ -339,6 +343,8 @@ void scrollup(int x0, int y0 , int x1, int y1, int l, int att)
 		p = sadr;
 		for (x=0; x<dx; x++, p++) *p = blank;
 	}
+
+	update_screen=1; 
 }
 
 void scrolldn(int x0, int y0 , int x1, int y1, int l, int att)
@@ -349,11 +355,11 @@ void scrolldn(int x0, int y0 , int x1, int y1, int l, int att)
 	if(l==0)
 	{
 		l=LI-1;		/* Clear whole if l=0 */
-/*		must_update=1; */
 	}
 
 	sadr = SCREEN_ADR(screen);
 	sadr += x0 + CO * (y1 -l);
+
 	dx = x1 - x0 +1;
 	dy = y1 - y0 - l +1;
 	ofs = CO * l;
@@ -368,6 +374,8 @@ void scrolldn(int x0, int y0 , int x1, int y1, int l, int att)
 		p = sadr;
 		for (x=0; x<dx; x++, p++) *p = blank;
 	}
+
+	update_screen=1; 
 }
 
 v_write(int fd, unsigned char *ch, int len)
@@ -391,8 +399,7 @@ void char_out_att(unsigned char ch, unsigned char att, int s)
 	      xpos[s] = 0;
 	    } else if (ch == '\n') {
 	      ypos[s]++;
-	      /* is this correct? EDLIN needs it */
-	      xpos[s]=0;
+	      xpos[s]=0;  /* EDLIN needs this behavior */
 	    } else if (ch == '\010' && xpos[s] > 0) {
 	      xpos[s]--;
 	    } else if (ch == '\t') {
@@ -406,15 +413,26 @@ void char_out_att(unsigned char ch, unsigned char att, int s)
 	  }
 
 	else {
+	  unsigned short *wscrbuf=(unsigned short *)scrbuf;
+
+	  /* update_screen not set to 1 because we do the outputting
+	   * ourselves...scrollup() and scrolldn() should also work
+	   * this way, when I get around to it.
+	   */
+/*	  update_screen=1; */
+
 	  if (ch >= ' ') {
 	    sadr = SCREEN_ADR(s);
-	    sadr[ypos[s]*CO + xpos[s]++] = ch | (7 << 8);
+	    sadr[ypos[s]*CO + xpos[s]] = ch | (att << 8);
+	    wscrbuf[ypos[s]*CO + xpos[s]] = ch | (att << 8); 
+	    xpos[s]++;
 	    if (s == screen) outc(trans[ch]);
 	  } else if (ch == '\r') {
 	    xpos[s] = 0;
 	    if (s == screen) write(2, &ch, 1);
 	  } else if (ch == '\n') {
 	    ypos[s]++;
+	    xpos[s]=0;  /* EDLIN needs this behavior */
 	    if (s == screen) write(2, &ch, 1);
 	  } else if (ch == '\010' && xpos[s] > 0) {
 	    xpos[s]--;
@@ -447,12 +465,13 @@ void clear_screen(int s, int att)
 	int lx, ly;
 
 	if (s > max_page) return;
+	sadr = SCREEN_ADR(s);
+	for (p = sadr; p < sadr+2000; *p++ = blank);
 	if (!console_video)
 	  if (s == screen) tputs(cl, 1, outc);
 	xpos[s] = ypos[s] = 0;
 	poscur(0,0);
-	sadr = SCREEN_ADR(s);
-	for (p = sadr; p < sadr+2000; *p++ = blank);
+	update_screen=1; 
 }
 
 void restore_screen(void)
@@ -461,7 +480,9 @@ void restore_screen(void)
 	unsigned char c, a;
 	int x, y, oa;
 
-	v_printf("RESTORE SCREEN\n");
+	update_screen=0;
+
+	v_printf("RESTORE SCREEN: scrbuf at 0x%08x\n", scrbuf);
 
 	if (console_video) {
 	  v_printf("restore cancelled for console_video\n");
@@ -472,6 +493,17 @@ void restore_screen(void)
 	oa = 7; 
 	p = sadr;
 	for (y=0; y<LI; y++) {
+	  /* only update if line has changed..note that sadr is an unsigned
+	   * short ptr, so CO is not multiplied by 2...I'll clean this up
+	   * later.
+	   */
+	  if (! memcmp(scrbuf+y*CO*2,sadr+y*CO,CO*2) )
+	    {
+	      p+=CO;  /* p is an unsigned short pointer */
+	      continue; 
+	    }
+	  else memcpy(scrbuf+y*CO*2,p,CO*2);  /* scrbuf is a char ptr */
+
 		dostputs(tgoto(cm, 0, y), 1, outcbuf);
 		for (x=0; x<CO; x++) {
 			c = *(unsigned char *)p;
@@ -953,7 +985,7 @@ void boot(struct disk *dp)
   *(char *)0xd0000=0x09;
   *(char *)0xd0001=0x00;	/* 9 byte table */
   *(char *)0xd0002=0xFC;        /* PC AT */
-  *(char *)0xd0003=0x00;
+  *(char *)0xd0003=0x01;
   *(char *)0xd0004=0x04;	/* bios revision 4 */
   *(char *)0xd0005=0x20;	/* no mca no ebios no wat no keybint
 				   rtc no slave 8259 no dma 3 */
@@ -1189,6 +1221,7 @@ s_gfx:
 	{
 	  scrtest_bitmap = 1 << (24 + screen);
 	  vm86s.screen_bitmap = -1;
+	  update_screen=1;
 	}
       return;
     }
@@ -1839,9 +1872,16 @@ void int15(void)
     CARRY;
     return;
   case 0xc0:
-    g_printf("incomplete EXT. BIOS DATA AREA requested...\n");
-    _regs.es=0xd000;
-    _regs.ebx=0x0000;	/* bios data area - see emulate.. */
+    g_printf("Return system config parameters (int 15h, AH=0xc0)\n");
+    if (mapped_bios)
+      {
+	_regs.es=0xf000;
+	_regs.ebx=0xe6f5;
+      }
+    else {
+      _regs.es=0xd000;
+      _regs.ebx=0x0000;	/* bios data area - see emulate.. */
+    }
     return;
   case 0xc1:
     CARRY;
@@ -2531,7 +2571,8 @@ void sigalrm(int sig)
     inalrm=1;
     in_sighandler=1;
 
-    if ((vm86s.screen_bitmap & scrtest_bitmap) && !running) {
+    if ( ((vm86s.screen_bitmap & scrtest_bitmap) || 
+	  (update_screen && !console_video)) && !running) {
       running = 1;
       restore_screen();
       vm86s.screen_bitmap = 0;
@@ -2539,7 +2580,7 @@ void sigalrm(int sig)
       running = 0;
     }
 
-    if (console_keyb && poll_io && !in_readkeyboard) 
+    if (poll_io && !in_readkeyboard) 
       {
 	if (in_ioctl)
 	  k_printf("not polling keyboard: in_ioctl: %d %04x %04x\n",
@@ -3013,6 +3054,10 @@ int emulate(int argc, char **argv)
 	mapped_bios=0;
 	keybint=0; 
 
+	/* allocate screen buffer for non-console video compare speedup */
+	scrbuf=malloc(CO*LI*2);
+	v_printf("VID: malloc'ed scrbuf at 0x%08x\n", scrbuf);
+
 	opterr=0;
 	while ( (c=getopt(argc, argv, "ABCfckm:D:pP:bH:F:VNtsgxK")) != EOF) {
 	  switch(c) {
@@ -3147,8 +3192,8 @@ int emulate(int argc, char **argv)
 	termioInit();
 	hardware_init();
 	clear_screen(screen, 7);
-	dbug_printf("$Header: /usr/src/dos/RCS/emu.c,v 1.18 1993/02/16 00:21:29 root Exp $\n");
-	p_dos_str("Linux DOS emulator $Revision: 1.18 $  1993\n\r");
+	dbug_printf("$Header: /usr/src/dos/RCS/emu.c,v 1.19 1993/02/18 18:53:41 root Exp $\n");
+	p_dos_str("Linux DOS emulator $Revision: 1.19 $  1993\n\r");
 	p_dos_str("Mods by Robert Sanders, Alan Cox\n\r");
 	if (hdiskboot != 2)
 	  boot(hdiskboot? hdisktab : disktab); 
@@ -3166,6 +3211,7 @@ int emulate(int argc, char **argv)
 	  vm86s.flags = 0;
 	vm86s.screen_bitmap = 0;
 	scrtest_bitmap = 1 << (24 + screen);
+	update_screen=1;
 
 	for(;!error;) {
 	  run_vm86();
@@ -3328,7 +3374,7 @@ int d_ready(int fd)
 
 void usage(void)
 {
-   fprintf(stderr, "$Header: /usr/src/dos/RCS/emu.c,v 1.18 1993/02/16 00:21:29 root Exp $\n");
+   fprintf(stderr, "$Header: /usr/src/dos/RCS/emu.c,v 1.19 1993/02/18 18:53:41 root Exp $\n");
    fprintf(stderr,"usage: dos [-ABCfckbVtspgxK] [-D flags] [-m SIZE] [-P FILE] [-H|F #disks] > doserr\n");
    fprintf(stderr,"    -A boot from first defined floppy disk (A)\n");
    fprintf(stderr,"    -B boot from second defined floppy disk (B) (#)\n");
@@ -3386,3 +3432,4 @@ p_dos_str(char *fmt, ...)
 }
 
 #undef EMU_C
+

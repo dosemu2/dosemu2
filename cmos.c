@@ -1,9 +1,9 @@
 /* cmos.c, for DOSEMU
  *   by Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1993/02/16 00:21:29 $ 
+ * $Date: 1993/02/16 19:49:06 $ 
  * $Source: /usr/src/dos/RCS/cmos.c,v $
- * $Revision: 1.2 $
+ * $Revision: 1.3 $
  * $State: Exp $
  */
 
@@ -69,7 +69,7 @@ void cmos_init(void)
   cmos.subst[0x33] = 0xe1;
   cmos.flag[0x33] = 1;
 
-  warn("CMOS initialized: \n$Header: /usr/src/dos/RCS/cmos.c,v 1.2 1993/02/16 00:21:29 root Exp $\n");
+  warn("CMOS initialized: \n$Header: /usr/src/dos/RCS/cmos.c,v 1.3 1993/02/16 19:49:06 root Exp $\n");
 }
 
 
@@ -137,6 +137,19 @@ void cmos_write(int port, int byte)
     }
 }
 
+unsigned short BCD(int binval)
+{
+  unsigned short tmp1, tmp2;
+
+  /* bit 2 of register 0xb set=binary mode, clear=BCD mode */
+  if (cmos.subst[0xb] & 4) return binval;
+
+  if (binval > 99) binval = 99;
+
+  tmp1=binval / 10;
+  tmp2=binval % 10;
+  return ((tmp1 << 4) | tmp2);
+}
 
 int cmos_date(int reg)
 {
@@ -144,6 +157,7 @@ int cmos_date(int reg)
   struct timeval tp;
   struct timezone tzp;
   struct tm *tm;
+  int tmp;
 
   /* get the time */
   gettimeofday(&tp, &tzp);
@@ -155,25 +169,30 @@ int cmos_date(int reg)
   h_printf("CMOS: get date %d.%d.%d\n", tm->tm_mday, tm->tm_mon, tm->tm_year);
 #endif
 
-  /* is any of this correct?? */
   switch(reg)
     {
     case 0:  /* RTC seconds */
-      return tm->tm_sec;
+      return BCD(tm->tm_sec);
     case 2:  /* RTC minutes */
-      return tm->tm_min;
-    case 4:  /* RTC hour */
-      return tm->tm_hour;
+      return BCD(tm->tm_min);
+    case 4:  /* RTC hour...bit 1 of 0xb set=24 hour mode, clear 12 hour */
+      tmp=BCD(tm->tm_hour);
+      if (cmos.subst[0xb]&2) return tmp;
+      else {
+	if (tmp == 0) return 12;
+	else if (tmp > 12) return tmp-12;
+      }
+      break;
     case 6:  /* RTC weekday */
-      return tm->tm_wday;
+      return BCD(tm->tm_wday);
     case 7:  /* RTC day of month */
-      return tm->tm_mday; /* day of month */
+      return BCD(tm->tm_mday);
     case 8: /* RTC month */
       if (cmos.flag[8]) return cmos.subst[8];
-      else return tm->tm_mon;
+      else return BCD(tm->tm_mon);
     case 9: /* RTC year */
       if (cmos.flag[9]) return cmos.subst[9];
-      else return tm->tm_year;
+      else return BCD(tm->tm_year);
     default:
       h_printf("CMOS: cmos_time() register 0x%02x defaulted to 0\n",reg);
       return 0;
@@ -191,3 +210,4 @@ int cmos_date(int reg)
 }
 
 #undef CMOS_C
+

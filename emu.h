@@ -195,3 +195,4 @@ extern struct ioctlq iq, curi;
 
 static char RCSid[]="$Header: /usr/src/dos/RCS/emu.h,v 1.8 1993/02/13 23:37:20 root Exp $";
 #endif /* EMU_H */
+

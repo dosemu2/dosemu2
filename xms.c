@@ -1,20 +1,18 @@
 /* xms.c for the DOS emulator 
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1993/02/16 00:21:29 $
+ * $Date: 1993/02/18 18:53:41 $
  * $Source: /usr/src/dos/RCS/xms.c,v $
- * $Revision: 1.3 $
+ * $Revision: 1.4 $
  * $State: Exp $
  *
  * $Log: xms.c,v $
+ * Revision 1.4  1993/02/18  18:53:41  root
+ * this is for 0.48patch1, mainly to fix the XMS bug (moved libemu up to
+ * the 1 GB mark), and to try out the faster termcap buffer-compare code.
+ *
  * Revision 1.3  1993/02/16  00:21:29  root
  * DOSEMU 0.48 DISTRIBUTION
- *
- * Revision 1.2  1993/02/13  23:37:20  root
- * latest version, no time to document!
- *
- * Revision 1.1  1993/02/10  20:55:01  root
- * Initial revision
  *
  * NOTE: I keep the BYTE size of EMB's in a field called "size" in the EMB
  *    structure.  Most XMS calls specify/expect size in KILOBYTES.
@@ -27,7 +25,15 @@
 #include "emu.h"
 #include "xms.h"
 
-static char RCSxms[]="$Header: /usr/src/dos/RCS/xms.c,v 1.3 1993/02/16 00:21:29 root Exp $";
+/* 128*1024 is the amount of memory currently reserved in dos.c above
+ * the 1 MEG mark.  ugly.  fix this.
+ */
+#if (MAX_XMS*1024) >= (LIBSTART-1152*1024)
+#error "Your MAX_XMS is too large...it would overstep into libemu. \
+Try increasing LIBSTART in the Makefile, or better yet, decreasing MAX_XMS."
+#endif
+
+static char RCSxms[]="$Header: /usr/src/dos/RCS/xms.c,v 1.4 1993/02/18 18:53:41 root Exp $";
 
 extern int xms, vga, graphics, mapped_bios;
 extern int extmem_size;
@@ -48,7 +54,6 @@ struct UMB umbs[]={
 
 static struct Handle handles[NUM_HANDLES+1];
 static int    handle_count=0;
-static long   handle_mask=0;  /* 32 bits for 32 handles */
 
 static int xms_grab_int15=0;  /* non-version XMS call been made yet? */
 
@@ -82,7 +87,6 @@ void xms_init(void)
   xms_grab_int15=0;
 
   handle_count=0;
-  handle_mask=0;
   for (i=0; i<NUM_HANDLES+1; i++)
       handles[i].valid=0;
 }
@@ -113,7 +117,7 @@ void xms_control(void)
 	 x_printf("XMS request HMA size 0x%04x\n", WORD(_regs.edx));
 	 if (freeHMA)
 	   {
-	     x_printf("XMS: allocating HMA\n");
+	     x_printf("XMS: allocating HMA size 0x%04x\n", WORD(_regs.edx));
 	     freeHMA=0;
 	     _regs.eax=1;
 	   }
@@ -271,7 +275,7 @@ void xms_query_freemem(void)
     }
 
   /* total free is max allowable XMS - the number of K already allocated */
-  _regs.eax = _regs.edx = MAX_XMS - (totalBytes / 1024);
+  _regs.eax = _regs.edx = extmem_size - (totalBytes / 1024);
 
   LO(bx)=0;  /* no error */
   x_printf("XMS query free memory: %dK %dK\n", _regs.eax, _regs.edx);
@@ -299,7 +303,6 @@ void xms_allocate_EMB(void)
       }
       handles[h].lockcount=0;
       handle_count++;
-      handle_mask |= (1 << h);  /* set mask for handle */
 
       x_printf("XMS: allocated EMB %d at %08x\n", h, handles[h].addr);
 
@@ -326,7 +329,6 @@ void xms_free_EMB(void)
 		    handles[h].size);
       handles[h].valid=0;
       handle_count--;
-      handle_mask &= ~(1 << h); /* clear handle bit */
 
       x_printf("XMS: free'd EMB %d\n", h);
       _regs.eax=1;
@@ -620,3 +622,4 @@ void xms_release_UMB(void)
 }
 
 #undef XMS_C
+

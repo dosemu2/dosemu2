@@ -107,3 +107,4 @@ extern unsigned int kbd_flags, key_flags;
 #define SCRN_BUF_SIZE	(0x10000)    /* buffer of 64K */
 
 #endif /* TERMIO_H */
+

@@ -54,3 +54,4 @@ extern int vga_dumpregs();
 
 #endif /* VGA_H */
 
+

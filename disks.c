@@ -106,3 +106,4 @@ struct disk hdisktab[HDISKS] = {
 /*					^ cylinders			*/
 /***********************************************************************/
 #undef DISKS_C
+
