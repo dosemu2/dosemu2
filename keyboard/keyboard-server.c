@@ -740,6 +740,9 @@ cursor (unsigned int sc)
       else if (kbd_flag (KF_CTRL))
 	put_queue (ctrl_cursor[sc]);
       else
+      if (key_flag(KKF_E0))
+        put_queue (old_sc << 8 | 0xe0);
+      else
 	put_queue (old_sc << 8);
       return;
     }
@@ -855,7 +858,10 @@ enter (unsigned int sc)
   else if (kbd_flag (KF_ALT))
     put_queue (0xa600);
   else
-    put_queue (sc << 8 | 0x0d);
+    if (key_flag(KKF_E0))
+      put_queue (0xe00d);
+    else
+      put_queue (sc << 8 | 0x0d);
 }
 
 static void

@@ -957,7 +957,7 @@ leavedos(int sig)
     static int recurse_check = 0;
     if (recurse_check) return;
     recurse_check = 1;
-
+    priv_on();
 #if 1 /* BUG CATCHER */
     if (in_vm86) {
       g_printf("\nkilled while in vm86(), trying to dump DOS-registers:\n");

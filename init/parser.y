@@ -129,7 +129,7 @@ extern void yyrestart(FILE *input_file);
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO ALLOWVIDEOPORT TIMER
 %token MATHCO CPU BOOTA BOOTB BOOTC L_XMS L_DPMI PORTS DISK DOSMEM PRINTER
 %token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS
-%token BOOTDISK L_FLOPPY EMUSYS EMUBAT L_X
+%token BOOTDISK L_FLOPPY EMUSYS EMUBAT EMUINI L_X
 	/* speaker */
 %token EMULATED NATIVE
 	/* keyboard */
@@ -190,6 +190,16 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    {
 		    config.emubat = $2;
 		    c_printf("CONF: config.emubat = '%s'\n", $2);
+                    }
+                | EMUINI STRING
+                    {
+                    config.emuini = $2;
+                    c_printf("CONF: config.emuini = '%s'\n", $2);
+                    }
+                | EMUINI '{' STRING '}'
+                    {
+                    config.emuini = $3;
+                    c_printf("CONF: config.emuini = '%s'\n", $3);
 		    }
 		| EMUBAT '{' STRING '}'
 		    {

@@ -117,6 +117,7 @@ config_defaults(void)
 
     config.emusys = (char *) NULL;
     config.emubat = (char *) NULL;
+    config.emuini = (char *) NULL;
     tmpdir = strdup(tempnam("/tmp", "dosemu"));
     config.dosbanner = 1;
     config.allowvideoportaccess = 0;

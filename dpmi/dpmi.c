@@ -135,10 +135,15 @@
 #endif
 
 #include "kversion.h"
-#include <asm/segment.h>
 #include <string.h>
 #include <errno.h>
+#if KERNEL_VERSION < 1001067
+#include <linux/segment.h>
+#include <linux/page.h>
+#else
+#include <asm/segment.h>
 #include <asm/page.h>
+#endif
 #include "emu.h"
 #include "memory.h"
 #include "dosio.h"

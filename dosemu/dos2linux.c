@@ -199,12 +199,12 @@ void run_unix_command(char *buffer)
      */
      
      /* DANG_FIXTHIS Remove the "SIMPLE_FORK" stuff if it is not really necessary */
-     
+     /* DANG_FIXTHIS This "SIMPLE_FORK" stuff is broken anyway, it makes unix commands execute uid=euid=root! */
     uid_t uid, gid;
     
     uid=geteuid();
     gid=geteuid();
-    setuid(getuid());
+    setuid(getuid());  /* Note: this won't help! euid=user, not root.  root is uid! */
     setgid(getgid());
     
     system(buffer);
@@ -213,11 +213,13 @@ void run_unix_command(char *buffer)
     setgid(gid);
 
 #else
+    /* IMPORTANT NOTE: euid=user uid=root (not the other way around!) */
+
     int p[2];
     int q[2];
-    int pid, status, retval;
+    int pid, status, retval, tuid;
     char buf;
-    
+
     /* create a pipe... */
     if(pipe(p)!=0)
     {
@@ -260,8 +262,12 @@ void run_unix_command(char *buffer)
         
         /* DOSEMU runs setuid(root). go back to the real uid/gid for
          * safety reasons.
+         *
+         * NOTE: euid=user uid=root!  -Steven P. Crain
          */
-        setuid(getuid());
+        tuid=geteuid(); /* Save user's uid */
+        setuid(getuid()); /* Switch to root */
+        setuid(tuid);     /* You can't switch back anymore: good thing we're forked! */ 
         setgid(getgid());
         
 #if 0

@@ -74,6 +74,7 @@ ifeq (/usr/include/X11/X.h,$(wildcard /usr/include/X11/X.h))
   X11ROOTDIR  = /usr/X11R6
   endif
   X11LIBDIR = $(X11ROOTDIR)/lib
+# X11LIBDIR = /usr/i486-linuxaout/lib
   X11INCDIR = $(X11ROOTDIR)/include
 endif
 endif
@@ -131,7 +132,8 @@ NAME_LOCKF = -DNAME_LOCKF=\"LCK..\"
 ifdef ELF
 export CC         = gcc # -elf I use gcc-specific features (var-arg macros, fr'instance)
 else
-export CC         = gcc  # I use gcc-specific features (var-arg macros, fr'instance)
+export CC         = gcc # I use gcc-specific features (var-arg macros, fr'instance)
+# export CC         = gcc -b i486-linuxaout # I use gcc-specific features (var-arg macros, fr'instance)
 endif
 ifdef do_DEBUG
 COPTFLAGS	=  -g -Wall
@@ -145,7 +147,7 @@ DEPENDS = dos.d emu.d
 # dosemu version
 VERSION = 0
 SUBLEVEL = 60
-PATCHLEVEL = 3
+PATCHLEVEL = 4
 LIBDOSEMU = libdosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
 
 EMUVER = $(VERSION).$(SUBLEVEL)
@@ -250,7 +252,7 @@ export INCDIR
 
 
 # -m486 is usually in the specs for the compiler
-OPT=  -O2 -funroll-loops # -fno-inline
+OPT=  -O3 -m486 -fomit-frame-pointer
 # OPT=-fno-inline
 PIPE=-pipe
 export CFLAGS     = $(OPT) $(PIPE) $(USING_NET)
@@ -445,8 +447,8 @@ dos:	dos.o
 		$(TCNTRL) $(XLIBS)
 
 $(LIBDOSEMU): 	emu.o data.o # dossubdirs
-	$(LD) $(LDFLAGS) $(MAGIC) -Ttext $(LIBSTART) -o $(LIBDOSEMU) \
-	   -nostdlib $^ $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
+	$(LD) $(LDFLAGS) $(MAGIC) -Wl,-Ttext -Wl,$(LIBSTART) -o $(LIBDOSEMU) \
+	   -nostartfiles -nostdlib $^ $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
 	    $(addprefix -l, $(LIBS)) bios/bios.o $(XLIBS) $(TCNTRL) -lc 
 
 libdosemu:	dossubdirs $(LIBDOSEMU)

@@ -290,7 +290,7 @@ static int dos_helper(void)
     break;
 #endif
     case 0x80:
-        LWORD(eax) = getcwd(SEG_ADR((char *), es, dx), (u_short)LWORD(eax));
+        LWORD(eax) = (u_short) getcwd(SEG_ADR((char *), es, dx), (u_short)LWORD(eax));
         break;
   case 0x81:
         LWORD(eax) = chdir(SEG_ADR((char *), es, dx));
@@ -694,6 +694,10 @@ static int ms_dos(int nr)
       ext_fix(config.emusys);
       sprintf(ptr, "\\CONFIG.%-3s", config.emusys);
       d_printf("DISK: Substituted %s for CONFIG.SYS\n", ptr);
+ } else if (config.emuini && !strncmp(ptr+2, "\\WINDOWS\\SYSTEM.INI", 19)) {
+ ext_fix(config.emuini);
+      sprintf(ptr+2, "\\WINDOWS\\SYSTEM.%s", config.emuini);
+      d_printf("DISK: Substituted %s for system.ini\n", ptr);
 #ifndef INTERNAL_EMS
     }
 #else
@@ -1017,7 +1021,8 @@ static void int2f(u_char i)
     return;
   }
 
-  default_interrupt(i);
+  if IS_REDIRECTED(i)
+    default_interrupt(i);
 }
 
 /* mouse */
@@ -1141,7 +1146,10 @@ do_int(int i)
   saytime("do_int");
 #endif
 #if 0 /* 94/07/02 Just for reference */
+if (i== 0x2f) {
+  show_regs(__FILE__, __LINE__);
   k_printf("Do INT0x%02x, eax=0x%04x, ebx=0x%04x ss=0x%04x esp=0x%04x cs=0x%04x ip=0x%04x CF=%d \n", i, LWORD(eax), LWORD(ebx), LWORD(ss), LWORD(esp), LWORD(cs), LWORD(eip), (int)REG(eflags) & CF);
+}
 #endif
 
   if ((LWORD(cs)) != BIOSSEG && IS_REDIRECTED(i) && can_revector(i)){

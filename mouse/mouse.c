@@ -702,8 +702,10 @@ mouse_software_reset(void)
   SETIVEC(0x74, Mouse_SEG, Mouse_OFF + 4);
 
 #ifdef X_SUPPORT
+#ifndef X_SLOW_CHANGE_CURSOR
   if (config.X)
     X_change_mouse_cursor();
+#endif
 #endif
   
   /* Return 0xffff on success, 0x21 on failure */
@@ -895,8 +897,10 @@ mouse_reset(int flag)
 
   mouse.cursor_on = -1;
 #ifdef X_SUPPORT
+#ifndef X_SLOW_CHANGE_CURSOR
   if (config.X)
      X_change_mouse_cursor();
+#endif
 #endif
   mouse.lbutton = mouse.mbutton = mouse.rbutton = 0;
   mouse.oldlbutton = mouse.oldmbutton = mouse.oldrbutton = 1;
@@ -952,8 +956,10 @@ mouse_cursor(int flag)	/* 1=show, -1=hide */
   }
  
 #ifdef X_SUPPORT
+#ifndef X_SLOW_CHANGE_CURSOR
   if (config.X)
 	  X_change_mouse_cursor();
+#endif
 #endif
 
   m_printf("MOUSE: %s mouse cursor %d\n", mouse.cursor_on ? "hide" : "show", mouse.cursor_on);
@@ -975,10 +981,14 @@ mouse_pos(void)
 void 
 mouse_setpos(void)
 {
-  mouse.x = LWORD(ecx);
-  mouse.y = LWORD(edx);
-  mouse_move();
-  m_printf("MOUSE: set cursor pos x:%d, y:%d\n", mouse.x, mouse.y);
+  if (!config.X) {
+     mouse.x = LWORD(ecx);
+     mouse.y = LWORD(edx);
+     mouse_move();
+     m_printf("MOUSE: set cursor pos x:%d, y:%d\n", mouse.x, mouse.y);
+  }
+  else
+     m_printf("MOUSE: ignoring 'set cursor pos' in X\n");
 }
 
 void 
@@ -1103,7 +1113,7 @@ void
 mouse_set_tcur(void)
 {
   /* Ignore if in X */
-  if (config.usesX) return;
+  if (config.X) return;
 
   m_printf("MOUSE: set text cursor...type: %d, start: 0x%04x, end: 0x%04x\n",
 	   LWORD(ebx), LWORD(ecx), LWORD(edx));
@@ -1111,6 +1121,7 @@ mouse_set_tcur(void)
   if (LWORD(ebx)==0) {				/* Software cursor */
 	  mouse.textscreenmask = LWORD(ecx);
 	  mouse.textcursormask = LWORD(edx);
+	  mouse_do_cur();
   } else {					/* Hardware cursor */
   /* CX - should be starting line of hardware cursor 
    * DX - should be ending line of hardware cursor
@@ -1119,6 +1130,7 @@ mouse_set_tcur(void)
    	erase it before hitting vram */
 	  mouse.textscreenmask = 0x7fff;
 	  mouse.textcursormask = 0xff00;
+	  mouse_do_cur();
   }
 }
 
@@ -1446,7 +1458,7 @@ mouse_update_cursor(void)
 	/* sigh, too many programs seem to expect the mouse cursor
 		to magically redraw itself when in text mode, so we'll
 		bend to their will... */
-	if (mouse.rx != mouse.oldrx || mouse.ry != mouse.oldry ||
+	if ((mouse.rx != mouse.oldrx || mouse.ry != mouse.oldry) &&
 			!mouse.gfx_cursor) {
 		mouse_do_cur();
 		mouse.oldrx = mouse.rx;
@@ -1510,6 +1522,17 @@ graph_cursor(void)
 void
 mouse_curtick(void)
 {
+#ifdef X_SUPPORT
+#ifdef X_SLOW_CHANGE_CURSOR
+  static short last_cursor_on = -1;
+
+  if (config.X && mouse.cursor_on != last_cursor_on) {
+    X_change_mouse_cursor();
+    last_cursor_on = mouse.cursor_on;
+  }
+#endif
+#endif
+
   if ((mouse.cursor_on != 0) || config.X)
     return;
 

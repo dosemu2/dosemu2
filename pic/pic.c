@@ -169,6 +169,8 @@ static unsigned char pic_db_icount; /* flag for debug messages:+,-, or blank */
  * 
  * To avoid line wrap, the first seven values are printed without labels.
  * Instead, a header line is printed every 15 messages.
+ *
+ * DANG_END_FUNCTION pic_print
  */
 #ifdef NO_DEBUGPRINT_AT_ALL
 #define pic_print(code,s1,v1,s2)
@@ -212,6 +214,8 @@ if(d.request&code){
  * could occur.  This external stack is kept strictly synchronized with
  * the actions of the dos code to avoid any problems.  pic_push and pic_pop
  * maintain the external stack.
+
+ * DANG_END_MODULE pic_print
  */
 void inline pic_push(int val)
 {
@@ -548,17 +552,17 @@ if (!(REG(eflags) & VIF)) return;
    "pushl %%ecx\n\t"                          /* save old ilevel             */
    "addl "CISH_INLINE(pic_smm)",%%ecx\n\t"    /* check spec. mask mode       */
                                               /***  while(.....){            */
-   "L1:movl "CISH_INLINE(pic_isr)",%%eax\n\t" /* 1: int_request = (pic_isr   */
+   "1:movl "CISH_INLINE(pic_isr)",%%eax\n\t" /* 1: int_request = (pic_isr   */
    "orl "CISH_INLINE(pic_imr)",%%eax\n\t"     /* | pic_imr)                  */
    "notl %%eax\n\t"                           /* int_request = ~int_request  */
    "andl "CISH_INLINE(pic_irr)",%%eax\n\t"    /* int_request &= pic_irr      */
-   "jz L3\n\t"                                /* if(!int_request) goto 3     */
-   "L2:bsfl %%eax,%%ebx\n\t"                  /* 2: ebx=find_bit(int_request)*/
-   "jz L3\n\t"                                /* if(!int_request) goto 3     */
+   "jz 3f\n\t"                                /* if(!int_request) goto 3     */
+   "2:bsfl %%eax,%%ebx\n\t"                  /* 2: ebx=find_bit(int_request)*/
+   "jz 3f\n\t"                                /* if(!int_request) goto 3     */
    "cmpl %%ebx,%%ecx\n\t"                     /* if(ebx > pic_ilevel)...     */
-   "jl L3\n\t"                                /* ... goto 3                  */
+   "jl 3f\n\t"                                /* ... goto 3                  */
    "btrl %%ebx,"CISH_INLINE(pic_irr)"\n\t"    /* clear_bit(ebx,&pic_irr)     */
-   "jnc L2\n\t"                               /* if bit wasn't set, go to 2  */
+   "jnc 2b\n\t"                               /* if bit wasn't set, go to 2  */
    "movl "CISH_INLINE(pic_isr)",%%ecx\n\t"    /* get current pic_isr         */
    "btsl %%ebx,%%ecx\n\t"                     /* set bit in pic_isr          */
    "movl %%ebx,"CISH_INLINE(pic_ilevel)"\n\t" /* set new ilevel              */
@@ -569,9 +573,9 @@ if (!(REG(eflags) & VIF)) return;
    "movl "CISH_INLINE(pic_ilevel)",%%eax\n\t" /* get new ilevel              */
    "btrl %%eax,"CISH_INLINE(pic_isr)"\n\t"    /* reset isr bit - just in case*/
    "btrl %%eax,"CISH_INLINE(pic1_isr)"\n\t"   /* reset isr bit - just in case*/
-   "jmp L1\n\t"                               /* go back for next irq        */
+   "jmp 1b\n\t"                               /* go back for next irq        */
                                               /**** end of while   }      ****/
-   "L3:popl "CISH_INLINE(pic_ilevel)"\n\t"    /* 3: restore old ilevel & exit*/
+   "3:popl "CISH_INLINE(pic_ilevel)"\n\t"    /* 3: restore old ilevel & exit*/
    :                                          /* no output                   */
    :                                          /* no input                    */
    :"eax","ebx","ecx");                       /* registers eax, ebx, ecx used*/
@@ -879,6 +883,7 @@ void do_irq0()
  * If the requested interrupt level is currently active, the returned status
  * will depend upon whether the interrupt code has re-requested itself.  If
  * no re-request has occurred, a value of false (zero) will be returned.  
+ * DANG_END_FUNCTION
  */
  
 int pic_pending(int ilevel)
@@ -890,6 +895,7 @@ int pic_pending(int ilevel)
  * pic_activate requests any interrupts whose scheduled time has arrived.
  * anything after pic_dos_time and before pic_sys_time is activated.
  * pic_dos_time is advanced to the earliest time scheduled.
+ * DANG_END_FUNCTION
  */
 void pic_activate()
 {
@@ -935,6 +941,7 @@ if(pic_irr&~pic_imr) return;
  * To assure proper repeat scheduling, pic_sched should be called from
  * within the interrupt handler for the same interrupt.  The maximum 
  * interval is 15 minutes (0x3fffffff).
+ * DANG_END_FUNCTION
  */
  
 void pic_sched(ilevel,interval)

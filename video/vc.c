@@ -611,6 +611,7 @@ clear_process_control (void)
 
 
 /* why count ??? */
+/* Because you do not want to open it more than once! */
 static u_char kmem_open_count = 0;
 
 void
@@ -625,6 +626,7 @@ open_kmem (void)
 
   if (mem_fd != -1)
     return;
+  priv_on();
   mem_fd = open("/dev/kmem", O_RDWR);
   if (mem_fd < 0)
     {

@@ -1,3 +1,25 @@
+Thu Jul 28	1995
+
+-	Release DOSEMU-0.60.4.tgz
+-	Hans' patch to dpmi.c
+-	Added CLTS from rde@tadpole.co.uk (Richard Evans)
+-	Added .ini extensions from Jon
+-	From Snow Cat
+2) pic/pic.c has some assembler code that doesn't work with -O3 because it's
+using global labels that get expanded more than once. Fixing it to use local
+labels solves the problem.
+
+3) mfs/mfs.c  doesn't handle "commit file" and  "flush all disk  buffers".  It
+causes AH=68H/int 21H to return an error code that confuses database programs.
+I  changed COMMIT_FILE to do fsync()  and  FLUSH_ALL_BUFFERS to do nothing and
+return success (because sync()ing every time DOS wants  to flush buffers makes
+too much noise).
+.... and some other patches too.
+
+-	Mfs patch from Andi.
+-	Mouse patches from beck@informatik.hu-berlin.de (Michael Beck)
+-	Patches for UID settings by Steven P. Crain
+
 Wed Jun 28	1995
 
 -	Release DOSEMU-0.60.3.tgz

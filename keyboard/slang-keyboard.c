@@ -192,22 +192,22 @@ static Keymap_Scan_Type Normal_Map [] =
    {"\033On",	0x5300},	       /* Keypad . */
 
 /* Now here are the simulated keys using escape sequences */
-   {"\033[2~",	0x5200},	       /* Ins */
-   {"\033[3~",	0x5300},	       /* Del    Another keyscan is 0x007F */
-   {"\033[1~",	0x4700},	       /* Ho     Another keyscan is 0x5c00 */
-   {"\033[H",	0x4700},	       /* Ho */
-   {"\033[4~",	0x4f00},	       /* End    Another keyscan is 0x6100 */
-   {"\033[K",	0x4f00},	       /* End */
-   {"\033[5~",	0x4900},	       /* PgUp */
-   {"\033[6~",	0x5100},	       /* PgDn */
-   {"\033[A",	0x4800},	       /* Up */
-   {"\033OA",	0x4800},	       /* Up */
-   {"\033[B",	0x5000},	       /* Dn */
-   {"\033OB",	0x5000},	       /* Dn */
-   {"\033[C",	0x4d00},	       /* Ri */
-   {"\033OC",	0x4d00},	       /* Ri */
-   {"\033[D",	0x4b00},	       /* Le */
-   {"\033OD",	0x4b00},	       /* Le */
+   {"\033[2~",	0x52E0},	       /* Ins */
+   {"\033[3~",	0x53E0},	       /* Del    Another keyscan is 0x007F */
+   {"\033[1~",	0x47E0},	       /* Ho     Another keyscan is 0x5c00 */
+   {"\033[H",	0x47E0},	       /* Ho */
+   {"\033[4~",	0x4fE0},	       /* End    Another keyscan is 0x6100 */
+   {"\033[K",	0x4fE0},	       /* End */
+   {"\033[5~",	0x49E0},	       /* PgUp */
+   {"\033[6~",	0x51E0},	       /* PgDn */
+   {"\033[A",	0x48E0},	       /* Up */
+   {"\033OA",	0x48E0},	       /* Up */
+   {"\033[B",	0x50E0},	       /* Dn */
+   {"\033OB",	0x50E0},	       /* Dn */
+   {"\033[C",	0x4dE0},	       /* Ri */
+   {"\033OC",	0x4dE0},	       /* Ri */
+   {"\033[D",	0x4bE0},	       /* Le */
+   {"\033OD",	0x4bE0},	       /* Le */
    {"\033[[A",	0x3b00},	       /* F1 */
    {"\033[[B",	0x3c00},	       /* F2 */
    {"\033[[C",	0x3d00},	       /* F3 */
@@ -526,7 +526,8 @@ static void slang_add_scancode (unsigned long lscan)
 	flags |= ALT_MASK;
 	add_scancode_to_queue (ALT_SCAN);
      }
-   
+
+   if ((lscan & 0xFF) == 0xE0) add_scancode_to_queue (0xE0);
    add_scancode_to_queue ((lscan & 0xFF00) >> 8);
 
    if (flags & SHIFT_MASK) 
@@ -737,4 +738,3 @@ void do_slang_getkeys (void)
      DOSemu_Keyboard_Keymap_Prompt = "[Ctrl]";
    else DOSemu_Keyboard_Keymap_Prompt = NULL;
 }
-

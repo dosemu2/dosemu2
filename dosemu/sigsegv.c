@@ -1,4 +1,4 @@
-/* 
+/*
  * $Date: 1995/04/08 22:30:40 $
  * $Source: /usr/src/dosemu0.60/dosemu/RCS/sigsegv.c,v $
  * $Revision: 2.20 $
@@ -893,6 +893,15 @@ void vm86_GP_fault(void)
       LWORD(eip) += 1;
     }
     break;
+
+  case 0x0f: /* RDE hack */
+    if (csp[1] == 0x06)
+      /*
+	 CLTS - ignore
+      */
+      { LWORD(eip)+=2;
+	break;
+      }
 
   case 0xf0:			/* lock */
   default:

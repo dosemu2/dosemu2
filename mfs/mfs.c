@@ -1646,6 +1646,17 @@ dos_readdir(dir)
 }
 
 static inline int
+dos_flush(fd)
+     int fd;
+{
+  int ret;
+
+  ret = RPT_SYSCALL(fsync(fd));
+
+  return (ret);
+}
+
+static inline int
 dos_read(fd, data, cnt)
      int fd;
      char *data;
@@ -2991,6 +3002,7 @@ dos_fs_redirect(state)
 	return (TRUE);
       }
 
+      bs_pos = strlen( fpath);
       while (de != NULL) {
 	if ((de->mode & S_IFMT) == S_IFREG) {
 	  strncpy(fpath + bs_pos + 1, de->name, 8);
@@ -3205,8 +3217,12 @@ dos_fs_redirect(state)
 		     get_unix_attr(0664, attr))) < 0) {
 	Debug0((dbg_fd, "can't open %s: %s (%d)\n",
 		fpath, strerror(errno), errno));
+#if 1
+	SETWORD(&(state->eax), FILE_NOT_FOUND);
+#else
 	SETWORD(&(state->eax), ACCESS_DENIED);
-	return (TRUE);
+#endif
+	return (FALSE);
       }
     }
 
@@ -3456,7 +3472,7 @@ dos_fs_redirect(state)
     break;
   case FLUSH_ALL_DISK_BUFFERS:	/* 0x20 */
     Debug0((dbg_fd, "Flush Disk Buffers\n"));
-    break;
+    return TRUE;
   case SEEK_FROM_EOF:		/* 0x21 */
     {
       int offset = (state->ecx << 16) + (state->edx);
@@ -3605,6 +3621,8 @@ dos_fs_redirect(state)
     break;
   case COMMIT_FILE:		/* 0x07 */
     Debug0((dbg_fd, "Commit\n"));
+    fd = sft_fd(sft);
+    return (dos_flush(fd));
     break;
   case MULTIPURPOSE_OPEN:
     {

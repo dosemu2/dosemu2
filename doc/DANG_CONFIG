@@ -24,7 +24,7 @@ GROUP:		Misc ../DANG_c/summary_Misc dosemu/bios_emm.c dosemu/xms.c
 			dosemu/sigsegv.c include/int.h include/ports.h
 			dosemu/dosio.c dosemu/disks.c 
 			dosemu/cpu.c dosemu/lpt.c 
-GROUP:		Serial ../DANG_c/summary/Serial serial/README.serial
+GROUP:		Serial ../DANG_c/summary_Serial serial/README.serial
 			serial/ser_defs.h serial/ser_init.c
 			serial/ser_ports.c serial/ser_irq.c
 GROUP:		Mouse ../DANG_c/summary_Mouse mouse/mouse.c 

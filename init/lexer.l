@@ -72,6 +72,7 @@ bootfile		return(BOOTFILE);
 printer			return(PRINTER);
 emusys                  return(EMUSYS);
 emubat                  return(EMUBAT);
+emuini                  return(EMUINI);
 ttylocks		return(TTYLOCKS);
 
 	/* sillyint values */
