@@ -25,6 +25,7 @@
 #include "bios.h"
 #include "kversion.h"
 #include "lpt.h"
+#include "int.h"
 
 #include "dos2linux.h"
 #include "priv.h"
@@ -1060,8 +1061,8 @@ int parse_debugflags(const char *s, unsigned char flag)
 	    break;
 	case 'D':		/* DOS int 21h */
 	    d.dos = flag;
-	    { extern void set_int21_revectored(int);
-	      set_int21_revectored(d.dos != 0);
+	    { static int first = 1;
+	      if(first) { set_int21_revectored(d.dos ? 1 : 0); first = 0; }
 	    }
 	    break;
         case 'C':               /* CDROM */

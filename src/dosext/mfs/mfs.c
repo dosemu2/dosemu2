@@ -2242,6 +2242,66 @@ GetRedirection(state, index)
 }
 
 /*****************************
+ * RedirectDisk - redirect a disk to the Linux file system
+ * on entry:
+ * on exit:
+ * notes:
+ *   This function is used internally by DOSEMU, in contrast to
+ *   RedirectDevice(), which must be called from DOS.
+ *****************************/
+int
+RedirectDisk(int dsk, char *resourceName, int ro_flag)
+{
+  char path[256];
+  int i;
+
+  *path = 0;
+
+  Debug0((dbg_fd, "RedirectDisk %c: to %s\n", dsk + 'A', resourceName));
+
+  cdsfarptr = lol_cdsfarptr(lol);
+  cds_base = (cds_t) Addr_8086(cdsfarptr.segment, cdsfarptr.offset);
+
+  current_drive = dsk;
+
+  /* see if drive is in range of valid drives */
+  if(current_drive > lol_last_drive(lol)) return 1;
+
+  cds = drive_cds(current_drive);
+
+  /* see if drive is already redirected */
+  if(cds_flags(cds) & CDS_FLAG_REMOTE) return 2;
+
+  /* see if drive is currently substituted */
+  if(cds_flags(cds) & CDS_FLAG_SUBST) return 3;
+
+  path_to_ufs(path, &resourceName[strlen(LINUX_RESOURCE)], 1);
+
+  i = init_drive(current_drive, path, ro_flag ? "R" : NULL) == 0 ? 4 : 0;
+
+#if 0
+  {
+    unsigned char *p = drive_cds(current_drive);
+    unsigned char c;
+    int i, j;
+
+    for(j = 0; j < 0x6; j++) {
+      ds_printf("%05x ", j * 0x10 + (unsigned) p);
+      for(i = 0; i < 0x10; i++) ds_printf(" %02x", p[i + 0x10*j]);
+      ds_printf("  ");
+      for(i = 0; i < 0x10; i++) {
+        c = p[i + 0x10*j];
+        ds_printf("%c", c >= 0x20 && c < 0x7f ? c : '.');
+      }
+      ds_printf("\n");
+    }
+  }
+#endif
+
+  return i;
+}
+
+/*****************************
  * RedirectDevice - redirect a drive to the Linux file system
  * on entry:
  *		cds_base should be set

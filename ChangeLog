@@ -1,3 +1,28 @@
+99/02/11 ver. 0.99.7.1 unofficial pre-release
+	From Steffen
+	- introduced booting _directly_ from a (lredir'ed) Linux directory.
+	  No hdimage needed (this one was missing --Hans ;-).  Involved files:
+	  src/base/misc/{disks.c,fatfs.c,fatfs.h,fatfs_boot.S}
+	  etc/global.conf, async/int.c, init/config.c, init/parser.y
+	  mfs/mfs.c, include/{disks.h,int.h}
+	  How it works:
+	  - in $_hdimage a directory can be given containing atleast
+	    IO.SYS, MSDOS.SYS (or what the appropriate DOS has as system
+	    files). It also may (but need not) conatin a non-standard
+	    bootsector file (name: boot.blk).
+	  - This directory is partially converted (on-the-fly) to a FAT type
+	    emulated disk (no data, only the directory enrties). A default
+	    bootsector also is faked, and if boot.blk exists
+	    this one is taken. From this emulated disk a boot attempt is done.
+	    When the first _file_ access happens, the redirector is called
+	    and from this point on (if the DOS supports a redirector) it
+	    becomes an lredir'ed drive.
+	  - In principal the emulated drive also works with the DosC kernel
+	    (which not yet has a redirector), but the emulated FAT-FS remains
+	    active and is readonly (writes are ignored).
+	From Hans
+	- fix for dosemu crashing on floppy access with no disk inserted
+	  and not able to read writeprotected floppies.
 99/01/28 ver. 0.99.7 released
 	From Steffen
 	- hercules emulation in vgaemu only when dualmon not set

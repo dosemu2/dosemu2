@@ -73,4 +73,7 @@ void version_init(void);
 
 extern int can_revector(int i);
 
+extern int redir_state;
+extern void set_int21_revectored(int);
+
 #endif

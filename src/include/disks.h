@@ -26,7 +26,7 @@
 /* disk file types */
 typedef enum {
   NODISK = -1,
-  IMAGE = 0, HDISK, FLOPPY, PARTITION, MAXIDX_DTYPES,
+  IMAGE = 0, HDISK, FLOPPY, PARTITION, DIR_TYPE, MAXIDX_DTYPES,
   NUM_DTYPES
 } disk_t;
 
@@ -36,7 +36,6 @@ typedef enum {
 /* definitions for 'dexeflags' in 'struct disk' and 'struct image_header' */
 #define  DISK_IS_DEXE		1
 #define  DISK_DEXE_RDWR		2
-
 
 struct partition {
   int number;
@@ -65,6 +64,7 @@ struct disk {
   int removeable;		/* not user settable */
   int timeout;			/* seconds between floppy timeouts */
   struct partition part_info;	/* neato partition info */
+  void *fatfs;			/* for FAT file system emulation */
 };
 
 #if 0
@@ -157,6 +157,7 @@ void d_nullf(struct disk *);
 
 void image_auto(struct disk *);
 void hdisk_auto(struct disk *);
+void dir_auto(struct disk *);
 
 #define partition_auto	hdisk_auto
 #define floppy_auto	d_nullf
@@ -164,6 +165,7 @@ void hdisk_auto(struct disk *);
 #define image_setup	d_nullf
 #define hdisk_setup	d_nullf
 void partition_setup(struct disk *);
+void dir_setup(struct disk *);
 
 #define floppy_setup	d_nullf
 

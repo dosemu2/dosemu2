@@ -64,6 +64,9 @@ static unsigned long  precard_eip, precard_cs;
 
 static struct timeval scr_tv;        /* For translating UNIX <-> DOS times */
 
+/* set if some directories are mounted during startup */
+int redir_state = 0;
+
 #ifdef USE_MRP_JOYSTICK
 #include <linux/joystick.h>
 #include <fcntl.h>
@@ -825,7 +828,7 @@ Notes:	there are approximately 18.2 clock ticks per second, 1800B0h per 24 hrs
      * Therefore, we keep INT1A,AH0 simple instead of trying to be too clever;-)
      */
     {
-      static first = 1;
+      static int first = 1;
       if (first) {
         /* take over the correct value _once_ only */
         *((unsigned long *)(BIOS_TICK_ADDR)) =
@@ -1111,7 +1114,7 @@ static int ms_dos(int nr)
     char *ptr = SEG_ADR((char *), ds, dx);
 
     /* ignore explicitly selected drive by incrementing ptr by 1 */
-    if (config.emubat && !strncmp(ptr + 1, ":\\AUTOEXEC.BAT", 14)) {
+    if (config.emubat && !strncasecmp(ptr + 1, ":\\AUTOEXEC.BAT", 14)) {
       ext_fix(config.emubat);
       sprintf(ptr + 1, ":\\AUTOEXEC.%-3s", config.emubat);
       d_printf("DISK: Substituted %s for AUTOEXEC.BAT\n", ptr + 1);
@@ -1468,14 +1471,134 @@ static void int19(u_char i) {
   boot();
 }
 
+
+/*
+ * Turn all simulated FAT devices into network drives.
+ */
+static void redirect_devices()
+{
+  extern int RedirectDisk(int, char *, int);
+
+  static char s[256] = "\\\\LINUX\\FS", *t = s + 10;
+  int i, j;
+
+  for (i = 0; i < MAX_HDISKS; i++) {
+    if(hdisktab[i].type == DIR_TYPE && hdisktab[i].fatfs) {
+      strncpy(t, hdisktab[i].dev_name, 245);
+      s[255] = 0;
+      j = RedirectDisk(i + 2, s, hdisktab[i].rdonly);
+
+      ds_printf("INT21: redirecting %c: %s (err = %d)\n", i + 'C', j ? "failed" : "ok", j);
+    }
+  }
+}
+
+/*
+ * Activate the redirector just before the first int 21h file open call.
+ *
+ * To use this feature, set redir_state = 1 and make sure int 21h is
+ * revectored.
+ */
+static int redir_it()
+{
+  static struct vm86_regs save_regs;
+  static unsigned x0, x1, x2, x3, x4;
+  unsigned u;
+
+  /*
+   * To start up the redirector we need (1) the list of list, (2) the DOS version and
+   * (3) the swappable data area. To get these, we reuse the original file open call.
+   */
+  switch(redir_state) {
+    case 1:
+      if(HI(ax) == 0x3d) {
+        save_regs = REGS;
+        redir_state = 2;
+        LWORD(eip) -= 2;
+        LWORD(eax) = 0x5200;
+        default_interrupt(0x21);
+        ds_printf("INT21 +1 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+          redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
+        return 1;
+      }
+      break;
+
+    case 2:
+      x0 = LWORD(ebx); x1 = REG(es);
+      redir_state = 3;
+      LWORD(eip) -= 2;
+      LWORD(eax) = 0x3000;
+      default_interrupt(0x21);
+      ds_printf("INT21 +2 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+        redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
+      return 2;
+      break;
+
+    case 3:
+      x4 = LWORD(eax);
+      redir_state = 4;
+      LWORD(eip) -= 2;
+      LWORD(eax) = 0x5d06;
+      default_interrupt(0x21);
+      ds_printf("INT21 +3 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+        redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
+      return 3;
+      break;
+
+    case 4:
+      x2 = LWORD(esi); x3 = REG(ds);
+      redir_state = 0;
+      u = x0 + (x1 << 4);
+      ds_printf("INT21: lol = 0x%x\n", u);
+      ds_printf("INT21: sda = 0x%x\n", x2 + (x3 << 4));
+      ds_printf("INT21: ver = 0x%02x\n", x4);
+
+      if(*(unsigned *) (u + 0x16)) {		/* Do we have a CDS entry? */
+        /* Init the redirector. */
+        LWORD(ecx) = x4;
+        LWORD(edx) = x0; REG(es) = x1;
+        LWORD(esi) = x2; REG(ds) = x3;
+        LWORD(ebx) = 0x500;
+        LWORD(eax) = 0x20;
+        mfs_inte6();
+
+        redirect_devices();
+      }
+      else {
+        ds_printf("INT21: this DOS has no CDS entry - redirector not used\n");
+      }
+
+      REGS = save_regs;
+      set_int21_revectored(-1);
+      break;
+  }
+
+  return 0;
+}
+
+
 /* MS-DOS */
 static void int21(u_char i) {
 #ifdef X86_EMULATOR
   static char buf[80];
 #endif
-  ds_printf("INT21 at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
-       LWORD(cs), LWORD(eip),
+  ds_printf("INT21 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+       redir_state, LWORD(cs), LWORD(eip),
        LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
+
+  if(redir_state && redir_it()) return;
+
+#if 1
+  if(HI(ax) == 0x3d) {
+    char *p = (char *) (((REG(ds)) << 4) + LWORD(edx));
+    int i;
+
+    ds_printf("INT21: open file \"");
+    for(i = 0; i < 64 && p[i]; i++) ds_printf("%c", p[i]);
+    ds_printf("\"\n");
+  }
+#endif
+
 #ifdef X86_EMULATOR
   if ((HI(ax)==0x40) && LWORD(ecx)) {
 	char *dp = (char *)((LWORD(ds)<<4)+LWORD(edx));
@@ -1587,6 +1710,11 @@ static void int29(u_char i) {
 
 static void int2f(u_char i)
 {
+#if 1
+  ds_printf("INT2F at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+       LWORD(cs), LWORD(eip),
+       LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
+#endif
   switch (LWORD(eax)) {
   case INT2F_IDLE_MAGIC:   /* magic "give up time slice" value */
     if (config.hogthreshold)
@@ -2173,18 +2301,26 @@ void setup_interrupts(void) {
 #endif /* not USE_NEW_INT */
 }
 
-static struct revectored_struct saved_int21_revectored = {{0,0,0,0,0,0,0,0}};
 
-void set_int21_revectored(int all)
+void set_int21_revectored(int a)
 {
-  static int last_all = 0;
-  if (all < 0)
-    all = last_all;
-  if (all > 0)
+  static int rv_all = 0;
+  int i;
+
+  ds_printf("INT21: rv_all: %d + %d = ", rv_all, a);
+
+  rv_all += a;
+
+  if(rv_all > 0) {
     memset(&vm86s.int21_revectored, 0xff, sizeof(vm86s.int21_revectored));
-  else
-    vm86s.int21_revectored = saved_int21_revectored;
-  last_all = all;
+  }
+  else {
+    memset(&vm86s.int21_revectored, 0x00, sizeof(vm86s.int21_revectored));
+    for(i = 0; i < 0x100; i++)
+      if(can_revector_int21(i) == REVECT) set_revectored(i, &vm86s.int21_revectored);
+  }
+
+  ds_printf("%d\n", rv_all);
 }
 
 
@@ -2211,11 +2347,7 @@ void int_vector_setup(void)
     if (can_revector(i)==REVECT && i!=0x21)
       set_revectored(i, &vm86s.int_revectored);
 
-  for (i=0; i<0x100; i++)
-    if (can_revector_int21(i)==REVECT)
-      set_revectored(i, &vm86s.int21_revectored);
-  saved_int21_revectored = vm86s.int21_revectored;
-  set_int21_revectored(-1);
+  set_int21_revectored(0);
 #endif
 
 #ifdef __NetBSD__

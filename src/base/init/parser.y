@@ -1407,6 +1407,13 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		  }
 		| L_PARTITION string_expr optbootfile
 		  { do_part($2); }
+		| DIRECTORY string_expr
+		  {
+		  if (dptr->dev_name != NULL)
+		    yyerror("Two names for a directory given.");
+		  dptr->type = DIR_TYPE;
+		  dptr->dev_name = $2;
+		  }
 		| STRING
 		    { yyerror("unrecognized disk flag '%s'\n", $1); free($1); }
 		| error

@@ -33,6 +33,8 @@
 #include "disks.h"
 #include "priv.h"
 #include "dosemu_select.h"
+#include "int.h"
+#include "fatfs.h"
 
 #ifdef NEED_LLSEEK_PROTOTYPE
   /* well, if we don't have llseek prototype,
@@ -77,7 +79,8 @@ static struct disk_fptr disk_fptrs[NUM_DTYPES] =
   {image_auto, image_setup},
   {hdisk_auto, hdisk_setup},
   {floppy_auto, floppy_setup},
-  {partition_auto, partition_setup}
+  {partition_auto, partition_setup},
+  {dir_auto, dir_setup}
 };
 
 
@@ -141,93 +144,88 @@ read_sectors(struct disk *dp, char *buffer, long head, long sector,
   d_printf("DISK: %s: Trying to read %ld sectors at T/S/H %ld/%ld/%ld",
 	   dp->dev_name,count,track,sector,head);
 #ifdef __linux__
-  d_printf(" at pos %Ld\n", pos);
+  d_printf("%+Ld at pos %Ld\n", dp->header, pos);
 #else
   d_printf(" at pos %ld\n", pos);
 #endif
 
-
   /* reads beginning before that actual disk/file */
-  if (pos < 0) {
+  if (pos < 0 && count > 0) {
     int readsize = count * SECTOR_SIZE;
     int mbroff = -dp->header + pos;
-    int mbrcount, mbrinc;
+    int mbrread = 0;
 
-    if (dp->type != PARTITION) {
+    if(!(dp->type == PARTITION || dp->type == DIR_TYPE)) {
       error("negative offset on non-partition disk type\n");
       return -DERR_NOTFOUND;
     }
 
-    if (readsize >= -pos) {
-      mbrcount = -pos;
-      mbrinc = -pos;
-    }
-    else {
-      mbrcount = readsize;
-      mbrinc = readsize;
-    }
+    readsize = readsize > -pos ? -pos : readsize;
 
-    /* this should take a third variable, mbr_begin, into account, but
-       * the MBR always begins at offset 0
-       * this will end up pretending to read the requested data, but will
-       * only read as much as can be read from the fake MBR in memory,
-       * simply skipping the rest.  Should I zero the "unread" parts of
-       * the dest. buffer?  No matter, I guess.
-       */
-    if ((mbroff + mbrcount) > dp->part_info.mbr_size) {
-      error("%s writing in the forbidden fake partition zone!\n",
-	    dp->dev_name);
-      mbrcount = dp->part_info.mbr_size - mbroff;
+    /* 
+     * this will end up pretending to read the requested data, but will
+     * only read as much as can be read from the fake MBR in memory
+     * and zero the rest
+     */
+
+    /* copy the MBR... */
+    if(mbroff < dp->part_info.mbr_size) {
+      mbrread = dp->part_info.mbr_size - mbroff;
+      mbrread = mbrread > readsize ? readsize : mbrread;
+      memcpy(buffer, dp->part_info.mbr + mbroff, mbrread);
+      d_printf("read 0x%lx bytes from MBR, ofs = 0x%lx (0x%lx bytes left)\n",
+        (unsigned long) mbrread, (unsigned long) mbroff, (unsigned long) (readsize - mbrread)
+      );
     }
 
-#ifdef __linux__
-    d_printf("WARNING: %Ld",pos);
-#else
-    d_printf("WARNING: %ld",pos);
-#endif
-    d_printf(" (0x%lx) read for %d below %s, "
-	     "h:%ld s:%ld t:%ld\n",
-	     (unsigned long) -pos, readsize,
-	     dp->dev_name, head, sector, track);
+    /* ... and zero the rest */
+    if(readsize > mbrread) {
+      memset(buffer + mbrread, 0, readsize - mbrread);
+      d_printf("emulated reading 0x%lx bytes, ofs = 0x%lx\n",
+        (unsigned long) (readsize - mbrread), (unsigned long) (mbroff + mbrread)
+      );
+    }
 
-    memcpy(buffer, dp->part_info.mbr + mbroff, mbrcount);
-
-    /* even though we may not have actually read mbrinc bytes (i.e. the
-       * read spanned non-emulated empty space), we increment this much
-       * so that we can pretend that the whole read worked and get on with
-       * the rest.
-       */
-    buffer += mbrinc;
-    pos += mbrinc;
-    already = mbrinc;
-
-    /* simulate a read() of count*SECTOR_SIZE bytes */
-    if (readsize == mbrinc) {
-      d_printf("   got entire read done from memory. off:%d, count:%d\n",
-	       mbroff, mbrcount);
-
+    if(readsize == count * SECTOR_SIZE) {
+      d_printf("   got entire read done from memory. off:%d, count:%d\n", mbroff, readsize);
       return readsize;
     }
+
+    buffer += readsize;
+    pos += readsize;
+    already += readsize;
   }
 
+  if(dp->type == DIR_TYPE) {
+    /* this should not never happen */
+    if(pos % SECTOR_SIZE || already % SECTOR_SIZE) {
+      error("illegal read offset for %s\n", dp->dev_name);
+      return -DERR_NOTFOUND;
+    }
+    tmpread = fatfs_read(dp->fatfs, buffer, pos / SECTOR_SIZE, count - already / SECTOR_SIZE);
+    if(tmpread == -1) return -DERR_NOTFOUND;
+    if(tmpread == -2) return -DERR_ECCERR;
+    tmpread *= SECTOR_SIZE;
+  }
+  else {
 #ifdef __linux__
-  if (pos != llseek(dp->fdesc, pos, SEEK_SET)) {
+    if(pos != llseek(dp->fdesc, pos, SEEK_SET)) {
 #else
-  if (pos != lseek(dp->fdesc, pos, SEEK_SET)) {
+    if(pos != lseek(dp->fdesc, pos, SEEK_SET)) {
 #endif
-    error("Sector not found in read_sector, error = %s!\n",
-	  strerror(errno));
-    return -DERR_NOTFOUND;
+      error("Sector not found in read_sector, error = %s!\n", strerror(errno));
+      return -DERR_NOTFOUND;
+    }
+    tmpread = RPT_SYSCALL(read(dp->fdesc, buffer, count * SECTOR_SIZE - already));
   }
 
-  tmpread = RPT_SYSCALL(read(dp->fdesc, buffer, count * SECTOR_SIZE));
-  if (tmpread != -1) {
-    if (d.disk>8)
-	dump_disk_blks(buffer, count, SECTOR_SIZE);
-    return (tmpread + already);
+  if(tmpread != -1) {
+    if(d.disk > 8) dump_disk_blks(buffer, count - already / SECTOR_SIZE, SECTOR_SIZE);
+    return tmpread + already;
   }
-  else
+  else {
     return -DERR_ECCERR;
+  }
 }
 
 int
@@ -235,7 +233,7 @@ write_sectors(struct disk *dp, char *buffer, long head, long sector,
 	      long track, long count)
 {
   loff_t  pos;
-  int tmpwrite;
+  long tmpwrite, already = 0;
 
   if (dp->rdonly) {
     d_printf("ERROR: write to readonly disk %s\n", dp->dev_name);
@@ -257,25 +255,52 @@ write_sectors(struct disk *dp, char *buffer, long head, long sector,
   d_printf(" at pos %ld\n", pos);
 #endif
 
-  /* if dp->type is PARTITION, we currently don't allow writing to an area
-   * not within the actual partition (i.e. somewhere else on the faked
-   * disk). I could avoid this by somehow relocating the partition to
-   * the beginning of the disk, but I confess I'm not sure how I would
-   * do that.
-   *
-   * Also, I could allow writing to the fake MBR, but I'm not sure that's
-   * a good idea.
+  /*
+   * writes outside the partition (before the actual disk/file) are ignored
    */
-#ifdef __linux__
-  if (pos != llseek(dp->fdesc, pos, SEEK_SET)) {
-#else
-  if (pos != lseek(dp->fdesc, pos, SEEK_SET)) {
-#endif
-    error("Sector not found in write_sector!\n");
-    return -DERR_NOTFOUND;
+  if (pos < 0 && count > 0) {
+    long writesize = count * SECTOR_SIZE;
+
+    if(!(dp->type == PARTITION || dp->type == DIR_TYPE)) {
+      error("negative offset on non-partition disk type\n");
+      return -DERR_NOTFOUND;
+    }
+
+    writesize = writesize > -pos ? -pos : writesize;
+
+    d_printf("emulated writing 0x%lx bytes, ofs = 0x%lx (0x%lx left)\n",
+      writesize, (long) (pos - dp->header), count * SECTOR_SIZE - writesize
+    );
+
+    if(writesize == count * SECTOR_SIZE) return writesize;
+
+    buffer += writesize;
+    pos += writesize;
+    already += writesize;
   }
 
-  tmpwrite = RPT_SYSCALL(write(dp->fdesc, buffer, count * SECTOR_SIZE));
+  if(dp->type == DIR_TYPE) {
+    /* this should not never happen */
+    if(pos % SECTOR_SIZE || already % SECTOR_SIZE) {
+      error("illegal write offset for %s\n", dp->dev_name);
+      return -DERR_NOTFOUND;
+    }
+    tmpwrite = fatfs_write(dp->fatfs, buffer, pos / SECTOR_SIZE, count - already / SECTOR_SIZE);
+    if(tmpwrite == -1) return -DERR_NOTFOUND;
+    if(tmpwrite == -1) return -DERR_WRITEFLT;
+    tmpwrite *= SECTOR_SIZE;
+  }
+  else {
+#ifdef __linux__
+    if(pos != llseek(dp->fdesc, pos, SEEK_SET)) {
+#else
+    if(pos != lseek(dp->fdesc, pos, SEEK_SET)) {
+#endif
+      error("Sector not found in write_sector!\n");
+      return -DERR_NOTFOUND;
+    }
+    tmpwrite = RPT_SYSCALL(write(dp->fdesc, buffer, count * SECTOR_SIZE - already));
+  }
 
   /* this should make floppies a little safer...I would as soon use the
    * O_SYNC flag, but we don't have it.  fsync() should be in the kernel
@@ -286,7 +311,7 @@ write_sectors(struct disk *dp, char *buffer, long head, long sector,
 
   FLUSHDISK(dp);
 
-  return tmpwrite;
+  return tmpwrite + already;
 }
 
 void
@@ -380,6 +405,90 @@ hdisk_auto(struct disk *dp)
 	     dp->dev_name, dp->heads, dp->sectors, dp->tracks, dp->start);
   }
 #endif
+}
+
+void dir_auto(struct disk *dp)
+{
+  /*
+   * We emulate an entire disk with 1 partition starting at t/h/s 0/1/1.
+   * You are free to change the geometry (e.g. to change the partition size).
+   */
+  dp->sectors = 63;
+  dp->heads = 255;
+  dp->tracks = 50;
+
+  dp->start = dp->sectors;
+
+  d_printf(
+    "DIR auto_info disk %s; h=%d, s=%d, t=%d, start=%ld\n",
+    dp->dev_name, dp->heads, dp->sectors, dp->tracks, dp->start
+  );
+}
+
+void dir_setup(struct disk *dp)
+{
+  unsigned char *mbr;
+  struct partition *pi = &dp->part_info;
+  int i = strlen(dp->dev_name);
+
+  while(--i >= 0) if(dp->dev_name[i] == '/') dp->dev_name[i] = 0; else break;
+
+  d_printf("partition setup for directory %s\n", dp->dev_name);
+
+  pi->beg_head = 1;
+  pi->beg_sec = 1;
+  pi->beg_cyl = 0;
+  pi->end_head = dp->heads - 1;
+  pi->end_sec = dp->sectors;
+  pi->end_cyl = dp->tracks - 1;
+  pi->pre_secs = dp->sectors;
+  pi->num_secs = (dp->tracks * dp->heads - 1) * dp->sectors;
+
+  dp->header = -(SECTOR_SIZE * (loff_t) (pi->pre_secs));
+
+  pi->mbr_size = SECTOR_SIZE;
+  pi->mbr = malloc(pi->mbr_size);
+  mbr = pi->mbr;
+
+  memset(mbr, 0, SECTOR_SIZE);
+  /*
+   * mov ax,0fffeh
+   * int 0e6h
+   */
+  mbr[0x00] = 0xb8;
+  mbr[0x01] = 0xfe;
+  mbr[0x02] = 0xff;
+  mbr[0x03] = 0xcd;
+  mbr[0x04] = 0xe6;
+  mbr[PART_INFO_START + 0x00] = PART_BOOT;
+  mbr[PART_INFO_START + 0x01] = pi->beg_head;
+  mbr[PART_INFO_START + 0x02] = pi->beg_sec + ((pi->beg_cyl & 0x300) >> 2);
+  mbr[PART_INFO_START + 0x03] = pi->beg_cyl;
+  mbr[PART_INFO_START + 0x04] = pi->num_secs < 1 << 16 ? 0x04 : 0x06;
+  mbr[PART_INFO_START + 0x05] = pi->end_head;
+  mbr[PART_INFO_START + 0x06] = pi->end_sec + ((pi->end_cyl & 0x300) >> 2);
+  mbr[PART_INFO_START + 0x07] = pi->end_cyl;
+  *(unsigned *) (mbr + PART_INFO_START + 0x08) = pi->pre_secs;
+  *(unsigned *) (mbr + PART_INFO_START + 0x0c) = pi->num_secs;
+  mbr[SECTOR_SIZE - 2] = 0x55;
+  mbr[SECTOR_SIZE - 1] = 0xaa;
+
+  d_printf("partition table entry for device %s is:\n", dp->dev_name);
+  d_printf(
+    "beg head %d, sec %d, cyl %d = end head %d, sec %d, cyl %d\n",
+    pi->beg_head, pi->beg_sec, pi->beg_cyl,
+    pi->end_head, pi->end_sec, pi->end_cyl
+  );
+  d_printf(
+    "pre_secs %ld, num_secs %ld = %lx, -dp->header %ld = 0x%lx\n",
+    pi->pre_secs, pi->num_secs, pi->num_secs,
+    (long) -dp->header, (unsigned long) -dp->header
+  );
+
+  dp->fatfs = NULL;
+  fatfs_init(dp);
+
+  if(dp->fatfs && !redir_state) set_int21_revectored(redir_state = 1);
 }
 
 /* XXX - relies upon a file of SECTOR_SIZE in PARTITION_PATH that which
@@ -663,10 +772,15 @@ disk_open(struct disk *dp)
     return;
     
   enter_priv_on();
-  dp->fdesc = SILENT_DOS_SYSCALL(open(dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR, 0));
+  dp->fdesc = SILENT_DOS_SYSCALL(open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR, 0));
   leave_priv_setting();
 
-  if (!dp->removeable && (dp->fdesc < 0)) {
+  /* FIXME:
+   * Why the hell was the below handling restricted to non-removeable disks?
+   * This made opening writeprotected floppies impossible :-(
+   *                                                  -- Hans, 990112
+   */
+  if ( /*!dp->removeable &&*/ (dp->fdesc < 0)) {
     if (errno == EROFS || errno == ENODEV) {
       enter_priv_on();
       dp->fdesc = DOS_SYSCALL(open(dp->dev_name, O_RDONLY, 0));
@@ -731,7 +845,7 @@ disk_open(struct disk *dp)
 #else
   if (ioctl(dp->fdesc, FDGETPRM, &fl) == -1) {
 #endif
-    if (errno == ENODEV) {	/* no disk available */
+    if ((dp->fdesc == -1) || (errno == ENODEV)) {	/* no disk available */
       dp->sectors = 0;
       dp->heads = 0;
       dp->tracks = 0;
@@ -772,6 +886,7 @@ disk_close_all(void)
     }
   }
   for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
+    if(dp->type == DIR_TYPE) fatfs_done(dp);
     if (dp->fdesc >= 0) {
       d_printf("Hard disk Closing %x\n", dp->fdesc);
       (void) close(dp->fdesc);
@@ -901,7 +1016,7 @@ disk_init(void)
 	}
     }
     else enter_priv_on();
-    dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
+    dp->fdesc = open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
     leave_priv_setting();
     if (dp->fdesc < 0) {
       if (errno == EROFS || errno == EACCES) {
@@ -988,7 +1103,7 @@ checkdp(struct disk *disk)
     return 1;
   }
   else if (disk->fdesc == -1) {
-    error("DISK: closed disk\n");
+    d_printf("DISK: closed disk\n");
     return 1;
   }
   else
@@ -1065,7 +1180,7 @@ int13(u_char i)
 
     if (checkdp_val || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
-      error("Sector not found 1!\n");
+      d_printf("Sector not found 1!\n");
       d_printf("DISK %d read [h:%d,s:%d,t:%d](%d)->%p\n",
 	       disk, head, sect, track, number, (void *) buffer);
       if (dp) {
