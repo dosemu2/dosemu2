@@ -3745,7 +3745,7 @@ dos_fs_redirect(state_t *state)
 
 
 #ifndef NO_VOLUME_LABELS
-    if (attr & VOLUME_LABEL &&
+    if (((attr & (VOLUME_LABEL|DIRECTORY)) == VOLUME_LABEL) &&
 	strncmpDOS(sdb_template_name(sdb), "????????", 8) == 0 &&
 	strncmpDOS(sdb_template_ext(sdb), "???", 3) == 0) {
       Debug0((dbg_fd, "DO LABEL!!\n"));
@@ -3780,11 +3780,7 @@ dos_fs_redirect(state_t *state)
       memcpy(sdb_file_name(sdb), fname, 8);
       memcpy(sdb_file_ext(sdb), fext, 3);
       sdb_file_attr(sdb) = VOLUME_LABEL;
-      if (attr == VOLUME_LABEL)
-        return TRUE; /* no findnext */
       sdb_dir_entry(sdb) = 0x0;
-      /* if (attr != VOLUME_LABEL)
-	find_in_progress = TRUE; */
       auspr(bs_pos + 1, fname, fext);
 
       /* We fill the hlist for labels not here,
@@ -3819,7 +3815,7 @@ dos_fs_redirect(state_t *state)
     /*
      * This is the right place to leave this stuff for volume labels. --ms
      */
-    if (attr & VOLUME_LABEL &&
+    if (((attr & (VOLUME_LABEL|DIRECTORY)) == VOLUME_LABEL) &&
         strncmpDOS(sdb_template_name(sdb), "????????", 8) == 0 &&
         strncmpDOS(sdb_template_ext(sdb), "???", 3) == 0) {
       Debug0((dbg_fd, "DONE LABEL!!\n"));
