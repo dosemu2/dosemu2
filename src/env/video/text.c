@@ -414,8 +414,7 @@ RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
   unsigned long fgX;
   unsigned long bgX;
   static int last_redrawn_line = -1;
-  RectArea ra;
-  ra.width = 0;
+  RectArea ra = {0};
 
   if (y >= vga.text_height) return ra;                /* clip */
   if (x >= vga.text_width)  return ra;                /* clip */
