@@ -44,8 +44,6 @@
 #include "emu-ldt.h"
 #endif
 
-#include "keyb_server.h"
-
 #include <string.h>
 #include <errno.h>
 #include "emu.h"
@@ -3990,9 +3988,6 @@ void dpmi_fault(struct sigcontext_struct *scp)
       Return_to_dosemu_code(scp,1);
       return;
   }
-
-  /* it improves the keyboard respone time - is this safe to do here? */
-  keyb_server_run();
 
   if (in_dpmi_dos_int || (_eflags & VIP) ||
       (pic_irr & ~(pic_isr | pic_imr)) || return_requested) {
