@@ -54,7 +54,7 @@ extern char LFN_string[];
 /* #define bios_keyboard_buffer            (*(unsigned int   *) 0x41e) */
 #define bios_drive_active               (*(unsigned char  *) 0x43e)
 #define bios_drive_running              (*(unsigned char  *) 0x43f)
-#define bios_motor_nachlaufzeit         (*(unsigned char  *) 0x440)
+#define bios_motor_timeout              (*(unsigned char  *) 0x440)
 #define bios_disk_status                (*(unsigned char  *) 0x441)
 /* #define bios_fdc_result_buffer          (*(unsigned short *) 0x442) */
 #define bios_video_mode                 (*(unsigned char  *) 0x449)
@@ -158,7 +158,7 @@ extern char LFN_string[];
 /* #define bios_keyboard_buffer            (*(unsigned int   *) 0x41e) */
 #define BIOS_DRIVE_ACTIVE               0x43e
 #define BIOS_DRIVE_RUNNING              0x43f
-#define BIOS_MOTOR_NACHLAUFZEIT         0x440
+#define BIOS_MOTOR_TIMEOUT              0x440
 #define BIOS_DISK_STATUS                0x441
 /* #define bios_fdc_result_buffer          (*(unsigned short *) 0x442) */
 #define BIOS_VIDEO_MODE                 0x449
