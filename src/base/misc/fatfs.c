@@ -488,7 +488,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
     }
 
     /* look for "IO.SYS" & "MSDOS.SYS" */
-    dir = opendir(name = full_name(f, oi, ""));
+    dir = opendir(full_name(f, oi, ""));
     if(dir != NULL) {
       while((dent = readdir(dir))) {
         if(!strcasecmp(dent->d_name, "io.sys") &&
@@ -551,6 +551,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
 
     if((f->sys_type & 0x30) == 0x20) {
       f->sys_type = 0x20;	/* FreeDOS, FD maintained kernel */
+      name = full_name(f, oi, "");
       sf[0] = "kernel.sys";
       scans = 2;
       bootfile = malloc(strlen(name) + strlen(sf[0]) + 1);
