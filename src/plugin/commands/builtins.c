@@ -102,12 +102,7 @@ char *skip_white_and_delim(char *s, int delim)
 
 void call_msdos(void)
 {
-	do_intr_call_back(0x21, 0);
-}
-
-void call_msdos_interruptible(void)
-{
-	do_intr_call_back(0x21, 1);
+	do_intr_call_back(0x21);
 }
 
 int com_doswrite(int dosfilefd, char *buf32, int size)
@@ -124,7 +119,7 @@ int com_doswrite(int dosfilefd, char *buf32, int size)
 	LWORD(ds) = FP_SEG32(s);
 	LWORD(edx) = FP_OFF32(s);
 	LWORD(eax) = 0x4000;	/* write handle */
-	call_msdos_interruptible();	/* call MSDOS */
+	call_msdos();	/* call MSDOS */
 	lowmem_free(s, size);
 	if (LWORD(eflags) & CF) {
 		com_errno = LWORD(eax);
@@ -146,7 +141,7 @@ int com_dosread(int dosfilefd, char *buf32, int size)
 	LWORD(ds) = FP_SEG32(s);
 	LWORD(edx) = FP_OFF32(s);
 	LWORD(eax) = 0x3f00;	/* read handle */
-	call_msdos_interruptible();	/* call MSDOS */
+	call_msdos();	/* call MSDOS */
 	if (LWORD(eflags) & CF) {
 		com_errno = LWORD(eax);
 		lowmem_free(s, size);
@@ -450,7 +445,7 @@ void com_intr(int intno, struct REGPACK *regpack)
 	struct vm86_regs saved_regs = _regs;
 	_regs = regpack_to_regs(regpack);
 
-	do_intr_call_back(intno, 0);
+	do_intr_call_back(intno);
 
 	*regpack = regs_to_regpack(&_regs);
 	_regs = saved_regs;
@@ -484,7 +479,7 @@ int com_int86x(int intno, union com_REGS *inregs,
 		LWORD(es) = segregs->es;
 	}
 
-	do_intr_call_back(intno, 0);
+	do_intr_call_back(intno);
 
 	outregs->x.ax =  LWORD(eax);
 	outregs->x.bx =  LWORD(ebx);

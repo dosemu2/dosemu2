@@ -514,7 +514,7 @@ static void callback_return(void)
  * NOTE: It does _not_ save any of the vm86 registers except old cs:ip !!
  *       The _caller_ has to do this.
  */
-static void do_interruptible_call_back(Bit32u codefarptr, int inter)
+void do_call_back(Bit32u codefarptr)
 {
 	unsigned char * ssp;
 	unsigned long sp;
@@ -550,8 +550,7 @@ static void do_interruptible_call_back(Bit32u codefarptr, int inter)
 	 * Only the plain run_vm86() and run_dpmi() are safe (also DPMI-safe).
 	 * -SS
 	 */
-		if (inter) /* this is essential to do BEFORE run_[vm86|dpmi]() */
-			run_irqs();
+		run_irqs();	/* this is essential to do BEFORE run_[vm86|dpmi]() */
 		if (!in_dpmi)
 			run_vm86();
 		else
@@ -562,12 +561,7 @@ static void do_interruptible_call_back(Bit32u codefarptr, int inter)
 	LWORD(eip) = oldip;
 }
 
-void do_call_back(Bit32u codefarptr)
-{
-	do_interruptible_call_back(codefarptr, 0);
-}
-
-void do_intr_call_back(int intno, int inter)
+void do_intr_call_back(int intno)
 {
 	unsigned char * ssp = (unsigned char *)(LWORD(ss)<<4);
 	unsigned long sp = (unsigned long) LWORD(esp);
@@ -578,5 +572,5 @@ void do_intr_call_back(int intno, int inter)
 	clear_AC();
 	clear_NT();
 
-	do_interruptible_call_back((ISEG(intno) << 16) + IOFF(intno), inter);
+	do_call_back((ISEG(intno) << 16) + IOFF(intno));
 }
