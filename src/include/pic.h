@@ -83,20 +83,20 @@ EXTERN unsigned long pic_level_list[] INIT({
 
 EXTERN unsigned long pic_irr;          /* interrupt request register */
 EXTERN unsigned long pic_isr;          /* interrupt in-service register */
-EXTERN unsigned long pic_iflag;        /* interrupt enable flag: en-/dis- =0/0xfffe */
-EXTERN unsigned long pic_icount;       /* iret counter (to avoid filling stack) */
+EXTERN unsigned int pic_iflag;        /* interrupt enable flag: en-/dis- =0/0xfffe */
+EXTERN unsigned int pic_icount;       /* iret counter (to avoid filling stack) */
 EXTERN unsigned long pic_irqall INIT(0xfffe);       /* bits for all IRQs set. */
-EXTERN unsigned long pic_ilevel INIT(32);    /* current interrupt level */
+EXTERN unsigned int pic_ilevel INIT(32);    /* current interrupt level */
 
 EXTERN unsigned long pic0_imr INIT(0xf800);  /* interrupt mask register, pic0 */
 EXTERN unsigned long pic1_imr INIT(0x07f8);         /* interrupt mask register, pic1 */
 EXTERN unsigned long pic_imr INIT(0xfff8);          /* interrupt mask register */
 EXTERN unsigned long pice_imr INIT(-1);         /* interrupt mask register, dos emulator */  
-EXTERN unsigned long pic_stack[32];     /* list of active irqd */
-EXTERN unsigned long pic_sp INIT(0);	       /* pointer to pic_stack */ 
-EXTERN unsigned long pic_rflag;        /* flag to control pic_watch */
-EXTERN unsigned long pic_vm86_count INIT(0);   /* count of times 'round the vm86 loop*/
-EXTERN unsigned long pic_dpmi_count INIT(0);   /* count of times 'round the dpmi loop*/
+EXTERN unsigned int pic_stack[32];     /* list of active irqd */
+EXTERN unsigned int pic_sp INIT(0);	       /* pointer to pic_stack */ 
+EXTERN unsigned int pic_rflag;        /* flag to control pic_watch */
+EXTERN unsigned int pic_vm86_count INIT(0);   /* count of times 'round the vm86 loop*/
+EXTERN unsigned int pic_dpmi_count INIT(0);   /* count of times 'round the dpmi loop*/
 
 EXTERN hitimer_t pic_dos_time;     /* dos time of last interrupt,1193047/sec.*/
 EXTERN hitimer_t pic_sys_time INIT(NEVER);     /* system time set by pic_watch */

@@ -2056,16 +2056,15 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
   FreeAllDescriptors();
   DPMIfreeAll();
   
-  if(in_dpmi_pm_stack) {
-    error("DPMI: Warning: trying to leave DPMI when in_dpmi_pm_stack=%li\n",
-      in_dpmi_pm_stack);
-  }
-
   /* we must free ldt_buffer here, because FreeDescriptor() will */
   /* modify ldt_buffer */
   if (in_dpmi==1) {
     if (ldt_buffer) free(ldt_buffer);
     if (pm_stack) free(pm_stack);
+    if(in_dpmi_pm_stack) {
+      error("DPMI: Warning: trying to leave DPMI when in_dpmi_pm_stack=%i\n",
+        in_dpmi_pm_stack);
+    }
     in_dpmi_pm_stack = 0;
   }
   cli_blacklisted = 0;
@@ -2073,7 +2072,7 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
   in_dpmi--;
   in_win31 = 0;
   if(pic_icount) {
-    D_printf("DPMI: Warning: trying to leave DPMI when pic_icount=%li\n",
+    D_printf("DPMI: Warning: trying to leave DPMI when pic_icount=%i\n",
 	pic_icount);
     pic_resched();
   }
@@ -2643,7 +2642,7 @@ static void dpmi_init(void)
   in_win31 = 0;
   in_dpmi_dos_int = 0;
   if(pic_icount) {
-    D_printf("DPMI: Warning: trying to enter DPMI when pic_icount=%li\n",
+    D_printf("DPMI: Warning: trying to enter DPMI when pic_icount=%i\n",
 	pic_icount);
     pic_resched();
   }
@@ -3116,7 +3115,6 @@ if ((_ss & 4) == 4) {
             _eflags |= CF;
 
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_pm)) {
-          D_printf("DPMI: Return from protected mode interrupt handler\n");
 	  if (in_dpmi_pm_stack) {
 	    in_dpmi_pm_stack--;
 	    if (!in_dpmi_pm_stack && _ss != PMSTACK_SEL) {
@@ -3124,6 +3122,8 @@ if ((_ss & 4) == 4) {
 //	      leavedos(91);
 	    }
 	  }
+          D_printf("DPMI: Return from protected mode interrupt handler, "
+	    "in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
 /* ---------------------------------------------------
 	|(000FC925)|
 	|(dpmi_sel)|
@@ -3187,7 +3187,6 @@ if ((_ss & 4) == 4) {
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_exception)) {
 	  unsigned short saved_ss = _ss;
 	  unsigned long saved_esp = _esp;
-          D_printf("DPMI: Return from client exception handler\n");
 	  if (in_dpmi_pm_stack) {
 	    in_dpmi_pm_stack--;
 	    if (!in_dpmi_pm_stack && _ss != PMSTACK_SEL) {
@@ -3195,6 +3194,8 @@ if ((_ss & 4) == 4) {
 //	      leavedos(91);
 	    }
 	  }
+          D_printf("DPMI: Return from client exception handler, "
+	    "in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
 
 	  if (DPMI_CLIENT.is_32) {
 	    /* poping error code */
@@ -3228,8 +3229,6 @@ if ((_ss & 4) == 4) {
 	  
 	  struct RealModeCallStructure *rmreg;
 
-	  D_printf("DPMI: Return from client realmode callback procedure\n");
-
 	  rmreg = (struct RealModeCallStructure *)(GetSegmentBaseAddress(_es)
 		                + (DPMI_CLIENT.is_32 ? _edi : _LWORD(edi)));
 
@@ -3240,6 +3239,8 @@ if ((_ss & 4) == 4) {
 //	      leavedos(91);
 	    }
 	  }
+	  D_printf("DPMI: Return from client realmode callback procedure, "
+	    "in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
 
 	  REG(edi) = rmreg->edi;
 	  REG(esi) = rmreg->esi;
@@ -3264,8 +3265,6 @@ if ((_ss & 4) == 4) {
 
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_mouse_callback)) {
 
-	  D_printf("DPMI: Return from mouse callback\n");
-
 	  if (in_dpmi_pm_stack) {
 	    in_dpmi_pm_stack--;
 	    if (!in_dpmi_pm_stack && _ss != PMSTACK_SEL) {
@@ -3273,6 +3272,8 @@ if ((_ss & 4) == 4) {
 //	      leavedos(91);
 	    }
 	  }
+	  D_printf("DPMI: Return from mouse callback, in_dpmi_pm_stack=%i\n",
+	    in_dpmi_pm_stack);
 
 	  restore_pm_regs(scp);
 	  in_dpmi_dos_int = 1;
@@ -3907,7 +3908,7 @@ done:
 
   } else {
     if(pic_icount)
-      D_printf("DPMI: unhandled HLT: lina=%p pic_icount=%li\n",
+      D_printf("DPMI: unhandled HLT: lina=%p pic_icount=%i\n",
         lina, pic_icount);
     pic_resched();
   }
