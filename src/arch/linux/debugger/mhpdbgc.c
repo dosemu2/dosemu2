@@ -60,6 +60,7 @@
 #include "config.h"
 #include "emu.h"
 #include "cpu.h"
+#include "timers.h"
 #include "dpmi.h"
 #include "utilities.h"
 #include "dosemu_config.h"
@@ -528,6 +529,7 @@ static void mhp_setreg(unsigned char * regn, unsigned long val)
 
 static void mhp_go(int argc, char * argv[])
 {
+   unfreeze_dosemu();
    if (!mhpdbgc.stopped) {
       mhp_printf("already in running state\n");
    } else {
