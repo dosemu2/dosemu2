@@ -216,5 +216,5 @@ size_t smget_area_size(struct memnode *mp, void *ptr)
     if (ptr == mn->mem_area)
       return mn->size;
   }
-  return 0;
+  return -1;
 }
