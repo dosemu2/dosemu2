@@ -222,6 +222,16 @@ sgleave:
     else {
     /* Not in dosemu code */
 
+    /* If this is an exception 0x11, we have to ignore it. The reason is that
+     * under real DOS the AM bit of CR0 is not set.
+     * Also clear the AC flag to prevent it from re-occuring.
+     */
+     if (_trapno == 0x11) {
+       g_printf("Exception 0x11 occured, clearing AC\n");
+       _eflags &= ~AC;
+       return;
+     }
+
 #if X_GRAPHICS
       if(_trapno==0x0e && config.X) {
         if(VGA_EMU_FAULT(scp,code,1)==True) {
