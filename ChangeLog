@@ -1,3 +1,11 @@
+97/03/26 ver. 0.66.0.2 unofficial pre-release
+	From Soos Peter <sp@osb.hu>
+	- added support for hungarian keyboard
+	From Hans
+	- fixed gnats report misc/8 (rep. by Ambrose Li)
+	  In configure, if 'no X' the XINCLUDES was preset with a comment
+	  (what joker invented that?) such as "# no special path needed".
+	  This made the following -I...slang.h invisible in INCDIR.
 97/03/26 ver. 0.66.0.1 unofficial pre-release
 	From Hans Zoebelein <zocki@goldfish.cube.net>
 	- fix for error printout, when reading a write protected floppy.

@@ -145,6 +145,10 @@ be			{ yylval->i_value = KEYB_BE; return(KEYB_LAYOUT); }
 po                      { yylval->i_value = KEYB_PO; return(KEYB_LAYOUT); }
 it                      { yylval->i_value = KEYB_IT; return(KEYB_LAYOUT); }
 sw			{ yylval->i_value = KEYB_SW; return(KEYB_LAYOUT); }
+hu			{ yylval->i_value = KEYB_HU; return(KEYB_LAYOUT); }
+hu-cwi			{ yylval->i_value = KEYB_HU_CWI; return(KEYB_LAYOUT); }
+hu-latin2		{ yylval->i_value = KEYB_HU_LATIN2;
+			  return(KEYB_LAYOUT); }
 
 	/* serial stuff */
 

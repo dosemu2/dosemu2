@@ -97,6 +97,9 @@ menu "Keyboard Layout" {
     "Spanish" es
     "Spanish Latin1" es-latin1
     "Portuguese" portuguese
+    "Hungarian" hu
+    "Hungarian cwi" hu-cwi
+    "Hungarian latin2" hu-latin2
   }
 }
 

@@ -127,6 +127,18 @@ extern unsigned char key_map_sw[];
 extern unsigned char shift_map_sw[];
 extern unsigned char alt_map_sw[];
 
+extern unsigned char key_map_hu[];
+extern unsigned char shift_map_hu[];
+extern unsigned char alt_map_hu[];
+
+extern unsigned char key_map_hu_cwi[];
+extern unsigned char shift_map_hu_cwi[];
+extern unsigned char alt_map_hu_cwi[];
+
+extern unsigned char key_map_hu_latin2[];
+extern unsigned char shift_map_hu_latin2[];
+extern unsigned char alt_map_hu_latin2[];
+
 /* Keyboard-Layout for the numeric part of the keyboard */
 
 extern unsigned char num_table_comma[];

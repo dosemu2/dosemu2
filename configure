@@ -3237,7 +3237,7 @@ XLIBSW="$XLIBSWD $XLIBSWL"
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
 SUBLEVEL="66"
-PATCHLEVEL="0.1"
+PATCHLEVEL="0.2"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`
@@ -3426,7 +3426,12 @@ else
     SLANGINC="-I$oldincludedir/slang"
   fi
 fi
-INCDIR="-I${SRCPATH}/include -I${SRCPATH}/base/dev/pic -I${SRCPATH}/dosext/dpmi ${XINCLUDES} ${SLANGINC}"
+
+# BIG NOTE: XINCLUDES _must_ come last, because some joker did preset
+# it with a comment line (such as: XINCLUDES="# no special path needed")
+# We need to fix this, because this is a time bomb. --HL
+
+INCDIR="-I${SRCPATH}/include -I${SRCPATH}/base/dev/pic -I${SRCPATH}/dosext/dpmi ${SLANGINC} ${XINCLUDES}"
 
 
 if test "$dodebug" = "yes"; then

@@ -1516,6 +1516,30 @@ static void keyb_layout(int layout)
     config.alt_map   = alt_map_sw;
     config.num_table = num_table_comma;
     break;
+  case KEYB_HU:
+    c_printf("CONF: Keyboard-layout hu\n");
+    config.keyboard  = KEYB_HU;
+    config.key_map   = key_map_hu;  /* pointer to the keyboard-map */
+    config.shift_map = shift_map_hu;
+    config.alt_map   = alt_map_hu;
+    config.num_table = num_table_comma;
+    break;
+  case KEYB_HU_CWI:
+    c_printf("CONF: Keyboard-layout hu-cwi\n");
+    config.keyboard  = KEYB_HU_CWI;
+    config.key_map   = key_map_hu_cwi;  /* pointer to the keyboard-map */
+    config.shift_map = shift_map_hu_cwi;
+    config.alt_map   = alt_map_hu_cwi;
+    config.num_table = num_table_comma;
+    break;
+  case KEYB_HU_LATIN2:
+    c_printf("CONF: Keyboard-layout hu-latin2\n");
+    config.keyboard  = KEYB_HU_LATIN2;
+    config.key_map   = key_map_hu_latin2;  /* pointer to the keyboard-map */
+    config.shift_map = shift_map_hu_latin2;
+    config.alt_map   = alt_map_hu_latin2;
+    config.num_table = num_table_comma;
+    break;
   default:
     c_printf("CONF: ERROR -- Keyboard has incorrect number!!!\n");
   }
