@@ -12,9 +12,7 @@
 #include "timers.h"
 #include "int.h"
 #include "shared.h"
-#ifdef DPMI
 #include "../dpmi/dpmi.h"
-#endif
 #include "pic.h"
 #include "ipx.h"
 
@@ -149,10 +147,9 @@ void handle_signals(void) {
  * If more SIGNALS need to be dealt with, make sure we request interruption
  * by the kernel ASAP.
  */
-#ifdef DPMI
-      if (!in_dpmi)
-#endif
       if (SIGNAL_head != SIGNAL_tail) {
+	if (in_dpmi)
+	  dpmi_eflags |= VIP;
         REG(eflags) |= VIP;
       }
   }
@@ -300,10 +297,9 @@ void SIGALRM_call(void){
 inline void SIGNAL_save( void (*signal_call)() ) {
   signal_queue[SIGNAL_tail].signal_handler=signal_call;
   SIGNAL_tail = (SIGNAL_tail + 1) % MAX_SIG_QUEUE_SIZE;
-#ifdef DPMI
-  if (!in_dpmi)
-#endif
-    REG(eflags) |= VIP;
+  if (in_dpmi)
+    dpmi_eflags |= VIP;
+  REG(eflags) |= VIP;
 }
 
 /*
@@ -326,20 +322,16 @@ void SIGIO_call(void){
 void
 sigio(int sig, struct sigcontext_struct context)
 {
-#ifdef DPMI
   if (in_dpmi && !in_vm86)
     dpmi_sigio(&context);
-#endif /* DPMI */
   SIGNAL_save(SIGIO_call);
 }
 
 void
 sigalrm(int sig, struct sigcontext_struct context)
 {
-#ifdef DPMI
   if (in_dpmi && !in_vm86)
     dpmi_sigio(&context);
-#endif /* DPMI */
   SIGNAL_save(SIGALRM_call);
 }
 

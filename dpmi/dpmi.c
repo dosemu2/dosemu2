@@ -9,12 +9,15 @@
  *
  * First Attempted by James B. MacLean jmaclean@fox.nstn.ns.ca
  *
- * $Date: 1995/02/25 21:54:02 $
- * $Source: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v $
- * $Revision: 2.11 $
+ * $Date: 1995/04/08 22:31:40 $
+ * $Source: /home/src/dosemu0.60/dpmi/dpmi.c,v $
+ * $Revision: 1.1 $
  * $State: Exp $
  *
  * $Log: dpmi.c,v $
+ * Revision 1.1  1995/04/08  22:31:40  root
+ * Initial revision
+ *
  * Revision 2.11  1995/02/25  21:54:02  root
  * *** empty log message ***
  *
@@ -139,10 +142,6 @@
 #define SHOWREGS
 #endif
 
-#if 1
-#define RM_AFFECT_IF
-#endif
-
 #if 0
 #undef inline /*for gdb*/
 #define inline
@@ -158,8 +157,8 @@
 
 unsigned long RealModeContext;
 
-static INTDESC Interrupt_Table[DPMI_MAX_CLIENTS][0x100];
-static INTDESC Exception_Table[DPMI_MAX_CLIENTS][0x20];
+static INTDESC Interrupt_Table[0x100];
+static INTDESC Exception_Table[0x20];
 SEGDESC Segments[MAX_SELECTORS];
 
 /* for real mode call back, DPMI function 0x303 0x304 */
@@ -201,7 +200,7 @@ static unsigned long dpmi_free_memory; /* how many bytes memory client */
 static dpmi_pm_block *pm_block_root[DPMI_MAX_CLIENTS];
 static unsigned long pm_block_handle_used; /* tracking handle */
 
-static char RCSdpmi[] = "$Header: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v 2.11 1995/02/25 21:54:02 root Exp $";
+static char RCSdpmi[] = "$Header: /home/src/dosemu0.60/dpmi/dpmi.c,v 1.1 1995/04/08 22:31:40 root Exp root $";
 
 int in_dpmi = 0;		/* Set to 1 when running under DPMI */
 int in_win31 = 0;		/* Set to 1 when running Windows 3.1 */
@@ -233,7 +232,7 @@ inline int get_ldt(void *buffer)
   return modify_ldt(0, buffer, 32 * sizeof(struct modify_ldt_ldt_s));
 }
 
-inline int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
+__inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 	      int seg_32bit_flag, int contents, int read_only_flag,
 	      int limit_in_pages_flag
 #ifdef WANT_WINDOWS
@@ -778,13 +777,13 @@ static inline void restore_pm_regs()
  * DANG_END_REMARK
  */
 
-static inline void dpmi_cli()
+static __inline__ void dpmi_cli()
 {
   dpmi_eflags &= ~IF;
   pic_cli();
 }
 
-static inline void dpmi_sti()
+static __inline__ void dpmi_sti()
 {
   dpmi_eflags |= IF;
   pic_sti();
@@ -963,29 +962,29 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     break;
   case 0x0202:	/* Get Processor Exception Handler Vector */
     D_printf("DPMI: Getting Excp 0x%x\n", _LO(bx));
-    _LWORD(ecx) = Exception_Table[current_client][_LO(bx)].selector;
-    _edx = Exception_Table[current_client][_LO(bx)].offset;
+    _LWORD(ecx) = Exception_Table[_LO(bx)].selector;
+    _edx = Exception_Table[_LO(bx)].offset;
     break;
   case 0x0203:	/* Set Processor Exception Handler Vector */
     D_printf("DPMI: Setting Excp 0x%x\n", _LO(bx));
-    Exception_Table[current_client][_LO(bx)].selector = _LWORD(ecx);
-    Exception_Table[current_client][_LO(bx)].offset = (DPMIclient_is_32 ? _edx : _LWORD(edx));
+    Exception_Table[_LO(bx)].selector = _LWORD(ecx);
+    Exception_Table[_LO(bx)].offset = (DPMIclient_is_32 ? _edx : _LWORD(edx));
     break;
   case 0x0204:	/* Get Protected Mode Interrupt vector */
-    _LWORD(ecx) = Interrupt_Table[current_client][_LO(bx)].selector;
-    _edx = Interrupt_Table[current_client][_LO(bx)].offset;
+    _LWORD(ecx) = Interrupt_Table[_LO(bx)].selector;
+    _edx = Interrupt_Table[_LO(bx)].offset;
     D_printf("DPMI: Get Prot. vec. bx=%x sel=%x, off=%x\n", _LO(bx), _LWORD(ecx), _edx);
     break;
   case 0x0205:	/* Set Protected Mode Interrupt vector */
-    Interrupt_Table[current_client][_LO(bx)].selector = _LWORD(ecx);
-    Interrupt_Table[current_client][_LO(bx)].offset = (DPMIclient_is_32 ? _edx : _LWORD(edx));
+    Interrupt_Table[_LO(bx)].selector = _LWORD(ecx);
+    Interrupt_Table[_LO(bx)].offset = (DPMIclient_is_32 ? _edx : _LWORD(edx));
     if (in_dpmi==1) { /* current_client==0 */
       switch (_LO(bx)) {
         case 0x1c:	/* ROM BIOS timer tick interrupt */
         case 0x23:	/* DOS Ctrl+C interrupt */
         case 0x24:	/* DOS critical error interrupt */
-	  if ((Interrupt_Table[current_client][_LO(bx)].selector==DPMI_SEL) &&
-		(Interrupt_Table[current_client][_LO(bx)].offset==DPMI_OFF + HLT_OFF(DPMI_interrupt) + _LO(bx)))
+	  if ((Interrupt_Table[_LO(bx)].selector==DPMI_SEL) &&
+		(Interrupt_Table[_LO(bx)].offset==DPMI_OFF + HLT_OFF(DPMI_interrupt) + _LO(bx)))
 	    if (can_revector(_LO(bx)))
 	      reset_revectored(_LO(bx),&vm86s.int_revectored);
 	  else
@@ -994,7 +993,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
       }
     }
     D_printf("DPMI: Put Prot. vec. bx=%x sel=%x, off=%x\n", _LO(bx),
-      _LWORD(ecx), Interrupt_Table[current_client][_LO(bx)].offset);
+      _LWORD(ecx), Interrupt_Table[_LO(bx)].offset);
     break;
   case 0x0300:	/* Simulate Real Mode Interrupt */
   case 0x0301:	/* Call Real Mode Procedure With Far Return Frame */
@@ -1257,12 +1256,15 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     {
       char *ptr = (char *) (GetSegmentBaseAddress(_ds) + (DPMIclient_is_32 ? _esi : _LWORD(esi)));
       D_printf("DPMI: GetVendorAPIEntryPoint: %s\n", ptr);
+#ifdef WANT_WINDOWS
 	if ((!strcmp("WINOS2", ptr))||(!strcmp("MS-DOS", ptr)))
       {
 	_LWORD(eax) = 0;
 	_es = DPMI_SEL;
 	_edi = DPMI_OFF + HLT_OFF(DPMI_API_extension);
-      } else {
+      } else
+#endif
+      {
 	if (!(_LWORD(eax)==0x168a))
 	  _eax = 0x8001;
 	_eflags |= CF;
@@ -1283,8 +1285,12 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 
 static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
 {
+  if (in_dpmi == 1) { /* Restore enviornment, must before FreeDescriptor */
+    if (CURRENT_ENV_SEL)
+      *(unsigned short *)(((char *)(CURRENT_PSP<<4))+0x2c) =
+             (unsigned long)(GetSegmentBaseAddress(CURRENT_ENV_SEL)) >> 4;
+  }
   { 
-  /* We can't free selectors here, may be a kernel problem? */
     int i;
     for (i=0;i<MAX_SELECTORS;i++) {
       if (Segments[i].used==in_dpmi)
@@ -1381,7 +1387,7 @@ void run_pm_int(int i)
 
   D_printf("DPMI: run_pm_int(0x%02x) called, in_dpmi_dos_int=0x%02x\n",i,in_dpmi_dos_int);
 
-  if (Interrupt_Table[0][i].selector == DPMI_SEL) {
+  if (Interrupt_Table[i].selector == DPMI_SEL) {
     if (!in_dpmi_dos_int) {
       save_rm_regs();
       REG(cs) = DPMI_SEG;
@@ -1419,8 +1425,8 @@ void run_pm_int(int i)
     *--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_pm);
     PMSTACK_ESP -= 16;
   }
-  dpmi_stack_frame[current_client].cs = Interrupt_Table[0][i].selector;
-  dpmi_stack_frame[current_client].eip = Interrupt_Table[0][i].offset;
+  dpmi_stack_frame[current_client].cs = Interrupt_Table[i].selector;
+  dpmi_stack_frame[current_client].eip = Interrupt_Table[i].offset;
   dpmi_stack_frame[current_client].ss = PMSTACK_SEL;
   dpmi_stack_frame[current_client].esp = PMSTACK_ESP;
   in_dpmi_dos_int = 0;
@@ -1441,7 +1447,6 @@ void run_dpmi(void)
     retval=vm86(&vm86s);
     in_vm86=0;
 
-#ifdef RM_AFFECT_IF
     if (REG(eflags)&IF) {
       if (!(dpmi_eflags&IF))
         dpmi_sti();
@@ -1449,7 +1454,7 @@ void run_dpmi(void)
       if (dpmi_eflags&IF)
         dpmi_cli();
     }
-#endif
+
     switch VM86_TYPE(retval) {
 	case VM86_UNKNOWN:
 		vm86_GP_fault();
@@ -1578,6 +1583,15 @@ void dpmi_init()
     if (SetSelector(DPMI_SEL, (unsigned long) (DPMI_SEG << 4), 0xffff, DPMIclient_is_32,
                   MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) return;
 
+    for (i=0;i<0x100;i++) {
+      Interrupt_Table[i].offset = DPMI_OFF + HLT_OFF(DPMI_interrupt) + i;
+      Interrupt_Table[i].selector = DPMI_SEL;
+    }
+    for (i=0;i<0x20;i++) {
+      Exception_Table[i].offset = DPMI_OFF + HLT_OFF(DPMI_exception) + i;
+      Exception_Table[i].selector = DPMI_SEL;
+    }
+
     dpmi_eflags = IF;
     
   } else {
@@ -1619,15 +1633,6 @@ void dpmi_init()
   for (i = 0; i < 10; i++)
     D_printf("%02x ", popb(ssp, sp));
   D_printf("\n");
-
-  for (i=0;i<0x100;i++) {
-    Interrupt_Table[in_dpmi][i].offset = DPMI_OFF + HLT_OFF(DPMI_interrupt) + i;
-    Interrupt_Table[in_dpmi][i].selector = DPMI_SEL;
-  }
-  for (i=0;i<0x20;i++) {
-    Exception_Table[in_dpmi][i].offset = DPMI_OFF + HLT_OFF(DPMI_exception) + i;
-    Exception_Table[in_dpmi][i].selector = DPMI_SEL;
-  }
 
   if (!(CS = AllocateDescriptors(1))) return;
   if (SetSelector(CS, (unsigned long) (my_cs << 4), 0xffff, 0,
@@ -1804,41 +1809,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
 #endif
   d.dpmi = dd;
   
-#if 0			/* it has been taken care of in msdos_fault() */
-#ifdef CLIENT_USE_GDT_40
-  if ((_err & 0xffff) == 0x40) { /* client try to use gdt 0x40 */
-      unsigned short segment , gdt_40;
-      unsigned char sreg;
-      int len;
-      len = decode_modify_segreg_insn(scp, &segment, &sreg);
-      if ( len && ( segment == 0x40)) {
-	  gdt_40 = ConvertSegmentToDescriptor(0x40);
-	  if (gdt_40) {
-	      switch (sreg) {
-	      case ES_INDEX:
-		  _es = gdt_40;
-		  _eip += len;
-		  return;
-	      case DS_INDEX:
-		  _ds = gdt_40;
-		  _eip += len;
-		  return;
-	      case FS_INDEX:
-		  _fs = gdt_40;
-		  _eip += len;
-		  return;
-	      case GS_INDEX:
-		  _gs = gdt_40;
-		  _eip += len;
-		  return;
-	/* we don\'t want to mess up ss and cs */
-	      }
-	  }
-      }
-  }
-#endif CLIENT_USE_GDT_40
-#endif  
-  if (Exception_Table[0][_trapno].selector == DPMI_SEL) {
+  if (Exception_Table[_trapno].selector == DPMI_SEL) {
     do_default_cpu_exception(scp, _trapno);
     return;
   }
@@ -1869,8 +1840,8 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
     *--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_exception);
     PMSTACK_ESP -= 16;
   }
-  _cs = Exception_Table[0][_trapno].selector;
-  _eip = Exception_Table[0][_trapno].offset;
+  _cs = Exception_Table[_trapno].selector;
+  _eip = Exception_Table[_trapno].offset;
   _ss = PMSTACK_SEL;
   _esp = PMSTACK_ESP;
   dpmi_cli();
@@ -1934,7 +1905,7 @@ if ((_ss & 7) == 7) {
     case 0xcd:			/* int xx */
       /* Bypass the int instruction */
       _eip += 2;
-      if (Interrupt_Table[current_client][*csp].selector == DPMI_SEL)
+      if (Interrupt_Table[*csp].selector == DPMI_SEL)
 	do_dpmi_int(scp, *csp);
       else {
 	if (DPMIclient_is_32) {
@@ -1953,8 +1924,8 @@ if ((_ss & 7) == 7) {
 	  _eflags &= ~(TF);
 	  dpmi_cli();
 	}
-	_cs = Interrupt_Table[current_client][*csp].selector;
-	_eip = Interrupt_Table[current_client][*csp].offset;
+	_cs = Interrupt_Table[*csp].selector;
+	_eip = Interrupt_Table[*csp].offset;
 	D_printf("DPMI: calling interrupthandler 0x%02x at 0x%04x:0x%08lx\n", *csp, _cs, _eip);
 	if ((*csp == 0x2f)&&((_LWORD(eax)==
 			      0xfb42)||(_LWORD(eax)==0xfb43)))
@@ -2346,6 +2317,18 @@ void run_pm_mouse()
      */
     press = release = 0;
     insert = (LastMouse.bx & 0x7) ^ (LO(bx) & 0x7);
+    if (!(LastMouse.bx & 1) && LO(ax) & 4)
+	press |= 0x2;
+    if (!(LastMouse.bx & 2) && LO(ax) & 0x10)
+	press |= 0x8;
+    if (!(LastMouse.bx & 4) && LO(ax) & 0x40)
+	press |= 0x20;
+    if ((LastMouse.bx & 1) && LO(ax) & 2)
+	release |= 0x4;
+    if ((LastMouse.bx & 2) && LO(ax) & 0x8)
+	release |= 0x10;
+    if ((LastMouse.bx & 4) && LO(ax) & 0x20)
+	release |= 0x40;
     if (insert && LO(ax) == 1)	{ /* buttons changes but only a motion */
 				  /* event, some envent is missed      */
 	if (insert & 1) {

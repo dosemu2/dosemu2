@@ -19,10 +19,13 @@
  * 
  * DANG_END_MODULE
  * 
- * DANG_BEGIN_CHANGELOG $Date: 1995/02/25 22:38:10 $ $Source:
- * /home/src/dosemu0.60/RCS/emu.c,v $ $Revision: 2.36 $ $State: Exp $
+ * DANG_BEGIN_CHANGELOG $Date: 1995/04/08 22:29:37 $ $Source:
+ * /home/src/dosemu0.60/RCS/emu.c,v $ $Revision: 2.37 $ $State: Exp $
  * 
- * $Log: emu.c,v $ Revision 2.36  1995/02/25  22:38:10  root *** empty log
+ * $Log: emu.c,v $
+ * Revision 2.37  1995/04/08  22:29:37  root
+ * Release dosemu0.60.0
+ * Revision 2.36  1995/02/25  22:38:10  root *** empty log
  * message ***
  * 
  * Revision 2.35  1995/02/25  21:53:22  root *** empty log message ***
@@ -438,9 +441,7 @@ __asm__("___START___: jmp _emulate\n");
 #include "int.h"
 #include "bitops.h"
 #include "pic.h"
-#ifdef DPMI
 #include "dpmi.h"
-#endif
 
 extern void     stdio_init(void);
 extern void     time_setting_init(void);

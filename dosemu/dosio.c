@@ -4,12 +4,15 @@
 /*
  * Robert Sanders, started 3/1/93
  *
- * $Date: 1995/02/25 21:53:11 $
+ * $Date: 1995/04/08 22:30:40 $
  * $Source: /home/src/dosemu0.60/dosemu/RCS/dosio.c,v $
- * $Revision: 2.15 $
+ * $Revision: 2.16 $
  * $State: Exp $
  *
  * $Log: dosio.c,v $
+ * Revision 2.16  1995/04/08  22:30:40  root
+ * Release dosemu0.60.0
+ *
  * Revision 2.15  1995/02/25  21:53:11  root
  * *** empty log message ***
  *

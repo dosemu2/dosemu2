@@ -1,5 +1,5 @@
 /*
- * $Id: config.c,v 1.4 1995/02/25 22:37:46 root Exp root $
+ * $Id: config.c,v 1.5 1995/04/08 22:34:19 root Exp root $
  */
 #include <stdio.h>
 #include <termios.h>
@@ -560,7 +560,7 @@ parse_debugflags(const char *s)
 static void
 usage(void)
 {
-    fprintf(stdout, "$Header: /home/src/dosemu0.60/init/RCS/config.c,v 1.4 1995/02/25 22:37:46 root Exp root $\n");
+    fprintf(stdout, "$Header: /home/src/dosemu0.60/init/RCS/config.c,v 1.5 1995/04/08 22:34:19 root Exp root $\n");
     fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
     fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
     fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");

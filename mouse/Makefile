@@ -1,7 +1,7 @@
 #
 # This is the Makefile for the mouse-subdirectory of the DOS-emulator
 # for Linux.
-# $Id: Makefile,v 2.9 1995/02/05 16:54:02 root Exp root $
+# $Id: Makefile,v 2.10 1995/04/08 22:34:58 root Exp root $
 
 # The following variables may go into the Makfile in the parent-directory
 

@@ -1,7 +1,7 @@
 /*
  * include/port.h - contains INLINE-Functions for port access
  * 
- * $Id: port.h,v 2.2 1995/02/25 22:38:46 root Exp root $
+ * $Id: port.h,v 2.2 1995/02/25 22:38:46 root Exp $
  */
 
 #ifndef PORT_H

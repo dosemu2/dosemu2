@@ -27,7 +27,7 @@ all: $(COM) $(SYS)
 	rm -f $*.tmp $*.o
 
 checkin:
-	-ci $(SRC) $(EXE)
+	-ci -l $(SRC) $(EXE)
 
 checkout:
 	-co -M -l $(SRC) $(EXE)

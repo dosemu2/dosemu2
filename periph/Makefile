@@ -23,7 +23,7 @@ install:
 	install -m 0755 mkhdimage mkpartition getrom putrom /usr/lib/dosemu
 
 checkin:
-	-ci keyboard.c.diff hdinfo.c bootsect.S mkhdimage.c putrom.c mkpartition getrom Makefile
+	-ci -l keyboard.c.diff hdinfo.c bootsect.S mkhdimage.c putrom.c mkpartition getrom Makefile
 
 checkout:
 	-co -M -l keyboard.c.diff hdinfo.c bootsect.S mkhdimage.c putrom.c mkpartition getrom Makefile

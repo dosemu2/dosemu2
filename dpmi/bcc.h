@@ -3,6 +3,9 @@
  * Special hacks for running Borland\'s C++ compiler.
  *
  * $Log: bcc.h,v $
+ * Revision 1.1  1995/04/08  22:31:40  root
+ * Initial revision
+ *
  * Revision 1.1  1995/02/25  21:54:01  root
  * Initial revision
  *

@@ -37,6 +37,9 @@
  *
  * HISTORY:
  * $Log: mfs.c,v $
+ * Revision 2.12  1995/04/08  22:33:34  root
+ * Release dosemu0.60.0
+ *
  * Revision 2.11  1995/02/25  21:53:27  root
  * *** empty log message ***
  *
@@ -579,6 +582,7 @@ priv_off(void)
     if (!inited) {
 	euid = geteuid();
 	egid = getegid();
+	inited = 1;
     }
     if (seteuid(getuid()) || setegid(getgid())) {
 	error("MFS: Cannot disable privs!\n");

@@ -28,7 +28,7 @@ dosnet.o:  dosnet.c
 	-fomit-frame-pointer  -m486 -c -o dosnet.o dosnet.c 
 
 checkin:
-	-ci $(ALL) Makefile
+	-ci -l $(ALL) Makefile
 
 checkout:
 	-co -M -l $(ALL) Makefile

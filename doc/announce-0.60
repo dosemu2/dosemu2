@@ -16,6 +16,7 @@ many DOS applications.  These are capabilities of DOSEMU worth noting:
   - Graphics capability at the console with most compatible video cards.
   - Much-improved DPMI support.
   - Runs Borland BCC.EXE / TCC.EXE version 3.x command line compilers!
+  - Borlandc C++ 3.x IDE (with emumodule.o or kernel patch)
   - Runs several 32-bit DPMI-compilant video games, including DOS/4GW,
      at the Linux console.  A partial list of successfully tested games 
      includes DOOM2, Heretic, Descent, MK2, OMF2097, ROTT, and WarCraft!
@@ -40,16 +41,19 @@ This release could not have gotten out the door without the work of
 the our relentless development team and friends, currently consisting
 of at least:
 
-  Corey Sweeney         Jason Gorden          Dong Liu
-  Rob Jenneson          Jon Tombs             Aaron
-  Alan Hourihane        Ronnie                Karl Kiniger
-  Michael Deisher       Daniel R. Barrlow     Scott Buchholz
-  Christoph Niemann     Mark Rejhon           Theadore Tso
-  Lutz Molgedey         Larry Stephan         Derek Fawcus
-  Jochen Hein           Bob Amstadt           Alistair MacDonald    
-  Linus Torvalds        Alan Cox              Alessandro Rubini
-  Marty Leisner         James B. Maclean      
-
+  Jon Tombs            	Aaron			Karl Kiniger
+  Daniel R. Barrlow	Christoph Niemann	Theadore Tso
+  Derek Fawcus		Linus Torvalds		Alan Cox
+  Alessandro Rubini	Corey Sweeney		James Maclean
+  Hans Lermen		Andrew.Tridgell		Jochen Hein
+  Jason E Gorden	Lam Lai Yin, Savio	Alistair MacDonald
+  Lawrence K Mao	Ronnie			Mark Rejhon
+  Michael E. Deisher	Larry Stephan		Lutz Molgedey
+  Amit Margalt 		Marty Leisner 		Dong Liu
+  Scott Buchholz 	Tim Van der Linden 	John Davis
+  Kang-Jin Lee 		Matthew Grant 		David Hansen
+  John Kohl 		Kevin P Lawton 		Rod May	
+  Wayne P Meissner 	Vinod G Kulkarni 
 
 
 WHERE TO GET IT:

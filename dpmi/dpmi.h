@@ -70,7 +70,7 @@ typedef struct segment_descriptor_s
     unsigned int	used;		/* Segment in use by client # */
 } SEGDESC;
 
-#define MAX_SELECTORS	0x0800
+#define MAX_SELECTORS	8192
 
 extern SEGDESC Segments[];
 

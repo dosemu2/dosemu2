@@ -85,7 +85,7 @@
   to the specific I/O systems (video/keyboard/serial/etc...) to
   initialize them. Memory is cleared/set up and the boot sector is read
   from the boot drive. Many SIGNALS are set so that DOSEMU can exploit
-  things like timers, I/O signals, illegal instructions, etc...	When
+  things like timers, I/O signals, illegal instructions, etc... When
   every system gives the green light, vm86() is called to switch into
   vm86 mode and start executing i86 code.
 
@@ -104,74 +104,62 @@
 
   2.2.1.1.  jmp_emulate
 
-  This function allows the startup program `dos` to know how to call the
-  emulate function by way of the dll headers.  Always make sure that
-  this line is the first of emu.c and link emu.o as the first object
-  file to the lib
+  call the emulate function by way of the dll headers. Always make sure
+  that this line is the first of emu.c and link emu.o as the first
+  object file to the lib
 
 
 
   2.2.1.2.  run_vm86
 
-  Here is where DOSEMU runs VM86 mode with the vm86() call which also
-  has the registers that it will be called with. It will stop vm86 mode
-  for many reasons, like trying to execute an interrupt, doing port I/O
-  to ports not opened for I/O, etc ...
+  which also has the registers that it will be called with. It will stop
+  vm86 mode for many reasons, like trying to execute an interrupt, doing
+  port I/O to ports not opened for I/O, etc ...
 
 
 
   2.2.1.3.  SIG_int
 
-  Allow DOSEMU to be made aware when a hard interrupt occurs Requires
-  the sig/sillyint.o driver loaded (using NEW modules package), or a
-  kernel patch (implementing sig/int.c driver).	The IRQ numbers to
+  Requires the sig/sillyint.o driver loaded (using NEW modules package),
+  or a kernel patch (implementing sig/int.c driver).  The IRQ numbers to
   monitor are taken from config.sillyint, each bit corresponding to one
   IRQ. The higher 16 bit are defining the use of SIGIO
 
 
 
+
+
+
   2.2.1.4.  emulate
 
-
-  o  argc - Argument count.
-
-  o  argv - Arguments.
-
-     Emulate gets called from dos.c. It initializes DOSEMU to prepare it
-     for running in vm86 mode. This involves catching signals, preparing
-     memory, calling all the initialization functions for the I/O
-     subsystems (video/serial/etc...), getting the boot sector
-     instructions and calling vm86().
+  prepare it for running in vm86 mode. This involves catching signals,
+  preparing memory, calling all the initialization functions for the I/O
+  subsystems (video/serial/etc...), getting the boot sector instructions
+  and calling vm86().
 
 
 
-  2.2.1.5.  add_to_io_select
+  2.2.1.5.  io_select_init
 
-
-  o  fd - File handle to add to select statment.
-
-  o  want_sigio - Specifiy whether you want SIGIO (1) if it's available,
-     or
-
-  o  not (0).
-
-     Add file handle to one of 2 select FDS_SET's depending on whether
-     the kernel can handle SIGIO.
+  NON-SIGIO.
 
 
 
-  2.2.1.6.  remove_from_io_select
+  2.2.1.6.  add_to_io_select
 
 
-  o  fd - File handle to remove from select statment.
+  o  Specifiy whether you want SIGIO (1) if it's available, or not (0).
 
-  o  used_sigio - Specifiy whether you used SIGIO (1) if it's available,
-     or
-
-  o  not (0).
-
-     Remove a file handle from one of 2 select FDS_SET's depending on
      whether the kernel can handle SIGIO.
+
+
+
+  2.2.1.7.  remove_from_io_select
+
+
+  o  Specifiy whether you used SIGIO (1) if it's available, or not (0).
+
+     on whether the kernel can handle SIGIO.
 
 
 
@@ -181,19 +169,17 @@
   loaded at a higher address, at some time this could conflict with
   other shared libs. If DOSEMU is compiled statically (without shared
   libs), and org instruction is used to provide the jump above 1 meg.
-
   -----
 
   At this time we have to use SIGALRM in addition to SIGIO I don't (yet)
   know why the SIGIO signal gets lost sometimes (once per minute or
-  longer).  But if it happens, we can retrigger this way over SIGALRM.
-  Normally SIGIO happens before SIGALARM, so nothing hurts.  (Hans)
+  longer). But if it happens, we can retrigger this way over SIGALRM.
+  Normally SIGIO happens before SIGALARM, so nothing hurts. (Hans)
 
 
   2.2.3.  Items for Fixing in emu.c
 
   Apparently, nothing needs fixing in emu.c.
-
 
 
   2.2.4.  New Ideas for emu.c
@@ -209,7 +195,6 @@
   2.3.1.  Functions in include/emu.h
 
   These are the functions defined in include/emu.h.
-
 
   2.3.1.1.  NEWSETQSIG
 
@@ -259,9 +244,6 @@
   Apparently, there are no new ideas for include/emu.h.
 
 
-
-
-
   3.  The Clients group of Modules
 
   One of the long term aims of the DOSEMU development team is to provide
@@ -280,8 +262,6 @@
 
   We appear to have no information on the functions in
   clients/ncurses.c.
-
-
   3.1.2.  Remarks in clients/ncurses.c
 
   Apparently, no-one has anything interesting to say about
@@ -328,6 +308,7 @@
 
   These are the functions defined in dpmi/dpmi.c.
 
+
   4.1.1.1.  dpmi_control
 
   This function is similar to the vm86() syscall in the kernel and
@@ -341,6 +322,9 @@
   and software interrupts 0x1c, 0x23 and 0x24.	run_pm_int() switches to
   the locked protected mode stack and calls the handler. If no handler
   is installed the real mode interrupt routine is called.
+
+
+
 
 
 
@@ -457,9 +441,6 @@
   Apparently, nothing needs fixing in video/vc.c.
 
 
-
-
-
   5.1.4.  New Ideas for video/vc.c
 
   Apparently, there are no new ideas for video/vc.c.
@@ -479,9 +460,6 @@
 
   Set pointer to correct structure of functions to initialize, close,
   etc... video routines.
-
-
-
   5.2.2.  Remarks in video/video.c
 
   Here the sleeping lion will be awoken and eat much of CPU time !!!
@@ -544,6 +522,8 @@
   5.4.	video/console.c Information
 
   There appears to be no MODULE information for this file.
+
+
 
 
   5.4.1.  Functions in video/console.c
@@ -612,8 +592,6 @@
   The problem doesn't occur when I start dosemu from a telnet connection
   or from a VT100 terminal. (Erik Mouw, jakmouw@et.tudelft.nl)
 
-
-
   5.5.3.  Items for Fixing in video/dualmon.c
 
   Apparently, nothing needs fixing in video/dualmon.c.
@@ -653,9 +631,6 @@
   5.7.	video/hgc.c Information
 
   There appears to be no MODULE information for this file.
-
-
-
 
 
   5.7.1.  Functions in video/hgc.c
@@ -749,7 +724,6 @@
 
   Apparently, nothing needs fixing in video/terminal.c.
 
-
   5.10.4.  New Ideas for video/terminal.c
 
   Apparently, there are no new ideas for video/terminal.c.
@@ -790,6 +764,7 @@
 
   We appear to have no information on the functions in video/vga.c.
 
+
   5.12.2.  Remarks in video/vga.c
 
   Apparently, no-one has anything interesting to say about video/vga.c.
@@ -811,6 +786,7 @@
   All of the Keyboard handling code is in the "keyboard" subdirectory.
 
   Latest addition is SLANG.
+
 
 
 
@@ -856,6 +832,7 @@
   Apparently, no-one has anything interesting to say about
   keyboard/Xkeyb.c.
 
+
   6.2.3.  Items for Fixing in keyboard/Xkeyb.c
 
   Apparently, nothing needs fixing in keyboard/Xkeyb.c.
@@ -873,6 +850,9 @@
   be that of a 'Y' on a German keyboard. This way, all types of keyboard
   can be represented under DOSEMU. Also, the right ALT-key is often a
   function key in it's own right.
+
+
+
 
 
 
@@ -920,8 +900,6 @@
   Apparently, nothing needs fixing in keyboard/slang-termio.c.
 
 
-
-
   6.4.4.  New Ideas for keyboard/slang-termio.c
 
   Apparently, there are no new ideas for keyboard/slang-termio.c.
@@ -944,8 +922,6 @@
 
   We appear to have no information on the functions in
   dosemu/bios_emm.c.
-
-
   7.1.2.  Remarks in dosemu/bios_emm.c
 
   Apparently, no-one has anything interesting to say about
@@ -988,6 +964,7 @@
 
   Apparently, nothing needs fixing in dosemu/xms.c.
 
+
   7.2.4.  New Ideas for dosemu/xms.c
 
   Apparently, there are no new ideas for dosemu/xms.c.
@@ -1006,6 +983,8 @@
   7.3.1.1.  inb
 
   INB is used to do controlled emulation of input from ports.
+
+
 
 
 
@@ -1054,6 +1033,7 @@
 
   We appear to have no information on the functions in include/int.h.
 
+
   7.4.2.  Remarks in include/int.h
 
   Apparently, no-one has anything interesting to say about
@@ -1073,7 +1053,6 @@
   7.5.	include/ports.h Information
 
   There appears to be no MODULE information for this file.
-
 
   7.5.1.  Functions in include/ports.h
 
@@ -1117,9 +1096,6 @@
   Apparently, nothing needs fixing in dosemu/dosio.c.
 
 
-
-
-
   7.6.4.  New Ideas for dosemu/dosio.c
 
   Apparently, there are no new ideas for dosemu/dosio.c.
@@ -1140,6 +1116,7 @@
   The following is the master serial initialization function called
   externally (from this serial.c module) during DOSEMU startup. It
   initializes all the configured serial ports.
+
 
 
 
@@ -1250,8 +1227,6 @@
   Apparently, nothing needs fixing in dosemu/lpt.c.
 
 
-
-
   7.10.4.  New Ideas for dosemu/lpt.c
 
   Apparently, there are no new ideas for dosemu/lpt.c.
@@ -1274,6 +1249,7 @@
   8.1.1.  Functions in mouse/mouse.c
 
   These are the functions defined in mouse/mouse.c.
+
 
 
   8.1.1.1.  mouse_init
@@ -1318,6 +1294,7 @@
 
   We appear to have no information on the functions in bios/bios.S.
 
+
   9.1.2.  Remarks in bios/bios.S
 
   Apparently, no-one has anything interesting to say about bios/bios.S.
@@ -1336,6 +1313,7 @@
   10.  The PIC group of Modules
 
   All of the PIC handling code is in the "PIC" subdirectory.
+
 
 
 
@@ -1384,6 +1362,8 @@
   0x20 and 0x21; pic1 is on ports 0xa0 and 0xa1.  These functions take
   two arguements: a port number (0 or 1) and a value to be written.
 
+
+
   10.1.1.2.  read_pic0
 
   read_pic0 and read_pic1 return the values for the interrupt mask
@@ -1403,8 +1383,6 @@
   gate controlled by the OUT2 bit of the 16550A UART's Modem Control
   Register.  This mask is cleared by pic_unmaski() and set by
   pic_maski()
-
-
 
   10.1.1.4.  pic_seti
 
@@ -1441,12 +1419,12 @@
   will come.  Returns: 0 = complete, 1 = interrupt not run because it
   directly calls our "bios"   See run_timer_tick() in timer.c for an
   example To assure notification when the irq completes, we push flags,
-  ip, and cs here and fake cs:ip to INTE8_SEG,OFF.  This makes the irq
-  call interrupt e8 (which calls pic_return) when it completes.	int e8
-  then pops the real cs:ip from the stack.  This routine is RE-ENTRANT -
-  it calls run_irqs, which which may call an interrupt routine, which
-  may call do_irq().  Be Careful!  !!!!!!!!!!!!!!!!!!  No single
-  interrupt is ever re-entered.
+  ip, and cs here and fake cs:ip to PIC_SEG,OFF, where there is a hlt.
+  This makes the irq generate a sigsegv, which calls pic_iret when it
+  completes.  pic_iret then pops the real cs:ip from the stack.	This
+  routine is RE-ENTRANT - it calls run_irqs, which which may call an
+  interrupt routine, which may call do_irq().  Be Careful!
+  !!!!!!!!!!!!!!!!!!  No single interrupt is ever re-entered.
 
 
 
@@ -1484,24 +1462,12 @@
 
 
 
-  10.1.1.9.  pic_return
+  10.1.1.9.  pic_watch
 
-  pic_return is called by interrupt e8.	It does the same thing as
-  pic_iret, but expects cs:ip pointing to INTE8_ SEG,OFF instead.  DPMI
-  never calls this function since it uses his own stackframe to indicate
-  an iret.  / void pic_return() { unsigned short * tmp; /* if we've come
-  from the right place, cs:ip will point to the BIOS tmp =
-  SEG_ADR((short *),ss,sp)-3; if (INTE8_SEG == REG(cs)) if(INTE8_OFF+2
-  == LWORD(eip)) { if(pic_icount) if(!(--pic_icount)) {
-  pic_irr|=(pic_pirr& pic_isr); pic_pirr&= pic_irr; pic_wirr&= pic_irr;
-  /* clear watchdog timer */ REG(eflags)&= (VIP); } /* simulate an iret
-  (without the flags - they should be OK) Note that this stuff was
-  pushed on the stack before the irq began */ if(tmp0 == INTE8_SEG &&
-  tmp1 == INTE8_OFF) { LWORD(eip) == tmp3; REG(cs) == tmp4; LWORD(esp)
-  += 6; } } return; } pic_watch is a watchdog timer for pending
-  interrupts.  If pic_iret somehow fails to activate a pending interrupt
-  request for 2 consecutive timer ticks, pic_watch will activate them
-  anyway.  pic_watch is called by do_irq0, the timer interrupt routine.
+  pic_watch is a watchdog timer for pending interrupts.	If pic_iret
+  somehow fails to activate a pending interrupt request for 2
+  consecutive timer ticks, pic_watch will activate them anyway.
+  pic_watch is called by do_irq0, the timer interrupt routine.
 
 
 
@@ -1515,6 +1481,7 @@
   10.1.2.  Remarks in pic/pic.c
 
   Apparently, no-one has anything interesting to say about pic/pic.c.
+
 
   10.1.3.  Items for Fixing in pic/pic.c
 
@@ -1546,12 +1513,61 @@
   Apparently, nothing needs fixing in pic/pic.h.
 
 
+
+
+
   10.2.4.  New Ideas for pic/pic.h
 
   Apparently, there are no new ideas for pic/pic.h.
 
 
-  11.  And Finally ...
+  11.  The Shared group of Modules
+
+  All code being created to allow sharing of DOSEMU related information
+  between separate running process is found here. This is headed in the
+  direction of supporting DOSEMU in a client/server format.
+
+
+
+
+  11.1.	dosemu/shared.c Information
+
+  Memory areas needed to be shared between the DOSEMU process and other
+  clients.
+
+
+
+  11.1.1.  Functions in dosemu/shared.c
+
+  These are the functions defined in dosemu/shared.c.
+
+
+  11.1.1.1.  shared_qf_memory_init
+
+  Setup all memory areas to be shared with clients.
+
+
+
+  11.1.2.  Remarks in dosemu/shared.c
+
+  Set to 0 all client request area
+
+  -----
+
+  Output info required for client activity
+
+
+  11.1.3.  Items for Fixing in dosemu/shared.c
+
+  Apparently, nothing needs fixing in dosemu/shared.c.
+
+
+  11.1.4.  New Ideas for dosemu/shared.c
+
+  Apparently, there are no new ideas for dosemu/shared.c.
+
+
+  12.  And Finally ...
 
   The Following items are used to delimit the text used to create this
   file.	Whilst it is not necessary to know this, they are included
@@ -1564,87 +1580,3 @@
   DANG_BEGIN_FUNCTION / DANG_END_FUNCTION This brackets a description of
   functions (good this, isn't it!)  Not every function needs to be
   described in this way - just the major ones.
-
-  DANG_BEGIN_REMARK / DANG_END_REMARK This brackets descriptions of
-  obscure items, like data structures and architecture.
-
-  DANG_FIXTHIS This is a one line item, indicating a an area requiring a
-  fix, or redesign.
-
-  DANG_BEGIN_NEWIDEA / DANG_END_NEWIDEA New Ideas Start Here! As Ideas
-  are proposed, that get added with their description, so that future
-  generations can laugh at or code the ideas ..... These bracket the
-  idea description.
-
-  DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG Changelogs - very useful for
-  bug fixing, and avvailable for use with DPR (or that's the theory)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

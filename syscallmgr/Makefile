@@ -52,7 +52,7 @@ insmod:	insmod.c
 	$(CC) -m486 -Wall $(INCDIR) -O6 insmod.c -o insmod
 
 checkin:
-	-ci $(ALL) Makefile
+	-ci -l $(ALL) Makefile
 
 checkout:
 	-co -M -l $(ALL) Makefile

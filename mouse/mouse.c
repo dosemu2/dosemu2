@@ -1,12 +1,15 @@
 /* mouse.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1995/02/25 21:54:24 $
+ * $Date: 1995/04/08 22:34:58 $
  * $Source: /home/src/dosemu0.60/mouse/RCS/mouse.c,v $
- * $Revision: 2.18 $
+ * $Revision: 2.19 $
  * $State: Exp $
  *
  * $Log: mouse.c,v $
+ * Revision 2.19  1995/04/08  22:34:58  root
+ * Release dosemu0.60.0
+ *
  * Revision 2.18  1995/02/25  21:54:24  root
  * *** empty log message ***
  *
@@ -158,9 +161,7 @@
 #include "port.h"
 #include "termio.h"
 
-#ifdef DPMI
 #include "dpmi.h"
-#endif
 
 #include "vc.h"
 #include "port.h"
@@ -1309,10 +1310,8 @@ mouse_event()
 
     REG(ds) = *mouse.csp;	/* put DS in user routine */
 
-#ifdef DPMI    
     if (in_dpmi && REG(cs) == DPMI_SEG && REG(eip) == DPMI_mouse_callback)
 	run_pm_mouse();
-#endif
     
     m_printf("MOUSE: event %d, x %d ,y %d, mx %d, my %d, b %x\n",
 	     mouse_events, mouse.x, mouse.y, mouse.maxx, mouse.maxy, LWORD(ebx));

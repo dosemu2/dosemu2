@@ -13,12 +13,15 @@
  * DANG_END_MODULE
  * DANG_BEGIN_CHANGELOG
  *
- * $Date: 1995/02/25 22:37:50 $
+ * $Date: 1995/04/08 22:30:40 $
  * $Source: /home/src/dosemu0.60/dosemu/RCS/xms.c,v $
- * $Revision: 2.9 $
+ * $Revision: 2.10 $
  * $State: Exp $
  *
  * $Log: xms.c,v $
+ * Revision 2.10  1995/04/08  22:30:40  root
+ * Release dosemu0.60.0
+ *
  * Revision 2.9  1995/02/25  22:37:50  root
  * *** empty log message ***
  *
@@ -148,7 +151,7 @@ static int umb_find_unused(void);
  * the 1 MEG mark.  ugly.  fix this.
  */
 
-static char RCSxms[] = "$Header: /home/src/dosemu0.60/dosemu/RCS/xms.c,v 2.9 1995/02/25 22:37:50 root Exp root $";
+static char RCSxms[] = "$Header: /home/src/dosemu0.60/dosemu/RCS/xms.c,v 2.10 1995/04/08 22:30:40 root Exp root $";
 
 #define	 XMS_GET_VERSION		0x00
 #define	 XMS_ALLOCATE_HIGH_MEMORY	0x01

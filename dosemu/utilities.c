@@ -1,7 +1,7 @@
 /* 
  * Various sundry utilites for dos emulator.
  *
- * $Id: utilities.c,v 1.1 1995/02/25 22:38:05 root Exp root $
+ * $Id: utilities.c,v 1.2 1995/04/08 22:30:40 root Exp root $
  */
 #include <stdio.h>
 #include <stdarg.h>

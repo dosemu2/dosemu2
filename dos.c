@@ -12,9 +12,9 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
- * $Date: 1995/02/05 16:51:10 $
+ * $Date: 1995/04/08 22:29:37 $
  * $Source: /home/src/dosemu0.60/RCS/dos.c,v $
- * $Revision: 2.9 $
+ * $Revision: 2.10 $
  * $State: Exp $
  *
  *
@@ -56,11 +56,14 @@ main(int argc, char **argv)
   struct exec header;
   FILE *f;
   char *libpath = LIBDOSEMU; 
+
+#if 0 /* Security hole */
   char *cp;
 
   cp = (unsigned char  *)getenv("LIBDOSEMU");
   if(cp) 
 	libpath = cp;
+#endif
 
 
   f = fopen(libpath, "r");

@@ -21,12 +21,15 @@
  *
  * DANG_END_MODULE
  *
- * $Date: 1995/02/25 22:37:51 $
+ * $Date: 1995/04/08 22:30:40 $
  * $Source: /home/src/dosemu0.60/dosemu/RCS/timers.c,v $
- * $Revision: 2.4 $
+ * $Revision: 2.5 $
  * $State: Exp $
  *
  * $Log: timers.c,v $
+ * Revision 2.5  1995/04/08  22:30:40  root
+ * Release dosemu0.60.0
+ *
  * Revision 2.4  1995/02/25  22:37:51  root
  * *** empty log message ***
  *

@@ -14,10 +14,8 @@ int vm86_fault_count=0;
 int vm86_trap_count[8]={0};
 int vm86_count_sti=0;
 int vm86_count_cli=0;  
-#ifdef _DPMI_MODULE_
 int signalret_count=0;
 int sys_ldt_count=0;
-#endif
 #endif
 
 #else  /* NOT _EMUMOD_itself */
@@ -42,16 +40,11 @@ void handle_vm86_trap(struct vm86_regs * regs, long error_code, int trapno);
 #define sys_vm86 _TRANSIENT_sys_vm86
 asmlinkage int _TRANSIENT_sys_vm86(struct vm86_struct * v86);
 
-#ifdef _DPMI_MODULE_
+#define sys_sigreturn  _TRANSIENT_sys_sigreturn
+asmlinkage int _TRANSIENT_sys_sigreturn(unsigned long __unused);
 
-  #define sys_sigreturn  _TRANSIENT_sys_sigreturn
-  asmlinkage int _TRANSIENT_sys_sigreturn(unsigned long __unused);
-
-  #define sys_modify_ldt  _TRANSIENT_sys_modify_ldt
-  asmlinkage int _TRANSIENT_sys_modify_ldt(int func, void *ptr, unsigned long bytecount);
-
-#endif
-
+#define sys_modify_ldt  _TRANSIENT_sys_modify_ldt
+asmlinkage int _TRANSIENT_sys_modify_ldt(int func, void *ptr, unsigned long bytecount);
 
 #endif /* _EMUMOD_itself */
 

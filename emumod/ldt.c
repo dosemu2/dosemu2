@@ -4,7 +4,7 @@
  * Copyright (C) 1992 Krishna Balasubramanian and Linus Torvalds
  *
  *  This is a "patch-module" against Linux-1.2.1 and this is
- *  Copyright (C) 1995 Lutz Molgedey <lutz@sp4.physik.hu-berlin.de>
+ *  Copyright (C) 1995 Lutz Molgedey <lutz@summa.physik.hu-berlin.de>
  *
  *  Module implementation is
  *  Copyright (C) 1995 Hans Lermen <lermen@elserv.ffm.fgan.de> 

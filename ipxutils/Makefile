@@ -23,7 +23,7 @@ $(BINS): $(CFILES)
 	$(CC) -o $@ $@.c 
 
 checkin:
-	-ci $(ALL) Makefile
+	-ci -l $(ALL) Makefile
 
 checkout:
 	-co -M -l $(ALL) Makefile

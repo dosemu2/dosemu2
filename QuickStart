@@ -13,7 +13,7 @@ Kernel:
 - If you are running 1.1.59, you should upgrade to version 1.2.2.  There 
   are known disk access bugs through the mid 1.1.60's which are known to
   cause file corruption.
-- The kernel must be compiled with System V IPC enabled
+- The kernel _must_ be compiled with System V IPC enabled
 
 GCC:
 - At least GCC 2.5.8

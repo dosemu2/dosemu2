@@ -1,7 +1,7 @@
 #define EXTERN 
 #define INIT(x...)		=  ## x
 
-static char *id= "$Id: data.c,v 1.3 1995/02/25 22:38:20 root Exp root $";
+static char *id= "$Id: data.c,v 1.4 1995/04/08 22:29:37 root Exp root $";
 
 #include <termios.h>
 #include <sys/types.h>

@@ -25,9 +25,7 @@
 #include "ipx.h"
 #endif
 
-#ifdef DPMI
 #include "dpmi.h"
-#endif
 
 extern void scan_to_buffer(void);
 
@@ -146,15 +144,13 @@ static int dos_helper(void)
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: 1995/02/25 22:37:48 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: 1995/04/08 22:30:40 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
     p_dos_str("Bugs, Patches & New Code to linux-msdos@vger.rutgers.edu\n\n");
-#ifdef DPMI
     if (config.dpmi)
       p_dos_str("DPMI-Server Version 0.9 installed\n\n");
-#endif
     break;
 
   case 6:			/* Do inline int09 insert_into_keybuffer() */
@@ -949,7 +945,6 @@ static void int2f(u_char i)
     break;
 #endif
 
-#ifdef DPMI
   case 0x1687:            /* Call for getting DPMI entry point */
     dpmi_get_entry_point();
     return;
@@ -969,7 +964,6 @@ static void int2f(u_char i)
 #endif    
     break;
 
-#endif
   }
 
   switch (HI(ax)) {

@@ -47,6 +47,9 @@
  *
  * HISTORY: (DANG_BEGIN_CHANGELOG
  * $Log: emm.c,v $
+ * Revision 1.3  1995/04/08  22:30:40  root
+ * Release dosemu0.60.0
+ *
  * Revision 1.2  1995/02/25  21:53:12  root
  * *** empty log message ***
  *

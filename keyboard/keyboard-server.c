@@ -16,10 +16,13 @@
  * DANG_BEGIN_CHANGELOG
  *
  * $$
- * $Source:$
- * $Revision:$
- * $State:$
- * $Log: $
+ * $Source: /home/src/dosemu0.60/keyboard/RCS/keyboard-server.c,v $
+ * $Revision: 1.1 $
+ * $State: Exp $
+ * $Log: keyboard-server.c,v $
+ * Revision 1.1  1995/04/08  22:34:30  root
+ * Initial revision
+ *
  * DANG_END_CHANGELOG
  */
 

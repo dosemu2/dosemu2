@@ -30,6 +30,9 @@
  *
  * HISTORY:
  * $Log: machcompat.h,v $
+ * Revision 2.4  1995/04/08  22:35:19  root
+ * Release dosemu0.60.0
+ *
  * Revision 2.3  1995/02/25  22:38:43  root
  * *** empty log message ***
  *
@@ -286,6 +289,9 @@ typedef int onoff_t;
  *
  * HISTORY:
  * $Log: machcompat.h,v $
+ * Revision 2.4  1995/04/08  22:35:19  root
+ * Release dosemu0.60.0
+ *
  * Revision 2.3  1995/02/25  22:38:43  root
  * *** empty log message ***
  *

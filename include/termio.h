@@ -3,12 +3,15 @@
 #define TERMIO_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1995/02/25 22:38:48 $
+ * $Date: 1995/04/08 22:35:19 $
  * $Source: /home/src/dosemu0.60/include/RCS/termio.h,v $
- * $Revision: 1.4 $
+ * $Revision: 1.5 $
  * $State: Exp $
  *
  * $Log: termio.h,v $
+ * Revision 1.5  1995/04/08  22:35:19  root
+ * Release dosemu0.60.0
+ *
  * Revision 1.4  1995/02/25  22:38:48  root
  * *** empty log message ***
  *

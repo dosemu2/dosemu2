@@ -38,9 +38,7 @@
 /* #include <sys/vm86.h> */
 #include "cpu.h"
 #include "emu.h"
-#ifdef DPMI
 #include "../dpmi/dpmi.h"
-#endif
 #undef us
 #define us unsigned
 void timer_tick(void);
@@ -464,20 +462,13 @@ int do_irq()
 #ifndef PICTEST
     if(pic_ilevel==PIC_IRQ9)      /* unvectored irq9 just calls int 0x1a.. */
       if(!IS_REDIRECTED(intr)) {intr=0x1a;pic1_isr&= 0xffef;} /* & one EOI */
-#ifdef DPMI
     if(IS_REDIRECTED(intr)||pic_ilevel<=PIC_IRQ1||in_dpmi)
-#else
-    if(IS_REDIRECTED(intr)||pic_ilevel<=PIC_IRQ1)
-#endif
     {
 #endif
 
-#ifdef DPMI
      if (in_dpmi) {
       run_pm_int(intr);
-     } else
-#endif
-     {
+     } else {
       pic_cli();
       tmp = SEG_ADR((short *),ss,sp)-3;
       tmp[2] = LWORD(eflags);
@@ -492,11 +483,9 @@ int do_irq()
       pic_icount++;
       while(!fatalerr && test_bit(pic_ilevel,&pic_isr))
       {
-#ifdef DPMI
 	if (in_dpmi )
 	  run_dpmi();
 	else
-#endif
           run_vm86();
         pic_isr &= PIC_IRQALL;    /*  levels 0 and 16-31 are Auto-EOI  */
         run_irqs();
@@ -556,10 +545,6 @@ int inum;
   else
     pic_irr|=(1<<inum);
 
-#ifdef DPMI
-  if (in_dpmi) D_printf("DPMI: pic_request(0x%02x) set isr=%x, irr=%x, pirr=%x, ilevel=%x\n", inum, pic_isr, pic_irr, pic_pirr, pic_ilevel);
-#endif
-
   return;
 }
 
@@ -588,7 +573,6 @@ pic_iret()
 {
 unsigned short * tmp;
 
-#ifdef DPMI
   if(in_dpmi) {
     if(pic_icount) 
       if(!(--pic_icount)) {
@@ -599,7 +583,6 @@ unsigned short * tmp;
       } 
   return;
   }
-#endif
 
 /* if we've really come from an iret, cs:ip will have just been popped */
 tmp = SEG_ADR((short *),ss,sp)-3;

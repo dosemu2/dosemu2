@@ -22,7 +22,7 @@
    is simulated in the PIC code if IRQ9 points to the bios segment.)  For
    this reason there is no PIC_IRQ2.
   
-   $Id: pic.h,v 2.4 1995/02/25 22:38:09 root Exp root $
+   $Id: pic.h,v 1.2 1995/04/08 22:35:19 root Exp root $
 */
    
 /* Valuse from 16 - 31 are available for assignment if not already 

@@ -20,6 +20,9 @@
  * DANG_BEGIN_CHANGELOG
  *
  *	$Log: dos2linux.c,v $
+ * Revision 1.1  1995/04/08  22:30:40  root
+ * Initial revision
+ *
  * Revision 1.2  1995/03/24  14:10:47  leisner
  * added exchange_ids around system call
  *
@@ -28,7 +31,7 @@
  *
  * DANG_END_CHANGELOG
  *
- * $Id: dos2linux.c,v 1.2 1995/03/24 14:10:47 leisner Exp leisner $
+ * $Id: dos2linux.c,v 1.1 1995/04/08 22:30:40 root Exp root $
  */
 
 

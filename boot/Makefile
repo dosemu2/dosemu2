@@ -14,7 +14,7 @@ boot: boot.o
 	rm boot.tmp
 
 checkin:
-	-ci boot.S Makefile
+	-ci -l boot.S Makefile
 checkout:
 	-co -M -l boot.S Makefile
 

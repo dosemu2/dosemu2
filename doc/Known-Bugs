@@ -1,0 +1,40 @@
+This is a list of currently known bugs in Dosemu0.53pl58:
+
+- The documentation is known to be well out of date.
+
+- The documentation is known to be well out of date.
+
+- The documentation is known to be well out of date.
+
+- Sound Blaster, Gravis UltraSound, and other sound cards will NOT work
+
+- If you seem to be getting corrupt files, try switching away from Linux
+  v1.1.50-v1.1.65, since there are known disk access bugs.
+
+- DPMI emulation is known to be somewhat buggy.
+
+- Some video BIOS will start very slowly with the serial ports enabled.
+
+- If you are having troubles with EMS, try moving your page frame or
+  disabling umb_max if it is set to 'on'.
+
+- Programs (like MFT.EXE from QEMM) may crash due to inadequate timer
+  resolution.
+
+- There are known problems with xdos (e.g. it may not work at all for you.)
+
+- xdos sessions accessed from remote, non-Linux X-sessions (e.g. SUN stations
+  and others) may not work correctly.
+
+- Quattro Pro for DOS is rumored not to work (anyone with a copy willing to
+  look into why?)
+
+- The internal mouse driver is known to have problems.
+
+- Windows 3.1 will not run very well.  We do NOT recommend running it.
+
+- There may be periodic "internal stack overflows" using the mouse,
+  especially under Windows (correct, all?)
+
+- Running a protected mode 'make' and a protected mode compiler (e.g.
+  Borland's) may not work.  Try switching to a real mode make.

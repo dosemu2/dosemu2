@@ -1,10 +1,13 @@
 /* 
- * $Date: 1995/02/26 00:54:47 $
+ * $Date: 1995/04/08 22:30:40 $
  * $Source: /home/src/dosemu0.60/dosemu/RCS/sigsegv.c,v $
- * $Revision: 2.19 $
+ * $Revision: 2.20 $
  * $State: Exp $
  *
  * $Log: sigsegv.c,v $
+ * Revision 2.20  1995/04/08  22:30:40  root
+ * Release dosemu0.60.0
+ *
  * Revision 2.19  1995/02/26  00:54:47  root
  * *** empty log message ***
  *
@@ -125,7 +128,7 @@
  */
 
 
-static char rcsid[]="$Id: sigsegv.c,v 2.19 1995/02/26 00:54:47 root Exp root $";
+static char rcsid[]="$Id: sigsegv.c,v 2.20 1995/04/08 22:30:40 root Exp root $";
 
 #include <stdio.h>
 #include <termios.h>
@@ -158,9 +161,7 @@ static char rcsid[]="$Id: sigsegv.c,v 2.19 1995/02/26 00:54:47 root Exp root $";
 
 #include "pic.h"
 
-#ifdef DPMI
 #include "dpmi.h"
-#endif
 
 #ifdef USING_NET
 #include "ipx.h"
@@ -774,14 +775,13 @@ void vm86_GP_fault(void)
       pic_iret();
     }
 
-#ifdef DPMI
     else if ((lina >=(unsigned char *)DPMI_ADD) &&
 	(lina <(unsigned char *)(DPMI_ADD+(unsigned long)DPMI_dummy_end-(unsigned long)DPMI_dummy_start)))
     {
       dpmi_realmode_hlt(lina);
       break;
     }
-#endif /* DPMI */
+
     else {
 #if 1
       error("HLT requested: lina=%p!\n", lina);
@@ -868,10 +868,8 @@ dosemu_fault(int signal, struct sigcontext_struct context)
     }
   }
 
-#ifdef DPMI
   if (in_dpmi)
     return dpmi_fault(&context);
-#endif
 
   csp = (char *) _eip;
 

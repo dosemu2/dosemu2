@@ -11,12 +11,15 @@
  * taken over by:
  *          Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1995/02/25 22:37:53 $
+ * $Date: 1995/04/08 22:30:40 $
  * $Source: /home/src/dosemu0.60/dosemu/RCS/cpu.c,v $
- * $Revision: 2.13 $
+ * $Revision: 2.14 $
  * $State: Exp $
  *
  * $Log: cpu.c,v $
+ * Revision 2.14  1995/04/08  22:30:40  root
+ * Release dosemu0.60.0
+ *
  * Revision 2.13  1995/02/25  22:37:53  root
  * *** empty log message ***
  *
@@ -233,9 +236,7 @@
 
 #include "vc.h"
 
-#ifdef DPMI
 #include "../dpmi/dpmi.h"
-#endif
 
 extern void xms_control(void);
 

@@ -1,6 +1,9 @@
-/* $Id: parser.y,v 1.11 1995/02/05 16:53:16 root Exp root $ 
+/* $Id: parser.y,v 1.12 1995/04/08 22:34:19 root Exp root $ 
  *
  * $Log: parser.y,v $
+ * Revision 1.12  1995/04/08  22:34:19  root
+ * Release dosemu0.60.0
+ *
  * Revision 1.11  1995/02/05  16:53:16  root
  * Prep for Scotts patches.
  *
@@ -980,7 +983,7 @@ static void start_terminal(void)
   config.term_updatefreq = 4;
   config.term_charset = CHARSET_LATIN;
   config.term_color = 1;
-   config.term_esc_char = 20;	       /* Ctrl-^ */
+   config.term_esc_char = 30;	       /* Ctrl-^ */
    /* config.term_corner = 1; */
 }
 

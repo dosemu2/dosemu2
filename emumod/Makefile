@@ -14,22 +14,13 @@ ifndef INCDIR
   INCDIR=-I/usr/include/ncurses -I../include -I..
 endif
 
-ifndef DPMI_MODULE
-DPMI_MODULE=-D_DPMI_MODULE_
+ifndef WANT_WINDOWS
 WANT_WINDOWS=-DWANT_WINDOWS
-else
-  ifdef WANT_WINDOWS
-    ifndef DPMI_MODULE
-      DPMI_MODULE=-D_DPMI_MODULE_
-    endif
-  endif
 endif
 
 # let gcc do extended checking
 
-
-
-KCFLAGS=-Wall -I$(USRSRCDIR) $(INCDIR)  -O2 -fomit-frame-pointer  -D__KERNEL__ -DLINUX $(DPMI_MODULE) $(WANT_WINDOWS)
+KCFLAGS=-Wall -I$(USRSRCDIR) $(INCDIR)  -O2 -fomit-frame-pointer  -D__KERNEL__ -DLINUX $(WANT_WINDOWS)
  
 ifeq (/usr/include/linux/segment.h,$(wildcard /usr/include/linux/segment.h))
 EXTRA_HEADERS=-DEXTRA_HEADERS
@@ -38,14 +29,10 @@ endif
 
 # ANSI isn't possible right now, because some header-file aren't ANSI
 
-CFILES = vm86.c traps.c emumod.c emusys.c
+CFILES = vm86.c traps.c emumod.c emusys.c signal.c ldt.c
 SFILES = fastsys.S
 HFILES = emumod.h
-OFILES = vm86.o traps.o emumod.o emusys.o
-ifdef DPMI_MODULE
-CFILES += signal.c ldt.c
-OFILES += signal.o ldt.o
-endif
+OFILES = vm86.o traps.o emumod.o emusys.o signal.o ldt.o
 KVFILE = ../include/kversion.h
 
 # Insert all source- and header-files here.
@@ -54,10 +41,7 @@ ALL = $(CFILES) $(HFILES) $(SFILES) README.emumod
 
 # All object-files are included here.
 
-OBJS= vm86.o traps.o emumod.o fastsys.o emusys.o
-ifdef DPMI_MODULE
-OBJS += signal.o ldt.o
-endif
+OBJS= vm86.o traps.o emumod.o fastsys.o emusys.o signal.o ldt.o
  
 all: $(OBJS) emumodule.o
 
@@ -71,15 +55,11 @@ vm86.o:  vm86.c emumod.h ${KVFILE}
 #	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c vm86.c -o vm86.o
 	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_ -DJONS_VM86_TIME -c vm86.c -o vm86.o
 
-ifdef DPMI_MODULE
-
 signal.o:  signal.c emumod.h ${KVFILE}
 	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c signal.c -o signal.o
 
 ldt.o:  ldt.c emumod.h ${KVFILE}
 	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c ldt.c -o ldt.o
-
-endif
 
 emumod.o:  emumod.c emumod.h ${KVFILE}
 	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c emumod.c -o emumod.o
@@ -94,7 +74,7 @@ fastsys.o: fastsys.S ${KVFILE}
 	$(CC) ${KCFLAGS} -c -D__ASSEMBLY__  fastsys.S -o fastsys.o
 
 checkin:
-	-ci $(ALL) Makefile
+	-ci -l $(ALL) Makefile
 
 checkout:
 	-co -M -l $(ALL) Makefile

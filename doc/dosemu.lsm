@@ -21,7 +21,8 @@ Alternate-site: sunsite.unc.edu /pub/Linux/system/Emulators
                 dspsun.eas.asu.edu /pub/dosemu
 
 Platform:       Linux 1.1.31+  IPC required, IPX optional.
-                Included kernel patch required to run Windows 3.1 in DOSEMU.
+                Included kernel patch required to run Borlandc C++ 3.x IDE
+		in DOSEMU.
 
 Copying-policy: Freely distributable.  Some GPL and non-GPL copyrights.
 End

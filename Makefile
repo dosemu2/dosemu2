@@ -1,8 +1,8 @@
 # Makefile for Linux DOSEMU
 #
-# $Date: 1995/02/05 16:50:57 $
+# $Date: 1995/04/08 22:29:17 $
 # $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.39 $
+# $Revision: 2.40 $
 # $State: Exp $
 #
 # You should do a "make" to compile and a "make install" as root to
@@ -127,8 +127,8 @@ DEPENDS = dos.d emu.d
 
 # dosemu version
 VERSION = 0
-SUBLEVEL = 53
-PATCHLEVEL = 59
+SUBLEVEL = 60
+PATCHLEVEL = 0
 LIBDOSEMU = libdosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
 
 EMUVER = $(VERSION).$(SUBLEVEL)
@@ -159,13 +159,6 @@ CONFIG_FILE = -DCONFIG_FILE=\"/etc/dosemu.conf\"
 DOSEMU_USERS_FILE = -DDOSEMU_USERS_FILE=\"/etc/dosemu.users\"
 
 ###################################################################
-
-# Uncomment for DPMI support
-# it is for the makefile and also for the C compiler
-DPMI=-DDPMI
-# ???
-
-###################################################################
 #
 #  Section for Client areas (why not?)
 #
@@ -179,11 +172,7 @@ else
 OPTIONALSUBDIRS =examples v-net ipxutils
 endif
 
-LIBSUBDIRS= video dosemu pic mfs init keyboard mouse $(NET) $(IPX) drivers
-
-ifdef DPMI
-LIBSUBDIRS+= dpmi
-endif
+LIBSUBDIRS= video dosemu pic dpmi mfs init keyboard mouse $(NET) $(IPX) drivers
 
 SUBDIRS= include boot \
 	$(CLIENTSSUB) kernel
@@ -242,20 +231,16 @@ export INCDIR
 
 
 
-# if DPMI is there, use it
 # -m486 is usually in the specs for the compiler
 OPT=  -O2 -funroll-loops # -fno-inline
 # OPT=-fno-inline
 PIPE=-pipe
 export CFLAGS     = $(OPT) $(PIPE) $(USING_NET)
-CFLAGS+=$(DPMI) $(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
+CFLAGS+=$(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
 CFLAGS+=$(PATH_LOCKD) $(NAME_LOCKF)
 CFLAGS+=$(X86_EMULATOR_FLAGS)
 ifdef REQUIRES_EMUMODULE
    CFLAGS+=$(REQUIRES_EMUMODULE)
-  ifdef DPMI
-    CFLAGS+=-D_DPMI_MODULE_
-  endif
 endif
 
 # set for DPMI want windows

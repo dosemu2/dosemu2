@@ -89,6 +89,9 @@ typedef struct vm86_regs state_t;
  *
  * HISTORY:
  * $Log: mfs.h,v $
+ * Revision 2.3  1995/04/08  22:33:34  root
+ * Release dosemu0.60.0
+ *
  * Revision 2.2  1995/02/25  22:38:15  root
  * *** empty log message ***
  *

@@ -9,11 +9,14 @@
  *
  * First Attempted by Dong Liu,  dliu@rice.njit.edu
  *
- * $Log$
+ * $Log: msdos.h,v $
+ * Revision 1.1  1995/04/08  22:31:40  root
+ * Initial revision
+ *
  */
 
 #ifndef lint
-static char *rcsid = "$Header$";
+static char *rcsid = "$Header: /home/src/dosemu0.60/dpmi/msdos.h,v 1.1 1995/04/08 22:31:40 root Exp root $";
 #endif
 
 enum { ES_INDEX = 0, CS_INDEX = 1, SS_INDEX = 2,  DS_INDEX = 3,
@@ -223,18 +226,18 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	switch (_HI(ax)) {
 	    /* first see if we don\'t need to go to real mode */
 	case 0x25:		/* set vector */
-	    Interrupt_Table[current_client][_LO(ax)].selector = _ds;
+	    Interrupt_Table[_LO(ax)].selector = _ds;
 	    if (DPMIclient_is_32)
-	      Interrupt_Table[current_client][_LO(ax)].offset = _edx;
+	      Interrupt_Table[_LO(ax)].offset = _edx;
 	    else
-	      Interrupt_Table[current_client][_LO(ax)].offset = _LWORD(edx);
+	      Interrupt_Table[_LO(ax)].offset = _LWORD(edx);
 	    D_printf("DPMI: int 21,ax=0x%04x, ds=0x%04x. dx=0x%04x\n",
 		     _LWORD(eax), _ds, _LWORD(edx));
 	    in_dos_21--;
 	    return 1;
 	case 0x35:	/* Get Interrupt Vector */
-	    _es = Interrupt_Table[current_client][_LO(ax)].selector;
-	    _ebx = Interrupt_Table[current_client][_LO(ax)].offset;
+	    _es = Interrupt_Table[_LO(ax)].selector;
+	    _ebx = Interrupt_Table[_LO(ax)].offset;
 	    D_printf("DPMI: int 21,ax=0x%04x, es=0x%04x. bx=0x%04x\n",
 		     _LWORD(eax), _es, _LWORD(ebx));
 	    in_dos_21--;

@@ -1,5 +1,5 @@
 # major portion of dosemu
-# $Id: Makefile,v 1.2 1995/02/05 16:52:03 root Exp root $
+# $Id: Makefile,v 1.3 1995/04/08 22:30:40 root Exp root $
 CFILES=cmos.c xms.c timers.c cpu.c dosio.c emm.c lpt.c serial.c \
 	shared.c dyndeb.c disks.c sigsegv.c detach.c int.c signal.c \
 	utilities.c dos2linux.c

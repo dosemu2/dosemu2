@@ -24,6 +24,9 @@
  *
  *
  * $Log: serial.h,v $
+ * Revision 2.4  1995/04/08  22:35:19  root
+ * Release dosemu0.60.0
+ *
  *
  * This is a summary of older serial.h changes, which may be deleted soon:
  *

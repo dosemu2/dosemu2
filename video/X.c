@@ -1,5 +1,5 @@
 /* 
- * $Id: X.c,v 1.11 1995/02/25 21:54:27 root Exp $
+ * $Id: X.c,v 1.12 1995/04/08 22:30:27 root Exp root $
  */
 
 #include <stdio.h>

@@ -224,7 +224,7 @@ keyboard interrupts.\nIt is a bit unstable, but makes keyboard work better \
 when set to \"on\".\nRAWKEYBOARD : allows for accurate keyboard emulation for \
 DOS programs." 11 75 2\
    1 keybint on \
-   2 rawkeyboard on 2> $TEMP
+   2 rawkeyboard off 2> $TEMP
 
 check_status
 
@@ -243,7 +243,7 @@ dialog --title "HOGTHRESHOLD" --inputbox "If DOSEMU speed is unimportant, \
 and CPU time is very valuable to you,\n\
 you may want to set HogThreshold to a non-zero value.  This means\n\
 the number of keypress requests in a row before CPU time is given\n\
-away from DOSEMU.  A good value to use could be 10000.\n\
+away from DOSEMU.  A good value to use could be 10.\n\
 A zero disables CPU hogging detection via keyboard requests." 12 75 2>$TEMP
 
 check_status
@@ -473,7 +473,7 @@ esac
 echo -n "console  "  >> $CONFIG
 
 dialog  --title "VIDEO" --checklist "graphics ?" 8 30 1\
-   1 "graphics on" on 2> $TEMP
+   1 "graphics off" off 2> $TEMP
 
 
 check_status

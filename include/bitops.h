@@ -5,7 +5,7 @@
  * function and removed the "extern"s (in the i386 part) for convenience.
  * If I can figure out how to use Linus' bitops.h directly, I'll reduce
  * this file to an #include and just my added function. For now, this
- * works. -JLS $Id: bitops.h,v 2.3 1995/02/25 22:38:08 root Exp root $
+ * works. -JLS $Id: bitops.h,v 1.1 1995/04/08 22:35:19 root Exp root $
  * 
  */
 

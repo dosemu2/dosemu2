@@ -1,8 +1,8 @@
 /* 
  *
- * $Date: 1995/02/25 22:38:51 $
+ * $Date: 1995/04/08 22:35:19 $
  * $Source: /home/src/dosemu0.60/include/RCS/shared.h,v $
- * $Revision: 1.2 $
+ * $Revision: 1.3 $
  * $State: Exp $
  *
  */

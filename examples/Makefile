@@ -5,7 +5,7 @@ clean:
 realclean:
 
 checkin:
-	-ci Makefile config.dist 
+	-ci -l Makefile config.dist 
 checkout:
 	-co -M -l Makefile config.dist
 install:

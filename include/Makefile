@@ -17,7 +17,7 @@ all:
 	$(CC) $(CFLAGS) $(INCDIR) -c $<
 
 checkin:
-	-ci $(ALL) Makefile
+	-ci -l $(ALL) Makefile
 checkout:
 	-co -M -l $(ALL) Makefile
 

@@ -1,12 +1,15 @@
 /* dos emulator, Matthias Lautner 
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1995/02/25 22:38:41 $
+ * $Date: 1995/04/08 22:35:19 $
  * $Source: /home/src/dosemu0.60/include/RCS/emu.h,v $
- * $Revision: 2.25 $
+ * $Revision: 2.26 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 2.26  1995/04/08  22:35:19  root
+ * Release dosemu0.60.0
+ *
  * Revision 2.25  1995/02/25  22:38:41  root
  * *** empty log message ***
  *
