@@ -1,35 +1,29 @@
-
-
-typedef struct {
-	unsigned AX;
-	unsigned BX;
-	unsigned CX;
-	unsigned DX;
-	int SI;
-        int DI;
-        int DS;
-        int ES;
-} REGS;
+#include <string.h>
+#include <stdio.h>
+#include <dos.h>
 
 
 
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
-	static char command_line[256] = "";
-	extern unsigned _dsval;
-	REGS regs;
+    static char command_line[256] = "";
+    struct REGPACK preg;
 
-	while(*argv) {
-		strcat(command_line, *argv);
-		strcat(command_line, " ");
-		argv++;
-	}
+    argv++;
 
+    while(*argv)
+    {
+	strcat(command_line, *argv);
+	strcat(command_line, " ");
+	argv++;
+    }
 
-	regs.AX = 0xfe;
-	regs.DX = &command_line;
-	regs.ES = _dsval;  
-	sysint(0xe6, &regs, &regs);
-	
+    printf("Effective commandline: %s\n", command_line);
+
+    preg.r_ax = 0xfe;
+    preg.r_dx = &command_line;
+    preg.r_es = _DS;
+    intr(0xe6, &preg);
+
+    return(0);
 }
-

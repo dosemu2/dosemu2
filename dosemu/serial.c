@@ -13,11 +13,14 @@
  *	ag115@freenet.carleton.ca
  *
  *
- * $Date: 1994/11/13 00:40:45 $
+ * $Date: 1995/02/05 16:52:03 $
  * $Source: /home/src/dosemu0.60/dosemu/RCS/serial.c,v $
- * $Revision: 2.7 $
+ * $Revision: 2.8 $
  * $State: Exp $
  * $Log: serial.c,v $
+ * Revision 2.8  1995/02/05  16:52:03  root
+ * Prep for Scotts patches.
+ *
  * Revision 2.7  1994/11/13  00:40:45  root
  * Prep for Hans's latest.
  *
@@ -639,7 +642,7 @@ void
 serial_init(void)
 {
   int i;
-  fprintf(stderr, "SERIAL $Header: /home/src/dosemu0.60/dosemu/RCS/serial.c,v 2.7 1994/11/13 00:40:45 root Exp root $\n");
+  fprintf(stderr, "SERIAL $Header: /home/src/dosemu0.60/dosemu/RCS/serial.c,v 2.8 1995/02/05 16:52:03 root Exp root $\n");
   s_printf("SER: Running serial_init, %d serial ports\n", config.num_ser);
 
   /* Clean the BIOS data area at 0040:0000 for serial ports */

@@ -254,32 +254,29 @@ static struct vec_t *ivecs;
  * DANG_END_FUNCTION
  *
  */
-void
-cpu_init(void)
+void cpu_setup(void)
 {
-  int i;
+  extern void int_vector_setup(void);
 
-#if 0 /* already done in memory_init() of emu.c 94/09/19 */
-  /* cpu_type set in emulate() via getopt */
-  REG(eflags) = VIF | IF;
-#endif
+  int_vector_setup();
 
-  /* make ivecs array point to low page (real mode IDT) */
-  ivecs = 0;
-  /* set up the redirection array */
-  memset(&vm86s.int_revectored, 0x00, 32);
-  memset(&vm86s.int21_revectored, 0x00, 32);
-  for (i=0; i<0x100; i++)
-    if (!can_revector(i) && i!=0x21)
-      set_revectored(i, &vm86s.int_revectored);
-  set_revectored(0x0c, &vm86s.int21_revectored);
-
-#ifdef INTERNAL_EMS
-  set_revectored(0x3e, &vm86s.int21_revectored);
-  set_revectored(0x44, &vm86s.int21_revectored);
-#endif
-  if(config.emusys || config.emubat)
-    set_revectored(0x3d, &vm86s.int21_revectored);
+  /* ax,bx,cx,dx,si,di,bp,fs,gs can probably can be anything */
+  REG(eax) = 0;
+  REG(ebx) = 0;
+  REG(ecx) = 0;
+  REG(edx) = 0;
+  REG(esi) = 0;
+  REG(edi) = 0;
+  REG(ebp) = 0;
+  REG(eip) = 0x7c00;
+  REG(cs) = 0;			/* Some boot sectors require cs=0 */
+  REG(esp) = 0x100;
+  REG(ss) = 0x30;		/* This is the standard pc bios stack */
+  REG(es) = 0;			/* standard pc es */
+  REG(ds) = 0x40;		/* standard pc ds */
+  REG(fs) = 0;
+  REG(gs) = 0;
+  REG(eflags) |= (IF | VIF | VIP);
 }
 
 void

@@ -100,8 +100,8 @@ terminal_initialize()
    
    SLang_Exit_Error_Hook = sl_exit_error;
    SLtt_get_terminfo ();
-   SLtt_Screen_Rows = 25;   /* was: li */
-   SLtt_Screen_Cols = 80;   /* was: co */
+   SLtt_Screen_Rows = li;
+   SLtt_Screen_Cols = co;
    
    SLtt_Use_Blink_For_ACS = 1;
    SLtt_Blink_Mode = 1;

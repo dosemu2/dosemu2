@@ -12,8 +12,11 @@
 */
 EXTERN void *interrupt_function[0x100];
 
-EXTERN int int_queue_start INIT(0);
-EXTERN int int_queue_end INIT(0);
+EXTERN int           int_queue_start INIT(0);
+EXTERN int           int_queue_end INIT(0);
+EXTERN unsigned int  check_date INIT(0);
+EXTERN time_t        start_time;
+EXTERN unsigned long last_ticks;
 
 #define IQUEUE_LEN 1000
 struct int_queue_struct {

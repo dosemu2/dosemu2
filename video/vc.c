@@ -19,9 +19,9 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
- * $Date: 1995/01/14 15:30:33 $
+ * $Date: 1995/02/05 16:53:03 $
  * $Source: /home/src/dosemu0.60/video/RCS/vc.c,v $
- * $Revision: 1.11 $
+ * $Revision: 1.12 $
  * $State: Exp $
  *
  * Revision 1.3  1993/10/03  21:38:22  root
@@ -138,7 +138,6 @@ extern int munmap __P ((caddr_t __addr, size_t __len));
 
 extern void child_close_mouse ();
 extern void child_open_mouse ();
-extern struct config_info config;
 extern void clear_screen (int, int);
 extern inline void console_update_cursor (int, int, int, int);
 static void set_dos_video ();
@@ -151,7 +150,7 @@ static void SIGRELEASE_call (void);
 static void SIGACQUIRE_call (void);
 
 void dump_video_regs (void);
-void dump_video ();
+static void dump_video ();
 void dump_video_linux ();
 static u_char video_type = PLAINVGA;
 
@@ -534,6 +533,7 @@ get_video_ram (int waitflag)
 
   scr_state.pageno = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
   scr_state.virt_address = PAGE_ADDR (READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+  scr_state.phys_address = graph_mem;
   scr_state.mapped = 1;
 }
 
@@ -691,7 +691,7 @@ set_vc_screen_page (int page)
 int
 get_perm (void)
 {
-  permissions = permissions + 1;
+  permissions++;
   if (permissions > 1)
     {
       return 0;
@@ -750,7 +750,7 @@ release_perm (void)
 {
   if (permissions > 0)
     {
-      permissions = permissions - 1;
+      permissions--;
       if (permissions > 0)
 	{
 	  return 0;

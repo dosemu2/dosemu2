@@ -1,13 +1,16 @@
 # Makefile for Linux DOSEMU
 #
-# $Date: 1995/01/14 15:27:32 $
-# $Source: /fs3/src/dosemu/dosemu0.53pl40/Makefile,v $
-# $Revision: 2.38 $
+# $Date: 1995/02/05 16:50:57 $
+# $Source: /home/src/dosemu0.60/RCS/Makefile,v $
+# $Revision: 2.39 $
 # $State: Exp $
 #
 # You should do a "make doeverything" or a "make most" (excludes TeX)
 # if you are doing the first compile.
 #
+
+# Want to make elf Binaries.
+# ELF=1
 
 # Set do_DEBUG to skip these steps
 # Set STATIC to produce one static binary (instead of the binary/library
@@ -105,7 +108,7 @@ DEPENDS = dos.d emu.d
 EMUVER  =   0.53
 export EMUVER
 VERNUM  =   0x53
-PATCHL  =   42
+PATCHL  =   43
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -214,7 +217,8 @@ export INCDIR
 
 # if NEWPIC is there, use it
 # if DPMI is there, use it
-OPT= -O # -fno-inline
+# -m486 is usually in the specs for the compiler
+OPT= -O2 -funroll-loops # -fno-inline
 PIPE=-pipe
 export CFLAGS     = $(OPT) $(PIPE) $(USING_NET)
 CFLAGS+=$(NEW_PIC) $(DPMI) $(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
@@ -244,7 +248,11 @@ ifneq (include/config.h,$(wildcard include/config.h))
 firstsimple:	include/config.h version dep simple
 endif
 
+ifdef ELF
+simple:	dossubdirs dosstatic dos
+else
 simple:	dossubdirs dosstatic libdosemu dos
+endif
 endif
 
 warning: warning2
@@ -288,8 +296,11 @@ itall: warning2 config dep optionalsubdirs $(DOCS) installnew
 
 most: warning2 config dep installnew
 
+ifdef ELF
+all:	warnconf warning3 dos $(X2CEXE)
+else
 all:	warnconf warning3 dos libdosemu $(X2CEXE)
-
+endif
 
 debug:
 	rm dos
@@ -316,9 +327,6 @@ x2dos.o: include/config.h x2dos.c
 dosstatic:	dosstatic.o emu.o data.o bios/bios.o
 	$(LD) $(LDFLAGS) -o $@ $^ $(addprefix -L,$(LIBPATH)) -L. \
 		$(addprefix -l, $(LIBS))  $(TCNTRL) $(XLIBS)
-dos:	dos.o
-	$(LD) $(LDFLAGS) -N -o $@ $^ $(addprefix -L,$(LIBPATH)) -L. \
-		$(TCNTRL) $(XLIBS)
 
 x2dos: x2dos.o
 	@echo "Including x2dos.o "
@@ -340,6 +348,16 @@ xinstallvgafont:	xinstallvgafont.sh
 	@cat xinstallvgafont.sh >> xinstallvgafont
 
 
+ifdef ELF
+dos: 	emu.o data.o dossubdirs
+	$(LD) $(LDFLAGS) -o dos \
+	   emu.o data.o $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
+	    $(addprefix -l, $(LIBS)) bios/bios.o $(XLIBS) $(TCNTRL) -lc 
+
+else
+dos:	dos.o
+	$(LD) $(LDFLAGS) -N -o $@ $^ $(addprefix -L,$(LIBPATH)) -L. \
+		$(TCNTRL) $(XLIBS)
 
 $(LIBDOSEMU): 	emu.o data.o # dossubdirs
 	$(LD) $(LDFLAGS) $(MAGIC) -Ttext $(LIBSTART) -o $(LIBDOSEMU) \
@@ -347,6 +365,7 @@ $(LIBDOSEMU): 	emu.o data.o # dossubdirs
 	    $(addprefix -l, $(LIBS)) bios/bios.o $(XLIBS) $(TCNTRL) -lc 
 
 libdosemu:	dossubdirs $(LIBDOSEMU)
+endif
 
 .PHONY:	dossubdirs optionalsubdirs docsubdirs
 .PHONY: $(LIBSUBDIRS) $(OPTIONALSUBDIRS) $(DOCS) $(REQUIRED)
@@ -373,18 +392,26 @@ config: include/config.h include/kversion.h
 installnew: 
 	$(MAKE) install
 
+
 install: $(REQUIRED) all
 	@install -d /var/lib/dosemu
 	@install -d /var/run
+ifdef ELF
+	@nm dos | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
+		sort > dosemu.map
+else
 	@nm $(LIBDOSEMU) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > dosemu.map
+endif
 	@if [ -f /lib/libemu ]; then rm -f /lib/libemu ; fi
 	@for i in $(SUBDIRS); do \
 		(cd $$i && echo $$i && $(MAKE) install) || exit; \
 	done
 	@install -c -o root -m 04755 dos /usr/bin
+ifndef ELF
 	@install -m 0644 $(LIBDOSEMU) /usr/lib
 	@(cd /usr/lib; ln -sf $(LIBDOSEMU) libdosemu)
+endif
 	@if [ -f /usr/bin/xdosemu ]; then \
 		install -m 0700 /usr/bin/xdosemu /tmp; \
 		rm -f /usr/bin/xdosemu; \
@@ -533,3 +560,9 @@ echo::
 		$(MAKE) -C $$i $@  || exit 1; \
 	done
 
+#
+# include a dependency file if one exists
+#
+ifeq (.depend,$(wildcard .depend))
+include .depend
+endif

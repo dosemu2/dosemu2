@@ -13,4 +13,5 @@
 #include "vc.h"
 #include "video.h"
 #include "mouse.h"
+#include "bios.h"
 #include "dpmi/dpmi.h"

@@ -1,6 +1,9 @@
-/* $Id$ 
+/* $Id: parser.y,v 1.11 1995/02/05 16:53:16 root Exp root $ 
  *
- * $Log$
+ * $Log: parser.y,v $
+ * Revision 1.11  1995/02/05  16:53:16  root
+ * Prep for Scotts patches.
+ *
  */
 %{
 #include <stdlib.h>

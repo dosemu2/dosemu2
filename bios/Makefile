@@ -23,7 +23,7 @@ bios.s:	bios.i
 	$(TOPDIR)/tools/tools86 -E <$^ >$@
 
 bios.i:	bios.S
-	gcc -E $(AS86FLAGS) $^ >$@
+	gcc -E --traditional $(AS86FLAGS) $^ >$@
 
 bios.part.1:	bios.s
 	as86 -0 -w -g -o $@  $^
@@ -35,4 +35,4 @@ bios.part.2:	bios.part.1
 include ../Makefile.common
 
 clean::
-	rm -f bios.o bios.s
+	rm -f bios.o bios.s bios.i

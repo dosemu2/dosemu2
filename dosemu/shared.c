@@ -8,10 +8,10 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
- * $Date: $
- * $Source: $
- * $Revision: $
- * $State: $
+ * $Date: 1995/02/05 16:52:03 $
+ * $Source: /home/src/dosemu0.60/dosemu/RCS/shared.c,v $
+ * $Revision: 1.1 $
+ * $State: Exp $
  *
  * DANG_END_CHANGELOG
  *
@@ -36,11 +36,6 @@
 #include "../include/config.h"
 #include "../include/emu.h"
 #include "../include/shared.h"
-
-#if 0
-#define E_printf printf
-#define leavedos(x) exit(x)
-#endif
 
 u_char *shared_qf_memory;
 static char devname[30];
@@ -68,8 +63,7 @@ void shared_memory_init(void) {
 
 #if 0
   shared_qf_memory=malloc(SHARED_QUEUE_FLAGS_AREA);
-#endif
-
+#else
   if ((shm_qf_id = shmget(IPC_PRIVATE, SHARED_QUEUE_FLAGS_AREA, 0755)) < 0) {
     E_printf("SHM: Initial QF IPC mapping unsuccessful: %s\n", strerror(errno));
     E_printf("SHM: Do you have IPC in the kernel?\n");
@@ -85,6 +79,7 @@ void shared_memory_init(void) {
   if (shmctl(shm_qf_id, IPC_RMID, (struct shmid_ds *) 0) < 0) {
     E_printf("SHM: Shmctl QF SHM unsuccessful: %s\n", strerror(errno));
   }
+#endif
 
 /*
  *

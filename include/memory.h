@@ -4,6 +4,30 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
+#ifdef __cplusplus
+#define asmlinkage extern "C"
+#else
+#define asmlinkage
+#endif
+
+#ifdef __ELF__
+#ifdef __STDC__
+#define CISH_INLINE(x) #x
+#define CISH(x) x
+#else
+#define CISH_INLINE(x) "x"
+#define CISH(x) x
+#endif
+#else
+#ifdef __STDC__
+#define CISH_INLINE(x) "_"#x
+#define CISH(x) _##x
+#else
+#define CISH_INLINE(x) "_x"
+#define CISH(x) _/**/x
+#endif
+#endif
+
 #ifndef BIOSSEG
 #define BIOSSEG		0xf000
 #endif

@@ -1,5 +1,32 @@
+Sun Feb  6	1995
+
+-	release pl43
+-	Added Dong/Lutz patch for pic_cli();
+-	Set (hardcoded) X window to 80x25.
+
+Sun Feb  5	1995
+
+-	Added latest DPMI patches.
+-	Patched in Scott's latest dosemu cleaning up. 
+	Also from Scott:
+James,
+
+Well, I restarted the patch work that I sent to you some time ago.  I
+haven't gotten all the way through it yet (sadly), but here goes:
+
+I propose a naming convention for the initialization procedures:
+
+   xxxx_init()       for something that only gets called once
+   xxxx_setup()      for something that gets called at each 'reboot'
+                     (e.g. internal reboot -- the code that doesn't work)
+
+-	Dualmon patches from (mouw@morra.et.tudelft.nl> (Erik Mouw)
+-	Rewritten unix.c to compile under various DOS C-compilers.
+
 Mon Jan	 30	1995
 
+-	Must mention that JL has added an interrupt watchdog
+	timer so that the keyboard behind problem may be resolved.
 -	Backed out Marty's exchange_uids() as they were slightly
 	incomplete and causing video switching (etc) problems.
 -	#if 0'ed Marty's dbg_fd changes until this is complete.

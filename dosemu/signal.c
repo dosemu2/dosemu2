@@ -56,6 +56,7 @@ dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
 void
 signal_init(void)
 {
+  struct sigaction sa;
   sigset_t trashset;
   u_short counter;
 
@@ -63,7 +64,33 @@ signal_init(void)
   sigemptyset(&trashset);
   sigprocmask(SIG_BLOCK, &trashset, &oldset);
   g_printf("Initialized all signals to NOT-BLOCK\n");
+
+  /* init signal handlers */
+
+  NEWSETSIG(SIGILL, dosemu_fault);
+  NEWSETQSIG(SIG_TIME, sigalrm);
+  NEWSETSIG(SIGFPE, dosemu_fault);
+  NEWSETSIG(SIGTRAP, dosemu_fault);
+
+#ifdef SIGBUS /* for newer kernels */
+  NEWSETSIG(SIGBUS, dosemu_fault);
+#endif
+
+  SETSIG(SIGHUP, leavedos);	/* for "graceful" shutdown */
+  SETSIG(SIGTERM, leavedos);
+#if 0 /* Richard Stevens says it can't be caught. It's returning an
+       * error anyway
+       */
+  SETSIG(SIGKILL, leavedos);
+#endif
+  SETSIG(SIGQUIT, sigquit);
+/*
+  SETSIG(SIGUNUSED, timint);
+*/
+  NEWSETQSIG(SIGIO, sigio);
+  NEWSETSIG(SIGSEGV, dosemu_fault);
 }
+
 /* 
  * DANG_BEGIN_FUNCTION cli
  *

@@ -1,12 +1,15 @@
 /* dos emulator, Matthias Lautner 
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1995/01/14 15:31:55 $
+ * $Date: 1995/02/05 16:54:16 $
  * $Source: /home/src/dosemu0.60/include/RCS/emu.h,v $
- * $Revision: 2.22 $
+ * $Revision: 2.23 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 2.23  1995/02/05  16:54:16  root
+ * Prep for Scotts patches.
+ *
  * Revision 2.22  1995/01/14  15:31:55  root
  * New Year checkin.
  *
@@ -449,7 +452,7 @@ extern int read_port(int);
 extern int write_port(int, int);
 extern __inline__ void parent_nextscan(void);
 extern __inline__ void disk_close(void);
-extern void cpu_init(void);
+extern void cpu_setup(void);
 extern __inline__ void run_int(int);
 extern int mfs_redirector(void);
 extern void int10(void);

@@ -19,12 +19,15 @@
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
- * $Date: 1995/01/19 02:20:11 $
- * $Source: /fs3/src/dosemu/dosemu0.53pl40/emu.c,v $
- * $Revision: 2.33 $
+ * $Date: 1995/02/05 16:51:10 $
+ * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
+ * $Revision: 2.34 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 2.34  1995/02/05  16:51:10  root
+ * Prep for Scotts patches.
+ *
  * Revision 2.33  1995/01/19  02:20:11  root
  * Testing for Marty.
  *
@@ -461,6 +464,7 @@
  * DANG_END_REMARK
 */
 
+#ifndef __ELF__
 /*
  * DANG_BEGIN_FUNCTION jmp_emulate
  *
@@ -473,6 +477,7 @@
  * DANG_END_FUNCTION
  */
 __asm__("___START___: jmp _emulate\n");
+#endif
 
 #include <stdio.h>
 #include <unistd.h>
@@ -533,6 +538,19 @@ extern void restore_vt (unsigned short);
 extern void disallocate_vt (void);
 
 extern void vm86_GP_fault();
+extern void update_timers(void);
+
+extern void video_config_init(void);
+extern int keyboard_init(void);
+extern void keyboard_close(void);
+
+extern void configuration_init(void);
+extern void config_init(int argc, char **argv);
+
+/* Function to set up all memory areas for DOS, as well as load boot block */
+void boot(void);
+
+void init_vga_card(void);	/* Function to set VM86 regs to run VGA initialation */
 
 
 /* DANG_BEGIN_FUNCTION DBGTIME 
@@ -553,36 +571,6 @@ extern void vm86_GP_fault();
                         gettimeofday(&tv,NULL);\
                         fprintf(stderr,"%c %06d:%06d\n",x,(int)tv.tv_sec,(int)tv.tv_usec);\
                    }
-
-/* Time structures for translating UNIX <-> DOS times */
-static struct timeval scr_tv;
-static struct itimerval itv;
-
-time_t start_time;		/* Keep track of times for DOS calls */
-unsigned long last_ticks;
-unsigned int check_date;
-extern void update_timers(void);
-
-extern void video_config_init(void);
-extern int keyboard_init(void);
-extern void keyboard_close(void);
-
-unsigned long precard_eip, precard_cs;	/* Save state at VGAon */
-
-/* this holds all the configuration information, set in config_init() */
-unsigned int configuration = 0;
-extern void config_init(void);
-extern void config_setup(int argc, char **argv);
-
-/* Function to set up all memory areas for DOS, as well as load boot block */
-void boot(void);
-
-extern void map_bios(void);	/* map in VIDEO bios */
-extern int open_kmem();		/* Get access to physical memory */
-
-void hardware_init(void);	/* Initialize info on hardware */
-void init_vga_card(void);	/* Function to set VM86 regs to run VGA initialation */
-void memory_init(void);
 
 #ifndef NEW_PIC
 /* Programmable Interrupt Controller, 8259 */
@@ -607,7 +595,7 @@ static int special_nowait = 0;
 static int poll_io = 1;		/* polling io, default on */
 
 
-static void
+static inline void
 setup_low_mem (void)
 {
   char *result;
@@ -699,30 +687,7 @@ run_vm86(void)
 #endif
 }
 
-void
-dos_ctrl_alt_del(void)
-{
-  dbug_printf("DOS ctrl-alt-del requested.  Rebooting!\n");
-  disk_close();
-  clear_screen(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), 7);
-  special_nowait = 0;
-  p_dos_str("Rebooting DOS.  Be careful...this is partially implemented\r\n");
-  disk_init();
-  memory_init();
-  boot();
-}
-
-void
-dos_ctrlc(void)
-{
-  k_printf("DOS ctrl-c!\n");
-  p_dos_str("^C\n\r");		/* print ctrl-c message */
-  keybuf_clear();
-
-  do_soft_int(0x23);
-}
-
-void
+static inline void
 dosemu_banner(void)
 {
   unsigned char *ssp;
@@ -739,8 +704,7 @@ dosemu_banner(void)
 }
 
 #if 0
-void
-dbug_dumpivec(void)
+static inline void dbug_dumpivec(void)
 {
   int i;
 
@@ -753,130 +717,10 @@ dbug_dumpivec(void)
     dbug_printf("\n");
   }
 }
-
 #endif
 
 
-/* 
- * DANG_BEGIN_FUNCTION memory_init
- * 
- * description:
- *  Set up all memory areas as would be present on a typical i86 during
- * the boot phase.
- *
- * DANG_END_FUNCTION
- *
- */
-void memory_init(void) {
-
-  unsigned int i;
-  unsigned char *ptr;
-  ushort *seg, *off;
-
-  /* first get the bios-template and copy it to it's write place */
-  {
-    extern void bios_f000(), bios_f000_end();
-    FILE *f;
-    ptr = (u_char *) (BIOSSEG << 4);
-    memcpy(ptr, bios_f000, (unsigned long)bios_f000_end - (unsigned long)bios_f000);
-#if 0 /* for debugging only */
-    f = fopen("/tmp/bios","w");
-    fprintf(stderr,"opened /tmp/bios f=%p\n",f);
-    fwrite(ptr,0x8000,2,f);
-    fflush(f);
-    fclose(f);
-#endif
-  }
-
-  /* Next let's set up those interrupts we look after in 
-     protected mode.
-  */
-  setup_interrupts();
-
-  {
-    /* update boot drive in Banner-code */
-    extern void bios_f000_bootdrive(), bios_f000();
-    ptr = (u_char *)((BIOSSEG << 4) + ((long)bios_f000_bootdrive - (long)bios_f000));
-    *ptr = config.hdiskboot ? 0x80 : 0;
-  }
-
-  /* TRB - initialize a helper routine for IPX in boot() */
-#ifdef IPX
-  if (config.ipxsup) {
-    InitIPXFarCallHelper();
-  }
-#endif
-
-#ifdef USING_NET
-  /* Install the new packet driver interface */
-  pkt_init(0x60);
-#endif
-
-  if (config.num_lpt >= 1)
-  bios_address_lpt1 = 0x378;
-  if (config.num_lpt >= 2)
-  bios_address_lpt2 = 0x278;
-  if (config.num_lpt >= 3)
-  bios_address_lpt3 = 0x3bc;
-      
-  bios_configuration = configuration;
-  bios_memory_size = config.mem_size;	/* size of memory */
-
-  /* The default 16-word BIOS key buffer starts at 0x41e */
-  KBD_Head =			/* key buf start ofs */
-    KBD_Tail =			/* key buf end ofs */
-    KBD_Start = 0x1e;		/* keyboard queue start... */
-  KBD_End = 0x3e;		/* ...and end offsets from 0x400 */
-
-  keybuf_clear();
-
-  bios_ctrl_alt_del_flag = 0x0000;
-  *(char *) 0x496 = 16;		/* 102-key keyboard */
-
-  REG(ebx) = 0;			/* ax,bx,cx,dx,si,di,bp,fs,gs probably can be anything */
-  REG(ecx) = 0;
-  REG(edx) = 0;
-  REG(esi) = 0;
-  REG(edi) = 0;
-  REG(ebp) = 0;
-  REG(eax) = 0;
-  REG(eip) = 0x7c00;
-  REG(cs) = 0;			/* Some boot sectors require cs=0 */
-  REG(esp) = 0x100;
-  REG(ss) = 0x30;		/* This is the standard pc bios stack */
-  REG(es) = 0;			/* standard pc es */
-  REG(ds) = 0x40;		/* standard pc ds */
-  REG(fs) = 0;
-  REG(gs) = 0;
-
-  /* Set OUTB_ADD to 1 */
-  *OUTB_ADD = 1;
-  *LASTSCAN_ADD = 1;
-  REG(eflags) |= (IF | VIF | VIP);
-
-  /* 
-   * The banner helper actually gets called *after* the VGA card
-   * is initialized (if it is) because we set up a return chain:
-   *      init_vga_card -> dosemu_banner -> 7c00:0000 (boot block)
-   */
-
-  if (config.dosbanner)
-    dosemu_banner();
-
-  if (config.vga) {
-    g_printf("INITIALIZING VGA CARD BIOS!\n");
-    init_vga_card();
-  }
-
-  if (config.exitearly) {
-    dbug_printf("Leaving DOS before booting\n");
-    leavedos(0);
-  }
-
-}
-
-void
-boot(void)
+void boot(void)
 {
   char *buffer;
   struct disk *dp = NULL;
@@ -930,6 +774,7 @@ boot(void)
 #ifdef SIG
 SillyG_t *SillyG = 0;
 static SillyG_t SillyG_[16+1];
+#endif
 
 /* 
  * DANG_BEGIN_FUNCTION SIG_int
@@ -944,9 +789,9 @@ static SillyG_t SillyG_[16+1];
  *
  * DANG_END_FUNCTION
  */
-void 
-SIG_init()
+static inline void SIG_init()
 {
+#ifdef SIG
   /* Get in touch with my Silly Interrupt Driver */
   if (config.sillyint) {
     char devname[20];
@@ -1009,10 +854,12 @@ SIG_init()
     sg->fd=0;
     if (sg != SillyG_) SillyG=SillyG_;
   }
+#endif
 }
 
-void
- SIG_close() {
+static inline void SIG_close()
+{
+#ifdef SIG
   if (SillyG) {
     SillyG_t *sg=SillyG;
 #ifdef REQUIRES_EMUMODULE
@@ -1025,30 +872,11 @@ void
 #endif
     fprintf(stderr, "Closing all IRQ you opened!\n");
   }
+#endif
 }
 
-#endif
-
-/*
- * DANG_BEGIN_FUNCTION emulate
- *
- * arguments:
- * argc - Argument count.
- * argv - Arguments.
- *
- * description:
- *  Emulate gets called from dos.c. It initializes DOSEMU to prepare it
- *  for running in vm86 mode. This involves catching signals, preparing
- *  memory, calling all the initialization functions for the I/O
- *  subsystems (video/serial/etc...), getting the boot sector instructions
- *  and calling vm86().
- *
- * DANG_END_FUNCTION
- *
- */
-void
- emulate(int argc, char **argv) {
-  struct sigaction sa;
+static inline stdio_init(void)
+{
   struct stat statout, staterr;
 
 #if 0
@@ -1081,14 +909,35 @@ void
       exit(-1);
     }
   }
-
 #endif
-  iq.queued = 0;
-  in_sighandler = 0;
-  sync();			/* for safety */
+  sync();  /* for safety */
+  setbuf(stdout, NULL);
+}
 
-  config_setup(argc, argv);       /* parse the commands & config file(s) */
+static inline void tmpdir_init(void)
+{
+  /* create tmpdir */
+  exchange_uids();
+  mkdir(tmpdir, S_IREAD | S_IWRITE | S_IEXEC);
+  exchange_uids();
+}
 
+static inline time_setting_init(void)
+{
+  struct tm *tm;
+  unsigned long ticks;
+  
+  time(&start_time);
+  tm = localtime((time_t *) &start_time);
+  g_printf("Set date %02d.%02d.%02d\n", tm->tm_mday, tm->tm_mon, tm->tm_year);
+  last_ticks = (tm->tm_hour * 60 * 60 + tm->tm_min * 60 + tm->tm_sec) * 18.206;
+  check_date = tm->tm_year * 10000 + tm->tm_mon * 100 + tm->tm_mday;
+  set_ticks(last_ticks);
+  update_timers();
+}
+
+static inline void emumodule_init(void)
+{
 #ifdef REQUIRES_EMUMODULE
   resolve_emusyscall();
   if (EMUSYS_AVAILABLE) {
@@ -1100,88 +949,186 @@ void
     }
   }
 #endif
+}
 
-  memcheck_init();
+static inline void timer_interrupt_init(void)
+{
+  struct itimerval itv;
 
-  setup_low_mem();
+  itv.it_interval.tv_sec = 0;
+  itv.it_interval.tv_usec = UPDATE / TIMER_DIVISOR;
+  itv.it_value.tv_sec = 0;
+  itv.it_value.tv_usec = UPDATE / TIMER_DIVISOR;
+  k_printf("Used %d for updating timers\n", UPDATE / TIMER_DIVISOR);
+  setitimer(TIMER_TIME, &itv, NULL);
+}
 
-  /* Set up hard interrupt array */
+/*
+ * DANG_BEGIN_FUNCTION hardware_init
+ *
+ * description:
+ *  Initialize any leftover hardware. 
+ * 
+ * DANG_END_FUNCTION
+ */
+static inline void hardware_init(void)
+{
+  int i;
+
+  /* PIC init */
+#ifdef NEW_PIC
+  pic_seti(PIC_IRQ0, do_irq0, 0);  /* do_irq0 in pic.c */
+  pic_unmaski(PIC_IRQ0);
+  pic_seti(PIC_IRQ1, do_irq1, 0); /* do_irq1 in dosio.c   */
+  pic_unmaski(PIC_IRQ1);
+#else 
+  for (i = 0; i < 2; i++) {
+    pics[i].OCW1 = 0;		/* no IRQ's serviced */
+    pics[i].OCW2 = 0;		/* no EOI's received */
+    pics[i].OCW3 = 8;		/* just marks this as OCW3 */
+  }
+#endif
+
+  g_printf("Hardware initialized\n");
+}
+
+/* 
+ * DANG_BEGIN_FUNCTION memory_init
+ * 
+ * description:
+ *  Set up all memory areas as would be present on a typical i86 during
+ * the boot phase.
+ *
+ * DANG_END_FUNCTION
+ *
+ */
+static inline void memory_init(void)
+{
+  unsigned int i;
+  unsigned char *ptr;
+  ushort *seg, *off;
+
+  /* first get the bios-template and copy it to it's write place */
   {
-    u_short counter;
-
-    for (counter = 0; counter < NUM_INT_QUEUE; counter++) {
-      int_queue_head[counter].int_queue_return_addr = 0;
-      int_queue_head[counter].in_use = 0;
-    }
+    extern void bios_f000(), bios_f000_end();
+    FILE *f;
+    ptr = (u_char *) (BIOSSEG << 4);
+    memcpy(ptr, bios_f000, (u_long)bios_f000_end - (u_long)bios_f000);
+#if 0 /* for debugging only */
+    f = fopen("/tmp/bios","w");
+    fprintf(stderr,"opened /tmp/bios f=%p\n",f);
+    fwrite(ptr,0x8000,2,f);
+    fflush(f);
+    fclose(f);
+#endif
   }
 
-  setbuf(stdout, NULL);
+  setup_interrupts();          /* setup interrupts */
 
-  /* create tmpdir */
-  exchange_uids();
-  mkdir(tmpdir, S_IREAD | S_IWRITE | S_IEXEC);
-  exchange_uids();
-
-  /* do time stuff - necessary for initial time setting */
   {
-    struct timeval tp;
-    struct timezone tzp;
-    struct tm *tm;
-    unsigned long ticks;
+    /* update boot drive in Banner-code */
+    extern void bios_f000_bootdrive(), bios_f000();
+    ptr = (u_char *)((BIOSSEG << 4) + ((long)bios_f000_bootdrive - (long)bios_f000));
+    *ptr = config.hdiskboot ? 0x80 : 0;
+  }
 
-    time(&start_time);
-    tm = localtime((time_t *) &start_time);
-    g_printf("Set date %02d.%02d.%02d\n", tm->tm_mday, tm->tm_mon, tm->tm_year);
-#if 0
-    gettimeofday(&tp, &tzp);
-    ticks = tp.tv_sec - (tzp.tz_minuteswest * 60);
-#endif
-    last_ticks = (tm->tm_hour * 60 * 60 + tm->tm_min * 60 + tm->tm_sec) * 18.206;
-    check_date = tm->tm_year * 10000 + tm->tm_mon * 100 + tm->tm_mday;
-    set_ticks(last_ticks);
-
-    update_timers();
-
-  };
-
-  /* initialize cli() and sti() */
-  signal_init();
-
-  /* init signal handlers */
-
-  NEWSETSIG(SIGILL, dosemu_fault);
-  NEWSETQSIG(SIG_TIME, sigalrm);
-  NEWSETSIG(SIGFPE, dosemu_fault);
-  NEWSETSIG(SIGTRAP, dosemu_fault);
-
-#ifdef SIGBUS /* for newer kernels */
-  NEWSETSIG(SIGBUS, dosemu_fault);
+#ifdef IPX
+  /* TRB - initialize a helper routine for IPX in boot() */
+  if (config.ipxsup) {
+    InitIPXFarCallHelper();
+  }
 #endif
 
-  SETSIG(SIGHUP, leavedos);	/* for "graceful" shutdown */
-  SETSIG(SIGTERM, leavedos);
-#if 0 /* Richard Stevens says it can't be caught. It's returning an
-       * error anyway
-       */
-  SETSIG(SIGKILL, leavedos);
+#ifdef USING_NET
+  /* Install the new packet driver interface */
+  pkt_init(0x60);
 #endif
-  SETSIG(SIGQUIT, sigquit);
+
+  if (config.num_lpt >= 1)
+    bios_address_lpt1 = 0x378;
+  if (config.num_lpt >= 2)
+    bios_address_lpt2 = 0x278;
+  if (config.num_lpt >= 3)
+    bios_address_lpt3 = 0x3bc;
+      
+  bios_configuration = configuration;
+  bios_memory_size   = config.mem_size;	/* size of memory */
+
+  /* The default 16-word BIOS key buffer starts at 0x41e */
+  KBD_Head =			/* key buf start ofs */
+    KBD_Tail =			/* key buf end ofs */
+    KBD_Start = 0x1e;		/* keyboard queue start... */
+  KBD_End = 0x3e;		/* ...and end offsets from 0x400 */
+
+  keybuf_clear();
+
+  bios_ctrl_alt_del_flag = 0x0000;
+  *(char *) 0x496 = 16;		/* 102-key keyboard */
+
+  /* Set OUTB_ADD to 1 */
+  *OUTB_ADD = 1;
+  *LASTSCAN_ADD = 1;
+
+  /* 
+   * The banner helper actually gets called *after* the VGA card
+   * is initialized (if it is) because we set up a return chain:
+   *      init_vga_card -> dosemu_banner -> 7c00:0000 (boot block)
+   */
+
+  if (config.dosbanner)
+    dosemu_banner();
+
+  if (config.vga) {
+    g_printf("INITIALIZING VGA CARD BIOS!\n");
+    init_vga_card();
+  }
+
+  if (config.exitearly) {
+    dbug_printf("Leaving DOS before booting\n");
+    leavedos(0);
+  }
+}
+
 /*
-  SETSIG(SIGUNUSED, timint);
-*/
-  NEWSETQSIG(SIGIO, sigio);
-  NEWSETSIG(SIGSEGV, dosemu_fault);
-
+ * DANG_BEGIN_FUNCTION emulate
+ *
+ * arguments:
+ * argc - Argument count.
+ * argv - Arguments.
+ *
+ * description:
+ *  Emulate gets called from dos.c. It initializes DOSEMU to prepare it
+ *  for running in vm86 mode. This involves catching signals, preparing
+ *  memory, calling all the initialization functions for the I/O
+ *  subsystems (video/serial/etc...), getting the boot sector instructions
+ *  and calling vm86().
+ *
+ * DANG_END_FUNCTION
+ *
+ */
+#ifdef __ELF__
+void main (int argc, char **argv)
+#else
+void emulate(int argc, char **argv)
+#endif
+{
+  FD_ZERO(&fds_sigio);          /* Initialize both fd_sets to 0 */
+  FD_ZERO(&fds_no_sigio);
   vm86s.flags=0;
 
-  /* Initialize both fd_sets to 0 */
-  FD_ZERO(&fds_sigio);
-  FD_ZERO(&fds_no_sigio);
+  stdio_init();
 
-  /*
-   * Check the version of the OS and set parms accordingly
-   */
-  version_init();
+  config_init(argc, argv);     /* parse the commands & config file(s) */
+  version_init();              /* Check the OS version */
+
+  emumodule_init();
+  memcheck_init();
+  setup_low_mem();
+
+  tmpdir_init();
+  time_setting_init();
+
+  signal_init();               /* initialize cli() and sti() */
 
   /* 
    * Verify that Keyboard is OK as well as turn off some options if not
@@ -1211,13 +1158,11 @@ void
   */
   video_config_init();
 
-#ifdef SIG
   SIG_init();
-#endif
   disk_init();
   hardware_init();
-  config_init();
-  cpu_init();
+  configuration_init();
+  cpu_setup();
   cmos_init();
 
   /* Setup specific memory addresses */
@@ -1234,24 +1179,17 @@ void
 
   fflush(stdout);
 
-  itv.it_interval.tv_sec = 0;
-  itv.it_interval.tv_usec = UPDATE / TIMER_DIVISOR;
-  itv.it_value.tv_sec = 0;
-  itv.it_value.tv_usec = UPDATE / TIMER_DIVISOR;
-  k_printf("Used %d for updating timers\n", UPDATE / TIMER_DIVISOR);
-  setitimer(TIMER_TIME, &itv, NULL);
+  timer_interrupt_init();
 
   g_printf("EMULATE\n");
 
   while(!fatalerr) {
     run_vm86();
 #ifdef NEW_PIC
-/*  trigger any hardware interrupts requested */
-    run_irqs();
+    run_irqs();      /*  trigger any hardware interrupts requested */
 #endif
-      serial_run();
-
-      int_queue_run();
+    serial_run();
+    int_queue_run();
   }
 
   error("error exit: (%d,0x%04x) in_sigsegv: %d ignore_segv: %d\n",
@@ -1262,6 +1200,29 @@ void
   leavedos(99);
 }
 
+void
+dos_ctrl_alt_del(void)
+{
+  dbug_printf("DOS ctrl-alt-del requested.  Rebooting!\n");
+  disk_close();
+  clear_screen(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), 7);
+  special_nowait = 0;
+  p_dos_str("Rebooting DOS.  Be careful...this is partially implemented\r\n");
+  disk_init();
+  memory_init();
+  cpu_setup();
+  boot();
+}
+
+void
+dos_ctrlc(void)
+{
+  k_printf("DOS ctrl-c!\n");
+  p_dos_str("^C\n\r");		/* print ctrl-c message */
+  keybuf_clear();
+
+  do_soft_int(0x23);
+}
 
 static void
 ign_sigs(int sig) {
@@ -1314,8 +1275,8 @@ void
 
 #ifdef SIG
   g_printf("calling SIG_close\n");
-  SIG_close();
 #endif
+  SIG_close();
 
   show_ints(0, 0x33);
   g_printf("calling disk_close_all\n");
@@ -1334,35 +1295,6 @@ void
      disallocate_vt ();
    }
   exit(sig);
-}
-
-/*
- * DANG_BEGIN_FUNCTION hardware_init
- *
- * description:
- *  Initialize any leftover hardware. 
- * 
- * DANG_END_FUNCTION
- */
-void
- hardware_init(void) {
-  int i;
-
-  /* PIC init */
-#ifdef NEW_PIC
-   pic_seti(PIC_IRQ0, do_irq0, 0);  /* do_irq0 in pic.c */
-   pic_unmaski(PIC_IRQ0);
-   pic_seti(PIC_IRQ1, do_irq1, 0); /* do_irq1 in dosio.c   */
-   pic_unmaski(PIC_IRQ1);
-#else 
-  for (i = 0; i < 2; i++) {
-    pics[i].OCW1 = 0;		/* no IRQ's serviced */
-    pics[i].OCW2 = 0;		/* no EOI's received */
-    pics[i].OCW3 = 8;		/* just marks this as OCW3 */
-  }
-#endif
-
-  g_printf("Hardware initialized\n");
 }
 
 /* check the fd for data ready for reading */

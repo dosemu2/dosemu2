@@ -18,6 +18,7 @@
 #define UDATASEL 0x2b
 
 extern int in_dpmi;
+extern int dpmi_eflags;
 extern int in_dpmi_dos_int;
 
 void dpmi_get_entry_point();

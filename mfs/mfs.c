@@ -37,6 +37,9 @@
  *
  * HISTORY:
  * $Log: mfs.c,v $
+ * Revision 2.10  1995/02/05  16:52:54  root
+ * Prep for Scotts patches.
+ *
  * Revision 2.9  1995/01/14  15:30:22  root
  * New Year checkin.
  *
@@ -851,7 +854,6 @@ get_unix_path(char *new_path, char *path)
   char *tmp_str;
   int i;
   int esc;
-  extern char *tmpdir;
 
   i = 0;
   esc = 0;

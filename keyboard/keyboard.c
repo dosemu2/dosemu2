@@ -17,11 +17,14 @@
  * DANG_BEGIN_CHANGELOG
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1995/01/14 15:31:03 $
- * $Source: /home/src/dosemu0.60/keyboard/RCS/termio.c,v $
- * $Revision: 1.2 $
+ * $Date: 1995/02/05 16:53:37 $
+ * $Source: /home/src/dosemu0.60/keyboard/RCS/keyboard.c,v $
+ * $Revision: 1.1 $
  * $State: Exp $
- * $Log: termio.c,v $
+ * $Log: keyboard.c,v $
+ * Revision 1.1  1995/02/05  16:53:37  root
+ * Initial revision
+ *
  * Revision 1.2  1995/01/14  15:31:03  root
  * New Year checkin.
  *
@@ -732,7 +735,7 @@ keyboard_init(void)
  */
   if (!config.X) {
      newtermio = oldtermios;
-     newtermio.c_iflag &= (ISTRIP | IGNBRK);	/* (IXON|IXOFF|IXANY|ISTRIP|IGNBRK);*/
+     newtermio.c_iflag &= (ISTRIP | IGNBRK | IXON | IXOFF);	/* (IXON|IXOFF|IXANY|ISTRIP|IGNBRK);*/
      /* newtermio.c_oflag &= ~OPOST;
      newtermio.c_cflag &= ~(HUPCL); */
      newtermio.c_cflag &= ~(CLOCAL | CSIZE | PARENB);
@@ -756,7 +759,7 @@ keyboard_init(void)
 
   keyboard_handling_init();
 
-  dbug_printf("TERMIO: $Header: /home/src/dosemu0.60/keyboard/RCS/termio.c,v 1.2 1995/01/14 15:31:03 root Exp root $\n");
+  dbug_printf("TERMIO: $Header: /home/src/dosemu0.60/keyboard/RCS/keyboard.c,v 1.1 1995/02/05 16:53:37 root Exp root $\n");
 
   return 0;
 }

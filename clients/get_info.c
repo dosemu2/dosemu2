@@ -39,11 +39,15 @@ void get_shared_memory_info(char *pid) {
   * try to go to fd-3 -- if its there, do an fdopen to it,
   * otherwise use /dev/null for fd3
   */
+#if 0
   if(!fstat(3, &statout)) {
         dbg_fd = fdopen(3, "w");
   } else {
+#endif
         dbg_fd = fopen("/dev/null", "w");
+#if 0
   }
+#endif
   if(!dbg_fd) {
         fprintf(stderr, "Can't open fd3\n");
         exit(1);

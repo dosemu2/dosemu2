@@ -41,6 +41,7 @@
 
 #define MAX_MOUSE 1
 #define HEIGHT 16
+#define PLANES 4
 
 typedef struct  {
   char dev[255];
@@ -82,6 +83,9 @@ EXTERN struct  {
   boolean gfx_cursor;
   unsigned short gfx_width, gfx_height;
   unsigned short gfx_segment, gfx_offset;
+  unsigned char gsave[HEIGHT][PLANES][2];
+  int goldx, goldy;
+  boolean ginit;
 
   /* these are for sensitivity options */
   int threshold;
@@ -89,9 +93,7 @@ EXTERN struct  {
 
   signed short mickeyx, mickeyy;
 
-  int ratio;
   unsigned int cursor_on;
-  unsigned long cursor_type;
 
   /* this is for the user-defined subroutine */
   unsigned short cs, ip;
@@ -107,7 +109,7 @@ EXTERN struct  {
 
   boolean ignorexy;
 
-  struct ps2_struct {
+  struct {
     boolean state;
     unsigned short pkg;
   } ps2;

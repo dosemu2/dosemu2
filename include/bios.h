@@ -3,6 +3,8 @@
 #ifndef BIOS_H
 #define BIOS_H
 
+#include "extern.h"
+
 #define INT2F_IDLE_MAGIC	0x1680
 
 /* symbols to access BIOS-data with meaningful names, not just
@@ -216,7 +218,7 @@ typedef unsigned long  udword_t;
 #define CONF_NFLOP(c,num) 	{c&=~(CONF_FLOP|BIT(6)|BIT(7)); \
 				   if (num) c|=((num-1)<<6)|CONF_FLOP;}
 
-extern unsigned int configuration;  /* The virtual BIOS-configuration */
+EXTERN unsigned int configuration INIT(0); /* The virtual BIOS-configuration */
 
 void setup_rom_bios(void);
 void bios_configuration_init(void);        /* init BIOS-configuration */
@@ -233,6 +235,7 @@ void DPMI_dummy_end();
 void DPMI_dpmi_init();
 void DPMI_return_from_dosint();
 void DPMI_return_from_realmode();
+void DPMI_return_from_dos_memory();
 void DPMI_raw_mode_switch();
 void DPMI_save_restore();
 void DPMI_API_extension();

@@ -19,8 +19,8 @@ CFLAGS=-O2 # -Wall # -Wmissing-prototypes \
 
 # ANSI isn't possible right now, because some header-file aren't ANSI
 
-CFILES = ipx_configure.c ipx_internal_net.c ipx_interface.c
-OBJS   = ipx_configure   ipx_internal_net   ipx_interface  
+CFILES = ipx_configure.c ipx_internal_net.c ipx_interface.c ipx_route.c
+OBJS   = ipx_configure   ipx_internal_net   ipx_interface ipx_route.o
 HFILES = 
 
 # Insert all source- and header-files here.
@@ -32,7 +32,7 @@ ALL = $(CFILES) $(HFILES) startipx README
 all: $(OBJS)
 
 $(OBJS): $(CFILES)
-	$(CC) $(CFLAGS) $(INCDIR) -o $@ $< 
+	$(CC) -o $@ $< 
 
 checkin:
 	-ci $(ALL) Makefile

@@ -118,6 +118,7 @@ HogThreshold 10
 #
 #    What type is your mouse?  Uncomment one of the following.
 #    Use the 'internaldriver' option with ps2 and busmouse options.
+#    Use the 'emulate3buttons' for 3button emulation on 2 button mice.
 #mouse { microsoft }
 #mouse { logitech }
 #mouse { mmseries }
@@ -125,7 +126,7 @@ HogThreshold 10
 #mouse { hitachi }
 #mouse { mousesystems }
 #mouse { busmouse }
-#mouse { ps2  device /dev/mouse internaldriver }
+#mouse { ps2  device /dev/mouse internaldriver emulate3buttons }
 #    The following line won't run for now, but I hope it will sometimes
 #mouse { mousesystems device /dev/mouse internaldriver cleardtr }
 

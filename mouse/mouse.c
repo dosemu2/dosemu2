@@ -1,12 +1,15 @@
 /* mouse.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/11/13 00:43:00 $
+ * $Date: 1995/02/05 16:54:02 $
  * $Source: /home/src/dosemu0.60/mouse/RCS/mouse.c,v $
- * $Revision: 2.15 $
+ * $Revision: 2.17 $
  * $State: Exp $
  *
  * $Log: mouse.c,v $
+ * Revision 2.17  1995/02/05  16:54:02  root
+ * Prep for Scotts patches.
+ *
  * Revision 2.15  1994/11/13  00:43:00  root
  * Prep for Hans's latest.
  *
@@ -154,13 +157,16 @@ extern int get_perm ();
 extern int release_perm ();
 
 #ifdef X_SUPPORT
-extern void X_change_mouse_cursor(int);
+extern void X_change_mouse_cursor(void);
 #endif
 
 extern void open_kmem(void), close_kmem(void);
 
-void DOSEMUSetupMouse(void);
+/* This is included for video mode support. Please DO NOT remove !
+ * mousevid.h will become part of VGA emulator package */
+#include "mousevid.h"
 
+void DOSEMUSetupMouse(void);
 
 static
 void mouse_reset(int), mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
@@ -179,6 +185,10 @@ void mouse_reset(int), mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
 /* mouse movement functions */
 void mouse_move(void), mouse_lb(void), mouse_rb(void), mouse_do_cur(void);
 
+/* graphics cursor */
+void graph_cursor(void), text_cursor(void);
+void graph_plane(int);
+
 /* called when mouse changes */
 static void mouse_delta(int);
 
@@ -189,45 +199,44 @@ mouse_t mice[MAX_MOUSE] ;
 struct mouse_struct mouse;
 #endif
 
-static long mousecursormask[HEIGHT] =  {
-  0x00000000L,  /*0000000000000000*/
-  0x40000000L,  /*0100000000000000*/
-  0x60000000L,  /*0110000000000000*/
-  0x70000000L,  /*0111000000000000*/
-  0x78000000L,  /*0111100000000000*/
-  0x7c000000L,  /*0111110000000000*/
-  0x7e000000L,  /*0111111000000000*/
-  0x7f000000L,  /*0111111100000000*/
-  0x7f800000L,  /*0111111110000000*/
-  0x7f000000L,  /*0111111100000000*/
-  0x7c000000L,  /*0111110000000000*/
-  0x46000000L,  /*0100011000000000*/
-  0x06000000L,  /*0000011000000000*/
-  0x03000000L,  /*0000001100000000*/
-  0x03000000L,  /*0000001100000000*/
-  0x00000000L   /*0000000000000000*/
+
+short mousecursormask[HEIGHT] =  {
+  0x0000,  /*0000000000000000*/
+  0x4000,  /*0100000000000000*/
+  0x6000,  /*0110000000000000*/
+  0x7000,  /*0111000000000000*/
+  0x7800,  /*0111100000000000*/
+  0x7c00,  /*0111110000000000*/
+  0x7e00,  /*0111111000000000*/
+  0x7f00,  /*0111111100000000*/
+  0x7f80,  /*0111111110000000*/
+  0x7f00,  /*0111111100000000*/
+  0x7c00,  /*0111110000000000*/
+  0x4600,  /*0100011000000000*/
+  0x0600,  /*0000011000000000*/
+  0x0300,  /*0000001100000000*/
+  0x0300,  /*0000001100000000*/
+  0x0000   /*0000000000000000*/
 };
 
-#if 1
-static long mousescreenmask[HEIGHT] =  {
-  0x3fffffffL,  /*0011111111111111*/
-  0x1fffffffL,  /*0001111111111111*/
-  0x0fffffffL,  /*0000111111111111*/
-  0x07ffffffL,  /*0000011111111111*/
-  0x03ffffffL,  /*0000001111111111*/
-  0x01ffffffL,  /*0000000111111111*/
-  0x00ffffffL,  /*0000000011111111*/
-  0x007fffffL,  /*0000000001111111*/
-  0x003fffffL,  /*0000000000111111*/
-  0x007fffffL,  /*0000000001111111*/
-  0x01ffffffL,  /*0000000111111111*/
-  0x10ffffffL,  /*0001000011111111*/
-  0xb0ffffffL,  /*1011000011111111*/
-  0xf87fffffL,  /*1111100001111111*/
-  0xf87fffffL,  /*1111100001111111*/
-  0xfcffffffL   /*1111110011111111*/
+short mousescreenmask[HEIGHT] =  {
+  0x3fff,  /*0011111111111111*/
+  0x1fff,  /*0001111111111111*/
+  0x0fff,  /*0000111111111111*/
+  0x07ff,  /*0000011111111111*/
+  0x03ff,  /*0000001111111111*/
+  0x01ff,  /*0000000111111111*/
+  0x00ff,  /*0000000011111111*/
+  0x007f,  /*0000000001111111*/
+  0x003f,  /*0000000000111111*/
+  0x007f,  /*0000000001111111*/
+  0x01ff,  /*0000000111111111*/
+  0x10ff,  /*0001000011111111*/
+  0xb0ff,  /*1011000011111111*/
+  0xf87f,  /*1111100001111111*/
+  0xf87f,  /*1111100001111111*/
+  0xfcff   /*1111110011111111*/
 };
-#endif
 
 static ushort mousetextscreen = 0xffff;
 static ushort mousetextcursor = 0x7f00;
@@ -308,7 +317,7 @@ mouse_int(void)
 {
   m_printf("MOUSEALAN: int 0x%x ebx=%x\n", LWORD(eax), LWORD(ebx));
   switch (LWORD(eax)) {
-  case 0:			/* Mouse Reset/Get Mouse Installed Flag */
+  case 0x00:			/* Mouse Reset/Get Mouse Installed Flag */
     mouse_reset(0);
     break;
 
@@ -645,6 +654,7 @@ mouse_software_reset(void)
 
   /* Disable cursor, and de-install current event handler */
   mouse.cursor_on = -1;      
+  mouse.ginit = FALSE;
   mouse.cs=0;
   mouse.ip=0;
   SETIVEC(0x33, Mouse_SEG, Mouse_OFF + 4);
@@ -652,11 +662,11 @@ mouse_software_reset(void)
 
 #ifdef X_SUPPORT
   if (config.X)
-    X_change_mouse_cursor(0);
+    X_change_mouse_cursor();
 #endif
   
-  /* Return 0x21 on success, 0xffff on failure */
-  LWORD(eax) = 0x21;  
+  /* Return 0xffff on success, 0x21 on failure */
+  LWORD(eax) = 0xffff;  
 
   /* Return Number of mouse buttons */
   if (!mouse.mode)
@@ -686,8 +696,10 @@ mouse_setsensitivity(void)
 static void
 mouse_restorestate(void)
 {
-  struct mouse_struct *mpt;
+  struct mouse *mpt;
+/*
   mpt=&mouse;
+*/
   memcpy(mpt, (u_char *)(LWORD(es) << 4)+LWORD(edx), sizeof(mouse));
   m_printf("MOUSE: Restore mouse state\n");
 }
@@ -696,8 +708,10 @@ mouse_restorestate(void)
 static void
 mouse_storestate(void)
 {
-  struct mouse_struct *mpt;
+  struct mouse *mpt;
+/*
   mpt=&mouse;
+*/
   memcpy((u_char *)(LWORD(es) << 4)+LWORD(edx), mpt, sizeof(mouse));
   m_printf("MOUSE: Save mouse state\n");
 }
@@ -754,9 +768,6 @@ mouse_reset(int flag)
 {
   m_printf("MOUSE: reset mouse/installed!\n");
 
-  /* de-install current event handler */
-  mouse.cs=0;
-  mouse.ip=0;
   SETIVEC(0x33, Mouse_SEG, Mouse_OFF + 4);
   SETIVEC(0x74, Mouse_SEG, Mouse_OFF + 4);
 
@@ -774,16 +785,25 @@ mouse_reset(int flag)
   /* Setup MAX / MIN co-ordinates */
   mouse.minx = mouse.miny = 0;
   mouse.points = (*(unsigned short *)0x485);
-  mouse.maxx = (co * 8) - 1;
-  mouse.maxy = (li * 8) - 1;
+ /*
+  * Here we make sure text modes are resolved properly, according to the
+  * standard vga/ega/cga/mda specs for int10. If we don't know that we are
+  * in text mode, then we return pixel resolution and assume graphic mode.
+  */
+  get_current_video_mode();
+  if (current_video.textgraph == 'T') {
+    mouse.maxx = ((current_video.pixelx * 8) / current_video.fontx) - 1;
+    mouse.maxy = ((current_video.pixely * 8) / current_video.fonty) - 1;
+  } else {
+    mouse.maxx = current_video.pixelx - 1;
+    mouse.maxy = current_video.pixely - 1;
+  }
 
-  mouse.ratio = 1;
   mouse.cursor_on = -1;
 #ifdef X_SUPPORT
   if (config.X)
-     X_change_mouse_cursor(0);
+     X_change_mouse_cursor();
 #endif
-  mouse.cursor_type = 0;
   mouse.lbutton = mouse.mbutton = mouse.rbutton = 0;
   mouse.oldlbutton = mouse.oldmbutton = mouse.oldrbutton = 1;
   mouse.lpcount = mouse.mpcount = mouse.rpcount = 0;
@@ -791,6 +811,8 @@ mouse_reset(int flag)
 
   mouse.x = mouse.y = delta_x = delta_y = 0;
   mouse.cx = mouse.cy = 0;
+ 
+  mouse.ginit = FALSE;
 
   if (!mouse.ignorexy) {
     mouse.speed_x = 16;
@@ -827,7 +849,7 @@ mouse_cursor(int flag)
  
 #ifdef X_SUPPORT
   if (config.X)
-	  X_change_mouse_cursor(flag);
+	  X_change_mouse_cursor();
 #endif
 
   m_printf("MOUSE: %s mouse cursor %d\n", mouse.cursor_on ? "hide" : "show", mouse.cursor_on);
@@ -960,6 +982,9 @@ mouse_setyminmax(void)
 void 
 mouse_set_gcur(void)
 {
+  /* Ignore if in X */
+  if (config.usesX) return;
+
   m_printf("MOUSE: set gfx cursor...hspot: %d, vspot: %d, masks: %04x:%04x\n",
 	   LWORD(ebx), LWORD(ecx), LWORD(es), LWORD(edx));
 
@@ -973,9 +998,13 @@ mouse_set_gcur(void)
 void 
 mouse_set_tcur(void)
 {
+  /* Ignore if in X */
+  if (config.usesX) return;
+
   m_printf("MOUSE: set text cursor...type: %d, start: 0x%04x, end: 0x%04x\n",
 	   LWORD(ebx), LWORD(ecx), LWORD(edx));
 
+  mouse.ginit = FALSE;
   mouse.gfx_cursor = FALSE;
 	
   if (LWORD(ebx)==0) {				/* Software cursor */
@@ -1269,71 +1298,115 @@ mouse_event()
 void
 mouse_do_cur(void)
 {
-  char *graph_mem;
+  if (!scr_state.current) return;
+  get_current_video_mode();
+  if (mouse.gfx_cursor || current_video.textgraph != 'T')
+    if (scr_state.mapped)
+    graph_cursor();
+  else
+    text_cursor();
+}
+
+void
+text_cursor(void)
+{
+  unsigned short *p = SCREEN_ADR(mouse.display_page);
   int i;
 
-#if 0
-  if (config.vga) {
-    if (scr_state.current) {
-      get_perm();
-      port_out(0x06, GRA_I);
-      if ((port_in(GRA_D) & 0x01))
-        gfx_cursor=1;
-      else
-        gfx_cursor=0;
-      release_perm();
-    } else 
-      gfx_cursor=0;
-  }
-#endif
-  if (mouse.gfx_cursor)
-  {
-    if (scr_state.current)
-      {
-        open_kmem();		/* Open KMEM for graphics screen access */
-        graph_mem = (char *) mmap((caddr_t) GRAPH_BASE,
-				(size_t) (GRAPH_SIZE),
-				PROT_READ | PROT_WRITE,
-				MAP_SHARED | MAP_FIXED,
-				mem_fd,
-				GRAPH_BASE);
-        close_kmem();
- 
-        for (i = 0; i < HEIGHT; i++) {
-          graph_mem[mouse.x / 8 +((mouse.y + i - 4) * 80)] = (long)mousescreenmask[i];
-        }
-       }
-  } else {
-    unsigned short *p = SCREEN_ADR(mouse.display_page);
-
-    i=mouse.hidx + mouse.hidy * co;
-    if (mouse.cursor_on != 0) { /* disable mouse cursor */
-       if (p[i] == mouse.newchar)
-          p[i] = mouse.hidchar;
-       mouse.newchar = mouse.hidchar;
-       return;
+  i=mouse.hidx + mouse.hidy * co;
+  if (mouse.cursor_on != 0) { /* disable mouse cursor */
+    if (p[i] == mouse.newchar)
+        p[i] = mouse.hidchar;
+        mouse.newchar = mouse.hidchar;
+        return;
     }
-    if (mouse.hidx != mouse.cx || mouse.hidy != mouse.cy) {
-       if (p[i] == mouse.newchar)
-          p[i] = mouse.hidchar;
+  if (mouse.hidx != mouse.cx || mouse.hidy != mouse.cy) {
+    if (p[i] == mouse.newchar)
+        p[i] = mouse.hidchar;
        /* save old char/attr pair */
-       mouse.hidx = mouse.cx;
-       mouse.hidy = mouse.cy;
-       i=mouse.cx + mouse.cy * co;
-       mouse.hidchar = p[i];
-       p[i] = mouse.newchar = (p[i] & mousetextscreen) ^ mousetextcursor;
-    }
-    else if (p[i] != mouse.newchar) {
-       mouse.hidchar = p[i];
-       p[i] = mouse.newchar = (p[i] & mousetextscreen) ^ mousetextcursor;
-    }
-    else {
-       ushort newchar = (mouse.hidchar & mousetextscreen) ^ mousetextcursor;
-       if (mouse.newchar != newchar)
-          p[i] = mouse.newchar = newchar;
-    }
+    mouse.hidx = mouse.cx;
+    mouse.hidy = mouse.cy;
+    i=mouse.cx + mouse.cy * co;
+    mouse.hidchar = p[i];
+    p[i] = mouse.newchar = (p[i] & mousetextscreen) ^ mousetextcursor;
+  }
+  else if (p[i] != mouse.newchar) {
+    mouse.hidchar = p[i];
+    p[i] = mouse.newchar = (p[i] & mousetextscreen) ^ mousetextcursor;
+  }
+  else {
+    ushort newchar = (mouse.hidchar & mousetextscreen) ^ mousetextcursor;
+    if (mouse.newchar != newchar)
+        p[i] = mouse.newchar = newchar;
   }
 }
+
+void 
+graph_cursor(void)
+{
+  int x, y, shift;
+  unsigned char *offsetp;
+  unsigned char on1, on2, off1, off2;
+  short on3, off3;
+  short addmask;
+
+  get_perm();
+  
+  offsetp = scr_state.phys_address + ((mouse.goldx / 8) + (mouse.goldy * 80));
+
+  /* 
+   * This bit, redraws the background when the mouse cursor is moved.
+   * This needs cleaning up a bit, so a full redraw isn't done.
+   * The code below causes the mouse cursor to flicker a bit, but it works !
+   * FIXME ! Check how much the cursor has moved and only redraw the pixels.
+   */
+  if (mouse.ginit == TRUE) {
+    for (x = 0; x < PLANES; x++) {
+      for (y = 0; y < HEIGHT; y++) {
+        graph_plane(x);
+        offsetp[y*80+1] = mouse.gsave[y][x][2];
+        offsetp[y*80]   = mouse.gsave[y][x][1];
+      }
+    }
+  }
+        
+  offsetp = scr_state.phys_address + (mouse.cx + (mouse.y * 80));
+
+  for (x = 0; x < PLANES; x++) {
+    shift = mouse.x % 8;
+    addmask = 0xFF00 << (8 - shift);
+ 
+    for (y = 0; y < HEIGHT; y++) {
+      graph_plane(x);
+      off2 = mouse.gsave[y][x][2] = offsetp[y*80+1];
+      off1 = mouse.gsave[y][x][1] = offsetp[y*80];
+      off3 = (off1 << 8) | off2;
+      on3 = ((((mousescreenmask[y] >> shift) | addmask) & off3) | mousecursormask[y] >> shift);
+      on2 =  (unsigned char)(0x00ff & on3);
+      on1 =  (unsigned char)(((0xff00 & on3) >> 8) & 0x00ff);
+      if (mouse.x < current_video.pixelx - 8)
+      offsetp[y*80+1] = on2;
+      offsetp[y*80] = on1;
+    }
+  }
+  mouse.goldx = mouse.x;
+  mouse.goldy = mouse.y;
+  mouse.ginit = TRUE;
+  release_perm();
+}
+
+void
+graph_plane(int plane)
+{
+  port_out(0x04, GRA_I);
+  port_out(plane, GRA_D);
+  port_out(0x02, SEQ_I);
+  port_out(1 << plane, SEQ_D);
+  port_out(0x05, GRA_I);
+  port_out(0x00, GRA_D);
+}
+
+
 
 void
 mouse_curtick(void)
@@ -1373,7 +1446,8 @@ mouse_init(void)
 #if 0 /* Not sure why she's here? 94/09/19 */
   int old_mice_flags = -1;
 #endif
-
+ 
+  mouse.ginit = FALSE;
   mouse.ignorexy = FALSE;
   if (mice->emulate3buttons)
     mouse.mode = FALSE;
@@ -1400,10 +1474,8 @@ mouse_init(void)
  	mice->type = MOUSE_NONE;
  	return;
       }
-      if (mice->type == MOUSE_PS2)            /* want_sigio causes problems */
-        add_to_io_select(mice->fd, 0);        /* with my ps2 mouse,set to 0 */
-      else                                    /* keithp@its.bt.co.uk        */
-        add_to_io_select(mice->fd, 1);
+      /* want_sigio causes problems with internal mouse driver */
+      add_to_io_select(mice->fd, 0);
       DOSEMUSetupMouse();
       memcpy(p,mouse_ver,sizeof(mouse_ver));
       return;

@@ -1,10 +1,13 @@
 /* 
- * $Date: 1995/01/14 15:29:17 $
+ * $Date: 1995/02/05 16:52:03 $
  * $Source: /home/src/dosemu0.60/dosemu/RCS/sigsegv.c,v $
- * $Revision: 2.15 $
+ * $Revision: 2.16 $
  * $State: Exp $
  *
  * $Log: sigsegv.c,v $
+ * Revision 2.16  1995/02/05  16:52:03  root
+ * Prep for Scotts patches.
+ *
  * Revision 2.15  1995/01/14  15:29:17  root
  * New Year checkin.
  *

@@ -12,9 +12,9 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
- * $Date: 1995/01/14 15:28:03 $
+ * $Date: 1995/02/05 16:51:10 $
  * $Source: /home/src/dosemu0.60/RCS/dos.c,v $
- * $Revision: 2.8 $
+ * $Revision: 2.9 $
  * $State: Exp $
  *
  *

@@ -30,6 +30,9 @@
  *
  * HISTORY:
  * $Log: machcompat.h,v $
+ * Revision 2.2  1995/02/05  16:54:16  root
+ * Prep for Scotts patches.
+ *
  * Revision 2.1  1994/06/12  23:15:37  root
  * Wrapping up prior to release of DOSEMU0.52.
  *
@@ -277,6 +280,9 @@ typedef int onoff_t;
  *
  * HISTORY:
  * $Log: machcompat.h,v $
+ * Revision 2.2  1995/02/05  16:54:16  root
+ * Prep for Scotts patches.
+ *
  * Revision 2.1  1994/06/12  23:15:37  root
  * Wrapping up prior to release of DOSEMU0.52.
  *

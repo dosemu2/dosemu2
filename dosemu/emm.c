@@ -46,7 +46,10 @@
  *	Mach EMM Memory Manager
  *
  * HISTORY: (DANG_BEGIN_CHANGELOG
- * $Log: bios_emm.c,v $
+ * $Log: emm.c,v $
+ * Revision 1.1  1995/02/05  16:52:03  root
+ * Initial revision
+ *
  * Revision 2.10  1995/01/14  15:29:17  root
  * New Year checkin.
  *
@@ -198,8 +201,6 @@
 #include "emu.h"
 #include "memory.h"
 #include "machcompat.h"
-
-extern struct config_info config;
 
 static inline boolean_t unmap_page(int);
 

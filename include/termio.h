@@ -3,12 +3,15 @@
 #define TERMIO_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1995/01/14 15:31:55 $
+ * $Date: 1995/02/05 16:54:16 $
  * $Source: /home/src/dosemu0.60/include/RCS/termio.h,v $
- * $Revision: 1.2 $
+ * $Revision: 1.3 $
  * $State: Exp $
  *
  * $Log: termio.h,v $
+ * Revision 1.3  1995/02/05  16:54:16  root
+ * Prep for Scotts patches.
+ *
  * Revision 1.2  1995/01/14  15:31:55  root
  * New Year checkin.
  *
@@ -166,6 +169,7 @@ struct screen_stat {
   int lorigin;
 
   caddr_t virt_address;		/* current map address in DOS memory */
+  char *phys_address;		/* current map address in Linux memory */
 
   int old_modecr, new_modecr;
 };

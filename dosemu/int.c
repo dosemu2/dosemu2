@@ -22,31 +22,55 @@
 #include "../dpmi/dpmi.h"
 #endif
 
-extern unsigned long precard_eip, precard_cs;
-#if 0
-extern int card_init;
-#endif
-u_char in_video;
-extern int check_date;
-extern time_t start_time;
-extern unsigned long last_ticks;
+/*
+   This flag will be set when doing video routines so that special
+   access can be given
+*/
+static u_char         in_video = 0;
 
-static void default_interrupt(u_char);
-void boot(void);
+static int            card_init = 0;
+static unsigned long  precard_eip, precard_cs;
 
-/* Time structures for translating UNIX <-> DOS times */
-static struct timeval scr_tv;
+static struct timeval scr_tv;        /* For translating UNIX <-> DOS times */
 
-static void run_unix_command(const char *buffer)
-{
-/* unix command is in a null terminate buffer pointed to by ES:DX. */
-      system(buffer);
+
+/*
+ * DANG_BEGIN_FUNCTION DEFAULT_INTERRUPT 
+ *
+ * description:
+ * DEFAULT_INTERRUPT is the default interrupt service routine 
+ * called when DOSEMU initializes.
+ *
+ * DANG_END_FUNCTION
+ */
+
+static void default_interrupt(u_char i) {
+  if (d.defint)
+    dbug_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
+
+  if (!IS_REDIRECTED(i) ||
+      (LWORD(cs) == BIOSSEG && LWORD(eip) == (i * 16 + 2))) {
+    g_printf("DEFIVEC: int 0x%02x @ 0x%04x:0x%04x\n", i, ISEG(i), IOFF(i));
+
+    /* This is here for old SIGILL's that modify IP */
+    if (i == 0x00)
+      LWORD(eip)+=2;
+  } else if (IS_IRET(i)) {
+    if ((i != 0x2a) && (i != 0x28))
+      g_printf("just an iret 0x%02x\n", i);
+  } else
+    run_int(i);
 }
 
 
+static void run_unix_command(const char *buffer)
+{
+  system(buffer);  /* unix command is in a null terminated buffer
+		      pointed to by ES:DX. */
+}
+
 /* returns 1 if dos_helper() handles it, 0 otherwise */
-static int
-dos_helper(void)
+static int dos_helper(void)
 {
   switch (LO(ax)) {
   case 0:			/* Linux dosemu installation test */
@@ -65,28 +89,25 @@ dos_helper(void)
     break;
 
   case 3:			/* SET IOPERMS: bx=start, cx=range,
-		   carry set for get, clear for release */
-    {
-      int cflag = LWORD(eflags) & CF ? 1 : 0;
+				   carry set for get, clear for release */
+  {
+    int cflag = LWORD(eflags) & CF ? 1 : 0;
 
-      i_printf("I/O perms: 0x%04x 0x%04x %d\n",
-	       LWORD(ebx), LWORD(ecx), cflag);
-      if (set_ioperm(LWORD(ebx), LWORD(ecx), cflag)) {
-	error("ERROR: SET_IOPERMS request failed!!\n");
-	CARRY;			/* failure */
-      }
-      else {
-	if (cflag)
-	  warn("WARNING! DOS can now access"
-	       " I/O ports 0x%04x to 0x%04x\n",
-	       LWORD(ebx), LWORD(ebx) + LWORD(ecx) - 1);
-	else
-	  warn("Access to ports 0x%04x to 0x%04x clear\n",
-	       LWORD(ebx), LWORD(ebx) + LWORD(ecx) - 1);
-	NOCARRY;		/* success */
-      }
+    i_printf("I/O perms: 0x%04x 0x%04x %d\n", LWORD(ebx), LWORD(ecx), cflag);
+    if (set_ioperm(LWORD(ebx), LWORD(ecx), cflag)) {
+      error("ERROR: SET_IOPERMS request failed!!\n");
+      CARRY;			/* failure */
+    } else {
+      if (cflag)
+	warn("WARNING! DOS can now access I/O ports 0x%04x to 0x%04x\n",
+	     LWORD(ebx), LWORD(ebx) + LWORD(ecx) - 1);
+      else
+	warn("Access to ports 0x%04x to 0x%04x clear\n",
+	     LWORD(ebx), LWORD(ebx) + LWORD(ecx) - 1);
+      NOCARRY;		/* success */
     }
-    break;
+  }
+  break;
 
   case 4:			/* initialize video card */
     if (LO(bx) == 0) {
@@ -94,8 +115,7 @@ dos_helper(void)
 	warn("couldn't shut off ioperms\n");
       SETIVEC(0x10, BIOSSEG, 0x10 * 0x10);	/* restore our old vector */
       config.vga = 0;
-    }
-    else {
+    } else {
       unsigned char *ssp;
       unsigned long sp;
 
@@ -119,13 +139,11 @@ dos_helper(void)
       LWORD(cs) = config.vbios_seg;
       LWORD(eip) = 3;
       show_regs(__FILE__, __LINE__);
-#if 0
       card_init = 1;
-#endif
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1995/01/14 15:29:17 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1995/02/05 16:52:03 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
@@ -157,8 +175,8 @@ dos_helper(void)
     v_printf("Finished with Video initialization\n");
     if (config.allowvideoportaccess) {
       if (config.speaker != SPKR_NATIVE) {
-	v_printf("Removing access to port 0x42\n");
-	set_ioperm(0x42, 1, 0);
+        v_printf("Removing access to port 0x42\n");
+        set_ioperm(0x42, 1, 0);
       }
       in_video = 0;
     }
@@ -166,13 +184,15 @@ dos_helper(void)
 
   case 0x10:
     /* TRB - handle dynamic debug flags in dos_helper() */
-    LWORD(eax) = GetDebugFlagsHelper((char *) (((_regs.es & 0xffff) << 4) + (_regs.edi & 0xffff)));
+    LWORD(eax) = GetDebugFlagsHelper((char *) (((_regs.es & 0xffff) << 4) +
+					       (_regs.edi & 0xffff)));
     g_printf("DBG: Get flags\n");
     break;
 
   case 0x11:
     g_printf("DBG: Set flags\n");
-    LWORD(eax) = SetDebugFlagsHelper((char *) (((_regs.es & 0xffff) << 4) + (_regs.edi & 0xffff)));
+    LWORD(eax) = SetDebugFlagsHelper((char *) (((_regs.es & 0xffff) << 4) +
+					       (_regs.edi & 0xffff)));
     g_printf("DBG: Flags set\n");
     break;
 
@@ -189,34 +209,36 @@ dos_helper(void)
     ems_helper();
     return 1;
 
-  case 0x22:{
-      unsigned char *ssp;
-      unsigned long sp;
+  case 0x22:
+  {
+    unsigned char *ssp;
+    unsigned long sp;
 
-      ssp = (unsigned char *) (REG(ss) << 4);
-      sp = (unsigned long) LWORD(esp);
+    ssp = (unsigned char *) (REG(ss) << 4);
+    sp = (unsigned long) LWORD(esp);
 
-      LWORD(eax) = popw(ssp, sp);
-      LWORD(esp) += 2;
-      E_printf("EMS: in 0xe6,0x22 handler! ax=0x%04x, bx=0x%04x, dx=0x%04x, cx=0x%04x\n", LWORD(eax), LWORD(ebx), LWORD(edx), LWORD(ecx));
-      if (config.ems_size)
-	ems_fn(&REGS);
-      else
-	error("EMS: not running bios_em_fn!\n");
-      break;
+    LWORD(eax) = popw(ssp, sp);
+    LWORD(esp) += 2;
+    E_printf("EMS: in 0xe6,0x22 handler! ax=0x%04x, bx=0x%04x, dx=0x%04x, "
+	     "cx=0x%04x\n", LWORD(eax), LWORD(ebx), LWORD(edx), LWORD(ecx));
+    if (config.ems_size)
+      ems_fn(&REGS);
+    else
+      error("EMS: not running bios_em_fn!\n");
+    break;
+  }
+
+  case 0x28:                    /* Mouse garrot helper */
+    if (!LWORD(ebx))   /* Wait sub-function requested */
+      usleep(INT2F_IDLE_USECS);
+    else {             /* Get Hogthreshold value sub-function*/
+      LWORD(ebx)= config.hogthreshold;
+      LWORD(eax)= config.hogthreshold;
     }
+    break;
 
   case 0x30:			/* set/reset use bootdisk flag */
     use_bootdisk = LO(bx) ? 1 : 0;
-    break;
-
-   case 0x28:                    /* Mouse garrot helper */
-    if (!LWORD(ebx))   /* Wait sub-function requested */
-      usleep(INT2F_IDLE_USECS);
-     else  {           /* Get Hogthreshold value sub-function*/
-      LWORD(ebx)= config.hogthreshold;
-      LWORD(eax)= config.hogthreshold;
-     }
     break;
 
   case 0x33:			/* set mouse vector */
@@ -224,8 +246,9 @@ dos_helper(void)
     break;
 
   case 0x40:{
-      E_printf("CDROM: in 0x40 handler! ax=0x%04x, bx=0x%04x, dx=0x%04x, cx=0x%04x\n", LWORD(eax), LWORD(ebx), LWORD(edx), LWORD(ecx));
-      cdrom_helper();   
+      E_printf("CDROM: in 0x40 handler! ax=0x%04x, bx=0x%04x, dx=0x%04x, "
+	       "cx=0x%04x\n", LWORD(eax), LWORD(ebx), LWORD(edx), LWORD(ecx));
+      cdrom_helper();
       break;
     }
 
@@ -239,7 +262,7 @@ dos_helper(void)
 #endif
 
   case 0xfe:
-    /* run the unix command in ds:dx (a null terminated buffer) */
+    /* run the unix command in es:dx (a null terminated buffer) */
     g_printf("Running Unix Command\n");
     run_unix_command(SEG_ADR((char *), es, dx));
     break;   
@@ -261,26 +284,17 @@ dos_helper(void)
   return 1;
 }
 
-static void
-int08(u_char i)
+static void int08(u_char i)
 {
   run_int(0x1c);
   REG(eflags) |= VIF;
   return;
 }
 
-static void
-int15(u_char i)
+static void int15(u_char i)
 {
   struct timeval wait_time;
   int num;
-#if 0
-  unsigned char *ssp;
-  unsigned long sp;
-
-  ssp = (unsigned char *)(REG(ss)<<4);
-  sp = (unsigned long)LWORD(esp);
-#endif
 
   if (HI(ax) != 0x4f)
     NOCARRY;
@@ -364,7 +378,7 @@ int15(u_char i)
       xms_int15();
     }
     else {
-      LWORD(eax) &= ~0xffff;	/* we don't have extended ram if it's not XMS */
+      LWORD(eax) &= ~0xffff;	/* no extended ram if it's not XMS */
       NOCARRY;
     }
     return;
@@ -388,87 +402,89 @@ int15(u_char i)
     CARRY;
     return;			/* no ebios area */
   case 0xc2:
-        m_printf("PS2MOUSE: Call ax=0x%04x\n", LWORD(eax));
-	if (!mice->intdrv)
-          if (mice->type != MOUSE_PS2) {
-                REG(eax) = 0500;        /* No ps2 mouse device handler */
-                CARRY;
-                return;
-	  }
+    m_printf("PS2MOUSE: Call ax=0x%04x\n", LWORD(eax));
+    if (!mice->intdrv)
+      if (mice->type != MOUSE_PS2) {
+	REG(eax) = 0500;        /* No ps2 mouse device handler */
+	CARRY;
+	return;
+      }
                 
-        switch (REG(eax) &= 0x00FF)
-        {
-                case 0x0000:                    
-			mouse.ps2.state = HI(bx);
-			if (mouse.ps2.state == 0) mice->intdrv = FALSE;
-					else	  mice->intdrv = TRUE;
-			HI(ax) = 0;
-			NOCARRY;		
-                        break;
-                case 0x0001:
-                        HI(ax) = 0;
-                        LWORD(ebx) = 0xAAAA;    /* we have a ps2 mouse */
-			NOCARRY;
-                        break;
-		case 0x0003:
-			if (HI(bx) != 0) {
-				CARRY;
-				HI(ax) = 1;
-			} else {
-				NOCARRY;
-				HI(ax) = 0;
-			}
-			break;
-		case 0x0004:
-			HI(bx) = 0xAA;
-			HI(ax) = 0;
-			NOCARRY;
-			break;
-		case 0x0005:			/* Initialize ps2 mouse */
-			HI(ax) = 0;
-			mouse.ps2.pkg = HI(bx);
-			NOCARRY;
-			break;
-		case 0x0006:
-			switch (HI(bx)) {
-			  case 0x00:
-			    LO(bx)  = (mouse.rbutton ? 1 : 0);
-			    LO(bx) |= (mouse.lbutton ? 4 : 0);
-			    LO(bx) |= 0; 	/* scaling 1:1 */
-			    LO(bx) |= 0x20;	/* device enabled */
-			    LO(bx) |= 0;	/* stream mode */
-			    LO(cx) = 0;		/* resolution, one count */
-			    LO(dx) = 0;		/* sample rate */
-			    HI(ax) = 0;
-		  	    NOCARRY;
-			    break;
-			  case 0x01:
-			    HI(ax) = 0;
-			    NOCARRY;
-			    break;
-			  case 0x02:
-			    HI(ax) = 1;
-			    CARRY;
-			    break;
-			}
-			break;
+    switch (REG(eax) &= 0x00FF)
+      {
+      case 0x0000:                    
+	mouse.ps2.state = HI(bx);
+	if (mouse.ps2.state == 0)
+	  mice->intdrv = FALSE;
+	else
+	  mice->intdrv = TRUE;
+ 	HI(ax) = 0;
+	NOCARRY;		
+ 	break;
+      case 0x0001:
+	HI(ax) = 0;
+	LWORD(ebx) = 0xAAAA;    /* we have a ps2 mouse */
+	NOCARRY;
+	break;
+      case 0x0003:
+	if (HI(bx) != 0) {
+	  CARRY;
+	  HI(ax) = 1;
+	} else {
+	  NOCARRY;
+	  HI(ax) = 0;
+	}
+	break;
+      case 0x0004:
+	HI(bx) = 0xAA;
+	HI(ax) = 0;
+	NOCARRY;
+	break;
+      case 0x0005:			/* Initialize ps2 mouse */
+	HI(ax) = 0;
+	mouse.ps2.pkg = HI(bx);
+	NOCARRY;
+	break;
+      case 0x0006:
+	switch (HI(bx)) {
+	case 0x00:
+	  LO(bx)  = (mouse.rbutton ? 1 : 0);
+	  LO(bx) |= (mouse.lbutton ? 4 : 0);
+	  LO(bx) |= 0; 	/* scaling 1:1 */
+	  LO(bx) |= 0x20;	/* device enabled */
+	  LO(bx) |= 0;	/* stream mode */
+	  LO(cx) = 0;		/* resolution, one count */
+	  LO(dx) = 0;		/* sample rate */
+	  HI(ax) = 0;
+	  NOCARRY;
+	  break;
+	case 0x01:
+	  HI(ax) = 0;
+	  NOCARRY;
+	  break;
+	case 0x02:
+	  HI(ax) = 1;
+	  CARRY;
+	  break;
+	}
+	break;
 #if 0
-	 	case 0x0007:
-			pushw(ssp, sp, 0x000B);
-			pushw(ssp, sp, 0x0001);
-			pushw(ssp, sp, 0x0001);
-			pushw(ssp, sp, 0x0000);
-			REG(cs) = REG(es);
-			REG(eip) = REG(ebx);
-			HI(ax) = 0;
-			NOCARRY;
-			break;
+      case 0x0007:
+	pushw(ssp, sp, 0x000B);
+	pushw(ssp, sp, 0x0001);
+	pushw(ssp, sp, 0x0001);
+	pushw(ssp, sp, 0x0000);
+	REG(cs) = REG(es);
+	REG(eip) = REG(ebx);
+	HI(ax) = 0;
+	NOCARRY;
+	break;
 #endif
-                default:
-			HI(ax) = 1;
-                        g_printf("PS2MOUSE: Unknown call ax=0x%04x\n", LWORD(eax));
-                        CARRY;
-        }
+     default:
+	HI(ax) = 1;
+	g_printf("PS2MOUSE: Unknown call ax=0x%04x\n", LWORD(eax));
+	CARRY;
+      }
     return;
   case 0xc3:
     /* no watchdog */
@@ -485,78 +501,7 @@ int15(u_char i)
   }
 }
 
-/* the famous interrupt 0x2f
- *     returns 1 if handled by dosemu, else 0
- *
- * note that it switches upon both AH and AX
- */
-static int
-int2f(void)
-{
-  /* TRB - catch interrupt 2F to detect IPX in int2f() */
-#ifdef IPX
-  if (config.ipxsup) {
-    if (LWORD(eax) == INT2F_DETECT_IPX) {
-      return (IPXInt2FHandler());
-    }
-  }
-#endif
-
-  /* this is the DOS give up time slice call...*/
-  if (LWORD(eax) == INT2F_IDLE_MAGIC) {
-    usleep(INT2F_IDLE_USECS);
-    REG(eax) = 0;
-    return 1;
-  }
-
-  /* is it a redirector call ? */
-  else if (HI(ax) == 0x11 && mfs_redirector())
-    return 1;
-
-  else if (HI(ax) == INT2F_XMS_MAGIC) {
-    if (!config.xms_size)
-      return 0;
-    switch (LO(ax)) {
-    case 0:			/* check for XMS */
-      x_printf("Check for XMS\n");
-      xms_grab_int15 = 0;
-      LO(ax) = 0x80;
-      break;
-    case 0x10:
-      x_printf("Get XMSControl address\n");
-      REG(es) = XMSControl_SEG;
-      LWORD(ebx) = XMSControl_OFF;
-      break;
-    default:
-      x_printf("BAD int 0x2f XMS function:0x%02x\n", LO(ax));
-    }
-    return 1;
-  }
-
-#ifdef DPMI
-  /* Call for getting DPMI entry point */
-  else if (LWORD(eax) == 0x1687) {
-
-    dpmi_get_entry_point();
-    return 1;
-
-  }
-  /* Are we in protected mode ? */
-  else if (LWORD(eax) == 0x1686) {
-
-    if (in_dpmi)
-      REG(eax) = 0;
-    D_printf("DPMI 1686 returns %x\n", (int)REG(eax));
-    return 1;
-
-  }
-#endif
-
-  return 0;
-}
-
-static void
-int1a(u_char i)
+static void int1a(u_char i)
 {
   unsigned int test_date;
   time_t akt_time; 
@@ -584,7 +529,7 @@ int1a(u_char i)
     LWORD(edx) = last_ticks & 0xffff;
 #if 0
     g_printf("read timer st:%u ticks:%u act:%u, actdate:%d\n",
-				    start_time, last_ticks, akt_time, tm->tm_mday);
+	     start_time, last_ticks, akt_time, tm->tm_mday);
 #endif
     set_ticks(last_ticks);
     break;
@@ -658,136 +603,93 @@ int1a(u_char i)
  * uses int 10h.  for the moment, ANSI.SYS won't work anyway, so it's
  * no problem.
  */
-static int 
-ms_dos(int nr)
-{ /* returns 1 if emulated, 0 if internal handling */
-
-  /* int 21, ah=1,7,or 8:  return 0 for an extended keystroke, but the
-   next call returns the scancode */
-  /* if I press and hold a key like page down, it causes the emulator to
-   exit! */
-
-Restart:
-  /* dbug_printf("DOSINT 0x%02x\n", nr); */
-  /* emulate keyboard io to avoid DOS' busy wait */
-
-  switch (nr) {
-
-  case 12:			/* clear key buffer, do int AL */
-    keybuf_clear();
-    nr = LO(ax);
-    if (nr == 0)
-      break;			/* thanx to R Michael McMahon for the hint */
-    HI(ax) = LO(ax);
-    NOCARRY;
-    goto Restart;
-
-#define DOS_HANDLE_OPEN		0x3d
-#define DOS_HANDLE_CLOSE	0x3e
-#define DOS_IOCTL		0x44
-#define IOCTL_GET_DEV_INFO	0
-#define IOCTL_CHECK_OUTPUT_STS	7
-
-    /* XXX - MAJOR HACK!!! this is bad bad wrong.  But it'll probably work, unless
- * someone puts "files=200" in his/her config.sys
+/* XXX - MAJOR HACK!!! this is bad bad wrong.  But it'll probably work
+ * unless someone puts "files=200" in his/her config.sys
  */
 #define EMM_FILE_HANDLE 200
 
-#ifndef FALSE
-#define FALSE 0
-#endif
-#ifndef TRUE
-#define TRUE 1
-#endif
-
-    /* lowercase and truncate to 3 letters the replacement extension */
+/* lowercase and truncate to 3 letters the replacement extension */
 #define ext_fix(s) { char *r=(s); \
 		     while (*r) { *r=toupper(*r); r++; } \
 		     if ((r - s) > 3) s[3]=0; }
 
-    /* we trap this for two functions: simulating the EMMXXXX0
-	 * device, and fudging the CONFIG.XXX and AUTOEXEC.XXX
-	 * bootup files
-	 */
-  case DOS_HANDLE_OPEN:{
-      char *ptr = SEG_ADR((char *), ds, dx);
+static int ms_dos(int nr)
+{
+  /* we trap this for two functions: simulating the EMMXXXX0 device and
+   * fudging the CONFIG.XXX and AUTOEXEC.XXX bootup files.
+   */
+  switch (nr) {
+  case 0x3d:       /* DOS handle open */
+  {
+    char *ptr = SEG_ADR((char *), ds, dx);
 
-#ifdef INTERNAL_EMS
-      if (!strncmp(ptr, "EMMXXXX0", 8) && config.ems_size) {
-	E_printf("EMS: opened EMM file!\n");
-	LWORD(eax) = EMM_FILE_HANDLE;
-	NOCARRY;
-	show_regs(__FILE__, __LINE__);
-	return (1);
-      }
-      else
-#endif
-      if (!strncmp(ptr, "\\CONFIG.SYS", 11) && config.emusys) {
-	ext_fix(config.emusys);
-	sprintf(ptr, "\\CONFIG.%-3s", config.emusys);
-	d_printf("DISK: Substituted %s for CONFIG.SYS\n", ptr);
-      }
-      /* ignore explicitly selected drive by incrementing ptr by 1 */
-      else if (!strncmp(ptr + 1, ":\\AUTOEXEC.BAT", 14) && config.emubat) {
-	ext_fix(config.emubat);
-	sprintf(ptr + 1, ":\\AUTOEXEC.%-3s", config.emubat);
-	d_printf("DISK: Substituted %s for AUTOEXEC.BAT\n", ptr + 1);
-      }
-
-      return (0);
+    /* ignore explicitly selected drive by incrementing ptr by 1 */
+    if (config.emubat && !strncmp(ptr + 1, ":\\AUTOEXEC.BAT", 14)) {
+      ext_fix(config.emubat);
+      sprintf(ptr + 1, ":\\AUTOEXEC.%-3s", config.emubat);
+      d_printf("DISK: Substituted %s for AUTOEXEC.BAT\n", ptr + 1);
+    } else if (config.emusys && !strncmp(ptr, "\\CONFIG.SYS", 11)) {
+      ext_fix(config.emusys);
+      sprintf(ptr, "\\CONFIG.%-3s", config.emusys);
+      d_printf("DISK: Substituted %s for CONFIG.SYS\n", ptr);
+#ifndef INTERNAL_EMS
     }
+#else
+    } else if (config.ems_size && !strncmp(ptr, "EMMXXXX0", 8)) {
+      E_printf("EMS: opened EMM file!\n");
+      LWORD(eax) = EMM_FILE_HANDLE;
+      NOCARRY;
+      show_regs(__FILE__, __LINE__);
+      return 1;
+    }
+#endif
+
+  return 0;
+  }
 
 #ifdef INTERNAL_EMS
-  case DOS_HANDLE_CLOSE:
+  case 0x3e:       /* DOS handle close */
     if ((LWORD(ebx) != EMM_FILE_HANDLE) || !config.ems_size)
-      return (0);
+      return 0;
     else {
       E_printf("EMS: closed EMM file!\n");
       NOCARRY;
       show_regs(__FILE__, __LINE__);
-      return (1);
+      return 1;
     }
 
-  case DOS_IOCTL:
-    {
+  case 0x44:      /* DOS ioctl */
+    if ((LWORD(ebx) != EMM_FILE_HANDLE) || !config.ems_size)
+      return 0;
 
-      if ((LWORD(ebx) != EMM_FILE_HANDLE) || !config.ems_size)
-	return (FALSE);
-
-      switch (LO(ax)) {
-      case IOCTL_GET_DEV_INFO:
-	E_printf("EMS: dos_ioctl getdevinfo emm.\n");
-	LWORD(edx) = 0x80;
-	NOCARRY;
-	show_regs(__FILE__, __LINE__);
-	return (TRUE);
-	break;
-      case IOCTL_CHECK_OUTPUT_STS:
-	E_printf("EMS: dos_ioctl chkoutsts emm.\n");
-	LO(ax) = 0xff;
-	NOCARRY;
-	show_regs(__FILE__, __LINE__);
-	return (TRUE);
-	break;
-      }
-      error("ERROR: dos_ioctl shouldn't get here. XXX\n");
-      return (FALSE);
+    switch (LO(ax)) {
+    case 0:     /* get device info */
+      E_printf("EMS: dos_ioctl getdevinfo emm.\n");
+      LWORD(edx) = 0x80;
+      NOCARRY;
+      show_regs(__FILE__, __LINE__);
+      return 1;
+      break;
+    case 7:     /* check output status */
+      E_printf("EMS: dos_ioctl chkoutsts emm.\n");
+      LO(ax) = 0xff;
+      NOCARRY;
+      show_regs(__FILE__, __LINE__);
+      return 1;
+      break;
     }
+  error("ERROR: dos_ioctl shouldn't get here. XXX\n");
+  return 0;
 #endif
 
   case 0x2C:                    /* get time & date */
-    /* take a brief pause to allow the system to react */
-    if (config.hogthreshold)
+    if (config.hogthreshold)    /* allow linux to idle */
       usleep(INT2F_IDLE_USECS);
     return 0;
 
   default:
-#if 0
-    /* taking this if/printf out will speed things up a bit...*/
-    if (d.dos)
-      dbug_printf(" dos interrupt 0x%02x, ax=0x%04x, bx=0x%04x\n",
-		  nr, LWORD(eax), LWORD(ebx));
-#endif
+    g_printf("INT21 (0x%02x):  we shouldn't be here! ax=0x%04x, bx=0x%04x\n",
+	     nr, LWORD(eax), LWORD(ebx));
     return 0;
   }
   return 1;
@@ -815,69 +717,77 @@ run_int(int i)
   REG(eflags) &= ~(VIF | TF | IF | NT);
 }
 
-int
-can_revector(int i)
+int can_revector(int i)
 {
-  /* here's sort of a guideline:
+/* here's sort of a guideline:
  * if we emulate it completely, but there is a good reason to stick
  * something in front of it, and it seems to work, by all means revector it.
  * if we emulate none of it, say yes, as that is a little bit faster.
  * if we emulate it, but things don't seem to work when it's revectored,
  * then don't let it be revectored.
- *
  */
-  if (i < 0x21 || i > 0xe8 ) return 1;
-  switch (i) {
 
-    /* some things, like 0x29, need to be unrevectored if the vectors
-       * are the DOS vectors...but revectored otherwise
-       */
+  switch (i) {
   case 0x21:			/* we want it first...then we'll pass it on */
-  case 0x2f:			/* needed for XMS, redirector, and idle interrupt */
-    return 0;
-  case 0x74:			/* needed for PS/2 Mouse */
-    if ((mice->type == MOUSE_PS2) || (mice->intdrv)) 
-      return 0;
-    else 
-      return 1;
+  case 0x28:                    /* keyboard idle interrupt */
+  case 0x2f:			/* needed for XMS, redirector, and idling */
   case 0xe6:			/* for redirector and helper (was 0xfe) */
   case 0xe7:			/* for mfs FCB helper */
   case 0xe8:			/* for int_queue_run return */
-  case 0x28:                    /* keyboard idle interrupt */
     return 0;
 
-  case 0x33:			/* Mouse. Call the wrapper for mouse-garrot as well*/
-    if (mice->intdrv || config.hogthreshold)       
+  case 0x74:			/* needed for PS/2 Mouse */
+    if ((mice->type == MOUSE_PS2) || (mice->intdrv))
       return 0;
     else
       return 1;
-    break;
-  case 0:
-  case 1:
-  case 2:
-  case 3:
-  case 4:
-  case 0x15:
-  case 0x25:			/* absolute disk read, calls int 13h */
-  case 0x26:			/* absolute disk write, calls int 13h */
-  case 0x1b:			/* ctrl-break handler */
-  case 0x1c:			/* user timer tick */
-  case 0x16:			/* BIOS keyboard */
-  case 0x17:			/* BIOS printer */
+
+  case 0x33:			/* Mouse. Wrapper for mouse-garrot as well*/
+    if (mice->intdrv || config.hogthreshold)
+      return 0;
+    else
+      return 1;
+
   case 0x10:			/* BIOS video */
   case 0x13:			/* BIOS disk */
-  case 0x27:			/* TSR */
+  case 0x15:
+  case 0x16:			/* BIOS keyboard */
+  case 0x17:			/* BIOS printer */
+  case 0x1b:			/* ctrl-break handler */
+  case 0x1c:			/* user timer tick */
   case 0x20:			/* exit program */
+  case 0x25:			/* absolute disk read, calls int 13h */
+  case 0x26:			/* absolute disk write, calls int 13h */
+  case 0x27:			/* TSR */
   case 0x2a:
   case 0x60:
   case 0x61:
   case 0x62:
   case 0x67:			/* EMS */
   case 0xfe:			/* Turbo Debugger and others... */
-    return 1;
   default:
-    g_printf("revectoring 0x%02x\n", i);
     return 1;
+  }
+}
+
+static int can_revector_int21(int i)
+{
+  switch (i) {
+  case 0x2c:          /* get time */
+#ifdef INTERNAL_EMS
+  case 0x3e:          /* dos handle close */
+  case 0x44:          /* dos ioctl */
+#endif
+    return 0;
+
+  case 0x3d:          /* dos handle open */
+    if (config.emusys || config.emubat)
+      return 0;
+    else
+      return 1;
+
+  default:
+    return 1;      /* don't emulate most int 21h functions */
   }
 }
 
@@ -921,22 +831,18 @@ static void int16(u_char i) {
 
 /* BASIC */
 static void int18(u_char i) {
-    k_printf("BASIC interrupt being attempted.\n");
-    return;
+  k_printf("BASIC interrupt being attempted.\n");
 }
 
 /* LOAD SYSTEM */
 static void int19(u_char i) {
-    boot();
-    return;
+  boot();
 }
 
 /* MS-DOS */
 static void int21(u_char i) {
-  if (ms_dos(HI(ax)))
-    return;
-  default_interrupt(i);
-  return;
+  if (!ms_dos(HI(ax)))
+    default_interrupt(i);
 }
 
 /* KEYBOARD BUSY LOOP */
@@ -959,22 +865,69 @@ static void int28(u_char i) {
   }
 
   default_interrupt(i);
-  return;
 }
 
 /* FAST CONSOLE OUTPUT */
 static void int29(u_char i) {
     /* char in AL */
-    char_out(*(char *) &REG(eax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
-    return;
+  char_out(*(char *) &REG(eax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
 }
 
-/* Multiplex */
-static void int2fcaller(u_char i) {
-    if (int2f())
-      return;
-    default_interrupt(i);
+static void int2f(u_char i)
+{
+  switch (LWORD(eax)) {
+  case INT2F_IDLE_MAGIC:   /* magic "give up time slice" value */
+    usleep(INT2F_IDLE_USECS);
+    LWORD(eax) = 0;
     return;
+
+#ifdef IPX
+  case INT2F_DETECT_IPX:  /* TRB - detect IPX in int2f() */
+    if (config.ipxsup && IPXInt2FHandler())
+      return;
+    break;
+#endif
+
+#ifdef DPMI
+  case 0x1687:            /* Call for getting DPMI entry point */
+    dpmi_get_entry_point();
+    return;
+
+  case 0x1686:            /* Are we in protected mode? */
+    if (in_dpmi)
+      REG(eax) = 0;
+    D_printf("DPMI 1686 returns %x\n", (int)REG(eax));
+    return;
+#endif
+  }
+
+  switch (HI(ax)) {
+  case 0x11:              /* redirector call? */
+    if (mfs_redirector())
+      return;
+    break;
+
+  case INT2F_XMS_MAGIC:
+    if (!config.xms_size)
+      break;
+    switch (LO(ax)) {
+    case 0:			/* check for XMS */
+      x_printf("Check for XMS\n");
+      xms_grab_int15 = 0;
+      LO(ax) = 0x80;
+      break;
+    case 0x10:
+      x_printf("Get XMSControl address\n");
+      REG(es) = XMSControl_SEG;
+      LWORD(ebx) = XMSControl_OFF;
+      break;
+    default:
+      x_printf("BAD int 0x2f XMS function:0x%02x\n", LO(ax));
+    }
+    return;
+  }
+
+  default_interrupt(i);
 }
 
 /* mouse */
@@ -1025,63 +978,57 @@ m_printf("Called/ing the mouse with AX=%x \n",LWORD(eax));
      usleep(INT2F_IDLE_USECS);
      trigger=0;
    }
-   
 }
 
 #ifdef USING_NET
 /* new packet driver interface */
 static void int_pktdrvr(u_char i) {
-    if (pkt_int())
-      return;
+  if (!pkt_int())
     default_interrupt(i);
-    return;
 }
 #endif
 
 /* dos helper and mfs startup (was 0xfe) */
 static void inte6(u_char i) {
-    if (dos_helper())
-      return;
+  if (!dos_helper())
     default_interrupt(i);
-    return;
 }
 
 /* mfs FCB call */
 static void inte7(u_char i) {
-    SETIVEC(0xe7, INTE7_SEG, INTE7_OFF);
-    run_int(0xe7);
-    return;
+  SETIVEC(0xe7, INTE7_SEG, INTE7_OFF);
+  run_int(0xe7);
 }
 
 /* End function for interrupt calls from int_queue_run() */
 static void inte8(u_char i) {
-      static unsigned short *csp;
-      static int x;
-      csp = SEG_ADR((us *), cs, ip) - 1;
-      for (x=1; x<=int_queue_running; x++) {
-        /* check if any int is finished */
-        if ((int)csp == int_queue_head[x].int_queue_return_addr) {
-          /* if it's finished - clean up */
-          /* call user cleanup function */
-          if (int_queue_head[x].int_queue_ptr.callend) {
-    	    int_queue_head[x].int_queue_ptr.callend(int_queue_head[x].int_queue_ptr.interrupt);
-            int_queue_head[x].int_queue_ptr.callend = NULL;
-	  }
+  static unsigned short *csp;
+  static int x;
+  csp = SEG_ADR((us *), cs, ip) - 1;
 
-          /* restore registers */
-          REGS = int_queue_head[x].saved_regs;
-          REG(eflags) |= VIF;
-
-          h_printf("e8 int_queue: finished %x\n", int_queue_head[x].int_queue_return_addr);
-	  *OUTB_ADD=1;
-	  if (int_queue_running == x ) 
-            int_queue_running--;
-	  return;
-        }
+  for (x=1; x<=int_queue_running; x++) {
+    /* check if any int is finished */
+    if ((int)csp == int_queue_head[x].int_queue_return_addr) {
+      /* if it's finished - clean up by calling user cleanup fcn. */
+      if (int_queue_head[x].int_queue_ptr.callend) {
+	int_queue_head[x].int_queue_ptr.callend(int_queue_head[x].int_queue_ptr.interrupt);
+	int_queue_head[x].int_queue_ptr.callend = NULL;
       }
-    h_printf("e8 int_queue: shouldn't get here\n");
-    show_regs(__FILE__,__LINE__);
-    return;
+
+      /* restore registers */
+      REGS = int_queue_head[x].saved_regs;
+      REG(eflags) |= VIF;
+      
+      h_printf("e8 int_queue: finished %x\n",
+	       int_queue_head[x].int_queue_return_addr);
+      *OUTB_ADD=1;
+      if (int_queue_running == x) 
+	int_queue_running--;
+      return;
+    }
+  }
+  h_printf("e8 int_queue: shouldn't get here\n");
+  show_regs(__FILE__,__LINE__);
 }
 
 /*
@@ -1097,7 +1044,6 @@ static void inte8(u_char i) {
 void
 do_int(int i)
 {
-
   void (* caller_function)();
 
 #if 0 /* 94/07/02 Just for reference */
@@ -1117,143 +1063,10 @@ do_int(int i)
 }
 
 /*
- * DANG_BEGIN_FUNCTION DEFAULT_INTERRUPT 
- *
- * description:
- * DEFAULT_INTERRUPT is the default interrupt service routine 
- * called when DOSEMU initializes.
- *
- * DANG_END_FUNCTION
- */
-
-static void default_interrupt(u_char i) {
-    if (d.defint)
-      dbug_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
-
-    if (!IS_REDIRECTED(i) || (LWORD(cs) == BIOSSEG && LWORD(eip) == (i * 16 + 2))) {
-      g_printf("DEFIVEC: int 0x%02x  SG: 0x%04x  OF: 0x%04x\n",
-	       i, ISEG(i), IOFF(i));
-
-/*    This is here for old SIGILL's that modify IP */
-      if (i == 0x00) {
-	LWORD(eip)+=2;
-      }
-
-      return;
-    }
-
-    if (IS_IRET(i)) {
-      if ((i != 0x2a) && (i != 0x28))
-	g_printf("just an iret 0x%02x\n", i);
-      return;
-    }
-
-    run_int(i);
-
-    return;
-}
-
-/*
- * DANG_BEGIN_FUNCTION SETUP_INTERRUPTS 
- *
- * description:
- * SETUP_INTERRUPTS is used to initialize the interrupt_function
- * array which directs handling of interrupts in protected mode and
- * also initializes the base vector for interrupts in real mode.
- *
- * DANG_END_FUNCTION
- */
-
-void setup_interrupts(void) {
-  int i;
-  unsigned char *ptr;
-  ushort *seg, *off;
-
-  /* init trapped interrupts called via jump */
-  for (i = 0; i < 256; i++) {
-    interrupt_function[i] = default_interrupt;
-    if ((i & 0xf8) == 0x60)
-      continue;			/* user interrupts */
-    SETIVEC(i, BIOSSEG, 16 * i);
-  }
-  
-  interrupt_function[5] = int05;
-  interrupt_function[8] = int08;
-  interrupt_function[9] = int09;
-  interrupt_function[0xa] = int_a_b_c_d_e_f;
-  interrupt_function[0xb] = int_a_b_c_d_e_f;
-  interrupt_function[0xc] = int_a_b_c_d_e_f;
-  interrupt_function[0xd] = int_a_b_c_d_e_f;
-  interrupt_function[0xe] = int_a_b_c_d_e_f;
-  interrupt_function[0xf] = int_a_b_c_d_e_f;
-  interrupt_function[0x10] = int10;
-  interrupt_function[0x11] = int11;
-  interrupt_function[0x12] = int12;
-  interrupt_function[0x13] = int13;
-  interrupt_function[0x14] = int14;
-  interrupt_function[0x15] = int15;
-  interrupt_function[0x16] = int16;
-  interrupt_function[0x17] = int17;
-  interrupt_function[0x18] = int18;
-  interrupt_function[0x19] = int19;
-  interrupt_function[0x1a] = int1a;
-  interrupt_function[0x21] = int21;
-  interrupt_function[0x28] = int28;
-  interrupt_function[0x29] = int29;
-  interrupt_function[0x2f] = int2fcaller;
-  interrupt_function[0x33] = int33;
-#ifdef USING_NET
-  interrupt_function[0x60] = int_pktdrvr;
-#endif
-  interrupt_function[0xe6] = inte6;
-  interrupt_function[0xe7] = inte7;
-  interrupt_function[0xe8] = inte8;
-
-  /* Let kernel handle this, no need to return to DOSEMU */
-  SETIVEC(0x1c, 0xf01c, 0);
-
-  /* show EMS as disabled */
-  SETIVEC(0x67, 0, 0);
-
-  if (mice->intdrv) {
-    /* this is the mouse handler */
-    ptr = (unsigned char *) (Mouse_ADD+12);
-    off = (u_short *) (Mouse_ADD + 8);
-    seg = (u_short *) (Mouse_ADD + 10);
-    /* tell the mouse driver where we are...exec add, seg, offset */
-    mouse_sethandler(ptr, seg, off);
-    SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
-    SETIVEC(0x33, Mouse_SEG, Mouse_ROUTINE_OFF);
-  }
-  else
-    *(unsigned char *) (BIOSSEG * 16 + 16 * 0x33) = 0xcf;	/* IRET */
-
-  SETIVEC(0x16, INT16_SEG, INT16_OFF);
-  SETIVEC(0x09, INT09_SEG, INT09_OFF);
-  SETIVEC(0x08, INT08_SEG, INT08_OFF);
-
-  install_int_10_handler();	/* Install the handler for video-interrupt */
-
-  /* This is an int e7 used for FCB opens */
-  SETIVEC(0xe7, INTE7_SEG, INTE7_OFF);
-  /* End of int 0xe7 for FCB opens */
-
-  /* set up relocated video handler (interrupt 0x42) */
-#if USE_DUALMON
-  if (config.dualmon == 2) {
-    interrupt_function[0x42] = int10;
-  }
-  else
-#endif 
-    *(u_char *) 0xff065 = 0xcf;	/* IRET */
-}
-
-/*
  * Called to queue a hardware interrupt - will call "callstart"
  * just before the interrupt occurs and "callend" when it finishes
  */
-void
-queue_hard_int(int i, void (*callstart), void (*callend))
+void queue_hard_int(int i, void (*callstart), void (*callend))
 {
   cli();
 
@@ -1277,10 +1090,8 @@ queue_hard_int(int i, void (*callstart), void (*callend))
 }
 
 /* Called by vm86() loop to handle queueing of interrupts */
-void
-int_queue_run(void)
+void int_queue_run(void)
 {
-
   static int current_interrupt;
   static unsigned char *ssp;
   static unsigned long sp;
@@ -1292,7 +1103,8 @@ int_queue_run(void)
 #endif
     return;
   }
-g_printf("Still using int_queue_run()\n");
+
+  g_printf("Still using int_queue_run()\n");
 
   if (!*OUTB_ADD) {
     if (++vif_counter > 0x08) {
@@ -1356,9 +1168,7 @@ g_printf("Still using int_queue_run()\n");
     /* and the instruction pointer */
     pushw(ssp, sp, int_queue_head[int_queue_running].int_queue_return_addr & 0xf);
     LWORD(esp) -= 8;
-  }
-  else {
-
+  } else {
     pushw(ssp, sp, vflags);
     /* the code segment of our iret */
     pushw(ssp, sp, LWORD(cs));
@@ -1384,7 +1194,127 @@ g_printf("Still using int_queue_run()\n");
     REG(eflags) |= VIP;
 
   int_queue_start = (int_queue_start + 1) % IQUEUE_LEN;
-  h_printf("int_queue: running int %x if applicable, return_addr=%x\n", current_interrupt, int_queue_head[int_queue_running].int_queue_return_addr);
+  h_printf("int_queue: running int %x if applicable, return_addr=%x\n",
+	   current_interrupt,
+	   int_queue_head[int_queue_running].int_queue_return_addr);
+}
 
-  return;
+/*
+ * DANG_BEGIN_FUNCTION setup_interrupts
+ *
+ * description:
+ * SETUP_INTERRUPTS is used to initialize the interrupt_function
+ * array which directs handling of interrupts in protected mode and
+ * also initializes the base vector for interrupts in real mode.
+ *
+ * DANG_END_FUNCTION
+ */
+
+void setup_interrupts(void) {
+  int i;
+  unsigned char *ptr;
+  ushort *seg, *off;
+
+  /* init trapped interrupts called via jump */
+  for (i = 0; i < 256; i++) {
+    interrupt_function[i] = default_interrupt;
+    if ((i & 0xf8) == 0x60)
+      continue;			/* user interrupts */
+    SETIVEC(i, BIOSSEG, 16 * i);
+  }
+  
+  interrupt_function[5] = int05;
+  interrupt_function[8] = int08;
+  interrupt_function[9] = int09;
+  interrupt_function[0xa] = int_a_b_c_d_e_f;
+  interrupt_function[0xb] = int_a_b_c_d_e_f;
+  interrupt_function[0xc] = int_a_b_c_d_e_f;
+  interrupt_function[0xd] = int_a_b_c_d_e_f;
+  interrupt_function[0xe] = int_a_b_c_d_e_f;
+  interrupt_function[0xf] = int_a_b_c_d_e_f;
+  interrupt_function[0x10] = int10;
+  interrupt_function[0x11] = int11;
+  interrupt_function[0x12] = int12;
+  interrupt_function[0x13] = int13;
+  interrupt_function[0x14] = int14;
+  interrupt_function[0x15] = int15;
+  interrupt_function[0x16] = int16;
+  interrupt_function[0x17] = int17;
+  interrupt_function[0x18] = int18;
+  interrupt_function[0x19] = int19;
+  interrupt_function[0x1a] = int1a;
+  interrupt_function[0x21] = int21;
+  interrupt_function[0x28] = int28;
+  interrupt_function[0x29] = int29;
+  interrupt_function[0x2f] = int2f;
+  interrupt_function[0x33] = int33;
+  interrupt_function[0x60] = int_pktdrvr;
+  interrupt_function[0xe6] = inte6;
+  interrupt_function[0xe7] = inte7;
+  interrupt_function[0xe8] = inte8;
+
+  /* Let kernel handle this, no need to return to DOSEMU */
+  SETIVEC(0x1c, 0xf01c, 0);
+
+  /* show EMS as disabled */
+  SETIVEC(0x67, 0, 0);
+
+  if (mice->intdrv) {
+    /* this is the mouse handler */
+    ptr = (unsigned char *) (Mouse_ADD+12);
+    off = (u_short *) (Mouse_ADD + 8);
+    seg = (u_short *) (Mouse_ADD + 10);
+    /* tell the mouse driver where we are...exec add, seg, offset */
+    mouse_sethandler(ptr, seg, off);
+    SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
+    SETIVEC(0x33, Mouse_SEG, Mouse_ROUTINE_OFF);
+  }
+  else
+    *(unsigned char *) (BIOSSEG * 16 + 16 * 0x33) = 0xcf;	/* IRET */
+
+  SETIVEC(0x16, INT16_SEG, INT16_OFF);
+  SETIVEC(0x09, INT09_SEG, INT09_OFF);
+  SETIVEC(0x08, INT08_SEG, INT08_OFF);
+
+  install_int_10_handler();	/* Install the handler for video-interrupt */
+
+  /* This is an int e7 used for FCB opens */
+  SETIVEC(0xe7, INTE7_SEG, INTE7_OFF);
+  /* End of int 0xe7 for FCB opens */
+
+  /* set up relocated video handler (interrupt 0x42) */
+#if USE_DUALMON
+  if (config.dualmon == 2) {
+    interrupt_function[0x42] = int10;
+  }
+  else
+#endif 
+    *(u_char *) 0xff065 = 0xcf;	/* IRET */
+}
+
+/*
+ * DANG_BEGIN_FUNCTION int_vector_setup
+ *
+ * description:
+ * Setup initial interrupts which can be revectored so that the kernel
+ * does not need to return to DOSEMU if such an interrupt occurs.
+ *
+ * DANG_END_FUNCTION
+ */
+
+void int_vector_setup(void)
+{
+  int i;
+
+  /* set up the redirection arrays */
+  memset(&vm86s.int_revectored, 0x00, sizeof(vm86s.int_revectored));
+  memset(&vm86s.int21_revectored, 0x00, sizeof(vm86s.int21_revectored));
+
+  for (i=0; i<0x100; i++)
+    if (!can_revector(i) && i!=0x21)
+      set_revectored(i, &vm86s.int_revectored);
+
+  for (i=0; i<0x100; i++)
+    if (!can_revector_int21(i))
+      set_revectored(i, &vm86s.int21_revectored);
 }

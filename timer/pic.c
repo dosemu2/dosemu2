@@ -36,6 +36,7 @@
 #include "pic.h"
 #undef IN_PIC
 #include "memory.h"
+#include <linux/linkage.h>
 /* #include <sys/vm86.h> */
 #include "cpu.h"
 #include "emu.h"
@@ -362,34 +363,34 @@ void run_irqs()
 #endif
 
   __asm__ __volatile__
-  ("movl _pic_ilevel,%%ecx\n\t"      /* get old ilevel                  */
+  ("movl "CISH_INLINE(pic_ilevel)",%%ecx\n\t"      /* get old ilevel                  */
    "pushl %%ecx\n\t"                 /* save old ilevel                 */ 
-   "addl _pic_smm,%%ecx\n\t"         /* check special mask mode         */
+   "addl "CISH_INLINE(pic_smm)",%%ecx\n\t"         /* check special mask mode         */
                                      /***       while(.....){           */
-   "L1:movl _pic_isr,%%eax\n\t"      /* 1: int_request = (pic_isr       */ 
-   "orl _pic_imr,%%eax\n\t"          /* | pic_imr)                      */ 
+   "L1:movl "CISH_INLINE(pic_isr)",%%eax\n\t"      /* 1: int_request = (pic_isr       */ 
+   "orl "CISH_INLINE(pic_imr)",%%eax\n\t"          /* | pic_imr)                      */ 
    "notl %%eax\n\t"                  /* int_request = ~int_request      */ 
-   "andl _pic_irr,%%eax\n\t"         /* int_request &= pic_irr          */ 
+   "andl "CISH_INLINE(pic_irr)",%%eax\n\t"         /* int_request &= pic_irr          */ 
    "jz L3\n\t"                       /* if(!int_request) goto 3         */ 
    "L2:bsfl %%eax,%%ebx\n\t"         /* 2: ebx=find_bit(int_request)    */ 
    "jz L3\n\t"                       /* if(!int_request) goto 3         */ 
    "cmpl %%ebx,%%ecx\n\t"            /* if(ebx > pic_ilevel)...         */ 
    "jl L3\n\t"                       /* ... goto 3                      */ 
-   "btrl %%ebx,_pic_irr\n\t"         /* clear_bit(ebx,&pic_irr)         */ 
+   "btrl %%ebx,"CISH_INLINE(pic_irr)"\n\t"         /* clear_bit(ebx,&pic_irr)         */ 
    "jz L2\n\t"                       /* if bit wasn't set, go back to 2 */ 
-   "movl _pic_isr,%%ecx\n\t"         /* get current pic_isr             */
+   "movl "CISH_INLINE(pic_isr)",%%ecx\n\t"         /* get current pic_isr             */
    "btsl %%ebx,%%ecx\n\t"            /* set bit in pic_isr              */ 
-   "movl %%ebx,_pic_ilevel\n\t"      /* set new ilevel                  */
-   "movl %%ecx,_pic_isr\n\t"         /* save new isr                    */
-   "andl _pic1_mask,%%ecx\n\t"       /* isolate pic1 irqs               */
-   "movl %%ecx,_pic1_isr\n\t"        /* save in pic1_isr                */
-   "call *_pic_iinfo(,%%ebx,8)\n\t"  /* call interrupt handler          */
-   "movl _pic_ilevel,%%eax\n\t"      /* get new ilevel                  */
-   "btrl %%eax,_pic_isr\n\t"         /* reset isr bit - just in case    */
-   "btrl %%eax,_pic1_isr\n\t"        /* reset isr bit - just in case    */
+   "movl %%ebx,"CISH_INLINE(pic_ilevel)"\n\t"      /* set new ilevel                  */
+   "movl %%ecx,"CISH_INLINE(pic_isr)"\n\t"         /* save new isr                    */
+   "andl "CISH_INLINE(pic1_mask)",%%ecx\n\t"       /* isolate pic1 irqs               */
+   "movl %%ecx,"CISH_INLINE(pic1_isr)"\n\t"        /* save in pic1_isr                */
+   "call *"CISH_INLINE(pic_iinfo)"(,%%ebx,8)\n\t"  /* call interrupt handler          */
+   "movl "CISH_INLINE(pic_ilevel)",%%eax\n\t"      /* get new ilevel                  */
+   "btrl %%eax,"CISH_INLINE(pic_isr)"\n\t"         /* reset isr bit - just in case    */
+   "btrl %%eax,"CISH_INLINE(pic1_isr)"\n\t"        /* reset isr bit - just in case    */
    "jmp L1\n\t"                      /* go back for next irq            */
                                      /**** end of while   }          ****/ 
-   "L3:popl _pic_ilevel\n\t"         /* 3: restore old ilevel and exit  */ 
+   "L3:popl "CISH_INLINE(pic_ilevel)"\n\t"         /* 3: restore old ilevel and exit  */ 
    :                                 /* no output                       */ 
    :                                 /* no input                        */ 
    :"eax","ebx","ecx");              /* registers eax, ebx, ecx used    */
@@ -431,11 +432,11 @@ int do_irq()
 
      pic_cli();
 #ifdef DPMI
-     if (in_dpmi)
+     if (in_dpmi) {
       run_pm_int(intr);
-     else
+     } else
 #endif
-       run_int(intr);
+        run_int(intr);
       pic_icount++;
       while(!fatalerr && test_bit(pic_ilevel,&pic_isr))
       {
@@ -523,22 +524,22 @@ int inum;
 void
 pic_iret()
 {
-/* if we've really come from an iret, cs:ip will have just been popped */
-
 unsigned short * tmp;
 
 #ifdef DPMI
-  if(in_dpmi /* && !in_vm86 */) {
+  if(in_dpmi) {
     if(pic_icount) 
       if(!(--pic_icount)) {
         pic_irr|=(pic_pirr&~pic_isr);
         pic_pirr&=~pic_irr;
-        pic_wirr&=~pic_irr;
+        pic_wirr&=~pic_irr;		/* clear watchdog timer */
+	dpmi_eflags &= ~VIP;
       } 
   return;
   }
 #endif
 
+/* if we've really come from an iret, cs:ip will have just been popped */
 tmp = SEG_ADR((short *),ss,sp)-3;
  if (tmp[1] == REG(cs)) 
   if(tmp[0] == LWORD(eip))

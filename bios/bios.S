@@ -23,6 +23,7 @@
 #define __ASM__
 #include "memory.h"
 #include "macros86.h"
+#include <linux/linkage.h>
 
 /* some other usefull definitions */
 
@@ -55,8 +56,8 @@
 
 
 .text
-	.globl	_bios_f000
-_bios_f000:
+	.globl	CISH(bios_f000)
+CISH(bios_f000):
 			/* this sets up all 256 intvector stubs 
 			   each starting at an address aligned to 16 byte */
 
@@ -182,8 +183,8 @@ mouse_handler:
 	mov	al,#5
 	int	DOSHELPER_INT
 	db	0xb2          /* mov dl,#0   or mov dl,#0x80 */
-	.globl	_bios_f000_bootdrive
-_bios_f000_bootdrive:
+	.globl	CISH(bios_f000_bootdrive)
+CISH(bios_f000_bootdrive):
 	db	0
 	retf
 
@@ -194,8 +195,8 @@ _bios_f000_bootdrive:
 	int	DOSHELPER_INT
 	retf
 
-	.globl	_bios_IPX_PopRegistersReturn
-_bios_IPX_PopRegistersReturn:
+	.globl	CISH(bios_IPX_PopRegistersReturn)
+CISH(bios_IPX_PopRegistersReturn):
 	pop	es
 	pop	ds
 	pop	bp
@@ -206,8 +207,8 @@ _bios_IPX_PopRegistersReturn:
 	pop	bx
 	pop	ax
 	retf
-	.globl	_bios_IPX_PopRegistersIRet
-_bios_IPX_PopRegistersIRet:
+	.globl	CISH(bios_IPX_PopRegistersIRet)
+CISH(bios_IPX_PopRegistersIRet):
 	pop	es
 	pop	ds
 	pop	bp
@@ -223,8 +224,8 @@ _bios_IPX_PopRegistersIRet:
 
 	.org	((INT16_SEG-BIOSSEG) << 4)+INT16_OFF
 
-	.globl	_INT16_dummy_start
-_INT16_dummy_start:			/* KEYBOARD BIOS ROUTINE        */
+	.globl	CISH(INT16_dummy_start)
+CISH(INT16_dummy_start):			/* KEYBOARD BIOS ROUTINE        */
 	push    ds			/* save ds and bx               */
 	push    bx		/* next 2 lines set ds to bios data seg	*/
         mov     bx,#BIOS_DATA
@@ -414,15 +415,15 @@ L8:	push    bx			/* buffer is not full - save bx	*/
 	JMPL    (L1)			/* return to caller		*/
 #endif
 
-	.globl  _INT16_dummy_end
-_INT16_dummy_end:
+	.globl  CISH(INT16_dummy_end)
+CISH(INT16_dummy_end):
 
 
 /* ----------------------------------------------------------------- */   
 	.org	((INT08_SEG-BIOSSEG) << 4)+INT08_OFF
 
-	.globl	_INT08_dummy_start
-_INT08_dummy_start:			/* TIMER INTERRUPT ROUTINE	*/
+	.globl	CISH(INT08_dummy_start)
+CISH(INT08_dummy_start):		/* TIMER INTERRUPT ROUTINE	*/
 
 #if 0
 	int	0x1c			/* call int 0x1c, per bios spec	*/
@@ -438,12 +439,12 @@ _INT08_dummy_start:			/* TIMER INTERRUPT ROUTINE	*/
         mov	ds,ax
 	inc	dword ptr [BIOS_TIMER]
 	cmp	word ptr [BIOS_TIMER+2],#24 /* 24 hour check */
-	jb	_INT08_L1
+	jb	CISH(INT08_L1)
 	cmp	word ptr [BIOS_TIMER],#HOUR24_ADJUST
-	jb	_INT08_L1
+	jb	CISH(INT08_L1)
 	mov	dword ptr [BIOS_TIMER],#0
 	mov	byte ptr [BIOS_TIMER_OVERFLOW],#1
-_INT08_L1:
+CISH(INT08_L1):
 	int	0x1c		/* call int 0x1c, per bios spec	*/
 				/* must do it before EOI, but after count */
 #ifndef NEW_PIC
@@ -457,8 +458,8 @@ _INT08_L1:
 	pop	ax			/* restore registers            */
 	pop	ds
 	iret				/* return to interrupted code	*/
-	.globl  _INT08_dummy_end
-_INT08_dummy_end:
+	.globl  CISH(INT08_dummy_end)
+CISH(INT08_dummy_end):
 
 /* ----------------------------------------------------------------- */   
 	.org	((INT10_SEG-BIOSSEG) << 4)+INT10_OFF
@@ -467,8 +468,8 @@ _INT08_dummy_end:
 	mov	al,#8		/*  Start Video init */
 	int	DOSHELPER_INT
 	db	0x9a   /* call far 0xc000:3  or call far 0xe000:3 */
-	.globl	_bios_f000_int10ptr
-_bios_f000_int10ptr:
+	.globl	CISH(bios_f000_int10ptr)
+CISH(bios_f000_int10ptr):
 	dd	0xc0000003
 	mov	al,#9		/* Finished video init */
 	int     DOSHELPER_INT
@@ -492,54 +493,54 @@ _bios_f000_int10ptr:
 /* ----------------------------------------------------------------- */   
 	.org	((DPMI_SEG-BIOSSEG) << 4)+DPMI_OFF
 
-	.globl	_DPMI_dummy_start
-_DPMI_dummy_start:
+	.globl	CISH(DPMI_dummy_start)
+CISH(DPMI_dummy_start):
 	push	bx
 	push	ax
 	mov	ah,#0x62
 	int	0x21			/* Get PSP */
 	pop	ax
-	.globl	_DPMI_dpmi_init
-_DPMI_dpmi_init:
+	.globl	CISH(DPMI_dpmi_init)
+CISH(DPMI_dpmi_init):
 	hlt
 	pop	bx
 	retf
-	.globl	_DPMI_return_from_dosint
-_DPMI_return_from_dosint:
+	.globl	CISH(DPMI_return_from_dosint)
+CISH(DPMI_return_from_dosint):
 	hlt
-	.globl	_DPMI_return_from_realmode
-_DPMI_return_from_realmode:
+	.globl	CISH(DPMI_return_from_realmode)
+CISH(DPMI_return_from_realmode):
 	hlt
-	.globl	_DPMI_raw_mode_switch
-_DPMI_raw_mode_switch:
+	.globl	CISH(DPMI_return_from_dos_memory)
+CISH(DPMI_return_from_dos_memory):
 	hlt
-	.globl	_DPMI_save_restore
-_DPMI_save_restore:
+	.globl	CISH(DPMI_raw_mode_switch)
+CISH(DPMI_raw_mode_switch):
+	hlt
+	.globl	CISH(DPMI_save_restore)
+CISH(DPMI_save_restore):
 	hlt
 	retf
-	.globl	_DPMI_API_extension
-_DPMI_API_extension:
+	.globl	CISH(DPMI_API_extension)
+CISH(DPMI_API_extension):
 	hlt
 	retf
-	.globl	_DPMI_return_from_pm
-_DPMI_return_from_pm:
+	.globl	CISH(DPMI_return_from_pm)
+CISH(DPMI_return_from_pm):
 	hlt
-	.globl	_DPMI_return_from_exception
-_DPMI_return_from_exception:
+	.globl	CISH(DPMI_return_from_exception)
+CISH(DPMI_return_from_exception):
 	hlt
-	.globl	_DPMI_return_from_pm_eh
-_DPMI_return_from_pm_eh:
-	hlt
-	.globl	_DPMI_exception
-_DPMI_exception:
+	.globl	CISH(DPMI_exception)
+CISH(DPMI_exception):
 	FILL_OPCODE(32,hlt)
 
-	.globl	_DPMI_interrupt
-_DPMI_interrupt:
+	.globl	CISH(DPMI_interrupt)
+CISH(DPMI_interrupt):
 	FILL_OPCODE(256,hlt)
 
-	.globl	_DPMI_dummy_end
-_DPMI_dummy_end:
+	.globl	CISH(DPMI_dummy_end)
+CISH(DPMI_dummy_end):
 
 
 
@@ -555,8 +556,8 @@ _DPMI_dummy_end:
 
 #define PKTDRV_VECTOR 0x60
 
-	.globl	_PKTDRV_signature
-_PKTDRV_signature:
+	.globl	CISH(PKTDRV_signature)
+CISH(PKTDRV_signature):
 	jmp	PKTDRV_start
 	nop
 	.ascii	"PKT DRVR"
@@ -633,8 +634,8 @@ PKTDRV_buf:
 
 /* ----------------------------------------------------------------- */   
 	.org	((INT09_SEG-BIOSSEG) << 4)+INT09_OFF
-	.globl	_INT09_dummy_start
-_INT09_dummy_start:			/* KEYBOARD INTERRUPT ROUTINE	*/
+	.globl	CISH(INT09_dummy_start)
+CISH(INT09_dummy_start):		/* KEYBOARD INTERRUPT ROUTINE	*/
 	push	ds			/* save registers		*/
 	push	bx
 	push	ax
@@ -676,8 +677,8 @@ _INT09_dummy_start:			/* KEYBOARD INTERRUPT ROUTINE	*/
 	pop	bx
 	pop	ds
 	iret
-	.globl  _INT09_dummy_end
-_INT09_dummy_end:
+	.globl  CISH(INT09_dummy_end)
+CISH(INT09_dummy_end):
 
 
 
@@ -697,7 +698,7 @@ _INT09_dummy_end:
 	db	0xfc   /* model byte = IBM AT */
 	hlt
 
-	.globl  _bios_f000_end
-_bios_f000_end:
+	.globl  CISH(bios_f000_end)
+CISH(bios_f000_end):
 
 /*--------------------------------------------------------------------------*/

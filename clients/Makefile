@@ -8,11 +8,11 @@ ALL=$(CFILES) $(HFILES)
 
 all:	keyboard video
 
-keyboard: keyboard.c
-	$(CC) $(CFLAGS) -o $@ $< get_info.c
+keyboard: keyboard.c get_info.o
+	$(CC) $(CFLAGS) -o $@ $< get_info.o
 
-video: video.c
-	$(CC) $(CFLAGS) -o $@ $< get_info.c
+video: video.c get_info.o
+	$(CC) $(CFLAGS) -o $@ $< get_info.o
 
 .PHONY:	clean realclean 
 

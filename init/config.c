@@ -1,5 +1,5 @@
 /*
- * $Id$ 
+ * $Id: config.c,v 1.2 1995/02/05 16:53:16 root Exp root $ 
  */
 #include <stdio.h>
 #include <unistd.h>
@@ -37,7 +37,7 @@ static void parse_debugflags(const char *s);
 static void usage(void);
 
 void
-config_init(void)
+configuration_init(void)
 {
   int b;
 
@@ -202,14 +202,14 @@ static void open_Xmouse_pipe(char *path)
 }
 
 /*
- * DANG_BEGIN_FUNCTION config_setup
+ * DANG_BEGIN_FUNCTION config_init
  *
  * description:
  *  This is called to parse the command-line arguments and config files.
  * DANG_END_FUNCTION
  *
  */
-void config_setup(int argc, char **argv)
+void config_init(int argc, char **argv)
 {
   int c;
   char *confname = NULL;
@@ -528,7 +528,7 @@ parse_debugflags(const char *s)
 
 static void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/init/RCS/config.c,v 1.1 1995/01/14 15:30:55 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/init/RCS/config.c,v 1.2 1995/02/05 16:53:16 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");

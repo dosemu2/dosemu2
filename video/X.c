@@ -1,3 +1,6 @@
+/* 
+ * $Id$
+ */
 
 #include <stdio.h>
 #include <malloc.h>
@@ -27,21 +30,22 @@
 
 /********************************************/
 
-Display *dpy;
-int scr;
-Window root,W;
+static Display *dpy;
+static int scr;
+static Window root,W;
 static Cursor X_stnd_cursor, X_mouse_cursor;
-GC gc;
-Font vga_font;
-Atom proto_atom = None, delete_atom = None;
+static GC gc;
+static Font vga_font;
+static Atom proto_atom = None, delete_atom = None;
 
 static int font_width=8, font_height=16, font_shift=12;
-int prev_cursor_row=-1, prev_cursor_col=-1;
-ushort prev_cursor_shape=NO_CURSOR;
-int blink_state = 1;
-int blink_count = 8;
+static int prev_cursor_row=-1, prev_cursor_col=-1;
+static ushort prev_cursor_shape=NO_CURSOR;
+static int blink_state = 1;
+static int blink_count = 8;
 
-boolean have_focus=0, is_mapped=0;
+static boolean have_focus=0;
+boolean is_mapped=0;
 
 /* from Xkeyb.c */
 extern void X_process_key(XKeyEvent *);
@@ -49,7 +53,7 @@ extern void X_process_key(XKeyEvent *);
 /* The following are almost IBM standard color codes, with some slight
  *gamma correction for the dim colors to compensate for bright Xwindow screens.
  */
-struct {
+static struct {
    unsigned char r,g,b;
 } crgb[16]={
 {0x00,0x00,0x00},{0x18,0x18,0xB2},{0x18,0xB2,0x18},{0x18,0xB2,0xB2},
@@ -60,7 +64,7 @@ struct {
 /* initialization is used just in case XAllocColor fails */
 static int vga_colors[16] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
 
-inline void get_vga_colors()
+static void get_vga_colors(void)
 {
 	int i;
         int cmap=DefaultColormap(dpy,scr);
@@ -83,7 +87,7 @@ inline void get_vga_colors()
 }
 
   
-void set_sizehints(int xsize,int ysize) {
+static void set_sizehints(int xsize,int ysize) {
     XSizeHints sh;
 	 X_printf("set_sizehints(): xsize=%d, ysize=%d\n",xsize,ysize);
     sh.max_width=xsize*font_width;
@@ -94,7 +98,7 @@ void set_sizehints(int xsize,int ysize) {
     XSetNormalHints(dpy,W,&sh);
 }
 
-int X_init(void) {
+static int X_init(void) {
    XGCValues gcv;
    XClassHint xch;
    XSetWindowAttributes attr;
@@ -104,10 +108,19 @@ int X_init(void) {
    int cmap;
    
    X_printf("X_init()\n");
-   
+/* Let's do this here for now  95/02/06 */
+   co = 80;
+   li = 25;
    dpy=XOpenDisplay(config.X_display);
    if (!dpy) {
-      fprintf(stderr,"Can't open display %s\n",config.X_display);
+	char *display_name;
+	
+	display_name = config.X_display;
+	if(!display_name)
+		display_name = getenv("DISPLAY");
+	if(!display_name)
+		display_name = "No DISPLAY set";
+      fprintf(stderr,"Can't open display %s\n",display_name);
       leavedos(99);
    }
    scr=DefaultScreen(dpy);
@@ -124,7 +137,7 @@ int X_init(void) {
 		"Will attempt to load 9x16\n");
         if ((font=XLoadQueryFont(dpy, "9x16"))==NULL
 	  || font->min_bounds.width!=font->max_bounds.width ) {
-	   printf("ERROR: Could not find the vga font - did you run `xinstallvgafont' ?\n"
+	   printf("ERROR: Could not find the alternate 9x16 font ?\n"
 		"Please read QuickStart and DOSEMU-HOWTO.* for more information.\n");
 	   leavedos(99);
         }
@@ -134,7 +147,6 @@ int X_init(void) {
    font_height = font->max_bounds.ascent + font->max_bounds.descent;
    font_shift = font->max_bounds.ascent;
    vga_font = font->fid;
-   
    W = XCreateSimpleWindow(dpy,root,
                            0,0,                            /* position */
                            co*font_width,li*font_height,   /* size */
@@ -200,7 +212,7 @@ int X_init(void) {
    return 0;                        
 }
 
-void X_close() {
+static void X_close(void) {
    X_printf("X_close()\n");
    if (dpy==NULL) return;
    XUnloadFont(dpy,vga_font);
@@ -209,7 +221,7 @@ void X_close() {
    XCloseDisplay(dpy);
 }
 
-int X_setmode(int type, int xsize, int ysize) {
+static int X_setmode(int type, int xsize, int ysize) {
 	X_printf("X_setmode() type=%d, xsize=%d, ysize=%d\n",type,xsize,ysize);
    if (type==0) { /* text mode */
       XResizeWindow(dpy,W,xsize*font_width,ysize*font_height);
@@ -218,18 +230,21 @@ int X_setmode(int type, int xsize, int ysize) {
    return 0;
 }
 
-inline void X_setattr(byte attr) {
+static inline void X_setattr(byte attr) {
    XGCValues gcv;
    gcv.foreground=vga_colors[ATTR_FG(attr)];
    gcv.background=vga_colors[ATTR_BG(attr)];
    XChangeGC(dpy,gc,GCForeground|GCBackground,&gcv);
 }
 
-void X_change_mouse_cursor(int flag) {
-   XDefineCursor(dpy, W, flag ? X_mouse_cursor : X_stnd_cursor);
+void X_change_mouse_cursor(void) {
+   if (mouse.cursor_on != 0)
+     XDefineCursor(dpy, W, X_stnd_cursor);
+   else
+     XDefineCursor(dpy, W, X_mouse_cursor);
 }
 
-inline void X_draw_cursor(int x,int y)
+static void X_draw_cursor(int x,int y)
 {
    int cstart, cend;
 
@@ -250,7 +265,7 @@ inline void X_draw_cursor(int x,int y)
    }
 }
 
-inline void X_restore_cell(int x,int y) {
+static inline void X_restore_cell(int x,int y) {
    us *sp = screen_adr+y*co+x;
    char c = XCHAR(sp);
    X_setattr(ATTR(sp));
@@ -258,7 +273,7 @@ inline void X_restore_cell(int x,int y) {
                     &c,1);
 }
 
-void X_redraw_cursor() {
+static void X_redraw_cursor(void) {
   
   if (!is_mapped) return;
 #if 0  
@@ -274,7 +289,7 @@ void X_redraw_cursor() {
    prev_cursor_shape=cursor_shape;
 }
 
-void X_update_cursor() {
+static void X_update_cursor(void) {
 
    if (cursor_row!=prev_cursor_row || cursor_col!=prev_cursor_col ||
        cursor_shape!=prev_cursor_shape)
@@ -285,7 +300,7 @@ void X_update_cursor() {
    }
 }
 
-void X_blink_cursor()
+void X_blink_cursor(void)
 {
    if (!have_focus)
       return;
@@ -303,7 +318,7 @@ void X_blink_cursor()
 
 /* redraw the entire screen. Used for expose events etc. */
  
-void X_redraw_screen() 
+static void X_redraw_screen(void) 
 {
    int x,y,start_x,attr;
    us *sp;
@@ -394,7 +409,7 @@ void X_scroll(int x,int y,int width,int height,int n,byte attr) {
 
 
 /* process the scroll queue */
-void do_scroll() {
+static void do_scroll(void) {
    struct scroll_entry *s;
 
    while((s=get_scroll_queue())) {
@@ -417,7 +432,7 @@ void do_scroll() {
 /* this is derived from ansi_update but heavily modified 
 */
 
-int X_update_screen()
+static int X_update_screen(void)
 {
   us *srow, *oldsrow, *sp, *oldsp;
   char *bp;
@@ -584,7 +599,7 @@ chk_cursor:
   }
 }
 
-void m_setpos(int x,int y) {
+static void m_setpos(int x,int y) {
    /* XXX - this works in text mode only */
    x = x*8/font_width;
    y = y*8/font_height;
@@ -596,7 +611,7 @@ void m_setpos(int x,int y) {
    }
 }   
 
-void m_setbuttons(int state) {
+static void m_setbuttons(int state) {
    mouse.oldlbutton=mouse.lbutton;
    mouse.oldmbutton=mouse.mbutton;
    mouse.oldrbutton=mouse.rbutton;
@@ -609,7 +624,7 @@ void m_setbuttons(int state) {
    if (mouse.rbutton!=mouse.oldrbutton) mouse_rb();
 }
 
-void X_handle_events()
+void X_handle_events(void)
 {
    static int busy = 0;
    XEvent e;

@@ -9,6 +9,44 @@
  *          hgc.c is
  *          (C) 1994 Martin Ludwig (Martin.Ludwig@ruba.rz.ruhr-uni-bochum.de)
  *
+ * 1/16/1995, Erik Mouw (jakmouw@et.tudelft.nl):
+ *   Changed MDA_init() to test for exotic Hercules cards.
+ *   Now it should support MDA, Hercules Graphics Card, Hercules Graphics 
+ *   Card Plus (also known as Hercules RamFont) and Hercules InColor.
+ *   The new CRTC init values come from original Hercules documentation.
+ *
+ * DANG_BEGIN_MODULE
+ *
+ * The dual monitor support files to use a monochrome card as 
+ * second video subsystem. Usefull with for example Borland Turbo
+ * Debugger and Turbo Profiler, HelpPC.
+ * Supported cards are: 
+ *  - MDA (Monochrome Display Adapter)
+ *  - Hercules Graphics Card (_the_ Hercules card)
+ *  - Hercules Graphics Card Plus (a.k.a. Hercules RamFont) 
+ *  - Hercules InColor (the "color monochrome card").
+ *
+ * DANG_END_MODULE
+ *
+ *
+ * DANG_BEGIN_REMARK
+ *
+ * After MDA_init() the VGA is configured, something in video.c 
+ * or console.c "reprograms" the monochrome card again in such a way 
+ * that I always have to run hgc.com before I can use any program that 
+ * uses the monochrome card. I've spent a day trying to find it, but I 
+ * can't figure out. Something is writing to one of the following ports: 
+ * 0x3b4, 0x3b5, 0x3b8, 0x3b9, 0x3ba, 0x3bb, 0x3bf.
+ * The problem occurs at (at least) the following 2 systems:
+ *
+ *  - AMD 386DX40, Trident 9000/512Kb ISA, Hercules Graphics Card Plus
+ *  - Intel 486DX2/66, Cirrus Logic 5426/1Mb VLB, Hercules clone
+ *
+ * The problem doesn't occur when I start dosemu from a telnet connection
+ * or from a VT100 terminal. (Erik Mouw, jakmouw@et.tudelft.nl)
+ *
+ * DANG_END_REMARK
+ *
  */
 
 #include <stdio.h>
@@ -32,6 +70,52 @@ extern void close_kmem(), open_kmem();
 #define _IS_VS(s) (Video == ((struct video_system *)&(s)) )
 
 struct video_system *Video_default;
+
+/* 
+  Dualmon type:
+    0 -> unknown
+    1 -> MDA
+    2 -> Hercules
+    3 -> Hercules Ramfont
+    4 -> Hercules Incolor
+*/
+#define DM_UNKNOWN	0
+#define DM_MDA		1
+#define DM_HGC		2
+#define DM_RAMFONT	3
+#define DM_INCOLOR	4
+static int dualmon_card_type = DM_UNKNOWN;
+
+/*
+  6845 values for the Hercules Graphics Card:
+  
+  horizontal length in chars-1
+  horizontal displayed
+  horizontal sync position
+  horizontal sync width
+  
+  vertical total height in chars-1
+  vertical adjust
+  vertical displayed
+  vertical sync position
+  
+  interlace mode
+  max scan line address
+  cursor start
+  cursur end
+  
+  start address high
+  start address low
+  cursor address high
+  cursor address low
+*/
+static unsigned char dualmon_text_table[] =
+{
+    0x61, 0x50, 0x52, 0x0f,
+    0x19, 0x06, 0x19, 0x19,
+    0x02, 0x0d, 0x0b, 0x0c,
+    0x00, 0x00, 0x00, 0x00
+};
 
 
 static int map_MDA_for_dualmon()
@@ -60,66 +144,122 @@ static int map_MDA_for_dualmon()
 }
 
 
-
+/*
+ * DANG_BEGIN_FUNCTION MDA_init
+ *
+ * arguments: none
+ * 
+ * returns: nothing
+ *
+ * description:
+ *  Initializes the monochrome card. First detects which monochrome
+ *  card is used, because the Hercules RamFont and the Hercules InColor
+ *  need one more register to be initialized. If there is no monochrome
+ *  card at all, we just think there is one and poke an peek in the void.
+ *  After the detection the card is initialized.
+ *
+ * DANG_END_FUNCTION
+ */
 static void MDA_init()
 {
   /* following code is from Martin.Ludwig@ruba.rz.ruhr-uni-bochum.de (video/hgc.c) */
+
+  /* Detection code comes from vgadoc3 (available on every Simtel
+     mirror, look for the file vgadoc3.zip) and Hercules 
+     documentation.
+     Init code changed by Erik Mouw (jakmouw@et.tudelft.nl).
+     Init values were false. New init values come from original 
+     Hercules documentation. CRTC init code made more elegant.
+  */
+
+  int val, x, y;
   
-  /* init 6845 Video-Controller */
-  /* Values from c't 10/88 page 216 */
+  /* First detect which card we have to deal with */
+  port_out(1, 0x03bf);		/* Switch to HALF mode */
+  
+  port_out(0x0f, 0x3b4);	/* Change cursor location low */
+  y=port_in(0x3b5) & 0xff;	/* old value */
+  v_printf("DUALMON: 0x3b4,0x0f before=0x%02x\n", y);
+  
+  port_out(0xff-y, 0x3b5);	/* new value */
+  for(x=0; x<1000; x++);	/* Sleep something */
+  val=port_in(0x3b5) & 0xff;	/* read it again */
+  v_printf("DUALMON: 0x3b4,0x0f after=0x%02x\n", val);
+  
+  port_out(y, 0x3b5);    /* reset the old value */  
+  
+  if(val==(0xff-y))		 /* Cursor changed ? */
+  {
+      val=port_in(0x3ba) & 0x80;
+      
+      for(x=0x8000; x>0; x--)
+      {
+          y=port_in(0x03ba);
+          if((y&0x80)!=val)
+              break;
+      }
+      
+      if(x==0)
+          dualmon_card_type=DM_MDA;
+      else if((y&0x70)==0x50)
+          dualmon_card_type=DM_INCOLOR;
+      else if((y&0x30)==0x10)
+          dualmon_card_type=DM_RAMFONT;
+      else
+          dualmon_card_type=DM_HGC;
+  }
+  else
+      dualmon_card_type=DM_UNKNOWN;
 
-  /* horizontal length in chars-1 */
-  port_out( 0,0x03b4); port_out( 97,0x03b5);
-
-  /* horizontal displayed */
-  port_out(1,0x03b4); port_out( 80,0x03b5);
-
-  /* horizontal sync position */
-  port_out(2,0x03b4); port_out( 82,0x03b5);
-
-  /* horizontal sync width */
-  port_out(3,0x03b4); port_out( 15,0x03b5);
-
-  /* vertical total height in chars-1 */
-  port_out(4,0x03b4); port_out( 25,0x03b5);
-
-  /* vertical adjust */
-  port_out(5,0x03b4); port_out( 6,0x03b5);
-
-  /* vertical displayed */
-  port_out(6,0x03b4); port_out( 25,0x03b5);
-
-  /* vertical sync position */
-  port_out(7,0x03b4); port_out( 25,0x03b5);
-
-  /* interlace mode */
-  port_out(8,0x03b4); port_out( 2,0x03b5);
-
-  /* max. scan line address  */
-  port_out(9,0x03b4); port_out( 13,0x03b5);
-
-  /* cursor start */
-  port_out(10,0x03b4); port_out( 12,0x03b5);
-
-  /* cursor end */
-  port_out(11,0x03b4); port_out( 13,0x03b5);
-
-  /* start address high */
-  port_out(12,0x03b4); port_out( 00,0x03b5);
-
-  /* start address low */
-  port_out(13,0x03b4); port_out( 00,0x03b5);
-
-  /* cursor address high */
-  port_out(14,0x03b4); port_out( 00,0x03b5);
-
-  /* cursor address low */
-  port_out(15,0x03b4); port_out( 00,0x03b5);
+  v_printf("DUALMON: detected card is ");
+  switch(dualmon_card_type)
+  {
+    case DM_MDA:
+      v_printf("a MDA\n");
+      break;
+      
+    case DM_HGC:
+      v_printf("a Hercules Graphics Card\n");
+      break;
+      
+    case DM_RAMFONT:
+      v_printf("a Hercules Graphics Card Plus (RamFont)\n");
+      break;
+      
+    case DM_INCOLOR:
+      v_printf("a Hercules InColor\n");
+      break;
+      
+    default:
+      v_printf("unknown\n");
+      break;
+  }
+  
+  /* Go to the standard 6845 init stuff */
+  for(x=0; x<16; x++)
+  {
+      port_out(x, 0x03b4);
+      port_out(dualmon_text_table[x], 0x03b5);
+  }
+  
+  /* This is only for Ramfont cards and higher */
+  if(dualmon_card_type>=DM_RAMFONT)
+  {
+      port_out(0x14, 0x03b4);
+      port_out(0x00, 0x3b5);
+      /* bit 0: ROM (0) or RAM (1) font */
+      /* bit 1: nine (0) or eight (1) pixel wide characters */
+      /* bit 2: 4Kb (0) or 48Kb (1) ramfont */
+  } 
 
   /* Graphics allowed with 1 page (half mode) */
   port_out(1,0x03bf);
 
   /* Texmode, screen & cursor visible, page 0 */
+  /* EM: cursor is always visible, bit 5 is for the *text* blinker. */
+  /* Hercules documentation says the following about it:            */
+  /*   "This blinker has no effect on the cursor. Every character   */
+  /*    whose attribute indicates blinking, will now blink."        */
   port_out(0x28,0x03b8);
 } 
 
@@ -223,4 +363,3 @@ void init_dualmon(void)
   }
   v_printf("VID: config.dualmon=%d\n",config.dualmon);
 }
-
