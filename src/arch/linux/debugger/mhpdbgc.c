@@ -1212,7 +1212,12 @@ static void mhp_regs(int argc, char * argv[])
      mhp_printf( "General Protection Fault, ");
 
  if (!traceloop)
-  mhp_printf( "system state: %s%s%s\n",
+  mhp_printf( "system state: %s%s%s%s\n",
+#ifdef X86_EMULATOR
+       config.cpuemu > 1 ? "emulated," : "",
+#else
+       "",
+#endif
        mhpdbgc.stopped ? "stopped" : "running",
        IN_DPMI ? " in DPMI" : (in_dpmi?" in real mode while in DPMI":""),
        IN_DPMI ?(dpmi_mhp_getcsdefault()?"-32bit":"-16bit") : "");

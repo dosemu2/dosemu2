@@ -1,3 +1,24 @@
+97/11/01 ver. 0.67.14.1 unofficial pre-release
+	From Alberto
+	- BIG patch to introduce the willows twin based cpu emulator
+	  ( too much to describe the details here, have a look at 
+	  src/doc/README/cpuemu). Alberto did a great job in porting the twin
+	  cpu emulator to DOSEMU! We hope that one day (a) DOSEMU can run
+	  on machines other then the Intel and (b) we can use the emulator
+	  to simulate ring0 protected mode (win95;-).
+	  However, currently its _very_ experimental and only few programms
+	  run, hence it is disabled by default. As it now is in the
+	  distribution we can make efforts to get this baby on its way;-)
+	- cleanup for the old X86_EMULATOR define (now using it for cpuemu)
+	- small initial documentation
+	From Hans
+	- doing the 'slave work' of integrating Alberto's patch ;-)
+	  ( including copyright verification with Willows )
+	- new dosemu.conf options: 'cpu emulated' and 'logfilesize xxx'
+	- reworked log_printf and 'error', now both are functions and call
+	  'vlog_printf'. This avoids recursive macro expansion, when
+	  redirecting 'fprintf' to 'error' in the twin code.
+	- making dosdebug to tell us wether we are on a simulated cpu.
 97/10/24 ver. 0.67.14 released
 	From Alberto
 	- prep for cpuemu in src/arch/linux/debugger/{dis8086.c,mhpdbgc.c}

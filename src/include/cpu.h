@@ -28,11 +28,6 @@
 
 #include "extern.h"
 
-#ifdef X86_EMULATOR
-#include "x86_emulator.h"
-#endif
-
-#ifndef X86_EMULATOR
 /* all registers as a structure */
 #ifdef __linux__
 #define REGS  vm86s.regs
@@ -132,8 +127,6 @@
 #define WRITE_FLAGSE(val)    REG(eflags) = (val)
 #define READ_FLAGS()        LWORD(eflags)
 #define READ_FLAGSE()        REG(eflags)
-
-#endif /* #ifndef X86_EMULATOR */
 
 /*
  * nearly directly stolen from Linus : linux/kernel/vm86.c

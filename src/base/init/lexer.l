@@ -171,6 +171,7 @@ ttylocks		RETURN(TTYLOCKS);
 sound_emu               RETURN(L_SOUND);
 dosemumap               RETURN(DOSEMUMAP);
 logbufsize              RETURN(LOGBUFSIZE);
+logfilesize		RETURN(LOGFILESIZE);
 
 	/* sillyint values */
 use_sigio		RETURN(USE_SIGIO);

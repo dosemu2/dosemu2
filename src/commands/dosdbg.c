@@ -69,7 +69,7 @@ i  port I/O     s  serial       m  mouse        #  interrupt\n\
 p  printer      g  general      c  config       w  warnings\n\
 h  hardware     I  IPC          E  EMS          x  XMS\n\
 M  DPMI         n  network      P  pktdrv       r  PIC\n\
-S  sound\n");
+S  sound        T  I/O-trace    e  cpu-emu\n");
 
 #else
 
@@ -78,7 +78,8 @@ C  cdrom        v  video        k  keyboard     i  port I/O\n\
 s  serial       m  mouse        #  interrupt    p  printer\n\
 g  general      c  config       w  warnings     h  hardware\n\
 I  IPC          E  EMS          x  XMS          M  DPMI\n\
-n  network      P  pktdrv       r  PIC          S  sound\n");
+n  network      P  pktdrv       r  PIC          S  sound\n\
+T  I/O-trace    e  cpu-emu\n");
 
 #endif
 
@@ -155,6 +156,10 @@ printDebugClass(char class, char value)
               printf("i  port I/O   ");
               break;
 
+         case 'T':
+              printf("T  I/O-trace  ");
+              break;
+
          case 's':
               printf("s  serial     ");
               break;
@@ -217,6 +222,10 @@ printDebugClass(char class, char value)
 
          case 'S':
               printf("S  sound      ");
+              break;
+
+         case 'e':
+              printf("e  cpu-emu    ");
               break;
 
          default:
@@ -304,9 +313,9 @@ uint16 ParseAndSetDebugString(char *userDebugStr)
     char class, value;
 
 #ifdef X_SUPPORT
-    const char debugAll[] = "-d-R-W-D-C-v-X-k-i-s-m-#-p-g-c-w-h-I-E-x-M-n-P-r-S";
+    const char debugAll[] = "-d-R-W-D-C-v-X-k-i-T-s-m-#-p-g-c-w-h-I-E-x-M-n-P-r-S-e";
 #else
-    const char debugAll[] = "-d-R-W-D-C-v-k-i-s-m-#-p-g-c-w-h-I-E-x-M-n-P-r-S";
+    const char debugAll[] = "-d-R-W-D-C-v-k-i-T-s-m-#-p-g-c-w-h-I-E-x-M-n-P-r-S-e";
 #endif
 
     //expand the user string to a canonical form

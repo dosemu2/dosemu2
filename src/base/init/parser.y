@@ -36,9 +36,9 @@
 
 #include "config.h"
 #include "emu.h"
-#if 0
-#include "cpu.h"
-#endif /* WHY */
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
+#endif
 #include "disks.h"
 #include "port.h"
 #ifdef NEW_PORT_CODE
@@ -183,7 +183,7 @@ extern void yyrestart(FILE *input_file);
 %token DEXE ALLOWDISK FORCEXDOS XDOSONLY
 %token ABORT WARN
 %token BOOTDISK L_FLOPPY EMUSYS EMUBAT EMUINI L_X
-%token DOSEMUMAP LOGBUFSIZE
+%token DOSEMUMAP LOGBUFSIZE LOGFILESIZE
 	/* speaker */
 %token EMULATED NATIVE
 	/* keyboard */
@@ -301,6 +301,16 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 			else
 				yyerror("error in CPU user override\n");
 			}
+		| CPU EMULATED
+			{
+#ifdef X86_EMULATOR
+#ifdef DONT_START_EMU
+			config.cpuemu = 1;
+#else
+			config.cpuemu = 3;
+#endif
+#endif
+			}
 		| CPUSPEED INTEGER
 			{ 
 			if (config.realcpu >= CPU_586) {
@@ -377,6 +387,11 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		      }
 		      logptr = logbuf = b;
 		      logbuf_size = $2;
+		    }
+		| LOGFILESIZE INTEGER
+		    {
+		      extern int logfile_limit;
+		      logfile_limit = $2;
 		    }
 		| DOSBANNER bool
 		    {
@@ -621,8 +636,22 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		    if ($2==MATROX) config.pci=config.pci_video=1;
 		    }
 		| MEMSIZE INTEGER	{ config.gfxmemsize = $2; }
-		| GRAPHICS		{ config.vga = 1; }
-		| CONSOLE		{ config.console_video = 1; }
+		| GRAPHICS
+		    { config.vga =
+#if defined(X86_EMULATOR)&&defined(VT_EMU_ONLY)
+			!config.cpuemu;
+#else
+			1;
+#endif
+		    }
+		| CONSOLE
+		    { config.console_video =
+#if defined(X86_EMULATOR)&&defined(VT_EMU_ONLY)
+			!config.cpuemu;
+#else
+			1;
+#endif
+		    }
 		| FULLREST		{ config.fullrestore = 1; }
 		| PARTREST		{ config.fullrestore = 0; }
 		| VBIOS_FILE STRING	{ config.vbios_file = $2;

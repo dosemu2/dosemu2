@@ -75,8 +75,8 @@ extern FILE *dbg_fd;
 #define dbug_printf(f,a...)	ifprintf(10,f,##a)
 
 /* unconditional message into debug log and stderr */
-#define error(f,a...)		do{ log_printf(10,"ERROR: "f,##a);\
-				  fprintf(stderr,"ERROR: "f,##a); }while(0)
+void error(const char *fmt, ...);
+
 #define flush_log()		{ if (dbg_fd) log_printf(-1, "\n"); }
 
 #ifndef NO_DEBUGPRINT_AT_ALL

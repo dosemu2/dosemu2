@@ -38,6 +38,13 @@ extern int type_in_pre_strokes();
 extern int errno;
 #endif
 
+#ifdef X86_EMULATOR
+extern int e_sig_pending;
+#define E_SIGNAL	if (config.cpuemu>1) e_sig_pending=1
+#else
+#define E_SIGNAL
+#endif
+
 /* Variables for keeping track of signals */
 #define MAX_SIG_QUEUE_SIZE 50
 static u_short SIGNAL_head=0; u_short SIGNAL_tail=0;
@@ -450,6 +457,7 @@ void SIGALRM_call(void){
 inline void SIGNAL_save( void (*signal_call)() ) {
   signal_queue[SIGNAL_tail].signal_handler=signal_call;
   SIGNAL_tail = (SIGNAL_tail + 1) % MAX_SIG_QUEUE_SIZE;
+  E_SIGNAL;
   if (in_dpmi)
     dpmi_eflags |= VIP;
   REG(eflags) |= VIP;
@@ -509,6 +517,16 @@ sigalrm(int sig, struct sigcontext_struct context)
 {
   if (in_dpmi && !in_vm86)
     dpmi_sigio(&context);
+  SIGNAL_save(SIGALRM_call);
+}
+#endif
+
+#ifdef X86_EMULATOR
+void
+e_sigalrm(void)
+{
+/*  if (in_dpmi && !in_vm86)
+    dpmi_sigio(&context); */
   SIGNAL_save(SIGALRM_call);
 }
 #endif

@@ -20,7 +20,9 @@
 
 #include "dos2linux.h"
 #include "priv.h"
-
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
+#endif
 
 /*
  * XXX - the mem size of 734 is much more dangerous than 704. 704 is the
@@ -91,6 +93,9 @@ config_defaults(void)
     config.rdtsc = 0;
     config.mathco = 0;
     config.smp = 0;
+#ifdef X86_EMULATOR
+    config.emuspeed = 50;	/* instruction cycles per us */
+#endif
 
     fs=fopen("/proc/cpuinfo","r");
     if (fs) {
@@ -155,6 +160,9 @@ config_defaults(void)
     fprintf(stderr,"Running on CPU=%d86, FPU=%d\n",config.realcpu,config.mathco);
 
     config.hdiskboot = 1;	/* default hard disk boot */
+#ifdef X86_EMULATOR
+    config.cpuemu = 0;
+#endif
     config.mem_size = 640;
     config.ems_size = 0;
     config.ems_frame = 0xd000;
@@ -373,7 +381,7 @@ config_init(int argc, char **argv)
 
     opterr = 0;
     confname = CONFIG_FILE;
-    while ((c = getopt(argc, argv, "ABCcF:I:kM:D:P:VNtsgx:KL:m234e:E:dXY:Z:o:Ou:")) != EOF) {
+    while ((c = getopt(argc, argv, "ABCcF:I:kM:D:P:VNtsgx:KL:m23456e:E:dXY:Z:o:Ou:")) != EOF) {
 	switch (c) {
 	case 'F':
 	    if (get_orig_uid()) {
@@ -693,9 +701,9 @@ int parse_debugflags(const char *s, unsigned char flag)
     char            c;
 
 #ifdef X_SUPPORT
-    const char      allopts[] = "dRWDCvXkiTsm#pgcwhIExMnPrS";
+    const char      allopts[] = "dRWDCvXkiTsm#pgcwhIExMnPrSe";
 #else
-    const char      allopts[] = "dRWDCvkiTsm#pgcwhIExMnPrS";
+    const char      allopts[] = "dRWDCvkiTsm#pgcwhIExMnPrSe";
 #endif
 
     /*
@@ -795,12 +803,21 @@ int parse_debugflags(const char *s, unsigned char flag)
 	case 'S':		/* SOUND */
 	    d.sound = flag;
 	    break;
+#ifdef X86_EMULATOR
+	case 'e':		/* cpu-emu */
+	    d.emu = flag;
+	    break;
+#endif
 	case 'a':{		/* turn all on/off depending on flag */
 		char           *newopts = (char *) malloc(strlen(allopts) + 2);
 
 		newopts[0] = flag ? '+' : '-';
 		newopts[1] = 0;
 		strcat(newopts, allopts);
+#ifdef X86_EMULATOR
+		/* hack-do not set 'e' flag if not explicitly specified */
+		{char *p=newopts; while (*p) {if (*p=='e') *p='g'; p++;}}
+#endif
 		parse_debugflags(newopts, flag);
 		free(newopts);
 		break;
@@ -823,7 +840,7 @@ usage(void)
     fprintf(stdout,
 	"dosemu-" VERSTR "\n\n"
 	"USAGE:\n"
-	"  dos  [-ABCckbVNtsgxKm23456e] \\\n"
+	"  dos  [-ABCckbVNtsgxKm23456ez] \\\n"
 	"       [-D flags] [-M SIZE] [-P FILE] [ {-F|-L} File ] \\\n"
 	"       [-o dbgfile] 2> vital_logs\n"
 	"  dos --version\n\n"

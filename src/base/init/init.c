@@ -202,6 +202,9 @@ void timer_interrupt_init(void)
   }
   config.realdelta = delta;
 
+#ifdef X86_EMULATOR
+  if (config.cpuemu>1) return;
+#endif
   itv.it_interval.tv_sec = 0;
   itv.it_interval.tv_usec = delta;
   itv.it_value.tv_sec = 0;

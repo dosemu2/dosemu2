@@ -147,8 +147,13 @@ void getKeys(void);
 
      int set_ioperm(int, int, int);
 
-     EXTERN struct debug_flags d INIT({0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0});
-     EXTERN u_char in_sighandler, in_ioctl;
+#ifdef X86_EMULATOR
+EXTERN struct debug_flags d INIT({0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0});
+#else
+EXTERN struct debug_flags d INIT({0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0});
+#endif
+ 
+EXTERN u_char in_sighandler, in_ioctl;
 /* one-entry queue ;-( for ioctl's */
 EXTERN struct ioctlq iq INIT({0, 0, 0, 0}); 
 EXTERN u_char in_ioctl INIT(0);
@@ -227,7 +232,10 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
 #define False FALSE
 #endif
 
-     typedef unsigned char boolean;
+#ifndef DOSEMU_BOOL_IS_CHAR
+typedef unsigned char boolean;
+#define DOSEMU_BOOL_IS_CHAR
+#endif
 
 /* would like to have this in memory.h (but emu.h is included before memory.h !) */
 #define HARDWARE_RAM_START 0xc8000
@@ -242,6 +250,10 @@ typedef struct vesamode_type_struct {
      typedef struct config_info {
        int hdiskboot;
 
+#ifdef X86_EMULATOR
+       boolean cpuemu;
+       int emuspeed;
+#endif
        /* for video */
        boolean console;
        boolean console_video;

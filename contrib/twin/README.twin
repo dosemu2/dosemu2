@@ -1,0 +1,16 @@
+This patch documents the changes between the original Twin code and DOSEMU
+at time of taking over (twin-3.1.1). Reverse applying this patch to the
+DOSEMU directory src/emu-i386/intp32/twin should regain the original.
+
+However, to fulfill the source availability requirements of the GPL the
+full Twin package can be downloaded from its home site
+
+  http://www.willows.com/
+
+or the DOSEMU home site
+
+  ftp://ftp.suse.com/pub/dosemu/contrib/twin-src-3.1.1.tgz
+
+Nov. 1, 1997
+Hans Lermen
+<lermen@fgan.de>

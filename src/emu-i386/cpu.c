@@ -178,6 +178,7 @@ int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
 void cpu_setup(void)
 {
   extern void int_vector_setup(void);
+  extern void init_cpu (void);
 
   int_vector_setup();
 
@@ -201,6 +202,12 @@ void cpu_setup(void)
   REG(eflags) |= (IF | VIF | VIP);
 #else
   REG(eflags) |= (VIF | VIP);
+#endif
+
+#ifdef X86_EMULATOR
+  if (config.cpuemu) {
+    init_cpu();
+  }
 #endif
 }
 

@@ -30,6 +30,9 @@
 #ifdef __NetBSD__
 #include <errno.h>
 #endif
+#ifdef __linux__
+#include <asm/bitops.h>
+#endif
 #if X_GRAPHICS
 #include <sys/mman.h>           /* root@sjoerd*/
 #endif
@@ -77,6 +80,7 @@
 #include "keyboard.h"
 
 #include "dma.h"
+#include "cpu-emu.h"
 
 extern Bit8u spkr_io_read(Bit32u port);
 extern void spkr_io_write(Bit32u port, Bit8u value);
@@ -797,6 +801,14 @@ set_ioperm(int start, int size, int flag)
     if (!i_am_root)
 	return -1;		/* don't bother */
 
+#ifdef X86_EMULATOR
+    if (config.cpuemu) {
+	int i;
+	for (i=start; i<start+size; i++)
+		(flag? set_bit(i,io_bitmap):clear_bit(i,io_bitmap));
+	tmp = 0;
+    }
+#endif
     enter_priv_on();
     tmp = ioperm(start, size, flag);
     leave_priv_setting();

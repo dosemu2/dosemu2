@@ -260,6 +260,21 @@ For "cpu", set this to the CPU you want recognized during DOSEMU.
   cpu 80386
 </verb></tscreen>
 
+If you have DOSEMU configured to use the 386-emulator, you can enable the
+emulator via
+
+<tscreen><verb>
+  cpu emulated
+</verb></tscreen>
+
+You may ask why we need to emulate a 386 on an 386 ;-) Well, for normal
+purpose its not needed (and will be slower anyway), but the emulator offers
+a better way to debug DOS applications, especially DPMI code.
+Also, we hope that some day we may be able to run DOSEMU on other machines
+than 386. At the time of writing this, the cpu emulators is very alpha and
+you should not use it except you are willing to help us. So please, don't
+even try to report 'bugs' except you have a patch for the bug too.
+
 If you have a pentium, DOSEMU can make use of the pentium cycle counter
 to do better timing. DOSEMU detects the pentium and will use the RDTSC
 instruction for get time per default. To disable this feature use
@@ -322,6 +337,16 @@ Using the below switches buffering on and sets the buffer size.
 <tscreen><verb>
   logbufsize 0x20000
 </verb></tscreen>
+
+In addition, you may want to limit the file size of the log file, especially
+when you expect huge amounts of data (such as with -D+e). This can be done
+via
+<tscreen><verb>
+  logfilesize 0x200000
+</verb></tscreen>
+
+which (in this case) will limit the size to 2Mbytes. The default setting is
+a file size of 10Mbytes.
 
 When you want to abort DOSEMU from within a configuration file (because
 you detected something weird) then do

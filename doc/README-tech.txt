@@ -289,6 +289,10 @@
   22.1.   The mail message
 
   23.     Net code
+
+  24.     Software X386 emulation
+
+  24.1.   The CPU emulator
   ______________________________________________________________________
 
   11..  IInnttrroodduuccttiioonn
@@ -440,7 +444,6 @@
 
   +o  Now, how is this realized? This is a bit more complicated.  We have
      3 places were the eflag register is stored in memory:
-
      vvmm8866ss..rreeggss..eeffllaaggss
         in user space, seen by dosemu
 
@@ -502,7 +505,6 @@
 
      How I think we should proceed? Well this I did describe in my last
      mail.
-
      _N_O_T_E VIF and VIP in DOS-CPU-flagsregister are inherited from
      32-bit, so actually they are both ZERO.
 
@@ -3031,4 +3033,87 @@
   sessions.)
 
   Vinod <vinod@cse.iitb.ernet.in>
+
+  2244..  SSooffttwwaarree XX338866 eemmuullaattiioonn
+
+  This section written in a hurry by Alberto Vignani
+  <vignani@mbox.vol.it> , Oct 20, 1997
+
+  2244..11..  TThhee CCPPUU eemmuullaattoorr
+
+  The CPU emulator has been derived from <the Twin Willows libraries>.
+  Only the relevant parts of the library, namely the /intp32
+  subdirectory and the needed include files, have been extracted from
+  the Twin sources into the src/twin directory. The Twin reference
+  version is 3.1.1.  In the Twin code, changes needed for the dosemu
+  interface have been marked with
+
+           #ifdef DOSEMU
+
+  Here is a summary of the changes I made in the Twin libraries:
+
+           - I added vm86 mode, and related exception handling.
+           - I made a first attempt to entry-point symmetry; the final goal is
+             to have an 'invoke_code32' in interp_32_32.c, which can reach the
+             16-bit code using 0x66,0x67 prefixes, the same way the 16-bit code
+             is currently doing the other way. The variables 'code32' and 'data32'
+             are used for prefix control.
+           - some optimizations to memory access and multiplication code for
+             little-endian machines and GNU compiler.
+           - dosemu-style debug output; this is the biggest part of the patch
+           - bugfixes. These are NOT marked with #ifdef DOSEMU!
+
+  The second part of the cpuemu patch is the interface to dosemu, which
+  is controlled by the X86_EMULATOR macro. This macro was probably part
+  of a very old attempt to interface dosemu with Bochs, I deleted the
+  old code and replaced it with the Twin interface.
+
+  The X86_EMULATOR macro enables the compilation of the two files (cpu-
+  emu.c and emu-utils.c) in the src/emu-i386/intp32 directory, which
+  contain the vm86 emulator call (taken from the kernel sources) and
+  some utility/debug functions. These files are kept separate from the
+  Twin directory but need it to compile.
+
+  For controlling the emulator behaviour, the file include/cpu-emu.h
+  provides three macros:
+
+      DONT_START_EMU: if undefined, the emulator starts immediately;
+         otherwise, a call to int 0xe6 al=0x90 is required to switch from
+         the standard vm86 to it. To switch in and out from the emulator,
+         the small utilities 'ecpuon.com' and 'ecpuoff.com' are provided.
+      TRACE_HIGH: controls the memory areas you want to include into the
+         debug trace. The default value excludes the video BIOS and the HMA,
+         but feel free to change it following your needs.
+      VT_EMU_ONLY: if defined, use of the emulator forces VT console mode, by
+         ignoring the 'console' and 'graphics' statements in the video
+         config line.
+
+  To enable the CPU emulator add
+
+           cpuemu on
+
+  to compiletime-settings, or pass
+
+           --enable-cpuemu
+
+  to configure.
+
+  To use the emulator, put
+
+           cpu emulated
+
+  into /etc/dosemu.conf. Or start dosemu with -I 'cpu emulated'.
+
+  The 'e' flag was added to the debug control string, it has currently a
+  value range from 1 to 4 and controls the level of detail the emulator
+  writes into the dosemu debug log. WARNING - logs greater than
+  100Mbytes are the rule with cpu-emu!!!. As a safety measure, 'e' is
+  not automatically added to the debug flags when you use 'a'; the 'e'
+  parameter must be explicitly added. In addition, there is a new
+  configuration parameter for /etc/dosemu.conf:
+
+           logfilesize value
+
+  This will limit the file size of the logfile. Once the limit is
+  reached, it truncates the file to zero and continues writing to it.
 

@@ -458,6 +458,20 @@
 
          cpu 80386
 
+  If you have DOSEMU configured to use the 386-emulator, you can enable
+  the emulator via
+
+         cpu emulated
+
+  You may ask why we need to emulate a 386 on an 386 ;-) Well, for
+  normal purpose its not needed (and will be slower anyway), but the
+  emulator offers a better way to debug DOS applications, especially
+  DPMI code.  Also, we hope that some day we may be able to run DOSEMU
+  on other machines than 386. At the time of writing this, the cpu
+  emulators is very alpha and you should not use it except you are
+  willing to help us. So please, don't even try to report 'bugs' except
+  you have a patch for the bug too.
+
   If you have a pentium, DOSEMU can make use of the pentium cycle
   counter to do better timing. DOSEMU detects the pentium and will use
   the RDTSC instruction for get time per default. To disable this
@@ -481,7 +495,7 @@
   If you have a PCI board you may allow DOSEMU to access the PCI
   configuration space by defining the below
 
-    pci on | off
+         pci on | off
 
   PCI is assumed to be present on CPUs better then a pentium, otherwise
   the default is 'pci off'
@@ -504,6 +518,15 @@
   below switches buffering on and sets the buffer size.
 
          logbufsize 0x20000
+
+  In addition, you may want to limit the file size of the log file,
+  especially when you expect huge amounts of data (such as with -D+e).
+  This can be done via
+
+    logfilesize 0x200000
+
+  which (in this case) will limit the size to 2Mbytes. The default
+  setting is a file size of 10Mbytes.
 
   When you want to abort DOSEMU from within a configuration file
   (because you detected something weird) then do
@@ -560,7 +583,7 @@
 
   or
 
-    keyboard {  layout de-latin1  keybint on  rawkeyboard on  }
+         keyboard {  layout de-latin1  keybint on  rawkeyboard on  }
 
   If you want DOSEMU feed with keystrokes, that are typed in
   automagically, then you may define them such as
@@ -581,7 +604,7 @@
   Ah, but _one_ sensible useage _here_ is to 'pre-strike' that damned F8
   that is needed for DOS-7.0, when you don't want to edit the msdos.sys:
 
-        keystroke "\F8;"
+   keystroke "\F8;"
 
   22..22..55..  SSeerriiaall ssttuuffff
 
@@ -629,8 +652,8 @@
   If you are going to load a msdos mouse driver for mouse support
   use/modify one of the following
 
-         serial { mouse  com 1  device /dev/mouse }
-         serial { mouse  com 2  device /dev/mouse }
+    serial { mouse  com 1  device /dev/mouse }
+    serial { mouse  com 2  device /dev/mouse }
 
   What type is your mouse?  Use one of the following.  Use the
   'internaldriver' option to try Dosemu internaldriver.  Use the
@@ -759,7 +782,6 @@
         is off.
 
         _N_O_T_E_:
-
      +o  You should _not_ use this when using X remotely (the remote site
         may have other raw keyboard settings).
 
@@ -838,7 +860,7 @@
 
   Recommended X statement:
 
-    X { updatefreq 8 title "DOS in a BOX" icon_name "xdos" }
+         X { updatefreq 8 title "DOS in a BOX" icon_name "xdos" }
 
   22..22..99..  VViiddeeoo sseettttiinnggss (( ccoonnssoollee oonnllyy ))
 
@@ -864,7 +886,6 @@
 
   +o  If your VBios size is only 32K you set it with  vbios_size 0x8000,
      you then gain some space for UMB or hardware ram locations.
-
   +o  Set "allowvideoportaccess on" earlier in this configuration file if
      DOSEMU won't boot properly, such as hanging with a blank screen,
      beeping, leaving Linux video in a bad state, or the video card
@@ -946,7 +967,7 @@
 
   Avance Logic (ALI) 230x SVGA
 
-         video { vga  console  graphics  chipset avance }
+    video { vga  console  graphics  chipset avance }
 
   For ATI graphic mode
 
@@ -992,7 +1013,7 @@
 
   XMS is enabled by the following statement
 
-    xms 1024                 # XMS size in K,  or "off"
+         xms 1024                 # XMS size in K,  or "off"
 
   For ems, you now can set the frame to any 16K between 0xc800..0xe000
 
@@ -1026,11 +1047,11 @@
 
   Use/modify one of the below statements
 
-    irqpassing off    # this disables IRQ monitoring
-    irqpassing 15
-    irqpassing { 15 }
-    irqpassing { use_sigio 15 }
-    irqpassing { 10  use_sigio range 3 5 }
+         irqpassing off    # this disables IRQ monitoring
+         irqpassing 15
+         irqpassing { 15 }
+         irqpassing { use_sigio 15 }
+         irqpassing { 10  use_sigio range 3 5 }
 
   22..22..1122..  PPoorrtt AAcccceessss
 
@@ -1130,6 +1151,7 @@
 
      rreeaaddoonnllyy
         for read only access.  A good idea to set up with.
+
      bboooottffiillee
         to specify an image of a boot sector to boot from.
 
@@ -1257,7 +1279,7 @@
 
   Use this to disable sound support even if it is configured in
 
-    sound_emu off
+         sound_emu off
 
   Linux defaults
 
@@ -1314,69 +1336,69 @@
 
   22..33..22..  //eettcc//ddoosseemmuu..ccoonnff
 
-         ifdef want_sound
-           define c_normal
-           define c_sound
-           include "dosemu.normal.conf"
-           irqpassing off speaker off
-           sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/dsp
-                       sb_mixer /dev/mixer mpu_base 0x330 }
-         else
-           ifdef guest
-             include "dosemu.guest.conf"
-           else
-             include "dosemu.norm.conf"
-           endif
-         endif
+    ifdef want_sound
+      define c_normal
+      define c_sound
+      include "dosemu.normal.conf"
+      irqpassing off speaker off
+      sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/dsp
+                  sb_mixer /dev/mixer mpu_base 0x330 }
+    else
+      ifdef guest
+        include "dosemu.guest.conf"
+      else
+        include "dosemu.norm.conf"
+      endif
+    endif
 
   22..33..33..  //eettcc//ddoosseemmuu..nnoorrmmaall..ccoonnff
 
-    debug { off }
-    dosbanner on  timint on  HogThreshold 0
-    ifdef c_sound
-      disk { image "/var/lib/dosemu/hdimage.sound" }
-    else
-      disk { image "/var/lib/dosemu/hdimage" }
-    endif
-    bootC
-    floppy { device /dev/fd0 threeinch }
-    keyboard {  layout us  keybint on  rawkeyboard on  }
-    serial { com 2  device /dev/cua1 }
-    mouse { mousesystems device /dev/mouse internaldriver }
-    ipxsupport off
-    terminal { charset latin  updatefreq 4  color on }
-    X { updatefreq 8 title "DOS in a BOX" icon_name "xdos" }
-    allowvideoportaccess on
-    video { vga  console  graphics  chipset s3  memsize 2048 vbios_size 0x8000}
-    ports { 0x1ce 0x1cf 0x238 0x23b 0x23c 0x23f 0x9ae8 0x9ae9 0x9aee 0x9aef }
-    mathco on  cpu 80386
-    dpmi 0x4000  xms 1024
-    ems { ems_size 1024 ems_frame 0xe000 }
-    hardware_ram { range 0xcc000 0xcffff }
-    sillyint { use_sigio 10 use_sigio 8 } # wd8013
-    ports { range 0x280 0x29f } # for WD8013
-    ports { range 0x70 0x71 }   #RTC
-    speaker emulated
+         debug { off }
+         dosbanner on  timint on  HogThreshold 0
+         ifdef c_sound
+           disk { image "/var/lib/dosemu/hdimage.sound" }
+         else
+           disk { image "/var/lib/dosemu/hdimage" }
+         endif
+         bootC
+         floppy { device /dev/fd0 threeinch }
+         keyboard {  layout us  keybint on  rawkeyboard on  }
+         serial { com 2  device /dev/cua1 }
+         mouse { mousesystems device /dev/mouse internaldriver }
+         ipxsupport off
+         terminal { charset latin  updatefreq 4  color on }
+         X { updatefreq 8 title "DOS in a BOX" icon_name "xdos" }
+         allowvideoportaccess on
+         video { vga  console  graphics  chipset s3  memsize 2048 vbios_size 0x8000}
+         ports { 0x1ce 0x1cf 0x238 0x23b 0x23c 0x23f 0x9ae8 0x9ae9 0x9aee 0x9aef }
+         mathco on  cpu 80386
+         dpmi 0x4000  xms 1024
+         ems { ems_size 1024 ems_frame 0xe000 }
+         hardware_ram { range 0xcc000 0xcffff }
+         sillyint { use_sigio 10 use_sigio 8 } # wd8013
+         ports { range 0x280 0x29f } # for WD8013
+         ports { range 0x70 0x71 }   #RTC
+         speaker emulated
 
   22..33..44..  //eettcc//ddoosseemmuu..gguueesstt..ccoonnff
 
-         define c_dexeonly
-         debug { off } dosbanner on
-         sound_emu off
-         timint on HogThreshold 1
-         keyboard {  layout us  keybint on  rawkeyboard off  }
-         ipxsupport off
-         terminal { charset latin  updatefreq 4  color on }
-         X { updatefreq 12 title "guest DOS in a BOX" icon_name "xdos" }
-         video { vga }
-         mathco on cpu 80386
-         dpmi off xms 1024 ems 1024
-         irqpassing off speaker off
-         dexe { secure }
-         # we don't allow anything weird anymore
-         undef c_all
-         define c_x
-         define c_nice
+    define c_dexeonly
+    debug { off } dosbanner on
+    sound_emu off
+    timint on HogThreshold 1
+    keyboard {  layout us  keybint on  rawkeyboard off  }
+    ipxsupport off
+    terminal { charset latin  updatefreq 4  color on }
+    X { updatefreq 12 title "guest DOS in a BOX" icon_name "xdos" }
+    video { vga }
+    mathco on cpu 80386
+    dpmi off xms 1024 ems 1024
+    irqpassing off speaker off
+    dexe { secure }
+    # we don't allow anything weird anymore
+    undef c_all
+    define c_x
+    define c_nice
 
   33..  SSeeccuurriittyy
 
@@ -1386,6 +1408,7 @@
   These are the hints we give you, when running dosemu on a machine that
   is (even temporary) connected to the internet or other machines, or
   that otherwise allows 'foreign' people login to your machine.
+
   +o  _N_E_V_E_R let foreign users execute dosemu under root login !!!
      (Starting with dosemu-0.66.1.4 this isn't necessary any more, all
      functionality should also be available when running as user)
@@ -1483,44 +1506,44 @@
   Here is what ./mkdexe will print as help, when called without
   argument:
 
-     USAGE:
-       mkdexe [{ application | hdimage}]
-                          [-b dospart] [{-s|-S} size] [-x appname]
-                          [-c confsys] [-a autoexe] [-C comcom ] [-d dosemuconf]
-                          [-i IOname] [-m MSname]
-                          [-o <option> [-o ...]]
+          USAGE:
+            mkdexe [{ application | hdimage}]
+                               [-b dospart] [{-s|-S} size] [-x appname]
+                               [-c confsys] [-a autoexe] [-C comcom ] [-d dosemuconf]
+                               [-i IOname] [-m MSname]
+                               [-o <option> [-o ...]]
 
-       application  the whole DOS application packet into a *.zip file
-       hdimage      the name of the target hdimage, ih -o noapp is give
-                    (see below)
-       dospart      If not given, FreeDos will be used as system
-                    If given it must be either a bootable DOS partion (/dev/...)
-                    or a already made bootable dosemu hdimage
-       -s size      The _additional_ free space (in Kbytes) on the hdimage
-       -S size      The total size (in Kbytes) of the hdimage -s,-S are mutual
-                    exclusive.
-       appname      The DOS filename of the application, that should be executed
-       confsys      Template for config.sys
-       autoexe      Template for autoexec.bat
-       comcom       file name of the shell, usually command.com
-       dosemuconf   Template for the dosemu.conf to use
-       IOname       The name of DOS file, that usually is called IO.SYS,
-                    (default for FreeDos: IPL.SYS) this one is always put as
-                    first file onto the hdimage
-       MSname       The name of DOS file, that usually is called MSDOS.SYS,
-                    (default for FreeDos: MSDOS.SYS) this one is always put as
-                    second file onto the hdimage
-       -o <option>  Following option flags are recognized:
-                      confirm   offer config.sys, autoexec.bat and dconfig
-                                to edit via $EDITOR
-                      nocomcom  Omit command.com, because its not used anyway
-                                when using  shell=c:\appname.exe
-                      noapp     Make a simple bootable hdimage for standard
-                                DOSEMU usage (replacement for hdimage.dist)
+            application  the whole DOS application packet into a *.zip file
+            hdimage      the name of the target hdimage, ih -o noapp is give
+                         (see below)
+            dospart      If not given, FreeDos will be used as system
+                         If given it must be either a bootable DOS partion (/dev/...)
+                         or a already made bootable dosemu hdimage
+            -s size      The _additional_ free space (in Kbytes) on the hdimage
+            -S size      The total size (in Kbytes) of the hdimage -s,-S are mutual
+                         exclusive.
+            appname      The DOS filename of the application, that should be executed
+            confsys      Template for config.sys
+            autoexe      Template for autoexec.bat
+            comcom       file name of the shell, usually command.com
+            dosemuconf   Template for the dosemu.conf to use
+            IOname       The name of DOS file, that usually is called IO.SYS,
+                         (default for FreeDos: IPL.SYS) this one is always put as
+                         first file onto the hdimage
+            MSname       The name of DOS file, that usually is called MSDOS.SYS,
+                         (default for FreeDos: MSDOS.SYS) this one is always put as
+                         second file onto the hdimage
+            -o <option>  Following option flags are recognized:
+                           confirm   offer config.sys, autoexec.bat and dconfig
+                                     to edit via $EDITOR
+                           nocomcom  Omit command.com, because its not used anyway
+                                     when using  shell=c:\appname.exe
+                           noapp     Make a simple bootable hdimage for standard
+                                     DOSEMU usage (replacement for hdimage.dist)
 
   If you want to change the builtin configuration file, you may use
 
-         # dexeconfig -x configfile dexefile
+    # dexeconfig -x configfile dexefile
 
   extracts the configuration out of 'dexefile' and puts it into
   'configfile'
@@ -1568,7 +1591,6 @@
 
   If you _h_a_v_e assembled a *.dexe and you wnat to contribute it, please
   send me a mail and upload the stuff to
-
           tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/Development/Incoming
 
   I'll then put it into
@@ -1613,7 +1635,6 @@
 
   Example: Given you have a bootable DOS-partition in /dev/hda1, then
   this ...
-
          # cd ./dexe
          # ./mkdexe myhdimage -b /dev/hda1 -o noapp
 
@@ -1626,8 +1647,8 @@
   helps more to firsttime install DOSEMU's hdimage. It prompts for
   needed things and should work on most machines.
 
-    # cd /where/I/have/dosemu
-    # ./setup-hdimage
+         # cd /where/I/have/dosemu
+         # ./setup-hdimage
 
   44..44..  AAcccceessssiinngg hhddiimmaaggee ffiilleess uussiinngg mmttoooollss
 
@@ -1795,7 +1816,6 @@
 
   2. Have the users that are allow to execute dosemu in
      /etc/dosemu.user.  The format is:
-
             loginname [ c_strict ] [ classes ...] [ c_dexeonly ] [ other ]
 
   For details see ``Configuring DOSEmu''. For a first time _e_a_s_y instal-
@@ -1935,22 +1955,22 @@
 
   Some samples:
 
-       #
-       # mail everything to root, but don't log
-       #
-       mail_always
+  #
+  # mail everything to root, but don't log
+  #
+  mail_always
 
-       #
-       # mail errors to root, log everything
-       # (this is the recommended usage)
-       #
-       mail_error
-       syslog_always
+  #
+  # mail errors to root, log everything
+  # (this is the recommended usage)
+  #
+  mail_error
+  syslog_always
 
-       #
-       # log errors only
-       #
-       syslog_errors
+  #
+  # log errors only
+  #
+  syslog_errors
 
   1100..  UUssiinngg XX
 
@@ -1987,30 +2007,30 @@
      docs, XFree-3.1.1 should do that intrinsicly, but for me it didn't.
      This is a part of the file /usr/X11R6/lib/X11/etc/xmodmap.std
 
-       ! When using ServerNumLock in your XF86Config, the following codes/symbols
-       ! are available in place of 79-81, 83-85, 87-91
-       keycode  136 = KP_7
-       keycode  137 = KP_8
-       keycode  138 = KP_9
-       keycode  139 = KP_4
-       keycode  140 = KP_5
-       keycode  141 = KP_6
-       keycode  142 = KP_1
-       keycode  143 = KP_2
-       keycode  144 = KP_3
-       keycode  145 = KP_0
-       keycode  146 = KP_Decimal
-       keycode  147 = Home
-       keycode  148 = Up
-       keycode  149 = Prior
-       keycode  150 = Left
-       keycode  151 = Begin
-       keycode  152 = Right
-       keycode  153 = End
-       keycode  154 = Down
-       keycode  155 = Next
-       keycode  156 = Insert
-       keycode  157 = Delete
+  ! When using ServerNumLock in your XF86Config, the following codes/symbols
+  ! are available in place of 79-81, 83-85, 87-91
+  keycode  136 = KP_7
+  keycode  137 = KP_8
+  keycode  138 = KP_9
+  keycode  139 = KP_4
+  keycode  140 = KP_5
+  keycode  141 = KP_6
+  keycode  142 = KP_1
+  keycode  143 = KP_2
+  keycode  144 = KP_3
+  keycode  145 = KP_0
+  keycode  146 = KP_Decimal
+  keycode  147 = Home
+  keycode  148 = Up
+  keycode  149 = Prior
+  keycode  150 = Left
+  keycode  151 = Begin
+  keycode  152 = Right
+  keycode  153 = End
+  keycode  154 = Down
+  keycode  155 = Next
+  keycode  156 = Insert
+  keycode  157 = Delete
 
   1100..22..  SSlliigghhttllyy oollddeerr iinnffoorrmmaattiioonn
 
@@ -2043,7 +2063,6 @@
 
   +o  starting xdos in the background (like from a window manager menu)
      appears not to work for some reason.
-
   +o  Keyboard support in the dosemu window isn't perfect yet. It
      probably could be faster, some key combos still don't work (e.g.
      Ctrl-Fn), etc.  However, input through the terminal window (i.e.
@@ -2069,7 +2088,7 @@
   +o  tell your window manager to use it. For fvwm, add the following
      line to your fvwmrc file:
 
-       Icon "xdos"   dosemu.xpm
+            Icon "xdos"   dosemu.xpm
 
   This assumes you have defined a PixmapPath. Otherwise, specify the
   entire pathname.
@@ -2182,6 +2201,7 @@
      switching.  This is very i386-Linux specific, don't be surprised if
      it doesn't work under NetBSD or another Linux flavour
      (Alpha/Sparc/MIPS/etc).
+
   +o  The DAC (Digital to Analog Converter). The DAC is completely
      emulated, except for the pelmask. This is not difficult to
      implement, but it is terribly slow because a change in the pelmask
@@ -2369,16 +2389,16 @@
 
   1111..22..  WWiinnddoowwss 33..11 PPrrootteecctteedd MMooddee
 
-       ***************************************************************
-       *    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
-       *                                                             *
-       *  Danger Will Robinson!!!  This is not yet fully supported   *
-       *  and there are many known bugs!  Large programs will almost *
-       *  certainly NOT WORK!!!  BE PREPARED FOR SYSTEM CRASHES IF   *
-       *  YOU TRY THIS!!!                                            *
-       *                                                             *
-       *    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
-       ***************************************************************
+  ***************************************************************
+  *    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
+  *                                                             *
+  *  Danger Will Robinson!!!  This is not yet fully supported   *
+  *  and there are many known bugs!  Large programs will almost *
+  *  certainly NOT WORK!!!  BE PREPARED FOR SYSTEM CRASHES IF   *
+  *  YOU TRY THIS!!!                                            *
+  *                                                             *
+  *    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
+  ***************************************************************
 
   What, you're still reading?
 
@@ -2468,10 +2488,10 @@
   +o  In order to let the mouse properly work you need the following in
      your win.ini file:
 
-       [windows]
-       MouseThreshold1=0
-       MouseThreshold2=0
-       MouseSpeed=0
+            [windows]
+            MouseThreshold1=0
+            MouseThreshold2=0
+            MouseSpeed=0
 
   +o  The mouse cursor gets not painted by X, but by windows itself, so
      it depends on the refresh rate how often it gets updated, though
@@ -2485,7 +2505,6 @@
      gets forced to 0,0 and then back to its right coordinates. Hence,
      if you want to re-calibrate the cursor, just move the cursor
      outside and then inside the DOS-Box again.
-
   1122..  MMoouussee GGaarrrroott
 
   This section, and Mouse Garrot were written by Ed Sirett
@@ -2534,31 +2553,31 @@
   interpreted as in C and leads in ESC-codes. Here a list of of the
   current implemented ones:
 
-       \r     Carriage return == <ENTER>
-       \n     LF
-       \t     tab
-       \b     backspace
-       \f     formfeed
-       \a     bell
-       \v     vertical tab
+  \r     Carriage return == <ENTER>
+  \n     LF
+  \t     tab
+  \b     backspace
+  \f     formfeed
+  \a     bell
+  \v     vertical tab
 
-       \^x    <Ctrl>x, where X is one of the usual C,M,L,[ ...
-              (e.g.: \^[ == <Ctrl>[ == ESC )
+  \^x    <Ctrl>x, where X is one of the usual C,M,L,[ ...
+         (e.g.: \^[ == <Ctrl>[ == ESC )
 
-       \Ax    <Alt>x, hence  \Ad means <Alt>d
+  \Ax    <Alt>x, hence  \Ad means <Alt>d
 
-       \Fn;   Function key Fn. Note that the trailing ';' is needed.
-              (e.g.:  \F10;  == F10 )
+  \Fn;   Function key Fn. Note that the trailing ';' is needed.
+         (e.g.:  \F10;  == F10 )
 
-       \Pn;   Set the virtual typematic rate, thats the speed for
-              autotyping in. It is given in unix timer ticks to wait
-              between two strokes. A value of 7 for example leads to
-              a rate of 100/7=14 cps.
+  \Pn;   Set the virtual typematic rate, thats the speed for
+         autotyping in. It is given in unix timer ticks to wait
+         between two strokes. A value of 7 for example leads to
+         a rate of 100/7=14 cps.
 
-       \pn;   Before typing the next stroke wait n unix ticks.
-              This is usefull, when the DOS-application fushes the
-              keybord buffer on startup. Your strokes would be discared,
-              if you don't wait.
+  \pn;   Before typing the next stroke wait n unix ticks.
+         This is usefull, when the DOS-application fushes the
+         keybord buffer on startup. Your strokes would be discared,
+         if you don't wait.
 
   When using X, the keystroke feature can be used to directly fire up a
   DOS application with one click, if you have the right entry in your
@@ -2570,9 +2589,9 @@
      dosemu and to start your dos-application, ... and don't forget to
      have CRLF for 'ENTER'. FILE may look like this (as on my machine):
 
-       2^M                    <== this chooses point 2 of the boot menu
-       dir > C:\garbage^M     <== this executes 'dir', result to 'garbage'
-       exitemu^M              <== this terminates dosemu
+            2^M                    <== this chooses point 2 of the boot menu
+            dir > C:\garbage^M     <== this executes 'dir', result to 'garbage'
+            exitemu^M              <== this terminates dosemu
 
   (the ^M stands for CR)
 
@@ -2638,7 +2657,6 @@
      WWhhyy ddoo II nneeeedd ttoo sseett tthhee HHooggTThhrreesshhoolldd vvaalluuee,, wwhhyy ccaann''tt DDOOSSEEMMUU
         just stop if it is waiting for a keystroke ?"  The reason is the
         way how DOS and a lot of applications have implemented
-
         It's most often done by something similar to the following code
         fragment :
 
@@ -2673,6 +2691,7 @@
   P.S.  If you want to change the HogThreshold value during execution,
   simply call int e6h w/al=12h & bx=the new value.  This is what
   speed.com does. If you are interested, please take a look at speed.c.
+
   Notes:  If your application is unkind enough to do waits using an
   int16h fcn 1h loop without calling the keyboard idle interrupt (int
   28h), this code is not going to help much.  If someone runs into a
@@ -2743,7 +2762,6 @@
 
      ssppeeeedd..ccoomm
         set cpu usage (HogThreshold) from inside Dosemu
-
      ssyysstteemm..ccoomm
         interface to system(2)...
 
@@ -2775,6 +2793,7 @@
 
      vvggaaoonn..ccoomm
         enable vga option
+
   1155..22..  DDrriivveerrss
 
   These are useful drivers for Dosemu
@@ -2831,6 +2850,7 @@
   when your done, find your old keymap, and load it back, cause control-
   home won't work in emacs anymore (or any other special key in any
   applicaion that uses xlate)
+
   if you find a key missing, please add it and send me the patch.  (test
   it first! :)
 
@@ -3070,35 +3090,35 @@
   ;-) Here is what you need to do:  The only file that gets affected is
   kernel/ksyms.c in the linux sources:
 
-       *** ksyms.c.old Mon Oct 10 11:12:01 1994
-       --- ksyms.c     Mon Oct 10 11:13:31 1994
-       ***************
-       *** 28,33 ****
-       --- 28,39 ----
-         #include <linux/serial.h>
-         #ifdef CONFIG_INET
-         #include <linux/netdevice.h>
-       + extern unsigned short eth_type_trans(struct sk_buff *skb, struct device *dev);
-       + extern int eth_header(unsigned char *buff, struct device *dev, unsigned
-       +               short type, void *daddr, void *saddr, unsigned len, struct
-       +               sk_buff *skb);
-       + extern int eth_rebuild_header(void *buff, struct device *dev, unsigned long
-       +               dst, struct sk_buff *skb);
-         #endif
+  *** ksyms.c.old Mon Oct 10 11:12:01 1994
+  --- ksyms.c     Mon Oct 10 11:13:31 1994
+  ***************
+  *** 28,33 ****
+  --- 28,39 ----
+    #include <linux/serial.h>
+    #ifdef CONFIG_INET
+    #include <linux/netdevice.h>
+  + extern unsigned short eth_type_trans(struct sk_buff *skb, struct device *dev);
+  + extern int eth_header(unsigned char *buff, struct device *dev, unsigned
+  +               short type, void *daddr, void *saddr, unsigned len, struct
+  +               sk_buff *skb);
+  + extern int eth_rebuild_header(void *buff, struct device *dev, unsigned long
+  +               dst, struct sk_buff *skb);
+    #endif
 
-         #include <asm/irq.h>
-       ***************
-       *** 183,188 ****
-       --- 189,197 ----
-               X(dev_rint),
-               X(dev_tint),
-               X(irq2dev_map),
-       +         X(eth_type_trans),
-       +         X(eth_header),
-       +         X(eth_rebuild_header),
-         #endif
+    #include <asm/irq.h>
+  ***************
+  *** 183,188 ****
+  --- 189,197 ----
+          X(dev_rint),
+          X(dev_tint),
+          X(irq2dev_map),
+  +         X(eth_type_trans),
+  +         X(eth_header),
+  +         X(eth_rebuild_header),
+    #endif
 
-               /********************************************************
+          /********************************************************
 
   After this, recompile the kernel. You should compile with "IP FORWARD"
   config option enabled (for allowing routing).  With this kernel,

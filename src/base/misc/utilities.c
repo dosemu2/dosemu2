@@ -22,10 +22,16 @@
 #ifndef INITIAL_LOGBUFSIZE
 #define INITIAL_LOGBUFSIZE      0
 #endif
+#ifndef INITIAL_LOGBUFLIMIT
+#define INITIAL_LOGFILELIMIT	(10*1024*1024)
+#endif
+
 static char logbuf_[INITIAL_LOGBUFSIZE+1025];
 char *logptr=logbuf_;
 char *logbuf=logbuf_;
 int logbuf_size = INITIAL_LOGBUFSIZE;
+int logfile_limit = INITIAL_LOGFILELIMIT;
+int log_written = 0;
 
 static inline char *prhex8 (char *p, unsigned long v)
 {
@@ -42,11 +48,20 @@ static char *timestamp (char *p)
   unsigned long t;
   int i;
 
+#ifdef X86_EMULATOR
+  if ((config.cpuemu>1) && in_vm86) t=0; else
+#endif
   t = GETusTIME(0)/1000;
   /* [12345678]s - SYS time */
-  p[0] = '[';
-  for (i=8; i>0; --i) if (t) { p[i]=(t%10)+'0'; t/=10; } else p[i]='0';
-  p[9]=']'; p[10]=' ';
+#ifdef X86_EMULATOR
+    if ((config.cpuemu>1) && in_vm86) strcpy(p,"[********] "); else
+#endif
+    {
+      p[0] = '[';
+      for (i=8; i>0; --i)
+	{ if (t) { p[i]=(t%10)+'0'; t/=10; } else p[i]='0'; }
+      p[9]=']'; p[10]=' ';
+    }
   return p+11;
 }
 #else
@@ -54,9 +69,8 @@ static char *timestamp (char *p)
 #endif
 
 
-int
-log_printf(int flg, const char *fmt,...) {
-  va_list args;
+int vlog_printf(int flg, const char *fmt, va_list args)
+{
   int i;
   static int is_cr = 1;
 
@@ -68,11 +82,8 @@ log_printf(int flg, const char *fmt,...) {
   {
     char *q;
 
-    va_start(args, fmt);
     q = (is_cr? timestamp(logptr) : logptr);
-
     i = vsprintf(q, fmt, args) + (q-logptr);
-    va_end(args);
     if (i > 0) is_cr = (logptr[i-1]=='\n'); else i = 0;
   }
   logptr += i;
@@ -88,11 +99,44 @@ log_printf(int flg, const char *fmt,...) {
     }
     write(fileno(dbg_fd), logbuf, fsz);
     logptr = logbuf;
+    if (logfile_limit) {
+      log_written += fsz;
+      if (log_written > logfile_limit) {
+        fseek(dbg_fd, 0, SEEK_SET);
+        ftruncate(fileno(dbg_fd),0);
+        log_written = 0;
+      }
+    }
   }
 #ifdef USE_THREADS
   unlock_resource(resource_libc);
 #endif
   return i;
+}
+
+int log_printf(int flg, const char *fmt, ...)
+{
+	va_list args;
+	int ret;
+
+	if (!flg || !dbg_fd ) return 0;
+
+	va_start(args, fmt);
+	ret = vlog_printf(flg, fmt, args);
+	va_end(args);
+	return ret;
+}
+
+void error(const char *fmt, ...)
+{
+	va_list args;
+	char fmtbuf[1025];
+
+	sprintf(fmtbuf, "ERROR: %s", fmt);
+	va_start(args, fmt);
+	vlog_printf(10, fmtbuf, args);
+	vfprintf(stderr, fmtbuf, args);
+	va_end(args);
 }
 
 

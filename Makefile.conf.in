@@ -75,3 +75,8 @@ ifdef ELF
   export ELF=1
 endif
 export RANLIB=@RANLIB@
+
+@X86_EMULATOR@
+ifdef X86_EMULATOR
+  export X86_EMULATOR
+endif

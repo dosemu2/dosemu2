@@ -8,9 +8,10 @@ D=$(REALTOPDIR)/$(THISVERSION)/commands
 SRC=exitemu.S vgaoff.S vgaon.S eject.S lredir.c lredir.readme dumpconf.asm \
 	bootoff.S booton.S dosdbg.c dosdbg.readme emumouse.c isemu.c \
 	emufs.S ems.S cdrom.S chdir.c getcwd.c system.c unix.c fossil.S \
-	speed.c emulib.c emulib.h mgarrot.a86 compile.bat
+	ecpuon.S ecpuoff.S speed.c emulib.c emulib.h mgarrot.a86 compile.bat
 COM=$(D)/exitemu.com $(D)/vgaoff.com $(D)/vgaon.com $(D)/eject.com \
-	$(D)/bootoff.com $(D)/booton.com $(D)/fossil.com
+	$(D)/bootoff.com $(D)/booton.com $(D)/fossil.com \
+	$(D)/ecpuon.com $(D)/ecpuoff.com
 EXE=lredir.com dumpconf.exe dosdbg.com lancheck.exe isemu.com unix.com \
 	emumouse.com mgarrot.com isemu.com speed.com \
 	chdir.com getcwd.com system.com

@@ -74,7 +74,7 @@
 
 static hitimer_t (*RAWcpuTIME)(void);
 
-static hitimer_u ZeroTimeBase = { 0 };
+hitimer_u ZeroTimeBase = { 0 };
 static hitimer_t LastTimeRead = 0;
 static hitimer_t StopTimeBase = 0;
 int cpu_time_stop = 0;
@@ -290,6 +290,9 @@ int bogospeed(unsigned long *spus, unsigned long *sptick)
 	/* speed division factor to get 838ns from CPU clocks */
 	*sptick = (LLF_TICKS*mlt)/dvs;
 
+#ifdef X86_EMULATOR
+	config.emuspeed = dvs/mlt;
+#endif
 	fprintf (stderr,"CPU speed set to %d/%d MHz\n",dvs,mlt);
 	first = 0;
 	return 0;

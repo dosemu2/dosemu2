@@ -52,7 +52,7 @@ extern int mhp_getcsip_value();
 extern mhp_modify_eip(int delta);
 
 static char mhp_banner[] = {
-  "\nDOSEMU Debugger V0.4 connected\n"
+  "\nDOSEMU Debugger V0.5 connected\n"
   "- type ? to get help on commands -\n"
 };
 struct mhpdbgc mhpdbgc ={0};

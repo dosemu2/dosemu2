@@ -63,6 +63,9 @@ while [ "$1" != "" ]; do
     newx)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-new-X"; fi
       ;;
+    cpuemu)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-cpuemu"; fi
+      ;;
     newport)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-new-port"; fi
       ;;

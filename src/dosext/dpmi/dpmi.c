@@ -2068,6 +2068,9 @@ void run_dpmi(void)
    static unsigned char *lastcsp;
    int retval;
    unsigned char *csp;
+#ifdef X86_EMULATOR
+   extern int e_dpmi(void);
+#endif
 
   /* always invoke vm86() with this call.  all the messy stuff will
    * be in here.
@@ -2165,6 +2168,9 @@ void run_dpmi(void)
     int retcode;
     if(pic_icount) dpmi_eflags |= VIP;
     retcode = dpmi_control();
+#ifdef X86_EMULATOR
+    if (config.cpuemu>1) e_dpmi();	/* keep sigalrm alive */
+#endif
 #ifdef USE_MHPDBG
     if (retcode && mhpdbg.active) {
       if ((retcode ==1) || (retcode ==3)) mhp_debug(DBG_TRAP + (retcode << 8), 0, 0);

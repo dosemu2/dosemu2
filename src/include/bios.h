@@ -14,11 +14,6 @@
  * book :-(
  */
 
-#ifdef X86_EMULATOR
-#include "x86_emulator.h"
-#endif
-
-#ifndef X86_EMULATOR_CHECK
 #define bios_base_address_com1          (*(unsigned short *) 0x400)
 #define bios_base_address_com2          (*(unsigned short *) 0x402)
 #define bios_base_address_com3          (*(unsigned short *) 0x404)
@@ -89,12 +84,9 @@
 #define bios_print_screen_flag          (*(unsigned short *) 0x500)
 
 #define bios_video_saveptr              (*(unsigned long  *) 0x4a8)
-#endif				/* X86_EMULATOR_CHECK */
 
 
 
-
-#ifndef X86_EMULATOR
 
 typedef unsigned char ubyte_t;
 typedef unsigned short uword_t;
@@ -125,7 +117,6 @@ typedef unsigned long udword_t;
 #define MEMSET_DOS(dos_addr, val, n) \
         memset((Bit8u *)(dos_addr), (val), (n))
 
-#endif
 
 
 #define BIOS_BASE_ADDRESS_COM1          0x400

@@ -123,10 +123,6 @@ dosemu_fault(int signal, int code, struct sigcontext *scp)
 }
 #endif /* __NetBSD__ */
 
-#ifdef __linux__
-#define dosemu_fault1 dosemu_fault
-#endif /* __linux__ */
-
 
 
 /* Function prototypes */
@@ -146,16 +142,13 @@ void print_exception_info(struct sigcontext_struct *scp);
 void 
 dosemu_fault1(
 #ifdef __linux__
-int signal, struct sigcontext_struct context
+int signal, struct sigcontext_struct *scp
 #endif /* __linux__ */
 #ifdef __NetBSD__
 int signal, int code, struct sigcontext *scp
 #endif /* __NetBSD__ */
 )
 {
-#ifdef __linux__
-  struct sigcontext_struct *scp = &context;
-#endif /* __linux__ */
   unsigned char *csp;
   int i;
 
@@ -368,6 +361,12 @@ sgleave:
   }
 }
 
+#ifdef __linux__
+void dosemu_fault(int signal, struct sigcontext_struct context)
+{
+    dosemu_fault1 (signal, &context);
+}
+#endif /* __linux__ */
 
 /*
  * DANG_BEGIN_FUNCTION print_exception_info

@@ -353,9 +353,6 @@ REQUIRED="tools commands tools/periph"
 if test "$CONFIG_HOST" = "linux"; then
  AC_CHECKING("Linux Specific Stuff")
 
-dnl BOCHS
-dnl   AC_DEFINE_UNQUOTED(X86_EMULATOR_FLAGS)
-
 dnl Do vm86plus 
  AC_ARG_ENABLE(novm86plus,
                [  --enable-novm86plus     do NOT use VM86 enhancement],
@@ -527,6 +524,19 @@ else
   OPT="$OPT -fomit-frame-pointer"  # never omit the frame pointer when debugging!
 fi
 
+dnl CPU emulator
+ AC_ARG_ENABLE(cpuemu,
+               [  --enable-cpuemu         compile with optional x86 emulation code],
+	       [cpuemu="yes"],[cpuemu="no"])
+  if test "$cpuemu" = "yes"; then
+   AC_CHECKING("Compiling with optional 386 emulation code");
+   X86_EMULATOR="X86_EMULATOR=1"
+   AC_DEFINE_UNQUOTED(X86_EMULATOR)
+   AC_SUBST(X86_EMULATOR)
+  else
+   AC_CHECKING("Compiling for native x86");
+  fi
+ 
 # -m486 is usually in the specs for the compiler
 case "$host_cpu" in
   i[[456]]86)

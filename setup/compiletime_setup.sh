@@ -133,7 +133,7 @@ write_out() {
 
   echo "function setup_config () {" > $TEMP
   write_pairs  config  sbemu novm86plus mitshm x dodebug newkbd \
-    newport slangforce tmonoton runasroot linkstatic newx dummydummy
+    newport slangforce tmonoton runasroot linkstatic newx cpuemu dummydummy
   echo "}" >> $TEMP
 
   (cd ..; clear; ./default-configure $TEMP)

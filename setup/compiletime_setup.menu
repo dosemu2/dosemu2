@@ -16,6 +16,7 @@ menu "Main Menu" {
   boolean "use monoton micro timing" tmonoton
   boolean "run as root mostly" runasroot
   boolean "make static binaries" linkstatic
+  boolean "enable CPU emulator" cpuemu
 }
 
 menu "Configure Action" {

@@ -131,6 +131,9 @@
 /* Define this to use threading code */
 #undef USE_THREADS
 
+/* Define this to use the X86 CPU emulator */
+#undef X86_EMULATOR
+
 @BOTTOM@
 
 #endif /* CONFIG_H */

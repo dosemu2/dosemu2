@@ -180,6 +180,11 @@ static void process_master_boot_record(void)
 /* returns 1 if dos_helper() handles it, 0 otherwise */
 static int dos_helper(void)
 {
+#ifdef X86_EMULATOR
+  extern void enter_cpu_emu(void);
+  extern void leave_cpu_emu(void);
+#endif
+
   switch (LO(ax)) {
   case DOS_HELPER_DOSEMU_CHECK:			/* Linux dosemu installation test */
     LWORD(eax) = 0xaa55;
@@ -470,6 +475,14 @@ static int dos_helper(void)
   case DOS_HELPER_CHDIR:
         LWORD(eax) = chdir(SEG_ADR((char *), es, dx));
         break;
+#ifdef X86_EMULATOR
+  case DOS_HELPER_CPUEMUON:
+  	if (config.cpuemu && !in_dpmi) enter_cpu_emu();
+        break;
+  case DOS_HELPER_CPUEMUOFF:
+  	if (config.cpuemu && !in_dpmi) leave_cpu_emu();
+        break;
+#endif
   case DOS_HELPER_MBR:
     if (LWORD(eax) == 0xfffe) {
       process_master_boot_record();

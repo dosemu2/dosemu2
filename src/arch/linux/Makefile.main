@@ -45,6 +45,15 @@ ifdef USE_THREADS
 export THREADS=arch/linux/threads
 endif
 
+#
+# This is defined when the Twin CPU emulator is required. You should
+# re-configure, rather than just change this.
+#
+ifdef X86_EMULATOR
+export XEMUIFC=emu-i386/intp32
+export XCPUEMU=emu-i386/intp32/twin/intp32
+endif
+
 # SYNC_ALOT
 #   uncomment this if the emulator is crashing your machine and some debug info 
 #   isn't being sync'd to the debug file (stdout). shouldn't happen. :-) 
@@ -54,7 +63,7 @@ OPTIONALSUBDIRS += $(MIDID)
 
 LIBSUBDIRS=env/video base/async arch/linux/async base/misc base/dev/misc\
 	$(THREADS)\
-	emu-i386 env base/speaker \
+	emu-i386 $(XEMUIFC) $(XCPUEMU) env base/speaker \
 	base/dev/pic dosext/dpmi dosext/mfs dosext/misc\
 	base/init base/serial base/keyboard base/mouse\
 	base/dev/dma \
