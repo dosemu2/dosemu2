@@ -514,14 +514,14 @@ do { \
 	sa.sa_handler = (SignalHandler)fun; \
 	sa.sa_flags = SA_RESTART; \
 	sigemptyset(&sa.sa_mask); \
-	sigaddset(&sa.sa_mask, SIGALRM); \
+	ADDSET_SIGNALS_THAT_QUEUE(&sa.sa_mask); \
 	sigaction(sig, &sa, NULL);
 
 #define NEWSETSIG(sig, fun) \
 	sa.sa_handler = (__sighandler_t) fun; \
-	sa.sa_flags = SA_RESTART; \
+	sa.sa_flags = SA_RESTART | SA_NODEFER; \
 	sigemptyset(&sa.sa_mask); \
-	sigaddset(&sa.sa_mask, SIGALRM); \
+	ADDSET_SIGNALS_THAT_QUEUE(&sa.sa_mask); \
 	if (have_working_sigaltstack) { \
 		sa.sa_flags |= SA_ONSTACK; \
 		sigaction(sig, &sa, NULL); \
