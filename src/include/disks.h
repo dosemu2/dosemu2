@@ -45,6 +45,7 @@ struct partition {
 struct disk {
   char *dev_name;		/* disk file */
   char *boot_name;              /* boot image file */
+  int diskcyl4096;		/* INT13 support for 4096 cylinders */
   int wantrdonly;		/* user wants the disk to be read only */
   int rdonly;			/* The way we opened the disk (only filled in if the disk is open) */
   int dexeflags;		/* special flags for DEXE support */
@@ -169,5 +170,42 @@ void partition_setup(struct disk *);
 #define DERR_SEEK	0x40
 #define DERR_NOTREADY	0x80
 #define DERR_WRITEFLT	0xcc
+
+/* IBM/MS Extensions */
+#define IMEXT_MAGIC                 0xaa55
+#define IMEXT_VER_MAJOR             0x21
+#define IMEXT_API_SUPPORT_BITS      0x01
+
+struct ibm_ms_diskaddr_pkt {
+  char len;                  /* size of packet, 0x10 */
+  char reserved;
+  unsigned short blocks;     /* number of blocks to transfer */
+  unsigned short buf_ofs;    /* offset of transfer buffer */
+  unsigned short buf_seg;    /* segment of transfer buffer */
+  unsigned long block_lo;    /* starting block number, low dword */
+  unsigned long block_hi;    /* starting block, high dword */
+};
+
+struct ibm_ms_drive_params {
+  unsigned short len;        /* size of buffer, 0x1a or 0x1e */
+  unsigned short flags;      /* information flags */
+  unsigned tracks;           /* physical cylinders */
+  unsigned heads;            /* physical heads */
+  unsigned sectors;          /* physical sectors per track */
+  unsigned total_sectors_lo;
+  unsigned total_sectors_hi;
+  unsigned short bytes_per_sector;
+  unsigned short edd_cfg_ofs;  /* pointer to EDD configuration parameters */
+  unsigned short edd_cfg_seg;
+};
+
+/* Values for information flags */
+#define IMEXT_INFOFLAG_DMAERR     0x01
+#define IMEXT_INFOFLAG_CHSVALID   0x02
+#define IMEXT_INFOFLAG_REMOVABLE  0x04
+#define IMEXT_INFOFLAG_WVERIFY    0x08
+#define IMEXT_INFOFLAG_CHGLINE    0x10
+#define IMEXT_INFOFLAG_LOCK       0x20
+#define IMEXT_INFOFLAG_CHSMAX     0x40
 
 #endif /* DISKS_H */

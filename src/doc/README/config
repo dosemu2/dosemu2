@@ -1059,6 +1059,8 @@ These are meanings of the keywords:
   <tag/partition/ specifies partition access, with device and partition number.
   <tag/wholedisk/ specifies full access to entire hard drive.
   <tag/readonly/ for read only access.  A good idea to set up with.
+  <tag/diskcyl4096/ INT13 support for more then 1024 cylinders, bits 6/7 of
+  DH (head) used to build a 12 bit cylinder number.
   <tag/bootfile/ to specify an image of a boot sector to boot from.
 </descrip>
 

@@ -1,3 +1,15 @@
+97/11/20 ver. 0.67.15.1 unofficial pre-release
+	From Marcus Better <Marcus.Better@abc.se>
+	- INT13-Support for more than 1024 cylinders
+	  (bit6..7 of DH building 12 bit cylinder number)
+	- INT13 IBM/MS Extensions, AH=41h-44h and 47h-48h.
+	  This uses 64-bit logical block numbers. It's documented in
+	  the R.Browns Interrupt List.
+	From Hans
+	- Making Marcus' INT13-4096 cylinder mode a dosemu.conf option,
+	  such that nothing old could break.
+	  Flag for the disk statement: diskcyl4096
+	- docs rebuild
 97/11/07 ver. 0.67.15 released
 	From Alberto
 	- replace all error("ERROR...) with error("...), because ERROR is

@@ -912,6 +912,7 @@ int13(u_char i)
   loff_t  pos;
   char *buffer;
   struct disk *dp;
+  int checkdp_val;
 
   disk = LO(dx);
   if (disk < FDISKS) {
@@ -954,10 +955,16 @@ int13(u_char i)
   case 2:			/* read */
     FLUSHDISK(dp);
     disk_open(dp);
-    head = HI(dx);
+    checkdp_val = checkdp(dp);
+    if (!checkdp_val && dp->diskcyl4096 && dp->heads <= 64)
+      head = HI(dx) & 0x3f;
+    else
+      head = HI(dx);
     sect = (REG(ecx) & 0x3f) - 1;
     track = (HI(cx)) |
       ((REG(ecx) & 0xc0) << 2);
+    if (!checkdp_val && dp->diskcyl4096 && dp->heads <= 64 && (HI(dx) & 0xc0))
+      track |= (HI(dx) & 0xc0) << 4;
     buffer = SEG_ADR((char *), es, bx);
     number = LO(ax);
 #if 0
@@ -965,7 +972,7 @@ int13(u_char i)
 	     disk, head, sect, track, number, (void *) buffer);
 #endif
 
-    if (checkdp(dp) || head >= dp->heads ||
+    if (checkdp_val || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
       error("Sector not found 1!\n");
       d_printf("DISK %d read [h:%d,s:%d,t:%d](%d)->%p\n",
@@ -1006,16 +1013,22 @@ int13(u_char i)
   case 3:			/* write */
     FLUSHDISK(dp);
     disk_open(dp);
-    head = HI(dx);
+    checkdp_val = checkdp(dp);
+    if (!checkdp_val && dp->diskcyl4096 && dp->heads <= 64)
+      head = HI(dx) & 0x3f;
+    else
+      head = HI(dx);
     sect = (REG(ecx) & 0x3f) - 1;
     track = (HI(cx)) |
       ((REG(ecx) & 0xc0) << 2);
+    if (!checkdp_val && dp->diskcyl4096 && dp->heads <= 64 && (HI(dx) & 0xc0))
+      track |= (HI(dx) & 0xc0) << 4;
     buffer = SEG_ADR((char *), es, bx);
     number = LO(ax);
     W_printf("DISK write [h:%d,s:%d,t:%d](%d)->%p\n",
 	     head, sect, track, number, (void *) buffer);
 
-    if (checkdp(dp) || head >= dp->heads ||
+    if (checkdp_val || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
       error("Sector not found 3!\n");
       show_regs(__FILE__, __LINE__);
@@ -1287,6 +1300,180 @@ int13(u_char i)
   case 0x28:			/* DRDOS 6.0 call ??? */
     d_printf("int 13h, ax=%04x...DRDOS call\n", LWORD(eax));
     break;
+
+  case 0x41:                    /* IBM/MS Extensions, install check */
+    LWORD(ebx) = IMEXT_MAGIC;
+    HI(ax) = IMEXT_VER_MAJOR;
+    LWORD(ecx) = IMEXT_API_SUPPORT_BITS;
+    NOCARRY;
+    break;
+
+  case 0x42: {                  /* IBM/MS Extensions, read */
+    struct ibm_ms_diskaddr_pkt *diskaddr;
+
+    FLUSHDISK(dp);
+    disk_open(dp);
+    diskaddr = SEG_ADR((struct ibm_ms_diskaddr_pkt *), ds, si);
+    sect = diskaddr->block_lo % dp->sectors;
+    head = (diskaddr->block_lo / dp->sectors) % dp->heads;
+    track = diskaddr->block_lo / (dp->heads * dp->sectors);
+    buffer = (char *)(((unsigned long)diskaddr->buf_seg << 4)+diskaddr->buf_ofs);
+    number = diskaddr->blocks;
+    diskaddr->blocks = 0;
+
+    if (checkdp(dp) || track >= dp->tracks) {
+      error("ERROR: Sector not found, AH=0x42!\n");
+      d_printf("DISK %d ext read [h:%d,s:%d,t:%d](%d)->%p\n",
+	       disk, head, sect, track, number, (void *) buffer);
+      if (dp) {
+	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
+		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
+      } else {
+	  d_printf("DISK %x undefined.\n", disk);
+      }
+
+      HI(ax) = DERR_NOTFOUND;
+      REG(eflags) |= CF;
+      show_regs(__FILE__, __LINE__);
+      break;
+    }
+
+    res = read_sectors(dp, buffer, head, sect, track, number);
+
+    if (res < 0) {
+      HI(ax) = -res;
+      CARRY;
+      break;
+    }
+    else if (res & 511) {	/* must read multiple of 512 bytes */
+      error("ERROR: sector_corrupt 1, return = %d!\n", res);
+      HI(ax) = DERR_BADSEC;	/* sector corrrupt */
+      CARRY;
+      break;
+    }
+
+    diskaddr->blocks = res >> 9;
+    HI(ax) = 0;
+    REG(eflags) &= ~CF;
+    R_printf("DISK ext read @%d/%d/%d (%d) -> %p OK.\n",
+	     head, track, sect, res >> 9, (void *)buffer);
+    break;
+  }
+  
+  case 0x43: {                  /* IBM/MS Extensions, write */
+    struct ibm_ms_diskaddr_pkt *diskaddr;
+
+    FLUSHDISK(dp);
+    disk_open(dp);
+    diskaddr = SEG_ADR((struct ibm_ms_diskaddr_pkt *), ds, si);
+    sect = diskaddr->block_lo % dp->sectors;
+    head = (diskaddr->block_lo / dp->sectors) % dp->heads;
+    track = diskaddr->block_lo / (dp->heads * dp->sectors);
+    buffer = (char *)(((unsigned long)diskaddr->buf_seg << 4)+diskaddr->buf_ofs);
+    number = diskaddr->blocks;
+    diskaddr->blocks = 0;
+
+    if (checkdp(dp) || track >= dp->tracks) {
+      error("ERROR: Sector not found, AH=0x42!\n");
+      d_printf("DISK %d ext write [h:%d,s:%d,t:%d](%d)->%p\n",
+	       disk, head, sect, track, number, (void *) buffer);
+      if (dp) {
+	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
+		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
+      } else {
+	  d_printf("DISK %x undefined.\n", disk);
+      }
+
+      HI(ax) = DERR_NOTFOUND;
+      REG(eflags) |= CF;
+      show_regs(__FILE__, __LINE__);
+      break;
+    }
+
+    if (dp->rdonly) {
+      error("ERROR: write protect!\n");
+      show_regs(__FILE__, __LINE__);
+      if (dp->removeable)
+	HI(ax) = DERR_WP;
+      else
+	HI(ax) = DERR_WRITEFLT;
+      REG(eflags) |= CF;
+      break;
+    }
+
+    if (dp->rdonly)
+      error("CONTINUED!!!!!\n");
+    res = write_sectors(dp, buffer, head, sect, track, number);
+
+    if (res < 0) {
+      HI(ax) = -res;
+      CARRY;
+      break;
+    }
+    else if (res & 511) {	/* must read multiple of 512 bytes */
+      error("ERROR: sector_corrupt 1, return = %d!\n", res);
+      HI(ax) = DERR_BADSEC;	/* sector corrrupt */
+      CARRY;
+      break;
+    }
+
+    diskaddr->blocks = res >> 9;
+    HI(ax) = 0;
+    REG(eflags) &= ~CF;
+    R_printf("DISK ext write @%d/%d/%d (%d) -> %p OK.\n",
+	     head, track, sect, res >> 9, (void *)buffer);
+    break;
+  }
+
+  case 0x44:                    /* IBM/MS Extensions, verify */
+    /* Always succeeds. Should perhaps check validity of sector address. */
+    NOCARRY;
+    HI(ax) = 0;
+    break;
+
+  case 0x47:                    /* IBM/MS Extensions, extended seek */
+    NOCARRY;
+    HI(ax) = 0;
+    break;
+
+  case 0x48: {                  /* IBM/MS Extensions, get drive parameters */
+    struct ibm_ms_drive_params *params;
+
+    FLUSHDISK(dp);
+    disk_open(dp);
+    params = SEG_ADR((struct ibm_ms_drive_params *), ds, si);
+
+    if (checkdp(dp)) {
+      error("ERROR: Invalid drive, AH=0x48!\n");
+      if (dp) {
+	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
+		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
+      } else {
+	  d_printf("DISK %x undefined.\n", disk);
+      }
+
+      HI(ax) = DERR_NOTFOUND;
+      REG(eflags) |= CF;
+      show_regs(__FILE__, __LINE__);
+      break;
+    }
+
+    params->flags = IMEXT_INFOFLAG_CHSVALID;
+    if (dp->removeable)
+      params->flags |= IMEXT_INFOFLAG_REMOVABLE;
+    params->tracks = dp->tracks;
+    params->heads = dp->heads;
+    params->sectors = dp->sectors;
+    params->total_sectors_lo = dp->tracks*dp->heads*dp->sectors;
+    params->total_sectors_hi = 0;
+    params->bytes_per_sector = SECTOR_SIZE;
+    if (params->len >= 0x1e)
+      params->edd_cfg_ofs = params->edd_cfg_seg = 0xffff;
+    NOCARRY;
+    HI(ax) = 0;
+    break;
+  }
+
   case 0x5:			/* format */
     NOCARRY;			/* successful */
     HI(ax) = DERR_NOERR;

@@ -1152,6 +1152,10 @@
      rreeaaddoonnllyy
         for read only access.  A good idea to set up with.
 
+     ddiisskkccyyll44009966
+        INT13 support for more then 1024 cylinders, bits 6/7 of DH
+        (head) used to build a 12 bit cylinder number.
+
      bboooottffiillee
         to specify an image of a boot sector to boot from.
 
@@ -1336,20 +1340,20 @@
 
   22..33..22..  //eettcc//ddoosseemmuu..ccoonnff
 
-    ifdef want_sound
-      define c_normal
-      define c_sound
-      include "dosemu.normal.conf"
-      irqpassing off speaker off
-      sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/dsp
-                  sb_mixer /dev/mixer mpu_base 0x330 }
-    else
-      ifdef guest
-        include "dosemu.guest.conf"
-      else
-        include "dosemu.norm.conf"
-      endif
-    endif
+         ifdef want_sound
+           define c_normal
+           define c_sound
+           include "dosemu.normal.conf"
+           irqpassing off speaker off
+           sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/dsp
+                       sb_mixer /dev/mixer mpu_base 0x330 }
+         else
+           ifdef guest
+             include "dosemu.guest.conf"
+           else
+             include "dosemu.norm.conf"
+           endif
+         endif
 
   22..33..33..  //eettcc//ddoosseemmuu..nnoorrmmaall..ccoonnff
 

@@ -216,7 +216,7 @@ extern void yyrestart(FILE *input_file);
 %token COMMAND TIMEOUT OPTIONS L_FILE
 	/* disk */
 %token L_PARTITION BOOTFILE WHOLEDISK THREEINCH FIVEINCH READONLY LAYOUT
-%token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE
+%token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE DISKCYL4096
 	/* ports/io */
 %token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE FAST DEV_NAME
 	/* Silly interrupts */
@@ -900,6 +900,7 @@ disk_flags	: disk_flag
 disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		| THREEINCH	{ dptr->default_cmos = THREE_INCH_FLOPPY; }
 		| FIVEINCH	{ dptr->default_cmos = FIVE_INCH_FLOPPY; }
+		| DISKCYL4096	{ dptr->diskcyl4096 = 1; }
 		| SECTORS INTEGER	{ dptr->sectors = $2; }
 		| CYLINDERS INTEGER	{ dptr->tracks = $2; }
 		| TRACKS INTEGER	{ dptr->tracks = $2; }
@@ -1342,6 +1343,7 @@ static void start_bootdisk(void)
       
   dptr = &bootdisk;              /* set pointer do bootdisk-struct */
       
+  dptr->diskcyl4096 = 0;
   dptr->sectors = 0;             /* setup default-values           */
   dptr->heads   = 0;
   dptr->tracks  = 0;

@@ -200,6 +200,7 @@ heads			RETURN(HEADS);
 offset			RETURN(OFFSET);
 floppy			RETURN(L_FLOPPY);
 cdrom			RETURN(CDROM);
+diskcyl4096		RETURN(DISKCYL4096);
 
 	/* keyboard - !!conflict between 'no' and boolean 'no' */
 
