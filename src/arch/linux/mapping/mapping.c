@@ -116,6 +116,7 @@ static void kmem_unmap_mapping(int cap, void *addr, int mapsize)
   }
 }
 
+#if 0
 static void kmem_map_mapping(int cap, void *addr, int mapsize)
 {
   int i;
@@ -131,6 +132,7 @@ static void kmem_map_mapping(int cap, void *addr, int mapsize)
     kmem_map[i].mapped = 1;
   }
 }
+#endif
 
 void *extended_mremap(void *addr, size_t old_len, size_t new_len,
 	int flags, void * new_addr)
@@ -189,11 +191,7 @@ void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source
       lowmem_base + (off_t)source);
   }
 
-  addr = (*mappingdriver.mmap)(cap, target, mapsize, protect, source);
-
-  kmem_map_mapping(MAPPING_OTHER, target, mapsize);
-
-  return addr;
+  return (*mappingdriver.mmap)(cap, target, mapsize, protect, source);
 }        
 
 void *mremap_mapping(int cap, void *source, int old_size, int new_size,

@@ -287,8 +287,9 @@ void map_hardware_ram(void)
 	i++;		/* NOTE: last byte is always ZERO */
       addr = HARDWARE_RAM_START + (j << 12);
       size = (i - j) << 12;
-      if ((int)mmap_mapping(MAPPING_INIT_HWRAM | MAPPING_KMEM, (caddr_t) addr,
-		size, PROT_READ | PROT_WRITE, (caddr_t) addr) == -1) {
+      alloc_mapping(MAPPING_INIT_HWRAM | MAPPING_KMEM, size, (caddr_t) addr);
+      if (mmap_mapping(MAPPING_INIT_HWRAM | MAPPING_KMEM, (caddr_t) addr,
+		size, PROT_READ | PROT_WRITE, (caddr_t) addr) == MAP_FAILED) {
 	error("mmap error in map_hardware_ram %s\n", strerror (errno));
 	return;
       }
