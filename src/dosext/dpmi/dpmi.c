@@ -1405,7 +1405,6 @@ static int ResizeDescriptorBlock(struct sigcontext_struct *scp,
 
 static void do_int31(struct sigcontext_struct *scp)
 {
-#ifdef X86_EMULATOR
   if (debug_level('M')) {
     D_printf("DPMI: int31, ax=%04x, ebx=%08lx, ecx=%08lx, edx=%08lx\n",
 	_LWORD(eax),_ebx,_ecx,_edx);
@@ -1414,7 +1413,6 @@ static void do_int31(struct sigcontext_struct *scp)
     D_printf("        cs=%04x, ds=%04x, ss=%04x, es=%04x, fs=%04x, gs=%04x\n",
 	_cs,_ds,_ss,_es,_fs,_gs);
   }
-#endif
 
   _eflags &= ~CF;
   switch (_LWORD(eax)) {
