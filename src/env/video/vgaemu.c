@@ -2069,6 +2069,7 @@ int vga_emu_setmode(int mode, int width, int height)
   vga.mode_type = vmi->type;
   vga.width = vmi->width;
   vga.height = vmi->height;
+  vga.line_compare = vmi->height;
   vga.scan_len = (vmi->width + 3) & ~3;	/* dword aligned */
   vga.text_width = vmi->text_width;
   vga.text_height = vmi->text_height;
@@ -2523,6 +2524,10 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       int vertical_blanking_start;
       int vertical_blanking_end;
       int height;
+      vga.crtc.line_compare =
+              vga.crtc.data[0x18] +
+              ((vga.crtc.data[0x7] & 0x10) << (8 - 4)) +
+              ((vga.crtc.data[0x9] & 0x40) << (9 - 6));
       vertical_total = 
 	      vga.crtc.data[0x6] + 
 	      ((vga.crtc.data[0x7] & 0x1) << (8 - 0)) +
@@ -2545,6 +2550,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       vertical_multiplier = ((vga.crtc.data[0x9] & 0x1F) +1) <<
 	      ((vga.crtc.data[0x9] & 0x80) >> 7);
       height = (vertical_display_end +1) / vertical_multiplier;
+      vga_msg("vgaemu_adj_cfg: line_compare = %d\n", vga.crtc.line_compare);
       vga_msg("vgaemu_adj_cfg: vertical_total = %d\n", vertical_total);
       vga_msg("vgaemu_adj_cfg: vertical_retrace_start = %d\n", vertical_retrace_start);
       vga_msg("vgaemu_adj_cfg: vertical_retrace_end = %d\n", vertical_retrace_end);
@@ -2553,10 +2559,16 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       vga_msg("vgaemu_adj_cfg: vertical_display_end = %d\n", vertical_display_end);
       vga_msg("vgaemu_adj_cfg: vertical_multiplier = %d\n", vertical_multiplier);
       vga_msg("vgaemu_adj_cfg: height = %d\n", height);
+      vga.line_compare = vga.crtc.line_compare/vertical_multiplier;
+      if (vga.line_compare != vga.crtc.line_compare / vertical_multiplier) {
+        vga.line_compare = vga.crtc.line_compare / vertical_multiplier;
+        vga.reconfig.display = 1;
+      }
       if (vga.height != height) {
         vga.height = height;
         vga.reconfig.display = 1;
       }
+      if (vga.line_compare == 0) vga.line_compare = vga.height;
       break;
     }
     case CFG_CRTC_WIDTH:

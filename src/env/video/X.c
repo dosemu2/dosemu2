@@ -2583,7 +2583,7 @@ int X_setmode(int mode, int text_width, int text_height, int init_vga)
     veut.max_max_len = 0;
     veut.max_len = 0;
     veut.display_start = 0;
-    veut.display_end = vga.scan_len * vga.height;
+    veut.display_end = vga.scan_len * vga.line_compare;
     veut.update_gran = 0;
     veut.update_pos = veut.display_start;
 
@@ -2662,7 +2662,7 @@ static void X_modify_mode()
   }
 
   veut.display_start = vga.display_start;
-  veut.display_end = veut.display_start + vga.scan_len * vga.height;
+  veut.display_end = veut.display_start + vga.scan_len * vga.line_compare;
 
   if(vga.reconfig.mem || vga.reconfig.display) {
     x_msg("X_modify_mode: failed to modify current graphics mode\n");
@@ -3049,13 +3049,38 @@ chk_cursor:
 /*
  * Update the graphics screen.
  */
-int X_update_graphics_screen()
+static int X_update_graphics_loop(int update_offset)
 {
   RectArea ra;
   int update_ret;
 #ifdef DEBUG_SHOW_UPDATE_AREA
   static int dsua_fg_color = 0;
 #endif		
+
+  while((update_ret = vga_emu_update(&veut)) > 0) {
+    remap_obj.src_image = veut.base + veut.display_start - update_offset;
+    ra = remap_obj.remap_mem(&remap_obj, update_offset + veut.update_start -
+                             veut.display_start, veut.update_len);
+
+#ifdef DEBUG_SHOW_UPDATE_AREA
+    XSetForeground(display, gc, dsua_fg_color++);
+    XFillRectangle(display, mainwindow, gc, ra.x, ra.y, ra.width, ra.height);
+    XSync(display, False);
+#endif
+
+    put_ximage(ra.x, ra.y, ra.x, ra.y, ra.width, ra.height);
+
+    x_deb("X_update_graphics_screen: func = %s, display_start = 0x%04x, write_plane = %d, start %d, len %u, win (%d,%d),(%d,%d)\n",
+      remap_obj.remap_func_name, vga.display_start, vga.mem.write_plane,
+      veut.update_start, veut.update_len, ra.x, ra.y, ra.width, ra.height
+    );
+  }
+  return update_ret;
+}
+
+int X_update_graphics_screen()
+{
+  int update_ret;
 
   if(!is_mapped) return 0;		/* no need to do anything... */
 
@@ -3065,7 +3090,7 @@ int X_update_graphics_screen()
 
   if(vga.display_start != veut.display_start) {
     veut.display_start = vga.display_start;
-    veut.display_end = veut.display_start + vga.scan_len * vga.height;
+    veut.display_end = veut.display_start + vga.scan_len * vga.line_compare;
     dirty_all_video_pages();
   }
 
@@ -3082,22 +3107,18 @@ int X_update_graphics_screen()
 
   veut.max_len = veut.max_max_len;
 
-  while((update_ret = vga_emu_update(&veut)) > 0) {
-    remap_obj.src_image = veut.base + veut.display_start;
-    ra = remap_obj.remap_mem(&remap_obj, veut.update_start - veut.display_start, veut.update_len);
+  update_ret = X_update_graphics_loop(0);
 
-#ifdef DEBUG_SHOW_UPDATE_AREA
-    XSetForeground(display, gc, dsua_fg_color++);
-    XFillRectangle(display, mainwindow, gc, ra.x, ra.y, ra.width, ra.height);
-    XSync(display, False);
-#endif
+  if (vga.line_compare < vga.height) {
+          
+    veut.display_start = 0;
+    veut.display_end = vga.scan_len * (vga.height - vga.line_compare);
+    veut.max_len = veut.max_max_len;
 
-    put_ximage(ra.x, ra.y, ra.x, ra.y, ra.width, ra.height);
+    update_ret = X_update_graphics_loop(vga.scan_len * vga.line_compare);
 
-    x_deb("X_update_graphics_screen: func = %s, display_start = 0x%04x, write_plane = %d, start %d, len %u, win (%d,%d),(%d,%d)\n",
-      remap_obj.remap_func_name, vga.display_start, vga.mem.write_plane,
-      veut.update_start, veut.update_len, ra.x, ra.y, ra.width, ra.height
-    );
+    veut.display_start = vga.display_start;
+    veut.display_end = veut.display_start + vga.scan_len * vga.line_compare;
   }
 
   return update_ret < 0 ? 2 : 1;

@@ -249,6 +249,12 @@ void CRTC_write_value(unsigned char data)
       }
       break;
 
+    case 0x18: /* line compare */
+      if(NEWBITS(0xFF)) {
+        todo[todo_ind++] = CFG_CRTC_HEIGHT;
+      }
+      break;
+      
     default:
       crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (ignored)\n", ind, u);
   }
