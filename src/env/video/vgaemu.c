@@ -2598,6 +2598,14 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       }
       if (vga.mode_class == TEXT) {
         height *= char_height;
+      } else {
+        char_height = height / 25;
+        if (char_height > 16)
+          char_height = 16;
+        else if (char_height > 14)
+          char_height = 14;
+        else
+          char_height = 8;
       }
       /* By Eric (eric@coli.uni-sb.de):                        */
       /* Required for 80x100 CGA "text graphics" with 8x2 font */

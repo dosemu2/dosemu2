@@ -136,7 +136,7 @@ void Misc_init()
 
   if (vga.VGA_mode == 0x6)
     Misc_set_color_select(0x3f);
-  else
+  else if (vga.VGA_mode <= 0x7)
     Misc_set_color_select(0x30);
 
   misc_msg("Misc_init done\n");

@@ -552,7 +552,7 @@ static boolean X_set_video_mode(int mode) {
   WRITE_WORD(BIOS_VIDEO_PORT, vga.config.mono_port ? 0x3b4 : 0x3d4);
   if (mode == 0x6)
     WRITE_BYTE(BIOS_VDU_COLOR_REGISTER, 0x3f);
-  else
+  else if (mode <= 0x7)
     WRITE_BYTE(BIOS_VDU_COLOR_REGISTER, 0x30);
 
   switch(vga.char_height) {
