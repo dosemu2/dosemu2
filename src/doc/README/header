@@ -1,22 +1,51 @@
-<!doctype linuxdoc system>
+<!DOCTYPE article PUBLIC "-//Davenport//DTD DocBook V3.0//EN">
+<!-- DOCTYPE article PUBLIC "-//Norman Walsh//DTD DocBk XML V3.1.4//EN" -->
+
 <article>
 
-<title>DOSEmu
-<author>The DOSEmu team
-Edited by Alistair MacDonald  <htmlurl url="mailto:alistair@slitesys.demon.co.uk" name="&lt;alistair@slitesys.demon.co.uk&gt;">
-<date>For DOSEMU v1.0 pl0.0
+<artheader>
+
+<title>DOSEMU</title>
+
+<authorgroup>
+<corpauthor>
+The DOSEMU team
+</corpauthor>
+
+<editor>
+<firstname>Alistair MacDonald</firstname>
+<authorblurb>
+<para>
+<email>alistair@slitesys.demon.co.uk</email>
+</para>
+</authorblurb>
+</editor>
+
+</authorgroup>
+
+<pubdate>For DOSEMU v1.0 pl1.0</pubdate>
+
 <abstract>
+
+<para>
 This document is the amalgamation of a series of README files which were
-created to deal with the lack of DOSEmu documentation.
+created to deal with the lack of DOSEMU documentation.
+</para>
+
 </abstract>
 
-<toc>
+</artheader>
 
-<sect>Introduction
+<sect1>
+<title>Introduction</title>
 
-<P>
+<para>
 This documentation is derived from a number of smaller documents. This makes it
 easier for individuals to maintain the documentation relevant to their area of
-expertise. Previous attempts at documenting DOSEmu failed because the
+expertise. Previous attempts at documenting DOSEMU failed because the
 documentation on a large project like this quickly becomes too much for one
 person to handle.
+</para>
+
+</sect1>
+

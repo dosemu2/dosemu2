@@ -1,17 +1,24 @@
-<sect>Runtime Configuration Options<label id="config">
-<p>
+<sect1 id="config">
+<title>Runtime Configuration Options</title>
 
+<para>
 This section of the document by Hans, 
-<htmlurl url="mailto:lermen@fgan.de" name="&lt;lermen@fgan.de&gt;">. Last
+<ulink
+url="mailto:lermen@fgan.de"
+>&#60;lermen@fgan.de&#62;</ulink
+>. Last
 updated on Feb 12, 1999.
+</para>
 
-<p>
+<para>
 Most of DOSEMU configuration is done during runtime and per default it
 expects the system wide configuration file /etc/dosemu.conf optionally
 followed by the users ~/.dosemurc and additional configurations statements
 on the commandline (-I option). The builtin configuration file of a DEXE
 file is passed using the -I technique, hence the rules of -I apply.
+</para>
 
+<para>
 In fact /etc/dosemu.conf and ~/.dosemurc (which have identical syntax)
 are included by the systemwide configuration script
 /var/lib/dosemu/global.conf, but as a normal user you won't ever think on
@@ -20,44 +27,97 @@ The syntax of global.conf is described in detail in README-tech.txt,
 so this is skipped here. However, the option -I string too
 uses the same syntax as global.conf, hence, if you are doing some special
 stuff (after you got familar with DOSEMU) you may need to have a look there.
+</para>
 
+<para>
 In DOSEMU prior to 0.97.5 the private configuration file was called ~/.dosrc
 (not to be confused with the new ~/.dosemurc). This will work as expected
 formerly, but is subject to be nolonger supported in the near future.
-This (old) ~/.dosrc is processed <em/after/ global.conf and follows (same
+This (old) ~/.dosrc is processed <emphasis>after</emphasis> global.conf and follows (same
 as -I) the syntax of global.conf (see README-tech.txt).
+</para>
 
-<p>
-
+<para>
 The first file expected (and interpreted) before any other configuration
 (such as global.conf, dosemu.conf and ~/.dosemurc) is /etc/dosemu.users.
 Within /etc/dosemu.users the general permissions are set:
+</para>
 
-<itemize>
-  <item> which users are allowed to use DOSEMU.
-  <item> which users are allowed to use DOSEMU suid root.
-  <item> which users are allowed to have a private lib dir.
-  <item> what kind of access class the user belongs to.
-  <item> what special configuration stuff the users needs
-</itemize>
+<para>
 
+<itemizedlist>
+<listitem>
+
+<para>
+ which users are allowed to use DOSEMU.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ which users are allowed to use DOSEMU suid root.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ which users are allowed to have a private lib dir.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ what kind of access class the user belongs to.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ what special configuration stuff the users needs
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
 and further more:
-<itemize>
-  <item> wether the lib dir (/var/lib/dosemu) resides elsewhere.
-  <item> setting the loglevel.
-</itemize>
 
-<p>
+<itemizedlist>
+<listitem>
+
+<para>
+ wether the lib dir (/var/lib/dosemu) resides elsewhere.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ setting the loglevel.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
 Except for lines starting with `xxx=' (explanation below),
-each line in dosemu.user corresponds to exactly <em/one/ valid user count,
+each line in dosemu.user corresponds to exactly <emphasis>one</emphasis> valid user count,
 the special user `all' means any user not mentioned earlier. Format:
-<tscreen><verb>
-  [ <login> | all ] [ confvar [ confvar [ ... ] ] ]
-</verb></tscreen>
 
+<screen>
+  [ &#60;login&#62; | all ] [ confvar [ confvar [ ... ] ] ]
+</screen>
+
+</para>
+
+<para>
 The below example is from etc/dosemu.users.secure, which you may copy
 to /etc/dosemu.users.
-<tscreen><verb>
+
+<screen>
   root c_all     # root is allowed to do all weird things
   nobody nosuidroot guest # variable 'guest' is checked in global.conf
                           # to allow only DEXE execution
@@ -65,16 +125,21 @@ to /etc/dosemu.users.
   myfriend c_all unrestricted private_setup
   myboss nosuidroot restricted private_setup
   all nosuidroot restricted # all other users have normal user restrictions
-</verb></tscreen>
+</screen>
+
 Note that the above `restricted' is checked in global.conf and will
 disable all secure relevant feature. Setting `guest' will force
 setting `restricted' too.
+</para>
 
+<para>
 The use of `nosuidroot' will force a suid root dosemu binary to exit,
 the user may however use a non-suid root copy of the binary.
 For more information on this look at README-tech,
 chapter 11.1 `Privileges and Running as User'
+</para>
 
+<para>
 Giving the keyword `private_setup' to a user means he/she can have a private
 DOSEMU lib under $HOME/.dosemu/lib. If this directory is existing, DOSEMU
 will expect all normally under /var/lib/dosemu within that directory,
@@ -83,35 +148,47 @@ be allowed, if the used DOSEMU binary is non-suid-root. If you realy trust
 a user you may additionally give the keyword `unrestricted', which will
 allow this user to execute a suid-root binary even on a private lib
 directory (though, be aware).
+</para>
 
+<para>
 In addition, dosemu.users can be used to define some global settings, which
 must be known before any other file is accessed, such as:
-<tscreen><verb>
+
+<screen>
   default_lib_dir= /opt/dosemu  # replaces /var/lib/dosemu
   log_level= 2                  # highest log level
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 With `default_lib_dir=' you may move /var/lib/dosemu elsewere, this mostly
 is interesting for distributors, who want it elswere but won't patch the
 DOSEMU source just for this purpose. But note, the dosemu supplied scripts
 and helpers may need some adaption too in order to fit your new directory.
+</para>
 
+<para>
 The `log_level=' can be 0 (never log) or 1 (log only errors) or 2 (log all)
 and controls the ammount written to the systems log facility (notice).
 This keyword replaces the former /etc/dosemu.loglevel file, which now is
 obsolete.
+</para>
 
+<para>
 Nevertheless, for a first try of DOSEMU you may prefer etc/dosemu.users.easy,
 which just contains
-<tscreen><verb>
+
+<screen>
   root c_all
   all c_all
-</verb></tscreen>
+</screen>
+
 to allow evrybody all weird things. For more details on security issues
 have a look at README-tech.txt chapter 2.
+</para>
 
-
-<p>
+<para>
 After /etc/dosemu.users /etc/dosemu.conf (via global.conf) is interpreted,
 and only during global.conf parsing access to all configuration options is
 allowed. Your personal ~/.dosemurc is included directly after dosemu.conf,
@@ -121,279 +198,443 @@ that the normal namespace cannot be polluted (and a hacker cannot overwrite
 security relevant enviroment variables). Within global.conf only those
 ~/.dosemurc created variables, that are needed are taken over and may
 overwrite those defined in /etc/dosemu.conf.
+</para>
 
-<p>
+<para>
 The dosemu.conf (global.conf) may check for the configuration variables,
 that are set in /etc/dosemu.users and optionaly include further configuration
 files. But once /etc/dosemu.conf (global.conf) has finished interpretation,
 the access to secure relevant configurations is (class-wise) restricted while
 the following interpretation of (old) .dosrc and -I statements.
+</para>
 
+<para>
 For more details on security setings/issues look at README-tech.txt, for
 now (using DOSEMU the first time) you should need only the below description
 of /etc/dosemu.conf (~/.dosemurc)
+</para>
 
-<sect1>Format of /etc/dosemu.conf
+<sect2>
+<title>Format of /etc/dosemu.conf</title>
 
-<p>
+<para>
 All settings in dosemu.conf are just variables, that are interpreted
 in /var/lib/dosemu/global.conf and have the form of
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   $_xxx = (n)
-or
-  $_zzz = "s"
-</verb></tscreen>
+</screen>
 
+or
+
+<screen>
+  $_zzz = "s"
+</screen>
+
+</para>
+
+<para>
 where `n' ist a numerical or boolean value and `s' is a string.
 Note that the brackets are important, else the parser won't decide
 for a number expression. For numers you may have complete expressions
 ( such as (2*1024) ) and strings may be concatenated such as
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   $_zzz = "This is a string containing '", '"', "' (quotes)"
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 Hence a comma separated list of strings is concatenated.
- 
-<sect2>Controling amount of debug output
-<p>
+</para>
 
+<sect3>
+<title>Controling amount of debug output</title>
+
+<para>
 DOSEMU will help you finding problems, when you enable its debug messages.
 These will go into the file, that you defined via the `-o file' or `-O'
 commandline option (the later prints to stderr). In dosemu.conf you
 can preset this via
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   $_debug = "-a"
-</verb></tscreen>
- where the string contains all you normally may pass to the `-D' commandline
+</screen>
+
+where the string contains all you normally may pass to the `-D' commandline
 option (look at the man page for details).
+</para>
 
-<sect2>Basic emulaton settings
-<p>
+</sect3>
 
+<sect3>
+<title>Basic emulaton settings</title>
+
+<para>
 To enable INT08 type timer interrupts set the below on or off
-<tscreen><verb>
+
+<screen>
   $_timint = (on)
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 Wether a numeric processor should be shown to the DOS space
-<tscreen><verb>
-  $_mathco = (on)
-</verb></tscreen>
 
+<screen>
+  $_mathco = (on)
+</screen>
+
+</para>
+
+<para>
 Which type of CPU should be emulated (NOTE: this is not the one you
 are running on, but your setting may not exeed the capabilities of
 the running CPU). Valid values are:  80[345]86
-<tscreen><verb>
-  $_cpu = (80386)
-</verb></tscreen>
 
+<screen>
+  $_cpu = (80386)
+</screen>
+
+</para>
+
+<para>
 To let DOSEMU use the Pentium cycle counter (if availabe) to do better timing
 use the below
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   $_rdtsc = (on)   # or off
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 For the above `rdtsc' feature DOSEMU needs to know the exact CPU clock,
 it normally calibrates it itself, but is you encounter a wrong mesurement
 you may overide it such as
-<tscreen><verb>
+
+<screen>
   $_cpuspeed = (166.666)  # 0 = let DOSEMU calibrate
-</verb></tscreen>
+</screen>
 
-NOTE: `$_rdtsc' and `$_cpuspeed' can <em/not/ be overwritten by ~/.dosemurc.
+</para>
 
+<para>
+NOTE: `$_rdtsc' and `$_cpuspeed' can <emphasis>not</emphasis> be overwritten by ~/.dosemurc.
+</para>
+
+<para>
 If you have a PCI board you may allow DOSEMU to access the PCI
 configuration space by defining the below
-<tscreen><verb>
-  $_pci = (on)    # or off
-</verb></tscreen>
 
+<screen>
+  $_pci = (on)    # or off
+</screen>
+
+</para>
+
+<para>
 Starting with dosemu-1.0 there is a flexible way to handle the mapping
-strategie used by DOSEMU, which is needed by video emulation, EMS,
+strategy used by DOSEMU, which is needed by video emulation, EMS,
 DPMI and XMS support and other stuff to map a given page of memory to the
 required virtual DOS address space.
-Normaly DOSEMU will detect the proper mapping driver for the kernel you are
+</para>
+
+<para>
+Normally DOSEMU will detect the proper mapping driver for the kernel you are
 using, however, in some cases you may want to define it explicitely to
 overcome eventual problems. For this you can specify
-<tscreen><verb>
+
+<screen>
   $_mapping= "mapfile"
-</verb></tscreen>
+</screen>
+
 to force the use of the driver, which uses a temporary file. Or on
 kernels up to 2.3.27
-<tscreen><verb>
+
+<screen>
   $_mapping= "mapself"
-</verb></tscreen>
+</screen>
+
 to use mapping on the /proc/self/mem file, which is a lot faster the
 the `mapfile' driver, but maybe not relyable in conjunctions with glibc
 (NOTE: the kernel since ages has bugs on /proc/self/mem mapping and
 our workaround doesn't fit exactly together glibc).
-Last not least, if you are using a kernel above 2.3.40, you may use
-<tscreen><verb>       
-  $_mapping= "mapshm"
-</verb></tscreen>
-which uses one big IPC shared memory segment as memory pool <em/and/ the new
-extended mremap() functionality for the mapping.
+</para>
 
+<para>
+Last but not least, if you are using a kernel above 2.3.40, you may use
+
+<screen>
+       
+  $_mapping= "mapshm"
+</screen>
+
+which uses one big IPC shared memory segment as memory pool <emphasis>and</emphasis> the new
+extended mremap() functionality for the mapping.
+</para>
+
+<para>
 Note, that in case of `mapfile' and `mapshm' the size of the file or the
 segment depend on how much memory you configured for XMS, EMS and DPMI
 (see below)
 and that you should take care yourself that you have enough diskspace
 or have the IPC limits high enough. You can control IPC memory limits
 with
-<tscreen><verb>
+
+<screen>
   # ipcs -m -l
-</verb></tscreen>
+</screen>
+
 and (on kernels above 2.3.x) you can increase the segment limit with
-<tscreen><verb>
-  # echo "66904064" >/proc/sys/kernel/shmmax
-</verb></tscreen>
+
+<screen>
+  # echo "66904064" &#62;/proc/sys/kernel/shmmax
+</screen>
+
 `66904064' being 64 Mbytes in this example.
+</para>
 
-
+<para>
 Defining the memory layout, which DOS should see:
-<tscreen><verb>
+
+<screen>
   $_xms = (1024)          # in Kbyte
   $_ems = (1024)          # in Kbyte
   $_ems_frame = (0xe000)
   $_dpmi = (off)          # in Kbyte
-  $_dosmem = (640)        # in Kbyte, < 640
-</verb></tscreen>
+  $_dosmem = (640)        # in Kbyte, &#60; 640
+</screen>
+
 Note that (other as in native DOS) each piece of mem is separate, hence
 DOS perhaps will show other values for 'extended' memory. To enable
 DPMI (by giving it memory) is a security concern, so you should either
-<em/not/ give access to dosemu for normal users (via /etc/dosemu.users)
+<emphasis>not</emphasis> give access to dosemu for normal users (via /etc/dosemu.users)
 or give those users the `restricted' attribute (see above).
+</para>
 
+<para>
 There are some features in DOSEMU, that may violate system security
 and which you should not use on machines, which are `net open'. To
 have atleast a minimum of protection against intruders, use the folling:
-<tscreen><verb>
+
+<screen>
   $_secure ="ngd"  # secure for: n (normal users), g (guest), d (dexe)
                    # empty string: depending on 'restricted'
-</verb></tscreen>
+</screen>
+
 The above is a string of which may be given or not, hence
-<tscreen><verb>
+
+<screen>
   $_secure ="d"
-</verb></tscreen>
+</screen>
+
 would only effect execution of DEXEs. If you are not a `restricted' user
 (as given via /etc/dosemu.users) the above settings won't apply.
 To disable security checking atall set
-<tscreen><verb>
+
+<screen>
   $_secure ="0"
-</verb></tscreen>
+</screen>
 
-NOTE: `$_secure' can <em/not/ be overwritten by ~/.dosemurc.
+</para>
 
+<para>
+NOTE: `$_secure' can <emphasis>not</emphasis> be overwritten by ~/.dosemurc.
+</para>
+
+<para>
 For the similar reasons you may `backout' some host, which you don't like
 to have access to dosemu
-<tscreen><verb>
+
+<screen>
   $_odd_hosts = ""    # black list such as
                       #      "lucifer.hell.com billy.the.cat"
   $_diskless_hosts="" # black list such as "hacker1 newbee gateway1"
-</verb></tscreen>
+</screen>
+
 The items in the lists are blank separated, `odd_hosts' checks for remote
 logins, `diskless_hosts' are meant to be maschines, that mount a complete
 tree, hence the checked host is the host DOSEMU is running on (not the
 remote host). However, read README-tech,txt for more details on what
 actually is disabled.
+</para>
 
-NOTE: `$_*_hosts' can <em/not/ be overwritten by ~/.dosemurc.
+<para>
+NOTE: `$_*_hosts' can <emphasis>not</emphasis> be overwritten by ~/.dosemurc.
+</para>
 
+<para>
 If you want mixed operation on the filesystem, from which you
 boot DOSEMU (native and via DOSEMU), it may be necessary to have two
 separate sets of `config.sys,autoexec.bat,system.ini'. DOSEMU can
 fake a different file extension, so DOS will get other files when
 running under DOSEMU.
+</para>
 
-<tscreen><verb>
-  $_emusys = ""    # empty or 3 char., config.sys   -> config.XXX
-  $_emubat = ""    # empty or 3 char., autoexec.bat -> autoexec.XXX 
-  $_emuini = ""    # empty or 3 char., system.ini   -> system.XXX
-</verb></tscreen>
+<para>
 
-As you would realize at the first glance: DOS will <em/not/ have the
+<screen>
+  $_emusys = ""    # empty or 3 char., config.sys   -&#62; config.XXX
+  $_emubat = ""    # empty or 3 char., autoexec.bat -&#62; autoexec.XXX 
+  $_emuini = ""    # empty or 3 char., system.ini   -&#62; system.XXX
+</screen>
+
+</para>
+
+<para>
+As you would realize at the first glance: DOS will <emphasis>not</emphasis> have the
 the CPU for its own. But how much it gets from Linux, depends on the setting
 of `hogthreshold'.
 The HogThreshold value determines how nice Dosemu will be about
 giving other Linux processes a chance to run.
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   $_hogthreshold = (1)   # 0 == all CPU power to DOSEMU
                          # 1 == max power for Linux
-                         # >1   the higher, the slower DOSEMU will be
-</verb></tscreen>
+                         # &#62;1   the higher, the slower DOSEMU will be
+</screen>
 
+</para>
+
+<para>
 If you have hardware, that is not supported under Linux but you have
 a DOS driver for, it may be necessary to enable IRQ passing to DOS.
-<tscreen><verb>
+
+<screen>
   $_irqpassing = ""  # list of IRQ number (2-15) to pass to DOS such as
                      # "3 8 10"
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 Here you tell DOSEMU what to do when DOS wants let play the speaker:
-<tscreen><verb>
+
+<screen>
   $_speaker = ""     # or "native" or "emulated"
-</verb></tscreen>
+</screen>
 
-And with the below may gain control over <em/real/ ports on you machine.
+</para>
+
+<para>
+And with the below may gain control over <emphasis>real</emphasis> ports on you machine.
 But:
-<bf>WARNING: GIVING ACCESS TO PORTS IS BOTH A SECURITY CONCERN AND
-SOME PORTS ARE DANGEROUS TO USE.  PLEASE SKIP THIS SECTION, AND
-DON'T FIDDLE WITH THIS SECTION UNLESS YOU KNOW WHAT YOU'RE DOING.</bf>
+</para>
 
-<tscreen><verb>
+<para>
+<emphasis remap="bf">WARNING: GIVING ACCESS TO PORTS IS BOTH A SECURITY CONCERN AND
+SOME PORTS ARE DANGEROUS TO USE.  PLEASE SKIP THIS SECTION, AND
+DON'T FIDDLE WITH THIS SECTION UNLESS YOU KNOW WHAT YOU'RE DOING.</emphasis>
+</para>
+
+<para>
+
+<screen>
   $_ports = ""  # list of portnumbers such as "0x1ce 0x1cf 0x238"
                 # or "0x1ce range 0x280,0x29f 310"
                 # or "range 0x1a0,(0x1a0+15)"
-</verb></tscreen>
+</screen>
 
-NOTE: `$_ports' can <em/not/ be overwritten by ~/.dosemurc.
+</para>
 
+<para>
+NOTE: `$_ports' can <emphasis>not</emphasis> be overwritten by ~/.dosemurc.
+</para>
 
-<sect2>Code page and character set
-<p>
+</sect3>
+
+<sect3>
+<title>Code page and character set</title>
+
+<para>
 To select the character set and code page for use with DOSEMU you have
-<tscreen><verb>
+
+<screen>
   $_term_char_set = "XXX"
-</verb></tscreen>
+</screen>
+
 where XXX is one of
-  <descrip>
-    <tag/ibm/ the text is taken whithout translation, it is to the user
-      to load a proper DOS font (cp437.f16, cp850.f16 or cp852.f16 on the
-      console).
-    <tag/latin/ the text is processed using cp437->iso-8859-1 translation,
-      so the font used must be iso-8859-1 (eg iso01.f16 on console);
-      which is the default for unix in western languages countries.
-    <tag/latin1/ like latin, but using cp850->iso-8859-1 translation (the
-      difference between cp437 and cp850 is that cp437 uses some chars for
-      drawing boxes while cp850 uses them for accentuated letters)
-    <tag/latin2/ like latin1 but uses cp852->iso-8859-2 translation, so
-      translates the default DOS charset of eastern european countries to the
-      default unix charset for those countries.
-  </descrip>
+<variablelist>
+
+<varlistentry>
+<term>ibm</term>
+<listitem>
+<para>
+the text is taken whithout translation, it is to the user
+to load a proper DOS font (cp437.f16, cp850.f16 or cp852.f16 on the
+console).
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>latin</term>
+<listitem>
+<para>
+ the text is processed using cp437-&#62;iso-8859-1 translation,
+so the font used must be iso-8859-1 (eg iso01.f16 on console);
+which is the default for unix in western languages countries.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>latin1</term>
+<listitem>
+<para>
+ like latin, but using cp850-&#62;iso-8859-1 translation (the
+difference between cp437 and cp850 is that cp437 uses some chars for
+drawing boxes while cp850 uses them for accentuated letters)
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>latin2</term>
+<listitem>
+<para>
+like latin1 but uses cp852-&#62;iso-8859-2 translation, so
+translates the default DOS charset of eastern european countries to the
+default unix charset for those countries.
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
 The default one is ``latin'' and if the string is empty, then an automatic
 attempt is made: ``ibm'' for remote console and ``latin'' for anything else.
 Depending on the charset setting the (below described) keyboard layouts
 and/or the terminal behave may vary. You need to know the correct code page
 your DOS is configured for in order to get the correct results.
 For most western european countries 'latin' should be the correct setting.
+</para>
 
+</sect3>
 
-<sect2>Terminals
-<p>
+<sect3>
+<title>Terminals</title>
+
+<para>
 This section applies whenever you run DOSEMU remotely or in an xterm.
 Color terminal support is now built into DOSEMU.  Skip this section for
 now to use terminal defaults, until you get DOSEMU to work.
 
-<tscreen><verb>
+<screen>
   $_term_color = (on)   # terminal with color support
   $_term_updfreq = (4)  # time between refreshs (units: 20 == 1 second)
   $_escchar = (30)      # 30 == Ctrl-^, special-sequence prefix
-</verb></tscreen>
+</screen>
 
 `term_updfreq' is a number indicating the frequency of terminal updates of
 the screen. The smaller the number, the more frequent.  A value of 20 gives
@@ -403,23 +644,29 @@ character used as a prefix character for sending alt, shift, ctrl, and
 function keycodes.  The default value is 30 which is Ctrl-^. So, for
 example,
 
-<tscreen><verb>
+<screen>
   F1 is 'Ctrl-^1', Alt-F7 is 'Ctrl-^s Ctrl-^7'.
   For online help, press 'Ctrl-^h' or 'Ctrl-^?'.
-</verb></tscreen>
+</screen>
 
-<sect2>Keyboard settings
-<p>
+</para>
 
+</sect3>
+
+<sect3>
+<title>Keyboard settings</title>
+
+<para>
 When running DOSEMU from console (also remote from console) or X you
 may need to define a proper keyboard layout. Its possible to let
-DOSEMU do this work automatically for you (see <em/auto/ below), however,
+DOSEMU do this work automatically for you (see <emphasis>auto</emphasis> below), however,
 this may fail and you'll end up defining it explicitely. This is done either
 by choosing one on the internal keytables or by loading an external
 keytable from /var/lib/dosemu/keymap/* (which you may modify according
 to your needs). Both sets have identical names (though you may add
 any new one to /var/lib/dosemu/keymap/*):
-<tscreen><verb>
+
+<screen>
   be              finnish         hu-latin2       sg-latin1
   de              finnish-latin1  it              sw
   de-latin1       fr              keyb-no         uk
@@ -429,38 +676,53 @@ any new one to /var/lib/dosemu/keymap/*):
   es              hu              sf-latin1
   es-latin1       hu-cwi          sg              jp106
   cz-qwerty       cz-qwertz
-</verb></tscreen>
+</screen>
 
 You define an internal keytable such as
-<tscreen><verb>
+
+<screen>
   $_layout = "name"
-</verb></tscreen>
+</screen>
+
 where `name' is one of the above. To load a keytable you just prefix
 the string with "load" such as
-<tscreen><verb>
-  $_layout = "load de-latin1"
-</verb></tscreen>
 
+<screen>
+  $_layout = "load de-latin1"
+</screen>
+
+</para>
+
+<para>
 Note, however, that you have to set
-<tscreen><verb>  
+
+<screen>
+  
   $_X_keycode = (on)
-</verb></tscreen>
+</screen>
+
 to use this feature under X, because per default the keytable is
 forced to be neutral (us). Normally you will have the correct settings
 of your keyboard given by the X-server.
+</para>
 
+<para>
 The most comfortable method, however, is to first let DOSEMU set the
 keyboard layout itself. This involves 2 parts and can be done by setting
-<tscreen><verb>
+
+<screen>
   $_X_keycode = (auto)
-</verb></tscreen>
+</screen>
+
 which  checks for existence of a  XFree/Xaccel-Server and if yes,
 it sets $_X_keycode to 'on', that means the DOSEMU keytables
 are active. The second part (which is independent from $_X_keycode)
 can be set by
-<tscreen><verb>
+
+<screen>
   $_layout = "auto"
-</verb></tscreen>
+</screen>
+
 DOSEMU then queries the keyboard layout from the kernel (which
 only does work on console or non-remote X) and generates a new DOSEMU
 keytable out of the kernel information. This currently seems
@@ -468,36 +730,51 @@ only to work for latin-1 layouts, the latin-2 type of accents
 seem not to exist so far in the kernel (linux/keyboard.h).
 The resulting table can be monitor with DOSEMU 'keytable dump'
 feature (see README-tech.txt) for details).
+</para>
 
+<para>
 When being on console you might wish to use raw keyboard, especially
 together with some games, that don't use the BIOS/DOS to get their
 keystrokes.
-<tscreen><verb>
+
+<screen>
   $_rawkeyboard = (1)
-</verb></tscreen>
+</screen>
+
 However, be carefull, when the application locks, you may not be able
 to switch your console and recover from this. For details on recovering
 look at README-tech.txt (Recovering the console after a crash).
+</para>
 
-NOTE: `$_rawkeyboard' can <em/not/ be overwritten by ~/.dosemurc.
+<para>
+NOTE: `$_rawkeyboard' can <emphasis>not</emphasis> be overwritten by ~/.dosemurc.
+</para>
 
-
+<para>
 The `keybint (on)' allows more accurate of keyboard interrupts, It
 is a bit unstable, but makes keyboard work better when set to "on".
-<tscreen><verb>
+
+<screen>
   $_keybint = (on)     # emulate PCish keyboard interrupt
-</verb></tscreen>
+</screen>
 
+</para>
 
+</sect3>
 
-<sect2>X Support settings
-<p>
+<sect3>
+<title>X Support settings</title>
+
+<para>
 If DOSEMU is running in its own X-window (not xterm), you may need to
 tailor it to your needs. Here a summary of the settings and a brief
 description what they mean. A more detailed description of values
 one can be found at chapter 2.2.14 (X Support settings) of README-tech.txt
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
 $_X_updfreq = (5)       # time between refreshs (units: 20 == 1 second)
 $_X_title = "DOS in a BOX" # Title in the top bar of the window
 $_X_icon_name = "xdos"  # Text for icon, when minimized
@@ -509,8 +786,8 @@ $_X_mitshm = (on)       # Use shared memory extensions
 $_X_sharecmap = (off)   # share the colormap with other applications
 $_X_fixed_aspect = (on) # Set fixed aspect for resize the graphics window
 $_X_aspect_43 = (on)    # Always use an aspect ratio of 4:3 for graphics
-$_X_lin_filt = (off)    # Use linear filtering for >15 bpp interpol.
-$_X_bilin_filt = (off)  # Use bi-linear filtering for >15 bpp interpol.
+$_X_lin_filt = (off)    # Use linear filtering for &#62;15 bpp interpol.
+$_X_bilin_filt = (off)  # Use bi-linear filtering for &#62;15 bpp interpol.
 $_X_mode13fact = (2)    # initial factor for video mode 0x13 (320x200)
 $_X_winsize = ""        # "x,y" of initial windows size
 $_X_gamma = (1.0)       # gamma correction
@@ -522,20 +799,28 @@ $_X_mgrab_key = ""      # KeySym name to activate mouse grab, empty == off
 $_X_vesamode = ""       # "xres,yres ... xres,yres"
                         # List of vesamodes to add. The list has to contain
                         # SPACE separated "xres,yres" pairs
-</verb></tscreen>
+</screen>
 
+</para>
 
-<sect2>Video settings ( console only )
-<p>
+</sect3>
 
-<em>!!WARNING!!: IF YOU ENABLE GRAPHICS ON AN INCOMPATIBLE ADAPTOR,
+<sect3>
+<title>Video settings ( console only )</title>
+
+<para>
+<emphasis>!!WARNING!!: IF YOU ENABLE GRAPHICS ON AN INCOMPATIBLE ADAPTOR,
 YOU COULD GET A BLANK SCREEN OR MESSY SCREEN EVEN AFTER EXITING DOSEMU.
-Read doc/README-tech.txt (Recovering the console after a crash).
-</em>
+Read doc/README-tech.txt (Recovering the console after a crash).</emphasis>
+</para>
 
+<para>
 Start with only text video using the following setup in dosemu.conf
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   $_video = "vga"         # one of: plainvga, vga, ega, mda, mga, cga
   $_console = (0)         # use 'console' video
   $_graphics = (0)        # use the cards BIOS to set graphics
@@ -545,41 +830,70 @@ Start with only text video using the following setup in dosemu.conf
   $_vmemsize = (1024)     # size of regen buffer
   $_chipset = ""       
   $_dualmon = (0)         # if you have one vga _plus_ one hgc (2 monitors)
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 After you get it `somehow' working and you have one of the DOSEMU supported
 graphic cards you may switch to graphics mode changing the below
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   $_graphics = (1)        # use the cards BIOS to set graphics
-</verb></tscreen>
+</screen>
 
-If you have a 100% compatible standard VGA card that <em/may/ work,
+</para>
+
+<para>
+If you have a 100% compatible standard VGA card that <emphasis>may</emphasis> work,
 however, you get better results, if your card has one of the DOSEMU supported
 video chips and you tell DOSEMU to use it such as
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   $_chipset = "s3"        # one of: plainvga, trident, et4000, diamond, s3,
-                          # avance, cirrus, matrox, wdvga, paradise, ati
-</verb></tscreen>
+                          # avance, cirrus, matrox, wdvga, paradise, ati, 
+			  # svgalib
+</screen>
 
-Note, `s3' is only an example, you <em/must/ set the correct video chip
+</para>
+
+<para>
+Note, `s3' is only an example, you <emphasis>must</emphasis> set the correct video chip
 else it most like will crash your screen.
+</para>
 
-NOTE: `video setting' can <em/not/ be overwritten by ~/.dosemurc.
+<para>
+The 'svgalib' setting uses svgalib 1.4.2 or greater for determining the correct
+video chip. It should work with all svgalib drivers, except for "vesa" and
+"ati", which are dangerous with respect to opening IO-ports.
+</para>
 
+<para>
+NOTE: `video setting' can <emphasis>not</emphasis> be overwritten by ~/.dosemurc.
+</para>
 
+</sect3>
 
-<sect2>Disks, boot directories and floppies
-<p>
+<sect3>
+<title>Disks, boot directories and floppies</title>
 
+<para>
 The parameter settings via dosemu.conf are tailored to fit the recommended
 usage of disk and floppy access. There are other methods too, but for these
 you have to look at README-tech.txt (and you may need to modify global.conf).
 We strongly recommend that you use the proposed techique. Here the normal
 setup:
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   $_vbootfloppy = ""    # if you want to boot from a virtual floppy:
                         # file name of the floppy image under /var/lib/dosemu
                         # e.g. "floppyimage" disables $_hdimage
@@ -591,28 +905,35 @@ setup:
                         # under /var/lib/dosemu assigned in this order
                         # such as "hdimage_c hdimage_d hdimage_e"
   $_hdimage_r = $_hdimage # hdimages for 'restricted access (if different)
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 When you installed DOSEMU (`make install') you will have a bootable
 hdimage in the file /var/lib/dosemu/hdimage.first. It contains a very tiny
 installation of FreeDos, just to show you that it works. A hdimage is
 a file containing a virtual image of a DOS-FAT filesystem. Once you have
 booted it, you (or autoexec.bat) can use `lredir' to access any directory
 in your Linux tree as DOS drive (a -t msdos mounted too). Note, however,
-that the DosC kernel (FreeDos) is <em/not/ capable yet for redirection,
+that the DosC kernel (FreeDos) is <emphasis>not</emphasis> capable yet for redirection,
 for this you need a proprietary DOS such as MSDOS, PCDOS, DRDOS.
 Look at chapter 6 (Using Lredir) and for more details
 on creating your own (better) hdimage look at chapter 4.3 of this README
 (Making a bootable hdimage for general purpose). Chapter 4.4 also describes
 how to import/export files from/to a hdimage.
+</para>
 
+<para>
 Starting with dosemu-0.99.8, there is a more convenient method available:
 you just can have a Linux directory containing all what you want to have
 under your DOS C:. Copy your IO.SYS, MSDOS.SYS or what ever to that
 directory (e.g. /var/lib/dosemu/bootdir), put
-<tscreen><verb>
+
+<screen>
    $_hdimage = "bootdir"
-</verb></tscreen>
+</screen>
+
 into your /etc/dosemu.conf, and up it goes. DOSEMU makes a lredir'ed
 drive out of it and can boot from it. You can edit the config.sys and the
 autoexec.bat within this directory before you start dosemu.
@@ -622,67 +943,91 @@ then you just mount you DOS partition under Linux (say to /dos) and
 put links to its subdirectories into the boot dir. This way you can decide
 which files/directories have to be visible under DOSEMU and which have to be
 different. Here a small and not complete example bootdir setup:
-<tscreen><verb>
+
+<screen>
   config.sys
   autoexec.bat
-  command.com -> /dos/command.com
-  io.sys -> /dos/io.sys
-  msdos.sys -> /dos/msdos.sys
-  dos -> /dos/dos
-  bc -> /dos/bc
-  windows -> /dos/windows
-</verb></tscreen>
+  command.com -&#62; /dos/command.com
+  io.sys -&#62; /dos/io.sys
+  msdos.sys -&#62; /dos/msdos.sys
+  dos -&#62; /dos/dos
+  bc -&#62; /dos/bc
+  windows -&#62; /dos/windows
+</screen>
 
+</para>
+
+<para>
 There is, however, one drawback, you can't use the DosC kernel (FreeDos) for it, because it hasn't yet
 a working redirector (will hopefully be available some time in the future).
+</para>
 
+<para>
 As a further enhancement of your drives setup you may even use the following
 strategie: Given you have the following directory structure 
 under /var/lib/dosemu
-<tscreen><verb>
+
+<screen>
   /var/lib/dosemu/drives/C
   /var/lib/dosemu/drives/D
   /var/lib/dosemu/drives/E
-</verb></tscreen>
-and the <em/C/, em/D/, em/E/ beeing symlinks to appropriate DOS useable
+</screen>
+
+and the <emphasis>C</emphasis>, <emphasis>D</emphasis>, <emphasis>E</emphasis> are symlinks to appropriate DOS useable
 directories, then the following single statement in dosemu.conf
-<tscreen><verb>
+
+<screen>
   $_hdimage = "drives/*"
-</verb></tscreen>
+</screen>
+
 will assign all these directories to drive C:, D:, E: respectively.
-Note, however, that the <em/order/ in which the directories under drives/*
+Note, however, that the <emphasis>order</emphasis> in which the directories under drives/*
 are assigned comes from the order given by /bin/ls. Hence the folling
-<tscreen><verb>
+
+<screen>
   /var/lib/dosemu/drives/x
   /var/lib/dosemu/drives/a
-</verb></tscreen>
+</screen>
+
 will assign C: to drives/a and D: to drives/x, keep that in mind.
+</para>
 
-
-<p>
-Now, what does the above `vbootfloppy' mean? Alternatively of booting
+<para>
+Now, what does the above `vbootfloppy' mean? Instead of booting
 from a virtual `disk' you may have an image of a virtual `floppy' which
 you just created such as `dd if=/dev/fd0 of=floppy_image'. If this
 floppy contains a bootable DOS, then
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   $_vbootfloppy = "floppy_image"
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 will boot that floppy. Once running in DOS you can make the floppy
 available by (virtually) removing the `media' via `bootoff.com'.
 If want the disk access specified via `$_hdimage' anyway, you may add the
 keyword `+hd' such as
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   $_vbootfloppy = "floppy_image +hd"
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 In some rare cases you may have problems accessing Lredir'ed drives
 (especially when your DOS application refuses to run on a 'network drive'),
 though I personally never happened to fall into one of this.
 For this to overcome you may need to use socalled `partition access'. The odd
-with this kind of access is, that you <em/never/ should have those partition
+with this kind of access is, that you <emphasis>never</emphasis> should have those partition
 mounted in the Linux file system at the same time as you use it in DOSEMU
 (which is quite uncomfortable and dangerous on a multitasking OS such as
 Linux ). Though global.conf checks for mounted partitions, there may be races
@@ -690,34 +1035,52 @@ that are not caught. In addition, when your DOSEMU crashes, it may leave
 some FAT sectors unflushed to the disk, hence destroying the partition.
 Anyway, if you think you need it, here is how you `assign' real DOS partitions
 to DOSEMU:
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   $_hdimage = "hdimage.first /dev/hda1 /dev/sdc4:ro"
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 The above will have `hdimage.first' as booted drive C:, /dev/hda1 as D:
 (read/write) and /dev/sdc4 as E: (readonly). You may have any kind of order
 within `$_hdimage', hence
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   $_hdimage = "/dev/hda1 hdimage.first /dev/sdc4:ro"
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 would have /dev/hda1 as booted drive C:. Note that the access to the
-/dev/* devices <em/must/ be exclusive (no other process should use it)
+/dev/* devices <emphasis>must</emphasis> be exclusive (no other process should use it)
 except for `:ro'.
- 
+</para>
 
-<sect2>COM ports and mices
-<p>
+</sect3>
 
-We have simplified the configuration for mices and serial ports and
+<sect3>
+<title>COM ports and mices</title>
+
+<para>
+We have simplified the configuration for mice and serial ports and
 check for depencies between them. If all strings in the below example
 are empty, then no mouse and/or COM port is available. Note. that you
-need <em/no/ mouse.com driver installed in your DOS environment, DOSEMU
+need <emphasis>no</emphasis> mouse.com driver installed in your DOS environment, DOSEMU
 has the mousedriver builtin. The below example is such a setup
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   $_com1 = ""           # e.g. "/dev/mouse" or "/dev/cua0"
   $_com2 = "/dev/modem" # e.g. "/dev/modem" or "/dev/cua1"
 
@@ -727,90 +1090,145 @@ has the mousedriver builtin. The below example is such a setup
   $_mouse_flags = ""	# list of none or one or more of:
   			# "emulate3buttons cleardtr"
   $_mouse_baud = (0)	# baudrate, 0 == don't set
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 The above example lets you have your modem on COM2, COM1 is spare (as
 you may have your mouse under native DOS there and don't want to change
 the configuration of your modem software between boots of native DOS and Linux)
+</para>
 
+<para>
 However, you may use your favorite DOS mousedriver and directly let it
 drive COM1 by changing the below variables (rest of variables unchanged)
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   $_com1 = "/dev/mouse"
   $_mouse_dev = "com1"
-</verb></tscreen>
+</screen>
 
-And finaly, when having a PS2 mouse running on your Linuxbox you use
+</para>
+
+<para>
+And finaly, when you have a PS2 mouse on your machine you use
 the builtin mousedriver (not your mouse.com) to get it work:
 ( again leaving the rest of variables unchanged)
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   $_mouse = "ps2"
   $_mouse_dev = "/dev/mouse"  
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 When using a PS2 mouse or when having more then 2 serial ports you may
 of course assign _any_ free serialdevice to COM1, COM2. The order doesn't
 matter:
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   $_com1 = "/dev/cua2"
   $_com2 = "/dev/cua0"
-</verb></tscreen>
+</screen>
 
+</para>
 
+</sect3>
 
+<sect3>
+<title>Printers</title>
 
-<sect2>Printers
-<p>
-
+<para>
 Printer is emulated by piping printer data to your normal Linux printer.
 The belows tells DOSEMU which printers to use. The `timeout' tells DOSEMU
 how long to wait after the last output to LPTx before considering the
 print job as `done' and to to spool out the data to the printer.
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
 $_printer = "lp"        # list of (/etc/printcap) printer names to appear as
                         # LPT1 ... LPT3 (not all are needed, empty for none)
 $_printer_timeout = (20)# idle time in seconds before spooling out
-</verb></tscreen>
+</screen>
 
-<sect2>Networking under DOSEMU
-<p>
+</para>
 
+</sect3>
+
+<sect3>
+<title>Networking under DOSEMU</title>
+
+<para>
 Turn the following option `on' if you require IPX/SPX emulation,
 there is no need to load IPX.COM within the DOS session.
 ( the option does not emulate LSL.COM, IPXODI.COM, etc. )
 And NOTE: You must have IPX protocol configured into the kernel.
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   $_ipxsupport = (on)
-</verb></tscreen>
+</screen>
 
-Enable Novell 8137->raw 802.3 translation hack in new packet driver.
+</para>
 
-<tscreen><verb>
+<para>
+Enable Novell 8137-&#62;raw 802.3 translation hack in new packet driver.
+</para>
+
+<para>
+
+<screen>
   $_novell_hack = (on)
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 If you make use of the dosnet device driver, you may turn on 'multi'
 packet driver support via
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   $_vnet = (on)
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 For more on this look at chapter 24 (Net code)
+</para>
 
-<sect2>Sound
-<p>
+</sect3>
 
+<sect3>
+<title>Sound</title>
+
+<para>
 The sound driver is more or less likely to be broken at the moment.
 Anyway, here are the settings you would need to emulate a SB-sound card
 by passing the control to the Linux soundrivers.
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
 $_sound = (off)           # sound support on/off
 $_sb_base = (0x220)       # base IO-address (HEX)
 $_sb_irq = (5)            # IRQ
@@ -819,11 +1237,16 @@ $_sb_dsp = "/dev/dsp"     # Path the sound device
 $_sb_mixer = "/dev/mixer" # path to the mixer control
 $_mpu_base = "0x330"      # base address for the MPU-401 chip (HEX)
                           # (not yet implemented)
-</verb></tscreen>
+</screen>
 
-<sect2>Builtin ASPI SCSI Driver
-<p>
+</para>
 
+</sect3>
+
+<sect3>
+<title>Builtin ASPI SCSI Driver</title>
+
+<para>
 The builtin ASPI driver (a SCSI interface protocol defined by Adaptec) can be
 used to run DOS based SCSI drivers that use this standard (most SCSI devices
 ship with such a DOS driver). This enables you to run hardware on Linux, that
@@ -831,97 +1254,148 @@ normally isn't supported otherwise, such as CD writers, Scanners e.t.c.
 The driver was successfully tested with Dat-streamers, EXABYTE tapedrives,
 JAZ drives (from iomega) and CD writers. To make it work under DOSEMU
 you need
-<itemize>
-  <item> to configure $_aspi in /etc/dosemu.conf to define which
-         of the /dev/sgX devices you want to show up in DOSEMU.
-  <item> to load the DOSEMU aspi.sys stub driver within config.sys
-         (e.g. DEVICE=ASPI.SYS) <em/before/ any ASPI using driver.
-</itemize>
 
+<itemizedlist>
+<listitem>
+
+<para>
+ to configure $_aspi in /etc/dosemu.conf to define which
+of the /dev/sgX devices you want to show up in DOSEMU.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ to load the DOSEMU aspi.sys stub driver within config.sys
+(e.g. DEVICE=ASPI.SYS) <emphasis>before</emphasis> any ASPI using driver.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
 The $_aspi variable in dosemu.conf takes strings listing all generic SCSI
 devices, that you want give to DOSEMU. NOTE: You should make sure,
-that they are <em/not/ used by Linux elsewere, else you would come into
-<em/much/ trouble. To help you not doing the wrong thing, DOSEMU can
+that they are <emphasis>not</emphasis> used by Linux elsewere, else you would come into
+<emphasis>much</emphasis> trouble. To help you not doing the wrong thing, DOSEMU can
 check the devicetype of the SCSI device such as
-<tscreen><verb>
+
+<screen>
 $_aspi = "sg2:WORM"
-</verb></tscreen>
-in which case you define /dev/sg2 beeing a CD writer device. If you omit
+</screen>
+
+in which case you define /dev/sg2 being a CD writer device. If you omit
 the type,
-<tscreen><verb>                                                    
+
+<screen>
+                                                    
 $_aspi = "sg2 sg3 sg4"
-</verb></tscreen>
+</screen>
+
 DOSEMU will refuse any device that is a disk drive (imagine, what would happen
 if you try to map a CD writer to the disk which contains a mounted Linux FS?).
-If you <em/want/ to map a disk drive to DOSEMU's ASPI driver, you need to
+If you <emphasis>want</emphasis> to map a disk drive to DOSEMU's ASPI driver, you need to
 tell it explicitely
-<tscreen><verb>
+
+<screen>
 $_aspi = "sg1:Direct-Access"
+</screen>
+
 or
+
+<screen>
 $_aspi = "sg1:0"
-</verb></tscreen>
+</screen>
+
 and as you can see, `Direct-Access' is the devicetype reported by
-<tscreen><verb>
+
+<screen>
 $ cat /proc/scsi/scsi
-</verb></tscreen>
+</screen>
+
 which will list all SCSI devices in the order they are assigned to
 the /dev/sgX devices (the first being /dev/sg0). You may also use the
 DOSEMU supplied tool `scsicheck' (in src/tools/peripher), which helps
 a lot to get the configuration right:
-<tscreen><verb>
+
+<screen>
 $ scsicheck
 sg0 scsi0 ch0 ID0 Lun0 ansi2 Direct-Access(0) IBM DCAS-34330 S61A
     $_aspi = "sg0:Direct-Access:0" (or "0/0/0/0:Direct-Access:0")
 sg1 scsi0 ch0 ID5 Lun0 ansi2 Direct-Access(0) IOMEGA ZIP 100 D.08
     $_aspi = "sg1:Direct-Access:5" (or "0/0/5/0:Direct-Access:5")
 sg2 scsi0 ch0 ID6 Lun0 ansi2 CD-ROM(5) TOSHIBA CD-ROM XM-5701TA 0167
-    $_aspi = "sg2:CD-ROM:6" (or "0/0/6/0:CD-ROM:6") <== multiple IDs
+    $_aspi = "sg2:CD-ROM:6" (or "0/0/6/0:CD-ROM:6") &#60;== multiple IDs
 sg3 scsi1 ch0 ID4 Lun0 ansi2 Sequential-Access(1) HP C1533A 9503
     $_aspi = "sg3:Sequential-Access:4" (or "1/0/4/0:Sequential-Access:4")
 sg4 scsi1 ch0 ID6 Lun0 ansi1 WORM(4) IMS CDD522/10 1.07
-    $_aspi = "sg4:WORM:6" (or "1/0/6/0:WORM:6") <== multiple IDs
-</verb></tscreen>
+    $_aspi = "sg4:WORM:6" (or "1/0/6/0:WORM:6") &#60;== multiple IDs
+</screen>
 
+</para>
+
+<para>
 In the above example there are two scsi hostadapters (scsi0 and scsi1) and
-DOSEMU will not show more than <em/one/ hostadapter to DOS (mapping them
+DOSEMU will not show more than <emphasis>one</emphasis> hostadapter to DOS (mapping them
 all into one), hence you would get problems accessing sg2 and sg4. For this
 you may remap a different targetID such as
-<tscreen><verb>
+
+<screen>
 $_aspi = "sg2:CD-ROM:5 sg4:WORM"
-</verb></tscreen>
+</screen>
+
 and all would be fine. From the DOS side the CD-ROM appears as target 5
 and the WORM (CD writer) as target 6.
 Also from the above scsicheck output, you can see, that you can opt
 to use a `host/channel/ID/LUN' construct in place of `sgX' such as
-<tscreen><verb>
+
+<screen>
 $_aspi = "0/0/6/0:CD-ROM:5 1/0/6/0:WORM"
-</verb></tscreen>
+</screen>
+
 which is exactly the same as the above example, exept it will assign
 the right device, even if for some reasons you have changed the order
 in which sgX device are assigned by the kernel. Those changes happen, if
 you turned off power of one device `between' or if you play with dynamic
 allocation of scsi devices via the /proc/scsi interface such as
-<tscreen><verb>
-echo "scsi remove-single-device 0 0 5 0" >/proc/scsi/scsi
-</verb></tscreen>
+
+<screen>
+echo "scsi remove-single-device 0 0 5 0" &#62;/proc/scsi/scsi
+</screen>
+
 to delete a device and
-<tscreen><verb>
-echo "scsi add-single-device 0 0 5 0" >/proc/scsi/scsi
-</verb></tscreen>
-to add a device. HOWEVER, we <em/strongly/ discourage
+
+<screen>
+echo "scsi add-single-device 0 0 5 0" &#62;/proc/scsi/scsi
+</screen>
+
+to add a device. HOWEVER, we <emphasis>strongly</emphasis> discourage
 you to use these kernel feature for temporaryly switching off
 power of connected devices or even unplugging them: normal SCSI busses
-are <em/not/ hotpluggable. Damage may happen and uncontroled voltage
+are <emphasis>not</emphasis> hotpluggable. Damage may happen and uncontroled voltage
 bursts during power off/on may lock your system !!!
+</para>
 
-Coming so far, <em/one/ big problem remains: the (hard coded) buffersize for
+<para>
+Coming so far, <emphasis>one</emphasis> big problem remains: the (hard coded) buffersize for
 the sg devices in the Linux kernel (default 32k) may be to small for DOS
 applications and, if your distributor yet didn't it, you may need to
 recompile your kernel with a bigger buffer. The buffer size is defined
 in linux/include/scsi/sg.h and to be on the secure side you may define
-<tscreen><verb>
+
+<screen>
 #define SG_BIG_BUFF (128*1024-512)  /* 128 Kb buffer size */
-</verb></tscreen>
+</screen>
+
 though, CD writers are reported to work with 64Kb and the `Iomega guest'
 driver happily works with the default size of 32k.
+</para>
+
+</sect3>
+
+</sect2>
+
+</sect1>
 

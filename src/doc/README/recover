@@ -1,46 +1,72 @@
-<sect>Recovering the console after a crash<label id="recover">
-<p>
+<sect1 id="recover">
+<title>Recovering the console after a crash</title>
+
+<para>
 The below is a mail from Kevin Buhr 
-<htmlurl url="mailto:buhr@stat.wisc.edu" name="&lt;buhr@stat.wisc.edu&gt">
+<ulink
+url="mailto:buhr@stat.wisc.edu"
+>&#60;buhr@stat.wisc.edu&#62;</ulink
+>
 , that was posted
 on linux-msdos some time ago. Because it describes a way to recover
 from a totally locked console, the technique described below was partially
 intergrated in dosdebug. So, the below 'switchcon.c' is now part of
 dosdebug and you may use it via:
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   dosdebug
   console n
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 where n is the console you want to switch to.
-<p>
+</para>
 
+<para>
 But keep in mind, that dosdebug tries to kill your dosemu process the
 safest way it can, so first use dosdebug's kill command:
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   dosdebug
   kill
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 In the worst case you will get the following output on your remote terminal:
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
    ...oh dear, have to do kill SIGKILL
    dosemu process (pid 1234) is killed
    If you want to switch to an other console,
    then enter a number between 1..8, else just type enter:
-   2      <========= this is what you enter
+   2      &#60;========= this is what you enter
    dosdebug terminated
    NOTE: If you had a totally locked console,
          you may have to blindly type in 'kbd -a; texmode
          on the console you switched to.
-</verb></tscreen>
+</screen>
 
-<sect1>The mail message
-<p>
-<tscreen><verb>
+</para>
+
+<sect2>
+<title>The mail message</title>
+
+<para>
+
+<screen>
 Date: Fri, 21 Apr 95 14:16 CDT
 To: tegla@katalin.csoma.elte.hu
 Cc: linux-msdos@vger.rutgers.edu
@@ -135,4 +161,11 @@ main( int argc, char **argv ) {
    return(0);
 }
 
-</verb></tscreen>
+</screen>
+
+</para>
+
+</sect2>
+
+</sect1>
+

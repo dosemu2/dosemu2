@@ -1,43 +1,88 @@
-<sect>Using CDROMS<label id="CDROM">
-<p>
+<sect1 id="CDROM">
+<title>Using CDROMS</title>
 
-<sect1>The built in driver
-<p>
+<sect2>
+<title>The built in driver</title>
+
+<para>
 This documents the cdrom extension rucker@astro.uni-bonn.de has
 written for Dosemu.
+</para>
 
+<para>
 The driver consists of a server on the Linux side (dosemu/drivers/cdrom.c,
 accessed via int 0xe6 handle 0x40) and a device driver
 (dosemu/commands/cdrom.S) on the DOS side.
+</para>
 
-Please send any suggestions and bug reports to <htmlurl
-url="mailto:rucker@astro.uni-bonn.de" name="&lt;rucker@astro.uni-bonn.de&gt;">
+<para>
+Please send any suggestions and bug reports to <ulink
+url="mailto:rucker@astro.uni-bonn.de"
+>&#60;rucker@astro.uni-bonn.de&#62;</ulink
+>
+</para>
 
+<para>
 To install it:
-<itemize>
-<item> Create a (symbolic) link /dev/cdrom to the device file of your drive
-	or use the cdrom statement in /etc/dosemu.conf to define it.
-<item> Make sure that you have read/write access to the device file of your
-  drive, otherwise you won't be able to use the cdrom under Dosemu
-  directly because of security reasons.
-<item> Load cdrom.sys within your config.sys file with e.g.:
 
-<tscreen><verb>
+<itemizedlist>
+<listitem>
+
+<para>
+ Create a (symbolic) link /dev/cdrom to the device file of your drive
+or use the cdrom statement in /etc/dosemu.conf to define it.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ Make sure that you have read/write access to the device file of your
+drive, otherwise you won't be able to use the cdrom under Dosemu
+directly because of security reasons.
+</para>
+</listitem>
+<listitem>
+<para>
+ Load cdrom.sys within your config.sys file with e.g.:
+</para>
+
+<para>
+
+<screen>
     devicehigh=c:\emu\cdrom.sys
-</verb></tscreen>
+</screen>
 
-<item> Start Microsoft cdrom extension as follows:
+</para>
+</listitem>
+<listitem>
+<para>
+Start Microsoft cdrom extension as follows:
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
     mscdex /d:mscd0001 /l:driveletter
-</verb></tscreen>
-</itemize>
+</screen>
 
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
 To change the cd while Dosemu is running, use the DOS program 'eject.com'.
 It is not possible to change the disk, when the drive has been opened by
 another process (e.g. mounted)!
+</para>
 
+<para>
 Remarks by zimmerma@rz.fht-esslingen.de:
+</para>
+
+<para>
 This driver has been successfully tested with Linux' SCSI CDROMS by the
 author, with the Mitsumi driver mcd.c and with the Aztech/Orchid/Okano/Wearnes-
 CDROM driver aztcd.c by me. With the latter CDROM-drives changing the CD-ROM 
@@ -48,42 +93,69 @@ For other CD-ROM drives you may enable this feature by setting the variable
 top of the file). With the mcd.c and aztcd.c Linux drivers this may cause your
 system to hang for some 30 seconds (or even indefinitely), so don't change the
 default value 'eject_allowed = 0'.
+</para>
 
+<para>
 Support for up to 4 drives:
+</para>
 
+<para>
 If you have more then one cdrom, you have to use the cdrom statement
 in global.conf multiple times such as
-<tscreen><verb>
+
+<screen>
   cdrom { /dev/cdrom }
   cdrom { /dev/cdrom2 }
-</verb></tscreen>
+</screen>
+
 and have multiple instancies of the DOS driver too:
-<tscreen><verb>
+
+<screen>
   device=cdrom.sys
   device=cdrom.sys 2
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 The one and only parameter to the device driver is a digit between 1 and 4,
 (if its missing then 1 is assumed)
 for the DOS devices MSCD0001, MSCD0002 ... MSCD0004 respectively. You then
 also need to tell MSCDEX about these drivers such as
-<tscreen><verb>   
+
+<screen>
+   
     mscdex /d:mscd0001 /d:mscd0002 /l:driveletter
-</verb></tscreen>
+</screen>
+
 In this case the /l: argument defines the driveletter of the first /d:,
 the others will get assigned successive driveletters.
+</para>
 
+<para>
+History:
+</para>
 
+<para>
+Release with dosemu.0.60.0
+Karsten Rucker (rucker@astro.uni-bonn.de)
+April 1995       
+</para>
 
-History: Release with dosemu.0.60.0
-         Karsten Rucker (rucker@astro.uni-bonn.de)
-         April 1995       
+<para>
+Additional remarks for mcd.c and aztcd.c
+Werner Zimmermann (zimmerma@rz.fht-esslingen.de)
+May 30, 1995
+</para>
 
-         Additional remarks for mcd.c and aztcd.c
-         Werner Zimmermann (zimmerma@rz.fht-esslingen.de)
-         May 30, 1995
+<para>
+Release with dosemu-0.99.5
+Manuel Villegas Marin (manolo@espanet.com)
+Support for up to 4 drives
+December 4, 1998
+</para>
 
-         Release with dosemu-0.99.5
-         Manuel Villegas Marin <manolo@espanet.com>
-         Support for up to 4 drives
-         December 4, 1998
+</sect2>
+
+</sect1>
+

@@ -1,18 +1,27 @@
-<sect>Running Windows under DOSEmu<label id="Windows">
+<sect1 id="Windows">
+<title>Running Windows under DOSEMU</title>
 
-<p>
+<para>
 Okay, perhaps you've heard the hooplah.  DOSEMU can run Windows (sort of.)
+</para>
 
-<sect1>Windows 3.0 Real Mode
-<p>
+<sect2>
+<title>Windows 3.0 Real Mode</title>
+
+<para>
 DOSEMU has been able to run Windows 3.0 in Real Mode for some time now.
 If you really, really, really want to run Windows under DOSEMU, this is the
 route to take for the moment.
+</para>
 
-<sect1>Windows 3.1 Protected Mode
-<p>
+</sect2>
 
-<tscreen><verb>
+<sect2>
+<title>Windows 3.1 Protected Mode</title>
+
+<para>
+
+<screen>
 ***************************************************************
 *    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
 *                                                             *
@@ -23,98 +32,258 @@ route to take for the moment.
 *                                                             *
 *    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
 ***************************************************************
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 What, you're still reading?
-<p>
+</para>
+
+<para>
 Okay, it is possible to boot WINOS2 (the modified version of Windows 3.1
-that OS/2 uses) under DOSEMU.  Many kudos to Lutz & Dong!
-<p>
-However, YOU NEED <bf/BOTH/ LICENSES, for WINDOWS-3.1 as well OS/2 !!!
-<p>
+that OS/2 uses) under DOSEMU.  Many kudos to Lutz &#38; Dong!
+</para>
+
+<para>
+However, YOU NEED <emphasis remap="bf">BOTH</emphasis> LICENSES, for WINDOWS-3.1 as well OS/2 !!!
+</para>
+
+<para>
 There are many known problems.  Windows is prone to crash, could take data
 with it, large programs will not load, etc. etc. etc.
 In other words, it is NOT ready for daily use.  Many video cards are known
 to have problems (you may see a nice white screen, however, look below
 for win31-in-xdos).  Your program groups are all likely to disappear.
 Basically, it's a pain.
-<p>
+</para>
+
+<para>
 On the other hand, if you're dying to see the little Windows screen running
 under Linux and you have read this CAREFULLY and PROMISE NOT TO BOMBARD THE
 DOSEMU DEVELOPERS WITH "MS Word 6.0 doesn't run!!!" MESSAGES
+</para>
 
-<itemize>
-<item>  Get DOSEMU & the Linux source distributions.
-<item>  Unpack DOSEMU.
-<item>  Configure DOSEMU typing './configure'.
-<item>  Compile DOSEMU typing 'make'.
-<item>  Get the OS2WIN31.ZIP distribution from  ????
-    oh well, and now you have the first problem.
-    It _was_ on ibm.com sometime ago, but has vanished from that site, and
-    as long as it was there, we could mirror it. ,,,, you see the problem?
-    However, use 'archie' to find it, it will be around somewhere on the net
-    ,,, for some time ;-)
-<item>  Unpack the OS2WIN31 files into your WINDOWS\SYSTEM directory.
-    (Infact you only need WINDOWS/SYSTEM/os2k386.exe and the mouse driver)
-<item>  Startup dosemu (make certain that DPMI is set to a value such as 4096)
-<item>  Copy the file winemu.bat to your c: drive.
-<item>  Cross your fingers.
-</itemize>
+<para>
 
+<itemizedlist>
+<listitem>
+
+<para>
+  Get DOSEMU &#38; the Linux source distributions.
+</para>
+</listitem>
+<listitem>
+
+<para>
+  Unpack DOSEMU.
+</para>
+</listitem>
+<listitem>
+
+<para>
+  Configure DOSEMU typing './default-configure'.
+</para>
+</listitem>
+<listitem>
+
+<para>
+  Compile DOSEMU typing 'make'.
+</para>
+</listitem>
+<listitem>
+
+<para>
+  Get the OS2WIN31.ZIP distribution from somehere.
+oh well, and now you have the first problem.
+It _was_ on ibm.com sometime ago, but has vanished from that site, and
+as long as it was there, we could mirror it. ,,,, you see the problem?
+However, use 'archie' to find it, it will be around somewhere on the net
+... for some time ;-)
+</para>
+</listitem>
+<listitem>
+
+<para>
+  Unpack the OS2WIN31 files into your WINDOWS\SYSTEM directory.
+(Infact you only need WINDOWS/SYSTEM/os2k386.exe and the mouse driver)
+</para>
+</listitem>
+<listitem>
+
+<para>
+  Startup dosemu (make certain that DPMI is set to a value such as 4096)
+</para>
+</listitem>
+<listitem>
+
+<para>
+  Copy the file winemu.bat to your c: drive.
+</para>
+</listitem>
+<listitem>
+
+<para>
+  Cross your fingers.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
 Good luck!
-<p>
-<bf>REMEMBER:  THIS IS NOT AT ALL RECOMMENDED!!!  THIS IS NOT RECOMMENDED!!!
-           WE DO NOT RECOMMEND YOU TRY THIS!!!</bf>
+</para>
 
-<sect1>Windows 3.x in xdos
-<p>
+<para>
+<emphasis remap="bf">REMEMBER:  THIS IS NOT AT ALL RECOMMENDED!!!  THIS IS NOT RECOMMENDED!!!
+WE DO NOT RECOMMEND YOU TRY THIS!!!</emphasis>
+</para>
 
+</sect2>
+
+<sect2>
+<title>Windows 3.x in xdos</title>
+
+<para>
 As of version 0.64.3 DOSEMU is able to run Windows in xdos. Of course, this
 is not recommended at all, but if you really want to try, it is safer then
-starting windows-31 on the console, because <em/when/ it crashes, it doesn't
+starting windows-31 on the console, because <emphasis>when</emphasis> it crashes, it doesn't
 block your keyboard or freeze your screen.
-<p>
+</para>
+
+<para>
 Hints:
+</para>
 
-<itemize>
-<item> Get Dosemu & Linux source.
-<item> Unpack dosemu.
-<item> Run "./configure" to configure Dosemu.
-<item> Type "make" to compile.
-<item> Get a Trident SVGA drivers for Windows. The files are tvgaw31a.zip
-   and/or tvgaw31b.zip. They are available at garbo.uwasa.fi in
-   /windows/drivers (any mirrors?).
-<item> Unpack the Trident drivers.
-<item> In Windows setup, install the Trident "800x600 256 color for 512K
-   boards" driver.
-<item> Do the things described above to get and install OS2WIN31.
-<item> Start xdos.
-<item> In Dosemu, go to windows directory and start winemu.
-<item> Cross your fingers.
-</itemize>
+<para>
 
+<itemizedlist>
+<listitem>
+
+<para>
+ Get Dosemu &#38; Linux source.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ Unpack dosemu.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ Run "./default-configure" to configure Dosemu.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ Type "make" to compile.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ Get a Trident SVGA drivers for Windows. The files are tvgaw31a.zip
+and/or tvgaw31b.zip. They are available at garbo.uwasa.fi in
+/windows/drivers (any mirrors?).
+</para>
+</listitem>
+<listitem>
+
+<para>
+ Unpack the Trident drivers.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ In Windows setup, install the Trident "800x600 256 color for 512K
+boards" driver.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ Do the things described above to get and install OS2WIN31.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ Start xdos.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ In Dosemu, go to windows directory and start winemu.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ Cross your fingers.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
 Notes for the mouse under win31-in-xdos:
+</para>
 
-<itemize>
-<item> In order to let the mouse properly work you need the following in your
-   win.ini file:
+<para>
 
-<tscreen><verb>
+<itemizedlist>
+<listitem>
+<para>
+ In order to let the mouse properly work you need the following in your
+win.ini file:
+</para>
+
+<para>
+
+<screen>
      [windows]
      MouseThreshold1=0
      MouseThreshold2=0
      MouseSpeed=0
-</verb></tscreen>
+</screen>
 
-<item> The mouse cursor gets not painted by X, but by windows itself, so it depends
-   on the refresh rate how often it gets updated, though the mouse coordinates 
-   movement itself will not get delayed.
-   ( In fact you have 2 cursors, but the X-cursor is given an 'invisible'
-   cursor shape while within the DOS-Box. )
+</para>
+</listitem>
+<listitem>
 
-<item> Because the coordinates passed to windows are interpreted relatively, we
-   need to calibrate the cursor. This is done automatically whenever you
-   enter the DOS-Box window: The cursor gets forced to 0,0 and then back
-   to its right coordinates. Hence, if you want to re-calibrate the cursor,
-   just move the cursor outside and then inside the DOS-Box again.
-</itemize>
+<para>
+ The mouse cursor gets not painted by X, but by windows itself, so it depends
+on the refresh rate how often it gets updated, though the mouse coordinates 
+movement itself will not get delayed.
+( In fact you have 2 cursors, but the X-cursor is given an 'invisible'
+cursor shape while within the DOS-Box. )
+</para>
+</listitem>
+<listitem>
+
+<para>
+ Because the coordinates passed to windows are interpreted relatively, we
+need to calibrate the cursor. This is done automatically whenever you
+enter the DOS-Box window: The cursor gets forced to 0,0 and then back
+to its right coordinates. Hence, if you want to re-calibrate the cursor,
+just move the cursor outside and then inside the DOS-Box again.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+</sect2>
+
+</sect1>
+

@@ -1,37 +1,55 @@
-<sect>Accessing ports with dosemu<label id="port-io">
-<p>
-This section written by Alberto Vignani
-<htmlurl url="mailto:vignani@mbox.vol.it" name="&lt;vignani@mbox.vol.it&gt;">
-, Aug 10, 1997
-<p>
+<sect1 id="port-io">
+<title>Accessing ports with dosemu</title>
 
-<sect1>General
-<p>
-For port I/O access the type <bf>ioport_t</bf> has been defined; it should
+<para>
+This section written by Alberto Vignani
+<ulink
+url="mailto:vignani@mbox.vol.it"
+>&#60;vignani@mbox.vol.it&#62;</ulink
+>
+, Aug 10, 1997
+</para>
+
+<sect2>
+<title>General</title>
+
+<para>
+For port I/O access the type <emphasis remap="bf">ioport_t</emphasis> has been defined; it should
 be an unsigned short, but the previous unsigned int is retained for
 compatibility. Also for compatibility, the order of parameters has been
 kept as-is; new code should use the port_real_xxx(port,value) function.
 The new port code is selected at configuration time by the parameter
+
+<screen>
 	--enable-new-port
+</screen>
+
 which will define the macro NEW_PORT_CODE.
 Files: portss.c is now no more used and has been replaced by n_ports.c;
 all functions used by 'old' port code have been moved to ports.c. Note
 that the code in portss.c (retrieved from Scott Buchholz's pre-0.61)
 was previously disabled (not used), because it had problems with older
 versions of dosemu.
+</para>
 
-<p>
-The <em>rep;in,out</em> instructions will been optimized so to call iopl()
+<para>
+The <emphasis>rep;in,out</emphasis> instructions will been optimized so to call iopl()
 only once.
-<p>
+</para>
 
-<sect1>Port I/O access
-<p>
+</sect2>
+
+<sect2>
+<title>Port I/O access</title>
+
+<para>
 Every process under Linux has a map of ports it is allowed to access. Too
 bad this map covers only the first 1024 (0x400) ports. For all the ports
 whose access permission is off, and all ports over 0x400, an exception is
 generated and trapped by dosemu.
-<p>
+</para>
+
+<para>
 When the I/O permission (ioperm) bit for a port is ON, the time it takes to
 access the port is much lower than a microsecond (30 cycles on a P5-150); when
 the port is accessed from dosemu through the exception mechanism, access
@@ -39,26 +57,39 @@ times are in the range of tenths of us (3000 cycles on the P5-150) instead.
 It is easy to show that 99% of this time is spent in the kernel trap and
 syscalls, and the influence of the port selection method (table or switch)
 is actually minimal.
-<p>
+</para>
+
+<para>
 There is nothing we can do for ports over 0x400, only hope that these slow
 access times are not critical for the hardware (generally they are not) and
 use the largest possible word width (i.e. do not break 16- and 32-bit
 accesses).
-<p>
+</para>
+
+<para>
 The 'old' port code used a switch...case mechanism for accessing ports,
 while now the table access (previously in the unused file portss.c) has been
 chosen, as it is much more clear, easy to maintain and not slower than the
 "giant switch" method (at least on pentium and up).
-<p>
+</para>
 
+<para>
 There are two main tables in ports.c:
-<itemize>
-<item> the <em>port table</em>, a 64k char array indexed by port number and
-  storing the number of the handle to be used for that port. 0 means no handle
-  defined, valid range is 1-253, 0xfe and 0xff are reserved.
-<item> the <em>handle table</em>, an array of structures describing the properties
-  for a port group and its associated functions:
-  <verb>
+
+<itemizedlist>
+<listitem>
+
+<para>
+ the <emphasis>port table</emphasis>, a 64k char array indexed by port number and
+storing the number of the handle to be used for that port. 0 means no handle
+defined, valid range is 1-253, 0xfe and 0xff are reserved.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ the <emphasis>handle table</emphasis>, an array of structures describing the properties
+for a port group and its associated functions:
   static struct _port_handler {
 	unsigned char(*read_portb)  (ioport_t port_addr);
 	void (*write_portb) (ioport_t port_addr, unsigned char byte);
@@ -67,60 +98,110 @@ There are two main tables in ports.c:
 	char *handler_name;
 	int irq, fd;
   } port_handler[EMU_MAX_IO_DEVICES];
-  </verb>
-</itemize>
+  
+</para>
+</listitem>
 
+</itemizedlist>
+
+</para>
+
+<para>
 It works this way: when an I/O instruction is trapped (in do_vm86.c and
-dpmi.c) the standard entry points <em>port_in[bwd],port_out[bwd]</em> are
+dpmi.c) the standard entry points <emphasis>port_in[bwd],port_out[bwd]</emphasis> are
 called. They log the port access if specified and then perform a double
 indexed jump into the port table to the function responsible for the
 actual port access/emulation.
-<p>
-Ports must be <em>registered</em> before they can be used. This is the
-purpose of the <bf>port_register_handler</bf> function, which is called from
+</para>
+
+<para>
+Ports must be <emphasis>registered</emphasis> before they can be used. This is the
+purpose of the <emphasis remap="bf">port_register_handler</emphasis> function, which is called from
 inside the various device initializations in dosemu itself, and of
-<bf>port_allow_io</bf>, which is used for user-specified ports instead.
+<emphasis remap="bf">port_allow_io</emphasis>, which is used for user-specified ports instead.
 Some ports, esp. those of the video adapter, are registered an trapped this
 way only under X, while in console mode they are permanently enabled (ioperm
 ON). The ioperm bit is also set to ON for the user-specified ports below
-0x400 defined as <em>fast</em>.
+0x400 defined as <emphasis>fast</emphasis>.
 Of course, when a port has the ioperm bit ON, it is not trapped, and thus
 cannot be traced from inside dosemu.
-<p>
+</para>
 
+<para>
 There are other things to consider:
-<itemize>
-<item> system integrity
-<item> system security
-</itemize>
 
-<sect2>System Integrity
-<p>
+<itemizedlist>
+<listitem>
 
+<para>
+ system integrity
+</para>
+</listitem>
+<listitem>
+
+<para>
+ system security
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<sect3>
+<title>System Integrity</title>
+
+<para>
 To block two programs from accessing a port without knowing what the other
 program does, this is the strategy dosemu takes:
-<itemize>
-<item> If the port is not listed in /proc/ioports, no other program should
-  access the port. Dosemu will register these ports. This will also block a
-  second dosemu-process from accessing these ports. Unfortunately there is
-  <em>no kernel call yet</em> for registering a port range system-wide; see
-  later for current hacks.
-<item> If the port is listed, there's probably a device that could use these
-  ports. So we require the system administrator to give the name of the
-  corresponding device. Dosemu tries to open this device and hopes this will
-  block other from accessing. The parallel ports  (0x378-0x37f) and /dev/lp1
-  act in this way.
-  To allow access to a port registered in /proc/ioports, it is necessary
-  that the open on the device given by the system administrator
-  succeeds. An open on /dev/null will always succeed, but use it at your own risk.
-</itemize>
 
-<sect2>System Security
-<p>
+<itemizedlist>
+<listitem>
 
+<para>
+ If the port is not listed in /proc/ioports, no other program should
+access the port. Dosemu will register these ports. This will also block a
+second dosemu-process from accessing these ports. Unfortunately there is
+<emphasis>no kernel call yet</emphasis> for registering a port range system-wide; see
+later for current hacks.
+</para>
+</listitem>
+<listitem>
+<para>
+ If the port is listed, there's probably a device that could use these
+ports. So we require the system administrator to give the name of the
+corresponding device. Dosemu tries to open this device and hopes this will
+block other from accessing. The parallel ports  (0x378-0x37f) and /dev/lp1
+act in this way.
+</para>
+
+<para>
+To allow access to a port registered in /proc/ioports, it is necessary
+that the open on the device given by the system administrator
+succeeds. An open on /dev/null will always succeed, but use it at your own risk.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+</sect3>
+
+<sect3>
+<title>System Security</title>
+
+<para>
 If the strategy administrator did list ports in /etc/dosemu.conf and allows a
 user listed in /etc/dosemu.users to use dosemu, (s)he must know what (s)he is
 doing. Port access is inherently dangerous, as the system can easily be
 screwed up if something goes wrong: just think of the blank screen you get
 when dosemu crashes without restoring screen registers...
-<p>
+</para>
+
+</sect3>
+
+</sect2>
+
+</sect1>
+

@@ -1,23 +1,53 @@
-<!doctype linuxdoc system>
+<!DOCTYPE article PUBLIC "-//Davenport//DTD DocBook V3.0//EN">
+
 <article>
 
-<title>DOSEmu Configuration
-<author>The DOSEmu team
-Edited by Alistair MacDonald  <htmlurl url="mailto:alistair@slitesys.demon.co.uk" name="&lt;alistair@slitesys.demon.co.uk&gt;">
-<date>For DOSEMU v1.0 pl0.0
+<artheader>
 
-<abstract>DOSEmu Configuration
-<p>
+<title>DOSEMU Configuration</title>
+
+<author>
+<firstname>The DOSEMU team
+Edited by Alistair MacDonald  </firstname>
+
+<authorblurb>
+
+<para>
+<ulink url="mailto:alistair@slitesys.demon.co.uk">&#60;alistair@slitesys.demon.co.uk&#62;
+</ulink>
+</para>
+
+</authorblurb>
+</author>
+
+<pubdate>For DOSEMU v1.0 pl0.0</pubdate>
+
+</artheader>
+
+<sect1>
+<title>DOSEMU Configuration</title>
+
+<para>
 Running './setup-dosemu'
 from this directory will allow you to configure both the compilation and
-the run-time aspects of DOSEmu. When changing the run-time settings of
-DOSEmu you can set both the system wide settings and your personal settings.
+the run-time aspects of DOSEMU. When changing the run-time settings of
+DOSEMU you can set both the system wide settings and your personal settings.
 Even better, the program will automatically tell you your current settings
 or suggest defaults where possible.
-<p>
+</para>
+
+<para>
 The program needs Tcl/Tk, take care to have it available on your system.
-<p>
+</para>
+
+<para>
 Comments, and bug reports to me, Alistair MacDonald 
-<htmlurl url="mailto:alistair@slitesys.demon.co.uk" 
-name="&lt;alistair@slitesys.demon.co.uk&gt;">
+<ulink
+url="mailto:alistair@slitesys.demon.co.uk"
+>&#60;alistair@slitesys.demon.co.uk&#62;</ulink
+>
+</para>
+
+</sect1>
+
 </article>

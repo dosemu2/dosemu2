@@ -1,72 +1,150 @@
-<sect>Directly executable DOS applications using dosemu (DEXE)<label id="dexe">
-<p>
+<sect1 id="dexe">
+<title>Directly executable DOS applications using dosemu (DEXE)</title>
 
+<para>
 This section of the document by Hans, 
-<htmlurl url="mailto:lermen@fgan.de" name="&lt;lermen@fgan.de&gt;">. Last
+<ulink
+url="mailto:lermen@fgan.de"
+>&#60;lermen@fgan.de&#62;</ulink
+>. Last
 updated on June 16, 1997.
+</para>
 
-<sect1>Making and Using DEXEs
-<p>
+<sect2>
+<title>Making and Using DEXEs</title>
 
+<para>
 Well, you may have wondered what these *.dexe file extension stands for.
 Looking at the title above you now know it ;-)
+</para>
 
-In fact its a tiny hdimage which is bootable and just contains <em/one/
+<para>
+In fact its a tiny hdimage which is bootable and just contains <emphasis>one</emphasis>
 DOS application. Because this has isolated access to the hdimage only,
 it may have less security issues then a complete DOS environement under
 Linux and, more worth, you need not to fiddle with installation, because
 the implementor already has done this for you.
+</para>
 
+<para>
 On the other hand, you may create your own *.dexe files using the script
 `mkdexe'. For this to run however you need at least mtools-3.6 because
 this versions has options that older versions don't have.
+</para>
 
+<para>
 In detail you need the following to make a *.dexe:
+</para>
 
-<itemize>
-  <item>have <em/mtools-3.6/ available.
-  <item>have dosemu already compiled <em/and/ did <em/not/ 'make pristine'
-  <item>have a *.zip file containing the all files which belong to the
-    DOS application (may be whole directories)
-  <item>have the following info handy before starting 'mkdexe':
+<para>
 
-  <itemize>
-     <item> The partition size needed for the hdimage
-     <item> The DOS version that you want to put onto the hdimage.
-          If your DOS app can run under the FreeDos kernel, you don't
-          need that, else 'mkdexe' needs to know from what bootable
-          existing partition to get the system from.
-     <item> The contents of the config.sys and autoexec.bat.
-  </itemize>
+<itemizedlist>
+<listitem>
 
-  <item> then (as root) do
+<para>
+have <emphasis>mtools-3.6</emphasis> available.
+</para>
+</listitem>
+<listitem>
 
-<tscreen><verb>
+<para>
+have dosemu already compiled <emphasis>and</emphasis> did <emphasis>not</emphasis> 'make pristine'
+</para>
+</listitem>
+<listitem>
+
+<para>
+have a *.zip file containing the all files which belong to the
+DOS application (may be whole directories)
+</para>
+</listitem>
+<listitem>
+
+<para>
+have the following info handy before starting 'mkdexe':
+</para>
+
+<para>
+
+<itemizedlist>
+<listitem>
+
+<para>
+ The partition size needed for the hdimage
+</para>
+</listitem>
+<listitem>
+
+<para>
+ The DOS version that you want to put onto the hdimage.
+If your DOS app can run under the FreeDos kernel, you don't
+need that, else 'mkdexe' needs to know from what bootable
+existing partition to get the system from.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ The contents of the config.sys and autoexec.bat
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+</listitem>
+<listitem>
+<para>
+ then (as root) do
+</para>
+
+<para>
+
+<screen>
        # cd ./dexe
        # mkdexe myapp.zip -x myapp.exe -o confirm
-</verb></tscreen>
+</screen>
+ 
+</para>
+</listitem>
+<listitem>
+<para>
+ If all went ok, you then have a /var/lib/dosemu/myapp.dexe and this
+one can be executed via
+</para>
 
-  <item> If all went ok, you then have a /var/lib/dosemu/myapp.dexe and this
-    one can be executed via
+<para>
 
-<tscreen><verb>
+<screen>
        # dos -L myapp.dex [ dosemu-options ]
-</verb></tscreen>
-    or
-<tscreen><verb>
+</screen>
+
+or
+
+<screen>
        # dosexec myapp.dex [ dosemu-options ]
-</verb></tscreen>
-</itemize>
+</screen>
 
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
 Here is what ./mkdexe will print as help, when called without argument:
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
    USAGE:
      mkdexe [{ application | hdimage}]
                         [-b dospart] [{-s|-S} size] [-x appname]
                         [-c confsys] [-a autoexe] [-C comcom ] [-d dosemuconf]
                         [-i IOname] [-m MSname]
-                        [-o <option> [-o ...]]
+                        [-o &#60;option&#62; [-o ...]]
 
      application  the whole DOS application packet into a *.zip file
      hdimage      the name of the target hdimage, ih -o noapp is give
@@ -88,30 +166,47 @@ Here is what ./mkdexe will print as help, when called without argument:
      MSname       The name of DOS file, that usually is called MSDOS.SYS, 
                   (default for FreeDos: MSDOS.SYS) this one is always put as
                   second file onto the hdimage
-     -o <option>  Following option flags are recognized:
+     -o &#60;option&#62;  Following option flags are recognized:
                     confirm   offer config.sys, autoexec.bat and dconfig
                               to edit via $EDITOR
                     nocomcom  Omit command.com, because its not used anyway
                               when using  shell=c:\appname.exe
                     noapp     Make a simple bootable hdimage for standard
                               DOSEMU usage (replacement for hdimage.dist)
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 If you want to change the builtin configuration file, you may
 use ./src/tools/periph/dexeconfig to extract/re-insert the configuration.
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   # dexeconfig -x configfile dexefile
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 extracts the configuration out of 'dexefile' and puts it into 'configfile'
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   # dexeconfig -i configfile dexefile
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 does the reverse.
+</para>
 
+<para>
 There is a problem, however, when you want allow a user to execute a DEXE
 and the DOS application needs to write to a file within the dexe
 (which is in fact a whole DOS FS). For this would have to give write
@@ -123,14 +218,23 @@ This means: The user cannot delete or replace the DEXE, but the imbedded
 DOS-application can (totally isolated) write to DOS files within the
 DEXE (complicated, isn't it?). To set such a permission, you (again) need
 `dexeconfig':
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   # dexeconfig -p W dexefile
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 Here is what 'dexeconfig' will print as help, when called without argument:
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
    USAGE:
       dexeconfig [-M] [-p {w|W}] -i configfile dexefile
       dexeconfig -x configfile dexefile
@@ -143,96 +247,154 @@ Here is what 'dexeconfig' will print as help, when called without argument:
       -p w    clear write permission
       -p W    set write permission
       -v      view status information
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 It would be great, if we could collect an archive of working, free
 distributatble *.dexe files, and I'm herein asking for contribution.
-However, <em/BIG NOTE/, if you want to contribute a *.dexe file to the public,
-please do <em/NOT/ use any other DOS than FreeDos else you would violate
+However, <emphasis>BIG NOTE</emphasis>, if you want to contribute a *.dexe file to the public,
+please do <emphasis>NOT</emphasis> use any other DOS than FreeDos else you would violate
 existing copyrights. This also (unfortunately) is true for OpenDos
 which can only be distributed after Caldera did allow you to do so :-(
+</para>
 
-If you <em/have/ assembled a *.dexe and you wnat to contribute it, please
+<para>
+If you <emphasis>have</emphasis> assembled a *.dexe and you wnat to contribute it, please
 send me a mail and upload the stuff to
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
    tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/Development/Incoming
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 I'll then put it into
- 
-<tscreen><verb>
+</para>
+
+<para>
+
+<screen>
    tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dexe/*
    ftp.suse.com:/pub/dosemu/dexe/*
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 There currently only is one in that archive: fallout.dexe
 Its a nice Tetris like games that I found on an old CDrom and which runs in
 300x200 on console and X (not Slang-terminal). When you put it into
 you /var/lib/dosemu/* directory, you may start it via:
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
    dosexec fallout.dexe -X
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 Hope we get more of *.dexe in the future ....
+</para>
 
-<sect1> Using binfmt_misc to spawn DEXEs directly
-<p>
+</sect2>
 
+<sect2>
+<title> Using binfmt_misc to spawn DEXEs directly</title>
+
+<para>
 If you have binfmt_misc configured into your kernel (you should most likely
 if you use the precompiled kernel of any common Linux distribution), then
 you can
 execute a DEXE just by typing its name at the Bash prompt. To register
 DEXE format using binfmt_misc you do (in your /etc/rc.-whatever)
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   cd /proc/sys/fs/binfmt_misc
-  echo :DEXE:M::\\x0eDEXE::/usr/bin/dosexec: >register
-</verb></tscreen>
+  echo :DEXE:M::\\x0eDEXE::/usr/bin/dosexec: &#62;register
+</screen>
 
+</para>
+
+<para>
 thats all.
+</para>
 
-<sect1>Making a bootable hdimage for general purpose
-<p>
+</sect2>
 
+<sect2>
+<title>Making a bootable hdimage for general purpose</title>
+
+<para>
 You may also use './mkdexe' do generate a _normal_ bootable hdimage,
 it then has the advantage, that you no longer need to fiddle with a DOS boot
 disk. I succeded to make a bootable hdimage with FreeDos, MSDOS-6.2 and
 also WINDOWS'95 (yes, that can be booted with the DOSEMU-own MBR ;-)
 I did not test other DOSes, but I guess, they also will work, as long as you
 pass the correct system file names to 'mkdexe' (-i, -m options)
+</para>
 
+<para>
 Example:
 Given you have a bootable DOS-partition in /dev/hda1, then this ...
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   # cd ./dexe
   # ./mkdexe myhdimage -b /dev/hda1 -o noapp
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 will generate a direct bootable 'myhdimage' from your existing DOS
 installation. You need not to make a boot floppy, nor need you to fiddle
 with fdisk /MBR and sys.com any more. Using -o confirm you may also
 edit the configuration files before they are put onto the hdimage.
+</para>
 
+<para>
 Further more, there is a script on top of mkdexe: setup-hdimage, which
 helps more to firsttime install DOSEMU's hdimage. It prompts for
 needed things and should work on most machines.
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
   # cd /where/I/have/dosemu
   # ./setup-hdimage
-</verb></tscreen>
+</screen>
 
-<sect1>Accessing hdimage files using mtools
-<p>
+</para>
 
+</sect2>
+
+<sect2>
+<title>Accessing hdimage files using mtools</title>
+
+<para>
 In the ./dexe directory there is also a script, that allows you to
 directly access the hdimage's files, even without changing your
 /etc/mtools.conf. The usage of this script is:
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
    USAGE:
      do_mtools device mcommand [ arg1 [...] ]
 
@@ -245,4 +407,11 @@ directly access the hdimage's files, even without changing your
 
    example:
      do_mtools /var/lib/dosemu/hdimage mcopy W:/autoexec.bat -
-</verb></tscreen>
+</screen>
+
+</para>
+
+</sect2>
+
+</sect1>
+

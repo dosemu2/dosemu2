@@ -1,147 +1,394 @@
-<sect>Documenting DOSEmu<label id="doc">
-<p>
-This is all about the new style DOSEmu documentation. When I was discussing
-this with Hans he was concerned (as I am) about the fact that we are all
-programmers - and generally programmers are poor at documentation. Of course,
-I'd love you all to prove me (us ?) wrong!
-<p>
-However, <em/every/ programmer can handle the few basic linuxdoc-sgml commands
-that are need to make some really good documents! Much of linuxdoc-sgml is like
-HTML, which is hardly surprising as they are both SGMLs. The source to this
-document may make useful reading (This is the file './src/doc/README/doc')
+<!-- <doctype article public "-//Davenport//DTD DocBook V3.0//EN"> -->
 
-<sect1>Sections
-<p>
+<sect1 id="doc">
+<title>Documenting DOSEMU</title>
+
+<para>
+Effective from dosemu-1.0.1 the documentation format for DOSEMU is DocBook. Currently this is DocBook 3.0, but formatted in lower case for XML compatibility. This will probably be migrated to DocBook 4, but the changes are unlikely to affect most authors.
+</para>
+
+<para>
+<emphasis>Every</emphasis> programmer can handle the few basic DocBook commands
+that are need to make some really good documents! There are many similarities with HTML, which is hardly surprising as they are both SGML narkup languages. The source to this document may make useful reading (This is the file <filename>./src/doc/README/doc</filename>)
+</para>
+
+<sect2>
+<title>Sections</title>
+
+<para>
 There are 5 section levels you can use. They are all automatically
 numbered. Your choices are:
+</para>
 
-<descrip>
-<tag>&lt;sect&gt;</tag> A top level section. This is indexed.
-<tag>&lt;sect1&gt;</tag> A 1st level section. This is indexed.
-<tag>&lt;sect2&gt;</tag> A 2nd level section. This is <em/not/ indexed.
-<tag>&lt;sect3&gt;</tag> A 3rd level section. This is <em/not/ indexed.
-<tag>&lt;sect4&gt;</tag> A 4th level section. This is <em/not/ indexed.
-</descrip>
+<para>
+<variablelist>
 
-<itemize>
-<item>You <em/cannot/ skip section levels on the way down (ie you must go
+<varlistentry>
+<term>&lt;sect1&gt;</term>
+<listitem>
+<para>
+ A top level section. This is indexed.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>&lt;sect2&gt;</term>
+<listitem>
+<para>
+ A 2nd level section. This is indexed.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>&lt;sect3&gt;</term>
+<listitem>
+<para>
+ A 3rd level section. This is indexed.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>&lt;sect4&gt;</term>
+<listitem>
+<para>
+ A 4th level section. This is <emphasis>not</emphasis> indexed.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>&lt;sect5&gt;</term>
+<listitem>
+<para>
+ A 5th level section. This is <emphasis>not</emphasis> indexed.
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
+
+<para>
+
+<itemizedlist>
+<listitem>
+
+<para>
+You <emphasis>cannot</emphasis> skip section levels on the way up or down (ie you must go
 &lt;sect&gt;,&lt;sect1&gt;,&lt;sect2&gt; and not &lt;sect&gt;,&lt;sect2&gt;).
-On the way back it doesn't matter! 
-<item>Any text on the same line as the tag will be used to identify the section
-<item>You must have a &lt;p&gt; before you start the section text
-</itemize>
+You must also close each section when you finish it. This includes the enclosing sections.
+</para>
+</listitem>
+<listitem>
 
-<sect1>Emphasising text
-<p>
-I think there are lots of ways of doing this, but I've only been using 2:
+<para>
+The title of the section must be enclosed within &lt;title&gt;...&lt;/title&gt; tags.
+</para>
+</listitem>
+<listitem>
 
-<descrip>
-<tag>&lt;em&gt;...&lt;/em&gt;</tag> Emphasises text like <em/this/.
-<tag>&lt;bf&gt;...&lt;/bf&gt;</tag> Emboldens text like <bf/this/.
-</descrip>
+<para>
+Each paragraph of text must be enclosed within &lt;para&gt;...&lt;/para&gt;.
+</para>
+</listitem>
 
-There is a useful shorthand here. These (and many other tags) can be written
-either as:
+</itemizedlist>
 
-<itemize>
-<item>&lt;em&gt;...&lt;/em&gt;
-<item>&lt;em/.../
-</itemize>
+</para>
 
-This second form can be very useful.
+</sect2>
 
-<sect1>Lists
-<p>
+<sect2>
+<title>Emphasising text</title>
+
+<para>
+There is only one way to do this. 
+</para>
+
+<para>
+<variablelist>
+
+<varlistentry>
+<term>&lt;em&gt;...&lt;/em&gt;</term>
+<listitem>
+<para>
+ Emphasises text like <emphasis>this</emphasis>.
+</para>
+</listitem></varlistentry>
+</variablelist>
+</para>
+
+</sect2>
+
+<sect2>
+<title>Lists</title>
+
+<para>
 Here we have 3 useful types:
+</para>
 
-<descrip>
-<tag/itemize/ A standard bulletted list
-<tag/enum/ A numbered list
-<tag/descrip/ A description list (like this)
-</descrip>
+<para>
+<variablelist>
 
-For the ``itemize'' and ``enum'' lists the items are marked with
-&lt;item&gt;. eg:
-<tscreen><verb>
-&lt;itemize&gt;
-&lt;item&gt; item 1
-&lt;item&gt; item 2
+<varlistentry>
+<term>itemizedList</term>
+<listitem>
+<para>
+ A standard bulletted list
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>orderedList</term>
+<listitem>
+<para>
+ A "numbered" list
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>variableList</term>
+<listitem>
+<para>
+ A description list (like this)
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
+
+<para>
+For ``itemizedList'' and ``orderedList'' the items are marked with
+&lt;listitem&gt;. eg:
+
+<screen>
+&lt;itemizedList&gt;
+&lt;listitem&gt;&lt;para&gt; item 1 &lt;/para&gt;&lt;/listitem&gt;
+&lt;listitem&gt;&lt;para&gt; item 2 &lt;/para&gt;&lt;/listitem&gt;
 &lt;/itemize&gt;
-</verb></tscreen>
+</screen>
 
-For the ``descrip'' lists the items are marked with either
-&lt;tag&gt;...&lt;/tag&gt; or it's short form (&lt;tag/.../). eg:
-<tscreen><verb>
-&lt;descrip&gt;
-&lt;tag&gt;item 1&lt;/tag&gt; is here
-&lt;tag/item 2/ is here!
-&lt;/descrip&gt;
-</verb></tscreen>
+</para>
 
-<sect1>Quoting stuff
-<p>
-If you want to quote a small amount use &lt;tt&gt;. eg:
-<p>
-This is <tt>./src/doc/README/doc</tt>
-<p>
+<para>
+For the ``variableList'' the items have two additional markers. Each entry in the list is enclosed in &lt;varlistentry&gt;...&lt;/varlistentry&gt;. Each ``term'' is marked using &lt;term&gt;...&lt;/term&gt; and then the content is marked with listitem, as above. eg:
+
+<screen>
+&lt;variableList&gt;
+&lt;varlistentry&gt;&lt;term&gt;item 1&lt;/term&gt;&lt;listitem&gt;&lt;para&gt; is here&lt;/para&gt;&lt;/listitem&gt;&lt;/varlistentry&gt;
+&lt;varlistentry&gt;&lt;term&gt;item 2&lt;/term&gt;&lt;listitem&gt;&lt;para&gt; is here!&lt;/para&gt;&lt;/listitem&gt;&lt;/varlistentry&gt;
+&lt;/variableList&gt;
+</screen>
+
+</para>
+
+</sect2>
+
+<sect2>
+<title>Quoting stuff</title>
+
+<para>
+If you want to quote a small amount use &lt;literal&gt;...&lt/literal&gt;. eg:
+</para>
+
+<screen>
+This is &lt;literal&gt;./src/doc/README/doc&lt;/literal&gt;
+</screen>
+
+<para>
 To quote a large section, such as part of a file or an example use
-&lt;tscreen&gt; and &lt;verb&gt;. eg:
-<tscreen><verb>
-&lt;tscreen&gt;&lt;verb&gt;
-&lt;descrip&gt;
-,,,
-&lt;/descrip&gt;
-&lt;/verb&gt;&lt;/tscreen&gt;
-</verb></tscreen>
+&lt;screen&gt;. eg:
 
-Note that the order of closing the tags is the reverse of opening! You also
-still need to ``quote'' any &lt; or &gt; characters although most other
+<screen>
+&lt;screen&gt;
+...
+&lt;/screen&gt;
+</screen>
+
+</para>
+
+<note><para>
+You still need to ``quote'' any &lt;, &gt; or &amp; characters although most other
 characters should be OK.
+</para></note>
 
-<sect1>Special Characters
-<p>
+</sect2>
+
+<sect2>
+<title>Special Characters</title>
+
+<para>
 Obviously some characters are going to need to be quoted. In general these are
-the same ones as HTML (eg &lt; is written as <tt/&amp;lt;/) There are 2
-additional exceptions (which had me in trouble until I realised) which are
-&lsqb; and &rsqb;. These <em/must/ be written as <tt/&amp;lsqb;/ and
-<tt/&amp;rsqb;/.
+the same ones as HTML. The most common ones are:
+<!-- There are 2
+additional exceptions which are
+[ and ]. These <emphasis>must</emphasis> be written as <literal remap="tt">&amp;lsqb;</literal> and
+<literal remap="tt">&amp;rsqb;</literal>. -->
 
-<sect1>Cross-References & URLs
-<p>
+<variableList>
+
+<varlistentry>
+<term>&lt;
+</term>
+<listitem>
+<para>&amp;lt;</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term>&gt;
+</term>
+<listitem>
+<para>&amp;gt;</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term>&amp;
+</term>
+<listitem>
+<para>&amp;amp;</para>
+</listitem>
+</varlistentry>
+
+</variableList>
+
+</para>
+
+</sect2>
+
+<sect2>
+<title>Cross-References &#38; URLs</title>
+
+<para>
 One of the extra feature that this lets us do is include URLs and
 cross-references.
+</para>
 
-<sect2>Cross-References
-<p>
+<sect3>
+<title>Cross-References</title>
+
+<para>
 These have 2 parts: a label, and a reference.
-<p>
-The label is <tt>&lt;label id="..."&gt;</tt>
-<p>
-The reference is <tt>&lt;ref id="..." name="..."&gt;</tt>. The <tt/id/ 
-should refer to a lable somewhere else in the document (not necessarily the
-same file as the REAMDE's consist of multiple files) The content of <tt/name/
-will be used as the link text.
+</para>
 
-<sect2>URLs
-<p>
-This looks slightly horrible, but is very flexible. It looks quite similar to
-the reference above. It is <tt>&lt;htmlurl url="..."
-name="..."&gt;</tt>. The <tt/url/ will be active <em/only/ for HTML. The
-text in <em/name/ will be used at all times. This means that it is possible to
-make things like email addresses look good! eg:
-<p>
-<tscreen><verb>
-&lt;htmlurl url="mailto:someone@no.where.com" name="&amp;lt;someone@no.where.com&amp;gt;"&gt;
-</verb></tscreen>
-Which will appear as <htmlurl url="mailto:someone@no.where.com" name="&lt;someone@no.where.com&gt;">
+<para>
+The label is <literal remap="tt">&lt;... id="..."&gt;</literal>. ie an <literal>id</literal> on the element you want to refer to.
+</para>
 
-<sect1>Gotchas
-<p>
-<itemize>
-<item>You <em/must/ do the sect*'s in sequence on the way up
-<item>You <em/must/ have a &lt;p&gt; after each sect*
-<item>You <em/must/ close your lists
-<item>You <em/must/ reverse the order of the tags when closing tscreen/verb
+<para>
+The reference is <literal remap="tt">&lt;xref linkend="..." &gt;</literal>. The <literal remap="tt">linkend</literal> should refer to an id somewhere else in the same document (not necessarily the
+same file as the README's consist of multiple files). The section naem will be inserted automatically at site of the &lt;xref&gt;.
+</para>
+
+</sect3>
+
+<sect3>
+<title>URLs</title>
+
+<para>
+This is <literal remap="tt">&lt;ulink url="..."&gt;...&lt;/ulink&gt;
+</literal>. The <literal remap="tt">url</literal> will be active <emphasis>only</emphasis> for HTML. The text will be used at all times. eg:
+</para>
+
+<para>
+
+<screen>
+See the &lt;ulink url="http://www.dosemu.org/"&gt;DOSEMU website&lt;/ulink&gt;.
+</screen>
+
+Which will appear as <literal>See the <ulink url="http://www.dosemu.org/">DOSEMU website</ulink>.</literal>
+</para>
+
+</sect3>
+
+<sect3>
+<title>Email addresses</title>
+
+<para>
+Whilst it is possible to do insert email addresses as URLs there is a better way. Simply enclose the address in <literal>&lt;email&gt;...&lt;/email&gt;
+</literal>. eg:
+</para>
+
+<para>
+
+<screen>
+&lt;email&gt;alistair@slitesys.demon.co.uk&lt;/email&gt;
+</screen>
+</para>
+</sect3>
+
+</sect2>
+
+<sect2>
+<title>References</title>
+
+<para>
+Here are a few other places to find information about writing using DocBook.
+</para>
+
+<variablelist>
+
+<varlistentry>
+<term><ulink url="http://www.docbook.org/tdg/">http://www.docbook.org/tdg/</ulink></term>
+<listitem><para>
+``DocBook: The Definitive Guide'' is a complete reference to DocBook. It is an O'Reilly book, which is also readable online.
+</para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term><ulink url="http://metalab.unc.edu/godoy/using-docbook/using-docbook.html">http://metalab.unc.edu/godoy/using-docbook/using-docbook.html</ulink></term>
+<listitem><para>
+This is a basic guide to DocBook.
+</para></listitem>
+</varlistentry>
+
+<varlistentry>
+<term><ulink url="http://www.linuxdoc.org/HOWTO/HOWTO-HOWTO/index.html">http://www.linuxdoc.org/HOWTO/HOWTO-HOWTO/index.html</ulink></term>
+<listitem><para>
+Part of the <ulink url="http://www.linuxdoc.org/">Linux Documentation Project</ulink> (LDP) this is a guide to writing HOWTO's specifically, but covers DocBook in general as this is now the preferred MarkUp for the LDP.
+</para></listitem>
+</varlistentry>
+
+</variableList>
+</sect2>
+
+<!--
+<sect2>
+<title>Gotchas</title>
+
+<para>
+
+<itemizedlist>
+<listitem>
+
+<para>
+You <emphasis>must</emphasis> do the sect*'s in sequence on the way up
+</para>
+</listitem>
+<listitem>
+
+<para>
+You <emphasis>must</emphasis> have a &lt;p&gt; after each sect*
+</para>
+</listitem>
+<listitem>
+
+<para>
+You <emphasis>must</emphasis> close your lists
+</para>
+</listitem>
+<listitem>
+
+<para>
+You <emphasis>must</emphasis> reverse the order of the tags when closing tscreen/verb
 structures
-<item>You <em/must/ replace &lt;, &gt;, &lsqb; and &rsqb;
-</itemize>
+</para>
+</listitem>
+<listitem>
+
+<para>
+You <emphasis>must</emphasis> replace &lt;, &gt;, [ and ]
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+</sect2>
+-->
+</sect1>
+

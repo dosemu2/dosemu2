@@ -1,124 +1,216 @@
-<!doctype linuxdoc system>
+<!DOCTYPE article PUBLIC "-//Davenport//DTD DocBook V3.0//EN">
+
 <article>
 
-<title> Using The DOSEMU Sound System (SBEMU)
-<author> Author: Alistair MacDonald,
-<htmlurl url="mailto:A.MacDonald@slitesys.demon.co.uk" name="&lt;A.MacDonald@slitesys.demon.co.uk&gt;">
-<date> version dosemu-1.0
+<artheader>
+
+<title> Using The DOSEMU Sound System (SBEMU)</title>
+
+<author>
+<firstname> Alistair MacDonald,
+</firstname>
+
+<authorblurb>
+
+<para>
+<ulink url="mailto:A.MacDonald@slitesys.demon.co.uk">&#60;A.MacDonald@slitesys.demon.co.uk&#62;
+</ulink>
+</para>
+
+</authorblurb>
+</author>
+
+<pubdate>dosemu-1.0</pubdate>
+
 <abstract>
+
+<para>
 The document describes the use of the DOSEMU Sound code (SBEMU), and
 what you can expect from it.
+</para>
+
 </abstract>
 
-<toc>
+</artheader>
 
-<sect>Introduction
+<sect1>
+<title>Introduction</title>
 
-<p>
+<para>
 It is much better to be pessimistic about the capabilities of DOSEMU's
-sound code. The code itself provides an <em/EMULATION/ of the popular
+sound code. The code itself provides an <emphasis>EMULATION</emphasis> of the popular
 SB cards. The actual level of emulation that can be achieved is
 dependant upon the capabilities of the sound driver on your
 system. Currently the emulation can only talk to the OSS driver
 (included in the Linux kernel) although it has been written in a
 modular fashion to allow other drivers to be written. For more details 
-on the internals please see the WWW pages at <htmlurl
+on the internals please see the WWW pages at <ulink
 url="http://www.slitesys.demon.co.uk/a.macdonald/dosemu/sound/"
-name="http://www.slitesys.demon.co.uk/a.macdonald/dosemu/sound/">.
+>http://www.slitesys.demon.co.uk/a.macdonald/dosemu/sound/</ulink
+>.
+</para>
 
+<para>
 It should be pointed out that not all of this information comes from
 my own knowledge and that parts come from the other developers and
-from users who have contributed code & comments. Unfortunately I tend
+from users who have contributed code &#38; comments. Unfortunately I tend
 to forget names and lose emails, so their names are not included.
+</para>
 
-<sect>What to (and what not to!) expect
+</sect1>
 
-<p>
+<sect1>
+<title>What to (and what not to!) expect</title>
+
+<para>
 The emulation consists of a number of parts, and I'll examine these
 separately.
+</para>
 
-<sect1> FM
+<sect2>
+<title> FM</title>
 
-<p>
+<para>
 The FM driver is the least complete. Most of the chip functions are
 there, but no audio output occurs. This means that software which uses 
 the presence/operation of the timer should detect the timer presence,
 but if the audio needs/uses FM you will hear nothing.
+</para>
 
-<sect2> Technical Explanation
+<sect3>
+<title> Technical Explanation</title>
 
-<p>
+<para>
 There are a number of problems with the FM emulation:
+</para>
 
-<enum>
-<item> Any FM output will have to be translated to appropriate OSS sequencer
+<para>
+
+<orderedlist>
+<listitem>
+
+<para>
+ Any FM output will have to be translated to appropriate OSS sequencer
 calls. These vary according to the SoundCard family (mainly between
 the cards with real FM synthesis and those with wavetable synthesis)
 You actually need to detect the card type and program it accordingly.
+</para>
+</listitem>
+<listitem>
 
-<item> The OSS sequencer doesn't allow you to change the parameters
+<para>
+ The OSS sequencer doesn't allow you to change the parameters
 whilst a note is playing. Many games do this to provide their
-sound.
-</enum>
+sound. 
+</para>
+</listitem>
 
-<sect1> MPU-401
+</orderedlist>
 
-<p>
+</para>
+
+</sect3>
+
+</sect2>
+
+<sect2>
+<title> MPU-401</title>
+
+<para>
 This is the MIDI emulation. This should be fairly complete, but relies 
 on the external daemon 'midid'. This is supplied and can be built easily.
+</para>
 
-<sect1> SB (Digital)
+</sect2>
 
-<p>
+<sect2>
+<title> SB (Digital)</title>
+
+<para>
 This is the digital aspect of the audio output. It is the most mature, 
 and also the buggiest aspect (because it is the most complex!) Most of 
 the functionality up to SB-16 is implemented, although some things
 don't work. Note that SB (DSP) MIDI is not implemented, although MPU-401 
 emulation (above) is.
+</para>
 
-<sect1> DMA
+</sect2>
 
-<p>
+<sect2>
+<title> DMA</title>
+
+<para>
 Whilst technically not part of the Sound System, the DMA emulation
 routines where developed primarily for SBEMU. These routines may have
 their own problems which may well impact on the running of SBEMU. As
 far as we know the only limitation is that they don't interface with
 the real DMA controller.
+</para>
 
-<sect> Using SBEMU
+</sect2>
 
-<p>
+</sect1>
+
+<sect1>
+<title> Using SBEMU</title>
+
+<para>
 SBEMU needs to be compiled into DOSEMU, AND turned on at
 run-time. Then your DOS applications need to be configured to use the
 emulation. (Just as they need to be configured to use your real sound
 card). The basic steps are given below.
+</para>
 
-<sect1> DOSEMU Compile-time Configuration
-<p>
+<sect2>
+<title> DOSEMU Compile-time Configuration</title>
+
+<para>
 By default, DOSEMU is built with SBEMU support.
+</para>
 
-<sect1> DOSEMU Run-time Configuration
-<p>
+</sect2>
+
+<sect2>
+<title> DOSEMU Run-time Configuration</title>
+
+<para>
 The default settings are:
-<verb>
+
+<screen>
     Base Address:   220
     IRQ:            5
     DMA:            1
     Midi Port:      330 (Not normally needed)
-</verb>
+</screen>
 
-<p>
-Note that these do <em>NOT</em> need to be the same as your real sound 
+</para>
+
+<para>
+Note that these do <emphasis>NOT</emphasis> need to be the same as your real sound 
 card.
+</para>
 
-<sect2> Changing the SBEMU settings
-<p>
+<sect3>
+<title> Changing the SBEMU settings</title>
+
+<para>
 The DOSEMU Sound settings are controlled by the following entries in
-<tt>/etc/dosemu.conf</tt><footnote>Note that there is some overlap
-here with the configuration notes in the README. This will be
-addressed at a later stage</footnote>: 
+<literal remap="tt">/etc/dosemu.conf</literal>
+<FOOTNOTE>
 
-<verb>
+<para>
+Note that there is some overlap
+here with the configuration notes in the README. This will be
+addressed at a later stage
+</para>
+
+</FOOTNOTE>
+: 
+</para>
+
+<para>
+
+<screen>
 $_sound = (off)		# sound support on/off
 $_sb_base = (0x220)
 $_sb_irq = (5)
@@ -126,144 +218,233 @@ $_sb_dma = (1)
 $_sb_dsp = "/dev/dsp"
 $_sb_mixer = "/dev/mixer"
 $_mpu_base = "0x330"
-</verb>
+</screen>
 
-<p>
-Note that these are the default values. <tt>$_sb_dsp</tt> and
-<tt>$_sb_mixer</tt> are pre-configured to work with the standard
+</para>
+
+<para>
+Note that these are the default values. <literal remap="tt">$_sb_dsp</literal> and
+<literal remap="tt">$_sb_mixer</literal> are pre-configured to work with the standard
 OSS-Free driver. You are unlikely to need to change these values
 unless you have multiple drivers in your kernel.( eg such
 as the Ultra project drivers).
+</para>
 
-<sect2> Configuring Midi
-<p>
+</sect3>
+
+<sect3>
+<title> Configuring Midi</title>
+
+<para>
 The midi driver can be used in two way. It is possible to direct the
 output of the SBEMU midi driver directly to a sound card, or through
-the <tt>midid</tt> daemon. All midi traffic is directed at
-<tt>~/.dosemu/run/dosemu-midi</tt>. You will need to create this,
+the <literal remap="tt">midid</literal> daemon. All midi traffic is directed at
+<literal remap="tt">~/.dosemu/run/dosemu-midi</literal>. You will need to create this,
 or link it to the appropriate device, according to your
 configuration. Details about this are given below.
+</para>
 
-<sect3> Using Midid
-<p>
+<sect4>
+<title> Using Midid</title>
+
+<para>
 This is the preferred method of producing MIDI output. The
-<tt>midid</tt> is <em>NOT</em> built at the same time as DOSEMU,
+<literal remap="tt">midid</literal> is <emphasis>NOT</emphasis> built at the same time as DOSEMU,
 but it is simple to build:
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
 % make midid
-</verb></tscreen>
+</screen>
 
-<p>
+</para>
+
+<para>
 This will create
-<tt>src/arch/linux/dosext/sound/midid/midid</tt>. You will
+<literal remap="tt">src/arch/linux/dosext/sound/midid/midid</literal>. You will
 probably want to copy this somewhere on your path, such as
-<tt>/usr/bin</tt>. Next you will need to create the output pipe
+<literal remap="tt">/usr/bin</literal>. Next you will need to create the output pipe
 for the SBEMU driver:
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
 % mkdir -p ~/.dosemu/run
 % rm -f ~/.dosemu/run/dosemu-midi
 % mknod ~/.dosemu/run/dosemu-midi p
-</verb></tscreen>
+</screen>
 
-If you already have a <tt>~/.dosemu/run</tt> directory then the
-<tt>mkdir</tt> will fail. This is not a problem.
+</para>
 
-<p>
+<para>
+If you already have a <literal remap="tt">~/.dosemu/run</literal> directory then the
+<literal remap="tt">mkdir</literal> will fail. This is not a problem.
+</para>
+
+<para>
 Finally, you need to start the midid program:
+</para>
 
-<tscreen><verb>
-% midid < ~/.dosemu/run/dosemu-midi &
-</verb></tscreen>
+<para>
 
-<p>
+<screen>
+% midid &#60; ~/.dosemu/run/dosemu-midi &#38;
+</screen>
+
+</para>
+
+<para>
 This will run the driver in the background, giving you your prompt
 back.You should now run DOSEMU. Midid will terminate when DOSEMU
 terminates.
+</para>
 
-<p>
+<para>
 Note that midid currently only supports the Ultra driver (autodetected
 when DOSEMU is configured), OSS/Free (partially) and a NULL driver
 (which just outputs the data stream as text). Midid should detect
-which is applicable. Running midid with the argument <tt>-h</tt>
+which is applicable. Running midid with the argument <literal remap="tt">-h</literal>
 will list the options.
+</para>
 
-<sect3> Sending Midi direct to a device
-<p>
-<em>This will ONLY work if your Midi device accepts raw midi data and
+</sect4>
+
+<sect4>
+<title> Sending Midi direct to a device</title>
+
+<para>
+<emphasis>This will ONLY work if your Midi device accepts raw midi data and
 you have either preloaded instruments patches, or it has hardware
 patches. Use this method ONLY if you cannot use the previous method,
-and do not EXPECT support.</em>
+and do not EXPECT support.</emphasis>
+</para>
 
-<p>
+<para>
 To use this method you simply need to link the SBEMU midi output file
 to the input of your MIDI device. The simplest method of doing this
 is:
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
 % mkdir -p ~/.dosemu/run
 % rm -f ~/.dosemu/run/dosemu-midi
 % ln -s /dev/MyMidiDevice ~/.dosemu/run/dosemu-midi
-</verb></tscreen>
+</screen>
 
-Where <tt>/dev/MyMidiDevice</tt> is the path to your midi
-device. If you already have a <tt>~/.dosemu/run</tt> directory
-then the <tt>mkdir</tt> will fail. This is not a problem.
+</para>
 
-<sect1> Configuring DOS
-<p>
+<para>
+Where <literal remap="tt">/dev/MyMidiDevice</literal> is the path to your midi
+device. If you already have a <literal remap="tt">~/.dosemu/run</literal> directory
+then the <literal remap="tt">mkdir</literal> will fail. This is not a problem.
+</para>
+
+</sect4>
+
+</sect3>
+
+</sect2>
+
+<sect2>
+<title> Configuring DOS</title>
+
+<para>
 You should set your BLASTER environment variable to match your DOSEMU
 settings. Note that these don't need to correspond to your real sound
 card. For a base SB with the values above, use the following DOS command:
+</para>
 
-<verb>
+<para>
+
+<screen>
 set BLASTER=A220 I5 D1 T1
-</verb>
+</screen>
 
-<p>
+</para>
+
+<para>
 The T1 identifies this as a Type 1 SB device eg old! The precise
 version of 'SB' is up to you, but the lower the model, the more likely
 it is to work.
+</para>
 
-<sect1> Configuring the Applications
-<p>
+</sect2>
+
+<sect2>
+<title> Configuring the Applications</title>
+
+<para>
 Bearing in mind what was stated above, the following are the
 recommended methods for configuring applications to use SBEMU. The
 first is the preferred method. If you need to manually set any
 parameters remember to use those you configured DOSEMU with.
+</para>
 
-<sect2> Midi with Digital Audio
-<p>
+<sect3>
+<title> Midi with Digital Audio</title>
+
+<para>
 Configure the applications to use 'General Midi' for Music, and 'SB'
 for Digital Audio. 
+</para>
 
-<sect2> SB Music with SB Audio
-<p>
-Configure the application with 'SB' for Music & Audio. Note that if
+</sect3>
+
+<sect3>
+<title> SB Music with SB Audio</title>
+
+<para>
+Configure the application with 'SB' for Music &#38; Audio. Note that if
 the system plans to use FM for the music you will not get music.
+</para>
 
-<sect2> Midi Music, No Audio
-<p>
+</sect3>
+
+<sect3>
+<title> Midi Music, No Audio</title>
+
+<para>
 Configure the application with 'General Midi' for Music and no Audio.
+</para>
 
-<sect> Debugging SBEMU
-<p>
+</sect3>
+
+</sect2>
+
+</sect1>
+
+<sect1>
+<title> Debugging SBEMU</title>
+
+<para>
 The debugging output for SBEMU is enabled in the same way as all
 DOSEMU debug, and collected in the same manner. The debug flag for
 sound is 'S'. Because the DMA controller is hardware it uses the debug 
 flag 'h'. To get basic debugging information into a file called
-<tt>sound.out</tt> use:
+<literal remap="tt">sound.out</literal> use:
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
 % dos -D-a+Sh -o sound.out
-</verb></tscreen>
+</screen>
 
+</para>
+
+<para>
 You can get slightly more verbose output is you use level 2 debugging
-(eg use <tt>-D-a+2Sh</tt>). If you need someone else to look at the
-debug output then feel free to send it to the list, but <em>PLEASE,
+(eg use <literal remap="tt">-D-a+2Sh</literal>). If you need someone else to look at the
+debug output then feel free to send it to the list, but <emphasis>PLEASE,
 remove any unnecessary debug output, and give a DETAILED description
-of the problem. Ideally, use the bug reporting tool
-</em><tt>submit-bug-report</tt>.
+of the problem. Ideally, use the bug reporting tool</emphasis><literal remap="tt">submit-bug-report</literal>.
+</para>
+
+</sect1>
 
 </article>

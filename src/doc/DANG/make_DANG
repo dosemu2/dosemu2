@@ -1,3 +1,10 @@
 #/bin/sh
 rm -f DANG.sgml
 ./DANG_c.pl -v -c DANG_CONFIG
+# *** WARNING *** 
+# This doesn't work with the stock sgmltools !
+# ld2dbx is a custom backend.
+sgmltools -b ld2dbx DANG.sgml
+../tools/fixupSGML.pl < DANG.db-sgml > DANG.sgml
+rm DANG.db-sgml
+perl -pi -e 's#<!DOCTYPE article PUBLIC "-//Norman Walsh//DTD DocBk XML V3.1.4//EN">#<!DOCTYPE article PUBLIC "-//Davenport//DTD DocBook V3.0//EN">#;' DANG.sgml

@@ -6,11 +6,11 @@
 DOCSOURCES := README.sgml README-tech.sgml bugreports.sgml \
 	configuration.sgml sound-usage.sgml
 TXT = $(DOCSOURCES:.sgml=.txt)
-TEX = $(DOCSOURCES:.sgml=.tex)
+DVI = $(DOCSOURCES:.sgml=.dvi)
 HTML = $(DOCSOURCES:.sgml=.html)
 
 SECTIONS = config SECURITY dexe sound lredir runasuser CDROM \
-	X Windows mgarrot batch commands keymap dosnet Winnet
+	X Windows mouse mgarrot batch commands keymap dosnet Winnet
 
 TECHSECTIONS = config-tech port-io vif oldboot newkbd \
 	HOGTHRESHOLD priv timing pentium DANG-tech mkfatimage mkfatimage16 doc sound-tech \
@@ -21,29 +21,30 @@ all:    txt html tex
 txt:    $(TXT)
 
 html:   $(HTML)
-	mv -f *.html html
 
-tex:    $(TEX)
+tex:    $(DVI)
+
+dvi:    $(DVI)
 
 $(TXT): %.txt: %.sgml
 #	sgml2txt 2>/dev/null $<
-	sgml2txt $<
+	../tools/doSgmlTools.pl -t $<
 
-$(TEX): %.tex: %.sgml
-	sgml2latex $<
+$(DVI): %.dvi: %.sgml
+	sgmltools -b dvi $<
 
 $(HTML): %.html: %.sgml
-	sgml2html $<
+	../tools/doSgmlTools.pl -h $<
 
 README.sgml: header $(SECTIONS) footer
 	cat header $(SECTIONS) footer > README.sgml
 
-README-tech.sgml: header $(TECHSECTIONS) footer
+README-tech.sgml: header-tech $(TECHSECTIONS) footer
 	cat header-tech $(TECHSECTIONS) footer > README-tech.sgml
 
 clean:
 	rm -f *.txt *.html *~ *.tex *.log *.aux *.toc *.dvi *.ps \
-		README.sgml README-tech.sgml html/*
+		README.sgml README-tech.sgml 
 
 install: txt
 	mv *.txt ../../../doc

@@ -1,43 +1,84 @@
-<!doctype linuxdoc system>
+<!DOCTYPE article PUBLIC "-//Davenport//DTD DocBook V3.0//EN">
+
 <article>
 
-<title>DOSEmu Bug Reporting
-<author>The DOSEmu team,
-Edited by Alistair MacDonald  <htmlurl url="mailto:alistair@slitesys.demon.co.uk" name="&lt;alistair@slitesys.demon.co.uk&gt;">
-<date>For DOSEMU v0.66 pl5.0
+<artheader>
 
-<abstract>Reporting Bugs in DOSEmu
-<p>
+<title>DOSEMU Bug Reporting</title>
+
+<author>
+<firstname>The DOSEMU team,
+Edited by Alistair MacDonald  </firstname>
+
+<authorblurb>
+
+<para>
+<ulink url="mailto:alistair@slitesys.demon.co.uk">&#60;alistair@slitesys.demon.co.uk&#62;
+</ulink>
+</para>
+
+</authorblurb>
+</author>
+
+<pubdate>For DOSEMU v0.66 pl5.0</pubdate>
+
+</artheader>
+
+<sect1>
+<title>Reporting Bugs in DOSEMU</title>
+
+<para>
 Featured in this release is an automatic BUG Reporting system.
-<p>
+</para>
+
+<para>
 Simply run ./submit-bug-report and fill in as much information as you 
 can about the bug. The system will automatically make copies of your
 /etc/dosemu.conf and your .dosrc (if you have one). It also allows you
 to include a file containing debug information.
-<p>
+</para>
+
+<para>
 Please try to fill in as much detail as possible and select a suitable 
 category as this will help us to trace and deal with the bug quickly.
-<p>
+</para>
+
+<para>
 The default action is to save the report in a file which you can then
-send later or from another machine. &lsqb;1&rsqb;
+send later or from another machine. [1]
 If you have a direct internet connection then the bug report can be sent
 straight away if you set the 'Report Action' to 'email'.
-<p>
+</para>
+
+<para>
 You should recieve a response within about 24hrs confirming that the 
 bug report has been recieved and details of who is tracking the bug.
 You will also be notified of our progress.
-<p>
+</para>
+
+<para>
 If you have any problems then please get in touch!
-<p>
+</para>
+
+<para>
 Alistair MacDonald,
-<htmlurl url="mailto:alistair@slitesys.demon.co.uk"
-name="&lt;alistair@slitesys.demon.co.uk&gt;">
-<p>
+<ulink
+url="mailto:alistair@slitesys.demon.co.uk"
+>&#60;alistair@slitesys.demon.co.uk&#62;</ulink
+>
+</para>
+
+<para>
 -------
-<p>
-&lsqb;1&rsqb; You will probably need to edit the file before you can send it. 
+</para>
+
+<para>
+[1] You will probably need to edit the file before you can send it. 
 Please try and preserve the headers as they are important. If you 
 have access to another unix system then the best method for sending 
 the file is to feed the file to '/usr/lib/sendmail -t'.
+</para>
+
+</sect1>
 
 </article>

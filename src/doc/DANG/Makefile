@@ -10,14 +10,14 @@ HTML = $(DOCSOURCES:.sgml=.html)
 all:    $(TXT) $(HTML)
 
 $(TXT): %.txt: %.sgml
-	sgml2txt $<
+	../tools/doSgmlTools.pl -t $<
 
 $(HTML): %.html: %.sgml
-	sgml2html $<
+	../tools/doSgmlTools.pl -h $<
 
 
 clean:
-	rm -f *.txt *.html *~ *.tex *.log *.aux *.toc *.dvi *.ps
+	rm -f *.txt DANG*.html *~ *.tex *.log *.aux *.toc *.dvi *.ps
 
 install:
 	mv *.txt ../../../doc

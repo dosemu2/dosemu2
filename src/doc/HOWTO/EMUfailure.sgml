@@ -1,162 +1,348 @@
+<!DOCTYPE article PUBLIC "-//Davenport//DTD DocBook V3.0//EN">
+
 <!-- This is the dosemu EMUproblem SGML source -->
 <!-- Last edited: Time-stamp: <97/03/16 12:39:22 bon> -->
 
 <!--97/03/16 Added Known Bugs -->
 
-<!doctype linuxdoc system>
-
 <article>
-<title>EMUfailure.txt
-<author>Uwe Bonnes, 
-<bf><htmlurl url="mailto:bon@elektron.ikp.physik.th-darmstadt.de"
-name="bon@elektron.ikp.physik.th-darmstadt.de"></bf>
-<date> May 30, 1997 for dosemu 0.66.5 (and possibly earlier versions)
+
+<artheader>
+
+<title>EMUfailure.txt</title>
+
+<author>
+<firstname>Uwe Bonnes, <emphasis remap="bf"><ulink
+url="mailto:bon@elektron.ikp.physik.th-darmstadt.de"
+>bon@elektron.ikp.physik.th-darmstadt.de</ulink
+></emphasis> </firstname>
+</author>
+
+<pubdate> May 30, 1997 for dosemu 0.66.5 (and possibly earlier versions) </pubdate>
 
 <abstract>
+
+<para>
 This file list programs and groups of programms not running or running
 only partial under dosemu.
 The most up-to-date version of this file may be found on:
-<bf><htmlurl
-url="ftp://ftp.mathematik.th-darmstadt.de:/pub/linux/bonnes/"name="ftp.mathematik.th-darmstadt.de:/pub/linux/bonnes/"></bf>.
-Please report about possible additions to 
-<bf><htmlurl
-url="mailto:linux-msdos@vger.rutgers.edu"name="linux-msdos@vger.rutgers.edu">
-</bf>. Perhaps it can be made going
+<emphasis remap="bf"><ulink
+url="ftp://ftp.mathematik.th-darmstadt.de:/pub/linux/bonnes/"
+>ftp.mathematik.th-darmstadt.de:/pub/linux/bonnes/</ulink
+></emphasis>.
+Please report about possible additions to <emphasis remap="bf"><ulink
+url="mailto:linux-msdos@vger.rutgers.edu"
+>linux-msdos@vger.rutgers.edu</ulink
+></emphasis>. Perhaps it can be made going
 with the help others. Have a look at the dosemu-howto how to do so.
+</para>
 
 </abstract>
 
-<toc>
+</artheader>
 
-<sect>Fundamental problem
-<p>Programs that don't work under the MSDOS Emulator and probably
+<sect1>
+<title>Fundamental problem</title>
+
+<para>
+Programs that don't work under the MSDOS Emulator and probably
 won't ever work, because of fundamental problem. Some of these
 fundamental problems result in these programs not being runnable on
 Win3.x/Win95/WinNT in a Dosbox and under OS/2 either. These programs
 are characterized by using any of these features:
+</para>
 
-<sect1>Virtual Control Program Interface (VCPI)
-<p>VCPI allows programs to run in ring 0. This is kernel mode in Linux
+<sect2>
+<title>Virtual Control Program Interface (VCPI)</title>
+
+<para>
+VCPI allows programs to run in ring 0. This is kernel mode in Linux
 and not sensible.
+</para>
 
+<para>
 Example: sim2181.exe from Analog Devices DSP Kit
+</para>
 
-<sect1>Programs using older Versions of the Pharlap Extender 
-<p>The Pharlap Extender in it's older versions needed ring 0 access
+</sect2>
+
+<sect2>
+<title>Programs using older Versions of the Pharlap Extender </title>
+
+<para>
+The Pharlap Extender in it's older versions needed ring 0 access
 too, so it can't me made working in the emulator.
+</para>
 
+<para>
 Example:Autocad Version 12c1 For DOS
+</para>
 
-<sect1>MSDOS enhanced mode Windows kernel krnl386.exe
-<p> krnl386.exe needs Ring 0 access too. 
+</sect2>
 
-<sect1>Windows programs using Win32s
-<p>Win32s needs Ring 0 access too. 
+<sect2>
+<title>MSDOS enhanced mode Windows kernel krnl386.exe</title>
 
-<sect1>Does my failing program belong to these groups?
-<p>Check with "strings &lt;program.exe&gt; | less" if the programm
-contains some of these keywords <bf> vcpi, pharlap and win32s</bf>. Newer
+<para>
+ krnl386.exe needs Ring 0 access too. 
+</para>
+
+</sect2>
+
+<sect2>
+<title>Windows programs using Win32s</title>
+
+<para>
+Win32s needs Ring 0 access too. 
+</para>
+
+</sect2>
+
+<sect2>
+<title>Does my failing program belong to these groups?</title>
+
+<para>
+Check with "strings &lt;program.exe&gt; | less" if the programm
+contains some of these keywords <emphasis remap="bf"> vcpi, pharlap and win32s</emphasis>. Newer
 Pharlap programs may work.
+</para>
 
-<sect>Known bugs
+</sect2>
 
-<sect1>Things YOU may help changing
+</sect1>
 
-<p>This is a list of currently known bugs in Dosemu0.53pl58, currently
+<sect1>
+<title>Known bugs</title>
+
+<sect2>
+<title>Things YOU may help changing</title>
+
+<para>
+This is a list of currently known bugs in Dosemu0.53pl58, currently
 in the process of adaptation to 0.66.5
 
-- Some documentation is known to be well out of date. 
+<itemizedlist>
+<listitem>
 
-- Sound Card emulation does not work yet
+<para>
+Some documentation is known to be well out of date. 
+</para>
+</listitem>
+<listitem>
 
-- Some video BIOS will start very slowly with the serial ports enabled.
+<para>
+Sound Card emulation does not work yet
+</para>
+</listitem>
+<listitem>
 
-- If you are having troubles with EMS, try moving your page frame or
-  disabling umb_max if it is set to 'on'.
+<para>
+Some video BIOS will start very slowly with the serial ports enabled.
+</para>
+</listitem>
+<listitem>
 
-- Programs (like MFT.EXE from QEMM) may crash due to inadequate timer
-  resolution. A fast machine will have less problems
+<para>
+If you are having troubles with EMS, try moving your page frame or
+disabling umb_max if it is set to 'on'.
+</para>
+</listitem>
+<listitem>
 
-- Quattro Pro for DOS is rumored not to work (anyone with a copy willing to
-  look into why?)
+<para>
+Programs (like MFT.EXE from QEMM) may crash due to inadequate timer
+resolution. A fast machine will have less problems
+</para>
+</listitem>
+<listitem>
 
-- Windows 3.1 will not run very well.  We do NOT recommend running it.
+<para>
+Quattro Pro for DOS is rumored not to work (anyone with a copy willing to
+look into why?)
+</para>
+</listitem>
+<listitem>
 
-- There may be periodic "internal stack overflows" using the mouse,
-  especially under Windows (correct, all?)
+<para>
+Windows 3.1 will not run very well.  We do NOT recommend running it.
+</para>
+</listitem>
+<listitem>
 
-<sect1> Problems probably solved
-<p>Here reported problems with older versions are listed. The current version
+<para>
+There may be periodic "internal stack overflows" using the mouse,
+especially under Windows (correct, all?)
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+</sect2>
+
+<sect2>
+<title> Problems probably solved</title>
+
+<para>
+Here reported problems with older versions are listed. The current version
 should have solved them, but this has to be validated. Please report if you
 had problems in the listed areas and these problems are now solved. 
 
-- If you seem to be getting corrupt files, try switching away from Linux
-  v1.1.50-v1.1.65, since there are known disk access bugs.
+<itemizedlist>
+<listitem>
 
-- DPMI emulation is known to be somewhat buggy.
+<para>
+If you seem to be getting corrupt files, try switching away from Linux
+v1.1.50-v1.1.65, since there are known disk access bugs.
+</para>
+</listitem>
+<listitem>
 
-- There are known problems with xdos (e.g. it may not work at all for you.)
+<para>
+DPMI emulation is known to be somewhat buggy.
+</para>
+</listitem>
+<listitem>
 
-- xdos sessions accessed from remote, non-Linux X-sessions (e.g. SUN stations
-  and others) may not work correctly.
+<para>
+There are known problems with xdos (e.g. it may not work at all for you.)
+</para>
+</listitem>
+<listitem>
 
-- The internal mouse driver is known to have problems.
+<para>
+xdos sessions accessed from remote, non-Linux X-sessions (e.g. SUN stations
+and others) may not work correctly.
+</para>
+</listitem>
+<listitem>
 
-- Running a protected mode 'make' and a protected mode compiler (e.g.
-  Borland's) may not work.  Try switching to a real mode make.
-<!-- Can anybody validate? -->
+<para>
+The internal mouse driver is known to have problems.
+</para>
+</listitem>
+<listitem>
 
-<sect>Programs not working yet
-<p>Here are programs listed, where someone has reported that it does
+<para>
+Running a protected mode 'make' and a protected mode compiler (e.g.
+Borland's) may not work.  Try switching to a real mode make.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+</sect2>
+
+</sect1>
+
+<sect1>
+<title>Programs not working yet</title>
+
+<para>
+Here are programs listed, where someone has reported that it does
 not work.
+</para>
 
-<sect1>dd2demo.exe
-<p> This is a game found at 
-<tscreen>
-      <htmlurl url="http://www.psygnosis.com/"
-      name="http://www.psygnosis.com/">
-</tscreen>
+<sect2>
+<title>dd2demo.exe</title>
+
+<para>
+ This is a game found at 
+
+<screen>
+<ulink
+url="http://www.psygnosis.com/"
+>http://www.psygnosis.com/</ulink
+>
+</screen>
+
 Reported by Hans Lermen, it kills dosemu, giving an output like:
-<tscreen>
-	general protection at 0x1fba: a7
-	ERROR: SIGSEGV, protected insn...exiting!
-</tscreen>
+
+<screen>
+general protection at 0x1fba: a7
+ERROR: SIGSEGV, protected insn...exiting!
+</screen>
+
 The crash happens in DMPI Call 0x0302
 At least DMPI Call 0x0506 is not yet implemented.
+</para>
 
-<sect1>bae.exe
-<p>This is a demo version of an Electronic CAD programm, found at
-<tscreen>
-      <htmlurl url="http://www.bartels.de/"
-      name="http://www.bartels.de/">
-</tscreen>
+</sect2>
+
+<sect2>
+<title>bae.exe</title>
+
+<para>
+This is a demo version of an Electronic CAD programm, found at
+
+<screen>
+<ulink
+url="http://www.bartels.de/"
+>http://www.bartels.de/</ulink
+>
+</screen>
+
 Reported by Uwe Bonnes, it stops dosemu with a blank screen in an
 unusable state. You have to do a remote login to kill dosemu, or hit
 reset with all it's possible fatal result. The possible reason is the
 missing implementation of DMPI Call 0x0800, as Uwe Bonnes reported it
 once working on the console with some hack.
+</para>
 
-<sect1>tasmx.exe 
-<p>Reported by vignani@mail.tin.it (Alberto Vignani):
+</sect2>
+
+<sect2>
+<title>tasmx.exe </title>
+
+<para>
+Reported by vignani@mail.tin.it (Alberto Vignani):
 Protected-mode version of the Borland Turbo Assembler. It crashes with
 "out of memory" at startup. I traced it at the assembly level, no result
 until now. Maybe a DPMI problem (97/03/04).
+</para>
 
-<sect1>xaos.exe
-<p>Reported by vignani@mail.tin.it (Alberto Vignani):
+</sect2>
+
+<sect2>
+<title>xaos.exe</title>
+
+<para>
+Reported by vignani@mail.tin.it (Alberto Vignani):
 Mandelbrot zoomer, version 2.2 under djgpp, using Allegro 2.1 library.
 Can be found on any simtelnet mirror (xaos22b.exe?)
 Any mouse movement (in console mode with a button pressed) crashes it
 (97/03/04).
+</para>
 
-<sect1>QIC tape programs
-<p>Reported by vignani@mail.tin.it (Alberto Vignani):
+</sect2>
+
+<sect2>
+<title>QIC tape programs</title>
+
+<para>
+Reported by vignani@mail.tin.it (Alberto Vignani):
 Tape is not supported. Worse, if you use a floppy under dosemu, you
 have sometimes to remove/reinstall the ftape module.
+</para>
 
-<sect1> Any program using SCSI
-<p>Reported by vignani@mail.tin.it (Alberto Vignani):
+</sect2>
 
+<sect2>
+<title> Any program using SCSI</title>
+
+<para>
+Reported by vignani@mail.tin.it (Alberto Vignani):
+</para>
+
+<para>
 No ASPI support until now(97/03/04).
+</para>
+
+</sect2>
+
+</sect1>
 
 </article>

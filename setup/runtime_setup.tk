@@ -62,7 +62,7 @@ proc init_help {} {
     global helptx helpcount readme
     set helptx ""
     set helpcount 0
-    readin_readme $readme helptx helpcount {^  2.2\..\. } {^  3.3\..\. }
+    readin_readme $readme helptx helpcount {^2\. } {^3\. }
 }
 
 # Housekeeping ...

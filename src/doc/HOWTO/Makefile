@@ -10,10 +10,10 @@ HTML = $(DOCSOURCES:.sgml=.html)
 all:    $(TXT) $(HTML)
 
 $(TXT): %.txt: %.sgml
-	sgml2txt $<
+	../tools/doSgmlTools.pl -t $<
 
 $(HTML): %.html: %.sgml
-	sgml2html $<
+	../tools/doSgmlTools.pl -h $<
 
 
 clean:

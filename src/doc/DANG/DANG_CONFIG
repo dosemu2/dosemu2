@@ -3,7 +3,7 @@
 #
 
 TITLE:		The DOSEMU Alterer Novices Guide
-AUTHOR:		Alistair MacDonald, <tt/alistair\@slitesys.demon.co.uk/
+AUTHOR:		Alistair MacDonald, &lt;alistair@slitesys.demon.co.uk&gt;
 ABSTRACT:	This Document is the DOSEMU Alterer Novices Guide. It is known as the DANG.
 
 # BASEDIR sets a path fragment which is prepended to _all_ paths.
@@ -33,6 +33,7 @@ GROUP:		Video doc/DANG/summary_Video env/video/vc.c
 			base/bios/int10.c env/video/s3.c env/video/terminal.c
 			env/video/trident.c env/video/vga.c 
 			env/video/vgaemu.c include/vgaemu.h
+			env/video/instremu.c
 GROUP:		Keyboard doc/DANG/summary_Keyboard 
 			base/keyboard/keymaps.c
 			base/keyboard/serv_xlat.c

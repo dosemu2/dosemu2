@@ -1,54 +1,94 @@
-<sect>Security
-<p>
-This part of the document by Hans Lermen, 
-<htmlurl url="mailto:lermen@fgan.de" name="&lt;lermen@fgan.de&gt;"> 
-on Apr 6, 1997.
-<p>
+<sect1>
+<title>Security</title>
 
+<para>
+This part of the document by Hans Lermen, 
+<ulink
+url="mailto:lermen@fgan.de"
+>&#60;lermen@fgan.de&#62;</ulink
+> 
+on Apr 6, 1997.
+</para>
+
+<para>
 These are the hints we give you, when running dosemu on a machine that is
 (even temporary) connected to the internet or other machines, or that
 otherwise allows 'foreign' people login to your machine.
+</para>
 
-<itemize>
+<para>
 
-<item> Don't set the -s bit, as of dosemu-0.97.10 DOSEMU can run in
-   lowfeature mode without the -s bit set. If you want fullfeatures
-   for some of your users, just use the keyword `nosuidroot' in
-   /etc/dosemu.users to forbid some (or all) users execution of
-   a suid root running dosemu (they may use a non-suid root copy of
-   the binary though).
+<itemizedlist>
+<listitem>
 
-<item> Use proper file permissions to restrict access to a
-   suid root DOSEMU binary in addition to /etc/dosemu.users `nosuidroot'.
-   ( double security is better ).
+<para>
+ Don't set the -s bit, as of dosemu-0.97.10 DOSEMU can run in
+lowfeature mode without the -s bit set. If you want fullfeatures
+for some of your users, just use the keyword `nosuidroot' in
+/etc/dosemu.users to forbid some (or all) users execution of
+a suid root running dosemu (they may use a non-suid root copy of
+the binary though).
+</para>
+</listitem>
+<listitem>
 
-<item> <em/NEVER/ let foreign users execute dosemu under root login !!!
-   (Starting with dosemu-0.66.1.4 this isn't necessary any more,
-   all functionality should also be available when running as user)
+<para>
+ Use proper file permissions to restrict access to a
+suid root DOSEMU binary in addition to /etc/dosemu.users `nosuidroot'.
+( double security is better ).
+</para>
+</listitem>
+<listitem>
 
-<item> Do <em/not/ configure dosemu with the --enable-runasroot option.
-   Normally dosemu will switch privileges off at startup and only
-   set them on, when it needs them. With '--enable-runasroot' it
-   would permanently run under root privileges and only disable them
-   when accessing secure relevant resources, ... not so good.
+<para>
+ <emphasis>NEVER</emphasis> let foreign users execute dosemu under root login !!!
+(Starting with dosemu-0.66.1.4 this isn't necessary any more,
+all functionality should also be available when running as user)
+</para>
+</listitem>
+<listitem>
 
-<item> Never allow DPMI programms to run, when dosemu is suid root.
+<para>
+ Do <emphasis>not</emphasis> configure dosemu with the --enable-runasroot option.
+Normally dosemu will switch privileges off at startup and only
+set them on, when it needs them. With '--enable-runasroot' it
+would permanently run under root privileges and only disable them
+when accessing secure relevant resources, ... not so good.
+</para>
+</listitem>
+<listitem>
+<para>
+Never allow DPMI programms to run, when dosemu is suid root.
+</para>
 
-<p>
-   (in /etc/dosemu.conf set 'dpmi off' to disable)
-<p>
-   It is possible to overwrite sensitive parts of the emulator code,
-   and this makes it possible for a intruder program under DOS,
-   who knows about dosemu interna (what is easy as you have the source)
-   to get root access also on non dosemu processes.
-   Because a lot of games won't work without, we allow creation
-   of LDT-descriptor that span the whole user space.
-<p>
-   There is a 'secure' option in /etc/dosemu.conf, that allows to turn
-   off creation of above mentioned descritors, but those currently protect
-   only the dosemu code and the stack, may be some diabolic person finds
-   a way to use the (unprotected) heap in his sense of humor.
-<p>
-   Anyway, better 'secure on' then nothing.
+<para>
+(in /etc/dosemu.conf set 'dpmi off' to disable)
+</para>
 
-</itemize>
+<para>
+It is possible to overwrite sensitive parts of the emulator code,
+and this makes it possible for a intruder program under DOS,
+who knows about dosemu internals (which is easy as you have the source)
+to get root access also on non dosemu processes.
+Because a lot of games won't work without, we allow creation
+of LDT-descriptor that span the whole user space.
+</para>
+
+<para>
+There is a 'secure' option in /etc/dosemu.conf, that allows to turn
+off creation of above mentioned descriptors, but those currently protect
+only the dosemu code and the stack, and may be some diabolical person finds
+a way to use the (unprotected) heap.
+</para>
+
+<para>
+Anyway, better 'secure on' than nothing.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+</sect1>
+

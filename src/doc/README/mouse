@@ -1,0 +1,175 @@
+<sect1 id="mouse">
+<title>The DOSEMU mouse</title>
+<para>
+This section written by Eric Biederman <email>eric@dosemu.org</email>
+</para>
+
+<sect2>
+<title>Setting up the emulated mouse in DOSEMU </title>
+
+<para>
+For most dos applications you should be able to use the
+internal mouse with very little setup, and very little trouble.
+</para><para>
+Under X you don't need to do anything, unless you want
+to use the middle button then you need to add to autoexec.bat:
+
+<screen>
+emumouse 3
+</screen>
+
+On the console it takes just a tad bit more work:
+</para>
+<para>
+in /etc/dosemu.conf:
+
+<screen>
+$_mouse = "mousesystems"
+$_mouse_dev = "/dev/gpmdata"
+</screen>
+
+And in autoexec.bat:
+<screen>
+emumouse 3
+</screen>
+
+This sets you up to use the gpm mouse repeater if you don't
+use the repeater, you need to set $_mouse and $_mouse_dev to
+different values.
+</para>
+</sect2>
+
+<sect2>
+<title>Problems</title>
+<para>
+In X there are 2 ways applications can get into trouble.
+</para>
+<para>
+The most common way is if they don't trust the mouse driver
+to keep track of where the mouse is on the screen, and insist
+on doing it themselves. win31 & geoworks are too applications
+in this category.  They read mouse movement from the mouse
+driver in turns of mickeys i.e. they read the raw movement data.
+</para>
+<para>
+To support this mouse driver then tracks where you were and where you
+move to, in terms of x,y screen coordinates.   Then works the standard
+formulas backwards that calculate screen coordinates from mickeys to
+generate mickeys from screen coordinates.  And it feeds these mickeys
+to the application.  As long as the application and dosemu agree on
+the same formulas for converting mickeys to screen coordinates all is
+good.
+</para>
+<para>
+The only real problem with this is sometimes X mouse and the
+application mouse get out of sync.  Especially if you take your
+mouse cursor out of the dosemu window, and bring it back in again.
+</para>
+<para>
+To compensate for getting out of sync what we do is whenever we
+reenter the Xdos window is send a massive stream of mickeys heading
+for the upper left corner of the screen.  This should be enough to
+kick us any an good mouse drivers screen limits.  Then once we know
+where we are we simulate movement for 0,0.  
+</para>
+<para>
+In practice this isn't quite perfect but it does work reasonably well.
+</para>
+<para>
+The tricky part then is to get the application and dosemu to agree on
+the algorithm.  The algorithm we aim at is one mickey one pixel.
+Dosemu does this by default under X but you can force it with.
+
+<screen>
+emumouse x 8 y 8 a
+</screen>
+
+To do this in various various applications generally falls under
+the category of disable all mouse accelration.
+</para>
+<para>
+for win31 you need
+
+<screen>
+  MouseThreshold1=0
+  MouseThreshold2=0
+  MouseSpeed=0
+</screen>
+
+in the '[windows]' section of win.ini
+</para>
+<para>
+The fool proof solution is to take total control of the mouse in X.
+This is controlled by the $_X_mgrab_key in /etc/dosemu.conf
+$_X_mgrab_key contains an X keysym of a key that when pressed
+with both Ctrl & Alt held down will turn on the mouse grab, which
+restricts the X mouse to the dosemu window, and gives dosemu complete
+control over it.  Ctrl-Alt-$_X_mgrab_key will then release the
+mouse grab returning things to normal.
+</para>
+<para>
+I like: $_X_mgrab_key="Scroll_Lock"  (Ctrl-Alt-Scroll_Lock)
+but $_X_mgrab_key="a" is a good conservative choice. (Ctrl-Alt-A)
+You can use xev to see what keysyms a key generates.
+</para>
+<para>
+Currently the way the X mouse code and the mouse grab are
+structured the internal mouse driver cannot display the mouse
+when the mouse grab is active.  In particular without the grab
+active to display the mouse cursor we just let X draw the mouse for
+us, (as normal).  When the mouse grab is active we restrict the mouse
+to our current window, and continually reset it to the center of the
+current screeen (allowing us to get relative amounts of movement).
+A side effect of this is that the the position of the X cursor and the
+dos cursor _not_ the same.  So we need a different strategy to display
+the dos cursor.
+</para>
+<para>
+The other way an application can get into trouble in X, and also
+on the console for that matter is if it is partially broken.  In
+particular the mouse driver is allowed to return coordinates that
+have little to no connection with the actual screen resolution.  So an
+application mouse ask the mouse driver it's maximums and then scale
+the coordinates it gets into screen positions.  The broken
+applications don't ask what the maximum & minimum resolutions are
+and just assume that they know what is going on.
+</para><para>
+To keep this problem from being too severe in mouse.c we have
+attempted to match the default resolutions used by other mouse
+drivers.  However since this is up to the choice of an individual
+mouse driver there is doubtless code out there developed with
+different resolutions in mind.
+</para><para>
+If you get stuck with such a broken application we have developed a
+work around, that is partially effective.  The idea being that if the
+application draws it's own mouse pointer it really doesn't matter
+where the dos mouse driver thinks the mouse is things should work.
+So with emumouse it is possible to set a minimum resolution to return
+to an application.  By setting this minimum resolution to as big or
+bigger than the application expect to see it should work.  The side
+effect of setting a minimum resolution bigger than the application
+expects to see in X is that there will be some edges to the of
+the screen where the application draws the cursor at the edge of the
+window, and yet you need to continue scrolling a ways before the cursor
+comes out there.  In general this will affect the right and bottom
+edges of the screen.
+</para><para>
+To read the current minimum use:
+<screen>
+emumouse i
+</screen>
+The default is 640x200
+</para><para>
+To set the minimum resolution use:
+<screen>
+emumouse Mx 640 My 200
+</screen>
+If you application doesn't draw it's own mouse cursor a skew of this
+kind can be nasty.  And there is no real good fix.  You can set the
+mininum down as well as up and so it may be possible to match what
+the app expects as an internal resolution.  However there is only
+so much we can do to get a borken application to run and that 
+appears to be the limit.
+</para>
+</sect2>
+</sect1>

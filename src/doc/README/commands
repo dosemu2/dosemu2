@@ -1,96 +1,304 @@
-<sect>Commands & Utilities
-<p>
+<sect1>
+<title>Commands &#38; Utilities</title>
+
+<para>
 These are some utitlies to assist you in using Dosemu.
+</para>
 
-<sect1>Programs
-<p>
+<sect2>
+<title>Programs</title>
 
-<descrip>
-<tag/bootoff.com/ switch off the bootfile to access disk
-               see examples/config.dist at bootdisk option
+<para>
+<variablelist>
 
-<tag/booton.com/ switch on the bootfile to access bootfile
-               see examples/config.dist at bootdisk option
+<varlistentry>
+<term>bootoff.com</term>
+<listitem>
+<para>
+ switch off the bootfile to access disk
+see examples/config.dist at bootdisk option
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>booton.com</term>
+<listitem>
+<para>
+ switch on the bootfile to access bootfile
+see examples/config.dist at bootdisk option
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>uchdir.com</term>
+<listitem>
+<para>
+ change the Unix directory for Dosemu (use chdir(2))
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>dosdbg.com</term>
+<listitem>
+<para>
+ change the debug setting from within Dosemu
 
-<tag/uchdir.com/ change the Unix directory for Dosemu (use chdir(2))
+<itemizedlist>
+<listitem>
 
-<tag/dosdbg.com/ change the debug setting from within Dosemu
-<itemize>
-<item>               dosdbg -- show current state
-<item>               dosdbg &lt;string&gt;
-<item>               dosdbg help -- show usage information
-</itemize>
+<para>
+               dosdbg -- show current state
+</para>
+</listitem>
+<listitem>
 
-<tag/eject.com/ eject CD-ROM from drive
+<para>
+               dosdbg &lt;string&gt;
+</para>
+</listitem>
+<listitem>
 
-<tag/emumouse.com/ fine tune internal mousedriver of Dosemu
-<itemize>
-<item>               emumouse h -- display help screen
-</itemize>
+<para>
+               dosdbg help -- show usage information
+</para>
+</listitem>
 
-<tag/exitemu.com/ terminate Dosemu
+</itemizedlist>
 
-<tag/ugetcwd.com/ get the Unix directory for Dosemu (use getcwd(2))
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>eject.com</term>
+<listitem>
+<para>
+ eject CD-ROM from drive
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>emumouse.com</term>
+<listitem>
+<para>
+ fine tune internal mousedriver of Dosemu
 
-<tag/isemu.com/ detects Dosemu version and returns greater 0 if running under
-               Dosemu
+<itemizedlist>
+<listitem>
 
-<tag/lancheck.exe/ ???
+<para>
+               emumouse h -- display help screen
+</para>
+</listitem>
 
-<tag/lredir.com/ redirect Linux directory to Dosemu
-<itemize>
-<item>               lredir -- show current redirections
-<item>               lredir D: LINUX\FS\tmp -- redirects /tmp to drive D:
-<item>               lredir help -- display help screen
-</itemize>
+</itemizedlist>
 
-<tag/mgarrot.com/ give up cpu time when Dosemu is idle
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>exitemu.com</term>
+<listitem>
+<para>
+ terminate Dosemu
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>ugetcwd.com</term>
+<listitem>
+<para>
+ get the Unix directory for Dosemu (use getcwd(2))
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>isemu.com</term>
+<listitem>
+<para>
+ detects Dosemu version and returns greater 0 if running under
+Dosemu
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>lancheck.exe</term>
+<listitem>
+<para>
+ ???
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>lredir.com</term>
+<listitem>
+<para>
+ redirect Linux directory to Dosemu
 
-<tag/speed.com/ set cpu usage (HogThreshold) from inside Dosemu
+<itemizedlist>
+<listitem>
 
-<tag/system.com/ interface to system(2)...
+<para>
+               lredir -- show current redirections
+</para>
+</listitem>
+<listitem>
 
-<tag/unix.com/ execute Unix commands from Dosemu
-<itemize>
-<item>               unix -- display help screen
-<item>               unix ls -al -- list current Linux directory
-<item>               caution! try "unix" and read the help screen
-</itemize>
+<para>
+               lredir D: LINUX\FS\tmp -- redirects /tmp to drive D:
+</para>
+</listitem>
+<listitem>
 
-<tag/cmdline.exe/ Read /proc/self/cmdline and put strings such as "var=xxx"
-               found on the commandline into the DOS enviroment.
-               Example having this as the dos commandine:
-<tscreen><verb>
+<para>
+               lredir help -- display help screen
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>mgarrot.com</term>
+<listitem>
+<para>
+ give up cpu time when Dosemu is idle
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>speed.com</term>
+<listitem>
+<para>
+ set cpu usage (HogThreshold) from inside Dosemu
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>system.com</term>
+<listitem>
+<para>
+ interface to system(2)...
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>unix.com</term>
+<listitem>
+<para>
+ execute Unix commands from Dosemu
+
+<itemizedlist>
+<listitem>
+
+<para>
+               unix -- display help screen
+</para>
+</listitem>
+<listitem>
+
+<para>
+               unix ls -al -- list current Linux directory
+</para>
+</listitem>
+<listitem>
+
+<para>
+               caution! try "unix" and read the help screen
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>cmdline.exe</term>
+<listitem>
+<para>
+ Read /proc/self/cmdline and put strings such as "var=xxx"
+found on the commandline into the DOS enviroment.
+Example having this as the dos commandine:
+
+<screen>
                  dos "autoexec=echo This is a test..."
-</verb></tscreen>
-               then doing
-<tscreen><verb> 
+</screen>
+
+then doing
+
+<screen>
+ 
                  C:\cmdline &lt; D:\proc\self\cmdline
                  %autoexec%
-</verb></tscreen>
-               would display "This is a test..." on the DOS-Terminal
+</screen>
 
-<tag/vgaoff.com/ disable vga option
+would display "This is a test..." on the DOS-Terminal
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>vgaoff.com</term>
+<listitem>
+<para>
+ disable vga option
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>vgaon.com</term>
+<listitem>
+<para>
+ enable vga option
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>xmode.exe</term>
+<listitem>
+<para>
+ set special X parameter when running as xdos
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
 
-<tag/vgaon.com/ enable vga option
+</sect2>
 
-<tag/xmode.exe/ set special X parameter when running as xdos
+<sect2>
+<title>Drivers</title>
 
-</descrip>
-
-<sect1>Drivers
-<p>
-
+<para>
 These are useful drivers for Dosemu
+</para>
 
-<descrip>
-<tag/cdrom.sys/ allow direct access to CD-ROM drives from Dosemu
+<para>
+<variablelist>
 
-<tag/ems.sys/ enable EMM in Dosemu
+<varlistentry>
+<term>cdrom.sys</term>
+<listitem>
+<para>
+ allow direct access to CD-ROM drives from Dosemu
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>ems.sys</term>
+<listitem>
+<para>
+ enable EMM in Dosemu
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>emufs.sys</term>
+<listitem>
+<para>
+ redirect Unix directory to Dosemu
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>aspi.sys</term>
+<listitem>
+<para>
+ ASPI conform SCSI driver
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>fossil.com</term>
+<listitem>
+<para>
+ FOSSIL serial driver (TSR)
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
 
-<tag/emufs.sys/ redirect Unix directory to Dosemu
+</sect2>
 
-<tag/aspi.sys/ ASPI conform SCSI driver
+</sect1>
 
-<tag/fossil.com/ FOSSIL serial driver (TSR)
-</descrip>

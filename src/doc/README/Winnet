@@ -1,104 +1,202 @@
-<sect>Using Windows and Winsock
-<p>
+<sect1>
+<title>Using Windows and Winsock</title>
+
+<para>
 This is the Windows Net Howto by Frisoni Gloriano 
-<htmlurl url="mailto:gfrisoni@hi-net.it" name="&lt;gfrisoni@hi-net.it&gt"> 
+<ulink
+url="mailto:gfrisoni@hi-net.it"
+>&#60;gfrisoni@hi-net.it&#62;</ulink
+> 
 on 15 may 1997
-<p>
+</para>
+
+<para>
 This document tries to describe how to run the Windows trumpet winsock over
 the dosemu built-in packet driver, and then run all TCP/IP winsock-based 
 application (netscape, eudora, mirc, free agent .....) in windows environment.
-<p>
+</para>
+
+<para>
 This is a very long step-by-step list of operation, but you can make 
 little scripts to do all very quickly ;-)
-<p>
+</para>
+
+<para>
 In this example, I use the dosnet based packet driver. It is very powerful
 because you can run a "Virtual net"  between your dos-windows session and the 
 linux, and run tcp/application application without a real (hardware) net.
+</para>
 
+<sect2>
+<title>LIST OF REQUIRED SOFTWARE</title>
 
-<sect1>LIST OF REQUIRED SOFTWARE
-<p>
-<itemize>
-<item> The WINPKT.COM virtual packet driver, version 11.2
-   I have found this little tsr in the Crynwr packet driver distribution 
-   file PKTD11.ZIP 
+<para>
 
-<item> The Trumpet Winsock 2.0 revision B winsock driver for windows.
-</itemize>
+<itemizedlist>
+<listitem>
 
-<sect1>STEP BY STEP OPERATION (LINUX SIDE)
-<p>
-<itemize>
-<item> Enable "dosnet" based dosemu packet driver: 
+<para>
+ The WINPKT.COM virtual packet driver, version 11.2
+I have found this little tsr in the Crynwr packet driver distribution 
+file PKTD11.ZIP 
+</para>
+</listitem>
+<listitem>
 
-<tscreen><verb>
+<para>
+ The Trumpet Winsock 2.0 revision B winsock driver for windows.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+</sect2>
+
+<sect2>
+<title>STEP BY STEP OPERATION (LINUX SIDE)</title>
+
+<para>
+
+<itemizedlist>
+<listitem>
+<para>
+ Enable "dosnet" based dosemu packet driver: 
+</para>
+
+<para>
+
+<screen>
       cd ./src/dosext/net/net
-      select_packet	 (Ask  single or multi ->  m)
-</verb></tscreen> 
+      select_packet	 (Ask  single or multi -&#62;  m)
+</screen>
+ 
+</para>
+</listitem>
+<listitem>
+<para>
+ Make the dosnet linux module:
+</para>
 
-<item> Make the dosnet linux module:
+<para>
 
-<tscreen><verb>
+<screen>
       cd ./src/dosext/net/v-net
       make
-</verb></tscreen>
+</screen>
 
-<item> Make the new dosemu, with right packet driver support built-in:
+</para>
+</listitem>
+<listitem>
+<para>
+ Make the new dosemu, with right packet driver support built-in:
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
       make 
       make install 
-</verb></tscreen>
+</screen>
 
-<item> Now you must load the dosnet module:
+</para>
+</listitem>
+<listitem>
+<para>
+ Now you must load the dosnet module:
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
       insmod ./src/dosext/net/v-net/dosnet.o
-</verb></tscreen>
+</screen>
 
-<item> Some linux-side network setup (activate device, routing). This stuff depends
-   from your environment, so I write an example setup.
-<p>
-   Here you configure a network interface dsn0 (the dosnet interface) with
-   the ip address 144.16.112.1 and add a route to this interface.
-<p>
-   This is a good example to make a "virtul network" from your dos/windows
-   environment and the linux environment.
-   
-<tscreen><verb>
+</para>
+</listitem>
+<listitem>
+<para>
+ Some linux-side network setup (activate device, routing). This stuff depends
+from your environment, so I write an example setup.
+</para>
+
+<para>
+Here you configure a network interface dsn0 (the dosnet interface) with
+the ip address 144.16.112.1 and add a route to this interface.
+</para>
+
+<para>
+This is a good example to make a "virtul network" from your dos/windows
+environment and the linux environment.
+</para>
+
+<para>
+
+<screen>
       ifconfig dsn0 144.16.112.1 broadcast 144.16.112.255 netmask 255.255.255.0
       route add -net 144.16.112.0 dsn0
-</verb></tscreen>
-</itemize>
+</screen>
 
-<sect1>STEP BY STEP OPERATION (DOS SIDE)
-<p>
+</para>
+</listitem>
 
-I suppose you know how to run windows in dosemu. You can read the <ref
-id="Windows" name="Running Windows">
+</itemizedlist>
+
+</para>
+
+</sect2>
+
+<sect2>
+<title>STEP BY STEP OPERATION (DOS SIDE)</title>
+
+<para>
+I suppose you know how to run windows in dosemu. You can read the <xref linkend="Windows">
 document if you need more information. Windows is not very stable, but works.
+</para>
 
-<itemize>
+<para>
 
-<item> start dosemu.
+<itemizedlist>
+<listitem>
 
-<item> copy the winpkt.com driver and the trumpet winsock driver in some 
-   dos directory.
+<para>
+ start dosemu.
+</para>
+</listitem>
+<listitem>
 
-<item> start the winpkt TSR. (dosemu assign the 0x60 interrupt vector to the 
-   built-in packet driver)
+<para>
+ copy the winpkt.com driver and the trumpet winsock driver in some 
+dos directory.
+</para>
+</listitem>
+<listitem>
+<para>
+ start the winpkt TSR. (dosemu assign the 0x60 interrupt vector to the 
+built-in packet driver)
+</para>
 
-<tscreen><verb>
+<para>
+
+<screen>
 	winpkt 0x60
-</verb></tscreen>
+</screen>
 
-<item> edit the trumpet winsock setup file trumpwsk.ini. Here is an example of 
-   how to setup this file:
-   (I think you can use less parameters, if you have the time to play with 
-   this file. You can also setup this stuff from the winsock setup dialog-box).
+</para>
+</listitem>
+<listitem>
+<para>
+ edit the trumpet winsock setup file trumpwsk.ini. Here is an example of 
+how to setup this file:
+(I think you can use less parameters, if you have the time to play with 
+this file. You can also setup this stuff from the winsock setup dialog-box).
+</para>
 
-<tscreen><verb>
-	&lsqb;Trumpet Winsock&rsqb;
+<para>
+
+<screen>
+	[Trumpet Winsock]
 	netmask=255.255.255.0  &lt;-- class C netmask.
 	gateway=144.16.112.1   &lt;-- address in the default gateway.
 	dns=www.xxx.yyy.zzz    &lt;-- You must use right value for the dns.
@@ -139,12 +237,31 @@ document if you need more information. Windows is not very stable, but works.
 	win-posn=42 220 867 686 -1 -1 -4 -4 1
 	trace-options=16392
 	
-	&lsqb;default vars&rsqb;
-</verb></tscreen>
+	[default vars]
+</screen>
 
-<item> Now you can run windows, startup trumpet winsock and .....  
-   enjoy with your windoze tcp/ip :-) 
-</itemize>
+</para>
+</listitem>
+<listitem>
 
+<para>
+ Now you can run windows, startup trumpet winsock and .....  
+enjoy with your windoze tcp/ip :-) 
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
 Gloriano Frisoni. 
-<htmlurl url="mailto:gfrisoni@hi-net.it" name="&lt;gfrisoni@hi-net.it&gt"> 
+<ulink
+url="mailto:gfrisoni@hi-net.it"
+>&#60;gfrisoni@hi-net.it&#62;</ulink
+> 
+</para>
+
+</sect2>
+
+</sect1>

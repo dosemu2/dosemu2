@@ -39,6 +39,9 @@ else {$dang_mode = 0;}
 # Version 0.5a:
 # 18/ 3/97 AM    Changed the method of finding the version number.
 #
+# Version 0.6:
+# 18/ 6/00 AM    Finally produces valid linuxdoc-96 output
+#
 # <NOTE: This doesn't use DANG markers, since it is a) not part of DOSEMU and
 #  b) the markers at the start would confuse things ...!>
 #
@@ -116,19 +119,24 @@ require "getopts.pl";
 	open OUTPUT;
 
 	print OUTPUT <<"EndOfPreamble";
-<!doctype linuxdoc system>
+<!doctype linuxdoc public "-//LinuxDoc//DTD LinuxDoc 96//EN">
+
+<linuxdoc>
+
 <article>
 
-<title> $main_title
-<author> Author: $main_author
-<date> version $version
+<titlepag>
+<title> $main_title </title>
+<author> <name> $main_author </name> </author>
+<date> version $version </date>
 <abstract>
 $main_abstract
 </abstract>
+</titlepag>
 
 <toc>
 
-<sect>Introduction
+<sect><heading>Introduction</heading>
 
 <p>
 EndOfPreamble
@@ -164,8 +172,10 @@ EndOfPreamble
 	    
 	    undef @intro;
 	} elsif ($opt_i) {
-	    print OUTPUT "There appears to be no Introduction at this time.\n\n";
+	    print OUTPUT "<p>There appears to be no Introduction at this time.</p>\n\n";
 	}			       
+
+	print OUTPUT "</p></sect>\n\n";
 	
 	foreach $group (@groups) {
 	    ($name, $summary, @elements) = split(/[ \t\n]+/, $group);
@@ -175,7 +185,7 @@ EndOfPreamble
 		die "Missing Data in the group $group\n";
 	    }
 
-	    print OUTPUT "<sect>The $name group of Modules\n\n<p>\n";
+	    print OUTPUT "<sect><heading>The $name group of Modules</heading>\n<p>\n";
 	    
 	    $INPUT = "<". $base_dir. $summary;
 	    open (INPUT) || die "Can't open $INPUT as a summary file.";
@@ -184,19 +194,21 @@ EndOfPreamble
 		$temp = &protect_specials($_);
 		print OUTPUT $temp;
 	    }
-	    print OUTPUT "\n\n";
+	    print OUTPUT "</p>\n\n";
 	    
 	    close INPUT;
 	    
 	    foreach $fname (@elements)
 	    {
 		&scan_file ($fname);
-	    }		
+	    }
+
+	    print OUTPUT "</sect>\n\n";
 	}      
 
 	if (defined @finally) {
 
-	    print OUTPUT "<sect>And Finally ...\n\n<p>\n";
+	    print OUTPUT "<sect><heading>And Finally ...</heading>\n\n<p>";
 	    
 	    $INPUT = "<". $base_dir. shift @finally;
 	    open (INPUT) || die "Can't open $INPUT as a termination file.";
@@ -205,7 +217,7 @@ EndOfPreamble
 		$temp = &protect_specials($_);
 		print OUTPUT $temp;
 	    }
-	    print OUTPUT "\n";
+	    print OUTPUT "</p>\n";
 	    
 	    close INPUT;
 	    
@@ -213,12 +225,12 @@ EndOfPreamble
 		$INPUT = "<". $base_dir. $_;
 		open (INPUT) || die "Can't open $INPUT as an termination file.";
 		
-		print OUTPUT "-----\n\n";
+		print OUTPUT "<p>-----</p>\n\n<p>";
 		while (<INPUT>) {
 		    $temp = &protect_specials($_);
 		    print OUTPUT $temp;
 		}
-		print OUTPUT "\n";
+		print OUTPUT "</p>\n";
 		
 		close $INPUT;
 	    }
@@ -227,8 +239,11 @@ EndOfPreamble
 
 	    undef @finally;
 	}			       
+	print OUTPUT "</sect>\n\n";
+
 
 	print OUTPUT "\n</article>\n";
+	print OUTPUT "\n</linuxdoc>\n";
     } else {		# No configuration file ...
 	$OUTPUT = ">/dev/null";
 	foreach $fname (@ARGV)
@@ -396,7 +411,7 @@ sub protect_specials {
     $text =~ s/%/&percnt;/g;
 #    $text =~ s/\'{1}/''/g;
 #    $text =~ s/\`{1}/``/g;
-    $text =~ s/"/&dquot;/g;     # " (For emacs !)
+#    $text =~ s/"/&dquo;/g;     # " (For emacs !)
     $text =~ s/\[/&lsqb;/g;
     $text =~ s/\]/&rsqb;/g;
 
@@ -812,13 +827,13 @@ sub handle_subremarks {
     $inremark = 0;
     foreach $data (@data) {
 	if ($data =~ /^\s*VERB\s*/) {
-	    print OUTPUT "<p><verb>\n";
+	    print OUTPUT "</p><p><verb>\n";
 	    $inverb =1;
 	    next;
 	}
 	if ($inverb) {
 	    if ($data =~ /^\s*\/VERB\s*/) {
-		print OUTPUT "</verb>\n";
+		print OUTPUT "</verb></p>\n<p>";
 		$inverb =0;
 	    }
 	    else {
@@ -851,11 +866,11 @@ sub handle_modules {
     local ($filename) = @_;
     local ($mod, $count);
 
-    print OUTPUT "<sect1>$filename Information\n\n<p>\n";
-
     $count = 0;
 
-    if (defined @modules) {
+    if (defined @modules && $#modules > 0) {
+      print OUTPUT "<sect1><heading>$filename Information</heading>\n<p>\n";
+
 	foreach $mod (@modules) {
 	    &handle_subremarks($mod,0);
 	    if ($mod =~ /maintainer:/io) {
@@ -863,9 +878,9 @@ sub handle_modules {
 		    print "Found maintainer details ...\n";
 		}
 		if ($count > 0) {
-		    print OUTPUT "-----\n\n", $`, "\n";
+		    print OUTPUT "</p><p>-----</p>\n\n<p>", $`, "\n";
 		}
-		print OUTPUT "<P>Maintainers:\n<p>\n";
+		print OUTPUT "</p><p>Maintainers:</p>\n<p>\n";
 		$maints = $';
 		while ($maints =~ /\s*(.*)\s*&lt;(.*)&gt;/g) {
 		    $addr = $2;
@@ -875,17 +890,23 @@ sub handle_modules {
 		    }
 		    print OUTPUT "$who <htmlurl url=\"mailto:$addr\" name=\"&lt;" .$addr ."&gt;\">&nl;\n";
     		}
+		print OUTPUT "</p>\n<p>";
 	    } else {
 	        if ($count > 0) {
-		    print OUTPUT "-----\n\n", $mod, "\n";
+		    print OUTPUT "</p><p>-----</p>\n\n<p>", $mod, "</p>\n<p>";
 		}
 	    }
 	    $count ++;
 	}
 
 	undef @modules;
+
+    print OUTPUT "</p>\n</sect1>\n";
+    
     } elsif ($opt_i) {
+      print OUTPUT "<sect1><heading>$filename Information</heading>\n<p>\n";
 	print OUTPUT "There appears to be no MODULE information for this file.\n\n";
+    print OUTPUT "</p>\n</sect1>\n";
     }
 
 }
@@ -908,7 +929,7 @@ sub handle_functions {
     local ($inverb,$inproto,$skip);
 
     if (defined @functions) {
-	print OUTPUT "<sect1>Functions in $filename\n\n<p>\n";
+	print OUTPUT "<sect1><heading>Functions in $filename</heading>\n\n";
 
   	foreach (@functions) {
 #	    /\s*(\w*)/;
@@ -916,15 +937,20 @@ sub handle_functions {
 	    push (nodes, $1);
 	}
 
-	print OUTPUT "These are the functions defined in $filename.\n\n";
+	print OUTPUT "<p>These are the functions defined in $filename.</p>\n\n";
     
 	$save = $*;
 	$* = 1;
 	
 	while ($this = shift @nodes ) {
-	    print OUTPUT "<sect2>$this\n\n\n<p>\n";
 	    @data = split (/\n/, shift (@functions));
 	    shift @data;	# Ignore the first line - the function name
+
+	    if (join ('', @data) =~ /^\s*$/) {
+	      next;
+	    }
+
+	    print OUTPUT "<sect2><heading>$this</heading>\n\n\n<p>\n";
 	    $inargslist = 0;
 	    $inretlist = 0;
 	    undef @args;
@@ -945,13 +971,13 @@ sub handle_functions {
 		    else {next;}
 		}
 		if ($data =~ /^\s*VERB\s*/) {
-		    print OUTPUT "<p><verb>\n";
+		    print OUTPUT "</p><p><verb>\n";
 		    $inverb =1;
 		    next;
 		}
 		if ($inverb) {
 		    if ($data =~ /^\s*\/VERB\s*/) {
-			print OUTPUT "</verb>\n";
+			print OUTPUT "</verb></p><p>\n";
 			$inverb =0;
 		    }
 		    else {
@@ -962,13 +988,13 @@ sub handle_functions {
 		}
 		if ($data =~ /^\s*PROTO\s*/) {
 		    if ($inproto) {print OUTPUT "</verb>\n";}
-		    print OUTPUT "<p><verb>\n";
+		    print OUTPUT "</p><p><verb>\n";
 		    $inproto =1;
 		    next;
 		}
 		if ($inproto) {
 		    if ($data =~ /^\s*\{|^\s*\/PROTO\s*/) {
-			print OUTPUT "</verb>\n";
+			print OUTPUT "</verb></p><p>\n";
 			$inproto =0;
 			$skip = 1;
 		    }
@@ -986,14 +1012,14 @@ sub handle_functions {
 		    if ($inargslist || $inretlist) {next;} # .... skip
 		}
 		if ($data =~ /return:/io) { # Want to treat data as return
-		    print OUTPUT "<p>Return values mean:&nl;\n";
+		    print OUTPUT "</p><p>Return values mean:&nl;\n";
 		    $inretlist = 1;
 		    $inargslist = 0;
 		    next;
 		}
 
 		if ($data =~ /arguments:/io) { # Want to treat data as args
-		    print OUTPUT "<p>Arguments are:&nl;\n";
+		    print OUTPUT "</p><p>Arguments are:&nl;\n";
 		    $inargslist = 1;
 		    $inretlist = 0;
 		    next;
@@ -1013,7 +1039,7 @@ sub handle_functions {
 		if (defined @args) { # no longer storing - time to output
 		    print OUTPUT "<itemize>\n";
 		    foreach $_ (@args) {
-			print OUTPUT "<ITEM> ", $_, "\n";
+			print OUTPUT "<item> ", $_, "</item>\n";
 		    }
 		    print OUTPUT "</itemize>\n";
 		    undef @args;
@@ -1025,19 +1051,22 @@ sub handle_functions {
 	    if (defined @args) { # no longer storing - time to output
 		print OUTPUT "<itemize>\n";
 		foreach $_ (@args) {
-		    print OUTPUT "<ITEM> ", $_, "\n";
+		    print OUTPUT "<item> ", $_, "</item>\n";
 		}
 		print OUTPUT "</itemize>\n";
 	    }
 
-	    print OUTPUT "\n\n";
+	    print OUTPUT "</p>\n</sect2>\n";
 	} 
 
 	undef @functions;
-    } elsif ($opt_i)  {
-	print OUTPUT "We appear to have no information on the functions in $filename.\n\n";
-    }
+
+	print OUTPUT "</sect1>\n\n";
 	
+    } elsif ($opt_i)  {
+	print OUTPUT "<p>We appear to have no information on the functions in $filename.</p>\n\n";
+    }
+
 }
 
 sub handle_structures {
@@ -1048,7 +1077,7 @@ sub handle_structures {
     local ($inverb) = 0;
 
     if (defined @structures) {
-	print OUTPUT "<sect1>Data Definitions in $filename\n\n<p>\n";
+	print OUTPUT "<sect1><heading>Data Definitions in $filename</heading>\n\n<p>\n";
 
   	foreach (@structures) {
 	    /\s*(.*)\n/;
@@ -1061,7 +1090,7 @@ sub handle_structures {
 	$* = 1;
 	
 	while ($this = shift @nodes ) {
-	    print OUTPUT "<sect2>$this\n\n\n<p>\n";
+	    print OUTPUT "<sect2><heading>$this</heading>\n\n\n<p>\n";
 	    @data = split (/\n/, shift (@structures));
 	    shift @data;	# Ignore the first line - the header line
 	    $inargslist = 0;
@@ -1071,13 +1100,13 @@ sub handle_structures {
 	    $inverb = 0;
 	    foreach $data (@data) {
 		if ($data =~ /^\s*VERB\s*/) {
-		    print OUTPUT "<p><verb>\n";
+		    print OUTPUT "</p>\n<p><verb>\n";
 		    $inverb =1;
 		    next;
 		}
 		if ($inverb) {
 		    if ($data =~ /^\s*\/VERB\s*/) {
-			print OUTPUT "</verb>\n";
+			print OUTPUT "</verb></p>\n<p>";
 			$inverb =0;
 		    }
 		    else {
@@ -1091,7 +1120,7 @@ sub handle_structures {
 		}
 
 		if ($data =~ /elements:/io) { # Want to treat data as args
-		    print OUTPUT "<p>Elements are:&nl;\n";
+		    print OUTPUT "</p><p>Elements are:&nl;\n";
 		    $inargslist = 1;
 		    next;
 		}
@@ -1120,14 +1149,14 @@ sub handle_structures {
 			    next;
 			}
 			if ($arg =~ /\/\*/) {
-			    print OUTPUT "<ITEM> ", $`, "\n\n";
+			    print OUTPUT "<item> ", $`, "</item>\n\n";
 			    $arg = $';
 			    if ($arg =~ /\*\//) {$arg = $`;}
 			    else {$insubarg = 1;}
 			    print OUTPUT  $arg, "\n";
 			    next;
 			}
-			print OUTPUT "<ITEM> ", $arg, "\n";
+			print OUTPUT "<item> ", $arg, "</item>\n";
 		    }
 		    print OUTPUT "</itemize>\n";
 		    undef @args;
@@ -1150,14 +1179,14 @@ sub handle_structures {
 			    next;
 			}
 			if ($arg =~ /\/\*/) {
-			    print OUTPUT "<ITEM> ", $`, "<p>\n";
+			    print OUTPUT "<item> ", $`, "</item>\n";
 			    $arg = $';
 			    if ($arg =~ /\*\//) {$arg = $`;}
 			    else {$insubarg = 1;}
 			    print OUTPUT  $arg, "\n";
 			    next;
 			}
-			print OUTPUT "<ITEM> ", $arg, "\n";
+			print OUTPUT "<item> ", $arg, "</item>\n";
 		}
 		print OUTPUT "</itemize>\n";
 	    }
@@ -1166,6 +1195,8 @@ sub handle_structures {
 	} 
 
 	undef @structures;
+
+	print OUTPUT "</p>\n</sect1>\n\n";
     } elsif ($opt_i)  {
 	print OUTPUT "We appear to have no information on the structures in $filename.\n\n";
     }
@@ -1176,15 +1207,18 @@ sub handle_newideas {
     local ($filename) = @_;
 
     if (defined @newideas) {
-	print OUTPUT "<sect1>New Ideas for $filename\n\n<p>\n";
+	print OUTPUT "<sect1><heading>New Ideas for $filename</heading>\n\n<p>\n";
     
 	print OUTPUT (shift @newideas), "\n";
 
 	foreach (@newideas) {
-	    print OUTPUT "-----\n\n", $_, "\n";
+	    print OUTPUT "</p><p>-----</p>\n\n<p>", $_, "\n";
 	}
 
 	undef @newideas;
+
+	print OUTPUT "</p></sect1>\n\n";
+
     } elsif ($opt_i) {
 	print OUTPUT "Apparently, there are no new ideas for $filename.\n\n";
     }
@@ -1195,37 +1229,40 @@ sub handle_remarks {
     local ($filename) = @_;
 
     if (defined @remarks) {
-	print OUTPUT "<sect1>Remarks in $filename\n\n<p>\n";
+	print OUTPUT "<sect1><heading>Remarks in $filename</heading>\n\n<p>\n";
     
 	&handle_subremarks(shift @remarks,1);
 #	print OUTPUT (shift @remarks), "\n";
 
 	foreach (@remarks) {
 #	    print OUTPUT "-----\n\n", $_, "\n";
-	    print OUTPUT "-----\n\n";
+	    print OUTPUT "</p><p>-----</p>\n\n<p>";
 	    &handle_subremarks($_,1);
 	}
 
 	undef @remarks;
+
+	print OUTPUT "</p>\n</sect1>\n\n";
     } elsif ($opt_i) {
 	print OUTPUT "Apparently, no-one has anything interesting to say about $filename.\n\n";
     }
-
 }
 
 sub handle_fixthis {
     local ($filename) = @_;
 
     if (defined @fixthis) {
-	print OUTPUT "<sect1>Items for Fixing in $filename\n\n<p>\n";
+	print OUTPUT "<sect1><heading>Items for Fixing in $filename</heading>\n\n<p>\n";
 
 	print OUTPUT (shift @fixthis), "\n";
 
 	foreach (@fixthis) {
-	    print OUTPUT "-----\n\n", $_, "\n";
+	    print OUTPUT "</p><p>-----</p>\n\n<p>", $_, "\n";
 	}
 
 	undef @fixthis;
+	
+	print OUTPUT "</p>\n</sect1>\n\n";
     } elsif ($opt_i) {
 	print OUTPUT "Apparently, nothing needs fixing in $filename.\n\n";
     }
