@@ -407,6 +407,29 @@ void DAC_get_entry(DAC_entry *entry, unsigned char index)
 }
 
 
+/*
+ * DANG_BEGIN_FUNCTION DAC_read_entry
+ *
+ * Returns a complete DAC entry (r,g,b), doesn't un-dirty it.
+ * Color values are _not_ maked.
+ * This is an interface function.
+ *
+ * DANG_END_FUNCTION
+ *
+ */
+void DAC_read_entry(DAC_entry *entry, unsigned char index)
+{
+  entry->r=DAC[index].r;
+  entry->g=DAC[index].g;
+  entry->b=DAC[index].b;
+
+#ifdef DEBUG_DAC
+  v_printf("VGAemu: DAC_read_entry(0x%02x): (0x%02x, 0x%02x, "
+           "0x%02x)\n", index, entry->r, entry->g, entry->b);
+#endif
+}
+
+
 
 
 /*

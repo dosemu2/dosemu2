@@ -35,6 +35,8 @@
  *
  */
 
+#include "config.h"
+
 #if !defined __VGAEMU_INSIDE_H
 #define __VGAEMU_INSIDE_H
 
@@ -186,6 +188,14 @@ unsigned char Seq_get_index(void);
 void Seq_write_value(unsigned char data);
 unsigned char Seq_read_value(void);
 
+#ifdef NEW_X_CODE
+/* **************** CRT controller functions **************** */
+void CRTC_init(void);
+void CRTC_set_index(unsigned char data);
+unsigned char CRTC_get_index(void);
+void CRTC_write_value(unsigned char data);
+unsigned char CRTC_read_value(void);
+#endif
 
 #endif /* !defined __ASM__ */
 

@@ -11,21 +11,33 @@ LDFLAGS=@LDFLAGS@
 CC=@CC@
 @SET_MAKE@
 @X_SUPPORT@
+@NEW_X_CODE@
 
 # if you want to disable graphics in X, delete vgaemu.[co], vesa.[cho],
 # vgaemu_inside.h, vesabios.S and vesabios.o
 # you should also delete the #define XG in int10.c and sigsegv.c
 ifdef X_SUPPORT
+ ifdef NEW_X_CODE
+XCFILES	= n_X.c vgaemu.c vesa.c screen.c dacemu.c attremu.c seqemu.c crtcemu.c remap.c
+XHDRS	= X.h vgaemu_inside.h vesa.h screen.h remap.h
+XOBJS	= n_X.o vgaemu.o vesa.o screen.o dacemu.o attremu.o seqemu.o crtcemu.o remap.o
+ else
 XCFILES	= X.c vgaemu.c vesa.c screen.c dacemu.c attremu.c seqemu.c \
 	  XModeRemapGeneric.c XModeRemap_i386.c
 XHDRS	= X.h vgaemu_inside.h vesa.h screen.h XModeRemap.h
 XOBJS	= X.o vgaemu.o vesa.o screen.o dacemu.o attremu.o seqemu.o \
 	  XModeRemapGeneric.o XModeRemap_i386.o
+ endif
 endif
 
 # This is to assemble the VESA compatible video BIOS. Shamelessly copied
 # from bios/Makefile.
 SFILES = vesabios.S
+
+ifdef NEW_X_CODE
+ASFILES = remap_asm.S
+ASOBJS  = remap_asm.o
+endif
 
 AS86FLAGS=$(INCDIR)
 
@@ -35,7 +47,7 @@ AS86=@AS86@
 TOPDIR=@SRCPATH@
 
 CFILES = video.c vc.c vga.c et4000.c s3.c trident.c avance.c ati.c cirrus.c console.c \
-         $(XCFILES) hgc.c dualmon.c terminal.c
+         $(XCFILES) hgc.c dualmon.c terminal.c $(ASOBJS)
 HFILES = vga.h et4000.h s3.h trident.h avance.h ati.h cirrus.h terminal.h $(XHDRS)
 OFILES = video.o vc.o vga.o et4000.o s3.o avance.o trident.o ati.o cirrus.o console.o \
          int10.o $(XOBJS) hgc.o dualmon.o terminal.o

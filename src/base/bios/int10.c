@@ -408,6 +408,12 @@ do_text_mode:
     WRITE_BYTE(BIOS_VIDEO_MODE, video_mode=mode&0x7f);
     break;
 
+#ifdef NEW_X_CODE
+case 0x0d:
+case 0x0e:
+case 0x10:
+case 0x12:
+#endif
 case 0x13:	/*Not finished ! */
 case 0x5c:
 case 0x5d:
@@ -675,6 +681,7 @@ void int10()
         int i, count;
         unsigned char* src;
         unsigned char r, g, b, index;
+	DAC_entry rgb;
 
         switch(LO(ax))
           {
@@ -693,6 +700,26 @@ void int10()
                 g=src[i*3+1];
                 b=src[i*3+2];
                 DAC_set_entry(r, g, b, index);
+              }
+            break;
+
+          case 0x15:  /* Read Individual DAC Register */
+            DAC_read_entry(&rgb, (unsigned char)LO(bx));
+            (unsigned char)HI(dx) = rgb.r;
+            (unsigned char)HI(cx) = rgb.g;
+            (unsigned char)LO(cx) = rgb.b;
+            break;
+
+          case 0x17:  /* Read Block of DAC Registers */
+            index=(unsigned char)LO(bx);
+            count=LWORD(ecx);
+            src=SEG_ADR((unsigned char*),es,dx);
+            for(i=0; i<count; i++, index++)
+              {
+                DAC_read_entry(&rgb, index); 
+                src[i*3]=rgb.r;
+                src[i*3+1]=rgb.g;
+                src[i*3+2]=rgb.b;
               }
             break;
 

@@ -2327,10 +2327,12 @@ static void do_cpu_exception(struct sigcontext *scp, int code)
   unsigned char *csp2, *ssp2;
   int i;
 
+#ifdef DPMI_DEBUG
   /* My log file grows to 2MB, I have to turn off dpmi debugging,
      so this log excptions even dpmi debug is off */
   unsigned char dd = d.dpmi;
   d.dpmi = 1;
+#endif
   D_printf("DPMI: do_cpu_exception(0x%02lx) called\n",_trapno);
   DPMI_show_state;
   if ( _trapno == 0xe)
@@ -2338,7 +2340,9 @@ static void do_cpu_exception(struct sigcontext *scp, int code)
 #ifdef SHOWREGS
   print_ldt();
 #endif
+#ifdef DPMI_DEBUG
   d.dpmi = dd;
+#endif
   
   if (Exception_Table[_trapno].selector == DPMI_SEL) {
     do_default_cpu_exception(scp, _trapno);

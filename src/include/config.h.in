@@ -190,6 +190,9 @@
  */
 #undef RUN_AS_ROOT
 
+/* Define this to use the new X code */
+#undef NEW_X_CODE
+
 /* Define if you have the getcwd function.  */
 #undef HAVE_GETCWD
 

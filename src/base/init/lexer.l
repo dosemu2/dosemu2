@@ -325,6 +325,12 @@ blinkrate		RETURN(X_BLINKRATE);
 sharecmap		RETURN(X_SHARECMAP);
 mitshm                  RETURN(X_MITSHM);
 font			RETURN(X_FONT);
+fixed_aspect		RETURN(X_FIXED_ASPECT);
+aspect_43		RETURN(X_ASPECT_43);
+lin_filt		RETURN(X_LIN_FILT);
+bilin_filt		RETURN(X_BILIN_FILT);
+mode13fact		RETURN(X_MODE13FACT);
+winsize			RETURN(X_WINSIZE);
 
         /* Sound stuff */
 

@@ -381,6 +381,13 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
        int     X_blinkrate;
        int     X_sharecmap;
        int     X_mitshm;                /* use MIT SHM extension */
+       int     X_fixed_aspect;          /* keep initial aspect ratio while resizing windows */
+       int     X_aspect_43;             /* set aspect ratio to 4:3 */
+       int     X_lin_filt;              /* interpolate linear */
+       int     X_bilin_filt;            /* dto, bilinear */
+       int     X_winsize_x;             /* initial window width */
+       int     X_mode13fact;            /* initial size factor for mode 0x13 */
+       int     X_winsize_y;             /* initial window height */
        boolean fullrestore;
        boolean force_vt_switch;         /* in case of console_video force switch to emu VT at start */
        int     dualmon;

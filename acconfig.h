@@ -117,6 +117,9 @@
  */
 #undef RUN_AS_ROOT
 
+/* Define this to use the new X code */
+#undef NEW_X_CODE
+
 @BOTTOM@
 
 #endif /* CONFIG_H */

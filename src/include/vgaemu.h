@@ -94,6 +94,7 @@ int vgaemu_switch_page(unsigned int pagenumber);
 void dirty_all_video_pages(void);
 void DAC_init(void);
 void DAC_get_entry(DAC_entry *entry, unsigned char index);
+void DAC_read_entry(DAC_entry *entry, unsigned char index);
 int DAC_get_dirty_entry(DAC_entry *entry);
 void DAC_set_entry(unsigned char r, unsigned char g, unsigned char b, 
                    unsigned char index);

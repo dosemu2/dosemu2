@@ -195,6 +195,7 @@ extern void yyrestart(FILE *input_file);
 %token INTERNALDRIVER EMULATE3BUTTONS CLEARDTR
 	/* x-windows */
 %token L_DISPLAY L_TITLE ICON_NAME X_KEYCODE X_BLINKRATE X_SHARECMAP X_MITSHM X_FONT
+%token X_FIXED_ASPECT X_ASPECT_43 X_LIN_FILT X_BILIN_FILT X_MODE13FACT X_WINSIZE
 	/* video */
 %token VGA MGA CGA EGA CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
 %token MEMSIZE VBIOS_SIZE_TOK VBIOS_SEG VBIOS_FILE VBIOS_COPY VBIOS_MMAP DUALMON
@@ -469,6 +470,16 @@ x_flag		: UPDATELINES INTEGER	{ config.X_updatelines = $2; }
 		| X_SHARECMAP		{ config.X_sharecmap = 1; }
 		| X_MITSHM              { config.X_mitshm = 1; }
 		| X_FONT STRING		{ config.X_font = $2; }
+		| X_FIXED_ASPECT bool   { config.X_fixed_aspect = $2; }
+		| X_ASPECT_43           { config.X_aspect_43 = 1; }
+		| X_LIN_FILT            { config.X_lin_filt = 1; }
+		| X_BILIN_FILT          { config.X_bilin_filt = 1; }
+		| X_MODE13FACT INTEGER  { config.X_mode13fact = $2; }
+		| X_WINSIZE INTEGER INTEGER
+                   {
+                     config.X_winsize_x = $2;
+                     config.X_winsize_y = $3;
+                   }
 		;
 
 dexeflags	: dexeflag

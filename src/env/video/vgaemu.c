@@ -244,6 +244,16 @@ void VGA_emulate_outb(int port, unsigned char value)
 
   switch(port)
     {
+#ifdef NEW_X_CODE
+    case CRTC_INDEX:
+      CRTC_set_index(value);
+      break;
+
+    case CRTC_DATA:
+      CRTC_write_value(value);
+      break;
+#endif
+
     case SEQUENCER_INDEX:
       Seq_set_index(value);
       break;
@@ -305,12 +315,27 @@ void VGA_emulate_outb(int port, unsigned char value)
  */
 unsigned char VGA_emulate_inb(int port)
 {
+#ifdef NEW_X_CODE
+  unsigned char uc = 0xff;
+#else
+  unsigned char uc = 0;
+#endif
 #ifdef DEBUG_IO
   v_printf("VGAemu: VGA_emulate_inb(): inb(0x%03x)\n", port);
 #endif
 
   switch(port)
     {
+#ifdef NEW_X_CODE
+    case CRTC_INDEX:
+      return(CRTC_get_index());
+      break;
+
+    case CRTC_DATA:
+      return(CRTC_read_value());
+      break;
+#endif
+
     case SEQUENCER_INDEX:
       return(Seq_get_index());
       break;
@@ -336,7 +361,7 @@ unsigned char VGA_emulate_inb(int port)
       break;
 
     case DAC_WRITE_INDEX: /* this is undefined, but we have to do something */
-      return(0);
+      return(uc);
       break;
 
     case DAC_DATA:
@@ -352,7 +377,7 @@ unsigned char VGA_emulate_inb(int port)
       v_printf("VGAemu: not (yet) smart enough to emulate read from"
 	       " port 0x%04x\n", port);
 #endif
-      return(0); /* do something */
+      return(uc); /* do something */
       break;
     }
 }
@@ -489,6 +514,9 @@ unsigned char* vga_emu_init(void)
   DAC_init();
   Attr_init();
   Seq_init();
+#ifdef NEW_X_CODE
+  CRTC_init();
+#endif
 
   /* register VGA ports */
   io_device.read_portb = VGA_emulate_inb;
@@ -514,6 +542,14 @@ unsigned char* vga_emu_init(void)
   io_device.start_addr = DAC_BASE;
   io_device.end_addr = DAC_DATA;
   port_register_handler(io_device);
+
+#ifdef NEW_X_CODE
+  /* register crt controller */
+  io_device.handler_name = "VGAemu CRT Controller";
+  io_device.start_addr = CRTC_INDEX;
+  io_device.end_addr = CRTC_DATA;
+  port_register_handler(io_device);
+#endif
 
 #ifdef VESA
   vesa_init();
@@ -816,6 +852,9 @@ int vgaemu_get_changes_and_update_XImage_0x13(unsigned char **base, unsigned lon
  */     
 int vgaemu_switch_page(unsigned int pagenumber)
 {
+#ifdef NEW_X_CODE
+  int i;
+#endif
   /* remapping the one bank of the allocated memmory */
 
  /* Is this < or <= ? -- Erik */
@@ -837,7 +876,17 @@ int vgaemu_switch_page(unsigned int pagenumber)
                pagenumber);
     }
   
+#ifdef NEW_X_CODE
+  v_printf("VGAemu: vga_emu_switch_page: switched to bank %d\n", current_bank);
+
+  for(i = 0; i < 16; i++) {
+    if(vgaemu_graphic_dirty_page[current_bank*16 + i] == False) {
+      mprotect((void *) (0xA0000 + i * 0x1000), 0x1000, PROT_READ);
+    }
+  }
+#else
   mprotect((void *)0xA0000,0xFFFF,PROT_READ); /* should not be needed, but... */
+#endif
   return True;
 }
 
@@ -1064,6 +1113,9 @@ int vgaemu_update(unsigned char **base, unsigned long int *offset, unsigned long
   
   switch(current_mode_info->memorymodel)
     {
+#ifdef NEW_X_CODE
+    case PL4:
+#endif
     case P8:
       return(vgaemu_get_changes_and_update_XImage_0x13(base, offset, len, method, modewidth));
       break;

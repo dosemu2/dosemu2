@@ -8,6 +8,7 @@ menu "Main Menu" {
   boolean "compile with debug info" dodebug
   boolean "use the new keyboard code" newkbd
   boolean "Use X-Windows" x
+  boolean "Use new X-code" newx
   boolean "Use MIT Shared Memory extensions under X" mitshm
   boolean "SB Emulation" sbemu
   boolean "force use of dosemu supplied Slang-lib" slangforce

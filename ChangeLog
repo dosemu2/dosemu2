@@ -1,3 +1,23 @@
+97/05/03 ver. 0.67.1 released
+	From Steffen
+	- cool new X-stuff:
+	  - X mode support (doom now displays right)
+	  - first simple 4plane mode (very slow)
+	  - 24/32 bpp possible
+	  - linear/bilinear interpolation for bpp >15
+	  - resizing of graphics windows now possible
+	  - DAC-updates also in textmode possible
+	  - a lot of new config options (see ./doc/README.config)
+	From Hans
+	- made the new X-code a configure option (--enable-new-X),
+	  because Steffen apparently optimized it for 'games' ;-)
+	  (which indeed run faster), but the new stuff (atleast for win31)
+	  has performance problems with 'normal' graphics applications.
+	  ... still searching what's causing this trouble :-(
+	- some small fixes and 'compatibility adjusts' to Steffens patch ;-)
+	  (the new X-code should now work atleast as stable as the old one)
+	- INT10 now handles AX=1015 and AX=1017 (these missing ones broke
+	  Steffens new DAC-update in X-textmode)
 97/05/03 ver. 0.67.0.3 unofficial pre-release
 	From Doug Dougherty, Chicago, IL
 	- cmdline DOS tool to feed in info from the commandline
