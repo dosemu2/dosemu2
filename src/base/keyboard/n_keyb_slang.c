@@ -598,6 +598,29 @@ static void slang_send_scancode(unsigned long lscan, unsigned char ch)
     presskey(KEY_L_ALT,0);
   }
 
+  /* Sanity adjustments on ch */
+
+  if (lscan & (STICKY_SHIFT_MASK | SHIFT_MASK)) {
+    if ((ch >= 0x61) && (ch <= 0x7a)) {
+      ch -= 0x20;
+    }
+  }
+
+  if (lscan & (STICKY_CTRL_MASK | CTRL_MASK)) {
+    /* actually this is probably a little extra */
+    /* taken form n_serv_xlate.c ... translate .. (shiftstate & CTRL) */
+    if ((ch >= 0x40) && (ch <= 0x7e)) {
+      ch &= 0x1f;
+    } 
+    else if (ch == 0x2D) {
+      ch = 0x1f;
+    }
+  }
+
+  if (lscan & (STICKY_ALT_MASK | ALT_MASK)) {
+    ch = 0;
+  }
+
   presskey(lscan & 0x0000ffff, ch); 
   releasekey(lscan & 0x0000ffff); 
 

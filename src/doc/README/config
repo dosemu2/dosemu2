@@ -260,12 +260,12 @@ For "cpu", set this to the CPU you want recognized during DOSEMU.
   cpu 80386
 </verb></tscreen>
 
-If you have a penium, DOSEMU can make use of the pentium cycle counter
+If you have a pentium, DOSEMU can make use of the pentium cycle counter
 to do better timing. DOSEMU detects the pentium and will use the RDTSC
 instruction for get time per default. To disable this feature use
 
 <tscreen><verb>
-  rtsc off
+  rdtsc off
 </verb></tscreen>
 
 Also, to use the pentium cycle counter correctly DOSEMU needs to know

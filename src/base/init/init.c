@@ -548,7 +548,7 @@ void device_init(void)
  
   scr_state_init();
   video_config_init();
-  if (config.console) {
+  if (config.console && (config.speaker == SPKR_EMULATED)) {
     register_speaker((void *)console_fd,
 		     console_speaker_on, console_speaker_off);
   }

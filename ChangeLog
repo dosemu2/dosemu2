@@ -1,3 +1,7 @@
+97/10/11 ver. 0.67.13 released
+	From Eric
+	- some keyboard fixes to solve problems with the sticky shifts.
+	- corrected some funny typo's ;-)
 97/10/10 ver. 0.67.12.2 unofficial pre-release
 	From Alberto
 	- enabled 'new' port code, moved new code (from portss.c) to
