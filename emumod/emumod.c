@@ -6,7 +6,7 @@
   
 #include "kversion.h"
 #if 0
-#define KERNEL_VERSION 1003028 /* last verified kernel version */
+#define KERNEL_VERSION 1003038 /* last verified kernel version */
 #endif
 
 #include <linux/errno.h>
@@ -28,18 +28,29 @@
 #define  _EMUMOD_itself
 #include "emumod.h"
 
+
+#if KERNEL_VERSION >= 1003038
+  /* need this to force  kernel_version[]=UTS_RELEASE,
+   * starting with 1.3.38 defines are moved into <linux/module.h> */
+  #undef __NO_VERSION__ 
+  #define MODULE
+#endif
+#include <linux/module.h>
+
+
+#if KERNEL_VERSION < 1003038
 /*
  * NOTE:
  *   To install the module, we must include the kernel identification string.
  *   (so, don't panic if you get a GCC warning "_kernel_version not used" )
  */
-#include <linux/module.h>
 #if KERNEL_VERSION < 1001072
 #include "../../linux/tools/version.h"
 #else
 #include "linux/version.h"
 #endif
 static char kernel_version[] = UTS_RELEASE;
+#endif
 
 struct redirect_db {
   void *resident;
@@ -87,7 +98,7 @@ static struct redirect_db redirect_list[] = {
     _TRANSIENT_sys_sigreturn }
   , { sys_modify_ldt,
     _TRANSIENT_sys_modify_ldt }
-#if (KERNEL_VERSION  >= 1003004) && defined(REPAIR_ODD_MSDOS_FS)
+#if (KERNEL_VERSION  >= 1003004) && (KERNEL_VERSION  < 1003040) && defined(REPAIR_ODD_MSDOS_FS)
   , { msdos_dir_inode_operations,
     &_TRANSIENT_msdos_dir_operations, 1 }
 #endif

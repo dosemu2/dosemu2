@@ -3,7 +3,6 @@
 #include <stddef.h>
 #include <strings.h>
 #include <linux/unistd.h>
-#include <linux/module.h>
 
 #include "syscallmgr.h"
 

@@ -299,7 +299,7 @@ extern SillyG_t *SillyG;
 
 static u_long secno = 0;
 
-inline void process_interrupt(SillyG_t *sg);
+inline int process_interrupt(SillyG_t *sg);
 
 /* my test shared memory IDs */
 static struct {
@@ -437,13 +437,12 @@ void HMA_init(void)
 }
 
 #if defined(SIG) && defined(REQUIRES_EMUMODULE)
-static int SillyG_pendind_irq_bits=0;
+int SillyG_pendind_irq_bits=0;
 int SillyG_do_irq(void)
 {
-  int irq=10, ret;
+  int irq=pic_level_list[pic_ilevel], ret;
   ret = do_irq();
   SillyG_pendind_irq_bits &= ~(1 << irq);
-  get_and_reset_irq(irq);
   return ret;
 }
 #endif
@@ -465,9 +464,11 @@ io_select(fd_set fds)
       SillyG_t *sg=SillyG;
       while (sg->fd) {
         if (irq_bits & (1 << sg->irq)) {
-          SillyG_pendind_irq_bits |= 1 << sg->irq;
-          h_printf("SIG: We have an interrupt\n");
-          process_interrupt(sg);
+          if (process_interrupt(sg)) {
+            get_and_reset_irq(sg->irq);
+            SillyG_pendind_irq_bits |= 1 << sg->irq;
+            h_printf("SIG: We have an interrupt\n");
+          }
         }
         sg++;
       }
@@ -530,16 +531,17 @@ io_select(fd_set fds)
 
 }
 
-inline void
+inline int
 process_interrupt(SillyG_t *sg)
 {
   u_int chr;
-  int irq;
+  int irq, ret=0;
 
   if ((irq = sg->irq) != 0) {
     h_printf("INTERRUPT: 0x%02x\n", irq);
-    pic_request(pic_irq_list[irq]);
+    ret=pic_request(pic_irq_list[irq]);
   }
+  return ret;
 }
 
 void

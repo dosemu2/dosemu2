@@ -1,3 +1,7 @@
+#if 0  /* set it 0 for the new INT1A AH=0 code */
+  #define USE_UNIX_TIME_FOR_INT1A_AH0
+#endif
+
 #include <stdio.h>
 #include <termios.h>
 #include <unistd.h>
@@ -591,6 +595,7 @@ static void int1a(u_char i)
 
     /* A timer read should reset the overflow flag */
   case 0:			/* read time counter */
+#ifdef USE_UNIX_TIME_FOR_INT1A_AH0
     time(&akt_time);
     tm = localtime((time_t *) &akt_time);
     test_date = tm->tm_year * 10000 + tm->tm_mon * 100 + tm->tm_mday;
@@ -604,16 +609,27 @@ static void int1a(u_char i)
     LO(ax) = *(u_char *) (TICK_OVERFLOW_ADDR);
     LWORD(ecx) = (last_ticks >> 16) & 0xffff;
     LWORD(edx) = last_ticks & 0xffff;
-#if 0
+  #if 0
     g_printf("read timer st:%u ticks:%u act:%u, actdate:%d\n",
 	     start_time, last_ticks, akt_time, tm->tm_mday);
-#endif
+  #endif
     set_ticks(last_ticks);
+#else
+    ignore_segv++;
+    last_ticks = *((long *)(BIOS_TICK_ADDR));
+    LO(ax) = *(u_char *) (TICK_OVERFLOW_ADDR);
+    *(u_char *) (TICK_OVERFLOW_ADDR) = 0;
+    ignore_segv--;
+    LWORD(ecx) = (last_ticks >> 16) & 0xffff;
+    LWORD(edx) = last_ticks & 0xffff;
+#endif
     break;
   case 1:			/* write time counter */
     last_ticks = (LWORD(ecx) << 16) | (LWORD(edx) & 0xffff);
     set_ticks(last_ticks);
+#ifdef USE_UNIX_TIME_FOR_INT1A_AH0
     time(&start_time);
+#endif
     g_printf("set timer to %lu \n", last_ticks);
     break;
   case 2:			/* get time */
@@ -797,15 +813,13 @@ run_int(int i)
   WRITE_SEG_REG(cs, ((us *) 0)[(i << 1) + 1]);
   LWORD(eip) = ((us *) 0)[i << 1];
 
-  /* clear TF (trap flag, singlestep), IF (interrupt flag), and
+  /* clear TF (trap flag, singlestep), VIF/IF (interrupt flag), and
    * NT (nested task) bits of EFLAGS
+   * NOTE: IF-flag only, because we are not sure that we will test it in
+   *       some of our own software (...we all are human beeings)
+   *       For vm86() 'VIF' is the candidate to reset in order to do CLI !
    */
-  /* REG(eflags) &= ~(VIF | TF | IF | NT); */
-#if 0
   WRITE_FLAGSE(READ_FLAGSE() & ~(VIF | TF | IF | NT));
-#else
-  WRITE_FLAGSE(READ_FLAGSE() & ~(TF));
-#endif
 }
 
 int can_revector(int i)

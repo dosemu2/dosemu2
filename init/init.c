@@ -211,7 +211,7 @@ void hardware_setup(void)
 #endif
   
   /* DMA Init */
-  /*dma_init(); - not used yet ??? */
+  dma_init();
 
   g_printf("Hardware initialized\n");
 }

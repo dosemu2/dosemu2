@@ -169,7 +169,7 @@ DEPENDS = dos.d emu.d
 # dosemu version
 VERSION = 0
 SUBLEVEL = 60
-PATCHLEVEL = 4.4
+PATCHLEVEL = 4.5
 LIBDOSEMU = libdosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
 
 EMUVER = $(VERSION).$(SUBLEVEL)
@@ -601,6 +601,8 @@ else
 	echo "    REQUIRES_EMUMODULE in this Makefile, and re-make."; \
 	echo ""
 endif
+	@sh ./tools/kversion.sh . -dotsOK
+
 
 converthd: hdimage
 	mv hdimage hdimage.preconvert

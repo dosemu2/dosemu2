@@ -21,6 +21,10 @@
  *  sync'd debug flags with 0.60.2+
  * Modified: 08/18/95 by PeaK
  *  added support for debug levels (they're used by PIC emulation)
+ * Modified: 11/02/95 by Kang-Jin Lee
+ *  safer dosemu detection
+ * Modified; 11/05/95 by Michael Beck
+ *  sync'd debug flags with 0.60.4.4
  ***********************************************/
 
 /* comment out if dosemu is compiled without X support */
@@ -52,6 +56,9 @@ typedef unsigned int uint16;
 #define DOS_HELPER_GET_DEBUG_STRING 0x10
 #define DOS_HELPER_SET_DEBUG_STRING 0x11
 
+#define DOSEMU_BIOS_DATE          "02/25/93"
+
+
 void
 Usage(void)
 {
@@ -71,7 +78,8 @@ C  cdrom        v  video        X  X support    k  keyboard\n\
 i  port I/O     s  serial       m  mouse        #  interrupt\n\
 p  printer      g  general      c  config       w  warnings\n\
 h  hardware     I  IPC          E  EMS          x  XMS\n\
-M  DPMI         n  network      P  pktdrv       r  PIC\n");
+M  DPMI         n  network      P  pktdrv       r  PIC\n\
+S  sound\n");
 
 #else
 
@@ -80,7 +88,7 @@ C  cdrom        v  video        k  keyboard     i  port I/O\n\
 s  serial       m  mouse        #  interrupt    p  printer\n\
 g  general      c  config       w  warnings     h  hardware\n\
 I  IPC          E  EMS          x  XMS          M  DPMI\n\
-n  network      P  pktdrv       r  PIC\n");
+n  network      P  pktdrv       r  PIC          S  sound\n");
 
 #endif
 
@@ -97,6 +105,18 @@ n  network      P  pktdrv       r  PIC\n");
 /* returns non-zero major version number if DOSEMU is loaded */
 uint16 CheckForDOSEMU(void)
 {
+    int i;
+    unsigned char far *pos;
+    unsigned char b_date[8];
+
+    pos = MK_FP(0xF000, 0xFFF5);
+
+    for (i = 0; i < 8; i++)
+         b_date[i] = pos[i];
+
+    if (strncmp(b_date, DOSEMU_BIOS_DATE, 8) != 0)
+         return (0);
+
     _AL = DOS_HELPER_DOSEMU_CHECK;
 
     geninterrupt(DOS_HELPER_INT);
@@ -234,6 +254,10 @@ printDebugClass(char class, char value)
               printf("r  PIC        ");
               break;
 
+         case 'S':
+              printf("S  sound      ");
+              break;
+
          default:
               printf("%c  unknown    ", class);
               break;
@@ -259,7 +283,7 @@ printDebugClass(char class, char value)
          case '6':
          case '7':
          case '8':
-	 case '9':
+   case '9':
               printf(" LVL=%c  ", value);
               break;
 
@@ -319,9 +343,9 @@ uint16 ParseAndSetDebugString(char *userDebugStr)
     char class, value;
 
 #ifdef X_SUPPORT
-    const char debugAll[] = "-d-R-W-D-C-v-X-k-i-s-m-#-p-g-c-w-h-I-E-x-M-n-P-r";
+    const char debugAll[] = "-d-R-W-D-C-v-X-k-i-s-m-#-p-g-c-w-h-I-E-x-M-n-P-r-S";
 #else
-    const char debugAll[] = "-d-R-W-D-C-v-k-i-s-m-#-p-g-c-w-h-I-E-x-M-n-P-r";
+    const char debugAll[] = "-d-R-W-D-C-v-k-i-s-m-#-p-g-c-w-h-I-E-x-M-n-P-r-S";
 #endif
 
     //expand the user string to a canonical form
@@ -344,7 +368,7 @@ uint16 ParseAndSetDebugString(char *userDebugStr)
               strcpy(debugStr, debugAll);
               j = strlen(debugStr);
               for (k = 0; k < j; k += 2)
-	           debugStr[k] = value;
+             debugStr[k] = value;
               continue;
          }
 

@@ -344,7 +344,11 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   limit2 += base2;
   if ((limit2 < base2 || limit2 >= 0xC0000000) && ldt_info.seg_not_present == 0) {
     if (base2 >= 0xC0000000) {
-      ldt_info.seg_not_present = seg_not_present = 1;
+      ldt_info.seg_not_present = 
+#ifdef WANT_WINDOWS
+      seg_not_present = 
+#endif
+      1;
       D_printf("DPMI: WARNING: set segment[0x%04x] to NOT PRESENT\n",entry);
     } else {
       if (ldt_info.limit_in_pages)

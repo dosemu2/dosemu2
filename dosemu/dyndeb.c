@@ -93,6 +93,9 @@ SetDebugFlagsHelper(char *debugStr)
     case 'r':
       d.request = value;
       break;
+    case 'S':
+      d.sound = value;
+      break;
     default:
       /* unknown flag, return failure */
       return (1);
@@ -147,6 +150,7 @@ GetDebugFlagsHelper(char *debugStr)
   debugStr[i++] = DebugFlag(d.network);  debugStr[i++] = 'n';
   debugStr[i++] = DebugFlag(d.pd);       debugStr[i++] = 'P';
   debugStr[i++] = DebugFlag(d.request);  debugStr[i++] = 'r';
+  debugStr[i++] = DebugFlag(d.sound);    debugStr[i++] = 'S';
 
   debugStr[i] = 0;
   dbug_printf("debugStr is %s\n", debugStr);

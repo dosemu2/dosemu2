@@ -1,5 +1,5 @@
 /********************************************
- * MOUSE.C
+ * EMUMOUSE.C
  *
  * Adjusts settings of the internal mouse driver of DOSEMU
  *
@@ -13,14 +13,19 @@
  *     changed from m to 2 and p to 3
  *   - Mouse speed value ranges from 1 to 255 mickeys
  *   - Arguments are case insensitiv
- * - Added argument h for help screen
+ * Modified:
+ *   - Added argument h for help screen
+ * Modified: 11/02/95 by Kang-Jin Lee
+ *   - Safer dosemu detection
  ********************************************/
 
 #include <dos.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define MHLP(rin, rout) int86(0xe6, &rin, &rout)
+#define DOSEMU_BIOS_DATE         "02/25/93"
 
 union REGS regs;
 
@@ -28,7 +33,7 @@ union REGS regs;
 /* Show help screen */
 void usage(void)
 {
-  printf("Usage: MOUSE [option]\n");
+  printf("Usage: EMUMOUSE [option]\n");
   printf("Utility to control the internal mousedriver of DOSEMU\n\n");
   printf("Options:\n");
   printf("  r       - Reset IRET.\n");
@@ -41,7 +46,7 @@ void usage(void)
   printf("  b       - Take application's settings of vert/horz speed settings.\n");
   printf("  h       - Display this screen.\n\n");
   printf("Valid range for \"value\" is from 1 (fastest) to 255 (slowest).\n\n");
-  printf("Example: MOUSE r a x 10 i\n");
+  printf("Example: EMUMOUSE r a x 10 i\n");
   printf("reset, fixed speed setting, set horizontal speed to 10 and show current\n");
   printf("  configuraton of the mouse\n\n");
 
@@ -51,6 +56,20 @@ void usage(void)
 /* Are we running under DOSEMU? */
 void isEmu(void)
 {
+  int i;
+  unsigned char far *pos;
+  unsigned char b_date[8];
+
+  pos = MK_FP(0xF000, 0xFFF5);
+
+  for (i = 0; i < 8; i++)
+    b_date[i] = pos[i];
+
+  if (strncmp(b_date, DOSEMU_BIOS_DATE, 8) != 0) {
+    printf("Dosemu BIOS signature not detected.\n");
+    exit(1);
+  }
+
   regs.x.ax = 0x0000;
   MHLP(regs, regs);
   if (regs.x.ax != 0xaa55) {

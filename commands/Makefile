@@ -8,7 +8,7 @@ SRC=exitemu.S vgaoff.S vgaon.S eject.S lredir.c lredir.readme dumpconf.asm \
 COM=exitemu.com vgaoff.com vgaon.com eject.com bootoff.com booton.com \
 	speed.com fossil.com
 EXE=lredir.com dumpconf.exe dosdbg.com lancheck.exe isemu.com unix.com \
-	unix.c emumouse.exe mgarrot.com mgarrot.a86 isemu.com \
+	unix.c emumouse.com mgarrot.com mgarrot.a86 isemu.com \
 	chdir.exe   getcwd.exe  system.exe
 SYS=emufs.sys ems.sys cdrom.sys
 DOC=README

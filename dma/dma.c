@@ -13,11 +13,16 @@
  * Oh well.  I'll dream on.
  *
  * DANG_END_REMARK
+ *
+ * modified 11/05/95 by Michael Beck
+ *  some minor bugs fixed in dma_trans() and other places
  */
 
 #include "emu.h" /* for h_printf */
 
 #include <fcntl.h>
+#include <errno.h>
+#include <linux/soundcard.h>
 #include "dma.h"
 #define DMA_0_3_BASE 0x00     /* The base address for the first dma controller */
 #define DMA_4_7_BASE 0xC0     /* The base address for the second */
@@ -221,38 +226,71 @@ unsigned char dma_read(unsigned int addr)
 void dma_trans()
 {
   unsigned char cur_ch;
-  unsigned int max_bytes;
+  unsigned int max_bytes, l;
 
-  h_printf ("DMA: Controller function\n");
-
-  for (cur_ch = 0; cur_ch++; cur_ch < 8)
+  /*
+     only the first dma-controller, as the higher channels need some
+     other constants; not needed now
+   */
+  for (cur_ch = 0; cur_ch < 4; ++cur_ch)
   {
+    if (!dma_ch[cur_ch].mask) {
     if (/* We want to transfer data */
-         (((dma_ch[cur_ch].dreq = DREQ_COUNTED) && (dma_ch[cur_ch].dreq_count != 0))
-           || (dma_ch[cur_ch].dreq = DREQ_ON)
-           || (dma_ch[cur_ch].request))
-         && (!dma_ch[cur_ch].mask)
-         && (dma_ch[cur_ch].cur_count))
+         (dma_ch[cur_ch].dreq == DREQ_COUNTED && dma_ch[cur_ch].dreq_count)
+           || (dma_ch[cur_ch].dreq == DREQ_ON)
+           || (dma_ch[cur_ch].request)
+       )
          { /* Okay, we have some work to do... */
-           max_bytes = dma_ch[cur_ch].cur_count;
-           if (max_bytes > dma_ch[cur_ch].dreq_count) max_bytes = dma_ch[cur_ch].dreq_count;
-           if (max_bytes + dma_ch[cur_ch].cur_count > (0x010000))
-             {max_bytes = 0x010000 - dma_ch[cur_ch].cur_count;};
-           if ((dma_ch[cur_ch].mode & DMA_WRITE) == DMA_WRITE)
-             {max_bytes = write(dma_ch[cur_ch].fd,
+           max_bytes = dma_ch[cur_ch].cur_count + 1;
+           if (max_bytes > dma_ch[cur_ch].dreq_count)
+	     max_bytes = dma_ch[cur_ch].dreq_count;
+
+           if (max_bytes + dma_ch[cur_ch].cur_addr > 0x010000)
+             max_bytes = 0x010000 - dma_ch[cur_ch].cur_addr;
+
+	   h_printf("DMA%d from 0x%X 0x%X\n", cur_ch,
+	            (dma_ch[cur_ch].page << 16) | dma_ch[cur_ch].cur_addr,
+		    max_bytes);
+
+           if (dma_ch[cur_ch].mode & DMA_WRITE) {
+             h_printf ("DMA: Write transfer\n");
+             l = write(dma_ch[cur_ch].fd,
+	              (dma_ch[cur_ch].page << 16) | dma_ch[cur_ch].cur_addr,
+                       max_bytes);
+           }
+           else if (dma_ch[cur_ch].mode & DMA_READ) {
+	     h_printf("DMA: Read transfer\n");
+	     l = read(dma_ch[cur_ch].fd,
                           ((dma_ch[cur_ch].page * 0x010000)
                             + dma_ch[cur_ch].cur_addr),
-                          max_bytes);}
-           else
-             {max_bytes = write(dma_ch[cur_ch].fd,
-                          ((dma_ch[cur_ch].page * 0x010000)
-                            + dma_ch[cur_ch].cur_addr),
-                          max_bytes);};
-           if (!(dma_ch[cur_ch].cur_count -= max_bytes))
-             {dma_ch[cur_ch].tc = 1;
-              if (dma_ch[cur_ch].tc_irq != -1) {pic_request(dma_ch[cur_ch].tc_irq);}};
-           if (!(dma_ch[cur_ch].dreq_count -= max_bytes))
-             {if (dma_ch[cur_ch].dreq_irq != -1) {pic_request(dma_ch[cur_ch].dreq_irq);}};
+                          max_bytes);
+	   }
+	   if (l == -1) {
+	     /*
+	      * I get error 4 (syscall interupted) all over the time
+	      * although the bytes seems to be outputed, so it's ignored
+	      * yet -- XXX FIXME
+	      */
+	     h_printf("ignoring device error %d\n", errno);
+	     max_bytes = 0;
+	   }
+	   else
+	     max_bytes = l;
+	   h_printf("DMA: transfered %d bytes\n", max_bytes);
+           dma_ch[cur_ch].cur_count -= max_bytes;
+           if (dma_ch[cur_ch].cur_count == -1) {
+	      dma_ch[cur_ch].tc = 1;
+              if (dma_ch[cur_ch].tc_irq != -1) {
+	        h_printf("DMA: TC triggers IRQ%d\n", dma_ch[cur_ch].tc_irq);
+	        pic_request(dma_ch[cur_ch].tc_irq);
+	      }
+	   }
+           if (!(dma_ch[cur_ch].dreq_count -= max_bytes)) {
+             if (dma_ch[cur_ch].dreq_irq != -1) {
+	       h_printf("DMA: DREQ triggers IRQ%d\n", dma_ch[cur_ch].dreq_irq);
+	       pic_request(dma_ch[cur_ch].dreq_irq);
+	     }
+	   }
            dma_ch[cur_ch].cur_addr += max_bytes;
            if (dma_ch[cur_ch].tc && (dma_ch[cur_ch].mode & DMA_AUTO_INIT)){
              dma_ch[cur_ch].cur_addr = dma_ch[cur_ch].base_addr;
@@ -260,15 +298,19 @@ void dma_trans()
              dma_ch[cur_ch].tc = 0;
            }
          }
+      }	 
   }
 }
-         
-/* psuedocode: (not nessisarily correct, but gives you idea  ....
-for loop = 0 to 7
- if ch is active
-   calculate ptr
-   call os
-   add return count to addr, subtract from count
-   if tc then 
-     if reload : reload
-     if irq : irq */
+
+void dma_init(void)
+{
+  int ch;
+
+  for (ch = 0; ch < 8; ++ch) {
+    dma_ch[ch].request  = 0;
+    dma_ch[ch].dreq     = DREQ_OFF;
+    dma_ch[ch].tc       = -1;
+    dma_ch[ch].dreq_irq = -1;
+    dma_ch[ch].mask     = 1;
+  }
+}

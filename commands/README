@@ -17,6 +17,9 @@ dumpconf.exe : ???
 
 eject.com    : eject CD-ROM from drive
 
+emumouse.com : fine tune internal mousedriver of Dosemu
+               emumouse h -- display help screen
+
 exitemu.com  : terminate Dosemu
 
 getcwd.exe   : get the Unix directory for Dosemu (use getcwd(2))
@@ -32,9 +35,6 @@ lredir.com   : redirect Linux directory to Dosemu
                lredir help -- display help screen
 
 mgarrot.com  : give up cpu time when Dosemu is idle
-
-emumouse.com : fine tune internal mousedriver of Dosemu
-               mouse h -- display help screen
 
 speed.com    : set cpu usage (HogThreshold) from inside Dosemu
 

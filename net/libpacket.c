@@ -8,6 +8,7 @@
  *	(c) 1994 Alan Cox	iiitac@pyr.swan.ac.uk	GW4PTS@GB7SWN
  */
 
+#include "kversion.h"
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
@@ -118,7 +119,7 @@ ReadFromNetwork(int sock, char *device, char *data, int len)
 /*
  *	NET2 or NET3 - work for both.
  */
-#ifdef OLD_SIOCGIFHWADDR
+#if defined(OLD_SIOCGIFHWADDR) || (KERNEL_VERSION >= 1003038)
 #define NET3
 #endif
 

@@ -194,7 +194,6 @@ void SIGALRM_call(void){
 #endif
   int retval;
   
-  h_printf("whoisit?\n");
 #ifdef X_SUPPORT
   if (config.X) 
      X_handle_events();

@@ -9,6 +9,8 @@
  *  Changes to eliminate warnings
  *  Display read/write status when redirecting drive
  *  Usage information is more verbose
+ * Changes: 11/02/95
+ *  Safer dosemu detection
  *
  * NOTES:
  *  LREDIR supports the following commands:
@@ -58,10 +60,23 @@ typedef unsigned int uint16;
 
 #define DOS_HELPER_INT          0xE6
 #define DOS_HELPER_DOSEMU_CHECK 0x00
+#define DOSEMU_BIOS_DATE        "02/25/93"
 
 /* returns non-zero major version number if DOSEMU is loaded */
 uint16 CheckForDOSEMU(void)
 {
+    int i;
+    unsigned char far *pos;
+    unsigned char b_date[8];
+
+    pos = MK_FP(0xF000, 0xFFF5);
+
+    for (i = 0; i < 8; i++)
+      b_date[i] = pos[i];
+
+    if (strncmp(b_date, DOSEMU_BIOS_DATE, 8) != 0)
+      return (0);
+
     _AL = DOS_HELPER_DOSEMU_CHECK;
     geninterrupt(DOS_HELPER_INT);
 

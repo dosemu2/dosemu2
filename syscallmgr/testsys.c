@@ -20,6 +20,12 @@
 #include <asm/string.h>
 #include <asm/irq.h>
 
+#if KERNEL_VERSION >= 1003038
+  /* need this to force  kernel_version[]=UTS_RELEASE,
+   * starting with 1.3.38 defines are moved into <linux/module.h> */
+  #undef __NO_VERSION__ 
+  #define MODULE
+#endif
 #include <linux/module.h>
 #include "syscallmgr.h"
 
@@ -30,6 +36,7 @@
   #define ___static static
 #endif
 
+#if KERNEL_VERSION < 1003038
 /*
  * NOTE:
  *   To install the module, we must include the kernel identification string.
@@ -41,6 +48,7 @@
 #include "linux/version.h"
 #endif
 static char kernel_version[] = UTS_RELEASE;
+#endif
 
 #define ID_STRING "Testsys"
 

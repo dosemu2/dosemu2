@@ -76,6 +76,7 @@ static unsigned long              pic_smm;          /* 32=>special mask mode, 0 
 static unsigned long   pic_pirr;         /* pending requests: ->irr when icount==0 */
 static unsigned long   pic_wirr;             /* watchdog timer for pic_pirr */
 static unsigned long   pic_wcount = 0;       /* watchdog for pic_icount  */
+unsigned long	pic_icount_od = 1;           /* overdrive for pic_icount_od */
 unsigned long   pic0_imr = 0xf800;  /* IRQs 3-7 on pic0 start out disabled */
 unsigned long   pic1_imr = 0x07f8;  /* IRQs 8-15 on pic1 start out disabled */
 unsigned long   pic_imr = 0xfff8;   /* interrupt mask register, enable irqs 0,1 */
@@ -151,7 +152,6 @@ static unsigned char pic0_icw_state; /* 0-3=>next port 1 write= mask,ICW2,3,4 */
 static unsigned char pic1_icw_state;
 static unsigned char pic0_cmd; /* 0-3=>last port 0 write was none,ICW1,OCW2,3*/
 static unsigned char pic1_cmd;
-static unsigned char pic_db_icount; /* flag for debug messages:+,-, or blank */                    
 
 /* DANG_BEGIN_FUNCTION pic_print
  *
@@ -228,14 +228,20 @@ if(d.request&code){
 void inline pic_push(int val)
 {
     if(pic_sp<32){
-    pic_stack[++pic_sp]=val;
+       pic_stack[pic_sp++]=val;
+    } else {
+       pic_print(1,"pic_stack overrun! ",0,"");
     }
 }
 
 inline int pic_pop()
 {
-    if(pic_sp)
-    return pic_stack[pic_sp--];
+    if(pic_sp) {
+       return pic_stack[--pic_sp];
+    } else {
+       pic_print(1,"pic_stack empty! ",0,"");
+       return 32;
+    }
 }
 
 
@@ -298,7 +304,12 @@ static char                icw_max_state;          /* number of icws expected   
 int ilevel;			  /* level to reset on outb 0x20  */
 
 ilevel=pic_ilevel;
-if(pic_sp) ilevel=pic_stack[pic_sp]; 
+if(pic_sp) {
+   if(ilevel!=pic_stack[pic_sp-1]) {
+      pic_print(2,"ilevel=",ilevel," differed from pic_stack");
+   }
+   ilevel=pic_stack[pic_sp-1];
+}
 
 if(!port){                          /* icw1, ocw2, ocw3 */
   if(value&0x10){                   /* icw1 */
@@ -314,10 +325,15 @@ if(!port){                          /* icw1, ocw2, ocw3 */
     pic0_cmd=3;
     }
   else if((value&0xb8) == 0x20) {    /* ocw2 */
+     if(!pic_sp) {
+	pic_print(2,"EOI with nothing on pic_stack! ilevel=",ilevel,"");
+     } else if(pic_stack[pic_sp-1]!=ilevel) {
+	pic_print(2,"Stack value differed from ilevel! stack=",pic_stack[pic_sp-1],"");
+     }
     /* irqs on pic1 require an outb20 to each pic. we settle for any 2 */
      if(!clear_bit(ilevel,&pic1_isr)) {
        clear_bit(ilevel,&pic_isr);  /* the famous outb20 */
-       pic_pop();  /* only pop stack when pic_isr gets cleared */
+       pic_ilevel=pic_pop();  /* only pop stack when pic_isr gets cleared */
        pic_print(1,"EOI resetting bit ",ilevel, " on pic0");
        }
      else
@@ -348,7 +364,12 @@ static char /* icw_state, */     /* !=0 => port 1 does icw 2,3,(4) */
 int ilevel;			  /* level to reset on outb 0x20  */
 
 ilevel=pic_ilevel;
-if(pic_sp) ilevel=pic_stack[pic_sp]; 
+if(pic_sp) {
+   if(ilevel!=pic_stack[pic_sp-1]) {
+      pic_print(2,"ilevel=",ilevel," differed from pic_stack");
+   }
+   ilevel=pic_stack[pic_sp-1];
+}
 
 if(!port){                            /* icw1, ocw2, ocw3 */
   if(value&0x10){                     /* icw1 */
@@ -363,10 +384,15 @@ if(!port){                            /* icw1, ocw2, ocw3 */
     pic1_cmd=3;
     }
   else if((value&0xb8) == 0x20) {    /* ocw2 */
+     if(!pic_sp) {
+	pic_print(2,"EOI with nothing on pic_stack! ilevel=",ilevel,"");
+     } else if(pic_stack[pic_sp-1]!=ilevel) {
+	pic_print(2,"Stack value differed from ilevel! stack=",pic_stack[pic_sp-1],"");
+     }
     /* irqs on pic1 require an outb20 to each pic. we settle for any 2 */
      if(!clear_bit(ilevel,&pic1_isr)) {
        clear_bit(ilevel,&pic_isr);  /* the famous outb20 */
-       pic_pop();  /* only pop stack when pic_isr gets cleared */
+       pic_ilevel=pic_pop();  /* only pop stack when pic_isr gets cleared */
        pic_print(1,"EOI resetting bit ",ilevel, " on pic0");
        }
      else
@@ -429,6 +455,7 @@ unsigned char port;
 void pic_unmaski(level)
 int level;
 {
+ pic_print(2,"Unmasking lvl= ",level,"");
  if(pic_iinfo[level].func != (void*)0) clear_bit(level,&pice_imr);
  pic_set_mask;
 }
@@ -437,6 +464,7 @@ int level;
 void pic_maski(level)
 int level;
 {
+  pic_print(2,"Masking lvl= ",level,"");
   set_bit(level,&pice_imr);
 }
 
@@ -621,8 +649,8 @@ int do_irq()
     if(pic_ilevel==32) return 0;
     intr=pic_iinfo[pic_ilevel].ivec;
 
-    if(pic_ilevel==PIC_IRQ9)      /* unvectored irq9 just calls int 0x1a.. */
-      if(!IS_REDIRECTED(intr)) {intr=0x1a;pic1_isr&= 0xffef;} /* & one EOI */
+    if(pic_ilevel==PIC_IRQ9)      /* unvectored irq9 just calls int 0x0a.. */
+      if(!IS_REDIRECTED(intr)) {intr=0x0a;pic1_isr&= 0xffef;} /* & one EOI */
     if(IS_REDIRECTED(intr)||pic_ilevel<=PIC_IRQ1||in_dpmi)
     {
 #if 1 /* BUG CATCHER (if 1) */
@@ -664,7 +692,7 @@ g_printf("+%d",pic_ilevel);
           }
         pic_isr &= PIC_IRQALL;    /*  levels 0 and 16-31 are Auto-EOI  */
         serial_run();           /*  delete when moved to timer stuff */
-        run_irqs();
+        if(pic_irr) run_irqs();
 #if 0
 #ifdef USING_NET
         /* check for available packets on the packet driver interface */
@@ -697,14 +725,15 @@ g_printf("+%d",pic_ilevel);
  *
  * DANG_END_FUNCTION
  */
-void pic_request(inum)
+int pic_request(inum)
 int inum;
 {
 static char buf[81];
+  int ret=0;
   if (pic_iinfo[inum].func == (void *)0)
-    return; 
+    return ret; 
 #if 1		/* use this result mouse slowndown in winos2 */
-  if((pic_irr|pic_isr)&(1<<inum) || (inum==pic_ilevel && pic_icount !=0))
+  if((pic_irr|pic_isr)&(1<<inum) || pic_icount>pic_icount_od)
 #else          /* this make mouse work under winos2, but sometime */
 	       /* result in internal stack overflow  */
   if(pic_isr&(1<<inum) || pic_irr&(1<<inum))
@@ -717,14 +746,18 @@ static char buf[81];
      pic_print(2,"Requested irq lvl ",    inum, " pending  ");
       }
     pic_pirr|=(1<<inum);
-    if(pic_itime[inum] == pic_ltime[inum]) pic_itime[inum] = pic_itime[32];
+    if(pic_itime[inum] == pic_ltime[inum]) {
+       pic_print(2,"pic_itime and pic_ltime for timer ",inum," matched!");
+       pic_itime[inum] = pic_itime[32];
+    }
     pic_ltime[inum] = pic_itime[inum];
-            }
+ }
   else {
     pic_print(2,"Requested irq lvl ",    inum, " successfully");
     pic_irr|=(1<<inum);
     if(pic_itime[inum] == pic_ltime[inum]) pic_itime[inum] = pic_itime[32];
     pic_ltime[inum] = pic_itime[inum];
+    ret=1;
   }
   if (d.request&2) {
     /* avoid going through sprintf for non-debugging */
@@ -732,7 +765,7 @@ static char buf[81];
     pic_print(2,"Zeroing vm86, DPMI from ",pic_vm86_count,buf);
   }
   pic_vm86_count=pic_dpmi_count=0;
-  return;
+  return ret;
 }
 
 
@@ -760,18 +793,18 @@ pic_iret()
 {
 unsigned char * ssp;
 unsigned long sp;
+unsigned long pic_newirr;
 
-  pic_db_icount=' ';
   if(in_dpmi) {
     if(pic_icount) {
-    pic_db_icount='-';
-      if(!(--pic_icount)&!(pic_irr)) {
-        pic_irr|=(pic_pirr&~pic_isr);
-        pic_pirr&=~pic_irr;
-        pic_wirr&=~pic_irr;		/* clear watchdog timer */
-	pic_activate();
-	if(!pic_irr) dpmi_eflags &= ~VIP;
-      }
+       pic_icount--;
+       pic_newirr=pic_pirr&~pic_irr&~pic_isr;
+       pic_irr|=pic_newirr;
+       pic_pirr&=~pic_newirr;
+       pic_wirr&=~pic_newirr;        /* clear watchdog timer */
+       if(pic_icount<=pic_icount_od)
+	  pic_activate();
+       if(!pic_irr) dpmi_eflags &= ~VIP;
     } 
      pic_print(2,"IRET in dpmi, loops=",pic_dpmi_count," ");
      pic_dpmi_count=0;
@@ -785,14 +818,14 @@ unsigned long sp;
  if(REG(cs) == PIC_SEG)
    if(LWORD(eip) == PIC_OFF) {
     if(pic_icount) { 
-    pic_db_icount='-';
-      if(!(--pic_icount)) {
-        pic_irr|=(pic_pirr&~pic_isr);
-        pic_pirr&=~pic_irr;
-        pic_wirr&=~pic_irr;		/* clear watchdog timer */
-        pic_activate();
-        if(!pic_irr) REG(eflags)&=~(VIP);
-      }
+       pic_icount--;
+       pic_newirr=pic_pirr&~pic_irr&~pic_isr;
+       pic_irr|=pic_newirr;
+       pic_pirr&=~pic_newirr;
+       pic_wirr&=~pic_newirr;        /* clear watchdog timer */
+       if(pic_icount<=pic_icount_od)
+	  pic_activate();
+       if(!pic_irr) REG(eflags)&=~(VIP);
     }
      pic_print(2,"IRET in vm86, loops=",pic_vm86_count," ");
      pic_vm86_count=0;
@@ -817,38 +850,31 @@ unsigned long sp;
  */
 inline void pic_watch(s_time)
 struct timeval* s_time;
-
 {
 int timer,t_time;
-  pic_db_icount=pic_icount?'-':' ';
-  if(pic_wirr) {
-    pic_irr|=(pic_wirr&~pic_isr);   /* activate anything still pending */
-    pic_pirr&=~pic_irr;
-    pic_wirr&=~pic_irr;
-    pic_wirr|=pic_pirr;   	  /* set a new pending list for next time */
-    if(!pic_wirr) {
-       pic_print(2,"watch: count reset from ",pic_icount, " to 0");
-       pic_icount=0;
-    }
-  }
-  if(pic_icount > pic_wcount) pic_icount = pic_wcount;
-  pic_wcount=0;
-  if(!pic_icount) pic_activate();
+unsigned long pic_newirr;
+
+  pic_newirr=pic_wirr&~pic_irr&~pic_isr;
+  pic_irr|=pic_newirr;
+  pic_pirr&=~pic_newirr;
+  pic_wirr&=~pic_newirr;
+  pic_wirr|=pic_pirr;   	  /* set a new pending list for next time */
+/*  pic_activate(); */
 
   /*  calculate new sys_time */
   t_time = (s_time->tv_sec%900)*1193047 
            + (s_time->tv_usec*1193)/1000  /* This is usec * 1.193047 split */
            + s_time->tv_usec/21277;        /* up to fit in 32 bit integer math */
   /* check for any freshly initiated timers, and sync them to s_time */
-  for(timer=1;timer<32;++timer) {
+/*  for(timer=1;timer<32;++timer) {
       if(pic_itime[timer] < (-900*1193047) && pic_itime[timer] != NEVER)
          pic_itime[timer] += t_time - NEVER;
-  }
+  } */
   pic_print(2,"pic_itime[1]= ",pic_itime[1]," ");
   /* Now check for wrap-around, and adjust all counters if needed.  Adjustment
      value is 900*1193047, or total counts in 15 min. */
   if(t_time<pic_sys_time) {
-     for (timer=1;timer<33;++timer) { 
+     for (timer=0;timer<33;++timer) { 
        if(pic_itime[timer]>=pic_dos_time) {
           pic_itime[timer] -= 900*1193047;
           pic_ltime[timer] -= 900*1193047;
@@ -859,24 +885,10 @@ int timer,t_time;
   pic_sys_time=t_time;
   pic_print(2,"pic_sys_time set to ",pic_sys_time," ");
   pic_dos_time = pic_itime[32];
-/*  pic_activate();*/
+  if(pic_icount<=pic_icount_od) pic_activate();
 }      
 
 
-/* DANG_BEGIN_FUNCTION do_irq0
- *
- * This is the routine for timer interrupts.  It simply calls pic_watch(),
- * then triggers IRQ0 via do_irq().
- *
- * DANG_END_FUNCTION
- */
-void do_irq0()
-{
-/*	if(pic_rflag) pic_watch();*/
-	do_irq();
-	timer_int_engine();
-} 
-   
 /* DANG_BEGIN_FUNCTION pic_pending
  * This function returns a non-zero value if the designated interrupt has
  * been requested and is not masked.  In these circumstances, it is important
@@ -908,7 +920,7 @@ int pic_pending(int ilevel)
 void pic_activate()
 {
 int earliest, timer, count;
-if(pic_irr&~pic_imr) return;
+/*if(pic_irr&~pic_imr) return;*/
    earliest = pic_sys_time;
    count = 0;
    for (timer=0; timer<32;++timer) { 
@@ -925,7 +937,7 @@ if(pic_irr&~pic_imr) return;
    }
    if(count) pic_print(2,"Activated ",count, "interrupts.");
    pic_print(2,"Activate ++ dos time to ",earliest, " ");
-   if(!pic_icount) pic_dos_time = pic_itime[32] = earliest;
+   /*if(!pic_icount)*/ pic_dos_time = pic_itime[32] = earliest;
 }
 
 /* DANG_BEGIN_FUNCTION pic_sched
@@ -957,12 +969,18 @@ int ilevel;
 int interval;
 {
   char mesg[35];
-  if(interval > 0 && interval < 0x3fffffff)  
-     pic_itime[ilevel] = pic_ltime[ilevel] + interval;
+  if(interval > 0 && interval < 0x3fffffff) {
+     if(pic_ltime[ilevel]==NEVER) {
+	pic_itime[ilevel] = pic_itime[32] + interval;
+     } else {
+	pic_itime[ilevel] = pic_itime[ilevel] + interval;
+     }
+  }
   if (d.request&2) {
     /* avoid going through sprintf for non-debugging */
     sprintf(mesg,", delay= %d.",interval);
     pic_print(2,"Scheduling lvl= ",ilevel,mesg);
+    pic_print(2,"pic_itime set to ",pic_itime[ilevel],"");
   }
 }
 #undef set_pic0_imr(x)

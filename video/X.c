@@ -96,7 +96,7 @@ extern void X_process_key(XKeyEvent *);
 #define MAX_UNCHANGED	3
 
 /* Kludge for incorrect ASCII 0 char in vga font. */
-#define XCHAR(w) (CHAR(w)?CHAR(w):' ')
+#define XCHAR(w) ((byte)(CHAR(w)?CHAR(w):' '))
 
 #if CONFIG_X_SELECTION
 #define SEL_ACTIVE(w) (visible_selection && ((w) >= sel_start) && ((w) <= sel_end))

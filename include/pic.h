@@ -56,12 +56,19 @@
 #define PIC_IMOUSE 17      /*  internal mouse driver       */
 
 #define PIC_IRQALL 0xfffe  /*  bits for all IRQs set. This never changes  */
+
 /* pic_irq_list translates irq numbers to pic_ilevels.  This is not used
    by pic routines; it is simply made available for configuration ease */
 EXTERN unsigned long pic_irq_list[] INIT({PIC_IRQ0,  PIC_IRQ1,  PIC_IRQ9,  PIC_IRQ3,
                                PIC_IRQ4,  PIC_IRQ5,  PIC_IRQ6,  PIC_IRQ7,
                                PIC_IRQ8,  PIC_IRQ9,  PIC_IRQ10, PIC_IRQ11,
                                PIC_IRQ12, PIC_IRQ13, PIC_IRQ14, PIC_IRQ15});
+
+/* pic_level_list translates  pic_ilevels to irq numbers.  This is not used
+   by pic routines; it is simply made available for configuration ease */
+EXTERN unsigned long pic_level_list[] INIT({
+                 -1, 0, 1, 8, 9, 10, 11, 12, 13, 14, 15, 3, 4, 5, 6, 7 });
+
 /* Some dos extenders modify interrupt vectors, particularly for IRQs 0-7 */
 
 /* PIC "registers", plus a few more */
@@ -107,7 +114,7 @@ void pic_seti(unsigned int level, void (*func), unsigned int ivec);
 void run_irqs();                                      /* run requested irqs */
 #define pic_run() if(pic_irr)run_irqs()   /* the right way to call run_irqs */
 int do_irq();                                /* run dos portion of irq code */
-void pic_request(int inum);                            /* interrupt trigger */
+int pic_request(int inum);                            /* interrupt trigger */
 void pic_creq(int inum);                   /* conditional interrupt trigger */
 void pic_iret();                             /* interrupt completion notify */
 void pic_watch();		       /* interrupt pendiong watchdog timer */

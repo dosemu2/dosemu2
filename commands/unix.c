@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <process.h>
 
+#define DOSEMU_BIOS_DATE  "02/25/93"
+
 int check_for_DOSEMU(void);
 void usage (void);
 send_command(char **argv);
@@ -90,10 +92,20 @@ send_command(char **argv)
     return(0);
 }
 
-
 int check_for_DOSEMU()
 {
+    int i;
+    unsigned char far *pos;
+    unsigned char b_date[8];
     struct REGPACK preg;
+
+    pos = MK_FP(0xF000, 0xFFF5);
+
+    for (i = 0; i < 8; i++)
+      b_date[i] = pos[i];
+
+    if (strncmp(b_date, DOSEMU_BIOS_DATE, 8) != 0)
+      return (0);
 
     preg.r_ax = 0x00;
     intr(0xe6, &preg);

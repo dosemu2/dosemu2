@@ -74,8 +74,8 @@ and probably is unimportant since dosemu uses its own bios, not the pc's */
 #define DMA_CH_SELECT         0x03   
 
 /* After that comes the direction of the transfer */
-#define DMA_WRITE             0x04  /* This is the write mode */
-#define DMA_READ              0x08  /* This is the read mode */
+#define DMA_READ              0x04  /* This is the read mode */
+#define DMA_WRITE             0x08  /* This is the write mode */
 #define DMA_VERIFY            0x00  /* Verify mode, not supported */
 #define DMA_INVALID           0x0C  /* Invalid on the real thing */
 
@@ -100,4 +100,5 @@ DMA_CH_SELECT, and the following: */
 void dma_write(unsigned int addr, unsigned char value);
 unsigned char dma_read(unsigned int addr);
 void dma_trans();
+void dma_init(void);
 

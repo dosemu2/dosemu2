@@ -25,6 +25,19 @@ function zeropad() {
   fi
 }
 
+if [ "$2" = "-dotsOK" ]; then
+  VV=`grep '#define KERNEL_VERSION' ${1}/include/kversion.h  |awk '{print $3}'`
+#  VV=`expr 0 + $VV`
+  if [ ! $VV -lt 1003040 ]; then
+    echo ""
+    echo '  - CAUTION, you compiled for Linux >= 1.3.40'
+    echo '    This requires to mount MSDOS-FS with option dotsOK=no like this:'
+    echo '    mount -t msdos -o dotsOK=no /dev/... /mnt'
+  fi
+  exit 0
+fi
+
+
 if [ -z "$1" ]; then
   KERNELSRC="-find"
 else

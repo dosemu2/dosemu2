@@ -159,7 +159,7 @@ extern void yyrestart(FILE *input_file);
 /* %token UPDATEFREQ UPDATELINES COLOR CORNER METHOD NORMAL XTERM NCURSES FAST */
 	/* debug */
 %token IO PORT CONFIG READ WRITE KEYB PRINTER WARNING GENERAL HARDWARE
-%token L_IPC
+%token L_IPC SOUND
 	/* printer */
 %token COMMAND TIMEOUT OPTIONS L_FILE
 	/* disk */
@@ -486,6 +486,7 @@ debug_flag	: VIDEO bool		{ d.video = $2; }
 		| L_EMS bool		{ d.EMS = $2; }
 		| NETWORK bool		{ d.network = $2; }
 		| L_X bool		{ d.X = $2; }
+		| SOUND	bool		{ d.sound = $2; }
 		| STRING
 		    { yyerror("unrecognized debug flag '%s'", $1); free($1); }
 		| error

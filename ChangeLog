@@ -1,3 +1,62 @@
+Fri Nov 10      1995
+- From Hans Lermen (and Kevin Buhr): Fix for timerlock-bug
+
+  This includes the patch from Kevin Buhr (good work),
+  plus some fixes to make hardware-IRQs work (Sillyint),
+  plus some other pic fixes (correct now, but wasn't the reason for the lock)
+  plus THE (one line) fix for the _real_ bug:
+
+    Once again we messed up with VIF flag, hence letting ints pass
+    through. even if CLI was active.
+    This apparently was one 'bug-catcher' we left back during the
+    the great hunt for 'the bug of bugs' some month ago.
+    (Hmm... I say 'we', but very well may be that it was 'me') 
+
+  I also introduced a
+    #define USE_UNIX_TIME_FOR_INT1A_AH0
+  which should be defined at top of dosemu/int.c to get the 'old' code,
+  which does not use the BIOS 40:6c timer, but got the time from Linux
+  and overwrites 40:6c.
+  Currently it is not defined, so INT1A AH=0 gets time from 40:6c,
+  however, if somone gets 'timerlocks' again (which I don't hope),
+  then try witch defineing USE_UNIX_TIME_FOR_INT1A_AH0 and report to the
+  team.
+
+- removed timerlock-Workaround patch (was added Nov 01)
+- added upgrade for Linux-1.3.38 (emumodule, syscallmgr, net/libpacket.c)
+
+Wed Nov 06      1995
+- From Michael Beck : Patches to SBEmu
+
+Mon Nov 06      1995
+- From Michael Beck : Enhancements to SB and DMA emulation
+
+Sun Nov 05      1995
+- Removed priv_on/off patches from Yanming (were added Oct 29 )
+  (inhibited port-IO)
+
+Sat Nov 04      1995
+- From Kang-Jin Lee: Mods to better detect DOSEmu
+- From Kevin Buhr : Interim fix to timer stopping.
+  (removed the same day because of hardware-IRQ conflicts)
+
+Fri Nov 03      1995
+-  X-char patch to cast display to correct sizes
+
+Wed Nov 01      1995
+- Workaround for boot-up-timer-lock-BUG. (Hans)
+
+Sun Oct 29      1995
+ - From Yanming <peng@mech.kuleuven.ac.be>, 
+	fix iopl/ioperm permission bug:
+ - remove some wrong priv_on()/priv_off() calls.
+ - Add 2 parameters to priv_on()/priv_off() calls.
+ - Minor fix to compile without REQUIRES_EMUMODULE.
+
+Sat Oct 28      1995
+
+- *** pre-release pre0.60.4.4 uploaded from rddc to tsx-11 ***
+
 Sun Oct 22 22:32:45 1995  John Kohl  <jtk@pattern.arlington.ma.us>
 
    * Update emm.c to avoid release string-induced problems on NetBSD.

@@ -237,6 +237,7 @@ general			return(GENERAL);
 hardware		return(HARDWARE);
 ipc			return(L_IPC);
 network			return(NETWORK);
+sound			return(SOUND);
 
 	/* printer stuff */
 

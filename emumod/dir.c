@@ -18,10 +18,10 @@
 
 #include "kversion.h"
 #if 0
-#define KERNEL_VERSION 1003036 /* last verified kernel version */
+#define KERNEL_VERSION 1003040 /* last verified kernel version */
 #endif
 
-#if (KERNEL_VERSION  >= 1003004) && defined(REPAIR_ODD_MSDOS_FS)
+#if (KERNEL_VERSION  >= 1003004) && (KERNEL_VERSION  < 1003040) && defined(REPAIR_ODD_MSDOS_FS)
 
 #if 0
 #ifdef MODULE

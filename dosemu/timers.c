@@ -165,6 +165,8 @@ void initialize_timers(void)
 
   ticks_accum   = 0;
   timer_div     = (pit[0].cntr * 10000) / CLOCK_TICK_RATE;
+
+  timer_tick();  /* a starting tick! */
 }
 
 /*
@@ -210,8 +212,8 @@ void timer_tick(void)
 
 void set_ticks(unsigned long new)
 {
-  unsigned long *ticks = BIOS_TICK_ADDR;
-  unsigned char *overflow = TICK_OVERFLOW_ADDR;
+  volatile unsigned long *ticks = BIOS_TICK_ADDR;
+  volatile unsigned char *overflow = TICK_OVERFLOW_ADDR;
 
   ignore_segv++;
   *ticks = new;
@@ -520,8 +522,8 @@ void timer_int_engine(void)
 #else
 void timer_int_engine(void)
 {
- do_irq();
  pic_sched(PIC_IRQ0,pit[0].cntr);
+ do_irq();
 }
 
 #endif
