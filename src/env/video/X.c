@@ -2320,9 +2320,11 @@ static void X_modify_mode()
   RemapObject tmp_ro;
 
   if(vga.reconfig.mem) {
-    if(remap_obj.src_mode == MODE_PSEUDO_8 || remap_obj.src_mode == MODE_VGA_X) {
-
-      tmp_ro = remap_init(vga.mem.planes == 1 ? MODE_PSEUDO_8 : MODE_VGA_X, ximage_mode, remap_features);
+    if(remap_obj.src_mode == MODE_PSEUDO_8 || remap_obj.src_mode == MODE_VGA_X || remap_obj.src_mode == MODE_VGA_4) {
+	   if (remap_obj.src_mode == MODE_VGA_4)
+		 tmp_ro = remap_init(MODE_VGA_4, ximage_mode, remap_features);
+	   else
+		 tmp_ro = remap_init(vga.mem.planes == 1 ? MODE_PSEUDO_8 : MODE_VGA_X, ximage_mode, remap_features); 
       *tmp_ro.dst_color_space = X_csd;
       tmp_ro.dst_image = ximage->data;
       tmp_ro.src_resize(&tmp_ro, vga.width, vga.height, vga.scan_len);

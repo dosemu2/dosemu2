@@ -57,9 +57,9 @@
  * Just type 'make' in the dosemu dir and it will recompile the changes only.
  * DANG_END_REMARK
  */
-#define SER_DEBUG_MAIN       0		/* 0 or 1 */
-#define SER_DEBUG_HEAVY      0		/* 0 or 1 */
-#define SER_DEBUG_INTERRUPT  0		/* 0 or 1 */
+#define SER_DEBUG_MAIN       1		/* 0 or 1 */
+#define SER_DEBUG_HEAVY      1		/* 0 or 1 */
+#define SER_DEBUG_INTERRUPT  1		/* 0 or 1 */
 #define SER_DEBUG_FOSSIL_RW  0       	/* 0 or 1 */
 #define SER_DEBUG_FOSSIL_STATUS 0	/* 0 or 1 */
 

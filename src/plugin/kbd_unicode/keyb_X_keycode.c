@@ -481,7 +481,7 @@ static Boolean setup_keycode_to_keynum_mapping(Display *display)
 }
 
 static void setup_keycode_to_keynum(void *p, t_unicode dosemu_keysym, 
-	const char *str, size_t str_len)
+	const unsigned char *str, size_t str_len)
 {
 	KeySym xkey;
 	Display *display = p;

@@ -105,15 +105,13 @@ void receive_engine(int num)		/* Internal 16550 Receive emulation */
 {
   if (com[num].MCR & UART_MCR_LOOP) return;	/* Return if loopback */
 
-  /* Occasional stack overflows occured when "uart_fill" done inside intr */
-  if (!com[num].int_pend) uart_fill(num);
+  uart_fill(num);
 
   if (com[num].LSR & UART_LSR_DR) {	/* Is data waiting? */
     if (com[num].fifo_enable) {		/* Is it in FIFO mode? */
       if (com[num].rx_timeout) {		/* Has get_rx run since int? */
         com[num].rx_timeout--;			/* Decrement counter */
-        if (!com[num].rx_timeout && 	/* Has timeout counted down? */
-	 !(com[num].int_condition & RX_INTR)) {	/* and the int is not requested already */
+        if (!com[num].rx_timeout) {		/* Has timeout counted down? */
           com[num].LSRqueued |= UART_LSR_DR;
           if(s3_printf) s_printf("SER%d: Func receive_engine requesting RX_INTR\n",num);
           serial_int_engine(num, RX_INTR);	/* Update interrupt status */
@@ -121,8 +119,7 @@ void receive_engine(int num)		/* Internal 16550 Receive emulation */
       }
     }
     else { 				/* Not in FIFO mode */
-      if (com[num].rx_timeout &&		/* Has get_rx run since int? */
-       !(com[num].int_condition & RX_INTR)) {
+      if (com[num].rx_timeout) {		/* Has get_rx run since int? */
         com[num].LSRqueued |= UART_LSR_DR;
         com[num].rx_timeout = 0;		/* Reset timeout counter */
         if(s3_printf) s_printf("SER%d: Func receive_engine requesting RX_INTR\n",num);
@@ -179,8 +176,7 @@ void transmit_engine(int num)	/* Internal 16550 Transmission emulation */
     }
      
     /* Is FIFO empty, and is it time to trigger an xmit int? */
-    if (!com[num].tx_buf_bytes && com[num].tx_trigger && 
-     !(com[num].int_condition & TX_INTR)) {
+    if (!com[num].tx_buf_bytes && com[num].tx_trigger) {
       com[num].tx_trigger = 0;
       com[num].LSRqueued |= UART_LSR_TEMT | UART_LSR_THRE;
       if(s3_printf) s_printf("SER%d: Func transmit_engine requesting TX_INTR\n",num);
@@ -188,8 +184,7 @@ void transmit_engine(int num)	/* Internal 16550 Transmission emulation */
     }
   }
   else {					/* Not in FIFO mode */
-    if (com[num].tx_trigger && 			/* Is it time to trigger int */
-     !(com[num].int_condition & TX_INTR)) {
+    if (com[num].tx_trigger) { 			/* Is it time to trigger int */
       com[num].tx_trigger = 0;
       com[num].LSRqueued |= UART_LSR_TEMT | UART_LSR_THRE;
       if(s3_printf) s_printf("SER%d: Func transmit_engine requesting TX_INTR\n",num);
@@ -233,7 +228,7 @@ void modstat_engine(int num)		/* Internal Modem Status processing */
   
   com[num].MSRqueued = (com[num].MSRqueued & UART_MSR_DELTA) | newmsr | delta;
 
-  if (delta && !(com[num].int_condition & MS_INTR)) {
+  if (delta) {
     if(s2_printf) s_printf("SER%d: Modem Status Change: MSR -> 0x%x\n",num,newmsr);
     if(s3_printf) s_printf("SER%d: Func modstat_engine requesting MS_INTR\n",num);
     serial_int_engine(num, MS_INTR);		/* Update interrupt status */
@@ -390,37 +385,74 @@ void serial_int_engine(int num, int int_requested)
     transmit_engine(num);
   }
   
+  /* reset the served requests */
+  com[num].int_request &= (com[num].int_condition & com[num].IER);
+
   check_and_update_uart_status(num);
+
+  /* and just to be sure... */
+  com[num].int_request &= (com[num].int_condition & com[num].IER);
    
   /* Update the IIR status immediately */
   tmp = (com[num].int_condition & com[num].IER);
+
+  if(s3_printf) s_printf("SER%d: tmp=%d int_cond=%d int_req=%d int=%d\n",
+    num, tmp, com[num].int_condition, com[num].int_request, int_requested);
+  if (int_requested && !(int_requested & com[num].int_condition))
+    s_printf("SER%d: Warning: int_condition is not set for the requested interrupt!\n", num);
+
   if (!tmp)
     flag_IIR_noint(num);		/* No interrupt */
-  if (tmp & LS_INTR)
+  else if (tmp & LS_INTR)
     flag_IIR_linestat(num);		/* Line Status */
-  if (tmp & RX_INTR)
+  else if (tmp & RX_INTR)
     flag_IIR_receive(num);		/* Receive */
-  if (tmp & TX_INTR)
+  else if (tmp & TX_INTR)
     flag_IIR_transmit(num);		/* Transmit */
-  if (tmp & MS_INTR)
+  else if (tmp & MS_INTR)
     flag_IIR_modstat(num);		/* Modem Status */
-  
+
+  if (com[num].int_request) {
+    if(int_requested) s_printf("SER%d: Interrupt for another event (%d) is already requested\n",
+	num, com[num].int_request);
+    return;
+  }
+
+  if (!int_requested) {
+    if (!tmp) {
+      /* just an IIR update */
+      return;
+    }
+    else {
+      if(s3_printf) s_printf("SER%d: Requesting serial interrupt upon IIR update\n",
+        num);
+      int_requested = tmp;
+    }
+  }
+
   /* At this point, we don't much care which function is requested; that  
    * is taken care of in the serial_int_engine.  However, if interrupts are
    * disabled, then the Interrupt Identification Register must be set.
    */
 
   /* See if a requested interrupt is enabled */
-  if (!com[num].int_pend && com[num].int_enab && com[num].interrupt) {
+  if (com[num].int_enab && com[num].interrupt && (int_requested & com[num].IER)) {
     
-    if ((int_requested | com[num].int_condition) & com[num].IER) {
+    /* if no int was requested before, request this one */
+    if (!com[num].int_pend) {
       if(s3_printf) s_printf("SER%d: Func pic_request intlevel=%d, int_requested=%d\n", 
                  num, com[num].interrupt, int_requested);
       /*irq_source_num[com[num].interrupt] = num;*/ /* Permit shared IRQ */
       com[num].int_pend = 1;			/* Interrupt is now pending */
       pic_request(com[num].interrupt);		/* Flag PIC for interrupt */
     }
+    else
+      if(s3_printf) s_printf("SER%d: Interrupt already requested (%d)\n", 
+                 num, int_requested);
   }
+  else
+    if(s3_printf) s_printf("SER%d: Interrupt %d (%d) cannot be requested: enable=%d IER=0x%x\n", 
+        num, com[num].interrupt, int_requested, com[num].int_enab, com[num].IER);
 }  
 
 
@@ -478,19 +510,30 @@ pic_serial_run(void)
              com[num].int_condition);
 
   /* Execute any pre-interrupt code that may be necessary */
-  if (tmp & LS_INTR)			/* Receiver Line Status Interrupt */
-    flag_IIR_linestat(num);
-  if (tmp & RX_INTR)		/* Received Data Interrupt */
-    flag_IIR_receive(num);
-  if (tmp & TX_INTR)		/* Transmit Data Interrupt */
-    flag_IIR_transmit(num);
-  if (tmp & MS_INTR)		/* Modem Status Interrupt */
-    flag_IIR_modstat(num);
+  if (!tmp) {
+    flag_IIR_noint(num);		/* No interrupt */
+    com[num].int_request = 0;
+  }
+  else if (tmp & LS_INTR) {
+    flag_IIR_linestat(num);		/* Line Status */
+    com[num].int_request = LS_INTR;
+  }
+  else if (tmp & RX_INTR) {
+    flag_IIR_receive(num);		/* Receive */
+    com[num].int_request = RX_INTR;
+  }
+  else if (tmp & TX_INTR) {
+    flag_IIR_transmit(num);		/* Transmit */
+    com[num].int_request = TX_INTR;
+  }
+  else if (tmp & MS_INTR) {
+    flag_IIR_modstat(num);		/* Modem Status */
+    com[num].int_request = MS_INTR;
+  }
 
-  if (tmp)
+  if (com[num].int_request)
     do_irq();
   else {				/* What?  We can't be this far! */
-    flag_IIR_noint(num);
     s_printf("SER%d: Interrupt Error: cancelled serial interrupt!\n",num);  
     /* No interrupt flagged?  Then the interrupt was cancelled sometime
      * after the interrupt was flagged, but before pic_serial_run executed.
@@ -521,6 +564,7 @@ pic_serial_run(void)
    * DANG_FIXTHIS Perhaps this can be modified to limit max chain length?
    */
   into_irq = 0;
+  serial_int_engine(num, 0);              /* Update interrupt status */
   receive_engine(num);
   transmit_engine(num);
   modstat_engine(num);

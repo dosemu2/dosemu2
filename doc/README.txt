@@ -479,7 +479,7 @@ Alistair MacDonald
    
       $_hogthreshold = (1)   # 0 == all CPU power to DOSEMU
                              # 1 == max power for Linux
-                             # >1   the higher, the slower DOSEMU will be
+                             # >1   the higher, the faster DOSEMU will be
 
    If you have hardware, that is not supported under Linux but you have a
    DOS driver for, it may be necessary to enable IRQ passing to DOS.

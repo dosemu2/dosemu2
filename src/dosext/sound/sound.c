@@ -2659,7 +2659,7 @@ void sb_update_timers () {
   elapsed = (tp - oldtp) / 80;
 
   /* Save the old timer values for next time */
-  oldtp = tp;
+  oldtp += elapsed * 80;
 
   int08_irq = pic_irq_list[0x08];
 

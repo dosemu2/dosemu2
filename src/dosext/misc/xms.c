@@ -447,7 +447,6 @@ xms_control(void)
       x_printf("XMS: allocating HMA size 0x%04x\n", LWORD(edx));
       freeHMA = 0;
       LWORD(eax) = 1;
-      LO(bx) = 0x00;
     }
     else {
       x_printf("XMS: HMA already allocated\n");
@@ -466,7 +465,6 @@ xms_control(void)
     else {
       x_printf("XMS: freeing HMA\n");
       LWORD(eax) = 1;
-      LO(bx) = 0x00;
       freeHMA = 1;
     }
     break;
@@ -509,7 +507,7 @@ xms_control(void)
           */
   case 7:			/* Query A20 */
     LWORD(eax) = a20 ? 1 : 0;
-    LWORD(ebx) = 0;		/* no error */
+    LO(bx) = 0;			/* no error */
     break;
 
   case 8:			/* Query Free Extended Memory */
@@ -688,8 +686,6 @@ xms_query_freemem(int api)
     x_printf("XMS query free memory(new): %ldK %ldK\n",
 	     REG(eax), REG(edx));
   }
-
-  LO(bx) = 0x00;			/* no error */
 }
 
 static void
@@ -755,7 +751,6 @@ xms_allocate_EMB(int api)
       REG(edx) = h;
 
     LWORD(eax) = 1;		/* success */
-    LO(bx) = 0x00;
   }
 }
 
@@ -781,7 +776,6 @@ xms_free_EMB(void)
 
     x_printf("XMS: free'd EMB %d\n", h);
     LWORD(eax) = 1;
-    LO(bx) = 0x00;
   }
 }
 
@@ -796,8 +790,10 @@ xms_move_EMB(void)
   LWORD(eax) = 1;		/* start with success */
 #if 0
   LWORD(ebx) = 0xff00;		/* start with success */
-#else
-  LO(bx) = 0x00; /* do not touch BH, else Win98 boot failure */
+  LO(bx) = 0x00; /* do not touch BH, 
+		    else Win98 boot failure. */
+  /* also don't touch BL - the XMS spec only specifies  *
+   * BL = 0x00 for function 7 (query A20)		*/
 #endif
 
   if (e.SourceHandle == 0) {

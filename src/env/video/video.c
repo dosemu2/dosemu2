@@ -313,6 +313,12 @@ gettermcap(int i)
     co = ws.ws_col;
   }
 
+  if (co > MAX_COLUMNS || li > MAX_LINES) {
+    error("Screen size is too large: %dx%d, max is %dx%d\n",
+      co, li, MAX_COLUMNS, MAX_LINES);
+    leavedos(0x63);
+  }
+
   if (li == 0 || co == 0) {
     error("unknown window sizes li=%d  co=%d, setting to 80x25\n", li, co);
     li = LI;

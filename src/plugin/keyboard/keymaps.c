@@ -1374,6 +1374,7 @@ CONST unsigned char alt_map_hu_latin2[] =
   0};
 
 /* Polish keyboard */
+/*
 CONST unsigned char key_map_pl[] =
 {
   0, 27, '1', '2', '3', '4', '5', '6',
@@ -1421,7 +1422,56 @@ CONST unsigned char alt_map_pl[] =
   0, 0, 0, 0, 0, 0, '|', 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0};
+*/
 
+CONST unsigned char key_map_pl[] =
+{
+     0,27,'1','2','3','4','5','6',
+     '7','8','9','0','-','=',127,9,
+     'q','w','e','r','t','y','u','i',
+     'o','p','[',']',13,0,'a','s',
+     'd','f','g','h','j','k','l',';',
+     39,96,0,92,'z','x','c','v',
+     'b','n','m',',','.','/',0,'*',
+     0,32,0,0,0,0,0,0,
+     0,0,0,0,0,0,0,0,
+     0,0,'-',0,0,0,'+',0,
+     0,0,0,0,0,0,'<',0,
+     0,0,0,0,0,0,0,0,
+     0};
+     
+CONST unsigned char shift_map_pl[] =
+{
+     0,27,'!','@','#','$','%','^',
+     '&','*','(',')','_','+',127,9,
+     'Q','W','E','R','T','Y','U','I',
+     'O','P','{','}',13,0,'A','S',
+     'D','F','G','H','J','K','L',':',
+     34,'~',0,'|','Z','X','C','V',
+     'B','N','M','<','>','?',0,'*',
+     0,32,0,0,0,0,0,0,
+     0,0,0,0,0,0,0,0,
+     0,0,'-',0,0,0,'+',0,
+     0,0,0,0,0,0,'>',0,
+     0,0,0,0,0,0,0,0,
+     0};
+     
+CONST unsigned char alt_map_pl[] =
+{
+     0,0,0,'@',0,0,0,0,
+     0,0,0,0,0,0,0,0,
+     0,0,DEAD_OGONEK,0,0,0,0,0,
+     DEAD_ACUTE,0,0,0,0,0,DEAD_OGONEK,DEAD_ACUTE,
+     0,0,0,0,0,0,DEAD_STROKE,0,
+     0,0,0,0,DEAD_ABOVEDOT,DEAD_ACUTE,DEAD_ACUTE,0,
+     0,DEAD_ACUTE,0,0,0,0,0,0,
+     0,0,0,0,0,0,0,0,
+     0,0,0,0,0,0,0,0,
+     0,0,0,0,0,0,0,0,
+     0,0,0,0,0,0,0,0,
+     0,0,0,0,0,0,0,0,
+     0};
+     
 CONST unsigned char key_map_hr_cp852[] =
 {
   0, 27, '1', '2', '3', '4', '5', '6',
@@ -1741,7 +1791,7 @@ CONST struct dos_dead_key dos852_dead_map[] = {
 	{DEAD_CIRCUMFLEX, DEAD_CIRCUMFLEX, '^'}, {DEAD_DIAERESIS, DEAD_DIAERESIS, '"'},
 	{DEAD_TILDE, DEAD_TILDE, '~'}, {DEAD_DOUBLEACUTE, DEAD_DOUBLEACUTE, 241},
 	{DEAD_OGONEK, DEAD_OGONEK, 242}, {DEAD_CARON, DEAD_CARON, 243},
-	{DEAD_BREVE, DEAD_BREVE, 244},
+	{DEAD_BREVE, DEAD_BREVE, 244}, {DEAD_STROKE, DEAD_STROKE, 245},
 
 	{DEAD_ABOVERING, 'U', 222}, {DEAD_ABOVERING, 'u', 133},
 
@@ -1766,6 +1816,7 @@ CONST struct dos_dead_key dos852_dead_map[] = {
 	{DEAD_ACUTE, 'R', 232}, {DEAD_ACUTE, 'r', 234},
 	{DEAD_ACUTE, 'S', 151}, {DEAD_ACUTE, 's', 152},
 	{DEAD_ACUTE, 'U', 233}, {DEAD_ACUTE, 'u', 163},
+        {DEAD_ACUTE, 'X', 141}, {DEAD_ACUTE, 'x', 171},
 	{DEAD_ACUTE, 'Y', 237}, {DEAD_ACUTE, 'y', 236},
 	{DEAD_ACUTE, 'Z', 141}, {DEAD_ACUTE, 'z', 171},
 
@@ -1791,6 +1842,8 @@ CONST struct dos_dead_key dos852_dead_map[] = {
 	{DEAD_OGONEK, 'A', 164}, {DEAD_OGONEK, 'a', 165},
 	{DEAD_OGONEK, 'E', 168}, {DEAD_OGONEK, 'e', 169},
 
+        {DEAD_STROKE, 'L', 157}, {DEAD_STROKE, 'l', 136},
+       
         {0, 0, 0}
 };
 

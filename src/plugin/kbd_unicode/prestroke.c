@@ -133,6 +133,7 @@ static t_unicode *type_one_key(t_unicode *in)
 			return in;
 		}
 		default:
+                        ;
 			/* fall through */
 		}
 	}

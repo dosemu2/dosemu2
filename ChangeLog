@@ -1,3 +1,48 @@
+2002/03/10 ver 1.1.2.9 unofficial pre-release
+	From Stas
+	- fix for incorrect Wolfenstein 3D Adlib detection
+	- DMA indent patch to prepare for sound
+	- support for pause key
+	- add a little sleep to int16/ah=1,11 - this makes your current
+	  setting of hogthreshold feel differently, however programs
+	  polling the keyboard behave much nicer now
+	- new serial fixes  
+	From Stas and Bart
+	- MFS DOS path buffer overflow checks and fixes
+	- Fix buffer overflow in int10.c for the screen. This caused
+	  a page fault for terminals > 132x60. Enlarged this limit
+	  to 255x128 and enforced it.
+	From Etienne Lorrain (etienne@masroudeau.com)
+	- Subject: RBIL problem INT10/AH=0x1B table 00040 offset 22h
+	  off-by-one error: this should report the number of rows (not rows-1).
+	From Emmanuel Jeandel <ejeandel@ens-lyon.fr>  
+	- Patch for Lemmings : Lemmings is 16 color, but uses 4 planes mode
+	  (very unusual). It suffices to add few lines in X.c to treat it.
+	From Daniel Morris <email@tapestrycraft.com.au>
+	- changed MFS to return FILE_NOT_FOUND instead of PATH_NOT_FOUND for
+	  FIND_FIRST (this isn't always the proper solution but that would
+	  involve more reorganization of mfs.c - Bart)
+	From Miloslav Trmac <mitr@volny.cz>
+	- Disabled signals in the redirector to avoid problems with smbfs.
+	From Manfred Scherer <Manfred.Scherer.Mhm@t-online.de>
+	- fixed memory leak in mfs.c, enlarged DOS path to 66 characters max.
+	From Hartmut Richter <hartmutri@gmx.net>
+	- fix to avoid that serial input is lost in special situation
+	  (improved by Stas)
+	From Herbert Xu <herbert@gondor.apana.org.au>
+	- fix to avoid division by zero for "0 MHz" cpu's - apparently there
+	  are some broken /proc/cpuinfo's out there.
+	From Witold Filipczyk <juandon@poczta.onet.pl>
+	- Keyboard ALT 224; Polish_keyboard.patch (only applied to old
+	  keyboard code)
+	From Bart
+	- moved int16 code to monitor space, except for a wait-for-key loop
+	  for ah=0,10.
+	- fixed xms.c to only return BL=0 for successful A20 query: all others
+	  should not touch BL if "success" (referring to XMS spec)
+	- (with help from Alistair) doSgmlTools.pl adjustment but it still
+	  does not generate the right thing
+	- fixed all compiler warnings from gcc 2.95.x and gcc 3.0.x
 2002/01/23 ver 1.1.2.8 unofficial pre-release
 	From Bart
 	- The addresses in crtcemu need to be shifted by the current value

@@ -252,7 +252,17 @@ boolean_t mach_fs_enabled = FALSE;
 #define	SLASH		'/'
 #define BACKSLASH	'\\'
 
-#define MAX_PATH_LENGTH 57
+/* #define MAX_PATH_LENGTH 57 */
+/* 2001/01/05 Manfred Scherer
+ * With the value 57 I can create pathlength until 54.
+ * In native DOS I can create pathlength until 63.
+ * With the value 66 it should be possible to create
+ * paths with length 63.
+ * I've tested it on my own system, and I found the value 66
+ * ist right for me.
+ */
+
+#define MAX_PATH_LENGTH 66
 
 /* Need to know how many drives are redirected */
 static u_char redirected_drives = 0;
@@ -376,7 +386,7 @@ select_drive(state)
 {
   int dd;
   int bs_pos, i;
-  char fpath[1024];
+  char fpath[MAXPATHLEN];
   boolean_t found = 0;
   boolean_t check_cds = FALSE;
   boolean_t check_dpb = FALSE;
@@ -809,6 +819,7 @@ mfs_redirector(void)
   PRIV_SAVE_AREA
   int dos_fs_redirect();
   int ret;
+  sigset_t blockset, oldset;
 
   PS(MFS);
   if (!enter_priv_off()) {
@@ -816,7 +827,10 @@ mfs_redirector(void)
     return 0;
   }
 
+  sigfillset (&blockset);
+  sigprocmask(SIG_SETMASK, &blockset, &oldset);
   ret = dos_fs_redirect(&REGS);
+  sigprocmask(SIG_SETMASK, &oldset, NULL);
   leave_priv_setting();
   PE(MFS);
 
@@ -846,12 +860,16 @@ mfs_inte6(void)
   PRIV_SAVE_AREA
   boolean_t dos_fs_dev();
   boolean_t result;
+  sigset_t blockset, oldset;
 
   if (!enter_priv_off()) {
     leave_priv_setting();
     return 0;
   }
+  sigfillset (&blockset);
+  sigprocmask(SIG_SETMASK, &blockset, &oldset);
   result = dos_fs_dev(&REGS);
+  sigprocmask(SIG_SETMASK, &oldset, NULL);
   leave_priv_setting();
   return (result);
 }
@@ -1662,46 +1680,33 @@ strip_char(ptr, ch)
 }
 
 __inline__ static void
-path_to_ufs(char *ufs, char *path, int PreserveEnvVar)
+path_to_ufs(char *ufs, size_t ufs_offset, char *path, int PreserveEnvVar)
 {
   char ch;
-  int len = 0, inenv = 0;
-  char *wptr = ufs;
-  char *rptr = path;
+  int inenv = 0;
+  size_t dos_offset;
 
-  while ((ch = *rptr++) != EOS) {
+  for(dos_offset = 0;
+      (ch = path[dos_offset]) != EOS && ufs_offset < MAXPATHLEN - 1;
+      dos_offset++) {
     switch (ch) {
-    case ' ':
-      rptr++;
-      continue;
     case BACKSLASH:
-      if (PreserveEnvVar) {	/* Check for environment variable */
-	if ((rptr[0] == '$') && (rptr[1] == '{'))
-	  inenv = 1;
-	else
-	  ch = SLASH;
-      }
+      if (PreserveEnvVar && 	/* Check for environment variable */
+          (path[dos_offset+1] == '$') && (path[dos_offset+2] == '{'))
+        inenv = 1;
       else
 	ch = SLASH;
-      *wptr = ch;
       break;
     case '}':
       inenv = 0;
     default:
       if (!inenv)
-	*wptr = tolowerDOS(ch);
-      else
-	*wptr = ch;
-
+	ch = tolowerDOS(ch);
       break;
     }
-    wptr++;
-    len++;
+    ufs[ufs_offset++] = ch;
   }
-  *wptr = EOS;
-
-  if (ufs[len] == '.')
-    ufs[len] = EOS;
+  ufs[ufs_offset] = EOS;
 
   Debug0((dbg_fd, "dos_gen: path_to_ufs '%s'\n", ufs));
 }
@@ -1710,7 +1715,8 @@ static int build_ufs_path(ufs, path)
      char *ufs;
      char *path;
 {
-  char *p, *s;
+  char *s;
+  int i;
 
   Debug0((dbg_fd, "dos_fs: build_ufs_path for DOS path '%s'\n", path));
 
@@ -1727,28 +1733,17 @@ static int build_ufs_path(ufs, path)
   if (path[1]==':')
       path += cds_rootlen(cds);
 
-  /* remove spaces */
-  s = path; p = NULL;
-  while (*s && (*s==' ')) *s++ = '_';
-  while (*s && (*s!='.')) {
-  	if ((*s==' ') && (p==NULL)) p=s;
-  	s++;
-  }
-  if (p) {	/* space found */
-  	if (*s=='.') { while (*s && (*s!=' ')) *p++=*s++; }
-  	*p = 0;
-  }
   Debug0((dbg_fd,"MFS: dos_gen: ufs '%s', path '%s', l=%d\n", ufs, path, dos_root_len));
 
-  path_to_ufs(ufs + dos_root_len, path, 0);
-
+  path_to_ufs(ufs, dos_root_len, path, 0);
+  
   /* remove any double slashes */
-  path = ufs;
-  while (*path) {
-    if (*path == '/' && *(path + 1) == '/')
-      strcpy(path, path + 1);
+  i = 0;
+  while (ufs[i]) {
+    if (ufs[i] == '/' && ufs[i+1] == '/')
+      strcpy(&ufs[i], &ufs[i+1]);
     else
-      path++;
+      i++;
   }
  }
   Debug0((dbg_fd, "dos_fs: build_ufs_path result is '%s'\n", ufs));
@@ -1875,7 +1870,7 @@ _find_file(char *fpath, struct stat * st)
       return (FALSE);
     }
     else {
-      char remainder[1024];
+      char remainder[MAXPATHLEN];
       *slash1 = 0;
       if (slash2) {
 	remainder[0] = '/';
@@ -2350,7 +2345,7 @@ RedirectDisk(int dsk, char *resourceName, int ro_flag)
   /* see if drive is currently substituted */
   if(cds_flags(cds) & CDS_FLAG_SUBST) return 3;
 
-  path_to_ufs(path, &resourceName[strlen(LINUX_RESOURCE)], 1);
+  path_to_ufs(path, 0, &resourceName[strlen(LINUX_RESOURCE)], 1);
 
   i = init_drive(current_drive, path, ro_flag ? "R" : NULL) == 0 ? 4 : 0;
 
@@ -2438,7 +2433,7 @@ RedirectDevice(state_t * state)
     return (FALSE);
   }
 
-  path_to_ufs(path, &resourceName[strlen(LINUX_RESOURCE)], 1);
+  path_to_ufs(path, 0, &resourceName[strlen(LINUX_RESOURCE)], 1);
 
   /* if low bit of CX is set, then set for read only access */
   Debug0((dbg_fd, "read-only attribute = %d\n",
@@ -2678,8 +2673,8 @@ dos_fs_redirect(state)
   int bs_pos;
   char fname[8];
   char fext[3];
-  char fpath[1024];
-  char buf[1024];
+  char fpath[MAXPATHLEN];
+  char buf[MAXPATHLEN];
   struct dir_ent *tmp;
   struct stat st;
   boolean_t long_path;
@@ -2853,7 +2848,9 @@ dos_fs_redirect(state)
       else {
          Debug0((dbg_fd,"close: not setting file date/time\n"));
       }
-      /* free(filename1); Tim Josling says: prob not opened dont free stg */
+      free(filename1); 
+      /* Tim Josling says: prob not opened dont free stg -
+       * but needs to be freed according to Manfred Scherer */
       return (TRUE);
     }
   case READ_FILE:
@@ -3557,7 +3554,7 @@ dos_fs_redirect(state)
 	   
       hlist = get_dir(fpath, fname, fext);
       if (hlist==NULL)  {
-         SETWORD(&(state->eax), PATH_NOT_FOUND);
+         SETWORD(&(state->eax), FILE_NOT_FOUND);
          return (FALSE);
       }
    
@@ -3576,7 +3573,7 @@ dos_fs_redirect(state)
 
     hlist = get_dir(fpath, fname, fext);
     if (hlist==NULL)  {
-       SETWORD(&(state->eax), PATH_NOT_FOUND);
+       SETWORD(&(state->eax), FILE_NOT_FOUND);
        return (FALSE);
     }
 

@@ -164,16 +164,12 @@ void uart_fill(int num)
        * Reset the receive FIFO counter up to a value of 16 (configurable)
        * if we are not within an interrupt.
        */
-      if (!com[num].int_pend) {
-        if (com[num].rx_buf_bytes > com[num].rx_fifo_size)
-          com[num].rx_fifo_bytes = com[num].rx_fifo_size;
-        else
-          com[num].rx_fifo_bytes = com[num].rx_buf_bytes;
-      }
+      com[num].rx_fifo_bytes = com[num].rx_buf_bytes;
+      if (com[num].rx_fifo_bytes > com[num].rx_fifo_size)
+	      com[num].rx_fifo_bytes = com[num].rx_fifo_size;
       
       /* Has it gone above the receive FIFO trigger level? */
-      if (com[num].rx_buf_bytes >= com[num].rx_fifo_trigger &&
-       !(com[num].int_condition & RX_INTR)) {
+      if (com[num].rx_fifo_bytes >= com[num].rx_fifo_trigger) {
         if(s3_printf) s_printf("SER%d: Func uart_fill requesting RX_INTR\n",num);
         com[num].LSRqueued |= UART_LSR_DR;	/* Update queued LSR */
         serial_int_engine(num, RX_INTR);	/* Update interrupt status */
@@ -181,12 +177,11 @@ void uart_fill(int num)
       return;
     }
     /* Else, the following code executes if emulated UART is in 16450 mode. */    
-   if (!(com[num].int_condition & RX_INTR)) {
+
     com[num].rx_timeout = 0;			/* Reset receive timeout */
     com[num].LSRqueued |= UART_LSR_DR;		/* Update queued LSR */
     if(s3_printf) s_printf("SER%d: Func uart_fill requesting RX_INTR\n",num);
     serial_int_engine(num, RX_INTR);		/* Update interrupt status */
-   }
   }
 }
 
@@ -406,7 +401,7 @@ void ser_termios(int num)
    * coming from the mouse, during initialization, usually right after
    * the LCR register is set, so this is why this line of code is here
    */
-  if (com[num].mouse && !(com[num].int_condition & LS_INTR)) {
+  if (com[num].mouse) {
     com[num].LSRqueued |= UART_LSR_FE; 		/* Set framing error */
     if(s3_printf) s_printf("SER%d: Func ser_termios requesting LS_INTR\n",num);
     serial_int_engine(num, LS_INTR);		/* Update interrupt status */
@@ -473,7 +468,8 @@ static int get_rx(int num)
         com[num].int_condition &= ~RX_INTR;	/* Clear receive condition */
 
         /* DANG_FIXTHIS Is this safe to put this here? */
-        serial_int_engine(num, 0);		/* Update interrupt status */
+	/* I don't think so  - SS */
+//        serial_int_engine(num, 0);		/* Update interrupt status */
       }
       else {		
         /* No, the FIFO didn't drop below trigger, but clear timeout bit */
@@ -623,8 +619,7 @@ static void put_tx(int num, int val)
     if (com[num].fifo_enable) {		/* Is it in FIFO mode? */
     
       /* Is the FIFO full? */
-      if (com[num].rx_buf_bytes >= com[num].rx_fifo_size &&
-       !(com[num].int_condition & LS_INTR)) {
+      if (com[num].rx_buf_bytes >= com[num].rx_fifo_size) {
         if(s3_printf) s_printf("SER%d: Func put_tx loopback overrun requesting LS_INTR\n",num);
         com[num].LSR |= UART_LSR_OE;		/* Indicate overrun error */
         com[num].LSRqueued |= UART_LSR_OE;	/* Update queued LSR bits */
@@ -642,8 +637,7 @@ static void put_tx(int num, int val)
         if ((com[num].rx_buf_end - 1) >= RX_BUFFER_SIZE) rx_buffer_slide(num);
         
         /* Is it the past the receive FIFO trigger level? */
-        if (com[num].rx_buf_bytes >= com[num].rx_fifo_trigger &&
-	 !(com[num].int_condition & RX_INTR)) {
+        if (com[num].rx_buf_bytes >= com[num].rx_fifo_trigger) {
           com[num].rx_timeout = 0;
           com[num].LSRqueued |= UART_LSR_DR;	/* Flag Data Ready bit */
           if(s3_printf) s_printf("SER%d: Func put_tx loopback requesting RX_INTR\n",num);
@@ -654,15 +648,13 @@ static void put_tx(int num, int val)
     }
     else {				/* FIFOs not enabled */
       com[num].rx_buf[com[num].rx_buf_start] = val;  /* Overwrite old byte */
-      if (com[num].LSR & UART_LSR_DR &&		/* Was data waiting? */
-       !(com[num].int_condition & LS_INTR)) {
+      if (com[num].LSR & UART_LSR_DR) {		/* Was data waiting? */
         com[num].LSR |= UART_LSR_OE;		/* Indicate overrun error */
         com[num].LSRqueued |= UART_LSR_OE;	/* Update queued LSR bits */
         if(s3_printf) s_printf("SER%d: Func put_tx loopback overrun requesting LS_INTR\n",num);
         serial_int_engine(num, LS_INTR);	/* Update interrupt status */
       }
-      else 
-       if (!(com[num].int_condition & RX_INTR)) { 
+      else { 
         com[num].LSR |= UART_LSR_DR; 		/* Flag Data Ready bit */
         com[num].LSRqueued |= UART_LSR_DR; 	/* Flag Data Ready bit */
         com[num].rx_timeout = 0;
@@ -826,10 +818,8 @@ put_mcr(int num, int val)
     com[num].MSRqueued = com[num].MSR;
 
     /* Set the MSI interrupt flag if loopback changed the modem status */
-   if(!(com[num].int_condition & MS_INTR)) {
     if(s3_printf) s_printf("SER%d: Func put_mcr loopback requesting MS_INTR\n",num);
     if (delta) serial_int_engine(num, MS_INTR);    /* Update interrupt status */
-   }
 
   }
   else {				/* It's not in Loopback Mode */
@@ -837,7 +827,7 @@ put_mcr(int num, int val)
     if (changed & UART_MCR_LOOP) uart_clear_fifo(num,UART_FCR_CLEAR_CMD);
 
     /* Set interrupt enable flag according to OUT2 bit in MCR */
-    com[num].int_enab = (val & UART_MCR_OUT2);
+    com[num].int_enab = (val & UART_MCR_OUT2) ? 1 : 0;
 
     /* Force RTS & DTR reinitialization if the loopback state has changed */
     if (UART_MCR_LOOP) changed |= UART_MCR_RTS | UART_MCR_DTR;
@@ -899,10 +889,8 @@ put_lsr(int num, int val)
   com[num].LSRqueued = com[num].LSR;
 
   /* Update interrupt status */
-  if(!(com[num].int_condition & int_type)) {
-   if(s3_printf) s_printf("SER%d: Func put_lsr caused int_type = %d\n",num,int_type);
-   serial_int_engine(num, int_type);
-  }
+  if(s3_printf) s_printf("SER%d: Func put_lsr caused int_type = %d\n",num,int_type);
+  serial_int_engine(num, int_type);
 }
 
 
@@ -919,7 +907,7 @@ put_msr(int num, int val)
   com[num].MSRqueued = (com[num].MSRqueued & UART_MSR_DELTA) | com[num].MSR;
   
   /* Update interrupt status */
-  if ((com[num].MSRqueued & UART_MSR_DELTA) && !(com[num].int_condition & MS_INTR)) {
+  if (com[num].MSRqueued & UART_MSR_DELTA) {
     if(s3_printf) s_printf("SER%d: Func put_msr requesting MS_INTR\n",num);
     serial_int_engine(num, MS_INTR);
   }

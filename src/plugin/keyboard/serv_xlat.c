@@ -477,17 +477,27 @@ static uchar translate(t_keysym key, Boolean *is_accent) {
           * characters are generated. On US keyboards, translation is done 
           * with both ALT keys.
           */
-         if (!(config.keytable->flags & KT_USES_ALTMAP) || (shiftstate & R_ALT))
+        
+         /* BASIC style hack for Polish language.  ALT+DEAD_KEY -> accent=DEAD_KEY
+          * ch >= 32 should be "ch is not DEAD_KEY"
+          */ 
+          if (!(config.keytable->flags & KT_USES_ALTMAP) || (shiftstate & R_ALT)) {
             ch = config.keytable->alt_map[key];
+            if (ch >= 32) goto NEXT_CONDITION;
+            accent=ch;
+          }
+          else goto NEXT_CONDITION; 
       }
-      else if (shiftstate & SHIFT) {
-         ch = config.keytable->shift_map[key];
+      if (shiftstate & SHIFT) {
+	ch = config.keytable->shift_map[key];
       }
       else {   /* unshifted */
-         ch = config.keytable->key_map[key];
+        ch = config.keytable->key_map[key];
       }
    }
-
+   
+ NEXT_CONDITION:
+	   
    if (shiftstate & CTRL) {
       switch(ch) {
          case 0x40 ... 0x7e: ch&=0x1f; break;

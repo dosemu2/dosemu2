@@ -43,8 +43,13 @@ extern void scr_state_init(void);
 #define CURSOR_END(c)   ((int)((cshape*)&c)->end)
 #define NO_CURSOR 0x0100
 
-#define MAX_COLUMNS 132
-#define MAX_LINES 60
+/* 
+ * xterm allows to set virtually any screen size, but DOS applications
+ * and the BIOS really can't handle more than these numbers of rows and
+ * columns (128*255*2 < 65535)
+ */
+#define MAX_COLUMNS 255
+#define MAX_LINES 128
 
 #if 0
 #define SCREEN_ADR(s)	((ushort *)(virt_text_base + (s*TEXT_SIZE)))

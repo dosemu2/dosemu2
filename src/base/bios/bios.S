@@ -19,6 +19,7 @@
 #include "config.h"
 #include "memory.h"
 #include "macros86.h"
+#include "doshelpers.h"
 
 #include "keyb_server.h"
 
@@ -32,6 +33,7 @@
 #define KEYBUFFER_START 0x80
 #define KEYBUFFER_END 0x82
 #define KEYSHIFT_FLAGS 0x17
+#define KEYBOARD_FLAGS_2 0x18
 #define KEYBOARD_STATUS_3 0x96
 #define BIOS_TIMER 0x46c
 #define BIOS_TIMER_OVERFLOW 0x470
@@ -197,6 +199,23 @@ mouse_handler:
 	iret
 
 /* ----------------------------------------------------------------- */   
+	/* pause cycle */
+	.org	((Pause_SEG - BIOSSEG) << 4) + Pause_OFF
+/* ======================= Addr = F000:3000 (F3100) */
+	pushw 	%ds
+	pushw 	%ax
+	movw 	$BIOS_DATA,%ax
+	movw 	%ax,%ds
+idle_cycle:
+	movw    $0x1680,%ax		/* magic machine idle function  */
+	int     $0x2f
+	testb 	$PAUSE_MASK,KEYBOARD_FLAGS_2 /* is pause bit still set? */
+	jnz 	idle_cycle
+	popw 	%ax
+	popw	%ds
+	lret
+
+/* ----------------------------------------------------------------- */   
 	/* the packet driver */
 	.org	((PKTDRV_SEG - BIOSSEG) << 4) + PKTDRV_OFF
 /* ======================= Addr = F000:3100 (F3100) */
@@ -336,7 +355,7 @@ CISH(DBGload_CSIP):	.long	0
 	.org	((Banner_SEG - BIOSSEG) << 4) + Banner_OFF
 /* ======================= Addr = F800:2000 (FA000) */
 
-	movb	$5,%al
+	movb	$DOS_HELPER_SHOW_BANNER,%al
 	int	$DOSHELPER_INT
 	.byte	0xb2          /* mov dl,#0   or mov dl,#0x80 */
 	.globl	CISH(bios_f000_bootdrive)
@@ -350,7 +369,7 @@ CISH(bios_f000_bootdrive):
 /* ======================= Addr = F800:3100 (FB100) */
 ipx_handler:
 	pushw	%ax	/* FarCallHandler removes this before returning */
-	movb	$0x7a,%al
+	movb	$DOS_HELPER_IPX_CALL,%al
 	int	$DOSHELPER_INT
 	lret
 
@@ -375,7 +394,7 @@ CISH(bios_IPX_PopRegistersReturn):
 	popw	%dx
 	popw	%cx
 	popw	%bx
-	movb	$0x7b,%al	/* Allow IPX to know ESR completed */
+	movb	$DOS_HELPER_IPX_ENDCALL,%al	/* Allow IPX to know ESR completed */
 	int	$DOSHELPER_INT
 	popw	%ax
 	lret
@@ -389,7 +408,7 @@ CISH(bios_IPX_PopRegistersIRet):
 	popw	%dx
 	popw	%cx
 	popw	%bx
-	movb	$0x7b,%al
+	movb	$DOS_HELPER_IPX_ENDCALL,%al
 	int	$DOSHELPER_INT
 	popw	%ax
 	iret
@@ -402,216 +421,21 @@ CISH(bios_IPX_PopRegistersIRet):
 
 	.globl	CISH(INT16_dummy_start)
 CISH(INT16_dummy_start):			/* KEYBOARD BIOS ROUTINE        */
-	pushw	%dx		/* dx needed for extended calls */
-	pushw   %ds			/* save ds and bx               */
-	pushw   %bx		/* next 2 lines set ds to bios data seg	*/
-	movw    $BIOS_DATA,%bx
-	movw	%bx,%ds
-	movb    $0x00,%dl        /* clear mask for extended calls */
+        /* this is all handled by int16.c, except for ah=0/0x10:
+           for that special case we need to loop in vm86 while
+           waiting for the key */
+        sti
+        testb   $0xef, %ah
+        jz      readkey_loop
+        ljmp    $BIOSSEG, $INT_OFF(0x16)
+readkey_loop:
+        pushf
+        lcall   $BIOSSEG, $INT_OFF(0x16)
+        jz      readkey_loop
+        iret
 
-	cmpb	$0,%ah
-	je	INT16_0			/* read key */
-	cmpb	$1,%ah
-	je	INT16_1			/* check key available */
-	cmpb	$2,%ah
-	je	INT16_2			/* get shift flags */
-#if 0
-	cmpb	$3,%ah
-	je	INT16_3			/* set typematic rate */
-	cmpb	$4,%ah
-	je	INT16_4			/* adjust keyclick */
-#endif
-	cmpb	$5,%ah
-	je	INT16_5			/* store key in buffer */
-	notb	%dl				/* set mask for extended calls */
-	cmpb	$0x10,%ah
-	je	INT16_10		/* read key extended */
-	cmpb	$0x11,%ah
-	je	INT16_11		/* check key extended */
-	cmpb	$0x12,%ah
-	je	INT16_12		/* get shift flags extended */
-
-INT16_ex:
-	popw    %bx			/* do nothing and return	*/
-	popw    %ds
-	popw	%dx
-	iret   
-
-INT16_0_idle:
-	sti
-	pushw	%ax			/* buffer empty - 		*/
-	movw    $0x1680,%ax		/* magic machine idle function  */
-	int     $0x2f
-	popw	%ax
-
-INT16_0:				/* 0 => read keyboard */
-INT16_10:				/* 0x10 => extended read        */
-	cli				/* READ KEYBOARD		*/
-	call get_key			/* get last key */
-	je      INT16_0_idle		/* jump if empty		*/
-	incw    %bx			/* advance buffer pointer 2 bytes*/
-	incw    %bx
- 	cmpw	KEYBUFFER_END,%bx	/* check for wrap around        */
-	jne	INT16_0_nowrap		/* no wrap - go return to caller*/
-	movw	KEYBUFFER_START,%bx	/* wrap - get buffer start	*/
-INT16_0_nowrap:
-	movw    %bx,KEYBUF_READ_PTR	/* save it as new pointer	*/
-	sti
-	jmp	INT16_ex		/* return to caller		*/
-
-INT16_1:				/* 0x01 => check for key        */
-INT16_11:				/* 0x11 => extended check       */
-	cli
-	call	get_key			/* READ KEYBOARD		*/
-	sti
-	popw    %bx			/* return to caller		*/
-	popw    %ds
-	popw	%dx
-	lret    $2		/* can't do iret, it would change flags	*/
-
-INT16_2:				/* RETURN SHIFT FLAG STATUS     */
-INT16_12:
-	movw	KEYSHIFT_FLAGS,%ax	/* get shift flags (ah=extended)*/
-	movb	%ah,%bl			/* get a copy to play with	*/
-	andb	$0x73,%ah		/* disallow bits 2, 3, & 7 	*/
-	andb	$0x04,%bl		/* clear everything but sysreq  */
-	shlb	$5,%bl			/* move it to the correct bit   */
-	orb	%bl,%ah			/* set sysreq			*/
-	movb	KEYBOARD_STATUS_3,%bh	/* bits 2 & 3 come from here	*/
-	andb    $0xc,%bh		/* isolate those bits		*/
-	orb     %bh,%ah			/* merge them with flags in ax	*/
-	jmp	INT16_ex		/* return to caller		*/
-
-INT16_5:				/* STORE KEY INTO BUFFER	*/
-	movw	%cx,%ax
-	cli
-	call	store_key
-	sti
-	jc	INT16_5_full
-	movb	$0,%al			/* return al=0 (success)	*/
-	jmp	INT16_ex
-INT16_5_full:
-	movb	$1,%al			/* return al=1 (buffer full)	*/
- 	jmp	INT16_ex
-
-/* SUBROUTINE:	Get a key from the buffer if there is one.
- * Translate that key if we aren't an extended key service.
- * on call:	dl = 0 nonextended, dl=0xFF extended
- *		Assumes interrups are disabeld
- * on return:	zf=set no key, zf=clear key
- *              key in ax, bx trashed, flags trashed, dh trashed
- *		bx current value of KEYBUF_READ_PTR
- *		Interupt flag untouched
- */
-get_key:
-	movw	KEYBUF_READ_PTR, %bx	/* get address of next char	*/
-get_key_restart:	
-	cmpw	KEYBUF_WRITE_PTR, %bx	/* set flag if buffer empty	*/
-	je	get_key_ret		/* buffer empty			*/
-	movw	(%bx), %ax		/* put char into ax		*/
-	call	do_extended		/* differences for extended calls */
-	jne	get_key_ret
-	incw	%bx
-	incw	%bx
-	cmpw	KEYBUFFER_END,%bx	/* check for wrap around	*/
-	jne	get_key_nowrap
-	movw	KEYBUFFER_START,%bx	/* wrap - get buffer start	*/
-get_key_nowrap:	
-	movw	%bx,KEYBUF_READ_PTR	/* save it as new pointer	*/
-	jmp	get_key_restart
-get_key_ret:	
-	ret	
-
-/* SUBROUTINE:	Dumb down a key for nonextend keyboards
- * on call:	dl = 0 nonextended, dl=0xFF extended,
- *		key in ax
- * on return:	key in ax, dh trashed, flags trashed
- * 		zf=set ignore/ditch key, zf=clear keep key
- */
-do_extended:				/* remove 0xE0 from AL for nonextended calls */
-	movb	$0xab,%dh		/* Move a value not equal to dl into dh */
-	cmpb	$0,%dl			/* Ensure we actually need to do something */
-	jne	do_extended_done
-	cmpb	$0xe0,%al		/* is character 0xE0 ? */
-	jne	do_extended_alt		/* no, continue */
-	andb	%dl,%al			/* yes, mask with 0xFF or 0x00 */
-	jmp	do_extended_scan
-do_extended_alt:			/* Not always alt keys but nearly */
-	cmpb	$0x00,%al
-	jne	do_extended_slash
-	cmpb	$0x01,%ah
-	je	do_extended_hide
-	cmpb	$0x0e,%ah
-	je	do_extended_hide
-	cmpb	$0x1a,%ah
-	jb	do_extended_slash
-	cmpb	$0x1c,%ah
-	jbe	do_extended_hide
-	cmpb	$0x27,%ah
-	jb	do_extended_slash
-	cmpb	$0x29,%ah
-	jbe	do_extended_hide
-	cmpb	$0x2b,%ah
-	je	do_extended_hide
-	cmpb	$0x33,%ah
-	jb	do_extended_slash
-	cmpb	$0x35,%ah
-	jbe	do_extended_hide
-	cmpb	$0x37,%ah
-	je	do_extended_hide
-	cmpb	$0x4a,%ah
-	je	do_extended_hide
-	cmpb	$0x4c,%ah
-	je	do_extended_hide
-	cmpb	$0x4e,%ah
-	je	do_extended_hide
-do_extended_slash:			/* Handle special cases */
-	cmpw	$0xe02f,%ax		/* KEY_PAD_SLASH */
-	jne	do_extended_enter
-	movb	$0x35, %ah
-	jmp	do_extended_done
-do_extended_enter:
-	cmpw	$0xe00d, %ax		/* KEY_PAD_ENTER */
-	jne	do_extended_newline
-	movb	$0x1c, %ah
-	jmp	do_extended_done
-do_extended_newline:
-	cmpw	$0xe00a, %ax		/* CTRL KEY_PAD_ENTER */
-	jne	do_extended_scan
-	movb	$0x1c, %ah
-	jmp	do_extended_done
-do_extended_scan:			/* Hide new scan codes */
-	cmpb	$0x85,%ah
-	jb	do_extended_done
-do_extended_hide:			/* Hide the rest of the extended keys */
-	movb	$0x00,%dh		/* return with zero flag set */
-do_extended_done:
-	cmpb	%dl,%dh			/* return zero flag clear, normally */
-	ret
-
-/* SUBROUTINE: store keycode in AX in the BIOS keyboard buffer, 
- * return CF=1 if buffer is full.
- */
-store_key:
-	movw	KEYBUF_WRITE_PTR,%bx
-	incw	%bx
-	incw	%bx
-	cmpw	KEYBUFFER_END,%bx
-	jne	no_wrap
-	movw	KEYBUFFER_START,%bx
-no_wrap:
-	cmpw	KEYBUF_READ_PTR,%bx
-	stc
-	je	keybuffer_full
-	xchgw	KEYBUF_WRITE_PTR,%bx	/* ok, update write pointer	*/
-	movw	%ax,(%bx)		/* and store key in buffer	*/
-	clc
-keybuffer_full:
-	ret
-
-
-	.globl  CISH(INT16_dummy_end)
-CISH(INT16_dummy_end):
+        .globl  CISH(INT16_dummy_end)
+CISH(INT16_dummy_end): 
 
 /* ----------------------------------------------------------------- */   
 	.org	((INT08_SEG-BIOSSEG) << 4)+INT08_OFF
@@ -684,14 +508,14 @@ CISH(INT70_dummy_end):
 /* ======================= Addr = F800:4200 (FC200) */
 	pushw	%ax
 	sti
-	movb	$8,%al		/*  Start Video init */
+	movb	$DOS_HELPER_VIDEO_INIT,%al		/*  Start Video init */
 	int	$DOSHELPER_INT
 	.byte	0x9a   /* call far 0xc000:3  or call far 0xe000:3 */
 /* More general than just c000 or e000 ??? */	
 	.globl	CISH(bios_f000_int10ptr)
 CISH(bios_f000_int10ptr):
 	.long	0xc0000003
-	movb	$9,%al		/* Finished video init */
+	movb	$DOS_HELPER_VIDEO_INIT_DONE,%al		/* Finished video init */
 	int     $DOSHELPER_INT
 	popw	%ax
 	sti
@@ -717,7 +541,7 @@ WINT10:
 L9:
 	pushw 	%ax	/* save everything */
 	pushw	%bx
-	movw	$0x33,%ax	/* mouse helper */
+	movw	$DOS_HELPER_MOUSE_HELPER,%ax	/* mouse helper */
 	movw	$0xf0,%bx	/* start video mode set */
 	int	$DOSHELPER_INT
 	popw	%bx
@@ -732,7 +556,7 @@ L9:
 /* since following code doesn't affect flags, we keep current values */
 	pushw	%ax	/* remember everything from int10 call */
 	pushw	%bx
-	movw	$0x33,%ax	/* mouse helper */
+	movw	$DOS_HELPER_MOUSE_HELPER,%ax	/* mouse helper */
 	movw	$0xf1,%bx	/* end video mode set */
 	int	$DOSHELPER_INT
 	popw	%bx
@@ -961,7 +785,7 @@ CISH(DPMI_dummy_end):
         /* get the pre-translated bios key. */
 	
 	movb	%al,%ah			/* pass the scancode... */
-	movb	$7,%al
+	movb	$DOS_HELPER_GET_BIOS_KEY,%al
 	int	$DOSHELPER_INT		/* call get_bios_key helper       */
 					/* returns ax=keycode or 0,       */
 					/* also copies new shift state to */
@@ -974,6 +798,13 @@ CISH(DPMI_dummy_end):
  */
 	cmpw	$SP_PAUSE, %ax
 	je	kbd_do_pause
+
+	testb   $PAUSE_MASK,KEYBOARD_FLAGS_2	/* if pause bit not set */
+	jz      check_special			/* continue */
+	andb    $~PAUSE_MASK,KEYBOARD_FLAGS_2	/* reset pause bit */
+	jmp     kbd_done			/* don't store in buffer */
+
+check_special:
 	cmpw	$SP_BREAK, %ax
 	je	kbd_do_break
 	cmpw	$SP_PRTSCR, %ax
@@ -982,18 +813,36 @@ CISH(DPMI_dummy_end):
 	je	kbd_do_sysrq_make
 	cmpw	$SP_SYSRQ_BREAK, %ax
 	je	kbd_do_sysrq_break
-
-	call	store_key
-
+        call    store_key
 kbd_done:
 	movb   	$0x20,%al
 	outb    %al,$0x20		/* tell pic we're done 		*/
 	popw	%ds
 	popw	%bx
 	popw	%ax			/* restore registers		*/
-	iret
+	iret        
 
+store_key:        
+        movw    KEYBUF_WRITE_PTR,%bx
+        incw    %bx
+        incw    %bx
+        cmpw    KEYBUFFER_END,%bx
+        jne     no_wrap
+        movw    KEYBUFFER_START,%bx
+no_wrap:
+        cmpw    KEYBUF_READ_PTR,%bx
+        je      buffer_full
+        xchgw   KEYBUF_WRITE_PTR,%bx    /* ok, update write pointer     */
+        movw    %ax,(%bx)               /* and store key in buffer      */
+buffer_full:        
+        ret
+        
 kbd_do_pause:
+	testb   $PAUSE_MASK,KEYBOARD_FLAGS_2	/* already paused? */
+	jnz     kbd_done			/* do nothing */
+	orb	$PAUSE_MASK,KEYBOARD_FLAGS_2	/* set pause bit */
+	movb	$DOS_HELPER_PAUSE_KEY,%al
+	int	$DOS_HELPER_INT			/* pause program */
 	jmp	kbd_done
 
 kbd_do_break:				/* CTRL-BREAK pressed		*/
@@ -1111,7 +960,7 @@ CISH(bios_f000_part2):
 	.org	0xfff0
 /* COMPAS FFFF0		jmp to powerup */
 	/* set up BIOS exit routine (we have *just* enough room for this) */
-	movw	$0xffff,%ax
+	movw	$DOS_HELPER_REALLY_EXIT,%ax
 	int	$DOSHELPER_INT
 /* COMPAS FFFF5		ROM BIOS date */
 	.ascii	"02/25/93"  /* our bios date */

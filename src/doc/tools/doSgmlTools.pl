@@ -11,7 +11,7 @@ use strict;
 use Getopt::Std;
 use File::Basename;
 
-my ($openJadeOptions) = "-V nochunks -V %generate-article-toc% -V %section-autolabel% -V %shade-verbatim% -V %indent-screen-lines%='    ' -V '(define (toc-depth nd) 3 )'";
+my ($openJadeOptions) = "-V%generate-article-toc% -V%section-autolabel% -V%shade-verbatim% \\\"-V%indent-screen-lines%='    '\\\" -V'(define (toc-depth nd) 3 )'";
 my ($lynxOptions) = "-force_html -nolist -dump";
 
 my ($softVer) = "0.99";
@@ -117,7 +117,7 @@ sub getSoftwareVersions {
 
   $result = `openjade -v --wibblefoo 2>&1`;
 
-  if ($result =~ /OpenJade version "([^\"]+)"/) {
+  if ($result =~ /\"?OpenJade\"? version "([^\"]+)"/) {
     $versions{'openjade'} = $1;
     if ($verbose) {
       print "Found OpenJade version $1\n";
@@ -242,17 +242,21 @@ sub convertToHTML {
 
   $command = "";
 
-  if (exists $versions{'sgmltools'} && $versions{'sgmltools'} ge "3.0") {
+  if (exists $versions{'sgmltools'} && $versions{'sgmltools'} ge "3.0.3") {
+    # Assume Version 3.0.3 and above are.
+    $command = "sgmltools -b onehtml --jade-opt=\"$openJadeOptions\" $theFile";
+    
+  } elsif (exists $versions{'sgmltools'} && $versions{'sgmltools'} ge "3.0") {
     # Assume Version 3 and above are.
-    $command = "sgmltools -b html --jade-opt=\"$openJadeOptions -o $theOutputFile \" $theFile";
+    $command = "sgmltools -b html -jade-opt=\"-Vnochunks $openJadeOptions -o $theOutputFile \" $theFile";
 
   } elsif (exists $versions{'openjade'} && $versions{'openjade'} ge "1.3") {
     # Try running openjade (>= 1.3) directly.
-    $command = "openjade -t sgml $openJadeOptions  -d " .$theStylesheets{'html'} ." $theFile > $theOutputFile";
+    $command = "openjade -t sgml \"-Vnochunks $openJadeOptions\"  -d " .$theStylesheets{'html'} ." $theFile > $theOutputFile";
 
   } elsif (exists $versions{'openjade'}) {
     # Try running openjade directly.
-    $command = "openjade -t sgml $openJadeOptions  -d " .$theStylesheets{'html'} ." $theFile > $theOutputFile";
+    $command = "openjade -t sgml -Vnochunks $openJadeOptions  -d " .$theStylesheets{'html'} ." $theFile > $theOutputFile";
 
   } elsif (exists $versions{'jade'}) {
     # Try running jade directly.
@@ -286,20 +290,25 @@ sub convertToText {
     print "Converting $theFile to text: $theOutputFile\n";
   }
 
-  if (!defined $main::opt_h) {
-    # Need to build the HTML first
-    $theHTMLFile = $theOutputFile.".t.html";
-    &convertToHTML($theFile, $theHTMLFile);
+  if (exists $versions{'sgmltools'} && $versions{'sgmltools'} ge "3.0.3") {
+    # Assume Version 3.0.3 and above are.
+    $command = "sgmltools -b w3m --jade-opt=\"$openJadeOptions\" $theFile";
   } else {
-    $theHTMLFile = $theOutputFile;
-    $theHTMLFile =~ s/\.txt$/\.html/;
-  }
+    if (!defined $main::opt_h) {
+      # Need to build the HTML first
+      $theHTMLFile = $theOutputFile.".t.html";
+      &convertToHTML($theFile, $theHTMLFile);
+    } else {
+      $theHTMLFile = $theOutputFile;
+      $theHTMLFile =~ s/\.txt$/\.html/;
+    }
 
-#  if (exists $versions{'lynx'} && $versions{'lynx'} ge "2.8.3") {
-#    $command = "lynx $lynxOptions -with_backspaces $theHTMLFile > $theOutputFile";
-#  } elsif (exists $versions{'lynx'}) { 
-    $command = "lynx $lynxOptions $theHTMLFile > $theOutputFile";
-#  }  
+#    if (exists $versions{'lynx'} && $versions{'lynx'} ge "2.8.3") {
+#      $command = "lynx $lynxOptions -with_backspaces $theHTMLFile > $theOutputFile";
+#    } elsif (exists $versions{'lynx'}) { 
+      $command = "lynx $lynxOptions $theHTMLFile > $theOutputFile";
+#    }  
+  }
 
   if (length($command)) {
     if ($verbose) {

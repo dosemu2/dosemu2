@@ -8,6 +8,8 @@
 #define INT_H
 
 #include "extern.h"
+#include <sys/types.h> /* for u_char */
+#include <time.h> /* for time_t */
 
 
 EXTERN void *interrupt_function[0x100];

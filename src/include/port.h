@@ -195,4 +195,6 @@ extern Boolean port_allow_io(ioport_t, Bit16u, int, Bit8u, Bit8u, unsigned int,
 	char *);
 extern int     set_ioperm(int start, int size, int flag);
 
+extern void init_port_traceing(void);
+
 #endif /* _PORT_H */

@@ -25,7 +25,7 @@ struct char_set_operations;
 
 struct char_set {
 	const int bytes_per_char;
-	const int chars_count;
+	int chars_count;
 	const t_unicode *chars;
 	const int registration_no; /* iso2022 registration number */
 	const char *final_chars; /* iso2022 & relatives final characters */

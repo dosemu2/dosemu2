@@ -53,6 +53,8 @@
 #define OUTB_OFF	0x1000
 #define OUTB_ADD	(u_short *)((OUTB_SEG << 4) + OUTB_OFF)
 
+#define Pause_SEG	(BIOSSEG)
+#define Pause_OFF	0x3000
 
 /* The packet driver has some code in this segment which needs to be */
 /* at BIOSSEG.  therefore use BIOSSEG and compensate for the offset. */

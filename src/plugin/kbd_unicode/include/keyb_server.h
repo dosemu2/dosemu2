@@ -9,6 +9,8 @@
 
 #include "config.h"
 
+#define PAUSE_MASK      0x0008
+
 /* this file is included from base/bios/bios.S */
 #ifndef __ASM__
 

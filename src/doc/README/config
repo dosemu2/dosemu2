@@ -579,7 +579,7 @@ giving other Linux processes a chance to run.
 <screen>
   $_hogthreshold = (1)   # 0 == all CPU power to DOSEMU
                          # 1 == max power for Linux
-                         # &#62;1   the higher, the slower DOSEMU will be
+                         # &#62;1   the higher, the faster DOSEMU will be
 </screen>
 
 </para>

@@ -63,7 +63,9 @@ extern void pci_bios(void);
    This flag will be set when doing video routines so that special
    access can be given
 */
+#if 0
 static u_char         in_video = 0;
+#endif
 static u_char         save_hi_ints[128];
 
 static int            card_init = 0;
@@ -441,6 +443,10 @@ static int dos_helper(void)
 
   case DOS_HELPER_MOUSE_HELPER:	/* set mouse vector */
     mouse_helper();
+    break;
+
+  case DOS_HELPER_PAUSE_KEY:
+    pic_set_callback(Pause_SEG, Pause_OFF);
     break;
 
   case DOS_HELPER_CDROM_HELPER:{
@@ -1544,14 +1550,6 @@ static void int12(u_char i) {
     return;
 }
 
-#ifndef USE_NEW_INT
-/* KEYBOARD */
-static void int16(u_char i) {
-    real_run_int(0x16);
-    return;
-}
-#endif /* not USE_NEW_INT */
-
 /* BASIC */
 static void int18(u_char i) {
   k_printf("BASIC interrupt being attempted.\n");
@@ -2174,9 +2172,7 @@ void setup_interrupts(void) {
   interrupt_function[0x13] = int13;
   interrupt_function[0x14] = int14;
   interrupt_function[0x15] = int15;
-#ifndef USE_NEW_INT
   interrupt_function[0x16] = int16;
-#endif /* not USE_NEW_INT */
   interrupt_function[0x17] = int17;
   interrupt_function[0x18] = int18;
   interrupt_function[0x19] = int19;

@@ -43,7 +43,7 @@
  * shouldn't affect 'hardware' behaviour, but this seems the only way of knowing how
  * fast DOS is processing keystrokes, in particular for pasting.
  */
-#define KEYBUF_HACK 1
+#define KEYBUF_HACK 0
 
 t_shiftstate shiftstate;
 
@@ -227,7 +227,10 @@ void copy_shift_state(t_shiftstate shift) {
    k_printf("KBD: copy_shift_state() %04x\n",shift);
 #endif
    
-   flags1=flags2=flags3=leds=0;
+   flags1=flags3=leds=0;
+   /* preserve pause bit */
+   flags2 = READ_BYTE(BIOS_KEYBOARD_FLAGS2) & PAUSE_MASK;
+
    if (shift & INS_LOCK)      flags1 |= 0x80;
    if (shift & CAPS_LOCK)   { flags1 |= 0x40;  leds |= 0x04; }
    if (shift & NUM_LOCK)    { flags1 |= 0x20;  leds |= 0x02; }

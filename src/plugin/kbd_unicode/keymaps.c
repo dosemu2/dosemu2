@@ -6,9 +6,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
-#include <linux/kd.h>
-#include <linux/keyboard.h>
+#include <sys/kd.h>
+#include "Linux/keyboard.h"
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -1951,6 +1952,7 @@ static int getfd()
   return -1;
 }
 
+#if 0
 static char* pretty_keysym(t_keysym d)
 {
 	static char b[100];
@@ -1971,6 +1973,7 @@ static char* pretty_keysym(t_keysym d)
 	
 	return s;
 }
+#endif
 /*
  * Try to translate a keycode to a DOSEMU keycode...
  */
@@ -2285,7 +2288,7 @@ static int read_kbd_table(struct keytable_entry *kt)
 	}
 	if (!altgr_present) {
 		for(i = 0; i < sizeof(kt->alt_map)/sizeof(kt->alt_map[0]); i++) {
-			kt->alt_map = U_VOID;
+			kt->alt_map[i] = U_VOID;
 		}
 	}
 

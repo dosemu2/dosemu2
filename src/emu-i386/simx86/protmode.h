@@ -224,11 +224,14 @@ typedef struct {
 					sizeof(Descriptor));
 
 /* Messages for DPMI_Notify() */
+#if 0
+/* unused? - Bart DN_MODIFY is also in <fcntl.h> */
 #define DN_ASSIGN	1
 #define DN_FREE		2
 #define DN_INIT		3
 #define DN_MODIFY	4
 #define DN_EXIT		5
+#endif
 
 #define SELECTOR_PADDRESS(sel) GetPhysicalAddress(sel)
 

@@ -25,6 +25,7 @@
  *
  */
 
+#include <string.h>
 #include "config.h"
 
 #include "emu.h"

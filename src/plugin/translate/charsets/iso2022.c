@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <setjmp.h>
+#include <string.h>
 #include "translate.h"
 #include "unicode_symbols.h"
 
@@ -185,12 +186,16 @@ do { \
 	}
 	ch_state->u.iso2022_state = state[0];
 	return consumed;
+#if 0	
  bad_args:
 	errno = EBADF;
 	return -1;
+#endif	
+#if 0	
  bad_string:
 	errno = EILSEQ;
 	return -1;
+#endif	
  bad_length:
 	errno = EINVAL;
 	return -1;

@@ -4,7 +4,7 @@
 # for details see file COPYING in the DOSEMU distribution
 #
 
-CFILES=int10.c hlt.c
+CFILES=int10.c int16.c hlt.c
 ALL=bios.S test.S $(CFILES)
 
 OBJS= $(CFILES:.c=.o) bios.o

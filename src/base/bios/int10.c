@@ -760,6 +760,8 @@ void return_state(Bit8u *statebuf) {
 	memcpy(statebuf + 0x04, (char *)0x449, 0x466 - 0x449 + 1);
 	/* store bios 0:484-0:486 at ofs 0x22 */
 	memcpy(statebuf + 0x22, (char *)0x484, 0x486 - 0x484 + 1);
+	/* correct number of rows-1 to number of rows at offset 0x22 */
+	statebuf[0x22]++;
 	get_dcc(&active_dcc, &alternate_dcc);
 	statebuf[0x25] = active_dcc;
 	statebuf[0x26] = alternate_dcc;

@@ -98,7 +98,7 @@ CONFIGS    = $(CONFIG_FILE) $(DOSEMU_USERS_FILE)
 DEBUG      = $(SYNC_ALOT)
 
 
-
+# CFLAGS+=-Werror
 # set to use a simpler fork for unix command
 # CFLAGS+=-DSIMPLE_FORK
 # set to debug fork with environment

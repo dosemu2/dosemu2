@@ -150,6 +150,8 @@ unsigned char TailCode[TAILSIZE+1] =
  * This function is only here for looking at the generated binary code
  * with objdump.
  */
+static void _test_(void) __attribute__((unused));
+
 static void _test_(void)
 {
 	__asm__ __volatile__ (" \
@@ -3035,7 +3037,7 @@ unsigned char *CloseAndExec(unsigned char *PC, TNode *G, int mode, int ln)
 "		rdtsc\n"
 "		movl	%%eax,%0\n"	/* save time before execution   */
 "		movl	%%edx,%1\n"
-#if GCC_VERSION_CODE >= 2096
+#if GCC_VERSION_CODE >= 2095
 "		.byte	0x68\n"		/* push immediate RA		*/
 "		.long	2f\n"
 "		pushl	%3\n"		/* push and get TheCPU flags    */

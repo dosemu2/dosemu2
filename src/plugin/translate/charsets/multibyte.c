@@ -2,6 +2,7 @@
 #include <limits.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 #include "translate.h"
 
 /* I assume wchar_t/wint_t is in unicode ... */
@@ -35,7 +36,7 @@ static size_t unicode_to_multibyte(struct char_set_state *state,
 
 static size_t multibyte_to_unicode(struct char_set_state *state, 
 	struct char_set *set, int offset,
-	t_unicode *symbol, unsigned char *inbuf, size_t in_bytes_left)
+	t_unicode *symbol, const unsigned char *inbuf, size_t in_bytes_left)
 {
 	wchar_t wide_symbol;
 	size_t result;

@@ -163,6 +163,9 @@ extern void timer_int_engine(void);
 static unsigned long pic1_isr;         /* second isr for pic1 irqs */
 static unsigned long pic_irq2_ivec = 0;
 
+static Bit16u cb_cs = 0;
+static Bit16u cb_ip = 0;
+
 /*
  * pic_pirr contains a bit set for each interrupt which has attempted to
  * re-trigger.
@@ -178,12 +181,13 @@ static unsigned long pic_irq2_ivec = 0;
 #if 0
 static unsigned long pic1_mask;        /* bits set for pic1 levels */
 #endif
-static unsigned long pic1_mask = 0x07f8; /* bits set for pic1 levels */
+static unsigned long __attribute__((unused)) pic1_mask = 0x07f8; /* bits set for pic1 levels */
 /* 
 even asgcc -Wall says;
 pic.c: At top level:
 pic.c:81: warning: `pic1_mask' defined but not used
 though it _is_ used in the assembly part
+So I explicitly tell gcc to not warn by attaching unused - Bart
 */
 static unsigned long   pic_smm = 0;      /* 32=>special mask mode, 0 otherwise */
 
@@ -711,7 +715,6 @@ if (!(REG(eflags) & VIF)) return;
  */
 if (in_dpmi && in_dpmi_timer_int) return;
 
-#warning using assembly run_irqs,expect pic1_mask not used
   __asm__ __volatile__
   ("movl "CISH_INLINE(pic_ilevel)",%%ecx\n\t" /* get old ilevel              */
    "pushl %%ecx\n\t"                          /* save old ilevel             */
@@ -1004,11 +1007,18 @@ unsigned long pic_newirr;
     }
      pic_print(2,"IRET in vm86, loops=",pic_vm86_count," ");
      pic_vm86_count=0;
+     if (pic_icount || (!cb_cs && !cb_ip)) {
       ssp = (unsigned char *)(LWORD(ss)<<4);
       sp = (unsigned long) LWORD(esp);
       LWORD(eip) = popw(ssp, sp);
       REG(cs) = popw(ssp, sp);
       LWORD(esp) = (LWORD(esp) + 4) & 0xffff;
+     } else {
+      r_printf("PIC: entering callback at %x:%x\n", cb_cs, cb_ip);
+      LWORD(eip) = cb_ip;
+      REG(cs) = cb_cs;
+      cb_cs = cb_ip = 0;
+     }
     }
  return;
 }
@@ -1155,6 +1165,14 @@ void pic_sched(int ilevel, int interval)
     pic_print(2,"Scheduling lvl= ",ilevel,mesg);
     pic_print(2,"pic_itime set to ",pic_itime[ilevel],"");
   }
+}
+
+void pic_set_callback(Bit16u cs, Bit16u ip)
+{
+  r_printf("PIC: setting callback to %x:%x (pic_icount=%ld)\n",
+    cs, ip, pic_icount);
+  cb_ip = ip;
+  cb_cs = cs;
 }
 
 void pic_init(void)

@@ -147,7 +147,9 @@ config_defaults(void)
 	    /* last known proc/cpuinfo format is xxx.xxxxxx, with 3
 	     * int and 6 decimal digits - but what if there are less
 	     * or more digits??? */
-	    if (sscanf(cpuflags,"%d.%d",&di,&df)==2) {
+	    /* some broken kernel/cpu combinations apparently imply
+	     * the existence of 0 Mhz CPUs */
+	    if (sscanf(cpuflags,"%d.%d",&di,&df)==2 && (di || df)) {
 		char cdd[8]; int i;
 		long long chz = 0;
 		char *p = cpuflags;

@@ -1,6 +1,7 @@
 #include <config.h>
 #ifdef X_SUPPORT
 #include <errno.h>
+#include <string.h>
 #include <stdlib.h>
 #include <X11/X.h>
 #define XK_MISCELLANY

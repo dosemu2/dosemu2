@@ -417,6 +417,7 @@ EXTERN int mfs_redirector(void);
 EXTERN void int10(void);
 EXTERN void int13(u_char);
 EXTERN void int14(u_char);
+EXTERN void int16(u_char);
 EXTERN void int17(u_char);
 EXTERN void io_select(fd_set);
 EXTERN int pd_receive_packet(void);

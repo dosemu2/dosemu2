@@ -7,9 +7,12 @@
 /* dynamic debug handlers - by Tim Bird */
 /* modified to support debug levels -- peak */
 /* Rehash so we aren't changing the code all of the time. Eric Biederman */
+#include <string.h>
 #include "config.h"
 #include "dosemu_debug.h"
 #include "init.h"
+#include "int.h"
+#include "port.h"
 
 
 #ifndef NO_DEBUGPRINT_AT_ALL
