@@ -6868,11 +6868,7 @@ fi
 
 fi;
 
-if test "$no_x" = "yes" ; then
-  { echo "$as_me:$LINENO: Compiling without X support..." >&5
-echo "$as_me: Compiling without X support..." >&6;}
-else
-  echo "$as_me:$LINENO: checking for X" >&5
+echo "$as_me:$LINENO: checking for X" >&5
 echo $ECHO_N "checking for X... $ECHO_C" >&6
 
 
@@ -8068,6 +8064,7 @@ fi
 
 fi
 
+if test "$have_x" = "yes" ; then
   LDFLAGS="$LDFLAGS $X_LIBS"
   CPPFLAGS="$X_CFLAGS"
 
@@ -8249,7 +8246,7 @@ _ACEOF
   LIBS="-lXwindow $LIBS"
 
 else
-  no_x="yes"
+  have_x="no"
 fi
 
 fi
@@ -8258,7 +8255,7 @@ fi
 
 fi
 
-if test "$no_x" != "yes" ; then
+if test "$have_x" = "yes" ; then
     { echo "$as_me:$LINENO: Compiling with X support..." >&5
 echo "$as_me: Compiling with X support..." >&6;}
     cat >>confdefs.h <<\_ACEOF
@@ -8282,7 +8279,7 @@ if test "${enable_mitshm+set}" = set; then
 
 fi;
 
-    if test "$enable_mitshm" != "no" -a "$no_x" != "yes" ; then
+    if test "$enable_mitshm" != "no" ; then
       echo "$as_me:$LINENO: checking for X11/extensions/XShm.h" >&5
 echo $ECHO_N "checking for X11/extensions/XShm.h... $ECHO_C" >&6
 if test "${ac_cv_header_X11_extensions_XShm_h+set}" = set; then
@@ -8395,6 +8392,9 @@ fi
 
 
     fi
+else
+  { echo "$as_me:$LINENO: Compiling without X support..." >&5
+echo "$as_me: Compiling without X support..." >&6;}
 fi
 
 PACKAGE_VERSION=`cat ${srcdir}/VERSION`
@@ -10330,7 +10330,7 @@ echo "$as_me: WARNING: " >&2;}
   { echo "$as_me:$LINENO: WARNING: Rejecting system S-Lang with UTF-8 support. It is incompatible with DOSEMU. Forcing use of the supplied S-Lang plugin." >&5
 echo "$as_me: WARNING: Rejecting system S-Lang with UTF-8 support. It is incompatible with DOSEMU. Forcing use of the supplied S-Lang plugin." >&2;}
 fi
-if test "$no_x" = "yes" ; then
+if test "$have_x" = "no" ; then
   { echo "$as_me:$LINENO: WARNING: " >&5
 echo "$as_me: WARNING: " >&2;}
   { echo "$as_me:$LINENO: WARNING: Compiling without X support." >&5

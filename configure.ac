@@ -256,21 +256,19 @@ AC_ARG_WITH(slangdir, [  --with-slangdir=dir     Specify S-Lang directory],
   fi
 )
 
-if test "$no_x" = "yes" ; then
-  AC_MSG_NOTICE(Compiling without X support...)
-else
-  AC_PATH_XTRA
+AC_PATH_XTRA
+if test "$have_x" = "yes" ; then
   LDFLAGS="$LDFLAGS $X_LIBS"
   CPPFLAGS="$X_CFLAGS"
 
   AC_CHECK_LIB(X11, XOpenDisplay, , 
    # sometimes statically linked binaries need libdl too ...
    AC_CHECK_LIB(X11, XCloseDisplay, LIBS="$LIBS -lX11 -ldl", 
-     AC_CHECK_LIB(Xwindow, main, , no_x="yes" ),
+     AC_CHECK_LIB(Xwindow, main, , have_x="no" ),
   -ldl))
 fi
 
-if test "$no_x" != "yes" ; then
+if test "$have_x" = "yes" ; then
     AC_MSG_NOTICE(Compiling with X support...)
     AC_DEFINE(X_SUPPORT) 
     X_SUPPORT="X_SUPPORT=1"
@@ -285,7 +283,7 @@ if test "$no_x" != "yes" ; then
     AC_ARG_ENABLE(mitshm,
               [  --disable-mitshm        do NOT use the MITSHM X extension])
 
-    if test "$enable_mitshm" != "no" -a "$no_x" != "yes" ; then
+    if test "$enable_mitshm" != "no" ; then
       AC_CHECK_HEADER(X11/extensions/XShm.h,
          [AC_DEFINE(HAVE_MITSHM,1) LIBS="-lXext $LIBS"],
          AC_MSG_NOTICE(Compiling without the MITSHM X extension),
@@ -302,6 +300,8 @@ if test "$no_x" != "yes" ; then
                  AC_MSG_NOTICE(Compiling without the XF86 video mode extension),
                  [#include <X11/Xlib.h>])
     fi
+else
+  AC_MSG_NOTICE(Compiling without X support...)
 fi
 
 PACKAGE_VERSION=`cat ${srcdir}/VERSION`
@@ -812,7 +812,7 @@ if test "$buggy_slang" = "yes" ; then
   AC_MSG_WARN( )
   AC_MSG_WARN([Rejecting system S-Lang with UTF-8 support. It is incompatible with DOSEMU. Forcing use of the supplied S-Lang plugin.])
 fi
-if test "$no_x" = "yes" ; then
+if test "$have_x" = "no" ; then
   AC_MSG_WARN( )
   AC_MSG_WARN(Compiling without X support.)
   AC_MSG_WARN(Install the X development libraries if you want support for X.)
