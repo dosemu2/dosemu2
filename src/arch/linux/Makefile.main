@@ -268,11 +268,6 @@ endif
 	 echo "    in your home directory when you run it for the first time."
 ifdef X_SUPPORT
 	@echo "  - Use 'xdosemu' instead of 'dosemu' to cause DOSEMU to open its own Xwindow."; \
-	 echo "  - Type 'xset fp rehash' before running 'xdosemu' for the first time ever."; \
-	 echo "  - If your backspace and delete key do not work properly in 'xdosemu', try:"; \
-	 echo "		xmodmap -e \"keycode 107 = 0xffff\""; \
-	 echo "		xmodmap -e \"keycode 22 = 0xff08\""; \
-	 echo "		xmodmap -e \"key 108 = 0xff0d\"  [Return = 0xff0d]"; \
 	 echo "  - An icon for use with your favourite window manager is at"; \
 	 echo "    $(REALTOPDIR)/etc/dosemu.xpm"
 endif
