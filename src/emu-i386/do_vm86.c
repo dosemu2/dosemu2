@@ -21,7 +21,6 @@
 #include <sys/times.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/times.h>
 #include <limits.h>
 #ifndef __NetBSD__
 #include <getopt.h>

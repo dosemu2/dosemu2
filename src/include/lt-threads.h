@@ -45,7 +45,7 @@
 #include <setjmp.h>
 
 
-#define LT_THREADS_VERSION	0x000400	/* 0.4 */
+#define LT_THREADS_VERSION	0x000402	/* 0.4.2 */
 
 #define MAX_THREADS	27	/* NOTE: don't make it > 27
 				 * atomic_reserve/free rely on that
@@ -293,7 +293,7 @@ struct tcb {
   extern unsigned int tcb_gran;
   extern unsigned int tcb_gran_mask;
   extern struct tcb *thread_list[MAX_THREADS];
-  extern max_used_threads;
+  extern int max_used_threads;
 #endif
 
 #define TCB_GRAN	tcb_gran
@@ -351,16 +351,21 @@ static __inline__ struct tcb *get_tcb_from_id(int tcb_id)
 
 struct tcb *create_thread(thread_function_type *thread_code, void *params);
 struct tcb *init_zero_thread(int stacksize);
+pid_t threads_getpid(struct tcb *tcb);
 
+#ifndef LT_THREADS_ITSELF
+extern struct tcb *threads_thread0_tcb;
+#endif
+#define THREAD0_TCB threads_thread0_tcb
 
 /* --------------------- inline assembly ------------------------ */
 
 /*
  * Some hacks to defeat gcc over-optimizations..
  */
-struct __dummy { unsigned long a[100]; };
-#define NOPT_ADDR(x) (*(struct __dummy *) x)
-#define NOPT_CONST_ADDR (*(const struct __dummy *) addr)
+struct __lt_dummy { unsigned long a[100]; };
+#define NOPT_ADDR(x) (*(struct __lt_dummy *) x)
+#define NOPT_CONST_ADDR (*(const struct __lt_dummy *) addr)
 
 
 
@@ -424,7 +429,7 @@ static __inline__ int get_lowest_waiting_id_from_resource(int resource)
  * Below function increases `flag' atomically and returns -1 if increasing
  * did result in transition from negativ to positive, else returns 0.
  * PROTO */
-static __inline__ int atomic_inc(int *flag, int increment)
+static __inline__ int lt_atomic_inc(int *flag, int increment)
 {
 	register int res;
 	__asm__ __volatile__("
@@ -440,7 +445,7 @@ static __inline__ int atomic_inc(int *flag, int increment)
  * Below function decreases `flag' atomically and returns -1 if decreasing
  * did result in transition from positive to negative, else returns 0.
  * PROTO */
-static __inline__ int atomic_dec(int *flag, int decrement)
+static __inline__ int lt_atomic_dec(int *flag, int decrement)
 {
 	register int res;
 	__asm__ __volatile__("

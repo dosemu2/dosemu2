@@ -60,7 +60,7 @@ extern void DOSEMUMouseEvents(void);
 extern void xms_init(void);
 extern void video_memory_setup(void);
 extern void dump_kbuffer(void);
-extern int_count[];
+extern int int_count[];
 extern int in_readkeyboard, keybint;
 
 #define PAGE_SIZE	4096

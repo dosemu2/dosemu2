@@ -20,7 +20,6 @@ static char rcsid[]="$Id: sigsegv.c,v 2.20 1995/04/08 22:30:40 root Exp $";
 #include <sys/times.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/times.h>
 #if X_GRAPHICS
 #include <sys/mman.h>           /* root@sjoerd*/
 #endif /* X_GRAPHICS */

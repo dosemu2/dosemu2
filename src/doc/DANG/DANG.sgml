@@ -3,7 +3,7 @@
 
 <title> The DOSEMU Alterer Novices Guide
 <author> Author: Alistair MacDonald, <tt/alistair\@slitesys.demon.co.uk/
-<date> version dosemu-0.67.14.1
+<date> version dosemu-0.67.14.2
 <abstract>
 This Document is the DOSEMU Alterer Novices Guide. It is known as the DANG.
 </abstract>
@@ -4186,6 +4186,15 @@ struct tcb *create_thread(thread_function_type *thread_code, void *params)
 <p><verb>
 struct tcb *init_zero_thread(int stacksize)
 </verb>
+ To obtain the pid of any thread please use the threads_getpid() instead
+ of the system call getpid(). It may be called any time and returns the
+ pid of the current process, when no threading is active (before init_thread0())
+ If `tcb' is NULL, it returns the pid of the current thread,
+ if -1 or THREAD0_TCB it returns the pid of `the father of all threads'
+ (thread0).
+<p><verb>
+pid_t threads_getpid(struct tcb *tcb)
+</verb>
 
 
 <sect2>Some debugging aids
@@ -4316,12 +4325,12 @@ static __inline__ int get_lowest_waiting_id_from_resource(int resource)
  Below function increases `flag' atomically and returns -1 if increasing
  did result in transition from negativ to positive, else returns 0.
 <p><verb>
-static __inline__ int atomic_inc(int *flag, int increment)
+static __inline__ int lt_atomic_inc(int *flag, int increment)
 </verb>
  Below function decreases `flag' atomically and returns -1 if decreasing
  did result in transition from positive to negative, else returns 0.
 <p><verb>
-static __inline__ int atomic_dec(int *flag, int decrement)
+static __inline__ int lt_atomic_dec(int *flag, int decrement)
 </verb>
  Below function atomicaly tests and sets bit `bitnum' in the bitfield
  pointed to by `addr'. It returns 0 if the bit was 0 before, else -1.

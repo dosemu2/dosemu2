@@ -86,7 +86,8 @@ static struct msg *receivemessage_local(mbox_handle mbx);
 /* --------------------- TCB stuff */
 
 static struct queue_entry tcb_free_pool = {&tcb_free_pool, &tcb_free_pool};
-static struct tcb *thread0_tcb=0;
+struct tcb *threads_thread0_tcb=0;
+#define thread0_tcb threads_thread0_tcb
 static struct tcb *allocate_tcb_space();
 static void free_tcb_space(struct tcb *tcb);
 static void thread_cleanup_stuff(void);
@@ -473,7 +474,7 @@ void exit_all(int exit_code)
 static void suspend_handler(int signum)
 {
 	struct tcb *tcb = OWN_TCB;
-	atomic_inc(&tcb->suspend_count, 1);
+	lt_atomic_inc(&tcb->suspend_count, 1);
 }
 
 /* The below need to be call at startup code of _every_ thread
@@ -493,6 +494,9 @@ static void init_suspend()
 	sigfillset(&sigmask_resume);
 	sigdelset(&sigmask_resume, SIG_SUSPEND_WAKEUP);
 	sigdelset(&sigmask_resume, SIGTERM);
+#if 1
+	sigdelset(&sigmask_resume, SIGINT);
+#endif
 					/* block SIG_SUSPEND_WAKEUP */
 	sigprocmask(SIG_BLOCK, &sigmask_suspend, 0);
 					/* set the suspend handler */
@@ -508,7 +512,7 @@ void suspend_thread()
 {
 	struct tcb *owntcb = OWN_TCB;
 	while (!owntcb->suspend_count) sigsuspend(&sigmask_resume);
-	atomic_dec(&owntcb->suspend_count, 1);
+	lt_atomic_dec(&owntcb->suspend_count, 1);
 }
 
 /* /SKIP
@@ -627,7 +631,7 @@ void lock_resource(struct lock_struct *lock)
 {
 	struct tcb *owntcb = OWN_TCB;
 
-	if (owntcb->threadflags & TCB_F_STARTUP)
+	if (!lock || (owntcb->threadflags & TCB_F_STARTUP))
 		/* we are in the startphase, locking not yet working */
 		 return;
 	if (lock->owner == owntcb) {
@@ -657,7 +661,7 @@ void unlock_resource(struct lock_struct *lock)
 	int otherid;
 	int succid;
 
-	if (owntcb->threadflags & TCB_F_STARTUP)
+	if (!lock || (owntcb->threadflags & TCB_F_STARTUP))
 		/* we are in the startphase, locking not yet working */
 		 return;
 
@@ -1197,6 +1201,26 @@ struct tcb *init_zero_thread(int stacksize)
 	}
 	init_sigterm();
 	return tcb;
+}
+
+/* /SKIP
+ * To obtain the pid of any thread please use the threads_getpid() instead
+ * of the system call getpid(). It may be called any time and returns the
+ * pid of the current process, when no threading is active (before init_thread0())
+ * If `tcb' is NULL, it returns the pid of the current thread,
+ * if -1 or THREAD0_TCB it returns the pid of `the father of all threads'
+ * (thread0).
+ * PROTO */
+pid_t threads_getpid(struct tcb *tcb)
+{
+	if (!thread0_tcb) {
+		return getpid();
+	}
+	if (!tcb) tcb = OWN_TCB;
+	else {
+		if ((int)tcb == -1) tcb = thread0_tcb;
+	}
+	return tcb->pid;
 }
 
 static int sys_thread_start(struct tcb *tcb)

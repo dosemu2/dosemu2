@@ -734,7 +734,7 @@ static int dpmi_control(void)
     /* Note: we can't set TF with our speedup code */
 #ifdef USE_MHPDBG
     if (mhpdbg.active) {
-      static force_early=0;
+      static int force_early=0;
       usleep(1); /* NOTE: We need a syscall (maybe any) to force scheduling.
                   *       ( ... don't know why ... )
                   *       If we do not, the below kludge doesn't work

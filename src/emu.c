@@ -152,6 +152,10 @@ extern void	disk_open(struct disk *dp);
 
 extern void io_select_init(void);
 
+#ifdef USE_THREADS
+extern void treads_init(void);
+#endif
+
 static int      special_nowait = 0;
 
 #ifndef NEW_KBD_CODE

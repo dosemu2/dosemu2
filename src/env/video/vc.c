@@ -946,7 +946,7 @@ reset_att (void)
 /* Attempt to virtualize calls to video ports */
 
 u_char att_d_index = 0;
-static isr_read = 0;
+static int isr_read = 0;
 
 u_char
 video_port_in (ioport_t port)

@@ -48,7 +48,7 @@ far_t ESRPopRegistersIRet;
 far_t ESRFarCall;
 
 static ipx_socket_t *ipx_socket_list = NULL;
-static IPXRunning = 0;
+static int IPXRunning = 0;
 
 /* DANG_FIXTHIS - get a real value for my address !! */
 static unsigned char MyAddress[10] =

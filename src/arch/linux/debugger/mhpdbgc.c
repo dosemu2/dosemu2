@@ -1342,7 +1342,7 @@ int mhp_getcsip_value()
 
 void mhp_modify_eip(int delta)
 {
-  extern dpmi_mhp_modify_eip(int delta);
+  extern int dpmi_mhp_modify_eip(int delta);
   if (IN_DPMI) dpmi_mhp_modify_eip(delta);
   else LWORD(eip) +=delta;
 }

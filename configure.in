@@ -314,7 +314,7 @@ VERSION="`cut -d. -f1 VERSION`"
 SUBLEVEL="`cut -d. -f2 VERSION`"
 PATCHLEVEL="`cut -d. -f3 VERSION`"
 PATCHLEVEL_="`cut -d. -f4 VERSION`"
-if test "VERSION" = "PATCHLEVEL_"; then
+if test "$VERSION" = "$PATCHLEVEL_"; then
 dnl need to workaround old buggy textutils
   echo "you should upgrade your textutils to atleast version 1.19"
   PATCHLEVEL_=""
@@ -349,6 +349,16 @@ AC_DEFINE_UNQUOTED(VERDATE, "$RELEASE_DATE")
 
 OPTIONALSUBDIRS="dosext/net/v-net"
 REQUIRED="tools commands tools/periph"
+
+dnl enable EXPERIMENTAL stuff
+ AC_ARG_ENABLE(experimental,
+               [  --enable-experimental   enable configuration of EXPERIMENTAL stuff],
+               [experimental="yes"],[experimental="no"])
+  if test "$experimental" = "yes"; then
+   AC_CHECKING("allowing EXPERIMENTAL stuff to be configured");
+  else
+   AC_CHECKING("EXPERIMENTAL stuff disabled");
+  fi
 
 if test "$CONFIG_HOST" = "linux"; then
  AC_CHECKING("Linux Specific Stuff")
@@ -421,7 +431,7 @@ dnl Use new port code
  
 dnl Use new X code
  AC_ARG_ENABLE(new-X,
-               [  --enable-new-X        use the new X code],
+               [  --enable-new-X          use the new X code],
 	       [newXcode="yes"],[newXcode="no"])
   if test "$newXcode" = "yes"; then
    AC_CHECKING("Compiling with new X code");
@@ -434,9 +444,9 @@ dnl Use new X code
  
 dnl Use threading code
  AC_ARG_ENABLE(threads,
-               [  --enable-threads      use threading code],
+               [  --enable-threads        EXPERIMENTAL, use threading code],
 	       [threads="yes"],[threads="no"])
-  if test "$threads" = "yes"; then
+  if test "$threads" = "yes" -a "$experimental" = "yes"; then
    AC_CHECKING("Compiling with clone-threading code");
    USE_THREADS="USE_THREADS=1"
    AC_DEFINE_UNQUOTED(USE_THREADS)
@@ -468,7 +478,7 @@ AC_ARG_ENABLE(monoton-timing,
 	      [AC_CHECKING("Compiling with normal timing code")])
 
 AC_ARG_ENABLE(runasroot,
-              [  --enable-runasroot       dosemu sould run as root mostly],
+              [  --enable-runasroot      dosemu should run as root mostly],
               [AC_CHECKING("Compiling for dosemu mostly running as root")
                AC_DEFINE(RUN_AS_ROOT)
 	       AC_SUBST(RUN_AS_ROOT)],
@@ -477,7 +487,7 @@ AC_ARG_ENABLE(runasroot,
 LNKOPTS="-Wl,-warn-common"
 
 AC_ARG_ENABLE(linkstatic,
-              [  --enable-linkstatic      make statically linked binaries],
+              [  --enable-linkstatic     make statically linked binaries],
               [AC_CHECKING("Linking statically")
                LNKOPTS="${LNKOPTS} -static"],
 	      [AC_CHECKING("Linking for shared libraries")])
@@ -526,9 +536,9 @@ fi
 
 dnl CPU emulator
  AC_ARG_ENABLE(cpuemu,
-               [  --enable-cpuemu         compile with optional x86 emulation code],
+               [  --enable-cpuemu         EXPERIMENTAL, compile with optional x86 emulation code],
 	       [cpuemu="yes"],[cpuemu="no"])
-  if test "$cpuemu" = "yes"; then
+  if test "$cpuemu" = "yes" -a "$experimental" = "yes"; then
    AC_CHECKING("Compiling with optional 386 emulation code");
    X86_EMULATOR="X86_EMULATOR=1"
    AC_DEFINE_UNQUOTED(X86_EMULATOR)
@@ -554,8 +564,18 @@ OPT="$OPT -MD" # this should give painless dependencies
 # OPT=-fno-inline
 if test "$CONFIG_HOST" = "linux"; then
  AC_CHECKING("Linux Specific build options")
+ dnl Linux net code
+  AC_ARG_ENABLE(nonet,
+               [  --enable-nonet          do NOT use Linux net code],
+               [nonet="yes"],[nonet="no"])
+  if test "$nonet" = "yes"; then
+    AC_CHECKING("Compiling without network support");
+    USING_NET=""
+  else
+    AC_CHECKING("Compiling with network support");
+    USING_NET="-DUSING_NET"
+  fi
  PIPE=-pipe
- USING_NET="-DUSING_NET"
 fi
 
 CFLAGS="${OPT} ${PIPE} ${USING_NET} ${CDEBUGOPTS} ${COPTFLAGS} ${INCDIR}"

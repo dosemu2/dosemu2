@@ -13,6 +13,9 @@
 #include "timers.h"
 #include "pic.h"
 #include "dpmi.h"
+#ifdef USE_THREADS
+#include "lt-threads.h"
+#endif
 #ifdef USE_MHPDBG
 #include "mhpdbg.h"
 #endif

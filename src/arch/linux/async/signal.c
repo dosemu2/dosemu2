@@ -430,7 +430,7 @@ void SIGALRM_call(void){
    * Were won't overkill dosemu, hence we type at a speed of 14cps
    */
   if (config.pre_stroke) {
-    static count=-1;
+    static int count=-1;
     if (--count < 0) {
       count = type_in_pre_strokes();
       if (count <0) count =7; /* with HZ=100 we have a stroke rate of 14cps */

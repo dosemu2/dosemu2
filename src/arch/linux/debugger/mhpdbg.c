@@ -49,7 +49,7 @@ static void mhp_poll(void);
 static void mhp_puts(char*);
 void mhp_putc(char);
 extern int mhp_getcsip_value();
-extern mhp_modify_eip(int delta);
+extern int mhp_modify_eip(int delta);
 
 static char mhp_banner[] = {
   "\nDOSEMU Debugger V0.5 connected\n"

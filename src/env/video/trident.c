@@ -184,7 +184,7 @@ void vga_init_trident(void)
   return;
 }
 
-static trident_old_regs = 0;
+static int trident_old_regs = 0;
 
 u_char trident_ext_video_port_in(ioport_t port)
 {

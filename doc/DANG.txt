@@ -1,6 +1,6 @@
   The DOSEMU Alterer Novices Guide
   Author: Alistair MacDonald, alistair@slitesys.demon.co.uk
-  version dosemu-0.67.14.1
+  version dosemu-0.67.14.2
 
   This Document is the DOSEMU Alterer Novices Guide. It is known as the
   DANG.
@@ -3688,6 +3688,15 @@
 
   struct tcb *init_zero_thread(int stacksize)
 
+  To obtain the pid of any thread please use the threads_getpid()
+  instead of the system call getpid(). It may be called any time and
+  returns the pid of the current process, when no threading is active
+  (before init_thread0()) If `tcb' is NULL, it returns the pid of the
+  current thread, if -1 or THREAD0_TCB it returns the pid of `the father
+  of all threads' (thread0).
+
+  pid_t threads_getpid(struct tcb *tcb)
+
   1155..22..1122..  SSoommee ddeebbuuggggiinngg aaiiddss
 
   To make your life a bit easier (and because GDB has problems debugging
@@ -3784,13 +3793,13 @@
   Below function increases `flag' atomically and returns -1 if increas-
   ing did result in transition from negativ to positive, else returns 0.
 
-  static __inline__ int atomic_inc(int *flag, int increment)
+  static __inline__ int lt_atomic_inc(int *flag, int increment)
 
   Below function decreases `flag' atomically and returns -1 if decreas-
   ing did result in transition from positive to negative, else returns
   0.
 
-  static __inline__ int atomic_dec(int *flag, int decrement)
+  static __inline__ int lt_atomic_dec(int *flag, int decrement)
 
   Below function atomicaly tests and sets bit `bitnum' in the bitfield
   pointed to by `addr'. It returns 0 if the bit was 0 before, else -1.
@@ -3884,6 +3893,7 @@
 
   DANG_BEGIN_REMARK / DANG_END_REMARK This brackets descriptions of
   obscure items, like data structures and architecture.
+
   DANG_FIXTHIS This is a one line item, indicating a an area requiring a
   fix, or redesign.
 

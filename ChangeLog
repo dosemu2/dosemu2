@@ -1,3 +1,15 @@
+97/11/07 ver. 0.67.14.2 unofficial pre-release
+	From Alberto
+	- make USING_NET a configuration option
+	- fixes to lt-threads (atomic_* name clashes, locking stuff)
+	- make some compiler warnings go away
+	From Hans
+	- small fix for configure.in not detecting correctly broken textutils.
+	- introduced  --enable-experimental to avoid playing JoeUser with
+	  not yet working stuff.
+	- syncing lt-threads with my and Albertos changes (and vice versa)
+	  Version now 0.4.2
+	- DANG and docs recompile
 97/11/01 ver. 0.67.14.1 unofficial pre-release
 	From Alberto
 	- BIG patch to introduce the willows twin based cpu emulator

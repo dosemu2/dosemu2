@@ -287,9 +287,9 @@ static int first_resize =0;
 #endif
 static unsigned ximage_bits_per_pixel;
 static unsigned ximage_mode;
-static remap_features;
+static int remap_features;
 static vga_emu_update_type veut;
-static remap_src_modes = 0;
+static int remap_src_modes = 0;
 static vgaemu_display_type X_screen;
 
 #ifdef ENABLE_POINTER_GRAB

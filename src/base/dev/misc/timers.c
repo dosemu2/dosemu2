@@ -618,7 +618,7 @@ Bit8u spkr_io_read(ioport_t port) {
          return port_safe_inb(0x61);
       else
 	 /* keep the connection between port 0x61 and PIT timer#2 */
-         return (*((Bit8u *)&pic_sys_time)&0x10 | /* or anything that toggles quick enough */
+         return ((*((Bit8u *)&pic_sys_time)&0x10) | /* or anything that toggles quick enough */
 		(pit_inp(0x42)? 0x20:0) |	/* outpin: 00 or 80 */
 		(port61&0xcf));
    }
