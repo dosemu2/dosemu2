@@ -35,10 +35,18 @@
 #include "bios.h"
 #include "pic.h"
 #include "cpu.h"
+#include "timers.h"
 #include "keystate.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
+
+/*
+ * Our keyboard clock rate is 27.5KHz. This looks optimal for dosemu,
+ * even though the real keyboards are usually clocked to <= 20KHz.
+ * Anyway, 8042 should give an extra delay.
+ */
+#define KBD_CHAR_PERIOD 400
 
 /* If this is set to 1, the server will check whether the BIOS keyboard buffer is
  * full.
@@ -292,6 +300,17 @@ Bit16u get_bios_key(t_rawkeycode raw)
 	return bios_key;
 }
 
+static int kbd_period_elapsed(void)
+{
+	static hitimer_t kbd_time = 0;
+	hitimer_t delta = GETusTIME(0) - kbd_time;
+	if (delta >= KBD_CHAR_PERIOD) {
+		kbd_time = GETusTIME(0);
+		return 1;
+	}
+	return 0;
+}
+
 /****************** KEYBINT MODE BACKEND *******************/
 
 /* run the queue backend in keybint=on mode
@@ -321,6 +340,9 @@ void int_check_queue(void)
    if (bios_keybuf_full() && !(READ_BYTE(BIOS_KEYBOARD_FLAGS2) & PAUSE_MASK))
       return;
 #endif
+
+   if (!kbd_period_elapsed())
+      return;
 
    rawscan = read_queue(&keyb_queue);
    k_printf("KBD: read queue: raw=%02x, queuelevel=%d\n",
