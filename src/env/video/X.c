@@ -2929,10 +2929,15 @@ void X_reset_redraw_text_screen()
   /* Comment Eric: If prev_screen is too small, we must update */
   /* everything continuously anyway, sigh...                   */
   /* so we better cheat and clip co / li / ..., danger >:->.   */
-  if (vga.text_width  > MAX_COLUMNS) vga.text_width  = MAX_COLUMNS;
-  if (vga.text_height > MAX_LINES  ) vga.text_height = MAX_LINES;
-  if (co > MAX_COLUMNS) co = MAX_COLUMNS;
-  if (li > MAX_LINES  ) li = MAX_LINES;
+  if (vga.scan_len * vga.text_height > 65535) {
+    if (vga.scan_len > MAX_COLUMNS * 2) vga.scan_len = MAX_COLUMNS * 2;
+    if (vga.text_width > MAX_COLUMNS  ) vga.text_width = MAX_COLUMNS;
+    if (vga.text_height > MAX_LINES   ) vga.text_height = MAX_LINES;
+  }
+  if (2 * co * li > 65535) {
+    if (co > MAX_COLUMNS) co = MAX_COLUMNS;
+    if (li > MAX_LINES  ) li = MAX_LINES;
+  }
   MEMCPY_2UNIX(prev_screen, screen_adr, vga.text_width * vga.text_height * 2);
 }
 
@@ -3065,6 +3070,7 @@ int X_update_text_screen()
     vga.reconfig.display = 0;
   }
   if(vga.reconfig.mem) {
+    remap_obj.src_resize(&remap_obj, vga.width, vga.height, vga.width);
     X_redraw_text_screen();
     vga.reconfig.mem = 0;
   }
@@ -3329,9 +3335,9 @@ void X_draw_string(int x, int y, char *text, int len, Bit8u attr)
     static int last_redrawn_line = -1;
     RectArea ra;
 
-    if (y >= MAX_LINES)      return;                /* clip */
-    if (x >= MAX_COLUMNS)    return;                /* clip */
-    if (x+len > MAX_COLUMNS) len = MAX_COLUMNS - x; /* clip */
+    if (y >= vga.text_height) return;                /* clip */
+    if (x >= vga.text_width)  return;                /* clip */
+    if (x+len > vga.text_width) len = vga.text_width - x;  /* clip */
 
     /* fgX = text_colors[ATTR_FG(attr)]; */ /* if no remapper used */
     /* bgX = text_colors[ATTR_BG(attr)]; */ /* if no remapper used */
@@ -3368,7 +3374,7 @@ void X_draw_string(int x, int y, char *text, int len, Bit8u attr)
     if ( ((y+1) * height) > vga.height ) {
       v_printf("Tried to print below scanline %d (row %d)\n",
           remap_obj.src_height, y);
-      return;
+      len = vga.width / font_width - x;
     }
     if ( ((x+len) * font_width) > vga.width ) {
       v_printf("Tried to print past right margin\n");

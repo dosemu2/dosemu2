@@ -2550,6 +2550,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       int vertical_multiplier;
       int vertical_blanking_start;
       int vertical_blanking_end;
+      int char_height;
       int height;
       vertical_total = 
 	      vga.crtc.data[0x6] + 
@@ -2570,9 +2571,8 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
 	      ((vga.crtc.data[0x9] & 0x20) << (9 - 5));
       vertical_blanking_end =
 	      vga.crtc.data[0x16] & 0x7F;
-      vertical_multiplier = ((vga.crtc.data[0x9] & 0x1F) +1) <<
-	      ((vga.crtc.data[0x9] & 0x80) >> 7);
-      if (vga.mode_class == TEXT) vertical_multiplier = 1;
+      char_height = (vga.crtc.data[0x9] & 0x1f) + 1;
+      vertical_multiplier = char_height << ((vga.crtc.data[0x9] & 0x80) >> 7);
       height = (vertical_display_end +1) / vertical_multiplier;
       vga_msg("vgaemu_adj_cfg: vertical_total = %d\n", vertical_total);
       vga_msg("vgaemu_adj_cfg: vertical_retrace_start = %d\n", vertical_retrace_start);
@@ -2586,19 +2586,17 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
         vga.line_compare = vga.crtc.line_compare / vertical_multiplier;
         dirty_all_video_pages();
       }
-      if (vga.height != height) {
-        vga.height = height;
-        vga.char_height = (vga.crtc.data[0x9] & 0x1f) + 1;
-        vga_msg("vgaemu_adj_cfg: text_height=%d height=%d char_height=%d\n",
-                height, vertical_display_end+1, vga.char_height);
-        vga.reconfig.display = 1;
+      if (vga.mode_class == TEXT) {
+        height *= char_height;
       }
       /* By Eric (eric@coli.uni-sb.de):                        */
       /* Required for 80x100 CGA "text graphics" with 8x2 font */
-      if ((vga.char_height-1) != (vga.crtc.data[0x9] & 0x1f)) {
-        vga.char_height = (vga.crtc.data[0x9] & 0x1f) + 1;
-        vga_msg("vgaemu_adj_cfg: 2nd try found char_height=%d\n",
-            vga.char_height);
+      if (vga.height != height || vga.char_height != char_height) {
+        vga.height = height;
+	vga.text_height = height / char_height;
+        vga.char_height = char_height;
+        vga_msg("vgaemu_adj_cfg: text_height=%d height=%d char_height=%d\n",
+                height, vertical_display_end+1, vga.char_height);
         vga.reconfig.display = 1;
       }
       if (vga.line_compare == 0) vga.line_compare = vga.height;
@@ -2638,7 +2636,6 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       if ((vga.width != width) || (vga.char_width != multiplier)) {
         vga.width = width;
         vga.char_width = (multiplier >= 8) ? multiplier : 8;
-        vga.text_width = width / vga.char_width;
         vga.reconfig.display = 1;
       }
       break;
