@@ -309,11 +309,7 @@ static inline void bios_mem_setup(void)
   if (config.mouse.intdrv)
     configuration |= CONF_MOUSE;
 
-  /* 
-   * real BIOS' don't seem to set this bit but setting it can't do any harm
-   * and improves joystick detection for the game, Alley Cat, anyway :)
-   */
-  if (joy_exist ()) configuration |= CONF_GAME;
+  configuration |= CONF_GAME | CONF_DMA;
 
   if (config.mathco)
     configuration |= CONF_MATHCO;
