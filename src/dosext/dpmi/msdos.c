@@ -1244,7 +1244,7 @@ void msdos_post_extender(int intr)
 	    DPMI_CLIENT.stack_frame.edi = S_REG(edi);
 	    if (LWORD(eflags) & CF)
 		break;
-	    strncpy((void *)GetSegmentBaseAddress(S_REG(es)) + D_16_32(S_REG(edi)),
+	    memcpy((void *)GetSegmentBaseAddress(S_REG(es)) + D_16_32(S_REG(edi)),
 		SEG_ADR((void *), es, di), 261);
 	    break;
         case 0x6c:
