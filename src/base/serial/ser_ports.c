@@ -506,16 +506,16 @@ static int get_rx(int num)
     com[num].rx_buf_start++;
     com[num].rx_buf_bytes--;
   }
+  com[num].int_condition &= ~RX_INTR;
   if (!com[num].rx_buf_bytes) {
     /* Clear data waiting status and interrupt condition flag */
     com[num].LSR &= ~UART_LSR_DR;
     com[num].LSRqueued &= ~UART_LSR_DR;
-    com[num].int_condition &= ~RX_INTR;
-    /* If receive interrupt is set, then update interrupt status */
-    if ((com[num].IIR & UART_IIR_ID) == UART_IIR_RDI) {
-      /* DANG_FIXTHIS Is this safe to put this here? */
-      serial_int_engine(num, 0);			/* Update interrupt stuats */
-    }
+  }
+  /* If receive interrupt is set, then update interrupt status */
+  if ((com[num].IIR & UART_IIR_ID) == UART_IIR_RDI) {
+    /* DANG_FIXTHIS Is this safe to put this here? */
+    serial_int_engine(num, 0);			/* Update interrupt stuats */
   }
 
   return val;		/* Return received byte */
