@@ -2549,10 +2549,12 @@ static int X11_DetectLayout (void)
 	  lkey[2] = keysym_to_unicode(kt->alt_map[key]);
 	  lkey[3] = U_VOID;
           for (ok = 0, i = 0; (ok >= 0) && (i < syms); i++) {
-            if (lkey[i] != U_VOID && lkey[i] == ckey[i])
-              ok++;
-            if (lkey[i] != U_VOID && lkey[i] != ckey[i])
-              ok = -1;
+            if (lkey[i] != U_VOID) {
+	      if (lkey[i] == ckey[i])
+		ok++;
+	      else if (ckey[i] != U_VOID)
+		ok = -1;
+	    }
           }
 	  if (debug_level('k') > 5)
 	    k_printf("key: %d score %d for keycode %d, %x %x %x, "
