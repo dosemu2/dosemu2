@@ -67,9 +67,16 @@ static Boolean doing_selection = FALSE, visible_selection = FALSE;
 
 #if CONFIG_SELECTION
 #define SEL_ACTIVE(w) (visible_selection && ((w) >= sel_start) && ((w) <= sel_end))
-#define SEL_ATTR(attr) (((attr) >> 4) ? (attr) :(((attr) & 0x0f) << 4))
-/* #define SEL_ATTR(attr) ((((attr) >> 4) & 0x0f) + (((attr) << 4) & 0xf0)) */
-#define XATTR(w) (SEL_ACTIVE(w) ? SEL_ATTR(ATTR(w)) : ATTR(w))
+static inline Bit8u sel_attr(Bit8u a)
+{
+  /* adapted from Linux vgacon code */
+  if (vga.mode_type == TEXT_MONO)
+    a ^= ((a & 0x07) == 0x01) ? 0x70 : 0x77;
+  else
+    a = (a & 0x88) | ((a & 0x70) >> 4) | ((a & 0x07) << 4);
+  return a;
+}
+#define XATTR(w) (SEL_ACTIVE(w) ? sel_attr(ATTR(w)) : ATTR(w))
 #else
 #define XATTR(w) (ATTR(w))
 #endif
