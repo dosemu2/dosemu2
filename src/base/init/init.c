@@ -440,6 +440,8 @@ void memory_init(void)
  */
 void device_init(void)
 {
+  hardware_setup();		/* setup any hardware */
+
   /* check whether we are running on the console */
   check_console();
 

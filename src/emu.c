@@ -360,7 +360,6 @@ emulate(int argc, char **argv)
     cpu_setup();		/* setup the CPU */
     pcibios_init();
     pci_setup();
-    hardware_setup();		/* setup any hardware */
     extra_port_init();		/* setup ports dependent on config */
     signal_init();              /* initialize sig's & sig handlers */
     map_video_bios();           /* map the video bios */
