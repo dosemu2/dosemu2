@@ -16,8 +16,11 @@ ifdef X_SUPPORT
 X_CFILES = keyb_X.c keyb_X_keycode.c
 endif
 
+ifdef USE_OLD_SLANG_KBD
+OLD_PREFIX=o_
+endif
 
-CFILES = serv_xlat.c serv_backend.c serv_8042.c keymaps.c keyb_raw.c keyb_slang.c \
+CFILES = serv_xlat.c serv_backend.c serv_8042.c keymaps.c keyb_raw.c $(OLD_PREFIX)keyb_slang.c \
          keyb_clients.c prestroke.c $(X_CFILES)
 
 

@@ -1,3 +1,15 @@
+98/12/02 ver. 0.99.4.2 unofficial pre-release
+	From Hans
+	- re-applied the old slangcode :-(
+	  As it turned out people have difficulties with the new slangcode
+	  and some _real_ terminals seem not to be handled as in 0.66.7.
+	  As long as those problems aren't solved (or we have a good
+	  doc helping those people to use the new code) it will remain
+	  in as a compilation option. If I get more complains, the old
+	  code will be turned on as default.
+	- fix for console not proper switching when doing graphics but not
+	  using raw keyboard. Many kudos to Andrea Omodeo <omodeo@pea.enel.it>
+	  who tracked this down.
 98/12/01 ver. 0.99.4.1 unofficial pre-release
 	From Alberto
 	- fix for TASMX not running (wrong handling of selectors in

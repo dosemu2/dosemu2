@@ -145,6 +145,9 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 #undef X2_SUPPORT
 #undef X_GRAPHICS
 
+/* Define this to use the old Slang keyboard code */
+#undef USE_OLD_SLANG_KBD
+
 /*
  *  DEFINE this, if you have joystick support in the kernel
  *  or have the joystick module loaded (needing <linux/joystick.h>)
