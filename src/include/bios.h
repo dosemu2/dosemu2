@@ -276,6 +276,20 @@ void            DPMI_return_from_mouse_callback(void);
 void            DPMI_exception(void);
 void            DPMI_interrupt(void);
 
+void            DPMI_VXD_VMM(void);
+void            DPMI_VXD_PageFile(void);
+void            DPMI_VXD_Reboot(void);
+void            DPMI_VXD_VDD(void);
+void            DPMI_VXD_VMD(void);
+void            DPMI_VXD_VXDLDR(void);
+void            DPMI_VXD_SHELL(void);
+void            DPMI_VXD_VCD(void);
+void            DPMI_VXD_VTD(void);
+void            DPMI_VXD_CONFIGMG(void);
+void            DPMI_VXD_ENABLE(void);
+void            DPMI_VXD_APM(void);
+void            DPMI_VXD_VTDAPI(void);
+
 void		bios_IPX_PopRegistersReturn(void);
 void		bios_IPX_PopRegistersIRet(void);
 void		bios_IPX_FarCall(void);

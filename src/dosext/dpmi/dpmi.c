@@ -67,6 +67,7 @@
 
 #include "dpmi.h"
 #include "msdos.h"
+#include "vxd.h"
 #include "bios.h"
 #include "config.h"
 #include "bitops.h"
@@ -592,7 +593,7 @@ void dpmi_get_entry_point(void)
     D_printf("DPMI entry returned\n");
 }
 
-static int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int limit,
+int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int limit,
                        unsigned char is_32, unsigned char type, unsigned char readonly,
                        unsigned char is_big, unsigned char seg_not_present, unsigned char useable)
 {
@@ -3428,6 +3429,58 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	    _esp += 6;
 	  }
 	  do_dpmi_int(scp, intr);
+
+        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_VMM)) {
+	  D_printf("DPMI: VMM VxD called, ax=%#x\n", _LWORD(eax));
+	  VXD_VMM(scp);
+
+        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_PageFile)) {
+	  D_printf("DPMI: PageFile VxD called, ax=%#x\n", _LWORD(eax));
+	  VXD_PageFile(scp);
+
+        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_Reboot)) {
+	  D_printf("DPMI: Reboot VxD called, ax=%#x\n", _LWORD(eax));
+	  VXD_Reboot(scp);
+
+        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_VDD)) {
+	  D_printf("DPMI: VDD VxD called, ax=%#x\n", _LWORD(eax));
+	  VXD_VDD(scp);
+
+        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_VMD)) {
+	  D_printf("DPMI: VMD VxD called, ax=%#x\n", _LWORD(eax));
+	  VXD_VMD(scp);
+
+        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_VXDLDR)) {
+	  D_printf("DPMI: VXDLDR VxD called, ax=%#x\n", _LWORD(eax));
+	  VXD_VXDLoader(scp);
+
+        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_SHELL)) {
+	  D_printf("DPMI: SHELL VxD called, ax=%#x\n", _LWORD(eax));
+	  VXD_Shell(scp);
+
+        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_VCD)) {
+	  D_printf("DPMI: VCD VxD called, ax=%#x\n", _LWORD(eax));
+	  VXD_Comm(scp);
+
+        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_VTD)) {
+	  D_printf("DPMI: VTD VxD called, ax=%#x\n", _LWORD(eax));
+	  VXD_Timer(scp);
+
+        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_CONFIGMG)) {
+	  D_printf("DPMI: CONFIGMG VxD called, ax=%#x\n", _LWORD(eax));
+	  VXD_ConfigMG(scp);
+
+        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_ENABLE)) {
+	  D_printf("DPMI: ENABLE VxD called, ax=%#x\n", _LWORD(eax));
+	  VXD_Enable(scp);
+
+        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_APM)) {
+	  D_printf("DPMI: APM VxD called, ax=%#x\n", _LWORD(eax));
+	  VXD_APM(scp);
+
+        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_VTDAPI)) {
+	  D_printf("DPMI: VTDAPI VxD called, ax=%#x\n", _LWORD(eax));
+	  VXD_TimerAPI(scp);
 
 	} else
 	  return;

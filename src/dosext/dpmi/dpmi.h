@@ -232,6 +232,9 @@ extern int SetSegmentLimit(unsigned short, unsigned int);
 extern void save_pm_regs(struct sigcontext_struct *);
 extern void restore_pm_regs(struct sigcontext_struct *);
 extern unsigned short AllocateDescriptors(int);
+extern int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int limit,
+                       unsigned char is_32, unsigned char type, unsigned char readonly,
+                       unsigned char is_big, unsigned char seg_not_present, unsigned char useable);
 extern int FreeDescriptor(unsigned short selector);
 extern void FreeSegRegs(struct sigcontext_struct *scp, unsigned short selector);
 

@@ -697,6 +697,71 @@ CISH(DPMI_interrupt):
 CISH(DPMI_return_from_ext_exception):
 	hlt
 /* ======================= Addr = F800:4A4A (FCA4A) */
+	.globl	CISH(DPMI_VXD_VMM)
+CISH(DPMI_VXD_VMM):
+	hlt
+	lret
+/* ======================= Addr = F800:4A4C (FCA4C) */
+	.globl	CISH(DPMI_VXD_PageFile)
+CISH(DPMI_VXD_PageFile):
+	hlt
+	lret
+/* ======================= Addr = F800:4A4E (FCA4E) */
+	.globl	CISH(DPMI_VXD_Reboot)
+CISH(DPMI_VXD_Reboot):
+	hlt
+	lret
+/* ======================= Addr = F800:4A50 (FCA50) */
+	.globl	CISH(DPMI_VXD_VDD)
+CISH(DPMI_VXD_VDD):
+	hlt
+	lret
+/* ======================= Addr = F800:4A52 (FCA52) */
+	.globl	CISH(DPMI_VXD_VMD)
+CISH(DPMI_VXD_VMD):
+	hlt
+	lret
+/* ======================= Addr = F800:4A54 (FCA54) */
+	.globl	CISH(DPMI_VXD_VXDLDR)
+CISH(DPMI_VXD_VXDLDR):
+	hlt
+	lret
+/* ======================= Addr = F800:4A56 (FCA56) */
+	.globl	CISH(DPMI_VXD_SHELL)
+CISH(DPMI_VXD_SHELL):
+	hlt
+	lret
+/* ======================= Addr = F800:4A58 (FCA58) */
+	.globl	CISH(DPMI_VXD_VCD)
+CISH(DPMI_VXD_VCD):
+	hlt
+	lret
+/* ======================= Addr = F800:4A5A (FCA5A) */
+	.globl	CISH(DPMI_VXD_VTD)
+CISH(DPMI_VXD_VTD):
+	hlt
+	lret
+/* ======================= Addr = F800:4A5C (FCA5C) */
+	.globl	CISH(DPMI_VXD_CONFIGMG)
+CISH(DPMI_VXD_CONFIGMG):
+	hlt
+	lret
+/* ======================= Addr = F800:4A5E (FCA5E) */
+	.globl	CISH(DPMI_VXD_ENABLE)
+CISH(DPMI_VXD_ENABLE):
+	hlt
+	lret
+/* ======================= Addr = F800:4A60 (FCA60) */
+	.globl	CISH(DPMI_VXD_APM)
+CISH(DPMI_VXD_APM):
+	hlt
+	lret
+/* ======================= Addr = F800:4A62 (FCA62) */
+	.globl	CISH(DPMI_VXD_VTDAPI)
+CISH(DPMI_VXD_VTDAPI):
+	hlt
+	lret
+/* ======================= Addr = F800:4A64 (FCA64) */
 	.globl	CISH(DPMI_dummy_end)
 CISH(DPMI_dummy_end):
 
