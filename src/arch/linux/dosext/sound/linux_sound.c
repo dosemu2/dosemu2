@@ -37,7 +37,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include <linux/soundcard.h>
+#include <sys/soundcard.h>
 /* #include <sys/audioio.h> */
 
 #include <errno.h>

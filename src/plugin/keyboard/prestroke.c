@@ -148,8 +148,8 @@ static unsigned char *recode(unsigned int *out, unsigned char *in)
           *(out++) = 0;
           return in;
         }
-        default:
-        /* fall through */
+        /* default:
+           fall through */
       }
     }
     default: {

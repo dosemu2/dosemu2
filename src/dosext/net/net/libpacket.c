@@ -16,7 +16,6 @@
  */
 #include <stdio.h>
 #include <features.h>
-#include "kversion.h"
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
@@ -30,8 +29,7 @@
 #if GLIBC_VERSION_CODE >= 2000
   #include <netinet/if_ether.h>
 #else
-  #include <linux/sockios.h>
-  #include <linux/if_ether.h>
+  #include "Linux/if_ether.h"
 #endif
 
 #include "emu.h"
@@ -203,10 +201,9 @@ ReadFromNetwork(int sock, char *device, char *data, int len)
 
 /*
  *	NET2 or NET3 - work for both.
+ *      (NET3 is valid for all kernels > 1.3.38)
  */
-#if defined(OLD_SIOCGIFHWADDR) || (LX_KERNEL_VERSION >= 1003038)
 #define NET3
-#endif
 
 /*
  *	Obtain the hardware address of an interface.

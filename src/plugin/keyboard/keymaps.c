@@ -6,9 +6,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
-#include <linux/kd.h>
-#include <linux/keyboard.h>
+#include <sys/kd.h>
+#include "Linux/keyboard.h"
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>

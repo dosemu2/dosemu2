@@ -23,7 +23,6 @@
 #include "keymaps.h"
 #include "memory.h"
 #include "bios.h"
-#include "kversion.h"
 #include "lpt.h"
 #include "int.h"
 
@@ -133,7 +132,6 @@ config_defaults(void)
         if (cpuflags && strstr(cpuflags, "tsc")) {
           /* bogospeed currently returns 0; should it deny
            * pentium features, fall back into 486 case */
-#if LX_KERNEL_VERSION > 2001126
 	  if ((kernel_version_code > 0x20100+126)
 	       && (cpuflags = get_proc_string_by_key("cpu MHz"))) {
 	    int di,df;
@@ -172,9 +170,6 @@ config_defaults(void)
 	  else
 	    cpuflags=0;
 	  if (!cpuflags) {
-#else
-	  if (1) {
-#endif
             if (!bogospeed(&config.cpu_spd, &config.cpu_tick_spd)) {
               break;
             }

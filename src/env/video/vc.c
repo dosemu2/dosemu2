@@ -43,11 +43,10 @@
 #ifdef __linux__
 #if GLIBC_VERSION_CODE >= 2000
 #include <sys/vt.h>
-#include <sys/kd.h>
 #else
-#include <linux/vt.h>
-#include <linux/kd.h>
+#include "Linux/vt.h"
 #endif
+#include <sys/kd.h>
 #endif
 
 #define INIT_C2TRAP

@@ -9,6 +9,9 @@
 
 /* will include bitypes.h, linux/posix_types.h and asm/types.h */
 #include <sys/types.h>
+#if GLIBC_VERSION_CODE >= 2000
+#  include "Asm/types.h"
+#endif
 
 #ifndef FALSE
 #define FALSE 0

@@ -227,7 +227,7 @@ STRQUOTELESS	({LETTER}|[/\.\~])({ALPHNUM}|[_\~@\-\+:\./])*
 			    __loop_handling__ =1;
 			    YY_USER_ACTION
 			  }
-	#endif;
+	#endif
 			};
 "done"			if (__loop_handling__ <0) pop__active();
 "while__yy__"		{ push__active(); RETURN(WHILESTATEMENT); }

@@ -8,7 +8,7 @@
 #define DOSEMU_TIMERS_H
 
 #ifdef __linux__
-#include <asm/param.h>		/* for HZ */
+#include <sys/param.h>		/* for HZ */
 #endif
 #include "extern.h"
 #include "types.h"

@@ -16,22 +16,12 @@
 #include <sys/stat.h>
 #include <sys/utsname.h>
 #include <errno.h>
-
-#ifdef __linux__
-#if GLIBC_VERSION_CODE >= 2000
 #include <sys/utsname.h>
-#define new_utsname utsname
-#else
-#include <linux/config.h>
-#include <linux/utsname.h>
-#endif /* GLIBC_VERSION_CODE */
-#endif /* __linux__ */
 
 #include "config.h"
 #include "emu.h"
 #include "memory.h"
 #include "config.h"
-#include "kversion.h"
 #include "bios.h"
 #include "int.h"
 #include "timers.h"
@@ -506,7 +496,7 @@ void low_mem_init(void)
  * DANG_END_FUNCTION
  */
 void version_init(void) {
-  struct new_utsname unames;
+  struct utsname unames;
   char version[80];
 
   uname((struct utsname *)&unames);
@@ -536,11 +526,8 @@ void version_init(void) {
 
 void print_version(void)
 {
-  struct new_utsname unames;
+  struct utsname unames;
     
   uname((struct utsname *)&unames);
   warn("DOSEMU-%s is coming up on %s version %s\n", VERSTR, unames.sysname, unames.release);
-#ifdef __linux__
-  warn("Built for %d\n", LX_KERNEL_VERSION);
-#endif
 }

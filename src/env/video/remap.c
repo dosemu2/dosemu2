@@ -1572,6 +1572,7 @@ void _a_movb_n_ecx_4eax_dl(CodeObj *co, int ofs)
   _cf_002: asm("movb 0x1(%ecx,%eax,4),%dl\n");
   _cf_003: asm("movb 0x100(%ecx,%eax,4),%dl\n");
   _cf_004:
+  return; /* gcc >= 2.96 want a statement after label */
 }
 
 void _a_movb_n_ecx_4eax_dh(CodeObj *co, int ofs)
@@ -1600,6 +1601,7 @@ void _a_movb_n_ecx_4eax_dh(CodeObj *co, int ofs)
   _cf_002: asm("movb 0x1(%ecx,%eax,4),%dh\n");
   _cf_003: asm("movb 0x100(%ecx,%eax,4),%dh\n");
   _cf_004:
+  return; /* gcc >= 2.96 want a statement after label */
 }
 
 void _a_movb_n_ecx_4ebx_dl(CodeObj *co, int ofs)
@@ -1628,6 +1630,7 @@ void _a_movb_n_ecx_4ebx_dl(CodeObj *co, int ofs)
   _cf_002: asm("movb 0x1(%ecx,%ebx,4),%dl\n");
   _cf_003: asm("movb 0x100(%ecx,%ebx,4),%dl\n");
   _cf_004:
+  return; /* gcc >= 2.96 want a statement after label */
 }
 
 void _a_movb_n_ecx_4ebx_dh(CodeObj *co, int ofs)
@@ -1656,6 +1659,7 @@ void _a_movb_n_ecx_4ebx_dh(CodeObj *co, int ofs)
   _cf_002: asm("movb 0x1(%ecx,%ebx,4),%dh\n");
   _cf_003: asm("movb 0x100(%ecx,%ebx,4),%dh\n");
   _cf_004:
+  return; /* gcc >= 2.96 want a statement after label */
 }
 
 void _a_movl_ebx_4eax_ebp(CodeObj *co)

@@ -19,9 +19,6 @@
 #include "config.h"
 #include "memory.h"
 #include "macros86.h"
-#ifdef __linux__
-#include <linux/linkage.h>
-#endif
 
 #include "keyb_server.h"
 

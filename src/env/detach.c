@@ -5,6 +5,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <fcntl.h>
 #ifdef __linux__
 #include <sys/vt.h>

@@ -42,7 +42,7 @@
   #define ENOMEDIUM       123     /* No medium found */
 #endif
 #ifdef __linux__
-#include <linux/cdrom.h>
+#include "Linux/cdrom.h"
 #endif
 
 #include "emu.h"

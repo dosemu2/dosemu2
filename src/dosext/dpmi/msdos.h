@@ -27,7 +27,7 @@ static struct vm86_regs SAVED_REGS;
 static struct vm86_regs MOUSE_SAVED_REGS;
 static struct vm86_regs VIDEO_SAVED_REGS;
 static struct vm86_regs INT15_SAVED_REGS;
-#define S_REG(reg) (SAVED_REGS.##reg)
+#define S_REG(reg) (SAVED_REGS.reg)
 #endif
 
 

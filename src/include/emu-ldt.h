@@ -7,11 +7,7 @@
 #ifndef _EMU_LDT_H
 #define _EMU_LDT_H
 
-#if LX_KERNEL_VERSION < 2001000
-  #include <linux/ldt.h>
-#else
-  #include <asm/ldt.h>
-#endif
+#include "Asm/ldt.h"
 
 /* check */
 /* #if !defined(_LITTLE_ENDIAN) && !defined(_BIG_ENDIAN) */

@@ -56,7 +56,7 @@
 #include <unistd.h>
 
 #include <scsi/sg.h>
-#include <asm/param.h>  /* for HZ */
+#include <sys/param.h>  /* for HZ */
 
 #include "emu.h"
 #include "aspi.h"

@@ -19,7 +19,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <ctype.h>
-#include <linux/vt.h>
+#include "Linux/vt.h"
 #include <sys/ioctl.h>
 #include <errno.h>
 

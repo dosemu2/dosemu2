@@ -7,7 +7,11 @@
 #ifndef DOSEMU_PCI_H
 #define DOSEMU_PCI_H
 
-#include <linux/pci.h>
+#if GLIBC_VERSION_CODE >= 2000
+#  include <sys/pci.h>
+#else
+#  include "Linux/pci.h"
+#endif
 
 #define PCIBIOS_PCI_FUNCTION_ID 	0xb1
 #define PCIBIOS_PCI_BIOS_PRESENT 	0xb101

@@ -530,10 +530,10 @@ dnl CPU emulator
 
 dnl Check for proper gas code16 functionality
 
-if echo '.code16;.text;addr32 pushw 4(%esp)' | as -o -- >/dev/null 2>&1; then
+if echo '.code16;.text;addr32 pushw 4(%esp)' | as -o dummy.o >/dev/null 2>&1; then
   GASCODE16=1
 else
-  if echo '.code16;.text;addr32; pushw 4(%esp)' | as -o -- >/dev/null 2>&1; then
+  if echo '.code16;.text;addr32; pushw 4(%esp)' | as -o dummy.o >/dev/null 2>&1; then
     GASCODE16=0
   else
     echo ''
@@ -545,6 +545,7 @@ else
     exit 1
   fi
 fi
+rm -f dummy.o
 AC_DEFINE_UNQUOTED(GASCODE16, $GASCODE16)
 
 
@@ -610,15 +611,15 @@ if test "$GCC" = "yes" ; then
   GCC_VERSION_CODE="-DGCC_VERSION_CODE=$GCC_VERSION_CODE"
 
   echo -n "checking for glibc..."
-  major=`echo '#include <features.h>' |${CC-cc} -E -dM -|awk '/#define[ \t]+__GLIBC__[ \t]/{print $3}'`
-  if test "$major" = ""; then
+  set `echo -e '#include <features.h>\nXXAaZZ __GLIBC__ XXBbZZ __GLIBC_MINOR__'|gcc -E -|awk '/XXAaZZ/ {print $2 " " $4}'`
+  major=$1; minor=$2
+  if test "$major" = "__GLIBC__"; then
     echo "no"
   else
     if test "$(( $major > 1 ))" = "1"; then
       GLIBCFLAGS="-D_XOPEN_SOURCE"
     fi
-    minor=`echo '#include <features.h>' |${CC-cc} -E -dM -|awk '/#define[ \t]+__GLIBC_MINOR__[ \t]/{print $3}'`
-    if test "$minor" = ""; then
+    if test "$minor" = "__GLIBC_MINOR__"; then
       minor=0;
     fi
     GLIBC_VERSION_CODE=$((($major * 1000) + $minor))

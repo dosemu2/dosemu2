@@ -46,11 +46,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #ifdef __linux__
-#if GLIBC_VERSION_CODE < 1000
-#include <linux/fs.h>
-#else
 #include <limits.h>
-#endif
 #endif
 #include <pwd.h>
 

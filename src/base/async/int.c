@@ -70,7 +70,8 @@ static struct timeval scr_tv;        /* For translating UNIX <-> DOS times */
 int redir_state = 0;
 
 #ifdef USE_MRP_JOYSTICK
-#include <linux/joystick.h>
+#error "FIXME: joystick support is broken. Sorry"
+#include "Linux/joystick.h"
 #include <fcntl.h>
 #include <string.h>
 static void mrp_read_joystick(void);

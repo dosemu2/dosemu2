@@ -32,8 +32,7 @@
 #include <stdio.h>
 #include <errno.h>
 #ifdef __linux__
-#include <asm/types.h>
-#include <linux/genhd.h>
+  #include "Linux/genhd.h"
 #endif
 
 #include "config.h"

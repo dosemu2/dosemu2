@@ -69,9 +69,6 @@
 
 #define __ASM__
 #include "memory.h"
-#ifdef __linux__
-#include <linux/linkage.h>
-#endif
 
 .code16
 .text

@@ -934,8 +934,8 @@ xms_realloc_EMB(int api)
   else
     handles[h].size = REG(ebx) * 1024;
 
-  x_printf((api == OLDXMS) ? "XMS realloc EMB(old) %d to size 0x%04x\n" :
-	   "XMS realloc EMB(new) %d to size 0x%08x\n",
+  x_printf((api == OLDXMS) ? "XMS realloc EMB(old) %d to size 0x%04lx\n" :
+	   "XMS realloc EMB(new) %d to size 0x%08lx\n",
 	   h, handles[h].size);
 
   handles[h].addr = malloc(handles[h].size);

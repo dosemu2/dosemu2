@@ -140,9 +140,6 @@
 #endif
 #include "pic.h"
 #include "memory.h"
-#ifdef __linux__
-#include <linux/linkage.h>
-#endif
 /* #include <sys/vm86.h> */
 #include <sys/time.h>
 #include "cpu.h"
@@ -1226,12 +1223,12 @@ void pic_reset(void)
 #endif
 }
 
-#undef set_pic0_imr(x)
-#undef set_pic1_imr(x)
-#undef get_pic0_imr()
-#undef get_pic1_imr()
-#undef get_pic0_isr()
-#undef get_pic1_isr()
-#undef get_pic0_irr()
-#undef get_pic1_irr()
+#undef set_pic0_imr
+#undef set_pic1_imr
+#undef get_pic0_imr
+#undef get_pic1_imr
+#undef get_pic0_isr
+#undef get_pic1_isr
+#undef get_pic0_irr
+#undef get_pic1_irr
 #undef NEVER

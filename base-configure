@@ -3882,10 +3882,10 @@ echo "configure:3881: checking "Compiling for native x86"" >&5;
 
 
 
-if echo '.code16;.text;addr32 pushw 4(%esp)' | as -o -- >/dev/null 2>&1; then
+if echo '.code16;.text;addr32 pushw 4(%esp)' | as -o dummy.o >/dev/null 2>&1; then
   GASCODE16=1
 else
-  if echo '.code16;.text;addr32; pushw 4(%esp)' | as -o -- >/dev/null 2>&1; then
+  if echo '.code16;.text;addr32; pushw 4(%esp)' | as -o dummy.o >/dev/null 2>&1; then
     GASCODE16=0
   else
     echo ''
@@ -3897,6 +3897,7 @@ else
     exit 1
   fi
 fi
+rm -f dummy.o
 cat >> confdefs.h <<EOF
 #define GASCODE16 $GASCODE16
 EOF
@@ -3920,7 +3921,7 @@ OPT="$OPT -MD" # this should give painless dependencies
 # OPT=-fno-inline
 if test "$CONFIG_HOST" = "linux"; then
  echo "checking "Linux Specific build options"" 1>&6
-echo "configure:3924: checking "Linux Specific build options"" >&5
+echo "configure:3925: checking "Linux Specific build options"" >&5
    # Check whether --enable-nonet or --disable-nonet was given.
 if test "${enable_nonet+set}" = set; then
   enableval="$enable_nonet"
@@ -3931,11 +3932,11 @@ fi
 
   if test "$nonet" = "yes"; then
     echo "checking "Compiling without network support"" 1>&6
-echo "configure:3935: checking "Compiling without network support"" >&5;
+echo "configure:3936: checking "Compiling without network support"" >&5;
     USING_NET=""
   else
     echo "checking "Compiling with network support"" 1>&6
-echo "configure:3939: checking "Compiling with network support"" >&5;
+echo "configure:3940: checking "Compiling with network support"" >&5;
     USING_NET="-DUSING_NET"
   fi
  PIPE=-pipe
@@ -3972,15 +3973,15 @@ if test "$GCC" = "yes" ; then
   GCC_VERSION_CODE="-DGCC_VERSION_CODE=$GCC_VERSION_CODE"
 
   echo -n "checking for glibc..."
-  major=`echo '#include <features.h>' |${CC-cc} -E -dM -|awk '/#define[ \t]+__GLIBC__[ \t]/{print $3}'`
-  if test "$major" = ""; then
+  set `echo -e '#include <features.h>\nXXAaZZ __GLIBC__ XXBbZZ __GLIBC_MINOR__'|gcc -E -|awk '/XXAaZZ/ {print $2 " " $4}'`
+  major=$1; minor=$2
+  if test "$major" = "__GLIBC__"; then
     echo "no"
   else
     if test "$(( $major > 1 ))" = "1"; then
       GLIBCFLAGS="-D_XOPEN_SOURCE"
     fi
-    minor=`echo '#include <features.h>' |${CC-cc} -E -dM -|awk '/#define[ \t]+__GLIBC_MINOR__[ \t]/{print $3}'`
-    if test "$minor" = ""; then
+    if test "$minor" = "__GLIBC_MINOR__"; then
       minor=0;
     fi
     GLIBC_VERSION_CODE=$((($major * 1000) + $minor))

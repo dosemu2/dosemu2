@@ -1,3 +1,32 @@
+2001/02/25 ver. 1.1.1.3 unofficial pre-release
+	From Adam J. Richter <adam@yggdrasil.com>
+	- some glibc-2.2.2 fix (to include time.h instead of sys/time.h)
+	  involved file: mfs.c
+	From Alberto
+	- fixes for gcc >= 2.96 (the '##' macro thing)
+	  involved files: data.c, msdos.h, cpu.h, mhpdbg.h
+	- other warning fixes related to gcc >= 2.96
+	  involved files: pci_bios.c, pic.c, lexer.l, memcheck.c, parser.y,
+	  keymaps.c, prestroke.c, fossil.c, dpmi.c, xms.c, detach.c, remap.c,
+	  screen.c, port.h, dexeconfig.c
+	From Hans
+	- fix to gas detection, file '--' was generated instead of
+	  just outputting to stdout. Using 'dummy' and deleting later.
+	  (gas doesn't accept stdout; /dev/null won't work as gas will make
+	  a regular file of it when running as root)
+	- general 'linux' header rework (this could no longer be avoided)
+	  because we can't rely any longer on proper headers in the system.
+	  - changed all <linux/*> and <asm/*> to "Linux/*" and "Asm/*"
+	    in order to make obvious, that we are including private headers
+	  - included standard headers from <sys/*> instead of <linux/*>
+	    where ever possible possible
+	  - the rest of headers is made 'privat', copied from a linux-2.0.38
+	    tree and cut down to our needs
+	  - v-net/dosnet.c still contains references to kernel header files,
+	    because this is a kernel module. Compile this one with care
+	    and verify that /usr/include/linux is in fact a symlink to
+	    the kernel source.
+	- made generation of GLIBC_VERSION_CODE (hopefully) foolproof ;-)
 2001/02/09 ver. 1.1.1.2 unofficial pre-release
 	From Bart
 	- Converted all as86 code to gas using .code16

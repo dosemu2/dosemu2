@@ -27,13 +27,7 @@
 #define CISH(x) x
 #endif
 #else
-#ifdef __STDC__
-#define CISH_INLINE(x) "_"#x
-#define CISH(x) _##x
-#else
-#define CISH_INLINE(x) "_x"
-#define CISH(x) _/**/x
-#endif
+# error "Sorry, a.out format no longer is supported"
 #endif
 
 /* split segment 0xf000 into two region, 0xf0000 to 0xf7fff is read-write */

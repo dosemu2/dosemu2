@@ -37,10 +37,10 @@
 #if GLIBC_VERSION_CODE >= 2000
 #include <sys/vt.h>
 #else
-#include <linux/vt.h>
+#include "Linux/vt.h"
 #endif
-#include <linux/fd.h>
-#include <linux/hdreg.h>
+#include "Linux/fd.h"
+#include "Linux/hdreg.h"
 #include <sys/vm86.h>
 #include <syscall.h>
 #endif

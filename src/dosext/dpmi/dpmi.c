@@ -30,7 +30,6 @@
 
 #include <features.h>
 #include "config.h"
-#include "kversion.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -40,20 +39,11 @@
 #include "vm86plus.h"
 
 #ifdef __linux__
-#if GLIBC_VERSION_CODE < 1000
-#include <linux/unistd.h>
-#if LX_KERNEL_VERSION < 2001121
-  #include <linux/head.h>
-#endif
-#else
-#include <errno.h>
-#endif
+#include <syscall.h>
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
 #include "emu-ldt.h"
-#include <asm/segment.h>
-#include <asm/page.h>
 #endif
 
 #ifdef USE_SBEMU
@@ -64,7 +54,7 @@
   /* well, I would like to get TASK_SIZE  out of the header files,
    * however, including them also defines stuff, that breaks compilation
    */
-  #include <linux/sched.h>
+  #include "Linux/sched.h"
 #else
   #define TASK_SIZE     (0xC0000000UL)
 #endif
@@ -102,6 +92,11 @@
 
 #if X_GRAPHICS
 #include "vgaemu.h"
+#endif
+
+#ifndef PAGE_SIZE
+/* FIXME: we really need to define those missing PAGE_SIZEs globally :-( */
+#define PAGE_SIZE       4096  
 #endif
 
 unsigned long RealModeContext;
@@ -1273,7 +1268,9 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	  else
 	    set_revectored(_LO(bx),&vm86s.int_revectored);
 #endif
-        default:
+          break;
+        /* default:
+           fall through */
       }
     }
     D_printf("DPMI: Put Prot. vec. bx=%x sel=%x, off=%lx\n", _LO(bx),

@@ -42,14 +42,11 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <netinet/in.h>
 #if GLIBC_VERSION_CODE >= 2000
-  #if GLIBC_VERSION_CODE == 2000
-    #include <asm/byteorder.h>
-  #endif
   #include <netinet/if_ether.h>
 #else
-  #include <asm/byteorder.h>
-  #include <linux/if_ether.h>
+  #include "Linux/if_ether.h"
 #endif
 #include "libpacket.h"
 #include "dosnet.h"

@@ -26,8 +26,7 @@
 #if GLIBC_VERSION_CODE >= 2000
   #include<netipx/ipx.h>
 #else
-  #include <linux/sockios.h>
-  #include <linux/ipx.h>
+  #include "Linux/ipx.h"
 #endif
 #include <netinet/in.h>
 #include <errno.h>

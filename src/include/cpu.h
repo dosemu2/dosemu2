@@ -21,8 +21,6 @@ extern int dpmi_eflags;  /* don't include 'dpmi.h' just for this! */
 #undef BIOSSEG
 #endif
 #ifdef __linux__
-#include "kversion.h"
-#include <asm/vm86.h>
 #include <sys/vm86.h>
 #endif
 #ifndef BIOSSEG
@@ -38,9 +36,9 @@ extern int dpmi_eflags;  /* don't include 'dpmi.h' just for this! */
 #ifdef __linux__
 #define REGS  vm86s.regs
 /* this is used like: REG(eax) = 0xFFFFFFF */
-#define REG(reg) (REGS.##reg)
-#define READ_SEG_REG(reg) (REGS.##reg)
-#define WRITE_SEG_REG(reg, val) REGS.##reg = (val)
+#define REG(reg) (REGS.reg)
+#define READ_SEG_REG(reg) (REGS.reg)
+#define WRITE_SEG_REG(reg, val) REGS.reg = (val)
 #endif
 
 
@@ -91,8 +89,8 @@ extern int dpmi_eflags;  /* don't include 'dpmi.h' just for this! */
 #define LWORD(reg)	(*((unsigned short *)&REG(reg)))
 #define HWORD(reg)	(*((unsigned short *)&REG(reg) + 1))
 
-#define _LWORD(reg)	(*((unsigned short *)&(scp->##reg)))
-#define _HWORD(reg)	(*((unsigned short *)&(scp->##reg) + 1))
+#define _LWORD(reg)	(*((unsigned short *)&(scp->reg)))
+#define _HWORD(reg)	(*((unsigned short *)&(scp->reg) + 1))
 
 /* this is used like: SEG_ADR((char *), es, bx) */
 #define SEG_ADR(type, seg, reg)  type((LWORD(seg) << 4) + LWORD(e##reg))
@@ -252,10 +250,7 @@ EXTERN struct vec_t *ivecs;
 */
 
 #ifdef __linux__
-  #if (LX_KERNEL_VERSION >= 2001000) || (GLIBC_VERSION_CODE >= 2000)
-  #define sigcontext_struct sigcontext
-  #endif
-  #include <asm/sigcontext.h>
+  #include "Asm/sigcontext.h"
 #endif
 
 

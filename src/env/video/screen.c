@@ -14,6 +14,7 @@
  * (nation@rocket.sanders.lockheed.com).
  */
 
+#include <string.h>
 #include "screen.h"
 #include "emu.h"
 #include "keyb_clients.h"    /* for paste_text() */

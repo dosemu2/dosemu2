@@ -430,7 +430,8 @@ interpretCfgSpace(unsigned long *pciheader,unsigned long *pcibuses,int busidx,
 	} else if (PCI_BRIDGE_HOST_CLASS(pciTmp->class)) {
 	    Z_printf("PCI-HOST bridge:\n");
 	    if (++hostbridges > 1) {/* HOST-PCI bridges*/
-		pcibuses[++numbus] = numbus;
+		numbus++;
+		pcibuses[numbus] = numbus;
 	    }
 	}
     }

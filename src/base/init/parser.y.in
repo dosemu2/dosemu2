@@ -1761,8 +1761,8 @@ static void set_vesamodes(int width, int height, int color_bits)
 }
 
 	/* vbios detection */
-static auto_vbios_seg = -1;
-static auto_vbios_size = -1;
+static int auto_vbios_seg = -1;
+static int auto_vbios_size = -1;
 
 static void detect_vbios(void)
 {
