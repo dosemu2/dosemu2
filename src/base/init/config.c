@@ -202,6 +202,7 @@ config_defaults(void)
     config.X_font = "vga";
     config.usesX = 0;
     config.X = 0;
+    config.X_mgrab_key = "";	/* off , NULL = "Home" */
     config.hogthreshold = 10;	/* bad estimate of a good garrot value */
     config.chipset = PLAINVGA;
     config.cardtype = CARD_VGA;
@@ -355,6 +356,7 @@ void dump_config_status(void)
         config.vesamode_list, config.X_lfb, config.X_pm_interface);
     fprintf(out, "X_keycode %d\nX_font \"%s\"\nusesX %d\n",
         config.X_keycode, config.X_font, config.usesX);
+    fprintf(out, "X_mgrab_key \"%s\"\n",  config.X_mgrab_key);
     switch (config.chipset) {
       case PLAINVGA: s = "plainvga"; break;
       case TRIDENT: s = "trident"; break;
@@ -537,7 +539,7 @@ static void restore_usedoptions(char *usedoptions)
     char *p = getenv("DOSEMU_OPTIONS");
     if (p) {
         memset(usedoptions,0,256);
-        do usedoptions[(unsigned)(*p)] = *p; while (*++p);
+        do usedoptions[(unsigned char)*p] = *p; while (*++p);
     }
 }
 

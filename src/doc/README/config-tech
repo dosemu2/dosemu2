@@ -1319,6 +1319,10 @@ to tailor it to your needs. Valid keywords for the X { } config line:
   <tag/pm_interface/
      Enable or disable the protected mode interface for VESA modes. The default is ``on''.
 
+  <tag/mgrab_key/
+     String, name of KeySym name to activate mouse grab. Default is `empty'
+     (no mouse grab). A possible value could be "Home".
+
   <tag/vesamode/
      Define a VESA mode. Two variants are supported: vesamode width height
      and vesamode width height color_bits. The first adds the specified

@@ -5,6 +5,9 @@ CONF_FILE="compiletime-settings"
 if [ "$1" != "" ]; then
   if [ "${1#--}" = "$1" ]; then
     CONF_FILE=$1
+    if [ "$CONF_FILE" = "-d" ]; then
+      CONF_FILE=compiletime-settings.devel
+    fi
     shift
   fi
 fi
@@ -20,7 +23,10 @@ while [ "$1" != "" ]; do
   shift
 done
 
-set `cut '-d{' -f2 $CONF_FILE |cut '-d}' -f1`
+CONF=`cat $CONF_FILE`
+CONF=`echo -n "$CONF"|tr '\n' ' '|cut '-d{' -f2|cut '-d}' -f1`
+
+set $CONF
 
 #echo "$*"
 
@@ -66,11 +72,17 @@ while [ "$1" != "" ]; do
     newx)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-new-X"; fi
       ;;
+    newxmouse)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-new-X-mouse"; fi
+      ;;
     cpuemu)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-cpuemu"; fi
       ;;
     newport)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-new-port"; fi
+      ;;
+    newint)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-new-intcode"; fi
       ;;
     newcmos)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-new-cmos"; fi

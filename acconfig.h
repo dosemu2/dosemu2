@@ -130,6 +130,9 @@
 /* Define this to use the new X code */
 #undef NEW_X_CODE
 
+/* Define this to use the new X mouse code */
+#undef NEW_X_MOUSE
+
 /* Define this to use threading code */
 #undef USE_THREADS
 

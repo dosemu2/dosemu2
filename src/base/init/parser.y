@@ -261,7 +261,7 @@ extern void yyrestart(FILE *input_file);
 	/* x-windows */
 %token L_DISPLAY L_TITLE ICON_NAME X_KEYCODE X_BLINKRATE X_SHARECMAP X_MITSHM X_FONT
 %token X_FIXED_ASPECT X_ASPECT_43 X_LIN_FILT X_BILIN_FILT X_MODE13FACT X_WINSIZE
-%token X_GAMMA VGAEMU_MEMSIZE VESAMODE X_LFB X_PM_INTERFACE
+%token X_GAMMA VGAEMU_MEMSIZE VESAMODE X_LFB X_PM_INTERFACE X_MGRAB_KEY
 	/* video */
 %token VGA MGA CGA EGA CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
 %token MEMSIZE VBIOS_SIZE_TOK VBIOS_SEG VBIOS_FILE VBIOS_COPY VBIOS_MMAP DUALMON
@@ -919,6 +919,7 @@ x_flag		: UPDATELINES expression	{ config.X_updatelines = $2; }
 			{ set_vesamodes($2,$4,$6);}
 		| X_LFB bool            { config.X_lfb = $2; }
 		| X_PM_INTERFACE bool   { config.X_pm_interface = $2; }
+		| X_MGRAB_KEY string_expr { config.X_mgrab_key = $2; }
 		;
 
 dexeflags	: dexeflag

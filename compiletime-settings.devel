@@ -5,15 +5,15 @@ config {
   mitshm on
   x on
   net on
-  dodebug off
+  dodebug on
   slangforce off
   tmonoton on
   runasroot off
-  linkstatic off
+  linkstatic on
   newx on
   newxmouse off
-  newport off
+  newport on
   newcmos on
-  newint off
+  newint on
   cpuemu off
 }

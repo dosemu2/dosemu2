@@ -1223,6 +1223,13 @@ mouse_move(void)
         default: mouse.xshift = 0; break;
   }
 
+#ifdef NEW_X_MOUSE
+  /*
+   * it looks as if mouse.yshift is not set otherwise -- 1998/02/22 sw
+   */
+  if(current_video.textgraph != 'T') mouse.yshift = 0;
+#endif /* NEW_X_MOUSE */
+
   mouse.maxx = mouse_roundx(mouse.maxx - 1);
   mouse.maxy = mouse_roundy(mouse.maxy - 1);
   m_printf("maxx=%i, maxy=%i\n", mouse.maxx, mouse.maxy);

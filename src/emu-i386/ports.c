@@ -685,6 +685,7 @@ outw(unsigned int port, unsigned int value)
 void
 outd(unsigned int port, unsigned int value)
 {
+  PRIV_SAVE_AREA
   port &= 0xffff;
   if (config.pci && (port >= 0xcf8) && (port < 0xd00)) {
     enter_priv_on();

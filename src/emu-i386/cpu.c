@@ -534,6 +534,7 @@ read_port(unsigned short port)
 unsigned int
 read_port_w(unsigned short port)
 {
+  PRIV_SAVE_AREA
   unsigned int r;
   int i = find_port(port,IO_READ);
   int j = find_port(port+1,IO_READ);
@@ -631,6 +632,7 @@ write_port(unsigned int value, unsigned short port)
 int
 write_port_w(unsigned int value,unsigned short port)
 {
+  PRIV_SAVE_AREA
   int i = find_port(port, IO_WRITE);
   int j = find_port(port + 1, IO_WRITE);
 

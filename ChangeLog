@@ -1,3 +1,28 @@
+98/02/28 ver. 0.97.4 released
+	From Kenneth
+	- fixed diabolic 'usedoptions[]' in src/base/init/config.c
+	From Steffen
+	- patches to mouse support under X-grafic
+	- new feature: mgrap_key, defines a Keysymbol (after Ctrl+Alt) to use
+	  when giving xdos _exclusively_ the mouse (make playing games easier).
+	  Can be set via $_X_mgrep_key. Default (empty) is off, A good value
+	  is "Home".
+	From Hans
+	- did what Steffen missed: building X_mgrep_key into the parser
+	  adapted global.conf and changed the docs ;-)
+	- made Steffen's mouse patches a compiletime config option
+	  because it breaks win31 mouse completely (newxmouse on|off)
+	- reworked ./default-configure a bit:
+	  - compiletime-settings now can be multi line.
+	  - './default-configure -d' uses 'development settings'
+	    from file 'compiletime-settings.devel'
+	  - compiletime-settings.stable became compiletime-settings
+	- fixed the 'old port code'. Why? Well this _was_ intended to be
+	  removed completely, however, seeing the latest strangeness in
+	  dosemu behave, we have to test, wether this may come out of some
+	  things we did not do correctly in new code (this applies
+	  to _all_ new code, not the port one alone). So, when having
+	  problems, first try to isolate by configuring some old code.
 98/02/27 ver. 0.97.3.3 unofficial pre-release
 	From Steffen
 	- fix for doom not restoring video mode (BIOS_VIDEO_MODE not set

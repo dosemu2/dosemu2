@@ -260,6 +260,8 @@ typedef struct vesamode_type_struct {
        char    *X_title;                /* X window title */
        char    *X_icon_name;
        char    *X_font;
+       char    *X_mgrab_key;		/* KeySym name to activate mouse grab */
+					/* "" turns it of, NULL gives the default ("Home") */
        int     X_blinkrate;
        int     X_sharecmap;
        int     X_mitshm;                /* use MIT SHM extension */

@@ -548,6 +548,7 @@ vgaemu_memsize		RETURN(VGAEMU_MEMSIZE);
 vesamode		RETURN(VESAMODE);
 lfb			RETURN(X_LFB);
 pm_interface		RETURN(X_PM_INTERFACE);
+mgrab_key		RETURN(X_MGRAB_KEY);
 
         /* Sound stuff */
 
