@@ -6288,7 +6288,7 @@ fi
 
 
 
-if !printf '%b\n' '#ifdef __ELF__\n#define foo bar\n#endif\nfoo' \
+if ! printf '%b\n' '#ifdef __ELF__\n#define foo bar\n#endif\nfoo' \
    | gcc -E - | grep bar > /dev/null; then
   if test "$CONFIG_HOST" = "linux"; then
     echo "------------------------------------------------------------"
