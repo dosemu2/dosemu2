@@ -26,6 +26,7 @@
 					/* private data for DPMI server */
 #define current_client (in_dpmi-1)
 #define DPMI_CLIENT (DPMIclient[current_client])
+#define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
 
 /* Aargh!! Is this the only way we have to know if a signal interrupted
  * us in DPMI server or client code? */
@@ -133,6 +134,8 @@ struct DPMIclient_struct {
   dpmi_pm_block *pm_block_root;
   /* for real mode call back, DPMI function 0x303 0x304 */
   RealModeCallBack realModeCallBack[0x10];
+  INTDESC Interrupt_Table[0x100];
+  INTDESC Exception_Table[0x20];
 };
 extern struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 
@@ -147,7 +150,6 @@ extern unsigned short DPMI_private_data_segment;
 extern unsigned long dpmi_free_memory; /* how many bytes memory client */
 				       /* can allocate */
 extern unsigned long pm_block_handle_used;       /* tracking handle */
-extern INTDESC Interrupt_Table[0x100];
 extern SEGDESC Segments[];
 extern struct sigcontext_struct *emu_stack_frame;
 /* used to store the dpmi client registers */

@@ -256,17 +256,17 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	switch (_HI(ax)) {
 	    /* first see if we don\'t need to go to real mode */
 	case 0x25:		/* set vector */
-	    Interrupt_Table[_LO(ax)].selector = _ds;
+	    DPMI_CLIENT.Interrupt_Table[_LO(ax)].selector = _ds;
 	    if (DPMI_CLIENT.is_32)
-	      Interrupt_Table[_LO(ax)].offset = _edx;
+	      DPMI_CLIENT.Interrupt_Table[_LO(ax)].offset = _edx;
 	    else
-	      Interrupt_Table[_LO(ax)].offset = _LWORD(edx);
+	      DPMI_CLIENT.Interrupt_Table[_LO(ax)].offset = _LWORD(edx);
 	    D_printf("DPMI: int 21,ax=0x%04x, ds=0x%04x. dx=0x%04x\n",
 		     _LWORD(eax), _ds, _LWORD(edx));
 	    return 1;
 	case 0x35:	/* Get Interrupt Vector */
-	    _es = Interrupt_Table[_LO(ax)].selector;
-	    _ebx = Interrupt_Table[_LO(ax)].offset;
+	    _es = DPMI_CLIENT.Interrupt_Table[_LO(ax)].selector;
+	    _ebx = DPMI_CLIENT.Interrupt_Table[_LO(ax)].offset;
 	    D_printf("DPMI: int 21,ax=0x%04x, es=0x%04x. bx=0x%04x\n",
 		     _LWORD(eax), _es, _LWORD(ebx));
 	    return 1;
