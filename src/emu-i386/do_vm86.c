@@ -412,29 +412,16 @@ void vm86_GP_fault(void)
     }
     break;
 
-  case 0x0f: /* RDE hack */
-    if (csp[1] == 0x06)
-      /*
-	 CLTS - ignore
-      */
-      { LWORD(eip)+=2;
-	break;
-      }
-      
-   if (csp[1] == 0x20)
-      /*
-    mov ???,cr?? - ignore
-      */
-      { if (csp[2] == 0xC0) REG(eax)=0;  /* mov eax,cr0 */
-        LWORD(eip)+=3;
-   break;
-      }
+  case 0x0f: /* was: RDE hack, now handled in cpu.c */
+    if (!cpu_trap_0f(csp, NULL)) goto op0ferr;
+    break;
 
   case 0xf0:			/* lock */
   default:
     if (is_rep) fprintf(stderr, "Nope REP F3,CSP = 0x%04x\n", csp[0]);
     /* er, why don't we advance eip here, and
 	 why does it work??  */
+op0ferr:
     REG(eip) = org_eip;
 #ifdef USE_MHPDBG
     mhp_debug(DBG_GPF, 0, 0);

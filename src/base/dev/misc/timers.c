@@ -50,9 +50,7 @@
 #endif
 
 
-#ifndef MONOTON_MICRO_TIMING
-#define CLOCK_TICK_RATE   PIT_TICK_RATE     /* underlying clock rate in HZ */
-#else  /* MONOTON_MICRO_TIMING */
+#ifdef MONOTON_MICRO_TIMING
 extern long   pic_itime[33];
 #endif /* MONOTON_MICRO_TIMING */
 
@@ -78,14 +76,14 @@ extern int    port61;
  */
 void initialize_timers(void)
 {
-  struct timeval cur_time;
+  hitimer_t cur_time;
 
-  gettimeofday(&cur_time, NULL);
+  cur_time = GETtickTIME(0);
 
   pit[0].mode        = 3;
   pit[0].outpin      = 0;
   pit[0].cntr        = 0x10000;
-  pit[0].time        = cur_time;
+  pit[0].time.td     = cur_time;
   pit[0].read_latch  = -1;
   pit[0].write_latch = 0;
   pit[0].read_state  = 3;
@@ -94,7 +92,7 @@ void initialize_timers(void)
   pit[1].mode        = 2;
   pit[1].outpin      = 0;
   pit[1].cntr        = 18;
-  pit[1].time        = cur_time;
+  pit[1].time.td     = cur_time;
   pit[1].read_latch  = -1;
   pit[1].write_latch = 18;
   pit[1].read_state  = 3;
@@ -103,18 +101,14 @@ void initialize_timers(void)
   pit[2].mode        = 0;
   pit[2].outpin      = 0;
   pit[2].cntr        = -1;
-  pit[2].time        = cur_time;
+  pit[2].time.td     = cur_time;
   pit[2].read_latch  = -1;
   pit[2].write_latch = 0;
   pit[2].read_state  = 3;
   pit[2].write_state = 3;
 
   ticks_accum   = 0;
-#ifndef MONOTON_MICRO_TIMING
-  timer_div     = (pit[0].cntr * 10000) / CLOCK_TICK_RATE;
-#else /* MONOTON_MICRO_TIMING */
   timer_div     = (pit[0].cntr * 10000) / PIT_TICK_RATE;
-#endif /* MONOTON_MICRO_TIMING */
 
   timer_tick();  /* a starting tick! */
 
@@ -133,7 +127,7 @@ void initialize_timers(void)
  */
 void timer_tick(void)
 {
-  struct timeval tp;
+  hitimer_u tp;
   u_long time_curr;
   static u_long time_old = 0;       /* Preserve value for next call */
 
@@ -142,12 +136,11 @@ void timer_tick(void)
     return;
   }
 
-  /* Get system time */
-  gettimeofday(&tp, NULL);
+  /* Get system time in usec */
+  tp.td = GETusTIME(0);
 
   /* compute the number of 100usecs since we started */
-  time_curr  = (tp.tv_sec - pit[0].time.tv_sec) * 10000;
-  time_curr += (tp.tv_usec - pit[0].time.tv_usec) / 100;
+  time_curr  = (tp.td - pit[0].time.td) / 100;
   
   /* Reset old timer value to 0 if time_curr wrapped around back to 0 */
   if (time_curr < time_old) time_old = 0;
@@ -186,7 +179,7 @@ void do_sound(Bit16u period) {
  
 static void pit_latch(int latch)
 {
-  struct timeval cur_time;
+  hitimer_u cur_time;
   u_long         ticks;
   pit_latch_struct *p = &pit[latch];
 
@@ -208,7 +201,7 @@ static void pit_latch(int latch)
     return;	/* let bit 7 on */
   }
 
-  gettimeofday(&cur_time, NULL);
+  cur_time.td = GETtickTIME(0);
 
   if ((p->mode & 2)==0) {
     /* non-periodical modes 0,1,4,5 - used mainly by games
@@ -224,13 +217,7 @@ static void pit_latch(int latch)
       /* should have been initialized to the value in write_latch */
 
       if (p->cntr != -1) {
-#ifndef MONOTON_MICRO_TIMING
-	ticks = (cur_time.tv_sec - p->time.tv_sec) * CLOCK_TICK_RATE +
-	        ((cur_time.tv_usec - p->time.tv_usec) * 1193) / 1000;
-#else /* MONOTON_MICRO_TIMING */
-	ticks = (cur_time.tv_sec - p->time.tv_sec) * PIT_TICK_RATE +
-	        PIT_MS2TICKS(cur_time.tv_usec - p->time.tv_usec);
-#endif /* MONOTON_MICRO_TIMING */
+	ticks = (cur_time.td - p->time.td);
 
 	if (ticks > p->cntr) {	/* time has elapsed */
 	  if ((p->mode&0x40)==0)
@@ -257,10 +244,8 @@ static void pit_latch(int latch)
   /* mode 3 -- square-wave generator */
   /* mode 7 -- ??? */
   else {
-      /* fancy calculations to avoid overflow */
-      ticks = (cur_time.tv_sec - p->time.tv_sec) % p->cntr;
-      ticks = ticks * (CLOCK_TICK_RATE % p->cntr) +
-	      ((cur_time.tv_usec - p->time.tv_usec) * 1193) / 1000;
+      /* no more fancy calculations to avoid overflow */
+      ticks = (cur_time.td - p->time.td) % p->cntr;
       /* ticks is now a value which increases from 0 to cntr, and
          is greater than cntr/2 in the second half of the cycle */
       ticks = 2 * (ticks % p->cntr);
@@ -273,8 +258,7 @@ static void pit_latch(int latch)
     /* mode 6 -- ??? */
     /* mode 3 -- square-wave generator, countdown by 2 */
     /* mode 7 -- ??? */
-      pic_sys_time = cur_time.tv_sec*PIT_TICK_RATE 
-	+ PIT_MS2TICKS(cur_time.tv_usec);
+      pic_sys_time = cur_time.t.tl;	/* modulo 2^32 */
       pic_sys_time += (pic_sys_time == NEVER);
 
       if (latch == 0) {
@@ -284,9 +268,6 @@ static void pit_latch(int latch)
 	if (((pic_itime[PIC_IRQ0]-pic_sys_time) < 0) && ((p->mode&0x40)==0)) {
 	  r_printf("PIT: pit_latch, pic_request IRQ0 mode 2/3\n");
 	  pic_request(PIC_IRQ0);
-#if 0	/* could be dangerous IMHO - AV */
-	  run_irqs();
-#endif
 	}
 	/* while current time is less than next irq time, ticks decrease;
 	   we need no modulo operation */
@@ -399,24 +380,16 @@ void pit_outp(Bit32u port, Bit8u val)
     else
       pit[port].cntr = pit[port].write_latch;
 
-    gettimeofday(&pit[port].time, NULL);
+    pit[port].time.td = GETtickTIME(0);
 
     if (port == 0) {
       ticks_accum   = 0;
-#ifndef MONOTON_MICRO_TIMING
-      timer_div     = (pit[0].cntr * 10000) / CLOCK_TICK_RATE;
-#else /* MONOTON_MICRO_TIMING */
       timer_div     = (pit[0].cntr * 10000) / PIT_TICK_RATE;
-#endif /* MONOTON_MICRO_TIMING */
       if (timer_div == 0)
 	timer_div = 1;
 #if 0
       i_printf("timer_interrupt_rate requested %.3g Hz, granted %.3g Hz\n",
-#ifndef MONOTON_MICRO_TIMING
-	       CLOCK_TICK_RATE/(double)pit[0].cntr, 10000.0/timer_div);
-#else /* MONOTON_MICRO_TIMING */
 	       PIT_TICK_RATE/(double)pit[0].cntr, 10000.0/timer_div);
-#endif /* MONOTON_MICRO_TIMING */
 #endif
     }
     else if (port == 2 && config.speaker == SPKR_EMULATED) {
@@ -480,7 +453,7 @@ void pit_control_outp(Bit32u port, Bit8u val)
       /* set the time base for the counter - safety code for programs
        * which use a non-periodical mode without reloading the counter
        */
-       gettimeofday(&pit[latch].time, NULL);
+       pit[latch].time.td = GETtickTIME(0);
       }
 #endif
       if ((val & 0x30) == 0)
@@ -650,14 +623,14 @@ void pit_init(void)
 
 void pit_reset(void)
 {
-  struct timeval cur_time;
+  hitimer_t cur_time;
 
-  gettimeofday(&cur_time, NULL);
+  cur_time = GETtickTIME(0);
 
   pit[0].mode        = 3;
   pit[0].outpin      = 0;
   pit[0].cntr        = 0x10000;
-  pit[0].time        = cur_time;
+  pit[0].time.td     = cur_time;
   pit[0].read_latch  = 0xffffffff;
   pit[0].write_latch = 0;
   pit[0].read_state  = 3;
@@ -666,7 +639,7 @@ void pit_reset(void)
   pit[1].mode        = 2;
   pit[1].outpin      = 0;
   pit[1].cntr        = 18;
-  pit[1].time        = cur_time;
+  pit[1].time.td     = cur_time;
   pit[1].read_latch  = 0xffffffff;
   pit[1].write_latch = 18;
   pit[1].read_state  = 3;
@@ -675,7 +648,7 @@ void pit_reset(void)
   pit[2].mode        = 0;
   pit[2].outpin      = 0;
   pit[2].cntr        = 0x10000;
-  pit[2].time        = cur_time;
+  pit[2].time.td     = cur_time;
   pit[2].read_latch  = 0xffffffff;
   pit[2].write_latch = 0;
   pit[2].read_state  = 3;
@@ -684,7 +657,7 @@ void pit_reset(void)
   pit[3].mode        = 0;
   pit[3].outpin      = 0;
   pit[3].cntr        = 0x10000;
-  pit[3].time        = cur_time;
+  pit[3].time.td     = cur_time;
   pit[3].read_latch  = 0xffffffff;
   pit[3].write_latch = 0;
   pit[3].read_state  = 3;

@@ -2,7 +2,8 @@
  * wdvga.c
  *
  * This file contains support for VGA-cards with a WD(Paradise) chip.
- * This is the same as trident.c for now
+ * This is very similar to trident.c, if needed we'll add more features
+ * by looking at XFree sources.
  *
  */
 

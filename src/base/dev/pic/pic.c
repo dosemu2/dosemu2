@@ -132,10 +132,9 @@
 #else
 #include "bitops.h"
 #endif
+#include "timers.h"
 #include "pic.h"
-#ifdef MONOTON_MICRO_TIMING
 #include "iodev.h"
-#endif /* MONOTON_MICRO_TIMING */
 #include "memory.h"
 #ifdef __linux__
 #include <linux/linkage.h>
@@ -144,7 +143,7 @@
 #include <sys/time.h>
 #include "cpu.h"
 #include "emu.h"
-#include "../dpmi/dpmi.h"
+#include "dpmi.h"
 #include "serial.h"
 #include "int.h"
 #include "ipx.h"
@@ -989,7 +988,7 @@ unsigned long pic_newirr;
  * DANG_END_FUNCTION
  */
 inline void pic_watch(s_time)
-struct timeval* s_time;
+hitimer_u *s_time;	/* time in us, 64-bit unsigned */
 {
 int timer,t_time;
 unsigned long pic_newirr;
@@ -1001,16 +1000,21 @@ unsigned long pic_newirr;
   pic_wirr|=pic_pirr;   	  /* set a new pending list for next time */
 /*  pic_activate(); */
 
-  /*  calculate new sys_time */
+/*  calculate new sys_time
+ *  non-monoton: values are kept modulo (tick_rate*15min)
+ *  monoton:     values are kept modulo 2^32 (exactly 1 hour)
+ */
 #ifndef MONOTON_MICRO_TIMING
+#if 0	/* original code, see comments in timers.h */
   t_time = (s_time->tv_sec%900)*1193047 
            + (s_time->tv_usec*1193)/1000  /* This is usec * 1.193047 split */
            + s_time->tv_usec/21277;        /* up to fit in 32 bit integer math */
+#endif
+  t_time = nmUStoTICK(s_time->td % 900000000);
 #else /* MONOTON_MICRO_TIMING */
-  t_time = s_time->tv_sec*PIT_TICK_RATE 
-           + PIT_MS2TICKS(s_time->tv_usec);
-
+  t_time = UStoTICK(s_time->td);
 #endif /* MONOTON_MICRO_TIMING */
+
   /* check for any freshly initiated timers, and sync them to s_time */
   pic_print(2,"pic_itime[1]= ",pic_itime[1]," ");
 #ifndef MONOTON_MICRO_TIMING
@@ -1020,9 +1024,9 @@ unsigned long pic_newirr;
      for (timer=0;timer<33;++timer) { 
        if(pic_itime[timer]>=pic_dos_time) {
 	 if (pic_itime[timer] != NEVER)
-          pic_itime[timer] -= 900*1193047;
+          pic_itime[timer] -= 900*PIC_TICK_RATE;
          if (pic_ltime[timer] != NEVER)
-          pic_ltime[timer] -= 900*1193047;
+          pic_ltime[timer] -= 900*PIC_TICK_RATE;
           }
        else pic_ltime[timer] = pic_itime[timer] = NEVER;
      }
@@ -1150,6 +1154,9 @@ void pic_sched(int ilevel, int interval)
     sprintf(mesg,", delay= %d.",interval);
     pic_print(2,"Scheduling lvl= ",ilevel,mesg);
     pic_print(2,"pic_itime set to ",pic_itime[ilevel],"");
+#if 0
+/*TEST*/ r_printf("BIOS = %ld\n", *((long *)0x46c));
+#endif
   }
 }
 

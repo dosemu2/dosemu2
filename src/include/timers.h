@@ -54,7 +54,12 @@ extern void pit_outp(Bit32u, Bit8u);
 #define PIT_TIMERS      4            /* 4 timers (w/opt. at 0x44)   */
 
 #ifndef MONOTON_MICRO_TIMING
-#define PIT_TICK_1000   1193         /* PIT tick rate / 1000        */
+/* This value is used by the non-monoton code in PIC. I strongly
+ * disagree with it, because the value is wrong and its origin unclear.
+ * But I'll keep it for compatibility  --AV */
+#define PIC_TICK_RATE		1193047
+#define PIC_TICK_1000   	1193         /* PIT tick rate / 1000        */
+#define PIC_TICK_RATE_f		0.193047
 #else /* MONOTON_MICRO_TIMING */
 #ifdef i386
 #   define PIT_MS2TICKS(n) ({ \
@@ -131,6 +136,12 @@ static __inline__ hitimer_t _mul64x32_(hitimer_t v, unsigned long f)
 /* t*1.193 = t+t*0.193 */
 #define UStoTICK(t)	({ hitimer_t _l=(t); \
 			_l+_mul64x32_(_l,(LLF_US*PIT_TICK_RATE_f)); })
+#ifndef MONOTON_MICRO_TIMING
+/* see comment above */
+#define nmUStoTICK(t)	({ hitimer_t _l=(t); \
+			_l+_mul64x32_(_l,(LLF_US*PIC_TICK_RATE_f)); })
+#endif
+
 #define TICKtoUS(t)	({unsigned long _m=T64DIV(t,PIT_TICK_RATE_M); _m;})
 
 /* --------------------------------------------------------------------- */

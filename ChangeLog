@@ -1,3 +1,18 @@
+97/09/19 ver. 0.67.10.3 unofficial pre-release
+	From Alberto
+	  final (except for bug fixing) part of timer patches:
+	- revision of some comments
+	- speed detection and override: new param config.realcpu taken out of
+	  /proc/cpuinfo, -3, -4 e.t.c. can only downgrade this value.
+	- CPU speed rounding to multiples of 30 and 33.3 in the range 60 to
+	  300MHz (is it enough? maybe 500...)
+	- replaced all gettimeofdays in timers.c and pic.c with the new
+	  interface. Some needed gettimeofdays() are left though.
+	- Deleted CLOCK_TICK_RATE because it were same value as PIT_TICK_RATE.
+	- new code in cpu.c to reasonably emulate 'MOV to/from CRx' (0f xx xx)
+	  The previous code (do_vm86.c, msdos.h) was incomplete.
+	- using call to int0x06 instead of 'leavedos' in sigsegv.c making
+	  happy CPU detection programs.
 97/09/16 ver. 0.67.10.2 unofficial pre-release
 	From Alberto
 	  first part of timer patches:

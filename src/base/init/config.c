@@ -56,10 +56,12 @@ config_defaults(void)
     char Line[256];
     int k = 386;
 
-    vm86s.cpu_type = CPU_386;
+    /* defaults - used when /proc is missing, cpu!=x86 etc. */
+    config.realcpu = CPU_386;
     config.pci = 0;
     config.rdtsc = 0;
     config.mathco = 0;
+
     fs=fopen("/proc/cpuinfo","r");
     if (fs) {
 	while (fgets(Line,250,fs)) {
@@ -68,20 +70,21 @@ config_defaults(void)
 	    while (*p && (*p!=':')) p++;
 	    if ((sscanf(p+1,"%d",&k)==1) && ((k%100)==86)) {
 	      switch ((k/100)%10) {
-	        case 2: vm86s.cpu_type = CPU_286;
+	        case 3: config.realcpu = CPU_386;	/* redundant */
 	        	break;
 	        case 5:
-	        case 6: vm86s.cpu_type = CPU_586;
+	        case 6: config.realcpu = CPU_586;
 			if (!bogospeed(&config.cpu_spd, &config.cpu_tick_spd)) {
-			    config.pci = 1;
+			    config.pci = 1;	/* fair guess */
 			    config.rdtsc = 1;
 			    break;
 			}
 			k = 486;
-	        case 4: vm86s.cpu_type = CPU_486;
+			/* fall thru */
+	        case 4: config.realcpu = CPU_486;
 	        	break;
 	        default:
-	        	break;
+	        	exit(1);	/* no 186,286,786.. */
 	      }
 	    }
 	  }
@@ -97,7 +100,8 @@ config_defaults(void)
 	}
 	fclose(fs);
     }
-    fprintf(stderr,"default CPU set to %d, FPU=%d\n",k,config.mathco);
+    vm86s.cpu_type = config.realcpu;
+    fprintf(stderr,"Running on CPU=%ld86, FPU=%d\n",vm86s.cpu_type,config.mathco);
 
     config.hdiskboot = 1;	/* default hard disk boot */
     config.mem_size = 640;
@@ -188,7 +192,6 @@ config_defaults(void)
 
     config.num_ser = 0;
     config.num_lpt = 0;
-    vm86s.cpu_type = CPU_386;
     config.fastfloppy = 1;
 
     config.emusys = (char *) NULL;
@@ -370,17 +373,21 @@ config_init(int argc, char **argv)
 	    config.rdtsc = 0;
 	    break;
 	case '5': case '6':
-	    vm86s.cpu_type = CPU_586;
-	    config.rdtsc = 1;
-	    if (!bogospeed(&config.cpu_spd, &config.cpu_tick_spd)) {
-	      fprintf(stderr,"CPU set to 586 and up\n");
-	      break;
+	    if (config.realcpu > CPU_486) {
+	      if (!bogospeed(&config.cpu_spd, &config.cpu_tick_spd)) {
+	        vm86s.cpu_type = CPU_586;
+	        config.rdtsc = 1;
+	        fprintf(stderr,"CPU set to 586 and up\n");
+	        break;
+	      }
 	    }
 	/* fall thru */
 	case '4':
-	    fprintf(stderr,"CPU set to 486\n");
-	    vm86s.cpu_type = CPU_486;
-	    config.rdtsc = 0;
+	    if (config.realcpu > CPU_386) {
+	      fprintf(stderr,"CPU set to 486\n");
+	      vm86s.cpu_type = CPU_486;
+	      config.rdtsc = 0;
+	    }
 	    break;
 
 	case 'u': {

@@ -307,7 +307,7 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 			}
 		| RDTSC bool
 		    {
-		    config.rdtsc = (vm86s.cpu_type<5? 0:($2!=0));
+		    config.rdtsc = (vm86s.cpu_type<CPU_586? 0:($2!=0));
 		    }
 		| PCI bool
 		    {

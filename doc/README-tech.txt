@@ -1539,8 +1539,8 @@
   registers, but no other feature of these registers is of any use for
   dosemu.  Too bad the TSC can't raise an interrupt!
 
-  Advantages of the TSC: it is extremely cheap to access (2 cycles?, no
-  system call) and extremely accurate.
+  Advantages of the TSC: it is extremely cheap to access (11 clock
+  cycles, no system call).
 
   Drawbacks of using the TSC: you must know your CPU speed to get the
   absolute time value, and the result is machine-class specific, i.e.

@@ -180,6 +180,10 @@ int signal, int code, struct sigcontext *scp
 		 show_regs(__FILE__, __LINE__);
 #endif /* 0 */
  		 csp = SEG_ADR((unsigned char *), cs, ip);
+#if 1
+		 /* this one is for CPU detection programs */
+		 if (csp[0]==0x0f) return (void) do_int(_trapno);
+#endif
  		 /* Some db commands start with 2e (use cs segment) 
 		    and thus is accounted for here */
  		 if (csp[0] == 0x2e) {

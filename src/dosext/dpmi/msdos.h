@@ -1471,68 +1471,13 @@ static  int msdos_fix_cs_prefix (struct sigcontext_struct *scp)
 }
 #endif
 
-/* see if client wants to access control registers */
-static int check_control_register_access(struct sigcontext_struct *scp)
-{
-    unsigned char *csp;
-    unsigned char mod, rm, reg;
-
-    csp = (unsigned char *) SEL_ADR(_cs, _eip);
-
-    if (*csp++ != 0x0f)
-	return 0;
-
-    if (*csp == 0x20) {	/* MOV r32,CR0/CR2/CR3 */
-	csp++;
-	mod = (*csp>>6) & 3;
-	reg = (*csp>>3) & 7;
-	rm = *csp & 0x7;
-	if (mod != 3)		/* mod must be 11 */
-	    return 0;
-	if (reg > 3)		/* only cr0 to cr3 */
-	    return 0;
-	_eip += 3;
-	if (reg != 0)		/* don\'t know content of cr1 .. cr3 */
-	    return 1;
-	switch (rm) {
-	case 0:
-	    _eax = 0x8000001f;	/* set all bits */
-	    break;
-	case 1:
-	    _ecx = 0x8000001f;
-	    break;
-	case 2:
-	    _edx = 0x8000001f;
-	    break;
-	case 3:
-	    _ebx = 0x8000001f;
-	    break;
-	case 4:
-	    _esp = 0x8000001f;
-	    break;
-	case 5:
-	    _ebp = 0x8000001f;
-	    break;
-	case 6:
-	    _esi = 0x8000001f;
-	    break;
-	case 7:
-	    _edi = 0x8000001f;
-	    break;
-	}
-	return 1;
-    } else if (*csp++ == 0x22) { /* MOV CR0/CR2/CR3,r32 */
-	_eip += 3;
-	return 1;		/* do nothing */
-    }
-    return 0;
-}
 
 static int msdos_fault(struct sigcontext_struct *scp)
 {
     unsigned char reg;
     unsigned short segment, desc;
     unsigned long len;
+    extern int cpu_trap_0f (unsigned char *, struct sigcontext_struct *);
 
     D_printf("DPMI: msdos_fault, err=%#lx\n",_err);
 
@@ -1540,10 +1485,13 @@ static int msdos_fault(struct sigcontext_struct *scp)
 	char fixed = 0;
 	unsigned char * csp;
 
-	if (check_control_register_access(scp))
-	    return 1;
-	
 	csp = (unsigned char *) SEL_ADR(_cs, _eip);
+
+	/* see if client wants to access control registers */
+	if (*csp == 0x0f) {
+	  if (cpu_trap_0f(csp, scp)) return 1;	/* 1=handled */
+	}
+	
 	switch (*csp) {
 	case 0x2e:		/* cs: */
 	    break;		/* do nothing */

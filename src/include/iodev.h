@@ -36,7 +36,7 @@ typedef struct {
   Bit32u         read_latch;
   Bit16u         write_latch;
   Bit32s         cntr;
-  struct timeval time;
+  hitimer_u	 time;
 } pit_latch_struct;
 
 EXTERN pit_latch_struct pit[PIT_TIMERS];

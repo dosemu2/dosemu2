@@ -19,6 +19,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
+#include <sys/time.h>
 #include <errno.h>
 
 #include "config.h"
@@ -30,10 +31,133 @@
 
 #include "vc.h"
 
-#include "../dpmi/dpmi.h"
+#include "dpmi.h"
 #include "priv.h"
 
 extern void xms_control(void);
+
+static unsigned long CRs[5] =
+{
+	0x00000010,	/*0x8003003f?*/
+	0x00000000,	/* invalid */
+	0x00000000,
+	0x00000000,
+	0x00000000
+};
+
+static unsigned long DRs[8] =
+{
+	0x00000000,
+	0x00000000,
+	0x00000000,
+	0x00000000,
+	0xffff0ff0,
+	0x00000400,
+	0xffff0ff0,
+	0x00000400
+};
+
+static unsigned long TRs[2] =
+{
+	0x00000000,
+	0x00000000
+};
+
+/* 
+ * DANG_BEGIN_FUNCTION cpu_trap_0f
+ *
+ * process opcodes 0F xx xx trapped by GP_fault
+ * returns 1 if handled, 0 otherwise
+ * Main difference with previous version: bits in our pseudo-control
+ * regs can now be written. This should make CPU detection pgms happy.
+ *
+ * DANG_END_FUNCTION
+ *
+ */
+int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
+{
+  	g_printf("CPU: TRAP op 0F %02x %02x\n",csp[1],csp[2]);
+
+  	if (in_dpmi && (scp==NULL)) return 0; /* for safety */
+
+	if (csp[1] == 0x06) {
+		(in_dpmi? scp->eip:LWORD(eip)) += 2;  /* CLTS - ignore */
+		return 1;
+	}
+	else if (csp[1] == 0x31) {
+		/* ref: Van Gilluwe, "The Undocumented PC". The program
+		 * 'cpurdtsc.exe' traps here */
+		if (vm86s.cpu_type >= CPU_586) {
+		  __asm__ __volatile__ ("rdtsc" \
+			:"=a" (REG(eax)),  \
+			 "=d" (REG(edx)));
+		}
+		else {
+		  struct timeval tv;
+		  unsigned long long t;
+
+		  /* try to do the best you can to return something
+		   * meaningful, assume clk=100MHz */
+		  gettimeofday(&tv, NULL);
+		  t = (unsigned long long)tv.tv_sec*100000000 +
+		      (unsigned long long)tv.tv_usec*100;
+		  REG(eax)=((int *)&t)[0];
+		  REG(edx)=((int *)&t)[1];
+		}
+		(in_dpmi? scp->eip:LWORD(eip)) += 2;
+		return 1;
+	}
+	else if ((((csp[1] & 0xfc)==0x20)||(csp[1]==0x24)||(csp[1]==0x26)) &&
+		((csp[2] & 0xc0) == 0xc0)) {
+		unsigned long *cdt, *srg;
+		int idx;
+		boolean rnotw;
+
+		rnotw = ((csp[1]&2)==0);
+		idx = (csp[2]>>3)&7;
+		switch (csp[1]&7) {
+			case 0: case 2: cdt=CRs;
+					if (idx>4) return 0;
+					break;
+			case 1: case 3: cdt=DRs; break;
+			case 4: case 6: cdt=TRs;
+					if (idx<6) return 0;
+					idx -= 6;
+					break;
+			default: return 0;
+		}
+
+		switch (csp[2]&7) {
+			case 0: srg = (in_dpmi? &(scp->eax):(unsigned long *)&(REGS.eax));
+				break;
+			case 1: srg = (in_dpmi? &(scp->ecx):(unsigned long *)&(REGS.ecx));
+				break;
+			case 2: srg = (in_dpmi? &(scp->edx):(unsigned long *)&(REGS.edx));
+				break;
+			case 3: srg = (in_dpmi? &(scp->ebx):(unsigned long *)&(REGS.ebx));
+				break;
+			case 6: srg = (in_dpmi? &(scp->esi):(unsigned long *)&(REGS.esi));
+				break;
+			case 7: srg = (in_dpmi? &(scp->edi):(unsigned long *)&(REGS.edi));
+				break;
+			default:	/* ESP(4),EBP(5) */
+				return 0;
+		}
+		if (rnotw) {
+		  *srg = cdt[idx];
+		  g_printf("CPU: read =%08lx\n",*srg);
+		} else {
+		  cdt[idx] = *srg;
+		  g_printf("CPU: write=%08lx\n",*srg);
+		}
+		(in_dpmi? scp->eip:LWORD(eip)) += 3;
+		return 1;
+	}
+	/* all other trapped combinations:
+	 *	0f 0a, 0c..0f, 27, 29, 2b..2f, c2..c6, d0..fe, etc.
+	 */
+	return 0;
+}
 
 /* 
  * DANG_BEGIN_FUNCTION cpu_setup
