@@ -54,7 +54,7 @@ static struct sigcontext INT15_SAVED_REGS;
 #define DTA_over_1MB (void*)(GetSegmentBaseAddress(DPMI_CLIENT.USER_DTA_SEL) + DPMI_CLIENT.USER_DTA_OFF)
 #define DTA_under_1MB (void*)((DPMI_CLIENT.private_data_segment + DTA_Para_ADD) << 4)
 
-#define MAX_DOS_PATH 0x200
+#define MAX_DOS_PATH 260
 
 /* We use static varialbes because DOS in non-reentrant, but maybe a */
 /* better way? */
@@ -737,17 +737,17 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
             REG(edx) = 0;
             src = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_edx);
             dst = SEG_ADR((char *), ds, dx);
-            snprintf(dst, 260, "%s", src);
+            snprintf(dst, MAX_DOS_PATH, "%s", src);
             in_dos_21++;
             return 0;
         case 0x4E: /* find first file */
             REG(ds) = TRANS_BUFFER_SEG;
             REG(edx) = 0;
             REG(es) = TRANS_BUFFER_SEG;
-            REG(edi) = 260;
+            REG(edi) = MAX_DOS_PATH;
             src = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_edx);
             dst = SEG_ADR((char *), ds, dx);
-            snprintf(dst, 260, "%s", src);
+            snprintf(dst, MAX_DOS_PATH, "%s", src);
             in_dos_21++;
             return 0;
         case 0x4F: /* find next file */
@@ -778,7 +778,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
             REG(esi) = 0;
             src = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_esi);
             dst = SEG_ADR((char *), ds, si);
-            snprintf(dst, 260, "%s", src);
+            snprintf(dst, MAX_DOS_PATH, "%s", src);
             in_dos_21++;
             return 0;
         case 0xA1: /* close find */
@@ -1244,8 +1244,9 @@ void msdos_post_extender(int intr)
 	    DPMI_CLIENT.stack_frame.edi = S_REG(edi);
 	    if (LWORD(eflags) & CF)
 		break;
-	    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_REG(es)) + D_16_32(S_REG(edi)),
-		SEG_ADR((void *), es, di), 261);
+	    snprintf((void *)GetSegmentBaseAddress(S_REG(es)) + 
+		D_16_32(S_REG(edi)), MAX_DOS_PATH, "%s",
+		SEG_ADR((char *), es, di));
 	    break;
         case 0x6c:
             DPMI_CLIENT.stack_frame.esi = S_REG(esi);
