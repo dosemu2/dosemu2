@@ -98,7 +98,7 @@
 
 
 #include <features.h>
-#if __GLIBC__ > 1
+#if __GLIBC__ == 2 && __GLIBC_MINOR__ == 0
 #include <sigcontext.h>
 #endif
 #include <sys/mman.h>           /* root@sjoerd*/

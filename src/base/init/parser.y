@@ -120,7 +120,7 @@ extern int parse_debugflags(const char *s, unsigned char flag);
 	/* local procedures */
 
 void yyerror(char *, ...);
-static void yywarn(char *, ...);
+void yywarn(char *, ...);
 void keyb_layout(int value);
 static void start_ports(void);
 static void start_mouse(void);
@@ -2166,7 +2166,7 @@ static void set_irq_range(int bits, int i1, int i2) {
 
 	/* errors & warnings */
 
-static void yywarn(char* string, ...)
+void yywarn(char* string, ...)
 {
   va_list vars;
   va_start(vars, string);

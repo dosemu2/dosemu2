@@ -88,7 +88,7 @@ struct input_file
   int size_in_clusters;
 };
 
-static FILE *outfile = stdout;
+static FILE *outfile;
 static char *bootsect_file=0;
 static struct input_file input_files[ROOT_DIRECTORY_ENTRIES];
 static int input_file_count = 0;
@@ -259,6 +259,7 @@ int main(int argc, char *argv[])
 {
   int n, m;
   int kbytes = -1;
+  outfile = stdout;
   
   /* Parse command line. */
   if ((argc <= 1) && isatty(STDOUT_FILENO))

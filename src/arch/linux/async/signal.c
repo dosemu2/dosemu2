@@ -77,7 +77,7 @@ int
 dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
 {
   struct my_sigaction {
-    __sighandler_t sa_handler;
+    __sighandler_t my_sa_handler;
     unsigned long sa_mask;
     unsigned long sa_flags;
     void (*sa_restorer)(void);
@@ -85,7 +85,7 @@ dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
 
   struct my_sigaction my_sa;
 
-  my_sa.sa_handler = new->sa_handler;
+  my_sa.my_sa_handler = new->sa_handler;
   my_sa.sa_mask = *((unsigned long *) &(new->sa_mask));
   my_sa.sa_flags = new->sa_flags;
   my_sa.sa_restorer = new->sa_restorer;

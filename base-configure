@@ -1085,7 +1085,7 @@ else
     fi
   done
   IFS="$ac_save_ifs"
-  test -z "$ac_cv_prog_AS86" && ac_cv_prog_AS86="echo"
+  test -z "$ac_cv_prog_AS86" && ac_cv_prog_AS86="none"
 fi
 fi
 AS86="$ac_cv_prog_AS86"
@@ -1113,7 +1113,7 @@ else
     fi
   done
   IFS="$ac_save_ifs"
-  test -z "$ac_cv_prog_LD86" && ac_cv_prog_LD86="echo"
+  test -z "$ac_cv_prog_LD86" && ac_cv_prog_LD86="none"
 fi
 fi
 LD86="$ac_cv_prog_LD86"
@@ -3738,7 +3738,25 @@ fi
  PIPE=-pipe
 fi
 
-CFLAGS="${OPT} ${PIPE} ${USING_NET} ${CDEBUGOPTS} ${COPTFLAGS} ${INCDIR}"
+# try to catch glibc the secure way, works even on older autoconf
+cat > conftest.c <<EOF
+#include <features.h>
+#if __GLIBC__ > 1
+  yes_yes_yes;
+#endif
+EOF
+
+echo -n "checking for glibc..."
+if ${CC-cc} -E conftest.c |grep yes_yes_yes >/x 2>&1; then
+  GLIBCFLAGS="-D__USE_UNIX98 -D__USE_GNU"
+  echo "yes"
+else
+  echo "no"
+fi
+rm -f conftest.c
+
+CFLAGS="${OPT} ${GLIBCFLAGS} ${PIPE} ${USING_NET} ${CDEBUGOPTS} ${COPTFLAGS} ${INCDIR}"
+
 
 # set for DPMI want windows
 # ifdef REQUIRES_VM86PLUS
@@ -4134,12 +4152,12 @@ if test "$GCC" != "yes" ; then
   echo "configure: warning: your path." 1>&2
 fi
 
-if test ! "$AS86" = "as86" -a ! "$LD86" = "ld86" ; then
+if test "$AS86" != "as86" -o "$LD86" != "ld86" ; then
   echo "configure: warning: " 1>&2
   echo "configure: warning: Your system doesn't seem to have as86 and/or ld86." 1>&2
   echo "configure: warning: These programs are required to assemble the Dosemu" 1>&2
   echo "configure: warning: BIOS. Please install them." 1>&2
-  echo "configure: warning: " 1>&2
+  { echo "configure: error: " 1>&2; exit 1; }
 fi
 
 if test -z "`echo $YACC | grep bison`" ; then

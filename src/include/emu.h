@@ -9,7 +9,7 @@
 #include <features.h>
 #include <sys/types.h>
 #include <signal.h> 
-#if __GLIBC__ > 1
+#if __GLIBC__ == 2 && __GLIBC_MINOR__ == 0
 #include <sigcontext.h>
 #endif
 #include "config.h"

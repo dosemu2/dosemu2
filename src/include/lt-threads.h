@@ -53,7 +53,11 @@
 
 /* --------------------- for clone stuff */
 #if defined(__GLIBC__) && __GLIBC__ >= 2
- #include <schedbits.h>
+ #if __GLIBC__ == 2 && __GLIBC_MINOR__ == 0
+  #include <schedbits.h>
+ #else
+  #include <sched.h>
+ #endif
 #else
  #include <linux/version.h>
  #if LINUX_VERSION_CODE < 0x020100

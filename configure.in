@@ -15,8 +15,8 @@ AC_PROG_LN_S
 AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 AC_PROG_YACC
-AC_CHECK_PROG(AS86,as86,as86,echo)
-AC_CHECK_PROG(LD86,ld86,ld86,echo)
+AC_CHECK_PROG(AS86,as86,as86,none)
+AC_CHECK_PROG(LD86,ld86,ld86,none)
 
 dnl Checks for libraries.
 
@@ -603,7 +603,25 @@ if test "$CONFIG_HOST" = "linux"; then
  PIPE=-pipe
 fi
 
-CFLAGS="${OPT} ${PIPE} ${USING_NET} ${CDEBUGOPTS} ${COPTFLAGS} ${INCDIR}"
+# try to catch glibc the secure way, works even on older autoconf
+cat > conftest.c <<EOF
+#include <features.h>
+#if __GLIBC__ > 1
+  yes_yes_yes;
+#endif
+EOF
+
+echo -n "checking for glibc..."
+if ${CC-cc} -E conftest.c |grep yes_yes_yes >/x 2>&1; then
+  GLIBCFLAGS="-D__USE_UNIX98 -D__USE_GNU"
+  echo "yes"
+else
+  echo "no"
+fi
+rm -f conftest.c
+
+CFLAGS="${OPT} ${GLIBCFLAGS} ${PIPE} ${USING_NET} ${CDEBUGOPTS} ${COPTFLAGS} ${INCDIR}"
+
 
 # set for DPMI want windows
 # ifdef REQUIRES_VM86PLUS
@@ -652,12 +670,12 @@ if test "$GCC" != "yes" ; then
 fi
 
 dnl as86 and ld86
-if test ! "$AS86" = "as86" -a ! "$LD86" = "ld86" ; then
+if test "$AS86" != "as86" -o "$LD86" != "ld86" ; then
   AC_MSG_WARN( )
   AC_MSG_WARN(Your system doesn't seem to have as86 and/or ld86.)
   AC_MSG_WARN(These programs are required to assemble the Dosemu)
   AC_MSG_WARN(BIOS. Please install them.)
-  AC_MSG_WARN( )
+  AC_MSG_ERROR( )
 fi
 
 dnl The bison problem

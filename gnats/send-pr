@@ -20,11 +20,6 @@
 # along with GNU GNATS; see the file COPYING.  If not, write to
 # the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
-# extract dosemu version
-__VER=`grep VERSION= configure.in|head -n1|cut '-d"' -f2`
-__SUB=`grep SUBLEVEL= configure.in|cut '-d"' -f2`
-__PATCH=`grep PATCHLEVEL= configure.in|cut '-d"' -f2`
-
 # The version of this send-pr.
 VERSION=3.99d-am0.1
 
@@ -33,7 +28,7 @@ SUBMITTER=net
 
 # Where the GNATS directory lives, if at all.
 [ -z "$GNATS_ROOT" ] && 
-GNATS_ROOT=/usr/src/dosemu-${__VER}.${__SUB}.${__PATCH}
+GNATS_ROOT=.
 
 # The default mail address for PR submissions. 
 GNATS_ADDR=dosemu-bugs@slitesys.demon.co.uk
@@ -47,7 +42,7 @@ DATADIR=.
 
 
 # The default release for this host.
-DEFAULT_RELEASE="dosemu-${__VER}.${__SUB}.${__PATCH}"
+DEFAULT_RELEASE="dosemu-`cat VERSION`"
 
 # The default organization.
 DEFAULT_ORGANIZATION="user"

@@ -65,7 +65,7 @@ int new_set_video_mode(int);
 
 
 #include <features.h>
-#if __GLIBC__ > 1
+#if __GLIBC__ == 2 && __GLIBC_MINOR__ == 0
 #include <sigcontext.h>
 #endif
 #include <string.h>

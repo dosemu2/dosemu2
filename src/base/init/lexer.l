@@ -86,6 +86,7 @@ else if (TESTACTIVE)
 
 extern char* strdup(const char *); /* Not defined in string.h :-( */
 extern void yyerror(char* string, ...);
+extern void yywarn(char* string, ...);
 
 char *yy_vbuffer=0;
 
@@ -1069,7 +1070,7 @@ static void enter_macrofile(char *variable)
 	}
         macrobuffer = getenv(variable);
 	if (!macrobuffer) {
-		yyerror("macro '%s'not found \n", variable);
+		yywarn("macro '%s' not found \n", variable);
 		return;
 	}
 	if (config_check_only>1)

@@ -1,3 +1,19 @@
+98/03/01 ver. 0.97.4.1 unofficial pre-release
+	From Alistair
+	- fix for send-pr reporting wrong version when running under buggy
+          bash2
+	From Albert K T Hui <avatar@deva.net>
+	- more glibc fixes
+	- make use of __USE_* defines (moved by Hans into configure)
+	  (__USE_GNU for MREMAP_MAYMOVE and CRTSCTS, __USE_UNIX98 for XCASE)
+	- moved stdout inside main() in mkfatimage16.c to make glibc2 happy
+	From Hans
+	- fixed bug in configure.in not detecting missing as86/ld86 correctly 
+	- fixed bug in global.conf not setting X when TERM != xterm
+	- installed glibc check in configure.in and then globally define
+	  __USE_* (from Albert's patch)
+	- changed yyerror to yywarn for when a macro isn't found on
+	  macro expansion. This may be empty anyway. (in lexer.l)
 98/02/28 ver. 0.97.4 released
 	From Kenneth
 	- fixed diabolic 'usedoptions[]' in src/base/init/config.c
