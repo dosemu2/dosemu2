@@ -174,7 +174,7 @@ install:
 	    $(INSTALL) -d $(DESTDIR)$(sysconfdir)/drives; \
 	    ln -s $(dosemudir)/freedos $(DESTDIR)$(sysconfdir)/drives/c; \
 	  fi; \
-	  rm -f $(DESTDIR)$(dosemudir)/freedos/tmp; \
+	  rm -rf $(DESTDIR)$(dosemudir)/freedos/tmp; \
 	  ln -sf /tmp $(DESTDIR)$(dosemudir)/freedos/tmp; \
 	fi
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)

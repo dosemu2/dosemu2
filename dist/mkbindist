@@ -54,14 +54,14 @@ fi
 
 if [ -u $BIN/dosemu.bin ]; then
   echo "
-  You made dosemu.bin suid, this ist not supported for the bindist.
+  You made dosemu.bin suid, this is not supported for the bindist.
   removing the s-bit from the copy.
 "
 fi
 
 
 mkdir -p $TMP
-cp -p ../README.bindist dosemu $TMP
+cp -p ../README.bindist ../COPYING dosemu $TMP
 ln -sf dosemu $TMP/xdosemu
 
 mkdir -p $TMP/bin
