@@ -132,17 +132,38 @@ static void set_char_set (int cs)
  	SLsmg_Display_Eight_Bit = 0x80;
 	break;
 	
-      case CHARSET_LATIN:
-      default:
+      case CHARSET_LATIN1:
 	if (Use_IBM_Codes) 
 	  {
 	     SLtt_write_string ("\n\033(B\033(B\r         \r");
 	  }
 	SLsmg_Display_Eight_Bit = 160;
 	Use_IBM_Codes = 0;
-	The_Charset = charset_latin;
+	The_Charset = charset_latin1;
 	break; 
+
+      case CHARSET_LATIN2:
+        if (Use_IBM_Codes)
+          {
+             SLtt_write_string ("\n\033(B\033(B\r         \r");
+          }
+        SLsmg_Display_Eight_Bit = 160;
+        Use_IBM_Codes = 0;
+        The_Charset = charset_latin2;
+        break;
+
+      case CHARSET_LATIN:
+      default:
+        if (Use_IBM_Codes)
+          {
+             SLtt_write_string ("\n\033(B\033(B\r         \r");
+          }
+        SLsmg_Display_Eight_Bit = 160;
+        Use_IBM_Codes = 0;
+        The_Charset = charset_latin;
+        break;
      }
+
    
    /* The fact is that this code is used to talk to a terminal.  Control 
     * sequences 0-31 and 128-159 are reserved for the terminal.  Here I fixup 
@@ -170,7 +191,7 @@ terminal_initialize()
    SLtt_Char_Type sltt_attr, fg, bg, attr, color_sltt_attr, bw_sltt_attr;
    int is_color = config.term_color;
    int rotate[8];
-   
+
    v_printf("VID: terminal_initialize() called \n");
    /* I do not know why this routine is called if our update is not
     * called.  Oh well.... 
@@ -556,7 +577,7 @@ void dos_slang_smart_set_mono (void)
    memset ((unsigned char *) prev_screen, 0xFF, 
 	   2 * SLtt_Screen_Rows * SLtt_Screen_Cols);
    
-   set_char_set (CHARSET_LATIN);
+   set_char_set (config.term_charset /*CHARSET_LATIN*/);
    
    SLsmg_cls ();
 }

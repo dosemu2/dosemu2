@@ -264,7 +264,7 @@ extern void yyrestart(FILE *input_file);
 %token KEYBINT RAWKEYBOARD
 %token PRESTROKE
 %token KEYTABLE SHIFT ALT NUMPAD DUMP
-%token DGRAVE DACUTE DCIRCUM DTILDE DBREVE DABOVED DDIARES DABOVER DDACUTE DCEDILLA DIOTA
+%token DGRAVE DACUTE DCIRCUM DTILDE DBREVE DABOVED DDIARES DABOVER DDACUTE DCEDILLA DIOTA DOGONEK DCARON
 	/* ipx */
 %token NETWORK PKTDRIVER
         /* lock files */
@@ -615,6 +615,7 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    { IFCLASS(CL_VIDEO) start_video(); }
 		  '{' video_flags '}'
 		    { stop_video(); }
+		| CHARSET CHARSET_TYPE	{ config.term_charset = $2; }
 		| TERMINAL
 		    { start_terminal(); }
                   '{' term_flags '}'
@@ -1240,6 +1241,8 @@ keyboard_modval : INTEGER { keyb_mod(0, $1); }
 		| DDACUTE { keyb_mod(0, DEAD_DOUBLEACUTE); }
 		| DCEDILLA { keyb_mod(0, DEAD_CEDILLA); }
 		| DIOTA { keyb_mod(0,DEAD_IOTA); }
+		| DOGONEK { keyb_mod(0,DEAD_OGONEK); }
+		| DCARON { keyb_mod(0,DEAD_CARON); }
 		| STRING {
 			char *p = $1;
 			while (*p) keyb_mod(0, *p++);
@@ -1736,7 +1739,12 @@ static void start_terminal(void)
    /* config.term_method = METHOD_FAST; */
    /* config.term_updatelines = 25; */
   config.term_updatefreq = 4;
+#if 0 /* we don't preset it here, as it now is set by its own statement
+       * and it's already preset in config_defaults() (config.c).
+       *       --Hans
+       */
   config.term_charset = CHARSET_LATIN;
+#endif
   config.term_color = 1;
    config.term_esc_char = 30;	       /* Ctrl-^ */
    /* config.term_corner = 1; */
@@ -2095,7 +2103,7 @@ static void dump_keytable_part(FILE *f, unsigned char *map, int size)
   static unsigned char dead_key_list[] = {FULL_DEADKEY_LIST, 0};
   static char *dead_key_names[] = {
     "dgrave", "dacute", "dcircum", "dtilde", "dbreve", "daboved", "ddiares",
-    "dabover", "ddacute", "dcedilla", "diota"
+    "dabover", "ddacute", "dcedilla", "diota", "dogonek", "dcaron"
   };
 
   size--;

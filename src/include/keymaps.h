@@ -39,6 +39,7 @@
 #define KEYB_USER	      26
 #define NUM_KEYB	      27
 #define KEYB_JP106	      28
+#define KEYB_PL               29
 
 #define CONST
 
@@ -59,11 +60,13 @@ extern unsigned char alt_map_us[];
 #define DEAD_ABOVERING     8
 #define DEAD_DOUBLEACUTE   10
 #define DEAD_CEDILLA       11
-#define DEAD_IOTA          12
+#define DEAD_IOTA          12 
+#define DEAD_OGONEK        14
+#define DEAD_CARON         15
 
 #define FULL_DEADKEY_LIST  DEAD_GRAVE, DEAD_ACUTE, DEAD_CIRCUMFLEX, \
   DEAD_TILDE, DEAD_BREVE, DEAD_ABOVEDOT, DEAD_DIAERESIS, DEAD_ABOVERING, \
-  DEAD_DOUBLEACUTE, DEAD_CEDILLA, DEAD_IOTA
+  DEAD_DOUBLEACUTE, DEAD_CEDILLA, DEAD_IOTA, DEAD_OGONEK, DEAD_CARON
 
 struct dos_dead_key {
   unsigned char d_key;

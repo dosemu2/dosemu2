@@ -37,37 +37,39 @@
 
   2.2.9.  Miscellaneous
 
-  2.2.10. Keyboard settings
+  2.2.10. Code page and character set
 
-  2.2.11. Serial stuff
+  2.2.11. Keyboard settings
 
-  2.2.12. Networking Support
+  2.2.12. Serial stuff
 
-  2.2.13. Terminals
+  2.2.13. Networking Support
 
-  2.2.14. X Support settings
+  2.2.14. Terminals
 
-  2.2.15. Video settings ( console only )
+  2.2.15. X Support settings
 
-  2.2.16. Memory settings
+  2.2.16. Video settings ( console only )
 
-  2.2.17. IRQ passing
+  2.2.17. Memory settings
 
-  2.2.18. Port Access
+  2.2.18. IRQ passing
 
-  2.2.19. Speaker
+  2.2.19. Port Access
 
-  2.2.20. Hard disks
+  2.2.20. Speaker
 
-  2.2.21. DOSEMU boot
+  2.2.21. Hard disks
 
-  2.2.22. Floppy disks
+  2.2.22. DOSEMU boot
 
-  2.2.23. Printers
+  2.2.23. Floppy disks
 
-  2.2.24. Sound
+  2.2.24. Printers
 
-  2.2.25. DEXE support
+  2.2.25. Sound
+
+  2.2.26. DEXE support
 
   3.      Accessing ports with dosemu
 
@@ -374,19 +376,26 @@
 
   The first file expected (and interpreted) before any other
   configuration (such as global.conf, dosemu.conf and  /.dosemurc) is
-  /etc/dosemu.users.  Within /etc/dosemu.users the general permissions
-  are set:
+  /etc/dosemu.users.  If /etc/dosemu.users doesn't exist, DOSEMU check
+  for /etc/dosemu/dosemu.users, this makes people happy, which prefer to
+  have to configuration stuff in a separate directory under /etc.
+  Within dosemu.users the general permissions are set:
 
   +o  which users are allowed to use DOSEMU.
 
   +o  which users are allowed to use DOSEMU suid root.
 
+  +o  which users are allowed to have a private lib dir.
+
   +o  what kind of access class the user belongs to.
 
-  +o  wether the user is allowed to define a private global.conf that
-     replaces /var/lib/dosemu/global.conf (option -F).
-
   +o  what special configuration stuff the users needs
+
+  and further more:
+
+  +o  wether the lib dir (/var/lib/dosemu) resides elsewhere.
+
+  +o  setting the loglevel.
 
   This is done via setting configuration variables.
 
@@ -415,7 +424,8 @@
 
   22..11..  FFoorrmmaatt ooff //eettcc//ddoosseemmuu..uusseerrss
 
-  Each line corresponds to exactly _one_ valid user count:
+  Except for lines starting with x=' (explanation below), each line
+  corresponds to exactly _one_ valid user count:
 
          loginname [ c_strict ] [ classes ...] [ c_dexeonly ] [ other ]
 
@@ -430,7 +440,6 @@
         howver, use a non-suid root copy of DOSEMU (reasonable sysadmins
         will supply it) For more information on this look at chapter
         11.1 (`Priveleges and Running as User')
-
      cc__ssttrriicctt
         Do not allow -F option (global.conf can't be replaced)
 
@@ -439,6 +448,7 @@
 
      ccllaasssseess
         One or more of the following:
+
         cc__aallll
            no restriction
 
@@ -499,10 +509,25 @@
 
      ootthheerr
         Here you may define any configuration variable, that you want to
-        test in global.conf (or (old) .dosrc, -I), see 'ifdef', 'ifndef'
+        test in global.conf (or (old) .dosrc, -I), see `ifdef', `ifndef'
         When this variable is intended to be unset in lower privilege
         configuration files (.dosrc, -I), then the variable name has to
-        be prefixed with 'u_'.
+        be prefixed with `u_'.
+
+     pprriivvaattee__sseettuupp
+        Keyword, this makes dosemu to accept a private DOSEMU lib under
+        $HOME/.dosemu/lib. If this directory is existing, DOSEMU will
+        expect all normally under /var/lib/dosemu within that
+        directory,including `lobal.conf'. As this would be a security
+        risc, it only will be allowed, if the used DOSEMU binary is non-
+        suid-root. If you realy trust a user you may additionally give
+        the keyword `unrestricted', which will allow this user to
+        execute a suid-root binary even on a private lib directory
+        (though, be aware).
+
+     uunnrreessttrriicctteedd
+        Keyword, used to allow `private_setup' on suid-root binaries
+        too. USE WITH CARE !
 
   A line with '#' at colum 1 is treated as comment line. When only the
   login name is given (no further parameters, old format) the following
@@ -514,6 +539,23 @@
   Other than with previous DOSEMU versions, the /etc/dosemu.users now is
   mandatory. Also note, that you may restrict 'root' doing something
   silly ;-)
+
+  In addition, dosemu.users can be used to define some global settings,
+  which must be known before any other file is accessed, such as:
+
+         default_lib_dir= /opt/dosemu  # replaces /var/lib/dosemu
+         log_level= 2                  # highest log level
+
+  With `default_lib_dir=' you may move /var/lib/dosemu elsewere, this
+  mostly is interesting for distributors, who want it elswere but won't
+  patch the DOSEMU source just for this purpose. But note, the dosemu
+  supplied scripts and helpers may need some adaption too in order to
+  fit your new directory.
+
+  The `log_level=' can be 0 (never log) or 1 (log only errors) or 2 (log
+  all) and controls the ammount written to the systems log facility
+  (notice).  This keyword replaces the former /etc/dosemu.loglevel file,
+  which now is obsolete.
 
   22..22..  FFoorrmmaatt ooff //vvaarr//lliibb//ddoosseemmuu//gglloobbaall..ccoonnff (( ((oolldd)) ..ddoossrrcc,, --II ooppttiioonn))
 
@@ -572,9 +614,9 @@
         uid. You may protect security relevant parts of the
         configuration such as:
 
-             if ( ! $DOSEMU_EUID && ($DOSEMU_EUID != $DOSEMU_UID) )
-               warn "running suid root"
-             endif
+        if ( ! $DOSEMU_EUID && ($DOSEMU_EUID != $DOSEMU_UID) )
+          warn "running suid root"
+        endif
 
      DDOOSSEEMMUU__HHOOSSTT
         Name of the host DOSEMU is running on. This is same as what
@@ -609,6 +651,7 @@
          ifdef <configuration variable>
 
   or
+
          ifndef <configuration variable>
            ...
          else
@@ -619,12 +662,12 @@
   variable). Additionally there is a `normal' _i_f _s_t_a_t_e_m_e_n_t, a _w_h_i_l_e
   _s_t_a_t_e_m_e_n_t and a _f_o_r_e_a_c_h _s_t_a_t_e_m_e_n_t such as
 
-         if ( expression )
-         endif
-         while ( expression )
-         done
-         foreach loop_variable (delim, list)
-         done
+    if ( expression )
+    endif
+    while ( expression )
+    done
+    foreach loop_variable (delim, list)
+    done
 
   but these behaves a bit different and are described later.
 
@@ -658,6 +701,7 @@
 
      cc__ddoossrrcc
         set while parsing (old) .dosrc
+
      cc__ccoommlliinnee
         set while parsing -I option statements
 
@@ -715,20 +759,20 @@
   long as `expression' is not 0. The loop end is given by the keyword
   _d_o_n_e such as in
 
-         $counter = (3)
-         while ($counter > 0)
-           # what ever should loop
-           $counter = ($counter -1)
-         done
+    $counter = (3)
+    while ($counter > 0)
+      # what ever should loop
+      $counter = ($counter -1)
+    done
 
-         # or some kind of list processing
-         # ... but look below, `foreach' does it better
-         $list = "aa bbb ccc"
-         while (strlen($list))
-           $item = strdel($list, strchr($list," "), 999)
-           $list = strsplit($list, (strlen($item)+1),9999);
-           warn "doing something with ", $item
-         done
+    # or some kind of list processing
+    # ... but look below, `foreach' does it better
+    $list = "aa bbb ccc"
+    while (strlen($list))
+      $item = strdel($list, strchr($list," "), 999)
+      $list = strsplit($list, (strlen($item)+1),9999);
+      warn "doing something with ", $item
+    done
 
   The _f_o_r_e_a_c_h _s_t_a_t_e_m_e_n_t behaves a bit like the /bin/sh `for i in', but
   you can specify a list of delimiters.
@@ -759,14 +803,13 @@
   If you for some reason want to bundle some major settings in a
   separate file you can include it via
 
-    include "somefile"
+         include "somefile"
 
   If 'somefile' doesn't have a leading '/', it is assumed to be relative
   to /etc.  Also includeing may be nested up to a max depth of 10 files.
   Note however, that the privilege is inherited from the main file from
   which is included, hence all what is included by
   /var/lib/dosemu/global.conf has its privilege.
-
   However, there are restrictions for `while' loops: You can't have
   _i_n_c_l_u_d_e _s_t_a_t_e_m_e_n_t_s within loops without beeing prepared for unexpected
   behave. In fact you may try, but due to the technique used, include
@@ -808,20 +851,20 @@
   simple, it allows you to be lazy to write the same things more then
   once.
 
-         $loop = '
-           while ($xxx)
-             warn "loop in macro ",$xxx
-             $xxx = ($xxx -1)
-           done
-         ';
-         $xxx = (2); $$loop; $xxx = (3); $$loop;
+    $loop = '
+      while ($xxx)
+        warn "loop in macro ",$xxx
+        $xxx = ($xxx -1)
+      done
+    ';
+    $xxx = (2); $$loop; $xxx = (3); $$loop;
 
-         $_X_keycode = (off)
-         $_X_lin_filt = (on)
-         ...
-         if ($_X_keycode) $_X_keycode = "keycode" else $_X_keycode = "" endif
-         if ($_X_lin_filt) $_X_lin_filt = "lin_filt" else $_X_lin_filt = "" endif
-         X { icon_name "xdos" $$_X_keycode $$_X_lin_filt }
+    $_X_keycode = (off)
+    $_X_lin_filt = (on)
+    ...
+    if ($_X_keycode) $_X_keycode = "keycode" else $_X_keycode = "" endif
+    if ($_X_lin_filt) $_X_lin_filt = "lin_filt" else $_X_lin_filt = "" endif
+    X { icon_name "xdos" $$_X_keycode $$_X_lin_filt }
 
   You see, that in cases the variables are `false', the (parameterless)
   `keycode' and/or `lin_filt' keywords would not appear in the `X{}'
@@ -852,9 +895,9 @@
   those statements / terms which have a coma (instead of a blank) as
   delimiter:
 
-         ... winsize x , y ...
-         ... vesamode width , heigh ...
-         ... range from , to ...
+    ... winsize x , y ...
+    ... vesamode width , heigh ...
+    ... range from , to ...
 
   The old syntax is left for compatibility and is only parsed correcty,
   if pure numbers (integers) are used.
@@ -899,10 +942,10 @@
   done automaticaly, but you may force it using the (below mentioned)
   int() and real() functions such as:
 
-     $is_real =    ( 3.1415 * 100 )
-     $is_integer = ( int( 3.1415 * 100) )
-     $is_integer = ( 100 * 3.1415 )
-     $is_real =  ( real($is_integer) )
+          $is_real =    ( 3.1415 * 100 )
+          $is_integer = ( int( 3.1415 * 100) )
+          $is_integer = ( 100 * 3.1415 )
+          $is_real =  ( real($is_integer) )
 
   The above also shows, how environment variables can be set: if you
   want to place `expressions' (which are always numbers) onto a
@@ -1211,16 +1254,53 @@
 
          cdrom /dev/xxx
 
-  22..22..1100..  KKeeyybbooaarrdd sseettttiinnggss
+  22..22..1100..  CCooddee ppaaggee aanndd cchhaarraacctteerr sseett
+
+  To select the character set and code page for use with DOSEMU we now
+  (against earlier versions of DOSEMU) have a separate statement:
+
+         charset XXX
+
+  where XXX is one of
+
+     iibbmm
+        the text is taken whithout translation, it is to the user to
+        load a proper DOS font (cp437.f16, cp850.f16 or cp852.f16 on the
+        console).
+
+     llaattiinn
+        the text is processed using cp437->iso-8859-1 translation, so
+        the font used must be iso-8859-1 (eg iso01.f16 on console);
+        which is the default for unix in western languages countries.
+
+     llaattiinn11
+        like latin, but using cp850->iso-8859-1 translation (the
+        difference between cp437 and cp850 is that cp437 uses some chars
+        for drawing boxes while cp850 uses them for accentuated letters)
+
+     llaattiinn22
+        like latin1 but uses cp852->iso-8859-2 translation, so
+        translates the default DOS charset of eastern european countries
+        to the default unix charset for those countries.
+
+  The default one is ``latin'' and if the string is empty, then an auto-
+  matic attempt is made: ``ibm'' for remote console and ``latin'' for
+  anything else.  Depending on the charset setting the (below described)
+  keyboard layouts and/or the terminal behave may vary. You need to know
+  the correct code page your DOS is configured for in order to get the
+  correct results.  For most western european countries 'latin' should
+  be the correct setting.
+
+  22..22..1111..  KKeeyybbooaarrdd sseettttiinnggss
 
   For defining the keyboard layouts you are using there is the
   "keyboard" statement such as
 
-         keyboard {  layout us  .... }
+    keyboard {  layout us  .... }
 
-       or
+  or
 
-         keyboard {  layout us {alt 66=230} ... }
+    keyboard {  layout us {alt 66=230} ... }
 
   The later modifies the US keyboard layout such that it will allow you
   to type a character 230 (micro) with right ALT-M.
@@ -1258,6 +1338,8 @@
          dabover       (dead above ring)
          ddacute       (dead double acute)
          dcedilla      (dead cedilla)
+         dogonek       (dead ogonek)
+         dcaron        (dead caron)
 
   After a "key_number =" there may be any number of comma separated
   values, which will go into the table starting with "key_number", hence
@@ -1314,6 +1396,7 @@
            be                keyb-no      fr-latin1    po
            it                no-latin1    sw           jp106
            hu                hu-cwi       hu-latin2    keyb-user
+           po
 
   The keyb-user is selected by default if the "layout" keyword is
   omitted, and this in fact is identical to us-layout, as long as it got
@@ -1335,7 +1418,7 @@
 
   recommended:
 
-    keyboard {  layout us  keybint on  rawkeyboard off  }
+         keyboard {  layout us  keybint on  rawkeyboard off  }
 
   or
 
@@ -1362,7 +1445,7 @@
 
         keystroke "\F8;"
 
-  22..22..1111..  SSeerriiaall ssttuuffff
+  22..22..1122..  SSeerriiaall ssttuuffff
 
   You can specify up to 4 simultaneous serial ports here.  If more than
   one ports have the same IRQ, only one of those ports can be used at
@@ -1415,15 +1498,15 @@
   'internaldriver' option to try Dosemu internaldriver.  Use the
   'emulate3buttons' for 3button mice.
 
-    mouse { microsoft }
-    mouse { logitech }
-    mouse { mmseries }
-    mouse { mouseman }
-    mouse { hitachi }
-    mouse { mousesystems }
-    mouse { busmouse }
-    mouse { ps2  device /dev/mouse internaldriver emulate3buttons }
-    mouse { mousesystems device /dev/mouse internaldriver cleardtr }
+         mouse { microsoft }
+         mouse { logitech }
+         mouse { mmseries }
+         mouse { mouseman }
+         mouse { hitachi }
+         mouse { mousesystems }
+         mouse { busmouse }
+         mouse { ps2  device /dev/mouse internaldriver emulate3buttons }
+         mouse { mousesystems device /dev/mouse internaldriver cleardtr }
 
   For tty locking capabilities:
 
@@ -1447,7 +1530,7 @@
 
          ttylocks { directory /var/lock namestub LCK.. binary }
 
-  22..22..1122..  NNeettwwoorrkkiinngg SSuuppppoorrtt
+  22..22..1133..  NNeettwwoorrkkiinngg SSuuppppoorrtt
 
   Turn the following option 'on' if you require IPX/SPX emulation.
   Therefore, there is no need to load IPX.COM within the DOS session.
@@ -1460,7 +1543,7 @@
 
          pktdriver novell_hack
 
-  22..22..1133..  TTeerrmmiinnaallss
+  22..22..1144..  TTeerrmmiinnaallss
 
   This section applies whenever you run DOSEMU remotely or in an xterm.
   Color terminal support is now built into DOSEMU.  Skip this section
@@ -1468,10 +1551,6 @@
 
   There are a number of keywords for the terminal { } configuration
   line.
-
-     cchhaarrsseett
-        Select the character set to use with DOSEMU. One of ``latin''
-        (default) or ``ibm''.
 
      ccoolloorr
         Enable or disable color terminal support. One of ``on''
@@ -1502,7 +1581,7 @@
   Use this for color xterms or rxvt's with no IBM font, with only 8
   colors.
 
-    terminal { charset latin  color on }
+         terminal { charset latin  color on }
 
   Use this for color xterms or rxvt's with IBM font, with only 8 colors.
 
@@ -1512,7 +1591,7 @@
 
          terminal { charset latin  updatefreq 4  color on }
 
-  22..22..1144..  XX SSuuppppoorrtt sseettttiinnggss
+  22..22..1155..  XX SSuuppppoorrtt sseettttiinnggss
 
   If DOSEMU is running in its own X-window (not xterm), you may need to
   tailor it to your needs. Valid keywords for the X { } config line:
@@ -1523,7 +1602,6 @@
         a frequency of about one per second, which is very slow.
         However, more CPU time is given to DOS applications when updates
         are less frequent.  The default is 8.
-
      ddiissppllaayy
         The X server to use. If this is not specified, dosemu will use
         the DISPLAY environment variable. (This is the normal case) The
@@ -1627,7 +1705,7 @@
 
          X { updatefreq 8 title "DOS in a BOX" icon_name "xdos" }
 
-  22..22..1155..  VViiddeeoo sseettttiinnggss (( ccoonnssoollee oonnllyy ))
+  22..22..1166..  VViiddeeoo sseettttiinnggss (( ccoonnssoollee oonnllyy ))
 
   _!_!_W_A_R_N_I_N_G_!_!_: _A _L_O_T _O_F _T_H_I_S _V_I_D_E_O _C_O_D_E _I_S _A_L_P_H_A_!  _I_F _Y_O_U _E_N_A_B_L_E
   _G_R_A_P_H_I_C_S _O_N _A_N _I_N_C_O_M_P_A_T_I_B_L_E _A_D_A_P_T_O_R_, _Y_O_U _C_O_U_L_D _G_E_T _A _B_L_A_N_K _S_C_R_E_E_N _O_R
@@ -1651,6 +1729,7 @@
 
   +o  If your VBios size is only 32K you set it with  vbios_size 0x8000,
      you then gain some space for UMB or hardware ram locations.
+
   +o  Set "allowvideoportaccess on" earlier in this configuration file if
      DOSEMU won't boot properly, such as hanging with a blank screen,
      beeping, leaving Linux video in a bad state, or the video card
@@ -1720,7 +1799,7 @@
 
   ET4000 SVGA card with 1 megabyte on board:
 
-         video { vga  console  graphics  chipset et4000  memsize 1024 }
+    video { vga  console  graphics  chipset et4000  memsize 1024 }
 
   or
 
@@ -1732,7 +1811,7 @@
 
   Avance Logic (ALI) 230x SVGA
 
-    video { vga  console  graphics  chipset avance }
+         video { vga  console  graphics  chipset avance }
 
   For ATI graphic mode
 
@@ -1746,7 +1825,7 @@
 
          video { vga  console  graphics  chipset wdvga }
 
-  22..22..1166..  MMeemmoorryy sseettttiinnggss
+  22..22..1177..  MMeemmoorryy sseettttiinnggss
 
   These are memory parameters, stated in number of kilobytes.  If you
   get lots of disk swapping while DOSEMU runs, you should reduce these
@@ -1804,13 +1883,14 @@
   regions with hardware_ram { .. }. You can only map in entities of 4k,
   you give the address, not the segment.  The below maps
   0xc8000..0xc8fff and 0xcc000..0xcffff:
+
          hardware_ram { 0xc8000 range 0xcc000 0xcffff }
 
   With the below you define the maximum conventional RAM to show apps:
 
          dosmem 640
 
-  22..22..1177..  IIRRQQ ppaassssiinngg
+  22..22..1188..  IIRRQQ ppaassssiinngg
 
   The irqpassing statement accepts IRQ values between 3..15, if using
   the { .. } syntax each value or range can be prefixed by the keyword
@@ -1825,7 +1905,7 @@
          irqpassing { use_sigio 15 }
          irqpassing { 10  use_sigio range 3 5 }
 
-  22..22..1188..  PPoorrtt AAcccceessss
+  22..22..1199..  PPoorrtt AAcccceessss
 
   WWAARRNNIINNGG:: GGIIVVIINNGG AACCCCEESSSS TTOO PPOORRTTSS IISS BBOOTTHH AA SSEECCUURRIITTYY CCOONNCCEERRNN AANNDD SSOOMMEE
   PPOORRTTSS AARREE DDAANNGGEERROOUUSS TTOO UUSSEE..  PPLLEEAASSEE SSKKIIPP TTHHIISS SSEECCTTIIOONN,, AANNDD DDOONN''TT
@@ -1860,7 +1940,7 @@
          ports { 0x388 0x389 }   # for SimEarth
          ports { 0x21e 0x22e 0x23e 0x24e 0x25e 0x26e 0x27e 0x28e 0x29e } # for jill
 
-  22..22..1199..  SSppeeaakkeerr
+  22..22..2200..  SSppeeaakkeerr
 
   These keywords are allowable on the "speaker" line:
 
@@ -1877,7 +1957,7 @@
 
          speaker off
 
-  22..22..2200..  HHaarrdd ddiisskkss
+  22..22..2211..  HHaarrdd ddiisskkss
 
   WWAARRNNIINNGG:: DDAAMMAAGGEE MMIIGGHHTT RREESSUULLTT TTOO YYOOUURR HHAARRDD DDIISSKK ((LLIINNUUXX AANNDD//OORR DDOOSS)) IIFF
   YYOOUU FFIIDDDDLLEE WWIITTHH TTHHIISS SSEECCTTIIOONN WWIITTHHOOUUTT KKNNOOWWIINNGG WWHHAATT YYOOUU''RREE DDOOIINNGG!!
@@ -1933,21 +2013,21 @@
 
   Use/modify one (or more) of the folling statements:
 
-         disk { image "/var/lib/dosemu/hdimage" }      # use diskimage file.
-         disk { partition "/dev/hda1" readonly }       # 1st partition on 1st IDE.
-         disk { partition "/dev/hda1" bootfile "/var/lib/bootsect.dos" }
-                                                       # 1st partition on 1st IDE
-                                                       # booting from the specified
-                                                       # file.
-         disk { partition "/dev/hda6" readonly }       # 6th logical partition.
-         disk { partition "/dev/sdb1" readonly }       # 1st partition on 2nd SCSI.
-         disk { wholedisk "/dev/hda" }                 # Entire disk drive unit
+    disk { image "/var/lib/dosemu/hdimage" }      # use diskimage file.
+    disk { partition "/dev/hda1" readonly }       # 1st partition on 1st IDE.
+    disk { partition "/dev/hda1" bootfile "/var/lib/bootsect.dos" }
+                                                  # 1st partition on 1st IDE
+                                                  # booting from the specified
+                                                  # file.
+    disk { partition "/dev/hda6" readonly }       # 6th logical partition.
+    disk { partition "/dev/sdb1" readonly }       # 1st partition on 2nd SCSI.
+    disk { wholedisk "/dev/hda" }                 # Entire disk drive unit
 
   Recommended:
 
          disk { image "/var/lib/dosemu/hdimage" }
 
-  22..22..2211..  DDOOSSEEMMUU bboooott
+  22..22..2222..  DDOOSSEEMMUU bboooott
 
   Use the following option to boot from the specified file, and then
   once booted, have bootoff execute in autoexec.bat. Thanks Ted :-).
@@ -1965,7 +2045,7 @@
          EmuSys EMU
          EmuBat EMU
 
-  22..22..2222..  FFllooppppyy ddiisskkss
+  22..22..2233..  FFllooppppyy ddiisskkss
 
   This part is fairly easy.  Make sure that the first (/dev/fd0) and
   second (/dev/fd1) floppy drives are of the correct size, "threeinch"
@@ -1986,9 +2066,9 @@
   used if the floppies are write-protected.  Use an integer value to set
   the time between floppy updates.
 
-    FastFloppy 8
+         FastFloppy 8
 
-  22..22..2233..  PPrriinntteerrss
+  22..22..2244..  PPrriinntteerrss
 
   Printer is emulated by piping printer data to a file or via a unix
   command such as "lpr".  Don't bother fiddling with this configuration
@@ -2024,14 +2104,14 @@
   Be sure to also add a port line to allow the application access to the
   port:
 
-    ports { device /dev/lp0 0x3bc 0x3bd 0x3be }
+         ports { device /dev/lp0 0x3bc 0x3bd 0x3be }
 
   NOTE: applications that require this will not interfere with
   applications that continue to use the standard bios calls.  These
   applications will continue to send the output piped to the file or
   unix command.
 
-  22..22..2244..  SSoouunndd
+  22..22..2255..  SSoouunndd
 
   The sound driver is more or less likely to be broken at the moment.
 
@@ -2067,7 +2147,7 @@
          sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/sound
                      sb_mixer /dev/mixer mpu_base 0x330 }
 
-  22..22..2255..  DDEEXXEE ssuuppppoorrtt
+  22..22..2266..  DDEEXXEE ssuuppppoorrtt
 
   These are the setting for DEXE type DOS application, which are
   executed by DOSEMU via the -L option.  ( for what DEXE is look at
@@ -2150,7 +2230,6 @@
   +o  the _p_o_r_t _t_a_b_l_e, a 64k char array indexed by port number and storing
      the number of the handle to be used for that port. 0 means no
      handle defined, valid range is 1-253, 0xfe and 0xff are reserved.
-
   +o  the _h_a_n_d_l_e _t_a_b_l_e, an array of structures describing the properties
      for a port group and its associated functions:
 
@@ -2286,6 +2365,7 @@
      userspace vm86s.regs.eflags. This is done by save_v86_state() and
      this does _n_o_t translate the VIF to IF, it should be as it was on
      entry of sys_vm86: set to 1.
+
   +o  Now what are we doing with eflags in dosemu ?  Well, this I don't
      really know. I saw IF used (told it Larry), I saw VIF tested an
      set, I saw TF cleared, and NT flag e.t.c.
@@ -2779,7 +2859,6 @@
   frontend' (serv_xlat.c, serv_maps.c), which does keycode translation,
   and the `queue backend' (serv_backend.c, serv_8042.c), which does the
   interfacing to DOS. The two sides communicate only through the queue.
-
   Each queue entry holds a data structure corresponding to (mostly) one
   keypress or release event. [The exception are the braindead 0xe02a /
   0xe0aa shift key emulation codes the keyboard processor `decorates'
@@ -2869,27 +2948,27 @@
 
   88..44..33..11..  QQuueeuuee BBaacckk EEnndd iinn kkeeyybbiinntt==oonn mmooddee
 
-                          EMULATOR SIDE        |    x86 SIDE
-                                               |
-                             ....[through PIC].|....................
-                             :                 |           :        v
-       QUEUE      .....> out_b_8042() --> [ port 60h ] ----:---> other_int9_handler
-       |         :                             |        \  `.......    (:) (|)
-       |         :                             |         \         v   (v) (|)
-       +->int_chk_q()-> bios_buffer----> [ get_bios_key ]-----> default_int9_handler
-             ^  \                           :  |                   |       (|)
-             :   \----> shiftstate_buffer   :  |                   v       (v)
-             :               |         .....:  |               bios keyb buffer
-             :               v        v        |
-             :          copy_shift_state() ----+-------------> bios shiftstate
-             :                                 |
-             :                                 |
-             :                                 |
-           backend_run()                       |
+                     EMULATOR SIDE        |    x86 SIDE
+                                          |
+                        ....[through PIC].|....................
+                        :                 |           :        v
+  QUEUE      .....> out_b_8042() --> [ port 60h ] ----:---> other_int9_handler
+  |         :                             |        \  `.......    (:) (|)
+  |         :                             |         \         v   (v) (|)
+  +->int_chk_q()-> bios_buffer----> [ get_bios_key ]-----> default_int9_handler
+        ^  \                           :  |                   |       (|)
+        :   \----> shiftstate_buffer   :  |                   v       (v)
+        :               |         .....:  |               bios keyb buffer
+        :               v        v        |
+        :          copy_shift_state() ----+-------------> bios shiftstate
+        :                                 |
+        :                                 |
+        :                                 |
+      backend_run()                       |
 
-       Abbreviations:
-       int_chk_q() = int_check_queue()
-       out_b_8042() = output_byte_8042()
+  Abbreviations:
+  int_chk_q() = int_check_queue()
+  out_b_8042() = output_byte_8042()
 
   88..44..33..22..  QQuueeuuee BBaacckk EEnndd iinn kkeeyybbiinntt==ooffff mmooddee
 
@@ -3001,6 +3080,7 @@
 
   +o  CAPS LOCK uppercase translation may be incorrect for some (non-
      german) national characters.
+
   +o  typematic codes in X and non-raw modes are Make+Break, not just
      Make.  This shouldn't hurt, though.
 
@@ -3260,7 +3340,6 @@
   subroutine.  This method isn't quite a fool proof as Han's method, but
   a fool could mess up Hans's method up as well.  And any competent
   person should be able to handle a local variable, safely.
-
   For the case of the static cached uid I have simply placed them in the
   thread control block.  The real challenge in integrating the with the
   thread code is the thread code was using root priveleges and changing
@@ -3746,16 +3825,16 @@
 
   Example:
 
-       /*
-        * DANG_BEGIN_NEWIDEA
-        *
-        * Rather than hard coding the names of the mixer functions we could try
-        * using an array constructed at compile time - Alistair
-        *
-        * How to we get the list of functions ? - Foo
-        *
-        * DANG_END_NEWIDEA
-        */
+  /*
+   * DANG_BEGIN_NEWIDEA
+   *
+   * Rather than hard coding the names of the mixer functions we could try
+   * using an array constructed at compile time - Alistair
+   *
+   * How to we get the list of functions ? - Foo
+   *
+   * DANG_END_NEWIDEA
+   */
 
   1144..55..44..  DDAANNGG__FFIIXXTTHHIISS
 
@@ -3862,7 +3941,6 @@
   +o  You _c_a_n_n_o_t skip section levels on the way down (ie you must go
      <sect>,<sect1>,<sect2> and not <sect>,<sect2>).  On the way back it
      doesn't matter!
-
   +o  Any text on the same line as the tag will be used to identify the
      section
 
@@ -3970,7 +4048,6 @@
        <htmlurl url="mailto:someone@no.where.com" name="&lt;someone@no.where.com&gt;">
 
   Which will appear as <someone@no.where.com>
-
   1177..77..  GGoottcchhaass
 
   +o  You _m_u_s_t do the sect*'s in sequence on the way up
@@ -4052,6 +4129,7 @@
   and while I'm complaining, those mystery ports that SimEarth needs are
   for the FM synthesiser.  Watch it guys, you might generate interrupts
   with that....)
+
   Reference:
 
   PC Game Programers Encyclopedia
@@ -4560,7 +4638,6 @@
 
      bbcc bbrreeaakkpp..NNoo..
         Clear a breakpoint.
-
      bbppiinntt xxxx
         set breakpoint on INT xx
 
@@ -4686,7 +4763,6 @@
 
      sseerr__iinniitt..cc
         Serial initialization code.
-
      sseerr__ppoorrttss..cc
         Serial Port I/O emulation code.
 
@@ -4850,15 +4926,15 @@
   In the worst case you will get the following output on your remote
   terminal:
 
-          ...oh dear, have to do kill SIGKILL
-          dosemu process (pid 1234) is killed
-          If you want to switch to an other console,
-          then enter a number between 1..8, else just type enter:
-          2      <========= this is what you enter
-          dosdebug terminated
-          NOTE: If you had a totally locked console,
-                you may have to blindly type in 'kbd -a; texmode
-                on the console you switched to.
+     ...oh dear, have to do kill SIGKILL
+     dosemu process (pid 1234) is killed
+     If you want to switch to an other console,
+     then enter a number between 1..8, else just type enter:
+     2      <========= this is what you enter
+     dosdebug terminated
+     NOTE: If you had a totally locked console,
+           you may have to blindly type in 'kbd -a; texmode
+           on the console you switched to.
 
   2233..11..  TThhee mmaaiill mmeessssaaggee
 

@@ -10,7 +10,7 @@ keytable keyb-user {
      0
   shift 0=
      0,27,"!",34,250,"$%&/()=?",168,127,9,
-     "QWERTYUIOP",ddiares,"*",13,0,"AS",
+     "QWERTYUIOP",dcircum,"*",13,0,"AS",
      "DFGHJKL",165,ddiares,166,0,128,"ZXCV",
      "BNM;:_",0,"*",0," ",0,0,0,0,0,0,
      0,0,0,0,0,0,0,0,0,0,"-",0,0,0,"+",0,

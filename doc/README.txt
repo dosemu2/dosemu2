@@ -19,23 +19,25 @@
 
   2.1.2.  Basic emulaton settings
 
-  2.1.3.  Terminals
+  2.1.3.  Code page and character set
 
-  2.1.4.  Keyboard settings
+  2.1.4.  Terminals
 
-  2.1.5.  X Support settings
+  2.1.5.  Keyboard settings
 
-  2.1.6.  Video settings ( console only )
+  2.1.6.  X Support settings
 
-  2.1.7.  Disks and floppies
+  2.1.7.  Video settings ( console only )
 
-  2.1.8.  COM ports and mices
+  2.1.8.  Disks and floppies
 
-  2.1.9.  Printers
+  2.1.9.  COM ports and mices
 
-  2.1.10. Networking under DOSEMU
+  2.1.10. Printers
 
-  2.1.11. Sound
+  2.1.11. Networking under DOSEMU
+
+  2.1.12. Sound
 
   3.      Security
 
@@ -191,19 +193,26 @@
   configuration (such as global.conf, dosemu.conf and  /.dosemurc) is
   /etc/dosemu.users.  Within /etc/dosemu.users the general permissions
   are set:
+
   +o  which users are allowed to use DOSEMU.
 
   +o  which users are allowed to use DOSEMU suid root.
 
-  +o  what kind of access class the user belongs to.
+  +o  which users are allowed to have a private lib dir.
 
-  +o  wether the user is allowed to define a private global.conf that
-     replaces /var/lib/dosemu/global.conf (option -F).
+  +o  what kind of access class the user belongs to.
 
   +o  what special configuration stuff the users needs
 
-  Each line in dosemu.user corresponds to exactly _o_n_e valid user count,
-  the special user `all' means any user not mentioned earlier. Format:
+  and further more:
+
+  +o  wether the lib dir (/var/lib/dosemu) resides elsewhere.
+
+  +o  setting the loglevel.
+
+  Except for lines starting with `xxx=' (explanation below), each line
+  in dosemu.user corresponds to exactly _o_n_e valid user count, the
+  special user `all' means any user not mentioned earlier. Format:
 
          [ <login> | all ] [ confvar [ confvar [ ... ] ] ]
 
@@ -214,6 +223,8 @@
          nobody nosuidroot guest # variable 'guest' is checked in global.conf
                                  # to allow only DEXE execution
          guest nosuidroot guest  # login guest treated as `nobody'
+         myfriend c_all unrestricted private_setup
+         myboss nosuidroot restricted private_setup
          all nosuidroot restricted # all other users have normal user restrictions
 
   Note that the above `restricted' is checked in global.conf and will
@@ -222,8 +233,33 @@
 
   The use of `nosuidroot' will force a suid root dosemu binary to exit,
   the user may however use a non-suid root copy of the binary.  For more
-  information on this look at README-tech, chapter 11.1 `Priveleges and
+  information on this look at README-tech, chapter 11.1 `Privileges and
   Running as User'
+
+  Giving the keyword `private_setup' to a user means he/she can have a
+  private DOSEMU lib under $HOME/.dosemu/lib. If this directory is
+  existing, DOSEMU will expect all normally under /var/lib/dosemu within
+  that directory, including `global.conf'. As this would be a security
+  risc, it only will be allowed, if the used DOSEMU binary is non-suid-
+  root. If you realy trust a user you may additionally give the keyword
+  `unrestricted', which will allow this user to execute a suid-root
+  binary even on a private lib directory (though, be aware).
+
+  In addition, dosemu.users can be used to define some global settings,
+  which must be known before any other file is accessed, such as:
+         default_lib_dir= /opt/dosemu  # replaces /var/lib/dosemu
+         log_level= 2                  # highest log level
+
+  With `default_lib_dir=' you may move /var/lib/dosemu elsewere, this
+  mostly is interesting for distributors, who want it elswere but won't
+  patch the DOSEMU source just for this purpose. But note, the dosemu
+  supplied scripts and helpers may need some adaption too in order to
+  fit your new directory.
+
+  The `log_level=' can be 0 (never log) or 1 (log only errors) or 2 (log
+  all) and controls the ammount written to the systems log facility
+  (notice).  This keyword replaces the former /etc/dosemu.loglevel file,
+  which now is obsolete.
 
   Nevertheless, for a first try of DOSEMU you may prefer
   etc/dosemu.users.easy, which just contains
@@ -261,9 +297,9 @@
   All settings in dosemu.conf are just variables, that are interpreted
   in /var/lib/dosemu/global.conf and have the form of
 
-         $_xxx = (n)
-       or
-         $_zzz = "s"
+    $_xxx = (n)
+  or
+    $_zzz = "s"
 
   where `n' ist a numerical or boolean value and `s' is a string.  Note
   that the brackets are important, else the parser won't decide for a
@@ -300,7 +336,7 @@
   are running on, but your setting may not exeed the capabilities of the
   running CPU). Valid values are:  8034586
 
-         $_cpu = (80386)
+    $_cpu = (80386)
 
   To let DOSEMU use the Pentium cycle counter (if availabe) to do better
   timing use the below
@@ -323,11 +359,11 @@
 
   Defining the memory layout, which DOS should see:
 
-    $_xms = (1024)          # in Kbyte
-    $_ems = (1024)          # in Kbyte
-    $_ems_frame = (0xe000)
-    $_dpmi = (off)          # in Kbyte
-    $_dosmem = (640)        # in Kbyte, < 640
+         $_xms = (1024)          # in Kbyte
+         $_ems = (1024)          # in Kbyte
+         $_ems_frame = (0xe000)
+         $_dpmi = (off)          # in Kbyte
+         $_dosmem = (640)        # in Kbyte, < 640
 
   Note that (other as in native DOS) each piece of mem is separate,
   hence DOS perhaps will show other values for 'extended' memory. To
@@ -411,13 +447,48 @@
 
   NOTE: `$_ports' can _n_o_t be overwritten by  /.dosemurc.
 
-  22..11..33..  TTeerrmmiinnaallss
+  22..11..33..  CCooddee ppaaggee aanndd cchhaarraacctteerr sseett
+
+  To select the character set and code page for use with DOSEMU you have
+
+         $_term_char_set = "XXX"
+
+  where XXX is one of
+
+     iibbmm
+        the text is taken whithout translation, it is to the user to
+        load a proper DOS font (cp437.f16, cp850.f16 or cp852.f16 on the
+        console).
+
+     llaattiinn
+        the text is processed using cp437->iso-8859-1 translation, so
+        the font used must be iso-8859-1 (eg iso01.f16 on console);
+        which is the default for unix in western languages countries.
+
+     llaattiinn11
+        like latin, but using cp850->iso-8859-1 translation (the
+        difference between cp437 and cp850 is that cp437 uses some chars
+        for drawing boxes while cp850 uses them for accentuated letters)
+
+     llaattiinn22
+        like latin1 but uses cp852->iso-8859-2 translation, so
+        translates the default DOS charset of eastern european countries
+        to the default unix charset for those countries.
+
+  The default one is ``latin'' and if the string is empty, then an auto-
+  matic attempt is made: ``ibm'' for remote console and ``latin'' for
+  anything else.  Depending on the charset setting the (below described)
+  keyboard layouts and/or the terminal behave may vary. You need to know
+  the correct code page your DOS is configured for in order to get the
+  correct results.  For most western european countries 'latin' should
+  be the correct setting.
+
+  22..11..44..  TTeerrmmiinnaallss
 
   This section applies whenever you run DOSEMU remotely or in an xterm.
   Color terminal support is now built into DOSEMU.  Skip this section
   for now to use terminal defaults, until you get DOSEMU to work.
 
-         $_term_char_set = ""  # empty == automatic, else 'ibm' or 'latin'
          $_term_color = (on)   # terminal with color support
          $_term_updfreq = (4)  # time between refreshs (units: 20 == 1 second)
          $_escchar = (30)      # 30 == Ctrl-^, special-sequence prefix
@@ -433,7 +504,7 @@
          F1 is 'Ctrl-^1', Alt-F7 is 'Ctrl-^s Ctrl-^7'.
          For online help, press 'Ctrl-^h' or 'Ctrl-^?'.
 
-  22..11..44..  KKeeyybbooaarrdd sseettttiinnggss
+  22..11..55..  KKeeyybbooaarrdd sseettttiinnggss
 
   When running DOSEMU from console (also remote from console) or X you
   may need to define a proper keyboard layout. This is done either by
@@ -457,7 +528,7 @@
   where `name' is one of the above. To load a keytable you just prefix
   the string with "load" such as
 
-    $_layout = "load de-latin1"
+         $_layout = "load de-latin1"
 
   Note, however, that you have to set
 
@@ -484,39 +555,39 @@
 
          $_keybint = (on)     # emulate PCish keyboard interrupt
 
-  22..11..55..  XX SSuuppppoorrtt sseettttiinnggss
+  22..11..66..  XX SSuuppppoorrtt sseettttiinnggss
 
   If DOSEMU is running in its own X-window (not xterm), you may need to
   tailor it to your needs. Here a summary of the settings and a brief
   description what they mean. A more detailed description of values one
   can be found at chapter 2.2.14 (X Support settings) of README-tech.txt
 
-  $_X_updfreq = (5)       # time between refreshs (units: 20 == 1 second)
-  $_X_title = "DOS in a BOX" # Title in the top bar of the window
-  $_X_icon_name = "xdos"  # Text for icon, when minimized
-  $_X_keycode = (off)     # on == translate keybord via dosemu keytables
-  $_X_blinkrate = (8)     # blink rate for the cursor
-  $_X_font = ""           # basename from /usr/X11R6/lib/X11/fonts/misc/*
-                          # (without extension) e.g. "vga"
-  $_X_mitshm = (on)       # Use shared memory extensions
-  $_X_sharecmap = (off)   # share the colormap with other applications
-  $_X_fixed_aspect = (on) # Set fixed aspect for resize the graphics window
-  $_X_aspect_43 = (on)    # Always use an aspect ratio of 4:3 for graphics
-  $_X_lin_filt = (off)    # Use linear filtering for >15 bpp interpol.
-  $_X_bilin_filt = (off)  # Use bi-linear filtering for >15 bpp interpol.
-  $_X_mode13fact = (2)    # initial factor for video mode 0x13 (320x200)
-  $_X_winsize = ""        # "x,y" of initial windows size
-  $_X_gamma = (1.0)       # gamma correction
-  $_X_vgaemu_memsize = (1024) # size (in Kbytes) of the frame buffer
-                          # for emulated vga
-  $_X_lfb = (on)  # use linear frame buffer in VESA modes
-  $_X_pm_interface = (on) # use protected mode interface for VESA modes
-  $_X_mgrab_key = ""      # KeySym name to activate mouse grab, empty == off
-  $_X_vesamode = ""       # "xres,yres ... xres,yres"
-                          # List of vesamodes to add. The list has to contain
-                          # SPACE separated "xres,yres" pairs
+       $_X_updfreq = (5)       # time between refreshs (units: 20 == 1 second)
+       $_X_title = "DOS in a BOX" # Title in the top bar of the window
+       $_X_icon_name = "xdos"  # Text for icon, when minimized
+       $_X_keycode = (off)     # on == translate keybord via dosemu keytables
+       $_X_blinkrate = (8)     # blink rate for the cursor
+       $_X_font = ""           # basename from /usr/X11R6/lib/X11/fonts/misc/*
+                               # (without extension) e.g. "vga"
+       $_X_mitshm = (on)       # Use shared memory extensions
+       $_X_sharecmap = (off)   # share the colormap with other applications
+       $_X_fixed_aspect = (on) # Set fixed aspect for resize the graphics window
+       $_X_aspect_43 = (on)    # Always use an aspect ratio of 4:3 for graphics
+       $_X_lin_filt = (off)    # Use linear filtering for >15 bpp interpol.
+       $_X_bilin_filt = (off)  # Use bi-linear filtering for >15 bpp interpol.
+       $_X_mode13fact = (2)    # initial factor for video mode 0x13 (320x200)
+       $_X_winsize = ""        # "x,y" of initial windows size
+       $_X_gamma = (1.0)       # gamma correction
+       $_X_vgaemu_memsize = (1024) # size (in Kbytes) of the frame buffer
+                               # for emulated vga
+       $_X_lfb = (on)  # use linear frame buffer in VESA modes
+       $_X_pm_interface = (on) # use protected mode interface for VESA modes
+       $_X_mgrab_key = ""      # KeySym name to activate mouse grab, empty == off
+       $_X_vesamode = ""       # "xres,yres ... xres,yres"
+                               # List of vesamodes to add. The list has to contain
+                               # SPACE separated "xres,yres" pairs
 
-  22..11..66..  VViiddeeoo sseettttiinnggss (( ccoonnssoollee oonnllyy ))
+  22..11..77..  VViiddeeoo sseettttiinnggss (( ccoonnssoollee oonnllyy ))
 
   _!_!_W_A_R_N_I_N_G_!_!_: _I_F _Y_O_U _E_N_A_B_L_E _G_R_A_P_H_I_C_S _O_N _A_N _I_N_C_O_M_P_A_T_I_B_L_E _A_D_A_P_T_O_R_, _Y_O_U
   _C_O_U_L_D _G_E_T _A _B_L_A_N_K _S_C_R_E_E_N _O_R _M_E_S_S_Y _S_C_R_E_E_N _E_V_E_N _A_F_T_E_R _E_X_I_T_I_N_G _D_O_S_E_M_U_.
@@ -552,7 +623,7 @@
 
   NOTE: `video setting' can _n_o_t be overwritten by  /.dosemurc.
 
-  22..11..77..  DDiisskkss aanndd ffllooppppiieess
+  22..11..88..  DDiisskkss aanndd ffllooppppiieess
 
   The parameter settings via dosemu.conf are tailored to fit the
   recomended usage of disk and floppy access. There are other methods
@@ -622,7 +693,7 @@
   /dev/* devices _m_u_s_t be exclusive (no other process should use it)
   except for `:ro'.
 
-  22..11..88..  CCOOMM ppoorrttss aanndd mmiicceess
+  22..11..99..  CCOOMM ppoorrttss aanndd mmiicceess
 
   We have simplified the configuration for mices and serial ports and
   check for depencies between them. If all strings in the below example
@@ -666,7 +737,7 @@
          $_com1 = "/dev/cua2"
          $_com2 = "/dev/cua0"
 
-  22..11..99..  PPrriinntteerrss
+  22..11..1100..  PPrriinntteerrss
 
   Printer is emulated by piping printer data to your normal Linux
   printer.  The belows tells DOSEMU which printers to use. The `timeout'
@@ -677,7 +748,7 @@
                                # LPT1 ... LPT3 (not all are needed, empty for none)
        $_printer_timeout = (20)# idle time in seconds before spooling out
 
-  22..11..1100..  NNeettwwoorrkkiinngg uunnddeerr DDOOSSEEMMUU
+  22..11..1111..  NNeettwwoorrkkiinngg uunnddeerr DDOOSSEEMMUU
 
   Turn the following option `on' if you require IPX/SPX emulation, there
   is no need to load IPX.COM within the DOS session.  ( the option does
@@ -697,7 +768,7 @@
 
   For more on this look at chapter 24 (Net code)
 
-  22..11..1111..  SSoouunndd
+  22..11..1122..  SSoouunndd
 
   The sound driver is more or less likely to be broken at the moment.
   Anyway, here are the settings you would need to emulate a SB-sound
@@ -1033,12 +1104,13 @@
 
   Before you run DOSEmu for the first time, do the following:
 
-         rm -f /var/run/dosemu-midi
-         mknod /var/run/dosemu-midi p
+         mkdir -p ~/.dosemu/run           # if it doesen't exist
+         rm -f ~/.dosemu/run/dosemu-midi
+         mknod ~/.dosemu/run/dosemu-midi p
 
   Then you can use the midi daemon like this:
 
-         ./midid < /var/run/dosemu-midi &; dos
+         ./midid < ~/.dosemu/run/dosemu-midi &; dos
 
   (Assuming that you put the midid executeable in the directory you run
   DOSEmu from.)

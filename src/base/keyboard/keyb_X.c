@@ -48,7 +48,7 @@ OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 #include "emu.h"
 #include "keyb_clients.h"
 #include "keyboard.h"
-
+#include "video.h"
 
 #define AltMask Mod1Mask
 #define XK_X386_SysReq 0x1007FF00
@@ -243,8 +243,14 @@ void X_process_key(XKeyEvent *e)
 
    }
 
-   /* do latin1 translation */
-   if (ch>=0xa0) ch=latin1_to_dos[ch-0xa0];
+   /* do iso->dos translation */
+   if (ch>=0xa0)
+     switch (config.term_charset) {
+	case CHARSET_LATIN1: ch=latin1_to_dos[ch-0xa0]; break;
+	case CHARSET_LATIN2: ch=latin2_to_dos[ch-0xa0]; break;
+	case CHARSET_LATIN:
+	default:             ch=latin_to_dos[ch-0xa0]; break;
+     }
 
    /* Check for modifiers released outside this window */
    if (key!=KEY_L_SHIFT && (shiftstate & L_SHIFT) && !(e->state & ShiftMask))
@@ -268,10 +274,16 @@ void X_process_char(u_char ch)
 {
    X_printf("X_process_char %c \n", ch);
 
-   /* do latin1 translation */
-   if (ch>=0xa0) ch=latin1_to_dos[ch-0xa0];
+   /* do iso->dos translation */
+   if (ch>=0xa0)
+     switch (config.term_charset) {
+        case CHARSET_LATIN1: ch=latin1_to_dos[ch-0xa0]; break;
+        case CHARSET_LATIN2: ch=latin2_to_dos[ch-0xa0]; break;
+        case CHARSET_LATIN:
+        default:             ch=latin_to_dos[ch-0xa0]; break;
+     }
 
-   /* ch is zero if the latin1 character can't be represented in the DOS charset. */
+   /* ch is zero if the iso character can't be represented in the DOS charset. */
 #if 1
    if (ch==0) ch='#';
 #else

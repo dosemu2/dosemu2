@@ -8,7 +8,9 @@
 
 /* ASCII 0x20..0x7E */
 extern const Bit8u ascii_keys[];
+extern const u_char latin_to_dos[];
 extern const u_char latin1_to_dos[];
+extern const u_char latin2_to_dos[];
 
 int keyb_client_init();
 void keyb_client_close();

@@ -3,7 +3,7 @@
 
 <title> The DOSEMU Alterer Novices Guide
 <author> Author: Alistair MacDonald, <tt/alistair\@slitesys.demon.co.uk/
-<date> version dosemu-0.97.6
+<date> version dosemu-0.97.10.5
 <abstract>
 This Document is the DOSEMU Alterer Novices Guide. It is known as the DANG.
 </abstract>
@@ -226,16 +226,6 @@ These are the functions defined in base/init/init.c.
 <p>
  
   Initialize stdio, open debugging output file if user specified one
- 
- 
-
-
-<sect2>tmpdir_init
-
-
-<p>
- 
-  Initialize the temporary directory
  
  
 
@@ -830,6 +820,17 @@ These are the functions defined in env/video/X.c.
 </itemize>
 
 
+<sect1>Remarks in env/video/X.c
+
+<p>
+ DO NOT REMOVE THIS TEST!!!
+ It is magic, without it EMS fails on my machine under X.
+ Perhaps someday when we don't use a buggy /proc/self/mem..
+ -- EB 18 May 1998
+ A slightly further look says it's not the test so much as
+ suppressing noop resize events...
+ -- EB 1 June 1998
+ 
 <sect1>env/video/vgaemu.c Information
 
 <p>
@@ -1203,6 +1204,16 @@ These are the functions defined in env/video/dacemu.c.
 <p>
  
  Initializes the DAC.
+
+ 
+
+
+<sect2>DAC_dirty_all
+
+
+<p>
+ 
+ Dirty all DAC entries.  Usefull for a mode set.
 
  
 
@@ -3334,6 +3345,38 @@ These are the functions defined in base/mouse/mouse.c.
  acknowledges an irq.  That routine is probably what should be
  acknowledging irq12, and what int 0x74 should point to.  
  I have disabled int0x74 support for now. --EB 29 Oct 1997
+ 
+-----
+
+ Whoever wrote the dos mouse driver spec was brain dead...
+ For some video modes the mouse driver appears to randomly
+ pick a shift factor, possibly to keep at least a 640x200 resolution.
+ 
+ The general programming documentation doesn't make this clear.
+ And says that in text modes it is safe to divide the resolution by 
+ 8 to get the coordinates in characters.
+
+ The only safe way to handle the mouse driver is to call function
+ 0x26 Get max x &amp; max y coordinates and scale whatever the driver 
+ returns yourself.
+
+ To handle programs written by programmers who weren't so cautious a
+ doctrine of least suprise has been implemented.
+
+ As much as possible do the same as a standard dos mouse driver in the
+ original vga modes 0,1,2,3,4,5,6,7,13,14,15,16,17,18,19. 
+
+ For other text modes allow the divide by 8 technique to work.
+ For other graphics modes return x &amp; y in screen coordinates.
+ Except when those modes are either 40x?? or 320x???
+ and then handle the x resolution as in 40x25 and 320x200 modes.
+
+ 320x200 modes are slightly controversial as I have indications that
+ not all mouse drivers do the same thing. So I have taken the
+ simplest, and most common route, which is also long standing dosemu
+ practice of always shifting by 1.
+
+ -- Eric Biederman 19 August 1998
  
 <sect>The Bios group of Modules
 

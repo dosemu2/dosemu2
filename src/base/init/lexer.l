@@ -419,6 +419,8 @@ dabover			RETURN(DABOVER);
 ddacute			RETURN(DDACUTE);
 dcedilla		RETURN(DCEDILLA);
 diota			RETURN(DIOTA);
+dogonek			RETURN(DOGONEK);
+dcaron			RETURN(DCARON);
 
 
 finnish			MAY_BE { yylval->i_value = KEYB_FINNISH;
@@ -458,6 +460,7 @@ hu-cwi			MAY_BE { yylval->i_value = KEYB_HU_CWI; return(KEYB_LAYOUT); }
 hu-latin2		MAY_BE { yylval->i_value = KEYB_HU_LATIN2;
 			  return(KEYB_LAYOUT); }
 jp106			MAY_BE { yylval->i_value = KEYB_JP106; return(KEYB_LAYOUT); }
+pl			MAY_BE { yylval->i_value = KEYB_PL; return(KEYB_LAYOUT); }
 keyb-user		MAY_BE { yylval->i_value = KEYB_USER; return(KEYB_LAYOUT); }
 
 	/* serial stuff */
@@ -487,6 +490,10 @@ escchar			RETURN(ESCCHAR);
 	/* xterm			RETURN(XTERM); */
 	/* fast			RETURN(FAST); */
 	/* ncurses			RETURN(NCURSES); */
+latin1			MAY_BE { yylval->i_value = CHARSET_LATIN1;
+			  return(CHARSET_TYPE); }
+latin2			MAY_BE { yylval->i_value = CHARSET_LATIN2;
+			  return(CHARSET_TYPE); }
 latin			MAY_BE { yylval->i_value = CHARSET_LATIN;
 			  return(CHARSET_TYPE); }
 ibm			MAY_BE { yylval->i_value = CHARSET_IBM;

@@ -693,8 +693,13 @@ void int10()
       CARRY;
       return;
     }
-    if (x >= co || y >= li)
-      break;
+    if (x >= co || y >= li) {
+      /* some apps use this to hide the cursor,
+       * we move it 1 char behind the visible part
+       */
+      x = co;
+      y = li -1;
+    }
 
     set_bios_cursor_x_position(page, x);
     set_bios_cursor_y_position(page, y);

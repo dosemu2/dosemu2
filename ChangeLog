@@ -1,3 +1,26 @@
+98/09/05 ver. 0.97.10.5 unofficial pre-release
+	From Maxim Ruchko *McSim* <mcsim@lvivholod.lviv.ua>
+	- fix for cursor hidding on console (FoxPro), cursor is positioned
+	  _past_ right bottom corner. Dosemu did not handle this.
+	- small fix to previous mfs patch.
+	From Pablo Saratxaga <pablo.sarachaga@ping.be>
+	- support for code pages 850, 852, 437 conversion to
+	  iso-8859-1, iso-8859-2 and viceversa.
+	  Code page selection via 'charset XXX', where XXX is
+	  one of ibm, latin, latin1, latin2.
+        - fixed belgian and hungarian keyboard
+	- added polish keyboard
+	From Hans
+	- modified 'code page selection' from Maxim such that it
+	  became a separate overall selection for all types of logins:
+	  moved it out of the 'terminal' statement (though its still tholerated
+	  within for back compatibility)
+	- Updated the docs and setup-dosemu to reflect the change.
+	  ( within setup-dosemu its now part of the keyboard menu ).
+	- fixed dead circumflex in de-latin1 map.
+	- new script to automatically generate ./etc/keymap/*
+	  ... and used it to bring the table uptodate;-)
+	- docs recompile
 98/08/24 ver. 0.97.10.4 unofficial pre-release
 	From Robert Rendell <rendell@csse.monash.edu.au>
 	- fix for rep_outb in n_ports.c (wrong while loop)

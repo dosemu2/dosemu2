@@ -313,6 +313,35 @@ DON'T FIDDLE WITH THIS SECTION UNLESS YOU KNOW WHAT YOU'RE DOING.</bf>
 NOTE: `$_ports' can <em/not/ be overwritten by ~/.dosemurc.
 
 
+<sect2>Code page and character set
+<p>
+To select the character set and code page for use with DOSEMU you have
+<tscreen><verb>
+  $_term_char_set = "XXX"
+</verb></tscreen>
+where XXX is one of
+  <descrip>
+    <tag/ibm/ the text is taken whithout translation, it is to the user
+      to load a proper DOS font (cp437.f16, cp850.f16 or cp852.f16 on the
+      console).
+    <tag/latin/ the text is processed using cp437->iso-8859-1 translation,
+      so the font used must be iso-8859-1 (eg iso01.f16 on console);
+      which is the default for unix in western languages countries.
+    <tag/latin1/ like latin, but using cp850->iso-8859-1 translation (the
+      difference between cp437 and cp850 is that cp437 uses some chars for
+      drawing boxes while cp850 uses them for accentuated letters)
+    <tag/latin2/ like latin1 but uses cp852->iso-8859-2 translation, so
+      translates the default DOS charset of eastern european countries to the
+      default unix charset for those countries.
+  </descrip>
+The default one is ``latin'' and if the string is empty, then an automatic
+attempt is made: ``ibm'' for remote console and ``latin'' for anything else.
+Depending on the charset setting the (below described) keyboard layouts
+and/or the terminal behave may vary. You need to know the correct code page
+your DOS is configured for in order to get the correct results.
+For most western european countries 'latin' should be the correct setting.
+
+
 <sect2>Terminals
 <p>
 This section applies whenever you run DOSEMU remotely or in an xterm.
@@ -320,7 +349,6 @@ Color terminal support is now built into DOSEMU.  Skip this section for
 now to use terminal defaults, until you get DOSEMU to work.
 
 <tscreen><verb>
-  $_term_char_set = ""  # empty == automatic, else 'ibm' or 'latin'
   $_term_color = (on)   # terminal with color support
   $_term_updfreq = (4)  # time between refreshs (units: 20 == 1 second)
   $_escchar = (30)      # 30 == Ctrl-^, special-sequence prefix

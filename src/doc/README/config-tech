@@ -132,7 +132,7 @@ each line corresponds to exactly _one_ valid user count:
   <tag/private_setup/ Keyword, this makes dosemu to accept a private DOSEMU lib
              under  $HOME/.dosemu/lib. If this directory is existing, DOSEMU
              will expect all normally under /var/lib/dosemu within that
-             directory,including lobal.conf'. As this would be a security
+             directory,including `global.conf'. As this would be a security
              risc, it only will be allowed, if the used DOSEMU binary is
              non-suid-root. If you realy trust a user you may additionally
              give the keyword `unrestricted', which will allow this user to
@@ -930,6 +930,34 @@ then /dev/cdrom you may define
   cdrom /dev/xxx
 </verb></tscreen>
 
+<sect2>Code page and character set
+<p>
+To select the character set and code page for use with DOSEMU we now
+(against earlier versions of DOSEMU) have a separate statement:
+<tscreen><verb>
+  charset XXX
+</verb></tscreen>
+where XXX is one of
+  <descrip>
+    <tag/ibm/ the text is taken whithout translation, it is to the user
+      to load a proper DOS font (cp437.f16, cp850.f16 or cp852.f16 on the
+      console).
+    <tag/latin/ the text is processed using cp437->iso-8859-1 translation,
+      so the font used must be iso-8859-1 (eg iso01.f16 on console);
+      which is the default for unix in western languages countries.
+    <tag/latin1/ like latin, but using cp850->iso-8859-1 translation (the
+      difference between cp437 and cp850 is that cp437 uses some chars for
+      drawing boxes while cp850 uses them for accentuated letters)
+    <tag/latin2/ like latin1 but uses cp852->iso-8859-2 translation, so
+      translates the default DOS charset of eastern european countries to the
+      default unix charset for those countries.
+  </descrip>
+The default one is ``latin'' and if the string is empty, then an automatic
+attempt is made: ``ibm'' for remote console and ``latin'' for anything else.
+Depending on the charset setting the (below described) keyboard layouts
+and/or the terminal behave may vary. You need to know the correct code page
+your DOS is configured for in order to get the correct results.
+For most western european countries 'latin' should be the correct setting.
 
 
 <sect2>Keyboard settings
@@ -987,6 +1015,8 @@ for "dead keys" (NOTE: deadkeys have a value below 32, so be carefull).
   dabover       (dead above ring)
   ddacute       (dead double acute)
   dcedilla      (dead cedilla)
+  dogonek       (dead ogonek)
+  dcaron        (dead caron)
 </verb></tscreen>
 
 After a "key_number =" there may be any number of comma separated values,
@@ -1056,6 +1086,7 @@ The following builtin layouts are implemented:
     be                keyb-no      fr-latin1    po
     it                no-latin1    sw           jp106
     hu                hu-cwi       hu-latin2    keyb-user
+    po
 </verb></tscreen>
 
 
@@ -1241,9 +1272,6 @@ now to use terminal defaults, until you get DOSEMU to work.
 There are a number of keywords for the terminal { } configuration line.
 
 <descrip>
-  <tag/charset/ 
-     Select the character set to use with DOSEMU. One of ``latin'' (default) 
-     or ``ibm''.
   <tag/color/ 
      Enable or disable color terminal support. One of ``on'' (default) or 
      ``off''.

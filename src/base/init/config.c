@@ -335,6 +335,8 @@ void dump_config_status(void)
         config.term_esc_char, config.term_color, config.term_updatefreq);
     switch (config.term_charset) {
       case CHARSET_LATIN: s = "latin"; break;
+      case CHARSET_LATIN1: s = "latin1"; break;
+      case CHARSET_LATIN2: s = "latin2"; break;
       case CHARSET_IBM: s = "ibm"; break;
       case CHARSET_FULLIBM: s = "fullibm"; break;
       default: s = "(unknown)";

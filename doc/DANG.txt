@@ -1,6 +1,6 @@
   The DOSEMU Alterer Novices Guide
   Author: Alistair MacDonald, alistair@slitesys.demon.co.uk
-  version dosemu-0.97.6
+  version dosemu-0.97.10.5
 
   This Document is the DOSEMU Alterer Novices Guide. It is known as the
   DANG.
@@ -48,29 +48,27 @@
 
   3.2.2.  stdio_init
 
-  3.2.3.  tmpdir_init
+  3.2.3.  time_setting_init
 
-  3.2.4.  time_setting_init
+  3.2.4.  timer_interrupt_init
 
-  3.2.5.  timer_interrupt_init
+  3.2.5.  hardware_setup
 
-  3.2.6.  hardware_setup
+  3.2.6.  map_video_bios
 
-  3.2.7.  map_video_bios
+  3.2.7.  map_hardware_ram
 
-  3.2.8.  map_hardware_ram
+  3.2.8.  map_custom_bios
 
-  3.2.9.  map_custom_bios
+  3.2.9.  bios_mem_setup
 
-  3.2.10. bios_mem_setup
+  3.2.10. memory_init
 
-  3.2.11. memory_init
+  3.2.11. device_init
 
-  3.2.12. device_init
+  3.2.12. low_mem_init
 
-  3.2.13. low_mem_init
-
-  3.2.14. version_init
+  3.2.13. version_init
 
   3.3.    Items for Fixing in base/init/init.c
 
@@ -150,143 +148,147 @@
 
   5.6.7.  set_mouse_position
 
-  5.7.    env/video/vgaemu.c Information
+  5.7.    Remarks in env/video/X.c
 
-  5.8.    Functions in env/video/vgaemu.c
+  5.8.    env/video/vgaemu.c Information
 
-  5.8.1.  VGA_emulate_outb
+  5.9.    Functions in env/video/vgaemu.c
 
-  5.8.2.  VGA_emulate_inb
+  5.9.1.  VGA_emulate_outb
 
-  5.8.3.  vga_emu_fault
+  5.9.2.  VGA_emulate_inb
 
-  5.8.4.  vga_emu_init
+  5.9.3.  vga_emu_fault
 
-  5.8.5.  vga_emu_update
+  5.9.4.  vga_emu_init
 
-  5.8.6.  vga_emu_switch_bank
+  5.9.5.  vga_emu_update
 
-  5.8.7.  vga_emu_find_mode
+  5.9.6.  vga_emu_switch_bank
 
-  5.8.8.  vga_emu_setmode
+  5.9.7.  vga_emu_find_mode
 
-  5.8.9.  dirty_all_video_pages
+  5.9.8.  vga_emu_setmode
 
-  5.8.10. vga_emu_set_text_page
+  5.9.9.  dirty_all_video_pages
 
-  5.9.    env/video/vesa.c Information
+  5.9.10. vga_emu_set_text_page
 
-  5.10.   Functions in env/video/vesa.c
+  5.10.   env/video/vesa.c Information
 
-  5.10.1. vbe_init
+  5.11.   Functions in env/video/vesa.c
 
-  5.10.2. vesa_emu_fault
+  5.11.1. vbe_init
 
-  5.10.3. do_vesa_int
+  5.11.2. vesa_emu_fault
 
-  5.11.   env/video/vesabios.S Information
+  5.11.3. do_vesa_int
 
-  5.12.   env/video/vesabios_pm.S Information
+  5.12.   env/video/vesabios.S Information
 
-  5.13.   env/video/attremu.c Information
+  5.13.   env/video/vesabios_pm.S Information
 
-  5.14.   Functions in env/video/attremu.c
+  5.14.   env/video/attremu.c Information
 
-  5.14.1. Attr_init
+  5.15.   Functions in env/video/attremu.c
 
-  5.14.2. Attr_write_value
+  5.15.1. Attr_init
 
-  5.14.3. Attr_read_value
+  5.15.2. Attr_write_value
 
-  5.14.4. Attr_get_index
+  5.15.3. Attr_read_value
 
-  5.14.5. Attr_get_input_status_1
+  5.15.4. Attr_get_index
 
-  5.15.   env/video/dacemu.c Information
+  5.15.5. Attr_get_input_status_1
 
-  5.16.   Functions in env/video/dacemu.c
+  5.16.   env/video/dacemu.c Information
 
-  5.16.1. DAC_init
+  5.17.   Functions in env/video/dacemu.c
 
-  5.16.2. DAC_set_read_index
+  5.17.1. DAC_init
 
-  5.16.3. DAC_set_write_index
+  5.17.2. DAC_dirty_all
 
-  5.16.4. DAC_read_value
+  5.17.3. DAC_set_read_index
 
-  5.16.5. DAC_write_value
+  5.17.4. DAC_set_write_index
 
-  5.16.6. DAC_set_pel_mask
+  5.17.5. DAC_read_value
 
-  5.16.7. DAC_get_entry
+  5.17.6. DAC_write_value
 
-  5.16.8. DAC_read_entry
+  5.17.7. DAC_set_pel_mask
 
-  5.16.9. DAC_get_dirty_entry
+  5.17.8. DAC_get_entry
 
-  5.16.10.        DAC_set_entry
+  5.17.9. DAC_read_entry
 
-  5.16.11.        DAC_get_pel_mask
+  5.17.10.        DAC_get_dirty_entry
 
-  5.16.12.        DAC_get_state
+  5.17.11.        DAC_set_entry
 
-  5.17.   env/video/seqemu.c Information
+  5.17.12.        DAC_get_pel_mask
 
-  5.18.   env/video/crtcemu.c Information
+  5.17.13.        DAC_get_state
 
-  5.19.   env/video/remap.c Information
+  5.18.   env/video/seqemu.c Information
 
-  5.20.   env/video/remap_asm.S Information
+  5.19.   env/video/crtcemu.c Information
 
-  5.21.   env/video/console.c Information
+  5.20.   env/video/remap.c Information
 
-  5.22.   env/video/dualmon.c Information
+  5.21.   env/video/remap_asm.S Information
 
-  5.23.   Functions in env/video/dualmon.c
+  5.22.   env/video/console.c Information
 
-  5.23.1. MDA_init
+  5.23.   env/video/dualmon.c Information
 
-  5.24.   Remarks in env/video/dualmon.c
+  5.24.   Functions in env/video/dualmon.c
 
-  5.25.   env/video/et4000.c Information
+  5.24.1. MDA_init
 
-  5.26.   env/video/hgc.c Information
+  5.25.   Remarks in env/video/dualmon.c
 
-  5.27.   base/bios/int10.c Information
+  5.26.   env/video/et4000.c Information
 
-  5.28.   env/video/s3.c Information
+  5.27.   env/video/hgc.c Information
 
-  5.29.   env/video/terminal.c Information
+  5.28.   base/bios/int10.c Information
 
-  5.30.   env/video/trident.c Information
+  5.29.   env/video/s3.c Information
 
-  5.31.   env/video/vga.c Information
+  5.30.   env/video/terminal.c Information
 
-  5.32.   env/video/vgaemu.c Information
+  5.31.   env/video/trident.c Information
 
-  5.33.   Functions in env/video/vgaemu.c
+  5.32.   env/video/vga.c Information
 
-  5.33.1. VGA_emulate_outb
+  5.33.   env/video/vgaemu.c Information
 
-  5.33.2. VGA_emulate_inb
+  5.34.   Functions in env/video/vgaemu.c
 
-  5.33.3. vga_emu_fault
+  5.34.1. VGA_emulate_outb
 
-  5.33.4. vga_emu_init
+  5.34.2. VGA_emulate_inb
 
-  5.33.5. vga_emu_update
+  5.34.3. vga_emu_fault
 
-  5.33.6. vga_emu_switch_bank
+  5.34.4. vga_emu_init
 
-  5.33.7. vga_emu_find_mode
+  5.34.5. vga_emu_update
 
-  5.33.8. vga_emu_setmode
+  5.34.6. vga_emu_switch_bank
 
-  5.33.9. dirty_all_video_pages
+  5.34.7. vga_emu_find_mode
 
-  5.33.10.        vga_emu_set_text_page
+  5.34.8. vga_emu_setmode
 
-  5.34.   include/vgaemu.h Information
+  5.34.9. dirty_all_video_pages
+
+  5.34.10.        vga_emu_set_text_page
+
+  5.35.   include/vgaemu.h Information
 
   6.      The Keyboard group of Modules
 
@@ -880,54 +882,50 @@
 
   Initialize stdio, open debugging output file if user specified one
 
-  33..22..33..  ttmmppddiirr__iinniitt
-
-  Initialize the temporary directory
-
-  33..22..44..  ttiimmee__sseettttiinngg__iinniitt
+  33..22..33..  ttiimmee__sseettttiinngg__iinniitt
 
   Beats me
 
-  33..22..55..  ttiimmeerr__iinntteerrrruupptt__iinniitt
+  33..22..44..  ttiimmeerr__iinntteerrrruupptt__iinniitt
 
   Tells the OS to send us periodic timer messages
 
-  33..22..66..  hhaarrddwwaarree__sseettuupp
+  33..22..55..  hhaarrddwwaarree__sseettuupp
 
   Initialize any leftover hardware.
 
-  33..22..77..  mmaapp__vviiddeeoo__bbiiooss
+  33..22..66..  mmaapp__vviiddeeoo__bbiiooss
 
   Map the video bios into main memory
 
-  33..22..88..  mmaapp__hhaarrddwwaarree__rraamm
+  33..22..77..  mmaapp__hhaarrddwwaarree__rraamm
 
   Initialize the hardware direct-mapped pages
 
-  33..22..99..  mmaapp__ccuussttoomm__bbiiooss
+  33..22..88..  mmaapp__ccuussttoomm__bbiiooss
 
   Setup the dosemu amazing custom BIOS
 
-  33..22..1100..  bbiiooss__mmeemm__sseettuupp
+  33..22..99..  bbiiooss__mmeemm__sseettuupp
 
   Set up all memory areas as would be present on a typical i86 during
   the boot phase.
 
-  33..22..1111..  mmeemmoorryy__iinniitt
+  33..22..1100..  mmeemmoorryy__iinniitt
 
   Set up all memory areas as would be present on a typical i86 during
   the boot phase.
 
-  33..22..1122..  ddeevviiccee__iinniitt
+  33..22..1111..  ddeevviiccee__iinniitt
 
   Calls all initialization routines for devices (keyboard, video,
   serial, disks, etc.)
 
-  33..22..1133..  llooww__mmeemm__iinniitt
+  33..22..1122..  llooww__mmeemm__iinniitt
 
   Initializes the lower 1Meg via mmap & sets up the HMA region
 
-  33..22..1144..  vveerrssiioonn__iinniitt
+  33..22..1133..  vveerrssiioonn__iinniitt
 
   Find version of OS running and set necessary global parms.
 
@@ -1029,7 +1027,6 @@
   This is the default CPU exception handler.  Exceptions 0, 1, 2, 3, 4,
   5 and 7 are reflected to real mode. All other exceptions are
   terminating the client (and may be dosemu too :-)).
-
   44..22..44..  ddoo__ccppuu__eexxcceeppttiioonn
 
   This routine switches to the locked protected mode stack, disables
@@ -1133,6 +1130,7 @@
   mode segment register. And if client's data buffer is above 1MB,
   necessary buffer copying is performed. This function returns 1 if it
   does not need to go to real mode, otherwise returns 0.
+
   44..77..22..  mmssddooss__ppoosstt__eexxtteennddeerr
 
   This function is called after return from real mode DOS service All
@@ -1185,6 +1183,7 @@
   the page.  (this could happen 32000000 per second, if the CPU were
   fast enough) It would be better to get the DIRTY-bit directly from the
   page table, isn't it?  A special syscall in emumodule could do this.
+
   -----
 
   reserve_video_memory()
@@ -1260,7 +1259,15 @@
 
   +o  x,y - coordinates
 
-  55..77..  eennvv//vviiddeeoo//vvggaaeemmuu..cc IInnffoorrmmaattiioonn
+  55..77..  RReemmaarrkkss iinn eennvv//vviiddeeoo//XX..cc
+
+  DO NOT REMOVE THIS TEST!!!  It is magic, without it EMS fails on my
+  machine under X.  Perhaps someday when we don't use a buggy
+  /proc/self/mem..  -- EB 18 May 1998 A slightly further look says it's
+  not the test so much as suppressing noop resize events...  -- EB 1
+  June 1998
+
+  55..88..  eennvv//vviiddeeoo//vvggaaeemmuu..cc IInnffoorrmmaattiioonn
 
   The VGA emulator for DOSEmu.
 
@@ -1274,11 +1281,11 @@
   For an excellent reference to programming SVGA cards see Finn
   Thgersen's VGADOC4, available at http://www.datashopper.dk/ finth
 
-  55..88..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//vvggaaeemmuu..cc
+  55..99..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//vvggaaeemmuu..cc
 
   These are the functions defined in env/video/vgaemu.c.
 
-  55..88..11..  VVGGAA__eemmuullaattee__oouuttbb
+  55..99..11..  VVGGAA__eemmuullaattee__oouuttbb
 
   Emulates writes to VGA ports.  This is a hardware emulation function.
 
@@ -1288,7 +1295,7 @@
 
   +o  value - The value written,
 
-  55..88..22..  VVGGAA__eemmuullaattee__iinnbb
+  55..99..22..  VVGGAA__eemmuullaattee__iinnbb
 
   Emulates reads from VGA ports.  This is a hardware emulation function.
 
@@ -1296,7 +1303,7 @@
 
   +o  port  - The port being read from.
 
-  55..88..33..  vvggaa__eemmuu__ffaauulltt
+  55..99..33..  vvggaa__eemmuu__ffaauulltt
 
   vga_emu_fault() is used to catch video access, and handle it.  This
   function is called from arch/linux/async/sigsegv.c::dosemu_fault1().
@@ -1313,7 +1320,7 @@
   +o  scp - A pointer to a struct sigcontext_struct holding some relevant
      data.
 
-  55..88..44..  vvggaa__eemmuu__iinniitt
+  55..99..44..  vvggaa__eemmuu__iinniitt
 
   vga_emu_init() must be called before using the VGAEmu functions.  It
   is only called from env/video/X.c::X_init() at the moment.  This
@@ -1332,7 +1339,7 @@
 
   +o  attached to.
 
-  55..88..55..  vvggaa__eemmuu__uuppddaattee
+  55..99..55..  vvggaa__eemmuu__uuppddaattee
 
   vga_emu_update() scans the VGA memory for dirty (= written to since
   last update) pages and returns the changed area in *veut. See the
@@ -1357,7 +1364,7 @@
   +o  veut - A pointer to a vga_emu_update_type object holding all
      relevant info.
 
-  55..88..66..  vvggaa__eemmuu__sswwiittcchh__bbaannkk
+  55..99..66..  vvggaa__eemmuu__sswwiittcchh__bbaannkk
 
   vga_emu_switch_bank() is used to emulate video-bankswitching.
 
@@ -1368,7 +1375,7 @@
 
   +o  bank - The bank to switch to.
 
-  55..88..77..  vvggaa__eemmuu__ffiinndd__mmooddee
+  55..99..77..  vvggaa__eemmuu__ffiinndd__mmooddee
 
   Searches a video mode with the requested mode number.
 
@@ -1392,7 +1399,7 @@
 
   +o  vmi    - pointer into internal mode list
 
-  55..88..88..  vvggaa__eemmuu__sseettmmooddee
+  55..99..88..  vvggaa__eemmuu__sseettmmooddee
 
   Set a video mode.
 
@@ -1407,11 +1414,11 @@
 
   +o  height - Number of text rows.
 
-  55..88..99..  ddiirrttyy__aallll__vviiddeeoo__ppaaggeess
+  55..99..99..  ddiirrttyy__aallll__vviiddeeoo__ppaaggeess
 
   Marks the whole VGA memory as modified.
 
-  55..88..1100..  vvggaa__eemmuu__sseett__tteexxtt__ppaaggee
+  55..99..1100..  vvggaa__eemmuu__sseett__tteexxtt__ppaaggee
 
   Set visible text page.
 
@@ -1424,18 +1431,17 @@
 
   +o  page_size - Size of one text page.
 
-  55..99..  eennvv//vviiddeeoo//vveessaa..cc IInnffoorrmmaattiioonn
+  55..1100..  eennvv//vviiddeeoo//vveessaa..cc IInnffoorrmmaattiioonn
 
   VESA BIOS Extensions for VGAEmu.
 
   Supported are VBE version 2.0, including a linear frame buffer and
   display power management support.
-
-  55..1100..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//vveessaa..cc
+  55..1111..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//vveessaa..cc
 
   These are the functions defined in env/video/vesa.c.
 
-  55..1100..11..  vvbbee__iinniitt
+  55..1111..11..  vvbbee__iinniitt
 
   Initializes the VGA/VBE BIOS and the VBE support.
 
@@ -1446,7 +1452,7 @@
 
   +o  attached to.
 
-  55..1100..22..  vveessaa__eemmuu__ffaauulltt
+  55..1111..22..  vveessaa__eemmuu__ffaauulltt
 
   vesa_emu_fault() is used to handle video ROM accesses.  This function
   is called from env/video/vgaemu.c:vga_emu_fault().  The
@@ -1462,14 +1468,14 @@
   +o  scp - A pointer to a struct sigcontext_struct holding some relevant
      data.
 
-  55..1100..33..  ddoo__vveessaa__iinntt
+  55..1111..33..  ddoo__vveessaa__iinntt
 
   This is the VESA interrupt handler.
 
   It is called from base/bios/int10.c::int10(). The VESA interrupt is
   called with 0x4f in AH and the function number (0x00 ... 0x10) in AL.
 
-  55..1111..  eennvv//vviiddeeoo//vveessaabbiiooss..SS IInnffoorrmmaattiioonn
+  55..1122..  eennvv//vviiddeeoo//vveessaabbiiooss..SS IInnffoorrmmaattiioonn
 
   The VGA/VESA BIOS for VGAEmu.
 
@@ -1485,9 +1491,9 @@
   Note that some parts of the video BIOS are added by vbe_init() in
   env/video/vesa.c.
 
-  55..1122..  eennvv//vviiddeeoo//vveessaabbiiooss__ppmm..SS IInnffoorrmmaattiioonn
+  55..1133..  eennvv//vviiddeeoo//vveessaabbiiooss__ppmm..SS IInnffoorrmmaattiioonn
 
-  55..1133..  eennvv//vviiddeeoo//aattttrreemmuu..cc IInnffoorrmmaattiioonn
+  55..1144..  eennvv//vviiddeeoo//aattttrreemmuu..cc IInnffoorrmmaattiioonn
 
   The protected mode code for the VESA BIOS Extensions.
 
@@ -1499,94 +1505,99 @@
 
   The Attribute Controller emulator for VGAemu.
 
-  55..1144..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//aattttrreemmuu..cc
+  55..1155..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//aattttrreemmuu..cc
 
   These are the functions defined in env/video/attremu.c.
 
-  55..1144..11..  AAttttrr__iinniitt
+  55..1155..11..  AAttttrr__iinniitt
 
   Initializes the attribute controller.
 
-  55..1144..22..  AAttttrr__wwrriittee__vvaalluuee
+  55..1155..22..  AAttttrr__wwrriittee__vvaalluuee
 
   Emulates writes to attribute controller combined index and data
   register. Read vgadoc3 for details.  This is a hardware emulation
   function.
 
-  55..1144..33..  AAttttrr__rreeaadd__vvaalluuee
+  55..1155..33..  AAttttrr__rreeaadd__vvaalluuee
 
   Emulates reads from the attribute controller.  This is a hardware
   emulation function.
 
-  55..1144..44..  AAttttrr__ggeett__iinnddeexx
+  55..1155..44..  AAttttrr__ggeett__iinnddeexx
 
   Returns the current index of the attribute controller.  This is a
   hardware emulation function, though in fact this function is undefined
   in a real attribute controller.
 
-  55..1144..55..  AAttttrr__ggeett__iinnppuutt__ssttaattuuss__11
+  55..1155..55..  AAttttrr__ggeett__iinnppuutt__ssttaattuuss__11
 
-  55..1155..  eennvv//vviiddeeoo//ddaacceemmuu..cc IInnffoorrmmaattiioonn
+  55..1166..  eennvv//vviiddeeoo//ddaacceemmuu..cc IInnffoorrmmaattiioonn
 
   The DAC emulator for DOSemu.
 
-  55..1166..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//ddaacceemmuu..cc
+  55..1177..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//ddaacceemmuu..cc
 
   These are the functions defined in env/video/dacemu.c.
 
-  55..1166..11..  DDAACC__iinniitt
+  55..1177..11..  DDAACC__iinniitt
 
   Initializes the DAC.
 
-  55..1166..22..  DDAACC__sseett__rreeaadd__iinnddeexx
+  55..1177..22..  DDAACC__ddiirrttyy__aallll
+
+  Dirty all DAC entries.  Usefull for a mode set.
+
+  55..1177..33..  DDAACC__sseett__rreeaadd__iinnddeexx
 
   Specifies which palette entry is read.  This is a hardware emulation
   function.
 
-  55..1166..33..  DDAACC__sseett__wwrriittee__iinnddeexx
+  55..1177..44..  DDAACC__sseett__wwrriittee__iinnddeexx
 
   Specifies which palette entry is written.  This is a hardware
   emulation function.
 
-  55..1166..44..  DDAACC__rreeaadd__vvaalluuee
+  55..1177..55..  DDAACC__rreeaadd__vvaalluuee
 
   Read a value from the DAC. Each read will cycle through the registers
   for red, green and blue. After a ``blue read'' the read index will be
   incremented. Read vgadoc3 if you want to know more about the DAC.
   This is a hardware emulation function.
 
-  55..1166..55..  DDAACC__wwrriittee__vvaalluuee
+  55..1177..66..  DDAACC__wwrriittee__vvaalluuee
 
   Write a value to the DAC. Each write will cycle through the registers
   for red, green and blue. After a ``blue write'' the write index will
   be incremented.  This is a hardware emulation function.
 
-  55..1166..66..  DDAACC__sseett__ppeell__mmaasskk
+  55..1177..77..  DDAACC__sseett__ppeell__mmaasskk
 
   Sets the pel mask and marks all DAC entries as dirty.  This is a
   hardware emulation function.
-  55..1166..77..  DDAACC__ggeett__eennttrryy
+
+  55..1177..88..  DDAACC__ggeett__eennttrryy
 
   Returns a complete DAC entry (r,g,b). Color values are AND-ed with the
   pel mask.  This is an interface function.
 
-  55..1166..88..  DDAACC__rreeaadd__eennttrryy
+  55..1177..99..  DDAACC__rreeaadd__eennttrryy
 
   Returns a complete DAC entry (r,g,b), doesn't un-dirty it.  Color
   values are _not_ maked.  This is an interface function.
 
-  55..1166..99..  DDAACC__ggeett__ddiirrttyy__eennttrryy
+  55..1177..1100..  DDAACC__ggeett__ddiirrttyy__eennttrryy
 
   Searches the DAC_dirty list for the first dirty entry. Returns the
   changed entrynumber and fills in the entry if a dirty entry is found
   or returns -1 otherwise.  This is an interface function.
 
-  55..1166..1100..  DDAACC__sseett__eennttrryy
+  55..1177..1111..  DDAACC__sseett__eennttrryy
 
   Sets a complete DAC entry (r,g,b).  This is an interface function for
   the int 10 handler.
 
-  55..1166..1111..  DDAACC__ggeett__ppeell__mmaasskk
+  55..1177..1122..  DDAACC__ggeett__ppeell__mmaasskk
 
   Returns the current pel mask. Drawing functions should get the pel
   mask and AND it with the pixel values to get the correct pixel value.
@@ -1594,13 +1605,13 @@
   very rare. Maybe the implementation should be in vgaemu, maybe in the
   vgaemu client...  This is an interface function.
 
-  55..1166..1122..  DDAACC__ggeett__ssttaattee
+  55..1177..1133..  DDAACC__ggeett__ssttaattee
 
   Returns the current state of the DAC This is an interface function.
 
-  55..1177..  eennvv//vviiddeeoo//sseeqqeemmuu..cc IInnffoorrmmaattiioonn
+  55..1188..  eennvv//vviiddeeoo//sseeqqeemmuu..cc IInnffoorrmmaattiioonn
 
-  55..1188..  eennvv//vviiddeeoo//ccrrttcceemmuu..cc IInnffoorrmmaattiioonn
+  55..1199..  eennvv//vviiddeeoo//ccrrttcceemmuu..cc IInnffoorrmmaattiioonn
 
   The VGA sequencer for VGAemu.  The VGA CRT controller emulator for
   VGAEmu.
@@ -1608,28 +1619,28 @@
   This emulates a very basic CRT controller. Just the start address
   registers (0xc, 0xd).
 
-  55..1199..  eennvv//vviiddeeoo//rreemmaapp..cc IInnffoorrmmaattiioonn
+  55..2200..  eennvv//vviiddeeoo//rreemmaapp..cc IInnffoorrmmaattiioonn
 
   Transform a 2D image (rescale and color space conversion).
 
   Here are functions to adapt the VGA graphics to various X displays.
 
-  55..2200..  eennvv//vviiddeeoo//rreemmaapp__aassmm..SS IInnffoorrmmaattiioonn
+  55..2211..  eennvv//vviiddeeoo//rreemmaapp__aassmm..SS IInnffoorrmmaattiioonn
 
   Low-level assembler functions for remapping 2D images.
 
   Note that these functions mostly call other functions that have been
   calculated in remap.c.
 
-  55..2211..  eennvv//vviiddeeoo//ccoonnssoollee..cc IInnffoorrmmaattiioonn
+  55..2222..  eennvv//vviiddeeoo//ccoonnssoollee..cc IInnffoorrmmaattiioonn
 
-  55..2222..  eennvv//vviiddeeoo//dduuaallmmoonn..cc IInnffoorrmmaattiioonn
+  55..2233..  eennvv//vviiddeeoo//dduuaallmmoonn..cc IInnffoorrmmaattiioonn
 
-  55..2233..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//dduuaallmmoonn..cc
+  55..2244..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//dduuaallmmoonn..cc
 
   These are the functions defined in env/video/dualmon.c.
 
-  55..2233..11..  MMDDAA__iinniitt
+  55..2244..11..  MMDDAA__iinniitt
 
   Initializes the monochrome card. First detects which monochrome card
   is used, because the Hercules RamFont and the Hercules InColor need
@@ -1643,7 +1654,7 @@
 
   +o  none
 
-  55..2244..  RReemmaarrkkss iinn eennvv//vviiddeeoo//dduuaallmmoonn..cc
+  55..2255..  RReemmaarrkkss iinn eennvv//vviiddeeoo//dduuaallmmoonn..cc
 
   After MDA_init() the VGA is configured, something in video.c or
   console.c "reprograms" the monochrome card again in such a way that I
@@ -1659,11 +1670,11 @@
   The problem doesn't occur when I start dosemu from a telnet connection
   or from a VT100 terminal. (Erik Mouw, jakmouw@et.tudelft.nl)
 
-  55..2255..  eennvv//vviiddeeoo//eett44000000..cc IInnffoorrmmaattiioonn
+  55..2266..  eennvv//vviiddeeoo//eett44000000..cc IInnffoorrmmaattiioonn
 
-  55..2266..  eennvv//vviiddeeoo//hhggcc..cc IInnffoorrmmaattiioonn
+  55..2277..  eennvv//vviiddeeoo//hhggcc..cc IInnffoorrmmaattiioonn
 
-  55..2277..  bbaassee//bbiiooss//iinntt1100..cc IInnffoorrmmaattiioonn
+  55..2288..  bbaassee//bbiiooss//iinntt1100..cc IInnffoorrmmaattiioonn
 
   Video BIOS implementation.
 
@@ -1671,15 +1682,15 @@
   change only the video memory and status variables; the actual screen
   is then rendered asynchronously after these by Video->update_screen.
 
-  55..2288..  eennvv//vviiddeeoo//ss33..cc IInnffoorrmmaattiioonn
+  55..2299..  eennvv//vviiddeeoo//ss33..cc IInnffoorrmmaattiioonn
 
-  55..2299..  eennvv//vviiddeeoo//tteerrmmiinnaall..cc IInnffoorrmmaattiioonn
+  55..3300..  eennvv//vviiddeeoo//tteerrmmiinnaall..cc IInnffoorrmmaattiioonn
 
-  55..3300..  eennvv//vviiddeeoo//ttrriiddeenntt..cc IInnffoorrmmaattiioonn
+  55..3311..  eennvv//vviiddeeoo//ttrriiddeenntt..cc IInnffoorrmmaattiioonn
 
-  55..3311..  eennvv//vviiddeeoo//vvggaa..cc IInnffoorrmmaattiioonn
+  55..3322..  eennvv//vviiddeeoo//vvggaa..cc IInnffoorrmmaattiioonn
 
-  55..3322..  eennvv//vviiddeeoo//vvggaaeemmuu..cc IInnffoorrmmaattiioonn
+  55..3333..  eennvv//vviiddeeoo//vvggaaeemmuu..cc IInnffoorrmmaattiioonn
 
   The VGA emulator for DOSEmu.
 
@@ -1693,11 +1704,11 @@
   For an excellent reference to programming SVGA cards see Finn
   Thgersen's VGADOC4, available at http://www.datashopper.dk/ finth
 
-  55..3333..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//vvggaaeemmuu..cc
+  55..3344..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//vvggaaeemmuu..cc
 
   These are the functions defined in env/video/vgaemu.c.
 
-  55..3333..11..  VVGGAA__eemmuullaattee__oouuttbb
+  55..3344..11..  VVGGAA__eemmuullaattee__oouuttbb
 
   Emulates writes to VGA ports.  This is a hardware emulation function.
 
@@ -1707,7 +1718,7 @@
 
   +o  value - The value written,
 
-  55..3333..22..  VVGGAA__eemmuullaattee__iinnbb
+  55..3344..22..  VVGGAA__eemmuullaattee__iinnbb
 
   Emulates reads from VGA ports.  This is a hardware emulation function.
 
@@ -1715,7 +1726,7 @@
 
   +o  port  - The port being read from.
 
-  55..3333..33..  vvggaa__eemmuu__ffaauulltt
+  55..3344..33..  vvggaa__eemmuu__ffaauulltt
 
   vga_emu_fault() is used to catch video access, and handle it.  This
   function is called from arch/linux/async/sigsegv.c::dosemu_fault1().
@@ -1732,7 +1743,7 @@
   +o  scp - A pointer to a struct sigcontext_struct holding some relevant
      data.
 
-  55..3333..44..  vvggaa__eemmuu__iinniitt
+  55..3344..44..  vvggaa__eemmuu__iinniitt
 
   vga_emu_init() must be called before using the VGAEmu functions.  It
   is only called from env/video/X.c::X_init() at the moment.  This
@@ -1741,7 +1752,6 @@
 
   It does in particular *not* map any memory into the range 0xa0000 -
   0xc0000, this is done as part of a VGA mode switch.
-
   There should be an accompanying vga_emu_done().
 
   Arguments are:
@@ -1751,7 +1761,7 @@
 
   +o  attached to.
 
-  55..3333..55..  vvggaa__eemmuu__uuppddaattee
+  55..3344..55..  vvggaa__eemmuu__uuppddaattee
 
   vga_emu_update() scans the VGA memory for dirty (= written to since
   last update) pages and returns the changed area in *veut. See the
@@ -1776,7 +1786,7 @@
   +o  veut - A pointer to a vga_emu_update_type object holding all
      relevant info.
 
-  55..3333..66..  vvggaa__eemmuu__sswwiittcchh__bbaannkk
+  55..3344..66..  vvggaa__eemmuu__sswwiittcchh__bbaannkk
 
   vga_emu_switch_bank() is used to emulate video-bankswitching.
 
@@ -1787,7 +1797,7 @@
 
   +o  bank - The bank to switch to.
 
-  55..3333..77..  vvggaa__eemmuu__ffiinndd__mmooddee
+  55..3344..77..  vvggaa__eemmuu__ffiinndd__mmooddee
 
   Searches a video mode with the requested mode number.
 
@@ -1811,7 +1821,7 @@
 
   +o  vmi    - pointer into internal mode list
 
-  55..3333..88..  vvggaa__eemmuu__sseettmmooddee
+  55..3344..88..  vvggaa__eemmuu__sseettmmooddee
 
   Set a video mode.
 
@@ -1826,11 +1836,11 @@
 
   +o  height - Number of text rows.
 
-  55..3333..99..  ddiirrttyy__aallll__vviiddeeoo__ppaaggeess
+  55..3344..99..  ddiirrttyy__aallll__vviiddeeoo__ppaaggeess
 
   Marks the whole VGA memory as modified.
 
-  55..3333..1100..  vvggaa__eemmuu__sseett__tteexxtt__ppaaggee
+  55..3344..1100..  vvggaa__eemmuu__sseett__tteexxtt__ppaaggee
 
   Set visible text page.
 
@@ -1843,7 +1853,7 @@
 
   +o  page_size - Size of one text page.
 
-  55..3344..  iinncclluuddee//vvggaaeemmuu..hh IInnffoorrmmaattiioonn
+  55..3355..  iinncclluuddee//vvggaaeemmuu..hh IInnffoorrmmaattiioonn
 
   Header file for the VGA emulator for DOSEmu.
 
@@ -1916,6 +1926,7 @@
 
   This function is used if we are at the console and
   config.rawkeyboard=on.
+
   66..44..22..  ppuuttkkeeyy
 
   This does all the work of sending a key event to DOS.  scan  - the
@@ -2017,6 +2028,7 @@
   The amount of xms memory returned to DOS programs via the XMS
   requests, or int15 fnc88 is set in "/etc/dosemu.conf" via the XMS
   paramter.
+
   77..33..  bbaassee//aassyynncc//iinntt..cc IInnffoorrmmaattiioonn
 
   77..44..  FFuunnccttiioonnss iinn bbaassee//aassyynncc//iinntt..cc
@@ -2281,7 +2293,6 @@
   This code has been replaced by interrupt scheduling code in pic.  The
   result is that we simply call pic_sched and run the dos interrupt.  If
   the new code causes no problems, I'll revise this section permanently.
-
   77..1199..  bbaassee//ssppeeaakkeerr//ssppeeaakkeerr..cc IInnffoorrmmaattiioonn
 
   The pc-speaker emulator for Dosemu.
@@ -2403,6 +2414,7 @@
 
      Add file handle to one of 2 select FDS_SET's depending on whether
      the kernel can handle SIGIO.
+
   77..2266..33..  rreemmoovvee__ffrroomm__iioo__sseelleecctt
 
   Arguments are:
@@ -2772,6 +2784,7 @@
   SER_DEBUG_HEAVY   (0 or 1) - super-heavy extra debug output, including
   all ports reads and writes, and every character received and
   transmitted!
+
   SER_DEBUG_INTERRUPT   (0 or 1) - additional debug output related to
   serial interrupt code, including flagging serial interrupts, or PIC-
   driven code.
@@ -3055,6 +3068,38 @@
   routine is probably what should be acknowledging irq12, and what int
   0x74 should point to.  I have disabled int0x74 support for now. --EB
   29 Oct 1997
+
+  -----
+
+  Whoever wrote the dos mouse driver spec was brain dead...  For some
+  video modes the mouse driver appears to randomly pick a shift factor,
+  possibly to keep at least a 640x200 resolution.
+
+  The general programming documentation doesn't make this clear.  And
+  says that in text modes it is safe to divide the resolution by 8 to
+  get the coordinates in characters.
+
+  The only safe way to handle the mouse driver is to call function 0x26
+  Get max x & max y coordinates and scale whatever the driver returns
+  yourself.
+
+  To handle programs written by programmers who weren't so cautious a
+  doctrine of least suprise has been implemented.
+
+  As much as possible do the same as a standard dos mouse driver in the
+  original vga modes 0,1,2,3,4,5,6,7,13,14,15,16,17,18,19.
+
+  For other text modes allow the divide by 8 technique to work.  For
+  other graphics modes return x & y in screen coordinates.  Except when
+  those modes are either 40x?? or 320x???  and then handle the x
+  resolution as in 40x25 and 320x200 modes.
+
+  320x200 modes are slightly controversial as I have indications that
+  not all mouse drivers do the same thing. So I have taken the simplest,
+  and most common route, which is also long standing dosemu practice of
+  always shifting by 1.
+
+  -- Eric Biederman 19 August 1998
 
   1111..  TThhee BBiiooss ggrroouupp ooff MMoodduulleess
 

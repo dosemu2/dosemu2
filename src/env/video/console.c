@@ -45,7 +45,7 @@ console_update_cursor(int xpos, int ypos, int blinkflag, int forceflag)
   }
 
   /* The cursor is off-screen, so disable its blinking */
-  if ((unsigned) xpos > co || (unsigned) ypos > li)
+  if ((unsigned) xpos >= co || (unsigned) ypos >= li)
     blinkflag = 0;
   
   if (blinkflag) {

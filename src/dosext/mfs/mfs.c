@@ -2935,23 +2935,15 @@ dos_fs_redirect(state)
         fl.l_len = 1;
         fl.l_pid = 0;
         switch ( share_mode ) {
-          case DENY_WRITE:
-            Debug0((dbg_fd, "internal SHARE: DENY_WRITE openmode used fd=%x\n", fd));
-            /* Handling of DENY_READ and DENY_WRITE differs from SHARE.EXE */
-            /* fall through */
           case COMPAT_MODE:
+          case DENY_ALL:
+          case DENY_WRITE:
+          case DENY_READ:
             fl.l_type = ( unix_mode == O_RDONLY ) ? F_RDLCK : F_WRLCK;
             break;
-          case DENY_READ:
-            Debug0((dbg_fd, "internal SHARE: DENY_READ openmode used fd=%x\n", fd)); 
-            /* fall through */
-          case DENY_ALL:
-            fl.l_type = F_WRLCK;
-            break;
-          case DENY_ANY: {
+          case DENY_ANY:
             fl.l_type = F_RDLCK;
             break;
-          }
           default:
             fl.l_type = F_WRLCK;
             Debug0((dbg_fd, "internal SHARE: unknown sharing mode %x opening %s\n",

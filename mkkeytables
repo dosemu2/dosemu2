@@ -1,0 +1,43 @@
+#! /usr/bin/perl
+
+$fprefix = "./etc/keymap/";
+$infile = $fprefix . "all.tmp";
+
+`./bin/dos -I 'keytable dump "$infile"'`;
+
+open(FIN, "<$infile") || die "Can't open $file";
+
+$file ="$fprefix${filecount}.txt";
+$open = 0;
+
+while (<FIN>) {
+  $line = $_;
+  $linecount++;
+  if ( $line =~ /^keytable (\S+)/) {
+    $ktable = $1;
+    $file = "$fprefix$ktable";
+    # new packet, first close the old one
+    if ($open) {
+      close(FOUT);
+      $open = 0;
+    }
+    if ($ktable ne "keyb-user") {
+      open(FOUT, ">$file");
+      $open = 1;
+      print FOUT "\#keytable ${ktable}\n";
+      print FOUT "keytable keyb-user {\n";
+    }
+  }
+  else {
+    if ($open) {
+      if ( $line =~ /^}/ ) {$open = 0;}
+      print FOUT $line;
+    }
+  }
+}
+
+if ($open) {
+  close(FOUT);
+}
+`rm -f $infile`;
+

@@ -123,12 +123,6 @@ menu "Terminal" {
   integer "Escape Character - 30 is Ctrl-^" escchar
   integer"Update Frequecy  - 20 is 1 second" term_updfreq
   boolean "Use Colour" term_color
-  text "Select a character set:"
-  list term_char_set {
-    "Automatic" *
-    "Latin" latin
-    "IBM" ibm
-  }
 }
 
 menu "General Video" {
@@ -178,9 +172,21 @@ menu "Video Type" {
 
 menu "Keyboard" {
   description "Select the keyboard area to configure:"
+  submenu "Character set and code page"
   submenu "Keyboard Layout"
   boolean "Keyboard Interrupts" keybint
   boolean "Bypass normal keyboard input - might be dangerous" rawkeyboard
+}
+
+menu "Character set and code page" {
+  description "Select a character set:"
+  list term_char_set {
+    "Automatic" *
+    "Latin,  cp437 -> iso-8859-1" latin
+    "Latin1, cp850 -> iso-8859-1" latin1
+    "Latin2, cp852 -> iso-8859-2" latin2
+    "IBM,    no special code page translation" ibm
+  }
 }
 
 menu "Keyboard Layout" {
@@ -212,6 +218,7 @@ menu "Keyboard Layout" {
     "Hungarian cwi" hu-cwi
     "Hungarian latin2" hu-latin2
     "Japanese jp106" jp106
+    "Polish pl" pl
   }
 }
 

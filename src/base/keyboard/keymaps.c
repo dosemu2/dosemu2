@@ -341,7 +341,7 @@ CONST unsigned char key_map_de_latin1[] =
   'q', 'w', 'e', 'r', 't', 'z', 'u', 'i',
   'o', 'p', 129, '+', 13, 0, 'a', 's',
   'd', 'f', 'g', 'h', 'j', 'k', 'l', 148,
-  132, 94, 0, '#', 'y', 'x', 'c', 'v',
+  132, DEAD_CIRCUMFLEX, 0, '#', 'y', 'x', 'c', 'v',
   'b', 'n', 'm', ',', '.', '-', 0, '*',
   0, 32, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
@@ -974,7 +974,7 @@ CONST unsigned char shift_map_es_latin1[] = {
       0,   27,  '!',  '"',  250,  '$',  '%',  '&',
     '/',  '(',  ')',  '=',  '?',  168,  127,    9, 
     'Q',  'W',  'E',  'R',  'T',  'Y',  'U',  'I',
-    'O',  'P',  DEAD_DIAERESIS,  '*',   13,    0,  'A',  'S',
+    'O',  'P',  DEAD_CIRCUMFLEX,  '*',   13,    0,  'A',  'S',
     'D',  'F',  'G',  'H',  'J',  'K',  'L',  165,
     DEAD_DIAERESIS,  166,    0,  128,  'Z',  'X',  'C',  'V',
     'B',  'N',  'M',  ';',  ':',  '_',    0,  '*',
@@ -1007,9 +1007,9 @@ CONST unsigned char key_map_be[] =
   0, 27, '&', 130, '"', '\'', '(', 21,
   138, '!', 128, 133, ')', '-', 127, 9,
   'a', 'z', 'e', 'r', 't', 'y', 'u', 'i',
-  'o', 'p', '^', '$', 13, 0, 'q', 's',
+  'o', 'p', DEAD_CIRCUMFLEX, '$', 13, 0, 'q', 's',
   'd', 'f', 'g', 'h', 'j', 'k', 'l', 'm',
-  151, 230, 0, '<', 'w', 'x', 'c', 'v',
+  151, 253, 0, 230, 'w', 'x', 'c', 'v',
   'b', 'n', ',', ';', ':', '=', 0, '*',
   0, 32, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
@@ -1023,9 +1023,9 @@ CONST unsigned char shift_map_be[] =
   0, 27, '1', '2', '3', '4', '5', '6',
   '7', '8', '9', '0', 248, '_', 127, 9,
   'A', 'Z', 'E', 'R', 'T', 'Y', 'U', 'I',
-  'O', 'P', 0, '*', 13, 0, 'Q', 'S',
+  'O', 'P', DEAD_DIAERESIS, '*', 13, 0, 'Q', 'S',
   'D', 'F', 'G', 'H', 'J', 'K', 'L', 'M',
-  '%', 156, 0, '>', 'W', 'X', 'C', 'V',
+  '%', 252, 0, 156, 'W', 'X', 'C', 'V',
   'B', 'N', '?', '.', '/', '+', 0, '*',
   0, 32, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
@@ -1037,12 +1037,12 @@ CONST unsigned char shift_map_be[] =
 CONST unsigned char alt_map_be[] =
 {
   0, 0, '|', '@', '#', 0, 0, '^',
-  0, 0, '{', '}', 0, 0, 0, 0,
+  0, 0, '{', '}', DEAD_ABOVERING, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, '[', ']', 13, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
-  '\'', 96, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, '~', 0, 0,
+  DEAD_ACUTE, DEAD_GRAVE, 0, DEAD_GRAVE, 0, 0, 0, 0,
+  0, 0, DEAD_CEDILLA, 0, 0, DEAD_TILDE, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
@@ -1055,9 +1055,9 @@ CONST unsigned char key_map_po[] =
   0, 27, '1', '2', '3', '4', '5', '6',
   '7', '8', '9', '0', '`', 174, 127, 9,
   'q', 'w', 'e', 'r', 't', 'y', 'u', 'i',
-  'o', 'p', '+', '\'', 13, 0, 'a', 's',
+  'o', 'p', '+', DEAD_ACUTE, 13, 0, 'a', 's',
   'd', 'f', 'g', 'h', 'j', 'k', 'l', 135,
-  167, '\\', 0, '~', 'z', 'x', 'c', 'v',
+  167, '\\', 0, DEAD_TILDE, 'z', 'x', 'c', 'v',
   'b', 'n', 'm', ',', '.', '-', 0, '*',
   0, 32, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
@@ -1071,9 +1071,9 @@ CONST unsigned char shift_map_po[] =
   0, 27, '!', '"', '#', '$', '%', '&',
   '/', '(', ')', '=', '?', 175, 127, 9,
   'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I',
-  'O', 'P', '*', '`', 13, 0, 'A', 'S',
+  'O', 'P', '*', DEAD_GRAVE, 13, 0, 'A', 'S',
   'D', 'F', 'G', 'H', 'J', 'K', 'L', 128,
-  166, '|', '0', '^', 'Z', 'X', 'C', 'V',
+  166, '|', '0', DEAD_CIRCUMFLEX, 'Z', 'X', 'C', 'V',
   'B', 'N', 'M', ';', ':', '_', 0, '*',
   0, 32, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
@@ -1087,7 +1087,7 @@ CONST unsigned char alt_map_po[] =
   0, 0, 0, '@', 156, 21, 0, 0,
   '{', '[', ']', '}', 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, DEAD_DIAERESIS, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
@@ -1228,8 +1228,8 @@ CONST unsigned char shift_map_hu[] =
 
 CONST unsigned char alt_map_hu[] =
 {
-  0, 0, '~', 0, '^', 0, 0, 0,
-  '`', 0, 0, 0, 0, 0, 0, 0,
+  0, 0, '~', DEAD_CARON, DEAD_CIRCUMFLEX, DEAD_BREVE, 248, DEAD_OGONEK,
+  DEAD_GRAVE, DEAD_ABOVEDOT, DEAD_ACUTE, DEAD_DOUBLEACUTE, DEAD_DIAERESIS, DEAD_CEDILLA, 0, 0,
   '\\', '|', 0, 0, 0, 0, 0, 146,
   0, 0, 246, 158, 13, 0, 0, 208,
   209, '[', ']', 0, 161, 136, 157, '$',
@@ -1276,8 +1276,8 @@ CONST unsigned char shift_map_hu_cwi[] =
 
 CONST unsigned char alt_map_hu_cwi[] =
 {
-  0, 0, '~', 0, '^', 0, 0, 0,
-  '`', 0, 0, 0, 0, 0, 0, 0,
+  0, 0, '~', DEAD_CARON, DEAD_CIRCUMFLEX, DEAD_BREVE, 248, DEAD_OGONEK,
+  DEAD_GRAVE, DEAD_ABOVEDOT, DEAD_ACUTE, DEAD_DOUBLEACUTE, DEAD_DIAERESIS, DEAD_CEDILLA, 0, 0,
   '\\', '|', 0, 0, 0, 0, 0, 141,
   0, 0, 246, 0, 13, 0, 0, 0,
   0, '[', ']', 0, 161, 0, 0, '$',
@@ -1324,8 +1324,8 @@ CONST unsigned char shift_map_hu_latin2[] =
 
 CONST unsigned char alt_map_hu_latin2[] =
 {
-  0, 0, '~', 0, '^', 0, 0, 0,
-  '`', 0, 0, 0, 0, 0, 0, 0,
+  0, 0, '~', DEAD_CARON, DEAD_CIRCUMFLEX, DEAD_BREVE, 248, DEAD_OGONEK,
+  DEAD_GRAVE, DEAD_ABOVEDOT, DEAD_ACUTE, DEAD_DOUBLEACUTE, DEAD_DIAERESIS, DEAD_CEDILLA, 0, 0,
   '\\', '|', 0, 0, 0, 0, 0, 205,
   0, 0, 247, 215, 13, 0, 0, 240,
   208, '[', ']', 0, 237, 179, 163, '$',
@@ -1337,6 +1337,56 @@ CONST unsigned char alt_map_hu_latin2[] =
   0, 0, 0, 0, 0, 0, '<', 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0};
+
+/* Polish keyboard */
+CONST unsigned char key_map_pl[] =
+{
+  0, 27, '1', '2', '3', '4', '5', '6',
+  '7', '8', '9', '0', '+', '\'', 127, 9,
+  'q', 'w', 'e', 'r', 't', 'z', 'u', 'i',
+  'o', 'p', 190, 152, 13, 0, 'a', 's',
+  'd', 'f', 'g', 'h', 'j', 'k', 'l', 136,
+  165, DEAD_ABOVEDOT, 0, 162, 'y', 'x', 'c', 'v',
+  'b', 'n', 'm', ',', '.', '-', 0, '*',
+  0, 32, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, '-', 0, 0, 0, '+', 0,
+  0, 0, 0, 0, 0, 0, '<', 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0};
+
+CONST unsigned char shift_map_pl[] =
+{
+  0, 27, '!', '"', '#', '$', '%', '&',
+  '/', '(', ')', '=', '?', '*', 127, 9,
+  'Q', 'W', 'E', 'R', 'T', 'Z', 'U', 'I',
+  'O', 'P', 228, 134, 13, 0, 'A', 'S',
+  'D', 'F', 'G', 'H', 'J', 'K', 'L', 157,
+  169, DEAD_OGONEK, '0', 171, 'Y', 'X', 'C', 'V',
+  'B', 'N', 'M', ';', ':', '_', 0, '*',
+  0, 32, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, '-', 0, 0, 0, '+', 0,
+  0, 0, 0, 0, 0, 0, '>', 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0};
+
+CONST unsigned char alt_map_pl[] =
+{
+  0, 0, '~', DEAD_CARON, DEAD_CIRCUMFLEX, DEAD_BREVE, 248, DEAD_OGONEK,
+  DEAD_GRAVE, DEAD_ABOVEDOT, DEAD_ACUTE, DEAD_DOUBLEACUTE, DEAD_DIAERESIS, DEAD_CEDILLA, 0, 0,
+  '\\', '|', 169, 0, 0, 0, 0, 0,
+  162, 0, 246, 158, 0, 0, 165, 208,
+  209, '[', ']', 0, 0, 0, 136, '$',
+  225, 0, 0, DEAD_CARON, 190, 171, 134, '@',
+  '{', '}', 21, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, '|', 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0};
+
 
 /* this prefereable is overloaded via '-I keytable keyb-user'
  * and is preset with an US keyboard layout
@@ -1422,13 +1472,20 @@ CONST struct dos_dead_key dos850_dead_map[] = {
         {DEAD_CIRCUMFLEX, DEAD_CIRCUMFLEX, '^'}, {DEAD_DIAERESIS, DEAD_DIAERESIS, '"'},
 	{DEAD_TILDE, DEAD_TILDE, '~'},
 
-	{DEAD_TILDE, 'n', 164}, {DEAD_TILDE, 'N', 165},
+	{DEAD_ABOVERING, 'A', 143}, {DEAD_ABOVERING, 'a', 134},
+
+	{DEAD_CEDILLA, 'C', 128}, {DEAD_CEDILLA, 'c', 135},
+
+	{DEAD_TILDE, 'A', 199}, {DEAD_TILDE, 'a', 198},
+	{DEAD_TILDE, 'N', 165}, {DEAD_TILDE, 'n', 164},
+	{DEAD_TILDE, 'O', 229}, {DEAD_TILDE, 'o', 228},
 	
 	{DEAD_ACUTE, 'A', 181},	{DEAD_ACUTE, 'a', 160},
 	{DEAD_ACUTE, 'E', 144},	{DEAD_ACUTE, 'e', 130},
 	{DEAD_ACUTE, 'I', 214},	{DEAD_ACUTE, 'i', 161},
 	{DEAD_ACUTE, 'O', 224},	{DEAD_ACUTE, 'o', 162},
 	{DEAD_ACUTE, 'U', 233},	{DEAD_ACUTE, 'u', 163},
+	{DEAD_ACUTE, 'Y', 237}, {DEAD_ACUTE, 'y', 236},
 
 	{DEAD_GRAVE, 'A', 183},	{DEAD_GRAVE, 'a', 133},
 	{DEAD_GRAVE, 'E', 212},	{DEAD_GRAVE, 'e', 138},
@@ -1448,6 +1505,64 @@ CONST struct dos_dead_key dos850_dead_map[] = {
 	{DEAD_DIAERESIS, 'O', 153},	{DEAD_DIAERESIS, 'o', 148},
 	{DEAD_DIAERESIS, 'U', 154},	{DEAD_DIAERESIS, 'u', 129},
 	{DEAD_DIAERESIS, 'y', 0x98},
+        {0, 0, 0}
+};
+
+CONST struct dos_dead_key dos852_dead_map[] = {
+	{DEAD_GRAVE, DEAD_GRAVE, '`'},  {DEAD_ACUTE, DEAD_ACUTE, '\''},
+	{DEAD_CIRCUMFLEX, DEAD_CIRCUMFLEX, '^'}, {DEAD_DIAERESIS, DEAD_DIAERESIS, '"'},
+	{DEAD_TILDE, DEAD_TILDE, '~'}, {DEAD_DOUBLEACUTE, DEAD_DOUBLEACUTE, 241},
+	{DEAD_OGONEK, DEAD_OGONEK, 242}, {DEAD_CARON, DEAD_CARON, 243},
+	{DEAD_BREVE, DEAD_BREVE, 244},
+
+	{DEAD_ABOVERING, 'U', 222}, {DEAD_ABOVERING, 'u', 133},
+
+	{DEAD_DOUBLEACUTE, 'O', 138}, {DEAD_DOUBLEACUTE, 'o', 139},
+	{DEAD_DOUBLEACUTE, 'U', 235}, {DEAD_DOUBLEACUTE, 'u', 251},
+
+	{DEAD_ABOVEDOT, 'Z', 189}, {DEAD_ABOVEDOT, 'z', 190},
+
+	{DEAD_BREVE, 'A', 198}, {DEAD_BREVE, 'a', 199},
+
+	{DEAD_CEDILLA, 'C', 128}, {DEAD_CEDILLA, 'c', 135},
+	{DEAD_CEDILLA, 'S', 184}, {DEAD_CEDILLA, 's', 173},
+	{DEAD_CEDILLA, 'T', 221}, {DEAD_CEDILLA, 't', 238},
+
+	{DEAD_ACUTE, 'A', 181}, {DEAD_ACUTE, 'a', 160},
+	{DEAD_ACUTE, 'C', 143}, {DEAD_ACUTE, 'c', 134},
+	{DEAD_ACUTE, 'E', 144}, {DEAD_ACUTE, 'e', 130},
+	{DEAD_ACUTE, 'I', 214}, {DEAD_ACUTE, 'i', 161},
+	{DEAD_ACUTE, 'L', 145}, {DEAD_ACUTE, 'l', 146},
+	{DEAD_ACUTE, 'N', 227}, {DEAD_ACUTE, 'n', 228},
+	{DEAD_ACUTE, 'O', 224}, {DEAD_ACUTE, 'o', 162},
+	{DEAD_ACUTE, 'R', 232}, {DEAD_ACUTE, 'r', 234},
+	{DEAD_ACUTE, 'S', 151}, {DEAD_ACUTE, 's', 152},
+	{DEAD_ACUTE, 'U', 233}, {DEAD_ACUTE, 'u', 163},
+	{DEAD_ACUTE, 'Y', 237}, {DEAD_ACUTE, 'y', 236},
+	{DEAD_ACUTE, 'Z', 141}, {DEAD_ACUTE, 'z', 171},
+
+	{DEAD_CIRCUMFLEX, 'A', 182},    {DEAD_CIRCUMFLEX, 'a', 131},
+	{DEAD_CIRCUMFLEX, 'I', 215},    {DEAD_CIRCUMFLEX, 'i', 140},
+	{DEAD_CIRCUMFLEX, 'O', 226},    {DEAD_CIRCUMFLEX, 'o', 147},
+
+	{DEAD_DIAERESIS, 'A', 142},     {DEAD_DIAERESIS, 'a', 132},
+	{DEAD_DIAERESIS, 'E', 211},     {DEAD_DIAERESIS, 'e', 137},
+	{DEAD_DIAERESIS, 'O', 153},     {DEAD_DIAERESIS, 'o', 148},
+	{DEAD_DIAERESIS, 'U', 154},     {DEAD_DIAERESIS, 'u', 129},
+
+	{DEAD_CARON, 'C', 172}, {DEAD_CARON, 'c', 159},
+	{DEAD_CARON, 'D', 210}, {DEAD_CARON, 'd', 212},
+	{DEAD_CARON, 'E', 183}, {DEAD_CARON, 'e', 216},
+	{DEAD_CARON, 'L', 149}, {DEAD_CARON, 'l', 150},
+	{DEAD_CARON, 'N', 213}, {DEAD_CARON, 'n', 229},
+	{DEAD_CARON, 'R', 252}, {DEAD_CARON, 'r', 253},
+	{DEAD_CARON, 'S', 230}, {DEAD_CARON, 's', 231},
+	{DEAD_CARON, 'T', 155}, {DEAD_CARON, 't', 156},
+	{DEAD_CARON, 'Z', 166}, {DEAD_CARON, 'z', 167},
+
+	{DEAD_OGONEK, 'A', 164}, {DEAD_OGONEK, 'a', 165},
+	{DEAD_OGONEK, 'E', 168}, {DEAD_OGONEK, 'e', 169},
+
         {0, 0, 0}
 };
 
@@ -1547,19 +1662,23 @@ struct keytable_entry keytable_list[] = {
   {"hu", KEYB_HU, KT_USES_ALTMAP, sizeof(key_map_hu), sizeof(num_table_comma),
     key_map_hu, shift_map_hu, alt_map_hu,
     num_table_comma, dead_key_table,
-    dos850_dead_map},
+    dos852_dead_map},
   {"hu-cwi", KEYB_HU_CWI, KT_USES_ALTMAP, sizeof(key_map_hu_cwi), sizeof(num_table_comma),
     key_map_hu_cwi, shift_map_hu_cwi, alt_map_hu_cwi,
     num_table_comma, dead_key_table,
-    dos850_dead_map},
+    dos852_dead_map},
   {"hu-latin2", KEYB_HU_LATIN2, KT_USES_ALTMAP, sizeof(key_map_hu_latin2), sizeof(num_table_comma),
     key_map_hu_latin2, shift_map_hu_latin2, alt_map_hu_latin2,
     num_table_comma, dead_key_table,
-    dos850_dead_map},
+    dos852_dead_map},
   {"jp106", KEYB_JP106, 0, sizeof(key_map_jp106), sizeof(num_table_comma),
     key_map_jp106, shift_map_jp106, alt_map_jp106,
     num_table_dot, dead_key_table,
     dos850_dead_map},
+  {"pl", KEYB_PL, KT_USES_ALTMAP, sizeof(key_map_pl), sizeof(num_table_comma),
+    key_map_pl, shift_map_pl, alt_map_pl,
+    num_table_comma, dead_key_table,
+    dos852_dead_map},
   {"keyb-user", KEYB_USER, 0, sizeof(key_map_user), sizeof(num_table_comma),
     key_map_user, shift_map_user, alt_map_user,
     num_table_dot, dead_key_table,
