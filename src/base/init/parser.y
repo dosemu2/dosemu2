@@ -52,9 +52,6 @@
 
 #include "config.h"
 #include "emu.h"
-#ifdef X86_EMULATOR
-#include "cpu-emu.h"
-#endif
 #include "disks.h"
 #include "port.h"
 #define allow_io	port_allow_io
@@ -469,16 +466,7 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 			}
 		| CPU EMULATED
 			{
-			vm86s.cpu_type = 5;
-#ifdef X86_EMULATOR
-#ifdef DONT_START_EMU
-			config.cpuemu = 1;
-#else
-			config.cpuemu = 3;
-#endif
-			c_printf("CONF: CPUEMU set to %d for %ld86\n",
-				config.cpuemu, vm86s.cpu_type);
-#endif
+			/* in 1.0 removed, in 1.1 kept */
 			}
 		| CPUSPEED expression
 			{ 

@@ -566,22 +566,12 @@ static Boolean handle_dosemu_keys(t_keysym key) {
 
    if ((shiftstate&CTRL) && (shiftstate&ALT)) {
       switch(key) {
-#ifdef X86_EMULATOR
-       case KEY_PGUP:
-             k_printf("KBD: Ctrl-Alt-PgUp\n");
-             if (config.cpuemu) {
-               if (d.emu<2) d.emu=4;
-               fflush(dbg_fd);
-             }
-             return 1;
-#else
 #if 0	/* C-A-D is disabled */
        case KEY_DEL:
        case KEY_PGUP:
              k_printf("KBD: Ctrl-Alt-{Del|PgUp}: rebooting dosemu\n");
              dos_ctrl_alt_del();
              return 1;
-#endif
 #endif
        case KEY_PGDN:
              k_printf("KBD: Ctrl-Alt-PgDn: bye bye!\n");

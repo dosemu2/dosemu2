@@ -273,9 +273,6 @@ int bogospeed(unsigned long *spus, unsigned long *sptick)
 	/* speed division factor to get 838ns from CPU clocks */
 	*sptick = (LLF_TICKS*mlt)/dvs;
 
-#ifdef X86_EMULATOR
-	config.emuspeed = dvs/mlt;
-#endif
 	fprintf (stderr,"CPU speed set to %d MHz\n",(dvs/mlt));
 /*	fprintf (stderr,"CPU speed factors %ld,%ld\n",*spus,*sptick); */
 	first = 0;

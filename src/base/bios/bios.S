@@ -750,23 +750,6 @@ L10:	/* chain to original handler (probably the video bios) */
 CISH(bios_f000_int10_old):
 	dw	0,0
 
-#ifdef X86_EMULATOR
-	.org	((INT10_WATCHER_SEG-BIOSSEG) << 4)+(INT10_WATCHER_OFF+0x60)
-/* ======================= Addr = F800:42A0 (FC2A0) */
-/* the reason for this trick is that when SKIP_EMU_VBIOS is active we
- * switch to VBIOS into _true_ vm86 mode, and the iret is trapped by
- * the kernel, not the CPU emulator. Here we double the return stack
- * and fall back into an HLT at the end of the video code. Since cs==
- * f800, cpuemu gets control back at the right point -- AV
- */
-/* fake stack frame for iret: push original flags and avoid a GPF from pushf */
-	movzx	esp,sp	/* make sure high of esp is zero */
-	push	word ptr [esp+4]
-	push	cs
-	call	WINT10
-	hlt
-	retf	2    /* keep current flags and avoid another GPF from iret */
-#endif
 
 /* ----------------------------------------------------------------- */   
 		/* This is an int e7 used for FCB opens */

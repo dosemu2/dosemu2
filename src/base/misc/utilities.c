@@ -43,9 +43,6 @@
  *                                     --Hans 990213
  */
 #define SHOW_TIME	0		/* 0 or 1 */
-#ifdef X86_EMULATOR
-#include "cpu-emu.h"
-#endif
 
 #ifndef INITIAL_LOGBUFSIZE
 #define INITIAL_LOGBUFSIZE      0
@@ -88,21 +85,12 @@ static char *timestamp (char *p)
   unsigned long t;
   int i;
 
-#ifdef X86_EMULATOR
-  if ((config.cpuemu>1) && (in_vm86_emu || in_dpmi_emu)) t=0; else
-#endif
 #ifdef DBG_TIME
   t = GETusTIME(0);
 #else
   t = pic_sys_time/1193;
 #endif
   /* [12345678]s - SYS time */
-#ifdef X86_EMULATOR
-    if ((config.cpuemu>1) && ((in_vm86 && in_vm86_emu) || in_dpmi_emu)) {
-	if (VM86F) strcpy(p,"[--VM86--] ");
-	  else strcpy(p,(CEmuStat&CeS_MODE_PM32? "[==PM32==] ":"[==PM16==] "));
-    } else
-#endif
     {
       p[0] = '[';
       for (i=8; i>0; --i)

@@ -225,7 +225,7 @@ proc write_out {} {
 				   "x" "net" "dodebug" "slangforce" \
 				   "tmonoton" "runasroot" "linkstatic" \
 				   "newint" \
-				   "cpuemu" "aspi" }
+				   "aspi" }
 
 	puts $tmp_file "}"
 	close $tmp_file

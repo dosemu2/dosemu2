@@ -191,11 +191,7 @@ void DPMI_show_state(struct sigcontext_struct *scp)
      * 'not present' error and then we try accessing the code/stack
      * area, we fall into another fault which likely terminates dosemu.
      */
-#ifdef X86_EMULATOR
-    if (!config.cpuemu || (_trapno!=0x0b && _trapno!=0x0c)) {
-#else
     if (1) {
-#endif
       int i;
       D_printf("OPS  : ");
       for (i = 0; i < 10; i++)

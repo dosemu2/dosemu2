@@ -42,22 +42,5 @@
  *
  */
 
-#if defined(X86_EMULATOR)||defined(_IN_INTP32)
-
-typedef struct {
-	unsigned char *lpSelBase;	/* unscrambled segment base */
-	unsigned long dwSelLimit;	/* unscrambled segment limit */
-	void *hGlobal;		/* segment has to be a global object */
-	void *hReserved;	/* has to go when HGLOBAL becomes 32-bit */
-	unsigned short w86Flags;	/* bytes 6 and 5 of the descriptor */
-	unsigned char bSelType;		/* TRANSFER_... selector flags */
-	unsigned char bModIndex;	/* index into module table */
-} DSCR;
-
-extern DSCR LDT[LDT_ENTRIES];
-
-int emu_modify_ldt(int func, void *ptr, unsigned long bytecount);
-
-#endif
 
 #endif

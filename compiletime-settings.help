@@ -25,12 +25,6 @@ sbemu		"SB Emulation"
 		when you setup your DOSish software.
 		Note: the code is ALPHA and may not work on all systems.
 
-novm86plus	"disable VM86 enhancement"
-
-		Set this switch, if you have a _really_ old Linux kernel
-		and don't want to upgrade. At time of writing this, this
-		switch is fairly obsolete and should always be off.
-
 mitshm		"Use MIT Shared Memory extensions under X"
 
 		You normal would like to have this activated, though you

@@ -39,9 +39,6 @@ while [ "$1" != "" ]; do
     experimental)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-experimental"; fi
       ;;
-    novm86plus)
-      if [ "$2" = "on" ]; then STRING="$STRING --enable-novm86plus"; fi
-      ;;
     dodebug)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-dodebug"; fi
       ;;
@@ -68,9 +65,6 @@ while [ "$1" != "" ]; do
       ;;
     linkstatic)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-linkstatic"; fi
-      ;;
-    cpuemu)
-      if [ "$2" = "on" ]; then STRING="$STRING --enable-cpuemu"; fi
       ;;
     newint)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-new-intcode"; fi

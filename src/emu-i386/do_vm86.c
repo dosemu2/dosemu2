@@ -63,7 +63,6 @@
 #include "ipx.h"                /* TRB - add support for ipx */
 #include "keymaps.h"
 #include "bitops.h"
-#include "cpu-emu.h"
 
 #include "video.h"
 #if X_GRAPHICS
@@ -294,14 +293,6 @@ void vm86_GP_fault(void)
        /* set VIF (only if necessary) */
     if (REG(eflags) & IF_MASK) REG(eflags) |= VIF_MASK;
 #endif /* not USE_NEW_INT */
-#if defined(X86_EMULATOR) && defined(SKIP_EMU_VBIOS)
-    if ((config.cpuemu>1) && (lina == (unsigned char *) CPUEMUI10_ADD)) {
-      e_printf("EMU86: HLT at int10 end\n");
-      LWORD(eip) += 1;	/* simply skip, so that we go back to emu mode */
-      break;
-    }
-    else
-#endif
           /* return with STI if VIP was set from run_dpmi; this happens
            * if pic_count is >0 and the VIP flag in dpmi_eflags was on
            */
@@ -328,7 +319,7 @@ void vm86_GP_fault(void)
     }
 
     else {
-#ifndef SKIP_EMU_VBIOS
+#if 1
       error("HLT requested: lina=%p!\n", lina);
       show_regs(__FILE__, __LINE__);
 #if 0
@@ -417,9 +408,6 @@ run_vm86(void)
     /* FIXME: this needs to be clarified and rewritten */
 
     if (
-#ifdef X86_EMULATOR
-	(d.emu>1)||
-#endif
 	(d.general>3)) {
 	dbug_printf ("DO_VM86,  cs=%04x:%04x ss=%04x:%04x f=%08x\n",
 		_CS, _EIP, _SS, _SP, _EFLAGS);
@@ -448,9 +436,6 @@ run_vm86(void)
       _EFLAGS &= ~(AC|ID);
     }
     if (
-#ifdef X86_EMULATOR
-	(d.emu>1)||
-#endif
 	(d.general>3)) {
 	dbug_printf ("RET_VM86, cs=%04x:%04x ss=%04x:%04x f=%08x ret=0x%x\n",
 		_CS, _EIP, _SS, _SP, _EFLAGS, retval);

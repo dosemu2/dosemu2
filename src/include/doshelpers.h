@@ -99,10 +99,6 @@
 #define DOS_HELPER_GETCWD           0x80
 #define DOS_HELPER_CHDIR            0x81
 
-#ifdef X86_EMULATOR
-#define DOS_HELPER_CPUEMUON         0x90
-#define DOS_HELPER_CPUEMUOFF        0x91
-#endif
 
 #define DOS_HELPER_XCONFIG          0xa0
 

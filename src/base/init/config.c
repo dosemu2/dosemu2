@@ -30,9 +30,6 @@
 #include "dos2linux.h"
 #include "priv.h"
 #include "utilities.h"
-#ifdef X86_EMULATOR
-#include "cpu-emu.h"
-#endif
 #include "mhpdbg.h"
 
 
@@ -111,9 +108,6 @@ config_defaults(void)
     config.rdtsc = 0;
     config.mathco = 0;
     config.smp = 0;
-#ifdef X86_EMULATOR
-    config.emuspeed = 50;	/* instruction cycles per us */
-#endif
 
     open_proc_scan("/proc/cpuinfo");
     switch (get_proc_intvalue_by_key(
@@ -145,10 +139,6 @@ config_defaults(void)
 		fprintf (stderr,"kernel CPU speed is %Ld Hz\n",chz);
 /*		fprintf (stderr,"CPU speed factors %ld,%ld\n",
 			config.cpu_spd, config.cpu_tick_spd); */
-#ifdef X86_EMULATOR
-		config.emuspeed = di;
-		fprintf (stderr,"CPU-EMU speed is %d MHz\n",di);
-#endif
 		break;
 	    }
 	    else
@@ -187,9 +177,6 @@ config_defaults(void)
 
     config.hdiskboot = 1;	/* default hard disk boot */
     config.mappingdriver = 0;
-#ifdef X86_EMULATOR
-    config.cpuemu = 0;
-#endif
     config.mem_size = 640;
     config.ems_size = 0;
     config.ems_frame = 0xd000;
@@ -362,9 +349,6 @@ void dump_config_status(void *printfunc)
 
     (*print)("pci %d\nrdtsc %d\nmathco %d\nsmp %d\n",
                  config.pci, config.rdtsc, config.mathco, config.smp);
-#ifdef X86_EMULATOR
-    (*print)("emuspeed %d\ncpuemu %d\n", config.emuspeed, config.cpuemu);
-#endif
 
     (*print)("mappingdriver %s\n", config.mappingdriver ? config.mappingdriver : "auto");
     (*print)("hdiskboot %d\nmem_size %d\n",
@@ -973,12 +957,6 @@ config_init(int argc, char **argv)
     c_printf(" uid=%d (cached %d) gid=%d (cached %d)\n",
         geteuid(), get_cur_euid(), getegid(), get_cur_egid());
 
-#ifdef X86_EMULATOR
-    if (config.cpuemu && config.speaker==SPKR_NATIVE) {
-	c_printf("SPEAKER: can`t use native mode with cpu-emu\n");
-	config.speaker=SPKR_EMULATED;
-    }
-#endif
     if (config_check_only) {
 	dump_config_status(0);
 	usage();
@@ -1156,11 +1134,6 @@ int parse_debugflags(const char *s, unsigned char flag)
 	case 'Z':
 	    d.pci = flag;       /* PCI */
 	    break;
-#ifdef X86_EMULATOR
-	case 'e':		/* cpu-emu */
-	    d.emu = flag;
-	    break;
-#endif
 	case 'a':{		/* turn all on/off depending on flag */
 		char           *newopts = (char *) malloc(strlen(allopts) + 2);
 

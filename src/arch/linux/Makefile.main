@@ -41,15 +41,6 @@ export SBEMU=arch/linux/dosext/sound dosext/sound
 export MIDID=arch/linux/dosext/sound/midid
 endif
 
-#
-# This is defined when the Twin CPU emulator is required. You should
-# re-configure, rather than just change this.
-#
-ifdef X86_EMULATOR
-export XEMUIFC=emu-i386/intp32
-export XCPUEMU=emu-i386/intp32/twin/intp32
-endif
-
 # SYNC_ALOT
 #   uncomment this if the emulator is crashing your machine and some debug info 
 #   isn't being sync'd to the debug file (stdout). shouldn't happen. :-) 

@@ -16,7 +16,6 @@ menu "Main Menu" {
   boolean "run as root mostly" runasroot
   boolean "make static binaries" linkstatic
   boolean "use the new INT code" newint
-  boolean "EXPERIMENTAL, enable CPU emulator" cpuemu
   boolean "compile with ASPI driver" aspi
 }
 

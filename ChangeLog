@@ -1,3 +1,20 @@
+2000/03/05 ver. 1.0.0 released ... tadaaa
+	After a long time (8 years), and many many headache DOSEMU finaly
+	leaves ALPHA/BETA stage and is ready for production. We could not
+	realize all wishes, but the stuff which is in should be as stable
+	as it can be with DOS in the background :-)
+	Thanks to all people who helped to get this baby on its way,
+	especially to all the former co-ordinators befor me:
+		- Matthias Lautner, started the DOSEMU project 1992
+		- Robert Sanders, took over government 1993
+		- James B. MacLean, who was the longest staying on
+		  this project: 1994 .. 1996
+	Since 1997 being the co-ordinator of this exiting project,
+	I'm happy that it finally reaches its aim.
+				-- Hans Lermen, 2000/03/05
+	From Hans
+	- removed experimental cpu-emu stuff
+	- adapted configure stuff
 2000/03/01 ver. 0.99.14 FORK-POINT released
 	NOTE: This is the 1.0/1.1 forkpoint
 	      1.1 will continue unchanged to form the new Hacker version.

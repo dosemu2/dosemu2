@@ -48,9 +48,6 @@
 #else
 #include <errno.h>
 #endif
-#ifdef X86_EMULATOR
-#include "cpu-emu.h"
-#endif
 #include "emu-ldt.h"
 #include <asm/segment.h>
 #include <asm/page.h>
@@ -182,11 +179,6 @@ _syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
 inline int get_ldt(void *buffer)
 {
 #ifdef __linux__
-#ifdef X86_EMULATOR
-  if (config.cpuemu>1)
-	return emu_modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
-  else
-#endif
   return modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
 #endif
 }
@@ -299,15 +291,10 @@ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 	}
   }
 
-#ifdef X86_EMULATOR
-  if (config.cpuemu>1)
-	__retval = emu_modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
-  else
-#endif
   __retval = modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
   if (__retval)
 	return __retval;
-#endif
+#endif /* __linux__ */
 
 
 /*
@@ -897,14 +884,6 @@ static unsigned short CreateCSAlias(unsigned short selector)
 
 static int inline do_LAR(us selector)
 {
-#ifdef X86_EMULATOR
-  if (config.cpuemu) {
-    us flg = LDT[selector>>3].w86Flags & 0xff;
-    if (flg) LDT[selector>>3].w86Flags |= 1;
-    return flg;
-  }
-  else
-#endif
   __asm__ volatile("
     movzwl  %%ax,%%eax
     larw %%ax,%%ax
@@ -1114,18 +1093,6 @@ static __inline__ void dpmi_sti()
 
 void do_int31(struct sigcontext_struct *scp, int inumber)
 {
-#ifdef X86_EMULATOR
-  extern void e_dpmi_b0x(int op,struct sigcontext_struct *);
-
-  if (d.dpmi) {
-    D_printf("DPMI: int31, ax=%04x, ebx=%08lx, ecx=%08lx, edx=%08lx\n",
-	_LWORD(eax),_ebx,_ecx,_edx);
-    D_printf("        edi=%08lx, esi=%08lx, ebp=%08lx, esp=%08lx\n",
-	_edi,_esi,_ebp,_esp);
-    D_printf("        cs=%04x, ds=%04x, ss=%04x, es=%04x, fs=%04x, gs=%04x\n",
-	_cs,_ds,_ss,_es,_fs,_gs);
-  }
-#endif
 
   _eflags &= ~CF;
   switch (inumber) {
@@ -1716,11 +1683,6 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     {
       D_printf("DPMI: Set breakpoint type %x size %x at %04x%04x\n",
 	_HI(dx),_LO(dx),_LWORD(ebx),_LWORD(ecx));
-#ifdef X86_EMULATOR
-      if (config.cpuemu>1) {
-	e_dpmi_b0x(0,scp);
-      } else
-#endif
       {_LWORD(eax) = 0x8016;	/* n.i. */
 	_eflags |= CF; }
     }
@@ -1728,11 +1690,6 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
   case 0x0b01:	/* Clear Debug Breakpoint, bx=handle */
     {
       D_printf("DPMI: Clear breakpoint %x\n",_LWORD(ebx));
-#ifdef X86_EMULATOR
-      if (config.cpuemu>1) {
-	e_dpmi_b0x(1,scp);
-      } else
-#endif
       { _LWORD(eax) = 0x8023;	/* n.i. */
 	_eflags |= CF; }
     }
@@ -1740,11 +1697,6 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
   case 0x0b02:	/* Get Debug Breakpoint State, bx=handle->ax=state(!CF) */
     {
       D_printf("DPMI: Breakpoint %x state\n",_LWORD(ebx));
-#ifdef X86_EMULATOR
-      if (config.cpuemu>1) {
-	e_dpmi_b0x(2,scp);
-      } else
-#endif
       { _LWORD(eax) = 0x8023;	/* n.i. */
 	_eflags |= CF; }
     }
@@ -1752,11 +1704,6 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
   case 0x0b03:	/* Reset Debug Breakpoint, bx=handle */
     {
       D_printf("DPMI: Reset breakpoint %x\n",_LWORD(ebx));
-#ifdef X86_EMULATOR
-      if (config.cpuemu>1) {
-	e_dpmi_b0x(3,scp);
-      } else
-#endif
       { _LWORD(eax) = 0x8023;	/* n.i. */
 	_eflags |= CF; }
     }
@@ -1859,22 +1806,9 @@ static inline void copy_context(struct sigcontext_struct *d, struct sigcontext_s
 
 static inline void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode)
 {
-#ifdef X86_EMULATOR
- if (config.cpuemu<2) {
-#endif
   copy_context(&dpmi_stack_frame[current_client],scp);
   copy_context(scp, emu_stack_frame);
   _eax = retcode;
-#ifdef X86_EMULATOR
- }
-  else {
-    extern int emu_dpmi_retcode;
-    D_printf("DPMI: return %x from emulator to dosemu code\n", retcode);
-    D_printf("DPMI: in_dpmi_dos_int=%d dpmi_eflags=%x\n",in_dpmi_dos_int,
-	dpmi_eflags);
-    emu_dpmi_retcode = retcode;
-  }
-#endif
 }
 
 #else
@@ -2075,9 +2009,6 @@ void run_dpmi(void)
    static unsigned char *lastcsp;
    int retval;
    unsigned char *csp;
-#ifdef X86_EMULATOR
-   extern int e_dpmi(struct sigcontext_struct *);
-#endif
 
   /* always invoke vm86() with this call.  all the messy stuff will
    * be in here.
@@ -2111,9 +2042,6 @@ void run_dpmi(void)
 #endif
 
     if (
-#ifdef X86_EMULATOR
-	(d.emu>1)||
-#endif
 	(d.dpmi>2)) {
 	D_printf ("DPMI: do_vm86,  %04x:%04lx %08lx %08lx %08x\n", REG(cs),
 		REG(eip), REG(esp), REG(eflags), dpmi_eflags);
@@ -2123,14 +2051,6 @@ void run_dpmi(void)
     retval=DO_VM86(&vm86s);
     in_vm86=0;
 
-#ifdef X86_EMULATOR
-    if (
-	(d.emu>1)||
-	(d.dpmi>3)) {
-	D_printf ("DPMI: ret_vm86, %04x:%04lx %08lx %08lx %08x ret=%#x\n",
-		REG(cs), REG(eip), REG(esp), REG(eflags), dpmi_eflags, retval);
-    }
-#endif
 
     if (REG(eflags)&IF) {
       if (!(dpmi_eflags&IF))
@@ -2148,15 +2068,9 @@ void run_dpmi(void)
 		vm86_GP_fault();
 		break;
 	case VM86_STI:
-#ifdef X86_EMULATOR
-		D_printf("DPMI: Return from vm86() for timeout\n");
-#endif
 		pic_iret();
 		break;
 	case VM86_INTx:
-#ifdef X86_EMULATOR
-		D_printf("DPMI: Return from vm86() for interrupt\n");
-#endif
 #ifdef SHOWREGS
     show_regs(__FILE__, __LINE__);
 #endif
@@ -2191,10 +2105,6 @@ void run_dpmi(void)
     int retcode;
     if(pic_icount) dpmi_eflags |= VIP;
     retcode = (
-#ifdef X86_EMULATOR
-	config.cpuemu>1?
-	e_dpmi(&dpmi_stack_frame[current_client]) :
-#endif
 	dpmi_control());
 #ifdef USE_MHPDBG
     if (retcode && mhpdbg.active) {
@@ -2492,12 +2402,7 @@ void dpmi_init()
 
 void dpmi_sigio(struct sigcontext_struct *scp)
 {
-#ifdef X86_EMULATOR
-  extern int in_dpmi_emu;
-  if (in_dpmi_emu || (_cs != UCODESEL)) {
-#else
   if (_cs != UCODESEL){
-#endif
 #if 1
     if (in_win31 || (dpmi_eflags & IF)) {
       D_printf("DPMI: return to dosemu code for handling signals\n");
@@ -2577,18 +2482,12 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
       D_printf("DPMI: page fault. in dosemu?\n");
   }
   if ((_trapno != 0xe)
-#ifdef X86_EMULATOR
-      || d.emu
-#endif
      )
     { DPMI_show_state(scp); }
 #ifdef SHOWREGS
   print_ldt();
 #endif
   if ((_trapno == 0xe)
-#ifdef X86_EMULATOR
-	&& (config.cpuemu==0)
-#endif
      )
     leavedos(98);
 #ifdef DPMI_DEBUG
@@ -2764,10 +2663,6 @@ if ((_ss & 4) == 4) {
     org_eip = _eip;
     _eip += (csp-lina);
 
-#ifdef X86_EMULATOR
-    /* trick, because dpmi_fault must return void */
-    if (config.cpuemu>1) _trapno = *csp;
-#endif
 
     switch (*csp++) {
 
@@ -3221,10 +3116,6 @@ if ((_ss & 4) == 4) {
       if (msdos_fault(scp))
 	  return;
 #ifdef __linux__
-#ifdef X86_EMULATOR
-      /* the other side of the trick */
-      _trapno = 13;
-#endif
       do_cpu_exception(scp);
 #endif
 
@@ -3719,9 +3610,6 @@ void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned long *lp)
   int typebyte=do_LAR(selector);
   if (typebyte) {
 	((unsigned char *)(&ldt_buffer[selector & 0xfff8]))[5]=typebyte;
-#ifdef X86_EMULATOR
-	LDT[selector>>3].w86Flags = (LDT[selector>>3].w86Flags & 0xff00)|typebyte;
-#endif
   }
   memcpy(lp, &ldt_buffer[selector & 0xfff8], 8);
 }

@@ -11,6 +11,5 @@ config {
   runasroot off
   linkstatic off
   newint on
-  cpuemu off
   aspi on
 }

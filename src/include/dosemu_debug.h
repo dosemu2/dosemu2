@@ -24,11 +24,6 @@
 # define NORETURN
 #endif
 
-#ifdef X86_EMULATOR
-#if 1
-#define DONT_DEBUG_BOOT
-#endif
-#endif
 
 /*
  * The 'struct debug_flags' defines which features may print discrete debug
@@ -76,9 +71,6 @@ struct debug_flags {
    aspi,		/* ASPI interface    "A" */
    mapping,		/* Mapping driver    "Q" */
    pci                  /* PCI               "Z" */
-#ifdef X86_EMULATOR
-   ,emu			/* CPU emulation     "e" */
-#endif
    ;
 };
 
@@ -147,9 +139,6 @@ void verror(const char *fmt, va_list args);
 #define A_printf(f,a...)     	ifprintf(d.aspi,f,##a)
 #define Q_printf(f,a...)	ifprintf(d.mapping,f,##a)
 #define Z_printf(f,a...)        ifprintf(d.pci,f,##a)
-#ifdef X86_EMULATOR
-#define e_printf(f,a...)     	ifprintf(d.emu,f,##a)
-#endif
 
 #define ALL_DEBUG_ON	memset(&d,9,sizeof(d))
 #define ALL_DEBUG_OFF	memset(&d,0,sizeof(d))

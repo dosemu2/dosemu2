@@ -40,12 +40,7 @@ extern void keyb_server_run(void);
 extern void irq_select(void);
 extern int type_in_pre_strokes();
 
-#ifdef X86_EMULATOR
-#include "cpu-emu.h"
-#define E_SIGNAL	if (config.cpuemu>1) CEmuStat|=CeS_SIGPEND
-#else
 #define E_SIGNAL
-#endif
 
 /* Variables for keeping track of signals */
 #define MAX_SIG_QUEUE_SIZE 50
@@ -252,10 +247,6 @@ sti(void)
  */
 void handle_signals(void) {
   if ( SIGNAL_head != SIGNAL_tail ) {
-#ifdef X86_EMULATOR
-    if ((config.cpuemu>1) && (d.emu>3))
-      {e_printf("EMU86: SIGNAL at %d\n",SIGNAL_head);}
-#endif
     signal_queue[SIGNAL_head].signal_handler();
     SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
 /* 
@@ -535,16 +526,6 @@ sigalrm(int sig, struct sigcontext_struct context)
   SIGNAL_save(SIGALRM_call);
 }
 
-#ifdef X86_EMULATOR
-/* this is the same thing, but with a pointer parameter */
-void
-e_sigalrm(struct sigcontext_struct *context)
-{
-  if (in_dpmi && !in_vm86)
-    dpmi_sigio(context);
-  SIGNAL_save(SIGALRM_call);
-}
-#endif
 #endif
 
 

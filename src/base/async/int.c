@@ -195,10 +195,6 @@ static void process_master_boot_record(void)
 /* returns 1 if dos_helper() handles it, 0 otherwise */
 static int dos_helper(void)
 {
-#ifdef X86_EMULATOR
-  extern void enter_cpu_emu(void);
-  extern void leave_cpu_emu(void);
-#endif
 
   switch (LO(ax)) {
   case DOS_HELPER_DOSEMU_CHECK:			/* Linux dosemu installation test */
@@ -523,19 +519,6 @@ static int dos_helper(void)
   case DOS_HELPER_CHDIR:
         LWORD(eax) = chdir(SEG_ADR((char *), es, dx));
         break;
-#ifdef X86_EMULATOR
-  case DOS_HELPER_CPUEMUON:
-#ifdef DONT_DEBUG_BOOT
-	memcpy(&d,&d_save,sizeof(struct debug_flags));
-#endif
-	/* we could also enter from inside dpmi, provided we already
-	 * mirrored the LDT into the emu's own one */
-  	if ((config.cpuemu==1) && !in_dpmi) enter_cpu_emu();
-        break;
-  case DOS_HELPER_CPUEMUOFF:
-  	if ((config.cpuemu>1) && !in_dpmi) leave_cpu_emu();
-        break;
-#endif
     case DOS_HELPER_XCONFIG:
 #if X_GRAPHICS
 	if (config.X) {
@@ -1636,9 +1619,6 @@ static int redir_it()
 
 /* MS-DOS */
 static void int21(u_char i) {
-#ifdef X86_EMULATOR
-  static char buf[80];
-#endif
   ds_printf("INT21 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
        redir_state, LWORD(cs), LWORD(eip),
        LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
@@ -1656,25 +1636,6 @@ static void int21(u_char i) {
   }
 #endif
 
-#ifdef X86_EMULATOR
-  if ((HI(ax)==0x40) && LWORD(ecx)) {
-	char *dp = (char *)((LWORD(ds)<<4)+LWORD(edx));
-	unsigned int nb = LWORD(ecx);
-	if (nb>78) nb=78; memcpy(buf,dp,nb); buf[nb]=0;
-	ds_printf("WRITE: [%s]\n",buf);
-  }
-  else if (HI(ax)==9) {
-	char *dp = (char *)((LWORD(ds)<<4)+LWORD(edx));
-	char *q = buf;
-	int nb;
-	for (nb=0; (nb<78)&&(*dp!='$'); nb++) *q++ = *dp++;
-	buf[nb]=0;
-	ds_printf("WRITE: [%s]\n",buf);
-  }
-  else if ((HI(ax)==6) && (LO(ax)!=0xff)) {
-	ds_printf("WRITE: [%c]\n",isprint(LO(ax)? LO(ax):'.'));
-  }
-#endif
   if (!ms_dos(HI(ax)))
     default_interrupt(i);
 }
