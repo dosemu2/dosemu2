@@ -431,7 +431,6 @@ EXTERN void sigquit(int);
 EXTERN void sigalrm(int, struct sigcontext_struct);
 EXTERN void e_sigalrm(struct sigcontext_struct *context);
 EXTERN void sigio(int, struct sigcontext_struct);
-EXTERN int dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old);
 EXTERN void SIG_init(void);
 EXTERN void SIG_close(void);
 #endif

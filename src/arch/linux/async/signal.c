@@ -53,6 +53,23 @@ static struct SIGNAL_queue signal_queue[MAX_SIG_QUEUE_SIZE];
 /* set if sigaltstack(2) is available */
 static int have_working_sigaltstack;
 
+ /* DANG_BEGIN_REMARK
+  * We assume system call restarting... under linux 0.99pl8 and earlier,
+  * this was the default.  SA_RESTART was defined in 0.99pl8 to explicitly
+  * request restarting (and thus does nothing).  However, if this ever
+  * changes, I want to be safe
+  * DANG_END_REMARK
+  */
+#ifndef SA_RESTART
+#define SA_RESTART 0
+#error SA_RESTART Not defined
+#endif
+
+#ifndef SA_ONSTACK
+#define SA_ONSTACK 0
+#undef HAVE_SIGALTSTACK
+#endif
+
 #ifdef __linux__
 /*
  * Thomas Winder <thomas.winder@sea.ericsson.se> wrote:
@@ -65,7 +82,7 @@ static int have_working_sigaltstack;
  * handling signals occuring when dpmi is active, which eventually
  * segfaults the program.
  */
-int
+static int
 dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
 {
   struct my_sigaction {
@@ -86,17 +103,29 @@ dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
 }
 #endif /* __linux__ */
 
- /* DANG_BEGIN_REMARK
-  * We assume system call restarting... under linux 0.99pl8 and earlier,
-  * this was the default.  SA_RESTART was defined in 0.99pl8 to explicitly
-  * request restarting (and thus does nothing).  However, if this ever
-  * changes, I want to be safe
-  * DANG_END_REMARK
-  */
-#ifndef SA_RESTART
-#define SA_RESTART 0
-#error SA_RESTART Not defined
-#endif
+static void
+dosemu_sigaction_wrapper(int sig, void *fun, int flags)
+{
+  struct sigaction sa;
+
+  sa.sa_handler = (__sighandler_t)fun;
+  sa.sa_flags = flags;
+  sigemptyset(&sa.sa_mask);
+  addset_signals_that_queue(&sa.sa_mask);
+
+  if ((sa.sa_flags & SA_ONSTACK) && !have_working_sigaltstack)
+  {
+    sa.sa_flags &= ~SA_ONSTACK;
+    /* Point to the top of the stack, minus 4
+       just in case, and make it aligned  */
+    sa.sa_restorer =
+      (void (*)(void)) (((unsigned int)(cstack) + sizeof(*cstack) - 4) & ~3);
+    dosemu_sigaction(sig, &sa, NULL);
+    return;
+  }
+
+  sigaction(sig, &sa, NULL);
+}
 
 /* DANG_BEGIN_FUNCTION NEWSETQSIG
  *
@@ -122,60 +151,19 @@ void addset_signals_that_queue(sigset_t *x)
        sigaddset(x, SIG_ACQUIRE);
 }
 
-#ifndef SA_ONSTACK
-#define SA_ONSTACK 0
-#undef HAVE_SIGALTSTACK
-#endif
-
 void newsetqsig(int sig, void *fun)
 {
-	struct sigaction sa;
-
-	sa.sa_handler = (__sighandler_t)fun;
-	sa.sa_flags = SA_RESTART;
-	sigemptyset(&sa.sa_mask);
-	addset_signals_that_queue(&sa.sa_mask);
-	if (have_working_sigaltstack) {
-		sa.sa_flags |= SA_ONSTACK;
-		sigaction(sig, &sa, NULL);
-	} else {
-		/* Point to the top of the stack, minus 4
-		   just in case, and make it aligned  */
-		sa.sa_restorer =
-		(void (*)(void)) (((unsigned int)(cstack) + sizeof(*cstack) - 4) & ~3);
-		dosemu_sigaction(sig, &sa, NULL);
-	}
+	dosemu_sigaction_wrapper(sig, fun, SA_RESTART|SA_ONSTACK);
 }
 
 void setsig(int sig, void *fun)
 {
-	struct sigaction sa;
-
-	sa.sa_handler = (__sighandler_t)fun;
-	sa.sa_flags = SA_RESTART;
-	sigemptyset(&sa.sa_mask);
-	addset_signals_that_queue(&sa.sa_mask);
-	sigaction(sig, &sa, NULL);
+	dosemu_sigaction_wrapper(sig, fun, SA_RESTART);
 }
 
 void newsetsig(int sig, void *fun)
 {
-	struct sigaction sa;
-
-	sa.sa_handler = (__sighandler_t) fun;
-	sa.sa_flags = SA_RESTART | SA_NODEFER;
-	sigemptyset(&sa.sa_mask);
-	addset_signals_that_queue(&sa.sa_mask);
-	if (have_working_sigaltstack) {
-		sa.sa_flags |= SA_ONSTACK;
-		sigaction(sig, &sa, NULL);
-	} else {
-		/* Point to the top of the stack, minus 4
-		   just in case, and make it aligned  */
-		sa.sa_restorer =
-		(void (*)(void)) (((unsigned int)(cstack) + sizeof(*cstack) - 4) & ~3);
-		dosemu_sigaction(sig, &sa, NULL);
-	}
+	dosemu_sigaction_wrapper(sig, fun, SA_RESTART|SA_NODEFER|SA_ONSTACK);
 }
 
 /* this cleaning up is necessary to avoid the port server becoming
