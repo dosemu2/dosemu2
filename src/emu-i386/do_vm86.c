@@ -105,7 +105,7 @@ void vm86_GP_fault(void)
   Bit32u org_eip;
   int pref_seg;
   int done,is_rep,prefix66,prefix67;
-  int rmcb_client;
+  int rmcb_client, rmcb_num;
 
 #if 0
   u_short *ssp;
@@ -313,8 +313,8 @@ void vm86_GP_fault(void)
       dpmi_realmode_hlt(lina);
     }
 
-    else if ((rmcb_client = lookup_realmode_callback(lina)) != -1) {
-      dpmi_realmode_callback(rmcb_client, LWORD(eip));
+    else if ((rmcb_client = lookup_realmode_callback(lina, &rmcb_num)) != -1) {
+      dpmi_realmode_callback(rmcb_client, rmcb_num);
     }
 
     else {

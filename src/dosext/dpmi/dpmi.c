@@ -2040,14 +2040,16 @@ err:
     D_printf("DPMI: dpmi function failed, CF=1\n");
 }
 
-int lookup_realmode_callback(char *lina)
+int lookup_realmode_callback(char *lina, int *num)
 {
   int i;
   char *base;
   for (i = 0; i < in_dpmi; i++) {
     base = SEG2LINEAR(DPMIclient[i].private_data_segment+RM_CB_Para_ADD);
-    if ((lina >= base) && (lina < base + 0x10))
+    if ((lina >= base) && (lina < base + 0x10)) {
+      *num = lina - base;
       return i;
+    }
   }
   return -1;
 }
@@ -2061,6 +2063,8 @@ void dpmi_realmode_callback(int rmcb_client, int num)
     unsigned short CLIENT_PMSTACK_SEL;
     struct RealModeCallStructure *rmreg;
 
+    if (rmcb_client > current_client || num >= 0x10)
+      return;
     rmreg = DPMIclient[rmcb_client].realModeCallBack[num].rmreg;
 
     D_printf("DPMI: Real Mode Callback for #%i address of client %i (from %i)\n",
