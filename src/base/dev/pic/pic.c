@@ -694,12 +694,7 @@ void run_irqs(void)
 
                clear_bit(local_pic_ilevel, &pic_irr);
                pic_ilevel = local_pic_ilevel;
-               set_bit(local_pic_ilevel, &pic_isr);     /* set in-service bit */
-               set_bit(local_pic_ilevel, &pic1_isr);    /* pic1 too */
-               pic1_isr &= pic_isr & pic1_mask;         /* isolate pic1 irqs */
                pic_iinfo[local_pic_ilevel].func();      /* run the function */
-               clear_bit(local_pic_ilevel, &pic_isr);   /* clear in_service bit */
-               clear_bit(local_pic_ilevel, &pic1_isr);  /* pic1 too */
 	       pic_ilevel=old_ilevel;
        }
  exit:
@@ -753,6 +748,11 @@ int do_irq(void)
 
     if(pic_ilevel==32) return 0;
     ilevel=pic_ilevel;
+
+    set_bit(ilevel, &pic_isr);     /* set in-service bit */
+    set_bit(ilevel, &pic1_isr);    /* pic1 too */
+    pic1_isr &= pic_isr & pic1_mask;         /* isolate pic1 irqs */
+
     intr=pic_iinfo[ilevel].ivec;
 
     if(ilevel==PIC_IRQ9)      /* unvectored irq9 just calls int 0x0a.. */
