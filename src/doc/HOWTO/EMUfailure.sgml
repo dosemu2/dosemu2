@@ -344,16 +344,6 @@ Mortal Kombat 1 and 2 are not producing any sound for unknown reasons.
 
 <listitem>
 <para>
-Mortal Kombat 2 works exceptionally bad under the latest 2.6 kernels.
-Due to the bugs in that game, it can't properly handle the pointers
-that have the bit 31 set (which is a pointer to any address above
-0x7fffffff). The work-around can be added to dosemu if we find that
-problem significant enough - so holler.
-</para>
-</listitem>
-
-<listitem>
-<para>
 X-COM Apocalypse locks up at startup if configured with sound.
 </para>
 </listitem>
