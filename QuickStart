@@ -80,7 +80,7 @@ the appropriate action ...
        and for an suid-root one your Linux distributor will hav done
        it for you)
 
-(BIF FAT WARNING: you have to be _very_ skilled to do it right !!)
+(BIG FAT WARNING: you have to be _very_ skilled to do it right !!)
 
 - Copy ./etc/dosemu.conf to /etc if you are installing for the first time.
   ( make install would have done this, if /etc/dosemu.conf dosen't exist )

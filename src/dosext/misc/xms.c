@@ -301,15 +301,13 @@ umb_allocate(int size)
 {
   int i;
 
-  if (size == 0)
-    return ((vm_address_t) 0);
-
   for (i = 0; i < UMBS; i++) {
     if (umbs[i].in_use && umbs[i].free) {
       if (umbs[i].size > size) {
 	int new_umb = umb_find_unused();
 
 	if (new_umb != UMB_NULL) {
+	 if(size) {
 	  umbs[new_umb].in_use = TRUE;
 	  umbs[new_umb].free = TRUE;
 	  umbs[new_umb].addr =
@@ -318,7 +316,8 @@ umb_allocate(int size)
 	    umbs[i].size - size;
 	  umbs[i].size = size;
 	  umbs[i].free = FALSE;
-	  return (umbs[i].addr);
+	 }
+	 return (umbs[i].addr);
 	}
       }
       else
@@ -544,16 +543,19 @@ xms_control(void)
 #define state (&_regs)
   case XMS_ALLOCATE_UMB:
     {
-      int size = WORD(state->edx) * 16;
-      vm_address_t addr = size ? umb_allocate(size) : (vm_address_t) 0;
+      int size = WORD(state->edx) << 4;
+      vm_address_t addr = umb_allocate(size);
 
       Debug0((dbg_fd, "Allocate UMB memory: 0x%04x\n",
 	      (unsigned) WORD(state->edx)));
       if (addr == (vm_address_t) 0) {
+        int avail=umb_query();
+
 	Debug0((dbg_fd, "Allocate UMB Failure\n"));
 	SETWORD(&(state->eax), 0);
-	SETLOW(&(state->ebx), 0xb0);
-	SETWORD(&(state->edx), umb_query() >> 4);
+	if(avail) SETLOW(&(state->ebx), 0xb0);
+	else SETLOW(&(state->ebx), 0xb1);
+	SETWORD(&(state->edx), avail >> 4);
       }
       else {
 	Debug0((dbg_fd, "Allocate UMB Success\n"));

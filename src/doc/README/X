@@ -22,12 +22,12 @@ In particular it should now understand the keys from the keypad-area (the
 keys the most right on a MF-Keyboard) and numlock and keyevents in the range
 of the latin characters, even when you run xdosemu from a remote X-terminal. 
 
-It also is capaple to handle PL4 color modes in addition to 256 color modes,
+It also is capable to handle PL4 color modes in addition to 256 color modes,
 so bgidemo from Borland runs fine.
 </para>
 
 <para>
-If it dosen't work for you as expected, please check out the following:
+If it doesn't work for you as expected, please check out the following:
 </para>
 
 <para>

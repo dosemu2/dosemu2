@@ -140,7 +140,11 @@ if [ -n "$PATHSAVED" ]; then
   There is some thing wrong with your private installation,
   ~/.dosemu/bindist_path points to $BOOT_DIR_PATH,
   but this directory seems not to contain valid stuff.
+  Check your installed directory, repair what's missing and rerun $ARG0
+  out of this directory. If else fails, cd into your $HOME and rerun $ARG0,
+  which then will install a fresh new instance.
 "
+    rm -f $BPATH_FILE
     exit 1
   fi
 

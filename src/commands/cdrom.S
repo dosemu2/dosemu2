@@ -601,9 +601,8 @@ EndParseArgs:
 	jmp 	cont
 
 IniParse:
-	cmpb	$0x0d,(%si)
-	jz	EndParseArgs
 	cmpb	$0x20,(%si)
+	jb	EndParseArgs
 	jz	Label
 	incw	%si
 	jmp	IniParse
@@ -612,9 +611,8 @@ IniParse:
 Label:	incw 	%si
 
 StartParse:
-	cmpb 	$0x0d,(%si)
-	jz 	EndParseArgs
 	cmpb 	$' ',(%si)
+	jb 	EndParseArgs
 	jz 	NextChar
 
 	cmpb	$'1',(%si)		#lowest allowed value is '1'; 

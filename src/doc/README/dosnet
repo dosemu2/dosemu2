@@ -39,7 +39,8 @@ ifconfig dsn0 192.168.74.1 netmask 255.255.255.0), and add a route for it
 </para>
 
 <para>
-Finally, start dosemu, and give your TCP/IP client and ip-address in the
+Finally, start dosemu (either as root or suid-root)
+ and give your TCP/IP client and ip-address in the
 subnet you just configured. This address should be unique, i.e. no other
 dosemu, or the kernel, should have this address. For the example addresses
 given above, 192.168.74.2-192.168.74.254 would be good. Now you can use a

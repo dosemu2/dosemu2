@@ -99,7 +99,8 @@ fi
 #
 if [ ! -f $FDTARBALL ]; then
   echo "
-  You missed to give -fd option and the default file for this does not exist.
+  You failed to give -fd option or the file you gave is not accessible.
+  The default file for this option doesn't exist either.
   Type 'install_systemwide -help' for details
   ... giving up.
 "
@@ -149,7 +150,8 @@ ln -sf dosemu $INST/bin/xdosemu
 
 ln -sf $INSTPATH/bin/dosemu $BIN/dosemu
 ln -sf dosemu $BIN/xdosemu
-ln -sf $INSTPATH/bin/dosdebug $BIN
+ln -sf $INSTPATH/bin/dosdebug $BIN/dosdebug
+ln -sf $INSTPATH/bin/dosemu.bin $BIN/dosemu.bin
 
 cp -fp dist/tmp/dosemu/README.bindist $INST/doc
 cp -fp doc/{README,README-tech,dosemu-HOWTO,sound-usage}.txt doc/announce $INST/doc

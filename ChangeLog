@@ -1,3 +1,18 @@
+2001/10/28 ver. 1.1.1.10 unofficial pre-release
+	From Stas Sergeev
+	- fixes to xms.c (umb_alloc) to match the LIM's specs.
+	- make cdrom.S' config.sys line parsable by PC-DOS 7.0
+	  (patch modied by Hans)
+	From Bart & Alistair
+	- fixes in the docs of my bad english;-)
+	  (I'm sure there still are some 'bugs' left)
+	From Hans
+	- comcom.c: using INT21,AH=7 instead of INT16,AH=0 for kbd reads
+	- comcom.c: fixed version number printing
+	- comcom: command 'cls' was missing
+	- comcom: command 'break' switched inverse
+	- further docs updates
+	- recompiled docs
 2001/10/28 ver. 1.1.1.9 unofficial pre-release
 	From Bart
 	- fixed a bug in X-speaker code (pitch is short int instead of int)

@@ -21,6 +21,7 @@
 #include "config.h"
 #include "emu.h"
 #include "memory.h"
+#include "bios.h"
 #include "video.h"	/* for CARD_NONE */
 #include "doshelpers.h"
 #include "../coopthreads/coopthreads.h"
@@ -62,6 +63,12 @@
  *	 However, 48 should be enough for reasonable usage
  */
 #define MAXARGS	48
+
+/* define this, if you want to use plain BIOS reads for keyboard input.
+ * Note that you may not be able to use ansi.sys, because it bypasses
+ * DOS. This options was needed for some older freedos kernels.
+ */
+#undef USE_BIOSKBD
 
 /* ============== end of configurable options ========= */
 
@@ -138,6 +145,31 @@ static int dopath_exec(int argc, char **argv);
 	}})
 #define BREAK_PENDING ( \
 	rdta->break_pending ? rdta->break_pending = 0, 1 : 0 )
+
+
+int getkey(void)
+{
+#ifdef USE_BIOSKBD
+	int ret = com_bioskbd(0);
+	if (ret & 255) return ret & 255;
+	return (ret >> 8) | 0x100;
+#else
+	int oldhog = config.hogthreshold;
+	config.hogthreshold = 1;	/* be 'nice' while waiting */
+	HI(ax) = 7;
+	call_msdos();
+	if (LO(ax)) {
+		config.hogthreshold = oldhog;
+		return LO(ax);	/* simple ascii */
+	}
+	HI(ax) = 8;
+	call_msdos();
+	HI(ax) = 1;
+	config.hogthreshold = oldhog;
+	return LWORD(eax);		/* extended keycode */
+#endif
+}
+
 
 
 #ifndef USE_PLAIN_DOS_FUNCT0A
@@ -226,13 +258,6 @@ static void builtin_funct0a(char *buf)
 		winstart = cursor = 0;
 		attrib = com_biosvideo(0x800) >> 8;
 		if (!attrib) attrib = 7;
-	}
-
-	int getkey()
-	{
-		int ret = com_bioskbd(0);
-		if (ret & 255) return ret & 255;
-		return (ret >> 8) | 0x100;
 	}
 
 	void putkey(int key)
@@ -1025,7 +1050,7 @@ static int kbdask(char *answerlist, char *fmt, ...)
 	s[(i<<1)-1] = 0;
 	com_fprintf(2, " (%s)", s);
 	while (1) {
-		key = com_bioskbd(0);
+		key = getkey();
 		if (key == 3) return -1;
 		if (dfltkey && key == 13) return dfltkey;
 		for (i=0; i < len; i++) {
@@ -1072,7 +1097,7 @@ static int cmd_pause(int argc, char **argv) {
 	int c;
 
 	com_doswrite(2, tx, sizeof(tx)-1);
-	c = com_bioskbd(0);
+	c = getkey();
 	if ((c &255) == ('C' & ~0x40)) {
 		rdta->break_pending++;
 		com_doswrite(2, "^C", 2);
@@ -2311,7 +2336,7 @@ static int cmd_break(int argc, char **argv)
 		return 0;
 	}
 	LWORD(eax) = 0x3301;
-	LO(dx) = strcasecmp(argv[1], "on") ? 1 : 0;
+	LO(dx) = strcasecmp(argv[1], "on") ? 0 : 1;
 	call_msdos();
 	return 0;
 }
@@ -2510,7 +2535,7 @@ static int cmd_ver(int argc, char **argv)
 	}
 
 	com_printf("\n"
-		"DOSEMU built-in command.com version %4.2g\n"
+		"DOSEMU built-in command.com version %#4.2g\n"
 		"DOSEMU version is  %s, %s",
 		comcomversion, VERSTR, VERDATE
 	);
@@ -2536,6 +2561,30 @@ static int cmd_which(int argc, char **argv)
 	}
 	return EXITCODE;	/* ... don't change */
 }
+
+
+
+static int cmd_cls(int argc, char **argv)
+{
+	int cols, page;
+	int rows = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1);
+
+	cols = com_biosvideo(0x0f00) >> 8;
+	page = HI(bx);
+	LWORD(ebx) = com_biosvideo(0x800);	/* get attribute */
+
+	LWORD(ecx) = 0;		/* upper left corner */
+	LO(dx) = cols-1;	/* lower right corner, x */
+	HI(dx) = rows;		/* lower right corner, y */
+	com_biosvideo(0x600);	/* scroll up window, entire screen */
+
+	LWORD(edx) = 0;
+	HI(bx) = page;
+	com_biosvideo(0x200);	/* set cursor to 0:0 */
+	return 0;
+}
+
+
 
 struct cmdlist {
 	char *name;
@@ -2596,6 +2645,7 @@ struct cmdlist intcmdlist[] = {
 	{"dir",		cmd_dir, 0},
 	{"copy",	cmd_copy, 0},
 	{"which",	cmd_which, 0},
+	{"cls",		cmd_cls, 0},
 
 #if 0
 /* not yet implemented, but available as standalone programs:  */
@@ -3118,7 +3168,7 @@ static void com_fatal_handler(int param)
 		cout += com_sprintf(cout, "%s(I)gnore", p==cout?"":", ");
 
 	com_doswriteconsole(coutbuf);
-	key = com_bioskbd(0);
+	key = getkey();
 	com_doswriteconsole("\r\n");
 	switch ((tolower(key))) {
 		case 'a': promptreturn = 2; break;
@@ -3299,7 +3349,7 @@ int comcom_main(int argc, char **argv)
 	}
 
 	/* signon */
-	printf("\nDOSEMU built-in command.com version %4.2g\n\n",comcomversion);
+	printf("\nDOSEMU built-in command.com version %#4.2g\n\n",comcomversion);
 
 	CLEAR_EXITCODE;
 	if (command_inter_preter_loop(1, 0, 0, argvX+1 /*pointer to NULL*/)) {

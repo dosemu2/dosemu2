@@ -60,9 +60,9 @@ the rest of this chapter.
 </para>
 
 <para>
-Note: The above described DOSEMU installation may be also come out of a
+Note: The above described DOSEMU installation may also come out of a
 systemwide installation, which you or your Linux distributor have
-established. In this case simple calling '[x]dosemu' will establish the
+established. In this case simply calling '[x]dosemu' will establish the
 per user instance of DOSEMU. For details on how to create such a systemwide
 installation look at the file README.distributor in the DOSEMU source
 distribution.
@@ -73,8 +73,8 @@ Also note: The following description was written for the older type of
 systemwide installation (configuration under /etc). Though this type
 of installation still works for suid-root DOSEMU runs, the new non-suid
 type of installation has no dosemu.users and all configuration files
-(including global.conf) are normaly kept under $HOME/dosemu/conf/*.
-The contents of these configuration files is compatible with the below
+(including global.conf) are normally kept under $HOME/dosemu/conf/*.
+The contents of these configuration files are compatible with the below
 described, so most of what is written also is valid for these private
 configuration files.
 </para>
@@ -232,8 +232,8 @@ must be known before any other file is accessed, such as:
 </para>
 
 <para>
-With `default_lib_dir=' you may move DOSEMU_LIB_DIR elsewere, this mostly
-is interesting for distributors, who want it elswere but won't patch the
+With `default_lib_dir=' you may move DOSEMU_LIB_DIR elsewhere, this mostly
+is interesting for distributors, who want it elsewhere but won't patch the
 DOSEMU source just for this purpose. But note, the dosemu supplied scripts
 and helpers may need some adaption too in order to fit your new directory.
 </para>
@@ -254,7 +254,7 @@ which just contains
   all c_all
 </screen>
 
-to allow evrybody all weird things. For more details on security issues
+to allow everybody all weird things. For more details on security issues
 have a look at README-tech.txt chapter 2.
 </para>
 
@@ -279,7 +279,7 @@ the following interpretation of (old) .dosrc and -I statements.
 </para>
 
 <para>
-For more details on security setings/issues look at README-tech.txt, for
+For more details on security settings/issues look at README-tech.txt, for
 now (using DOSEMU the first time) you should need only the below description
 of dosemu.conf (~/.dosemurc)
 </para>
@@ -1339,7 +1339,7 @@ of the /dev/sgX devices you want to show up in DOSEMU.
 <para>
 The $_aspi variable in dosemu.conf takes strings listing all generic SCSI
 devices, that you want give to DOSEMU. NOTE: You should make sure,
-that they are <emphasis>not</emphasis> used by Linux elsewere, else you would come into
+that they are <emphasis>not</emphasis> used by Linux elsewhere, else you would come into
 <emphasis>much</emphasis> trouble. To help you not doing the wrong thing, DOSEMU can
 check the devicetype of the SCSI device such as
 

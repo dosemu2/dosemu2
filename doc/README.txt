@@ -181,9 +181,9 @@ Alistair MacDonald
    looked into the files under `dosemu/conf', you will be much better
    prepared to understand the rest of this chapter.
    
-   Note: The above described DOSEMU installation may be also come out of
-   a systemwide installation, which you or your Linux distributor have
-   established. In this case simple calling '[x]dosemu' will establish
+   Note: The above described DOSEMU installation may also come out of a
+   systemwide installation, which you or your Linux distributor have
+   established. In this case simply calling '[x]dosemu' will establish
    the per user instance of DOSEMU. For details on how to create such a
    systemwide installation look at the file README.distributor in the
    DOSEMU source distribution.
@@ -192,8 +192,8 @@ Alistair MacDonald
    systemwide installation (configuration under /etc). Though this type
    of installation still works for suid-root DOSEMU runs, the new
    non-suid type of installation has no dosemu.users and all
-   configuration files (including global.conf) are normaly kept under
-   $HOME/dosemu/conf/*. The contents of these configuration files is
+   configuration files (including global.conf) are normally kept under
+   $HOME/dosemu/conf/*. The contents of these configuration files are
    compatible with the below described, so most of what is written also
    is valid for these private configuration files.
    
@@ -273,11 +273,11 @@ Alistair MacDonald
       default_lib_dir= /opt/dosemu  # replaces DOSEMU_LIB_DIR
       log_level= 2                  # highest log level
 
-   With `default_lib_dir=' you may move DOSEMU_LIB_DIR elsewere, this
-   mostly is interesting for distributors, who want it elswere but won't
-   patch the DOSEMU source just for this purpose. But note, the dosemu
-   supplied scripts and helpers may need some adaption too in order to
-   fit your new directory.
+   With `default_lib_dir=' you may move DOSEMU_LIB_DIR elsewhere, this
+   mostly is interesting for distributors, who want it elsewhere but
+   won't patch the DOSEMU source just for this purpose. But note, the
+   dosemu supplied scripts and helpers may need some adaption too in
+   order to fit your new directory.
    
    The `log_level=' can be 0 (never log) or 1 (log only errors) or 2 (log
    all) and controls the ammount written to the systems log facility
@@ -289,7 +289,7 @@ Alistair MacDonald
       root c_all
       all c_all
 
-   to allow evrybody all weird things. For more details on security
+   to allow everybody all weird things. For more details on security
    issues have a look at README-tech.txt chapter 2.
    
    After /etc/dosemu.users dosemu.conf (via global.conf) is interpreted,
@@ -310,7 +310,7 @@ Alistair MacDonald
    is (class-wise) restricted while the following interpretation of (old)
    .dosrc and -I statements.
    
-   For more details on security setings/issues look at README-tech.txt,
+   For more details on security settings/issues look at README-tech.txt,
    for now (using DOSEMU the first time) you should need only the below
    description of dosemu.conf (~/.dosemurc)
      _________________________________________________________________
@@ -934,7 +934,7 @@ s
        
    The $_aspi variable in dosemu.conf takes strings listing all generic
    SCSI devices, that you want give to DOSEMU. NOTE: You should make
-   sure, that they are not used by Linux elsewere, else you would come
+   sure, that they are not used by Linux elsewhere, else you would come
    into much trouble. To help you not doing the wrong thing, DOSEMU can
    check the devicetype of the SCSI device such as
     $_aspi = "sg2:WORM"
@@ -1378,10 +1378,10 @@ s
    should now understand the keys from the keypad-area (the keys the most
    right on a MF-Keyboard) and numlock and keyevents in the range of the
    latin characters, even when you run xdosemu from a remote X-terminal.
-   It also is capaple to handle PL4 color modes in addition to 256 color
+   It also is capable to handle PL4 color modes in addition to 256 color
    modes, so bgidemo from Borland runs fine.
    
-   If it dosen't work for you as expected, please check out the
+   If it doesn't work for you as expected, please check out the
    following:
    
      * Specify "keycode" for X-support only for local X-servers, in most
@@ -2270,11 +2270,12 @@ s
    it (for example: route add -net 192.168.74.0 netmask 255.255.255.0
    dsn0).
    
-   Finally, start dosemu, and give your TCP/IP client and ip-address in
-   the subnet you just configured. This address should be unique, i.e. no
-   other dosemu, or the kernel, should have this address. For the example
-   addresses given above, 192.168.74.2-192.168.74.254 would be good. Now
-   you can use a dos telnet client to telnet to your own machine!
+   Finally, start dosemu (either as root or suid-root) and give your
+   TCP/IP client and ip-address in the subnet you just configured. This
+   address should be unique, i.e. no other dosemu, or the kernel, should
+   have this address. For the example addresses given above,
+   192.168.74.2-192.168.74.254 would be good. Now you can use a dos
+   telnet client to telnet to your own machine!
      _________________________________________________________________
    
 15.3. Full Details

@@ -4,6 +4,13 @@ ANNOUNCEMENT
 The DOSEMU team is proud to announce DOSEMU 1.1.2,
 the PC Emulator for x86 based *nix.
 
+SPECIAL 1.0.2 HIGHLIGHT
+~~~~~~~~~~~~~~~~~~~~~~~
+For the first time in it's history, DOSEMU now deserves it's name because it
+distributes together with a specially tailored FreeDos distribution, allowing
+it to run out-of-the-box without further (painful) configuration.
+This collection is an almost complete replacement for a proprietary XX-DOS
+and will run a wide range of DOS applications.
 
 WHAT IS DOSEMU?
 ~~~~~~~~~~~~~~~
@@ -15,11 +22,12 @@ worth noting:
   - Color text and full keyboard emulation (via hotkeys) even on terminal.
   - Built-in X-Windows support (includes IBM character set font)
   - Graphics capability at the console (most compatible video cards).
+    (requires suid-root)
   - Graphics emulation in X for 256 and 16 color modes.
     (X-server may be in true color mode)
   - DPMI support
   - Runs several 32-bit DPMI-compliant video games (including those based
-    on DOS/4GW) at the Linux console.
+    on DOS/4GW) at the Linux console (suid-root) and on X (non-suid).
   - integrated (command line) instruction level debugger, various break
     points, single stepping e.t.c.
   - integrated EMS driver
@@ -27,10 +35,11 @@ worth noting:
   - integrated mouse driver
   - CDROM support.
   - ASPI driver support (CD writers, scanners, tapes e.t.c)
+    (requires access rigths to /dev/sgX)
   - support for redirected drives (any Linux directory can be 'mounted'
     as DOS drive as ,ong as the DOS support redirection.
   - can even directly boot from a Linux directory containing all DOS stuff.
-  - Sound support (including sound DMA)
+  - Sound support (including sound DMA, requires suid-root)
   - NetWare and other network connectivity via builtin IPX and pktdrvr
      support.
   - integrated COMMAND.COM (running 32bit to spare valuable DOS memory)
@@ -38,21 +47,20 @@ worth noting:
   - dosemu-freedos packaged binary distribution installs directly into any
     normal user's $HOME and runs 'out-of-the-box' without any further
     configuration (no root rights needed).
-  - runs on any Linux kernel >= 2.0.28 (last tested was 2.4.3)
 
 
 
 REQUIREMENTS
 ~~~~~~~~~~~~
   - Linux >= 2.0.28 (with IPC support, IPX support optional)
+  - any DOS to boot (FreeDos is contained in the binary distribution)
 
 When compiling dosemu yourself:
   - GCC 2.7.2+ and LIBC 5.4.46+ are recommended for best results.
     Though glibc-2.x may be used, statically libc-5.4.46 linked binaries
-    perform better and give much stabler results.
-  - Plenty of swap, since DOSEMU requires between 12 and 25 megabytes
-    of total memory to compile, depending on configuration.
-
+    still perform better and give much stabler results.
+  - binutils > 2.9.1.0.25
+  - bison, _not_ yacc
 
 COPYRIGHT
 ~~~~~~~~~
@@ -89,15 +97,25 @@ at least (sorted by first name):
   Marcus Better		Mark Rejhon		Marty Leisner
   Matthew Grant 	Maxim Ruchko		Michael E. Deisher
   Michael Karcher	Oleg V. Zhirov		Pablo Saratxaga
-  Pasi Eronen		Rainer Zimmermann	Reinhard Karcher
-  Rob Clark		Robert de Bath		Rod May
-  Ronnie		Rutger Nijlunsing	Scott Buchholz
-  Stas Sergeev		Steffen Winterfeld	Theodore T'so
-  Tim Van der Linden 	Ulrich Weigand		Uwe Bonnes
-  Urban Widmark		Vinod G Kulkarni 	Wayne P Meissner 
-  Wojtek Pilorz
+  Pasi Eronen		Pat Villani		Rainer Zimmermann
+  Reinhard Karcher	Rob Clark		Robert de Bath
+  Rod May		Ronnie			Rutger Nijlunsing
+  Scott Buchholz	Stas Sergeev		Steffen Winterfeld
+  Theodore T'so		Tim Van der Linden 	Ulrich Weigand
+  Uwe Bonnes		Urban Widmark		Vinod G Kulkarni
+  Wayne P Meissner	Wojtek Pilorz
 
   ... and others too important to mention.
+
+Special thanks for this 1.0.2 release go to Bart Oldeman (DOSEMU team member
+and now also maintainer of FD kernel) and Pat Villani (original author of
+the code which makes the FD kernel: DosC). Without their special efforts
+the current out-of-the-box binary distribution of DOSEMU never would have
+been possible. As it is now, it is a really working replacement for XX-DOS.
+
+Of course, all those people involved in the FreeDos development should be
+mentioned here too, but before I fail to mention some of them, I better point
+you to http://www.freedos.org ;-)
 
 
 WHERE TO GET IT:
@@ -105,7 +123,7 @@ WHERE TO GET IT:
 The DOSEMU PC Emulator can be downloaded from the following FTP sites:
 
   ftp.dosemu.org://dosemu/...
-  ftp://ibiblio.unc.edu/pub/Linux/system/emulators/dosemu/...
+  ftp://ftp.ibiblio.org/pub/Linux/system/emulators/dosemu/...
                                      .../README.bindist
                                      .../dosemu-freedos-bin.tgz
                                      .../dosemu-1.0.2-bin.tgz
@@ -121,7 +139,12 @@ Many thanks to all who have helped with this release, by sending bug
 reports, patches, comments and/or ideas for DOSEMU! Our apologies for
 not having answered every letter, and possibly missing some important
 information. If you know something you think we should know, contact
-us, PLEASE! We can be reached at:
+us. We can be reached at:
 
-"The DOSEMU team" <linux-msdos@vger.rutgers.edu>
+"The DOSEMU Team" <linux-msdos@vger.kernel.org>
 http://www.dosemu.org
+
+
+- - - -	- - - -				June 2001,
+					Hans Lermen <lermen@fgan.de>
+					coordinator of "The DOSEMU Team"
