@@ -254,7 +254,7 @@ Scroll(us *sadr, int x0, int y0, int x1, int y1, int l, int att)
 static int using_text_mode(void)
 {
   unsigned char mode = READ_BYTE(BIOS_VIDEO_MODE);
-  return mode <= 3 || mode == 7 || (mode >= 0x50 || mode <= 0x5a);
+  return mode <= 3 || mode == 7 || (mode >= 0x50 && mode <= 0x5a);
 }
 #endif
 
