@@ -95,6 +95,19 @@ static __inline__ Bit16u port_in_w(Bit32u port)
   return _v;
 }
 
+static __inline__ void port_out_d(Bit32u value, Bit32u port)
+{
+  __asm__("outl %0,%1" :: "a" ((Bit32u) value),
+		"d" ((Bit16u) port));
+}
+
+static __inline__ Bit32u port_in_d(Bit32u port)
+{
+  Bit32u _v;
+  __asm__("inl %1,%0":"=a" (_v) : "d" ((Bit16u) port));
+  return _v;
+}
+
 extern Bit8u   port_inb(Bit32u port);
 extern Bit16u  port_inw(Bit32u port);
 extern Bit32u  port_ind(Bit32u port);

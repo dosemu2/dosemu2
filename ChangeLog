@@ -1,3 +1,8 @@
+97/06/19 ver. 0.67.4.3 unofficial pre-release
+	From Alberto
+	- Support for Matrox-Millenium ( video { ... chipset matrox } )
+	From Hans
+	- setting new kbd to default for default-configure
 97/06/19 ver. 0.67.4.2 unofficial pre-release
 	From Steffen
 	- new X-update code

@@ -248,6 +248,7 @@ EXTERN int v_8514_base INIT(0);
 #define AVANCE		5
 #define ATI		6
 #define CIRRUS		7
+#define MATROX		8
 
 
 EXTERN void get_screen_size (void);

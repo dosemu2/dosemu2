@@ -289,7 +289,7 @@ internaldriver		RETURN(INTERNALDRIVER);
 emulate3buttons		RETURN(EMULATE3BUTTONS);
 cleardtr		RETURN(CLEARDTR);
 
-	/* video stuff */
+	/* video stuff - sorry for Matrox but MGA was already used */
 
 vga			RETURN(VGA);
 ega			RETURN(EGA);
@@ -317,6 +317,7 @@ s3			MAY_BE { yylval->i_value = 4; return(CHIPSET_TYPE); }
 avance			MAY_BE { yylval->i_value = 5; return(CHIPSET_TYPE); }
 ati			MAY_BE { yylval->i_value = 6; return(CHIPSET_TYPE); }
 cirrus			MAY_BE { yylval->i_value = 7; return(CHIPSET_TYPE); }
+matrox			MAY_BE { yylval->i_value = 8; return(CHIPSET_TYPE); }
 
 	/* xwindows stuff */
 

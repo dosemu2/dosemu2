@@ -758,6 +758,11 @@ get_perm (void)
 	  v_printf ("ATI: can't get I/O permissions \n");
 	  exit (-1);
 	}
+      if ((config.chipset == MATROX) &&
+	(set_ioperm(0x102, 2, 1) || set_ioperm(0x2ea, 4, 1) || set_ioperm(0x3de, 2, 1))) {
+	  v_printf ("MATROX: can't get I/O permissions \n");
+	  exit (-1);
+	}
       /* color or monochrome text emulation? */
       color_text = port_in (MIS_R) & 0x01;
 

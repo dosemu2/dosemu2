@@ -101,11 +101,6 @@ p2bin (unsigned char c)
   return s+3;
 }
 
-#ifndef USE_MRP_JOYSTICK
-static int fake201 = 50;	/* for diagnostic loops, do not run games
-				   with THIS on */
-#endif
-
 /* ====================================================================== */
 /*  */
 /* inb,inw,ind,outb,outw,outd @@@  32768 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/arch/linux/async/sigsegv.c --> src/emu-i386/ports.c  */
@@ -379,7 +374,16 @@ inw(int port)
 unsigned int
 ind(int port)
 {
-  int v=read_port_w(port) & 0xffff;
+  int v;
+  if ((config.chipset == MATROX) && (port & 0xfc00)) {
+    enter_priv_on();
+    iopl(3);
+    v=port_in_d(port);
+    iopl(0);
+    leave_priv_setting();
+    return v;
+  }
+  v=read_port_w(port) & 0xffff;
   return (read_port_w(port+2)<< 16) | v;
 }
 
@@ -664,10 +668,10 @@ outw(unsigned int port, unsigned int value)
   if ((config.chipset == ATI) && isATIport(port) && (port & 0xfc00)) {
     enter_priv_on();
     iopl(3);
-    port_out(value, port);
+    port_out_w(value, port);
     iopl(0);
     leave_priv_setting();
-    v_printf("ATI outb [0x%04x] = 0x%02x\n", port, value);
+    v_printf("ATI outw [0x%04x] = 0x%04x\n", port, value);
     return;
   }
   if(!write_port_w(value,port) ) {
@@ -681,6 +685,14 @@ void
 outd(unsigned int port, unsigned int value)
 {
   port &= 0xffff;
+  if ((config.chipset == MATROX) && (port & 0xfc00)) {
+    enter_priv_on();
+    iopl(3);
+    port_out_d(value, port);
+    iopl(0);
+    leave_priv_setting();
+    return;
+  }
   outw(port,value & 0xffff);
   outw(port+2,(unsigned int)value >> 16);
 }

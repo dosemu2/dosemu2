@@ -184,15 +184,6 @@ extern int vga_drawscansegment(unsigned char *colors, int x, int y, int length);
 
 extern int vga_dumpregs(void);
 
-#define PLAINVGA	0
-#define TRIDENT		1
-#define ET4000		2
-#define DIAMOND		3
-#define S3		4
-#define AVANCE		5
-#define ATI		6
-#define CIRRUS		7
-
 extern u_char video_port_in(int port);
 extern void video_port_out(u_char value, int port);
 

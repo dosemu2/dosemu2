@@ -20,6 +20,7 @@
 #include "trident.h"
 #include "avance.h"
 #include "cirrus.h"
+#include "matrox.h"
 #if 0
 #include "hgc.h"
 #endif
@@ -491,6 +492,10 @@ int vga_initialize(void)
     vga_init_cirrus();
     v_printf("Cirrus CARD in use\n");
     break;
+  case MATROX:
+    vga_init_matrox();
+    v_printf("Matrox CARD in use\n");
+    /* no break */
 
   default:
     save_ext_regs = save_ext_regs_dummy;
