@@ -433,7 +433,7 @@ get_video_ram (int waitflag)
 
   if (config.vga)
     {
-      if (bios_video_mode == 3 && READ_BYTE(BIOS_CURRENT_SCREEN_PAGE) < 8)
+      if (READ_BYTE(BIOS_VIDEO_MODE) == 3 && READ_BYTE(BIOS_CURRENT_SCREEN_PAGE) < 8)
 	{
 	  textbuf = malloc (TEXT_SIZE * 8);
 	  memcpy (textbuf, PAGE_ADDR (0), TEXT_SIZE * 8);
@@ -472,7 +472,7 @@ get_video_ram (int waitflag)
 
   if (config.vga)
     {
-      if (bios_video_mode == 3)
+      if (READ_BYTE(BIOS_VIDEO_MODE) == 3)
 	{
 	  if (dosemu_regs.mem && textbuf)
 	    memcpy (dosemu_regs.mem, textbuf, TEXT_SIZE * 8);
@@ -578,7 +578,7 @@ put_video_ram (void)
 				     MAP_PRIVATE | MAP_FIXED | MAP_ANON,
 				     -1,
 				     0);
-	  if (dosemu_regs.mem && bios_video_mode == 3 && READ_BYTE(BIOS_CURRENT_SCREEN_PAGE) < 8)
+	  if (dosemu_regs.mem && READ_BYTE(BIOS_VIDEO_MODE) == 3 && READ_BYTE(BIOS_CURRENT_SCREEN_PAGE) < 8)
 	    memcpy ((caddr_t) PAGE_ADDR (0), dosemu_regs.mem, TEXT_SIZE * 8);
 	}
       else
@@ -1256,6 +1256,7 @@ install_int_10_handler (void)
 {
   unsigned char *ptr;
 
+#if 0
   if (!config.usesX)
     {
       /* Wrapper around call to video init c000:0003 */
@@ -1296,6 +1297,13 @@ install_int_10_handler (void)
       *ptr++ = 0xfb;		/* start interrupts STI  */
       *ptr++ = 0xcb;		/* retf             */
     }
+#else
+  if (config.vbios_seg == 0xe000) {
+    extern void bios_f000_int10ptr(), bios_f000();
+    ptr = (u_char *)((BIOSSEG << 4) + ((long)bios_f000_int10ptr - (long)bios_f000));
+    *((long *)ptr) = 0xe0000003;
+  }
+#endif
 }
 
 #undef VC_C

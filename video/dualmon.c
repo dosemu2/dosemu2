@@ -145,13 +145,13 @@ static int dualmon_setmode(int type, int xsize,int ysize)
 {
   if (type==7) {
     Video->is_mapped = 1;
-    bios_configuration |= 0x30;
+    WRITE_WORD(BIOS_CONFIGURATION, READ_WORD(BIOS_CONFIGURATION) | 0x30);
     WRITE_WORD(BIOS_CURSOR_SHAPE, 0x0b0d);
     WRITE_WORD(BIOS_VIDEO_PORT, 0x3b4);
   }
   else {
     Video->is_mapped = Video_default->is_mapped;
-    bios_configuration &= ~0x30;
+    WRITE_WORD(BIOS_CONFIGURATION, READ_WORD(BIOS_CONFIGURATION) & ~0x30);
     WRITE_WORD(BIOS_CURSOR_SHAPE, 0x0607);
     WRITE_WORD(BIOS_VIDEO_PORT, 0x3d4);
     if (Video_default->setmode) return Video_default->setmode(type, xsize,ysize);
@@ -173,11 +173,11 @@ static void dualmon_poshgccur(int x, int  y)
 static void dualmon_update_cursor(void)
 {
 static int old=-1;
-if (old != bios_configuration) {
-  v_printf("VID: dualmon_update_cursor, bios_configuration=0x%04x\n",bios_configuration);
-  old= bios_configuration;
+if (old != READ_WORD(BIOS_CONFIGURATION)) {
+  v_printf("VID: dualmon_update_cursor, bios_configuration=0x%04x\n", READ_WORD(BIOS_CONFIGURATION));
+  old= READ_WORD(BIOS_CONFIGURATION);
 }
-  if ((bios_configuration & 0x30) == 0x30) dualmon_poshgccur(cursor_col,cursor_row);
+  if ((READ_WORD(BIOS_CONFIGURATION) & 0x30) == 0x30) dualmon_poshgccur(cursor_col,cursor_row);
   else {
     if (Video_default->update_cursor) Video_default->update_cursor(); 
   }
@@ -192,7 +192,7 @@ if (old != Video->is_mapped) {
   old=Video->is_mapped;
 }
   if ((!Video->is_mapped) && Video_default->update_screen) return Video_default->update_screen();
-  if ((bios_configuration & 0x30) == 0x30) dualmon_update_cursor();
+  if ((READ_WORD(BIOS_CONFIGURATION) & 0x30) == 0x30) dualmon_update_cursor();
   return 1;
 }
 

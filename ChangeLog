@@ -1,3 +1,75 @@
+Fri Dec  2	1994
+
+-	Release pl36.
+
+Mon Nov  28     1994
+
+-	Added -D__ASSEMBLY__ to get emumodule.o going again in
+	later kernels :-).
+-	Some problem in RPT_SYSCALL, so went back to SA_RESTART and
+	set RPT_SYSCALL to return.
+-	Added mouse.com which causes int33 to be redirected away from
+	an iret. Now Foxpro mouse works in X, but still no WPO :(.
+
+Sun Nov  27     1994
+
+-	Major -(Thats MAJOR)- restructure of the directories and 
+	dosemu files. Marty is a busy man.
+-	Got Han's latest bios.S working with Hans help :).
+-	EMS patches from JL.
+-	Made Novell access single mode again for default.
+-	Verified alt keys are working well, as well as alternate
+	slang keys.
+-	Latest memory access for cross-platform development thanks
+	to Kevin for the Bochs team.
+
+Tue Nov  21     1994
+
+-	Added RPT_SYSCALL's to some writes. Kinda kludgy for know :-(
+-	Latest SLANG enhancements:
+Hi,
+
+   I added the ability to access ALT, SHIFT, and CONTROL keys for remote
+terminals.  For example, one can now use alt function keys as well as
+Ctrl-Backspace, Shift-tab to get the backtab, Ctrl-Arrow, etc....
+
+   Below, you will find a uuencoded file called `files.tar.gz'.  After
+unpacking it, you will see:  termio.c, slang-termio.c, and terminal.c.slang.
+The latter files should go in the `video' subdir and the other two go in the
+`keyboard' subdir.  `termio.c' is exactly like the one already there.  The
+changes are marked by `#ifdef USE_SLANG' stuff.
+
+   Note that in slang-termio.c, you will find 3 global variables:
+   
+static char *Alt_Shiftkey = "^@A";
+static char *Ctrl_Shiftkey = "^@C";
+static char *Shift_Shiftkey = "^@S";
+
+These should be initialized by the user by whatever mechanism you prefer.
+They represent the keysequence that invokes the appropriate modifier key,
+e.g., to get the next key ALT, press `Ctrl-@ A'.  Perhaps, it might be
+easier to simply use `Ctrl-A' but I wanted to demonstrate that one can use a
+multiple character key sequence.  When one of these keys are pressed, an
+indicator will appear at the bottom of the screen indicating this. (The new
+terminal.c.slang does this).
+
+I had a terrible time getting the ESC key timout to work properly at 2400
+baud.  As a result, I have eliminated the ESC timeout from the slang
+version.  If you want to send an ESC, hit it twice.  The alternative simply
+does not work and hitting it twice when an escape is needed is alot less
+painful.  One can always rebind the escape key on the terminal emulator to
+send two escapes.
+
+Obviously, we will want to add some mechanism to rebind keys.  I do not
+believe that relying on the keys as defined in termcap is adequate.  For
+example, one might want to rebind Ctrl-E to escape for a DOS program that
+uses the ESC alot. 
+
+--John
+
+-	Added ctrl-enter to Xkeyb thanks to Veijo Vilva 
+	<vilva@xiron.pc.helsinki.fi>
+
 Sat Nov  19     1994
 
 -	Latest terminal.c from John Davis.

@@ -147,6 +147,7 @@ InitIPXFarCallHelper(void)
       MyAddress[8], MyAddress[6] );
   }
    
+#if 0
   ptr = (u_char *) IPX_ADD;
   *ptr++ = 0x50;		/* push ax - FarCallHandler removes this before returning */
   *ptr++ = 0xb0;		/* mov al, 7a */
@@ -180,6 +181,19 @@ InitIPXFarCallHelper(void)
   *ptr++ = 0x5b;
   *ptr++ = 0x58;
   *ptr++ = 0xcf;		/* iret */
+#else
+  {
+    extern void bios_f000(), bios_IPX_PopRegistersReturn(), bios_IPX_PopRegistersIRet();
+    long i = (long)bios_IPX_PopRegistersReturn - (long)bios_f000;
+    i += BIOSSEG << 4;
+    ESRPopRegistersReturn.segment = i >> 4;
+    ESRPopRegistersReturn.offset = i & 0xf;
+    i = (long)bios_IPX_PopRegistersIRet - (long)bios_f000;
+    i += BIOSSEG << 4;
+    ESRPopRegistersIRet.segment = i >> 4;
+    ESRPopRegistersIRet.offset = i & 0xf;
+  }
+#endif
 }
 
 /*************************

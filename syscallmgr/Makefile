@@ -33,11 +33,10 @@ ALL = $(CFILES) $(HFILES) $(OFILES) README.syscallmgr
 
 OBJS =
 
-.c.o:
-	$(CC) $(CFLAGS) $(XDEFS) $(INCDIR) -c $<
- 
 all: syscallmgr.o insmod testsys.o testmain
 
+.c.o:
+	$(CC) $(CFLAGS) $(XDEFS) $(INCDIR) -c $<
 
 syscallmgr.o:    syscallmgr.c ../include/syscallmgr.h $(USRSRCDIR)/linux/tools/version.h
 	$(CC) -m486 -Wall -I$(USRSRCDIR) $(INCDIR) -c -O2 -fomit-frame-pointer -D__KERNEL__ -DLINUX -c syscallmgr.c -o syscallmgr.o

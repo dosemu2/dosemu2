@@ -28,6 +28,7 @@
 #undef TRUE
 #undef FALSE
 #endif
+#include <signal.h> /* For emu.h */
 #include "memory.h"
 #include "emu.h"
 

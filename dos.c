@@ -67,9 +67,12 @@
 #include <stdio.h>
 #include <a.out.h>
 #include <locale.h>
+#include <errno.h>
 #include "config.h"
 
+#ifndef LIBDOSEMU
 #define LIBDOSEMU	"/usr/lib/libdosemu"
+#endif
 
 /*
  * DANG_BEGIN_FUNCTION dosemu
@@ -84,7 +87,7 @@
  *
  * DANG_END_FUNCTION
  */
-void (*dosemu) (int argc, char **argv);
+static void (*dosemu) (int argc, char **argv);
 
 #ifndef STATIC
 char buf [1088 * 1024];	/* ensure that the lower 1MB+64K is unused */
@@ -95,46 +98,46 @@ int
 main(int argc, char **argv)
 {
 #ifdef STATIC
+	/* just run this function */
   int emulate(int, char **);
 
-#if 0
-  fprintf(stderr, "running static, emulate @ %x!\n", emulate);
-  fflush(stderr);
-  fprintf(stderr, "WARNING: running static, emulate @ %x!\n", emulate);
-#endif
   emulate(argc, argv);
 #else
   struct exec header;
   FILE *f;
+  char *libpath = LIBDOSEMU; 
+  char *cp;
 
-  f = fopen(LIBDOSEMU, "r");
+  cp = getenv("LIBDOSEMU");
+  if(cp) 
+	libpath = cp;
+
+
+  f = fopen(libpath, "r");
   if (f == NULL)
   {
-    sprintf (buf, "%s: cannot open shared library: %s", argv [0],
-	LIBDOSEMU);
-    perror (buf);
+    fprintf(stderr, "%s: cannot open shared library: %s", argv [0],
+	libpath, strerror(errno));
     exit(1);
   }
 
   if (fread(&header, sizeof(header), 1, f) != 1)
   {
-    sprintf (buf, "%s: cannot read shared library: %s", argv [0],
-	LIBDOSEMU);
-    perror (buf);
+    fprintf (stderr, "%s: cannot read shared library: %s\n", argv [0],
+	libpath, strerror(errno));
     exit(1);
   }
 
   if (N_BADMAG (header))
   {
     fprintf (stderr, "%s: invalid shared library format: %s\n", argv [0],
-	LIBDOSEMU);
+	libpath);
     exit(1);
   }
 
-  if (uselib(LIBDOSEMU) != 0) {
-    sprintf (buf, "%s: cannot load shared library: %s", argv [0],
-	LIBDOSEMU);
-    perror (buf);
+  if (uselib(libpath) != 0) {
+    fprintf (stderr, "%s: cannot load shared library: %s\n", argv [0],
+	libpath, strerror(errno));
     exit(1);
   }
   setlocale(LC_CTYPE,"");

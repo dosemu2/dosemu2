@@ -1,25 +1,12 @@
 #
 # This is the Makefile for the mouse-subdirectory of the DOS-emulator
 # for Linux.
-#
+# $Id$
 
 # The following variables may go into the Makfile in the parent-directory
 
-# CC   = gcc
-# LD   = ld
-
-# INCDIR is exported from ..
-#INCDIR= -I../include -I..
 SUBDIR=mouse
 
-# let gcc do extended checking
-
-# CFLAGS=-O2 -Wall # -Wmissing-prototypes \
-#       -Wstrict-prototypes -ansi -pedantic 
-
-# The following define enables the ClearDTR-Support at mouse-initialisation.
-# There are Microsoft/MouseSystems compatible mouse out there, which are
-# set to MouseSystems-Mode when DTR is cleared at initialisation.
 
 DEFINES=-DCLEARDTR_SUPPORT
 
@@ -32,50 +19,13 @@ HFILES =
 
 ALL = $(CFILES) $(HFILES)
 
-# All object-files are included here.
-
+CFILES = mouse.c mouseint.c
+DEPENDS=$(CFILES:.c=.d)
+HFILES = 
 OBJS = mouse.o mouseint.o
 
-.c.o:
-	$(CC) $(CFLAGS) -c $<
-
-SUBDIR=mouse
- 
-LIB=../lib$(SUBDIR).a
-
-all:  $(LIB)
-
-$(LIB): $(OBJS)
-	-rm $@
-	$(AR) cr $@ $^
-	ranlib $@
-
-checkin:
-	-ci $(ALL) Makefile
-
-checkout:
-	-co -M -l $(ALL) Makefile
-
-clean:
-	rm -f *.o $(LIB)
-
-realclean:
-	rm -f .depend
+all:  	lib
 
 install:
 
-dist: $(ALL) Makefile
-	install -d $(DISTPATH)/$(SUBDIR)
-	install -m 0644 $(ALL) Makefile $(DISTPATH)/$(SUBDIR)
-
-depend dep: $(CFILES) $(HFILES)
-	$(CPP) -MM $(CFLAGS) *.c $(INCDIR) > .depend
-
-dummy:
-
-#
-# include a dependency file if one exists
-#
-ifeq (.depend,$(wildcard .depend))
-include .depend
-endif
+include ../Makefile.common

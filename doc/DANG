@@ -1,6 +1,6 @@
   The DOSEMU Alterer Novices Guide DANG
   Alistair MacDonald, am20@unix.york.ac.uk
-  For DOSEMU v0.53 pl28
+  For DOSEMU v0.53 pl36
 
   This Document is the DOSEMU Alterer Novices Guide. It is known as the
   DANG.
@@ -328,14 +328,14 @@
 
 
 
-  2.3.	emu.h Information
+  2.3.	include/emu.h Information
 
   There appears to be no MODULE information for this file.
 
 
-  2.3.1.  Functions in emu.h
+  2.3.1.  Functions in include/emu.h
 
-  These are the functions defined in emu.h.
+  These are the functions defined in include/emu.h.
 
 
   2.3.1.1.  NEWSETQSIG
@@ -353,7 +353,7 @@
 
 
 
-  2.3.2.  Remarks in emu.h
+  2.3.2.  Remarks in include/emu.h
 
   We assume system call restarting... under linux 0.99pl8 and earlier,
   this was the default.	SA_RESTART was defined in 0.99pl8 to explicitly
@@ -361,14 +361,14 @@
   changes, I want to be safe
 
 
-  2.3.3.  Items for Fixing in emu.h
+  2.3.3.  Items for Fixing in include/emu.h
 
-  Apparently, nothing needs fixing in emu.h.
+  Apparently, nothing needs fixing in include/emu.h.
 
 
-  2.3.4.  New Ideas for emu.h
+  2.3.4.  New Ideas for include/emu.h
 
-  Apparently, there are no new ideas for emu.h.
+  Apparently, there are no new ideas for include/emu.h.
 
 
   3.  The Clients group of Modules
@@ -594,8 +594,17 @@
   etc... video routines.
   5.2.2.  Remarks in video/video.c
 
-  Apparently, no-one has anything interesting to say about
-  video/video.c.
+  Here the sleeping lion will be awoken and eat much of CPU time !!!
+
+  The result of setting VM86_SCREEN_BITMAP (at state of Linux 1.1.56):
+  Each vm86 call will set 32 pages of video mem RD-only (there may be
+  1000000 per second) Write access to RD-only page results in page-fault
+  (mm/memory.c), which will set a bit in current->screen_bitmap and
+  calls do_wp_page() which does __get_free_page(GFP_KERNEL) but frees it
+  immediatly, because copy-on-write is not neccessary and sets RD/WR for
+  the page.  (this could happen 32000000 per second, if the CPU were
+  fast enough) It would be better to get the DIRTY-bit directly from the
+  page table, isn't it?	A special syscall in emumodule could do this.
 
 
   5.2.3.  Items for Fixing in video/video.c
@@ -608,7 +617,270 @@
   Apparently, there are no new ideas for video/video.c.
 
 
-  5.3.	termio.c Information
+  5.3.	video/X.c Information
+
+  There appears to be no MODULE information for this file.
+
+
+  5.3.1.  Functions in video/X.c
+
+  We appear to have no information on the functions in video/X.c.
+
+
+  5.3.2.  Remarks in video/X.c
+
+  Apparently, no-one has anything interesting to say about video/X.c.
+
+
+  5.3.3.  Items for Fixing in video/X.c
+
+  Apparently, nothing needs fixing in video/X.c.
+
+
+  5.3.4.  New Ideas for video/X.c
+
+  Apparently, there are no new ideas for video/X.c.
+
+
+  5.4.	video/console.c Information
+
+  There appears to be no MODULE information for this file.
+
+
+  5.4.1.  Functions in video/console.c
+
+  We appear to have no information on the functions in video/console.c.
+
+
+  5.4.2.  Remarks in video/console.c
+
+  Apparently, no-one has anything interesting to say about
+  video/console.c.
+
+
+  5.4.3.  Items for Fixing in video/console.c
+
+  Apparently, nothing needs fixing in video/console.c.
+
+
+  5.4.4.  New Ideas for video/console.c
+
+  Apparently, there are no new ideas for video/console.c.
+
+
+  5.5.	video/dualmon.c Information
+
+  There appears to be no MODULE information for this file.
+
+
+  5.5.1.  Functions in video/dualmon.c
+
+  We appear to have no information on the functions in video/dualmon.c.
+
+
+  5.5.2.  Remarks in video/dualmon.c
+
+  Apparently, no-one has anything interesting to say about
+  video/dualmon.c.
+
+
+  5.5.3.  Items for Fixing in video/dualmon.c
+
+  Apparently, nothing needs fixing in video/dualmon.c.
+
+
+  5.5.4.  New Ideas for video/dualmon.c
+
+  Apparently, there are no new ideas for video/dualmon.c.
+
+
+  5.6.	video/et4000.c Information
+
+  There appears to be no MODULE information for this file.
+
+
+  5.6.1.  Functions in video/et4000.c
+
+  We appear to have no information on the functions in video/et4000.c.
+
+
+  5.6.2.  Remarks in video/et4000.c
+
+  Apparently, no-one has anything interesting to say about
+  video/et4000.c.
+
+
+  5.6.3.  Items for Fixing in video/et4000.c
+
+  Apparently, nothing needs fixing in video/et4000.c.
+
+
+  5.6.4.  New Ideas for video/et4000.c
+
+  Apparently, there are no new ideas for video/et4000.c.
+
+
+  5.7.	video/hgc.c Information
+
+  There appears to be no MODULE information for this file.
+
+  5.7.1.  Functions in video/hgc.c
+
+  We appear to have no information on the functions in video/hgc.c.
+
+
+  5.7.2.  Remarks in video/hgc.c
+
+  Apparently, no-one has anything interesting to say about video/hgc.c.
+
+
+  5.7.3.  Items for Fixing in video/hgc.c
+
+  Apparently, nothing needs fixing in video/hgc.c.
+
+
+  5.7.4.  New Ideas for video/hgc.c
+
+  Apparently, there are no new ideas for video/hgc.c.
+
+
+  5.8.	video/int10.c Information
+
+  There appears to be no MODULE information for this file.
+
+
+  5.8.1.  Functions in video/int10.c
+
+  We appear to have no information on the functions in video/int10.c.
+
+
+  5.8.2.  Remarks in video/int10.c
+
+  Apparently, no-one has anything interesting to say about
+  video/int10.c.
+
+
+  5.8.3.  Items for Fixing in video/int10.c
+
+  Apparently, nothing needs fixing in video/int10.c.
+
+
+  5.8.4.  New Ideas for video/int10.c
+
+  Apparently, there are no new ideas for video/int10.c.
+
+
+  5.9.	video/s3.c Information
+
+  There appears to be no MODULE information for this file.
+
+
+  5.9.1.  Functions in video/s3.c
+
+  We appear to have no information on the functions in video/s3.c.
+
+
+  5.9.2.  Remarks in video/s3.c
+
+  Apparently, no-one has anything interesting to say about video/s3.c.
+
+
+  5.9.3.  Items for Fixing in video/s3.c
+
+  Apparently, nothing needs fixing in video/s3.c.
+
+
+  5.9.4.  New Ideas for video/s3.c
+
+  Apparently, there are no new ideas for video/s3.c.
+
+
+  5.10.	video/terminal.c Information
+
+  There appears to be no MODULE information for this file.
+
+
+  5.10.1.  Functions in video/terminal.c
+
+  We appear to have no information on the functions in video/terminal.c.
+
+
+  5.10.2.  Remarks in video/terminal.c
+
+  Apparently, no-one has anything interesting to say about
+  video/terminal.c.
+
+
+  5.10.3.  Items for Fixing in video/terminal.c
+
+  Apparently, nothing needs fixing in video/terminal.c.
+
+
+  5.10.4.  New Ideas for video/terminal.c
+
+  Apparently, there are no new ideas for video/terminal.c.
+
+
+  5.11.	video/trident.c Information
+
+  There appears to be no MODULE information for this file.
+
+
+  5.11.1.  Functions in video/trident.c
+
+  We appear to have no information on the functions in video/trident.c.
+
+
+  5.11.2.  Remarks in video/trident.c
+
+  Apparently, no-one has anything interesting to say about
+  video/trident.c.
+
+
+  5.11.3.  Items for Fixing in video/trident.c
+
+  Apparently, nothing needs fixing in video/trident.c.
+
+
+  5.11.4.  New Ideas for video/trident.c
+
+  Apparently, there are no new ideas for video/trident.c.
+
+
+  5.12.	video/vga.c Information
+
+  There appears to be no MODULE information for this file.
+
+
+  5.12.1.  Functions in video/vga.c
+
+  We appear to have no information on the functions in video/vga.c.
+
+  5.12.2.  Remarks in video/vga.c
+
+  Apparently, no-one has anything interesting to say about video/vga.c.
+
+
+  5.12.3.  Items for Fixing in video/vga.c
+
+  Apparently, nothing needs fixing in video/vga.c.
+
+
+  5.12.4.  New Ideas for video/vga.c
+
+  Apparently, there are no new ideas for video/vga.c.
+
+
+  6.  The Keyboard group of Modules
+
+
+  All of the Keyboard handling code is in the "keyboard" subdirectory.
+
+  Latest addition is SLANG.
+
+
+
+  6.1.	keyboard/termio.c Information
 
   This handles the keyboard.
 
@@ -620,19 +892,19 @@
 
 
 
-  5.3.1.  Functions in termio.c
+  6.1.1.  Functions in keyboard/termio.c
 
-  These are the functions defined in termio.c.
+  These are the functions defined in keyboard/termio.c.
 
 
-  5.3.1.1.  keyboard_init
+  6.1.1.1.  keyboard_init
 
   Initialize the keyboard to DOSEMU deafaults plus those requested in
   the configs if allowable.
 
 
 
-  5.3.1.2.  convascii
+  6.1.1.2.  convascii
 
 
   o  cc - count of characters on queue
@@ -644,26 +916,111 @@
 
 
 
-  5.3.2.  Remarks in termio.c
+  6.1.2.  Remarks in keyboard/termio.c
 
   Code is called at start up to set up the terminal line for non-raw
   mode.
 
 
+  6.1.3.  Items for Fixing in keyboard/termio.c
 
-  5.3.3.  Items for Fixing in termio.c
-
-  Apparently, nothing needs fixing in termio.c.
-
+  Apparently, nothing needs fixing in keyboard/termio.c.
 
 
+  6.1.4.  New Ideas for keyboard/termio.c
 
-  5.3.4.  New Ideas for termio.c
-
-  Apparently, there are no new ideas for termio.c.
+  Apparently, there are no new ideas for keyboard/termio.c.
 
 
-  6.  The Misc group of Modules
+  6.2.	keyboard/Xkeyb.c Information
+
+  There appears to be no MODULE information for this file.
+
+
+  6.2.1.  Functions in keyboard/Xkeyb.c
+
+  We appear to have no information on the functions in keyboard/Xkeyb.c.
+
+
+  6.2.2.  Remarks in keyboard/Xkeyb.c
+
+  Apparently, no-one has anything interesting to say about
+  keyboard/Xkeyb.c.
+
+
+  6.2.3.  Items for Fixing in keyboard/Xkeyb.c
+
+  Apparently, nothing needs fixing in keyboard/Xkeyb.c.
+
+
+  6.2.4.  New Ideas for keyboard/Xkeyb.c
+
+  Apparently, there are no new ideas for keyboard/Xkeyb.c.
+
+
+  6.3.	keyboard/keymaps.c Information
+
+  These are definitions, giving which key is related to which scancode
+  in raw keyboard mode. Basically, the code of 'x' on a US keyboard may
+  be that of a 'Y' on a German keyboard. This way, all types of keyboard
+  can be represented under DOSEMU. Also, the right ALT-key is often a
+  function key in it's own right.
+
+
+
+  6.3.1.  Functions in keyboard/keymaps.c
+
+  We appear to have no information on the functions in
+  keyboard/keymaps.c.
+
+
+  6.3.2.  Remarks in keyboard/keymaps.c
+
+  Apparently, no-one has anything interesting to say about
+  keyboard/keymaps.c.
+
+
+  6.3.3.  Items for Fixing in keyboard/keymaps.c
+
+  Apparently, nothing needs fixing in keyboard/keymaps.c.
+
+
+
+
+
+  6.3.4.  New Ideas for keyboard/keymaps.c
+
+  Apparently, there are no new ideas for keyboard/keymaps.c.
+
+
+  6.4.	keyboard/slang-termio.c Information
+
+  There appears to be no MODULE information for this file.
+
+
+  6.4.1.  Functions in keyboard/slang-termio.c
+
+  We appear to have no information on the functions in keyboard/slang-
+  termio.c.
+
+
+  6.4.2.  Remarks in keyboard/slang-termio.c
+
+  Apparently, no-one has anything interesting to say about
+  keyboard/slang-termio.c.
+
+
+  6.4.3.  Items for Fixing in keyboard/slang-termio.c
+
+  Apparently, nothing needs fixing in keyboard/slang-termio.c.
+
+
+  6.4.4.  New Ideas for keyboard/slang-termio.c
+
+  Apparently, there are no new ideas for keyboard/slang-termio.c.
+
+
+  7.  The Misc group of Modules
 
   These are the remaining important files, that do not really fit into
   another group. These should not be dismissed as unimportant - rather,
@@ -671,7 +1028,7 @@
 
 
 
-  6.1.	bios_emm.c Information
+  7.1.	dosemu/bios_emm.c Information
 
   This provides the EMM Memory Management for DOSEMU. It was originally
   part of the Mach Dos Emulator.
@@ -685,27 +1042,29 @@
 
 
 
-  6.1.1.  Functions in bios_emm.c
+  7.1.1.  Functions in dosemu/bios_emm.c
 
-  We appear to have no information on the functions in bios_emm.c.
-
-
-  6.1.2.  Remarks in bios_emm.c
-
-  Apparently, no-one has anything interesting to say about bios_emm.c.
+  We appear to have no information on the functions in
+  dosemu/bios_emm.c.
 
 
-  6.1.3.  Items for Fixing in bios_emm.c
+  7.1.2.  Remarks in dosemu/bios_emm.c
 
-  Apparently, nothing needs fixing in bios_emm.c.
-
-
-  6.1.4.  New Ideas for bios_emm.c
-
-  Apparently, there are no new ideas for bios_emm.c.
+  Apparently, no-one has anything interesting to say about
+  dosemu/bios_emm.c.
 
 
-  6.2.	xms.c Information
+  7.1.3.  Items for Fixing in dosemu/bios_emm.c
+
+  Apparently, nothing needs fixing in dosemu/bios_emm.c.
+
+
+  7.1.4.  New Ideas for dosemu/bios_emm.c
+
+  Apparently, there are no new ideas for dosemu/bios_emm.c.
+
+
+  7.2.	dosemu/xms.c Information
 
   Currently the XMS 3.0 spec is covered in this file. XMS is fairly
   simple as it only deals with allocating extended memory and then
@@ -717,80 +1076,51 @@
 
 
 
-  6.2.1.  Functions in xms.c
+  7.2.1.  Functions in dosemu/xms.c
 
-  We appear to have no information on the functions in xms.c.
-
-
+  We appear to have no information on the functions in dosemu/xms.c.
 
 
-  6.2.2.  Remarks in xms.c
+  7.2.2.  Remarks in dosemu/xms.c
 
-  Apparently, no-one has anything interesting to say about xms.c.
-
-
-  6.2.3.  Items for Fixing in xms.c
-
-  Apparently, nothing needs fixing in xms.c.
+  Apparently, no-one has anything interesting to say about dosemu/xms.c.
 
 
-  6.2.4.  New Ideas for xms.c
+  7.2.3.  Items for Fixing in dosemu/xms.c
 
-  Apparently, there are no new ideas for xms.c.
-
-
-  6.3.	keymaps.c Information
-
-  These are definitions, giving which key is related to which scancode
-  in raw keyboard mode. Basically, the code of 'x' on a US keyboard may
-  be that of a 'Y' on a German keyboard. This way, all types of keyboard
-  can be represented under DOSEMU. Also, the right ALT-key is often a
-  function key in it's own right.
+  Apparently, nothing needs fixing in dosemu/xms.c.
 
 
+  7.2.4.  New Ideas for dosemu/xms.c
 
-  6.3.1.  Functions in keymaps.c
-
-  We appear to have no information on the functions in keymaps.c.
-
-
-  6.3.2.  Remarks in keymaps.c
-
-  Apparently, no-one has anything interesting to say about keymaps.c.
+  Apparently, there are no new ideas for dosemu/xms.c.
 
 
-  6.3.3.  Items for Fixing in keymaps.c
-
-  Apparently, nothing needs fixing in keymaps.c.
-
-
-  6.3.4.  New Ideas for keymaps.c
-
-  Apparently, there are no new ideas for keymaps.c.
-
-
-  6.4.	sigsegv.c Information
+  7.3.	dosemu/sigsegv.c Information
 
   There appears to be no MODULE information for this file.
 
 
-  6.4.1.  Functions in sigsegv.c
+  7.3.1.  Functions in dosemu/sigsegv.c
 
-  These are the functions defined in sigsegv.c.
+  These are the functions defined in dosemu/sigsegv.c.
 
 
-  6.4.1.1.  vm86_GP_fault
+  7.3.1.1.  vm86_GP_fault
 
   All from the kernel unhandled general protection faults from V86 mode
   are handled here. This are mainly port IO and the HLT instruction.
 
 
 
-  6.4.1.2.  dosemu_fault
+  7.3.1.2.  dosemu_fault
 
   All CPU exceptions (except 13=general_protection from V86 mode, which
   is directly scaned by the kernel) are handled here.
-  6.4.2.  Remarks in sigsegv.c
+
+
+
+  7.3.2.  Remarks in dosemu/sigsegv.c
 
   In a properly functioning emulator :-), sigsegv's will never come
   while in a non-reentrant system call (ioctl, select, etc).  Therefore,
@@ -802,169 +1132,142 @@
   non-reentrant system call (except maybe vm86) - Robert Sanders
 
 
-  6.4.3.  Items for Fixing in sigsegv.c
+  7.3.3.  Items for Fixing in dosemu/sigsegv.c
 
-  Apparently, nothing needs fixing in sigsegv.c.
-
-
-  6.4.4.  New Ideas for sigsegv.c
-
-  Apparently, there are no new ideas for sigsegv.c.
+  Apparently, nothing needs fixing in dosemu/sigsegv.c.
 
 
-  6.5.	int.h Information
+  7.3.4.  New Ideas for dosemu/sigsegv.c
+
+  Apparently, there are no new ideas for dosemu/sigsegv.c.
+
+
+  7.4.	include/int.h Information
 
   Centralized area for interrupt service routine calls and support
   functions.
 
 
 
-  6.5.1.  Functions in int.h
+  7.4.1.  Functions in include/int.h
 
-  These are the functions defined in int.h.
+  These are the functions defined in include/int.h.
 
 
-  6.5.1.1.  DO_INT
+  7.4.1.1.  DO_INT
 
   DO_INT is used to deal with interrupts returned to DOSEMU by the
   kernel.
 
 
 
-  6.5.1.2.  DEFAULT_INTERRUPT
+  7.4.1.2.  DEFAULT_INTERRUPT
 
   DEFAULT_INTERRUPT is the default interrupt service routine called when
   DOSEMU initializes.
 
 
 
-  6.5.1.3.  SETUP_INTERRUPTS
+  7.4.1.3.  SETUP_INTERRUPTS
 
   SETUP_INTERRUPTS is used to initialize those interrupt calls that we
   are specifically handling in protected mode.
 
 
 
-  6.5.2.  Remarks in int.h
+  7.4.2.  Remarks in include/int.h
 
-  Apparently, no-one has anything interesting to say about int.h.
-
-
-  6.5.3.  Items for Fixing in int.h
-
-  Apparently, nothing needs fixing in int.h.
+  Apparently, no-one has anything interesting to say about
+  include/int.h.
 
 
+  7.4.3.  Items for Fixing in include/int.h
 
-  6.5.4.  New Ideas for int.h
-
-  Apparently, there are no new ideas for int.h.
+  Apparently, nothing needs fixing in include/int.h.
 
 
-  6.6.	ports.h Information
+  7.4.4.  New Ideas for include/int.h
+
+  Apparently, there are no new ideas for include/int.h.
+
+
+  7.5.	include/ports.h Information
 
   There appears to be no MODULE information for this file.
 
 
-  6.6.1.  Functions in ports.h
+  7.5.1.  Functions in include/ports.h
 
-  These are the functions defined in ports.h.
+  These are the functions defined in include/ports.h.
 
 
-  6.6.1.1.  inb
+  7.5.1.1.  inb
 
   INB is used to do controlled emulation of input from ports.
 
 
 
-  6.6.2.  Remarks in ports.h
+  7.5.2.  Remarks in include/ports.h
 
-  Apparently, no-one has anything interesting to say about ports.h.
-
-
-  6.6.3.  Items for Fixing in ports.h
-
-  Apparently, nothing needs fixing in ports.h.
+  Apparently, no-one has anything interesting to say about
+  include/ports.h.
 
 
-  6.6.4.  New Ideas for ports.h
+  7.5.3.  Items for Fixing in include/ports.h
 
-  Apparently, there are no new ideas for ports.h.
+  Apparently, nothing needs fixing in include/ports.h.
 
 
-  6.7.	dosio.c Information
+  7.5.4.  New Ideas for include/ports.h
+
+  Apparently, there are no new ideas for include/ports.h.
+
+
+  7.6.	dosemu/dosio.c Information
 
   There appears to be no MODULE information for this file.
 
 
-  6.7.1.  Functions in dosio.c
+  7.6.1.  Functions in dosemu/dosio.c
 
-  These are the functions defined in dosio.c.
+  These are the functions defined in dosemu/dosio.c.
 
 
-  6.7.1.1.  memory_setup
+  7.6.1.1.  memory_setup
 
   Setup HMA area via IPC. Call EMS and XMS initialization routines.
 
 
 
-  6.7.2.  Remarks in dosio.c
-
-  Apparently, no-one has anything interesting to say about dosio.c.
-
-
-  6.7.3.  Items for Fixing in dosio.c
-
-  Apparently, nothing needs fixing in dosio.c.
-
-
-  6.7.4.  New Ideas for dosio.c
-
-  Apparently, there are no new ideas for dosio.c.
-
-  6.8.	mouse/mouse.c Information
-
-  There appears to be no MODULE information for this file.
-
-
-  6.8.1.  Functions in mouse/mouse.c
-
-  These are the functions defined in mouse/mouse.c.
-
-
-  6.8.1.1.  mouse_init
-
-  Initialize internal mouse.
-
-
-
-  6.8.2.  Remarks in mouse/mouse.c
+  7.6.2.  Remarks in dosemu/dosio.c
 
   Apparently, no-one has anything interesting to say about
-  mouse/mouse.c.
+  dosemu/dosio.c.
 
 
-  6.8.3.  Items for Fixing in mouse/mouse.c
+  7.6.3.  Items for Fixing in dosemu/dosio.c
 
-  Apparently, nothing needs fixing in mouse/mouse.c.
-
-
-  6.8.4.  New Ideas for mouse/mouse.c
-
-  Apparently, there are no new ideas for mouse/mouse.c.
+  Apparently, nothing needs fixing in dosemu/dosio.c.
 
 
-  6.9.	serial.c Information
+
+
+  7.6.4.  New Ideas for dosemu/dosio.c
+
+  Apparently, there are no new ideas for dosemu/dosio.c.
+
+
+  7.7.	dosemu/serial.c Information
 
   There appears to be no MODULE information for this file.
 
 
-  6.9.1.  Functions in serial.c
+  7.7.1.  Functions in dosemu/serial.c
 
-  These are the functions defined in serial.c.
+  These are the functions defined in dosemu/serial.c.
 
 
-  6.9.1.1.  serial_init
+  7.7.1.1.  serial_init
 
   The following is the master serial initialization function called
   externally (from this serial.c module) during DOSEMU startup. It
@@ -972,165 +1275,162 @@
 
 
 
-  6.9.2.  Remarks in serial.c
+  7.7.2.  Remarks in dosemu/serial.c
 
-  Apparently, no-one has anything interesting to say about serial.c.
-
-
-  6.9.3.  Items for Fixing in serial.c
-
-  Apparently, nothing needs fixing in serial.c.
+  Apparently, no-one has anything interesting to say about
+  dosemu/serial.c.
 
 
-  6.9.4.  New Ideas for serial.c
+  7.7.3.  Items for Fixing in dosemu/serial.c
 
-  Apparently, there are no new ideas for serial.c.
+  Apparently, nothing needs fixing in dosemu/serial.c.
 
 
+  7.7.4.  New Ideas for dosemu/serial.c
 
-  6.10.	disks.c Information
+  Apparently, there are no new ideas for dosemu/serial.c.
+
+
+  7.8.	dosemu/disks.c Information
 
   There appears to be no MODULE information for this file.
 
 
-  6.10.1.  Functions in disks.c
+  7.8.1.  Functions in dosemu/disks.c
 
-  These are the functions defined in disks.c.
+  These are the functions defined in dosemu/disks.c.
 
 
-  6.10.1.1.  disk_init
+  7.8.1.1.  disk_init
 
   Test by opening all floppies/hardrives configured.
 
 
 
-  6.10.2.  Remarks in disks.c
+  7.8.2.  Remarks in dosemu/disks.c
 
-  Apparently, no-one has anything interesting to say about disks.c.
-
-
-  6.10.3.  Items for Fixing in disks.c
-
-  Apparently, nothing needs fixing in disks.c.
+  Apparently, no-one has anything interesting to say about
+  dosemu/disks.c.
 
 
-  6.10.4.  New Ideas for disks.c
+  7.8.3.  Items for Fixing in dosemu/disks.c
 
-  Apparently, there are no new ideas for disks.c.
+  Apparently, nothing needs fixing in dosemu/disks.c.
 
 
-  6.11.	cpu.c Information
+  7.8.4.  New Ideas for dosemu/disks.c
+
+  Apparently, there are no new ideas for dosemu/disks.c.
+
+
+  7.9.	dosemu/cpu.c Information
 
   CPU/V86 support for dosemu
 
 
 
-  6.11.1.  Functions in cpu.c
+  7.9.1.  Functions in dosemu/cpu.c
 
-  These are the functions defined in cpu.c.
+  These are the functions defined in dosemu/cpu.c.
 
 
-  6.11.1.1.  cpu_init
+  7.9.1.1.  cpu_init
 
   Setup initial interrupts which can be revectored so that the kernel
   does not need to return to DOSEMU if such an interrupt occurs.
 
 
 
-  6.11.2.  Remarks in cpu.c
+  7.9.2.  Remarks in dosemu/cpu.c
 
-  Apparently, no-one has anything interesting to say about cpu.c.
-
-
-  6.11.3.  Items for Fixing in cpu.c
-
-  Apparently, nothing needs fixing in cpu.c.
+  Apparently, no-one has anything interesting to say about dosemu/cpu.c.
 
 
-  6.11.4.  New Ideas for cpu.c
+  7.9.3.  Items for Fixing in dosemu/cpu.c
 
-  Apparently, there are no new ideas for cpu.c.
-
-
+  Apparently, nothing needs fixing in dosemu/cpu.c.
 
 
-  6.12.	lpt.c Information
+  7.9.4.  New Ideas for dosemu/cpu.c
+
+  Apparently, there are no new ideas for dosemu/cpu.c.
+
+
+  7.10.	dosemu/lpt.c Information
 
   There appears to be no MODULE information for this file.
 
 
-  6.12.1.  Functions in lpt.c
+  7.10.1.  Functions in dosemu/lpt.c
 
-  These are the functions defined in lpt.c.
+  These are the functions defined in dosemu/lpt.c.
 
 
-  6.12.1.1.  printer_init
+  7.10.1.1.  printer_init
 
   Initialize printer control structures
 
 
 
-  6.12.2.  Remarks in lpt.c
+  7.10.2.  Remarks in dosemu/lpt.c
 
-  Apparently, no-one has anything interesting to say about lpt.c.
-
-
-  6.12.3.  Items for Fixing in lpt.c
-
-  Apparently, nothing needs fixing in lpt.c.
+  Apparently, no-one has anything interesting to say about dosemu/lpt.c.
 
 
-  6.12.4.  New Ideas for lpt.c
+  7.10.3.  Items for Fixing in dosemu/lpt.c
 
-  Apparently, there are no new ideas for lpt.c.
-
-
-  6.13.	sig/int.c Information
-
-  Silly Interrupt Generator device driver for Linux 1.1.47 or higher.
-  Needs the new modules utilities.
-
-  The driver uses MAJOR 19, the minors can be from 3 .. 15 and represent
-  the IRQ-level, which is intercepted for use with DOSEMU.  This driver
-  must be compiled on the system it is running on, see the doc in the
-  modules packages.  To load it (must be the superuser) type insmod
-  sillyint.o or insmod sillyint.o SIG_MAJOR=mm if you want to use MAJOR
-  mm intstead of the default 19.
-
-  To make the devices go into your /dev directory and create a
-  subdirectory called int. Change into this directory and add a node for
-  the IRQ you wish to use. Bare in mind that in the future if you use
-  another interrupt, you'll have to come to /dev/int and add it too.  To
-  MaKe this NODe, type: mknod <x> c 19 <x> where <x> is the IRQ number
-  you wish to use. I will add at this time that SIG will not open an
-  interrupt up that is already in use. This will mean that some
-  applications that access their interrupts from boot up like ethernet
-  cards, must not be configured into the kernel or must be given port
-  bases, that are not probed by the kernel. You may use the kernel
-  command line feature, either from LILO or LOADLIN to change those
-  ports at boot time of Linux.
+  Apparently, nothing needs fixing in dosemu/lpt.c.
 
 
-  6.13.1.  Functions in sig/int.c
-
-  We appear to have no information on the functions in sig/int.c.
 
 
-  6.13.2.  Remarks in sig/int.c
+  7.10.4.  New Ideas for dosemu/lpt.c
 
-  Apparently, no-one has anything interesting to say about sig/int.c.
-
-  6.13.3.  Items for Fixing in sig/int.c
-
-  Apparently, nothing needs fixing in sig/int.c.
+  Apparently, there are no new ideas for dosemu/lpt.c.
 
 
-  6.13.4.  New Ideas for sig/int.c
-
-  Apparently, there are no new ideas for sig/int.c.
+  8.  The Mouse group of Modules
 
 
-  7.  The PIC group of Modules
+  All of the Mouse handling code is in the "mouse" subdirectory.
+
+  There are only 2 main files, mouse.c and mouseint.c.
+
+
+
+  8.1.	mouse/mouse.c Information
+
+  There appears to be no MODULE information for this file.
+
+
+  8.1.1.  Functions in mouse/mouse.c
+
+  These are the functions defined in mouse/mouse.c.
+
+
+  8.1.1.1.  mouse_init
+
+  Initialize internal mouse.
+
+
+
+  8.1.2.  Remarks in mouse/mouse.c
+
+  Apparently, no-one has anything interesting to say about
+  mouse/mouse.c.
+
+
+  8.1.3.  Items for Fixing in mouse/mouse.c
+
+  Apparently, nothing needs fixing in mouse/mouse.c.
+
+
+  8.1.4.  New Ideas for mouse/mouse.c
+
+  Apparently, there are no new ideas for mouse/mouse.c.
+
+
+  9.  The PIC group of Modules
 
   All of the PIC handling code is in the "timer" subdirectory. Odd isn't
   it.
@@ -1138,9 +1438,9 @@
 
 
 
-  7.1.	timer/pic.c Information
+  9.1.	timer/pic.c Information
 
-  pic.c is a fairly complete emulation of both 8259 Priority Interrupt
+  pic.c is a fairly co,plete emulation of both 8259 Priority Interrupt
   Controllers.	It also includes provision for 16 lower level
   interrupts.  This implementation supports the following i/o commands:
 
@@ -1169,12 +1469,12 @@
 
 
 
-  7.1.1.  Functions in timer/pic.c
+  9.1.1.  Functions in timer/pic.c
 
   These are the functions defined in timer/pic.c.
 
 
-  7.1.1.1.  write_pic0
+  9.1.1.1.  write_pic0
 
   write_pic_0() and write_pic1() implement dos writes to the pic ports.
   They are called by the code that emulates inb and outb instructions.
@@ -1184,9 +1484,7 @@
 
 
 
-
-
-  7.1.1.2.  read_pic0
+  9.1.1.2.  read_pic0
 
   read_pic0 and read_pic1 return the values for the interrupt mask
   register (port 1), or either the in service register or interrupt
@@ -1196,7 +1494,7 @@
 
 
 
-  7.1.1.3.  pic_mask
+  9.1.1.3.  pic_mask
 
   The pic maintains an additional interrupt mask which is not visible to
   the DOS process.  This is normally cleared (enabling an interrupt)
@@ -1208,7 +1506,7 @@
 
 
 
-  7.1.1.4.  pic_seti
+  9.1.1.4.  pic_seti
 
   pic_seti is used to initialize an interrupt for dosemu.  It requires
   three parameters.  The first parameter is the interrupt level, which
@@ -1218,10 +1516,7 @@
   DOS interruptis really to be activated.  If there is no special dosemu
   code to call, the second parameter can specify do_irq(), but see that
   description for some special considerations.
-
-
-
-  7.1.1.5.  run_irqs
+  9.1.1.5.  run_irqs
 
   run_irqs, which is initiated via the macro pic_run, is the "brains" of
   the pic.  It is called from the vm86() loop, checks for the highest
@@ -1235,7 +1530,7 @@
 
 
 
-  7.1.1.6.  do_irq
+  9.1.1.6.  do_irq
 
   do_irq() calls the correct do_int().	It then executes a vm86 loop
   until an outb( end-of-interrupt) is found.  For priority levels 0 and
@@ -1248,7 +1543,7 @@
 
 
 
-  7.1.1.7.  pic_request
+  9.1.1.7.  pic_request
 
   pic_request triggers an interrupt.  There is presently no way to "un-
   trigger" an interrupt.  The interrupt will be initiated the next time
@@ -1262,7 +1557,7 @@
 
 
 
-  7.1.1.8.  pic_iret
+  9.1.1.8.  pic_iret
 
   pic_iret is used to sense that all active interrupts are really
   complete, so that interrupts queued by pic_request can be triggered.
@@ -1280,50 +1575,49 @@
 
 
 
-  7.1.2.  Remarks in timer/pic.c
+  9.1.2.  Remarks in timer/pic.c
 
   Apparently, no-one has anything interesting to say about timer/pic.c.
 
 
-  7.1.3.  Items for Fixing in timer/pic.c
+
+
+  9.1.3.  Items for Fixing in timer/pic.c
 
   Apparently, nothing needs fixing in timer/pic.c.
 
 
-  7.1.4.  New Ideas for timer/pic.c
+  9.1.4.  New Ideas for timer/pic.c
 
   Apparently, there are no new ideas for timer/pic.c.
 
 
-  7.2.	timer/pic.h Information
+  9.2.	timer/pic.h Information
 
   There appears to be no MODULE information for this file.
 
 
-  7.2.1.  Functions in timer/pic.h
+  9.2.1.  Functions in timer/pic.h
 
   We appear to have no information on the functions in timer/pic.h.
 
 
-  7.2.2.  Remarks in timer/pic.h
+  9.2.2.  Remarks in timer/pic.h
 
   Apparently, no-one has anything interesting to say about timer/pic.h.
 
 
-  7.2.3.  Items for Fixing in timer/pic.h
+  9.2.3.  Items for Fixing in timer/pic.h
 
   Apparently, nothing needs fixing in timer/pic.h.
 
 
-
-
-
-  7.2.4.  New Ideas for timer/pic.h
+  9.2.4.  New Ideas for timer/pic.h
 
   Apparently, there are no new ideas for timer/pic.h.
 
 
-  8.  And Finally ...
+  10.  And Finally ...
 
   The Following items are used to delimit the text used to create this
   file.	Whilst it is not necessary to know this, they are included
@@ -1350,6 +1644,42 @@
 
   DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG Changelogs - very useful for
   bug fixing, and avvailable for use with DPR (or that's the theory)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

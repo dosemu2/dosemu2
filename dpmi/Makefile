@@ -16,39 +16,13 @@ ALL = dpmi.c dpmi.h \
 SUBDIR=dpmi
 
 OBJS = $(SUBDIR).o
-
-CFLAGS+= -DDPMI
+DEPENDS=dpmi.d
 
 all:  lib testdpmi.com
 
-
-
-checkin:
-	-ci $(ALL) Makefile TODO
-checkout:
-	-co -M -l $(ALL) Makefile TODO
-
-realclean clean::
-	-rm -f *.o *.com ../lib$(SUBDIR).a
-
-realclean::
-	-rm -f .depend
+clean::
+	-rm  *.com 
 
 install:
 
-dist: $(ALL) Makefile
-	install -d $(DISTPATH)/$(SUBDIR)
-	install -m 0644 $(ALL) Makefile TODO $(DISTPATH)/$(SUBDIR)
-
-depend dep: $(CFILES) $(HFILES)
-	$(CPP) -MM $(CFLAGS) *.c $(INCDIR) > .depend
-
-
 include ../Makefile.common
-
-#
-# include a dependency file if one exists
-#
-ifeq (.depend,$(wildcard .depend))
-include .depend
-endif

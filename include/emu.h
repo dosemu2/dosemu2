@@ -215,9 +215,10 @@
  *
  */
 
+#include <sys/types.h>
+#include <signal.h> 
 #include "machcompat.h"
 #include "cpu.h"
-#include <sys/types.h>
 
 #if 1 /* Set to 1 to use Silly Interrupt generator */
 #define SIG 1
@@ -439,6 +440,7 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 	  errno, strerror(errno), __FILE__, __LINE__, #sc); \
   s_tmp; })
 
+#if 0
 #define RPT_SYSCALL(sc) ({ int s_tmp, s_err; \
    do { \
 	  s_tmp = sc; \
@@ -450,6 +452,9 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 	  } \
       } while ((s_tmp == -1) && (s_err == EINTR)); \
   s_tmp; })
+#else
+#define RPT_SYSCALL(sc) (sc)
+#endif
 
 #define RPT_SYSCALL2(sc) ({ int s_tmp; \
    do { \
@@ -655,6 +660,7 @@ extern void add_to_io_select(int, unsigned char);
   */
 #ifndef SA_RESTART
 #define SA_RESTART 0
+#error SA_RESTART Not defined
 #endif
 
 /* DANG_BEGIN_FUNCTION NEWSETQSIG

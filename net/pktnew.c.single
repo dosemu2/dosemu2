@@ -551,7 +551,7 @@ int timeout;
 		    pg->size = size;
 		    pg->receiver = hdlp->receiver;
 #ifndef PIC
-		    do_hard_int(pg->helpvec);
+		    run_int(pg->helpvec);
 #else
 		    run_int(pg->helpvec);
 #endif

@@ -250,8 +250,8 @@
 #include "mouse.h"
 
 #ifdef NEW_PIC
-#include "timer/pic.h"
-#include "timer/bitops.h"
+#include "../timer/pic.h"
+#include "../timer/bitops.h"
 #endif
 
 extern void DOSEMUMouseEvents(void);

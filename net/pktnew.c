@@ -16,7 +16,6 @@
  *     doing, though...
  */
 
-#include "emu.h"
 #include "pktdrvr.h"
 #include "cpu.h"
 #include "emu.h"
@@ -30,31 +29,14 @@
 
 #define min(a,b)	((a) < (b)? (a) : (b))
 
-#include "dosnet.h"                
-
-extern int DosnetOpenNetworkType(u_short);
-extern int DosnetOpenBroadcastNetwork(u_short);
-extern int DosnetGetDeviceHardwareAddress(char *, char *);
-extern int DosnetWriteToNetwork(int, const char *, const char *, int);
-extern int DosnetReadFromNetwork(int, char *, char *, int);
-
-
-
-void Open_sockets(void);
-
-int  pkt_fd=-1, pkt_broadcast_fd=-1, max_pkt_fd;
+extern int OpenNetworkType(u_short);
+extern int GetDeviceHardwareAddress(char *, char *);
+extern int WriteToNetwork(int, const char *, const char *, int);
+extern int ReadFromNetwork(int, char *, char *, int);
 
 /* global data which is put at PKTDRV_SEG:PKTDRV_OFF */
 /* (not everything needs to be accessible from DOS space, but it is */
 /* often convenient to be able to look at it with DEBUG...) */
-#define MAX_PKT_TYPE_SIZE 10
-struct pkt_type {
-  int handle, no_of_chars;
-  char pkt_type[MAX_PKT_TYPE_SIZE];
-  int count;                           /* To sort the array based on counts of packet type. */
-} pkt_type_array[MAX_HANDLE]; 
-int max_pkt_type_array=0;
-
 
 struct pkt_globs
 {
@@ -70,6 +52,8 @@ struct pkt_globs
     short size;				/* current packet's size */
     long receiver;			/* current receive handler */
     int helpvec;			/* vector number for helper */
+    int nfds;				/* number of fd's for select() */
+    fd_set sockset;			/* set of sockets for select() */
     unsigned char helper[72];		/* upcall helper */
 
     struct per_handle
@@ -78,14 +62,15 @@ struct pkt_globs
 	char class;			/* class it was access_type'd with */
 	short packet_type_len;		/* length of packet type */
 	int flags;			/* per-packet-type flags */
+	int sock;			/* fd for the socket */
 	long receiver;			/* receive handler */
 	char packet_type[16];		/* packet type for this handle */
-    } handle[MAX_HANDLE];          
+    } handle[MAX_HANDLE];
 
     char buf[ETH_FRAME_LEN + 32];	/* packet buffer */
 };
 
-static char devname[] = DOSNET_DEVICE ;		/* linux device name */
+static char devname[] = "eth0";		/* linux device name */
 
 static struct pkt_globs *pg = NULL;
 
@@ -120,9 +105,9 @@ pkt_init (int vec)
     /* fill other global data */
 
     strcpy(pg->driver_name,"Linux$");
-    DosnetGetDeviceHardwareAddress(devname,pg->hw_address);
-    pg->classes[0] = ETHER_CLASS;  /* == 1. */
-    pg->classes[1] = IEEE_CLASS;   /* == 11. */
+    GetDeviceHardwareAddress(devname,pg->hw_address);
+    pg->classes[0] = ETHER_CLASS;
+    pg->classes[1] = IEEE_CLASS;
     pg->type = 12;			/* dummy type (3c503) */
     pg->flags = config.pktflags;	/* global config flags */
 
@@ -130,15 +115,9 @@ pkt_init (int vec)
     pg->param.minor_rev = 1;
     pg->param.length = sizeof(struct pkt_param);
     pg->param.addr_len = ETH_ALEN;
-    pg->param.mtu = DosnetGetDeviceMTU(devname);
+    pg->param.mtu = GetDeviceMTU(devname);
     pg->param.rcv_bufs = 8 - 1;		/* a guess */
     pg->param.xmt_bufs = 2 - 1;
-
-    Open_sockets();   /* VINOD: Added to receive all packets 
-                                     from dosnet device. These packets 
-                                     are of special type and are reconverted
-                                     into broadcast packets proper after being
-                                     received by dosemu. */
 
     /* helper routine to transfer received packets and call receiver */
 
@@ -199,7 +178,6 @@ pkt_int ()
 
 {
     struct per_handle *hdlp;
-    int hdlp_handle=-1;
 
 #if 0
     pd_printf("NPKT: AX=%04x BX=%04x CX=%04x DX=%04x FLAGS=%08x\n",
@@ -213,16 +191,10 @@ pkt_int ()
 
     NOCARRY;
 
-    /* when BX seems like a valid handle, set the handle info pointer.
-       Actually, BX could be  zero in some "default cases". For e.g.
-       if it is zero when getting the driver info, we can't say if it is
-       the "real" handle or general default value.
-     */
+    /* when BX seems like a valid handle, set the handle info pointer */
 
-    if ((LWORD(ebx) > 0) && (LWORD(ebx) < MAX_HANDLE)) {
+    if (LWORD(ebx) < MAX_HANDLE)
 	hdlp = &pg->handle[LWORD(ebx)];
-        hdlp_handle=LWORD(ebx);
-    }
     else
 	hdlp = NULL;
 
@@ -231,23 +203,15 @@ pkt_int ()
     switch (HI(ax))
     {
     case F_DRIVER_INFO:
-        pd_printf("Driver info called ...\n");
 	REG(eax) = 2;				/* basic+extended functions */
 	REG(ebx) = 1;				/* version */
-
-        /* If  hdlp_handle == 0,  it is not always a valid handle. 
-	   At least in case of CUTCP it sets it to zero for the first
-	   time.
-	*/
-	if (hdlp_handle !=0 && hdlp != NULL && hdlp->in_use)
+	if (hdlp != NULL && hdlp->in_use)
 	    REG(ecx) = (hdlp->class << 8) + 1;	/* class, number */
 	else
 	    REG(ecx) = (pg->classes[0] << 8) + 1;
 	REG(edx) = pg->type;			/* type (dummy) */
 	REG(ds) = PKTDRV_SEG;			/* driver name */
 	REG(esi) = PKTDRV_OFF + offsetof(struct pkt_globs,driver_name);
-        pd_printf("Class returned = %d, handle=%d, pg->classes[0]=%d \n", 
-                         REG(ecx)>>8, hdlp_handle, pg->classes[0] );
 	return 1;
 
     case F_ACCESS_TYPE:
@@ -340,7 +304,18 @@ pkt_int ()
 		    }
 		}
 	    }
-            Insert_Type(free_handle, hdlp->packet_type_len, hdlp->packet_type);
+
+	    hdlp->sock = OpenNetworkType(type); /* open the socket */
+
+	    if (hdlp->sock < 0) {
+		hdlp->in_use = 0;		/* forget about this handle */
+		HI(dx) = E_BAD_TYPE;
+		break;
+	    }
+
+	    FD_SET(hdlp->sock,&pg->sockset);	/* keep track of sockets */
+	    if (hdlp->sock >= pg->nfds)
+		pg->nfds = hdlp->sock + 1;
 
 	    REG(eax) = free_handle;		/* return the handle */
 	}
@@ -352,9 +327,18 @@ pkt_int ()
 	    break;
 	}
 
-        Remove_Type(hdlp_handle);
-
 	if (hdlp->in_use) {
+	    int i,n;
+
+	    CloseNetworkLink(hdlp->sock);	/* close the socket */
+	    FD_CLR(hdlp->sock,&pg->sockset);	/* keep track of sockets */
+	    n = pg->nfds;
+	    pg->nfds = 0;
+
+	    for (i = 0; i < n; i++)
+		if (FD_ISSET(i,&pg->sockset))
+		    pg->nfds = i + 1;
+
 	    hdlp->in_use = 0;			/* no longer in use */
 	}
 	return 1;
@@ -368,7 +352,6 @@ pkt_int ()
 	/* find a handle which is in use, and use its socket for the send */
 	{
 	    int handle;
-            char *p;
 
 	    for (handle = 0; handle < MAX_HANDLE; handle++) {
 		hdlp = &pg->handle[handle];
@@ -395,12 +378,8 @@ pkt_int ()
 			    p[1] = (char)len;
 			}
 		    }
-                    /* Now we have to write to network. We need
-                       to check if it is broadcast, and if so, use the
-                       corresponding socket. */
-		    p = SEG_ADR((char *),ds,si);
 
-		    if (DosnetWriteToNetwork( pkt_fd, devname,
+		    if (WriteToNetwork(hdlp->sock,devname,
 				SEG_ADR((char *),ds,si),LWORD(ecx)) >= 0)
 		    {
 			/* send was okay, check for a reply to speedup */
@@ -408,8 +387,8 @@ pkt_int ()
 			pkt_check_receive(50000);
 			return 1;
 		    } else {
-			warn("NPKT: DosnetWriteToNetwork(%d,\"%s\",buffer,%u): error %d\n",
-			    pkt_fd,devname,LWORD(ecx),errno);
+			warn("NPKT: WriteToNetwork(%d,\"%s\",buffer,%u): error %d\n",
+			    hdlp->sock,devname,LWORD(ecx),errno);
 			break;
 		    }
 		}
@@ -488,83 +467,23 @@ pkt_int ()
     /* fell through switch, indicate an error (DH set above) */
     CARRY;
 
-    pd_printf("PD ERR:  AX=%04x BX=%04x CX=%04x DX=%04x FLAGS=%08x\n",
+#if 0
+    pd_printf("ERR:  AX=%04x BX=%04x CX=%04x DX=%04x FLAGS=%08x\n",
 		LWORD(eax),LWORD(ebx),LWORD(ecx),LWORD(edx),REG(eflags));
     pd_printf("      SI=%04x DI=%04x BP=%04x SP=%04x CS=%04x DS=%04x ES=%04x SS=%04x\n",
 		LWORD(esi),LWORD(edi),LWORD(ebp),LWORD(esp),
 		LWORD(cs),LWORD(ds),LWORD(es),LWORD(ss));
+#endif
 
     return 1;
 }
-
-/* This handle is inserted to receive packets of type "dosnet broadcast". 
-   These are really speaking broadcast packets meant to be received by
-   all dosemu's. Their destination addresses are changed by dosemu, and
-   are changed back to 'ffffff..' when these packets are received by dosemu. 
-*/
-
-void
-Open_sockets(void)
-{
-    pkt_broadcast_fd = DosnetOpenBroadcastNetworkType(); /* open the socket */
-    pkt_fd = DosnetOpenNetworkType( (u_short)0 );
-    max_pkt_fd = pkt_fd + 1;
-    if ( max_pkt_fd <= pkt_broadcast_fd ) max_pkt_fd = pkt_broadcast_fd + 1; 
-}
-
-/*  Find_Handle does type demultiplexing. 
-    Given a packet, it compares the type fields and finds out which 
-    handle should take the given packet.
-    An array of types is maintained.
-*/
-int 
-Insert_Type(int handle, int no_of_chars, char *pkt_type)
-{
-  int i,nchars;
-  if(no_of_chars > MAX_PKT_TYPE_SIZE) return -1;
-  if (max_pkt_type_array >= MAX_HANDLE) return -1;
-
-  pd_printf("Trying to insert: handle %d, no_of_chars=%d \n ",handle, no_of_chars);
-
-  /* Find if the type or handle is already present ... */
-  for( i=0; i<max_pkt_type_array; i++)
-  {
-     nchars=pkt_type_array[i].no_of_chars;
-     if ( (pkt_type_array[i].handle == handle) ||
-          ((nchars > 1) && !memcmp(&pkt_type_array[i].pkt_type, pkt_type, nchars))
-        )
-        return  -1;
-  }
-  pkt_type_array[max_pkt_type_array].no_of_chars=no_of_chars;
-  pkt_type_array[max_pkt_type_array].handle=handle;
-  pkt_type_array[max_pkt_type_array].count=0;
-  memcpy(&pkt_type_array[max_pkt_type_array].pkt_type, pkt_type, no_of_chars);
-  for(i=0; i<no_of_chars; i++) pd_printf(" --%.2x--", pkt_type_array[max_pkt_type_array].pkt_type[i]);
-  pd_printf("\n");
-  pd_printf("Succeded: inserted at %d\n", max_pkt_type_array);
-  max_pkt_type_array++;
-}
-
-int
-Remove_Type(int handle)
-{ 
-  int i, shift_up;
-  shift_up=0;
-  for( i=0; i<max_pkt_type_array; i++)
-  {
-     if( shift_up )
-            pkt_type_array[i-1]=pkt_type_array[i];
-     else if (pkt_type_array[i].handle == handle) shift_up=1; 
-  }
-}
-
 
 int
 pkt_check_receive(timeout)
 int timeout;
 
 {
-    int size,handle, fd;
+    int size,handle;
     struct per_handle *hdlp;
     char *p;
     struct timeval tv;
@@ -574,83 +493,39 @@ int timeout;
     if (pg == NULL)				/* packet driver intialized? */
 	return -1;
 
+    if (pg->nfds == 0)				/* no active sockets? */
+	return 0;
+
     if (pg->size != 0)				/* transfer area busy? */
 	return 1;
 
     tv.tv_sec = 0;				/* set a (small) timeout */
     tv.tv_usec = timeout;
+    readset = pg->sockset;
 
-    FD_SET(pkt_fd, &readset);
-    FD_SET(pkt_broadcast_fd, &readset);
-
-    if (select(max_pkt_fd,&readset,NULL,NULL,&tv) <= 0) /* anything ready? */
+    if (RPT_SYSCALL(select(pg->nfds,&readset,NULL,NULL,&tv)) <= 0) /* anything ready? */
 	return 0;
 
-    if( FD_ISSET(pkt_fd, &readset) ) 
-           fd = pkt_fd;
-    else if( FD_ISSET(pkt_broadcast_fd, &readset) ) 
-           fd = pkt_broadcast_fd;
-    else return 0;
+    for (handle = 0; handle < MAX_HANDLE; handle++) {
+	hdlp = &pg->handle[handle];
 
-    size = DosnetReadFromNetwork(fd,device,pg->buf,sizeof(pg->buf));
-    if (size < 0) {
-		pg->stats.errors_in++;		/* select() somehow lied */
-                return 0;
-    }
-    if (strcmp(device,devname)) return 0; 
-   
-    pd_printf("========Processing New packet======\n");
-    /* if( (handle = Find_Handle(pg->buf))== -1) return 0; */
-    /* Code for Find_Handle.  */
-    {
-	  int i,nchars;
-	  struct ethhdr *eth ; 
-	  u_char *p;
+	if (hdlp->in_use && FD_ISSET(hdlp->sock,&readset)) {
+	    /* somethine is available on this handle's socket */
+	    /* attempt to read it.  that should always succeed... */
 
-          eth=(struct ethhdr *) pg -> buf;
-	  /* find this packet's frame type, and hence position to compare the type. */
-	  if (ntohs(eth->h_proto) >= 1536)
-	       p = pg->buf + 2 * ETH_ALEN;		/* Ethernet-II */
-	  else 
-	       p = pg->buf + 2 * ETH_ALEN + 2;       /* All the rest frame types. */
+	    size = ReadFromNetwork(hdlp->sock,device,pg->buf,sizeof(pg->buf));
 
-          pd_printf("Received packet type: %.2x\n", ntohs(eth->h_proto));
+	    /* check if something has been received */
+	    /* there was a check for "not multicast" here, but I think */
+	    /* it should not be there... */
 
-          handle=-1;
-	  for( i=0; i<max_pkt_type_array; i++)
-	  {
-	     nchars= pkt_type_array[i].no_of_chars;
-	     if ( /* (nchars < 2)   ||                 */
-		  !memcmp(&pkt_type_array[i].pkt_type, p, nchars) )
-             {
-		  handle=pkt_type_array[i].handle;
-                  break; 
-             }
-	  }
-          pd_printf("Found handle=: %d\n", handle);
-	  if( handle==-1) return(-1);
-    }   
-    hdlp = &pg->handle[handle];
-    if (hdlp->in_use) {
+	    if (size >= 0) {
+		/* verify the source of the packet.  when not from eth0, */
+		/* discard it for now (multiple network cards are next) */
 
-           printbuf("received packet:", pg->buf); 
+		if (strcmp(device,devname))
+		    continue;
 
-                /* VINOD: If it is broadcast type, translate it back ... */
-           if ( memcmp(pg->buf, DOSNET_BROADCAST_ADDRESS, 4) == 0 )
-           {    
-                     pd_printf("It is broadcast packet.");
-                     if(memcmp((pg->buf + ETH_ALEN), pg->hw_address, ETH_ALEN) == 0)
-                     {
-                        pd_printf("It was my own packet! Ignored.\n"); 
-                        return; /* Ignore our own ethernet broadcast. */
-                     }
-                     memcpy(pg->buf, "\x0ff\x0ff\x0ff\x0ff\x0ff\x0ff", ETH_ALEN);
-                     printbuf("Translated:", pg->buf); 
-           }
-
-           /* No need to check the type again. Also, for now, NOVELL_HACK
-              is diabled... */
-           if ( 0 ) {
 		/* check if the packet's type matches the specified type */
 		/* in the ACCESS_TYPE call.  the position depends on the */
 		/* driver class! */
@@ -663,51 +538,30 @@ int timeout;
 		if (size >= ((p - pg->buf) + hdlp->packet_type_len) &&
 		    !memcmp(p,hdlp->packet_type,hdlp->packet_type_len))
 		{
-                }
+		    pg->stats.packets_in++;
+		    pg->stats.bytes_in += size;
+
 		    if (hdlp->flags & N_OPTION) {	/* Novell hack? */
 			*--p = (char)ETH_P_IPX;	/* overwrite length with type */
 			*--p = (char)(ETH_P_IPX >> 8);
 		    }
-             }
-             pg->stats.packets_in++;
-	     pg->stats.bytes_in += size;
 
 		    /* stuff things in global vars and queue a hardware */
 		    /* interrupt which will perform the upcall */
-	     pg->size = size;
-	     pg->receiver = hdlp->receiver;
+		    pg->size = size;
+		    pg->receiver = hdlp->receiver;
 #ifndef PIC
-	     do_hard_int(pg->helpvec);
+		    run_int(pg->helpvec);
 #else
-	     run_int(pg->helpvec);
+		    run_int(pg->helpvec);
 #endif
-             pd_printf("Called the helpvector ... \n");
-	     return 1;
-    } else
-	     pg->stats.packets_lost++;	/* not really lost... */
-    pd_printf("Handle not in use. Ignored this packet.\n");
+		    return 1;
+		} else
+		    pg->stats.packets_lost++;	/* not really lost... */
+	    } else
+		pg->stats.errors_in++;		/* select() somehow lied */
+	}
+    }
+
     return 0;
-}
-
-
-int
-Find_Handle(u_char *buf)
-{
-  int i,nchars;
-  struct ethhdr *eth = (struct ethhdr *) buf;
-  u_char *p;
-  /* find this packet's frame type, and hence position to compare the type. */
-  if (ntohs(eth->h_proto) >= 1536)
-       p = buf + 2 * ETH_ALEN;		/* Ethernet-II */
-  else 
-       p = buf + 2 * ETH_ALEN + 2;       /* All the rest frame types. */
-
-  for( i=0; i<max_pkt_type_array; i++)
-  {
-     nchars= pkt_type_array[i].no_of_chars;
-     if ( (nchars < 2)   ||                 
-          !memcmp(&pkt_type_array[i].pkt_type, p, nchars) )
-         return i;
-  }
-  return(-1);
 }

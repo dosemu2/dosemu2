@@ -131,13 +131,13 @@ typedef unsigned long  udword_t;
 #define BIOS_VIDEO_MEMORY_USED          0x44c
 #define BIOS_VIDEO_MEMORY_ADDRESS       0x44e
 
-#define set_bios_cursor_x_position(screen) \
-                        (*(ubyte_t *)(0x450 + 2*(screen)))
+#define set_bios_cursor_x_position(screen, val) \
+                        (*(ubyte_t *)(0x450 + 2*(screen)) = (val))
 #define get_bios_cursor_x_position(screen) \
                         (*(ubyte_t *)(0x450 + 2*(screen)))
 
-#define set_bios_cursor_y_position(screen) \
-                        (*(ubyte_t *)(0x451 + 2*(screen)))
+#define set_bios_cursor_y_position(screen, val) \
+                        (*(ubyte_t *)(0x451 + 2*(screen)) = (val))
 #define get_bios_cursor_y_position(screen) \
                         (*(ubyte_t *)(0x451 + 2*(screen)))
  

@@ -43,7 +43,7 @@ checkout:
 clean:
 	rm -f ipxbind ipxroute
 
-realclean:
+realclean: clean
 	rm -f .depend 
 
 install:

@@ -161,7 +161,8 @@ extern struct config_info config;
 void mouse_reset(void), mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
  mouse_setxminmax(void), mouse_setyminmax(void), mouse_set_tcur(void),
  mouse_set_gcur(void), mouse_setsub(void), mouse_bpressinfo(void), mouse_brelinfo(void),
- mouse_mickeys(void), mouse_version(void);
+ mouse_mickeys(void), mouse_version(void), mouse_enable_internaldriver(void),
+ mouse_disable_internaldriver(void);
 
 /* mouse movement functions */
 void mouse_move(void),
@@ -311,6 +312,25 @@ mouse_int(void)
     m_printf("MOUSE: get size of state buffer 0x%04x\n", LWORD(ebx));
     break;
 
+  case 0x16:			/* Save mouse driver state */
+    {
+      struct mouse_struct *mpt;
+      mpt=&mouse;
+      memcpy((u_char *)(LWORD(es) << 4)+LWORD(edx), mpt, sizeof(mouse));
+      m_printf("MOUSE: Save mouse state\n");
+    }
+    break;
+
+  case 0x17:			/* Restore mouse driver state */
+    {
+      struct mouse_struct *mpt;
+      mpt=&mouse;
+      memcpy(mpt, (u_char *)(LWORD(es) << 4)+LWORD(edx), sizeof(mouse));
+      mouse.cursor_on = 1;	/* Assuming software reset, turns off mouse */
+      m_printf("MOUSE: Restore mouse state\n");
+    }
+    break;
+
   case 0x1a:			/* SET MOUSE SENSITIVITY */
     mouse.horzsen = LWORD(ebx);
     mouse.vertsen = LWORD(ecx);
@@ -323,6 +343,14 @@ mouse_int(void)
     LWORD(edx) = mouse.threshold;	/* double speed threshold */
     break;
 
+  case 0x1f:
+    mouse_disable_internaldriver();		/* Disable Mouse Driver */
+    break;
+
+  case 0x20:
+    mouse_enable_internaldriver();		/* Enable Mouse Driver */
+    break;
+
   case 0x21:			
     m_printf("MOUSE: software reset on mouse\n");
     mouse.cursor_on = 0;	/* Assuming software reset, turns off mouse */
@@ -333,7 +361,11 @@ mouse_int(void)
        X_change_mouse_cursor(0);
 #endif
     LWORD(eax) = 0xffff;
+#if 0
     LWORD(ebx) = 3;
+#else
+    LWORD(ebx) = 2;
+#endif
     break;
 
   case 0x22:			/* Set language for messages */
@@ -382,8 +414,15 @@ void
 mouse_reset(void)
 {
     m_printf("MOUSE: reset mouse/installed!\n");
+    mouse.cs=0;
+    mouse.ip=0;
+#if 1
     LWORD(eax) = 0xffff;
     LWORD(ebx)=3; 
+#else
+    LWORD(eax) = 0x1;
+    LWORD(ebx)=2; 
+#endif
 
   mouse.minx = mouse.miny = 0;
 
@@ -587,6 +626,26 @@ mouse_version(void)
   m_printf("MOUSE: get version %04x\n", LWORD(ebx));
 }
 
+void
+mouse_disable_internaldriver()
+{
+  LWORD(eax) = 0x001F;
+  REG(es) = mouse.cs;
+  LWORD(ebx) = mouse.ip;
+
+  mice->intdrv = FALSE;
+
+  m_printf("MOUSE: Disable InternalDriver\n");
+}
+
+void
+mouse_enable_internaldriver()
+{
+  mice->intdrv = TRUE;
+
+  m_printf("MOUSE: Enable InternalDriver\n");
+}
+
 void 
 mouse_keyboard(int sc)
 {
@@ -701,6 +760,8 @@ fake_int(void)
   pushw(ssp, sp, LWORD(cs));
   pushw(ssp, sp, LWORD(eip));
   LWORD(esp) -= 6;
+  do_hard_int(0x74);
+  
 }
 
 void 
@@ -856,6 +917,8 @@ void
 mouse_init(void)
 {
   serial_t *sptr;
+  char mouse_ver[]={2,3,4,5,0x14,0x7,0x38,0x39,0x3a,0x3b,0x3c,0x3d,0x3e,0x3f};
+  char *p=(char *)0xefe00;
 #if 0 /* Not sure why she's here? 94/09/19 */
   int old_mice_flags = -1;
 #endif
@@ -866,6 +929,7 @@ mouse_init(void)
   if (config.X) {
     mice->intdrv = TRUE;
     mice->type = MOUSE_X;
+    memcpy(p,mouse_ver,sizeof(mouse_ver));
     m_printf("MOUSE: X Mouse being set\n");
     return;
   }
@@ -885,12 +949,14 @@ mouse_init(void)
       else                                    /* keithp@its.bt.co.uk        */
         add_to_io_select(mice->fd, 1);
       DOSEMUSetupMouse();
+      memcpy(p,mouse_ver,sizeof(mouse_ver));
       return;
     }
 
     if ((mice->type == MOUSE_PS2) || (mice->type == MOUSE_BUSMOUSE)) {
       mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK));
-      add_to_io_select(mice->fd, 0);
+      add_to_io_select(mice->fd, 0); 
+      memcpy(p,mouse_ver,sizeof(mouse_ver));
     }
     else {
       int x;
@@ -913,6 +979,7 @@ mouse_init(void)
     }
     add_to_io_select(mice->fd, 1);
     DOSEMUSetupMouse();
+    memcpy(p,mouse_ver,sizeof(mouse_ver));
     return;
   }
 

@@ -35,7 +35,7 @@ checkout:
 clean:
 	rm -f *.o
 
-realclean:
+realclean: clean
 	rm -f .depend
 
 client:

@@ -3,21 +3,29 @@
 #
 
 # BASEDIR sets a path fragment which is prepended to _all_ paths.
-BASEDIR: 	../dosemu0.53/
+BASEDIR: 	../dosemu0.53pl36/
 
 # GROUPs are formed from :
 # <group_name> <summary_file> <file1> ... <fileN>
 # These may be split over multiple lines, and use and whitespace characters
 # as separators (assuming the Perl lives up to it's claims ! 8-)  )
-GROUP:		Main ../DANG_c/summary_Main dos.c emu.c emu.h
+GROUP:		Main ../DANG_c/summary_Main dos.c emu.c include/emu.h
 GROUP:		Clients ../DANG_c/summary_Clients clients/ncurses.c
 GROUP:		DPMI ../DANG_c/summary_DPMI dpmi/dpmi.c
 GROUP:		Video ../DANG_c/summary_Video video/vc.c
-			video/video.c termio.c
-GROUP:		Misc ../DANG_c/summary_Misc bios_emm.c xms.c 
-			keymaps.c sigsegv.c int.h ports.h
-			dosio.c mouse/mouse.c serial.c disks.c cpu.c
-			lpt.c sig/int.c
+			video/video.c video/X.c video/console.c
+			video/dualmon.c video/et4000.c video/hgc.c
+			video/int10.c video/s3.c video/terminal.c
+			video/trident.c video/vga.c 
+GROUP:		Keyboard ../DANG_c/summary_Keyboard keyboard/termio.c
+			keyboard/Xkeyb.c keyboard/keymaps.c
+			keyboard/slang-termio.c
+GROUP:		Misc ../DANG_c/summary_Misc dosemu/bios_emm.c dosemu/xms.c 
+			dosemu/sigsegv.c include/int.h include/ports.h
+			dosemu/dosio.c dosemu/serial.c dosemu/disks.c 
+			dosemu/cpu.c dosemu/lpt.c 
+GROUP:		Mouse ../DANG_c/summary_Mouse mouse/mouse.c 
+GROUP:		Bios ../DANG_c/summary_Bios bios/bios.S 
 GROUP:		PIC ../DANG_c/summary_PIC timer/pic.c timer/pic.h
 
 # INTRODUCTION is the location of Introduction. There may be

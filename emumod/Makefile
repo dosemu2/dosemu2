@@ -36,12 +36,11 @@ ALL = $(CFILES) $(HFILES) $(SFILES) README.emumod
 # All object-files are included here.
 
 OBJS= vm86.o traps.o emumod.o fastsys.o emusys.o
-
-.c.o:
-	$(CC) $(CFLAGS) $(XDEFS) $(INCDIR) -c $<
  
 all: $(OBJS) emumodule.o
 
+.c.o:
+	$(CC) $(CFLAGS) $(XDEFS) $(INCDIR) -c $<
 
 emumodule.o: ${OBJS}
 	ld -r -o emumodule.o $(OBJS)
@@ -59,7 +58,7 @@ traps.o:  traps.c emumod.h $(USRSRCDIR)/linux/tools/version.h
 	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c traps.c -o traps.o
 
 fastsys.o: fastsys.S
-	$(CC) -c fastsys.S -o fastsys.o
+	$(CC) -c -D__ASSEMBLY__ fastsys.S -o fastsys.o
 
 checkin:
 	-ci $(ALL) Makefile

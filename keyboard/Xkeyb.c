@@ -340,6 +340,12 @@ void X_process_key(XKeyEvent *e)
     } else if (key == XK_Delete) {
        scan = 0x53;
        ch = 0;
+    } else if (key == XK_Return)  {
+       if ((e->state & ControlMask))
+         ch = 0x0a;
+       else
+         ch = 0x0d;
+       scan = 0x1c;
     } else if (key == XK_Tab) {
        scan = 0x0f;
        if ((e->state & (ShiftMask | ControlMask | AltMask)))

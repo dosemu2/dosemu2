@@ -234,24 +234,24 @@ video_config_init(void) {
   else
     WRITE_WORD(BIOS_VIDEO_PORT, 0x3d4);	/* base port of CRTC - IMPORTANT! */
 
-  bios_vdu_control = 9;		/* current 3x8 (x=b or d) value */
+  WRITE_BYTE(BIOS_VDU_CONTROL, 9);	/* current 3x8 (x=b or d) value */
 
-  bios_video_mode = video_mode; /* video mode */
-  bios_screen_columns = CO;     /* chars per line */
-  bios_rows_on_screen_minus_1 = LI - 1; /* lines on screen - 1 */
-  bios_video_memory_used = TEXT_SIZE;   /* size of video regen area in bytes */
-  bios_video_memory_address = 0;/* offset of current page in buffer */
+  WRITE_BYTE(BIOS_VIDEO_MODE, video_mode); /* video mode */
+  WRITE_WORD(BIOS_SCREEN_COLUMNS, CO);     /* chars per line */
+  WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, LI - 1); /* lines on screen - 1 */
+  WRITE_WORD(BIOS_VIDEO_MEMORY_USED, TEXT_SIZE);   /* size of video regen area in bytes */
+  WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);/* offset of current page in buffer */
 
-  bios_font_height = 16;
+  WRITE_WORD(BIOS_FONT_HEIGHT, 16);
   
   /* XXX - these are the values for VGA color!
      should reflect the real display hardware. */
-  bios_video_info_0 = 0x60;
-  bios_video_info_1 = 0xF9;
-  bios_video_info_2 = 0x51;
-  bios_video_combo = video_combo;
+  WRITE_BYTE(BIOS_VIDEO_INFO_0, 0x60);
+  WRITE_BYTE(BIOS_VIDEO_INFO_1, 0xF9);
+  WRITE_BYTE(BIOS_VIDEO_INFO_2, 0x51);
+  WRITE_BYTE(BIOS_VIDEO_COMBO, video_combo);
 
-  bios_video_saveptr = 0;		/* pointer to video table */
+  WRITE_DWORD(BIOS_VIDEO_SAVEPTR, 0);		/* pointer to video table */
 
   if (config.mapped_bios) {
     if (config.vbios_file) {

@@ -2,8 +2,11 @@
 #
 
 
-ALL = bios.h keymaps.h port.h video.h ipx.h mouse.h inifile.h hgc.h \
-	dosnet.h termio.h syscallmgr.h emusys.h slang.h
+ALL = bios.h cmos.h cpu.h disks.h dosio.h dosnet.h emu.h \
+	emusys.h err hgc.h inifile.h int.h int10.h ipx.h keymaps.h \
+	lpt.h machcompat.h memory.h mouse.h mutex.h port.h ports.h \
+	serial.h slang.h syscallmgr.h termio.h timers.h video.h xms.h \
+	macros86.h
 
 OBJS = 
 
@@ -20,7 +23,7 @@ checkout:
 clean:
 	rm -f *.o
 
-realclean:
+realclean: clean
 	rm -f .depend
 
 install:

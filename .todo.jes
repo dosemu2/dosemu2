@@ -20,3 +20,4 @@ DPMI
 	-	Although forgotten awhile back due to kernel limitations,
 		should be reconsidered because of WINE reworking the
 		memory allocation algorithm. Lutz is the man in charge.
+arj problem

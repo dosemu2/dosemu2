@@ -4,7 +4,6 @@
  */
 #ifdef USE_SLANG
 #include "terminal.c.slang"
-#endif
-#ifndef USE_SLANG
+#else
 #include "terminal.c.ncurses"
 #endif

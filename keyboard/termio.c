@@ -178,7 +178,11 @@
 #include "cpu.h"
 #include "keymaps.h"
 #ifdef NEW_PIC
-#include "timer/pic.h"
+#include "../timer/pic.h"
+#endif
+
+#ifdef USE_SLANG
+#define USE_SLANG_KEYS
 #endif
 
 /* int15 fn=4f will clear CF if scan code should not be used,
@@ -333,7 +337,7 @@ struct funkeystruct {
   unsigned short code;
 };
 
-/* The funkeystruct structures have been moved to termio.h
+/* The funkeystruct structures have been moved to termio.h */
 /* This is a translation table for esc-prefixed terminal keyboard codes
  * to PC computer keyboard codes.
  */
@@ -831,6 +835,15 @@ tty_raw(int fd)
   return (0);
 }
 
+
+
+#ifdef USE_SLANG_KEYS
+#include "slang-termio.c"
+#endif
+
+
+
+
 void
 getKeys(void)
 {
@@ -840,8 +853,7 @@ getKeys(void)
     kbcount = 0;
     kbp = kbbuf;
 
-    /* IPC change here!...was read(kbd_fd... */
-    cc = read(kbd_fd, &kbp[kbcount], KBBUF_SIZE - 1);
+    cc = RPT_SYSCALL(read(kbd_fd, &kbp[kbcount], KBBUF_SIZE - 1));
     k_printf("KBD: cc found %d characters (Raw)\n", cc);
     if (cc == -1)
       return;
@@ -859,6 +871,10 @@ getKeys(void)
   }
   else {			/* Not keyboard at the console (not config.console_keyb) */
 
+#ifdef USE_SLANG_KEYS
+     do_slang_getkeys ();
+#endif
+#ifndef USE_SLANG_KEYS
     if (kbcount == 0)
       kbp = kbbuf;
     else if (kbp > &kbbuf[(KBBUF_SIZE * 3) / 5]) {
@@ -866,8 +882,7 @@ getKeys(void)
       kbp = kbbuf;
     }
 
-    /* IPC change here!...was read(kbd_fd... */
-    cc = read(kbd_fd, &kbp[kbcount], KBBUF_SIZE - kbcount - 1);
+    cc = RPT_SYSCALL(read(kbd_fd, &kbp[kbcount], KBBUF_SIZE - kbcount - 1));
     k_printf("KBD: cc found %d characters (Xlate)\n", cc);
     if (cc == -1)
       return;
@@ -882,6 +897,7 @@ getKeys(void)
 	k_printf("KBD: Converted\n");
       }
     }
+#endif  /* NOT SLANG */
   }
 }
 
@@ -975,6 +991,7 @@ child_set_flags(int sc)
   }
 }
 
+#ifndef USE_SLANG_KEYS
 /*
  * DANG_BEGIN_FUNCTION convascii
  *
@@ -1026,7 +1043,7 @@ convascii(int *cc)
 	  scr_tv.tv_usec = WAITTIME - t_dif;
 	}
       }
-      ccc = read(kbd_fd, &kbp[kbcount], KBBUF_SIZE - kbcount - 1);
+      ccc = RPT_SYSCALL(read(kbd_fd, &kbp[kbcount], KBBUF_SIZE - kbcount - 1));
       if (ccc > 0) {
 	kbcount += ccc;
 	*cc += ccc;
@@ -1090,10 +1107,11 @@ convascii(int *cc)
   (*cc)--;
   kbp++;
 }
+#endif /* NOT USE_SLANG_KEYS */
 
 /* InsKeyboard
-   returns 1 if a character could be inserted into Kbuffer
-   */
+ *  returns 1 if a character could be inserted into Kbuffer
+ */
 int
 InsKeyboard(unsigned short scancode)
 {
@@ -1187,6 +1205,10 @@ termioInit()
   for (fkp = funkey; fkp->code; fkp++) 
     numkeys++;
   qsort(funkey, numkeys, sizeof(struct funkeystruct), &fkcmp);
+   
+#ifdef USE_SLANG_KEYS
+   init_slang_keymaps ();
+#endif
 }
 
 /***************************************************************

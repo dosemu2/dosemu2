@@ -44,7 +44,7 @@ int blink_count = 8;
 boolean have_focus=0, is_mapped=0;
 
 /* from Xkeyb.c */
-void X_process_key(XKeyEvent *);
+extern void X_process_key(XKeyEvent *);
 
 /* The following are almost IBM standard color codes, with some slight
  *gamma correction for the dim colors to compensate for bright Xwindow screens.

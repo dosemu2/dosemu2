@@ -138,7 +138,7 @@
 #include "termio.h"
 #include "config.h"
 #ifdef NEW_PIC
-#include "timer/pic.h"
+#include "../timer/pic.h"
 #endif
 #include "port.h"
 
@@ -146,10 +146,10 @@
 #include "ipx.h"
 
 /* Needed for DIAMOND define */
-#include "video/vc.h"
+#include "../video/vc.h"
 
 #ifdef DPMI
-#include "dpmi/dpmi.h"
+#include "../dpmi/dpmi.h"
 #endif
 
 extern u_char in_sigsegv, in_sighandler, ignore_segv;
@@ -236,7 +236,7 @@ inline void vm86_GP_fault()
 
   case 0x6c:                    /* insb */
     *(SEG_ADR((unsigned char *),es,di)) = inb((int) LWORD(edx));
-    i_printf("insb(0x%04x) value %02x \n",
+    i_printf("insb(0x%04x) value %02x\n",
             LWORD(edx),*(SEG_ADR((unsigned char *),es,di)));   
     if(LWORD(eflags) & DF) LWORD(edi)--;
     else LWORD(edi)++;
@@ -254,9 +254,9 @@ inline void vm86_GP_fault()
       
 
   case 0x6e:			/* outsb */
-    outb(LWORD(edx), *(SEG_ADR((unsigned char *),ds,si)));
-    fprintf(stderr,"untested: outsb port 0x%04x value %02x",
+    fprintf(stderr,"untested: outsb port 0x%04x value %02x\n",
             LWORD(edx),*(SEG_ADR((unsigned char *),ds,si)));
+    outb(LWORD(edx), *(SEG_ADR((unsigned char *),ds,si)));
     if(LWORD(eflags) & DF) LWORD(esi)--;
     else LWORD(esi)++;
     LWORD(eip)++;
@@ -264,9 +264,9 @@ inline void vm86_GP_fault()
 
 
   case 0x6f:			/* outsw */
-    outw(LWORD(edx), *(SEG_ADR((unsigned short *),ds,si)));
-    fprintf(stderr,"untested: outsw port 0x%04x value %04x",
+    fprintf(stderr,"untested: outsw port 0x%04x value %04x\n",
             LWORD(edx), *(SEG_ADR((unsigned short *),ds,si)));
+    outw(LWORD(edx), *(SEG_ADR((unsigned short *),ds,si)));
     if(LWORD(eflags) & DF ) LWORD(esi) -= 2;
     else LWORD(esi) +=2; 
     LWORD(eip)++;
@@ -312,73 +312,62 @@ inline void vm86_GP_fault()
     LWORD(eip) += 1;
     break;
 
-  case 0xf3:                    /* rep */ 
-    if ((csp[1] & 0xff) == 0x6f) { 
-      /* Emulate REP F3 6F */
-      u_char *si = SEG_ADR((unsigned char *), ds, si);
-
-      fprintf(stderr, "Doing REP F3 6F\n");
-      show_regs();
-      if (config.chipset == DIAMOND && (LWORD(edx) >= 0x23c0) && (LWORD(edx) <= 0x23cf))
-	iopl(3);
-      while (LWORD(ecx)) {
-	fprintf(stderr, "1- LWORD(ecx)=0x%08x, *si=0x%04x, LWORD(edx)=0x%08x\n", LWORD(ecx), *si, LWORD(edx));
-	outb(LWORD(edx), *si);
-	si++;
-	fprintf(stderr, "2- LWORD(ecx)=0x%08x, *si=0x%04x, LWORD(edx)=0x%08x\n", LWORD(ecx), *si, LWORD(edx) + 1);
-	outb(LWORD(edx) + 1, *si);
-	si++;
-	LWORD(ecx)--;
+  case 0xf3:                    /* rep */
+    switch(csp[1] & 0xff) {                
+      case 0x6c: {             /* rep insb */
+        int delta = 1;
+        if(LWORD(eflags) &DF ) delta = -1;
+        i_printf("Doing REP F3 6C (rep insb) %04x bytes, DELTA %d\n",
+                LWORD(ecx),delta);
+        while (LWORD(ecx))  {
+          *(SEG_ADR((unsigned char *),es,di)) = inb((int) LWORD(edx));
+          LWORD(edi) += delta;
+          LWORD(ecx)--;
+        }
+        LWORD(eip)+=2;
+        break;
       }
-      if (config.chipset == DIAMOND && (LWORD(edx) >= 0x23c0) && (LWORD(edx) <= 0x23cf))
-	iopl(0);
-      fprintf(stderr, "Finished REP F3 6F\n");
-      LWORD(eip)+= 2;
-      LWORD(eflags) |= CF;
-      break;
-    }
-    else if ((csp[1] & 0xff) == 0x6c) {     /* rep insb */
-      int delta = 1;
-      if(LWORD(eflags) &DF ) delta = -1;
-      i_printf("Doing REP F3 6C (rep insb) %04x bytes, DELTA %d\n",
-              LWORD(ecx),delta);
-      while (LWORD(ecx))  {
-        *(SEG_ADR((unsigned char *),es,di)) = inb((int) LWORD(edx));
-        LWORD(edi) += delta;
-        LWORD(ecx)--;
+      case  0x6d: {           /* rep insw */
+        int delta =2;
+        if(LWORD(eflags) & DF) delta = -2;
+        i_printf("REP F3 6D (rep insw) %04x words, DELTA %d\n",
+                LWORD(ecx),delta);
+        while(LWORD(ecx)) {
+          *(SEG_ADR((unsigned short *),es,di))=inw(LWORD(edx));
+          LWORD(edi) += delta;
+          LWORD(ecx)--;
+         }
+         LWORD(eip) +=2;
+         break;
       }
-      LWORD(eip)+=2;
-      break;
-    }
-    else if((csp[1] & 0xff) == 0x6d) {      /* rep insw */
-      int delta =2;
-      if(LWORD(eflags) & DF) delta = -2;
-      i_printf("REP F3 6D (rep insw) %04x words, DELTA %d\n",
-              LWORD(ecx),delta);
-      while(LWORD(ecx)) {
-        *(SEG_ADR((unsigned short *),es,di))=inw(LWORD(edx));
-        LWORD(edi) += delta;
-        LWORD(ecx)--;
-       }
-       LWORD(eip) +=2;
-       break;
-    }
-    else if((csp[1] & 0xff) == 0x6e) {      /* rep outsb */
-      int delta = 1;
-      if(LWORD(eflags) & DF) delta = -1;
-      while(LWORD(ecx)) {
-        outb(LWORD(edx), *(SEG_ADR((unsigned char *),ds,si)));
-        LWORD(esi) += delta;
-        LWORD(ecx)--;
+      case 0x6e: {           /* rep outsb */
+        int delta = 1;
+        fprintf(stderr,"untested: rep outsb\n");
+        if(LWORD(eflags) & DF) delta = -1;
+        while(LWORD(ecx)) {
+          outb(LWORD(edx), *(SEG_ADR((unsigned char *),ds,si)));
+          LWORD(esi) += delta;
+          LWORD(ecx)--;
+        }
+        LWORD(eip)+=2;
+        break;
       }
-      LWORD(eip)+=2;
-      fprintf(stderr,"untested: rep outsb");
-      break;
-    }
-
-    else
+      case 0x6f: { 
+        int delta = 2;
+        fprintf(stderr,"untested: rep outsw\n");
+        if(LWORD(eflags) & DF) delta = -2;
+        while(LWORD(ecx)) {
+          outw(LWORD(edx), *(SEG_ADR((unsigned short *),ds,si)));
+          LWORD(esi) += delta;
+          LWORD(ecx)--;
+        }
+        LWORD(eip)+=2;
+        break;
+      }
+      default:
       fprintf(stderr, "Nope REP F3,CSP[1] = 0x%04x\n", csp[1]);
-
+    }
+    break;        
   case 0xf4:			/* hlt...I use it for various things,
 		  like trapping direct jumps into the XMS function */
     if (lina == (unsigned char *) XMSTrap_ADD) {

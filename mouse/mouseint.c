@@ -53,7 +53,7 @@ DOSEMUSetupMouse()
       if (mice->type == MOUSE_MOUSEMAN)
         {
           DOSEMUSetMouseSpeed(1200, 1200, mice->flags);
-          write(mice->fd, "*X", 2);
+          RPT_SYSCALL(write(mice->fd, "*X", 2));
           DOSEMUSetMouseSpeed(1200, mice->baudRate, mice->flags);
         }
       else if (mice->type != MOUSE_BUSMOUSE && mice->type != MOUSE_PS2) 
@@ -65,7 +65,7 @@ DOSEMUSetupMouse()
 
 	  if (mice->type == MOUSE_LOGITECH)
 	    {
-	      write(mice->fd, "S", 1);
+	      RPT_SYSCALL(write(mice->fd, "S", 1));
 	      DOSEMUSetMouseSpeed(mice->baudRate, mice->baudRate, mice->flags);
 	    }
 
@@ -73,17 +73,17 @@ DOSEMUSetupMouse()
 	  {
 	    char speedcmd;
 
-	    write(mice->fd, "z8", 2);	/* Set Parity = "NONE" */
+	    RPT_SYSCALL(write(mice->fd, "z8", 2));	/* Set Parity = "NONE" */
 	    usleep(50000);
-	    write(mice->fd, "zb", 2);	/* Set Format = "Binary" */
+	    RPT_SYSCALL(write(mice->fd, "zb", 2));	/* Set Format = "Binary" */
 	    usleep(50000);
-	    write(mice->fd, "@", 1);	/* Set Report Mode = "Stream" */
+	    RPT_SYSCALL(write(mice->fd, "@", 1));	/* Set Report Mode = "Stream" */
 	    usleep(50000);
-	    write(mice->fd, "R", 1);	/* Set Output Rate = "45 rps" */
+	    RPT_SYSCALL(write(mice->fd, "R", 1));	/* Set Output Rate = "45 rps" */
 	    usleep(50000);
-	    write(mice->fd, "I\x20", 2);	/* Set Incrememtal Mode "20" */
+	    RPT_SYSCALL(write(mice->fd, "I\x20", 2));	/* Set Incrememtal Mode "20" */
 	    usleep(50000);
-	    write(mice->fd, "E", 1);	/* Set Data Type = "Relative */
+	    RPT_SYSCALL(write(mice->fd, "E", 1));	/* Set Data Type = "Relative */
 	    usleep(50000);
 
 	    /* These sample rates translate to 'lines per inch' on the Hitachi
@@ -93,22 +93,22 @@ DOSEMUSetupMouse()
 	    else if (mice->sampleRate <=  200) speedcmd = 'e';
 	    else if (mice->sampleRate <=  500) speedcmd = 'h';
 	    else if (mice->sampleRate <= 1000) speedcmd = 'j';
-	    else                                  speedcmd = 'd';
-	    write(mice->fd, &speedcmd, 1);
+	    else                               speedcmd = 'd';
+	    RPT_SYSCALL(write(mice->fd, &speedcmd, 1));
 	    usleep(50000);
 
-	    write(mice->fd, "\021", 1);	/* Resume DATA output */
+	    RPT_SYSCALL(write(mice->fd, "\021", 1));	/* Resume DATA output */
 	  }
 	  else
 	  {
-	    if      (mice->sampleRate <=   0)  write(mice->fd, "O", 1);
-	    else if (mice->sampleRate <=  15)  write(mice->fd, "J", 1);
-	    else if (mice->sampleRate <=  27)  write(mice->fd, "K", 1);
-	    else if (mice->sampleRate <=  42)  write(mice->fd, "L", 1);
-	    else if (mice->sampleRate <=  60)  write(mice->fd, "R", 1);
-	    else if (mice->sampleRate <=  85)  write(mice->fd, "M", 1);
-	    else if (mice->sampleRate <= 125)  write(mice->fd, "Q", 1);
-	    else                                  write(mice->fd, "N", 1);
+	    if      (mice->sampleRate <=   0)  { RPT_SYSCALL(write(mice->fd, "O", 1));}
+	    else if (mice->sampleRate <=  15)  { RPT_SYSCALL(write(mice->fd, "J", 1));}
+	    else if (mice->sampleRate <=  27)  { RPT_SYSCALL(write(mice->fd, "K", 1));}
+	    else if (mice->sampleRate <=  42)  { RPT_SYSCALL(write(mice->fd, "L", 1));}
+	    else if (mice->sampleRate <=  60)  { RPT_SYSCALL(write(mice->fd, "R", 1));}
+	    else if (mice->sampleRate <=  85)  { RPT_SYSCALL(write(mice->fd, "M", 1));}
+	    else if (mice->sampleRate <= 125)  { RPT_SYSCALL(write(mice->fd, "Q", 1));}
+	    else                               { RPT_SYSCALL(write(mice->fd, "N", 1));}
 	  }
         }
 
@@ -138,7 +138,7 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 {
   int                  i, buttons=0, dx=0, dy=0;
   static int           pBufP = 0;
-  static unsigned char pBuf[8];
+  static unsigned char pBuf[1024];
 
   static unsigned char proto[8][5] = {
     /*  hd_mask hd_id   dp_mask dp_id   nobytes */
@@ -216,7 +216,7 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 		 c = clock() + 3;
 		 n=0;
 		 do {
-		    n = read(mice->fd, rBuf+i, 1);
+		    n = RPT_SYSCALL(read(mice->fd, rBuf+i, 1));
 		    m_printf("MOUSEINT: Inside read waiting for input!\n");
 		 } while (n < 1 && clock() < c);
 		 if (n==1) {
@@ -284,8 +284,8 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 	/*
 	 * calculate the new values for buttons, dx and dy
 	 */
-	mouse.x = mouse.x + dx * 8 / mouse.speed_x;
-	mouse.y = mouse.y + dy * 8 / mouse.speed_y;
+	mouse.x = mouse.x + dx;
+	mouse.y = mouse.y + dy;
 	mouse.cx = mouse.x / 8;
 	mouse.cy = mouse.y / 8;
 	mouse.oldlbutton = mouse.lbutton;
@@ -411,7 +411,9 @@ unsigned cflag;
 	{
 		m_printf("MOUSE: Unable to write to mouse fd. Mouse may not function properly.\n");
 	}
+#if 0 /* 94/11/29 This causes DOSEMU to lock when debug is turned on */
 	usleep(100000);
+#endif
 
 	if (tcsetattr(mice->fd, TCSADRAIN, &tty) < 0)
 	{
@@ -421,8 +423,9 @@ unsigned cflag;
 
 void DOSEMUMouseEvents()
 {
-#define MOUSE_BUFFER 64
-	unsigned char rBuf[64];
+/* We define a large buffer, because of high overheads with other processes */
+#define MOUSE_BUFFER 1024
+	unsigned char rBuf[MOUSE_BUFFER];
 	int nBytes;
 
 	nBytes = RPT_SYSCALL(read(mice->fd, (char *)rBuf, sizeof(rBuf)));

@@ -1,4 +1,4 @@
-#include <linux/segment.h>
+#include <asm/segment.h>
 #include <linux/sys.h>
 
 

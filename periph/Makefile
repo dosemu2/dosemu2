@@ -31,7 +31,7 @@ checkout:
 clean:
 	rm -f bootsect *.o hdinfo mkhdimage putrom
 
-realclean:
+realclean: clean
 
 dist: $(SRC) $(OBJ)
 	install -d $(DISTPATH)/periph

@@ -369,7 +369,7 @@ inb(int port)
     break;
 
 #define COUNTER 2
-#if 1 /*Oct-21-94*/
+#if 0 /*Nov-21-94*/
   case 0x40:
     r = do_40(1, 0);
     break;
@@ -459,7 +459,7 @@ inw(int port)
     v_printf("S3 inw [0x%04x] = 0x%04x\n", port, value);
     return value;
   }
-  return ((inb(port + 1) << 8) + inb(port));
+  return( read_port_w(port) );
 }
 
 inline void
@@ -703,8 +703,11 @@ outw(int port, int value)
     v_printf("S3 outw [0x%04x] = 0x%04x\n", port, value);
     return;
   }
-  outb(port, value & 0xff);
-  outb(port + 1, value >> 8);
+  if(!write_port_w(value,port) ) {
+    outb(port, value & 0xff);
+    outb(port + 1, value >> 8);
+  }
+
 }
 
 void update_timers(void) {

@@ -1,8 +1,19 @@
+ifndef SUBDIR
 Makefile.common:
+	echo This rule should never execute
+	false
+endif
+
+ifndef OBJS
+OBJS=$($(wildcard *.c):.c=.o)
+endif
+
+ifndef DEPENDS
+DEPENDS=$(OBJS:.o=.d)
+endif
 
 
-
-LIB:=../lib/lib$(SUBDIR).a
+LIB=../lib/lib$(SUBDIR).a
 
 AR=ar
 RANLIB=ranlib
@@ -14,13 +25,48 @@ $(LIB):	$(OBJS)
 	$(AR) cr $@ $^
 	$(RANLIB) $@
 
-..PHONY:	clean realclean 
+.PHONY:	clean realclean 
+
 realclean clean::
 	-rm $(OBJS)
 	-rm $(LIB)
 
 realclean::
 	-rm .depend
+	-rm *.d
 
-%.o: %.c
+checkin::
+	-ci $(ALL) Makefile
+
+checkout::
+	-co -M -l $(ALL) Makefile
+
+dist:: $(ALL) Makefile
+	install -d $(DISTPATH)/$(SUBDIR)
+	install -m 0644 $(ALL) Makefile $(DISTPATH)/$(SUBDIR)
+
+depend dep: $(DEPENDS)	
+
+
+%.o:	 %.c
 	$(CC) -c $(CFLAGS) -o $@ $<
+
+# Use -M for everything  or -MM for local
+TYPE_DEPEND=-MM
+
+%.d: %.c
+	$(SHELL) -ec '$(CC) $(TYPE_DEPEND) $(CFLAGS) $< \
+        | sed '\''s/$*\\.o[ :]*/& $@/g'\'' > $@'
+
+ifdef DEPENDS
+ifneq "$(wildcard *.d)" ""
+	include $(wildcard  *.d)
+endif
+endif
+
+# this is mainly for debugging the makefile
+echo:
+	@echo LIB=$(LIB)
+	@echo DEPENDS=$(DEPENDS)
+	@echo OBJS=$(OBJS)
+	@echo CFILES = $(wildcard *.c)

@@ -223,7 +223,7 @@
 #include "port.h"
 
 #ifdef DPMI
-#include "dpmi/dpmi.h"
+#include "../dpmi/dpmi.h"
 #endif
 
 extern void queue_hard_int(int i, void (*), void (*));
@@ -552,6 +552,51 @@ read_port(int port)
 }
 
 int
+read_port_w(int port)
+{
+  int r;
+  int i = find_port(port,IO_READ);
+  int j = find_port(port+1,IO_READ);
+
+  if(i == -1) {
+    i_printf("can't read low-byte of 16 bit port 0x%04x:trying to read high\n",
+              port); 
+    return(read_port(port+1) << 8 );
+  }
+  if(j == -1) {
+    i_printf("can't read hi-byte of 16 bit port 0x%04x:trying to read low\n",
+              port);
+  return(read_port(port));
+  }
+
+  if(port <= 0x3fe) {
+     set_ioperm(port  ,2,1);
+  }
+  else
+     iopl(3);
+
+  r = port_in_w(port);
+  if(port <= 0x3fe) {
+     set_ioperm(port,2,0);
+  }
+  else
+    iopl(0);
+
+  if(!video_port_io) {
+    r &= ( ports[i].andmask | 0xff00 );
+    r &= ( (ports[j].andmask << 8) | 0xff);
+    r |= ( ports[i].ormask & 0xff ); 
+    r |= ( (ports[j].ormask << 8) & 0xff00 );
+  }
+  else
+    video_port_io = 0;
+
+  i_printf("read 16 bit port 0x%x gave %04x at %04x:%04x\n",
+           port, r, LWORD(cs), LWORD(eip));
+   return (r);
+}
+
+int
 write_port(int value, int port)
 {
   int i = find_port(port, IO_WRITE);
@@ -583,5 +628,45 @@ write_port(int value, int port)
 
   return (1);
 }
+
+int
+write_port_w(int value,int port)
+{
+  int i = find_port(port, IO_WRITE);
+  int j = find_port(port + 1, IO_WRITE);
+
+  if( (i == -1) || (j == -1) ) {
+    i_printf("can't write to 16 bit port 0x%04x\n",port);
+    return 0;
+  } 
+  if(!video_port_io) {
+    value &= ( ports[i].andmask | 0xff00 );
+    value &= ( (ports[j].andmask << 8) | 0xff );
+    value |= ( ports[i].ormask & 0xff );
+    value |= ( (ports[j].ormask << 8) & 0xff00);
+  }
+  else
+    video_port_io = 0;
+
+  i_printf("write 16 bit port 0x%x value %04x at %04x:%04x\n",
+           port, value, LWORD(cs), LWORD(eip));
+
+  if (port <= 0x3fe) {
+    set_ioperm(port  ,2,1);
+  }
+  else
+    iopl(3);
+
+  port_out_w(value, port);
+
+  if (port <= 0x3fe) {
+    set_ioperm(port, 2, 0);
+  }
+  else
+    iopl(0);
+
+  return (1);
+}
+
 
 #undef CPU_C

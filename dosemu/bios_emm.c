@@ -1522,11 +1522,6 @@ alternate_map_register(state_t * state)
     Kdebug1((dbg_fd, "bios_emm: Illegal alternate_map_register\n"));
     return;
   }
-  if (LOW(state->ebx)) {
-    SETHIGH(&(state->eax), 0x8f);
-    Kdebug1((dbg_fd, "bios_emm: Illegal alternate_map_register request for reg set 0x%x\n", (unsigned int)LOW(state->ebx)));
-    return;
-  }
   switch (LOW(state->eax)) {
     case 0:{			/* Get Alternate Map Register */
         if (save_es){
@@ -1555,8 +1550,29 @@ alternate_map_register(state_t * state)
           SETHIGH(&(state->eax), EMM_NO_ERR);
 	  Kdebug1((dbg_fd, "bios_emm: Get Alternate Registers - Not Active\n"));
         }
-       break;
+       return;
       }
+    case 2:
+      Kdebug1((dbg_fd, "bios_emm: Get Alternate Map Save Array Size = 0x%x\n", PAGE_MAP_SIZE));
+      SETHIGH(&(state->eax), EMM_NO_ERR);
+      SETWORD(&(state->edx), PAGE_MAP_SIZE);
+      return;
+    case 3:			/* Allocate Alternate Register */
+      SETHIGH(&(state->eax), EMM_NO_ERR);
+      SETLOW(&(state->ebx), 0x0);
+      Kdebug1((dbg_fd, "bios_emm: alternate_map_register Allocate Alternate Register\n"));
+      return;
+    case 5:			/* Allocate DMA */
+      SETHIGH(&(state->eax), EMM_NO_ERR);
+      Kdebug1((dbg_fd, "bios_emm: alternate_map_register Enable DMA bl=0x%x\n", (unsigned int)LOW(state->ebx)));
+      return;
+    }
+    if (LOW(state->ebx)) {
+      SETHIGH(&(state->eax), 0x8f);
+      Kdebug1((dbg_fd, "bios_emm: Illegal alternate_map_register request for reg set 0x%x\n", (unsigned int)LOW(state->ebx)));
+      return;
+      }
+  switch (LOW(state->eax)) {
     case 1:{			/* Set Alternate Map Register */
 
 	 Kdebug1((dbg_fd, "bios_emm: Set Alternate Registers\n"));
@@ -1591,23 +1607,9 @@ alternate_map_register(state_t * state)
          break;
        }
        break;
-    case 2:
-      Kdebug1((dbg_fd, "bios_emm: Get Alternate Map Save Array Size = 0x%x\n", PAGE_MAP_SIZE));
-      SETHIGH(&(state->eax), EMM_NO_ERR);
-      SETWORD(&(state->edx), PAGE_MAP_SIZE);
-      break;
-    case 3:			/* Allocate Alternate Register */
-      SETHIGH(&(state->eax), EMM_NO_ERR);
-      SETLOW(&(state->ebx), 0x0);
-      Kdebug1((dbg_fd, "bios_emm: alternate_map_register Allocate Alternate Register\n"));
-      break;
     case 4:			/* Deallocate Register */
       SETHIGH(&(state->eax), EMM_NO_ERR);
       Kdebug1((dbg_fd, "bios_emm: alternate_map_register Deallocate Register\n"));
-      break;
-    case 5:			/* Allocate DMA */
-      SETHIGH(&(state->eax), EMM_NO_ERR);
-      Kdebug1((dbg_fd, "bios_emm: alternate_map_register Enable DMA bl=0x%x\n", (unsigned int)LOW(state->ebx)));
       break;
     case 6:			/* Enable DMA */
       if (LOW(state->ebx) > 0)

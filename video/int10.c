@@ -21,7 +21,7 @@
   #if USE_SCROLL_QUEUE
     #error "dualmon: You can't have defined USE_SCROLL_QUEUE together with USE_DUALMON"
   #endif
-  #define BIOS_CONFIG_SCREEN_MODE (bios_configuration & 0x30)
+  #define BIOS_CONFIG_SCREEN_MODE (READ_WORD(BIOS_CONFIGURATION) & 0x30)
   #define IS_SCREENMODE_MDA (BIOS_CONFIG_SCREEN_MODE == 0x30)
   /* This is the text screen base, the DOS program actually has to use.
    * Programs that support simultaneous dual monitor support rely on
@@ -192,8 +192,8 @@ char_out(unsigned char ch, int s)
 #if USE_DUALMON
   int virt_text_base = BIOS_SCREEN_BASE;
 #endif
-  xpos = bios_cursor_x_position(s);
-  ypos = bios_cursor_y_position(s);
+  xpos = get_bios_cursor_x_position(s);
+  ypos = get_bios_cursor_y_position(s);
 
   switch (ch) {
   case '\r':         /* Carriage return */
@@ -214,7 +214,7 @@ char_out(unsigned char ch, int s)
     v_printf("tab\n");
     do {
 	char_out(' ', s); 
-  	xpos = bios_cursor_x_position(s);
+  	xpos = get_bios_cursor_x_position(s);
     } while (xpos % 8 != 0);
     break;
 
@@ -242,8 +242,8 @@ char_out(unsigned char ch, int s)
     scrollup(0, 0, co - 1, li - 1, 1, newline_att);
 */
   }
-  bios_cursor_x_position(s) = xpos;
-  bios_cursor_y_position(s) = ypos;
+  set_bios_cursor_x_position(s, xpos);
+  set_bios_cursor_y_position(s, ypos);
   cursor_col = xpos;
   cursor_row = ypos;
 }
@@ -269,7 +269,8 @@ clear_screen(int s, int att)
        *(schar++) = blank, lx++);
 
   set_dirty(s);
-  bios_cursor_x_position(s) = bios_cursor_y_position(s) = 0;
+  set_bios_cursor_x_position(s, 0);
+  set_bios_cursor_y_position(s, 0);
   cursor_row = cursor_col = 0;
   clear_scroll_queue();
 }
@@ -312,7 +313,7 @@ boolean set_video_mode(int mode) {
   case 3:
     /* set 80 column text mode */
 #if USE_DUALMON
-    bios_screen_columns = co = CO /*80*/;
+    WRITE_WORD(BIOS_SCREEN_COLUMNS, co = CO); /*80*/
 #else
     co=80;
 #endif
@@ -324,9 +325,9 @@ do_text_mode:
 
     li=text_scanlines/vga_font_height;
     if (li>MAX_LINES) li=MAX_LINES;
-    bios_rows_on_screen_minus_1 = li-1;
-    bios_font_height=vga_font_height;
-    bios_video_mode=video_mode;
+    WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li-1);
+    WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
+    WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
     if (Video->setmode) {
       Video->setmode(type,co,li);
     }
@@ -338,7 +339,7 @@ do_text_mode:
     if (!(mode & 0x80))
        clear_screen(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), 7);
        
-    bios_video_mode=video_mode=mode&0x7f;
+    WRITE_BYTE(BIOS_VIDEO_MODE, video_mode=mode&0x7f);
     break;
 
   Default:
@@ -368,12 +369,12 @@ void int10()
   
   if (config.dualmon && (last_equip != BIOS_CONFIG_SCREEN_MODE)) {
     extern struct video_system *Video_default;
-    v_printf("VID: int10 entry, equip-flags=0x%04x\n",bios_configuration);
+    v_printf("VID: int10 entry, equip-flags=0x%04x\n",READ_WORD(BIOS_CONFIGURATION));
     last_equip = BIOS_CONFIG_SCREEN_MODE;
     if (IS_SCREENMODE_MDA) Video->is_mapped = 1;
     else Video->is_mapped = Video_default->is_mapped;
-    li=bios_rows_on_screen_minus_1+1;
-    co=bios_screen_columns;
+    li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
+    co= READ_WORD(BIOS_SCREEN_COLUMNS);
   }
 #endif
 
@@ -388,9 +389,9 @@ void int10()
 	dbug_printf("int10 AH=%02x AL=%02x\n", HI(ax), LO(ax));
     }
 
-/*
-  printf("int10, ax=%04x bx=%04x\n",LWORD(eax),LWORD(ebx));
-*/
+#if 0
+  v_printf("VID: int10, ax=%04x bx=%04x\n",LWORD(eax),LWORD(ebx));
+#endif
   NOCARRY;
 
   switch (HI(ax)) {
@@ -422,8 +423,8 @@ void int10()
     if (x >= co || y >= li)
       break;
 
-    bios_cursor_x_position(page) = x;
-    bios_cursor_y_position(page) = y;
+    set_bios_cursor_x_position(page, x);
+    set_bios_cursor_y_position(page, y);
     cursor_col = x;
     cursor_row = y;
     break;
@@ -435,8 +436,8 @@ void int10()
       CARRY;
       return;
     }
-    REG(edx) = (bios_cursor_y_position(page) << 8) 
-              | bios_cursor_x_position(page);
+    REG(edx) = (get_bios_cursor_y_position(page) << 8) 
+              | get_bios_cursor_x_position(page);
     REG(ecx) = READ_WORD(BIOS_CURSOR_SHAPE);
     break;
 
@@ -455,12 +456,12 @@ void int10()
       if (config.console_video) set_vc_screen_page(page);
 
       WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, video_page = page);
-      bios_video_memory_address = TEXT_SIZE * page;
+      WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, TEXT_SIZE * page);
       screen_adr = SCREEN_ADR(page);
       screen_mask = 1 << page;
       set_dirty(page);
-      cursor_col = bios_cursor_x_position(page);
-      cursor_row = bios_cursor_y_position(page);
+      cursor_col = get_bios_cursor_x_position(page);
+      cursor_row = get_bios_cursor_y_position(page);
       break;
     }
 
@@ -489,8 +490,8 @@ void int10()
       break;
     }
     sm = SCREEN_ADR(page);
-    REG(eax) = sm[co * bios_cursor_y_position(page) 
-		     + bios_cursor_x_position(page)];
+    REG(eax) = sm[co * get_bios_cursor_y_position(page) 
+		     + get_bios_cursor_x_position(page)];
     break;
 
     /* these two put literal character codes into memory, and do
@@ -506,8 +507,8 @@ void int10()
 
       page = HI(bx);
       sadr = (u_short *) SCREEN_ADR(page) 
-	     + bios_cursor_y_position(page) * co
-	     + bios_cursor_x_position(page);
+	     + get_bios_cursor_y_position(page) * co
+	     + get_bios_cursor_x_position(page);
       n = LWORD(ecx);
       c = LO(ax);
 
@@ -555,8 +556,8 @@ void int10()
 
       if (LO(ax)&1) {                    /* update cursor position */
          n = x+co*y;
-	 bios_cursor_x_position(page) = n%co;
-	 bios_cursor_y_position(page) = n/co;
+	 set_bios_cursor_x_position(page, n%co);
+	 set_bios_cursor_y_position(page, n/co);
       }
       set_dirty(page);
     }
@@ -568,7 +569,7 @@ void int10()
 
   case 0x0f:			/* get video mode */
 #if USE_DUALMON
-    if (IS_SCREENMODE_MDA) LWORD(eax) = (CO << 8) | bios_video_mode;
+    if (IS_SCREENMODE_MDA) LWORD(eax) = (CO << 8) | READ_BYTE(BIOS_VIDEO_MODE);
     else 
 #endif
     LWORD(eax) = (co << 8) | video_mode;
@@ -583,6 +584,7 @@ void int10()
     if (LO(ax) == 3) {      
       char_blink = LO(bx) & 1;
     }
+    break;
 
 #if 0
   case 0xb:			/* palette */
@@ -647,7 +649,7 @@ void int10()
       break;
     case 0x30:     /* get current character generator info */
       LWORD(ecx)=vga_font_height;
-      LO(dx)=bios_rows_on_screen_minus_1;
+      LO(dx)= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1);
       LWORD(es)=LWORD(ebp)=0;  /* return NULL pointer */
     }
     break;
@@ -661,7 +663,7 @@ void int10()
       LO(bx)=3;
       v_printf("video subsystem 0x10 BX=0x%04x\n", LWORD(ebx));
       HI(cx)=0xf;  /* feature bits (no feature controller) */
-      LO(cx)=bios_video_info_1 & 0xf;
+      LO(cx)=READ_BYTE(BIOS_VIDEO_INFO_1) & 0xf;
       break;
     case 0x20:
       v_printf("select alternate printscreen\n");

@@ -7,7 +7,6 @@
  *
  *	(c) 1994 Alan Cox	iiitac@pyr.swan.ac.uk	GW4PTS@GB7SWN
  */
-#include <stdio.h>
 
 #include <unistd.h>
 #include <string.h>
@@ -15,16 +14,11 @@
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-#include <sys/stat.h>
 #include <linux/sockios.h>
 #include <linux/if.h>
 #include <netinet/in.h>
-#include <linux/if_ether.h>
 
-#include "emu.h"
 #include "libpacket.h"
-
-#include  "dosnet.h"
 
 /*
  *	Obtain a file handle on a raw ethernet type. In actual fact
@@ -38,63 +32,13 @@
  *	hell will break loose.
  */
 
-
-/* Should return an unique ID (< 255) corresponding to this invocation 
-   of DOSEMU not clashing with other DOSEMU's. 
-   We use tty number.  If someone invokes dosemu in background, we 
-   are in trouble ... ;-(. 
-*/
-
-
-static unsigned short int DosnetID=0xffff;
 int 
-GetDosnetID()
-{  
-  struct stat chkbuf;
-  int major, minor;
-
-  if (DosnetID != 0xffff) return (DosnetID) ;
-
-  fstat(STDOUT_FILENO, &chkbuf);
-  major = chkbuf.st_rdev >> 8;
-  minor = chkbuf.st_rdev & 0xff;
-
-  if (major != 4) {
-      /* Not running on tty/ttyp/ttyS. I really don't know what to do. 
-         For now, let us exit ... */
-      pd_printf( "DosNetID: Can't work without a tty/pty/ttyS, assigning an odd one ... ");
-      minor=241;
-  }
-  
-  DosnetID = (unsigned short int)DOSNET_TYPE_BASE + minor;
-  pd_printf("Assigned DosnetID=%x\n", DosnetID );
-  return(DosnetID);
-}
-
-
-int 
-DosnetOpenNetworkType(unsigned short netid)
+OpenNetworkType(unsigned short netid)
 {
-  /* Here, netid is ignored, and instead, we send our own netid. 
-     assigned to this dosnet session. 
-   */
-  int s = socket(AF_INET, SOCK_PACKET, htons(GetDosnetID()));  
+  int s = socket(AF_INET, SOCK_PACKET, htons(netid));
+
   if (s == -1)
     return -1;
-  fcntl(s, F_SETFL, O_NDELAY);
-  return s;
-}
-
-/* Return a socket opened in broadcast mode ... */
-int
-DosnetOpenBroadcastNetworkType()
-{
-  int s = socket(AF_INET, SOCK_PACKET, htons(DOSNET_BROADCAST_TYPE));  
-           /* this is special value !*/
-  if (s == -1) {
-    return -1;
-    pd_printf("DosnetOpenBroadcast.. couldnot open socket.\n");
-  }
   fcntl(s, F_SETFL, O_NDELAY);
   return s;
 }
@@ -104,7 +48,7 @@ DosnetOpenBroadcastNetworkType()
  */
 
 void 
-DosnetCloseNetworkLink(int sock)
+CloseNetworkLink(int sock)
 {
   close(sock);
 }
@@ -120,12 +64,12 @@ DosnetCloseNetworkLink(int sock)
  */
 
 int 
-DosnetWriteToNetwork(int sock, const char *device, const char *data, int len)
+WriteToNetwork(int sock, const char *device, const char *data, int len)
 {
   struct sockaddr sa;
 
   sa.sa_family = AF_INET;
-  strcpy(sa.sa_data, DOSNET_DEVICE);
+  strcpy(sa.sa_data, device);
 
   return (sendto(sock, data, len, 0, &sa, sizeof(sa)));
 }
@@ -143,7 +87,7 @@ DosnetWriteToNetwork(int sock, const char *device, const char *data, int len)
  */
 
 int 
-DosnetReadFromNetwork(int sock, char *device, char *data, int len)
+ReadFromNetwork(int sock, char *device, char *data, int len)
 {
   struct sockaddr sa;
   int sz = sizeof(sa);
@@ -178,26 +122,25 @@ DosnetReadFromNetwork(int sock, char *device, char *data, int len)
 #define NET3
 #endif
 
-
-
-/* This routine is totally local; doesn't make request to actual device. */
-
-char local_eth_addr[6]={0,0,0,0,0,0};
 int 
-DosnetGetDeviceHardwareAddress(char *device, char *addr)
-{  
-   int i;
-   memcpy(local_eth_addr,DOSNET_FAKED_ETH_ADDRESS, 6);
-   (void)GetDosnetID();
-   *(unsigned short int *)&(local_eth_addr[2])= DosnetID ;
+GetDeviceHardwareAddress(char *device, char *addr)
+{
+  int s = socket(AF_INET, SOCK_DGRAM, 0);
+  struct ifreq req;
+  int err;
 
-   memcpy(addr, local_eth_addr, 6);
+  strcpy(req.ifr_name, device);
 
-   pd_printf("Assigned Ethernet Address= " );
-   for ( i=0; i< 6 ; i++)  pd_printf("%x:", local_eth_addr[i]);
-   pd_printf( "\n");
-
-   return 0;
+  err = ioctl(s, SIOCGIFHWADDR, &req);  
+  close(s);	/* Thanks Rob. for noticing this */
+  if (err == -1)
+    return err;
+#ifdef NET3    
+  memcpy(addr, req.ifr_hwaddr.sa_data,8);
+#else
+  memcpy(addr, req.ifr_hwaddr, 8);
+#endif  
+  return 0;
 }
 
 /*
@@ -209,7 +152,7 @@ DosnetGetDeviceHardwareAddress(char *device, char *addr)
  */
 
 int 
-DosnetGetDeviceMTU(char *device)
+GetDeviceMTU(char *device)
 {
   int s = socket(AF_INET, SOCK_DGRAM, 0);
   struct ifreq req;
@@ -222,14 +165,4 @@ DosnetGetDeviceMTU(char *device)
   if (err == -1)
     return err;
   return req.ifr_mtu;
-}
-
-void
-printbuf(char *mesg, struct ethhdr *buf)
-{ int i;
-  pd_printf( "%s :\n Dest.=", mesg);
-  for (i=0;i<6;i++) pd_printf("%x:",buf->h_dest[i]);
-  pd_printf( " Source=") ;
-  for (i=0;i<6;i++) pd_printf("%x:",buf->h_source[i]);
-  pd_printf( " Type= %x \n", buf->h_proto) ;
 }

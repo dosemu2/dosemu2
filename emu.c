@@ -1007,13 +1007,19 @@ void memory_init(void) {
   unsigned char *ptr;
   ushort *seg, *off;
 
-  /* fill the last page w/HLT, except leave the BIOS date & machine
-   * type there if BIOS mapped in... */
-  if (!config.mapped_sbios) {
-    memset((char *) 0xffff0, 0xF4, 16);
-
-    strncpy((char *) 0xffff5, "02/25/93", 8);	/* set our BIOS date */
-    *(char *) 0xffffe = 0xfc;	/* model byte = IBM AT */
+  /* first get the bios-template and copy it to it's write place */
+  {
+    extern void bios_f000(), bios_f000_end();
+    FILE *f;
+    ptr = (u_char *) (BIOSSEG << 4);
+    memcpy(ptr, bios_f000, (unsigned long)bios_f000_end - (unsigned long)bios_f000);
+#if 0 /* for debugging only */
+    f = fopen("/tmp/bios","w");
+    fprintf(stderr,"opened /tmp/bios f=%p\n",f);
+    fwrite(ptr,0x8000,2,f);
+    fflush(f);
+    fclose(f);
+#endif
   }
 
   /* init trapped interrupts called via jump */
@@ -1022,16 +1028,6 @@ void memory_init(void) {
     if ((i & 0xf8) == 0x60)
       continue;			/* user interrupts */
     SETIVEC(i, BIOSSEG, 16 * i);
-    ptr = (unsigned char *) (BIOSSEG * 16 + 16 * i);
-    *ptr++ = 0xcd;
-    *ptr++ = i;			/* 0xcd = INT */
-    if ((i & 0xf8) == 8)	/* hardware interrupts */
-      *ptr++ = 0xcf;		/* 0xcf = IRET */
-    else {
-      *ptr++ = 0xca;
-      *ptr++ = 2;
-      *ptr++ = 0;		/* 0xca = RETF */
-    }
   }
 
   /* Next let's set up those interrupts we look after in 
@@ -1039,119 +1035,47 @@ void memory_init(void) {
   */
   setup_interrupts();
 
-  /* user timer tick, should be an IRET */
-  *(unsigned char *) (BIOSSEG * 16 + 16 * 0x1c) = 0xcf;
-
   /* Let kernel handle this, no need to return to DOSEMU */
   SETIVEC(0x1c, 0xf01c, 0);
-
-  /* XMS has it's handler just after the interrupt dummy segment */
-  ptr = (unsigned char *) (XMSControl_ADD);
-  *ptr++ = 0xeb;		/* jmp short forward 3 */
-  *ptr++ = 3;
-  *ptr++ = 0x90;		/* nop */
-  *ptr++ = 0x90;		/* nop */
-  *ptr++ = 0x90;		/* nop */
-  *ptr++ = 0xf4;		/* HLT...the current emulator trap */
-  *ptr++ = INT2F_XMS_MAGIC;	/* just an info byte. reserved for later */
-  *ptr++ = 0xcb;		/* FAR RET */
 
   /* show EMS as disabled */
   SETIVEC(0x67, 0, 0);
 
   if (mice->intdrv) {
     /* this is the mouse handler */
-    ptr = (unsigned char *) (Mouse_ADD);
-
-/* 
- * mouse routine simulates the stack frame of an int, then does a
- * "pushad" before here...so we just "popad; iret" to get back out
- */
-    *ptr++ = 0xff;
-    *ptr++ = 0x1e;
-    *(((us *) ptr)++) = Mouse_OFF + 8;	/* uses ptr[3] as well */
-    *ptr++ = 0x07;		/* pop es */
-    *ptr++ = 0x1f;		/* pop ds */
-    *ptr++ = 0x61;		/* popa */
-    *ptr++ = 0xcf;		/* iret */
-
-    *ptr++ = 0x27;		/* placeholder(offset) */
-    *ptr++ = 0x02;		/* placeholder */
-    off = (u_short *) (ptr - 2);
-    *ptr++ = 0x81;		/* placeholder(segment) */
-    *ptr++ = 0x1c;		/* placeholder */
-    seg = (u_short *) (ptr - 2);
-
+    ptr = (unsigned char *) (Mouse_ADD+12);
+    off = (u_short *) (Mouse_ADD + 8);
+    seg = (u_short *) (Mouse_ADD + 10);
     /* tell the mouse driver where we are...exec add, seg, offset */
     mouse_sethandler(ptr, seg, off);
+    SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
+    SETIVEC(0x33, Mouse_SEG, Mouse_ROUTINE_OFF);
   }
   else
     *(unsigned char *) (BIOSSEG * 16 + 16 * 0x33) = 0xcf;	/* IRET */
 
-  ptr = (u_char *) Banner_ADD;
-  *ptr++ = 0xb0;		/* mov al, 5 */
-  *ptr++ = 0x05;
-  *ptr++ = 0xcd;		/* int 0xe6 */
-  *ptr++ = 0xe6;
-  *ptr++ = 0xb2;		/* MOV DL, bootdrive */
-  *ptr++ = config.hdiskboot ? 0x80 : 0;
-  *ptr++ = 0xcb;		/* far ret */
+  {
+    /* update boot drive in Banner-code */
+    extern void bios_f000_bootdrive(), bios_f000();
+    ptr = (u_char *)((BIOSSEG << 4) + ((long)bios_f000_bootdrive - (long)bios_f000));
+    *ptr = config.hdiskboot ? 0x80 : 0;
+  }
 
-  /* Welcome to an -inline- int16 routine - ask for details :-) */
-  ptr = (u_char *) INT16_ADD;
-  memcpy(ptr, INT16_dummy_start, (unsigned long) INT16_dummy_end - (unsigned long) INT16_dummy_start);
+
   SETIVEC(0x16, INT16_SEG, INT16_OFF);
-
-  /* inline int09 routine */
-  ptr = (u_char *) INT09_ADD;
-  memcpy(ptr, INT09_dummy_start, (unsigned long) INT09_dummy_end - (unsigned long) INT09_dummy_start);
   SETIVEC(0x09, INT09_SEG, INT09_OFF);
-
-  /* int08 */
-  ptr = (u_char *) INT08_ADD;
-  memcpy(ptr, INT08_dummy_start, (unsigned long) INT08_dummy_end - (unsigned long) INT08_dummy_start);
   SETIVEC(0x08, INT08_SEG, INT08_OFF);
 
   install_int_10_handler();	/* Install the handler for video-interrupt */
 
   /* This is an int e7 used for FCB opens */
-  ptr = (u_char *) INTE7_ADD;
-  *ptr++ = 0x06;
-  *ptr++ = 0x57;
-  *ptr++ = 0x50;
-  *ptr++ = 0xb8;		/* mov ax, 0x120c */
-  *ptr++ = 0x0c;
-  *ptr++ = 0x12;
-  *ptr++ = 0xcd;		/* int 0x2f */
-  *ptr++ = 0x2f;
-  *ptr++ = 0x58;
-  *ptr++ = 0x5f;
-  *ptr++ = 0x07;
-  *ptr = 0xcf;			/* IRET */
   SETIVEC(0xe7, INTE7_SEG, INTE7_OFF);
   /* End of int 0xe7 for FCB opens */
-
-#ifdef DPMI
-  /* A call from a DPMI program to go protected will go here, a HLT */
-  ptr = (u_char *) DPMI_ADD;
-  memcpy(ptr, DPMI_dummy_start, (unsigned long)DPMI_dummy_end-(unsigned long)DPMI_dummy_start);
-#endif
-
-  /* set up BIOS exit routine (we have *just* enough room for this) */
-  ptr = (u_char *) 0xffff0;
-  *ptr++ = 0xb8;		/* mov ax, 0xffff */
-  *ptr++ = 0xff;
-  *ptr++ = 0xff;
-  *ptr++ = 0xcd;		/* int 0xe6 */
-  *ptr++ = 0xe6;
 
   /* set up relocated video handler (interrupt 0x42) */
 #if USE_DUALMON
   if (config.dualmon == 2) {
     interrupt_function[0x42] = int10;
-    ptr = (u_char *) 0xff065;
-    *ptr++=0xcd; *ptr++=0x42;        /* int 0x42 */
-    *ptr++=0xca; *ptr++=2; *ptr++=0; /* RETF 2 */ 
   }
   else
 #endif 
@@ -1182,22 +1106,6 @@ void memory_init(void) {
 
   bios_ctrl_alt_del_flag = 0x0000;
   *(char *) 0x496 = 16;		/* 102-key keyboard */
-
-  /* from Alan Cox's mods */
-  /* we need somewhere for the bios equipment. */
-
-  ptr = (u_char *) ROM_CONFIG_ADD;
-  *ptr++ = 0x09;
-  *ptr++ = 0x00;		/* 9 byte table */
-  *ptr++ = 0xFC;		/* PC AT */
-  *ptr++ = 0x01;
-  *ptr++ = 0x04;		/* bios revision 4 */
-  *ptr++ = 0x70;		/* no mca, no ebios, no wat, keybint,
-				   rtc, slave 8259, no dma 3 */
-  *ptr++ = 0x00;
-  *ptr++ = 0x00;
-  *ptr++ = 0x00;
-  *ptr++ = 0x00;
 
   REG(ebx) = 0;			/* ax,bx,cx,dx,si,di,bp,fs,gs probably can be anything */
   REG(ecx) = 0;
@@ -1971,7 +1879,7 @@ SIG_init()
         }
         else {
           /* Reset interupt incase it went off already */
-          write(fd, NULL, (int) NULL);
+          RPT_SYSCALL(write(fd, NULL, (int) NULL));
           g_printf("Gonna monitor the IRQ %d you requested, Return=0x%02x\n", irq ,fd);
           if (config.sillyint & (0x10000 << irq)) {
             /* Use SIGIO, this should be faster */ 
@@ -2685,8 +2593,9 @@ int
 #endif
 
   write(STDERR_FILENO, buf, strlen(buf));
-  if (terminal_pipe)
+  if (terminal_pipe) {
     write(terminal_fd, buf, strlen(buf));
+  }
   return i;
 }
 
@@ -3367,9 +3276,12 @@ dos_helper(void) {
   case 0x10:
     /* TRB - handle dynamic debug flags in dos_helper() */
     LWORD(eax) = GetDebugFlagsHelper((char *) (((_regs.es & 0xffff) << 4) + (_regs.edi & 0xffff)));
+    g_printf("DBG: Get flags\n");
     break;
   case 0x11:
+    g_printf("DBG: Set flags\n");
     LWORD(eax) = SetDebugFlagsHelper((char *) (((_regs.es & 0xffff) << 4) + (_regs.edi & 0xffff)));
+    g_printf("DBG: Flags set\n");
     break;
 
   case 0x16:
@@ -3404,6 +3316,11 @@ dos_helper(void) {
 
   case 0x30:			/* set/reset use bootdisk flag */
     use_bootdisk = LO(bx) ? 1 : 0;
+    break;
+
+  case 0x33:			/* set mouse vector */
+    SETIVEC(0x33, Mouse_SEG, Mouse_ROUTINE_OFF);
+    SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
     break;
 
   case 0xff:

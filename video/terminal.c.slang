@@ -55,6 +55,8 @@
  */    
 static int Attribute_Map[256];		       /* if negative, char is invisible */
 
+extern char *DOSemu_Keyboard_Keymap_Prompt;
+
 int cursor_blink = 1;
 static unsigned char *The_Charset = charset_latin;
 static int slang_update (void);
@@ -206,6 +208,7 @@ static int slang_update (void)
    int changed = 0;
    
    static int last_row, last_col;
+   static char *last_prompt = NULL;
    
    SLtt_Blink_Mode = char_blink;
    line = screen_adr;
@@ -242,16 +245,30 @@ static int slang_update (void)
 	n += co;
      }
    
-   if (changed || (last_col != cursor_col) || (last_row != cursor_row))
+   if (changed || (last_col != cursor_col) || (last_row != cursor_row)
+       || (DOSemu_Keyboard_Keymap_Prompt != last_prompt))
      {
-	if (cursor_blink == 0) last_row = last_col = 0;
+	if (DOSemu_Keyboard_Keymap_Prompt != NULL)
+	  {
+	     last_row = li - 1;
+	     SLsmg_gotorc (last_row, 0);
+	     last_col = strlen (DOSemu_Keyboard_Keymap_Prompt);
+	     SLsmg_set_color (0);
+	     SLsmg_write_nchars (DOSemu_Keyboard_Keymap_Prompt, last_col);
+	     last_col -= 1;
+	     memset ((char *) (prev_screen + (last_row * co)),
+		     co * 2, 0xFF);
+	  }
+	else if (cursor_blink == 0) last_row = last_col = 0;
 	else
 	  {
 	     last_row = cursor_row;
 	     last_col = cursor_col;
 	  }
+	
 	SLsmg_gotorc (last_row, last_col);
 	SLsmg_refresh ();
+	last_prompt = DOSemu_Keyboard_Keymap_Prompt;
      }
    return 1;
 }
