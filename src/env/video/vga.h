@@ -8,8 +8,8 @@
  * video/vga.h - prototypes for VGA-card specific functions
  */
 
-#ifndef VGA_H
-#define VGA_H
+#ifndef DOSEMU_VGA_H
+#define DOSEMU_VGA_H
 
 #include "extern.h"
 

@@ -23,13 +23,13 @@
  *
  */
 
-#define SVGALIB_C
-
 #include <vga.h>
 
 #include "emu.h"
 #include "svgalib.h"
 #include "priv.h"
+#include "vc.h"
+#include "vga.h"
 
 /*
  * svgalibSave --
