@@ -143,6 +143,9 @@ void receive_engine(int num)	/* Internal 16550 Receive emulation */
  */
 void transmit_engine(int num) /* Internal 16550 Transmission emulation */
 {
+/* how many bytes left in output queue when signalling interrupt to DOS */
+#define QUEUE_THRESHOLD 2
+
   int rtrn, control, queued;
 #if 0
   /* Give system time to transmit */
@@ -193,7 +196,7 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
       return;		/* return and give the system time to transfer */
     }
     /* Is FIFO empty, and is it time to trigger an xmit int? */
-    if (!TX_BUF_BYTES(num) && !queued && com[num].tx_trigger) {
+    if (!TX_BUF_BYTES(num) && queued <= QUEUE_THRESHOLD && com[num].tx_trigger) {
       com[num].tx_trigger = 0;
       com[num].LSRqueued |= UART_LSR_TEMT | UART_LSR_THRE;
       if(s3_printf) s_printf("SER%d: Func transmit_engine requesting TX_INTR\n",num);
@@ -207,7 +210,7 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
         com[num].tx_overflow = 0;                  /* Exit overflow state */
       return;
     }
-    if (com[num].tx_trigger && !queued) {	   /* Is it time to trigger int */
+    if (com[num].tx_trigger && queued <= QUEUE_THRESHOLD) {	/* Is it time to trigger int */
       com[num].tx_trigger = 0;
       com[num].LSRqueued |= UART_LSR_TEMT | UART_LSR_THRE;
       if(s3_printf) s_printf("SER%d: Func transmit_engine requesting TX_INTR\n",num);
