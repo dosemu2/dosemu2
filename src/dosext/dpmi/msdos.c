@@ -394,6 +394,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	case 0x14: case 0x15:	/* dosx.exe, according to Ralf Brown */
 	case 0x21 ... 0x24:
 	case 0x27: case 0x28:
+	    error("MS-DOS: Unsupported function 0x%x\n", _HI(ax));
 	    _HI(ax) = 0xff;
 	    return 1;
 	case 0x11: case 0x12:	/* find first/next using FCB */
@@ -609,9 +610,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		    0x100);
 	    REG(es) = TRANS_BUFFER_SEG + 0x10;
 	    REG(edi) = 0;
-	    memmove ((void *)(REG(es)<<4),
-		    (void *)GetSegmentBaseAddress(_es) + D_16_32(_edi),
-		    0x100);
 	    in_dos_21++;
 	    return 0;
 	case 0x6c:		/*  Extended Open/Create */
@@ -982,15 +980,6 @@ void msdos_post_extender(int intr)
 		ConvertSegmentToDescriptor(LWORD(eax));
 	    break;
 #endif	    
-#if 0
-	case 0x4e:		/* find first */
-	case 0x4f:		/* find next */
-	    if (LWORD(eflags) & CF)
-		break;
-	    if (DPMI_CLIENT.USER_DTA_SEL)
-		memmove(DTA_over_1MB, DTA_under_1MB, 43);
-	    break;
-#endif	    
 	case 0x51:		/* get PSP */
 	case 0x62:
 	    {/* convert environment pointer to a descriptor*/
@@ -1058,6 +1047,15 @@ void msdos_post_extender(int intr)
 			0x100);
 	    }
 	    break;
+	case 0x60:		/* Canonicalize file name */
+	    DPMI_CLIENT.stack_frame.esi = S_REG(esi);
+	    DPMI_CLIENT.stack_frame.edi = S_REG(edi);
+	    memmove ((void *)GetSegmentBaseAddress(S_REG(es))
+			+ D_16_32(S_REG(edi)),
+			(void *)(REG(es)<<4),
+			0x80);
+	    break;
+
 	default:
 	    break;
 	}
