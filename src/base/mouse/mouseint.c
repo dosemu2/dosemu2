@@ -542,7 +542,7 @@ static int parent_open_mouse (void)
 void freeze_mouse(void)
 {
   mouse_t *mice = &config.mouse;
-  if (mouse_frozen)
+  if (mouse_frozen || mice->fd == -1)
     return;
   remove_from_io_select(mice->fd, 1);
   mouse_frozen = 1;
@@ -551,7 +551,7 @@ void freeze_mouse(void)
 void unfreeze_mouse(void)
 {
   mouse_t *mice = &config.mouse;
-  if (!mouse_frozen)
+  if (!mouse_frozen || mice->fd == -1)
     return;
   add_to_io_select(mice->fd, 1, mouse_io_callback);
   mouse_frozen = 0;
