@@ -168,12 +168,15 @@ Scroll(us *sadr, int x0, int y0, int x1, int y1, int l, int att)
 {
   int dx = x1 - x0 + 1;
   int dy = y1 - y0 + 1;
-  int x, y;
+  int x, y, co, li;
   us blank = ' ' | (att << 8);
   us tbuf[MAX_COLUMNS];
 
   if (config.cardtype == CARD_NONE)
      return;
+
+  li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
+  co= READ_WORD(BIOS_SCREEN_COLUMNS);
 
   if ( (config.cardtype == CARD_MDA) && ((att & 7) != 0) && ((att & 7) != 7) )
     {
@@ -246,6 +249,15 @@ Scroll(us *sadr, int x0, int y0, int x1, int y1, int l, int att)
 #else
   #define bios_scroll(x0,y0,x1,y1,n,attr) Scroll(screen_adr,x0,y0,x1,y1,n,attr)
 #endif
+
+#if X_GRAPHICS
+static int using_text_mode(void)
+{
+  unsigned char mode = READ_BYTE(BIOS_VIDEO_MODE);
+  return mode <= 3 || mode == 7 || (mode >= 0x50 || mode <= 0x5a);
+}
+#endif
+
 /* Output a character to the screen. */ 
 void char_out(unsigned char ch, int page)
 {
@@ -259,12 +271,15 @@ void char_out(unsigned char ch, int page)
 void tty_char_out(unsigned char ch, int s, int attr)
 {
   int newline_att = 7;
-  int xpos, ypos;
+  int xpos, ypos, co, li;
   int gfx_mode = 0;
   unsigned char *dst;
 
 #if USE_DUALMON
   int virt_text_base = BIOS_SCREEN_BASE;
+#if X_GRAPHICS
+  if (config.X) virt_text_base = (int)vga.mem.base;
+#endif
 #endif
 
 /* i10_deb("tty_char_out: char 0x%02x, page %d, attr 0x%02x\n", ch, s, attr); */
@@ -274,12 +289,15 @@ void tty_char_out(unsigned char ch, int s, int attr)
      return;
   }
 
+  li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
+  co= READ_WORD(BIOS_SCREEN_COLUMNS);
+
   xpos = get_bios_cursor_x_position(s);
   ypos = get_bios_cursor_y_position(s);
 
   /* check for gfx mode */
 #if X_GRAPHICS
-  if(config.X && vga.mode_class != TEXT) gfx_mode = 1;
+  if(config.X && !using_text_mode()) gfx_mode = 1;
 #endif
 
   switch (ch) {
@@ -353,13 +371,19 @@ void
 clear_screen(int s, int att)
 {
   u_short *schar, blank = ' ' | (att << 8);
-  int lx;
+  int lx, co, li;
 #if USE_DUALMON
   int virt_text_base = BIOS_SCREEN_BASE;
+#if X_GRAPHICS
+  if (config.X) virt_text_base = (int)vga.mem.base;
+#endif
 #endif
 
   if (config.cardtype == CARD_NONE)
      return;
+
+  li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
+  co= READ_WORD(BIOS_SCREEN_COLUMNS);
 
   v_printf("INT10: cleared screen: page %d, attr 0x%02x, screen_adr %p\n", s, att, SCREEN_ADR(s));
   if (s > max_page) return;
@@ -433,12 +457,12 @@ static boolean X_set_video_mode(int mode) {
     if(li > MAX_LINES) li = MAX_LINES;
     WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
     WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
-    if(vmi->mode_class == TEXT) {
+    if(using_text_mode()) {
       /* we must also load a FONT here                */
       /* but we can do this later where int 0x43      */
       /* is set (below, in -this- function).          */
       /* (as long as X_set_textsize does not need it) */
-      X_set_textsize(co, li);
+      X_set_textsize(vmi->text_width, li);
     }
     return 1;
   }
@@ -470,7 +494,7 @@ static boolean X_set_video_mode(int mode) {
   if(li > MAX_LINES) li = MAX_LINES;
   vga_font_height = vmi->char_height;
   text_scanlines = vmi->height;
-  if (vmi->mode_class == TEXT) {
+  if (using_text_mode()) {
     vga_font_height = text_scanlines / 25;
     vmi->char_height = vga.char_height = vga_font_height;
   }
@@ -509,7 +533,7 @@ static boolean X_set_video_mode(int mode) {
    */
   video_mode = mode;
 
-  if(clear_mem && vmi->mode_class == TEXT) clear_screen(0, 7);
+  if(clear_mem && using_text_mode()) clear_screen(0, 7);
 
   WRITE_BYTE(BIOS_VIDEO_INFO_0, clear_mem ? 0x60 : 0xe0);
   memset((void *) 0x450, 0, 0x10);	/* equiv. to set_bios_cursor_(x/y)_position(0..7, 0) */
@@ -538,7 +562,7 @@ static boolean X_set_video_mode(int mode) {
       u = vgaemu_bios.font_8;
   }
 
-  if (vmi->mode_class == TEXT) {
+  if (using_text_mode()) {
     v_printf("INT10: X_set_video_mode: 8x%d ROM font -> bank 0\n",
              vga.char_height);
     vga_ROM_to_RAM(vga.char_height, 0); /* 0 is default bank */
@@ -795,6 +819,7 @@ void int10_old(void) /* with dualmon */
   unsigned int page;
   u_char c;
   us *sm;
+  int co, li;
 
 #if USE_DUALMON
   int virt_text_base = BIOS_SCREEN_BASE;
@@ -805,10 +830,11 @@ void int10_old(void) /* with dualmon */
     last_equip = BIOS_CONFIG_SCREEN_MODE;
     if (IS_SCREENMODE_MDA) Video->is_mapped = 1;
     else Video->is_mapped = Video_default->is_mapped;
-    li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
-    co= READ_WORD(BIOS_SCREEN_COLUMNS);
   }
 #endif
+
+  li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
+  co= READ_WORD(BIOS_SCREEN_COLUMNS);
 
   if (debug_level('v') >= 3)
     {
@@ -1364,10 +1390,13 @@ void int10_old(void) /* with dualmon */
 void int10_new(void) /* with X but without dualmon */
 {
   /* some code here is copied from Alan Cox ***************/
-  int x, y;
+  int x, y, co, li;
   unsigned m, page;
   u_char c;
   us *sm;
+
+  li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
+  co= READ_WORD(BIOS_SCREEN_COLUMNS);
 
   if(HI(ax) > 0x0f)	// EVIL hack! Remove it later!!!
   if (debug_level('v') >= 3)
@@ -1479,7 +1508,7 @@ void int10_new(void) /* with X but without dualmon */
         "scroll up: %u lines, area %u.%u-%u.%u, attr 0x%02x\n",
         LO(ax), LO(cx), HI(cx), LO(dx), HI(dx), HI(bx)
       );
-      if(vga.mode_class == TEXT) {
+      if(using_text_mode()) {
         bios_scroll(LO(cx), HI(cx), LO(dx), HI(dx), LO(ax), HI(bx));
       }
       else {
@@ -1493,7 +1522,7 @@ void int10_new(void) /* with X but without dualmon */
         "scroll dn: %u lines, area %u.%u-%u.%u, attr 0x%02x\n",
         LO(ax), LO(cx), HI(cx), LO(dx), HI(dx), HI(bx)
       );
-      if(vga.mode_class == TEXT) {
+      if(using_text_mode()) {
         bios_scroll(LO(cx), HI(cx), LO(dx), HI(dx), -LO(ax), HI(bx));
       }
       else {
@@ -1508,7 +1537,7 @@ void int10_new(void) /* with X but without dualmon */
         i10_msg("read char: invalid page %d\n", page);
         break;
       }
-      if(vga.mode_class == TEXT) {
+      if(using_text_mode()) {
         sm = SCREEN_ADR(page);
         LWORD(eax) = sm[co * get_bios_cursor_y_position(page)
                    + get_bios_cursor_x_position(page)];
@@ -1526,7 +1555,7 @@ void int10_new(void) /* with X but without dualmon */
 
     case 0x09:		/* write char & attr */
     case 0x0a:		/* write char */
-      if(HI(ax) == 0x0a && vga.mode_class == TEXT) {
+      if(HI(ax) == 0x0a && using_text_mode()) {
         i10_deb(
           "write char: page %u, char 0x%02x '%c'\n",
           HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' '
@@ -1538,7 +1567,7 @@ void int10_new(void) /* with X but without dualmon */
           HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' ', LO(bx)
         );
       }
-      if(vga.mode_class == TEXT) {
+      if(using_text_mode()) {
         u_short *sadr;
         u_short c_attr;
         int n;
@@ -1587,21 +1616,21 @@ void int10_new(void) /* with X but without dualmon */
 
 
     case 0x0c:		/* write pixel */
-      if(vga.mode_class != TEXT)
+      if(!using_text_mode())
         vgaemu_put_pixel(LWORD(ecx), LWORD(edx), HI(bx), LO(ax));
       break;
 
 
     case 0x0d:		/* read pixel */
       LO(ax) = 0;
-      if(vga.mode_class != TEXT) {
+      if(!using_text_mode()) {
         LO(ax) = vgaemu_get_pixel(LWORD(ecx), LWORD(edx), HI(bx));
         i10_msg("read pixel: 0x%02x\n", LO(ax));
       }
       break;
 
     case 0x0e:		/* print char */
-      if(vga.mode_class == TEXT) {
+      if(using_text_mode()) {
         i10_deb(
           "tty put char: page %u, char 0x%02x '%c'\n",
           HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' '
