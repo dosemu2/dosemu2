@@ -1296,7 +1296,7 @@ CONST t_keysym key_map_hu[] =
 CONST t_keysym shift_map_hu[] =
 {
   U_VOID, 27, '\'', '"', '+', '!', '%', '/',
-  '=', '(', ')', 0xef99, 0xef9a, '\'', 127, 9,
+  '=', '(', ')', 0xef99, 0xef9a, 224, 127, 9,
   'Q', 'W', 'E', 'R', 'T', 'Z', 'U', 'I',
   'O', 'P', 0xef8a, 0xefe9, 13, U_VOID, 'A', 'S',
   'D', 'F', 'G', 'H', 'J', 'K', 'L', 0xef90,
