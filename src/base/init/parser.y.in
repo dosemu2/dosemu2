@@ -1787,6 +1787,8 @@ static void start_serial(void)
 
 static void stop_serial(void)
 {
+  if (sptr->dev[0] == '\0')
+    return;
   if (c_ser >= MAX_SER) {
     c_printf("SER: too many ports, ignoring %s\n", sptr->dev);
     return;
