@@ -58,10 +58,6 @@ LIBPATH=lib
 default: version include/confpath.h doslib \
 	../etc/xtermdos ../etc/xinstallvgafont
 
-debug:
-	rm $(BINPATH)/bin/$(DOSBIN)
-	$(MAKE) $(BINPATH)/bin/$(DOSBIN)
-
 ../etc/xtermdos:	$(REALTOPDIR)/etc/xtermdos.sh
 	@echo "#!/bin/sh" > ../etc/xtermdos
 	@echo >> ../etc/xtermdos
@@ -97,7 +93,7 @@ $(BINPATH)/bin/dosemu: $(REALTOPDIR)/dist/dosemu
 	              $(REALTOPDIR)/dist/dosemu > $(BINPATH)/bin/dosemu
 	chmod +x $(BINPATH)/bin/dosemu
 
-dosemu: $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/dosemu
+dosemu: $(LIBSUBDIRS) $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/dosemu
 
 dosemu_script: $(BINPATH)/bin/dosemu
 
