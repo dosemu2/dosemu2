@@ -525,7 +525,12 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    }
 		| PCI bool
 		    {
-		    config.pci = ($2!=0);
+		    if ((config.pci = ($2!=0))) {
+			if (!can_do_root_stuff) {
+			    c_printf("CONF: Warning: PCI requires root, disabled\n");
+			    config.pci = 0;
+			}
+		    }
 		    }
 		| BOOTA
                     { IFCLASS(CL_BOOT){
@@ -624,13 +629,24 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    }}
 		| DOSMEM mem_bool	{ config.mem_size = $2; }
 		| MATHCO bool		{ config.mathco = $2; }
-		| IPXSUPPORT bool	{ config.ipxsup = $2; }
+		| IPXSUPPORT bool
 		    {
 		    config.ipxsup = $2;
 		    c_printf("CONF: IPX support %s\n", ($2) ? "on" : "off");
 		    }
-		| PKTDRIVER NOVELLHACK	{ config.pktflags = 1; }
-		| VNET bool	{ config.vnet = $2; }
+		| PKTDRIVER bool
+		    {
+			if ((config.pktdrv = $2)) {
+			    if (!can_do_root_stuff) {
+				c_printf("CONF: Warning: root permissions "
+				"required for Packet Driver, disabling!\n");
+				config.pktdrv = 0;
+			    } else
+				c_printf("CONF: Packet Driver enabled.\n");
+			}
+		    }
+		| NOVELLHACK bool	{ config.pktflags = $2; }
+		| VNET bool		{ config.vnet = $2; }
 		| SPEAKER speaker
 		    {
 		    if ($2 == SPKR_NATIVE) {

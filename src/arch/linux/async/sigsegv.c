@@ -98,8 +98,10 @@ int signal, struct sigcontext_struct *scp
 	pushl	%%eax\n \
 	popfl" \
 	: : "i"(~(AC|ID)) : "%eax");
+#if 0
   _eflags &= ~(AC|ID);
   REG(eflags) &= ~(AC|ID);
+#endif
 
   if (in_vm86) {
     in_vm86 = 0;

@@ -53,11 +53,9 @@
 #include "dosemu_select.h"
 
 /* flag to activate use of pic by packet driver */
-#if 0
-#define PICPKT 1
-#endif
 #ifdef PICPKT
 #include "pic.h"
+#include "dpmi.h"
 #endif
 
 #define min(a,b)	((a) < (b)? (a) : (b))
@@ -202,12 +200,14 @@ pkt_int (void)
     if (!pktdrvr_installed)
 	return 0;
 
-#if 0
-    pd_printf("NPKT: AX=%04x BX=%04x CX=%04x DX=%04x FLAGS=%08x\n",
+#if 1
+  if (debug_level('P') > 8) {
+    pd_printf("NPKT: AX=%04x BX=%04x CX=%04x DX=%04x FLAGS=%08lx\n",
 		LWORD(eax),LWORD(ebx),LWORD(ecx),LWORD(edx),REG(eflags));
     pd_printf("      SI=%04x DI=%04x BP=%04x SP=%04x CS=%04x DS=%04x ES=%04x SS=%04x\n",
 		LWORD(esi),LWORD(edi),LWORD(ebp),LWORD(esp),
 		LWORD(cs),LWORD(ds),LWORD(es),LWORD(ss));
+  }
 #endif
 
     /* first clear CARRY flag that we may later set (on error) */
@@ -405,6 +405,8 @@ pkt_int (void)
 	p_stats->packets_out++;
 	p_stats->bytes_out += LWORD(ecx);
 
+	pd_printf("========Sending packet======\n");
+	printbuf("packet to send:", SEG_ADR((struct ethhdr *), ds, si)); 
 	for (handle = 0; handle < MAX_HANDLE; handle++) {
 	    hdlp = &pg.handle[handle];
 
@@ -606,6 +608,16 @@ Remove_Type(int handle)
 	    shift_up=1; 
     }
     return 0;
+}
+
+void pkt_receiver_callback(void)
+{
+    if(in_dpmi && !in_dpmi_dos_int)
+	fake_pm_int();
+    run_int(pg.helpvec);
+   /* push iret frame. At F000:20F7 (bios.S) we get an
+    * iret and return to F000:2140 for EOI */
+    fake_int(BIOSSEG, EOI_OFF);
 }
 
 void

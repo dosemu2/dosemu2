@@ -94,6 +94,7 @@ Keymap_Scan_Type;
 #define STICKY_ALT_MASK			0x00400000
 #define STICKY_ALTGR_MASK		0x00800000
 #define KEYPAD_MASK			0x01000000
+#define MOVE_MASK			0x02000000
 
 #define ALT_KEY_SCAN_CODE		0x80000000
 #define STICKY_ALT_KEY_SCAN_CODE	0x80000001
@@ -285,7 +286,7 @@ static Keymap_Scan_Type vtxxx_Keypad[] =
 
 static Keymap_Scan_Type Linux_Xkeys[] =
 {
-  {"\033[2~",  KEY_INS },		/* Ins */
+  {"\033[2~",  KEY_INS | MOVE_MASK },	/* Ins */
   {"\033[3~",  KEY_DEL },		/* Del    Another keyscan is 0x007F */
   {"\033[1~",  KEY_HOME },		/* Ho     Another keyscan is 0x5c00 */
   {"\033[4~",  KEY_END },		/* End    Another keyscan is 0x6100 */
@@ -300,7 +301,7 @@ static Keymap_Scan_Type Linux_Xkeys[] =
 
 static Keymap_Scan_Type Xterm_Xkeys[] =
 {
-  {"\033[2~",  KEY_INS },		/* Ins */
+  {"\033[2~",  KEY_INS | MOVE_MASK },	/* Ins */
 #if 0
   {"\177",     KEY_DEL },		/* Del  Same as backspace! */
 #endif
@@ -405,7 +406,7 @@ static Keymap_Scan_Type rxvt_alt_keys[] =
   {"\033\033[33~", ALT_MASK | KEY_F9  | SHIFT_MASK },	/* Shift F9 */
   {"\033\033[34~", ALT_MASK | KEY_F10 | SHIFT_MASK },	/* Shift F10 */
 
-  {"\033\033[2~",  ALT_MASK | KEY_INS },		/* Ins */
+  {"\033\033[2~",  ALT_MASK | MOVE_MASK | KEY_INS },	/* Ins */
   {"\033\177",     ALT_MASK | KEY_DEL },		/* Del */
   {"\033\033[H",   ALT_MASK | KEY_HOME },		/* Ho     (rxvt)  */
   {"\033\033Ow",   ALT_MASK | KEY_END },		/* End    (rxvt) */
@@ -445,8 +446,8 @@ static Keymap_Scan_Type terminfo_keys[] =
    {"^(k;)",	KEY_F10},	       /* F10 */
    {"^(F1)",	KEY_F11},	       /* F11 */
    {"^(F2)",	KEY_F12},	       /* F12 */
-   {"^(kI)",	KEY_INS},	       /* Ins */
-   {"^(#3)",	KEY_INS|SHIFT_MASK},   /* Shift Insert */
+   {"^(kI)",	KEY_INS|MOVE_MASK},    /* Ins */
+   {"^(#3)",	KEY_INS|MOVE_MASK|SHIFT_MASK},   /* Shift Insert */
    {"^(kD)",	KEY_DEL},	       /* Del */
    {"^(*5)",	KEY_DEL|SHIFT_MASK},   /* Shift Del */
    {"^(kh)",	KEY_HOME},	       /* Ho */
@@ -480,7 +481,7 @@ static Keymap_Scan_Type terminfo_keys[] =
 static Keymap_Scan_Type Dosemu_Xkeys[] =
 {
 /* These keys are laid out like the numbers on the keypad - not too difficult */
-  {"^@K0",  KEY_INS },		/* Ins */
+  {"^@K0",  KEY_INS|MOVE_MASK}, /* Ins */
   {"^@K1",  KEY_END },		/* End    Another keyscan is 0x6100 */
   {"^@K2",  KEY_DOWN },		/* Dn */
   {"^@K3",  KEY_PGDN },		/* PgDn */
@@ -966,6 +967,7 @@ static void slang_send_scancode(unsigned long ls_flags, unsigned long lscan)
 	else if( (ls_flags & (ALT_MASK|STICKY_ALT_MASK|ALTGR_MASK|STICKY_ALTGR_MASK))
 		&& (lscan == KEY_PRTSCR)) {
 		lscan = KEY_SYSRQ;
+		ls_flags |= MOVE_MASK;
 	}
    
 	if ((ls_flags & SHIFT_MASK)
@@ -992,8 +994,20 @@ static void slang_send_scancode(unsigned long ls_flags, unsigned long lscan)
 		move_key(PRESS, KEY_R_ALT);
 	}
 	
-	put_modified_symbol(PRESS, get_shiftstate(), lscan);
-	put_modified_symbol(RELEASE, get_shiftstate(), lscan);
+	if (!(ls_flags & MOVE_MASK)) {
+		/* For any keys we know do not modify the shiftstate
+		 * this is the optimal way to go.  As it handles all
+		 * of the weird cases. 
+		 */ 
+		put_modified_symbol(PRESS, get_shiftstate(), lscan);
+		put_modified_symbol(RELEASE, get_shiftstate(), lscan);
+	} else {
+		/* For the few keys that might modify the shiftstate
+		 * we just do a straight forward key press and release.
+		 */
+		move_key(PRESS,   lscan);
+		move_key(RELEASE, lscan);
+	}
 	
 	if (flags & SHIFT_MASK) {
 		move_key(RELEASE, KEY_L_SHIFT);

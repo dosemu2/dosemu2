@@ -408,7 +408,8 @@ void SIGALRM_call(void)
 #ifdef USING_NET
   /* check for available packets on the packet driver interface */
   /* (timeout=0, so it immediately returns when none are available) */
-  pkt_check_receive(0);
+  if (config.pktdrv)
+    pic_request(PIC_NET);
 #endif
 #endif
 

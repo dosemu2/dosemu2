@@ -17,6 +17,8 @@
  *
  */
 
+#define PICPKT 1
+
 #define F_DRIVER_INFO	1
 #define F_ACCESS_TYPE	2
 #define F_RELEASE_TYPE	3
@@ -82,6 +84,8 @@ struct pkt_statistics {
 };
 
 extern int pkt_check_receive(int timeout);
+extern void pkt_check_receive_quick(void);
+extern void pkt_receiver_callback(void);
 extern void pkt_init (int vec);
 extern int GetDeviceMTU(char *device);
 

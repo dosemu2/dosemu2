@@ -123,9 +123,9 @@ static int tty_lock(char *path, int mode)
   /* you don't NEED to be root to create lock files! */
   /* Check that lockfiles can be created! */  
   if((mode == 1 || mode == 2) && get_orig_euid() != (uid_t)0) {
-    s_printf("DOSEMU: Need to be suid root to create Lock Files!\n"
+    s_printf("Need to be suid root to create Lock Files!\n"
 	     "        Serial port on %s not configured!\n", path);
-    error("\nDOSEMU: Need to be suid root to create Lock Files!\n"
+    error("Need to be suid root to create Lock Files!\n"
 	  "        Serial port on %s not configured!\n", path);
     return(-1);
   }
@@ -149,8 +149,8 @@ static int tty_lock(char *path, int mode)
       fd = fopen(saved_path, "w");
       leave_priv_setting();
       if (fd == (FILE *)0) {
-        s_printf("DOSEMU: lock: (%s): %s\n", saved_path, strerror(errno));
-        error("\nDOSEMU: tty: lock: (%s): %s\n", saved_path, strerror(errno));
+        s_printf("lock: (%s): %s\n", saved_path, strerror(errno));
+        error("tty: lock: (%s): %s\n", saved_path, strerror(errno));
         return(-1);
       }
 
@@ -165,7 +165,7 @@ static int tty_lock(char *path, int mode)
 
     /* Make sure UUCP owns the lockfile.  Required by some packages. */
     if ((pw = getpwnam(OWNER_LOCKS)) == NULL) {
-      error("\nDOSEMU: tty: lock: UUCP user %s unknown!\n", OWNER_LOCKS);
+      error("tty: lock: UUCP user %s unknown!\n", OWNER_LOCKS);
       return(0);        /* keep the lock anyway */
     }
     
@@ -179,9 +179,9 @@ static int tty_lock(char *path, int mode)
      fd = fopen(saved_path,"w");
      leave_priv_setting();
      if (fd == (FILE *)0) {
-     s_printf("DOSEMU: tty_lock(%s) reaquire: %s\n", 
+     s_printf("tty_lock(%s) reaquire: %s\n", 
               saved_path, strerror(errno));
-      error("\nDOSEMU: tty_lock: reacquire (%s): %s\n",
+      error("tty_lock: reacquire (%s): %s\n",
               saved_path, strerror(errno));
       return(-1);
     }
@@ -214,9 +214,9 @@ static int tty_lock(char *path, int mode)
     retval = unlink(saved_path);
     leave_priv_setting();
     if (retval < 0) {
-      s_printf("DOSEMU: tty: unlock: (%s): %s\n", saved_path,
+      s_printf("tty: unlock: (%s): %s\n", saved_path,
              strerror(errno));
-      error("\nDOSEMU: tty: unlock: (%s): %s\n", saved_path,
+      error("tty: unlock: (%s): %s\n", saved_path,
              strerror(errno));
       return(-1);
     }

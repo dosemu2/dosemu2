@@ -985,12 +985,11 @@ free_list(list)
    wildcards */
 static boolean_t exists(char *name, char *mname, char *mext, struct stat *st)
 {
-  char *fullname;
+  char fullname[MAXPATHLEN];
   size_t len;
   int rc;
     
   len = strlen(name);
-  fullname = malloc(len + 1 + 8 + 1 + 3 + 1);
   strcpy(fullname, name);
   fullname[len++] = '/';
   memcpy(fullname + len, mname, 8);
@@ -1007,7 +1006,6 @@ static boolean_t exists(char *name, char *mname, char *mext, struct stat *st)
   fullname[len] = '\0';
   strlowerDOS(fullname);
   rc = find_file(fullname, st);
-  free(fullname);
   return rc;
 }
 

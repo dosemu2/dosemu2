@@ -834,9 +834,6 @@ int do_irq()
 
     if(ilevel==PIC_IRQ9)      /* unvectored irq9 just calls int 0x0a.. */
       if(!IS_REDIRECTED(intr)) {intr=0x0a;pic1_isr&= 0xffef;} /* & one EOI */
-#ifndef USE_NEW_INT
-    if(IS_REDIRECTED(intr)||ilevel<=PIC_IRQ1||in_dpmi)
-#endif /* not USE_NEW_INT */
     {
 #if 0 /* BUG CATCHER (if 1) */
 /* outputting more then one character here will change dynamic behave such
@@ -875,10 +872,6 @@ g_printf("+%d",(int)ilevel);
      else {
        if (in_dpmi) run_pm_int(intr);
        else {
-#ifndef USE_NEW_INT
-         pic_cli();
-#endif /* not USE_NEW_INT */
-      
  /* schedule the requested interrupt, then enter the vm86() loop */
          run_int(intr);
        }
@@ -1061,6 +1054,17 @@ unsigned long sp;
     if(!pic_irr) dpmi_eflags &= ~VIP;
     pic_print(2,"IRET in dpmi, loops=",pic_dpmi_count," ");
     pic_dpmi_count=0;
+    if ((cb_cs || cb_ip) && !pic_icount) {
+      r_printf("PIC: entering callback at %x:%x\n", cb_cs, cb_ip);
+      fake_pm_int();
+     /* we will have an extra pic_iret() after this, but no problems
+      * since pic_icount==0
+      */
+      fake_call(REG(cs), LWORD(eip));
+      LWORD(eip) = cb_ip;
+      REG(cs) = cb_cs;
+      cb_cs = cb_ip = 0;
+    }
   }
   else {
 /* if we've really come from an irq, cs:ip will point to PIC_SEG:PIC_OFF */
@@ -1074,18 +1078,18 @@ unsigned long sp;
       pic_dpmi_count : pic_vm86_count," ");
       pic_vm86_count=0;
       pic_dpmi_count=0;
-      if (pic_icount || (!cb_cs && !cb_ip)) {
+      if ((cb_cs || cb_ip) && !pic_icount) {
+	r_printf("PIC: entering callback at %x:%x\n", cb_cs, cb_ip);
+	LWORD(eip) = cb_ip;
+	REG(cs) = cb_cs;
+	cb_cs = cb_ip = 0;
+      }
+      else {
 	ssp = (unsigned char *)(LWORD(ss)<<4);
 	sp = (unsigned long) LWORD(esp);
 	LWORD(eip) = popw(ssp, sp);
 	REG(cs) = popw(ssp, sp);
 	LWORD(esp) = (LWORD(esp) + 4) & 0xffff;
-      }
-      else {
-	r_printf("PIC: entering callback at %x:%x\n", cb_cs, cb_ip);
-	LWORD(eip) = cb_ip;
-	REG(cs) = cb_cs;
-	cb_cs = cb_ip = 0;
       }
     }
   }

@@ -8,7 +8,6 @@ config {
   slangforce on
   runasroot off
   linkstatic off
-  newint on
   cpuemu off
   aspi on
   svgalib off

@@ -136,7 +136,7 @@ void init_port_traceing(void)
 {
   if (portlog_map) return;
   clear_port_traceing();
-  register_port_traceing(0x100, 0x2ff);
+  register_port_traceing(0x0, 0xffff);
 }
 
 #define TT_printf(p,f,v,m) ({ \

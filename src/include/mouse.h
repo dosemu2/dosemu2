@@ -54,6 +54,7 @@ typedef struct  {
   int flags;
   boolean add_to_io_select;
   boolean intdrv;
+  boolean enabled;
   boolean emulate3buttons;
   boolean has3buttons;
   boolean cleardtr;
@@ -154,7 +155,7 @@ EXTERN mouse_t mice[MAX_MOUSE] ;
 EXTERN int keyboard_mouse;
 
 extern void dosemu_mouse_init(void);
-extern void mouse_int(void);
+extern int mouse_int(void);
 extern void dosemu_mouse_close(void);
 extern void int74(void);
 

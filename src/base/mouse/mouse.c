@@ -256,9 +256,12 @@ mouse_helper(void)
   }
 }
 
-void
+int
 mouse_int(void)
 {
+  if (!mice->intdrv || (!mice->enabled && LWORD(eax) != 0x20)) 
+    return 0;
+  
   m_printf("MOUSEALAN: int 0x%x ebx=%x\n", LWORD(eax), LWORD(ebx));
   switch (LWORD(eax)) {
   case 0x00:			/* Mouse Reset/Get Mouse Installed Flag */
@@ -506,6 +509,8 @@ mouse_int(void)
 
   if (mouse.cursor_on == 0)
      mouse_update_cursor();
+
+  return 1;
 }
 
 void
@@ -1210,7 +1215,7 @@ mouse_disable_internaldriver()
   LWORD(es) = mouse.cs;
   LWORD(ebx) = mouse.ip;
 
-  mice->intdrv = FALSE;
+  mice->enabled = FALSE;
 
   m_printf("MOUSE: Disable InternalDriver\n");
 }
@@ -1218,7 +1223,7 @@ mouse_disable_internaldriver()
 void
 mouse_enable_internaldriver()
 {
-  mice->intdrv = TRUE;
+  mice->enabled = TRUE;
   SETIVEC(0x33, Mouse_SEG, Mouse_INT);
 #ifndef USE_NEW_INT
   SETIVEC(0x74, Mouse_SEG, Mouse_INT74);
@@ -1765,6 +1770,8 @@ dosemu_mouse_init(void)
    */
   mouse.min_max_x = 640;
   mouse.min_max_y = 200;
+
+  mice->enabled = TRUE;
 
   /* we'll admit we have three buttons if the user asked us to emulate
   	one or else we think the mouse actually has a third button. */

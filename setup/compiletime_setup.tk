@@ -224,7 +224,7 @@ proc write_out {} {
 	write_pairs  config  { "experimental" "sbemu" "mitshm" \
 				   "x" "net" "dodebug" "slangforce" \
 				   "runasroot" "linkstatic" \
-				   "newint" "cpuemu" "aspi" \
+				   "cpuemu" "aspi" \
 				   "svgalib" "pthreads" }
 
 	puts $tmp_file "}"

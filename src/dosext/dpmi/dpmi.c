@@ -149,6 +149,7 @@ unsigned short LDT_ALIAS = 0;
 unsigned short KSPACE_LDT_ALIAS = 0;
 
 static char *pm_stack; /* locked protected mode stack */
+static int in_dpmi_pm_stack = 0; /* locked protected mode stack in use */
 
 static unsigned long dpmi_total_memory; /* total memory  of this session */
 extern unsigned long dpmi_free_memory; /* how many bytes memory client */
@@ -2024,11 +2025,8 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
 
 void run_pm_int(int i)
 {
+  unsigned short CLIENT_PMSTACK_SEL;
   us *ssp;
-
-#ifndef USE_NEW_INT
-  dpmi_cli();	/* put it here, D_printf might got interrupted */
-#endif /* not USE_NEW_INT */
 
   D_printf("DPMI: run_pm_int(0x%02x) called, in_dpmi_dos_int=0x%02x\n",i,in_dpmi_dos_int);
 
@@ -2042,20 +2040,28 @@ void run_pm_int(int i)
       REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
       in_dpmi_dos_int = 1;
     }
-#ifndef USE_NEW_INT
-    if (can_revector(i)==REVECT)
-	do_int(i);
-    else
-	run_int(i);
-#else /* USE_NEW_INT */
     do_int(i);
-#endif /* USE_NEW_INT */
     return;
   }
 
-  if (dpmi_stack_frame[current_client].ss == PMSTACK_SEL)
+  if (!in_dpmi_pm_stack) {
+    D_printf("DPMI: Switching to locked stack\n");
+    CLIENT_PMSTACK_SEL = PMSTACK_SEL;
+    if (dpmi_stack_frame[current_client].ss == PMSTACK_SEL)
+      error("DPMI: run_pm_int: App is working on host\'s PM locked stack, expect troubles!\n");
+  }
+  else {
+    D_printf("DPMI: Not switching to locked stack, in_dpmi_pm_stack=%d\n",
+      in_dpmi_pm_stack);
+    CLIENT_PMSTACK_SEL = dpmi_stack_frame[current_client].ss;
+  }
+
+  if (dpmi_stack_frame[current_client].ss == PMSTACK_SEL || in_dpmi_pm_stack)
     PMSTACK_ESP = client_esp(0);
-  ssp = (us *) (GetSegmentBaseAddress(PMSTACK_SEL) +
+  else
+    PMSTACK_ESP = DPMI_pm_stack_size;
+
+  ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) +
 		(DPMIclient_is_32 ? PMSTACK_ESP : (PMSTACK_ESP&0xffff)));
 
   D_printf("DPMI: Calling protected mode handler for int 0x%02x\n", i);
@@ -2098,13 +2104,12 @@ void run_pm_int(int i)
   }
   dpmi_stack_frame[current_client].cs = Interrupt_Table[i].selector;
   dpmi_stack_frame[current_client].eip = Interrupt_Table[i].offset;
-  dpmi_stack_frame[current_client].ss = PMSTACK_SEL;
+  dpmi_stack_frame[current_client].ss = CLIENT_PMSTACK_SEL;
   dpmi_stack_frame[current_client].esp = PMSTACK_ESP;
+  in_dpmi_pm_stack++;
   if (i == 0x08 || in_dpmi_timer_int) in_dpmi_timer_int++;
   in_dpmi_dos_int = 0;
-#ifdef USE_NEW_INT
   dpmi_cli();
-#endif /* USE_NEW_INT */
 }
 
 void run_dpmi(void)
@@ -2160,12 +2165,14 @@ void run_dpmi(void)
     retval=DO_VM86(&vm86s);
     in_vm86=0;
 
+#if 0
     /* This will let foxpro run with cpu>=486 */
     if (_EFLAGS & (AC|ID)) {
       _EFLAGS &= ~(AC|ID);
       if (debug_level('M')>3)
 	D_printf("BUG: AC,ID set; flags changed to %08x\n",_EFLAGS);
     }
+#endif
 
     if (
 #ifdef TRACE_DPMI
@@ -2403,7 +2410,6 @@ void dpmi_init()
     if (!(PMSTACK_SEL = AllocateDescriptors(1))) return;
     if (SetSelector(PMSTACK_SEL, (unsigned long) pm_stack, DPMI_pm_stack_size-1, DPMIclient_is_32,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return;
-    PMSTACK_ESP = DPMI_pm_stack_size;
 
     if (!(DPMI_SEL = AllocateDescriptors(1))) return;
     if (SetSelector(DPMI_SEL, (unsigned long) (DPMI_SEG << 4), 0xffff, DPMIclient_is_32,
@@ -2630,10 +2636,6 @@ static  void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
 	       save_rm_regs();
 	       REG(cs) = DPMI_SEG;
 	       REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
-#ifndef USE_NEW_INT
-	       REG(eflags) &= ~(IF|TF);
-	       dpmi_cli();
-#endif /* not USE_NEW_INT */
 	       in_dpmi_dos_int = 1;
 	       return (void) do_int(trapno);
     default:
@@ -2659,6 +2661,7 @@ static  void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
 static void do_cpu_exception(struct sigcontext_struct *scp)
 #endif
 {
+  unsigned short CLIENT_PMSTACK_SEL;
   us *ssp;
 
 #ifdef DPMI_DEBUG
@@ -2711,9 +2714,26 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
     return;
   }
 
-  if (_ss == PMSTACK_SEL) PMSTACK_ESP = client_esp(scp);
-  ssp = (us *) (GetSegmentBaseAddress(PMSTACK_SEL) +
+  if (!in_dpmi_pm_stack) {
+    D_printf("DPMI: Switching to locked stack\n");
+    CLIENT_PMSTACK_SEL = PMSTACK_SEL;
+    if (_ss == PMSTACK_SEL)
+      error("DPMI: do_cpu_exception: App is working on host\'s PM locked stack, expect troubles!\n");
+  }
+  else {
+    D_printf("DPMI: Not switching to locked stack, in_dpmi_pm_stack=%d\n",
+      in_dpmi_pm_stack);
+    CLIENT_PMSTACK_SEL = _ss;
+  }
+
+  if (_ss == PMSTACK_SEL || in_dpmi_pm_stack) 
+    PMSTACK_ESP = client_esp(scp);
+  else
+    PMSTACK_ESP = DPMI_pm_stack_size;
+
+  ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) +
 		(DPMIclient_is_32 ? PMSTACK_ESP : (PMSTACK_ESP&0xffff)));
+
   if (DPMIclient_is_32) {
     *--ssp = (us) 0;
     *--ssp = _ss;
@@ -2741,8 +2761,9 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
   _cs = Exception_Table[_trapno].selector;
   _eip = Exception_Table[_trapno].offset;
   D_printf("DPMI: Exception Table jump to %04x:%08lx\n",_cs,_eip);
-  _ss = PMSTACK_SEL;
+  _ss = CLIENT_PMSTACK_SEL;
   _esp = PMSTACK_ESP;
+  in_dpmi_pm_stack++;
   dpmi_cli();
   _eflags &= ~TF;
 }
@@ -3007,6 +3028,13 @@ if ((_ss & 4) == 4) {
 
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_pm)) {
           D_printf("DPMI: Return from protected mode interrupt handler\n");
+	  if (in_dpmi_pm_stack) {
+	    in_dpmi_pm_stack--;
+	    if (!in_dpmi_pm_stack && _ss != PMSTACK_SEL) {
+	      error("DPMI: Client's PM Stack corrupted during interrupt handling!\n");
+//	      leavedos(91);
+	    }
+	  }
 /* ---------------------------------------------------
 	|(000FC925)|
 	|(dpmi_sel)|
@@ -3019,7 +3047,6 @@ if ((_ss & 4) == 4) {
 	| i_d_d_i  |
    --------------------------------------------------- */
 	  if (DPMIclient_is_32) {
-	    PMSTACK_ESP = client_esp(scp) + 24;
 	    _eip = *(((unsigned long *) ssp)++);
 	    _cs = *ssp++;
 	    ssp++;
@@ -3029,7 +3056,6 @@ if ((_ss & 4) == 4) {
 	    ssp++;
 	    in_dpmi_dos_int = (int) *(((unsigned long *) ssp)++);
 	  } else {
-	    PMSTACK_ESP = client_esp(scp) + 12;
 	    _LWORD(eip) = *ssp++;
 	    _cs = *ssp++;
 	    _LWORD(eflags) = *ssp++;
@@ -3072,8 +3098,15 @@ if ((_ss & 4) == 4) {
 
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_exception)) {
           D_printf("DPMI: Return from client exception handler\n");
+	  if (in_dpmi_pm_stack) {
+	    in_dpmi_pm_stack--;
+	    if (!in_dpmi_pm_stack && _ss != PMSTACK_SEL) {
+	      error("DPMI: Client's PM Stack corrupted during exception handling!\n");
+//	      leavedos(91);
+	    }
+	  }
+
 	  if (DPMIclient_is_32) {
-	    PMSTACK_ESP = client_esp(scp) + 24;
 	    /* poping error code */
 	    ((unsigned long *) ssp)++;
 	    _eip = *(((unsigned long *) ssp)++);
@@ -3084,7 +3117,6 @@ if ((_ss & 4) == 4) {
 	    _ss = *ssp++;
 	    ssp++;
 	  } else {
-	    PMSTACK_ESP = client_esp(scp) + 12;
 	    /* poping error code */
 	    ssp++;
 	    _LWORD(eip) = *ssp++;
@@ -3105,6 +3137,14 @@ if ((_ss & 4) == 4) {
 	  rmreg = (struct RealModeCallStructure *)(GetSegmentBaseAddress(_es)
 		                + (DPMIclient_is_32 ? _edi : _LWORD(edi)));
 
+	  if (in_dpmi_pm_stack) {
+	    in_dpmi_pm_stack--;
+	    if (!in_dpmi_pm_stack && _ss != PMSTACK_SEL) {
+	      error("DPMI: Client's PM Stack corrupted during the realmode callback!\n");
+//	      leavedos(91);
+	    }
+	  }
+
 	  REG(edi) = rmreg->edi;
 	  REG(esi) = rmreg->esi;
 	  REG(ebp) = rmreg->ebp;
@@ -3122,16 +3162,6 @@ if ((_ss & 4) == 4) {
 	  REG(ss) = rmreg->ss;
 	  REG(esp) = (long) rmreg->sp;
 	  
-/* ---------------------------------------------------
-	| 000FC927 | <- ssp still here, must be restored
-	| dpmi_sel |
-	|  eflags  |
-   ---------------------------------------------------
-   get the stack pointer back from the sigcontext - this should
-   accomodate both the 16- and 32-bit clients
-*/
-	  PMSTACK_ESP = client_esp(scp);
-
 	  /* dpmi_stack_frame[current_client], will be saved in */
 	  /* Return_To_Dosemu */
 	  restore_pm_regs();
@@ -3149,6 +3179,14 @@ if ((_ss & 4) == 4) {
 	  D_printf("DPMI: Return from mouse callback, count=%d\n",
 		mouseCallBackCount);
 	  
+	  if (in_dpmi_pm_stack) {
+	    in_dpmi_pm_stack--;
+	    if (!in_dpmi_pm_stack && _ss != PMSTACK_SEL) {
+	      error("DPMI: Client's PM Stack corrupted during mouse callback!\n");
+//	      leavedos(91);
+	    }
+	  }
+
 	  if (mouseCallBackCount) {
 	      unsigned short *ssp;
 	      D_printf("DPMI: %d events in mouse queue\n", mouseCallBackCount);
@@ -3185,7 +3223,6 @@ if ((_ss & 4) == 4) {
 		 in_dpmi_dos_int = (int) *ssp++;
 		 _esp += 2;
 	     }
-	     PMSTACK_ESP = client_esp(scp);
 	     /* dpmi_stack_frame[current_client], will be saved in */
 	     /* Return_To_Dosemu                                   */
 	     restore_pm_regs();
@@ -3381,6 +3418,7 @@ void run_pm_mouse()
 {
     unsigned char press, release;
     unsigned char insert;
+    unsigned short CLIENT_PMSTACK_SEL;
     unsigned short *ssp;
     
     REG(eip) += 1;            /* skip halt to point to FAR RET */
@@ -3492,10 +3530,26 @@ void run_pm_mouse()
     /* mouse callback routine should return by a lret, then sometimes
      * we pop back in_dpmi_dos_int, sometimes not :-( */
     /* do we need use locked pm_stack_here? */
-    if (dpmi_stack_frame[current_client].ss == PMSTACK_SEL)
-	PMSTACK_ESP = client_esp(0);
-    ssp = (us *) (GetSegmentBaseAddress(PMSTACK_SEL) +
+    if (!in_dpmi_pm_stack) {
+      D_printf("DPMI: Switching to locked stack\n");
+      CLIENT_PMSTACK_SEL = PMSTACK_SEL;
+      if (dpmi_stack_frame[current_client].ss == PMSTACK_SEL)
+        error("DPMI: run_pm_mouse: App is working on host\'s PM locked stack, expect troubles!\n");
+    }
+    else {
+      D_printf("DPMI: Not switching to locked stack, in_dpmi_pm_stack=%d\n",
+        in_dpmi_pm_stack);
+      CLIENT_PMSTACK_SEL = dpmi_stack_frame[current_client].ss;
+    }
+
+    if (dpmi_stack_frame[current_client].ss == PMSTACK_SEL || in_dpmi_pm_stack)
+      PMSTACK_ESP = client_esp(0);
+    else
+      PMSTACK_ESP = DPMI_pm_stack_size;
+
+    ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) +
 		(DPMIclient_is_32 ? PMSTACK_ESP : (PMSTACK_ESP&0xffff)));
+
     if (DPMIclient_is_32) {
 	*(--((unsigned long *) ssp)) = in_dpmi_dos_int;
 	*--ssp = (us) 0;
@@ -3509,9 +3563,9 @@ void run_pm_mouse()
 	*--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_mouse_callback);
 	PMSTACK_ESP -= 6;
     }
-    dpmi_stack_frame[current_client].ss = PMSTACK_SEL;
+    dpmi_stack_frame[current_client].ss = CLIENT_PMSTACK_SEL;
     dpmi_stack_frame[current_client].esp = PMSTACK_ESP;
-
+    in_dpmi_pm_stack++;
     /*dpmi_cli();*/
     in_dpmi_dos_int = 0;
 
@@ -3701,6 +3755,7 @@ done:
 #endif
     int num;
     unsigned short *ssp;
+    unsigned short CLIENT_PMSTACK_SEL;
     struct RealModeCallStructure *rmreg;
 
     num = (int)(lina) - DPMI_ADD-HLT_OFF(DPMI_realmode_callback);
@@ -3737,9 +3792,25 @@ done:
      * will produce an exception 10 as soon as we return from the
      * callback! */
     dpmi_stack_frame[current_client].eflags =  REG(eflags)&(~(AC|VM|IF|TF|NT));
-    if (dpmi_stack_frame[current_client].ss == PMSTACK_SEL)
-	PMSTACK_ESP = client_esp(0);
-    ssp = (us *) (GetSegmentBaseAddress(PMSTACK_SEL) +
+
+    if (!in_dpmi_pm_stack) {
+      D_printf("DPMI: Switching to locked stack\n");
+      CLIENT_PMSTACK_SEL = PMSTACK_SEL;
+      if (dpmi_stack_frame[current_client].ss == PMSTACK_SEL)
+        error("DPMI: rm_callback: App is working on host\'s PM locked stack, expect troubles!\n");
+    }
+    else {
+      D_printf("DPMI: Not switching to locked stack, in_dpmi_pm_stack=%d\n",
+        in_dpmi_pm_stack);
+      CLIENT_PMSTACK_SEL = dpmi_stack_frame[current_client].ss;
+    }
+
+    if (dpmi_stack_frame[current_client].ss == PMSTACK_SEL || in_dpmi_pm_stack)
+      PMSTACK_ESP = client_esp(0);
+    else
+      PMSTACK_ESP = DPMI_pm_stack_size;
+
+    ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) +
 		(DPMIclient_is_32 ? PMSTACK_ESP : (PMSTACK_ESP&0xffff)));
 /* ---------------------------------------------------
 	| 000FC927 | <- ssp here
@@ -3762,8 +3833,9 @@ done:
 	realModeCallBack[current_client][num].selector;
     dpmi_stack_frame[current_client].eip =
 	realModeCallBack[current_client][num].offset;
-    dpmi_stack_frame[current_client].ss = PMSTACK_SEL;
+    dpmi_stack_frame[current_client].ss = CLIENT_PMSTACK_SEL;
     dpmi_stack_frame[current_client].esp = PMSTACK_ESP;
+    in_dpmi_pm_stack++;
     SetSelector(realModeCallBack[current_client][num].rm_ss_selector,
 		(REG(ss)<<4), 0xffff, DPMIclient_is_32,
 		MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0);

@@ -1784,6 +1784,22 @@ static void sync_shift_state(t_modifiers desired, struct keyboard_state *state)
 		  "unknown"),
 		 current, desired);
 
+	if (!!(current & MODIFIER_INS) != !!(desired & MODIFIER_INS)) {
+		t_keynum keynum1 = state->rules->charset.keys[KEY_INS].key;
+		t_keynum keynum2 = state->rules->charset.keys[KEY_PAD_INS].key;
+
+		/* by preference toggle something that is already held down */
+		if (test_bit(keynum1, state)) {
+			put_keynum_r(RELEASE, keynum1, state);
+			put_keynum_r(PRESS, keynum1, state);
+		} else if (!(current & MODIFIER_NUM) && test_bit(keynum2, state)) {
+			put_keynum_r(RELEASE, keynum2, state);
+			put_keynum_r(PRESS, keynum2, state);
+		} else {
+			put_keynum_r(PRESS, keynum1, state);
+			put_keynum_r(RELEASE, keynum1, state);
+		}
+	}
 	if (!!(current & MODIFIER_CAPS) != !!(desired & MODIFIER_CAPS)) {
 		t_keynum keynum = state->rules->charset.keys[KEY_CAPS].key;
 		if (test_bit(keynum, keys)) {

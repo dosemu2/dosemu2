@@ -231,6 +231,7 @@ dosnet_xmit(struct sk_buff *skb, struct device *dev)
 				stats->tx_dropped++;
 		}
 		memcpy(eth->h_dest, DOSNET_BROADCAST_ADDRESS, 6 );
+		skb->protocol = htons(*(unsigned short int *)&(DOSNET_BROADCAST_ADDRESS[2]));
 	}
 	netif_rx(skb);
 #if LX_KERNEL_VERSION < 2001000

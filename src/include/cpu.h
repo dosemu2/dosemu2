@@ -198,6 +198,10 @@ static __inline__ void reset_revectored(int nr, struct revectored_struct * bitma
 #define set_TF() (_EFLAGS |= TF)
 #define clear_TF() (_EFLAGS &= ~TF)
 #define isset_TF() ((_EFLAGS & TF) != 0)
+       /* alignment flag */
+#define set_AC() (_EFLAGS |= AC)
+#define clear_AC() (_EFLAGS &= ~AC)
+#define isset_AC() ((_EFLAGS & AC) != 0)
        /* Virtual Interrupt Pending flag */
 #define set_VIP()   (_EFLAGS |= VIP)
 #define clear_VIP() (_EFLAGS &= ~VIP)
@@ -237,12 +241,8 @@ EXTERN struct vec_t *ivecs;
 
 #define OP_IRET			0xcf
 
-#ifndef USE_NEW_INT
-#define IS_REDIRECTED(i)	(ISEG(i) != BIOSSEG)
-#else /* USE_NEW_INT */
 #include "memory.h" /* for INT_OFF */
 #define IS_REDIRECTED(i)	(IVEC(i) != SEGOFF2LINEAR(BIOSSEG, INT_OFF(i)))
-#endif /* USE_NEW_INT */
 #define IS_IRET(i)		(*(unsigned char *)IVEC(i) == OP_IRET)
 
 /*

@@ -115,9 +115,7 @@ irqnum	=	irqnum+1
 			/* user timer tick, should be an IRET */
 irqnum	=	0x1c
 	.org	irqnum*16
-#ifdef USE_NEW_INT
 	int	$irqnum
-#endif /* USE_NEW_INT */
 	iret
 
 
@@ -914,15 +912,10 @@ CISH(INT09_dummy_end):
 /* COMPAS FF065		jmp to INT10 */
 /* COMPAS FF068-FF0A3	reserved */
 	/* relocated video handler (interrupt 0x42) */
-#ifndef USE_NEW_INT
-	int	$0x42  /* this will be overwritten with iret, if no dualmon */
-	lret	$2
-#else /* USE_NEW_INT */
         /* Note:	 A conforming video-bios will redirect int 42 here if
           it doesn't find anything else.  Another fun suprise :	(
           I'll have to implement this in my video-bios. --EB  13 Jan 97 */
        jmp bios_f000+INT_OFF(0x42) /* redirect this back to our magic location */
-#endif /* USE_NEW_INT */
 
 	.globl  CISH(bios_f000_endpart1)
 CISH(bios_f000_endpart1):

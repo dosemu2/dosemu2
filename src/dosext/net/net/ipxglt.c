@@ -33,6 +33,7 @@
 
 #include "emu.h"
 #include "dosemu_select.h"
+#include "utilities.h"
 
 #define FALSE   0
 #define TRUE    1
@@ -55,14 +56,16 @@ int AddRoute( unsigned long targetNet, unsigned network,
 	struct sockaddr_ipx	*st = (struct sockaddr_ipx *)&rt.rt_dst;
 	struct sockaddr_ipx	*sr = (struct sockaddr_ipx *)&rt.rt_gateway;
 	int sock;
-	int i;
 	
+	if (!can_do_root_stuff) {
+		error("IPX: Cannot add route, root privs required!\n");
+		return -2;
+	}
+
 	rt.rt_flags = RTF_GATEWAY;
 	st->sipx_network = targetNet;
         sr->sipx_network = network;
-	for( i=0; i<6; i++ ) {
-		sr->sipx_node[i] = node[i];
-	}	
+	memcpy(sr->sipx_node, node, 6);
 	sr->sipx_family = st->sipx_family = AF_IPX;
 	
 	enter_priv_on();
@@ -83,6 +86,33 @@ int AddRoute( unsigned long targetNet, unsigned network,
         close( sock );
 	leave_priv_setting();
         return(0);
+}
+
+int CheckRouteExist(unsigned long targetNet, unsigned network,
+        unsigned char node[])
+{
+char buf_targ[9], buf_net[9], buf_node[13], proc_net[9], proc_node[13], *proc_str;
+
+	sprintf(buf_targ, "%08lX", (unsigned long)htonl(targetNet));
+	sprintf(buf_net, "%08lX", (unsigned long)htonl(network));
+	sprintf(buf_node, "%02X%02X%02X%02X%02X%02X", node[0], node[1],
+                     node[2], node[3], node[4], node[5]);
+
+	open_proc_scan("/proc/net/ipx_route");
+	proc_str = get_proc_string_by_key(buf_targ);
+
+	if (!proc_str) {
+		close_proc_scan();
+		return 0;
+	}
+
+	sscanf(proc_str, "%s %s", proc_net, proc_node);
+	close_proc_scan();
+
+	if (strcmp(buf_net, proc_net) || strcmp(buf_node, proc_node))
+		return 0;
+
+	return 1;
 }
 
 /* network must be passed in in network order (that is, high-low) */
@@ -220,20 +250,27 @@ RepeatSelect:
         
                 *hops = htons(RipResponse.Hops);
                 *ticks = htons(RipResponse.Ticks);
-                retCode = AddRoute( network, ipxs.sipx_network,
+		if (CheckRouteExist(network, ipxs.sipx_network, ipxs.sipx_node)) {
+		   n_printf("IPX: Route <%08lx through %08lx:%02x%02x%02x%02x%02x%02x> already exists\n",
+                     (unsigned long int)htonl(network), (unsigned long int)htonl(ipxs.sipx_network),
+                     ipxs.sipx_node[0],ipxs.sipx_node[1],ipxs.sipx_node[2],
+                     ipxs.sipx_node[3],ipxs.sipx_node[4],ipxs.sipx_node[5] );
+		} else {
+                  retCode = AddRoute( network, ipxs.sipx_network,
                         ipxs.sipx_node );
-                if( retCode < 0 ) {
-                        n_printf("IPX: Failure %d adding route <%08lx through %08lx:%02x%02x%02x%02x%02x%02x>\n",
-                                retCode,
+                  if( retCode < 0 ) {
+                        error("IPX: Failure adding route <%08lx through %08lx:%02x%02x%02x%02x%02x%02x>\n",
                                 (unsigned long int)htonl(network), (unsigned long int)htonl(ipxs.sipx_network),
                                 ipxs.sipx_node[0],ipxs.sipx_node[1],ipxs.sipx_node[2],
                                 ipxs.sipx_node[3],ipxs.sipx_node[4],ipxs.sipx_node[5] );
-                } else {
+			error("IPX: Try manually add this route with ipx_route command\nor use RIP daemon like ipxripd\n");
+                  } else {
                         n_printf("IPX: Success adding route <%08lx through %08lx:%02x%02x%02x%02x%02x%02x>\n",
                                 (unsigned long int)htonl(network), (unsigned long int)htonl(ipxs.sipx_network),
                                 ipxs.sipx_node[0],ipxs.sipx_node[1],ipxs.sipx_node[2],
                                 ipxs.sipx_node[3],ipxs.sipx_node[4],ipxs.sipx_node[5] );
-                }
+                  }
+		}
         } else {
                 printf("IPX: Error %d in GetLocalTarget main packet send/receive loop\n", retCode);
         }

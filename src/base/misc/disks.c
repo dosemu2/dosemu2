@@ -891,6 +891,12 @@ disk_init(void)
     else dp->rdonly = dp->wantrdonly;
   }
 
+  if (!FDISKS && use_bootdisk) {
+  /* if we don't have any configured floppies, we have to use bootdisk instead */
+    memcpy(&disktab[0], &bootdisk, sizeof(bootdisk));
+    FDISKS++;	/* now we have one */
+  }
+
   /*
    * Open hard disks
    */
@@ -1011,10 +1017,9 @@ int13(u_char i)
   int checkdp_val;
 
   disk = LO(dx);
-  if (disk < FDISKS) {
-    if (!disk && use_bootdisk)
-      dp = &bootdisk;
-    else
+  if (!disk && use_bootdisk)
+    dp = &bootdisk;
+  else if (disk < FDISKS) {
       dp = &disktab[disk];
     switch (HI(ax)) {
       #define DISKETTE_MOTOR_TIMEOUT (*((unsigned char *)0x440))
@@ -1350,7 +1355,7 @@ int13(u_char i)
 	NOCARRY;
       }
       else {
-	error("gettype: no disk %d\n", disk);
+	d_printf("gettype: no disk %d\n", disk);
 	HI(ax) = 0;		/* disk not there */
 	REG(eflags) |= CF;	/* error */
       }

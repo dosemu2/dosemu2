@@ -1,3 +1,34 @@
+2002/09/15 ver 1.1.3.4 unofficial pre-release
+	From Eric
+	- better fix for Ins key
+	From Stas and Bart
+	- fix bug in mouse fn 0x0020 (enable mouse driver)
+	- clear AC upon an INT instruction (software and hardware ints).
+	From Stas and Grigory
+	- parse /proc/net/ipx_route for existing IPX routes (without
+	  requiring root)
+	From Stas
+	- disable AC|ID clearance (leaving it only for the dosemu flags)
+	  at other places.
+	- ignore bootoff when the real floppy is not accessible
+	- convert the packet driver callbacks to be DPMI-safe
+	- add option $_pktdriver to disable/enable the packet driver 
+	  (int 0x60) for vnet
+	- dosnet fix for broadcast (so ping works between two DOSEMU
+	  sessions)
+	- get the Pause key working under DPMI
+	- disable PCI if there are no root privileges
+	- Unconfuse more serial error message like ERROR: \n DOSEMU:
+	  cannot...
+	- use a wider range of ports for IO-tracing (the "T" debug flag)
+	- fix buffer overflow in mfs.c
+	- fix a client's protected mode stack corruption under high IRQ 
+	  pressure and in some other cases (notably since 1.1.3)
+	- use sb_dsp for sound in global.conf
+	From Bart
+	- remove the old int code.
+	- add some version guards to global.conf.
+	- remove plugin_configure warning.
 2002/09/12 ver 1.1.3.3 unofficial pre-release
 	From Stas and Bart
 	- fix several potential t_dif (vs. hitimer_t) overflows in

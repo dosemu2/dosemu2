@@ -295,6 +295,7 @@ typedef struct vesamode_type_struct {
        boolean mathco, smp, cpummx;
        boolean ipxsup;
        boolean vnet;
+       boolean pktdrv;
        boolean dosbanner;
        boolean allowvideoportaccess;
        boolean emuretrace;
@@ -419,11 +420,7 @@ EXTERN __inline__ void parent_nextscan(void);
 EXTERN __inline__ void disk_close(void);
 EXTERN void cpu_setup(void);
 EXTERN void real_run_int(int);
-#ifdef USE_NEW_INT
-  #define run_int do_int
-#else
-  #define run_int real_run_int
-#endif
+#define run_int do_int
 EXTERN int mfs_redirector(void);
 EXTERN void int10(void);
 EXTERN void int13(u_char);

@@ -51,12 +51,6 @@
 #include "mapping.h"
 
 
-#ifdef USING_NET
-extern void pkt_check_receive_quick(void);
-/* flag to activate use of pic by packet driver */
-#define PICPKT 1
-#endif
-
 #if 0
 static inline void dbug_dumpivec(void)
 {
@@ -209,7 +203,7 @@ void hardware_setup(void)
   pic_unmaski(PIC_IPX);
 #endif
 #ifdef PICPKT
-  pic_seti(PIC_NET, pkt_check_receive_quick, 0x61, NULL);
+  pic_seti(PIC_NET, pkt_check_receive_quick, 0x61, pkt_receiver_callback);
 #else
   pic_seti(PIC_NET, pkt_check_receive_quick, 0, NULL);
 #endif
@@ -398,7 +392,8 @@ void memory_init(void)
 #endif
 
 #ifdef USING_NET
-  pkt_init(0x60);              /* Install the new packet driver interface */
+  if (config.pktdrv)
+    pkt_init(0x60);              /* Install the new packet driver interface */
 #endif
 
   bios_mem_setup();            /* setup values in BIOS area */
