@@ -1,3 +1,35 @@
+99/03/11 ver. 0.99.9.1 unofficial pre-release
+	From Dima <dima@service.baltnet.ru>
+	- fix for MFS (SEEK_FROM_EOF) assembling a wrong offset
+	From Alberto Olindo <bindo@assibit.it>
+	- makeing numpad keys work for 'keystroke'
+	From Steffen
+	- fix for emulated FAT hidding some entries
+	- fix for emulated FAT not updateing the CDS correctly
+	From Marcus
+	- typo fixed in peripher/dosctrl.c
+	From Andris Pavenis <pavenis@lanet.lv>
+	- fix for peripher/dosctrl.c (including bits/time.h for glibc2.1)
+	From Vladimir Kondratiev <vkondra@iil.intel.com>
+	- fix for peripher/dosctrl.c, including features.h to define __GLIBC__.
+	  Now, we won the first price: 3 contributors for 4 lines of code;-)
+	From Vincent Labie <vlabie@club-internet.fr>
+	- fixed a whole bunch of typos/bugs in sigsegv.c,cpu-emu.c,emu-ldt.c
+	  (_very_ small part of a 24806 lines patch, which (sorry) can't go
+           in as _one_ piece. Waiting for Vincent cutting it into handy
+	   chunks.  --Hans)
+	From Alberto
+	- typo fixed in userhooks.c
+	From Hans
+	- better check for 'being on console', involved files: global.conf
+	  config.c, utilities.c, utilities.h. Function is_console() uses
+	  ioctl() on a FD to detect wether it's a console.
+	  This solves some problems when starting DOSEMU from an _other_
+	  terminal, but redirecting stdin/out to /dev/ttyX.
+	- now returning exitcode 123 on Ctrl+ALT+PgDn, this enables wrapper
+	  scripts to detect this case and restart dosemu (speudo-reboot)
+	- new DOS_HELPER_GET_CPU_SPEED.
+	- fixed a typo in sigalarm_onoff() (utilities.c)
 99/02/26 ver. 0.99.9 released
 	From Antonio & Steffen
 	- preparation for 'kdos' DOSEMU frontend (src/env/video/X.c)

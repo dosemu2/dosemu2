@@ -465,6 +465,14 @@ static int dos_helper(void)
 	break;
     }
 
+  case DOS_HELPER_GET_CPU_SPEED:
+    {
+	if (config.rdtsc)
+		REG(eax) = (LLF_US << 16) / config.cpu_spd;
+	else	REG(eax) = 0;
+	break;
+    }
+
 #ifdef IPX
   case DOS_HELPER_IPX_CALL:
     if (config.ipxsup) {

@@ -16,9 +16,14 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <features.h>
 #if defined (__GLIBC__) && __GLIBC__ >= 2
-#define __needs_timeval
-#include <timebits.h>
+  #define __need_timeval
+  #if __GLIBC__== 2 && __GLIBC_MINOR__ < 1
+    #include <timebits.h>
+  #else
+    #include <bits/time.h>
+  #endif
 #endif
 #include <time.h>
 #include <sys/types.h>

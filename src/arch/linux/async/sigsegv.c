@@ -449,16 +449,16 @@ void print_exception_info(struct sigcontext_struct *scp)
 
     case 0xa:
       error("@Invalid TSS\n");
-      if(_err && 0x02)
+      if(_err & 0x02)
 	error("@IDT");
-      else if(_err && 0x04)
+      else if(_err & 0x04)
 	error("@LDT");
       else
 	error("@GDT");
 
-      error("@ selector: 0x%04x\n", ((_err >> 3) && 0x1fff ));
+      error("@ selector: 0x%04x\n", ((_err >> 3) & 0x1fff ));
 
-      if(_err && 0x01)
+      if(_err & 0x01)
 	error("@Exception was not caused by DOSEMU\n");
       else
 	error("@Exception was caused by DOSEMU\n");
@@ -471,16 +471,16 @@ void print_exception_info(struct sigcontext_struct *scp)
        * blocks, so I don't have to edit some dirty constructions to
        * generate one block of code. (Erik Mouw)
        */
-      if(_err && 0x02)
+      if(_err & 0x02)
 	error("@IDT");
-      else if(_err && 0x04)
+      else if(_err & 0x04)
 	error("@LDT");
       else
 	error("@GDT");
 
-      error("@ selector: 0x%04x\n", ((_err >> 3) && 0x1fff ));
+      error("@ selector: 0x%04x\n", ((_err >> 3) & 0x1fff ));
 
-      if(_err && 0x01)
+      if(_err & 0x01)
 	error("@Exception was not caused by DOSEMU\n");
       else
 	error("@Exception was caused by DOSEMU\n");
@@ -498,16 +498,16 @@ void print_exception_info(struct sigcontext_struct *scp)
        * blocks, so I don't have to edit some dirty constructions to
        * generate one block of code. (Erik Mouw)
        */
-      if(_err && 0x02)
+      if(_err & 0x02)
 	error("@IDT");
-      else if(_err && 0x04)
+      else if(_err & 0x04)
 	error("@LDT");
       else
 	error("@GDT");
 
-      error("@ selector: 0x%04x\n", ((_err >> 3) && 0x1fff ));
+      error("@ selector: 0x%04x\n", ((_err >> 3) & 0x1fff ));
 
-      if(_err && 0x01)
+      if(_err & 0x01)
 	error("@Exception was not caused by DOSEMU\n");
       else
 	error("@Exception was caused by DOSEMU\n");
@@ -516,7 +516,7 @@ void print_exception_info(struct sigcontext_struct *scp)
 
     case 0xe:
       error("@Page fault: ");
-      if(_err && 0x02)
+      if(_err & 0x02)
 	error("@write");
       else
 	error("@read");
@@ -524,13 +524,13 @@ void print_exception_info(struct sigcontext_struct *scp)
       error("@ instruction to linear address: 0x%08lx\n", _cr2);
 
       error("@CPU was in ");
-      if(_err && 0x04)
+      if(_err & 0x04)
 	error("@user mode\n");
       else
 	error("@supervisor mode\n");
 
       error("@Exception was caused by ");
-      if(_err && 0x01)
+      if(_err & 0x01)
 	error("@insufficient privelege\n");
       else
 	error("@non-available page\n");

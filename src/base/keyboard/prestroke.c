@@ -121,6 +121,33 @@ static unsigned char *recode(unsigned int *out, unsigned char *in)
           }
           return in;
         }
+        case 'M': { /* 'M' ==  as in Move, 
+                       ('P' would be nicer (Pu for PageUp) but is already used...)
+                       example: \Mh  == <HOME>   \Mu  == <PageUp>
+                                \Me  == <END>    \Md  == <PageDown>
+                                \M8  == <ArrowUp>
+                                \M4  == <ArrowLeft>  \M6  == <ArrowRight>
+                                \M2  == <ArrowDown>
+                       */
+          ch=*(in++);
+          switch(ch) {
+            case 'i': keynum = 0xe052; break;  /* KEY_INS */
+            case 'h': keynum = 0xe047; break;  /* KEY_HOME */
+            case 'u': keynum = 0xe049; break;  /* KEY_PGUP */
+            case 'c': keynum = 0xe053; break;  /* KEY_DEL */
+            case 'e': keynum = 0xe04f; break;  /* KEY_END */
+            case 'd': keynum = 0xe051; break;  /* KEY_PGDN */
+            case '8': keynum = 0xe048; break;  /* KEY_UP */
+            case '4': keynum = 0xe04b; break;  /* KEY_LEFT */
+            case '6': keynum = 0xe04d; break;  /* KEY_RIGHT */
+            case '2':
+            default:  keynum = 0xe050; break;  /* KEY_DOWN */
+          }
+          *(out++) = keynum;         /* key pressed */
+          *(out++) = keynum | 0x80;  /* key released */
+          *(out++) = 0;
+          return in;
+        }
         default:
         /* fall through */
       }

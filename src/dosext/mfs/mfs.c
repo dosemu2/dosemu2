@@ -2254,6 +2254,7 @@ int
 RedirectDisk(int dsk, char *resourceName, int ro_flag)
 {
   char path[256];
+  unsigned char *p;
   int i;
 
   *path = 0;
@@ -2279,6 +2280,18 @@ RedirectDisk(int dsk, char *resourceName, int ro_flag)
   path_to_ufs(path, &resourceName[strlen(LINUX_RESOURCE)], 1);
 
   i = init_drive(current_drive, path, ro_flag ? "R" : NULL) == 0 ? 4 : 0;
+
+  if(!i) {
+    /* Make drive known to DOS.
+     *
+     * Actually DOS will, given the chance, fill in this field by itself.
+     * However, the command line parse function (int 0x21, ah=0x29) will not.
+     * -- sw
+     */
+    p = drive_cds(current_drive);
+    p[cds_flags_off] = 0x80;
+    p[cds_flags_off + 1] = 0xc0;
+  }
 
 #if 0
   {
@@ -3494,8 +3507,7 @@ dos_fs_redirect(state)
     return TRUE;
   case SEEK_FROM_EOF:		/* 0x21 */
     {
-      int offset = (((int)WORD(state->ecx)<<16) + WORD(state->edx));
-
+      int offset = (state->ecx << 16) + WORD(state->edx);
       fd = sft_fd(sft);
       Debug0((dbg_fd, "Seek From EOF fd=%x ofs=%d\n",
 	      fd, offset));

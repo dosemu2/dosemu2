@@ -339,7 +339,7 @@ static void uhook_ecpu(int argc, char **argv)
 /*FIXME, need to ask Alberto*/
 		uhook_printf("setting cpuemu not yet implemented\n");
 	}
-	uhook_printf("cpuemu=%s\n", config.cpuemu ? "on" ? "off");
+	uhook_printf("cpuemu=%s\n", config.cpuemu ? "on" : "off");
 #else
 	uhook_printf("cpuemu not compiled in\n");
 #endif

@@ -41,6 +41,7 @@ Additional copyright notes:
 
 #ifdef X86_EMULATOR
 #include <stdlib.h>
+#include <string.h>		/* for memset */
 #include <setjmp.h>
 #include "emu.h"
 #include "timers.h"

@@ -597,6 +597,9 @@ static void our_envs_init(char *usedoptions)
     setenv("DOSEMU_EUID", buf, 1);
     sprintf(buf, "%d", getuid());
     setenv("DOSEMU_UID", buf, 1);
+    strcpy(buf, "0");
+    if (is_console(0)) strcpy(buf, "1");
+    setenv("DOSEMU_STDIN_IS_CONSOLE", buf, 1);
 }
 
 

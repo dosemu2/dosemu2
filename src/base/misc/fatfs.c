@@ -526,21 +526,21 @@ void scan_dir(fatfs_t *f, unsigned oi)
 
     if(dir == NULL) {
       fatfs_msg("cannot read directory \"%s\"\n", name);
-      return;
     }
+    else {
+      while((dent = readdir(dir))) {
+        if(i == scans - 1) {
+          for(j = 0; j < i; j++) if(!strcasecmp(dent->d_name, sf[j])) break;
+          if(i == j) add_object(f, oi, dent->d_name);
+        }
+        else {
+          if(!strcasecmp(dent->d_name, sf[i])) add_object(f, oi, dent->d_name);
+        }
+        o = f->obj + oi;
+      }
 
-    while((dent = readdir(dir))) {
-      if(i == scans - 1) {
-        for(j = 0; j < i; j++) if(!strcasecmp(dent->d_name, sf[j])) break;
-        if(i == j) add_object(f, oi, dent->d_name);
-      }
-      else {
-        if(!strcasecmp(dent->d_name, sf[i])) add_object(f, oi, dent->d_name);
-      }
-      o = f->obj + oi;
+      closedir(dir);
     }
-
-    closedir(dir);
   }
 
   if(oi == 0) {

@@ -49,6 +49,7 @@ Additional copyright notes:
 
 #include <stdlib.h>
 #include <setjmp.h>
+#include <errno.h>
 #include "emu.h"
 #include "timers.h"
 #include "pic.h"

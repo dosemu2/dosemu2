@@ -585,7 +585,9 @@ static Boolean handle_dosemu_keys(t_keysym key) {
 #endif
        case KEY_PGDN:
              k_printf("KBD: Ctrl-Alt-PgDn: bye bye!\n");
-             leavedos(0);
+             leavedos(123);  /* use this exitcode, so a wrapper script
+				may detect Ctrl-Alt-PgDn and restart
+				dosemu if if wants (pseudo-reboot) */
 
        case KEY_F1 ... KEY_F10:
        case KEY_F11:

@@ -19,6 +19,8 @@
 #include <fcntl.h>
 #include <string.h>
 #include <ctype.h>
+#include <linux/vt.h>
+#include <sys/ioctl.h>
 #include <errno.h>
 
 #include "emu.h"
@@ -570,13 +572,25 @@ void sigalarm_onoff(int on)
   static struct itimerval itv_old_;
   static struct itimerval *itv_old = &itv_old_;
   static struct itimerval itv;
-  if (on) setitimer(TIMER_TIME, &itv_old, NULL);
+  if (on) setitimer(TIMER_TIME, itv_old, NULL);
   else {
     itv.it_interval.tv_sec = itv.it_interval.tv_usec = 0;
     itv.it_value = itv.it_interval;
     setitimer(TIMER_TIME, &itv, itv_old);
     itv_old = NULL;
   }
+}
+
+int is_console(int fd)
+{
+  /* normally the below ioctl will return the next available not opened VT.
+   * The fd maybe _any_ valid fd of an opened VT.
+   * Hence, if the below ioctl fails, we assume the fd is not the one
+   * of an VT. ... simple;-)
+   */
+  int nextvt;
+  if( ioctl( fd, VT_OPENQRY, &nextvt ) ) return 0;
+  return 1;
 }
 
 
