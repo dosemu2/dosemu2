@@ -15,6 +15,7 @@ AC_CONFIG_HEADER(src/include/config.h)
 AC_CANONICAL_TARGET([])
 
 dnl Checks for programs.
+OPT=$CFLAGS
 AC_PROG_CC
 AC_PROG_GCC_TRADITIONAL
 AC_PROG_AWK
@@ -447,15 +448,20 @@ INCDIR="-I\${top_builddir}/src/include -I\${top_builddir}/src/plugin/include ${S
 AC_SUBST(INCDIR)
 
 CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations -Wnested-externs"
-if test "$enable_debug" = "yes"; then
-  CFLAGS="$CFLAGS -g"
-  AC_DEFINE(_DEBUG)
-  OPT="-O"
-else
-  OPT="-O2"   # BIG NOTE: do _not_ use -O3,
+if test -z "$OPT"; then
+  if test "$enable_debug" = "yes"; then
+    CFLAGS="$CFLAGS -g"
+    AC_DEFINE(_DEBUG)
+    OPT="-O"
+  else
+    OPT="-O2" # BIG NOTE: do _not_ use -O3,
               # because in forces _inline_ at places where we don't want it !
               # If we want _inline_, well then we 'code' it.
-  OPT="$OPT -fomit-frame-pointer"  # never omit the frame pointer when debugging!
+    OPT="$OPT -fomit-frame-pointer"  # never omit the frame pointer when debugging!
+  fi
+fi
+if test "$enable_debug" = "yes"; then
+  AC_DEFINE(_DEBUG)
 fi
 
 dnl CPU emulator
