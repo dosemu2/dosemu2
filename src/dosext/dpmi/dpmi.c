@@ -84,6 +84,20 @@
 #include "vgaemu.h"
 #endif
 
+/*
+ * DPMI 1.0 specs erroneously claims that the exceptions 1..5 and 7
+ * occured in protected mode, have to be reflected to the real-mode
+ * interrupts if either no protected mode exception handler is
+ * installed, or the default handler is called. This cannot work
+ * because the realmode interrupt handler cannot validate the exception
+ * condition, and, in case of a faults, the exception will re-trigger
+ * infinitely because there is noone to advance the EIP.
+ * Instead we route the exceptions to protected-mode interrupt
+ * handlers, which is the Windows' way. If one is not installed,
+ * the client is terminated.
+ */
+#define EXC_TO_PM_INT 1
+
 #define MPROT_LDT_ENTRY(ent) \
   mprotect_mapping(MAPPING_DPMI, \
     (void *)(((unsigned long)&ldt_buffer[(ent)*LDT_ENTRY_SIZE]) & PAGE_MASK), \
@@ -2818,6 +2832,49 @@ void dpmi_sigio(struct sigcontext_struct *scp)
   }
 }
 
+static void return_from_exception(struct sigcontext_struct *scp)
+{
+  us *ssp;
+  unsigned short saved_ss = _ss;
+  unsigned long saved_esp = _esp;
+  if (in_dpmi_pm_stack) {
+    in_dpmi_pm_stack--;
+    if (!in_dpmi_pm_stack && _ss != DPMI_CLIENT.PMSTACK_SEL) {
+      error("DPMI: Client's PM Stack corrupted during exception handling!\n");
+//	      leavedos(91);
+    }
+  }
+  D_printf("DPMI: Return from client exception handler, "
+    "in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
+
+  ssp = (us *)SEL_ADR(_ss,_esp);
+
+  if (DPMI_CLIENT.is_32) {
+    /* poping error code */
+    ssp += 2;
+    _eip = *((unsigned long *) ssp), ssp += 2;
+    _cs = *ssp++;
+    ssp++;
+    set_EFLAGS(_eflags, *((unsigned long *) ssp)), ssp += 2;
+    _esp = *((unsigned long *) ssp), ssp += 2;
+    _ss = *ssp++;
+    ssp++;
+  } else {
+    /* poping error code */
+    ssp++;
+    _LWORD(eip) = *ssp++;
+    _cs = *ssp++;
+    set_EFLAGS(_eflags, *ssp++);
+    _LWORD(esp) = *ssp++;
+    _ss = *ssp++;
+  }
+  if (!_ss) {
+    D_printf("DPMI: ERROR: SS is zero, esp=0x%08lx, using old stack\n", _esp);
+    _ss = saved_ss;
+    _esp = saved_esp;
+  }
+}
+
 /*
  * DANG_BEGIN_FUNCTION do_default_cpu_exception
  *
@@ -2829,9 +2886,44 @@ void dpmi_sigio(struct sigcontext_struct *scp)
  * DANG_END_FUNCTION
  */
 
-static  void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
-{ 
-  switch (trapno) {
+static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
+{
+    us * ssp;
+    ssp = (us *)SEL_ADR(_ss,_esp);
+
+    D_printf("DPMI: do_default_cpu_exception %d at %#x:%#x ss:sp=%x:%x\n",
+      trapno, (int)_cs, (int)_eip, (int)_ss, (int)_esp);
+
+#if EXC_TO_PM_INT
+    /* Route the exception to protected-mode interrupt handler or
+     * terminate the client if the one is not installed. */
+    if (DPMI_CLIENT.Interrupt_Table[trapno].selector == DPMI_CLIENT.DPMI_SEL) {
+	p_dos_str("DPMI: Unhandled Exception %02x - Terminating Client\n"
+	  "It is likely that dosemu is unstable now and should be rebooted\n",
+	  trapno);
+	quit_dpmi(scp, 0xff);
+    }
+    if (DPMI_CLIENT.is_32) {
+      ssp -= 2, *((unsigned long *) ssp) = get_vFLAGS(_eflags);
+      *--ssp = (us) 0;
+      *--ssp = _cs;
+      ssp -= 2, *((unsigned long *) ssp) = _eip;
+      _esp -= 12;
+    } else {
+      *--ssp = (unsigned short) get_vFLAGS(_eflags);
+      *--ssp = _cs; 
+      *--ssp = _eip;
+      _LWORD(esp) -= 6;
+    }
+    clear_IF();
+    _eflags &= ~(TF | NT | AC);
+    _cs = DPMI_CLIENT.Interrupt_Table[trapno].selector;
+    _eip = DPMI_CLIENT.Interrupt_Table[trapno].offset;
+    return;
+#else
+    /* This is how the DPMI 1.0 spec claims it should be, but
+     * this doesn't work. */
+    switch (trapno) {
     case 0x00: /* divide_error */
     case 0x01: /* debug */
     case 0x03: /* int3 */
@@ -2845,8 +2937,6 @@ static  void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
 		 return;
 	       }
 #endif
-	       D_printf("DPMI: do_default_cpu_exception %d at %#x:%#x\n",
-		 trapno, (int)_cs, (int)_eip);
 	       save_rm_regs();
 	       REG(cs) = DPMI_SEG;
 	       REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
@@ -2856,9 +2946,9 @@ static  void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
 	       p_dos_str("DPMI: Unhandled Exception %02x - Terminating Client\n"
 			 "It is likely that dosemu is unstable now and should be rebooted\n",
 			 trapno);
-	       flush_log();
 	       quit_dpmi(scp, 0xff);
   }
+#endif
 }
 
 /*
@@ -2887,15 +2977,8 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
 
   mhp_intercept("\nCPU Exception occured, invoking dosdebug\n\n", "+9M");
 
-#ifdef TRACE_DPMI
-  if (debug_level('t') && (_trapno == 1)) {
-    do_default_cpu_exception(scp, _trapno);
-    return;
-  }
-#endif
-
-  D_printf("DPMI: do_cpu_exception(0x%02lx) at %#x:%#lx, cr2=%#lx, err=%#lx\n",
-	_trapno, _cs, _eip, _cr2, _err);
+  D_printf("DPMI: do_cpu_exception(0x%02lx) at %#x:%#lx, ss:esp=%x:%lx, cr2=%#lx, err=%#lx\n",
+	_trapno, _cs, _eip, _ss, _esp, _cr2, _err);
 #if 0
   if (_trapno == 0xe) {
       set_debug_level('M', 9);
@@ -3337,42 +3420,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  pic_iret();
 
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_exception)) {
-	  unsigned short saved_ss = _ss;
-	  unsigned long saved_esp = _esp;
-	  if (in_dpmi_pm_stack) {
-	    in_dpmi_pm_stack--;
-	    if (!in_dpmi_pm_stack && _ss != DPMI_CLIENT.PMSTACK_SEL) {
-	      error("DPMI: Client's PM Stack corrupted during exception handling!\n");
-//	      leavedos(91);
-	    }
-	  }
-          D_printf("DPMI: Return from client exception handler, "
-	    "in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
-
-	  if (DPMI_CLIENT.is_32) {
-	    /* poping error code */
-	    ssp += 2;
-	    _eip = *((unsigned long *) ssp), ssp += 2;
-	    _cs = *ssp++;
-	    ssp++;
-	    set_EFLAGS(_eflags, *((unsigned long *) ssp)), ssp += 2;
-	    _esp = *((unsigned long *) ssp), ssp += 2;
-	    _ss = *ssp++;
-	    ssp++;
-	  } else {
-	    /* poping error code */
-	    ssp++;
-	    _LWORD(eip) = *ssp++;
-	    _cs = *ssp++;
-	    set_EFLAGS(_eflags, *ssp++);
-	    _LWORD(esp) = *ssp++;
-	    _ss = *ssp++;
-	  }
-	  if (!_ss) {
-	    D_printf("DPMI: ERROR: SS is zero, esp=0x%08lx, using old stack\n", _esp);
-	    _ss = saved_ss;
-	    _esp = saved_esp;
-	  }
+	  return_from_exception(scp);
 
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_ext_exception)) {
 	  if (in_dpmi_pm_stack) {
@@ -3555,6 +3603,26 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	} else if ((_eip>=DPMI_OFF+1+HLT_OFF(DPMI_exception)) && (_eip<=DPMI_OFF+32+HLT_OFF(DPMI_exception))) {
 	  int excp = _eip-1-DPMI_OFF-HLT_OFF(DPMI_exception);
 	  D_printf("DPMI: default exception handler 0x%02x called\n",excp);
+	  if (DPMI_CLIENT.is_32) {
+	    _eip = *((unsigned long *) ssp), ssp += 2;
+	    _cs = *ssp++;
+	    ssp++;
+	    _esp += 8;
+	  } else {
+	    _LWORD(eip) = *ssp++;
+	    _cs = *ssp++;
+	    _LWORD(esp) += 4;
+	  }
+#if EXC_TO_PM_INT
+	  /*
+	   * Since the prot.mode inthandler may alter the return
+	   * address to validate the exception condition, we have
+	   * to remove the exception stack frame completely, move
+	   * out from LPMS, and execute the inthandler within the
+	   * client's context.
+	   */
+	  return_from_exception(scp);
+#endif
 	  do_default_cpu_exception(scp, excp);
 
 	} else if ((_eip>=DPMI_OFF+1+HLT_OFF(DPMI_interrupt)) && (_eip<=DPMI_OFF+256+HLT_OFF(DPMI_interrupt))) {
