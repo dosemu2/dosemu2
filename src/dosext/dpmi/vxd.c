@@ -404,7 +404,7 @@ void WINAPI VXD_Timer( CONTEXT86 *scp )
 
     case 0x0101: /* current Windows time, msecs */
     case 0x0102: /* current VM time, msecs */
-	scp->eax = GetTickCount();
+	scp->eax = GETusTIME(0) / 1000;
 	break;
 
     default:
