@@ -2,12 +2,6 @@
 # Please send comments and bug-reports to Max Parke <mhp@light.lightlink.com>
 # Please read the code in this directory for more information.
 
-REALTOPDIR=@REALTOPDIR@
-TOPDIR=@SRCPATH@
-CFLAGS=@CFLAGS@
-LDFLAGS=@LDFLAGS@
-CC=@CC@
-@SET_MAKE@
 
 SUBDIR=debugger
 

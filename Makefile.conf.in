@@ -1,0 +1,73 @@
+# Makefile.conf.in for DOSEMU
+#
+# This is the only Makefile getting substituted by ./configure
+# It is included by the top Makefile and exports all needed variables
+# to the slave-Makefiles.
+
+
+@SET_MAKE@
+ifdef MAKE
+  export MAKE
+endif
+
+export INCDIR=@INCDIR@
+
+export CFLAGS=@CFLAGS@
+export LDFLAGS=@LDFLAGS@
+export CC=@CC@
+export YACC=@YACC@
+export LEX=@LEX@
+@X_SUPPORT@
+ifdef X_SUPPORT
+  export X_SUPPORT
+endif
+@X_GRAPHICS@
+ifdef X_GRAPHICS
+  export X_GRAPHICS
+endif
+@NEW_X_CODE@
+ifdef NEW_X_CODE
+  export NEW_X_CODE
+endif
+
+
+export _LD86_=@LD86@
+export _AS86_=@AS86@
+@NEW_KBD_CODE@
+ifdef NEW_KBD_CODE
+  export NEW_KBD_CODE
+endif
+
+# This gets defined even if we chose via ./include/config.h NOT to
+# use the debugger
+export DEBUGGER=@DEBUGGER@
+
+export X11LIBDIR=@x_libraries@
+export X2CFILES=@X2CFILES@
+export X2CEXE=@X2CEXE@
+export USE_MHPDBG=@USE_MHPDBG@
+@USE_SBEMU@
+ifdef USE_SBEMU
+  export USE_SBEMU
+endif
+@USE_THREADS@
+ifdef USE_THREADS
+  export USE_THREADS
+endif
+export OPTIONALSUBDIRS = @OPTIONALSUBDIRS@
+export REQUIRED=@REQUIRED@
+export SLANGLIB=@SLANGLIB@
+export XLIBSW=@XLIBSW@
+@USE_ULTRA@
+ifdef USE_ULTRA
+  export USE_ULTRA
+endif
+
+export REQUIRES_VM86PLUS=@REQUIRES_VM86PLUS@
+export OS=@CONFIG_HOST@
+export LIBSTART=@LIBSTART@
+@ELF@
+ifdef ELF
+  export ELF=1
+endif
+export RANLIB=@RANLIB@

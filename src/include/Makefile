@@ -1,12 +1,6 @@
 # This is the file ./include/Makefile for the Linux DOS-emulator.
 #
 
-REALTOPDIR=@REALTOPDIR@
-TOPDIR=@SRCPATH@
-CFLAGS=@CFLAGS@
-LDFLAGS=@LDFLAGS@
-CC=@CC@
-@SET_MAKE@
 
 ALL = bios.h cmos.h cpu.h disks.h dosio.h dosnet.h emu.h \
 	emusys.h hgc.h inifile.h ipx.h keymaps.h \

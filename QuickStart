@@ -11,21 +11,23 @@ WARNING for old dosemu users:
 1. Compile
 --------------------------------------------------------------------------
 
-- ./default-configure
 - make
 - su
 - make install
 
 --------------------------------------------------------------------------
-1a. Want to use not standard configuration
+1a. Want to use not standard configuration ?
 --------------------------------------------------------------------------
 
-You can use the new menu driven configuration tool:
+Then you have to edit compiletime-settings (changing on/off) and run
+./default-configure _prior_ to running make.
+
+Or alternatively you can use the new menu driven configuration tool:
 
 - ./setup-dosemu
 
-then enter "Compile time (runs ./configure)", when you have finished
-toggling the configuration swicthes, go to < Exit >, and type ENTER,
+then enter "Compile time (runs ./default-configure)", when you have
+finished toggling the configuration switches, go to < Exit >, and type ENTER,
 ... well it should be self descriptive.
 
 
@@ -33,9 +35,10 @@ toggling the configuration swicthes, go to < Exit >, and type ENTER,
 1b. Use 'low feature dosemu' without vm86plus
 --------------------------------------------------------------------------
 
-If you don't want to use vm86plus you need to configure dosemu either with
+If you don't want to use vm86plus you need to configure dosemu prior to
+running 'make' either with
 
-- ./configure --enable-novm86plus
+- ./default-configure --enable-novm86plus
 
 or use setup-dosemu to toggle "disable VM86 enhancement"
 

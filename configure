@@ -2547,7 +2547,7 @@ fi
 
 fi
 
-for ac_func in getcwd gethostname gettimeofday mkdir mkfifo mktime rmdir select socket strdup strerror strstr strtol strtoul uname
+for ac_func in gettimeofday
 do
 echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
 if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
@@ -3260,13 +3260,17 @@ XLIBSW="$XLIBSWD $XLIBSWL"
 
 
 REALTOPDIR=`nolinks=1; pwd`
-VERSION="0"
-SUBLEVEL="67"
-PATCHLEVEL="9.0"
+VERSION="`cut -d. -f1 VERSION`"
+SUBLEVEL="`cut -d. -f2 VERSION`"
+PATCHLEVEL="`cut -d. -f3 VERSION`"
+PATCHLEVEL_="`cut -d. -f4 VERSION`"
+if test "$PATCHLEVEL_" = ""; then
+  PATCHLEVEL_=0
+fi
+PATCHLEVEL="${PATCHLEVEL}.${PATCHLEVEL_}"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`
-PACKETNAME="dosemu-$VERSION.$SUBLEVEL.${PATCHLEVEL%.0}"
 
 cat >> confdefs.h <<EOF
 #define EMUVER "$EMUVER"
@@ -3274,7 +3278,6 @@ EOF
 
 
 CONFIG_TIME=`date`
-
 
 
 
@@ -3456,7 +3459,7 @@ else
   ac_save_LIBS="$LIBS"
 LIBS="-lgus  $LIBS"
 cat > conftest.$ac_ext <<EOF
-#line 3460 "configure"
+#line 3463 "configure"
 #include "confdefs.h"
 /* Override any gcc2 internal prototype to avoid an error.  */
 /* We use char because int might match the return type of a gcc2
@@ -3468,7 +3471,7 @@ int t() {
 gus_close()
 ; return 0; }
 EOF
-if { (eval echo configure:3472: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; }; then
+if { (eval echo configure:3475: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; }; then
   rm -rf conftest*
   eval "ac_cv_lib_$ac_lib_var=yes"
 else
@@ -3559,14 +3562,14 @@ TOPDIR=`nolinks=1;pwd`
 
 
 if test "$force_slang" != "no"; then
- SLANGINC="-I${SRCPATH}/include/slang"
+ SLANGINC="-I\${SRCPATH}/include/slang"
 fi
 
 # BIG NOTE: XINCLUDES _must_ come last, because some joker did preset
 # it with a comment line (such as: XINCLUDES="# no special path needed")
 # We need to fix this, because this is a time bomb. --HL
 
-INCDIR="-I${SRCPATH}/include -I${SRCPATH}/dosext/dpmi ${SLANGINC} ${XINCLUDES}"
+INCDIR="-I\${SRCPATH}/include -I\${SRCPATH}/dosext/dpmi ${SLANGINC} ${XINCLUDES}"
 
 
 if test "$dodebug" = "yes"; then
@@ -3718,45 +3721,7 @@ done
 
 ac_given_srcdir=$srcdir
 
-trap 'rm -fr `echo "
-Makefile
-man/Makefile
-src/Makefile
-src/Makefile.common
-src/arch/linux/Makefile.main
-src/arch/linux/async/Makefile
-src/arch/linux/threads/Makefile
-src/arch/linux/debugger/Makefile
-src/arch/linux/dosext/sound/Makefile
-src/arch/linux/dosext/sound/midid/Makefile
-src/base/async/Makefile
-src/base/bios/Makefile
-src/base/dev/dma/Makefile
-src/base/dev/misc/Makefile
-src/base/dev/pic/Makefile
-src/base/init/Makefile
-src/base/keyboard/Makefile
-src/base/misc/Makefile
-src/base/mouse/Makefile
-src/base/serial/Makefile
-src/commands/Makefile
-src/dosext/dpmi/Makefile
-src/dosext/drivers/Makefile
-src/dosext/mfs/Makefile
-src/dosext/misc/Makefile
-src/dosext/net/net/Makefile
-src/dosext/net/v-net/Makefile
-src/dosext/sound/Makefile
-src/emu-i386/Makefile
-src/env/Makefile
-src/env/video/Makefile
-src/include/Makefile
-src/doc/Makefile
-src/doc/DANG/Makefile
-src/doc/HOWTO/Makefile
-src/doc/README/Makefile
-src/tools/Makefile
-src/tools/periph/Makefile  src/include/config.h" | sed "s/:[^ ]*//g"` conftest*; exit 1' 1 2 15
+trap 'rm -fr `echo "Makefile.conf src/include/config.h" | sed "s/:[^ ]*//g"` conftest*; exit 1' 1 2 15
 EOF
 cat >> $CONFIG_STATUS <<EOF
 
@@ -3831,7 +3796,6 @@ s%@SUBLEVEL@%$SUBLEVEL%g
 s%@PATCHLEVEL@%$PATCHLEVEL%g
 s%@THISVERSION@%$THISVERSION%g
 s%@VERSION@%$VERSION%g
-s%@PACKETNAME@%$PACKETNAME%g
 s%@BINPATH@%$BINPATH%g
 s%@SRCPATH@%$SRCPATH%g
 s%@BUILTIN_VM86PLUS@%$BUILTIN_VM86PLUS%g
@@ -3855,44 +3819,7 @@ CEOF
 EOF
 cat >> $CONFIG_STATUS <<EOF
 
-CONFIG_FILES=\${CONFIG_FILES-"Makefile
-man/Makefile
-src/Makefile
-src/Makefile.common
-src/arch/linux/Makefile.main
-src/arch/linux/async/Makefile
-src/arch/linux/threads/Makefile
-src/arch/linux/debugger/Makefile
-src/arch/linux/dosext/sound/Makefile
-src/arch/linux/dosext/sound/midid/Makefile
-src/base/async/Makefile
-src/base/bios/Makefile
-src/base/dev/dma/Makefile
-src/base/dev/misc/Makefile
-src/base/dev/pic/Makefile
-src/base/init/Makefile
-src/base/keyboard/Makefile
-src/base/misc/Makefile
-src/base/mouse/Makefile
-src/base/serial/Makefile
-src/commands/Makefile
-src/dosext/dpmi/Makefile
-src/dosext/drivers/Makefile
-src/dosext/mfs/Makefile
-src/dosext/misc/Makefile
-src/dosext/net/net/Makefile
-src/dosext/net/v-net/Makefile
-src/dosext/sound/Makefile
-src/emu-i386/Makefile
-src/env/Makefile
-src/env/video/Makefile
-src/include/Makefile
-src/doc/Makefile
-src/doc/DANG/Makefile
-src/doc/HOWTO/Makefile
-src/doc/README/Makefile
-src/tools/Makefile
-src/tools/periph/Makefile "}
+CONFIG_FILES=\${CONFIG_FILES-"Makefile.conf"}
 EOF
 cat >> $CONFIG_STATUS <<\EOF
 for ac_file in .. $CONFIG_FILES; do if test "x$ac_file" != x..; then
@@ -4081,20 +4008,6 @@ if test -z "`echo $YACC | grep bison`" ; then
   echo "configure: warning: There have been reports that bison is really required to" 1>&2
   echo "configure: warning: compile Dosemu. You may try to use $YACC instead" 1>&2
   echo "configure: warning: mileage may vary. If you want to be sure" 1>&2
-  echo "configure: warning: " 1>&2
-fi
-
-if test "$have_mitshm" = "yes" ; then
-  echo "configure: warning: " 1>&2
-  echo "configure: warning: The use of MITSHM is enabled. This means that Xdos can" 1>&2
-  echo "configure: warning: only run on a machine with a local X server. Use" 1>&2
-  echo "configure: warning: configure --enable-nomitshm to disable the use of MITSHM." 1>&2
-  echo "configure: warning: " 1>&2
-else
-  echo "configure: warning: " 1>&2
-  echo "configure: warning: The use of MITSHM is disabled. This means that Xdos can" 1>&2
-  echo "configure: warning: run on any X server. Use  configure --enable-mitshm" 1>&2
-  echo "configure: warning: to force the use of MITSHM." 1>&2
   echo "configure: warning: " 1>&2
 fi
 

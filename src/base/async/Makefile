@@ -1,9 +1,3 @@
-REALTOPDIR=@REALTOPDIR@
-TOPDIR=@SRCPATH@
-CFLAGS=@CFLAGS@
-LDFLAGS=@LDFLAGS@
-CC=@CC@
-@SET_MAKE@
 
 #  src/base/misc/dyndeb.c -> ../async/dyndeb.c
 #  src/base/misc/int.c -> ../async/int.c

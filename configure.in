@@ -73,7 +73,10 @@ AC_FUNC_MEMCMP
 AC_FUNC_MMAP
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS(getcwd gethostname gettimeofday mkdir mkfifo mktime rmdir select socket strdup strerror strstr strtol strtoul uname)
+dnl we currently don't use the following ...
+dnl ___AC_CHECK_FUNCS(getcwd gethostname gettimeofday mkdir mkfifo mktime rmdir select socket strdup strerror strstr strtol strtoul uname)
+dnl ... except
+AC_CHECK_FUNCS(gettimeofday)
 
 dnl Here is where we do our stuff
 
@@ -307,13 +310,17 @@ AC_SUBST(XLIBSW)
 AC_SUBST(x_libraries)
 
 REALTOPDIR=`nolinks=1; pwd`
-VERSION="0"
-SUBLEVEL="67"
-PATCHLEVEL="9.0"
+VERSION="`cut -d. -f1 VERSION`"
+SUBLEVEL="`cut -d. -f2 VERSION`"
+PATCHLEVEL="`cut -d. -f3 VERSION`"
+PATCHLEVEL_="`cut -d. -f4 VERSION`"
+if test "$PATCHLEVEL_" = ""; then
+  PATCHLEVEL_=0
+fi
+PATCHLEVEL="${PATCHLEVEL}.${PATCHLEVEL_}"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`
-PACKETNAME="dosemu-$VERSION.$SUBLEVEL.${PATCHLEVEL%.0}"
 
 AC_DEFINE_UNQUOTED(EMUVER, "$EMUVER")
 AC_SUBST(EMUVER)
@@ -323,7 +330,6 @@ AC_SUBST(SUBLEVEL)
 AC_SUBST(PATCHLEVEL)
 AC_SUBST(THISVERSION)
 AC_SUBST(VERSION)
-AC_SUBST(PACKETNAME)
 BINPATH="$REALTOPDIR/$THISVERSION"
 AC_SUBST(BINPATH)
 SRCPATH="$REALTOPDIR/src"
@@ -482,14 +488,14 @@ TOPDIR=`nolinks=1;pwd`
 AC_SUBST(TOPDIR)
 
 if test "$force_slang" != "no"; then
- SLANGINC="-I${SRCPATH}/include/slang"
+ SLANGINC="-I\${SRCPATH}/include/slang"
 fi
 
 # BIG NOTE: XINCLUDES _must_ come last, because some joker did preset
 # it with a comment line (such as: XINCLUDES="# no special path needed")
 # We need to fix this, because this is a time bomb. --HL
 
-INCDIR="-I${SRCPATH}/include -I${SRCPATH}/dosext/dpmi ${SLANGINC} ${XINCLUDES}"
+INCDIR="-I\${SRCPATH}/include -I\${SRCPATH}/dosext/dpmi ${SLANGINC} ${XINCLUDES}"
 AC_SUBST(INCDIR)
 
 if test "$dodebug" = "yes"; then
@@ -556,45 +562,7 @@ AC_SUBST(LDFLAGS)
 
 dnl Create output files. If you add new ones, please do it in order.
 
-AC_OUTPUT([
-Makefile
-man/Makefile
-src/Makefile
-src/Makefile.common
-src/arch/linux/Makefile.main
-src/arch/linux/async/Makefile
-src/arch/linux/threads/Makefile
-src/arch/linux/debugger/Makefile
-src/arch/linux/dosext/sound/Makefile
-src/arch/linux/dosext/sound/midid/Makefile
-src/base/async/Makefile
-src/base/bios/Makefile
-src/base/dev/dma/Makefile
-src/base/dev/misc/Makefile
-src/base/dev/pic/Makefile
-src/base/init/Makefile
-src/base/keyboard/Makefile
-src/base/misc/Makefile
-src/base/mouse/Makefile
-src/base/serial/Makefile
-src/commands/Makefile
-src/dosext/dpmi/Makefile
-src/dosext/drivers/Makefile
-src/dosext/mfs/Makefile
-src/dosext/misc/Makefile
-src/dosext/net/net/Makefile
-src/dosext/net/v-net/Makefile
-src/dosext/sound/Makefile
-src/emu-i386/Makefile
-src/env/Makefile
-src/env/video/Makefile
-src/include/Makefile
-src/doc/Makefile
-src/doc/DANG/Makefile
-src/doc/HOWTO/Makefile
-src/doc/README/Makefile
-src/tools/Makefile
-src/tools/periph/Makefile ])
+AC_OUTPUT([Makefile.conf])
 
 dnl Print some warnings (if neccessary)
 
@@ -626,21 +594,6 @@ if test -z "`echo $YACC | grep bison`" ; then
   AC_MSG_WARN(There have been reports that bison is really required to)
   AC_MSG_WARN(compile Dosemu. You may try to use $YACC instead, your)
   AC_MSG_WARN(mileage may vary. If you want to be sure, install bison.)
-  AC_MSG_WARN( )
-fi
-
-dnl Tell the user about MITSHM
-if test "$have_mitshm" = "yes" ; then
-  AC_MSG_WARN( )
-  AC_MSG_WARN(The use of MITSHM is enabled. This means that Xdos can)
-  AC_MSG_WARN(only run on a machine with a local X server. Use)
-  AC_MSG_WARN(configure --enable-nomitshm to disable the use of MITSHM.)
-  AC_MSG_WARN( )
-else
-  AC_MSG_WARN( )
-  AC_MSG_WARN(The use of MITSHM is disabled. This means that Xdos can)
-  AC_MSG_WARN(run on any X server. Use  configure --enable-mitshm)
-  AC_MSG_WARN(to force the use of MITSHM.)
   AC_MSG_WARN( )
 fi
 

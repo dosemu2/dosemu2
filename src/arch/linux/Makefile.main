@@ -1,20 +1,8 @@
 # Makefile for Linux DOSEMU
 #
-# $Date: 1995/05/06 16:24:53 $
-# $Source: /usr/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.41 $
-# $State: Exp $
-#
 # You should do a "make" to compile and a "make install" as root to
 # install DOSEMU.
 
-# This gets defined even if we chose via ./include/config.h NOT to 
-# use the debugger
-DEBUGGER=@DEBUGGER@
-@X_SUPPORT@
-@X_GRAPHICS@
-X11LIBDIR=@x_libraries@
-USE_MHPDBG=@USE_MHPDBG@
 
 
 #Change the following line to point to your loadable modules directory
@@ -22,17 +10,6 @@ BOOTDIR = /boot/modules
 
 PICOBJS = libpic.a
 export PICOBJS
-
-# enable this target to make a different way
-# do_DEBUG=true
-ifdef ELF
-#export CC         = gcc # -elf I use gcc-specific features (var-arg macros, fr'instance)
-export CC = @CC@ #-elf
-else
-#export CC         = gcc # I use gcc-specific features (var-arg macros, fr'instance)
-# export CC         = gcc -b i486-linuxaout # I use gcc-specific features (var-arg macros, fr'instance)
-export CC = @CC@ #-b i486-linuxaout
-endif
 
 export LD=$(CC)
 OBJS	= dos.o
@@ -44,7 +21,7 @@ LIBDOSEMU = $(BINPATH)/bin/libdosemu
 
 ENDOFDOSMEM = 0x110000     # 1024+64 Kilobytes
 
-CFILES=emu.c dos.c @X2CFILES@ base/data.c dosstatic.c
+CFILES=emu.c dos.c $(X2CFILES) base/data.c dosstatic.c
 
 export USING_NET = -DUSING_NET
 ifdef USING_NET
@@ -55,7 +32,6 @@ endif
 # This is defined when the SB Emulation is required. You should re-configure,
 # rather than just change this.
 #
-export USE_SBEMU = @USE_SBEMU@
 ifdef USE_SBEMU
 export SBEMU=arch/linux/dosext/sound dosext/sound
 export MIDID=arch/linux/dosext/sound/midid
@@ -65,7 +41,6 @@ endif
 # This is defined when threads are required. You should re-configure,
 # rather than just change this.
 #
-export USE_THREADS = @USE_THREADS@
 ifdef USE_THREADS
 export THREADS=arch/linux/threads
 endif
@@ -75,7 +50,7 @@ endif
 #   isn't being sync'd to the debug file (stdout). shouldn't happen. :-) 
 #SYNC_ALOT = -DSYNC_ALOT=1
 
-OPTIONALSUBDIRS = @OPTIONALSUBDIRS@ $(MIDID)
+OPTIONALSUBDIRS += $(MIDID)
 
 LIBSUBDIRS=env/video base/async arch/linux/async base/misc base/dev/misc\
 	$(THREADS)\
@@ -85,7 +60,6 @@ LIBSUBDIRS=env/video base/async arch/linux/async base/misc base/dev/misc\
 	base/dev/dma \
 	$(DEBUGGER) $(NET) $(IPX) $(SBEMU) dosext/drivers base/bios
 
-REQUIRED=@REQUIRED@
 
 # call all libraries the name of the directory
 LIBS=$(LIBSUBDIRS)
@@ -120,13 +94,7 @@ OPTIONAL   = # -DDANGEROUS_CMOS=1
 CONFIGS    = $(CONFIG_FILE) $(DOSEMU_USERS_FILE)
 DEBUG      = $(SYNC_ALOT)
 
-TOPDIR=@TOPDIR@
-export TOPDIR
 
-INCDIR=@INCDIR@
-export INCDIR
- 
-CFLAGS = @CFLAGS@
 
 # set to use a simpler fork for unix command
 # CFLAGS+=-DSIMPLE_FORK
@@ -143,11 +111,7 @@ CFLAGS = @CFLAGS@
 
 export CFLAGS
 
-#LDFLAGS    = $(LNKOPTS) # exclude symbol information
-LDFLAGS=@LDFLAGS@
-AS86 = @AS86@
-#LD86 = ld86 -s -0
-LD86 = @LD86@ -0
+LD86 = $(_LD86_) -0
 
 DISTBASE=/tmp
 DISTNAME=dosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
@@ -220,7 +184,7 @@ warning3:
 	 echo "Hopefully you have at least 16MB swap+RAM available during this compile."; \
 	 echo ""
 
-doeverything: warning2 pausedelay dep $(DOCS) @X2CEXE@ installnew
+doeverything: warning2 pausedelay dep $(DOCS) $(X2CEXE) installnew
 
 most: warning2 pausedelay dep installnew
 
@@ -243,7 +207,7 @@ dosstatic:	$(DOSSTATICFILES) ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
 	$(LD) $(LDFLAGS) -o $@ $(DOSSTATICFILES) \
 		$(addprefix -L,$(LIBPATH)) \
 		-L. $(addprefix -l, $(LIBS_)) \
-		@SLANGLIB@ @XLIBSW@
+		$(SLANGLIB) $(XLIBSW)
 
 x2dos: x2dos.o
 	@echo "Including x2dos.o "
@@ -282,7 +246,7 @@ $(BINPATH)/bin/dos: 	emu.o base/data.o dossubdirs
 	    $(addprefix -l, $(LIBS_)) $(addprefix -l, $(LIBS_)) \
 	    -Wl,-b,a.out-i386-linux base/bios/bios.o env/video/vesabios.o \
 	    -Wl,-b,elf32-i386 \
-	    @XLIBSW@ @SLANGLIB@ -lc 
+	    $(XLIBSW) $(SLANGLIB) -lc 
 	@nm $(BINPATH)/bin/dos | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > $(BINPATH)/bin/dosemu.map
 	@ln -sf dos $(BINPATH)/bin/dosexec
@@ -294,13 +258,13 @@ dosemu: $(BINPATH)/bin/dos
 else
 $(BINPATH)/bin/dos:	dos.o
 	$(LD) $(LDFLAGS) -N -o $@ $^ $(addprefix -L,$(LIBPATH)) -L. \
-		@SLANGLIB@ @XLIBSW@
+		$(SLANGLIB) $(XLIBSW)
 
 $(LIBDOSEMU): 	emu.o base/data.o ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}} # dossubdirs
 	$(LD) $(LDFLAGS) $(MAGIC) -Wl,-Ttext -Wl,$(LIBSTART) -o $(LIBDOSEMU) \
 	   -nostartfiles -nostdlib $^ $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
 	    $(addprefix -l, $(LIBS_)) $(addprefix -l, $(LIBS_)) base/bios/bios.o env/video/vesabios.o \
-            @XLIBSW@ @SLANGLIB@ -lc 
+            $(XLIBSW) $(SLANGLIB) -lc 
 	@ln -sf dos $(BINPATH)/bin/dosexec
 ifdef X_SUPPORT
 	@ln -sf dos $(BINPATH)/bin/xdos
@@ -326,7 +290,7 @@ optionalsubdirs:	$(OPTIONALSUBDIRS)
 docsubdirs:	$(DOCS)
 
 $(DOCS) $(OPTIONALSUBDIRS) $(LIBSUBDIRS) $(REQUIRED):
-	@(cd @REALTOPDIR@/src/; $(MAKE) -C $@)
+	@(cd $(REALTOPDIR)/src/; $(MAKE) -C $@)
 
 version:	versetup
 
@@ -434,7 +398,7 @@ newhd:  tools/periph/bootsect
 	tools/periph/mkhdimage -h 4 -s 17 -c 40 | cat - tools/periph/bootsect > newhd
 	@echo "You now have a hdimage file called 'newhd'"
 
-include @REALTOPDIR@/src/Makefile.common
+include $(REALTOPDIR)/src/Makefile.common
 
 checkin::
 	-ci -l -M $(CFILES) $(HFILES) $(SFILES) $(OFILES)
@@ -459,7 +423,7 @@ dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
 	@ls -l $(DISTFILE)
 
 local_clean:
-	-rm -f $(OBJS) @X2CEXE@ x2dos.o $(BINPATH)/bin/dos $(BINPATH)/bin/xdos \
+	-rm -f $(OBJS) $(X2CEXE) x2dos.o $(BINPATH)/bin/dos $(BINPATH)/bin/xdos \
 	  $(BINPATH)/bin/dosexec $(BINPATH)/bin/libdosemu *.s core \
 	  dosstatic *.tmp $(BINPATH)/bin/dosemu.map *.o $(BINPATH)/bin/dosdebug base/data.o
 

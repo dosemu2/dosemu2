@@ -1,15 +1,9 @@
-REALTOPDIR=@REALTOPDIR@
-TOPDIR=@SRCPATH@
-CFLAGS=@CFLAGS@
-LDFLAGS=@LDFLAGS@
-CC=@CC@
-@SET_MAKE@
 
-AS86 = @AS86@ -0 -a
-LD86 = @LD86@ -0
+AS86 = $(_AS86_) -0 -a
+LD86 = $(_LD86_) -0
 
-D=@REALTOPDIR@/etc
-DOSC=@REALTOPDIR@/contrib/dosC/dist
+D=$(REALTOPDIR)/etc
+DOSC=$(REALTOPDIR)/contrib/dosC/dist
 
 SRC=hdinfo.c bootsect.S mkhdimage.c putrom.c mkfatimage.c mkfatimage16.c dexeconfig.c
 OBJ=hdinfo bootsect mkhdimage putrom mkfatimage mkfatimage16 dexeconfig $(D)/hdimage.dist $(D)/hdimage.test
@@ -30,12 +24,12 @@ bootsect: bootsect.S
 	rm $*.tmp $*.o
 
 $(D)/hdimage.dist: mkfatimage
-	./mkfatimage -l DOSEMU @REALTOPDIR@/@THISVERSION@/commands/* >$(D)/hdimage.dist
+	./mkfatimage -l DOSEMU $(REALTOPDIR)/$(THISVERSION)/commands/* >$(D)/hdimage.dist
 
 $(D)/hdimage.test: mkfatimage16
 	./mkfatimage16 -b $(DOSC)/boot.bin -l DOSEMU \
 	$(DOSC)/ipl.sys $(DOSC)/kernel.exe $(DOSC)/command.com \
-	@REALTOPDIR@/@THISVERSION@/commands/* >$(D)/hdimage.test
+	$(REALTOPDIR)/$(THISVERSION)/commands/* >$(D)/hdimage.test
 
 install:
 	install -d /usr/lib/dosemu

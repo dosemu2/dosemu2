@@ -1,11 +1,4 @@
-#  src/base/misc/detach.c -> ../../env/detach.c
 
-REALTOPDIR=@REALTOPDIR@
-TOPDIR=@SRCPATH@
-CFLAGS=@CFLAGS@
-LDFLAGS=@LDFLAGS@
-CC=@CC@
-@SET_MAKE@
 
 CFILES=detach.c
 

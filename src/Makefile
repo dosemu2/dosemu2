@@ -1,25 +1,7 @@
 # Makefile for DOSEMU
-
-VERSION = @VERSION@
-SUBLEVEL = @SUBLEVEL@
-PATCHLEVEL = @PATCHLEVEL@
-THISVERSION = @THISVERSION@
-EMUVER = @EMUVER@
-REQUIRES_VM86PLUS = @REQUIRES_VM86PLUS@
-export REALTOPDIR  = @REALTOPDIR@
-export BINPATH = @REALTOPDIR@/@THISVERSION@
-export SRCPATH = @REALTOPDIR@/src/
-OS = @CONFIG_HOST@
-@LIBSTART@
-@ELF@
-CC=@CC@
-@SET_MAKE@
-
-#
-# $Date: 1995/11/25
 #
 # You should do a "make" to compile and a "make install" as root to
 # install DOSEMU.
 #
 
-include @REALTOPDIR@/src/arch/@CONFIG_HOST@/Makefile.main
+include $(REALTOPDIR)/src/arch/$(OS)/Makefile.main

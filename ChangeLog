@@ -1,3 +1,20 @@
+97/09/09 ver. 0.67.9.1 unofficial pre-release
+	From Hans
+	- reworked the ./configure and Makefiles such that now there are
+	  no Makefile*.in anymore except Makefile.conf.in, which gets
+	  substituted by ./configure and holds all needed configuration
+	  variables for the Makefiles. Makefile.conf gets included only in
+	  the top Makefile and exports all variables to the slave-Makefiles.
+	    - a simple 'make' runs ./default-configure if needed.
+	      ( the user can't forget to run ./configure )
+	    - no path substitution any more in the Makefiles, hence you
+	      now can rename the directory (or copy it) and 'make'
+	      can run.
+	    - The version has been moved into the file VERSION, which
+	      is parsed by ./configure and the top-Makefile, hence I need
+	      only to change this one file ... and ./configure* is untouched.
+	    - Some not used checks in ./configure have been disabled,
+	      hence ./configure runs faster.
 97/07/25 ver. 0.67.9 released
 	From Alistair
 	- fixed Makefile.main not to compile threads when not configured.

@@ -3,12 +3,6 @@
 # for Linux.
 #
 
-REALTOPDIR=@REALTOPDIR@
-TOPDIR=@SRCPATH@
-CFLAGS=@CFLAGS@
-LDFLAGS=@LDFLAGS@
-CC=@CC@
-@SET_MAKE@
 
 # The following variables may go into the Makfile in the parent-directory
 

@@ -1,13 +1,51 @@
 # Makefile for DOSEMU
 #
-# Always use src as the top-level
+
+# exporting some './configure-independend' variables
+#
+export VERSION=$(shell cut -d. -f1 VERSION)
+export SUBLEVEL=$(shell cut -d. -f2 VERSION)
+PATCHLEVEL1=$(shell cut -d. -f3 VERSION)
+PATCHLEVEL2=$(shell cut -d. -f4 VERSION)
+ifeq "$(PATCHLEVEL2)" ""
+  PATCHLEVEL2=0
+  export PATCHLEVEL=$(PATCHLEVEL1).0
+  export PACKETNAME=dosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL1)
+else
+  export PATCHLEVEL=$(PATCHLEVEL1).$(PATCHLEVEL2)
+  export PACKETNAME=dosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
+endif
+export THISVERSION=$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
+export EMUVER=VERSION.$(SUBLEVEL)
+
+export REALTOPDIR=$(shell nolinks=1; pwd)
+export SRCPATH=$(REALTOPDIR)/src
+export TOPDIR=$(SRCPATH)
+export BINPATH=$(REALTOPDIR)/$(THISVERSION)
+
+
+ifeq "$(shell if test -f Makefile.conf; then echo 1; else echo 0;fi)" "0"
+
+# Here we come, when ./configure wasn't yet run
+# we do it ourselves and then invoke make with the proper target
+#
+default .DEFAULT:
+	@echo "You forgot to run ./default-configure, doing it now"
+	./default-configure
+	@echo "Now resuming make"
+	@$(MAKE) $@
+
+else
+
+
+# Here we come when either when the user or we ourselves did run ./configure
+# We now can be sure that Makefile.conf exists, hence we include it
+#
+include Makefile.conf
 
 export WAIT=yes
 export do_DEBUG=no
 
-@SET_MAKE@
-PACKETNAME=@PACKETNAME@
-REALTOPDIR=@REALTOPDIR@
 
 default install clean realclean echo help depend:
 	@$(MAKE) -C src $@
@@ -30,17 +68,9 @@ midid:
 mididclean:
 	@$(MAKE) -C src/arch/linux/dosext/sound/midid cleanall
 
-bindist:
-	rm -rf /tmp/$(PACKETNAME)-bin
-	./src/tools/mkbindist -m -s -t /tmp/$(PACKETNAME)-bin -d usr/doc/dosemu -- --host=i386-unknown-linux
-	(cd /tmp/$(PACKETNAME)-bin; tar -cf- . | gzip -9 > /tmp/$(PACKETNAME)-bin.tgz)
-
 pristine:  docsclean mididclean
 	@$(MAKE) -C src $@
 	rm -f config.cache config.status config.log src/include/config.h
-	rm -f src/Makefile.common src/arch/linux/Makefile.main
-	rm -f core `find src -name Makefile`
-	rm -f man/Makefile
 	rm -f core `find . -name '*~'`
 	rm -f core `find . -name '*[\.]o'`
 	rm -f core `find . -name '*.d'`
@@ -49,4 +79,16 @@ pristine:  docsclean mididclean
 	rm -f core gen*.log `find . -size 0`
 	(cd setup/demudialog; make clean)
 	rm -rf ./bindist
-	rm -f Makefile
+	rm -f Makefile.conf
+
+endif
+
+
+# the below targets do not require ./configure
+
+bindist:
+	@echo "making binary distribution package in /tmp/$(PACKETNAME)-bin.tgz"
+	rm -rf /tmp/$(PACKETNAME)-bin
+	./src/tools/mkbindist -m -s -t /tmp/$(PACKETNAME)-bin -d usr/doc/dosemu -- --host=i386-unknown-linux
+	(cd /tmp/$(PACKETNAME)-bin; tar -cf- . | gzip -9 > /tmp/$(PACKETNAME)-bin.tgz)
+

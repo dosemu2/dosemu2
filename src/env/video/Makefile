@@ -4,14 +4,6 @@
 #
 # $Id: Makefile,v 2.15 1995/04/08 22:30:27 root Exp $
 
-REALTOPDIR=@REALTOPDIR@
-TOPDIR=@SRCPATH@
-CFLAGS=@CFLAGS@
-LDFLAGS=@LDFLAGS@
-CC=@CC@
-@SET_MAKE@
-@X_SUPPORT@
-@NEW_X_CODE@
 
 # if you want to disable graphics in X, delete vgaemu.[co], vesa.[cho],
 # vgaemu_inside.h, vesabios.S and vesabios.o
@@ -41,10 +33,8 @@ endif
 
 AS86FLAGS=$(INCDIR)
 
-LD86=@LD86@
-AS86=@AS86@
-
-TOPDIR=@SRCPATH@
+LD86=$(_LD86_)
+AS86=$(_AS86_)
 
 CFILES = video.c vc.c vga.c et4000.c s3.c trident.c avance.c ati.c cirrus.c \
 	 matrox.c console.c $(XCFILES) hgc.c dualmon.c terminal.c $(ASOBJS)
@@ -64,20 +54,20 @@ all: vesabios.o lib
 #	      because we came into trouble with make dependencies recently
 
 vesabios.o: vesabios.S 
-	$(CC) -E --traditional $(AS86FLAGS) $< | @SRCPATH@/tools/tools86 -E > $*.s
+	$(CC) -E --traditional $(AS86FLAGS) $< | $(SRCPATH)/tools/tools86 -E > $*.s
 	$(AS86) -0 -w -g -o $@.1.tmp $*.s
 	$(LD86) -0 -r -o $@.2.tmp $@.1.tmp
-	@SRCPATH@/tools/tools86 $@.2.tmp
+	$(SRCPATH)/tools/tools86 $@.2.tmp
 	mv -f $@.2.tmp $@
 
 
 install:
 
-include @SRCPATH@/Makefile.common
+include $(SRCPATH)/Makefile.common
 
 echo::
 	@echo ALL=$(ALL)
-	@echo REALTOPDIR=@REALTOPDIR@
+	@echo REALTOPDIR=$(REALTOPDIR)
 
 clean::
 	rm -f *.o *.tmp *.s

@@ -1,12 +1,3 @@
-#  src/base/misc/emm.c -> ../../dosext/misc/emm.c
-#  src/base/misc/xms.c -> ../../dosext/misc/xms.c
-
-REALTOPDIR=@REALTOPDIR@
-TOPDIR=@SRCPATH@
-CFLAGS=@CFLAGS@
-LDFLAGS=@LDFLAGS@
-CC=@CC@
-@SET_MAKE@
 
 CFILES=xms.c emm.c
 

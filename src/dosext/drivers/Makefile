@@ -1,12 +1,5 @@
 # any misc. drivers (e.g. cdrom helper)
-# $Id: Makefile,v 1.1 1995/01/14 15:31:30 root Exp $
 
-REALTOPDIR=@REALTOPDIR@
-TOPDIR=@SRCPATH@
-CFLAGS=@CFLAGS@
-LDFLAGS=@LDFLAGS@
-CC=@CC@
-@SET_MAKE@
 
 CFILES=cdrom.c
 SFILES=

@@ -2,12 +2,6 @@
 # Please send comments and bug-reports to marky@magmacom.com
 # Please read the code in this directory for more information.
 
-REALTOPDIR=@REALTOPDIR@
-TOPDIR=@SRCPATH@
-CFLAGS=@CFLAGS@
-LDFLAGS=@LDFLAGS@
-CC=@CC@
-@SET_MAKE@
 SUBDIR=serial
 
 #The C files, include files and dependancies here.

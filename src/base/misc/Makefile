@@ -1,9 +1,3 @@
-REALTOPDIR=@REALTOPDIR@
-TOPDIR=@SRCPATH@
-CFLAGS=@CFLAGS@
-LDFLAGS=@LDFLAGS@
-CC=@CC@
-@SET_MAKE@
 
 CFILES=dosio.c ioctl.c shared.c disks.c utilities.c dos2linux.c dump.c priv.c
 

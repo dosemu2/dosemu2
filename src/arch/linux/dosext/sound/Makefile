@@ -1,9 +1,3 @@
-REALTOPDIR=@REALTOPDIR@
-TOPDIR=@SRCPATH@
-CFLAGS=@CFLAGS@
-LDFLAGS=@LDFLAGS@
-CC=@CC@
-@SET_MAKE@
 
 CFILES = linux_sound.c
 HFILES = linux_sound.h $(REALTOPDIR)/include/sound.h

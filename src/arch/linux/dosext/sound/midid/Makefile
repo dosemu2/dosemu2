@@ -1,11 +1,9 @@
-REALTOPDIR=@REALTOPDIR@
 ######################################################################
 # MIDID
 
 # Define USE_ULTRA if you've got the UltraDriver 2.60a installed
 #USE_ULTRA=OK
 # Should now be done by './configure' - Alistair
-@USE_ULTRA@
 
 
 ######################################################################
@@ -13,7 +11,6 @@ REALTOPDIR=@REALTOPDIR@
 
 CC=gcc
 CFLAGS=-Wall -pipe -O2
-LDFLAGS=@LDFLAGS@
 LDFLAGS += -Wall
 OBJECTS=midid.o null.o events.o io.o stats.o emulation.o oss.o
 

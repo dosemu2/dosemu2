@@ -1,9 +1,3 @@
-REALTOPDIR=@REALTOPDIR@
-TOPDIR=@SRCPATH@
-CFLAGS=@CFLAGS@
-LDFLAGS=@LDFLAGS@
-CC=@CC@
-@SET_MAKE@
 
 CFILES=int10.c hlt.c
 ALL=bios.S test.S $(CFILES)
@@ -17,8 +11,8 @@ DEPENDS=$(CFILES:.c=.d)
 
 AS86FLAGS=$(INCDIR)
 
-LD86=@LD86@
-AS86=@AS86@
+LD86=$(_LD86_)
+AS86=$(_AS86_)
 
 CFLAGS += -I$(TOPDIR)/env/video
 export CFLAGS
@@ -33,10 +27,10 @@ all: lib bios.o
 #	      because we came into trouble with make dependencies recently
 
 bios.o: bios.S
-	$(CC) -E --traditional $(AS86FLAGS) $< | @SRCPATH@/tools/tools86 -E > $*.s
+	$(CC) -E --traditional $(AS86FLAGS) $< | $(SRCPATH)/tools/tools86 -E > $*.s
 	$(AS86) -0 -w -g -o $@.1.tmp $*.s
 	$(LD86) -0 -r -o $@.2.tmp $@.1.tmp
-	@SRCPATH@/tools/tools86 $@.2.tmp
+	$(SRCPATH)/tools/tools86 $@.2.tmp
 	mv -f $@.2.tmp $@
 
 bios:	bios.o

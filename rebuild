@@ -5,7 +5,7 @@
 TGT=/usr/bin
 #
 if [ $1 -a $1 == "all" -o ! -f Makefile ]; then
-  if [ -f Makefile ]; then
+  if [ -f Makefile.conf ]; then
     make pristine
     rm -f gen.log
   fi

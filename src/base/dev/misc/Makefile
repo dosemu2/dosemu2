@@ -2,12 +2,6 @@
 #  src/base/misc/lpt.c -> ../dev/misc/lpt.c
 #  src/base/misc/timers.c -> ../dev/misc/timers.c
 
-REALTOPDIR=@REALTOPDIR@
-TOPDIR=@SRCPATH@
-CFLAGS=@CFLAGS@
-LDFLAGS=@LDFLAGS@
-CC=@CC@
-@SET_MAKE@
 
 CFILES=cmos.c timers.c lpt.c rtc.c
 

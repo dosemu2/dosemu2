@@ -1,15 +1,9 @@
-REALTOPDIR=@REALTOPDIR@
-TOPDIR=@SRCPATH@
-CFLAGS=@CFLAGS@
-LDFLAGS=@LDFLAGS@
-CC=@CC@
-@SET_MAKE@
 
-SYS_AS86 = @AS86@ -l
-AS86 = @AS86@ -0 -a
-LD86 = @LD86@ -0
+SYS_AS86 = $(_AS86_) -l
+AS86 = $(_AS86_) -0 -a
+LD86 = $(_LD86_) -0
 
-D=@REALTOPDIR@/@THISVERSION@/commands
+D=$(REALTOPDIR)/$(THISVERSION)/commands
 
 SRC=exitemu.S vgaoff.S vgaon.S eject.S lredir.c lredir.readme dumpconf.asm \
 	bootoff.S booton.S dosdbg.c dosdbg.readme emumouse.c isemu.c \

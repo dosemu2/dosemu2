@@ -23,7 +23,6 @@ endif
 LIB=$(TOPDIR)/lib/lib$(LIBNAME).a
 
 AR=ar
-RANLIB=@RANLIB@
 
 lib:	$(LIB)
 

@@ -3,13 +3,6 @@
 # for Linux.
 # $Id: Makefile,v 2.11 1995/05/06 16:27:42 root Exp root $
 
-REALTOPDIR=@REALTOPDIR@
-TOPDIR=@SRCPATH@
-CFLAGS=@CFLAGS@
-LDFLAGS=@LDFLAGS@
-CC=@CC@
-@SET_MAKE@
-@X_SUPPORT@
 
 # The following variables may go into the Makfile in the parent-directory
 
