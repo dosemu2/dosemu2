@@ -15,7 +15,7 @@ url="mailto:bon@elektron.ikp.physik.th-darmstadt.de"
 ></emphasis> </firstname>
 </author>
 
-<pubdate> Sep 28, 2003 for dosemu 1.2.0 (and possibly earlier
+<pubdate> Jul 11, 2004 for dosemu 1.2.2 (and possibly earlier
 versions) </pubdate>
 
 <abstract>
@@ -31,14 +31,14 @@ url="http://www.dosemu.org/"
 Please report about possible additions to
 <emphasis remap="bf"><ulink
 url="mailto:linux-msdos@vger.kernel.org"
->linux-msdos@vger.rutgers.edu</ulink
-></emphasis>. 
+>linux-msdos@vger.kernel.org</ulink
+></emphasis> 
 or the SourceForge BTS at 
 <emphasis remap="bf"><ulink
 url="http://www.dosemu.org/"
 >http://www.dosemu.org/</ulink
 ></emphasis>.
-Perhaps it can be made going
+Perhaps your program can be made going
 with the help others. Have a look at the dosemu-howto how to do so.
 </para>
 
@@ -311,19 +311,13 @@ exist.
 
 <sect3>
 <title>
-List of currently known bugs in Dosemu 1.2.0.
+List of currently known bugs in Dosemu 1.2.2.
 </title>
 <itemizedlist>
 
 <listitem>
 <para>
 Some documentation is known to be well out of date. 
-</para>
-</listitem>
-
-<listitem>
-<para>
-Windows 3.1 will not run very well because for some reasons.
 </para>
 </listitem>
 
@@ -367,7 +361,8 @@ fbdev graphical consoles.
 
 <listitem>
 <para>
-DPMI interrupt handling may be unreliable.
+DPMI interrupt handling may be unreliable. Transport Tycoon game crashes
+sometimes.
 </para>
 </listitem>
 
@@ -401,12 +396,6 @@ url="http://www.dosemu.org/"
 not yet confirmed by dosemu developers.
 </title>
 <itemizedlist>
-
-<listitem>
-<para>
-An (unknown) DPMI clipper program hangs when run on a SMP machine
-</para>
-</listitem>
 
 <listitem>
 <para>
@@ -445,7 +434,7 @@ had problems in the listed areas and these problems are now solved.
 
 <listitem>
 <para>
-There are known problems with xdosemu (e.g. it may not work at all for you.)
+There are known problems with xdosemu.
 </para>
 </listitem>
 <listitem>
@@ -461,46 +450,7 @@ and others) may not work correctly. Use $_mitshm=(off).
 The internal mouse driver is known to have problems.
 </para>
 </listitem>
-<listitem>
 
-<para>
-Running a protected mode 'make' and a protected mode compiler (e.g.
-Borland's) may not work.  Try switching to a real mode make.
-</para>
-</listitem>
-
-<listitem>
-<para>
-dd2demo.exe
-</para>
-
-<para>
- This is a game found at 
-
-<screen>
-<ulink
-url="http://www.psygnosis.com/"
->http://www.psygnosis.com/</ulink
->
-</screen>
-
-Reported by Hans Lermen, it kills dosemu, giving an output like:
-
-<screen>
-general protection at 0x1fba: a7
-ERROR: SIGSEGV, protected insn...exiting!
-</screen>
-
-The crash happens in DMPI Call 0x0302
-At least DMPI Call 0x0506 is not yet implemented.
-</para>
-
-<para>
-This demo is no longer for download. But if you can test please let us
-know for completeness.
-</para>
-
-</listitem>
 <listitem>
 <para>bae.exe</para>
 
@@ -555,18 +505,6 @@ major glitches in xdosemu.
 
 <sect2>
 <title>
-Text programs with custom fonts
-</title>
-<para>
-Programs such as Norton Commander and the Watcom Debugger use
-custom characters to display icons, radio buttons and similar
-characters. This problem is addressed in current development
-versions and the fixes will likely be backported to a later
-version of DOSEMU 1.2.x
-</para>
-</sect2>
-<sect2>
-<title>
 Games with graphical problems
 </title>
 <para>
@@ -583,7 +521,7 @@ every time it scrolls.
 </listitem>
 <listitem>
 <para>
-Commander Keen 4 gives you a black screen.
+Commander Keen 4 has some problems with colours.
 </para>
 </listitem>
 <listitem>
