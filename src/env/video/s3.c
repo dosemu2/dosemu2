@@ -430,9 +430,9 @@ unsigned char s3InBtReg(unsigned short reg)
 {
 	unsigned char tmp, ret;
 	tmp = in_crt(0x55) & 0xFC;
-	out_crt(tmp | ((reg & 0x0C) >> 2), 0x55);
+	out_crt(0x55, tmp | ((reg & 0x0C) >> 2));
 	ret = port_in(s3BtLowBits[reg & 0x03]);
-	out_crt(tmp, 0x55);
+	out_crt(0x55, tmp);
 	return ret;
 }
 

@@ -28,9 +28,6 @@
  */
 
 
-/* why ?? */
-#define VGA_SAVE_PAGE0
-
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -87,6 +84,7 @@ extern inline void console_update_cursor (int, int, int, int);
 static void set_dos_video ();
 void put_video_ram ();
 
+static struct debug_flags save_debug_flags;
 
 extern int
   dosemu_sigaction (int sig, struct sigaction *, struct sigaction *);
@@ -169,7 +167,7 @@ vt_activate(int con_num)
 {
     if (in_ioctl) {
 	k_printf("KBD: can't ioctl for activate, in a signal handler\n");
-	do_ioctl(console_fd, VT_ACTIVATE, con_num);
+/*	do_ioctl(console_fd, VT_ACTIVATE, con_num); */
     } else
 	do_ioctl(console_fd, VT_ACTIVATE, con_num);
 }
@@ -233,6 +231,7 @@ acquire_vt (int sig, struct sigcontext_struct context)
 {
   dos_has_vt = 1;
 
+  d = save_debug_flags;
   v_printf ("VID: Acquiring VC\n");
   forbid_switch ();
 #ifdef __NetBSD__
@@ -311,6 +310,7 @@ set_linux_video (void)
 static void
 SIGRELEASE_call (void)
 {
+  save_debug_flags = d;
 
   if (scr_state.current == 1)
     {
@@ -359,6 +359,11 @@ SIGRELEASE_call (void)
   scr_state.current = 0;	/* our console is no longer current */
   if (do_ioctl (console_fd, VT_RELDISP, 1))	/* switch ok by me */
     v_printf ("VT_RELDISP failed!\n");
+  else {
+   /* we don't want any debug activity while VC is not active */
+    flush_log();
+    memset(&d, 0, sizeof(struct debug_flags));
+  }
 }
 
 int

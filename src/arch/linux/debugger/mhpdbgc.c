@@ -404,16 +404,22 @@ enum {
 
 static int decode_symreg(char *regn)
 {
-  static char reg_syms[]="SS  CS  DS  ES  FS  GS EAX EBX ECX EDX ESI EDI EBP ESP EIP  FL";
+  static char reg_syms[]="SS  CS  DS  ES  FS  GS  "
+			 "AX  BX  CX  DX  SI  DI  BP  SP  IP  FL  "
+ 			 "EAX EBX ECX EDX ESI EDI EBP ESP EIP ";
   char rn[5], *s;
   int n;
-  strncpy(rn,regn,4);
-  if (isalpha(rn[2])) rn[3]=0;
-  else rn[2]=0;
-  { char *c=rn; while (*c) *c++ = toupper(*c); }
-  if (!(s=strstr(reg_syms,rn))) return -1;
-  n=s-reg_syms;
-  return (n >> 2) + ((n & 1) ? (16-5) : 0);
+
+  if (!isalpha(*regn))
+	return -1;
+  s=rn; n=0; rn[4]=0;
+  while (n<4)
+  {
+	*s++=(isalpha(*regn)? toupper(*regn++): ' '); n++;
+  }
+  if (!(s = strstr(reg_syms, rn)))
+	return -1;
+  return ((s-reg_syms) >> 2);
 }
 
 static unsigned long mhp_getreg(unsigned char * regn)

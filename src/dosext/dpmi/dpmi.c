@@ -1303,6 +1303,10 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	REG(cs) = rmreg->cs;
 	REG(eip) = (long) rmreg->ip;
       }
+      if ((_LO(bx) >= 0xe0) && (REG(cs) < 0xf000)) { /* avoid hardreboot !! */
+      	 D_printf("DPMI: Interrupt vector overwritten!");
+      	 leavedos(99);
+      }
       if (!(rmreg->sp==0)) {
 	REG(ss) = rmreg->ss;
 	REG(esp) = (long) rmreg->sp;

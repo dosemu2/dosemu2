@@ -19,6 +19,9 @@
 #define LED_NUMLOCK	1
 #define LED_CAPSLOCK	2
 
+extern void set_process_control();
+extern void clear_process_control();
+extern void clear_console_video();
 
 static int save_kbd_flags = -1;  	/* flags for STDIN before our fcntl */
 static struct termios save_termios;	/* original terminal modes */

@@ -148,9 +148,7 @@ EXTERN int cursor_col;
 
 void dos_ctrlc(void), dos_ctrl_alt_del(void);
 int ext_fs(int, char *, char *, int);
-#if 0 /* Not used anymore */
-int outch(int c);
-#endif
+
 EXTERN void run_vm86(void);
 EXTERN void     vm86_GP_fault();
 
@@ -668,10 +666,6 @@ EXTERN void sigio(int, int, struct sigcontext *);
 EXTERN inline void SIGNAL_save( void (*signal_call)(void) );
 EXTERN inline void handle_signals(void);
 
-
-#ifdef REQUIRES_VM86PLUS
-  #include "emusys.h"
-#endif
 
 /* 
  * DANG_BEGIN_REMARK

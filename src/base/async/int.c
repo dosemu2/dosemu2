@@ -188,7 +188,7 @@ static int dos_helper(void)
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: 1995/05/06 16:25:30 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: "__DATE__" "__TIME__" $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
@@ -1642,7 +1642,7 @@ void setup_interrupts(void) {
 
   /* set up relocated video handler (interrupt 0x42) */
   if (config.dualmon == 2) {
-    interrupt_function[0x42] = int10;
+    interrupt_function[0x42] = interrupt_function[0x10];
   }
   else *(u_char *) 0xff065 = 0xcf;	/* IRET */
 }

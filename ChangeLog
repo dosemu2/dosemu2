@@ -1,3 +1,23 @@
+97/03/11 ver. 0.65.99.17 unofficial pre-release
+	From Alberto
+	- deleted 'rm modules' in src/arch/linux/Makefile.main.in
+	  (obsolete)
+	- fixed 'regs' parsing in dosdebugger.
+	- banner now prints correct time
+	- fixed relocation of INT42 (must be a copy of INT10)
+	- call setmode() of video driver only if pointer valid (int10.c)
+	- disable -Y -Z, when X not configured.
+	- some 'close mouse' fixes
+	- temp fix to dpmi.c int31 just to avoid hard reboots
+	- fix for auto-mitshm-disable stuff in X.c
+	- corrected wrong (port,value) parameters in s3.c
+	- do not debug while VC is not active (in src/env/video/vc.c)
+	- removed some stale files
+	- avoid pktdrvr.h to be multiple included
+	From Hans
+	- removed stale references to emusys.h
+	- elaborated the description of the 'ttylocks {}' option in
+	  etc/config.dist.
 97/03/08 ver. 0.65.99.16 unofficial pre-release
 	From Steffen
 	- Added code to turn off MIT-SHM for network connections.

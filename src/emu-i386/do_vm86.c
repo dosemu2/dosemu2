@@ -504,8 +504,7 @@ vm86_return(int sig, int code, struct sigcontext *scp)
 void
 run_vm86(void)
 {
-    /* FIXME: why static *? */
-    static int      retval;
+    int      retval;
     /*
      * always invoke vm86() with this call.  all the messy stuff will be
      * in here.

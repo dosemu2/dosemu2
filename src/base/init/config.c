@@ -332,6 +332,7 @@ config_init(int argc, char **argv)
 #endif
 	    break;
 	case 'Y':
+#ifdef X_SUPPORT
 	    open_Xkeyboard_pipe(optarg);
 	    config.cardtype = CARD_MDA;
 	    config.mapped_bios = 0;
@@ -345,10 +346,13 @@ config_init(int argc, char **argv)
 	    config.vga = 0;	/* this flags BIOS graphics */
 	    config.usesX = 1;
 	    config.console_keyb = 1;
+#endif
 	    break;
 	case 'Z':
+#ifdef X_SUPPORT
 	    open_Xmouse_pipe(optarg);
 	    config.usesX = 1;
+#endif
 	    break;
 	case 'K':
 	    warn("Keyboard interrupt enabled...this is still buggy!\n");

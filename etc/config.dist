@@ -104,7 +104,8 @@ HogThreshold 0
 #    COM1 on IRQ 4 in DOSEMU!
 #
 #    NOTE: You must have /usr/spool/uucp for LCK-file generation !
-#          You may change this path in src/include/serial.h (PATH_LOCKD)
+#          You may change this path and the lockfile name via the
+#          below 'ttylocks' statement.
 #
 #    Also, as an example of defaults, these two lines are functionally equal:
 #    serial { com 1  mouse }
@@ -141,7 +142,28 @@ HogThreshold 0
 #mouse { mousesystems device /dev/mouse internaldriver cleardtr }
 
 # For tty locking capabilities:
-# ttylocks { directory /var/locks namestub LCK.. [binary] }
+#
+# The serial lines are locked by dosemu via usual lock file technique,
+# which is compatible with most other unix apps (such as mgetty, dip,
+# e.t.c). However, you carefully need to check _where_ those other apps
+# expect the lock files. The most common used (old) place is
+# /usr/spool/uucp, but newer distributions following the FSSTND will have
+# it in /var/lock. The dosemu default one is /usr/spool/uucp.
+#
+# The below defines /var/lock
+#        Note: you are responsible, that the directory exists !
+#
+#ttylocks { directory /var/lock }
+#
+# If you wnat to define the lock prefix stub also, take this one
+#
+#ttylocks { directory /var/lock namestub LCK.. }
+#
+# If the lockfile should contain the PID in binary form (instead of ASCII},
+# you may use the below
+#
+#ttylocks { directory /var/lock namestub LCK.. binary }
+
 
 #************************* NETWORKING SUPPORT *****************************
 #

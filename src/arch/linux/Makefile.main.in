@@ -320,7 +320,7 @@ versetup:
 	@mkdir -p $(BINPATH)/bin
 	@mkdir -p $(BINPATH)/commands
 	@cp -p commands/precompiled/* $(BINPATH)/commands
-	@rm -f ../bin ../commands ../modules
+	@rm -f ../bin ../commands
 	@ln -sf $(BINPATH)/bin ../bin
 	@ln -sf $(BINPATH)/commands ../commands
 
@@ -467,7 +467,7 @@ pristine:	realclean
 	-mv lib/libarch_*slang*.a .
 	-rm -f lib/*
 	-mv libarch_*slang*.a lib
-	-rm -rf $(BINPATH) ../bin ../commands ../modules
+	-rm -rf $(BINPATH) ../bin ../commands
 
 # DEPENDS=dos.d emu.d 
 # this is to do make subdir.depend to make a dependency

@@ -3,11 +3,12 @@
 #include "config.h"
 #include "emu.h"
 
+extern int parse_debugflags(const char *s, unsigned char flag);
+
 int
 SetDebugFlagsHelper(char *debugStr)
 {
-  extern int parse_debugflags(const char *s);
-  return parse_debugflags(debugStr);
+  return parse_debugflags(debugStr, 0);
 }
 
 static char

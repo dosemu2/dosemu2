@@ -1632,13 +1632,14 @@ mouse_close(void)
     else
        m_printf("mouse_close: tcsetattr failed: %s\n",strerror(errno));
     m_printf("mouse_close: closing mouse device, fd=%d\n",mice->fd);
-    DOS_SYSCALL(close(mice->fd));
+    close(mice->fd);
     m_printf("mouse_close: ok\n");
     return;
   }
 
-  if ((mice->type == MOUSE_PS2) || (mice->type == MOUSE_BUSMOUSE))
-    DOS_SYSCALL(close(mice->fd));
+  if (((mice->type == MOUSE_PS2) || (mice->type == MOUSE_BUSMOUSE))
+	&& (mice->fd != -1))
+    close(mice->fd);
 }
 
 /* TO DO LIST: (in no particular order)

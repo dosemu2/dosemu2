@@ -100,10 +100,6 @@ __asm__("___START___: jmp _emulate\n");
 #include "mhpdbg.h"
 #endif
 
-#ifdef REQUIRES_VM86PLUS
-  /* Please folks, don't remove this, it's required for emusys.h (within emu.h) */
-  #define __EMUSYS_parent
-#endif
 #include "emu.h"
 
 #include "bios.h"

@@ -1,3 +1,5 @@
+#ifndef PKTDRVR_H
+#define PKTDRVR_H
 /*
  *
  *     Packet driver emulation for the Linux DOS emulator.
@@ -76,3 +78,5 @@ struct pkt_statistics {
 extern int pkt_check_receive(int timeout);
 extern void pkt_init (int vec);
 extern int GetDeviceMTU(char *device);
+
+#endif				/* PKTDRVR_H */

@@ -414,6 +414,7 @@ case 0x5d:
 case 0x5e:
 case 0x62:
   /* 0x01 == GRAPH for us, but now it's sure! */
+  if (Video->setmode != NULL)
   Video->setmode(0x01,0,0);
   break;
 

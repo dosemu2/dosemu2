@@ -1978,6 +1978,7 @@ chk_cursor:
 #ifdef HAVE_MITSHM
                if(!shm_failed)
 	       XShmPutImage(display,mainwindow,gc,ximage_p,xx,yy,xx,yy,ww,hh, True);
+	       else
 #endif
 	       XPutImage(display,mainwindow,gc,ximage_p,xx,yy,xx,yy,ww,hh);
 	       X_printf("X_update_screen(): %i pixel changes, redraw "
