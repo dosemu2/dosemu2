@@ -1,8 +1,8 @@
 # Makefile for Linux DOS emulator
 #
-# $Date: 1994/06/12 23:15:37 $
+# $Date: 1994/06/13 20:52:43 $
 # $Source: /home/src/dosemu0.52/RCS/Makefile,v $
-# $Revision: 2.1 $
+# $Revision: 2.2 $
 # $State: Exp $
 #
 
@@ -127,9 +127,28 @@ DISTNAME=dosemu$(EMUVER)
 DISTPATH=$(DISTBASE)/$(DISTNAME)
 DISTFILE=$(DISTBASE)/$(DISTNAME).tgz
 
-all:	warnconf dos dossubdirs libdosemu
+warning: warning2
+	@echo "To compile DOSEMU, type 'make doeverything'"
+	@echo ""
+	
+warning2: 
+	@echo ""
+	@echo "IMPORTANT: Please read the new 'QuickStart' file before compiling DOSEMU!"
+	@echo "The location and format of DOSEMU files have changed since 0.50pl1 release!"
+	@echo "You need gcc 2.58, lib 4.5.21, linux 1.1.12 (or patched linux) and at least"
+	@echo "16MB total RAM+swap to compile DOSEMU."
+	@echo ""
+	@sleep 10
 
-doeverything: clean config dep install
+warning3:
+	@echo ""
+	@echo "Be patient...This may take a while to complete, especially for 'mfs.c'."
+	@echo "Hopefully you have at least 12MB RAM+swap available during this compile."
+	@echo ""
+
+doeverything: warning2 clean config dep install
+
+all:	warnconf dos dossubdirs warning3 libdosemu
 
 .EXPORT_ALL_VARIABLES:
 
@@ -177,12 +196,14 @@ install: all
 	@for i in $(SUBDIRS); do \
 	    (cd $$i && echo $$i && $(MAKE) install) || exit; \
 	done
-	@echo "Remember to edit examples/config.dist and copy it to /etc/dosemu.conf !"
+	@echo ""
+	@echo "Remember to copy examples/config.dist into /etc/dosemu.conf and edit it!"
+	@echo ""
 
 converthd: hdimage
 	mv hdimage hdimage.preconvert
 	periph/mkhdimage -h 4 -s 17 -c 40 | cat - hdimage.preconvert > hdimage
-	@echo "Your hdimage is now converted and ready to use with 0.60!"
+	@echo "Your hdimage is now converted and ready to use with 0.52!"
 
 newhd: periph/bootsect
 	periph/mkhdimage -h 4 -s 17 -c 40 | cat - periph/bootsect > newhd

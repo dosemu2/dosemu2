@@ -1,12 +1,15 @@
 #define PORTS_H 1
 
 /* 
- * $Date: 1994/06/12 23:15:37 $
+ * $Date: 1994/06/13 20:52:43 $
  * $Source: /home/src/dosemu0.52/RCS/ports.h,v $
- * $Revision: 2.1 $
+ * $Revision: 2.2 $
  * $State: Exp $
  *
  * $Log: ports.h,v $
+ * Revision 2.2  1994/06/13  20:52:43  root
+ * Markkk's fix for termcap.
+ *
  * Revision 2.1  1994/06/12  23:15:37  root
  * Wrapping up prior to release of DOSEMU0.52.
  *
@@ -222,13 +225,13 @@ outb(int port, int byte)
 	    {
 	      hi = (unsigned char)byte;
 	      pos = (hi << 8) | lo;
-	      poscur(pos%80, pos/80);
+	      if (config.console_video) poscur(pos%80, pos/80);
 	    }
 	  else if ( last_byte == 15 )
 	    {
 	      lo = (unsigned char)byte;
 	      pos = (hi << 8) | lo;
-	      poscur(pos%80, pos/80);
+	      if (config.console_video) poscur(pos%80, pos/80);
 	    }
 	}
       last_port = port; last_byte = byte;
