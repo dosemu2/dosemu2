@@ -335,10 +335,13 @@ int mouse_is_ps2(void)
 int
 mouse_int(void)
 {
-  if (!mice->intdrv || (!mouse.enabled && LWORD(eax) != 0x20)) 
-    return 0;
-  
   m_printf("MOUSEALAN: int 0x%x ebx=%x\n", LWORD(eax), LWORD(ebx));
+  if (!mice->intdrv || (!mouse.enabled && LWORD(eax) != 0x20)) {
+    m_printf("MOUSE: driver disabled, intdrv=%i enable=%i\n",
+      mice->intdrv, mouse.enabled);
+    return 0;
+  }
+  
   switch (LWORD(eax)) {
   case 0x00:			/* Mouse Reset/Get Mouse Installed Flag */
     mouse_reset(0);
@@ -1022,6 +1025,8 @@ static void mouse_reset(int flag)
   memcpy((void *)mouse.graphcursormask,default_graphcursormask,32);
   mouse.hotx = mouse.hoty = -1;
 
+  mouse.enabled = TRUE;
+
   mouse_do_cur();
 }
 
@@ -1661,6 +1666,9 @@ mouse_event()
 {
   if (mouse.mask & mouse_events && (mouse.cs || mouse.ip))
     do_irq();
+  else
+    m_printf("MOUSE: Skipping irq, mask=0x%x, ev=0x%x, cs=0x%x, ip=0x%x\n",
+      mouse.mask, mouse_events, mouse.cs, mouse.ip);
   mouse_events = 0;
 }
 
