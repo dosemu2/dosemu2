@@ -743,23 +743,6 @@ static void do_irq(int ilevel)
          run_int(intr);
        }
      }
-
- /* enter PIC loop - we can continue only when pic_isr has been cleared */
-      while(!fatalerr && test_bit(ilevel,&pic_isr))
-      {
-	if (debug_level('r')>2)
-		r_printf("------ PIC: intr loop ---%06x--%06x----\n",
-			pic_vm86_count,pic_dpmi_count);
-	++pic_vm86_count;
-	pic_print(2, "Initiating VM86 irq lvl ", ilevel, " in do_irq");
-	run_vm86();
-	if (!test_bit(ilevel,&pic_isr))
-	  break;
-
-        pic_run();
-      }
-      pic_sti();
-      return;
 }
 
 /* DANG_BEGIN_FUNCTION pic_resched
@@ -1133,4 +1116,5 @@ void pic_init(void)
 
 void pic_reset(void)
 {
+  pic_set_mask;
 }
