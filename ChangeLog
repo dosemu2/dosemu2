@@ -1,3 +1,39 @@
+2003/07/15 ver 1.1.5.3 unofficial pre-release
+	From Clarence
+	- minor config tweaks $_X_backgroundfreeze -> $_X_background_pause,
+	- set $_joy_latency to (1) by default.
+	From Stas
+	- add config options for OSS sound
+	- disable auto-init DMA when speaker disabled
+	From Stas and Bart
+	- implement a lightweight coopthreads replacement and port all the
+	  builtins to it.
+	From Bart
+	- Small MFS optimization.
+	- Some small documentation updates.
+	- Kill the (bit-rotten) scroll queue.
+	- Fix non-active setbuf(stdout, NULL) and $_console=(1) without
+	  graphics.
+	- Use putchar instead of write since the buffered stdio problems
+	  were solved.
+	- Avoid some dependencies on bash (export foo=bar, echo -e in
+	  configure)
+	- Kill $_timint, and config.graphics. They were no longer really
+	  used anywhere.
+	- Fix a problem with "-V" not implying "-c".
+	- Fix "make install" if pesky CVS directories are present.
+	- cheap workaround for NPTL: use export LD_ASSUME_KERNEL=2.2.5 in
+	  the dosemu script.
+	- Support the VGA line compare register: this fixes one of the two 
+	  reported problems for Jazz Jackrabbit
+	- Fix colour problem in chain4 modes (second jazz jackrabbit issue)
+	- Fix bug 753968: xdos handles mouse events without having a focus
+	  -- don't warp the mouse if the mouse left the window.
+	- Small makefile fix to help partial builds.
+	- Misc small configure and Makefile fixes.
+	- Solve potential gcc problem with a wrong asm constraint: it
+	  needs to be "q" for registers with byte parts, not "r". 
+	  This prevents gcc from using "%sil" as low part of %esi%.
 2003/06/14 ver 1.1.5.2 unofficial pre-release
 	From Bart
 	- enable building in a separate object directory
