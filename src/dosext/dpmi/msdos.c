@@ -52,6 +52,7 @@ static struct vm86_regs INT15_SAVED_REGS;
 #define DTA_over_1MB (void*)(GetSegmentBaseAddress(USER_DTA_SEL) + USER_DTA_OFF)
 #define DTA_under_1MB (void*)((DPMI_private_data_segment + \
     DPMI_private_paragraphs + DTA_Para_ADD) << 4)
+#define READ_DS_COPIED (REG(ds) == DPMI_private_data_segment+DPMI_private_paragraphs)
 
 #define MAX_DOS_PATH 128
 
@@ -65,7 +66,6 @@ static void *user_FCB;
 /* better way? */
 static unsigned short DS_MAPPED;
 static unsigned short ES_MAPPED;
-static char READ_DS_COPIED;
 unsigned short CURRENT_PSP;
 unsigned short CURRENT_ENV_SEL;
 static unsigned short PARENT_PSP;
@@ -253,7 +253,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	last_dos_21 = _LWORD(eax);
 
 	SAVED_REGS = REGS;
-	READ_DS_COPIED = 0;
 	switch (_HI(ax)) {
 	    /* first see if we don\'t need to go to real mode */
 	case 0x25:		/* set vector */
@@ -443,7 +442,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	case 0x47:		/* GET CWD */
 	    if ( !is_dos_selector(_ds)) {
 		REG(ds) = DPMI_private_data_segment+DPMI_private_paragraphs;
-		READ_DS_COPIED = 1;
 		S_REG(ds) = _ds;
 	    } else {
                 REG(ds) = GetSegmentBaseAddress(_ds) >> 4;
@@ -592,10 +590,8 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		S_REG(ds) = _ds;
 		REG(ds) = DPMI_private_data_segment+DPMI_private_paragraphs;
 		REG(edx) = 0;
-		READ_DS_COPIED = 1;
 	    } else {
                 REG(ds) = GetSegmentBaseAddress(_ds) >> 4;
-		READ_DS_COPIED = 0;
             }
 	    in_dos_21++;
 	    return 0;
@@ -608,10 +604,8 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		       (char *)GetSegmentBaseAddress(S_REG(ds))+
 		       (DPMIclient_is_32 ? _edx : (_LWORD(edx))),
 		       LWORD(ecx));
-		READ_DS_COPIED = 1;
 	    } else {
                 REG(ds) = GetSegmentBaseAddress(_ds) >> 4;
-		READ_DS_COPIED = 0;
             }
 	    in_dos_21++;
 	    return 0;
@@ -1034,7 +1028,6 @@ void msdos_post_extender(int intr)
 			(DPMIclient_is_32 ? S_REG(esi) : (S_LWORD(esi)))),
                          0x40, "%s", 
 		        (char *)((REG(ds) << 4) + LWORD(esi)));
-	    READ_DS_COPIED = 0;
 	    break;
 #if 0	    
 	case 0x48:		/* allocate memory */
@@ -1109,12 +1102,10 @@ void msdos_post_extender(int intr)
 			 + (DPMIclient_is_32 ? S_REG(edx) : (S_LWORD(edx)))),
 				(void *)(REG(ds) << 4), LWORD(eax));
 	    }
-	    READ_DS_COPIED = 0;
 	    break;
 	case 0x40:
 	    if (READ_DS_COPIED)
 		dpmi_stack_frame[current_client].edx = S_REG(edx);
-	    READ_DS_COPIED = 0;
 	    break;
 	case 0x5f:		/* redirection */
 	    switch (S_LO(ax)) {
