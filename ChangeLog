@@ -1,3 +1,23 @@
+99/07/01 ver. 0.99.12.1 unofficial pre-release
+	From Hans
+	- first steps to DOSEMU<->DosC cooperation code
+	  - INTe6 helper 0xdc used for DosC (DOS_HELPER_DOSC)
+	  - DOSEMU is now aware if running DosC and gets its version
+	    to check for compatibility.
+	  - DosC now is reporting, when it runs under DOSEMU
+	  - fixed bug in DosC (wrong pointer declaration (SDA))
+	  - fixed bug in DosC (wrong handling of INT21, AH=30)
+	  - hook in DosC (kernel/inthndlr.c) to support INT21,AH=0x5f,
+	    but just to catch it in DOSEMU and print a debug log message.
+	    (will only work after the redirector is implemented in DosC)
+	  - workaround in MFS to fake DOS-4.1 SDA data layout, when Dosc
+	    is running (DosC has 4.1 SDA data layout, but reports DOS-3.1)
+	- changed lredir.exe such that it prints a message and exits
+	  when DosC isn't capable of redirection
+	- changed lredir.exe to print DOS errors in clear text.
+	- new contrib/dosC/dist/kernel.exe, patch relativ to dosc10b2
+	  put into contrib/dosC/dosc10b2-1.patch and
+          contrib/dosC/readme.dosemu updated.
 99/05/22 ver. 0.99.12 released
 	From David Hodges <dave@router.econz.co.nz>
 	- reworked dosemu HOWTO

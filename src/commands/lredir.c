@@ -17,10 +17,14 @@
  *  Display read/write status when redirecting drive
  *  Usage information is more verbose
  *
- * Changes: 11/27/97 Hansl Lermen
+ * Changes: 11/27/97 Hans Lermen
  *  new detection stuff,
  *  rewrote to use plain C and intr(), instead of asm and fiddling with
  *  (maybe used) machine registers.
+ *
+ * Changes: 990703 Hans Lermen
+ *  Checking for DosC and exiting with error, if not redirector capable.
+ *  Printing DOS errors in clear text.
  *
  * NOTES:
  *  LREDIR supports the following commands:
@@ -72,6 +76,113 @@ typedef unsigned int uint16;
 
 #define DOS_HELPER_INT          0xE6
 
+#define MAX_DOSERROR		0x5A
+static char *DOSerrcodes[MAX_DOSERROR+1] = {
+  /* the below error list is shamelessly stolen from Ralph Brown's */
+  /* 0x00 */  "no error",
+#if 0
+  /* 0x01 */  "function number invalid",
+#else
+  /* 0x01 */  "invalid argument",
+#endif
+  /* 0x02 */  "file not found",
+  /* 0x03 */  "path not found",
+  /* 0x04 */  "too many open files",
+  /* 0x05 */  "access denied",
+  /* 0x06 */  "invalid handle",
+  /* 0x07 */  "memory control block destroyed",
+  /* 0x08 */  "insufficient memory",
+  /* 0x09 */  "memory block address invalid",
+  /* 0x0A */  "environment invalid",
+  /* 0x0B */  "format invalid",
+  /* 0x0C */  "access code invalid",
+  /* 0x0D */  "data invalid",
+  /* 0x0E */  0,
+  /* 0x0F */  "invalid drive",
+  /* 0x10 */  "attempted to remove current directory",
+  /* 0x11 */  "not same device",
+  /* 0x12 */  "no more files",
+  /* 0x13 */  "disk write-protected",
+  /* 0x14 */  "unknown unit",
+  /* 0x15 */  "drive not ready",
+  /* 0x16 */  "unknown command",
+  /* 0x17 */  "data error (CRC)",
+  /* 0x18 */  "bad request structure length",
+  /* 0x19 */  "seek error",
+  /* 0x1A */  "unknown media type",
+  /* 0x1B */  "sector not found",
+  /* 0x1C */  "printer out of paper",
+  /* 0x1D */  "write fault",
+  /* 0x1E */  "read fault",
+  /* 0x1F */  "general failure",
+  /* 0x20 */  "sharing violation",
+  /* 0x21 */  "lock violation",
+  /* 0x22 */  "disk change invalid",
+  /* 0x23 */  "FCB unavailable",
+  /* 0x24 */  "sharing buffer overflow",
+  /* 0x25 */  "code page mismatch",
+  /* 0x26 */  "cannot complete file operation (out of input)",
+  /* 0x27 */  "insufficient disk space",
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  /* 0x32 */  "network request not supported",
+  /* 0x33 */  "remote computer not listening",
+  /* 0x34 */  "duplicate name on network",
+  /* 0x35 */  "network name not found",
+  /* 0x36 */  "network busy",
+  /* 0x37 */  "network device no longer exists",
+  /* 0x38 */  "network BIOS command limit exceeded",
+  /* 0x39 */  "network adapter hardware error",
+  /* 0x3A */  "incorrect response from network",
+  /* 0x3B */  "unexpected network error",
+  /* 0x3C */  "incompatible remote adapter",
+  /* 0x3D */  "print queue full",
+  /* 0x3E */  "queue not full",
+  /* 0x3F */  "not enough space to print file",
+  /* 0x40 */  "network name was deleted",
+  /* 0x41 */  "network: Access denied",
+  /* 0x42 */  "network device type incorrect",
+  /* 0x43 */  "network name not found",
+  /* 0x44 */  "network name limit exceeded",
+  /* 0x45 */  "network BIOS session limit exceeded",
+  /* 0x46 */  "temporarily paused",
+  /* 0x47 */  "network request not accepted",
+  /* 0x48 */  "network print/disk redirection paused",
+  /* 0x49 */  "network software not installed",
+  /* 0x4A */  "unexpected adapter close",
+  /* 0x4B */  "password expired",
+  /* 0x4C */  "login attempt invalid at this time",
+  /* 0x4D */  "disk limit exceeded on network node",
+  /* 0x4E */  "not logged in to network node",
+  /* 0x4F */  0,
+  /* 0x50 */  "file exists",
+  /* 0x51 */  0,
+  /* 0x52 */  "cannot make directory",
+  /* 0x53 */  "fail on INT 24h",
+  /* 0x54 */  "too many redirections",
+  /* 0x55 */  "duplicate redirection",
+  /* 0x56 */  "invalid password",
+  /* 0x57 */  "invalid parameter",
+  /* 0x58 */  "network write fault",
+  /* 0x59 */  "function not supported on network",
+  /* 0x5A */  "required system component not installed"
+
+#if 0 /* the below won't happen here */
+   0, 0, 0, 0, 0, 0, 0, 0, 0,
+  /* 0x64 */  "(MSCDEX) unknown error",
+  /* 0x65 */  "(MSCDEX) not ready",
+  /* 0x66 */  "(MSCDEX) EMS memory no longer valid",
+  /* 0x67 */  "(MSCDEX) not High Sierra or ISO-9660 format",
+  /* 0x68 */  "(MSCDEX) door open",
+#endif
+};
+
+static char * decode_DOS_error(uint16 errcode)
+{
+    static char *unknown = "unknown error";
+    if (errcode > MAX_DOSERROR) return unknown;
+    if (!DOSerrcodes[errcode]) return unknown;
+    return DOSerrcodes[errcode];
+}
 
 char far *
 GetListOfLists(void)
@@ -312,11 +423,36 @@ DeleteDriveRedirection(char *deviceStr)
     strupr(deviceStr);
     ccode = CancelRedirection(deviceStr);
     if (ccode) {
-      printf("Error %x canceling redirection on drive %s\n",
-             ccode, deviceStr);
+      printf("Error %x (%s)\ncanceling redirection on drive %s\n",
+             ccode, decode_DOS_error(ccode), deviceStr);
       }
     else {
       printf("Redirection for drive %s was deleted.\n", deviceStr);
+    }
+}
+
+/********************************************
+ * Check wether we are running DosC (FreeDos)
+ * and check wether this version can cope with redirection
+ * ON ENTRY:
+ *  nothing
+ * ON EXIT:
+ *  returns 0 if not running DosC
+ *  otherwise returns the DosC 'build' number
+ *
+ ********************************************/
+uint16 CheckForDosc(void)
+{
+    struct REGPACK preg;
+
+    preg.r_ax = 0xdddc;
+    intr(0xe6, &preg);
+
+    if (preg.r_ax == 0xdddc) {
+      return 0;
+    }
+    else {
+      return (preg.r_bx);
     }
 }
 
@@ -324,13 +460,28 @@ main(int argc, char **argv)
 {
     uint16 ccode;
     uint16 deviceParam;
+    unsigned long dversion;
 
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
     char resourceStr[MAX_RESOURCE_PATH_LENGTH];
 
-    if (!is_dosemu()) {
+    if ((dversion = is_dosemu()) == 0) {
       printf("This program requires DOSEMU to run, aborting\n");
       exit(1);
+    }
+
+#define D98min	((98UL << 16) | (7 << 8) | 1)
+#define D99min  ((99UL << 16) | (12 << 8) | 1)
+
+    if (((dversion >= D98min) && (dversion < (99UL << 16)))
+                                        || (dversion >= D99min)) {
+      if ((ccode = CheckForDosc()) != 0) {
+        if (ccode <= 1937) {
+          printf("You are running the FreeDos kernel.\n"
+                 "This has no support for lredir, aborting\n");
+          exit(1);
+        }
+      }
     }
 
     /* initialize the MFS, just in case the user didn't run EMUFS.SYS */
@@ -386,8 +537,8 @@ main(int argc, char **argv)
                            deviceParam);
 
     if (ccode) {
-      printf("Error %x redirecting drive %s to %s\n",
-             ccode, deviceStr, resourceStr);
+      printf("Error %x (%s)\nwhile redirecting drive %s to %s\n",
+             ccode, decode_DOS_error(ccode), deviceStr, resourceStr);
       goto MainExit;
     }
 

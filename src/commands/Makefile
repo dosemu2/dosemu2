@@ -42,7 +42,7 @@ CALLDOS=../../bin/dos -D-a 2>/dev/null
 COMMANDDIR=$(shell pwd -P)
 BOOTUP=\P2;2\rn
 GOTARGET=lredir k: linux\\fs$(COMMANDDIR)\rk:\r
-DOSINVOKE='keystroke "$(BOOTUP)$(GOTARGET)COMMAND\rexitemu\r"'
+DOSINVOKE='video {none} keystroke "$(BOOTUP)$(GOTARGET)COMMAND\rexitemu\r"'
 DOSINVOKE_KEEP='keystroke "$(BOOTUP)$(GOTARGET)COMMAND\r"'
 PD=precompiled
 # --------------- end 'tcc via dosemu' --------------------

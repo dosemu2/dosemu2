@@ -575,6 +575,18 @@ EXTERN struct config_info config;
  */
 EXTERN int fatalerr INIT(0);
 
+/*
+ * DANG_BEGIN_REMARK
+ * The var 'running_DosC' is set by the DosC kernel and is used to handle
+ * some things differently, e.g. the redirector.
+ * It interfaces via INTe6,0xDC (DOS_HELPER_DOSC), but only if running_DosC
+ * is !=0. At the very startup DosC issues a INTe6,0xdcDC to set running_DosC
+ * with the contents of BX (which is the internal DosC version).
+ * DANG_END_REMARK
+ */
+EXTERN int running_DosC INIT(0);
+EXTERN int dosc_interface(void);
+
 #ifdef __NetBSD__
 #define iopl(value)			{ EXTERN int errno; if (i386_iopl(value) == -1) { g_printf("iopl failed: %s\n", strerror(errno)); leavedos(4);}}
 #endif

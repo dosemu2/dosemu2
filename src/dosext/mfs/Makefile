@@ -6,7 +6,7 @@
 
 SUBDIR=mfs
 
-CFILES=mfs.c mangle.c util.c
+CFILES=mfs.c mangle.c util.c dosc.c
 HFILES=mfs.h mangle.h
 ALL=$(CFILES) $(HFILES)
 

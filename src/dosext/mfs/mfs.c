@@ -1484,6 +1484,8 @@ dos_fs_dev(state)
     sda = (sda_t) Addr(state, ds, esi);
     dos_major = LOW(state->ecx);
     dos_minor = HIGH(state->ecx);
+    if (running_DosC)
+        Debug0((dbg_fd, "dos_fs: running DosC build 0x%x\n", running_DosC));
     Debug0((dbg_fd, "dos_fs: dos_major:minor = 0x%d:%d.\n",
 	    dos_major, dos_minor));
     Debug0((dbg_fd, "lol=%p\n", (void *) lol));
@@ -1503,6 +1505,11 @@ dos_fs_dev(state)
     else {
       dos_ver = 0;
     }
+	/* we need to fake a 4.1 SDA, because the DosC structure _has_
+	 * 4.1 layout of the SDA though reporting DOS 3.31 compatibility.
+	 *                             --Hans 990703
+	 */
+    if (running_DosC) dos_ver = DOSVER_41;
     init_dos_offsets(dos_ver);
     SETWORD(&(state->eax), 1);
   }

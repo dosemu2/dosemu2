@@ -260,6 +260,7 @@ MFSini:
 	jne AlreadyDone
 
 	mov	ax, #0x3000
+	xor	bh,bh
 	int	0x21
 	push	ax
 

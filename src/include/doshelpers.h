@@ -30,6 +30,7 @@
  * 0x8x   -- utility functions
  *	0x80 -- getcwd(ES:DX, size AX)
  *	0x81 -- chdir(ES:DX)
+ * 0xdc      - helper for DosC kernel
  * 0xfe      - called from our MBR, emulate MBR-code.
  * 0xff      - Terminate DOSEMU
  *
@@ -104,6 +105,8 @@
 #endif
 
 #define DOS_HELPER_XCONFIG          0xa0
+
+#define DOS_HELPER_DOSC		    0xdc
 
 #define DOS_HELPER_MBR              0xfe
 #define DOS_HELPER_EXIT             0xff

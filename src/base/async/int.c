@@ -376,6 +376,18 @@ static int dos_helper(void)
     mfs_inte6();
     return 1;
 
+  case DOS_HELPER_DOSC:
+    if (HI(ax) == 0xdc) {
+      /* install check and notify */
+      if (!dosc_interface()) return 0;
+      running_DosC = LWORD(ebx);
+      return 1;
+    }
+    if (running_DosC) {
+      return dosc_interface();
+    }
+    return 0;
+
   case DOS_HELPER_EMS_HELPER:
     ems_helper();
     return 1;
