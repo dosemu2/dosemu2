@@ -6,11 +6,6 @@
  *
  *
  */
-#define DBGTIME(x) {\
-                        struct timeval tv;\
-                        gettimeofday(&tv,NULL);\
-                        fprintf(stderr,"%c %06d:%06d\n",x,(int)tv.tv_sec,(int)tv.tv_usec);\
-                   }
 #include <features.h>
 #include <sys/types.h>
 #include <sys/ipc.h>

@@ -174,7 +174,7 @@ extern void yyrestart(FILE *input_file);
 %token DEFINE UNDEF
 %token DOSBANNER FASTFLOPPY TIMINT HOGTHRESH SPEAKER IPXSUPPORT NOVELLHACK
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO ALLOWVIDEOPORT TIMER
-%token MATHCO CPU BOOTA BOOTB BOOTC L_XMS L_DPMI PORTS DISK DOSMEM PRINTER
+%token MATHCO CPU CPUSPEED RDTSC BOOTA BOOTB BOOTC L_XMS L_DPMI PORTS DISK DOSMEM PRINTER
 %token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS L_SOUND
 %token L_SECURE
 %token DEXE ALLOWDISK FORCEXDOS XDOSONLY
@@ -285,7 +285,30 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 			config.fastfloppy = $2;
 			c_printf("CONF: fastfloppy = %d\n", config.fastfloppy);
 			}}
-		| CPU INTEGER		{ vm86s.cpu_type = ($2/100)%10; }
+		| CPU INTEGER
+			{
+			/* obsolete - use command line switch */
+			}
+		| CPUSPEED INTEGER
+			{ 
+			if (vm86s.cpu_type >= CPU_586) {
+			  config.cpu_spd = LLF_US/$2;
+			  config.cpu_tick_spd = LLF_TICKS/$2;
+			  c_printf("CONF: CPU speed = %d\n", $2);
+			}
+			}
+		| CPUSPEED INTEGER INTEGER
+			{ 
+			if (vm86s.cpu_type >= CPU_586) {
+			  config.cpu_spd = (LLF_US*$3)/$2;
+			  config.cpu_tick_spd = (LLF_TICKS*$3)/$2;
+			  c_printf("CONF: CPU speed = %d/%d\n", $2, $3);
+			}
+			}
+		| RDTSC bool
+		    {
+		    config.rdtsc = (vm86s.cpu_type<5? 0:($2!=0));
+		    }
 		| PCI bool
 		    {
 		    config.pci = ($2!=0);

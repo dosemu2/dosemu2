@@ -37,6 +37,15 @@ typedef unsigned long long __u64;
 
 #endif
 
+typedef unsigned long long hitimer_t;
+
+typedef union {
+  hitimer_t td;
+  struct { unsigned long tl,th; } t;
+} hitimer_u;
+
+typedef unsigned short ioport_t;
+
 typedef unsigned char      Boolean;
 typedef unsigned char      Bit8u;   /* type of 8 bit unsigned quantity */
 typedef char               Bit8s;   /* type of 8 bit signed quantity */

@@ -390,8 +390,10 @@ emulate(int argc, char **argv)
     /* the transposal of (config_|stdio_)init allows the addition of -o */
     /* to specify a debug out filename, if you're wondering */
 
+    get_time_init();		/* debug can use CPUtime */
     io_select_init();
     config_init(argc, argv);	/* parse the commands & config file(s) */
+    get_time_init();
 #ifdef USE_THREADS
     treads_init();		/* init the threads system,
 				 * after this we will be thread0.

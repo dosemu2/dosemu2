@@ -146,6 +146,8 @@ video			RETURN(VIDEO);
 allowvideoportaccess	RETURN(ALLOWVIDEOPORT);
 mathco			RETURN(MATHCO);
 cpu			RETURN(CPU);
+cpuspeed		RETURN(CPUSPEED);
+rdtsc			RETURN(RDTSC);
 bootA			RETURN(BOOTA);
 bootC			RETURN(BOOTC);
 xms			RETURN(L_XMS);

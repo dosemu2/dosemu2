@@ -1,3 +1,13 @@
+97/09/16 ver. 0.67.10.2 unofficial pre-release
+	From Alberto
+	  first part of timer patches:
+	- the timer driver itself and the new cpu/speed configuration:
+	  emu-i386/cputime.c, include/timers.h, base/init/config.c etc.
+	- replacement of the delay loops with the new interface:
+	  keyboard, serial, sound (all the loops using RELATIVE timing).
+	- documentation (refers to the final timer package)
+	- timers and PIC have NOT been changed, they still use gettimeofday.
+	  If this patch doesn't break anything, the round uses the real stuff.
 97/09/16 ver. 0.67.10.1 unofficial pre-release
 	From Uwe
 	- fixing ./configure VERSION problem with textutils < 1.19

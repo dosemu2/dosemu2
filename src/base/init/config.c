@@ -2,12 +2,14 @@
 #include <termios.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
 
 #include "config.h"
 #include "emu.h"
+#include "timers.h"
 #include "video.h"
 #include "mouse.h"
 #include "serial.h"
@@ -50,6 +52,53 @@ static void     usage(void);
 static void
 config_defaults(void)
 {
+    FILE *fs;
+    char Line[256];
+    int k = 386;
+
+    vm86s.cpu_type = CPU_386;
+    config.pci = 0;
+    config.rdtsc = 0;
+    config.mathco = 0;
+    fs=fopen("/proc/cpuinfo","r");
+    if (fs) {
+	while (fgets(Line,250,fs)) {
+	  if (!strncmp(Line,"cpu",3) && isspace(Line[3])) {
+	    char *p = Line+4;
+	    while (*p && (*p!=':')) p++;
+	    if ((sscanf(p+1,"%d",&k)==1) && ((k%100)==86)) {
+	      switch ((k/100)%10) {
+	        case 2: vm86s.cpu_type = CPU_286;
+	        	break;
+	        case 5:
+	        case 6: vm86s.cpu_type = CPU_586;
+			if (!bogospeed(&config.cpu_spd, &config.cpu_tick_spd)) {
+			    config.pci = 1;
+			    config.rdtsc = 1;
+			    break;
+			}
+			k = 486;
+	        case 4: vm86s.cpu_type = CPU_486;
+	        	break;
+	        default:
+	        	break;
+	      }
+	    }
+	  }
+	  else if (!strncmp(Line,"fpu",3) && isspace(Line[3])) {
+	    char *p = Line+4;
+	    while (*p && (*p!=':')) p++;
+	    if (*p) {
+	      p++; while (*p && isspace(*p)) p++;
+	      config.mathco = (*p=='y');
+	      break;
+	    }
+	  }
+	}
+	fclose(fs);
+    }
+    fprintf(stderr,"default CPU set to %d, FPU=%d\n",k,config.mathco);
+
     config.hdiskboot = 1;	/* default hard disk boot */
     config.mem_size = 640;
     config.ems_size = 0;
@@ -59,7 +108,6 @@ config_defaults(void)
     config.dpmi = 0;
     config.secure = 1;  /* need to have it 'on', else user may trick it out
                            via -F option */
-    config.mathco = 1;
     config.mouse_flag = 0;
     config.mapped_bios = 0;
     config.mapped_sbios = 0;
@@ -109,7 +157,6 @@ config_defaults(void)
     config.hogthreshold = 10;	/* bad estimate of a good garrot value */
     config.chipset = PLAINVGA;
     config.cardtype = CARD_VGA;
-    config.pci = 0;
     config.pci_video = 0;
     config.fullrestore = 0;
     config.graphics = 0;
@@ -126,8 +173,10 @@ config_defaults(void)
      * better that 55555 (108Hz) because of integer math.
      * see timer_interrupt_init() in init.c
      */
-    config.update = 54945;	/* should be = 1E6/config.freq */
+    config.update = 54925;	/* should be = 1E6/config.freq */
     config.freq = 18;		/* rough frequency (real PC = 18.2065) */
+    config.wantdelta = 9154;	/* requested value for setitimer */
+    config.realdelta = 9154;
 
     config.timers = 1;		/* deliver timer ints */
     config.keybint = 1;		/* keyboard interrupts */
@@ -310,6 +359,30 @@ config_init(int argc, char **argv)
 		exit(1);
 	    }
 	    break;
+	case '2':
+	    fprintf(stderr,"CPU set to 286\n");
+	    vm86s.cpu_type = CPU_286;
+	    config.rdtsc = 0;
+	    break;
+	case '3':
+	    fprintf(stderr,"CPU set to 386\n");
+	    vm86s.cpu_type = CPU_386;
+	    config.rdtsc = 0;
+	    break;
+	case '5': case '6':
+	    vm86s.cpu_type = CPU_586;
+	    config.rdtsc = 1;
+	    if (!bogospeed(&config.cpu_spd, &config.cpu_tick_spd)) {
+	      fprintf(stderr,"CPU set to 586 and up\n");
+	      break;
+	    }
+	/* fall thru */
+	case '4':
+	    fprintf(stderr,"CPU set to 486\n");
+	    vm86s.cpu_type = CPU_486;
+	    config.rdtsc = 0;
+	    break;
+
 	case 'u': {
 		extern int define_config_variable(char *name);
 		char *s=malloc(strlen(optarg)+3);
@@ -360,6 +433,7 @@ config_init(int argc, char **argv)
 	case 'O':
 	case 'L':
 	case 'u':
+	case '2': case '3': case '4': case '5': case '6':
 	    break;
 	case 'A':
 	    if (!dexe_running) config.hdiskboot = 0;
@@ -474,26 +548,6 @@ config_init(int argc, char **argv)
 	case 'm':
 	    g_printf("turning MOUSE support on\n");
 	    config.mouse_flag = 1;
-	    break;
-
-	case '2':
-	    g_printf("CPU set to 286\n");
-	    vm86s.cpu_type = CPU_286;
-	    break;
-
-	case '3':
-	    g_printf("CPU set to 386\n");
-	    vm86s.cpu_type = CPU_386;
-	    break;
-
-	case '4':
-	    g_printf("CPU set to 486\n");
-	    vm86s.cpu_type = CPU_486;
-	    break;
-
-	case '5':
-	    g_printf("CPU set to 586\n");
-	    vm86s.cpu_type = CPU_586;
 	    break;
 
 	case 'E':

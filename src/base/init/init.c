@@ -185,13 +185,28 @@ void time_setting_init(void)
 void timer_interrupt_init(void)
 {
   struct itimerval itv;
-  int delta = (config.update / TIMER_DIVISOR);
+  int delta;
+
+  /* DANG_FIXTHIS config.timer is undocumented and probably obsolete
+   */
+  delta = (config.update / TIMER_DIVISOR);
+  config.wantdelta = delta;	/* save it */
+  /* Check that the kernel actually supports such a frequency - we
+   * can't go faster than jiffies with setitimer()
+   */
+  if (((delta/1000)+1) < (1000/HZ)) {
+    c_printf("TIME: FREQ too fast, using defaults\n");
+    config.update = 54925; config.freq = 18;
+    delta = 54925 / TIMER_DIVISOR;
+  }
+  config.realdelta = delta;
 
   itv.it_interval.tv_sec = 0;
   itv.it_interval.tv_usec = delta;
   itv.it_value.tv_sec = 0;
   itv.it_value.tv_usec = delta;
-  k_printf("Used %d for updating timers\n", delta);
+  c_printf("TIME: using %d usec for updating ALRM timer\n", delta);
+
   setitimer(TIMER_TIME, &itv, NULL);
 }
 

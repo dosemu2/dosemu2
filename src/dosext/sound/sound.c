@@ -64,7 +64,7 @@
 #include "int.h"
 #include "port.h"
 #include "dma.h"
-/* #include "pic.h" */
+#include "timers.h"
 #include "sound.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -73,9 +73,6 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <fcntl.h>
-
-/* for gettimeofday */
-#include <sys/time.h>
 #include <unistd.h>
 
 /* Internal Functions */
@@ -2464,15 +2461,13 @@ void sb_controller(void) {
 
 /* Blatant rip-off of serial_update_timers */
 void sb_update_timers () {
-  static struct timeval tp;		/* Current timer value */
-  static struct timeval oldtp;		/* Timer value from last call */
-  static long int elapsed;		/* No of 80useconds elapsed */
-  static int i;				/* Loop index */
-
+  static hitimer_t oldtp = 0;		/* Timer value from last call */
+  hitimer_t tp;				/* Current timer value */
+  unsigned long elapsed;		/* No of 80useconds elapsed */
   void (* caller_function)();
   Bit8u current_value;
   Bit16u int08_irq;
-
+  int i;
   extern struct adlib_info_t adlib_info;
   extern struct adlib_timer_t adlib_timers[2];
 
@@ -2493,21 +2488,13 @@ void sb_update_timers () {
    * _guarantee_ that the substitute/stored timer value _is_ up to date 
    * at _this_ instant!  (i.e: vm86s exit time did not not work well)
    */
-  gettimeofday(&tp, NULL);
-
-  /* compute the number of 80uS since last timer update */
-  elapsed  = (tp.tv_sec - oldtp.tv_sec) * 12500;
-  elapsed += ((tp.tv_usec - oldtp.tv_usec) / 80);
-
-  /* Reset to 0 if the timer had wrapped around back to 0, just in case */
-  if (elapsed < 0) {
-    S_printf("SB: Timer wrapped around back to 0!\n");
-    elapsed = 0;
-  }
+  tp = GETusTIME(0);
+  if (oldtp==0)	oldtp=tp;
+  /* compute the number of 80us(12500 Hz) since last timer update */
+  elapsed = (tp - oldtp) / 80;
 
   /* Save the old timer values for next time */
-  oldtp.tv_sec  = tp.tv_sec;
-  oldtp.tv_usec = tp.tv_usec;
+  oldtp = tp;
 
   caller_function = interrupt_function[i];
   int08_irq = pic_irq_list[0x08];

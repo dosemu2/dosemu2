@@ -65,17 +65,15 @@ static void mrp_read_joystick(void);
 #endif
 
 void kill_time(long usecs) {
-   struct timeval scr_tv, t_start, t_end;
+   hitimer_t t_start;
    long t_dif;
    scr_tv.tv_sec = 0L;
    scr_tv.tv_usec = usecs;
 
-   gettimeofday(&t_start, NULL);
+   t_start = GETusTIME(0);
    while ((int) select(STDIN_FILENO, NULL, NULL, NULL, &scr_tv) < (int) 1)
      {
-        gettimeofday(&t_end, NULL);
-        t_dif = ((t_end.tv_sec * 1000000 + t_end.tv_usec) -
-                 (t_start.tv_sec * 1000000 + t_start.tv_usec));
+	t_dif = (long)(GETusTIME(0)-t_start);
 
         if ((t_dif >= usecs) || (errno != EINTR))
           return ;

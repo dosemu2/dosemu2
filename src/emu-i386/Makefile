@@ -1,5 +1,5 @@
 
-CFILES=cpu.c ports.c do_vm86.c portss.c fake_cpu.c
+CFILES=cpu.c ports.c do_vm86.c portss.c cputime.c
 
 SFILES=
 ALL=$(CFILES) $(SFILES)

@@ -498,7 +498,8 @@ static int getkey_callback (void)
 
 static int sltermio_input_pending (void)
 {
-   struct timeval scr_tv, t_start, t_end;
+   struct timeval scr_tv;
+   hitimer_t t_start;
    fd_set fds;
    long t_dif;
 
@@ -512,13 +513,11 @@ static int sltermio_input_pending (void)
    scr_tv.tv_sec = 0L;
    scr_tv.tv_usec = THE_TIMEOUT;
    
-   gettimeofday(&t_start, NULL);
+   t_start = GETusTIME(0);
    errno = 0;
    while ((int) select(kbd_fd + 1, &fds, NULL, NULL, &scr_tv) < (int) 1) 
      {
-	gettimeofday(&t_end, NULL);
-	t_dif = ((t_end.tv_sec * 1000000 + t_end.tv_usec) -
-		 (t_start.tv_sec * 1000000 + t_start.tv_usec));
+	t_dif = (long)(GETusTIME(0) - t_start);
 	
 	if ((t_dif >= THE_TIMEOUT) || (errno != EINTR))
 	  return 0;

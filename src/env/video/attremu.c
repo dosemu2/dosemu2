@@ -63,19 +63,8 @@
 /* **************** include files **************** */
 #include "config.h"
 #include "emu.h"
+#include "timers.h"
 #include "vgaemu.h"
-#ifdef HAVE_GETTIMEOFDAY
-#  ifdef TIME_WITH_SYS_TIME
-#    include <sys/time.h>
-#    include <time.h>
-#  else
-#    if HAVE_SYS_TIME
-#      include <sys/time.h>
-#    else
-#      include <time.h>
-#    endif
-#  endif
-#endif
 
 
 /* **************** Attribute Controller data **************** */
@@ -274,10 +263,14 @@ unsigned char Attr_get_input_status_1(void)
    * horizontal retrace too.  (--adm)
    *
    */
-
 #ifdef HAVE_GETTIMEOFDAY
-  struct timeval currenttime;
-  struct timezone tz;
+  static unsigned char hretrace=0, vretrace=0, first=1;
+  static hitimer_t t_vretrace = 0;
+  /* Timings are 'ballpark' guesses and may vary from mode to mode, but
+     such accuracy is probably not important... I hope. (--adm) */
+  static int vvfreq = 14250;	/* 70 Hz */
+  hitimer_t t;
+  long tdiff;
 #else
   static unsigned int cga_r=0;
 #endif
@@ -290,20 +283,30 @@ unsigned char Attr_get_input_status_1(void)
   Attr_flipflop=ATTR_INDEX_FLIPFLOP;
 
 #ifdef HAVE_GETTIMEOFDAY
-  gettimeofday(&currenttime, &tz);
+  t=GETusTIME(0);
 
-  /* Timings are 'ballpark' guesses and may vary from mode to mode, but
-     such accuracy is probably not important... I hope. (--adm) */
+  if (first) {
+    t_vretrace=t; first=0;
+  }
+  tdiff = t-t_vretrace;
 
-  /* We're in vertical retrace?  If so, set VR and DE flags */
-  if ((currenttime.tv_usec % 20000) < 7000) retval=0xCF;
-
-  /* We're in horizontal retrace?  If so, just set DE flag, 0 in VR */
-  else if ((currenttime.tv_usec % 50) < 25) retval=0xC7;
-
-  /* Otherwise, we're in 'display' mode and should return 0 in DE and VR */
-  else retval=0xC6;
-
+  switch (vretrace) {
+    /* set retrace on timeout */
+    case 0: if (tdiff > vvfreq) {
+	  /* We're in vertical retrace?  If so, set VR and DE flags */
+    		vretrace=0x09; t_vretrace=t;
+    		v_printf("V_RETRACE\n");
+    	    }
+    	    else
+	  /* We're in horizontal retrace?  If so, just set DE flag, 0 in VR */
+    	    	hretrace = ((tdiff%49) > 35);
+    	    break;
+    /* Otherwise, we're in 'display' mode and should return 0 in DE and VR */
+    /* set display after 1ms from retrace start */
+    case 9: if (tdiff > 1000) vretrace=hretrace=0;
+    	    break;
+  }
+  retval = 0xc4 | hretrace | vretrace;
 #else
   retval=((cga_r ^= 1) ? 0xcf : 0xc6);
 #endif

@@ -27,6 +27,7 @@
 
 #include "config.h"
 #include "emu.h"
+#include "timers.h"
 #include "pic.h"
 #include "serial.h"
 #include "ser_defs.h"
@@ -48,30 +49,22 @@ static int into_irq = 0;
  */
 void serial_timer_update(void)
 {
-  static struct timeval tp;		/* Current timer value */
-  static struct timeval oldtp;		/* Timer value from last call */
-  static long int elapsed;		/* No of 115200ths seconds elapsed */
-  static int i;				/* Loop index */
+  static hitimer_t oldtp = 0;	/* Timer value from last call */
+  hitimer_t tp;			/* Current timer value */
+  unsigned long elapsed;	/* No of 115200ths seconds elapsed */
+  int i;
 
   /* Get system time.  PLEASE DONT CHANGE THIS LINE, unless you can 
    * _guarantee_ that the substitute/stored timer value _is_ up to date 
    * at _this_ instant!  (i.e: vm86s exit time did not not work well)
    */
-  gettimeofday(&tp, NULL);
-
+  tp = GETusTIME(0);
+  if (oldtp==0)	oldtp=tp;
   /* compute the number of 115200ths of seconds since last timer update */
-  elapsed  = (tp.tv_sec - oldtp.tv_sec) * 115200;
-  elapsed += ((tp.tv_usec - oldtp.tv_usec) * 1152) / 10000;
-
-  /* Reset to 0 if the timer had wrapped around back to 0, just in case */
-  if (elapsed < 0) {
-    s_printf("SER: Timer wrapped around back to 0!\n");
-    elapsed = 0;
-  }
+  elapsed = T64DIV((tp-oldtp),8.680555556);
 
   /* Save the old timer values for next time */
-  oldtp.tv_sec  = tp.tv_sec;
-  oldtp.tv_usec = tp.tv_usec;
+  oldtp = tp;
 
   /* Update all the timers */
   for (i = 0; i < config.num_ser; i++) {

@@ -51,7 +51,7 @@
 
 
 #ifndef MONOTON_MICRO_TIMING
-#define CLOCK_TICK_RATE   1193180     /* underlying clock rate in HZ */
+#define CLOCK_TICK_RATE   PIT_TICK_RATE     /* underlying clock rate in HZ */
 #else  /* MONOTON_MICRO_TIMING */
 extern long   pic_itime[33];
 #endif /* MONOTON_MICRO_TIMING */
