@@ -1,0 +1,112 @@
+<!-- This is the dosemu EMUproblem SGML source -- >
+<!-- Last edited: Time-stamp: <97/03/15 22:53:11 bon> -->
+
+<!doctype linuxdoc system>
+
+<article>
+<title>EMUfailure.txt
+<author>Uwe Bonnes, 
+<bf><htmlurl url="mailto:bon@elektron.ikp.physik.th-darmstadt.de"
+name="bon@elektron.ikp.physik.th-darmstadt.de"></bf>
+<date> Feb 16, 1997 for dosemu 0.64.4 (and possibly earlier versions)
+
+<abstract>
+This file list programs and groups of programms not running or running
+only partial under dosemu.
+The most up-to-date version of this file may be found on:
+<bf><htmlurl
+url="ftp://ftp.mathematik.th-darmstadt.de:/pub/linux/bonnes/"name="ftp.mathematik.th-darmstadt.de:/pub/linux/bonnes/"></bf>.
+Please report about possible additions to 
+<bf><htmlurl
+url="mailto:linux-msdos@vger.rutgers.edu"name="linux-msdos@vger.rutgers.edu">
+</bf>. Perhaps it can be made going
+with the help others. Have a look at the dosemu-howto how to do so.
+
+</abstract>
+
+<toc>
+
+<sect>Fundamental problem
+<p>Programs that don't work under the MSDOS Emulator and probably
+won't ever work, because of fundamental problem. Some of these
+fundamental problems result in these programs not being runnable on
+Win3.x/Win95/WinNT in a Dosbox and under OS/2 either. These programs
+are characterized by using any of these features:
+
+<sect1>Virtual Control Program Interface (VCPI)
+<p>VCPI allows programs to run in ring 0. This is kernel mode in Linux
+and not sensible.
+
+Example: sim2181.exe from Analog Devices DSP Kit
+
+<sect1>Programs using older Versions of the Pharlap Extender 
+<p>The Pharlap Extender in it's older versions needed ring 0 access
+too, so it can't me made working in the emulator.
+
+Example:Autocad Version 12c1 For DOS
+
+<sect1>MSDOS enhanced mode Windows kernel krnl386.exe
+<p> krnl386.exe needs Ring 0 access too. 
+
+<sect1>Windows programs using Win32s
+<p>Win32s needs Ring 0 access too. 
+
+<sect1>Does my failing program belong to these groups?
+<p>Check with "strings &lt;program.exe&gt; | less" if the programm
+contains some of these keywords <bf> vcpi, pharlap and win32s</bf>. Newer
+Pharlap programs may work.
+
+<sect>Programs not working yet
+<p>Here are programs listed, where someone has reported that it does
+not work.
+
+<sect1>dd2demo.exe
+<p> This is a game found at 
+<tscreen>
+      <htmlurl url="http://www.psygnosis.com/"
+      name="http://www.psygnosis.com/">
+</tscreen>
+Reported by Hans Lermen, it kills dosemu, giving an output like:
+<tscreen>
+	general protection at 0x1fba: a7
+	ERROR: SIGSEGV, protected insn...exiting!
+</tscreen>
+The crash happens in DMPI Call 0x0302
+At least DMPI Call 0x0506 is not yet implemented.
+
+<sect1>bae.exe
+<p>This is a demo version of an Electronic CAD programm, found at
+<tscreen>
+      <htmlurl url="http://www.bartels.de/"
+      name="http://www.bartels.de/">
+</tscreen>
+Reported by Uwe Bonnes, it stops dosemu with a blank screen in an
+unusable state. You have to do a remote login to kill dosemu, or hit
+reset with all it's possible fatal result. The possible reason is the
+missing implementation of DMPI Call 0x0800, as Uwe Bonnes reported it
+once working on the console with some hack.
+
+<sect1>tasmx.exe 
+<p>Reported by alberto.vignani@torino.alpcom.it (Alberto Vignani):
+Protected-mode version of the Borland Turbo Assembler. It crashes with
+"out of memory" at startup. I traced it at the assembly level, no result
+until now. Maybe a DPMI problem (97/03/04).
+
+<sect1>xaos.exe
+<p>Reported by alberto.vignani@torino.alpcom.it (Alberto Vignani):
+Mandelbrot zoomer, version 2.2 under djgpp, using Allegro 2.1 library.
+Can be found on any simtelnet mirror (xaos22b.exe?)
+Any mouse movement (in console mode with a button pressed) crashes it
+(97/03/04).
+
+<sect1>QIC tape programs
+<p>Reported by alberto.vignani@torino.alpcom.it (Alberto Vignani):
+Tape is not supported. Worse, if you use a floppy under dosemu, you
+have sometimes to remove/reinstall the ftape module.
+
+<sect1> Any program using SCSI
+<p>Reported by alberto.vignani@torino.alpcom.it (Alberto Vignani):
+
+No ASPI support until now(97/03/04).
+
+</article>

@@ -1,3 +1,14 @@
+97/03/16 ver. 0.65.99.22 unofficial pre-release
+	From Hans
+	- docs move around:
+	  all doc source go into src/doc/DANG, src/doc/HOWTO
+          made Makfiles to generate 'nice' docs.
+          You have to 'cd src/doc' then do 'make'
+          To install the *.txt into ./doc type 'make install'
+	NOTE: the patch to this release is a patch-*.tgz, what means,
+              you have have to un-tar it into the ./dosmemu directory and then
+              type 'sh tmp/do_patch'.
+	      This will _first_ move the files, and then apply the patch.
 97/03/15 ver. 0.65.99.21 unofficial pre-release
 	From Uwe
 	- take version date out of ./Changelog

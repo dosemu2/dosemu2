@@ -1,9 +1,217 @@
   The DOSEMU Alterer Novices Guide DANG
-  Alistair MacDonald, aalliissttaaiirr@@sslliitteessyyss..ddeemmoonn..ccoo..uukk
+  Alistair MacDonald, alistair@slitesys.demon.co.uk
   For DOSEMU v0.63.1
 
   This Document is the DOSEMU Alterer Novices Guide. It is known as the
   DANG.
+  ______________________________________________________________________
+
+  Table of Contents:
+
+  1.      Introduction
+
+  2.      The Main group of Modules
+
+  2.1.    dos.c Information
+
+  2.1.1.  Functions in dos.c
+
+  2.1.1.1.        dosemu
+
+  2.2.    emu.c Information
+
+  2.2.1.  Functions in emu.c
+
+  2.2.1.1.        jmp_emulate
+
+  2.2.1.2.        SIG_int
+
+  2.2.1.3.        emulate
+
+  2.2.2.  Remarks in emu.c
+
+  2.3.    include/emu.h Information
+
+  2.3.1.  Functions in include/emu.h
+
+  2.3.1.1.        NEWSETQSIG
+
+  2.3.2.  Remarks in include/emu.h
+
+  3.      The DPMI group of Modules
+
+  3.1.    dosext/dpmi/dpmi.c Information
+
+  3.1.1.  Functions in dosext/dpmi/dpmi.c
+
+  3.1.1.1.        dpmi_control
+
+  3.1.1.2.        run_pm_int
+
+  3.1.1.3.        do_default_cpu_exception
+
+  3.1.1.4.        do_cpu_exception
+
+  3.1.1.5.        dpmi_fault
+
+  3.1.2.  Remarks in dosext/dpmi/dpmi.c
+
+  3.1.3.  Items for Fixing in dosext/dpmi/dpmi.c
+
+  3.1.4.  New Ideas for dosext/dpmi/dpmi.c
+
+  4.      The Video group of Modules
+
+  4.1.    env/video/vc.c Information
+
+  4.2.    env/video/video.c Information
+
+  4.2.1.  Functions in env/video/video.c
+
+  4.2.1.1.        video_init
+
+  4.2.2.  Remarks in env/video/video.c
+
+  4.3.    env/video/X.c Information
+
+  4.3.1.  Functions in env/video/X.c
+
+  4.3.1.1.        get_vga256_colors
+
+  4.3.1.2.        X_close
+
+  4.3.1.3.        X_setmode
+
+  4.3.1.4.        X_change_mouse_cursor
+
+  4.3.1.5.        X_redraw_screen
+
+  4.3.1.6.        X_update_screen
+
+  4.3.1.7.        set_mouse_position
+
+  4.4.    env/video/console.c Information
+
+  4.5.    env/video/dualmon.c Information
+
+  4.5.1.  Functions in env/video/dualmon.c
+
+  4.5.1.1.        MDA_init
+
+  4.5.2.  Remarks in env/video/dualmon.c
+
+  4.6.    env/video/et4000.c Information
+
+  4.7.    env/video/hgc.c Information
+
+  4.8.    base/bios/int10.c Information
+
+  4.9.    env/video/s3.c Information
+
+  4.10.   env/video/terminal.c Information
+
+  4.11.   env/video/trident.c Information
+
+  4.12.   env/video/vga.c Information
+
+  5.      The Keyboard group of Modules
+
+  5.1.    base/keyboard/Xkeyb.c Information
+
+  5.2.    base/keyboard/keymaps.c Information
+
+  5.2.1.  Remarks in base/keyboard/keymaps.c
+
+  5.3.    base/keyboard/slang-termio.c Information
+
+  6.      The Misc group of Modules
+
+  6.1.    dosext/misc/emm.c Information
+
+  6.2.    dosext/misc/xms.c Information
+
+  6.3.    arch/linux/async/sigsegv.c Information
+
+  6.3.1.  Functions in arch/linux/async/sigsegv.c
+
+  6.3.1.1.        dosemu_fault
+
+  6.4.    include/int.h Information
+
+  6.5.    include/ports.h Information
+
+  6.6.    base/misc/dosio.c Information
+
+  6.7.    base/misc/disks.c Information
+
+  6.7.1.  Functions in base/misc/disks.c
+
+  6.7.1.1.        disk_init
+
+  6.8.    emi-i386/cpu.c Information
+
+  6.9.    dev/misc/lpt.c Information
+
+  7.      The Serial group of Modules
+
+  7.1.    base/serial/ser_defs.h Information
+
+  7.1.1.  Remarks in base/serial/ser_defs.h
+
+  7.2.    base/serial/ser_init.c Information
+
+  7.2.1.  Maintainers
+
+  7.2.2.  Functions in base/serial/ser_init.c
+
+  7.2.2.1.        serial_init
+
+  7.2.3.  Items for Fixing in base/serial/ser_init.c
+
+  7.3.    base/serial/ser_ports.c Information
+
+  7.3.1.  Functions in base/serial/ser_ports.c
+
+  7.3.1.1.        do_serial_in
+
+  7.3.1.2.        do_serial_out
+
+  7.3.2.  Items for Fixing in base/serial/ser_ports.c
+
+  7.4.    base/serial/ser_irq.c Information
+
+  7.4.1.  Functions in base/serial/ser_irq.c
+
+  7.4.1.1.        serial_int_engine
+
+  7.4.1.2.        pic_serial_run
+
+  7.4.1.3.        serial_run
+
+  7.4.2.  Remarks in base/serial/ser_irq.c
+
+  7.4.3.  Items for Fixing in base/serial/ser_irq.c
+
+  8.      The Mouse group of Modules
+
+  8.1.    base/mouse/mouse.c Information
+
+  8.1.1.  Functions in base/mouse/mouse.c
+
+  8.1.1.1.        mouse_init
+
+  9.      The Bios group of Modules
+
+  9.1.    base/bios/bios.S Information
+
+  10.     The PIC group of Modules
+
+  10.1.   dev/pic/pic.c Information
+
+  10.2.   devpic/pic.h Information
+
+  11.     And Finally ...
+  ______________________________________________________________________
 
   11..  IInnttrroodduuccttiioonn
 
@@ -27,27 +235,18 @@
   This file is a collective effort. If you don't like one of the
   explanations, or want to add anything, please send me something!
 
-
-
-
-
   22..  TThhee MMaaiinn ggrroouupp ooff MMoodduulleess
 
   These files are used to start DOSEMU as well as hold globally called
   functions and global vars.
 
-
-
   22..11..  ddooss..cc IInnffoorrmmaattiioonn
-
 
   22..11..11..  FFuunnccttiioonnss iinn ddooss..cc
 
   These are the functions defined in dos.c.
 
-
   22..11..11..11..  ddoosseemmuu
-
 
   Arguments are:
 
@@ -58,24 +257,17 @@
      Function created by entry point into libdosemu. Called to jump into
      the emulate function of DOSEMU.
 
-
-
   22..22..  eemmuu..cc IInnffoorrmmaattiioonn
-
-
 
   22..22..11..  FFuunnccttiioonnss iinn eemmuu..cc
 
   These are the functions defined in emu.c.
-
 
   22..22..11..11..  jjmmpp__eemmuullaattee
 
   call the emulate function by way of the dll headers. Always make sure
   that this line is the first of emu.c and link emu.o as the first
   object file to the lib
-
-
 
   22..22..11..22..  SSIIGG__iinntt
 
@@ -84,10 +276,7 @@
   monitor are taken from config.sillyint, each bit corresponding to one
   IRQ. The higher 16 bit are defining the use of SIGIO
 
-
-
   22..22..11..33..  eemmuullaattee
-
 
   Arguments are:
 
@@ -100,8 +289,6 @@
      memory, calling all the initialization functions for the I/O
      subsystems (video/serial/etc...), getting the boot sector
      instructions and calling vm86().
-
-
 
   22..22..22..  RReemmaarrkkss iinn eemmuu..cc
 
@@ -117,18 +304,13 @@
   longer). But if it happens, we can retrigger this way over SIGALRM.
   Normally SIGIO happens before SIGALARM, so nothing hurts. (Hans)
 
-
   22..33..  iinncclluuddee//eemmuu..hh IInnffoorrmmaattiioonn
-
 
   22..33..11..  FFuunnccttiioonnss iinn iinncclluuddee//eemmuu..hh
 
   These are the functions defined in include/emu.h.
 
-
   22..33..11..11..  NNEEWWSSEETTQQSSIIGG
-
-
 
   Arguments are:
 
@@ -141,8 +323,6 @@
      reentrant functions should add themselves to the SIGNALS_THAT_QUEUE
      define and use SETQSIG(). To that end they will also need to be set
      up in an order such as SIGIO.
-
-
 
   22..33..22..  RReemmaarrkkss iinn iinncclluuddee//eemmuu..hh
 
@@ -166,7 +346,6 @@
   The var `fatalerr` can be given a true value at any time to have
   DOSEMU exit on the next return from vm86 mode.
 
-
   33..  TThhee DDPPMMII ggrroouupp ooff MMoodduulleess
 
   DPMI is Lutz's Baby. It's a really important part of the Emulator as
@@ -179,22 +358,16 @@
   youth ... anyway ...  enough of this banter. You'll be wanting to know
   that this is all about DPMI ...)
 
-
-
   33..11..  ddoosseexxtt//ddppmmii//ddppmmii..cc IInnffoorrmmaattiioonn
-
 
   33..11..11..  FFuunnccttiioonnss iinn ddoosseexxtt//ddppmmii//ddppmmii..cc
 
   These are the functions defined in dosext/dpmi/dpmi.c.
 
-
   33..11..11..11..  ddppmmii__ccoonnttrrooll
 
   This function is similar to the vm86() syscall in the kernel and
   switches to dpmi code.
-
-
 
   33..11..11..22..  rruunn__ppmm__iinntt
 
@@ -203,23 +376,17 @@
   the locked protected mode stack and calls the handler. If no handler
   is installed the real mode interrupt routine is called.
 
-
-
   33..11..11..33..  ddoo__ddeeffaauulltt__ccppuu__eexxcceeppttiioonn
 
   This is the default CPU exception handler.  Exceptions 0, 1, 2, 3, 4,
   5 and 7 are reflected to real mode. All other exceptions are
   terminating the client (and may be dosemu too :-)).
 
-
-
   33..11..11..44..  ddoo__ccppuu__eexxcceeppttiioonn
 
   This routine switches to the locked protected mode stack, disables
   interrupts and calls the DPMI client exception handler.  If no handler
   is installed the default handler is called.
-
-
 
   33..11..11..55..  ddppmmii__ffaauulltt
 
@@ -229,15 +396,12 @@
   here.  All here unhandled exceptions are reflected to
   do_cpu_exception()
 
-
-
   33..11..22..  RReemmaarrkkss iinn ddoosseexxtt//ddppmmii//ddppmmii..cc
 
   We are caching ldt here for speed reasons and for Windows 3.1.  I
   would love to have an readonly ldt-alias (located in the first 16MByte
   for use with 16-Bit descriptors (WIN-LDT)). This is on my wish list
   for the kernel hackers (Linus mainly) :-))))))).
-
 
   -----
 
@@ -250,7 +414,6 @@
   or similar :-)) start with it to get a really fast dos
   emulator...............
 
-
   -----
 
   Handling of the virtuell interruptflag is still not correct and there
@@ -261,7 +424,6 @@
   a lot about this and to write a small dpmi client running under a
   commercial dpmi server :-).
 
-
   33..11..33..  IItteemmss ffoorr FFiixxiinngg iinn ddoosseexxtt//ddppmmii//ddppmmii..cc
 
   We shouldn't return to dosemu code if IF=0, but it helps - WHY?
@@ -270,13 +432,11 @@
 
   we should not change registers for hardware interrupts
 
-
   33..11..44..  NNeeww IIddeeaass ffoorr ddoosseexxtt//ddppmmii//ddppmmii..cc
 
   Simulate Local Descriptor Table for MS-Windows 3.1 must be read only,
   so if krnl386.exe/krnl286.exe try to write to this table, we will bomb
   into sigsegv() and and emulate direct ldt access
-
 
   44..  TThhee VViiddeeoo ggrroouupp ooff MMoodduulleess
 
@@ -286,25 +446,18 @@
   To Add a new card, it needs a set of save & restore routines putting
   in a file here.
 
-
-
   44..11..  eennvv//vviiddeeoo//vvcc..cc IInnffoorrmmaattiioonn
 
-
   44..22..  eennvv//vviiddeeoo//vviiddeeoo..cc IInnffoorrmmaattiioonn
-
 
   44..22..11..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//vviiddeeoo..cc
 
   These are the functions defined in env/video/video.c.
 
-
   44..22..11..11..  vviiddeeoo__iinniitt
 
   Set pointer to correct structure of functions to initialize, close,
   etc... video routines.
-
-
 
   44..22..22..  RReemmaarrkkss iinn eennvv//vviiddeeoo//vviiddeeoo..cc
 
@@ -328,39 +481,30 @@
   maximize your memory under DOSEMU.  If you know about dual monitor
   setups, you can contribute by putting in the correct graphics page
   address values.
-  44..33..  eennvv//vviiddeeoo//XX..cc IInnffoorrmmaattiioonn
 
+  44..33..  eennvv//vviiddeeoo//XX..cc IInnffoorrmmaattiioonn
 
   44..33..11..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//XX..cc
 
   These are the functions defined in env/video/X.c.
 
-
   44..33..11..11..  ggeett__vvggaa225566__ccoolloorrss
 
   Allocates a colormap for 256 color modes and initializes it.
 
-
-
   44..33..11..22..  XX__cclloossee
 
   Destroys the window, unloads font, pixmap and colormap.
-
-
 
   44..33..11..33..  XX__sseettmmooddee
 
   Resizes the window, also the graphical sizes/video modes.  remember
   the dos videomodi
 
-
-
   44..33..11..44..  XX__cchhaannggee__mmoouussee__ccuurrssoorr
 
   This function seems to be called each screen_update :( It is called in
   base/mouse/mouse.c:mouse_cursor(int) a lot for show and hide.
-
-
 
   44..33..11..55..  XX__rreeddrraaww__ssccrreeeenn
 
@@ -371,8 +515,6 @@
 
   +o  none
 
-
-
   44..33..11..66..  XX__uuppddaattee__ssccrreeeenn
 
   Updates, also in graphics mode Graphics in X has to be smarter and
@@ -382,8 +524,6 @@
   Arguments are:
 
   +o  none
-
-
 
   44..33..11..77..  sseett__mmoouussee__ppoossiittiioonn
 
@@ -396,14 +536,11 @@
 
   44..44..  eennvv//vviiddeeoo//ccoonnssoollee..cc IInnffoorrmmaattiioonn
 
-
   44..55..  eennvv//vviiddeeoo//dduuaallmmoonn..cc IInnffoorrmmaattiioonn
-
 
   44..55..11..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//dduuaallmmoonn..cc
 
   These are the functions defined in env/video/dualmon.c.
-
 
   44..55..11..11..  MMDDAA__iinniitt
 
@@ -416,8 +553,6 @@
   Arguments are:
 
   +o  none
-
-
 
   44..55..22..  RReemmaarrkkss iinn eennvv//vviiddeeoo//dduuaallmmoonn..cc
 
@@ -435,30 +570,19 @@
   The problem doesn't occur when I start dosemu from a telnet connection
   or from a VT100 terminal. (Erik Mouw, jakmouw@et.tudelft.nl)
 
-
-
   44..66..  eennvv//vviiddeeoo//eett44000000..cc IInnffoorrmmaattiioonn
-
 
   44..77..  eennvv//vviiddeeoo//hhggcc..cc IInnffoorrmmaattiioonn
 
-
   44..88..  bbaassee//bbiiooss//iinntt1100..cc IInnffoorrmmaattiioonn
-
 
   44..99..  eennvv//vviiddeeoo//ss33..cc IInnffoorrmmaattiioonn
 
-
   44..1100..  eennvv//vviiddeeoo//tteerrmmiinnaall..cc IInnffoorrmmaattiioonn
-
 
   44..1111..  eennvv//vviiddeeoo//ttrriiddeenntt..cc IInnffoorrmmaattiioonn
 
-
   44..1122..  eennvv//vviiddeeoo//vvggaa..cc IInnffoorrmmaattiioonn
-
-
-
 
   55..  TThhee KKeeyybbooaarrdd ggrroouupp ooff MMoodduulleess
 
@@ -466,13 +590,9 @@
 
   Latest addition is SLANG.
 
-
-
   55..11..  bbaassee//kkeeyybbooaarrdd//XXkkeeyybb..cc IInnffoorrmmaattiioonn
 
-
   55..22..  bbaassee//kkeeyybbooaarrdd//kkeeyymmaappss..cc IInnffoorrmmaattiioonn
-
 
   55..22..11..  RReemmaarrkkss iinn bbaassee//kkeeyybbooaarrdd//kkeeyymmaappss..cc
 
@@ -481,7 +601,6 @@
   list of the dead keys supported. They must be placed on the correct
   key in the keymaps above. See key_map_es_latin1.
 
-
   -----
 
   dos850_dead_map consists of the triple, {deadkey, letter, result}.  It
@@ -489,10 +608,7 @@
   If you uses a different code page, please create a map!  Jon Tombs
   jon@gtex02.us.es
 
-
-
   55..33..  bbaassee//kkeeyybbooaarrdd//ssllaanngg--tteerrmmiioo..cc IInnffoorrmmaattiioonn
-
 
   66..  TThhee MMiisscc ggrroouupp ooff MMoodduulleess
 
@@ -500,60 +616,40 @@
   another group. These should not be dismissed as unimportant - rather,
   they are often amongst the most important.
 
-
-
   66..11..  ddoosseexxtt//mmiisscc//eemmmm..cc IInnffoorrmmaattiioonn
-
 
   66..22..  ddoosseexxtt//mmiisscc//xxmmss..cc IInnffoorrmmaattiioonn
 
-
   66..33..  aarrcchh//lliinnuuxx//aassyynncc//ssiiggsseeggvv..cc IInnffoorrmmaattiioonn
-
 
   66..33..11..  FFuunnccttiioonnss iinn aarrcchh//lliinnuuxx//aassyynncc//ssiiggsseeggvv..cc
 
   These are the functions defined in arch/linux/async/sigsegv.c.
-
 
   66..33..11..11..  ddoosseemmuu__ffaauulltt
 
   All CPU exceptions (except 13=general_protection from V86 mode, which
   is directly scaned by the kernel) are handled here.
 
-
-
-
-
-
   66..44..  iinncclluuddee//iinntt..hh IInnffoorrmmaattiioonn
-
 
   66..55..  iinncclluuddee//ppoorrttss..hh IInnffoorrmmaattiioonn
 
-
   66..66..  bbaassee//mmiisscc//ddoossiioo..cc IInnffoorrmmaattiioonn
 
-
   66..77..  bbaassee//mmiisscc//ddiisskkss..cc IInnffoorrmmaattiioonn
-
 
   66..77..11..  FFuunnccttiioonnss iinn bbaassee//mmiisscc//ddiisskkss..cc
 
   These are the functions defined in base/misc/disks.c.
 
-
   66..77..11..11..  ddiisskk__iinniitt
 
   Test by opening all floppies/hardrives configured.
 
-
-
   66..88..  eemmii--ii338866//ccppuu..cc IInnffoorrmmaattiioonn
 
-
   66..99..  ddeevv//mmiisscc//llpptt..cc IInnffoorrmmaattiioonn
-
 
   77..  TThhee SSeerriiaall ggrroouupp ooff MMoodduulleess
 
@@ -561,9 +657,7 @@
   very fast if we are to convince DOS that we have a very fast serial
   port.
 
-
   77..11..  bbaassee//sseerriiaall//sseerr__ddeeffss..hh IInnffoorrmmaattiioonn
-
 
   77..11..11..  RReemmaarrkkss iinn bbaassee//sseerriiaall//sseerr__ddeeffss..hh
 
@@ -616,10 +710,7 @@
   for (i = 0; i < config.numser; i++) s_printf("COM port number %d has a
   base address of %x", com[i].real_comport, com[i].base_port);
 
-
-
   77..22..  bbaassee//sseerriiaall//sseerr__iinniitt..cc IInnffoorrmmaattiioonn
-
 
   77..22..11..  MMaaiinnttaaiinneerrss
 
@@ -630,7 +721,6 @@
 
   These are the functions defined in base/serial/ser_init.c.
 
-
   77..22..22..11..  sseerriiaall__iinniitt
 
   This is the master serial initialization function that is called upon
@@ -640,23 +730,16 @@
   variables for the specific UART.  If the port is a mouse, the port is
   only initialized when i
 
-
-
   77..22..33..  IItteemmss ffoorr FFiixxiinngg iinn bbaassee//sseerriiaall//sseerr__iinniitt..cc
 
   This needs more work before it is implemented into /etc/dosemu.conf as
   an 'rtscts' option.
 
-
   77..33..  bbaassee//sseerriiaall//sseerr__ppoorrttss..cc IInnffoorrmmaattiioonn
-
 
   77..33..11..  FFuunnccttiioonnss iinn bbaassee//sseerriiaall//sseerr__ppoorrttss..cc
 
   These are the functions defined in base/serial/ser_ports.c.
-
-
-
 
   77..33..11..11..  ddoo__sseerriiaall__iinn
 
@@ -666,16 +749,12 @@
   port (ie 0x3F8) to the base port plus seven (ie 0x3FF).  [num =
   abritary port number for serial line, address = I/O port address]
 
-
-
   77..33..11..22..  ddoo__sseerriiaall__oouutt
 
   The following function writes a value to an I/O port.  The port is an
   I/O address such as 0x3F8 (the base port address of COM1).  [num =
   abritary port number for serial line, address = I/O port address, val
   = value to write to I/O port address]
-
-
 
   77..33..22..  IItteemmss ffoorr FFiixxiinngg iinn bbaassee//sseerriiaall//sseerr__ppoorrttss..cc
 
@@ -693,14 +772,11 @@
 
   Is this safe to put this here?
 
-
   77..44..  bbaassee//sseerriiaall//sseerr__iirrqq..cc IInnffoorrmmaattiioonn
-
 
   77..44..11..  FFuunnccttiioonnss iinn bbaassee//sseerriiaall//sseerr__iirrqq..cc
 
   These are the functions defined in base/serial/ser_irq.c.
-
 
   77..44..11..11..  sseerriiaall__iinntt__eennggiinnee
 
@@ -715,8 +791,6 @@
   pic_serial_run() for more information about interrupts.  [num = port,
   int_requested = the requested serial interrupt]
 
-
-
   77..44..11..22..  ppiicc__sseerriiaall__rruunn
 
   This function is called by the priority iunterrupt controller when a
@@ -725,8 +799,6 @@
   Because it is theoretically possible for things to change between the
   interrupt trigger and the actual interrupt, some checks must be
   repeated.
-
-
 
   77..44..11..33..  sseerriiaall__rruunn
 
@@ -738,15 +810,12 @@
   performance becomes more smooth if the time between calls to
   serial_run are smaller.
 
-
-
   77..44..22..  RReemmaarrkkss iinn bbaassee//sseerriiaall//sseerr__iirrqq..cc
 
   Linux code hackers: How do I detect a break signal without having to
   rely on Linux signals?  Can I peek a 'break state bit'?  Also, how do
   I 'turn on' and 'turn off' the break state, via an ioctl() or
   tcsetattr(), rather than using POSIX tcsendbrk()?
-
 
   77..44..33..  IItteemmss ffoorr FFiixxiinngg iinn bbaassee//sseerriiaall//sseerr__iirrqq..cc
 
@@ -756,29 +825,21 @@
 
   Perhaps this can be modified to limit max chain length?
 
-
   88..  TThhee MMoouussee ggrroouupp ooff MMoodduulleess
 
   All of the Mouse handling code is in the "mouse" subdirectory.
 
   There are only 2 main files, mouse.c and mouseint.c.
 
-
-
-
   88..11..  bbaassee//mmoouussee//mmoouussee..cc IInnffoorrmmaattiioonn
-
 
   88..11..11..  FFuunnccttiioonnss iinn bbaassee//mmoouussee//mmoouussee..cc
 
   These are the functions defined in base/mouse/mouse.c.
 
-
   88..11..11..11..  mmoouussee__iinniitt
 
   Initialize internal mouse.
-
-
 
   99..  TThhee BBiiooss ggrroouupp ooff MMoodduulleess
 
@@ -788,22 +849,15 @@
   be located in the F000 segment. This is where all such code should be
   put.
 
-
-
   99..11..  bbaassee//bbiiooss//bbiiooss..SS IInnffoorrmmaattiioonn
-
 
   1100..  TThhee PPIICC ggrroouupp ooff MMoodduulleess
 
   All of the PIC handling code is in the "PIC" subdirectory.
 
-
-
   1100..11..  ddeevv//ppiicc//ppiicc..cc IInnffoorrmmaattiioonn
 
-
   1100..22..  ddeevvppiicc//ppiicc..hh IInnffoorrmmaattiioonn
-
 
   1111..  AAnndd FFiinnaallllyy ......
 
@@ -832,27 +886,4 @@
 
   DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG Changelogs - very useful for
   bug fixing, and avvailable for use with DPR (or that's the theory)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
