@@ -1457,6 +1457,51 @@ decode_load_descriptor(struct sigcontext_struct *scp, unsigned short
     return len;
 }
 
+static  int
+decode_pop_segreg(struct sigcontext_struct *scp, unsigned short
+		       *segment, unsigned char * sreg)
+{
+    unsigned short *ssp;
+    unsigned char *csp;
+    int len;
+
+    csp = (unsigned char *) SEL_ADR(_cs, _eip);
+    ssp = (unsigned short *) SEL_ADR(_ss, _esp);
+    len = 0;
+    switch (*csp) {
+    case 0x1f:			/* pop ds */
+	len = 1;
+	*segment = *ssp;
+	*sreg = DS_INDEX;
+	break;
+    case 0x07:			/* pop es */
+	len = 1;
+	*segment = *ssp;
+	*sreg = ES_INDEX;
+	break;
+    case 0x17:			/* pop ss */
+	len = 1;
+	*segment = *ssp;
+	*sreg = SS_INDEX;
+	break;
+    case 0x0f:		/* two byte opcode */
+	csp++;
+	switch (*csp) {
+	case 0xa1:		/* pop fs */
+	    len = 2;
+	    *segment = *ssp;
+	    *sreg = FS_INDEX;
+	    break;
+	case 0xa9:		/* pop gs */
+	    len = 2;
+	    *segment = *ssp;
+	    *sreg = GS_INDEX;
+	break;
+	}
+    }
+    return len;
+}
+
 /*
  * decode_modify_segreg_insn tries to decode instructions which would modify a
  * segment register, returns the length of the insn.
@@ -1466,89 +1511,40 @@ decode_modify_segreg_insn(struct sigcontext_struct *scp, unsigned
 			  short *segment, unsigned char *sreg)
 {
     unsigned char *csp;
-    unsigned short *ssp;
-    int len ,size_prfix;
-    unsigned long old_eip;
+    int len, size_prfix;
 
-    old_eip = _eip;
     csp = (unsigned char *) SEL_ADR(_cs, _eip);
     size_prfix = 0;
-    if (Segments[_cs>>3].is_32) {
-	if (*csp == 0x66) { /* Operand-Size prefix */
-	    csp++;
-	    _eip++;
-	    decode_use_16bit = 1;
-	    size_prfix = 1;
-	} else
-	    decode_use_16bit = 0;
-    } else {
-	if (*csp == 0x66) { /* Operand-Size prefix */
-	    csp++;
-	    _eip++;
-	    decode_use_16bit = 0;
-	    size_prfix = 1;
-	} else
-	    decode_use_16bit = 1;
+    decode_use_16bit = !Segments[_cs>>3].is_32;
+    if (*csp == 0x66) { /* Operand-Size prefix */
+	csp++;
+	_eip++;
+	decode_use_16bit ^= 1;
+	size_prfix++;
     }
 	
     /* first try mov sreg, .. (equal for 16/32 bit operand size) */
     if ((len = decode_8e(scp, segment, sreg))) {
-      _eip = old_eip;
+      _eip += len;
       return len + size_prfix;
     }
  
     if (decode_use_16bit) {	/*  32bit decode not implemented yet */
       /* then try lds, les ... */
       if ((len = decode_load_descriptor(scp, segment, sreg))) {
-	_eip = old_eip;
+        _eip += len;
 	return len+size_prfix;
       }
     }
 
-    /* then try pop sreg */
-    len = 0;
-    ssp = (unsigned short *) SEL_ADR(_ss, _esp);
-    switch (*csp) {
-    case 0x1f:			/* pop ds */
-	len = 1;
-	*segment = *ssp;
-	*sreg = DS_INDEX;
-	_esp += decode_use_16bit ? 2 : 4;
-	break;
-    case 0x07:			/* pop es */
-	len = 1;
-	*segment = *ssp;
-	*sreg = ES_INDEX;
-	_esp += decode_use_16bit ? 2 : 4;
-	break;
-    case 0x17:			/* pop ss */
-	len = 1;
-	*segment = *ssp;
-	*sreg = SS_INDEX;
-	_esp += decode_use_16bit ? 2 : 4;
-	break;
-    case 0x0f:		/* two byte opcode */
-	csp++;
-	switch (*csp) {
-	case 0xa1:		/* pop fs */
-	    len = 2;
-	    *segment = *ssp;
-	    *sreg = FS_INDEX;
-	    _esp += decode_use_16bit ? 2 : 4;
-	    break;
-	case 0xa9:		/* pop gs */
-	    len = 2;
-	    *segment = *ssp;
-	    *sreg = GS_INDEX;
-	    _esp += decode_use_16bit ? 2 : 4;
-	break;
-	}
+    /* now try pop sreg */
+    if ((len = decode_pop_segreg(scp, segment, sreg))) {
+      _esp += decode_use_16bit ? 2 : 4;
+      _eip += len;
+      return len+size_prfix;
     }
-    _eip = old_eip;
-    if (len)
-	return len+size_prfix;
-    else
-	return 0;
+
+    return 0;
 }
 	
     
@@ -1578,6 +1574,7 @@ static  int msdos_fix_cs_prefix (struct sigcontext_struct *scp)
 
 int msdos_fault(struct sigcontext_struct *scp)
 {
+    struct sigcontext_struct new_sct;
     unsigned char reg;
     unsigned short segment, desc;
     unsigned long len;
@@ -1666,9 +1663,19 @@ int msdos_fault(struct sigcontext_struct *scp)
     /* now it is a invalid selector error, try to fix it if it is */
     /* caused by an instruction mov Sreg,m/r16                    */
 
-    len = decode_modify_segreg_insn(scp, &segment, &reg);
+    new_sct = *scp;
+    len = decode_modify_segreg_insn(&new_sct, &segment, &reg);
     if (len == 0) 
 	return 0;
+    if (ValidAndUsedSelector(segment)) {
+	/*
+	 * The selector itself is OK, but the descriptor (type) is not.
+	 * We cannot fix this! So just give up immediately and dont
+	 * screw up the context.
+	 */
+	D_printf("DPMI: msdos_fault: Illegal use of selector %#x\n", segment);
+	return 0;
+    }
 
     D_printf("DPMI: try mov to a invalid selector 0x%04x\n", segment);
 
@@ -1683,30 +1690,33 @@ int msdos_fault(struct sigcontext_struct *scp)
     if (!(desc = ConvertSegmentToDescriptor(segment)))
 	return 0;
 
+    /* OKay, all the sanity checks passed. Now we go and fix the selector */
     switch (reg) {
     case ES_INDEX:
-	_es = desc;
+	new_sct.es = desc;
 	break;
     case CS_INDEX:
-	_cs = desc;
+	new_sct.cs = desc;
 	break;
     case SS_INDEX:
-	_ss = desc;
+	new_sct.ss = desc;
 	break;
     case DS_INDEX:
-	_ds = desc;
+	new_sct.ds = desc;
 	break;
     case FS_INDEX:
-	_fs = desc;
+	new_sct.fs = desc;
 	break;
     case GS_INDEX:
-	_gs = desc;
+	new_sct.gs = desc;
 	break;
     default :
+	/* Cannot be here */
 	error("DPMI: Invalid segreg %#x\n", reg);
 	return 0;
     }
 
-    _eip += len;
+    /* lets hope we fixed the thing, apply the "fix" to context and return */
+    *scp = new_sct;
     return 1;
 }
