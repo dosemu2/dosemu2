@@ -20,7 +20,11 @@
 # Want to try SLANG?
 USE_SLANG=-DUSE_SLANG
 ifdef USE_SLANG
+ifdef ELF
+TCNTRL=-lslang-elf
+else
 TCNTRL=-lslang
+endif
 export USE_SLANG
 else
 TCNTRL=-lncurses
@@ -41,6 +45,10 @@ ifeq (/usr/include/X11/X.h,$(wildcard /usr/include/X11/X.h))
         X11ROOTDIR  = /usr/X386
       endif
     endif
+  endif
+# I only saw an R6 version ELF floating around.
+  ifdef ELF
+  X11ROOTDIR  = /usr/X11R6
   endif
   X11LIBDIR = $(X11ROOTDIR)/lib
   X11INCDIR = $(X11ROOTDIR)/include
@@ -94,8 +102,13 @@ endif
 
 # enable this target to make a different way
 # do_DEBUG=true
+ifdef ELF
+export CC         = gcc-elf  # I use gcc-specific features (var-arg macros, fr'instance)
+export LD         = gcc-elf
+else
 export CC         = gcc  # I use gcc-specific features (var-arg macros, fr'instance)
 export LD         = gcc
+endif
 ifdef do_DEBUG
 COPTFLAGS	=  -g
 endif
@@ -108,7 +121,7 @@ DEPENDS = dos.d emu.d
 EMUVER  =   0.53
 export EMUVER
 VERNUM  =   0x53
-PATCHL  =   43
+PATCHL  =   44
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -418,8 +431,6 @@ endif
 	fi
 	@if [ -f $(BOOTDIR)/sillyint.o ]; then rm -f $(BOOTDIR)/sillyint.o ; fi
 	@install -m 0755 -d $(BOOTDIR)
-	@if [ -f sig/sillyint.o ]; then \
-	install -c -o root -g root -m 0750 sig/sillyint.o $(BOOTDIR) ; fi
 ifdef X_SUPPORT
 	@ln -sf dos xdos
 	@install -m 0755 xtermdos /usr/bin
@@ -441,8 +452,6 @@ endif
 	@echo "  - Update your /etc/dosemu.conf by editing a copy of './examples/config.dist'"
 	@echo "  - Using your old DOSEMU 0.52 configuration file might not work."
 	@echo "  - After configuring DOSEMU, you can type 'dos' to run DOSEMU."
-	@echo "  - If you have sillyint defined, you must load sillyint.o prior"
-	@echo "  - to running DOSEMU (see sig/HowTo)"
 ifdef X_SUPPORT
 	@echo "  - Use 'xdos' instead of 'dos' to cause DOSEMU to open its own Xwindow."
 	@echo "  - Type 'xset fp rehash' before running 'xdos' for the first time."

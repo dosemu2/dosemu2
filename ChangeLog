@@ -1,3 +1,13 @@
+Fri Feb  10	1995
+
+-	Release pl44
+-	Added Lutz/Dong's latest patches. Includes another possible
+	fix to the PIC keyboard problem.
+-	Added Alan's latest mouse patches.
+-	Added rebuilt run_unix_command(). See ./dosemu/int.c
+	for details.
+-	Added Scott's latest cleanup patches.
+
 Sun Feb  6	1995
 
 -	release pl43

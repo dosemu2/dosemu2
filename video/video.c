@@ -148,14 +148,14 @@ load_file(char *name, int foffset, char *mstart, int msize)
   return 0;
 }
 
-void
-video_memory_setup(void)
+static inline void
+reserve_video_memory(void)
 {
   memcheck_addtype('v', "Video memory");
 
 /* 
  * DANG_BEGIN_REMARK
- * video_memory_setup()
+ * reserve_video_memory()
  *
  * This procedure is trying to eke out all the UMB blocks possible to
  * maximize your memory under DOSEMU.  If you know about dual monitor
@@ -234,11 +234,6 @@ video_memory_setup(void)
     }
 
     memcheck_reserve('v', graph_base, graph_size);
-  }
-
-  if (config.mapped_bios) {
-    memcheck_addtype('V', "Video BIOS");
-    memcheck_reserve('V', VBIOS_START, VBIOS_SIZE);
   }
 }
 
@@ -356,27 +351,6 @@ video_config_init(void) {
 
   WRITE_DWORD(BIOS_VIDEO_SAVEPTR, 0);		/* pointer to video table */
 
-  if (config.mapped_bios) {
-    if (config.vbios_file) {
-      warn("WARN: loading VBIOS %s into mem at 0x%X (0x%X bytes)\n",
-	   config.vbios_file, VBIOS_START, VBIOS_SIZE);
-      load_file(config.vbios_file, 0, (char *) VBIOS_START, VBIOS_SIZE);
-    }
-    else if (config.vbios_copy) {
-      warn("WARN: copying VBIOS from /dev/kmem at 0x%X (0x%X bytes)\n",
-	   VBIOS_START, VBIOS_SIZE);
-      load_file("/dev/kmem", VBIOS_START, (char *) VBIOS_START, VBIOS_SIZE);
-    }
-    else {
-      warn("WARN: copying VBIOS file from /dev/kmem\n");
-      load_file("/dev/kmem", VBIOS_START, (char *) VBIOS_START, VBIOS_SIZE);
-    }
-
-  /* copy graphics characters from system BIOS */
-  load_file("/dev/kmem", GFX_CHARS, (char *) GFX_CHARS, GFXCHAR_SIZE);
-
-  }
-
   if ((config.console_keyb || config.console_video) && !config.usesX)
     set_process_control();
 
@@ -387,6 +361,7 @@ video_config_init(void) {
 
   video_init();
 
+  reserve_video_memory();
 }
 #define graphics_init vga_initialize
 #define graphics_close NULL

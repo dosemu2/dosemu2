@@ -68,7 +68,7 @@ timint on
 #    we're trying our best!  If you don't need near complete keyboard
 #    emulation (needed by major software package), set it to "off"
 #
-keyboard {  layout us  keybint on  rawkeyboard on  }
+keyboard {  layout us  keybint on  rawkeyboard off  }
 # keyboard {  layout de-latin1  keybint on  rawkeyboard on  }
 #
 #    The HogThreshold value determines how nice Dosemu will be about
@@ -248,7 +248,7 @@ X { updatefreq 8 updatelines 25 title "DOS in a BOX" icon_name "xdos" }
 #    Start with only text video using the following line, to get started.
 #    then when DOSEMU is running, you can set up a better video configuration.
 #
-video { vga  console }          # Use this line, if you are using VGA
+video { vga }          # Use this line, if you are using VGA
 #video { cga  console }          # Use this line, if you are using CGA
 #video { ega  console }          # Use this line, if you are using EGA
 #video { mda  console }          # Use this line, if you are using MDA
@@ -287,7 +287,7 @@ video { vga  console }          # Use this line, if you are using VGA
 #   It may be necessary to set this to "on" if DOSEMU can't boot up properly
 #   on your system when it's set "off" and when graphics are enabled.
 #   Note: May interfere with serial ports when using certain video boards.
-allowvideoportaccess on
+# allowvideoportaccess on
 #
 #   Any 100% compatible standard VGA card _MAY_ work with this:
 #video { vga  console  graphics }
@@ -466,7 +466,7 @@ speaker native         # or "off" or "emulated"
 #    STARTING UP DOSEMU!  DAMAGE TO THE FLOPPY MAY RESULT OTHERWISE!
 #
 floppy { device /dev/fd0 threeinch }  
-floppy { device /dev/fd1 fiveinch }  
+# floppy { device /dev/fd1 fiveinch }  
 #floppy { heads 2  sectors 18  tracks 80  
 #         threeinch  file /var/lib/dosemu/diskimage }
 #

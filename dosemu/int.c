@@ -5,6 +5,8 @@
 #include <sys/times.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <signal.h>
+#include <sys/wait.h>
 
 #include "config.h"
 #include "cpu.h"
@@ -62,11 +64,100 @@ static void default_interrupt(u_char i) {
     run_int(i);
 }
 
-
+/*
+ * 2/9/1995, Erik Mouw (j.a.k.mouw@et.tudelft.nl):
+ *
+ * DANG_BEGIN_FUNCTION run_unix_command
+ *
+ * arguments: string with command to execute
+ *
+ * returns: nothing
+ *
+ * description:
+ *  Runs a command and prints the (stdout) output on the dosemu screen.
+ *
+ * DANG_END_FUNCTION
+ *
+ *
+ * This function forks a child process (don't worry, it doesn't take 
+ * much memory, read the fork manpage) and creates a pipe between the 
+ * parent and the child. The child redirects stdout to the write side 
+ * of the pipe and executes the command, the parents reads the read 
+ * side of the pipe and prints the command output on the dosemu screen. 
+ * system() is used to execute the command because this function uses a 
+ * shell (/bin/sh -c command), so nice things like this work: 
+ *
+ * C:\>unix ls -CF /usr/src/dosemu/video/*.[ch]
+ *
+ * Even output redirection works, but you have to quote the command in 
+ * dosemu:
+ *
+ * C:\>unix "ps aux | grep dos > /msdos/c/unixcmd.txt"
+ *
+ * DOS output redirection doesn't work, p_dos_str() uses direct video 
+ * memory access (I think).
+ *
+ * Be prepared to kill the child from a telnet session or a terminal 
+ * on /dev/ttyS? when you start an interactive command!
+ *
+ */
 static void run_unix_command(const char *buffer)
 {
-  system(buffer);  /* unix command is in a null terminated buffer
-		      pointed to by ES:DX. */
+    int p[2];
+    int pid, status, retval;
+    char buf;
+    
+    /* create a pipe */
+    if(pipe(p)!=0)
+    {
+        g_printf("run_unix_command(): pipe() failed\n");
+        return;
+    }
+    
+    /* fork child */
+    pid=fork();
+    if(pid==-1) /* failed */
+    {
+        g_printf("run_unix_command(): fork() failed\n");
+        return;
+    }
+    else if(pid==0) /* child */
+    {
+        close(p[0]);		/* close read side of the pipe */
+        close(1);		/* close stdout */
+        if(dup(p[1])!=1)	/* copy write side of the pipe to stdout */
+        {
+            /* hmm, I wonder if the next line works ok... */
+            g_printf("run_unix_command() (child): dup() failed\n");
+            _exit(-1);
+        }
+            
+        retval=system(buffer);	/* execute command */
+        close(p[1]);		/* close write side of the pipe */
+        _exit(retval);
+    }
+    else /* parent */
+    {
+        close(p[1]);		/* close write side of the pipe */
+        
+        /* read bytes until an error occurs */
+        /* no big buffer here, because speed is not important */
+        /* if speed *is* important, switch to another virtual console! */
+        while(read(p[0], &buf, 1)==1)
+        {
+            p_dos_str("%c", buf);	/* print character */
+        }
+        
+        /* kill the child (to be sure (s)he (?) is really dead) */
+        if(kill(pid, SIGTERM)!=0)
+            kill(pid, SIGKILL);
+            
+        close(p[0]);		/* close read side of the pipe */
+        waitpid(pid, &status, WUNTRACED);
+        /* print child exitcode. not perfect */
+        g_printf("run_unix_command() (parent): child exit code: %i\n",
+            WEXITSTATUS(&status));
+    }
 }
 
 /* returns 1 if dos_helper() handles it, 0 otherwise */
@@ -150,7 +241,7 @@ static int dos_helper(void)
     p_dos_str("Bugs, Patches & New Code to James MacLean, jmaclean@fox.nstn.ns.ca\n\n");
 #ifdef DPMI
     if (config.dpmi_size)
-      p_dos_str("DPMI Version 0.9 not fully inplemented, BE CAREFUL!\n\n");
+      p_dos_str("DPMI-Server Version 0.9 installed\n\n");
 #endif
     break;
 
@@ -898,6 +989,13 @@ static void int2f(u_char i)
       REG(eax) = 0;
     D_printf("DPMI 1686 returns %x\n", (int)REG(eax));
     return;
+
+  case 0x1600:		/* WINDOWS ENHANCED MODE INSTALLATION CHECK */
+    if (in_dpmi && in_win31)
+      LO(ax) = 3;	/* let's try enhaced mode :-))))))) */
+    D_printf("DPMI: WINDOWS ENHANCED MODE INSTALLATION CHECK\n");
+    return;
+
 #endif
   }
 
@@ -1248,7 +1346,9 @@ void setup_interrupts(void) {
   interrupt_function[0x29] = int29;
   interrupt_function[0x2f] = int2f;
   interrupt_function[0x33] = int33;
+#ifdef USING_NET
   interrupt_function[0x60] = int_pktdrvr;
+#endif
   interrupt_function[0xe6] = inte6;
   interrupt_function[0xe7] = inte7;
   interrupt_function[0xe8] = inte8;

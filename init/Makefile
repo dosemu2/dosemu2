@@ -9,7 +9,7 @@ CFLAGS+=-DYYPURE
        -Wstrict-prototypes -ansi -pedantic -Wid-clash-31 -Wcast-qual
 #-Wwrite-strings
 
-CFILES = config.c memcheck.c
+CFILES = config.c memcheck.c init.c
 LFILES = lexer.l
 YFILES = parser.y
 HFILES = 

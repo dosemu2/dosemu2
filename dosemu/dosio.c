@@ -303,37 +303,6 @@ static int shm_wrap_id;
 static int shm_video_id;
 static caddr_t ipc_return;
 
-static void 
-map_hardware_ram (void)
-{
-  int i, j;
-  unsigned int addr, size;
-  if (!config.must_spare_hardware_ram)
-    return;
-  open_kmem ();
-  i = 0;
-  do
-    {
-      if (config.hardware_pages[i++])
-	{
-	  j = i - 1;
-	  while (config.hardware_pages[i])
-	    i++;		/* NOTE: last byte is always ZERO */
-	  addr = HARDWARE_RAM_START + (j << 12);
-	  size = (i - j) << 12;
-	  if (mmap ((caddr_t) addr, (size_t) size,
-	  PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, mem_fd, addr) < 0)
-	    {
-	      error ("ERROR: mmap error in map_hardware_ram %s\n", strerror (errno));
-	      return;
-	    }
-	  g_printf ("mapped hardware ram at 0x%05x .. 0x%05x\n", addr, addr + size - 1);
-	}
-    }
-  while (i < sizeof (config.hardware_pages) - 1);
-  close_kmem ();
-}
-
 void HMA_MAP(int HMA)
 {
 
@@ -372,20 +341,8 @@ set_a20(int enableHMA)
   sharedmem.hmastate = enableHMA;
 }
 
-/*
- * DANG_BEGIN_FUNCTION memory_setup
- *
- * description:
- *  Setup HMA area via IPC. Call video memory size, direct hardware
- *  mapping, EMS, and XMS initialization routines.
- *
- * DANG_END_FUNCTION
- */
-void
-memory_setup(void)
+void HMA_init(void)
 {
-  u_char *ptr;
-
   /* initially, no HMA */
   HMAkeepalive = malloc(HMASIZE); /* This is used only so that shmdt stays going */
   sharedmem.hmastate = 0;
@@ -447,31 +404,6 @@ memory_setup(void)
     E_printf("VIDEO: Shmctl VIDEO unsuccessful: %s\n", strerror(errno));
   }
 #endif
-
-  /* dirty all pages */
-  ignore_segv++;
-  for (ptr = 0; ptr < (unsigned char *) (1024 * 1024); ptr += 4096)
-    *ptr = *ptr;
-  ignore_segv--;
-
-#if 1
-  /* zero the DOS address space... is this really necessary? */
-  memset(NULL, 0, 640 * 1024);
-#endif
-
-  /* 
-   * map in some ram locations we need for some adapter's memory mapped IO 
-   * (those, who are defined via hardware_ram config)
-   */
-  map_hardware_ram();  
-
-  /* for EMS */
-  ems_init();
-
-  /* reserve VGA memory (so XMS can find free UMB blocks...) */
-  video_memory_setup();
-
-  xms_init();
 }
 
 void

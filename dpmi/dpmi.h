@@ -7,17 +7,21 @@
 
 #define DPMI_page_size		4096	/* 4096 bytes per page */
 
-#define DPMI_private_paragraphs	0x0100	/* private data for DPMI server */
 #define DPMI_pm_stack_size	0x1000	/* locked protected mode stack for exceptions, */
 					/* hardware interrupts, software interrups 0x1c, */
 					/* 0x23, 0x24 and real mode callbacks */
 
-#define DPMI_rm_stack_size	16	/* times vm86_regs */
+#define DPMI_max_rec_rm_func	16	/* max number of recursive real mode functions */
+#define DPMI_rm_stack_size	0x0200	/* real mode stack size */
+
+#define DPMI_private_paragraphs	((DPMI_max_rec_rm_func * DPMI_rm_stack_size)>>4)
+					/* private data for DPMI server */
 
 #define UCODESEL 0x23
 #define UDATASEL 0x2b
 
 extern int in_dpmi;
+extern int in_win31;
 extern int dpmi_eflags;
 extern int in_dpmi_dos_int;
 
@@ -58,7 +62,7 @@ typedef struct segment_descriptor_s
     unsigned char	is_32;		/* one for is 32-bit Segment */
     unsigned char	readonly;	/* one for read only Segments */	
     unsigned char	is_big;		/* Granularity */
-    unsigned char	used;		/* Segment in use */
+    unsigned int	used;		/* Segment in use by client # */
 } SEGDESC;
 
 #define MAX_SELECTORS	0x0100
@@ -87,6 +91,12 @@ struct RealModeCallStructure {
   unsigned short sp;
   unsigned short ss;
 };
+
+typedef struct dpmi_pm_block_stuct {
+  struct   dpmi_pm_block_stuct *next;
+  unsigned long handle;
+  void     *base;
+} dpmi_pm_block;
 
 #define DPMI_show_state \
     D_printf("eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n" \

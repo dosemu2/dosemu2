@@ -267,7 +267,6 @@ void SIGALRM_call(void){
       if (!do_hard_int(8))
 	h_printf("CAN'T DO TIMER INT 8...IF CLEAR\n");
 #else
-k_printf("JL: pic_icount=%d\n", pic_icount);
 #if NEW_PIC==2
       age_transmit_queues();
 #endif

@@ -23,7 +23,7 @@ bios.s:	bios.i
 	$(TOPDIR)/tools/tools86 -E <$^ >$@
 
 bios.i:	bios.S
-	gcc -E --traditional $(AS86FLAGS) $^ >$@
+	$(CC) -E --traditional $(AS86FLAGS) $^ >$@
 
 bios.part.1:	bios.s
 	as86 -0 -w -g -o $@  $^

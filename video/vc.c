@@ -161,9 +161,9 @@ static int  color_text;
 #define MAXMODES 34
 
 
-static void release_vt (int sig, struct sigcontext_struct context), acquire_vt (int sig, struct sigcontext_struct context);
-void get_video_ram (int), open_kmem ();
-
+static void release_vt (int sig, struct sigcontext_struct context);
+static void acquire_vt (int sig, struct sigcontext_struct context);
+void get_video_ram (int);
 
 #if 1
 #undef SETSIG

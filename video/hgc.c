@@ -35,8 +35,6 @@
 void set_hgc_page(int page);
 void map_hgc_page( int fullmode );
 
-extern void close_kmem(), open_kmem();
-
 char hgc_Mode = 0;
 char hgc_Konv = 0;
 int hgc_Page = 0;

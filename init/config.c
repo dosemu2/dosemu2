@@ -7,9 +7,6 @@
 #include <string.h>
 #include <fcntl.h>
 
-#include <linux/config.h>
-#include <linux/utsname.h>
-
 #include "config.h"
 #include "emu.h"
 #include "cpu.h"
@@ -35,31 +32,6 @@ struct debug_flags d =
 
 static void parse_debugflags(const char *s);
 static void usage(void);
-
-void
-configuration_init(void)
-{
-  int b;
-
-  /* show 0 serial ports and 3 parallel ports, maybe a mouse, and the
-   * configured number of floppy disks
-   */
-  CONF_NFLOP(configuration, config.fdisks);
-  CONF_NSER(configuration, config.num_ser);
-  CONF_NLPT(configuration, config.num_lpt);
-  if ((mice->type == MOUSE_PS2) || (mice->intdrv))
-    configuration |= CONF_MOUSE;
-
-  if (config.mathco)
-    configuration |= CONF_MATHCO;
-
-  g_printf("CONFIG: 0x%04x    binary: ", configuration);
-  for (b = 15; b >= 0; b--)
-    g_printf("%s%s", (configuration & (1 << b)) ? "1" : "0",
-		(b % 4) ? "" : " ");
-
-  g_printf("\n");
-}
 
 /*
  * DANG_BEGIN_FUNCTION config_defaults
@@ -558,34 +530,5 @@ static void
   fprintf(stdout, "\n     (!) means BE CAREFUL! READ THE DOCS FIRST!\n");
   fprintf(stdout, "     (%%) marks those options which require dos be run as root (i.e. suid)\n");
   fprintf(stdout, "     (#) marks options which do not fully work yet\n");
-}
-
-/*
- * DANG_BEGIN_FUNCTION version_init
- * 
- * description:
- *  Find version of OS running and set necessary global parms.
- *
- * DANG_END_FUNCTION
- */
-void version_init(void) {
-  struct new_utsname unames;
-  uname(&unames);
-  fprintf(stderr, "DOSEMU%spl%s is coming up on %s version %s\n", VERSTR, PATCHSTR, unames.sysname, unames.release);  
-  fprintf(stderr, "Built for %d\n", KERNEL_VERSION);
-  if (unames.release[0] > 0 ) {
-    if ((unames.release[2] == 1  && unames.release[3] > 1 ) ||
-         unames.release[2] > 1 ) {
-      use_sigio=FASYNC;
-    }
-  }
-  /* Next Check input */
-  if (isatty(STDIN_FILENO)) {
-    k_printf("STDIN is tty\n");
-    config.kbd_tty = 0;
-  } else {
-    k_printf("STDIN not a tty\n");
-    config.kbd_tty = 1;
-  }
 }
 

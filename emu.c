@@ -487,13 +487,8 @@ __asm__("___START___: jmp _emulate\n");
 #include <string.h>
 #include <ctype.h>
 #include <fcntl.h>
-#include <signal.h>
-#include <sys/stat.h>
-#include <time.h>
-#include <sys/times.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/mman.h>
 #include <sys/wait.h>
 #include <limits.h>
 #include <getopt.h>
@@ -518,6 +513,11 @@ __asm__("___START___: jmp _emulate\n");
 #include "xms.h"
 #include "hgc.h"
 #include "timers.h"
+#include "ipx.h"		/* TRB - add support for ipx */
+#include "serial.h"
+#include "keymaps.h"
+#include "cpu.h"
+#include "int.h"
 #ifdef NEW_PIC
 #include "timer/bitops.h"
 #include "timer/pic.h"
@@ -525,33 +525,18 @@ __asm__("___START___: jmp _emulate\n");
 #ifdef DPMI
 #include "dpmi/dpmi.h"
 #endif
-#include "ipx.h"		/* TRB - add support for ipx */
-#include "serial.h"
-#include "keymaps.h"
-#include "cpu.h"
-#include "int.h"
 
-extern void shared_memory_init(void);
-extern void shared_keyboard_init(void);
+extern void stdio_init(void);
+extern void time_setting_init(void);
+extern void tmpdir_init(void);
+extern void low_mem_init(void);
+
 extern void shared_memory_exit(void);
 extern void restore_vt (unsigned short);
 extern void disallocate_vt (void);
-
-extern void vm86_GP_fault();
-extern void update_timers(void);
-
-extern void video_config_init(void);
-extern int keyboard_init(void);
 extern void keyboard_close(void);
-
-extern void configuration_init(void);
+extern void vm86_GP_fault();
 extern void config_init(int argc, char **argv);
-
-/* Function to set up all memory areas for DOS, as well as load boot block */
-void boot(void);
-
-void init_vga_card(void);	/* Function to set VM86 regs to run VGA initialation */
-
 
 /* DANG_BEGIN_FUNCTION DBGTIME 
  *
@@ -594,22 +579,6 @@ static int special_nowait = 0;
 
 static int poll_io = 1;		/* polling io, default on */
 
-
-static inline void
-setup_low_mem (void)
-{
-  char *result;
-  g_printf ("Low memory mapping!\n");
-  result = mmap (NULL, 0x100000,
-                 PROT_EXEC | PROT_READ | PROT_WRITE,
-                 MAP_FIXED | MAP_PRIVATE | MAP_ANON,
-                 -1, 0);
-  if (result != NULL)
-    {
-      perror ("anonymous mmap");
-      leavedos (1);
-    }
-}
 
 /*
  * DANG_BEGIN_FUNCTION run_vm86
@@ -686,39 +655,6 @@ run_vm86(void)
     }
 #endif
 }
-
-static inline void
-dosemu_banner(void)
-{
-  unsigned char *ssp;
-  unsigned long sp;
-
-  ssp = (unsigned char *) (REG(ss) << 4);
-  sp = (unsigned long) LWORD(esp);
-
-  pushw(ssp, sp, LWORD(cs));
-  pushw(ssp, sp, LWORD(eip));
-  LWORD(esp) -= 4;
-  LWORD(cs) = Banner_SEG;
-  LWORD(eip) = Banner_OFF;
-}
-
-#if 0
-static inline void dbug_dumpivec(void)
-{
-  int i;
-
-  for (i = 0; i < 256; i++) {
-    int j;
-
-    dbug_printf("%02x %08lx", i, ((unsigned long *) 0)[i << 1]);
-    for (j = 0; j < 8; j++)
-      dbug_printf(" %02x", ((unsigned char *) (BIOSSEG * 16 + 16 * i))[j]);
-    dbug_printf("\n");
-  }
-}
-#endif
-
 
 void boot(void)
 {
@@ -875,67 +811,6 @@ static inline void SIG_close()
 #endif
 }
 
-static inline stdio_init(void)
-{
-  struct stat statout, staterr;
-
-#if 0
-  /* start running as real, not effecitve user */
-  exchange_uids();	
-
-  /* try to go to fd-3 -- if its there, do an fdopen to it, 
-   * otherwise use /dev/null for fd3 
-   */
-  if(!fstat(3, &statout)) {
-	dbg_fd = fdopen(3, "w");
-  } else {
-	dbg_fd = fopen("/dev/null", "w");
-  }
-  if(!dbg_fd) {
-	fprintf(stderr, "can't open fd3\n");
-	exit(1);
-   }
-#else
- /* DANG_BEGIN_REMARK
-  * If DOSEMU starts up with stderr == stdout, then stderr gets 
-  * redirected to '/dev/null'.
-  * DANG_END_REMARK
-  */
-  fstat(STDOUT_FILENO, &statout);
-  fstat(STDERR_FILENO, &staterr);
-  if (staterr.st_ino == statout.st_ino) {
-    if (freopen("/dev/null", "ab", stderr) == (FILE *) - 1) {
-      fprintf(stdout, "ERROR: Could not redirect STDERR to /dev/null!\n");
-      exit(-1);
-    }
-  }
-#endif
-  sync();  /* for safety */
-  setbuf(stdout, NULL);
-}
-
-static inline void tmpdir_init(void)
-{
-  /* create tmpdir */
-  exchange_uids();
-  mkdir(tmpdir, S_IREAD | S_IWRITE | S_IEXEC);
-  exchange_uids();
-}
-
-static inline time_setting_init(void)
-{
-  struct tm *tm;
-  unsigned long ticks;
-  
-  time(&start_time);
-  tm = localtime((time_t *) &start_time);
-  g_printf("Set date %02d.%02d.%02d\n", tm->tm_mday, tm->tm_mon, tm->tm_year);
-  last_ticks = (tm->tm_hour * 60 * 60 + tm->tm_min * 60 + tm->tm_sec) * 18.206;
-  check_date = tm->tm_year * 10000 + tm->tm_mon * 100 + tm->tm_mday;
-  set_ticks(last_ticks);
-  update_timers();
-}
-
 static inline void emumodule_init(void)
 {
 #ifdef REQUIRES_EMUMODULE
@@ -951,142 +826,14 @@ static inline void emumodule_init(void)
 #endif
 }
 
-static inline void timer_interrupt_init(void)
+static inline void
+module_init(void)
 {
-  struct itimerval itv;
-
-  itv.it_interval.tv_sec = 0;
-  itv.it_interval.tv_usec = UPDATE / TIMER_DIVISOR;
-  itv.it_value.tv_sec = 0;
-  itv.it_value.tv_usec = UPDATE / TIMER_DIVISOR;
-  k_printf("Used %d for updating timers\n", UPDATE / TIMER_DIVISOR);
-  setitimer(TIMER_TIME, &itv, NULL);
-}
-
-/*
- * DANG_BEGIN_FUNCTION hardware_init
- *
- * description:
- *  Initialize any leftover hardware. 
- * 
- * DANG_END_FUNCTION
- */
-static inline void hardware_init(void)
-{
-  int i;
-
-  /* PIC init */
-#ifdef NEW_PIC
-  pic_seti(PIC_IRQ0, do_irq0, 0);  /* do_irq0 in pic.c */
-  pic_unmaski(PIC_IRQ0);
-  pic_seti(PIC_IRQ1, do_irq1, 0); /* do_irq1 in dosio.c   */
-  pic_unmaski(PIC_IRQ1);
-#else 
-  for (i = 0; i < 2; i++) {
-    pics[i].OCW1 = 0;		/* no IRQ's serviced */
-    pics[i].OCW2 = 0;		/* no EOI's received */
-    pics[i].OCW3 = 8;		/* just marks this as OCW3 */
-  }
-#endif
-
-  g_printf("Hardware initialized\n");
-}
-
-/* 
- * DANG_BEGIN_FUNCTION memory_init
- * 
- * description:
- *  Set up all memory areas as would be present on a typical i86 during
- * the boot phase.
- *
- * DANG_END_FUNCTION
- *
- */
-static inline void memory_init(void)
-{
-  unsigned int i;
-  unsigned char *ptr;
-  ushort *seg, *off;
-
-  /* first get the bios-template and copy it to it's write place */
-  {
-    extern void bios_f000(), bios_f000_end();
-    FILE *f;
-    ptr = (u_char *) (BIOSSEG << 4);
-    memcpy(ptr, bios_f000, (u_long)bios_f000_end - (u_long)bios_f000);
-#if 0 /* for debugging only */
-    f = fopen("/tmp/bios","w");
-    fprintf(stderr,"opened /tmp/bios f=%p\n",f);
-    fwrite(ptr,0x8000,2,f);
-    fflush(f);
-    fclose(f);
-#endif
-  }
-
-  setup_interrupts();          /* setup interrupts */
-
-  {
-    /* update boot drive in Banner-code */
-    extern void bios_f000_bootdrive(), bios_f000();
-    ptr = (u_char *)((BIOSSEG << 4) + ((long)bios_f000_bootdrive - (long)bios_f000));
-    *ptr = config.hdiskboot ? 0x80 : 0;
-  }
-
-#ifdef IPX
-  /* TRB - initialize a helper routine for IPX in boot() */
-  if (config.ipxsup) {
-    InitIPXFarCallHelper();
-  }
-#endif
-
-#ifdef USING_NET
-  /* Install the new packet driver interface */
-  pkt_init(0x60);
-#endif
-
-  if (config.num_lpt >= 1)
-    bios_address_lpt1 = 0x378;
-  if (config.num_lpt >= 2)
-    bios_address_lpt2 = 0x278;
-  if (config.num_lpt >= 3)
-    bios_address_lpt3 = 0x3bc;
-      
-  bios_configuration = configuration;
-  bios_memory_size   = config.mem_size;	/* size of memory */
-
-  /* The default 16-word BIOS key buffer starts at 0x41e */
-  KBD_Head =			/* key buf start ofs */
-    KBD_Tail =			/* key buf end ofs */
-    KBD_Start = 0x1e;		/* keyboard queue start... */
-  KBD_End = 0x3e;		/* ...and end offsets from 0x400 */
-
-  keybuf_clear();
-
-  bios_ctrl_alt_del_flag = 0x0000;
-  *(char *) 0x496 = 16;		/* 102-key keyboard */
-
-  /* Set OUTB_ADD to 1 */
-  *OUTB_ADD = 1;
-  *LASTSCAN_ADD = 1;
-
-  /* 
-   * The banner helper actually gets called *after* the VGA card
-   * is initialized (if it is) because we set up a return chain:
-   *      init_vga_card -> dosemu_banner -> 7c00:0000 (boot block)
-   */
-
-  if (config.dosbanner)
-    dosemu_banner();
-
-  if (config.vga) {
-    g_printf("INITIALIZING VGA CARD BIOS!\n");
-    init_vga_card();
-  }
-
-  if (config.exitearly) {
-    dbug_printf("Leaving DOS before booting\n");
-    leavedos(0);
-  }
+  version_init();              /* Check the OS version */
+  emumodule_init();            /* emumodule support */
+  SIG_init();                  /* silly int generator support */
+  memcheck_init();             /* lower 1M memory map support */
+  tmpdir_init();               /* create our temporary dir */
 }
 
 /*
@@ -1112,76 +859,29 @@ void main (int argc, char **argv)
 void emulate(int argc, char **argv)
 #endif
 {
-  FD_ZERO(&fds_sigio);          /* Initialize both fd_sets to 0 */
+  FD_ZERO(&fds_sigio);         /* initialize both fd_sets to 0 */
   FD_ZERO(&fds_no_sigio);
-  vm86s.flags=0;
+  vm86s.flags = 0;
 
-  stdio_init();
-
+  stdio_init();                /* initialize stdio & stderr */
   config_init(argc, argv);     /* parse the commands & config file(s) */
-  version_init();              /* Check the OS version */
-
-  emumodule_init();
-  memcheck_init();
-  setup_low_mem();
-
-  tmpdir_init();
-  time_setting_init();
-
-  signal_init();               /* initialize cli() and sti() */
-
-  /* 
-   * Verify that Keyboard is OK as well as turn off some options if not
-   * at a console -- note:  this must be done before memory_setup to
-   * enable HMA to find UMB holes
-   */
-  if (keyboard_init() != 0) {
-    error("ERROR: can't open keyboard\n");
-    leavedos(19);
-  }
-  if (!config.vga)
-    config.allowvideoportaccess = 0;
-
-  /* 
-   * Setup DOS emulated memory, HMA, EMS, XMS . Also clear all
-   * low memory, so this must be called prior to setting up
-   * low memory.
-   */
-  memory_setup();
-
-  serial_init();
-  mouse_init();
-  printer_init();
-
-  /* initialize some video config variables, possibly map video bios,
-     get graphics chars
-  */
-  video_config_init();
-
-  SIG_init();
-  disk_init();
-  hardware_init();
-  configuration_init();
-  cpu_setup();
-  cmos_init();
-
-  /* Setup specific memory addresses */
-  memory_init();
-  shared_memory_init();
-  shared_keyboard_init();
-
-  boot();
+  low_mem_init();              /* initialize the lower 1Meg */
+  time_setting_init();         /* get the startup time */
+  signal_init();               /* initialize sig's & sig handlers */
+  device_init();               /* initialize keyboard, disk, video, etc. */
+  cpu_setup();                 /* setup the CPU */
+  hardware_setup();            /* setup any hardware */
+  memory_init();               /* initialize the memory contents */
+  boot();                      /* read the boot sector & get moving */
+  timer_interrupt_init();      /* start sending int 8h int signals */
 
   if (not_use_sigio)
     k_printf("Atleast 1 NON-SIGIO file handle in use.\n");
   else
     k_printf("No NON-SIGIO file handles in use.\n");
+  g_printf("EMULATE\n");
 
   fflush(stdout);
-
-  timer_interrupt_init();
-
-  g_printf("EMULATE\n");
 
   while(!fatalerr) {
     run_vm86();
@@ -1211,6 +911,7 @@ dos_ctrl_alt_del(void)
   disk_init();
   memory_init();
   cpu_setup();
+  hardware_setup();
   boot();
 }
 

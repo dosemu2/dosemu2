@@ -464,6 +464,7 @@ extern int pd_receive_packet(void);
 extern int printer_tick(u_long);
 extern int printer_tick(u_long);
 extern void floppy_tick(void);
+extern void open_kmem(void);
 extern void close_kmem(void);
 extern void CloseNetworkLink(int);
 extern int parse_config(char *);

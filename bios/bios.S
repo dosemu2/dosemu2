@@ -505,9 +505,12 @@ CISH(DPMI_dpmi_init):
 	hlt
 	pop	bx
 	retf
+	.globl	CISH(DPMI_return_from_dos)
+CISH(DPMI_return_from_dos):
+	hlt
 	.globl	CISH(DPMI_return_from_dosint)
 CISH(DPMI_return_from_dosint):
-	hlt
+	FILL_OPCODE(256,hlt)
 	.globl	CISH(DPMI_return_from_realmode)
 CISH(DPMI_return_from_realmode):
 	hlt
@@ -534,7 +537,6 @@ CISH(DPMI_return_from_exception):
 	.globl	CISH(DPMI_exception)
 CISH(DPMI_exception):
 	FILL_OPCODE(32,hlt)
-
 	.globl	CISH(DPMI_interrupt)
 CISH(DPMI_interrupt):
 	FILL_OPCODE(256,hlt)

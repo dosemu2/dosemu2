@@ -143,27 +143,30 @@ static INTDESC Interrupt_Table[0x100];
 static INTDESC Exception_Table[0x20];
 SEGDESC Segments[MAX_SELECTORS];
 
-struct vm86_regs DPMI_rm_stack[DPMI_rm_stack_size];
+struct vm86_regs DPMI_rm_stack[DPMI_max_rec_rm_func];
 int DPMI_rm_procedure_running = 0;
 
-static char *ldt_buffer;
 static char *pm_stack; /* locked protected mode stack */
+
+static dpmi_pm_block *pm_block_root;
+static unsigned long pm_block_handle_used; /* tracking handle */
 
 static char RCSdpmi[] = "$Header: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v 2.10 1995/02/05 16:54:12 root Exp root $";
 
 int in_dpmi = 0;		/* Set to 1 when running under DPMI */
 int dpmi_eflags = 0;		/* used for virtuell interruptflag and pending interrupts */
-static u_char DPMIclient_is_32 = 0;
-static us DPMI_private_data_segment;
+static int DPMIclient_is_32 = 0;
+static unsigned short DPMI_private_data_segment;
 int in_dpmi_dos_int = 0;
-us PMSTACK_SEL = 0;		/* protected mode stack selector */
+unsigned short PMSTACK_SEL = 0;	/* protected mode stack selector */
 unsigned long PMSTACK_ESP = 0;	/* protected mode stack descriptor */
-us DPMI_SEL = 0;
-us LDT_ALIAS = 0;
+unsigned short DPMI_SEL = 0;
 extern int fatalerr;
 
 static struct sigcontext_struct dpmi_stack_frame; /* used to store the dpmi client registers */
 static struct sigcontext_struct emu_stack_frame;  /* used to store emulator registers */
+
+#include "win31.h"
 
 _syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
 
@@ -371,7 +374,7 @@ static inline int SetSelector(unsigned short selector, unsigned long base_addr, 
 
 static inline unsigned short AllocateDescriptors(int number_of_descriptors)
 {
-  int next_ldt=0, i;
+  int next_ldt=0x10, i;		/* first 0x10 descriptors are reserved */
   unsigned char isfree=1;
   while (isfree) {
     next_ldt++;
@@ -397,7 +400,7 @@ static inline int FreeDescriptor(unsigned short selector)
 static inline int ConvertSegmentToDescriptor(unsigned short segment)
 {
   unsigned long baseaddr = segment << 4;
-  us selector;
+  unsigned short selector;
   int i;
   for (i=1;i<MAX_SELECTORS;i++)
     if ((Segments[i].base_addr==baseaddr) && (Segments[i].limit==0xffff) &&
@@ -435,7 +438,7 @@ static inline int SetSegmentLimit(unsigned short selector, unsigned long limit)
   unsigned short ldt_entry = selector >> 3;
   if (!Segments[ldt_entry].used)
     return -1;
-  if ( ((limit & 0x0fff) == 0x0fff) && DPMIclient_is_32 ) {
+  if ((limit > 0x0fff) && ((limit & 0x0fff) == 0x0fff) && DPMIclient_is_32 ) {
     Segments[ldt_entry].limit = limit>>12;
     Segments[ldt_entry].is_big = 1;
   } else {
@@ -454,7 +457,9 @@ static inline int SetDescriptorAccessRights(unsigned short selector, unsigned sh
     return -1;
   Segments[ldt_entry].type = (type_byte >> 2) & 7;
   Segments[ldt_entry].is_32 = (type_byte >> 14) & 1;
+#if 0
   Segments[ldt_entry].is_big = (type_byte >> 15) & 1;
+#endif
   Segments[ldt_entry].readonly = ((type_byte >> 1) & 1) ? 0 : 1;
   return set_ldt_entry(ldt_entry , Segments[ldt_entry].base_addr, Segments[ldt_entry].limit,
 			Segments[ldt_entry].is_32, Segments[ldt_entry].type,
@@ -533,56 +538,22 @@ static inline void GetFreeMemoryInformation(unsigned int *lp)
   /*2ch*/	*++lp = 0xffffffff;
 }
 
-/* #define WIN31 */
-
-#ifdef WIN31
-/* Simulate direct LDT access for MS-Windows 3.1 */
-u_char win31ldt(struct sigcontext_struct *scp, unsigned char *csp)
-{
-  if ((_es==LDT_ALIAS) && *csp==0x26) {
-    csp++;
-    if ((*csp==0xc7)&&(*(csp+1)==0x04)) {   /* MOV  Word Ptr ES:[SI],#word */
-      ldt_buffer[_LWORD(esi)] = *(csp+2);
-      ldt_buffer[_LWORD(esi)+1] = *(csp+3);
-      _eip +=5;
-      SetDescriptor(_LWORD(esi), (unsigned long *)&ldt_buffer[_LWORD(esi)&0xfff8]);
-      return 1;
-    }
-    if ((*csp==0xc7)&&(*(csp+1)==0x05)) {   /* MOV  Word Ptr ES:[DI],#word */
-      ldt_buffer[_LWORD(edi)] = *(csp+2);
-      ldt_buffer[_LWORD(edi)+1] = *(csp+3);
-      _eip +=5;
-      SetDescriptor(_LWORD(edi), (unsigned long *)&ldt_buffer[_LWORD(edi)&0xfff8]);
-      return 1;
-    }
-    if ((*csp==0xc7)&&(*(csp+1)==0x44)) {   /* MOV  Word Ptr ES:[SI+#byte],#word */
-      ldt_buffer[_LWORD(esi)+*(csp+2)] = *(csp+3);
-      ldt_buffer[_LWORD(esi)+1+*(csp+2)] = *(csp+4);
-      _eip +=6;
-      SetDescriptor(_LWORD(esi)+*(csp+2),
-				(unsigned long *)&ldt_buffer[(_LWORD(esi)+*(csp+2))&0xfff8]);
-      return 1;
-    }
-    if ((*csp==0x89)&&(*(csp+1)==0x35)) {   /* MOV  ES:[DI],SI */
-      ldt_buffer[_LWORD(esi)] = _LO(si);
-      ldt_buffer[_LWORD(esi)+1] = _HI(si);
-      _eip +=3;
-      SetDescriptor(_LWORD(esi), (unsigned long *)&ldt_buffer[_LWORD(esi)&0xfff8]);
-      return 1;
-    }
-  }
-  return 0;
-}
-#endif /* WIN31 */
-
 static inline void save_rm_regs()
 {
+  if (DPMI_rm_procedure_running >= DPMI_max_rec_rm_func) {
+    error("DPMI: DPMI_rm_procedure_running = 0x%4x\n",DPMI_rm_procedure_running++);
+    return;
+  }
   DPMI_rm_stack[DPMI_rm_procedure_running++] = REGS;
+  REG(ss) = DPMI_private_data_segment;
+  REG(esp) = DPMI_rm_stack_size * DPMI_rm_procedure_running;
 }
 
 static inline void restore_rm_regs()
 {
-  REGS = DPMI_rm_stack[--DPMI_rm_procedure_running];
+  if (DPMI_rm_procedure_running-- > DPMI_max_rec_rm_func)
+    return;
+  REGS = DPMI_rm_stack[DPMI_rm_procedure_running];
 }
 
 /* DANG_BEGIN_REMARK
@@ -600,15 +571,59 @@ static inline void restore_rm_regs()
 static inline void dpmi_cli()
 {
   dpmi_eflags &= ~IF;
+#if 0
   pic_cli();
+#endif
 }
 
 static inline void dpmi_sti()
 {
   dpmi_eflags |= IF;
+#if 0
   pic_sti();
+#endif
 }
 
+/* I don\'t think these function will ever become bottleneck, so just */
+/* keep it simple, --dong */
+/* alloc_pm_block allocate a dpmi_pm_block struct and add it to the list */
+static inline dpmi_pm_block * alloc_pm_block()
+{
+    dpmi_pm_block *p = malloc(sizeof(dpmi_pm_block));
+    if(!p)
+	return NULL;
+    p -> next =	pm_block_root;	/* add it to list */
+    pm_block_root = p;
+    return p;
+}
+/* free_pm_block free a dpmi_pm_block struct and delete it from list */
+static inline int free_pm_block(dpmi_pm_block *p)
+{
+    dpmi_pm_block *tmp;
+    if (!p) return -1;
+    if (p == pm_block_root) {
+	pm_block_root = p -> next;
+	free(p);
+	return 0;
+    }
+    for(tmp = pm_block_root; tmp; tmp = tmp -> next)
+	if (tmp -> next == p)
+	    break;
+    if (!tmp) return -1;
+    tmp -> next = p -> next;	/* delete it from list */
+    free(p);
+    return 0;
+}
+/* lookup_pm_block returns a dpmi_pm_block struct from its handle */
+static inline dpmi_pm_block *lookup_pm_block(unsigned long h)
+{
+    dpmi_pm_block *tmp;
+    for(tmp = pm_block_root; tmp; tmp = tmp -> next)
+	if (tmp -> handle == h)
+	    return tmp;
+    return 0;
+}
+			 
 void do_int31(struct sigcontext_struct *scp, int inumber)
 {
   _eflags &= ~CF;
@@ -703,10 +718,6 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	}
 	REG(eflags) = _eflags;
 	REG(ebx) = _ebx;
-#if 0
-	REG(ss) = DPMI_private_data_segment;
-	REG(esp) = 0x010 * DPMI_private_paragraphs;
-#endif
 	rm_ssp = (unsigned char *) (REG(ss) << 4);
 	rm_sp = (unsigned long) LWORD(esp);
 	LWORD(esp) -= 4;
@@ -794,17 +805,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	REG(cs) = rmreg->cs;
 	REG(eip) = (long) rmreg->ip;
       }
-      if ((rmreg->sp==0) /*&& (rmreg->ss==0)*/) {
-/*
- * Hmmmm, this could cause to a problem if real mode is calling
- * protected mode (example software intr 0x1c (CTRL C?)) which
- * is calling again real mode. I HAVE TO FIX THIS SOON!!!!!
- */
-	if (REG(ss)!=DPMI_private_data_segment) {
-	  REG(ss) = DPMI_private_data_segment;
-	  REG(esp) = 0x010 * DPMI_private_paragraphs;
-	}
-      } else {
+      if (!(rmreg->sp==0)) {
 	REG(ss) = rmreg->ss;
 	REG(esp) = (long) rmreg->sp;
       }
@@ -854,36 +855,69 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     break;
   case 0x0501:	/* Allocate Memory Block */
     { unsigned long *ptr;
+      dpmi_pm_block *block;
+      block = alloc_pm_block();
       ptr = malloc( (_LWORD(ebx))<<16 | (_LWORD(ecx)) );
+
+      if ((ptr==NULL)||(block == NULL)) {
+	 _eflags |= CF;
+         _LWORD(edi) = 0;
+         _LWORD(esi) = 0;
+	 break;
+      }
+      block -> handle = pm_block_handle_used++;
+      block -> base = ptr;
       D_printf("DPMI: malloc attempt for siz 0x%08lx\n", (_LWORD(ebx))<<16 | (_LWORD(ecx)));
       D_printf("      malloc returns address 0x%08lx\n", ptr);
-      if (ptr==NULL)
-	_eflags |= CF;
-      _LWORD(edi) = (unsigned long) ptr & 0xffff;
-      _LWORD(esi) = ((unsigned long) ptr >> 16) & 0xffff;
+      D_printf("                using handle 0x%08lx\n",block->handle);
+      _LWORD(edi) = (block -> handle)&0xffff;
+      _LWORD(esi) = ((block -> handle) >> 16) & 0xffff;
+      _LWORD(ecx) = (unsigned long) ptr & 0xffff;
+      _LWORD(ebx) = ((unsigned long) ptr >> 16) & 0xffff;
     }
-    _LWORD(ebx) = _LWORD(esi);
-    _LWORD(ecx) = _LWORD(edi);
     break;
   case 0x0502:	/* Free Memory Block */
-    D_printf(" DPMI: Free Mem Blk. esi     0x%08lx\n", _LWORD(esi));
-    D_printf("                     edi     0x%08lx\n", _LWORD(edi));
-    free((void *)( (_LWORD(esi))<<16 | (_LWORD(edi)) ));
+    {
+	dpmi_pm_block *block;
+        block = lookup_pm_block((_LWORD(esi))<<16 | (_LWORD(edi)));
+	if (!block) {
+	    D_printf("DPMI: client attempt to free a non exist handle\n");
+	    _eflags |= CF;
+	    break;
+	}
+	D_printf(" DPMI: Free Mem Blk. for handle %08x\n", block->handle);
+	free(block->base);
+	free_pm_block(block);
+    }
     break;
   case 0x0503:	/* Resize Memory Block */
-    { unsigned long *ptr;
-      D_printf("DPMI: Realloc to size %x\n", (_LWORD(ebx)<<16 | _LWORD(ecx)));
-      ptr = realloc((void *)(_LWORD(esi)<<16 | _LWORD(edi)), _LWORD(ebx)<<16 | _LWORD(ecx));
-      if (ptr==NULL) {
-	_eflags |= CF;
-	_LWORD(eax) = 0x8013;
-        D_printf("DPMI: Realloc failed\n");
-      }
-      _LWORD(edi) = (unsigned long) ptr & 0xffff;
-      _LWORD(esi) = ((unsigned long) ptr >> 16) & 0xffff;
+    {
+	unsigned long newsize;
+	dpmi_pm_block *block;
+	newsize = (_LWORD(ebx)<<16 | _LWORD(ecx));
+	if (!newsize) {
+	    _eflags |= CF;
+	    break;
+	}
+        block = lookup_pm_block((_LWORD(esi))<<16 | (_LWORD(edi)));
+	if (!block) {
+	    D_printf("DPMI: client attempt to realloc a non exist handle\n");
+	    _eflags |= CF;
+	    break;
+	}
+	D_printf("DPMI: Realloc to size %x\n", (_LWORD(ebx)<<16 | _LWORD(ecx)));
+	D_printf("DPMI: For Mem Blk. for handle   0x%08lx\n", block->handle);
+	block -> base = realloc(block->base, newsize);
+	D_printf("DPMI: realloc attempt for siz 0x%08lx\n", newsize);
+	D_printf("      realloc returns address 0x%08lx\n", block -> base);
+	if (block->base==NULL) {
+	    _eflags |= CF;
+	    D_printf("DPMI: realloc failed\n");
+	    break;
+	}
+	_LWORD(ecx) = (unsigned long)(block->base) & 0xffff;
+	_LWORD(ebx) = ((unsigned long)(block->base) >> 16) & 0xffff;
     }
-    _LWORD(ebx) = _LWORD(esi);
-    _LWORD(ecx) = _LWORD(edi);
     break;
   case 0x0600:	/* Lock Linear Region */
   case 0x0601:	/* Unlock Linear Region */
@@ -900,10 +934,12 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
   case 0x0900:	/* Get and Disable Virtual Interrupt State */
     _LO(ax) = (dpmi_eflags & IF) ? 1 : 0;
     dpmi_cli();
+    pic_cli();
     break;
   case 0x0901:	/* Get and Enable Virtual Interrupt State */
     _LO(ax) = (dpmi_eflags & IF) ? 1 : 0;
     dpmi_sti();
+    pic_sti();
     break;
   case 0x0902:	/* Get Virtual Interrupt State */
     _LO(ax) = (dpmi_eflags & IF) ? 1 : 0;
@@ -912,10 +948,10 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     {
       char *ptr = (char *) (GetSegmentBaseAddress(_ds) + (DPMIclient_is_32 ? _esi : _LWORD(esi)));
       D_printf("DPMI: GetVendorAPIEntryPoint: %s\n", ptr);
-#ifdef WIN31
-      if ((!strcmp("WINOS2", ptr))||(!strcmp("MS-DOS", ptr)))
+#ifdef genuine_WIN31
+	if ((!strcmp("WINOS2", ptr))||(!strcmp("MS-DOS", ptr)))
 #else
-      if (!strcmp("WINOS2", ptr))
+	if (!strcmp("WINOS2", ptr))
 #endif
       {
 	_LWORD(eax) = 0;
@@ -944,10 +980,22 @@ inline void quit_dpmi(unsigned short errcode)
 {
   if (ldt_buffer) free(ldt_buffer);
   if (pm_stack) free(pm_stack);
+  if (pm_block_root) {
+      dpmi_pm_block *p = pm_block_root;
+      while(p) {
+          dpmi_pm_block *tmp;
+	  if (p->base)
+	      free(p->base);
+          tmp = p->next;
+	  free(p);
+	  p = tmp;
+      }
+  }
   in_dpmi = 0;
+  in_win31 = 0;
   in_dpmi_dos_int = 1;
   REG(cs) = DPMI_SEG;
-  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint);
+  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
   HI(ax) = 0x4c;
   LO(ax) = errcode;
   return (void) do_int(0x21);
@@ -966,6 +1014,9 @@ inline void do_dpmi_int(struct sigcontext_struct *scp, int i)
     D_printf("DPMI: int31, ax=%04x\n", _LWORD(eax));
     return do_int31(scp, _LWORD(eax));
   } else {
+    if (in_win31)
+      if (win31_pre_extender(scp, i))
+        return;
     save_rm_regs();
     REG(eflags) = _eflags;
     REG(eax) = _eax;
@@ -978,7 +1029,7 @@ inline void do_dpmi_int(struct sigcontext_struct *scp, int i)
     REG(ds) = (long) GetSegmentBaseAddress(_ds) >> 4;
     REG(es) = (long) GetSegmentBaseAddress(_es) >> 4;
     REG(cs) = DPMI_SEG;
-    REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint);
+    REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
     in_dpmi_dos_int = 1;
     D_printf("DPMI: calling real mode interrupt 0x%02x, ax=0x%04x\n",i,LWORD(eax));
     return (void) do_int(i);
@@ -1002,7 +1053,8 @@ inline void run_pm_int(int i)
   us *ssp;
   D_printf("DPMI: run_pm_int(0x%02x) called, in_dpmi_dos_int=0x%02x\n",i,in_dpmi_dos_int);
 
-  if (dpmi_stack_frame.ss == PMSTACK_SEL) PMSTACK_ESP = dpmi_stack_frame.esp;
+  if (dpmi_stack_frame.ss == PMSTACK_SEL)
+    PMSTACK_ESP = dpmi_stack_frame.esp;
   ssp = (us *) SEL_ADR(PMSTACK_SEL, PMSTACK_ESP);
   if (DPMIclient_is_32) {
     *--ssp = (us) 0;
@@ -1043,6 +1095,8 @@ inline void run_dpmi(void)
    */
 
   if (int_queue_running || in_dpmi_dos_int) {
+    if(pic_icount)
+      REG(eflags) |= (VIP);
     in_vm86 = 1;
     switch VM86_TYPE({retval=vm86(&vm86s); in_vm86=0; retval;}) {
 	case VM86_UNKNOWN:
@@ -1081,8 +1135,10 @@ inline void run_dpmi(void)
 
   if (iq.queued)
     do_queued_ioctl();
-#ifdef NEW_PIC
-/* update the pic to reflect IEF */
+
+#if 0
+/* update the pic to reflect IEF - I'm wondering why it is necessary since we
+   change dpmi_eflags&IF only via dpmi_cli()/dpmi_sti() */
   if (dpmi_eflags&IF_MASK) {
     if (pic_iflag) pic_sti();
     }
@@ -1090,12 +1146,13 @@ inline void run_dpmi(void)
     if (!pic_iflag) pic_cli(); /* pic_iflag=0 => enabled */
     }
 #endif
+
 }
 
 void dpmi_init()
 {
   /* Holding spots for REGS and Return Code */
-  us CS, DS, ES, SS;
+  unsigned short CS, DS, ES, SS;
   unsigned char *ssp;
   unsigned long sp;
   unsigned int my_ip, my_cs, my_sp, psp, i;
@@ -1229,7 +1286,12 @@ void dpmi_init()
      envp = *(unsigned short *)(((char *)(psp<<4))+0x2c);
      if (envp) {
 	if(!(envpd = AllocateDescriptors(1))) return;
+#if 0
 	if (SetSelector(envpd, (unsigned long) (envp << 4), 0x03ff,
+#else
+	/* windows is accessing envp:0x0400 */
+	if (SetSelector(envpd, (unsigned long) (envp << 4), 0x0ffff,
+#endif
 			DPMIclient_is_32, MODIFY_LDT_CONTENTS_DATA, 0,
 			0 )) return;
 	*(unsigned short *)(((char *)(psp<<4))+0x2c) = envpd;
@@ -1247,12 +1309,11 @@ void dpmi_init()
 
   save_rm_regs();
 
-  REG(ss) = DPMI_private_data_segment;
-  REG(esp) = 0x010 * DPMI_private_paragraphs;
   REG(cs) = DPMI_SEG;
-  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint);
+  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
 
   in_dpmi = 1;
+  in_win31 = 0;
   dpmi_eflags = IF;
   in_dpmi_dos_int = 0;
   in_sigsegv--;
@@ -1272,6 +1333,9 @@ void dpmi_init()
   dpmi_stack_frame.esi = REG(esi);
   dpmi_stack_frame.edi = REG(edi);
   dpmi_stack_frame.ebp = REG(ebp);
+
+  pm_block_root = 0;
+  pm_block_handle_used = 1;
 
   for (; (!fatalerr && in_dpmi) ;) {
     run_dpmi();
@@ -1320,7 +1384,7 @@ static inline void do_default_cpu_exception(int trapno)
     case 0x07: /* device_not_available */
 	       save_rm_regs();
 	       REG(cs) = DPMI_SEG;
-	       REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint);
+	       REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
 	       in_dpmi_dos_int = 1;
 	       return (void) do_int(trapno);
     default:
@@ -1348,7 +1412,7 @@ static inline void do_cpu_exception(struct sigcontext_struct *scp)
   unsigned char *csp2, *ssp2;
   int i;
 
-#if 1
+#if KERNEL_VERSION < 1001090
   /*
    * This is a bug in the kernel, trap 0x01 (debug) always occurs
    * twice in a row, the second time with TF cleared.
@@ -1381,7 +1445,7 @@ static inline void do_cpu_exception(struct sigcontext_struct *scp)
   } else {
     *--ssp = _ss;
     *--ssp = (unsigned short) _esp;
-    *--ssp = (unsigned short) ((_eflags&~IF)|(dpmi_eflags&~IF));
+    *--ssp = (unsigned short) ((_eflags&~IF)|(dpmi_eflags&IF));
     *--ssp = _cs; 
     *--ssp = (unsigned short) _eip;
     *--ssp = (unsigned short) _err;
@@ -1521,7 +1585,8 @@ if ((_ss & 7) == 7) {
           D_printf("DPMI: extension API call: 0x%04x\n", _LWORD(eax));
           if (_LWORD(eax) == 0x0100) {
             _eax = LDT_ALIAS;  /* simulate direct ldt access */
-#ifdef WIN31
+	    in_win31 = 1;
+#ifdef genuine_WIN31
             *ssp += (us) 7; /* jump over writeaccess test of the LDT in krnl386.exe! */
 #endif
 	  } else
@@ -1571,7 +1636,7 @@ if ((_ss & 7) == 7) {
 	    _LWORD(esp) = *ssp++;
 	    _ss = *ssp++;
 	  }
-	  if (_eflags & IF)
+	  /*if (_eflags & IF)*/
 	    dpmi_sti();
 
 	} else if ((_eip>=DPMI_OFF+1+HLT_OFF(DPMI_exception)) && (_eip<=DPMI_OFF+32+HLT_OFF(DPMI_exception))) {
@@ -1602,10 +1667,12 @@ if ((_ss & 7) == 7) {
     case 0xfa:			/* cli */
       _eip += 1;
       dpmi_cli();
+      pic_cli();
       break;
     case 0xfb:			/* sti */
       _eip += 1;
       dpmi_sti();
+      pic_sti();
       break;
     case 0x6c:                    /* insb */
       *((unsigned char *)SEL_ADR(_es,_edi)) = inb((int) _LWORD(edx));
@@ -1624,7 +1691,7 @@ if ((_ss & 7) == 7) {
       _eip++;
       break;
     case 0x6e:			/* outsb */
-      fprintf(stderr,"DPMI: untested: outsb port 0x%04x value %02x\n",
+      D_printf("DPMI: untested: outsb port 0x%04x value %02x\n",
             _LWORD(edx),*((unsigned char *)SEL_ADR(_ds,_esi)));
       outb(_LWORD(edx), *((unsigned char *)SEL_ADR(_ds,_esi)));
       if(_LWORD(eflags) & DF) _LWORD(esi)--;
@@ -1632,7 +1699,7 @@ if ((_ss & 7) == 7) {
       _eip++;
       break;
     case 0x6f:			/* outsw */
-      fprintf(stderr,"DPMI: untested: outsw port 0x%04x value %04x\n",
+      D_printf("DPMI: untested: outsw port 0x%04x value %04x\n",
 	      _LWORD(edx), *((unsigned short *)SEL_ADR(_ds,_esi)));
       outw(_LWORD(edx), *((unsigned short *)SEL_ADR(_ds,_esi)));
       if(_LWORD(eflags) & DF ) _LWORD(esi) -= 2;
@@ -1705,7 +1772,7 @@ if ((_ss & 7) == 7) {
 	}
 	case 0x6e: {           /* rep outsb */
 	    int delta = 1;
-	    fprintf(stderr,"DPMI: untested: rep outsb\n");
+	    D_printf("DPMI: untested: rep outsb\n");
 	    if(_LWORD(eflags) & DF) delta = -1;
 	    while(_LWORD(ecx)) {
 		outb(_LWORD(edx), *((unsigned char *)SEL_ADR(_ds,_esi)));
@@ -1717,7 +1784,7 @@ if ((_ss & 7) == 7) {
 	}
 	case 0x6f: { 
 	    int delta = 2;
-	    fprintf(stderr,"DPMI: untested: rep outsw\n");
+	    D_printf("DPMI: untested: rep outsw\n");
 	    if(_LWORD(eflags) & DF) delta = -2;
 	    while(_LWORD(ecx)) {
 		outw(_LWORD(edx), *((unsigned short *)SEL_ADR(_ds,_esi)));
@@ -1728,11 +1795,12 @@ if ((_ss & 7) == 7) {
 	    break;
 	}
 	default:
-	    fprintf(stderr, "DPMI: Nope REP F3,CSP[1] = 0x%04x\n", csp[1]);
+	    D_printf("DPMI: Nope REP F3,CSP[1] = 0x%04x\n", csp[1]);
+	    do_cpu_exception(scp);
       }
       break;        
     default:
-#ifdef WIN31
+#ifdef genuine_WIN31
       /* Simulate direct LDT access for MS-Windows 3.1 */
       if (win31ldt(scp, --csp))
       return;
@@ -1762,9 +1830,19 @@ void dpmi_realmode_hlt(unsigned char * lina)
 
     dpmi_init();
 
-  } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_return_from_dosint))) {
+  } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_return_from_dos))) {
 
-    D_printf("DPMI: Return from DOS Interrupt\n");
+    D_printf("DPMI: Return from DOS Interrupt without register translation\n");
+    restore_rm_regs();
+    in_dpmi_dos_int = 0;
+
+  } else if ((lina>=(unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_return_from_dosint))) &&
+	     (lina <(unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_return_from_dosint)+256)) ) {
+    int intr = (int)(lina) - DPMI_ADD-HLT_OFF(DPMI_return_from_dosint);
+
+    D_printf("DPMI: Return from DOS Interrupt 0x%02x\n",intr);
+
+    /* DANG_FIXTHIS we should not change registers for hardware interrupts */
     dpmi_stack_frame.eflags = 0x0202 | (0x0dd5 & REG(eflags));
     dpmi_stack_frame.eax = REG(eax);
     dpmi_stack_frame.ebx = REG(ebx);
@@ -1773,7 +1851,9 @@ void dpmi_realmode_hlt(unsigned char * lina)
     dpmi_stack_frame.esi = REG(esi);
     dpmi_stack_frame.edi = REG(edi);
     dpmi_stack_frame.ebp = REG(ebp);
-/* we should here translate Segments to Selectors for Windows :-(... */
+
+    if (in_win31)
+      win31_post_extender(intr);
 
     restore_rm_regs();
     in_dpmi_dos_int = 0;

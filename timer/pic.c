@@ -302,11 +302,6 @@ void run_irqs()
  int old_ilevel;
  int int_request;
 
-#ifdef DPMI
- if (in_dpmi)
-   D_printf("DPMI: old run_irqs() called, isr=%x, irr=%x, imr=%x, pic_ilevel=%x\n", pic_isr, pic_irr, pic_imr, pic_ilevel);
-#endif
-
 /* check for and find any requested irqs.  Having found one, we atomic-ly
    clear it and verify it was there when we cleared it.  If it wasn't, we
    look for the next request.  There are two in_service bits for pic1 irqs.
@@ -356,12 +351,6 @@ void run_irqs()
 void run_irqs()
 {
 
-
-#ifdef DPMI
- if (in_dpmi)
-   D_printf("DPMI: new run_irqs() called, isr=%x, irr=%x, pic_ilevel=%x\n", pic_isr, pic_irr, pic_ilevel);
-#endif
-
   __asm__ __volatile__
   ("movl "CISH_INLINE(pic_ilevel)",%%ecx\n\t"      /* get old ilevel                  */
    "pushl %%ecx\n\t"                 /* save old ilevel                 */ 
@@ -377,7 +366,7 @@ void run_irqs()
    "cmpl %%ebx,%%ecx\n\t"            /* if(ebx > pic_ilevel)...         */ 
    "jl L3\n\t"                       /* ... goto 3                      */ 
    "btrl %%ebx,"CISH_INLINE(pic_irr)"\n\t"         /* clear_bit(ebx,&pic_irr)         */ 
-   "jz L2\n\t"                       /* if bit wasn't set, go back to 2 */ 
+   "jnc L2\n\t"                       /* if bit wasn't set, go back to 2 */ 
    "movl "CISH_INLINE(pic_isr)",%%ecx\n\t"         /* get current pic_isr             */
    "btsl %%ebx,%%ecx\n\t"            /* set bit in pic_isr              */ 
    "movl %%ebx,"CISH_INLINE(pic_ilevel)"\n\t"      /* set new ilevel                  */
@@ -426,7 +415,11 @@ int do_irq()
 #ifndef PICTEST
     if(pic_ilevel==PIC_IRQ9)      /* unvectored irq9 just calls int 0x1a.. */
       if(!IS_REDIRECTED(intr)) {intr=0x1a;pic1_isr&= 0xffef;} /* & one EOI */
+#ifdef DPMI
+    if(IS_REDIRECTED(intr)||pic_ilevel<=PIC_IRQ1||in_dpmi)
+#else
     if(IS_REDIRECTED(intr)||pic_ilevel<=PIC_IRQ1)
+#endif
     {
 #endif
 

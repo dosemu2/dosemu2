@@ -160,8 +160,6 @@ extern int release_perm ();
 extern void X_change_mouse_cursor(void);
 #endif
 
-extern void open_kmem(void), close_kmem(void);
-
 /* This is included for video mode support. Please DO NOT remove !
  * mousevid.h will become part of VGA emulator package */
 #include "mousevid.h"
@@ -448,7 +446,11 @@ mouse_int(void)
     break;
 
   case 0x21:			
+#if 0
     mouse_software_reset();	/* Perform Software reset on mouse */
+#else
+    mouse_reset(0);		/* Should Perform reset on mouse */
+#endif
     break;
 
   case 0x22:			/* Set language for messages */
@@ -794,9 +796,11 @@ mouse_reset(int flag)
   if (current_video.textgraph == 'T') {
     mouse.maxx = ((current_video.pixelx * 8) / current_video.fontx) - 1;
     mouse.maxy = ((current_video.pixely * 8) / current_video.fonty) - 1;
+    mouse.gfx_cursor = FALSE;
   } else {
     mouse.maxx = current_video.pixelx - 1;
     mouse.maxy = current_video.pixely - 1;
+    mouse.gfx_cursor = TRUE;
   }
 
   mouse.cursor_on = -1;
@@ -1299,12 +1303,16 @@ void
 mouse_do_cur(void)
 {
   if (!scr_state.current) return;
-  get_current_video_mode();
-  if (mouse.gfx_cursor || current_video.textgraph != 'T')
+  if (mouse.gfx_cursor) {
+    m_printf("MOUSE: DOING GRAPHIC CURSOR !\n");
     if (scr_state.mapped)
     graph_cursor();
+  }
   else
+  {
+    m_printf("MOUSE: DOING TEXT CURSOR !\n");
     text_cursor();
+  }
 }
 
 void
