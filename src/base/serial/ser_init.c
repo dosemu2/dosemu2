@@ -57,7 +57,9 @@
 /* See README.serial file for more information on the com[] structure 
  * The declarations for this is in ../include/serial.h
  */
+#if 0
 serial_t com[MAX_SER];
+#endif
 
 /*  Determines if the tty is already locked.  Stolen from uri-dip-3.3.7k
  *  Nice work Uri Blumenthal & Ian Lance Taylor!

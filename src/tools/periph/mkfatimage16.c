@@ -47,7 +47,7 @@ long p_ending_sector = SECTORS_PER_TRACK;
 /* Track 0, head 0 is reserved. */
 /* Minus 1 for head 0, track 0 (partition table plus empty space). */
 long p_sectors;
-long p_type;
+static long p_type;
 long sectors_per_cluster;
 long bytes_per_cluster;
 

@@ -74,8 +74,8 @@ int AddRoute( unsigned long targetNet, unsigned network,
 	
 	enter_priv_on();
 	if(ioctl(sock,SIOCADDRT,(void *)&rt) < 0) {
-		leave_priv_setting();
                 if( errno != EEXIST ) {
+			leave_priv_setting();
                         close( sock );
                         return( -2 );
                 }

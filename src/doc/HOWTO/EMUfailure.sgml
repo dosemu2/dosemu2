@@ -10,7 +10,7 @@
 <author>Uwe Bonnes, 
 <bf><htmlurl url="mailto:bon@elektron.ikp.physik.th-darmstadt.de"
 name="bon@elektron.ikp.physik.th-darmstadt.de"></bf>
-<date> Mar 21, 1997 for dosemu 0.66.0 (and possibly earlier versions)
+<date> May 30, 1997 for dosemu 0.66.5 (and possibly earlier versions)
 
 <abstract>
 This file list programs and groups of programms not running or running
@@ -63,9 +63,11 @@ Pharlap programs may work.
 <sect1>Things YOU may help changing
 
 <p>This is a list of currently known bugs in Dosemu0.53pl58, currently
-in the process of adaptation to 0.66.0
+in the process of adaptation to 0.66.5
 
 - Some documentation is known to be well out of date. 
+
+- Sound Card emulation does not work yet
 
 - Some video BIOS will start very slowly with the serial ports enabled.
 

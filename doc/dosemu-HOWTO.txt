@@ -1,8 +1,7 @@
   The dosemu HOWTO
-  by Mike Deisher. Updated by Uwe Bonnes, bboonn@@eelleekk--
+  by Mike Deisher.  Updated by Uwe Bonnes, bboonn@@eelleekk--
   ttrroonn..iikkpp..pphhyyssiikk..tthh--ddaarrmmssttaaddtt..ddee
-  PLEASE DON'T REDISTRIBUTE THIS TRANSITORY EDITION For
-  dosemu-0.64.4 (in progress), 15 February 1997
+  For dosemu-0.64.4 (in progress), 15 March 1997
 
   This is the `Frequently Asked Questions' (FAQ) / HOWTO document for
   dosemu.  The most up-to-date version of the dosemu-HOWTO may be found
@@ -61,6 +60,8 @@
 
   2.12.   What versions of DOS are known to run with dosemu.
 
+  2.13.   Versions known not to run
+
   3.      Hard disk setup
 
   3.1.    How do I use my hard disk with dosemu?
@@ -118,13 +119,18 @@
 
   8.1.    Is it possible to run MS-Windows 3.1 under dosemu?
 
-  8.2.    Windows 3.x in xdos:
+  8.2.    Can I run 32bit stuff with winemu
 
-  8.3.    Can I install windows from within dosemu?
+  8.3.    Errormessage: Cannot find the vdtapi.386 file when starting
+  dosemu
 
-  8.4.    Notes for the mouse under win31-in-xdos:
+  8.4.    Windows 3.x in xdos:
 
-  8.5.    Why did my Icon dissapear from the Programmanager?
+  8.5.    Can I install windows from within dosemu?
+
+  8.6.    Notes for the mouse under win31-in-xdos:
+
+  8.7.    Why did my Icon dissapear from the Programmanager?
 
   9.      Video and sound
 
@@ -172,6 +178,10 @@
 
   12.12.  Why are my keystrokes echoed ttwwiiccee??
 
+  12.13.  Dosemu scrambles my screen?
+
+  12.14.  MS FoxPro 2.6 won't run
+
   13.     Contributing to the dosemu project
 
   13.1.   Who is responsible for dosemu?
@@ -194,6 +204,7 @@
   o the ability to support the word size and addressing modes of the
   iAPX86 processor family's "real mode," while still running within the
   full protected mode environment
+
   o the ability to trap all DOS and BIOS system calls and emulate such
   calls as are necessary for proper operation and good performance
 
@@ -235,7 +246,7 @@
   However, pre-release versions are also available for developers and
   ALPHA testers.  They can be retrieved from:
 
-       http://www.ednet.ns.ca/auto/rddc
+  http://www.ednet.ns.ca/auto/rddc
 
   Remember that this is ALPHA code, however: there may be serious bugs
   and very little documentation for new features. At present, the devel-
@@ -348,7 +359,6 @@
   know SGML, that's ok.  Changes or new information in any form will be
   accepted.  Creating the diff file just makes it easier on the HOWTO
   maintainer.  :-)(97/2/9)
-
   11..1111..  MMeessssaaggee ffrroomm GGrreegg......
 
   Unless otherwise stated, Linux HOWTO documents are copyrighted by
@@ -400,7 +410,7 @@
   8. Run DOSEMU with partition access while they are already mounted.
 
   9. Don't install dosemu with sufficient privileges (i.e., root).
-  (97/2/11)
+  (97/04/08)
 
   22..33..  HHooww ccaann II uussee ddoosseemmuu oonn aann oollddeerr vveerrssiioonn ooff tthhee LLiinnuuxx KKeerrnneell..
 
@@ -411,17 +421,16 @@
 
        > Is the dosemu-0.64.3.tgz version of dosemulator for the 2.xx.yy ver-
        sions > of the linux kernel ??
+       Yes, but ...
 
-  Yes, but ...
+         if ( ((xx == 0) && (yy >= 28)) || ((xx >= 1) && (yy >= 15)) )
+           take_dosemu_0_64_4();
+         else {
+           if (xx == 1)  exit(1);
+           take_dosemu_0_64_2_x();
+         }
 
-    if ( ((xx == 0) && (yy >= 28)) || ((xx >= 1) && (yy >= 15)) )
-      take_dosemu_0_64_4();
-    else {
-      if (xx == 1)  exit(1);
-      take_dosemu_0_64_2_x();
-    }
-
-  ;-)
+       ;-)
 
   22..44..  HHooww ddoo II mmaakkee aaoouutt bbiinnaarriieess??
 
@@ -521,6 +530,11 @@
   section Options to have entries like Options Logo=0 BootGUI=0
 
   (97/3/7)
+
+  22..1133..  VVeerrssiioonnss kknnoowwnn nnoott ttoo rruunn
+
+  DOS 4.01 had problems by itself, do it won't work with dosemu either
+  (Mattias Hembruch <mghembru@ece.uwaterloo.ca> 97/04/03)
 
   33..  HHaarrdd ddiisskk sseettuupp
 
@@ -688,7 +702,6 @@
 
   Normally you can use dosemu's internaldriver, so you don't need any
   additional mousedriver in dosemu outside winemu(97/2/10).
-
   44..44..  WWhhyy ddooeessnn''tt tthhee mmoouussee ddrriivveerr wwoorrkk??
 
   Mark Rejhon (mmddrreejjhhoonn@@mmaaggii..ccoomm) reported (95/4/7) that
@@ -807,7 +820,6 @@
   If you do not use hdimage and access the DOS filesystem directly upon
   boot-up of dosemu, then this will work, and you don't have to go
   through the hdimage part of this all.
-
   ---------------------
 
   Daniel T. Schwager (ddaannnnyy@@ddrraaggoonn..ss..bbaawwuuee..ddee) reported (94/7/2) that
@@ -1031,7 +1043,19 @@
 
   ---------
 
-  88..22..  WWiinnddoowwss 33..xx iinn xxddooss::
+  88..22..  CCaann II rruunn 3322bbiitt ssttuuffff wwiitthh wwiinneemmuu
+
+  Sorry, no you can't.  Win32s needs stuff running in ring 0. That's a
+  "nono" with linux.  (97/04/27)
+
+  88..33..  EErrrroorrmmeessssaaggee:: CCaannnnoott ffiinndd tthhee vvddttaappii..338866 ffiillee wwhheenn ssttaarrttiinngg
+  ddoosseemmuu
+
+  As explained above, winemu can't handle 32 bit stuff. All drivers
+  ending in 386 are 32bit. So to run winemu, you have to delete all
+  references to .386 drivers in your win.ini.  (97/04/27)
+
+  88..44..  WWiinnddoowwss 33..xx iinn xxddooss::
 
   As of version 0.64.3 DOSEMU is able to run Windows in xdos. Of course,
   this is not recommended at all, but if you really want to try, it is
@@ -1056,7 +1080,7 @@
   11. In Dosemu, go to windows directory and start winemu.
   12. Cross your fingers.
 
-  88..33..  CCaann II iinnssttaallll wwiinnddoowwss ffrroomm wwiitthhiinn ddoosseemmuu??
+  88..55..  CCaann II iinnssttaallll wwiinnddoowwss ffrroomm wwiitthhiinn ddoosseemmuu??
 
   NNoo you cant't. Dos will tell you something like
 
@@ -1067,9 +1091,10 @@
   somewhere on your Linux Filesystem and use lredir to mount it on the
   same place as it is in dos. Example:
 
-       You have windows in d:120 You have d: mounted as /dosc in Linux You
-       copy the windows tree to Linux, e.g. "cp -a /dosd/windows /usr/share
-       Inside dosemu you redirect the copied tree like lredir d: linuxosd
+       You have windows in d:\windows You have d:\ mounted as /dosc in Linux
+       You copy the windows tree to Linux, e.g. "cp -a /dosd/windows
+       /usr/share Inside dosemu you redirect the copied tree like lredir d:
+       linux\fs\dosd
 
   Now dosemu can't mess around in you windows directory, but changes in
   the windows directory aren't seen by dosemu too. If you want to do the
@@ -1077,8 +1102,7 @@
 
   But you can use "setup" from inside the windows directory to install
   drivers and change some settings.  (97/2/1497)
-
-  88..44..  NNootteess ffoorr tthhee mmoouussee uunnddeerr wwiinn3311--iinn--xxddooss::
+  88..66..  NNootteess ffoorr tthhee mmoouussee uunnddeerr wwiinn3311--iinn--xxddooss::
 
   1. Use the mouse driver "mouse.drv" from WinOS2
 
@@ -1103,7 +1127,7 @@
   want to re-calibrate the cursor, just move the cursor outside and then
   inside the DOS-Box again.  (97/2/10)
 
-  88..55..  WWhhyy ddiidd mmyy IIccoonn ddiissssaappeeaarr ffrroomm tthhee PPrrooggrraammmmaannaaggeerr??
+  88..77..  WWhhyy ddiidd mmyy IIccoonn ddiissssaappeeaarr ffrroomm tthhee PPrrooggrraammmmaannaaggeerr??
 
   MS-Windows and WinOS2 handle the program manager group different.
   While MS-Win store the setup in progman.ini, WinOS2 what's the conted
@@ -1316,7 +1340,8 @@
   the F4,F5 and F8 Keys with the "Starting Win95" text, versions on the
   Win95 drive may swap. Take special care for command.com. Let your
   shell variable in config.emu point to the correct static version of
-  command.com, e.g.: shell=c:912
+  command.com, e.g.: shell=c:\win95\command.com c:\ /P /E:1024
+  (97/02/28)
 
   Learn about ddoossddeebbuugg and use it to control a dosemu session(97/2/9)
 
@@ -1377,6 +1402,7 @@
 
   HogThreshold should now be set to approximately half of the BogoMips
   value that the system reports on boot.
+
   1122..1100..  MMyy CCDDRROOMM ddrriivvee hhaass pprroobblleemmss rreeaaddiinngg ssoommee ffiilleess uunnddeerr ddoosseemmuu..
 
   Vinod G Kulkarni (vviinnoodd@@ccssee..iiiittbb..eerrnneett..iinn) reported (94/4/7) that
@@ -1428,6 +1454,31 @@
   So, the input processing needs to be turned off when using the scan
   codes on a console (it wouldn't be a good idea to do it for tty
   lines).
+
+  1122..1133..  DDoosseemmuu ssccrraammbblleess mmyy ssccrreeeenn??
+
+  For those graphics cards not fully supported in dosemu, with allowed
+  console graphics a dosemu crash may leave your console in a scrambles
+  and nearly unusable way. To prepare for that situation, Spudgun
+  <spudgun@earthlight.co.nz> posted following solution. First save your
+  registers when running on the console ~> cat /usr/bin/savetextmode ~>
+  restoretextmode -w /etc/textregs ~> restorefont -w /etc/fontdata Then,
+  when a crash happened, run following script: restoretextmode -r
+  /etc/textregs restorefont -r /etc/fontdata restorepalette
+
+  IIff iitt ddooeessnn''tt ffiixx iitt nnootthhiinngg wwiillll I also found having an X server
+  running sometimes put my Vid card's registers into a strange state
+  where this script made things worse I think since changing X servers
+  and/or running savetextmode on a vt while X was running helped.
+  (97/04/08)
+
+  1122..1144..  MMSS FFooxxPPrroo 22..66 wwoonn''tt rruunn
+
+  FoxPro 2.6 doesn't run on network drives. Alexey Naidyonov
+  <growler@growler.tsu.tula.ru> states on that problem: And I guess your
+  FoxPro files are on lredir'ed disk, yeah? The matter is that FoxPro
+  doesn't run on such disk, but when I said disk { partition ... } in
+  /etc/dosemu/conf, it runs.
 
   1133..  CCoonnttrriibbuuttiinngg ttoo tthhee ddoosseemmuu pprroojjeecctt
 

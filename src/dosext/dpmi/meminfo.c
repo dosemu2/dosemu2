@@ -28,92 +28,76 @@
 #include "emu.h"
 
 /**************************************************/
+static int getvalue_by_key(char *buf, char *key)
+{
+  char *p = strstr(buf,key);
+  int val;
+
+  if (p) {
+    if (sscanf(p, "%*[^ ]%ld",&val) == 1) return val;
+  }
+  error("Unknown format on /proc/meminfo\n");
+  leavedos(5);
+  return -1; /* just to make GCC happy */
+}
+
+
 struct meminfo *readMeminfo(void) {
-/* Read /proc/meminfo and return the new values */
-/*
-        total:   used:    free:   shared:  buffers:
-Mem:  13406208 13139968   266240  5574656  2301952
-Swap: 16773120  5550080 11223040
-*/
+/* Read /proc/meminfo and return the new values
+ *
+ * linux <  2.1.41 has part A + B
+ * linux >= 2.1.41 has only part B
+ * for compatibility reasons we only use Part B
+ *
+ * Part A:
+        total:    used:    free:  shared: buffers:  cached:
+Mem:  64622592 61927424  2695168 41209856  7151616 19976192
+Swap: 70184960    57344 70127616
+ *
+ * Part B:
+MemTotal:     63108 kB
+MemFree:       2632 kB
+MemShared:    40244 kB
+Buffers:       6984 kB
+Cached:       19508 kB
+SwapTotal:    68540 kB
+SwapFree:     68484 kB
+ *
+ */
   static struct meminfo mem = { 0 };
 #ifdef __linux__
   char buf[4097];
-  char *tok, *nextline;
   int cnt;
 
-  if (mem.meminfofd <= 0)
+  if (mem.meminfofd <= 0) {
     mem.meminfofd = open("/proc/meminfo", O_RDONLY);
+    if (mem.meminfofd <= 0) {
+      error("Cannot open /proc/meminfo\n");
+      leavedos(5);
+    }
+  }
   else
     lseek(mem.meminfofd, 0, SEEK_SET);
-  if (mem.meminfofd <= 0) {
-    error("Cannot open /proc/meminfo\n");
-    leavedos(5);
-  }
+
   cnt = read(mem.meminfofd, buf, 4096);
   if (cnt <= 0) {
     error("Read failure on /proc/meminfo");
     leavedos(5);
   }
   buf[cnt] = '\0';
-
-/* Skip header line */
-  if ((tok = strtok(buf, "\r\n")) == NULL) {
-BadFormat:
-    error("Unknown format on /proc/meminfo\n");
-    leavedos(5);
-  }
-  
-/* Read meminfo */
-  if ((tok = strtok(NULL, "\r\n")) == NULL)
-    goto BadFormat;
-  nextline = tok + strlen(tok) + 1;
-
-  tok = strtok(tok, " \t\r\n");
-  if ((tok == NULL) || strcmp(tok, "Mem:"))
-    goto BadFormat;
-
-  if ((tok = strtok(NULL, " \t\r\n")) != NULL)
-    mem.total = atoi(tok);
-  else
-    goto BadFormat;
-  if ((tok = strtok(NULL, " \t\r\n")) != NULL)
-    mem.used = atoi(tok);
-  else
-    goto BadFormat;
-  if ((tok = strtok(NULL, " \t\r\n")) != NULL)
-    mem.free = atoi(tok);
-  else
-    goto BadFormat;
-  if ((tok = strtok(NULL, " \t\r\n")) != NULL)
-    mem.shared = atoi(tok);
-  else
-    goto BadFormat;
-  if ((tok = strtok(NULL, " \t\r\n")) != NULL)
-    mem.buffers = atoi(tok);
-  else
-    goto BadFormat;
-
-/* Read swap information */
-  tok = strtok(nextline, " \t\r\n");
-  if ((tok == NULL) || strcmp(tok, "Swap:"))
-    goto BadFormat;
-  if ((tok = strtok(NULL, " \t\r\n")) != NULL)
-    mem.swaptotal = atoi(tok);
-  else
-    goto BadFormat;
-  if ((tok = strtok(NULL, " \t\r\n")) != NULL)
-    mem.swapused = atoi(tok);
-  else
-    goto BadFormat;
-  if ((tok = strtok(NULL, " \t\r\n")) != NULL)
-    mem.swapfree = atoi(tok);
-  else
-    goto BadFormat;
-
-  mem.totmegs = (mem.total / (1024 * 1024)) + 1;
-  mem.swapmegs = (mem.swaptotal / (1024 * 1024)) + 1;
-  mem.bytes_per_tick = mem.total >> 8; 
-  mem.swapbytes_per_tick = mem.swaptotal >> 8; 
+  mem.total = getvalue_by_key(buf, "MemTotal:") <<10;
+  mem.free = getvalue_by_key(buf, "MemFree:") <<10;
+  mem.used = mem.total - mem.free;
+  mem.shared = getvalue_by_key(buf, "MemShared:") <<10;
+  mem.buffers = getvalue_by_key(buf, "Buffers:") <<10;
+  mem.cached = getvalue_by_key(buf, "Cached:") <<10;
+  mem.swaptotal = getvalue_by_key(buf, "SwapTotal:") <<10;
+  mem.swapfree = getvalue_by_key(buf, "SwapFree:") <<10;
+  mem.swapused = mem.swaptotal - mem.swapfree;
+  mem.totmegs = (mem.total >>20) +1;
+  mem.swapmegs = (mem.swaptotal>>20) +1;
+  mem.bytes_per_tick = mem.total >> 8;
+  mem.swapbytes_per_tick = mem.swaptotal >> 8;
 #endif
 #ifdef __NetBSD__
   int len;

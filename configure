@@ -3260,7 +3260,7 @@ XLIBSW="$XLIBSWD $XLIBSWL"
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
 SUBLEVEL="67"
-PATCHLEVEL="3.3"
+PATCHLEVEL="3.4"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`
@@ -3454,6 +3454,8 @@ else
   echo "checking "Compiling for dosemu mostly running as user"" 1>&6
 fi
 
+
+LNKOPTS="-Wl,-warn-common"
 
 # Check whether --enable-linkstatic or --disable-linkstatic was given.
 if test "${enable_linkstatic+set}" = set; then

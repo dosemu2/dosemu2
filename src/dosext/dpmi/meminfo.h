@@ -8,6 +8,7 @@ struct meminfo {
   int free;
   int shared;
   int buffers;
+  int cached;
   int swaptotal;
   int swapused;
   int swapfree;

@@ -1,10 +1,16 @@
+
 <!-- This is the dosemu HOWTO, SGML source -- >
 <!-- Mike Deisher, deisher@dspsun.eas.asu.edu -->
 <!-- Now Uwe Bonnes, bon@elektron.ikp.physik.th-darmstadt.de -->
-<!-- Last edited: Time-stamp: <97/03/07 10:15:51 bon> -->
-<!--PLEASE DON'T REDISTRIBUTE THIS TRANSITORY EDITION-->
+<!-- Last edited: Time-stamp: <97/04/27 12:03:23 bon> -->
 
 <!-- Changelog -->
+<!-- 97/04/27: No .386 with winemu -->
+<!-- 97/04/17: Greg's corrections for my typos -->
+<!-- 97/04/08: Hans changes to common errors -->
+<!--         : tips to restore console -->
+<!--         : Tips for Foxpro 2.6 -->
+<!-- 97/04/03: Don't use Dos 4.01 -->
 <!-- 97/3/07: Msdos.sys settings to boot Dos7 -->
 <!-- 97/2/28: Considerations on command.com and different Dos-Versions -->
 <!--          Numbering scheme -->
@@ -24,11 +30,11 @@
 <article>
 
 <title>The dosemu HOWTO
-<author>by Mike Deisher. Updated by Uwe Bonnes, 
+<author>by Mike Deisher. 
+ Updated by Uwe Bonnes, 
 <bf><htmlurl url="mailto:bon@elektron.ikp.physik.th-darmstadt.de"
 name="bon@elektron.ikp.physik.th-darmstadt.de"></bf>
-<date>PLEASE DON'T REDISTRIBUTE THIS TRANSITORY EDITION 
-For dosemu-0.64.4 (in progress), 15 February 1997
+<date>For dosemu-0.64.4 (in progress), 15 March 1997
 
 <abstract>
 This is the `Frequently Asked Questions' (FAQ) / HOWTO document for
@@ -282,7 +288,7 @@ included in the distribution.
 8. Run DOSEMU with partition access while they are already mounted.
 
 9. Don't install dosemu with sufficient privileges (i.e., root).
-(97/2/11)
+(97/04/08)
 
 <sect1>How can I use dosemu on an older version of the Linux Kernel.
 
@@ -419,6 +425,10 @@ BootGUI=0
 
 (97/3/7)
 
+<sect1>Versions known not to run
+<p>DOS 4.01 had problems by itself, do it won't work with dosemu either
+(Mattias Hembruch &lt;mghembru@ece.uwaterloo.ca&gt; 97/04/03)
+
 <sect>Hard disk setup
 
 <sect1>How do I use my hard disk with dosemu?
@@ -510,7 +520,7 @@ name="http://sunsite.unc.edu:/pub/Linux/Incoming"> for
 a newer version. 
 However, many people have had success by simply uncommenting the
 <verb>
-   disk { wholedisk "/dev/hda" }        # 1st partition on 1st disk
+   disk { wholedisk "/dev/hda" }        &num; 1st partition on 1st disk
 </verb>
 line in their dosemu config file.  Others have had success using
 <verb>
@@ -601,7 +611,7 @@ additional mousedriver in dosemu outside winemu(97/2/10).
 
 <sect1>Why doesn't the mouse driver work?
 
-<p>Mark Rejhon (<bf>marky@ottawa.com</bf>) reported (95/4/7) that
+<p>Mark Rejhon (<bf>mdrejhon@magi.com</bf>) reported (95/4/7) that
 
 If you start the mouse driver and it just hangs (it might actually
 take 30-60s), but if you are waiting longer than a minute for the
@@ -648,14 +658,14 @@ over the serial line really well, because switching is made easy.
 lpr or a file.  If you want direct access to the bare metal, comment
 out these emulation lines, and add the line
 <tscreen>
-ports { device /dev/lp0 fast range 0x3bc 0x3bf  } # lpt0
+ports { device /dev/lp0 fast range 0x3bc 0x3bf  } &num; lpt0
 </tscreen>
 for the "monitor card" printer port (corresponds to /dev/lp0), or
 <tscreen>
-ports { device /dev/lp1 fast range 0x378 0x37f } # lpt1
+ports { device /dev/lp1 fast range 0x378 0x37f } &num; lpt1
 </tscreen>
 <tscreen>
-ports { device /dev/lp1 fast range 0x278 0x27f } # lpt2
+ports { device /dev/lp1 fast range 0x278 0x27f } &num; lpt2
 </tscreen>
 for LPT1 (/dev/lp1) and LPT2 (/dev/lp2) respectively(97/2/9).
 
@@ -931,7 +941,7 @@ screen.  43 line mode will resize the <tt/xterm/ window to use 43 lines.
 </verb>
 
 Okay, it is possible to boot WINOS2 (the modified version of Windows 3.1
-that OS/2 uses) under DOSEMU.  Many kudos to Lutz & Dong!
+that OS/2 uses) under DOSEMU.  Many kudos to Lutz &amp; Dong!
 
 However, YOU NEED BOTH LICENSES, for WINDOWS-3.1 as well OS/2 !!!
 
@@ -971,6 +981,19 @@ REMEMBER:  THIS IS NOT AT ALL RECOMMENDED!!!  THIS IS NOT RECOMMENDED!!!
            WE DO NOT RECOMMEND YOU TRY THIS!!!
 </verb>
 ---------
+<sect1>Can I run 32bit stuff with winemu
+<p>
+Sorry, no you can't.
+Win32s needs stuff running in ring 0. That's a "nono" with linux.
+(97/04/27)
+
+<sect1>Errormessage: Cannot find the vdtapi.386 file when starting dosemu
+<p>
+As explained above, winemu can't handle 32 bit stuff. All drivers ending in
+386 are 32bit. So to run winemu, you have to delete all references to .386
+drivers in your win.ini.
+(97/04/27)
+
 <sect1>Windows 3.x in xdos:
 <p>As of version 0.64.3 DOSEMU is able to run Windows in xdos. Of
 course, this is not recommended at all, but if you really want to try,
@@ -1008,12 +1031,12 @@ You need to install windows from Dos. You can copy the windows tree to
 somewhere on your Linux Filesystem and use lredir to mount it on the
 same place as it is in dos. Example:
 <tscreen>
-        You have windows in d:\windows
-	You have d:\ mounted as /dosc in Linux
+        You have windows in d:&bsol;windows
+	You have d:&bsol; mounted as /dosc in Linux
         You copy the windows tree to Linux, 
 	         e.g. "cp -a /dosd/windows /usr/share
         Inside dosemu you redirect the copied tree like
-                 lredir d: linux\fs\dosd
+                 lredir d: linux&bsol;fs&bsol;dosd
 </tscreen>
 Now dosemu can't mess around in you windows directory, but changes in the
 windows directory aren't seen by dosemu too. If you want to do the
@@ -1064,7 +1087,7 @@ Be sure to use >> :-)
 
 <sect1>Can I run 32-bit video games under dosemu?
 
-<p>Mark Rejhon (<bf>marky@ottawa.com</bf>) reported (95/4/8) that
+<p>Mark Rejhon (<bf>mdrejhon@magi.com</bf>) reported (95/4/8) that
 
 With the recent DPMI improvements that has gone into 0.60, you can now
 run some 32-bit video games in dosemu.   If the game is compatible in
@@ -1275,7 +1298,7 @@ later. With the dual boot option Win95 offers when pressing the F4,F5 and
 F8 Keys with the "Starting Win95" text, versions on the Win95 drive may
 swap. Take special care for command.com. Let your shell variable in
 config.emu point to the correct static version of command.com, e.g.:
-shell=c:\win95\command.com c:\ /P /E:1024 (97/02/28)
+shell=c:&bsol;win95&bsol;command.com c:&bsol; /P /E:1024 (97/02/28)
  
 
 <p>Learn about <bf>dosdebug</bf> and use it to control a dosemu session(97/2/9)
@@ -1395,7 +1418,36 @@ so that key release events look like key press events.
 So, the input processing needs to be turned off when using the scan
 codes on a console (it wouldn't be a good idea to do it for tty lines).
 
+<sect1>Dosemu scrambles my screen?
+<p> For those graphics cards not fully supported in dosemu, with allowed
+console graphics a dosemu crash may leave your console in a scrambles and
+nearly unusable way. To prepare for that situation, Spudgun
+&lt;spudgun@earthlight.co.nz&gt; posted following solution. First save your
+registers when running on the console
+&tilde;&gt; cat /usr/bin/savetextmode
+&tilde;&gt; restoretextmode -w /etc/textregs
+&tilde;&gt; restorefont -w /etc/fontdata
+Then, when a crash happened, run following script:
+restoretextmode -r /etc/textregs
+restorefont -r /etc/fontdata
+restorepalette
+
+<bf>If it doesn't fix it nothing will</bf>
+I also found having an X server running sometimes put my Vid card's
+registers into a strange state where this script made things worse
+I think since changing X servers and/or running savetextmode on a vt while X
+was running helped. (97/04/08)
+
+<sect1>MS FoxPro 2.6 won't run
+<p>FoxPro 2.6 doesn't run on network drives. Alexey Naidyonov
+&lt;growler@growler.tsu.tula.ru&gt; states on that problem:
+And I guess your FoxPro files are on lredir'ed disk, yeah? The matter is that
+FoxPro doesn't run on such disk, but when I said disk { partition ... } in
+/etc/dosemu/conf, it runs. 
+
+ 
 <sect>Contributing to the dosemu project
+
 
 <sect1>Who is responsible for dosemu?
 
@@ -1435,7 +1487,6 @@ organizing the latest releases of dosemu.
 <p>The dosemu project is a team effort.  If you wish to contribute,
 see the DPR (dosemu Project Registry).  A current copy may be found 
 in ..<bf>/doc/DANG</bf> (97/2/9).
-
 </article>
-<!--PLEASE DON'T REDISTRIBUTE THIS TRANSITORY EDITION -->
+
 

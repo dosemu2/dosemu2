@@ -24,6 +24,7 @@
 #define SERIAL_H
 
 #include <termios.h>
+#include "extern.h"
 
 /* the Lock file stuff.  Default user is uucp! */
 #ifndef OWNER_LOCKS
@@ -46,8 +47,8 @@
 #define RX_BUFFER_SIZE            128
 #define TX_BUFFER_SIZE            64
 
-u_char irq_source_num[255];	/* Index to map from IRQ no. to serial port */
-u_char com_port_used[17];       /* Used for auto-assign comport config */
+EXTERN u_char irq_source_num[255];	/* Index to map from IRQ no. to serial port */
+EXTERN u_char com_port_used[17];       /* Used for auto-assign comport config */
 
 typedef struct serial_struct {
   				/*   MAIN VARIABLES  */
@@ -119,7 +120,7 @@ typedef struct serial_struct {
 } serial_t;
 
 #define MAX_SER 4
-extern serial_t com[MAX_SER];
+EXTERN serial_t com[MAX_SER];
 extern void int14(u_char);
 extern inline void serial_run(void);
 extern inline int do_serial_in(int, int);

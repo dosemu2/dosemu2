@@ -179,7 +179,7 @@ while getopts "b:s:S:c:C:a:d:i:m:x:o:" OPT; do
     c) CONFSYS=$OPTARG;;
     C) COMCOM=$OPTARG;;
     a) AUTOEXEC=$OPTARG;;
-    d) DOSEMUCONF=$OPTARG;;
+    d) DCONFIG=$OPTARG;;
     i) IOSYS=$OPTARG;;
     m) MSDOS=$OPTARG;;
     x) APPEXE=$OPTARG;;
@@ -196,10 +196,16 @@ done
 if [ $badcase -eq 1 ]; then usage; fi
 
 if [ "$NOAPP" = "0" ]; then
-  APPNAME=`basename $DOSAPP .zip`
-  if [ "$APPNAME" = "$DOSAPP" ]; then
-    echo "the DOS application need to packed into a *.zip file"
-    usage
+  _DOSAPP=`basename $DOSAPP`
+  APPNAME="${_DOSAPP%.zip}"
+  APPTYPE="zip"
+  if [ "$APPNAME" = "$_DOSAPP" ]; then
+    APPNAME="${_DOSAPP%.tgz}"
+    APPTYPE="tgz"
+    if [ "$APPNAME" = "$_DOSAPP" ]; then
+      echo "the DOS application need to packed into a *.zip or *.tgz file"
+      usage
+    fi
   fi
   APP_HDIMAGE="${TARGDIR}/${APPNAME}.dexe"
 
@@ -209,10 +215,6 @@ if [ "$NOAPP" = "0" ]; then
 else
   APP_HDIMAGE="${TARGDIR}/${DOSAPP}"
   APPEXE=""
-fi
-
-if [ "$DCONFIG" = "" ]; then
-  DCONFIG="${MYDIR}/dconfig.default"
 fi
 
 # we make a temp dir
@@ -237,7 +239,14 @@ fi
 #
 mkdir -p ${TMP}/app
 if [ "$NOAPP" = "0" ]; then
-  (cd ${TMP}/app; if ! unzip $DOSAPP; then exit 1; fi)
+  if [ "$APPTYPE" = "zip" ]; then
+    (cd ${TMP}/app; if ! unzip $DOSAPP; then exit 1; fi)
+  else
+    (cd ${TMP}/app; if ! tar -xzf $DOSAPP; then exit 1; fi)
+  fi
+  if [ "$DCONFIG" = "" ]; then
+    DCONFIG="${MYDIR}/dconfig.default"
+  fi
 else
   (cd $COMMANDSDIR; cp -f * ${TMP}/app)
   if [ "$CONFSYS" = "" ]; then CONFSYS="${TMP}/app/config.sys";fi

@@ -56,7 +56,9 @@
 #define SER_DEBUG_FOSSIL_STATUS 0	/* 0 or 1 */
 
 /* For more information about the com[] structure, please see serial.h */
+#if 0
 serial_t com[MAX_SER];
+#endif
 /* 
  * DANG_BEGIN_REMARK
  * 

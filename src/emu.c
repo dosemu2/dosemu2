@@ -557,6 +557,13 @@ leavedos(int sig)
     g_printf("calling mouse_close\n");
     mouse_close();
 
+#ifdef IPX
+    {
+      extern void ipx_close(void);
+      ipx_close();
+    }
+#endif
+
 #ifdef SIG
     g_printf("calling SIG_close\n");
 #endif

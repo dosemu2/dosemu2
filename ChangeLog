@@ -1,3 +1,22 @@
+97/05/31 ver. 0.67.3.4 unofficial pre-release
+				( taking over stuff from final 0.66.5 )
+	From Hans
+	- untill we can detect the availability of static libs, we
+	  re-disable static linkage. ('linkstatic off')
+	From Michael an Reinhard Karcher <kar@dpk.berlin.fido.de>
+	- fix for wrongly placed leave_priv_setting() in ipxglt.c
+	From Christian Kumpf <kumpf@igd.fhg.de>
+	- fixed bug in dexe/mkdexe not proper handling option -d
+	From Hans
+	- changed mkdexe to accept *.tgz
+	- LDFLAGS now '-Wl,-warn-common' to see were we have name clashes
+	- repaired the linker warnings resulting from -warn-common by
+	  - properly useing EXTERN in vga.h, serial.h
+	  - removed multiple definitions of 'serial_t com[MAX_SER];'
+	  - removed overriding 'struct debug_flags d' definition in config.c
+	- fixed IPX not closing sockets on leavedos()
+	  ( gnats report misc/39 from Kees <kees@schoen.nl> )
+	- adapted /proc/meminfo (dpmi/meminfo.c) scanning to Linux-2.1.41
 97/05/24 ver. 0.67.3.3 unofficial pre-release
 	From Alberto
 	- timers.c: reorganized pit_latch

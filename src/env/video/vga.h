@@ -5,13 +5,15 @@
 #ifndef VGA_H
 #define VGA_H
 
-void (*save_ext_regs) (u_char xregs[], u_short xregs16[]);
-void (*restore_ext_regs) (u_char xregs[], u_short xregs16[]);
-void (*set_bank_read) (unsigned char bank);
-void (*set_bank_write) (unsigned char bank);
-void (*ext_video_port_out) (unsigned char value, int port);
+#include "extern.h"
 
-u_char(*ext_video_port_in) (int port);
+EXTERN void (*save_ext_regs) (u_char xregs[], u_short xregs16[]);
+EXTERN void (*restore_ext_regs) (u_char xregs[], u_short xregs16[]);
+EXTERN void (*set_bank_read) (unsigned char bank);
+EXTERN void (*set_bank_write) (unsigned char bank);
+EXTERN void (*ext_video_port_out) (unsigned char value, int port);
+
+EXTERN u_char(*ext_video_port_in) (int port);
 
 int vga_screenoff(void);
 int vga_screenon(void);

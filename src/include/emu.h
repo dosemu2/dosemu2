@@ -266,7 +266,7 @@ extern FILE *dbg_fd;
 
      int set_ioperm(int, int, int);
 
-     EXTERN struct debug_flags d;
+     EXTERN struct debug_flags d INIT({0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0});
      EXTERN u_char in_sighandler, in_ioctl;
 /* one-entry queue ;-( for ioctl's */
 EXTERN struct ioctlq iq INIT({0, 0, 0, 0}); 

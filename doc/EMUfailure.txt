@@ -1,6 +1,6 @@
   EMUfailure.txt
   Uwe Bonnes, bboonn@@eelleekkttrroonn..iikkpp..pphhyyssiikk..tthh--ddaarrmmssttaaddtt..ddee
-  Mar 21, 1997 for dosemu 0.66.0 (and possibly earlier ver-
+  May 30, 1997 for dosemu 0.66.5 (and possibly earlier ver-
   sions)
 
   This file list programs and groups of programms not running or running
@@ -87,9 +87,11 @@
   22..11..  TThhiinnggss YYOOUU mmaayy hheellpp cchhaannggiinngg
 
   This is a list of currently known bugs in Dosemu0.53pl58, currently in
-  the process of adaptation to 0.66.0
+  the process of adaptation to 0.66.5
 
   - Some documentation is known to be well out of date.
+
+  - Sound Card emulation does not work yet
 
   - Some video BIOS will start very slowly with the serial ports
   enabled.
@@ -122,6 +124,7 @@
 
   - There are known problems with xdos (e.g. it may not work at all for
   you.)
+
   - xdos sessions accessed from remote, non-Linux X-sessions (e.g. SUN
   stations and others) may not work correctly.
 

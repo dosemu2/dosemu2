@@ -27,9 +27,11 @@
 #define MAX_MEM_SIZE    640
 
 
+#if 0  /* initialized in data.c (via emu.h) */
 struct debug_flags d =
 {  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 /* d  R  W  D  C  v  X  k  i  T  s  m  #  p  g  c  w  h  I  E  x  M  n  P  r  S */
+#endif
 
 static void     check_for_env_autoexec_or_config(void);
 int     parse_debugflags(const char *s, unsigned char flag);
