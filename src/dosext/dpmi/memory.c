@@ -36,6 +36,8 @@
 #include <sys/param.h>
 #include <errno.h>
 #include "dpmi.h"
+#include "meminfo.h"
+#include "emu-ldt.h"
 #include "pic.h"
 #include "mapping.h"
 #include "smalloc.h"
@@ -125,6 +127,7 @@ void dpmi_memory_init(void)
 {
     int num_pages, mpool_numpages, memsize;
     void *mpool;
+    struct meminfo *mi;
 
     /* Create DPMI pool */
     num_pages = config.dpmi >> 2;
@@ -140,6 +143,37 @@ void dpmi_memory_init(void)
     D_printf("DPMI: mem init, mpool is %d bytes at %p\n", memsize, mpool);
     sminit(&mem_pool, mpool, memsize);
     dpmi_total_memory = num_pages << PAGE_SHIFT;
+
+ /* DANG_FIXTHIS Should we really care for the Memory info? 
+    After the next task switch everything may have changed substantially
+    bon@elektron.ikp.physik.th-darmstadt.de 2/16/97 */
+    mi = readMeminfo();
+    dpmi_free_memory = dpmi_total_memory;
+
+    D_printf("DPMI: dpmi_free_memory available 0x%lx\n",dpmi_free_memory); 
+    
+    ldt_buffer = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
+      PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE, 0);
+    if (ldt_buffer == MAP_FAILED) {
+      error("DPMI: can't allocate memory for ldt_buffer\n");
+      leavedos(2);
+    }
+
+    pm_stack = malloc(DPMI_pm_stack_size);
+    if (pm_stack == NULL) {
+      error("DPMI: can't allocate memory for locked protected mode stack\n");
+      leavedos(2);
+    }
+
+    get_ldt(ldt_buffer);
+    D_printf("Freeing descriptors\n");
+    { int i, dd=debug_level('M'); set_debug_level('M', 0); /* don't be unnecessarily verbose */
+      for (i=0;i<MAX_SELECTORS;i++) {
+	  FreeDescriptor((i << 3) | 7);
+      }
+      set_debug_level('M', dd);
+    }
+    D_printf("Descriptors freed\n");
 }
 
 static int SetAttribsForPage(char *ptr, us attr, us old_attr)

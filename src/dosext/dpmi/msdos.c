@@ -172,6 +172,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	if (_LWORD(eax) == 0x1684) {
 	    D_printf("DPMI: Get VxD entry point BX = 0x%04x\n",
 		     _LWORD(ebx));
+#if 1
 	    switch (_LWORD(ebx)) {
 		case 0x01:
 		    D_printf("DPMI: VMM VxD entry point requested\n");
@@ -245,6 +246,11 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		    /* no entry point */
 		    _es = _edi = 0;
 	    }
+#else
+	    D_printf("DPMI: ERROR: Unsupported VxD\n");
+	    /* no entry point */
+	    _es = _edi = 0;
+#endif
 	    return MSDOS_DONE;
 	}
 	return 0;

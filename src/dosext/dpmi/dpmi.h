@@ -69,6 +69,7 @@
 int modify_ldt(int func, void *ptr, unsigned long bytecount);
 #define LDT_WRITE 0x11
 #endif
+void direct_ldt_write(int offset, int length, char *buffer);
 
 /* this is used like: SEL_ADR(_ss, _esp) */
 #define SEL_ADR(seg, reg) \
@@ -187,6 +188,7 @@ extern SEGDESC Segments[];
 /* used to store the dpmi client registers */
 extern RealModeCallBack mouseCallBack; /* user\'s mouse routine */
 extern char *ldt_buffer;
+extern char *pm_stack;
 
 void dpmi_get_entry_point(void);
 void indirect_dpmi_switch(struct sigcontext_struct *);
@@ -253,5 +255,6 @@ extern void FreeSegRegs(struct sigcontext_struct *scp, unsigned short selector);
 extern void dpmi_memory_init(void);
 extern int lookup_realmode_callback(char *lina, int *num);
 extern void dpmi_realmode_callback(int rmcb_client, int num);
+extern int get_ldt(void *buffer);
 
 #endif /* DPMI_H */

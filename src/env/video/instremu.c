@@ -49,6 +49,7 @@
 #include "emu.h"
 #include "vgaemu.h"
 #include "dpmi.h"
+#include "emu-ldt.h"
 #include "cpu.h"
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -464,6 +465,10 @@ void instr_write_byte(unsigned addr, unsigned char u)
     count = COUNT;
     Logical_VGA_write(addr - vga_base, u);
   }
+  else if (ldt_buffer && addr >= (int)ldt_buffer &&
+      addr < (int)ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
+    direct_ldt_write(addr - (int)ldt_buffer, 1, (char*)&u);
+  }
   else {
     *(unsigned char *) addr = u;
   }
@@ -486,6 +491,10 @@ void instr_write_word(unsigned dst, unsigned u)
     dst -= vga_base;
     Logical_VGA_write(dst, R_LO(u));
     Logical_VGA_write(dst+1, R_HI(u));
+  }
+  else if (ldt_buffer && dst >= (int)ldt_buffer &&
+      dst < (int)ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
+    direct_ldt_write(dst - (int)ldt_buffer, 2, (char*)&u);
   }
   else
     *(unsigned short *) dst = u;
@@ -511,6 +520,10 @@ void instr_write_dword(unsigned dst, unsigned u)
     Logical_VGA_write(dst+1, R_HI(u));
     Logical_VGA_write(dst+2, ((unsigned char *) &u)[2]);
     Logical_VGA_write(dst+3, ((unsigned char *) &u)[3]);
+  }
+  else if (ldt_buffer && dst >= (int)ldt_buffer &&
+      dst < (int)ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
+    direct_ldt_write(dst - (int)ldt_buffer, 4, (char*)&u);
   }
   else 
     *(unsigned *) dst = u;

@@ -118,9 +118,10 @@ struct sigcontext_struct DPMI_pm_stack[DPMI_max_rec_pm_func];
 int DPMI_pm_procedure_running = 0;
 
 char *ldt_buffer=0;
-unsigned short KSPACE_LDT_ALIAS = 0;
+/* Let Windows to use some descriptors by directly accessing LDT */
+#define WINDOWS_DESCRIPTORS_START 0x1000
 
-static char *pm_stack; /* locked protected mode stack */
+char *pm_stack; /* locked protected mode stack */
 static int in_dpmi_pm_stack = 0; /* locked protected mode stack in use */
 
 struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
@@ -153,7 +154,7 @@ static inline int modify_ldt(int func, void *ptr, unsigned long bytecount)
 }
 #endif
 
-static inline int get_ldt(void *buffer)
+int get_ldt(void *buffer)
 {
 #ifdef __linux__
 #ifdef X86_EMULATOR
@@ -212,11 +213,20 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
       contents == 0 && read_only_flag == 1 &&
       seg_32bit_flag == 0 && limit_in_pages_flag == 0 &&
       seg_not_present == 1 && useable == 0) {
+        if (in_win31)
+          mprotect_mapping(MAPPING_DPMI, ldt_buffer,
+            PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE);
 	*lp = 0;
 	*(lp+1) = 0;
+        if (in_win31)
+          mprotect_mapping(MAPPING_DPMI, ldt_buffer,
+            PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ);
 	return 0;
   }
 #ifdef __linux__
+  if (in_win31)
+    mprotect_mapping(MAPPING_DPMI, ldt_buffer,
+      PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE);
   *lp =     ((ldt_info.base_addr & 0x0000ffff) << 16) |
             (ldt_info.limit & 0x0ffff);
   *(lp+1) = (ldt_info.base_addr & 0xff000000) |
@@ -229,6 +239,9 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
             ((ldt_info.seg_not_present ^1) << 15) |
             (ldt_info.useable << 20) |
             0x7000;
+  if (in_win31)
+    mprotect_mapping(MAPPING_DPMI, ldt_buffer,
+      PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ);
 #endif
   return 0;
 }
@@ -590,8 +603,9 @@ int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int l
       D_printf("DPMI: set_ldt_entry() failed\n");
       return -1;
     }
-    D_printf("DPMI: SetSelector: 0x%04x base=0x%lx limit=0x%x big=%i type=%hhi\n",
-      selector, base_addr, limit, is_big, type);
+    D_printf("DPMI: SetSelector: 0x%04x base=0x%lx "
+      "limit=0x%x big=%hhi type=%hhi np=%hhi\n",
+      selector, base_addr, limit, is_big, type, seg_not_present);
   }
   Segments[ldt_entry].base_addr = base_addr;
   Segments[ldt_entry].limit = limit;
@@ -675,10 +689,8 @@ static unsigned short AllocateDescriptorsFrom(int first_ldt, int number_of_descr
 
 unsigned short AllocateDescriptors(int number_of_descriptors)
 {
-  unsigned short selector;
   /* first 0x10 descriptors are reserved */
-  selector = AllocateDescriptorsFrom(0x10, number_of_descriptors);
-  return selector;
+  return AllocateDescriptorsFrom(0x10, number_of_descriptors);
 }
 
 void FreeSegRegs(struct sigcontext_struct *scp, unsigned short selector)
@@ -1012,7 +1024,13 @@ static void GetDescriptor(us selector, unsigned long *lp)
   unsigned char *type_ptr = ((unsigned char *)(&ldt_buffer[selector & 0xfff8])) + 5;
   if (typebyte != *type_ptr) {
 	D_printf("DPMI: change type only in local selector\n");
+        if (in_win31)
+	  mprotect_mapping(MAPPING_DPMI, ldt_buffer,
+	    PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE);
 	*type_ptr=typebyte;
+        if (in_win31)
+	  mprotect_mapping(MAPPING_DPMI, ldt_buffer,
+	    PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ);
   }
 #endif  
   memcpy(lp, &ldt_buffer[selector & 0xfff8], 8);
@@ -1036,7 +1054,40 @@ static int SetDescriptor(unsigned short selector, unsigned long *lp)
 			(*lp >> 23) & 1, ((*lp >> 15) & 1) ^1, (*lp >> 20) & 1);
 }
 
-static  void GetFreeMemoryInformation(unsigned int *lp)
+void direct_ldt_write(int offset, int length, char *buffer)
+{
+  int ldt_entry = offset / LDT_ENTRY_SIZE;
+  int ldt_offs = offset % LDT_ENTRY_SIZE;
+  int selector = (ldt_entry << 3) | 7;
+  char lp[LDT_ENTRY_SIZE];
+  int i;
+  D_printf(DPMI_show_state(&DPMI_CLIENT.stack_frame));
+  D_printf("Direct LDT write, offs=%#x len=%i en=%#x off=%i\n",
+    offset, length, ldt_entry, ldt_offs);
+  for (i = 0; i < length; i++)
+    D_printf("0x%02hhx ", buffer[i]);
+  D_printf("\n");
+  if (!Segments[ldt_entry].used)
+    selector = AllocateDescriptorsAt(selector, 1);
+  if (!selector) {
+    error("Descriptor allocation at %#x failed\n", ldt_entry);
+    return;
+  }
+  memcpy(lp, &ldt_buffer[ldt_entry*LDT_ENTRY_SIZE], LDT_ENTRY_SIZE);
+  memcpy(lp + ldt_offs, buffer, length);
+  SetDescriptor(selector, (unsigned long *)lp);
+#if 1
+  mprotect_mapping(MAPPING_DPMI,
+    (void *)(((unsigned long)&ldt_buffer[ldt_entry*LDT_ENTRY_SIZE]) & PAGE_MASK),
+    PAGE_ALIGN(LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE);
+  memcpy(&ldt_buffer[ldt_entry*LDT_ENTRY_SIZE], lp, LDT_ENTRY_SIZE);
+  mprotect_mapping(MAPPING_DPMI,
+    (void *)(((unsigned long)&ldt_buffer[ldt_entry*LDT_ENTRY_SIZE]) & PAGE_MASK),
+    PAGE_ALIGN(LDT_ENTRY_SIZE), PROT_READ);
+#endif
+}
+
+static void GetFreeMemoryInformation(unsigned int *lp)
 {
   struct meminfo *mi = readMeminfo();
 
@@ -1325,10 +1376,23 @@ static void do_int31(struct sigcontext_struct *scp)
 
   _eflags &= ~CF;
   switch (_LWORD(eax)) {
-  case 0x0000:
-    if (!(_LWORD(eax) = AllocateDescriptors(_LWORD(ecx)))) {
-      _LWORD(eax) = 0x8011;
-      _eflags |= CF;
+  case 0x0000: {
+      int selector;
+      if (in_win31 == 2) {
+        selector = AllocateDescriptorsFrom(WINDOWS_DESCRIPTORS_START, _LWORD(ecx));
+	in_win31 = 1;
+        D_printf("Windows asks for descriptors available for LDT write. sel=0x%x\n",
+	  selector);
+      } else {
+        /* Normal allocation */
+        selector = AllocateDescriptors(_LWORD(ecx));
+      }
+      if (!selector) {
+        _LWORD(eax) = 0x8011;
+        _eflags |= CF;
+      } else {
+       _LWORD(eax) = selector;
+      }
     }
     break;
   case 0x0001:
@@ -2182,21 +2246,19 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
   /* we must free ldt_buffer here, because FreeDescriptor() will */
   /* modify ldt_buffer */
   if (in_dpmi==1) {
-    if (ldt_buffer) free(ldt_buffer);
-    ldt_buffer = NULL;
-    if (pm_stack) free(pm_stack);
-    pm_stack = NULL;
     if(in_dpmi_pm_stack) {
       error("DPMI: Warning: trying to leave DPMI when in_dpmi_pm_stack=%i\n",
         in_dpmi_pm_stack);
     }
     in_dpmi_pm_stack = 0;
+    in_win31 = 0;
+    mprotect_mapping(MAPPING_DPMI, ldt_buffer,
+      PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE);
   }
   free(DPMI_CLIENT.pm_block_root);
   cli_blacklisted = 0;
   in_dpmi_dos_int = 1;
   in_dpmi--;
-  in_win31 = 0;
   if(pic_icount) {
     D_printf("DPMI: Warning: trying to leave DPMI when pic_icount=%i\n",
 	pic_icount);
@@ -2439,61 +2501,11 @@ static void dpmi_init(void)
 
   DPMI_CLIENT.is_32 = LWORD(eax) ? 1 : 0;
 
-  if(in_dpmi == 1) {
-    struct meminfo *mi;
-
-#ifdef X86_EMULATOR
-    FLUSH_TREE;
-#endif
-
- /* DANG_FIXTHIS Should we really care for the Memory info? 
-    After the next task switch everything may have changed substantially
-    bon@elektron.ikp.physik.th-darmstadt.de 2/16/97 */
-    mi = readMeminfo();
+  if (in_dpmi == 1) {
     dpmi_free_memory = dpmi_total_memory;
-
-    D_printf("DPMI: dpmi_free_memory available 0x%lx\n",dpmi_free_memory); 
-    
     DPMI_rm_procedure_running = 0;
-
-    ldt_buffer = malloc(LDT_ENTRIES*LDT_ENTRY_SIZE);
-    if (ldt_buffer == NULL) {
-      error("DPMI: can't allocate memory for ldt_buffer\n");
-      goto err;
-    }
-
-    pm_stack = malloc(DPMI_pm_stack_size);
-    if (pm_stack == NULL) {
-      error("DPMI: can't allocate memory for locked protected mode stack\n");
-      free(ldt_buffer);
-      ldt_buffer = NULL;
-      goto err;
-    }
-
-    D_printf("Freeing descriptors\n");
-    { int dd=debug_level('M'); set_debug_level('M', 0); /* don't be unnecessarily verbose */
-      for (i=0;i<MAX_SELECTORS;i++) {
-	  FreeDescriptor((i << 3) | 7);
-      }
-      set_debug_level('M', dd);
-    }
-    D_printf("Descriptors freed\n");
-
-#if 0
-    /* all selectors are used */
-    memset(ldt_buffer,0xff,LDT_ENTRIES*LDT_ENTRY_SIZE);
-#else
-    /* Note: when get_ldt() is called _before_ any descriptor allocation
-     * (e.g. when no modify_ldt(WRITE, ...) was called), then we get
-     * _not_ the whole LDT, but only the DEFAULT static one.
-     * So better to clear the ldt_buffer with ZERO
-     */
-    memset(ldt_buffer,0,LDT_ENTRIES*LDT_ENTRY_SIZE);
-#endif
-    get_ldt(ldt_buffer);
-    flush_log();
-
     pm_block_handle_used = 1;
+    in_win31 = 0;
   }
 
   DPMI_CLIENT.private_data_segment = REG(es);
@@ -2518,7 +2530,7 @@ static void dpmi_init(void)
     /* If we dont inherit IDT, we have to create a new aliases! */
     if (!(DPMI_CLIENT.LDT_ALIAS = AllocateDescriptors(1))) goto err;
     if (SetSelector(DPMI_CLIENT.LDT_ALIAS, (unsigned long) ldt_buffer, MAX_SELECTORS*LDT_ENTRY_SIZE-1, DPMI_CLIENT.is_32,
-                  MODIFY_LDT_CONTENTS_DATA, 1, 0, 0, 0)) goto err;
+                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
     
     if (!(DPMI_CLIENT.PMSTACK_SEL = AllocateDescriptors(1))) goto err;
     if (SetSelector(DPMI_CLIENT.PMSTACK_SEL, (unsigned long) pm_stack, DPMI_pm_stack_size-1, DPMI_CLIENT.is_32,
@@ -2648,7 +2660,6 @@ static void dpmi_init(void)
      behind our back */
   SETIVEC(0x23, BIOSSEG, INT_OFF(0x68));
 
-  in_win31 = 0;
   in_dpmi_dos_int = 0;
   if(pic_icount) {
     D_printf("DPMI: Warning: trying to enter DPMI when pic_icount=%i\n",
@@ -3129,7 +3140,9 @@ void dpmi_fault(struct sigcontext_struct *scp)
           if (_LWORD(eax) == 0x0100) {
             _eax = DPMI_CLIENT.LDT_ALIAS;  /* simulate direct ldt access */
 	    _eflags &= ~CF;
-	    in_win31 = 1;
+	    in_win31 = 2;
+	    mprotect_mapping(MAPPING_DPMI, ldt_buffer,
+	      PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ);
 	  } else
             _eflags |= CF;
 
@@ -3613,6 +3626,12 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  );
 	return;
 #endif
+      }
+    } else if (_trapno == 0x0e) {
+      if (_cr2 >= (int)ldt_buffer && _cr2 < (int)ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
+	copy_context(&DPMI_CLIENT.stack_frame, scp);
+	instr_emu(scp, 1, 1);
+	return;
       }
     }
     do_cpu_exception(scp);

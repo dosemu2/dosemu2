@@ -106,7 +106,6 @@ static void mhp_bclog   (int, char *[]);
 static void print_log_breakpoints(void);
 
 static unsigned int lookup(unsigned char *, unsigned int *, unsigned int *);
-static inline int get_ldt(void *);
 
 /* static data */
 static unsigned int linmode = 0;
@@ -241,11 +240,6 @@ static int mhp_addaxlist_value(int v)
     return 1;
   }
   return 0;
-}
-
-static inline int get_ldt(void *buffer)
-{
-  return modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
 }
 
 static unsigned char * getname(unsigned int addr)
