@@ -2427,7 +2427,7 @@ static int undefine_config_variable(char *name)
 
 static void die(char *reason)
 {
-  error("ERROR: par dead: %s\n", reason);
+  error("par dead: %s\n", reason);
   leavedos(0);
 }
 

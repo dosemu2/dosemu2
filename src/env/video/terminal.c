@@ -79,7 +79,7 @@ static int Columns = 80;
 
 static void sl_exit_error (char *err)
 {
-   error ("ERROR: %s\n", err);
+   error("%s\n", err);
    leavedos (32);
 }
 
@@ -283,7 +283,7 @@ v_write(int fd, unsigned char *ch, int len)
   if (!config.console_video && !config.usesX)
     DOS_SYSCALL(write(fd, ch, len));
   else
-    error("ERROR: (video) v_write deferred for console_video\n");
+    error("(video) v_write deferred for console_video\n");
 }
 
 static char *Help[] = 

@@ -307,7 +307,7 @@ open_terminal_pipe(char *path)
     leave_priv_setting();
     if (terminal_fd == -1) {
 	terminal_pipe = 0;
-	error("ERROR: open_terminal_pipe failed - cannot open %s!\n", path);
+	error("open_terminal_pipe failed - cannot open %s!\n", path);
 	return;
     } else
 	terminal_pipe = 1;
@@ -319,7 +319,7 @@ open_Xkeyboard_pipe(char *path)
     keypipe = DOS_SYSCALL(open(path, O_RDWR));
     if (keypipe == -1) {
 	keypipe = 0;
-	error("ERROR: open_Xkeyboard_pipe failed - cannot open %s!\n", path);
+	error("open_Xkeyboard_pipe failed - cannot open %s!\n", path);
 	return;
     }
     return;
@@ -331,7 +331,7 @@ open_Xmouse_pipe(char *path)
     mousepipe = DOS_SYSCALL(open(path, O_RDWR));
     if (mousepipe == -1) {
 	mousepipe = 0;
-	error("ERROR: open_Xmouse_pipe failed - cannot open %s!\n", path);
+	error("open_Xmouse_pipe failed - cannot open %s!\n", path);
 	return;
     }
     return;
@@ -559,7 +559,7 @@ config_init(int argc, char **argv)
 	    if (terminal_fd == -1) {
 		open_terminal_pipe(optarg);
 	    } else
-		error("ERROR: terminal pipe already open\n");
+		error("terminal pipe already open\n");
 	    break;
 	case 'V':
 	    g_printf("Configuring as VGA video card & mapped ROM\n");

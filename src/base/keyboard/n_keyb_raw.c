@@ -147,7 +147,7 @@ int raw_keyboard_init(void)
   if (config.usesX) {
      kbd_fd = dup(keypipe);
      if (kbd_fd < 0) {
-        error("KBD(raw): ERROR: Couldn't duplicate keypipe !\n");
+        error("KBD(raw): Couldn't duplicate keypipe !\n");
         return FALSE;
      }
   }
@@ -157,7 +157,7 @@ int raw_keyboard_init(void)
   }
       
   if (tcgetattr(kbd_fd, &save_termios) < 0) {
-    error("KBD(raw): ERROR: Couldn't tcgetattr(kbd_fd,...) !\n");
+    error("KBD(raw): Couldn't tcgetattr(kbd_fd,...) !\n");
     memset(&save_termios, 0, sizeof(save_termios));
     return FALSE;
   }

@@ -181,7 +181,7 @@ io_select(fd_set fds)
       break;
 
     case -1:			/* error (not EINTR) */
-      error("ERROR: bad io_select: %s\n", strerror(errno));
+      error("bad io_select: %s\n", strerror(errno));
       break;
 
     default:			/* has at least 1 descriptor ready */

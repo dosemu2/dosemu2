@@ -183,7 +183,7 @@ boot(void)
 	dp = &disktab[1];
 	break;
     default:
-	error("ERROR: unexpected value for config.hdiskboot\n");
+	error("unexpected value for config.hdiskboot\n");
 	leavedos(15);
     }
 
@@ -199,11 +199,11 @@ boot(void)
         d_printf ("Booting from bootfile=%s...\n",dp->boot_name);
         bfd = open (dp->boot_name, O_RDONLY);
         if (bfd == -1) {/* Abort with error */
-            error("ERROR: Boot file %s missing\n",dp->boot_name);
+            error("Boot file %s missing\n",dp->boot_name);
             leavedos(16);
         }
         if (read(bfd, buffer, SECTOR_SIZE) != SECTOR_SIZE) {
-            error("ERROR: Failed to read exactly %d bytes from %s\n",
+            error("Failed to read exactly %d bytes from %s\n",
                   SECTOR_SIZE, dp->boot_name);
             leavedos(16);
         }
@@ -213,14 +213,14 @@ boot(void)
     if (dp->type == PARTITION) {/* we boot partition boot record, not MBR! */
 	d_printf("Booting partition boot record from part=%s....\n", dp->dev_name);
 	if (RPT_SYSCALL(read(dp->fdesc, buffer, SECTOR_SIZE)) != SECTOR_SIZE) {
-	    error("ERROR: reading partition boot sector using partition %s.\n", dp->dev_name);
+	    error("reading partition boot sector using partition %s.\n", dp->dev_name);
 	    leavedos(16);
 	}
     } else if (read_sectors(dp, buffer, 0, 0, 0, 1) != SECTOR_SIZE) {
-	error("ERROR: can't boot from %s, using harddisk\n", dp->dev_name);
+	error("can't boot from %s, using harddisk\n", dp->dev_name);
 	dp = hdisktab;
 	if (read_sectors(dp, buffer, 0, 0, 0, 1) != SECTOR_SIZE) {
-	    error("ERROR: can't boot from hard disk\n");
+	    error("can't boot from hard disk\n");
 	    leavedos(16);
 	}
     }
@@ -521,7 +521,7 @@ ign_sigs(int sig)
 #define LEAVEDOS_TIMEOUT (3 * config.freq)
 #define LEAVEDOS_SIGOUT  5
     if ((timerints >= LEAVEDOS_TIMEOUT) || (otherints >= LEAVEDOS_SIGOUT)) {
-	error("ERROR: timed/signalled out in leavedos()\n");
+	error("timed/signalled out in leavedos()\n");
 	exit(1);
     }
 }

@@ -752,11 +752,11 @@ init_drive(int dd, char *path, char *options)
     dos_root_len = 1;
     dos_root = "/";
     if (!find_file(dos_roots[dd], &st)) {
-      error("MFS ERROR: couldn't find root path %s\n", dos_roots[dd]);
+      error("MFS: couldn't find root path %s\n", dos_roots[dd]);
       return (0);
     }
     if (!(st.st_mode & S_IFDIR)) {
-      error("MFS ERROR: root path is not a directory %s\n", dos_roots[dd]);
+      error("MFS: root path is not a directory %s\n", dos_roots[dd]);
       return (0);
     }
     dos_roots[dd][dos_root_lens[dd] - 1] = '/';

@@ -70,7 +70,7 @@ int17(u_char ii)
     break;
 
   default:
-    error("ERROR: printer int17 bad call ax=0x%x\n", LWORD(eax));
+    error("printer int17 bad call ax=0x%x\n", LWORD(eax));
     show_regs(__FILE__, __LINE__);
     /* fatalerr = 8; */
     return;
@@ -145,7 +145,7 @@ printer_flush(int prnum)
     returnstat = system(cmdbuf);
 
     if ((returnstat == -1) || (WIFEXITED(returnstat) == 127))
-      error("ERROR: system(\"%s\") in lpt.c failed, cannot print!\
+      error("system(\"%s\") in lpt.c failed, cannot print!\
   Command returned error %s\n", cmdbuf, strerror(errno));
 
     truncate(lpt[prnum].dev, 0);

@@ -1,3 +1,10 @@
+97/11/07 ver. 0.67.15 released
+	From Alberto
+	- replace all error("ERROR...) with error("...), because ERROR is
+	  already prefixed in function error().
+	From Hans
+	- fixed 'error()' such that 'error("@xyz...")' will print _without_
+	  prefixing 'ERROR:'. (print_exception_info() was printing wrong).
 97/11/07 ver. 0.67.14.2 unofficial pre-release
 	From Alberto
 	- make USING_NET a configuration option

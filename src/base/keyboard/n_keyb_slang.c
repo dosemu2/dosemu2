@@ -842,7 +842,7 @@ int slang_keyb_init(void) {
   fcntl(kbd_fd, F_SETFL, O_RDONLY | O_NONBLOCK);
    
   if (tcgetattr(kbd_fd, &save_termios) < 0) {
-    error("ERROR: slang_keyb_init(): Couldn't tcgetattr(kbd_fd,...) !\n");
+    error("slang_keyb_init(): Couldn't tcgetattr(kbd_fd,...) !\n");
     leavedos(66);
   }
 
@@ -861,10 +861,10 @@ int slang_keyb_init(void) {
   cfgetospeed(&buf);
 #endif
   if (tcsetattr(kbd_fd, TCSANOW, &buf) < 0) {
-    error("ERROR: slang_keyb_init(): Couldn't tcsetattr(kbd_fd,TCSANOW,...) !\n");
+    error("slang_keyb_init(): Couldn't tcsetattr(kbd_fd,TCSANOW,...) !\n");
   }
   if (-1 == init_slang_keymaps()) {
-    error("ERROR: Unable to initialize S-Lang keymaps.\n");
+    error("Unable to initialize S-Lang keymaps.\n");
     leavedos(31);
   }
 
@@ -883,7 +883,7 @@ int slang_keyb_init(void) {
 
 void slang_keyb_close(void)  {
    if (tcsetattr(kbd_fd, TCSAFLUSH, &save_termios) == -1) {
-      error("ERROR: slang_keyb_close(): failed to restore keyboard termios settings!\n");
+      error("slang_keyb_close(): failed to restore keyboard termios settings!\n");
    }
    if (save_kbd_flags != -1) {
       fcntl(kbd_fd, F_SETFL, save_kbd_flags);

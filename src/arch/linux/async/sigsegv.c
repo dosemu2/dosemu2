@@ -224,7 +224,7 @@ int signal, int code, struct sigcontext *scp
       default:	
 sgleave:
 #if 0
-		 error("ERROR: unexpected CPU exception 0x%02lx errorcode: 0x%08lx while in vm86()\n"
+		 error("unexpected CPU exception 0x%02lx errorcode: 0x%08lx while in vm86()\n"
 	  	"eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%lx\n"
 	  	"cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n", _trapno,
 		_err,
@@ -233,7 +233,7 @@ sgleave:
 
 		 print_exception_info(scp);
 #else
-		 error("ERROR: unexpected CPU exception 0x%02lx errorcode: 0x%08lx while in vm86 (DOS)\n",
+		 error("unexpected CPU exception 0x%02lx errorcode: 0x%08lx while in vm86 (DOS)\n",
 	  	 _trapno, _err);
 		{
 		  extern FILE *dbg_fd;
@@ -299,7 +299,7 @@ sgleave:
 #else
   {
 #endif /* 0 */
-    error("ERROR: cpu exception in dosemu code outside of VM86()!\n"
+    error("cpu exception in dosemu code outside of VM86()!\n"
 	  "trapno: 0x%02lx  errorcode: 0x%08lx  cr2: 0x%08lx\n"
 	  "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n"
 	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n",
@@ -384,45 +384,45 @@ void print_exception_info(struct sigcontext_struct *scp)
   switch(_trapno)
     {
     case 0:
-      error("Division by zero\n");
+      error("@Division by zero\n");
       break;
 
 
     case 1:
-      error("Debug exception\n");
+      error("@Debug exception\n");
       break;
 
 
     case 3:
-      error("Breakpoint exception (caused by INT 3 instruction)\n");
+      error("@Breakpoint exception (caused by INT 3 instruction)\n");
       break;
 
 
     case 4:
-      error("Overflow exception (caused by INTO instruction)\n");
+      error("@Overflow exception (caused by INTO instruction)\n");
       break;
 
 
     case 5:
-      error("Bound exception (caused by BOUND instruction)\n");
+      error("@Bound exception (caused by BOUND instruction)\n");
       break;
 
 
     case 6:
-      error("Invalid opcode\n");
-      error("Opcodes: ");
+      error("@Invalid opcode\n");
+      error("@Opcodes: ");
       csp = (unsigned char *) _eip - 10;
       for (i = 0; i < 10; i++)
-	error("%02x ", *csp++);
-      error("-> ");
+	error("@%02x ", *csp++);
+      error("@-> ");
       for (i = 0; i < 10; i++)
-	error("%02x ", *csp++);
-      error("\n");    
+	error("@%02x ", *csp++);
+      error("@\n");    
       break;
 
 
     case 7:
-      error("Coprocessor exception (coprocessor not available)\n");
+      error("@Coprocessor exception (coprocessor not available)\n");
       /* I'd like to print some info on the EM, MP, and TS flags in CR0,
        * but I don't know where I can get that information :-(
        * Anyway, this exception should not happen... (Erik Mouw)
@@ -431,102 +431,102 @@ void print_exception_info(struct sigcontext_struct *scp)
 
 
     case 8:
-      error("Double fault\n");
+      error("@Double fault\n");
       break;
 
 
     case 9:
-      error("Coprocessor segment overflow\n");
+      error("@Coprocessor segment overflow\n");
       break;
 
 
     case 0xa:
-      error("Invalid TSS\n");
+      error("@Invalid TSS\n");
       if(_err && 0x02)
-	error("IDT");
+	error("@IDT");
       else if(_err && 0x04)
-	error("LDT");
+	error("@LDT");
       else
-	error("GDT");
+	error("@GDT");
 
-      error(" selector: 0x%04x\n", ((_err >> 3) && 0x1fff ));
+      error("@ selector: 0x%04x\n", ((_err >> 3) && 0x1fff ));
 
       if(_err && 0x01)
-	error("Exception was not caused by DOSEMU\n");
+	error("@Exception was not caused by DOSEMU\n");
       else
-	error("Exception was caused by DOSEMU\n");
+	error("@Exception was caused by DOSEMU\n");
       break;
 
 
     case 0xb:
-      error("Segment not available\n");
+      error("@Segment not available\n");
       /* This is the same code as case 0x0a; the compiler merges these
        * blocks, so I don't have to edit some dirty constructions to
        * generate one block of code. (Erik Mouw)
        */
       if(_err && 0x02)
-	error("IDT");
+	error("@IDT");
       else if(_err && 0x04)
-	error("LDT");
+	error("@LDT");
       else
-	error("GDT");
+	error("@GDT");
 
-      error(" selector: 0x%04x\n", ((_err >> 3) && 0x1fff ));
+      error("@ selector: 0x%04x\n", ((_err >> 3) && 0x1fff ));
 
       if(_err && 0x01)
-	error("Exception was not caused by DOSEMU\n");
+	error("@Exception was not caused by DOSEMU\n");
       else
-	error("Exception was caused by DOSEMU\n");
+	error("@Exception was caused by DOSEMU\n");
       break;
 
 
     case 0xc:
-      error("Stack exception\n");
+      error("@Stack exception\n");
       break;
 
 
     case 0xd:
-      error("General protection exception\n");
+      error("@General protection exception\n");
       /* This is the same code as case 0x0a; the compiler merges these
        * blocks, so I don't have to edit some dirty constructions to
        * generate one block of code. (Erik Mouw)
        */
       if(_err && 0x02)
-	error("IDT");
+	error("@IDT");
       else if(_err && 0x04)
-	error("LDT");
+	error("@LDT");
       else
-	error("GDT");
+	error("@GDT");
 
-      error(" selector: 0x%04x\n", ((_err >> 3) && 0x1fff ));
+      error("@ selector: 0x%04x\n", ((_err >> 3) && 0x1fff ));
 
       if(_err && 0x01)
-	error("Exception was not caused by DOSEMU\n");
+	error("@Exception was not caused by DOSEMU\n");
       else
-	error("Exception was caused by DOSEMU\n");
+	error("@Exception was caused by DOSEMU\n");
       break;
 
 
     case 0xe:
-      error("Page fault: ");
+      error("@Page fault: ");
       if(_err && 0x02)
-	error("write");
+	error("@write");
       else
-	error("read");
+	error("@read");
 
-      error(" instruction to linear address: 0x%08lx\n", _cr2);
+      error("@ instruction to linear address: 0x%08lx\n", _cr2);
 
-      error("CPU was in ");
+      error("@CPU was in ");
       if(_err && 0x04)
-	error("user mode\n");
+	error("@user mode\n");
       else
-	error("supervisor mode\n");
+	error("@supervisor mode\n");
 
-      error("Exception was caused by ");
+      error("@Exception was caused by ");
       if(_err && 0x01)
-	error("insufficient privelege\n");
+	error("@insufficient privelege\n");
       else
-	error("non-available page\n");
+	error("@non-available page\n");
       break;
 
    case 0x10:
@@ -534,7 +534,7 @@ void print_exception_info(struct sigcontext_struct *scp)
       break;
 
     default:
-      error("Unknown exception\n");
+      error("@Unknown exception\n");
       break;
     }
 }

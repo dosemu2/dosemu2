@@ -554,7 +554,7 @@ sigquit(int sig)
   in_vm86 = 0;
   in_sighandler = 1;
 
-  error("ERROR: sigquit called\n");
+  error("sigquit called\n");
   show_ints(0, 0x33);
   show_regs(__FILE__, __LINE__);
 

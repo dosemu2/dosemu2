@@ -135,10 +135,16 @@ void error(const char *fmt, ...)
 	va_list args;
 	char fmtbuf[1025];
 
-	sprintf(fmtbuf, "ERROR: %s", fmt);
 	va_start(args, fmt);
-	vlog_printf(10, fmtbuf, args);
-	vfprintf(stderr, fmtbuf, args);
+	if (fmt[0] == '@') {
+		vlog_printf(10, fmt+1, args);
+		vfprintf(stderr, fmt+1, args);
+	}
+	else {
+		sprintf(fmtbuf, "ERROR: %s", fmt);
+		vlog_printf(10, fmtbuf, args);
+		vfprintf(stderr, fmtbuf, args);
+	}
 	va_end(args);
 }
 

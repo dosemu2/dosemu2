@@ -1053,7 +1053,7 @@ insert_into_keybuffer (void)
       if (InsKeyboard (very_next_scancode))
 	dump_kbuffer ();
       else
-	error ("ERROR: InsKeyboard could not put key into buffer!\n");
+	error ("InsKeyboard could not put key into buffer!\n");
       very_next_scancode=0;
     }
 
@@ -1063,7 +1063,7 @@ insert_into_keybuffer (void)
       if (InsKeyboard (next_scancode))
 	dump_kbuffer ();
       else
-	error ("ERROR: InsKeyboard could not put key into buffer!\n");
+	error ("InsKeyboard could not put key into buffer!\n");
     }
 }
 void

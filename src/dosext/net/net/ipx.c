@@ -1068,7 +1068,7 @@ IPXRelinquishControl(void)
     break;
 
   case -1:			/* error (not EINTR) */
-    error("ERROR: bad ipc_select: %s\n", strerror(errno));
+    error("bad ipc_select: %s\n", strerror(errno));
     break;
 
   default:			/* has at least 1 descriptor ready */

@@ -385,7 +385,7 @@ wait_vc_active (void)
     {
       if (errno != EINTR)
 		{
-			error ("ERROR: VT_WAITACTIVE for %d gave %d: %s\n", scr_state.console_no,
+			error("VT_WAITACTIVE for %d gave %d: %s\n", scr_state.console_no,
 			     errno, strerror (errno));
 	    }
       return -1;
@@ -534,7 +534,7 @@ get_video_ram (int waitflag)
 
       if ((long) graph_mem < 0)
 	{
-	  error ("ERROR: mmap error in get_video_ram (text): %x, errno %d\n",
+	  error("mmap error in get_video_ram (text): %x, errno %d\n",
 		 (Bit32u)graph_mem, errno);
 	  return;
 	}
@@ -671,7 +671,7 @@ open_kmem (void)
   leave_priv_setting();
   if (mem_fd < 0)
     {
-      error ("ERROR: can't open /dev/mem: errno=%d, %s \n",
+      error("can't open /dev/mem: errno=%d, %s \n",
 	     errno, strerror (errno));
       leavedos (0);
       return;

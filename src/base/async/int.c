@@ -221,7 +221,7 @@ static int dos_helper(void)
 
     i_printf("I/O perms: 0x%04x 0x%04x %d\n", LWORD(ebx), LWORD(ecx), cflag);
     if (set_ioperm(LWORD(ebx), LWORD(ecx), cflag)) {
-      error("ERROR: SET_IOPERMS request failed!!\n");
+      error("SET_IOPERMS request failed!!\n");
       CARRY;			/* failure */
     } else {
       if (cflag)
@@ -246,7 +246,7 @@ static int dos_helper(void)
       unsigned long sp;
 
       if (!config.mapped_bios) {
-	error("ERROR: CAN'T DO VIDEO INIT, BIOS NOT MAPPED!\n");
+	error("CAN'T DO VIDEO INIT, BIOS NOT MAPPED!\n");
 	return 1;
       }
       if (set_ioperm(0x3b0, 0x3db - 0x3b0, 1))
@@ -502,7 +502,7 @@ static int dos_helper(void)
 
 
   default:
-    error("ERROR: bad dos helper function: AX=0x%04x\n", LWORD(eax));
+    error("bad dos helper function: AX=0x%04x\n", LWORD(eax));
     return 0;
   }
 
@@ -974,7 +974,7 @@ static int ms_dos(int nr)
       return 1;
       break;
     }
-  error("ERROR: dos_ioctl shouldn't get here. XXX\n");
+  error("dos_ioctl shouldn't get here. XXX\n");
   return 0;
 #endif
 

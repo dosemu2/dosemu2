@@ -319,7 +319,7 @@ static inline void map_hardware_ram(void)
       size = (i - j) << 12;
       if (mmap((caddr_t) addr, (size_t) size, PROT_READ | PROT_WRITE, 
 	       MAP_SHARED | MAP_FIXED, mem_fd, addr) == (caddr_t) -1) {
-	error("ERROR: mmap error in map_hardware_ram %s\n", strerror (errno));
+	error("mmap error in map_hardware_ram %s\n", strerror (errno));
 	close_kmem();
 	return;
       }
@@ -531,16 +531,16 @@ void device_init(void)
   check_console();
 
   if (!keyb_server_init()) {
-    error("ERROR: can't init keyboard server\n");
+    error("can't init keyboard server\n");
     leavedos(19);
   }
   if (!keyb_client_init()) {
-    error("ERROR: can't open keyboard client\n");
+    error("can't open keyboard client\n");
     leavedos(19);
   }
 #else
   if (keyboard_init() != 0) {
-    error("ERROR: can't open keyboard\n");
+    error("can't open keyboard\n");
     leavedos(19);
   }
   keyboard_flags_init();

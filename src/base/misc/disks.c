@@ -115,7 +115,7 @@ read_sectors(struct disk *dp, char *buffer, long head, long sector,
     int mbrcount, mbrinc;
 
     if (dp->type != PARTITION) {
-      error("ERROR: negative offset on non-partition disk type\n");
+      error("negative offset on non-partition disk type\n");
       return -DERR_NOTFOUND;
     }
 
@@ -136,7 +136,7 @@ read_sectors(struct disk *dp, char *buffer, long head, long sector,
        * the dest. buffer?  No matter, I guess.
        */
     if ((mbroff + mbrcount) > dp->part_info.mbr_size) {
-      error("ERROR: %s writing in the forbidden fake partition zone!\n",
+      error("%s writing in the forbidden fake partition zone!\n",
 	    dp->dev_name);
       mbrcount = dp->part_info.mbr_size - mbroff;
     }
@@ -176,7 +176,7 @@ read_sectors(struct disk *dp, char *buffer, long head, long sector,
 #else
   if (pos != lseek(dp->fdesc, pos, SEEK_SET)) {
 #endif
-    error("ERROR: Sector not found in read_sector, error = %s!\n",
+    error("Sector not found in read_sector, error = %s!\n",
 	  strerror(errno));
     return -DERR_NOTFOUND;
   }
@@ -229,7 +229,7 @@ write_sectors(struct disk *dp, char *buffer, long head, long sector,
 #else
   if (pos != lseek(dp->fdesc, pos, SEEK_SET)) {
 #endif
-    error("ERROR: Sector not found in write_sector!\n");
+    error("Sector not found in write_sector!\n");
     return -DERR_NOTFOUND;
   }
 
@@ -279,13 +279,13 @@ image_auto(struct disk *dp)
   lseek(dp->fdesc, 0, SEEK_SET);/* Use lseek here, as nobody want
 				   > 2^^31 bytes for the image file */
   if (RPT_SYSCALL(read(dp->fdesc, header, HEADER_SIZE)) != HEADER_SIZE) {
-    error("ERROR: could not read full header in image_init\n");
+    error("could not read full header in image_init\n");
     leavedos(19);
   }
 
   if (strncmp(header, IMAGE_MAGIC, IMAGE_MAGIC_SIZE)
 		&& (*((long *)header) != DEXE_MAGIC) ) {
-    error("ERROR: IMAGE %s header lacks magic string - cannot autosense!\n",
+    error("IMAGE %s header lacks magic string - cannot autosense!\n",
 	  dp->dev_name);
     leavedos(20);
   }
@@ -309,7 +309,7 @@ hdisk_auto(struct disk *dp)
 
   if (ioctl(dp->fdesc, DIOCGDINFO, &label) != 0 ||
       fstat(dp->fdesc, &stb) != 0) {
-      error("ERROR: can't fstat %s: %s\n", dp->dev_name,
+      error("can't fstat %s: %s\n", dp->dev_name,
 	    strerror(errno));
       leavedos(21);
   } else {
@@ -325,7 +325,7 @@ hdisk_auto(struct disk *dp)
   struct hd_geometry geo;
 
   if (ioctl(dp->fdesc, HDIO_GETGEO, &geo) < 0) {
-    error("ERROR: can't get GEO of %s: %s\n", dp->dev_name,
+    error("can't get GEO of %s: %s\n", dp->dev_name,
 	  strerror(errno));
     leavedos(21);
   }
@@ -381,7 +381,7 @@ partition_setup(struct disk *dp)
   part_fd = DOS_SYSCALL(open(hd_name, O_RDONLY));
   leave_priv_setting();
   if (part_fd == -1) {
-    error("ERROR: opening device %s to read MBR for PARTITION %s\n",
+    error("opening device %s to read MBR for PARTITION %s\n",
 	  hd_name, dp->dev_name);
     leavedos(22);
   }
@@ -471,7 +471,7 @@ set_part_ent(struct disk *dp, char *tmp_mbr)
 
   if (ioctl(dp->fdesc, DIOCGDINFO, &label) != 0 ||
       fstat(dp->fdesc, &stb) != 0) {
-      error("ERROR: can't fstat %s: %s\n", dp->dev_name,
+      error("can't fstat %s: %s\n", dp->dev_name,
 	    strerror(errno));
       leavedos(21);
   } else
@@ -479,7 +479,7 @@ set_part_ent(struct disk *dp, char *tmp_mbr)
 #endif
 #ifdef __linux__
   if (ioctl(dp->fdesc, BLKGETSIZE, &length)) {
-    error("ERROR: calling ioctl BLKGETSIZE for PARTITION %s\n", dp->dev_name);
+    error("calling ioctl BLKGETSIZE for PARTITION %s\n", dp->dev_name);
     leavedos(22);
   }
 #endif
@@ -576,7 +576,7 @@ disk_open(struct disk *dp)
       dp->tracks = 0;
       return;
     }
-    error("ERROR: can't get floppy parameter of %s (%s)\n", dp->dev_name, strerror(err));
+    error("can't get floppy parameter of %s (%s)\n", dp->dev_name, strerror(err));
     fatalerr = 5;
     return;
   }
@@ -667,7 +667,7 @@ disk_open(struct disk *dp)
       dp->tracks = 0;
       return;
     }
-    error("ERROR: can't get floppy parameter of %s (%s)\n", dp->dev_name, sys_errlist[errno]);
+    error("can't get floppy parameter of %s (%s)\n", dp->dev_name, sys_errlist[errno]);
     fatalerr = 5;
     return;
   }
@@ -737,14 +737,14 @@ disk_init(void)
         bootdisk.fdesc = open(bootdisk.dev_name, O_RDONLY, 0);
         leave_priv_setting();
         if (bootdisk.fdesc < 0) {
-          error("ERROR: can't open bootdisk %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
+          error("can't open bootdisk %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
           leavedos(23);
         } else {
           bootdisk.rdonly = 1;
           d_printf("(disk) can't open bootdisk %s for read/write. Readonly did work though\n", bootdisk.dev_name);
         }
       } else {
-        error("ERROR: can't open bootdisk %s: %sn", dp->dev_name, strerror(errno));
+        error("can't open bootdisk %s: %sn", dp->dev_name, strerror(errno));
         leavedos(23);
       }
     else bootdisk.rdonly = bootdisk.wantrdonly;
@@ -752,7 +752,7 @@ disk_init(void)
   }
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
     if (stat(dp->dev_name, &stbuf) < 0) {
-      error("ERROR: can't stat %s\n", dp->dev_name);
+      error("can't stat %s\n", dp->dev_name);
       leavedos(24);
     }
     if (S_ISBLK(stbuf.st_mode))
@@ -786,14 +786,14 @@ disk_init(void)
         dp->fdesc = open(dp->dev_name, O_RDONLY, 0);
         leave_priv_setting();
         if (dp->fdesc < 0) {
-          error("ERROR: can't open %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
+          error("can't open %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
           leavedos(25);
         } else {
           dp->rdonly = 1;
           d_printf("(disk) can't open %s for read/write. Readonly did work though\n", dp->dev_name);
         }
       } else {
-        error("ERROR: can't open %s: %s\n", dp->dev_name, strerror(errno));
+        error("can't open %s: %s\n", dp->dev_name, strerror(errno));
         leavedos(25);
       }
     else dp->rdonly = dp->wantrdonly;
@@ -818,14 +818,14 @@ disk_init(void)
         dp->fdesc = open(dp->dev_name, O_RDONLY, 0);
         leave_priv_setting();
         if (dp->fdesc < 0) {
-          error("ERROR: can't open %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
+          error("can't open %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
           leavedos(26);
         } else {
           dp->rdonly = 1;
           d_printf("(disk) can't open %s for read/write. Readonly did work though\n", dp->dev_name);
         }
       } else {
-        error("ERROR: can't open %s: #%d - %s\n", dp->dev_name, errno, strerror(errno));
+        error("can't open %s: #%d - %s\n", dp->dev_name, errno, strerror(errno));
         leavedos(26);
       }
     }
@@ -851,7 +851,7 @@ disk_init(void)
      */
 #ifdef SILLY_GET_GEOMETRY
     if (RPT_SYSCALL(read(dp->fdesc, buf, 512)) != 512) {
-      error("ERROR: can't read disk info of %s\n", dp->dev_name);
+      error("can't read disk info of %s\n", dp->dev_name);
       leavedos(27);
     }
 
@@ -882,7 +882,7 @@ disk_init(void)
 	     *(unsigned long *) &buf[39], label);
 
     if (s % (dp->sectors * dp->heads) != 0) {
-      error("ERROR: incorrect track number of %s\n", dp->dev_name);
+      error("incorrect track number of %s\n", dp->dev_name);
       /* leavedos(28); */
     }
 #endif
@@ -967,7 +967,7 @@ int13(u_char i)
 
     if (checkdp(dp) || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
-      error("ERROR: Sector not found 1!\n");
+      error("Sector not found 1!\n");
       d_printf("DISK %d read [h:%d,s:%d,t:%d](%d)->%p\n",
 	       disk, head, sect, track, number, (void *) buffer);
       if (dp) {
@@ -991,7 +991,7 @@ int13(u_char i)
       break;
     }
     else if (res & 511) {	/* must read multiple of 512 bytes */
-      error("ERROR: sector_corrupt 1, return = %d!\n", res);
+      error("sector_corrupt 1, return = %d!\n", res);
       HI(ax) = DERR_BADSEC;	/* sector corrrupt */
       CARRY;
       break;
@@ -1017,7 +1017,7 @@ int13(u_char i)
 
     if (checkdp(dp) || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
-      error("ERROR: Sector not found 3!\n");
+      error("Sector not found 3!\n");
       show_regs(__FILE__, __LINE__);
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
@@ -1025,7 +1025,7 @@ int13(u_char i)
     }
 
     if (dp->rdonly) {
-      error("ERROR: write protect!\n");
+      error("write protect!\n");
       show_regs(__FILE__, __LINE__);
       if (dp->removeable)
 	HI(ax) = DERR_WP;
@@ -1046,7 +1046,7 @@ int13(u_char i)
       break;
     }
     else if (res & 511) {	/* must write multiple of 512 bytes */
-      error("ERROR: Write sector corrupt 2 (wrong size)!\n");
+      error("Write sector corrupt 2 (wrong size)!\n");
       HI(ax) = DERR_BADSEC;
       CARRY;
       break;
@@ -1073,7 +1073,7 @@ int13(u_char i)
 	sect >= dp->sectors || track >= dp->tracks) {
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
-      error("ERROR: test: sector not found 5\n");
+      error("test: sector not found 5\n");
       dbug_printf("hds: %d, sec: %d, tks: %d\n",
 		  dp->heads, dp->sectors, dp->tracks);
       break;
@@ -1093,7 +1093,7 @@ int13(u_char i)
 #endif
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
-      error("ERROR: test: sector not found 6\n");
+      error("test: sector not found 6\n");
       break;
     }
 #if 0
@@ -1101,7 +1101,7 @@ int13(u_char i)
     if (res & 0x1ff) {		/* must read multiple of 512 bytes  and res != -1 */
       HI(ax) = DERR_BADSEC;
       REG(eflags) |= CF;
-      error("ERROR: test: sector corrupt 3\n");
+      error("test: sector corrupt 3\n");
       break;
     }
     LWORD(eax) = res >> 9;
@@ -1240,7 +1240,7 @@ int13(u_char i)
 	NOCARRY;
       }
       else {
-	error("ERROR: gettype: no disk %d\n", disk);
+	error("gettype: no disk %d\n", disk);
 	HI(ax) = 0;		/* disk not there */
 	REG(eflags) |= CF;	/* error */
       }
@@ -1303,7 +1303,7 @@ int13(u_char i)
     NOCARRY;
     break;
   default:
-    error("ERROR: disk error, unknown command: int13, ax=0x%x\n",
+    error("disk error, unknown command: int13, ax=0x%x\n",
 	  LWORD(eax));
     show_regs(__FILE__, __LINE__);
     CARRY;

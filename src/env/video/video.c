@@ -279,7 +279,7 @@ gettermcap(int i)
   }
 
   if (li == 0 || co == 0) {
-    error("ERROR: unknown window sizes li=%d  co=%d, setting to 80x25\n", li, co);
+    error("unknown window sizes li=%d  co=%d, setting to 80x25\n", li, co);
     li = LI;
     co = CO;
   }

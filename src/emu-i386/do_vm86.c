@@ -125,12 +125,12 @@ void vm86_GP_fault(void)
 #endif
 
   if (ignore_segv) {
-    error("ERROR: sigsegv ignored!\n");
+    error("sigsegv ignored!\n");
     return;
   }
 
   if (in_sigsegv)
-    error("ERROR: in_sigsegv=%d!\n", in_sigsegv);
+    error("in_sigsegv=%d!\n", in_sigsegv);
 
   /* in_vm86 = 0; */
   in_sigsegv++;
@@ -471,7 +471,7 @@ op0ferr:
     error("general protection at %p: %x\n", lina,*lina);
     show_regs(__FILE__, __LINE__);
     show_ints(0, 0x33);
-    error("ERROR: SIGSEGV, protected insn...exiting!\n");
+    error("SIGSEGV, protected insn...exiting!\n");
     fatalerr = 4;
     leavedos(fatalerr);		/* shouldn't return */
   }				/* end of switch() */

@@ -660,7 +660,7 @@ void init_vga_card(void)
 #endif
 
   if (!config.mapped_bios) {
-    error("ERROR: CAN'T DO VIDEO INIT, BIOS NOT MAPPED!\n");
+    error("CAN'T DO VIDEO INIT, BIOS NOT MAPPED!\n");
     return;
   }
   if (set_ioperm(0x3b0, 0x3db - 0x3b0, 1))

@@ -348,7 +348,7 @@ keyboard_init(void)
 	set_raw_mode();
     }
     if (-1 == init_slang_keymaps()) {
-	error("ERROR: Unable to initialize S-Lang keymaps.\n");
+	error("Unable to initialize S-Lang keymaps.\n");
 	leavedos(31);
     }
     dbug_printf("TERMIO: $Header: /usr/src/dosemu0.60/keyboard/RCS/keyboard-client.c,v 1.1 1995/04/08 22:34:30 root Exp $\n");
