@@ -13,7 +13,7 @@
 mkdir -p $HOME/.dosemu/tmp
 TEMP=$HOME/.dosemu/tmp/$0.$$
 
-clean-up() {
+clean_up() {
     rm -f $TEMP
     exit 0
 }
@@ -21,11 +21,11 @@ clean-up() {
 if [ "@$DOSEMUFROM" != "@" ]
 then
     echo $DOSEMUFROM
-    clean-up
+    clean_up
 elif [ "@$SKIMFROM" != "@" ]
 then
     echo $SKIMFROM
-    clean-up
+    clean_up
 else
     # Do it the hard way!
 
@@ -42,7 +42,7 @@ else
     if ( grep "^reply-to" $HOME/.pinerc > $TEMP 2> /dev/null )
     then
 	echo `cut -c10- $TEMP`
-	clean-up
+	clean_up
     fi
 
     if ( grep "^user-domain" $HOME/.pinerc > $TEMP 2> /dev/null )
@@ -56,5 +56,5 @@ else
     fi
 
     echo "$MYSELF@$HOSTNAME"
-    clean-up
+    clean_up
 fi

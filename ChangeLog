@@ -1,3 +1,17 @@
+98/11/21 ver. 0.99.3.4 unofficial pre-release
+	From Shawn Pringle <pringle@uvic.ca>
+	- small fix to global.conf ($_X_winsize typo)
+	From Fabrice Bellet <Fabrice.Bellet@imag.fr>
+	- small fix to global.conf (/dev/sda1 matching /dev/sda11)
+	From Alistair
+	- fix for gnats (gnats/get-email.sh, setup/parse-menu-sh)
+	- better doc for _usage_ of sound within DOSEMU
+	  (doc/sound-usage.txt)
+	From Hans
+	- tried to fix a problem with base-configure not setting
+	  proper X11 libpath under certain conditions.
+	- added some missing chipsets to the docs and setup-dosemu
+	- some fixes to dosemu.spec (copied keymap twice to rpm)
 98/11/20 ver. 0.99.3.3 unofficial pre-release
 	From Alberto
 	- added floppy parameter table to the BIOS, just for compatibility

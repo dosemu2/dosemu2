@@ -56,14 +56,15 @@ cp -p ./etc/dosemu.users.easy $RPM_BUILD_ROOT/etc
 cp -p ./etc/dosemu.users.secure $RPM_BUILD_ROOT/etc
 (cd $RPM_BUILD_ROOT/etc; ln -sf dosemu.users.easy dosemu.users)
 ( cd $RPM_BUILD_ROOT; \
-  find ./var/lib/dosemu -type d | sed -e 's|\./|%dir /|'; \
+  find ./var/lib/dosemu -type d | sed -e 's|\./|%dir /|' | grep -v 'etc/keymap'; \
   find ./etc -type f | sed -e 's|\./|%config /|'; \
   find ./etc -type l | sed -e 's|\./|%config /|'; \
   find ./ -name global.conf | sed -e 's|\./|%config /|'; \
   find ./usr/bin -type f | sed -e 's|\./|/|'; \
   find ./usr/bin -type l | sed -e 's|\./|/|'; \
   find ./usr -type f | sed -e 's|\./|/|' | grep -v '/usr/bin'; \
-  find ./var/lib/dosemu -type f | sed -e 's|\./|/|' | grep -v global.conf; \
+  find ./var/lib/dosemu -type f | sed -e 's|\./|/|' \
+       | awk '!(/etc\/keymap/ || /global.conf/){print}'; \
 ) > dosemu.files
 
  

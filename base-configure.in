@@ -262,7 +262,11 @@ dnl All the X2 specs
 
 dnl the -u forces the X11 shared library to be linked into ./dos
 
+  if test "$XLIBSWD" != ""; then
     x_libraries=`echo $XLIBSWD | sed 's/^-L//'`
+  else
+    x_libraries=/usr/X11R6/lib
+  fi
     if test "$ELF" != "" ; then
 #      XLIBSWL="-lX11"
       XLIBSWD="-Wl,-rpath,$x_libraries -L$x_libraries"

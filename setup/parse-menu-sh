@@ -3,7 +3,7 @@
 #
 
 function write_start () {
-  print "start() { handle_" start_name " }"
+  print "start() { handle_" start_name "; }"
 }
 
 function write_menu_function_header () {

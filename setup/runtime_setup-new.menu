@@ -146,6 +146,7 @@ menu "Video Bios Details" {
 menu "Video Chipset" {
   description "Select the chipset in your video card:"
   list chipset {
+    "PlainVGA" plainvga
     "Trident" trident
     "Diamond" diamond
     "ET4000" et4000
@@ -155,6 +156,7 @@ menu "Video Chipset" {
     "Western Digital" wdvga
     "Paradise" paradise
     "Matrox" matrox
+    "Ati" ati
     "Other" *
   }
 }

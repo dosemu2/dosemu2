@@ -494,8 +494,8 @@ however, you get better results, if your card has one of the DOSEMU supported
 video chips and you tell DOSEMU to use it such as
 
 <tscreen><verb>
-  $_chipset = "s3"        # one of: plainvga, trident, et4000, diamond,
-                          # avance, cirrus, matrox, wdvga, paradise
+  $_chipset = "s3"        # one of: plainvga, trident, et4000, diamond, s3,
+                          # avance, cirrus, matrox, wdvga, paradise, ati
 </verb></tscreen>
 
 Note, `s3' is only an example, you <em/must/ set the correct video chip

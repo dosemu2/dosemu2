@@ -4,7 +4,7 @@
 # for details see file COPYING in the DOSEMU distribution
 #
 DOCSOURCES := README.sgml README-tech.sgml bugreports.sgml \
-	configuration.sgml
+	configuration.sgml sound-usage.sgml
 TXT = $(DOCSOURCES:.sgml=.txt)
 TEX = $(DOCSOURCES:.sgml=.tex)
 HTML = $(DOCSOURCES:.sgml=.html)
