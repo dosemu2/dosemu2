@@ -66,11 +66,10 @@ static int have_working_sigaltstack;
 #endif
 
 #ifndef SA_ONSTACK
-#define SA_ONSTACK 0
+#define SA_ONSTACK 0x08000000
 #undef HAVE_SIGALTSTACK
 #endif
 
-#ifdef __linux__
 /*
  * Thomas Winder <thomas.winder@sea.ericsson.se> wrote:
  * glibc-2 uses a different struct sigaction type than the one used in
@@ -82,31 +81,44 @@ static int have_working_sigaltstack;
  * handling signals occuring when dpmi is active, which eventually
  * segfaults the program.
  */
+
+struct kernel_sigaction {
+  __sighandler_t kernel_sa_handler;
+  unsigned long sa_mask;
+  unsigned long sa_flags;
+  void (*sa_restorer)(void);
+};
+
 static int
 dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
 {
-  struct my_sigaction {
-    __sighandler_t my_sa_handler;
-    unsigned long sa_mask;
-    unsigned long sa_flags;
-    void (*sa_restorer)(void);
-  };
+  struct kernel_sigaction my_sa;
 
-  struct my_sigaction my_sa;
-
-  my_sa.my_sa_handler = new->sa_handler;
+  my_sa.kernel_sa_handler = new->sa_handler;
   my_sa.sa_mask = *((unsigned long *) &(new->sa_mask));
   my_sa.sa_flags = new->sa_flags;
   my_sa.sa_restorer = new->sa_restorer;
 
   return(syscall(SYS_sigaction, sig, &my_sa, NULL));
 }
-#endif /* __linux__ */
+
+/* This function is a hack to make sure gs is restored in signal
+   handlers for LinuxThreads (non-NPTL) libraries that use gs */
+static void (*pthreads_sighandler)(int);
+void dosemu_gs_sighandler(int);
+void dosemu_gs_sighandler_fn(void);
+void dosemu_gs_sighandler_fn(void)
+{
+  asm volatile ("dosemu_gs_sighandler:\n");
+  restore_eflags_fs_gs();
+  asm volatile ("jmp *pthreads_sighandler\n");
+}
 
 static void
 dosemu_sigaction_wrapper(int sig, void *fun, int flags)
 {
   struct sigaction sa;
+  struct kernel_sigaction kernel_sa;
 
   sa.sa_handler = (__sighandler_t)fun;
   sa.sa_flags = flags;
@@ -125,6 +137,20 @@ dosemu_sigaction_wrapper(int sig, void *fun, int flags)
   }
 
   sigaction(sig, &sa, NULL);
+
+  /* what follows is the hack to get the pthread signal wrapper to
+     obtain the correct gs value (if gs is used at all) */
+  if (_emu_stack_frame.gs == 0)
+    return;
+  /* using a pthread library that uses gs */
+  syscall(SYS_sigaction, sig, NULL, &kernel_sa);
+  /* no wrapper: no problem */
+  if (kernel_sa.kernel_sa_handler == sa.sa_handler)
+    return;
+
+  pthreads_sighandler = kernel_sa.kernel_sa_handler;
+  kernel_sa.kernel_sa_handler = dosemu_gs_sighandler;
+  syscall(SYS_sigaction, sig, &kernel_sa, NULL);
 }
 
 /* DANG_BEGIN_FUNCTION NEWSETQSIG

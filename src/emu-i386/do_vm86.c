@@ -412,6 +412,9 @@ run_vm86(void)
     retval = DO_VM86(&vm86s);
     in_vm86 = 0;
 
+    /* kernel 2.4 doesn't preserve GS -- and it doesn't hurt to restore here */
+    restore_eflags_fs_gs();
+
   if (in_dpmi) {
     /* This is completely wrong, but that's how it was in dpmi.c,
      * so leave for now */
