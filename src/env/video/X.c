@@ -1481,7 +1481,7 @@ static void toggle_fullscreen_mode(void)
       }
       force_grab = 1;
     }
-    X_vidmode(w_x_res, w_y_res, &resize_width, &resize_height);
+    X_vidmode(x_res, y_res, &resize_width, &resize_height);
     mainwindow = fullscreenwindow;
     gc = fullscreengc;
     XCopyGC(display, normalgc, -1, gc);
@@ -2293,7 +2293,7 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
   x_fill = w_x_res;
   y_fill = w_y_res;
   if (mainwindow == fullscreenwindow)
-    X_vidmode(w_x_res, w_y_res, &x_fill, &y_fill);
+    X_vidmode(x_res, y_res, &x_fill, &y_fill);
 
   XResizeWindow(display, mainwindow, x_fill, y_fill);
   X_printf("Resizing our window to %dx%d image\n", x_fill, y_fill);
