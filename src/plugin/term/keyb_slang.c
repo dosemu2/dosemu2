@@ -23,6 +23,11 @@
 #include "env_term.h"
 #include "translate.h"
 
+#if SLANG_VERSION < 20000
+#define SLang_set_error(x) (SLang_Error = (x))
+#define SLang_get_error() SLang_Error
+#endif
+
 #ifndef VOID
 #  define VOID void
 #endif
@@ -679,7 +684,7 @@ static int define_key(const unsigned char *key, unsigned long scan,
 		return -1;
 	}
 
-	if (SLang_Error) {
+	if (SLang_get_error()) {
 		k_printf("Current slang error skipping string %s\n", key);
 		return -1;
 	}
@@ -739,9 +744,9 @@ static int define_key(const unsigned char *key, unsigned long scan,
 	ret = SLang_define_key1((unsigned char *)key, (VOID *) scan, SLKEY_F_INTRINSIC, m);
 	if (ret == -2) {  /* Conflicting key error, ignore it */
 		k_printf("KBD: Conflicting key: \n\n");
-		SLang_Error = 0;
+		SLang_set_error(0);
 	}
-	if (SLang_Error) {
+	if (SLang_get_error()) {
 		fprintf(stderr, "Bad key: %s\n", key);
 		return -1;
 	}
@@ -885,7 +890,7 @@ static int init_slang_keymaps(void)
   /* And more Dosemu keys */
 	define_keyset(Dosemu_Ctrl_keys, m);
 	
-	if (SLang_Error)
+	if (SLang_get_error())
 		return -1;
 
 	/*
@@ -914,12 +919,12 @@ static int init_slang_keymaps(void)
 	buf[3] = keyb_state.Esc_Char;
 	buf[4] = 0;
 	SLang_define_key1(buf, (VOID *) esc_scan, SLKEY_F_INTRINSIC, m);
-	if (SLang_Error)
+	if (SLang_get_error())
 		return -1;
 	
 	/* Note: define_keys_by_character comes last or we could never define functions keys. . . */
 	define_remaining_characters(m);
-	if (SLang_Error)
+	if (SLang_get_error())
 		return -1;
 	
 	return 0;
@@ -1372,7 +1377,7 @@ static void do_slang_getkeys(void)
 		keyb_state.KeyNot_Ready = 0;
 
 		key = SLang_do_key(keyb_state.The_Normal_KeyMap, getkey_callback);
-		SLang_Error = 0;
+		SLang_set_error(0);
 		
 		if (keyb_state.KeyNot_Ready) {
 			if ((keyb_state.Keystr_Len == 1) && (*keyb_state.kbp == 27)) {

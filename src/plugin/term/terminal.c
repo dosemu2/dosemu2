@@ -89,6 +89,7 @@ static int slang_update (void);
 
 static int Slsmg_is_not_initialized = 1;
 static int Use_IBM_Codes = 0;
+static int Use_utf8 = 0;
 
 /* I think this is what is assumed. */
 static int Rows = 25;
@@ -135,7 +136,7 @@ static void set_char_set (void)
 	struct mbchar *mbc;
         char *term = getenv("TERM");
 
-	if ( term && strncmp(term, "linux", 5) == 0 && MB_CUR_MAX == 1 &&
+	if ( term && strncmp(term, "linux", 5) == 0 && !Use_utf8 &&
 	     strstr( "cp437", trconfig.video_mem_charset->names[0] ) ) {
 		Use_IBM_Codes = 1;
 		/* The following turns on the IBM character set mode of virtual console
@@ -154,7 +155,7 @@ static void set_char_set (void)
 	/* Build the translate tables */
 	v_printf("mapping internal characters to terminal characters:\n");
 	for(i= 0, mbc = The_Charset; i <= 0xff; i++, mbc++) {
-		unsigned char buff[MB_CUR_MAX + 1];
+		unsigned char buff[MB_LEN_MAX + 1];
 		t_unicode uni;
 		size_t result;
 
@@ -226,6 +227,16 @@ static void sigwinch(int sig)
   gettermcap(sig);
 }
 
+#if SLANG_VERSION < 20000 
+/* replacement function to deal with old slangs */
+static int SLutf8_enable(int mode)
+{
+  if (mode != -1)
+    return mode;
+  return MB_CUR_MAX > 1;
+}
+#endif
+
 /* The following initializes the terminal.  This should be called at the
  * startup of DOSEMU if it's running in terminal mode.
  */ 
@@ -294,13 +305,19 @@ static int terminal_initialize(void)
    register_text_system(&Text_term);
    vga_emu_setmode(video_mode, Columns, Rows);
 
+#if SLANG_VERSION < 20000 
    SLtt_Use_Blink_For_ACS = 1;
+#endif
    SLtt_Blink_Mode = 1;
    
    SLtt_Use_Ansi_Colors = is_color;
    
    if (is_color) Attribute_Map = Color_Attribute_Map;
    else Attribute_Map = BW_Attribute_Map;
+
+   Use_utf8 = SLutf8_enable(
+	strstr("utf8", trconfig.output_charset->names[0]) ? 1 :
+	strstr("default", trconfig.output_charset->names[0]) ? -1 : 0);
 
 #if SLANG_VERSION < 10000
    if (!SLsmg_init_smg ())
