@@ -255,7 +255,7 @@ static int preprocess(FILE *f, FILE *fo)
     return 1;
   }
 
-  inline _fputc(char c) {
+  inline void _fputc(char c) {
     fputc(c,fo);
     if (copy) {
       cb[cbuf_i++] = c;
@@ -391,7 +391,7 @@ static int usage()
   exit(1);
 }
 
-main (int argc, char** argv)
+int main (int argc, char** argv)
 {
   if (argc <= 1) usage();
 

@@ -575,7 +575,7 @@ run_vm86(void)
 /* @@@ MOVE_END @@@ 49152 */
 
 
-static callback_level = 0;
+static int callback_level = 0;
 
 static void callback_return(void)
 {

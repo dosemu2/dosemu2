@@ -1,3 +1,23 @@
+99/05/21 ver. 0.99.11.2 unofficial pre-release
+	From Alberto
+	- Make several int15 functions that deal with protected mode
+	  dependent on config.dpmi. int.c (INT15)
+	- avoid reentrancy in log_printf (coming from async signals)
+	- removed 'void*' from address comparison in mouse.c
+	- print 'secure off' warning to DOS console instead to Dprintf()
+	  (writing DOS console additionally to the logs), dpmi.c
+	- return to dosemu_code dependent on IF in dpmi_eflags;
+	  this was the original way. Assuming that 'it helps returning
+	  anyway' implies 'in winos2', added test to do it. I have seen no
+	  side effects, and this helps the mouse under cpuemu.
+	- make leavedos really leave also when called recursively.
+	- lot of cpuemu changes, involved files: base/async/int.c,
+	  emu-i386/intp32/{cpu-emu.c,emu-ldt.c,Makefile}
+	  emu-i386/intp32/twin/intp32/{emu-utils.c,fp87.c,hsw_interp.h,
+	  internal.h,interp_16_32.c,interp_32_16.c,interp_32_32.c,
+	  interp_main.c,interp_modrm.c}, emu.c, include/cpu-emu.h
+	- some typo/syntax fixes (pic/pic.c, dpmi/dpmi.h, do_vm86.c
+	  tools/tools86.c)
 99/05/21 ver. 0.99.11.1 unofficial pre-release
 	From Alberto
 	- fixed bug in mouse.c checking linaddr instaed of DOSish address

@@ -115,7 +115,7 @@ int SetSegreg(unsigned char **lp, unsigned char *big, unsigned long csel)
 	return 0;
 }
 
-
+/* not (yet) used */
 void ValidateAddr(unsigned char *addr, unsigned short sel)
 {
 	unsigned char *base;
@@ -137,6 +137,37 @@ void ValidateAddr(unsigned char *addr, unsigned short sel)
 	    dbug_printf("selector %#x not present\n",sel);
 	}
 	FatalAppExit(0,"PROT");
+}
+
+
+int hsw_verr(unsigned short sel)
+{
+	WORD wFlags;
+	if (VM86F) return -1;	/* maybe error */
+	if ((sel & 7) == 7) {	/* LDT, CPL==3 for the moment */
+	/* test for present && CPL>=DPL && readable */
+	    wFlags = GetSelectorFlags(sel);
+	    if (wFlags & DF_PRESENT) {
+		if (!(wFlags & DF_CODE) || (wFlags & DF_CREADABLE))
+		    return 1;
+	    }
+	}
+	return 0;	/* not ok, ZF->0 */
+}
+
+int hsw_verw(unsigned short sel)
+{
+	WORD wFlags;
+	if (VM86F) return -1;	/* maybe error */
+	if ((sel & 7) == 7) {	/* LDT, CPL==3 for the moment */
+	/* test for present && CPL>=DPL && writeable */
+	    wFlags = GetSelectorFlags(sel);
+	    if (wFlags & DF_PRESENT) {
+		if (!(wFlags & DF_CODE) || (wFlags & DF_DWRITEABLE))
+		    return 1;
+	    }
+	}
+	return 0;	/* not ok, ZF->0 */
 }
 
 

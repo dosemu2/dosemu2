@@ -52,16 +52,17 @@ changes for use with dosemu-0.99 1998/12/13 vignani@tin.it
 #ifndef _MSC_VER
 #include <sys/time.h>
 #endif
-/*
-#include "bitops.h"
-#include "port.h"
-#include "Log.h"
-*/
 #include "hsw_interp.h"
 #include "mod_rm.h"
 
 /* ======================== global cpuemu variables =================== */
 BOOL data32=0, code32=0;
+BYTE *ea_;
+DWORD eav_;
+#ifndef DOSEMU
+Interp_VAR	interp_variables;
+extern void	INT_handler(int, void *);	/* sorry - can't use ENV */
+#endif
 /* ==================================================================== */
 
 extern long instr_count;
@@ -177,17 +178,9 @@ invoke_data (Interp_ENV *envp)
     FatalAppExit(0,buf);
 }
 
-#ifdef EMU_GLOBAL_VAR
-extern Interp_ENV dosemu_env;
-#define	env		(&dosemu_env)
 BYTE *
-  hsw_interp_16_16 (register Interp_ENV *env1, BYTE *P0,
-	register BYTE *_PC, int *err, int cycmax)
-#else
-BYTE *
-  hsw_interp_16_16 (register Interp_ENV *env, BYTE *P0,
-	register BYTE *_PC, int *err, int cycmax)
-#endif
+  hsw_interp_16_16 (Interp_ENV *env, BYTE *P0, register BYTE *_PC,
+  int *err, int cycmax)
 {
     BYTE *mem_ref;
     WORD atmp;
@@ -203,8 +196,6 @@ next_switch:
       if ((cycmax--) <= 0) return(PC);	/* no error, we're going back to 32/32 */
     }
     else {
-      OVERRIDE = INVALID_OVR;
-      P0 = PC;
       if (CEmuStat & (CeS_TRAP|CeS_DRTRAP|CeS_SIGPEND|CeS_LOCK)) {
 	if (CEmuStat & CeS_LOCK)
 	    CEmuStat &= ~CeS_LOCK;
@@ -218,7 +209,7 @@ next_switch:
 	    else if (CEmuStat & CeS_DRTRAP) {
 	      if (e_debug_check(PC)) { *err = EXCP01_SSTP; return(PC); }
 	    }
-	    else if (CEmuStat & CeS_SIGPEND) {
+	    else if ((env->flags & INTERRUPT_FLAG) && (CEmuStat & CeS_SIGPEND)) {
 	      /* force exit after signal */
 	      CEmuStat = (CEmuStat & ~CeS_SIGPEND) | CeS_SIGACT;
 	      *err=EXCP_SIGNAL; return (PC);
@@ -227,13 +218,17 @@ next_switch:
       }
       instr_count++;
       IncEMUtime(1);
+fast_switch:
+      OVERR_DS = LONG_DS;
+      OVERR_SS = LONG_SS;
+      P0 = PC;
 #ifndef NO_TRACE_MSGS
       if (d_emu) {
 	e_trace(env, P0, PC, 0);
       }
 #endif
 #ifdef EMU_STAT
-      InsFreq[*PC] += 1;
+      InsFreq[*((WORD *)PC)] += 1;
 #ifdef EMU_PROFILE
       if (d_emu==0) {
 	if (LastOp < 0x100) {
@@ -248,19 +243,19 @@ next_switch:
 override: ;    /* single semicolon needed to attach label to */
     switch (*PC) {
 /*00*/	case ADDbfrm: {
-	    int res, src1, src2;
+	    DWORD res, src1, src2;
 #ifndef NO_DEBUG_MSGS
 	    /* 00 00 00 00 00 is probably invalid code... */
 	    if (*((long *)(PC+1))==0) { *err=-98; return P0; }
 #endif
-	    PC += hsw_modrm_16_byte(env,PC);
+	    PC += hsw_modrm_16_byte(MODARGS);
 	    src2 = *HREG1; mem_ref = MEM_REF; src1 = *mem_ref;
 	    *mem_ref = res = src1 + src2;
 	    SETBFLAGS(0);
 	    } goto next_switch; 
 /*01*/	case ADDwfrm: {
-	    int res, src1, src2;
-	    PC += hsw_modrm_16_word(env,PC);
+	    DWORD src1, src2, res;
+	    PC += hsw_modrm_16_word(MODARGS);
 	    src2 = *XREG1; mem_ref = MEM_REF; 
 	    src1 = mFETCH_WORD(mem_ref);
 		res = src1 + src2;
@@ -268,29 +263,29 @@ override: ;    /* single semicolon needed to attach label to */
 	    SETWFLAGS(0);
 	    } goto next_switch; 
 /*02*/	case ADDbtrm: {
-	    int res, src1, src2;
-	    PC += hsw_modrm_16_byte(env,PC);
+	    DWORD res, src1, src2;
+	    PC += hsw_modrm_16_byte(MODARGS);
 	    src2 = *MEM_REF; mem_ref = HREG1; src1 = *mem_ref;
 	    *mem_ref = res = src1 + src2;
 	    SETBFLAGS(0);
 	    } goto next_switch; 
 /*03*/	case ADDwtrm: {
-	    int res, src1, src2;
-	    PC += hsw_modrm_16_word(env,PC);
+	    DWORD src1, src2, res;
+	    PC += hsw_modrm_16_word(MODARGS);
 	    src2 = *XREG1; mem_ref = MEM_REF; 
 	    src1 = mFETCH_WORD(mem_ref);
 	    *XREG1 = res = src1 + src2;
 	    SETWFLAGS(0);
 	    } goto next_switch; 
 /*04*/	case ADDbia: {
-	    DWORD res; BYTE src1, src2;
+	    DWORD src1, src2, res;
 	    src1 = AL; src2 = *(PC+1);
 	    res = src1 + src2;
 	    AL = (BYTE)res;
 	    SETBFLAGS(0);
 	    } PC += 2; goto next_switch;
 /*05*/	case ADDwia: {
-	    DWORD res, src2; WORD src1;
+	    DWORD src1, src2, res;
 	    src1 = AX; src2 = FETCH_WORD((PC+1));
 	    res = src1 + src2;
 	    AX = (WORD)res;
@@ -302,56 +297,52 @@ override: ;    /* single semicolon needed to attach label to */
 /*07*/	case POPes: {	/* restartable */
 	    register WORD wtemp = TOS_WORD;
 	    if ((*err = SET_SEGREG(LONG_ES,BIG_ES,MK_ES,wtemp))) {
-	    	env->error_addr=wtemp; return P0; }
+		/* error code = sel(15..3),GDT/LDT(2),IDT(1),EXT(0) */
+		env->error_addr=wtemp&0xfffc; return P0; }
 	    POPWORD(wtemp);
 	    SHORT_ES_32 = wtemp; }
 	    PC += 1; goto next_switch;
 /*08*/	case ORbfrm: {
-	    DWORD res, src1, src2;
-	    PC += hsw_modrm_16_byte(env,PC);
-	    src2 = *HREG1; mem_ref = MEM_REF; src1 = *mem_ref;
-	    res = src1 | src2;
+	    DWORD res;
+	    PC += hsw_modrm_16_byte(MODARGS);
+	    mem_ref = MEM_REF;
+	    res = *mem_ref | *HREG1;
 	    *mem_ref = (BYTE)res;
-	    SETBFLAGS(0);
+	    SRC1_32 = SRC2_32 = RES_32 = BYTEDUP(res);	/* CF=OF=0 */
 	    } goto next_switch; 
 /*09*/	case ORwfrm: {
-	    DWORD res, src1, src2;
-	    PC += hsw_modrm_16_word(env,PC);
-	    src2 = *XREG1; mem_ref = MEM_REF; 
-	    src1 = mFETCH_WORD(mem_ref);
-		res = src1 | src2;
+	    DWORD res;
+	    PC += hsw_modrm_16_word(MODARGS);
+	    mem_ref = MEM_REF; 
+	    res = mFETCH_WORD(mem_ref) | *XREG1;
 	    mPUT_WORD(mem_ref, res);
-	    SETWFLAGS(0);
+	    SRC1_32 = SRC2_32 = RES_32 = res & 0xffff;	/* CF=OF=0 */
 	    } goto next_switch; 
 /*0a*/	case ORbtrm: {
-	    DWORD res, src1, src2;
-	    PC += hsw_modrm_16_byte(env,PC);
-	    src2 = *MEM_REF; mem_ref = HREG1; src1 = *mem_ref;
-	    res = src1 | src2;
-	    *mem_ref = (BYTE)res;
-	    SETBFLAGS(0);
+	    DWORD res;
+	    PC += hsw_modrm_16_byte(MODARGS);
+	    res = *HREG1 | *MEM_REF;
+	    *HREG1 = (BYTE)res;
+	    SRC1_32 = SRC2_32 = RES_32 = BYTEDUP(res);	/* CF=OF=0 */
 	    } goto next_switch; 
 /*0b*/	case ORwtrm: {
-	    int res, src1, src2;
-	    PC += hsw_modrm_16_word(env,PC);
-	    src2 = *XREG1; mem_ref = MEM_REF; 
-	    src1 = mFETCH_WORD(mem_ref);
-	    *XREG1 = res = src1 | src2;
-	    SETWFLAGS(0);
+	    DWORD res;
+	    PC += hsw_modrm_16_word(MODARGS);
+	    res = mFETCH_WORD(MEM_REF) | *XREG1;
+	    *XREG1 = (WORD)res;
+	    SRC1_32 = SRC2_32 = RES_32 = res & 0xffff;	/* CF=OF=0 */
 	    } goto next_switch; 
 /*0c*/	case ORbi: {
-	    DWORD res, src1, src2;
-	    src1 = AL; src2 = *(PC+1);
-	    res = src1 | src2;
+	    DWORD res;
+	    res = AL | PC[1];
 	    AL = (BYTE)res;
-	    SETBFLAGS(0);
+	    SRC1_32 = SRC2_32 = RES_32 = BYTEDUP(res);	/* CF=OF=0 */
 	    } PC += 2; goto next_switch;
 /*0d*/	case ORwi: {
-	    DWORD res, src2; WORD src1;
-	    src1 = AX; src2 = FETCH_WORD((PC+1));
-	    res = src1 | src2;
+	    DWORD res;
+	    res = AX | FETCH_WORD((PC+1));
 	    AX = (WORD)res;
-	    SETWFLAGS(0);
+	    SRC1_32 = SRC2_32 = RES_32 = res & 0xffff;	/* CF=OF=0 */
 	    } PC += 3; goto next_switch;
 /*0e*/	case PUSHcs: {
 	    PUSHWORD(SHORT_CS_16);
@@ -363,14 +354,14 @@ override: ;    /* single semicolon needed to attach label to */
 		    switch ((*(PC+2)>>3)&7) {
 			case 0: /* SLDT */ {
 			    /* Store Local Descriptor Table Register */
-			    PC += 1; PC += hsw_modrm_16_word(env,PC);
+			    PC += 1; PC += hsw_modrm_16_word(MODARGS);
 			    mem_ref = MEM_REF;
 			    temp = 0 /* should be LDT selector */;
 			    mPUT_WORD(mem_ref,temp);
 			    } goto next_switch;
 			case 1: /* STR */ {
 			    /* Store Task Register */
-			    PC += 1; PC += hsw_modrm_16_word(env,PC);
+			    PC += 1; PC += hsw_modrm_16_word(MODARGS);
 			    mem_ref = MEM_REF;
 			    temp = 0 /* should be Task Register */;
 			    mPUT_WORD(mem_ref,temp);
@@ -378,38 +369,31 @@ override: ;    /* single semicolon needed to attach label to */
 			case 2: /* LLDT */ /* Privileged */
 			    /* Load Local Descriptor Table Register */
 			    if (CPL != 0) goto not_permitted;
-			    PC = PC +1 + hsw_modrm_16_word(env,PC + 1);
+			    PC += 1; PC += hsw_modrm_16_word(MODARGS);
 			    goto next_switch;
 			case 3: /* LTR */ {
 			    /* Load Task Register */
-			    PC += 1; PC += hsw_modrm_16_word(env,PC);
+			    if (VM86F) goto illegal_op;  /* PM only */
+			    PC += 1; PC += hsw_modrm_16_word(MODARGS);
 			    mem_ref = MEM_REF;
 			    temp = mFETCH_WORD(mem_ref);
 /**/			    goto not_implemented;
 			    }
 			case 4: /* VERR */ {
-			    int _sel;
-			    PC += 1; PC += hsw_modrm_16_word(env,PC);
-			    mem_ref = MEM_REF;
-			    _sel = mFETCH_WORD(mem_ref);
-			    if((_sel &0x7) != 0x7)
-				RES_16 = 0;
-			    else {
-				temp = (GetSelectorFlags(_sel)) & 0xffff;
-				RES_16 = (!(temp & DF_CODE) || (temp & DF_CREADABLE))?1:0;
-			    }
+			    int temp;
+			    if (VM86F) goto illegal_op;  /* PM only */
+			    PC += 1; PC += hsw_modrm_16_word(MODARGS);
+			    temp = mFETCH_WORD(MEM_REF);
+			    if (hsw_verr(temp)) SET_ZF;
+				else CLEAR_ZF;
 			    } goto next_switch;
 			case 5: /* VERW */ {
-			    int _sel;
-			    PC += 1; PC += hsw_modrm_16_word(env,PC);
-			    mem_ref = MEM_REF;
-			    _sel = mFETCH_WORD(mem_ref);
-			    if((_sel &0x7) != 0x7)
-				RES_16 = 0;
-			    else {
-				temp = (GetSelectorFlags(_sel)) & 0xffff;
-				RES_16 = (!(temp & DF_CODE) && (temp & DF_DWRITEABLE))?1:0;
-			    }
+			    int temp;
+			    if (VM86F) goto illegal_op;  /* PM only */
+			    PC += 1; PC += hsw_modrm_16_word(MODARGS);
+			    temp = mFETCH_WORD(MEM_REF);
+			    if (hsw_verw(temp)) SET_ZF;
+				else CLEAR_ZF;
 			    } goto next_switch;
 			case 6: /* Illegal */
 			case 7: /* Illegal */
@@ -419,7 +403,7 @@ override: ;    /* single semicolon needed to attach label to */
 		    switch ((*(PC+2)>>3)&7) {
 			case 0: /* SGDT */ {
 			    /* Store Global Descriptor Table Register */
-			    PC += 1; PC += hsw_modrm_16_word(env,PC);
+			    PC += 1; PC += hsw_modrm_16_word(MODARGS);
 			    mem_ref = MEM_REF;
 			    temp = 0; /* should be LIMIT field */;
 			    PUT_WORD(mem_ref,temp);
@@ -428,7 +412,7 @@ override: ;    /* single semicolon needed to attach label to */
 			    } goto next_switch;
 			case 1: /* SIDT */ {
 			    /* Store Interrupt Descriptor Table Register */
-			    PC += 1; PC += hsw_modrm_16_word(env,PC);
+			    PC += 1; PC += hsw_modrm_16_word(MODARGS);
 			    mem_ref = MEM_REF;
 			    temp = 0; /* should be LIMIT field */;
 			    PUT_WORD(mem_ref,temp);
@@ -438,16 +422,16 @@ override: ;    /* single semicolon needed to attach label to */
 			case 2: /* LGDT */ /* Privileged */
 			    /* Load Global Descriptor Table Register */
 			    if (CPL != 0) goto not_permitted;
-			    PC = PC+1+hsw_modrm_16_word(env,PC + 1);
+			    PC += 1; PC += hsw_modrm_16_word(MODARGS);
 /**/			    goto not_implemented;
 			case 3: /* LIDT */ /* Privileged */
 			    /* Load Interrupt Descriptor Table Register */
 			    if (CPL != 0) goto not_permitted;
-			    PC = PC+1+hsw_modrm_16_word(env,PC + 1);
+			    PC += 1; PC += hsw_modrm_16_word(MODARGS);
 			    goto next_switch;
 			case 4: { /* SMSW, 80286 compatibility */
 			    /* Store Machine Status Word */
-			    PC += 1; PC += hsw_modrm_16_word(env,PC);
+			    PC += 1; PC += hsw_modrm_16_word(MODARGS);
 			    mem_ref = MEM_REF;
 			    temp = CRs[0]&0x3f;
 			    mPUT_WORD(mem_ref,temp);
@@ -457,8 +441,8 @@ override: ;    /* single semicolon needed to attach label to */
 			case 6: { /* LMSW, 80286 compatibility, Privileged */
 			    /* Load Machine Status Word */
 			    if (CPL != 0) goto not_permitted;
-			    PC = PC+1+hsw_modrm_16_word(env,PC + 1);
-			    temp = mFETCH_WORD(mem_ref);
+			    PC += 1; PC += hsw_modrm_16_word(MODARGS);
+			    temp = mFETCH_WORD(MEM_REF);
 			    CRs[0] = (CRs[0]&0xffffffd0) | (temp & 0x2f);
 			    /* check RM/PM switch! */
 			    } goto next_switch;
@@ -468,30 +452,32 @@ override: ;    /* single semicolon needed to attach label to */
 		case 0x02: /* LAR */ {
 		    /* Load Access Rights Byte */
 		    WORD _sel;
-		    PC += 1; PC += hsw_modrm_16_word(env,PC);
+		    if (VM86F) goto illegal_op;  /* PM only */
+		    PC += 1; PC += hsw_modrm_16_word(MODARGS);
 		    mem_ref = MEM_REF;
 		    _sel = mFETCH_WORD(mem_ref);
 		    if (IS_GDT(_sel)||((_sel>>3)>LDT_ENTRIES))
-			RES_16 = 1;
+			CLEAR_ZF;
 		    else {
 			temp = (GetSelectorFlags(_sel) & 0xff) << 8;
 		 	if (temp) SetFlagAccessed(_sel);
-			    RES_16 = 0;
+			    SET_ZF;
 			    *XREG1 = (WORD)temp;
 		    }
 		    } goto next_switch;
 		case 0x03: /* LSL */ {
 		    /* Load Segment Limit */
 		    WORD _sel;
-		    PC += 1; PC += hsw_modrm_16_word(env,PC);
+		    if (VM86F) goto illegal_op;  /* PM only */
+		    PC += 1; PC += hsw_modrm_16_word(MODARGS);
 		    mem_ref = MEM_REF;
 		    _sel = mFETCH_WORD(mem_ref);
 		if (IS_GDT(_sel)||((_sel>>3)>LDT_ENTRIES))
-			RES_16 = 1;	/* -> ZF=0 */
+			CLEAR_ZF;
 		else {
 		temp= (WORD)GetSelectorByteLimit(_sel);
 			*XREG1 = (WORD)temp;
-			RES_16 = 0;	/* -> ZF=1 */
+			SET_ZF;
 		}
 		    /* what do I do here??? */
 		    } goto next_switch;
@@ -620,13 +606,25 @@ override: ;    /* single semicolon needed to attach label to */
 		case 0x7e: case 0x7f:
 		    PC += 2; goto next_switch;
 		case 0x80: /* JOimmdisp */
+#ifndef NO_TRACE_MSGS
+		    env->flags &= ~OVERFLOW_FLAG;
+#endif
 		    if (IS_OF_SET) {
 			PC += (4 + (signed short)FETCH_WORD(PC+2));
+#ifndef NO_TRACE_MSGS
+			env->flags |= OVERFLOW_FLAG;
+#endif
 			goto next_switch;
 		    } PC += 4; goto next_switch;
 		case 0x81: /* JNOimmdisp */
+#ifndef NO_TRACE_MSGS
+		    env->flags |= OVERFLOW_FLAG;
+#endif
 		    if (!IS_OF_SET) {
 			PC += (4 + (signed short)FETCH_WORD(PC+2));
+#ifndef NO_TRACE_MSGS
+			env->flags &= ~OVERFLOW_FLAG;
+#endif
 			goto next_switch;
 		    } PC += 4; goto next_switch;
 		case 0x82: /* JBimmdisp */
@@ -670,13 +668,25 @@ override: ;    /* single semicolon needed to attach label to */
 			goto next_switch;
 		    } PC += 4; goto next_switch;
 		case 0x8a: /* JPimmdisp */
+#ifndef NO_TRACE_MSGS
+		    env->flags &= ~PARITY_FLAG;
+#endif
 		    if (IS_PF_SET) {
 			PC += (4 + (signed short)FETCH_WORD(PC+2));
+#ifndef NO_TRACE_MSGS
+			env->flags |= PARITY_FLAG;
+#endif
 			goto next_switch;
 		    } PC += 4; goto next_switch;
 		case 0x8b: /* JNPimmdisp */
+#ifndef NO_TRACE_MSGS
+		    env->flags |= PARITY_FLAG;
+#endif
 		    if (!IS_PF_SET) {
 			PC += (4 + (signed short)FETCH_WORD(PC+2));
+#ifndef NO_TRACE_MSGS
+			env->flags &= ~PARITY_FLAG;
+#endif
 			goto next_switch;
 		    } PC += 4; goto next_switch;
 		case 0x8c: /* JLimmdisp */
@@ -700,84 +710,68 @@ override: ;    /* single semicolon needed to attach label to */
 			goto next_switch;
 		    } PC += 4; goto next_switch;
 		case 0x90: /* SETObrm */ {
-		    PC = PC + 1 + hsw_modrm_16_byte(env,PC+1);
-		    mem_ref = MEM_REF;
-		    *mem_ref = (IS_OF_SET) ? 1 : 0;
+		    PC++; PC += hsw_modrm_16_byte(MODARGS);
+		    *MEM_REF = (IS_OF_SET) ? 1 : 0;
 		    } goto next_switch;
 		case 0x91: /* SETNObrm */ {
-		    PC = PC + 1 + hsw_modrm_16_byte(env,PC+1);
-		    mem_ref = MEM_REF;
-		    *mem_ref = (!IS_OF_SET) ? 1 : 0;
+		    PC++; PC += hsw_modrm_16_byte(MODARGS);
+		    *MEM_REF = (!IS_OF_SET) ? 1 : 0;
 		    } goto next_switch;
 		case 0x92: /* SETBbrm */ {
-		    PC = PC + 1 + hsw_modrm_16_byte(env,PC+1);
-		    mem_ref = MEM_REF;
-		    *mem_ref = (IS_CF_SET) ? 1 : 0;
+		    PC++; PC += hsw_modrm_16_byte(MODARGS);
+		    *MEM_REF = (IS_CF_SET) ? 1 : 0;
 		    } goto next_switch;
 		case 0x93: /* SETNBbrm */ {
-		    PC = PC + 1 + hsw_modrm_16_byte(env,PC+1);
-		    mem_ref = MEM_REF;
-		    *mem_ref = (!IS_CF_SET) ? 1 : 0;
+		    PC++; PC += hsw_modrm_16_byte(MODARGS);
+		    *MEM_REF = (!IS_CF_SET) ? 1 : 0;
 		    } goto next_switch;
 		case 0x94: /* SETZbrm */ {
-		    PC = PC + 1 + hsw_modrm_16_byte(env,PC+1);
-		    mem_ref = MEM_REF;
-		    *mem_ref = (IS_ZF_SET) ? 1 : 0;
+		    PC++; PC += hsw_modrm_16_byte(MODARGS);
+		    *MEM_REF = (IS_ZF_SET) ? 1 : 0;
 		    } goto next_switch;
 		case 0x95: /* SETNZbrm */ {
-		    PC = PC + 1 + hsw_modrm_16_byte(env,PC+1);
-		    mem_ref = MEM_REF;
-		    *mem_ref = (!IS_ZF_SET) ? 1 : 0;
+		    PC++; PC += hsw_modrm_16_byte(MODARGS);
+		    *MEM_REF = (!IS_ZF_SET) ? 1 : 0;
 		    } goto next_switch;
 		case 0x96: /* SETBEbrm */ {
-		    PC = PC + 1 + hsw_modrm_16_byte(env,PC+1);
-		    mem_ref = MEM_REF;
-		    *mem_ref = (IS_CF_SET || IS_ZF_SET) ? 1 : 0;
+		    PC++; PC += hsw_modrm_16_byte(MODARGS);
+		    *MEM_REF = (IS_CF_SET || IS_ZF_SET) ? 1 : 0;
 		    } goto next_switch;
 		case 0x97: /* SETNBEbrm */ {
-		    PC = PC + 1 + hsw_modrm_16_byte(env,PC+1);
-		    mem_ref = MEM_REF;
-		    *mem_ref = (!(IS_CF_SET || IS_ZF_SET)) ? 1 : 0;
+		    PC++; PC += hsw_modrm_16_byte(MODARGS);
+		    *MEM_REF = (!(IS_CF_SET || IS_ZF_SET)) ? 1 : 0;
 		    } goto next_switch;
 		case 0x98: /* SETSbrm */ {
-		    PC = PC + 1 + hsw_modrm_16_byte(env,PC+1);
-		    mem_ref = MEM_REF;
-		    *mem_ref = (IS_SF_SET) ? 1 : 0;
+		    PC++; PC += hsw_modrm_16_byte(MODARGS);
+		    *MEM_REF = (IS_SF_SET) ? 1 : 0;
 		    } goto next_switch;
 		case 0x99: /* SETNSbrm */ {
-		    PC = PC + 1 + hsw_modrm_16_byte(env,PC+1);
-		    mem_ref = MEM_REF;
-		    *mem_ref = (!(IS_SF_SET)) ? 1 : 0;
+		    PC++; PC += hsw_modrm_16_byte(MODARGS);
+		    *MEM_REF = (!(IS_SF_SET)) ? 1 : 0;
 		    } goto next_switch;
 		case 0x9a: /* SETPbrm */ {
-		    PC = PC + 1 + hsw_modrm_16_byte(env,PC+1);
-		    mem_ref = MEM_REF;
-		    *mem_ref = (IS_PF_SET) ? 1 : 0;
+		    PC++; PC += hsw_modrm_16_byte(MODARGS);
+		    *MEM_REF = (IS_PF_SET) ? 1 : 0;
 		    } goto next_switch;
 		case 0x9b: /* SETNPbrm */ {
-		    PC = PC + 1 + hsw_modrm_16_byte(env,PC+1);
-		    mem_ref = MEM_REF;
-		    *mem_ref = (!IS_PF_SET) ? 1 : 0;
+		    PC++; PC += hsw_modrm_16_byte(MODARGS);
+		    *MEM_REF = (!IS_PF_SET) ? 1 : 0;
 		    } goto next_switch;
 		case 0x9c: /* SETLbrm */ {
-		    PC = PC + 1 + hsw_modrm_16_byte(env,PC+1);
-		    mem_ref = MEM_REF;
-		    *mem_ref = (IS_SF_SET ^ IS_OF_SET) ? 1 : 0;
+		    PC++; PC += hsw_modrm_16_byte(MODARGS);
+		    *MEM_REF = (IS_SF_SET ^ IS_OF_SET) ? 1 : 0;
 		    } goto next_switch;
 		case 0x9d: /* SETNLbrm */ {
-		    PC = PC + 1 + hsw_modrm_16_byte(env,PC+1);
-		    mem_ref = MEM_REF;
-		    *mem_ref = (!(IS_SF_SET ^ IS_OF_SET)) ? 1 : 0;
+		    PC++; PC += hsw_modrm_16_byte(MODARGS);
+		    *MEM_REF = (!(IS_SF_SET ^ IS_OF_SET)) ? 1 : 0;
 		    } goto next_switch;
 		case 0x9e: /* SETLEbrm */ {
-		    PC = PC + 1 + hsw_modrm_16_byte(env,PC+1);
-		    mem_ref = MEM_REF;
-		    *mem_ref = ((IS_SF_SET ^ IS_OF_SET) || IS_ZF_SET) ? 1 : 0;
+		    PC++; PC += hsw_modrm_16_byte(MODARGS);
+		    *MEM_REF = ((IS_SF_SET ^ IS_OF_SET) || IS_ZF_SET) ? 1 : 0;
 		    } goto next_switch;
 		case 0x9f: /* SETNLEbrm */ {
-		    PC = PC + 1 + hsw_modrm_16_byte(env,PC+1);
-		    mem_ref = MEM_REF;
-		    *mem_ref = (!(IS_SF_SET ^ IS_OF_SET) && !(IS_ZF_SET)) ? 1 : 0;
+		    PC++; PC += hsw_modrm_16_byte(MODARGS);
+		    *MEM_REF = (!(IS_SF_SET ^ IS_OF_SET) && !(IS_ZF_SET)) ? 1 : 0;
 		    } goto next_switch;
 		case 0xa0: /* PUSHfs */ {
 		    PUSHWORD(SHORT_FS_16);
@@ -785,7 +779,7 @@ override: ;    /* single semicolon needed to attach label to */
 		case 0xa1: /* POPfs */ {
 		    register WORD wtemp = TOS_WORD;
 		    if ((*err = SET_SEGREG(LONG_FS,BIG_FS,MK_FS,wtemp))) {
-		    	env->error_addr=wtemp; return P0; }
+			env->error_addr=wtemp&0xfffc; return P0; }
 		    POPWORD(wtemp);
 		    SHORT_FS_32 = wtemp;
 		    } PC += 2; goto next_switch;
@@ -805,7 +799,7 @@ override: ;    /* single semicolon needed to attach label to */
                 case 0xa3: /* BT */ {
                     DWORD ind1;
                     long ind2;
-                    PC = PC+1+hsw_modrm_16_word(env,PC+1);
+		    PC++; PC += hsw_modrm_16_word(MODARGS);
                     mem_ref = MEM_REF; ind2 = *XREG1;
 		    ind2 = ((ind2 << 16) >> 16);
                     if (IS_MODE_REG) {
@@ -831,40 +825,34 @@ override: ;    /* single semicolon needed to attach label to */
 		    } goto next_switch;
 		case 0xa4: /* SHLDimm */ {
 		    /* Double Precision Shift Left */
-		    register WORD wtemp;
-		    WORD count, temp1;
-		    PC = PC+1+hsw_modrm_16_word(env,PC+1);
-		    mem_ref = MEM_REF; temp1 = *XREG1;
+		    register DWORD temp; int count;
+		    PC++; PC += hsw_modrm_16_word(MODARGS);
+		    mem_ref = MEM_REF;
 		    count = *PC & 0xf; PC++;
-		    wtemp = mFETCH_WORD(mem_ref);
-			    wtemp = wtemp << count;
-			    temp1 = temp1 >> (16 - count);
-			    wtemp |= temp1;
-		    mPUT_WORD(mem_ref, wtemp);
-		     RES_32 = wtemp;
-		     SRC1_16 = SRC2_16 = wtemp >> 1;
-		     CARRY = wtemp & 1;
+		    temp = *XREG1 | (mFETCH_WORD(mem_ref)<<16);
+		    temp >>= (16-count);
+		    mPUT_WORD(mem_ref, temp);
+		    /* flags: set S,Z,P - OF,AF undefined */
+		    RES_16 = temp;
+		    CARRY = (temp>>16) & 1;
 		     } goto next_switch;
 		case 0xa5: /* SHLDcl */ {
 		    /* Double Precision Shift Left by CL */
-		    register WORD wtemp;
-		    WORD count, temp1;
-		    PC = PC+1+hsw_modrm_16_word(env,PC+1);
-		    mem_ref = MEM_REF; temp1 = *XREG1;
-		    count = CX & 0xf;
-		    wtemp = mFETCH_WORD(mem_ref);
-			    wtemp = wtemp << count;
-			    temp1 = temp1 >> (16 - count);
-			    wtemp |= temp1;
-		    mPUT_WORD(mem_ref, wtemp);
-		     RES_32 = wtemp;
-		     SRC1_16 = SRC2_16 = wtemp >> 1;
-		     CARRY = wtemp & 1;
+		    register DWORD temp; int count;
+		    PC++; PC += hsw_modrm_16_word(MODARGS);
+		    mem_ref = MEM_REF;
+		    count = CL & 0xf;
+		    temp = *XREG1 | (mFETCH_WORD(mem_ref)<<16);
+		    temp >>= (16-count);
+		    mPUT_WORD(mem_ref, temp);
+		    /* flags: set S,Z,P - OF,AF undefined */
+		    RES_16 = temp;
+		    CARRY = (temp>>16) & 1;
 		     } goto next_switch;
 		case 0xa6:{ /* CMPXCHGb */
            	    DWORD src1, src2;
 		    int res;
-            	    PC++; PC += hsw_modrm_16_byte(env,PC);
+		    PC++; PC += hsw_modrm_16_byte(MODARGS);
             	    src2 = *HREG1; mem_ref = MEM_REF;
 		    src1 = *mem_ref;
             	    res = src1 - AL;
@@ -875,7 +863,7 @@ override: ;    /* single semicolon needed to attach label to */
 		case 0xa7:{ /* CMPXCHGw */
 		    int res;
 		    DWORD src1, src2;
-		    PC++; PC += hsw_modrm_16_word(env,PC);
+		    PC++; PC += hsw_modrm_16_word(MODARGS);
 		    src2 = *XREG1; mem_ref = MEM_REF; 
 		    src1 = mFETCH_WORD(mem_ref);
 		    res = src1 - AX;
@@ -892,7 +880,7 @@ override: ;    /* single semicolon needed to attach label to */
 		case 0xa9: /* POPgs */ {
 		    register WORD wtemp = TOS_WORD;
 		    if ((*err = SET_SEGREG(LONG_GS,BIG_GS,MK_GS,wtemp))) {
-		    	env->error_addr=wtemp; return P0; }
+			env->error_addr=wtemp&0xfffc; return P0; }
 		    POPWORD(wtemp);
 		    SHORT_GS_32 = wtemp;
 		    } PC += 2; goto next_switch;
@@ -901,7 +889,7 @@ override: ;    /* single semicolon needed to attach label to */
                 case 0xab: /* BTS */ {
                     DWORD ind1;
                     long ind2; 
-                    PC = PC+1+hsw_modrm_16_word(env,PC+1);
+		    PC++; PC += hsw_modrm_16_word(MODARGS);
                     mem_ref = MEM_REF; ind2 = *XREG1;
                     ind2 = ((ind2 << 16) >> 16);
                     if (IS_MODE_REG) {
@@ -933,67 +921,65 @@ override: ;    /* single semicolon needed to attach label to */
 		    } goto next_switch;
 		case 0xac: /* SHRDimm */ {
 		    /* Double Precision Shift Right by immediate */
-		    register WORD wtemp;
-		    WORD count, temp1;
-		    PC = PC+1+hsw_modrm_16_word(env,PC+1);
-		    mem_ref = MEM_REF; temp1 = *XREG1;
+		    register DWORD temp; int count;
+		    PC++; PC += hsw_modrm_16_word(MODARGS);
+		    mem_ref = MEM_REF;
 		    count = *PC & 0xf; PC++;
-		    wtemp = mFETCH_WORD(mem_ref);
-			    CARRY = (wtemp >> (count - 1)) & 1;
-			    wtemp = wtemp >> count;
-			    temp1 = temp1 << (16 - count);
-			    wtemp |= temp1;
-		    mPUT_WORD(mem_ref, wtemp);
-		    RES_16 = wtemp;
-		    SRC1_16 = SRC2_16 = wtemp << 1;
+		    temp = (*XREG1<<16) | mFETCH_WORD(mem_ref);
+		    CARRY = (temp >> (count - 1)) & 1;
+		    temp >>= count;
+		    mPUT_WORD(mem_ref, temp);
+		    /* flags: set S,Z,P - OF,AF undefined */
+		    RES_16 = temp;
 		    } goto next_switch;
 		case 0xad: /* SHRDcl */ {
 		    /* Double Precision Shift Right by CL */
-		    register WORD wtemp;
-		    WORD count, temp1;
-		    PC = PC+1+hsw_modrm_16_word(env,PC+1);
-		    mem_ref = MEM_REF; temp1 = *XREG1;
-		    count = CX & 0xf;
-		    wtemp = mFETCH_WORD(mem_ref);
-			    CARRY = (wtemp >> (count - 1)) & 1;
-			    wtemp = wtemp >> count;
-			    temp1 = temp1 << (16 - count);
-			    wtemp |= temp1;
-		    mPUT_WORD(mem_ref, wtemp);
-		    RES_16 = wtemp;
-		    SRC1_16 = SRC2_16 = wtemp << 1;
+		    register DWORD temp; int count;
+		    PC++; PC += hsw_modrm_16_word(MODARGS);
+		    mem_ref = MEM_REF;
+		    count = CL & 0xf;
+		    temp = (*XREG1<<16) | mFETCH_WORD(mem_ref);
+		    CARRY = (temp >> (count - 1)) & 1;
+		    temp >>= count;
+		    mPUT_WORD(mem_ref, temp);
+		    /* flags: set S,Z,P - OF,AF undefined */
+		    RES_16 = temp;
 		    } goto next_switch;
 /* case 0xae:	Code Extension 24(MMX) */
 		case 0xaf: /* IMULregrm */ {
                         int res, src1, src2;
-                        PC = PC+1+hsw_modrm_16_word(env,PC+1);
-                        src1 = *XREG1; mem_ref = MEM_REF;
-			src2 = mFETCH_WORD(mem_ref);
+			PC++; PC += hsw_modrm_16_word(MODARGS);
+			src1 = (signed short)*XREG1;
+			src2 = (signed short)mFETCH_WORD(MEM_REF);
                         res = src1 * src2;
-                        *XREG1 = res; res = (res >> 16);
-                        SRC1_16 = SRC2_16 = 0;
-                        RES_32 = ((res==0)||(res==0xffffffff))?0:-1;
+			*XREG1 = (WORD)res;
+			res >>= 15;	/* not 16! */
+			if ((res==0)||(res==0xffffffff)) {  /* CF=OF=0 */
+			    CARRY=0; SRC1_16 = SRC2_16 = RES_16; /* 000,111 */
+			}
+			else {
+			    CARRY=1; SRC1_16 = SRC2_16 = ~RES_16;  /* 001,110 */
+		 	}
                         } goto next_switch;
 /* case 0xb0-0xb1:	CMPXCHG */
 		case 0xb2: /* LSS */ {
 		    register WORD wtemp;
-		    PC = PC+1+hsw_modrm_16_word(env,PC+1);
+		    PC++; PC += hsw_modrm_16_word(MODARGS);
 		    if (IS_MODE_REG) {
 			/* Illegal */
 			goto illegal_op;
 		    }
 		    mem_ref = MEM_REF;
-		    wtemp = FETCH_WORD(mem_ref);
-		    *XREG1 = wtemp;
 		    wtemp = FETCH_WORD(mem_ref+2);
 		    if ((*err = SET_SEGREG(LONG_SS,BIG_SS,MK_SS,wtemp))) {
-		    	env->error_addr=wtemp; return P0; }
+			env->error_addr=wtemp&0xfffc; return P0; }
+		    *XREG1 = FETCH_WORD(mem_ref);
 		    SHORT_SS_32 = wtemp;
 		    } goto next_switch;
                 case 0xb3: /* BTR */ {
                     DWORD ind1;
                     long ind2;
-                    PC = PC+1+hsw_modrm_16_word(env,PC+1);
+		    PC++; PC += hsw_modrm_16_word(MODARGS);
                     mem_ref = MEM_REF; ind2 = *XREG1;
                     ind2 = ((ind2 << 16) >> 16);
                     if (IS_MODE_REG) {
@@ -1024,35 +1010,33 @@ override: ;    /* single semicolon needed to attach label to */
                     }
 		    } goto next_switch;
 		case 0xb4: /* LFS */ {
-		    PC = PC+1+hsw_modrm_16_word(env,PC+1);
+		    PC++; PC += hsw_modrm_16_word(MODARGS);
 		    if (IS_MODE_REG) { 	/* Illegal */
 			goto illegal_op;
 		    }
 		    mem_ref = MEM_REF;
-		    temp = FETCH_WORD(mem_ref);
-		    *XREG1 = (WORD)temp;
 		    temp = FETCH_WORD(mem_ref+2);
 		    if ((*err = SET_SEGREG(LONG_FS,BIG_FS,MK_FS,temp))) {
-		    	env->error_addr=temp; return P0; }
+			env->error_addr=temp&0xfffc; return P0; }
+		    *XREG1 = FETCH_WORD(mem_ref);
 		    SHORT_FS_32 = temp;
 		    } goto next_switch;
 		case 0xb5: /* LGS */ {
-		    PC = PC+1+hsw_modrm_16_word(env,PC+1);
+		    PC++; PC += hsw_modrm_16_word(MODARGS);
 		    if (IS_MODE_REG) {	/* Illegal */
 			goto illegal_op;
 		    }
 		    mem_ref = MEM_REF;
-		    temp = FETCH_WORD(mem_ref);
-		    *XREG1 = (WORD)temp;
 		    temp = FETCH_WORD(mem_ref+2);
 		    if ((*err = SET_SEGREG(LONG_GS,BIG_GS,MK_GS,temp))) {
-		    	env->error_addr=temp; return P0; }
+			env->error_addr=temp&0xfffc; return P0; }
+		    *XREG1 = FETCH_WORD(mem_ref);
 		    SHORT_GS_32 = temp;
 		    } goto next_switch;
 		case 0xb6: /* MOVZXb */ {
 		    register WORD wtemp;
 		    int ref = (*(PC+2)>>3)&7;
-		    PC = PC+1+hsw_modrm_16_byte(env,PC+1);
+		    PC++; PC += hsw_modrm_16_byte(MODARGS);
 		    wtemp = *(BYTE *)MEM_REF;
 		    switch (ref) {
 		      case 0: AX = wtemp; goto next_switch;
@@ -1066,7 +1050,7 @@ override: ;    /* single semicolon needed to attach label to */
 		    }
 		    }
 		case 0xb7: /* MOVZXw */ {
-		    PC = PC+1+hsw_modrm_16_word(env,PC+1);
+		    PC++; PC += hsw_modrm_16_word(MODARGS);
 		    *XREG1 = mFETCH_WORD(MEM_REF);
 		    } goto next_switch;
 		case 0xb9: goto illegal_op;	/* UD2 */
@@ -1079,14 +1063,14 @@ override: ;    /* single semicolon needed to attach label to */
 				goto illegal_op;
 			case 4: /* BT */ {
                		    int temp1;
-               		    PC = PC+1+hsw_modrm_16_word(env,PC+1);
+			    PC++; PC += hsw_modrm_16_word(MODARGS);
                 	    mem_ref = MEM_REF; temp = *PC;  PC++;
 			    temp1 = mFETCH_WORD(mem_ref);
                             CARRY = ((int)temp1>>(int)( temp & 0xf))&1;
                     	    } goto next_switch;
 			case 5: /* BTS */ {
                		    int temp1;
-               		    PC = PC+1+hsw_modrm_16_word(env,PC+1);
+			    PC++; PC += hsw_modrm_16_word(MODARGS);
                 	    mem_ref = MEM_REF; temp = (*PC) & 0xf;  PC++;
 			    temp1 = mFETCH_WORD(mem_ref);
                                 CARRY = (temp1 >> temp)&1;
@@ -1095,7 +1079,7 @@ override: ;    /* single semicolon needed to attach label to */
                     	    } goto next_switch;
 			case 6: /* BTR */ {
                		    int temp1;
-               		    PC = PC+1+hsw_modrm_16_word(env,PC+1);
+			    PC++; PC += hsw_modrm_16_word(MODARGS);
                 	    mem_ref = MEM_REF; temp = (*PC) & 0xf;  PC++;
 			    temp1 = mFETCH_WORD(mem_ref);
                                 CARRY = (temp1 >> temp)&1;
@@ -1104,7 +1088,7 @@ override: ;    /* single semicolon needed to attach label to */
                     	    } goto next_switch;
 			case 7: /* BTC */ {
                		    int temp1;
-               		    PC = PC+1+hsw_modrm_16_word(env,PC+1);
+			    PC++; PC += hsw_modrm_16_word(MODARGS);
                 	    mem_ref = MEM_REF; temp = (*PC) & 0xf;  PC++;
 			    temp1 = mFETCH_WORD(mem_ref);
                                 CARRY = (temp1 >> temp)&1;
@@ -1115,7 +1099,7 @@ override: ;    /* single semicolon needed to attach label to */
                 case 0xbb: /* BTC */ {
                     DWORD ind1;
                     long ind2;
-                    PC = PC+1+hsw_modrm_16_word(env,PC+1);
+		    PC++; PC += hsw_modrm_16_word(MODARGS);
                     mem_ref = MEM_REF; ind2 = *XREG1;
                     ind2 = ((ind2 << 16) >> 16);
                     if (IS_MODE_REG) {
@@ -1147,7 +1131,7 @@ override: ;    /* single semicolon needed to attach label to */
 		    } goto next_switch;
 		case 0xbc: /* BSF */ {
 		    int i;
-		    PC = PC+1+hsw_modrm_16_word(env,PC+1);
+		    PC++; PC += hsw_modrm_16_word(MODARGS);
 		    mem_ref = MEM_REF;
 		    temp = mFETCH_WORD(mem_ref);
 		    if(temp) {
@@ -1158,7 +1142,7 @@ override: ;    /* single semicolon needed to attach label to */
 		    } goto next_switch;
 		case 0xbd: /* BSR */ {
 		    int i;
-		    PC = PC+1+hsw_modrm_16_word(env,PC+1);
+		    PC++; PC += hsw_modrm_16_word(MODARGS);
 		    mem_ref = MEM_REF;
 		    temp = mFETCH_WORD(mem_ref);
 		    if(temp) {
@@ -1170,7 +1154,7 @@ override: ;    /* single semicolon needed to attach label to */
 		case 0xbe: /* MOVSXb */ {
                     register signed long stemp;
 		    int ref = (*(PC+2)>>3)&7;
-		    PC = PC+1+hsw_modrm_16_byte(env,PC+1);
+		    PC++; PC += hsw_modrm_16_byte(MODARGS);
 		    stemp = *(signed char *)MEM_REF;
 		    switch (ref) {
 		      case 0: AX = (WORD)stemp; goto next_switch; /* check asm! */
@@ -1185,7 +1169,7 @@ override: ;    /* single semicolon needed to attach label to */
 		    }
 		case 0xbf: { /* MOVSXw */
                     register signed long stemp;
-		    PC = PC+1+hsw_modrm_16_word(env,PC+1);
+		    PC++; PC += hsw_modrm_16_word(MODARGS);
                     mem_ref = MEM_REF;
 		    stemp = mFETCH_WORD(mem_ref);
 		    stemp = ((stemp<<16)>>16);
@@ -1193,7 +1177,7 @@ override: ;    /* single semicolon needed to attach label to */
 		    } goto next_switch;
                 case 0xc0: { /* XADDb */
                     int res,src1,src2;
-                    PC = PC+1+hsw_modrm_16_byte(env,PC+1);
+		    PC++; PC += hsw_modrm_16_byte(MODARGS);
                     src2 = *HREG1; mem_ref = MEM_REF; src1 = *mem_ref;
                     *HREG1 = src1;
                     *mem_ref = res = src1 + src2;
@@ -1201,7 +1185,7 @@ override: ;    /* single semicolon needed to attach label to */
                     } goto next_switch;
                 case 0xc1: { /* XADDw */
                     int res,src1,src2;
-                    PC = PC+1+hsw_modrm_16_word(env,PC+1);
+		    PC++; PC += hsw_modrm_16_word(MODARGS);
                     src2 = *XREG1; mem_ref = MEM_REF;
 		    src1 = mFETCH_WORD(mem_ref);
                         res = src1 + src2;
@@ -1272,60 +1256,58 @@ override: ;    /* single semicolon needed to attach label to */
 #endif
 		    PC += 2; goto next_switch;
 		case 0xff:	/* WinOS2 WANTS an int06 */
-		    goto illegal_op;
+#ifdef DOSEMU
+/* d.emu=4; */
+			*err=EXCP06_ILLOP; return P0;
+#endif
 		default: goto illegal_op;
 		}
 	    }
 
 /*10*/	case ADCbfrm: {
 	    int res, src1, src2;
-	    PC += hsw_modrm_16_byte(env,PC);
+	    PC += hsw_modrm_16_byte(MODARGS);
 	    src2 = *HREG1; mem_ref = MEM_REF; src1 = *mem_ref;
-	    src2 = src2 + (CARRY & 1);
-	    *mem_ref = res = src1 + src2;
+	    *mem_ref = res = src1 + src2 + (CARRY & 1);
 	    SETBFLAGS(0);
 	    } goto next_switch; 
 /*11*/	case ADCwfrm: {
 	    int res, src1, src2;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    src2 = *XREG1; mem_ref = MEM_REF; 
-	    src2 = src2 + (CARRY & 1);
 	    src1 = mFETCH_WORD(mem_ref);
-		res = src1 + src2;
+	    res = src1 + src2 + (CARRY & 1);
 	    mPUT_WORD(mem_ref, res);
 	    SETWFLAGS(0);
 	    } goto next_switch; 
 /*12*/	case ADCbtrm: {
 	    int res, src1, src2;
-	    PC += hsw_modrm_16_byte(env,PC);
+	    PC += hsw_modrm_16_byte(MODARGS);
 	    src2 = *MEM_REF; mem_ref = HREG1; src1 = *mem_ref;
-	    src2 = src2 + (CARRY & 1);
-	    *mem_ref = res = src1 + src2;
+	    *mem_ref = res = src1 + src2 + (CARRY & 1);
 	    SETBFLAGS(0);
 	    } goto next_switch; 
 /*13*/	case ADCwtrm: {
 	    int res, src1, src2;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    src2 = *XREG1; mem_ref = MEM_REF; 
-	    src2 = src2 + (CARRY & 1);
 	    src1 = mFETCH_WORD(mem_ref);
-	    *XREG1 = res = src1 + src2;
+	    *XREG1 = res = src1 + src2 + (CARRY & 1);
 	    SETWFLAGS(0);
 	    } goto next_switch; 
 /*14*/	case ADCbi: {
-	    DWORD res, src2;
-	    BYTE src1;
+	    int res, src1, src2;
 	    src1 = AL; 
-	    src2 = *(PC+1) + (CARRY & 1);
-	    res = src1 + src2;
+	    src2 = *(PC+1);
+	    res = src1 + src2 + (CARRY & 1);
 	    AL = (BYTE)res;
 	    SETBFLAGS(0);
 	    } PC += 2; goto next_switch;
 /*15*/	case ADCwi: {
-	    DWORD res,  src2; WORD src1;
+	    int res, src1, src2;
 	    src1 = AX; 
-	    src2 = (FETCH_WORD((PC+1))) + (CARRY & 1);
-	    res = src1 + src2;
+	    src2 = (FETCH_WORD((PC+1)));
+	    res = src1 + src2 + (CARRY & 1);
 	    AX = (WORD)res;
 	    SETWFLAGS(0);
 	    } PC += 3; goto next_switch;
@@ -1336,57 +1318,59 @@ override: ;    /* single semicolon needed to attach label to */
 	    register WORD wtemp;
 	    POPWORD(wtemp);
 	    if ((*err = SET_SEGREG(LONG_SS,BIG_SS,MK_SS,wtemp))) {
-	    	PUSHWORD(wtemp); env->error_addr=wtemp; return P0; }
+		PUSHWORD(wtemp); env->error_addr=wtemp&0xfffc; return P0; }
 	    CEmuStat |= CeS_LOCK;
 	    SHORT_SS_32 = wtemp;
 	    } PC += 1; goto next_switch;
 /*18*/	case SBBbfrm: {
-	    DWORD src1, src2; int res;
-	    PC += hsw_modrm_16_byte(env,PC);
+	    int res, src1, src2;
+	    int carry = CARRY & 1;
+	    PC += hsw_modrm_16_byte(MODARGS);
 	    src2 = *HREG1; mem_ref = MEM_REF; src1 = *mem_ref;
-	    src2 = src2 + (CARRY & 1);
-	    *mem_ref = res = src1 - src2;
+	    *mem_ref = res = src1 - src2 - carry;
 	    SETBFLAGS(1);
 	    } goto next_switch; 
 /*19*/	case SBBwfrm: {
 	    int res, src1, src2;
-	    PC += hsw_modrm_16_word(env,PC);
+	    int carry = CARRY & 1;
+	    PC += hsw_modrm_16_word(MODARGS);
 	    src2 = *XREG1; mem_ref = MEM_REF; 
-	    src2 = src2 + (CARRY & 1);
 	    src1 = mFETCH_WORD(mem_ref);
-		res = src1 - src2;
+	    res = src1 - src2 - carry;
 	    mPUT_WORD(mem_ref, res);
 	    SETWFLAGS(1);
 	    } goto next_switch; 
 /*1a*/	case SBBbtrm: {
-	    DWORD src1, src2; int res;
-	    PC += hsw_modrm_16_byte(env,PC);
+	    int res, src1, src2;
+	    int carry = CARRY & 1;
+	    PC += hsw_modrm_16_byte(MODARGS);
 	    src2 = *MEM_REF; mem_ref = HREG1; src1 = *mem_ref;
-	    src2 = src2 + (CARRY & 1);
-	    *mem_ref = res = src1 - src2;
+	    *mem_ref = res = src1 - src2 - carry;
 	    SETBFLAGS(1);
 	    } goto next_switch; 
 /*1b*/	case SBBwtrm: {
 	    int res, src1, src2;
-	    PC += hsw_modrm_16_word(env,PC);
+	    int carry = CARRY & 1;
+	    PC += hsw_modrm_16_word(MODARGS);
 	    src1 = *XREG1; mem_ref = MEM_REF; 
 	    src2 = mFETCH_WORD(mem_ref);
-	    src2 = src2 + (CARRY & 1);
-	    *XREG1 = res = src1 - src2;
+	    *XREG1 = res = src1 - src2 - carry;
 	    SETWFLAGS(1);
 	    } goto next_switch; 
 /*1c*/	case SBBbi: {
-	    DWORD src1, src2; int res;
+	    int res, src1, src2;
+	    int carry = CARRY & 1;
 	    src1 = AL; 
-	    src2 = *(PC+1) + (CARRY & 1);
-	    AL = res = src1 - src2;
+	    src2 = *(PC+1);
+	    AL = res = src1 - src2 - carry;
 	    SETBFLAGS(1);
 	    } PC += 2; goto next_switch;
 /*1d*/	case SBBwi: {
-	    DWORD res, src1, src2;
+	    int res, src1, src2;
+	    int carry = CARRY & 1;
 	    src1 = AX; 
-	    src2 = (FETCH_WORD((PC+1))) + (CARRY & 1);
-	    res = src1 - src2;
+	    src2 = (FETCH_WORD((PC+1)));
+	    res = src1 - src2 - carry;
 	    AX = (WORD)res;
 	    SETWFLAGS(1);
 	    } PC += 3; goto next_switch;
@@ -1396,115 +1380,116 @@ override: ;    /* single semicolon needed to attach label to */
 /*1f*/	case POPds: {
 	    register WORD wtemp = TOS_WORD;
 	    if ((*err = SET_SEGREG(LONG_DS,BIG_DS,MK_DS,wtemp))) {
-	    	env->error_addr=wtemp; return P0; }
+		env->error_addr=wtemp&0xfffc; return P0; }
 	    POPWORD(wtemp);
 	    SHORT_DS_32 = wtemp;
 	    } PC += 1; goto next_switch;
 
 /*20*/	case ANDbfrm: {
-	    DWORD res, src1, src2;
-	    PC += hsw_modrm_16_byte(env,PC);
-	    src2 = *HREG1; mem_ref = MEM_REF; src1 = *mem_ref;
-	    res = src1 & src2;
+	    DWORD res;
+	    PC += hsw_modrm_16_byte(MODARGS);
+	    mem_ref = MEM_REF;
+	    res = *mem_ref & *HREG1;
 	    *mem_ref = (BYTE)res;
-	    SETBFLAGS(0);
+	    SRC1_32 = SRC2_32 = RES_32 = BYTEDUP(res);	/* CF=OF=0 */
 	    } goto next_switch; 
 /*21*/	case ANDwfrm: {
-	    DWORD res, src1, src2;
-	    PC += hsw_modrm_16_word(env,PC);
-	    src2 = *XREG1; mem_ref = MEM_REF; 
-	    src1 = mFETCH_WORD(mem_ref);
-		res = src1 & src2;
+	    DWORD res;
+	    PC += hsw_modrm_16_word(MODARGS);
+	    mem_ref = MEM_REF; 
+	    res = mFETCH_WORD(mem_ref) & *XREG1;
 	    mPUT_WORD(mem_ref, res);
-	    SETWFLAGS(0);
+	    SRC1_32 = SRC2_32 = RES_32 = res & 0xffff;	/* CF=OF=0 */
 	    } goto next_switch; 
 /*22*/	case ANDbtrm: {
-	    DWORD res, src1, src2;
-	    PC += hsw_modrm_16_byte(env,PC);
-	    src2 = *MEM_REF; mem_ref = HREG1; src1 = *mem_ref;
-	    res = src1 & src2;
-	    *mem_ref = (BYTE)res;
-	    SETBFLAGS(0);
+	    DWORD res;
+	    PC += hsw_modrm_16_byte(MODARGS);
+	    res = *HREG1 & *MEM_REF;
+	    *HREG1 = (BYTE)res;
+	    SRC1_32 = SRC2_32 = RES_32 = BYTEDUP(res);	/* CF=OF=0 */
 	    } goto next_switch; 
 /*23*/	case ANDwtrm: {
-	    int res, src1, src2;
-	    PC += hsw_modrm_16_word(env,PC);
-	    src2 = *XREG1; mem_ref = MEM_REF; 
-	    src1 = mFETCH_WORD(mem_ref);
-	    *XREG1 = res = src1 & src2;
-	    SETWFLAGS(0);
+	    DWORD res;
+	    PC += hsw_modrm_16_word(MODARGS);
+	    res = mFETCH_WORD(MEM_REF) & *XREG1;
+	    *XREG1 = (WORD)res;
+	    SRC1_32 = SRC2_32 = RES_32 = res & 0xffff;	/* CF=OF=0 */
 	    } goto next_switch; 
 /*24*/	case ANDbi: {
-	    DWORD res, src1, src2;
-	    src1 = AL; src2 = *(PC+1);
-	    res = src1 & src2;
+	    DWORD res;
+	    res = AL & PC[1];
 	    AL = (BYTE)res;
-	    SETBFLAGS(0);
+	    SRC1_32 = SRC2_32 = RES_32 = BYTEDUP(res);	/* CF=OF=0 */
 	    } PC += 2; goto next_switch;
 /*25*/	case ANDwi: {
-	    DWORD res, src2; WORD src1;
-	    src1 = AX; src2 = FETCH_WORD((PC+1));
-	    res = src1 & src2;
+	    DWORD res;
+	    res = AX & FETCH_WORD((PC+1));
 	    AX = (WORD)res;
-	    SETWFLAGS(0);
+	    SRC1_32 = SRC2_32 = RES_32 = res & 0xffff;	/* CF=OF=0 */
 	    } PC += 3; goto next_switch;
 /*26*/	case SEGes:
 	    if (!VM86F && (SHORT_ES_16 < 4 || LONG_ES==INVALID_OVR)) {
 		error("General Protection Fault: zero ES\n");
 		goto bad_override;
 	    }
-	    OVERRIDE = LONG_ES;
+	    OVERR_DS = OVERR_SS = LONG_ES;
 	    PC+=1; goto override;
 /*27*/	case DAA:
-	    if (((DWORD)( AL & 0x0f ) > 9 ) || (IS_AF_SET)) {
+#ifndef NO_TRACE_MSGS
+	    env->flags &= ~AUX_CARRY_FLAG;
+#endif
+	    if (((AL & 0x0f) > 9 ) || (IS_AF_SET)) {
 		AL += 6;
-		SET_AF
-	    } else CLEAR_AF
-	    if (((AL & 0xf0) > 0x90) || (IS_CF_SET)) {
+#ifndef NO_TRACE_MSGS
+		env->flags |= AUX_CARRY_FLAG;
+#endif
+		SET_AF;
+	    } else CLEAR_AF;
+	    if ((AL > 0x9f) || (IS_CF_SET)) {
 		AL += 0x60;
 		SET_CF;
-	    } else CLEAR_CF;
+	    } /*else CLEAR_CF;*/
 	    RES_8 = AL;
 	    BYTE_FLAG = BYTE_OP;
 	    PC += 1; goto next_switch;
-/*28*/	case SUBbfrm: {
+/*28*/	case SUBbfrm: {		/* r/m8 -= r8 */
 	    DWORD src1, src2; int res;
-	    PC += hsw_modrm_16_byte(env,PC);
+	    PC += hsw_modrm_16_byte(MODARGS);
 	    src2 = *HREG1; mem_ref = MEM_REF; src1 = *mem_ref;
 	    *mem_ref = res = src1 - src2;
 	    SETBFLAGS(1);
 	    } goto next_switch; 
-/*29*/	case SUBwfrm: {
+/*29*/	case SUBwfrm: {		/* r/m16 -= r16 */
 	    int res, src1, src2;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    src2 = *XREG1; mem_ref = MEM_REF; 
 	    src1 = mFETCH_WORD(mem_ref);
 		res = src1 - src2;
 	    mPUT_WORD(mem_ref, res);
 	    SETWFLAGS(1);
 	    } goto next_switch; 
-/*2a*/	case SUBbtrm: {
+/*2a*/	case SUBbtrm: {		/* r8 -= r/m8 */
 	    DWORD src1, src2; int res;
-	    PC += hsw_modrm_16_byte(env,PC);
+	    PC += hsw_modrm_16_byte(MODARGS);
 	    src2 = *MEM_REF; mem_ref = HREG1; src1 = *mem_ref;
 	    *mem_ref = res = src1 - src2;
 	    SETBFLAGS(1);
 	    } goto next_switch; 
-/*2b*/	case SUBwtrm: {
+/*2b*/	case SUBwtrm: {		/* r16 -= r/m16 */
 	    int res, src1, src2;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    src1 = *XREG1; mem_ref = MEM_REF; 
 	    src2 = mFETCH_WORD(mem_ref);
 	    *XREG1 = res = src1 - src2;
 	    SETWFLAGS(1);
 	    } goto next_switch; 
-/*2c*/	case SUBbi: {
+/*2c*/	case SUBbi: {		/* sub al,imm8 */
 	    DWORD src1, src2; int res;
 	    src1 = AL; src2 = *(PC+1);
 	    AL = res = src1 - src2;
 	    SETBFLAGS(1);
 	    } PC += 2; goto next_switch;
-/*2d*/	case SUBwi: {
+/*2d*/	case SUBwi: {		/* sub ax,imm16 */
 	    DWORD res, src2; WORD src1;
 	    src1 = AX; 
 	    src2 = FETCH_WORD((PC+1));
@@ -1512,95 +1497,106 @@ override: ;    /* single semicolon needed to attach label to */
 	    AX = (WORD)res;
 	    SETWFLAGS(1);
 	    } PC += 3; goto next_switch;
-/*2e*/	case SEGcs:
-	    OVERRIDE = LONG_CS;
+/*2e*/	case SEGcs:		/* CS is already checked */
+	    OVERR_DS = OVERR_SS = LONG_CS;
 	    PC+=1; goto override;
-/*2f*/	case DAS:
-	    if (((DWORD)( AX & 0x0f ) > 9 ) || (IS_AF_SET)) {
+/*2f*/	case DAS: {
+	    BYTE carry = 0;
+	    BYTE altmp = AL;
+#ifndef NO_TRACE_MSGS
+	    env->flags &= ~AUX_CARRY_FLAG;
+#endif
+	    if (((altmp & 0x0f) > 9) || (IS_AF_SET)) {
 		AL -= 6;
-		SET_AF
-	    } else CLEAR_AF
-	    if (((AL & 0xf0) > 0x90) || (IS_CF_SET)) {
+		carry = CARRYB || (AL < 6);
+		SET_AF;
+#ifndef NO_TRACE_MSGS
+		env->flags |= AUX_CARRY_FLAG;
+#endif
+	    } else CLEAR_AF;
+	    if ((altmp > 0x99) || (IS_CF_SET)) {
 		AL -= 0x60;
-		SET_CF;
-	    } else CLEAR_CF;
+		carry = 1;
+	    }
             RES_8 = AL;
+	    CARRYB = carry;
             BYTE_FLAG = BYTE_OP;
-	    PC += 1; goto next_switch;
+	    } PC += 1; goto next_switch;
 
 /*30*/	case XORbfrm: {
-	    DWORD res, src1, src2;
-	    PC += hsw_modrm_16_byte(env,PC);
-	    src2 = *HREG1; mem_ref = MEM_REF; src1 = *mem_ref;
-	    res = src1 ^ src2;
+	    DWORD res;
+	    PC += hsw_modrm_16_byte(MODARGS);
+	    mem_ref = MEM_REF;
+	    res = *mem_ref ^ *HREG1;
 	    *mem_ref = (BYTE)res;
-	    SETBFLAGS(0);
+	    SRC1_32 = SRC2_32 = RES_32 = BYTEDUP(res);	/* CF=OF=0 */
 	    } goto next_switch; 
 /*31*/	case XORwfrm: {
-	    int res, src1, src2;
-	    PC += hsw_modrm_16_word(env,PC);
-	    src2 = *XREG1; mem_ref = MEM_REF; 
-	    src1 = mFETCH_WORD(mem_ref);
-		res = src1 ^ src2;
+	    DWORD res;
+	    PC += hsw_modrm_16_word(MODARGS);
+	    mem_ref = MEM_REF; 
+	    res = mFETCH_WORD(mem_ref) ^ *XREG1;
 	    mPUT_WORD(mem_ref, res);
-	    SETWFLAGS(0);
+	    SRC1_32 = SRC2_32 = RES_32 = res & 0xffff;	/* CF=OF=0 */
 	    } goto next_switch; 
 /*32*/	case XORbtrm: {
-	    DWORD res, src1, src2;
-	    PC += hsw_modrm_16_byte(env,PC);
-	    src2 = *MEM_REF; mem_ref = HREG1; src1 = *mem_ref;
-	    res = src1 ^ src2;
-	    *mem_ref = (BYTE)res;
-	    SETBFLAGS(0);
+	    DWORD res;
+	    PC += hsw_modrm_16_byte(MODARGS);
+	    res = *MEM_REF ^ *HREG1;
+	    *HREG1 = (BYTE)res;
+	    SRC1_32 = SRC2_32 = RES_32 = BYTEDUP(res);	/* CF=OF=0 */
 	    } goto next_switch; 
 /*33*/	case XORwtrm: {
-	    int res, src1, src2;
-	    PC += hsw_modrm_16_word(env,PC);
-	    src2 = *XREG1; mem_ref = MEM_REF; 
-	    src1 = mFETCH_WORD(mem_ref);
-	    *XREG1 = res = src1 ^ src2;
-	    SETWFLAGS(0);
+	    DWORD res;
+	    PC += hsw_modrm_16_word(MODARGS);
+	    res = mFETCH_WORD(MEM_REF) ^ *XREG1;
+	    *XREG1 = (WORD)res;
+	    SRC1_32 = SRC2_32 = RES_32 = res & 0xffff;	/* CF=OF=0 */
 	    } goto next_switch; 
 /*34*/	case XORbi: {
-	    DWORD res, src1, src2;
-	    src1 = AL; src2 = *(PC+1);
-	    res = src1 ^ src2;
+	    DWORD res;
+	    res = AL ^ PC[1];
 	    AL = (BYTE)res;
-	    SETBFLAGS(0);
+	    SRC1_32 = SRC2_32 = RES_32 = BYTEDUP(res);	/* CF=OF=0 */
 	    } PC += 2; goto next_switch;
 /*35*/	case XORwi: {
-	    DWORD res, src2; WORD src1;
-	    src1 = AX; src2 = FETCH_WORD((PC+1));
-	    res = src1 ^ src2;
+	    DWORD res;
+	    res = AX ^ FETCH_WORD((PC+1));
 	    AX = (WORD)res;
-	    SETWFLAGS(0);
+	    SRC1_32 = SRC2_32 = RES_32 = res & 0xffff;	/* CF=OF=0 */
 	    } PC += 3; goto next_switch;
-/*36*/	case SEGss:
-	    OVERRIDE = LONG_SS;
+/*36*/	case SEGss:		/* SS is already checked */
+	    OVERR_DS = OVERR_SS = LONG_SS;
 	    PC+=1; goto override;
-/*37*/	case AAA:
-	    if (((DWORD)( AX & 0x0f ) > 9 ) || (IS_AF_SET)) {
-		AL += 6;
-		AH += 1; 
+/*37*/	case AAA: {
+	    BYTE icarry = (AL > 0xf9);
+#ifndef NO_TRACE_MSGS
+	    env->flags &= ~AUX_CARRY_FLAG;
+#endif
+	    if (((AL & 0x0f) > 9 ) || (IS_AF_SET)) {
+		AL = (AL + 6) & 0x0f;
+		AH = (AH + 1 + icarry);
 		SET_CF;
-		SET_AF
-	        AL &= 0x0f;
+#ifndef NO_TRACE_MSGS
+		env->flags |= AUX_CARRY_FLAG;
+#endif
+		SET_AF;
 	    } else {
 		CLEAR_CF;
-		CLEAR_AF
-	    }
+		CLEAR_AF;
             AL &= 0x0f;
-	    PC += 1; goto next_switch;
+	    }
+	    } PC += 1; goto next_switch;
 /*38*/	case CMPbfrm: {
 	    DWORD src1, src2; int res;
-	    PC += hsw_modrm_16_byte(env,PC);
+	    PC += hsw_modrm_16_byte(MODARGS);
 	    src2 = *HREG1; src1 = *MEM_REF;
 	    res = src1 - src2;
 	    SETBFLAGS(1);
 	    } goto next_switch; 
 /*39*/	case CMPwfrm: {
 	    int res, src1, src2;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    src2 = *XREG1; mem_ref = MEM_REF; 
 	    src1 = mFETCH_WORD(mem_ref);
 	    res = src1 - src2;
@@ -1608,14 +1604,14 @@ override: ;    /* single semicolon needed to attach label to */
 	    } goto next_switch; 
 /*3a*/	case CMPbtrm: {
 	    DWORD src1, src2; int res;
-	    PC += hsw_modrm_16_byte(env,PC);
+	    PC += hsw_modrm_16_byte(MODARGS);
 	    src2 = *MEM_REF; src1 = *HREG1;
 	    res = src1 - src2;
 	    SETBFLAGS(1);
 	    } goto next_switch; 
 /*3b*/	case CMPwtrm: {
 	    int res, src1, src2;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    src1 = *XREG1; mem_ref = MEM_REF; 
 	    src2 = mFETCH_WORD(mem_ref);
 	    res = src1 - src2;
@@ -1639,21 +1635,27 @@ override: ;    /* single semicolon needed to attach label to */
 		error("General Protection Fault: zero DS\n");
 		goto bad_override;
 	    }
-	    OVERRIDE = LONG_DS;
+	    OVERR_DS = OVERR_SS = LONG_DS;
 	    PC+=1; goto override;
-/*3f*/	case AAS:
-	    if (((DWORD)( AX & 0x0f ) > 9 ) || (IS_AF_SET)) {
-		AL -= 6;
-		AH -= 1;
+/*3f*/	case AAS: {
+	    BYTE icarry = (AL < 6);
+#ifndef NO_TRACE_MSGS
+	    env->flags &= ~AUX_CARRY_FLAG;
+#endif
+	    if (((AL & 0x0f) > 9 ) || (IS_AF_SET)) {
+		AL = (AL - 6) & 0x0f;
+		AH = (AH - 1 - icarry);
 		SET_CF;
-		SET_AF
-	        AL &= 0x0f;
+#ifndef NO_TRACE_MSGS
+		env->flags |= AUX_CARRY_FLAG;
+#endif
+		SET_AF;
 	    } else {
 		CLEAR_CF;
-		CLEAR_AF
-	    }
+		CLEAR_AF;
 	    AL &= 0x0f;
-	    PC += 1; goto next_switch;
+	    }
+	    } PC += 1; goto next_switch;
 
 /*40*/	case INCax: {
 	    register int temp = EAX;
@@ -1800,35 +1802,48 @@ override: ;    /* single semicolon needed to attach label to */
 	    if (BIG_SS) ESP=sp-LONG_SS; else SP=sp-LONG_SS;
 	    } PC += 1; goto next_switch;
 /*62*/	case BOUND: 
+	    goto not_implemented;
 /*63*/	case ARPL:
+	    if (VM86F) goto illegal_op;  /* PM only */
 	    goto not_implemented;
 /*64*/	case SEGfs:
 	    if (!VM86F && (SHORT_FS_16 < 4 || LONG_FS==INVALID_OVR)) {
 		error("General Protection Fault: zero FS\n");
 		goto bad_override;
 	    }
-	    OVERRIDE = LONG_FS;
+	    OVERR_DS = OVERR_SS = LONG_FS;
 	    PC+=1; goto override;
 /*65*/	case SEGgs:
 	    if (!VM86F && (SHORT_GS_16 < 4 || LONG_GS==INVALID_OVR)) {
 		error("General Protection Fault: zero GS\n");
 		goto bad_override;
 	    }
-	    OVERRIDE = LONG_GS;
+	    OVERR_DS = OVERR_SS = LONG_GS;
 	    PC+=1; goto override;
 /*66*/	case OPERoverride:	/* 0x66: 32 bit operand, 16 bit addressing */
 	    if (data32) goto bad_override;
 	    if (d_emu>4) e_printf0("ENTER interp_32d_16a\n");
 	    data32 = 1;
+	    if (PC[1]==0x67) {
+		code32 = 1;
+		PC = hsw_interp_32_32 (env, P0, PC+2, err, 1);
+		code32 = 0;
+	    }
+	    else
 	    PC = hsw_interp_32_16 (env, P0, PC+1, err);
 	    data32 = 0;
 	    if (*err) return (*err==EXCP_GOBACK? PC:P0);
 	    goto next_switch;
 /*67*/	case ADDRoverride:	/* 0x67: 16 bit operand, 32 bit addressing */
 	    if (code32) goto bad_override;
-next_switch_16_32:
 	    if (d_emu>4) e_printf0("ENTER interp_16d_32a\n");
 	    code32 = 1;
+	    if (PC[1]==0x66) {
+		data32 = 1;
+		PC = hsw_interp_32_32 (env, P0, PC+2, err, 1);
+		data32 = 0;
+	    }
+	    else
 	    PC = hsw_interp_16_32 (env, P0, PC+1, err);
 	    code32 = 0;
 	    if (*err) return (*err==EXCP_GOBACK? PC:P0);
@@ -1839,15 +1854,17 @@ next_switch_16_32:
 	    } PC += 3; goto next_switch;
 /*69*/	case IMULwrm: {
 	    int res, src1, src2;
-	    PC += hsw_modrm_16_word(env,PC);
-	    src2 = FETCH_WORD(PC); PC += 2; mem_ref = MEM_REF; 
-	    src1 = mFETCH_WORD(mem_ref);
-	    src1 = ((src1<<16)>>16);
-	    src2 = ((src2<<16)>>16);
+	    PC += hsw_modrm_16_word(MODARGS);
+	    src2 = (signed short)FETCH_WORD(PC); PC += 2; /* imm16 */
+	    src1 = (signed short)mFETCH_WORD(MEM_REF);    /* r/m16 */
 	    res = src1 * src2;
-	    *XREG1 = res; res = res >> 16;
-	    SRC1_16 = SRC2_16 = 0;
-	    RES_32 = ((res==0)||(res==0xffffffff))?0:-1;
+	    *XREG1 = (WORD)res;
+	    if ((res >= -32768) && (res <= 32767)) {  /* CF=OF=0 */
+		CARRY=0; SRC1_16 = SRC2_16 = RES_16; /* 000,111 */
+	    }
+	    else {
+		CARRY=1; SRC1_16 = SRC2_16 = ~RES_16;  /* 001,110 */
+	    }
 	    } goto next_switch; 
 /*6a*/	case PUSHbi: {
 	    register short temp = (signed char)*(PC+1);
@@ -1855,70 +1872,101 @@ next_switch_16_32:
 	    } PC +=2; goto next_switch;
 /*6b*/	case IMULbrm: {
 	    int res, src1, src2;
-	    PC += hsw_modrm_16_word(env,PC);
-	    src2 = *(signed char *)(PC); PC += 1; mem_ref = MEM_REF; 
-	    src1 = mFETCH_WORD(mem_ref);
-	    src1 = ((src1<<16)>>16);
+	    PC += hsw_modrm_16_word(MODARGS);
+	    src2 = *(signed char *)(PC); PC += 1;	  /* imm8 */
+	    src1 = (signed short)mFETCH_WORD(MEM_REF);	  /* r/m16 */
 	    res = src1 * src2;
-	    *XREG1 = res; res = res >> 16;
-	    SRC1_16 = SRC2_16 = 0;
-	    RES_32 = ((res==0)||(res==0xffffffff))?0:-1;
+	    *XREG1 = (WORD)res;
+	    if ((res >= -32768) && (res <= 32767)) {  /* CF=OF=0 */
+		CARRY=0; SRC1_16 = SRC2_16 = RES_16; /* 000,111 */
+	    }
+	    else {
+		CARRY=1; SRC1_16 = SRC2_16 = ~RES_16;  /* 001,110 */
+	    }
 	    } goto next_switch; 
 
-/*70*/	case JO: if (IS_OF_SET) {
-	    JUMP(PC+1); goto next_switch; 
-	    } PC+=2; goto next_switch;
-/*71*/	case JNO: if (!IS_OF_SET) {
-	    JUMP(PC+1); goto next_switch; 
-	    } PC+=2; goto next_switch;
+/*70*/	case JO:
+#ifndef NO_TRACE_MSGS
+	    env->flags &= ~OVERFLOW_FLAG;
+#endif
+	    if (IS_OF_SET) {
+#ifndef NO_TRACE_MSGS
+	    env->flags |= OVERFLOW_FLAG;
+#endif
+	    JUMP(PC+1); goto fast_switch; 
+	    } PC+=2; goto fast_switch;
+/*71*/	case JNO:
+#ifndef NO_TRACE_MSGS
+	    env->flags |= OVERFLOW_FLAG;
+#endif
+	    if (!IS_OF_SET) {
+#ifndef NO_TRACE_MSGS
+	    env->flags &= ~OVERFLOW_FLAG;
+#endif
+	    JUMP(PC+1); goto fast_switch; 
+	    } PC+=2; goto fast_switch;
 /*72*/	case JB_JNAE: if (IS_CF_SET) {
-	    JUMP(PC+1); goto next_switch; 
-	    } PC+=2; goto next_switch;
+	    JUMP(PC+1); goto fast_switch; 
+	    } PC+=2; goto fast_switch;
 /*73*/	case JNB_JAE: if (!IS_CF_SET) {
-	    JUMP(PC+1); goto next_switch; 
-	    } PC+=2; goto next_switch;
+	    JUMP(PC+1); goto fast_switch; 
+	    } PC+=2; goto fast_switch;
 /*74*/	case JE_JZ: if (IS_ZF_SET) {
-	    JUMP(PC+1); goto next_switch; 
-	    } PC+=2; goto next_switch;
+	    JUMP(PC+1); goto fast_switch; 
+	    } PC+=2; goto fast_switch;
 /*75*/	case JNE_JNZ: if (!IS_ZF_SET) {
-	    JUMP(PC+1); goto next_switch; 
-	    } PC+=2; goto next_switch;
+	    JUMP(PC+1); goto fast_switch; 
+	    } PC+=2; goto fast_switch;
 /*76*/	case JBE_JNA: if (IS_CF_SET || IS_ZF_SET) {
-	    JUMP(PC+1); goto next_switch; 
-	    } PC+=2; goto next_switch;
+	    JUMP(PC+1); goto fast_switch; 
+	    } PC+=2; goto fast_switch;
 /*77*/	case JNBE_JA: if (!(IS_CF_SET || IS_ZF_SET)) {
-	    JUMP(PC+1); goto next_switch; 
-	    } PC+=2; goto next_switch;
+	    JUMP(PC+1); goto fast_switch; 
+	    } PC+=2; goto fast_switch;
 /*78*/	case JS: if (IS_SF_SET) {
-	    JUMP(PC+1); goto next_switch; 
-	    } PC+=2; goto next_switch;
+	    JUMP(PC+1); goto fast_switch; 
+	    } PC+=2; goto fast_switch;
 /*79*/	case JNS: if (!(IS_SF_SET)) {
-	    JUMP(PC+1); goto next_switch; 
-	    } PC+=2; goto next_switch;
-/*7a*/	case JP_JPE: if (IS_PF_SET) {
-	    JUMP(PC+1); goto next_switch; 
-	    } PC+=2; goto next_switch;
-/*7b*/	case JNP_JPO: if (!IS_PF_SET) {
-	    JUMP(PC+1); goto next_switch; 
-	    } PC+=2; goto next_switch;
-/*7c*/	case JL_JNGE: if (IS_SF_SET ^ IS_OF_SET) {
-	    JUMP(PC+1); goto next_switch; 
-	    } PC+=2; goto next_switch;
-/*7d*/	case JNL_JGE: if (!(IS_SF_SET ^ IS_OF_SET)) {
-	    JUMP(PC+1); goto next_switch; 
-	    } PC+=2; goto next_switch;
+	    JUMP(PC+1); goto fast_switch; 
+	    } PC+=2; goto fast_switch;
+/*7a*/	case JP_JPE:
+#ifndef NO_TRACE_MSGS
+	    env->flags &= ~PARITY_FLAG;
+#endif
+	    if (IS_PF_SET) {
+#ifndef NO_TRACE_MSGS
+	    env->flags |= PARITY_FLAG;
+#endif
+	    JUMP(PC+1); goto fast_switch; 
+	    } PC+=2; goto fast_switch;
+/*7b*/	case JNP_JPO:
+#ifndef NO_TRACE_MSGS
+	    env->flags |= PARITY_FLAG;
+#endif
+	    if (!IS_PF_SET) {
+#ifndef NO_TRACE_MSGS
+	    env->flags &= ~PARITY_FLAG;
+#endif
+	    JUMP(PC+1); goto fast_switch; 
+	    } PC+=2; goto fast_switch;
+/*7c*/	case JL_JNGE: if (IS_SF_SET ^ IS_OF_SET) {	/* SF!=OF */
+	    JUMP(PC+1); goto fast_switch; 
+	    } PC+=2; goto fast_switch;
+/*7d*/	case JNL_JGE: if (!(IS_SF_SET ^ IS_OF_SET)) {	/* SF==OF */
+	    JUMP(PC+1); goto fast_switch; 
+	    } PC+=2; goto fast_switch;
 /*7e*/	case JLE_JNG: if ((IS_SF_SET ^ IS_OF_SET) || IS_ZF_SET) {
-	    JUMP(PC+1); goto next_switch; 
-	    } PC+=2; goto next_switch;
+	    JUMP(PC+1); goto fast_switch; 
+	    } PC+=2; goto fast_switch;
 /*7f*/	case JNLE_JG: if (!(IS_SF_SET ^ IS_OF_SET) && !(IS_ZF_SET)) {
-	    JUMP(PC+1); goto next_switch; 
-	    } PC+=2; goto next_switch;
+	    JUMP(PC+1); goto fast_switch; 
+	    } PC+=2; goto fast_switch;
 
 /*82*/	case IMMEDbrm2:    /* out of order */
 /*80*/	case IMMEDbrm: {
-	    DWORD src1, src2; int res;
+	    int src1, src2, res;
 	    res = (*(PC+1)>>3)& 0x7;
-	    PC += hsw_modrm_16_byte(env,PC);
+	    PC += hsw_modrm_16_byte(MODARGS);
 	    src2 = *PC; PC += 1;
 	    mem_ref = MEM_REF; src1 = *mem_ref;
 	    switch (res) {
@@ -1928,21 +1976,20 @@ next_switch_16_32:
 		    goto next_switch;
 		case 1: /* OR */
 		    *mem_ref = res = src1 | src2;
-		    SETBFLAGS(0);
+		    SRC1_32 = SRC2_32 = RES_32 = BYTEDUP(res);	/* CF=OF=0 */
 		    goto next_switch;
 		case 2: /* ADC */
-		    src2 = src2 + (CARRY & 1);
-		    *mem_ref = res = src1 + src2;
+		    *mem_ref = res = src1 + src2 + (CARRY & 1);
 		    SETBFLAGS(0);
 		    goto next_switch;
-		case 3: /* SBB */
-		    src2 = src2 + (CARRY & 1);
-		    *mem_ref = res = src1 - src2;
+		case 3: { /* SBB */
+		    int carry = CARRY & 1;
+		    *mem_ref = res = src1 - src2 - carry;
 		    SETBFLAGS(1);
-		    goto next_switch;
+		    } goto next_switch;
 		case 4: /* AND */
 		    *mem_ref = res = src1 & src2;
-		    SETBFLAGS(0);
+		    SRC1_32 = SRC2_32 = RES_32 = BYTEDUP(res);	/* CF=OF=0 */
 		    goto next_switch;
 		case 5: /* SUB */
 		    *mem_ref = res = src1 - src2;
@@ -1950,7 +1997,7 @@ next_switch_16_32:
 		    goto next_switch;
 		case 6: /* XOR */
 		    *mem_ref = res = src1 ^ src2;
-		    SETBFLAGS(0);
+		    SRC1_32 = SRC2_32 = RES_32 = BYTEDUP(res);	/* CF=OF=0 */
 		    goto next_switch;
 		case 7: /* CMP */
 		    res = src1 - src2;
@@ -1961,7 +2008,7 @@ next_switch_16_32:
 /*81*/	case IMMEDwrm: {
 	    int src1, src2, res;
 	    res = (*(PC+1)>>3)& 0x7;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    src2 = FETCH_WORD(PC); PC += 2;
 	    mem_ref = MEM_REF; 
 	    src1 = mFETCH_WORD(mem_ref);
@@ -1974,24 +2021,23 @@ next_switch_16_32:
 		case 1: /* OR */
 		    res = src1 | src2;
 		    mPUT_WORD(mem_ref, res);
-		    SETWFLAGS(0);
+		    SRC1_32 = SRC2_32 = RES_32 = res & 0xffff;	/* CF=OF=0 */
 		    goto next_switch;
 		case 2: /* ADC */
-		    src2 = src2 + (CARRY & 1);
-		    res = src1 + src2;
+		    res = src1 + src2 + (CARRY & 1);
 		    mPUT_WORD(mem_ref, res);
 		    SETWFLAGS(0);
 		    goto next_switch;
-		case 3: /* SBB */
-		    src2 = src2 + (CARRY & 1);
-		    res = src1 - src2;
+		case 3: { /* SBB */
+		    int carry = CARRY & 1;
+		    res = src1 - src2 - carry;
 		    mPUT_WORD(mem_ref, res);
 		    SETWFLAGS(1);
-		    goto next_switch;
+		    } goto next_switch;
 		case 4: /* AND */
 		    res = src1 & src2;
 		    mPUT_WORD(mem_ref, res);
-		    SETWFLAGS(0);
+		    SRC1_32 = SRC2_32 = RES_32 = res & 0xffff;	/* CF=OF=0 */
 		    goto next_switch;
 		case 5: /* SUB */
 		    res = src1 - src2;
@@ -2001,7 +2047,7 @@ next_switch_16_32:
 		case 6: /* XOR */
 		    res = src1 ^ src2;
 		    mPUT_WORD(mem_ref, res);
-		    SETWFLAGS(0);
+		    SRC1_32 = SRC2_32 = RES_32 = res & 0xffff;	/* CF=OF=0 */
 		    goto next_switch;
 		case 7: /* CMP */
 		    res = src1 - src2;
@@ -2013,7 +2059,7 @@ next_switch_16_32:
 /*83*/	case IMMEDisrm: {
 	    int src1, src2, res;
 	    res = (*(PC+1)>>3)& 0x7;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    src2 = (signed char)*(PC); PC += 1;
 	    src2 = src2 & 0xffff;
 	    mem_ref = MEM_REF; 
@@ -2027,24 +2073,23 @@ next_switch_16_32:
 		case 1: /* OR */
 		    res = src1 | src2;
 		    mPUT_WORD(mem_ref, res);
-		    SETWFLAGS(0);
+		    SRC1_32 = SRC2_32 = RES_32 = res & 0xffff;	/* CF=OF=0 */
 		    goto next_switch;
 		case 2: /* ADC */
-		    src2 = src2 + (CARRY & 1);
-		    res = src1 + src2;
+		    res = src1 + src2 + (CARRY & 1);
 		    mPUT_WORD(mem_ref, res);
 		    SETWFLAGS(0);
 		    goto next_switch;
-		case 3: /* SBB */
-		    src2 = src2 + (CARRY & 1);
-		    res = src1 - src2;
+		case 3: { /* SBB */
+		    int carry = CARRY & 1;
+		    res = src1 - src2 - carry;
 		    mPUT_WORD(mem_ref, res);
 		    SETWFLAGS(1);
-		    goto next_switch;
+		    } goto next_switch;
 		case 4: /* AND */
 		    res = src1 & src2;
 		    mPUT_WORD(mem_ref, res);
-		    SETWFLAGS(0);
+		    SRC1_32 = SRC2_32 = RES_32 = res & 0xffff;	/* CF=OF=0 */
 		    goto next_switch;
 		case 5: /* SUB */
 		    res = src1 - src2;
@@ -2054,7 +2099,7 @@ next_switch_16_32:
 		case 6: /* XOR */
 		    res = src1 ^ src2;
 		    mPUT_WORD(mem_ref, res);
-		    SETWFLAGS(0);
+		    SRC1_32 = SRC2_32 = RES_32 = res & 0xffff;	/* CF=OF=0 */
 		    goto next_switch;
 		case 7: /* CMP */
 		    res = src1 - src2;
@@ -2064,28 +2109,25 @@ next_switch_16_32:
 	      }
 	      }
 /*84*/	case TESTbrm: {
-	    DWORD res, src1, src2;
-	    PC += hsw_modrm_16_byte(env,PC);
-	    src2 = *HREG1; src1 = *MEM_REF;
-	    res = src1 & src2;
-	    SETBFLAGS(0);
+	    DWORD res;
+	    PC += hsw_modrm_16_byte(MODARGS);
+	    res = *MEM_REF & *HREG1;
+	    SRC1_32 = SRC2_32 = RES_32 = BYTEDUP(res);	/* CF=OF=0 */
 	    } goto next_switch; 
 /*85*/	case TESTwrm: {
-	    int res, src1, src2;
-	    PC += hsw_modrm_16_word(env,PC);
-	    src2 = *XREG1; mem_ref = MEM_REF; 
-	    src1 = mFETCH_WORD(mem_ref);
-		res = src1 & src2;
-	    SETWFLAGS(0);
+	    DWORD res;
+	    PC += hsw_modrm_16_word(MODARGS);
+	    res = mFETCH_WORD(MEM_REF) & *XREG1;
+	    SRC1_32 = SRC2_32 = RES_32 = res & 0xffff;	/* CF=OF=0 */
 	    } goto next_switch; 
 /*86*/	case XCHGbrm: {
 	    register BYTE temp;
-	    PC += hsw_modrm_16_byte(env,PC);
+	    PC += hsw_modrm_16_byte(MODARGS);
 	    temp = *MEM_REF; *MEM_REF = *HREG1; *HREG1 = temp;
 	    } goto next_switch; 
 /*87*/	case XCHGwrm: {
 	    register WORD wtemp;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    mem_ref = MEM_REF;
 	    wtemp = *XREG1;
 	    *XREG1 = mFETCH_WORD(mem_ref);
@@ -2094,24 +2136,20 @@ next_switch_16_32:
 	    }
 
 /*88*/	case MOVbfrm:
-	    PC += hsw_modrm_16_byte(env,PC);
-	    mPUT_BYTE(MEM_REF, *HREG1);
-		goto next_switch; 
+	    PC += hsw_modrm_16_byte(MODARGS);
+	    mPUT_BYTE(MEM_REF, *HREG1); goto next_switch;
 /*89*/	case MOVwfrm:
-	    PC += hsw_modrm_16_word(env,PC);
-	    mPUT_WORD(MEM_REF, *XREG1);
-		goto next_switch; 
+	    PC += hsw_modrm_16_word(MODARGS);
+	    mPUT_WORD(MEM_REF, *XREG1); goto next_switch; 
 /*8a*/	case MOVbtrm:
-	    PC += hsw_modrm_16_byte(env,PC);
-	    *HREG1 = *MEM_REF; goto next_switch;
-/*8b*/	case MOVwtrm: {
-	    PC += hsw_modrm_16_word(env,PC);
-	    mem_ref = MEM_REF;
-	    *XREG1 = FETCH_WORD(mem_ref);
-	    } goto next_switch;
+	    PC += hsw_modrm_16_byte(MODARGS);
+	    *HREG1 = mFETCH_BYTE(MEM_REF); goto next_switch;
+/*8b*/	case MOVwtrm:
+	    PC += hsw_modrm_16_word(MODARGS);
+	    *XREG1 = mFETCH_WORD(MEM_REF); goto next_switch;
 /*8c*/	case MOVsrtrm: {
 	    BYTE seg_reg = (*(PC + 1) >> 3) & 0x7;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 		mem_ref = MEM_REF;
 		switch (seg_reg) {
 		    case 0: /* ES */
@@ -2140,50 +2178,46 @@ next_switch_16_32:
 		}
 	    }
 /*8d*/	case LEA:
-	    OVERRIDE = 0;
-	    PC += hsw_modrm_16_word(env,PC);
+	    OVERR_DS = OVERR_SS = 0;
+	    PC += hsw_modrm_16_word(MODARGS);
 	    if (IS_MODE_REG) {
 		goto illegal_op;
 	    } else {
-		*XREG1 = ((long)MEM_REF) & 0xffff;
+		*XREG1 = (DWORD)MEM_REF;
 	    }
 	    goto next_switch;
 /*8e*/	case MOVsrfrm: {
 	    register WORD wtemp;
 	    BYTE seg_reg = (*(PC + 1) >> 3) & 0x7;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    wtemp = mFETCH_WORD(MEM_REF);
 	    switch (seg_reg) {
 		case 0: /* ES */
-		    SHORT_ES_16 = wtemp;
 		    if ((*err = SET_SEGREG(LONG_ES,BIG_ES,MK_ES,wtemp))) {
-		    	env->error_addr=wtemp; return P0; }
-		    goto next_switch;
-		case 1: /* CS */
-		    SHORT_CS_16 = wtemp;
-		    if ((*err = SET_SEGREG(LONG_CS,BIG_CS,MK_CS,wtemp))) {
-		    	env->error_addr=wtemp; return P0; }
+			env->error_addr=wtemp&0xfffc; return P0; }
+		    SHORT_ES_16 = wtemp;
 		    goto next_switch;
 		case 2: /* SS */
-		    SHORT_SS_16 = wtemp;
 		    if ((*err = SET_SEGREG(LONG_SS,BIG_SS,MK_SS,wtemp))) {
-		    	env->error_addr=wtemp; return P0; }
+			env->error_addr=wtemp&0xfffc; return P0; }
+		    SHORT_SS_16 = wtemp;
 		    goto next_switch;
 		case 3: /* DS */
-		    SHORT_DS_16 = wtemp;
 		    if ((*err = SET_SEGREG(LONG_DS,BIG_DS,MK_DS,wtemp))) {
-		    	env->error_addr=wtemp; return P0; }
+			env->error_addr=wtemp&0xfffc; return P0; }
+		    SHORT_DS_16 = wtemp;
 		    goto next_switch;
 		case 4: /* FS */
-		    SHORT_FS_16 = wtemp;
 		    if ((*err = SET_SEGREG(LONG_FS,BIG_FS,MK_FS,wtemp))) {
-		    	env->error_addr=wtemp; return P0; }
+			env->error_addr=wtemp&0xfffc; return P0; }
+		    SHORT_FS_16 = wtemp;
 		    goto next_switch;
 		case 5: /* GS */
-		    SHORT_GS_16 = wtemp;
 		    if ((*err = SET_SEGREG(LONG_GS,BIG_GS,MK_GS,wtemp))) {
-		    	env->error_addr=wtemp; return P0; }
+			env->error_addr=wtemp&0xfffc; return P0; }
+		    SHORT_GS_16 = wtemp;
 		    goto next_switch;
+		case 1: /* CS */
 		case 6: /* Illegal */
 		case 7: /* Illegal */
 		    goto illegal_op;
@@ -2193,13 +2227,13 @@ next_switch_16_32:
 /*8f*/	case POPrm: {
 	    register WORD wtemp;
 	    POPWORD(wtemp);
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    mem_ref = MEM_REF;
 	    PUT_WORD(mem_ref, wtemp);
 	    } goto next_switch;
 
 /*90*/	case NOP:
-	    PC += 1; goto next_switch;
+	    do PC++; while (*PC==0x90); goto next_switch;
 /*91*/	case XCHGcx: {
 	    register WORD wtemp = AX;
 	    AX = CX;
@@ -2249,7 +2283,7 @@ next_switch_16_32:
 	    jcs = FETCH_WORD(PC+3);
 	    transfer_magic = (WORD)GetSelectorType(jcs);
 	    if ((*err = SET_SEGREG(LONG_CS,BIG_CS,MK_CS,jcs))==EXCP0B_NOSEG) {
-		    env->error_addr=jcs; return P0; }
+		    env->error_addr=jcs&0xfffc; return P0; }
 	    SHORT_CS_16 = (WORD)jcs;
 	    PUSHWORD(ocs);
 	    PUSHWORD(oip);
@@ -2260,6 +2294,60 @@ next_switch_16_32:
 	    else if (transfer_magic == TRANSFER_CODE32) {
 		*err = EXCP_GOBACK; return (PC);
 	    }
+#ifndef DOSEMU
+	    /* WARNING Bad design: putting the seg into the higher
+	     * 16 bit WILL NOT WORK with 32-bit code!!! */
+	    env->return_addr = (ocs << 16) | (WORD)oip;
+	    if ((transfer_magic == TRANSFER_CALLBACK) || 
+	    		(transfer_magic == TRANSFER_BINARY))  {
+		LONGPROC conv,targ;
+		SEGIMAGE *lpSegImage = &((SEGIMAGE *)
+	    		(*(long *)(SELECTOR_PADDRESS(jcs))))[jip>>3];
+		targ = (LONGPROC)lpSegImage->targ;
+		conv = (LONGPROC)lpSegImage->conv;
+		EBP = (long)LONG_SS + EBP;
+		ESP = (long)LONG_SS + ESP;
+		trans_interp_flags(env);
+		if (transfer_magic == TRANSFER_CALLBACK) {
+		    env->trans_addr = (BINADDR)MAKELONG(jip,jcs);
+#ifndef NO_DEBUG_MSGS
+		    e_printf("    CALLl: %s t=%x c=%x trans=%x:%x ret=%x:%x\n",
+			GetProcName(jcs,jip>>3), (int)targ, (int)conv,
+			(WORD)(env->trans_addr >> 16),
+			(WORD)(env->trans_addr),
+			(WORD)(env->return_addr >> 16),
+			(WORD)(env->return_addr));
+#endif
+		}
+#ifndef NO_DEBUG_MSGS
+		else    /* TRANSFER_BINARY */
+		    e_printf("    CALLl: calling binary thunk %x:%x\n",
+		    	(int)jcs, (int)jip);
+#endif
+		(conv)(env,targ);
+		SHORT_CS_16 = ocs = env->return_addr >> 16;
+		oip = env->return_addr & 0xffff;
+		SET_SEGREG(LONG_CS,BIG_CS,MK_CS,SHORT_CS_16);
+		SET_SEGREG(LONG_DS,BIG_DS,MK_DS,SHORT_DS_16);
+		SET_SEGREG(LONG_ES,BIG_ES,MK_ES,SHORT_ES_16);
+		SET_SEGREG(LONG_SS,BIG_SS,MK_SS,SHORT_SS_16);
+		EBP = EBP - (long)LONG_SS;
+		ESP = ESP - (long)LONG_SS;
+		trans_flags_to_interp(env, env->flags);
+		PC = LONG_CS + oip; goto next_switch;
+	    }
+	    else if (transfer_magic == TRANSFER_RETURN) {
+		SHORT_CS_16 = jcs;
+		env->return_addr = (jcs << 16) | jip;
+#ifndef NO_DEBUG_MSGS
+		e_printf("    CALLl: return %x:%x\n", (int)jcs, (int)jip);
+#endif
+		trans_interp_flags(env);    
+		EBP = EBP + (long)LONG_SS;
+		ESP = ESP + (long)LONG_SS;
+		return PC;
+	    }
+#endif
 	    else
 		invoke_data(env);    /* TRANSFER_DATA or garbage */
         }
@@ -2272,10 +2360,11 @@ next_switch_16_32:
 	    PUSHWORD(wtemp);
 	    } PC += 1; goto next_switch;
 /*9d*/	case POPF: {
-	    DWORD temp;
+	    DWORD temp=0;
 	    if (VM86F) goto not_permitted;
-	    temp = env->flags;	/* keep bits 15-31 */
 	    POPWORD(temp);	/* change bits 0-15 */
+	    temp |= (env->flags & 0xffff0000);	/* keep bits 15-31 */
+	    BYTE_FLAG=0;
 	    trans_flags_to_interp(env, temp);
 	    } PC += 1; goto next_switch;
 /*9e*/	case SAHF: {
@@ -2289,44 +2378,53 @@ next_switch_16_32:
 	    PC += 1; goto next_switch;
 
 /*a0*/	case MOVmal: {
-	    mem_ref = ALLOW_OVERRIDE(LONG_DS) + FETCH_WORD((PC+1));
+	    mem_ref = OVERR_DS + FETCH_WORD((PC+1));
 	    AL = *mem_ref;
 	    } PC += 3; goto next_switch;
 /*a1*/	case MOVmax: {
-	    mem_ref = ALLOW_OVERRIDE(LONG_DS) + FETCH_WORD((PC+1));
+	    mem_ref = OVERR_DS + FETCH_WORD((PC+1));
 	    AX = FETCH_WORD(mem_ref);
 	    } PC += 3; goto next_switch;
 /*a2*/	case MOValm: {
-	    mem_ref = ALLOW_OVERRIDE(LONG_DS) + FETCH_WORD((PC+1));
+	    mem_ref = OVERR_DS + FETCH_WORD((PC+1));
 	    *mem_ref = AL;
 	    } PC += 3; goto next_switch;
 /*a3*/	case MOVaxm: {
-	    mem_ref = ALLOW_OVERRIDE(LONG_DS) + FETCH_WORD((PC+1));
+	    mem_ref = OVERR_DS + FETCH_WORD((PC+1));
 	    PUT_WORD(mem_ref, AX);
 	    } PC += 3; goto next_switch;
 /*a4*/	case MOVSb: {
 	    BYTE *src, *dest;
-	    src = ALLOW_OVERRIDE(LONG_DS) + (SI);
+	    src = OVERR_DS + (SI);
 	    dest = LONG_ES + (DI);
 	    *dest = *src;
+#ifndef	NO_TRACE_MSGS
+	    if (d.emu>4) e_printf("------- [EA=%p->%p] %02lx\n",(ea_=src),dest,(eav_=*src));
+#endif
 	    (env->flags & DIRECTION_FLAG)?(SI--,DI--):(SI++,DI++);
 	    } PC += 1; goto next_switch;
 /*a5*/	case MOVSw: {
 	    BYTE *src, *dest;
 	    register int temp;
-	    src = ALLOW_OVERRIDE(LONG_DS) + (SI);
+	    src = OVERR_DS + (SI);
 	    dest = LONG_ES + (DI);
 	    temp = FETCH_WORD(src);
+#ifndef	NO_TRACE_MSGS
+	    if (d.emu>4) e_printf("------- [EA=%p->%p] %04lx\n",(ea_=src),dest,(eav_=temp));
+#endif
 	    PUT_WORD(dest, temp);
 	    (env->flags & DIRECTION_FLAG)?(SI-=2,DI-=2):(SI+=2,DI+=2);
 	    } PC += 1; goto next_switch;
 /*a6*/	case CMPSb: {
 	    DWORD src1, src2; int res;
 	    BYTE *src, *dest;
-	    src = ALLOW_OVERRIDE(LONG_DS) + (SI);
+	    src = OVERR_DS + (SI);
 	    dest = LONG_ES + (DI);
 	    src1 = *src;
 	    src2 = *dest;
+#ifndef	NO_TRACE_MSGS
+	    if (d.emu>4) e_printf("------- [EA=%p->%p] %02lx %02lx\n",(ea_=src),dest,(eav_=src1),src2);
+#endif
 	    res = src1 - src2;
 	    (env->flags & DIRECTION_FLAG)?(SI--,DI--):(SI++,DI++);
 	    SETBFLAGS(1);
@@ -2334,24 +2432,26 @@ next_switch_16_32:
 /*a7*/	case CMPSw: {
 	    DWORD res, src1, src2;
 	    BYTE *src, *dest;
-	    src = ALLOW_OVERRIDE(LONG_DS) + (SI);
+	    src = OVERR_DS + (SI);
 	    dest = LONG_ES + (DI);
 	    src1 = FETCH_WORD(src);
 	    src2 = FETCH_WORD(dest);
+#ifndef	NO_TRACE_MSGS
+	    if (d.emu>4) e_printf("------- [EA=%p->%p] %04lx %04lx\n",(ea_=src),dest,(eav_=src1),src2);
+#endif
 	    res = src1 - src2;
 	    (env->flags & DIRECTION_FLAG)?(SI-=2,DI-=2):(SI+=2,DI+=2);
 	    SETWFLAGS(1);
 	    } PC += 1; goto next_switch;
 /*a8*/	case TESTbi: {
-	    DWORD src1, src2; int res;
-	    src1 = AL; src2 = *(PC+1);
-	    res = src1 & src2;
-	    SETBFLAGS(0);
+	    DWORD res;
+	    res = AL & PC[1];
+	    SRC1_32 = SRC2_32 = RES_32 = BYTEDUP(res);	/* CF=OF=0 */
 	    } PC += 2; goto next_switch;
 /*a9*/	case TESTwi: {
 	    DWORD res;
-	    res = FETCH_WORD((PC+1));
-	    SRC1_32 = SRC2_32 = RES_32 = AX & res;
+	    res = AX & FETCH_WORD((PC+1));
+	    SRC1_32 = SRC2_32 = RES_32 = res & 0xffff;	/* CF=OF=0 */
 	    } PC += 3; goto next_switch;
 /*aa*/	case STOSb:
 	    LONG_ES[DI] = AL;
@@ -2363,20 +2463,23 @@ next_switch_16_32:
 	    PC += 1; goto next_switch;
 /*ac*/	case LODSb: {
 	    BYTE *seg;
-	    seg = ALLOW_OVERRIDE(LONG_DS) + (SI);
+	    seg = OVERR_DS + (SI);
 	    AL = *seg;
 	    (env->flags & DIRECTION_FLAG)?SI--:SI++;
 	    } PC += 1; goto next_switch;
 /*ad*/	case LODSw: {
 	    BYTE *seg;
-	    seg = ALLOW_OVERRIDE(LONG_DS) + (SI);
+	    seg = OVERR_DS + (SI);
 	    AX = FETCH_WORD(seg);
 	    (env->flags & DIRECTION_FLAG)?(SI-=2):(SI+=2);
 	    } PC += 1; goto next_switch;
 /*ae*/	case SCASb: {
 	    DWORD src1, src2; int res;
 	    src1 = AL;
-	    src2 = (LONG_ES[DI]);
+	    src2 = *((BYTE *)(LONG_ES+DI));
+#ifndef	NO_TRACE_MSGS
+	    if (d.emu>4) e_printf("------- [EA=%p] %02lx\n",(ea_=(LONG_ES+DI)),(eav_=src2));
+#endif
 	    res = src1 - src2;
 	    (env->flags & DIRECTION_FLAG)?DI--:DI++;
 	    SETBFLAGS(1);
@@ -2384,8 +2487,11 @@ next_switch_16_32:
 /*af*/	case SCASw: {
 	    DWORD res, src1, src2;
 	    src1 = AX;
-	    mem_ref = LONG_ES + (DI);
+	    mem_ref = LONG_ES+DI;
 	    src2 = FETCH_WORD(mem_ref);
+#ifndef	NO_TRACE_MSGS
+	    if (d.emu>4) e_printf("------- [EA=%p] %04lx\n",(ea_=(LONG_ES+DI)),(eav_=src2));
+#endif
 	    res = src1 - src2;
 	    (env->flags & DIRECTION_FLAG)?(DI-=2):(DI+=2);
 	    SETWFLAGS(1);
@@ -2443,11 +2549,11 @@ next_switch_16_32:
 /*d0*/	case SHIFTb:
 /*d2*/	case SHIFTbv:
 /*c0*/	case SHIFTbi: {
-	    register int temp; int count;
+	    int temp, count;
 	    DWORD rbef, raft; BYTE opc;
 	    opc = *PC;
 	    temp = (*(PC+1)>>3)& 0x7;
-	    PC += hsw_modrm_16_byte(env,PC);
+	    PC += hsw_modrm_16_byte(MODARGS);
 	    if (opc==SHIFTb) count = 1;
 	      else if (opc==SHIFTbv) count = CX & 0x1f;
 	        else { count = *PC & 0x1f; PC += 1; }
@@ -2457,45 +2563,41 @@ next_switch_16_32:
 		switch (temp) {
 		    case 0: /* ROL */
 			rbef = *mem_ref;
+			SRC1_8 = SRC2_8 = rbef;		/* OF: 00x or 11x */
 			count &= 7;	/* rotation modulo 8 */
 			raft = (rbef << count) | (rbef >> (8 - count));
-			*mem_ref = (BYTE)raft;
+			*mem_ref = RES_8 = (BYTE)raft;
 			BYTE_FLAG = BYTE_OP;
 			CARRYB = (BYTE)(raft & 1);
-			if ((count==1) && ((rbef^raft)&0x80))
-			    SRC1_8 = SRC2_8 = ~RES_8; /* will produce OF */
 			goto next_switch;
 		    case 1: /* ROR */
 			rbef = *mem_ref; 
+			SRC1_8 = SRC2_8 = rbef;
 			count &= 7;
 			raft = (rbef >> count) | (rbef << (8 - count));
-			*mem_ref = (BYTE)raft;
+			*mem_ref = RES_8 = (BYTE)raft;
 			BYTE_FLAG = BYTE_OP;
 			CARRYB = (BYTE)((raft >> 7) & 1);
-			if ((count==1) && ((rbef^raft)&0x80))
-			    SRC1_8 = SRC2_8 = ~RES_8;
 			goto next_switch;
 		    case 2: /* RCL */
 			rbef = *mem_ref; 
+			SRC1_8 = SRC2_8 = rbef;
 			count &= 7;
 			raft = (rbef << count) | ((rbef >> (9 - count))
 			    | ((CARRY & 1) << (count - 1)));
-			*mem_ref = (BYTE)raft;
+			*mem_ref = RES_8 = (BYTE)raft;
 			BYTE_FLAG = BYTE_OP;
 			CARRYB = (BYTE)((rbef >> (8 - count)) & 1);
-			if ((count==1) && ((rbef^raft)&0x80))
-			    SRC1_8 = SRC2_8 = ~RES_8;
 			goto next_switch;
 		    case 3: /* RCR */
 			rbef = *mem_ref; 
+			SRC1_8 = SRC2_8 = rbef;
 			count &= 7;
 			raft = (rbef >> count) | ((rbef << (9 - count))
 			    | ((CARRY & 1) << (8 - count)));
-			*mem_ref = (BYTE)raft;
+			*mem_ref = RES_8 = (BYTE)raft;
 			BYTE_FLAG = BYTE_OP;
 			CARRYB = (BYTE)((rbef >> (count - 1)) & 1);
-			if ((count==1) && ((rbef^raft)&0x80))
-			    SRC1_8 = SRC2_8 = ~RES_8;
 			goto next_switch;
 		    case 6: /* Undocumented */
 		        if (opc==SHIFTbv) goto illegal_op;
@@ -2506,6 +2608,7 @@ next_switch_16_32:
 			CARRYB = (temp >> (8 - count)) & 1;
 			temp = (temp << count);
 			*mem_ref = temp;
+			/* if cnt==1 OF=1 if CF after shift != MSB 1st op */
 			RES_8 = temp; BYTE_FLAG = BYTE_OP;
 			goto next_switch;
 		    case 5: /* SHR */
@@ -2514,16 +2617,17 @@ next_switch_16_32:
 			CARRYB = (temp >> (count-1)) & 1;
 			temp = (temp >> count);
 			*mem_ref = temp;
+			/* if cnt==1 OF=1 if MSB was changed */
 			RES_8 = temp; BYTE_FLAG = BYTE_OP;
 			goto next_switch;
 		    case 7: /* SAR */
-			temp = *mem_ref; 
-			temp = ((temp << 24) >> 24);
-			SRC1_8 = SRC2_8 = temp;
+			temp = *(signed char *)mem_ref; 
 			CARRYB = (temp >> (count-1)) & 1;
 			temp = (temp >> count);
-			*mem_ref = temp;
-			RES_8 = temp; BYTE_FLAG = BYTE_OP;
+			*mem_ref = (BYTE)temp;
+			/* if cnt==1 OF=0 */
+			SRC1_8 = SRC2_8 = RES_8 = (BYTE)temp;
+			BYTE_FLAG = BYTE_OP;
 			goto next_switch;
 		    default: goto not_implemented;
 		} } else  goto next_switch;
@@ -2531,11 +2635,11 @@ next_switch_16_32:
 /*d1*/	case SHIFTw:
 /*d3*/	case SHIFTwv:
 /*c1*/	case SHIFTwi: {
-	    register int temp; int count;
+	    int temp, count;
 	    DWORD rbef, raft; BYTE opc;
 	    opc = *PC;
 	    temp = (*(PC+1)>>3)& 0x7;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    mem_ref = MEM_REF;
 	    if (opc==SHIFTw) count = 1;
 	      else if (opc==SHIFTwv) count = CX & 0x1f;
@@ -2546,41 +2650,41 @@ next_switch_16_32:
 		switch (temp) {
 		    case 0: /* ROL */
 			rbef = mFETCH_WORD(mem_ref);
+			SRC1_16 = SRC2_16 = rbef;
 			count &= 0xf;	/* rotation modulo 16 */
 			raft = (rbef << count) | (rbef >> (16 - count));
 			mPUT_WORD(mem_ref,raft);
+			RES_16 = (WORD)raft;
 			CARRY = (WORD)(raft & 1);	/* -> BYTE_FLAG=0 */
-			if ((count==1) && ((rbef^raft)&0x8000))
-			    SRC1_16 = SRC2_16 = ~RES_16; /* will produce OF */
 			goto next_switch;
 		    case 1: /* ROR */
 			rbef = mFETCH_WORD(mem_ref);
+			SRC1_16 = SRC2_16 = rbef;
 			count &= 0xf;
 			raft = (rbef >> count) | (rbef << (16 - count));
 			mPUT_WORD(mem_ref,raft);
+			RES_16 = (WORD)raft;
 			CARRY = (WORD)((raft >> 15) & 1);
-			if ((count==1) && ((rbef^raft)&0x8000))
-			    SRC1_16 = SRC2_16 = ~RES_16;
 			goto next_switch;
 		    case 2: /* RCL */
 			rbef = mFETCH_WORD(mem_ref);
+			SRC1_16 = SRC2_16 = rbef;
 			count &= 0xf;
 			raft = (rbef << count) | ((rbef >> (17 - count))
 			    | ((CARRY & 1) << (count - 1)));
 			mPUT_WORD(mem_ref,raft);
+			RES_16 = (WORD)raft;
 			CARRY = (WORD)((rbef >> (16 - count)) & 1);
-			if ((count==1) && ((rbef^raft)&0x8000))
-			    SRC1_16 = SRC2_16 = ~RES_16;
 			goto next_switch;
 		    case 3: /* RCR */
 			rbef = mFETCH_WORD(mem_ref);
+			SRC1_16 = SRC2_16 = rbef;
 			count &= 0xf;
 			raft = (rbef >> count) | ((rbef << (17 - count))
 			    | ((CARRY & 1) << (16 - count)));
 			mPUT_WORD(mem_ref,raft);
+			RES_16 = (WORD)raft;
 			CARRY = (WORD)((rbef >> (count - 1)) & 1);
-			if ((count==1) && ((rbef^raft)&0x8000))
-			    SRC1_16 = SRC2_16 = ~RES_16;
 			goto next_switch;
 		    case 6: /* Undocumented */
 		        if ((opc==SHIFTw)||(opc==SHIFTwv))
@@ -2603,13 +2707,12 @@ next_switch_16_32:
 			RES_16 = temp;
 			goto next_switch;
 		    case 7: /* SAR */
-			temp = mFETCH_WORD(mem_ref); 
-			temp = ((temp << 16) >> 16);
-			SRC1_16 = SRC2_16 = temp;
+			temp = (signed short)mFETCH_WORD(mem_ref);
 			CARRY = (temp >> (count-1)) & 1;
 			temp = (temp >> count);
 			mPUT_WORD(mem_ref,temp);
-			RES_16 = temp;
+			/* if cnt==1 OF=0 */
+			SRC1_16 = SRC2_16 = RES_16 = (WORD)temp;
 			goto next_switch;
 		    default: goto not_implemented;
 	      } } else  goto next_switch;
@@ -2628,39 +2731,37 @@ next_switch_16_32:
 	    } goto next_switch;
 /*c4*/	case LES: {
 	    register WORD wtemp;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    if (IS_MODE_REG) {
 		/* Illegal */
 		goto illegal_op;
 	    }
 	    mem_ref = MEM_REF;
-	    wtemp = FETCH_WORD(mem_ref);
-	    *XREG1 = wtemp;
 	    wtemp = FETCH_WORD(mem_ref+2);
 	    if ((*err = SET_SEGREG(LONG_ES,BIG_ES,MK_ES,wtemp))) {
-	    	env->error_addr=wtemp; return P0; }
+		env->error_addr=wtemp&0xfffc; return P0; }
+	    *XREG1 = FETCH_WORD(mem_ref);
 	    SHORT_ES_32 = wtemp;
 	    } goto next_switch;
 /*c5*/	case LDS: {
 	    register WORD wtemp;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    if (IS_MODE_REG) {
 		/* Illegal */
 		goto illegal_op;
 	    }
 	    mem_ref = MEM_REF;
-	    wtemp = FETCH_WORD(mem_ref);
-	    *XREG1 = wtemp;
 	    wtemp = FETCH_WORD(mem_ref+2);
 	    if ((*err = SET_SEGREG(LONG_DS,BIG_DS,MK_DS,wtemp))) {
-	    	env->error_addr=wtemp; return P0; }
+		env->error_addr=wtemp&0xfffc; return P0; }
+	    *XREG1 = FETCH_WORD(mem_ref);
 	    SHORT_DS_32 = wtemp;
 	    } goto next_switch;
 /*c6*/	case MOVbirm:
-	    PC += hsw_modrm_16_byte(env,PC);
+	    PC += hsw_modrm_16_byte(MODARGS);
 	    *MEM_REF = *PC; PC += 1; goto next_switch;
 /*c7*/	case MOVwirm:
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    mPUT_WORD(MEM_REF, mFETCH_WORD(PC));
 		PC += 2; goto next_switch;
 /*c8*/	case ENTER: {
@@ -2697,74 +2798,134 @@ next_switch_16_32:
 	    } PC += 1; goto next_switch;
 /*ca*/	case RETlisp: { /* restartable */
 	    DWORD cs, ip, dr;
-	    POPWORD(ip);
+	    WORD transfer_magic;
+	    POPWORD(ip);	/* so to use TOS_WORD */
 	    cs = TOS_WORD;
 	    dr = FETCH_WORD((PC+1));
 	    if ((*err = SET_SEGREG(LONG_CS,BIG_CS,MK_CS,cs))==EXCP0B_NOSEG) {
-		    PUSHWORD(ip); env->error_addr=cs; return P0; }
+		    PUSHWORD(ip); env->error_addr=cs&0xfffc; return P0; }
 	    POPWORD(cs);
 	    SHORT_CS_16 = (WORD)cs;
 	    if (BIG_SS) ESP+=dr; else SP+=(WORD)dr;
 	    PC = ip + LONG_CS;
-	    if (VM86F || (GetSelectorType(cs)==TRANSFER_CODE16)) {
+	    transfer_magic = (WORD)GetSelectorType(cs);
+	    if (VM86F || (transfer_magic==TRANSFER_CODE16)) {
 		goto next_switch;
 	    }
-	    else if (GetSelectorType(cs)==TRANSFER_CODE32) {
+	    else if (transfer_magic==TRANSFER_CODE32) {
 		*err = EXCP_GOBACK; return (PC);
 	    }
-	    else
+	    else {
+#ifdef DOSEMU
 	      invoke_data(env);    /* TRANSFER_DATA or garbage */
+#else
+		env->return_addr = ip | (cs << 16);
+		trans_interp_flags(env);
+		EBP = EBP + (long)LONG_SS;
+		ESP = ESP + (long)LONG_SS;
+		return PC;
+#endif
+	    }
 	    }
 /*cb*/	case RETl: { /* restartable */
 	    DWORD cs, ip;
+	    WORD transfer_magic;
 	    POPWORD(ip);
 	    cs = TOS_WORD;
 	    if ((*err = SET_SEGREG(LONG_CS,BIG_CS,MK_CS,cs))==EXCP0B_NOSEG) {
-		    PUSHWORD(ip); env->error_addr=cs; return P0; }
+		    PUSHWORD(ip); env->error_addr=cs&0xfffc; return P0; }
 	    POPWORD(cs);
 	    SHORT_CS_16 = (WORD)cs;
 	    PC = ip + LONG_CS;
-	    if (VM86F || (GetSelectorType(cs)==TRANSFER_CODE16)) {
+	    transfer_magic = (WORD)GetSelectorType(cs);
+	    if (VM86F || (transfer_magic==TRANSFER_CODE16)) {
 		goto next_switch;
 	    }
-	    else if (GetSelectorType(cs)==TRANSFER_CODE32) {
+	    else if (transfer_magic==TRANSFER_CODE32) {
 		*err = EXCP_GOBACK; return (PC);
 	    }
-	    else
+	    else {
+#ifdef DOSEMU
 	      invoke_data(env);    /* TRANSFER_DATA or garbage */
+#else
+		env->return_addr = ip | (cs << 16);
+		trans_interp_flags(env);
+		EBP = EBP + (long)LONG_SS;
+		ESP = ESP + (long)LONG_SS;
+		return PC;
+#endif
+	    }
 	    } 
 /*cc*/	case INT3:
+#ifdef DOSEMU
 	    *err=EXCP03_INT3;
 	    PC += 1; return PC;
+#else
+	    goto not_implemented;
+#endif
 /*cd*/	case INT:
+#ifdef DOSEMU
 	    *err=(PC[1]==1? EXCP01_SSTP:EXCP0D_GPF);
 	    return P0;
+#else
+	    { unsigned int temp, cs, ip = (unsigned int)(PC - LONG_CS);
+	    PUSHWORD(ip);
+	    cs = SHORT_CS_16;
+	    PUSHWORD(cs);
+	    env->return_addr = (cs << 16)|ip;
+	    temp =     trans_interp_flags(env);
+	    PUSHWORD(temp);
+	    EBP = EBP + (long)LONG_SS;
+	    ESP = ESP + (long)LONG_SS;
+	    INT_handler((unsigned int)(*(PC+1)),(void *)env);
+	    EBP = EBP - (long)LONG_SS;
+	    ESP = ESP - (long)LONG_SS;
+	    trans_flags_to_interp(env, env->flags);
+	    } PC += 2; goto next_switch;
+#endif
 /*ce*/	case INTO:
+#ifdef DOSEMU
 	    *err=EXCP04_INTO; return P0;
+#else
+	    goto not_implemented;
+#endif
 /*cf*/	case IRET: /* restartable */
 	    if (VM86F) goto not_permitted;
 	    else {
 		DWORD cs, ip, flags;
+		WORD transfer_magic;
 		POPWORD(ip);
 		cs = TOS_WORD;
 		if ((*err = SET_SEGREG(LONG_CS,BIG_CS,MK_CS,cs))==EXCP0B_NOSEG) {
-			PUSHWORD(ip); env->error_addr=cs; return P0; }
+			PUSHWORD(ip); env->error_addr=cs&0xfffc; return P0; }
 		POPWORD(cs);
 		POPWORD(flags);
+		BYTE_FLAG=0;
 		trans_flags_to_interp(env, flags);
 		SHORT_CS_16 = (WORD)cs;
 		PC = ip + LONG_CS;
 		if (env->flags & TRAP_FLAG) {
 		    return (PC);
 		}
-		if (VM86F || (GetSelectorType(cs)==TRANSFER_CODE16)) {
+		transfer_magic = (WORD)GetSelectorType(cs);
+		if (VM86F || (transfer_magic==TRANSFER_CODE16)) {
 		    goto next_switch;
 		}
-		else if (GetSelectorType(cs)==TRANSFER_CODE32) {
+		else if (transfer_magic==TRANSFER_CODE32) {
 		    *err = EXCP_GOBACK; return (PC);
 		}
+#ifndef DOSEMU
+		else {
+		    env->return_addr = ip | (cs << 16);
+		    trans_interp_flags(env);
+		    EBP = EBP + (long)LONG_SS;
+		    ESP = ESP + (long)LONG_SS;
+		    return PC;
+	        }
+#else
 		else
 		    invoke_data(env);    /* TRANSFER_DATA or garbage */
+#endif
 	    } 
 
 /*d0*/	    /* see before */
@@ -2773,8 +2934,9 @@ next_switch_16_32:
 /*d3*/	    /* see before */
 /*d4*/	case AAM: {
 	    int base = PC[1];
-	    AH = AL / base;
-	    RES_8 = AL = AL % base;
+	    BYTE tmp = AL;
+	    AH = tmp / base;
+	    RES_8 = AL = tmp % base;
 	    BYTE_FLAG=BYTE_OP;
 	    } PC += 2; goto next_switch;
 /*d5*/	case AAD: {
@@ -2787,7 +2949,7 @@ next_switch_16_32:
 	    AL = (CARRYB & 1? 0xff:0x00);
 	    PC += 1; goto next_switch;
 /*d7*/	case XLAT: {
-	    mem_ref = ALLOW_OVERRIDE(LONG_DS) + (BX) + (AL);
+	    mem_ref = OVERR_DS + (BX) + (AL);
 	    AL = *mem_ref; }
 	    PC += 1; goto next_switch;
 
@@ -2804,56 +2966,56 @@ next_switch_16_32:
 /*d8*/	case ESC0: {
 	    int reg = (*(PC+1) & 7);
 	    DWORD funct = (DWORD)(*(PC+1) & 0x38) >> 3;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    if (IS_MODE_REG) hsw_fp87_reg0[funct](reg);
 	    else hsw_fp87_mem0[funct](MEM_REF);
 	    } break;
 /*d9*/	case ESC1: {
 	    int reg = (*(PC+1) & 7);
 	    DWORD funct = (DWORD)(*(PC+1) & 0x38) >> 3;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    if (IS_MODE_REG) hsw_fp87_reg1[funct](reg);
 	    else hsw_fp87_mem1[funct](MEM_REF);
 	    } break;
 /*da*/	case ESC2: {
 	    int reg = (*(PC+1) & 7);
 	    DWORD funct = (DWORD)(*(PC+1) & 0x38) >> 3;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    if (IS_MODE_REG) hsw_fp87_reg2[funct](reg);
 	    else hsw_fp87_mem2[funct](MEM_REF);
 	    } break;
 /*db*/	case ESC3: {
 	    int reg = (*(PC+1) & 7);
 	    DWORD funct = (DWORD)(*(PC+1) & 0x38) >> 3;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    if (IS_MODE_REG) hsw_fp87_reg3[funct](reg);
 	    else hsw_fp87_mem3[funct](MEM_REF);
 	    } break;
 /*dc*/	case ESC4: {
 	    int reg = (*(PC+1) & 7);
 	    DWORD funct = (DWORD)(*(PC+1) & 0x38) >> 3;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    if (IS_MODE_REG) hsw_fp87_reg4[funct](reg);
 	    else hsw_fp87_mem4[funct](MEM_REF);
 	    } break;
 /*dd*/	case ESC5: {
 	    int reg = (*(PC+1) & 7);
 	    DWORD funct = (DWORD)(*(PC+1) & 0x38) >> 3;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    if (IS_MODE_REG) hsw_fp87_reg5[funct](reg);
 	    else hsw_fp87_mem5[funct](MEM_REF);
 	    } break;
 /*de*/	case ESC6: {
 	    int reg = (*(PC+1) & 7);
 	    DWORD funct = (DWORD)(*(PC+1) & 0x38) >> 3;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    if (IS_MODE_REG) hsw_fp87_reg6[funct](reg);
 	    else hsw_fp87_mem6[funct](MEM_REF);
 	    } break;
 /*df*/	case ESC7: {
 	    int reg = (*(PC+1) & 7);
 	    DWORD funct = (DWORD)(*(PC+1) & 0x38) >> 3;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    if (IS_MODE_REG) hsw_fp87_reg7[funct](reg);
 	    else hsw_fp87_mem7[funct](MEM_REF);
 	    } break;
@@ -2883,40 +3045,34 @@ next_switch_16_32:
 
 /*e4*/	case INb: {
 	      BYTE a = *(PC+1);
-	      if (VM86F || (CPL > IOPL)) {
+	      /* We CAN't allow unlimited port access even in RM - all
+	       * MUST be filtered through the I/O bitmap */
+	      /*if (VM86F || (CPL > IOPL)) {*/
 		if (!test_bit(a, io_bitmap)) goto not_permitted;
-	      }
 	      AL = port_real_inb(a);
 	      PC += 2; goto next_switch;
 	    }
 /*e5*/	case INw: {
 	      BYTE a = *(PC+1);
-	      if (VM86F || (CPL > IOPL)) {
 		if ((a&1)||(!test_bit(a+1, io_bitmap))) goto not_permitted;
-	      }
 	      AX = port_real_inw(a);
 	      PC += 2; goto next_switch;
 	    }
 /*e6*/	case OUTb: {
 	      BYTE a = *(PC+1);
-	      if (VM86F || (CPL > IOPL)) {
 		if (!test_bit(a, io_bitmap)) goto not_permitted;
-	      }
 	      port_real_outb(a, AL);
 	      PC += 2; goto next_switch;
 	    }
 /*e7*/	case OUTw: {
 	      BYTE a = *(PC+1);
-	      if (VM86F || (CPL > IOPL)) {
 		if ((a&1)||(!test_bit(a+1, io_bitmap))) goto not_permitted;
-	      }
 	      port_real_outw(a, AX);
 	      PC += 2; goto next_switch;
 	    }
 
 /*6c*/	case INSb:
 /*ec*/	case INvb:
-	    if (VM86F || (CPL > IOPL)) {
 #if defined(DOSEMU) && defined(X_SUPPORT)
 		if (emu_under_X) {
 		  extern BYTE VGA_emulate_inb(WORD);
@@ -2939,7 +3095,6 @@ next_switch_16_32:
 		}
 #endif
 		if ((DX>0x3ff)||(!test_bit(DX, io_bitmap))) goto not_permitted;
-	    }
 	    atmp = port_real_inb(DX);
 com6cec:    if (*PC==INvb)
 		AL = (BYTE)atmp;
@@ -2952,9 +3107,7 @@ com6cec:    if (*PC==INvb)
 
 /*6d*/	case INSw:
 /*ed*/	case INvw:
-	    if (VM86F || (CPL > IOPL)) {
 		if ((DX>0x3fe)||(DX&1)||(!test_bit(DX+1, io_bitmap))) goto not_permitted;
-	    }
 	    atmp = port_real_inw(DX);
 	    if (*PC==INvw)
 		AX = atmp;
@@ -2970,7 +3123,7 @@ com6cec:    if (*PC==INvb)
 	    goto com6ee0;
 /*ee*/	case OUTvb:
 	    atmp = AL;
-com6ee0:    if (VM86F || (CPL > IOPL)) {
+com6ee0:
 #if defined(DOSEMU) && defined(X_SUPPORT)
 		if (emu_under_X) {
 		  extern void VGA_emulate_outb(WORD,BYTE);
@@ -2991,7 +3144,6 @@ com6ee0:    if (VM86F || (CPL > IOPL)) {
 		}
 #endif
 		if ((DX>0x3ff)||(!test_bit(DX, io_bitmap))) goto not_permitted;
-	    }
 	    port_real_outb(DX, atmp);
 com6ee1:    if (*PC==OUTSb) {
 		(env->flags & DIRECTION_FLAG)?(DI--):(DI++);
@@ -3004,7 +3156,7 @@ com6ee1:    if (*PC==OUTSb) {
 	    goto com6fe0;
 /*ef*/	case OUTvw:
 	    atmp = AX;
-com6fe0:    if (VM86F || (CPL > IOPL)) {
+com6fe0:
 #if defined(DOSEMU) && defined(X_SUPPORT)
 		if (emu_under_X) {
 		  extern void VGA_emulate_outb(WORD,BYTE);
@@ -3021,7 +3173,6 @@ com6fe0:    if (VM86F || (CPL > IOPL)) {
 		}
 #endif
 		if ((DX>0x3fe)||(DX&1)||(!test_bit(DX+1, io_bitmap))) goto not_permitted;
-	    }
 	    port_real_outw(DX, atmp);
 com6fe1:    if (*PC==OUTSw) {
 		(env->flags & DIRECTION_FLAG)?(DI-=2):(DI+=2);
@@ -3043,20 +3194,65 @@ com6fe1:    if (*PC==OUTSw) {
 	    WORD transfer_magic;
 	    ip = FETCH_WORD(PC+1);
 	    cs = (FETCH_WORD(PC+3) & 0xffff);
-	    SHORT_CS_16 = (WORD)cs;
 	    transfer_magic = (WORD)GetSelectorType(cs);
 	    if (VM86F || (transfer_magic == TRANSFER_CODE16)) {
 		if ((*err = SET_SEGREG(LONG_CS,BIG_CS,MK_CS,cs))==EXCP0B_NOSEG) {
-		    env->error_addr=cs; return P0; }
+		    env->error_addr=cs&0xfffc; return P0; }
 		SHORT_CS_16 = (WORD)cs;
 		PC = ip + LONG_CS;
 		goto next_switch;
 	    }
+#ifndef DOSEMU
+	    else if ((transfer_magic == TRANSFER_CALLBACK) || 
+	    		(transfer_magic == TRANSFER_BINARY))  {
+		LONGPROC conv,targ;
+		SEGIMAGE *lpSegImage = &((SEGIMAGE *)
+	    		(*(long *)(SELECTOR_PADDRESS(cs))))[ip>>3];
+		targ = (LONGPROC)lpSegImage->targ;
+		conv = (LONGPROC)lpSegImage->conv;
+		EBP = (long)LONG_SS + EBP;
+		ESP = (long)LONG_SS + ESP;
+		trans_interp_flags(env);   
+		if (transfer_magic == TRANSFER_CALLBACK) {
+		    env->trans_addr = (BINADDR)MAKELONG(ip,cs);
+#ifndef	NO_TRACE_MSGS
+		    e_printf("do_ext: jump to %s\n", GetProcName(cs,ip>>3));
+#endif
+		}
+#ifndef	NO_TRACE_MSGS
+		else    /* TRANSFER_BINARY */
+		    e_printf("do_ext: jumping to binary thunk %x:%x\n",
+		    	(int)cs, (int)ip);
+#endif
+		(conv)(env,targ);
+                SHORT_CS_16 = cs = env->return_addr >> 16;
+                ip = env->return_addr & 0xffff;
+		SET_SEGREG(LONG_CS,BIG_CS,MK_CS,SHORT_CS_16);
+		SET_SEGREG(LONG_DS,BIG_DS,MK_DS,SHORT_DS_16);
+		SET_SEGREG(LONG_ES,BIG_ES,MK_ES,SHORT_ES_16);
+		SET_SEGREG(LONG_SS,BIG_SS,MK_SS,SHORT_SS_16);
+                EBP = EBP - (long)LONG_SS;
+                ESP = ESP - (long)LONG_SS;
+                trans_flags_to_interp(env, env->flags);
+                PC = LONG_CS + ip; goto next_switch;
+	    }
+	    else if (transfer_magic == TRANSFER_RETURN) {
+		env->return_addr = (cs << 16) | ip;
+		trans_interp_flags(env);
+		EBP = EBP + (long)LONG_SS;
+		ESP = ESP + (long)LONG_SS;
+		return PC;
+	    }
+#endif
 	    else
 		invoke_data(env);    /* TRANSFER_DATA or garbage */
 	}
 /*eb*/	case JMPsid: 
-	JUMP((PC+1)); goto next_switch;
+/**/	if (PC[1]==0xfe) {
+	    FatalAppExit(0, "LOOP");
+	    exit(1);
+	}
+	JUMP((PC+1)); goto fast_switch;
 
 /*f0*/	case LOCK:
 	    CEmuStat |= CeS_LOCK;
@@ -3067,7 +3263,7 @@ com6fe1:    if (*PC==OUTSw) {
 /*f2*/	case REPNE:
 /*f3*/	case REP:     /* also is REPE */
 	{
-	    unsigned int count = CX;
+	    unsigned int count = CX;	/* UNsigned! */
 	    int longd = 2;
 	    BYTE repop,test;
 
@@ -3079,9 +3275,7 @@ segrep:
 		case INSb: {
 		    BYTE *dest;
 		    if (count == 0) goto next_switch;
-		    if (VM86F || (CPL > IOPL)) {
 			if ((DX>0x3ff)||(!test_bit(DX, io_bitmap))) goto not_permitted;
-		    }
 		    instr_count += count;
 		    dest = LONG_ES + DI;
 		    if (env->flags & DIRECTION_FLAG) {
@@ -3096,9 +3290,7 @@ segrep:
 		case INSw: {
 		    int lcount = count * longd;
 		    if (count == 0) goto next_switch;
-		    if (VM86F || (CPL > IOPL)) {
 			if ((DX>0x3fe)||(DX&1)||(!test_bit(DX+1, io_bitmap))) goto not_permitted;
-		    }
 		    if (env->flags & DIRECTION_FLAG) lcount = -lcount;
 		    instr_count += count;
 		    if (longd==2) {
@@ -3122,7 +3314,6 @@ segrep:
 		case OUTSb: {
 		    BYTE *src;
 		    if (count == 0) goto next_switch;
-		    if (VM86F || (CPL > IOPL)) {
 #if defined(DOSEMU) && defined(X_SUPPORT)
 			if (emu_under_X) {
 			  extern void VGA_emulate_outb(WORD,BYTE);
@@ -3150,7 +3341,6 @@ segrep:
 			}
 #endif
 			if ((DX>0x3ff)||(!test_bit(DX, io_bitmap))) goto not_permitted;
-		    }
 		    instr_count += count;
 		    src = LONG_DS + SI;
 		    if (env->flags & DIRECTION_FLAG) {
@@ -3165,9 +3355,7 @@ segrep:
 		case OUTSw: {
 		    int lcount = count * longd;
 		    if (count == 0) goto next_switch;
-		    if (VM86F || (CPL > IOPL)) {
 			if ((DX>0x3fe)||(DX&1)||(!test_bit(DX+1, io_bitmap))) goto not_permitted;
-		    }
 		    if (env->flags & DIRECTION_FLAG) lcount = -lcount;
 		    instr_count += count;
 		    if (longd==2) {
@@ -3192,15 +3380,38 @@ segrep:
 		    BYTE *src, *dest;
 		    if (count == 0) goto next_switch;
 		    instr_count += count;
-		    src = ALLOW_OVERRIDE(LONG_DS) + (SI);
+		    src = OVERR_DS + (SI);
 		    dest = LONG_ES + DI;
+#ifndef	NO_TRACE_MSGS
+		    if (d.emu>4) e_printf("------- [EA=%p->%p]\n",(ea_=src),dest);
+#endif
 		    if (env->flags & DIRECTION_FLAG) {
 			DI -= count; SI -= count; CX = 0;
+/**/			if (d.emu<5) {
 			while (count--) *dest-- = *src--;
+/**/			} else {
+			  BYTE b=0;
+			  while (count--) {
+			    b = *src--; *dest-- = b;
+			    e_printf(" %02x",b);
+			  }
+			  eav_ = b;
+			  e_printf("\n");
+/**/			}
 			goto next_switch;
 		    } else {
 			DI += count; SI += count; CX = 0;
+/**/			if (d.emu<5) {
 			while (count--) *dest++ = *src++;
+/**/			} else {
+			  BYTE b=0;
+			  while (count--) {
+			    b = *src++; *dest++ = b;
+			    e_printf(" %02x",b);
+			  }
+			  eav_ = b;
+			  e_printf("\n");
+/**/			}
 			goto next_switch;
 		    } } 
 		case MOVSw: {
@@ -3210,21 +3421,67 @@ segrep:
 		    if (env->flags & DIRECTION_FLAG) lcount = -lcount;
 		    if (longd==2) {
 		      WORD *src, *dest;
-		      src = (WORD *)(ALLOW_OVERRIDE(LONG_DS)+(SI));
+		      src = (WORD *)(OVERR_DS+(SI));
 		      dest = (WORD *)(LONG_ES + DI);
+#ifndef	NO_TRACE_MSGS
+		      if (d.emu>4) e_printf("------- [EA=%p->%p]\n",(ea_=(BYTE *)src),dest);
+#endif
 		      if (lcount < 0) {
+/**/			if (d.emu<5) {
 			while (count--) *dest-- = *src--;
+/**/			} else {
+			  WORD b=0;
+			  while (count--) {
+			    b = *src--; *dest-- = b;
+			    e_printf(" %04x",b);
+			  }
+			  eav_ = b;
+			  e_printf("\n");
+/**/			}
 		      } else {
+/**/			if (d.emu<5) {
 			while (count--) *dest++ = *src++;
+/**/			} else {
+			  WORD b=0;
+			  while (count--) {
+			    b = *src++; *dest++ = b;
+			    e_printf(" %04x",b);
+			  }
+			  eav_ = b;
+			  e_printf("\n");
+/**/			}
 		      }
 		    } else {
 		      DWORD *src, *dest;
-		      src = (DWORD *)(ALLOW_OVERRIDE(LONG_DS)+(SI));
+		      src = (DWORD *)(OVERR_DS+(SI));
 		      dest = (DWORD *)(LONG_ES + DI);
+#ifndef	NO_TRACE_MSGS
+		      if (d.emu>4) e_printf("------- [EA=%p->%p]\n",(ea_=(BYTE *)src),dest);
+#endif
 		      if (lcount < 0) {
+/**/			if (d.emu<5) {
 			while (count--) *dest-- = *src--;
+/**/			} else {
+			  DWORD b=0;
+			  while (count--) {
+			    b = *src--; *dest-- = b;
+			    e_printf(" %08lx",b);
+			  }
+			  eav_ = b;
+			  e_printf("\n");
+/**/			}
 		      } else {
+/**/			if (d.emu<5) {
 			while (count--) *dest++ = *src++;
+/**/			} else {
+			  DWORD b=0;
+			  while (count--) {
+			    b = *src++; *dest++ = b;
+			    e_printf(" %08lx",b);
+			  }
+			  eav_ = b;
+			  e_printf("\n");
+/**/			}
 		      }
 		    } 
 		    DI += lcount; SI += lcount; CX = 0;
@@ -3235,7 +3492,7 @@ segrep:
 		    DWORD src1=0, src2=0, oldcnt; int res;
 		    if (count == 0) goto next_switch;
 		    oldcnt = count;
-		    src = (ovr=ALLOW_OVERRIDE(LONG_DS)) + (SI);
+		    src = (ovr=OVERR_DS) + (SI);
 		    dest = LONG_ES + DI;
 		    if (env->flags & DIRECTION_FLAG) { /* backwards */
 			while (count) {
@@ -3281,7 +3538,7 @@ segrep:
 		    DWORD res, src1=0, src2=0, oldcnt;
 		    if (count == 0) goto next_switch;
 		    oldcnt = count;
-		    src = (ovr=ALLOW_OVERRIDE(LONG_DS)) + (SI);
+		    src = (ovr=OVERR_DS) + (SI);
 		    dest = LONG_ES + DI;
 		    if (env->flags & DIRECTION_FLAG) { /* backwards */
 			while (count) {
@@ -3357,6 +3614,9 @@ segrep:
 		    if (count == 0) goto next_switch;
 		    instr_count += count;
 		    dest = LONG_ES + DI;
+#ifndef	NO_TRACE_MSGS
+		    if (d.emu>4) e_printf("------- [EA=%p]\n",(ea_=dest));
+#endif
 		    al = AL;
 		    if (env->flags & DIRECTION_FLAG) { /* backwards */
 			DI -= count; CX = 0;
@@ -3369,59 +3629,41 @@ segrep:
 		    } } 
 		case STOSw: {
 		    BYTE *dest;
+		    register DWORD ddat=EAX;
 		    if (count == 0) goto next_switch;
 		    instr_count += count;
 		    dest = LONG_ES + DI;
+#ifndef	NO_TRACE_MSGS
+		    if (d.emu>4) e_printf("------- [EA=%p]\n",(ea_=dest));
+#endif
 		    if (env->flags & DIRECTION_FLAG) { /* backwards */
 			DI -= count * longd; CX = 0;
-			while (count--) {
-			    if (longd==4) {PUT_QUAD(dest, EAX);}
-			      else {PUT_WORD(dest, AX);}
-			    dest -= longd;
-			} goto next_switch;
+			if (longd==4)
+			    while (count--) {PUT_QUAD(dest,ddat); dest-=4;}
+			else
+			    while (count--) {PUT_WORD(dest,ddat); dest-=2;}
+			goto next_switch;
 		    } else {		      /* forwards */
 			DI += count * longd; CX = 0;
-			while (count--) {
-			    if (longd==4) {PUT_QUAD(dest, EAX);}
-			      else {PUT_WORD(dest, AX);}
-			    dest += longd;
-			} goto next_switch;
+			if (longd==4)
+			    while (count--) {PUT_QUAD(dest,ddat); dest+=4;}
+			else
+			    while (count--) {PUT_WORD(dest,ddat); dest+=2;}
+			goto next_switch;
 		    } }
-		case LODSb: {
-		    BYTE *src;
-		    if (count == 0) goto next_switch;
-		    instr_count += count;
-		    src = ALLOW_OVERRIDE(LONG_DS) + (SI);
-		    if (env->flags & DIRECTION_FLAG) { /* backwards */
-			AL = *(src - count); SI -= count;
-			CX = 0; goto next_switch;
-		    } else {		      /* forwards */
-			AL = *(src + count); SI += count;
-			CX = 0; goto next_switch;
-		    } } 
-		case LODSw: {
-		    BYTE *src;
-		    count = count * longd;
-		    if (count == 0) goto next_switch;
-		    instr_count += count;
-		    src = ALLOW_OVERRIDE(LONG_DS) + (SI);
-		    if (env->flags & DIRECTION_FLAG) { /* backwards */
-			src = src - count; SI -= count;
-			if (longd==4) EAX = FETCH_QUAD(src);
-			  else AX = FETCH_WORD(src);
-			CX = 0; goto next_switch;
-		    } else {		      /* forwards */
-			src = src + count; SI += count;
-			if (longd==4) EAX = FETCH_QUAD(src);
-			  else AX = FETCH_WORD(src);
-			CX = 0; goto next_switch;
-		    } }
+		case LODSb:
+		    goto not_implemented;
+		case LODSw:
+		    goto not_implemented;
 		case SCASb: {
 		    BYTE *dest;
-		    DWORD src1, src2, oldcnt; int res;
+		    DWORD src1, src2=0, oldcnt; int res;
 		    if (count == 0) goto next_switch;
 		    oldcnt = count;
 		    dest = LONG_ES + DI;
+#ifndef	NO_TRACE_MSGS
+		    if (d.emu>4) e_printf("------- [EA=%p]\n",(ea_=dest));
+#endif
 		    src1 = AL;
 		    if (env->flags & DIRECTION_FLAG) { /* backwards */
 			while (count) {
@@ -3466,10 +3708,13 @@ segrep:
 		case SCASw: {
 		    BYTE *dest;
 		    DWORD res, src1, oldcnt;
-		    int src2;
+		    int src2=0;
 		    if (count == 0) goto next_switch;
 		    oldcnt = count;
 		    dest = LONG_ES + DI;
+#ifndef	NO_TRACE_MSGS
+		    if (d.emu>4) e_printf("------- [EA=%p]\n",(ea_=dest));
+#endif
 		    src1 = AX;
 		    if (env->flags & DIRECTION_FLAG) { /* backwards */
 			while (count) {
@@ -3530,77 +3775,100 @@ segrep:
 		    } goto next_switch;
 /*------------------IA-----------------------------------*/
         	case SEGes:
-            	    OVERRIDE = LONG_ES;
+		    OVERR_DS = OVERR_SS = LONG_ES;
             	    PC+=1; goto segrep;
         	case SEGcs:
-            	    OVERRIDE = LONG_CS;
+		    OVERR_DS = OVERR_SS = LONG_CS;
             	    PC+=1; goto segrep;
         	case SEGss:
-            	    OVERRIDE = LONG_SS;
+		    OVERR_DS = OVERR_SS = LONG_SS;
             	    PC+=1; goto segrep;
         	case SEGds:
-            	    OVERRIDE = LONG_DS;
+		    OVERR_DS = OVERR_SS = LONG_DS;
             	    PC+=1; goto segrep;
         	case SEGfs:
-            	    OVERRIDE = LONG_FS;
+		    OVERR_DS = OVERR_SS = LONG_FS;
             	    PC+=1; goto segrep;
         	case SEGgs:
-            	    OVERRIDE = LONG_GS;
+		    OVERR_DS = OVERR_SS = LONG_GS;
             	    PC+=1; goto segrep;
 		case OPERoverride:	/* 0x66 */
             	    longd = 4;
             	    PC+=1; goto segrep;
 		case ADDRoverride:	/* 0x67 */
-		    PC=P0-1; goto next_switch_16_32;
+		    PC=P0-1;
+		    code32 = 1;
+		    if (longd==4) {	/* 0x66 0x67 */
+		    	data32 = 1;
+			PC = hsw_interp_32_32 (env, P0, PC+1, err, 1);
+			data32 = 0;
+		    }
+		    else		/* 0x67 (0x66) */
+			    PC = hsw_interp_16_32 (env, P0, PC+1, err);
+		    code32 = 0;
+		    if (*err) return (*err==EXCP_GOBACK? PC:P0);
+		    goto next_switch;
 /*------------------IA------------------------------------*/
 		default: PC--; goto not_implemented;
 	    } }
 
 /*f4*/	case HLT:
+#ifdef DOSEMU
 	    goto not_permitted;
+#else
+	    EBP = EBP + (long)LONG_SS;
+	    ESP = ESP + (long)LONG_SS;
+	    return PC;
+#endif
 /*f5*/	case CMC:
 	    CARRY ^= CARRY_FLAG;
 	    PC += 1; goto next_switch;
 /*f6*/	case GRP1brm: {
-	    DWORD src, src1, src2; int res;
+	    DWORD src1, src2; int res;
 	    res = (*(PC+1)>>3)& 0x7;
-	    PC += hsw_modrm_16_byte(env,PC);
+	    PC += hsw_modrm_16_byte(MODARGS);
 	    mem_ref = MEM_REF; 
 	    switch (res) {
 		case 0: /* TEST */
 		case 1: /* Undocumented */
-		    src1 = *mem_ref;
-		    src2 = *PC; PC += 1;
-		    res = src1 & src2;
-		    SETBFLAGS(0);
+		    res = *mem_ref & *PC; PC += 1;
+		    SRC1_32 = SRC2_32 = RES_32 = BYTEDUP(res);	/* CF=OF=0 */
 		    goto next_switch;
 		case 2: /* NOT */
 		    src1 = ~(*mem_ref);
 		    *mem_ref = (BYTE)src1;
 		    goto next_switch;
 		case 3: /* NEG */
-		    src = *mem_ref;
-		    *mem_ref = res = src2 = -((int)src);
-		    src1 = 0;
-		    SETBFLAGS(0);
-		    CARRYB = (src != 0);
+		    src1 = 0; src2 = *mem_ref;
+		    res = (BYTE)(0x100-src2);
+		    *mem_ref = (BYTE)res;
+		    SETBFLAGS(1);
+		    CARRYB = (src2 != 0);	/* not CARRY! */
 		    goto next_switch;
 		case 4: /* MUL AL */
 		    src1 = *mem_ref;
 		    src2 = AL;
 		    res = src1 * src2;
 		    AX = res;
-		    SRC1_16 = SRC2_16 = 0;
-		    RES_32 = (res>>8)?-1:0;
+		    if (res&0xff00) {	/* CF=OF=1 */
+			CARRY=1; SRC1_16 = SRC2_16 = ~RES_16; /* 001,110 */
+		    }
+		    else {
+			CARRY=0; SRC1_16 = SRC2_16 = RES_16;  /* 000,111 */
+		    }
 		    goto next_switch;
 		case 5: /* IMUL AL */
 		    src1 = *(signed char *)mem_ref;
 		    src2 = (signed char)AL;
 		    res = src1 * src2;
 		    AX = res;
-		    SRC1_16 = SRC2_16 = 0;
-		    res = res >> 8;
-		    RES_32 = ((res==0)||(res==0xffffffff))?0:-1;
+		    res = res >> 7;
+		    if ((res==0)||(res==0xffffffff)) {  /* CF=OF=0 */
+			CARRY=0; SRC1_16 = SRC2_16 = RES_16; /* 000,111 */
+		    }
+		    else {
+			CARRY=1; SRC1_16 = SRC2_16 = ~RES_16;  /* 001,110 */
+		    }
 		    goto next_switch;
 		case 6: /* DIV AL */
 		    src1 = *mem_ref;
@@ -3612,15 +3880,15 @@ segrep:
 		case 7: /* IDIV AX */
 		    src1 = *(signed char *)mem_ref;
 		    if (src1==0) goto div_by_zero;
-		    res = AX;
+		    res = (signed short)AX;
 		    AL = (BYTE)(res / src1);
 		    AH = (BYTE)(res % src1);
 		    goto next_switch;
 	    } }
 /*f7*/	case GRP1wrm: {
-	    int src, src1, src2, res;
+	    int src1, src2, res;
 	    res = (*(PC+1)>>3)& 0x7;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    mem_ref = MEM_REF;
 	      switch (res) {
 		case 1: /* TEST (Is this Illegal?) */
@@ -3629,7 +3897,7 @@ segrep:
 		    src1 = mFETCH_WORD(mem_ref);
 		    src2 = FETCH_WORD(PC); PC += 2;
 		    res = src1 & src2;
-		    SETWFLAGS(0);
+		    SRC1_32 = SRC2_32 = RES_32 = res & 0xffff;	/* CF=OF=0 */
 		    goto next_switch;
 		case 2: /* NOT */
 		    src1 = mFETCH_WORD(mem_ref);
@@ -3637,44 +3905,51 @@ segrep:
 		    mPUT_WORD(mem_ref, src1);
 		    goto next_switch;
 		case 3: /* NEG */
-		    src = mFETCH_WORD(mem_ref);
-		    src1 = -src;
-		    mPUT_WORD(mem_ref, src1);
-		    SRC1_16 = 0; SRC2_16 = src1;
-		    RES_32 = src1;
-		    CARRY = (src != 0);
+		    src1 = 0; /* equiv to SUB 0,src2 */
+		    src2 = mFETCH_WORD(mem_ref);
+		    res = (WORD)(0x10000-src2);
+		    mPUT_WORD(mem_ref, res);
+		    SETWFLAGS(1);
+		    CARRY = (src2 != 0);	/* not CARRYB! */
 		    goto next_switch;
 		case 4: /* MUL AX */
 		    src1 = mFETCH_WORD(mem_ref);
 		    src2 = AX;
-		    res = src1 * src2; AX = res;
-		    res = res >> 16;
-		    DX = res;
-		    SRC1_16 = SRC2_16 = 0;
-		    RES_32 = (res)?-1:0;
+		    res = src1 * src2;
+		    AX = res; DX = res >> 16;
+		    if (res&0xffff0000) {	/* CF=OF=1 */
+			CARRY=1; SRC1_16 = SRC2_16 = ~RES_16; /* 001,110 */
+		    }
+		    else {
+			CARRY=0; SRC1_16 = SRC2_16 = RES_16;  /* 000,111 */
+		    }
 		    goto next_switch;
 		case 5: /* IMUL AX */
-		    src1 = mFETCH_WORD(mem_ref);
-		    src1 = ((src1<<16)>>16);
+		    src1 = (signed short)mFETCH_WORD(mem_ref);
 		    src2 = (signed short)AX;
-		    res = src1 * src2; AX = res;
-		    res = res >> 16;
-		    DX = res;
-		    SRC1_16 = SRC2_16 = 0;
-		    RES_32 = ((res==0)||(res==0xffffffff))?0:-1;
+		    res = src1 * src2;
+		    AX = res; DX = res >> 16;
+		    res >>= 15;
+		    if ((res==0)||(res==0xffffffff)) {  /* CF=OF=0 */
+			CARRY=0; SRC1_16 = SRC2_16 = RES_16; /* 000,111 */
+		    }
+		    else {
+			CARRY=1; SRC1_16 = SRC2_16 = ~RES_16;  /* 001,110 */
+		    }
 		    goto next_switch;
 		case 6: /* DIV DX+AX */
 		    src1 = mFETCH_WORD(mem_ref);
 		    if (src1==0) goto div_by_zero;
-		    res = AX | (DX<<16);
+		    res = AX;
+		    res |= (DX<<16);
 		    AX = res / src1;
 		    DX = res % src1;
 		    goto next_switch;
 		case 7: /* IDIV DX+AX */
-		    src1 = mFETCH_WORD(mem_ref);
-		    src1 = ((src1<<16)>>16);
+		    src1 = (signed short)mFETCH_WORD(mem_ref);
 		    if (src1==0) goto div_by_zero;
-		    res = AX | (DX<<16);
+		    res = AX;
+		    res |= (DX<<16);
 		    AX = res / src1;
 		    DX = res % src1;
 		    goto next_switch;
@@ -3688,16 +3963,20 @@ segrep:
 	    SET_CF;
 	    PC += 1; goto next_switch;
 /*fa*/	case CLI:
+#ifdef DOSEMU
 	    if (!VM86F && (CPL <= IOPL))
 		env->flags &= ~INTERRUPT_FLAG;
 	    else
 		goto not_permitted;
+#endif
 	    PC += 1; goto next_switch;
 /*fb*/	case STI:
+#ifdef DOSEMU
 	    if (!VM86F && (CPL <= IOPL))
 		env->flags |= INTERRUPT_FLAG;
 	    else
 		goto not_permitted;
+#endif
 	    PC += 1; goto next_switch;
 /*fc*/	case CLD:
 	    CLEAR_DF;
@@ -3708,19 +3987,17 @@ segrep:
 /*fe*/	case GRP2brm: { /* only INC and DEC are legal on bytes */
 	    register int temp;
 	    temp = (*(PC+1)>>3)& 0x7;
-	    PC += hsw_modrm_16_byte(env,PC);
+	    PC += hsw_modrm_16_byte(MODARGS);
 	    mem_ref = MEM_REF;
 	    switch (temp) {
 		case 0: /* INC */
-		    SRC1_8 = temp = *mem_ref;
-		    *mem_ref = temp = temp + 1;
-		    SRC2_8 = 1;
+		    SRC1_8 = temp = *mem_ref; SRC2_8 = 1;
+		    temp += 1; *mem_ref = temp;
 		    RES_16 = temp << 8; BYTE_FLAG = BYTE_OP;
 		    goto next_switch;
 		case 1: /* DEC */
-		    SRC1_8 = temp = *mem_ref;
-		    *mem_ref = temp = temp - 1;
-		    SRC2_8 = -1;
+		    SRC1_8 = temp = *mem_ref; SRC2_8 = -1;
+		    temp -= 1; *mem_ref = temp;
 		    RES_16 = temp << 8; BYTE_FLAG = BYTE_OP;
 		    goto next_switch;
 		case 2: /* CALL indirect */
@@ -3735,19 +4012,19 @@ segrep:
 	    register int temp;
 	    DWORD jcs, jip, ocs=0, oip=0;
 	    temp = (*(PC+1)>>3)& 0x7;
-	    PC += hsw_modrm_16_word(env,PC);
+	    PC += hsw_modrm_16_word(MODARGS);
 	    mem_ref = MEM_REF;
 	      switch (temp) {
 		case 0: /* INC */
 		    temp = mFETCH_WORD(mem_ref);
-		    SRC1_16 = temp; SRC2_16 = 1;
-		    RES_16 = temp = temp + 1;
+		    SRC1_16 = (WORD)temp; SRC2_16 = 1;
+		    temp += 1; RES_16 = (WORD)temp;
 		    mPUT_WORD(mem_ref, temp);
 		    goto next_switch;
 		case 1: /* DEC */
 		    temp = mFETCH_WORD(mem_ref);
-		    SRC1_16 = temp; SRC2_16 = -1;
-		    RES_16 = temp = temp - 1;
+		    SRC1_16 = (WORD)temp; SRC2_16 = -1;
+		    temp -= 1; RES_16 = (WORD)temp;
 		    mPUT_WORD(mem_ref, temp);
 		    goto next_switch;
 		case 2: /* CALL near indirect */
@@ -3769,7 +4046,7 @@ segrep:
 		    transfer_magic = (WORD)GetSelectorType(jcs);
 		    if (VM86F || (transfer_magic==TRANSFER_CODE16)) {
 			if ((*err = SET_SEGREG(LONG_CS,BIG_CS,MK_CS,jcs))==EXCP0B_NOSEG) {
-			    env->error_addr=jcs; return P0; }
+			    env->error_addr=jcs&0xfffc; return P0; }
 			if (temp==3) {
 			    PUSHWORD(ocs);
 			    PUSHWORD(oip);
@@ -3778,6 +4055,49 @@ segrep:
 			PC = jip + LONG_CS;
 			goto next_switch;
 		    }
+#ifndef DOSEMU
+		    if ((transfer_magic == TRANSFER_CALLBACK) ||
+				(transfer_magic == TRANSFER_BINARY))  {
+			LONGPROC conv,targ;
+			SEGIMAGE *lpSegImage = &((SEGIMAGE *)
+				(*(long *)(SELECTOR_PADDRESS(jcs))))[jip>>3];
+			EBP = (long)LONG_SS + EBP;
+			ESP = (long)LONG_SS + ESP;
+			trans_interp_flags(env);    
+			targ = (LONGPROC)lpSegImage->targ;
+			conv = (LONGPROC)lpSegImage->conv;
+			if (transfer_magic == TRANSFER_CALLBACK) {
+		    	    env->trans_addr = (BINADDR)MAKELONG(jip,jcs);
+#ifndef	NO_TRACE_MSGS
+			    e_printf("do_ext: %s\n",GetProcName(jcs,jip>>3));
+#endif
+			}
+#ifndef	NO_TRACE_MSGS
+			else    /* TRANSFER_BINARY */
+			    e_printf("do_ext: calling binary thunk %x:%x\n",
+			    	(int)jcs, (int)jip);
+#endif
+			(conv)(env,targ);
+			SHORT_CS_16 = jcs = env->return_addr >> 16;
+			jip = env->return_addr & 0xffff;
+			SET_SEGREG(LONG_CS,BIG_CS,MK_CS,SHORT_CS_16);
+			SET_SEGREG(LONG_DS,BIG_DS,MK_DS,SHORT_DS_16);
+			SET_SEGREG(LONG_ES,BIG_ES,MK_ES,SHORT_ES_16);
+			SET_SEGREG(LONG_SS,BIG_SS,MK_SS,SHORT_SS_16);
+			EBP = EBP - (long)LONG_SS;
+			ESP = ESP - (long)LONG_SS;
+			trans_flags_to_interp(env, env->flags);
+			PC = LONG_CS + jip; goto next_switch;
+		    }
+		    if (transfer_magic == TRANSFER_RETURN) {
+			SHORT_CS_16 = jcs;
+			env->return_addr = (jcs << 16) | jip;
+			trans_interp_flags(env);    
+			EBP = EBP + (long)LONG_SS;
+			ESP = ESP + (long)LONG_SS;
+			return PC;
+		    }
+#endif
 		    else
 			invoke_data(env);    /* TRANSFER_DATA or garbage */
 		}
@@ -3812,43 +4132,49 @@ bad_override:
 #endif
 	FatalAppExit(0, "SIZE");
 	exit(1);
-/*
-bad_address:
+
+bad_data:
 	d_emu=9;
-	e_printf(" 16/16 bad code/data sizes at %4x:%4x long PC %x\n",
+	e_printf(" 16/16 bad data at %4x:%4x long PC %x\n",
 		SHORT_CS_16,P0-LONG_CS,(int)P0);
-	FatalAppExit(0, "ADDR");
+#ifndef NO_TRACE_MSGS
+	e_trace(env, P0, P0, 0);
+#endif
+	FatalAppExit(0, "OOPS");
 	exit(1);
-*/
+
 not_permitted:
+#ifdef DOSEMU
 	*err=EXCP0D_GPF; return P0;
+#else
+	FatalAppExit(0, "GPF");
+	exit(1);
+#endif
 
 div_by_zero:
+#ifdef DOSEMU
 	*err=EXCP00_DIVZ; return P0;
+#else
+	FatalAppExit(0, "DIVZ");
+	exit(1);
+#endif
 
 illegal_op:
 	error(" 16/16 illegal instruction %2x %2x %2x at %4x:%4x long PC %x\n",*P0,*(P0+1),*(P0+2), 
                 SHORT_CS_16,P0-LONG_CS,(int)P0);
+#ifdef DOSEMU
 	*err=EXCP06_ILLOP; return P0;
-}
-#ifdef EMU_GLOBAL_VAR
-#undef	env
-#endif
-
-#ifndef DOSEMU
-void
-debuggerbreak(void)
-{
-    fprintf(stderr,"debuggerbreak: exiting\n");
+#else
+	FatalAppExit(0, "ILLEG");
     exit(1);
-}
 #endif
+}
 
 #ifdef DOSEMU
 int
 invoke_code16 (Interp_ENV *env, int vf, int cycmax)
 {
-#else	/* DOSEMU */
+#else	/* TWIN */
 /**************************************************************************
     The interpreter is actually called with a BINADDR as its second
     parameter, but we will re-use this register as our PC instead,
@@ -3858,25 +4184,40 @@ invoke_code16 (Interp_ENV *env, int vf, int cycmax)
 int
 invoke_code16 (Interp_ENV *env)
 {
-  int vf=1;	/* vf=0 for PM, vf=1 for Virtual/RM */
+#define vf	0	/* vf=0 for PM, vf=1 for Virtual/RM */
   int cycmax=1;	/* not used if called from here */
+  Interp_VAR *interp_var = &interp_variables;
 #endif
   static int first = 1;
   static int err = 0;
   BYTE *PC0;
 
+#ifdef DOSEMU
   CEmuStat = (CEmuStat & ~CeS_MODE_MASK) | (vf? MODE_VM86:MODE_DPMI16);
-  code32 = data32 = 0;
   SHORT_CS_16 = (VM86F? (WORD)((DWORD)env->trans_addr>>16) : env->cs.cs);
+#else
+  CEmuStat = (CEmuStat & ~CeS_MODE_MASK) | MODE_DPMI16;
+  SHORT_CS_16 = (WORD)((DWORD)env->trans_addr>>16);
+#endif
+  code32 = data32 = 0;
   SET_SEGREG (LONG_CS,BIG_CS,MK_CS,SHORT_CS_16);	/* unchecked */
   SET_SEGREG (LONG_DS,BIG_DS,MK_DS,SHORT_DS_16);
   SET_SEGREG (LONG_ES,BIG_ES,MK_ES,SHORT_ES_16);
   SET_SEGREG (LONG_SS,BIG_SS,MK_SS,SHORT_SS_16);
   SET_SEGREG (LONG_FS,BIG_FS,MK_FS,SHORT_FS_16);
   SET_SEGREG (LONG_GS,BIG_GS,MK_GS,SHORT_GS_16);
+#ifndef DOSEMU
+  EBP = EBP - (unsigned long)LONG_SS;
+  ESP = ESP - (unsigned long)LONG_SS;
+  instr_count = 1;
+#endif
 
 #ifdef __GNUC__
   if (first) {
+#ifndef DOSEMU	/* TEMP init, to be moved to a better place */
+    init_cpuemu(1);
+    print_ldt();
+#endif
     if (d_emu>1) {
       e_printf("CS: phys.addr for sel %03x is %08lx..%08lx\n",SHORT_CS_16,(long)LONG_CS,
 	(long)GetSelectorAddrMax(SHORT_CS_16));
@@ -3891,8 +4232,8 @@ invoke_code16 (Interp_ENV *env)
   }
 #endif
   PC0 = (BYTE *) LONG_CS + LOWORD (env->trans_addr);
+  BYTE_FLAG=0;
   trans_flags_to_interp (env, env->flags);
-  err = 0;
 
   PC0 = hsw_interp_16_16 (env, PC0, PC0, &err, cycmax);
 
@@ -3907,22 +4248,31 @@ invoke_code16 (Interp_ENV *env)
   return err;
 }
 
+#ifdef DOSEMU
 int
 invoke_code32 (Interp_ENV *env, int cycmax)
 {
+#else
+int
+invoke_code32 (Interp_ENV *env)
+{
+  int cycmax=1;	/* not used if called from here */
+  Interp_VAR *interp_var = &interp_variables;
+#endif
   static int first = 1;
   static int err = 0;
   BYTE *PC0;
 
   CEmuStat = (CEmuStat & ~CeS_MODE_MASK) | MODE_DPMI32;
   code32 = data32 = 1;
-  SHORT_CS_16 = env->cs.cs;
+  SHORT_CS_16 = env->cs.cs;	/* Twin: should use trans_addr */
   SET_SEGREG (LONG_CS,BIG_CS,MK_CS,SHORT_CS_16);	/* unchecked */
   SET_SEGREG (LONG_DS,BIG_DS,MK_DS,SHORT_DS_16);
   SET_SEGREG (LONG_ES,BIG_ES,MK_ES,SHORT_ES_16);
   SET_SEGREG (LONG_SS,BIG_SS,MK_SS,SHORT_SS_16);
   SET_SEGREG (LONG_FS,BIG_FS,MK_FS,SHORT_FS_16);
   SET_SEGREG (LONG_GS,BIG_GS,MK_GS,SHORT_GS_16);
+/* Twin: we cannot use 16/16 tricks for ESP/EBP like above */
 
 #ifdef __GNUC__
   if (first) {
@@ -3940,8 +4290,8 @@ invoke_code32 (Interp_ENV *env, int cycmax)
   }
 #endif
   PC0 = (BYTE *) LONG_CS + env->trans_addr;
+  BYTE_FLAG=0;
   trans_flags_to_interp (env, env->flags);
-  err = 0;
 
   PC0 = hsw_interp_32_32 (env, PC0, PC0, &err, cycmax);
 
@@ -3968,18 +4318,15 @@ trans_interp_flags(Interp_ENV *env)
 #endif
 
     /* byte operation? */
+    /* convert into a word op, BYTE_FL is lost */
     if (czsp.byte.byte_op==BYTE_OP) {
-	flags |= (BYTE_FL | parity[czsp.byte.res8] |
-	    (((SRC1_8 & 0xf) + (SRC2_8 & 0xf)) & AUX_CARRY_FLAG) |
-	    (czsp.byte.carryb & CARRY_FLAG) |
-	    (czsp.byte.res8 & SIGN_FLAG));
+	AUX1_8 = SRC1_8; AUX2_8 = SRC2_8;
+	AUXR_8 = RES_8; BYTE_FLAG = 0;
     }
-    else {
 	flags |= (parity[czsp.byte.parity16] |
 	    (((SRC1_16 & 0xf) + (SRC2_16 & 0xf)) & AUX_CARRY_FLAG) |
 	    (czsp.byte.carryb & CARRY_FLAG) |
 	    (czsp.byte.res8 & SIGN_FLAG));
-    }
     if ((((czsp.byte.res8^SRC1_8)&0x80)!=0) &&
 	(((SRC1_8^SRC2_8)&0x80)==0)) flags |= OVERFLOW_FLAG;
     if (czsp.word16.res16 == 0) flags |= ZERO_FLAG;
@@ -4010,6 +4357,7 @@ trans_flags_to_interp(Interp_ENV *env, DWORD flags)
     }
 
     if (flags & BYTE_FL) {
+/**/ dbug_printf("Trans_flags: BYTE_FL set\n");
 	czsp.byte.byte_op = BYTE_OP;
 	/* deal with zero and sign - note that ZF|SF is not possible;
 	 * also, when ZF set, PF will be 1 */

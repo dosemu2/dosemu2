@@ -152,7 +152,7 @@ char *chrprintable(char c)
   return strprintable(buf);
 }
 
-int vlog_printf(int flg, const char *fmt, va_list args)
+static int vlog_printf(int flg, const char *fmt, va_list args)
 {
   int i;
   static int is_cr = 1;
@@ -241,6 +241,8 @@ int vlog_printf(int flg, const char *fmt, va_list args)
   return i;
 }
 
+static int in_log_printf=0;
+
 int log_printf(int flg, const char *fmt, ...)
 {
 #ifdef CIRCULAR_LOGBUFFER
@@ -259,12 +261,15 @@ int log_printf(int flg, const char *fmt, ...)
 	  first=0;
 	}
 #endif
+	if (in_log_printf) return 0;
 	if (!(dosdebug_flags & DBGF_INTERCEPT_LOG)) {
 		if (!flg || !dbg_fd ) return 0;
 	}
+	in_log_printf = 1;
 	va_start(args, fmt);
 	ret = vlog_printf(flg, fmt, args);
 	va_end(args);
+	in_log_printf = 0;
 	return ret;
 }
 
@@ -308,6 +313,7 @@ p_dos_str(char *fmt,...) {
   va_end(args);
 
   s = buf;
+  g_printf("CONSOLE MSG: '%s'\n",buf);
   while (*s) 
 	char_out(*s++, READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
 }

@@ -514,10 +514,12 @@ static int dos_helper(void)
 #ifdef DONT_DEBUG_BOOT
 	memcpy(&d,&d_save,sizeof(struct debug_flags));
 #endif
-  	if (config.cpuemu && !in_dpmi) enter_cpu_emu();
+	/* we could also enter from inside dpmi, provided we already
+	 * mirrored the LDT into the emu's own one */
+  	if ((config.cpuemu==1) && !in_dpmi) enter_cpu_emu();
         break;
   case DOS_HELPER_CPUEMUOFF:
-  	if (config.cpuemu && !in_dpmi) leave_cpu_emu();
+  	if ((config.cpuemu>1) && !in_dpmi) leave_cpu_emu();
         break;
 #endif
     case DOS_HELPER_XCONFIG:
@@ -1753,63 +1755,39 @@ static void int2f(u_char i)
       return;
     break;
 #endif
-      
-  case 0x1687:            /* Call for getting DPMI entry point */
-    dpmi_get_entry_point();
-    return;
-
-  case 0x1683:
-    LWORD (ebx) = 0;		/* W95: number of virtual machine */
-  case 0x1681:		/* W95: enter critical section */
-    if (in_dpmi && in_win31) {
-	D_printf ("WIN: enter critical section\n");
-	/* LWORD(eax) = 0;	W95 DDK says no return value */
-	return;
     }
+
+  switch (HI(ax)) {
+  case 0x11:              /* redirector call? */
+    if (mfs_redirector())
+    return;
     break;
-  case 0x1682:		/* W95: exit critical section */
-    if (in_dpmi && in_win31) {
-	D_printf ("WIN: exit critical section\n");
-	/* LWORD(eax) = 0;	W95 DDK says no return value */
-	return;
+
+  case 0x16:		/* misc PM/Win functions */
+    if (!config.dpmi) {
+/*  d.emu=4; */
+      break;		/* fall into default_interrupt() */
     }
-    break;
-    return;
-
-  case 0x1686:            /* Are we in protected mode? */
-    D_printf("DPMI CPU mode check in real mode.\n");
-    if (in_dpmi) /* set AX to zero only if program executes in protected mode */
-    LWORD(eax) = 0;	/* say ok */
-		 /* else let AX untouched (non-zero) */
-    return;
-
-  case 0x1600:		/* WINDOWS ENHANCED MODE INSTALLATION CHECK */
+    switch (LO(ax)) {
+      case 0x00:		/* WINDOWS ENHANCED MODE INSTALLATION CHECK */
 #if 1			/* it seens this confuse winos2 */
     if (in_dpmi && in_win31) {
       D_printf("WIN: WINDOWS ENHANCED MODE INSTALLATION CHECK\n");
       LWORD(eax) = 0x0a03;	/* let's try enhaced mode 3.1 :-))))))) */
       return;
-    } else
-      break;
+      }
 #endif    
     break;
-  case 0x1605:		/* Win95 Initialization Notification */
+
+      case 0x05:		/* Win95 Initialization Notification */
     LWORD(ecx) = 0xffff;	/* say it`s NOT ok to run under Win */
-  case 0x1606:		/* Win95 Termination Notification */
-  case 0x1607:		/* Win95 Device CallOut */
-  case 0x1608:		/* Win95 Init Complete Notification */
-  case 0x1609:		/* Win95 Begin Exit Notification */
-    return;
-  case 0x1684:		/* Win95 Get Device Entry Point */
-    LWORD(edi) = 0;
-    WRITE_SEG_REG(es, 0);	/* say NO to Win95 ;-) */
-    return;
-  case 0x1685:		/* Win95 Switch VM + Call Back */
-    CARRY;
-    LWORD(eax) = 1;
+      case 0x06:		/* Win95 Termination Notification */
+      case 0x07:		/* Win95 Device CallOut */
+      case 0x08:		/* Win95 Init Complete Notification */
+      case 0x09:		/* Win95 Begin Exit Notification */
     return;
 
-  case 0x160a:			/* IDENTIFY WINDOWS VERSION AND TYPE */
+      case 0x0a:			/* IDENTIFY WINDOWS VERSION AND TYPE */
     if(in_dpmi && in_win31) {
       D_printf ("WIN: WINDOWS VERSION AND TYPE\n");
       LWORD(eax) =0;
@@ -1820,14 +1798,47 @@ static void int2f(u_char i)
       LWORD(ecx) = 0x0002;	/* standard mode */
 #endif      
       return;
-    } else
+        }
       break;
-  }
 
-  switch (HI(ax)) {
-  case 0x11:              /* redirector call? */
-    if (mfs_redirector())
+      case 0x83:
+        if (in_dpmi && in_win31)
+            LWORD (ebx) = 0;	/* W95: number of virtual machine */
+      case 0x81:		/* W95: enter critical section */
+        if (in_dpmi && in_win31) {
+	    D_printf ("WIN: enter critical section\n");
+	    /* LWORD(eax) = 0;	W95 DDK says no return value */
+	    return;
+  }
+      break;
+      case 0x82:		/* W95: exit critical section */
+        if (in_dpmi && in_win31) {
+	    D_printf ("WIN: exit critical section\n");
+	    /* LWORD(eax) = 0;	W95 DDK says no return value */
+	    return;
+  }
+        break;
+
+      case 0x84:		/* Win95 Get Device Entry Point */
+        LWORD(edi) = 0;
+        WRITE_SEG_REG(es, 0);	/* say NO to Win95 ;-) */
+        return;
+      case 0x85:		/* Win95 Switch VM + Call Back */
+        CARRY;
+        LWORD(eax) = 1;
+        return;
+
+      case 0x86:            /* Are we in protected mode? */
+        D_printf("DPMI CPU mode check in real mode.\n");
+        if (in_dpmi) /* set AX to zero only if program executes in protected mode */
+	    LWORD(eax) = 0;	/* say ok */
+		 /* else let AX untouched (non-zero) */
       return;
+
+      case 0x87:            /* Call for getting DPMI entry point */
+	dpmi_get_entry_point();
+	return;
+    }
     break;
 
   case INT2F_XMS_MAGIC:

@@ -201,6 +201,8 @@ typedef int                 INT;
 typedef unsigned int        UINT;
 typedef unsigned int        *PUINT;
 
+typedef DWORD (* LONGPROC)();
+
 typedef DWORD		    BINADDR;
 
 #ifdef _MSC_VER
@@ -304,7 +306,7 @@ typedef struct keySEGIMAGE
     unsigned long targ;
 } SEGIMAGE;
 
-/*
+/* from twin/include/Segment.h:
  *	the following is used to describe normal 16 and 32 bit code and
  *	data segments. The native world calls an interface routine to 
  *	setup the call to the code. Either through an interpreter or
@@ -385,7 +387,7 @@ typedef struct keySEGIMAGE
 #define SetModuleIndex(w,bi)	{ if (!VM86F) LDTsetIndex(w,(BYTE)bi); }
 */
 
-#else	/* !DOSEMU */
+#else	/* TWIN - Keep these aligned with DPMI.h */
 
 LPSTR GetAddress(WORD,WORD);
 WORD AssignSelector(LPBYTE,WORD,BYTE,DWORD);
@@ -407,12 +409,7 @@ int GetAHINCR(void);
 
 #define	GetPhysicalAddress(w)	LDT[w>>3].lpSelBase
 
-#define GetSelectorAddrMax(w)	(GetSelectorAddress(w)+GetSelectorByteLimit(w))
-
 #define GetSelectorLimit(w)	LDT[w>>3].dwSelLimit
-#define GetSelectorByteLimit(w)	(LDTgetFlags(w)&DF_PAGES?\
-				  (LDTgetSelLimit(w)<<12)|0xfff :\
-				  LDTgetSelLimit(w))
 #define SetSelectorLimit(w,d)	{ LDT[w>>3].dwSelLimit = (DWORD)d; }
 
 #define GetSelectorHandle(w)	LDT[w>>3].hGlobal
@@ -427,20 +424,17 @@ int GetAHINCR(void);
 
 #define GetModuleIndex(w)	LDT[w>>3].bModIndex
 #define SetModuleIndex(w,bi)	{ LDT[w>>3].bModIndex = (BYTE)bi; }
+
+#define GetSelectorAddrMax(w)	(GetSelectorAddress(w)+GetSelectorByteLimit(w))
+
+#define GetSelectorByteLimit(w)	(LDTgetFlags(w)&DF_PAGES?\
+				  (LDTgetSelLimit(w)<<12)|0xfff :\
+				  LDTgetSelLimit(w))
 #endif	/* DOSEMU */
 
 #define	CopySelector(w1,w2)	memcpy((LPSTR)&LDT[w1>>3], \
 					(LPSTR)&LDT[w2>>3], \
 					sizeof(DSCR));
-
-BOOL DPMI_Notify(UINT,WORD);
-
-/* Messages for DPMI_Notify() */
-#define DN_ASSIGN	1
-#define DN_FREE		2
-#define DN_INIT		3
-#define DN_MODIFY	4
-#define DN_EXIT		5
 
 /* descriptor byte 6 */
 #define	DF_PAGES	0x8000
@@ -479,7 +473,7 @@ BOOL DPMI_Notify(UINT,WORD);
 /* Segment limit -- 64K */
 #define SL_DEFAULT	(LPARAM)0xFFFF
 
-#ifndef DOSEMU
+#ifndef DOSEMU	/* TWIN - Keep DSCR aligned with DPMI.h */
 typedef struct {
 	LPBYTE lpSelBase;	/* unscrambled segment base */
 	DWORD  dwSelLimit;	/* unscrambled segment limit */
@@ -527,7 +521,7 @@ extern int	d_emu;
 
 /**/
 
-#if defined(__i386__)&&defined(__GNUC__)
+#ifdef DOSEMU
 
 _INLINE_ void port_real_outb(WORD port, BYTE value)
 {
@@ -568,6 +562,22 @@ _INLINE_ DWORD port_real_ind(WORD port)
   _ASM_ ("inl %1,%0":"=a" (_v) : "d" ((WORD) port));
   return _v;
 }
+
+#else	/* DOSEMU */
+
+extern int PortIO(DWORD, DWORD, UINT, BOOL);
+
+#define port_real_outb(port,value)	PortIO((port),(value),8,TRUE)
+#define port_real_inb(port)		PortIO((port),0,8,FALSE)
+#define port_real_outw(port,value)	PortIO((port),(value),16,TRUE)
+#define port_real_inw(port)		PortIO((port),0,16,FALSE)
+#define port_real_outd(port,value)	PortIO((port),(value),32,TRUE)
+#define port_real_ind(port)		PortIO((port),0,32,FALSE)
+
+#endif	/* DOSEMU */
+
+
+#if defined(__i386__)&&defined(__GNUC__)
 
 /*
  * Some hacks to defeat gcc over-optimizations..

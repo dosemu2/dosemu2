@@ -357,7 +357,7 @@ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 	if ( (top > (TASK_SIZE - OUR_STACK)) /* we protect our stack */
 	  || ((bottom >= ((unsigned long)&_start)) && ( bottom < (unsigned long)&_end))
 	  || ((bottom < ((unsigned long)&_start)) && ( top >= (unsigned long)&_start)) ) {
-	  D_printf("DPMI: WARNING Request denied because of \"secure on\" option\n");
+	  p_dos_str("\n\rDPMI: WARNING Request denied because of \"secure on\" option\n\r");
 		errno = EINVAL;
 		return -1;
 	}
@@ -982,6 +982,8 @@ static int SetDescriptorAccessRights(unsigned short selector, unsigned short typ
   /* Only allow conforming Codesegments if Segment is not present */
   if ( ((type_byte>>2)&3) == 3 && ((type_byte >> 7) & 1) == 1)
     return -2; /* invalid selector 8022 */
+  if ((type_byte & 0x0d)==4)
+    D_printf("DPMI: warning: expand-down stack segment\n");
 
   Segments[ldt_entry].type = (type_byte >> 2) & 3;
   Segments[ldt_entry].is_32 = (type_byte >> 14) & 1;
@@ -2630,8 +2632,8 @@ void dpmi_sigio(struct sigcontext_struct *scp)
 #else
   if (_cs != UCODESEL){
 #endif
-#if 0
-    if (dpmi_eflags & IF) {
+#if 1
+    if (in_win31 || (dpmi_eflags & IF)) {
       D_printf("DPMI: return to dosemu code for handling signals\n");
       Return_to_dosemu_code(scp,0);
     } else dpmi_eflags |= VIP;
@@ -2833,7 +2835,7 @@ void dpmi_fault(struct sigcontext *scp, int code)
 #if 0
 /* 
  * If we have a 16-Bit stack segment the high word of esp is not always
- * zero as expected.
+ * zero as expected, esp. in winos2
  */
 if ((_ss & 4) == 4) {
   /* stack segment from ldt */
@@ -3230,7 +3232,7 @@ if ((_ss & 4) == 4) {
     case 0xfa:			/* cli */
       _eip += 1;
       /*
-       * are we trapped in a deadly loop? (tasmx)
+       * are we trapped in a deadly loop?
        */
       if ((csp[0] == 0xeb) && (csp[1] == 0xfe)) {
 	dbug_printf("OUCH! deadly loop, cannot continue");

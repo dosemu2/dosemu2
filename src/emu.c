@@ -140,6 +140,9 @@ __asm__("___START___: jmp _emulate\n");
 #ifdef USE_SBEMU
 #include "sound.h"
 #endif
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
+#endif
 
 extern void     stdio_init(void);
 extern void     time_setting_init(void);
@@ -566,13 +569,15 @@ leavedos(int sig)
     struct itimerval itv;
     extern int errno;
     extern void do_r3da_pending (void);	/* emuretrace stuff */
-
+#if defined(X86_EMULATOR) && defined(EMU_STAT)
+    extern void print_emu_stat(void);
+#endif
    
     if (leavedos_recurse_check)
       {
        error("leavedos called recursively, forgetting the graceful exit!\n");
        flush_log();
-       _exit(sig);
+       longjmp(NotJEnv, sig);
       }
     leavedos_recurse_check = 1;
     warn("leavedos(%d) called - shutting down\n", sig);
@@ -630,7 +635,12 @@ leavedos(int sig)
     keyb_server_close();
     keyb_client_close();
 
+#if defined(X86_EMULATOR) && defined(EMU_STAT)
+    /* if we are here with config.cpuemu>1 something went wrong... */
+    if (config.cpuemu>1) { d.emu=1; print_emu_stat(); d.emu=config.cpuemu=0; }
+#else
     show_ints(0, 0x33);
+#endif
     g_printf("calling disk_close_all\n");
     disk_close_all();
     g_printf("calling video_close\n");

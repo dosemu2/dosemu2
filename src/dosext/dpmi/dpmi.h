@@ -75,7 +75,7 @@ void dpmi_mhp_setreg(int regnum, unsigned long val);
 #define SEL_ADR(seg, reg) \
 ({ unsigned long __res; \
   if (!((seg) & 0x0004)) { \
-    /* GTD */ \
+    /* GDT */ \
     __res = (unsigned long) reg; \
   } else { \
     /* LDT */ \

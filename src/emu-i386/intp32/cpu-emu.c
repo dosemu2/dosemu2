@@ -70,6 +70,8 @@ Additional copyright notes:
 hitimer_t EMUtime = 0;
 extern hitimer_u ZeroTimeBase;
 
+static int iniflag = 0;
+
 static hitimer_t sigEMUtime = 0;
 static hitimer_t lastEMUsig = 0;
 static unsigned long sigEMUdelta = 0;
@@ -94,7 +96,8 @@ int emu_dpmi_retcode = -1;
 int emu_under_X = 0;
 
 #ifdef EMU_STAT
-long InsFreq[256];
+#define IFSZ	65536
+long InsFreq[IFSZ];
 #ifdef EMU_PROFILE
 long long InsTimes[256];
 #endif
@@ -305,7 +308,8 @@ static void Scp2Env (struct sigcontext_struct *scp, Interp_ENV *env)
   env->error_addr = 0;
 
   if (in_dpmi) {
-    env->flags = ((env->flags&0x8000) | (scp->eflags&0x3d7fd5)) | 2;
+    env->flags = ((env->flags&0x8000) | (scp->eflags&0x3d7dd5)) |
+    	(dpmi_eflags&0x200) | 2;
     env->trans_addr = scp->eip;
   }
   else {
@@ -369,8 +373,8 @@ static void Env2Scp (Interp_ENV *env, struct sigcontext_struct *scp,
   if (in_dpmi) {
     scp->cs = env->cs.cs;
     scp->eip = env->return_addr;
-    scp->eflags = (dpmi_eflags & (VIP|VIF)) |
-  		      (env->flags & 0x247fd5) | 0x10202;
+    scp->eflags = (dpmi_eflags & (VIP|VIF|IF)) |
+  		      (env->flags & 0x247dd5) | 0x10002;
   }
   else {
     scp->cs  = env->return_addr >> 16;
@@ -489,25 +493,58 @@ void enter_cpu_emu(void)
 		sigEMUdelta, config.emuspeed);
 	SETSIG(SIG_TIME, e_gen_sigalrm);
 /**/	SETSIG(SIGXCPU, e_sigxcpu);
-	flush_log();
 	dbug_printf("======================= ENTER CPU-EMU ===============\n");
+	flush_log();
+	iniflag = 1;
 }
 
-void leave_cpu_emu(void)
-{
-	struct sigaction sa;
 #ifdef EMU_STAT
-	struct _eops {
-	  unsigned char op;
+
+void print_emu_stat(void)
+{
+	static struct _eops {
+	  unsigned short op;
 	  unsigned long n;
 #ifdef EMU_PROFILE
 	  long long time;
 #endif
-	} eops[256];
+	} eops[IFSZ];
 	int i;
 	int ecmp(const void *a, const void *b)
 	  { return ((struct _eops *)b)->n - ((struct _eops *)a)->n; }
+
+	if (d.emu==0) d.emu=1;
+	for (i=0; i<IFSZ; i++) {
+	  eops[i].op=i; eops[i].n=InsFreq[i];
+#ifdef EMU_PROFILE
+	  eops[i].time = (InsFreq[i]? InsTimes[i]/InsFreq[i] : 0);
 #endif
+	}
+	qsort(eops,IFSZ,sizeof(struct _eops),ecmp);
+	{ int j=0;
+	  unsigned short w0,w1,w2,w3;
+	  for (i=0; i<(IFSZ/4); i++) {
+	    w0=eops[j].op;   w0=((w0&0xff)<<8) | ((w0>>8)&0xff);
+	    w1=eops[j+1].op; w1=((w1&0xff)<<8) | ((w1>>8)&0xff);
+	    w2=eops[j+2].op; w2=((w2&0xff)<<8) | ((w2>>8)&0xff);
+	    w3=eops[j+3].op; w3=((w3&0xff)<<8) | ((w3>>8)&0xff);
+	    e_printf(" [%04x]%10ld [%04x]%10ld [%04x]%10ld [%04x]%10ld\n",
+		w0,eops[j].n,w1,eops[j+1].n,
+		w2,eops[j+2].n,w3,eops[j+3].n);
+#ifdef EMU_PROFILE
+	    e_printf("   %12Ld   %12Ld   %12Ld   %12Ld\n",
+		eops[j].time,eops[j+1].time,eops[j+2].time,eops[j+3].time);
+#endif
+	    j += 4;
+	  }
+	}
+}
+
+#endif
+
+void leave_cpu_emu(void)
+{
+	struct sigaction sa;
 	config.cpuemu=1;
 #ifdef SKIP_EMU_VBIOS
 	if (IOFF(0x10)==CPUEMU_WATCHER_OFF)
@@ -522,29 +559,11 @@ void leave_cpu_emu(void)
 	dbug_printf("======================= LEAVE CPU-EMU ===============\n");
 
 #ifdef EMU_STAT
-	if (d.emu==0) d.emu=1;
-	for (i=0; i<256; i++) {
-	  eops[i].op=i; eops[i].n=InsFreq[i];
-#ifdef EMU_PROFILE
-	  eops[i].time = (InsFreq[i]? InsTimes[i]/InsFreq[i] : 0);
-#endif
-	}
-	qsort(eops,256,sizeof(struct _eops),ecmp);
-	{ int j=0;
-	  for (i=0; i<64; i++) {
-	    e_printf(" [%02x]%10ld [%02x]%10ld [%02x]%10ld [%02x]%10ld\n",
-		eops[j].op,eops[j].n,eops[j+1].op,eops[j+1].n,
-		eops[j+2].op,eops[j+2].n,eops[j+3].op,eops[j+3].n);
-#ifdef EMU_PROFILE
-	    e_printf("   %12Ld   %12Ld   %12Ld   %12Ld\n",
-		eops[j].time,eops[j+1].time,eops[j+2].time,eops[j+3].time);
-#endif
-	    j += 4;
-	  }
-	}
+	print_emu_stat();
 #endif
 	flush_log();
 }
+
 
 /* =======================================================================
  * kernel-level vm86 handling
@@ -626,8 +645,9 @@ static int e_do_int(int i, unsigned char * ssp, unsigned long sp)
 	_IP = segoffs & 0xffff;
 	e_clear_TF();
 	e_clear_IF();
-	if ((i!=0x16)&&((d.emu>1)||(d.dos)))
+	if ((i!=0x16)&&((d.emu>1)||(d.dos))) {
 		dbug_printf("EMU86: directly calling int %#x ax=%#x at %#x:%#x\n", i, _AX, _CS, _IP);
+	}
 	return -1;
 
 cannot_handle:
@@ -775,7 +795,7 @@ int e_vm86(void)
 {
   hitimer_t entrytime;
   long long detime;
-  int xval,retval;
+  int xval,retval,demusav;
   long errcode, totalcyc;
   unsigned long pmflags;
 
@@ -799,6 +819,9 @@ int e_vm86(void)
 
   detime = 0;
   totalcyc = 0;
+#ifdef SKIP_VM86_TRACE
+  demusav=d.emu; if (d.emu) d.emu=1;
+#endif
   EMUtime = (entrytime=GETusTIME(0))*config.emuspeed;	/* stretched time */
   if (lastEMUsig && (d.emu>1))
     e_printf("EMU86: last sig at %Ld, curr=%Ld, next=%Ld\n",lastEMUsig>>16,
@@ -914,6 +937,9 @@ int e_vm86(void)
 #endif
   }
 
+#ifdef SKIP_VM86_TRACE
+  d.emu=demusav;
+#endif
   return retval;
 }
 
@@ -927,6 +953,7 @@ int e_dpmi(struct sigcontext_struct *scp)
   int xval,retval;
   long totalcyc;
 
+/**/ if (iniflag==0) enter_cpu_emu();
   in_e_dpmi = 1;
   detime = 0;
   totalcyc = 0;
@@ -953,8 +980,8 @@ int e_dpmi(struct sigcontext_struct *scp)
       in_dpmi_emu = 1;
       CEmuStat &= ~CeS_MODE_MASK;
       xval = (LDT[scp->cs>>3].w86Flags & DF_32 ?
-      	(CEmuStat|=MODE_DPMI16, invoke_code32(envp_global, -1)) :
-      	(CEmuStat|=MODE_DPMI32, invoke_code16(envp_global, 0, -1))
+      	(CEmuStat|=MODE_DPMI32, invoke_code32(envp_global, -1)) :
+      	(CEmuStat|=MODE_DPMI16, invoke_code16(envp_global, 0, -1))
       );
       in_dpmi_emu = 0;
       /* 0 if ok, else exception code+1 or negative if dosemu err */

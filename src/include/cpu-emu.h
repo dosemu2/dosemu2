@@ -58,7 +58,9 @@ extern void e_priv_iopl(int);
  */
 #if 0
 #define	EMU_STAT
+#if 0
 #define EMU_PROFILE
+#endif
 #endif
 
 /*  DONT_DEBUG_BOOT (in emu.h) - if you set that, debug messages are
@@ -71,6 +73,13 @@ extern void e_priv_iopl(int);
 #define	CIRCULAR_LOGBUFFER
 #endif
 
+/* if defined, trace instructions (with d.emu>3) only in protected
+ * mode code. This is useful to skip timer interrupts and/or better
+ * follow the instruction flow */
+#if 1
+#define SKIP_VM86_TRACE
+#endif
+
 /* ----------------------------------------------------------------------- */
 
 /* cycles/instr is an empirical estimate of how my K6 system
@@ -81,6 +90,7 @@ extern void e_priv_iopl(int);
  * mode addresses...
  */
 #define TRACE_HIGH	((SHORT_CS_16<DOS_HI_LIMIT)||(SHORT_CS_16>=0xd000))
+/*#define TRACE_HIGH	(SHORT_CS_16<DOS_HI_LIMIT)*/
 
 /* Cpuemu status register - pack as much info as possible here, so to
  * use a single test to check if we have to go further or not */

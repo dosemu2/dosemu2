@@ -45,7 +45,8 @@ TWIN_WININC=
 
 CPUTYPE = INT
 
-TWIN_CFLAGS   = -Dlinux -DDOSEMU -O6 -D_IN_INTP32
+ # Please do not change these flags.
+TWIN_CFLAGS   = -Dlinux -DDOSEMU -fgcse -g -D_IN_INTP32
 
 # original TWIN flags:
 # -DNO_DEBUG_MSGS -DNO_TRACE_MSGS -DX386 -Dlinux -DTWIN32

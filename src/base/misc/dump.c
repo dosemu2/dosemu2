@@ -190,10 +190,9 @@ void DPMI_show_state(struct sigcontext_struct *scp)
     /* We have a problem here, if we get a page fault or any kind of
      * 'not present' error and then we try accessing the code/stack
      * area, we fall into another fault which likely terminates dosemu.
-     * There should be some way to check for that...
      */
 #ifdef X86_EMULATOR
-    if (!d.emu) {
+    if (!config.cpuemu || (_trapno!=0x0b && _trapno!=0x0c)) {
 #else
     if (1) {
 #endif

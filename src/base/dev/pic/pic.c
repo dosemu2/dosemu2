@@ -343,7 +343,7 @@ char ci,cc;
 
  * DANG_END_REMARK pic_print
  */
-void inline pic_push(int val)
+inline void pic_push(int val)
 {
     if(pic_sp<32){
        pic_stack[pic_sp++]=val;

@@ -276,6 +276,16 @@ void init_npu (void)
 	hsw_env87.fptag = 0xffff;	/* empty */
 }
 
+/*
+ * These functions are coded as:
+ *	ESCi mod/rm {addr}
+ * ESC    = d8..df  i=0..7  ->hsw_fp87_0**..hsw_fp87_7**
+ * mod>>3 = 00..07  n=0..7  ->hsw_fp87_*0*..hsw_fp87_*7*
+ * mod>>6 =         n=0..3  ->hsw_fp87_**m..hsw_fp87_**r
+ * rm -> reg
+ *
+ * Intel notation: ex. d8/4 = 04m
+ */
 
 void
 hsw_fp87_00m(unsigned char *mem_ref)
@@ -379,14 +389,14 @@ hsw_fp87_04m(unsigned char *mem_ref)
 /* FSUBm32r_sti */
 	float m32r;
 
-	FPR_ST0 -= GET32REAL(m32r, mem_ref);
+	FPR_ST0 -= GET32REAL(m32r, mem_ref);	/* dest - src -> dest */
 }
 
 void
 hsw_fp87_04r(int reg_num)
 {
 /* FSUBm32r_sti */
-	FPR_ST0 -= FPR_ST(reg_num);
+	FPR_ST0 -= FPR_ST(reg_num);	/* dest - src -> dest */
 }
 
 void
@@ -396,14 +406,14 @@ hsw_fp87_05m(unsigned char *mem_ref)
 	Ldouble fpsrcop;
 	float m32r;
 	fpsrcop = GET32REAL(m32r, mem_ref);
-	FPR_ST0 = fpsrcop - FPR_ST0;
+	FPR_ST0 = fpsrcop - FPR_ST0;	/* src - dest -> dest */
 }
 
 void
 hsw_fp87_05r(int reg_num)
 {
 /* FSUBRm32r_sti */
-	FPR_ST0 = FPR_ST(reg_num) - FPR_ST0;
+	FPR_ST0 = FPR_ST(reg_num) - FPR_ST0;	/* src - dest -> dest */
 }
 
 void
@@ -880,7 +890,7 @@ hsw_fp87_17r(int reg_num)
 				else FPR_ST0 = ceil(fpsrcop);
 			}
 			else
-			if (FPUC_RC == RC_UP) /*Chop towards -INFI*/
+			if (FPUC_RC == RC_DOWN) /*Chop towards -INFI*/
 				FPR_ST0 = floor(fpsrcop);
 			else  /*Round towards +INFI*/
 				FPR_ST0 = ceil(fpsrcop);
@@ -1104,7 +1114,7 @@ hsw_fp87_32m(unsigned char *mem_ref)
     else if (FPUC_RC == RC_NEAR) /*Round to the nearest*/
         fpsrcop = (fpsrcop-floor(fpsrcop) < ceil(fpsrcop)-fpsrcop)?
               floor(fpsrcop): ceil(fpsrcop);
-    else if (FPUC_RC == RC_UP) /*Round towards -INFI*/
+    else if (FPUC_RC == RC_DOWN) /*Round towards -INFI*/
         fpsrcop = floor(fpsrcop);
     else  /*Round towards +INFI*/
         fpsrcop = ceil(fpsrcop);
@@ -1131,7 +1141,7 @@ hsw_fp87_33m(unsigned char *mem_ref)
     else if (FPUC_RC == RC_NEAR) /*Round to the nearest*/
         fpsrcop = (fpsrcop-floor(fpsrcop) < ceil(fpsrcop)-fpsrcop)?
               floor(fpsrcop): ceil(fpsrcop);
-    else if (FPUC_RC == RC_UP) /*Round towards -INFI*/
+    else if (FPUC_RC == RC_DOWN) /*Round towards -INFI*/
         fpsrcop = floor(fpsrcop);
     else  /*Round towards +INFI*/
         fpsrcop = ceil(fpsrcop);
@@ -1315,8 +1325,8 @@ hsw_fp87_44m(unsigned char *mem_ref)
 void
 hsw_fp87_44r(int reg_num)
 {
-/* FSUBm64r_FSUBRfromsti */
-	FPR_ST(reg_num) -= FPR_ST0;
+/* FSUBRm64r_FSUBRfromsti */
+	FPR_ST(reg_num) = FPR_ST0 - FPR_ST(reg_num);
 }
 
 void
@@ -1330,22 +1340,22 @@ hsw_fp87_45m(unsigned char *mem_ref)
 void
 hsw_fp87_45r(int reg_num)
 {
-/* FSUBRm64r_FSUBfromsti */
-	FPR_ST(reg_num) = FPR_ST0 - FPR_ST(reg_num);
+/* FSUBm64r_FSUBfromsti */
+	FPR_ST(reg_num) -= FPR_ST0;
 }
 
 void
 hsw_fp87_46r(int reg_num)
 {
-/* FDIVRm64r_FDIVtosti */
+/* FDIVRm64r_FDIVRtosti */
 	if (!L_ISZERO(&FPR_ST0)) { hsw_env87.fpus |= FP_ZEROFLG; }
-	FPR_ST(reg_num) /= FPR_ST0;
+	FPR_ST(reg_num) = FPR_ST0 / FPR_ST(reg_num);
 }
 
 void
 hsw_fp87_46m(unsigned char *mem_ref)
 {
-/* FDIVm64r_FDIVRtosti */
+/* FDIVm64r_FDIVtosti */
 	double fptemp;
 	FPR_ST0 /= GET64REAL(fptemp,mem_ref);
 	if (!L_ISZERO(&fptemp)) { hsw_env87.fpus |= FP_ZEROFLG; }
@@ -1354,15 +1364,15 @@ hsw_fp87_46m(unsigned char *mem_ref)
 void
 hsw_fp87_47r(int reg_num)
 {
-/* FDIVm64r_FDIVRtosti */
+/* FDIVm64r_FDIVtosti */
 	if (!L_ISZERO(&FPR_ST(reg_num))) { hsw_env87.fpus |= FP_ZEROFLG; }
-	FPR_ST(reg_num) = FPR_ST0 / FPR_ST(reg_num);
+	FPR_ST(reg_num) /= FPR_ST0;
 }
 
 void
 hsw_fp87_47m(unsigned char *mem_ref)
 {
-/* FDIVRm64r_FDIVtosti */
+/* FDIVRm64r_FDIVRtosti */
 	double fptemp;
 	if (!L_ISZERO(&FPR_ST0)) { hsw_env87.fpus |= FP_ZEROFLG; }
 	FPR_ST0 = GET64REAL(fptemp,mem_ref) / FPR_ST0;
@@ -1712,8 +1722,8 @@ hsw_fp87_64m(unsigned char *mem_ref)
 void
 hsw_fp87_64r(int reg_num)
 {
-/* FISUBm16i_FSUBRPfromsti */
-	FPR_ST(reg_num) -= FPR_ST0;
+/* FISUBRm16i_FSUBRPfromsti */
+	FPR_ST(reg_num) = FPR_ST0 - FPR_ST(reg_num);
 	POPFSP;
 }
 
@@ -1727,15 +1737,15 @@ hsw_fp87_65m(unsigned char *mem_ref)
 void
 hsw_fp87_65r(int reg_num)
 {
-/* FISUBRm16i_FSUBPfromsti */
-	FPR_ST(reg_num) = FPR_ST0 - FPR_ST(reg_num);
+/* FISUBm16i_FSUBPfromsti */
+	FPR_ST(reg_num) -= FPR_ST0;
 	POPFSP;
 }
 
 void
 hsw_fp87_66m(unsigned char *mem_ref)
 {
-/* FIDIVm16i_FDIVRPtosti */
+/* FIDIVm16i_FDIVPtosti */
 	Ldouble fptemp;
 	fptemp = GET16INT(mem_ref);
 	FPR_ST0 /= fptemp;
@@ -1745,7 +1755,7 @@ hsw_fp87_66m(unsigned char *mem_ref)
 void
 hsw_fp87_66r(int reg_num)
 {
-/* FIDIVm16i_FDIVRPtosti */
+/* FIDIVRm16i_FDIVRPtosti */
 /* @@checked */
 	if (!L_ISZERO(&FPR_ST(reg_num))) { hsw_env87.fpus |= FP_ZEROFLG; }
 	FPR_ST(reg_num) = FPR_ST0 / FPR_ST(reg_num);
@@ -1755,7 +1765,7 @@ hsw_fp87_66r(int reg_num)
 void
 hsw_fp87_67m(unsigned char *mem_ref)
 {
-/* FIDIVRm16i_FDIVPtosti */
+/* FIDIVRm16i_FDIVRPtosti */
 	if (!L_ISZERO(&FPR_ST0)) { hsw_env87.fpus |= FP_ZEROFLG; }
 	FPR_ST0 = GET16INT(mem_ref) / FPR_ST0;
 }
@@ -1808,7 +1818,7 @@ hsw_fp87_72m(unsigned char *mem_ref)
     else if (FPUC_RC == RC_NEAR) /*Round to the nearest*/
         fpsrcop = (fpsrcop-floor(fpsrcop) < ceil(fpsrcop)-fpsrcop)?
                       floor(fpsrcop): ceil(fpsrcop);
-    else if (FPUC_RC == RC_UP) /*Round towards -INFI*/
+    else if (FPUC_RC == RC_DOWN) /*Round towards -INFI*/
         fpsrcop = floor(fpsrcop);
     else  /*Round towards +INFI*/
         fpsrcop = ceil(fpsrcop);
@@ -1834,7 +1844,7 @@ hsw_fp87_73m(unsigned char *mem_ref)
     else if (FPUC_RC == RC_NEAR) /*Round to the nearest*/
         fpsrcop = (fpsrcop-floor(fpsrcop) < ceil(fpsrcop)-fpsrcop)?
                       floor(fpsrcop): ceil(fpsrcop);
-    else if (FPUC_RC == RC_UP) /*Round towards -INFI*/
+    else if (FPUC_RC == RC_DOWN) /*Round towards -INFI*/
         fpsrcop = floor(fpsrcop);
     else  /*Round towards +INFI*/
         fpsrcop = ceil(fpsrcop);
@@ -1945,7 +1955,7 @@ hsw_fp87_76m(unsigned char *mem_ref)
     else if (FPUC_RC == RC_NEAR) /*Round to the nearest*/
         fpsrcop = (fpsrcop-floor(fpsrcop) < ceil(fpsrcop)-fpsrcop)?
                       floor(fpsrcop): ceil(fpsrcop);
-    else if (FPUC_RC == RC_UP) /*Round towards -INFI*/
+    else if (FPUC_RC == RC_DOWN) /*Round towards -INFI*/
         fpsrcop = floor(fpsrcop);
     else  /*Round towards +INFI*/
         fpsrcop = ceil(fpsrcop);
@@ -1987,7 +1997,7 @@ hsw_fp87_77m(unsigned char *mem_ref)
     else if (FPUC_RC == RC_NEAR) /*Round to the nearest*/
         fpsrcop = (fpsrcop-floor(fpsrcop) < ceil(fpsrcop)-fpsrcop)?
                       floor(fpsrcop): ceil(fpsrcop);
-    else if (FPUC_RC == RC_UP) /*Round towards -INFI*/
+    else if (FPUC_RC == RC_DOWN) /*Round towards -INFI*/
         fpsrcop = floor(fpsrcop);
     else  /*Round towards +INFI*/
         fpsrcop = ceil(fpsrcop);

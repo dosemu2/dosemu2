@@ -49,11 +49,9 @@ changes for use with dosemu-0.99 1998/12/13 vignani@tin.it
 /* "@(#)hsw_interp.h	1.23 :/users/sccs/src/win/intp32/s.hsw_interp.h 1/23/97 17:25:08"  */
 
 #include "internal.h"
-#ifndef DOSEMU
 #include <setjmp.h>
-#endif
 
-#ifdef _IN_INTP32
+#if !defined(DOSEMU) || defined(_IN_INTP32)
 
 #define ADDbfrm		0x00
 #define ADDwfrm		0x01
@@ -443,8 +441,8 @@ changes for use with dosemu-0.99 1998/12/13 vignani@tin.it
 #define IOPL_FLAG_MASK		0x3000
 #define NESTED_FLAG		0x4000
 #define BYTE_FL			0x8000	/* Intel reserved! */
-/* RF				0x10000 */
-/* VM				0x20000 */
+#define RF_FLAG			0x10000
+#define VM_FLAG			0x20000
 /* AC				0x40000 */
 
 #define CPL	0x3000
@@ -462,44 +460,48 @@ changes for use with dosemu-0.99 1998/12/13 vignani@tin.it
  *	AF		 N	    Y
  *	CX,LOOP		 N	    N
  *
- */
-
-/* quite tricky.... works because AUX_FLAG is 0x10 */
-/*
+ * beware of logical operations - all conditions _should_ return 0 or 1
+ *
  *		[                  ][------word--------] SRCn_16
  *		[        ][        ][--byte--][--aux---]
  *				      SRCn_8
  */
-#define IS_AF_SET (BOOL)((int)((BYTE_FLAG==BYTE_OP)?\
-	(((SRC1_8 & 0xf) + (SRC2_8 & 0xf)) & AUX_CARRY_FLAG):\
-	(((SRC1_16 & 0xf) + (SRC2_16 & 0xf)) & AUX_CARRY_FLAG)) >> 4)
+#define IS_AF_SET (((SRC1_16 & 0xf0f) + (SRC2_16 & 0xf0f)) & \
+	(BYTE_FLAG==BYTE_OP? 0x1000:0x10))
 
 #define IS_CF_SET (BOOL)(CARRY & CARRY_FLAG)
 
 /* overflow rule using bit15:
  *	src1 src2  res	b15
  *	  0    0    0    0
- *	  0    0    1    1
+ *	  0    0    1    1	BUT stc;sbb 0,0 -> ..ff, OF=0
  *	  0    1    0    0
  *	  0    1    1    0
- *	  1    0    0    0
+ *	  1    0    0    0	BUT stc;sbb 80..,0 -> 7f.., OF=1
  *	  1    0    1    0
  *	  1    1    0    1
  *	  1    1    1    0
  */ 
-#define IS_OF_SET ((WORD)((~(SRC1_16 ^ SRC2_16))&(SRC1_16 ^ RES_16))>>15)
+#define IS_OF_SET (BOOL)((((~(SRC1_16 ^ SRC2_16))&(SRC1_16 ^ RES_16)) >> 15) & 1)
 
 #define IS_ZF_SET (BOOL)(RES_16 == 0)
 #define IS_SF_SET (BOOL)((RES_8 >> 7) & 1)
 #define IS_PF_SET (parity[((BYTE_FLAG==BYTE_OP)?RES_8:PAR_16)]==PARITY_FLAG)
 
 #define CLEAR_CF CARRYB=0
+/* Wow. this changes also parity */
 #define CLEAR_AF { SRC1_16 &= ~0x808; SRC2_16 &= ~0x808; }
-#define CLEAR_DF env->flags &= (~ DIRECTION_FLAG)
+#define CLEAR_DF env->flags &= ~DIRECTION_FLAG
+/* this is safe */
+#define CLEAR_ZF RES_8|=1
 
 #define SET_CF CARRYB=1
+/* Wow. this changes also parity */
 #define SET_AF { SRC1_16 |= 0x808; SRC2_16 |= 0x808; }
 #define SET_DF env->flags |= DIRECTION_FLAG
+/* this way of setting ZF affects also SF,OF,PF,AF. Some operations like
+ * LAR,LSL specify that ONLY ZF is affected. God save the Queen. */
+#define SET_ZF RES_16=0
 
 #define ROL	0
 #define ROR	1
@@ -584,7 +586,8 @@ changes for use with dosemu-0.99 1998/12/13 vignani@tin.it
 #define BIG_FS env->bigseg[4]
 #define BIG_GS env->bigseg[5]
 
-#define OVERRIDE env->seg_regs[6]
+#define OVERR_DS env->seg_regs[6]
+#define OVERR_SS env->seg_regs[7]
 #define INVALID_OVR	((unsigned char *)(-1l))
 
 #define SIGNb (res & 0x80)
@@ -631,7 +634,7 @@ changes for use with dosemu-0.99 1998/12/13 vignani@tin.it
 		ESP+=2;} else {w=*((unsigned short *)(LONG_SS+SP)); SP+=2;}
 #define POPQUAD(dw)  if (BIG_SS) {dw=*((unsigned long *)(LONG_SS+ESP));\
 		ESP+=4;} else {dw=*((unsigned long *)(LONG_SS+SP)); SP+=4;}
-#else
+#else	/* not i386 */
 #define PUSHWORD(w) {unsigned char *sp=env->seg_regs[3]+env->rsp.sp.sp; \
 		*(sp-2)=w; \
 		*(sp-1)=w>>8; \
@@ -651,35 +654,21 @@ changes for use with dosemu-0.99 1998/12/13 vignani@tin.it
 			(((unsigned long) *(sp+2))<<16) | \
 			(((unsigned long) *(sp+3))<<24); \
 		env->rsp.sp.sp+=4;}
-#endif	/* DOSEMU */
+#endif
 
 #define SELECTOR_PADDRESS(sel) GetPhysicalAddress(sel)
 
-#ifndef DOSEMU
-#define SET_SEGREG(lp,big,mk,sel) ({ \
-	WORD wFlags; \
-	char prnt_buf[40]; \
-	if ((sel >> 3) == 0) \
-	    lp = 0; \
-	else { \
-	    wFlags = GetSelectorFlags(sel); \
-	    if (!(wFlags & DF_PRESENT)) { \
-	        if (!LoadSegment(sel)) { \
-		    sprintf(prnt_buf, \
-		       "INTP32: failed to load selector %x\n",(unsigned int)sel); \
-		    printf("%s\n",prnt_buf); \
-		    FatalAppExit(0,prnt_buf); \
-	        } \
-	    } \
-	    lp = GetPhysicalAddress(sel); \
-	} 0; })
-
-#else
 extern int SetSegreg(unsigned char **lp, unsigned char *big,
 	unsigned long csel);
 #define SET_SEGREG(lp,big,mk,sel)	SetSegreg(&(lp),&(big),(mk|sel))
 
-#endif	/* DOSEMU */
+#ifdef DOSEMU
+int hsw_verr(unsigned short sel);
+int hsw_verw(unsigned short sel);
+#else
+#define hsw_verr(s)	(1)
+#define hsw_verw(s)	(1)
+#endif
 
 #endif
 
@@ -886,7 +875,7 @@ typedef struct keyENV{
 	unsigned long   level;
 	struct HSW_86_CATCHBUF *buf;
 	jmp_buf		jump_buffer;
-	unsigned char *seg_regs[7];
+	unsigned char *seg_regs[8];
 	Interp_VAR_flags_czsp flags_czsp;
 	union {
 		unsigned long longword;
@@ -1056,8 +1045,7 @@ typedef struct keyENV{
 	struct HSW_86_CATCHBUF *buf;
 	jmp_buf		jump_buffer;
 #endif
-	unsigned long	error_addr;
-	unsigned char *seg_regs[7];
+	unsigned char *seg_regs[8];
 	Interp_VAR_flags_czsp flags_czsp;
 /*
  *		[--------------longword----------------] SRC1_32
@@ -1100,6 +1088,7 @@ typedef struct keyENV{
 	unsigned char *reg1;	/* from REG field of mod_rm */
 	unsigned char *mem_ref;	/* from RM field of mod_rm */
 	int mode_reg;
+	unsigned long error_addr;
 	unsigned char bigseg[6];
 } Interp_ENV;
 #endif
@@ -1252,7 +1241,7 @@ typedef struct keyENV{
 	unsigned long   level;
 	struct HSW_86_CATCHBUF *buf;
 	jmp_buf		jump_buffer;
-	unsigned char *seg_regs[7];
+	unsigned char *seg_regs[8];
 	Interp_VAR_flags_czsp flags_czsp;
 	union {
 		unsigned long longword;
@@ -1290,16 +1279,23 @@ typedef struct keyENV{
 } Interp_ENV;
 #endif
 
+#ifdef USE_GLOBAL_EBP
+#define MODPARAMS	Interp_ENV *env
+#define MODARGS		env
+#else
+#define MODPARAMS	Interp_ENV *env,BYTE *PC
+#define MODARGS		env,PC
+#endif
 
-#ifdef _IN_INTP32
+#if !defined(DOSEMU) || defined(_IN_INTP32)
 
-/* CARRY is tricky, as it accesses also byte 3 (BYTE_OP); use with care
- * when writing into it, if in doubt use CARRYB -- AV */
+/* CARRY is tricky, as it accesses also byte 3 (BYTE_OP); use with care */
 #define CARRY env->flags_czsp.word16.carry
 #define CARRYB env->flags_czsp.byte.carryb
 #define RES_32 env->flags_czsp.res
 #define RES_16 env->flags_czsp.word16.res16
 #define RES_8 env->flags_czsp.byte.res8
+#define AUXR_8 env->flags_czsp.byte.parity16
 #define PAR_16 env->flags_czsp.byte.parity16
 #define AUX1_8 env->src1.byte.aux
 #define AUX2_8 env->src2.byte.aux
@@ -1310,39 +1306,17 @@ typedef struct keyENV{
 #define SRC2_16 env->src2.word16.word
 #define SRC1_8 env->src1.byte.byte
 #define SRC2_8 env->src2.byte.byte
-#define HREG1 (unsigned char *)(env->reg1)
-#define XREG1 (unsigned short *)(env->reg1)
-#define EREG1 (DWORD *)(env->reg1)
+/* these are pointers to the actual mem/reg src/dest location */
+#define HREG1 ((BYTE *)env->reg1)
+#define XREG1 ((WORD *)env->reg1)
+#define EREG1 ((DWORD *)env->reg1)
 #define MEM_REF env->mem_ref
 
 #define IS_MODE_REG env->mode_reg
 
-/* try to gain some speed/space/regs on a heavily-used macro... */
-#if (GCC_VERSION_CODE>=2091) && defined(__GNUC__) && defined(__i686__)
-/* a bonus for Intel chips only ... never mind */
-#define ALLOW_OVERRIDE(default)	({ unsigned char *_v; \
-	__asm__ __volatile__ ("movl	%1,%%eax\n \
-	cmpl	$-1,%%eax\n \
-	cmove	%2,%0\n \
-	cmovne	%%eax,%0" \
-	: "=r"(_v) \
-	: "g"(OVERRIDE), "g"(default) \
-	: "%eax", "memory"); \
-	_v; })
-#elif (GCC_VERSION_CODE>=2091) && defined(__GNUC__) && defined(__i586__)
-#define ALLOW_OVERRIDE(default)	({ unsigned char *_v; \
-	__asm__ __volatile__ ("movl	$-1,%%eax\n \
-	movl	%1,%0\n \
-	movl	%2,%%ecx\n \
-	cmpxchgl	%%ecx,%0" \
-	: "=&r"(_v) \
-	: "g"(OVERRIDE), "g"(default) \
-	: "%eax", "%ecx", "memory"); \
-	_v; })
-#else
-/* plain version for old gcc */
+/*
 #define ALLOW_OVERRIDE(default) ((OVERRIDE!=INVALID_OVR)?OVERRIDE:default)
-#endif
+*/
 
 /* ========================== FLAG setting ============================ */
 /* Use similar macros to save the op state for later flag evaluation -
@@ -1358,9 +1332,41 @@ typedef struct keyENV{
  *
  * SETBFLAGS requires definition of variables: src1,src2,res
  */
-#define SETBFLAGS(s) { RES_32=((res&0x1ff)|(BYTE_OP<<16))<<8;\
-	SRC1_8=(BYTE)src1;\
-	if (s) SRC2_8=((src2&0xff)==0x80? 0:-((int)src2)); else SRC2_8=(BYTE)src2;}
+#ifdef __i386__
+/* no-carry version */
+#define BYTEDUP(sr)	({__asm__ __volatile__ ("\
+	movzbl	%b1,%0\n\
+	movb	%b1,%h0"\
+	: "=q"(sr) \
+	: "0"(sr) ); sr;})
+
+/* carry version */
+#define BYTEDUP_C(sr)	({__asm__ __volatile__ ("\
+	andl	$0x1ff,%0\n\
+	shll	$8,%0\n\
+	movb	%h1,%b0"\
+	: "=q"(sr) \
+	: "0"(sr) ); sr;})
+#else
+#define BYTEDUP(sr)	((((sr)&0xff)<<8)|((sr)&0xff))
+#define BYTEDUP_C(sr)	((((sr)&0x1ff)<<8)|((sr)&0xff))
+#endif
+
+/* New: align flag handling for byte ops to the default 16-bit word case.
+ * We do this by duplicating the bits 0..7 into 8..15. Carry goes always
+ * into bit 16; high byte is now cleared.
+ * Flags: SF: uses bit 15 as before
+ *	  ZF: if result byte is 0, so is the extended word
+ *	  OF: uses bit 15 as before. Low bytes of src1,src2 ignored
+ *	  PF: uses low byte, which is the same as the result
+ *	  CF: into bit 16 as before
+ *	  AF: uses low byte
+ */
+#define SETBFLAGS(s) { register DWORD _res1=res;\
+	RES_32=BYTEDUP_C(_res1);\
+	_res1=src1; SRC1_32=BYTEDUP(_res1);\
+	if (s) {_res1=-src2; if ((_res1&0x7f)==0) _res1^=0x80;}\
+	else _res1=src2; SRC2_32=BYTEDUP(_res1);}
 
 /*
  *		[-----------------res------------------]
@@ -1372,10 +1378,12 @@ typedef struct keyENV{
  * we don't need.
  *
  * SETWFLAGS requires definition of variables: src1,src2,res
+ * High 16 bits of SRC1,SRC2 are don't cares
  */
-#define SETWFLAGS(s) { RES_32=res&0x1ffff;\
-	SRC1_16=(WORD)src1;\
-	if (s) SRC2_16=((src2&0xffff)==0x8000? 0:-((int)src2)); else SRC2_16=(WORD)src2;}
+#define SETWFLAGS(s) { register DWORD _res1;\
+	RES_32=res&0x1ffff; SRC1_32=src1;\
+	if (s) {_res1=-src2; if ((_res1&0x7fff)==0) _res1^=0x8000;}\
+	else _res1=src2; SRC2_32=_res1;}
 
 /* add/sub rule for carry using bit31:
  *	src1 src2  res	b31(a) b31(s)
@@ -1405,36 +1413,25 @@ typedef struct keyENV{
  * done by setting bit 8 if the original value was not zero, so that 16-bit
  * zero test will give the correct answer -- AV
  */
-#if !defined(__PIC__) && (GCC_VERSION_CODE < 2092) && defined(__GNUC__) && defined(__i386__)
+#ifdef __i386__
+/* latest version... move only sign bit from b31 to b15; if sign=1, then
+ * of course ZF=0, else test and set bit 8 if 32-bit result is not zero.
+ * The trick works because rcr doesn't change the ZF coming from shl.
+ * Be careful not to change the LSByte - it is used by AF and PF */
 #define PACK32_16(sr,de)	__asm__ __volatile__ ("\
-	bswap	%0\n\
-	roll	$8,%0\n\
-	testl	%0,%0\n\
-	je	1f\n\
+	shll	%0\n\
+	rcrw	%w0\n\
+	jz	1f\n\
 	orb	$1,%h0\n\
 1:	movw	%w0,%w1"\
-	: "=q"(sr),"=g"(*((short *)&de))\
-	: "0"(sr)\
-	: "memory" )
-#elif !defined(__PIC__) && (GCC_VERSION_CODE>=2092) && defined(__GNUC__) && defined(__i386__)
-/* gcc 2.7.2.3 and egcs-1.1 versions do not like this one,
- * while development egcs versions accept it */
-#define PACK32_16(sr,de)	__asm__ __volatile__ ("\
-	bswap	%0\n\
-	roll	$8,%0\n\
-	testl	%0,%0\n\
-	je	1f\n\
-	orb	$1,%h0\n\
-1:	movw	%w0,%w1"\
-	: "=r"(sr),"=g"(*((short *)&de))\
-	: "0"(sr)\
+	: "=q"(sr), "=g"(*((short *)&de))\
+	: "0"(sr) \
 	: "memory" )
 #else
 #define PACK32_16(sr,de)	de=((WORD)(((sr)>>16)&0xff00) |\
 				(WORD)((sr)&0xff) | (WORD)((sr)!=0? 0x100:0))
 #endif
 
-#ifdef __i386__
 /*
  *		[-----------------res------------------]
  *	     	[----------sssssssc][--res(3)---res(0)-]
@@ -1450,22 +1447,10 @@ typedef struct keyENV{
 #define SETDFLAGS(c,s) { register DWORD _res1=res;\
 	PACK32_16(_res1,RES_16);\
 	_res1=src1; PACK32_16(_res1,SRC1_16);\
-	if (s) {_res1=(src2==0x80000000? 0:-((int)src2)); src2=~src2;}\
+	if (s) {_res1=-src2; if ((_res1<<1)==0) _res1^=0x80000000; src2=~src2;}\
 	else _res1=src2; PACK32_16(_res1,SRC2_16);\
 	if (c) CARRY = IS_CF_SETD(src1,src2,res) ^ (s); else BYTE_FLAG=0;}
 
-#else	/* original */
-
-#define SETDFLAGS(c,s) { register DWORD res1=res;\
-	if (s) src2 = ((src2==0x80000000)? 0:-((int)src2));\
-	if (d.emu>4) e_printf("S1=%#lx S2=%#lx R=%#lx\n",src1,src2,res);\
-	PACK32_16(res,RES_16);\
-	CARRY = IS_CF_SETD;\
-	BYTE_FLAG = 0;\
-	if (res1) RES_8 |= 0x1;\
-	PACK32_16(src1,SRC1_16);\
-	PACK32_16(src2,SRC2_16);}
-#endif
 
 /* ================== MEMORY and REGISTERS access ===================== */
 /*
@@ -1477,9 +1462,9 @@ typedef struct keyENV{
 #define	GETBYTE(p)	(BYTE)*((BYTE *)(p))
 #define	GETWORD(p)	(WORD)*((WORD *)(p))
 #define GETDWORD(p)	(DWORD)*((DWORD *)(p))
-#define PUTBYTE(p,b)	*((BYTE *)(p))=(BYTE)(b)
-#define PUTWORD(p,w)	*((WORD *)(p))=(WORD)(w)
-#define PUTDWORD(p,dw)	*((DWORD *)(p))=(DWORD)(dw)
+#define PUTBYTE(p,b)	{*((BYTE *)(p))=(BYTE)(b);}
+#define PUTWORD(p,w)	{*((WORD *)(p))=(WORD)(w);}
+#define PUTDWORD(p,dw)	{*((DWORD *)(p))=(DWORD)(dw);}
 #else	/* Twin: ugly but endian-independent */
 #define	GETWORD(p) (WORD)(((LPBYTE)(p))[0]+((WORD)(((LPBYTE)(p))[1])<<8))
 /* warning: problems with 'if..else' using brackets */
@@ -1540,16 +1525,15 @@ typedef union {
 
 #ifndef DOSEMU
 #define error(s...)	fprintf(stderr,##s)
-/*extern void INT_handler(int, ENV *);	TODO */
+extern LPSTR	GetProcName(WORD wSel, WORD wOrd);
 #else
 #include "cpu-emu.h"
-/*#include "dosemu_debug.h"*/
 #endif
 
 typedef void (*FUNCT_PTR)();
 
 #ifndef NO_TRACE_MSGS
-extern void e_trace (Interp_ENV *, unsigned char *, unsigned char *,
+extern void e_trace (Interp_ENV *env, unsigned char *, unsigned char *,
   	int);
 extern void e_trace_fp (ENV87 *);
 #endif
@@ -1557,75 +1541,42 @@ extern void e_trace_fp (ENV87 *);
 extern int e_debug_check(unsigned char *);
 
 extern unsigned char *
-  hsw_interp_16_16 (Interp_ENV *, unsigned char *,
+  hsw_interp_16_16 (Interp_ENV *env, unsigned char *,
 	unsigned char *, int *, int);
 extern unsigned char *
-  hsw_interp_16_32 (Interp_ENV *, unsigned char *,
+  hsw_interp_16_32 (Interp_ENV *env, unsigned char *,
 	unsigned char *, int *);
 extern unsigned char *
-  hsw_interp_32_16 (Interp_ENV *, unsigned char *,
+  hsw_interp_32_16 (Interp_ENV *env, unsigned char *,
 	unsigned char *, int *);
 extern unsigned char *
-  hsw_interp_32_32 (Interp_ENV *, unsigned char *,
+  hsw_interp_32_32 (Interp_ENV *env, unsigned char *,
 	unsigned char *, int *, int);
 
 extern int
-  hsw_modrm_16_byte (Interp_ENV *, unsigned char *);
+  hsw_modrm_16_byte (MODPARAMS);
 extern int
-  hsw_modrm_16_word (Interp_ENV *, unsigned char *);
+  hsw_modrm_16_word (MODPARAMS);
 extern int
-  hsw_modrm_16_quad (Interp_ENV *, unsigned char *);
+  hsw_modrm_16_quad (MODPARAMS);
 extern int
-  hsw_modrm_32_byte (Interp_ENV *, unsigned char *);
+  hsw_modrm_32_byte (MODPARAMS);
 extern int
-  hsw_modrm_32_word (Interp_ENV *, unsigned char *);
+  hsw_modrm_32_word (MODPARAMS);
 extern int
-  hsw_modrm_32_quad (Interp_ENV *, unsigned char *);
+  hsw_modrm_32_quad (MODPARAMS);
 
 extern void invoke_data (Interp_ENV *);
 
 extern void
-trans_flags_to_interp(Interp_ENV *, DWORD);
+trans_flags_to_interp(Interp_ENV *env, DWORD);
 extern DWORD
-trans_interp_flags(Interp_ENV *);
+trans_interp_flags(Interp_ENV *env);
 
 extern int
 init_cpuemu(unsigned long);
 
 #endif	/* _IN_INTP32 */
-
-#define e_AL env->rax.x.x.h.l
-#define e_AH env->rax.x.x.h.h
-#define e_AX env->rax.x.x.x
-#define e_EAX env->rax.e
-#define e_BL env->rbx.x.x.h.l
-#define e_BH env->rbx.x.x.h.h
-#define e_BX env->rbx.x.x.x
-#define e_EBX env->rbx.e
-#define e_CL env->rcx.x.x.h.l
-#define e_CH env->rcx.x.x.h.h
-#define e_CX env->rcx.x.x.x
-#define e_ECX env->rcx.e
-#define e_DL env->rdx.x.x.h.l
-#define e_DH env->rdx.x.x.h.h
-#define e_DX env->rdx.x.x.x
-#define e_EDX env->rdx.e
-#define e_SI env->rsi.si.si
-#define e_ESI env->rsi.esi
-#define e_DI env->rdi.di.di
-#define e_EDI env->rdi.edi
-#define e_BP env->rbp.bp.bp
-#define e_EBP env->rbp.ebp
-#define e_SP env->rsp.sp.sp
-#define e_ESP env->rsp.esp
-#define e_CS env->cs.cs
-#define e_DS env->ds.ds
-#define e_ES env->es.es
-#define e_SS env->ss.ss
-#define e_FS env->fs.fs
-#define e_GS env->gs.gs
-#define e_EIP env->trans_addr
-#define e_EFLAGS env->flags
 
 extern BOOL code32, data32;
 extern void FatalAppExit(UINT, LPCSTR);
@@ -1680,7 +1631,7 @@ extern QWORD EMUtime;
 #define EXCP_GOBACK	64
 #define EXCP_SIGNAL	65
 
-#ifdef _IN_INTP32
+#if !defined(DOSEMU) || defined(_IN_INTP32)
 
 extern void hsw_fp87_00m(), hsw_fp87_01m(), hsw_fp87_02m(), hsw_fp87_03m();
 extern void hsw_fp87_04m(), hsw_fp87_05m(), hsw_fp87_06m(), hsw_fp87_07m();
