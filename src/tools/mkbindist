@@ -150,7 +150,7 @@ install -d ${DIR}/var/lib/dosemu/etc
 ( cd ./etc; cp -fap config.* dosemu.* keymap ${DIR}/var/lib/dosemu/etc )
 
 pushd ${DIR}/var/lib/dosemu >/dev/null
-cat > doinstall.sh <<EOF
+cat > doinstall.sh <<'EOF'
 #! /bin/bash
 ( cd /usr/X11R6/lib/X11/fonts/misc; mkfontdir . )
 ( cd /var/lib/dosemu; mkfatimage16 -b dosC/boot.bin -p -f hdimage.test \
@@ -195,7 +195,7 @@ if [ "$TAKESETUP" = "1" ]; then
   (cd setup; cp -fp parse-* runtime* select* write* *.tk ${DIR}/var/lib/dosemu/setup)
   sed -e "s|\.\./doc|${_DOCDIR}|" setup/browse.tk >${DIR}/var/lib/dosemu/setup/browse.tk
   install  setup/parser/parser ${DIR}/var/lib/dosemu/setup/parser
-  cat > ${DIR}/var/lib/dosemu/setup-dosemu <<EOF
+  cat > ${DIR}/var/lib/dosemu/setup-dosemu <<'EOF'
 #!/bin/sh
 #
 # Front end to the runtime & compile time scripts.

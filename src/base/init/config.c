@@ -1105,8 +1105,11 @@ int parse_debugflags(const char *s, unsigned char flag)
 	    d.io = flag;
 	    break;
 	case 'T':		/* i/o port tracing */
+	{   extern void init_port_traceing(void);
 	    d.io_trace = flag;
+	    if (d.io_trace) init_port_traceing();
 	    break;
+	}
 	case 's':		/* serial */
 	    d.serial = flag;
 	    break;

@@ -1,3 +1,26 @@
+99/02/26 ver. 0.99.9 released
+	From Antonio & Steffen
+	- preparation for 'kdos' DOSEMU frontend (src/env/video/X.c)
+	  Stay tuned for what will come soon ;-)
+	From bwallac1@san.rr.com (sorry, he didn't mail his name)
+	- fix bug when running dosemu in background and having to tty
+	  (getting  ENOTTY as opposed to expected EINVAL)
+	  Involved file: src/base/keyboard/keyb_slang.c
+	From Hans
+	- korrected the -D+T such that it does (mostly) the same now as
+	  under the (former) old ports stuff. As we handle port dispatching
+	  differently, we needed to have a 'trace ports {...}' statement
+	  to restrict logging to a given class of ports. This has the
+	  advantage, that we now also can uses -D+T for software debugging.
+	  (involved files ports.c, config.c, parser.y, lexer.l)
+	- changed all T_printf, that do not print 'IO-trace' information
+	  to i_printf, which is the proper flag for IO debugging.
+	- disabled SHOW_TIME for production releases (utilities.c), this
+	  is only usefull for development and otherwise breaks -D+T.
+	- fix bug in src/tools/mkbindist substituting $variables instead
+	  of taking them verbatim. (tricky bash-ism;-)
+	- for now disabling sigalarm_onoff() in uhook_config(), is freezing
+	  dos for some seconds. We have to find an other workaraound:-(
 99/02/25 ver. 0.99.8.2 unofficial pre-release
 	From Steffen
 	- for userhook: CancelDiskRedirection (disk.c)

@@ -35,7 +35,15 @@
 #include "mhpdbg.h"
 #endif
 
-#define SHOW_TIME	1		/* 0 or 1 */
+/*
+ * NOTE: SHOW_TIME _only_ should be enabled for
+ *      internal debugging use, but _never_ for productions releases!
+ *      (this would break the port traceing stuff -D+T, which expects
+ *      a machine interpretable and compressed format)
+ * 
+ *                                     --Hans 990213
+ */
+#define SHOW_TIME	0		/* 0 or 1 */
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif

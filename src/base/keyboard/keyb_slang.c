@@ -1331,7 +1331,7 @@ int slang_keyb_init(void) {
    
   if (tcgetattr(kbd_fd, &save_termios) < 0) {
     int ignore = 0;
-    if (errno == EINVAL) {
+    if (errno == EINVAL || errno == ENOTTY) {
       if ( (config.cardtype == CARD_NONE)
           || !strcmp(getenv("TERM"),"dumb")        /* most cron's have this */
           || !strcmp(getenv("TERM"),"none")        /* ... some have this */
@@ -1373,7 +1373,8 @@ int slang_keyb_init(void) {
   cfgetispeed(&buf);
   cfgetospeed(&buf);
 #endif
-  if (tcsetattr(kbd_fd, TCSANOW, &buf) < 0 && errno != EINVAL) {
+  if (tcsetattr(kbd_fd, TCSANOW, &buf) < 0 
+         && errno != EINVAL && errno != ENOTTY) {
     error("slang_keyb_init(): Couldn't tcsetattr(kbd_fd,TCSANOW,...) !\n");
   }
 
@@ -1413,7 +1414,8 @@ int slang_keyb_init(void) {
 }
 
 void slang_keyb_close(void)  {
-   if (tcsetattr(kbd_fd, TCSAFLUSH, &save_termios) == -1  && errno != EINVAL) {
+   if (tcsetattr(kbd_fd, TCSAFLUSH, &save_termios) == -1
+            && errno != EINVAL && errno != ENOTTY) {
       error("slang_keyb_close(): failed to restore keyboard termios settings!\n");
    }
    if (save_kbd_flags != -1) {

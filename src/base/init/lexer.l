@@ -358,6 +358,8 @@ ems			RETURN(L_EMS);
 dpmi			RETURN(L_DPMI);
 dosmem			RETURN(DOSMEM);
 ports			RETURN(PORTS);
+trace			RETURN(TRACE);
+clear			RETURN(CLEAR);
 sillyint		RETURN(SILLYINT);
 irqpassing		RETURN(SILLYINT);
 hardware_ram		RETURN(HARDWARE_RAM);

@@ -350,11 +350,21 @@ static void uhook_config(int argc, char **argv)
 	extern void dump_config_status(void *);
 
 	do_syn(argv[0]);
+#if 0
+/* FIXME
+ * turning off SIGALRM has ugly sideeffects here (freezing DOS for a some seconds),
+ * we need an other technique to avoid signal queue overflows.
+ * Currently, when the receiver is waiting, this makes no problems
+ * so we skip it for now.
+ */
 	sigalarm_onoff(0);	/* duh, this is ugly, but the amount of printed
 				   data maybe too big
 				 */
+#endif
 	dump_config_status(&uhook_printf);
+#if 0
 	sigalarm_onoff(1);
+#endif
 }
 
 void uhook_input(void)

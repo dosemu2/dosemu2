@@ -140,6 +140,14 @@
  * 1999/01/05: Splitted X_update_screen() into two separate parts.
  * -- sw
  *
+ * 1998/11/07: Updated Steffen's code to newest X.c :
+ *
+ *  * 1998/08/09: Started to add code to support KDE/Qt frontend.
+ *  * Look for DOSEMU_WINDOW_ID.
+ *  * -- sw
+ *
+ * -- Antonio Larrosa (antlarr@arrakis.es)
+ *
  * DANG_END_CHANGELOG
  */
 
@@ -355,7 +363,8 @@ static Window dga_window;
 Display *display;		/* used in base/keyboard/keyb_X_keycode.c */
 static int screen;
 static Visual *visual;
-static Window rootwindow, mainwindow;
+static Window rootwindow, mainwindow, parentwindow;
+static Boolean our_window;     	/* Did we create the window? */
 
 static XImage *ximage;		/* Used as a buffer for the X-server */
 
@@ -416,6 +425,9 @@ static int mouse_x = 0, mouse_y = 0;
 
 static int X_map_mode = -1;
 static int X_unmap_mode = -1;
+
+static Atom comm_atom = None;
+static Boolean kdos_client = FALSE;    	/* started by kdos */
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -518,6 +530,9 @@ static void X_scroll(int, int, int, int, int, Bit8u);
 static void do_scroll(void);
 #endif
 
+void kdos_recv_msg(unsigned char *);
+void kdos_send_msg(unsigned char *);
+void kdos_close_msg(void);
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -550,9 +565,10 @@ int X_init()
 {
   XGCValues gcv;
   XClassHint xch;
-  XWMHints wmhint;
   XSetWindowAttributes attr;
   char *display_name; 
+  char *s;
+  int i;
 
   X_printf("X: X_init\n");
 
@@ -593,13 +609,46 @@ int X_init()
   w_x_res = x_res = co * font_width;
   w_y_res = y_res = li * font_height;
 
-  mainwindow = XCreateSimpleWindow(
-    display, rootwindow,
-    0, 0,			/* position */
-    w_x_res, w_y_res,		/* size */
-    0, 0,			/* border width & color */
-    text_colors[0]		/* background color */
-  );
+  s = getenv("DOSEMU_WINDOW_ID");
+  if(s && (i = strtol(s, NULL, 0)) > 0) {
+    mainwindow = i;
+    our_window = FALSE;
+    kdos_client = TRUE;
+    have_focus = TRUE;
+    X_printf("X: X_init: using existing window (id = 0x%x)\n", i);
+  }
+  else {
+    our_window = TRUE;
+    kdos_client = FALSE;
+    mainwindow = XCreateSimpleWindow(
+      display, rootwindow,
+      0, 0,			/* Position */
+      w_x_res, w_y_res,		/* Size */
+      0, 0,			/* Border width & color */
+      text_colors[0]		/* Background color */
+    );
+  }
+
+  {
+    Window root, *child_list = NULL;
+    unsigned childs = 0;
+
+    if(XQueryTree(display, mainwindow, &root, &parentwindow, &child_list, &childs)) {
+      if(child_list) XFree(child_list);
+    }
+    else {
+      parentwindow = rootwindow;
+    }
+    X_printf("X: X_init: parent window: 0x%x\n", (unsigned) parentwindow);
+  }
+
+  /*
+   * used to communicate with kdos
+   */
+  if(kdos_client) {
+    comm_atom = XInternAtom(display, "DOSEMU_COMM_ATOM", False);
+    X_printf("X: X_init: got Atom: DOSEMU_COMM_ATOM = 0x%x\n", (unsigned) comm_atom);
+  }
 
   X_printf("X: X_init: screen = %d, root = 0x%x, mainwindow = 0x%x\n",
     screen, (unsigned) rootwindow, (unsigned) mainwindow
@@ -626,11 +675,16 @@ int X_init()
   xch.res_name  = "XDosEmu";
   xch.res_class = "XDosEmu";
 
-  wmhint.window_group = mainwindow;
-  wmhint.flags = WindowGroupHint;
-  XSetWMProperties(display, mainwindow, NULL, NULL, 
-    dosemu_argv, dosemu_argc, NULL, &wmhint, &xch);
-
+  if (our_window) {
+    XWMHints wmhint;
+    wmhint.window_group = mainwindow;
+    wmhint.flags = WindowGroupHint;
+    XSetWMProperties(display, mainwindow, NULL, NULL, 
+      dosemu_argv, dosemu_argc, NULL, &wmhint, &xch);
+  }
+  else {
+    XSetClassHint(display, mainwindow, &xch);
+  }
 #if CONFIG_X_SELECTION
   /* Get atom for COMPOUND_TEXT type. */
   compound_text_atom = XInternAtom(display, "COMPOUND_TEXT", False);
@@ -707,8 +761,10 @@ void X_close()
   register_speaker(NULL, NULL, NULL);
 #endif
 
+  if (kdos_client) kdos_close_msg();
+
   XUnloadFont(display, vga_font);
-  XDestroyWindow(display, mainwindow);
+  if(our_window) XDestroyWindow(display, mainwindow);
 
   destroy_ximage();
 
@@ -1126,7 +1182,25 @@ void X_handle_events()
 
       switch(e.type) 
 	{
-       case Expose:  
+       case Expose:
+          /*
+           * Well, if we're exposed we are most certainly mapped, too. :-)
+           *
+           * This is actually a kludge to work around some strange
+           * effect related to the DOSEMU_WINDOW_ID stuff.
+           *
+           * The problem arises that, when the window is not created
+           * by DOSEmu, it is typically already mapped. For some really
+           * strange reason however, you cannot simply set is_mapped to TRUE.
+           * Apparently there is some (black) magic going on somewhere in
+           * DOSEmu that assumes that some initialisation should be
+           * done while is_mapped is FALSE. I couldn't locate the
+           * exact position, though.
+           * 
+           * -- 1998/08/09 sw
+           */
+          is_mapped = TRUE;
+
 	  X_printf("X: expose event\n");
 	  if(vga.mode_class == TEXT) {
 	    if(e.xexpose.count == 0) X_redraw_text_screen();
@@ -1165,7 +1239,7 @@ void X_handle_events()
 	  break;
 
 	case DestroyNotify:
-	  error("X: Window got destroyed!\n");
+	  X_printf("X: window got destroyed\n");
 	  leavedos(99);
 	  break;
 	  
@@ -1173,10 +1247,15 @@ void X_handle_events()
 	  /* If we get a client message which has the value of the delete
 	   * atom, it means the window manager wants us to die.
 	   */
-	  if (e.xclient.data.l[0] == delete_atom) {
-	    error("X: Got delete message!\n");
+	  if(e.xclient.message_type == proto_atom && *e.xclient.data.l == delete_atom) {
+	    X_printf("X: got window delete message\n");
 	    /* XXX - Is it ok to call this from a SIGALRM handler? */
-	    leavedos(0);    
+	    leavedos(0);
+	    break;
+	  }
+
+	  if(e.xclient.message_type == comm_atom) {
+	    kdos_recv_msg(e.xclient.data.b);
 	  }
 	  break;
 
@@ -3179,3 +3258,37 @@ static void do_scroll(void)
 #endif   /* USE_SCROLL_QUEUE */
 
 
+/*
+ * Doesn't really belong here!
+ * It will go into a separate file. -- sw
+ */
+
+#define KDOS_CLOSE_MSG	1
+
+void kdos_recv_msg(unsigned char *buf)
+{
+  fprintf(stderr, "got Msg %d\n", buf[0]);
+}
+
+void kdos_send_msg(unsigned char *buf)
+{
+  XEvent e;
+
+  if(!kdos_client) return;
+
+  e.xclient.type = ClientMessage;
+  e.xclient.serial = 0;
+  e.xclient.display = display;
+  e.xclient.window = parentwindow;
+  e.xclient.message_type = comm_atom;
+  e.xclient.format = 8;
+  memcpy(e.xclient.data.b, buf, sizeof e.xclient.data.b);
+
+  XSendEvent(display, parentwindow, False, 0, &e);
+}
+
+void kdos_close_msg()
+{
+  unsigned char m[20] = { KDOS_CLOSE_MSG, };
+  kdos_send_msg(m);
+}

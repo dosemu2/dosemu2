@@ -127,6 +127,8 @@ extern int yylex(); /* exact argument types depend on the way you call bison */
 extern void tell_lexer_if(int value);
 extern void tell_lexer_loop(int cfile, int value);
 extern int parse_debugflags(const char *s, unsigned char flag);
+extern void register_port_traceing(ioport_t firstport, ioport_t lastport);
+extern void clear_port_traceing(void);
 
 	/* local procedures */
 
@@ -289,6 +291,8 @@ extern void yyrestart(FILE *input_file);
 	/* debug */
 %token IO PORT CONFIG READ WRITE KEYB PRINTER WARNING GENERAL HARDWARE
 %token L_IPC SOUND
+%token TRACE CLEAR
+
 	/* printer */
 %token COMMAND TIMEOUT OPTIONS L_FILE
 	/* disk */
@@ -678,6 +682,7 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		| PORTS
 		    { IFCLASS(CL_PORT) start_ports(); }
 		  '{' port_flags '}'
+		| TRACE PORTS '{' trace_port_flags '}'
 		| DISK
 		    { IFCLASS(CL_DISK) start_disk(); }
 		  '{' disk_flags '}'
@@ -1465,6 +1470,24 @@ port_flag	: INTEGER
                 | DEVICE string_expr         { strcpy(dev_name,$2); free($2); } 
 		| STRING
 		    { yyerror("unrecognized port command '%s'", $1);
+		      free($1); }
+		| error
+		;
+
+trace_port_flags	: trace_port_flag
+		| trace_port_flags trace_port_flag
+		;
+trace_port_flag	: INTEGER 
+			{ register_port_traceing($1, $1); }
+		| '(' expression ')'
+			{ register_port_traceing($2, $2); }
+		| RANGE INTEGER INTEGER
+			{ register_port_traceing($2, $3); }
+		| RANGE expression ',' expression
+			{ register_port_traceing($2, $4); }
+		| CLEAR { clear_port_traceing(); }
+		| STRING
+		    { yyerror("unrecognized port trace command '%s'", $1);
 		      free($1); }
 		| error
 		;

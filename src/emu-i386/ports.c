@@ -60,6 +60,7 @@
 #include "vc.h"
 #include "shared.h"
 #include "serial.h"
+#include "bitops.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #include "bitops.h"
@@ -124,7 +125,7 @@ void SET_HANDLE_COND(int p, int h)
   if (port_handle_table[(p)] < STD_HANDLES)
 	port_handle_table[(p)]=(h);
   else
-	T_printf("nPORT: %#x can't be mapped to handle %#x(%#x)\n",
+	i_printf("PORT: %#x can't be mapped to handle %#x(%#x)\n",
 	  p,h,port_handle_table[(p)]);
 }
 
@@ -150,100 +151,83 @@ static char *
 	return s + 3;
 }
 
-/* SIDOC_BEGIN_REMARK
- * VERB
- * PORT_DEBUG is to specify whether to record port writes to debug output.
- *   0 means disabled.
- *   1 means record all port accesses to 0x00 to 0xFF
- *   2 means record ANY port accesses!  (big fat debugfile!)
- *   3 means record all port accesses >= 0x100
- * /VERB
- * SIDOC_END_REMARK
- */
-#define PORT_DEBUG_READ	 2
-#define PORT_DEBUG_WRITE 2
-#define PORT_TRACE_D
+#define PORTLOG_MAXBITS		16
+#define PORTLOG_MASK		(~(-1 << PORTLOG_MAXBITS))
+#define SIZE_PORTLOGMAP		(1 << (PORTLOG_MAXBITS -3))
+static unsigned long *portlog_map = 0;
 
-#if PORT_DEBUG_READ > 0
-  static Bit8u log_port_read(ioport_t port, Bit8u r)
-  {
-    #if PORT_DEBUG_READ == 1
-      if (port < 0x100)
-    #elif PORT_DEBUG_READ == 3
-      if (port >= 0x100)
-    #endif
-      T_printf ("nPORTb: Rd 0x%04x -> 0x%02x %s\n", port, r, p2bin(r));
-      return r;
-  }
-  static Bit16u log_port_read_w(ioport_t port, Bit16u r)
-  {
-    #if PORT_DEBUG_READ == 1
-      if (port < 0x100)
-    #elif PORT_DEBUG_READ == 3
-      if (port >= 0x100)
-    #endif
-      T_printf ("PORTw: Rd 0x%04x -> 0x%04x\n", port, r);
-      return r;
-  }
-#ifdef PORT_TRACE_D
-  static Bit32u log_port_read_d(ioport_t port, Bit32u r)
-  {
-    #if PORT_DEBUG_READ == 1
-      if (port < 0x100)
-    #elif PORT_DEBUG_READ == 3
-      if (port >= 0x100)
-    #endif
-      T_printf ("PORTd: Rd 0x%04x -> 0x%08x\n", port, r);
-      return r;
-  }
-  #define LOG_PORT_READ_D(port, r) log_port_read_d(port, r)
-#endif
-  #define LOG_PORT_READ(port, r) log_port_read(port, r)
-  #define LOG_PORT_READ_W(port, r) log_port_read_w(port, r)
-#else
-  #define LOG_PORT_READ(port, r)	(r)
-  #define LOG_PORT_READ_W(port, r)	(r)
-  #define LOG_PORT_READ_D(port, r)	(r)
-#endif
+void init_port_traceing(void);
 
-#if PORT_DEBUG_WRITE > 0
-  static void log_port_write(ioport_t port, Bit8u w)
-  {
-    #if PORT_DEBUG_WRITE == 1
-      if (port < 0x100)
-    #elif PORT_DEBUG_WRITE == 3
-      if (port >= 0x100)
-    #endif
-      T_printf("PORTb: Wr 0x%04x <- %s 0x%02x\n", port, p2bin(w), w);
+void register_port_traceing(ioport_t firstport, ioport_t lastport)
+{
+  firstport &= PORTLOG_MASK;
+  lastport &= PORTLOG_MASK;
+  if (lastport < firstport) return;
+  init_port_traceing();
+  for (; firstport <= lastport; firstport++) {
+    set_bit(firstport, portlog_map);
   }
-  static void log_port_write_w(ioport_t port, Bit16u w)
-  {
-    #if PORT_DEBUG_WRITE == 1
-      if (port < 0x100)
-    #elif PORT_DEBUG_WRITE == 3
-      if (port >= 0x100)
-    #endif
-      T_printf("PORTw: Wr 0x%04x <- 0x%04x\n", port, w);
-  }
-#ifdef PORT_TRACE_D
-  static void log_port_write_d(ioport_t port, Bit32u w)
-  {
-    #if PORT_DEBUG_WRITE == 1
-      if (port < 0x100)
-    #elif PORT_DEBUG_WRITE == 3
-      if (port >= 0x100)
-    #endif
-      T_printf("PORTd: Wr 0x%04x <- 0x%08x\n", port, w);
-  }
-  #define LOG_PORT_WRITE_D(port, w) log_port_write_d(port, w)
-#endif
-  #define LOG_PORT_WRITE(port, w) log_port_write(port, w)
-  #define LOG_PORT_WRITE_W(port, w) log_port_write_w(port, w)
-#else
-  #define LOG_PORT_WRITE(port, w)
-  #define LOG_PORT_WRITE_W(port, w)
-  #define LOG_PORT_WRITE_D(port, w)
-#endif
+}
+
+void clear_port_traceing(void)
+{
+  if (!portlog_map) portlog_map = malloc(SIZE_PORTLOGMAP);
+  memset(portlog_map, 0, SIZE_PORTLOGMAP);
+}
+
+void init_port_traceing(void)
+{
+  if (portlog_map) return;
+  clear_port_traceing();
+  register_port_traceing(0x100, 0x2ff);
+}
+
+#define TT_printf(p,f,v,m) ({ \
+  if ( d.io_trace && test_bit(p & PORTLOG_MASK, portlog_map)) { \
+    log_printf(1, "%x %c %x\n", p, f, v & m); \
+  } \
+})
+
+static Bit8u log_port_read(ioport_t port, Bit8u r)
+{
+  TT_printf(port, '>', r, 0xff);
+  return r;
+}
+
+static Bit16u log_port_read_w(ioport_t port, Bit16u r)
+{
+  TT_printf(port, '}', r, 0xffff);
+  return r;
+}
+
+static Bit32u log_port_read_d(ioport_t port, Bit32u r)
+{
+  TT_printf(port, ']', r, 0xffffffff);
+  return r;
+}
+
+static void log_port_write(ioport_t port, Bit8u w)
+{
+  TT_printf(port, '<', w, 0xff);
+}
+
+static void log_port_write_w(ioport_t port, Bit16u w)
+{
+  TT_printf(port, '{', w, 0xffff);
+}
+
+static void log_port_write_d(ioport_t port, Bit32u w)
+{
+  TT_printf(port, '[', w, 0xffffffff);
+}
+
+#define LOG_PORT_READ(port, r) (d.io_trace ? log_port_read(port, r) : r)
+#define LOG_PORT_READ_W(port, r) (d.io_trace ? log_port_read_w(port, r) : r)
+#define LOG_PORT_READ_D(port, r) (d.io_trace ? log_port_read_d(port, r) : r)
+
+#define LOG_PORT_WRITE(port, w) do{ if (d.io_trace) log_port_write(port, w); }while(0)
+#define LOG_PORT_WRITE_W(port, w) do{ if (d.io_trace) log_port_write_w(port, w); }while(0)
+#define LOG_PORT_WRITE_D(port, w) do{ if (d.io_trace) log_port_write_d(port, w); }while(0)
 
 /* ---------------------------------------------------------------------- */
 /* SIDOC_BEGIN_REMARK
@@ -343,18 +327,12 @@ Bit32u port_ind(ioport_t port)
 	else {
 		res = std_port_ind(port);
 	}
-#ifdef PORT_TRACE_D
 	return LOG_PORT_READ_D(port, res);
-#else
-	return res;
-#endif
 }
 
 void port_outd(ioport_t port, Bit32u dword)
 {
-#ifdef PORT_TRACE_D
 	LOG_PORT_WRITE_D(port, dword);
-#endif
 	if (EMU_HANDLER(port).write_portd != NULL) {
 		EMU_HANDLER(port).write_portd(port, dword);
 	}
@@ -424,7 +402,7 @@ void std_port_outd(ioport_t port, Bit32u dword)
 
 static void pna_emsg(ioport_t port, char ch, char *s)
 {
-	T_printf("PORT%c: %x not available for %s\n", ch, port, s);
+	i_printf("PORT%c: %x not available for %s\n", ch, port, s);
 }
 
 static Bit8u port_not_avail_inb(ioport_t port)
@@ -481,7 +459,7 @@ int port_rep_inb(ioport_t port, Bit8u *base, int df, Bit32u count)
 	Bit8u *dest = base;
 
 	if (count==0) return 0;
-	T_printf("Doing REP insb(%#x) %d bytes at %p, DF %d\n", port,
+	i_printf("Doing REP insb(%#x) %d bytes at %p, DF %d\n", port,
 		count, base, df);
 	if (EMU_HANDLER(port).read_portb == std_port_inb) {
 	    PORT_IOPLON(port,1);
@@ -506,7 +484,7 @@ int port_rep_outb(ioport_t port, Bit8u *base, int df, Bit32u count)
 	Bit8u *dest = base;
 
 	if (count==0) return 0;
-	T_printf("Doing REP outsb(%#x) %d bytes at %p, DF %d\n", port,
+	i_printf("Doing REP outsb(%#x) %d bytes at %p, DF %d\n", port,
 		count, base, df);
 	if (EMU_HANDLER(port).write_portb == std_port_outb) {
 	    PORT_IOPLON(port,1);
@@ -531,7 +509,7 @@ int port_rep_inw(ioport_t port, Bit16u *base, int df, Bit32u count)
 	Bit16u *dest = base;
 
 	if (count==0) return 0;
-	T_printf("Doing REP insw(%#x) %d words at %p, DF %d\n", port,
+	i_printf("Doing REP insw(%#x) %d words at %p, DF %d\n", port,
 		count, base, df);
 	if (EMU_HANDLER(port).read_portw == std_port_inw) {
 	    PORT_IOPLON(port,2);
@@ -564,7 +542,7 @@ int port_rep_outw(ioport_t port, Bit16u *base, int df, Bit32u count)
 	Bit16u *dest = base;
 
 	if (count==0) return 0;
-	T_printf("Doing REP outsw(%#x) %d words at %p, DF %d\n", port,
+	i_printf("Doing REP outsw(%#x) %d words at %p, DF %d\n", port,
 		count, base, df);
 	if (EMU_HANDLER(port).write_portw == std_port_outw) {
 	    PORT_IOPLON(port,2);
@@ -741,7 +719,7 @@ static void special_port_outb(ioport_t port, Bit8u byte)
 		static unsigned int hi = 0, lo = 0;
 		int pos;
 
-		v_printf("nPORT: 6845 outb [0x%04x]\n", port);
+		v_printf("PORT: 6845 outb [0x%04x]\n", port);
 		if ((port == READ_WORD(BIOS_VIDEO_PORT) + 1) && (last_port == READ_WORD(BIOS_VIDEO_PORT))) {
 			/* We only take care of cursor positioning for now. */
 			/* This code should work most of the time, but can
@@ -990,7 +968,7 @@ int port_register_handler(emu_iodev_t device, int flags)
     struct stat devstat;
 
     if (device.irq != EMU_NO_IRQ && device.irq >= EMU_MAX_IRQS) {
-	dbug_printf("nPORT: IO device %s registered with IRQ=%d above %u\n",
+	dbug_printf("PORT: IO device %s registered with IRQ=%d above %u\n",
 	      device.handler_name, device.irq, EMU_MAX_IRQS - 1);
 	return 1;
     }
@@ -1005,12 +983,12 @@ int port_register_handler(emu_iodev_t device, int flags)
     if (handle >= port_handles) {
 	/* no existing handle found, create new one */
 	if (port_handles >= EMU_MAX_IO_DEVICES) {
-		error("nPORT: too many IO devices, increase EMU_MAX_IO_DEVICES");
+		error("PORT: too many IO devices, increase EMU_MAX_IO_DEVICES");
 		leavedos(77);
 	}
 
 	if (device.irq != EMU_NO_IRQ && irq_handler_name[device.irq]) {
-		error("nPORT: IRQ %d conflict.  IO devices %s & %s\n",
+		error("PORT: IRQ %d conflict.  IO devices %s & %s\n",
 		      device.irq, irq_handler_name[device.irq], device.handler_name);
 		if (device.fd) close(device.fd);
 		return 2;
@@ -1042,7 +1020,7 @@ int port_register_handler(emu_iodev_t device, int flags)
   /* change table to reflect new handler id for that address */
     for (i = device.start_addr; i <= device.end_addr; i++) {
 	if (port_handle_table[i] != 0) {
-		error("nPORT: conflicting devices: %s & %s\n",
+		error("PORT: conflicting devices: %s & %s\n",
 		      port_handler[handle].handler_name, EMU_HANDLER(i).handler_name);
 		if (device.fd) close(device.fd);
 		return 4;
@@ -1050,18 +1028,18 @@ int port_register_handler(emu_iodev_t device, int flags)
 	port_handle_table[i] = handle;
     }
 
-    T_printf("nPORT: registered \"%s\" handle 0x%02x [0x%04x-0x%04x] fd=%d\n",
+    i_printf("PORT: registered \"%s\" handle 0x%02x [0x%04x-0x%04x] fd=%d\n",
 	port_handler[handle].handler_name, handle, device.start_addr,
 	device.end_addr, (device.fd>=0? devstat.st_dev:device.fd));
 
     if (flags & PORT_FAST) {
 	if (device.start_addr < 0x400) {
-	  T_printf("nPORT: giving fast access to ports [0x%04x-0x%04x]\n",
+	  i_printf("PORT: giving fast access to ports [0x%04x-0x%04x]\n",
 		device.start_addr, device.end_addr);
 	  set_ioperm (device.start_addr, device.end_addr-device.start_addr+1, 1);
 	}
 	else
-	  T_printf("nPORT: using perm/iopl for ports [0x%04x-0x%04x]\n",
+	  i_printf("PORT: using perm/iopl for ports [0x%04x-0x%04x]\n",
 		device.start_addr, device.end_addr);
     }
     return 0;
@@ -1085,14 +1063,14 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 	char *devrname;
 	int fd, usemasks = 0;
 
-	T_printf("nPORT: allow_io for port 0x%04x:%d perm=%x or=%x and=%x\n",
+	i_printf("PORT: allow_io for port 0x%04x:%d perm=%x or=%x and=%x\n",
 		 start, size, permission, ormask, andmask);
 
 	if ((ormask != 0) || (andmask != 0xff)) {
 		if ((start+size) > 0x400)
-			T_printf("nPORT: andmask & ormask not supported for ports>=0x400\n");
+			i_printf("PORT: andmask & ormask not supported for ports>=0x400\n");
 		else if (size > 1)
-			T_printf("nPORT: andmask & ormask not supported for multiple ports\n");
+			i_printf("PORT: andmask & ormask not supported for multiple ports\n");
 		else
 			usemasks = 1;
 	}
@@ -1109,7 +1087,7 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 	 * SIDOC_END_REMARK
 	 */
 	if ((fp = fopen("/proc/ioports", "r")) == NULL) {
-		T_printf("nPORT: can't open /proc/ioports\n");
+		i_printf("PORT: can't open /proc/ioports\n");
 		return FALSE;
 	}
 	mapped = 0;
@@ -1117,7 +1095,7 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 		sscanf(line, "%x-%x : %s", &beg, &end, portname);
 		if ((start <= end) && ((start+size) > beg)) {
 			/* ports are besetzt, try to open the according device */
-			T_printf("nPORT: in range 0x%04x-0x%04x already registered as %s\n",
+			i_printf("PORT: in range 0x%04x-0x%04x already registered as %s\n",
 				 beg, end, portname);
 			if (!strncasecmp(portname,"dosemu",6)) return FALSE;
 			mapped = 1;
@@ -1127,7 +1105,7 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 	fclose (fp);
 
 	if (mapped && ((device==NULL) || (*device==0))) {
-		T_printf ("nPORT: no device specified for %s\n", portname);
+		i_printf ("PORT: no device specified for %s\n", portname);
 		return FALSE;
 	}
 
@@ -1167,17 +1145,17 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 		if (io_device.fd == -1) {
 			switch (errno) {
 			case EBUSY:
-				T_printf("nPORT: Device %s busy\n", device);
+				i_printf("PORT: Device %s busy\n", device);
 				return FALSE;
 			case EACCES:
-				T_printf("nPORT: Device %s, access not allowed\n", device);
+				i_printf("PORT: Device %s, access not allowed\n", device);
 				return FALSE;
 			case ENOENT:
 			case ENXIO:
-				T_printf("nPORT: No such Device '%s'\n", device);
+				i_printf("PORT: No such Device '%s'\n", device);
 				return FALSE;
 			default:
-				T_printf("nPORT: Device %s error %d\n", device, errno);
+				i_printf("PORT: Device %s error %d\n", device, errno);
 				return FALSE;
 			}
 		}
@@ -1185,11 +1163,11 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 		fd = open(lock_file, O_RDONLY);
 		if (fd >= 0) {
 			close(fd);
-			T_printf("nPORT: Device %s is locked\n", device);
+			i_printf("PORT: Device %s is locked\n", device);
 			return FALSE;
 		}
 
-		T_printf("nPORT: Device %s opened successfully = %d\n", device,
+		i_printf("PORT: Device %s opened successfully = %d\n", device,
 			io_device.fd);
 
 	}
@@ -1239,13 +1217,13 @@ set_ioperm(int start, int size, int flag)
 	tmp = DOS_SYSCALL(ioperm(start, size, flag));
 	leave_priv_setting();
 
-	T_printf ("nPORT: set_ioperm [%4x:%2d:%d] returns %d\n",start,size,flag,tmp);
+	i_printf ("nPORT: set_ioperm [%4x:%2d:%d] returns %d\n",start,size,flag,tmp);
 #ifdef X86_EMULATOR
 	if (config.cpuemu && (tmp==0)) {
 	    int i;
 	    for (i=start; i<(start+size); i++)
 		(flag? set_bit(i,io_bitmap) : clear_bit(i,io_bitmap));
-	    T_printf("ePORT: set_ioperm [%4x:%2d:%d]\n",start,size,flag);
+	    i_printf("ePORT: set_ioperm [%4x:%2d:%d]\n",start,size,flag);
 	}
 #endif
 	return tmp;
