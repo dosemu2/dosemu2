@@ -2,27 +2,30 @@ cmos.o : cmos.c emu.h machcompat.h cpu.h cmos.h disks.h
 dos.o : dos.c config.h 
 emu.o : emu.c config.h memory.h emu.h machcompat.h cpu.h /home/src/dosemu0.60/include/bios.h \
   termio.h /home/src/dosemu0.60/include/video.h timers.h cmos.h /home/src/dosemu0.60/include/mouse.h \
-  dosio.h disks.h xms.h /home/src/dosemu0.60/include/hgc.h dpmi/dpmi.h /home/src/dosemu0.60/include/ipx.h \
-  /home/src/dosemu0.60/include/../cpu.h serial.h /home/src/dosemu0.60/include/keymaps.h \
-  int.h 
+  dosio.h disks.h xms.h /home/src/dosemu0.60/include/hgc.h timer/bitops.h timer/pic.h \
+  dpmi/dpmi.h /home/src/dosemu0.60/include/ipx.h /home/src/dosemu0.60/include/../cpu.h \
+  serial.h /home/src/dosemu0.60/include/keymaps.h int.h 
 termio.o : termio.c config.h memory.h emu.h machcompat.h cpu.h termio.h /home/src/dosemu0.60/include/video.h \
-  /home/src/dosemu0.60/include/mouse.h dosio.h /home/src/dosemu0.60/include/keymaps.h 
+  /home/src/dosemu0.60/include/mouse.h dosio.h /home/src/dosemu0.60/include/keymaps.h \
+  timer/pic.h 
 xms.o : xms.c emu.h machcompat.h cpu.h config.h memory.h xms.h dosio.h 
 disks.o : disks.c emu.h machcompat.h cpu.h disks.h 
 keymaps.o : keymaps.c config.h 
 mutex.o : mutex.c config.h emu.h machcompat.h cpu.h mutex.h 
 timers.o : timers.c emu.h machcompat.h cpu.h timers.h 
-dosio.o : dosio.c memory.h emu.h machcompat.h cpu.h termio.h dosio.h /home/src/dosemu0.60/include/mouse.h 
+dosio.o : dosio.c memory.h emu.h machcompat.h cpu.h termio.h dosio.h /home/src/dosemu0.60/include/mouse.h \
+  timer/pic.h timer/bitops.h 
 cpu.o : cpu.c config.h memory.h cpu.h termio.h emu.h machcompat.h /home/src/dosemu0.60/include/port.h \
   dpmi/dpmi.h 
 mfs.o : mfs.c mfs.h emu.h machcompat.h cpu.h config.h memory.h 
 bios_emm.o : bios_emm.c emu.h machcompat.h cpu.h memory.h 
 lpt.o : lpt.c emu.h machcompat.h cpu.h dosio.h lpt.h 
-serial.o : serial.c config.h cpu.h emu.h machcompat.h dosio.h serial.h /home/src/dosemu0.60/include/mouse.h 
+serial.o : serial.c config.h cpu.h emu.h machcompat.h dosio.h serial.h /home/src/dosemu0.60/include/mouse.h \
+  timer/bitops.h timer/pic.h 
 dyndeb.o : dyndeb.c emu.h machcompat.h cpu.h 
 sigsegv.o : sigsegv.c emu.h machcompat.h cpu.h /home/src/dosemu0.60/include/bios.h \
   /home/src/dosemu0.60/include/mouse.h serial.h xms.h timers.h cmos.h memory.h \
-  termio.h config.h /home/src/dosemu0.60/include/port.h /home/src/dosemu0.60/include/ipx.h \
+  termio.h config.h timer/pic.h /home/src/dosemu0.60/include/port.h /home/src/dosemu0.60/include/ipx.h \
   /home/src/dosemu0.60/include/../cpu.h video/vc.h /home/src/dosemu0.60/emu.h \
   dpmi/dpmi.h /home/src/dosemu0.60/include/hgc.h ports.h 
 detach.o : detach.c 

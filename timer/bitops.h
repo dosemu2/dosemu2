@@ -75,7 +75,14 @@ _INLINE_ long int atomic_dec(long * addr)
  
 _INLINE_ int pic0_to_emu(char flags)
 {
-        long result;
+   /* This function maps pic0 bits to their positions in priority order */
+   /* It makes room for the pic1 bits in between.  This could be done in c,
+      but it would be messier, and might get clobbered by optimization */
+
+   /* move bits xxxx xxxx 7654 3210 to 7654 3ooo oooo 210o             */
+   /* where 76543210 are original 8 bits, x = don't care, and o = zero */
+
+        long result;    
         __asm__ __volatile__("movzbl %1,%0\n\t
                               shll $13,%0\n\t
                               sarw $7,%0\n\t
@@ -85,6 +92,13 @@ _INLINE_ int pic0_to_emu(char flags)
  }
 _INLINE_ long emu_to_pic0(long flags)
 {
+   /* This function takes the pic0 bits from the overall pic bit field
+      and concatenates them into a single byte.  This could be done in c,
+      but it would be messier and might get clobbered by optimization.  */
+      
+   /* move bits 7654 3xxx xxxx 210x to xxxx xxxx 7654 3210          */
+   /* where 76543210 are final 8 bits and x = don't care            */
+
         __asm__ __volatile__("shll $6,%0\n\t
                               shlw $7,%0\n\t
                               shrl $14,%0" 
@@ -144,6 +158,14 @@ _INLINE_ int test_bit(int nr, void * addr)
  * J. L. Stephan 3/6/94, other 
  * C language equivalents written by Theodore Ts'o, 9/26/92
  */
+ 
+_INLINE_ int emu_to_pic0(long flags)
+{
+       return ( ( (flags>>1) & 0x07) | ( (flags>>8) & 0xf8) );
+}
+_INLINE_ int pic0_to_emu(char flags)
+{
+       return ( ( (flags&0x07) << 1 ) | ( (flags&0xf8) << 8) );       
   
 _INLINE_ find_bit(unsigned long * addr)
 {

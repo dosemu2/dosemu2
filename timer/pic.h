@@ -42,7 +42,16 @@
 #define PIC_IRQ7  15       /*  LPT 1      usually int 0x0f */
 
 #define PIC_IRQALL 0xfffe  /*  bits for all IRQs set. This never changes  */
-
+#ifdef IN_PIC
+/* pic_irq_list translates irq numbers to pic_ilevels.  This is not used
+   by pic routines; it is simply made available for configuration ease */
+unsigned long pic_irq_list[]= {PIC_IRQ0,  PIC_IRQ1,  PIC_IRQ9,  PIC_IRQ3,
+                               PIC_IRQ4,  PIC_IRQ5,  PIC_IRQ6,  PIC_IRQ7,
+                               PIC_IRQ8,  PIC_IRQ9,  PIC_IRQ10, PIC_IRQ11,
+                               PIC_IRQ12, PIC_IRQ13, PIC_IRQ14, PIC_IRQ15};
+#else
+unsigned long pic_irq_list[16];
+#endif
 /* Some dos extenders modify interrupt vectors, particularly for IRQs 0-7 */
 
 /* PIC "registers", plus a few more */
@@ -51,16 +60,24 @@ unsigned long pic_irr,          /* interrupt request register */
               pic_isr,          /* interrupt in-service register */
               pic1_isr,         /* second isr for pic1 irqs */
               pic_iflag,        /* interrupt enable flag: en-/dis- =0/0xfffe */
-              pic_imr=-1,       /* interrupt mask register */
               pic0_imr,         /* interrupt mask register, pic0 */
               pic1_imr,         /* interrupt mask register, pic1 */
+              pic_smm,          /* 32=>special mask mode, 0 otherwise */
+              pic_icount,       /* iret counter (to avoid filling stack) */
+              pic_pirr,         /* pending requests: ->irr when icount==0 */
+#ifdef IN_PIC
+              pic_imr=0xfff8,   /* interrupt mask register, enable irqs 0,1 */
               pice_imr=-1,      /* interrupt mask register, dos emulator */
               pic_ilevel=32,    /* current interrupt level */
-              pic_smm,          /* 32=>special mask mode, 0 otherwise */
               pic1_mask=0x07f8, /* bits set for pic1 levels */
-              pic_icount,       /* iret counter (to avoid filling stack) */
-              pic_pirr;         /* pending requests: ->irr when icount==0 */
-
+              pic_irq2_ivec = 0;
+#else
+              pic_imr,          /* interrupt mask register */
+              pice_imr,         /* interrupt mask register, dos emulator */
+              pic_ilevel,       /* current interrupt level */
+              pic1_mask,        /* bits set for pic1 levels */
+              pic_irq2_ivec;
+#endif
 /*  State flags.  picX_cmd is only read by debug output */
 
 static unsigned char pic0_isr_requested; /* 0/1 =>next port 0 read=  irr/isr */
@@ -91,7 +108,6 @@ static struct lvldef pic_iinfo[32] =
                       {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00}};
 #undef PNULL
 
-int pic_irq2_ivec = 0;
 
 /* function definitions - level refers to irq priority level defined above  */
 /* port = 0 or 1     value = 0 - 0xff   level = 0 - 31    ivec = 0 - 0xff   */
@@ -108,6 +124,7 @@ void run_irqs();                                      /* run requested irqs */
 #define pic_run() if(pic_irr)run_irqs()   /* the right way to call run_irqs */
 int do_irq();                                /* run dos portion of irq code */
 void pic_request(int inum);                            /* interrupt trigger */
+void pic_creq(int inum);                   /* conditional interrupt trigger */
 void pic_iret();                             /* interrupt completion notify */
 
 /* The following are too simple to be anything but in-line */
@@ -115,5 +132,4 @@ void pic_iret();                             /* interrupt completion notify */
 #define pic_set_mask pic_imr=(pic0_imr|pic1_imr|pice_imr|pic_iflag)
 #define pic_sti() pic_iflag=0;pic_set_mask          /*    emulate STI      */
 #define pic_cli() pic_iflag=PIC_IRQALL;pic_set_mask /*    emulate CLI      */
-
 #endif

@@ -124,14 +124,26 @@
 #include "cpu.h"
 #include "emu.h"
 #include "dosio.h"
+/* NEW_PIC only applies to serial code if NEW_PIC = 2.  Use NEW_PIC=0
+   if it's not defined, to avoid errors.  Undefine NEW_PIC at end if it =0 */
+#ifndef NEW_PIC
+#define NEW_PIC 0
+#endif
 #include "serial.h"
 #include "mouse.h"
-
+#if NEW_PIC==2   /*  add includes for NEW_PIC */
+#include "timer/bitops.h"
+#include "timer/pic.h"
+#else
 extern void queue_hard_int(int i, void (*), void (*));
+#endif
 extern config_t config;
 
 serial_t com[MAX_SER];
-
+#if NEW_PIC==2
+int tx_timer[MAX_SER];
+int br_divisor[MAX_SER];
+#endif
 /* The following are positive constants that adjust the soonness of the next
  * receive or transmit interrupt in FIFO mode.  These are a little
  * bit sensitive, and may dissappear when better timer code arrives.
@@ -154,7 +166,9 @@ inline int get_msr(int num);
 inline void transmit_engine(int num);
 inline void receive_engine(int num);
 inline void interrupt_engine(int num);
-
+#if NEW_PIC==2
+void pic_serial_run();
+#endif
 
 /*************************************************************************/
 /*                 MISCALLENOUS serial support functions                 */
@@ -404,6 +418,9 @@ ser_termios(int num)
   /* James Maclean say to not use DOS_SYS_CALL wrappers around these!!! */
   cfsetispeed(&com[num].newset, baud);
   cfsetospeed(&com[num].newset, baud);
+#if NEW_PIC==2
+  br_divisor[num]=rounddiv<<4;			/* set xmit speed */
+#endif
   com[num].newbaud = baud;
   tcsetattr(com[num].fd, TCSANOW, &com[num].newset);   /* DOS_SYSCALL */
 }
@@ -500,10 +517,21 @@ do_ser_init(int num)
     default: strcpy(com[num].dev, "/dev/cua0"); break;
     }
   }
+#if NEW_PIC==2
+  /* convert irq number to pic_ilevel number and set up interrupt */
+  /* if irq is invalid, no interrupt will be assigned */
+  if(com[num].interrupt < 16) {
+    com[num].interrupt = pic_irq_list[com[num].interrupt];
+    s_printf("SER%d: enabling interrupt %d\n", num, com[num].interrupt);
+    pic_seti(com[num].interrupt,pic_serial_run,0);
+    pic_unmaski(com[num].interrupt);
+    }
+#else
   if (com[num].interrupt < 8)			/* Convert IRQ no's into */
     com[num].interrupt += 0x8;			/* software interrupt no's */
   else
     com[num].interrupt += 0x68;
+#endif
   irq_source_num[com[num].interrupt] = num;	/* map interrupt to port */
 
   /*** The following is where the real initialization begins ***/
@@ -515,10 +543,17 @@ do_ser_init(int num)
   }
 
   /* Information about serial port added to debug file */
+#if NEW_PIC==2  
+  s_printf("SER%d: comport %d, ilevel %d, base 0x%x, address 0x%x -> val 0x%x\n", 
+        num, com[num].real_comport, com[num].interrupt, com[num].base_port, 
+	(int)((u_short *) (0x400) + (com[num].real_comport-1)), 
+        *((u_short *) (0x400) + (com[num].real_comport-1)) );
+#else
   s_printf("SER%d: comport %d, interrupt %d, base 0x%x, address 0x%x -> val 0x%x\n", 
         num, com[num].real_comport, com[num].interrupt, com[num].base_port, 
 	(int)((u_short *) (0x400) + (com[num].real_comport-1)), 
         *((u_short *) (0x400) + (com[num].real_comport-1)) );
+#endif
 
   /* The following obtains current line settings of line for compatibility */
   com[num].fd = DOS_SYSCALL(open(com[num].dev, O_RDWR | O_NONBLOCK));
@@ -545,6 +580,9 @@ do_ser_init(int num)
 
   com[num].dll = 0x30;			/* Baudrate divisor LSB: 2400bps */
   com[num].dlm = 0;			/* Baudrate divisor MSB: 2400bps */
+#if NEW_PIC==2
+  br_divisor[num] = 16*DIV_2400;	/* Baudrate divisor*16: 2400bps */
+#endif
   com[num].TX = 0;			/* Transmit Holding Register */
   com[num].RX = 0;			/* Received Byte Register */
   com[num].IER = 0;			/* Interrupt Enable Register */
@@ -1024,6 +1062,9 @@ put_tx(int num, int val)
           com[num].TX_FIFO[com[num].TX_FIFO_END] = val;
           com[num].TX_FIFO_END = (com[num].TX_FIFO_END +1) & (TX_FIFO_SIZE-1);
           com[num].TX_FIFO_START = (com[num].TX_FIFO_START+1)&(TX_FIFO_SIZE-1);
+#if NEW_PIC==2
+	  tx_timer[num] -= br_divisor[num];
+#endif
         }
       } 
       else {					/* FIFO not full */
@@ -1036,6 +1077,10 @@ put_tx(int num, int val)
       rtrn = write(com[num].fd, &val, 1);	/* Attempt char transmit */
       if (rtrn != 1) 				/* Did transmit fail? */
         com[num].tx_overflow = 1; 		/* Set overflow flag */
+#if NEW_PIC==2
+      else
+        tx_timer[num] -= br_divisor[num];          
+#endif
     }
   }
 }
@@ -1611,7 +1656,52 @@ receive_engine(int num)		/* Internal 16550 Receive emulation */
     }
   }
 }
-
+#if NEW_PIC==2
+/* This function ages the transmit queues.  Some protocols (z-modem) work
+ * well only if we approximate the correct timing.  Else we get many blocks
+ * of data sent after an error, all of which will be discarded :-(.  Makes
+ * for very slow transfers.  Each timer tick adds 10125 to the counter, or
+ * a total of 184320 ticks/second. (1/10 of a real uart clock)  Assuming
+ * 10 bits/character, this will be br_divisor times chars/second.
+ * If I ever get ambitious, I'll get this to adapt to other character sizes.
+ */
+inline void
+age_transmit_queues()
+{
+  s_printf("SER: ageing serial transmit queues\n");
+  s_printf("SER: pic_irr=%x, pic_isr=%x\n",pic_irr, pic_isr);
+  if(com[0].TX_FIFO_BYTES)
+    s_printf("SER0 xmit bytes=%d, timer=%d, ilevel=%d\n",
+              com[0].TX_FIFO_BYTES,tx_timer[0], com[0].interrupt);
+    if(tx_timer[0]<=0) { 
+      tx_timer[0] += 10125;
+      if(tx_timer[0]>0) {
+        transmit_engine(0);
+        interrupt_engine(0);
+      }
+    }
+  if(com[1].TX_FIFO_BYTES)
+    s_printf("SER1 xmit bytes=%d, timer=%d, ilevel=%d\n",
+              com[1].TX_FIFO_BYTES,tx_timer[1], com[1].interrupt);
+    if(tx_timer[1]<=0) {
+      tx_timer[1] += 10125;
+      if(tx_timer[1]>0) {
+        transmit_engine(0);
+        interrupt_engine(0);
+        }
+      }
+  if(com[2].TX_FIFO_BYTES)
+    s_printf("SER2 xmit bytes=%d, timer=%d, ilevel=%d\n",
+              com[2].TX_FIFO_BYTES,tx_timer[2], com[2].interrupt);
+    if(tx_timer[2]<=0) tx_timer[2] += 10125;
+    if(tx_timer[2]>0) pic_request(com[2].interrupt);
+  if(com[3].TX_FIFO_BYTES)
+    s_printf("SER3 xmit bytes=%d, timer=%d, ilevel=%d\n",
+              com[3].TX_FIFO_BYTES,tx_timer[3], com[3].interrupt);
+    if(tx_timer[3]<=0) tx_timer[3] += 10125;
+    if(tx_timer[3]>0) pic_request(com[3].interrupt);
+}
+#endif
 
 /* This function does housekeeping for serial transmit operations.
  * Duties of this function include attempting to transmit the data out
@@ -1622,11 +1712,16 @@ inline void
 transmit_engine(int num)      /* Internal 16550 Transmission emulation */
 {
   static int rtrn;
-
+#if NEW_PIC==2
+  if (tx_timer[num] < 0) return; /* Wait until a real uart would empty*/
+#endif
   if (com[num].tx_overflow) {		/* Is it in overflow state? */
     rtrn = write(com[num].fd, &com[num].TX, 1);	/* Write to port */
     if (rtrn == 1) 				/* Did it succeed? */
       com[num].tx_overflow = 0;			/* Exit overflow state */
+#if NEW_PIC==2
+      tx_timer[num] -= br_divisor[num];		/* adjust time for char sent*/
+#endif
   }
   else if (com[num].fifo_enable) {	/* Is FIFO enabled? */
     if (!com[num].TX_FIFO_BYTES &&		/* Is FIFO empty? */
@@ -1634,6 +1729,9 @@ transmit_engine(int num)      /* Internal 16550 Transmission emulation */
     {
       com[num].tx_timeout--;			/* Decrease timeout value */
       if (!com[num].tx_timeout) { 		/* Timeout done? */
+#if NEW_PIC==2 
+        s_printf("SER%d: Xmit engine setting TX_INTR\n",num);
+#endif
         com[num].int_type |= TX_INTR;		/* Set xmit interrupt */
         com[num].LSR |= UART_LSR_TEMT | UART_LSR_THRE;   /* Update LSR */
         interrupt_engine(num);			/* Do next interrupt */
@@ -1644,6 +1742,9 @@ transmit_engine(int num)      /* Internal 16550 Transmission emulation */
     while (com[num].TX_FIFO_BYTES > 0) {		/* Any data in fifo? */
       rtrn = write(com[num].fd, &com[num].TX_FIFO[com[num].TX_FIFO_START], 1);
       if (rtrn != 1) break;				/* Exit Loop if fail */
+#if NEW_PIC==2
+      tx_timer[num] -= br_divisor[num];			/* note 1 char time */
+#endif
       com[num].TX_FIFO_START = (com[num].TX_FIFO_START+1) & (TX_FIFO_SIZE-1);
       com[num].TX_FIFO_BYTES--; 			/* Decr # of bytes */
     }
@@ -1703,7 +1804,130 @@ modstat_engine(int num)		/* Internal Modem Status processing */
  * on its occurance (RLSI).
  */
 
+#if NEW_PIC==2
+/* This function is the  interrupt scheduler.  Its purpose is to
+ * invoke any currently pending serial interrupt.  If interrupts
+ * are not enabled, the Interrupt Identification Register is set
+ * and the function returns.  This is part of the original
+ * interrupt_engine.  The prioritizing and execution of the interrupt
+ * is done by pic_serial_run().  [num = port]
+ *
+ * Right now, this engine queues the interrupt.  Later, this can be upgraded
+ * to call the interrupts ON THE SPOT within this function (whenever 
+ * interrupts are enabled, such as by the STI instruction or that a 
+ * previous interrupt has exited and re-enabled interrupts as the STI 
+ * instruction would).  This would prove a more accurate 16550 emulation
+ * especially for applications that are extremely fussy about interrupt 
+ * occuring at the right time.    [num = port]
+ */
+inline void
+interrupt_engine(int num)
+{
+u_char tmp;
+  /* Quit if all interrupts disabled, DLAB high, interrupt pending, or */
+  /* that the old interrupt has not been cleared.                      */
+  if (!com[num].IER || com[num].int_pend || com[num].DLAB) return;
 
+  /* At this point, we don't much care which function is requested; that   */
+  /* is taken care of in the interrupt_engine.  However, if interrupts are */
+  /* disabled, then the Interrupt Identification Register  must be set.    */
+
+/* The int_type values have been switched from priority order to IER 
+ * order, to speed up testing.  The actual priority is controlled by
+ * the "if" tests in the pic_serial_run() function, and is unchanged,
+ * of course.
+ */
+
+
+
+   /* See if a requested interrupt is enabled */
+ if (tmp=com[num].int_type & com[num].IER) { 
+   if (com[num].int_enab && com[num].interrupt) {
+      com[num].int_pend = 1;
+/*      irq_source_num[com[num].interrupt] = num;*/
+      s_printf("SER%d: int_engine requesting ilevel %d\n", num, com[num].interrupt);
+      s_printf("SER%d: int_engine: int_type=%x\n", num, com[num].int_type);
+      pic_request(com[num].interrupt);
+      }
+   
+   /* Interrupts for this UART are not enabled; set IIR and return */
+   else if (tmp & LS_INTR) {
+      com[num].IIR = (com[num].IIR & UART_IIR_FIFO) | UART_IIR_RLSI;
+      }
+   
+   else if (tmp & RX_INTR) {
+      if (!com[num].fifo_enable)
+        com[num].IIR = UART_IIR_RDI;
+      else if (com[num].RX_FIFO_BYTES >= com[num].RX_FIFO_TRIGGER)
+        com[num].IIR = (com[num].IIR & ~0x7) | UART_IIR_RDI;
+      else
+        com[num].IIR = UART_IIR_CTI | UART_IIR_FIFO;
+      }
+
+   else if (tmp & TX_INTR) {
+      com[num].IIR = (com[num].IIR & UART_IIR_FIFO) | UART_IIR_THRI;
+      }
+
+   else if (tmp & MS_INTR) {
+      com[num].IIR = (com[num].IIR & UART_IIR_FIFO) | UART_IIR_MSI;
+      }     
+   }
+      return;
+}  
+
+/* This function is called by the priority iunterrupt controller when a
+ * serial interrupt occurs.  It executes the highest priority serial
+ * interrupt for that port. (Priority order is: RLSI, RDI, THRI, MSI)
+ *
+ * Because it is theoretically possible for things to change between the
+ * interrupt trigger and the actual interrupt, some checks must be 
+ * repeated.
+ */
+
+void
+pic_serial_run(void)
+{
+u_char tmp;
+u_char num;
+
+/* Make sure requested interrupt is still enabled, then run it. */
+/* These checks are in priority order.                          */
+
+/* Note to Mark:  This IER check is, as far as I know, the only logical */ 
+/* discrepancy between the original serial implementation and the pic-  */
+/* based implementation.  I added it because the decision of which      */
+/* interrupt to run is now deferred until interrupt time.  I'm not      */
+/* sure this is a good idea, though.                                    */
+
+    num=irq_source_num[pic_ilevel];
+    tmp=com[num].int_type & com[num].IER;
+    if (tmp & LS_INTR) {  
+       beg_lsi(pic_ilevel);
+       do_irq();              /* Receiver Line Status Interrupt */
+       end_lsi(pic_ilevel);
+       }
+    else if (tmp & RX_INTR) {
+       beg_rxint(pic_ilevel);
+       do_irq();              /* Received Data Interrupt */
+       end_rxint(pic_ilevel);
+       }
+    else if (tmp & TX_INTR) {
+       beg_txint(pic_ilevel);
+       do_irq();              /* Transmit Data Interrupt */
+       end_txint(pic_ilevel);
+       }
+    else if (tmp & MS_INTR) {
+       beg_msi(pic_ilevel);
+       do_irq();              /* Modem Status Interrupt */
+       end_msi(pic_ilevel);
+       }
+    if((com[num].int_type&com[num].int_enab) && pic_ilevel) 
+          {
+          s_printf("SER%d: pic_ser_run: pic_request %d\n",num,pic_ilevel);
+          pic_request(pic_ilevel);
+          }
+}
+#else
 /* This function is the prioritizing interrupt engine.  Its purpose is to
  * invoke any currently pending serial interrupt of the highest priority
  * if interrupts are permissible.  (Priority order is: RLSI, RDI, THRI, MSI)
@@ -1781,7 +2005,7 @@ interrupt_engine(int num)
     return;
   }
 }
-
+#endif
 
 /**************************************************************************/
 /*                         The MAIN ENGINE LOOP                           */
@@ -1828,3 +2052,6 @@ serial_run(void)
   }
   return;
 }
+#if NEW_PIC==0
+#undef NEW_PIC
+#endif

@@ -442,7 +442,7 @@
    libs), and org instruction is used to provide the jump above 1 meg.
  * DANG_END_REMARK
 */
-#if STATIC
+#ifdef STATIC
 __asm__(".org 0x110000");
 #endif
 
@@ -477,6 +477,11 @@ __asm__("___START___: jmp _emulate\n");
 #include <sys/wait.h>
 #include <limits.h>
 #include <getopt.h>
+
+#ifdef MARTY
+#include <assert.h>
+#endif
+
 #include <linux/fd.h>
 #include <linux/hdreg.h>
 #include <sys/vm86.h>
@@ -499,6 +504,10 @@ __asm__("___START___: jmp _emulate\n");
 #include "xms.h"
 #include "hgc.h"
 #include "timers.h"
+#ifdef NEW_PIC
+#include "timer/bitops.h"
+#include "timer/pic.h"
+#endif
 #ifdef DPMI
 #include "dpmi/dpmi.h"
 #endif
@@ -673,6 +682,7 @@ extern int open_kmem();		/* Get access to physical memory */
 int dos_helper(void);		/* handle int's created especially for DOSEMU */
 void init_vga_card(void);	/* Function to set VM86 regs to run VGA initialation */
 
+#ifndef NEW_PIC
 /* Programmable Interrupt Controller, 8259 */
 struct pic {
   int stage;			/* where in init. , 0=ICW1 */
@@ -687,7 +697,7 @@ struct pic {
 }
 
 pics[2];
-
+#endif
 int special_nowait = 0;
 
 struct ioctlq iq =
@@ -839,13 +849,20 @@ run_vm86(void)
    * be in here.
    */
     in_vm86 = 1;
+#ifdef NEW_PIC
+    if(pic_icount) REG(eflags) |= (VIP);
+#endif
     switch VM86_TYPE({retval=vm86(&vm86s); in_vm86=0; retval;}) {
 	case VM86_UNKNOWN:
 		vm86_GP_fault();
 		break;
 	case VM86_STI:
 		I_printf("Return from vm86() for timeout\n");
+#ifndef NEW_PIC
 		REG(eflags) &= ~(VIP);
+#else
+          	pic_iret();
+#endif
 		break;
 	case VM86_INTx:
 		do_int(VM86_ARG(retval));
@@ -870,6 +887,15 @@ run_vm86(void)
    */
   if (iq.queued)
     do_queued_ioctl();
+#ifdef NEW_PIC
+/* update the pic to reflect IEF */
+  if (vm86s.flags&IF_MASK) {
+    if (!pic_iflag) pic_cli(); /* pic_iflag=0 => enabled */
+    }
+  else {
+    if (pic_iflag) pic_sti();
+    }
+#endif
 }
 
 void
@@ -1237,6 +1263,7 @@ boot(void)
 }
 
 void SIGALRM_call(void){
+
   static volatile int running = 0;
   static volatile inalrm = 0;
   static int partials = 0;
@@ -1251,6 +1278,9 @@ void SIGALRM_call(void){
      X_handle_events();
 #endif
 
+  /* check for available packets on the packet driver interface */
+  /* (timeout=0, so it immediately returns when none are available) */
+  pkt_check_receive(0);
 
   /* If it is running in termcap mode, then update the screen.
    * First it sets a running flag, so as to avoid re-entrancy of 
@@ -1329,17 +1359,6 @@ void SIGALRM_call(void){
     AESTimerTick();
 #endif
 
-  /* check for available packets on the packet driver interface */
-  /* (timeout=0, so it immediately returns when none are available) */
-  pkt_check_receive(0);
-
-#if 0 /* 94/05/24 Seems to cause more harm than good :-( */
-  /* Deal with timer ports 0x40 - 0x42 */
-  pit.CNTR0 -= 0x1fff;
-  pit.CNTR1 -= 0x1fff;
-  pit.CNTR2 -= 0x1fff;
-#endif
-
   if (++timals == TIMER_DIVISOR) {
     timals = 0;
     /* update the Bios Data Area timer dword if interrupts enabled */
@@ -1347,8 +1366,15 @@ void SIGALRM_call(void){
       timer_tick();*/
     if (config.timers) {
       h_printf("starting timer int 8...\n");
+#ifndef NEW_PIC
       if (!do_hard_int(8))
 	h_printf("CAN'T DO TIMER INT 8...IF CLEAR\n");
+#else
+#if NEW_PIC==2
+      age_transmit_queues();
+#endif
+      pic_request(PIC_IRQ0);
+#endif
     }
     else
       h_printf("NOT CONFIG.TIMERS\n");
@@ -1456,7 +1482,11 @@ timint(int sig)
        IVEC(0x1c));
   show_regs();
 
+#ifdef NEW_PIC
+  pic_request(PIC_IRQ0);
+#else
   do_hard_int(0x8);
+#endif
 
   in_sighandler = 0;
 }
@@ -1526,7 +1556,7 @@ parse_debugflags(const char *s)
 {
   char c;
   unsigned char flag = 1;
-  const char allopts[] = "vsdDRWkpiwghxmIEcX";
+  const char allopts[] = "vsdDRWkpiwghxmIEcXP";
 
   /* if you add new classes of debug messages, make sure to add the
 	 * letter to the allopts string above so that "1" and "a" can work
@@ -1589,6 +1619,9 @@ parse_debugflags(const char *s)
       break;
     case 'm':			/* mouse */
       d.mouse = flag;
+    case 'P':
+      d.pd = flag;
+      d.network=flag;
       break;
     case 'a':{			/* turn all on/off depending on flag */
 	char *newopts = (char *) malloc(strlen(allopts) + 2);
@@ -1765,6 +1798,7 @@ int_queue_run()
 #endif
     return;
   }
+g_printf("Still using int_queue_run()\n");
 
   if (!*OUTB_ADD) {
     if (++vif_counter > 0x08) {
@@ -1894,12 +1928,12 @@ SIG_init()
       if (config.sillyint & (1 << irq)) {
         sprintf(devname, "/dev/int/%d", irq);
         if ((fd = open(devname, O_RDWR)) < 1) {
-          fprintf(stderr, "Not gonna touch IRQ %d you requested!\n",irq);
+          g_printf("Not gonna touch IRQ %d you requested!\n",irq);
         }
         else {
           /* Reset interupt incase it went off already */
           write(fd, NULL, (int) NULL);
-          fprintf(stderr, "Gonna monitor the IRQ %d you requested, Return=0x%02x\n", irq ,fd);
+          g_printf("Gonna monitor the IRQ %d you requested, Return=0x%02x\n", irq ,fd);
           if (config.sillyint & (0x10000 << irq)) {
             /* Use SIGIO, this should be faster */ 
             add_to_io_select(fd, 1);
@@ -1918,11 +1952,18 @@ SIG_init()
 #endif
           {
             /* use SIGALRM  */
-            FD_SET(fd, &fds_no_sigio);
-            not_use_sigio++;
+            add_to_io_select(fd, 0);
           }
           sg->fd=fd;
+#ifndef NEW_PIC
           (sg++)->irq=irq;
+#else
+    	  sg->irq = pic_irq_list[irq];
+    	  g_printf("SIG %x: enabling interrupt %x\n", irq, sg->irq);
+    	  pic_seti(sg->irq,do_irq,0);
+    	  pic_unmaski(sg->irq);
+	  sg++;
+#endif
         }
       }
     }
@@ -2363,7 +2404,12 @@ void
     if (!(REG(eflags) & STIP_MASK))
 #endif
     {
+#ifdef NEW_PIC
+/*  trigger any hardware interrupts requested */
+    run_irqs();
+#endif
       serial_run();
+
       int_queue_run();
     }
   }
@@ -2463,11 +2509,18 @@ void
   int i;
 
   /* PIC init */
+#ifdef NEW_PIC
+   pic_seti(PIC_IRQ0, do_irq, 0);  /* only dos code to run */
+   pic_unmaski(PIC_IRQ0);
+   pic_seti(PIC_IRQ1, do_irq1, 0); /* do_irq1 in dosio.c   */
+   pic_unmaski(PIC_IRQ1);
+#else 
   for (i = 0; i < 2; i++) {
     pics[i].OCW1 = 0;		/* no IRQ's serviced */
     pics[i].OCW2 = 0;		/* no EOI's received */
     pics[i].OCW3 = 8;		/* just marks this as OCW3 */
   }
+#endif
 
   g_printf("Hardware initialized\n");
 }
@@ -2534,12 +2587,42 @@ int
   char buf[1025];
   int i;
 
+#ifdef MARTY
+  static int first_time = 1;
+  static int show_time =  0;
+#endif
+
   if (!flg)
     return 0;
 
+#ifdef MARTY
+  if(first_time)  {
+	if(getenv("SHOWTIME"))
+		show_time = 1;
+	first_time = 0;
+  }
+#endif
+	
   va_start(args, fmt);
   i = vsprintf(buf, fmt, args);
   va_end(args);
+
+#ifdef MARTY
+  if(show_time) {
+	struct timeval tv;
+	int result;
+	char tmpbuf[1024];
+	result = gettimeofday(&tv, NULL);
+	assert(0 == result);
+	sprintf(tmpbuf, "%d.%d: %s", tv.tv_sec, tv.tv_usec, buf);
+#else
+	sprintf(buf, "%s", buf);
+#endif
+	
+#ifdef MARTY
+	strcpy(buf, tmpbuf);
+  }
+#endif
 
   write(STDERR_FILENO, buf, strlen(buf));
   if (terminal_pipe)

@@ -409,6 +409,7 @@ speaker native         # or "off" or "emulated"
 #
 #disk { image "/var/lib/dosemu/hdimage" }    # use diskimage file.
 #disk { partition "/dev/hda1" 1 readonly }   # 1st partition on 1st IDE.
+#disk { partition "/dev/hda6" 6 readonly }   # 6th logical partition.
 #disk { partition "/dev/sda2" 1 readonly }   # 1st partition on 2nd SCSI.
 #disk { wholedisk "/dev/hda" }               # Entire disk drive unit
 

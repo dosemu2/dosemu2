@@ -5,9 +5,9 @@
 #define IPXDMU_H
 
 /* commment out the next line to turn off IPX emulation */
-/*
+#if 1
 #define IPX 1
-*/
+#endif
 
 #include "../cpu.h"
 #include <sys/types.h>

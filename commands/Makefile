@@ -26,6 +26,8 @@ checkout:
 clean:
 	rm -f exitemu.com vgaoff.com vgaon.com eject.com booton.com bootoff.com *.o
 
+realclean: clean
+
 dist: $(SRC) $(COM)
 	install -d $(DISTPATH)/commands
 	install -m 0644 Makefile $(SRC) $(COM) $(EXE) $(DISTPATH)/commands

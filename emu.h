@@ -293,7 +293,8 @@ struct debug_flags {
    serial,			/* serial, "s" */
    defint,			/* default ints */
    printer, general, warning, all,	/* all non-classifiable messages */
-   hardware, xms, mouse, IPC, EMS, config, dpmi, network;	/* TRB - only IPX for now */
+   hardware, xms, mouse, IPC, EMS, config, dpmi, network, /* TRB - only IPX for now */
+   pd;
 };
 
 #if __GNUC__ >= 2
@@ -337,7 +338,7 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 #define c_printf(f,a...) 	ifprintf(d.config,f,##a)
 #define e_printf(f,a...) 	ifprintf(1,f,##a)
 #define n_printf(f,a...)        ifprintf(d.network,f,##a)	/* TRB */
-#define pd_printf(f,a...)       ifprintf(0,f,##a)	/* pktdrvr  */
+#define pd_printf(f,a...)       ifprintf(d.pd,f,##a)	/* pktdrvr  */
 #define error(f,a...)	 	ifprintf(1,f,##a)
 
 #else

@@ -21,6 +21,10 @@ checkout:
 clean:
 	rm -f boot.o
 
+realclean: clean
+
+realclean:
+
 install:
 
 dist: boot.S boot.o

@@ -134,6 +134,9 @@
 #include "cpu.h"
 #include "termio.h"
 #include "config.h"
+#ifdef NEW_PIC
+#include "timer/pic.h"
+#endif
 #include "port.h"
 
 /* Needed for IPX support */

@@ -243,6 +243,11 @@
 #include "dosio.h"
 #include "mouse.h"
 
+#ifdef NEW_PIC
+#include "timer/pic.h"
+#include "timer/bitops.h"
+#endif
+
 extern void DOSEMUMouseEvents(void);
 
 inline void scan_to_buffer(void);
@@ -475,6 +480,17 @@ io_select(fd_set fds)
 
 }
 
+#ifdef NEW_PIC
+/* This is used to run the keyboard interrupt */
+void
+do_irq1(void) {
+   parent_nextscan();
+   do_irq(); /* do dos interrupt */
+             /* reschedule if queue not empty */
+   if (scan_queue_start!=scan_queue_end) pic_request(PIC_IRQ1); 
+}
+#endif
+
 void
 DOS_setscan(u_short scan)
 {
@@ -483,12 +499,19 @@ DOS_setscan(u_short scan)
   scan_queue_end = (scan_queue_end + 1) % SCANQ_LEN;
   if (config.keybint) {
     k_printf("Hard queue\n");
+#ifdef NEW_PIC
+    pic_request(PIC_IRQ1);
+#else
     do_hard_int(9);
+#endif
   }
   else {
     k_printf("NOT Hard queue\n");
     parent_nextscan();
     scan_to_buffer();
+#ifdef NEW_PIC
+    *LASTSCAN_ADD=1;
+#endif
   }
   if (!config.console_keyb && !config.X) {
     static u_short tmp_scan;
@@ -516,6 +539,9 @@ set_keyboard_bios(void)
     }
     else
       inschr = convKey(*LASTSCAN_ADD);
+#ifdef NEW_PIC
+      *LASTSCAN_ADD=1;   /* flag character as read */
+#endif
   } else if (config.X) {
 	  if (config.keybint) {
 		  keepkey = 1;
@@ -533,6 +559,9 @@ set_keyboard_bios(void)
 		  }
 	  } else
 		  inschr = convKey(*LASTSCAN_ADD);
+#ifdef NEW_PIC
+                  *LASTSCAN_ADD=1;   /* flag character as read */
+#endif
   } else {
     inschr = lastchr;
     if (inschr > 0x7fff) {
@@ -567,6 +596,9 @@ parent_nextscan()
 {
 
   keys_ready = 0;
+#ifdef NEW_PIC
+  if(*LASTSCAN_ADD==1)   /* make sure last character has been read */
+#endif
   if (scan_queue_start != scan_queue_end) {
     keys_ready = 1;
     lastchr = scan_queue[scan_queue_start];
@@ -603,11 +635,15 @@ process_interrupt(SillyG_t *sg)
   if (irq = sg->irq) {
 #endif
     h_printf("INTERRUPT: 0x%02x\n", irq);
+#ifndef PIC
     if (irq < 8)
       chr = irq + 8;
     else
       chr = irq + 0x68;
     do_hard_int(chr);
+#else
+    pic_request(irq);
+#endif
   }
 }
 #undef DOS_IO

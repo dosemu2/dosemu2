@@ -169,6 +169,9 @@ vinod@cse.iitb.ernet.in
 	_eth_header undefined
 	_eth_rebuild_header undefined
 
+[ Note from JES : If you wish, you may use Hans ../syscallmgr/insmod
+  with the -m flag instead of patching the kernel as elluded below ]
+
 I forgot to mention this: The kernel sources need to be patched
 slightly. (This is happening with any new loadable module these days ;-)
 Here is what you need to do:  The only file that gets affected is

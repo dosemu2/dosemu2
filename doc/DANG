@@ -1,6 +1,6 @@
   The DOSEMU Alterer Novices Guide DANG
   Alistair MacDonald, am20@unix.york.ac.uk
-  For DOSEMU v pl
+  For DOSEMU v0.53 pl28
 
   This Document is the DOSEMU Alterer Novices Guide. It is known as the
   DANG.
@@ -1130,7 +1130,200 @@
   Apparently, there are no new ideas for sig/int.c.
 
 
-  7.  And Finally ...
+  7.  The PIC group of Modules
+
+  All of the PIC handling code is in the "timer" subdirectory. Odd isn't
+  it.
+
+
+
+
+  7.1.	timer/pic.c Information
+
+  pic.c is a fairly complete emulation of both 8259 Priority Interrupt
+  Controllers.	It also includes provision for 16 lower level
+  interrupts.  This implementation supports the following i/o commands:
+
+  ICW1	bits 0 and 1	number of ICWs to expect ICW2    bits 3 - 7
+  base address of IRQs ICW3    no bits		accepted but ignored
+  ICW4	no bits	  accepted but ignored
+
+  OCW1	all bits	 sets interrupt mask OCW2    bits 7,5-0
+  EOI commands only OCW3    bits 0,1,5,6     select read register,
+  select special mask mode
+
+  Reads of both pic ports are supported completely.
+
+  An important concept to understand in pic is the interrupt level.
+  This is a value which represents the priority of the current
+  interrupt.  It is used to identify interrupts, and IRQs can be mapped
+  to these levels(see pic.h ). The currently active interrupt level is
+  maintained in pic_ilevel, which is globally available,   A pic_ilevel
+  of 32 means no interrupts are active; 0, the highest priority,
+  represents the NMI.  IRQs 0 through 15 are mapped, in priority order,
+  to values of 1-15 (there is no IRQ2 in an AT). Values of 16 - 31
+  represent additional interrupt levels available for internal dosemu
+  usage.
+
+  More detail is available in the file README.pic
+
+
+
+  7.1.1.  Functions in timer/pic.c
+
+  These are the functions defined in timer/pic.c.
+
+
+  7.1.1.1.  write_pic0
+
+  write_pic_0() and write_pic1() implement dos writes to the pic ports.
+  They are called by the code that emulates inb and outb instructions.
+  Each function implements both ports for the pic:  pic0 is on ports
+  0x20 and 0x21; pic1 is on ports 0xa0 and 0xa1.  These functions take
+  two arguements: a port number (0 or 1) and a value to be written.
+
+
+
+
+
+  7.1.1.2.  read_pic0
+
+  read_pic0 and read_pic1 return the values for the interrupt mask
+  register (port 1), or either the in service register or interrupt
+  request register, as determined by the last OCW3 command (port 0).
+  These functions take a single parameter, which is a port number (0 or
+  1).  They are called by code that emulates the inb instruction.
+
+
+
+  7.1.1.3.  pic_mask
+
+  The pic maintains an additional interrupt mask which is not visible to
+  the DOS process.  This is normally cleared (enabling an interrupt)
+  when an interrupt is initialized, but dosemu code may choose to use
+  this mask internally.	One possible use is to implement the interrupt
+  gate controlled by the OUT2 bit of the 16550A UART's Modem Control
+  Register.  This mask is cleared by pic_unmaski() and set by
+  pic_maski()
+
+
+
+  7.1.1.4.  pic_seti
+
+  pic_seti is used to initialize an interrupt for dosemu.  It requires
+  three parameters.  The first parameter is the interrupt level, which
+  man select the NMI, any of the IRQs, or any of the 16 extra levels (16
+  - 31).  The second parameter is the dosemu function to be called when
+  the interrupt is activated.  This function should call do_irq() if the
+  DOS interruptis really to be activated.  If there is no special dosemu
+  code to call, the second parameter can specify do_irq(), but see that
+  description for some special considerations.
+
+
+
+  7.1.1.5.  run_irqs
+
+  run_irqs, which is initiated via the macro pic_run, is the "brains" of
+  the pic.  It is called from the vm86() loop, checks for the highest
+  priority interrupt requested, and executes it.  This function is
+  written in assembly language in order to take advantage of atomic
+  (indivisible) instructions, so that it should be safe for a two
+  process model, even in a multiple CPU machine.  A c language version
+  was started, but it became impossible, even with in-line assembly
+  macros, because such macros can only return a single result.	If I
+  find a way to do it in c, I will, but don't hold your breath.
+
+
+
+  7.1.1.6.  do_irq
+
+  do_irq() calls the correct do_int().	It then executes a vm86 loop
+  until an outb( end-of-interrupt) is found.  For priority levels 0 and
+  >15 (not real IRQs), vm86 executes once, then returns, since no outb20
+  will come.  Returns: 0 = complete, 1 = interrupt not run because it
+  directly calls our "bios"   See run_timer_tick() in timer.c for an
+  example This routine is RE-ENTRANT - it calls run_irqs, which which
+  may call an interrupt routine, which may call do_irq().  Be Careful!
+  !!!!!!!!!!!!!!!!!!  No single interrupt is ever re-entered.
+
+
+
+  7.1.1.7.  pic_request
+
+  pic_request triggers an interrupt.  There is presently no way to "un-
+  trigger" an interrupt.  The interrupt will be initiated the next time
+  pic_run is called, unless masked or superceded by a higher priority
+  interrupt.  pic_request takes one arguement, an interrupt level, which
+  specifies the interrupt to be triggered.  If that interrupt is already
+  active, the request will be queued until all active interrupts have
+  been completed.  The queue is only one request deep for each
+  interrupt, so it is the responsibility of the interrupt code to
+  retrigger itself if more interrupts are needed.
+
+
+
+  7.1.1.8.  pic_iret
+
+  pic_iret is used to sense that all active interrupts are really
+  complete, so that interrupts queued by pic_request can be triggered.
+  Interrupts end when they issue an outb 0x20 to the pic, however it is
+  not yet safe at that time to retrigger interrupts, since the stack has
+  not been restored to its initial state by an iret.  pic_iret is called
+  whenever interrupts have been enabled by a popf, sti, or iret.  It
+  determines if an iret was the cause by comparing stack contents with
+  cs and ip.  If so, it decrements a count of interrupts on the stack
+  (set by do_irq()).  If the count is then zero, pic_iret moves all
+  queued interrupts to the interrupt request register.	It is possible
+  for pic_iret to be fooled by dos code; for this reason active
+  interrupts are checked, any queued interrupts that are also active
+  will remain queued.
+
+
+
+  7.1.2.  Remarks in timer/pic.c
+
+  Apparently, no-one has anything interesting to say about timer/pic.c.
+
+
+  7.1.3.  Items for Fixing in timer/pic.c
+
+  Apparently, nothing needs fixing in timer/pic.c.
+
+
+  7.1.4.  New Ideas for timer/pic.c
+
+  Apparently, there are no new ideas for timer/pic.c.
+
+
+  7.2.	timer/pic.h Information
+
+  There appears to be no MODULE information for this file.
+
+
+  7.2.1.  Functions in timer/pic.h
+
+  We appear to have no information on the functions in timer/pic.h.
+
+
+  7.2.2.  Remarks in timer/pic.h
+
+  Apparently, no-one has anything interesting to say about timer/pic.h.
+
+
+  7.2.3.  Items for Fixing in timer/pic.h
+
+  Apparently, nothing needs fixing in timer/pic.h.
+
+
+
+
+
+  7.2.4.  New Ideas for timer/pic.h
+
+  Apparently, there are no new ideas for timer/pic.h.
+
+
+  8.  And Finally ...
 
   The Following items are used to delimit the text used to create this
   file.	Whilst it is not necessary to know this, they are included
@@ -1157,6 +1350,11 @@
 
   DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG Changelogs - very useful for
   bug fixing, and avvailable for use with DPR (or that's the theory)
+
+
+
+
+
 
 
 

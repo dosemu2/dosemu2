@@ -41,13 +41,16 @@ checkout:
 	-co -l $(ALL) Makefile
 
 clean:
-	rm -f ipxbind ipxroute .depend 
+	rm -f ipxbind ipxroute
+
+realclean:
+	rm -f .depend 
 
 install:
 
 dist: $(ALL) Makefile
 	install -d $(DISTPATH)/$(SUBDIR)
-	install -m 0644 $(ALL) Makefile $(DISTPATH)/$(SUBDIR)
+	install -m 0744 $(ALL) Makefile $(DISTPATH)/$(SUBDIR)
 
 depend dep: $(CFILES) $(HFILES)
 	$(CPP) -MM $(CFLAGS) *.c $(INCDIR) > .depend

@@ -244,7 +244,7 @@ int
 umb_setup()
 {
   int i;
-  int umb;
+  int umb,tumb;
   vm_address_t addr;
 
   for (i = 0; i < UMBS; i++) {
@@ -263,7 +263,7 @@ umb_setup()
 
   /* set up DOSEMU trampolines */
   umb = umb_find_unused();
-
+  tumb=umb;
   umbs[umb].in_use = TRUE;
   umbs[umb].free = FALSE;
   umbs[umb].addr = (caddr_t) (BIOSSEG * 16);
@@ -288,7 +288,7 @@ umb_setup()
     }
 
   }
-
+  umb=tumb;
   for (addr = UMB_BASE; addr < (vm_address_t) (UMB_BASE + UMB_SIZE);
        addr += UMB_PAGE) {
     if (IN_EMM_SPACE(addr) || IN_EMU_SPACE(addr) || IN_HARDWARE_PAGES(addr)) {

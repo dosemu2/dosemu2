@@ -18,6 +18,7 @@ GROUP:		Misc ../DANG_c/summary_Misc bios_emm.c xms.c
 			keymaps.c sigsegv.c int.h ports.h
 			dosio.c mouse/mouse.c serial.c disks.c cpu.c
 			lpt.c sig/int.c
+GROUP:		PIC ../DANG_c/summary_PIC timer/pic.c timer/pic.h
 
 # INTRODUCTION is the location of Introduction. There may be
 # more than one of these.

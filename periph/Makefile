@@ -31,6 +31,8 @@ checkout:
 clean:
 	rm -f bootsect *.o hdinfo mkhdimage putrom
 
+realclean:
+
 dist: $(SRC) $(OBJ)
 	install -d $(DISTPATH)/periph
 	install -m 0644 Makefile keyboard.c.diff $(SRC) $(DISTPATH)/periph

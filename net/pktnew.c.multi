@@ -622,7 +622,11 @@ int timeout;
 		    /* interrupt which will perform the upcall */
 		    pg->size = size;
 		    pg->receiver = hdlp->receiver;
+#ifndef PIC
 		    do_hard_int(pg->helpvec);
+#else
+		    run_int(pg->helpvec);
+#endif
 		    return 1;
 		} else
 		    pg->stats.packets_lost++;	/* not really lost... */

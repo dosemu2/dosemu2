@@ -83,7 +83,7 @@
  */
 void (*dosemu) (int argc, char **argv);
 
-#if !STATIC
+#ifndef STATIC
 char buf [1088 * 1024];	/* ensure that the lower 1MB+64K is unused */
 
 #endif
@@ -91,12 +91,14 @@ char buf [1088 * 1024];	/* ensure that the lower 1MB+64K is unused */
 int
 main(int argc, char **argv)
 {
-#if STATIC
+#ifdef STATIC
   int emulate(int, char **);
 
+#if 0
   fprintf(stderr, "running static, emulate @ %x!\n", emulate);
   fflush(stderr);
   fprintf(stderr, "WARNING: running static, emulate @ %x!\n", emulate);
+#endif
   emulate(argc, argv);
 #else
   struct exec header;

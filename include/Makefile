@@ -26,7 +26,10 @@ checkout:
 	-co -l $(ALL) Makefile
 
 clean:
-	rm -f *.o .depend
+	rm -f *.o
+
+realclean:
+	rm -f .depend
 
 install:
 

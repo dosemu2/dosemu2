@@ -47,7 +47,10 @@ checkout:
 	-co -l $(ALL) Makefile
 
 clean:
-	rm -f *.o .depend ../$(SUBDIR).o
+	rm -f *.o ../$(SUBDIR).o
+
+realclean: clean
+	rm -f .depend
 
 install:
 

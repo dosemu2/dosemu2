@@ -181,10 +181,18 @@
 #define	DIV_115200  0x001
 
 /* Interrupts pending flag bits for com[num].int_type */
+#if NEW_PIC==2
+/* These bits must match the UART_IER_xxx bits, above */
+#define RX_INTR    UART_IER_RDI  /* 1 */
+#define TX_INTR    UART_IER_THRI /* 2 */
+#define LS_INTR    UART_IER_RLSI /* 4 */
+#define MS_INTR    UART_IER_MSI  /* 8 */
+#else
 #define MS_INTR    1
 #define TX_INTR    2
 #define RX_INTR    4
 #define LS_INTR    8
+#endif
 
 /* The following sets the size of receive and transmit FIFOs.        */
 /* They MUST be a power of 2 in order to work.  Bigger FIFOs can     */

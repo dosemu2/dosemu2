@@ -1,8 +1,45 @@
+/*  DANG_BEGIN_MODULE
+ *
+ *  pic.c is a fairly complete emulation of both 8259 Priority Interrupt 
+ *  Controllers.  It also includes provision for 16 lower level interrupts.
+ *  This implementation supports the following i/o commands:
+ *
+ *      ICW1    bits 0 and 1     number of ICWs to expect
+ *      ICW2    bits 3 - 7       base address of IRQs
+ *      ICW3    no bits          accepted but ignored
+ *      ICW4    no bits          accepted but ignored
+ *
+ *      OCW1    all bits         sets interrupt mask
+ *      OCW2    bits 7,5-0       EOI commands only
+ *      OCW3    bits 0,1,5,6     select read register, 
+ *                               select special mask mode
+ *
+ *     Reads of both pic ports are supported completely.
+ *
+ *  An important concept to understand in pic is the interrupt level.
+ *  This is a value which represents the priority of the current interrupt.  
+ *  It is used to identify interrupts, and IRQs can be mapped to these 
+ *  levels(see pic.h~). The currently active interrupt level is maintained 
+ *  in pic_ilevel, which is globally available,   A pic_ilevel of 32 means
+ *  no interrupts are active; 0, the highest priority, represents the NMI.
+ *  IRQs 0 through 15 are mapped, in priority order, to values of 1-15
+ *  (there is no IRQ2 in an AT). Values of 16 - 31 represent additional
+ *  interrupt levels available for internal dosemu usage.
+ *
+ *     More detail is available in the file README.pic
+ *
+ * DANG_END_MODULE
+ */
+
+#define  IN_PIC
 #include "bitops.h"
 #include "pic.h"
+#undef IN_PIC
 #define us unsigned
 #include "memory.h"
+/* #include <sys/vm86.h> */
 #include "cpu.h"
+#include "emu.h"
 
 extern int fatalerr;
 
@@ -66,7 +103,16 @@ pic_iinfo[9].ivec  = int_n++;  /* irq 14 */
 pic_iinfo[10].ivec = int_n;    /* irq 15 */
 return;
 }
-
+/* DANG_BEGIN_FUNCTION write_pic0,write_pic1
+ *
+ * write_pic_0() and write_pic1() implement dos writes to the pic ports.
+ * They are called by the code that emulates inb and outb instructions.
+ * Each function implements both ports for the pic:  pic0 is on ports
+ * 0x20 and 0x21; pic1 is on ports 0xa0 and 0xa1.  These functions take
+ * two arguements: a port number (0 or 1) and a value to be written.
+ *
+ * DANG_END_FUNCTION
+ */
 void write_pic0(port,value)
 unsigned char port,value;
 {
@@ -96,6 +142,7 @@ if(!port){                          /* icw1, ocw2, ocw3 */
     if((value&0xb8) == 0x20 && !clear_bit(pic_ilevel,&pic1_isr))     
           {clear_bit(pic_ilevel,&pic_isr);  /* the famous outb20 */
            pic0_cmd=2;}
+    k_printf("EOI received, pic_isr=%08x, pic1_isr=%08x\n", pic_isr, pic1_isr);
   }
 else                                /* icw2, icw3, icw4, or mask register */
   switch(pic0_icw_state){
@@ -147,6 +194,16 @@ else                         /* icw2, icw3, icw4, or mask register */
        if(pic1_icw_state++ >= icw_max_state) pic1_icw_state=0; 
   }
 }  
+/* DANG_BEGIN_FUNCTION read_pic0,read_pic1
+ *
+ * read_pic0 and read_pic1 return the values for the interrupt mask register
+ * (port 1), or either the in service register or interrupt request register,
+ * as determined by the last OCW3 command (port 0).  These functions take
+ * a single parameter, which is a port number (0 or 1).  They are called by
+ * code that emulates the inb instruction.
+ *
+ * DANG_END_FUNCTION
+ */
 
 unsigned char read_pic0(port)
 unsigned char port;
@@ -164,6 +221,18 @@ unsigned char port;
                          return((unsigned char)get_pic1_irr());
 }
 
+/* DANG_BEGIN_FUNCTION pic_mask,pic_unmask
+ *
+ * The pic maintains an additional interrupt mask which is not visible
+ * to the DOS process.  This is normally cleared (enabling an interrupt)
+ * when an interrupt is initialized, but dosemu code may choose to
+ * use this mask internally.  One possible use is to implement the interrupt
+ * gate controlled by the OUT2 bit of the 16550A UART's Modem Control 
+ * Register.  This mask is cleared by pic_unmaski() and set by pic_maski()
+ *
+ * DANG_END_FUNCTION
+ */
+ 
 void pic_unmaski(level)
 int level;
 {
@@ -177,6 +246,20 @@ int level;
 {
   set_bit(level,&pice_imr);
 }
+/* DANG_BEGIN_FUNCTION pic_seti
+ *
+ * pic_seti is used to initialize an interrupt for dosemu.  It requires
+ * three parameters.  The first parameter is the interrupt level, which
+ * man select the NMI, any of the IRQs, or any of the 16 extra levels
+ * (16 - 31).  The second parameter is the dosemu function to be called
+ * when the interrupt is activated.  This function should call do_irq()
+ * if the DOS interruptis really to be activated.  If there is no special
+ * dosemu code to call, the second parameter can specify do_irq(), but
+ * see that description for some special considerations.
+ *
+ * DANG_END_FUNCTION
+ */
+   
 
 void pic_seti(level,func,ivec)
 unsigned int level,ivec;
@@ -190,6 +273,21 @@ void (*func);
 
 /* this is the guts if the irq processor. it should be called from an
   if:   if(pic_irr) run_irqs();   This will maximize speed  */
+
+/* DANG_BEGIN_FUNCTION run_irqs
+ *
+ * run_irqs, which is initiated via the macro pic_run, is the "brains" of
+ * the pic.  It is called from the vm86() loop, checks for the highest
+ * priority interrupt requested, and executes it.  This function is
+ * written in assembly language in order to take advantage of atomic
+ * (indivisible) instructions, so that it should be safe for a two
+ * process model, even in a multiple CPU machine.  A c language
+ * version was started, but it became impossible, even with in-line 
+ * assembly macros, because such macros can only return a single result.
+ * If I find a way to do it in c, I will, but don't hold your breath.
+ *
+ * DANG_END_FUNCTION
+ */
 
 #if 0
 /* see assembly language version below */
@@ -275,16 +373,21 @@ void run_irqs()
                
    
 
-/*  do_irq() calls the correct do_int().
-    It then executes a vm86 loop until an outb( end-of-interrupt) is found.
-    For priority levels 0 and >15 (not real IRQs), vm86 executes once, then 
-    returns, since no outb20 will come.
-    Returns: 0 = complete, 1 = interrupt not run because it directly
-    calls our "bios"   See run_timer_tick() in timer.c for an example
-!!! This routine is RE-ENTRANT - it calls run_irqs, which
-    which may call an interrupt routine,
-    which may call do_irq().  Be Careful!  !!!!!!!!!!!!!!!!!!  */
-
+/* DANG_BEGIN_FUNCTION do_irq
+ *
+ *  do_irq() calls the correct do_int().
+ *  It then executes a vm86 loop until an outb( end-of-interrupt) is found.
+ *  For priority levels 0 and >15 (not real IRQs), vm86 executes once, then 
+ *  returns, since no outb20 will come.
+ *  Returns: 0 = complete, 1 = interrupt not run because it directly
+ *  calls our "bios"   See run_timer_tick() in timer.c for an example
+ *  This routine is RE-ENTRANT - it calls run_irqs, which
+ *  which may call an interrupt routine,
+ *  which may call do_irq().  Be Careful!  !!!!!!!!!!!!!!!!!! 
+ *  No single interrupt is ever re-entered.
+ *
+ * DANG_END_FUNCTION
+ */
 int do_irq()
 {
  int intr;
@@ -296,12 +399,13 @@ int do_irq()
 #ifndef PICTEST
     if(pic_ilevel==PIC_IRQ9)      /* unvectored irq9 just calls int 0x1a.. */
       if(!IS_REDIRECTED(intr)) {intr=0x1a;pic1_isr&= 0xffef;} /* & one EOI */
-    if(IS_REDIRECTED(intr))
+    if(IS_REDIRECTED(intr)||pic_ilevel<=PIC_IRQ1)
     {
 #endif
 
      pic_cli();
      run_int(intr);
+     pic_icount++;
       while(!fatalerr && test_bit(pic_ilevel,&pic_isr))
       {
         run_vm86();
@@ -324,25 +428,68 @@ int do_irq()
     return(1);
 #endif
 }
+/* DANG_BEGIN_FUNCTION pic_request
+ *
+ * pic_request triggers an interrupt.  There is presently no way to
+ * "un-trigger" an interrupt.  The interrupt will be initiated the
+ * next time pic_run is called, unless masked or superceded by a 
+ * higher priority interrupt.  pic_request takes one arguement, an
+ * interrupt level, which specifies the interrupt to be triggered.
+ * If that interrupt is already active, the request will be queued 
+ * until all active interrupts have been completed.  The queue is
+ * only one request deep for each interrupt, so it is the responsibility
+ * of the interrupt code to retrigger itself if more interrupts are
+ * needed.
+ *
+ * DANG_END_FUNCTION
+ */
+
+
 void
 pic_request(inum)
 int inum;
 {
- if(pic_isr&&(1<<inum)) { ++pic_icount;pic_pirr|=(1<<inum);}
+ if (pic_iinfo[inum].func == (void *)0) return; 
+ if(pic_isr&&(1<<inum) || inum==pic_ilevel)  pic_pirr|=(1<<inum);
  else pic_irr|=(1<<inum);
  return;
 }
-
+/* DANG_BEGIN_FUNCTION pic_iret
+ *
+ * pic_iret is used to sense that all active interrupts are really complete,
+ * so that interrupts queued by pic_request can be triggered.
+ * Interrupts end when they issue an outb 0x20 to the pic, however it is
+ * not yet safe at that time to retrigger interrupts, since the stack has
+ * not been restored to its initial state by an iret.  pic_iret is called
+ * whenever interrupts have been enabled by a popf, sti, or iret.  It 
+ * determines if an iret was the cause by comparing stack contents with
+ * cs and ip.  If so, it decrements a count of interrupts on the stack
+ * (set by do_irq()).  If the count is then zero, pic_iret moves all queued
+ * interrupts to the interrupt request register.  It is possible for pic_iret
+ * to be fooled by dos code; for this reason active interrupts are checked,
+ * any queued interrupts that are also active will remain queued.
+ *
+ * DANG_END_FUNCTION
+ */
 void
 pic_iret()
 {
- if(pic_icount)
-   if(!(--pic_icount)){
-     pic_irr|=pic_pirr;
-     pic_pirr=0;
-   }
+/* if we've really come from an iret, cs:ip will have just been popped */
+
+unsigned short * tmp;
+
+tmp = SEG_ADR((short *),ss,sp)-3;
+ if (tmp[1] == REG(cs)) 
+  if(tmp[0] == LWORD(eip))
+    if(pic_icount) 
+      if(!(--pic_icount)) {
+        pic_irr|=pic_pirr;
+        pic_pirr=0;
+        REG(eflags)&=~(VIP);
+   } 
  return;
 }
+    
  
    
 

@@ -1,3 +1,112 @@
+Wed Oct 19 1994 JES
+
+-	Release pre53_28.tgz
+-	From JL:
+
+From popserver Thu Oct 19 14:23:31 GMT 1994
+Received: from marlin.ssnet.com (ssnet.com [165.113.8.3]) by Fox.nstn.ns.ca (8.6.8.1/8.6.6) with SMTP id KAA03316 for <jmaclean@fox.nstn.ns.ca>; Wed, 19 Oct 1994 10:40:18 -0300
+Received: by marlin.ssnet.com (4.1/SMI-4.1)
+	id AA21140; Wed, 19 Oct 94 09:39:00 EDT
+From: jlarry@marlin.ssnet.com (J. Lawrence Stephan)
+Message-Id: <9410191339.AA21140@marlin.ssnet.com>
+Subject: pic announcement
+To: jmaclean@fox.nstn.ns.ca (James MacLean)
+Date: Wed, 19 Oct 1994 09:38:57 -0400 (EDT)
+X-Mailer: ELM [version 2.4 PL20]
+Content-Type: text
+Content-Length: 2237      
+Status: RO
+
+Hi Jes -
+
+Here is the new pic code.  It is implemented as contidional code, so you'll
+have to un-comment a line in the Makefile if you want to try it.
+Look for the string NEW_PIC in the Makefile; the instructions are right
+before it.
+
+Because the serial.c pic mods don't work very well yet, I have provided
+two options:  The firstone only implements pic for keyboard and timer code.
+This stuff is pretty solid, and I would appreciate bug reports, etc.
+The second option implements pic for timer, keyboard, and serial interrupts.
+The serial code is knows to have bugs, although it is useable.  PLEASE,
+if all you know is that the serial code doesn't work right, DON'T send
+a bug report.  I already know that much :-).  On the other hand, if you have
+a fix, or even just a partial one, please let me know.  The serial bug
+shows as an extermely low send rate; only half as fast as whennot using pic.
+
+I would appreciate any bug reports on the keyboard and timer code.  They are 
+not complete, but I believe this code to be bug-free.
+
+And now, a (very) little technical information for the curious:
+
+There are two big differences when using pic.  First, interrupts are not
+queued beyond a depth of 1 for each interrupt.  It is up to the interrupt
+code to detect that further interrupts are required and reschedule itself.
+Second, interrupt handlers are designated at dosemu initialization time.
+Triggering them involves merely specifying the appropriate irq.
+
+Since timer interrupts are always spaced apart, the lack of queueing has no
+effect on them.  The keyboard interrupts are re-scheduled if there is
+anything in the scan_queue.  The keyboard pseudo-input register,
+*LASTSCAN_ADD, is set to 1 (an otherwise unused value) to indicate that it
+has been read, and can therefore be re-filled.  Both the keyboard and timer
+bios routines now have outb 0x20 to signal the EOI.  The OUTB_ADDR is no
+longer used.
+
+This has been slow in coming, I know; and it will be a while before it gets
+fully utilized.  But, at least when the serial code gets done, it should
+help get dpmi on its way.  I'll keep working on this; I think it has a lot
+of potential to help organize the code.  Good luck with it to all, and
+thanks in advance for any comments.
+-	Mods to Makefile, xinstallvgafont, xterm
+-	pktnew.c uses run_int() instead of do_hard_int()
+-	Various Makefile mods
+-	Latest syscallmgr and emumodule from Hans. Remember the
+	insmod -m switch
+-	dosnet subdir now v-net. Hey, why not :-).
+-	Added 'make optionalsubdirs' to keep new test stuff out of
+	make most. 
+-	Patches received to allow logical partitions to work with partition
+	access. All that is required is to have partition parm to
+	disk statement be higher than 4.
+
+Tue Oct 18 1994 JES
+
+-	Added config.pd and -D+P debug switch for packet driver debugging
+
+Sun Oct 16 1994 JES
+
+Hi there!
+        Here's my patch for allowing DPA access to specific logical
+partitions under dosemu. It applies to the patch level 27 code of
+disks.[ch].
+        Access to specfic logical partitions, rather than entire
+extended partitions, is a great idea for the same reason that partition
+access is better than wholedisk access: one day a poor linux
+partition will suffer. Its used by specifying a part number greater
+than 4  e.g.:
+        disk { partition "/dev/hda5" 5 }
+the number itself does mot matter (as long as its greater than 4) as it
+is the device name that's used to derive the part table entry info.
+The only query is that I raised the MAX_HDISKS in disk.h from 4 to 8,
+(I'm using 7 at the moment with no probems). Also I wasn't sure of the
+number to pass to leavedos for the BLKGETSIZE error, is there a
+convention for this?
+        This should never never happen though (famous last words).
+        Hope this is useful to others,
+        email me with any questions,
+
+                        Ciao,
+                                Rod May.
+                                stoke@melbourne.dialix.oz.au
+
+Fri Oct 14 1994 JES
+
+-	From Marty :
+	-	Added realclean to Makefile
+	-	Changed if STATIC to ifdef STATIC
+	-	#if 0'ed Warnings for running static in dos.c
+
 Fri Oct 14 1994 JES
 
 -	Release pre53_27.tgz

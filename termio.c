@@ -171,6 +171,9 @@
 #include "dosio.h"
 #include "cpu.h"
 #include "keymaps.h"
+#ifdef NEW_PIC
+#include "timer/pic.h"
+#endif
 
 /* int15 fn=4f will clear CF if scan code should not be used,
    I set keepkey to reflect CF */
@@ -1390,7 +1393,11 @@ ScrollLock(unsigned int sc)
     show_regs();
   else if (kbd_flag(KF_RSHIFT)) {
     warn("timer int 8 requested...\n");
+#ifdef NEW_PIC
+    pic_request(PIC_IRQ0);
+#else
     do_hard_int(8);
+#endif
   }
   else if (kbd_flag(KF_LSHIFT)) {
     warn("keyboard int 9 requested...\n");

@@ -887,7 +887,7 @@ IPXReceivePacket(ipx_socket_t * s)
   size = recvfrom(s->fd, buffer, sizeof(buffer), 0,
 		  (struct sockaddr *) &ipxs, &sz);
   n_printf("IPX: received %d bytes of data\n", size);
-  if (size && s->listenCount) {
+  if (size > 0 && s->listenCount) {
     ECBPtr = s->listenList;
     ECB = (ECB_t *) ((ECBPtr.segment << 4) + ECBPtr.offset);
     sz = ScatterFragmentData(size, buffer, ECB, &ipxs);

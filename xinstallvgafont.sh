@@ -1,15 +1,12 @@
-#!/bin/bash
-#
 # This script installs the Xwindows VGA font. This should be run as root 
 # if the Xwindows directories are writeable only by root.
 #
 # Please mail comments or improvements to Mark Rejhon at this Email address:
 # ag115@freenet.carleton.ca
-#
 
-# Test for existence of /usr/lib/X11
-if ! [ -e /usr/lib/X11 ]; then
-	echo "This system doesn't have a /usr/lib/X11 directory!"
+# Test for existence of X11
+if ! [ -e $X11ROOTDIR/lib/X11 ]; then
+	echo "This system doesn't have a $X11ROOTDIR/lib/X11 directory!"
 	echo "Perhaps you don't have Xwindows installed?"
 
 # Test for existence of vga.pcf in current directory
@@ -17,20 +14,20 @@ elif ! [ -r ./vga.pcf ]; then
 	echo "Where's the VGA font file, 'vga.pcf'?  It's not in the current directory!"
 	echo "Please run this script in the DOSEMU source directory."
 
-# Test the existence of /usr/lib/X11/fonts/misc
-elif ! [ -e /usr/lib/X11/fonts/misc ]; then
-	echo "There is no /usr/lib/X11/fonts/misc directory to install the VGA font in!"
+# Test the existence of $X11ROOTDIR/lib/X11/fonts/misc
+elif ! [ -e $X11ROOTDIR/lib/X11/fonts/misc ]; then
+	echo "There is no $X11ROOTDIR/lib/X11/fonts/misc directory to install the VGA font in!"
 
-# Test for writeability of /usr/lib/X11/fonts/misc
-elif ! [ -w /usr/lib/X11/fonts/misc ]; then
-	echo "The /usr/lib/X11/fonts/misc directory is not writeable by you!"
+# Test for writeability of $X11ROOTDIR/lib/X11/fonts/misc
+elif ! [ -w $X11ROOTDIR/lib/X11/fonts/misc ]; then
+	echo "The $X11ROOTDIR/lib/X11/fonts/misc directory is not writeable by you!"
 	echo "This script should be executed as root, to install the VGA font file."
 
 # Else, go ahead and try to install the font.
 else
 	echo "Installing VGA font for Xwindows..."
-	install -m 644 vga.pcf /usr/lib/X11/fonts/misc/
-	cd /usr/lib/X11/fonts/misc
+	install -m 644 vga.pcf $X11ROOTDIR/lib/X11/fonts/misc/
+	cd $X11ROOTDIR/lib/X11/fonts/misc
 	echo "Recompiling font table with 'mkfontdir'..."
 	mkfontdir
 	if ! [ $? -eq 0 ]; then

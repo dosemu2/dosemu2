@@ -34,7 +34,7 @@ ALL = $(YFILES) $(LFILES) $(CFILES) $(HFILES)
 
 # All object-files are included here.
 
-OBJS = parser.o lex.yy.o # parse.o 
+OBJS = parser.o lex.yy.o inifile.o # parse.o 
 
 .c.o:
 	$(CC) $(CFLAGS) $(DEFINES) $(INCDIR) -c $<
@@ -58,7 +58,10 @@ checkout:
 	-co -l $(ALL) Makefile 
 
 clean:
-	rm -f *.o .depend parser.[ch] lex.yy.c
+	rm -f *.o parser.[ch] lex.yy.c
+
+realclean: clean
+	rm -f .depend
 
 install:
 

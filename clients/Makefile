@@ -33,7 +33,10 @@ checkout:
 	-co -l $(ALL) Makefile
 
 clean:
-	rm -f *.o .depend
+	rm -f *.o
+
+realclean:
+	rm -f .depend
 
 client:
 	$(CC) $(INCDIR) -O2 -o ncurses ncurses.c $(LDFLAGS)

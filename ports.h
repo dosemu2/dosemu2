@@ -105,8 +105,8 @@ extern u_char keys_ready;
  * 0 means disabled.
  * 1 means record all port accesses to 0x00 to 0xFF
  * 2 means record ANY port accesses!  (big fat debugfile!)
- */ 
 #define PORT_DEBUG 0
+ */ 
 
 /* int port61 = 0xd0;           the pseudo-8255 device on AT's */
 int port61 = 0x0e;		/* the pseudo-8255 device on AT's */
@@ -343,6 +343,14 @@ inb(int port)
 #endif
 
   switch (port) {
+#ifdef NEW_PIC
+  case 0x20:
+  case 0x21:
+     return read_pic0(port-0x20);
+  case 0xa0:
+  case 0xa1:
+     return read_pic1(port-0xa0);
+#endif
   case 0x60:
     if (keys_ready)
       microsoft_port_check = 0;
@@ -379,11 +387,14 @@ inb(int port)
 	     pit.CNTR1);
     return pit.CNTR1;
   case 0x42:
+#if 0
 	return(do_42(1, 0));
+#else
     pit.CNTR2 -= COUNTER;
     i_printf("inb [0x42] = 0x%02x  3rd timer inb\n",
 	     pit.CNTR2);
     return pit.CNTR2;
+#endif
   case 0x43:
 	return(do_43(1, 0));
 
@@ -575,6 +586,9 @@ outb(int port, int byte)
   switch (port) {
   case 0x20:
   case 0x21:
+#ifdef NEW_PIC
+    write_pic0(port-0x20,byte);
+#else /* NEW_PIC */
     k_printf("OUTB 0x%x to byte=%x\n", port, byte);
 #if 0				/* 94/04/30 */
     REG(eflags) |= VIF;
@@ -582,6 +596,7 @@ outb(int port, int byte)
 #if 1				/* 94/05/11 */
     *OUTB_ADD = 1;
 #endif
+#endif  /* NEW_PIC */
     if (port == 0x20 && byte != 0x20)
       set_leds();
     break;
@@ -615,6 +630,11 @@ outb(int port, int byte)
   case 0x71:
     cmos_write(port, byte);
     break;
+#ifdef NEW_PIC
+  case 0xa0:
+  case 0xa1:
+    write_pic1(port-0xa0,byte);
+#endif
   case 0x40:
 	do_40(0, byte);
 	break;

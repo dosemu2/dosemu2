@@ -16,6 +16,7 @@
  *     doing, though...
  */
 
+#include "emu.h"
 #include "pktdrvr.h"
 #include "cpu.h"
 #include "emu.h"
@@ -29,10 +30,17 @@
 
 #define min(a,b)	((a) < (b)? (a) : (b))
 
-extern int OpenNetworkType(u_short);
-extern int GetDeviceHardwareAddress(char *, char *);
-extern int WriteToNetwork(int, const char *, const char *, int);
-extern int ReadFromNetwork(int, char *, char *, int);
+#include "dosnet.h"                
+
+extern int DosnetOpenNetworkType(u_short);
+extern int DosnetOpenBroadcastNetwork(u_short);
+extern int DosnetGetDeviceHardwareAddress(char *, char *);
+extern int DosnetWriteToNetwork(int, const char *, const char *, int);
+extern int DosnetReadFromNetwork(int, char *, char *, int);
+
+
+
+void Add_broadcast_rcv_handle(void);
 
 /* global data which is put at PKTDRV_SEG:PKTDRV_OFF */
 /* (not everything needs to be accessible from DOS space, but it is */
@@ -65,12 +73,12 @@ struct pkt_globs
 	int sock;			/* fd for the socket */
 	long receiver;			/* receive handler */
 	char packet_type[16];		/* packet type for this handle */
-    } handle[MAX_HANDLE];
+    } handle[MAX_HANDLE];          
 
     char buf[ETH_FRAME_LEN + 32];	/* packet buffer */
 };
 
-static char devname[] = "eth0";		/* linux device name */
+static char devname[] = DOSNET_DEVICE ;		/* linux device name */
 
 static struct pkt_globs *pg = NULL;
 
@@ -105,7 +113,7 @@ pkt_init (int vec)
     /* fill other global data */
 
     strcpy(pg->driver_name,"Linux$");
-    GetDeviceHardwareAddress(devname,pg->hw_address);
+    DosnetGetDeviceHardwareAddress(devname,pg->hw_address);
     pg->classes[0] = ETHER_CLASS;
     pg->classes[1] = IEEE_CLASS;
     pg->type = 12;			/* dummy type (3c503) */
@@ -115,9 +123,15 @@ pkt_init (int vec)
     pg->param.minor_rev = 1;
     pg->param.length = sizeof(struct pkt_param);
     pg->param.addr_len = ETH_ALEN;
-    pg->param.mtu = GetDeviceMTU(devname);
+    pg->param.mtu = DosnetGetDeviceMTU(devname);
     pg->param.rcv_bufs = 8 - 1;		/* a guess */
     pg->param.xmt_bufs = 2 - 1;
+
+    Add_broadcast_rcv_handle();   /* VINOD: Added to receive broadcasts
+                                     from dosnet device. These packets 
+                                     are of special type and are reconverted
+                                     into broadcast packets proper after being
+                                     received by dosemu. */
 
     /* helper routine to transfer received packets and call receiver */
 
@@ -305,7 +319,7 @@ pkt_int ()
 		}
 	    }
 
-	    hdlp->sock = OpenNetworkType(type); /* open the socket */
+	    hdlp->sock = DosnetOpenNetworkType(type); /* open the socket */
 
 	    if (hdlp->sock < 0) {
 		hdlp->in_use = 0;		/* forget about this handle */
@@ -330,7 +344,7 @@ pkt_int ()
 	if (hdlp->in_use) {
 	    int i,n;
 
-	    CloseNetworkLink(hdlp->sock);	/* close the socket */
+	    DosnetCloseNetworkLink(hdlp->sock);	/* close the socket */
 	    FD_CLR(hdlp->sock,&pg->sockset);	/* keep track of sockets */
 	    n = pg->nfds;
 	    pg->nfds = 0;
@@ -379,7 +393,7 @@ pkt_int ()
 			}
 		    }
 
-		    if (WriteToNetwork(hdlp->sock,devname,
+		    if (DosnetWriteToNetwork(hdlp->sock,devname,
 				SEG_ADR((char *),ds,si),LWORD(ecx)) >= 0)
 		    {
 			/* send was okay, check for a reply to speedup */
@@ -387,7 +401,7 @@ pkt_int ()
 			pkt_check_receive(50000);
 			return 1;
 		    } else {
-			warn("NPKT: WriteToNetwork(%d,\"%s\",buffer,%u): error %d\n",
+			warn("NPKT: DosnetWriteToNetwork(%d,\"%s\",buffer,%u): error %d\n",
 			    hdlp->sock,devname,LWORD(ecx),errno);
 			break;
 		    }
@@ -478,6 +492,50 @@ pkt_int ()
     return 1;
 }
 
+/* This handle is inserted to receive packets of type "dosnet broadcast". 
+   These are really speaking broadcast packets meant to be received by
+   all dosemu's. Their destination addresses are changed by dosemu, and
+   are changed back to 'ffffff..' when these packets are received by dosemu. 
+*/
+
+void
+Add_broadcast_rcv_handle(void)
+{
+     int handle = 0;			/* search from 1st */
+     struct per_handle *hdlp;
+
+     for (; handle < MAX_HANDLE; handle++) {
+	hdlp = &pg->handle[handle];
+	if( hdlp->in_use = 0 ) 
+        {
+	    /* we found a free handle, and allocate it */
+	    hdlp = &pg->handle[handle];
+	    memset(hdlp,0,sizeof(struct per_handle));
+	    hdlp->in_use = 1;
+	    hdlp->class == ETHER_CLASS;
+
+	    /* This packet type is just to provide some type. This field should
+	    not be used at all. */
+            hdlp->packet_type_len = 2;
+	    *(unsigned short int *)&(hdlp->packet_type[0])=htons(DOSNET_BROADCAST_TYPE);
+
+	    hdlp->sock = DosnetOpenBroadcastNetworkType(); /* open the socket */
+
+	    if (hdlp->sock < 0) {
+		hdlp->in_use = 0;		/* forget about this handle */
+                return ;
+	    }
+
+	    FD_SET(hdlp->sock,&pg->sockset);	/* keep track of sockets */
+	    if (hdlp->sock >= pg->nfds)
+		pg->nfds = hdlp->sock + 1;
+            return ;
+        }
+     } 
+     /* could not allocate, but ignore. */
+}
+
+
 int
 pkt_check_receive(timeout)
 int timeout;
@@ -513,7 +571,7 @@ int timeout;
 	    /* somethine is available on this handle's socket */
 	    /* attempt to read it.  that should always succeed... */
 
-	    size = ReadFromNetwork(hdlp->sock,device,pg->buf,sizeof(pg->buf));
+	    size = DosnetReadFromNetwork(hdlp->sock,device,pg->buf,sizeof(pg->buf));
 
 	    /* check if something has been received */
 	    /* there was a check for "not multicast" here, but I think */
@@ -525,6 +583,20 @@ int timeout;
 
 		if (strcmp(device,devname))
 		    continue;
+
+                printbuf("received packet:", pg->buf); 
+                /* VINOD: If it is broadcast type, translate it back ... */
+                if ( memcmp(pg->buf, DOSNET_BROADCAST_ADDRESS, 4) == 0 )
+                {    
+                     printbuf("received broadcast packet:", pg->buf); 
+                     if(memcmp((pg->buf + ETH_ALEN), pg->hw_address, ETH_ALEN) == 0)
+                     {
+                        pd_printf("It was for myself.\n"); 
+                        continue; /* Ignore our own ethernet broadcast. */
+                     }
+                     memcpy(pg->buf, "\x0ff\x0ff\x0ff\x0ff\x0ff\x0ff", ETH_ALEN);
+                     printbuf("Translated:", pg->buf); 
+                }
 
 		/* check if the packet's type matches the specified type */
 		/* in the ACCESS_TYPE call.  the position depends on the */
@@ -550,7 +622,11 @@ int timeout;
 		    /* interrupt which will perform the upcall */
 		    pg->size = size;
 		    pg->receiver = hdlp->receiver;
+#if 0
 		    do_hard_int(pg->helpvec);
+#else
+		    run_int(pg->helpvec);
+#endif
 		    return 1;
 		} else
 		    pg->stats.packets_lost++;	/* not really lost... */
@@ -561,3 +637,4 @@ int timeout;
 
     return 0;
 }
+

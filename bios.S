@@ -131,6 +131,13 @@ _INT09_dummy_start:
 	incl	%ecx
 	.byte   0xbb, 0xf0, 0x20	/* movw   $0x20f0,%bx */
 	.byte   0x89, 0x0f		/* movw   %cx,[%bx] */
+#ifdef NEW_PIC
+	.byte   0xbb, 0xf2, 0x20	/* movw   $0x20f2,%bx */
+	.byte   0x89, 0x0f	/* movw   %cx,[%bx] flag LASTSCAN empty */
+
+	movb    $0x20,%al
+	outb    $0x20			/* tell pic we're done */
+#endif
 	popl	%ecx
 	popl	%eax
 	popl	%ebx
@@ -158,6 +165,12 @@ _INT08_dummy_start:
 	incl	%ecx
 	.byte   0xbb, 0xf0, 0x20	/* movw   $0x20f0,%bx */
 	.byte   0x89, 0x0f		/* movw   %cx,[%bx] */
+#ifdef NEW_PIC
+        pushl   %eax
+        movb    $0x20,%al
+        outb    $0x20
+        popl    %eax
+#endif
 	popl	%ebx
 	popl	%ds
 	popl	%ecx

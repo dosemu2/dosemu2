@@ -39,6 +39,7 @@ struct disk {
   int wantrdonly;		/* user wants the disk to be read only */
   int rdonly;			/* The way we opened the disk (only filled in if the disk is open) */
   int sectors, heads, tracks;	/* geometry */
+  long start;			/* geometry */
   int default_cmos;		/* default CMOS floppy type */
   disk_t type;			/* type of file: image, partition,
 				   disk */
@@ -85,7 +86,7 @@ struct image_header {
 #define THREE_INCH_FLOPPY   4	/* 3.5 in, 1.44 MB floppy */
 #define FIVE_INCH_FLOPPY    2	/* 5.25 in, 1.2 MB floppy */
 #define MAX_FDISKS 4
-#define MAX_HDISKS 4
+#define MAX_HDISKS 8
 #define SECTOR_SIZE		512
 
 extern struct disk disktab[MAX_FDISKS];

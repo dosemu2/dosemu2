@@ -19,6 +19,7 @@
 #include <linux/hdreg.h>
 #include <linux/fd.h>
 #include <sys/stat.h>
+#include <linux/fs.h>
 
 #include "emu.h"
 #include "disks.h"
@@ -294,8 +295,9 @@ hdisk_auto(struct disk *dp)
     dp->sectors = geo.sectors;
     dp->heads = geo.heads;
     dp->tracks = geo.cylinders;
-    d_printf("HDISK auto_info disk %s; h=%d, s=%d, t=%d\n",
-	     dp->dev_name, dp->heads, dp->sectors, dp->tracks);
+    dp->start = geo.start;
+    d_printf("HDISK auto_info disk %s; h=%d, s=%d, t=%d, start=%d\n",
+	     dp->dev_name, dp->heads, dp->sectors, dp->tracks, dp->start);
   }
 }
 
@@ -313,6 +315,7 @@ partition_setup(struct disk *dp)
 {
   int part_fd, i;
   unsigned char tmp_mbr[SECTOR_SIZE];
+  void set_part_ent(struct disk *, char *);
 
 #define PART_BYTE(p,b)  *((unsigned char *)tmp_mbr + PART_INFO_START + \
 			  (PART_INFO_LEN * (p-1)) + b)
@@ -336,6 +339,12 @@ partition_setup(struct disk *dp)
 
   close(part_fd);
 
+  /* check for logical partition, if so simulate as primary part#1 */
+  if (dp->part_info.number > 4 ) {
+    d_printf("LOGICAL PARTITION - will be simulated as physical partition 1\n");
+    dp->part_info.number = 1;
+    set_part_ent(dp, tmp_mbr);
+  }
   dp->part_info.beg_head = PART_BYTE(PNUM, 1);
   dp->part_info.beg_sec = PART_BYTE(PNUM, 2) & ~0xc0;
   dp->part_info.beg_cyl = PART_BYTE(PNUM, 3) | ((PART_BYTE(PNUM, 2) << 2) & ~0xff);
@@ -388,6 +397,52 @@ partition_setup(struct disk *dp)
 	   0, PART_INFO_LEN);
   }
 
+}
+
+/* XXX - this function constructs a primary partition table entry for the device
+ *       dp->dev_name which can be primary, extended or logical. This is done by
+ *       knowing the preceding sectors & length in sectors, and the geometry
+ *       of the drive. The physical h/s/c start and end are calculated and
+ *       put in the dp->part_info.number'th entry in the part table.
+ */
+
+void
+set_part_ent(struct disk *dp, char *tmp_mbr)
+{
+  long	length;		/* partition length in sectors		*/
+  long	end;		/* last sector number offset		*/
+  char	*p;		/* ptr to part table entry to create	*/
+
+  if (ioctl(dp->fdesc, BLKGETSIZE, &length)) {
+    error("ERROR: calling ioctl BLKGETSIZE for PARTITION %s\n", dp->dev_name);
+    leavedos(22);
+  }
+#define SECPERCYL	(dp->heads * dp->sectors)
+#define CYL(s)		((s)/SECPERCYL)			/* 0-based */
+#define HEAD(s)		(((s)%SECPERCYL)/dp->sectors)	/* 0-based */
+#define SECT(s)		(((s)%dp->sectors)+1)		/* 1-based */
+
+  d_printf("SET_PART_ENT: making part table entry for device %s,\n",
+	dp->dev_name);
+  d_printf("Calculated physical start: head=%4d sect=%4d cyl=%4d,\n",
+	HEAD(dp->start), SECT(dp->start), CYL(dp->start));
+  end = dp->start+length-1;
+  d_printf("Calculated physical end:   head=%4d sect=%4d cyl=%4d.\n\n",
+	HEAD(end), SECT(end), CYL(end));
+
+  /* get address of where to put new part table entry */
+  p = tmp_mbr + PART_INFO_START + (PART_INFO_LEN * (dp->part_info.number-1)); 
+
+  p[0] = PART_BOOT;						/* bootable  */
+  p[1] = HEAD(dp->start);					/* beg head  */
+  p[2] = SECT(dp->start) | ((CYL(dp->start) >> 2) & 0xC0);	/* beg sect  */
+  p[3] = CYL(dp->start) & 0xFF;					/* beg cyl   */
+  p[4] = (length < 32*1024*1024/SECTOR_SIZE)? 0x04 : 0x06;	/* dos sysid */
+  p[5] = HEAD(end);						/* end head  */
+  p[6] = SECT(end) | ((CYL(end) >> 2) & 0xC0);			/* end sect  */
+  p[7] = CYL(end) & 0xFF;					/* end cyl   */
+  *((long *)(p+8)) = dp->start;					/* pre sects */
+  *((long *)(p+12)) = length;					/* len sects */
 }
 
 void

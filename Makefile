@@ -24,8 +24,11 @@ X2_SUPPORT = 1
 LINUX_INCLUDE = /usr/src/linux/include
 export LINUX_INCLUDE  
 
-#Change the following line if the your X libs are elsewhere.
-X11LIBDIR = /usr/X386/lib
+#Change the following line if the your X is elsewhere.
+X11ROOTDIR = /usr/X386
+
+X11LIBDIR = $(X11ROOTDIR)/lib
+X11INCDIR = $(X11ROOTDIR)/include
 
 #Change the following line to point to your ncurses include
 NCURSES_INC = /usr/include/ncurses
@@ -44,12 +47,26 @@ endif
 
 ifdef X2_SUPPORT
 X2CFILES = x2dos.c
-X2CEXE = x2dos
+X2CEXE = x2dos xtermdos xinstallvgafont
 X2DEFS   = -DX_SUPPORT
 endif
 
 export X_SUPPORT
 export XDEFS
+
+#  The next lines are for testing the new pic code.  You must do a
+#  make clean, make config if you change these lines.
+# Uncomment the next line to try new pic code on keyboard and timer only.
+# NEW_PIC = -DNEW_PIC
+# Uncomment the next line to try new pic code on keyboard, timer, and serial.
+# NOTE:  The serial pic code is known to have bugs.
+NEW_PIC = -DNEW_PIC=2
+#ifdef NEW_PIC
+PICOBJS = timer.o
+export NEW_PIC
+export PICOBJS
+#endif
+
 
 #ifdef DEBUG
 #STATIC=1
@@ -59,7 +76,7 @@ export XDEFS
 #CDEBUGOPTS=-g -DSTATIC=1
 #LNKOPTS=
 #else
-STATIC=0
+#STATIC=0
 DOSOBJS=
 SHLIBOBJS=$(OBJS)
 DOSLNK=
@@ -71,7 +88,7 @@ DOSLNK=
 # dosemu version
 EMUVER  =   0.53
 VERNUM  =   0x53
-PATCHL  =   27
+PATCHL  =   28
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -109,9 +126,10 @@ endif
 
 CLIENTSSUB=clients
 
+OPTIONALSUBDIRS = examples sig v-net syscallmgr emumod
+
 SUBDIRS= periph video mouse include boot commands drivers \
 	$(DPMISUB) $(CLIENTSSUB) timer init net $(IPX) kernel \
-	examples sig dosnet
 
 DOCS= doc
 
@@ -127,7 +145,7 @@ SFILES=bios.S
 
 OFILES= Makefile ChangeLog dosconfig.c QuickStart \
 	DOSEMU-HOWTO.txt DOSEMU-HOWTO.ps DOSEMU-HOWTO.sgml \
-	README.ncurses vga.pcf vga.bdf xtermdos xinstallvgafont README.X \
+	README.ncurses vga.pcf vga.bdf xtermdos.sh xinstallvgafont.sh README.X \
 	README.CDROM README.video Configure DANG_CONFIG
 
 BFILES=
@@ -143,7 +161,7 @@ F_PERIPH=debugobj.S getrom hdinfo.c mkhdimage.c mkpartition putrom.c
 ###################################################################
 
 OBJS=emu.o termio.o disks.o keymaps.o timers.o cmos.o mouse.o \
-     dosio.o cpu.o xms.o mfs.o bios_emm.o lpt.o \
+     dosio.o cpu.o xms.o mfs.o bios_emm.o lpt.o $(PICOBJS)\
      serial.o dyndeb.o sigsegv.o video.o bios.o init.o net.o detach.o $(XOBJS)
 
 OPTIONAL   = # -DDANGEROUS_CMOS=1
@@ -166,19 +184,28 @@ DPMI =
 endif
 
 TOPDIR  := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
-INCDIR     = -I$(TOPDIR)/include -I$(TOPDIR) -I$(LINUX_INCLUDE) -I$(NCURSES_INC)
+INCDIR     = -I$(TOPDIR)/include -I$(TOPDIR) -I$(LINUX_INCLUDE) -I$(NCURSES_INC) -I$(X11INCDIR)
 export INCDIR
 
+#ifndef NEW_PIC
 CFLAGS     = $(DPMI) $(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
+#else
+CFLAGS     = $(DPMI) $(NEW_PIC) $(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
+ASFLAGS    = $(NEW_PIC)
+#endif
 LDFLAGS    = $(LNKOPTS) # exclude symbol information
 AS86 = as86
 #LD86 = ld86 -s -0
 LD86 = ld86 -0
 
 DISTBASE=/tmp
-DISTNAME=dosemu$(EMUVER)
+DISTNAME=dosemu$(EMUVER)pl$(PATCHL)
 DISTPATH=$(DISTBASE)/$(DISTNAME)
+ifdef RELEASE
 DISTFILE=$(DISTBASE)/$(DISTNAME).tgz
+else
+DISTFILE=$(DISTBASE)/pre$(EMUVER)_$(PATCHL).tgz
+endif
 
 warning: warning2
 	@echo "To compile DOSEMU, type 'make doeverything'"
@@ -207,7 +234,7 @@ warning3:
 	@echo "Hopefully you have at least 16MB swap+RAM available during this compile."
 	@echo ""
 
-doeverything: warning2 config dep installnew docsubdirs
+doeverything: warning2 config dep docsubdirs optionalsubdirs installnew
 
 most: warning2 config dep installnew
 
@@ -232,29 +259,46 @@ endif
 warnconf: config.h
 
 dos.o: config.h dos.c
-	$(CC) -DSTATIC=$(STATIC) -c dos.c
+	$(CC) -c dos.c
 
 x2dos.o: config.h x2dos.c
-	$(CC) -I/usr/openwin/include -DSTATIC=$(STATIC) -c x2dos.c
+	$(CC) -I/usr/openwin/include -c x2dos.c
 
 dos:	dos.c $(DOSOBJS)
 	@echo "Including dos.o " $(DOSOBJS)
-	$(CC) $(DOSLNK) -DSTATIC=$(STATIC) $(LDFLAGS) -N -o $@ $< $(DOSOBJS) \
+	$(CC) $(DOSLNK) $(LDFLAGS) -N -o $@ $< $(DOSOBJS) \
               $(XLIBS)
 
 x2dos: x2dos.c
 	@echo "Including x2dos.o "
-	$(CC) -DSTATIC=$(STATIC) $(LDFLAGS) \
+	$(CC) $(LDFLAGS) \
 	  -o $@ $< -L$(X11LIBDIR) -lXaw -lXt -lX11
+
+xtermdos:	xtermdos.sh
+	@echo "#!/bin/sh" > xtermdos
+	@echo >> xtermdos
+	@echo X11ROOTDIR=$(X11ROOTDIR) >> xtermdos
+	@echo >> xtermdos
+	@cat xtermdos.sh >> xtermdos
+
+xinstallvgafont:	xinstallvgafont.sh
+	@echo "#!/bin/sh" > xintallvgafont
+	@echo >> xinstallvgafont
+	@echo X11ROOTDIR=$(X11ROOTDIR) >> xinstallvgafont
+	@echo >> xinstallvgafont
+	@cat xinstallvgafont.sh >> xinstallvgafont
 
 $(LIBDOSEMU):	$(SHLIBOBJS) $(DPMIOBJS)
 	$(LD) $(LDFLAGS) $(MAGIC) -Ttext $(LIBSTART) -o $(LIBDOSEMU) \
 	   $(SHLIBOBJS) $(DPMIOBJS) $(SHLIBS) $(XLIBS) -lncurses -lc
 
-#	$(LD) $(LDFLAGS) $(MAGIC) -Ttext $(LIBSTART) -o $@ \
-#	   $(SHLIBOBJS) $(DPMIOBJS) $(SHLIBS) $(XLIBS) -lncurses -lc
 dossubdirs: dummy
 	@for i in $(SUBDIRS); do \
+	    (cd $$i && echo $$i && $(MAKE)) || exit; \
+	done
+
+optionalsubdirs:
+	@for i in $(OPTIONALSUBDIRS); do \
 	    (cd $$i && echo $$i && $(MAKE)) || exit; \
 	done
 
@@ -279,28 +323,26 @@ install: all
 	done
 	@install -c -o root -m 04755 dos /usr/bin
 	@install -m 0644 $(LIBDOSEMU) /usr/lib
-	@ln -sf /usr/lib/$(LIBDOSEMU) /usr/lib/libdosemu
+	@(cd /usr/lib; ln -sf $(LIBDOSEMU) libdosemu)
 	@if [ -f /usr/bin/xdosemu ]; then \
 		install -m 0700 /usr/bin/xdosemu /tmp; \
 		rm -f /usr/bin/xdosemu; \
 	fi
 	@if [ -f $(BOOTDIR)/sillyint.o ]; then rm -f $(BOOTDIR)/sillyint.o ; fi
 	@install -m 0755 -d $(BOOTDIR)
-	@install -c -o root -g root -m 0750 sig/sillyint.o $(BOOTDIR)
+	@if [ -f sig/sillyint.o ]; then \
+	install -c -o root -g root -m 0750 sig/sillyint.o $(BOOTDIR) ; fi
 ifdef X_SUPPORT
 	@ln -sf dos xdos
 	@install -m 0755 xtermdos /usr/bin
 	@if [ ! -e /usr/bin/xdos ]; then ln -s dos /usr/bin/xdos; fi
 	@echo ""
 	@echo "-> Main DOSEMU files installation done. Installing the Xwindows PC-8 font..."
-	@if [ -w /usr/lib/X11/fonts/misc ] && [ -d /usr/lib/X11/fonts/misc ]; then \
-		if [ ! -e /usr/lib/X11/fonts/misc/vga.bdf ]; then \
-			install -m 0644 vga.pcf /usr/lib/X11/fonts/misc; \
-			install -m 0644 vga.bdf /usr/lib/X11/fonts/misc; \
-			if [ -x /usr/bin/X11/mkfontdir ]; then \
-				cd /usr/lib/X11/fonts/misc; \
-				mkfontdir; \
-			fi \
+	@if [ -w $(X11LIBDIR)/X11/fonts/misc ] && [ -d $(X11LIBDIR)/X11/fonts/misc ]; then \
+		if [ ! -e $(X11LIBDIR)/X11/fonts/misc/vga.pcf* ]; then \
+			install -m 0644 vga.pcf $(X11LIBDIR)/X11/fonts/misc; \
+			cd $(X11LIBDIR)/X11/fonts/misc; \
+			mkfontdir; \
 		fi \
 	fi
 endif
@@ -320,7 +362,6 @@ ifdef X_SUPPORT
 	@echo "		xmodmap -e \"keycode 107 = 0xffff\""
 	@echo "		xmodmap -e \"keycode 22 = 0xff08\""
 	@echo ""
-	@echo " ********** BEWARE This release has new TIMER CODE :-( "
 endif
 	@echo ""
 
@@ -348,7 +389,7 @@ dist: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES)
 	cp TODO.JES $(DISTPATH)/.todo.jes
 	cp .indent.pro $(DISTPATH)/.indent.pro
 	install -m 0644 hdimages/hdimage.dist $(DISTPATH)/hdimage.dist
-	@for i in $(SUBDIRS) $(DOCS) dpmi ipxutils; do \
+	@for i in $(SUBDIRS) $(DOCS) dpmi ipxutils $(OPTIONALSUBDIRS); do \
 	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \
 	done
 	(cd $(DISTBASE); tar cf - $(DISTNAME) | gzip -9 >$(DISTFILE))
@@ -357,11 +398,17 @@ dist: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES)
 	@ls -l $(DISTFILE) 
 
 clean:
-	rm -f $(OBJS) x2dos dos $(LIBDOSEMU) *.s core config.h .depend \
-	      dosconfig dosconfig.o *.tmp
-	@for i in $(SUBDIRS); do \
-             (cd $$i && echo $$i && $(MAKE) clean) || exit; \
-        done
+	-rm -f $(OBJS) $(X2CEXE) dos libdosemu0.* *.s core \
+	  dosconfig dosconfig.o *.tmp
+	-@for i in $(SUBDIRS) $(OPTIONALSUBDIRS); do \
+	  $(MAKE) -C $$i clean; \
+	done
+
+realclean:      clean
+	-rm -f config.h .depend
+	-@for i in $(SUBDIRS) $(OPTIONALSUBDIRS); do \
+	  $(MAKE) -C $$i realclean; \
+	done
 
 depend dep: 
 	$(CPP) -MM $(CFLAGS) $(CFILES) > .depend ;echo "bios.o : bios.S" >>.depend

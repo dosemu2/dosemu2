@@ -2,6 +2,8 @@ all:
 
 clean:
 
+realclean:
+
 checkin:
 	-ci Makefile config.dist 
 checkout:

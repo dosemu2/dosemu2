@@ -44,7 +44,10 @@ checkout:
 	-co -l $(ALL) Makefile README.pic
 
 clean:
-	rm -f *.o .depend ../timer.o
+	rm -f *.o ../timer.o
+
+realclean: clean
+	rm -f .depend
 
 install:
 

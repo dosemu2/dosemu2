@@ -18,6 +18,8 @@ checkout:
 clean:
 	rm -f emufs.sys ems.sys cdrom.sys *.o *.tmp *.out
 
+realclean: clean
+
 install:
 
 dist: Makefile emufs.S emufs.sys ems.S ems.sys cdrom.S cdrom.sys

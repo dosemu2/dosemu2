@@ -1,5 +1,5 @@
 #
-# This is the Makefile for the dosnet-subdirectory of the DOS-emulator
+# This is the Makefile for the v-net - subdirectory of the DOS-emulator
 # for Linux.
 #
 
@@ -34,19 +34,22 @@ checkout:
 	-co -l $(ALL) Makefile
 
 clean:
-	rm -f *.o .depend ipxbridge
+	rm -f *.o ipxbridge
+
+realclean:
+	rm -f .depend
 
 install:
 
 dist: $(ALL) Makefile
-	install -d $(DISTPATH)/dosnet
-	install -m 0644 $(ALL) Makefile $(DISTPATH)/dosnet
+	install -d $(DISTPATH)/v-net
+	install -m 0644 $(ALL) Makefile $(DISTPATH)/v-net
 	(cd ipxbridge0.1; \
-	install -d $(DISTPATH)/dosnet/ipxbridge0.1; \
-	install -m 0644 ipxbridge.c a.h $(DISTPATH)/dosnet/ipxbridge0.1)
+	install -d $(DISTPATH)/v-net/ipxbridge0.1; \
+	install -m 0644 ipxbridge.c a.h $(DISTPATH)/v-net/ipxbridge0.1)
 	(cd ipxbridge0.2 ; \
-	install -d $(DISTPATH)/dosnet/ipxbridge0.2 ; \
-	install -m 0644 ipxbridge.c $(DISTPATH)/dosnet/ipxbridge0.2)
+	install -d $(DISTPATH)/v-net/ipxbridge0.2 ; \
+	install -m 0644 ipxbridge.c $(DISTPATH)/v-net/ipxbridge0.2)
 
 depend dep: $(CFILES) $(HFILES)
 	$(CPP) -MM $(CFLAGS) $(CFILES) $(INCDIR) > .depend
