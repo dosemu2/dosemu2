@@ -11,6 +11,7 @@
 
 #include "emu.h"
 #include <unistd.h>
+#include <string.h>
 
 #include "Linux/mman.h"
 #include "dosemu_config.h"
