@@ -593,7 +593,7 @@ void do_intr_call_back(int intno)
 {
 	unsigned char * ssp = (unsigned char *)(LWORD(ss)<<4);
 	unsigned long sp = (unsigned long) LWORD(esp);
-	pushw(ssp, sp, LWORD(eflags));
+	pushw(ssp, sp, vflags);
 	LWORD(esp) = (LWORD(esp) - 2) & 0xffff;
 	clear_IF();
 	clear_TF();
