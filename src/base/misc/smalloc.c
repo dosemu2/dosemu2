@@ -125,6 +125,8 @@ void smfree(struct memnode *mp, void *ptr)
 void *smrealloc(struct memnode *mp, void *ptr, size_t size)
 {
   struct memnode *mn, *pmn;
+  if (!ptr)
+    return smalloc(mp, size);
   if (!(pmn = find_mn_prev(mp, ptr)))
     return NULL;
   mn = pmn->next;
