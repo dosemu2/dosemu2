@@ -377,6 +377,8 @@ int linux_sb_get_version(void)
       else 
         version = SB_16;
     }
+  } else {
+    S_printf("SB: %s open failed, %s\n", config.sb_dsp, strerror(errno));
   }
   if (version) {
     switch (version) {
