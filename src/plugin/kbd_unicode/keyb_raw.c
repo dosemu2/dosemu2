@@ -146,7 +146,7 @@ static int raw_keyboard_init(void)
   kbd_fd = STDIN_FILENO;
   set_process_control();
 
-  do_ioctl(kbd_fd, KDGKBMODE, &save_mode);
+  do_ioctl(kbd_fd, KDGKBMODE, (int)&save_mode);
 
   if (tcgetattr(kbd_fd, &save_termios) < 0) {
     error("KBD(raw): Couldn't tcgetattr(kbd_fd,...) !\n");
