@@ -1,3 +1,21 @@
+2000/06/01 ver. 1.0.0.8 unofficial pre-release
+	From Eric (with hints from Bart)
+	- mouse fixes along latest xmouse dicussions
+	  - hide the mouse in X when the mouse grab is active.
+	  - made set_curpos work for X
+	From Bart
+	- (hopefully) last fixes/enhancements to PL4 stuff
+	- updated DANG and comments in the source (no src/docs/* yet)
+	- mouse: trying to minimize the amount of XWarpPointer calls.
+	From Hans
+	- fixed above mouse changes, which broke 'autohiding' the X cursor
+	  while DOSapps drawing the cursor itself in graphics (win31,fs5...)
+	  (broke old and new stuff introduced in 1.0.0.4).
+	- removed 'X_mouse_cursor' (hand), this irritates more than
+	  it serves. We aren't 'DOS compatible' here anyway, so stick
+	  on 'X_standard_cursor' (arrow).
+	- set COUNT to 150 in instremu.c, 1000 was way to high for
+	  'animated' graphics ;-)
 2000/05/27 ver. 1.0.0.7 unofficial pre-release
 	From Eric
 	- patch to limit PL4 emuluation via signals happening instead

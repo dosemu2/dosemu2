@@ -44,8 +44,8 @@ extern int get_perm ();
 extern int release_perm ();
 
 #ifdef X_SUPPORT
-extern void X_change_mouse_cursor(void);
 extern void X_show_mouse_cursor(int yes);
+extern void X_set_mouse_cursor(int display, int x, int y, int x_range, int y_range);
 #endif
 
 /* This is included for video mode support. Please DO NOT remove !
@@ -87,7 +87,7 @@ void mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
  mouse_detsensitivity(void), mouse_detstatbuf(void), mouse_excevhand(void),
  mouse_largecursor(void), mouse_doublespeed(void), mouse_alternate(void),
  mouse_detalternate(void), mouse_hardintrate(void), mouse_disppage(void),
- mouse_detpage(void);
+ mouse_detpage(void), mouse_getmaxminvirt(void);
 
 /* mouse movement functions */
 void mouse_reset(int);
@@ -220,6 +220,14 @@ mouse_helper(void)
       mouse.ignorexy = TRUE;
     else
       mouse.ignorexy = FALSE;
+    break;
+  case 7:				/* get minimum internal resolution */
+    LWORD(ecx) = mouse.min_max_x;
+    LWORD(edx) = mouse.min_max_y;
+    break;
+  case 8:				/* set minimum internal resolution */
+    mouse.min_max_x = LWORD(ecx);
+    mouse.min_max_y = LWORD(edx);
     break;
   case 0xf0:
     m_printf("MOUSE Start video mode set\n");
@@ -452,11 +460,13 @@ mouse_int(void)
   case 0x30:			/* Set/Get ballpoint information */
     mouse_getsetballpoint();	/* TO DO ! when > 7.04 */
     break;
+#endif
 
   case 0x31:			/* Get minimum/maximum virtual coords */
     mouse_getmaxminvirt();	/* TO DO ! when > 7.05 */
     break;
 
+#if 0
   case 0x32:			/* Get active advanced functions */
     mouse_getadvfunc();		/* TO DO ! when > 7.05 */
     break;
@@ -488,7 +498,7 @@ mouse_int(void)
     break;
   }
 
-  if (!config.X && mouse.cursor_on == 0)
+  if (mouse.cursor_on == 0)
      mouse_update_cursor();
 }
 
@@ -570,6 +580,18 @@ mouse_getmaxcoord(void)
 }
 
 static void
+mouse_getmaxminvirt(void)
+{
+  LWORD(eax) = mouse.virtual_minx;
+  LWORD(ebx) = mouse.virtual_miny;
+  LWORD(ecx) = mouse.virtual_maxx;
+  LWORD(edx) = mouse.virtual_maxy;
+  m_printf("MOUSE: VIRTUAL COORDINATES: x: %d-%d, y: %d-%d\n",
+    mouse.virtual_minx, mouse.virtual_maxx, 
+    mouse.virtual_miny, mouse.virtual_maxy);
+}
+
+static void
 mouse_getgeninfo(void)
 {
   /* Set AX to 0 */
@@ -613,13 +635,6 @@ mouse_software_reset(void)
 #endif
 #endif /* USE_NEW_INT */
 
-#ifdef X_SUPPORT
-#ifndef X_SLOW_CHANGE_CURSOR
-  if (config.X)
-    X_change_mouse_cursor();
-#endif
-#endif
-  
   /* Return 0xffff on success, 0x21 on failure */
   LWORD(eax) = 0xffff;  
 
@@ -762,6 +777,20 @@ mouse_reset_to_current_video_mode(void)
 {
   /* Setup MAX / MIN co-ordinates */
   mouse.minx = mouse.miny = 0;
+
+  /* This looks like a generally safer place to reset scaling factors
+   * then in mouse_reset, as it gets called more often.
+   * -- Eric Biederman 29 May 2000
+   */
+  if (mice->type != MOUSE_X) {
+    mouse.speed_x = 8;
+    mouse.speed_y = 16;
+  } else {
+    /* default to 1 to 1 scaling for apps tha read mickeys */
+    mouse.speed_x = 8;
+    mouse.speed_y = 8;
+  }
+
  /*
   * Here we make sure text modes are resolved properly, according to the
   * standard vga/ega/cga/mda specs for int10. If we don't know that we are
@@ -808,9 +837,18 @@ mouse_reset_to_current_video_mode(void)
  * 320x200 modes are slightly controversial as I have indications that
  * not all mouse drivers do the same thing. So I have taken the
  * simplest, and most common route, which is also long standing dosemu
- * practice of always shifting by 1.
+ * practice of always shifting the xaxis by 1.  When I researched this
+ * I could find no examples that did otherwise.
+ * 
  *
  * -- Eric Biederman 19 August 1998
+ *
+ * This code has now been updated so it defaults as above but allows
+ * work arounds if necessary.  Because tweaking dosemu is easier
+ * than fixing applications without source.
+ *
+ * -- Eric Biederman 29 May 2000
+ *
  * DANG_END_REMARK
  */
 
@@ -825,13 +863,11 @@ mouse_reset_to_current_video_mode(void)
     mouse.gfx_cursor = TRUE;
     mouse.xshift = 0;    
     mouse.yshift = 0;
-    if (current_video.width == 320) {
-	    mouse.yshift = 1;
-	    /* Every working example I can find picks a yshift of 1 in
-	     * 320x200 mode.  Unless some real prominent mouse driver
-	     * handles this mode differently this should be fine.
-	     * -- Eric Biederman 19 August 1998
-	     */
+    while ((current_video.width << mouse.xshift) < mouse.min_max_x) {
+      mouse.xshift++;
+    }
+    while ((current_video.height << mouse.yshift) < mouse.min_max_y) {
+      mouse.yshift++;
     }
     define_graphics_cursor(default_graphscreenmask,default_graphcursormask);
   }
@@ -852,6 +888,12 @@ mouse_reset_to_current_video_mode(void)
   mouse.maxy = mouse_roundy(mouse.maxy - 1);
   mouse.maxx += (1 << mouse.xshift) -1;
   mouse.maxy += (1 << mouse.yshift) -1;
+
+  /* Setup up the virtual coordinates */
+  mouse.virtual_minx = mouse.minx;
+  mouse.virtual_maxx = mouse.maxx;
+  mouse.virtual_miny = mouse.miny;
+  mouse.virtual_maxy = mouse.maxy;
 
   m_printf("maxx=%i, maxy=%i speed_x=%i speed_y=%i ignorexy=%i type=%d\n", 
 	   mouse.maxx, mouse.maxy, mouse.speed_x, mouse.speed_y, mouse.ignorexy,
@@ -885,33 +927,17 @@ mouse_reset(int flag)
   mouse_reset_to_current_video_mode();
 
   /* turn cursor off if reset requested by software and it was on. */
-  if (flag == 0 && mouse.cursor_on >= 0) {
+  if ((flag == 0) && (mouse.cursor_on >= 0)) {
   	mouse.cursor_on = 0;
   	mouse_cursor(-1);
   }
 
   mouse.cursor_on = -1;
-#ifdef X_SUPPORT
-#ifndef X_SLOW_CHANGE_CURSOR
-  if (config.X)
-     X_change_mouse_cursor();
-#endif
-#endif
   mouse.lbutton = mouse.mbutton = mouse.rbutton = 0;
   mouse.oldlbutton = mouse.oldmbutton = mouse.oldrbutton = 1;
   mouse.lpcount = mouse.mpcount = mouse.rpcount = 0;
   mouse.lrcount = mouse.mrcount = mouse.rrcount = 0;
 
-  if (!mouse.ignorexy) {
-    if (mice->type != MOUSE_X) {
-	    mouse.speed_x = 8;
-	    mouse.speed_y = 16;
-    } else {
-	    /* default to 1 to 1 scaling for apps tha read mickeys */
-	    mouse.speed_x = 8;
-	    mouse.speed_y = 8;
-    }
-  }
 
   mouse.exc_lx = mouse.exc_ux = 0;
   mouse.exc_ly = mouse.exc_uy = 0;
@@ -931,18 +957,13 @@ mouse_reset(int flag)
   memcpy((void *)mouse.graphscreenmask,default_graphscreenmask,32);
   memcpy((void *)mouse.graphcursormask,default_graphcursormask,32);
   mouse.hotx = mouse.hoty = -1;
+
+  mouse_do_cur();
 }
 
 void 
 mouse_cursor(int flag)	/* 1=show, -1=hide */
-/* bon@elektron.ikp.physik.th-darmstadt.de 951207
-   Under X, we can't really hide the mouse and we don't need to.
-   So let's skip this function, if nobody objects
-*/
 {
-
-  if (config.X) return; /* bon@elektron 951207 */
-
   /* Delete exclusion zone, if show cursor applied */
   if (flag == 1) {
     mouse.exc_lx = mouse.exc_ux = 0;
@@ -957,19 +978,11 @@ mouse_cursor(int flag)	/* 1=show, -1=hide */
   mouse.cursor_on = mouse.cursor_on + flag;
 
   /* update the cursor if we just turned it off or on */
-  if (!config.X) {
-    if ((flag == -1 && mouse.cursor_on == -1) ||
-  		(flag == 1 && mouse.cursor_on == 0))
-  	mouse_do_cur();
+  if ((flag == -1 && mouse.cursor_on == -1) ||
+  		(flag == 1 && mouse.cursor_on == 0)){
+	  mouse_do_cur();
   }
  
-#ifdef X_SUPPORT
-#ifndef X_SLOW_CHANGE_CURSOR
-  if (config.X)
-	  X_change_mouse_cursor();
-#endif
-#endif
-
   m_printf("MOUSE: %s mouse cursor %d\n", mouse.cursor_on ? "hide" : "show", mouse.cursor_on);
 }
 
@@ -989,14 +1002,10 @@ mouse_pos(void)
 void 
 mouse_setpos(void)
 {
-  if (!config.X) {
-     mouse.x = LWORD(ecx);
-     mouse.y = LWORD(edx);
-     mouse_move();
-     m_printf("MOUSE: set cursor pos x:%d, y:%d\n", mouse.x, mouse.y);
-  }
-  else
-     m_printf("MOUSE: ignoring 'set cursor pos' in X\n");
+  mouse.x = LWORD(ecx);
+  mouse.y = LWORD(edx);
+  mouse_move();
+  m_printf("MOUSE: set cursor pos x:%d, y:%d\n", mouse.x, mouse.y);
 }
 
 void 
@@ -1076,11 +1085,17 @@ mouse_setxminmax(void)
   m_printf("MOUSE: set horz. min: %d, max: %d\n", LWORD(ecx), LWORD(edx));
 
   /* if the min > max, they are swapped */
-  mouse.minx = (LWORD(ecx) > LWORD(edx)) ? LWORD(edx) : LWORD(ecx);
-  mouse.maxx = (LWORD(ecx) > LWORD(edx)) ? LWORD(ecx) : LWORD(edx);
-  mouse.minx = mouse_roundx(mouse.minx);
-  mouse.maxx = mouse_roundx(mouse.maxx);
-  mouse.maxx += (1 << mouse.xshift) -1;
+  mouse.virtual_minx = (LWORD(ecx) > LWORD(edx)) ? LWORD(edx) : LWORD(ecx);
+  mouse.virtual_maxx = (LWORD(ecx) > LWORD(edx)) ? LWORD(ecx) : LWORD(edx);
+  mouse.virtual_minx = mouse_roundx(mouse.virtual_minx);
+  mouse.virtual_maxx = mouse_roundx(mouse.virtual_maxx);
+  mouse.virtual_maxx += (1 << mouse.xshift) -1;
+  if (mouse.virtual_minx < mouse.minx) {
+    mouse.virtual_minx = mouse.minx;
+  }
+  if (mouse.virtual_maxx > mouse.maxx) {
+    mouse.virtual_maxx = mouse.maxx;
+  }
 }
 
 void 
@@ -1089,20 +1104,23 @@ mouse_setyminmax(void)
   m_printf("MOUSE: set vert. min: %d, max: %d\n", LWORD(ecx), LWORD(edx));
 
   /* if the min > max, they are swapped */
-  mouse.miny = (LWORD(ecx) > LWORD(edx)) ? LWORD(edx) : LWORD(ecx);
-  mouse.maxy = (LWORD(ecx) > LWORD(edx)) ? LWORD(ecx) : LWORD(edx);
-  mouse.miny = mouse_roundy(mouse.miny);
-  mouse.maxy = mouse_roundy(mouse.maxy);
-  mouse.maxy += (1 << mouse.yshift) -1;
+  mouse.virtual_miny = (LWORD(ecx) > LWORD(edx)) ? LWORD(edx) : LWORD(ecx);
+  mouse.virtual_maxy = (LWORD(ecx) > LWORD(edx)) ? LWORD(ecx) : LWORD(edx);
+  mouse.virtual_miny = mouse_roundy(mouse.virtual_miny);
+  mouse.virtual_maxy = mouse_roundy(mouse.virtual_maxy);
+  mouse.virtual_maxy += (1 << mouse.yshift) -1;
+  if (mouse.virtual_miny < mouse.miny) {
+    mouse.virtual_miny = mouse.miny;
+  }
+  if (mouse.virtual_maxy > mouse.maxy) {
+    mouse.virtual_maxy = mouse.maxy;
+  }
 }
 
 void 
 mouse_set_gcur(void)
 {
   unsigned short *ptr = (unsigned short*) ((LWORD(es) << 4) + LWORD(edx));
-
-  /* Ignore if in X */
-  if (config.usesX) return;
 
   m_printf("MOUSE: set gfx cursor...hspot: %d, vspot: %d, masks: %04x:%04x\n",
 	   LWORD(ebx), LWORD(ecx), LWORD(es), LWORD(edx));
@@ -1116,15 +1134,14 @@ mouse_set_gcur(void)
   memcpy((void *)mouse.graphcursormask,ptr+16,32);
 
   /* compile it so that it can acutally be drawn. */
-  define_graphics_cursor((short *)mouse.graphscreenmask,(short *)mouse.graphcursormask);
+  if (mice->type != MOUSE_X) {
+    define_graphics_cursor((short *)mouse.graphscreenmask,(short *)mouse.graphcursormask);
+  }
 }
 
 void 
 mouse_set_tcur(void)
 {
-  /* Ignore if in X */
-  if (config.X) return;
-
   m_printf("MOUSE: set text cursor...type: %d, start: 0x%04x, end: 0x%04x\n",
 	   LWORD(ebx), LWORD(ecx), LWORD(edx));
 
@@ -1271,10 +1288,10 @@ mouse_move(void)
    /* With the mouse watcher can do this only on mode resets */ 
    mouse_reset_to_current_video_mode();
 #endif
-  if (mouse.x <= mouse.minx) mouse.x = mouse.minx;
-  if (mouse.y <= mouse.miny) mouse.y = mouse.miny;
-  if (mouse.x >= mouse.maxx) mouse.x = mouse.maxx;
-  if (mouse.y >= mouse.maxy) mouse.y = mouse.maxy;
+  if (mouse.x <= mouse.virtual_minx) mouse.x = mouse.virtual_minx;
+  if (mouse.y <= mouse.virtual_miny) mouse.y = mouse.virtual_miny;
+  if (mouse.x >= mouse.virtual_maxx) mouse.x = mouse.virtual_maxx;
+  if (mouse.y >= mouse.virtual_maxy) mouse.y = mouse.virtual_maxy;
 
   mouse_round_coords();
 
@@ -1551,6 +1568,17 @@ mouse_event()
 static void
 mouse_do_cur(void)
 {
+#ifdef X_SUPPORT
+  /* Handle the X mouse
+   * -- Eric Biederman 31 May 2000
+   */
+  if (mice->type == MOUSE_X) {
+    X_set_mouse_cursor(mouse.cursor_on == 0?1: 0, 
+      mouse.x - mouse.minx, mouse.y - mouse.miny,
+      mouse.maxx - mouse.minx +1, mouse.maxy - mouse.miny +1);
+    return;
+  }
+#endif
   if (!scr_state.current) 
   	return;
 
@@ -1622,7 +1650,7 @@ graph_cursor(void)
   /* draw_graphics_cursor wants screen coordinates, we have coordinates
   	based on width of 640; hotspot is always in screen coordinates. */
   if (mouse.cursor_on == 0)
-	  draw_graphics_cursor(mouse.rx >> mouse.xshift,mouse.ry,
+	  draw_graphics_cursor(mouse.rx >> mouse.xshift, mouse.ry >> mouse.yshift,
 		mouse.hotx,mouse.hoty,16,16,&mouse_erase);
 
   release_perm();
@@ -1632,18 +1660,7 @@ graph_cursor(void)
 void
 mouse_curtick(void)
 {
-#ifdef X_SUPPORT
-#ifdef X_SLOW_CHANGE_CURSOR
-  static short last_cursor_on = -1;
-
-  if (config.X && mouse.cursor_on != last_cursor_on) {
-    X_change_mouse_cursor();
-    last_cursor_on = mouse.cursor_on;
-  }
-#endif
-#endif
-
-  if ((mouse.cursor_on != 0) || config.X)
+  if (mouse.cursor_on != 0 || mice->type == MOUSE_X)
     return;
 
   m_printf("MOUSE: curtick x:%d  y:%d\n", mouse.rx, mouse.ry);
@@ -1689,6 +1706,14 @@ mouse_init(void)
  
   mouse.ignorexy = FALSE;
 
+  /* set minimum internal resolution
+   * 640x200 is a long standing dosemu default
+   * although I accidentally broke it broke it by flipping my X & Y coordiantes.
+   * -- Eric Biederman 29 May 2000
+   */
+  mouse.min_max_x = 640;
+  mouse.min_max_y = 200;
+
   /* we'll admit we have three buttons if the user asked us to emulate
   	one or else we think the mouse actually has a third button. */
   if (mice->emulate3buttons || mice->has3buttons)
@@ -1706,7 +1731,7 @@ mouse_init(void)
   else 
 #endif
   
-  if ( ! config.usesX ){
+  if ( mice->type != MOUSE_X ){
     if (mice->intdrv) {
       m_printf("Opening internal mouse: %s\n", mice->dev);
       enter_priv_on();  /* The mouse might need special permisions to open (esp r/w). */
@@ -1773,10 +1798,8 @@ void
 mouse_close(void)
 {
   int result;
-   
-#ifdef X_SUPPORT
-  if (config.X || config.usesX) return;
-#endif
+
+  if (mice->type == MOUSE_X) return;   
   
   if (mice->intdrv && mice->fd != -1 ) {
     m_printf("mouse_close: calling tcsetattr\n");

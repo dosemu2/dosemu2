@@ -13,7 +13,7 @@
 #include <termios.h>
 
 #define MOUSE_BASE_VERSION	0x0700	/* minimum driver version 7.00 */
-#define MOUSE_EMU_VERSION	0x0000	/* my driver version 0.00 */
+#define MOUSE_EMU_VERSION	0x0005	/* my driver version 0.05 */
 /* this is the version returned to DOS programs */
 #define MOUSE_VERSION	  (MOUSE_BASE_VERSION + MOUSE_EMU_VERSION)
 
@@ -101,6 +101,8 @@ EXTERN volatile struct  {
   short oldrx, oldry;
   /* these are the cursor extents; they are rounded off. */
   short minx, maxx, miny, maxy;
+  /* same as above except can be played with */
+  short virtual_minx, virtual_maxx, virtual_miny, virtual_maxy;
 
   /* these are for sensitivity options */
   short speed_x, speed_y;
@@ -122,6 +124,9 @@ EXTERN volatile struct  {
   boolean threebuttons;
 
   short display_page;
+
+  /* These are to enable work arounds for broken applications */
+  short min_max_x, min_max_y;
 
   /* ignore application's x/y speed settings?  might not be necessary
   	anymore if I managed to get the speed settings correct. */

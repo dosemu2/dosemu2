@@ -148,6 +148,9 @@
  *
  * -- Antonio Larrosa (antlarr@arrakis.es)
  *
+ * 2000/05/31: Cleaned up mouse handling with help of Bart Oldeman.
+ *  -- Eric Biederman 
+ *
  * DANG_END_CHANGELOG
  */
 
@@ -371,11 +374,9 @@ static XImage *ximage;		/* Used as a buffer for the X-server */
 static Cursor X_standard_cursor;
 
 #if CONFIG_X_MOUSE
-static Cursor X_mouse_cursor;
 static Cursor X_mouse_nocursor;
-static time_t X_mouse_change_time;
-static int X_mouse_last_on;
 static int snap_X = 0;
+static int mouse_cursor_visible = 0;
 #endif
 
 static GC gc;
@@ -418,10 +419,12 @@ static vga_emu_update_type veut;
 static int remap_src_modes = 0;
 static vgaemu_display_type X_screen;
 
+#if CONFIG_X_MOUSE
 static int grab_active = 0;
 static char *grab_keystring = "Home";
 static int grab_keysym = NoSymbol;
 static int mouse_x = 0, mouse_y = 0;
+#endif
 
 static int X_map_mode = -1;
 static int X_unmap_mode = -1;
@@ -502,9 +505,6 @@ static void redraw_cursor(void);
 static void X_update_cursor(void);
 void X_blink_cursor(void);		/* used in arch/linux/async/signal.c */
 static inline void restore_cell(int, int);
-
-/* something to do with mouse cursor */
-void X_change_mouse_cursor(void);	/* used in base/mouse/mouse.c */
 
 #if CONFIG_X_MOUSE
 /* mouse related code */
@@ -1144,9 +1144,16 @@ int NewXErrorHandler(Display *dsp, XErrorEvent *xev)
 }
 
 /*
- * called by mouse INT33 functions 1 and 2 of src/base/mouse/mouse.c
+ * called exclusively by mouse INT33 funcs 1 and 2 of src/base/mouse/mouse.c
+ * NOTE: We need this in addition to X_set_mouse_cursor to 'autoswitch'
+ * on/off hiding the X cursor in graphics mode, when the DOS application
+ * is drawing the cursor itself. We rely on the fact, that an application
+ * wanting the mouse driver to draw the cursor will always use
+ * INT33 functions 1 and 2, while others won't.
+ *
+ * So please, don't 'optimize' X_show_mouse_cursor away (;-), its
+ * not bogus.		--Hans, 2000/06/01
  */
-static int mouse_cursor_visible = 1;
 void X_show_mouse_cursor(int yes)
 {
    if(vga.mode_class != GRAPH) {
@@ -1163,6 +1170,64 @@ void X_show_mouse_cursor(int yes)
       XDefineCursor(display, mainwindow, X_mouse_nocursor);
       mouse_cursor_visible = 0;
    }
+}
+
+
+
+/*
+ * DANG_BEGIN_FUNCTION X_set_mouse_cursor
+ *
+ * description:
+ * called by mouse.c to hide/display the mouse and set it's position.
+ * This is currently the only callback from mouse.c to X.
+ *
+ * DANG_END_FUNCTION
+ *
+ */  
+void X_set_mouse_cursor(int yes, int mx, int my, int x_range, int y_range)
+{
+#if CONFIG_X_MOUSE
+	static Cursor *last_cursor = 0;
+	Cursor *mouse_cursor_on, *mouse_cursor_off, *new_cursor;
+	int x,y;
+
+	/* Figure out what cursor we want to show for visible/invisible */
+	mouse_cursor_on = &X_standard_cursor;
+	mouse_cursor_off = &X_mouse_nocursor;
+
+	if (vga.mode_class != GRAPH) {
+		/* So cut and past still works with a hidden cursor */
+		mouse_cursor_off = &X_standard_cursor;
+	}
+	if (grab_active) {
+		mouse_cursor_on = &X_mouse_nocursor;
+		mouse_cursor_off = &X_mouse_nocursor;
+	}
+	/* See if we are visible/invisible */
+	new_cursor = (yes)? mouse_cursor_on: mouse_cursor_off;
+
+	/* Update the X cursor as needed */
+	if (new_cursor != last_cursor) {
+		XDefineCursor(display, mainwindow, *new_cursor);
+		last_cursor = new_cursor;
+	}
+
+	/* Move the X cursor if needed */
+#if 1
+	x = (x_range * mouse_x)/w_x_res;
+	y = (y_range * mouse_y)/w_y_res;
+	if (!grab_active && ((mx != x) || (my != y))) {
+		XWarpPointer(display, None, mainwindow, 0, 0, 0, 0,
+			(w_x_res * mx)/x_range, (w_y_res * my)/y_range);
+	}
+#else
+	x = (mx * w_x_res)/x_range;
+	y = (my * w_y_res)/y_range;
+	if (!grab_active && ((x != mouse_x) || (y != mouse_y))) {
+		XWarpPointer(display, None, mainwindow, 0, 0, 0, 0, x, y);
+	}
+#endif
+#endif /* CONFIG_X_MOUSE */
 }
 
 /*
@@ -1224,25 +1289,7 @@ void X_handle_events()
        }
      }
    }
-   if(X_mouse_change_time != 0 &&
-      time(NULL) > X_mouse_change_time) {
-     X_mouse_change_time = 0;
-     if(mouse.cursor_on != X_mouse_last_on) {
-       if (mouse.cursor_on != 0)
-       XDefineCursor(display, mainwindow, X_standard_cursor);
-       else
-       XDefineCursor(display, mainwindow, X_mouse_cursor);
-
-       X_mouse_last_on = mouse.cursor_on;
-     }
-   }
-#if 0 /* maybe we need to trigger mouse snapping for win31 more often,
-       * But on my machine, it seems not to be necessary.
-       * (Hans, 970118)
-       */
-   if (snap_X) set_mouse_position(0,0);
-#endif
-#endif
+#endif	/* CONFIG_X_MOUSE */
 
   while (XPending(display) > 0) 
     {
@@ -1361,6 +1408,7 @@ void X_handle_events()
 #endif
                 XGrabPointer(display, mainwindow, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
                   GrabModeAsync, GrabModeAsync, mainwindow,  None, CurrentTime);
+                X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
               }
               else {
                 X_printf("X: mouse grab released\n");
@@ -1368,6 +1416,7 @@ void X_handle_events()
 #ifdef ENABLE_KEYBOARD_GRAB
                 XUngrabKeyboard(display, CurrentTime);
 #endif
+                X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
               }
               break;
             }
@@ -2715,9 +2764,6 @@ void load_cursor_shapes()
   Colormap cmap;
   XColor fg, bg;
   Font cfont;
-#if CONFIG_X_MOUSE  
-  Font decfont;
-#endif  
 
   /* Use a white on black cursor as the background is normally dark. */
   cmap = DefaultColormap(display, screen);
@@ -2736,26 +2782,9 @@ void load_cursor_shapes()
     XC_top_left_arrow, XC_top_left_arrow+1, &fg, &bg
   );
 
-  /*
-   * IMHO, the DEC cursor font looks nicer, but if it's not there, 
-   * use the standard cursor font. 
-   */
-  decfont = XLoadFont(display, "decw$cursor");
-  if(!decfont) {
-    X_mouse_cursor = XCreateGlyphCursor(
-      display, cfont, cfont, XC_hand2, XC_hand2+1, &bg, &fg
-    );
-  } 
-  else {
-    X_mouse_cursor = XCreateGlyphCursor(display, decfont, decfont, 2, 3, &fg, &bg);
-    XUnloadFont(display, decfont);  
-  }
-
   X_mouse_nocursor = create_invisible_cursor();
-
-  X_mouse_change_time = 0;
-  X_mouse_last_on = -1;
 #endif /* CONFIG_X_MOUSE */
+
   XUnloadFont(display, cfont);
 }
 
@@ -2897,32 +2926,6 @@ inline void restore_cell(int x, int y)
   *oldsp = XREAD_WORD(sp);
   X_draw_string(x, y, &c, 1, XATTR(sp));
 }
-
-
-/*
- * DANG_BEGIN_FUNCTION X_change_mouse_cursor
- *
- * description:
- * This function seems to be called each screen_update :(
- * It is called in base/mouse/mouse.c:mouse_cursor(int) a lot for
- * show and hide (changes the mouse cursor shape).
- *
- * DANG_END_FUNCTION
- *
- * DANG_FIXME Use a delayline, or something smarter in X_change_mouse_cursor
- *
- * Well, what is this function *really* for? -- sw
- */  
-void X_change_mouse_cursor()
-{
-#if CONFIG_X_MOUSE
-  /* Yes, this is illogical, but blame the author of the mouse code. 
-   * mouse.cursor_on is zero if the cursor is on! 
-   */
-  if(X_mouse_change_time == 0) X_mouse_change_time = time(NULL);
-#endif    
-}
-
 
 #if CONFIG_X_MOUSE
 /* 

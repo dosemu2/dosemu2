@@ -8,8 +8,8 @@
  * Containing modifications of first step  VGA mode 12h support which is
  * (C) Copyright 2000 by David Hindman.
  *
- * Final enhanced implementation of PL4/PL2/PL1 vga modes (one of it mode 12h)
- * emulation was done by and is
+ * Final enhanced implementation of PL4/PL2/PL1 and mode-X vga modes
+ * (one of it mode 12h) emulation was done by and is
  * (C) Copyright 2000 Bart Oldeman <Bart.Oldeman@bristol.ac.uk>
  * (C) Copyright 2000 Steffen Winterfeldt <wfeldt@suse.de>
  *
@@ -144,37 +144,28 @@
  * 2000/05/18: Moved instr_sim and friends to instremu.c.
  * --beo
  *
+ * 2000/06/01: Over the last weeks: speeded up Logical_VGA_{read,write}.
+ * --beo
+ *
  * DANG_END_CHANGELOG
  *
  */
 
 
 /*
-  Notes on VGA read/write emulation (as used for PL4 modes like 0x12)
+  Notes on VGA read/write emulation (as used for PL4 modes like 0x12) and mode-X.
 
   The memory layout always reflects the setting of the GFX Read Map Select
   register. So in principle we can safely allow reads to the VGA memory. This
   works of course only in read mode 0.
 
   But even in read mode 0 there is a problem with correct updates of the latch
-  registers. This is currently worked around by *always* doing a read before
-  any write into the VGA memory. There are of course situations where this will
-  lead to wrong results, but they are really weird.
-
-  Instead, we could block read accesses as well, loose some speed but have a
-  more correct emulation. For this, just define EMU_VGA_READS below. Note that
-  even in this case the VGA memory is always mapped according to
-  GFX Read Map Select.
-
-  Switching from one emulation mode to the other is currently not implemented;
-  you have to decide on it during mode initialisation. It might be a good idea,
-  though, to go to a more complete emulation the moment read mode 1 is set.
-
-  Anyway, both modi work and I have not seen any difference between them.
-  Read emulation is still far less complete than write emulation in instr_sim(),
-  however.
+  registers. Instead, we block read accesses as well. Note that even in this
+  case the VGA memory is always mapped according to GFX Read Map Select.
 
   2000/05/09, sw
+  update
+  2000/06/01, bo
 */
 
 
@@ -774,6 +765,9 @@ void Logical_VGA_write(unsigned offset, unsigned char value)
  * way that was suggested above.  Not every instruction needs to be
  * simulated in order to make this feature useful, just the ones used to
  * access video RAM by key applications (Borland BGI, Protel, etc.).
+ *
+ * MODIFICATION: all VGA modes now work and almost all instructions are
+ * simulated.
  *
  * arguments:
  * scp - A pointer to a struct sigcontext_struct holding some relevant data.
@@ -2507,7 +2501,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       vga_msg("vgaemu_adj_cfg: vertical_multiplier = %d\n", vertical_multiplier);
       vga_msg("vgaemu_adj_cfg: height = %d\n", height);
       vga.height = height;
-      vga.reconfig.re_init = 1;
+      vga.reconfig.display = 1;
       break;
     }
     case CFG_CRTC_WIDTH:
@@ -2539,7 +2533,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       vga_msg("vgaemu_adj_cfg: multiplier = %d\n", multiplier);
       vga_msg("vgaemu_adj_cfg: width = %d\n", width);
       vga.width = width;
-      vga.reconfig.re_init = 1;
+      vga.reconfig.display = 1;
       break;
     }
     default:
