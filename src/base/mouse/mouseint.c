@@ -457,10 +457,8 @@ static void raw_mouse_getevent(void)
         
 	int nBytes, nBytesProc;
 
-	nBytes = 0;
-	if (!config.X && mice->type != MOUSE_XTERM)
-	  nBytes = RPT_SYSCALL(read(mice->fd, (char *)(rBuf+qEnd),
-	    sizeof(rBuf)-qEnd));
+        nBytes = RPT_SYSCALL(read(mice->fd, (char *)(rBuf+qEnd),
+          sizeof(rBuf)-qEnd));
 	if (nBytes>0)
 	  qEnd += nBytes;
 	if (qBeg < qEnd) {

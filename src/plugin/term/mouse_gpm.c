@@ -48,12 +48,11 @@ static int gpm_init(void)
 {
 	int fd;
 	mouse_t *mice = &config.mouse;
-	
+	Gpm_Connect conn;
+
 	if (config.vga || !is_console( 0 ))
 		return FALSE;
 	
-	Gpm_Connect conn;
-
 	conn.eventMask	 = ~0;
 	conn.defaultMask = GPM_MOVE;
 	conn.minMod	 = 0;

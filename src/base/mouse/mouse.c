@@ -1773,7 +1773,7 @@ graph_cursor(void)
 void
 mouse_curtick(void)
 {
-  if (!mice->intdrv || mouse.cursor_on != 0 || Mouse != &Mouse_raw)
+  if (!mice->intdrv || mouse.cursor_on != 0 || Mouse->set_cursor)
     return;
 
   m_printf("MOUSE: curtick x:%d  y:%d\n", mouse.rx, mouse.ry);
