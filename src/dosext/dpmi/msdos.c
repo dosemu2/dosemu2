@@ -697,6 +697,55 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    }
 	    in_dos_21++;
 	    return 0;
+    case 0x71:     /* LFN functions */
+        {
+        char *src, *dst;
+        switch (_LO(ax)) {
+        case 0x3B: /* change dir */
+        case 0x41: /* delete file */
+            REG(ds) = TRANS_BUFFER_SEG;
+            REG(edx) = 0;
+            src = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_edx);
+            dst = SEG_ADR((char *), ds, dx);
+            snprintf(dst, 260, "%s", src);
+            in_dos_21++;
+            return 0;
+        case 0x4E: /* find first file */
+            REG(ds) = TRANS_BUFFER_SEG;
+            REG(edx) = 0;
+            REG(es) = TRANS_BUFFER_SEG;
+            REG(edi) = 260;
+            src = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_edx);
+            dst = SEG_ADR((char *), ds, dx);
+            snprintf(dst, 260, "%s", src);
+            in_dos_21++;
+            return 0;
+        case 0x4F: /* find next file */
+            REG(es) = TRANS_BUFFER_SEG;
+            REG(edi) = 0;
+            src = (char *)GetSegmentBaseAddress(_es) + D_16_32(_edi);
+            dst = SEG_ADR((char *), es, di);
+            MEMCPY_DOS2DOS(dst, src, 0x13e);
+            in_dos_21++;
+            return 0;
+        case 0x47: /* get cur dir */
+        case 0x6c: /* extended open/create */
+            REG(ds) = TRANS_BUFFER_SEG;
+            REG(esi) = 0;
+            src = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_esi);
+            dst = SEG_ADR((char *), ds, si);
+            snprintf(dst, 260, "%s", src);
+            in_dos_21++;
+            return 0;
+        case 0xA1: /* close find */
+            in_dos_21++;
+            return 0;
+        default: /* all other subfuntions currently not supported */
+            _eflags |= CF;
+            _eax = _eax & 0xFFFFFF00;
+            return 1;
+        }
+        }
 	default:
 	    break;
 	}
@@ -1116,6 +1165,29 @@ void msdos_post_extender(int intr)
 			SEG_ADR((void *), es, di),
 			0x80);
 	    break;
+	case 0x71:		/* LFN functions */
+        switch (S_LO(ax)) {
+        case 0x3B:
+        case 0x41:
+            DPMI_CLIENT.stack_frame.edx = S_REG(edx);
+            break;
+        case 0x4E:
+            DPMI_CLIENT.stack_frame.edx = S_REG(edx);
+            /* fall thru */
+        case 0x4F:
+            DPMI_CLIENT.stack_frame.edi = S_REG(edi);
+            if (LWORD(eflags) & CF)
+                break;
+            MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_REG(es))
+                     + D_16_32(S_REG(edi)),
+                     SEG_ADR((void *), es, di),
+                        0x13E);
+            break;
+        case 0x47:
+        case 0x6c:
+            DPMI_CLIENT.stack_frame.esi = S_REG(esi);
+            break;
+        };
 
 	default:
 	    break;
