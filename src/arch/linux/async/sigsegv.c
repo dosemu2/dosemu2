@@ -327,22 +327,7 @@ bad:
 #ifdef __linux__
 void dosemu_fault(int signal, struct sigcontext_struct context)
 {
- /*
-  * FIRST thing to do - to avoid being trapped into int0x11
-  * forever, we must restore the eflags.
-  * Also restore the %fs and %gs for compatibility with NPTL.
-  */
-  __asm__ __volatile__ (" \
-	pushl	%0\n \
-	popfl\n \
-	movw	%1, %%fs\n \
-	movw	%2, %%gs\n \
-	" \
-	: :
-	"m"(_emu_stack_frame.eflags),
-	"m"(_emu_stack_frame.fs),
-	"m"(_emu_stack_frame.gs));
-
+  restore_eflags_fs_gs();
   fault_cnt++;
 
   if (fault_cnt > 2) {

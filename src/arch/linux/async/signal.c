@@ -90,10 +90,23 @@ dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
 static void cleanup_child(void)
 {
   int status;
+  restore_eflags_fs_gs();
   if (portserver_pid &&
       waitpid(portserver_pid, &status, WNOHANG) > 0 &&
       WIFSIGNALED(status))
     leavedos(1);
+}
+
+static void leavedos_signal(int sig)
+{
+  restore_eflags_fs_gs();
+  leavedos(sig);
+}
+
+static void sigwinch(int sig)
+{
+  restore_eflags_fs_gs();
+  gettermcap(sig);
 }
 
 /* Silly Interrupt Generator Initialization/Closedown */
@@ -178,17 +191,7 @@ signal_init(void)
   struct sigaction sa;
   sigset_t trashset;
 
-  /* Save %fs and %gs for NPTL */
-  __asm__ __volatile__ (" \
-	pushfl\n \
-	popl	%0\n \
-	movw	%%fs, %1\n \
-	movw	%%gs, %2\n \
-	" \
-	:
-	"=m"(_emu_stack_frame.eflags),
-	"=m"(_emu_stack_frame.fs),
-	"=m"(_emu_stack_frame.gs));
+  save_eflags_fs_gs();
 
   /* block no additional signals (i.e. get the current signal mask) */
   sigemptyset(&trashset);
@@ -249,13 +252,13 @@ signal_init(void)
 #ifdef SIGBUS /* for newer kernels */
   NEWSETSIG(SIGBUS, dosemu_fault);
 #endif
-  SETSIG(SIGINT, leavedos);   /* for "graceful" shutdown for ^C too*/
-  SETSIG(SIGHUP, leavedos);	/* for "graceful" shutdown */
-  SETSIG(SIGTERM, leavedos);
+  SETSIG(SIGINT, leavedos_signal);   /* for "graceful" shutdown for ^C too*/
+  SETSIG(SIGHUP, leavedos_signal);	/* for "graceful" shutdown */
+  SETSIG(SIGTERM, leavedos_signal);
 #if 0 /* Richard Stevens says it can't be caught. It's returning an
        * error anyway
        */
-  SETSIG(SIGKILL, leavedos);
+  SETSIG(SIGKILL, leavedos_signal);
 #endif
   SETSIG(SIGQUIT, sigquit);
   SETSIG(SIGPIPE, SIG_IGN);
@@ -267,7 +270,7 @@ signal_init(void)
   else
 #endif
   if(!config.console_video && !config.console_keyb) {
-    SETSIG(SIGWINCH, gettermcap); /* Adjust window sizes in DOS */
+    SETSIG(SIGWINCH, sigwinch); /* Adjust window sizes in DOS */
   }
 #ifdef X86_EMULATOR
   SETSIG(SIGPROF, SIG_IGN);
@@ -601,6 +604,7 @@ static void SIGIO_call(void){
 void
 sigio(int sig, struct sigcontext_struct context)
 {
+  restore_eflags_fs_gs();
   if (in_dpmi && !in_vm86)
     dpmi_sigio(&context);
   SIGNAL_save(SIGIO_call);
@@ -612,6 +616,7 @@ sigio(int sig, struct sigcontext_struct context)
 void
 sigalrm(int sig, struct sigcontext_struct context)
 {
+  restore_eflags_fs_gs();
   r_printf("SIGALRM, head=%i tail=%i\n", SIGNAL_head, SIGNAL_tail);
   if (in_dpmi && !in_vm86)
     dpmi_sigio(&context);
@@ -634,6 +639,7 @@ e_sigalrm(struct sigcontext_struct *context)
 void
 sigquit(int sig)
 {
+  restore_eflags_fs_gs();
   in_vm86 = 0;
 
   error("sigquit called\n");
@@ -649,6 +655,7 @@ sigquit(int sig)
 void
 timint(int sig)
 {
+  restore_eflags_fs_gs();
   in_vm86 = 0;
   in_sighandler = 1;
 

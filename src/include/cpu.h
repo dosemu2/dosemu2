@@ -121,6 +121,34 @@ typedef unsigned long FAR_PTR;	/* non-normalized seg:off 32 bit DOS pointer */
 #define LO_WORD(wrd)	(*((unsigned short *)&(wrd)))
 #define HI_WORD(wrd)	(*((unsigned short *)&(wrd) + 1))
 
+ /*
+  * FIRST thing to do in signal handlers - to avoid being trapped into int0x11
+  * forever, we must restore the eflags.
+  * Also restore %fs and %gs for compatibility with NPTL.
+  */
+#define restore_eflags_fs_gs() \
+  __asm__ __volatile__ ( \
+	"pushl	 %0\n" \
+	"popfl\n" \
+	"movw	 %1, %%fs\n" \
+	"movw	 %2, %%gs\n" \
+	: : \
+	"m"(_emu_stack_frame.eflags), \
+	"m"(_emu_stack_frame.fs), \
+	"m"(_emu_stack_frame.gs))
+
+  
+  /* Save %fs and %gs for NPTL */
+#define save_eflags_fs_gs() \
+  __asm__ __volatile__ ( \
+	"pushfl\n" \
+	"popl	%0\n" \
+	"movw	%%fs, %1\n" \
+	"movw	%%gs, %2\n" \
+	: \
+	"=m"(_emu_stack_frame.eflags), \
+	"=m"(_emu_stack_frame.fs), \
+	"=m"(_emu_stack_frame.gs))
 /*
  * nearly directly stolen from Linus : linux/kernel/vm86.c
  *
