@@ -75,24 +75,13 @@
 #define MAX_FD 1024
 void (*io_callback_func[MAX_FD])(void);
 
-#if defined(SIG)
-int SillyG_pendind_irq_bits=0;
-
-void SillyG_do_irq(int ilevel)
-{
-  int irq=pic_level_list[ilevel];
-  do_irq(ilevel);
-  SillyG_pendind_irq_bits &= ~(1 << irq);
-}
-#endif
-
 static inline int process_interrupt(SillyG_t *sg)
 {
   int irq, ret=0;
 
   if ((irq = sg->irq) != 0) {
     h_printf("INTERRUPT: 0x%02x\n", irq);
-    ret=(pic_request(pic_irq_list[irq])==PIC_REQ_OK);
+    ret=(pic_request(pic_irq_list[irq])!=PIC_REQ_LOST);
   }
   return ret;
 }
@@ -102,14 +91,13 @@ static inline int process_interrupt(SillyG_t *sg)
 static inline void irq_select(void)
 {
   if (SillyG) {
-    int irq_bits =vm86_plus(VM86_GET_IRQ_BITS,0) & ~SillyG_pendind_irq_bits;
+    int irq_bits = vm86_plus(VM86_GET_IRQ_BITS, 0);
     if (irq_bits) {
       SillyG_t *sg=SillyG;
       while (sg->fd) {
         if (irq_bits & (1 << sg->irq)) {
           if (process_interrupt(sg)) {
             vm86_plus(VM86_GET_AND_RESET_IRQ,sg->irq);
-            SillyG_pendind_irq_bits |= 1 << sg->irq;
             h_printf("SIG: We have an interrupt\n");
           }
         }
