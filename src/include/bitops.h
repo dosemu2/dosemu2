@@ -100,7 +100,7 @@ pic0_to_emu(char flags)
 				 "shll $13, %0\n\t"
 				 "sarw $7, %w0\n\t"
 				 "shrl $5, %0 " \
-				 :"=r"(result):"r"(flags));
+				 :"=r"(result):"q"(flags));
     return result;
 }
 static __inline__ long
