@@ -195,13 +195,8 @@
 /* when grabbing all mouse events, grab keyboard too */
 #undef ENABLE_KEYBOARD_GRAB
 
-/* "fine tuning" option for X_update_screen */
-#define MAX_UNCHANGED	3
-
 /* not yet -- sw */
 #undef HAVE_DGA
-
-#define CONFIG_X_SELECTION 1
 
 #define CONFIG_X_MOUSE 1
 
@@ -250,13 +245,10 @@
 #include "memory.h"
 #include "remap.h"
 #include "vgaemu.h"
+#include "vgatext.h"
 #include "keyb_server.h"
 #include "X.h"
 #include "dosemu_config.h"
-
-#ifdef HAVE_UNICODE_TRANSLATION
-#include "translate.h"
-#endif
 
 #ifdef HAVE_MITSHM
 #include <sys/ipc.h>
@@ -277,29 +269,14 @@
 #include <time.h>
 #endif
 
-#if CONFIG_X_SELECTION
+#if CONFIG_SELECTION
+#define CONFIG_X_SELECTION 1
 #include "screen.h"
 #endif
 
 #if CONFIG_X_SPEAKER
 #include "speaker.h"
 #endif
-
-
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-/* Kludge for incorrect ASCII 0 char in vga font. */
-#define XCHAR(w) (((u_char)CHAR(w)||!font)?(u_char)CHAR(w):(u_char)' ')
-
-#if CONFIG_X_SELECTION
-#define SEL_ACTIVE(w) (visible_selection && ((w) >= sel_start) && ((w) <= sel_end))
-#define SEL_ATTR(attr) (((attr) >> 4) ? (attr) :(((attr) & 0x0f) << 4))
-/* #define SEL_ATTR(attr) ((((attr) >> 4) & 0x0f) + (((attr) << 4) & 0xf0)) */
-#define XATTR(w) (SEL_ACTIVE(w) ? SEL_ATTR(ATTR(w)) : ATTR(w))
-#else
-#define XATTR(w) (ATTR(w))
-#endif
-
-#define XREAD_WORD(w) ((XATTR(w)<<8)|XCHAR(w))
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -444,22 +421,15 @@ static Font vga_font;
 static Atom proto_atom = None, delete_atom = None;
 static XFontStruct *font = NULL;
 static int font_width, font_height, font_shift, shift_x, shift_y;
-static int prev_cursor_row = -1, prev_cursor_col = -1;
-static ushort prev_cursor_shape = NO_CURSOR;
-static int blink_state = 1;
-static int blink_count = 8;
 
 #if CONFIG_X_SELECTION
-static int sel_start_row = -1, sel_end_row = -1, sel_start_col, sel_end_col;
-static unsigned short *sel_start = NULL, *sel_end = NULL;
 static u_char *sel_text = NULL;
 static Atom compound_text_atom = None;
 static Atom utf8_text_atom = None;
 static Atom text_atom = None;
-static Boolean doing_selection = FALSE, visible_selection = FALSE;
 #endif
 
-static Boolean have_focus = FALSE;
+Boolean have_focus = FALSE;
 static Boolean is_mapped = FALSE;
 
 static int cmap_colors = 0;		/* entries in colormaps: {text,graphics}_cmap */
@@ -468,10 +438,10 @@ static Boolean have_shmap = FALSE;
 static unsigned long text_colors[16];
 static int text_col_stats[16] = {0};
 
-static RemapObject remap_obj;
+RemapObject remap_obj;
 static ColorSpaceDesc X_csd;
 static int have_true_color;
-static unsigned dac_bits;		/* the bits visible to the dosemu app, not the real number */
+unsigned dac_bits;			/* the bits visible to the dosemu app, not the real number */
 static int x_res, y_res;		/* emulated window size in pixels */
 static int w_x_res, w_y_res;		/* actual window size */
 static int saved_w_x_res, saved_w_y_res;	/* saved normal window size */
@@ -536,10 +506,10 @@ static int try_cube(unsigned long *, c_cube *);
 
 /* palette/color update stuff */
 static void refresh_palette(void);
-static void refresh_text_palette(void);
 static void refresh_truecolor(void);
 static void refresh_private_palette(void);
 static void get_approx_color(XColor *, Colormap, int);
+static void X_set_text_palette(DAC_entry col);
 
 /* ximage/drawing related stuff */
 static void create_ximage(void);
@@ -560,10 +530,11 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res);
 static void X_reset_redraw_text_screen(void);
 static void X_redraw_text_screen(void);
 static int X_update_screen(void);
-static int X_update_text_screen(void);
 static int X_update_graphics_screen(void);
 static void set_gc_attr(Bit8u);
-static void X_draw_string(int, int, char *, int, Bit8u);
+static void X_draw_string(int, int, unsigned char *, int, Bit8u);
+static void X_draw_line(int x, int y, int len);
+static void bitmap_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr);
 
 /* text mode init stuff (font/cursor) */
 static void load_text_font(void);
@@ -571,10 +542,8 @@ static void load_cursor_shapes(void);
 static Cursor create_invisible_cursor(void);
 
 /* text mode cursor manipulation stuff */
-static void draw_cursor(int, int);
-static void redraw_cursor(void);
+static void X_draw_text_cursor(int x, int y, Bit8u attr, int start, int end, Boolean focus);
 static void X_update_cursor(void);
-static inline void restore_cell(int, int);
 
 #if CONFIG_X_MOUSE
 /* mouse related code */
@@ -588,15 +557,6 @@ static void X_set_mouse_cursor(int yes, int mx, int my, int x_range, int y_range
 #if CONFIG_X_SELECTION
 static int x_to_col(int);
 static int y_to_row(int);
-static void calculate_selection(void);
-static void clear_visible_selection(void);
-static void clear_selection_data(void);
-static void clear_if_in_selection(void);
-static void start_selection(int, int);
-static void extend_selection(int, int);
-static void start_extend_selection(int, int);
-static void save_selection_data(void);
-static void end_selection(void);
 static void send_selection(Time, Window, Atom, Atom);
 #endif
 
@@ -621,6 +581,23 @@ struct video_system Video_X =
    X_update_cursor,
    X_change_config
 };
+
+static void X_update(void);
+
+struct text_system Text_X =
+{
+   X_update,
+   X_draw_string, 
+   X_draw_line,
+   X_draw_text_cursor,
+   X_set_text_palette,
+   X_resize_text_screen
+};
+
+void X_update(void)
+{
+   XFlush(display);
+}
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -874,6 +851,7 @@ int X_init()
     error("X: X_init: VGAEmu init failed!\n");
     leavedos(99);
   }
+  register_text_system(&Text_X);
 
   if(config.X_mgrab_key) grab_keystring = config.X_mgrab_key;
   if(*grab_keystring) grab_keysym = XStringToKeysym(grab_keystring);
@@ -1319,6 +1297,8 @@ static int X_change_config(unsigned item, void *buf)
       if(xfont == NULL) {
         if(font != NULL) XFreeFont(display, font);
         font = xfont;
+        use_bitmap_font = TRUE;
+	Text_X.Draw_string = bitmap_draw_string;
         X_printf("X: X_change_config: font \"%s\" not found, "
                  "using builtin\n", (char *) buf);
         X_printf("X: NOT loading a font. Using EGA/VGA builtin/RAM fonts.\n");
@@ -1336,6 +1316,8 @@ static int X_change_config(unsigned item, void *buf)
         else {
           if(font != NULL) XFreeFont(display, font);
           font = xfont;
+	  use_bitmap_font = FALSE;
+	  Text_X.Draw_string = X_draw_string;
           font_width  = font->max_bounds.width;
           font_height = font->max_bounds.ascent + font->max_bounds.descent;
           font_shift  = font->max_bounds.ascent;
@@ -1700,18 +1682,14 @@ void X_handle_events()
 	  
 	case FocusIn:
 	  X_printf("X: focus in\n");
-	  have_focus = TRUE;
-	  redraw_cursor();
+	  if (vga.mode_class == TEXT) text_gain_focus();
 	  if (config.X_background_pause && !dosemu_user_froze) unfreeze_dosemu ();
 	  break;
 
 	case FocusOut:
 	  X_printf("X: focus out\n");
 	  if (mainwindow == fullscreenwindow) break;
-	  have_focus = FALSE;
-	  blink_state = TRUE;
-	  blink_count = config.X_blinkrate;
-	  redraw_cursor();
+	  if (vga.mode_class == TEXT) text_lose_focus();
 	  output_byte_8042(port60_buffer | 0x80);
 	  if (config.X_background_pause && !dosemu_user_froze) freeze_dosemu ();
 	  break;
@@ -1788,8 +1766,7 @@ void X_handle_events()
       Clears the visible selection if the cursor is inside the selection
 */
 #if CONFIG_X_SELECTION
-	  if (visible_selection)
-	    clear_if_in_selection();
+	  clear_if_in_selection();
 #endif
 	  X_process_key(&e.xkey);
 	  break;
@@ -1820,9 +1797,9 @@ void X_handle_events()
 #if CONFIG_X_SELECTION
 	if (vga.mode_class == TEXT) {
 	  if (e.xbutton.button == Button1)
-	    start_selection(e.xbutton.x, e.xbutton.y);
+	    start_selection(x_to_col(e.xbutton.x), y_to_row(e.xbutton.y));
 	  else if (e.xbutton.button == Button3)
-	    start_extend_selection(e.xbutton.x, e.xbutton.y);
+	    start_extend_selection(x_to_col(e.xbutton.x), y_to_row(e.xbutton.y));
 	}
 #endif /* CONFIG_X_SELECTION */
 	  set_mouse_position(e.xmotion.x,e.xmotion.y); /*root@sjoerd*/
@@ -1836,13 +1813,24 @@ void X_handle_events()
 	    {
 	    case Button1 :
 	    case Button3 : 
-	      end_selection();
+	      sel_text = end_selection();
+	      if (sel_text == NULL)
+		break;
+	      XSetSelectionOwner(display, XA_PRIMARY, mainwindow, CurrentTime);
+	      if (XGetSelectionOwner(display, XA_PRIMARY) != mainwindow)
+		{
+		  X_printf("X: Couldn't get primary selection!\n");
+		  return;
+		}
+	      XChangeProperty(display, rootwindow, XA_CUT_BUFFER0, XA_STRING,
+			      8, PropModeReplace, sel_text, strlen(sel_text));
+
 	      break;
 	    case Button2 :
 	      X_printf("X: mouse Button2Release\n");
 	      scr_request_selection(display,mainwindow,e.xbutton.time,
-				    e.xbutton.x,
-				    e.xbutton.y);
+				    x_to_col(e.xbutton.x),
+				    y_to_row(e.xbutton.y));
 	      break;
 	    }
 #endif /* CONFIG_X_SELECTION */
@@ -1851,8 +1839,7 @@ void X_handle_events()
 	  
 	case MotionNotify:
 #if CONFIG_X_SELECTION
-	  if (doing_selection)
-	    extend_selection(e.xmotion.x, e.xmotion.y);
+	  extend_selection(x_to_col(e.xmotion.x), y_to_row(e.xmotion.y));
 #endif /* CONFIG_X_SELECTION */
 	  set_mouse_position(e.xmotion.x, e.xmotion.y);
 	  break;
@@ -1905,7 +1892,7 @@ void X_handle_events()
           }
           break;
 
-#endif /* CONFIG_X_SELECTION */
+#endif /* CONFIG_X_MOUSE */
 /* some weirder things... */
 	}
     }
@@ -2107,63 +2094,40 @@ int try_cube(unsigned long *p, c_cube *c)
  */
 void refresh_palette()
 {
-  if(vga.mode_class == TEXT) {
-    refresh_text_palette();
-  }
-  else {
-    if(have_true_color || have_shmap)
-      refresh_truecolor();
-    else
-      refresh_private_palette();
-  }
+  if(have_true_color || have_shmap)
+    refresh_truecolor();
+  else
+    refresh_private_palette();
 }
 
 
 /*
- * Reallocate color cells if a text color has changed. If no
- * free color cell is left, choose an approximate color.
- *
- * Note: Redraws the *entire* screen if at least one color has changed.
+ * Update the active X colormap for text modes DAC entry col.
  */
-void refresh_text_palette()
+void X_set_text_palette(DAC_entry col)
 {
-  DAC_entry col[16];
-  XColor xc;
-  int i, j, k, shift = 16 - dac_bits;
   int read_cmap = 1;
+  int i, shift = 16 - dac_bits;
+  XColor xc;
 
-  if(vga.pixel_size > 4) {
-    X_printf("X: refresh_text_palette: invalid color size - no updates made\n");
-    return;
-  }
+  xc.flags = DoRed | DoGreen | DoBlue;
+  xc.pixel = text_colors[i = col.index];
+  xc.red   = col.r << shift;
+  xc.green = col.g << shift;
+  xc.blue  = col.b << shift;
 
-  j = changed_vga_colors(col);
+  if(text_col_stats[i]) XFreeColors(display, text_cmap, &xc.pixel, 1, 0);
 
-  for(k = 0; k < j; k++) {
-    xc.flags = DoRed | DoGreen | DoBlue;
-    xc.pixel = text_colors[i = col[k].index];
-    xc.red   = col[k].r << shift;
-    xc.green = col[k].g << shift;
-    xc.blue  = col[k].b << shift;
-
-    if(text_col_stats[i]) XFreeColors(display, text_cmap, &xc.pixel, 1, 0);
-
-    if(!(text_col_stats[i] = XAllocColor(display, text_cmap, &xc))) {
-      get_approx_color(&xc, text_cmap, read_cmap);
-      read_cmap = 0;
-      X_printf("X: refresh_text_palette: %d (%d -> app. %d)\n", i, (int) text_colors[i], (int) xc.pixel);
+  if(!(text_col_stats[i] = XAllocColor(display, text_cmap, &xc))) {
+    get_approx_color(&xc, text_cmap, read_cmap);
+    read_cmap = 0;
+    X_printf("X: refresh_text_palette: %d (%d -> app. %d)\n", i, (int) text_colors[i], (int) xc.pixel);
       
-    }
-    else {
-      X_printf("X: refresh_text_palette: %d (%d -> %d)\n", i, (int) text_colors[i], (int) xc.pixel);
-    }
-    text_colors[i] = xc.pixel;
-    if (font == NULL)
-      remap_obj.palette_update(&remap_obj, col[i].index, dac_bits,
-                               col[i].r, col[i].g, col[i].b);
   }
-
-  if(j) X_redraw_text_screen();
+  else {
+    X_printf("X: refresh_text_palette: %d (%d -> %d)\n", i, (int) text_colors[i], (int) xc.pixel);
+  }
+  text_colors[i] = xc.pixel;
 }
 
 
@@ -2929,93 +2893,13 @@ static void X_vidmode(int w, int h, int *new_width, int *new_height)
 void X_reset_redraw_text_screen()
 {
   if(!is_mapped) return;
-
-  prev_cursor_shape = NO_CURSOR; redraw_cursor();
-
-  XFlush(display);
-
-  /* Comment Eric: If prev_screen is too small, we must update */
-  /* everything continuously anyway, sigh...                   */
-  /* so we better cheat and clip co / li / ..., danger >:->.   */
-  if (vga.scan_len * vga.text_height > 65535) {
-    if (vga.scan_len > MAX_COLUMNS * 2) vga.scan_len = MAX_COLUMNS * 2;
-    if (vga.text_width > MAX_COLUMNS  ) vga.text_width = MAX_COLUMNS;
-    if (vga.text_height > MAX_LINES   ) vga.text_height = MAX_LINES;
-  }
-  if (2 * co * li > 65535) {
-    if (co > MAX_COLUMNS) co = MAX_COLUMNS;
-    if (li > MAX_LINES  ) li = MAX_LINES;
-  }
-  MEMCPY_2UNIX(prev_screen, screen_adr, vga.scan_len * vga.text_height);
+  reset_redraw_text_screen();
 }
 
-
-/*
- * Redraw the entire screen (in text modes). Used only for expose events.
- * It's graphics mode counterpart is a simple put_ximage() call
- * (cf. X_handle_events). Since we now use backing store in text modes,
- * this function will likely never be called (depending on X's configuration).
- *
- * Note: It redraws the *entire* screen.
- */
 void X_redraw_text_screen()
 {
-  Bit16u *sp, *oldsp;
-  u_char charbuff[MAX_COLUMNS], *bp;
-  int x, y, start_x;
-  Bit8u attr;
-
   if(!is_mapped) return;
-  if(vga.mode_class == GRAPH) {
-    x_msg("X_redraw_text_screen: Text refresh in graphics video mode?\n");
-    return;
-  }
-  x_msg("X_redraw_text_screen: all\n");
-
-  if(vga.reconfig.display || vga.reconfig.mem) {
-    if(vga.reconfig.display) {
-      vga.reconfig.display = 0;
-      X_resize_text_screen();
-    }
-    vga.reconfig.mem = 0;
-    co = vga.text_width;
-    li = vga.text_height;
-  }
-
-  if(co > MAX_COLUMNS) {
-    x_msg("X_redraw_text_screen: unable to handle %d colums\n", co);
-    return;
-  }
-
-  x_deb(
-    "X_redraw_text_screen: mode 0x%x (%d x %d), screen_adr = 0x%x\n",
-    vga.mode, co, li, (unsigned) screen_adr
-  );
-
-  /* sp = (Bit16u *) (vga.mem.base + vga.display_start); */
-
-  sp = screen_adr;
-  oldsp = prev_screen;
-
-  for(y = 0; y < li; y++) {
-    x = 0;
-    do {	/* scan in a string of chars of the same attribute */
-      bp = charbuff; start_x = x; attr = XATTR(sp);
-
-      do {	/* conversion of string to X */
-        *oldsp++ = XREAD_WORD(sp); *bp++ = XCHAR(sp);
-        sp++; x++;
-      } while(XATTR(sp) == attr && x < co);
-
-      X_draw_string(start_x, y, charbuff, x - start_x, attr);
-    } while(x < co);
-    if (co * 2 < vga.scan_len) {
-      sp += vga.scan_len / 2 - co;
-      oldsp += vga.scan_len / 2 - co;
-    }
-  }
-
-  X_reset_redraw_text_screen();
+  redraw_text_screen();
 }
 
 
@@ -3049,185 +2933,8 @@ int X_update_screen()
 
   if(vga.reconfig.re_init) X_setmode(0, 0, 0, 0);
 
-  return vga.mode_class == TEXT ? X_update_text_screen() : X_update_graphics_screen();
-}
-
-
-/*
- * Update the text screen.
- */
-int X_update_text_screen()
-{
-  Bit16u *sp, *oldsp;
-  u_char charbuff[MAX_COLUMNS], *bp;
-  int x, y;	/* X and Y position of character being updated */
-  int start_x, len, unchanged;
-  Bit8u attr;
-
-  static int yloop = -1;
-  int lines;               /* Number of lines to redraw. */
-  int numscan = 0;         /* Number of lines scanned. */
-  int numdone = 0;         /* Number of lines actually updated. */
-
   if(!is_mapped) return 0;       /* no need to do anything... */
-
-  if (font == NULL) {
-    li = vga.text_height;
-    co = vga.text_width;
-  }
-  
-  refresh_palette();
-
-  if(vga.reconfig.display) {
-    X_resize_text_screen();
-    vga.reconfig.display = 0;
-  }
-  if(vga.reconfig.mem) {
-    remap_obj.src_resize(&remap_obj, vga.width, vga.height, vga.width);
-    X_redraw_text_screen();
-    vga.reconfig.mem = 0;
-  }
-
-  /* The following determines how many lines it should scan at once,
-   * since this routine is being called by sig_alrm.  If the entire
-   * screen changes, it often incurs considerable delay when this
-   * routine updates the entire screen.  So the variable "lines"
-   * contains the maximum number of lines to update at once in one
-   * call to this routine.  This is set by the "updatelines" keyword
-   * in /etc/dosemu.conf 
-   */
-	lines = config.X_updatelines;
-	if (lines < 2) 
-	  lines = 2;
-	else if (lines > li)
-	  lines = li;
-
-  /* The highest priority is given to the current screen row for the
-   * first iteration of the loop, for maximum typing response.  
-   * If y is out of bounds, then give it an invalid value so that it
-   * can be given a different value during the loop.
-   */
-	y = cursor_row;
-	if ((y < 0) || (y >= li)) 
-	  y = -1;
-
-/*  X_printf("X: X_update_screen, co=%d, li=%d, yloop=%d, y=%d, lines=%d\n",
-           co,li,yloop,y,lines);*/
-
-  /* The following loop scans lines on the screen until the maximum number
-   * of lines have been updated, or the entire screen has been scanned.
-   */
-	while ((numdone < lines) && (numscan < li)) 
-	  {
-    /* The following sets the row to be scanned and updated, if it is not
-     * the first iteration of the loop, or y has an invalid value from
-     * loop pre-initialization.
-     */
-	    if ((numscan > 0) || (y < 0)) 
-	      {
-		yloop = (yloop+1) % li;
-		if (yloop == cursor_row)
-		  yloop = (yloop+1) % li;
-		y = yloop;
-	      }
-	    numscan++;
-	    
-	    sp = screen_adr + y*co;
-	    oldsp = prev_screen + y*co;
-	    if (font == NULL || co * 2 < vga.scan_len) {
-	      sp = screen_adr + y * vga.scan_len / 2;
-	      oldsp = prev_screen + y * vga.scan_len / 2;
-	    }
-
-	    x=0;
-	    do 
-	      {
-        /* find a non-matching character position */
-		start_x = x;
-		while (XREAD_WORD(sp)==*oldsp) {
-		  sp++; oldsp++; x++;
-		  if (x==co) {
-		    if (start_x == 0)
-		      goto chk_cursor;
-		    else
-		      goto line_done;
-		  }
-		}
-/* now scan in a string of changed chars of the same attribute.
-   To keep the number of X calls (and thus the overhead) low,
-   we tolerate a few unchanged characters (up to MAX_UNCHANGED in 
-   a row) in the 'changed' string. 
-*/
-		bp = charbuff;
-		start_x=x;
-		attr=XATTR(sp);
-		unchanged=0;         /* counter for unchanged chars */
-		
-		while(1) 
-		  {
-		    *bp++=XCHAR(sp);
-		    *oldsp++ = XREAD_WORD(sp);
-		    sp++; 
-		    x++;
-
-		    if ((XATTR(sp) != attr) || (x == co))
-		      break;
-		    if (XREAD_WORD(sp) == *oldsp) {
-		      if (unchanged > MAX_UNCHANGED) 
-			break;
-		      unchanged++;
-		    }
-		    else
-		      unchanged=0;
-		  } 
-		len=x-start_x-unchanged;
-
-                /* ok, we've got the string now send it to the X server */
-
-                X_draw_string(start_x, y, charbuff, len, attr);
-
-		if ((prev_cursor_row == y) && 
-		    (prev_cursor_col >= start_x) && 
-		    (prev_cursor_col < start_x+len))
-		  {
-		    prev_cursor_shape=NO_CURSOR;  
-/* old cursor was overwritten */
-		  }
-	      } 
-	    while(x<co);
-line_done:
-/* Increment the number of successfully updated lines counter */
-	    numdone++;
-
-chk_cursor:
-/* update the cursor. We do this here to avoid the cursor 'running behind'
-       when using a fast key-repeat.
-*/
-	    if (y == cursor_row)
-	      X_update_cursor();
-	  }
-	XFlush(display);
-
-/*	X_printf("X: X_update_screen: %d lines updated\n",numdone);*/
-	
-	if (numdone) 
-	  {
-            if ((!font && numscan==vga.text_height) ||
-                (font && numscan==li))
-              return 1;     /* changed, entire screen updated */
-            else
-              return 2;     /* changed, part of screen updated */
-	  }
-	else 
-	  {
-/* The updates look a bit cleaner when reset to top of the screen
- * if nothing had changed on the screen in this call to screen_restore
- */
-	    yloop = -1;
-	    return(1);
-	  }
-      
-  return 0;
+  return vga.mode_class == TEXT ? update_text_screen() : X_update_graphics_screen();
 }
 
 
@@ -3266,8 +2973,6 @@ static int X_update_graphics_loop(int update_offset)
 int X_update_graphics_screen()
 {
   int update_ret;
-
-  if(!is_mapped) return 0;		/* no need to do anything... */
 
   if(vga.reconfig.mem || vga.reconfig.display || vga.reconfig.dac) X_modify_mode();
 
@@ -3326,28 +3031,27 @@ void set_gc_attr(Bit8u attr)
 
 
 /*
- * Draw a text string.
+ * Draw a non-bitmap text string.
  * The attribute is the VGA color/mono text attribute.
  */
-void X_draw_string(int x, int y, char *text, int len, Bit8u attr)
+static void X_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
 {
-  x_deb2(
-    "X_draw_string: %d chars at (%d, %d), attr = 0x%02x\n",
-    len, x, y, (unsigned) attr
-  );
-  
-  if (font) {
-    set_gc_attr(attr);
-    XDrawImageString(
-      display, mainwindow, gc,
-      shift_x + font_width * x,
-      shift_y + font_height * y + font_shift,
-      text,
-      len
-      );
-    
-  } else {
+  set_gc_attr(attr);
+  XDrawImageString(
+    display, mainwindow, gc,
+    shift_x + font_width * x,
+    shift_y + font_height * y + font_shift,
+    text,
+    len
+    );
+}
 
+/*
+ * Draw a text string for bitmap fonts.
+ * The attribute is the VGA color/mono text attribute.
+ */
+static void bitmap_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
+{
     unsigned src, height, xx, yy, cc, srcp, srcp2, bits;
     unsigned long fgX;
     unsigned long bgX;
@@ -3440,19 +3144,22 @@ void X_draw_string(int x, int y, char *text, int len, Bit8u attr)
     X_printf("image at %d %d %d %d %d %d\n", shift_x+ra.x, shift_y+ra.y,
              ra.width - shift_x, ra.height, ra.x, ra.y);
     put_ximage(ra.x, ra.y, ra.x, ra.y, ra.width, ra.height);
-    
-  }
-  if(vga.mode_type == TEXT_MONO && (attr == 0x01 || attr == 0x09 || attr == 0x89)) {
-    XDrawLine(
+}
+
+/*
+ * Draw a horizontal line (for text modes)
+ * The attribute is the VGA color/mono text attribute.
+ */
+void X_draw_line(int x, int y, int len)
+{
+  XDrawLine(
       display, mainwindow, gc,
       (shift_x + font_width * x) * w_x_res / x_res,
       (font_height * y + font_shift) * w_y_res / y_res,
       (shift_x + font_width * (x + len) - 1) * w_x_res / x_res,
       (shift_y + font_height * y + font_shift) * w_y_res / y_res
     );
-  }
 }
-
 
 /*
  * Load the main text font. Try first the user specified font, then
@@ -3463,6 +3170,8 @@ void load_text_font()
 {
   const char *p = config.X_font;
   font = NULL;
+  use_bitmap_font = TRUE;
+  Text_X.Draw_string = bitmap_draw_string;
   if (p && strlen(p)) {
     font = XLoadQueryFont(display, p);
     if(font == NULL) {
@@ -3479,6 +3188,8 @@ void load_text_font()
       font_shift = font->max_bounds.ascent;
       vga_font = font->fid;
       X_printf("X: Using font \"%s\", size = %d x %d\n", p, font_width, font_height);
+      use_bitmap_font = FALSE;
+      Text_X.Draw_string = X_draw_string;
       return;
     }
   }
@@ -3544,19 +3255,15 @@ Cursor create_invisible_cursor()
  * Draw the cursor (nothing in graphics modes, normal if we have focus,
  * rectangle otherwise).
  */
-void draw_cursor(int x, int y)
-{  
+void X_draw_text_cursor(int x, int y, Bit8u attr, int start, int end, Boolean focus)
+{
   int cstart, cend;
 
   /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
   if(vga.mode_class == GRAPH) return;
 
-  /* don't draw it if it's out of bounds */
-  if(cursor_row < 0 || cursor_row >= li) return;
-  if(cursor_col < 0 || cursor_col >= co) return;
-
-  set_gc_attr(XATTR(screen_adr + y * co + x));
-  if(!have_focus) {
+  set_gc_attr(attr);
+  if(!focus) {
     XDrawRectangle(
       display, mainwindow, gc,
       (shift_x + x * font_width) * w_x_res / x_res,
@@ -3565,9 +3272,9 @@ void draw_cursor(int x, int y)
       (font_height - 1) * w_y_res / y_res
       );
   }
-  else if(blink_state) {
-    cstart = CURSOR_START(cursor_shape) * font_height / 16;
-    cend = CURSOR_END(cursor_shape) * font_height / 16;
+  else {
+    cstart = start * font_height / 16;
+    cend = end * font_height / 16;
     XFillRectangle(
       display, mainwindow, gc,
       (shift_x + x * font_width) * w_x_res / x_res,
@@ -3580,29 +3287,6 @@ void draw_cursor(int x, int y)
 
 
 /*
- * Move cursor to a new position (and erase the old cursor).
- * Do nothing in graphics modes.
- */
-void redraw_cursor()
-{
-  /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
-  if(vga.mode_class == GRAPH || !is_mapped) return;
-
-  if(prev_cursor_shape != NO_CURSOR)
-    restore_cell(prev_cursor_col, prev_cursor_row);
-
-  if(cursor_shape != NO_CURSOR)
-    draw_cursor(cursor_col, cursor_row);
-
-  XFlush(display);
-
-  prev_cursor_row = cursor_row;
-  prev_cursor_col = cursor_col;
-  prev_cursor_shape = cursor_shape;
-}
-
-
-/*
  * Redraw the cursor if it's necessary.
  * Do nothing in graphics modes.
  */
@@ -3610,14 +3294,7 @@ void X_update_cursor()
 {
   /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
   if(vga.mode_class == GRAPH) return;
-   
-  if(
-    cursor_row != prev_cursor_row ||
-    cursor_col != prev_cursor_col ||
-    cursor_shape != prev_cursor_shape
-  ) {
-    redraw_cursor();
-  }
+  update_cursor();
 }
 
 
@@ -3628,58 +3305,8 @@ void X_update_cursor()
 void X_blink_cursor()
 {
   /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
-  if(vga.mode_class == GRAPH) return;
-
-  if(!have_focus || --blink_count) return;
-
-  blink_count = config.X_blinkrate;
-  blink_state = !blink_state;
-
-  if(cursor_shape != NO_CURSOR) {
-    if(
-      cursor_row != prev_cursor_row ||
-      cursor_col != prev_cursor_col
-    ) {
-      restore_cell(prev_cursor_col, prev_cursor_row);
-      prev_cursor_row = cursor_row;
-      prev_cursor_col = cursor_col;
-      prev_cursor_shape = cursor_shape;
-    }
-
-    if(blink_state)
-      draw_cursor(cursor_col, cursor_row);
-    else
-      restore_cell(cursor_col, cursor_row);
-  }
-}
-
-
-/*
- * Restore a character cell (used to remove the cursor).
- * Do nothing in graphics modes.
- */
-inline void restore_cell(int x, int y)
-{
-  Bit16u *sp, *oldsp;
-  u_char c;
-
-  /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
-  if(vga.mode_class == GRAPH) return;
-
-  if (font == NULL) {
-    li = vga.text_height;
-    co = vga.scan_len / 2;
-  }
-  
-  /* don't draw it if it's out of bounds */
-  if(y < 0 || y >= li || x < 0 || x >= co) return;
-
-  sp = screen_adr + y * co + x;
-  oldsp = prev_screen + y * co + x;
-  c = XCHAR(sp);
-
-  *oldsp = XREAD_WORD(sp);
-  X_draw_string(x, y, &c, 1, XATTR(sp));
+  if(vga.mode_class == GRAPH) return;   
+  blink_cursor();
 }
 
 #if CONFIG_X_MOUSE
@@ -3766,6 +3393,7 @@ struct mouse_client Mouse_X =  {
 };
 
 #if CONFIG_X_SELECTION
+
 /*
  * Convert X coordinate to column, with bounds checking.
  */
@@ -3799,312 +3427,6 @@ int y_to_row(int y)
   else if (row >= li)
     row = li-1;
   return(row);
-}
-
-
-/*
- * Calculate sel_start and sel_end pointers from sel_start | end_col | row.
- */
-void calculate_selection()
-{
-  if (font == NULL) {
-    li = vga.text_height;
-    co = vga.scan_len / 2;
-  }
-  if ((sel_end_row < sel_start_row) || 
-    ((sel_end_row == sel_start_row) && (sel_end_col < sel_start_col)))
-  {
-    sel_start = screen_adr+sel_end_row*co+sel_end_col;
-    sel_end = screen_adr+sel_start_row*co+sel_start_col-1;
-  }
-  else
-  {
-    sel_start = screen_adr+sel_start_row*co+sel_start_col;
-    sel_end = screen_adr+sel_end_row*co+sel_end_col-1;
-  }
-}
-
-
-/*
- * Clear visible part of selection (but not the selection text buffer).
- */
-void clear_visible_selection()
-{
-  sel_start_col = sel_start_row = sel_end_col = sel_end_row = 0;
-  sel_start = sel_end = NULL;
-  visible_selection = FALSE;
-}
-
-
-/*
- * Free the selection text buffer.
- */
-void clear_selection_data()
-{
-  X_printf("X: Selection data cleared\n");
-  if (sel_text != NULL)
-  {
-    free(sel_text);
-    sel_text = NULL;
-  }
-  doing_selection = FALSE;
-  clear_visible_selection();
-}
-
-
-/*
- * Check if we should clear selection.
- * Clear if cursor is in or before selected area.
-*/
-void clear_if_in_selection()
-{
-  X_printf("X:clear check selection , cursor at %d %d\n",
-	   cursor_col,cursor_row);
-  if (((sel_start_row <= cursor_row)&&(cursor_row <= sel_end_row)&&
-       (sel_start_col <= cursor_col)&&(cursor_col <= sel_end_col)) ||
-      /* cursor either inside selectio */
-       (( cursor_row <= sel_start_row)&&(cursor_col <= sel_start_col)))
-      /* or infront of selection */
-    {
-      X_printf("X:selection clear, key-event!\n");
-      clear_visible_selection(); 
-    }
-}
-
-
-/*
- * Start the selection process (mouse button 1 pressed).
- */
-void start_selection(int x, int y)
-{
-  int col = x_to_col(x), row = y_to_row(y);
-  sel_start_col = sel_end_col = col;
-  sel_start_row = sel_end_row = row;
-  calculate_selection();
-  doing_selection = visible_selection = TRUE;
-  X_printf("X:start selection , start %d %d, end %d %d\n",
-	   sel_start_col,sel_start_row,sel_end_col,sel_end_row);
-}
-
-
-/*
- * Extend the selection (mouse motion).
- */
-void extend_selection(int x, int y)
-{
-  int col = x_to_col(x), row = y_to_row(y);
-  if ((sel_end_col == col) && (sel_end_row == row))
-    return;
-  sel_end_col = col;
-  sel_end_row = row;
-  calculate_selection();
-  X_printf("X:extend selection , start %d %d, end %d %d\n",
-	   sel_start_col,sel_start_row,sel_end_col,sel_end_row);
-}
-
-
-/*
- * Start extending the selection (mouse button 3 pressed).
- */
-void start_extend_selection(int x, int y)
-{
-  /* Try to extend selection, visibility is handled by extend_selection*/
-    doing_selection =  visible_selection = TRUE;  
-    extend_selection(x, y);
-  
-}
-
-#ifndef HAVE_UNICODE_TRANSLATION
-
-static void save_selection(int col1, int row1, int col2, int row2)
-{
-  size_t i;
-  int row, col, line_start_col, line_end_col;
-  u_char *sel_text_latin;
-  size_t sel_text_bytes;
-  u_char *p;
-
-  if (font == NULL) {
-    li = vga.text_height;
-    co = vga.scan_len / 2;
-  }
-
-  sel_text_latin = sel_text = malloc((row2-row1+1)*(co+1)+2);
-  
-  /* Copy the text data. */
-  for (row = row1; (row <= row2); row++)
-  {
-    line_start_col = ((row == row1) ? col1 : 0);
-    line_end_col = ((row == row2) ? col2 : co-1);
-    p = sel_text_latin;
-    for (col = line_start_col; (col <= line_end_col); col++)
-    {
-      *p++ = XCHAR(screen_adr+row*co+col);
-    }
-    /* Remove end-of-line spaces and add a newline. */
-    if (col == co)
-    { 
-      p--;
-      while ((*p == ' ') && (p > sel_text_latin))
-        p--;
-      p++;
-      *p++ = '\n';
-    }
-    
-    sel_text_bytes = p - sel_text_latin;
-    for (i=0; i<sel_text_bytes;i++)
-      switch (sel_text_latin[i]) 
-      {
-      case 21 : /* § */
-        sel_text_latin[i] = 0xa7;
-        break;
-      case 20 : /* ¶ */
-        sel_text_latin[i] = 0xb6;
-        break;
-      case 124 : /* ¦ */
-        sel_text_latin[i] = 0xa6;
-        break;
-      case 0x80 ... 0xff: 
-        switch (config.term_charset) {
-        case CHARSET_KOI8:
-          sel_text_latin[i]=dos_to_koi8[sel_text_latin[i] - 0x80];
-          break;
-        case CHARSET_LATIN1:
-          sel_text_latin[i]=dos_to_latin1[sel_text_latin[i] - 0x80];
-          break;
-        case CHARSET_LATIN2:
-          sel_text_latin[i]=dos_to_latin2[sel_text_latin[i] - 0x80];
-          break;
-        case CHARSET_LATIN:
-        default:
-          sel_text_latin[i]=dos_to_latin[sel_text_latin[i] - 0x80];
-          break;
-        }
-      }
-    sel_text_latin += sel_text_bytes;
-  }
-  *sel_text_latin = '\0';
-}
-
-#else /* HAVE_UNICODE_TRANSLATION */
-
-static void save_selection(int col1, int row1, int col2, int row2)
-{
-	int row, col, line_start_col, line_end_col;
-	u_char *sel_text_dos, *sel_text_latin, *sel_text_ptr, *prev_sel_text_latin;
-	size_t sel_space, sel_text_bytes;
-	u_char *p;
-        
-	struct char_set_state paste_state;
-	struct char_set_state video_state; /* must not have any... */
-
-	struct char_set *paste_charset = trconfig.paste_charset;
-	struct char_set *video_charset = trconfig.video_mem_charset;
-  
-	init_charset_state(&video_state, video_charset);
-	init_charset_state(&paste_state, paste_charset);
-	
-	p = sel_text_dos = malloc(co);
-	sel_space = (row2-row1+1)*(co+1)+102;
-	sel_text_latin = sel_text = malloc(sel_space);
-  
-	/* Copy the text data. */
-	for (row = row1; (row <= row2); row++)
-	{
-		prev_sel_text_latin = sel_text_latin;
-		line_start_col = ((row == row1) ? col1 : 0);
-		line_end_col = ((row == row2) ? col2 : co-1);
-		p = sel_text_ptr = sel_text_dos;
-		for (col = line_start_col; (col <= line_end_col); col++)
-		{
-			*p++ = XCHAR(screen_adr+row*co+col);
-		}
-		sel_text_bytes = line_end_col - line_start_col + 1;
-		while(sel_text_bytes) {
-			t_unicode symbol;
-			size_t result;
-			/* If we hit any run with what we have */
-			result = charset_to_unicode(&video_state, &symbol,
-						    sel_text_ptr, sel_text_bytes);
-			if (result == -1) break;
-			sel_text_bytes -= result;
-			sel_text_ptr += result;
-			result = unicode_to_charset(&paste_state, symbol,
-						    sel_text_latin, sel_space);
-			if (result == -1) break;
-			sel_text_latin += result;
-			sel_space -= result;
-		}
-		/* Remove end-of-line spaces and add a newline. */
-		if (col == co)
-		{ 
-			sel_text_latin--;
-			while ((*sel_text_latin == ' ') && (sel_text_latin > prev_sel_text_latin))
-				sel_text_latin--;
-			sel_text_latin++;
-			*sel_text_latin++ = '\n';
-		}
-	}
-	free(sel_text_dos);
-	*sel_text_latin = '\0';
-  
-	cleanup_charset_state(&video_state);
-	cleanup_charset_state(&paste_state);
-}
-
-#endif /* HAVE_UNICODE_TRANSLATION */
-
-/*
- * Copy the selected text to sel_text, and inform the X server about it.
- */
-void save_selection_data()
-{
-  int col1, row1, col2, row2;
-
-  if ((sel_end-sel_start) < 0)
-  {
-    visible_selection = FALSE;
-    return;
-  }
-  row1 = (sel_start-screen_adr)/co;
-  row2 = (sel_end-screen_adr)/co;
-  col1 = (sel_start-screen_adr)%co;
-  col2 = (sel_end-screen_adr)%co;
-  
-  /* Allocate space for text. */
-  if (sel_text != NULL)
-    free(sel_text);
-
-  save_selection(col1, row1, col2, row2);
-  
-  if (strlen(sel_text) == 0)
-    return;
-    
-  /* Inform the X server. */
-  XSetSelectionOwner(display, XA_PRIMARY, mainwindow, CurrentTime);
-  if (XGetSelectionOwner(display, XA_PRIMARY) != mainwindow)
-  {
-    X_printf("X: Couldn't get primary selection!\n");
-    return;
-  }
-  XChangeProperty(display, rootwindow, XA_CUT_BUFFER0, XA_STRING,
-    8, PropModeReplace, sel_text, strlen(sel_text));
-
-  X_printf("X: Selection, %d,%d->%d,%d, size=%d\n", 
-    col1, row1, col2, row2, strlen(sel_text));
-
-}
-
-
-/*
- * End of selection (button released).
- */
-void end_selection()
-{
-  if (!doing_selection)
-    return;
-  doing_selection = FALSE;
-  save_selection_data();
 }
 
 /*
