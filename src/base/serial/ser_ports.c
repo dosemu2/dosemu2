@@ -152,6 +152,8 @@ void uart_fill(int num)
                               RX_BUFFER_SIZE - com[num].rx_buf_end));
       if (size < 0)
         return;
+      if(s3_printf) s_printf("SER%d: Got %i bytes, %i in buffer\n",num,
+        size, com[num].rx_buf_bytes);
 #if 0    
       if (size == 0) { 				/* No characters read? */
         com[num].rx_timer = RX_READ_FREQ;	/* Reset rcv read() timer */
@@ -166,7 +168,7 @@ void uart_fill(int num)
     }
 #endif
   }
-  
+
   if (com[num].rx_buf_bytes) {		/* Is data waiting in the buffer? */
     if (com[num].fifo_enable) {		/* Is it in 16550 FIFO mode? */
 
@@ -191,8 +193,6 @@ void uart_fill(int num)
     }
     /* Else, the following code executes if emulated UART is in 16450 mode. */    
 
-    if(s3_printf) s_printf("SER%d: Got %i bytes, %i in buffer\n",num,
-      size, com[num].rx_buf_bytes);
     com[num].rx_timeout = 0;			/* Reset receive timeout */
     com[num].LSRqueued |= UART_LSR_DR;		/* Update queued LSR */
     if(s3_printf) s_printf("SER%d: Func uart_fill requesting RX_INTR\n",num);
@@ -461,6 +461,9 @@ static int get_rx(int num)
      * buffer is bigger) for compatibility purposes.  Note, that the 
      * following code is optimized for speed rather than compactness.
      */
+    com[num].rx_fifo_bytes = com[num].rx_buf_bytes;
+    if (com[num].rx_fifo_bytes > com[num].rx_fifo_size)
+	      com[num].rx_fifo_bytes = com[num].rx_fifo_size;
      
     /* Is the receive FIFO empty? */
     if (com[num].rx_fifo_bytes == 0) return 0;
