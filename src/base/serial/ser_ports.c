@@ -591,7 +591,7 @@ static void put_tx(int num, int val)
   com[num].TX = val;			/* Mainly used in overflow cases */
   com[num].tx_trigger = 1;		/* Time to trigger next tx int */
   com[num].int_condition &= ~TX_INTR;	/* TX interrupt condition satisifed */
-  com[num].LSR &= ~(UART_LSR_TEMT | UART_LSR_THRE);	/* THR not empty */
+  com[num].LSR &= ~UART_LSR_TEMT;	/* TEMT not empty */
 
   /* If Transmit interrupt status is set, then update interrupt status */
   if ((com[num].IIR & UART_IIR_ID) == UART_IIR_THRI)
@@ -660,7 +660,9 @@ static void put_tx(int num, int val)
   /* Else, not in loopback mode */
   
   if (com[num].fifo_enable) {			/* Is FIFO enabled? */
-    if (com[num].tx_buf_bytes == TX_BUFFER_SIZE) {	/* Is FIFO full? */
+    if (com[num].tx_buf_bytes >= TX_BUFFER_SIZE) {	/* Is FIFO already full? */
+      /* try to write the character directly to the tty, hoping it
+       * will be queued there. Hmmm... */
       rtrn = RPT_SYSCALL(write(com[num].fd,&com[num].tx_buf[com[num].tx_buf_start],1));
       if (rtrn != 1) {				/* Did transmit fail? */
         com[num].tx_overflow = 1;		/* Set overflow flag */
@@ -686,6 +688,9 @@ static void put_tx(int num, int val)
     if (rtrn != 1) 				/* Did transmit fail? */
       com[num].tx_overflow = 1; 		/* Set overflow flag */
   }
+  if (!com[num].fifo_enable ||
+       com[num].tx_buf_bytes >= (TX_BUFFER_SIZE-1)) 	/* Is FIFO full? */
+      com[num].LSR &= ~UART_LSR_THRE;		/* THR full */
 }
 
 

@@ -21,6 +21,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#include <ctype.h>
 #include <errno.h>
 #ifdef __linux__
 #include <linux/cdrom.h>
@@ -34,6 +35,10 @@
 #include "priv.h"
 
 extern int errno;
+
+#if 0
+  #define CDROM_DEBUG	1
+#endif
 
 int cdrom_fd = -1;
 int cdu33a = 0;
@@ -116,16 +121,45 @@ int logging_ioctl(int fd, unsigned int cmd, void *arg)
 {
     int rval;
     int err;
-    C_printf("ioctl 0x%x\n", cmd);
+    if (d.cdrom>5)
+      C_printf("CDROM: ioctl %#x\n", cmd);
     rval = ioctl(fd, cmd, arg);
     err = errno;
 
     if (rval == -1) {
-	C_printf(" --> %s\n", strerror(errno));
+	C_printf("CDROM: err %s\n", strerror(errno));
 	errno = err;
     }
     return rval;
 }
+
+void dump_cd_sect (char *tb)
+{
+    unsigned char buf[128];
+    int i,j;
+    unsigned char *p,*q,c;
+
+    q=tb;
+    for (i=0; i<32 && d.cdrom>5; i++) {		/* 32x64 */
+      p=buf;
+      for (j=0; j<64; j++) {
+        c=*q++;
+        *p++ = (isprint(c)? c:'.');
+      }
+      C_printf("%03x[%s]\n",i*64,buf);
+    }
+    q=tb;
+    for (i=0; i<64 && d.cdrom>8; i++) {		/* 64x32 */
+      p=buf;
+      for (j=0; j<4; j++) {
+        p+=sprintf(p,":%02x%02x%02x%02x%02x%02x%02x%02x",q[0],q[1],q[2],
+        	q[3],q[4],q[5],q[6],q[7]);
+        q+=8;
+      }
+      C_printf("%03x%s\n",i*32,buf);
+    }
+}
+
 
 #define ioctl logging_ioctl
 #endif
@@ -133,15 +167,15 @@ int logging_ioctl(int fd, unsigned int cmd, void *arg)
 void cdrom_reset()
 {
   /* after a disk change a new read access will
-     return in error. In order to unlock this condition
-     the drive must be reopend.
-     Does some one knows a better way?                   */
-    C_printf("cdrom reset\n");
+     return an error. In order to unlock this condition
+     the drive must be reopened.
+     Does someone know a better way?                   */
+   C_printf("CDROM: cdrom reset\n");
    close (cdrom_fd);
    enter_priv_off();
    cdrom_fd = open (_PATH_CDROM, O_RDONLY);
-   leave_priv_setting();
    if (cdrom_fd >= 0) ioctl (cdrom_fd, CDROMRESET, NULL);
+   leave_priv_setting();
 #ifdef __NetBSD__
    if (cdrom_fd >= 0) ioctl(cdrom_fd, CDIOCALLOW, 0);
 #endif
@@ -162,9 +196,6 @@ void cdrom_helper(void)
    struct cdrom_tocentry cdrom_tocentry;
    struct cdrom_volctrl cdrom_volctrl;
    int n, error;
-#ifdef CDROM_DEBUG
-   int ioctlin,;
-#endif
 
 #ifdef __NetBSD__
    struct cd_toc_entry toc_entry;
@@ -192,12 +223,17 @@ void cdrom_helper(void)
 #endif
 
         if (cdrom_fd < 0) {
-          LO(bx) = 1; /* media changed (for media changed request) */
-          LWORD(ebx) = audio_status.status | 0x800; /* no disc (for device status request) */
-
-          if ((HI(ax) == 0x09) || (HI(ax) == 0x0A))
-            LO(ax) = 0;
-           else LO(ax) = 1; /* for other requests return with error */
+          switch (HI(ax)) {
+            case 0x09:    /* media changed request */
+              LO(bx) = 1; /* media changed */
+              LO(ax) = 0;
+              return;
+            case 0x0A:    /* device status request */
+              LWORD(ebx) = audio_status.status | 0x800; /* no disc */
+              LO(ax) = 0;
+              return;
+          }
+          LO(ax) = 1; /* for other requests return with error */
           return ;
         }
    }
@@ -230,7 +266,7 @@ void cdrom_helper(void)
 #endif
 
                 if (cdrom_fd < 0) {
-		  C_printf("cdrom open (" _PATH_CDROM ") failed: %s\n",
+		  C_printf("CDROM: cdrom open (" _PATH_CDROM ") failed: %s\n",
 			    strerror(error));
                   if (error == EIO) {
                     /* drive which cannot be opened if no
@@ -276,46 +312,45 @@ void cdrom_helper(void)
                  else { Sector = *CALC_PTR(req_buf,MSCD_READ_STARTSECTOR,u_long);
                       }
 
-		C_printf("reading sector %x (fmt %d)\n", Sector,
+		C_printf("CDROM: reading sector %#x (fmt %d)\n", Sector,
 			  *CALC_PTR(req_buf,MSCD_READ_ADRESSING,u_char));
-                if ((off_t) -1 == lseek (cdrom_fd, Sector*2048, SEEK_SET)) {
+                if ((off_t) -1 == lseek (cdrom_fd, Sector*CD_FRAMESIZE, SEEK_SET)) {
 		    HI(ax) = (errno == EINVAL ? 0x08 : 0x0F);
-		    C_printf("lseek failed: %s\n", strerror(errno));
+		    C_printf("CDROM: lseek failed: %s\n", strerror(errno));
 		    LO(ax) = 1;
 		} else {
-		    if ( (n = read (cdrom_fd, transfer_buf, *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*2048)) < 0) {
+		    if ( (n = read (cdrom_fd, transfer_buf, *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*CD_FRAMESIZE)) < 0) {
 			/* cd must be in drive, reset drive and try again */
 			cdrom_reset();
-			if ((off_t) -1 == lseek (cdrom_fd, Sector*2048, SEEK_SET)) {
+			if ((off_t) -1 == lseek (cdrom_fd, Sector*CD_FRAMESIZE, SEEK_SET)) {
 			    HI(ax) = (errno == EINVAL ? 0x08 : 0x0F);
-			    C_printf("lseek failed: %s\n", strerror(errno));
+			    C_printf("CDROM: lseek failed: %s\n", strerror(errno));
 			    LO(ax) = 1;
 			} else
-			    if ( (n = read (cdrom_fd, transfer_buf, *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*2048)) < 0) {
+			    if ( (n = read (cdrom_fd, transfer_buf, *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*CD_FRAMESIZE)) < 0) {
 				HI(ax) = (errno == EFAULT ? 0x0A : 0x0F);
-				C_printf("sector read (to %p, len %x) failed: %s\n",
-					  transfer_buf, *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*2048, strerror(errno));
+				C_printf("CDROM: sector read (to %p, len %#x) failed: %s\n",
+					  transfer_buf, *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*CD_FRAMESIZE, strerror(errno));
 				LO(ax) = 1;
 			    } else LO(ax) = 0;
 		    }
-		    if (n != *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*2048) {
-			C_printf("sector read len %x got %x\n",
-				  *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*2048, n);
+		    if (n != *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*CD_FRAMESIZE) {
+			C_printf("CDROM: sector read len %#x got %#x\n",
+				  *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*CD_FRAMESIZE, n);
 			LO(ax) = 1;
 			HI(ax) = 0x0F;
 		    } else {
+#ifdef CDROM_DEBUG
+			dump_cd_sect(transfer_buf);
+#endif
 			LO(ax) = 0;
-			if (dbg_fd) {
-			    fwrite(transfer_buf, 1, n, dbg_fd);
-			    fflush(dbg_fd);
-			}
 		    }
 		}
                 break;
      case 0x03: /* seek */
                 req_buf = SEG_ADR((char *), es, di);
-                if ((off_t)-1 == lseek (cdrom_fd, *CALC_PTR(req_buf,MSCD_SEEK_STARTSECTOR,u_long)*2048, SEEK_SET)) {
-		    C_printf("lseek failed: %s\n", strerror(errno));
+                if ((off_t)-1 == lseek (cdrom_fd, *CALC_PTR(req_buf,MSCD_SEEK_STARTSECTOR,u_long)*CD_FRAMESIZE, SEEK_SET)) {
+		    C_printf("CDROM: lseek failed: %s\n", strerror(errno));
 		    LO(ax) = 1;
 		}
                 break;
@@ -413,13 +448,13 @@ void cdrom_helper(void)
                 break;
      case 0x08: /* return sectorsize */
                 LO(ax) = 0;
-                LWORD(ebx) = 2048;
+                LWORD(ebx) = CD_FRAMESIZE;
                 break;
      case 0x09: /* media changed */
                 /* this function will be called from MSCDEX before
                    each new disk access !                         */
                 HI(ax) = 0; LO(ax) = 0; LO(bx) = 0;
-		C_printf("media changed?  %x\n", audio_status.media_changed);
+		C_printf("CDROM: media changed?  %#x\n", audio_status.media_changed);
 		errno = 0;
 		if (eject_allowed) {
                   if ((audio_status.media_changed) ||
@@ -428,7 +463,7 @@ void cdrom_helper(void)
 			cdrom_reset();
                     audio_status.media_changed = 0;
                     LO(bx) = 1; /* media has been changed */
-		    C_printf("media changed?  yes\n");
+		    C_printf("CDROM: media changed?  yes\n");
                     ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl);
                     if (! ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl))
                       cdrom_reset(); /* disc in drive */
@@ -445,7 +480,7 @@ void cdrom_helper(void)
                     if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl))
                       { /* no disk in drive */
                         LWORD(ebx) = audio_status.status | 0x800;
-			C_printf("subch failed: %s\n", strerror(errno));
+			C_printf("CDROM: subch failed: %s\n", strerror(errno));
                         break;
                       }
                      else cdrom_reset();
@@ -542,7 +577,7 @@ void cdrom_helper(void)
                 req_buf = SEG_ADR((char *), ds, si);
                 cdrom_tocentry.cdte_track = *CALC_PTR(req_buf,MSCD_TRACKINFO_TRACKNUM,u_char);
                 cdrom_tocentry.cdte_format = CDROM_MSF;
-		C_printf("track info, track %d\n", cdrom_tocentry.cdte_track);
+		C_printf("CDROM: track info, track %d\n", cdrom_tocentry.cdte_track);
                 if (ioctl (cdrom_fd, CDROMREADTOCENTRY, &cdrom_tocentry)) {
 		    /* XXX MSCDEX reads beyond the end of existing tracks.  Sigh. */
 		    if (errno != EINVAL)
@@ -673,15 +708,13 @@ void cdrom_helper(void)
    }
 
 #ifdef CDROM_DEBUG
-                if (ioctlin) {
-                  C_printf ("            return  : ");
+                if (d.cdrom>5) {
+                  C_printf ("CDROM: return  ");
                   req_buf = SEG_ADR((char *), ds, si);
                   for (n = 0; n <= 9; ++n)
                      C_printf ("  %3x", req_buf[n]);
                   C_printf ("\n");
                  }
-                else ("\n");
-
                 C_printf ("Leave cdrom request with return status %d.\n", LWORD(eax));
 #endif
    return ;

@@ -1,3 +1,15 @@
+97/05/23 ver. 0.67.3.2 unofficial pre-release
+	From Alberto
+	- timers.c, pit.c: use NEVER instead of -1 in monoton timing
+	- timers.c: removed duplicate calc of 'ticks'
+	- timers.c (pit_inp): avoid changing read_state for the special latch
+	  status command; otherwise next read will get MSB instead of LSB.
+	- cdrom.c: avoid binary sector dumps into log file, use ASCII
+	  reworked debug messages a bit
+	- patch to serial code to activate transmit FIFO
+	From Hans
+	- fixed bug in src/dosext/drivers/cdrom.c (ebx twice set),
+	  that Alberto pointed out (aaah, these eagle eyes ;-)
 97/05/23 ver. 0.67.3.1 unofficial pre-release
 	From Gloriano Frisoni <gfrisoni@hi-net.it>
 	- patch to make winsocket stuff work under win31

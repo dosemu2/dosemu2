@@ -751,7 +751,7 @@ int vesa_set_SVGA_mode(void)
   if(mode<0)
     return(False);
     
-  printf("vesa_set_SVGA_mode(): mode=0x%02x\n", mode);
+  v_printf("vesa_set_SVGA_mode(): mode=0x%02x\n", mode);
   
   if(set_video_mode(mode)==1)
     {

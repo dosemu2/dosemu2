@@ -1026,7 +1026,7 @@ unsigned long pic_newirr;
   pic_sys_time=t_time;
 #else  /* MONOTON_MICRO_TIMING */
   /* wraparound now is smoothly at 1h interval */
-  pic_sys_time=t_time + (t_time == -1);
+  pic_sys_time=t_time + (t_time == NEVER);
 #endif /* MONOTON_MICRO_TIMING */
   pic_print(2,"pic_sys_time set to ",pic_sys_time," ");
   pic_dos_time = pic_itime[32];

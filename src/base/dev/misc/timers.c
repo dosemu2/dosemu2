@@ -233,7 +233,7 @@ static void pit_latch(int latch)
       gettimeofday(&cur_time, NULL);
       pic_sys_time = cur_time.tv_sec*PIT_TICK_RATE 
 	+ PIT_MS2TICKS(cur_time.tv_usec);
-      pic_sys_time += (pic_sys_time == -1);
+      pic_sys_time += (pic_sys_time == NEVER);
       if(latch == 0) {
 	ticks = pic_itime[PIC_IRQ0] - pic_sys_time;
 	if(((int)ticks) < 0) {
@@ -260,8 +260,8 @@ static void pit_latch(int latch)
 #else /* MONOTON_MICRO_TIMING */
       pic_sys_time = cur_time.tv_sec*PIT_TICK_RATE 
 	+ PIT_MS2TICKS(cur_time.tv_usec);
-      pic_sys_time += (pic_sys_time == -1);
-      ticks = pic_itime[PIC_IRQ0] - pic_sys_time;
+      pic_sys_time += (pic_sys_time == NEVER);
+
       if(latch == 0) {
 	ticks = pic_itime[PIC_IRQ0] - pic_sys_time;
 	if(((int)ticks) < 0) {
@@ -305,6 +305,8 @@ Bit8u pit_inp(Bit32u port)
       break;
     case 3: /* read LSB followed by MSB */
       ret = (pit[port].read_latch & 0xff);
+      if (pit[port].mode & 0x80) pit[port].mode &= 7;
+        else
       pit[port].read_state = 0;
       break;
     case 1: /* read MSB */
