@@ -2234,12 +2234,12 @@ void dpmi_realmode_callback(int rmcb_client, int num)
 	*--ssp = (us) 0;
 	*--ssp = DPMI_CLIENT.DPMI_SEL; 
 	ssp -= 2, *((unsigned long *) ssp) = DPMI_OFF + HLT_OFF(DPMI_return_from_rm_callback);
-	ADD_16_32(PMSTACK_ESP, -12);
+	PMSTACK_ESP -= 12;
     } else {
 	*--ssp = (unsigned short) get_vFLAGS(DPMI_CLIENT.stack_frame.eflags);
 	*--ssp = DPMI_CLIENT.DPMI_SEL; 
 	*--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_rm_callback);
-	ADD_16_32(PMSTACK_ESP, -6);
+	LO_WORD(PMSTACK_ESP) -= 6;
     }
     DPMI_CLIENT.stack_frame.cs =
 	DPMIclient[rmcb_client].realModeCallBack[num].selector;
@@ -2455,7 +2455,7 @@ void run_pm_int(int i)
     *--ssp = (us) 0;
     *--ssp = DPMI_CLIENT.DPMI_SEL;
     ssp -= 2, *((unsigned long *) ssp) = DPMI_OFF + HLT_OFF(DPMI_return_from_pm);
-    ADD_16_32(PMSTACK_ESP, -36);
+    PMSTACK_ESP -= 36;
   } else {
     *--ssp = (unsigned short) in_dpmi_dos_int;
     *--ssp = DPMI_CLIENT.stack_frame.ss;
@@ -2466,7 +2466,7 @@ void run_pm_int(int i)
     *--ssp = (unsigned short) get_vFLAGS(DPMI_CLIENT.stack_frame.eflags);
     *--ssp = DPMI_CLIENT.DPMI_SEL; 
     *--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_pm);
-    ADD_16_32(PMSTACK_ESP, -18);
+    LO_WORD(PMSTACK_ESP) -= 18;
   }
   DPMI_CLIENT.stack_frame.cs = DPMI_CLIENT.Interrupt_Table[i].selector;
   DPMI_CLIENT.stack_frame.eip = DPMI_CLIENT.Interrupt_Table[i].offset;
@@ -2551,12 +2551,12 @@ void run_pm_dos_int(int i)
     *--ssp = (us) 0;
     *--ssp = DPMI_CLIENT.DPMI_SEL;
     ssp -= 2, *((unsigned long *) ssp) = ret_eip;
-    ADD_16_32(PMSTACK_ESP, -12);
+    PMSTACK_ESP -= 12;
   } else {
     *--ssp = (unsigned short) get_vFLAGS(DPMI_CLIENT.stack_frame.eflags);
     *--ssp = DPMI_CLIENT.DPMI_SEL; 
     *--ssp = ret_eip;
-    ADD_16_32(PMSTACK_ESP, -6);
+    LO_WORD(PMSTACK_ESP) -= 6;
   }
   DPMI_CLIENT.stack_frame.cs = DPMI_CLIENT.Interrupt_Table[i].selector;
   DPMI_CLIENT.stack_frame.eip = DPMI_CLIENT.Interrupt_Table[i].offset;
@@ -4073,11 +4073,11 @@ done:
 	*--ssp = DPMI_CLIENT.DPMI_SEL; 
 	ssp -= 2, *((unsigned long *) ssp) =
 	     DPMI_OFF + HLT_OFF(DPMI_return_from_mouse_callback);
-	ADD_16_32(PMSTACK_ESP, -8);
+	PMSTACK_ESP -= 8;
     } else {
 	*--ssp = DPMI_CLIENT.DPMI_SEL; 
 	*--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_mouse_callback);
-	ADD_16_32(PMSTACK_ESP, -4);
+	LO_WORD(PMSTACK_ESP) -= 4;
     }
     DPMI_CLIENT.stack_frame.eflags &= ~(AC|TF|NT);
     DPMI_CLIENT.stack_frame.ss = CLIENT_PMSTACK_SEL;
@@ -4146,7 +4146,7 @@ done:
 	*--ssp = DPMI_CLIENT.DPMI_SEL; 
 	ssp -= 2, *((unsigned long *) ssp) =
 	     DPMI_OFF + HLT_OFF(DPMI_return_from_PS2_mouse_callback);
-	ADD_16_32(PMSTACK_ESP, -24);
+	PMSTACK_ESP -= 24;
     } else {
 	*--ssp = *--rm_ssp;
 	D_printf("data: 0x%x ", *ssp);
@@ -4158,7 +4158,7 @@ done:
 	D_printf("0x%x\n", *ssp);
 	*--ssp = DPMI_CLIENT.DPMI_SEL; 
 	*--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_PS2_mouse_callback);
-	ADD_16_32(PMSTACK_ESP, -12);
+	LO_WORD(PMSTACK_ESP) -= 12;
     }
     DPMI_CLIENT.stack_frame.eflags &= ~(AC|TF|NT);
     DPMI_CLIENT.stack_frame.ss = CLIENT_PMSTACK_SEL;
