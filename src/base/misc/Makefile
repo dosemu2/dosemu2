@@ -25,6 +25,7 @@ CPPFLAGS += -I.
 all: lib
 
 fatfs.o: $(srcdir)/fatfs.c fatfs_boot.h
+fatfs.d: $(srcdir)/fatfs.c fatfs_boot.h
 
 fatfs_boot.h:	fatfs_boot.S
 	$(LD) -x assembler -Wa,-a -Wl,-Ttext,7c40,-e,_start16,--oformat,binary -nostdlib -s -o $@.tmp $< > $(<F).out
