@@ -84,16 +84,30 @@ unsigned long base2handle( void *base )
     return 0;
 }
 
-static int SetAttribsForPage(char *ptr, us attr)
+static int SetAttribsForPage(char *ptr, us attr, us old_attr)
 {
     int prot;
 
     switch (attr & 7) {
       case 0:
-        D_printf("UnCom ");
+        D_printf("UnCom");
+        if ((old_attr & 7) == 1) {
+          D_printf("[!]");
+          dpmi_free_memory += DPMI_page_size;
+        }
+        D_printf(" ");
         break;
       case 1:
-	D_printf("Com ");
+        D_printf("Com");
+        if ((old_attr & 7) == 0) {
+          D_printf("[!]");
+          if (dpmi_free_memory < DPMI_page_size) {
+            D_printf("\nERROR: Memory limit exhausted, cannot commit page\n");
+            return 0;
+          }
+          dpmi_free_memory -= DPMI_page_size;
+        }
+        D_printf(" ");
 	break;
       case 2:
         D_printf("N/A-2 ");
@@ -107,10 +121,18 @@ static int SetAttribsForPage(char *ptr, us attr)
     }
     prot = PROT_READ | PROT_EXEC;
     if (attr & 8) {
-      D_printf("RW(X) ");
+      D_printf("RW(X)");
+      if (!(old_attr & 8)) {
+        D_printf("[!]");
+      }
+      D_printf(" ");
       prot |= PROT_WRITE;
     } else {
-      D_printf("R/O(X) ");
+      D_printf("R/O(X)");
+      if (old_attr & 8) {
+        D_printf("[!]");
+      }
+      D_printf(" ");
     }
     if (attr & 16) D_printf("Set-ACC ");
     else D_printf("Not-Set-ACC ");
@@ -142,7 +164,8 @@ static int SetPageAttributes(dpmi_pm_block *block, int offs, us attrs[], int cou
       continue;
     }
     D_printf("%i\t", i);
-    if (!SetAttribsForPage(block->base + offs + (i << PAGE_SHIFT), attrs[i]))
+    if (!SetAttribsForPage(block->base + offs + (i << PAGE_SHIFT),
+	attrs[i], *attr))
       return 0;
     /* mark as dirty, only necessary to properly restore attrs after realloc */
     *attr |= PRIVATE_DIRTY;
@@ -159,7 +182,7 @@ DPMImalloc(unsigned long size, int committed)
    /* aligned size to PAGE size */
     size = (size & 0xfffff000) + ((size & 0xfff)
 				      ? DPMI_page_size : 0);
-    if (size > dpmi_free_memory)
+    if (committed && size > dpmi_free_memory)
 	return NULL;
     if ((block = alloc_pm_block()) == NULL)
 	return NULL;
@@ -173,7 +196,8 @@ DPMImalloc(unsigned long size, int committed)
     block->attrs = malloc((size >> PAGE_SHIFT) * sizeof(u_short));
     for (i = 0; i < size >> PAGE_SHIFT; i++)
 	block->attrs[i] = committed ? 9 : 8;
-    dpmi_free_memory -= size;
+    if (committed)
+	dpmi_free_memory -= size;
     block -> handle = pm_block_handle_used++;
     block -> size = size;
     return block;
@@ -199,7 +223,7 @@ DPMImallocFixed(unsigned long base, unsigned long size, int committed)
    /* aligned size to PAGE size */
     size = (size & 0xfffff000) + ((size & 0xfff)
 				      ? DPMI_page_size : 0);
-    if (size > dpmi_free_memory)
+    if (committed && size > dpmi_free_memory)
 	return NULL;
 
     /* find out whether the address request is available */
@@ -228,7 +252,8 @@ DPMImallocFixed(unsigned long base, unsigned long size, int committed)
     block->attrs = malloc((size >> PAGE_SHIFT) * sizeof(u_short));
     for (i = 0; i < size >> PAGE_SHIFT; i++)
 	block->attrs[i] = committed ? 9 : 8;
-    dpmi_free_memory -= size;
+    if (committed)
+	dpmi_free_memory -= size;
     block -> handle = pm_block_handle_used++;
     block -> size = size;
     return block;
