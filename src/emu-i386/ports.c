@@ -996,8 +996,9 @@ int extra_port_init(void)
 	  }
 	}
 
-	/* switch off ioperm for $_ports that are traced and not forced fast */
-	for (i = 0; i < sizeof(port_handle_table); i++) {
+	if (portlog_map) {
+	    /* switch off ioperm for $_ports that are traced and not forced fast */
+	    for (i = 0; i < sizeof(port_handle_table); i++) {
 		if (test_bit(i, portfast_map)) clear_bit(i, portlog_map);
 		if (test_bit(i, portlog_map) &&
 		    port_handle_table[i] >= HANDLE_STD_IO &&
@@ -1005,6 +1006,7 @@ int extra_port_init(void)
 			set_ioperm(i, 1, 0);
 			i_printf ("PORT: switched off ioperm for traced port 0x%x\n", i);
 		}
+	    }
 	}
 
         if (can_do_root_stuff) {
