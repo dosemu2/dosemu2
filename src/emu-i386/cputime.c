@@ -355,11 +355,12 @@ int idle(int threshold1, int threshold, int usec, const char *who)
     if(trigger1 >= config.hogthreshold *threshold1) {
       if (trigger++ > (config.hogthreshold - 1) * threshold) {
 	usleep(usec);
-	trigger = trigger1 = 0;
-	return 1;
+	trigger = 0;
       }
-      if (trigger1 >= 0)
+      if (trigger1 > 0)
 	trigger1--;
+      if (trigger == 0)
+	return 1;
     }
   }
   return 0;
