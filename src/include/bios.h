@@ -107,16 +107,16 @@ typedef unsigned long udword_t;
 #define WRITE_DWORD(addr, val)          (*(udword_t *) (addr) = (val) )
 
 #define MEMCPY_2UNIX(unix_addr, dos_addr, n) \
-	memcpy(unix_addr, dos_addr, n)
+	memcpy((unix_addr), (Bit8u *)(dos_addr), (n))
 
 #define MEMCPY_2DOS(dos_addr, unix_addr, n) \
-	memcpy(dos_addr, unix_addr, n)
+	memcpy((Bit8u *)(dos_addr), (unix_addr), (n))
 
 #define MEMCPY_DOS2DOS(dos_addr, unix_addr, n) \
-	memcpy(dos_addr, unix_addr, n)
+	memcpy((Bit8u *)(dos_addr), (Bit8u *)(unix_addr), (n))
 
 #define MEMCMP_DOS_VS_UNIX(dos_addr, unix_addr, n) \
-	memcmp(dos_addr, unix_addr, n)
+	memcmp((Bit8u *)(dos_addr), (Bit8u *)(unix_addr), (n))
 
 #endif
 

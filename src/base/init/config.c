@@ -36,7 +36,7 @@ struct debug_flags d =
 /* d  R  W  D  C  v  X  k  i  s  m  #  p  g  c  w  h  I  E  x  M  n  P  r  S */
 
 static void     check_for_env_autoexec_or_config(void);
-int     parse_debugflags(const char *s);
+int     parse_debugflags(const char *s, unsigned char flag);
 static void     usage(void);
 
 /*
@@ -89,6 +89,7 @@ config_defaults(void)
     config.X_icon_name = "dosemu";
     config.X_blinkrate = 8;
     config.X_sharecmap = 0;     /* Don't share colourmap in graphics modes */
+    config.X_mitshm = 0;
     config.X_keycode = 0;
     config.X_font = "vga";
     config.usesX = 0;
@@ -249,7 +250,7 @@ config_init(int argc, char **argv)
 	    config.detach = (unsigned short) detach();
 	    break;
 	case 'D':
-	    parse_debugflags(optarg);
+	    parse_debugflags(optarg, 1);
 	    break;
 	case 'O':
 	    fprintf(stderr, "using stderr for debug-output\n");
@@ -352,7 +353,7 @@ config_init(int argc, char **argv)
 		break;
 	    }
 	case 'D':
-	    parse_debugflags(optarg);
+	    parse_debugflags(optarg, 1);
 	    break;
 	case 'P':
 	    if (terminal_fd == -1) {
@@ -500,10 +501,9 @@ check_for_env_autoexec_or_config(void)
  * 
  * DANG_END_FUNCTION
  */
-int parse_debugflags(const char *s)
+int parse_debugflags(const char *s, unsigned char flag)
 {
     char            c;
-    unsigned char   flag = 1;
 
 #ifdef X_SUPPORT
     const char      allopts[] = "dRWDCvXkism#pgcwhIExMnPrS";
@@ -611,7 +611,7 @@ int parse_debugflags(const char *s)
 		newopts[0] = flag ? '+' : '-';
 		newopts[1] = 0;
 		strcat(newopts, allopts);
-		parse_debugflags(newopts);
+		parse_debugflags(newopts, flag);
 		free(newopts);
 		break;
 	    }

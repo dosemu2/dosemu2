@@ -10,10 +10,6 @@
 #include "machcompat.h"
 #include "bios.h"
 
-#if 0
-FILE *dbg_fd=0;			/* referenced in a billion other places */
-#endif
-
 int
  ifprintf(unsigned int flg, const char *fmt,...) {
   va_list args;
@@ -50,21 +46,18 @@ int
 	result = gettimeofday(&tv, NULL);
 	assert(0 == result);
 	sprintf(tmpbuf, "%d.%d: %s", tv.tv_sec, tv.tv_usec, buf);
-#else
-	sprintf(buf, "%s", buf);
-#endif
-	
-#ifdef SHOW_TIME
 	strcpy(buf, tmpbuf);
+	i = strlen(buf);
   }
 #endif
 
-  write(error_fd, buf, strlen(buf));
+  write(error_fd, buf, i);
   if (terminal_pipe) {
-    write(terminal_fd, buf, strlen(buf));
+    write(terminal_fd, buf, i);
   }
   return i;
 }
+
 
 /* write string to dos? */
 void

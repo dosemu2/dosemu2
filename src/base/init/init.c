@@ -47,9 +47,11 @@
 #include "shared.h"
 #include "iodev.h"
 
+#ifdef USING_NET
 extern void pkt_check_receive_quick(void);
 /* flag to activate use of pic by packet driver */
 #define PICPKT 1
+#endif
 
 #if 0
 static inline void dbug_dumpivec(void)
@@ -207,6 +209,10 @@ void hardware_setup(void)
     pic_unmaski(PIC_IMOUSE);
   }
 #ifdef USING_NET
+#ifdef IPX
+  pic_seti(PIC_IPX, IPXCallRel, 0);
+  pic_unmaski(PIC_IPX);
+#endif
 #ifdef PICPKT
   pic_seti(PIC_NET, pkt_check_receive_quick, 0x61);
 #else
@@ -542,7 +548,7 @@ void low_mem_init(void)
 void version_init(void) {
   struct new_utsname unames;
 
-  uname(&unames);
+  uname((struct utsname *)&unames);
   warn("DOSEMU-%s is coming up on %s version %s\n", VERSTR, unames.sysname, unames.release);
 #ifdef __linux__
   warn("Built for %d\n", KERNEL_VERSION);

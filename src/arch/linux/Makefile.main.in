@@ -222,7 +222,7 @@ warning2:
 	 fi; \
 	 echo ""; \
 
-ifdef WAIT
+ifeq ($(WAIT),"yes")
 pausekey:
 	@echo "====> Press Enter to continue, or hit Ctrl-C to abort <===="
 	@read

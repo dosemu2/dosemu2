@@ -21,7 +21,9 @@
 #include "ipx.h"
 #include "pktdrvr.h"
 
-void IPXRelinquishControl(void);
+extern void keyb_server_run(void);
+
+extern void keyb_server_run(void);
 
 #ifdef __NetBSD__
 extern int errno;
@@ -303,11 +305,11 @@ void SIGALRM_call(void){
   /* this is for per-second activities */
   partials++;
   if (partials == FREQ) {
+    partials = 0;
 #ifdef IPX
   if (config.ipxsup)
-    IPXRelinquishControl();
+    pic_request (PIC_IPX);
 #endif
-    partials = 0;
     printer_tick((u_long) 0);
     if (config.fastfloppy)
       floppy_tick();

@@ -65,6 +65,9 @@
  * 1996/05/20: More work on colourmap, bugfixes, speedups, and better
  * mouse support in graphics modes. --adm
  *
+ * 1996/08/18: Make xdos work with TrueColor displays (again?) -- Thomas Pundt
+ * (pundtt@math.uni-muenster.de)
+ *
  * DANG_END_CHANGELOG
  */
 
@@ -336,6 +339,8 @@ static int try_cube(unsigned char redsh,
 }
 
   
+static Visual *visual;
+
 /* DANG_BEGIN_FUNCTION get_vga256_colors
  *
  * Allocates a colormap for 256 color modes and initializes it.
@@ -345,7 +350,6 @@ static int try_cube(unsigned char redsh,
 static void get_vga256_colors(void)
 {
   int i;
-  Visual *visual;
   DAC_entry color;
 
   DAC_init();
@@ -393,7 +397,10 @@ static void get_vga256_colors(void)
 	}
       if (!have_shmap)
 	{
-	  vga256_cmap=XCreateColormap(display, rootwindow, visual, AllocAll);
+	  if(visual->class&1)
+	    vga256_cmap=XCreateColormap(display, rootwindow, visual, AllocAll);
+	  else
+	    vga256_cmap=XCreateColormap(display, rootwindow, visual, AllocNone);
 	  for(i=0; i<256; i++)
 	    {
 	      DAC_get_entry(&color, (unsigned char)i);
@@ -402,7 +409,7 @@ static void get_vga256_colors(void)
 	      xcol.green=(color.g*65535)/63;
 	      xcol.blue =(color.b*65535)/63;
 	      
-	      XStoreColor(display, vga256_cmap, &xcol);
+	      if(visual->class&1) XStoreColor(display, vga256_cmap, &xcol);
 	    }
 	}
     }
@@ -418,7 +425,7 @@ static void get_vga256_colors(void)
 	  xcol.green=color.g<<10;
 	  xcol.blue =color.b<<10;
 
-	  XStoreColor(display, vga256_cmap, &xcol);
+	  if(visual->class&1) XStoreColor(display, vga256_cmap, &xcol);
 	}
     }
 }
@@ -1086,7 +1093,7 @@ static void X_redraw_screen(void)
 	}
       break;
 
-#ifdef 0 /* wordt eigenlijk niet meer gebruikt */
+#if 0 /* wordt eigenlijk niet meer gebruikt */
     case 0x13:	/* graphics 320x200 256*/
       {
         unsigned int counter;
@@ -1468,7 +1475,7 @@ chk_cursor:
 		    xcol.red  =(color.r*65535)/63;
 		    xcol.green=(color.g*65535)/63;
 		    xcol.blue =(color.b*65535)/63;
-		    XStoreColor(display, vga256_cmap, &xcol);
+		    if(visual->class&1) XStoreColor(display, vga256_cmap, &xcol);
 		  }
 	      }
 	  }

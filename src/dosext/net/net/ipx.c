@@ -1,5 +1,8 @@
 /* ipx.c for the DOS emulator
  * 		Tim Bird, tbird@novell.com
+ *
+ * 96/07/31 -	Add callback from ESR and procedure to call into 
+ *		IPX from DOSEmu (bios.S ESRFarCall). JES
  */
 #include "ipx.h"
 #ifdef IPX
@@ -19,6 +22,7 @@
 #include "timers.h"
 #include "memory.h"
 #include "emu.h"
+#include "cpu.h"
 #include "inifile.h"
 
 #define MAX_PACKET_DATA		1500
@@ -34,8 +38,10 @@ extern struct vm86_struct vm86s;
 extern u_char IPXCancelEvent(far_t ECBPtr);
 far_t ESRPopRegistersReturn;
 far_t ESRPopRegistersIRet;
+far_t ESRFarCall;
 
 static ipx_socket_t *ipx_socket_list = NULL;
+static IPXRunning = 0;
 
 /* DANG_FIXTHIS - get a real value for my address !! */
 static unsigned char MyAddress[10] =
@@ -191,7 +197,7 @@ InitIPXFarCallHelper(void)
   *ptr++ = 0xcf;		/* iret */
 #else
   {
-    extern void bios_f000(), bios_IPX_PopRegistersReturn(), bios_IPX_PopRegistersIRet();
+    extern void bios_f000(), bios_IPX_PopRegistersReturn(), bios_IPX_PopRegistersIRet(), bios_IPX_FarCall();
     long i = (long)bios_IPX_PopRegistersReturn - (long)bios_f000;
     i += BIOSSEG << 4;
     ESRPopRegistersReturn.segment = i >> 4;
@@ -200,6 +206,10 @@ InitIPXFarCallHelper(void)
     i += BIOSSEG << 4;
     ESRPopRegistersIRet.segment = i >> 4;
     ESRPopRegistersIRet.offset = i & 0xf;
+    i = (long)bios_IPX_FarCall - (long)bios_f000;
+    i += BIOSSEG << 4;
+    ESRFarCall.segment = i >> 4;
+    ESRFarCall.offset = i & 0xf;
   }
 #endif
 }
@@ -550,6 +560,7 @@ PrepareForESR(int iretFlag, ECB_t * ECB, far_t ECBPtr, u_char AXVal)
   unsigned char *ssp;
   unsigned long sp;
 
+  IPXRunning++;
   ssp = (unsigned char *)(REG(ss)<<4);
   sp = (unsigned long) LWORD(esp);
 
@@ -584,8 +595,8 @@ PrepareForESR(int iretFlag, ECB_t * ECB, far_t ECBPtr, u_char AXVal)
 
   n_printf("IPX: setup for ESR address at %04X:%04lX\n",
 	   _regs.cs, _regs.eip);
-  n_printf("IPX: ES:SI = %04X:%04lX, AX = %X\n",
-	   _regs.es, _regs.esi, LWORD(eax));
+  n_printf("IPX: ES:SI = %04X:%04lX, AX = %X, VIF = %d\n",
+	   _regs.es, _regs.esi, LWORD(eax), LWORD(eflags) & VIF);
 }
 
 void
@@ -868,7 +879,7 @@ ScatterFragmentData(int size, char *buffer, ECB_t * ECB,
       /* use data from sipx to fill out source address */
       IPXHeader = (IPXPacket_t *) memptr;
       IPXHeader->Checksum = 0xFFFF;
-      IPXHeader->Length = size + 30;
+      IPXHeader->Length = SwapInt(size + 30); /* in network order */
       /* DANG_FIXTHIS - use real values to fill out IPX header here */
       IPXHeader->TransportControl = 1;
       IPXHeader->PacketType = 0;
@@ -1009,6 +1020,8 @@ IPXRelinquishControl(void)
   int selrtn;
   struct timeval timeout;
   int ESRFired = 0;
+
+  if(IPXRunning) return;
 
   FD_ZERO(&fds);
 
@@ -1188,6 +1201,25 @@ IPXFarCallHandler(void)
     break;
   }
   return 1;
+}
+
+void IPXEndCall(void) {
+	if(--IPXRunning < 0) IPXRunning = 0; /* Just incase */
+    	n_printf("IPX: ESR Ended\n");
+	if(!IPXRunning) IPXCallRel(); /* Ask for more */
+	
+}
+
+void IPXCallRel(void) {
+  unsigned char *ssp;
+  unsigned long sp;
+  ssp = (unsigned char *)(REG(ss)<<4);
+  sp = (unsigned long) LWORD(esp);
+  pushw(ssp, sp, LWORD(cs));
+  pushw(ssp, sp, LWORD(eip));
+  LWORD(esp) -= 4;
+  _regs.cs = ESRFarCall.segment;
+  _regs.eip = ESRFarCall.offset;
 }
 
 /* ipx_close is called on DOSEMU shutdown */

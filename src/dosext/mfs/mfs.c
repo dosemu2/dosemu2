@@ -751,7 +751,7 @@ init_drive(int dd, char *path, char *options)
   if (num_drives <= dd)
     num_drives = dd + 1;
   read_onlys[dd] = (options && (toupper(options[0]) == 'R'));
-  Debug0((dbg_fd, "initialised drive %d as %s\n  with access of %s\n", dd, dos_roots[dd],
+  Debug0((dbg_fd, "initialised drive %d as %s with access of %s\n", dd, dos_roots[dd],
 	  read_onlys[dd] ? "READ_ONLY" : "READ_WRITE"));
 #if 0  
   calculate_drive_pointers (dd);
@@ -2541,8 +2541,8 @@ dos_fs_redirect(state)
       }
       sft_position(sft) += ret;
       sft_abs_cluster(sft) = 0x174a;	/* XXX a test */
-      Debug0((dbg_fd, "File data %c %c %c\n",
-	      dta[0], dta[1], dta[2]));
+/*      Debug0((dbg_fd, "File data %02x %02x %02x\n",
+	      dta[0], dta[1], dta[2])); */
       Debug0((dbg_fd, "Read file pos after = %ld\n",
 	      sft_position(sft)));
       return (return_val);
@@ -3134,8 +3134,15 @@ dos_fs_redirect(state)
       auspr(fpath + bs_pos + 1, fname, fext);
       if (bs_pos == 0)
 	strcpy(fpath, "/");
-      hlist = match_filename_prune_list(
-				  get_dir(fpath, fname, fext), fname, fext);
+	   
+      hlist = get_dir(fpath, fname, fext);
+      if (hlist==NULL)  {
+         SETWORD(&(state->eax), PATH_NOT_FOUND);
+         return (FALSE);
+      }
+   
+      hlist = match_filename_prune_list(hlist,fname,fext);
+				  
       hlist_index = hlist_push(hlist, sda_cur_psp(sda));
       sdb_dir_entry(sdb) = hlist_index;
       return (TRUE);
@@ -3146,8 +3153,14 @@ dos_fs_redirect(state)
 #endif
     if (bs_pos == 0)
       strcpy(fpath, "/");
-    hlist = match_filename_prune_list(
-				  get_dir(fpath, fname, fext), fname, fext);
+
+    hlist = get_dir(fpath, fname, fext);
+    if (hlist==NULL)  {
+       SETWORD(&(state->eax), PATH_NOT_FOUND);
+       return (FALSE);
+    }
+
+    hlist = match_filename_prune_list(hlist, fname, fext);
     hlist_index = hlist_push(hlist, sda_cur_psp(sda));
     sdb_dir_entry(sdb) = hlist_index;
     firstfind = 1;

@@ -1,6 +1,43 @@
+96/09/18 23:06:34 From : JES - Allow compiling without X support --without-x
+96/08/30 01:21:30 From: Eric -- Some more Bugfixes, and a little video cleanup practice
+96/08/07 13:56:38 From : Rainer - Video / Keyboard / Misc cleanup
+ * added runtime MITSHM detection
+ * fixed a problem with mouse initalisation
+ * mfs.c: fixed find_first error code if directory doesn't exist
+96/08/02 18:45:49 From Alberto - Fix PIC bug even w/o emumodule & leave for vacations
+96/08/01 22:39:10 From : JES - Minor changes to pic.[ch]
+-	Not sure if these make a difference, but since I'm no C guru, it looked
+	like some variable (pic_sys_time) were defined twice? At least it still
+	works looking this way ;).
+96/07/31 19:57:40 From Alberto - Make debug flag working again & other fixes
+96/07/31 18:29:09 From : JES - More IPX fixing and a Video WorkAround
+-	After all I went through to learn _not_ to call IPX functions
+	directly... I turn around and do it again ;-(. Always call IPXCallRel().
+96/07/31 13:57:15 From : JES - Fix IPX again ;(
+96/07/31 12:03:14 From : JES - The Real Patch(tm) to bring IPX watchdog into DOSEmu
+-	With many thanks to Tim Bird and JL, here is a patch to get 
+	asynchronos events happening under DOSEmu. This will make DOSEmu
+	nolonger dependent on the wdogfix.com TSR. The problem before was
+	making a stack returnable via retf. Also added is an ESR callback
+	which may give slight IPX speed inprovements (may not), but 
+	prepares DOSEmu for more IPX development ;).
+96/07/29 21:33:55 From Alberto - Fixed sig11 in leavedos() and cleaned some warnings
 
 96/09/15 ******** Release 0.64.0 - Made from 0.63.50
 
+96/07/21 09:08:21 From Alberto - patches to serial code & various stuff
+96/07/21 00:51:37 From Alberto - patches to serial code to avoid reentrancy
+   problems - Changes to tracing code in ports.c and dpmi.c - Some spelling
+   and small bug fixes
+96/07/19 22:34:50 From : kan@dcit.cz - Fixes to parsing and Dr? regs.
+1) parse_config() used to check the wrong id in order to find out whether
+   the user is allowed to have dangerous options in the configfile.
+   Hum.. it looks like my own bug...
+   (someone already fixed the same thing in parse_dosemu_users())
+2) At least one program (I think it was a game--Winter Olympic Games perhaps) 
+   plays with dr? registers (trying to avoid being debugged?). This problem 
+   made me add some handling for mov dr??, ?? to vm86_GP_fault and make the 
+   type of org_eip correct (actually, I did it in the opposite order <smile>)
 96/07/10 11:26:50 From Hans: Dosdebug goes DPMI (+some minor DPMI-fixes)
 96/07/07 16:13:11 From : JES - Allow stdin to be non-tty
 - NO this is not the do-all-end-all to allow remote control access of DOSEmu.

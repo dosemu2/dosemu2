@@ -103,12 +103,12 @@ void vm86_GP_fault(void)
 {
 
   unsigned char *csp, *lina;
-  unsigned long org_eip;
+  Bit32u org_eip;
   int pref_seg;
   int done,is_rep,is_32bit;
 
 #if 0
-  u_short *ssp = SEG_ADR((us *), ss, sp);
+  u_short *ssp;
   static int haltcount = 0;
 #endif
 
@@ -116,10 +116,14 @@ void vm86_GP_fault(void)
 
 #if 0
     csp = SEG_ADR((unsigned char *), cs, ip);
-    k_printf("SIGSEGV cs=0x%04x ip=0x%04lx *csp=0x%02x->0x%02x 0x%02x 0x%02x\n", LWORD(cs), REG(eip), csp[-1], csp[0], csp[1], csp[2]);
-/*
-    show_regs(__FILE__, __LINE__);
-*/
+    ssp = SEG_ADR((us *), ss, sp);
+    if ((*csp&0xfd)==0xec) {	/* inb, outb */
+    	i_printf("VM86_GP_FAULT at %08lx, cod=%02x %02x*%02x %02x %02x %02x\n"
+		 "                 stk=%04x %04x %04x %04x\n", 
+		 (long)csp,
+		 csp[-2], csp[-1], csp[0], csp[1], csp[2], csp[3],
+		 ssp[0], ssp[1], ssp[2], ssp[3]);
+    }
 #endif
 
   if (ignore_segv) {
@@ -524,7 +528,7 @@ run_vm86(void)
 #if 0
 #define PFLAG(f)  if (REG(eflags)&(f)) k_printf(#f" ")
 
-  k_printf("FLAGS BEFOR: ");
+  k_printf("FLAGS BEFORE: ");
   PFLAG(CF);
   PFLAG(PF);
   PFLAG(AF);
@@ -572,7 +576,7 @@ run_vm86(void)
 	vm86_GP_fault();
 	break;
     case VM86_STI:
-	I_printf("Return from vm86() for timeout\n");
+	I_printf("Return from vm86() for STI\n");
 	pic_iret();
 	break;
     case VM86_INTx:

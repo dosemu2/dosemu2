@@ -132,6 +132,8 @@ extern void InitIPXFarCallHelper(void);
 extern int IPXInt2FHandler(void);
 extern int IPXFarCallHandler(void);
 extern void AESTimerTick(void);
+extern void IPXCallRel(void);
+extern void IPXEndCall(void);
 
 extern int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks );
 

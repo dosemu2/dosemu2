@@ -1,8 +1,8 @@
 =======================================================================
 
 File:            EMUsuccess.txt
-Last modified:   May 14, 1996
-Dosemu version:  0.63.1.16 (and possibly earlier versions)
+Last modified:   Aug 2, 1996
+Dosemu version:  0.63.1.67 (and possibly earlier versions)
 
 The most up-to-date version of this file may be found on:
 
@@ -94,6 +94,7 @@ DESCENT                game              xpour@sun.felk.cvut.cz
 DesignCad              cad packag        mike@strauss.udel.edu
 Disk Freedom 4.6       disk utility
 diet 1.45f             file compression  stub@linux.rz.tu-clausthal.de
+DJGPP v.2              gcc 2.7.2 under DPMI
 DOOM v1.9              game              marky@magmacom.com
 DOOM2 v1.666           game              marky@magmacom.com
 Dos Command Center     NC clone          100542.3163@compuserve.com
@@ -233,6 +234,7 @@ NJStar 2.1             Chinese word proc aab2@cornell.edu
 nnansi.com             ANSI driver       mdrejhon@undergrad.math.uwaterloo.ca
 Norton Commander 3     User shell        miguel@roxanne.nuclecu.unam.mx
 Norton Commander 4.0   user shell        kmg@barco.be
+Norton Commander 5.0   user shell        a.vignani@crf.it
 Norton Utils 4.5       disk utils        rideau@clipper.ens.fr
 Norton Utils 7.0       disk utils        rideau@clipper.ens.fr
 Noteworthy Music ROEG2 music editor???   dplatt@3do.com
@@ -343,6 +345,8 @@ Turbo Pascal 5.5       compiler
 Turbo Pascal 6.0       compiler          marc.eberhard@physik.tu-muenchen.de
 Turbo Pascal 7.0       compiler          mdrejhon@undergrad.math.uwaterloo.ca
 Turb-opoly 1.43                          root@bobspc.canisius.edu
+UltiBoard v 4.70       PCB package       a.vignani@crf.it
+ (w/ dongle by defining ports { 0x378 0x37b})
 Ultima 6               game              msphil@birds.wm.edu
 Unreal                 game?             tiensivu@cps.msu.edu
 Ventura Publisher 3.0  desktop pub.      niemann@swt.ruhr-uni-bochum.de

@@ -1011,12 +1011,12 @@ do_serial_out(int num, int address, int val)
     }
     else {
       put_tx(num, val);		/* else, Transmit character (write to THR) */
-      #ifdef SER_DEBUG_HEAVY
+      if (s2_printf) {
         if (com[num].MCR & UART_MCR_LOOP)
-          if(s2_printf) s_printf("SER%d: Transmit 0x%x Loopback\n",num,val);
+          s_printf("SER%d: Transmit 0x%x Loopback\n",num,val);
         else
-          if(s2_printf) s_printf("SER%d: Transmit 0x%x\n",num,val);
-      #endif
+          s_printf("SER%d: Transmit 0x%x\n",num,val);
+      }
     }
     break;
 

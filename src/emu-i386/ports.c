@@ -1,7 +1,20 @@
+
+/* ====================================================================== */
+
 #include "config.h"
 
 /* Define if we want graphics in X (of course we want :-) (root@zaphod) */
 /* WARNING: This may not work in BSD, because it was written for Linux! */
+
+/* GUS PnP support: I added code here and in cpu.c which allows you to
+   initialize the GUS under dosemu, while the Linux support is still in
+   the works. It is clearly a better solution than the loadlin/warmboot
+   method.
+   You have to use -DGUSPNP in the local Makefile to activate it.
+   WARNING: the HW addresses are hardcoded; I obtained them by running
+   isapnptools. On your system they can change depending on the other
+   PnP hardware you have; so check them before - AV
+*/
 
 #include <stdio.h>
 #include <termios.h>
@@ -59,14 +72,16 @@
 
 #include "dma.h"
 
+/* ====================================================================== */
 /*  */
 /* inb,inw,ind,outb,outw,outd @@@  32768 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/arch/linux/async/sigsegv.c --> src/emu-i386/ports.c  */
 /* PORT_DEBUG is to specify whether to record port writes to debug output.
 * 0 means disabled.
 * 1 means record all port accesses to 0x00 to 0xFF
 * 2 means record ANY port accesses!  (big fat debugfile!)
+* 3 means record all port accesses from 0x100 to 0x3FF
 */ 
-#define PORT_DEBUG 0
+#define PORT_DEBUG 3
 
 extern void set_leds(void);
 /* FIXME -- move to common header */
@@ -83,7 +98,7 @@ extern int s3_8514_base;
  *
  * DANG_END_FUNCTION
  */
-unsigned int
+unsigned char
 inb(unsigned int port)
 {
 
@@ -97,11 +112,20 @@ inb(unsigned int port)
   r = 0xff;
 
   port &= 0xffff;
-  if (port == 0x80) return 0; /* used by linux, djgpp.. NOP */
-  if (port_readable((u_int)port))
-    r = (read_port((u_int)port) & 0xFF);
+/* On my system MS-DOS 7 startup makes a lot of reads to port 0x80, which
+   is undefined in the AT architecture; I don't know why. Also, linux
+   uses successfully since 1991 this port as a 'nop' hardware delay, and
+   so did I under djgpp. Let's assume that accessing port 0x80 is only
+   a delay operation, and don't do anything with it - AV */
+  if (port == 0x80) return 0xff;
+
+  if (port_readable((u_int)port)) {
+    r = read_port((u_int)port);
+    return r;
+  }
+
 #if X_GRAPHICS
-  else if ( (config.X) &&
+  if ( (config.X) &&
             ( ((port>=0x3c0) && (port<=0x3c1)) || /* root@zaphod attr ctrl */
               ((port>=0x3c6) && (port<=0x3c9)) || /* root@zaphod */
               ((port>=0x3D0) && (port<=0x3DD)) ) )
@@ -145,28 +169,28 @@ inb(unsigned int port)
   case 0x20:
   case 0x21:
     r = read_pic0((u_int)port);
-    break;
+    return r;		/* use 'break' if you want to trace it */
   case 0xa0:
   case 0xa1:
     r = read_pic1((u_int)port);
-    break;
+    return r;
   case 0x60:
   case 0x61:
   case 0x64:
     r = keyb_io_read((u_int)port);
-    break;
+    return r;
   case 0x70:
   case 0x71:
     r = cmos_read((u_int)port);
-    break;
+    break;		/* always trace this one */
   case 0x40:
   case 0x41:
   case 0x42:
     r = pit_inp((u_int)port);
-    break;
+    return r;
   case 0x43:
     r = port_inb((u_int)port);
-    break;
+    return r;
   case 0x3ba:
   case 0x3da:
     /* graphic status - many programs will use this port to sync with
@@ -186,11 +210,11 @@ inb(unsigned int port)
   case 0x203:
   case 0x207:
   case 0x20b:
-  case 0x220...0x22f:
-  case 0x320...0x32f:
-  case 0x279:
+  case 0x220 ... 0x22f:
+  case 0x320 ... 0x32f:
+/*  case 0x279: */
     r = safe_port_in_byte (port);
-    break;
+    return r;
 
   case 0xa79:
     iopl (3);
@@ -203,14 +227,14 @@ inb(unsigned int port)
     for (tmp = 0; tmp < config.num_ser; tmp++)
       if ((port & ~7) == com[tmp].base_port) {
         r = do_serial_in(tmp, port);
-        break;
+        return r;
       }
 
 #ifdef USE_SBEMU
     /* Sound I/O */
     if ((port & SOUND_IO_MASK) == config.sb_base) {
       r=sb_io_read(port);
-      break;
+      return r;
     }
     /* It seems that we might need 388, but this is write-only, at least in the
        older chip... */
@@ -219,21 +243,20 @@ inb(unsigned int port)
     /* DMA I/O */
     if ( ((port & ~15) == 0) || ((port & ~15) == 0x80) || ((port & ~31) == 0xC0) ) {
        r=dma_io_read(port);
-       break;
-    };
+    }
 
     /* The diamond bug */
-    if (config.chipset == DIAMOND && (port >= 0x23c0) && (port <= 0x23cf)) {
+    else if (config.chipset == DIAMOND && (port >= 0x23c0) && (port <= 0x23cf)) {
       iopl(3);
       r = port_in(port);
       iopl(0);
       i_printf(" Diamond inb [0x%x] = 0x%x\n", port, r);
-      break;
     }
+    else {
     i_printf("default inb [0x%x] = 0x%02x\n", port, r);
-    h_printf("read port 0x%x dummy return 0xff at %04x:%04x",
-	     port, LWORD(cs), LWORD(eip));
+      h_printf("read port 0x%x dummy return 0xff", port);
     h_printf(" because not in access list\n");
+  }
   }
 
 /* Now record the port and the read value to debugfile if needed */
@@ -243,13 +266,13 @@ inb(unsigned int port)
 #elif PORT_DEBUG == 3
   if (port >= 0x100)
 #endif
-    i_printf("PORT: Rd 0x%04x -> 0x%02x\n",port,r);
+    i_printf ("PORT: Rd 0x%04x -> 0x%02x\n", port, r);
 #endif
 
   return r;    /* Return with port read value */
 }
 
-int
+unsigned int
 inw(int port)
 {
   if ((config.chipset == S3) && ((port & 0x03ff) == s3_8514_base) && (port & 0xfc00)) {
@@ -264,7 +287,7 @@ inw(int port)
   return( read_port_w(port) );
 }
 
-int
+unsigned int
 ind(int port)
 {
   int v=read_port_w(port) & 0xffff;
@@ -278,17 +301,8 @@ outb(unsigned int port, unsigned int byte)
   static unsigned int tmp = 0;
 
   port &= 0xffff;
-  if (port == 0x80) return;   /* used by linux, djgpp.. NOP */
+  if (port == 0x80) return;   /* used by linux, djgpp.. see above */
   byte &= 0xff;
-
-#if PORT_DEBUG > 0
-#if PORT_DEBUG == 1
-  if (port < 0x100)
-#elif PORT_DEBUG == 3
-  if (port >= 0x100)
-#endif
-    i_printf("PORT: Wr 0x%04x <- 0x%02x\n",port,byte);
-#endif
 
   if (port_writeable(port)) {
     write_port(byte, port);
@@ -422,6 +436,15 @@ outb(unsigned int port, unsigned int byte)
     return;
   }
 
+#if PORT_DEBUG > 0
+#if PORT_DEBUG == 1
+  if (port < 0x100)
+#elif PORT_DEBUG == 3
+  if (port >= 0x100)
+#endif
+    i_printf ("PORT: Wr 0x%04x <- 0x%02x\n", port, byte);
+#endif
+
   switch (port) {
   case 0x20:
   case 0x21:
@@ -453,8 +476,8 @@ outb(unsigned int port, unsigned int byte)
   case 0x203:
   case 0x207:
   case 0x20b:
-  case 0x220...0x22f:
-  case 0x320...0x32f:
+  case 0x220 ... 0x22f:
+  case 0x320 ... 0x32f:
   case 0x279:
     set_ioperm (port, 1, 1);
     port_out (byte, port);
@@ -484,7 +507,7 @@ outb(unsigned int port, unsigned int byte)
       sb_io_write(port, byte);
       break;
     }
-    if ((port & ~3) == 388) {
+    else if ((port & ~3) == 388) {
       adlib_io_write(port, byte);
       break;
     }
@@ -493,13 +516,12 @@ outb(unsigned int port, unsigned int byte)
     /* DMA I/O */
     if (((port & ~15) == 0) || ((port & ~15) == 0x80) || ((port & ~31) == 0xC0)) {
       dma_io_write(port, byte);
-      break;
     }
-
+    else {
     i_printf("default outb [0x%x] 0x%02x\n", port, byte);
-    h_printf("write port 0x%x denied value %02x at %04x:%04x",
-	     port, (byte & 0xff), LWORD(cs), LWORD(eip));
+      h_printf("write port 0x%x denied value %02x", port, (byte & 0xff));
     h_printf(" because not in access list\n");
+  }
   }
   lastport = port;
 }
@@ -524,6 +546,7 @@ outw(unsigned int port, unsigned int value)
 void
 outd(unsigned int port, unsigned int value)
 {
+  port &= 0xffff;
   outw(port,value & 0xffff);
   outw(port+2,(unsigned int)value >> 16);
 }

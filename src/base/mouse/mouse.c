@@ -447,7 +447,7 @@ mouse_int(void)
     break;
 
   default:
-    error("MOUSE: function 0x%04x not implemented\n", LWORD(eax));
+    m_printf("MOUSE: function 0x%04x not implemented\n", LWORD(eax));
     break;
   }
 
@@ -1495,9 +1495,10 @@ mouse_init(void)
     }
 
     if ((mice->type == MOUSE_PS2) || (mice->type == MOUSE_BUSMOUSE)) {
-      mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK));
+      mice->fd = open(mice->dev, O_RDWR | O_NONBLOCK);
       mice->add_to_io_select = 0;
       if (mice->fd == -1) {
+	  error("Cannot open internal mouse device %s\n",mice->dev);
 	  mice->intdrv = FALSE;
 	  mice->type = MOUSE_NONE;
 	  return;
@@ -1539,13 +1540,22 @@ mouse_init(void)
 void
 mouse_close(void)
 {
+  int result;
+   
 #ifdef X_SUPPORT
   if (config.X || config.usesX) return;
 #endif
   
   if (mice->intdrv && mice->fd != -1 ) {
-    tcsetattr(mice->fd, TCSANOW, &mice->oldset);
+    m_printf("mouse_close: calling tcsetattr\n");
+    result=tcsetattr(mice->fd, TCSANOW, &mice->oldset);
+    if (result==0)
+       m_printf("mouse_close: tcsetattr ok\n");
+    else
+       m_printf("mouse_close: tcsetattr failed: %s\n",strerror(errno));
+    m_printf("mouse_close: closing mouse device, fd=%d\n",mice->fd);
     DOS_SYSCALL(close(mice->fd));
+    m_printf("mouse_close: ok\n");
     return;
   }
 

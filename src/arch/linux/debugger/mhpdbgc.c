@@ -53,6 +53,8 @@
 #define MHP_PRIVATE
 #include "mhpdbg.h"
 
+#define MAP_LOC		"/usr/src/dosemu/bin/dosemu.map"
+
 #define makeaddr(x,y) ((((unsigned long)x) << 4) + (unsigned long)y)
 
 #if 0 /* modify_ldt already defined in dpmi.c */
@@ -350,7 +352,7 @@ static void mhp_rmapfile(int argc, char *argv[])
   unsigned char bytebuf[IBUFS];
   unsigned long a1;
 
-  ifp = fopen("/usr/src/dosemu/dosemu.map", "r");
+  ifp = fopen(MAP_LOC, "r");
   if (!ifp) {
      mhp_printf("unable to open map file\n");
      return;

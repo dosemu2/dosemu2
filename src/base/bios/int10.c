@@ -333,7 +333,7 @@ boolean set_video_mode(int mode) {
 
   if (Video->setmode == 0)
     { 
-      v_printf("video: no setmode handler!");
+      v_printf("video: no setmode handler!\n");
       goto error;
     }
 

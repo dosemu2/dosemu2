@@ -4,6 +4,8 @@
 #ifndef MOUSE_H
 #define MOUSE_H
 
+#include <termios.h>
+
 #define MOUSE_BASE_VERSION	0x0700	/* minimum driver version 7.00 */
 #define MOUSE_EMU_VERSION	0x0000	/* my driver version 0.00 */
 /* this is the version returned to DOS programs */
@@ -123,7 +125,9 @@ EXTERN struct  {
   } ps2;
 } mouse;
 
-void mouse_keyboard(int), mouse_curtick(void), mouse_sethandler(void *, unsigned short *, unsigned short *);
+void mouse_keyboard(int);
+void mouse_curtick(void);
+void mouse_sethandler(void *, unsigned short *, unsigned short *);
 
 EXTERN mouse_t mice[MAX_MOUSE] ;
 

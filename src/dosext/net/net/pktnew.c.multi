@@ -19,9 +19,6 @@
 #include "emu.h"
 #include "pktdrvr.h"
 #include "emu.h"
-#if 0
-#include "cpu.h"
-#endif /* WHY */
 #include "dosio.h"
 #include "memory.h"
 #include <stddef.h>
@@ -29,6 +26,13 @@
 #include <string.h>
 #include <sys/time.h>
 #include <linux/if_ether.h>
+/* flag to activate use of pic by packet driver */
+#if 0
+#define PICPKT 1
+#endif
+#ifdef PICPKT
+#include "pic.h"
+#endif
 
 #define min(a,b)	((a) < (b)? (a) : (b))
 
@@ -197,7 +201,7 @@ pkt_init (int vec)
 
 /* this is the handler for INT calls from DOS to the packet driver */
 int
-pkt_int ()
+pkt_int (void)
 
 {
     struct per_handle *hdlp;
@@ -407,7 +411,11 @@ pkt_int ()
 		    {
 			/* send was okay, check for a reply to speedup */
 			/* things (background poll is quite slow) */
+#ifdef PICPKT
+			pic_request(PIC_NET);
+#else
 			pkt_check_receive(50000);
+#endif
 			return 1;
 		    } else {
 			warn("NPKT: DosnetWriteToNetwork(%d,\"%s\",buffer,%u): error %d\n",
@@ -566,8 +574,7 @@ pkt_check_receive_quick(void){
 }
 
 int
-pkt_check_receive(timeout)
-int timeout;
+pkt_check_receive(int timeout)
 
 {
     int size,handle, fd;
@@ -684,7 +691,11 @@ int timeout;
 		    /* interrupt which will perform the upcall */
 	     pg->size = size;
 	     pg->receiver = hdlp->receiver;
+#ifdef PICPKT
+	     do_irq();
+#else
 	     run_int(pg->helpvec);
+#endif
              pd_printf("Called the helpvector ... \n");
 	     return 1;
     } else

@@ -1222,6 +1222,13 @@ int13(u_char i)
     d_printf("int 13h, ax=%04x...weird windows disk interrupt\n",
 	     LWORD(eax));
     break;
+  case 0xf9:			/* SWBIOS installation check */
+    CARRY;
+    break;
+  case 0xfe:			/* SWBIOS get extended cyl count */
+    if (dp) LWORD(edx) = dp->tracks % 1024;
+    NOCARRY;
+    break;
   default:
     error("ERROR: disk error, unknown command: int13, ax=0x%x\n",
 	  LWORD(eax));

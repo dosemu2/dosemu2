@@ -210,7 +210,7 @@ Bit8u sb_io_read(Bit32u port)
 
    case 0x0A: /* DSP Read Data - SB */
      value = dsp_read_output(); 
-     S_printf ("SB: Read %u from SB DSP\n", value);
+     S_printf ("SB: Read 0x%x from SB DSP\n", value);
      return value;
      break;
 

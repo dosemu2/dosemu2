@@ -224,6 +224,7 @@ icon_name		return(ICON_NAME);
 keycode			return(X_KEYCODE);
 blinkrate		return(X_BLINKRATE);
 sharecmap		return(X_SHARECMAP);
+mitshm                  return(X_MITSHM);
 font			return(X_FONT);
 
         /* Sound stuff */

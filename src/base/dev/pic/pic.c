@@ -63,13 +63,12 @@
 #include "../dpmi/dpmi.h"
 #include "serial.h"
 #include "int.h"
+#include "ipx.h"
 #undef us
 #define us unsigned
 void timer_tick(void);
 void pic_activate();
 extern void timer_int_engine(void);
-#define NEVER 0x80000000
-
 
 static unsigned long pic1_isr;         /* second isr for pic1 irqs */
 static unsigned long pic_irq2_ivec = 0;
@@ -91,6 +90,7 @@ static unsigned long   pic_pirr;         /* pending requests: ->irr when icount=
 static unsigned long   pic_wirr;             /* watchdog timer for pic_pirr */
 static unsigned long   pic_wcount = 0;       /* watchdog for pic_icount  */
 unsigned long	pic_icount_od = 1;           /* overdrive for pic_icount_od */
+#if 0
 unsigned long   pic0_imr = 0xf800;  /* IRQs 3-7 on pic0 start out disabled */
 unsigned long   pic1_imr = 0x07f8;  /* IRQs 8-15 on pic1 start out disabled */
 unsigned long   pic_imr = 0xfff8;   /* interrupt mask register, enable irqs 0,1 */
@@ -100,6 +100,7 @@ unsigned long   pic_sp = 0;         /* pointer to stack */
 unsigned long   pic_vm86_count=0;   /* counter for trips around vm86 loop */
 unsigned long   pic_dpmi_count=0;   /* counter for trips around dpmi loop */
          long   pic_sys_time=NEVER; /* system time for scheduling interrupts */
+#endif
          long   pic_ltime[33] =     /* timeof last pic request honored */
                 {NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
                  NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
@@ -749,12 +750,14 @@ int inum;
 {
 static char buf[81];
   int ret=0;
+
   if (pic_iinfo[inum].func == (void *)0)
     return ret; 
-#if 1		/* use this result mouse slowndown in winos2 */
-  if((pic_irr|pic_isr)&(1<<inum) || pic_icount>pic_icount_od)
+
+#if 1		/* use this result mouse slowdown in winos2 */
+  if (((pic_irr|pic_isr)&(1<<inum)) || (pic_icount>pic_icount_od))
 #else          /* this make mouse work under winos2, but sometime */
-	       /* result in internal stack overflow  */
+	       /* results in internal stack overflow  */
   if(pic_isr&(1<<inum) || pic_irr&(1<<inum))
 #endif
     {
@@ -1066,7 +1069,11 @@ void pic_reset(void)
     pic_seti(PIC_IMOUSE, DOSEMUMouseEvents, 0);
     pic_unmaski(PIC_IMOUSE);
   }
+#ifdef USING_NET
 #ifdef CONFIG_IPX
+  pic_seti(PIC_IPX, IPXRelinquishControl, 0);
+  pic_unmaski(PIC_IPX);
+#endif
 #ifdef CONFIG_IPXPICPKT
   pic_seti(PIC_NET, pkt_check_receive_quick, 0x61);
 #else

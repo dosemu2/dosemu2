@@ -521,9 +521,19 @@ CISH(INT16_dummy_end):
 
 /* ----------------------------------------------------------------- */
 	.org	((IPX_SEG - BIOSSEG) << 4) + IPX_OFF
+ipx_handler:
 	push	ax	/* FarCallHandler removes this before returning */
 	mov	al,#0x7a
 	int	DOSHELPER_INT
+	retf
+
+	.globl	CISH(bios_IPX_FarCall)
+CISH(bios_IPX_FarCall):
+	push	bx
+	mov	bx,#0x0a
+	db	0x9a		/* Official JES hack for call far ipx_handler */
+	dd	0xf8003100	/* ### This is address of bios_IPX_FarCall */
+	pop	bx
 	retf
 
 	.globl	CISH(bios_IPX_PopRegistersReturn)
@@ -536,6 +546,8 @@ CISH(bios_IPX_PopRegistersReturn):
 	pop	dx
 	pop	cx
 	pop	bx
+	mov	al,#0x7b	/* Allow IPX to know ESR completed */
+	int	DOSHELPER_INT
 	pop	ax
 	retf
 	.globl	CISH(bios_IPX_PopRegistersIRet)
@@ -548,6 +560,8 @@ CISH(bios_IPX_PopRegistersIRet):
 	pop	dx
 	pop	cx
 	pop	bx
+	mov	al,#0x7b
+	int	DOSHELPER_INT
 	pop	ax
 	iret
 

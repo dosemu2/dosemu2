@@ -43,25 +43,8 @@
 
 extern void xms_control(void);
 
-#if 0
-/* don't use this anymore */
-static struct vec_t orig[256];		/* "original" interrupt vectors */
-static struct vec_t snapshot[256];	/* vectors from last snapshot */
-
-/* this is the array of interrupt vectors */
-struct vec_t {
-  unsigned short offset;
-  unsigned short segment;
-};
- 
-static struct vec_t *ivecs;    
-
-
-#endif
-
-
 /* 
- * DANG_BEGIN_FUNCTION cpu_init
+ * DANG_BEGIN_FUNCTION cpu_setup
  *
  * description:
  *  Setup initial interrupts which can be revectored so that the kernel
@@ -377,6 +360,10 @@ read_port_w(unsigned short port)
   int i = find_port(port,IO_READ);
   int j = find_port(port+1,IO_READ);
 
+#ifdef GUSPNP
+  if (port == 0x324)
+    i = j = 0;
+#endif
   if(i == -1) {
     i_printf("can't read low-byte of 16 bit port 0x%04x:trying to read high\n",
               port); 
@@ -404,7 +391,11 @@ read_port_w(unsigned short port)
     iopl(0);
   if (!video_port_io) priv_off();
 
-  if(!video_port_io) {
+  if (
+#ifdef GUSPNP
+       i && j &&
+#endif
+       !video_port_io) {
     r &= ( ports[i].andmask | 0xff00 );
     r &= ( (ports[j].andmask << 8) | 0xff);
     r |= ( ports[i].ormask & 0xff ); 
@@ -460,11 +451,19 @@ write_port_w(unsigned int value,unsigned short port)
   int i = find_port(port, IO_WRITE);
   int j = find_port(port + 1, IO_WRITE);
 
+#ifdef GUSPNP
+  if (port == 0x324)
+    i = j = 0;
+#endif
   if( (i == -1) || (j == -1) ) {
     i_printf("can't write to 16 bit port 0x%04x\n",port);
     return 0;
   } 
-  if(!video_port_io) {
+  if (
+#ifdef GUSPNP
+       i && j &&
+#endif
+       !video_port_io) {
     value &= ( ports[i].andmask | 0xff00 );
     value &= ( (ports[j].andmask << 8) | 0xff );
     value |= ( ports[i].ormask & 0xff );
@@ -511,7 +510,7 @@ void safe_port_out_byte(const unsigned short port, const unsigned char byte)
 		priv_off();
 
         }       else i_printf("want to ");
-        i_printf("out(%x, %x)\n", port, byte);
+        i_printf("out(%x, 0x%x)\n", port, byte);
 }
 
 
@@ -534,7 +533,7 @@ char safe_port_in_byte(const unsigned short port)
         }       else i_printf("want to ");
         i_printf("in(%x)", port);
         if(i_am_root)
-                i_printf(" = %x", value);
+                i_printf(" = 0x%x", value);
         i_printf("\n");
         return value;
 }

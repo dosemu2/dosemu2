@@ -86,22 +86,33 @@ AC_SUBST(CONFIG_HOST)
 dnl Do ELF if possible
 
  if grep __ELF__ `gcc -v 2>&1|head -n1|cut -d' ' -f4` /dev/null 1>/dev/null 2>&1; then 
-  SLANGLIB="-larch_${CONFIG_HOST}_slang-elf -lm"
   ELF="ELF=1"
  else
-  SLANGLIB="-larch_${CONFIG_HOST}_slang"
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe.
 # should be okay at...0x20000000 for .5 GB mark.
   LIBSTART="LIBSTART = 0x20000000"
  fi
- AC_SUBST(SLANGLIB)
  AC_SUBST(LIBSTART)
  AC_SUBST(ELF)
+
+dnl Check for slang and if not found use the supplied version
+
+dnl I'm not really sure which slang function to choose
+dnl So I picked one at random, perhaps there is a better one?
+
+AC_CHECK_LIB(slang, SLkm_define_key, SLANGLIB="-lslang" , 
+if test "$ELF" = "ELF=1"; then
+  SLANGLIB="-larch_${CONFIG_HOST}_slang-elf -lm"
+else
+  SLANGLIB="-larch_${CONFIG_HOST}_slang"
+fi
+)
+ AC_SUBST(SLANGLIB)
 
 dnl check for X. This was reproduced from TKined
 
 AC_CHECK_PROG(x_ok, xmkmf, 1, 0)
-if test $x_ok = 1; then
+if test $x_ok = 1 -a "${with_x+set}" != set; then
     AC_PATH_X
 fi
 if test "$XINCLUDE_DIR" != ""; then
@@ -154,7 +165,7 @@ fi
 if test "$XLIBSWL" = nope ; then
     AC_CHECK_LIB(Xwindow, main, XLIBSWL=-lXwindow)
 fi
-if test "$XLIBSWL" = nope ; then
+if test "$XLIBSWL" = nope -o "${with_x+set}" = set; then
     AC_WARN(Couldn't find the X11 library archive.)
     AC_CHECKING(Compiling without X support)
     XLIBSWL=""
@@ -306,8 +317,12 @@ dnl Do SB emulation
 
 dnl DPMI requirements
 
+  if test "$emumod" = "yes"; then
 AC_DEFINE_UNQUOTED(WANT_WINDOWS)
 WANT_WINDOWS="WANT_WINDOWS=-DWANT_WINDOWS"
+  else
+WANT_WINDOWS=""
+  fi
 AC_SUBST(WANT_WINDOWS)
 
 AC_SUBST(OPTIONALSUBDIRS)

@@ -123,10 +123,10 @@ extern int     set_ioperm(int, int, int);
 extern char safe_port_in_byte(const unsigned short port);
 extern void safe_port_out_byte(const unsigned short port, const unsigned char byte);
 
-extern unsigned int inb(unsigned int port);
+extern unsigned char inb(unsigned int port);
 extern void outb(unsigned int port, unsigned int byte);
-extern int inw(int port);
-extern int ind(int port);
+extern unsigned int inw(int port);
+extern unsigned int ind(int port);
 extern void outw(unsigned int port, unsigned int value);
 extern void outd(unsigned int port, unsigned int value);
 

@@ -395,6 +395,7 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
        char    *X_font;
        int     X_blinkrate;
        int     X_sharecmap;
+       int     X_mitshm;                /* use MIT SHM extension */
        boolean fullrestore;
        boolean force_vt_switch;         /* in case of console_video force switch to emu VT at start */
        int     dualmon;

@@ -261,10 +261,10 @@ add_to_io_select(int new_fd, u_char want_sigio)
 	fcntl(new_fd, F_SETOWN, getpid());
 	fcntl(new_fd, F_SETFL, flags | use_sigio);
 	FD_SET(new_fd, &fds_sigio);
-	g_printf("GEN: fd=%d gets SIGIO\n", new_fd);
+	g_printf("GEN: fd=%d gets SIGIO, use_sigio=%d\n", new_fd, use_sigio);
     } else {
 	FD_SET(new_fd, &fds_no_sigio);
-	g_printf("GEN: fd=%d does not get SIGIO\n", new_fd);
+	g_printf("GEN: fd=%d does not get SIGIO, use_sigio=%d\n", new_fd, use_sigio);
 	not_use_sigio++;
     }
 }

@@ -157,7 +157,7 @@ extern void yyrestart(FILE *input_file);
 %token MICROSOFT LOGITECH MMSERIES MOUSEMAN HITACHI MOUSESYSTEMS BUSMOUSE PS2
 %token INTERNALDRIVER EMULATE3BUTTONS CLEARDTR
 	/* x-windows */
-%token L_DISPLAY L_TITLE ICON_NAME X_KEYCODE X_BLINKRATE X_SHARECMAP X_FONT
+%token L_DISPLAY L_TITLE ICON_NAME X_KEYCODE X_BLINKRATE X_SHARECMAP X_MITSHM X_FONT
 	/* video */
 %token VGA MGA CGA EGA CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
 %token MEMSIZE VBIOS_SIZE_TOK VBIOS_SEG VBIOS_FILE VBIOS_COPY VBIOS_MMAP DUALMON
@@ -386,6 +386,7 @@ x_flag		: UPDATELINES INTEGER	{ config.X_updatelines = $2; }
 		| X_KEYCODE		{ config.X_keycode = 1; }
 		| X_BLINKRATE INTEGER	{ config.X_blinkrate = $2; }
 		| X_SHARECMAP		{ config.X_sharecmap = 1; }
+		| X_MITSHM              { config.X_mitshm = 1; }
 		| X_FONT STRING		{ config.X_font = $2; }
 		;
 
@@ -1745,7 +1746,8 @@ parse_config(char *confname)
   /* If that doesn't exist we will default to CONFIG_FILE */
 
   { 
-    uid_t uid = getuid();
+    /* setuid tricks: effective uid must be checked! */
+    uid_t uid = geteuid();
 
     char *home = getenv("HOME");
     char *name = malloc(strlen(home) + 20);

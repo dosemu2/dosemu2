@@ -55,6 +55,10 @@ void setup_interrupts(void);
 void version_init(void);
 void int_queue_run(void);
 extern void queue_hard_int(int i, void (*callstart), void (*callend));
+
+#define REVECT		0
+#define NO_REVECT	1
+
 extern int can_revector(int i);
 
 #endif

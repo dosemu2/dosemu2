@@ -36,6 +36,7 @@
 #ifndef PIC
 #define PIC
 #include "extern.h"
+#define NEVER 0x80000000
 #define PIC_NMI   0        /*  non-maskable interrupt 0x02 */
 #define PIC_IRQ0  1        /*  timer -    usually int 0x08 */
 #define PIC_IRQ1  2        /*  keyboard - usually int 0x09 */
@@ -54,6 +55,7 @@
 #define PIC_IRQ7  15       /*  LPT 1      usually int 0x0f */
 #define PIC_NET   16       /*  packet receive check - no dos equivalent */
 #define PIC_IMOUSE 17      /*  internal mouse driver       */
+#define PIC_IPX    18      /*  IPX Signal */
 
 #define PIC_IRQALL 0xfffe  /*  bits for all IRQs set. This never changes  */
 
@@ -79,17 +81,17 @@ EXTERN unsigned long pic_iflag;        /* interrupt enable flag: en-/dis- =0/0xf
 EXTERN unsigned long pic_icount;       /* iret counter (to avoid filling stack) */
 EXTERN unsigned long pic_ilevel INIT(32);    /* current interrupt level */
 
-EXTERN unsigned long pic0_imr;         /* interrupt mask register, pic0 */
-EXTERN unsigned long pic1_imr;         /* interrupt mask register, pic1 */
-EXTERN unsigned long pic_imr;          /* interrupt mask register */
-EXTERN unsigned long pice_imr;         /* interrupt mask register, dos emulator */  
+EXTERN unsigned long pic0_imr INIT(0xf800);  /* interrupt mask register, pic0 */
+EXTERN unsigned long pic1_imr INIT(0x07f8);         /* interrupt mask register, pic1 */
+EXTERN unsigned long pic_imr INIT(0xfff8);          /* interrupt mask register */
+EXTERN unsigned long pice_imr INIT(-1);         /* interrupt mask register, dos emulator */  
 EXTERN unsigned long pic_stack[32];     /* list of active irqd */
-EXTERN unsigned long pic_sp;	       /* pointer to pic_stack */ 
+EXTERN unsigned long pic_sp INIT(0);	       /* pointer to pic_stack */ 
 EXTERN unsigned long pic_rflag;        /* flag to control pic_watch */
-EXTERN unsigned long pic_vm86_count;   /* count of times 'round the vm86 loop*/
-EXTERN unsigned long pic_dpmi_count;   /* count of times 'round the dpmi loop*/
+EXTERN unsigned long pic_vm86_count INIT(0);   /* count of times 'round the vm86 loop*/
+EXTERN unsigned long pic_dpmi_count INIT(0);   /* count of times 'round the dpmi loop*/
 EXTERN long pic_dos_time;     /* dos time of last interrupt,1193047/sec.*/
-EXTERN long pic_sys_time;     /* system time set by pic_watch */
+EXTERN long pic_sys_time INIT(NEVER);     /* system time set by pic_watch */
 /* IRQ definitions.  Each entry specifies the emulator routine to call, and
    the dos interrupt vector to use.  pic_iinfo.func is set by pic_seti(),
    as are the interrupt vectors for all but [1] through [15], which  may be

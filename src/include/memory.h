@@ -152,9 +152,9 @@
 
 #define CO      80 /* A-typical screen width */
 #define LI      25 /* Normal rows on a screen */
-#define TEXT_SIZE	(li*co*2) /* 4096 text page size */
-#define PAGE_ADDR(pg)	(caddr_t)(virt_text_base + (pg*TEXT_SIZE))
-#define SCREEN_ADR(s)	((us *)(virt_text_base + (s*TEXT_SIZE)))
+#define TEXT_SIZE	(((li*co*2)+4095)&(~4095)) /* 4000(4096?) text page size */
+#define PAGE_ADDR(pg)	(caddr_t)(virt_text_base + ((pg)*TEXT_SIZE))
+#define SCREEN_ADR(s)	((us *)(virt_text_base + ((s)*TEXT_SIZE)))
 
 #define GRAPH_BASE 0xA0000
 #define GRAPH_SIZE 0x20000

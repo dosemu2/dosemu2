@@ -35,7 +35,8 @@
 #include "vga.h"
 #include "s3.h"
 
-static int s3_type = 0;
+static int s3_chip = 0;
+static int s3_chiprev = 0;
 static int s3_memsize = 0;
 static int s3_series = 0;
 static int s3_Ramdac = 0;
@@ -102,6 +103,56 @@ static short s3_crt_regs[0x40] = {
 
 #undef S
 
+/*
+ * Lock S3's registers.
+ * There are more locks, but this should suffice.
+ *
+ * More complete Extended VGA Register Lock Documentation, as of Ferraro:
+ *
+ * Register     Bit     Controls Access To:             Function
+ * CR33         1       CR7 bits 1 and 6                1=disable write protect
+ *                                                        setting of CR11 bit 7
+ * CR33         4       Ramdac Register                 1=disable writes
+ * CR33         6       Palette/Overscan Registers      1=lock
+ * CR34         5       Memory Configuration bit 5      1=lock
+ * CR34         7       Misc Register bit 3-2 (Clock)   1=lock
+ * CR35         4       Vertical Timing Registers       1=lock
+ * CR35         5       Horizontal Timing Registers     1=lock
+ * 
+ * XXXX mostly, need to lock the enhanced command regs on the 805 (and 
+ * probably below) to avoid display corruption.
+ */
+static void s3_lock(void)
+{
+    out_crt(0x39, 0x00);		/* Lock system control regs. */
+    out_crt(0x38, 0x00);		/* Lock special regs. */
+}
+
+static void s3_lock_enh(void)
+{
+    if (s3_chip > S3_911)
+	out_crt(0x40, in_crt(0x40) & ~0x01);    /* Lock enhanced command regs. */
+    s3_lock();
+}
+
+/*
+ * Unlock S3's registers.
+ * There are more locks, but this should suffice.
+ */
+static void s3_unlock(void)
+{
+    out_crt(0x38, 0x48);		/* Unlock special regs. */
+    out_crt(0x39, 0xa5);		/* Unlock system control regs. */
+}
+
+static void s3_unlock_enh(void)
+{
+    s3_unlock();
+    if (s3_chip > S3_911)
+	out_crt(0x40, in_crt(0x40) | 0x01);     /* Unlock enhanced command regs. */
+}
+
+
 static void s3_save_ext_regs(u_char xregs[], u_short xregs16[])
 {
 	int i;
@@ -115,8 +166,7 @@ static void s3_save_ext_regs(u_char xregs[], u_short xregs16[])
 	/*
 	 * Enable extensions
 	 */
-	out_crt(0x38, 0x48);
-	out_crt(0x39, 0xa5);
+	s3_unlock_enh();
 
 	xregs[13] = port_in(0x3cc);
 
@@ -130,7 +180,7 @@ static void s3_save_ext_regs(u_char xregs[], u_short xregs16[])
 	for (i = 0; i < 0x10; i++)
 		xregs[i + 14] = in_crt(0x40 + i);
 
-	if (s3_type)
+	if (s3_chip > S3_911)
 	{
 		/*
 		 * I have an S3-911, so this part is untested.
@@ -175,7 +225,7 @@ static void s3_save_ext_regs(u_char xregs[], u_short xregs16[])
 	/*
 	 * restore the status of the extensions
 	 */
-
+	s3_lock_enh();
 	out_crt(0x38, xregs[0]);
 	out_crt(0x39, xregs[1]);
 
@@ -199,8 +249,7 @@ static void s3_restore_ext_regs(u_char xregs[], u_short xregs16[])
         /*
          * Enable extensions
          */
-        out_crt(0x38, 0x48);
-        out_crt(0x39, 0xa5);
+ 	s3_unlock_enh();
 
 	port_out(xregs[13], 0x3c2);
 
@@ -214,7 +263,7 @@ static void s3_restore_ext_regs(u_char xregs[], u_short xregs16[])
 	for (i = 0; i < 0x10; i++)
 		out_crt(0x40 + i, xregs[i + 14]);
 
-	if (s3_type)
+	if (s3_chip > S3_911)
 	{
 		v_printf("s3_restore_ext_regs(): restoring additional regs\n");
 		out_crt(0x50, xregs[30]);
@@ -252,6 +301,7 @@ static void s3_restore_ext_regs(u_char xregs[], u_short xregs16[])
 	port_out(0x36, 0x3c0);
 	port_out(xregs[12], 0x3c0);
 
+	s3_lock_enh();
 	out_crt(0x38, xregs[0]);
 	out_crt(0x39, xregs[1]);
 
@@ -279,7 +329,7 @@ static void s3_set_bank(u_char bank)
 	out_crt(0x38, 0x48);
 	old_reg = in_crt(0x35);
 	out_crt(0x35, (bank & 0x0f) + (old_reg & 0xf0));
-	if ((bank & 0xf0) && s3_type)
+	if ((bank & 0xf0) && (s3_chip > S3_911))
 	{
 		/*
 		 * This is untested (I don't have > 1 MB VRAM)
@@ -308,7 +358,7 @@ static u_char s3_ext_video_port_in(int port)
 			 * some registers are available only on `advanced'
 			 * s3 cards.
 			 */
-			if ((x_reg & 0xff) && !s3_type)
+			if ((x_reg & 0xff) && (s3_chip <= S3_911))
 				break;
 			x_reg &= 0xff;
 			v_printf("S3: Read on CRT_D 0x%02x got 0x%02x\n",
@@ -337,7 +387,7 @@ static void s3_ext_video_port_out(u_char value, int port)
 			 * some registers are available only on `advanced'
 			 * s3 cards.
 			 */
-			if ((x_reg & 0xff) && !s3_type)
+			if ((x_reg & 0xff) && (s3_chip <= S3_911))
 				break;
 			x_reg &= 0xff;
 			v_printf("S3: Write on CRT_D 0x%02x of 0x%02x\n",
@@ -424,7 +474,7 @@ unsigned char s3InBtStatReg()
 
 void vga_init_s3(void)
 {
-	int mode, mode2, chip, subtype;
+	int mode, mode2, subtype;
 	char *name = NULL;
 
 	save_ext_regs = s3_save_ext_regs;
@@ -436,15 +486,16 @@ void vga_init_s3(void)
 
 	mode = in_crt(0x38);
 	out_crt(0x38, 0x48);
-	chip = in_crt(0x30);
+	s3_chip = in_crt(0x30);
+	s3_chiprev = s3_chip & 0x0F;
 
 	name = NULL;
 
-	switch(chip & 0xF0)
+	switch(s3_chip & 0xF0)
 	{
 		case 0x80:
 			s3_series = S3_911;
-			switch(chip & 0x0F)
+			switch(s3_chiprev)
 			{
 				case 0x01:	name = "911";
 						break;
@@ -453,9 +504,8 @@ void vga_init_s3(void)
 			}
 			break;
 		case 0x90:	/* 928 */
-			s3_type = 1;
 			s3_series = S3_928;
-			switch(chip & 0x0F)
+			switch(s3_chiprev)
 			{
 				case 0x00:	name = "928C";
 						break;
@@ -468,12 +518,11 @@ void vga_init_s3(void)
 			break;
 		case 0xA0:	/* 801 / 805 */
 			subtype = in_crt(0x36) & 0x03;
-			s3_type = 1;
 			if ((subtype & 0x02) == 0)
 			{
 				/* EISA or VLB => 805 */
 				s3_series = S3_805;
-				switch (chip & 0x0F)
+				switch (s3_chiprev)
 				{
 					case 0x00:	name = "805A/B";
 							break;
@@ -491,7 +540,7 @@ void vga_init_s3(void)
 			{
 				/* ISA => 801 */
 				s3_series = S3_801;
-				switch(chip & 0x0F)
+				switch(s3_chiprev)
 				{
 					case 0x00:	name = "801A/B";
 							break;
@@ -507,16 +556,34 @@ void vga_init_s3(void)
 			}
 			break;
 				
-		case 0xB0:	name = "928PCI";
+		case 0xB0:	name = "928";
 				s3_series = S3_928;
-				s3_type = 1;
 				break;
+		case 0xC0:	name = "864";
+				s3_series = S3_928;
+				break;
+		case 0xD0:	name = "964";
+				s3_series = S3_928;
+				break;
+		case 0xE0:
+		case 0xF0:
+			s3_chip |= (in_crt(0x2E) << 8);
+			s3_chiprev |= (in_crt(0x2F) << 4);
+			switch (s3_chip & 0xFFF0) {
+				case 0x10E0: name = "TRIO32"; break;
+				case 0x11E0: name = "TRIO64"; break;
+				case 0x80E0: name = "866"; break;
+				case 0x90E0: name = "868"; break;
+				case 0xF0E0: name = "968"; break;
+			}
+			s3_series = S3_928;
+			break;
 	}
 
 	if (name)
-		v_printf("S3 chip 86c%s detected.\n", name);
+		v_printf("S3 chip 86c%s rev %d detected.\n", name, s3_chiprev);
 	else
-		v_printf("Unknown S3-chip, type = 0x%xd\n", chip);
+		v_printf("Unknown S3-chip, type = 0x%x\n", s3_chip);
 
 #if 1
 	s3_Ramdac = S3_NORMAL_DAC;
@@ -567,7 +634,7 @@ void vga_init_s3(void)
 					break;
 		case S3_ATT20C505_DAC:	v_printf("AT&T 20C505");
 					break;
-		case S3_BT485_DAC:	v_printf("BlockTree Bt485");
+		case S3_BT485_DAC:	v_printf("BrookTree Bt485");
 					break;
 		case S3_TI3020_DAC:	v_printf("TI ViewPoint 3020");
 					break;
@@ -588,7 +655,7 @@ void vga_init_s3(void)
 		s3_memsize = 512;
 	else
 	{
-		if (s3_type) switch((in_crt(0x36) & 0xc0) >> 6)
+		if (s3_chip > S3_911) switch((in_crt(0x36) & 0xc0) >> 6)
 		{
 			case 0:	s3_memsize = 4096; break;
 			case 1: s3_memsize = 3072; break;

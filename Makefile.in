@@ -18,5 +18,6 @@ pristine:
 	rm -f src/Makefile.common src/arch/linux/Makefile.main
 	rm -f `find . -name Makefile`
 	rm -f `find . -name '*~'`
+	rm -f `find . -name '*.d'`
 	rm -f `find . -name '*[\.]orig'`
 	rm -vf `find . -size 0`

@@ -50,6 +50,7 @@ void DOSEMUSetMouseSpeed();
 void
 DOSEMUSetupMouse()
 {
+  m_printf("MOUSE: DOSEMUSetupMouse called\n");
   if ( ! config.usesX ){
       tcgetattr(mice->fd, &mice->oldset);
       if (mice->type == MOUSE_MOUSEMAN)
@@ -60,11 +61,13 @@ DOSEMUSetupMouse()
         }
       else if (mice->type != MOUSE_BUSMOUSE && mice->type != MOUSE_PS2) 
 	{
+	  m_printf("MOUSE: setting speed to %d baud\n",mice->baudRate);
+#if 0   /* this causes my dosemu to hang [rz] */
 	  DOSEMUSetMouseSpeed(9600, mice->baudRate, mice->flags);
 	  DOSEMUSetMouseSpeed(4800, mice->baudRate, mice->flags);
 	  DOSEMUSetMouseSpeed(2400, mice->baudRate, mice->flags);
+#endif
 	  DOSEMUSetMouseSpeed(1200, mice->baudRate, mice->flags);
-
 	  if (mice->type == MOUSE_LOGITECH)
 	    {
 	      m_printf("MOUSEINT: Switching to MM-SERIES protocol...\n");
@@ -111,6 +114,7 @@ DOSEMUSetupMouse()
 	  }
 	  else
 	  {
+	    m_printf("MOUSE: set sample rate to %d\n",mice->sampleRate);
 	    if      (mice->sampleRate <=   0)  { RPT_SYSCALL(write(mice->fd, "O", 1));}
 	    else if (mice->sampleRate <=  15)  { RPT_SYSCALL(write(mice->fd, "J", 1));}
 	    else if (mice->sampleRate <=  27)  { RPT_SYSCALL(write(mice->fd, "K", 1));}
@@ -126,6 +130,7 @@ DOSEMUSetupMouse()
       if (mice->type == MOUSE_MOUSESYSTEMS && (mice->cleardtr))
         {
           int val = TIOCM_DTR;
+	  m_printf("MOUSE: clearing DTR\n");
           ioctl(mice->fd, TIOCMBIC, &val);
         }
 #if 0     /* Jochen 05.05.94 */
@@ -133,6 +138,7 @@ DOSEMUSetupMouse()
       if (mice->type == MOUSE_MOUSESYSTEMS && (mice->flags & MF_CLEAR_RTS))
         {
           int val = TIOCM_RTS;
+	  m_printf("MOUSE: clearing RTS\n");
           ioctl(mice->fd, TIOCMBIC, &val);
         }
 #endif
@@ -359,6 +365,8 @@ unsigned cflag;
 	struct termios tty;
 	char *c;
 
+        m_printf("MOUSE: set speed %d -> %d\n",old,new);
+   
 	if (tcgetattr(mice->fd, &tty) < 0)
 	{
 		m_printf("MOUSE: Unable to get status of mouse. Mouse may not function properly.\n");
@@ -391,11 +399,12 @@ unsigned cflag;
 		cfsetospeed(&tty, B1200);
 	}
 
+        m_printf("MOUSE: calling tcsetattr\n");
 	if (tcsetattr(mice->fd, TCSADRAIN, &tty) < 0)
 	{
 		m_printf("MOUSE: Unable to set mouse attributes. Mouse may not function properly.\n");
 	}
-
+   
 	switch (new)
 	{
 	case 9600:
@@ -420,6 +429,7 @@ unsigned cflag;
 		cfsetospeed(&tty, B1200);
 	}
 
+        m_printf("MOUSE: writing speed\n");
 	if (write(mice->fd, c, 2) != 2)
 	{
 		m_printf("MOUSE: Unable to write to mouse fd. Mouse may not function properly.\n");
@@ -428,6 +438,7 @@ unsigned cflag;
 	usleep(100000);
 #endif
 
+        m_printf("MOUSE: calling tcsetattr\n");
 	if (tcsetattr(mice->fd, TCSADRAIN, &tty) < 0)
 	{
 		m_printf("MOUSE: Unable to set mouse attributes. Mouse may not function properly.\n");

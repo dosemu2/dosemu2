@@ -306,6 +306,12 @@ static int dos_helper(void)
       IPXFarCallHandler();
     }
     break;
+  case 0x7b:
+    if (config.ipxsup) {
+      /* Allow notification of ESR etc... ends */
+      IPXEndCall();
+    }
+    break;
 #endif
     case 0x80:
         LWORD(eax) = (short)((int)getcwd(SEG_ADR((char *), es, dx), (size_t)LWORD(eax)));
@@ -388,6 +394,10 @@ static void int15(u_char i)
     }
     CARRY;
     break;
+  case 0x24:			/* PS/2 A20 gate support */
+    HI(ax) = 0x86;
+    CARRY;
+    return;
   case 0x41:			/* wait on external event */
     break;
   case 0x4f:			/* Keyboard intercept */
@@ -478,6 +488,16 @@ static void int15(u_char i)
     return;
   case 0x91:
     CARRY;
+    return;
+  case 0xbf:			/* DOS/16M,DOS/4GW */
+    switch (REG(eax) &= 0x00FF)
+      {
+        case 0: case 1: case 2:		/* installation check */
+        default:
+          REG(edx) = 0;
+          CARRY;
+          return;
+      }
     return;
   case 0xc0:
     LWORD(es) = ROM_CONFIG_SEG;
@@ -687,18 +707,37 @@ static void int1a(u_char i)
     /* REG(eflags) &= ~CF; */
     NOCARRY;
     break;
+
   case 3:			/* set time */
   case 5:			/* set date */
-    g_printf("ERROR: timer: can't set time/date\n");
+    g_printf("WARNING: timer: can't set time/date\n");
     break;
+
+  case 0xb1:			/* Intel PCI BIOS v 2.0c */
+    switch (LO(ax)) {
+      case 1: case 0x81:	/* installation check */
+        NOCARRY;		/* AH==0 if installed */
+        break;
+      case 2: case 0x82:	/* find PCI device */
+        g_printf("FIND PCI device %d id=%04x vend=%04x\n", LWORD(esi),
+        	LWORD(ecx), LWORD(edx));
+      case 3: case 0x83:	/* find PCI class code */
+	HI(ax) = 0x86;		/* not found */
+      default:
+        CARRY;
+        break;
+    }
+    break;
+
   default:
-    g_printf("ERROR: timer error AX=0x%04x\n", LWORD(eax));
+    g_printf("WARNING: unsupported timer call 0x%04x\n", LWORD(eax));
     /* show_regs(__FILE__, __LINE__); */
     /* fatalerr = 9; */
     return;
   }
 }
 
+/* ========================================================================= */
 /* note that the emulation herein may cause problems with programs
  * that like to take control of certain int 21h functions, or that
  * change functions that the true int 21h functions use.  An example

@@ -28,6 +28,7 @@
 #include "serial.h"
 #include "ser_defs.h"
 
+static int into_irq = 0;
 
 /**************************************************************************/
 /*                          The SERIAL ENGINES                            */
@@ -422,8 +423,12 @@ void serial_int_engine(int num, int int_requested)
 void
 pic_serial_run(void)
 {
-  static u_char tmp;
-  static u_char num;
+/*  static u_char*/ int tmp;
+/*  static u_char*/ int num;
+
+  into_irq = 1;
+
+  num = irq_source_num[pic_ilevel];
 
   /* Update the queued Modem Status and Line Status values. */
   check_and_update_uart_status(num);
@@ -451,10 +456,9 @@ pic_serial_run(void)
    * interrupt handler(???) before it is done.
    */
    
-  num = irq_source_num[pic_ilevel];
   tmp = com[num].int_condition & com[num].IER;
   
-  if(s2_printf) s_printf("SER%d: ---BEGIN INTERRUPT--- int_condition = %d\n", num,
+  if(s2_printf) s_printf("SER%d: ---BEGIN INTERRUPT--- int_condition = %02x\n", num,
              com[num].int_condition);
 
   /* Execute any pre-interrupt code that may be necessary */
@@ -509,6 +513,7 @@ pic_serial_run(void)
    * is the only way to achieve this.
    * DANG_FIXTHIS Perhaps this can be modified to limit max chain length?
    */
+  into_irq = 0;
   receive_engine(num);
   transmit_engine(num);
   modstat_engine(num);
@@ -555,7 +560,7 @@ serial_run(void)
    * All the engines have built-in code to prevent loading the
    * system if they are called 100x's per second.
    */
-  for (i = 0; i < config.num_ser; i++) {
+  for (i = 0; !into_irq && (i < config.num_ser); i++) {
     receive_engine(i);		/* Receive operations */
     transmit_engine(i);		/* Transmit operations */
     modstat_engine(i);  	/* Modem Status operations */
