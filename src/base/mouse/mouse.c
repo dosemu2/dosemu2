@@ -1164,6 +1164,7 @@ mouse_round_coords()
 void 
 mouse_move(void)
 {
+ if (config.X) {
   get_current_video_mode();
   if (current_video.textgraph == 'T') {
     mouse.gfx_cursor = FALSE;
@@ -1190,7 +1191,7 @@ mouse_move(void)
   mouse.maxx = mouse_roundx(mouse.maxx - 1);
   mouse.maxy = mouse_roundy(mouse.maxy - 1);
   m_printf("maxx=%i, maxy=%i\n", mouse.maxx, mouse.maxy);
-
+ }
   if (mouse.x <= mouse.minx) mouse.x = mouse.minx;
   if (mouse.y <= mouse.miny) mouse.y = mouse.miny;
   if (mouse.x >= mouse.maxx) mouse.x = mouse.maxx;

@@ -919,6 +919,15 @@ int13(u_char i)
       dp = &bootdisk;
     else
       dp = &disktab[disk];
+    switch (HI(ax)) {
+      #define DISKETTE_MOTOR_TIMEOUT (*((unsigned char *)0x440))
+      /* NOTE: we don't need this counter, but older games seem to rely
+       * on it. We count it down in INT08 (bios.S) --SW, --Hans
+       */
+      case 0: case 2: case 3: case 5: case 10: case 11:
+        DISKETTE_MOTOR_TIMEOUT = 3*18;  /* set timout to 3 seconds */
+        break;
+    }
   }
   else if (disk >= 0x80 && disk < 0x80 + HDISKS)
     dp = &hdisktab[disk - 0x80];

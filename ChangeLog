@@ -1,3 +1,16 @@
+97/03/17 ver. 0.65.99.23 unofficial pre-release
+	From Hans
+	- new targets in main Makfile: docs, docsinstall, docsclean
+	From Pavel Kankovsky <kan@dcit.cz>
+	- fixes for X-detection
+	From Steffen (realized by Hans;)
+	- emulate a down counting 'diskette motor timeout'
+	  old games seem to rely on that.
+	From Alberto:
+	- small mouse fix (320x200)
+	- discovered that int2f,ax=110c fails for partitions >500M, because
+	  it can't set cluster size>8. Here is my fix, which should also avoid
+	  overflows on >2G disks.
 97/03/16 ver. 0.65.99.22 unofficial pre-release
 	From Hans
 	- docs move around:

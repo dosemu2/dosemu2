@@ -2973,7 +2973,7 @@ if test "$XINCLUDE_DIR" != ""; then
 fi
 if test "$x_includes" = /usr/include; then
     XINCLUDES="# no special path needed"
-elif test "$x_includes" != ""; then
+elif test "$x_includes" != "NONE"; then
     XINCLUDES=" -I$x_includes"
 else
     echo "checking for X11 header files" 1>&6
@@ -3014,7 +3014,7 @@ if test "$XLIBRARY_DIR" != ""; then
 fi
 if test "$x_libraries" = /usr/lib; then
     XLIBSWL=-lX11
-elif test "$x_libraries" != ""; then
+elif test "$x_libraries" != "NONE"; then
     XLIBSWL="-lX11"
     XLIBSWD="-L$x_libraries"
 else
@@ -3100,7 +3100,7 @@ else
 fi
 
 fi
-if test "$XLIBSWL" = nope -o "${with_x+set}" = set; then
+if test "$XLIBSWL" = nope -a "${with_x+set}" = set; then
     echo "configure: warning: Couldn't find the X11 library archive." 1>&2
     echo "checking Compiling without X support" 1>&6
     XLIBSWL=""
@@ -3139,11 +3139,12 @@ EOF
     
 
 
+    x_libraries=`echo $XLIBSWD | sed 's/^-L//'`
     if test "$ELF" != "" ; then
-      XLIBSWL="-lX11"
+#      XLIBSWL="-lX11"
       XLIBSWD="-Wl,-rpath,$x_libraries -L$x_libraries"
     else
-      XLIBSWL="-lX11"
+#      XLIBSWL="-lX11"
       XLIBSWD="-L$x_libraries -u _XOpenDisplay"
     fi
 fi
@@ -3175,12 +3176,12 @@ if eval "test \"`echo '$''{'ac_cv_header_$ac_safe'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 3179 "configure"
+#line 3180 "configure"
 #include "confdefs.h"
 #include <X11/extensions/XShm.h>
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:3184: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:3185: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out`
 if test -z "$ac_err"; then
   rm -rf conftest*
@@ -3230,7 +3231,7 @@ XLIBSW="$XLIBSWD $XLIBSWL"
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
 SUBLEVEL="65"
-PATCHLEVEL="99.22"
+PATCHLEVEL="99.23"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`

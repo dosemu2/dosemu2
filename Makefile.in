@@ -13,7 +13,16 @@ default install clean realclean echo help depend:
 all:
 	@$(MAKE) -C src default
 
-pristine:
+docs:
+	@$(MAKE) -C src/doc all
+
+docsinstall:
+	@$(MAKE) -C src/doc install
+
+docsclean:
+	@$(MAKE) -C src/doc clean
+
+pristine:  docsclean
 	@$(MAKE) -C src $@
 	rm -f config.cache config.status config.log src/include/config.h
 	rm -f src/Makefile.common src/arch/linux/Makefile.main

@@ -2640,28 +2640,36 @@ dos_fs_redirect(state)
   case GET_DISK_SPACE:
     {				/* 0x0c */
 #ifdef USE_DF_AND_AFS_STUFF
-      int free, tot;
+      unsigned int free, tot;
 
       Debug0((dbg_fd, "Get Disk Space\n"));
       build_ufs_path(fpath, cds_current_path(cds));
 
       if (find_file(fpath, &st)) {
 	if (get_disk_space(fpath, &free, &tot)) {
+	  /* return unit = 512-byte blocks @ 1 spc, std for floppy */
 	  int spc = 1;
 	  int bps = 512;
-	  int tmpf, tmpt;
+	  unsigned long tmpf, tmpt;
 
-	  if ((tot > 256 * 256) || (free > 256 * 256)) {
-	    tmpf = free * bps * spc;
-	    tmpt = tot * bps * spc;
-
-	    spc = 8;
+	  if ((tot > 65535) || (free > 65535)) {
+	    /* we're on an HD here! */
 	    bps = 1024;
+	    free /= 2;			/* try 1024-byte sectors */
+	    tot  /= 2;
 
-	    free = (tmpf / bps) / spc;
-	    tot = (tmpt / bps) / spc;
+	    while ((tot > 65535) || (free > 65535)) {
+	      tmpf = free * spc;
+	      tmpt = tot  * spc;
+
+	      spc <<= 1;		/* try bigger clusters */
+
+	      free = tmpf / spc;
+	      tot =  tmpt / spc;
+	    }
 	  }
 
+	  /* Ralf Brown says: AH=media ID byte - can we let it at 0 here? */
 	  SETWORD(&(state->eax), spc);
 	  SETWORD(&(state->edx), free);
 	  SETWORD(&(state->ecx), bps);

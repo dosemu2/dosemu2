@@ -45,8 +45,7 @@
 #define BIOS_TIMER 0x46c
 #define BIOS_TIMER_OVERFLOW 0x470
 #define HOUR24_ADJUST 176
-
-
+#define DISKETTE_MOTOR_TIMEOUT 0x440
 
 /* NOTE: The following definition need to be in memory.h, but at this
  *       moment they aren't, so I define them here.
@@ -678,6 +677,12 @@ CISH(INT08_dummy_start):		/* TIMER INTERRUPT ROUTINE	*/
 	mov	dword ptr [BIOS_TIMER],#0
 	mov	byte ptr [BIOS_TIMER_OVERFLOW],#1
 CISH(INT08_L1):
+			/* emulate 'diskette motor running */
+			/* some old games rely on that --SW, --Hans */
+	cmp	byte ptr [DISKETTE_MOTOR_TIMEOUT],#0
+	jz	CISH(INT08_L2)
+	dec	byte ptr [DISKETTE_MOTOR_TIMEOUT]
+CISH(INT08_L2):
 	int	0x1c		/* call int 0x1c, per bios spec	*/
 				/* must do it before EOI, but after count */
         mov     al,#0x20
