@@ -777,14 +777,14 @@ static int SystemSelector(unsigned short selector)
   return 0;
 }
 
-static inline int ValidSelector(unsigned short selector)
+int ValidSelector(unsigned short selector)
 {
   if (selector && ((selector >> 3) < MAX_SELECTORS) && (selector & 4) == 4)
     return 1;
   return 0;
 }
 
-static int ValidAndUsedSelector(unsigned short selector)
+int ValidAndUsedSelector(unsigned short selector)
 {
   if (ValidSelector(selector) && Segments[selector >> 3].used)
     return 1;
