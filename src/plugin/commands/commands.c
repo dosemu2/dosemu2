@@ -35,6 +35,7 @@
 #include "unix.h"
 #include "dosdbg.h"
 #include "cmdline.h"
+#include "blaster.h"
 
 /* ============= old .com ported ================= */
 
@@ -195,6 +196,8 @@ void commands_plugin_init(void)
 	register_com_program("dosdbg", dosdbg_main);
 	register_com_program("unix", unix_main);
 	register_com_program("cmdline", cmdline_main);
+
+	register_com_program("blaster", blaster_main);
 
 #if 0
 	fprintf(stderr, "PLUGIN: commands_plugin_init called\n");
