@@ -1,3 +1,19 @@
+Alistair's TODO List:
+
+o	Finish the re-organisation of the code. This is mainly just renaming
+	the functions. (The names got a little out of hand)
+
+o	Break the code up into seperate files (FM, DSP, MIDI ?)
+
+o	Add MIDI and FM support for the SB Emulation. (ie Merge the SB MIDI
+	and the MPU-401 MIDI code (?) )
+
+o	Add the remaining functionality (See /* FIXME: ....  */'s)
+
+
+*******************************************************************************
+JOEL's Original TODO List:
+
 There's a lot of work left to be done with sound code.  The readme
 enumerates a number of flaws; some of these may need to be fixed.  Also, here's
 a bunch of things that I'll save for people who know DOSEMU in and out:

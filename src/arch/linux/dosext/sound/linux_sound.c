@@ -21,6 +21,8 @@
  *  added some more (undocumented ?) SB commands, version detection
  */
 
+#include <unistd.h>
+
 #include "emu.h" /* For S_printf */
 
 #include <string.h>
@@ -40,9 +42,13 @@
 #error SOUND_FRAG not defined!
 #endif
 
+/* SB static vars */
 static int mixer_fd = -1;
 static int dsp_fd   = -1;
 static long int block_size = 0;
+/* MPU static vars */
+static int mpu_fd = -1;	             /* -1 = closed */
+static boolean mpu_disabled = FALSE; /* TRUE if MIDI output disabled */
 
 extern void sb_set_speed (void);   /* From sound.c */
 
@@ -316,6 +322,11 @@ void linux_sb_dma_start_complete (void) {
   dma_install_handler(config.sb_dma, -1, dsp_fd, sb_dma_handler, SOUND_SIZE);
 }
 
+void linux_sb_dma_complete(void)
+{
+	S_printf ("SB: [Linux] DMA Completed\n");
+}
+
 #ifdef 0
 void start_dsp_dma(void)
 {
@@ -398,7 +409,7 @@ int SB_driver_init (void) {
   SB_driver.DMA_pause           = NULL;
   SB_driver.DMA_resume          = NULL;
   SB_driver.DMA_stop            = NULL;
-  SB_driver.DMA_complete        = NULL;
+  SB_driver.DMA_complete        = linux_sb_dma_complete;
 
   /* Miscellaneous Functions */
   SB_driver.set_speed           = linux_sb_set_speed;
@@ -412,15 +423,40 @@ int SB_driver_init (void) {
 }
 
 
-int FM_driver_init() {
+void linux_mpu401_data_write(__u8 data)
+{
+	/* Output a MIDI byte to an external file;
+	   'open on demand' strategy. */
+	if (mpu_fd == -1) {
+	  	if (mpu_disabled) return;
+		mpu_fd = open("/var/run/dosemu-midi",O_WRONLY | O_CREAT, 0777);
+		if (mpu_fd == -1) {
+			mpu_disabled = TRUE;
+			S_printf("MPU401:[Linux] Failed to open file 'midi' (%s)\n",
+			strerror(errno));
+			return;
+		}
+	}
+	if (write(mpu_fd,&data,1) != 1) {
+			S_printf("MPU401:[Linux] Failed to write to file 'midi' (%s)\n",
+			strerror(errno));
+	}
+}
+
+
+int FM_driver_init()
+{
   S_printf ("SB:[Linux] FM Driver Initialisation Called\n");
 
   return ADLIB_NONE;
 }
 
-int MPU_driver_init() {
-  S_printf ("SB:[Linux] MPU Driver Initialisation Called\n");
-
+int MPU_driver_init()
+{
+  S_printf("MPU:[Linux] MPU Driver Initialisation Called\n");
+  mpu401_info.data_write = linux_mpu401_data_write;
+  mpu_fd = -1;
+  mpu_disabled = FALSE;
   return MPU_NONE;
 }
 
@@ -434,7 +470,12 @@ void FM_driver_reset() {
 
 }
 
-void MPU_driver_reset() {
-  S_printf ("SB:[Linux] MPU Driver Reset Called\n");
-
+void MPU_driver_reset()
+{
+	S_printf("MPU:[Linux] MPU Driver Reset Called\n");
+	if (mpu_fd != -1) {
+		close(mpu_fd);
+		mpu_fd = -1;
+	}
+	mpu_disabled = FALSE;
 }

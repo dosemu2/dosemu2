@@ -34,6 +34,9 @@
 /* Define the Dosemu version */
 #undef VERSION
 
+/* Define the Dosemu version release date */
+#undef VERDATE
+
 /* Define the Dosemu sublevel */
 #undef SUBLEVEL
 

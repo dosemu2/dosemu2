@@ -67,6 +67,7 @@ EXTERN struct sb_information_t {
 EXTERN struct DSP_information_t {
   __u8  channels;              /* Number of Channels on the DSP */
   __u8  time_constant;         /* The current Time constant for writes */
+  __u16 sample_rate;           /* The current sample rate */
   __u8  test;                  /* Storage for the test value */
   __u8  stereo;                /* Is the device Stereo */
   __u8  ready;                 /* Is DSP Ready ? */
@@ -145,6 +146,11 @@ EXTERN struct SB_driver_t {
 #define FM_RIGHT_STATUS       ADV_ADLIB_STATUS
 #define FM_RIGHT_DATA         ADV_ADLIB_DATA
 
+#define CMS_LOWER_DATA        0
+#define CMS_LOWER_REGISTER    1
+#define CMS_UPPER_DATA        2
+#define CMS_UPPER_REGISTER    3
+
 /* This is a Kludge! */
 #define ADLIB_NORMAL   1
 #define ADLIB_ADV      2
@@ -156,9 +162,17 @@ EXTERN struct SB_driver_t {
  ***************************************************************************
  */
 
-/* This is a Kludge! */
+/* This is a Kludge! */  /* Are these relevant? (Rutger) */
 #define MPU_NORMAL     1
 #define MPU_NONE       0
+
+EXTERN struct mpu401_info_t {
+	/* MPU401 state data */
+	int isdata;         /* TRUE iff byte available at input */
+	/* Architecture specific procedures */
+	void (*data_write)(__u8 data); /* process 1 MIDI byte */
+} mpu401_info;
+
 
 /*
  ***************************************************************************
@@ -214,4 +228,3 @@ extern void MPU_driver_reset (void);
 extern int SB_driver_init (void);
 extern int FM_driver_init (void);
 extern int MPU_driver_init (void);
-

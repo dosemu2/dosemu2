@@ -24,6 +24,7 @@ pristine:
 	rm -f `find . -name '*.d'`
 	rm -f `find . -name '*[\.]orig'`
 	rm -f `find . -name '*[\.]rej'`
+	rm -f gen*.log
 	rm -f `find . -size 0`
 	(cd setup/demudialog; make clean)
 	rm -f Makefile

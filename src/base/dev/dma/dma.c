@@ -6,8 +6,7 @@
  ********
  *
  * DANG_BEGIN_MODULE dma.c
- * This is a DMA controller emulation. It is not complete, and only implements
- * the lower half of the controller. (8-bit channels)
+ * This is the DMA controller emulation. It is fairly complete.
  *
  * maintainer:
  * Alistair MacDonald <alistair@slitesys.demon.co.uk>
@@ -21,6 +20,11 @@
  *
  * modified 11/05/95 by Michael Beck
  *  some minor bugs fixed in dma_trans() and other places (Old Code - AM)
+ *
+ * CHANGELOG
+ * 23/2/97 - AM - Finally removed the old DMA code, and re-organised the
+ *          code to make it easier to read now it has been indented.
+ * END_CHANGELOG
  */
 
 #include "emu.h" /* for h_printf */
@@ -34,18 +38,18 @@
 #include "pic.h"
 #include "port.h"
 
-#ifndef OLD_DMA_CODE
 #include <unistd.h>
 
+/* AM - Inverted order of msb/lsb as CRISK found they were inverted. */
 typedef struct {
-  Bit8u lsb;
   Bit8u msb;
+  Bit8u lsb;
 } msblsb_t;
 
 typedef union {
   Bit8u data[2];
   msblsb_t bits;
-  Bit16u value;
+  /* AM - Removed 'value' since this makes endian-ness assumptions */
 } multi_t;
 
 typedef struct {
@@ -66,7 +70,7 @@ typedef struct {
   Bit8u   ch_mode[4];    /* Mode of the channel */
   Bit8u   page[4];       /* Page address for channel */
   int     ff;            /* High/Low order bit Flip/Flop */
-  int     current_ch;    /* Which is being referred to */
+  int current_channel;	 /* Which is being referred to */
 
 /* Emulation Specific */
   internal_t i[4];       /* Internals */
@@ -91,20 +95,24 @@ static  dma_t dma[2];    /* DMA controllers */
 #define DMA1  0
 #define DMA2  1
 
-Bit8u dma_io_read(Bit32u port);
-void dma_io_write(Bit32u port, Bit8u value);
-
 inline void dma_toggle_ff(int dma_c);
 inline void dma_write_mask (int dma_c, Bit8u value);
 inline void dma_write_count (int dma_c, int channel, Bit8u value);
 inline void dma_write_addr (int dma_c, int channel, Bit8u value);
 inline Bit8u dma_read_count (int dma_c, int channel);
 inline Bit8u dma_read_addr (int dma_c, int channel);
-inline Bit32u *create_addr (Bit8u page, Bit8u addr_msb, Bit8u addr_lsb, 
-			   int dma_c);
+inline Bit32u create_addr(Bit8u page, multi_t address, int dma_c);
 
-int dma_do_read (int controller, int channel, Bit32u *target_addr);
-int dma_do_write (int controller, int channel, Bit32u *target_addr);
+inline Bit16u get_value ( multi_t data );
+inline void add_value ( multi_t *data, Bit16u value );
+inline void sub_value ( multi_t *data, Bit16u value );
+inline void set_value ( multi_t *data, Bit16u value );
+
+inline int get_ch (int controller, int channel);
+inline int get_mask (int ch);
+
+size_t dma_do_read(int controller, int channel, Bit32u target_addr);
+size_t dma_do_write(int controller, int channel, Bit32u target_addr);
 
 
 /* PUBLIC CODE */
@@ -248,18 +256,100 @@ int dma_test_eop(int channel)
 
 /* PRIVATE CODE */
 
-inline Bit32u *create_addr (Bit8u page, Bit8u addr_msb, Bit8u addr_lsb, 
-			   int dma_c)
+
+/*
+ * This removes any Endian-ness assumptions
+ */
+
+inline Bit16u get_value (multi_t data) 
 {
-  if (dma_c == DMA1)
-    /* 64K page */
-    return (Bit32u *) ((page & 0x15) << 16) + (addr_msb << 8) + addr_lsb;
-  else
-    /* 128K page */
-    return (Bit32u *) (page << 17) + (addr_msb << 9) + (addr_lsb << 1);
+	return ( ((Bit16u)data.bits.msb << 8) + data.bits.lsb);
+}
+
+inline void add_value (multi_t *data, Bit16u value) 
+{
+	Bit16u tmp;
+
+#ifdef EXCESSIVE_DEBUG
+	h_printf ("DMA: MSB %u, LSB %u\n", data->bits.msb, data->bits.lsb);
+#endif /* EXCESSIVE_DEBUG */
+
+	tmp = ( ((Bit16u)data->bits.msb << 8) + data->bits.lsb);
+
+#ifdef EXCESSIVE_DEBUG
+	h_printf ("DMA: Adding %u to %u gives ", value, tmp);
+#endif /* EXCESSIVE_DEBUG */
+
+	tmp += value;
+
+#ifdef EXCESSIVE_DEBUG
+	h_printf ("%u\n", tmp);
+#endif /* EXCESSIVE_DEBUG */
+
+	data->bits.msb = (Bit8u) (tmp >> 8);
+	data->bits.lsb = (Bit8u) tmp & 0xFF;
+
+#ifdef EXCESSIVE_DEBUG
+	h_printf ("DMA: MSB %u, LSB %u\n", data->bits.msb, data->bits.lsb);
+#endif /* EXCESSIVE_DEBUG */
+}
+
+inline void sub_value (multi_t *data, Bit16u value) 
+{
+	Bit16u tmp;
+
+#ifdef EXCESSIVE_DEBUG
+	h_printf ("DMA: MSB %u, LSB %u\n", data->bits.msb, data->bits.lsb);
+#endif /* EXCESSIVE_DEBUG */
+
+	tmp = ( ((Bit16u)data->bits.msb << 8) + data->bits.lsb);
+
+#ifdef EXCESSIVE_DEBUG
+	h_printf ("DMA: Subtracting %u from %u gives ", value, tmp);
+#endif /* EXCESSIVE_DEBUG */
+
+	tmp -= value;
+
+#ifdef EXCESSIVE_DEBUG
+	h_printf ("%u\n", tmp);
+#endif /* EXCESSIVE_DEBUG */
+
+	data->bits.msb = (Bit8u) (tmp >> 8);
+	data->bits.lsb = (Bit8u) tmp & 0xFF;
+
+#ifdef EXCESSIVE_DEBUG
+	h_printf ("DMA: MSB %u, LSB %u\n", data->bits.msb, data->bits.lsb);
+#endif /* EXCESSIVE_DEBUG */
+}
+
+inline void set_value (multi_t *data, Bit16u value) 
+{
+	data->bits.msb = (Bit8u) (value >> 8);
+	data->bits.lsb = (Bit8u) value & 0xFF;
 }
 
 
+inline Bit32u create_addr(Bit8u page, multi_t address, int dma_c)
+{
+	/* **CRISK** modified this - making this actually work */
+	/* AM - Removed 'dma_c' assumption */
+
+	Bit32u base_address;
+
+	base_address = (
+		(((Bit32u)page & 0xF) << 16) +
+		((Bit16u)address.bits.msb << 8) +
+		address.bits.lsb
+		);
+
+	if (dma_c == DMA1) {
+		/* 64K Page */
+		return (base_address);
+	} else {
+		/* 128K Page */
+		return (base_address << 1);
+	}
+}
 
 inline void dma_toggle_ff(int dma_c)
 {
@@ -272,7 +362,6 @@ inline Bit8u dma_read_addr (int dma_c, int channel)
   Bit8u r;
 
   r = dma[dma_c].address[channel].data[dma[dma_c].ff];
-
   h_printf ("DMA: Read %u from Channel %d Address (Byte %d)\n", r,
 	    (dma_c *4) + channel, dma[dma_c].ff);
 
@@ -286,7 +375,6 @@ inline Bit8u dma_read_count (int dma_c, int channel)
   Bit8u r;
 
   r = dma[dma_c].length[channel].data[dma[dma_c].ff];
-
   h_printf ("DMA: Read %u from Channel %d Length (Byte %d)\n", r,
 	    (dma_c *4) + channel, dma[dma_c].ff);
 
@@ -302,7 +390,7 @@ Bit8u dma_io_read(Bit32u port)
 
   r = 0;
 
-  switch (port) 
+  switch (port)
   {
   case DMA_ADDR_0:
     r = dma_read_addr(DMA1, 0);
@@ -364,7 +452,7 @@ Bit8u dma_io_read(Bit32u port)
     break;
 
   default:
-    h_printf ("DMA: Unhandled Read on 0x%04lx\n", port);
+    h_printf("DMA: Unhandled Read on 0x%04x\n", (Bit16u) port);
   }
 
   return r;
@@ -374,7 +462,6 @@ Bit8u dma_io_read(Bit32u port)
 inline void dma_write_addr (int dma_c, int channel, Bit8u value)
 {
   dma[dma_c].address[channel].data[dma[dma_c].ff] = value;
-
   h_printf ("DMA: Wrote 0x%x into Channel %d Address (Byte %d)\n", value,
 	    (dma_c *4) + channel, dma[dma_c].ff);
 
@@ -384,7 +471,6 @@ inline void dma_write_addr (int dma_c, int channel, Bit8u value)
 inline void dma_write_count (int dma_c, int channel, Bit8u value)
 {
   dma[dma_c].length[channel].data[dma[dma_c].ff] = value;
-
   h_printf ("DMA: Wrote 0x%x into Channel %d Length (Byte %d)\n", value,
 	    (dma_c *4) + channel, dma[dma_c].ff);
 
@@ -395,18 +481,18 @@ inline void dma_write_mask (int dma_c, Bit8u value)
 {
     if (value & DMA_SELECT_BIT)
     {
-      dma[dma_c].current_ch = (int) value & 3;
+      dma[dma_c].current_channel = (int) value & 3;
       h_printf ("DMA: Channel %u selected.\n", 
-		(dma_c *4) + dma[dma_c].current_ch);
+			(dma_c * 4) + dma[dma_c].current_channel);
     }
     else
     {
       h_printf ("DMA: Channel %u deselected.\n", 
-		(dma_c *4) + dma[dma_c].current_ch);
+			 (dma_c * 4) + dma[dma_c].current_channel);
 
-      is_dma |= (1 << dma[dma_c].current_ch);
+      is_dma |= (1 << dma[dma_c].current_channel);
 
-      dma[dma_c].current_ch = -1;
+      dma[dma_c].current_channel = -1;
     }
 }
 
@@ -417,7 +503,7 @@ void dma_io_write(Bit32u port, Bit8u value)
 {
   Bit8u ch;
 
-  switch (port) 
+  switch (port)
   {
   case DMA_ADDR_0:
     dma_write_addr (DMA1, 0, value);
@@ -508,34 +594,36 @@ void dma_io_write(Bit32u port, Bit8u value)
   case DMA1_MODE_REG:
     ch = value & DMA_CH_SELECT;
     dma[DMA1].ch_mode[ch] = value - ch;
-    h_printf ("DMA: Write 0x%x to Channel %u mode\n", value - ch, ch);
+    h_printf("DMA: Write 0x%x to Channel %u mode\n", value - ch, ch);
     break;
   case DMA2_MODE_REG:
     ch = value & DMA_CH_SELECT;
     dma[DMA2].ch_mode[ch] = value - ch;
-    h_printf ("DMA: Write 0x%x to Channel %u mode\n", value - ch, ch + 4);
+    h_printf("DMA: Write 0x%x to Channel %u mode\n", value - ch, ch + 4);
     break;
 
   case DMA1_CMD_REG:
-    dma[DMA1].ch_config[dma[DMA1].current_ch] = value;;
+    dma[DMA1].ch_config[dma[DMA1].current_channel] = value;;
     h_printf ("DMA: Write 0x%x to DMA1 Command\n", value);
     break;
   case DMA2_CMD_REG:
-    dma[DMA2].ch_config[dma[DMA2].current_ch] = value;;
+    dma[DMA2].ch_config[dma[DMA2].current_channel] = value;;
     h_printf ("DMA: Write 0x%x to DMA2 Command\n", value);
     break;
 
   case DMA1_CLEAR_FF_REG:
     h_printf ("DMA: Clearing DMA1 Output FF\n");
-    dma[DMA1].ff = value & 1;  /* Kernel implies this, then ignores it */
+                /* Kernel implies this, then ignores it */
+    dma[DMA1].ff = value & 1;
     break;
   case DMA2_CLEAR_FF_REG:
     h_printf ("DMA: Clearing DMA2 Output FF\n");
-    dma[DMA2].ff = value & 1;  /* Kernel implies this, then ignores it */
+                /* Kernel implies this, then ignores it */
+    dma[DMA2].ff = value & 1;
     break;
 
   default:
-    h_printf ("DMA: Unhandled Write on 0x%04lx\n", port);
+    h_printf("DMA: Unhandled Write on 0x%04x\n", (Bit16u) port);
   }
 }
 
@@ -566,60 +654,40 @@ void dma_install_handler (int ch, int wfd, int rfd, void (* handler) (int),
 }
 
 
-
 /*
- * This is the brains of the operation ....
+ * This sets up a DMA channel for the first time.
  */
 
-void dma_controller (void)
+int dma_initialise_channel (int controller, int channel) 
 {
-  Bit8u test;
-  Bit32u *target_addr;
-  int controller, channel, ch;
-  int tmp_pipe[2];
-  int amount_done = 0;
+	extern dma_t dma[2];
+	int tmp_pipe[2];
+	int ch, mask;
 
-  for (test = 1, controller = DMA1, channel = 0, ch = 0; 
-       test != 0; 
-       test = test << 1, channel++, ch++)
-  {
-    if (channel == 4)
-    {
-      controller = DMA2;
-      channel = 0;
-    }
+	ch = get_ch (controller, channel);
+	mask = get_mask (ch);
 
-    /* Process the channel only if it has been deselected */
-    if ((is_dma & test) && (dma[controller].current_ch != channel))
-    {
-      /* Time to process this DMA channel */
-      h_printf ("DMA: processing controller %d, channel %d\n", controller +1, 
-		ch);
-
-      /* Have we started using it yet ? */
-      if ((dma[controller].i[channel].wfd == -1) 
-	  && (dma[controller].i[channel].rfd == -1))
-      {
-	/* Neither part is open - lets set up the pipe */
 	h_printf ("DMA: Initialising transfer for channel %d, controller %d\n",
 		  ch, controller +1);
 
-	if (pipe(tmp_pipe))
-	{
+	if (pipe(tmp_pipe)) {
 	  /* Failed to create the pipe */
 	  h_printf ("DMA: Failed to intialise transfer for channel %d on controller %d\n", 
 		    ch, controller + 1);
 
-	  /* FIXME: Lets hope that it times out ! */
-	  is_dma &= ~ test;
-	  return;
+		/* 
+		 * DANG_FIXTHIS: Pipe Creation failed. Lets hope that it times out ! 
+		 */
+
+		is_dma &= ~mask;
+		return -1;
 	}
 
 	dma[controller].i[channel].wfd = tmp_pipe[0];
 	dma[controller].i[channel].rfd = tmp_pipe[1];
 
 	dma_assert_DACK (ch);  /* Force DACK - makes the logic easier */
-;
+	
 	/* 
 	 * DANG_BEGIN_REMARK
 	 * I think that DREQ should only be set on auto-init if we are the 
@@ -627,443 +695,763 @@ void dma_controller (void)
 	 * DANG_END_REMARK
 	 */
 
-/*	if (dma[controller].ch_mode[channel] & (DMA_AUTO_INIT | DMA_READ))
+/*      Why Comment this out ? - AM
+	if (dma[controller].ch_mode[channel] & (DMA_AUTO_INIT | DMA_READ))
 	  dma_assert_DREQ (ch);
 	else
-*/	  dma_drop_DREQ (ch);
+ */                       
+	h_printf("DMA: [crisk] dropping DREQ\n");
+	dma_drop_DREQ(ch);
 
-      }
+	return 0;
+}
 
-      /* Should now have a valid set up */
       
-      /* 
-       * Telling the DMA controller to READ, means that you want to read
-       * from the address, so we actually need to write !
-       */
+/* 
+ * This confirms the channel is set up correctly and tries to set it up if
+ * it isn't.
+ */
+
+int dma_check_channel_setup (int controller, int channel)
+{
+	/* Have we started using it yet ? */
+	   	   
+	if ((dma[controller].i[channel].wfd == -1)
+	    && (dma[controller].i[channel].rfd == -1)) {
+		/* Neither part is open - lets set up the pipe */
+		return (dma_initialise_channel (controller, channel));
+	} else {
+		return 0;
+	}
+
+}
+
+
+int get_ch (int controller, int channel) {
+	if (controller == DMA1) {
+		return (channel);
+	} else {
+		return (channel + 4);
+	}
+}
+
+int get_mask (int ch) {
+	return ( 1 << ch );
+}
+
+void dma_process_demand_mode_write (int controller, int channel)
+{
+	Bit32u target_addr;
+	int amount_done = 0;
+	int ch;
+	int mask;
+
+	ch = get_ch (controller, channel);
+	mask = get_mask (ch);
 
       target_addr = create_addr (dma[controller].page[channel],
-				 dma[controller].address[channel].bits.msb,
-				 dma[controller].address[channel].bits.lsb,
+				  dma[controller].address[channel],
 				 controller);
 
-      switch (dma[controller].ch_mode[channel] & DMA_DIR_MASK)
-      {
-      case DMA_WRITE:
-	switch (dma[controller].ch_mode[channel] & DMA_MODE_MASK)
-	{
-	case DMA_DEMAND_MODE:
-	  if (dma_test_DACK(ch))
+	if (dma_test_DACK(ch)) {
 	    dma_drop_DACK(ch);
-	  else
+	} else {
 	    return;
+	}
 
-	  if (! dma[controller].length[channel].value) 
-	  { 
+	if (!get_value (dma[controller].length[channel])) {
 	    /* Transfer is complete */ 
 	    dma[controller].status |= (1 << channel);
-/*	    close (dma[controller].i[channel].wfd);
-	    dma[controller].i[channel].wfd = -1; 
-*/	    is_dma &= ~test ;
 
-	    if (dma[controller].i[channel].handler != NULL)
+		is_dma &= ~ (1 << (ch -1));
+				
+		if (dma[controller].i[channel].handler != NULL) {
+			/* The handler is expected to close any descriptors */
 	      dma[controller].i[channel].handler (DMA_HANDLER_DONE);
+		} else {
+			close (dma[controller].i[channel].wfd);
+		}
+		
+		dma[controller].i[channel].wfd = -1; 
 
 	    return; 
 	  }
 
-	  if (dma_test_eop(ch))
-	  {
+	if (dma_test_eop(ch)) {
 	    /* Stop the Transfer */
 	    dma[controller].status &= (1 << channel);
+
 /*	    close (dma[controller].i[channel].wfd);
 	    dma[controller].i[channel].wfd = -1;
-*/	    is_dma &= ~ test;
+	    */ 
+		
+		is_dma &= ~mask;
 	    return;
 	  }
 
-	  if (dma_test_DREQ(ch))
-	  {
+	if (dma_test_DREQ(ch)) {
 	    dma[controller].i[channel].run = 1; /* TRIVIAL */
 
-	    if (dma[controller].length[channel].value
-		< dma[controller].i[channel].size)
+		if (get_value (dma[controller].length[channel])
+		    < dma[controller].i[channel].size) {
 	      dma[controller].i[channel].size 
-		= dma[controller].length[channel].value;
-
+				= get_value (dma[controller].length[channel]);
+		}
  	    amount_done = dma_do_read(controller, channel, target_addr);
 
-	    if (dma[controller].ch_mode[channel] & DMA_ADDR_DEC)
-	      dma[controller].address[channel].value 
-		-= amount_done;
-	    else
-	      dma[controller].address[channel].value
-		+= amount_done;
+		if (dma[controller].ch_mode[channel] & DMA_ADDR_DEC) {
+			sub_value (&dma[controller].address[channel],
+				   amount_done);
+		} else {
+			add_value (&dma[controller].address[channel],
+				   amount_done);
+		}
 
-	    dma[controller].length[channel].value 
-	      -= amount_done;
+		sub_value (&dma[controller].length[channel], amount_done);
 
-	    if (dma[controller].i[channel].handler != NULL)
+		if (dma[controller].i[channel].handler != NULL) {
 	      dma[controller].i[channel].handler (DMA_HANDLER_WRITE);
 	  }
+	}
+}
 
-	  break;
-
-	case DMA_SINGLE_MODE:
-	  if (! dma[controller].length[channel].value)
+void dma_process_single_mode_write (int controller, int channel)
 	  {
+	Bit32u target_addr;
+	int amount_done = 0;
+	int ch;
+	int mask;
+
+	ch = get_ch (controller, channel);
+	mask = get_mask (ch);
+
+	target_addr = create_addr(dma[controller].page[channel],
+				  dma[controller].address[channel],
+				  controller);
+	
+	if (! get_value (dma[controller].length[channel]) ) {
 	    /* Transfer is complete */
 	    dma[controller].status |= (1 << channel);
-/*	    close (dma[controller].i[channel].wfd);
-	    dma[controller].i[channel].wfd = -1;
-*/	    is_dma &= ~test ;
 
-	    if (dma[controller].i[channel].handler != NULL)
+		is_dma &= ~mask;
+				
+		if (dma[controller].i[channel].handler != NULL) {
+			/* The handler is expected to close any descriptors */
 	      dma[controller].i[channel].handler (DMA_HANDLER_DONE);
+		} else {			
+			close (dma[controller].i[channel].wfd);
+		}
+
+		dma[controller].i[channel].wfd = -1;
 
 	    return;
 	  }
 
 	  if (((!dma[controller].i[channel].run) && dma_test_DREQ(ch))
-	      || (dma_test_DREQ(ch) && dma_test_DACK(ch)))
-	  {
-	    if (! dma[controller].i[channel].run)
+	    || (dma_test_DREQ(ch) && dma_test_DACK(ch))) {
+		if (!dma[controller].i[channel].run) {
 	      dma[controller].i[channel].run = 1;
-	    else
+		} else {
 	      dma_drop_DACK(ch);
+		}
 
-	    if (dma[controller].length[channel].value
-		< dma[controller].i[channel].size)
+		if (get_value (dma[controller].length[channel])
+		    < dma[controller].i[channel].size) {
 	      dma[controller].i[channel].size 
-		= dma[controller].length[channel].value;
+				= get_value (dma[controller].length[channel]);
+		}
 
  	    amount_done = dma_do_read(controller, channel, target_addr);
 
-	    if (dma[controller].ch_mode[channel] & DMA_ADDR_DEC)
-	      dma[controller].address[channel].value 
-		-= amount_done;
-	    else
-	      dma[controller].address[channel].value 
-		+= amount_done;
+		if (dma[controller].ch_mode[channel] & DMA_ADDR_DEC) {
+			sub_value (&dma[controller].address[channel],
+						amount_done );
+		} else {
+			add_value (&dma[controller].address[channel],
+						amount_done );
+		}
 
-	    dma[controller].length[channel].value 
-	      -= amount_done;
+		sub_value (&dma[controller].length[channel], amount_done);
 
-	    if (dma[controller].i[channel].handler != NULL)
+		if (dma[controller].i[channel].handler != NULL) {
 	      dma[controller].i[channel].handler (DMA_HANDLER_WRITE);
 	  }
+	}
+}	
 
- 	  break;
 
-	case DMA_BLOCK_MODE:
-	  if (dma_test_DACK(ch))
+void dma_process_block_mode_write (int controller, int channel)
+{
+	Bit32u target_addr;
+	int amount_done = 0;
+	int ch;
+	int mask;
+
+	ch = get_ch (controller, channel);
+	mask = get_mask (ch);
+
+	target_addr = create_addr(dma[controller].page[channel],
+				  dma[controller].address[channel],
+				  controller);
+	
+	if (dma_test_DACK(ch)) {
 	    dma_drop_DACK(ch);
-	  else
+	} else {
 	    return;
+	}
 
-	  if (!dma[controller].length[channel].value)
-	  {
+	if (! get_value (dma[controller].length[channel]) ) {
 	    /* Transfer is complete */
 	    dma[controller].status |= (1 << channel);
-/*	    close (dma[controller].i[channel].wfd);
-	    dma[controller].i[channel].wfd = -1;
-*/	    is_dma &= ~test ;
 
-	    if (dma[controller].i[channel].handler != NULL)
+		is_dma &= ~mask;
+		
+		if (dma[controller].i[channel].handler != NULL) {
+			/* The handler is expected to close any descriptors */
 	      dma[controller].i[channel].handler (DMA_HANDLER_DONE);
+		} else {
+			close (dma[controller].i[channel].wfd);
+		}
+
+		dma[controller].i[channel].wfd = -1;
 
 	    return;
 	  }
 
-	  if (dma_test_eop(ch))
-	  {
+	if (dma_test_eop(ch)) {
 	    /* Stop the Transfer */
 	    dma[controller].status &= (1 << channel);
+
 /*	    close (dma[controller].i[channel].wfd);
 	    dma[controller].i[channel].wfd = -1;
-*/	    is_dma &= ~ test;
+	    */ 
+		is_dma &= ~mask;
 	    return;
 	  }
 
 	  if ((! dma[controller].i[channel].run) && (dma_test_DREQ(ch)))
 	    dma[controller].i[channel].run = 1; /* Important ! */
 
-	  if (dma[controller].i[channel].run)
-	  {
-	    if (dma[controller].length[channel].value
-		< dma[controller].i[channel].size)
+	if (dma[controller].i[channel].run) {
+		if ( get_value (dma[controller].length[channel])
+		     < dma[controller].i[channel].size) {
 	      dma[controller].i[channel].size 
-		= dma[controller].length[channel].value;
+				= get_value (dma[controller].length[channel]);
+		}
 
  	    amount_done = dma_do_read(controller, channel, target_addr);
 
-	    if (dma[controller].ch_mode[channel] & DMA_ADDR_DEC)
-	      dma[controller].address[channel].value 
-		-= amount_done;
-	    else
-	      dma[controller].address[channel].value 
-		+= amount_done;
+		if (dma[controller].ch_mode[channel] & DMA_ADDR_DEC) {
+			sub_value (&dma[controller].address[channel],
+				   amount_done);
+		} else {
+			add_value (&dma[controller].address[channel],
+				   amount_done);
+		}
 
-	    dma[controller].length[channel].value 
-	      -= amount_done;
+		sub_value (&dma[controller].length[channel], amount_done);
 	    
-	    if (dma[controller].i[channel].handler != NULL)
+		if (dma[controller].i[channel].handler != NULL) {
 	      dma[controller].i[channel].handler (DMA_HANDLER_WRITE);
-
 	  }
-	  break;
+	}
+}
 
-	case DMA_CASCADE_MODE:
-	  /* Not Supported */
+
+/* 
+ * DANG_FIXTHIS: Cascade mode Writes are not supported 
+ */
+void dma_process_cascade_mode_write (int controller, int channel)
+{
+	int ch;
+	int mask;
+
+	ch = get_ch (controller, channel);
+	mask = get_mask (ch);
+
 	  h_printf ("DMA: Attempt to use unsupported CASCADE mode\n");
+
 /*	  close (dma[controller].i[channel].wfd);
 	  dma[controller].i[channel].wfd = -1;
-*/	  is_dma &= ~ test;
+	  */ 
 
-	    if (dma[controller].i[channel].handler != NULL)
-	      dma[controller].i[channel].handler (DMA_HANDLER_DONE);
+	is_dma &= ~mask;
 
-	  break;
-	};
-	break;
+	if (dma[controller].i[channel].handler != NULL) {
+		dma[controller].i[channel].handler(DMA_HANDLER_DONE);
+	}
+}
 
-      case DMA_READ:
 
-	switch (dma[controller].ch_mode[channel] & DMA_MODE_MASK)
-	{
-	case DMA_DEMAND_MODE:
-	  if (dma_test_DACK(ch))
+void dma_process_demand_mode_read (int controller, int channel)
+{
+	Bit32u target_addr;
+	int amount_done = 0;
+	int ch;
+	int mask;
+
+	ch = get_ch (controller, channel);
+	mask = get_mask (ch);
+
+	target_addr = create_addr(dma[controller].page[channel],
+				  dma[controller].address[channel],
+				  controller);
+	
+	if (dma_test_DACK(ch)) {
 	    dma_drop_DACK(ch);
-	  else
+	} else {
 	    return;
+	}
 
-	  if (! dma[controller].length[channel].value)
-	  {
+	if (! get_value(dma[controller].length[channel]) ) {
 	    /* Transfer is complete */
 	    dma[controller].status |= (1 << channel);
-/*	    close (dma[controller].i[channel].rfd);
-	    dma[controller].i[channel].rfd = -1;
-*/	    is_dma &= ~test ;
 
-	    if (dma[controller].i[channel].handler != NULL)
+		is_dma &= ~mask;
+				
+		if (dma[controller].i[channel].handler != NULL) {
+			/* The handler is expected to close any descriptors */
 	      dma[controller].i[channel].handler (DMA_HANDLER_DONE);
+		} else {
+			close (dma[controller].i[channel].rfd);
+		}
+
+		dma[controller].i[channel].rfd = -1;
 
 	    return;
 	  }
 
-	  if (dma_test_eop(ch))
-	  {
+	if (dma_test_eop(ch)) {
 	    /* Stop the Transfer */
 	    dma[controller].status &= (1 << channel);
+
 /*	    close (dma[controller].i[channel].rfd);
 	    dma[controller].i[channel].rfd = -1;
-*/	    is_dma &= ~ test;
+	    */ 
+		is_dma &= ~mask;
 	    return;
 	  }
 
-	  if (dma_test_DREQ(ch))
-	  {
+	if (dma_test_DREQ(ch)) {
 	    dma[controller].i[channel].run = 1; /* TRIVIAL */
 
-	    if (dma[controller].length[channel].value
-		< dma[controller].i[channel].size)
+		if (get_value (dma[controller].length[channel])
+		    < dma[controller].i[channel].size) {
 	      dma[controller].i[channel].size 
-		= dma[controller].length[channel].value;
+				= get_value (dma[controller].length[channel]);
+		}
 
  	    amount_done = dma_do_write(controller, channel, target_addr);
 
-	    if (dma[controller].ch_mode[channel] & DMA_ADDR_DEC)
-	      dma[controller].address[channel].value 
-		-= amount_done;
-	    else
-	      dma[controller].address[channel].value 
-		+= amount_done;
+		if (dma[controller].ch_mode[channel] & DMA_ADDR_DEC) {
+			sub_value (&dma[controller].address[channel],
+				   amount_done);
+		} else {
+			add_value (&dma[controller].address[channel],
+				   amount_done);
+		}
 
-	    dma[controller].length[channel].value 
-	      -= amount_done;
+		sub_value (&dma[controller].length[channel],
+			   amount_done);
 
-	    if (dma[controller].i[channel].handler != NULL)
+		if (dma[controller].i[channel].handler != NULL) {
 	      dma[controller].i[channel].handler (DMA_HANDLER_READ);
+		}
+	}
+}
 
-	  }
 
-	  break;
+void dma_process_single_mode_read (int controller, int channel)
+{
+	Bit32u target_addr;
+	size_t amount_done = 0;
+	int ch;
+	int mask;
 
-	case DMA_SINGLE_MODE:
-	  h_printf ("DMA: Single Mode Read - length %d\n", dma[controller].length[channel].value);
-	  if (! dma[controller].length[channel].value)
-	  {
+	ch = get_ch (controller, channel);
+	mask = get_mask (ch);
+
+	target_addr = create_addr(dma[controller].page[channel],
+				  dma[controller].address[channel],
+				  controller);
+	
+	h_printf("DMA: Single Mode Read - length %d (%d)\n", 
+		 get_value (dma[controller].length[channel]),
+		 dma[controller].i[channel].size);
+
+	if (!get_value (dma[controller].length[channel])) {
 	    /* Transfer is complete */
+		h_printf("DMA: [crisk] Transfer is complete\n");    
 	    dma[controller].status |= (1 << channel);
-/*	    close (dma[controller].i[channel].rfd);
-	    dma[controller].i[channel].rfd = -1;
-*/	    is_dma &= ~test ;
 
-	    if (dma[controller].i[channel].handler != NULL)
-	      dma[controller].i[channel].handler (DMA_HANDLER_DONE);
 
-	    return;
+		is_dma &= ~mask;
+				
+		if (dma[controller].i[channel].handler != NULL) {
+			/* The handler is expected to close any descriptors */
+			dma[controller].i[channel].handler(DMA_HANDLER_DONE);
+		} else {
+			close (dma[controller].i[channel].rfd);
 	  }
 
+		dma[controller].i[channel].rfd = -1;
+				
+		return;
+	}
+			
+	h_printf("DMA: [crisk] SM read (%d && %d) || (%d && %d)\n",
+		 !dma[controller].i[channel].run,
+		 dma_test_DREQ(ch),
+		 dma_test_DREQ(ch),
+		 dma_test_DACK(ch));
+	
 	  if ((!dma[controller].i[channel].run && dma_test_DREQ(ch))
-	      || (dma_test_DREQ(ch) && dma_test_DACK(ch)))
-	  {
-	    if (! dma[controller].i[channel].run)
-	      dma[controller].i[channel].run = 1;
-	    else
-	      dma_drop_DACK(ch);
+	    || (dma_test_DREQ(ch) && dma_test_DACK(ch))) {
 
-	    if (dma[controller].length[channel].value
-		< dma[controller].i[channel].size)
+		if (!dma[controller].i[channel].run) {
+	      dma[controller].i[channel].run = 1;
+		} else {
+	      dma_drop_DACK(ch);
+		}
+
+		if (get_value (dma[controller].length[channel])
+		    < dma[controller].i[channel].size) {
 	      dma[controller].i[channel].size 
-		= dma[controller].length[channel].value;
+				= get_value (dma[controller].length[channel]);
+		}
+
+		h_printf("DMA: [crisk] calling dma_do_write()\n");
 
  	    amount_done = dma_do_write(controller, channel, target_addr);
 
-	    if (dma[controller].ch_mode[channel] & DMA_ADDR_DEC)
-	      dma[controller].address[channel].value 
-		-= amount_done;
-	    else
-	      dma[controller].address[channel].value 
-		+= amount_done;
+		if (dma[controller].ch_mode[channel] & DMA_ADDR_DEC) {
+			sub_value (&dma[controller].address[channel],
+				   (Bit16u) amount_done);
+		} else {
+			add_value (&dma[controller].address[channel],
+				   amount_done);
+		}
 
-	    dma[controller].length[channel].value 
-	      -= amount_done;
+		sub_value (&dma[controller].length[channel], amount_done);
 
-	    if (dma[controller].i[channel].handler != NULL)
+		if (dma[controller].i[channel].handler != NULL) {
 	      dma[controller].i[channel].handler (DMA_HANDLER_READ);
 	  }
+	}
+	h_printf("DMA: [crisk] DMA single read end trace\n");
+}
 
- 	  break;
 
-	case DMA_BLOCK_MODE:
-	  if (dma_test_DACK(ch))
+
+void dma_process_block_mode_read (int controller, int channel)
+{
+	Bit32u target_addr;
+	int amount_done = 0;
+	int ch;
+	int mask;
+
+	ch = get_ch (controller, channel);
+	mask = get_mask (ch);
+
+	target_addr = create_addr(dma[controller].page[channel],
+				  dma[controller].address[channel],
+				  controller);
+	
+	if (dma_test_DACK(ch)) {
 	    dma_drop_DACK(ch);
-	  else
+	} else {
 	    return;
+	}
 
-	  if (!dma[controller].length[channel].value)
-	  {
+	if (! get_value (dma[controller].length[channel]) ) {
 	    /* Transfer is complete */
 	    dma[controller].status |= (1 << channel);
-/*	    close (dma[controller].i[channel].rfd);
-	    dma[controller].i[channel].rfd = -1;
-*/	    is_dma &= ~test ;
 
-	    if (dma[controller].i[channel].handler != NULL)
+		is_dma &= ~mask;
+
+		if (dma[controller].i[channel].handler != NULL) {
+			/* The handler is expected to close any descriptors */
 	      dma[controller].i[channel].handler (DMA_HANDLER_DONE);
+		} else {
+			close (dma[controller].i[channel].rfd);
+		}
+
+		dma[controller].i[channel].rfd = -1;
 
 	    return;
 	  }
 
-	  if (dma_test_eop(ch))
-	  {
+	if (dma_test_eop(ch)) {
 	    /* Stop the Transfer */
 	    dma[controller].status &= (1 << channel);
+
 /*	    close (dma[controller].i[channel].rfd);
 	    dma[controller].i[channel].rfd = -1;
-*/	    is_dma &= ~ test;
+	    */ 
+
+		is_dma &= ~mask;
 	    return;
 	  }
 
 	  if ((! dma[controller].i[channel].run) && (dma_test_DREQ(ch)))
 	    dma[controller].i[channel].run = 1; /* Essential ! */
 
-	  if (dma[controller].i[channel].run)
-	  {
-	    if (dma[controller].length[channel].value
-		< dma[controller].i[channel].size)
+	if (dma[controller].i[channel].run) {
+		if ( get_value (dma[controller].length[channel] )
+		     < dma[controller].i[channel].size) {
+
 	      dma[controller].i[channel].size 
-		= dma[controller].length[channel].value;
+				= get_value (dma[controller].length[channel]);
+		}
 
  	    amount_done = dma_do_write(controller, channel, target_addr);
 
-	    if (dma[controller].ch_mode[channel] & DMA_ADDR_DEC)
-	      dma[controller].address[channel].value 
-		-= amount_done;
-	    else
-	      dma[controller].address[channel].value 
-		+= amount_done;
+		if (dma[controller].ch_mode[channel] & DMA_ADDR_DEC) {
+			sub_value (&dma[controller].address[channel], 
+				   amount_done);
+		} else {
+			add_value (&dma[controller].address[channel],
+				   amount_done);
+		}
 
-	    dma[controller].length[channel].value 
-	      -= amount_done;
+		sub_value (&dma[controller].length[channel], amount_done);
 	    
-	    if (dma[controller].i[channel].handler != NULL)
+		if (dma[controller].i[channel].handler != NULL) {
 	      dma[controller].i[channel].handler (DMA_HANDLER_READ);
 	  }
-	  break;
+	}
+}
 
-	case DMA_CASCADE_MODE:
-	  /* Not Supported */
+
+/* 
+ * DANG_FIXTHIS: Cascade Mode Reads are not supported 
+ */
+void dma_process_cascade_mode_read (int controller, int channel)
+{
+	int ch;
+	int mask;
+
+	ch = get_ch (controller, channel);
+	mask = get_mask (ch);
+
 	  h_printf ("DMA: Attempt to use unsupported CASCADE mode\n");
-/*	  close (dma[controller].i[channel].rfd);
-	  dma[controller].i[channel].rfd = -1;
-*/	  is_dma &= ~ test;
 
-	  if (dma[controller].i[channel].handler != NULL)
+	is_dma &= ~mask;
+
+	if (dma[controller].i[channel].handler != NULL) {
 	    dma[controller].i[channel].handler (DMA_HANDLER_DONE);
+	} else {
+		close (dma[controller].i[channel].rfd);
+	}
 
-	  break;
-	};
-	break;
+	dma[controller].i[channel].rfd = -1;
+}
 
-      case DMA_VERIFY:
-	/* Not Supported */
+/* 
+ * DANG_FIXTHIS: The Verify Mode is not supported 
+ */
+void dma_process_verify_mode  (int controller, int channel)
+{
+	int ch;
+	int mask;
+
+	ch = get_ch (controller, channel);
+	mask = get_mask (ch);
+
  	h_printf ("DMA: Attempt to use unsupported VERIFY direction by controller %d, channel %d\n",
 		  controller +1, channel);
+	
+	if (dma[controller].i[channel].handler != NULL) {
+		dma[controller].i[channel].handler(DMA_HANDLER_DONE);
+	} else {
 	close (dma[controller].i[channel].rfd);
+		close(dma[controller].i[channel].wfd);
+	}
+
 	dma[controller].i[channel].rfd = -1;
-	close (dma[controller].i[channel].rfd);
-	dma[controller].i[channel].rfd = -1;
-	is_dma &= ~ test;
+	dma[controller].i[channel].wfd = -1;
 
-	if (dma[controller].i[channel].handler != NULL)
-	  dma[controller].i[channel].handler (DMA_HANDLER_DONE);
+	is_dma &= ~mask;
+}
 
-	break;
 
-      case DMA_INVALID:
-	/* Not Supported */
+/* 
+ * DANG_FIXTHIS: The Invalid Mode is not supported (!) 
+ */
+void dma_process_invalid_mode  (int controller, int channel)
+{
+	int ch;
+	int mask;
+
+	ch = get_ch (controller, channel);
+	mask = get_mask (ch);
+
  	h_printf ("DMA: Attempt to use INVALID direction by controller %d, channel %d\n",
 		  controller +1, channel);
-	close (dma[controller].i[channel].rfd);
-	dma[controller].i[channel].rfd = -1;
-	close (dma[controller].i[channel].rfd);
-	dma[controller].i[channel].rfd = -1;
-	is_dma &= ~ test;
 
-	if (dma[controller].i[channel].handler != NULL)
-	  dma[controller].i[channel].handler (DMA_HANDLER_DONE);
+	if (dma[controller].i[channel].handler != NULL) {
+		dma[controller].i[channel].handler(DMA_HANDLER_DONE);
+	} else {
+	close (dma[controller].i[channel].rfd);
+		close(dma[controller].i[channel].wfd);
+	}
 
-	break;
+	dma[controller].i[channel].rfd = -1;
+	dma[controller].i[channel].wfd = -1;
+
+	is_dma &= ~mask;
+}
+
+
+
+int dma_process_channel (int controller, int channel) {
+    h_printf("DMA: processing controller %d, channel %d (rfd %d wfd %d)\n",
+		 controller + 1, channel,
+		 dma[controller].i[channel].rfd,
+		 dma[controller].i[channel].wfd);
 	
-      };
+	/* Confirm the set up */
+    if (dma_check_channel_setup (controller, channel) == -1) {
+		/* Couldn't Set Up */
+		return -1;
+    }
+	
+	/* Should now have a valid set up */
+	
+	/* 
+	 * Telling the DMA controller to READ means that you 
+	 * want to read from the address, so we actually need 
+	 * to write !
+	 */
+	
+    switch (dma[controller].ch_mode[channel] & DMA_DIR_MASK) {
+	case DMA_WRITE:
+	    switch (dma[controller].ch_mode[channel] & DMA_MODE_MASK) {
+		case DMA_DEMAND_MODE:
+			dma_process_demand_mode_write (controller, channel);
+			break;
+
+		case DMA_SINGLE_MODE:
+			dma_process_single_mode_write (controller, channel);
+			break;
+			
+		case DMA_BLOCK_MODE:
+			dma_process_block_mode_write (controller, channel);
+			break;
+			
+		case DMA_CASCADE_MODE:
+			dma_process_cascade_mode_write (controller, channel);
+			break;
+	    };
+	    break;
+		
+	case DMA_READ:
+		
+	    switch (dma[controller].ch_mode[channel] & DMA_MODE_MASK) {
+		case DMA_DEMAND_MODE:
+			dma_process_cascade_mode_read (controller, channel);
+			break;
+			
+		case DMA_SINGLE_MODE:
+			dma_process_single_mode_read (controller, channel);
+			break;
+
+		case DMA_BLOCK_MODE:
+			dma_process_block_mode_read (controller, channel);
+			break;
+	
+		case DMA_CASCADE_MODE:
+			dma_process_cascade_mode_read (controller, channel);
+			break;
+	    };
+	    break;
+
+	case DMA_VERIFY:
+		dma_process_verify_mode (controller, channel);
+		break;
+
+	case DMA_INVALID:
+		dma_process_invalid_mode (controller, channel);
+		break;
+
+    };
+
+    return 0;
+}
+
+
+/*
+ * This is surrounds the brains of the operation ....
+ */
+
+void dma_controller(void)
+{
+  Bit8u test;
+  int controller, channel;
+
+  for (test = 1, controller = DMA1, channel = 0; test != 0; test = test << 1, channel++) {
+    if (channel == 4) {
+	controller = DMA2;
+	channel = 0;
+    }
+
+		/* Process the channel only if it has been deselected */
+    if ((is_dma & test) && (dma[controller].current_channel != channel)) {
+	/* Time to process this DMA channel */
+	dma_process_channel (controller, channel);
     }
   }
 }
 
 
-int dma_do_write (int controller, int channel, Bit32u *target_addr)
+size_t dma_do_write(int controller, int channel, Bit32u target_addr)
 {
   size_t ret_val;
 
-  ret_val = write(dma[controller].i[channel].rfd, target_addr,
+  h_printf("DMA: [crisk] READ (fd %d) from address %p\n",
+	dma[controller].i[channel].rfd, (Bit32u *) target_addr);
+   
+  if (dma[controller].i[channel].rfd == -1) {
+                return 0;
+  }
+
+  ret_val = write(dma[controller].i[channel].rfd, (void *) target_addr,
 		  dma[controller].i[channel].size << controller);
 
   if (ret_val == -1) {
+    if (errno == EBADF) {
+      h_printf("DMA: BAD File on Channel %d of controller %d (remaining length: %d)\n",
+				channel, controller, 
+				get_value(dma[controller].length[channel]));
+    set_value (&dma[controller].length[channel], 0);
+  } else if (errno != EINTR) {
     h_printf ("DMA: Error in READ on Channel %d of controller %d (%s)\n", 
 	      channel, controller, strerror(errno));
+#ifdef EXCESSIVE_DEBUG
+  } else {
+    h_printf("DMA: READ 'interrupted' on Channel %d of controller %d - Ignored\n",
+				 channel, controller);
+#endif /* EXCESSIVE_DEBUG */
+		}
     return 0;
   }
   else {
+#ifdef EXCESSIVE_DEBUG
+    h_printf ("DMA: Read %u bytes\n", ret_val);
+#endif /* EXCESSIVE_DEBUG */
+
     return ret_val;
   }
 }
 
-int dma_do_read (int controller, int channel, Bit32u *target_addr)
+size_t dma_do_read(int controller, int channel, Bit32u target_addr)
 {
   size_t ret_val;
 
-  ret_val = read(dma[controller].i[channel].wfd, target_addr,
+  if (dma[controller].i[channel].wfd == -1)
+                return 0;
+
+  ret_val = read(dma[controller].i[channel].wfd, (void *) target_addr,
 		  dma[controller].i[channel].size << controller);
 
   if (ret_val == -1) {
@@ -1120,12 +1508,10 @@ void dma_init(void)
   io_device.handler_name = "DMA - AT Pages";
   port_register_handler(io_device);
 
-  for (i = 0; i < 2; i++)
-  {
-    for (j = 0 ; j < 5; j++)
-    {
-      dma[i].address[j].value = 0;
-      dma[i].length[j].value = 0;
+  for (i = 0; i < 2; i++) {
+    for (j = 0; j < 5; j++) {
+      set_value (&dma[i].address[j], 0);
+      set_value (&dma[i].length[j], 0);
       dma[i].ch_config[j] = 0;
       dma[i].page[j] = 0;
 
@@ -1140,7 +1526,7 @@ void dma_init(void)
 
     dma[i].status = 0;
     dma[i].ff = 0;
-    dma[i].current_ch = 0;
+		dma[i].current_channel = 0;
   }
 
   is_dma = 0;
@@ -1152,23 +1538,19 @@ void dma_init(void)
 void dma_reset(void)
 {
   int i, j;
-  for (i = 0; i < 2; i++)
-  {
-    for (j = 0 ; j < 4; j++)
-    {
-      dma[i].address[j].value = 0;
-      dma[i].length[j].value = 0;
+  for (i = 0; i < 2; i++) {
+    for (j = 0; j < 4; j++) {
+      set_value (&dma[i].address[j], 0);
+      set_value (&dma[i].length[j], 0);
       dma[i].ch_config[j] = 0;
       dma[i].page[j] = 0;
 
-      if (dma[i].i[j].wfd != -1) 
-      {
+      if (dma[i].i[j].wfd != -1) {
 	h_printf ("DMA: Closing Write File for Controller %d Channel %d\n",
 		  i, j);
 	close (dma[i].i[j].wfd);
       }
-      if (dma[i].i[j].rfd != -1)
-      {
+      if (dma[i].i[j].rfd != -1) {
 	h_printf ("DMA: Closing Read File for Controller %d Channel %d\n",
 		  i, j);
 	close (dma[i].i[j].rfd);
@@ -1185,7 +1567,7 @@ void dma_reset(void)
 
     dma[i].status = 0;
     dma[i].ff = 0;
-    dma[i].current_ch = 0;
+		dma[i].current_channel = 0;
   }
 
   is_dma = 0;
@@ -1193,302 +1575,3 @@ void dma_reset(void)
   h_printf ("DMA: DMA Controller Reset - 8 & 16 bit modes\n");
 
 }
-
-#else /* OLD_DMA_CODE */
-
-#define DMA_0_3_BASE 0x00     /* The base address for the first dma controller */
-#define DMA_4_7_BASE 0xC0     /* The base address for the second */
-
-int dma_ff0, dma_ff1;         /* The high/low byte flip-flop for the dma
-                               controller */
-                            /* Currently dma_ff1 is unused */
-
-dma_ch_struct dma_ch[7];
-
-
-inline void dma_write_addr(unsigned char ch, unsigned char value)
-{
-if (dma_ff0) /* Low byte when ff0 clear, high when set */
-  {dma_ch[ch].cur_addr = (dma_ch[ch].cur_addr & 0xFF) + value * 256;
-   dma_ch[ch].base_addr = (dma_ch[ch].base_addr & 0xFF) + value * 256;
-   dma_ff0 = !dma_ff0;}
-else {dma_ch[ch].cur_addr = (dma_ch[ch].cur_addr & 0xFF00) + value;
-      dma_ch[ch].base_addr = (dma_ch[ch].base_addr & 0xFF00) + value;
-      dma_ff0 = !dma_ff0;};
-}
-
-inline void dma_write_count(unsigned char ch, unsigned char value)
-{
-if (dma_ff0)
-  {dma_ch[ch].cur_count = (dma_ch[ch].cur_count & 0xFF) + value * 256;
-   dma_ch[ch].base_count = (dma_ch[ch].base_count & 0xFF) + value * 256;
-   dma_ff0 = !dma_ff0;}
-else {dma_ch[ch].cur_count = (dma_ch[ch].cur_count & 0xFF00) + value;
-      dma_ch[ch].base_count = (dma_ch[ch].base_addr & 0xFF00) + value;
-      dma_ff0 = !dma_ff0;};
-}
-
-
-
-void dma_write(unsigned int addr, unsigned char value)
-{
-h_printf ("DMA (Write): (0x%2X <- 0x%2X)\n", addr, value);
-
-/* Note that addr must be the absolute port address */
-switch (addr) 
-{
-case 0x87: dma_ch[0].page = value; break;
-case 0x83: dma_ch[1].page = value; break;
-case 0x81: dma_ch[2].page = value; break;
-case 0x82: dma_ch[3].page = value; break;
-case 0x8F: dma_ch[4].page = value; break;
-case 0x8B: dma_ch[5].page = value; break;
-case 0x89: dma_ch[6].page = value; break;
-case 0x8A: dma_ch[7].page = value; break;
-
-  
-case DMA_0_3_BASE     : dma_write_addr (0, value); break;
-case DMA_0_3_BASE +  1: dma_write_count(0, value); break;
-case DMA_0_3_BASE +  2: dma_write_addr (1, value); break;
-case DMA_0_3_BASE +  3: dma_write_count(1, value); break;
-case DMA_0_3_BASE +  4: dma_write_addr (2, value); break;
-case DMA_0_3_BASE +  5: dma_write_count(2, value); break;
-case DMA_0_3_BASE +  6: dma_write_addr (3, value); break;
-case DMA_0_3_BASE +  7: dma_write_count(3, value); break;
-
-case DMA_0_3_BASE +  8: break; /* Command register; should cause debuging
-                                 output but I don't know how */
-case DMA_0_3_BASE +  9: dma_ch[value & DMA_CH_SELECT].request = value & DMA_SINGLE_BIT;
-                        break;
-case DMA_0_3_BASE + 10: dma_ch[value & DMA_CH_SELECT].mask = value & DMA_SINGLE_BIT;
-                        break;
-case DMA_0_3_BASE + 11: dma_ch[value & DMA_CH_SELECT].mode = value;
-                        break;
-case DMA_0_3_BASE + 12: dma_ff0 = 0; break; /* clear flipflop */
-case DMA_0_3_BASE + 13: break; /* master clear; debug??? */
-case DMA_0_3_BASE + 14: break; /* clear mask; debug??? */
-case DMA_0_3_BASE + 15: break; /* Write all mask --debug? */
-
-
-
-case DMA_4_7_BASE     : dma_write_addr (4, value); break;
-case DMA_4_7_BASE +  2: dma_write_count(4, value); break;
-case DMA_4_7_BASE +  4: dma_write_addr (5, value); break;
-case DMA_4_7_BASE +  6: dma_write_count(5, value); break;
-case DMA_4_7_BASE +  8: dma_write_addr (6, value); break;
-case DMA_4_7_BASE + 10: dma_write_count(6, value); break;
-case DMA_4_7_BASE + 12: dma_write_addr (7, value); break;
-case DMA_4_7_BASE + 14: dma_write_count(7, value); break;
-
-case DMA_4_7_BASE + 16: break; /* Command register; should cause debuging
-                                 output but I don't know how */
-case DMA_4_7_BASE + 18: dma_ch[(value & DMA_CH_SELECT) + 4].request = value & DMA_SINGLE_BIT;
-                        break; /* request register */
-case DMA_4_7_BASE + 20: dma_ch[(value & DMA_CH_SELECT) + 4].mask = value & DMA_SINGLE_BIT;
-                        break; /* single mask */
-case DMA_4_7_BASE + 22: dma_ch[(value & DMA_CH_SELECT) + 4].mode = value;
-                        break; /* mode */
-case DMA_4_7_BASE + 24: dma_ff0 = 0; break; /* clear flipflop */
-case DMA_4_7_BASE + 26: break; /* master clear; debug??? */
-case DMA_4_7_BASE + 28: break; /* clear mask; debug??? */
-case DMA_4_7_BASE + 30: break; /* Write all mask; debugging output */
-};
-}
-
-inline unsigned char dma_read_addr(unsigned int /*addr*/ch)
-{
-if ((dma_ff0 = !dma_ff0))
-  {return (dma_ch[ch].cur_addr & 0xFF00) >> 8;}
-else
-  {return dma_ch[ch].cur_addr & 0xFF;};
-}
-
-inline unsigned char dma_read_count(unsigned int /*addr*/ch)
-{
-if ((dma_ff0 = !dma_ff0))
-  {return dma_ch[ch].cur_count & 0xFF00 >> 8;}
-else
-  {return dma_ch[ch].cur_count & 0xFF;};
-}
-
-inline unsigned char DREQ(unsigned char ch)
-{
-switch (dma_ch[ch].dreq){
-  case DREQ_OFF: return 0;
-  case DREQ_ON: return 1;
-  case DREQ_COUNTED: if (dma_ch[ch].cur_count)  /* said count before.. */
-                       return 1;
-                     else
-                       return 0;
-}
-return 1;
-}
-
-inline unsigned char dma_read_status_0_3()
-{
-int value = 0;
-if (dma_ch[0].tc) {value = value + 1;};
-if (dma_ch[1].tc) {value = value + 2;};
-if (dma_ch[2].tc) {value = value + 4;};
-if (dma_ch[3].tc) {value = value + 8;};
-if (DREQ(0)) value += 16;
-if (DREQ(1)) value += 32;
-if (DREQ(2)) value += 64;
-if (DREQ(3)) value += 128;
-return value;
-}
-
-inline unsigned char dma_read_status_4_7()
-{
-int value = 0;
-if (dma_ch[4].tc) {value = value + 1;};
-if (dma_ch[5].tc) {value = value + 2;};
-if (dma_ch[6].tc) {value = value + 4;};
-if (dma_ch[7].tc) {value += 8;};
-return value;
-}
-
-unsigned char dma_read(unsigned int addr)
-{
-h_printf ("DMA (read): (0x%2X)\n", addr);
-
-switch(addr)
-{
-case 0x87: return dma_ch[0].page;
-case 0x83: return dma_ch[1].page;
-case 0x81: return dma_ch[2].page;
-case 0x82: return dma_ch[3].page;
-case 0x8F: return dma_ch[4].page;
-case 0x8B: return dma_ch[5].page;
-case 0x89: return dma_ch[6].page;
-case 0x8A: return dma_ch[7].page;
-
-case DMA_0_3_BASE     : return dma_read_addr(0);
-case DMA_0_3_BASE +  1: return dma_read_count(0);
-case DMA_0_3_BASE +  2: return dma_read_addr(1);
-case DMA_0_3_BASE +  3: return dma_read_count(1);
-case DMA_0_3_BASE +  4: return dma_read_addr(2);
-case DMA_0_3_BASE +  5: return dma_read_count(2);
-case DMA_0_3_BASE +  6: return dma_read_addr(3);
-case DMA_0_3_BASE +  7: return dma_read_count(3);
-
-case DMA_0_3_BASE +  8: return dma_read_status_0_3();
-
-case DMA_4_7_BASE     : return dma_read_addr(4);
-case DMA_4_7_BASE +  2: return dma_read_count(4);
-case DMA_4_7_BASE +  4: return dma_read_addr(5);
-case DMA_4_7_BASE +  6: return dma_read_count(5);
-case DMA_4_7_BASE +  8: return dma_read_addr(6);
-case DMA_4_7_BASE + 10: return dma_read_count(6);
-case DMA_4_7_BASE + 12: return dma_read_addr(7);
-case DMA_4_7_BASE + 14: return dma_read_count(7);
-
-case DMA_4_7_BASE + 16: return dma_read_status_4_7();
-default: return 0;
-};
-}
-
-/*
- * DANG_BEGIN_REMARK
- * 
- * dma_trans handles the actual work of copying data to the device.  I'm not
- * sure whether it's called at a good frequency.
- *
- * DANG_END_REMARK
- */
-void dma_trans()
-{
-unsigned char cur_ch;
-unsigned int max_bytes, l=0;
-
-/*
-   only the first dma-controller, as the higher channels need some
-   other constants; not needed now
- */
-for (cur_ch = 0; cur_ch < 4; ++cur_ch)
-{
-  if (!dma_ch[cur_ch].mask) {
-  if (/* We want to transfer data */
-       (dma_ch[cur_ch].dreq == DREQ_COUNTED && dma_ch[cur_ch].dreq_count)
-         || (dma_ch[cur_ch].dreq == DREQ_ON)
-         || (dma_ch[cur_ch].request)
-     )
-       { /* Okay, we have some work to do... */
-         max_bytes = dma_ch[cur_ch].cur_count + 1;
-         if (max_bytes > dma_ch[cur_ch].dreq_count)
-	     max_bytes = dma_ch[cur_ch].dreq_count;
-
-         if (max_bytes + dma_ch[cur_ch].cur_addr > 0x010000)
-           max_bytes = 0x010000 - dma_ch[cur_ch].cur_addr;
-
-	   h_printf("DMA%d from 0x%X 0x%X\n", cur_ch,
-	            (dma_ch[cur_ch].page << 16) | dma_ch[cur_ch].cur_addr,
-		    max_bytes);
-
-         if (dma_ch[cur_ch].mode & DMA_WRITE) {
-           h_printf ("DMA: Write transfer\n");
-           l = write(dma_ch[cur_ch].fd,
-	              (char *)((dma_ch[cur_ch].page << 16) |\
-			       dma_ch[cur_ch].cur_addr),
-                     max_bytes);
-         }
-         else if (dma_ch[cur_ch].mode & DMA_READ) {
-	     h_printf("DMA: Read transfer\n");
-	     l = read(dma_ch[cur_ch].fd,
-                        (char *) (((dma_ch[cur_ch].page * 0x010000)
-                          + dma_ch[cur_ch].cur_addr)),
-                        max_bytes);
-	   }
-	   if (l == -1) {
-	     /*
-	      * I get error 4 (syscall interupted) all over the time
-	      * although the bytes seems to be outputed, so it's ignored
-	      * yet -- XXX FIXME
-	      */
-	     h_printf("ignoring device error %d\n", errno);
-	     max_bytes = 0;
-	   }
-	   else
-	     max_bytes = l;
-	   h_printf("DMA: transfered %d bytes\n", max_bytes);
-         dma_ch[cur_ch].cur_count -= max_bytes;
-         if (dma_ch[cur_ch].cur_count == -1) {
-	      dma_ch[cur_ch].tc = 1;
-            if (dma_ch[cur_ch].tc_irq != -1) {
-	        h_printf("DMA: TC triggers IRQ%d\n", dma_ch[cur_ch].tc_irq);
-	        pic_request(dma_ch[cur_ch].tc_irq);
-	      }
-	   }
-         if (!(dma_ch[cur_ch].dreq_count -= max_bytes)) {
-           if (dma_ch[cur_ch].dreq_irq != -1) {
-	       h_printf("DMA: DREQ triggers IRQ%d\n", dma_ch[cur_ch].dreq_irq);
-	       pic_request(dma_ch[cur_ch].dreq_irq);
-	     }
-	   }
-         dma_ch[cur_ch].cur_addr += max_bytes;
-         if (dma_ch[cur_ch].tc && (dma_ch[cur_ch].mode & DMA_AUTO_INIT)){
-           dma_ch[cur_ch].cur_addr = dma_ch[cur_ch].base_addr;
-           dma_ch[cur_ch].cur_count = dma_ch[cur_ch].base_count;
-           dma_ch[cur_ch].tc = 0;
-         }
-       }
-    }	 
-}
-}
-
-void dma_init(void)
-{
-int ch;
-
-for (ch = 0; ch < 8; ++ch) {
-  dma_ch[ch].request  = 0;
-  dma_ch[ch].dreq     = DREQ_OFF;
-  dma_ch[ch].tc       = -1;
-  dma_ch[ch].dreq_irq = -1;
-  dma_ch[ch].mask     = 1;
-}
-}
-#endif /* OLD_DMA_CODE */
-
-
-

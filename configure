@@ -3230,9 +3230,10 @@ XLIBSW="$XLIBSWD $XLIBSWL"
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
 SUBLEVEL="65"
-PATCHLEVEL="99.20"
+PATCHLEVEL="99.21"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
+RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`
 cat >> confdefs.h <<EOF
 #define EMUVER "$EMUVER"
 EOF
@@ -3270,6 +3271,10 @@ EOF
 
 cat >> confdefs.h <<EOF
 #define VERSTR "$THISVERSION"
+EOF
+
+cat >> confdefs.h <<EOF
+#define VERDATE "$RELEASE_DATE"
 EOF
 
 

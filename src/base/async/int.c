@@ -189,9 +189,10 @@ static int dos_helper(void)
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: "__DATE__" "__TIME__" $\n");
-    p_dos_str("Last configured at %s\n", CONFIG_TIME);
-    p_dos_str("on %s\n", CONFIG_HOST);
+    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: " VERDATE " $\n");
+    p_dos_str("Last configured at %s on %s\n", CONFIG_TIME, CONFIG_HOST);
+    p_dos_str("This is work in progress.\n");
+    p_dos_str("Please test against a recent version before reporting bugs and problems.\n");
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
     p_dos_str("Bugs, Patches & New Code to linux-msdos@vger.rutgers.edu\n\n");
     if (config.dpmi)

@@ -1,3 +1,10 @@
+97/03/15 ver. 0.65.99.21 unofficial pre-release
+	From Uwe
+	- take version date out of ./Changelog
+	From Alberto
+	- 'make pristine' removes 'gen.log'
+	From Alstair and Rutger
+	- new sound stuff
 97/03/14 ver. 0.65.99.20 unofficial pre-release
 	=== CLEANUP-Release ===
 	From Hans

@@ -14,15 +14,16 @@ by redirecting '/var/run/dosemu-midi' to the relevant part of the sound driver
 midi sequencer)
 
 The GUS MIDI daemon:
-cd src/arch/linux/dosext/sound; gcc -O2 -Wall midi.c -lgus -omidi
-Copy the executeable 'midi' so that it is on your path, or somewhere you can
+cd src/arch/linux/dosext/sound; gcc -O2 -Wall midi.c -lgus -omidid
+Copy the executeable 'midid' so that it is on your path, or somewhere you can
 run it easily.
 
 When you run dosemu, do the following:
   rm -f /var/run/dosemu-midi; mknod p /var/run/dosemu-midi
-  ./midi < /var/run/dosemu-midi &; dos
+  ./midid < /var/run/dosemu-midi &; dos
 
-(Assuming that you put the midi executeable in the directory you run DOSEmu
+
+(Assuming that you put the midid executeable in the directory you run DOSEmu
 from.) If you always run DOSEmu from the same directory then you can omit
 the first step.
 

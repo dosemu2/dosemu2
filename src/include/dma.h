@@ -5,6 +5,7 @@ EXTERN __u8 is_dma;     /* Active DMA channels mask */
 
 void dma_controller(void);
 
+/* AM - The "ports" are 32bit since that is what the 'emudev_t' requires. */
 Bit8u dma_io_read(Bit32u port);
 void dma_io_write(Bit32u port, Bit8u value);
 
@@ -144,4 +145,3 @@ when it's finished */
 /* There are several other write registers.  Generally they seem to reuse
 DMA_CH_SELECT, and the following: */
 #define DMA_SELECT_BIT        0x04
-

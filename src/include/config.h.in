@@ -113,6 +113,9 @@
 /* Define the Dosemu version */
 #undef VERSION
 
+/* Define the Dosemu version release date */
+#undef VERDATE
+
 /* Define the Dosemu sublevel */
 #undef SUBLEVEL
 
@@ -177,7 +180,7 @@
 /* Define this if you want to use MITSHM */
 #undef HAVE_MITSHM
 
-/* Define this if you want to use a monoton micro timeing (Bernd Paysan) */
+/* Define this if you want to use a monoton micro timing (Bernd Paysan) */
 #undef MONOTON_MICRO_TIMING
 
 /* Define if you have the getcwd function.  */

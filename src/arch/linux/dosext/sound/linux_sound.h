@@ -24,3 +24,6 @@ void linux_sb_set_speed (__u16 speed, __u8 stereo_mode);
 void linux_sb_dma_start_init(__u32 command);
 void linux_sb_dma_start_complete(void);
 
+void linux_sb_dma_complete(void);
+
+void linux_mpu401_data_write(__u8 data);
