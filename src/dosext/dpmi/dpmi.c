@@ -79,14 +79,10 @@
 #include "dma.h"
 #include "timers.h"
 #include "userhook.h"
+#include "mapping.h"
 
 #if X_GRAPHICS
 #include "vgaemu.h"
-#endif
-
-#ifndef PAGE_SIZE
-/* FIXME: we really need to define those missing PAGE_SIZEs globally :-( */
-#define PAGE_SIZE       4096  
 #endif
 
 int dpmi_eflags = 0;
