@@ -57,7 +57,6 @@ bool loadfm(void)
     char buf[60];
     struct sbi_instrument instr;
 
-    srand(getpid());
     if (config.opl3) {
 	voice_size = 60;
 	sbfd = open(o3melodic, O_RDONLY, 0);

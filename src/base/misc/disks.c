@@ -1404,7 +1404,7 @@ int13(u_char i)
     }
 
     if (dp->rdonly) {
-      error("ERROR: write protect!\n");
+      d_printf("DISK is write protected!\n");
       show_regs(__FILE__, __LINE__);
       if (dp->removeable)
 	HI(ax) = DERR_WP;

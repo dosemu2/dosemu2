@@ -3306,7 +3306,8 @@ if ((_ss & 7) == 7) {
       break;
 
     case 0x0f:
-      if (!cpu_trap_0f(csp, scp)) break;
+      if (cpu_trap_0f(csp-1, scp)) break;
+      /* fall thru */
 
     default:
       _eip = org_eip;

@@ -457,6 +457,7 @@ hu			MAY_BE { yylval->i_value = KEYB_HU; return(KEYB_LAYOUT); }
 hu-cwi			MAY_BE { yylval->i_value = KEYB_HU_CWI; return(KEYB_LAYOUT); }
 hu-latin2		MAY_BE { yylval->i_value = KEYB_HU_LATIN2;
 			  return(KEYB_LAYOUT); }
+jp106			MAY_BE { yylval->i_value = KEYB_JP106; return(KEYB_LAYOUT); }
 keyb-user		MAY_BE { yylval->i_value = KEYB_USER; return(KEYB_LAYOUT); }
 
 	/* serial stuff */

@@ -4,7 +4,7 @@ start "Main Menu"
 
 menu "Main Menu" {
   description "Please select an Area to Configure"
-  temp_disabled_submenu  "Debugging Information"
+  submenu "Debugging Information"
   submenu "Keyboard"
   submenu "Serial Ports & Mice"
   submenu "Printing"
@@ -19,24 +19,34 @@ menu "Main Menu" {
 
 menu "Debugging Information" {
   description "Select the areas that you want Debug messages for:"
-  boolean "Configuration" debug_config
-  boolean "Disk" debug_disk
-  boolean "Warnings" debug_warning
-  boolean "Hardware Interaction" debug_hardware
-  boolean "Port Access" debug_port
-  boolean "Reads" debug_read
-  boolean "Writes" debug_write
-  boolean "General" debug_general
-  boolean "IPC" debug_ipc
-  boolean "Video" debug_video
-  boolean "XMS" debug_xms
-  boolean "EMS" debug_ems
-  boolean "Serial Ports" debug_serial
-  boolean "Keyboard" debug_keyb
-  boolean "DPMI" debug_dpmi
-  boolean "Printing" debug_printer
-  boolean "Mouse" debug_mouse
-  boolean "Sound" debug_sound
+  integer "All" debug_a
+  integer "Configuration" debug_c
+  integer "Disk" debug_d
+  integer "Warnings" debug_w
+  integer "Hardware Interaction" debug_h
+  integer "Reads" debug_R
+  integer "Writes" debug_W
+  integer "General" debug_g
+  integer "IPC" debug_I
+  integer "Video" debug_v
+  integer "XMS" debug_x
+  integer "EMS" debug_E
+  integer "Serial Ports" debug_s
+  integer "Keyboard" debug_k
+  integer "DPMI" debug_M
+  integer "Printing" debug_p
+  integer "Mouse" debug_m
+  integer "Sound" debug_S
+  integer "DOS int 21h" debug_D
+  integer "CDROM" debug_C
+  integer "X-Windows" debug_X
+  integer "IO instructions" debug_i
+  integer "IO tracing" debug_T
+  integer "Default int" debug_hash
+  integer "IPX network" debug_n
+  integer "Packet Driver" debug_P
+  integer "PIC" debug_r
+  integer "CPU Emulation" debug_e
 }
 
 
@@ -201,6 +211,7 @@ menu "Keyboard Layout" {
     "Hungarian" hu
     "Hungarian cwi" hu-cwi
     "Hungarian latin2" hu-latin2
+    "Japanese jp106" jp106
   }
 }
 

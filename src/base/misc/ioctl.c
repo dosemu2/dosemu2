@@ -189,8 +189,10 @@ io_select(fd_set fds)
 		m_printf("MOUSE: We have data\n");
 	  pic_request(PIC_IMOUSE);
 	}
-      if (FD_ISSET(kbd_fd, &fds)) {
-	 keyb_client_run();
+      if (kbd_fd >= 0) {
+        if (FD_ISSET(kbd_fd, &fds)) {
+	   keyb_client_run();
+        }
       }
 #ifdef USE_MHPDBG
       if (mhpdbg.fdin != -1) if (FD_ISSET(mhpdbg.fdin, &fds)) mhp_input();

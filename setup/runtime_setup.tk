@@ -136,6 +136,8 @@ proc load_system {} {
 	-f parse-config-new-tk -v PREFIX=SYSTEM_ > $temp
     source $temp
 
+  parse_debug_flags
+
   set conf_file "$dosemuconf"
   set conf_infile $conf_file
   set conf_type "system"
@@ -162,8 +164,72 @@ proc load_local {} {
 	-f parse-config-new-tk -v PREFIX=SYSTEM_ > $temp
   source $temp
 
+  parse_debug_flags
+
   set conf_type "local"
 }
+
+proc parse_debug_flags {} {
+    global var_SYSTEM_array
+
+    set debug_str $var_SYSTEM_array(debug)
+    set str_length [ string length $debug_str ]
+    set flag 1
+    set var_SYSTEM_array(debug_a) 1
+
+    for { set i 0 } { $i < $str_length } { incr i } {
+	set this_char [ string index $debug_str $i ]
+
+	switch -regexp -- $this_char {
+	    \\+ { set flag 1 }
+	    - { set flag 0 }
+	    ^[0-9]$ { set flag $this_char }
+	    \# { set var_SYSTEM_array(debug_hash) $flag }
+	    default { set var_SYSTEM_array(debug_$this_char) $flag }
+	}
+    }
+}
+
+proc form_debug_string {} {
+    global var_array
+    set debug_string "-a"
+
+    foreach flag [ list d R W D C v X k i T s m \# p g c w h I E x M n P r S e a] {
+	if { $flag == "\#" } { 
+	    set this_level [ get_value debug_hash ]
+	    if { $this_level != "" } {
+		append debug_level($this_level) \#
+	    }
+	} elseif { $flag == "a" } {
+	    set this_level [ get_value debug_a ]
+	    if { $this_level == 0 || $this_level == "" } {
+		set debug_string "-a"
+	    } elseif { $this_level == 1 } {
+		set debug_string "+a"
+	    } else {
+		set debug_string "${this_level}a"
+	    }
+	} else {
+	    set this_flag [ string range $flag end end ]
+	    set this_level [ get_value debug_$this_flag ]
+	    if { $this_level != "" } {
+		append debug_level($this_level) $this_flag
+	    }
+	}
+    }
+
+    foreach level [ array names debug_level ] {
+	if { $level == 0 } {
+	    append debug_string "-" $debug_level($level)
+	} elseif { $level == 1 } {
+	    append debug_string "+" $debug_level($level)
+	} else {
+	    append debug_string $level $debug_level($level)
+	}
+    }
+    set var_array(debug) $debug_string
+}
+
 
 proc do_menus {} {
   global temp
@@ -238,9 +304,13 @@ proc write_values { file_name } {
     global var_SYSTEM_array var_LOCAL_array
     global var_type_array
 
+    form_debug_string
+
     set values_file [ open $file_name w ]
 
     foreach array_name [ array names var_array ] {
+	if [ string match debug_* $array_name ] { continue }
+
 	set local_value ""
 	set system_value ""
 	catch {	set local_value $var_SYSTEM_array($array_name) }

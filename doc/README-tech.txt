@@ -1312,7 +1312,7 @@
            de                dk           sg-latin1    es
            de-latin1         dk-latin1    fr           es-latin1
            be                keyb-no      fr-latin1    po
-           it                no-latin1    sw
+           it                no-latin1    sw           jp106
            hu                hu-cwi       hu-latin2    keyb-user
 
   The keyb-user is selected by default if the "layout" keyword is

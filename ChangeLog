@@ -1,3 +1,25 @@
+98/06/26 ver. 0.97.9.3 unofficial pre-release
+	From Andreas Kirschbaum <ank@rbg.informatik.tu-darmstadt.de>
+	- fix for Borland-C (4.0) tlib not running
+	- some wrong debug prints.
+	From rwfries+bobf@dreamscape.com (gnats misc/104)
+	- fix segfaults when dosdebug+xdos used together with 
+	  /usr/include/gnu/types.h of glibc-devel-2.0.6-9
+	  ( bug doesn't appear on libc-5, but the fix is correct, --Hans )
+	From Karl-Max Wagner <karlmax@oberland.net>
+	- support for japanese jp106 keyboard (and before you ask why
+	  someone with a typical german name can do that: yes he can because
+	  he speaks Japanese and runs DOSEMU on a japanese machine;-)
+	From Marcus
+	- fixes to the dosnet stuff, now support new-int (lucky Eric;-)
+	- Randomized dosnet ID, no clashes when running from the same tty.
+	- moved srand() out of midid/oss.c to a more global place: emu.c
+	  (Alistair has to verify, --Hans)
+	From Alistair
+	- update to debug menu for setu-dosemu
+	From Hans
+	- adapted setup-dosemu to know about jp106
+	- docs update and recompile
 98/06/26 ver. 0.97.9.2 unofficial pre-release
 	From Hans
 	- Second round of security fixes: got non-suid-root DOSEMU running.

@@ -920,10 +920,17 @@ msdos_post_extender(int intr)
 	case 0x34:		/* Get Address of InDOS Flag */
 	case 0x35:		/* GET Vector */
 	case 0x52:		/* Get List of List */
-        case 0x59:		/* Get EXTENDED ERROR INFORMATION */
 	    dpmi_stack_frame[current_client].es =
 	               ConvertSegmentToDescriptor(REG(es));
 	    break;
+
+        case 0x59:		/* Get EXTENDED ERROR INFORMATION */
+	    if(LWORD(eax) == 0x22) { /* only this code has a pointer */
+		dpmi_stack_frame[current_client].es =
+			ConvertSegmentToDescriptor(REG(es));
+	    }
+	    break;
+
 	case 0x38:
 	    if (S_LO(ax) == 0x00) { /* get contry info */
 		dpmi_stack_frame[current_client].ds =

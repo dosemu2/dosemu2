@@ -41,6 +41,7 @@
 #define KEYB_HU_LATIN2	      25
 #define KEYB_USER	      26
 #define NUM_KEYB	      27
+#define KEYB_JP106	      28
 
 #define CONST
 

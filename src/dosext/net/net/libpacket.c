@@ -15,7 +15,6 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <linux/major.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
@@ -38,35 +37,17 @@ static int GetDosnetID(void);
 static unsigned short int DosnetID = 0xffff;
 char local_eth_addr[6] = {0,0,0,0,0,0};
 
-/* Should return an unique ID (< 255) corresponding to this invocation 
-   of DOSEMU not clashing with other DOSEMU's. 
-   We use tty number.  If someone invokes dosemu in background, we 
-   are in trouble ... ;-(. 
-*/
+/* Should return a unique ID corresponding to this invocation of
+   dosemu not clashing with other dosemus. We use a random value and
+   hope for the best.
+   */
 
 static int 
 GetDosnetID(void)
 {  
-	struct stat chkbuf;
-	int major, minor;
-
-	if (DosnetID != 0xffff) return DosnetID;
-
-	fstat(STDOUT_FILENO, &chkbuf);
-	major = chkbuf.st_rdev >> 8;
-	minor = chkbuf.st_rdev & 0xff;
-
-	if (major != TTY_MAJOR && major != PTY_SLAVE_MAJOR) {
-		/* Not running on tty/ttyp/ttyS. 
-		   I really don't know what to do. */
-		pd_printf("GetDosnetID: Can't work without a tty/pty/ttyS, "
-			  "assigning an odd one...");
-		minor=241;
-	}
-  
-	DosnetID = (unsigned short int)DOSNET_TYPE_BASE + minor;
-	pd_printf("Assigned DosnetID=%x\n", DosnetID );
-	return DosnetID;
+    DosnetID = DOSNET_TYPE_BASE + (rand() & 0xff);
+    pd_printf("Assigned DosnetID=%x\n", DosnetID);
+    return DosnetID;
 }
 
 /*
@@ -237,7 +218,6 @@ GetDeviceHardwareAddress(char *device, char *addr)
 		   request to actual device. */
 		int i;
 		memcpy(local_eth_addr, DOSNET_FAKED_ETH_ADDRESS, 6);
-		GetDosnetID();
 		*(unsigned short int *)&(local_eth_addr[2]) = DosnetID;
 
 		memcpy(addr, local_eth_addr, 6);

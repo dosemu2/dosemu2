@@ -127,8 +127,12 @@ irqnum	set	0x1d
 irqnum	set	irqnum+1
 .ENDR
 
+irqnum	set	0x60
+	.org	irqnum*16
+int_pktdrv:
+	int	irqnum
+	retf	#2
 
-			/* user-soft ints 0x60 .. 0x67 spared */
 			/* system-soft ints 0x68 .. 0x6f */
 irqnum	set	0x68
 	.org	irqnum*16
@@ -189,9 +193,6 @@ mouse_handler:
 	.org	((PKTDRV_SEG - BIOSSEG) << 4) + PKTDRV_OFF
 /* ======================= Addr = F000:3100 (F3100) */
 
-#define PKTDRV_VECTOR 0x60
-
-	.globl	CISH(PKTDRV_signature)
 	.globl	CISH(PKTDRV_size)
 	.globl	CISH(PKTDRV_handle)
 	.globl	CISH(PKTDRV_receiver)
@@ -200,14 +201,14 @@ mouse_handler:
 	.globl	CISH(PKTDRV_driver_name)
 	.globl	CISH(PKTDRV_param)
 	.globl	CISH(PKTDRV_stats)
+	.globl	CISH(PKTDRV_signature)
+
+	JMPL(int_pktdrv)
+
+/* The packet driver signature will be written here when the packet
+   driver is initialized. */
 CISH(PKTDRV_signature):
-	jmp	PKTDRV_start
-	nop
-	.ascii	"PKT DRVR"
-	db	0
-PKTDRV_start:
-	int	PKTDRV_VECTOR
-	retf	#2
+		db	0,0,0,0,0,0,0,0
 
 CISH(PKTDRV_driver_name):
 	.ascii	"Linux$\0\0"

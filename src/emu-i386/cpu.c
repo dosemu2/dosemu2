@@ -76,9 +76,11 @@ static unsigned long TRs[2] =
  */
 int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
 {
-  	g_printf("CPU: TRAP op 0F %02x %02x\n",csp[1],csp[2]);
-
   	if (in_dpmi && (scp==NULL)) return 0; /* for safety */
+	/* moved access to "csp" after safety check,
+	 *                          -- 980627 Andreas Kirschbaum
+	 */
+	g_printf("CPU: TRAP op 0F %02x %02x\n",csp[1],csp[2]);
 
 	if (csp[1] == 0x06) {
 		(in_dpmi? scp->eip:LWORD(eip)) += 2;  /* CLTS - ignore */

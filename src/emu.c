@@ -67,6 +67,7 @@ __asm__("___START___: jmp _emulate\n");
 #include <string.h>
 #include <ctype.h>
 #include <fcntl.h>
+#include <time.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -385,6 +386,8 @@ emulate(int argc, char **argv)
 #ifdef __NetBSD__
     changesegs();
 #endif
+
+    srand(time(NULL));
 
 #ifdef USE_THREADS
     treads_init();		/* init the threads system,

@@ -29,6 +29,7 @@
 #include "pktdrvr.h"
 #include "dosio.h"
 #include "memory.h"
+#include "int.h"
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -154,9 +155,10 @@ pkt_init(int vec)
 	    goto fail;
     }
 
-    /* init the interrupt vector */
+    /* hook the interrupt vector by pointing it into the magic table */
     SETIVEC(vec, PKTDRV_SEG, PKTDRV_OFF);
-
+    memcpy(MK_PTR(PKTDRV_signature), "PKT DRVR", 8);
+    
     /* fill other global data */
 
     GetDeviceHardwareAddress(devname, pg.hw_address);
@@ -178,8 +180,6 @@ pkt_init(int vec)
     return;
 
 fail:
-    /* Erase the packet driver signature */
-    memset(MK_PTR(PKTDRV_signature)+3, 0, 8);
     pktdrvr_installed = 0;
 }
 
@@ -636,6 +636,7 @@ pkt_check_receive(int timeout)
 
     /* anything ready? */
     if (config.vnet) {
+	FD_ZERO(&readset);
 	FD_SET(pkt_fd, &readset);
 	FD_SET(pkt_broadcast_fd, &readset);
 	add_to_io_select(pkt_broadcast_fd, 1);
@@ -644,6 +645,7 @@ pkt_check_receive(int timeout)
 	/* anything ready? */
 	if (select(max_pkt_fd,&readset,NULL,NULL,&tv) <= 0)
 	    return 0;
+	pd_printf("select returned\n");
 	if(FD_ISSET(pkt_fd, &readset)) 
 	    fd = pkt_fd;
 	else if(FD_ISSET(pkt_broadcast_fd, &readset)) 

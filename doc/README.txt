@@ -448,7 +448,7 @@
          dk              fr              no-latin1       uk
          dk-latin1       fr-latin1       po              us
          dvorak          hu              sf
-         es              hu-cwi          sf-latin1
+         es              hu-cwi          sf-latin1       jp106
 
   You define an internal keytable such as
 
