@@ -2428,6 +2428,17 @@ static void resize_text_mapper(unsigned wx_res, unsigned wy_res)
 
   x_msg("resize_text_mapper to %d x %d VGA --> %d x %d X11\n",
         x_res, y_res, w_x_res, w_y_res);
+
+  dirty_all_video_pages();
+  /*
+   * The new remap object does not yet know about our colors.
+   * So we have to force an update. -- sw
+   */
+  dirty_all_vga_colors();
+
+  vga.reconfig.mem =
+    vga.reconfig.display =
+    vga.reconfig.dac = 0;
 }
 
 /*
