@@ -4,9 +4,20 @@
 #
 # Make a direct executable (bootable) hdimage getting the DOS from
 # your _existing_ native boot partition.
+#
+# Changes:
+#	97/09/10 David Bourgin <dbourgin@wsc.com>
+#	- Use /sbin/fdisk, when /sbin not in the path.
+#	- Offer non-bootable partitions too.
+#	- Move -C option of mdexe to the end of the command to avoid a shell
+#	  misunderstanding.
 
 PROMPTMODE="-o confirm"
 COMCOM="command.com"
+FDISK=fdisk
+if [ -x /sbin/fdisk ]; then
+  FDISK=/sbin/fdisk
+fi
 
 if [ "$1" = "-n" ]; then
   PROMPTMODE=""
@@ -25,10 +36,14 @@ fi
 cd $DDIR
 
 echo "checking you partitions, wait..."
-PARTS=`fdisk -l 2>&1| awk '/DOS 16/ || /DOS 12/ {print $1 " " $2}'|tr '* ' 'B:'| grep ':B'`
+PARTS=`$FDISK -l 2>&1| awk '/DOS 16/ || /DOS 12/ {print $1 " " $2}'|tr '* ' 'B:'| grep ':B'`
+if [ "$PARTS" = "" ]; then
+  PARTS2=`$FDISK -l 2>&1| awk '/DOS 16/ || /DOS 12/ {print $1}'`
+fi
+
 echo "...done"
 
-if [ "$PARTS" = "" ]; then
+if [ "$PARTS" = "" -a "$PARTS2" = "" ]; then
   echo '
 ** There seem not to be any bootable DOS partitions
    Do you want to continue any way using a bootable floppy as input?
@@ -36,13 +51,20 @@ if [ "$PARTS" = "" ]; then
 '
   ISFLOPPY="1"
 else
+ if [ "$PARTS" != "" ]; then
   echo "I've seen the following bootable DOS partitions:"
+  PARTS_=PARTS
+ else
+  echo "I've seen the following DOS partitions (perhaps non-bootable):"
+  PARTS_=PARTS2
+ fi
   echo ""
-  for i in $PARTS; do
+  for i in $PARTS_; do
     echo "     `echo $i |cut -d: -f1`"
   done
   echo ""
-  echo "Which one do you want to use as input?"
+  echo "If none of them are valid, you can continue any way using a bootable"
+  echo "floppy as input. Which one do you want to use as input?"
   echo "Type in the full device name or ENTER to cancel"
   echo ""
 fi
@@ -122,7 +144,7 @@ fi
 
 echo "Starting ..."
 
-(cd ${DDIR}/dexe; ./mkdexe hdimage.first -b $DEVICE -i $IOSYS -m $MSDOSSYS -C $COMCOM -o noapp $PROMPTMODE)
+(cd ${DDIR}/dexe; ./mkdexe hdimage.first -b $DEVICE -i $IOSYS -m $MSDOSSYS -o noapp $PROMPTMODE -C $COMCOM)
 
 echo " ... done"
 

@@ -246,25 +246,12 @@ EndOfPreamble
 
 sub get_dosemu_version  {
     local (*INPUT);
-    local ($emupl, $emuver);
-
-    $INPUT = $base_dir. "../configure.in";
+    local ($dat);
+    $INPUT = $base_dir. "../VERSION";
     open INPUT;
-
-    while (<INPUT>) {
-        if (/PATCHLEVEL="(.*)"/) {
-	    $emupl = $1;
-	    next;
-        }        
-        if (/^VERSION="(.*)"/) {
-	    $emuver = $1;
-        }        
-        if (/^SUBLEVEL="(.*)"/) {
-	    $emusublevel = $1;
-        }        
-    }
-
-    $version = "v$emuver.$emusublevel pl$emupl";
+    $dat = <INPUT>;
+    chop $dat;
+    $version = "dosemu-$dat";
     close INPUT;
 }
 

@@ -93,11 +93,7 @@ int
 read_sectors(struct disk *dp, char *buffer, long head, long sector,
 	     long track, long count)
 {
-#ifdef __linux__
   loff_t  pos;
-#else
-  off_t  pos;
-#endif
   long already = 0;
   long tmpread;
 
@@ -196,11 +192,7 @@ int
 write_sectors(struct disk *dp, char *buffer, long head, long sector,
 	      long track, long count)
 {
-#ifdef __linux__
   loff_t  pos;
-#else
-  off_t pos;
-#endif
   int tmpwrite;
 
   if (dp->rdonly) {
@@ -427,7 +419,7 @@ partition_setup(struct disk *dp)
 			     dp->part_info.beg_cyl) +
 		 (SECTOR_SIZE * (dp->part_info.pre_secs - 1)));
 #else
-  dp->header = -(SECTOR_SIZE * (dp->part_info.pre_secs));
+  dp->header = -(SECTOR_SIZE * (loff_t) (dp->part_info.pre_secs));
 #endif
 
   dp->part_info.mbr_size = SECTOR_SIZE;
@@ -917,11 +909,7 @@ int13(u_char i)
 {
   unsigned int disk, head, sect, track, number;
   int res;
-#ifdef __linux__
   loff_t  pos;
-#else
-  off_t  pos;
-#endif
   char *buffer;
   struct disk *dp;
 

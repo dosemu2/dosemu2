@@ -13,6 +13,10 @@
 #define PART_NOBOOT	0
 #define PART_BOOT	0x80
 
+#ifndef __linux__
+#define loff_t  off_t
+#endif
+
 /* disk file types */
 typedef enum {
   NODISK = -1,
@@ -49,7 +53,7 @@ struct disk {
   int default_cmos;		/* default CMOS floppy type */
   disk_t type;			/* type of file: image, partition,
 				   disk */
-  off_t header;			/* compensation for opt. pre-disk header */
+  loff_t header;		/* compensation for opt. pre-disk header */
   int fdesc;			/* below are not user settable */
   int removeable;		/* not user settable */
   int timeout;			/* seconds between floppy timeouts */
