@@ -1,3 +1,26 @@
+Tue Nov  8	1994
+
+-	pre0.53pl32 released
+-	Fix for Xdos dealing with missing link options with many
+	Thanks to heiko@POOL.Informatik.RWTH-Aachen.DE.
+-	From Rob May:
+Hi James!
+        yep, this is an interesting point. It's not just lilo that will
+have problems, some other boot sector programs (which rewrite the MBR)
+will need this "workaround" and therefore won't work with this patch.
+(I would recommend using one of the newer boot sector programs as they
+are better than lilo, but this is a different point).
+        Unfortunately this "workaround" is a very poor long term
+solution, as using the current part-table is the only safe option.
+This only affects people who boot using DPA with lilo up their MBR, but...
+Since we are basically hacking the part-table to only one valid bootable
+partition, a solution is to cut out the middle-man and boot the partition
+directly, this way we get the current part-table and whatever boot
+sector code you have is irrelevant. Patch to emu.c follows....
+        Any Comments?
+                Ciao,
+                        Rod May.
+
 Sun Nov  6	1994
 
 -	Various PIC patches from JL, also left PIC disabled.

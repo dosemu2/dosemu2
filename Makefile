@@ -13,12 +13,15 @@
 ifeq (/usr/include/X11/X.h,$(wildcard /usr/include/X11/X.h))
 ifeq (/usr/X11R6/lib/libX11.sa,$(wildcard /usr/X11R6/lib/libX11.sa))
 X11LIBDIR  = /usr/X11R6/lib
+X11ROOTDIR  = /usr/X11R6
 else
 ifeq (/usr/X386/lib/libX11.sa,$(wildcard /usr/X386/lib/libX11.sa))
 X11LIBDIR  = /usr/X386/lib
+X11ROOTDIR  = /usr/X386
 else
 ifeq (/usr/lib/libX11.sa,$(wildcard /usr/lib/libX11.sa))
-X11LIBDIR  = /usr/X386/lib
+X11LIBDIR  = /usr/lib
+X11ROOTDIR  = /usr/X386
 endif
 endif
 endif
@@ -93,7 +96,7 @@ endif
 # dosemu version
 EMUVER  =   0.53
 VERNUM  =   0x53
-PATCHL  =   31
+PATCHL  =   32
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -287,7 +290,7 @@ x2dos.o: config.h x2dos.c
 
 dos:	dos.o $(DOSOBJS)
 	@echo "Including dos.o " $(DOSOBJS)
-	$(LD) $(LDFLAGS) -o $@ $^ -lncurses
+	$(LD) $(LDFLAGS) -N -o $@ $^ -lncurses $(DOSOBJS) $(XLIBS)
 
 x2dos: x2dos.c
 	@echo "Including x2dos.o "

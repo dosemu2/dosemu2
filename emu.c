@@ -823,7 +823,6 @@ sti(void)
  *
  */
 inline void handle_signals(void) {
-
   if ( SIGNAL_head != SIGNAL_tail ) {
     signal_queue[SIGNAL_head].signal_handler();
     SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
