@@ -313,7 +313,7 @@ static int setupDOSCommand (char *linux_path, int CommandStyle)
 
 static int do_execute_dos (int argc, char **argv, int CommandStyle)
 {
-  char data[256];
+  char data[PATH_MAX];
   int ret;
 
   if (argc == 0) {
@@ -332,7 +332,7 @@ static int do_execute_dos (int argc, char **argv, int CommandStyle)
     if (*data) {
       com_printf ("About to Execute : %s\n", data);
 
-      if (com_system (data, /*data[strlen(data)+1] == '\0'*/0)) {
+      if (com_system (data, misc_e6_need_terminate())) {
         /* SYSTEM failed ... */
         com_fprintf (com_stderr, "SYSTEM failed ....(%d)\n", com_errno);
         return (1);

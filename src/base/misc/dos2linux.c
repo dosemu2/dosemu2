@@ -28,9 +28,13 @@
  * DANG_BEGIN_CHANGELOG
  *
  *	$Log$
+ *	Revision 1.3  2005/03/21 17:24:09  stsp
+ *	Fixed (and re-enabled) the terminate-after-execute feature (bug #1152829).
+ *	Also some minor adjustments/leftovers.
+ *
  *	Revision 1.2  2004/01/16 20:50:27  bartoldeman
  *	Happy new year!
- *
+ *	
  *	Revision 1.1.1.1  2003/06/23 00:02:07  bartoldeman
  *	Initial import (dosemu-1.1.5.2).
  *	
@@ -72,6 +76,7 @@
 #define MAX_DOS_COMMAND_LEN  256
 
 static char *misc_dos_command = NULL;
+static int need_terminate = 0;
 
 int misc_e6_envvar (char *str)
 {
@@ -113,10 +118,7 @@ int misc_e6_commandline (char *str)
 
     return 1;
   } else {
-    size_t len = strlen(misc_dos_command);      
-
-    /* also store info about whether or not to terminate */
-    memcpy (str, misc_dos_command, len + 2);
+    strcpy (str, misc_dos_command);
     g_printf ("%s\n", str);
 
     return 0;
@@ -125,18 +127,19 @@ int misc_e6_commandline (char *str)
   /* doesn't get this far */
 }
 
+int misc_e6_need_terminate(void)
+{
+  return need_terminate;
+}
 
 void misc_e6_store_command (char *str, int terminate)
 {
-  size_t len = strlen(str) + 2;
-  if (len > MAX_DOS_COMMAND_LEN) {
+  if (strlen(str) > MAX_DOS_COMMAND_LEN) {
     error("DOS command line too long, exiting");
     leavedos(1);
   }
-  misc_dos_command = malloc(len);
-  strcpy(misc_dos_command, str);
-  /* store info about whether or not to terminate */
-  misc_dos_command[len-1] = terminate ? '\0' : '\1';
+  misc_dos_command = strdup(str);
+  need_terminate = terminate;
 
   g_printf ("Storing Command : %s\n", misc_dos_command);
 }

@@ -706,7 +706,7 @@ char * strlower(char *s)
 int check_memory_range(unsigned long base, unsigned long size)
 {
     FILE *fp;
-    char line[1024];
+    char line[PATH_MAX];
     unsigned long beg, end;
     /* find out whether the address request is available */
     if ((fp = fopen("/proc/self/maps", "r")) == NULL) {
