@@ -1477,6 +1477,8 @@ void sb_dsp_write ( Bit8u value )
 	case 0xD3:
 		/* Disable Speaker - SB */
 		sb_disable_speaker();
+		/* we want only one irq when speaker not enabled */
+		SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
 	break;
 	
 	
