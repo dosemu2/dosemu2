@@ -531,36 +531,6 @@ void pit_control_outp(ioport_t port, Bit8u val)
  *
  * DANG_END_FUNCTION
  */
-#if 0  /* =0, if old engine */
-void timer_int_engine(void)
-{
-  static continuous = 0;
-
-  if (ticks_accum < timer_div)
-    continuous = 0;                     /* Reset overflow guard */
-  else {
-
-    /* Overflow guard so that there is no more than 50 irqs in a chain */
-    continuous++;
-    
-    if (continuous > 50) 
-      continuous = 0;                   /* Reset overflow guard */
-    else {
-        pic_request(PIC_IRQ0);            /* Start a timer irq */
-    }
-
-    /* Decrement the ticks accumulator */
-    ticks_accum -= timer_div;
-    
-    /* Prevent more than 250 ms of extra timer ticks from building up.
-     * This ensures that if timer_int_engine get called less frequently
-     * than every 250ms, the code won't choke on an overload of timer 
-     * interrupts.
-     */
-    if (ticks_accum > 250) ticks_accum -= 250;
-  }
-}
-#else /* new engine */
 void timer_int_engine(void)
 {
  pic_sched(PIC_IRQ0,pit[0].cntr);
@@ -718,4 +688,3 @@ void pit_reset(void)
   port61 = 0x0c;
   do_ioctl(console_fd,KIOCSOUND,0);    /* sound off */
 }
-#endif /* new engine */

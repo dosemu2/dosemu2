@@ -486,8 +486,6 @@ hr-latin2		MAY_BE { yylval->i_value = KEYB_HR_LATIN2;
 			  return(KEYB_LAYOUT); }
 ru 			MAY_BE { yylval->i_value = KEYB_RU; 
 				return(KEYB_LAYOUT); }
-tr 			MAY_BE { yylval->i_value = KEYB_TR;
-				return(KEYB_LAYOUT); }
 keyb-user		MAY_BE { yylval->i_value = KEYB_USER; return(KEYB_LAYOUT); }
 
 	/* serial stuff */

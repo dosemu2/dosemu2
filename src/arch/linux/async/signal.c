@@ -626,18 +626,14 @@ void
 sigquit(int sig)
 {
   in_vm86 = 0;
-  in_sighandler = 1;
 
   error("sigquit called\n");
   show_ints(0, 0x33);
   show_regs(__FILE__, __LINE__);
 
-  ignore_segv++;
   *(unsigned char *)BIOS_KEYBOARD_FLAGS = 0x80;	/* ctrl-break flag */
-  ignore_segv--;
 
   do_soft_int(0x1b);
-  in_sighandler = 0;
 }
 
 #if 0

@@ -867,11 +867,9 @@ void set_ticks(unsigned long new)
   volatile unsigned long *ticks = BIOS_TICK_ADDR;
   volatile unsigned char *overflow = TICK_OVERFLOW_ADDR;
 
-  ignore_segv++;
   *ticks = new;
   /* A timer read should reset the overflow flag */
   *overflow = 0;
-  ignore_segv--;
   h_printf("TICKS: update ticks to %ld\n", new);
 }
 

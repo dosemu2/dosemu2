@@ -2229,9 +2229,12 @@ static void sb_check_complete (void)
 
 void sound_init(void)
 {
-  sb_init();
-  fm_init();
-  mpu401_init();
+  /* sb_irq == 0 means that $_sound = (off) */
+  if (config.sb_irq) {
+    sb_init();
+    fm_init();
+    mpu401_init();
+  }
 }
 
 static void sb_detect(void)

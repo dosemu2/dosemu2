@@ -3,7 +3,7 @@ The DOSEMU Alterer Novices Guide
 
 Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 
-   version dosemu-1.1.3.5
+   version dosemu-1.1.3.7
 
    This Document is the DOSEMU Alterer Novices Guide. It is known as the
    DANG.
@@ -2736,17 +2736,6 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 
 9.6. Remarks in emu-i386/do_vm86.c
 
-   In a properly functioning emulator :-), sigsegv's will never come
-   while in a non-reentrant system call (ioctl, select, etc). Therefore,
-   there's really no reason to worry about them, so I say that I'm NOT in
-   a signal handler (I might make this a little clearer later, to show
-   that the purpose of in_sighandler is to stop non-reentrant system
-   calls from being reentered. I reiterate: sigsegv's should only happen
-   when I'm running the vm86 system call, so I really shouldn't be in a
-   non-reentrant system call (except maybe vm86) - Robert Sanders
-
-   -----
-
    Here we handle all prefixes prior switching to the appropriate
    routines The exception CS:EIP will point to the first prefix that
    effects the faulting instruction, hence, 0x65 0x66 is same as 0x66
@@ -3506,18 +3495,6 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    -----
 
    AUX Status is Unimplemented
-
-   -----
-
-   Stero Input is no implemented
-
-   -----
-
-   ADC is Unimplemented
-
-   -----
-
-   Stopping Auto-Init DMA is not implemented
      _________________________________________________________________
 
 14.4. Remarks in base/dev/dma/dma.c
@@ -3533,18 +3510,9 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 
    Note that DMA controller 2 uses word granular addressing and
    controller 1 uses byte granular address ... this simplifies the code !
-
-   -----
-
-   I think that DREQ should only be set on auto-init if we are the
-   reading portion.
      _________________________________________________________________
 
 14.5. Items for Fixing in base/dev/dma/dma.c
-
-   : Pipe Creation failed. Lets hope that it times out !
-
-   -----
 
    : Cascade Mode Reads are not supported
 

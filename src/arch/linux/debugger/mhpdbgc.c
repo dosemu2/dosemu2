@@ -542,6 +542,7 @@ static void mhp_go(int argc, char * argv[])
       WRITE_FLAGS(READ_FLAGS() & ~TF);
       vm86s.vm86plus.vm86dbg_TFpendig=0;
       mhpdbgc.stopped = 0;
+      pic_sti();
    }
 }
 
@@ -568,7 +569,7 @@ static void mhp_trace(int argc, char * argv[])
       mhp_printf("must be in stopped state\n");
    } else {
       mhpdbgc.stopped = 0;
-      if (IN_DPMI) {
+      if (in_dpmi) {
         if (!dpmi_mhp_setTF(1)) return;
       }
       else WRITE_FLAGS(READ_FLAGS() | TF);
@@ -593,14 +594,14 @@ static void mhp_trace_force(int argc, char * argv[])
       mhp_printf("must be in stopped state\n");
    } else {
       mhpdbgc.stopped = 0;
-      if (IN_DPMI) {
+      if (in_dpmi) {
         if (!dpmi_mhp_setTF(1)) return;
       }
       else WRITE_FLAGS(READ_FLAGS() | TF);
       vm86s.vm86plus.vm86dbg_TFpendig=1;
       mhpdbgc.trapcmd = 1;
-/* discard pending ints: we want to trace the program, not the HW int handlers */
-      pic_irr = 0;
+      /* disable PIC: we want to trace the program, not the HW int handlers */
+      pic_cli();
    }
 }
 

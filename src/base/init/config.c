@@ -337,7 +337,7 @@ config_defaults(void)
     config.sb_dma = 1;
     config.sb_irq = 5;
     config.sb_dsp = "/dev/dsp";
-    config.sb_mixer = "/dev/mixer";
+    config.sb_mixer = "";
     config.mpu401_base = 0x330;
 
     config.netdev = "eth0";

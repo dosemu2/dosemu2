@@ -32,10 +32,6 @@
 #define UDATASEL 0x2b
 #endif
 
-EXTERN struct sigcontext_struct dpmi_stack_frame[DPMI_MAX_CLIENTS]; /* used to store the dpmi client registers */
-EXTERN struct sigcontext_struct _emu_stack_frame;  /* used to store emulator registers */
-EXTERN struct sigcontext_struct *emu_stack_frame INIT(&_emu_stack_frame);
-
 EXTERN int in_dpmi INIT(0);        /* Set to 1 when running under DPMI */
 #define current_client (in_dpmi-1)
 EXTERN int in_win31 INIT(0);       /* Set to 1 when running Windows 3.1 */
@@ -47,6 +43,7 @@ EXTERN unsigned char dpmi_mhp_intxxtab[256] INIT({0});
 
 void dpmi_get_entry_point();
 
+void indirect_dpmi_switch(struct sigcontext_struct *);
 #ifdef __linux__
 void dpmi_fault(struct sigcontext_struct *);
 #endif

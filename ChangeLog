@@ -1,3 +1,32 @@
+2002/11/03 ver 1.1.3.7 unofficial pre-release
+	From Stas
+	- Change $_sound to on and $_mixer to "" by default (Bart:
+	  same thing in config.c).
+	- vm86_GP_fault() is no longer a signal handler so the relevant 
+	  code could be removed.
+	- remove the LDT-mangling to allow expand-ups. This allows a lot of 
+	  DPMI programs to run in DOSEMU that didn't before (such as PharLap,
+	  X32 (Zortech/Symantec/Digital Mars), and some others).  Note that 
+	  "secure on" already disabled DPMI completely for suid-root DOSEMU.
+	- Fix three bugs in dpmi.c:
+	  * access to dpmi_stack_frame[-1];
+	  * save_rm_regs() without restore_rm_regs();
+	  * use of the real mode interrupt stack as a general stack
+	- ignore RIP advertisements from the local net for non-root IPX
+	- move some DPMI structs back to private
+	- Fix dosdebug to properly work with DPMI, even surviving RM->PM
+	  switches.
+	- dosdebug fix for force trace mode
+	- Remove old timer #if 0'ed code
+	From Reinhard
+	- Fix numlock switching on/off when switching vc's.
+	From Bart (reported by Reinhard)
+	- Don't initialize sound if $_sound=(off) (config.sb_irq == 0 is a 
+	  signal for that)
+	- Fix the Turkish keyboard lexer code in the right place now.
+	- (edited from suggestion by Matthew Sullivan 
+          <sorbs@users.sourceforge.net>): try rmdir before rm -rf when
+	  deleting the per process temp directory.
 2002/11/02 ver 1.1.3.6 unofficial pre-release
 	From Stas
 	- Remove bogus check for ints >= 0xe0 in dpmi.c.

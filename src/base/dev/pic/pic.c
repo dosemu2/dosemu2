@@ -855,10 +855,6 @@ static char buf[81];
   if (pic_iinfo[inum].func == (void *)0)
     return ret; 
 
-  /* don't allow HW interrupts in force trace mode */
-  if (vm86s.vm86plus.vm86dbg_TFpendig)
-    return ret;
-
   REG(eflags) |= VIP;
   if (in_dpmi)
     dpmi_eflags |= VIP;
@@ -908,6 +904,8 @@ void pic_untrigger(int inum)
     }
     pic_pirr &= ~(1<<inum);
     pic_irr &= ~(1<<inum);
+    pic_wirr &= ~(1<<inum);
+    pic_ltime[inum] = 0;
 }
 
 /* DANG_BEGIN_FUNCTION pic_iret

@@ -177,8 +177,6 @@ boot(void)
 	leavedos(15);
     }
 
-    ignore_segv++;
-
     disk_close();
     disk_open(dp);
 
@@ -215,7 +213,6 @@ boot(void)
 	}
     }
     disk_close();
-    ignore_segv--;
 }
 
 static inline void 
@@ -407,9 +404,6 @@ emulate(int argc, char **argv)
     while (!fatalerr) {
 	loopstep_run_vm86();
     }
-
-    error("error exit: (%d,0x%04x) in_sigsegv: %d ignore_segv: %d\n",
-	  fatalerr, fatalerr, in_sigsegv, ignore_segv);
 
     sync();
     fprintf(stderr, "Not a good day to die!!!!!\n");
@@ -613,11 +607,14 @@ leavedos(int sig)
     flush_log();
 
     /* remove per process tmpdir and its contents */
-    {
-       char *command = strcatdup("rm -rf >/dev/null 2>&1 ", TMPDIR_PROCESS);
-       if (command) {
-          priv_drop(); /* drop any priviledges before running system() !! */
-          system(command);
+    priv_drop(); /* drop any priviledges before running system() !! */
+    /* first try rmdir; if the directory is not empty, try system */
+    if (!rmdir(TMPDIR_PROCESS)) {
+       char *command = strcatdup("/bin/rm -rf >/dev/null 2>&1 ", TMPDIR_PROCESS);
+       if (command == NULL || system(command) != 0) {
+          g_printf("Failed to remove ");
+          g_printf(TMPDIR_PROCESS);
+          g_printf(" you'll have to clean it up yourself.\n");
        }
     }
 

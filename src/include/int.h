@@ -15,10 +15,6 @@
 EXTERN void *interrupt_function[0x100];
 EXTERN unsigned int  check_date INIT(0);
 EXTERN time_t        start_time;
-EXTERN u_char in_sigsegv INIT(0);
-EXTERN u_char in_sighandler INIT(0);	/* so I know to not use non-reentrant
-					 * syscalls like ioctl() :-( */
-EXTERN u_char ignore_segv INIT(0);      /* ignore sigsegv's */
 
 void do_int(int);
 void fake_int(int, int);

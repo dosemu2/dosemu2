@@ -15,7 +15,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <asm/page.h>
 
 #include "emu.h"
@@ -188,10 +187,7 @@ sgleave:
          * here if we have set the trap-flags (TF)
          * ( needed for dosdebug only )
          */
-	/* backup the registers */
-	memcpy(emu_stack_frame, scp, sizeof(struct sigcontext_struct));
-	/* switch the stack */
-	memcpy(scp, &dpmi_stack_frame[current_client], sizeof(struct sigcontext_struct));
+	indirect_dpmi_switch(scp);
 	return;
       }
       else { /* No, not HLT, too bad :( */

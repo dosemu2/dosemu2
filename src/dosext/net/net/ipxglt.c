@@ -109,8 +109,20 @@ char buf_targ[9], buf_net[9], buf_node[13], proc_net[9], proc_node[13], *proc_st
 	sscanf(proc_str, "%s %s", proc_net, proc_node);
 	close_proc_scan();
 
-	if (strcmp(buf_net, proc_net) || strcmp(buf_node, proc_node))
-		return 0;
+	if (strcmp(buf_net, proc_net) || strcmp(buf_node, proc_node)) {
+		open_proc_scan("/proc/net/ipx_interface");
+		proc_str = get_proc_string_by_key(buf_net);
+		if (!proc_str) {
+			close_proc_scan();
+			return 0;
+		}
+		if (!strstr(proc_str, "Internal")) {
+			close_proc_scan();
+			return 0;
+		}
+		close_proc_scan();
+		/* fall through */
+	}
 
 	return 1;
 }
