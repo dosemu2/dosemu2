@@ -519,7 +519,8 @@ int update_text_screen(void)
     vga.reconfig.display = 0;
   }
   if(vga.reconfig.mem) {
-    remap_obj.src_resize(&remap_obj, vga.width, vga.height, vga.width);
+    if (use_bitmap_font)
+      remap_obj.src_resize(&remap_obj, vga.width, vga.height, vga.width);
     redraw_text_screen();
     vga.reconfig.mem = 0;
   }
