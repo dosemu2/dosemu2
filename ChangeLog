@@ -1,3 +1,13 @@
+98/03/20 ver. 0.97.4.5 unofficial pre-release
+	From Steffen
+	- fix to global.conf not setting mitshm
+	- fixed/removed RESIZE_KLUDGE
+	- fix for mousecursor in graphics (was defined on _each_ X-event)
+	- reworked X-colormanagement:
+	  - not crash any more when out of colors
+	  - switch to private colormap, if the global one gets exausted
+	  sideffect: some colors may be missing in textmode (become black)
+	  ... fix for this is 'in progress' ;-)
 98/03/20 ver. 0.97.4.4 unofficial pre-release
 	From Alistair
 	- This patch contains (unfortunately) too many changes for me to

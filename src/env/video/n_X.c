@@ -107,16 +107,19 @@
  * Added config capabilities via DOS tool (X_change_config).
  * -- sw
  *
+ * 1998/03/15: Another try to get rid of RESIZE_KLUGE. Fixed continuous
+ * X-cursor redefinition in graphics modes. Worked on color allocation.
+ * -- sw
+ *
  *
  * DANG_END_CHANGELOG
  */
-
-#define RESIZE_KLUDGE			/* this should finally be undef -- sw */
 
 #define CONFIG_X_SELECTION 1
 #define CONFIG_X_MOUSE 1
 #define CONFIG_X_SPEAKER 1  		/* do you want speaker support in X? */
 
+/* undef no longer works -- 1998/03/15 sw */
 #define TEXT_DAC_UPDATES		/* updates palettes even in text modes */
 
 #undef DEBUG_MOUSE_POS			/* show X mouse in graphics modes */
@@ -290,7 +293,8 @@ static Boolean have_focus = FALSE;
 static Boolean is_mapped = FALSE;
 
 static Colormap text_cmap = 0;
-static unsigned long text_colors[16] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
+static unsigned long text_colors[16];
+static int text_col_stats[16] = {0};
 
 static Colormap vga256_cmap = 0;
 static Boolean have_shmap = FALSE;
@@ -301,9 +305,6 @@ static int have_true_color;
 static unsigned dac_bits;		/* the bits visible to the dosemu app, not the real number */
 static int x_res, y_res;		/* emulated window size in pixels */
 static int w_x_res, w_y_res;		/* actual window size */
-#ifdef RESIZE_KLUDGE
-static int first_resize =0;
-#endif
 static unsigned ximage_bits_per_pixel;
 static unsigned ximage_mode;
 static int remap_features;
@@ -330,7 +331,9 @@ typedef struct { unsigned char r, g, b; } c_cube;
 /*
  * all function prototypes...
  */
+#if 0
 static void text_cmap_init(void);
+#endif
 static int try_cube(unsigned long *, c_cube *);
 static ColorSpaceDesc MakeSharedColormap(void);
 static int MakePrivateColormap(void);
@@ -402,6 +405,7 @@ extern void X_handle_events(void);
 /*                         INITIALIZATION                                 */
 /**************************************************************************/
 
+#if 0
 /*
  * Allocate normal VGA colors, and store color indices to text_colors[].
  */
@@ -423,22 +427,25 @@ static void text_cmap_init()
 
   text_cmap = DefaultColormap(display, screen);
 
-  X_printf("X: getting VGA colors\n");
+  X_printf("X: text_cmap_init: getting VGA colors\n");
 
   /* Since we're here, we may as well set this up since it never changes... */
   xcol.flags = DoRed | DoGreen | DoBlue;
 
   for(i = 0; i < 16; i++) {
-    xcol2.red   = (crgb[i].r * 65535) / 255;
-    xcol2.green = (crgb[i].g * 65535) / 255;
-    xcol2.blue  = (crgb[i].b * 65535) / 255;
-    if(!XAllocColor(display, text_cmap, &xcol2)) {
-      error("X: couldn't allocate all VGA colors!\n");
-      return;
-    }
+    xcol2.red   = crgb[i].r * 0x101;
+    xcol2.green = crgb[i].g * 0x101;
+    xcol2.blue  = crgb[i].b * 0x101;
+    text_col_stats[i] = XAllocColor(display, text_cmap, &xcol2);
     text_colors[i] = xcol2.pixel;
+
+    if(! text_col_stats[i]) {
+      X_printf("X: text_cmap_init: couldn't allocate color %d\n", i);
+    }
+    X_printf("X: text_cmap_init: color[%d] = %d\n", i, (int) text_colors[i]);
   }
 }
+#endif
 
 c_cube c_cubes[] = {
   { 6, 8, 5 },
@@ -494,16 +501,18 @@ ColorSpaceDesc MakeSharedColormap()
   for(i = j = 0; i < sizeof(c_cubes) / sizeof(*c_cubes); i++) {
     if((j = try_cube(pix, c_cubes + i))) break;
   }
+
   if(!j) {
-    X_printf("X: failed to allocate shared color map\n");
+    X_printf("X: MakeSharedColormap: failed to allocate shared color map\n");
     csd.r_bits = 1;
     csd.g_bits = 1;
     csd.b_bits = 1;
   }
-
-  csd.r_bits = c_cubes[i].r;
-  csd.g_bits = c_cubes[i].g;
-  csd.b_bits = c_cubes[i].b;
+  else {
+    csd.r_bits = c_cubes[i].r;
+    csd.g_bits = c_cubes[i].g;
+    csd.b_bits = c_cubes[i].b;
+  }
 
   csd.r_shift = 1;
   csd.g_shift = csd.r_bits * csd.r_shift;
@@ -516,7 +525,7 @@ ColorSpaceDesc MakeSharedColormap()
     for(i = 0; i < csd.bits; i++) csd.pixel_lut[i] = pix[i];
   }
 
-  X_printf("X: RGBCube: %d - %d - %d (%d colors)\n", csd.r_bits, csd.g_bits, csd.b_bits, csd.bits);
+  X_printf("X: MakeSharedColormap: RGBCube %d - %d - %d (%d colors)\n", csd.r_bits, csd.g_bits, csd.b_bits, csd.bits);
 
   return csd;
 }
@@ -531,7 +540,7 @@ int MakePrivateColormap()
 
   i = XAllocColorCells(display, vga256_cmap, True, NULL, 0, pixels, 256);
   if(!i) {
-    X_printf("X: failed to allocate private color map\n");
+    X_printf("X: MakePrivateColormap: failed to allocate private color map\n");
     return 0;
   }
 
@@ -571,12 +580,14 @@ static void vga256_cmap_init(void)
       X_csd = MakeSharedColormap();
 
       if(X_csd.bits == 1) {
-        error("X: Warning: Couldn't get a semi-decent number of free colors\n         - using private colormap.\n");
+        X_printf("X: vga256_cmap_init: couldn't get enough free colors; trying private colormap\n");
+        /* this is certainly not an error, hence no  error() call -- sw */
+        fprintf(stderr, "X: Couldn't get enough free colors - using private colormap.\n");
         have_shmap = FALSE;
       }
       else {
         if(X_csd.bits < 4 * 5 * 4) {
-          X_printf("X: Couldn't get many free colors.  May look bad.\n");
+          X_printf("X: vga256_cmap_init: couldn't get many free colors (%d). May look bad.\n", X_csd.bits);
         }
       }
 
@@ -585,18 +596,18 @@ static void vga256_cmap_init(void)
 
     if(!have_shmap) {
       if(MakePrivateColormap()) {
-        X_printf("X: using private colormap.\n");
+        X_printf("X: vga256_cmap_init: using private colormap.\n");
       }
       else {
         error("X: Warning: we don't have any kind of colormap!\n");
       }
     }
     else {
-      X_printf("X: using shared colormap.\n");
+      X_printf("X: vga256_cmap_init: using shared colormap.\n");
     }
   }
   else {
-    error("X: unexpectedly called vga256_cmap_init()\n");
+    X_printf("X: vga256_cmap_init: unexpectedly called\n");
   }
 }
 
@@ -770,14 +781,13 @@ static void refresh_text_palette()
     xc.green = (color.g * 65535) / dac_mask;
     xc.blue  = (color.b * 65535) / dac_mask;
 
-    XFreeColors(display, text_cmap, &(xc.pixel), 1, 0);
-    if(!XAllocColor(display, text_cmap, &xc)) {
-      X_printf("X: refresh_text_palette: failed to allocate new text color\n");
+    if(text_col_stats[i]) XFreeColors(display, text_cmap, &(xc.pixel), 1, 0);
+
+    if(!(text_col_stats[i] = XAllocColor(display, text_cmap, &xc))) {
+      printf("X: refresh_text_palette: failed to allocate new text color: %d\n", i);
     }
-    else {
-      X_printf("X: refresh_text_palette: %d --> %d\n", (int) text_colors[i], (int) xc.pixel);
-      text_colors[i] = xc.pixel;
-    }
+    X_printf("X: refresh_text_palette: %d --> %d\n", (int) text_colors[i], (int) xc.pixel);
+    text_colors[i] = xc.pixel;
   }
 }
 #endif
@@ -844,11 +854,7 @@ void put_ximage(int src_x, int src_y, int dest_x, int dest_y, unsigned width, un
 int NewXErrorHandler(Display *dsp, XErrorEvent *xev)
 {
 #ifdef HAVE_MITSHM
-#ifndef NEW_X_MOUSE
-  if(xev->request_code == shm_error_base + 1) {
-#else /* NEW_X_MOUSE */
   if(xev->request_code == shm_error_base || xev->request_code == shm_error_base + 1) {
-#endif /* NEW_X_MOUSE */
     X_printf("X::NewXErrorHandler: error using shared memory\n");
     shm_ok = 0;
   }
@@ -1094,6 +1100,7 @@ int X_init(void)
 
   screen = DefaultScreen(display);
   rootwindow = RootWindow(display,screen);
+  text_cmap = DefaultColormap(display, screen);
 
   OldXErrorHandler = XSetErrorHandler(NewXErrorHandler);
 
@@ -1107,7 +1114,11 @@ int X_init(void)
 
   X_get_screen_info();		/* do it _before_ vga256_cmap_init() */
 
+#if 0
+  /* what for ? -- sw */
   text_cmap_init();		/* text mode colors */
+#endif
+
   vga256_cmap_init();		/* 8 bit mode colors */
 
   X_remap_init();		/* init graphics mode support */
@@ -1330,6 +1341,9 @@ static int X_setmode(int mode_class, int text_width, int text_height)
   switch(vga.mode_class) {
 
     case TEXT:
+
+      XSetWindowColormap(display, mainwindow, text_cmap);
+
       /* This is sometimes needed, when we return from graph to a saved
        * text mode, else the screen would remain garbaged until we do manually
        * do a resize/refresh.  --Hans
@@ -1337,10 +1351,7 @@ static int X_setmode(int mode_class, int text_width, int text_height)
        * Maybe, but then we should better do it always. -- Steffen
        *
        */
-
       X_partial_redraw_screen();
-
-      XSetWindowColormap(display, mainwindow, text_cmap);
 
       dac_bits = vga.dac.bits;
 
@@ -1354,6 +1365,7 @@ static int X_setmode(int mode_class, int text_width, int text_height)
 
       sh.flags = PSize | PMinSize | PMaxSize;
       XSetNormalHints(display, mainwindow, &sh);
+      XSync(display, False);
 
       XResizeWindow(display, mainwindow, w_x_res, w_y_res);
 
@@ -1477,20 +1489,9 @@ static int X_setmode(int mode_class, int text_width, int text_height)
       veut.update_gran = 0;
       veut.update_pos = veut.display_start;
 
-#ifdef RESIZE_KLUDGE
-      first_resize = 1;
-#endif
-
-      /*
-       * The following XSync() must be present between create_ximage() above
-       * and XSetNormalHints() below. Otherwise we will get an XResize event
-       * that forces the window back to its previous size in some situations.
-       * Don't ask me why. -- Steffen
-       */
-      XSync(display, True);
-
       XSetNormalHints(display, mainwindow, &sh);
       XResizeWindow(display, mainwindow, w_x_res, w_y_res);
+
       break;
   
     default:
@@ -2594,16 +2595,18 @@ void X_handle_events(void)
 #if CONFIG_X_MOUSE
    {
      static int lastingraphics = 0;
-     if (vga.mode_class == GRAPH) {
-       lastingraphics = 1;
+     if(vga.mode_class == GRAPH) {
+       if(! lastingraphics) {
+         lastingraphics = 1;
 #ifndef DEBUG_MOUSE_POS
-       XDefineCursor(display, mainwindow, X_mouse_nocursor);
+         XDefineCursor(display, mainwindow, X_mouse_nocursor);
 #else
-       XDefineCursor(display, mainwindow, X_standard_cursor);
+         XDefineCursor(display, mainwindow, X_standard_cursor);
 #endif
+       }
      }
      else {
-       if (lastingraphics) {
+       if(lastingraphics) {
          lastingraphics = 0;
          XDefineCursor(display, mainwindow, X_standard_cursor);
        }
@@ -2838,26 +2841,19 @@ void X_handle_events(void)
 	  break;
 
         case ConfigureNotify:
-          if(e.xconfigure.width != w_x_res || e.xconfigure.height != w_y_res) {
-            resize_event = 1;
-#ifdef RESIZE_KLUDGE
-            if (first_resize > 0) {
-              first_resize--;
-              resize_width = w_x_res;
-              resize_height = w_y_res;
-            }
-            else
-#endif
-            {
-              resize_width = e.xconfigure.width;
-              resize_height = e.xconfigure.height;
-            }
-          }
+          /* printf("X: configure event: width = %d, height = %d\n", e.xconfigure.width, e.xconfigure.height); */
+          resize_event = 1;
+          resize_width = e.xconfigure.width;
+          resize_height = e.xconfigure.height;
           break;
 
 #endif /* CONFIG_X_SELECTION */
 /* some weirder things... */
 	}
+    }
+
+    if(ximage != NULL && resize_event) {
+      if(ximage->width == resize_width && ximage->height == resize_height) resize_event = 0;
     }
 
     if(resize_event) {
