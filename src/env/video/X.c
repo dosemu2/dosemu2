@@ -426,6 +426,7 @@ static Cursor X_standard_cursor;
 static Cursor X_mouse_nocursor;
 static int snap_X = 0;
 static int mouse_cursor_visible = 0;
+static int mouse_really_left_window = 1;
 #endif
 
 static GC gc, fullscreengc, normalgc;
@@ -1492,9 +1493,10 @@ void X_set_mouse_cursor(int yes, int mx, int my, int x_range, int y_range)
 			else
 				return;
 		}
-		XWarpPointer(display, None, mainwindow, 0, 0, 0, 0,
-			shift_x + (w_x_res * mx)/x_range,
-                        shift_y + (w_y_res * my)/y_range);
+		if (!mouse_really_left_window)
+			XWarpPointer(display, None, mainwindow, 0, 0, 0, 0,
+				     shift_x + (w_x_res * mx)/x_range,
+				     shift_y + (w_y_res * my)/y_range);
 	}
 #endif /* CONFIG_X_MOUSE */
 }
@@ -1568,7 +1570,6 @@ static void toggle_fullscreen_mode(void)
 void X_handle_events()
 {
    static int busy = 0;
-   static int mouse_really_left_window = 1;
    XEvent e;
    unsigned resize_width = w_x_res, resize_height = w_y_res, resize_event = 0;
 
@@ -2769,8 +2770,8 @@ static void X_vidmode(int w, int h, int *new_width, int *new_height)
     shift_x = (nw - w_x_res)/2;
     shift_y = (nh - w_y_res)/2;
   }
-  
-  if (!grab_active && (mx != 0 || my != 0))
+
+  if (!grab_active && (mx != 0 || my != 0) && !mouse_really_left_window)
     XWarpPointer(display, None, mainwindow, 0, 0, 0, 0,
                  mx + shift_x, my + shift_y);
   *new_width = nw;
