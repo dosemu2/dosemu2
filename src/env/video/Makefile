@@ -50,9 +50,10 @@ all: lib
 #	      because we came into trouble with make dependencies recently
 
 vesabios.o: vesabios.S 
-	$(CC) $(CFLAGS) -nostdlib -Wl,-Ttext,0,-e,_start16 -traditional $< -o $@.tmp
+	$(CC) $(CFLAGS) -nostdlib -Wl,-Ttext,0,-e,_start16 -Wa,-a -traditional $< -o $@.tmp > $*.s.out
 	strip -N _edata -N __bss_start -N _end $@.tmp
 	mv -f $@.tmp $@
+	chmod 644 $@
 
 install:
 
@@ -63,6 +64,6 @@ echo::
 	@echo REALTOPDIR=$(REALTOPDIR)
 
 clean::
-	rm -f *.o *.tmp *.s
+	rm -f *.o *.tmp *.s *.s.out
 
 realclean:: clean

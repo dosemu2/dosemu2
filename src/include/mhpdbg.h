@@ -103,6 +103,7 @@ struct mhpdbg_4bpar
 
 #define PAR4b_addr(x) ((char *)( ((long)mhpdbgc.bpload_par->x.seg << 4) \
                         + mhpdbgc.bpload_par->x.off ))
+
 struct mhpdbgc
 {
    int stopped;

@@ -199,13 +199,13 @@ static int open_mapping_shm(int cap)
 
     mpool = alloc_ipc_shm(mapsize);
     if (!mpool) {
-      error("MAPPING: cannot get IPC shared mem (%s)\n
-      This may have the following reasons:
-      - you do not have IPC configured into the kernel
-      - the limits are to low for the amount of memory you requested
-        in /etc/dosemu.conf. In this case either decrease the XMS/EMS/DPMI
-        amount in /etc/dosemu.conf or increase the kernel limits such as
-        'echo 67108864 >/proc/sys/kernel/shmmax'\n\n",
+      error("MAPPING: cannot get IPC shared mem (%s)\n\n"
+      "This may have the following reasons:\n"
+      "- you do not have IPC configured into the kernel\n"
+      "- the limits are to low for the amount of memory you requested\n"
+      "  in /etc/dosemu.conf. In this case either decrease the XMS/EMS/DPMI\n"
+      "  amount in /etc/dosemu.conf or increase the kernel limits such as\n"
+      "  'echo 67108864 >/proc/sys/kernel/shmmax'\n\n",
       strerror(errno));
       if (!cap)return 0;
       leavedos(2);

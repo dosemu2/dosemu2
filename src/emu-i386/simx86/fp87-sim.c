@@ -35,120 +35,71 @@
 #include <stddef.h>
 #include "emu86.h"
 #include "codegen.h"
+#include "codegen-sim.h"
 #include <math.h>
 
-/*
- * Tags are not completely implemented, and also all the stuff is in
- * 64-bit, not 80-bit, precision, so no wonder if you get errors in FP
- * test programs. It was meant to be moved one day to other CPUs that
- * have no idea of an 80-bit FP type.
- */
-
-unsigned short nxta[8] =
-{	0x0801,0x1002,0x1803,0x2004,0x2805,0x3006,0x3807,0x0000 };
-
-unsigned short nxta2[8] =
-{	0x1002,0x1803,0x2004,0x2805,0x3006,0x3807,0x0000,0x0801 };
-
-unsigned short prva[8] =
-{	0x3807,0x0000,0x0801,0x1002,0x1803,0x2004,0x2805,0x3006 };
+static double WFR0, WFR1;
+static unsigned short WFRS;
 
 #define FPSELEM		sizeof(double)
 
+#define S_next(r)	(((r)+1)&7)
+#define S_prev(r)	(((r)-1)&7)
+#define S_reg(r,n)	(((r)+(n))&7)
+#define ST0		((double *)&TheCPU.fpregs[TheCPU.fpstt])
+#define ST1		((double *)&TheCPU.fpregs[S_next(TheCPU.fpstt)])
+#define STn(n)		((double *)&TheCPU.fpregs[S_reg(TheCPU.fpstt,n)])
+
+#define SYNCFSP		TheCPU.fpus=(TheCPU.fpus&0xc7ff)|(TheCPU.fpstt<<11)
+#define INCFSP		TheCPU.fpstt=S_next(TheCPU.fpstt),SYNCFSP
+#define INCFSP2		TheCPU.fpstt=S_reg(TheCPU.fpstt,2),SYNCFSP
+#define DECFSP		TheCPU.fpstt=S_prev(TheCPU.fpstt),SYNCFSP
+
+static double _fparea[8];
+
 /*
- * What's the trick here?
- * the FP regs are aligned on a 256-byte boundary, so that the lowest
- * byte of FP0 is 0, of FP1 is 8, etc. and we can adjust the pointer
- * FPRSTT only by changing its lowest byte.
+ * This function is only here for looking at the generated binary code
+ * with objdump.
  */
-//	movl	FPRSTT,esi
-#define FTOS2ESI	{G2(0x358b,Cp);G4((long)&FPRSTT,Cp);}
-//	movl	FPRSTT,ecx
-#define FTOS2ECX	{G2(0x0d8b,Cp);G4((long)&FPRSTT,Cp);}
-//	ffree st(0)
-//	fincstp
-#define DISCARD		G4(0xf7d9c0dd,Cp)
-
-// if r!=0
-//	leal	n*8(esi),ecx
-//	andb	0x3f,cl
-// if r==0
-//	movl	esi,ecx
-#define FSRN2CX(r)	{if (r) {G2(0x4e8d,Cp);G1((r)*FPSELEM,Cp);G3(0x3fe180,Cp);}\
-			 else G2(0xf189,Cp);}
-//	movl	FPRSTT,ecx
-// if r!=0
-//	addb	(reg*8),cl
-//	andb	0x3f,cl
-#define FTOS2CX(r)	{FTOS2ECX; if (r) {G2(0xc180,Cp);G1((r)*FPSELEM,Cp);G3(0x3fe180,Cp);}}
-
-//	fldl	(esi)
-#define FLDfromESI	G2(0x06dd,Cp)
-//	fstpl	(esi)
-#define FSTPfromESI	G2(0x1edd,Cp)
-//	fldl	(ecx)
-#define FLDfromECX	G2(0x01dd,Cp)
-//	fstpl	(ecx)
-#define FSTPfromECX	G2(0x19dd,Cp)
-
-// ! replace TOS field !
-//	fstcw	FPUS(ebx)
-#define	SAVESW		{G3(0x7bdd9b,Cp);G1(Ofs_FPUS,Cp);}
-
-//	movzbl	FPSTT(ebx),eax
-//	movl	&nxta,ecx
-//	movw	(ecx,eax,2),ax
-//	movb	al,FPSTT(ebx)
-//	movb	ah,FPRSTT
-#define INCFSP	{G3(0x43b60f,Cp);G1(Ofs_FPSTT,Cp);G1(0xb9,Cp);G4((long)&nxta,Cp);\
-		G4(0x41048b66,Cp);G2(0x4388,Cp);G1(Ofs_FPSTT,Cp);G2(0x2588,Cp);\
-		G4((long)&FPRSTT,Cp);}
-//	movzbl	FPSTT(ebx),eax
-//	movl	&nxta2,ecx
-//	movw	(ecx,eax,2),ax
-//	movb	al,FPSTT(ebx)
-//	movb	ah,FPRSTT
-#define INCFSP2	{G3(0x43b60f,Cp);G1(Ofs_FPSTT,Cp);G1(0xb9,Cp);G4((long)&nxta2,Cp);\
-		G4(0x41048b66,Cp);G2(0x4388,Cp);G1(Ofs_FPSTT,Cp);G2(0x2588,Cp);\
-		G4((long)&FPRSTT,Cp);}
-//	movzbl	FPSTT(ebx),eax
-//	movl	&prva,ecx
-//	movw	(ecx,eax,2),ax
-//	movb	al,FPSTT(ebx)
-//	movb	ah,FPRSTT
-#define DECFSP	{G3(0x43b60f,Cp);G1(Ofs_FPSTT,Cp);G1(0xb9,Cp);G4((long)&prva,Cp);\
-		G4(0x41048b66,Cp);G2(0x4388,Cp);G1(Ofs_FPSTT,Cp);G2(0x2588,Cp);\
-		G4((long)&FPRSTT,Cp);}
-
-/* required to align the 64-byte FP register block to a 256-byte boundary */
-static char _fparea[320];
-
-double *FPRSTT;
+static void _test_(void)
+{
+	__asm__ __volatile__ (" \
+		nop \
+		" : : : "memory" );
+}
 
 void init_emu_npu (void)
 {
 	int i;
-	/* align 64-byte FP regs on a 256-byte boundary */
-	TheCPU.fpregs = (double *)(((long)_fparea+0x100)&~0xff);
-	e_printf("FPU: register area %08lx\n",(long)TheCPU.fpregs);
-	for (i=0; i<8; i++) {
-		unsigned long a = (unsigned long)(&TheCPU.fpregs[i]);
-		nxta[(i-1)&7] = prva[(i+1)&7] = nxta2[(i-2)&7] =
-			(a&0xff)<<8 | i;
-	}
-	FPRSTT = TheCPU.fpregs;
-	TheCPU.fpus = 0;
+	TheCPU.fpregs = _fparea;
+	for (i=0; i<8; i++) TheCPU.fpregs[i] = 0.0;
+	TheCPU.fpus  = 0;
 	TheCPU.fpstt = 0;
-	TheCPU.fpuc = 0x37f;
+	TheCPU.fpuc  = 0x37f;
 	TheCPU.fptag = 0xffff;
 	__asm__ __volatile__ ("fninit");
+	WFR0 = WFR1 = 0.0;
 }
+
+static void ftest(double d)
+{
+	register unsigned short fps;
+	__asm__ __volatile__ (
+	"fldl	%1\n"
+	"fxam\n"
+	"fnstsw\n"
+	"fstp	%%st(0)" : "=a"(fps) : "m"(d) );
+	TheCPU.fpus = (fps&0xc7df)|(TheCPU.fpstt<<11);
+}
+
+static inline void fssync(void)
+{
+	TheCPU.fpus = (WFRS&0xc7df)|(TheCPU.fpstt<<11);
+}
+
 
 int Fp87_op(int exop, int reg)
 {
-	unsigned char rcod;
-	register unsigned char *Cp = CodePtr;
-
 //	42	DA 11000nnn	FCMOVB	st(0),st(n)
 //	43	DB 11000nnn	FCMOVNB	st(0),st(n)
 //	4A	DA 11001nnn	FCMOVE	st(0),st(n)
@@ -175,9 +126,22 @@ int Fp87_op(int exop, int reg)
 /*2f*/	case 0x2f:
 //	2B	DB xx101nnn	FLD	ext
 //	2F	DF xx101nnn	FILD	qw
-		DECFSP;	FTOS2ESI;
-		G2M(0xd8+(exop&7),(exop&0x38)|7,Cp);	// Fop (edi)
-		SAVESW;	FSTPfromESI;
+		DECFSP;
+		switch(exop) {		// Fop (edi)
+		case 0x01: WFR0 = *AR1.pff; break;
+		case 0x03: WFR0 = *AR1.pds; break;
+		case 0x05: WFR0 = *AR1.pfd; break;
+		case 0x07: WFR0 = *AR1.pws; break;
+		case 0x27: goto fp_notok;
+		case 0x2b: __asm__ __volatile__ (
+			"fldt	(%%eax)\n"
+			"fstpl	%0"
+			: "=m"(WFR0) : "a"(AR1.d) : "memory" );
+			break;
+		case 0x2f: WFR0 = (double)*((long long *)AR1.ps); break;
+		}
+		ftest(WFR0);
+		*ST0 = WFR0;
 		break;
 
 /*00*/	case 0x00:
@@ -228,9 +192,35 @@ int Fp87_op(int exop, int reg)
 //	3A	DA xx111nnn	FIDIVR	dw
 //	3C	DC xx111nnn	FDIVR	dr
 //	3E	DE xx111nnn	FIDIVR	w
-		FTOS2ESI; FLDfromESI;
-		G2M(0xd8+(exop&7),(exop&0x38)|7,Cp);	// Fop (edi)
-		SAVESW;	FSTPfromESI;
+		WFR0 = *ST0;
+		switch(exop) {		// Fop (edi)
+		case 0x00: WFR0 += *AR1.pff; break;
+		case 0x02: WFR0 += *AR1.pds; break;
+		case 0x04: WFR0 += *AR1.pfd; break;
+		case 0x06: WFR0 += *AR1.pws; break;
+		case 0x08: WFR0 *= *AR1.pff; break;
+		case 0x0a: WFR0 *= *AR1.pds; break;
+		case 0x0c: WFR0 *= *AR1.pfd; break;
+		case 0x0e: WFR0 *= *AR1.pws; break;
+		case 0x20: WFR0 -= *AR1.pff; break;
+		case 0x22: WFR0 -= *AR1.pds; break;
+		case 0x24: WFR0 -= *AR1.pfd; break;
+		case 0x26: WFR0 -= *AR1.pws; break;
+		case 0x28: WFR0 = (double)*AR1.pff - WFR0; break;
+		case 0x2a: WFR0 = (double)*AR1.pds - WFR0; break;
+		case 0x2c: WFR0 = *AR1.pfd - WFR0; break;
+		case 0x2e: WFR0 = (double)*AR1.pws - WFR0; break;
+		case 0x30: WFR0 /= *AR1.pff; break;
+		case 0x32: WFR0 /= *AR1.pds; break;
+		case 0x34: WFR0 /= *AR1.pfd; break;
+		case 0x36: WFR0 /= *AR1.pws; break;
+		case 0x38: WFR0 = (double)*AR1.pff / WFR0; break;
+		case 0x3a: WFR0 = (double)*AR1.pds / WFR0; break;
+		case 0x3c: WFR0 = *AR1.pfd / WFR0; break;
+		case 0x3e: WFR0 = (double)*AR1.pws / WFR0; break;
+		}
+		ftest(WFR0);
+		*ST0 = WFR0;
 		break;
 
 /*10*/	case 0x10:
@@ -265,46 +255,74 @@ int Fp87_op(int exop, int reg)
 //	1D	DD xx011nnn	FSTP	dr
 //	1E	DE xx011nnn	FICOMP	w
 //	1F	DF xx011nnn	FISTP	w
-		FTOS2ESI; FLDfromESI;
-		G2M(0xd8+(exop&7),0x17,Cp);	// Fop (edi), no pop
-		SAVESW; DISCARD;
+		WFR0 = *ST0;
+		switch(exop) {		// Fop (edi), no pop
+		case 0x10:
+		case 0x18: WFR1 = (double)*AR1.pff; goto fcom00;
+		case 0x12:
+		case 0x1a: WFR1 = (double)*AR1.pds; goto fcom00;
+		case 0x14:
+		case 0x1c: WFR1 = *AR1.pfd; goto fcom00;
+		case 0x16:
+		case 0x1e: WFR1 = (double)*AR1.pws;
+fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
+			if (WFR0 < WFR1)
+			    TheCPU.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
+				else if (WFR0 == WFR1)
+				    TheCPU.fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
+			    /* else if (WFR0 > WFR1)  do nothing */
+			    /* else ( not comparable ) TheCPU.fpus |= 0x4500 */
+			    break;
+		case 0x11:
+		case 0x19: *AR1.pff = (float)WFR0; break;
+		case 0x13:
+		case 0x1b: *AR1.pds = (long)WFR0; break;
+		case 0x15:
+		case 0x1d: *AR1.pfd = WFR0; break;
+		case 0x17:
+		case 0x1f: *AR1.pws = (short)WFR0; break;
+		}
 		if (exop&8) INCFSP;
 		break;
 
 /*37*/	case 0x37:
 //	37	DF xx110nnn	FBSTP		!! err - uses 80 bits
-		rcod = 0x37; goto fpp002;
+		goto fp_notok;
 /*3b*/	case 0x3b:
-/*3f*/	case 0x3f:
 //	3B	DB xx111nnn	FSTP	ext
+		WFR0 = *ST0;
+		__asm__ __volatile__ (
+			"fldl	%1\n"
+			"fstpt	(%%eax)"
+			: : "a"(AR1.d),"m"(WFR0) : "memory" );
+		INCFSP;
+		break;
+/*3f*/	case 0x3f:
 //	3F	DF xx111nnn	FISTP	qw
-		rcod = 0x3f;
-fpp002:
-		FTOS2ESI; FLDfromESI;
-		G2M(0xd8+(exop&7),rcod,Cp);	// Fop (edi), pop
-		SAVESW; INCFSP;
+		WFR0 = *ST0;
+		*((long long *)AR1.d) = (long long)WFR0;
+		INCFSP;
 		break;
 
 /*29*/	case 0x29:
 //*	29	D9 xx101nnn	FLDCW	2b
 		// movw	(edi),ax
-		G3(0x078b66,Cp);
+		DR1.w.l = *AR1.pwu;
 		// movl	eax,ecx
-		G2(0xc189,Cp);
+		TR1.d = DR1.d;
 		// andb	0x1f,ah
-		G3(0x1fe480,Cp);
+		DR1.b.bh &= 0x1f;
 		// movb 0xff,al
-		G2(0xffb0,Cp);
-		// movw	ax,FPUC(ebx)		
-		G3(0x438966,Cp); G1(Ofs_FPUC,Cp);
+		DR1.b.bl = 0xff;
+		// movw	ax,FPUC(ebx)
 		// fldcw FPUC(ebx)
-		G2(0x6bd9,Cp); G1(Ofs_FPUC,Cp);
+		CPUWORD(Ofs_FPUC) = DR1.w.l;
 		// movw	cx,FPUC(ebx)
-		G3(0x4b8966,Cp); G1(Ofs_FPUC,Cp);
+		CPUWORD(Ofs_FPUC) = TR1.w.l;
 		break;
 /*39*/	case 0x39:
 //*	39	D9 xx111nnn	FSTCW	2b
-		G3(0x438b66,Cp); G1(Ofs_FPUC,Cp); G3(0x078966,Cp);
+		*AR1.pwu = DR1.w.l = CPUWORD(Ofs_FPUC);
 		break;
 
 /*67*/	case 0x67: if (reg!=0) goto fp_notok;
@@ -312,20 +330,18 @@ fpp002:
 /*3d*/	case 0x3d:
 //	3D	DD xx111nnn	FSTSW	2b
 		// movw	FPUS(ebx),ax
-		G3(0x438b66,Cp); G1(Ofs_FPUS,Cp);
 		// andw	0xc7ff,ax
 		// movw	FPSTT(ebx),cx
-		G3(0xff2566,Cp); G4(0x4b8b66c7,Cp); G1(Ofs_FPSTT,Cp);
 		// andw	0x07,cx
 		// shll	11,ecx
 		// orl	ecx,eax
-		G4(0x07e18366,Cp); G4(0x090be1c1,Cp); G1(0xc8,Cp);
+		SYNCFSP;
 		if (exop==0x3d) {
 			// movw	ax,(edi)
-			G3(0x078966,Cp);
+			*AR1.pwu = TheCPU.fpus;
 		}
 		else {
-			G3(0x438966,Cp); G1(Ofs_AX,Cp);
+			CPUWORD(Ofs_AX) = TheCPU.fpus;
 		}
 		break;
 
@@ -341,22 +357,34 @@ fpp002:
 //*	68	D8 11101nnn	FSUBR	st,st(n)
 //*	70	D8 11110nnn	FDIV	st,st(n)
 //*	78	D8 11111nnn	FDIVR	st,st(n)
-		FTOS2ESI;		// &e_st(0) -> esi
-		FSRN2CX(reg);		// &e_st(n) -> ecx
-		FLDfromESI;		// (esi) -> st(0)
-		G2M(0xdc,0x01|(exop&0x38),Cp);	// op (ecx)
-		SAVESW;
-		FSTPfromESI;		// st(0) -> (esi)
+		WFR0 = *ST0;
+		WFR1 = *STn(reg);
+		switch (exop) {
+		case 0x40: WFR0 += WFR1; break;
+		case 0x48: WFR0 *= WFR1; break;
+		case 0x60: WFR0 -= WFR1; break;
+		case 0x68: WFR0  = WFR1 - WFR0; break;
+		case 0x70: WFR0 /= WFR1; break;
+		case 0x78: WFR0  = WFR1 / WFR0; break;
+		}
+		ftest(WFR0);
+		*ST0 = WFR0;
 		break;
 
 /*50*/	case 0x50:
 /*58*/	case 0x58:
 //*	50	D8 11010nnn	FCOM	st,st(n)
 //*	58	D8 11011nnn	FCOMP	st,st(n)
-		FTOS2ESI; FSRN2CX(reg);
-		FLDfromESI; G2M(0xdc,0x11,Cp);	// fcom (ecx)
-		SAVESW;	DISCARD;
-		if (exop&8) { INCFSP; }
+		WFR0 = *ST0;
+		WFR1 = *STn(reg);
+		TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
+		if (WFR0 < WFR1)
+		    TheCPU.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
+			else if (WFR0 == WFR1)
+			    TheCPU.fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
+		    /* else if (WFR0 > WFR1)  do nothing */
+		    /* else ( not comparable ) TheCPU.fpus |= 0x4500 */
+		if (exop&8) INCFSP;
 		break;
 
 /*6a*/	case 0x6a: if (reg!=1) goto fp_notok;
@@ -365,13 +393,11 @@ fpp002:
 //	65	DD 11000nnn	FUCOM	st(n),st(0)
 //	6D	DD 11101nnn	FUCOMP	st(n)
 //	6A.1	DA 11101001	FUCOMPP
-		FTOS2ESI; FSRN2CX(reg);
-		FLDfromECX;	// (ecx)->st(1)
-		FLDfromESI;	// (esi)->st(0)
-		G2M(0xda,0xe9,Cp);	// fucompp
-		SAVESW;
-		if (exop==0x6a) { INCFSP; }
-		if (exop>=0x6a) { INCFSP; }
+		WFR0 = *ST0;
+		WFR1 = *STn(reg);
+		//G2M(0xda,0xe9,Cp);	// fucompp
+		if (exop==0x6a) INCFSP;
+		if (exop>=0x6a) INCFSP;
 		break;
 
 //	73	DB 11000nnn	FCOMI	st(0),st(n)
@@ -381,9 +407,15 @@ fpp002:
 
 /*5e*/	case 0x5e: if (reg==1) {
 //	5E.1	DE 11011001	FCOMPP
-			FTOS2ESI; FSRN2CX(1);
-			FLDfromESI; G2M(0xdc,0x11,Cp);
-			SAVESW;	DISCARD;
+			WFR0 = *ST0;
+			WFR1 = *ST1;
+			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
+			if (WFR0 < WFR1)
+			    TheCPU.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
+				else if (WFR0 == WFR1)
+				    TheCPU.fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
+			    /* else if (WFR0 > WFR1)  do nothing */
+			    /* else ( not comparable ) TheCPU.fpus |= 0x4500 */
 			INCFSP2;
 		   }
 		   else goto fp_notok;
@@ -397,11 +429,17 @@ fpp002:
 //	4C	DC 11001nnn	FMUL	st(n),st
 //	46	DE 11000nnn	FADDP	st(n),st
 //	4E	DE 11001nnn	FMULP	st(n),st
-		FTOS2ESI; FSRN2CX(reg);
-		FLDfromECX;
-		G2M(0xdc,0x06|(exop&0x38),Cp);	// op (esi)
-		SAVESW; FSTPfromECX;
-		if (exop&2) { INCFSP; }
+		WFR0 = *ST0;
+		WFR1 = *STn(reg);
+		switch (exop) {
+		case 0x44:
+		case 0x46: WFR1 += WFR0; break;
+		case 0x4c:
+		case 0x4e: WFR1 *= WFR0; break;
+		}
+		*STn(reg) = WFR1;
+		if (exop&2) INCFSP;
+		ftest(WFR1);
 		break;
 
 /*64*/	case 0x64:
@@ -420,45 +458,54 @@ fpp002:
 //	6E	DE 11101nnn	FSUBP	st(n),st(0)
 //	76	DE 11110nnn	FDIVRP	st(n),st(0)
 //	7E	DE 11111nnn	FDIVP	st(n),st(0)
-		FTOS2ESI; FSRN2CX(reg);
-		FLDfromECX;
-		G2M(0xdc,0x06|((exop&0x38)^8),Cp);
-		SAVESW; FSTPfromECX;
-		if (exop&2) { INCFSP; }
+		WFR0 = *ST0;
+		WFR1 = *STn(reg);
+		switch (exop) {
+		case 0x64:
+		case 0x66: WFR1  = WFR0 - WFR1; break;
+		case 0x6c:
+		case 0x6e: WFR1 -= WFR0; break;
+		case 0x74:
+		case 0x76: WFR1  = WFR0 / WFR1; break;
+		case 0x7c:
+		case 0x7e: WFR1 /= WFR0; break;
+		}
+		*STn(reg) = WFR1;
+		if (exop&2) INCFSP;
+		ftest(WFR1);
 		break;
 
 /*41*/	case 0x41:
 //*	41	D9 11000nnn	FLD	st(n)
-		FTOS2CX(reg);		// &e_st(n) -> ecx
-		FLDfromECX; SAVESW;
-		DECFSP;	FTOS2ESI; FSTPfromESI;
+		WFR0 = *STn(reg);
+		DECFSP;
+		*ST0 = WFR0;
 		break;
 
 /*45*/	case 0x45: reg=0;
 /*51*/	case 0x51: if (reg==0) {
 //	45	DD 11000nnn	FFREE	st(n)		set tag(n) empty
 //*	51.0	D9 11010000	FNOP
-			G1(NOP,Cp);
+			break;		// nop
 		   }
 		   else goto fp_notok;
 		   break;
 
 /*49*/	case 0x49:
 //*	49	D9 11001nnn	FXCH	st,st(n)
-		FTOS2ESI; FSRN2CX(reg);
-//		FLDfromESI; FLDfromECX;
-//		FSTPfromESI; FSTPfromECX;
-/*integer*/	G4(0x118b068b,Cp); G4(0x16890189,Cp);
-		G4(0x8b04468b,Cp); G4(0x41890451,Cp); G4(0x04568904,Cp);
+		{ long long t;
+		  long long *p0 = (long long *)ST0;
+		  long long *pn = (long long *)STn(reg);
+		  t = *p0; *p0 = *pn; *pn = t;
+		}
 		break;
 
 /*55*/	case 0x55:
 /*5d*/	case 0x5d:
 //	55	DD 11010nnn	FST	st(n)
 //	5D	DD 11011nnn	FSTP	st(n)
-		FTOS2ESI; FSRN2CX(reg);
-		FLDfromESI; SAVESW; FSTPfromECX;
-		if (exop==0x5d) { INCFSP; }
+		*STn(reg) = *ST0;
+		if (exop==0x5d) INCFSP;
 		break;
 
 /*61*/	case 0x61:
@@ -466,20 +513,26 @@ fpp002:
 //*	61.1	D9 11100001	FABS
 //*	61.4	D9 11100100	FTST
 //*	61.5	D9 11100101	FXAM
-		FTOS2ESI; FLDfromESI;
+		WFR0 = *ST0;
 		switch(reg) {
 		   case 0:		/* FCHS */
-			G2(0xe0d9,Cp); break;
+			WFR0 = -WFR0; break;
 		   case 1:		/* FABS */
-			G2(0xe1d9,Cp); break;
+			WFR0 = fabs(WFR0); break;
 		   case 4:		/* FTST */
-			G2(0xe4d9,Cp); break;
+		   	TheCPU.fpus &= (~0x4500);
+			if (WFR0 < 0.0) TheCPU.fpus |= 0x100;
+			  else if (WFR0 == 0.0) TheCPU.fpus |= 0x4000;
+			  /* else if (WFR0 > 0.0) do nothing;
+			     else if (not comparable) TheCPU.fpus |= 0x4500; */
+			break;
 		   case 5:		/* FXAM */
-			G2(0xe5d9,Cp); break;
+			break;
 		   default:
 			goto fp_notok;
 		}
-		SAVESW; FSTPfromESI;
+		ftest(WFR0);
+		*ST0 = WFR0;
 		break;
 
 /*63*/	case 0x63: switch(reg) {
@@ -487,14 +540,15 @@ fpp002:
 //	63.3*	DB 11000011	FINIT
 		   case 2:		/* FCLEX */
 			TheCPU.fpus &= 0x7f00;
+			__asm__ __volatile__ ("fnclex");
 			break;
 		   case 3:		/* FINIT */
-			FPRSTT = TheCPU.fpregs;
-			TheCPU.fpus = 0;
+			TheCPU.fpus  = 0;
 			TheCPU.fpstt = 0;
-			TheCPU.fpuc = 0x37f;
+			TheCPU.fpuc  = 0x37f;
 			TheCPU.fptag = 0xffff;
 			__asm__ __volatile__ ("fninit");
+			WFR0 = WFR1 = 0.0;
 			break;
 		   default: /* FNENI,FNDISI: 8087 */
 			    /* FSETPM,FRSTPM: 80287 */
@@ -510,15 +564,24 @@ fpp002:
 //*	69.4	D9 11101100	FLDLG2
 //*	69.5	D9 11101101	FLDLN2
 //*	69.6	D9 11101110	FLDZ
-			if (reg==7) goto fp_notok;
-			DECFSP; FTOS2ESI;
-			G2M(0xd9,0xe8|reg,Cp); SAVESW;
-			FSTPfromESI;
+			DECFSP;
+			switch (reg) {
+			case 0: WFR0 = 1.0; break;
+			case 1: WFR0 = M_LN10/M_LN2; break;
+			case 2: WFR0 = M_LOG2E; break;
+			case 3: WFR0 = M_PI; break;
+			case 4: WFR0 = M_LN2/M_LN10; break;
+			case 5: WFR0 = M_LN2; break;
+			case 6: WFR0 = 0.0; break;
+			default: goto fp_notok;
+			}
+			ftest(WFR0);
+			*ST0 = WFR0;
 		   }
 		   break;
 
 /*71*/	case 0x71: switch(reg) {
-//	71.0	D9 11110000	FX2M1	st(0)
+//	71.0	D9 11110000	F2XM1	st(0)
 //	71.1	D9 11110001	FYL2X	st(1)*l2(st(0))->st(1),pop
 //	71.2	D9 11110010	FPTAN	st(0),push 1
 //	71.3	D9 11110011	FPATAN	st(1)/st(0)->st(1),pop
@@ -526,31 +589,78 @@ fpp002:
 //	71.5	D9 11110101	FPREM1	st(0)/st(1)->st(0)
 //	71.6	D9 11110110	FDECSTP
 //	71.7	D9 11110111	FINCSTP
-		   case 0:		/* FX2M1 */
-			FTOS2ESI; FLDfromESI;
-			G2(0xf0d9,Cp); SAVESW;
-			FSTPfromESI; break;
+		   case 0:		/* F2XM1 */
+	   		WFR0 = *ST0;
+			__asm__ __volatile__ (
+			"fldl	%2\n"
+			"f2xm1\n"
+			"fnstsw	%1\n"
+			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "0"(WFR0) : "memory" );
+			fssync();
+			*ST0 = WFR0;
+			break;
 		   case 1:		/* FYL2X */
+	   		WFR0 = *ST0;
+			WFR1 = *ST1;
+			__asm__ __volatile__ (
+			"fldl	%2\n"
+			"fldl	%3\n"
+			"fyl2x\n"
+			"fnstsw	%1\n"
+			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"0"(WFR0) : "memory" );
+			INCFSP;
+			fssync();
+			*ST0 = WFR0;
+			break;
 		   case 3:		/* FPATAN */
-			FTOS2ESI; FSRN2CX(1);
-			FLDfromECX;	// (ecx)->st(1)
-			FLDfromESI;	// (esi)->st(0)
-			G2M(0xd9,0xf0|reg,Cp); SAVESW;
-			FSTPfromECX;	// st(0)->(ecx)
-			INCFSP; break;
+	   		WFR0 = *ST0;
+			WFR1 = *ST1;
+			__asm__ __volatile__ (
+			"fldl	%2\n"
+			"fldl	%3\n"
+			"fpatan\n"
+			"fnstsw	%1\n"
+			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"0"(WFR0) : "memory" );
+			INCFSP;
+			fssync();
+			*ST0 = WFR0;
+			break;
 		   case 2:		/* FPTAN */
+	   		WFR0 = *ST0;
+			__asm__ __volatile__ (
+			"fldl	%3\n"
+			"fptan\n"
+			"fnstsw	%2\n"
+			"fstpl	%1\n"
+			"fstpl	%0" : "=m"(WFR0),"=m"(WFR1),"=g"(WFRS) : "0"(WFR0) : "memory" );
+			*ST0 = WFR0; DECFSP;
+			fssync();
+			*ST0 = WFR1;
+			break;
 		   case 4:		/* FXTRACT */
-			FTOS2ESI; FLDfromESI;
-			G2M(0xd9,0xf0|reg,Cp); SAVESW;
-			G2(0xc9d9,Cp);	// xchg: st(1)->(esi)
-			FSTPfromESI; DECFSP; FTOS2ESI; FSTPfromESI;
+	   		WFR0 = *ST0;
+			__asm__ __volatile__ (
+			"fldl	%3\n"
+			"fxtract\n"
+			"fnstsw	%2\n"
+			"fstpl	%1\n"
+			"fstpl	%0" : "=m"(WFR0),"=m"(WFR1),"=g"(WFRS) : "0"(WFR0) : "memory" );
+			*ST0 = WFR0; DECFSP;
+			fssync();
+			*ST0 = WFR1;
 			break;
 		   case 5:		/* FPREM1 */
-			FTOS2ESI; FSRN2CX(1);
-			FLDfromECX;	// (ecx)->st(1)
-			FLDfromESI;	// (esi)->st(0)
-			G2(0xf5d9,Cp); SAVESW;
-			FSTPfromESI; DISCARD;
+	   		WFR0 = *ST0;
+			WFR1 = *ST1;
+			__asm__ __volatile__ (
+			"fldl	%2\n"
+			"fldl	%3\n"
+			"fprem1\n"
+			"fnstsw	%1\n"
+			"fstpl	%0\n"
+			"fstp	%%st(0)" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"0"(WFR0) : "memory" );
+			fssync();
+			*ST0 = WFR0;
 			break;
 		   case 6:		/* FDECSTP */
 			DECFSP; break;
@@ -569,32 +679,95 @@ fpp002:
 //	79.6	D9 11111110	FSIN	st(0)
 //	79.7	D9 11111111	FCOS	st(0)
 		   case 0:		/* FPREM */
+	   		WFR0 = *ST0;
+			WFR1 = *ST1;
+			__asm__ __volatile__ (
+			"fldl	%2\n"
+			"fldl	%3\n"
+			"fprem\n"
+			"fnstsw	%1\n"
+			"fstpl	%0\n"
+			"fstp	%%st(0)" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"0"(WFR0) : "memory" );
+			fssync();
+			*ST0 = WFR0;
+			break;
 		   case 5:		/* FSCALE */
-			FTOS2ESI; FSRN2CX(1);
-			FLDfromECX;	// (ecx)->st(1)
-			FLDfromESI;	// (esi)->st(0)
-			G2M(0xd9,0xf8|reg,Cp); SAVESW;
-			FSTPfromESI; DISCARD;
+	   		WFR0 = *ST0;
+			WFR1 = *ST1;
+			__asm__ __volatile__ (
+			"fldl	%2\n"
+			"fldl	%3\n"
+			"fscale\n"
+			"fnstsw	%1\n"
+			"fstpl	%0\n"
+			"fstpl	%%st(0)" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"0"(WFR0) : "memory" );
+			fssync();
+			*ST0 = WFR0;
 			break;
 		   case 1:		/* FYL2XP1 */
-			FTOS2ESI; FSRN2CX(1);
-			FLDfromECX;	// (ecx)->st(1)
-			FLDfromESI;	// (esi)->st(0)
-			G2(0xf9d9,Cp);
-			FSTPfromECX;	// st(0)->(ecx)
-			SAVESW; INCFSP; break;
+	   		WFR0 = *ST0;
+			WFR1 = *ST1;
+			__asm__ __volatile__ (
+			"fldl	%2\n"
+			"fldl	%3\n"
+			"fyl2xp1\n"
+			"fnstsw	%1\n"
+			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"0"(WFR0) : "memory" );
+			INCFSP;
+			fssync();
+			*ST0 = WFR0;
+			break;
 		   case 2:		/* FSQRT */
+	   		WFR0 = *ST0;
+			__asm__ __volatile__ (
+			"fldl	%2\n"
+			"fsqrt\n"
+			"fnstsw	%1\n"
+			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "0"(WFR0) : "memory" );
+			fssync();
+			*ST0 = WFR0;
+			break;
 		   case 4:		/* FRNDINT */
+	   		WFR0 = *ST0;
+			__asm__ __volatile__ (
+			"fldl	%2\n"
+			"frndint\n"
+			"fnstsw	%1\n"
+			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "0"(WFR0) : "memory" );
+			fssync();
+			*ST0 = WFR0;
+			break;
 		   case 6:		/* FSIN */
+	   		WFR0 = *ST0;
+			__asm__ __volatile__ (
+			"fldl	%2\n"
+			"fsin\n"
+			"fnstsw	%1\n"
+			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "0"(WFR0) : "memory" );
+			fssync();
+			*ST0 = WFR0;
+			break;
 		   case 7:		/* FCOS */
-			FTOS2ESI; FLDfromESI;
-			G2M(0xd9,0xf8|reg,Cp);
-			SAVESW; FSTPfromESI; break;
+	   		WFR0 = *ST0;
+			__asm__ __volatile__ (
+			"fldl	%2\n"
+			"fcos\n"
+			"fnstsw	%1\n"
+			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "0"(WFR0) : "memory" );
+			fssync();
+			*ST0 = WFR0;
+			break;
 		   case 3:		/* FSINCOS */
-			FTOS2ESI; FLDfromESI;
-			G2(0xfbd9,Cp); SAVESW;
-			G2(0xc9d9,Cp);	// xchg: st(1)->(esi)
-			FSTPfromESI; DECFSP; FTOS2ESI; FSTPfromESI;
+	   		WFR0 = *ST0;
+			__asm__ __volatile__ (
+			"fldl	%3\n"
+			"fsincos\n"
+			"fnstsw	%2\n"
+			"fstpl	%1\n"
+			"fstpl	%0" : "=m"(WFR0),"=m"(WFR1),"=g"(WFRS) : "0"(WFR0) : "memory" );
+			*ST0 = WFR0; DECFSP;
+			fssync();
+			*ST0 = WFR1;
 			break;
 		   }
 		   break;
@@ -614,7 +787,6 @@ fpp002:
 			q = (char *)(p+14);
 		    }
 		    TheCPU.fpstt = (TheCPU.fpus>>11)&7;
-		    FPRSTT = &TheCPU.fpregs[TheCPU.fpstt];
 		    if (exop==0x25) {
 			int i, k;
 			k = TheCPU.fpstt;
@@ -625,7 +797,7 @@ fpp002:
 				movl	%1,%%edx\n \
 				fldt	(%%eax)\n \
 				fstpl	(%%edx)" \
-				: : "g"(q), "g"(sf) \
+				: : "g"(q), "m"(sf) \
 				: "%eax","%edx","memory" );
 			    k = (k+1)&7; q += 10;
 			}
@@ -683,29 +855,6 @@ fpp002:
 //	35	DD xx110nnn	FSAVE	94/108byte
 		    TheCPU.fpus = (TheCPU.fpus & ~0x3800) | (TheCPU.fpstt<<11);
 //
-#if 0
-		    { int i, fptag, ntag;
-		    fptag = TheCPU.fptag; ntag=0;
-		    for (i=7; i>=0; --i) {
-	    		unsigned short *sf = (unsigned short *)&(TheCPU.fpregs[i]);
-			ntag <<= 2;
-			if ((fptag & 0xc000) == 0xc000) ntag |= 3;
-			else {
-			    if (!L_ISZERO(sf)) {
-				ntag |= 1;
-			    }
-			    else {
-				unsigned short sf2 = sf[4]&0x7fff;
-				if ((sf2==0)||(sf2==0x7fff)||((sf[3]&0x8000)==0)) {
-				    ntag |= 2;
-				}	/* else tag=00 valid */
-			    }
-			}
-			fptag <<= 2;
-		    }
-		    TheCPU.fptag = ntag; }
-#endif
-//
 		    if (reg&DATA16) {
 			unsigned short *p = (unsigned short *)TheCPU.mem_ref;
 			p[0] = TheCPU.fpuc; p[1] = TheCPU.fpus; p[2] = TheCPU.fptag;
@@ -720,6 +869,7 @@ fpp002:
 		    }
 		    TheCPU.fpuc |= 0x3f;
 		    if (exop==0x35) {
+#if 0
 			int i, k;
 			k = TheCPU.fpstt;
 			for (i=0; i<8; i++) {
@@ -729,27 +879,26 @@ fpp002:
 				movl	%1,%%edx\n \
 				fldl	(%%eax)\n \
 				fstpt	(%%edx)" \
-				: : "g"(sf), "g"(q) \
+				: : "m"(sf), "g"(q) \
 				: "%eax","%edx","memory" );
 			    k = (k+1)&7; q += 10;
 			}
-			FPRSTT = TheCPU.fpregs;
-			TheCPU.fpus = 0;
+#endif
+			TheCPU.fpus  = 0;
 			TheCPU.fpstt = 0;
-			TheCPU.fpuc = 0x37f;
+			TheCPU.fpuc  = 0x37f;
 			TheCPU.fptag = 0xffff;
 			__asm__ __volatile__ ("fninit");
+			WFR0 = WFR1 = 0.0;
 		    }
 		   }
 		   break;
 
 /*xx*/	default:
 fp_notok:
-	CodePtr = Cp;
 	return -1;
 	}
 fp_ok:
-	CodePtr = Cp;
 	return 0;
 }
 

@@ -49,6 +49,7 @@
 #include "keyb_server.h"
 
 #undef  DEBUG_PIT
+#undef  ONE_MINUTE_TEST
 
 extern hitimer_t pic_itime[33];
 
@@ -123,6 +124,9 @@ void initialize_timers(void)
  */
 void timer_tick(void)
 {
+#ifdef ONE_MINUTE_TEST
+  static int dbug_count = 0;
+#endif
   hitimer_u tp;
   u_long time_curr;
   static u_long time_old = 0;       /* Preserve value for next call */
@@ -134,6 +138,9 @@ void timer_tick(void)
 
   /* Get system time in usec */
   tp.td = GETusTIME(0);
+#ifdef ONE_MINUTE_TEST
+  if (++dbug_count > 6000) leavedos(0);
+#endif
 
   /* compute the number of 100usecs since we started */
   time_curr  = (tp.td - pit[0].time.td) / 100;

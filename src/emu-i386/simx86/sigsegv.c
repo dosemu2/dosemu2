@@ -7,7 +7,7 @@
  *
  *
  *  SIMX86 a Intel 80x86 cpu emulator
- *  Copyright (C) 1997,2000 Alberto Vignani, FIAT Research Center
+ *  Copyright (C) 1997,2001 Alberto Vignani, FIAT Research Center
  *				a.vignani@crf.it
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -37,67 +37,20 @@
 #include <stdarg.h>
 #include <string.h>
 #include "emu86.h"
-#include "codegen.h"
+#include "codegen-arch.h"
 #include "trees.h"
 #include "dpmi.h"
 
 #include "video.h"
 #include "bios.h"
 #include "memory.h"
-#include "vgaemu.h"
 #include "priv.h"
 #include "mapping.h"
 
-extern int TrapVgaOn;
+int TryMemRef = 0;
+
+extern int TrapVgaOn, PageFaults;
 extern unsigned long e_vga_base, e_vga_end;
-
-/* ======================================================================= */
-
-#define SKIP_BOUND	// info only, for the moment
-
-
-#ifdef USE_BOUND
-int e_decode_bound_excp (unsigned char *csp, struct sigcontext_struct *scp)
-{
-  unsigned char modrm,sib;
-  long l, r, *bp = NULL;
-
-  modrm = csp[1];
-  dbug_printf("BOUND exception at %#04x:%#08lx: %02x %02x%02x%02x%02x\n",
-	_cs,_eip, modrm, csp[2], csp[3], csp[4], csp[5]);
-  if (*csp != BOUND) return 2;	// goto blank screen & reset
-
-  /* bound does not occur in 16-bit code */
-  r = ((long *)&(scp->edi))[7-D_MO(modrm)];
-  l = 2;
-  switch (D_HO(modrm)) {	// some decoding of range ptr (else CS)
-    case 0:
-	switch (D_LO(modrm)) {
-	    case 4: l++; sib=csp[2]; if (D_LO(sib)==5) l+=4; break;
-	    case 5: l+=4; bp = (long *)(*((long *)(csp+2))); break;
-	    default: break;
-	} break;
-    case 2: l+=3;
-    case 1: l++;
-	if (D_LO(modrm)==4) l++;
-	break;
-    case 3:	// register
-	bp = (long *)(((long *)&(scp->edi))[D_LO(modrm)]);
-	break;
-  }
-  if (bp)
-    e_printf("BOUND excp for %08lx in (%08lx..%08lx)\n",r,bp[0],bp[1]);
-  else
-    e_printf("BOUND excp for %08lx in default CS:(%08lx..%08lx)\n",r,
-	CS_DTR.BoundL,CS_DTR.BoundH);
-#ifdef SKIP_BOUND
-  _eip += l;
-  return 0;
-#else
-  return 1;
-#endif
-}
-#endif
 
 /* ======================================================================= */
 
@@ -113,20 +66,24 @@ unsigned e_VgaRead(unsigned addr, int mode)
       ((unsigned char *) &u)[2] = Logical_VGA_read(addr+2);
       ((unsigned char *) &u)[3] = Logical_VGA_read(addr+3);
     }
-//  e_printf("eVgaEmuFault: VGA read at %08lx = %08x mode %x\n",addr,u,mode);
-    return u;
   }
   else {
-    if (mode&MBYTE) return *((unsigned char *)addr);
-      else if (mode&DATA16) return *((unsigned short *)addr);
-        else return *((unsigned long *)addr);
+    if (mode&MBYTE) u = *((unsigned char *)addr);
+      else if (mode&DATA16) u = *((unsigned short *)addr);
+        else u = *((unsigned long *)addr);
   }
+#ifdef DEBUG_VGA
+  e_printf("eVGAEmuFault: VGA read at %08x = %08x mode %x\n",addr,u,mode);
+#endif
+  return u;
 }
 
 void e_VgaWrite(unsigned addr, unsigned u, int mode)
 {
+#ifdef DEBUG_VGA
+  e_printf("eVGAEmuFault: VGA write %08x at %08x mode %x\n",u,addr,mode);
+#endif
   if (vga.inst_emu) {
-//  e_printf("eVgaEmuFault: VGA write %08x at %08lx mode %x\n",u,addr,mode);
     addr -= e_vga_base;
     Logical_VGA_write(addr, u);
     if (mode&MBYTE) return;
@@ -142,17 +99,20 @@ void e_VgaWrite(unsigned addr, unsigned u, int mode)
   }
 }
 
-static void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int d)
+static void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp)
 {
   unsigned long rep = (op&2? _ecx : 1);
 
+#ifdef DEBUG_VGA
+  e_printf("eVGAEmuFault: Movs ESI=%08lx EDI=%08lx ECX=%08lx\n",_esi,_edi,rep);
+#endif
   if (_err&2) {		/* writing from mem or VGA to VGA */
 	if ((_esi>=e_vga_base)&&(_esi<e_vga_end)) op |= 4;
 	if (op&1) {		/* byte move */
 	    if (op&4) goto vga2vgab;
 	    while (rep--) {
 		e_VgaWrite(_edi,*((char *)_esi),MBYTE);
-		_esi+=d,_edi+=d;
+		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
 	    return;
@@ -161,17 +121,17 @@ static void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int d)
 	    if (op&4) goto vga2vgaw;
 	    while (rep--) {
 		e_VgaWrite(_edi,*((short *)_esi),DATA16);
-		_esi+=d,_edi+=d;
+		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
 	    return;
 	}
 	else {			/* long move */
-	    d *= 2;
+	    dp *= 2;
 	    if (op&4) goto vga2vgal;
 	    while (rep--) {
 		e_VgaWrite(_edi,*((long *)_esi),DATA32);
-		_esi+=d,_edi+=d;
+		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
 	    return;
@@ -184,12 +144,12 @@ static void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int d)
 vga2vgab:
 	        while (rep--) {
 		  e_VgaWrite(_edi,e_VgaRead(_esi,MBYTE),MBYTE);
-		  _esi+=d,_edi+=d;
+		  _esi+=dp,_edi+=dp;
 	        }
 	    }
 	    else while (rep--) {
 		*((char *)_edi) = e_VgaRead(_esi,MBYTE);
-		_esi+=d,_edi+=d;
+		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
 	    return;
@@ -199,28 +159,28 @@ vga2vgab:
 vga2vgaw:
 	        while (rep--) {
 		  e_VgaWrite(_edi,e_VgaRead(_esi,DATA16),DATA16);
-		  _esi+=d,_edi+=d;
+		  _esi+=dp,_edi+=dp;
 	        }
 	    }
 	    else while (rep--) {
 		*((short *)_edi) = e_VgaRead(_esi,DATA16);
-		_esi+=d,_edi+=d;
+		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
 	    return;
 	}
 	else {			/* long move */
-	    d *= 2;
+	    dp *= 2;
 	    if (op&4) {		/* vga2vga */
 vga2vgal:
 	        while (rep--) {
 		  e_VgaWrite(_edi,e_VgaRead(_esi,DATA32),DATA32);
-		  _esi+=d,_edi+=d;
+		  _esi+=dp,_edi+=dp;
 	        }
 	    }
 	    else while (rep--) {
 		*((long *)_edi) = e_VgaRead(_esi,DATA32);
-		_esi+=d,_edi+=d;
+		_esi+=dp,_edi+=dp;
 	    }
 	    if (op&2) _ecx = 0;
 	    return;
@@ -241,34 +201,40 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
     j = page_fault - vga.mem.map[i].base_page;
     if (j >= 0 && j < vga.mem.map[i].pages) {
       vga_page = j + vga.mem.map[i].first_page;
-//  dbug_printf("eVgaEmuFault: found vga_page %x map %d\n",vga_page,i);
+#ifdef DEBUG_VGA
+      dbug_printf("eVGAEmuFault: found vga_page %x map %d\n",vga_page,i);
+#endif
       break;
     }
   }
 
   if (i == VGAEMU_MAX_MAPPINGS) {
     if (page_fault >= 0xa0 && page_fault < 0xc0) {	/* unmapped VGA area */
-//      u = instr_len(SEG_ADR((unsigned char *), cs, ip));
-//      LWORD(eip) += u;
+#if 0
+      u = instr_len(SEG_ADR((unsigned char *), cs, ip));
+      LWORD(eip) += u;
+#endif
       if (in_dpmi || (u==0)) {
-        e_printf("eVgaEmuFault: unknown instruction, page at 0x%05x now writable\n", page_fault << 12);
+        e_printf("eVGAEmuFault: unknown instruction, page at 0x%05x now writable\n", page_fault << 12);
         vga_emu_protect_page(page_fault, 2);
       }
 /**/	leavedos(0x5640);
       return 1;
     }
     else if (page_fault >= 0xc0 && page_fault < (0xc0 + vgaemu_bios.pages)) {	/* ROM area */
-//      u = instr_len(SEG_ADR((unsigned char *), cs, ip));
-//      LWORD(eip) += u;
+#if 0
+      u = instr_len(SEG_ADR((unsigned char *), cs, ip));
+      LWORD(eip) += u;
+#endif
       if (in_dpmi || (u==0)) {
-        e_printf("eVgaEmuFault: unknown instruction, converting ROM to RAM at 0x%05x\n", page_fault << 12);
+        e_printf("eVGAEmuFault: unknown instruction, converting ROM to RAM at 0x%05x\n", page_fault << 12);
         vga_emu_protect_page(page_fault, 2);
       }
 /**/	leavedos(0x5641);
       return 1;
     }
     else {
-      e_printf("eVgaEmuFault: unhandled page fault (not in range)\n");
+      e_printf("eVGAEmuFault: unhandled page fault (not in range)\n");
       return 0;
     }
   }
@@ -286,7 +252,7 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
       return 1;
     }  
 
-/**/  e_printf("eVgaEmuFault: trying %08lx, a=%08lx\n",*((long *)_eip),_edi);
+/**/  e_printf("eVGAEmuFault: trying %08lx, a=%08lx\n",*((long *)_eip),_edi);
 
     p = (unsigned char *)_eip;
     if (*p==0x66) w16=1,p++; else w16=0;
@@ -407,16 +373,16 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 	default:
 /**/  		leavedos(0x5644);
     }
-/**/  e_printf("eVgaEmuFault: new eip=%08lx\n",(long)_eip);
+/**/  e_printf("eVGAEmuFault: new eip=%08lx\n",(long)_eip);
   }
   return 1;
 
 unimp:
-  error("eVgaEmuFault: unimplemented decode instr at %08lx: %08lx\n",
+  error("eVGAEmuFault: unimplemented decode instr at %08lx: %08lx\n",
 	(long)_eip, *((long *)_eip));
   leavedos(0x5643);
 badrw:
-  error("eVgaEmuFault: bad R/W CR2 bits at %08lx: %08lx\n",
+  error("eVGAEmuFault: bad R/W CR2 bits at %08lx: %08lx\n",
 	(long)_eip, _err);
   leavedos(0x5643);
 }
@@ -438,43 +404,17 @@ extern void dosemu_fault1(int signal, struct sigcontext_struct *scp);
 void e_emu_fault1(int signal, struct sigcontext_struct *scp)
 {
 
-#ifdef USE_BOUND
-  if (_trapno==0x05) {
-	unsigned char *csp;
-	if (in_dpmi)
-	    csp = (unsigned char *)(GetSegmentBaseAddress(_cs)+_eip);
-	else
-	    csp = (unsigned char *)_eip;
-	
-	if (!e_decode_bound_excp(csp, scp)) {
-		return;
-	}
-  }
-#endif
-
-  if (d.emu>1) {
+  if ((d.emu>1) || (_trapno!=0x0e)) {
     dbug_printf("==============================================================\n");
     dbug_printf("CPU exception 0x%02lx err=0x%08lx cr2=%08lx eip=%08lx\n",
 	  	 _trapno, _err, _cr2, _eip);
     dbug_printf("==============================================================\n");
-
-  /*
-   * Ok, we were executing a compiled sequence.
-   * Too bad we can't backtrack - we have no hardware to do it ;-)
-   * Then, either
-   * 1) we were executing that sequence for the first time. Its code
-   *	is still in the generate buffer, and we know the location
-   *	of every instruction.
-   * 2) we were executing a previously compiled sequence which didn't
-   *	fault before. Its code comes from the collector tree, and we
-   *	lost the details of every single instruction.
-   * We can look at the XECFND flag to discriminate this.
-   */
-
-    dbug_printf("Host CPU mode=%04x\n%s\n",
-	InCompiledCode,e_print_scp_regs(scp,(in_dpmi?3:2)));
-    dbug_printf("Emul CPU mode=%04x cr2=%08lx\n%s\n",
-	TheCPU.mode&0xffff,TheCPU.cr2,e_print_regs());
+    if (d.emu>1) {
+	dbug_printf("Host CPU op=%02x\n%s\n",*((unsigned char *)_eip),
+	    e_print_scp_regs(scp,(in_dpmi?3:2)));
+	dbug_printf("Emul CPU mode=%04x cr2=%08lx\n%s\n",
+	    TheCPU.mode&0xffff,TheCPU.cr2,e_print_regs());
+    }
   }
 
   /*
@@ -493,21 +433,23 @@ void e_emu_fault1(int signal, struct sigcontext_struct *scp)
       unsigned pf = (unsigned)_cr2 >> 12;
       if ((pf & 0xfffe0) == 0xa0) {
       	if (!TrapVgaOn) {
-//		e_vga_base = vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page << 12;
-//		e_vga_end = e_vga_base + (vga.mem.map[VGAEMU_MAP_BANK_MODE].pages << 12);
-// e_printf("eVgaEmu: set base=%lx end=%lx\n",e_vga_base,e_vga_end);
-		TrapVgaOn = 1;
+	    TrapVgaOn = 1;
 	}
 	if (e_vgaemu_fault(scp,pf) == 1) return;
 	goto verybad;
       }
+#ifndef HOST_ARCH_SIM
       goto cont0e;
+#endif
   }
 #endif /* X_GRAPHICS */
 
+#ifndef HOST_ARCH_SIM
   if (_trapno==0x0d) {
+#endif
 	(void)dosemu_fault1(signal, scp);
 	return;
+#ifndef HOST_ARCH_SIM
   }
   else if (_trapno==0x0e) {
         /* bit 0 = 1	page protect
@@ -522,9 +464,16 @@ cont0e:
 		goto verybad;
 	}
 	if ((_err&0x0f)==0x07) {
-		/* Got a fault in a write-protected memory page.
+		unsigned char *p = (unsigned char *)_eip;
+		int codehit = 0;
+		register long v;
+		/* Got a fault in a write-protected memory page, that is,
+		 * a page _containing_code_. 99% of the time we are
+		 * hitting data or stack in the same page, NOT code.
+		 *
 		 * We assume that no other write protections exist and
 		 * that no other cause could return an error code of 7.
+		 * (this is a very weak assumption indeed)
 		 *
 		 * _cr2 keeps the address where the code tries to write
 		 * _eip keeps the address of the faulting instruction
@@ -536,21 +485,50 @@ cont0e:
 		 *	(f3)(66)a4,a5	movs
 		 *	(f3)(66)aa,ab	stos
 		 */
-		InvalidateTreePaged((void *)_cr2, 0);
+#ifdef PROFILE
+		PageFaults++;
+#endif
+		if (d.emu) {
+		    v = *((long *)p);
+		    __asm__("bswap %0" : "=r" (v) : "0" (v));
+		    e_printf("Faulting ops: %08lx\n",v);
+
+		    if (!InCompiledCode)
+			e_printf("*\tFault out of code\n");
+		    if (e_querymark((void *)_cr2)) {
+			e_printf("CODE node hit at %08lx\n",_cr2);
+		    }
+		    else if (InCompiledCode) {
+			e_printf("DATA node hit at %08lx\n",_cr2);
+		    }
+		}
+		/* the page is not unprotected here, the code
+		 * linked by Cpatch will do it */
+		/* ACH: we can set up a data patch for code
+		 * which has not yet been executed! */
+		if (Cpatch((void *)_eip)) return;
+		/* We HAVE to invalidate all the code in the page
+		 * if the page is going to be unprotected */
+		InvalidateNodePage(_cr2, 0, _eip, &codehit);
 		e_munprotect((void *)_cr2, 0);
+		/* now go back and perform the faulting op */
 		return;
 	}
   }
   else if (_trapno==0x00) {
 	if (InCompiledCode) {
+		static char SpecialTailCode[] =	// flags are already back
+		    { 0x9c,0xb8,0,0,0,0,0x5a,0xc3,0xf4 };
 		TheCPU.err = EXCP00_DIVZ;
-		*((unsigned long *)(TailCode+3)) = TheCPU.cr2;
-		_eip = (long)TailCode;
-		return;
+		*((unsigned long *)(SpecialTailCode+2)) = TheCPU.cr2;
+		_eip = (long)SpecialTailCode;
+		return;		// restore CPU and jump to our tail code
 	}
   }
-  (void)dosemu_fault1(signal, scp);
+  if (!TryMemRef)
+	(void)dosemu_fault1(signal, scp);
   return;
+#endif
 
 verybad:
   /*
@@ -569,6 +547,5 @@ void e_emu_fault(int signal, struct sigcontext_struct context)
 {
     e_emu_fault1 (signal, &context);
 }
-
 
 /* ======================================================================= */

@@ -334,9 +334,6 @@ void handle_signals(void) {
  * by the kernel ASAP.
  */
       if (SIGNAL_head != SIGNAL_tail) {
-#ifdef X86_EMULATOR
-	if (config.cpuemu>1) CEmuStat|=CeS_SIGPEND;
-#endif
 	signal_pending = 1;
 	if (in_dpmi)
 	  dpmi_eflags |= VIP;
@@ -566,9 +563,6 @@ void SIGALRM_call(void)
 inline void SIGNAL_save( void (*signal_call)() ) {
   signal_queue[SIGNAL_tail].signal_handler=signal_call;
   SIGNAL_tail = (SIGNAL_tail + 1) % MAX_SIG_QUEUE_SIZE;
-#ifdef X86_EMULATOR
-  if (config.cpuemu>1) CEmuStat|=CeS_SIGPEND;
-#endif
   signal_pending = 1;
   if (in_dpmi)
     dpmi_eflags |= VIP;

@@ -16,7 +16,7 @@ In dosemu-0.99 I ported part of the TWIN library from Willows Software
 time is spent emulating CPU instructions; most of the time is taken by
 API calls. OTOH, in dosemu most of the work is done by the emulated CPU,
 and a totally high-level language approach, while good for portability,
-is unacceptably slow.
+is unacceptably slow on any CPU <1GHz.
 
 Two approaches remain:
 1) scan the instruction flow for sensitive instructions and put
@@ -34,18 +34,26 @@ The purposes of this emulator are:
    anymore about DOS programs today?; then, the only successful non-
    Intel platform out there is the iMac, where AFAIK no one ever asked
    for dosemu...
-   I promise I will start working on the PPC port next week... :-)
 2) allowing us to run 'ring-0' protected-mode programs
-   ... up to Win95? Hmmm, wine will be there LONG before us.
+   ... up to Win95? Hmmm, wine will be there LONG before us, and
+   there is no way of doing this from user mode without a very slow
+   explicit tasking+paging emulation.
+   It will be feasible to run single-task programs, like DPMI servers,
+   in pseudo-ring0 mode, by letting Linux do the paging in hardware;
+   however, having more than one task will require _at_least_ a kernel
+   module. IMHO it is better to switch to plex86.
 3) being a debugging tool for DOS programs and for dosemu itself
    this is still the main reason for emulating an ix86 on
    an ix86 machine :-)
 4) replacing Bart Oldemans instremu (part of vgaemu) with a more
-   complete and robust CPU emulation.
+   complete CPU emulation. The only feasible solution, which is here
+   partially implemented, is to start dosemu in cpuemu mode and call
+   vm86() and run_dpmi() from INSIDE the emulator (and not the other
+   way as everyone thinks).
 
 **********************************************************************
 
-As of Oct 1,2000, I'm developing on a 350MHz Pentium II and a 550MHz Athlon.
+As of Jun 1,2001, I'm developing on a 350MHz Pentium II and an 800MHz Athlon.
 
 The programs I saw working under the emulator include:
 - IBM PC DOS 7.0
@@ -60,15 +68,11 @@ The programs I saw working under the emulator include:
 
 What will probably never work:
 - serial code, sound code, and all sort of fast,realtime stuff
-  (but who knows, 1GHz CPUs are already available)
+  (but who knows, 1GHz+ CPUs are already available)
 
 Note that FPU diagnostic programs will likely always fail, because all
 the FP instructions are emulated with double (64-bit) precision, instead
 of long double (80-bits) as in the real FPU.
-
-**********************************************************************
-
-(technical description still missing)
 
 **********************************************************************
 
@@ -109,5 +113,13 @@ itself, so they'll better stay undocumented.
 
 Happy emulating.
 
-Alberto Vignani	- Oct.6,2000
+Alberto Vignani	- Jun.11,2001
 
+Warning: the emulator will crash and burn on a cpu without a "prefetch"
+instruction, such as the K6 and the Pentium I and lower. To correct this
+you have to remove them from
+src/emu-i386/simx86/codegen-x86.c
+and
+src/emu-i386/simx86/codegen-arch.c
+
+Bart Oldeman - 2001/Nov/7

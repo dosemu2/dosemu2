@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 #
-# bison prepocessor for DOSEMU to merge an auxiliary grammar/lexer file
+# bison preprocessor for DOSEMU to merge an auxiliary grammar/lexer file
 # from a plugin.
 # USAGE:
 #    bisonpp.pl -y mainfile mergefile >result

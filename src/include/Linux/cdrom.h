@@ -206,7 +206,7 @@ struct cdrom_multisession
 #define	CDROM_MODE1_SIZE	512
 #else
 #define	CDROM_MODE1_SIZE	2048
-#endif FIVETWELVE
+#endif /* FIVETWELVE */
 #define	CDROM_MODE2_SIZE	2336
 
 /*
@@ -433,7 +433,7 @@ struct ccs_cache
 	u_char	_r2[8];
 };
 
-#endif  _LINUX_CDROM_H
+#endif  /* _LINUX_CDROM_H */
 /*==========================================================================*/
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

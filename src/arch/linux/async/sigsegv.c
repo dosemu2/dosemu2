@@ -113,12 +113,12 @@ int signal, struct sigcontext_struct *scp
 		  * FIRST thing to do - to avoid being trapped into int0x11
 		  * forever, we must clear AC before doing anything else!
 		  */
-		 __asm__ __volatile__ ("
-			pushfl
-			popl	%%eax
-			andl	$0xfffbffff,%%eax
-			pushl	%%eax
-			popfl"
+		 __asm__ __volatile__ (" \
+			pushfl\n \
+			popl	%%eax\n \
+			andl	$0xfffbffff,%%eax\n \
+			pushl	%%eax\n \
+			popfl" \
 			: : : "%eax");
 		 /* we are now safe; nevertheless, fall into the default
 		  * case and exit dosemu, as an AC fault in vm86 is(?) a

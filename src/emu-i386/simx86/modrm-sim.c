@@ -7,7 +7,7 @@
  *
  *
  *  SIMX86 a Intel 80x86 cpu emulator
- *  Copyright (C) 1997,2000 Alberto Vignani, FIAT Research Center
+ *  Copyright (C) 1997,2001 Alberto Vignani, FIAT Research Center
  *				a.vignani@crf.it
  *
  *  This program is free software; you can redistribute it and/or modify

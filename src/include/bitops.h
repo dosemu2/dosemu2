@@ -102,11 +102,11 @@ pic0_to_emu(char flags)
     /* bit 2 (cascade int) is used to mask/unmask pic1 (Larry)          */
 
     long            result;
-    __asm__         __volatile__("movzbl %1,%0\n\t
-				 shll $13, %0\n\t
-				 sarw $7, %w0\n\t
-				 shrl $5, %0 " 
-				 :"=r"           (result):"r"(flags));
+    __asm__         __volatile__("movzbl %1,%0\n\t"
+				 "shll $13, %0\n\t"
+				 "sarw $7, %w0\n\t"
+				 "shrl $5, %0 " \
+				 :"=r"(result):"r"(flags));
     return result;
 }
 _INLINE_ long
@@ -121,10 +121,10 @@ emu_to_pic0(long flags)
     /* move bits 7654 3xxx xxxx 210x to xxxx xxxx 7654 3210          */
     /* where 76543210 are final 8 bits and x = don't care            */
 
-    __asm__         __volatile__("shll $6,%0\n\t
-				 shlw $7, %w0\n\t
-				 shrl $14, %0 " 
-				 :"=r"           (flags):"0"(flags));
+    __asm__         __volatile__("shll $6,%0\n\t"
+				 "shlw $7, %w0\n\t"
+				 "shrl $14, %0 " 
+				 :"=r"(flags):"0"(flags));
     return flags;
 }
 
@@ -138,8 +138,8 @@ set_bit(int nr, void *addr)
     int             oldbit;
 
     __asm__         __volatile__("btsl %2,%1\n\tsbbl %0,%0"
-				 :"=r"           (oldbit), "=m"(ADDR)
-				 :"r"            (nr));
+				 :"=r"(oldbit), "=m"(ADDR)
+				 :"r"(nr));
     return oldbit;
 }
 
@@ -149,8 +149,8 @@ clear_bit(int nr, void *addr)
     int             oldbit;
 
     __asm__         __volatile__("btrl %2,%1\n\tsbbl %0,%0"
-				 :"=r"           (oldbit), "=m"(ADDR)
-				 :"r"            (nr));
+				 :"=r"(oldbit), "=m"(ADDR)
+				 :"r"(nr));
     return oldbit;
 }
 
@@ -164,8 +164,8 @@ test_bit(int nr, void *addr)
     int             oldbit;
 
     __asm__         __volatile__("btl %2,%1\n\tsbbl %0,%0"
-				 :"=r"           (oldbit)
-				 :"m"            (ADDR), "r"(nr));
+				 :"=r"(oldbit)
+				 :"m"(ADDR), "r"(nr));
     return oldbit;
 }
 

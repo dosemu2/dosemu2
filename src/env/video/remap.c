@@ -1548,118 +1548,122 @@ void _a_movb_dh_dl(CodeObj *co)
 
 void _a_movb_n_ecx_4eax_dl(CodeObj *co, int ofs)
 {
-  __label__ _cf_001, _cf_002, _cf_003, _cf_004;
+  __label__ _cf_001, _cf_002, _cf_003;
 
   if(!ofs) {
 #ifdef REMAP_CODE_DEBUG
     fprintf(rdm, "0x%04x:\tmovb (%%ecx,%%eax,4),%%dl\n", co->pc);
 #endif
-    code_append_ins(co, &&_cf_002 - &&_cf_001, &&_cf_001);
+    code_append_ins(co, 3, &&_cf_001);
+    START_TEMPLATE
+    _cf_001: asm("movb (%ecx,%eax,4),%dl\n");
     return;
   }
 #ifdef REMAP_CODE_DEBUG
   fprintf(rdm, "0x%04x:\tmovb $%d(%%ecx,%%eax,4),%%dl\n", co->pc, ofs);
 #endif
   if(ofs >=-128 && ofs <=127) {
-    code_append_ins(co, &&_cf_003 - &&_cf_002 - 1, &&_cf_002);
+    code_append_ins(co, 3, &&_cf_002);
     code_append_ins(co, 1, &ofs);
+    START_TEMPLATE
+    _cf_002: asm("movb 0x1(%ecx,%eax,4),%dl\n");
     return;
   }
-  code_append_ins(co, &&_cf_004 - &&_cf_003 - 4, &&_cf_003);
+  code_append_ins(co, 3, &&_cf_003);
   code_append_ins(co, 4, &ofs);
   START_TEMPLATE
-  _cf_001: asm("movb (%ecx,%eax,4),%dl\n");
-  _cf_002: asm("movb 0x1(%ecx,%eax,4),%dl\n");
   _cf_003: asm("movb 0x100(%ecx,%eax,4),%dl\n");
-  _cf_004:
-  return; /* gcc >= 2.96 want a statement after label */
+  return; /* gcc >= 2.96 wants a statement after label */
 }
 
 void _a_movb_n_ecx_4eax_dh(CodeObj *co, int ofs)
 {
-  __label__ _cf_001, _cf_002, _cf_003, _cf_004;
+  __label__ _cf_001, _cf_002, _cf_003;
 
   if(!ofs) {
 #ifdef REMAP_CODE_DEBUG
     fprintf(rdm, "0x%04x:\tmovb (%%ecx,%%eax,4),%%dh\n", co->pc);
 #endif
-    code_append_ins(co, &&_cf_002 - &&_cf_001, &&_cf_001);
+    code_append_ins(co, 3, &&_cf_001);
+    START_TEMPLATE
+    _cf_001: asm("movb (%ecx,%eax,4),%dh\n");
     return;
   }
 #ifdef REMAP_CODE_DEBUG
   fprintf(rdm, "0x%04x:\tmovb $%d(%%ecx,%%eax,4),%%dh\n", co->pc, ofs);
 #endif
   if(ofs >=-128 && ofs <=127) {
-    code_append_ins(co, &&_cf_003 - &&_cf_002 - 1, &&_cf_002);
+    code_append_ins(co, 3, &&_cf_002);
     code_append_ins(co, 1, &ofs);
+    START_TEMPLATE
+    _cf_002: asm("movb 0x1(%ecx,%eax,4),%dh\n");
     return;
   }
-  code_append_ins(co, &&_cf_004 - &&_cf_003 - 4, &&_cf_003);
+  code_append_ins(co, 3, &&_cf_003);
   code_append_ins(co, 4, &ofs);
   START_TEMPLATE
-  _cf_001: asm("movb (%ecx,%eax,4),%dh\n");
-  _cf_002: asm("movb 0x1(%ecx,%eax,4),%dh\n");
   _cf_003: asm("movb 0x100(%ecx,%eax,4),%dh\n");
-  _cf_004:
-  return; /* gcc >= 2.96 want a statement after label */
+  return; /* gcc >= 2.96 wants a statement after label */
 }
 
 void _a_movb_n_ecx_4ebx_dl(CodeObj *co, int ofs)
 {
-  __label__ _cf_001, _cf_002, _cf_003, _cf_004;
+  __label__ _cf_001, _cf_002, _cf_003;
 
   if(!ofs) {
 #ifdef REMAP_CODE_DEBUG
     fprintf(rdm, "0x%04x:\tmovb (%%ecx,%%ebx,4),%%dl\n", co->pc);
 #endif
-    code_append_ins(co, &&_cf_002 - &&_cf_001, &&_cf_001);
+    code_append_ins(co, 3, &&_cf_001);
+    START_TEMPLATE
+    _cf_001: asm("movb (%ecx,%ebx,4),%dl\n");
     return;
   }
 #ifdef REMAP_CODE_DEBUG
   fprintf(rdm, "0x%04x:\tmovb $%d(%%ecx,%%ebx,4),%%dl\n", co->pc, ofs);
 #endif
   if(ofs >=-128 && ofs <=127) {
-    code_append_ins(co, &&_cf_003 - &&_cf_002 - 1, &&_cf_002);
+    code_append_ins(co, 3, &&_cf_002);
     code_append_ins(co, 1, &ofs);
+    START_TEMPLATE
+    _cf_002: asm("movb 0x1(%ecx,%ebx,4),%dl\n");
     return;
   }
-  code_append_ins(co, &&_cf_004 - &&_cf_003 - 4, &&_cf_003);
+  code_append_ins(co, 3, &&_cf_003);
   code_append_ins(co, 4, &ofs);
   START_TEMPLATE
-  _cf_001: asm("movb (%ecx,%ebx,4),%dl\n");
-  _cf_002: asm("movb 0x1(%ecx,%ebx,4),%dl\n");
   _cf_003: asm("movb 0x100(%ecx,%ebx,4),%dl\n");
-  _cf_004:
-  return; /* gcc >= 2.96 want a statement after label */
+  return; /* gcc >= 2.96 wants a statement after label */
 }
 
 void _a_movb_n_ecx_4ebx_dh(CodeObj *co, int ofs)
 {
-  __label__ _cf_001, _cf_002, _cf_003, _cf_004;
+  __label__ _cf_001, _cf_002, _cf_003;
 
   if(!ofs) {
 #ifdef REMAP_CODE_DEBUG
     fprintf(rdm, "0x%04x:\tmovb (%%ecx,%%ebx,4),%%dh\n", co->pc);
 #endif
-    code_append_ins(co, &&_cf_002 - &&_cf_001, &&_cf_001);
+    code_append_ins(co, 3, &&_cf_001);
+    START_TEMPLATE
+    _cf_001: asm("movb (%ecx,%ebx,4),%dh\n");
     return;
   }
 #ifdef REMAP_CODE_DEBUG
   fprintf(rdm, "0x%04x:\tmovb $%d(%%ecx,%%ebx,4),%%dh\n", co->pc, ofs);
 #endif
   if(ofs >=-128 && ofs <=127) {
-    code_append_ins(co, &&_cf_003 - &&_cf_002 - 1, &&_cf_002);
+    code_append_ins(co, 3, &&_cf_002);
     code_append_ins(co, 1, &ofs);
+    START_TEMPLATE
+    _cf_002: asm("movb 0x1(%ecx,%ebx,4),%dh\n");
     return;
   }
-  code_append_ins(co, &&_cf_004 - &&_cf_003 - 4, &&_cf_003);
+  code_append_ins(co, 3, &&_cf_003);
   code_append_ins(co, 4, &ofs);
   START_TEMPLATE
-  _cf_001: asm("movb (%ecx,%ebx,4),%dh\n");
-  _cf_002: asm("movb 0x1(%ecx,%ebx,4),%dh\n");
   _cf_003: asm("movb 0x100(%ecx,%ebx,4),%dh\n");
-  _cf_004:
-  return; /* gcc >= 2.96 want a statement after label */
+  return; /* gcc >= 2.96 wants a statement after label */
 }
 
 void _a_movl_ebx_4eax_ebp(CodeObj *co)
@@ -1726,6 +1730,8 @@ void _a_movb_esi_al(CodeObj *co, int ofs)
     fprintf(rdm, "0x%04x:\tmovb (%%esi),%%al\n", co->pc);
 #endif
     code_append_ins(co, 2, &&_cf_001);
+    START_TEMPLATE
+    _cf_001: asm("movb (%esi),%al\n");
     return;
   }
 #ifdef REMAP_CODE_DEBUG
@@ -1734,13 +1740,13 @@ void _a_movb_esi_al(CodeObj *co, int ofs)
   if(ofs >=-128 && ofs <=127) {
     code_append_ins(co, 2, &&_cf_002);
     code_append_ins(co, 1, &ofs);
+    START_TEMPLATE
+    _cf_002: asm("movb 0x1(%esi),%al\n");
     return;
   }
   code_append_ins(co, 2, &&_cf_003);
   code_append_ins(co, 4, &ofs);
   START_TEMPLATE
-  _cf_001: asm("movb (%esi),%al\n");
-  _cf_002: asm("movb 0x1(%esi),%al\n");
   _cf_003: asm("movb 0x100(%esi),%al\n");
 }
 
@@ -1753,6 +1759,8 @@ void _a_movb_esi_bl(CodeObj *co, int ofs)
     fprintf(rdm, "0x%04x:\tmovb (%%esi),%%bl\n", co->pc);
 #endif
     code_append_ins(co, 2, &&_cf_001);
+    START_TEMPLATE
+    _cf_001: asm("movb (%esi),%bl\n");
     return;
   }
 #ifdef REMAP_CODE_DEBUG
@@ -1761,13 +1769,13 @@ void _a_movb_esi_bl(CodeObj *co, int ofs)
   if(ofs >=-128 && ofs <=127) {
     code_append_ins(co, 2, &&_cf_002);
     code_append_ins(co, 1, &ofs);
+    START_TEMPLATE
+    _cf_002: asm("movb 0x1(%esi),%bl\n");
     return;
   }
   code_append_ins(co, 2, &&_cf_003);
   code_append_ins(co, 4, &ofs);
   START_TEMPLATE
-  _cf_001: asm("movb (%esi),%bl\n");
-  _cf_002: asm("movb 0x1(%esi),%bl\n");
   _cf_003: asm("movb 0x100(%esi),%bl\n");
 }
 
@@ -1780,6 +1788,8 @@ void _a_movb_esi_cl(CodeObj *co, int ofs)
     fprintf(rdm, "0x%04x:\tmovb (%%esi),%%cl\n", co->pc);
 #endif
     code_append_ins(co, 2, &&_cf_001);
+    START_TEMPLATE
+    _cf_001: asm("movb (%esi),%cl\n");
     return;
   }
 #ifdef REMAP_CODE_DEBUG
@@ -1788,13 +1798,13 @@ void _a_movb_esi_cl(CodeObj *co, int ofs)
   if(ofs >=-128 && ofs <=127) {
     code_append_ins(co, 2, &&_cf_002);
     code_append_ins(co, 1, &ofs);
+    START_TEMPLATE
+    _cf_002: asm("movb 0x1(%esi),%cl\n");
     return;
   }
   code_append_ins(co, 2, &&_cf_003);
   code_append_ins(co, 4, &ofs);
   START_TEMPLATE
-  _cf_001: asm("movb (%esi),%cl\n");
-  _cf_002: asm("movb 0x1(%esi),%cl\n");
   _cf_003: asm("movb 0x100(%esi),%cl\n");
 }
 
@@ -1807,6 +1817,8 @@ void _a_movb_esi_dl(CodeObj *co, int ofs)
     fprintf(rdm, "0x%04x:\tmovb (%%esi),%%dl\n", co->pc);
 #endif
     code_append_ins(co, 2, &&_cf_001);
+    START_TEMPLATE
+    _cf_001: asm("movb (%esi),%dl\n");
     return;
   }
 #ifdef REMAP_CODE_DEBUG
@@ -1815,13 +1827,13 @@ void _a_movb_esi_dl(CodeObj *co, int ofs)
   if(ofs >=-128 && ofs <=127) {
     code_append_ins(co, 2, &&_cf_002);
     code_append_ins(co, 1, &ofs);
+    START_TEMPLATE
+    _cf_002: asm("movb 0x1(%esi),%dl\n");
     return;
   }
   code_append_ins(co, 2, &&_cf_003);
   code_append_ins(co, 4, &ofs);
   START_TEMPLATE
-  _cf_001: asm("movb (%esi),%dl\n");
-  _cf_002: asm("movb 0x1(%esi),%dl\n");
   _cf_003: asm("movb 0x100(%esi),%dl\n");
 }
 
@@ -1834,6 +1846,8 @@ void _a_movb_esi_dh(CodeObj *co, int ofs)
     fprintf(rdm, "0x%04x:\tmovb (%%esi),%%dh\n", co->pc);
 #endif
     code_append_ins(co, 2, &&_cf_001);
+    START_TEMPLATE
+    _cf_001: asm("movb (%esi),%dh\n");
     return;
   }
 #ifdef REMAP_CODE_DEBUG
@@ -1842,13 +1856,13 @@ void _a_movb_esi_dh(CodeObj *co, int ofs)
   if(ofs >=-128 && ofs <=127) {
     code_append_ins(co, 2, &&_cf_002);
     code_append_ins(co, 1, &ofs);
+    START_TEMPLATE
+    _cf_002: asm("movb 0x1(%esi),%dh\n");
     return;
   }
   code_append_ins(co, 2, &&_cf_003);
   code_append_ins(co, 4, &ofs);
   START_TEMPLATE
-  _cf_001: asm("movb (%esi),%dh\n");
-  _cf_002: asm("movb 0x1(%esi),%dh\n");
   _cf_003: asm("movb 0x100(%esi),%dh\n");
 }
 
@@ -1861,6 +1875,8 @@ void _a_movl_ebp_edi(CodeObj *co, int ofs)
     fprintf(rdm, "0x%04x:\tmovl %%ebp,(%%edi)\n", co->pc);
 #endif
     code_append_ins(co, 2, &&_cf_001);
+    START_TEMPLATE
+    _cf_001: asm("movl %ebp,(%edi)\n");
     return;
   }
 #ifdef REMAP_CODE_DEBUG
@@ -1869,13 +1885,13 @@ void _a_movl_ebp_edi(CodeObj *co, int ofs)
   if(ofs >=-128 && ofs <=127) {
     code_append_ins(co, 2, &&_cf_002);
     code_append_ins(co, 1, &ofs);
+    START_TEMPLATE
+    _cf_002: asm("movl %ebp,0x1(%edi)\n");
     return;
   }
   code_append_ins(co, 2, &&_cf_003);
   code_append_ins(co, 4, &ofs);
   START_TEMPLATE
-  _cf_001: asm("movl %ebp,(%edi)\n");
-  _cf_002: asm("movl %ebp,0x1(%edi)\n");
   _cf_003: asm("movl %ebp,0x100(%edi)\n");
 }
 
@@ -1888,6 +1904,8 @@ void _a_movw_bp_edi(CodeObj *co, int ofs)
     fprintf(rdm, "0x%04x:\tmovw %%bp,(%%edi)\n", co->pc);
 #endif
     code_append_ins(co, 3, &&_cf_001);
+    START_TEMPLATE
+    _cf_001: asm("movw %bp,(%edi)\n");
     return;
   }
 #ifdef REMAP_CODE_DEBUG
@@ -1896,13 +1914,13 @@ void _a_movw_bp_edi(CodeObj *co, int ofs)
   if(ofs >=-128 && ofs <=127) {
     code_append_ins(co, 3, &&_cf_002);
     code_append_ins(co, 1, &ofs);
+    START_TEMPLATE
+    _cf_002: asm("movw %bp,0x1(%edi)\n");
     return;
   }
   code_append_ins(co, 3, &&_cf_003);
   code_append_ins(co, 4, &ofs);
   START_TEMPLATE
-  _cf_001: asm("movw %bp,(%edi)\n");
-  _cf_002: asm("movw %bp,0x1(%edi)\n");
   _cf_003: asm("movw %bp,0x100(%edi)\n");
 }
 
@@ -1915,6 +1933,8 @@ void _a_movl_edx_edi(CodeObj *co, int ofs)
     fprintf(rdm, "0x%04x:\tmovl %%edx,(%%edi)\n", co->pc);
 #endif
     code_append_ins(co, 2, &&_cf_001);
+    START_TEMPLATE
+    _cf_001: asm("movl %edx,(%edi)\n");
     return;
   }
 #ifdef REMAP_CODE_DEBUG
@@ -1923,13 +1943,13 @@ void _a_movl_edx_edi(CodeObj *co, int ofs)
   if(ofs >=-128 && ofs <=127) {
     code_append_ins(co, 2, &&_cf_002);
     code_append_ins(co, 1, &ofs);
+    START_TEMPLATE
+    _cf_002: asm("movl %edx,0x1(%edi)\n");
     return;
   }
   code_append_ins(co, 2, &&_cf_003);
   code_append_ins(co, 4, &ofs);
   START_TEMPLATE
-  _cf_001: asm("movl %edx,(%edi)\n");
-  _cf_002: asm("movl %edx,0x1(%edi)\n");
   _cf_003: asm("movl %edx,0x100(%edi)\n");
 }
 
@@ -1942,6 +1962,8 @@ void _a_movw_dx_edi(CodeObj *co, int ofs)
     fprintf(rdm, "0x%04x:\tmovw %%dx,(%%edi)\n", co->pc);
 #endif
     code_append_ins(co, 3, &&_cf_001);
+    START_TEMPLATE
+    _cf_001: asm("movw %dx,(%edi)\n");
     return;
   }
 #ifdef REMAP_CODE_DEBUG
@@ -1950,13 +1972,13 @@ void _a_movw_dx_edi(CodeObj *co, int ofs)
   if(ofs >=-128 && ofs <=127) {
     code_append_ins(co, 3, &&_cf_002);
     code_append_ins(co, 1, &ofs);
+    START_TEMPLATE
+    _cf_002: asm("movw %dx,0x1(%edi)\n");
     return;
   }
   code_append_ins(co, 3, &&_cf_003);
   code_append_ins(co, 4, &ofs);
   START_TEMPLATE
-  _cf_001: asm("movw %dx,(%edi)\n");
-  _cf_002: asm("movw %dx,0x1(%edi)\n");
   _cf_003: asm("movw %dx,0x100(%edi)\n");
 }
 
@@ -1969,6 +1991,8 @@ void _a_movb_dl_edi(CodeObj *co, int ofs)
     fprintf(rdm, "0x%04x:\tmovb %%dl,(%%edi)\n", co->pc);
 #endif
     code_append_ins(co, 2, &&_cf_001);
+    START_TEMPLATE
+    _cf_001: asm("movb %dl,(%edi)\n");
     return;
   }
 #ifdef REMAP_CODE_DEBUG
@@ -1977,13 +2001,13 @@ void _a_movb_dl_edi(CodeObj *co, int ofs)
   if(ofs >=-128 && ofs <=127) {
     code_append_ins(co, 2, &&_cf_002);
     code_append_ins(co, 1, &ofs);
+    START_TEMPLATE
+    _cf_002: asm("movb %dl,0x1(%edi)\n");
     return;
   }
   code_append_ins(co, 2, &&_cf_003);
   code_append_ins(co, 4, &ofs);
   START_TEMPLATE
-  _cf_001: asm("movb %dl,(%edi)\n");
-  _cf_002: asm("movb %dl,0x1(%edi)\n");
   _cf_003: asm("movb %dl,0x100(%edi)\n");
 }
 
@@ -1998,6 +2022,8 @@ void _a_addl_n_edi(CodeObj *co, int n)
     fprintf(rdm, "0x%04x:\tincl %%edi\n", co->pc);
 #endif
     code_append_ins(co, 1, &&_cf_001);
+    START_TEMPLATE
+    _cf_001: asm("incl %edi\n");
     return;
   }
 #ifdef REMAP_CODE_DEBUG
@@ -2006,13 +2032,13 @@ void _a_addl_n_edi(CodeObj *co, int n)
   if(n >=-128 && n <=127) {
     code_append_ins(co, 2, &&_cf_002);
     code_append_ins(co, 1, &n);
+    START_TEMPLATE
+    _cf_002: asm("addl $1,%edi\n");
     return;
   }
   code_append_ins(co, 2, &&_cf_003);
   code_append_ins(co, 4, &n);
   START_TEMPLATE
-  _cf_001: asm("incl %edi\n");
-  _cf_002: asm("addl $1,%edi\n");
   _cf_003: asm("addl $0x100,%edi\n");
 }
 
@@ -2027,6 +2053,8 @@ void _a_addl_n_esi(CodeObj *co, int n)
     fprintf(rdm, "0x%04x:\tincl %%esi\n", co->pc);
 #endif
     code_append_ins(co, 1, &&_cf_001);
+    START_TEMPLATE
+    _cf_001: asm("incl %esi\n");
     return;
   }
 #ifdef REMAP_CODE_DEBUG
@@ -2035,13 +2063,13 @@ void _a_addl_n_esi(CodeObj *co, int n)
   if(n >=-128 && n <=127) {
     code_append_ins(co, 2, &&_cf_002);
     code_append_ins(co, 1, &n);
+    START_TEMPLATE
+    _cf_002: asm("addl $1,%esi\n");
     return;
   }
   code_append_ins(co, 2, &&_cf_003);
   code_append_ins(co, 4, &n);
   START_TEMPLATE
-  _cf_001: asm("incl %esi\n");
-  _cf_002: asm("addl $1,%esi\n");
   _cf_003: asm("addl $0x100,%esi\n");
 }
 
@@ -2058,6 +2086,8 @@ void _a_shrl_n_ebp(CodeObj *co, int n)
     fprintf(rdm, "0x%04x:\tshrl %%ebp\n", co->pc);
 #endif
     code_append_ins(co, 2, &&_cf_001);
+    START_TEMPLATE
+    _cf_001: asm("shrl %ebp\n");
     return;
   }
 #ifdef REMAP_CODE_DEBUG
@@ -2066,7 +2096,6 @@ void _a_shrl_n_ebp(CodeObj *co, int n)
   code_append_ins(co, 2, &&_cf_002);
   code_append_ins(co, 1, &n);
   START_TEMPLATE
-  _cf_001: asm("shrl %ebp\n");
   _cf_002: asm("shrl $2,%ebp\n");
 }
 
@@ -2083,6 +2112,8 @@ void _a_shll_n_edx(CodeObj *co, int n)
     fprintf(rdm, "0x%04x:\tshll %%edx\n", co->pc);
 #endif
     code_append_ins(co, 2, &&_cf_001);
+    START_TEMPLATE
+    _cf_001: asm("shll %edx\n");
     return;
   }
 #ifdef REMAP_CODE_DEBUG
@@ -2091,7 +2122,6 @@ void _a_shll_n_edx(CodeObj *co, int n)
   code_append_ins(co, 2, &&_cf_002);
   code_append_ins(co, 1, &n);
   START_TEMPLATE
-  _cf_001: asm("shll %edx\n");
   _cf_002: asm("shll $2,%edx\n");
 }
 

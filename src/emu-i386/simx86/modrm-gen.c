@@ -7,7 +7,7 @@
  *
  *
  *  SIMX86 a Intel 80x86 cpu emulator
- *  Copyright (C) 1997,2000 Alberto Vignani, FIAT Research Center
+ *  Copyright (C) 1997,2001 Alberto Vignani, FIAT Research Center
  *				a.vignani@crf.it
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -126,7 +126,7 @@ static char R1Tab_xseg[8] =
 static char R1Tab_l[8] =
 	{ Ofs_EAX, Ofs_ECX, Ofs_EDX, Ofs_EBX, Ofs_ESP, Ofs_EBP, Ofs_ESI, Ofs_EDI };
 
-int ModRM(unsigned char *PC, int mode)
+int ModRM(unsigned char opc, unsigned char *PC, int mode)
 {
 	unsigned char mod,cab=Fetch(PC+1);
 	int l=2;
@@ -176,7 +176,7 @@ int ModRM(unsigned char *PC, int mode)
 				case 7: AddrGen(A_DI_1, mode, OVERR_DS, Ofs_EDI); break;
 			}
 			break;
-		case 1:
+	    case 1:
 	    case 2: {
 			int dsp=0;
 			if (mode & ADDR16) {
@@ -219,12 +219,14 @@ int ModRM(unsigned char *PC, int mode)
 		}
 	    break;
 	    case 3:
+			TheCPU.mode |= RM_REG;
 			if (mode & (MBYTE|MBYTX))
-				AddrGen(LEA_DI_R, 0, R1Tab_b[cab&7]);
+				REG3 = R1Tab_b[cab&7];
 			else if (mode & ADDR16)
-				AddrGen(LEA_DI_R, 0, R1Tab_w[cab&7]);
+				REG3 = R1Tab_w[cab&7];
 			else
-				AddrGen(LEA_DI_R, 0, R1Tab_l[cab&7]);
+				REG3 = R1Tab_l[cab&7];
+			AddrGen(LEA_DI_R, 0, REG3);
 			break;
 	}
 	return l;
@@ -246,6 +248,7 @@ int ModGetReg1(unsigned char *PC, int mode)
 		REG1 = (mode&ADDR16? R1Tab_w[mod]:R1Tab_l[mod]);
 	mod = D_HO(cab);
 	if (mod==3) {
+		TheCPU.mode |= RM_REG;
 		if (mode & MBYTE)
 			REG3 = R1Tab_b[cab&7];
 		else if (mode & ADDR16)

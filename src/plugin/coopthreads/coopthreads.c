@@ -223,11 +223,11 @@ VERB	 *
 	 * ( look at do_page_fault in arch/i386/mm/fault.c how it
 	 *   treats growing down of stack )
  * SIDOC_END_FUNCTION */
-	__asm__ volatile ("
-		xchgl	%%esp,%%eax
-		movb	$1,(%%esp)
-		xchgl	%%esp,%%eax
-		": : "a" (address)
+	__asm__ volatile (" \
+		xchgl	%%esp,%%eax\n \
+		movb	$1,(%%esp)\n \
+		xchgl	%%esp,%%eax" \
+		: : "a" (address)
 	);
 	return (char *)address;
 }

@@ -7,7 +7,7 @@
  *
  *
  *  SIMX86 a Intel 80x86 cpu emulator
- *  Copyright (C) 1997,2000 Alberto Vignani, FIAT Research Center
+ *  Copyright (C) 1997,2001 Alberto Vignani, FIAT Research Center
  *				a.vignani@crf.it
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -52,7 +52,7 @@
 #include "pic.h"
 #include "emu86.h"
 #include "cpu-emu.h"
-#include "codegen.h"
+#include "codegen-arch.h"
 #include "protmode.h"
 
 Descriptor *GDT = NULL;
@@ -66,38 +66,61 @@ static unsigned short sysxfer[] = {
 	DT_XFER_CG32, DT_NO_XFER, DT_XFER_IG32, DT_XFER_TRP32
 };
 
-int SetSegreg(int mode, SDTR *sd, unsigned char *big, unsigned long csel)
+static char ofsnam[] =	"??? GS: FS: ES: DS: ??? ??? ??? "
+			"??? ??? ??? ??? ??? ??? ??? ??? "
+			"CS: ??? ??? SS: ??? ??? ??? ??? ";
+
+static SDTR *ofsseg[] = {
+		NULL,   &GS_DTR,&FS_DTR,&ES_DTR,&DS_DTR,NULL,NULL,NULL,
+		NULL,   NULL,   NULL,   NULL,   NULL,   NULL,NULL,NULL,
+		&CS_DTR,NULL,   NULL,   &SS_DTR,NULL,   NULL,NULL,NULL };
+
+#define MKOFSNAM(o,b)	({*((long *)(b))=*((long *)(ofsnam+(o))); \
+			  (b)[3]=0; (b); })
+
+
+int SetSegReal(unsigned short sel, int ofs)
 {
-	unsigned short wFlags, sofs, sys;
-	unsigned long sel;
+	static char buf[4];
+	SDTR *sd;
+
+	sd = ofsseg[(ofs>>2)];
+
+	CPUWORD(ofs) = sel;
+	if ((sd->Oldsel==sel)&&(sd->Attrib==2)) {
+	    e_printf("SetSeg REAL %s%04x cached\n",MKOFSNAM(ofs,buf),sel);
+	}
+	else {
+	    sd->BoundL = (sel<<4);
+	    sd->BoundH = sd->BoundL + 0xffff;
+	    sd->Oldsel = sel; sd->Attrib = 2;
+	    e_printf("SetSeg REAL %s%04x\n",MKOFSNAM(ofs,buf),sel);
+	}
+	return 0;
+}
+
+
+int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
+{
+	static char buf[4];
+	unsigned short wFlags, sys;
 	unsigned char lbig;
 	Descriptor *dt;
+	SDTR *sd;
 
-	// csel Was:	MK_CS=0 MK_DS=10000 MK_ES=20000
-	//		MK_SS=30000 MK_FS=40000 MK_GS=50000
-	sel = csel & 0xffff;
-	if (REALADDR()) {
-	    sd->BoundL = (sel<<4); if (big) *big=0;
-#ifdef USE_BOUND
-	    /*
-	     * Intel docs say: BOUND gives an error if index<boundl or
-	     * index>(boundh+2 or 4). For the moment BOUND is only
-	     * generated in 32-bit mode -> err if index>=((limit+1)+4).
-	     */
-	    sd->BoundH = sd->BoundL + 0xfffb;
-#else
-	    sd->BoundH = sd->BoundL + 0xffff;
-#endif
-	    if (d.emu>4) {
-		    e_printf("SetSeg REAL %08lx -> %08lx:%08lx\n",csel,
-		    	sd->BoundL,sd->BoundH);
-	    }
-	    return 0;	/* always valid */
+	sd = ofsseg[(ofs>>2)];
+
+	if ((sd->Oldsel==sel)&&((sd->Attrib&3)==1)) {
+	    e_printf("SetSeg PROT %s%04lx cached\n",MKOFSNAM(ofs,buf),sel);
+	    if (big) *big = (sd->Attrib&4? 0xff:0);
+	    return 0;
 	}
+	sd->Oldsel = sel;
+	sd->Attrib = 0;
 	TheCPU.scp_err = sel & 0xfffc;
-	sofs = (csel>>16)&0xff;
+
 	if (sel < 4) {
-	    if ((sofs==Ofs_CS)||(sofs==Ofs_SS)) return EXCP0D_GPF;
+	    if ((ofs==Ofs_CS)||(ofs==Ofs_SS)) return EXCP0D_GPF;
 	    sd->BoundL = 0xc0000000;
 	    return 0;	/* DS..GS can be 0 for some while */
 	}
@@ -123,7 +146,7 @@ int SetSegreg(int mode, SDTR *sd, unsigned char *big, unsigned long csel)
 	sys = (wFlags & DF_USER);
 	if (!(wFlags & DF_PRESENT)) {
 	    e_printf("DT: selector %lx not present\n",sel);
-	    if (sofs==Ofs_SS) return EXCP0C_STACK;
+	    if (ofs==Ofs_SS) return EXCP0C_STACK;
 		else return EXCP0B_NOSEG;
 	}
 	if (!sys) {	/* must be GDT now */
@@ -136,48 +159,48 @@ int SetSegreg(int mode, SDTR *sd, unsigned char *big, unsigned long csel)
 	}
 	lbig = (wFlags & DF_32)? 0xff : 0;
 	/* check data/code */
-	if (sofs==Ofs_CS) {
+	if (ofs==Ofs_CS) {
 	    /* data can't be executed... really? */
 	    if (!(wFlags & DF_CODE)) {
 		dbug_printf("Attempt to execute into data segment %lx\n",sel);
 		//return EXCP0D_GPF;
 	    }
-	    mode = (mode & ~ADDR16) | (lbig? 0:ADDR16);
+	    a16 = (lbig? 0:ADDR16);
 	}
 	else {
 	    /* we CAN move a code sel into [DEFG]S provided that it
 	     * can be read - but how can we trap writes? */
-	    if (wFlags & DF_CODE)
-		if (!(wFlags & DF_CREADABLE)) return EXCP0D_GPF;
+	    /* Error summary (Intel):
+	     *	SS	zero				GP
+	     *		RPL != CPL			GP
+	     *		DPL != CPL			GP
+	     *		data not writable		GP
+	     *		not present			SS
+	     * [DEFG]S	not data or readable code	GP
+	     *		data or nonconf code AND
+	     *		  RPL>DPL AND CPL>DPL		GP
+	     *		not present			NP
+	     */
+	    if ((wFlags & DF_CODE)&&(!(wFlags & DF_CREADABLE)))
+		    return EXCP0D_GPF;
 	}
-	if (lbig && (mode&ADDR16)) {
+	if (lbig && a16) {
 	    if (d.emu>3)
 	        e_printf("Large segment %#lx in 16-bit mode\n",sel);
 	}
-	else if (!lbig && !(mode&ADDR16)) {
+	else if (!lbig && !a16) {
 	    if (d.emu>3)
 	        e_printf("Small segment %#lx in 32-bit mode\n",sel);
 	}
 	SetFlagAccessed(sel);
 	sd->BoundL = (long)GetPhysicalAddress(sel);
 	sd->BoundH = sd->BoundL + (long)GetSelectorByteLimit(sel);
-#ifdef USE_BOUND
-	/* aargh aargh... BOUND uses SIGNED limits!! */
-	if ((int)sd->BoundH < 0) {
-	    if (d.emu>3)
-		e_printf("SEG: Bound H %08lx is negative!\n",sd->BoundH);
-	    sd->BoundH = 0x7fffffff;
-	}
-#endif
-	/*
-	 * Intel docs say: BOUND gives an error if index<boundl or
-	 * index>(boundh+2 or 4). For the moment BOUND is only
-	 * generated in 32-bit mode -> err if index>=((limit+1)+4).
-	 */
-	sd->BoundH -= 4;
+	sd->Attrib = (lbig&4) | 1;
+	e_printf("SetSeg PROT %s%04lx\n",MKOFSNAM(ofs,buf),sel);
+
 	if (big) *big = lbig;
-	if (d.emu>4) {
-		e_printf("PMSEL %#lx bounds=%08lx:%08lx flg=%04x big=%d\n",
+	if (d.emu>2) {
+		e_printf("PMSEL %#04lx bounds=%08lx:%08lx flg=%04x big=%d\n",
 			sel, sd->BoundL, sd->BoundH, wFlags, lbig&1);
 	}
 	return 0;
@@ -296,7 +319,7 @@ static int emu_read_ldt(char *ptr, unsigned long bytecount)
 				lp[1], lp[0]);
 		}
 		if (ptr) {
-		  memcpy(ptr, lp, LGDT_ENTRY_SIZE);
+		  __memcpy(ptr, lp, LGDT_ENTRY_SIZE);
 		  ptr += LGDT_ENTRY_SIZE;
 		}
 		size += LGDT_ENTRY_SIZE;
@@ -345,9 +368,9 @@ static int emu_update_LDT (struct modify_ldt_ldt_s *ldt_info, int oldmode)
 
 	bSelType = ((lp->type>>2)&2) | lp->DB;
 
-	D_printf("EMU86: write LDT entry %#x type %s: %08x %08x %04x\n",
+	D_printf("EMU86: LDT entry %#x type %s: b=%08x l=%x%s fl=%04x\n",
 		ldt_info->entry_number, xftab[bSelType], DT_BASE(lp),
-		DT_LIMIT(lp), DT_FLAGS(lp));
+		DT_LIMIT(lp), (lp->gran? "fff":""), DT_FLAGS(lp));
 	return 0;
 }
 
@@ -362,7 +385,7 @@ static int emu_write_ldt(void *ptr, unsigned long bytecount, int oldmode)
 		dbug_printf("EMU86: write_ldt: bytecount=%ld\n",bytecount);
 		goto out;
 	}
-	memcpy(&ldt_info, ptr, sizeof(ldt_info));
+	__memcpy(&ldt_info, ptr, sizeof(ldt_info));
 
 	error = -EINVAL;
 	if (ldt_info.entry_number >= LGDT_ENTRIES) {

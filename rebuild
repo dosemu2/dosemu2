@@ -39,13 +39,14 @@ if [ $PORTABLE = 1 -a ! -f Makefile.conf ]; then
 fi
 
 make 'WAIT=' 2>&1 | tee -a gen.log
-grep 'warning' gen.log
+# grep 'warning' gen.log
 
 if [ "$UID" = "0" -a $INST = 1 ]; then
   #
   # special installs
   #
-  install -s -m 4755 bin/dos ${TGT}/dos
-  cp -f bin/dosdebug /usr/bin
+  rm -f ${TGT}/dos
+  install -s -m 4755 bin/dosemu.bin ${TGT}/dos
+  install -s -m 4755 bin/dosdebug ${TGT}
 fi
 sync

@@ -7,7 +7,7 @@
  *
  *
  *  SIMX86 a Intel 80x86 cpu emulator
- *  Copyright (C) 1997,2000 Alberto Vignani, FIAT Research Center
+ *  Copyright (C) 1997,2001 Alberto Vignani, FIAT Research Center
  *				a.vignani@crf.it
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -42,13 +42,20 @@
 
 #include "emu86.h"
 
+#define CGRAN		4		/* 2^n */
+#define CGRMASK		(0xfffff>>CGRAN)
+
 typedef struct _mpmap {
 	struct _mpmap *next;
 	int mega;
-	unsigned char bitmap[32];	/* 32*8*4096 = 1M */
+	unsigned char pagemap[32];	/* (32*8)=256 pages *4096 = 1M */
+	unsigned long subpage[0x100000>>(CGRAN+5)];	/* 16-byte granularity, 64k bits */
 } tMpMap;
 
 tMpMap *MpH = NULL;
+long mMaxMem = 0;
+
+static tMpMap *LastMp = NULL;
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -67,14 +74,32 @@ static int libless_mprotect(caddr_t addr, size_t len, int prot)
 
 /////////////////////////////////////////////////////////////////////////////
 
+
+static inline tMpMap *FindM(caddr_t addr)
+{
+	register long a2l = (long)addr >> (PAGE_SHIFT+8);
+	register tMpMap *M = LastMp;
+
+	if (M && (M->mega==a2l)) return M;
+	M = MpH;
+	while (M) {
+		if (M->mega==a2l) {
+		    LastMp = M; break;
+		}
+		M = M->next;
+	}
+	return M;
+}
+
+
 static int AddMpMap(caddr_t addr, caddr_t aend, int onoff)
 {
-	int bs = 0;
+	int bs=0, bp=0;
 	register long page;
 	tMpMap *M;
 
 	do {
-	    page = (long)addr >> 12;
+	    page = (long)addr >> PAGE_SHIFT;
 	    M = MpH;
 	    while (M) {
 		if (M->mega==(page>>8)) break;
@@ -85,10 +110,18 @@ static int AddMpMap(caddr_t addr, caddr_t aend, int onoff)
 		M->next = MpH; MpH = M;
 		M->mega = (page>>8);
 	    }
-	    e_printf("MPMAP: addr=%p mega=%lx page=%lx set=%d\n",
-		addr,(page>>8),page,onoff);
-	    bs = (bs<<1) | ((onoff? set_bit(page&255, M->bitmap) :
-				    clear_bit(page&255, M->bitmap)) & 1);
+	    if (bp < 32) {
+		bs |= (((onoff? set_bit(page&255, M->pagemap) :
+			    clear_bit(page&255, M->pagemap)) & 1) << bp);
+		bp++;
+	    }
+	    if (d.emu) {
+		if ((long)addr > mMaxMem) mMaxMem = (long)addr;
+		if (onoff)
+		  dbug_printf("MPMAP:   protect page=%08lx was %x\n",(long)addr,bs);
+		else
+		  dbug_printf("MPMAP: unprotect page=%08lx was %x\n",(long)addr,bs);
+	    }
 	    addr += PAGE_SIZE;
 	} while (addr < aend);
 	return bs;
@@ -97,11 +130,28 @@ static int AddMpMap(caddr_t addr, caddr_t aend, int onoff)
 
 inline int e_querymprot(caddr_t addr)
 {
-	register long a2 = (long)addr >> 12;
+	register long a2 = (long)addr >> PAGE_SHIFT;
+	tMpMap *M = FindM(addr);
+
+	if (M==NULL) return 0;
+	return test_bit(a2&255, M->pagemap);
+}
+
+int e_querymprotrange(caddr_t al, caddr_t ah)
+{
+	register long a2l = (long)al >> PAGE_SHIFT;
+	long a2h = (long)ah >> PAGE_SHIFT;
 	tMpMap *M = MpH;
+	int res = 0;
 
 	while (M) {
-		if (M->mega==(a2>>8)) return test_bit(a2&255, M->bitmap);
+		if (M->mega==(a2l>>8)) {
+		    while (a2l <= a2h) {
+			res = (res<<1) | (test_bit(a2l&255, M->pagemap) & 1);
+			a2l++; if ((a2l&255)==0) break;
+		    }
+		}
+		if (a2l > a2h) return res;
 		M = M->next;
 	}
 	return 0;
@@ -111,29 +161,86 @@ inline int e_querymprot(caddr_t addr)
 /////////////////////////////////////////////////////////////////////////////
 
 
+int e_markpage(caddr_t addr, size_t len)
+{
+	unsigned int abeg, aend;
+	tMpMap *M;
+
+	abeg = ((long)addr >> CGRAN) & CGRMASK;
+	aend = ((((long)addr+len) >> CGRAN) + 1) & CGRMASK;
+nextmega:
+	M = FindM(addr); if (M==NULL) return 0;
+	if (d.emu>1) e_printf("MARK from %04x to %04x for %08lx\n",abeg,aend-1,(long)addr);
+	while (abeg != aend) {
+	    set_bit(abeg, M->subpage);
+	    abeg = (abeg+1) & CGRMASK;
+	    if (abeg==0 && aend) { addr+=0x100000; goto nextmega; }
+	}
+	return 1;
+}
+
+int e_querymark(caddr_t addr)
+{
+	int idx;
+	tMpMap *M;
+
+	M = FindM(addr); if (M==NULL) return 0;
+	idx = ((long)addr >> CGRAN) & CGRMASK;
+	return (test_bit(idx, M->subpage) & 1);
+}
+
+int e_resetpagemarks(caddr_t addr)
+{
+	int i, idx;
+	tMpMap *M;
+
+	M = FindM(addr); if (M==NULL) return 0;
+	/* reset all 256 bits=8 longs for the page */
+	idx = (((long)addr >> PAGE_SHIFT) & 255) << 3;
+	if (d.emu>1) e_printf("UNMARK 256 bits at %08lx (long=%x)\n",(long)addr,idx);
+	for (i=0; i<8; i++) M->subpage[idx++] = 0;
+	return 1;
+}
+
+
+/////////////////////////////////////////////////////////////////////////////
+
+
 int e_mprotect(caddr_t addr, size_t len)
 {
 	int e;
-	caddr_t aend;
-	addr = (caddr_t)((long)addr & ~(PAGE_SIZE-1));
-	if ((len==0) && e_querymprot(addr)) return 1;
-	aend = (caddr_t)(((long)addr+len+PAGE_SIZE) & ~(PAGE_SIZE-1));
-	e = libless_mprotect(addr, (aend-addr), PROT_READ);
-	if (e>=0) return AddMpMap(addr, aend, 1);
-	dbug_printf("MPMAP: %s\n",strerror(errno));
+	caddr_t abeg, aend;
+	abeg = (caddr_t)((long)addr & PAGE_MASK);
+	if (len==0) {
+	    if (e_querymprot(abeg)) return 1;
+	    aend = abeg + PAGE_SIZE;
+	}
+	else {
+	    aend = (caddr_t)((long)(addr+len-1) & PAGE_MASK) + PAGE_SIZE;
+	    if (((aend-abeg)<=PAGE_SIZE) && e_querymprot(abeg)) return 1;
+	}
+	e = libless_mprotect(abeg, aend-abeg, PROT_READ);
+	if (e>=0) return AddMpMap(abeg, aend, 1);
+	e_printf("MPMAP: %s\n",strerror(errno));
 	return -1;
 }
 
 int e_munprotect(caddr_t addr, size_t len)
 {
 	int e;
-	caddr_t aend;
-	addr = (caddr_t)((long)addr & ~(PAGE_SIZE-1));
-	if ((len==0) && !e_querymprot(addr)) return 0;
-	aend = (caddr_t)(((long)addr+len+PAGE_SIZE) & ~(PAGE_SIZE-1));
-	e = libless_mprotect(addr, (aend-addr), PROT_READ|PROT_WRITE|PROT_EXEC);
-	if (e>=0) return AddMpMap(addr, aend, 0);
-	dbug_printf("MPUNMAP: %s\n",strerror(errno));
+	caddr_t abeg, aend;
+	abeg = (caddr_t)((long)addr & PAGE_MASK);
+	if (len==0) {
+	    if (!e_querymprot(abeg)) return 0;
+	    aend = abeg + PAGE_SIZE;
+	}
+	else {
+	    aend = (caddr_t)((long)(addr+len-1) & PAGE_MASK) + PAGE_SIZE;
+	    if (((aend-abeg)<=PAGE_SIZE) && !e_querymprot(abeg)) return 0;
+	}
+	e = libless_mprotect(abeg, aend-abeg, PROT_READ|PROT_WRITE|PROT_EXEC);
+	if (e>=0) return AddMpMap(abeg, aend, 0);
+	e_printf("MPUNMAP: %s\n",strerror(errno));
 	return -1;
 }
 
@@ -153,7 +260,7 @@ void mprot_end(void)
 
 	while (M) {
 	    tMpMap *M2 = M;
-	    for (i=0; i<32; i++) if ((b=M->bitmap[i])) {
+	    for (i=0; i<32; i++) if ((b=M->pagemap[i])) {
 		caddr_t addr = (caddr_t)((M->mega<<20) | (i<<15));
 		while (b) {
 		    if (b & 1) {
@@ -167,7 +274,7 @@ void mprot_end(void)
 	    M = M->next;
 	    free(M2);
 	}
-	MpH = NULL;
+	MpH = LastMp = NULL;
 }
 
 /////////////////////////////////////////////////////////////////////////////

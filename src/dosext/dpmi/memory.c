@@ -30,11 +30,11 @@ unsigned long dpmi_free_memory;           /* how many bytes memory client */
 dpmi_pm_block *pm_block_root[DPMI_MAX_CLIENTS];
 unsigned long pm_block_handle_used;       /* tracking handle */
 
-/* ultilities routines */
+/* utility routines */
 
 /* I don\'t think these function will ever become bottleneck, so just */
 /* keep it simple, --dong */
-/* alloc_pm_block allocate a dpmi_pm_block struct and add it to the list */
+/* alloc_pm_block: allocate a dpmi_pm_block struct and add it to the list */
 static dpmi_pm_block * alloc_pm_block()
 {
     dpmi_pm_block *p = malloc(sizeof(dpmi_pm_block));
@@ -44,6 +44,7 @@ static dpmi_pm_block * alloc_pm_block()
     pm_block_root[current_client] = p;
     return p;
 }
+
 /* free_pm_block free a dpmi_pm_block struct and delete it from list */
 static int free_pm_block(dpmi_pm_block *p)
 {
@@ -62,6 +63,7 @@ static int free_pm_block(dpmi_pm_block *p)
     free(p);
     return 0;
 }
+
 /* lookup_pm_block returns a dpmi_pm_block struct from its handle */
 dpmi_pm_block *lookup_pm_block(unsigned long h)
 {
@@ -93,7 +95,10 @@ DPMImalloc(unsigned long size)
 	return NULL;
     if ((block = alloc_pm_block()) == NULL)
 	return NULL;
-
+//
+//    { char buf[128]; FILE *fs=fopen("/proc/self/maps","r");
+//      while (fgets(buf,120,fs)) dbug_printf("%s",buf); fclose(fs); }
+//
     block->base = alloc_mapping(MAPPING_DPMI, size, 0);
     if (!block->base) {
 	free_pm_block(block);
@@ -231,10 +236,10 @@ DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
     /* NOTE:
      * This DPMI function makes appear memory from below 1Meg to
      * address space allocated via DPMImalloc(). We use it only for
-     * DPMI function 0x0509 (Map convientional memory, DPMI version 1.0)
-     * We way, however, we implement it, doesn't cover mapping hardware RAM
+     * DPMI function 0x0509 (Map conventional memory, DPMI version 1.0)
+     * The way, however, we implement it, doesn't cover mapping hardware RAM
      * (e.g. Video buffers, adapter RAM, etc).
-     * This may lead to some imcompatibilities.        --Hans, 2000/02/04
+     * This may lead to some incompatibilities.        --Hans, 2000/02/04
      */
     void *mapped_base;
 

@@ -7,7 +7,7 @@
  *
  *
  *  SIMX86 a Intel 80x86 cpu emulator
- *  Copyright (C) 1997,2000 Alberto Vignani, FIAT Research Center
+ *  Copyright (C) 1997,2001 Alberto Vignani, FIAT Research Center
  *				a.vignani@crf.it
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -39,7 +39,7 @@
 
 typedef struct {
 	unsigned long BoundL,BoundH;
-	unsigned long Attrib;
+	unsigned short Oldsel, Attrib __attribute__ ((packed));
 } SDTR;
 
 typedef struct {
@@ -224,19 +224,20 @@ typedef struct {
 					sizeof(Descriptor));
 
 /* Messages for DPMI_Notify() */
-#define DPN_ASSIGN	1
-#define DPN_FREE	2
-#define DPN_INIT	3
-#define DPN_MODIFY	4
-#define DPN_EXIT	5
+#define DN_ASSIGN	1
+#define DN_FREE		2
+#define DN_INIT		3
+#define DN_MODIFY	4
+#define DN_EXIT		5
 
 #define SELECTOR_PADDRESS(sel) GetPhysicalAddress(sel)
 
 //
-int SetSegreg(int mode, SDTR *sd, unsigned char *big, unsigned long csel);
+int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel);
+int SetSegReal(unsigned short sel, int ofs);
 int e_larlsl(int mode, unsigned short sel);
+int hsw_verr(unsigned short sel);
+int hsw_verw(unsigned short sel);
 //
-/* note the pointers in macro - this confuses people ;-) */
-#define SET_SEGREG(d,b,o,s)	SetSegreg(mode,&(d),&(b),(((o)<<16)|(s)))
 
 #endif

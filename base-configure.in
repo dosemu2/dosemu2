@@ -92,6 +92,11 @@ if test "$CONFIG_HOST" = "Linux"; then
 fi
 AC_SUBST(CONFIG_HOST)
 
+force_k7="no"
+if grep -q "^vendor.*AuthenticAMD" /proc/cpuinfo && grep -q "^model.*Athlon" /proc/cpuinfo; then
+   force_k7="yes"
+fi
+
 dnl Do ELF if possible
 
  if ! $CC -v 2>&1|grep specs >/dev/null 2>&1; then
@@ -503,7 +508,7 @@ INCDIR="${PLUGININC} -I\${SRCPATH}/include -I\${SRCPATH}/dosext/dpmi ${SLANGINC}
 AC_SUBST(INCDIR)
 
 if test "$dodebug" = "yes"; then
-  COPTFLAGS=" -g -Wall"
+  COPTFLAGS=" -g -Wall -D_DEBUG"
   OPT="-O"
 else
   COPTFLAGS=" -Wall"
@@ -603,7 +608,11 @@ if test "$GCC" = "yes" ; then
   if test "$(( $GCC_VERSION_CODE >= 2095 ))" = "1"; then
      case "$target_cpu" in
        i386 | i486 | i586 | i686)
-          OPT="$OPT -mcpu=$target_cpu"
+          if test "$force_k7" = "yes"; then
+	     OPT="$OPT -mcpu=athlon"
+	  else
+             OPT="$OPT -mcpu=$target_cpu"
+	  fi
           ;;
        *)
           ;;
@@ -621,7 +630,7 @@ if test "$GCC" = "yes" ; then
      esac
   fi
   if test "$force_k7" = "yes"; then
-     OPT="$OPT -malign-functions=4 -fschedule-insns2 -fexpensive-optimizations"
+     OPT="$OPT -malign-functions=4 -fexpensive-optimizations"
   elif test "$target_cpu" = "i486"; then
      OPT="$OPT -malign-loops=2 -malign-jumps=2 -malign-functions=2"
   fi

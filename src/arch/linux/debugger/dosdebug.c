@@ -29,7 +29,7 @@
 #include <string.h>
 #include <signal.h>
 
-#include "Linux/vt.h" 
+#include "Linux/vt.h"
 #include <sys/ioctl.h>
 
 #include "dosemu_select.h"

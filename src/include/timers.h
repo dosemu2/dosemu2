@@ -110,15 +110,14 @@ static __inline__ hitimer_t _mul64x32_(hitimer_t v, unsigned long f)
 #endif
 	__asm__ __volatile__ (
 #ifndef ASM_PEDANTIC
-	       "movl	%2,%%eax;"
+		"movl	%2,%%eax\n\t"
 #endif
-	       "mull	%%ebx
-		movl	%%edx,%%ecx
-		movl	%3,%%eax
-		mull	%%ebx
-		addl	%%ecx,%%eax
-		adcl	$0,%%edx
-		"
+		"mull	%%ebx\n\t"
+		"movl	%%edx,%%ecx\n\t"
+		"movl	%3,%%eax\n\t"
+		"mull	%%ebx\n\t"
+		"addl	%%ecx,%%eax\n\t"
+		"adcl	$0,%%edx"
 #ifndef ASM_PEDANTIC
 		: "=a"(t.t.tl),"=d"(t.t.th)
 		: "g"(((int *)&v)[0]),"g"(((int *)&v)[1]),\
@@ -204,17 +203,17 @@ static inline hitimer_t GETTSC(void) {
 static inline hitimer_t TSCtoUS(register hitimer_t t) {
 	unsigned long __low, __high;
 	__asm__ ("":"=a"(__low),"=d"(__high):"A"(t));
-	__asm__ __volatile__ ("
-		movl	%1,%%ebx\n
-		mull	%2\n
-		movl	%1,%%ecx\n
-		movl	%%ebx,%0\n
-		mull	%2\n
-		addl	%%ecx,%0\n
-		adcl	$0,%1\n
-		"
-		: "=a"(__low), "=d"(__high)
-		: "m"(config.cpu_spd)
+	__asm__ __volatile__ (" \
+		movl	%1,%%ebx\n \
+		mull	%2\n \
+		movl	%1,%%ecx\n \
+		movl	%%ebx,%0\n \
+		mull	%2\n \
+		addl	%%ecx,%0\n \
+		adcl	$0,%1\n \
+		" \
+		: "=a"(__low), "=d"(__high) \
+		: "m"(config.cpu_spd) \
 		: "%eax","%edx","%ecx","%ebx","memory" );
 	__asm__ ("":"=A"(t):"a"(__low),"d"(__high));
 	return t;
@@ -266,17 +265,17 @@ static inline hitimer_t TSCtoUS(register hitimer_t t) {
 static inline hitimer_t TSCtoUS(register hitimer_t t) {
 	unsigned long __low, __high;
 	__asm__ ("":"=a"(__low),"=d"(__high):"A"(t));
-	__asm__ __volatile__ ("
-		movl	%1,%%ebx\n
-		mull	%2\n
-		movl	%1,%%ecx\n
-		movl	%%ebx,%0\n
-		mull	%2\n
-		addl	%%ecx,%0\n
-		adcl	$0,%1\n
-		"
-		: "=&a"(__low), "=&d"(__high)
-		: "m"(config.cpu_spd)
+	__asm__ __volatile__ (" \
+		movl	%1,%%ebx\n \
+		mull	%2\n \
+		movl	%1,%%ecx\n \
+		movl	%%ebx,%0\n \
+		mull	%2\n \
+		addl	%%ecx,%0\n \
+		adcl	$0,%1\n \
+		" \
+		: "=&a"(__low), "=&d"(__high) \
+		: "m"(config.cpu_spd) \
 		: "%ecx","%ebx","memory" );
 	__asm__ ("":"=A"(t):"a"(__low),"d"(__high));
 	return t;

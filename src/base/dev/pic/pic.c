@@ -150,6 +150,9 @@
 #include "serial.h"
 #include "int.h"
 #include "ipx.h"
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
+#endif
 
 #undef us
 #define us unsigned
@@ -778,6 +781,10 @@ int do_irq()
  int intr;
  unsigned char * ssp;
  unsigned long sp;
+#ifdef X86_EMULATOR
+ unsigned char *tmp_ssp;
+ int tmp;
+#endif
 
     if(pic_ilevel==32) return 0;
     intr=pic_iinfo[pic_ilevel].ivec;
@@ -809,8 +816,15 @@ g_printf("+%d",(int)pic_ilevel);
   * change esp first to protect the stack we're about to use
   */
       LWORD(esp) = (LWORD(esp) - 4) & 0xffff;  
+#ifdef X86_EMULATOR
+      tmp_ssp = ssp+sp;
+      tmp = E_MUNPROT_STACK(tmp_ssp);
+#endif
       pushw(ssp, sp, REG(cs));
       pushw(ssp, sp, LWORD(eip));
+#ifdef X86_EMULATOR
+      if (tmp) E_MPROT_STACK(tmp_ssp);
+#endif
       REG(cs) = PIC_SEG;
       LWORD(eip) = PIC_OFF;
       
@@ -1012,8 +1026,7 @@ unsigned long pic_newirr;
 /*  pic_activate(); */
 
 /*  calculate new sys_time
- *  non-monoton: values are kept modulo (tick_rate*15min)
- *  monoton:     values are kept modulo 2^32 (exactly 1 hour)
+ *  values are kept modulo 2^32 (exactly 1 hour)
  */
   t_time = UStoTICK(s_time->td);
 

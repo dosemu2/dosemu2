@@ -40,6 +40,9 @@
 #ifdef USING_NET
 #include "ipx.h"
 #endif
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
+#endif
 
 #include "dpmi.h"
 
@@ -197,11 +200,6 @@ static void process_master_boot_record(void)
 /* returns 1 if dos_helper() handles it, 0 otherwise */
 static int dos_helper(void)
 {
-#ifdef X86_EMULATOR
-  extern void enter_cpu_emu(void);
-  extern void leave_cpu_emu(void);
-#endif
-
   switch (LO(ax)) {
   case DOS_HELPER_DOSEMU_CHECK:			/* Linux dosemu installation test */
     LWORD(eax) = 0xaa55;
@@ -833,6 +831,27 @@ static void int15(u_char i)
 	break;
 
   case 0xe8:
+#if 0
+--------b-15E801-----------------------------
+INT 15 - Phoenix BIOS v4.0 - GET MEMORY SIZE FOR >64M CONFIGURATIONS
+	AX = E801h
+Return: CF clear if successful
+	    AX = extended memory between 1M and 16M, in K (max 3C00h = 15MB)
+	    BX = extended memory above 16M, in 64K blocks
+	    CX = configured memory 1M to 16M, in K
+	    DX = configured memory above 16M, in 64K blocks
+	CF set on error
+Notes:	supported by the A03 level (6/14/94) and later XPS P90 BIOSes, as well
+	  as the Compaq Contura, 3/8/93 DESKPRO/i, and 7/26/93 LTE Lite 386 ROM
+	  BIOS
+	supported by AMI BIOSes dated 8/23/94 or later
+	on some systems, the BIOS returns AX=BX=0000h; in this case, use CX
+	  and DX instead of AX and BX
+	this interface is used by Windows NT 3.1, OS/2 v2.11/2.20, and is
+	  used as a fall-back by newer versions if AX=E820h is not supported
+SeeAlso: AH=8Ah"Phoenix",AX=E802h,AX=E820h,AX=E881h"Phoenix"
+---------------------------------------------
+#endif
     if (LO(ax) == 1) {
 	Bit32u mem = ((config.xms_size > config.ems_size) ?
 			 config.xms_size : config.ems_size);
@@ -869,6 +888,10 @@ static void int1a(u_char i)
   struct timeval;
   struct timezone;
   struct tm *tm;
+
+#ifdef X86_EMULATOR
+  int tmp = E_MUNPROT_STACK(0);		/* no faults in BIOS area! */
+#endif
 
   switch (HI(ax)) {
 
@@ -1133,8 +1156,12 @@ Return: nothing
   default:
     g_printf("WARNING: unsupported INT0x1a call 0x%02x\n", HI(ax));
     CARRY;
-    return;
   }
+
+#ifdef X86_EMULATOR
+  if (tmp) E_MPROT_STACK(0);
+#endif
+
 }
 
 /* ========================================================================= */
@@ -1232,6 +1259,10 @@ static int ms_dos(int nr)
 
 void real_run_int(int i)
 {
+#ifdef X86_EMULATOR
+  int tmp;
+  unsigned char *tmp_ssp;
+#endif
   unsigned char *ssp;
   unsigned long sp;
 
@@ -1253,9 +1284,16 @@ void real_run_int(int i)
   ssp = (unsigned char *)(_SS<<4);
   sp = (unsigned long) _SP;
 
+#ifdef X86_EMULATOR
+  tmp_ssp = ssp+sp;
+  tmp = E_MUNPROT_STACK(tmp_ssp);
+#endif
   pushw(ssp, sp, read_FLAGS());
   pushw(ssp, sp, _CS);
   pushw(ssp, sp, _IP);
+#ifdef X86_EMULATOR
+  if (tmp) E_MPROT_STACK(tmp_ssp);
+#endif
   _SP -= 6;
   _CS = ISEG(i);
   _IP = IOFF(i);
@@ -1330,7 +1368,7 @@ void real_run_int(int i)
 static void run_caller_func(int i, Boolean from_int)
 {
 	void (*caller_function)(int i);
-	ifprintf((d.dos > 1), "DO_INT0x%02x: Using caller_function()\n", i);
+	g_printf("Do INT0x%02x: Using caller_function()\n", i);
 
 #if 0	 /* This causes problems with default_interrupt disable this for now
           * --EB 13 March 1997 
@@ -1634,7 +1672,9 @@ static int redir_it()
 
 
 /* MS-DOS */
-static void int21(u_char i) {
+/* see config.c: int21 is redirected here only when d.dos>0 !! */
+static void int21(u_char i)
+{
 #ifdef X86_EMULATOR
   static char buf[80];
 #endif
@@ -1660,7 +1700,7 @@ static void int21(u_char i) {
 	char *dp = (char *)((LWORD(ds)<<4)+LWORD(edx));
 	unsigned int nb = LWORD(ecx);
 	if (nb>78) nb=78; memcpy(buf,dp,nb); buf[nb]=0;
-	ds_printf("WRITE: [%s]\n",buf);
+	ds_printf("WRITE(40): [%s]\n",buf);
   }
   else if (HI(ax)==9) {
 	char *dp = (char *)((LWORD(ds)<<4)+LWORD(edx));
@@ -1668,10 +1708,10 @@ static void int21(u_char i) {
 	int nb;
 	for (nb=0; (nb<78)&&(*dp!='$'); nb++) *q++ = *dp++;
 	buf[nb]=0;
-	ds_printf("WRITE: [%s]\n",buf);
+	ds_printf("WRITE(09): [%s]\n",buf);
   }
   else if ((HI(ax)==6) && (LO(ax)!=0xff)) {
-	ds_printf("WRITE: [%c]\n",isprint(LO(ax)? LO(ax):'.'));
+	ds_printf("WRITE(06): [%c]\n",isprint(LO(ax)? LO(ax):'.'));
   }
 #endif
   if (!ms_dos(HI(ax)))
@@ -1786,10 +1826,9 @@ static void int2f(u_char i)
     if (LO(ax) == 0x23) subst_file_ext(SEG_ADR((char *), ds, si));
     if (mfs_redirector()) return;
     break;
-  
+
   case 0x16:		/* misc PM/Win functions */
     if (!config.dpmi) {
-/*  d.emu=4; */
       break;		/* fall into default_interrupt() */
     }
     switch (LO(ax)) {
@@ -2017,7 +2056,7 @@ void do_int(int i)
 		} else {
 			clear_IF();
 		}
-/* D_printf("DPMI: do_int: dpmi_eflags=%08x\n",dpmi_eflags); */
+/**/ D_printf("DPMI: do_int %x: dpmi_eflags=%08x\n",i,dpmi_eflags);
 	}
 	
 #ifndef TRACE_DPMI

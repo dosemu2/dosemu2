@@ -250,18 +250,16 @@ static void do_liability_disclaimer_prompt(void)
   FILE *f;
   char buf[32];
   char disclaimer_file_name[256];
-  static char text[] ="
-  The Linux DOSEMU, Copyright (C) 2001 the 'DOSEMU-Development-Team'.
-  This program is  distributed  in  the  hope that it will be useful,
-  but  WITHOUT  ANY  WARRANTY;   without even the implied warranty of
-  MERCHANTABILITY  or  FITNESS FOR A PARTICULAR PURPOSE. See the file
-  COPYING for more details.  Use  this  programm  at  your  own risk!
-
-  By continuing execution of this programm,  you are stating that you
-  have read the file  COPYING  and the above liability disclaimer and
-  that you accept these conditions.
-
-  Enter 'yes' to confirm/continue: ";
+  static char text[] =
+  "The Linux DOSEMU, Copyright (C) 2001 the 'DOSEMU-Development-Team'.\n"
+  "This program is  distributed  in  the  hope that it will be useful,\n"
+  "but  WITHOUT  ANY  WARRANTY;   without even the implied warranty of\n"
+  "MERCHANTABILITY  or  FITNESS FOR A PARTICULAR PURPOSE. See the file\n"
+  "COPYING for more details.  Use  this  program  at  your  own  risk!\n\n"
+  "By continuing execution of this programm,  you are stating that you\n"
+  "have read the file  COPYING  and the above liability disclaimer and\n"
+  "that you accept these conditions.\n\n"
+  "Enter 'yes' to confirm/continue: ";
 
 
   snprintf(disclaimer_file_name, 256, "%s/disclaimer", LOCALDIR);
@@ -362,7 +360,10 @@ emulate(int argc, char **argv)
 #ifdef X86_EMULATOR
 #ifdef DONT_DEBUG_BOOT		/* cpuemu only */
     memcpy(&d_save,&d,sizeof(struct debug_flags));
-    if (d.emu) memset(&d,0,sizeof(struct debug_flags));
+    d.emu = 0;
+#ifdef TRACE_DPMI
+    d.dpmit = 0;
+#endif
 #endif
 #endif
     get_time_init();
@@ -546,8 +547,6 @@ leavedos(int sig)
 #if defined(X86_EMULATOR)
     /* if we are here with config.cpuemu>1 something went wrong... */
     if (config.cpuemu>1) {
-        extern void leave_cpu_emu(void);
-        
     	leave_cpu_emu();
     }
 #endif

@@ -7,7 +7,7 @@
  *
  *
  *  SIMX86 a Intel 80x86 cpu emulator
- *  Copyright (C) 1997,2000 Alberto Vignani, FIAT Research Center
+ *  Copyright (C) 1997,2001 Alberto Vignani, FIAT Research Center
  *				a.vignani@crf.it
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -34,10 +34,6 @@
 
 #ifndef _EMU86_HOST_H
 #define _EMU86_HOST_H
-
-/***************************************************************************/
-#define _DEBUG
-/***************************************************************************/
 
 #if defined(ppc)||defined(__ppc)||defined(__ppc__)
 /* NO PAGING! */
@@ -71,10 +67,10 @@ static __inline__ unsigned long ppc_pswap4(long addr)
 static __inline__ unsigned long long ppc_pswap8(long addr)
 {
 	union {	unsigned long long lq; struct {unsigned long ll,lh;} lw; } val;
-	__asm__ __volatile__ ("
-		lwbrx %0,0,%2\n
-		addi  %2,%2,4\n
-		lwbrx %1,0,%2"
+	__asm__ __volatile__ (" \
+		lwbrx %0,0,%2\n \
+		addi  %2,%2,4\n \
+		lwbrx %1,0,%2" \
 		: "=r" (val.lw.lh), "=r" (val.lw.ll)
 		: "r" ((unsigned long *)addr), "m" (*(unsigned long *)addr) );
 	return val.lq;
@@ -90,10 +86,10 @@ static __inline__ void ppc_dswap8(long addr, unsigned long long val)
 {
 	union { unsigned long long lq; struct {unsigned long lh,ll;} lw; } v;
 	v.lq = val;
-	__asm__ __volatile__ ("
-		stwbrx %1,0,%3\n
-		addi   %3,%3,4\n
-		stwbrx %2,0,%3"
+	__asm__ __volatile__ (" \
+		stwbrx %1,0,%3\n \
+		addi   %3,%3,4\n \
+		stwbrx %2,0,%3" \
 		: "=m" (*(unsigned long *)addr)
 		: "r" (v.lw.ll), "r" (v.lw.lh), "r" ((unsigned long *)addr) );
 }

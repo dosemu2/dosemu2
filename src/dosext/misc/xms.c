@@ -15,7 +15,7 @@
  * around in specific calls. This spec also includes the allocation of UMB's,
  * so they are also included as part of this file. The amount of xms memory
  * returned to DOS programs via the XMS requests, or int15 fnc88 is set in
- * "/etc/dosemu.conf" via the XMS paramter.
+ * "/etc/dosemu.conf" via the XMS parameter.
  *
  * /REMARK
  * DANG_END_MODULE
@@ -35,6 +35,8 @@
 #include "xms.h"
 #include "dosio.h"
 #include "machcompat.h"
+
+#undef  DEBUG_XMS
 
 static int umb_find_unused(void);
 /* 128*1024 is the amount of memory currently reserved in dos.c above
@@ -147,7 +149,7 @@ umb_memory_empty(addr, size)
       return FALSE;
     }
   }
-#if 0
+#ifdef DEBUG_XMS
   Debug0((dbg_fd, "Found free UMB region: %p\n", (void *) addr));
 #endif
   return (TRUE);
@@ -224,7 +226,7 @@ umb_setup(void)
     for (addr = UMB_BASE; addr < (vm_address_t) (UMB_BASE + UMB_SIZE);
 	 addr += UMB_PAGE) {
       if (IN_EMM_SPACE(addr) || IN_EMU_SPACE(addr) || IN_HARDWARE_PAGES(addr)) {
-#if 0
+#ifdef DEBUG_XMS
 	Debug0((dbg_fd, "skipped UMB region: %p EMM-%d EMU=%d hardw=%d\n",(void *) addr, 
 		IN_EMM_SPACE(addr),IN_EMU_SPACE(addr),IN_HARDWARE_PAGES(addr)));
 #endif
@@ -382,7 +384,8 @@ umb_query(void)
 	largest = umbs[i].size;
     }
   }
-  Debug0((dbg_fd, "umb_query: largest UMB was %d bytes\n", largest));
+  Debug0((dbg_fd, "umb_query: largest UMB was %d(%#x) bytes\n",
+	largest, largest));
   return (largest);
 }
 
@@ -444,13 +447,13 @@ xms_control(void)
       x_printf("XMS: allocating HMA size 0x%04x\n", LWORD(edx));
       freeHMA = 0;
       LWORD(eax) = 1;
+      LO(bx) = 0x00;
     }
     else {
       x_printf("XMS: HMA already allocated\n");
       LWORD(eax) = 0;
       LO(bx) = 0x91;
     }
-    LWORD(ebx) = 0xff00;
     break;
 
   case 2:			/* Release High Memory Area */
@@ -463,9 +466,9 @@ xms_control(void)
     else {
       x_printf("XMS: freeing HMA\n");
       LWORD(eax) = 1;
+      LO(bx) = 0x00;
       freeHMA = 1;
     }
-    LWORD(ebx) = 0xff00;
     break;
 
   case 3:			/* Global Enable A20 */
@@ -485,6 +488,7 @@ xms_control(void)
     break;
 
   case 5:			/* Local Enable A20 */
+    x_printf("XMS LOCAL enable A20\n");
     a20++;
     if (a20 == 1)
       set_a20(1);
@@ -536,7 +540,7 @@ xms_control(void)
     xms_EMB_info(OLDXMS);
     return;
 
-  case 0xf:			/* Realocate Extended Memory Block */
+  case 0xf:			/* Reallocate Extended Memory Block */
     xms_realloc_EMB(OLDXMS);
     break;
 
@@ -546,8 +550,7 @@ xms_control(void)
       int size = WORD(state->edx) << 4;
       vm_address_t addr = umb_allocate(size);
 
-      Debug0((dbg_fd, "Allocate UMB memory: 0x%04x\n",
-	      (unsigned) WORD(state->edx)));
+      Debug0((dbg_fd, "Allocate UMB memory: %#x\n", size));
       if (addr == (vm_address_t) 0) {
         int avail=umb_query();
 
@@ -563,7 +566,7 @@ xms_control(void)
 	SETWORD(&(state->ebx), (int) addr >> 4);
 	SETWORD(&(state->edx), size >> 4);
       }
-      Debug0((dbg_fd, "umb_allocated: 0x%04x, 0x%04x\n",
+      Debug0((dbg_fd, "umb_allocated: %#x0:%#x0\n",
 	      (unsigned) WORD(state->ebx),
 	      (unsigned) WORD(state->edx)));
       /* retval = UNCHANGED; */
@@ -686,7 +689,7 @@ xms_query_freemem(int api)
 	     REG(eax), REG(edx));
   }
 
-  LWORD(ebx) = 0xff00;			/* no error */
+  LO(bx) = 0x00;			/* no error */
 }
 
 static void
@@ -700,7 +703,7 @@ xms_allocate_EMB(int api)
     kbsize = LWORD(edx);
   else
     kbsize = REG(edx);
-  x_printf("XMS alloc EMB(%s) size 0x%08lx KB\n", (api==OLDXMS)?"old":"new",kbsize);
+  x_printf("XMS alloc EMB(%s) size %ld KB\n", (api==OLDXMS)?"old":"new",kbsize);
 
   totalBytes = 0;
   for (h = FIRST_HANDLE; h <= NUM_HANDLES; h++) {
@@ -714,14 +717,14 @@ xms_allocate_EMB(int api)
   {
     x_printf("XMS: out of memory (only %ldK available)\n",subtotal);
     LWORD(eax) = 0;
-    LWORD(ebx) = 0xFFa0; /* Out of memory */
+    LO(bx) = 0xa0; /* Out of memory */
     return;
   }
   
   if (!(h = FindFreeHandle(FIRST_HANDLE))) {
     x_printf("XMS: out of handles\n");
     LWORD(eax) = 0;
-    LWORD(ebx) = 0xffa1;
+    LO(bx) = 0xa1;
   }
   else {
     handles[h].num = h;
@@ -752,7 +755,7 @@ xms_allocate_EMB(int api)
       REG(edx) = h;
 
     LWORD(eax) = 1;		/* success */
-    LWORD(ebx) = 0xa900;
+    LO(bx) = 0x00;
   }
 }
 
@@ -778,7 +781,7 @@ xms_free_EMB(void)
 
     x_printf("XMS: free'd EMB %d\n", h);
     LWORD(eax) = 1;
-    LWORD(ebx) = 0xff00;
+    LO(bx) = 0x00;
   }
 }
 
@@ -791,7 +794,11 @@ xms_move_EMB(void)
   x_printf("XMS move extended memory block\n");
   show_emm(e);
   LWORD(eax) = 1;		/* start with success */
+#if 0
   LWORD(ebx) = 0xff00;		/* start with success */
+#else
+  LO(bx) = 0x00; /* do not touch BH, else Win98 boot failure */
+#endif
 
   if (e.SourceHandle == 0) {
     src = (char *) (((e.SourceOffset >> 16) << 4) + \
@@ -1014,9 +1021,7 @@ show_emm(struct EMM e)
 {
   x_printf("XMS show_emm:\n");
 
-  x_printf("L: 0x%08lx\n"
-	   "SH: 0x%04x  SO: 0x%08lx\n"
-	   "DH: 0x%04x  DO: 0x%08lx\n",
+  x_printf("L: 0x%08lx SH: 0x%04x  SO: 0x%08lx DH: 0x%04x  DO: 0x%08lx\n",
 	   e.Length, e.SourceHandle, e.SourceOffset,
 	   e.DestHandle, e.DestOffset);
 }

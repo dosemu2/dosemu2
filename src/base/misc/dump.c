@@ -159,11 +159,11 @@ show_ints(int min, int max)
 
   max = (max - min) / 3;
   for (i = 0, b = min; i <= max; i++, b += 3) {
-    g_printf("%02x| %04x:%04x->%05x    ", b, ISEG(b), IOFF(b),
+    g_printf("%02x| %04x:%04x->%06x   ", b, ISEG(b), IOFF(b),
 		IVEC(b));
-    g_printf("%02x| %04x:%04x->%05x    ", b + 1, ISEG(b + 1), IOFF(b + 1),
+    g_printf("%02x| %04x:%04x->%06x   ", b + 1, ISEG(b + 1), IOFF(b + 1),
 		IVEC(b + 1));
-    g_printf("%02x| %04x:%04x->%05x\n", b + 2, ISEG(b + 2), IOFF(b + 2),
+    g_printf("%02x| %04x:%04x->%06x\n", b + 2, ISEG(b + 2), IOFF(b + 2),
 		IVEC(b + 2));
   }
 }

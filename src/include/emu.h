@@ -300,7 +300,7 @@ typedef struct vesamode_type_struct {
        boolean X_keycode;	/* use keycode field of event structure */
        boolean exitearly;
        int     realcpu;
-       boolean mathco, smp;
+       boolean mathco, smp, cpummx;
        boolean ipxsup;
        boolean vnet;
        boolean keybint;

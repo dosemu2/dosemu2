@@ -42,8 +42,8 @@ char *get_dosemu_local_home(void);
 static __inline__ int power_of_2_sqrt(int val)
 {
 	register int res;
-	__asm__ __volatile__("
-		bsrl	%2,%0
+	__asm__ __volatile__(" \
+		bsrl	%2,%0\n \
 	" : "=r" (res) : "0" ((int)-1), "r" (val) );
 	if (res <0) return 0;
 	return 1 << (res >> 1);

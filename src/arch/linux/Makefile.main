@@ -131,11 +131,7 @@ ifneq (include/config.h,$(wildcard include/config.h))
 firstsimple:	version dep simple
 endif
 
-ifdef ELF
 simple:	version dossubdirs $(BINPATH)/bin/$(DOSBIN)
-else
-simple:	version dossubdirs dosstatic # libdosemu dos
-endif
 endif
 
 # The assumption is that most new users will only type 'make'
@@ -222,7 +218,6 @@ dosstatic:	$(DOSSTATICFILES) ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
 #           is NOT a typo !!!
 # (Hans Lermen, at state of 0.63.0.1)
 
-ifdef ELF
 $(BINPATH)/bin/$(DOSBIN): 	emu.o base/data.o dossubdirs
 	$(LD) $(LDFLAGS) -o $@ \
 	   emu.o base/data.o $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
@@ -237,28 +232,6 @@ ifdef X_SUPPORT
 endif
 
 dosemu: $(BINPATH)/bin/$(DOSBIN)
-else
-$(BINPATH)/bin/$(DOSBIN):	dos.o
-	$(LD) $(LDFLAGS) -N -o $@ $^ $(addprefix -L,$(LIBPATH)) -L. \
-		$(SLANGLIB) $(XLIBSW)
-
-$(LIBDOSEMU): 	emu.o base/data.o ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}} # dossubdirs
-	$(LD) $(LDFLAGS) $(MAGIC) -Wl,-Ttext -Wl,$(LIBSTART) -o $(LIBDOSEMU) \
-	   -nostartfiles -nostdlib $^ $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
-	    $(addprefix -l, $(LIBS_)) $(addprefix -l, $(LIBS_)) base/bios/bios.o env/video/vesabios.o \
-            $(XLIBSW) $(SLANGLIB) -lc 
-	@ln -sf $(DOSBIN) $(BINPATH)/bin/dos
-	@ln -sf $(DOSBIN) $(BINPATH)/bin/dosexec
-ifdef X_SUPPORT
-	@ln -sf $(DOSBIN) $(BINPATH)/bin/xdos
-endif
-
-libdosemu:	dossubdirs $(LIBDOSEMU)
-	@nm $(LIBDOSEMU) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
-		sort > $(BINPATH)/bin/dosemu.map
-
-dosemu: $(BINPATH)/bin/$(DOSBIN) libdosemu
-endif
 
 .PHONY:	dossubdirs optionalsubdirs docsubdirs
 .PHONY: $(LIBSUBDIRS) $(OPTIONALSUBDIRS) $(DOCS) $(REQUIRED)
@@ -327,10 +300,6 @@ systemwide_install_no_longer_supported:
 	@install -c -o root -m 0755 $(BINPATH)/bin/$(DOSBIN) $(INSTROOT)/usr/bin
 ifdef  USE_MHPDBG
 	@install -c -o root -m 0755 $(BINPATH)/bin/dosdebug $(INSTROOT)/usr/bin
-endif
-ifndef ELF
-	@install -m 0644 $(LIBDOSEMU) $(INSTROOT)/usr/lib/libdosemu-$(THISVERSION)
-	@(cd $(INSTROOT)/usr/lib; ln -sf libdosemu-$(THISVERSION) libdosemu)
 endif
 	@if [ -f $(INSTROOT)/usr/bin/xdosemu ]; then \
 		install -m 0700 $(INSTROOT)/usr/bin/xdosemu /tmp; \

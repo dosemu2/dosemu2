@@ -7,7 +7,7 @@
  *
  *
  *  SIMX86 a Intel 80x86 cpu emulator
- *  Copyright (C) 1997,2000 Alberto Vignani, FIAT Research Center
+ *  Copyright (C) 1997,2001 Alberto Vignani, FIAT Research Center
  *				a.vignani@crf.it
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -43,7 +43,7 @@
 #include "pic.h"
 #include "cpu-emu.h"
 #include "emu86.h"
-#include "codegen-x86.h"
+#include "codegen-arch.h"
 #include "dpmi.h"
 
 #define e_set_flags(X,new,mask) \
@@ -59,23 +59,32 @@
 
 /* ======================================================================= */
 
-hitimer_t TotalTime, AddTime, SearchTime, ExecTime, CleanupTime; // for debug
+#ifdef PROFILE
+hitimer_t AddTime, SearchTime, ExecTime, CleanupTime; // for debug
+hitimer_t GenTime, LinkTime;
+extern int MaxDepth, MaxNodes, MaxNodeSize, TotalNodesParsed,
+	TotalNodesExecd, PageFaults, EmuSignals;
+extern int NodesFound, NodesFastFound, NodesNotFound, TreeCleanups;
+#endif
+
+hitimer_t TotalTime;
 static int iniflag = 0;
+extern TNode *LastXNode;
 
 hitimer_t sigEMUtime = 0;
 static hitimer_t lastEMUsig = 0;
 static unsigned long sigEMUdelta = 0;
-static int last_emuretrace;
+#ifdef HOST_ARCH_SIM
+int eTimeCorrect = 0;		// full backtime stretch
+#else
+int eTimeCorrect = 1;		// 1/2 backtime stretch
+#endif
 
 /* This needs to be merged someday with 'mode' */
-int CEmuStat = 0;
+volatile int CEmuStat = 0;
 
-int JumpOpt = 3;	/* b0=back b1=fwd */
-unsigned long JumpOptLim = 0x1000;
-
-/* Another signal pending flag... this one is used by the compiled
- * back jumps to avoid looping forever */
-volatile sig_atomic_t e_signal_pending = 0;
+int IsV86Emu = 1;
+int IsDpmiEmu = 1;
 
 /* This keeps the delta time in CPU clocks between SIGALRMs and
  * SIGPROFs, i.e. the time spent by the system outside of dosemu,
@@ -83,6 +92,7 @@ volatile sig_atomic_t e_signal_pending = 0;
 int e_sigpa_count;
 
 int emu_dpmi_retcode = -1;
+int in_vm86_emu = 0;
 int in_dpmi_emu = 0;
 
 SynCPU	TheCPU;
@@ -91,6 +101,13 @@ int Running = 0;
 int InCompiledCode = 0;
 
 unsigned long trans_addr, return_addr;	// PC
+
+#ifdef DEBUG_TREE
+FILE *tLog = NULL;
+#endif
+#ifdef ASM_DUMP
+FILE *aLog = NULL;
+#endif
 
 /*
  * --------------------------------------------------------------
@@ -242,6 +259,15 @@ void e_priv_iopl(int pl)
     e_printf("eIOPL: set IOPL to %d, flags=%#lx\n",pl,TheCPU.eflags);
 }
 
+void InvalidateSegs(void)
+{
+    CS_DTR.Attrib=0;
+    SS_DTR.Attrib=0;
+    DS_DTR.Attrib=0;
+    ES_DTR.Attrib=0;
+    FS_DTR.Attrib=0;
+    GS_DTR.Attrib=0;
+}
 
 /* ======================================================================= */
 
@@ -305,7 +331,7 @@ char *e_print_regs(void)
 	exprintw(TheCPU.gs,buf,(ERB_L4+ERB_LEFTM)+13);
 	exprintw(TheCPU.ss,buf,(ERB_L4+ERB_LEFTM)+26);
 	exprintl(TheCPU.eflags,buf,(ERB_L4+ERB_LEFTM)+39);
-	if ((d.emu>6) && (TheCPU.mode & DSPSTK)) {
+	if (d.emu>4) {
 		int i;
 		unsigned short *stk = (unsigned short *)(LONG_SS+TheCPU.esp);
 		for (i=(ERB_L5+ERB_LEFTM); i<(ERB_L6-2); i+=5) {
@@ -393,7 +419,7 @@ char *e_emu_disasm(unsigned char *org, int is32)
 
    p = buf + sprintf(buf,"%08lx: ",(long)org);
    for (i=0; i<rc && i<8; i++) {
-           p += sprintf(p, "%02x", code[i]);
+	p += sprintf(p, "%02x", code[i]);
    }
    sprintf(p,"%20s", " ");
    p1 = buf + 28;
@@ -449,36 +475,36 @@ char *e_scp_disasm(struct sigcontext_struct *scp, int pmode)
 }
 #endif
 
-#undef FP_DISPHEX
 
 char *e_trace_fp(void)
 {
 	static char buf[512];
 	int i, ifpr;
 	char *p;
-	extern double *FPRSTT;
+	double *FPRSTT = &TheCPU.fpregs[TheCPU.fpstt];
 
 	ifpr = TheCPU.fpstt&7;
 	p = buf;
 	for (i=0; i<8; i++) {
+	  double *q = &TheCPU.fpregs[ifpr];
+	  char buf2[32];
 #ifdef FP_DISPHEX
-	  { unsigned long long *q = (unsigned long long *)&(TheCPU.fpregs[ifpr]);
-	    p += sprintf(p,"\tFP%d\t%016Lx\n\t", ifpr, *q);
-	  }
+	  sprintf(buf2,"\t%016Lx", *((long long *)q));
 #else
+	  *buf2=0;
+#endif
 #ifdef FPU_TAGS
 	  switch ((TheCPU.fptag >> (ifpr<<1)) & 3) {
 	    case 0: case 1:
 #endif
-		p += sprintf(p,"\tFP%d\t%16.8f\n\t", ifpr, TheCPU.fpregs[ifpr]);
+		p += sprintf(p,"\tFp%d\t%16.8f%s\n\t", ifpr, *q, buf2);
 #ifdef FPU_TAGS
 		break;
-	    case 2: p += sprintf(p,"\tFP%d\tNaN/Inf\n\t", ifpr);
+	    case 2: p += sprintf(p,"\tFp%d\tNaN/Inf%s\n\t", ifpr, buf2);
 	    	break;
-	    case 3: p += sprintf(p,"\tFP%d\t****\n\t", ifpr);
+	    case 3: p += sprintf(p,"\tFp%d\t****%s\n\t", ifpr, buf2);
 	    	break;
 	  }
-#endif
 #endif
 	  ifpr = (ifpr+1) & 7;
 	}
@@ -487,31 +513,86 @@ char *e_trace_fp(void)
 	return buf;
 }
 
+void GCPrint(unsigned char *cp, unsigned char *cbase, int len)
+{
+	int i;
+	while (len) {
+		dbug_printf(">>> %08x:",cp-cbase);
+		for (i=0; (i<16) && len; i++,len--) dbug_printf(" %02x",*cp++);
+		dbug_printf("\n");
+	}
+}
+
+
+char *showreg(signed char r)
+{
+	static const char *s4[] = {
+		"ZERO","  GS","  FS","  ES","  DS"," EDI"," ESI"," EBP",
+		" ESP"," EBX"," EDX"," ECX"," EAX","TPNO","SCPE"," EIP",
+		"  CS","EFLG","ESPS","  SS","FPSP","OLDM"," CR2"," SR1",
+		" DR1"," XR1"," SIG","VEFL"," ERR","TIML","TIMH","SMSK",
+		"  ni","CR2S","CR_0","CR_1","CR_2","CR_3","CR_4","MODE",
+		" XGS","GSc1","GSc2"," XFS","FSc1","FSc2"," XES","ESc1",
+		"ESc2"," XDS","DSc1","DSc2"," XCS","CSc1","CSc2"," XSS",
+		"SSc1","SSc2","FPRG","FPCS","FPST","FNI0","FNI1","FNI2"
+	};
+	static char m1[32];
+	static int i = 0;
+	char *p;
+	unsigned int ix = r;
+	i = (i+8) & 0x18; p = m1+i;	// for side effects in printf
+	if ((ix&0xff)==0xff) { *p=0; return p; }
+	ix = (ix>>2)&0x3f;
+	*((long *)p) = *((long *)(s4[ix]));
+	if ((r&3)==0) p[4]=0; else {
+		p[4]='+'; p[5]=(r&3)+'0'; p[6]=0;
+	}
+	return p;
+}
+
+char *showmode(unsigned int m)
+{
+	static char m0[28] = "ADBIRSGLrnMNXbsd....CoOi";
+	static char m1[28];
+	int i,j;
+	m &= 0xf0ffff; j = 24;
+	for (i=0; (i<24)&&(m!=0); i++) { if (m&1) m1[--j]=m0[i]; m>>=1; }
+	m1[24]=0;
+	return m1+j;
+}
+
 
 /* ======================================================================= */
 /*
  * Register movements between the dosemu REGS and the emulator cpu
  * A - Real and VM86 mode
  */
-static void Reg2Cpu (struct vm86plus_struct *info, int mode)
+
+/*
+ * Enter emulator in VM86 mode (sys_vm86)
+ */
+static void Reg2Cpu (int mode)
 {
-  char big;	// dummy
   unsigned long flg;
  /*
+  * Enter VM86
   * Copy the dosemu flags (in vm86s) into our veflags, which are the
   * equivalent of the VEFLAGS in /linux/arch/i386/kernel/vm86.c
-  * We'll move back our flags into vm86s when exiting this function.
   */
-  TheCPU.veflags = info->regs.eflags;
-  info->regs.eflags &= SAFE_MASK;
+  eVEFLAGS = vm86s.regs.eflags | RF;
+
+ /* From now on we'll work on the cpuemu eflags (BUT vm86s eflags can be
+  * changed asynchronously by signals) */
+  TheCPU.eflags = vm86s.regs.eflags & SAFE_MASK;
   /* get the protected mode flags. Note that RF and VM are cleared
-   * by pushfd (but not by ints and traps) */
-  __asm__ __volatile__ ("
-	pushfl
-	popl	%0"
+   * by pushfd (but not by ints and traps). Equivalent to regs32->eflags
+   * in vm86.c */
+  __asm__ __volatile__ (" \
+	pushfl\n \
+	popl	%0" \
 	: "=m"(flg) : : "memory");
-  info->regs.eflags |= (flg & notSAFE_MASK);
-  info->regs.eflags |= EFLAGS_VM;
+  TheCPU.eflags |= (flg & notSAFE_MASK); // which VIP do we get here?
+  TheCPU.eflags |= (VM | RF);	// RF is cosmetic...
 
   if (config.cpuemu>2) {
     /* a vm86 call switch has been detected.
@@ -520,81 +601,82 @@ static void Reg2Cpu (struct vm86plus_struct *info, int mode)
   }
 
   if (d.emu>1) e_printf("Reg2Cpu> vm86=%08lx dpm=%08x emu=%08lx evf=%08lx\n",
-	info->regs.eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags);
-  TheCPU.eax     = info->regs.eax;	/* 2c -> 18 */
-  TheCPU.ebx     = info->regs.ebx;	/* 20 -> 00 */
-  TheCPU.ecx     = info->regs.ecx;	/* 28 -> 04 */
-  TheCPU.edx     = info->regs.edx;	/* 24 -> 08 */
-  TheCPU.esi     = info->regs.esi;	/* 14 -> 0c */
-  TheCPU.edi     = info->regs.edi;	/* 10 -> 10 */
-  TheCPU.ebp     = info->regs.ebp;	/* 18 -> 14 */
-  TheCPU.esp     = info->regs.esp;	/* 1c -> 3c */
-  TheCPU.cs      = info->regs.cs;	/* 3c -> 34 */
-  TheCPU.ds      = info->regs.ds;	/* 0c -> 48 */
-  TheCPU.es      = info->regs.es;	/* 08 -> 44 */
-  TheCPU.ss      = info->regs.ss;	/* 48 -> 40 */
-  TheCPU.fs      = info->regs.fs;	/* 04 -> 4c */
-  TheCPU.gs      = info->regs.gs;	/* 00 -> 50 */
+	vm86s.regs.eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags);
+  TheCPU.eax     = vm86s.regs.eax;	/* 2c -> 18 */
+  TheCPU.ebx     = vm86s.regs.ebx;	/* 20 -> 00 */
+  TheCPU.ecx     = vm86s.regs.ecx;	/* 28 -> 04 */
+  TheCPU.edx     = vm86s.regs.edx;	/* 24 -> 08 */
+  TheCPU.esi     = vm86s.regs.esi;	/* 14 -> 0c */
+  TheCPU.edi     = vm86s.regs.edi;	/* 10 -> 10 */
+  TheCPU.ebp     = vm86s.regs.ebp;	/* 18 -> 14 */
+  TheCPU.esp     = vm86s.regs.esp;	/* 1c -> 3c */
   TheCPU.err     = 0;
-  TheCPU.eip     = info->regs.eip&0xffff;
-  TheCPU.eflags  = info->regs.eflags;	/* 40 -> 38 */
+  TheCPU.eip     = vm86s.regs.eip&0xffff;
 
-  (void)SET_SEGREG(CS_DTR,big,Ofs_CS,TheCPU.cs);
-  (void)SET_SEGREG(DS_DTR,big,Ofs_DS,TheCPU.ds);
-  (void)SET_SEGREG(ES_DTR,big,Ofs_ES,TheCPU.es);
-  (void)SET_SEGREG(SS_DTR,big,Ofs_SS,TheCPU.ss);
-  (void)SET_SEGREG(FS_DTR,big,Ofs_FS,TheCPU.fs);
-  (void)SET_SEGREG(GS_DTR,big,Ofs_GS,TheCPU.gs);
+  SetSegReal(vm86s.regs.cs,Ofs_CS);
+  SetSegReal(vm86s.regs.ss,Ofs_SS);
+  SetSegReal(vm86s.regs.ds,Ofs_DS);
+  SetSegReal(vm86s.regs.es,Ofs_ES);
+  SetSegReal(vm86s.regs.fs,Ofs_FS);
+  SetSegReal(vm86s.regs.gs,Ofs_GS);
   trans_addr     = LONG_CS + TheCPU.eip;
 
   if (d.emu>1) {
 	if (d.emu==3) e_printf("Reg2Cpu< vm86=%08lx dpm=%08x emu=%08lx evf=%08lx\n%s\n",
-		info->regs.eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags,
+		vm86s.regs.eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags,
 		e_print_regs());
 	else e_printf("Reg2Cpu< vm86=%08lx dpm=%08x emu=%08lx evf=%08lx\n",
-		info->regs.eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags);
+		vm86s.regs.eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags);
   }
 }
 
-
-static void Cpu2Reg (struct vm86plus_struct *info)
+/*
+ * Exit emulator in VM86 mode and return to dosemu (return_to_32bit)
+ */
+static void Cpu2Reg (void)
 {
+  int mask;
   if (d.emu>1) e_printf("Cpu2Reg> vm86=%08lx dpm=%08x emu=%08lx evf=%08lx\n",
-	info->regs.eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags);
-  info->regs.eax = TheCPU.eax;
-  info->regs.ebx = TheCPU.ebx;
-  info->regs.ecx = TheCPU.ecx;
-  info->regs.edx = TheCPU.edx;
-  info->regs.esi = TheCPU.esi;
-  info->regs.edi = TheCPU.edi;
-  info->regs.ebp = TheCPU.ebp;
-  info->regs.esp = TheCPU.esp;
-  info->regs.ds  = TheCPU.ds;
-  info->regs.es  = TheCPU.es;
-  info->regs.ss  = TheCPU.ss;
-  info->regs.fs  = TheCPU.fs;
-  info->regs.gs  = TheCPU.gs;
-  info->regs.cs  = TheCPU.cs;
-  info->regs.eip = return_addr - LONG_CS;
+	vm86s.regs.eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags);
+  vm86s.regs.eax = TheCPU.eax;
+  vm86s.regs.ebx = TheCPU.ebx;
+  vm86s.regs.ecx = TheCPU.ecx;
+  vm86s.regs.edx = TheCPU.edx;
+  vm86s.regs.esi = TheCPU.esi;
+  vm86s.regs.edi = TheCPU.edi;
+  vm86s.regs.ebp = TheCPU.ebp;
+  vm86s.regs.esp = TheCPU.esp;
+  vm86s.regs.ds  = TheCPU.ds;
+  vm86s.regs.es  = TheCPU.es;
+  vm86s.regs.ss  = TheCPU.ss;
+  vm86s.regs.fs  = TheCPU.fs;
+  vm86s.regs.gs  = TheCPU.gs;
+  vm86s.regs.cs  = TheCPU.cs;
+  vm86s.regs.eip = return_addr - LONG_CS;
   /*
-   * The emulator only processes the low 16 bits of eflags. OF,PF and
-   * AF are not passed back, as dosemu doesn't care about them. RF is
-   * forced only for compatibility with the kernel syscall; it is not used.
-   * VIP and VIF are reflected to the emu flags but belong to the eflags.
+   * move (VIF|TSSMASK) flags from VEFLAGS to eflags; resync vm86s eflags
+   * from the emulated ones.
+   * The cpuemu should not change VIP, the good one is always in vm86s.
    */
-  info->regs.eflags = (info->regs.eflags & (VIP|VIF)) |
-  		      (TheCPU.eflags & (eTSSMASK|0x20ed5)) | 0x10002;
+  mask = VIF | eTSSMASK;
+  vm86s.regs.eflags = (vm86s.regs.eflags & VIP) | 
+  			(eVEFLAGS & mask) | (TheCPU.eflags & ~(mask|VIP));
 
   if (d.emu>1) e_printf("Cpu2Reg< vm86=%08lx dpm=%08x emu=%08lx evf=%08lx\n",
-	info->regs.eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags);
+	vm86s.regs.eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags);
 }
 
 
+/* ======================================================================= */
+
+/*
+ * Return back from fault handling to VM86
+ */
 static void Scp2CpuR (struct sigcontext_struct *scp)
 {
-  if (d.emu>1) e_printf("Scp2CpuR> scp=%08lx dpm=%08x emu=%08lx evf=%08lx\n",
-	scp->eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags);
-  __memcpy(&TheCPU.FIELD0,scp,sizeof(struct sigcontext_struct));
+  if (d.emu>1) e_printf("Scp2CpuR> scp=%08lx dpm=%08x fl=%08lx vf=%08lx\n",
+	scp->eflags,dpmi_eflags,TheCPU.eflags,eVEFLAGS);
+  __memcpy(&TheCPU.gs,scp,sizeof(struct sigcontext_struct));
   TheCPU.err = 0;
 
   if (in_dpmi) {	// vm86 during dpmi active
@@ -603,17 +685,21 @@ static void Scp2CpuR (struct sigcontext_struct *scp)
   TheCPU.eflags = (scp->eflags&(eTSSMASK|0x10ed5)) | 0x20002;
   trans_addr = ((scp->cs<<4) + scp->eip);
 
-  if (d.emu>1) e_printf("Scp2CpuR< scp=%08lx dpm=%08x emu=%08lx evf=%08lx\n",
-	scp->eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags);
+  if (d.emu>1) e_printf("Scp2CpuR< scp=%08lx dpm=%08x fl=%08lx vf=%08lx\n",
+	scp->eflags,dpmi_eflags,TheCPU.eflags,eVEFLAGS);
 }
 
-
-static void Cpu2Scp (struct sigcontext_struct *scp,
-	int trapno)
+/*
+ * Build a sigcontext structure to enter fault handling from VM86 or DPMI
+ */
+static void Cpu2Scp (struct sigcontext_struct *scp, int trapno)
 {
-  if (d.emu>1) e_printf("Cpu2Scp> scp=%08lx dpm=%08x emu=%08lx evf=%08lx\n",
-	scp->eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags);
-  __memcpy(scp,&TheCPU.FIELD0,sizeof(struct sigcontext_struct));
+  if (d.emu>1) e_printf("Cpu2Scp> scp=%08lx dpm=%08x fl=%08lx vf=%08lx\n",
+	scp->eflags,dpmi_eflags,TheCPU.eflags,eVEFLAGS);
+
+  /* setup stack context from cpu registers */
+  __memcpy(scp,&TheCPU.gs,sizeof(struct sigcontext_struct));
+
   scp->trapno = trapno;
   /* Error code format:
    * b31-b16 = 0 (undef)
@@ -621,57 +707,70 @@ static void Cpu2Scp (struct sigcontext_struct *scp,
    * (b0-b1 are currently unimplemented here)
    */
   if (!TheCPU.err) scp->err = 0;		//???
+
   if (in_dpmi) {
     scp->cs = TheCPU.cs;
     scp->eip = return_addr - LONG_CS;
-    scp->eflags = (dpmi_eflags & (VIP|VIF|IF)) |
-  		      (TheCPU.eflags & (eTSSMASK|0xed5)) | 0x10002;
+    /* push running flags - same as eflags, RF is cosmetic */
+    scp->eflags = (TheCPU.eflags & (eTSSMASK|0xfd5)) | 0x10002;
   }
   else {
+    unsigned long mask;
     scp->cs  = return_addr >> 16;
     scp->eip = return_addr & 0xffff;
-    scp->eflags = (vm86s.regs.eflags & (VIP|VIF)) |
-  		      (TheCPU.eflags & (eTSSMASK|0xed5)) | 0x20002;
+    /* rebuild running flags */
+    mask = VIF | eTSSMASK;
+    vm86s.regs.eflags = (vm86s.regs.eflags & VIP) | 
+  			(eVEFLAGS & mask) | (TheCPU.eflags & ~(mask|VIP));
+    scp->eflags = vm86s.regs.eflags & ~VM;
   }
-  if (d.emu>1) e_printf("Cpu2Scp< scp=%08lx vm86=%08lx dpm=%08x emu=%08lx evf=%08lx\n",
-	scp->eflags,vm86s.regs.eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags);
+  if (d.emu>1) e_printf("Cpu2Scp< scp=%08lx vm86=%08lx dpm=%08x fl=%08lx vf=%08lx\n",
+	scp->eflags,vm86s.regs.eflags,dpmi_eflags,TheCPU.eflags,eVEFLAGS);
 }
 
 
 /* ======================================================================= */
-
 /*
  * Register movements between the dosemu REGS and the emulator cpu
  * B - DPMI and PM mode
  */
+
+/*
+ * Enter emulator in DPMI mode (context_switch)
+ */
 static int Scp2CpuD (struct sigcontext_struct *scp)
 {
   char big; int mode=0;
-  __memcpy(&TheCPU.FIELD0,scp,sizeof(struct sigcontext_struct));
-  TheCPU.veflags = scp->eflags&~EFLAGS_VM;
 
-  mode |= ADDR16;	/* just a default */
-  TheCPU.err = SET_SEGREG(CS_DTR,big,Ofs_CS,TheCPU.cs);
+  /* copy registers from current dpmi client to our cpu */
+  __memcpy(&TheCPU.gs,scp,sizeof(struct sigcontext_struct));
+
+  mode |= ADDR16;
+  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_CS,&big,TheCPU.cs);
+  if (TheCPU.err) goto erseg;
   if (big) mode=0; else mode |= DATA16;
-  if (!TheCPU.err) {
-    TheCPU.err = SET_SEGREG(DS_DTR,big,Ofs_DS,TheCPU.ds);
-    if (!TheCPU.err) {
-      SET_SEGREG(SS_DTR,big,Ofs_SS,TheCPU.ss);
-      TheCPU.StackMask = (big? 0xffffffff : 0x0000ffff);
-      if (!TheCPU.err) {
-	SET_SEGREG(ES_DTR,big,Ofs_ES,TheCPU.es);
-	SET_SEGREG(FS_DTR,big,Ofs_FS,TheCPU.fs);
-	SET_SEGREG(GS_DTR,big,Ofs_GS,TheCPU.gs);
-      }
-    }
-  }
-  TheCPU.eflags = (scp->eflags&(eTSSMASK|0x10ed5)) | 2;
+
+  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_DS,&big,TheCPU.ds);
+  if (TheCPU.err) goto erseg;
+  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_SS,&big,TheCPU.ss);
+  if (TheCPU.err) goto erseg;
+  TheCPU.StackMask = (big? 0xffffffff : 0x0000ffff);
+  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_ES,&big,TheCPU.es);
+  if (TheCPU.err) goto erseg;
+  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_FS,&big,TheCPU.fs);
+  if (TheCPU.err) goto erseg;
+  TheCPU.err = SetSegProt(mode&ADDR16,Ofs_GS,&big,TheCPU.gs);
+erseg:
+  /* push scp flags, pop eflags - this clears RF,VM */
+  TheCPU.eflags = (scp->eflags & (eTSSMASK|0xed5)) | 2;
   trans_addr = LONG_CS + scp->eip;
   if (d.emu>1) {
-	if (d.emu==3) e_printf("Scp2CpuD: %08lx -> %08lx\n\tIP=%08lx:%08lx\n%s\n",
+	if (d.emu==3) e_printf("Scp2CpuD%s: %08lx -> %08lx\n\tIP=%08lx:%08lx\n%s\n",
+			(TheCPU.err? " ERR":""),
 			scp->eflags, TheCPU.eflags, LONG_CS, scp->eip,
 			e_print_regs());
-	else e_printf("Scp2CpuD: %08lx -> %08lx\n",scp->eflags, TheCPU.eflags);
+	else e_printf("Scp2CpuD%s: %08lx -> %08lx\n",
+			(TheCPU.err? " ERR":""), scp->eflags, TheCPU.eflags);
   }
   return mode;
 }
@@ -704,7 +803,7 @@ void init_emu_cpu (void)
   TheCPU.gs_cache.BoundL = 0;
   TheCPU.gs_cache.BoundH = 0x10ffff;
 
-  Reg2Cpu(&vm86s,ADDR16|DATA16);
+  Reg2Cpu(ADDR16|DATA16);
   TheCPU.StackMask = 0x0000ffff;
   init_emu_npu();
 
@@ -738,10 +837,13 @@ static void e_gen_sigalrm(int sig, struct sigcontext_struct context)
 	 * the passed context is that of dosemu, NOT that of the
 	 * emulated CPU! */
 
-	e_signal_pending |= 1;
 	e_sigpa_count += sigEMUdelta;
-	if (!in_vm86 && !in_dpmi) {
-	    TheCPU.EMUtime = GETTSC();
+	if (!in_vm86_emu && !in_dpmi_emu) {	/* if into dosemu itself */
+	    TheCPU.EMUtime = GETTSC();		/* resync emulator time  */
+	    sigEMUtime = TheCPU.EMUtime;	/* and generate signal   */
+	}
+	else {
+	    TheCPU.sigalrm_pending = 0x101;	/* decremented by loops  */
 	}
 	if (TheCPU.EMUtime >= sigEMUtime) {
 		lastEMUsig = TheCPU.EMUtime;
@@ -756,6 +858,7 @@ static void e_gen_sigalrm(int sig, struct sigcontext_struct context)
 static void e_gen_sigprof(int sig, struct sigcontext_struct context)
 {
 	e_sigpa_count -= sigEMUdelta;
+	TheCPU.sigprof_pending += 1;
 }
 
 
@@ -784,17 +887,15 @@ void enter_cpu_emu(void)
 	if ((ISEG(0x10)==INT10_WATCHER_SEG)&&(IOFF(0x10)==INT10_WATCHER_OFF))
 		IOFF(0x10)=CPUEMU_WATCHER_OFF;
 #endif
-	e_printf("EMU86: turning emuretrace ON\n");
-	last_emuretrace = config.emuretrace;
-	config.emuretrace = 2;
-	JumpOpt = 3;
-	JumpOptLim = 0x1000;
-
 	e_printf("EMU86: switching SIGALRMs\n");
 	TheCPU.EMUtime = GETTSC();
 	sigEMUdelta = config.realdelta*config.CPUSpeedInMhz;
 	sigEMUtime = TheCPU.EMUtime + sigEMUdelta;
-	TotalTime = SearchTime = AddTime = ExecTime = CleanupTime = 0;
+	TotalTime = 0;
+#ifdef PROFILE
+	SearchTime = AddTime = ExecTime = CleanupTime =
+	GenTime = LinkTime = 0;
+#endif
 	e_printf("EMU86: delta alrm=%d speed=%d\n",config.realdelta,config.CPUSpeedInMhz);
 	e_sigpa_count = 0;
 	SETSIG(SIGALRM, e_gen_sigalrm);
@@ -809,6 +910,12 @@ void enter_cpu_emu(void)
 	NEWSETSIG(SIGFPE, e_emu_fault);
 	NEWSETSIG(SIGSEGV, e_emu_fault);
 
+#ifdef DEBUG_TREE
+	tLog = fopen(DEBUG_TREE_FILE,"w");
+#endif
+#ifdef ASM_DUMP
+	aLog = fopen(ASM_DUMP_FILE,"w");
+#endif
 	dbug_printf("======================= ENTER CPU-EMU ===============\n");
 	flush_log();
 	iniflag = 1;
@@ -818,7 +925,6 @@ void leave_cpu_emu(void)
 {
 	struct itimerval itv;
 	struct sigaction sa;
-	extern int MaxDepth, MaxNodes, MaxNodeSize;
 
 	if (config.cpuemu > 1) {
 		config.cpuemu=1;
@@ -826,9 +932,6 @@ void leave_cpu_emu(void)
 		if (IOFF(0x10)==CPUEMU_WATCHER_OFF)
 			IOFF(0x10)=INT10_WATCHER_OFF;
 #endif
-		e_printf("EMU86: turning emuretrace OFF\n");
-		config.emuretrace = last_emuretrace;
-
 		NEWSETSIG(SIGFPE, dosemu_fault);
 		NEWSETSIG(SIGSEGV, dosemu_fault);
 		e_printf("EMU86: switching SIGALRMs\n");
@@ -843,20 +946,42 @@ void leave_cpu_emu(void)
 		SETSIG(SIGPROF, SIG_IGN);
 
 		EndGen();
+#ifdef DEBUG_TREE
+		fclose(tLog); tLog = NULL;
+#endif
+#ifdef ASM_DUMP
+		fclose(aLog); aLog = NULL;
+#endif
 		mprot_end();
 
 		if (alloc_LDT!=NULL) { free(alloc_LDT); alloc_LDT=LDT=NULL; }
 		GDT = NULL; IDT = NULL;
 		dbug_printf("======================= LEAVE CPU-EMU ===============\n");
-		dbug_printf("Total cpuemu time %16Ld us\n",TotalTime/config.CPUSpeedInMhz);
-		dbug_printf("Total exec   time %16Ld us\n",ExecTime/config.CPUSpeedInMhz);
+#ifdef PROFILE
+		dbug_printf("Total cpuemu time %16Ld us (incl.trace)\n",TotalTime/config.CPUSpeedInMhz);
+		dbug_printf("Total codgen time %16Ld us\n",GenTime/config.CPUSpeedInMhz);
+		dbug_printf("Total linker time %16Ld us\n",LinkTime/config.CPUSpeedInMhz);
+		dbug_printf("Total exec   time %16Ld us (incl.faults)\n",ExecTime/config.CPUSpeedInMhz);
 		dbug_printf("Total insert time %16Ld us\n",AddTime/config.CPUSpeedInMhz);
 		dbug_printf("Total search time %16Ld us\n",SearchTime/config.CPUSpeedInMhz);
 		dbug_printf("Total clean  time %16Ld us\n",CleanupTime/config.CPUSpeedInMhz);
 		dbug_printf("Max tree nodes    %16d\n",MaxNodes);
 		dbug_printf("Max node size     %16d\n",MaxNodeSize);
 		dbug_printf("Max tree depth    %16d\n",MaxDepth);
-
+		dbug_printf("Nodes parsed      %16d\n",TotalNodesParsed);
+		dbug_printf("Find misses       %16d\n",NodesNotFound);
+		dbug_printf("Nodes executed    %16d\n",TotalNodesExecd);
+		if (TotalNodesExecd) {
+		  unsigned long long k;
+		  k = ((long long)NodesFound * 100UL) / (long long)TotalNodesExecd;
+		  dbug_printf("Find hits         %16d (%Ld%%)\n",NodesFound,k);
+		  k = ((long long)NodesFastFound * 100UL) / (long long)TotalNodesExecd;
+		  dbug_printf("Find last hits    %16d (%Ld%%)\n",NodesFastFound,k);
+		}
+		dbug_printf("Page faults       %16d\n",PageFaults);
+		dbug_printf("Signals received  %16d\n",EmuSignals);
+		dbug_printf("Tree cleanups     %16d\n",TreeCleanups);
+#endif
 		/*re*/init_emu_cpu();
 	}
 	flush_log();
@@ -873,9 +998,9 @@ static inline unsigned long e_get_vflags(void)
 {
 	unsigned long flags = REG(eflags) & RETURN_MASK;
 
-	if (TheCPU.veflags & VIF_MASK)
+	if (eVEFLAGS & VIF_MASK)
 		flags |= IF_MASK;
-	return flags | (TheCPU.veflags & eTSSMASK);
+	return flags | (eVEFLAGS & eTSSMASK);
 }
 
 static inline int e_revectored(int nr, struct revectored_struct * bitmap)
@@ -884,6 +1009,13 @@ static inline int e_revectored(int nr, struct revectored_struct * bitmap)
 		:"=r" (nr)
 		:"m" (*bitmap),"r" (nr));
 	return nr;
+}
+
+static void e_should_clean_tree(int i)
+{
+	if ((i==0x21) && ((HI(ax)==0x4b)||(HI(ax)==0x4c))) {
+	    FLUSH_TREE;
+	}
 }
 
 static int e_do_int(int i, unsigned char * ssp, unsigned long sp)
@@ -906,16 +1038,20 @@ static int e_do_int(int i, unsigned char * ssp, unsigned long sp)
 	_CS = segoffs >> 16;
 	_SP -= 6;
 	_IP = segoffs & 0xffff;
-	REG(eflags) &= ~TF_MASK;
-	TheCPU.veflags &= ~VIF_MASK;
-	if ((i!=0x16)&&((d.emu>1)||(d.dos))) {
-		dbug_printf("EMU86: directly calling int %#x ax=%#x at %#x:%#x\n", i, _AX, _CS, _IP);
+	REG(eflags) &= ~(TF|RF|AC);
+	eVEFLAGS &= ~VIF_MASK;
+
+	/* see config.c: int21 goes here when d.dos==0 ... */
+	if (i!=0x16) {
+	    e_printf("EMU86: directly calling int %#x ax=%#x at %#x:%#x\n",
+		i, _AX, _CS, _IP);
+	    e_should_clean_tree(i);
 	}
 	return -1;
 
 cannot_handle:
-	if ((d.emu>1)||(d.dos))
-		dbug_printf("EMU86: calling revectored int %#x\n", i);
+	e_printf("EMU86: calling revectored int %#x\n", i);
+	e_should_clean_tree(i);
 	return (VM86_INTx + (i << 8));
 }
 
@@ -976,14 +1112,16 @@ int e_vm86(void)
   long errcode;
 
   /* skip emulation of video BIOS, as it is too much timing-dependent */
-  if ((config.cpuemu<2)
+  if ((!IsV86Emu) || (config.cpuemu<2)
 #ifdef SKIP_EMU_VBIOS
    || ((REG(cs)&0xf000)==config.vbios_seg)
 #endif
    ) {
+	s_munprotect(0);
+	InvalidateSegs();
 	return TRUE_VM86(&vm86s);
   }
-/**/ if (iniflag==0) enter_cpu_emu();
+  if (iniflag==0) enter_cpu_emu();
 
   tt0 = GETTSC();
   e_sigpa_count = 0;
@@ -999,15 +1137,19 @@ int e_vm86(void)
  /* This emulates VM86_ENTER */
   /* ------ OUTER LOOP: exit for code >=0 and return to dosemu code */
   do {
-    Reg2Cpu (&vm86s, mode);
-
+    Reg2Cpu(mode);
+#ifdef HOST_ARCH_SIM
+    RFL.valid = V_INVALID;
+#endif
     /* ---- INNER LOOP: exit with error or code>0 (vm86 fault) ---- */
     do {
       /* enter VM86 mode */
+      in_vm86_emu = 1;
       e_printf("INTERP: enter=%08lx\n",trans_addr);
       return_addr = (long)Interp86((char *)trans_addr, mode);
       e_printf("INTERP: exit=%08lx err=%ld\n",return_addr,TheCPU.err-1);
       xval = TheCPU.err;
+      in_vm86_emu = 0;
       /* 0 if ok, else exception code+1 or negative if dosemu err */
       if (xval < 0) {
         error("EMU86: error %d\n", -xval);
@@ -1018,8 +1160,11 @@ int e_vm86(void)
     }
     while (xval==0);
     /* ---- INNER LOOP -- exit for exception ---------------------- */
+#ifdef HOST_ARCH_SIM
+    FlagSync_All();
+#endif
 
-    Cpu2Reg (&vm86s);
+    Cpu2Reg();
     if (d.emu>1) e_printf("---------------------\n\t   EMU86: EXCP %#x\n", xval-1);
 
     retval = -1;
@@ -1071,15 +1216,7 @@ int e_vm86(void)
   while (retval < 0);
   /* ------ OUTER LOOP -- exit to user level ---------------------- */
 
-  /* In the kernel, this always clears VIP, as it is never in VEFLAGS.
-   * But on return from syscall a signal can be caught, and signal_save()
-   * will set VIP again. This explains why VIP can be set on return from
-   * VM86().
-   * In this emulator, if a signal was trapped VIP is already set
-   * in eflags, and will be kept by the following operation.
-   */
-  e_set_flags(REG(eflags), TheCPU.veflags, VIF_MASK | eTSSMASK);
-
+  LastXNode = NULL;
   e_printf("EMU86: retval=%s\n", retdescs[retval&7]);
 
 #ifdef SKIP_VM86_TRACE
@@ -1102,7 +1239,7 @@ int e_dpmi(struct sigcontext_struct *scp)
   int xval,retval,mode;
   Descriptor *dt;
 
-/**/ if (iniflag==0) enter_cpu_emu();
+  if (iniflag==0) enter_cpu_emu();
 
   tt0 = GETTSC();
   e_sigpa_count = 0;
@@ -1112,7 +1249,7 @@ int e_dpmi(struct sigcontext_struct *scp)
 
   if (d.emu>2) {
 	long swa = (long)(DTgetSelBase(_cs)+_eip);
-	D_printf("DPMI SWITCH to %08lx\n",swa);
+	D_printf("EMU86: DPMI enter at %08lx\n",swa);
   }
 //  if (lastEMUsig)
 //    e_printf("DPM86: last sig at %Ld, curr=%Ld, next=%Ld\n",lastEMUsig>>16,
@@ -1122,6 +1259,9 @@ int e_dpmi(struct sigcontext_struct *scp)
   do {
     TheCPU.err = 0;
     mode = Scp2CpuD (scp);
+#ifdef HOST_ARCH_SIM
+    RFL.valid = V_INVALID;
+#endif
     if (TheCPU.err) {
         error("DPM86: segment error %d\n", TheCPU.err);
         leavedos(0);
@@ -1146,6 +1286,9 @@ int e_dpmi(struct sigcontext_struct *scp)
     }
     while (xval==0);
     /* ---- INNER LOOP -- exit for exception ---------------------- */
+#ifdef HOST_ARCH_SIM
+    FlagSync_All();
+#endif
 
     if (d.emu>1) e_printf("DPM86: EXCP %#x eflags=%08lx\n",
 	xval-1, REG(eflags));
@@ -1157,7 +1300,7 @@ int e_dpmi(struct sigcontext_struct *scp)
     E_TIME_STRETCH;
 
     if ((xval==EXCP_SIGNAL) || (xval==EXCP_PICSIGNAL) || (xval==EXCP_STISIGNAL)) {
-/**/ e_printf("DPMI retcode = %d\n",emu_dpmi_retcode);
+	if (d.emu>2) e_printf("DPMI retcode = %d\n",emu_dpmi_retcode);
 	if (emu_dpmi_retcode >= 0) {
 	    retval=emu_dpmi_retcode; emu_dpmi_retcode = -1;
 	}
@@ -1187,6 +1330,7 @@ int e_dpmi(struct sigcontext_struct *scp)
   while (retval < 0);
   /* ------ OUTER LOOP -- exit to user level ---------------------- */
 
+  LastXNode = NULL;
   e_printf("DPM86: retval=%#x\n", retval);
 
   TotalTime += (GETTSC() - tt0);

@@ -114,6 +114,7 @@ config_defaults(void)
     config.rdtsc = 0;
     config.mathco = 0;
     config.smp = 0;
+    config.cpummx = 0;
     config.CPUSpeedInMhz = 150;	/* instruction cycles per us, entry level */
 
     open_proc_scan("/proc/cpuinfo");
@@ -130,6 +131,11 @@ config_defaults(void)
         if (!cpuflags) {
           cpuflags = get_proc_string_by_key("flags");
         }
+#ifdef X86_EMULATOR
+        if (cpuflags && strstr(cpuflags, "mmx")) {
+	  config.cpummx = 1;
+        }
+#endif
         if (cpuflags && strstr(cpuflags, "tsc")) {
           /* bogospeed currently returns 0; should it deny
            * pentium features, fall back into 486 case */
@@ -1147,7 +1153,7 @@ check_for_env_autoexec_or_config(void)
  */
 int parse_debugflags(const char *s, unsigned char flag)
 {
-    char            c;
+    char c;
     int ret = 0;
 #ifdef X_SUPPORT
     const char      allopts[] = "dARWDCvXkiTtsm#pQgcwhIExMnPrSeZ";
@@ -1163,7 +1169,7 @@ int parse_debugflags(const char *s, unsigned char flag)
      * correctly.
      */
 
-    dbug_printf("debug flags: %s\n", s);
+    dbug_printf("debug flags: (%d)%s\n", flag, s);
     while ((c = *(s++)))
 	switch (c) {
 	case '+':		/* begin options to turn on */
@@ -1272,15 +1278,17 @@ int parse_debugflags(const char *s, unsigned char flag)
 #ifdef X86_EMULATOR
 	case 'e':		/* cpu-emu */
 	    d.emu = flag;
+	    dbug_printf("debug flags: (%d)e\n", flag);
 	    break;
 #endif
 #ifdef TRACE_DPMI
 	case 't':		/* dpmi */
 	    d.dpmit = flag;
+	    dbug_printf("debug flags: (%d)t\n", flag);
 	    break;
 #endif
 	case 'a':{		/* turn all on/off depending on flag */
-		char           *newopts = (char *) malloc(strlen(allopts) + 2);
+		char *newopts = (char *) malloc(strlen(allopts) + 2);
 
 		newopts[0] = flag ? '+' : '-';
 		newopts[1] = 0;
@@ -1288,15 +1296,16 @@ int parse_debugflags(const char *s, unsigned char flag)
 #if 1 /* we need to _always_ remove these flags here !!! #ifdef X86_EMULATOR */
 		/* hack-do not set 'e,t' flags if not explicitly specified */
 		{char *p=newopts;
-		 while (*p) {if ((*p=='e')||(*p=='t')) *p='g'; p++;}}
+		 while (*p) {if ((*p=='e')||(*p=='t')) *p='!'; p++;}}
 #endif
 		parse_debugflags(newopts, flag);
 		free(newopts);
 	    }
 	    break;
-	case '0'...'9':	/* set debug level, 0 is off, 9 is most
+	case '0' ... '9':	/* set debug level, 0 is off, 9 is most
 				 * verbose */
 	    flag = c - '0';
+	case '!':		/* do-nothing */
 	    break;
 	default:
 	    fprintf(stderr, "Unknown debug-msg mask: %c\n\r", c);

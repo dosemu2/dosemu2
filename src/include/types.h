@@ -24,9 +24,16 @@
 typedef u_int64_t hitimer_t;
 
 typedef union {
-  hitimer_t td;
+  u_int64_t td;
   struct { u_int32_t tl,th; } t;
-} hitimer_u;
+} u_int64_u;
+
+typedef union {
+  int64_t td;
+  struct { int32_t tl,th; } t;
+} int64_u;
+
+typedef u_int64_u hitimer_u;
 
 typedef unsigned char      Boolean;
 typedef u_int8_t           Bit8u;   /* type of 8 bit unsigned quantity */

@@ -200,6 +200,9 @@ TODO:
 /* For passing through GetRedirection Status */
 #include "memory.h"
 #include "mangle.h"
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
+#endif
 #endif
 
 #ifndef PAGE_SIZE
@@ -2857,10 +2860,6 @@ dos_fs_redirect(state)
     {				/* 0x08 */
       int return_val;
       int itisnow;
-#ifdef X86_EMULATOR
-      extern void InvalidateTreePaged(char *, int);
-      extern int e_munprotect(char *, size_t);
-#endif
 
       cnt = WORD(state->ecx);
       fd = sft_fd(sft);
@@ -2876,11 +2875,9 @@ dos_fs_redirect(state)
 
 #ifdef X86_EMULATOR
       if (config.cpuemu>1) {
-	long dtb = (long)dta & ~(PAGE_SIZE-1);
-	long dtl = (long)dta - dtb + cnt;
-	e_munprotect((void *)dtb, dtl);
-	InvalidateTreePaged((unsigned char *)dta, dtl);
+	ret = e_dos_read(fd, dta, cnt);
       }
+      else
 #endif
       ret = dos_read(fd, dta, cnt);
 
@@ -3276,14 +3273,25 @@ dos_fs_redirect(state)
     if (FCBcall) {
       unsigned char *ssp;
       unsigned long sp;
+#ifdef X86_EMULATOR
+      int tmp;
+      unsigned char *tmp_ssp;
+#endif
   
       ssp = (unsigned char *)(REG(ss)<<4);
       sp = (unsigned long) LWORD(esp);
 
       Debug0((dbg_fd, "FCB Open calling int2f 0x120c\n"));
+#ifdef X86_EMULATOR
+      tmp_ssp = ssp+sp;
+      tmp = E_MUNPROT_STACK(tmp_ssp);
+#endif
       pushw(ssp, sp, vflags);
       pushw(ssp, sp, LWORD(cs));
       pushw(ssp, sp, LWORD(eip));
+#ifdef X86_EMULATOR
+      if (tmp) E_MPROT_STACK(tmp_ssp);
+#endif
       LWORD(esp) -= 6;
       REG(cs) = (us) INTE7_SEG;
       REG(eip) = (us) INTE7_OFF;
@@ -3405,14 +3413,25 @@ dos_fs_redirect(state)
     if (FCBcall) {
       unsigned char *ssp;
       unsigned long sp;
+#ifdef X86_EMULATOR
+      int tmp;
+      unsigned char *tmp_ssp;
+#endif
   
       ssp = (unsigned char *)(REG(ss)<<4);
       sp = (unsigned long) LWORD(esp);
 
       Debug0((dbg_fd, "FCB Open calling int2f 0x120c\n"));
+#ifdef X86_EMULATOR
+      tmp_ssp = ssp+sp;
+      tmp = E_MUNPROT_STACK(tmp_ssp);
+#endif
       pushw(ssp, sp, vflags);
       pushw(ssp, sp, LWORD(cs));
       pushw(ssp, sp, LWORD(eip));
+#ifdef X86_EMULATOR
+      if (tmp) E_MPROT_STACK(tmp_ssp);
+#endif
       LWORD(esp) -= 6;
       REG(cs) = (us) INTE7_SEG;
       REG(eip) = (us) INTE7_OFF;

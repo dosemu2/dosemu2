@@ -7,6 +7,7 @@
 #ifndef DOSEMU_CPUEMU_H
 #define DOSEMU_CPUEMU_H
 
+#include "kversion.h"
 #include "bitops.h"
 
 /*
@@ -49,7 +50,7 @@ extern void e_priv_iopl(int);
  * untrapped port will be allowed to compile. This is not 100% safe
  * since DX can dynamically change.
  */
-#if 0
+#if 1
 #define CPUEMU_DIRECT_IO
 #endif
 
@@ -65,8 +66,23 @@ extern void e_priv_iopl(int);
 #define CeS_TRAP	0x1000	/* INT01 Sstep active */
 #define CeS_DRTRAP	0x2000	/* Debug Registers active */
 
-extern int CEmuStat;
+extern int IsV86Emu;
+extern int IsDpmiEmu;
+
+extern volatile int CEmuStat;
 extern int InCompiledCode;
+
+void enter_cpu_emu(void);
+void leave_cpu_emu(void);
+void avltr_destroy(void);
+
+#define FLUSH_TREE	if (config.cpuemu>1) avltr_destroy()
+
+int s_munprotect(caddr_t addr);
+int s_mprotect(caddr_t addr);
+
+#define E_MUNPROT_STACK(s)	(config.cpuemu>1? s_munprotect((caddr_t)(s)):0)
+#define E_MPROT_STACK(s)	(config.cpuemu>1? s_mprotect((caddr_t)(s)):0)
 
 /* called from dpmi.c */
 void emu_mhp_SetTypebyte (unsigned short selector, int typebyte);

@@ -27,7 +27,7 @@
 #define CISH(x) x
 #endif
 #else
-# error "Sorry, a.out format no longer is supported"
+# error "Sorry, a.out format is no longer supported"
 #endif
 
 /* split segment 0xf000 into two region, 0xf0000 to 0xf7fff is read-write */

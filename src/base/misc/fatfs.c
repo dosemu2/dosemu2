@@ -25,7 +25,7 @@
  * Debug level.
  * 0 - normal / 1 - useful / 2 - too much
  */
-#define DEBUG_FATFS	2
+#define DEBUG_FATFS	1
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */

@@ -125,7 +125,7 @@ not_yet_installed:
         # terminate and stay resident
         movw    $0x3100,%ax
 #	movw    $[[init - start]/16]+17,%dx
-	movw	$((init - start) >> 16)+17,%dx
+	movw	$((init - start) >> 4)+17,%dx
         int     $0x21
 
 complain_and_exit:

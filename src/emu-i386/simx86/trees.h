@@ -7,7 +7,7 @@
  *
  *
  *  SIMX86 a Intel 80x86 cpu emulator
- *  Copyright (C) 1997,2000 Alberto Vignani, FIAT Research Center
+ *  Copyright (C) 1997,2001 Alberto Vignani, FIAT Research Center
  *				a.vignani@crf.it
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -47,28 +47,46 @@
 // Tree node key definition.
 //
 
+typedef struct _bkref {
+	struct _bkref *next;
+	unsigned long *ref;
+	char branch;
+} backref;
+
+typedef struct _lnkdesc {
+	unsigned char t_type;
+	unsigned short nrefs;
+	unsigned long t_link,  t_undo;
+	unsigned long nt_link, nt_undo;
+	unsigned long *t_ref, *nt_ref;
+	backref bkr;
+} linkdesc;
+
+typedef struct _imgen {
+	int op, mode, ovds;
+	int p0,p1,p2,p3,p4;
+} IGen;
+
+typedef struct _ianpc {
+	unsigned short daddr, dnpc __attribute__ ((packed));
+} Addr2Pc;
+
 typedef struct _imeta {
-	unsigned char *addr, *npc, *jtgt;
-	struct _imeta *fwref;
-	unsigned short ncount, len, flags;
-	unsigned short cklen;
+	unsigned char *addr, *npc, *seqbase, *jtgt;
+	unsigned short ncount, len, flags, seqlen, totlen;
+	linkdesc clink;
+	int ngen;
+	IGen gen[NUMGENS];
 } IMeta;
 
-#define MAXGNODES	512
 extern IMeta InstrMeta[];
-extern IMeta *LastIMeta;
-extern IMeta *ForwIRef;
+extern int   CurrIMeta;
 
-#define CODEBUFSIZE	16384
-
-extern unsigned char CodeBuf[];
+extern unsigned char *GenCodeBuf;
+extern int GenBufSize;
 extern unsigned char *CodePtr;
-extern unsigned char *PrevCodePtr;
-extern unsigned char *MaxCodePtr;
 
-#define TAILSIZE	8
-#define TAILFIX		3	/* 8-1-4 */
-extern unsigned char TailCode[TAILSIZE];
+extern unsigned char TailCode[];
 
 typedef struct avltr_node
 {
@@ -79,15 +97,18 @@ typedef struct avltr_node
     char pad;			/* Reserved for fully threaded trees. */
     signed char rtag;		/* Right thread tag. */
 /* -------------------------------------------------------------- */
-	long key;		/* signed! */
-	unsigned char *addr;
-	int jcount;
-#ifdef USE_CHECKSUM
-	unsigned char cksum;
-#endif
-	unsigned short len, flags, cklen;
+	long key;		/* signed! and don't move it from here! */
+/* -------------------------------------------------------------- */
+	int alive;
+	unsigned char *mblock, *addr;
+	Addr2Pc *pmeta;
+	unsigned short len, flags, seqlen, seqnum __attribute__ ((packed));
+	long nxkey, seqbase;
 	struct avltr_node *nxnode;
+	linkdesc clink;
 } TNode;
+
+#define AHDRPTR(a)	*((TNode **)((a)->mblock))
 
 /* Used for traversing a right-threaded AVL tree. */
 typedef struct avltr_traverser
@@ -103,8 +124,6 @@ typedef struct avltr_tree
     int count;			/* Number of nodes in the tree. */
 } avltr_tree;
 
-#define AVL_MAX_HEIGHT	20
-
 /* Tag types. */
 #define PLUS +1
 #define MINUS -1
@@ -112,10 +131,13 @@ typedef struct avltr_tree
 extern avltr_tree CollectTree;
 
 //
-TNode *FindTree(unsigned char *addr);
-TNode *Move2ITree(void);
+TNode *FindTree(long key);
+TNode *Move2Tree(void);
 //
 void InitTrees(void);
-int  InvalidateTreePaged (unsigned char *addr, int len);
+void avltr_destroy(void);
+int  FindCodeNode(long addr);
+int  InvalidateSingleNode (long addr, long eip);
+int  InvalidateNodePage(long addr, int len, long eip, int *codehit);
 
 #endif

@@ -4,8 +4,8 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-#define EXTERN 
-#define INIT(x...)		=  x
+#define EXTERN
+#define INIT(x...)		= x
 
 #include <termios.h>
 #include <sys/types.h>

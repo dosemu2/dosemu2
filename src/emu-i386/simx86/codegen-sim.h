@@ -38,7 +38,7 @@
 #include "codegen.h"
 #include "vgaemu.h"
 
-#define HOST_ARCH_X86
+#define HOST_ARCH_SIM
 
 #define TAILSIZE	7
 #define TAILFIX		1
@@ -75,35 +75,61 @@ return (to);
 
 /////////////////////////////////////////////////////////////////////////////
 
+typedef union {
+	unsigned long d;
+	signed long ds;
+	signed char *ps;
+	unsigned char *pu;
+	signed short *pws;
+	unsigned short *pwu;
+	signed long *pds;
+	unsigned long *pdu;
+	float *pff;
+	double *pfd;
+	struct { unsigned short l,h; } w;
+	struct { signed short l,h; } ws;
+	struct { unsigned char bl,bh,b2,b3; } b;
+	struct { signed char bl,bh,b2,b3; } bs;
+} wkreg;
+
+typedef struct {
+	int valid, mode;
+	long S1,S2;
+	wkreg RES;
+} flgtmp;
+
+#define V_INVALID	0
+#define V_GEN		1	// general/add case
+#define V_SUB		2
+#define V_SBB		3
+#define V_ADC		4
+
+extern wkreg DR1;	// "eax"
+extern wkreg DR2;	// "edx"
+extern wkreg AR1;	// "edi"
+extern wkreg AR2;	// "esi"
+extern wkreg SR1;	// "ebp"
+extern wkreg TR1;	// "ecx"
+extern flgtmp RFL;
+
 extern unsigned e_VgaRead(unsigned offs, int mode);
 extern void e_VgaWrite(unsigned offs, unsigned u, int mode);
 extern int TrapVgaOn;
 
-#define GTRACE0(s)
-#define GTRACE1(s,a)
-#define GTRACE2(s,a,b)
-#define GTRACE3(s,a,b,c)
-#define GTRACE4(s,a,b,c,d)
-#define GTRACE5(s,a,b,c,d,e)
-
-/////////////////////////////////////////////////////////////////////////////
-
-#define STD_WRITE_B	G2(0x0788,Cp);G3(0x909090,Cp)
-#define STD_WRITE_WL(m)	G5((m)&DATA16?0x90078966:0x90900789,0x90,Cp)
-
-#define GenAddECX(o)	if (((o) > -128) && ((o) < 128)) {\
-			G2(0xc183,Cp); G1((o),Cp); } else {\
-			G2(0xc181,Cp); G4((o),Cp); }
-
-#define GenLeaECX(o)	if (((o) > -128) && ((o) < 128)) {\
-			G2(0x498d,Cp); G1((o),Cp); } else {\
-			G2(0x898d,Cp); G4((o),Cp); }
-
-#define GenLeaEDI(o)	if (((o) > -128) && ((o) < 128)) {\
-			G2(0x7f8d,Cp); G1((o),Cp); } else {\
-			G2(0xbf8d,Cp); G4((o),Cp); }
-
-#define StackMaskEBP	{G2(0x6b23,Cp); G1(Ofs_STACKM,Cp); }
+#define GTRACE0(s)		if (d.emu>2) e_printf("(G) %-12s [%s]\n",(s),showmode(mode))
+#define GTRACE1(s,r)		if (d.emu>2) e_printf("(G) %-12s %s [%s]\n",(s),\
+					showreg(r),showmode(mode))
+#define GTRACE2(s,r1,r2)	if (d.emu>2) e_printf("(G) %-12s %s %s [%s]\n",(s),\
+					showreg(r1),showreg(r2),showmode(mode))
+#define GTRACE3(s,r1,r2,a)	if (d.emu>2) e_printf("(G) %-12s %s %s %08x [%s]\n",(s),\
+					showreg(r1),showreg(r2),(int)(a),showmode(mode))
+#define GTRACE4(s,r1,r2,a,b)	if (d.emu>2) e_printf("(G) %-12s %s %s %08x %08x [%s]\n",\
+					(s),showreg(r1),showreg(r2),(int)(a),(int)(b),showmode(mode))
+#define GTRACE5(s,r1,r2,a,b,c)	if (d.emu>2) e_printf("(G) %-12s %s %s %08x %08x %08x [%s]\n",\
+					(s),showreg(r1),showreg(r2),(int)(a),(int)(b),(int)(c),showmode(mode))
+extern void FlagSync_AP (void);
+extern void FlagSync_O (void);
+extern void FlagSync_All (void);
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -160,23 +186,6 @@ static __inline__ void PUSH(int m, void *w)
 /////////////////////////////////////////////////////////////////////////////
 
 #define FWJ_OFFS	5
-// get all flags and let them on the stack
-#define PopPushF(Cp)	if (((Cp)==BaseGenBuf)||((Cp)[-1]!=PUSHF)) \
-				G2(0x9c9d,(Cp))
-
-#define GetStackDF(Cp)	G8(0x24ba0ffc,0x01730a24,(Cp));G1(0xfd,(Cp))
-
-/////////////////////////////////////////////////////////////////////////////
-//
-
-// 'no-jump' version, straight
-#define Gen66(mode, Cp) \
-	*(Cp)=OPERoverride; Cp+=BTA(BitDATA16, mode)
-
-// 'no-jump' version, tricky (depends on bit position)
-#define G2_4(mode, val, Cp) \
-	*((long *)(Cp))=(val); Cp+=BT24(BitDATA16, mode)
-
 
 /////////////////////////////////////////////////////////////////////////////
 

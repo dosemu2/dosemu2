@@ -1598,7 +1598,7 @@ static int cmd_dir(int argc, char **argv)
 				  XXX(DOS_ATTR_ARCH);
 			case 'r': XXX(DOS_ATTR_RDONLY);
 		    }
-		    #undef XXX(x)
+		    #undef XXX
 		}
 		if (!incmask) incmask = DOS_ATTR_ALL +0x80;
 		argc = remove_arg(i, argc, argv);

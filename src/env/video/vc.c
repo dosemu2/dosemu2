@@ -133,6 +133,8 @@ void check_console(void) {
     major = chkbuf.st_rdev >> 8;
     minor = chkbuf.st_rdev & 0xff;
 
+    c_printf("major = %d minor = %d\n",
+	    major, minor);
     /* console major num is 4, minor 64 is the first serial line */
     if (can_do_root_stuff && (major == 4) && (minor < 64)) {
        scr_state.console_no = minor;

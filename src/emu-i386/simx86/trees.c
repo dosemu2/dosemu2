@@ -7,7 +7,7 @@
  *
  *
  *  SIMX86 a Intel 80x86 cpu emulator
- *  Copyright (C) 1997,2000 Alberto Vignani, FIAT Research Center
+ *  Copyright (C) 1997,2001 Alberto Vignani, FIAT Research Center
  *				a.vignani@crf.it
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -43,62 +43,53 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <sys/mman.h>
 #include "emu86.h"
-#include "codegen-x86.h"
+#include "codegen-arch.h"
 
-/* debug dump */
-#undef  DEBUG_TREE
-#define DT_LEV		2
+#ifdef DEBUG_TREE
+void DumpTree (FILE *fd);
+extern FILE *tLog;
+#endif
 
-IMeta	InstrMeta[MAXGNODES];
-int	NextFreeIMeta = 1;
-IMeta	*ForwIRef = NULL;
-IMeta	*LastIMeta = NULL;
+IMeta	InstrMeta[MAXINODES];
+int	CurrIMeta = -1;
 
 /* Tree structure to store collected code sequences */
 avltr_tree CollectTree;
 avltr_traverser Traverser;
-int MaxDepth = 0;
 int ninodes = 0;
+
+int NodesCleaned = 0;
+int NodesParsed = 0;
+int NodesExecd = 0;
+int CleanFreq = 8;
+int CreationIndex = 0;
+
+#ifdef PROFILE
+int MaxDepth = 0;
 int MaxNodes = 0;
 int MaxNodeSize = 0;
-int NodesCleaned = 0;
+int TotalNodesParsed = 0;
+int TotalNodesExecd = 0;
+int NodesFound = 0;
+int NodesFastFound = 0;
+int NodesNotFound = 0;
+int PageFaults = 0;
+int TreeCleanups = 0;
+#endif
+
 TNode *LastXNode = NULL;
 
-#define NODES_IN_POOL	12000
 TNode *TNodePool;
+int NodeLimit = 100;
 
-/*
- * The BIG problem here is: we know exactly when to store compiled code
- * sequences into the tree, but HOW we can know when to delete them?
- *
- * Current solution: periodical cleanup.
- * There are two ways to traverse the collecting tree: one uses the
- * left/right pointers, the other uses prev/next.
- * Left/right follow the binary tree order based on the key, while
- * prev/next follow the historical insertion order.
- * A cleanup function (ideally a separate thread) traverses the tree
- * in a circular way along the prev/next chain and looks at the "age"
- * of the nodes (stored in jcount). As soon as the "node age" decays
- * to 0, the node is deleted; if needed, it will be parsed again from
- * scratch. Any time a node is found and executed its age is reset
- * to the "young" value.
- * How to make node ages decay in an optimal way is another matter;
- * suggestions are welcome.
- */
-#define NODELIFE(n)	((n)->len)
-#define CLEANFREQ	8
-#define AGENODE		((ninodes>>6)+1)
-
-/*
- * Another optimization issue - it is more costly to store very small
- * sequences or to reparse them every time? Needs some analysis.
- */
-#define MIN_FRAGLEN	1
+#define RANGE_IN_RANGE(al,ah,l,h)	({long _l2=(long)(al);\
+	long _h2=(long)(ah); ((_h2 >= (l)) && (_l2 < (h))); })
+#define ADDR_IN_RANGE(a,l,h)		({long _a2=(long)(a);\
+	((_a2 >= (l)) && (_a2 < (h))); })
 
 /////////////////////////////////////////////////////////////////////////////
-
-#define makekey(a)	(a)
 
 #define NEXTNODE(g)	{if ((g)->rtag==MINUS) (g)=(g)->link[1];\
 			  else { (g)=(g)->link[1];\
@@ -109,13 +100,16 @@ static inline TNode *Tmalloc(void)
   TNode *G  = TNodePool->link[0];
   TNode *G1 = G->link[0];
   if (G1==TNodePool) leavedos(0x4c4c); // return NULL;
-  TNodePool->link[0] = G1; G->link[0]=NULL; return G;
+  TNodePool->link[0] = G1; G->link[0]=NULL;
+  memset(G, 0, sizeof(TNode));	// "bug covering"
+  G->nxkey = -1;
+  return G;
 }
 
 static inline void Tfree(TNode *G)
 {
-  G->key = G->jcount = 0;
-  G->addr = NULL; G->nxnode = NULL;
+  G->key = G->alive = 0;
+  G->addr = NULL;
   G->link[0] = TNodePool->link[0];
   TNodePool->link[0] = G;
 }
@@ -129,6 +123,8 @@ static inline void datacopy(TNode *nd, TNode *ns)
   int l = sizeof(TNode)-offsetof(TNode,key);
   __memcpy(d,s,l);
 }
+
+#ifndef HOST_ARCH_SIM
 
 static TNode *avltr_probe (const long key, int *found)
 {
@@ -188,12 +184,16 @@ static TNode *avltr_probe (const long key, int *found)
       p = q;
       k++;
 /**/ if (k>=AVL_MAX_HEIGHT) leavedos(0x777);
+#ifdef PROFILE
       if (k>MaxDepth) MaxDepth=k;
+#endif
   }
   
   tree->count++;
   ninodes = tree->count;
+#ifdef PROFILE
   if (ninodes > MaxNodes) MaxNodes = ninodes;
+#endif
   q->bal = 0;
   
   r = p = s->link[(int) s->cache];
@@ -292,7 +292,7 @@ static TNode *avltr_probe (const long key, int *found)
 }
 
   
-static void avltr_delete (const long key)
+void avltr_delete (const long key)
 {
   avltr_tree *tree = &CollectTree;
   TNode *pa[AVL_MAX_HEIGHT];		/* Stack P: Nodes. */
@@ -321,7 +321,10 @@ static void avltr_delete (const long key)
       k++;
 /**/ if (k>=AVL_MAX_HEIGHT) leavedos(0x777);
   }
-  if (d.emu>DT_LEV) e_printf("Found node to delete at %08lx\n",(long)p);
+#if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
+  if (d.emu>2)
+	e_printf("Found node to delete at %08lx(%08lx)\n",(long)p,p->key);
+#endif
   tree->count--;
   ninodes = tree->count;
 
@@ -376,10 +379,14 @@ static void avltr_delete (const long key)
 		pa[k++] = r;
 	    }
 
-	    if (t->addr) free(t->addr);
-// e_printf("<03 node exchange %08lx->%08lx>\n",(long)s,(long)t);
+	    if (t->mblock) free(t->mblock);
+/* e_printf("<03 node exchange %08lx->%08lx>\n",(long)s,(long)t); */
 	    datacopy(t, s);
-	    s->addr = NULL;
+/**/	    if (t->addr==NULL) leavedos(0x8130);
+	    /* keep the node reference to itself */
+	    AHDRPTR(t) = t;
+	    s->addr = s->mblock = NULL;
+	    memset(&s->clink, 0, sizeof(linkdesc));
 	    s->key = 0;
 
 	    if (s->rtag == PLUS) r->link[0] = s->link[1];
@@ -390,8 +397,24 @@ static void avltr_delete (const long key)
   }
 
 /**/ if (Traverser.p==p) Traverser.init=0;
-  if (d.emu>DT_LEV) e_printf("Removed ITree-node %08lx\n",(long)p);
-  if (p->addr) free(p->addr);
+#if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
+  if (d.emu>2) e_printf("Remove node %08lx\n",(long)p);
+#endif
+#ifdef DEBUG_LINKER
+	if (p->clink.nrefs) {
+	    dbug_printf("Cannot delete - nrefs=%d\n",p->clink.nrefs);
+	    leavedos(0x9140);
+	}
+	if (p->clink.bkr.next) {
+	    dbug_printf("Cannot delete - bkr busy\n");
+	    leavedos(0x9141);
+	}
+	if (p->clink.t_ref || p->clink.nt_ref) {
+	    dbug_printf("Cannot delete - ref busy\n");
+	    leavedos(0x9142);
+	}
+#endif
+  if (p->mblock) free(p->mblock);
   Tfree(p);
 
   while (--k) {
@@ -502,11 +525,60 @@ static void avltr_delete (const long key)
   }
 }
 
+#endif	// HOST_ARCH_SIM
 
-static void avltr_destroy(void)
+/////////////////////////////////////////////////////////////////////////////
+
+static void avltr_reinit(void)
 {
-  avltr_tree *tree = &CollectTree;
+#ifndef HOST_ARCH_SIM
+  int i;
+  TNode *G;
 
+  CollectTree.root.link[0] = NULL;
+  CollectTree.root.link[1] = &CollectTree.root;
+  CollectTree.root.rtag = PLUS;
+  CollectTree.count = 0;
+  Traverser.init = 0;
+  Traverser.p = NULL;
+
+  G = TNodePool;
+  for (i=0; i<(NODES_IN_POOL-1); i++) {
+	TNode *G1 = G; G++;
+	G1->link[0] = G;
+  }
+  G->link[0] = TNodePool;
+
+  if (InstrMeta==NULL) leavedos(993);
+  memset(&InstrMeta, 0, sizeof(IMeta));
+#endif
+  g_printf("avltr_reinit\n");
+  CurrIMeta = -1;
+  LastXNode = NULL;
+  NodesCleaned = 0;
+  ninodes = 0;
+}
+
+
+void avltr_destroy(void)
+{
+#ifndef HOST_ARCH_SIM
+  avltr_tree *tree = &CollectTree;
+#ifdef PROFILE
+  hitimer_t t0;
+#endif
+
+  e_printf("--------------------------------------------------------------\n");
+  e_printf("Destroy AVLtree with %d nodes\n",ninodes);
+  e_printf("--------------------------------------------------------------\n");
+#ifdef DEBUG_TREE
+  DumpTree (tLog);
+#endif
+#ifdef PROFILE
+  t0 = GETTSC();
+#endif
+
+  mprot_end();
   if (tree->root.link[0] != &tree->root) {
       TNode *an[AVL_MAX_HEIGHT];	/* Stack A: nodes. */
       char ab[AVL_MAX_HEIGHT];		/* Stack A: bits. */
@@ -521,7 +593,8 @@ static void avltr_destroy(void)
 	  }
 
 	  for (;;) {
-	      if (ap == 0) return;
+	      backref *B;
+	      if (ap == 0) goto quit;
 
 	      p = an[--ap];
 	      if (ab[ap] == 0) {
@@ -530,53 +603,292 @@ static void avltr_destroy(void)
 		  p = p->link[1];
 		  break;
 	      }
-	      if (p->addr) free(p->addr);
-	      Tfree (p);
+	      B = p->clink.bkr.next;
+	      while (B) {
+		  backref *B2 = B;
+		  B = B->next;
+		  free(B2);
+	      }
+	      if (p->mblock) free(p->mblock);
 	  }
       }
   }
+quit:
+  avltr_reinit();
+  mprot_init();
+#ifdef PROFILE
+  TreeCleanups++;
+  CleanupTime += (GETTSC() - t0);
+#endif
+#endif
 }
 
 
 /////////////////////////////////////////////////////////////////////////////
 
+#ifndef HOST_ARCH_SIM
+#ifdef DEBUG_LINKER
+
+void CheckLinks (void)
+{
+  TNode *G = &CollectTree.root;
+  TNode *GL;
+  unsigned char *p;
+  linkdesc *L, *T;
+  backref *B;
+  int n;
+
+  for (;;) {
+    /* walk to next node */
+    NEXTNODE(G);
+    if (G == &CollectTree.root) {
+	e_printf("DEBUG: node link check ok\n");
+	return;
+    }
+    if ((long)G->key<=0) {
+	e_printf("Invalid key %08lx\n",G->key);
+	goto nquit;
+    }
+    if (G->alive <= 0) {
+	e_printf("Node %08lx invalidated\n",(long)G);
+	continue;
+    }
+    if (d.emu>5) e_printf("Node %08lx at %08lx selfr=%08lx\n",(long)G,G->key,
+    	*((long *)G->mblock));
+    if (*((long *)G->mblock) != (long)G) {
+	e_printf("bad selfref\n"); goto nquit;
+    }
+    L = &G->clink;
+    if (L->t_type) {
+	if (L->t_ref) {
+	    GL = (TNode *)*((long *)L->t_ref);
+	    if (d.emu>5)
+		e_printf("  T: ref=%08lx link=%08lx undo=%08lx\n",
+		    (long)GL,L->t_link,L->t_undo);
+	    p = ((unsigned char *)L->t_link) - 1;
+	    if ((*p!=0xe9)&&(*p!=0xeb)) {
+		e_printf("bad t_link jmp\n"); goto nquit;
+	    }
+	    if (d.emu>5)
+		e_printf("  T: links to %08lx at %08lx with jmp %08lx\n",(long)GL,GL->key,
+		*((long *)L->t_link));
+	    if (L->t_undo != GL->key) {
+		e_printf("bad t_link undo\n"); goto nquit;
+	    }
+	    T = &GL->clink;
+	    B = T->bkr.next;
+	    if ((B==NULL) || (T->nrefs < 1)) {
+		e_printf("bad backref B=%08lx n=%d\n",(long)B,T->nrefs);
+		goto nquit;
+	    }
+	    n = 0;
+	    while (B) {
+		if ((long)B->ref==(long)G->mblock) {
+		    n++;
+		    if (d.emu>5) e_printf("  T: backref %d from %08lx\n",n,(long)GL);
+		}
+		B = B->next;
+	    }
+	    if (n!=1) {
+		e_printf("0 or >1 backrefs\n"); goto nquit;
+	    }
+	}
+	else {
+	    p = ((unsigned char *)L->t_link) - 1;
+	    if (*p!=0xb8) {
+		e_printf("bad t_link jmp\n"); goto nquit;
+	    }
+	    if (L->t_undo) {
+		e_printf("t_undo not cleaned\n"); goto nquit;
+	    }
+	}
+	if (L->nt_ref) {
+	    GL = (TNode *)*((long *)L->nt_ref);
+	    if (d.emu>5)
+		e_printf("  N: ref=%08lx link=%08lx undo=%08lx\n",
+		    (long)GL,L->nt_link,L->nt_undo);
+	    p = ((unsigned char *)L->nt_link) - 1;
+	    if ((*p!=0xe9)&&(*p!=0xeb)) {
+		e_printf("bad nt_link jmp\n"); goto nquit;
+	    }
+	    if (d.emu>5)
+		e_printf("  N: links to %08lx at %08lx with jmp %08lx\n",(long)GL,GL->key,
+		*((long *)L->nt_link));
+	    if (L->nt_undo != GL->key) {
+		e_printf("bad nt_link undo\n"); goto nquit;
+	    }
+	    T = &GL->clink;
+	    B = T->bkr.next;
+	    if ((B==NULL) || (T->nrefs < 1)) {
+		e_printf("bad backref B=%08lx n=%d\n",(long)B,T->nrefs);
+		goto nquit;
+	    }
+	    n = 0;
+	    while (B) {
+		if ((long)B->ref==(long)G->mblock) {
+		    n++;
+		    if (d.emu>5) e_printf("  N: backref %d from %08lx\n",n,(long)GL);
+		}
+		B = B->next;
+	    }
+	    if (n!=1) {
+		e_printf("0 or >1 backrefs\n"); goto nquit;
+	    }
+	}
+	else if (L->nt_link) {
+	    p = ((unsigned char *)L->nt_link) - 1;
+	    if (*p!=0xb8) {
+		e_printf("bad nt_link jmp\n"); goto nquit;
+	    }
+	    if (L->nt_undo) {
+		e_printf("nt_undo not cleaned\n"); goto nquit;
+	    }
+	}
+    }
+  }
+nquit:
+  leavedos(0x9143);
+}
+
+#endif
+
+#ifdef DEBUG_TREE
+
+void DumpTree (FILE *fd)
+{
+  TNode *G = &CollectTree.root;
+  linkdesc *L;
+  backref *B;
+  int nn;
+
+  if (fd==NULL) return;
+  fprintf(fd,"\n== BOT ========= %6d nodes =============================\n",ninodes);
+  nn = 0;
+
+  while (nn < 10000) {		// sorry,only 4 digits available
+    /* walk to next node */
+    NEXTNODE(G);
+    if (G == &CollectTree.root) {
+	fprintf(fd,"\n== EOT ====================================================\n");
+	fflush(fd);
+	return;
+    }
+    fprintf(fd,"\n-----------------------------------------------------------\n");
+    if (G->alive <= 0) {
+	fprintf(fd,"%04d Node %08lx invalidated\n",nn,(long)G);
+	nn++;
+	continue;
+    }
+    fprintf(fd,"%04d Node %08lx at %08lx..%08lx mblock=%08lx flags=%#x\n",
+	nn,(long)G,G->key,(G->seqbase+G->seqlen-1),(long)G->mblock,G->flags);
+    fprintf(fd,"     AVL (%08lx:%08lx),%d,%d,%d,%d\n",(long)G->link[0],(long)G->link[1],
+		G->bal,G->cache,G->pad,G->rtag);
+    fprintf(fd,"     source:     instr=%d, len=%#x\n",G->seqnum,G->seqlen);
+    fprintf(fd,"     translated: len=%#x\n",G->len);
+    fprintf(fd,"     HIST n=%08lx k=%08lx\n",(long)G->nxnode,G->nxkey);
+    L = &G->clink;
+    fprintf(fd,"     LINK type=%d refs=%d\n",L->t_type,L->nrefs);
+    if (L->t_type) {
+	fprintf(fd,"         T ref=%08lx patch=%08lx at %08lx\n",(long)L->t_ref,
+		L->t_undo,L->t_link);
+	if (L->t_type>JMP_LINK) {
+	    fprintf(fd,"         N ref=%08lx patch=%08lx at %08lx\n",(long)L->nt_ref,
+		L->nt_undo,L->nt_link);
+	}
+    }
+    if (L->nrefs) {
+	B = L->bkr.next;
+	while (B) {
+	    fprintf(fd,"         bkref %c -> %08lx\n",B->branch,(long)B->ref);
+	    B = B->next;
+	}
+    }
+    if (G->addr && G->pmeta) {
+	int i, j, k;
+	unsigned char *p = G->addr;
+	Addr2Pc *AP = G->pmeta;
+	for (i=0; i<G->seqnum; i++) {
+	    fprintf(fd,"     %08lx:%08lx",(G->key+AP->dnpc),(long)(G->addr+AP->daddr));
+	    k = 0;
+	    for (j=0; j<(AP[1].daddr-AP->daddr); j++) {
+		fprintf(fd," %02x",*p++); k++;
+		if (k>=16) {
+		    fprintf(fd,"\n                      "); k=0;
+		}
+	    }
+	    fprintf(fd,"\n");
+	    AP++;
+	}
+	fprintf(fd,"             :%08lx",(long)(G->addr+AP->daddr));
+	k = 0;
+	for (j=AP->daddr; j<G->len; j++) {
+	    fprintf(fd," %02x",*p++); k++;
+	    if (k>=16) {
+		fprintf(fd,"\n                      "); k=0;
+	    }
+	}
+	fprintf(fd,"\n");
+    }
+    fflush(fd);
+    nn++;
+  }
+}
+
+#endif
+#endif	// HOST_ARCH_SIM
+
+#ifndef HOST_ARCH_SIM
 
 static int TraverseAndClean(void)
 {
+  TNode *G;
+  static hitimer_t bT;
+#ifdef PROFILE
   hitimer_t t0;
-  TNode *p;
 
   t0 = GETTSC();
+#endif
   if (Traverser.init == 0) {
-      Traverser.p = p = &CollectTree.root;
+      Traverser.p = G = &CollectTree.root;
       Traverser.init = 1;
+      bT = GETTSC();
   }
   else
-      p = (TNode *)Traverser.p;
+      G = (TNode *)Traverser.p;
 
   /* walk to next node */
-  NEXTNODE(p);
-  if (p == &CollectTree.root) {
-      NEXTNODE(p);
+  NEXTNODE(G);
+  if (G == &CollectTree.root) {
+      hitimer_t bt1 = GETTSC();
+      if (d.emu>2) e_printf("*\tRestart traversing n=%d %16Ld\n",ninodes,(bt1-bT));
+      bT = bt1;
+      NEXTNODE(G);
   }
 
-  if ((p->addr != NULL) && (p->jcount > 0)) {
-      p->jcount -= AGENODE;
+  if ((G->addr != NULL) && (G->alive>0)) {
+      G->alive -= AGENODE;
+      if (G->alive <= 0) {
+	if (d.emu>2) e_printf("TraverseAndClean: node at %08lx decayed\n",G->key);
+	NodeUnlinker(G);
+      }
   }
-  if ((p->addr == NULL) || (p->jcount <= 0)) {
-      if (d.emu>DT_LEV) e_printf("Delete node %08lx\n",p->key);
-      avltr_delete(p->key);
+  if ((G->addr == NULL) || (G->alive<=0)) {
+      if (d.emu>2) e_printf("Delete node %08lx\n",G->key);
+      avltr_delete(G->key);
   }
   else {
-      if (d.emu>(DT_LEV+1))
-	e_printf("TraverseAndClean: node %08lx of %d count=%d\n",
-		(long)p,ninodes,p->jcount);
-      Traverser.p = p;
+      if (d.emu>3)
+	e_printf("TraverseAndClean: node at %08lx of %d life=%d\n",
+		G->key,ninodes,G->alive);
+      Traverser.p = G;
   }
+#ifdef PROFILE
   CleanupTime += (GETTSC() - t0);
+#endif
   return 1;
 }
 
+#endif
 
 /*
  * Add a node to the collector tree.
@@ -587,96 +899,170 @@ static int TraverseAndClean(void)
  * code addresses. At the end, we reset both CodeBuf and InstrMeta to prepare
  * for a new sequence.
  */
-TNode *Move2ITree(void)
+TNode *Move2Tree(void)
 {
-  IMeta *G0 = &InstrMeta[0];		// root of code buffer
-  TNode *nI;
+  TNode *nG = NULL;
+#ifndef HOST_ARCH_SIM
+  IMeta *I0;
+#ifdef PROFILE
   hitimer_t t0 = GETTSC();
-  long key;
-  int len, found;
-
-  key = makekey((long)G0->npc);
-
-  if (G0->ncount < MIN_FRAGLEN) {
-#ifndef SINGLESTEP
-	if (d.emu>(DT_LEV+1)) e_printf("Short sequence not collected\n");
 #endif
-	nI = NULL;
-	goto noinode;
+  long key;
+  int len, found, nap;
+  IMeta *I;
+  int i, apl=0;
+  Addr2Pc *ap;
+  char *mallmb, *cp;
+
+  /* try to keep a limit to the number of nodes in the tree. 3000-4000
+   * nodes are probably enough before performance starts to suffer */
+  if (ninodes > NodeLimit) {
+	for (i=0; i<CreationIndex; i++) TraverseAndClean();
   }
 
+  I0 = &InstrMeta[0];		// root of code buffer
+  key = (long)I0->npc;
+
   found = 0;
-  nI = avltr_probe(key, &found);
+  nG = avltr_probe(key, &found);
+/**/ if (nG==NULL) leavedos(0x8201);
 
   if (found) {
-	if (d.emu>DT_LEV) {
-		e_printf("Equal keys: replace TNode %d at=%08lx key=%08lx\n",
-			ninodes,(long)nI,key);
+	if (d.emu>2) {
+		e_printf("Equal keys: replace node %08lx at %08lx\n",
+			(long)nG,key);
 	}
 	/* ->REPLACE the code of the node found with the latest
 	   compiled version */
-	if (nI->addr) free(nI->addr);
+	NodeUnlinker(nG);
+	if (nG->mblock) free(nG->mblock);
   }
   else {
-	if (d.emu>DT_LEV) {
+#if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
+	if (d.emu>2) {
 		e_printf("New TNode %d at=%08lx key=%08lx\n",
-			ninodes,(long)nI,key);
-		if (d.emu>(DT_LEV+1))
-			e_printf("Head len=%d n_ops=%d PC=%08lx\n",
-				G0->len, G0->ncount, (long)G0->npc);
+			ninodes,(long)nG,key);
+		if (d.emu>3)
+			e_printf("Header: len=%d n_ops=%d PC=%08lx\n",
+				I0->totlen, I0->ncount, (long)I0->npc);
 	}
-	nI->key = key;
+#endif
+	nG->key = key;
   }
 
-  nI->cklen = G0->cklen;
-  if (nI->len > MaxNodeSize) MaxNodeSize = nI->len;
-  nI->len = len = G0->len + TAILSIZE;
-  nI->jcount = NODELIFE(nI);
-  nI->addr = (unsigned char *)malloc(len+8);
-  if (d.emu>(DT_LEV+1)) e_printf("Move sequence from %08lx to %08lx l=%d\n",
-	(long)G0->addr, (long)nI->addr, len);
-  __memcpy(nI->addr, G0->addr, len);
-  nI->flags = G0->flags;
-#ifdef USE_CHECKSUM
-  nI->cksum = __fchk((void *)nI->key, nI->cklen);
+  /* transfer info from first node of the Meta list to our new node */
+  nG->seqbase = (long)I0->seqbase;
+  nG->seqlen = I0->seqlen;
+  nG->seqnum = I0->ncount;
+#ifdef PROFILE
+  if (nG->len > MaxNodeSize) MaxNodeSize = nG->len;
 #endif
+  nG->len = len = I0->totlen;
+  nG->flags = I0->flags;
+  nG->alive = NODELIFE(nG);
 
-noinode:
-  LastIMeta = NULL;
-  NextFreeIMeta = 0;
+  /* allocate the extra memory used by the node. This includes the
+   * translated code plus the table of correspondances between source
+   * and translated addresses.
+   * The first longword of the memory block is special; it stores a
+   * back-pointer to the node. This because nodes can be moved in
+   * memory when rebalancing the AVL tree, while we need absolute and
+   * constant memory references.
+   * The second longword is equal to its own address. Guess why.
+   * After that come the offset table, then the code.
+   */
+  nap = (nG->seqnum+1)*sizeof(Addr2Pc);
+  mallmb = nG->mblock = GenCodeBuf;
+  GenCodeBuf = NULL; GenBufSize = 0;
+  AHDRPTR(nG) = nG;
+  cp = nG->mblock+sizeof(void *);
+  *((long *)cp) = (long)cp;
+  nG->pmeta = (Addr2Pc *)(mallmb+2*sizeof(void *));
+  if (nG->pmeta==NULL) leavedos(0x504d45);
+  nG->addr = (char *)(mallmb+2*sizeof(void *)+nap);
+
+  /* setup structures for inter-node linking */
+  nG->clink.t_type  = I0->clink.t_type;
+  nG->clink.t_link  = I0->clink.t_link  + (I0->clink.t_type? (long)nG->addr:0);
+  nG->clink.nt_link = I0->clink.nt_link + (I0->clink.t_type>JMP_LINK? (long)nG->addr:0);
+  if ((d.emu>3) && nG->clink.t_type)
+	dbug_printf("Link %d: %08lx:%08lx %08lx:%08lx\n",nG->clink.t_type,
+		nG->clink.t_link,
+		(nG->clink.t_type? *((long *)nG->clink.t_link):0),
+		nG->clink.nt_link,
+		(nG->clink.t_type>JMP_LINK? *((long *)nG->clink.nt_link):0));
+
+  /* setup source/xlated instruction offsets */
+  ap = nG->pmeta;
+  I = I0;
+  for (i=0; i<nG->seqnum; i++) {
+	ap->daddr = I->addr - I0->addr;
+	apl = ap->daddr + I->len;
+	ap->dnpc  = I->npc - I0->npc;
+	if (d.emu>8)
+	    e_printf("Pmeta %03d: %08lx(%04x):%08lx(%04x)\n",i,
+		(long)(nG->addr+ap->daddr),ap->daddr,(long)I->npc,ap->dnpc);
+	ap++, I++;
+  }
+  ap->daddr = apl;
+  if (d.emu>8) e_printf("Pmeta %03d:         (%04x)\n",i,apl);
+
+#ifdef DEBUG_LINKER
+  CheckLinks();
+#endif
+  CurrIMeta = -1;
+  if (InstrMeta==NULL) leavedos(993);
   memset(&InstrMeta[0],0,sizeof(IMeta));
-  ResetCodeBuf();
+#ifdef PROFILE
   AddTime += (GETTSC() - t0);
-  return nI;
+#endif
+#else	// HOST_ARCH_SIM
+  CurrIMeta = -1;
+#endif	// HOST_ARCH_SIM
+  return nG;
 }
 
 
-TNode *FindTree(unsigned char *addr)
+TNode *FindTree(long key)
 {
+#ifndef HOST_ARCH_SIM
   TNode *I;
-  long key;
   static int tccount=0;
-#ifdef USE_CHECKSUM
-  unsigned char chk;
-#endif
+#ifdef PROFILE
   hitimer_t t0;
+#endif
 
-  t0 = GETTSC();
-  key = makekey((long)addr);
+  if (TheCPU.sigprof_pending) {
+	CollectStat();
+	TheCPU.sigprof_pending = 0;
+  }
 
-  if (LastXNode) {
-	I = LastXNode->nxnode;
-	if (I && (I->key==key) && (I->jcount>0)) {
-	if (d.emu>1) 
-		e_printf("LastXNode found at %08lx p-> key=%08lx addr=%08lx\n",
-			(long)LastXNode,key,(long)I->addr);
-	    I->jcount = NODELIFE(I);
-	    goto found;
+  if (LastXNode && (LastXNode->alive>0)) {
+	TNode *H = NULL;
+	if (LastXNode->nxkey == key) {		// history check
+	    TNode *GP = LastXNode->nxnode;
+	    if (GP && (GP->alive>0) && (GP->key==key)) H = GP;
+	}
+	if (LastXNode->key == key) {		// node loop check
+	    H = LastXNode;
+	}
+	if (H) {
+	    if (d.emu>4) 
+		e_printf("History: LastXNode at %08lx to key=%08lx\n",
+			LastXNode->key, key);
+	    H->alive = NODELIFE(H);
+#ifdef PROFILE
+	    NodesFastFound++;
+#endif
+	    return H;
 	}
   }
 
+#ifdef PROFILE
+  t0 = GETTSC();
+#endif
   I = CollectTree.root.link[0];
-  if (I == NULL) return NULL;
+  if (I == NULL) return NULL;	/* always NULL the first time! */
 
   for (;;) {
       int diff = (key - I->key);
@@ -692,92 +1078,36 @@ TNode *FindTree(unsigned char *addr)
       else break;
   }
 
-  if (I && I->addr && (I->jcount>0)) {
-	I->jcount = NODELIFE(I);
-	if (d.emu>(DT_LEV+1)) e_printf("Found key %08lx count=%d\n",
-		key, I->jcount);
-found:
-#ifdef USE_CHECKSUM
-	if (I->flags & F_SUSP) {
-	    chk = __fchk((void *)I->key, I->cklen) ^ I->cksum;
-	    if (chk) {
-		dbug_printf("### Block chk err(%08lx:%d)\n",I->key,I->cklen);
-		I->jcount = 0;
-		goto endsrch;
-	    }
-	    e_printf("Checksum ok for suspect node at %08lx\n",I->key);
-	    I->flags &= ~F_SUSP;
-	    e_mprotect((void *)I->key, 0);
-	}
+  if (I && I->addr && (I->alive>0)) {
+	if (d.emu>3) e_printf("Found key %08lx\n",key);
+#ifdef PROFILE
+	NodesFound++;
 #endif
+	I->alive = NODELIFE(I);
+#ifdef PROFILE
 	SearchTime += (GETTSC() - t0);
+#endif
 	return I;
   }
 
 endsrch:
+#ifdef PROFILE
   SearchTime += (GETTSC() - t0);
-
-  if (((++tccount) >= CLEANFREQ) || NodesCleaned) {
-	  do {
-		(void)TraverseAndClean();
-		if (NodesCleaned) NodesCleaned--;
-	  } while (NodesCleaned > 0);
-	  tccount=0;
+#endif
+  if ((ninodes>500) && (((++tccount) >= CleanFreq) || NodesCleaned)) {
+	while (NodesCleaned > 0) {
+	    (void)TraverseAndClean();
+	    if (NodesCleaned) NodesCleaned--;
+	}
+	tccount=0;
   }
 
-  if (d.emu>(DT_LEV+2)) e_printf("Not found key %08lx\n",key);
+  if (d.emu>4) e_printf("Not found key %08lx\n",key);
+#ifdef PROFILE
+  NodesNotFound++;
+#endif
+#endif	// HOST_ARCH_SIM
   return NULL;
-}
-
-
-/////////////////////////////////////////////////////////////////////////////
-
-static void GCPrint(unsigned char *cp, int len)
-{
-	int i;
-	while (len) {
-		dbug_printf(">>> %08lx:",(long)cp);
-		for (i=0; (i<16) && len; i++,len--) dbug_printf(" %02x",*cp++);
-		dbug_printf("\n");
-	}
-}
-
-static void print_structure (avltr_tree *tree, TNode *node, int level)
-{
-  char lc[] = "([{<`";
-  char rc[] = ")]}>'";
-
-  if (node == NULL)
-    {
-      fprintf (stderr," :nil");
-      return;
-    }
-  else if (level >= AVL_MAX_HEIGHT)
-    {
-      fprintf(stderr,"Too deep, giving up.\n");
-      return;
-    }
-  else if (node == &tree->root)
-    {
-      fprintf (stderr," root");
-      return;
-    }
-  fprintf (stderr," %c%08lx", lc[level % 5], node->key);
-  fflush (stderr);
-
-  print_structure (tree, node->link[0], level + 1);
-  fflush (stderr);
-
-  if (node->rtag == PLUS)
-    print_structure (tree, node->link[1], level + 1);
-  else if (node->link[1] != &tree->root)
-    fprintf (stderr," :%08lx", node->link[1]->key);
-  else
-    fprintf (stderr," :r");
-  fflush (stderr);
-
-  fprintf (stderr,"%c", rc[level % 5]);
-  fflush (stderr);
 }
 
 
@@ -795,29 +1125,155 @@ static void print_structure (avltr_tree *tree, TNode *node, int level)
  * same 4k page.
  *
  */
-#define RANGE_IN_RANGE(al,ah,l,h)	({long _l2=(long)(al);\
-	long _h2=(long)(ah); ((_h2 >= (l)) && (_l2 < (h))); })
-#define ADDR_IN_RANGE(a,l,h)		({long _a2=(long)(a);\
-	((_a2 >= (l)) && (_a2 < (h))); })
+#ifndef HOST_ARCH_SIM
 
-int InvalidateTreePaged (unsigned char *addr, int len)
+static void BreakNode(TNode *G, long eip, long addr)
 {
-  IMeta *G0 = &InstrMeta[0];		// root of code buffer
-  TNode *G = &CollectTree.root;
-  long al, ah, alG, ahG;
-  int nnc = 0;
+  Addr2Pc *A = G->pmeta;
+  long ebase, enpc;
+  unsigned char *p;
+  int i;
+
+  if (eip==0) {
+	dbug_printf("Cannot break node %08lx, eip=%lx\n",G->key,eip);
+	leavedos(0x7691);
+  }
+
+  ebase = eip - (long)G->addr;
+  enpc = addr - G->key;
+  for (i=0; i<G->seqnum; i++) {
+    if (A->daddr >= ebase) {		// found following instr
+	p = G->addr + A->daddr;		// translated IP of following instr
+	if (enpc >= A->dnpc) {		// if it's a forward write
+	    __memcpy(p, TailCode, TAILSIZE);
+	    *((long *)(p+TAILFIX)) = G->key + A->dnpc;
+	    dbug_printf("============ Force node closing at %08lx(%08lx)\n",
+		(G->key+A->dnpc),(long)p);
+	}
+	return;		// back writes only invalidate node, no split
+    }
+    A++;
+  }
+  e_printf("============ Node %08lx break failed\n",G->key);
+}
+
+#endif
+
+int FindCodeNode (long addr)
+{
+  int found = 0;
+#ifndef HOST_ARCH_SIM
+  register TNode *G = &CollectTree.root;
+#ifdef PROFILE
   hitimer_t t0;
 
   t0 = GETTSC();
-  /* No hope - we have to clean the whole page. Remember that at this
-   * point the page has been unprotected, so anything can happen on it.
-   * The other way would be to emulate the faulting instruction and
-   * reprotect the page immediately - but too many faults could slow
-   * down the emulation more than reparsing some code. Of course there
-   * is always a worst case.
-   */
-  al = (long)addr & ~(PAGE_SIZE-1);
-  ah = ((long)addr+len+PAGE_SIZE) & ~(PAGE_SIZE-1);
+#endif
+  if (d.emu>2) e_printf("Find code node for %08lx\n",addr);
+
+  /* find nearest (lesser than) node */
+  G = G->link[0]; if (G == NULL) goto quit;
+  for (;;) {
+      if (G->key > addr) {
+	if (G->link[0]==NULL) break;
+	G = G->link[0];
+      }
+      else if (G->key < addr) {
+	if ((G != &CollectTree.root) && (G->addr != 0) && (G->alive > 0)) {
+		long ahG = G->seqbase + G->seqlen;
+		if (ADDR_IN_RANGE(addr,G->seqbase,ahG)) { found = 1; break; }
+	}
+	if (G->rtag == MINUS) break;
+	G = G->link[1];
+      }
+      else { found=1; break; }
+  }
+quit:
+#ifdef PROFILE
+  SearchTime += (GETTSC() - t0);
+#endif
+#endif
+  return found;
+}
+
+
+int InvalidateSingleNode (long addr, long eip)
+{
+  int nnh = 0;
+#ifndef HOST_ARCH_SIM
+  TNode *G = &CollectTree.root;
+#ifdef PROFILE
+  hitimer_t t0;
+
+  t0 = GETTSC();
+#endif
+  if (d.emu>1) e_printf("Invalidate at %08lx\n",addr);
+
+  /* find nearest (lesser than) node */
+  G = G->link[0]; if (G == NULL) goto quit;
+  for (;;) {
+      if (G->key > addr) {
+	if (G->link[0]==NULL) break;
+	G = G->link[0];
+      }
+      else if (G->key < addr) {
+        TNode *G2;
+	if (G->rtag == MINUS) break;
+	G2 = G->link[1];
+	if (G2->key > addr) break; else G = G2;
+      }
+      else break;
+  }
+  if (d.emu>1) e_printf("Invalidate from node %08lx\n",G->key);
+
+  /* walk tree in ascending, hopefully sorted, address order */
+  for (;;) {
+      if ((G == &CollectTree.root) || (G->key > addr)) break;
+
+      if (G->addr && (G->alive>0)) {
+	long ahG = G->seqbase + G->seqlen;
+	if (ADDR_IN_RANGE(addr,G->seqbase,ahG)) {
+	    long ahE = (long)(G->addr + G->len);
+	    G->alive = 0; G->nxkey = -1;
+	    NodeUnlinker(G);
+	    e_printf("### Node hit %08lx->%08lx..%08lx\n",addr,G->key,ahG);
+	    if (eip && ADDR_IN_RANGE(eip,(long)G->addr,ahE)) {
+		e_printf("### Node self hit %08lx->%08lx..%08lx\n",
+			eip,(long)G->addr,ahE);
+		BreakNode(G, eip, addr);
+		nnh++;
+	    }
+	    nnh++;
+	    NodesCleaned++;
+	    goto quit;
+	}
+      }
+      NEXTNODE(G);
+  }
+quit:
+  LastXNode = NULL;
+#ifdef PROFILE
+  CleanupTime += (GETTSC() - t0);
+#endif
+#endif	// HOST_ARCH_SIM
+  return nnh;
+}
+
+
+int InvalidateNodePage (long addr, int len, long eip, int *codehit)
+{
+  int nnh = 0;
+#ifndef HOST_ARCH_SIM
+  register TNode *G = &CollectTree.root;
+  long al, ah;
+#ifdef PROFILE
+  hitimer_t t0;
+
+  t0 = GETTSC();
+#endif
+  al = addr & PAGE_MASK;
+  ah = ((len? addr+len-1:addr) & PAGE_MASK) + PAGE_SIZE;
+  e_printf("Invalidate area %08lx..%08lx\n",al,ah);
 
   /* find nearest (lesser than) node */
   G = G->link[0]; if (G == NULL) goto quit;
@@ -834,65 +1290,67 @@ int InvalidateTreePaged (unsigned char *addr, int len)
       }
       else break;
   }
-
-  /* Check currently executing node too, as the fault could come from it.
-   * If the fault hits an address between the start of the sequence and
-   * the end of the memory page, declare the sequence invalid (so it
-   * will not go into the tree) and disable optimizations.
-   * The chosen range is only an empirical guess, since it is much more
-   * probable to have instructions changed at the bottom or after the
-   * sequence than at the top (e.g. loaders).
-   */
-  if (G0->npc) {
-    alG = (long)G0->npc & ~(PAGE_SIZE-1);
-    ahG = (long)G0->npc+G0->cklen;
-    if (ADDR_IN_RANGE(addr,alG,(ahG+PAGE_SIZE)&~(PAGE_SIZE-1))) {
-	InstrMeta[0].ncount = 0;	/* invalidate it */
-	nnc++;
-	if (addr > G0->npc) {
-	    JumpOpt = 0;
-	    /* Set a point to reenable jump compiling. As soon as we
-	     * compile a new sequence whose address is greater than
-	     * JmpOptLim, we go back to the default. This also is an
-	     * empirical rule, which can and will fail. */
-	    e_printf("Disabled Jump Optimizations before %08lx\n",ahG);
-	    JumpOptLim = max(0x1000,ahG);
-	}
-	/* Try to stop any running code. Raising a signal this way
-	 * exits any backward jump, but has no other effect */
-	e_signal_pending |= 2;
-	e_printf("### Invalidated Meta buffer %08lx..%08lx\n",
-		(long)G0->npc,ahG);
-    }
-  }
+  if (d.emu>1) e_printf("Invalidate from node %08lx on\n",G->key);
 
   /* walk tree in ascending, hopefully sorted, address order */
   for (;;) {
-      if (G == &CollectTree.root) break;
-      if (G->key > ah) break;
+      if ((G == &CollectTree.root) || (G->key > ah)) break;
 
-      if (G->addr && (G->jcount>0)) {
-	ahG = (long)(G->key+G->cklen);
-	if (RANGE_IN_RANGE(G->key,ahG,al,ah)) {
-	  e_printf("Invalidated node %08lx at %08lx\n",(long)G,G->key);
-	  if ((len==0) && (ADDR_IN_RANGE((long)addr,G->key,ahG))) {
-	    e_printf("### Node hit %08lx..%08lx\n",G->key,ahG);
-	    len = 1;	/* trick */
-	  }
-	  if (len) {
-	    G->jcount = 0;
+      if (G->addr && (G->alive>0)) {
+	long ahG = G->seqbase + G->seqlen;
+	if (RANGE_IN_RANGE(G->seqbase,ahG,al,ah)) {
+	    e_printf("Invalidated node %08lx at %08lx\n",(long)G,G->key);
+	    G->alive = 0; G->nxkey = -1;
+	    NodeUnlinker(G);
 	    NodesCleaned++;
-	    nnc++;
-	  }
-	  else
-	    G->flags |= F_SUSP;
+	    if (codehit && ADDR_IN_RANGE(addr,G->key,ahG)) {
+		long ahE = (long)(G->addr + G->len);
+		e_printf("### Also _cr2=%08lx hits code %08lx..%08lx\n",addr,G->key,ahG);
+		*codehit = 1;
+		if (eip && ADDR_IN_RANGE(eip,(long)G->addr,ahE)) {
+		    e_printf("### Node self hit %08lx->%08lx..%08lx\n",
+			eip,(long)G->addr,ahE);
+		    BreakNode(G, eip, addr);
+		}
+	    }
 	}
       }
       NEXTNODE(G);
   }
 quit:
+  LastXNode = NULL;
+#ifdef PROFILE
   CleanupTime += (GETTSC() - t0);
-  return nnc;
+#endif
+#endif	// HOST_ARCH_SIM
+  return nnh;
+}
+
+
+/////////////////////////////////////////////////////////////////////////////
+
+
+int e_dos_read(int fd, char *data, int cnt)	// called from mfs.c
+{
+	long d2ep; int ret=0;
+
+	d2ep = PAGE_SIZE - ((long)data & (PAGE_SIZE-1));
+
+	while (cnt > 0) {
+	    int c2 = (cnt<d2ep? cnt:d2ep);
+	    int rcnt;
+	    e_munprotect(data, 0);
+	    InvalidateNodePage((long)data, 0, 0, NULL);
+	    e_resetpagemarks(data);
+	    rcnt = RPT_SYSCALL(read(fd, data, c2));
+/**/ e_printf("e_dos_read fd=%x %08lx:%x = %d(%d)\n",fd,(long)data,c2,rcnt,ret);
+	    if (rcnt < 0) return rcnt;
+	    ret += rcnt; if (rcnt < c2) break;
+	    data += c2;
+	    d2ep = PAGE_SIZE;
+	    cnt -= c2;
+	}
+	return ret;
 }
 
 
@@ -901,63 +1359,147 @@ quit:
 
 static void CleanIMeta(void)
 {
+#ifndef HOST_ARCH_SIM
+#ifdef PROFILE
 	hitimer_t t0 = GETTSC();
-	NextFreeIMeta = 0;
-	memset(&InstrMeta[0],0,sizeof(IMeta));
-	LastIMeta = NULL;
-	ResetCodeBuf();
+#endif
+	if (InstrMeta==NULL) leavedos(993);
+	memset(&InstrMeta,0,sizeof(IMeta));
+	CurrIMeta = -1;
+#ifdef PROFILE
 	CleanupTime += (GETTSC() - t0);
+#endif
+#else	// HOST_ARCH_SIM
+	CurrIMeta = -1;
+#endif	// HOST_ARCH_SIM
 }
 
 /////////////////////////////////////////////////////////////////////////////
 
 
-IMeta *NewIMeta(unsigned char *npc, int	mode, int *rc, void *aux)
+int NewIMeta(unsigned char *npc, int mode, int *rc)
 {
+#ifndef HOST_ARCH_SIM
+#ifdef PROFILE
 	hitimer_t t0 = GETTSC();
+#endif
+	if (CurrIMeta >= 0) {
+		// add new opcode metadata
+		IMeta *I,*I0;
 
-	if (CodePtr != PrevCodePtr) {		// new code was	created?
-		unsigned char *cp;
-		// add new opcode metadata to the G-List
-		IMeta *G  = &InstrMeta[NextFreeIMeta++];
-		IMeta *G0 = &InstrMeta[0];
-		if (NextFreeIMeta>=MAXGNODES) { *rc = -1; goto quit; }
-		G0->ncount += 1;
-		G->npc = npc;
-
-		cp = PrevCodePtr;
-		G->addr	= cp;			// code addr in buffer
-		G->len = CodePtr - cp;		// instruction code length
-		G->flags = mode>>16;		// FP and flags affected
-
-		if (LastIMeta) {
-			G0->len += G->len;
-			G0->flags |= (G->flags&15);
-		}
-		if (PrevCodePtr == CodeBuf) {		// no open code sequences
+		I  = &InstrMeta[CurrIMeta];
+		if (CurrIMeta==0) {		// no open code sequences
 			if (d.emu>2) e_printf("============ Opening sequence at %08lx\n",(long)npc);
+			I0 = I;
 		}
-		PrevCodePtr = CodePtr;
-		LastIMeta = G;
-		if (d.emu>(DT_LEV+2)) {
-			e_printf("Metadata %03d a=%08lx PC=%08lx mode=%x(%x) l=%d\n",
-				NextFreeIMeta,(long)G->addr,(long)G->npc,G->flags,
-				G0->flags,G->len);
-			GCPrint(cp, G->len);
+		else {
+			I0 = &InstrMeta[0];
 		}
-		if ((JumpOpt&2) && (G->flags&F_FJMP)) {
-			G->fwref = ForwIRef;
-			G->jtgt = aux;
-			ForwIRef = G;
+
+		I0->ncount += 1;
+		I->npc = npc;
+		I->flags = mode>>16;		// FP and flags affected
+
+		if (CurrIMeta>0) {
+			I0->flags |= I->flags;
 		}
-		*rc = 1;
+		if (d.emu>4) {
+			e_printf("Metadata %03d PC=%08lx mode=%x(%x) ng=%d\n",
+				CurrIMeta,(long)I->npc,I->flags,I0->flags,I->ngen);
+		}
+#ifdef PROFILE
 		AddTime += (GETTSC() - t0);
-		return G;
+#endif
+		CurrIMeta++;
+		if (CurrIMeta>=MAXINODES) {
+			*rc = -1; goto quit;
+		}
+		*rc = 1; I++;
+		I->ngen = 0;
+		return CurrIMeta;
 	}
 	*rc = 0;
 quit:
+#ifdef PROFILE
 	AddTime += (GETTSC() - t0);
-	return NULL;
+#endif
+	return -1;
+#else	// HOST_ARCH_SIM
+	if (CurrIMeta==0) {		// no open code sequences
+		if (d.emu>2) e_printf("============ Opening sequence at %08lx\n",(long)npc);
+	}
+	CurrIMeta++; InstrMeta[CurrIMeta].ngen=0;
+	return CurrIMeta;
+#endif	// HOST_ARCH_SIM
+}
+
+
+/////////////////////////////////////////////////////////////////////////////
+
+#ifdef SHOW_STAT
+#define CST_SIZE	4096
+static struct {
+	long long a;
+	int b,c,m,d,s;
+} xCST[CST_SIZE];
+#else
+#define CST_SIZE	4
+static int xCST[CST_SIZE];
+#endif
+
+static int cstx = 0;
+static int xCS1 = 0;
+
+void CollectStat (void)
+{
+	int i, m = 0;
+#ifdef SHOW_STAT
+	long csm = config.CPUSpeedInMhz*1000;
+	xCST[cstx].a = TheCPU.EMUtime;
+	xCST[cstx].s = TheCPU.sigprof_pending;
+	xCST[cstx].b = ninodes;
+	xCST[cstx].c = NodesParsed;
+	xCST[cstx].d = NodesExecd;
+	for (i=cstx-3; i<=cstx; i++) {
+		if (i<0) { if (!xCS1) i=0; else i=CST_SIZE+i; }
+		m += xCST[i].c;
+	}
+	m >>= 2;
+	xCST[cstx].m = CLEAN_SPEED(FastLog2(m));
+	i = cstx;
+	e_printf("--------------------------------------------------------------\n");
+	e_printf("SIGPROF %04d %8d %8d(%3d) %8d %d\n",i,
+		xCST[i].b,xCST[i].c,xCST[i].m,xCST[i].d,xCST[i].s);
+	e_printf("--------------------------------------------------------------\n");
+	cstx++;
+	if (cstx==CST_SIZE) {
+	    if (!xCS1) xCS1=1;
+	    for (i=0; i<cstx; i++) {
+		dbug_printf("%04d %16Ld %8d %8d(%3d) %8d %d\n",i,(xCST[i].a/csm),
+		    xCST[i].b,xCST[i].c,xCST[i].m,xCST[i].d,xCST[i].s);
+	    }
+	    cstx=0;
+	}
+#else
+	xCST[cstx++] = NodesParsed;
+	if (cstx==CST_SIZE) {
+	    if (!xCS1) xCS1=1;
+	    cstx=0;
+	}
+	if (xCS1) {
+	    for (i=0; i<CST_SIZE; i++) m += xCST[i];	/* moving average */
+	    m /= CST_SIZE;
+	    m = FastLog2(m);	/* take leftmost bit index */
+	    CreationIndex = CLEAN_SPEED(m);
+	    CleanFreq = (8-m); if (CleanFreq<1) CleanFreq=1;
+	}
+	e_printf("--------------------------------------------------------------\n");
+	e_printf("SIGPROF %d n=%8d p=%8d x=%8d ix=%3d cln=%2d\n",
+		TheCPU.sigprof_pending,
+		ninodes,NodesParsed,NodesExecd,CreationIndex,CleanFreq);
+	e_printf("--------------------------------------------------------------\n");
+#endif
+	NodesParsed = NodesExecd = 0;
 }
 
 
@@ -965,39 +1507,43 @@ quit:
 
 void InitTrees(void)
 {
-	int i;
-	TNode *G;
+	g_printf("InitTrees\n");
+	TNodePool = (TNode *)calloc(NODES_IN_POOL, sizeof(TNode));
 
-	CollectTree.root.link[0] = NULL;
-	CollectTree.root.link[1] = &CollectTree.root;
-	CollectTree.root.rtag = PLUS;
-	CollectTree.count = 0;
-	Traverser.init = 0;
-	Traverser.p = NULL;
-	if (d.emu>1) e_printf("Root tree node at %08lx\n",
-		(long)&CollectTree.root);
+	avltr_reinit();
 
-	G = TNodePool = (TNode *)calloc(NODES_IN_POOL, sizeof(TNode));
-	if (d.emu>1) e_printf("TNode pool at %08lx\n",(long)G);
-	for (i=0; i<(NODES_IN_POOL-1); i++) {
-	    TNode *G1 = G; G++;
-	    G1->link[0] = G;
+	if (d.emu>1) {
+	    e_printf("Root tree node at %08lx\n",(long)&CollectTree.root);
+	    e_printf("TNode pool at %08lx\n",(long)TNodePool);
 	}
-	G->link[0] = TNodePool;
-
-	memset(&InstrMeta[0], 0, sizeof(IMeta));
-	NextFreeIMeta = 0;
-	ForwIRef = NULL;
-	LastIMeta = NULL;
+	NodesParsed = NodesExecd = 0;
+	CleanFreq = 8;
+	cstx = xCS1 = 0;
+	CreationIndex = 0;
+	NodeLimit = (config.X? (NODES_IN_POOL/3):(NODES_IN_POOL/4));
+#ifdef PROFILE
 	MaxDepth = MaxNodes = MaxNodeSize = 0;
-	LastXNode = NULL;
+	TotalNodesParsed = TotalNodesExecd = PageFaults = 0;
+	NodesFound = NodesFastFound = NodesNotFound = 0;
+	TreeCleanups = 0;
+#endif
 }
 
 void EndGen(void)
 {
+#ifdef SHOW_STAT
+	int i;
+	long csm = config.CPUSpeedInMhz*1000;
+#endif
 	CleanIMeta();
 	avltr_destroy();
-	free(TNodePool);
+	free(TNodePool); TNodePool=NULL;
+#ifdef SHOW_STAT
+	for (i=0; i<cstx; i++) {
+	    dbug_printf("%04d %16Ld %8d %8d(%3d) %8d %d\n",i,(xCST[i].a/csm),
+		xCST[i].b,xCST[i].c,xCST[i].m,xCST[i].d,xCST[i].s);
+	}
+#endif
 }
 
 /////////////////////////////////////////////////////////////////////////////

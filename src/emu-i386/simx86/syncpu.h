@@ -7,7 +7,7 @@
  *
  *
  *  SIMX86 a Intel 80x86 cpu emulator
- *  Copyright (C) 1997,2000 Alberto Vignani, FIAT Research Center
+ *  Copyright (C) 1997,2001 Alberto Vignani, FIAT Research Center
  *				a.vignani@crf.it
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -42,11 +42,12 @@
 
 typedef struct {
 /* offsets are 8-bit signed */
-#define FIELD0		gs		/* first field of SynCPU */
+#define FIELD0		rzero	/* field of SynCPU at offset 00 */
 /* ------------------------------------------------ */
-/*80-84 ... */
+/*80	... */
+/*84*/  unsigned long cr2smc;
 /*88*/	unsigned long cr[5];
-/*9c*/	unsigned long rzero;
+/*9c*/	unsigned int  mode;
 /*a0*/	SDTR gs_cache;
 /*ac*/	SDTR fs_cache;
 /*b8*/	SDTR es_cache;
@@ -59,40 +60,40 @@ typedef struct {
 /*f0*/	unsigned short fpstt, fptag;
 /*f4*/	unsigned long _fni[3];
 /* ------------------------------------------------ */
-/*00*/	unsigned short gs, __gsh;
-/*04*/	unsigned short fs, __fsh;
-/*08*/	unsigned short es, __esh;
-/*0c*/	unsigned short ds, __dsh;
-/*10*/	unsigned long edi;
-/*14*/	unsigned long esi;
-/*18*/	unsigned long ebp;
-/*1c*/	unsigned long esp;
-/*20*/	unsigned long ebx;
-/*24*/	unsigned long edx;
-/*28*/	unsigned long ecx;
-/*2c*/	unsigned long eax;
-/*30*/	unsigned long trapno;
-/*34*/	unsigned long scp_err;
-/*38*/	unsigned long eip;
-/*3c*/	unsigned short cs, __csh;
-/*40*/	unsigned long eflags;
-/*44*/	unsigned long esp_at_signal;
-/*48*/	unsigned short ss, __ssh;
-/*4c*/	struct _fpstate *fpstate;
-/*50*/	unsigned long oldmask;
-/*54*/	unsigned long cr2;
+/*00*/	unsigned long rzero;
+/*04*/	unsigned short gs, __gsh;
+/*08*/	unsigned short fs, __fsh;
+/*0c*/	unsigned short es, __esh;
+/*10*/	unsigned short ds, __dsh;
+/*14*/	unsigned long edi;
+/*18*/	unsigned long esi;
+/*1c*/	unsigned long ebp;
+/*20*/	unsigned long esp;
+/*24*/	unsigned long ebx;
+/*28*/	unsigned long edx;
+/*2c*/	unsigned long ecx;
+/*30*/	unsigned long eax;
+/*34*/	unsigned long trapno;
+/*38*/	unsigned long scp_err;
+/*3c*/	unsigned long eip;
+/*40*/	unsigned short cs, __csh;
+/*44*/	unsigned long eflags;
+/*48*/	unsigned long esp_at_signal;
+/*4c*/	unsigned short ss, __ssh;
+/*50*/	struct _fpstate *fpstate;
+/*54*/	unsigned long oldmask;
+/*58*/	unsigned long cr2;
 /* ------------------------------------------------ */
-/*58*/	unsigned long sreg1;
-/*5c*/  unsigned long dreg1;
-/*60*/	unsigned long xreg1;
-/*64*/	unsigned long mem_ref;
-/*68*/	unsigned long veflags;
-/*6c*/		 long err;
-/*70*/	unsigned long long EMUtime;
-/*78*/	unsigned int  mode;
+/*5c*/	unsigned long sreg1;
+/*60*/  unsigned long dreg1;
+/*64*/	unsigned long xreg1;
+/*68*/	unsigned short sigalrm_pending, sigprof_pending;
+/*6c*/	unsigned long veflags;
+/*70*/		 long err;
+/*74*/	unsigned long long EMUtime;
 /*7c*/	unsigned long StackMask;
 /* ------------------------------------------------ */
-	unsigned long tr[2];
+/*80*/	unsigned long tr[2];
 /*
  * DR0-3 = linear address of breakpoint 0-3
  * DR4=5 = reserved
@@ -112,6 +113,7 @@ typedef struct {
  *	b28-31= LLRW bp#3
  */
 	unsigned long dr[8];
+	unsigned long mem_ref;
 /* CPU register: base(32) limit(16) */
 	DTR  GDTR;
 /* CPU register: base(32) limit(16) */
@@ -134,7 +136,7 @@ extern SynCPU TheCPU;
 
 #define CPUOFFS(o)	(((char *)&(TheCPU.FIELD0))+(o))
 
-#define CPUBYTE(o)	*CPUOFFS(o)
+#define CPUBYTE(o)	*((unsigned char *)CPUOFFS(o))
 #define CPUWORD(o)	*((unsigned short *)CPUOFFS(o))
 #define CPULONG(o)	*((unsigned long *)CPUOFFS(o))
 
@@ -167,7 +169,10 @@ extern SynCPU TheCPU;
 #define Ofs_CR0		(char)(offsetof(SynCPU,cr[0])-SCBASE)
 #define Ofs_CR2		(char)(offsetof(SynCPU,cr2)-SCBASE)
 #define Ofs_STACKM	(char)(offsetof(SynCPU,StackMask)-SCBASE)
+#define Ofs_ETIME	(char)(offsetof(SynCPU,EMUtime)-SCBASE)
 #define Ofs_RZERO	(char)(offsetof(SynCPU,rzero)-SCBASE)
+#define Ofs_SIGAPEND	(char)(offsetof(SynCPU,sigalrm_pending)-SCBASE)
+#define Ofs_SIGFPEND	(char)(offsetof(SynCPU,sigprof_pending)-SCBASE)
 
 #define Ofs_FPR		(char)(offsetof(SynCPU,fpregs)-SCBASE)
 #define Ofs_FPSTT	(char)(offsetof(SynCPU,fpstt)-SCBASE)
@@ -222,6 +227,8 @@ extern SynCPU TheCPU;
 #define REG1		TheCPU.sreg1
 #define REG3		TheCPU.dreg1
 #define SBASE		TheCPU.xreg1
+#define SIGAPEND	TheCPU.sigalrm_pending
+#define SIGFPEND	TheCPU.sigprof_pending
 #define MEMREF		TheCPU.mem_ref
 #define EFLAGS		TheCPU.eflags
 #define FLAGS		*((unsigned short *)&(TheCPU.eflags))
@@ -243,7 +250,5 @@ extern SynCPU TheCPU;
 #define LONG_GS		TheCPU.gs_cache.BoundL
 
 extern char OVERR_DS, OVERR_SS;
-
-#define FAKE_INS_TIME	20
 
 #endif

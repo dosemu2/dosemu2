@@ -1,3 +1,28 @@
+2001/11/07 ver. 1.1.2.1 unofficial pre-release
+	From Alberto
+	- made it compile with gcc-3.0 under Mandrake 8.0.
+	  You should _not_ use -fschedule-insns2, it makes dosemu crash.
+	- Reorganized the simx86 directory. Implemented a 'full-emulation'
+	  mode, totally in C like Twin (R.I.P.).
+	  This C-emulator is now working fine, FP is not yet finished
+	  but (apart the abominable speed) it does all what the JIT
+	  version does.
+	- Prepared simx86 for optimizer by clearly separating the Gen()
+	  function, which generates an intermediate representation into
+	  the IMeta structures, from the actual code generator backend.
+	- This release is tested on an Athlon 800; there are timing problems
+	  with "slow" (<400MHz) machines.
+	- There are still some problems with Windows 3.1 and the segment
+	  linker.
+	- Corrected xms.c: do not touch BH, else Win98 boot failure
+	- Corrected dpmi.c: WARNING - realmode flags can contain the 
+	  dreadful NT flag which will produce an exception 10 as soon 
+	  as we return from the callback! - so it's explicitly switched off 
+	  now.
+	From Bart
+	- added warning about prefetch instruction which does not exist on
+	  i586 or lower (including AMD K6). This should probably be converted
+	  into a compile-time option - otherwise cpuemu crashes on these CPUs.
 2001/11/04 ver. 1.1.2 released
         From Hans
 	- get 'make dosbin' working

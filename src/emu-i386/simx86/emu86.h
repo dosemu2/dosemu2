@@ -7,7 +7,7 @@
  *
  *
  *  SIMX86 a Intel 80x86 cpu emulator
- *  Copyright (C) 1997,2000 Alberto Vignani, FIAT Research Center
+ *  Copyright (C) 1997,2001 Alberto Vignani, FIAT Research Center
  *				a.vignani@crf.it
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -38,6 +38,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include "config.h"
+#include "econfig.h"
 #include <setjmp.h>
 #include "emu.h"
 #include "timers.h"
@@ -45,7 +46,10 @@
 #include "cpu-emu.h"
 #include "syncpu.h"
 
-extern hitimer_t TotalTime, AddTime, SearchTime, ExecTime, CleanupTime;	// for debug
+#ifdef PROFILE
+extern hitimer_t AddTime, SearchTime, ExecTime, CleanupTime;
+extern hitimer_t GenTime, LinkTime;
+#endif
 
 /* octal digits in a byte: hhmm.mlll */
 #define D_HO(b)	(((b)>>6)&3)
@@ -529,6 +533,7 @@ extern hitimer_t TotalTime, AddTime, SearchTime, ExecTime, CleanupTime;	// for d
 #define MSR_SYSENTER_EIP     0x00000176
 
 #define IS_CF_SET		((EFLAGS & EFLAGS_CF)!=0)
+#define IS_AF_SET		((EFLAGS & EFLAGS_AF)!=0)
 #define IS_ZF_SET		((EFLAGS & EFLAGS_ZF)!=0)
 #define IS_SF_SET		((EFLAGS & EFLAGS_SF)!=0)
 #define IS_OF_SET		((EFLAGS & EFLAGS_OF)!=0)
@@ -605,8 +610,16 @@ extern hitimer_t TotalTime, AddTime, SearchTime, ExecTime, CleanupTime;	// for d
 
 /////////////////////////////////////////////////////////////////////////////
 
-#define E_TIME_STRETCH	{ hitimer_t t0=GETTSC();\
-			  ZeroTimeBase.td += (t0 - TheCPU.EMUtime);\
+extern int eTimeCorrect;
+
+/* the amount of stretching (backtracing in time) to perform must be
+ * empirically determined. The full backtrace is maybe too much since
+ * we synchronize on the slower emulated time, while not stretching
+ * makes the time going too fast for the emulator. 1/2 is probably a
+ * good compromise, but it depends on the target machine too.
+ */
+#define E_TIME_STRETCH	if (eTimeCorrect>=0) { hitimer_t t0=GETTSC();\
+			  ZeroTimeBase.td += ((t0 - TheCPU.EMUtime) >> eTimeCorrect);\
 			  TheCPU.EMUtime = t0; }
 
 #ifndef min
@@ -615,22 +628,25 @@ extern hitimer_t TotalTime, AddTime, SearchTime, ExecTime, CleanupTime;	// for d
 #ifndef max
 #define max(a,b)	((a)>(b)?(a):(b))
 #endif
+#ifndef PAGE_SHIFT
+#define PAGE_SHIFT		12
+#endif
 #ifndef PAGE_SIZE
-#define PAGE_SIZE	4096
+#define PAGE_SIZE		(1UL << PAGE_SHIFT)
+#endif
+#ifndef PAGE_MASK
+#define PAGE_MASK		(~(PAGE_SIZE-1))
 #endif
 
 /////////////////////////////////////////////////////////////////////////////
 //
 extern unsigned long eTSSMASK;
-extern volatile sig_atomic_t e_signal_pending;
 extern int Running;		/* into interpreter loop */
-extern int JumpOpt;
-extern unsigned long JumpOptLim;
 //
 unsigned char *do_hwint(int mode, int intno);
 unsigned char *Interp86(unsigned char *PC, int mode);
 //
-int ModRM(unsigned char *PC, int mode);
+int ModRM(unsigned char opc, unsigned char *PC, int mode);
 int ModRMSim(unsigned char *PC, int mode);
 int ModGetReg1(unsigned char *PC, int mode);
 //
@@ -638,14 +654,24 @@ char *e_emu_disasm(unsigned char *org, int is32);
 char *e_print_regs(void);
 char *e_print_scp_regs(struct sigcontext_struct *scp, int pmode);
 char *e_trace_fp(void);
+void GCPrint(unsigned char *cp, unsigned char *cbase, int len);
+char *showreg(signed char r);
+char *showmode(unsigned int m);
 //
 void e_emu_fault(int, struct sigcontext_struct);
 //
 int e_mprotect(caddr_t addr, size_t len);
 int e_munprotect(caddr_t addr, size_t len);
 int e_querymprot(caddr_t addr);
+int e_querymprotrange(caddr_t al, caddr_t ah);
+int e_markpage(caddr_t addr, size_t len);
+int e_querymark(caddr_t addr);
+int e_resetpagemarks(caddr_t addr);
 void mprot_init(void);
 void mprot_end(void);
+void InvalidateSegs(void);
+//
+void CollectStat(void);
 //
 /////////////////////////////////////////////////////////////////////////////
 

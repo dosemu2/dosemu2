@@ -7,7 +7,7 @@
  *
  *
  *  SIMX86 a Intel 80x86 cpu emulator
- *  Copyright (C) 1997,2000 Alberto Vignani, FIAT Research Center
+ *  Copyright (C) 1997,2001 Alberto Vignani, FIAT Research Center
  *				a.vignani@crf.it
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -37,10 +37,11 @@
 
 #include "syncpu.h"
 #include "trees.h"
+#include "dpmi.h"
 
 /////////////////////////////////////////////////////////////////////////////
 
-#define L_LITERAL	0
+#define L_NOP		0
 
 #define LEA_DI_R	1
 #define A_DI_0		2
@@ -48,15 +49,24 @@
 #define A_DI_2		4
 #define A_DI_2D		5
 #define A_SR_SH4	6
+#define O_FOP		7
 
+#define L_REG		10
+#define S_REG		11
+#define L_REG2REG	12
 #define L_IMM		13
 #define L_IMM_R1	14
-#define S_DI_R		15
+#define S_DI_IMM	15
+#define S_DI_R		16
 #define L_MOVZS		17
 #define L_LXS1		18
 #define L_LXS2		19
 #define L_ZXAX		20
 #define L_CR0		21
+#define L_DI_R1		22
+#define L_VGAREAD	22
+#define S_DI		23
+#define L_VGAWRITE	23
 
 #define O_ADD_R		30
 #define O_OR_R		31
@@ -91,13 +101,16 @@
 #define O_SAR		60
 #define O_OPAX		61
 #define O_XLAT		62
-#define O_CJMP		63
+#define O_CJMP		63	// unused
 #define O_SLAHF		64
 #define O_SETFL		65
 #define O_BSWAP		66
 #define O_SETCC		67
 #define O_BITOP		68
 #define O_SHFD		69
+#define O_CLEAR		70	// xor r,r
+#define O_TEST		71	// and r,r; or r,r
+#define O_SBSELF	72	// sbb r,r
 
 #define O_PUSH		80
 #define O_PUSHI		81
@@ -111,6 +124,7 @@
 #define O_POP1		89
 #define O_POP2		90
 #define O_POP3		91
+#define O_LEAVE		92
 
 #define O_MOVS_SetA	100
 #define O_MOVS_MovD	101
@@ -126,10 +140,10 @@
 #define O_OUTPDX	110
 #define O_OUTPPC	111
 
-#define JB_LOCAL	112
-#define JCXZ_LOCAL	113
-#define JLOOP_LOCAL	114
-#define JF_LOCAL	115
+#define JMP_LINK	112
+#define JB_LINK		113
+#define JF_LINK		114
+#define JLOOP_LINK	115
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -141,7 +155,7 @@
 #define BitDATA16	1
 #define MBYTE	0x00000004
 #define IMMED	0x00000008
-#define MCEXEC	0x00000010
+#define RM_REG	0x00000010
 #define RSHIFT	0x00000020
 #define SEGREG	0x00000040
 #define MLEA	0x00000080
@@ -154,18 +168,21 @@
 #define MOVSSRC	0x00004000
 #define MOVSDST	0x00008000
 
-#define DSPSTK	0x00080000
+#define CKSIGN	0x00100000	// check signal: for jumps
+#define SKIPOP	0x00200000
+// for HOST_ARCH_SIM
+#define CLROVF	0x00200000
+#define SETOVF	0x00400000
+#define IGNOVF	0x00800000
 
 // as seqflg takes mode>>16, these must go together in pairs
 // (bits 0-3 are accumulated in the sequence head node):
 #define M_FPOP	0x00010000
 #define F_FPOP	0x0001
-#define M_BJMP	0x00100000
-#define F_BJMP	0x0010
-#define M_FJMP	0x00200000
-#define F_FJMP	0x0020
-#define M_SUSP	0x00400000
-#define F_SUSP	0x0040
+#define M_HITC	0x00020000
+#define F_HITC	0x0002
+#define M_SLFL	0x00040000
+#define F_SLFL	0x0004
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -174,16 +191,6 @@
 #define GetSLong(l)	*((unsigned long *)(l))=*((unsigned long *)(LONG_SS+sp))
 #define PutSWord(w)	*((unsigned short *)(LONG_SS+sp))=*((unsigned short *)(w))
 #define PutSLong(l)	*((unsigned long *)(LONG_SS+sp))=*((unsigned long *)(l))
-
-static __inline__ void PUSH(int m, void *w)
-{
-	unsigned long sp = (TheCPU.esp-2) & TheCPU.StackMask;
-	if (m&DATA16) PutSWord(w);
-	else {
-		sp = (sp-2)&TheCPU.StackMask; PutSLong(w);
-	}
-	TheCPU.esp = (sp&TheCPU.StackMask) | (TheCPU.esp&~TheCPU.StackMask);
-}
 
 static __inline__ void POP(int m, void *w)
 {
@@ -227,43 +234,33 @@ static __inline__ void POP_ONLY(int m)
 #define	G4(l,p)		{*((unsigned long *)(p))=(l);(p)+=4;}
 #define	G4M(c,b1,b2,b3,p) {*((unsigned long *)(p))=((b3)<<24)|((b2)<<16)|((b1)<<8)|(c);\
 				(p)+=4;}
-#define	G5(l1,b2,p)	{*((unsigned long *)(p))=(l1);*((p)+4)=(unsigned char)(b2);\
+#define	G5(l1,b2,p)	{*((unsigned long *)(p))=(l1),(p)[4]=(unsigned char)(b2);\
 				(p)+=5;}
-#define	G6(l1,w2,p)	{*((unsigned long *)(p))=(l1);\
+#define	G6(l1,w2,p)	{*((unsigned long *)(p))=(l1),\
 			 *((unsigned short *)((p)+4))=(w2);(p)+=6;}
-#define	G7(l1,l2,p)	{*((unsigned long *)(p))=(l1);\
+#define	G7(l1,l2,p)	{*((unsigned long *)(p))=(l1),\
 			 *((unsigned long *)((p)+4))=(l2);(p)+=7;}
-#define	G8(l1,l2,p)	{*((unsigned long *)(p))=(l1);\
+#define	G8(l1,l2,p)	{*((unsigned long *)(p))=(l1),\
 			 *((unsigned long *)((p)+4))=(l2);(p)+=8;}
 #define GNX(d,s,l)	{__memcpy((d),(s),(l));(d)+=(l);}
 
 /////////////////////////////////////////////////////////////////////////////
 //
 void InitGen(void);
-IMeta *NewIMeta(unsigned char *newa, int mode, int *rc, void *aux);
+int  NewIMeta(unsigned char *newa, int mode, int *rc);
 void Gen(int op, int mode, ...);
 void AddrGen(int op, int mode, ...);
 int  Fp87_op(int exop, int reg);
-unsigned char *CloseAndExec(unsigned char *newa, int mode);
+void NodeUnlinker(TNode *G);
+unsigned char *CloseAndExec(unsigned char *PC, TNode *G, int mode, int ln);
 void EndGen(void);
 //
-static __inline__ void ResetCodeBuf(void)
-{
-	CodePtr = PrevCodePtr = CodeBuf;
-}
-
-static __inline__ int IsCodeBufEmpty(void)
-{
-	return (CodePtr == CodeBuf);
-}
-
-static __inline__ int IsCodeInBuf(void)
-{
-	return (CodePtr > CodeBuf);
-}
-
-extern TNode *CurrXNode;
-
 extern char InterOps[];
+extern int  GendBytesPerOp[];
+extern char RmIsReg[];
+extern char OpIsPush[];
+
+int Cpatch(unsigned char *eip);
+int UnCpatch(unsigned char *eip);
 
 #endif

@@ -179,7 +179,7 @@ static void write_port60(Bit8u value)
       }
       port60_ready=0;
       wstate=0;
-      break;      
+      break;
     case 0xed:        /* set LED mode */
       h_printf("8042: write port 0x60 set LED mode to 0x%02x\n", value);
       ack();

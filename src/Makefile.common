@@ -6,12 +6,6 @@
 
 SHELL=/bin/bash
 
-ifndef SUBDIR
-thisshouldnothappen:
-	echo This rule should never execute
-	false
-endif
-
 SUBDIR := $(subst $(addsuffix /,$(TOPDIR)),,$(shell pwd -P))
 LIBNAME := $(shell echo $(SUBDIR) |tr / _)
 

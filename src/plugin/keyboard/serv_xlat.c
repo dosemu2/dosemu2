@@ -566,12 +566,32 @@ static Boolean handle_dosemu_keys(t_keysym key) {
 
    if ((shiftstate&CTRL) && (shiftstate&ALT)) {
       switch(key) {
+#ifdef X86_EMULATOR
+       case KEY_PGUP:
+             k_printf("KBD: Ctrl-Alt-PgUp\n");
+             if (config.cpuemu) {
+		int v;
+		if (d.emu<2) {
+		  d.emu=5; v=3;
+		}
+		else {
+		  d.emu=0; v=0;
+		}
+		d.disk = d.dos = d.video = d.keyb = d.io = d.pci =
+		d.io_trace = d.defint = d.general = d.hardware =
+		d.EMS = d.xms = d.dpmi = d.request = d.sound =
+		d.mouse = d.mapping = v;
+		fflush(dbg_fd);
+             }
+             return 1;
+#else
 #if 0	/* C-A-D is disabled */
        case KEY_DEL:
        case KEY_PGUP:
              k_printf("KBD: Ctrl-Alt-{Del|PgUp}: rebooting dosemu\n");
              dos_ctrl_alt_del();
              return 1;
+#endif
 #endif
        case KEY_PGDN:
              k_printf("KBD: Ctrl-Alt-PgDn: bye bye!\n");
@@ -869,7 +889,7 @@ void putkey(Boolean make, t_keysym key, uchar ascii)
          }
 
          if (scan&0x80)
-            k_printf("KBD: already BREAK code ???!\n");
+            k_printf("KBD: already BREAK code ??? !\n");
 
          scan |= 0x80;
       }

@@ -46,7 +46,7 @@ typedef unsigned char boolean_t;
 
 #define us_debug_level 10
 #define Debug_Level_0 0
-#define dbg_fd d.disk
+#define dbg_fd -1
 
 #define d_Stub(arg1, s, a...)   d_printf("MFS: "s, ##a)
 #define Debug0(args)		d_Stub args
@@ -401,3 +401,7 @@ typedef struct lol_record {
 #define REDIRECT_DEVICE 3
 #define CANCEL_REDIRECTION 4
 #define EXTENDED_GET_REDIRECTION 5
+
+#ifdef X86_EMULATOR
+extern int e_dos_read(int fd, char *data, int cnt);
+#endif

@@ -44,6 +44,10 @@
   #define llseek libless_llseek
 #endif
 
+#ifdef X86_EMULATOR
+extern int e_dos_read(int fd, char *data, int cnt);
+#endif
+
 static int disks_initiated = 0;
 
 #define FDISKS config.fdisks
@@ -217,14 +221,20 @@ read_sectors(struct disk *dp, char *buffer, long head, long sector,
       error("Sector not found in read_sector, error = %s!\n", strerror(errno));
       return -DERR_NOTFOUND;
     }
+#ifdef X86_EMULATOR
+    if (config.cpuemu>1)
+	tmpread = e_dos_read(dp->fdesc, buffer, count * SECTOR_SIZE - already);
+    else
+#endif
     tmpread = RPT_SYSCALL(read(dp->fdesc, buffer, count * SECTOR_SIZE - already));
   }
 
   if(tmpread != -1) {
-    if(d.disk > 8) dump_disk_blks(buffer, count - already / SECTOR_SIZE, SECTOR_SIZE);
+    if (d.disk > 8) dump_disk_blks(buffer, count - already / SECTOR_SIZE, SECTOR_SIZE);
     return tmpread + already;
   }
   else {
+/**/ dbug_printf("disks.c: read failed\n");
     return -DERR_ECCERR;
   }
 }
@@ -647,7 +657,7 @@ disk_close(void)
   if (!disks_initiated) return;  /* just to be safe */
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
     if (dp->removeable && dp->fdesc >= 0) {
-      d_printf("DISK: %s: Closing a disk\n",dp->dev_name);
+      d_printf("DISK: Closing disk %s\n",dp->dev_name);
       (void) close(dp->fdesc);
       dp->fdesc = -1;
     }
@@ -1021,6 +1031,8 @@ int13(u_char i)
   else
     dp = NULL;
 
+  d_printf("INT13: disk=%#x ah=%#x dp=%p\n", LO(dx), HI(ax), dp);
+
   /* this is a bad hack to ensure that the cached blocks aren't.
    * Linux only checks disk change on open()
    */
@@ -1053,6 +1065,10 @@ int13(u_char i)
       track |= (HI(dx) & 0xc0) << 4;
     buffer = SEG_ADR((char *), es, bx);
     number = LO(ax);
+#ifdef X86_EMULATOR
+    e_printf("DISK %d read [h:%d,s:%d,t:%d](%d)->%04x:%04x\n",
+	     disk, head, sect, track, number, REG(es), LWORD(ebx));
+#endif
 
     if (checkdp_val || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
@@ -1587,10 +1603,11 @@ int13(u_char i)
 void
 floppy_tick(void)
 {
-  static int secs = 0;
+  static int ticks = 0;
 
-  if (++secs == config.fastfloppy) {
+  if (++ticks >= config.fastfloppy) {
     disk_close();
-    secs = 0;
+    d_printf("FLOPPY: flushing after %d ticks\n", ticks);
+    ticks = 0;
   }
 }

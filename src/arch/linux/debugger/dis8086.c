@@ -188,7 +188,7 @@ static const char *loop_codes[] =
   "loopne", "loope ", "loop  ", "jcxz  "
 };
 
-#if defined(i386) || defined(vax)
+#if defined(i386) || defined(vax) /* || defined(alpha) */
 /* Little-endian machines which allow unaligned addresses.  */
 #define IMMED16(code) *(unsigned short *)(code)
 #define IMMED32(code) *(unsigned int *)(code)
@@ -255,42 +255,42 @@ static INLINE unsigned int   resolva (unsigned int addr)
 
 static unsigned char *modrm_disp32(int d)
 {
-   static char buf[10];
+   static char buf[16];
 
    if (d == 0)
      buf[0] = 0;
    else if (d > 0)
-     sprintf(buf, "+%08X", d);
+     sprintf(buf, "+%#08x", d);
    else
-     sprintf(buf, "-%08X", (-d));
+     sprintf(buf, "-%#08x", (-d));
 
    return buf;
 }
 
 static unsigned char *modrm_disp16(int d)
 {
-   static char buf[5];
+   static char buf[10];
 
    if (d == 0)
      buf[0] = 0;
    else if (d > 0)
-     sprintf(buf, "+%04X", d);
+     sprintf(buf, "+%#04x", d);
    else
-     sprintf(buf, "-%04X", (-d));
+     sprintf(buf, "-%#04x", (-d));
 
    return buf;
 }
 
 static unsigned char *modrm_disp8(int d)
 {
-   static char buf[4];
+   static char buf[8];
 
    if (d == 0)
      buf[0] = 0;
    else if (d > 0)
-     sprintf(buf, "+%02X", d);
+     sprintf(buf, "+%#02x", d);
    else
-     sprintf(buf, "-%02X", (-d));
+     sprintf(buf, "-%#02x", (-d));
 
    return buf;
 }
@@ -320,7 +320,7 @@ unsigned char hex32[9];
     {
         if (rm == 5)
         {
-            d86_printf("%s[%08X]", seg, immed32(code));
+            d86_printf("%s[%08x]", seg, immed32(code));
             return code+4;
         }
         if (rm != 4)
@@ -331,7 +331,7 @@ unsigned char hex32[9];
 
         if (base == 5)
         {
-            sprintf(hex32, "%08X", immed32(code));
+            sprintf(hex32, "%08x", immed32(code));
             basestr = hex32;
             code += 4;
         }
@@ -387,7 +387,7 @@ unsigned char rm  = *code & 7;
 
   if (rm == 6)
   {
-      d86_printf("%s[%04X]", seg, immed16(code));
+      d86_printf("%s[%04x]", seg, immed16(code));
       return code+2;
   }
   else
@@ -411,7 +411,7 @@ char *nw = 0;
       if (code[0] & 1)
           d86_printf("st(%d)",reg);
 
-/*      else if (reg == 1) ; ((code[1] & 0x30) == 0x10) ;*/
+//      else if (reg == 1) ; /*((code[1] & 0x30) == 0x10) ;*/
 
       else if (code[0] & 4)
           d86_printf("st(%d),st",reg);
@@ -491,7 +491,7 @@ static INLINE const unsigned char *esc_op(const unsigned char opcode,
 				int addr32)
 {
 
-  d86_printf("esc     %02X,", ((opcode & 7) << 3) | ((*code >> 3) & 7));
+  d86_printf("esc     %02x,", ((opcode & 7) << 3) | ((*code >> 3) & 7));
   return mod_rm(code, seg, regs, addr32);
 }
 
@@ -586,7 +586,7 @@ int  dis_8086(unsigned int org,
 	case 0x2c:
 	case 0x34:
 	case 0x3c:
-	  d86_printf("%s     al,%02X", arith[opcode >> 3],
+	  d86_printf("%s     al,%#02x", arith[opcode >> 3],
 		  (unsigned char)*code++);
 	  break;
 
@@ -600,12 +600,12 @@ int  dis_8086(unsigned int org,
 	case 0x3d:
 	  if (data32)
 	    {
-	      d86_printf("%s     eax,%08X", arith[opcode >> 3], immed32(code));
+	      d86_printf("%s     eax,%08x", arith[opcode >> 3], immed32(code));
 	      code += 4;
 	    }
 	  else
 	    {
-	      d86_printf("%s     ax,%04X", arith[opcode >> 3], immed16(code));
+	      d86_printf("%s     ax,%04x", arith[opcode >> 3], immed16(code));
 	      code += 2;
 	    }
 	  break;
@@ -700,11 +700,11 @@ int  dis_8086(unsigned int org,
 	    case 0x8e:
 	    case 0x8f:
 	      if (addr32) {
-		d86_printf("j%s     %08X", conditions[opcode & 15],
+		d86_printf("j%s     %08x", conditions[opcode & 15],
 			resolva((code-code0)+org + 4 + IMMED32I(code)));
 		code += 4;
 	      } else {
-		d86_printf("j%s     %04X", conditions[opcode & 15],
+		d86_printf("j%s     %04x", conditions[opcode & 15],
 			(code-code0)+org + 2 + (short)(code[0] + (code[1] << 8)));
 		code += 2;
 	      }
@@ -753,7 +753,7 @@ int  dis_8086(unsigned int org,
 	    case 0xa4:
 	      d86_printf("shld    ");
 	      code = mod_reg_rm_r(code, seg, wreg, wreg, addr32);
-	      d86_printf(",%02X", *code++);
+	      d86_printf(",%#02x", *code++);
 	      break;
 
 	    case 0xa5:
@@ -773,7 +773,7 @@ int  dis_8086(unsigned int org,
 	    case 0xac:
 	      d86_printf("shrd    ");
 	      code = mod_reg_rm_r(code, seg, wreg, wreg, addr32);
-	      d86_printf(",%02X", *code++);
+	      d86_printf(",%#02x", *code++);
 	      break;
 
 	    case 0xad:
@@ -830,7 +830,7 @@ int  dis_8086(unsigned int org,
 	      d86_printf(bt_codes[(*code >> 3) & 3]);
 	      d86_printf("     ");
 	      code = mod_rm(code, seg, wreg, addr32);
-	      d86_printf(",%02X", *code++);
+	      d86_printf(",%#02x", *code++);
 	      break;
 
 	    case 0xbc:
@@ -879,7 +879,7 @@ int  dis_8086(unsigned int org,
 	      break;
 
 	    default:	/* Maybe better to just say "db 0F"? - ARA */
-	      d86_printf("ESC 0F %02X", opcode);
+	      d86_printf("ESC 0F %02x", opcode);
 	      break;
 	    }
 	  break;
@@ -1021,12 +1021,12 @@ int  dis_8086(unsigned int org,
 	case 0x68:
 	  if (data32)
 	    {
-	      d86_printf("push    %08X", immed32(code));
+	      d86_printf("push    %08x", immed32(code));
 	      code += 4;
 	    }
 	  else
 	    {
-	      d86_printf("push    %04X", immed16(code));
+	      d86_printf("push    %04x", immed16(code));
 	      code += 2;
 	    }
 	  break;
@@ -1036,27 +1036,27 @@ int  dis_8086(unsigned int org,
 	  code = mod_reg_rm(code, seg, wreg, wreg, addr32);
 	  if (data32)
 	    {
-	      d86_printf(",%08X", IMMED32(code));
+	      d86_printf(",%08x", IMMED32(code));
 	      code += 4;
 	    }
 	  else
 	    {
-	      d86_printf(",%04X", IMMED16(code));
+	      d86_printf(",%04x", IMMED16(code));
 	      code += 2;
 	    }
 	  break;
 
 	case 0x6a:
 	  if (data32)
-	      d86_printf("push    %08X", (signed char)*code++);
+	      d86_printf("push    %08x", (signed char)*code++);
 	  else
-	      d86_printf("push    %04X", (signed char)*code++);
+	      d86_printf("push    %04x", (signed char)*code++);
 	  break;
 
 	case 0x6b:
 	  d86_printf("imul    ");
 	  code = mod_reg_rm(code, seg, wreg, wreg, addr32);
-	  d86_printf(",%02X", (unsigned char)*code++);
+	  d86_printf(",%#02x", (unsigned char)*code++);
 	  break;
 
 	case 0x6c:
@@ -1091,9 +1091,9 @@ int  dis_8086(unsigned int org,
 	case 0x7d:
 	case 0x7e:
 	case 0x7f:
-	  if (addr32) d86_printf("j%s     %08X", conditions[opcode & 15],
+	  if (addr32) d86_printf("j%s     %08x", conditions[opcode & 15],
 		  SEG32REL(resolva((code-code0)+org + (signed char)*code + 1)));
-	  else d86_printf("j%s     %04X", conditions[opcode & 15],
+	  else d86_printf("j%s     %04x", conditions[opcode & 15],
 	          (unsigned short)SEG16REL(resolva((code-code0)+org + (signed char)*code + 1)));
 	  code++;
 	  break;
@@ -1103,7 +1103,7 @@ int  dis_8086(unsigned int org,
 	  d86_printf(arith[(*code >> 3) & 7]);
 	  d86_printf("     ");
 	  code = mod_rm(code, seg, reg8, addr32);
-	  d86_printf(",%02X", (unsigned char)*code++);
+	  d86_printf(",%#02x", (unsigned char)*code++);
 	  break;
 
 	case 0x81:
@@ -1112,12 +1112,12 @@ int  dis_8086(unsigned int org,
 	  code = mod_rm(code, seg, wreg, addr32);
 	  if (data32)
 	    {
-	      d86_printf(",%08X", immed32(code));
+	      d86_printf(",%08x", immed32(code));
 	      code += 4;
 	    }
 	  else
 	    {
-	      d86_printf(",%04X", immed16(code));
+	      d86_printf(",%04x", immed16(code));
 	      code += 2;
 	    }
 	  break;
@@ -1127,9 +1127,9 @@ int  dis_8086(unsigned int org,
 	  d86_printf("     ");
 	  code = mod_rm(code, seg, wreg, addr32);
 	  if (data32)
-	      d86_printf(",%08X", (signed char)*code++);
+	      d86_printf(",%08x", (signed char)*code++);
 	  else
-	      d86_printf(",%04X", (unsigned short)((signed char)*code++));
+	      d86_printf(",%04x", (unsigned short)((signed char)*code++));
 	  break;
 
 	case 0x84:
@@ -1220,13 +1220,13 @@ int  dis_8086(unsigned int org,
 	case 0x9a:
 	  if (data32)
 	    {
-	      d86_printf("call    %04X:%08X", IMMED16(code+4),
+	      d86_printf("call    %04x:%08x", IMMED16(code+4),
 	      	  IMMED32(code));
 	      code += 6;
 	    }
 	  else
 	    {
-	      d86_printf("call    %04X:%04X", IMMED16(code+2),
+	      d86_printf("call    %04x:%04x", IMMED16(code+2),
 		  IMMED16(code));
 	      resolva( makeaddr( IMMED16(code+2), IMMED16(code)));
 	      code += 4;
@@ -1255,40 +1255,40 @@ int  dis_8086(unsigned int org,
 
 	case 0xa0:
 	  if (addr32) {
-	    d86_printf("mov     al,%s[%08X]", seg, immed32(code));
+	    d86_printf("mov     al,%s[%08x]", seg, immed32(code));
 	    code += 4;
 	  } else {
-	    d86_printf("mov     al,%s[%04X]", seg, immed16(code));
+	    d86_printf("mov     al,%s[%04x]", seg, immed16(code));
 	    code += 2;
 	  }
 	  break;
 
 	case 0xa1:
 	  if (addr32) {
-	    d86_printf("mov     %s,%s[%08X]", wreg[0], seg, immed32(code));
+	    d86_printf("mov     %s,%s[%08x]", wreg[0], seg, immed32(code));
 	    code += 4;
 	  } else {
-	    d86_printf("mov     %s,%s[%04X]", wreg[0], seg, immed16(code));
+	    d86_printf("mov     %s,%s[%04x]", wreg[0], seg, immed16(code));
 	    code += 2;
 	  }
 	  break;
 
 	case 0xa2:
 	  if (addr32) {
-	    d86_printf("mov     %s[%08X],al", seg, immed32(code));
+	    d86_printf("mov     %s[%08x],al", seg, immed32(code));
 	    code += 4;
 	  } else {
-	    d86_printf("mov     %s[%04X],al", seg, immed16(code));
+	    d86_printf("mov     %s[%04x],al", seg, immed16(code));
 	    code += 2;
 	  }
 	  break;
 
 	case 0xa3:
 	  if (addr32) {
-	    d86_printf("mov     %s[%08X],%s", seg, immed32(code), wreg[0]);
+	    d86_printf("mov     %s[%08x],%s", seg, immed32(code), wreg[0]);
 	    code += 4;
 	  } else {
-	    d86_printf("mov     %s[%04X],%s", seg, immed16(code), wreg[0]);
+	    d86_printf("mov     %s[%04x],%s", seg, immed16(code), wreg[0]);
 	    code += 2;
 	  }
 	  break;
@@ -1326,18 +1326,18 @@ int  dis_8086(unsigned int org,
 	  break;
 
 	case 0xa8:
-	  d86_printf("test    al,%02X", *code++);
+	  d86_printf("test    al,%#02x", *code++);
 	  break;
 
 	case 0xa9:
 	  if (data32)
 	    {
-	      d86_printf("test    eax,%08X", immed32(code));
+	      d86_printf("test    eax,%08x", immed32(code));
 	      code += 4;
 	    }
 	  else
 	    {
-	      d86_printf("test    ax,%04X", immed16(code));
+	      d86_printf("test    ax,%04x", immed16(code));
 	      code += 2;
 	    }
 	  break;
@@ -1381,7 +1381,7 @@ int  dis_8086(unsigned int org,
 	case 0xb5:
 	case 0xb6:
 	case 0xb7:
-	  d86_printf("mov     %s,%02X", reg8[opcode & 7], *code++);
+	  d86_printf("mov     %s,%#02x", reg8[opcode & 7], *code++);
 	  break;
 
 	case 0xb8:
@@ -1394,12 +1394,12 @@ int  dis_8086(unsigned int org,
 	case 0xbf:
 	  if (data32)
 	    {
-	      d86_printf("mov     %s,%08X", wreg[opcode & 7], immed32(code));
+	      d86_printf("mov     %s,%08x", wreg[opcode & 7], immed32(code));
 	      code += 4;
 	    }
 	  else
 	    {
-	      d86_printf("mov     %s,%04X", wreg[opcode & 7], immed16(code));
+	      d86_printf("mov     %s,%04x", wreg[opcode & 7], immed16(code));
 	      code += 2;
 	    }
 	  break;
@@ -1417,13 +1417,13 @@ int  dis_8086(unsigned int org,
 	  d86_printf(shift[(*code >> 3) & 7]);
 	  d86_printf("     ");
 	  if ((*code & 0xc0) != 0xc0)
-	      d86_printf("%cword ptr ", (data32? 'd':' '));
+	      d86_printf("%cword ptr ",(data32? 'd':' '));
 	  code = mod_rm(code, seg, wreg, addr32);
 	  d86_printf(",%d", 31 & *code++);
 	  break;
 
 	case 0xc2:
-	  d86_printf("ret     %04X", IMMED16(code));
+	  d86_printf("ret     %04x", IMMED16(code));
 	  code += 2;
 	  break;
 
@@ -1444,7 +1444,7 @@ int  dis_8086(unsigned int org,
 	case 0xc6:
 	  d86_printf("mov     ");
 	  code = mod_rm(code, seg, reg8, addr32);
-	  d86_printf(",%02X", (unsigned char)*code++);
+	  d86_printf(",%#02x", (unsigned char)*code++);
 	  break;
 
 	case 0xc7:
@@ -1452,20 +1452,20 @@ int  dis_8086(unsigned int org,
 	  code = mod_rm(code, seg, wreg, addr32);
 	  if (data32)
 	    {
-	      d86_printf(",%08X", immed32(code));
+	      d86_printf(",%08x", immed32(code));
 	      code += 4;
 	    }
 	  else
 	    {
-	      d86_printf(",%04X", immed16(code));
+	      d86_printf(",%04x", immed16(code));
 	      code += 2;
 	    }
 	  break;
 
 	case 0xc8:
-	  d86_printf("enter   %04X",IMMED16(code));
+	  d86_printf("enter   %04x",IMMED16(code));
 	  code+=2;
-	  d86_printf(",%02X", *code++);
+	  d86_printf(",%#02x", *code++);
 	
 	  break;
 
@@ -1474,7 +1474,7 @@ int  dis_8086(unsigned int org,
 	  break;
 
 	case 0xca:
-	  d86_printf("retf    %04X", IMMED16(code));
+	  d86_printf("retf    %04x", IMMED16(code));
 	  code += 2;
 	  break;
 
@@ -1487,7 +1487,7 @@ int  dis_8086(unsigned int org,
 	  break;
 
 	case 0xcd:
-	  d86_printf("int     %02X", *code++);
+	  d86_printf("int     %#02x", *code++);
 	  break;
 
 	case 0xce:
@@ -1529,17 +1529,17 @@ int  dis_8086(unsigned int org,
 	  d86_printf(shift[(*code >> 3) & 7]);
 	  d86_printf("     ");
 	  if ((*code & 0xc0) != 0xc0)
-	      d86_printf("%cword ptr ", (data32? 'd':' '));
+	      d86_printf("%cword ptr ",(data32? 'd':' '));
 	  code = mod_rm(code, seg, wreg, addr32);
 	  d86_printf(",cl");
 	  break;
 
 	case 0xd4:
-	  d86_printf("aam     %02X", *code++);
+	  d86_printf("aam     %02d", *code++);
 	  break;
 
 	case 0xd5:
-	  d86_printf("aad     %02X", *code++);
+	  d86_printf("aad     %02d", *code++);
 	  break;
 	
 	case 0xd6:
@@ -1663,39 +1663,39 @@ int  dis_8086(unsigned int org,
 	case 0xe2:
 	case 0xe3:
 	  if (addr32)
-              d86_printf("%s  %08X",
+              d86_printf("%s  %08x",
                          loop_codes[opcode & 3],
                          SEG32REL((code-code0)+org + (signed char)*code + 1));
 	  else
-              d86_printf("%s  %04X",
+              d86_printf("%s  %04x",
                          loop_codes[opcode & 3],
                          SEG16REL((code-code0)+org + (signed char)*code + 1));
 	  code++;
 	  break;
 
 	case 0xe4:
-	  d86_printf("in      al,%02X", *code++);
+	  d86_printf("in      al,%#02x", *code++);
 	  break;
 
 	case 0xe5:
-	  d86_printf("in      ax,%02X", *code++);
+	  d86_printf("in      ax,%#02x", *code++);
 	  break;
 
 	case 0xe6:
-	  d86_printf("out     %02X,al", *code++);
+	  d86_printf("out     %#02x,al", *code++);
 	  break;
 
 	case 0xe7:
-	  d86_printf("out     %02X,ax", *code++);
+	  d86_printf("out     %#02x,ax", *code++);
 	  break;
 
 	case 0xe8:
 	  if (addr32) {
-	    d86_printf("call    %08X",
+	    d86_printf("call    %08x",
 		    SEG32REL(resolva((code-code0)+org + 4 + IMMED32I(code))));
 	    code += 4;
 	  } else {
-	    d86_printf("call    %04X",
+	    d86_printf("call    %04x",
 		    SEG16REL(resolva((code-code0)+org + 2 + (code[0] | (code[1] << 8)))) & 0xffff);
 
 	    code += 2;
@@ -1704,11 +1704,11 @@ int  dis_8086(unsigned int org,
 
 	case 0xe9:
 	  if (data32) {
-	    d86_printf("jmp     %08X",
+	    d86_printf("jmp     %08x",
 		    SEG32REL(resolva((code-code0)+org + 4 + IMMED32I(code))));
 	    code += 4;
 	  } else {
-	    d86_printf("jmp     %04X",
+	    d86_printf("jmp     %04x",
 		    SEG16REL((unsigned short) ((code-code0)+org + 2 + (code[0] | (code[1] << 8)))) & 0xffff);
 	    code += 2;
 	  }
@@ -1716,11 +1716,11 @@ int  dis_8086(unsigned int org,
 
 	case 0xea:
 	  if (data32) {
-	    d86_printf("jmp     %04X:%08X", immed16(code+4),
+	    d86_printf("jmp     %04x:%08x", immed16(code+4),
 		    immed32i(code));
 	    code += 6;
 	  } else {
-	    d86_printf("jmp     %04X:%04X", IMMED16(code+2),
+	    d86_printf("jmp     %04x:%04x", IMMED16(code+2),
 		    IMMED16(code));
 	    resolva( makeaddr( IMMED16(code+2), IMMED16(code)));
 	    code += 4;
@@ -1728,8 +1728,8 @@ int  dis_8086(unsigned int org,
 	  break;
 
 	case 0xeb:
-	  if (data32) d86_printf("jmp     %08X", SEG32REL(resolva((code-code0)+org + (signed char)*code + 1)));
-	  else d86_printf("jmp     %04X", SEG16REL(resolva((code-code0)+org + (signed char)*code + 1)));
+	  if (data32) d86_printf("jmp     %08x", SEG32REL(resolva((code-code0)+org + (signed char)*code + 1)));
+	  else d86_printf("jmp     %04x", SEG16REL(resolva((code-code0)+org + (signed char)*code + 1)));
 	  code++;
 	  break;
 
@@ -1780,7 +1780,7 @@ int  dis_8086(unsigned int org,
 	    d86_printf("byte ptr ");
 	  code = mod_rm(code, seg, reg8, addr32);
 	  if ((opcode & 0x38) == 0)
-	    d86_printf(",%02X", *code++);
+	    d86_printf(",%#02x", *code++);
 	  break;
 
 	case 0xf7:
@@ -1788,18 +1788,18 @@ int  dis_8086(unsigned int org,
 	  d86_printf(f7_code[(*code >> 3) & 7]);
 	  d86_printf("    ");
 	  if (((*code & 0xc0) != 0xc0) && (*code & 0x38))
-	      d86_printf("%cword ptr ", (data32? 'd':' '));
+	      d86_printf("%cword ptr ",(data32? 'd':' '));
 	  code = mod_rm(code, seg, wreg, addr32);
 	  if ((opcode & 0x38) == 0)
 	    {
 	      if (data32)
 		{
-		  d86_printf(",%08X", immed32(code));
+		  d86_printf(",%08x", immed32(code));
 		  code += 4;
 		}
 	      else
 		{
-		  d86_printf(",%04X", immed16(code));
+		  d86_printf(",%04x", immed16(code));
 		  code += 2;
 		}
 	    }
@@ -1832,7 +1832,7 @@ int  dis_8086(unsigned int org,
 	case 0xfe:
 	  if (*code & 0x30)
 	    {
-	      d86_printf("db      %02X", opcode);
+	      d86_printf("db      %#02x", opcode);
 	      break;
 	    }
 	  d86_printf( ((*code & 0x08) ? "dec     " : "inc     ") );
@@ -1847,12 +1847,12 @@ int  dis_8086(unsigned int org,
 	  d86_printf(ff_code[(*code >> 3) & 7]);
 	  if (((*code & 0xc0) != 0xc0) &&
 	      (((*code & 0x30) == 0) || ((*code & 0x30) == 0x30)))
-	      d86_printf("%cword ptr ", (data32? 'd':' '));
+	      d86_printf("%cword ptr ",(data32? 'd':' '));
 	  code = mod_rm(code, seg, wreg, addr32);
 	  break;
 
 	default:
-	  d86_printf("db      %02X", opcode);
+	  d86_printf("db      %#02x", opcode);
 	  break;
 	}
       seg = "";
