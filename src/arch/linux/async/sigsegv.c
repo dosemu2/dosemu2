@@ -173,9 +173,10 @@ sgleave:
  		 leavedos(4);
     }
   }
+#define VGA_ACCESS_HACK 1
+#if VGA_ACCESS_HACK
 #if X_GRAPHICS
-#if 1
-  if(_trapno==0x0e && config.X) {
+  if(_trapno==0x0e && config.X && _cs==UCODESEL) {
 /* Well, there are currently some dosemu functions that touches video memory
  * without checking the permissions. This is a VERY BIG BUG.
  * Must be fixed ASAP.
