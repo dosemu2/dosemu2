@@ -40,8 +40,8 @@ void init_dualmon(void);
   #error "Currently USE_DUALMON can't be used together with VIDEO_CHECK_DIRTY"
 #endif
 
-#define CURSOR_START(c) ((int)((cshape*)&c)->start)
-#define CURSOR_END(c)   ((int)((cshape*)&c)->end)
+#define CURSOR_START(c) (((cshape*)&c)->start)
+#define CURSOR_END(c)   (((cshape*)&c)->end)
 #define NO_CURSOR 0x0100
 
 /* 

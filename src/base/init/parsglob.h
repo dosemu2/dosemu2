@@ -42,13 +42,14 @@ typedef struct {
 #define VAL_S(x) ( (*(YYSTYPE *)&(x)).s_value )
 
 
-#define I_VAL(x) ( TYPINT(x), (*(YYSTYPE *)&(x)).i_value )
-#define B_VAL(x) ( TYPBOOL(x), (*(YYSTYPE *)&(x)).i_value )
-#define R_VAL(x) ( TYPREAL(x), (*(YYSTYPE *)&(x)).r_value )
-#define S_VAL(x) ( TYPSTR(x), (*(YYSTYPE *)&(x)).s_value )
-#define V_VAL(x,y) \
-( (EXPRTYPE(y) == TYPE_REAL) ? R_VAL(x) : \
-	( (EXPRTYPE(y) == TYPE_BOOLEAN) ? B_VAL(x) : I_VAL(x) ) )
+#define I_VAL(x) ( *( TYPINT(x), &((*(YYSTYPE *)&(x)).i_value )))
+#define B_VAL(x) ( *( TYPBOOL(x), &((*(YYSTYPE *)&(x)).i_value )))
+#define R_VAL(x) ( *( TYPREAL(x), &((*(YYSTYPE *)&(x)).r_value )))
+#define S_VAL(x) ( *( TYPSTR(x), &((*(YYSTYPE *)&(x)).s_value )))
+#define V_VAL(x,y,z) \
+do { if (EXPRTYPE(y) == TYPE_REAL) R_VAL(x) = (z); else \
+      if (EXPRTYPE(y) == TYPE_BOOLEAN) B_VAL(x) = (z); else I_VAL(x) = (z); } \
+while (0)
 
 
 #endif /* PARSGLOB_H */

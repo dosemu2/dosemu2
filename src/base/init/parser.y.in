@@ -729,19 +729,19 @@ expression:
 		  INTEGER {TYPINT($$);}
 		| REAL {TYPREAL($$);}
 		| expression '+' expression
-			{V_VAL($$,$1) = TOF($1) + TOF($3); }
+			{V_VAL($$,$1,TOF($1) + TOF($3)); }
 		| expression '-' expression
-			{V_VAL($$,$1) = TOF($1) - TOF($3); }
+			{V_VAL($$,$1,TOF($1) - TOF($3)); }
 		| expression '*' expression
-			{V_VAL($$,$1) = TOF($1) * TOF($3); }
+			{V_VAL($$,$1,TOF($1) * TOF($3)); }
 		| expression '/' expression {
-			if ($3)	V_VAL($$,$1) = TOF($1) / TOF($3);
-			else V_VAL($$,$1) = TOF($3);
+			if ($3)	V_VAL($$,$1,TOF($1) / TOF($3));
+			else V_VAL($$,$1,TOF($3));
 		}
 		| '-' expression %prec UMINUS 
 			{I_VAL($$) = -TOF($2); }
 		| '+' expression %prec UPLUS
-			{V_VAL($$,$2) = TOF($2); }
+			{V_VAL($$,$2,TOF($2)); }
 		| expression AND_OP expression
 			{I_VAL($$) = VAL_I($1) & VAL_I($3); }
 		| expression OR_OP expression
@@ -753,11 +753,11 @@ expression:
 		| expression SHR_OP expression
 			{ unsigned int shift = (1 << VAL_I($3));
 			if (!shift) ALL($$) = ALL($1);
-			else V_VAL($$, $1) =  TOF($1) / shift;}
+			else V_VAL($$, $1, TOF($1) / shift);}
 		| expression SHL_OP expression
 			{ unsigned int shift = (1 << VAL_I($3));
 			if (!shift) ALL($$) = ALL($1);
-			else V_VAL($$, $1) =  TOF($1) * shift;}
+			else V_VAL($$, $1, TOF($1) * shift);}
 		| expression EQ_OP expression
 			{B_VAL($$) = TOF($1) == TOF($3); }
 		| expression NEQ_OP expression
