@@ -105,28 +105,13 @@ T  I/O-trace    e  cpu-emu\n");
 
 static uint16 GetDebugString(char *debugStr)
 {
-    struct REGPACK preg = REGPACK_INIT;
-    char *s = com_strdup(debugStr);
-    preg.r_es = FP_SEG(s);
-    preg.r_di = FP_OFF(s);
-    preg.r_ax = DOS_HELPER_GET_DEBUG_STRING;
-    dos_helper_r(&preg);
-    strcpy(debugStr,s);
-    com_strfree(s);
-    return (preg.r_ax);
+    return GetDebugFlagsHelper(debugStr, 1);
 }
 
 
 static uint16 SetDebugString(char *debugStr)
 {
-    struct REGPACK preg = REGPACK_INIT;
-    char *s = com_strdup(debugStr);
-    preg.r_es = FP_SEG(s);
-    preg.r_di = FP_OFF(s);
-    preg.r_ax = DOS_HELPER_SET_DEBUG_STRING;
-    dos_helper_r(&preg);
-    com_strfree(s);
-    return (preg.r_ax);
+    return SetDebugFlagsHelper(debugStr);
 }
 
 

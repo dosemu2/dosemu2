@@ -795,10 +795,16 @@ mfs_redirector(void)
 int
 mfs_inte6(void)
 {
+  return mfs_helper(&REGS);
+}
+
+int
+mfs_helper(state_t *regs)
+{
   boolean_t result;
 
   sigalarm_block(1);
-  result = dos_fs_dev(&REGS);
+  result = dos_fs_dev(regs);
   sigalarm_block(0);
   return (result);
 }

@@ -131,7 +131,7 @@ static void InitMFS(void)
     FAR_PTR SDA;
     unsigned char _osmajor;
     unsigned char _osminor;
-    struct REGPACK preg = REGPACK_INIT;
+    state_t preg;
 
     LOL = GetListOfLists();
     SDA = GetSDAPointer();
@@ -143,15 +143,14 @@ static void InitMFS(void)
     _osminor = HI(ax);
 
     /* get DOS version into CX */
-    preg.r_cx = _osmajor | (_osminor <<8);
+    preg.ecx = _osmajor | (_osminor <<8);
 
-    preg.r_dx = FP_OFF16(LOL);
-    preg.r_es = FP_SEG16(LOL);
-    preg.r_si = FP_OFF16(SDA);
-    preg.r_ds = FP_SEG16(SDA);
-    preg.r_bx = 0x500;
-    preg.r_ax = DOS_HELPER_MFS_HELPER;
-    dos_helper_r(&preg);
+    preg.edx = FP_OFF16(LOL);
+    preg.es = FP_SEG16(LOL);
+    preg.esi = FP_OFF16(SDA);
+    preg.ds = FP_SEG16(SDA);
+    preg.ebx = 0x500;
+    mfs_helper(&preg);
 }
 
 /********************************************
@@ -233,19 +232,19 @@ static uint16 GetRedirection(uint16 redirIndex, char *deviceStr, char *resourceS
     struct REGPACK preg = REGPACK_INIT;
     char *dStr, *sStr;
 
-    dStr = com_strdup(deviceStr);
+    dStr = lowmem_alloc(16);
     preg.r_ds = FP_SEG(dStr);
     preg.r_si = FP_OFF(dStr);
-    sStr = com_strdup(slashedResourceStr);
+    sStr = lowmem_alloc(128);
     preg.r_es = FP_SEG(sStr);
     preg.r_di = FP_OFF(sStr);
     preg.r_bx = redirIndex;
     preg.r_ax = DOS_GET_REDIRECTION;
     intr(0x21, &preg);
     strcpy(deviceStr,dStr);
-    com_strfree(dStr);
+    lowmem_free(dStr, 16);
     strcpy(slashedResourceStr,sStr);
-    com_strfree(sStr);
+    lowmem_free(sStr, 128);
 
     ccode = preg.r_ax;
     deviceTypeTemp = preg.r_bx & 0xff;       /* save device type before C ruins it */

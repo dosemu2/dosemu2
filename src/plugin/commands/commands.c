@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 
 #include "config.h"
@@ -102,7 +103,7 @@ int speed_main(int argc, char **argv)
 
 int system_main(int argc, char **argv)
 {
-	char *c = lowmem_alloc(256);
+	char c[256];
 	int i;
 
 	if (argc <= 1) {
@@ -116,36 +117,29 @@ int system_main(int argc, char **argv)
 		strcat(c, " ");
 		strcat(c, argv[i]);
 	}
-	REG(es) = FP_SEG32(c);
-	LWORD(edx) = FP_OFF32(c);	/* DS should already be right */
-	do_doshelper(DOS_HELPER_0x53, 0);
+	run_system_command(c);
 	return 0;
 }
 
 int uchdir_main(int argc, char **argv)
 {
 	struct PSP *psp = COM_PSP_ADDR;
-	char *c = lowmem_alloc(256);
+	char c[256];
 	if (argc <= 1) {
 		com_printf("Run chdir newpath\n");
 		return 1;
 	}
 	strncpy(c, psp->cmdline, psp->cmdline_len);
 	c[psp->cmdline_len] = 0;
-	REG(es) = FP_SEG32(c);
-	LWORD(edx) = FP_OFF32(skip_white_and_delim(c, ' '));
-	do_doshelper(DOS_HELPER_CHDIR, 0);
+	chdir(skip_white_and_delim(c, ' '));
 	return 0;
 }
 
 int ugetcwd_main(int argc, char **argv)
 {
-	char *s = lowmem_alloc(256);
+	char s[256];
 	
-	LWORD(ecx) = 256;
-	REG(es) = FP_SEG32(s);
-	LWORD(edx) = FP_OFF32(s);
-	do_doshelper(DOS_HELPER_GETCWD, 0);
+	getcwd(s, sizeof(s));
 	com_printf("%s\n", s);
 	return 0;
 }

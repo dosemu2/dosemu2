@@ -565,6 +565,10 @@ void do_call_back(Bit32u codefarptr)
 		error("do_call_back() cannot call protected mode code\n");
 		leavedos(25);
 	}
+	if (callback_level) {
+		error("do_call_back() re-entered!\n");
+		leavedos(25);
+	}
 
 	/* we push the address of our HLT place in the bios
 	 * as return address on the stack and run vm86 mode.

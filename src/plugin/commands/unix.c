@@ -23,6 +23,7 @@
 #include "emu.h"
 #include "memory.h"
 #include "doshelpers.h"
+#include "dos2linux.h"
 #include "builtins.h"
 #include "redirect.h"
 #include "../../dosext/mfs/lfn.h"
@@ -117,8 +118,7 @@ static int usage (void)
 
 static int send_command(char **argv)
 {
-    char *command_line = lowmem_alloc(256);
-    struct REGPACK preg = REGPACK_INIT;
+    char command_line[256];
 
     command_line[0] = 0;
     argv++;
@@ -131,12 +131,7 @@ static int send_command(char **argv)
     }
 
     com_printf("Effective commandline: %s\n", command_line);
-
-    preg.r_ax = DOS_HELPER_RUN_UNIX;
-    preg.r_dx = FP_OFF(command_line);
-    preg.r_es = FP_SEG(command_line);
-    dos_helper_r(&preg);
-
+    run_unix_command(command_line);
     return(0);
 }
 
@@ -318,24 +313,17 @@ static int setupDOSCommand (char *linux_path, int CommandStyle)
 
 static int do_execute_dos (int argc, char **argv, int CommandStyle)
 {
-  char *data = lowmem_alloc(256);
-  struct REGPACK preg = REGPACK_INIT;
+  char data[256];
+  int ret;
 
   if (argc == 0) {
-    data[0] = '\0';
-    preg.r_ax = DOS_HELPER_GET_USER_COMMAND;
+    ret = misc_e6_commandline(data);
   } else {
     strcpy (data, argv[0]);
-    preg.r_ax = DOS_HELPER_GET_UNIX_ENV;
+    ret = misc_e6_envvar(data);
   }
 
-  /* Store the string address in the registers */
-  preg.r_dx = FP_OFF(data);
-  preg.r_es = FP_SEG(data);
-
-  dos_helper_r(&preg);
-
-  if (! preg.r_ax) {
+  if (! ret) {
     /* SUCCESSFUL */
 
     if (CommandStyle != EXEC_LITERAL && setupDOSCommand (data, CommandStyle))
@@ -344,7 +332,7 @@ static int do_execute_dos (int argc, char **argv, int CommandStyle)
     if (*data) {
       com_printf ("About to Execute : %s\n", data);
 
-      if (com_system (data, data[strlen(data)+1] == '\0')) {
+      if (com_system (data, /*data[strlen(data)+1] == '\0'*/0)) {
         /* SYSTEM failed ... */
         com_fprintf (com_stderr, "SYSTEM failed ....(%d)\n", com_errno);
         return (1);
@@ -368,22 +356,13 @@ static int do_execute_dos (int argc, char **argv, int CommandStyle)
 
 static int do_set_dosenv (int argc, char **argv)
 {
-  struct REGPACK preg = REGPACK_INIT;
-  char *data = lowmem_alloc(256);
+  char data[256];
 
   if (argc == 0) return usage();
 
   strcpy (data, argv[0]);
 
-  preg.r_ax = DOS_HELPER_GET_UNIX_ENV;
-
-  /* Store the string address in the registers */
-  preg.r_dx = FP_OFF(data);
-  preg.r_es = FP_SEG(data);
-
-  dos_helper_r(&preg);
-
-  if (! preg.r_ax) {
+  if (! misc_e6_envvar(data)) {
     if (msetenv(argv[0],data))
       return (0);
   }

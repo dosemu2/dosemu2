@@ -41,8 +41,6 @@ struct SREGS {
 	unsigned short ds;
 } __attribute__((packed));
 
-void dos_helper_r(struct REGPACK *regpack);
-
 /* ============= libc equlivalents ============== */
 
 #define com_stdin	0

@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
+#include <sys/param.h>
 #include "builtins.h"
 #include "dos2linux.h"
 #include "cpu.h"
@@ -14,16 +15,32 @@
 /* hope 2K is enough */
 #define LOWMEM_POOL_SIZE 0x800
 #define BUF_SIZE LOWMEM_POOL_SIZE
+#define MAX_NESTING 32
 
 static char scratch[BUF_SIZE];
 static char scratch2[BUF_SIZE];
-static char *builtin_name;
+static char builtin_name[9];
 
 int com_errno;
 
 static MemPool mp;
 static char *lowmem_pool;
 static int pool_used = 0;
+#define current_builtin (pool_used - 1)
+
+struct param4a {
+    unsigned short envframe;
+    FAR_PTR cmdline;
+    FAR_PTR fcb1;
+    FAR_PTR fcb2;
+} __attribute__((packed));
+struct {
+    char *cmd, *cmdl;
+    struct param4a *pa4;
+    int allocated;
+} builtin_mem[MAX_NESTING];
+#define BMEM(x) (builtin_mem[current_builtin].x)
+  
 
 int com_vsprintf(char *str, char *format, va_list ap)
 {
@@ -107,6 +124,7 @@ void call_msdos(void)
 int com_doswrite(int dosfilefd, char *buf32, int size)
 {
 	char *s;
+	u_short int23_seg, int23_off;
 
 	if (!size) return 0;
 	com_errno = 8;
@@ -118,7 +136,13 @@ int com_doswrite(int dosfilefd, char *buf32, int size)
 	LWORD(ds) = FP_SEG32(s);
 	LWORD(edx) = FP_OFF32(s);
 	LWORD(eax) = 0x4000;	/* write handle */
+	/* write() can be interrupted with ^C. Therefore we set int0x23 here
+	 * so that even in this case it will return to the proper place. */
+	int23_seg = ISEG(0x23);
+	int23_off = IOFF(0x23);
+	SETIVEC(0x23, CBACK_SEG, CBACK_OFF);
 	call_msdos();	/* call MSDOS */
+	SETIVEC(0x23, int23_seg, int23_off);	/* restore 0x23 ASAP */
 	lowmem_free(s, size);
 	if (LWORD(eflags) & CF) {
 		com_errno = LWORD(eax);
@@ -130,6 +154,7 @@ int com_doswrite(int dosfilefd, char *buf32, int size)
 int com_dosread(int dosfilefd, char *buf32, int size)
 {
 	char *s;
+	u_short int23_seg, int23_off;
 
 	if (!size) return 0;
 	com_errno = 8;
@@ -140,13 +165,20 @@ int com_dosread(int dosfilefd, char *buf32, int size)
 	LWORD(ds) = FP_SEG32(s);
 	LWORD(edx) = FP_OFF32(s);
 	LWORD(eax) = 0x3f00;	/* read handle */
+	/* read() can be interrupted with ^C, esp. when it reads from a
+	 * console. Therefore we set int0x23 here so that even in this
+	 * case it will return to the proper place. */
+	int23_seg = ISEG(0x23);
+	int23_off = IOFF(0x23);
+	SETIVEC(0x23, CBACK_SEG, CBACK_OFF);
 	call_msdos();	/* call MSDOS */
+	SETIVEC(0x23, int23_seg, int23_off);	/* restore 0x23 ASAP */
 	if (LWORD(eflags) & CF) {
 		com_errno = LWORD(eax);
 		lowmem_free(s, size);
 		return -1;
 	}
-	memcpy(buf32, s, LWORD(eax));
+	memcpy(buf32, s, MIN(size, LWORD(eax)));
 	lowmem_free(s, size);
 	return  LWORD(eax);
 }
@@ -172,44 +204,36 @@ char *com_getenv(char *keyword)
 
 static int load_and_run_DOS_program(char *command, char *cmdline, int quit)
 {
-	struct param4a {
-		unsigned short envframe;
-		FAR_PTR cmdline;
-		FAR_PTR fcb1;
-		FAR_PTR fcb2;
-	} __attribute__((packed));
 	struct PSP  *psp = COM_PSP_ADDR;
-	char *cmd, *cmdl;
-	struct param4a *pa4;
 
-	pa4 = (struct param4a *)lowmem_alloc(sizeof(struct param4a));
-	if (!pa4) return -1;
+	BMEM(pa4) = (struct param4a *)lowmem_alloc(sizeof(struct param4a));
+	if (!BMEM(pa4)) return -1;
 
-	cmd = com_strdup(command);
-	if (!cmd) {
+	BMEM(cmd) = com_strdup(command);
+	if (!BMEM(cmd)) {
 		com_errno = 8;
 		return -1;
 	}
-	cmdl = lowmem_alloc(256);
-	if (!cmdl) {
-		com_strfree(cmd);
+	BMEM(cmdl) = lowmem_alloc(256);
+	if (!BMEM(cmdl)) {
+		com_strfree(BMEM(cmd));
 		com_errno = 8;
 		return -1;
 	}
 	if (!cmdline) cmdline = "";
-	snprintf(cmdl, 256, "%c %s\r", (char)(strlen(cmdline)+1), cmdline);
+	snprintf(BMEM(cmdl), 256, "%c %s\r", (char)(strlen(cmdline)+1), cmdline);
 
 	/* prepare param block */
-	pa4->envframe = 0; // ctcb->envir_frame;
-	pa4->cmdline = MK_FP(FP_SEG32(cmdl), FP_OFF32(cmdl));
-	pa4->fcb1 = MK_FP(FP_SEG32(psp->FCB1), FP_OFF32(psp->FCB1));
-	pa4->fcb2 = MK_FP(FP_SEG32(psp->FCB2), FP_OFF32(psp->FCB2));
-	LWORD(es) = FP_SEG32(pa4);
-	LWORD(ebx) = FP_OFF32(pa4);
+	BMEM(pa4)->envframe = 0; // ctcb->envir_frame;
+	BMEM(pa4)->cmdline = MK_FP(FP_SEG32(BMEM(cmdl)), FP_OFF32(BMEM(cmdl)));
+	BMEM(pa4)->fcb1 = MK_FP(FP_SEG32(psp->FCB1), FP_OFF32(psp->FCB1));
+	BMEM(pa4)->fcb2 = MK_FP(FP_SEG32(psp->FCB2), FP_OFF32(psp->FCB2));
+	LWORD(es) = FP_SEG32(BMEM(pa4));
+	LWORD(ebx) = FP_OFF32(BMEM(pa4));
 
 	/* path of programm to load */
-	LWORD(ds) = FP_SEG32(cmd);
-	LWORD(edx) = FP_OFF32(cmd);
+	LWORD(ds) = FP_SEG32(BMEM(cmd));
+	LWORD(edx) = FP_OFF32(BMEM(cmd));
 	
 	LWORD(eax) = 0x4b00;
 	
@@ -217,6 +241,8 @@ static int load_and_run_DOS_program(char *command, char *cmdline, int quit)
 		fake_call_to(BIOSSEG, 0xfff0);
 
 	real_run_int(0x21);
+
+	BMEM(allocated) = 1;
 
 	return 0;
 }
@@ -298,7 +324,7 @@ char * com_strdup(char *s)
 	p = (void *)lowmem_alloc(len + 1 + sizeof(struct lowstring));
 	if (!p) return 0;
 	p->len = len;
-	memcpy(p->s, s, len + 1);
+	memcpy(p->s, s, len);
 	p->s[len] = 0;
 	return p->s;
 }
@@ -306,7 +332,7 @@ char * com_strdup(char *s)
 void com_strfree(char *s)
 {
 	struct lowstring *p = (void *)(s - 1);
-	lowmem_free((char *)p, p->len);
+	lowmem_free((char *)p, p->len + 1 + sizeof(struct lowstring));
 }
 
 static int com_argparse(char *s, char **argvx, int maxarg)
@@ -448,17 +474,6 @@ void com_intr(int intno, struct REGPACK *regpack)
 	_regs = saved_regs;
 }
 
-void dos_helper_r(struct REGPACK *regpack)
-{
-	struct vm86_regs saved_regs = _regs;
-	_regs = regpack_to_regs(regpack);
-
-	dos_helper();
-
-	*regpack = regs_to_regpack(&_regs);
-	_regs = saved_regs;
-}
-
 int com_int86x(int intno, union com_REGS *inregs,
 		union com_REGS *outregs, struct SREGS *segregs)
 {
@@ -545,7 +560,7 @@ static void zpanic(const char *ctl, ...)
 int commands_plugin_inte6(void)
 {
 #define MAX_ARGS 63
-	char *args[MAX_ARGS + 1];
+	char *args[MAX_ARGS + 1], *ptr;
 	struct PSP *psp;
 	struct MCB *mcb;
 	struct com_program_entry *com;
@@ -562,6 +577,10 @@ int commands_plugin_inte6(void)
 	psp = COM_PSP_ADDR;
 	mcb = SEG2LINEAR(COM_PSP_SEG - 1);
 
+	if (pool_used >= MAX_NESTING) {
+	    error("Cannot invoke more than %i builtins\n", MAX_NESTING);
+	    return 0;
+	}
 	if (!pool_used) {
 	    if (!(lowmem_pool = com_dosallocmem(LOWMEM_POOL_SIZE))) {
 		error("Unable to allocate memory pool\n");
@@ -572,12 +591,15 @@ int commands_plugin_inte6(void)
 	    zclearPool(&mp);
 	}
 	pool_used++;
+	BMEM(allocated) = 0;
 
 	/* first parse commandline */
-	args[0] = strlower(com_strdup(com_getarg0()));
+	args[0] = strlower(strdup(com_getarg0()));
 	argc = com_argparse(&psp->cmdline_len, &args[1], MAX_ARGS - 1) + 1;
-	builtin_name = strlower(com_strdup(mcb->name));
-	builtin_name[8] = 0;
+	strncpy(builtin_name, ptr = strlower(strdup(mcb->name)),
+	    sizeof(builtin_name) - 1);
+	builtin_name[sizeof(builtin_name) - 1] = 0;
+	free(ptr);
 
 	com = find_com_program(builtin_name);
 	if (com) {
@@ -586,11 +608,7 @@ int commands_plugin_inte6(void)
 		error("inte6: unknown builtin: %s\n",builtin_name);
 	}
 
-	/*
-	 * NOTE: We cannot free the lowmem pool here or "unix -e" will fail.
-	 * We leave that responsibility to DOS - it will free the mem when
-	 * generic.S exits.
-	 */
+	free(args[0]);
 
 	return 1;
 }
@@ -598,11 +616,16 @@ int commands_plugin_inte6(void)
 int commands_plugin_inte6_done(void)
 {
 	if (!pool_used)
-		return 0;
+	    return 0;
+	if (BMEM(allocated)) {
+	    com_strfree(BMEM(cmd));
+	    lowmem_free((void *)BMEM(pa4), sizeof(struct param4a));
+	    lowmem_free(BMEM(cmdl), 256);
+	}
 	pool_used--;
 	if (!pool_used) {
-		zclearPool(&mp);
-		com_dosfreemem(lowmem_pool);
+	    zclearPool(&mp);
+	    com_dosfreemem(lowmem_pool);
 	}
 	return 1;
 }

@@ -420,6 +420,7 @@ EXTERN void serial_close(void);
 EXTERN void disk_close_all(void);
 EXTERN void init_all_printers(void);
 EXTERN int mfs_inte6(void);
+EXTERN int mfs_helper(state_t *regs);
 EXTERN void pkt_helper(void);
 EXTERN short pop_word(struct vm86_regs *);
 EXTERN void ems_init(void);

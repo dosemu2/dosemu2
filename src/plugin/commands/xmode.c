@@ -11,7 +11,7 @@
 #include "config.h"
 #include "emu.h"
 #include "memory.h"
-#include "doshelpers.h"
+#include "video.h"
 #include "builtins.h"
 
 #include "xmode.h"
@@ -161,17 +161,9 @@ int xmode_main(int argc, char **argv)
 
 static int X_change_config(unsigned item, void *buf)
 {
-  struct REGPACK r = REGPACK_INIT;
-  char *lbuf = lowmem_alloc(128);
-
-  memcpy(lbuf, buf, 128);
-  r.r_es = FP_SEG(lbuf);
-  r.r_bx = FP_OFF(lbuf);
-  r.r_dx = item;
-  r.r_ax = DOS_HELPER_XCONFIG;
-
-  dos_helper_r(&r);
-
-  return r.r_ax;
+  if (Video->change_config) {
+	return Video->change_config(item, buf);
+  }
+  return -1;
 } 
 
