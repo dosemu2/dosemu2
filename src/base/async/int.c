@@ -1489,13 +1489,13 @@ static int int05(void)
 
 /* CONFIGURATION */
 static int int11(void) {
-    LWORD(eax) = configuration;
+    LWORD(eax) = READ_WORD(BIOS_CONFIGURATION);
     return 1;
 }
 
 /* MEMORY */
 static int int12(void) {
-    LWORD(eax) = config.mem_size;
+    LWORD(eax) = READ_WORD(BIOS_MEMORY_SIZE);
     return 1;
 }
 
