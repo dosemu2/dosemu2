@@ -2522,7 +2522,8 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       vga.crtc.cursor_location =  (vga.crtc.data[0x0f] + (vga.crtc.data[0x0e] << 8)) <<
               vga.crtc.addr_mode;
       vga.scan_len = vga.crtc.data[0x13] << (vga.crtc.addr_mode + 1);
-      if (vga.scan_len == 0) vga.scan_len = 160; 
+      if (vga.scan_len == 0) vga.scan_len = 160;
+      if (vga.mode_class == TEXT) co = vga.scan_len / 2;
       cursor_row = (vga.crtc.cursor_location - vga.display_start) / vga.scan_len;
       cursor_col = ((vga.crtc.cursor_location - vga.display_start) % vga.scan_len) / 2;
       if (u1 != vga.scan_len) vga.reconfig.mem = 1;

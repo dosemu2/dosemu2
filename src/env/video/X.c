@@ -3067,6 +3067,8 @@ int X_update_text_screen()
   
   refresh_palette();
 
+  if(vga.reconfig.mem) X_redraw_text_screen();
+
   /* The following determines how many lines it should scan at once,
    * since this routine is being called by sig_alrm.  If the entire
    * screen changes, it often incurs considerable delay when this
