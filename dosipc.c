@@ -720,7 +720,7 @@ void parent_setscan(u_short scan)
   ipc_sendpkt2parent(&pkt);
 }
 
-#define SCANQ_LEN 50
+#define SCANQ_LEN 10
 u_short scan_queue[SCANQ_LEN];
 int scan_queue_start=0;
 int scan_queue_end=0;
@@ -730,22 +730,27 @@ extern int InsKeyboard();
 
 int parent_nextscan()
 {
-  int chr;
-  lastscan = scan_queue[scan_queue_start];
-  if (scan_queue_start != scan_queue_end)
-    scan_queue_start = (scan_queue_start+1)%SCANQ_LEN;
-  scanned=1;
-  if (!config.console_keyb)
-    chr=lastscan;
-  else
-    chr=convKey(lastscan);
-  k_printf("parent nextscan found chr = 0x%02x, latscan = 0x%04x\n", chr, lastscan);
-  k_printf("key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n", *(u_char *)0x496, *(u_char *)0x497, *(u_char *)0x417, *(u_char *)0x418);
-  if (chr) {
-    k_printf("IPC/KBD: (child) putting key in buffer\n");
-    if (InsKeyboard(chr))
-      dump_kbuffer();
-    else error("ERROR: InsKeyboard could not put key into buffer!\n");
+  int lastchr;
+  if (!scanned && (scan_queue_start != scan_queue_end)) {
+    lastchr = scan_queue[scan_queue_start];
+    if (scan_queue_start != scan_queue_end)
+      scan_queue_start = (scan_queue_start+1)%SCANQ_LEN;
+    scanned=1;
+    if (!config.console_keyb) {
+      lastscan = lastchr>>8;
+    }
+    else {
+      lastscan = lastchr;
+      lastchr=convKey(lastscan);
+    }
+    k_printf("parent nextscan found lastchr = 0x%02x, lastscan = 0x%04x\n", lastchr, lastscan);
+    k_printf("key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n", *(u_char *)0x496, *(u_char *)0x497, *(u_char *)0x417, *(u_char *)0x418);
+    if (lastchr) {
+      k_printf("IPC/KBD: (child) putting key in buffer\n");
+      if (InsKeyboard(lastchr))
+        dump_kbuffer();
+      else error("ERROR: InsKeyboard could not put key into buffer!\n"); 
+    }
   }
   return 0; /* no error */
 }
@@ -797,7 +802,6 @@ do {
    I_printf("parent got set scan %x\n",pkt.u.key);
    scan_queue[scan_queue_end] = pkt.u.key;
    scan_queue_end = (scan_queue_end+1)%SCANQ_LEN;
-
    if (config.keybint)
 	queue_hard_int(9,NULL,NULL);
    else
@@ -859,13 +863,12 @@ void inline process_interrupt(int fd)
   {
 	struct ipcpkt pkt;
 	
-  	printf("IPC/INTERRUPT: 0x%02x, fd=%x\n", rrtn, fd);
+  	h_printf("IPC/INTERRUPT: 0x%02x, fd=%x\n", rrtn, fd);
 	pkt.cmd = DMSG_SENDINT;
         if (rrtn < 8)
 	  pkt.u.key = rrtn+8;
         else
 	  pkt.u.key = rrtn+0x68;
-	printf("pkt.u.key = 0x%02x\n", pkt.u.key);
 	ipc_wakeparent();
 	ipc_sendpkt2parent(&pkt);
     } 

@@ -1117,6 +1117,7 @@ unsigned int convscanKey(unsigned char scancode)
 	if (key_flag(KKF_E0) && (scancode == 0x2a || scancode == 0xaa)) {
 		clr_key_flag(KKF_E0);
 		clr_key_flag(KKF_E1);
+		clr_key_flag(KKF_FIRSTID);
 		resetid=0;
 		firstid=0;
 		return(0);

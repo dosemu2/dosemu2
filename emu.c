@@ -946,6 +946,7 @@ if ((port >= 0x23c0) && (port <= 0x23cf)) {
 	    case 0x60:
 /* #define new8042 */
 #ifndef new8042
+	      k_printf("direct 8042 about to read1: 0x%02x\n", lastscan);
 	      parent_nextscan();
 	      k_printf("direct 8042 read1: 0x%02x\n", lastscan);
 /*	      tmp=lastscan;
@@ -2763,17 +2764,17 @@ void int_queue_run()
           int_queue_head->int_queue_ptr->interrupt > 0x07) {
 
 
+	int_count[int_queue_head->int_queue_ptr->interrupt - 8]--;
+
 /* Keep queue up to latest lastscan */
         if (int_queue_head->int_queue_ptr->interrupt == 0x09) {
   	  if (!scanned) {
 	 	k_printf("run count = %d, scanned = %d\n", int_count[1], scanned);
 		parent_nextscan();
-		if (int_count[1] - 1) scanned=0;
 	  }
+	  if (int_count[1]) scanned=0;
         }
       
-	int_count[int_queue_head->int_queue_ptr->interrupt - 8]--;
-
 	if (int_queue_head->int_queue_ptr->interrupt == 0xb ||
 	    int_queue_head->int_queue_ptr->interrupt == 0xc)
 	  serial_run();
