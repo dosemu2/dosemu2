@@ -618,7 +618,6 @@ static int pkt_receive(void)
 {
     int size,handle, fd;
     struct per_handle *hdlp;
-    char *p;
     struct timeval tv;
     fd_set readset;
 
@@ -660,8 +659,6 @@ static int pkt_receive(void)
 
     hdlp = &pg.handle[handle];
     if (hdlp->in_use) {
-	    printbuf("received packet:", (struct ethhdr *)pkt_buf); 
-
             /* VINOD: If it is broadcast type, translate it back ... */
 	    if (config.vnet == VNET_TYPE_DSN && memcmp(pkt_buf, DOSNET_BROADCAST_ADDRESS, 4) == 0) {
 		pd_printf("It is a broadcast packet\n");
@@ -674,9 +671,10 @@ static int pkt_receive(void)
 		printbuf("Translated:", (struct ethhdr *)pkt_buf); 
 	    }
 
-	    /* No need to check the type again. Also, for now, NOVELL_HACK
-	       is diabled... */
-	    if (0) {
+	    /* No need to hack the incoming packets it seems. */
+#if 0
+	    if (pg.flags & FLAG_NOVELL)	{ /* Novell hack? */
+		char *p;
 		/* check if the packet's type matches the specified type */
 		/* in the ACCESS_TYPE call.  the position depends on the */
 		/* driver class! */
@@ -686,17 +684,14 @@ static int pkt_receive(void)
 		else
 		    p = pkt_buf + 2 * ETH_ALEN + 2;	/* IEEE 802.3 */
 
-		if (size >= ((p - pkt_buf) + hdlp->packet_type_len) &&
-		    !memcmp(p,hdlp->packet_type,hdlp->packet_type_len)) {
-                }
-		if (hdlp->flags & FLAG_NOVELL) {	/* Novell hack? */
-		    *--p = (char)ETH_P_IPX; /* overwrite length with type */
-		    *--p = (char)(ETH_P_IPX >> 8);
-		}
+		*--p = (char)ETH_P_IPX; /* overwrite length with type */
+		*--p = (char)(ETH_P_IPX >> 8);
 	    }
+#endif
 	    p_stats->packets_in++;
 	    p_stats->bytes_in += size;
 
+	    printbuf("received packet:", (struct ethhdr *)pkt_buf); 
 	    /* stuff things in global vars and queue a hardware */
 	    /* interrupt which will perform the upcall */
 	    if (p_helper_size)
