@@ -64,9 +64,6 @@
 #define RAMDAC_OFFSET		0x3c00
 
 
-extern int MGAchipset;
-extern u_char *MGAMMIOBase;
-
 extern void vga_init_matrox(void);
 
 extern void matrox_set_bank_read(u_char bank);

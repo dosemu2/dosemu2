@@ -28,8 +28,6 @@
 
 
 static int find_bit(unsigned long int word);
-static long atomic_inc(long * addr);
-static long atomic_dec(long * addr);
 static int set_bit(int nr, void * addr);
 static int clear_bit(int nr, void * addr);
 static int test_bit(int nr, void * addr);
@@ -64,22 +62,6 @@ find_bit(unsigned long int word)
                :"=r" (result) /* output */
                :"0" (result), "r" (word)); /* input */
        return result;
-}
-
-/* atomic increment flag and decrement flag operations */
-static __inline__ long int
-atomic_inc(long *addr)
-{
-    __asm__         __volatile__("incl %1"
-				 :"=m"           (ADDR):"0"(ADDR));
-    return *addr;
-}
-static __inline__ long int
-atomic_dec(long *addr)
-{
-    __asm__         __volatile__("decl %1"
-				 :"=m"           (ADDR):"0"(ADDR));
-    return *addr;
 }
 
 static __inline__ int
