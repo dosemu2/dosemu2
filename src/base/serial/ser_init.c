@@ -199,6 +199,12 @@ static int tty_lock(char *path, int mode)
   return(0);
 }
 
+static void async_serial_run(void)
+{
+  /* Currently the fd is not passed to function, so we just call serial_run() */
+  s_printf("SERIAL: Async notification received\n");
+  serial_run();
+}
 
 /* This function opens ONE serial port for DOSEMU.  Normally called only
  * by do_ser_init below.   [num = port, return = file descriptor]
@@ -256,6 +262,7 @@ int ser_open(int num)
     goto fail_close;
   }
   RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].oldset));
+  add_to_io_select(com[num].fd, 1, async_serial_run);
   return com[num].fd;
 
 fail_close:
@@ -357,6 +364,7 @@ static int ser_close(int num)
 {
   int i;
   s_printf("SER%d: Running ser_close\n",num);
+  remove_from_io_select(com[num].fd, 1);
   uart_clear_fifo(num,UART_FCR_CLEAR_CMD);
   
   /* save current dosemu settings of the file and restore the old settings

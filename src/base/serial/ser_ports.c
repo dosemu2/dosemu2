@@ -101,7 +101,7 @@ static inline void rx_buffer_slide(int num)
   
   /* Move existing chars in receive buffer to the start of buffer */
   for(i = 0; i < com[num].rx_buf_bytes; i++)
-    com[num].rx_buf[i] = com[num].rx_buf[com[num].rx_buf_start++];
+    com[num].rx_buf[i] = com[num].rx_buf[com[num].rx_buf_start + i];
 
   /* Update start and end pointers in buffer */        
   com[num].rx_buf_start = 0;
@@ -119,7 +119,7 @@ static inline void rx_buffer_slide(int num)
  */
 void uart_fill(int num)
 {
-  int size;
+  int size = 0;
   
   /* Return if in loopback mode */
   if (com[num].MCR & UART_MCR_LOOP) return;
@@ -180,6 +180,8 @@ void uart_fill(int num)
     }
     /* Else, the following code executes if emulated UART is in 16450 mode. */    
 
+    if(s3_printf) s_printf("SER%d: Got %i bytes, %i in buffer\n",num,
+      size, com[num].rx_buf_bytes);
     com[num].rx_timeout = 0;			/* Reset receive timeout */
     com[num].LSRqueued |= UART_LSR_DR;		/* Update queued LSR */
     if(s3_printf) s_printf("SER%d: Func uart_fill requesting RX_INTR\n",num);
@@ -195,6 +197,8 @@ void uart_fill(int num)
 void uart_clear_fifo(int num, int fifo)
 {
   /* DANG_FIXTHIS Should clearing UART cause THRE int if it's enabled? */
+
+  if(s1_printf) s_printf("SER%d: Clear FIFO.\n",num);
   
   /* Clear the receive FIFO */
   if (fifo & UART_FCR_CLEAR_RCVR) {
@@ -696,10 +700,13 @@ static void put_tx(int num, int val)
     rtrn = RPT_SYSCALL(write(com[num].fd, &val, 1));   /* Attempt char xmit */
     if (rtrn != 1) 				/* Did transmit fail? */
       com[num].tx_overflow = 1; 		/* Set overflow flag */
+    else tcdrain(com[num].fd);
   }
   if (!com[num].fifo_enable ||
        com[num].tx_buf_bytes >= (TX_BUFFER_SIZE-1)) 	/* Is FIFO full? */
       com[num].LSR &= ~UART_LSR_THRE;		/* THR full */
+
+  transmit_engine(num);
 }
 
 
@@ -845,6 +852,10 @@ put_mcr(int num, int val)
 
     /* Set interrupt enable flag according to OUT2 bit in MCR */
     com[num].int_enab = (val & UART_MCR_OUT2) ? 1 : 0;
+    if (com[num].int_enab) {
+      if(s3_printf) s_printf("SER%d: Update interrupt status after MCR update\n",num);
+      serial_int_engine(num, 0);	/* Update interrupt status */
+    }
 
     /* Force RTS & DTR reinitialization if the loopback state has changed */
     if (UART_MCR_LOOP) changed |= UART_MCR_RTS | UART_MCR_DTR;
@@ -1080,7 +1091,7 @@ do_serial_out(int num, ioport_t address, int val)
         com[num].tx_trigger = 1;
       }
       com[num].IER = (val & 0xF);	/* Write to IER */
-      if(s1_printf) s_printf("SER%d: IER = 0x%x\n", num, val);
+      if(s1_printf) s_printf("SER%d: Write IER = 0x%x\n", num, val);
       serial_int_engine(num, 0);		/* Update interrupt status */
     }
     break;

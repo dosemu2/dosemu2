@@ -308,5 +308,7 @@ void modstat_engine(int num);
 inline int msr_compute_delta_bits(int oldmsr, int newmsr);
 int ser_open(int num);
 void ser_set_params(int num);
+void receive_engine(int num);
+void transmit_engine(int num);
 
 #endif /* SER_DEFS_H */

@@ -101,7 +101,7 @@ void serial_timer_update(void)
  * and checking if it's time to generate a hardware interrupt (RDI).
  * [num = port]
  */
-static void receive_engine(int num)	/* Internal 16550 Receive emulation */ 
+void receive_engine(int num)	/* Internal 16550 Receive emulation */ 
 {
   if (com[num].MCR & UART_MCR_LOOP) return;	/* Return if loopback */
 
@@ -135,7 +135,7 @@ static void receive_engine(int num)	/* Internal 16550 Receive emulation */
  * of the XMIT FIFO/THR register, and checking if it's time to generate
  * a hardware interrupt (THRI).    [num = port]
  */
-static void transmit_engine(int num) /* Internal 16550 Transmission emulation */
+void transmit_engine(int num) /* Internal 16550 Transmission emulation */
 {
   int rtrn;
   int control;
