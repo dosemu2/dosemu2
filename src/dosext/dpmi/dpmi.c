@@ -2803,15 +2803,6 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
 #ifdef SHOWREGS
   print_ldt();
 #endif
-  if ((_trapno == 0xe)
-#ifdef X86_EMULATOR
-	&& (config.cpuemu==0)
-#endif
-     )
-    leavedos(98);
-#ifdef DPMI_DEBUG
-  set_debug_level('M', dd);
-#endif
   
   if (DPMI_CLIENT.Exception_Table[_trapno].selector == DPMI_CLIENT.DPMI_SEL) {
     do_default_cpu_exception(scp, _trapno);
