@@ -221,11 +221,13 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		    _es = DPMI_CLIENT.DPMI_SEL;
 		    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_APM);
 		    break;
+#if 0
 		case 0x27:
 		    D_printf("DPMI: VXDLDR VxD entry point requested\n");
 		    _es = DPMI_CLIENT.DPMI_SEL;
 		    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_VXDLDR);
 		    break;
+#endif
 		case 0x33:
 		    D_printf("DPMI: CONFIGMG VxD entry point requested\n");
 		    _es = DPMI_CLIENT.DPMI_SEL;
