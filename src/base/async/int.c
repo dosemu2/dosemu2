@@ -2195,7 +2195,9 @@ void setup_interrupts(void) {
   SETIVEC(0x16, INT16_SEG, INT16_OFF);
   SETIVEC(0x09, INT09_SEG, INT09_OFF);
   SETIVEC(0x08, INT08_SEG, INT08_OFF);
-  SETIVEC(0x66, BIOSSEG, INT_OFF(0x66)); /* Win3.1 calls this vector... */
+#if WINDOWS_HACKS
+  SETIVEC(0x66, BIOSSEG, INT_OFF(0x66)); /* WinOS2 mouse driver calls this vector */
+#endif
   SETIVEC(0x70, INT70_SEG, INT70_OFF);
 
   /* Install new handler for video-interrupt into bios_f000_int10ptr,
