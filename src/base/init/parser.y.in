@@ -1286,15 +1286,14 @@ ttylocks_flag	: DIRECTORY string_expr	{ config.tty_lockdir = $2; }
 serial_flags	: serial_flag
 		| serial_flags serial_flag
 		;
-serial_flag	: DEVICE string_expr		{ strcpy(sptr->dev, $2);
-					  if (!strcmp("/dev/mouse",sptr->dev)) sptr->mouse=1;
-					  free($2); }
+serial_flag	: DEVICE string_expr		{ sptr->dev = $2;
+					  if (!strcmp("/dev/mouse",sptr->dev)) sptr->mouse=1; }
 		| VIRTUAL		  {
 					   if (isatty(0)) {
 					     sptr->virtual = TRUE;
 					     sptr->pseudo = TRUE;
 					     no_local_video = 1;
-					     strcpy(sptr->dev, ttyname(0));
+					     sptr->dev = strdup(ttyname(0));
 					   } else {
 					     error("FD 0 is not a tty, can't "
 					           "use a virtual com port\n");
@@ -1767,7 +1766,7 @@ static void start_serial(void)
     ** automatically filled in inside the do_ser_init routine of serial.c
     */
     sptr = &com[c_ser];
-    sptr->dev[0] = 0;
+    sptr->dev = "";
     sptr->interrupt = 0; 
     sptr->base_port = 0;
     sptr->real_comport = 0;

@@ -109,19 +109,25 @@ static int tty_already_locked(char *nam)
  */
 static int tty_lock(char *path, int mode)
 {
-  char saved_path[PATH_MAX];
-  char dev_nam[20];
+  char saved_path[strlen(config.tty_lockdir) + 1 +
+                  strlen(config.tty_lockfile) +
+                  strlen(path) + 1];
   struct passwd *pw;
   pid_t ime;
   int cwrote;
+  char *slash;
 
-  memset(dev_nam, 0, sizeof(dev_nam));
-  sprintf(saved_path, "%s/%s%s", config.tty_lockdir, config.tty_lockfile, 
-         (strrchr(path, '/')+1));
-  strcpy(dev_nam, path);
+  if (path == NULL) return(0);        /* standard input */
+  slash = strrchr(path, '/');
+  if (slash == NULL)
+    slash = path;
+  else
+    slash++;
+
+  sprintf(saved_path, "%s/%s%s", config.tty_lockdir, config.tty_lockfile,
+	  slash);
   
   if (mode == 1) {      /* lock */
-    if (path == NULL) return(0);        /* standard input */
     {
       FILE *fd;
       if (tty_already_locked(saved_path) == 1) {
@@ -212,13 +218,11 @@ int ser_open(int num)
   
   if ( com[num].virtual )
   {
-    if (tty_lock(com[num].dev, 0) >= 0)
-    {
-      dbug_printf("Opening Virtual Port\n");
-      com[num].dev_locked = FALSE;
-      com[num].fd = 0;
-      no_local_video = 1;
-    }
+    s_printf("SER: Running ser_open, %s\n", com[num].dev);
+    /* don't try to remove any lock: they don't make sense for ttyname(0) */
+    dbug_printf("Opening Virtual Port\n");
+    com[num].dev_locked = FALSE;
+    com[num].fd = 0;
   }
   else
     if ( tty_lock(com[num].dev, 1) >= 0) {		/* Lock port */
@@ -445,10 +449,10 @@ static void do_ser_init(int num)
 
   if (com[num].dev[0] == 0) {			/* Is the device file undef? */
     switch (com[num].real_comport) {		/* Define it using std devs */
-    case 4:  strcpy(com[num].dev, "/dev/ttyS3"); break;
-    case 3:  strcpy(com[num].dev, "/dev/ttyS2"); break;
-    case 2:  strcpy(com[num].dev, "/dev/ttyS1"); break;
-    default: strcpy(com[num].dev, "/dev/ttyS0"); break;
+    case 4:  com[num].dev = "/dev/ttyS3"); break;
+    case 3:  com[num].dev = "/dev/ttyS2"); break;
+    case 2:  com[num].dev = "/dev/ttyS1"); break;
+    default: com[num].dev = "/dev/ttyS0"); break;
     }
   }
   iodev_add_device(com[num].dev);

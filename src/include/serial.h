@@ -51,7 +51,7 @@ EXTERN u_char com_port_used[17];       /* Used for auto-assign comport config */
 
 typedef struct {
   				/*   MAIN VARIABLES  */
-  char dev[255];		/* String to hold path to device file */
+  char *dev;			/* String to hold path to device file */
   int fd;			/* File descriptor of device */
   int real_comport;		/* The actual COMx port number. 0 for invalid */
   ioport_t base_port;		/* Base port address handled by device */
