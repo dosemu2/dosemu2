@@ -40,7 +40,6 @@
 
 Bit8u port60_buffer = 0;
 Boolean port60_ready = 0;
-Boolean int9_running = 0;
 
 #if KEYB_CMD
 
@@ -318,7 +317,6 @@ Bit8u keyb_io_read(ioport_t port)
       if (!port60_ready)
          pic_untrigger(PIC_IRQ1);
 #endif
-      int9_running = 0;
      
       k_printf("8042: read port 0x60 read=0x%02x\n",r);
     break;
@@ -348,8 +346,8 @@ void keyb_io_write(ioport_t port, Bit8u value)
 
   case 0x61:
     if (value & 0x80) {
-      k_printf("8042: IRQ ACK, %i\n", int9_running);
-      int9_running = 0;
+      k_printf("8042: IRQ ACK, %i\n", port60_ready);
+      port60_ready = 0;
       int_check_queue();   /* reschedule irq1 if appropriate */
     }
     spkr_io_write(port, value);
@@ -361,25 +359,6 @@ void keyb_io_write(ioport_t port, Bit8u value)
     break;
   }
 }
-
-/* keyboard interrupt (IRQ1) */
-
-/*
- * this routine actually runs the keyboard interrupt, and reschedules IRQ1
- * if more scancode bytes are waiting in the queue.
- */
-
-int do_irq1(int ilevel) {
-
-   /* k_printf("KBD: do_irq1() running!\n"); */
-   
-   k_printf("8042: do_irq1(), VIF = %d\n",
-	    (REG(eflags)|VIF)!=0);
-
-   int9_running++;
-   return 1;	/* run IRQ */
-}
-
 
 void keyb_8042_init(void)
 {

@@ -310,11 +310,6 @@ void int_check_queue(void)
    if (queue_empty(&keyb_queue))
       return;
    
-   if (int9_running) {
-      k_printf("KBD: int9 running\n");
-      return;
-   }
-   
 #if 1
    if (port60_ready) {
       k_printf("KBD: port60 still has data\n");
@@ -322,20 +317,15 @@ void int_check_queue(void)
    }
 #endif   
 
-   if (!port60_ready
 #if KEYBUF_HACK
-       && (!bios_keybuf_full() || 
-	   (READ_BYTE(BIOS_KEYBOARD_FLAGS2) & PAUSE_MASK))
+   if (bios_keybuf_full() && !(READ_BYTE(BIOS_KEYBOARD_FLAGS2) & PAUSE_MASK))
+      return;
 #endif
-       )
-   {
-      rawscan = read_queue(&keyb_queue);
-      k_printf("KBD: read queue: raw=%02x\n",
-               rawscan);
-      k_printf("KBD: queuelevel=%d\n",queue_level(&keyb_queue));
 
-      output_byte_8042(rawscan);
-   }
+   rawscan = read_queue(&keyb_queue);
+   k_printf("KBD: read queue: raw=%02x, queuelevel=%d\n",
+	rawscan, queue_level(&keyb_queue));
+   output_byte_8042(rawscan);
 }
 
 /******************* GENERAL ********************************/
@@ -343,18 +333,7 @@ void int_check_queue(void)
 
 void backend_run(void) 
 {
-   static int running = 0;
-
-   /* avoid re-entrance problems */
-   if (running) {
-      k_printf("KBD: backend_run cancelled\n");
-      return;
-   }
-   running++;
-   
    int_check_queue();
-   
-   running--;
 }
 
 

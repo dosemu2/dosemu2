@@ -86,8 +86,6 @@ void keyb_server_run(void);
 void backend_run(void);
 void backend_reset(void);
 
-int do_irq1(int);
-
 #endif  /* not __ASM__ */
 
 /* physical scancodes deviating from keysyms */
