@@ -147,15 +147,23 @@ static void free_mapping_shm(int cap, void *addr, int mapsize)
   munmap(addr, mapsize);
 }
 
-/*
- * NOTE: DPMI relies on realloc_mapping() _not_ changing the address ('addr'),
- *       when shrinking the memory region.
- */
 static void *realloc_mapping_shm(int cap, void *addr, int oldsize, int newsize)
 {
+  void *ret;
   Q__printf("MAPPING: realloc, cap=%s, addr=%p, oldsize=%x, newsize=%x\n",
 	cap, addr, oldsize, newsize);
-  return mremap(addr, oldsize, newsize, MREMAP_MAYMOVE);
+
+  if (newsize <= oldsize)
+    return mremap(addr, oldsize, newsize, MREMAP_MAYMOVE);
+
+  /* we can't expand shared anonymous memory using mremap
+     so we must allocate a new region and memcpy to it */
+  ret = alloc_mapping_shm(cap, newsize);
+  if (ret != MAP_FAILED) {
+    memcpy(ret, addr, oldsize);
+    free_mapping_shm(cap, addr, oldsize);
+  }
+  return ret;
 }
 
 static void *mmap_mapping_shm(int cap, void *target, int mapsize, int protect, void *source)
