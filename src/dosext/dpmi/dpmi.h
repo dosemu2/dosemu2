@@ -96,6 +96,11 @@ typedef struct segment_descriptor_s
     unsigned int	used;		/* Segment in use by client # */
 } SEGDESC;
 
+struct sel_desc_s {
+  unsigned short selector;
+  unsigned long descriptor[2];
+} __attribute__((packed));
+
 struct RealModeCallStructure {
   unsigned long edi;
   unsigned long esi;

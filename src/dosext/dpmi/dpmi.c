@@ -1048,8 +1048,10 @@ static int inline do_LAR(us selector)
   return selector;
 }
 
-static void GetDescriptor(us selector, unsigned long *lp)
+static int GetDescriptor(us selector, unsigned long *lp)
 {
+  if (!ValidSelector(selector) || SystemSelector(selector))
+    return -1; /* invalid value 8021 */
 #if 0    
   modify_ldt(0, ldt_buffer, MAX_SELECTORS*LDT_ENTRY_SIZE);
 #else
@@ -1076,13 +1078,14 @@ static void GetDescriptor(us selector, unsigned long *lp)
 #endif  
   memcpy(lp, &ldt_buffer[selector & 0xfff8], 8);
   D_printf("DPMI: GetDescriptor[0x%04x;0x%04x]: 0x%08lx%08lx\n", selector>>3, selector, *(lp+1), *lp);
+  return 0;
 }
 
 static int SetDescriptor(unsigned short selector, unsigned long *lp)
 {
   unsigned long base_addr, limit;
   D_printf("DPMI: SetDescriptor[0x%04x;0x%04x] 0x%08lx%08lx\n", selector>>3, selector, *(lp+1), *lp);
-  if (!ValidAndUsedSelector(selector))
+  if (!ValidAndUsedSelector(selector) || SystemSelector(selector))
     return -1; /* invalid value 8021 */
   base_addr = (*lp >> 16) & 0x0000FFFF;
   limit = *lp & 0x0000FFFF;
@@ -1528,7 +1531,6 @@ static void do_int31(struct sigcontext_struct *scp)
 			(DPMI_CLIENT.is_32 ? _edi : _LWORD(edi)) ) );
     break;
   case 0x000c:
-    CHECK_SELECTOR_ALLOC(_LWORD(ebx));
     if (SetDescriptor(_LWORD(ebx),
 		      (unsigned long *) (GetSegmentBaseAddress(_es) +
 			(DPMI_CLIENT.is_32 ? _edi : _LWORD(edi)) ) )) {
@@ -1542,6 +1544,37 @@ static void do_int31(struct sigcontext_struct *scp)
       _eflags |= CF;
     }
     break;
+  case 0x000e: {
+      int i;
+      struct sel_desc_s *array = (struct sel_desc_s *) (GetSegmentBaseAddress(_es) +
+			D_16_32(_edi));
+      for (i = 0; i < _LWORD(ecx); i++) {
+        if (GetDescriptor(array[i].selector, array[i].descriptor) == -1)
+	  break;
+      }
+      if (i < _LWORD(ecx)) {
+        _LWORD(eax) = 0x8022;
+        _eflags |= CF;
+      }
+      _LWORD(ecx) = i;
+    }
+    break;
+  case 0x000f: {
+      int i;
+      struct sel_desc_s *array = (struct sel_desc_s *) (GetSegmentBaseAddress(_es) +
+			D_16_32(_edi));
+      for (i = 0; i < _LWORD(ecx); i++) {
+        if (SetDescriptor(array[i].selector, array[i].descriptor) == -1)
+	  break;
+      }
+      if (i < _LWORD(ecx)) {
+        _LWORD(eax) = 0x8022;
+        _eflags |= CF;
+      }
+      _LWORD(ecx) = i;
+    }
+    break;
+
   case 0x0100:			/* Dos allocate memory */
   case 0x0101:			/* Dos free memory */
   case 0x0102:			/* Dos resize memory */
@@ -4559,7 +4592,7 @@ int dpmi_mhp_getcsdefault(void)
 
 void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned long *lp)
 {
-  return GetDescriptor(selector, lp);
+  GetDescriptor(selector, lp);
 }
 
 int dpmi_mhp_getselbase(unsigned short selector)
