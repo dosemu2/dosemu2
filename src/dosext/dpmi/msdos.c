@@ -720,6 +720,41 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    }
 	    in_dos_21++;
 	    return 0;
+	case 0x65:		/* internationalization */
+    	    switch (_LO(ax)) {
+		case 0:
+		    prepare_ems_frame();
+		    REG(es) = TRANS_BUFFER_SEG;
+		    REG(edi) = 0;
+		    MEMCPY_DOS2DOS(SEG_ADR((void *), es, di),
+			(void *)GetSegmentBaseAddress(_es) + D_16_32(_edi),
+			_LWORD(ecx));
+		    break;
+		case 1 ... 7:
+		    prepare_ems_frame();
+		    REG(es) = TRANS_BUFFER_SEG;
+		    REG(edi) = 0;
+		    break;
+		case 0x21:
+		case 0xa1:
+		    prepare_ems_frame();
+		    REG(ds) = TRANS_BUFFER_SEG;
+		    REG(edx) = 0;
+		    MEMCPY_DOS2DOS(SEG_ADR((void *), ds, dx),
+			(void *)GetSegmentBaseAddress(_ds) + D_16_32(_edx),
+			_LWORD(ecx));
+		    break;
+		case 0x22:
+		case 0xa2:
+		    prepare_ems_frame();
+		    REG(ds) = TRANS_BUFFER_SEG;
+		    REG(edx) = 0;
+		    strcpy(SEG_ADR((void *), ds, dx),
+			(void *)GetSegmentBaseAddress(_ds) + D_16_32(_edx));
+		    break;
+	    }
+            in_dos_21++;
+            return 0;
     case 0x71:     /* LFN functions */
         {
         char *src, *dst;
@@ -1206,6 +1241,33 @@ void msdos_post_extender(int intr)
 			+ D_16_32(S_REG(edi)),
 			SEG_ADR((void *), es, di),
 			0x80);
+	    break;
+	case 0x65:		/* internationalization */
+	    DPMI_CLIENT.stack_frame.edi = S_REG(edi);
+	    DPMI_CLIENT.stack_frame.edx = S_REG(edx);
+	    if (LWORD(eflags) & CF)
+		break;
+    	    switch (S_LO(ax)) {
+		case 1 ... 7:
+		    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_REG(es))
+			+ D_16_32(S_REG(edi)),
+			SEG_ADR((void *), es, di),
+			S_LWORD(ecx));
+		    break;
+		case 0x21:
+		case 0xa1:
+		    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_REG(ds))
+			+ D_16_32(S_REG(edx)),
+			SEG_ADR((void *), ds, dx),
+			S_LWORD(ecx));
+		    break;
+		case 0x22:
+		case 0xa2:
+		    strcpy((void *)GetSegmentBaseAddress(S_REG(ds))
+			+ D_16_32(S_REG(edx)),
+			SEG_ADR((void *), ds, dx));
+		    break;
+	    }
 	    break;
 	case 0x71:		/* LFN functions */
         switch (S_LO(ax)) {
