@@ -1,3 +1,6 @@
+AS86 = as86 -0 -a
+LD86 = ld86 -0
+
 SRC=exitemu.S vgaoff.S vgaon.S lredir.c lredir.readme dumpconf.asm \
 	bootoff.S booton.S dosdbg.c dosdbg.readme
 COM=exitemu.com vgaoff.com vgaon.com bootoff.com booton.com pdipx.com

@@ -97,7 +97,7 @@ extern void yyrestart(FILE *input_file);
 %token DOSBANNER FASTFLOPPY TIMINT HOGTHRESH SPEAKER IPXSUPPORT NOVELLHACK
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO ALLOWVIDEOPORT TIMER
 %token MATHCO CPU BOOTA BOOTC L_XMS L_EMS L_DPMI PORTS DISK DOSMEM PRINTER
-%token BOOTDISK L_FLOPPY EMUSYS EMUBAT
+%token BOOTDISK L_FLOPPY EMUSYS EMUBAT L_X
 	/* speaker */
 %token EMULATED NATIVE
 	/* keyboard */
@@ -109,6 +109,8 @@ extern void yyrestart(FILE *input_file);
 	/* mouse */
 %token MICROSOFT LOGITECH MMSERIES MOUSEMAN HITACHI MOUSESYSTEMS BUSMOUSE PS2
 %token INTERNALDRIVER CLEARDTR
+	/* x-windows */
+%token L_DISPLAY L_TITLE ICON_NAME
 	/* video */
 %token VGA MGA CGA EGA CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
 %token MEMSIZE VBIOS_SEG VBIOS_FILE VBIOS_COPY VBIOS_MMAP
@@ -116,7 +118,7 @@ extern void yyrestart(FILE *input_file);
 %token UPDATEFREQ UPDATELINES COLOR CORNER METHOD NORMAL XTERM NCURSES FAST
 	/* debug */
 %token IO PORT CONFIG READ WRITE KEYB PRINTER WARNING GENERAL HARDWARE
-%token L_IPC L_X
+%token L_IPC
 	/* printer */
 %token COMMAND TIMEOUT OPTIONS L_FILE
 	/* disk */
@@ -247,9 +249,22 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    { start_printer(); }
 		  '{' printer_flags '}'
 		    { stop_printer(); }
+		| L_X '{' x_flags '}'
 		| STRING
 		    { yyerror("unrecognized command '%s'", $1); free($1); }
 		| error
+		;
+
+	/* x-windows */
+
+x_flags		: x_flag
+		| x_flags x_flag
+		;
+x_flag		: UPDATELINES INTEGER	{ config.X_updatelines = $2; }
+		| UPDATEFREQ INTEGER	{ config.X_updatefreq = $2; }
+		| L_DISPLAY STRING	{ config.X_display = $2; }
+		| L_TITLE STRING	{ config.X_title = $2; }
+		| ICON_NAME STRING	{ config.X_icon_name = $2; }
 		;
 
 	/* video */

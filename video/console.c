@@ -104,7 +104,6 @@ void set_console_video(void)
 #endif
   if (vc_active()) {
     int other_no = (scr_state.console_no == 1 ? 2 : 1);
-
     v_printf("VID: we're active, waiting...\n");
 #ifndef OLD_SET_CONSOLE
     get_video_ram(WAIT);
@@ -142,8 +141,11 @@ void clear_console_video(void)
   }
 }
 
-#define console_init vga_initialize
-#define console_close NULL
+extern int terminal_initialize(void);
+extern void terminal_close(void);
+ 
+#define console_init terminal_initialize
+#define console_close terminal_close
 #define console_setmode NULL
 
 struct video_system Video_console = {

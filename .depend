@@ -1,3 +1,4 @@
+Xkeyb.o : Xkeyb.c emu.h machcompat.h cpu.h 
 bios_emm.o : bios_emm.c emu.h machcompat.h cpu.h 
 cmos.o : cmos.c emu.h machcompat.h cpu.h cmos.h disks.h 
 cpu.o : cpu.c config.h memory.h cpu.h termio.h emu.h machcompat.h /home/src/dosemu0.60/include/port.h \

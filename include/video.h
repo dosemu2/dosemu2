@@ -63,24 +63,24 @@ struct video_system {
    boolean is_mapped;          /* if true, video ram is directly mapped and
                                   update_screen is not needed. */
 
-   int (*init)();              /* does all frontend-specific setup,
+   int (*init)(void);              /* does all frontend-specific setup,
                                   like mapping video memory, opening XWindow,
                                   etc. */
-   void (*close)();
+   void (*close)(void);
    
    int (*setmode)(int type, int xsize,int ysize);   /* type=0 currently (text mode) */
 
-   int (*update_screen)();     /* (partially) update screen and cursor from the 
+   int (*update_screen)(void);     /* (partially) update screen and cursor from the 
                                   video memory. called from sigalrm handler */
 
-   void (*update_cursor)();    /* update cursor position&shape. Called by sigalrm
+   void (*update_cursor)(void);    /* update cursor position&shape. Called by sigalrm
                                   handler *only* if update_screen does not exist
                                   or is not done because the video mem is clean */
 };
 
 extern struct video_system *Video;
 
-extern struct video_system Video_X, Video_console, Video_term;
+extern struct video_system Video_graphics,  Video_X, Video_console, Video_term;
 
 extern ushort *screen_adr;   /* pointer to video memory of current page */
 extern ushort *prev_screen;  /* pointer to currently displayed screen   */

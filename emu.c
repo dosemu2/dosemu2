@@ -12,12 +12,15 @@
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
- * $Date: 1994/08/14 02:52:04 $
+ * $Date: 1994/08/17 02:08:22 $
  * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 2.19 $
+ * $Revision: 2.20 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 2.20  1994/08/17  02:08:22  root
+ * Mods to Rain's patches to get all modes back on the road.
+ *
  * Revision 2.19  1994/08/14  02:52:04  root
  * Rain's latest CLEANUP and MOUSE for X additions.
  *
@@ -1150,7 +1153,12 @@ sigalrm(int sig, struct sigcontext_struct context)
        running = -1;
        retval = Video->update_screen();
        v_printf("update_screen returned %d\n",retval);
+#ifdef X_SUPPORT
+       running = retval ? (config.X?config.X_updatefreq:config.term_updatefreq) 
+                        : 0;
+#else
        running = retval ? config.term_updatefreq : 0;
+#endif
 #if VIDEO_CHECK_DIRTY
        update_pending=(retval==2);
        vm86s.screen_bitmap=0;
@@ -1309,7 +1317,7 @@ parse_debugflags(const char *s)
 {
   char c;
   unsigned char flag = 1;
-  const char allopts[] = "vsdDRWkpiwghxmIEc";
+  const char allopts[] = "vsdDRWkpiwghxmIEcX";
 
   /* if you add new classes of debug messages, make sure to add the
 	 * letter to the allopts string above so that "1" and "a" can work
@@ -1329,6 +1337,11 @@ parse_debugflags(const char *s)
     case 'v':			/* video */
       d.video = flag;
       break;
+#ifdef X_SUPPORT
+    case 'X':
+      d.X = flag;
+      break;
+#endif
     case 's':			/* serial */
       d.serial = flag;
       break;
@@ -1425,6 +1438,11 @@ config_defaults(void)
   config.term_updatefreq = 2;
   config.term_charset = CHARSET_LATIN;
   config.term_corner = 1;
+  config.X_updatelines = 25;
+  config.X_updatefreq  = 8;
+  config.X_display     = ":0";
+  config.X_title       = "dosemu";
+  config.X_icon_name   = "dosemu";
   config.hogthreshold = 5000;	/* in usecs */
   config.chipset = PLAINVGA;
   config.cardtype = CARD_VGA;
@@ -1671,6 +1689,7 @@ void
         config.X=1;               /* activate X mode if dosemu was */ 
                                   /* called as 'xdos'              */
   }
+  config.X_display = getenv("DISPLAY");
 #endif
      
   opterr = 0;
@@ -1816,7 +1835,7 @@ void
   }
 
   if (config.X) {
-    config.console_video = config.console_keyb = config.vga = config.graphics = 0;
+    config.console_video = config.vga = config.graphics = 0;
   }
   if (!config.graphics)
     config.allowvideoportaccess = 0;
@@ -1928,9 +1947,6 @@ void
   video_init();
   mouse_init();
   disk_init();
-#if 0 /* Why init video twice ? */
-  video_init();
-#endif
   
   NEWSETSIG(SIGSEGV, dosemu_fault);
   hardware_init();
@@ -2074,7 +2090,7 @@ int
 
 void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.19 1994/08/14 02:52:04 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.20 1994/08/17 02:08:22 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -2683,7 +2699,7 @@ dos_helper(void) {
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/08/14 02:52:04 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/08/17 02:08:22 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */

@@ -25,8 +25,8 @@ HFILES =
 # Insert all source- and header-files here.
 
 ALL = $(CFILES) $(HFILES) kernel.1.0.x.diff \
-	net.inet.ipxcall.h include.linux.ipx.h net.inet.ipx.c kernel-ipx.dif \
-	kernel-mmap.diff kernel-mmap.1.1.x.diff kernel-mmap.1.1.34+.diff
+	net.inet.ipxcall.h include.linux.ipx.h net.inet.ipx.c kernel-ipx.dif
+
 
 # All object-files are included here.
 

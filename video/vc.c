@@ -21,9 +21,9 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
- * $Date: 1994/08/14 02:53:14 $
+ * $Date: 1994/08/17 02:10:31 $
  * $Source: /home/src/dosemu0.60/video/RCS/vc.c,v $
- * $Revision: 1.1 $
+ * $Revision: 1.2 $
  * $State: Exp $
  *
  * Revision 1.3  1993/10/03  21:38:22  root
@@ -403,9 +403,6 @@ get_video_ram(int waitflag)
     if (scr_state.mapped) {
       vgabuf = malloc(GRAPH_SIZE);
       memcpy(vgabuf, (caddr_t) GRAPH_BASE, GRAPH_SIZE);
-#ifdef DO_UNMAP
-      munmap((caddr_t) GRAPH_BASE, GRAPH_SIZE);
-#endif
       graph_mem = (char *) mmap((caddr_t) GRAPH_BASE,
 			      GRAPH_SIZE,
 			      PROT_EXEC | PROT_READ | PROT_WRITE,
@@ -420,9 +417,6 @@ get_video_ram(int waitflag)
     memcpy(textbuf, scr_state.virt_address, TEXT_SIZE);
 
     if (scr_state.mapped) {
-#ifdef DO_UNMAP
-      munmap(scr_state.virt_address, TEXT_SIZE);
-#endif
       graph_mem = (char *) mmap((caddr_t) scr_state.virt_address,
 			      TEXT_SIZE,
 			      PROT_EXEC | PROT_READ | PROT_WRITE,
@@ -510,13 +504,8 @@ setup_low_mem(void)
   char * result;
   v_printf("Low memory mapping!\n");
   result = mmap(NULL, 0x110000,
-#if 0
-         PROT_EXEC | PROT_READ | PROT_WRITE,
-         MAP_FIXED | MAP_SHARED | MAP_ANON,
-#else
          PROT_EXEC | PROT_READ | PROT_WRITE,
          MAP_FIXED | MAP_PRIVATE | MAP_ANON,
-#endif
          -1, 0);
   if (result != NULL) {
           perror("anonymous mmap");
@@ -534,9 +523,6 @@ put_video_ram(void)
     v_printf("put_video_ram called\n");
 
     if (config.vga) {
-#ifdef DO_UNMAP
-      munmap((caddr_t) GRAPH_BASE, GRAPH_SIZE);
-#endif
       graph_mem = (char *) mmap((caddr_t) GRAPH_BASE,
 			      GRAPH_SIZE,
 			      PROT_EXEC | PROT_READ | PROT_WRITE,
@@ -548,9 +534,6 @@ put_video_ram(void)
     }
     else {
       memcpy(putbuf, scr_state.virt_address, TEXT_SIZE);
-#ifdef DO_UNMAP
-      munmap(scr_state.virt_address, TEXT_SIZE);
-#endif
       graph_mem = (char *) mmap((caddr_t) scr_state.virt_address,
 			      TEXT_SIZE,
 			      PROT_EXEC | PROT_READ | PROT_WRITE,

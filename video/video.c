@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/stat.h>
 
 #include "emu.h"
 #include "bios.h"
@@ -39,20 +40,27 @@ int video_init()
   /* figure out which video front end we are to use */
   
   if (config.graphics) {
-     /* something to do here? */
+     v_printf("VID: Video set to Video_graphics\n");
+     Video=&Video_graphics;
   }
-  else if (config.console_video)
+  else if (config.console_video) {
+     v_printf("VID: Video set to Video_console\n");
      Video=&Video_console;
+  }
 #ifdef X_SUPPORT
-  else if (config.X)
+  else if (config.X) {
+     v_printf("VID: Video set to Video_X\n");
      Video=&Video_X;
+  }
 #endif
-  else 
+  else {
+     v_printf("VID: Video set to Video_term\n");
      Video=&Video_term;       /* ansi or ncurses */
-
-  Video->init();              /* call the specific init routine */
+  }
 
   termioInit();            /* kludge! */
+
+  Video->init();              /* call the specific init routine */
 
   if (!Video->is_mapped) {
      /* allocate screen buffer for non-console video compare speedup */
@@ -72,7 +80,11 @@ int video_init()
 }
 
 void video_close() {
-  if (Video && Video->close) Video->close();
+  v_printf("VID: video_close() called\n");
+  if (Video && Video->close) {
+    Video->close();
+    v_printf("VID: video_close()->Video->close() called\n");
+  }
   termioClose();          /* kludge! */
 }
 
@@ -105,6 +117,27 @@ load_file(char *name, int foffset, char *mstart, int msize)
 
 void
  video_config_init(void) {
+
+  struct stat chkbuf;
+  int major, minor;
+  fstat(STDIN_FILENO, &chkbuf);
+  major = chkbuf.st_rdev >> 8;
+  minor = chkbuf.st_rdev & 0xff;
+
+  /* console major num is 4, minor 64 is the first serial line */
+  if (!((major == 4) && (minor < 64)))
+  {
+    if (config.console_keyb || config.console_video)
+      error("ERROR: STDIN not a console-can't do console modes! major=%d, minor=%d\n", major, minor);
+    config.console_keyb = 0;
+    config.console_video = 0;
+    config.mapped_bios = 0;
+    config.vga = 0;
+    config.graphics = 0;
+    if (config.speaker == SPKR_NATIVE)
+      config.speaker = SPKR_EMULATED;
+  }
+
   switch (config.cardtype) {
   case CARD_MDA:
     {
@@ -190,3 +223,17 @@ void
   load_file("/dev/kmem", GFX_CHARS, (char *) GFX_CHARS, GFXCHAR_SIZE);
 
 }
+
+#define graphics_init vga_initialize
+#define graphics_close NULL
+#define graphics_setmode NULL
+
+struct video_system Video_graphics = {
+   1,                /* is_mapped */
+   graphics_init,
+   graphics_close,
+   graphics_setmode,
+   NULL,             /* update_screen */
+   NULL
+};
+

@@ -199,6 +199,34 @@ ipxsupport off
 #terminal { charset latin  updatefreq 2  updatelines 25  color on 
 #           method fast  corner on }
 
+#************************* X SUPPORT **************************************
+#
+# valid keywords for the X { } config line:
+#
+#    "updatefreq" value                                    (default 8)
+#       A number indicating the frequency of X updates of the screen.  
+#       The smaller the number, the more frequent.  A value of 20 gives a 
+#       frequency of about one per second, which is very slow.  However, more
+#       CPU time is given to DOS applications when updates are less frequent.
+#
+#    "updatelines" value                                   (default 25)
+#       The size of each screen update in number of lines.  
+#       The smaller this number, the better the typing response, but the
+#       slower the update becomes.
+#
+#    "display" string                                      (default ":0")
+#       The X server to use. If this is not specified, dosemu will use
+#       the DISPLAY environment variable. (This is the normal case)
+#
+#    "title" string                                    (default "dosemu")
+#       What you want dosemu to display in the title bar of its window.
+#
+#    "icon_name" string                                (default "dosemu")
+#       Used when the dosemu window is iconified.
+#
+X { updatefreq 8 updatelines 25 title "DOS in a BOX" icon_name "dosemu" }
+
+
 
 #************************* VIDEO ******************************************
 #

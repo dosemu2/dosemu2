@@ -3,12 +3,15 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/08/14 02:52:04 $
+ * $Date: 1994/08/17 02:08:22 $
  * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
- * $Revision: 2.11 $
+ * $Revision: 2.12 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 2.12  1994/08/17  02:08:22  root
+ * Mods to Rain's patches to get all modes back on the road.
+ *
  * Revision 2.11  1994/08/14  02:52:04  root
  * Rain's latest CLEANUP and MOUSE for X additions.
  *
@@ -420,6 +423,11 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
        u_short term_updatefreq;		/* Terminal update frequency */
        u_short term_charset;		/* Terminal Character set */
        u_short term_corner;             /* Update char at lower-right corner */
+       u_short X_updatelines;           /* Amount to update at a time */
+       u_short X_updatefreq;            /* X update frequency */
+       char    *X_display;              /* X server to use (":0") */
+       char    *X_title;                /* X window title */
+       char    *X_icon_name;
        boolean fullrestore;
 
        boolean console_keyb;
@@ -522,7 +530,7 @@ extern __inline__ void disk_close(void);
 extern void cpu_init(void);
 extern __inline__ void run_int(int);
 extern int mfs_redirector(void);
-extern void int10();
+extern void int10(void);
 extern void int13(u_char);
 extern void int14(u_char);
 extern void int17(u_char);

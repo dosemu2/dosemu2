@@ -20,11 +20,14 @@
  * DANG_BEGIN_CHANGELOG
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/08/14 02:52:04 $
+ * $Date: 1994/08/17 02:08:22 $
  * $Source: /home/src/dosemu0.60/RCS/termio.c,v $
- * $Revision: 2.10 $
+ * $Revision: 2.11 $
  * $State: Exp $
  * $Log: termio.c,v $
+ * Revision 2.11  1994/08/17  02:08:22  root
+ * Mods to Rain's patches to get all modes back on the road.
+ *
  * Revision 2.10  1994/08/14  02:52:04  root
  * Rain's latest CLEANUP and MOUSE for X additions.
  *
@@ -620,7 +623,7 @@ OpenKeyboard(void)
   struct new_utsname unames;
 
   uname(&unames);
-  fprintf(stderr, "DOSEMU%s is coming up on %s version %s\n", VERSTR, unames.sysname, unames.release);
+  fprintf(stderr, "DOSEMU%spl%s is coming up on %s version %s\n", VERSTR, PATCHSTR, unames.sysname, unames.release);
   if (unames.release[0] > 0 ) {
     if ((unames.release[2] == 1  && unames.release[3] > 1 ) || 
          unames.release[2] > 1 ) {
@@ -703,7 +706,7 @@ OpenKeyboard(void)
   if (config.console_video)
     set_console_video();
 
-  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 2.10 1994/08/14 02:52:04 root Exp root $\n");
+  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 2.11 1994/08/17 02:08:22 root Exp root $\n");
 
   return 0;
 }
@@ -1115,7 +1118,7 @@ termioInit()
 void
 termioClose()
 {
-#if 1
+#if 0
   terminal_close();
 #endif
   CloseKeyboard(); 

@@ -58,6 +58,7 @@ terminal_initialize()
   cursor_blink = 1;
   char_blink = 1;
 
+  v_printf("VID: terminal_initialize() called \n");
   if (config.term_charset == CHARSET_FULLIBM) {
      error("WARNING: 'charset fullibm' doesn't work.  Use 'charset ibm' instead.\n");
      config.term_charset = CHARSET_IBM;
@@ -182,6 +183,7 @@ terminal_initialize()
 void 
 terminal_close()
 {
+  v_printf("VID: terminal_close() called\n");
   if (config.term_method != METHOD_NCURSES) {
     fprintf(stdout,"\033[?25h\033[%dH",li);
   }

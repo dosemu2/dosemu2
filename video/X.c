@@ -16,9 +16,6 @@
 #define COPY_WHOLE_LINE	1
 #define PRECHECK_LINE   1
 
-#define MY_WINDOW_TITLE "DOS in a BOX"
-#define MY_ICON_NAME    MY_WINDOW_TITLE
-
 #if 0
 #define XCHAR(w) CHAR(w)
 #else
@@ -40,6 +37,8 @@ ushort prev_cursor_shape=-1;
 
 boolean have_focus=1, is_mapped=1;
 
+/* from Xkeyb.c */
+void X_process_key(XKeyEvent *);
 
 struct {
    unsigned char r,g,b;
@@ -77,15 +76,17 @@ inline void get_vga_colors()
 int X_init() {
    XGCValues gcv;
    XSetWindowAttributes attr;
+#if 0 /* Not used ... yet */
    XWMHints wmhints;
+#endif
    
 
    X_printf("X_init()\n");
    
-   dpy=XOpenDisplay(":0");
+   dpy=XOpenDisplay(config.X_display);
    if (!dpy) {
-      fprintf(stderr,"Can't open display\n");
-      return 1;
+      fprintf(stderr,"Can't open display %s\n",config.X_display);
+      leavedos(99);
    }
    scr=DefaultScreen(dpy);
    root=RootWindow(dpy,scr);
@@ -105,8 +106,14 @@ int X_init() {
 
    XChangeWindowAttributes(dpy,W,CWEventMask,&attr);
 
-   XStoreName(dpy,W,MY_WINDOW_TITLE);
-   XSetIconName(dpy,W,MY_ICON_NAME);
+/*
+   wmhints.icon_pixmap=...
+   wmhints.icon_mask=...
+   wmhints.flags = IconPixmapHint|IconMaskHint;
+   XSetWMHints(dpy,W,&wmhints);
+*/
+   XStoreName(dpy,W,config.X_title);
+   XSetIconName(dpy,W,config.X_icon_name);
 
 /* Delete-Window-Message black magic copied from xloadimage */
    proto_atom  = XInternAtom(dpy,"WM_PROTOCOLS", False);
@@ -190,9 +197,9 @@ void X_redraw_cursor() {
 #if 0  
   if (prev_cursor_shape!=NO_CURSOR)
 #endif
-    X_restore_cell(prev_cursor_col,prev_cursor_row);
+     X_restore_cell(prev_cursor_col,prev_cursor_row);
    if (cursor_shape!=NO_CURSOR)
-      X_draw_cursor(cursor_col,cursor_row);
+     X_draw_cursor(cursor_col,cursor_row);
    XFlush(dpy);
 
    prev_cursor_row=cursor_row;
@@ -272,6 +279,7 @@ void X_redraw_screen()
       } while(x<co);
    }
 
+   prev_cursor_shape = NO_CURSOR;   /* was overwritten */
    X_redraw_cursor();
 
    XFlush(dpy);
@@ -312,7 +320,7 @@ int X_update_screen()
    * call to this routine.  This is set by the "updatelines" keyword
    * in /etc/dosemu.conf 
    */
-  lines = config.term_updatelines;
+  lines = config.X_updatelines;
   if (lines < 2) 
     lines = 2;
   else if (lines > li)
@@ -328,9 +336,11 @@ int X_update_screen()
    */
   y = cursor_row;
   if ((y < 0) || (y > li)) y = -1; 
-  
+
+#if 0  
   X_printf("X_update_screen: co=%d li=%d yloop=%d y=%d lines=%d\n",
            co,li,yloop,y,lines);
+#endif
 
   /* The following loop scans lines on the screen until the maximum number
    * of lines have been updated, or the entire screen has been scanned.
@@ -424,7 +434,9 @@ chk_cursor:
   }
   XFlush(dpy);
 
+#if 0
   X_printf("X_update_screen: %d lines updated\n",numdone);
+#endif
 
   if (numdone) {
      if (numscan==li)
@@ -441,11 +453,33 @@ chk_cursor:
   }
 }
 
+void m_setpos(int x,int y) {
+   /* XXX - this works in text mode only */
+   x = x*8/font_width;
+   y = y*8/font_height;
+   if (x!=mouse.x || y!=mouse.y) {
+      mouse.x=x; 
+      mouse.y=y;
+      mouse_move();
+   }
+}   
+
+void m_setbuttons(int state) {
+   mouse.oldlbutton=mouse.lbutton;
+   mouse.oldmbutton=mouse.mbutton;
+   mouse.oldrbutton=mouse.rbutton;
+   mouse.lbutton = ((state & Button1Mask) != 0);
+   mouse.mbutton = ((state & Button2Mask) != 0);
+   mouse.rbutton = ((state & Button3Mask) != 0);
+   if (mouse.lbutton!=mouse.oldlbutton) mouse_lb();
+   if (mouse.mbutton!=mouse.oldmbutton) mouse_mb();
+   if (mouse.rbutton!=mouse.oldrbutton) mouse_rb();
+}
+
 void X_handle_events()
 {
-   XEvent e;
-   KeySym key;
    static int busy = 0;
+   XEvent e;
 
    if (busy) return;
    busy=1;
@@ -463,7 +497,7 @@ void X_handle_events()
                      if (e.xexpose.count==0)   /* pcemu does this check... what's it good for ?? */
                         X_redraw_screen();
 #if 0
-                     running=config.term_updatefreq;
+                     running=config.X_updatefreq;
 #endif
                      break;
 
@@ -489,15 +523,11 @@ void X_handle_events()
                      X_redraw_cursor();
                      break;
 
-/* keyboard... yet unimplemented */
+/* keyboard */
 
        case KeyPress:
        case KeyRelease:
-	             key = XLookupKeysym(&e.xkey,0);
-	             X_printf("key %x %s, state=%08x\n",
-			      (int)key,(e.type==KeyPress)?"pressed":"released",
-			      e.xkey.state);
-		     X_process_key(&e.xkey);
+                     X_process_key(&e.xkey);
                      break;
 
 /* mouse... */
@@ -547,7 +577,7 @@ void X_handle_events()
                     break;
                     
        case ClientMessage:
-       /* if we get a client message which has the value of the delete
+       /* if we get a client message which has the value of the delete 
         * atom, it means the window manager wants us to die.
         */
 
@@ -562,28 +592,6 @@ void X_handle_events()
    busy=0;
 }
 
-void m_setpos(int x,int y) {
-   /* XXX - this works in text mode only */
-   x = x*8/font_width;
-   y = y*8/font_height;
-   if (x!=mouse.x || y!=mouse.y) {
-      mouse.x=x; 
-      mouse.y=y;
-      mouse_move();
-   }
-}   
-
-void m_setbuttons(int state) {
-   mouse.oldlbutton=mouse.lbutton;
-   mouse.oldmbutton=mouse.mbutton;
-   mouse.oldrbutton=mouse.rbutton;
-   mouse.lbutton = ((state & Button1Mask) != 0);
-   mouse.mbutton = ((state & Button2Mask) != 0);
-   mouse.rbutton = ((state & Button3Mask) != 0);
-   if (mouse.lbutton!=mouse.oldlbutton) mouse_lb();
-   if (mouse.mbutton!=mouse.oldmbutton) mouse_mb();
-   if (mouse.rbutton!=mouse.oldrbutton) mouse_rb();
-}
 
 struct video_system Video_X = {
    0,                /* is_mapped */

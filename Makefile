@@ -1,19 +1,40 @@
-# Makefile for Linux DOS emulator
+# Makefile for Linux DOSEMU
 #
-# $Date: 1994/08/14 02:52:04 $
+# $Date: 1994/08/17 02:08:22 $
 # $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.24 $
+# $Revision: 2.25 $
 # $State: Exp $
 #
+# You should do a "make doeverything" or a "make most" (excludes TeX)
+# if you are doing the first compile.
+#
+# PLEASE, PLEASE, PLEASE, PLEASE make a provision to automatically detect
+# an xwindows installation!  A dirty hack example is the following:
+#ifdef X_SUPPORT
+#	if [ ! -e /usr/X11/bin ] || \
+#	   [ ! -e /lib/libX11* ] || \
+#	   [ ! -e /usr/lib/X11/fonts ]; then undef X_SUPPORT; fi
+#endif
 
-# You should do a make config, make dep, make clean if you're doing
-# the first compile. 
+# Set X_SUPPORT to 0 if you don't have X windows installed.
+X_SUPPORT = 1
 
 #Change the following line if the right kernel includes reside elsewhere
 LINUX_INCLUDE = /usr/src/linux/include
 
 #Change the following line to point to your ncurses include
 NCURSES_INC = /usr/include/ncurses
+
+# The following sets up the X windows support for DOSEMU.
+ifdef X_SUPPORT
+XCFILES = Xkeyb.c
+XOBJS   = Xkeyb.o
+#the -u forces the X11 shared library to be linked into ./dos
+XLIBS   = -lX11 -u _XOpenDisplay
+XDEFS   = -DX_SUPPORT
+endif
+export X_SUPPORT
+export XDEFS
 
 #ifdef DEBUG
 #STATIC=1
@@ -31,23 +52,10 @@ DOSLNK=
 #MAGIC=-zmagic
 #endif
 
-X_SUPPORT = 1
-export X_SUPPORT
-
-ifdef X_SUPPORT
-XCFILES = Xkeyb.c
-XOBJS   = Xkeyb.o
-#the -u forces the X11 shared library to be linked into ./dos
-XLIBS   = -lX11 -u _XOpenDisplay
-XDEFS   = -DX_SUPPORT
-endif
-
-export XDEFS
-
 # dosemu version
 EMUVER  =   0.53
 VERNUM  =   0x53
-PATCHL  =   1
+PATCHL  =   14
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
 # should be okay at...0x20000000 for .5 GB mark.
@@ -58,13 +66,12 @@ ENDOFDOSMEM = 0x110000     # 1024+64 Kilobytes
 DPMIOBJS = dpmi/dpmi.o dpmi/call.o
 
 # For testing the internal IPX code
-# IPX = ipxutils
+#IPX = ipxutils
 
-#
 # SYNC_ALOT
-#  uncomment this if the emulator is crashing your machine and some debug info
-# isn't being sync'd to the debug file (stdout). shouldn't happen. :-)
-# SYNC_ALOT = -DSYNC_ALOT=1
+#   uncomment this if the emulator is crashing your machine and some debug info
+#   isn't being sync'd to the debug file (stdout). shouldn't happen. :-)
+#SYNC_ALOT = -DSYNC_ALOT=1
 
 CONFIG_FILE = -DCONFIG_FILE=\"/etc/dosemu.conf\"
 
@@ -102,8 +109,8 @@ SFILES=bios.S
 
 OFILES= Makefile ChangeLog dosconfig.c QuickStart \
 	DOSEMU-HOWTO.txt DOSEMU-HOWTO.ps DOSEMU-HOWTO.sgml \
-	README.ncurses vga.pcf xdosemu xinstallvgafont README.X \
-	README.CDROM
+	README.ncurses vga.pcf xtermdos xinstallvgafont README.X \
+	README.CDROM README.video
 
 BFILES=
 
@@ -155,25 +162,34 @@ DISTFILE=$(DISTBASE)/$(DISTNAME).tgz
 
 warning: warning2
 	@echo "To compile DOSEMU, type 'make doeverything'"
+	@echo "To compile DOSEMU if you dont want to use TeX, type 'make most'"
 	@echo ""
 	
 warning2: 
 	@echo ""
-	@echo "IMPORTANT: Please read the new 'QuickStart' file before compiling DOSEMU!"
-	@echo "The location and format of DOSEMU files have changed since 0.50pl1 release!"
-	@echo "You need gcc 2.4.5, lib 4.4.4, linux 1.1.12 (or patched linux) and at least"
-	@echo "16MB total RAM+swap to compile DOSEMU."
+	@echo "IMPORTANT: "
+	@echo "  -> Please read the new 'QuickStart' file before compiling DOSEMU!"
+	@echo "  -> The location and format of DOSEMU files have changed since 0.50pl1 release!"
+	@echo "  -> This package requires at least the following:"
+	@echo "     gcc 2.4.5, lib 4.4.4, Linux 1.1.12 (or patch to Linux 1.0.9),"
+	@echo "     and 16MB total swap+RAM.  (you may actually need up to 20MB total)"
+	@echo "  -> You need to edit XWINDOWS SUPPORT accordingly in Makefile if you"
+	@echo "     don't have Xwindows installed!" 
+	@echo "  -> Type 'make most' instead of 'make doeverything' if you don't have TeX."
+	@echo "  -> Hit Ctrl-C now to abort if you forgot something!"
 	@echo ""
-	@sleep 10
+	@echo -n "Hit Enter to continue..."
+	@read
 
 warning3:
 	@echo ""
 	@echo "Be patient...This may take a while to complete, especially for 'mfs.c'."
-	@echo "Hopefully you have at least 16MB RAM+swap available during this compile."
+	@echo "Hopefully you have at least 16MB swap+RAM available during this compile."
 	@echo ""
 
 doeverything: warning2 config dep installnew docsubdirs
-most: config dep installnew
+
+most: warning2 config dep installnew
 
 all:	warnconf dos dossubdirs warning3 libdosemu
 
@@ -224,18 +240,44 @@ installnew: dummy
 	$(MAKE) install
 
 install: all
-	install -c -o root -m 04755 dos /usr/bin
-	install -m 0755 xdosemu /usr/bin
-	@if [ -f /lib/libemu ]; then rm -f /lib/libemu ; fi
-	install -m 0755 libdosemu /usr/lib
-	install -d /var/lib/dosemu
-	nm libdosemu | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
+	@install -d /var/lib/dosemu
+	@nm libdosemu | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > dosemu.map
+	@if [ -f /lib/libemu ]; then rm -f /lib/libemu ; fi
 	@for i in $(SUBDIRS); do \
-	    (cd $$i && echo $$i && $(MAKE) install) || exit; \
+		(cd $$i && echo $$i && $(MAKE) install) || exit; \
 	done
+	@install -c -o root -m 04755 dos /usr/bin
+	@install -m 0755 libdosemu /usr/lib
+	@if [ -f /usr/bin/xdosemu ]; then \
+		install -m 0700 /usr/bin/xdosemu /tmp; \
+		rm -f /usr/bin/xdosemu; \
+	fi
+	ifdef X_SUPPORT
+	@ln -sf dos xdos
+	@install -m 0755 xtermdos /usr/bin
+	@if [ ! -e /usr/bin/xdos ]; then ln -s dos /usr/bin/xdos; fi
 	@echo ""
-	@echo "Remember to copy examples/config.dist into /etc/dosemu.conf and edit it!"
+	@echo "-> Main DOSEMU files installation done. Installing the Xwindows PC-8 font..."
+	@if [ -w /usr/lib/X11/fonts/misc ] && [ -d /usr/lib/X11/fonts/misc ]; then \
+		install -m 0644 vga.pcf /usr/lib/X11/fonts/misc; \
+		if [ -x /usr/bin/X11/mkfontdir ]; then \
+			cd /usr/lib/X11/fonts/misc; \
+			mkfontdir; \
+		fi \
+	fi
+	endif
+	@echo ""
+	@echo "---------------------------------DONE compiling-------------------------------"
+	@echo ""
+	@echo "  - You need to configure DOSEMU. Read 'config.dist' in the 'examples' dir."
+	@echo "  - Update your /etc/dosemu.conf by editing a copy of './examples/config.dist'"
+	@echo "  - Using your old DOSEMU 0.52 configuration file might not work."
+	@echo "  - After configuring DOSEMU, you can type 'dos' to run DOSEMU."
+	ifdef X_SUPPORT
+	@echo "  - Use 'xdos' instead of 'dos' to cause DOSEMU to open its own Xwindow."
+	@echo "  - If Xwindows is running now, restart it before 'xdos' for the first time."
+	endif
 	@echo ""
 
 converthd: hdimage
@@ -262,24 +304,9 @@ dist: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES)
 	cp TODO.JES $(DISTPATH)/.todo.jes
 	cp .indent.pro $(DISTPATH)/.indent.pro
 	install -m 0644 hdimages/hdimage.dist $(DISTPATH)/hdimage.dist
-ifdef DPMIOBJS
-	@for i in $(SUBDIRS) $(DOCS); do \
+	@for i in $(SUBDIRS) $(DOCS) dpmi ipxutils; do \
 	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \
 	done
-else
-	@for i in $(SUBDIRS) $(DOCS) dpmi; do \
-	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \
-	done
-endif
-ifdef IPX
-	@for i in $(SUBDIRS) $(DOCS); do \
-	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \
-	done
-else
-	@for i in $(SUBDIRS) $(DOCS) ipxutils; do \
-	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \
-	done
-endif
 	(cd $(DISTBASE); tar cf - $(DISTNAME) | gzip -9 >$(DISTFILE))
 	rm -rf $(DISTPATH)
 	@echo "FINAL .tgz FILE:"
@@ -291,7 +318,6 @@ clean:
 	@for i in $(SUBDIRS); do \
              (cd $$i && echo $$i && $(MAKE) clean) || exit; \
         done
-
 
 depend dep: 
 	$(CPP) -MM $(CFLAGS) *.c > .depend ;echo "bios.o : bios.S" >>.depend

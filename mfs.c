@@ -146,6 +146,9 @@ TODO:
  *
  * HISTORY:
  * $Log: mfs.c,v $
+ * Revision 2.4  1994/08/17  02:08:22  root
+ * Mods to Rain's patches to get all modes back on the road.
+ *
  * Revision 2.3  1994/07/26  01:12:20  root
  * prep for pre53_6.
  *
@@ -885,7 +888,7 @@ get_unix_path(char *new_path, char *path)
   return;
 }
 
-__inline__ int
+int
 init_drive(int dd, char *path, char *options)
 {
   struct stat st;
@@ -941,7 +944,7 @@ init_drive(int dd, char *path, char *options)
  * 	returns 0 if call was not handled, and should be passed on.
  * notes:
  ***************************/
-__inline__ int
+int
 mfs_redirector(void)
 {
   int dos_fs_redirect();
@@ -980,7 +983,7 @@ mfs_redirector(void)
   return 0;
 }
 
-__inline__ int
+int
 mfs_inte6(void)
 {
   boolean_t dos_fs_dev();
@@ -1852,7 +1855,7 @@ path_to_ufs(char *ufs, char *path, int PreserveEnvVar)
   Debug0((dbg_fd, "dos_gen: path_to_ufs '%s'\n", ufs));
 }
 
-__inline__ void
+void
 build_ufs_path(ufs, path)
      char *ufs;
      char *path;
@@ -2062,7 +2065,7 @@ _find_file(fpath, st)
 }
 
 #endif
-__inline__ boolean_t
+boolean_t
 find_file(fpath, st)
      char *fpath;
      struct stat *st;
@@ -2510,7 +2513,7 @@ CancelRedirection(state_t * state)
   return (TRUE);
 }
 
-__inline__ int
+int
 dos_fs_redirect(state)
      state_t *state;
 {

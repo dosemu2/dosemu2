@@ -104,9 +104,9 @@ extern void mouse_int(void);
 extern void mouse_close(void);
 extern void int74(void);
 
-extern void mouse_move();
-extern void mouse_lb();
-extern void mouse_mb();
-extern void mouse_rb();
+extern void mouse_move(void);
+extern void mouse_lb(void);
+extern void mouse_mb(void);
+extern void mouse_rb(void);
 
 #endif /* MOUSE_H */

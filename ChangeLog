@@ -1,3 +1,17 @@
+Tue Aug 16 1994 Jmaclean
+
+-	Messed around with Rain's patches until all modes started
+	to work. Mostly order of routines during initialization
+	that had minor problems. Now for example, telnet works
+	again.
+
+Sun Aug 14 1994 Jmaclean
+
+-	Removed SOME __inline__'s from mfs.c, still memory pig :-(.
+-	Rain's latest patches.
+-	Minor fixups to various files.
+-	New Makefile from Mark.
+
 Sat Aug 12 1994 Jmaclean
 
 -	Added Rain's massive cleanups and X mouse support. This is
