@@ -7349,9 +7349,9 @@ _ACEOF
 
   USE_PTHREADS="USE_PTHREADS=1"
 
-# pthreads causes stability problems so ordinary users shouldn't know about it
-#else
-#  AC_MSG_NOTICE(Compiling without pthreads support...)
+else
+  { echo "$as_me:$LINENO: Compiling without pthreads support..." >&5
+echo "$as_me: Compiling without pthreads support..." >&6;}
 fi
 
 #S-Lang directory checking -- thanks to mutt's configure script.

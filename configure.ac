@@ -204,9 +204,8 @@ if test "$with_pthreads" = "yes"; then
   AC_DEFINE(USE_PTHREADS)
   USE_PTHREADS="USE_PTHREADS=1"
   AC_SUBST(USE_PTHREADS)
-# pthreads causes stability problems so ordinary users shouldn't know about it
-#else
-#  AC_MSG_NOTICE(Compiling without pthreads support...)
+else
+  AC_MSG_NOTICE(Compiling without pthreads support...)
 fi
 
 #S-Lang directory checking -- thanks to mutt's configure script.
