@@ -610,7 +610,7 @@ void print_version(void)
   uname((struct utsname *)&unames);
   warn("DOSEMU-%s is coming up on %s version %s\n", VERSTR, unames.sysname, unames.release);
 #ifdef __linux__
-  warn("Built for %d\n", KERNEL_VERSION);
+  warn("Built for %d\n", LX_KERNEL_VERSION);
 #endif
 #ifdef __NetBSD__
   warn("Built for %d\n", NETBSD_VERSION);

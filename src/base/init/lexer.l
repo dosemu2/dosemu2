@@ -47,6 +47,7 @@ static int __active__=1, __next_ITEM_for_me__=0;
 #define __active_max (2*NESTING_DEPTH) /* Note: 'while' pushes twice */
 static int __active_stack[__active_max+1]={1,0};
 static int __active_i=1;
+static int include_stack_ptr = 0;
 
 static void push__active();
 static void pop__active();
@@ -54,6 +55,7 @@ static void enter_includefile(char * fname);
 static void enter_macrofile(char *variable);
 extern char *get_config_variable(char *name);
 extern int config_check_only;
+extern char *checked_getenv(const char *name);
 
 #if 0 /* this just to test the conditional code */
   #define TESTACTIVE (({if(__active__)fprintf(stderr,">>>%s<<<\n", yytext);}),__active__)
@@ -243,6 +245,15 @@ STRQUOTELESS	({LETTER}|[/\.\~])({ALPHNUM}|[_\~@\-\+:\./])*
 	/* config variable settings */
 "define"		RETURN(DEFINE);
 "undef"			RETURN(UNDEF);
+"checkuservar"		RETURN(CHECKUSERVAR);
+"enter_user_scope"	MAY_BE {
+			  yylval->i_value = include_stack_ptr+1;
+			  return(ENTER_USER_SPACE);
+			}
+"leave_user_scope"	MAY_BE {
+			  yylval->i_value = include_stack_ptr+1;
+			  return(LEAVE_USER_SPACE);
+			}
 
 
 	/* boolean values */
@@ -649,7 +660,6 @@ $${IDENT}		MAY_BE { enter_macrofile(&yytext[2]);}
 
 #define MAX_INCLUDE_DEPTH NESTING_DEPTH
 static YY_BUFFER_STATE include_stack[MAX_INCLUDE_DEPTH] ={0};
-int include_stack_ptr = 0;
 char * include_fnames[MAX_INCLUDE_DEPTH] = {0};
 char * include_macbuf[MAX_INCLUDE_DEPTH] = {0};
 static int include_lines[MAX_INCLUDE_DEPTH] = {0};
@@ -1068,7 +1078,7 @@ static void enter_macrofile(char *variable)
 		yyerror("macrocall ... nested too deeply" );
 		return;
 	}
-        macrobuffer = getenv(variable);
+        macrobuffer = checked_getenv(variable);
 	if (!macrobuffer) {
 		yywarn("macro '%s' not found \n", variable);
 		return;

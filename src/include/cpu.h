@@ -294,7 +294,7 @@ EXTERN struct vec_t *ivecs;
 
 #ifdef __linux__
   #include <asm/sigcontext.h>
-  #if KERNEL_VERSION >= 2001000
+  #if LX_KERNEL_VERSION >= 2001000
   #define sigcontext_struct sigcontext
   #endif
 #endif

@@ -40,7 +40,7 @@
 #else
 #include <errno.h>
 #endif
-#if KERNEL_VERSION < 2001000
+#if LX_KERNEL_VERSION < 2001000
   #include <linux/ldt.h>
 #else
   #include <asm/ldt.h>

@@ -1,3 +1,21 @@
+98/03/20 ver. 0.97.4.3 unofficial pre-release
+	From Hans
+	- introduced .dosemurc (this replaces .dosrc). If this is found,
+	  the new style is used and this file is included by global.conf
+	  under 'user scope' (hint from Eric).
+	  This means it has all c_* classes undefined and can only change
+	  enviromnent variables in its own isolated name space
+	  (prefixed with 'dosemu_'). Look at global.conf for details.
+	- changed -f option to replace .dosemurc (instead of .dosrc).
+	  As the -f option is quite new anyway, it should not be a
+	  compatibility problem.
+	- realized partition access via dosemu.conf
+	- suffix " +hd" to $_vbootfloppy allows virtual floppy + $_hdimage
+	- $_printer is now a _list_ of printer names (LPT1 .. LPT3)
+	- fixed ./first-test (etc/config.test)
+	- renamed KERNEL_VERSION to LX_KERNEL_VERSION to avoid name clash
+	  with (new) 2.1.x kernels headers.
+	- udated and recompiled the docs
 98/03/12 ver. 0.97.4.2 unofficial pre-release
 	From Steffen
 	- fix for NEW_X_MOUSE not snapping win31 mouse

@@ -57,6 +57,9 @@
 #include "port.h"
 #ifdef NEW_PORT_CODE
 #define allow_io	port_allow_io
+#else
+int allow_io(unsigned int start, int size, int permission, int ormask,
+	 int andmask, unsigned int portspeed, char *device);
 #endif
 #include "lpt.h"
 #include "video.h"
@@ -68,6 +71,8 @@
 
 #include "parsglob.h"
 
+#define USERVAR_PREF	"dosemu_"
+static int user_scope_level;
 
 static serial_t *sptr;
 static serial_t nullser;
@@ -102,11 +107,14 @@ static int errors = 0;
 static int warnings = 0;
 
 static int priv_lvl = 0;
+static int saved_priv_lvl = 0; 
+
 
 static char *file_being_parsed;
 
 			/* this to ensure we are parsing a new style */
 static int parser_version_3_style_used = 0;
+#define CONFNAME_V3USED "version_3_style_used"
 
 	/* external procedures */
 
@@ -159,8 +167,12 @@ extern void append_pre_strokes(unsigned char *s);
 char *get_config_variable(char *name);
 int define_config_variable(char *name);
 static int undefine_config_variable(char *name);
+static void check_user_var(char *name);
 static char *run_shell(char *command);
 static int for_each_handling(int loopid, char *varname, char *delim, char *list);
+char *checked_getenv(const char *name);
+static void enter_user_scope(int incstackptr);
+static void leave_user_scope(int incstackptr);
 
 	/* class stuff */
 #define IFCLASS(m) if (is_in_allowed_classes(m))
@@ -230,6 +242,10 @@ extern void yyrestart(FILE *input_file);
 
 	/* flow control */
 %token DEFINE UNDEF IFSTATEMENT WHILESTATEMENT FOREACHSTATEMENT
+%token <i_value> ENTER_USER_SPACE LEAVE_USER_SPACE
+
+	/* variable handling */
+%token CHECKUSERVAR
 
 	/* main options */
 %token DOSBANNER FASTFLOPPY TIMINT HOGTHRESH SPEAKER IPXSUPPORT NOVELLHACK
@@ -299,7 +315,11 @@ extern void yyrestart(FILE *input_file);
 
 lines		: line
 		| lines line
-		| lines ';' line
+		| lines optdelim line
+		;
+
+optdelim	: ';'
+		| optdelim ';'
 		;
 
 line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
@@ -344,16 +364,28 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 			}
 			free($3);
 		}
-		| VARIABLE '=' strarglist { IFCLASS(CL_VAR) {
-			if (!parser_version_3_style_used) {
-			    parser_version_3_style_used = 1;
-			    define_config_variable("version_3_style_used");
+		| ENTER_USER_SPACE { enter_user_scope($1); }
+		| LEAVE_USER_SPACE { leave_user_scope($1); }
+		| VARIABLE '=' strarglist {
+		    if (!parser_version_3_style_used) {
+			parser_version_3_style_used = 1;
+			define_config_variable(CONFNAME_V3USED);
+		    }
+		    if ((strpbrk($1, "uhc") == $1) && ($1[1] == '_'))
+			yyerror("reserved variable %s can't be set\n", $1);
+		    else {
+			if (user_scope_level) {
+			    char *s = malloc(strlen($1)+sizeof(USERVAR_PREF));
+			    strcpy(s, USERVAR_PREF);
+			    strcat(s,$1);
+			    setenv(s, $3, 1);
+			    free(s);
 			}
-			if ((strpbrk($1, "uhc") != $1) || ($1[1] != '_'))
-			    setenv($1, $3, 1);
-			else
-			    yyerror("reserved variable %s can't be set\n", $1);
-		} free($1); free($3); }
+			else IFCLASS(CL_VAR) setenv($1, $3, 1);
+		    }
+		    free($1); free($3);
+		}
+		| CHECKUSERVAR check_user_var_list
 		| EXPRTEST expression {
 		    if (EXPRTYPE($2) == TYPE_REAL)
 			c_printf("CONF TESTING: exprtest real %f %08x\n", VAL_R($2), $2);
@@ -807,7 +839,7 @@ variable_content:
 			else if (strncmp("c_",s,2)
 					&& strncmp("u_",s,2)
 					&& strncmp("h_",s,2) ) {
-				s = getenv(s);
+				s = checked_getenv(s);
 				if (!s) s = "";
 			}
 			else
@@ -878,6 +910,16 @@ strarglist_item: string_expr
 		}
 		;
 
+check_user_var_list:
+		VARIABLE {
+			check_user_var($1);
+			free($1);
+		}
+		| check_user_var_list ',' VARIABLE {
+			check_user_var($3);
+			free($3);
+		}
+		;
 
 	/* x-windows */
 
@@ -2562,7 +2604,7 @@ int parse_config(char *confname, char *dosrcname)
   }
 
   /* Let's try confname if not null, and fail if not found */
-  /* Else try the user's own .dosrc */
+  /* Else try the user's own .dosrc (old) or .dosemurc (new) */
   /* If that doesn't exist we will default to CONFIG_FILE */
 
   { 
@@ -2571,13 +2613,18 @@ int parse_config(char *confname, char *dosrcname)
 
     char *home = getenv("HOME");
     char *name;
+    int skip_dosrc = 0;
 
     if (!dosrcname) {
       name = malloc(strlen(home) + 20);
+      sprintf(name, "%s/.dosemurc", home);
+      setenv("DOSEMU_RC",name,1);
       sprintf(name, "%s/.dosrc", home);
     }
     else {
       name = strdup(dosrcname);
+      setenv("DOSEMU_RC",name,1);
+      skip_dosrc = 1;
     }
 
     /* privileged options allowed? */
@@ -2619,7 +2666,7 @@ int parse_config(char *confname, char *dosrcname)
     if (priv_lvl) undefine_config_variable("c_user");
     else undefine_config_variable("c_system");
 
-    if (!get_config_variable("version_3_style_used")) {
+    if (!get_config_variable(CONFNAME_V3USED)) {
 	/* we obviously have an old configuration file
          * ( or a too simple one )
 	 * giving up
@@ -2634,7 +2681,8 @@ int parse_config(char *confname, char *dosrcname)
     priv_lvl = uid != 0;
     if (priv_lvl) define_config_variable("c_user");
     define_config_variable("c_dosrc");
-    if ((fd = open_file(name)) != 0) {
+    if (!skip_dosrc && !get_config_variable("skip_dosrc")
+                    && ((fd = open_file(name)) != 0)) {
       c_printf("Parsing %s file.\n", name);
       free(file_being_parsed);
       file_being_parsed = malloc(strlen(name) + 1);
@@ -2709,6 +2757,7 @@ char *config_variables[MAX_CONFIGVARIABLES+1] = {0};
 static int config_variables_count = 0;
 static int config_variables_last = 0;
 static int allowed_classes = -1;
+static int saved_allowed_classes = -1;
 
 
 
@@ -2770,6 +2819,26 @@ static void update_class_mask(void)
   }
 }
 
+static void enter_user_scope(int incstackptr)
+{
+  if (user_scope_level) return;
+  saved_priv_lvl = priv_lvl;
+  priv_lvl = 1;
+  saved_allowed_classes = allowed_classes;
+  allowed_classes = 0;
+  user_scope_level = incstackptr;
+  c_printf("CONF: entered user scope, includelevel %d\n", incstackptr-1);
+}
+
+static void leave_user_scope(int incstackptr)
+{
+  if (user_scope_level != incstackptr) return;
+  priv_lvl = saved_priv_lvl;
+  allowed_classes = saved_allowed_classes;
+  user_scope_level = 0;
+  c_printf("CONF: left user scope, includelevel %d\n", incstackptr-1);
+}
+
 char *get_config_variable(char *name)
 {
   int i;
@@ -2785,7 +2854,7 @@ char *get_config_variable(char *name)
 int define_config_variable(char *name)
 {
   if (priv_lvl) {
-    if (strncmp(name, "u_", 2)) {
+    if (strcmp(name, CONFNAME_V3USED) && strncmp(name, "u_", 2)) {
       c_printf("CONF: not enough privilege to define config variable %s\n", name);
       return 0;
     }
@@ -2793,7 +2862,7 @@ int define_config_variable(char *name)
   if (!get_config_variable(name)) {
     if (config_variables_count < MAX_CONFIGVARIABLES) {
       config_variables[config_variables_count++] = strdup(name);
-      update_class_mask();
+      if (!priv_lvl) update_class_mask();
     }
     else {
       c_printf("CONF: overflow on config variable list\n");
@@ -2819,12 +2888,45 @@ static int undefine_config_variable(char *name)
       config_variables[i] = config_variables[i+1];
     }
     config_variables_count--;
-    update_class_mask();
+    if (!priv_lvl) update_class_mask();
     c_printf("CONF: config variable %s unset\n", name);
     return 1;
   }
   return 0;
 }
+
+char *checked_getenv(const char *name)
+{
+  if (user_scope_level) {
+     char *s, *name_ = malloc(strlen(name)+sizeof(USERVAR_PREF));
+     strcpy(name_, USERVAR_PREF);
+     strcat(name_, name);
+     s = getenv(name_);
+     free(name_);
+     if (s) return s;
+  }
+  return getenv(name);
+}
+
+static void check_user_var(char *name)
+{
+	char *name_;
+	char *s;
+
+	if (user_scope_level) return;
+	name_ = malloc(strlen(name)+sizeof(USERVAR_PREF));
+	strcpy(name_, USERVAR_PREF);
+	strcat(name_, name);
+	s = getenv(name_);
+	if (s) {
+		if (getenv(name))
+			c_printf("CONF: variable %s replaced by user\n", name);
+		setenv(name, s, 1);
+		unsetenv(name_);
+	}
+	free(name_);
+}
+
 
 static char *run_shell(char *command)
 {

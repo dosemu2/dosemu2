@@ -16,7 +16,8 @@
 
   2.1.    Format of /etc/dosemu.users
 
-  2.2.    Format of /etc/dosemu.conf (.dosrc, -I option)
+  2.2.    Format of /var/lib/dosemu/global.conf ( (old) .dosrc, -I
+  option)
 
   2.2.1.  Enviroment variables and configuration variables
 
@@ -351,21 +352,28 @@
   22..  RRuunnttiimmee CCoonnffiigguurraattiioonn OOppttiioonnss
 
   This section of the document by Hans, <lermen@fgan.de>. Last updated
-  on January 30, 1998.
+  on Mar 20, 1998.
 
   Most of DOSEMU configuration is done during runtime and per default it
   expects the system wide configuration file /etc/dosemu.conf optionally
-  followed by the users  /.dosrc and additional configurations
+  followed by the users  /.dosemurc and additional configurations
   statements on the commandline (-I option). The builtin configuration
   file of a DEXE file is passed using the -I technique, hence the rules
   of -I apply.
 
-  In fact /etc/dosemu.conf is included by the systemwide configuration
-  script /var/lib/dosemu/global.conf, but as a normal user you won't
-  ever think on editing this, only dosemu.conf.
+  In fact /etc/dosemu.conf and  /.dosemurc (which have identical syntax)
+  are included by the systemwide configuration script
+  /var/lib/dosemu/global.conf, but as a normal user you won't ever think
+  on editing this, only dosemu.conf and your personal  /.dosemurc.
 
-  The first file expected (and interpreted before) any other
-  configuration (such as global.conf and dosemu.conf) is
+  In DOSEMU prior to 0.97.5 the private configuration file was called
+   /.dosrc (not to be confused with the new  /.dosemurc). This will work
+  as expected formerly, but is subject to be nolonger supported in the
+  near future.  This (old)  /.dosrc is processed _a_f_t_e_r global.conf and
+  follows (same as -I) the syntax of global.conf.
+
+  The first file expected (and interpreted) before any other
+  configuration (such as global.conf, dosemu.conf and  /.dosemurc) is
   /etc/dosemu.users.  Within /etc/dosemu.users the general permissions
   are set:
 
@@ -373,8 +381,8 @@
 
   +o  what kind of access class the user belongs to.
 
-  +o  wether the user is allowed to define a private dosemu.conf that
-     replaces /etc/dosemu.conf (option -F).
+  +o  wether the user is allowed to define a private global.conf that
+     replaces /var/lib/dosemu/global.conf (option -F).
 
   +o  what special configuration stuff the users needs
 
@@ -382,14 +390,21 @@
 
   After /etc/dosemu.users /etc/dosemu.conf (via global.conf) is
   interpreted, and only during global.conf parsing access to all
-  configuration options is allowed.
+  configuration options is allowed. Your personal  /.dosemurc is
+  included directly after dosemu.conf, but has less access rights (in
+  fact the lowest level), all variables you define within  /.dosemurc
+  transparently are prefixed with `dosemu_' such that the normal
+  namespace cannot be polluted (and a hacker cannot overwrite security
+  relevant enviroment variables). Within global.conf only those
+   /.dosemurc created variables, that are needed are taken over and may
+  overwrite those defined in /etc/dosemu.conf.
 
   The dosemu.conf (global.conf) may check for the configuration
   variables, that are set in /etc/dosemu.users and optionaly include
   further configuration files. But once /etc/dosemu.conf (global.conf)
   has finished interpretation, the access to secure relevant
   configurations is (class-wise) restricted while the following
-  interpretation of .dosrc and -I statements.
+  interpretation of (old) .dosrc and -I statements.
 
   For an example of a general configuration  look at ./etc/global.conf.
   The later behaves insecure, when /etc/dosemu.users is a copy of
@@ -409,7 +424,7 @@
         any user not mentioned in previous lines.
 
      cc__ssttrriicctt
-        Do not allow -F option (/etc/dosemu.conf can't be replaced)
+        Do not allow -F option (global.conf can't be replaced)
 
      cc__ddeexxeeoonnllyy
         Only allow execution of DEXE files, forbid any other use.
@@ -423,7 +438,6 @@
         cc__nnoorrmmaall
            normal restrictions, all but the following classes: c_var,
            c_boot, c_vport, c_secure, c_irq, c_hardram.
-
         cc__vvaarr
            allow (un)setting of configuration- and environment variables
 
@@ -477,7 +491,7 @@
 
      ootthheerr
         Here you may define any configuration variable, that you want to
-        test in /etc/dosemu.conf (or .dosrc, -I), see 'ifdef', 'ifndef'
+        test in global.conf (or (old) .dosrc, -I), see 'ifdef', 'ifndef'
         When this variable is intended to be unset in lower privilege
         configuration files (.dosrc, -I), then the variable name has to
         be prefixed with 'u_'.
@@ -486,14 +500,14 @@
   login name is given (no further parameters, old format) the following
   setting is assumed:
 
-         if 'root'  c_all
-         else       c_normal
+    if 'root'  c_all
+    else       c_normal
 
   Other than with previous DOSEMU versions, the /etc/dosemu.users now is
   mandatory. Also note, that you may restrict 'root' doing something
   silly ;-)
 
-  22..22..  FFoorrmmaatt ooff //eettcc//ddoosseemmuu..ccoonnff ((..ddoossrrcc,, --II ooppttiioonn))
+  22..22..  FFoorrmmaatt ooff //vvaarr//lliibb//ddoosseemmuu//gglloobbaall..ccoonnff (( ((oolldd)) ..ddoossrrcc,, --II ooppttiioonn))
 
   The configuration files are not line oriented, instead are consisting
   of `statements' (optionally separated by `;'), whitespaces are removed
@@ -504,16 +518,16 @@
   22..22..11..  EEnnvviirroommeenntt vvaarriiaabblleess aanndd ccoonnffiigguurraattiioonn vvaarriiaabblleess
 
   They existed already in very early versions of DOSEMU (until now), but
-  now evironment variables are much more useful in /etc/dosemu.conf as
-  before, because you now can set them, test them in the new 'if'
-  statement and compute them in expressions.  The problem with the
-  enviroment variables is, however, that the user may set and fake them
-  _b_e_f_o_r_e calling DOSEMU, hence this is a security problem. To avoid
+  now evironment variables are much more useful in dosemu.conf /
+  global.conf as before, because you now can set them, test them in the
+  new 'if' statement and compute them in expressions.  The problem with
+  the enviroment variables is, however, that the user may set and fake
+  them _b_e_f_o_r_e calling DOSEMU, hence this is a security problem. To avoid
   this, we have the above mentioned _c_o_n_f_i_g_u_r_a_t_i_o_n _v_a_r_i_a_b_l_e_s, which are
   of complete different name space and are not visible outside of
   DOSEMU's configuration parser. On the other hand it may be useful to
-  export settings from /etc/dosemu.conf to the running DOS environment,
-  which can be achieved by the 'unix.exe -e' DOS programm.
+  export settings from global.conf to the running DOS environment, which
+  can be achieved by the 'unix.exe -e' DOS programm.
 
   To summarize:
 
@@ -525,12 +539,12 @@
 
      eennvviirroonnmmeenntt vvaarriiaabblleess
         are inherited from the calling process, can be set within
-        /etc/dosemu.conf and passed to DOSEMU running DOS-applications.
-        Within /etc/dosemu.conf they always are prefixed by '$' (Hence
-        TERM becomes $TERM, even on the left side of an assigment).
-        However, _s_e_t_t_i_n_g them is controled by the configuration variable
-        'c_var' (see above) and may be disallowed within the user
-        supplied .dosrc and alike.
+        global.conf (dosemu.conf) and passed to DOSEMU running DOS-
+        applications. Within *.conf they always are prefixed by '$'
+        (Hence TERM becomes $TERM, even on the left side of an
+        assigment). However, _s_e_t_t_i_n_g them is controled by the
+        configuration variable 'c_var' (see above) and may be disallowed
+        within the user supplied (old) .dosrc and alike.
 
   At startup DOSEMU generates the following environment variables, which
   may be used to let the configuration adapt better:
@@ -588,11 +602,11 @@
 
   or
 
-         ifndef <configuration variable>
-           ...
-         else
-           ...
-         endif
+    ifndef <configuration variable>
+      ...
+    else
+      ...
+    endif
 
   where _v_a_r_i_a_b_l_e is a _c_o_n_f_i_g_u_r_a_t_i_o_n _v_a_r_i_a_b_l_e (not an environment
   variable). Additionally there is a `normal' _i_f _s_t_a_t_e_m_e_n_t, a _w_h_i_l_e
@@ -606,6 +620,7 @@
          done
 
   but these behaves a bit different and are described later.
+
   The 'else' clause may be ommitted and 'ifndef' is the opposite to
   'ifdef'.  The <variable> can't be tested for its contents, only if it
   is set or not.  Clauses also may contain further if*def..endif clause
@@ -618,26 +633,24 @@
          define <configuration variable>
          undef  <configuration variable>
 
-  However, use of define/undef is restricted to scope of
-  /etc/dosemu.conf, as long as you don't 'define c_var' _within_
-  /etc/dosemu.conf.  If you are under scope of a 'user config file'
-  (e.g. outside /etc/dosemu.conf) you have to prefix the _c_o_n_f_i_g_u_r_a_t_i_o_n
-  _v_a_r_i_a_b_l_e name with 'u_', else it will not be allowed to be set/unset
-  (hence 'c_' type variables can't be unset out of scope of
-  /etc/dosemu.conf).
+  However, use of define/undef is restricted to scope of global.conf, as
+  long as you don't 'define c_var' _within_ global.conf.  If you are
+  under scope of a 'user config file' (e.g. outside global.conf) you
+  have to prefix the _c_o_n_f_i_g_u_r_a_t_i_o_n _v_a_r_i_a_b_l_e name with 'u_', else it will
+  not be allowed to be set/unset (hence 'c_' type variables can't be
+  unset out of scope of global.conf).
 
   There are some _c_o_n_f_i_g_u_r_a_t_i_o_n _v_a_r_i_a_b_l_e_s (besides the ones described
   above for dosemu.users) implicitely predefined by DOSEMU itself:
 
      cc__ssyysstteemm
-        set while being in /etc/dosemu.conf
+        set while being in /var/lib/dosemu/global.conf
 
      cc__uusseerr
         set while parsing a user configuration file
 
      cc__ddoossrrcc
-        set while parsing .dosrc
-
+        set while parsing (old) .dosrc
      cc__ccoommlliinnee
         set while parsing -I option statements
 
@@ -660,8 +673,8 @@
        # dos -u myspecialfun
 
   this will then define the config variable 'u_myspecialfun' _before_
-  parsing any configuration file. You then may check this in your
-  ./dosrc or /etc/dosemu.conf to do the needed special configuration.
+  parsing any configuration file. You then may check this in your (old)
+  ./dosrc or global.conf to do the needed special configuration.
 
   Now, what's this with the _i_f _s_t_a_t_e_m_e_n_t and _w_h_i_l_e _s_t_a_t_e_m_e_n_t?  All those
   conditionals via _i_f_d_e_f and _i_n_d_e_f are completly handled _b_e_f_o_r_e the
@@ -739,13 +752,13 @@
   If you for some reason want to bundle some major settings in a
   separate file you can include it via
 
-         include "somefile"
+    include "somefile"
 
   If 'somefile' doesn't have a leading '/', it is assumed to be relative
   to /etc.  Also includeing may be nested up to a max depth of 10 files.
   Note however, that the privilege is inherited from the main file from
-  which is included, hence all what is included by /etc/dosemu.conf has
-  its privilege.
+  which is included, hence all what is included by
+  /var/lib/dosemu/global.conf has its privilege.
 
   However, there are restrictions for `while' loops: You can't have
   _i_n_c_l_u_d_e _s_t_a_t_e_m_e_n_t_s within loops without beeing prepared for unexpected
@@ -757,13 +770,13 @@
   be a variable. However, you can work around this with a macro (see
   next chapter) as shows the following example:
 
-    $file = $HOME, "/.my_dosrc_include"
-    shell("test -f ", $file)
-    if ( ! $DOSEMU_SHELL_RETURN)
-      # we can include
-      $INC = ' include "', $file, '"';
-      $$INC
-    endif
+         $file = $HOME, "/.my_dosrc_include"
+         shell("test -f ", $file)
+         if ( ! $DOSEMU_SHELL_RETURN)
+           # we can include
+           $INC = ' include "', $file, '"';
+           $$INC
+         endif
 
   22..22..44..  MMaaccrroo ssuubbssttiittuuttiioonn
 
@@ -841,15 +854,15 @@
 
   Valid constant numbers (not only in expressions) are
 
-    123     decimal, integer
-    0x1a    hexadecimal, integer
-    0b10101 bitstream, integer
-    1.2     float number, real
-    0.5e3   exponential form, real
-    off     boolean false, integer
-    on      boolean true, integer
-    no      boolean false, integer
-    yes     boolean true, integer
+         123     decimal, integer
+         0x1a    hexadecimal, integer
+         0b10101 bitstream, integer
+         1.2     float number, real
+         0.5e3   exponential form, real
+         off     boolean false, integer
+         on      boolean true, integer
+         no      boolean false, integer
+         yes     boolean true, integer
 
   The following operator are recognized:
 
@@ -879,10 +892,10 @@
   done automaticaly, but you may force it using the (below mentioned)
   int() and real() functions such as:
 
-          $is_real =    ( 3.1415 * 100 )
-          $is_integer = ( int( 3.1415 * 100) )
-          $is_integer = ( 100 * 3.1415 )
-          $is_real =  ( real($is_integer) )
+     $is_real =    ( 3.1415 * 100 )
+     $is_integer = ( int( 3.1415 * 100) )
+     $is_integer = ( 100 * 3.1415 )
+     $is_real =  ( real($is_integer) )
 
   The above also shows, how environment variables can be set: if you
   want to place `expressions' (which are always numbers) onto a
@@ -892,11 +905,11 @@
   fact the `$xxx =' statement accepts a complete coma separated list,
   which it will concatenate, examples:
 
-    $termnum = (1)
-    $MYTERM = "/dev/ttyp", $termnum       # results in "/dev/ttyp1"
-    $VER = (($DOSEMU_VERSION_CODE >> 24) & 255)
-    $MINOR = (($DOSEMU_VERSION_CODE >> 16) & 255)
-    $running_dosemu = "dosemu-", $VER, ".", $MINOR
+         $termnum = (1)
+         $MYTERM = "/dev/ttyp", $termnum       # results in "/dev/ttyp1"
+         $VER = (($DOSEMU_VERSION_CODE >> 24) & 255)
+         $MINOR = (($DOSEMU_VERSION_CODE >> 16) & 255)
+         $running_dosemu = "dosemu-", $VER, ".", $MINOR
 
   Several builtin functions, which can be used in expressions, are
   available:
@@ -972,12 +985,12 @@
         even that).  However, to avoid security implications all
         privilegdes are dropped and executions is under control of
         _c___s_h_e_l_l configuration variable. The default is, that it can only
-        be executed from within /etc/dosemu.conf.
+        be executed from within global.conf.
 
-  With these tools you should be able to make your /etc/dosemu.conf
-  adapt to any special case, such as different terminal types, different
-  hdimages for different users and/or different host, adapt to different
-  (future) dosemu and/or kernel versions. Here some small examples:
+  With these tools you should be able to make your global.conf adapt to
+  any special case, such as different terminal types, different hdimages
+  for different users and/or different host, adapt to different (future)
+  dosemu and/or kernel versions. Here some small examples:
 
     $whoami = shell("who am i")
     if ( strchr($whoami, "(" ) < 0 )
@@ -1018,13 +1031,13 @@
 
   22..22..77..  ``DDrryy'' tteessttiinngg yyoouurr ccoonnffiigguurraattiioonn
 
-  It may be usefull to verify, that your /etc/dosemu.conf does what you
-  want before starting a real running DOSEMU. For this purpose there is
-  a new commandline option (-h), which just runs the parser, print some
-  useful output, dumps the main configuration structure and then exits.
-  The option has an argument (0,1,2), which sets the amount of parser
-  debug output: 0 = no parser debug, 1 = print loop debugs, 2 = same as
-  1 plus if_else_endif-stack debug. This feature can be used such as
+  It may be usefull to verify, that your *.conf does what you want
+  before starting a real running DOSEMU. For this purpose there is a new
+  commandline option (-h), which just runs the parser, print some useful
+  output, dumps the main configuration structure and then exits.  The
+  option has an argument (0,1,2), which sets the amount of parser debug
+  output: 0 = no parser debug, 1 = print loop debugs, 2 = same as 1 plus
+  if_else_endif-stack debug. This feature can be used such as
 
          $ dos -h0 -O 2>&1 | less
 
@@ -1044,7 +1057,7 @@
         +----------------------outer level (1 = no depth)
 
   There are also some configuration statements, which aren't of any use
-  except for help debugging your /etc/dosemu.conf such as
+  except for help debugging your *.conf such as
 
          exprtest ($DOSEMU_VERSION_CODE)   # will just print the result
          warn "content of DOSEMU_VERSION_CODE: ", $DOSEMU_VERSION_CODE
@@ -1259,11 +1272,11 @@
   of values. In order to make it easy for you, you may use dosemu to
   create such a list. The following statement will dump all current key
   tables out into a file "kbdtables", which is directly suitable for
-  inclusion into dosemu.conf (hence it follows the syntax):
+  inclusion into global.conf (hence it follows the syntax):
 
          keytable dump "kbdtables"
 
-  However, don't put this not into your dosemu.conf, because dosemu will
+  However, don't put this not into your global.conf, because dosemu will
   exit after generating the tablefile. Instead use the -I commandline
   option such as
 
@@ -1279,8 +1292,8 @@
 
   (when an include file is starting with "keymap/" it is taken out of
   /var/lib/dosemu). When there was a keytable previously defined (e.g.
-  in /etc/dosemu.conf), they new one will be take anyway and a warning
-  will be printed on stderr.
+  in global.conf), they new one will be take anyway and a warning will
+  be printed on stderr.
 
   Anyway, you are not forced to modify or load a keytable, and with the
   "layout" keyword from the "keyboard" statement, you can specify your
@@ -1593,6 +1606,10 @@
         Enable or disable the protected mode interface for VESA modes.
         The default is ``on''.
 
+     mmggrraabb__kkeeyy
+        String, name of KeySym name to activate mouse grab. Default is
+        `empty' (no mouse grab). A possible value could be "Home".
+
      vveessaammooddee
         Define a VESA mode. Two variants are supported: vesamode width
         height and vesamode width height color_bits. The first adds the
@@ -1627,11 +1644,11 @@
 
   +o  If your VBios size is only 32K you set it with  vbios_size 0x8000,
      you then gain some space for UMB or hardware ram locations.
-
   +o  Set "allowvideoportaccess on" earlier in this configuration file if
      DOSEMU won't boot properly, such as hanging with a blank screen,
      beeping, leaving Linux video in a bad state, or the video card
      bootup message seems to stick.
+
   +o  Video BIOS shadowing (in your CMOS setup) at C000-CFFF must be
      disabled.
 
@@ -1708,7 +1725,7 @@
 
   Avance Logic (ALI) 230x SVGA
 
-         video { vga  console  graphics  chipset avance }
+    video { vga  console  graphics  chipset avance }
 
   For ATI graphic mode
 
@@ -1746,7 +1763,7 @@
   be able to run some DPMI programs, hence, before reporting such a
   program as 'not running', first try to set 'secure off'.
 
-    secure on                # "on" or "off"
+         secure on                # "on" or "off"
 
   The below enables/disables DPMI and sets the size of DPMI memory.
 
@@ -1777,7 +1794,7 @@
 
   With the below you define the maximum conventional RAM to show apps:
 
-    dosmem 640
+         dosmem 640
 
   22..22..1177..  IIRRQQ ppaassssiinngg
 
@@ -1853,12 +1870,12 @@
 
   The best way to get started is to start with a hdimage, and set
   "bootC" and "disk {image "var/lib/dosemu/hdimage.first" }/" in
-  /etc/dosemu.conf.  To generate this first working and bootable
-  hdimage, you should use "setup-hdimage" in the dosemu root directory.
-  This script extracts your DOS from any native bootable DOS-partition
-  and builts a bootable hdimage.  (for experience dosemu users: you need
-  not to fiddle with floppies any more) Keep using the hdimage while you
-  are setting this hard disk configuration up for DOSEMU, and testing by
+  global.conf.  To generate this first working and bootable hdimage, you
+  should use "setup-hdimage" in the dosemu root directory. This script
+  extracts your DOS from any native bootable DOS-partition and builts a
+  bootable hdimage.  (for experience dosemu users: you need not to
+  fiddle with floppies any more) Keep using the hdimage while you are
+  setting this hard disk configuration up for DOSEMU, and testing by
   using DIR C: or something like that.  Whenever possible, use hdimage,
   mount your DOS partition under Linux and "lredir" it into dosemu. Look
   at ``Using Lredir'', ``Running as a user'', QuickStart etc. on how to
@@ -2084,7 +2101,6 @@
   ports.c. Note that the code in portss.c (retrieved from Scott
   Buchholz's pre-0.61) was previously disabled (not used), because it
   had problems with older versions of dosemu.
-
   The _r_e_p_;_i_n_,_o_u_t instructions will been optimized so to call iopl() only
   once.
 
@@ -2204,7 +2220,6 @@
 
   +o  Now, how is this realized? This is a bit more complicated.  We have
      3 places were the eflag register is stored in memory:
-
      vvmm8866ss..rreeggss..eeffllaaggss
         in user space, seen by dosemu
 
@@ -2266,8 +2281,8 @@
 
      How I think we should proceed? Well this I did describe in my last
      mail.
-
      ,,,, and this from a follow-up mail:
+
      _N_O_T_E VIF and VIP in DOS-CPU-flagsregister are inherited from
      32-bit, so actually they are both ZERO.
 
@@ -2446,7 +2461,6 @@
 
   If the above INTx happens from within old style vm86() call, the
   exceptions also are handled `the old way'. (backward comptibility)
-
   55..33..  AAbbaannddoonneedd ``bbeellllss aanndd wwhhiissttlleess'' ffrroomm oollddeerr eemmuummoodduullee
 
   ( If you have an application that needs it, well then it won't work,

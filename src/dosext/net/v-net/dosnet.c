@@ -41,7 +41,7 @@
 #include "dosnet.h"
 #include "kversion.h"
 
-#if KERNEL_VERSION >= 2001000
+#if LX_KERNEL_VERSION >= 2001000
 typedef struct net_device_stats stats_t; /* for Linux 2.1 */
 #else
 typedef struct enet_statistics stats_t;  /* for earlier kernels */
@@ -145,7 +145,7 @@ dosnet_xmit(struct sk_buff *skb, struct device *dev)
 	/* Probably unnecessary */
 	if (skb == NULL || dev == NULL) return 0;
 	
-#if KERNEL_VERSION >= 2001000
+#if LX_KERNEL_VERSION >= 2001000
 	if(atomic_read(&skb->users) != 1 && skb->sk) {
 #else
         if(skb->free == 0 && skb->sk) {

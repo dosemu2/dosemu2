@@ -3,27 +3,34 @@
 
 This section of the document by Hans, 
 <htmlurl url="mailto:lermen@fgan.de" name="&lt;lermen@fgan.de&gt;">. Last
-updated on January 31, 1998.
+updated on Mar 20, 1998.
 
 <p>
 Most of DOSEMU configuration is done during runtime and per default it
 expects the system wide configuration file /etc/dosemu.conf optionally
-followed by the users ~/.dosrc and additional configurations statements
+followed by the users ~/.dosemurc and additional configurations statements
 on the commandline (-I option). The builtin configuration file of a DEXE
 file is passed using the -I technique, hence the rules of -I apply.
 
-In fact /etc/dosemu.conf is included by the systemwide configuration script
+In fact /etc/dosemu.conf and ~/.dosemurc (which have identical syntax)
+are included by the systemwide configuration script
 /var/lib/dosemu/global.conf, but as a normal user you won't ever think on
-editing this, only dosemu.conf.
-The syntax of global.conf is described in detail in
-README-tech.txt, so this is skipped here. However, ~/.dosrc and -I too
-use the same syntax as global.conf, hence, if you are doing some special
+editing this, only dosemu.conf and your personal ~/.dosemurc.
+The syntax of global.conf is described in detail in README-tech.txt,
+so this is skipped here. However, the option -I string too
+uses the same syntax as global.conf, hence, if you are doing some special
 stuff (after you got familar with DOSEMU) you may need to have a look there.
+
+In DOSEMU prior to 0.97.5 the private configuration file was called ~/.dosrc
+(not to be confused with the new ~/.dosemurc). This will work as expected
+formerly, but is subject to be nolonger supported in the near future.
+This (old) ~/.dosrc is processed <em/after/ global.conf and follows (same
+as -I) the syntax of global.conf (see README-tech.txt).
 
 <p>
 
-The first file expected (and interpreted before) any other configuration
-(such as global.conf and dosemu.conf) is /etc/dosemu.users.
+The first file expected (and interpreted) before any other configuration
+(such as global.conf, dosemu.conf and ~/.dosemurc) is /etc/dosemu.users.
 Within /etc/dosemu.users the general permissions are set:
 
 <itemize>
@@ -67,17 +74,24 @@ have a look at README-tech.txt chapter 2.
 <p>
 After /etc/dosemu.users /etc/dosemu.conf (via global.conf) is interpreted,
 and only during global.conf parsing access to all configuration options is
-allowed.
+allowed. Your personal ~/.dosemurc is included directly after dosemu.conf,
+but has less access rights (in fact the lowest level), all variables you
+define within ~/.dosemurc transparently are prefixed with `dosemu_' such
+that the normal namespace cannot be polluted (and a hacker cannot overwrite
+security relevant enviroment variables). Within global.conf only those
+~/.dosemurc created variables, that are needed are taken over and may
+overwrite those defined in /etc/dosemu.conf.
+
 <p>
 The dosemu.conf (global.conf) may check for the configuration variables,
 that are set in /etc/dosemu.users and optionaly include further configuration
 files. But once /etc/dosemu.conf (global.conf) has finished interpretation,
 the access to secure relevant configurations is (class-wise) restricted while
-the following interpretation of .dosrc and -I statements.
+the following interpretation of (old) .dosrc and -I statements.
 
 For more details on security setings/issues look at README-tech.txt, for
 now (using DOSEMU the first time) you should need only the below description
-of /etc/dosemu.conf.
+of /etc/dosemu.conf (~/.dosemurc)
 
 <sect1>Format of /etc/dosemu.conf
 
@@ -150,6 +164,8 @@ you may overide it such as
   $_cpuspeed = (166.666)  # 0 = let DOSEMU calibrate
 </verb></tscreen>
 
+NOTE: `$_rdtsc' and `$_cpuspeed' can <em/not/ be overwritten by ~/.dosemurc.
+
 If you have a PCI board you may allow DOSEMU to access the PCI
 configuration space by defining the below
 <tscreen><verb>
@@ -189,6 +205,7 @@ To disable security checking atall set
   $_secure ="0"
 </verb></tscreen>
 
+NOTE: `$_secure' can <em/not/ be overwritten by ~/.dosemurc.
 
 For the similar reasons you may `backout' some host, which you don't like
 to have access to dosemu
@@ -202,6 +219,8 @@ logins, `diskless_hosts' are meant to be maschines, that mount a complete
 tree, hence the checked host is the host DOSEMU is running on (not the
 remote host). However, read README-tech,txt for more details on what
 actually is disabled.
+
+NOTE: `$_*_hosts' can <em/not/ be overwritten by ~/.dosemurc.
 
 If you want mixed operation on the filesystem, from which you
 boot DOSEMU (native and via DOSEMU), it may be necessary to have two
@@ -251,6 +270,7 @@ DON'T FIDDLE WITH THIS SECTION UNLESS YOU KNOW WHAT YOU'RE DOING.</bf>
                 # or "range 0x1a0,(0x1a0+15)"
 </verb></tscreen>
 
+NOTE: `$_ports' can <em/not/ be overwritten by ~/.dosemurc.
 
 
 <sect2>Terminals
@@ -326,6 +346,9 @@ However, be carefull, when the application locks, you may not be able
 to switch your console and recover from this. For details on recovering
 look at README-tech.txt (Recovering the console after a crash).
 
+NOTE: `$_rawkeyboard' can <em/not/ be overwritten by ~/.dosemurc.
+
+
 The `keybint (on)' allows more accurate of keyboard interrupts, It
 is a bit unstable, but makes keyboard work better when set to "on".
 <tscreen><verb>
@@ -362,6 +385,7 @@ $_X_vgaemu_memsize = (1024) # size (in Kbytes) of the frame buffer
                         # for emulated vga
 $_X_lfb = (on)  # use linear frame buffer in VESA modes
 $_X_pm_interface = (on) # use protected mode interface for VESA modes
+$_X_mgrab_key = ""      # KeySym name to activate mouse grab, empty == off
 $_X_vesamode = ""       # "xres,yres ... xres,yres"
                         # List of vesamodes to add. The list has to
                         # comma separated "xres,yres" pairs
@@ -409,6 +433,8 @@ video chips and you tell DOSEMU to use it such as
 Note, `s3' is only an example, you <em/must/ set the correct video chip
 else it most like will crash your screen.
 
+NOTE: `video setting' can <em/not/ be overwritten by ~/.dosemurc.
+
 
 
 <sect2>Disks and floppies
@@ -422,7 +448,9 @@ setup:
 
 <tscreen><verb>
   $_vbootfloppy = ""    # if you want to boot from a virtual floppy:
-                        # name of the floppy image under /var/lib/dosemu
+                        # file name of the floppy image under /var/lib/dosemu
+                        # e.g. "floppyimage" disables $_hdimage
+                        #      "floppyimage +hd" does _not_ disable $_hdimage
   $_floppy_a ="threeinch" # or "fiveinch" or empty, if not existing
   $_floppy_b = ""       # dito for B:
 
@@ -454,7 +482,42 @@ floppy contains a bootable DOS, then
 
 will boot that floppy. Once running in DOS you can make the floppy
 available by (virtually) removing the `media' via `bootoff.com'.
+If want the disk access specified via `$_hdimage' anyway, you may add the
+keyword `+hd' such as
 
+<tscreen><verb>
+  $_vbootfloppy = "floppy_image +hd"
+</verb></tscreen>
+
+In some rare cases you may have problems accessing Lredir'ed drives
+(especially when your DOS application refuses to run on a 'network drive'),
+though I personally never happened to fall into one of this.
+For this to overcome you may need to use socalled `partition access'. The odd
+with this kind of access is, that you <em/never/ should have those partition
+mounted in the Linux file system at the same time as you use it in DOSEMU
+(which is quite uncomfortable and dangerous on a multitasking OS such as
+Linux ). Though global.conf checks for mounted partitions, there may be races
+that are not caught. In addition, when your DOSEMU crashes, it may leave
+some FAT sectors unflushed to the disk, hence destroying the partition.
+Anyway, if you think you need it, here is how you `assign' real DOS partitions
+to DOSEMU:
+
+<tscreen><verb>
+  $_hdimage = "hdimage.first /dev/hda1 /dev/sdc4:ro"
+</verb></tscreen>
+
+The above will have `hdimage.first' as booted drive C:, /dev/hda1 as D:
+(read/write) and /dev/sdc4 as E: (readonly). You may have any kind of order
+within `$_hdimage', hence
+
+<tscreen><verb>
+  $_hdimage = "/dev/hda1 hdimage.first /dev/sdc4:ro"
+</verb></tscreen>
+
+would have /dev/hda1 as booted drive C:. Note that the access to the
+/dev/* devices <em/must/ be exclusive (no other process should use it)
+except for `:ro'.
+ 
 
 <sect2>COM ports and mices
 <p>
@@ -514,12 +577,13 @@ matter:
 <p>
 
 Printer is emulated by piping printer data to your normal Linux printer.
-The belows tells DOSEMU which printer to use. The `timeout' tells DOSEMU
-how long to wait after the last output to LPT1 before considering the
+The belows tells DOSEMU which printers to use. The `timeout' tells DOSEMU
+how long to wait after the last output to LPTx before considering the
 print job as `done' and to to spool out the data to the printer.
 
 <tscreen><verb>
-$_printer = "lp"	# name of (/etc/printcap) printer to appear as LPT1
+$_printer = "lp"        # list of (/etc/printcap) printer names to appear as
+                        # LPT1 ... LPT3 (not all are needed, empty for none)
 $_printer_timeout = (20)# idle time in seconds before spooling out
 </verb></tscreen>
 

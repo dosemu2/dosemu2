@@ -1,9 +1,5 @@
-debug { config  off	disk    off	warning off	hardware off
-        port    off	read    off	general off	IPC      off
-        video   off	write   off	xms     off	ems      off
-        serial  off	keyb    off	dpmi    off
-       	printer off	mouse   off	sound	off
-      }
+define version_3_style_used
+debug "-a"
 dosbanner on
 timint on
 keyboard {  layout us  keybint on  rawkeyboard off  }

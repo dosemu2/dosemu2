@@ -216,7 +216,7 @@ ReadFromNetwork(int sock, char *device, char *data, int len)
 /*
  *	NET2 or NET3 - work for both.
  */
-#if defined(OLD_SIOCGIFHWADDR) || (KERNEL_VERSION >= 1003038)
+#if defined(OLD_SIOCGIFHWADDR) || (LX_KERNEL_VERSION >= 1003038)
 #define NET3
 #endif
 

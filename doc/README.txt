@@ -163,28 +163,34 @@
   22..  RRuunnttiimmee CCoonnffiigguurraattiioonn OOppttiioonnss
 
   This section of the document by Hans, <lermen@fgan.de>. Last updated
-  on January 31, 1998.
+  on Mar 20, 1998.
 
   Most of DOSEMU configuration is done during runtime and per default it
   expects the system wide configuration file /etc/dosemu.conf optionally
-  followed by the users  /.dosrc and additional configurations
+  followed by the users  /.dosemurc and additional configurations
   statements on the commandline (-I option). The builtin configuration
   file of a DEXE file is passed using the -I technique, hence the rules
   of -I apply.
 
-  In fact /etc/dosemu.conf is included by the systemwide configuration
-  script /var/lib/dosemu/global.conf, but as a normal user you won't
-  ever think on editing this, only dosemu.conf.  The syntax of
-  global.conf is described in detail in README-tech.txt, so this is
-  skipped here. However,  /.dosrc and -I too use the same syntax as
-  global.conf, hence, if you are doing some special stuff (after you got
-  familar with DOSEMU) you may need to have a look there.
+  In fact /etc/dosemu.conf and  /.dosemurc (which have identical syntax)
+  are included by the systemwide configuration script
+  /var/lib/dosemu/global.conf, but as a normal user you won't ever think
+  on editing this, only dosemu.conf and your personal  /.dosemurc.  The
+  syntax of global.conf is described in detail in README-tech.txt, so
+  this is skipped here. However, the option -I string too uses the same
+  syntax as global.conf, hence, if you are doing some special stuff
+  (after you got familar with DOSEMU) you may need to have a look there.
 
-  The first file expected (and interpreted before) any other
-  configuration (such as global.conf and dosemu.conf) is
+  In DOSEMU prior to 0.97.5 the private configuration file was called
+   /.dosrc (not to be confused with the new  /.dosemurc). This will work
+  as expected formerly, but is subject to be nolonger supported in the
+  near future.  This (old)  /.dosrc is processed _a_f_t_e_r global.conf and
+  follows (same as -I) the syntax of global.conf (see README-tech.txt).
+
+  The first file expected (and interpreted) before any other
+  configuration (such as global.conf, dosemu.conf and  /.dosemurc) is
   /etc/dosemu.users.  Within /etc/dosemu.users the general permissions
   are set:
-
   +o  which users are allowed to use DOSEMU.
 
   +o  what kind of access class the user belongs to.
@@ -223,18 +229,25 @@
 
   After /etc/dosemu.users /etc/dosemu.conf (via global.conf) is
   interpreted, and only during global.conf parsing access to all
-  configuration options is allowed.
+  configuration options is allowed. Your personal  /.dosemurc is
+  included directly after dosemu.conf, but has less access rights (in
+  fact the lowest level), all variables you define within  /.dosemurc
+  transparently are prefixed with `dosemu_' such that the normal
+  namespace cannot be polluted (and a hacker cannot overwrite security
+  relevant enviroment variables). Within global.conf only those
+   /.dosemurc created variables, that are needed are taken over and may
+  overwrite those defined in /etc/dosemu.conf.
 
   The dosemu.conf (global.conf) may check for the configuration
   variables, that are set in /etc/dosemu.users and optionaly include
   further configuration files. But once /etc/dosemu.conf (global.conf)
   has finished interpretation, the access to secure relevant
   configurations is (class-wise) restricted while the following
-  interpretation of .dosrc and -I statements.
+  interpretation of (old) .dosrc and -I statements.
 
   For more details on security setings/issues look at README-tech.txt,
   for now (using DOSEMU the first time) you should need only the below
-  description of /etc/dosemu.conf.
+  description of /etc/dosemu.conf ( /.dosemurc)
 
   22..11..  FFoorrmmaatt ooff //eettcc//ddoosseemmuu..ccoonnff
 
@@ -293,6 +306,9 @@
 
          $_cpuspeed = (166.666)  # 0 = let DOSEMU calibrate
 
+  NOTE: `$_rdtsc' and `$_cpuspeed' can _n_o_t be overwritten by
+   /.dosemurc.
+
   If you have a PCI board you may allow DOSEMU to access the PCI
   configuration space by defining the below
 
@@ -318,8 +334,8 @@
   have atleast a minimum of protection against intruders, use the
   folling:
 
-    $_secure ="ngd"  # secure for: n (normal users), g (guest), d (dexe)
-                     # empty string: depending on 'restricted'
+         $_secure ="ngd"  # secure for: n (normal users), g (guest), d (dexe)
+                          # empty string: depending on 'restricted'
 
   The above is a string of which may be given or not, hence
 
@@ -330,6 +346,8 @@
   To disable security checking atall set
 
          $_secure ="0"
+
+  NOTE: `$_secure' can _n_o_t be overwritten by  /.dosemurc.
 
   For the similar reasons you may `backout' some host, which you don't
   like to have access to dosemu
@@ -344,24 +362,26 @@
   on (not the remote host). However, read README-tech,txt for more
   details on what actually is disabled.
 
+  NOTE: `$_*_hosts' can _n_o_t be overwritten by  /.dosemurc.
+
   If you want mixed operation on the filesystem, from which you boot
   DOSEMU (native and via DOSEMU), it may be necessary to have two
   separate sets of `config.sys,autoexec.bat,system.ini'. DOSEMU can fake
   a different file extension, so DOS will get other files when running
   under DOSEMU.
 
-         $_emusys = ""    # empty or 3 char., config.sys   -> config.XXX
-         $_emubat = ""    # empty or 3 char., autoexec.bat -> autoexec.XXX
-         $_emuini = ""    # empty or 3 char., system.ini   -> system.XXX
+    $_emusys = ""    # empty or 3 char., config.sys   -> config.XXX
+    $_emubat = ""    # empty or 3 char., autoexec.bat -> autoexec.XXX
+    $_emuini = ""    # empty or 3 char., system.ini   -> system.XXX
 
   As you would realize at the first glance: DOS will _n_o_t have the the
   CPU for its own. But how much it gets from Linux, depends on the
   setting of `hogthreshold'.  The HogThreshold value determines how nice
   Dosemu will be about giving other Linux processes a chance to run.
 
-    $_hogthreshold = (1)   # 0 == all CPU power to DOSEMU
-                           # 1 == max power for Linux
-                           # >1   the higher, the slower DOSEMU will be
+         $_hogthreshold = (1)   # 0 == all CPU power to DOSEMU
+                                # 1 == max power for Linux
+                                # >1   the higher, the slower DOSEMU will be
 
   If you have hardware, that is not supported under Linux but you have a
   DOS driver for, it may be necessary to enable IRQ passing to DOS.
@@ -382,16 +402,18 @@
                        # or "0x1ce range 0x280,0x29f 310"
                        # or "range 0x1a0,(0x1a0+15)"
 
+  NOTE: `$_ports' can _n_o_t be overwritten by  /.dosemurc.
+
   22..11..33..  TTeerrmmiinnaallss
 
   This section applies whenever you run DOSEMU remotely or in an xterm.
   Color terminal support is now built into DOSEMU.  Skip this section
   for now to use terminal defaults, until you get DOSEMU to work.
 
-         $_term_char_set = ""  # empty == automatic, else 'ibm' or 'latin'
-         $_term_color = (on)   # terminal with color support
-         $_term_updfreq = (4)  # time between refreshs (units: 20 == 1 second)
-         $_escchar = (30)      # 30 == Ctrl-^, special-sequence prefix
+    $_term_char_set = ""  # empty == automatic, else 'ibm' or 'latin'
+    $_term_color = (on)   # terminal with color support
+    $_term_updfreq = (4)  # time between refreshs (units: 20 == 1 second)
+    $_escchar = (30)      # 30 == Ctrl-^, special-sequence prefix
 
   `term_updfreq' is a number indicating the frequency of terminal
   updates of the screen. The smaller the number, the more frequent.  A
@@ -432,7 +454,7 @@
 
   Note, however, that you have to set
 
-         $_X_keycode = (on)
+    $_X_keycode = (on)
 
   to use this feature under X, because per default the keytable is
   forced to be neutral (us). Normally you will have the correct settings
@@ -448,6 +470,8 @@
   to switch your console and recover from this. For details on recover-
   ing look at README-tech.txt (Recovering the console after a crash).
 
+  NOTE: `$_rawkeyboard' can _n_o_t be overwritten by  /.dosemurc.
+
   The `keybint (on)' allows more accurate of keyboard interrupts, It is
   a bit unstable, but makes keyboard work better when set to "on".
 
@@ -460,29 +484,30 @@
   description what they mean. A more detailed description of values one
   can be found at chapter 2.2.14 (X Support settings) of README-tech.txt
 
-       $_X_updfreq = (5)       # time between refreshs (units: 20 == 1 second)
-       $_X_title = "DOS in a BOX" # Title in the top bar of the window
-       $_X_icon_name = "xdos"  # Text for icon, when minimized
-       $_X_keycode = (off)     # on == translate keybord via dosemu keytables
-       $_X_blinkrate = (8)     # blink rate for the cursor
-       $_X_font = ""           # basename from /usr/X11R6/lib/X11/fonts/misc/*
-                               # (without extension) e.g. "vga"
-       $_X_mitshm = (on)       # Use shared memory extensions
-       $_X_sharecmap = (off)   # share the colormap with other applications
-       $_X_fixed_aspect = (on) # Set fixed aspect for resize the graphics window
-       $_X_aspect_43 = (on)    # Always use an aspect ratio of 4:3 for graphics
-       $_X_lin_filt = (off)    # Use linear filtering for >15 bpp interpol.
-       $_X_bilin_filt = (off)  # Use bi-linear filtering for >15 bpp interpol.
-       $_X_mode13fact = (2)    # initial factor for video mode 0x13 (320x200)
-       $_X_winsize = ""        # "x,y" of initial windows size
-       $_X_gamma = (1.0)       # gamma correction
-       $_X_vgaemu_memsize = (1024) # size (in Kbytes) of the frame buffer
-                               # for emulated vga
-       $_X_lfb = (on)  # use linear frame buffer in VESA modes
-       $_X_pm_interface = (on) # use protected mode interface for VESA modes
-       $_X_vesamode = ""       # "xres,yres ... xres,yres"
-                               # List of vesamodes to add. The list has to
-                               # comma separated "xres,yres" pairs
+  $_X_updfreq = (5)       # time between refreshs (units: 20 == 1 second)
+  $_X_title = "DOS in a BOX" # Title in the top bar of the window
+  $_X_icon_name = "xdos"  # Text for icon, when minimized
+  $_X_keycode = (off)     # on == translate keybord via dosemu keytables
+  $_X_blinkrate = (8)     # blink rate for the cursor
+  $_X_font = ""           # basename from /usr/X11R6/lib/X11/fonts/misc/*
+                          # (without extension) e.g. "vga"
+  $_X_mitshm = (on)       # Use shared memory extensions
+  $_X_sharecmap = (off)   # share the colormap with other applications
+  $_X_fixed_aspect = (on) # Set fixed aspect for resize the graphics window
+  $_X_aspect_43 = (on)    # Always use an aspect ratio of 4:3 for graphics
+  $_X_lin_filt = (off)    # Use linear filtering for >15 bpp interpol.
+  $_X_bilin_filt = (off)  # Use bi-linear filtering for >15 bpp interpol.
+  $_X_mode13fact = (2)    # initial factor for video mode 0x13 (320x200)
+  $_X_winsize = ""        # "x,y" of initial windows size
+  $_X_gamma = (1.0)       # gamma correction
+  $_X_vgaemu_memsize = (1024) # size (in Kbytes) of the frame buffer
+                          # for emulated vga
+  $_X_lfb = (on)  # use linear frame buffer in VESA modes
+  $_X_pm_interface = (on) # use protected mode interface for VESA modes
+  $_X_mgrab_key = ""      # KeySym name to activate mouse grab, empty == off
+  $_X_vesamode = ""       # "xres,yres ... xres,yres"
+                          # List of vesamodes to add. The list has to
+                          # comma separated "xres,yres" pairs
 
   22..11..66..  VViiddeeoo sseettttiinnggss (( ccoonnssoollee oonnllyy ))
 
@@ -492,15 +517,15 @@
 
   Start with only text video using the following setup in dosemu.conf
 
-    $_video = "vga"         # one of: plainvga, vga, ega, mda, mga, cga
-    $_console = (0)         # use 'console' video
-    $_graphics = (0)        # use the cards BIOS to set graphics
-    $_videoportaccess = (1) # allow videoportaccess when 'graphics' enabled
-    $_vbios_seg = (0xc000)  # set the address of your VBIOS (e.g. 0xe000)
-    $_vbios_size = (0x10000)# set the size of your BIOS (e.g. 0x8000)
-    $_vmemsize = (1024)     # size of regen buffer
-    $_chipset = ""
-    $_dualmon = (0)         # if you have one vga _plus_ one hgc (2 monitors)
+         $_video = "vga"         # one of: plainvga, vga, ega, mda, mga, cga
+         $_console = (0)         # use 'console' video
+         $_graphics = (0)        # use the cards BIOS to set graphics
+         $_videoportaccess = (1) # allow videoportaccess when 'graphics' enabled
+         $_vbios_seg = (0xc000)  # set the address of your VBIOS (e.g. 0xe000)
+         $_vbios_size = (0x10000)# set the size of your BIOS (e.g. 0x8000)
+         $_vmemsize = (1024)     # size of regen buffer
+         $_chipset = ""
+         $_dualmon = (0)         # if you have one vga _plus_ one hgc (2 monitors)
 
   After you get it `somehow' working and you have one of the DOSEMU
   supported graphic cards you may switch to graphics mode changing the
@@ -518,6 +543,8 @@
   Note, `s3' is only an example, you _m_u_s_t set the correct video chip
   else it most like will crash your screen.
 
+  NOTE: `video setting' can _n_o_t be overwritten by  /.dosemurc.
+
   22..11..77..  DDiisskkss aanndd ffllooppppiieess
 
   The parameter settings via dosemu.conf are tailored to fit the
@@ -527,7 +554,9 @@
   proposed techique. Here the normal setup:
 
          $_vbootfloppy = ""    # if you want to boot from a virtual floppy:
-                               # name of the floppy image under /var/lib/dosemu
+                               # file name of the floppy image under /var/lib/dosemu
+                               # e.g. "floppyimage" disables $_hdimage
+                               #      "floppyimage +hd" does _not_ disable $_hdimage
          $_floppy_a ="threeinch" # or "fiveinch" or empty, if not existing
          $_floppy_b = ""       # dito for B:
 
@@ -555,7 +584,36 @@
          $_vbootfloppy = "floppy_image"
 
   will boot that floppy. Once running in DOS you can make the floppy
-  available by (virtually) removing the `media' via `bootoff.com'.
+  available by (virtually) removing the `media' via `bootoff.com'.  If
+  want the disk access specified via `$_hdimage' anyway, you may add the
+  keyword `+hd' such as
+
+         $_vbootfloppy = "floppy_image +hd"
+
+  In some rare cases you may have problems accessing Lredir'ed drives
+  (especially when your DOS application refuses to run on a 'network
+  drive'), though I personally never happened to fall into one of this.
+  For this to overcome you may need to use socalled `partition access'.
+  The odd with this kind of access is, that you _n_e_v_e_r should have those
+  partition mounted in the Linux file system at the same time as you use
+  it in DOSEMU (which is quite uncomfortable and dangerous on a
+  multitasking OS such as Linux ). Though global.conf checks for mounted
+  partitions, there may be races that are not caught. In addition, when
+  your DOSEMU crashes, it may leave some FAT sectors unflushed to the
+  disk, hence destroying the partition.  Anyway, if you think you need
+  it, here is how you `assign' real DOS partitions to DOSEMU:
+
+         $_hdimage = "hdimage.first /dev/hda1 /dev/sdc4:ro"
+
+  The above will have `hdimage.first' as booted drive C:, /dev/hda1 as
+  D: (read/write) and /dev/sdc4 as E: (readonly). You may have any kind
+  of order within `$_hdimage', hence
+
+         $_hdimage = "/dev/hda1 hdimage.first /dev/sdc4:ro"
+
+  would have /dev/hda1 as booted drive C:. Note that the access to the
+  /dev/* devices _m_u_s_t be exclusive (no other process should use it)
+  except for `:ro'.
 
   22..11..88..  CCOOMM ppoorrttss aanndd mmiicceess
 
@@ -565,15 +623,15 @@
   need _n_o mouse.com driver installed in your DOS environment, DOSEMU has
   the mousedriver builtin. The below example is such a setup
 
-         $_com1 = ""           # e.g. "/dev/mouse" or "/dev/cua0"
-         $_com2 = "/dev/modem" # e.g. "/dev/modem" or "/dev/cua1"
+    $_com1 = ""           # e.g. "/dev/mouse" or "/dev/cua0"
+    $_com2 = "/dev/modem" # e.g. "/dev/modem" or "/dev/cua1"
 
-         $_mouse = "microsoft" # one of: microsoft, mousesystems, logitech,
-                               # mmseries, mouseman, hitachi, busmouse, ps2
-         $_mouse_dev = "/dev/mouse" # one of: com1, com2 or /dev/mouse
-         $_mouse_flags = ""    # list of none or one or more of:
-                               # "emulate3buttons cleardtr"
-         $_mouse_baud = (0)    # baudrate, 0 == don't set
+    $_mouse = "microsoft" # one of: microsoft, mousesystems, logitech,
+                          # mmseries, mouseman, hitachi, busmouse, ps2
+    $_mouse_dev = "/dev/mouse" # one of: com1, com2 or /dev/mouse
+    $_mouse_flags = ""    # list of none or one or more of:
+                          # "emulate3buttons cleardtr"
+    $_mouse_baud = (0)    # baudrate, 0 == don't set
 
   The above example lets you have your modem on COM2, COM1 is spare (as
   you may have your mouse under native DOS there and don't want to
@@ -604,12 +662,12 @@
   22..11..99..  PPrriinntteerrss
 
   Printer is emulated by piping printer data to your normal Linux
-  printer.  The belows tells DOSEMU which printer to use. The `timeout'
-  tells DOSEMU how long to wait after the last output to LPT1 before
+  printer.  The belows tells DOSEMU which printers to use. The `timeout'
+  tells DOSEMU how long to wait after the last output to LPTx before
   considering the print job as `done' and to to spool out the data to
   the printer.
-
-       $_printer = "lp"        # name of (/etc/printcap) printer to appear as LPT1
+       $_printer = "lp"        # list of (/etc/printcap) printer names to appear as
+                               # LPT1 ... LPT3 (not all are needed, empty for none)
        $_printer_timeout = (20)# idle time in seconds before spooling out
 
   22..11..1100..  NNeettwwoorrkkiinngg uunnddeerr DDOOSSEEMMUU
@@ -623,7 +681,7 @@
 
   Enable Novell 8137->raw 802.3 translation hack in new packet driver.
 
-    $_novell_hack = (on)
+         $_novell_hack = (on)
 
   If you make use of the dosnet device driver, you may turn on 'multi'
   packet driver support via
@@ -754,40 +812,40 @@
   Here is what ./mkdexe will print as help, when called without
   argument:
 
-     USAGE:
-       mkdexe [{ application | hdimage}]
-                          [-b dospart] [{-s|-S} size] [-x appname]
-                          [-c confsys] [-a autoexe] [-C comcom ] [-d dosemuconf]
-                          [-i IOname] [-m MSname]
-                          [-o <option> [-o ...]]
+          USAGE:
+            mkdexe [{ application | hdimage}]
+                               [-b dospart] [{-s|-S} size] [-x appname]
+                               [-c confsys] [-a autoexe] [-C comcom ] [-d dosemuconf]
+                               [-i IOname] [-m MSname]
+                               [-o <option> [-o ...]]
 
-       application  the whole DOS application packet into a *.zip file
-       hdimage      the name of the target hdimage, ih -o noapp is give
-                    (see below)
-       dospart      If not given, FreeDos will be used as system
-                    If given it must be either a bootable DOS partion (/dev/...)
-                    or a already made bootable dosemu hdimage
-       -s size      The _additional_ free space (in Kbytes) on the hdimage
-       -S size      The total size (in Kbytes) of the hdimage -s,-S are mutual
-                    exclusive.
-       appname      The DOS filename of the application, that should be executed
-       confsys      Template for config.sys
-       autoexe      Template for autoexec.bat
-       comcom       file name of the shell, usually command.com
-       dosemuconf   Template for the dosemu.conf to use
-       IOname       The name of DOS file, that usually is called IO.SYS,
-                    (default for FreeDos: IPL.SYS) this one is always put as
-                    first file onto the hdimage
-       MSname       The name of DOS file, that usually is called MSDOS.SYS,
-                    (default for FreeDos: MSDOS.SYS) this one is always put as
-                    second file onto the hdimage
-       -o <option>  Following option flags are recognized:
-                      confirm   offer config.sys, autoexec.bat and dconfig
-                                to edit via $EDITOR
-                      nocomcom  Omit command.com, because its not used anyway
-                                when using  shell=c:\appname.exe
-                      noapp     Make a simple bootable hdimage for standard
-                                DOSEMU usage (replacement for hdimage.dist)
+            application  the whole DOS application packet into a *.zip file
+            hdimage      the name of the target hdimage, ih -o noapp is give
+                         (see below)
+            dospart      If not given, FreeDos will be used as system
+                         If given it must be either a bootable DOS partion (/dev/...)
+                         or a already made bootable dosemu hdimage
+            -s size      The _additional_ free space (in Kbytes) on the hdimage
+            -S size      The total size (in Kbytes) of the hdimage -s,-S are mutual
+                         exclusive.
+            appname      The DOS filename of the application, that should be executed
+            confsys      Template for config.sys
+            autoexe      Template for autoexec.bat
+            comcom       file name of the shell, usually command.com
+            dosemuconf   Template for the dosemu.conf to use
+            IOname       The name of DOS file, that usually is called IO.SYS,
+                         (default for FreeDos: IPL.SYS) this one is always put as
+                         first file onto the hdimage
+            MSname       The name of DOS file, that usually is called MSDOS.SYS,
+                         (default for FreeDos: MSDOS.SYS) this one is always put as
+                         second file onto the hdimage
+            -o <option>  Following option flags are recognized:
+                           confirm   offer config.sys, autoexec.bat and dconfig
+                                     to edit via $EDITOR
+                           nocomcom  Omit command.com, because its not used anyway
+                                     when using  shell=c:\appname.exe
+                           noapp     Make a simple bootable hdimage for standard
+                                     DOSEMU usage (replacement for hdimage.dist)
 
   If you want to change the builtin configuration file, you may use
   ./src/tools/periph/dexeconfig to extract/re-insert the configuration.
