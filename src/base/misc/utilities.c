@@ -19,6 +19,7 @@
 #include "timers.h"
 #include "pic.h"
 #include "dpmi.h"
+#include "utilities.h"
 #ifdef USE_THREADS
 #include "lt-threads.h"
 #endif
@@ -256,5 +257,24 @@ int get_proc_intvalue_by_key(char *key)
   error("Unknown format on %s\n", procfile_name);
   leavedos(5);
   return -1; /* just to make GCC happy */
+}
+
+
+int integer_sqrt(int x)
+{
+	unsigned y;
+	int delta;
+
+	if (x < 1) return 0;
+	if (x <= 1) return 1;
+        y = power_of_2_sqrt(x);
+	if ((y*y) == x) return y;
+	delta = y >> 1;
+	while (delta) {
+		y += delta;
+		if (y*y > x) y -= delta;
+		delta >>= 1;
+	}
+	return y;
 }
 

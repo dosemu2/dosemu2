@@ -132,6 +132,7 @@
 #include "bios.h"
 #include "video.h"
 #include "memory.h"
+#include "utilities.h"
 
 #include "XModeRemap.h"   /* true color stuff */
 
@@ -261,6 +262,9 @@ static unsigned char lut2[256]; /* another one... I like them. */
 static unsigned long pixelval[256]; /* ...and another one.  Trust me. --adm */
 unsigned char redshades,blueshades,greenshades;
 
+static int colormap_size;
+static XColor colormap[256];
+
 /* true color stuff >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
 
 #define TEST_SCALE 1		/* for easier testing ... sw */
@@ -312,46 +316,110 @@ static void X_partial_redraw_screen(void);
 /*                         INITIALIZATION                                 */
 /**************************************************************************/
 
+static void read_colormap(void)
+{
+  int i;
+  colormap_size = DisplayCells(display, screen);
+  if (colormap_size > 256)
+    colormap_size = 256;
+  for (i = 0; (i < colormap_size); i++)
+    colormap[i].pixel = i;
+  XQueryColors(display, DefaultColormap(display, screen),
+	       colormap, colormap_size);
+}
+
+/* Euclidian distance in RGB color space, scaled to 0-1000 --Pasi
+ *                                         (in fact 0-987) --Hans */
+static int color_distance(XColor *c1, XColor *c2)
+{
+  int dr, dg, db;
+  dr = (c1->red - c2->red)/256;
+  dg = (c1->green - c2->green)/256;
+  db = (c1->blue - c2->blue)/256;
+  return integer_sqrt((dr*dr + dg*dg + db*db)*5);
+}
+
+/* Find best color in current colormap, and return distance */
+static int find_best_color(XColor *color)
+{
+  int i, d;
+  int best = 0, bestd = 1000;
+  for (i = 0; (i < colormap_size); i++)
+  {
+    d = color_distance(color, &colormap[i]);
+    if (d < bestd)
+    {
+      best = i;
+      bestd = d;
+    }
+  }
+  color->pixel = best;
+#if 0
+  printf("X: Replaced %d/%d/%d with %d/%d/%d (distance %d)\n",
+	 color->red/257, color->green/257, color->blue/257,
+	 colormap[best].red/257, colormap[best].green/257,
+	 colormap[best].blue/257, bestd);
+#endif  
+  color->red = colormap[best].red;
+  color->green = colormap[best].green;
+  color->blue = colormap[best].blue;
+  return bestd;
+}
+
 /* Allocate normal VGA colors, and store color indices to vga_colors[]. */
 static void get_vga_colors(void)
 {
-/* The following are almost IBM standard color codes, with some slight
+  /* The following are almost IBM standard color codes, with some slight
    * gamma correction for the dim colors to compensate for bright X
    * screens.
- */
-static struct
+   */
+  static struct
   {
-   unsigned char r,g,b;
+    unsigned char r,g,b;
   } crgb[16]=
-    {
-{0x00,0x00,0x00},{0x18,0x18,0xB2},{0x18,0xB2,0x18},{0x18,0xB2,0xB2},
-{0xB2,0x18,0x18},{0xB2,0x18,0xB2},{0xB2,0x68,0x18},{0xB2,0xB2,0xB2},
-{0x68,0x68,0x68},{0x54,0x54,0xFF},{0x54,0xFF,0x54},{0x54,0xFF,0xFF},
+  {
+    {0x00,0x00,0x00},{0x18,0x18,0xB2},{0x18,0xB2,0x18},{0x18,0xB2,0xB2},
+    {0xB2,0x18,0x18},{0xB2,0x18,0xB2},{0xB2,0x68,0x18},{0xB2,0xB2,0xB2},
+    {0x68,0x68,0x68},{0x54,0x54,0xFF},{0x54,0xFF,0x54},{0x54,0xFF,0xFF},
     {0xFF,0x54,0x54},{0xFF,0x54,0xFF},{0xFF,0xFF,0x54},{0xFF,0xFF,0xFF}
   };
 
-	int i;
-        XColor xcol2;
-Colormap text_cmap = DefaultColormap(display, screen);
+  int i, warned;
+  XColor xcol2, xcol3;
+  Colormap text_cmap = DefaultColormap(display, screen);
 
-X_printf("X: getting VGA colors\n");
+  X_printf("X: getting VGA colors\n");
+  if (X_state.HaveTrueColor == False)
+    read_colormap();
 
-xcol.flags=DoRed | DoGreen | DoBlue;  /* Since we're here, we may
-				       as well set this up since it
-				       never changes... */
-
-for(i=0;i<16;i++) 
+  warned = 0;
+  xcol.flags=DoRed | DoGreen | DoBlue;
+  for (i = 0; (i < 16); i++) 
   {
-	   xcol2.red   = (crgb[i].r*65535)/255;
-	   xcol2.green = (crgb[i].g*65535)/255;
-	   xcol2.blue  = (crgb[i].b*65535)/255;
-    if (!XAllocColor(display, text_cmap, &xcol2)) 
+    xcol2.red = (crgb[i].r*65535)/255;
+    xcol2.green = (crgb[i].g*65535)/255;
+    xcol2.blue = (crgb[i].b*65535)/255;
+
+    memcpy(&xcol3, &xcol2, sizeof(XColor));
+    if ((X_state.HaveTrueColor == False) && (find_best_color(&xcol3) < 33))
+    {
+      memcpy(&xcol2, &xcol3, sizeof(XColor));
+    }
+    if (!XAllocColor(display, text_cmap, &xcol2))
+    {
+      if (!warned)
       {
 	error("X: couldn't allocate all VGA colors!\n");
-	      return;
-	   }
-	   vga_colors[i] = xcol2.pixel;
-	}
+	warned = 1;
+      }
+      if (X_state.HaveTrueColor == False)
+      {
+	memcpy(&xcol2, &xcol3, sizeof(XColor));
+	XAllocColor(display, text_cmap, &xcol2);
+      }
+    }
+    vga_colors[i] = xcol2.pixel;
+  }
 }
 
 
@@ -975,10 +1043,11 @@ static int X_init(void)
   X_shm_init();
 #endif
 
+  X_init_X_info();       /* true color support */
+
   get_vga_colors();
   get_vga256_colors();
 
-  X_init_X_info();       /* true color support */
 
   load_text_font();
 

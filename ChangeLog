@@ -1,3 +1,17 @@
+97/12/13 ver. 0.97.0 unofficial pre-release, VERSION BUMP
+	From Pasi
+	- patch for color allocation problems with -bpp 8 in src/env/video/X.c
+	  ( tries to use existing colors if they're close enough, and even
+	  if allocation fails, some reasonable colors are chosen).
+	From Hans
+	- made simple integer_sqrt() to avoid FPU usage in Pasi's patch
+	  ( simple power of 2 iteration algorithme, if some skilled
+	  mathematician can make it better, I wouldn't be angry ;-)
+	  Anyway, for the above purpose it takes max 9 iterations.
+	NOTE:
+	  This is the release that prepares for the 'fork point'
+	  to 0.98/0.99. If 0.97 has stabilized it'll become (unchanged)
+	  0.99, and minus some to-back-out-stuff it'll become 0.98.
 97/12/12 ver. 0.67.16.8 unofficial pre-release
 	From Robert de Bath <rd103891@mayday.cix.co.uk>
 	- new enhanced Slangterminal code
