@@ -77,7 +77,11 @@ print_part(struct partition *part, size_t offset, int sect_off, int ext)
   if (part->sys_ind == EXT_MAGIC && !ext) {
     char extblock[512];
 
+#ifdef __linux__
+    llseek(fd, (long long)part->start_sect * SECTOR_SIZE + offset, SEEK_SET);
+#else
     lseek(fd, part->start_sect * SECTOR_SIZE + offset, SEEK_SET);
+#endif
     if (read(fd, extblock, 512) < 512) {
       perror("hdinfo: Could not read sector");
       exit(1);

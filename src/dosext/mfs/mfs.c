@@ -8,6 +8,7 @@
  * Unix mounted drives that permissions exist for.
  *
  * DANG_END_MODULE
+ * DANG_FIXTHIS We probably should use llseek here for file > 2 GBytes
  *
  * Copyright (c) 1991 Carnegie Mellon University
  * All Rights Reserved.

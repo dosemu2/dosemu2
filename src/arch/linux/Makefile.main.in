@@ -274,6 +274,9 @@ $(BINPATH)/bin/dos: 	emu.o base/data.o dossubdirs
 	    @XLIBSW@ @SLANGLIB@ -lc 
 	@nm $(BINPATH)/bin/dos | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > $(BINPATH)/bin/dosemu.map
+ifdef X_SUPPORT
+	@ln -sf dos $(BINPATH)/bin/xdos
+endif
 
 dosemu: $(BINPATH)/bin/dos
 else
@@ -286,6 +289,9 @@ $(LIBDOSEMU): 	emu.o base/data.o ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}} #
 	   -nostartfiles -nostdlib $^ $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
 	    $(addprefix -l, $(LIBS_)) $(addprefix -l, $(LIBS_)) base/bios/bios.o env/video/vesabios.o \
             @XLIBSW@ @SLANGLIB@ -lc 
+ifdef X_SUPPORT
+	@ln -sf dos $(BINPATH)/bin/xdos
+endif
 
 libdosemu:	dossubdirs $(LIBDOSEMU)
 	@nm $(LIBDOSEMU) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \

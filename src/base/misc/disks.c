@@ -98,12 +98,24 @@ int
 read_sectors(struct disk *dp, char *buffer, long head, long sector,
 	     long track, long count)
 {
-  long pos;
+#ifdef __linux__
+  loff_t  pos;
+#else
+  off_t  pos;
+#endif
   long already = 0;
   long tmpread;
 
   /* XXX - header hack. dp->header can be negative for type PARTITION */
   pos = DISK_OFFSET(dp, head, sector, track) + dp->header;
+  d_printf("DISK: Trying to read %ld bytes at T/S/H %ld/%ld/%ld",
+	   count,track,sector,head);
+#ifdef __linux__
+  d_printf(" at pos %Ld\n", pos);
+#else
+  d_printf(" at pos %ld\n", pos);
+#endif
+
 
   /* reads beginning before that actual disk/file */
   if (pos < 0) {
@@ -138,9 +150,14 @@ read_sectors(struct disk *dp, char *buffer, long head, long sector,
       mbrcount = dp->part_info.mbr_size - mbroff;
     }
 
-    d_printf("WARNING: %ld (0x%lx) read for %d below %s, "
+#ifdef __linux__
+    d_printf("WARNING: %Ld",pos);
+#else
+    d_printf("WARNING: %ld",pos);
+#endif
+    d_printf(" (0x%lx) read for %d below %s, "
 	     "h:%ld s:%ld t:%ld\n",
-	     pos, (unsigned long) -pos, readsize,
+	     (unsigned long) -pos, readsize,
 	     dp->dev_name, head, sector, track);
 
     memcpy(buffer, dp->part_info.mbr + mbroff, mbrcount);
@@ -163,7 +180,11 @@ read_sectors(struct disk *dp, char *buffer, long head, long sector,
     }
   }
 
+#ifdef __linux__
+  if (pos != llseek(dp->fdesc, pos, SEEK_SET)) {
+#else
   if (pos != lseek(dp->fdesc, pos, SEEK_SET)) {
+#endif
     error("ERROR: Sector not found in read_sector, error = %s!\n",
 	  strerror(errno));
     return -DERR_NOTFOUND;
@@ -180,7 +201,11 @@ int
 write_sectors(struct disk *dp, char *buffer, long head, long sector,
 	      long track, long count)
 {
+#ifdef __linux__
+  loff_t  pos;
+#else
   off_t pos;
+#endif
   int tmpwrite;
 
   if (dp->rdonly) {
@@ -195,6 +220,13 @@ write_sectors(struct disk *dp, char *buffer, long head, long sector,
 
   /* XXX - header hack */
   pos = DISK_OFFSET(dp, head, sector, track) + dp->header;
+  d_printf("DISK: Trying to write %ld bytes T/S/H %ld/%ld/%ld",
+	   count,track,sector,head);
+#ifdef __linux__
+  d_printf(" at pos %Ld\n", pos);
+#else
+  d_printf(" at pos %ld\n", pos);
+#endif
 
   /* if dp->type is PARTITION, we currently don't allow writing to an area
    * not within the actual partition (i.e. somewhere else on the faked
@@ -205,7 +237,11 @@ write_sectors(struct disk *dp, char *buffer, long head, long sector,
    * Also, I could allow writing to the fake MBR, but I'm not sure that's
    * a good idea.
    */
+#ifdef __linux__
+  if (pos != llseek(dp->fdesc, pos, SEEK_SET)) {
+#else
   if (pos != lseek(dp->fdesc, pos, SEEK_SET)) {
+#endif
     error("ERROR: Sector not found in write_sector!\n");
     return -DERR_NOTFOUND;
   }
@@ -253,7 +289,8 @@ image_auto(struct disk *dp)
     }
   }
 
-  lseek(dp->fdesc, 0, SEEK_SET);
+  lseek(dp->fdesc, 0, SEEK_SET);/* Use lseek here, as nobody want
+				   > 2^^31 bytes for the image file */
   if (RPT_SYSCALL(read(dp->fdesc, header, HEADER_SIZE)) != HEADER_SIZE) {
     error("ERROR: could not read full header in image_init\n");
     leavedos(19);
@@ -873,7 +910,11 @@ int13(u_char i)
 {
   unsigned int disk, head, sect, track, number;
   int res;
-  long pos;
+#ifdef __linux__
+  loff_t  pos;
+#else
+  off_t  pos;
+#endif
   char *buffer;
   struct disk *dp;
 
@@ -1033,11 +1074,19 @@ int13(u_char i)
 		  dp->heads, dp->sectors, dp->tracks);
       break;
     }
+#ifdef __linux__
+    pos = (long long ) ((track * dp->heads + head) * dp->sectors + sect) << 9;
+#else
     pos = (long) ((track * dp->heads + head) * dp->sectors + sect) << 9;
+#endif
     /* XXX - header hack */
     pos += dp->header;
 
+#ifdef __linux__
+    if (pos != llseek(dp->fdesc, pos, 0)) {
+#else
     if (pos != lseek(dp->fdesc, pos, 0)) {
+#endif
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
       error("ERROR: test: sector not found 6\n");

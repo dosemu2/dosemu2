@@ -1,3 +1,9 @@
+97/02/27 ver. 0.65.99.8 unofficial pre-release
+	From Uwe:
+	- base/misc/disks.c, include/disks.h, tools/periph/hdinfo.c
+	  Use llseek on Linux to allow access on Files greater 2.1 GBytes
+	- made 'make install' on NFS mounted FS possible
+	  (compiling as user, installing as root)
 97/02/27 ver. 0.65.99.7 unofficial pre-release
 	From Alberto
 	- Fix for debugger, recent 'nm' has 16 hexdigits for addesses

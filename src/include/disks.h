@@ -113,8 +113,13 @@ EXTERN struct disk bootdisk;
 EXTERN int use_bootdisk INIT(0);
 
 #if 1
+#ifdef __linux__
+#define DISK_OFFSET(dp,h,s,t) \
+  (((long long)(t * dp->heads + h) * dp->sectors + s) * SECTOR_SIZE)
+#else
 #define DISK_OFFSET(dp,h,s,t) \
   (((t * dp->heads + h) * dp->sectors + s) * SECTOR_SIZE)
+#endif
 #else
 #define DISK_OFFSET(dp,h,s,t) \
   (((h * dp->tracks + t) * dp->sectors + s) * SECTOR_SIZE)
