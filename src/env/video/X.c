@@ -425,6 +425,7 @@ static int font_width, font_height, font_shift, shift_x, shift_y;
 
 #if CONFIG_X_SELECTION
 static u_char *sel_text = NULL;
+static Time sel_time;
 enum {
   TARGETS_ATOM,
   TIMESTAMP_ATOM,
@@ -1769,9 +1770,10 @@ static void X_handle_events(void)
 	    case Button1 :
 	    case Button3 : 
 	      sel_text = end_selection();
+	      sel_time = e.xbutton.time;
 	      if (sel_text == NULL)
 		break;
-	      XSetSelectionOwner(display, XA_PRIMARY, mainwindow, CurrentTime);
+	      XSetSelectionOwner(display, XA_PRIMARY, mainwindow, sel_time);
 	      if (XGetSelectionOwner(display, XA_PRIMARY) != mainwindow)
 		{
 		  X_printf("X: Couldn't get primary selection!\n");
@@ -2925,6 +2927,11 @@ void send_selection(Time time, Window requestor, Atom target, Atom property)
 	e.xselection.selection = XA_PRIMARY;
 	e.xselection.requestor = requestor;
 	e.xselection.time = time;
+	e.xselection.serial = 0;
+	e.xselection.send_event = True;
+	e.xselection.target = target;
+	e.xselection.property = property;
+
 	if (sel_text == NULL) {
 		X_printf("X: Window 0x%lx requested selection, but it's empty!\n",   
 			(unsigned long) requestor);
@@ -2936,19 +2943,17 @@ void send_selection(Time time, Window requestor, Atom target, Atom property)
 			PropModeReplace, (char *)targets, NUM_TARGETS);
 	}
 	else if (target == targets[TIMESTAMP_ATOM]) {
-		X_printf("X: timestamp atom\n");
+		X_printf("X: timestamp atom %lu\n", sel_time);
 		XChangeProperty(display, requestor, property, XA_INTEGER, 32,
-			PropModeReplace, (char *)&e.xselection.time, 1);
+			PropModeReplace, (char *)&sel_time, 1);
 	}
 	else if (target == targets[STRING_TARGET] ||
 		 target == targets[COMPOUND_TARGET] ||
 		 target == targets[UTF8_TARGET] ||
 		 target == targets[TEXT_TARGET]) {
 		X_printf("X: selection: %s\n",sel_text);
-		e.xselection.target = target;
 		XChangeProperty(display, requestor, property, target, 8, PropModeReplace, 
 			sel_text, strlen(sel_text));
-		e.xselection.property = property;
 		X_printf("X: Selection sent to window 0x%lx as %s\n", 
 			(unsigned long) requestor, XGetAtomName(display, target));
 	}
