@@ -1,7 +1,7 @@
 /* (C) 1994 James Maclean
  *
  * DANG_BEGIN_MODULE
- * 
+ *
  * Silly Interrupt Generator device driver for Linux 1.1.47 or higher.
  * Needs the new modules utilities.
  *
@@ -65,7 +65,7 @@
 #ifdef MAKE_LOADABLE_MODULE
 #include <linux/module.h>
 
-#if 0
+#if 1
 #define WANT_SIGIO
 #endif
 
@@ -79,11 +79,11 @@ static char kernel_version[] = UTS_RELEASE;
 
 #endif /* MAKE_LOADABLE_MODULE */
 
-extern int printk( const char* fmt, ...);
+extern int printk (const char *fmt,...);
 
 #ifdef WANT_SIGIO
-static int int_fasync(struct inode *inode, struct file *file, int on);
-static struct tty_struct * int_tty[16];
+static int int_fasync (struct inode *inode, struct file *file, int on);
+static struct tty_struct *int_tty[16];
 #endif
 
 static int ints_in_use = 0;
@@ -92,149 +92,167 @@ static struct wait_queue *wait_queue = NULL;
 static unsigned int int_flag = 0;
 
 #ifdef MAKE_LOADABLE_MODULE
-  #define ID_STRING "sillyint"
+#define ID_STRING "sillyint"
 #else
-  #define ID_STRING "intr"
+#define ID_STRING "intr"
 #endif /* MAKE_LOADABLE_MODULE */
 
 
-static void register_interrupt(int intno) {
-  cli();
-  intno= -(((struct pt_regs *)intno)->orig_eax+2);
-  int_flag |= (1 << ((intno & 0xff)-1));
-#ifdef WANT_SIGIO
-  printk("Owner=%d\n", int_tty[intno]->fasync->fa_file->f_owner);
-  if (int_tty[intno]->fasync)
-    send_sig(SIGIO,(int)int_tty[intno]->fasync->fa_file->f_owner, 1);
+static void 
+register_interrupt (int intno)
+{
+#if 0
+  cli ();
 #endif
-  wake_up_interruptible(&wait_queue);
+  intno = -(((struct pt_regs *) intno)->orig_eax + 2);
+  int_flag |= (1 << ((intno & 0xff) - 1));
 #ifdef WANT_DEBUG
-  printk("Caught INT 0x%02x\n",intno);
-  printk("One of %d processes could be affected. Int_flag=0x%04x\n",ints_in_use, int_flag);
+  printk ("Caught INT 0x%02x\n", intno);
+  printk ("One of %d processes could be affected. Int_flag=0x%04x\n", ints_in_use, int_flag);
 #endif
-  sti();
+#ifdef WANT_SIGIO
+  if (int_tty[intno]->fasync) {
+    kill_fasync (int_tty[intno]->fasync, SIGIO);
+  }
+#endif
+  wake_up_interruptible (&wait_queue);
+#if 0
+  sti ();
+#endif
   return;
 }
 
-static int int_select(struct inode *inode, struct file *file,
-                       int sel_type, select_table *wait)
+static int 
+int_select (struct inode *inode, struct file *file,
+	    int sel_type, select_table * wait)
 {
-
 #ifdef WANT_DEBUG
-  printk("Driver entering select.\n");
+  printk ("Driver entering select.\n");
 #endif
-  if (sel_type==SEL_IN) /* ready for read? */
-  {
-#ifdef WANT_DEBUG
-    printk("Int_flag = 0x%04x.\n", int_flag);
-    printk("Interrupt= 0x%04x.\n", (1 << (MINOR(inode->i_rdev)-1)));
-#endif
-    if (!((1 << (MINOR(inode->i_rdev)-1)) & int_flag)) /* Interrupt ready? */
-    {
-      select_wait(&wait_queue, wait);
-#ifdef WANT_DEBUG
-      printk("Interrupt not ready\n"); 
-#endif
-      return 0;  /* Not ready yet */
-    }
-    return 1;  /* Ready */
-  }
-  return 1;  /* Always ready for writes and exceptions */
-}
-
-static int int_write(struct inode * inode, struct file * file,
-  char * buffer, int count)
-{
-  cli();
-  int_flag = (int_flag | (1 << (MINOR(inode->i_rdev)-1) ));
-#ifdef WANT_DEBUG
-  printk("Manually setting interrupt %02x. Int_flag=0x%04x\n", MINOR(inode->i_rdev), int_flag);
-#endif
-  sti();
-  wake_up_interruptible(&wait_queue);
-  return MINOR(inode->i_rdev);
-}
-
-static int int_read(struct inode * inode, struct file * file, 
-                     char * buffer, int count)
-{
-
-#ifdef WANT_DEBUG
-  printk("Interrupt Generator, Looking for interrupt 0x%02x via flag %04x\n", MINOR(inode->i_rdev), int_flag);
-#endif
-  while ( !( (1 << (MINOR(inode->i_rdev)-1) ) & int_flag) ){
-#ifdef WANT_DEBUG
-    printk("Needs match in %04x\n", (1 << (MINOR(inode->i_rdev)-1)));
-#endif
-    interruptible_sleep_on(&wait_queue);
-    if (current->signal & ~current->blocked) /* signalled? */
+  if (sel_type == SEL_IN)	/* ready for read? */
     {
 #ifdef WANT_DEBUG
-      printk("Process signalled.\n"); */
+      printk ("Int_flag = 0x%04x.\n", int_flag);
+      printk ("Interrupt= 0x%04x.\n", (1 << (MINOR (inode->i_rdev) - 1)));
 #endif
-      return -ERESTARTNOINTR; /* Will restart call automagically */
+      if (!((1 << (MINOR (inode->i_rdev) - 1)) & int_flag))	/* Interrupt ready? */
+	{
+	  select_wait (&wait_queue, wait);
+#ifdef WANT_DEBUG
+	  printk ("Interrupt not ready\n");
+#endif
+	  return 0;		/* Not ready yet */
+	}
+      return 1;			/* Ready */
     }
-#ifdef WANT_DEBUG
-    printk("Process has gotten interrupt!\n");
-#endif
-  }
-  int_flag &= ~(1 << (MINOR(inode->i_rdev)-1));
-#ifdef WANT_DEBUG
-  printk("Int_flag reset to %04x\n", int_flag);
-#endif
-  return MINOR(inode->i_rdev);
+  return 1;			/* Always ready for writes and exceptions */
 }
 
-static int int_open(struct inode *inode, struct file *file)
+static int 
+int_write (struct inode *inode, struct file *file,
+	   char *buffer, int count)
+{
+  cli ();
+  int_flag = (int_flag | (1 << (MINOR (inode->i_rdev) - 1)));
+#ifdef WANT_DEBUG
+  printk ("Manually setting interrupt %02x. Int_flag=0x%04x\n", MINOR (inode->i_rdev), int_flag);
+#endif
+  sti ();
+  wake_up_interruptible (&wait_queue);
+  return MINOR (inode->i_rdev);
+}
+
+static int 
+int_read (struct inode *inode, struct file *file,
+	  char *buffer, int count)
+{
+
+#ifdef WANT_DEBUG
+  printk ("Interrupt Generator, Looking for interrupt 0x%02x via flag %04x\n", MINOR (inode->i_rdev), int_flag);
+#endif
+  while (!((1 << (MINOR (inode->i_rdev) - 1)) & int_flag))
+    {
+#ifdef WANT_DEBUG
+      printk ("Needs match in %04x\n", (1 << (MINOR (inode->i_rdev) - 1)));
+#endif
+      interruptible_sleep_on (&wait_queue);
+      if (current->signal & ~current->blocked)	/* signalled? */
+	{
+#ifdef WANT_DEBUG
+	  printk ("Process signalled.\n");
+#endif
+	  return -ERESTARTNOINTR;	/* Will restart call automagically */
+	}
+#ifdef WANT_DEBUG
+      printk ("Process has gotten interrupt!\n");
+#endif
+    }
+  int_flag &= ~(1 << (MINOR (inode->i_rdev) - 1));
+#ifdef WANT_DEBUG
+  printk ("Int_flag reset to %04x\n", int_flag);
+#endif
+  return MINOR (inode->i_rdev);
+}
+
+static int 
+int_open (struct inode *inode, struct file *file)
 {
 #ifdef WANT_SIGIO
   int rdev;
-  rdev = MINOR(inode->i_rdev);
+  rdev = MINOR (inode->i_rdev);
 #endif
 
-  if (request_irq(MINOR(inode->i_rdev), &register_interrupt, 0, ID_STRING )) {
-#ifdef WANT_DEBUG
-    printk("Interrupt Generator open failed. INT0x%02x already in use\n", MINOR(inode->i_rdev));
-#endif
-    return -1;
-  }
-  ints_in_use++;
-#ifdef WANT_DEBUG
-  printk("Interrupt Generator opened. In use by %d processess.\n", ints_in_use);
-#endif
-#ifdef WANT_SIGIO
-  int_tty[rdev] = (struct tty_struct *)file->private_data;
+  file->private_data = (struct tty_struct *) get_free_page (GFP_KERNEL);
+  int_tty[rdev] = (struct tty_struct *) file->private_data;
   int_tty[rdev]->fasync = NULL;
+  ints_in_use++;
+  if (request_irq (MINOR (inode->i_rdev), &register_interrupt, 0, ID_STRING))
+    {
+#ifdef WANT_DEBUG
+      printk ("Interrupt Generator open failed. INT0x%02x already in use\n", MINOR (inode->i_rdev));
+#endif
+      ints_in_use--;
+      return -1;
+    }
+#ifdef WANT_DEBUG
+  printk ("Interrupt Generator opened. In use by %d processess.\n", ints_in_use);
 #endif
   MOD_INC_USE_COUNT;
   return 0;
 }
 
-static void int_release(struct inode *inode, struct file *file)
+static void 
+int_release (struct inode *inode, struct file *file)
 {
-  free_irq(MINOR(inode->i_rdev));
+#ifdef WANT_SIGIO
+  int rdev;
+  rdev = MINOR (inode->i_rdev);
+  free_page ((unsigned long) int_tty[rdev]);
+#endif
+  free_irq (MINOR (inode->i_rdev));
   ints_in_use--;
 #ifdef WANT_DEBUG
-  printk("Interrupt Generator released. Still in use by %d processess.\n", ints_in_use);
+  printk ("Interrupt Generator released. Still in use by %d processess.\n", ints_in_use);
 #endif
   MOD_DEC_USE_COUNT;
 }
 
-static struct file_operations int_fops = {
-	NULL,		/* int_seek */
-	int_read,	/* int_read */
-	int_write,	/* int_write */
-	NULL, 		/* int_readdir */
-	int_select,	/* int_select */
-	NULL, 		/* int_ioctl */
-	NULL,		/* int_mmap */
-	int_open,	/* int_open */
-	int_release,	/* int_release */
-	NULL,            /* fsync */
+static struct file_operations int_fops =
+{
+  NULL,				/* int_seek */
+  int_read,			/* int_read */
+  int_write,			/* int_write */
+  NULL,				/* int_readdir */
+  int_select,			/* int_select */
+  NULL,				/* int_ioctl */
+  NULL,				/* int_mmap */
+  int_open,			/* int_open */
+  int_release,			/* int_release */
+  NULL,				/* fsync */
 #ifdef WANT_SIGIO
-	int_fasync	/* Asyncronous I/O */
+  int_fasync			/* Asyncronous I/O */
 #else
-	NULL
+  NULL
 #endif
 };
 
@@ -244,11 +262,12 @@ static struct file_operations int_fops = {
 
 #define SIG_MAJOR 19
 
-unsigned long int_init(unsigned long kmem_start)
+unsigned long 
+int_init (unsigned long kmem_start)
 {
-  printk("\nSilly Interrupt Generator installed.(ver 0.11)\n\n");
-  if (register_chrdev(SIG_MAJOR,ID_STRING,&int_fops))
-    printk("Interrupt Generator error: Cannot register to major device %d !\n",SIG_MAJOR);
+  printk ("\nSilly Interrupt Generator installed.(ver 0.11)\n\n");
+  if (register_chrdev (SIG_MAJOR, ID_STRING, &int_fops))
+    printk ("Interrupt Generator error: Cannot register to major device %d !\n", SIG_MAJOR);
   return kmem_start;
 }
 
@@ -258,73 +277,82 @@ unsigned long int_init(unsigned long kmem_start)
  * And now the modules code and kernel interface.
  */
 
-int SIG_MAJOR=19;
+int SIG_MAJOR = 19;
 
-  
-int init_module( void) {
+
+int 
+init_module (void)
+{
   kernel_version[0] = kernel_version[0];
-  printk("Silly Interrupt Generator (ver 0.11):  init_module called\n");
-  if (register_chrdev(SIG_MAJOR,ID_STRING,&int_fops)) {
-    printk("Interrupt Generator error: Cannot register to major device %d !\n",SIG_MAJOR);
-    return -EIO;
-  }
-  else {
-    printk("Silly Interrupt Generator installed, using MAJOR %d\n",SIG_MAJOR);
-    return 0;
-  }
+  printk ("Silly Interrupt Generator (ver 0.11):  init_module called\n");
+  if (register_chrdev (SIG_MAJOR, ID_STRING, &int_fops))
+    {
+      printk ("Interrupt Generator error: Cannot register to major device %d !\n", SIG_MAJOR);
+      return -EIO;
+    }
+  else
+    {
+      printk ("Silly Interrupt Generator installed, using MAJOR %d\n", SIG_MAJOR);
+      return 0;
+    }
 }
 
-void cleanup_module( void) {
-  printk( "Silly Interrupt Generator:  cleanup_module called\n");
-  if (MOD_IN_USE) printk(ID_STRING ": device busy, remove delayed\n");
-  if (unregister_chrdev(SIG_MAJOR, ID_STRING) != 0) {
-    printk("cleanup_module failed\n");
-  } else {
-    printk("cleanup_module succeeded\n");
-  }    
+void 
+cleanup_module (void)
+{
+  printk ("Silly Interrupt Generator:  cleanup_module called\n");
+  if (MOD_IN_USE)
+    printk (ID_STRING ": device busy, remove delayed\n");
+  if (unregister_chrdev (SIG_MAJOR, ID_STRING) != 0)
+    {
+      printk ("cleanup_module failed\n");
+    }
+  else
+    {
+      printk ("cleanup_module succeeded\n");
+    }
 }
 
 #endif /* MAKE_LOADABLE_MODULE */
 
 #ifdef WANT_SIGIO
-static int int_fasync(struct inode * inode, struct file * filp, int on)
+static int 
+int_fasync (struct inode *inode, struct file *filp, int on)
 {
-	struct fasync_struct *fa, *prev;
-	int rdev;
+  struct fasync_struct *fa, *prev;
+  int rdev;
 
-	rdev = MINOR(inode->i_rdev);
-  	printk("FASYNC called i_rdev=%x\n",rdev);
- 
-	int_tty[rdev] = (struct tty_struct *)filp->private_data;
+  rdev = MINOR (inode->i_rdev);
 
-	for (fa = int_tty[rdev]->fasync, prev = 0; fa; prev= fa, fa = fa->fa_next) {
-		if (fa->fa_file == filp)
-			break;
-	}
+  for (fa = int_tty[rdev]->fasync, prev = 0; fa; prev = fa, fa = fa->fa_next)
+    {
+      if (fa->fa_file == filp)
+	break;
+    }
 
-	if (on) {
-		if (fa)
-			return 0;
-		fa = (struct fasync_struct *)kmalloc(sizeof(struct fasync_struct), GFP_KERNEL);
-		if (!fa)
-			return -ENOMEM;
-		fa->magic = FASYNC_MAGIC;
-		fa->fa_file = filp;
-		fa->fa_next = int_tty[rdev]->fasync;
-		int_tty[rdev]->fasync = fa;
-		if (!int_tty[rdev]->read_wait)
-			int_tty[rdev]->minimum_to_wake = 1;
-	} else {
-		if (!fa)
-			return 0;
-		if (prev)
-			prev->fa_next = fa->fa_next;
-		else
-			int_tty[rdev]->fasync = fa->fa_next;
-		kfree_s(fa, sizeof(struct fasync_struct));
-		if (!int_tty[rdev]->fasync && !int_tty[rdev]->read_wait)
-			int_tty[rdev]->minimum_to_wake = N_TTY_BUF_SIZE;
-	}
-	return 0;	
+  if (on)
+    {
+      if (fa)
+	return 0;
+      fa = (struct fasync_struct *) kmalloc (sizeof (struct fasync_struct), GFP_KERNEL);
+      if (!fa)
+	return -ENOMEM;
+      fa->magic = FASYNC_MAGIC;
+      fa->fa_file = filp;
+      fa->fa_next = int_tty[rdev]->fasync;
+      int_tty[rdev]->fasync = fa;
+    }
+  else
+    {
+      if (!fa)
+	return 0;
+      if (prev)
+	prev->fa_next = fa->fa_next;
+      else
+	int_tty[rdev]->fasync = fa->fa_next;
+      kfree_s (fa, sizeof (struct fasync_struct));
+    }
+  return 0;
 }
+
 #endif

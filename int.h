@@ -939,7 +939,6 @@ void inline inte7(u_char i) {
 
 /* End function for interrupt calls from int_queue_run() */
 void inline inte8(u_char i) {
-    {
       static unsigned short *csp;
       static int x;
       csp = SEG_ADR((us *), cs, ip) - 1;
@@ -964,7 +963,6 @@ void inline inte8(u_char i) {
 	  return;
         }
       }
-    }
     h_printf("e8 int_queue: shouldn't get here\n");
     show_regs();
     return;
@@ -984,7 +982,7 @@ void default_interrupt(u_char i) {
     if (d.defint)
       dbug_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
 
-    if (!IS_REDIRECTED(i)) {
+    if (!IS_REDIRECTED(i) || (LWORD(cs) == BIOSSEG && LWORD(eip) == (i * 16 + 2))) {
       g_printf("DEFIVEC: int 0x%02x  SG: 0x%04x  OF: 0x%04x\n",
 	       i, ISEG(i), IOFF(i));
 

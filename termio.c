@@ -658,11 +658,7 @@ keyboard_init(void)
     kbd_fd = dup(keypipe);
   }
   else {
-#if 0
-    kbd_fd = dup(STDIN_FILENO);
-#else
     kbd_fd = STDIN_FILENO;
-#endif
   }
 
   if (kbd_fd < 0) {

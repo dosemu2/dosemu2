@@ -717,7 +717,7 @@ sigset_t oldset;
    restorer field
    stolen from the wine-project */
 
-static int
+int
 dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
 {
   __asm__("int $0x80":"=a"(sig)
@@ -1238,11 +1238,6 @@ void SIGALRM_call(void){
 #endif
   int retval;
   
-#ifdef DPMI
-  if (in_dpmi && !in_vm86)
-    dpmi_sigalrm(&signal_queue[SIGNAL_head].context);
-#endif /* DPMI */
-
 #ifdef X_SUPPORT
   if (config.X) 
      X_handle_events();
@@ -1377,9 +1372,7 @@ void SIGALRM_call(void){
  *
  */
 inline void SIGNAL_save(
-			struct sigcontext_struct *context, 
 			void (*signal_call)() ) {
-  signal_queue[SIGNAL_tail].context = *context;
   signal_queue[SIGNAL_tail].signal_handler=signal_call;
   SIGNAL_tail = (SIGNAL_tail + 1) % MAX_SIG_QUEUE_SIZE;
   REG(eflags) |= VIP;
@@ -1388,7 +1381,11 @@ inline void SIGNAL_save(
 void
 sigalrm(int sig, struct sigcontext_struct context)
 {
-  SIGNAL_save(&context, SIGALRM_call);
+#ifdef DPMI
+  if (in_dpmi && !in_vm86)
+    dpmi_sigalrm(&signal_queue[SIGNAL_head].context);
+#endif /* DPMI */
+  SIGNAL_save(SIGALRM_call);
 }
 
 /*
@@ -1404,10 +1401,6 @@ sigalrm(int sig, struct sigcontext_struct context)
  *
  */
 void SIGIO_call(void){
-#ifdef DPMI
-  if (in_dpmi && !in_vm86)
-    dpmi_sigio(&signal_queue[SIGNAL_head].context);
-#endif /* DPMI */
   /* Call select to see if any I/O is ready on devices */
   io_select(fds_sigio);
 }
@@ -1415,7 +1408,11 @@ void SIGIO_call(void){
 void
 sigio(int sig, struct sigcontext_struct context)
 {
-  SIGNAL_save(&context, SIGIO_call);
+#ifdef DPMI
+  if (in_dpmi && !in_vm86)
+    dpmi_sigio(&signal_queue[SIGNAL_head].context);
+#endif /* DPMI */
+  SIGNAL_save(SIGIO_call);
 }
 
 void
@@ -1761,7 +1758,7 @@ int_queue_run()
     }
     else {
       REG(eflags) |= VIP;
-      I_printf("OUTB_ADD = %d , returning from int_qeueu_run()\n", *OUTB_ADD);
+      I_printf("OUTB_ADD = %d , returning from int_queue_run()\n", *OUTB_ADD);
       return;
     }
   }
@@ -1772,7 +1769,7 @@ int_queue_run()
     }
     else {
       REG(eflags) |= VIP;
-      I_printf("interrupts disabled while int_qeueu_run()\n");
+      I_printf("interrupts disabled while int_queue_run()\n");
       return;
     }
   }

@@ -5,8 +5,8 @@
 
 # The following variables may go into the Makfile in the parent-directory
 
-CC    = gcc
-LD    = ld
+# CC    = gcc
+# LD    = ld
 BISON = bison
 LEX   = flex
 
@@ -42,8 +42,8 @@ OBJS = parser.o lex.yy.o # parse.o
 all: ../init.o
 
 ../init.o: $(OBJS)
-	ld -r -o ../init.o $(OBJS)
-#	ld -r -o ../init.o parse.o
+	$(LD) -r -o ../init.o $(OBJS)
+#	$(LD) -r -o ../init.o parse.o
 
 parser.c : parser.y
 	$(BISON) -do parser.c parser.y

@@ -72,7 +72,7 @@ DOSLNK=
 # dosemu version
 EMUVER  =   0.53
 VERNUM  =   0x53
-PATCHL  =   23
+PATCHL  =   24
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -154,7 +154,8 @@ CONFIGINFO = $(CONFIGS) $(OPTIONAL) $(DEBUG) \
 	     -DLIBSTART=$(LIBSTART) -DVERNUM=$(VERNUM) -DVERSTR=\"$(EMUVER)\" \
 	     -DPATCHSTR=\"$(PATCHL)\"
 
-CC         =   gcc # I use gcc-specific features (var-arg macros, fr'instance)
+CC         = gcc # I use gcc-specific features (var-arg macros, fr'instance)
+LD         = ld
 COPTFLAGS  = -N -s -O2 -funroll-loops
 
 # -Wall -fomit-frame-pointer # -ansi -pedantic -Wmissing-prototypes -Wstrict-prototypes
@@ -247,10 +248,10 @@ x2dos: x2dos.c
 	  -o $@ $< -L$(X11LIBDIR) -lXaw -lXt -lX11
 
 $(LIBDOSEMU):	$(SHLIBOBJS) $(DPMIOBJS)
-	ld $(LDFLAGS) $(MAGIC) -Ttext $(LIBSTART) -o $(LIBDOSEMU) \
+	$(LD) $(LDFLAGS) $(MAGIC) -Ttext $(LIBSTART) -o $(LIBDOSEMU) \
 	   $(SHLIBOBJS) $(DPMIOBJS) $(SHLIBS) $(XLIBS) -lncurses -lc
 
-#	ld $(LDFLAGS) $(MAGIC) -Ttext $(LIBSTART) -o $@ \
+#	$(LD) $(LDFLAGS) $(MAGIC) -Ttext $(LIBSTART) -o $@ \
 #	   $(SHLIBOBJS) $(DPMIOBJS) $(SHLIBS) $(XLIBS) -lncurses -lc
 dossubdirs: dummy
 	@for i in $(SUBDIRS); do \
@@ -277,7 +278,7 @@ install: all
 		(cd $$i && echo $$i && $(MAKE) install) || exit; \
 	done
 	@install -c -o root -m 04755 dos /usr/bin
-	@install -m 0755 $(LIBDOSEMU) /usr/lib
+	@install -m 0644 $(LIBDOSEMU) /usr/lib
 	@ln -sf /usr/lib/$(LIBDOSEMU) /usr/lib/libdosemu
 	@if [ -f /usr/bin/xdosemu ]; then \
 		install -m 0700 /usr/bin/xdosemu /tmp; \

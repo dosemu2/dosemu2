@@ -637,7 +637,7 @@ extern void add_to_io_select(int);
 					sa.sa_flags = SA_RESTART; \
 					sigemptyset(&sa.sa_mask); \
 					sigaddset(&sa.sa_mask, SIGNALS_THAT_QUEUE); \
-					sigaction(sig, &sa, NULL);
+					dosemu_sigaction(sig, &sa, NULL);
 
 #define SETSIG(sig, fun)	sa.sa_handler = (SignalHandler)fun; \
 					sa.sa_flags = SA_RESTART; \
@@ -656,8 +656,7 @@ extern void add_to_io_select(int);
 			sigaddset(&sa.sa_mask, SIG_TIME); \
 			dosemu_sigaction(sig, &sa, NULL);
 
-extern inline void SIGNAL_save( struct sigcontext_struct *, 
-				void (*signal_call)() );
+extern inline void SIGNAL_save( void (*signal_call)() );
 extern inline void handle_signals(void);
 
 #endif /* EMU_H */

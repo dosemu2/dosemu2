@@ -5,8 +5,8 @@
 
 # The following variables may go into the Makfile in the parent-directory
 
-CC   = gcc
-LD   = ld
+# CC   = gcc
+# LD   = ld
 
 # INCDIR is exported from ..
 #INCDIR= -I../include -I..
@@ -42,7 +42,7 @@ OBJS = mouse.o mouseint.o
 all: ../$(SUBDIR).o
 
 ../$(SUBDIR).o: $(OBJS)
-	ld -r -o ../$(SUBDIR).o $(OBJS)
+	$(LD) -r -o ../$(SUBDIR).o $(OBJS)
 
 checkin:
 	-ci $(ALL) Makefile

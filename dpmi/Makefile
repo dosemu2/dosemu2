@@ -1,4 +1,4 @@
-CC   = gcc
+# CC   = gcc
 AS86 = as86 -0 -a
 LD86 = ld86 -0
 # INCDIR is exported from ..

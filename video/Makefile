@@ -5,8 +5,8 @@
 
 # The following variables may go into the Makfile in the parent-directory
 
-CC   = gcc
-LD   = ld
+# CC   = gcc
+# LD   = ld
 
 ifdef X_SUPPORT
 XCFILES	= X.c
@@ -45,7 +45,7 @@ OBJS = video.o vc.o vga.o et4000.o s3.o trident.o console.o \
 all: ../video.o
 
 ../video.o: $(OBJS)
-	ld -r -o ../video.o $(OBJS)
+	$(LD) -r -o ../video.o $(OBJS)
 
 checkin:
 	-ci $(ALL) Makefile

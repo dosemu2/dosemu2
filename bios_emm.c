@@ -347,11 +347,22 @@ u_short os_allow=1;
 #define SET_HANDLE_NAME(nameptr, name) \
 	{ memmove((nameptr), (name), 8); nameptr[8]=0; }
 
+#if 0
 #define CHECK_HANDLE(handle) \
   if ((handle) < 0 || (handle) > MAX_HANDLES) { \
     SETHIGH(&(state->eax), EMM_INV_HAN); \
     return; \
   }
+#else
+#define CHECK_HANDLE(handle) \
+  if ((handle < 0) || (handle > MAX_HANDLES) || \
+      (handle_info[handle].active == 0)) { \
+    E_printf("Invalid Handle handle=%x, active=%d\n", \
+             handle, handle_info[handle].active);  \
+    SETHIGH(&(state->eax), EMM_INV_HAN); \
+    return; \
+  }
+#endif
 
 /* this will have to change...0 counts are allowed */
 #define HANDLE_ALLOCATED(handle) \
@@ -439,7 +450,7 @@ bios_emm_init()
 #endif
 
   handle_total++;
-  SET_HANDLE_NAME(handle_info[OS_HANDLE].name, "SYSTEM");
+  SET_HANDLE_NAME(handle_info[OS_HANDLE].name, "SYSTEM  ");
 }
 
 #ifdef __linux__
@@ -608,6 +619,8 @@ __unmap_page(physical_page)
   if (ems_mmap) {
     /* XXX - add error checking here */
     munmap(base, EMM_PAGE_SIZE);
+    mmap(base, EMM_PAGE_SIZE, PROT_EXEC | PROT_READ | PROT_WRITE,
+	 MAP_PRIVATE | MAP_FIXED | MAP_ANON, -1, 0);
   } else {
     logical = (caddr_t) handle_info[handle].object + emm_map[physical_page].logical_page * EMM_PAGE_SIZE;
 
@@ -682,10 +695,8 @@ map_page(handle, physical_page, logical_page)
   sync();
 #endif
 
-  if (!ems_mmap) {
-    if (emm_map[physical_page].handle != NULL_HANDLE)
-      unmap_page(physical_page);
-  }
+  if (emm_map[physical_page].handle != NULL_HANDLE)
+    unmap_page(physical_page);
 
   base = (caddr_t) EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE);
   logical = (caddr_t) handle_info[handle].object + logical_page * EMM_PAGE_SIZE;

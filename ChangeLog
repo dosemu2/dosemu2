@@ -1,3 +1,18 @@
+Fri Sep 30 1994 Jmaclean
+
+-	Added Scott's patch to fix EMS attempting to access invalid
+	memory. Fastest fix for a bug I've seen :-).
+-	Modified CHECK_HANDLE to deal with non-active handles as it
+	was previously just checking for ranges. This fixes Hans
+	finding of mem/d giving extraneous info.
+-	Moved Lutz's DPMI signal calls to within the signals for Hans.
+
+Wed Sep 28 1994 Jmaclean
+
+-	Fixed one definite place for Divide/Stack Overflow to occur in int.h.
+	Problem occured when a default interrupt was called by a redirected
+	interrupt. This caused a recursion to the never lands.
+
 Tue Sep 27 1994 Jmaclean
 
 -	Released pre53_23.tgz in diff form only.

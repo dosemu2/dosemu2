@@ -31,18 +31,24 @@ ALL = $(CFILES) $(HFILES) $(OFILES)
 
 # All object-files are included here.
 
-OBJS = 
+OBJS = exit.o fcntl.o
 
 .c.o:
 	$(CC) $(CFLAGS) $(XDEFS) $(INCDIR) -c $<
  
-all: ../video.o sillyint.o
+all: sillyint.o exit.o fcntl.o
 
-../video.o: $(OBJS)
-	ld -r -o ../video.o $(OBJS)
+sillyint.o: int.o $(OBJS)
+	ld -r -o sillyint.o int.o $(OBJS)
 
-sillyint.o:    int.c  $(USRSRCDIR)/linux/tools/version.h
-	$(CC) -m486 -Wall -I$(USRSRCDIR) -DMAKE_LOADABLE_MODULE int.c -c -O6 -D__KERNEL__ -DLINUX -o sillyint.o
+exit.o:		exit.c
+	$(CC) -m486 -Wall exit.c -c -O6 -D__KERNEL__ -DLINUX -o exit.o
+
+fcntl.o:	fcntl.c
+	$(CC) -m486 -Wall fcntl.c -c -O6 -D__KERNEL__ -DLINUX -o fcntl.o
+
+int.o:    int.c  $(USRSRCDIR)/linux/tools/version.h
+	$(CC) -m486 -Wall -I$(USRSRCDIR) -DMAKE_LOADABLE_MODULE int.c -c -O6 -D__KERNEL__ -DLINUX -o int.o
 
 checkin:
 	-ci $(ALL) Makefile

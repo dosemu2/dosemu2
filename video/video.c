@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <signal.h>
 #include <sys/stat.h>
 
 #include "emu.h"
@@ -22,6 +23,8 @@ extern void set_process_control();
 extern void set_console_video();
 extern void set_consoleX_video();
 
+extern int
+dosemu_sigaction(int sig, struct sigaction *, struct sigaction *);
 
 int video_mode = 0;		/* Init Screen Mode in emu.c     */
 

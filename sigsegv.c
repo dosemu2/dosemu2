@@ -386,9 +386,9 @@ dosemu_fault(int signal, struct sigcontext_struct context)
  		   LWORD(eip)++;
  		   return;
  		 }
-      default:	error("ERROR: unexpected CPU exception 0x%02lx while in vm86()\n"
+      default:	error("ERROR: unexpected CPU exception 0x%02lx errorcode: 0x%08lx while in vm86()\n"
 	  	"eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%lx\n"
-	  	"cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n", _trapno,
+	  	"cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n", _trapno,scp->err,
 	  	_eip, _esp, _eflags, _cs, _ds, _es, _ss);
 		perror("YUCK");
  		 show_regs();
@@ -411,7 +411,7 @@ dosemu_fault(int signal, struct sigcontext_struct context)
 #else
   {
 #endif
-    error("ERROR: cpu exception in dosemu code!\n"
+    error("ERROR: cpu exception in dosemu code outside of VM86()!\n"
 	  "trapno: 0x%02lx  errorcode: 0x%08lx  cr2: 0x%08lx\n"
 	  "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n"
 	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n",

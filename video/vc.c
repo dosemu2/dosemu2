@@ -143,6 +143,8 @@ void put_video_ram();
 
 extern char *cstack[4096];
 
+extern int
+dosemu_sigaction(int sig, struct sigaction *, struct sigaction *);
 void SIGRELEASE_call(void);
 void SIGACQUIRE_call(void);
 
@@ -255,7 +257,7 @@ SIGACQUIRE_call(void)
 void
 acquire_vt(int sig, struct sigcontext_struct context)
 {
-  SIGNAL_save(&context, SIGACQUIRE_call);
+  SIGNAL_save(SIGACQUIRE_call);
 }
 
 void
@@ -366,7 +368,7 @@ wait_vc_active(void)
 void
 release_vt(int sig, struct sigcontext_struct context)
 {
-  SIGNAL_save(&context, SIGRELEASE_call);
+  SIGNAL_save(SIGRELEASE_call);
 }
 
 /* allows remapping even if memory is mapped in...this is useful, as it
@@ -514,14 +516,14 @@ void
 setup_low_mem(void)
 {
   char * result;
-  v_printf("Low memory mapping!\n");
-  result = mmap(NULL, 0x110000,
+  g_printf("Low memory mapping!\n");
+  result = mmap(NULL, 0x100000,
          PROT_EXEC | PROT_READ | PROT_WRITE,
          MAP_FIXED | MAP_PRIVATE | MAP_ANON,
          -1, 0);
   if (result != NULL) {
           perror("anonymous mmap");
-          exit(1);
+          leavedos(1);
   }
 }
 
