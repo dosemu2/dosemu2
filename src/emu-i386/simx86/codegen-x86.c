@@ -115,6 +115,8 @@
 extern int NextFreeIMeta;
 extern TNode *LastXNode;
 
+TNode *CurrXNode;
+
 /* Buffer and pointers to store generated code */
 unsigned char CodeBuf[CODEBUFSIZE];
 unsigned char *CodePtr = NULL;
@@ -139,7 +141,7 @@ char OVERR_DS=Ofs_XDS, OVERR_SS=Ofs_XSS;
  *		mov #return_PC, eax
  *		ret
  */
-unsigned char TailCode[8] =
+unsigned char TailCode[TAILSIZE] =
 	{ 0x9c,0x5a,0xb8,0,0,0,0,0xc3 };
 
 /*
@@ -162,6 +164,7 @@ void InitGen(void)
 
 	CodePtr = PrevCodePtr = CodeBuf;
 	MaxCodePtr = CodeBuf + CODEBUFSIZE - 256;
+	CurrXNode = NULL;
 	InitTrees();
 }
 
@@ -188,19 +191,16 @@ void AddrGen(int op, int mode, ...)
 		}
 		break;
 	case A_DI_0:			// base(32), imm
-	case A_DI_1:			// base(32), {imm}, reg, {shift}
-	case A_DI_2: {			// base(32), {imm}, reg, reg, {shift}
+	case A_DI_1: {			// base(32), {imm}, reg, {shift}
 			long idsp=0;
+			char ofs;
+			ofs = va_arg(ap,int);
 			if (mode & MLEA) {		// discard base	reg
-				idsp = va_arg(ap,int);
-				// can't use xor because it changes flags
-				// movl	$0,%%edi
-				G1(0xbf,Cp); G4(0,Cp);
+				ofs = Ofs_RZERO;
 			}
-			else {
-				// movl offs(%%ebx),%%edi (seg reg offset)
-				G2M(0x8b,0x7b,Cp); Offs_From_Arg(Cp);
-			}
+			// movl offs(%%ebx),%%edi (seg reg offset or zero)
+			G3M(0x8b,0x7b,ofs,Cp);
+
 			if (mode&IMMED)	{
 				idsp = va_arg(ap,int);
 				if (op==A_DI_0) {
@@ -209,53 +209,73 @@ void AddrGen(int op, int mode, ...)
 				}
 			}
 			if (mode & ADDR16) {
-				int k = 0;
 				// movzwl offs(%%ebx),%%ecx
 				G3M(0x0f,0xb7,0x4b,Cp); Offs_From_Arg(Cp);
-				if (op==A_DI_2)	{
-					// movzwl offs(%%ebx),%%edx
-					G3M(0x0f,0xb7,0x53,Cp); Offs_From_Arg(Cp);
-					// leal (%%ecx,%%edx,1),%%ecx
-					G3M(0x8d,0x0c,0x11,Cp); k=1;
+				if ((mode&IMMED) && (idsp!=0)) {
+					// leaw immed(%ecx),%%cx
+					G1(OPERoverride,Cp); GenLeaECX(idsp);
 				}
-				if (mode&IMMED)	{
-					if (idsp) {
-					    /*unsigned?*/ short ds = idsp;
-					    // leal immed(%%ecx),%%ecx
-					    GenLeaECX(ds);
-					}
-					k=1;
+			}
+			else {
+				// movl offs(%%ebx),%%ecx
+				G2M(0x8b,0x4b,Cp); Offs_From_Arg(Cp);
+				if ((mode&IMMED) && (idsp!=0)) {
+					GenLeaEDI(idsp);
 				}
-				if (k) {
-					// movzwl %%cx,%%ecx
-					G3M(0x0f,0xb7,0xc9,Cp);
+			}
+			// leal (%%edi,%%ecx,1),%%edi
+			G3M(0x8d,0x3c,0x39,Cp);
+		}
+		break;
+	case A_DI_2: {			// base(32), {imm}, reg, reg, {shift}
+			long idsp=0;
+			char ofs;
+			ofs = va_arg(ap,int);
+			if (mode & MLEA) {		// discard base	reg
+				ofs = Ofs_RZERO;
+			}
+			// movl offs(%%ebx),%%edi (seg reg offset or zero)
+			G3M(0x8b,0x7b,ofs,Cp);
+
+			if (mode&IMMED)	{
+				idsp = va_arg(ap,int);
+				if (op==A_DI_0) {
+					if (idsp) { GenLeaEDI(idsp); }
+					break;
 				}
-				// leal (%%edi,%%ecx,1),%%edi
-				G3M(0x8d,0x3c,0x39,Cp);
+			}
+			if (mode & ADDR16) {
+				// pushfl; movl offs(%%ebx),%%ecx
+				G3M(0x9c,0x8b,0x4b,Cp); Offs_From_Arg(Cp);
+				// addl offs(%%ebx),%%ecx
+				G2M(0x03,0x4b,Cp); Offs_From_Arg(Cp);
+				if ((mode&IMMED) && (idsp!=0)) {
+					// leal immed(%%ecx),%%ecx
+					GenAddECX(idsp);
+				}
+				// movzwl %%cx,%%ecx
+				// addl %%ecx,%%edi; popfl
+				G6(0x01c9b70f,0x9dcf,Cp);
 			}
 			else {
 				// pushfl; addl offs(%%ebx),%%edi
 				G3(0x7b039c,Cp); Offs_From_Arg(Cp);
-				if (op==A_DI_2)	{
-					// movl offs(%%ebx),%%ecx
-					G2M(0x8b,0x4b,Cp); Offs_From_Arg(Cp);
-					if (mode & RSHIFT) {
-					    unsigned char sh = (unsigned char)(va_arg(ap,int));
-					    if (sh) {
-						// shll $1,%%ecx
-						if (sh==1) { G2(0xe1d1,Cp); }
-						// shll $count,%%ecx
-						else { G2(0xe1c1,Cp); G1(sh,Cp); }
-					    }
-					}
+				// movl offs(%%ebx),%%ecx
+				G2M(0x8b,0x4b,Cp); Offs_From_Arg(Cp);
+				if (mode & RSHIFT) {
+				    unsigned char sh = (unsigned char)(va_arg(ap,int));
+				    if (sh) {
+					// shll $1,%%ecx
+					if (sh==1) { G2(0xe1d1,Cp); }
+					// shll $count,%%ecx
+					else { G2(0xe1c1,Cp); G1(sh,Cp); }
+				    }
 				}
 				if ((mode&IMMED) && idsp) {
 				    GenLeaEDI(idsp);
 				}
-				if (op==A_DI_2)	{
-					// addl %%ecx,%%edi
-					G2(0xcf01,Cp);
-				}
+				// addl %%ecx,%%edi
+				G2(0xcf01,Cp);
 				// popfl
 				G1(0x9d,Cp);
 			}
@@ -325,14 +345,14 @@ void Gen(int op, int mode, ...)
 	// Special case: CR0&0x3f
 	case L_CR0:
 		// movl Ofs_CR0(%%ebx),%%eax
-		G2(0x438b,Cp); G1(Ofs_CR0,Cp);
+		G3M(0x8b,0x43,Ofs_CR0,Cp);
 		// pushfl; andl $0x3f,%%eax; popfl
 		G4(0x3fe0839c,Cp); G1(0x9d,Cp);
 		break;
 
 	case S_DI_R:
 		// mov{wl} %%{e}ax,offs(%%ebx)
-		if (mode&DATA16) G1(OPERoverride,Cp);
+		Gen66(mode,Cp);
 		G2M(0x89,0x7b,Cp); Offs_From_Arg(Cp);
 		break;
 
@@ -342,15 +362,11 @@ void Gen(int op, int mode, ...)
 			G2M(0xc6,0x43,Cp); Offs_From_Arg(Cp);
 			G1(va_arg(ap,int),Cp);	// immediate code byte
 		}
-		else if	(mode&DATA16) {
-			// movw $immed,offs(%%ebx)
-			G3M(OPERoverride,0xc7,0x43,Cp); Offs_From_Arg(Cp);
-			G2(va_arg(ap,int),Cp);	// immediate code word
-		}
 		else {
-			// movl $immed,offs(%%ebx)
-			G2M(0xc7,0x43,Cp); Offs_From_Arg(Cp);
-			G4(va_arg(ap,int),Cp);	// immediate code long
+			// mov{wl} $immed,offs(%%ebx)
+			Gen66(mode,Cp);
+			G2(0x43c7,Cp); Offs_From_Arg(Cp);
+			G2_4(mode,va_arg(ap,int),Cp);	// immediate code word
 		}
 		break;
 	case L_IMM_R1:
@@ -358,39 +374,36 @@ void Gen(int op, int mode, ...)
 			// movb $immed,%%al
 			G1(0xb0,Cp); G1(va_arg(ap,int),Cp); // immediate code byte
 		}
-		else if	(mode&DATA16) {
-			// movw $immed,%%ax
-			G2M(OPERoverride,0xb8,Cp);
-			G2(va_arg(ap,int),Cp);	// immediate code word
-		}
 		else {
-			// movl $immed,%%eax
-			G1(0xb8,Cp); G4(va_arg(ap,int),Cp); // immediate code long
+			// mov{wl} $immed,%%{e}ax
+			Gen66(mode,Cp);
+			G1(0xb8,Cp);
+			G2_4(mode,va_arg(ap,int),Cp);	// immediate code word
 		}
 		break;
 	case L_MOVZS:
 		rcod = (va_arg(ap,int)&1)<<3;	// 0=z 8=s
 		if (mode & MBYTX) {
 			// mov{sz}bw (%%edi),%%ax
-			if (mode&DATA16) G1(OPERoverride,Cp);
+			Gen66(mode,Cp);
 			G3M(0x0f,(0xb6|rcod),0x07,Cp);
 		}
 		else {
 			// mov{sz}wl (%%edi),%%eax
-			if (mode&DATA16) G1(OPERoverride,Cp);
+			Gen66(mode,Cp);
 			G3M(0x0f,(0xb7|rcod),0x07,Cp);
 		}
 		// mov{wl} %%{e}ax,offs(%%ebx)
-		if (mode&DATA16) G1(OPERoverride,Cp);
+		Gen66(mode,Cp);
 		G2M(0x89,0x43,Cp); Offs_From_Arg(Cp);
 		break;
 
 	case L_LXS1:
 		// mov{wl} (%%edi),%%{e}ax
-		if (mode&DATA16) G1(OPERoverride,Cp);
+		Gen66(mode,Cp);
 		G2M(0x8b,0x07,Cp);
 		// mov{wl} %%{e}ax,offs(%%ebx)
-		if (mode&DATA16) G1(OPERoverride,Cp);
+		Gen66(mode,Cp);
 		G2M(0x89,0x43,Cp); Offs_From_Arg(Cp);
 		// leal {2|4}(%%edi),%%edi
 		G2M(0x8d,0x7f,Cp);
@@ -445,20 +458,14 @@ arith0:
 		}
 		else {
 			if (mode & IMMED) {
-				if (mode&DATA16) {
-					// OPw $immed,%%ax
-					G1(OPERoverride,Cp); G1(rcod+3,Cp);
-					G2(va_arg(ap,int),Cp);
-				}
-				else {
-					// OPl $immed,%%eax
-					G1(rcod+3,Cp);
-					G4(va_arg(ap,int),Cp);
-				}
+				// OP{lw} $immed,%%{e}ax
+				Gen66(mode,Cp);
+				G1(rcod+3,Cp);
+				G2_4(mode,va_arg(ap,int),Cp);
 			}
 			else {
 				// OP{wl} offs(%%ebx),%%{e}ax
-				if (mode&DATA16) G1(OPERoverride,Cp);
+				Gen66(mode,Cp);
 				G2(0x4301|rcod,Cp); Offs_From_Arg(Cp);
 			}
 		}
@@ -483,20 +490,14 @@ arith1:
 		}
 		else {
 			if (mode & IMMED) {
-				if (mode&DATA16) {
-					// OPw $immed,%%ax
-					G1(OPERoverride,Cp); G1(rcod+3,Cp);
-					G2(va_arg(ap,int),Cp);
-				}
-				else {
-					// OPl $immed,%%eax
-					G1(rcod+3,Cp);
-					G4(va_arg(ap,int),Cp);
-				}
+				// OP{wl} $immed,%%{e}ax
+				Gen66(mode,Cp);
+				G1(rcod+3,Cp);
+				G2_4(mode,va_arg(ap,int),Cp);
 			}
 			else {
 				// OP{wl} (%%edi),%%eax
-				if (mode&DATA16) G1(OPERoverride,Cp);
+				Gen66(mode,Cp);
 				G2(0x0701|rcod,Cp);
 			}
 		}
@@ -508,7 +509,7 @@ arith1:
 		}
 		else {
 			// NOT{wl} %%{e}ax
-			if (mode&DATA16) G1(OPERoverride,Cp);
+			Gen66(mode,Cp);
 			G2M(0xf7,0x17,Cp);
 		}
 		break;
@@ -519,30 +520,30 @@ arith1:
 		}
 		else {
 			// neg{wl} %%{e}ax
-			if (mode&DATA16) G1(OPERoverride,Cp);
+			Gen66(mode,Cp);
 			G2M(0xf7,0x1f,Cp);
 		}
 		break;
 	case O_INC:
 		if (mode & MBYTE) {
 			// incb (%%edi)
-			G2M(GRP2brm,0x07,Cp);
+			G2M(0xfe,0x07,Cp);
 		}
 		else {
 			// inc{wl} (%%edi)
-			if (mode&DATA16) G1(OPERoverride,Cp);
-			G2M(GRP2wrm,0x07,Cp);
+			Gen66(mode,Cp);
+			G2M(0xff,0x07,Cp);
 		}
 		break;
 	case O_DEC:
 		if (mode & MBYTE) {
 			// decb (%%edi)
-			G2M(GRP2brm,0x0f,Cp);
+			G2M(0xfe,0x0f,Cp);
 		}
 		else {
 			// dec{wl} (%%edi)
-			if (mode&DATA16) G1(OPERoverride,Cp);
-			G2M(GRP2wrm,0x0f,Cp);
+			Gen66(mode,Cp);
+			G2M(0xff,0x0f,Cp);
 		}
 		break;
 	case O_XCHG: {
@@ -558,16 +559,16 @@ arith1:
 			}
 			else {
 				// mov{wl} offs(%%ebx),%%{e}ax
-				if (mode&DATA16) G1(OPERoverride,Cp);
+				Gen66(mode,Cp);
 				G2M(0x8b,0x43,Cp); G1(o1,Cp);
 				// mov{wl} (%%edi),%%{e}dx
-				if (mode&DATA16) G1(OPERoverride,Cp);
+				Gen66(mode,Cp);
 				G2M(0x8b,0x17,Cp);
 				// mov{wl} %%{e}dx,offs(%%ebx)
-				if (mode&DATA16) G1(OPERoverride,Cp);
+				Gen66(mode,Cp);
 				G2M(0x89,0x53,Cp); G1(o1,Cp);
 				// movl %%{e}ax,(%%edi)
-				if (mode&DATA16) G1(OPERoverride,Cp);
+				Gen66(mode,Cp);
 				G2M(0x89,0x07,Cp);
 			}
 		}
@@ -577,48 +578,48 @@ arith1:
 			o1 = (unsigned char)va_arg(ap,int);
 			o2 = (unsigned char)va_arg(ap,int);
 			// mov{wl} offs1(%%ebx),%%{e}ax
-			if (mode&DATA16) G1(OPERoverride,Cp);
+			Gen66(mode,Cp);
 			G2M(0x8b,0x43,Cp); G1(o1,Cp);
 			// mov{wl} offs2(%%ebx),%%{e}dx
-			if (mode&DATA16) G1(OPERoverride,Cp);
+			Gen66(mode,Cp);
 			G2M(0x8b,0x53,Cp); G1(o2,Cp);
 			// mov{wl} %%{e}ax,offs2(%%ebx)
-			if (mode&DATA16) G1(OPERoverride,Cp);
+			Gen66(mode,Cp);
 			G2M(0x89,0x43,Cp); G1(o2,Cp);
 			// mov{wl} %%{e}dx,offs1(%%ebx)
-			if (mode&DATA16) G1(OPERoverride,Cp);
+			Gen66(mode,Cp);
 			G2M(0x89,0x53,Cp); G1(o1,Cp);
 		}
 		break;
 	case O_MUL:
 		if (mode & MBYTE) {
 			// movb Ofs_AL(%%ebx),%%al
-			G2M(0x8a,0x43,Cp); G1(Ofs_AL,Cp);
+			G3M(0x8a,0x43,Ofs_AL,Cp);
 			// mulb (%%edi),%%al
 			G2M(0xf6,0x27,Cp);
 			// movb %%al,Ofs_AX(%%ebx)
-			G3M(OPERoverride,0x89,0x43,Cp); G1(Ofs_AX,Cp);
+			G4M(OPERoverride,0x89,0x43,Ofs_AX,Cp);
 		}
 		else {
 			if (mode&DATA16) {
 				// movw Ofs_AX(%%ebx),%%ax
-				G3M(OPERoverride,0x8b,0x43,Cp); G1(Ofs_AX,Cp);
+				G4M(OPERoverride,0x8b,0x43,Ofs_AX,Cp);
 				// mulw (%%edi),%%ax
 				G3M(OPERoverride,0xf7,0x27,Cp);
 				// movw %%ax,Ofs_AX(%%ebx)
-				G3M(OPERoverride,0x89,0x43,Cp); G1(Ofs_AX,Cp);
+				G4M(OPERoverride,0x89,0x43,Ofs_AX,Cp);
 				// movw %%dx,Ofs_DX(%%ebx)
-				G3M(OPERoverride,0x89,0x53,Cp); G1(Ofs_DX,Cp);
+				G4M(OPERoverride,0x89,0x53,Ofs_DX,Cp);
 			}
 			else {
 				// movl Ofs_EAX(%%ebx),%%eax
-				G2M(0x8b,0x43,Cp); G1(Ofs_EAX,Cp);
+				G3M(0x8b,0x43,Ofs_EAX,Cp);
 				// mull (%%edi),%%eax
 				G2M(0xf7,0x27,Cp);
 				// movl %%eax,Ofs_EAX(%%ebx)
-				G2M(0x89,0x43,Cp); G1(Ofs_EAX,Cp);
+				G3M(0x89,0x43,Ofs_EAX,Cp);
 				// movl %%edx,Ofs_EDX(%%ebx)
-				G2M(0x89,0x53,Cp); G1(Ofs_EDX,Cp);
+				G3M(0x89,0x53,Ofs_EDX,Cp);
 			}
 		}
 		break;
@@ -644,11 +645,11 @@ arith1:
 			}
 			else {
 				// movb Ofs_AL(%%ebx),%%al
-				G2M(0x8a,0x43,Cp); G1(Ofs_AL,Cp);
+				G3M(0x8a,0x43,Ofs_AL,Cp);
 				// imul (%%edi),%%al
 				G2M(0xf6,0x2f,Cp);
 				// movw %%ax,Ofs_AX(%%ebx)
-				G3M(OPERoverride,0x89,0x43,Cp); G1(Ofs_AX,Cp);
+				G4M(OPERoverride,0x89,0x43,Ofs_AX,Cp);
 			}
 		}
 		else {
@@ -674,13 +675,13 @@ arith1:
 				}
 				else {
 					// movw Ofs_AX(%%ebx),%%ax
-					G3M(OPERoverride,0x8b,0x43,Cp); G1(Ofs_AX,Cp);
+					G4M(OPERoverride,0x8b,0x43,Ofs_AX,Cp);
 					// imul (%%edi),%%ax
 					G3M(OPERoverride,0xf7,0x2f,Cp);
 					// movw %%ax,Ofs_AX(%%ebx)
-					G3M(OPERoverride,0x89,0x43,Cp); G1(Ofs_AX,Cp);
+					G4M(OPERoverride,0x89,0x43,Ofs_AX,Cp);
 					// movw %%dx,Ofs_DX(%%ebx)
-					G3M(OPERoverride,0x89,0x53,Cp); G1(Ofs_DX,Cp);
+					G4M(OPERoverride,0x89,0x53,Ofs_DX,Cp);
 				}
 			}
 			else {
@@ -705,13 +706,13 @@ arith1:
 				}
 				else {
 					// movl Ofs_EAX(%%ebx),%%eax
-					G2M(0x8b,0x43,Cp); G1(Ofs_EAX,Cp);
+					G3M(0x8b,0x43,Ofs_EAX,Cp);
 					// imul (%%edi),%%eax
 					G2M(0xf7,0x2f,Cp);
 					// movl %%eax,Ofs_EAX(%%ebx)
-					G2M(0x89,0x43,Cp); G1(Ofs_EAX,Cp);
+					G3M(0x89,0x43,Ofs_EAX,Cp);
 					// movl %%edx,Ofs_EDX(%%ebx)
-					G2M(0x89,0x53,Cp); G1(Ofs_EDX,Cp);
+					G3M(0x89,0x53,Ofs_EDX,Cp);
 				}
 			}
 		}
@@ -719,121 +720,119 @@ arith1:
 	case O_DIV:
 		if (mode & MBYTE) {
 			// movw Ofs_AX(%%ebx),%%ax
-			G3M(OPERoverride,0x8b,0x43,Cp); G1(Ofs_AX,Cp);
+			G4M(OPERoverride,0x8b,0x43,Ofs_AX,Cp);
 			/* exception trap: save current PC */
 			// movl $eip,Ofs_CR2(%%ebx)
 			G2M(0xc7,0x43,Cp); G1(Ofs_CR2,Cp); G4(va_arg(ap,int),Cp);
 			// div (%%edi),%%al
 			G2M(0xf6,0x37,Cp);
 			// movw %%ax,Ofs_AX(%%ebx)
-			G3M(OPERoverride,0x89,0x43,Cp); G1(Ofs_AX,Cp);
+			G4M(OPERoverride,0x89,0x43,Ofs_AX,Cp);
 		}
 		else {
 			if (mode&DATA16) {
 				// movw Ofs_AX(%%ebx),%%ax
-				G3M(OPERoverride,0x8b,0x43,Cp); G1(Ofs_AX,Cp);
+				G4M(OPERoverride,0x8b,0x43,Ofs_AX,Cp);
 				// movw Ofs_DX(%%ebx),%%dx
-				G3M(OPERoverride,0x8b,0x53,Cp); G1(Ofs_DX,Cp);
+				G4M(OPERoverride,0x8b,0x53,Ofs_DX,Cp);
 				/* exception trap: save current PC */
 				// movl $eip,Ofs_CR2(%%ebx)
 				G2(0x43c7,Cp); G1(Ofs_CR2,Cp); G4(va_arg(ap,int),Cp);
 				// div (%%edi),%%ax
 				G3M(OPERoverride,0xf7,0x37,Cp);
 				// movw %%ax,Ofs_AX(%%ebx)
-				G3M(OPERoverride,0x89,0x43,Cp); G1(Ofs_AX,Cp);
+				G4M(OPERoverride,0x89,0x43,Ofs_AX,Cp);
 				// movw %%dx,Ofs_DX(%%ebx)
-				G3M(OPERoverride,0x89,0x53,Cp); G1(Ofs_DX,Cp);
+				G4M(OPERoverride,0x89,0x53,Ofs_DX,Cp);
 			}
 			else {
 				// movl Ofs_EAX(%%ebx),%%eax
-				G2M(0x8b,0x43,Cp); G1(Ofs_EAX,Cp);
+				G3M(0x8b,0x43,Ofs_EAX,Cp);
 				// movl Ofs_EDX(%%ebx),%%edx
-				G2M(0x8b,0x53,Cp); G1(Ofs_EDX,Cp);
+				G3M(0x8b,0x53,Ofs_EDX,Cp);
 				/* exception trap: save current PC */
 				// movl $eip,Ofs_CR2(%%ebx)
 				G2(0x43c7,Cp); G1(Ofs_CR2,Cp); G4(va_arg(ap,int),Cp);
 				// div (%%edi),%%eax
 				G2M(0xf7,0x37,Cp);
 				// movl %%eax,Ofs_EAX(%%ebx)
-				G2M(0x89,0x43,Cp); G1(Ofs_EAX,Cp);
+				G3M(0x89,0x43,Ofs_EAX,Cp);
 				// movl %%edx,Ofs_EDX(%%ebx)
-				G2M(0x89,0x53,Cp); G1(Ofs_EDX,Cp);
+				G3M(0x89,0x53,Ofs_EDX,Cp);
 			}
 		}
 		break;
 	case O_IDIV:
 		if (mode & MBYTE) {
 			// movw Ofs_AX(%%ebx),%%ax
-			G3M(OPERoverride,0x8b,0x43,Cp); G1(Ofs_AX,Cp);
+			G4M(OPERoverride,0x8b,0x43,Ofs_AX,Cp);
 			/* exception trap: save current PC */
 			// movl $eip,Ofs_CR2(%%ebx)
 			G2(0x43c7,Cp); G1(Ofs_CR2,Cp); G4(va_arg(ap,int),Cp);
 			// idiv (%%edi),%%al
 			G2M(0xf6,0x3f,Cp);
 			// movw %%ax,Ofs_AX(%%ebx)
-			G3M(OPERoverride,0x89,0x43,Cp); G1(Ofs_AX,Cp);
+			G4M(OPERoverride,0x89,0x43,Ofs_AX,Cp);
 		}
 		else {
 			if (mode&DATA16) {
 				// movw Ofs_AX(%%ebx),%%ax
-				G3M(OPERoverride,0x8b,0x43,Cp); G1(Ofs_AX,Cp);
+				G4M(OPERoverride,0x8b,0x43,Ofs_AX,Cp);
 				// movw Ofs_DX(%%ebx),%%dx
-				G3M(OPERoverride,0x8b,0x53,Cp); G1(Ofs_DX,Cp);
+				G4M(OPERoverride,0x8b,0x53,Ofs_DX,Cp);
 				/* exception trap: save current PC */
 				// movl $eip,Ofs_CR2(%%ebx)
 				G2(0x43c7,Cp); G1(Ofs_CR2,Cp); G4(va_arg(ap,int),Cp);
 				// idiv (%%edi),%%ax
 				G3M(OPERoverride,0xf7,0x3f,Cp);
 				// movw %%ax,Ofs_AX(%%ebx)
-				G3M(OPERoverride,0x89,0x43,Cp); G1(Ofs_AX,Cp);
+				G4M(OPERoverride,0x89,0x43,Ofs_AX,Cp);
 				// movw %%dx,Ofs_DX(%%ebx)
-				G3M(OPERoverride,0x89,0x53,Cp); G1(Ofs_DX,Cp);
+				G4M(OPERoverride,0x89,0x53,Ofs_DX,Cp);
 			}
 			else {
 				// movl Ofs_EAX(%%ebx),%%eax
-				G2M(0x8b,0x43,Cp); G1(Ofs_EAX,Cp);
+				G3M(0x8b,0x43,Ofs_EAX,Cp);
 				// movl Ofs_EDX(%%ebx),%%edx
-				G2M(0x8b,0x53,Cp); G1(Ofs_EDX,Cp);
+				G3M(0x8b,0x53,Ofs_EDX,Cp);
 				/* exception trap: save current PC */
 				// movl $eip,Ofs_CR2(%%ebx)
 				G2(0x43c7,Cp); G1(Ofs_CR2,Cp); G4(va_arg(ap,int),Cp);
 				// idiv (%%edi),%%eax
 				G2M(0xf7,0x3f,Cp);
 				// movl %%eax,Ofs_EAX(%%ebx)
-				G2M(0x89,0x43,Cp); G1(Ofs_EAX,Cp);
+				G3M(0x89,0x43,Ofs_EAX,Cp);
 				// movl %%edx,Ofs_EDX(%%ebx)
-				G2M(0x89,0x53,Cp); G1(Ofs_EDX,Cp);
+				G3M(0x89,0x53,Ofs_EDX,Cp);
 			}
 		}
 		break;
 	case O_CBWD:
 		// movl Ofs_EAX(%%ebx),%%eax
-		G2(0x438b,Cp); G1(Ofs_EAX,Cp);
+		G3M(0x8b,0x43,Ofs_EAX,Cp);
 		if (mode & MBYTE) {		/* 0x98: CBW,CWDE */
 			if (mode & DATA16) {	// AL->AX
 				// cbw
 				G2(0x9866,Cp);
 				// movw %%ax,Ofs_AX(%%ebx)
-				G3(0x438966,Cp); G1(Ofs_AX,Cp);
+				G4M(0x66,0x89,0x43,Ofs_AX,Cp);
 			}
 			else {			// AX->EAX
 				// cwde
-				G1(0x98,Cp);
 				// movl %%eax,Ofs_EAX(%%ebx)
-				G2(0x4389,Cp); G1(Ofs_EAX,Cp);
+				G4M(0x98,0x89,0x43,Ofs_EAX,Cp);
 			}
 		}
 		else if	(mode &	DATA16)	{	/* 0x99: AX->DX:AX */
 			// cwd
 			G2(0x9966,Cp);
 			// movw %%dx,Ofs_DX(%%ebx)
-			G3(0x538966,Cp); G1(Ofs_DX,Cp);
+			G4M(0x66,0x89,0x53,Ofs_DX,Cp);
 		}
 		else {	/* 0x99: EAX->EDX:EAX */
 			// cdq
-			G1(0x99,Cp);
 			// movl %%edx,Ofs_EDX(%%ebx)
-			G2(0x5389,Cp); G1(Ofs_EDX,Cp);
+			G4M(0x99,0x89,0x53,Ofs_EDX,Cp);
 		}
 		break;
 	case O_XLAT:
@@ -841,21 +840,21 @@ arith1:
 		G2(0x7b8b,Cp); G1(OVERR_DS,Cp);
 		if (mode & DATA16) {
 			// movzwl Ofs_BX(%%ebx),%%ecx
-			G3(0x4bb70f,Cp); G1(Ofs_BX,Cp);
+			G4M(0x0f,0xb7,0x4b,Ofs_BX,Cp);
 		}
 		else {
 			// movl Ofs_EBX(%%ebx),%%ecx
-			G2(0x4b8b,Cp); G1(Ofs_EBX,Cp);
+			G3M(0x8b,0x4b,Ofs_EBX,Cp);
 		}
 		// leal (%%ecx,%%edi,1),%%edi
 		G3(0x393c8d,Cp);
 		// movzbl Ofs_AL(%%ebx),%%ecx
-		G3(0x4bb60f,Cp); G1(Ofs_AL,Cp);
+		G4M(0x0f,0xb6,0x4b,Ofs_AL,Cp);
 		// leal (%%ecx,%%edi,1),%%edi
-		G3(0x393c8d,Cp);
+		G4(0x8a393c8d,Cp);
 		// movb (%%edi),%%al
 		// movb %%al,Ofs_AL(%%ebx)
-		G4(0x4388078a,Cp); G1(Ofs_AL,Cp);
+		G4M(0x07,0x88,0x43,Ofs_AL,Cp);
 		break;
 
 	case O_ROL:
@@ -885,7 +884,7 @@ shrot0:
 			}
 			else {
 				// movb Ofs_CL(%%ebx),%%cl
-				G2(0x4b8a,Cp); G1(Ofs_CL,Cp);
+				G3M(0x8a,0x4b,Ofs_CL,Cp);
 				// OPb %%cl,(%%edi)
 				G1(0xd2,Cp); G1(0x07 | rcod,Cp);
 			}
@@ -896,16 +895,16 @@ shrot0:
 			// op [edi],n:	(66) c1	07+r n
 			// op [edi],cl:	(66) d3	07+r
 			if (mode & IMMED) {
-				if (mode & DATA16) G1(OPERoverride,Cp);
+				Gen66(mode,Cp);
 				G1(o1==1? 0xd1:0xc1,Cp);
 				G1(0x07	| rcod,Cp);
 				if (o1!=1) G1(o1,Cp);
 			}
 			else {
 				// movb Ofs_CL(%%ebx),%%cl
-				G2(0x4b8a,Cp); G1(Ofs_CL,Cp);
+				G3M(0x8a,0x4b,Ofs_CL,Cp);
 				// OP{wl} %%cl,(%%edi)
-				if (mode & DATA16) G1(OPERoverride,Cp);
+				Gen66(mode,Cp);
 				G1(0xd3,Cp); G1(0x07 | rcod,Cp);
 			}
 		}
@@ -913,11 +912,11 @@ shrot0:
 	case O_OPAX: {	/* used by DAA..AAD */
 			int n =	va_arg(ap,int);
 			// movl Ofs_EAX(%%ebx),%%eax
-			G2(0x438b,Cp); G1(Ofs_EAX,Cp);
+			G3M(0x8b,0x43,Ofs_EAX,Cp);
 			// get n bytes from parameter stack
 			while (n--) Offs_From_Arg(Cp);
 			// movl %%eax,Ofs_EAX(%%ebx)
-			G2(0x4389,Cp); G1(Ofs_EAX,Cp);
+			G3M(0x89,0x43,Ofs_EAX,Cp);
 		}
 		break;
 
@@ -1063,7 +1062,7 @@ shrot0:
 
 	case O_PUSH3:
 		// popfl; movl %%ebp,Ofs_ESP(%%ebx)
-		G3(0x6b899d,Cp); G1(Ofs_ESP,Cp);
+		G4M(0x9d,0x89,0x6b,Ofs_ESP,Cp);
 		break;
 
 	case O_PUSHI: {
@@ -1315,7 +1314,7 @@ shrot0:
 		} break;
 
 	case O_POP3:
-		G2(0x6b89,Cp); G1(Ofs_ESP,Cp);
+		G3M(0x89,0x6b,Ofs_ESP,Cp);
 		break;
 
 	case O_POPA: {
@@ -1452,48 +1451,48 @@ shrot0:
 
 	case O_MOVS_MovD:
 		if (mode&(MREP|MREPNE))	{ G1(REP,Cp); }
-		if (mode&MBYTE)	{ G1(MOVSb,Cp); }
+		if (mode&MBYTE)	{ G2M(MOVSb,NOP,Cp); }
 		else {
-			if (mode&DATA16) G1(OPERoverride,Cp);
-			G1(MOVSw,Cp);
+			Gen66(mode,Cp);
+			G2M(MOVSw,NOP,Cp);
 		}
 		// ! Warning DI,SI wrap	in 16-bit mode
 		break;
 	case O_MOVS_LodD:
 		if (mode&(MREP|MREPNE))	{ G1(REP,Cp); }
-		if (mode&MBYTE)	{ G1(LODSb,Cp); }
+		if (mode&MBYTE)	{ G2M(LODSb,NOP,Cp); }
 		else {
-			if (mode&DATA16) G1(OPERoverride,Cp);
-			G1(LODSw,Cp);
+			Gen66(mode,Cp);
+			G2M(LODSw,NOP,Cp);
 		}
 		// ! Warning DI,SI wrap	in 16-bit mode
 		break;
 	case O_MOVS_StoD:
 		if (mode&(MREP|MREPNE))	{ G1(REP,Cp); }
-		if (mode&MBYTE)	{ G1(STOSb,Cp); }
+		if (mode&MBYTE)	{ G2M(STOSb,NOP,Cp); }
 		else {
-			if (mode&DATA16) G1(OPERoverride,Cp);
-			G1(STOSw,Cp);
+			Gen66(mode,Cp);
+			G2M(STOSw,NOP,Cp);
 		}
 		// ! Warning DI,SI wrap	in 16-bit mode
 		break;
 	case O_MOVS_ScaD:
 		if (mode&MREP) { G1(REP,Cp); }
 			else if	(mode&MREPNE) {	G1(REPNE,Cp); }
-		if (mode&MBYTE)	{ G1(SCASb,Cp); }
+		if (mode&MBYTE)	{ G2M(SCASb,NOP,Cp); }
 		else {
-			if (mode&DATA16) G1(OPERoverride,Cp);
-			G1(SCASw,Cp);
+			Gen66(mode,Cp);
+			G2M(SCASw,NOP,Cp);
 		}
 		// ! Warning DI,SI wrap	in 16-bit mode
 		break;
 	case O_MOVS_CmpD:
 		if (mode&MREP) { G1(REP,Cp); }
 			else if	(mode&MREPNE) {	G1(REPNE,Cp); }
-		if (mode&MBYTE)	{ G1(CMPSb,Cp); }
+		if (mode&MBYTE)	{ G2M(CMPSb,NOP,Cp); }
 		else {
-			if (mode&DATA16) G1(OPERoverride,Cp);
-			G1(CMPSw,Cp);
+			Gen66(mode,Cp);
+			G2M(CMPSw,NOP,Cp);
 		}
 		// ! Warning DI,SI wrap	in 16-bit mode
 		break;
@@ -1562,11 +1561,11 @@ shrot0:
 		G2M(0x9c,POPax,Cp);
 		if (rcod==0) {		/* LAHF */
 			// movb %%al,Ofs_AH(%%ebx)
-			G2M(0x88,0x43,Cp); G1(Ofs_AH,Cp);
+			G3M(0x88,0x43,Ofs_AH,Cp);
 		}
 		else {			/* SAHF */
 			// movb Ofs_AH(%%ebx),%%al
-			G2M(0x8a,0x43,Cp); G1(Ofs_AH,Cp);
+			G3M(0x8a,0x43,Ofs_AH,Cp);
 			// pushl %%eax; popfl
 			G2M(PUSHax,0x9d,Cp);
 		}
@@ -1607,10 +1606,10 @@ shrot0:
 		case 0x1c: /* BSF */
 		case 0x1d: /* BSR */
 			// mov{wl} offs(%%ebx),%%{e}ax
-			if (mode&DATA16) G1(OPERoverride,Cp);
+			Gen66(mode,Cp);
 			G2M(0x8b,0x43,Cp); Offs_From_Arg(Cp);
 			// OP{wl} %%{e}ax,(%%edi)
-			if (mode&DATA16) G1(OPERoverride,Cp);
+			Gen66(mode,Cp);
 			G3M(0x0f,(o1+0xa0),0x07,Cp);
 			break;
 		case 0x20: /* BT  imm8 */
@@ -1618,7 +1617,7 @@ shrot0:
 		case 0x30: /* BTR imm8 */
 		case 0x38: /* BTC imm8 */
 			// OP{wl} $immed,(%%edi)
-			if (mode&DATA16) G1(OPERoverride,Cp);
+			Gen66(mode,Cp);
 			G3M(0x0f,0xba,(o1|0x07),Cp); Offs_From_Arg(Cp);
 			break;
 		}
@@ -1629,20 +1628,20 @@ shrot0:
 		if (mode & IMMED) {
 			unsigned char shc = (unsigned char)va_arg(ap,int)&0x1f;
 			// mov{wl} offs(%%ebx),%%{e}ax
-			if (mode&DATA16) G1(OPERoverride,Cp);
+			Gen66(mode,Cp);
 			G2M(0x8b,0x43,Cp); Offs_From_Arg(Cp);
 			// sh{lr}d $immed,%%{e}ax,(%%edi)
-			if (mode&DATA16) G1(OPERoverride,Cp);
+			Gen66(mode,Cp);
 			G4M(0x0f,(0xa4|l_r),0x07,shc,Cp);
 		}
 		else {
 			// mov{wl} offs(%%ebx),%%{e}ax
-			if (mode&DATA16) G1(OPERoverride,Cp);
+			Gen66(mode,Cp);
 			G2M(0x8b,0x43,Cp); Offs_From_Arg(Cp);
 			// movl Ofs_ECX(%%ebx),%%ecx
-			G2M(0x8b,0x4b,Cp); G1(Ofs_ECX,Cp);
+			G3M(0x8b,0x4b,Ofs_ECX,Cp);
 			// sh{lr}d %%cl,%%{e}ax,(%%edi)
-			if (mode&DATA16) G1(OPERoverride,Cp);
+			Gen66(mode,Cp);
 			G3M(0x0f,(0xa5|l_r),0x07,Cp);
 		}
 		}
@@ -1652,46 +1651,45 @@ shrot0:
 		long a = (long)&(TheCPU.EMUtime);
 		// movl TheCPU.EMUtime,%%eax
 		// movl %%eax,Ofs_EAX(%%ebx)
-		G1(0xa1,Cp); G4(a,Cp); G2M(0x89,0x43,Cp); G1(Ofs_EAX,Cp);
+		G1(0xa1,Cp); G4(a,Cp); G3M(0x89,0x43,Ofs_EAX,Cp);
 		// movl TheCPU.EMUtime+4,%%eax
 		// movl %%eax,Ofs_EDX(%%ebx)
-		G1(0xa1,Cp); G4(a+4,Cp); G2M(0x89,0x43,Cp); G1(Ofs_EDX,Cp);
+		G1(0xa1,Cp); G4(a+4,Cp); G3M(0x89,0x43,Ofs_EDX,Cp);
 		}
 		break;
 
-#ifdef CPUEMU_DIRECT_IO
 	case O_INPDX:
 		// movl Ofs_EDX(%%ebx),%%edx
-		G2(0x538b,Cp); G1(Ofs_EDX,Cp);
+		G3M(0x8b,0x53,Ofs_EDX,Cp);
 		if (mode&MBYTE) {
 			// inb (%%dx),%%al; movb %%al,Ofs_AL(%%ebx)
-			G3(0x4388ec,Cp); G1(Ofs_AL,Cp);
+			G4M(0xec,0x88,0x43,Ofs_AL,Cp);
 		}
 		else {
 			// in{wl} (%%dx),%%{e}ax
-			if (mode&DATA16) G1(OPERoverride,Cp);
+			Gen66(mode,Cp);
 			G1(0xed,Cp);
 			// mov{wl} %%{e}ax,Ofs_EAX(%%ebx)
-			if (mode&DATA16) G1(OPERoverride,Cp);
-			G2(0x4389,Cp); G1(Ofs_EAX,Cp);
+			Gen66(mode,Cp);
+			G3M(0x89,0x43,Ofs_EAX,Cp);
 		}
 		break;
 	case O_OUTPDX:
 		// movl Ofs_EDX(%%ebx),%%edx
-		G2(0x538b,Cp); G1(Ofs_EDX,Cp);
+		G3M(0x8b,0x53,Ofs_EDX,Cp);
 		if (mode&MBYTE) {
 			// movb Ofs_AL(%%ebx),%%al; outb %%al,(%%dx)
-			G2(0x438a,Cp); G1(Ofs_AL,Cp); G1(0xee,Cp);
+			G4M(0x8a,0x43,Ofs_AL,0xee,Cp);
 		}
 		else {
 			// movl Ofs_EAX(%%ebx),%%eax
-			G2(0x438b,Cp); G1(Ofs_EAX,Cp);
+			G3M(0x8b,0x43,Ofs_EAX,Cp);
 			// out{wl} %%{e}ax,(%%dx)
-			if (mode&DATA16) G1(OPERoverride,Cp);
+			Gen66(mode,Cp);
 			G1(0xef,Cp);
 		}
 		break;
-#endif
+
 	case JB_LOCAL: {	// cond, tgt_addr_in_buf, PC_here
 		unsigned char cond = (unsigned char)va_arg(ap,int);
 		/* target address */
@@ -1700,7 +1698,7 @@ shrot0:
 		// movl e_signal_pending,%%ecx
 		G2(0x0d8b,Cp); G4((long)&e_signal_pending,Cp);
 		// jecxz +8
-		G2(0x08e3,Cp);
+		G2M(0xe3,TAILSIZE,Cp);
 		/* standard termination code */
 		// pushfl; pop %%edx
 		// movl $arg,%%eax
@@ -1721,7 +1719,7 @@ shrot0:
 	case JCXZ_LOCAL: {	// tgt_addr_in_buf
 		long p = va_arg(ap,int);
 		// movl Ofs_ECX(%%ebx),%%ecx
-		G2(0x4b8b,Cp); G1(Ofs_ECX,Cp);
+		G3M(0x8b,0x4b,Ofs_ECX,Cp);
 		// j{e}cxz +2; jmp +5	(jmp around jmp)
 		if (mode&ADDR16) G1(ADDRoverride,Cp);
 		G4(0x05eb02e3,Cp);
@@ -1738,10 +1736,9 @@ shrot0:
 		// pushfl; dec{wl} Ofs_ECX(%%ebx); popfl
 		G1(0x9c,Cp);
 		if (mode&ADDR16) G1(OPERoverride,Cp);
-		G2(0x4bff,Cp); G1(Ofs_ECX,Cp);
-		G1(0x9d,Cp);
+		G4M(0xff,0x4b,Ofs_ECX,0x9d,Cp);
 		// movl Ofs_ECX(%%ebx),%%ecx
-		G2(0x4b8b,Cp); G1(Ofs_ECX,Cp);
+		G3M(0x8b,0x4b,Ofs_ECX,Cp);
 		// j{e}cxz +25 or +26
 		if (mode&ADDR16) G1(ADDRoverride,Cp);
 		if (cond) {G2(0x1ae3,Cp);} else {G2(0x19e3,Cp);}
@@ -1756,7 +1753,7 @@ shrot0:
 		/* oops.. restore (e)cx */
 		// inc{wl} Ofs_ECX(%%ebx)
 		if (mode&ADDR16) G1(OPERoverride,Cp); else G1(NOP,Cp);
-		G2(0x43ff,Cp); G1(Ofs_ECX,Cp);
+		G3M(0xff,0x43,Ofs_ECX,Cp);
 		// movl $arg,%%eax
 		// ret
 		G1(0xb8,Cp); G4(va_arg(ap,int),Cp); G1(0xc3,Cp);
@@ -1777,7 +1774,7 @@ shrot0:
 		unsigned char cond = (unsigned char)va_arg(ap,int);
 		int dsp = va_arg(ap,int);
 		// j_not_cc +8
-		G2M(0x70|(cond^1),8,Cp);	// reverse cond
+		G2M(0x70|(cond^1),TAILSIZE,Cp);	// reverse cond
 		/* standard termination code */
 		// pushfl; pop %%edx
 		// movl $arg,%%eax
@@ -1794,6 +1791,8 @@ shrot0:
 
 /////////////////////////////////////////////////////////////////////////////
 
+#define FWJ_OFFS	2		/* 2 = bytes before e9 jump */
+#define FWJ_FIX		(FWJ_OFFS+5)	/* 5 = size of jump: e9xxxxxxxx */
 
 static void AdjustFwRefs(unsigned char *PC)
 {
@@ -1810,8 +1809,8 @@ static void AdjustFwRefs(unsigned char *PC)
 		while (G->npc < F->jtgt) G++;
 		if (G->npc == F->jtgt) {
 		    // translated code begins with 7x 08
-		    int dp = G->addr - F->addr - 7;
-		    char *p = F->addr + 2;
+		    int dp = G->addr - F->addr - FWJ_FIX;
+		    char *p = F->addr + FWJ_OFFS;
 		    e_printf("Fwj: %03d %08lx %08lx: e9 %08x\n",n,
 			(long)F->addr,(long)G->addr,dp);
 		    // replace tail code with a jump
@@ -1867,7 +1866,6 @@ unsigned char *CloseAndExec(unsigned char *PC, int mode)
 	static hitimer_u t0,t1;
 	static unsigned char *ePC;
 	static unsigned short seqflg, fpuc, ofpuc;
-	extern int PrevMp;
 	unsigned char *SeqStart;
 	TNode *G = NULL;
 	int ifl;
@@ -1876,8 +1874,7 @@ unsigned char *CloseAndExec(unsigned char *PC, int mode)
 		/* sorry for the reuse of parameter PC this way */
 		G = (TNode *)PC;
 		PC = G->addr;
-		InstrMeta[0].cklen = G->cklen;
-		InstrMeta[0].npc = G->npc;
+		CurrXNode = G;
 		SeqStart = PC;
 		seqflg = mode >> 16;
 	}
@@ -1890,11 +1887,12 @@ unsigned char *CloseAndExec(unsigned char *PC, int mode)
 		if (d.emu>3) e_printf("Seq len %d\n",InstrMeta[0].cklen);
 
 		/* copy tail instructions to the end of the code block */
-		memcpy(p, TailCode, sizeof(TailCode));
-		*((long	*)(p+3)) = (long)PC;
+		memcpy(p, TailCode, TAILSIZE);
+		*((long	*)(p+TAILFIX)) = (long)PC;
 
 		SeqStart = CodeBuf;
 		seqflg = InstrMeta[0].flags;
+		CurrXNode = NULL;
 		if (d.emu>2) {
 			e_printf("============ Closing sequence at %08lx\n** Adding tail code at %08lx\n",
 				(long)PC,(long)p);
@@ -1921,11 +1919,8 @@ unsigned char *CloseAndExec(unsigned char *PC, int mode)
 		 * (i.e. before it is moved into the tree), so we can
 		 * invalidate it too */
 		mp = ((long)InstrMeta[0].npc)&~(PAGE_SIZE-1);
-		if ((mp != PrevMp) && (mp > JumpOptLim)) {
-			e_printf("Mprotect %08lx\n",mp);
-			if (mprotect((void *)mp,PAGE_SIZE,PROT_READ))
-				perror("mprotect");
-			PrevMp = mp;
+		if (mp > JumpOptLim) {
+			e_mprotect((void *)mp, 0);
 		}
 	}
 	else {
@@ -1961,14 +1956,24 @@ unsigned char *CloseAndExec(unsigned char *PC, int mode)
 	/* This is for exception processing */
 	InCompiledCode = mode | MCEXEC;	/* to make it != 0 */
 
+	/* stack frame for compiled code:
+	 * esp+00	return address
+	 *     04	esi
+	 *     08	edi
+	 *     0c	ebx
+	 *     10	ebp
+	 *     14	flags
+	 *     18...	locals of CloseAndExec
+	 */
 	__asm__	__volatile__ ("
 		pushfl\n
 		pushl	%%ebp\n		/* looks like saving these four */
 		pushl	%%ebx\n		/* registers is enough; if not, */
+		movl	%7,%%ebx\n	/* address of TheCPU (+0x80 !)  */
+		prefetcht0 (%%ebx)\n
 		pushl	%%edi\n		/* you'll discover soon         */
 		pushl	%%esi\n
 		rdtsc\n
-		movl	%7,%%ebx\n	/* address of TheCPU (+0x80 !)  */
 		movl	%%eax,%0\n	/* save time before execution   */
 		movl	%%edx,%1\n
 		pushw	%8\n		/* push and get TheCPU flags    */
@@ -1978,6 +1983,8 @@ unsigned char *CloseAndExec(unsigned char *PC, int mode)
 		movl	%%eax,%3\n	/* save PC at block exit        */
 		rdtsc\n
 		movl	%%edi,%6\n	/* save last calculated address */
+		subl	%0,%%eax\n	/* adjust total execution time  */
+		sbbl	%1,%%edx\n
 		movl	%%eax,%4\n	/* save time after execution    */
 		movl	%%edx,%5\n
 		popl	%%esi\n		/* restore regs                 */
@@ -1989,6 +1996,7 @@ unsigned char *CloseAndExec(unsigned char *PC, int mode)
 		: "m"(ecpu),"2"(flg),"c"(SeqStart)
 		: "%eax","%edx","memory" );
 	InCompiledCode = 0;
+	CurrXNode = NULL;
 
 	EFLAGS = (flg &	0xcff) | ifl;
 	TheCPU.mem_ref = mem_ref;
@@ -2009,8 +2017,7 @@ unsigned char *CloseAndExec(unsigned char *PC, int mode)
 		}
 	}
 
-	/* adjust total execution time */
-	t1.td -= t0.td;
+	
 	TheCPU.EMUtime += t1.td;
 	ExecTime += t1.td;
 	e_signal_pending = 0;
@@ -2026,6 +2033,7 @@ unsigned char *CloseAndExec(unsigned char *PC, int mode)
 	}
 	if (!(mode & XECFND)) {
 		G = Move2ITree();	/* G!=NULL if inserted */
+	    /* InstrMeta will be zeroed at this point */
 	    if ((d.emu>2) && (ePC != PC)) {
 		e_printf("## Return %08lx instead of %08lx\n",(long)ePC,
 			(long)PC);
@@ -2039,7 +2047,6 @@ unsigned char *CloseAndExec(unsigned char *PC, int mode)
 	     */
 	    if (LastXNode) {
 		LastXNode->nxnode = G;
-		LastXNode->nxkey = G->key;
 		if (d.emu>2) e_printf("LastXNode=%08lx nxnode=%08lx nxkey=%08lx\n",
 			(long)LastXNode,(long)G,G->key);
 	    }

@@ -2066,7 +2066,7 @@ void run_dpmi(void)
    * be in here.
    */
 
-  if (int_queue_running || in_dpmi_dos_int) {
+  if (in_dpmi_dos_int) {
 
    csp = SEG_ADR((unsigned char *), cs, ip);
 
@@ -2487,9 +2487,6 @@ void dpmi_init()
     serial_run();
     if (config.sb_irq) dma_run();
     run_irqs();
-#ifdef USE_INT_QUEUE
-    int_queue_run();
-#endif
 #ifdef USE_SBEMU
     run_sb(); /* Suggested Karcher */
 #endif
@@ -3277,7 +3274,7 @@ if ((_ss & 4) == 4) {
       do_cpu_exception(scp);
 #endif
 
-  if (in_dpmi_dos_int || int_queue_running || ((dpmi_eflags&(VIP|IF))==(VIP|IF)) ) {
+  if (in_dpmi_dos_int || ((dpmi_eflags&(VIP|IF))==(VIP|IF)) ) {
     dpmi_eflags &= ~VIP;
     Return_to_dosemu_code(scp,0);
   }

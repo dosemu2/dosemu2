@@ -2851,6 +2851,7 @@ dos_fs_redirect(state)
       int itisnow;
 #ifdef X86_EMULATOR
       extern void InvalidateTreePaged(char *, int);
+      extern int e_munprotect(char *, size_t);
 #endif
 
       cnt = WORD(state->ecx);
@@ -2869,8 +2870,7 @@ dos_fs_redirect(state)
       if (config.cpuemu>1) {
 	long dtb = (long)dta & ~(PAGE_SIZE-1);
 	long dtl = (long)dta - dtb + cnt;
-	if (mprotect((void *)dtb, dtl, PROT_READ|PROT_WRITE))
-		perror("mprotect");
+	e_munprotect((void *)dtb, dtl);
 	InvalidateTreePaged((unsigned char *)dta, dtl);
       }
 #endif

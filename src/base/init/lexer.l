@@ -532,6 +532,7 @@ hitachi			RETURN(HITACHI);
 mousesystems		RETURN(MOUSESYSTEMS);
 busmouse		RETURN(BUSMOUSE);
 ps2			RETURN(PS2);
+imps2			RETURN(IMPS2);
 internaldriver		RETURN(INTERNALDRIVER);
 emulate3buttons		RETURN(EMULATE3BUTTONS);
 cleardtr		RETURN(CLEARDTR);

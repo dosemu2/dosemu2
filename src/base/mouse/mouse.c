@@ -1749,7 +1749,8 @@ dosemu_mouse_init(void)
       DOSEMUSetupMouse();
       memcpy(p,mouse_ver,sizeof(mouse_ver));
     }
-    else if ((mice->type == MOUSE_PS2) || (mice->type == MOUSE_BUSMOUSE)) {
+    else if ((mice->type == MOUSE_PS2) || (mice->type == MOUSE_IMPS2) ||
+	     (mice->type == MOUSE_BUSMOUSE)) {
       enter_priv_on();
       mice->fd = open(mice->dev, O_RDWR | O_NONBLOCK);
       leave_priv_setting();
@@ -1815,8 +1816,8 @@ dosemu_mouse_close(void)
     return;
   }
 
-  if (((mice->type == MOUSE_PS2) || (mice->type == MOUSE_BUSMOUSE))
-	&& (mice->fd != -1))
+  if (((mice->type == MOUSE_PS2) || (mice->type == MOUSE_IMPS2) ||
+       (mice->type == MOUSE_BUSMOUSE)) && (mice->fd != -1))
     close(mice->fd);
 }
 

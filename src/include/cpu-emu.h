@@ -44,13 +44,11 @@ extern void e_priv_iopl(int);
 #define SKIP_VM86_TRACE
 #endif
 
-/* another tradeoff. If you set this to 1 some I/O instructions will be
- * compiled in, otherwise all I/O will be interpreted. The benefits of
- * using direct I/O are longer code sequences and very fast access to
- * the untrapped ports, mainly in console graphics; the drawbacks are
- * lots of faults. Besides, this makes no sense under X where all video
- * I/O is emulated. As most users insist in using dosemu under X, I will
- * let this undefined -- AV
+/* If you set this to 1, some I/O instructions will be compiled in,
+ * otherwise all I/O will be interpreted.
+ * Because of fault overhead, only instructions which access an
+ * untrapped port will be allowed to compile. This is not 100% safe
+ * since DX can dynamically change.
  */
 #if 0
 #define CPUEMU_DIRECT_IO

@@ -37,7 +37,6 @@
 
 #include <unistd.h>
 #include <stdio.h>
-#include <sys/mman.h>
 #include "config.h"
 #include <setjmp.h>
 #include "emu.h"
@@ -641,6 +640,12 @@ char *e_print_scp_regs(struct sigcontext_struct *scp, int pmode);
 char *e_trace_fp(void);
 //
 void e_emu_fault(int, struct sigcontext_struct);
+//
+int e_mprotect(caddr_t addr, size_t len);
+int e_munprotect(caddr_t addr, size_t len);
+int e_querymprot(caddr_t addr);
+void mprot_init(void);
+void mprot_end(void);
 //
 /////////////////////////////////////////////////////////////////////////////
 

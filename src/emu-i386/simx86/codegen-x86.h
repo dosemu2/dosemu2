@@ -61,6 +61,34 @@ return (to);
 }
 #endif
 
+/* ok, this is maybe not the standard way to do a checksum... but
+ * it doesn't matter as long as it is used consistently.
+ */
+static inline unsigned char __fchk(const void *src, size_t n)
+{
+int d0, d1;
+__asm__ __volatile__("
+	xorl	%1,%1\n
+	jecxz	2f\n
+1:	addl	(%4),%1\n
+	addl	$4,%4\n		/* first add 4-byte blocks to eax */
+	loop	1b\n
+2:	testb	$2,%b3\n
+	je	3f\n
+	addw	(%4),%w1\n	/* add a 2-byte block to ax */
+	addl	$2,%4\n
+3:	testb	$1,%b3\n
+	je	4f\n
+	addb	(%4),%b1\n	/* add last byte to al */
+4:	shld	$16,%1,%0\n	/* add bits 16-31 into 0-15 */
+	addl	%0,%1\n
+	addb	%h1,%b1"	/* add bits 8-15 into 0-7 */
+	: "=&c" (d0), "=&a" (d1)
+	: "0" (n/4), "q" (n), "r" (src)
+	: "memory");
+return (unsigned char)d1;
+}
+
 /////////////////////////////////////////////////////////////////////////////
 
 extern unsigned e_VgaRead(unsigned offs, int mode);
@@ -125,6 +153,12 @@ _cf_0e:	if (TrapVgaOn) {
 #define TRAPVGAW(c)
 #endif
 
+/////////////////////////////////////////////////////////////////////////////
+
+#define GenAddECX(o)	if (((o) > -128) && ((o) < 128)) {\
+			G2(0xc183,Cp); G1((o),Cp); } else {\
+			G2(0xc181,Cp); G4((o),Cp); }
+
 #define GenLeaECX(o)	if (((o) > -128) && ((o) < 128)) {\
 			G2(0x498d,Cp); G1((o),Cp); } else {\
 			G2(0x898d,Cp); G4((o),Cp); }
@@ -136,9 +170,37 @@ _cf_0e:	if (TrapVgaOn) {
 #define StackMaskEBP	{G3(0x6b239c,Cp); G1(Ofs_STACKM,Cp); G1(0x9d,Cp);}
 
 /////////////////////////////////////////////////////////////////////////////
+
+// returns 1(16 bit), 0(32 bit)
+#define BTA(bpos, mode) ({ register int temp; \
+	__asm__ ("bt	%1,%2\n \
+		rcrl	$1,%0\n \
+		shrl	$31,%0" \
+		: "=&r"(temp) \
+		: "i"(bpos), "g"(mode) ); temp; })
+
+// returns 2(16 bit), 4(32 bit)	
+#define BT24(bpos, mode) ({ register int temp; \
+	__asm__ ("movb	$4,%b0\n \
+		bt	%1,%2\n \
+		sbbb	$0,%b0\n \
+		andl	$6,%0" \
+		: "=&q"(temp) \
+		: "i"(bpos), "g"(mode) ); temp; })
+	
+/////////////////////////////////////////////////////////////////////////////
 //
 // Most-used code generator sequences implemented as macros
 //
+
+// 'no-jump' version, straight
+#define Gen66(mode, Cp) \
+	*(Cp)=OPERoverride; Cp+=BTA(BitDATA16, mode)
+
+// 'no-jump' version, tricky (depends on bit position)
+#define G2_4(mode, val, Cp) \
+	*((long *)(Cp))=(val); Cp+=BT24(BitDATA16, mode)
+
 
 // movb offs(%%ebx),%%al	read working reg al from CPU struct
 #define GenL_REG_byte(mode, ofs) \
@@ -160,7 +222,7 @@ _cf_0e:	if (TrapVgaOn) {
 #define GenL_REG_wl(mode, ofs) \
 ({ \
 	register unsigned char *Cp = CodePtr; \
-	if ((mode) & DATA16) G1(OPERoverride,Cp); \
+	Gen66(mode,Cp); \
 	G2(0x438b,Cp); G1(ofs,Cp); \
 	CodePtr = Cp; \
 })
@@ -169,7 +231,7 @@ _cf_0e:	if (TrapVgaOn) {
 #define GenS_REG_wl(mode, ofs) \
 ({ \
 	register unsigned char *Cp = CodePtr; \
-	if ((mode) & DATA16) G1(OPERoverride,Cp); \
+	Gen66(mode,Cp); \
 	G2(0x4389,Cp); G1(ofs,Cp); \
 	CodePtr = Cp; \
 })
@@ -188,7 +250,7 @@ _cf_0e:	if (TrapVgaOn) {
 ({ \
 	register unsigned char *Cp = CodePtr; \
 	TRAPVGAR(Cp,(mode)); \
-	if ((mode) & DATA16) G1(OPERoverride,Cp); \
+	Gen66(mode,Cp); \
 	G2(0x078b,Cp); \
 	CodePtr = Cp; \
 })
@@ -207,7 +269,7 @@ _cf_0e:	if (TrapVgaOn) {
 ({ \
 	register unsigned char *Cp = CodePtr; \
 	TRAPVGAW(Cp,(mode)); \
-	if ((mode) & DATA16) G1(OPERoverride,Cp); \
+	Gen66(mode,Cp); \
 	G2(0x0789,Cp); \
 	CodePtr = Cp; \
 })
@@ -224,8 +286,7 @@ _cf_0e:	if (TrapVgaOn) {
 #define GenS_DI_wl_imm(mode, val) \
 ({ \
 	register unsigned char *Cp = CodePtr; \
-	if ((mode) & DATA16) { G1(OPERoverride,Cp); G2(0x07c7,Cp); G2(val,Cp); } \
-	else { G2(0x07c7,Cp); G4(val,Cp); } \
+	Gen66(mode,Cp); G2(0x07c7,Cp); G2_4(mode,val,Cp); \
 	CodePtr = Cp; \
 })
 
@@ -237,9 +298,9 @@ _cf_0e:	if (TrapVgaOn) {
 		G2(0x438a,Cp); G1((rs),Cp); \
 		G2(0x4388,Cp); G1((rd),Cp); \
 	} else { \
-		if ((mode) & DATA16) G1(OPERoverride,Cp); \
+		Gen66(mode,Cp); \
 		G2(0x438b,Cp); G1((rs),Cp); \
-		if ((mode) & DATA16) G1(OPERoverride,Cp); \
+		Gen66(mode,Cp); \
 		G2(0x4389,Cp); G1((rd),Cp); \
 	} CodePtr = Cp; \
 })

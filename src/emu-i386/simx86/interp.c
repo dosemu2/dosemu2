@@ -49,23 +49,14 @@ static int ArOpsM[] =
 	{      -1,     -1,      -1, O_SBB_M,      -1, O_SUB_M,      -1, O_CMP_M };
 static char R1Tab_b[8] =
 	{ Ofs_AL, Ofs_CL, Ofs_DL, Ofs_BL, Ofs_AH, Ofs_CH, Ofs_DH, Ofs_BH };
-static char R1Tab_l[8] =
-	{ Ofs_EAX, Ofs_ECX, Ofs_EDX, Ofs_EBX, Ofs_ESP, Ofs_EBP, Ofs_ESI, Ofs_EDI };
+static char R1Tab_l[14] =
+	{ Ofs_EAX, Ofs_ECX, Ofs_EDX, Ofs_EBX, Ofs_ESP, Ofs_EBP, Ofs_ESI, Ofs_EDI,
+	  Ofs_ES,  Ofs_CS,  Ofs_SS,  Ofs_DS,  Ofs_FS,  Ofs_GS };
 
 #define SEL_B_X(r)		R1Tab_b[(r)]
 
-#if defined(i386)||defined(__i386)||defined(__i386__)
-/* on LE machines the offsets for low byte,low word and full reg are the same */
-#define SEL_WL(m,o)	(o)
-#define SEL_WL_X(m,r)	R1Tab_l[(r)]
-#endif
-#if defined(ppc)||defined(__ppc)||defined(__ppc__)
-#define SEL_WL(m,o)	((m)&DATA16? (o)+2:(o))
-#define SEL_WL_X(m,r)	((m)&DATA16? R1Tab_w[(r)]:R1Tab_l[(r)])
-#endif
-
-#define INC_WL_PCA(m,i)	PC=(PC+(i)+((m)&ADDR16? sizeof(short):sizeof(long)))
-#define INC_WL_PC(m,i)	PC=(PC+(i)+((m)&DATA16? sizeof(short):sizeof(long)))
+#define INC_WL_PCA(m,i)	PC=(PC+(i)+BT24(BitADDR16, m))
+#define INC_WL_PC(m,i)	PC=(PC+(i)+BT24(BitDATA16, m))
 
 static __inline__ unsigned long GetCPU_WL(int m, char o)
 {
@@ -201,7 +192,7 @@ unsigned char *JumpGen(unsigned char *P2, int *mode, int cond,
 		hp = (long)P2 - LONG_CS + dsp;
 		if (*mode&ADDR16) hp &= 0xffff;
 		hp += LONG_CS;
-		e_printf("Forward jump to %08x\n",(int)hp);
+		if (d.emu>2) e_printf("Forward jump to %08x\n",(int)hp);
 		locJtgt = (unsigned char *)hp;
 		Gen(JF_LOCAL, *mode, cond, hp);
 		*mode |= M_FJMP;
@@ -364,7 +355,7 @@ unsigned char *Interp86(unsigned char *PC, int mod0)
 // ------ temp ------- debug ------------------------
 		if ((PC==NULL)||(*((long *)PC)==0)) {
 			d.emu=9;
-			dbug_printf("%s\nFetch %08lx at %08lx mode %x\n",
+			dbug_printf("\n%s\nFetch %08lx at %08lx mode %x\n",
 				e_print_regs(),*((long *)PC),(long)PC,mode);
 			TheCPU.err = -99; return PC;
 		}
@@ -481,9 +472,9 @@ override:
 			int op = (opc==TESTwi? O_AND_R:ArOpsR[D_MO(opc)]);
 			Gen(L_IMM_R1, mode|IMMED, DataFetchWL_U(mode,PC+1));
 			INC_WL_PC(mode,1);
-			Gen(op, mode, SEL_WL(mode, Ofs_EAX));
+			Gen(op, mode, Ofs_EAX);
 			if (opc != TESTwi)
-				GenS_REG_wl(mode, SEL_WL(mode,Ofs_EAX));
+				GenS_REG_wl(mode, Ofs_EAX);
 			}
 			break; 
 /*1d*/	case SBBwi:
@@ -491,11 +482,11 @@ override:
 /*3d*/	case CMPwi: {
 			int m = mode;
 			int op = ArOpsM[D_MO(opc)];
-			GenL_REG_wl(m, SEL_WL(mode,Ofs_EAX));	// mov (e)ax,[ebx+reg]
+			GenL_REG_wl(m, Ofs_EAX);	// mov (e)ax,[ebx+reg]
 			Gen(op, m|IMMED, DataFetchWL_U(mode,PC+1));	// op (e)ax,#imm
 			INC_WL_PC(mode,1);
 			if (opc != CMPwi)
-				GenS_REG_wl(m, SEL_WL(mode,Ofs_EAX));	// mov [ebx+reg],(e)ax
+				GenS_REG_wl(m, Ofs_EAX);	// mov [ebx+reg],(e)ax
 			}
 			break; 
 /*69*/	case IMULwrm:
@@ -659,7 +650,7 @@ override:
 /*45*/	case INCbp:
 /*46*/	case INCsi:
 /*47*/	case INCdi:
-			Gen(O_INC_R, mode, SEL_WL_X(mode,D_LO(opc))); PC++; break;
+			Gen(O_INC_R, mode, R1Tab_l[D_LO(opc)]); PC++; break;
 /*48*/	case DECax:
 /*49*/	case DECcx:
 /*4a*/	case DECdx:
@@ -668,16 +659,12 @@ override:
 /*4d*/	case DECbp:
 /*4e*/	case DECsi:
 /*4f*/	case DECdi:
-			Gen(O_DEC_R, mode, SEL_WL_X(mode,D_LO(opc))); PC++; break;
+			Gen(O_DEC_R, mode, R1Tab_l[D_LO(opc)]); PC++; break;
 
-/*06*/	case PUSHes:
-			Gen(O_PUSH, mode, Ofs_ES); PC+=1; break;
-/*0e*/	case PUSHcs:
-			Gen(O_PUSH, mode, Ofs_CS); PC+=1; break;
-/*16*/	case PUSHss:
-			Gen(O_PUSH, mode, Ofs_SS); PC+=1; break;
-/*1e*/	case PUSHds:
-			Gen(O_PUSH, mode, Ofs_DS); PC+=1; break;
+/*06*/	case PUSHes:	opc =  8; goto pushcomm;
+/*0e*/	case PUSHcs:	opc =  9; goto pushcomm;
+/*16*/	case PUSHss:	opc = 10; goto pushcomm;
+/*1e*/	case PUSHds:	opc = 11; goto pushcomm;
 /*50*/	case PUSHax:
 /*51*/	case PUSHcx:
 /*52*/	case PUSHdx:
@@ -685,20 +672,25 @@ override:
 /*54*/	case PUSHsp:
 /*55*/	case PUSHbp:
 /*56*/	case PUSHsi:
-/*57*/	case PUSHdi: {
+/*57*/	case PUSHdi:	opc &= 7;
+pushcomm:
 #if defined(OPTIMIZE_COMMON_SEQ) && !defined(SINGLESTEP)
-			int m = mode;
+			{ int m = mode;
 			Gen(O_PUSH1, m);
 			do {
-				Gen(O_PUSH2, m, SEL_WL_X(m,D_LO(Fetch(PC))));
+				Gen(O_PUSH2, m, R1Tab_l[opc]);
 				m = UNPREFIX(m);
 				PC++;
-			} while ((Fetch(PC)&0xf8)==0x50);
-			Gen(O_PUSH3, m);
+				opc = Fetch(PC);
+				if ((opc&0xf8)==0x50) opc &= 7;
+				 else if ((opc&0xe7)==0x06) opc=((opc>>3)&3)+8;
+				  else opc=0xff;
+			} while (opc<12);
+			Gen(O_PUSH3, m); }
 #else
-			Gen(O_PUSH, mode, SEL_WL_X(mode,D_LO(opc))); PC++;
+			Gen(O_PUSH, mode, R1Tab_l[opc]); PC++;
 #endif
-			} break;
+			break;
 /*68*/	case PUSHwi:
 			Gen(O_PUSHI, mode, DataFetchWL_U(mode,(PC+1))); 
 			INC_WL_PC(mode,1);
@@ -722,13 +714,13 @@ override:
 			int m = mode;
 			Gen(O_POP1, m);
 			do {
-				Gen(O_POP2, m, SEL_WL_X(m,D_LO(Fetch(PC))));
+				Gen(O_POP2, m, R1Tab_l[D_LO(Fetch(PC))]);
 				m = UNPREFIX(m);
 				PC++;
 			} while ((Fetch(PC)&0xf8)==0x58);
 			if (opc!=POPsp) Gen(O_POP3, m);
 #else
-			Gen(O_POP, mode, SEL_WL_X(mode,D_LO(opc))); PC++;
+			Gen(O_POP, mode, R1Tab_l[D_LO(opc)]); PC++;
 #endif
 			} break;
 /*8f*/	case POPrm:
@@ -886,7 +878,7 @@ override:
 			    CODE_FLUSH();
 			    PC += ModRMSim(PC, mode);
 			    rv = DataGetWL_U(mode,TheCPU.mem_ref);
-			    TheCPU.mem_ref += (mode&DATA16? 2:4);
+			    TheCPU.mem_ref += BT24(BitDATA16, mode);
 			    sv = GetDWord(TheCPU.mem_ref);
 			    TheCPU.err = SET_SEGREG(tseg, big, Ofs_ES, sv);
 			    if (TheCPU.err) return P0;
@@ -909,7 +901,7 @@ override:
 			    CODE_FLUSH();
 			    PC += ModRMSim(PC, mode);
 			    rv = DataGetWL_U(mode,TheCPU.mem_ref);
-			    TheCPU.mem_ref += (mode&DATA16? 2:4);
+			    TheCPU.mem_ref += BT24(BitDATA16, mode);
 			    sv = GetDWord(TheCPU.mem_ref);
 			    TheCPU.err = SET_SEGREG(tseg, big, Ofs_DS, sv);
 			    if (TheCPU.err) return P0;
@@ -961,7 +953,7 @@ override:
 /*95*/	case XCHGbp:
 /*96*/	case XCHGsi:
 /*97*/	case XCHGdi:
-			Gen(O_XCHG_R, mode, SEL_WL(mode,Ofs_EAX), SEL_WL_X(mode,D_LO(opc))); 
+			Gen(O_XCHG_R, mode, Ofs_EAX, R1Tab_l[D_LO(opc)]); 
 			PC++; break;
 
 /*a0*/	case MOVmal:
@@ -973,7 +965,7 @@ override:
 /*a1*/	case MOVmax:
 			AddrGen(A_DI_0, mode|IMMED, OVERR_DS, AddrFetchWL_U(mode,PC+1));
 			GenL_DI_R1_wl(mode);
-			GenS_REG_wl(mode, SEL_WL(mode,Ofs_EAX));
+			GenS_REG_wl(mode, Ofs_EAX);
 			INC_WL_PCA(mode,1);
 			break;
 /*a2*/	case MOValm:
@@ -984,7 +976,7 @@ override:
 			break;
 /*a3*/	case MOVaxm:
 			AddrGen(A_DI_0, mode|IMMED, OVERR_DS, AddrFetchWL_U(mode,PC+1));
-			GenL_REG_wl(mode, SEL_WL(mode,Ofs_EAX));
+			GenL_REG_wl(mode, Ofs_EAX);
 			GenS_DI_wl(mode);
 			INC_WL_PCA(mode,1);
 			break;
@@ -1031,7 +1023,7 @@ override:
 			PC++; } break;
 /*ab*/	case STOSw: {	int m = mode|MOVSDST;
 			Gen(O_MOVS_SetA, m);
-			GenL_REG_wl(m, SEL_WL(m,Ofs_EAX));
+			GenL_REG_wl(m, Ofs_EAX);
 #if defined(OPTIMIZE_COMMON_SEQ) && !defined(SINGLESTEP)
 			do {
 				Gen(O_MOVS_StoD, m);
@@ -1061,7 +1053,7 @@ override:
 /*ad*/	case LODSw: {	int m = mode|MOVSSRC;
 			Gen(O_MOVS_SetA, m);
 			Gen(O_MOVS_LodD, m);
-			GenS_REG_wl(m, SEL_WL(m,Ofs_EAX)); PC++;
+			GenS_REG_wl(m, Ofs_EAX); PC++;
 #if defined(OPTIMIZE_COMMON_SEQ) && !defined(SINGLESTEP)
 			/* optimize common sequence LODSw-STOSw */
 			if (Fetch(PC) == STOSw) {
@@ -1081,7 +1073,7 @@ override:
 			PC++; } break;
 /*af*/	case SCASw: {	int m = mode|MOVSDST;
 			Gen(O_MOVS_SetA, m);
-			GenL_REG_wl(m, SEL_WL(m,Ofs_EAX));
+			GenL_REG_wl(m, Ofs_EAX);
 			Gen(O_MOVS_ScaD, m);
 			Gen(O_MOVS_SavA, m);
 			PC++; } break;
@@ -1104,7 +1096,7 @@ override:
 /*bd*/	case MOVibp:
 /*be*/	case MOVisi:
 /*bf*/	case MOVidi:
-			Gen(L_IMM, mode, SEL_WL_X(mode,D_LO(opc)), DataFetchWL_U(mode,PC+1));
+			Gen(L_IMM, mode, R1Tab_l[D_LO(opc)], DataFetchWL_U(mode,PC+1));
 			INC_WL_PC(mode, 1); break;
 
 /*d0*/	case SHIFTb:
@@ -1278,7 +1270,7 @@ override:
 			int level, ds;
 			CODE_FLUSH();
 			level = Fetch(PC+3) & 0x1f;
-			ds = (mode&DATA16? 2:4);
+			ds = BT24(BitDATA16, mode);
 			sp = LONG_SS + ((rESP - ds) & TheCPU.StackMask);
 			bp = LONG_SS + (rEBP & TheCPU.StackMask);
 			PUSH(mode, &rEBP);
@@ -1474,7 +1466,7 @@ repag0:
 				case STOSw:
 					repmod |= MOVSDST;
 					Gen(O_MOVS_SetA, repmod);
-					GenL_REG_wl(repmod, SEL_WL(repmod,Ofs_EAX));
+					GenL_REG_wl(repmod, Ofs_EAX);
 					Gen(O_MOVS_StoD, repmod);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
@@ -1488,7 +1480,7 @@ repag0:
 				case SCASw:
 					repmod |= MOVSDST;
 					Gen(O_MOVS_SetA, repmod);
-					GenL_REG_wl(repmod, SEL_WL(repmod,Ofs_EAX));
+					GenL_REG_wl(repmod, Ofs_EAX);
 					Gen(O_MOVS_ScaD, repmod);
 					Gen(O_MOVS_SavA, repmod);
 					PC++; break;
@@ -1709,7 +1701,7 @@ repag0:
 					TheCPU.eip = (long)PC - LONG_CS;
 					/* get new cs:ip */
 					jip = DataGetWL_U(mode, TheCPU.mem_ref);
-					jcs = GetDWord(TheCPU.mem_ref+(mode&DATA16? 2:4));
+					jcs = GetDWord(TheCPU.mem_ref+BT24(BitDATA16,mode));
 					/* check if new cs is valid, save old for error */
 					ocs = TheCPU.cs;
 					xcs = LONG_CS;
@@ -1764,13 +1756,8 @@ repag0:
 			if (EFLAGS & EFLAGS_DF) rd--; else rd++;
 			if (mode&ADDR16) rDI=rd; else rEDI=rd;
 			PC++; } break;
-/*ec*/	case INvb:
-#ifdef CPUEMU_DIRECT_IO
-			if (!config.X)
-				Gen(O_INPDX, mode|MBYTE);
-			else
-#endif
-			{ unsigned short a;
+/*ec*/	case INvb: {
+			unsigned short a;
 			CODE_FLUSH();
 			a = rDX;
 #ifdef X_SUPPORT
@@ -1793,8 +1780,15 @@ repag0:
 			  }
 			}
 #endif
-			if (test_ioperm(a)) rAL = port_real_inb(a);
-				else rAL = port_inb(a);
+			if (test_ioperm(a)) {
+#ifdef CPUEMU_DIRECT_IO
+				Gen(O_INPDX, mode|MBYTE); NewNode=1;
+#else
+				rAL = port_real_inb(a);
+#endif
+			}
+			else
+				rAL = port_inb(a);
 end0xec:
 			} PC++; break;
 /*e4*/	case INb: {
@@ -1823,13 +1817,8 @@ end0xec:
 			if (EFLAGS & EFLAGS_DF) rd-=dp; else rd+=dp;
 			if (mode&ADDR16) rDI=rd; else rEDI=rd;
 			PC++; } break;
-/*ed*/	case INvw:
-#ifdef CPUEMU_DIRECT_IO
-			if (!config.X)
-				Gen(O_INPDX, mode);
-			else
-#endif
-			{ CODE_FLUSH();
+/*ed*/	case INvw: {
+			CODE_FLUSH();
 			if (mode&DATA16) rAX = port_inw(rDX);
 			else rEAX = port_ind(rDX);
 			} PC++; break;
@@ -1858,13 +1847,8 @@ end0xec:
 			} while (Fetch(PC)==OUTSb);
 			if (mode&ADDR16) rSI=rs; else rESI=rs;
 			} break;
-/*ee*/	case OUTvb:
-#ifdef CPUEMU_DIRECT_IO
-			if (!config.X)
-				Gen(O_OUTPDX, mode|MBYTE);
-			else
-#endif
-			{ unsigned short a;
+/*ee*/	case OUTvb: {
+			unsigned short a;
 			CODE_FLUSH();
 			a = rDX;
 #ifdef X_SUPPORT
@@ -1885,8 +1869,15 @@ end0xec:
 			  }
 			}
 #endif
-			if (test_ioperm(a)) port_real_outb(a,rAL);
-				else port_outb(a,rAL);
+			if (test_ioperm(a)) {
+#ifdef CPUEMU_DIRECT_IO
+				Gen(O_OUTPDX, mode|MBYTE); NewNode=1;
+#else
+				port_real_outb(a,rAL);
+#endif
+			}
+			else
+				port_outb(a,rAL);
 end0xee:
 			} PC++; break;
 /*e6*/	case OUTb:  {
@@ -1901,13 +1892,8 @@ end0xee:
 /*6f*/	case OUTSw:
 			CODE_FLUSH();
 			goto not_implemented;
-/*ef*/	case OUTvw:
-#ifdef CPUEMU_DIRECT_IO
-			if (!config.X)
-				Gen(O_OUTPDX, mode);
-			else
-#endif
-			{ unsigned short a;
+/*ef*/	case OUTvw: {
+			unsigned short a;
 			CODE_FLUSH();
 			a = rDX;
 #ifdef X_SUPPORT
@@ -1924,7 +1910,11 @@ end0xee:
 			}
 #endif
 			if (test_ioperm(a)) {
+#ifdef CPUEMU_DIRECT_IO
+			    Gen(O_OUTPDX, mode); NewNode=1;
+#else
 			    if (mode&DATA16) port_real_outw(a,rAX); else port_real_outd(a,rEAX);
+#endif
 			}
 			else {
 			    if (mode&DATA16) port_outw(a,rAX); else port_outd(a,rEAX);
@@ -2321,7 +2311,7 @@ end0xef:
 				    CEmuStat |= CeS_LOCK;
 				    PC++; PC += ModRMSim(PC, mode);
 				    rv = DataGetWL_U(mode,TheCPU.mem_ref);
-				    TheCPU.mem_ref += (mode&DATA16? 2:4);
+				    TheCPU.mem_ref += BT24(BitDATA16,mode);
 				    sv = GetDWord(TheCPU.mem_ref);
 				    TheCPU.err = SET_SEGREG(tseg, big, Ofs_SS, sv);
 				    if (TheCPU.err) return P0;
@@ -2345,7 +2335,7 @@ end0xef:
 				    CODE_FLUSH();
 				    PC++; PC += ModRMSim(PC, mode);
 				    rv = DataGetWL_U(mode,TheCPU.mem_ref);
-				    TheCPU.mem_ref += (mode&DATA16? 2:4);
+				    TheCPU.mem_ref += BT24(BitDATA16,mode);
 				    sv = GetDWord(TheCPU.mem_ref);
 				    TheCPU.err = SET_SEGREG(tseg, big, Ofs_FS, sv);
 				    if (TheCPU.err) return P0;
@@ -2368,7 +2358,7 @@ end0xef:
 				    CODE_FLUSH();
 				    PC++; PC += ModRMSim(PC, mode);
 				    rv = DataGetWL_U(mode,TheCPU.mem_ref);
-				    TheCPU.mem_ref += (mode&DATA16? 2:4);
+				    TheCPU.mem_ref += BT24(BitDATA16,mode);
 				    sv = GetDWord(TheCPU.mem_ref);
 				    TheCPU.err = SET_SEGREG(tseg, big, Ofs_GS, sv);
 				    if (TheCPU.err) return P0;

@@ -284,9 +284,6 @@ void dosemu_fault(int, struct sigcontext_struct);
 #endif
 
 void show_regs(char *, int), show_ints(int, int);
-#ifdef USE_INT_QUEUE
-__inline__ int do_hard_int(int);
-#endif
 
 int cpu_trap_0f (unsigned char *, struct sigcontext_struct *);
 

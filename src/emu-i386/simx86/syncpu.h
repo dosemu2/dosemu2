@@ -44,8 +44,9 @@ typedef struct {
 /* offsets are 8-bit signed */
 #define FIELD0		gs		/* first field of SynCPU */
 /* ------------------------------------------------ */
-/*80-88 ... */
-/*8c*/	unsigned long cr[5];
+/*80-84 ... */
+/*88*/	unsigned long cr[5];
+/*9c*/	unsigned long rzero;
 /*a0*/	SDTR gs_cache;
 /*ac*/	SDTR fs_cache;
 /*b8*/	SDTR es_cache;
@@ -166,6 +167,7 @@ extern SynCPU TheCPU;
 #define Ofs_CR0		(char)(offsetof(SynCPU,cr[0])-SCBASE)
 #define Ofs_CR2		(char)(offsetof(SynCPU,cr2)-SCBASE)
 #define Ofs_STACKM	(char)(offsetof(SynCPU,StackMask)-SCBASE)
+#define Ofs_RZERO	(char)(offsetof(SynCPU,rzero)-SCBASE)
 
 #define Ofs_FPR		(char)(offsetof(SynCPU,fpregs)-SCBASE)
 #define Ofs_FPSTT	(char)(offsetof(SynCPU,fpstt)-SCBASE)

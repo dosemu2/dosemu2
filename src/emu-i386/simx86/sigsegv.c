@@ -38,6 +38,7 @@
 #include <string.h>
 #include "emu86.h"
 #include "codegen.h"
+#include "trees.h"
 #include "dpmi.h"
 
 #include "video.h"
@@ -290,6 +291,13 @@ int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
     p = (unsigned char *)_eip;
     if (*p==0x66) w16=1,p++; else w16=0;
 
+    /* Decode the faulting instruction.
+     * Hopefully, since the compiled code contains a well-defined subset
+     * of the many possibilities for writing a memory location, this
+     * decoder can be kept quite small. It is possible, however, that
+     * someone accesses the VGA memory with a shift, or a bit set, and
+     * this will cause the cpuemu to fail.
+     */
     switch (*p) {
 	case 0x88:	// write byte
 		if ((_err&2)==0) goto badrw;
@@ -514,12 +522,22 @@ cont0e:
 		goto verybad;
 	}
 	if ((_err&0x0f)==0x07) {
-		if (mprotect((void *)(_cr2&~(PAGE_SIZE-1)),PAGE_SIZE,
-			PROT_READ|PROT_WRITE)) {
-			perror("munprotect");
-			leavedos(0x999);
-		}
-		InvalidateTreePaged((unsigned char *)_cr2, 0);
+		/* Got a fault in a write-protected memory page.
+		 * We assume that no other write protections exist and
+		 * that no other cause could return an error code of 7.
+		 *
+		 * _cr2 keeps the address where the code tries to write
+		 * _eip keeps the address of the faulting instruction
+		 *	(in the code buffer or in the tree)
+		 *
+		 * Possible instructions we'll find here are (see above):
+		 *	8807	movb	%%al,(%%edi)
+		 *	(66)8907	mov{wl}	%%{e}ax,(%%edi)
+		 *	(f3)(66)a4,a5	movs
+		 *	(f3)(66)aa,ab	stos
+		 */
+		InvalidateTreePaged((void *)_cr2, 0);
+		e_munprotect((void *)_cr2, 0);
 		return;
 	}
   }

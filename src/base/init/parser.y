@@ -274,7 +274,7 @@ extern void yyrestart(FILE *input_file);
 	/* serial */
 %token BASE IRQ INTERRUPT DEVICE CHARSET  BAUDRATE VIRTUAL
 	/* mouse */
-%token MICROSOFT MS3BUTTON LOGITECH MMSERIES MOUSEMAN HITACHI MOUSESYSTEMS BUSMOUSE PS2
+%token MICROSOFT MS3BUTTON LOGITECH MMSERIES MOUSEMAN HITACHI MOUSESYSTEMS BUSMOUSE PS2 IMPS2
 %token INTERNALDRIVER EMULATE3BUTTONS CLEARDTR
 	/* x-windows */
 %token L_DISPLAY L_TITLE ICON_NAME X_KEYCODE X_KEYCODE_AUTO X_BLINKRATE X_SHARECMAP X_MITSHM X_FONT
@@ -1224,6 +1224,11 @@ mouse_flag	: DEVICE string_expr		{ strcpy(mptr->dev, $2); free($2); }
 		| PS2
 		  {
 		  mptr->type = MOUSE_PS2;
+		  mptr->flags = 0;
+		  }
+		| IMPS2
+		  {
+		  mptr->type = MOUSE_IMPS2;
 		  mptr->flags = 0;
 		  }
 		| MOUSEMAN

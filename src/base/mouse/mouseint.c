@@ -66,7 +66,8 @@ DOSEMUSetupMouse(void)
           RPT_SYSCALL(write(mice->fd, "*X", 2));
           DOSEMUSetMouseSpeed(1200, mice->baudRate, mice->flags);
         }
-      else if (mice->type != MOUSE_BUSMOUSE && mice->type != MOUSE_PS2) 
+      else if (mice->type != MOUSE_BUSMOUSE && mice->type != MOUSE_PS2 &&
+	       mice->type != MOUSE_IMPS2) 
 	{
 	  m_printf("MOUSE: setting speed to %d baud\n",mice->baudRate);
 #if 0   /* this causes my dosemu to hang [rz] */
@@ -133,6 +134,17 @@ DOSEMUSetupMouse(void)
 	  }
         }
 
+      if (mice->type == MOUSE_IMPS2)
+        {
+	  static unsigned char s1[] = { 243, 200, 243, 100, 243, 80, };
+	  static unsigned char s2[] = { 246, 230, 244, 243, 100, 232, 3, };
+	  write (mice->fd, s1, sizeof (s1));
+	  usleep (30000);
+	  write (mice->fd, s2, sizeof (s2));
+	  usleep (30000);
+	  tcflush (mice->fd, TCIFLUSH);
+	}
+
 #ifdef CLEARDTR_SUPPORT
       if (mice->type == MOUSE_MOUSESYSTEMS && (mice->cleardtr))
         {
@@ -170,7 +182,7 @@ DOSEMUMouseProtocol(rBuf, nBytes)
   static int           pBufP = 0;
   static unsigned char pBuf[8];
 
-  static unsigned char proto[9][5] = {
+  static unsigned char proto[11][5] = {
     /*  hd_mask hd_id   dp_mask dp_id   nobytes */
     {	0x40,	0x40,	0x40,	0x00,	3 	},  /* MicroSoft */
     {	0x40,	0x40,	0x40,	0x00,	3 	},  /* MicroSoft-3Bext */
@@ -182,6 +194,8 @@ DOSEMUMouseProtocol(rBuf, nBytes)
                                                        [CHRIS-211092] */
     {	0xc0,	0x00,	0x00,	0x00,	3	},  /* PS/2 mouse */
     {	0xe0,	0x80,	0x80,	0x00,	3	},  /* MM_HitTablet */
+    {	0x00,	0x00,	0x00,	0x00,	0	},  /* X-mouse (unused entry) */
+    {	0xc0,	0x00,	0x00,	0x00,	4	},  /* IMPS/2 mouse */
   };
   
   if (!config.usesX) {
@@ -190,6 +204,7 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 	 * check, if we have a usable data byte
 	 */
 	if (pBufP != 0 && mice->type != MOUSE_PS2 &&
+	    mice->type != MOUSE_IMPS2 &&
 	    ((rBuf[i] & proto[mice->type][2]) != proto[mice->type][3]
 	     || rBuf[i] == 0x80)) {
 	   m_printf("MOUSEINT: Skipping package, pBufP = %d\n",pBufP);
@@ -334,6 +349,7 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 	   break;
 
 	case MOUSE_PS2:		    /* PS/2 mouse */
+	case MOUSE_IMPS2:	    /* IMPS/2 mouse */
 	   buttons = (pBuf[0] & 0x04) >> 1 |       /* Middle */
 	      (pBuf[0] & 0x02) >> 1 |       /* Right */
 	      (pBuf[0] & 0x01) << 2;        /* Left */

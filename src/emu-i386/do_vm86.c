@@ -589,9 +589,6 @@ void loopstep_run_vm86(void)
 	serial_run();
 	pic_run();		/* trigger any hardware interrupts
 				 * requested */
-#ifdef USE_INT_QUEUE
-	int_queue_run();
-#endif
 #ifdef USE_SBEMU
 	run_sb(); /* Beat Karcher to this one .. 8-) - AM */
 #endif

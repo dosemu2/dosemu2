@@ -63,7 +63,6 @@ int ninodes = 0;
 int MaxNodes = 0;
 int MaxNodeSize = 0;
 int NodesCleaned = 0;
-long PrevMp = 0;
 TNode *LastXNode = NULL;
 
 #define NODES_IN_POOL	12000
@@ -87,15 +86,15 @@ TNode *TNodePool;
  * How to make node ages decay in an optimal way is another matter;
  * suggestions are welcome.
  */
-#define NODELIFE(n)	((n)->len<<1)
+#define NODELIFE(n)	((n)->len)
 #define CLEANFREQ	8
-#define AGENODE		12
+#define AGENODE		((ninodes>>6)+1)
 
 /*
  * Another optimization issue - it is more costly to store very small
  * sequences or to reparse them every time? Needs some analysis.
  */
-#define MIN_FRAGLEN	2
+#define MIN_FRAGLEN	1
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -115,7 +114,7 @@ static inline TNode *Tmalloc(void)
 
 static inline void Tfree(TNode *G)
 {
-  G->key = G->jcount = G->nxkey = 0;
+  G->key = G->jcount = 0;
   G->addr = NULL; G->nxnode = NULL;
   G->link[0] = TNodePool->link[0];
   TNodePool->link[0] = G;
@@ -629,16 +628,18 @@ TNode *Move2ITree(void)
 	nI->key = key;
   }
 
-  nI->npc = G0->npc;
   nI->cklen = G0->cklen;
   if (nI->len > MaxNodeSize) MaxNodeSize = nI->len;
-  nI->len = len = G0->len + sizeof(TailCode);
+  nI->len = len = G0->len + TAILSIZE;
   nI->jcount = NODELIFE(nI);
   nI->addr = (unsigned char *)malloc(len+8);
   if (d.emu>(DT_LEV+1)) e_printf("Move sequence from %08lx to %08lx l=%d\n",
 	(long)G0->addr, (long)nI->addr, len);
   __memcpy(nI->addr, G0->addr, len);
   nI->flags = G0->flags;
+#ifdef USE_CHECKSUM
+  nI->cksum = __fchk((void *)nI->key, nI->cklen);
+#endif
 
 noinode:
   LastIMeta = NULL;
@@ -655,19 +656,22 @@ TNode *FindTree(unsigned char *addr)
   TNode *I;
   long key;
   static int tccount=0;
+#ifdef USE_CHECKSUM
+  unsigned char chk;
+#endif
   hitimer_t t0;
 
   t0 = GETTSC();
   key = makekey((long)addr);
 
   if (LastXNode) {
-	TNode *G = LastXNode->nxnode;
-	if (G && (G->key==key) && (G->jcount>0)) {
+	I = LastXNode->nxnode;
+	if (I && (I->key==key) && (I->jcount>0)) {
 	if (d.emu>1) 
 		e_printf("LastXNode found at %08lx p-> key=%08lx addr=%08lx\n",
-			(long)LastXNode,key,(long)G->addr);
-	    G->jcount = NODELIFE(G);
-	    return G;
+			(long)LastXNode,key,(long)I->addr);
+	    I->jcount = NODELIFE(I);
+	    goto found;
 	}
   }
 
@@ -692,7 +696,20 @@ TNode *FindTree(unsigned char *addr)
 	I->jcount = NODELIFE(I);
 	if (d.emu>(DT_LEV+1)) e_printf("Found key %08lx count=%d\n",
 		key, I->jcount);
-
+found:
+#ifdef USE_CHECKSUM
+	if (I->flags & F_SUSP) {
+	    chk = __fchk((void *)I->key, I->cklen) ^ I->cksum;
+	    if (chk) {
+		dbug_printf("### Block chk err(%08lx:%d)\n",I->key,I->cklen);
+		I->jcount = 0;
+		goto endsrch;
+	    }
+	    e_printf("Checksum ok for suspect node at %08lx\n",I->key);
+	    I->flags &= ~F_SUSP;
+	    e_mprotect((void *)I->key, 0);
+	}
+#endif
 	SearchTime += (GETTSC() - t0);
 	return I;
   }
@@ -778,11 +795,17 @@ static void print_structure (avltr_tree *tree, TNode *node, int level)
  * same 4k page.
  *
  */
-void InvalidateTreePaged (unsigned char *addr, int len)
+#define RANGE_IN_RANGE(al,ah,l,h)	({long _l2=(long)(al);\
+	long _h2=(long)(ah); ((_h2 >= (l)) && (_l2 < (h))); })
+#define ADDR_IN_RANGE(a,l,h)		({long _a2=(long)(a);\
+	((_a2 >= (l)) && (_a2 < (h))); })
+
+int InvalidateTreePaged (unsigned char *addr, int len)
 {
   IMeta *G0 = &InstrMeta[0];		// root of code buffer
   TNode *G = &CollectTree.root;
-  long al, al2, ah, alG, ahG;
+  long al, ah, alG, ahG;
+  int nnc = 0;
   hitimer_t t0;
 
   t0 = GETTSC();
@@ -793,19 +816,17 @@ void InvalidateTreePaged (unsigned char *addr, int len)
    * down the emulation more than reparsing some code. Of course there
    * is always a worst case.
    */
-  al = (long)addr & ~(PAGE_SIZE-1);		/* base of mem page */
-  ah = max((al+PAGE_SIZE),((long)addr+len));	/* end of dirty range */
-  /* maybe a block can begin before al but extend beyond it - try to trap */
-  al2 = min(al,(long)addr-256);
+  al = (long)addr & ~(PAGE_SIZE-1);
+  ah = ((long)addr+len+PAGE_SIZE) & ~(PAGE_SIZE-1);
 
   /* find nearest (lesser than) node */
   G = G->link[0]; if (G == NULL) goto quit;
   for (;;) {
-      if (G->key > al2) {
+      if (G->key > al) {
 	if (G->link[0]==NULL) break;
 	G = G->link[0];
       }
-      else if (G->key < al2) {
+      else if (G->key < al) {
         TNode *G2;
 	if (G->rtag == MINUS) break;
 	G2 = G->link[1];
@@ -822,23 +843,26 @@ void InvalidateTreePaged (unsigned char *addr, int len)
    * probable to have instructions changed at the bottom or after the
    * sequence than at the top (e.g. loaders).
    */
-  alG = (long)G0->npc;
-  if (alG) {
-    ahG = (long)(G0->npc+G0->cklen);
-    if (((long)addr >= alG) && (ahG < ah)) {
+  if (G0->npc) {
+    alG = (long)G0->npc & ~(PAGE_SIZE-1);
+    ahG = (long)G0->npc+G0->cklen;
+    if (ADDR_IN_RANGE(addr,alG,(ahG+PAGE_SIZE)&~(PAGE_SIZE-1))) {
 	InstrMeta[0].ncount = 0;	/* invalidate it */
-	JumpOpt = 0;
-	/* Set a point to reenable jump compiling. As soon as we
-	 * compile a new sequence whose address is greater than
-	 * JmpOptLim, we go back to the default. This also is an
-	 * empirical rule, which can and will fail. */
-	e_printf("Disabled Jump Optimizations before %08lx\n",ahG);
-	JumpOptLim = max(0x1000,ahG);
+	nnc++;
+	if (addr > G0->npc) {
+	    JumpOpt = 0;
+	    /* Set a point to reenable jump compiling. As soon as we
+	     * compile a new sequence whose address is greater than
+	     * JmpOptLim, we go back to the default. This also is an
+	     * empirical rule, which can and will fail. */
+	    e_printf("Disabled Jump Optimizations before %08lx\n",ahG);
+	    JumpOptLim = max(0x1000,ahG);
+	}
 	/* Try to stop any running code. Raising a signal this way
 	 * exits any backward jump, but has no other effect */
 	e_signal_pending |= 2;
-	e_printf("Invalidated Meta buffer %08lx..%08lx\n",
-		(long)G0->npc,(long)(G0->npc+G0->cklen));
+	e_printf("### Invalidated Meta buffer %08lx..%08lx\n",
+		(long)G0->npc,ahG);
     }
   }
 
@@ -848,19 +872,27 @@ void InvalidateTreePaged (unsigned char *addr, int len)
       if (G->key > ah) break;
 
       if (G->addr && (G->jcount>0)) {
-	if ((G->key+G->cklen) > al2) {
+	ahG = (long)(G->key+G->cklen);
+	if (RANGE_IN_RANGE(G->key,ahG,al,ah)) {
 	  e_printf("Invalidated node %08lx at %08lx\n",(long)G,G->key);
-	  /* do not free the code block yet, as maybe we are executing
-	   * from it */
-	  G->jcount = 0;
-	  NodesCleaned++;
+	  if ((len==0) && (ADDR_IN_RANGE((long)addr,G->key,ahG))) {
+	    e_printf("### Node hit %08lx..%08lx\n",G->key,ahG);
+	    len = 1;	/* trick */
+	  }
+	  if (len) {
+	    G->jcount = 0;
+	    NodesCleaned++;
+	    nnc++;
+	  }
+	  else
+	    G->flags |= F_SUSP;
 	}
       }
       NEXTNODE(G);
   }
 quit:
-  PrevMp = 0;
   CleanupTime += (GETTSC() - t0);
+  return nnc;
 }
 
 
@@ -957,7 +989,6 @@ void InitTrees(void)
 	NextFreeIMeta = 0;
 	ForwIRef = NULL;
 	LastIMeta = NULL;
-	PrevMp = 0;
 	MaxDepth = MaxNodes = MaxNodeSize = 0;
 	LastXNode = NULL;
 }

@@ -47,6 +47,29 @@
 // Tree node key definition.
 //
 
+typedef struct _imeta {
+	unsigned char *addr, *npc, *jtgt;
+	struct _imeta *fwref;
+	unsigned short ncount, len, flags;
+	unsigned short cklen;
+} IMeta;
+
+#define MAXGNODES	512
+extern IMeta InstrMeta[];
+extern IMeta *LastIMeta;
+extern IMeta *ForwIRef;
+
+#define CODEBUFSIZE	16384
+
+extern unsigned char CodeBuf[];
+extern unsigned char *CodePtr;
+extern unsigned char *PrevCodePtr;
+extern unsigned char *MaxCodePtr;
+
+#define TAILSIZE	8
+#define TAILFIX		3	/* 8-1-4 */
+extern unsigned char TailCode[TAILSIZE];
+
 typedef struct avltr_node
 {
 /* ----- Structure for a node in a right-threaded AVL tree. ----- */
@@ -57,11 +80,13 @@ typedef struct avltr_node
     signed char rtag;		/* Right thread tag. */
 /* -------------------------------------------------------------- */
 	long key;		/* signed! */
-	unsigned char *addr, *npc;
+	unsigned char *addr;
 	int jcount;
+#ifdef USE_CHECKSUM
+	unsigned char cksum;
+#endif
 	unsigned short len, flags, cklen;
 	struct avltr_node *nxnode;
-	long nxkey;
 } TNode;
 
 /* Used for traversing a right-threaded AVL tree. */
@@ -91,6 +116,6 @@ TNode *FindTree(unsigned char *addr);
 TNode *Move2ITree(void);
 //
 void InitTrees(void);
-void InvalidateTreePaged (unsigned char *addr, int len);
+int  InvalidateTreePaged (unsigned char *addr, int len);
 
 #endif

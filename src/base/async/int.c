@@ -723,7 +723,7 @@ static void int15(u_char i)
   case 0xc2:
     m_printf("PS2MOUSE: Call ax=0x%04x\n", LWORD(eax));
     if (!mice->intdrv)
-      if (mice->type != MOUSE_PS2) {
+      if (mice->type != MOUSE_PS2 && mice->type != MOUSE_IMPS2) {
 	REG(eax) = 0x0500;        /* No ps2 mouse device handler */
 	CARRY;
 	return;
@@ -1413,9 +1413,6 @@ int can_revector(int i)
   case 0x2f:			/* needed for XMS, redirector, and idling */
   case DOS_HELPER_INT:		/* e6 for redirector and helper (was 0xfe) */
   case 0xe7:			/* for mfs FCB helper */
-#ifdef USE_INT_QUEUE
-  case 0xe8:			/* for int_queue_run return */
-#endif
     return REVECT;
 
   case 0x74:			/* needed for PS/2 Mouse */
@@ -1984,39 +1981,6 @@ static void inte7(u_char i) {
   real_run_int(0xe7);
 }
 
-#ifdef USE_INT_QUEUE
-/* End function for interrupt calls from int_queue_run() */
-static void inte8(u_char i) {
-  static unsigned short *csp;
-  static int x;
-  csp = SEG_ADR((us *), cs, ip) - 1;
-
-  for (x=1; x<=int_queue_running; x++) {
-    /* check if any int is finished */
-    if ((int)csp == int_queue_head[x].int_queue_return_addr) {
-      /* if it's finished - clean up by calling user cleanup fcn. */
-      if (int_queue_head[x].int_queue_ptr.callend) {
-	int_queue_head[x].int_queue_ptr.callend(int_queue_head[x].int_queue_ptr.interrupt);
-	int_queue_head[x].int_queue_ptr.callend = NULL;
-      }
-
-      /* restore registers */
-      REGS = int_queue_head[x].saved_regs;
-      /* REG(eflags) |= VIF; */
-      WRITE_FLAGS(READ_FLAGS() | VIF);
-      
-      h_printf("e8 int_queue: finished %x\n",
-	       int_queue_head[x].int_queue_return_addr);
-      *OUTB_ADD=1;
-      if (int_queue_running == x) 
-	int_queue_running--;
-      return;
-    }
-  }
-  h_printf("e8 int_queue: shouldn't get here\n");
-  show_regs(__FILE__,__LINE__);
-}
-#endif /* USE_INT_QUEUE */
 
 /*
  * DANG_BEGIN_FUNCTION DO_INT 
@@ -2119,140 +2083,6 @@ void do_int(int i)
 }
 
 
-#ifdef USE_INT_QUEUE
-/*
- * Called to queue a hardware interrupt - will call "callstart"
- * just before the interrupt occurs and "callend" when it finishes
- */
-void queue_hard_int(int i, void (*callstart), void (*callend))
-{
-  cli();
-
-  int_queue[int_queue_end].interrupt = i;
-  int_queue[int_queue_end].callstart = callstart;
-  int_queue[int_queue_end].callend = callend;
-  int_queue_end = (int_queue_end + 1) % IQUEUE_LEN;
-
-  h_printf("int_queue: (%d,%d) ", int_queue_start, int_queue_end);
-
-  i = int_queue_start;
-  while (i != int_queue_end) {
-    h_printf("%x ", int_queue[i].interrupt);
-    i = (i + 1) % IQUEUE_LEN;
-  }
-  h_printf("\n");
-
-  if (int_queue_start == int_queue_end)
-    leavedos(56);
-  sti();
-}
-
-/* Called by vm86() loop to handle queueing of interrupts */
-void int_queue_run(void)
-{
-  static int current_interrupt;
-  static unsigned char *ssp;
-  static unsigned long sp;
-  static u_char vif_counter=0; /* Incase someone don't clear things */
-
-  if (int_queue_start == int_queue_end) {
-#if 0
-    REG(eflags) &= ~(VIP);
-#endif
-    return;
-  }
-
-  g_printf("Still using int_queue_run()\n");
-
-  if (!*OUTB_ADD) {
-    if (++vif_counter > 0x08) {
-      I_printf("OUTB interrupts renabled after %d attempts\n", vif_counter);
-    }
-    else {
-      REG(eflags) |= VIP;
-      I_printf("OUTB_ADD = %d , returning from int_queue_run()\n", *OUTB_ADD);
-      return;
-    }
-  }
-
-  if (!(REG(eflags) & VIF)) {
-    if (++vif_counter > 0x08) {
-      I_printf("VIF interrupts renabled after %d attempts\n", vif_counter);
-    }
-    else {
-      REG(eflags) |= VIP;
-      I_printf("interrupts disabled while int_queue_run()\n");
-      return;
-    }
-  }
-
-  vif_counter=0;
-  current_interrupt = int_queue[int_queue_start].interrupt;
-
-  ssp = (unsigned char *) (REG(ss) << 4);
-  sp = (unsigned long) LWORD(esp);
-
-   
-  /* call user startup function...don't run interrupt if returns -1 */
-  if (int_queue[int_queue_start].callstart) {
-    if (int_queue[int_queue_start].callstart(current_interrupt) == -1) {
-      fprintf(stderr, "Callstart NOWORK\n");
-      return;
-    }
-
-    if (int_queue_running + 1 == NUM_INT_QUEUE)
-      leavedos(55);
-
-    int_queue_head[++int_queue_running].int_queue_ptr = int_queue[int_queue_start];
-    int_queue_head[int_queue_running].in_use = 1;
-
-    /* save our regs */
-    int_queue_head[int_queue_running].saved_regs = REGS;
-
-    /* push an illegal instruction onto the stack */
-    /*  pushw(ssp, sp, 0xffff); */
-    pushw(ssp, sp, 0xe8cd);
-
-    /* this is where we're going to return to */
-    int_queue_head[int_queue_running].int_queue_return_addr = (unsigned long) ssp + sp;
-    pushw(ssp, sp, vflags);
-    /* the code segment of our illegal opcode */
-    pushw(ssp, sp, int_queue_head[int_queue_running].int_queue_return_addr >> 4);
-    /* and the instruction pointer */
-    pushw(ssp, sp, int_queue_head[int_queue_running].int_queue_return_addr & 0xf);
-    LWORD(esp) -= 8;
-  } else {
-    pushw(ssp, sp, vflags);
-    /* the code segment of our iret */
-    pushw(ssp, sp, LWORD(cs));
-    /* and the instruction pointer */
-    pushw(ssp, sp, LWORD(eip));
-    LWORD(esp) -= 6;
-  }
-
-  if (current_interrupt < 0x10)
-    *OUTB_ADD = 0;
-  else
-    *OUTB_ADD = 1;
-
-  LWORD(cs) = ((us *) 0)[(current_interrupt << 1) + 1];
-  LWORD(eip) = ((us *) 0)[current_interrupt << 1];
-
-  /* clear TF (trap flag, singlestep), IF (interrupt flag), and
-   * NT (nested task) bits of EFLAGS
-   */
-#if 0
-  REG(eflags) &= ~(VIF | TF | IF | NT);
-#endif
-  if (int_queue[int_queue_start].callstart)
-    REG(eflags) |= VIP;
-
-  int_queue_start = (int_queue_start + 1) % IQUEUE_LEN;
-  h_printf("int_queue: running int %x if applicable, return_addr=%x\n",
-	   current_interrupt,
-	   int_queue_head[int_queue_running].int_queue_return_addr);
-}
-#endif /* USE_INT_QUEUE */
 
 /*
  * DANG_BEGIN_FUNCTION setup_interrupts
@@ -2327,9 +2157,6 @@ void setup_interrupts(void) {
 #endif
   interrupt_function[0xe6] = inte6;
   interrupt_function[0xe7] = inte7;
-#ifdef USE_INT_QUEUE
-  interrupt_function[0xe8] = inte8;
-#endif
 
   /* Let kernel handle this, no need to return to DOSEMU */
 #ifndef USE_NEW_INT

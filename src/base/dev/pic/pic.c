@@ -838,9 +838,6 @@ g_printf("+%d",(int)pic_ilevel);
         pkt_check_receive(0);
 #endif
 #endif
-#ifdef USE_INT_QUEUE
-        int_queue_run();        /*  delete when moved to timer stuff */
-#endif
       }
       pic_sti();
       return(0);
@@ -1210,7 +1207,7 @@ void pic_reset(void)
   pic_seti(PIC_IRQ0, timer_int_engine, 0);  /* do_irq0 in pic.c */
   pic_unmaski(PIC_IRQ0);
   pic_request(PIC_IRQ0);                    /* start timer */
-  if (mice->intdrv || mice->type == MOUSE_PS2) {
+  if (mice->intdrv || mice->type == MOUSE_PS2 || mice->type == MOUSE_IMPS2) {
     pic_seti(PIC_IMOUSE, DOSEMUMouseEvents, 0);
     pic_unmaski(PIC_IMOUSE);
   }

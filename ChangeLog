@@ -1,3 +1,29 @@
+2000/11/10 ver. 1.1.1 released
+	From Urban Widmark <urban@svenskatest.se>
+	- support for mice using the IMPS/2 protocol
+	  (dosemu.conf key word 'imps2')
+	From Alberto
+	- cpuemu stuff: keyboard was broken with some programs; fixed
+	  flags handling when entering e_vm86.
+	- ecpuoff: LDT was deallocated but not zeroed: fixed.
+	- memory write protection routines moved to new file memory.c;
+	  a bitmap keeps track of the protected pages. Removed previous
+	  hack which used /proc/self/maps.
+	- runtime checksum (again) on compiled blocks.
+	  Every time a write fault hits a page, the code in that page is
+	  now no more unconditionally deleted; instead, it is marked as
+	  "suspect". When looking for a node, if a "suspect" one is found
+	  a checksum is performed on it and, if nothing has changed, the
+	  "suspect" flag is removed. Doing a checksum on a few bytes is
+	  faster than removing a node and MUCH faster than reparsing it.
+	- still more macros to speed up compilation
+	- and that's all for 1.1.1, I would say.
+	- bug fixes: memory write protection and "suspect" node handling
+	From Hans
+	- removed never used USE_INT_QUEUE stuff in order to avoid
+	  future problems with do_call_back().
+	- fixed Changelog entry of 1.1.0.2 (Eric's patches were hidden
+	  in Alberto ones)
 2000/10/15 ver. 1.1.0.5 unofficial pre-release
 	From Alberto
 	- cpuemu stuff: continued moving code generator sequences into macros,
@@ -12,7 +38,7 @@
 	- fixed my own stupidness from 1.1.0.4 in base-configure :-(
 2000/10/14 ver. 1.1.0.4 unofficial pre-release
 	From Bart
-	- svgalib support, needs svgalib >= 1.2.4, for switching
+	- svgalib support, needs svgalib >= 1.4.2, for switching
 	  between VCs (saving/restoring of card status) when running
 	  console graphics.
 	From Hans
@@ -58,6 +84,10 @@
 	  way (gcc-like)
 	- fixed bugs in POP SP and STOSb instructions
 	- moved some defines from dpmi.c to dpmi.h for use by cpuemu
+	From Eric
+	- Simplified dosemu_debug.h so changes don't need to change as many
+	  lines.
+	- show_regs in dump.c could segfault (it now avoids bad addresses)
 	From Hans
 	- small fixes to compile simx86 on other than Alberto's systems;)
 	  - changed 'sigcontext' to 'sigcontext_struct' in simx86/cpu-emu.c

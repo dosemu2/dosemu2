@@ -170,7 +170,8 @@ io_select(fd_set fds)
 
     default:			/* has at least 1 descriptor ready */
 
-      if ((mice->intdrv || mice->type == MOUSE_PS2) && mice->fd >= 0)
+      if ((mice->intdrv || mice->type == MOUSE_PS2 || mice->type == MOUSE_IMPS2)
+	  && mice->fd >= 0)
 	if (FD_ISSET(mice->fd, &fds)) {
 		m_printf("MOUSE: We have data\n");
 	  pic_request(PIC_IMOUSE);

@@ -164,6 +164,8 @@
 #define F_BJMP	0x0010
 #define M_FJMP	0x00200000
 #define F_FJMP	0x0020
+#define M_SUSP	0x00400000
+#define F_SUSP	0x0040
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -216,26 +218,6 @@ static __inline__ void POP_ONLY(int m)
 
 /////////////////////////////////////////////////////////////////////////////
 
-typedef struct _imeta {
-	unsigned char *addr, *npc, *jtgt;
-	struct _imeta *fwref;
-	unsigned short ncount, len, flags;
-	unsigned short cklen;
-} IMeta;
-
-#define MAXGNODES	512
-extern IMeta InstrMeta[];
-extern IMeta *LastIMeta;
-extern IMeta *ForwIRef;
-
-#define CODEBUFSIZE	16384
-
-extern unsigned char CodeBuf[];
-extern unsigned char *CodePtr;
-extern unsigned char *PrevCodePtr;
-extern unsigned char *MaxCodePtr;
-extern unsigned char TailCode[8];
-
 /* Code generation macros for x86 */
 #define	G1(b,p)		*(p)++=(unsigned char)(b)
 #define	G2(w,p)		{*((unsigned short *)(p))=(w);(p)+=2;}
@@ -245,6 +227,14 @@ extern unsigned char TailCode[8];
 #define	G4(l,p)		{*((unsigned long *)(p))=(l);(p)+=4;}
 #define	G4M(c,b1,b2,b3,p) {*((unsigned long *)(p))=((b3)<<24)|((b2)<<16)|((b1)<<8)|(c);\
 				(p)+=4;}
+#define	G5(l1,b2,p)	{*((unsigned long *)(p))=(l1);*((p)+4)=(unsigned char)(b2);\
+				(p)+=5;}
+#define	G6(l1,w2,p)	{*((unsigned long *)(p))=(l1);\
+			 *((unsigned short *)((p)+4))=(w2);(p)+=6;}
+#define	G7(l1,l2,p)	{*((unsigned long *)(p))=(l1);\
+			 *((unsigned long *)((p)+4))=(l2);(p)+=7;}
+#define	G8(l1,l2,p)	{*((unsigned long *)(p))=(l1);\
+			 *((unsigned long *)((p)+4))=(l2);(p)+=8;}
 #define GNX(d,s,l)	{__memcpy((d),(s),(l));(d)+=(l);}
 
 /////////////////////////////////////////////////////////////////////////////
@@ -271,6 +261,8 @@ static __inline__ int IsCodeInBuf(void)
 {
 	return (CodePtr > CodeBuf);
 }
+
+extern TNode *CurrXNode;
 
 extern char InterOps[];
 
