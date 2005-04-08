@@ -1190,8 +1190,10 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 	int fd, usemasks = 0;
 	unsigned int flags = 0;
 
-        if (!can_do_root_stuff)
+        if (!can_do_root_stuff) {
+		error("Port I/O requires root privs\n");
                 return FALSE;
+	}
 
 	i_printf("PORT: allow_io for port 0x%04x:%d perm=%x or=%x and=%x\n",
 		 start, size, permission, ormask, andmask);

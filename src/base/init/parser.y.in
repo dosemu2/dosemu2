@@ -1430,6 +1430,7 @@ port_flags	: port_flag
 		;
 port_flag	: INTEGER
 	           {
+		   c_printf("CONF: I/O port 0x%04x\n", (unsigned short)$1);
 	           allow_io($1, 1, ports_permission, ports_ormask,
 	                    ports_andmask, portspeed, (char*)dev_name);
 		   if (abs(portspeed)) portspeed += ((portspeed>0) ? 1 : -1);

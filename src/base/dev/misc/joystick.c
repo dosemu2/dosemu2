@@ -539,6 +539,18 @@ void joy_init (void)
 	#endif	/* USE_PTHREADS */
 	}
 
+	/* no joysticks at all! */
+	if (joy_fd [JOY_0] < 0 && joy_fd [JOY_1] < 0)
+	{
+	#ifdef JOY_INIT_DEBUG
+		joy_init_printf ("WARNING! No joysticks enabled!\n");
+	#endif
+		joy_status = 0;
+		return;
+	}
+	else
+		joy_status = 1;
+
 	/* handle joystick port/game card routines */
 	/* DANG_FIXTHIS does this code work for ports other than 0x201?
 	 */
@@ -553,7 +565,6 @@ void joy_init (void)
 	io_device.end_addr     = 0x20F;
 	io_device.irq          = EMU_NO_IRQ;
 	io_device.fd           = -1;
-
 	/*
 	 * DANG_BEGIN_REMARK
 	 *
@@ -568,17 +579,6 @@ void joy_init (void)
 		joy_init_printf ("ERROR! Couldn't register joystick port handler!\n");
 	#endif
 	}
-
-	/* no joysticks at all! */
-	if (joy_fd [JOY_0] < 0 && joy_fd [JOY_1] < 0)
-	{
-	#ifdef JOY_INIT_DEBUG
-		joy_init_printf ("WARNING! No joysticks enabled!\n");
-	#endif
-		joy_status = 0;
-	}
-	else
-		joy_status = 1;
 }
 
 void joy_uninit (void)
