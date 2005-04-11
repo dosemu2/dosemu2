@@ -192,9 +192,6 @@
 /* Do you want speaker support in X? */
 #define CONFIG_X_SPEAKER 1
 
-/* when grabbing all mouse events, grab keyboard too */
-#undef ENABLE_KEYBOARD_GRAB
-
 /* not yet -- sw */
 #undef HAVE_DGA
 
@@ -456,7 +453,7 @@ static unsigned ximage_bits_per_pixel;
 static unsigned ximage_mode;
 static vga_emu_update_type veut;
 
-int grab_active = 0;
+int grab_active = 0, kbd_grab_active = 0;
 #if CONFIG_X_MOUSE
 static char *grab_keystring = "Home";
 static KeySym grab_keysym = NoSymbol;
@@ -1212,7 +1209,7 @@ static int X_change_config(unsigned item, void *buf)
          {
            if (strlen (title)) strcat (title, " - ");
            /* foreign string, cannot trust its length to be <= X_TITLE_EMUNAME_MAXLEN */
-           snprintf (title + strlen (title), X_TITLE_EMUNAME_MAXLEN, "%s", config.X_title);  
+           snprintf (title + strlen (title), X_TITLE_EMUNAME_MAXLEN, "%s ", config.X_title);  
          }
 
          if (dosemu_frozen)
@@ -1220,12 +1217,23 @@ static int X_change_config(unsigned item, void *buf)
            if (strlen (title)) strcat (title, " ");
 
            if (dosemu_user_froze)
-             strcat (title, "[paused - Ctrl+Alt+P]");
+             strcat (title, "[paused - Ctrl+Alt+P] ");
            else
-             strcat (title, "[background pause]");
+             strcat (title, "[background pause] ");
          }
 
-         
+         if (grab_active || kbd_grab_active) {
+	   strcat(title, "[");
+	   if (kbd_grab_active) {
+	     strcat(title, "keyboard");
+	     if (grab_active)
+	       strcat(title, "+");
+	   }
+	   if (grab_active)
+	     strcat(title, "mouse");
+	   strcat(title, " grab] ");
+	 }
+
          /* now actually change the title of the Window */
          X_change_config (X_CHG_TITLE, title);
        }
@@ -1388,15 +1396,29 @@ static void X_show_mouse_cursor(int yes)
    }
 }
 
+static void toggle_kbd_grab(void)
+{
+  if(kbd_grab_active ^= 1) {
+    X_printf("X: keyboard grab activated\n");
+    if (mainwindow != fullscreenwindow) {
+      XGrabKeyboard(display, mainwindow, True, GrabModeAsync, GrabModeAsync, CurrentTime);
+    }
+  }
+  else {
+    X_printf("X: keyboard grab released\n");
+    if (mainwindow != fullscreenwindow) {
+      XUngrabKeyboard(display, CurrentTime);
+    }
+  }
+  X_change_config(X_CHG_TITLE, NULL);
+}
+
 static void toggle_mouse_grab(void)
 {
   if(grab_active ^= 1) {
     config.mouse.use_absolute = 0;
     X_printf("X: mouse grab activated\n");
     if (mainwindow != fullscreenwindow) {
-#ifdef ENABLE_KEYBOARD_GRAB
-      XGrabKeyboard(display, mainwindow, True, GrabModeAsync, GrabModeAsync, CurrentTime);
-#endif
       XGrabPointer(display, mainwindow, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
                    GrabModeAsync, GrabModeAsync, mainwindow,  None, CurrentTime);
     }
@@ -1407,12 +1429,10 @@ static void toggle_mouse_grab(void)
     X_printf("X: mouse grab released\n");
     if (mainwindow != fullscreenwindow) {
       XUngrabPointer(display, CurrentTime);
-#ifdef ENABLE_KEYBOARD_GRAB
-      XUngrabKeyboard(display, CurrentTime);
-#endif
     }
     X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
   }
+  X_change_config(X_CHG_TITLE, NULL);
 }
 
 /*
@@ -1688,7 +1708,10 @@ static void X_handle_events(void)
               force_grab = 0;
               toggle_mouse_grab();
               break;
-            } else if (keysym == XK_p) {
+            } else if (keysym == XK_k) {
+              toggle_kbd_grab();
+              break;
+	    } else if (keysym == XK_p) {
               if (!dosemu_frozen) {
                 freeze_dosemu_manual();
               } else {
