@@ -1544,33 +1544,9 @@ static void toggle_fullscreen_mode(void)
  */
 static void X_handle_events(void)
 {
-   static int busy = 0;
    XEvent e, rel_evt;
    unsigned resize_width = w_x_res, resize_height = w_y_res, resize_event = 0;
    int keyrel_pending = 0;
-
-   /*  struct timeval currenttime;
-  struct timezone tz;*/
-
-
-  /* Can't we turn off the SIGALRMs altogether while in here,
-     and, more importantly, reset the interval from the start
-     when we leave? */
-
-#if 0
-   gettimeofday(&currenttime, &tz);
-   printf("ENTER: %10d %10d - ",currenttime.tv_sec,currenttime.tv_usec);
-   printf(XPending(display)?"Event.":"ALARM!");
-#endif
-
-   if (busy)
-     {
-       fprintf(stderr, " - busy.\n");
-       return;
-     }
-     
-   busy=1;
-   
 
 #if CONFIG_X_MOUSE
    {
@@ -1890,15 +1866,9 @@ static void X_handle_events(void)
       X_update_screen();
     }
 
-  busy = 0;
 #if CONFIG_X_MOUSE  
   do_mouse_irq();
 #endif  
-
-#if 0
-  gettimeofday(&currenttime, &tz);
-  printf("\nLEAVE: %10d %10d\n",currenttime.tv_sec,currenttime.tv_usec);
-#endif
 }
 
 
