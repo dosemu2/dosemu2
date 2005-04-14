@@ -1425,6 +1425,7 @@ static void toggle_mouse_grab(void)
                    GrabModeAsync, GrabModeAsync, mainwindow,  None, CurrentTime);
     }
     X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
+    mouse_enable_native_cursor(1);
   }
   else {
     config.mouse.use_absolute = 1;
@@ -1433,6 +1434,7 @@ static void toggle_mouse_grab(void)
       XUngrabPointer(display, CurrentTime);
     }
     X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
+    mouse_enable_native_cursor(0);
   }
   clear_selection_data();
   X_change_config(X_CHG_TITLE, NULL);

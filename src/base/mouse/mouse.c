@@ -995,6 +995,11 @@ mouse_reset_to_current_video_mode(void)
   last_mouse_call_read_mickeys = 0;
 }
 
+void mouse_enable_native_cursor(int flag)
+{
+  mouse.native_cursor = flag;
+  mouse_do_cur();
+}
 
 static void mouse_reset(int flag)
 {
@@ -1469,6 +1474,7 @@ mouse_move(void)
 {
   mouse_round_coords();
   mouse_hide_on_exclusion();
+  mouse_update_cursor();
 
   m_printf("MOUSE: move: x=%d,y=%d\n", mouse.x, mouse.y);
    
@@ -1752,20 +1758,6 @@ do_mouse_irq()
 /* unconditional mouse cursor update */
 static void mouse_do_cur(void)
 {
-  if (Mouse->set_cursor) {
-    int minx, maxx, miny, maxy;
-
-    minx = mouse.minx<mouse.virtual_minx ? mouse.minx : mouse.virtual_minx;
-    maxx = mouse.maxx>mouse.virtual_maxx ? mouse.maxx : mouse.virtual_maxx;
-    miny = mouse.miny<mouse.virtual_miny ? mouse.miny : mouse.virtual_miny;
-    maxy = mouse.maxy>mouse.virtual_maxy ? mouse.maxy : mouse.virtual_maxy;
-
-    Mouse->set_cursor(mouse.cursor_on == 0?1: 0, 
-      mouse.x - minx, mouse.y - miny,
-      maxx - minx +1, maxy - miny +1);
-    return;
-  }
-
   if (!scr_state.current) 
   	return;
 
@@ -1803,7 +1795,7 @@ text_cursor(void)
   cx = mouse.rx >> mouse.xshift;
   cy = mouse.ry >> mouse.yshift;
 
-  if (mouse_erase.drawn) {
+  if (mouse_erase.drawn || !mouse.native_cursor) {
   	/* only erase the mouse cursor if it's the same thing we
   		drew; some applications seem to reset the mouse
   		*after* clearing the screen and we end up leaving
@@ -1813,7 +1805,7 @@ text_cursor(void)
   	mouse_erase.drawn = FALSE;
   }
 
-  if (mouse.cursor_on != 0)
+  if (mouse.cursor_on != 0 || !mouse.native_cursor)
   	return;
 
   /* remember where we drew this. */
@@ -1834,7 +1826,7 @@ graph_cursor(void)
 
   /* draw_graphics_cursor wants screen coordinates, we have coordinates
   	based on width of 640; hotspot is always in screen coordinates. */
-  if (mouse.cursor_on == 0)
+  if (mouse.cursor_on == 0 && mouse.native_cursor)
 	  draw_graphics_cursor(mouse.rx >> mouse.xshift, mouse.ry >> mouse.yshift,
 		mouse.hotx,mouse.hoty,16,16,&mouse_erase);
 }

@@ -120,6 +120,8 @@ struct mouse_struct {
 
   /* zero if cursor is on, negative if it's off */
   short cursor_on;
+  /* whether we use the native DOS cursor, or the system cursor (X, GPM) */
+  int native_cursor;
 
   /* this is for the user-defined subroutine */
   unsigned short cs, ip;
@@ -197,5 +199,6 @@ extern void mouse_move_buttons(int lbutton, int mbutton, int rbutton);
 extern void mouse_move_relative(int dx, int dy);
 extern void mouse_move_absolute(int x, int y, int x_range, int y_range);
 extern void mouse_reset_to_current_video_mode(void);
+extern void mouse_enable_native_cursor(int flag);
 
 #endif /* MOUSE_H */
