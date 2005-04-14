@@ -706,6 +706,8 @@ int X_init()
 				  have_true_color, have_shmap);
   if(!remap_src_modes) {
     error("X: No graphics modes supported on this type of screen!\n");
+    /* why do we need a blank screen? */
+    leavedos(24);
   }
 
   load_text_font();

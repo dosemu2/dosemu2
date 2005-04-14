@@ -185,14 +185,8 @@ static void vesa_setbank_write(unsigned char bank)
 
 void vesa_init(void)
 {
-  /* If there's a DOS TSR in real memory (say, univbe followed by loadlin)
-     then don't call int10 here yet */
   vesa_int10 = MK_FP16(ISEG(0x10), IOFF(0x10));
-  if (FP_SEG32(IVEC(0x10)) < config.vbios_seg ||
-      FP_SEG32(IVEC(0x10)) >= config.vbios_seg + (config.vbios_size >> 4))
-    v_printf("VESA: int10 is not in the BIOS (DOS TSR?): giving up for now\n");
-  else
-    vesa_reinit();
+  vesa_reinit();
   /* This is all we need before booting. Memory info comes later */
   save_ext_regs = vesa_save_ext_regs;
   restore_ext_regs = vesa_restore_ext_regs;

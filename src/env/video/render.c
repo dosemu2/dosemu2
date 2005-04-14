@@ -164,6 +164,8 @@ void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
   remap_obj = remap_init(mode_type, ximage_mode, remap_features);
   if(!(remap_obj.state & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
     error("setmode: video mode 0x%02x not supported on this screen\n", vga.mode);
+    /* why do we need a blank screen? */
+    leavedos(24);
   }
   adjust_gamma(&remap_obj, config.X_gamma);
 
