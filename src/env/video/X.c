@@ -1434,6 +1434,7 @@ static void toggle_mouse_grab(void)
     }
     X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
   }
+  clear_selection_data();
   X_change_config(X_CHG_TITLE, NULL);
 }
 
@@ -1768,7 +1769,7 @@ static void X_handle_events(void)
 #endif /* *** end sdc *** */
 
 #if CONFIG_X_SELECTION
-	if (vga.mode_class == TEXT) {
+	if (vga.mode_class == TEXT && !grab_active) {
 	  if (e.xbutton.button == Button1)
 	    start_selection(x_to_col(e.xbutton.x), y_to_row(e.xbutton.y));
 	  else if (e.xbutton.button == Button3)
