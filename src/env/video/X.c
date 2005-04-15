@@ -2846,7 +2846,7 @@ void set_mouse_position(int x, int y)
     x0 = x; y0 = y;
     XWarpPointer(display, None, mainwindow, 0, 0, 0, 0, center_x, center_y);
     dx = x - mouse_x;
-    dy = y - mouse_y;
+    dy = (y - mouse_y) * 2;
     mouse_move_relative(dx, dy);
   } else if(snap_X) {
     /*
@@ -2855,7 +2855,7 @@ void set_mouse_position(int x, int y)
      * normal X-events will move the cursor to the exact position. (Hans)
      */
      dx = dy = x0 = y0 = 0;
-     dx = -3 * x_res; dy = -3 * y_res;		/* enough ??? -- sw */
+     dx = -3 * x_res; dy = -6 * y_res;		/* enough ??? -- sw */
      mouse_move_relative(dx, dy);
      snap_X--;
   } else {
@@ -2887,9 +2887,6 @@ static int X_mouse_init(void)
   mice->type = MOUSE_X;
   mice->use_absolute = 1;
   m_printf("MOUSE: X Mouse being set\n");
-  /* default to 1 to 1 scaling for apps tha read mickeys */
-  mice->init_speed_x = 8;
-  mice->init_speed_y = 8;
   return TRUE;
 }
 

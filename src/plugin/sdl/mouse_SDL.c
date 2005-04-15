@@ -76,9 +76,6 @@ static int SDL_mouse_init(void)
   mice->type = MOUSE_SDL;
   mice->use_absolute = 1;
   m_printf("MOUSE: SDL Mouse being set\n");
-  /* default to 1 to 1 scaling for apps tha read mickeys */
-  mice->init_speed_x = 8;
-  mice->init_speed_y = 8;
   return TRUE;
 }
 
