@@ -772,9 +772,8 @@ mouse_setsensitivity(void)
 static void
 mouse_restorestate(void)
 {
-  int current_state, native;
+  int current_state;
   current_state = mouse.cursor_on;
-  native = mouse.native_cursor;
   /* turn cursor off before restore */
   if (current_state >= 0) {
 	mouse.cursor_on = 0;
@@ -789,7 +788,6 @@ mouse_restorestate(void)
 
   /* we turned off the mouse cursor prior to saving, so turn it
   	back on again at the restore. */
-  mouse.native_cursor = native;
   if (mouse.cursor_on >= 0) {
 	mouse.cursor_on = -1;
   	mouse_cursor(1);
@@ -999,7 +997,7 @@ mouse_reset_to_current_video_mode(void)
 
 void mouse_enable_native_cursor(int flag)
 {
-  mouse.native_cursor = flag;
+  mice->native_cursor = flag;
   mouse_do_cur();
 }
 
@@ -1797,7 +1795,7 @@ text_cursor(void)
   cx = mouse.rx >> mouse.xshift;
   cy = mouse.ry >> mouse.yshift;
 
-  if (mouse_erase.drawn || !mouse.native_cursor) {
+  if (mouse_erase.drawn || !mice->native_cursor) {
   	/* only erase the mouse cursor if it's the same thing we
   		drew; some applications seem to reset the mouse
   		*after* clearing the screen and we end up leaving
@@ -1807,7 +1805,7 @@ text_cursor(void)
   	mouse_erase.drawn = FALSE;
   }
 
-  if (mouse.cursor_on != 0 || !mouse.native_cursor)
+  if (mouse.cursor_on != 0 || !mice->native_cursor)
   	return;
 
   /* remember where we drew this. */
@@ -1828,7 +1826,7 @@ graph_cursor(void)
 
   /* draw_graphics_cursor wants screen coordinates, we have coordinates
   	based on width of 640; hotspot is always in screen coordinates. */
-  if (mouse.cursor_on == 0 && mouse.native_cursor)
+  if (mouse.cursor_on == 0 && mice->native_cursor)
 	  draw_graphics_cursor(mouse.rx >> mouse.xshift, mouse.ry >> mouse.yshift,
 		mouse.hotx,mouse.hoty,16,16,&mouse_erase);
 }

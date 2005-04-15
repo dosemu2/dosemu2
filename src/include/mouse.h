@@ -55,6 +55,8 @@ typedef struct  {
   int type;
   int flags;
   boolean intdrv;
+  /* whether we use the native DOS cursor, or the system cursor (X, GPM) */
+  boolean native_cursor;
   boolean use_absolute; /* use absolute mouse addressing */
   boolean emulate3buttons;
   boolean has3buttons;
@@ -120,8 +122,6 @@ struct mouse_struct {
 
   /* zero if cursor is on, negative if it's off */
   short cursor_on;
-  /* whether we use the native DOS cursor, or the system cursor (X, GPM) */
-  int native_cursor;
 
   /* this is for the user-defined subroutine */
   unsigned short cs, ip;
