@@ -772,8 +772,9 @@ mouse_setsensitivity(void)
 static void
 mouse_restorestate(void)
 {
-  int current_state;
+  int current_state, native;
   current_state = mouse.cursor_on;
+  native = mouse.native_cursor;
   /* turn cursor off before restore */
   if (current_state >= 0) {
 	mouse.cursor_on = 0;
@@ -788,6 +789,7 @@ mouse_restorestate(void)
 
   /* we turned off the mouse cursor prior to saving, so turn it
   	back on again at the restore. */
+  mouse.native_cursor = native;
   if (mouse.cursor_on >= 0) {
 	mouse.cursor_on = -1;
   	mouse_cursor(1);
