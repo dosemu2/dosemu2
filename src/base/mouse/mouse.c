@@ -50,8 +50,6 @@
 #include "mousevid.h"
 #include "gcursor.h"
 
-#define Mouse_INT	(0x33 * 16)
-#define Mouse_INT74	(0x74 * 16)
 /* DANG_BEGIN_REMARK
  * I have not properly tested this INT74 - JES 96/10/20 
  * I have removed it.  INT74 is irq 12.  Which I suppose is the proper
@@ -188,7 +186,7 @@ mouse_helper(struct vm86_regs *regs)
   case 0:				/* Reset iret for mouse */
     m_printf("MOUSE move iret !\n");
     mouse_enable_internaldriver();
-    SETIVEC(0x33, BIOSSEG, Mouse_INT);
+    SETIVEC(0x33, Mouse_SEG, Mouse_INT_OFF);
     break;
   case 1:				/* Select Microsoft Mode */
     m_printf("MOUSE Microsoft Mouse (two buttons) selected.\n");
@@ -1947,7 +1945,7 @@ void mouse_post_boot(void)
   
   mouse_reset_to_current_video_mode();
   mouse_enable_internaldriver();
-  SETIVEC(0x33, BIOSSEG, Mouse_INT);
+  SETIVEC(0x33, Mouse_SEG, Mouse_INT_OFF);
   
   /* grab int10 back from video card for mouse */
   ptr = (us*)((BIOSSEG << 4) +

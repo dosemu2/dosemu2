@@ -73,6 +73,7 @@
 #define Mouse_PS2_OFF   (0x2100+0x10)
 #define Mouse_ROUTINE_OFF  (0x2140+0x10)
 #define Mouse_HLT_OFF   (0x2160+0x10)
+#define Mouse_INT_OFF	(0x33 * 16 + 0x10)
 #define Mouse_ADD      ((Mouse_SEG << 4)+Mouse_OFF)
 #define Mouse_ROUTINE  ((Mouse_SEG << 4)+Mouse_ROUTINE_OFF)
 #define Mouse_HLT_ADD  ((Mouse_SEG << 4)+Mouse_HLT_OFF)
