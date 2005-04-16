@@ -22,9 +22,6 @@
  */
 #define BUFFER_MSECS		60
 
-/* sampling rate for direct DAC writes */
-#define DIRECT_WRITE_FREQ	6000
-
 void linux_sb_mixer_write_setting (int ch, uint8_t val);
 uint8_t linux_sb_mixer_read_setting(int ch);
 

@@ -296,9 +296,10 @@ void dump_config_status(void *printfunc)
         config.sb_base, config.sb_dma, config.sb_hdma, config.sb_irq,
 	config.mpu401_base, config.sb_dsp, config.sb_mixer, config.sound_driver);
     (*print)("\nSOUND_OSS:\noss_min_frags 0x%x\noss_max_frags 0x%x\n"
-	     "oss_stalled_frags 0x%x\noss_do_post %d\noss_min_extra_frags 0x%x\n",
+	     "oss_stalled_frags 0x%x\noss_do_post %d\noss_min_extra_frags 0x%x\n"
+	     "oss_dac_freq %i\n",
         config.oss_min_frags, config.oss_max_frags, config.oss_stalled_frags,
-	config.oss_do_post, config.oss_min_extra_frags);
+	config.oss_do_post, config.oss_min_extra_frags, config.oss_dac_freq);
     (*print)("\ncli_timeout %d\n", config.cli_timeout);
     (*print)("\npic_watchdog %d\n", config.pic_watchdog);
     (*print)("\nJOYSTICK:\njoy_device0 \"%s\"\njoy_device1 \"%s\"\njoy_dos_min %i\njoy_dos_max %i\njoy_granularity %i\njoy_latency %i\n",

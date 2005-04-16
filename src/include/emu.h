@@ -337,6 +337,7 @@ typedef struct vesamode_type_struct {
        int oss_stalled_frags;
        int oss_do_post;
        int oss_min_extra_frags;
+       int oss_dac_freq;
 
        /* joystick */
        char *joy_device[2];

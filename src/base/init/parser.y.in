@@ -283,6 +283,7 @@ static int is_in_allowed_classes(int mask);
         /* Sound Emulation */
 %token SB_BASE SB_IRQ SB_DMA SB_HDMA SB_MIXER SB_DSP MPU_BASE SOUND_DRIVER
 %token OSS_MIN_FRAGS OSS_MAX_FRAGS OSS_STALLED_FRAGS OSS_DO_POST OSS_MIN_EXTRA_FRAGS
+%token OSS_DAC_FREQ
 	/* CD-ROM */
 %token CDROM
 	/* ASPI driver */
@@ -1041,6 +1042,7 @@ snd_oss_flag	: OSS_MIN_FRAGS expression	{ config.oss_min_frags = $2; }
 		| OSS_STALLED_FRAGS expression	{ config.oss_stalled_frags = $2; }
 		| OSS_DO_POST bool		{ config.oss_do_post = $2; }
                 | OSS_MIN_EXTRA_FRAGS expression { config.oss_min_extra_frags = $2; }
+                | OSS_DAC_FREQ expression        { config.oss_dac_freq = $2; }
 		;
 
 	/* joystick emulation */

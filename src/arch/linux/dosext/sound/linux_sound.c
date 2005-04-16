@@ -296,7 +296,7 @@ static void linux_sb_DAC_write (int bits, uint8_t value)
            S_printf ("SB:[Linux] Warning: failed to change sound fragment size.\n");
            result = -1;
         }
-        linux_sb_set_speed(DIRECT_WRITE_FREQ, 0, 0, 0);
+        linux_sb_set_speed(config.oss_dac_freq, 0, 0, 0);
         /* reset DMA settings */
         sample_rate = 0;
         num_channels = 0;

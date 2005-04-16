@@ -633,6 +633,7 @@ oss_max_frags		RETURN(OSS_MAX_FRAGS);
 oss_stalled_frags	RETURN(OSS_STALLED_FRAGS);
 oss_do_post		RETURN(OSS_DO_POST);
 oss_min_extra_frags	RETURN(OSS_MIN_EXTRA_FRAGS);
+oss_dac_freq		RETURN(OSS_DAC_FREQ);
 
         /* Joystick stuff */
 
