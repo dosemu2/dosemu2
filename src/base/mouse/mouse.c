@@ -1922,6 +1922,7 @@ dosemu_mouse_init(void)
   /* Set to disabled, will be enabled in post_boot() */
   mouse.enabled = FALSE;
 
+  mice->native_cursor = 1;
   mice->init_speed_x = 8;
   mice->init_speed_y = 16;
   mouse.speed_x = mice->init_speed_x;

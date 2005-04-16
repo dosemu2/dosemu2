@@ -2886,6 +2886,7 @@ static int X_mouse_init(void)
     return FALSE;
   mice->type = MOUSE_X;
   mice->use_absolute = 1;
+  mice->native_cursor = 0;	/* we have the X cursor */
   m_printf("MOUSE: X Mouse being set\n");
   return TRUE;
 }

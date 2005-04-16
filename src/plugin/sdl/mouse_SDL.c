@@ -75,6 +75,7 @@ static int SDL_mouse_init(void)
   mouse_GFX_cursor = SDL_GetCursor();
   mice->type = MOUSE_SDL;
   mice->use_absolute = 1;
+  mice->native_cursor = 0;	/* we have the X cursor */
   m_printf("MOUSE: SDL Mouse being set\n");
   return TRUE;
 }
