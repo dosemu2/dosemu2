@@ -188,7 +188,7 @@ mouse_helper(struct vm86_regs *regs)
   case 0:				/* Reset iret for mouse */
     m_printf("MOUSE move iret !\n");
     mouse_enable_internaldriver();
-    SETIVEC(0x33, Mouse_SEG, Mouse_INT);
+    SETIVEC(0x33, BIOSSEG, Mouse_INT);
     break;
   case 1:				/* Select Microsoft Mode */
     m_printf("MOUSE Microsoft Mouse (two buttons) selected.\n");
@@ -1947,7 +1947,7 @@ void mouse_post_boot(void)
   
   mouse_reset_to_current_video_mode();
   mouse_enable_internaldriver();
-  SETIVEC(0x33, Mouse_SEG, Mouse_INT);
+  SETIVEC(0x33, BIOSSEG, Mouse_INT);
   
   /* grab int10 back from video card for mouse */
   ptr = (us*)((BIOSSEG << 4) +
