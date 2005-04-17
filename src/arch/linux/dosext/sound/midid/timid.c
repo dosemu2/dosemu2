@@ -35,7 +35,6 @@
 
 static int ctrl_sock, data_sock;
 static struct sockaddr_in ctrl_adr, data_adr;
-static struct hostent * serv;
 static long long start_time;
 static int timebase = 100;
 
@@ -93,6 +92,7 @@ int n;
 
 static int timid_preinit(void)
 {
+  struct hostent * serv;
   serv = gethostbyname(config.timid_host);
   if (! serv)
     return FALSE;
@@ -131,7 +131,7 @@ struct timeval tv;
 
   FD_ZERO(&rfds);
   FD_SET(ctrl_sock, &rfds);
-  tv.tv_sec = 1;
+  tv.tv_sec = 3;
   tv.tv_usec = 0;
   while ((selret = select(ctrl_sock + 1, &rfds, NULL, NULL, &tv)) > 0) {
     n = recv(ctrl_sock, buf, sizeof(buf) - 1, 0);
@@ -173,7 +173,7 @@ struct timeval tv;
 
   FD_ZERO(&rfds);
   FD_SET(ctrl_sock, &rfds);
-  tv.tv_sec = 1;
+  tv.tv_sec = 3;
   tv.tv_usec = 0;
   while ((selret = select(ctrl_sock + 1, &rfds, NULL, NULL, &tv)) > 0) {
     n = recv(ctrl_sock, buf, sizeof(buf) - 1, 0);
