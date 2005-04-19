@@ -58,7 +58,8 @@ _port_handler port_handler[EMU_MAX_IO_DEVICES];
 unsigned char port_handle_table[0x10000];
 unsigned char port_andmask[0x10000];
 unsigned char port_ormask[0x10000];
-unsigned char portfast_map[0x10000/8];
+static unsigned char portfast_map[0x10000/8];
+static unsigned char emu_io_bitmap[0x10000/8];
 pid_t portserver_pid = 0;
 
 static unsigned char port_handles;	/* number of io_handler's */
@@ -378,7 +379,7 @@ Bit8u std_port_inb(ioport_t port)
 {
         struct portreq pr;
 
-        if (current_iopl == 3) {
+        if (current_iopl == 3 || test_bit(port, emu_io_bitmap)) {
 		return port_real_inb(port);
 	}
 	if (!portserver_pid) {
@@ -396,7 +397,7 @@ void std_port_outb(ioport_t port, Bit8u byte)
 {
         struct portreq pr;
 
-        if (current_iopl == 3) {
+        if (current_iopl == 3 || test_bit(port, emu_io_bitmap)) {
 		port_real_outb(port, byte);
 		return;
         }
@@ -417,7 +418,7 @@ Bit16u std_port_inw(ioport_t port)
 {
         struct portreq pr;
 
-        if (current_iopl == 3) {
+        if (current_iopl == 3 || test_bit(port, emu_io_bitmap)) {
 		return port_real_inw(port);
         }
 	if (!portserver_pid) {
@@ -435,7 +436,7 @@ void std_port_outw(ioport_t port, Bit16u word)
 {
         struct portreq pr;
 
-        if (current_iopl == 3) {
+        if (current_iopl == 3 || test_bit(port, emu_io_bitmap)) {
 		port_real_outw(port, word);
 		return;
         }
@@ -456,7 +457,7 @@ Bit32u std_port_ind(ioport_t port)
 {
         struct portreq pr;
 
-        if (current_iopl == 3) {
+        if (current_iopl == 3 || test_bit(port, emu_io_bitmap)) {
 		return port_real_ind(port);
         }
 	if (!portserver_pid) {
@@ -474,7 +475,7 @@ void std_port_outd(ioport_t port, Bit32u dword)
 {
         struct portreq pr;
 
-        if (current_iopl == 3) {
+        if (current_iopl == 3 || test_bit(port, emu_io_bitmap)) {
 		port_real_outd(port, dword);
 		return;
         }
@@ -997,6 +998,7 @@ int extra_port_init(void)
 			SET_HANDLE_COND(i+1,HANDLE_STD_IO);
 		}
 	}
+#if 0
 	if (config.chipset && config.mapped_bios) {
 		for (i=0x3b4; i<0x3df; i++)
 			SET_HANDLE_COND(i,HANDLE_VID_IO);
@@ -1016,6 +1018,7 @@ int extra_port_init(void)
 	    SET_HANDLE_COND(i+1,HANDLE_SPECIAL);	/* W */
 	  }
 	}
+#endif
 
 	if (portlog_map) {
 	    /* switch off ioperm for $_ports that are traced and not forced fast */
@@ -1024,7 +1027,7 @@ int extra_port_init(void)
 		if (test_bit(i, portlog_map) &&
 		    port_handle_table[i] >= HANDLE_STD_IO &&
 		    port_handle_table[i] <= HANDLE_STD_WR) {
-			set_ioperm(i, 1, 0);
+			ioperm(i, 1, 0);
 			i_printf ("PORT: switched off ioperm for traced port 0x%x\n", i);
 		}
 	    }
@@ -1146,8 +1149,9 @@ int port_register_handler(emu_iodev_t device, int flags)
   /* change table to reflect new handler id for that address */
     for (i = device.start_addr; i <= device.end_addr; i++) {
 	if (port_handle_table[i] != 0) {
-		error("PORT: conflicting devices: %s & %s\n",
-		      port_handler[handle].handler_name, EMU_HANDLER(i).handler_name);
+		error("PORT: conflicting devices: %s & %s for port %#x\n",
+		      port_handler[handle].handler_name,
+		      EMU_HANDLER(i).handler_name, i);
 		if (device.fd) close(device.fd);
 		return 4;
 	}
@@ -1163,7 +1167,7 @@ int port_register_handler(emu_iodev_t device, int flags)
     if (flags & PORT_FAST) {
 	i_printf("PORT: trying to give fast access to ports [0x%04x-0x%04x]\n",
 		 device.start_addr, device.end_addr);
-	if (set_ioperm (device.start_addr, device.end_addr-device.start_addr+1, 1) == -1) {
+	if (ioperm(device.start_addr, device.end_addr-device.start_addr+1, 1) == -1) {
 	  i_printf("PORT: fast failed: using perm/iopl for ports [0x%04x-0x%04x]\n",
 		   device.start_addr, device.end_addr);
 	}
@@ -1348,16 +1352,24 @@ set_ioperm(int start, int size, int flag)
 	tmp = ioperm(start, size, flag);
 	leave_priv_setting();
 
-#ifdef X86_EMULATOR
-	if (config.cpuemu && (tmp==0)) {
+	if (tmp==0) {
 	    int i;
-	    for (i=start; i<(start+size); i++)
-		(flag? set_bit(i,io_bitmap) : clear_bit(i,io_bitmap));
-	    i_printf("ePORT: set_ioperm [%x:%d:%d]\n",start,size,flag);
+	    for (i=start; i<(start+size); i++) {
+		if (port_handle_table[i] > HANDLE_STD_WR) {
+		    error("Attempt to ioperm the already claimed port %#x, handle=%i\n",
+			i, port_handle_table[i]);
+		    config.exitearly = 1;
+		}
+		if (flag) {
+		    set_bit(i, emu_io_bitmap);
+		    SET_HANDLE(i, HANDLE_STD_IO);
+		} else {
+		    clear_bit(i, emu_io_bitmap);
+		    SET_HANDLE(i, NO_HANDLE);
+		}
+	    }
 	}
-#else
 	i_printf ("nPORT: set_ioperm [%x:%d:%d] returns %d\n",start,size,flag,tmp);
-#endif
 	return tmp;
 }
 
