@@ -479,17 +479,9 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 			}
 		| RDTSC bool
 		    {
-		    if (config.smp && ($2!=0)) {
-			c_printf("CONF: Denying use of pentium timer on SMP machine\n");
-			config.rdtsc = 0;
-		    }
-		    else if (config.realcpu>=CPU_586) {
 			config.rdtsc = ($2!=0);
 			c_printf("CONF: %sabling use of pentium timer\n",
 				(config.rdtsc?"En":"Dis"));
-		    }
-		    else
-			c_printf("CONF: Ignoring 'rdtsc' statement\n");
 		    }
 		| PCI bool 
 		    { 

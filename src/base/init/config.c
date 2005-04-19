@@ -560,6 +560,16 @@ static void config_post_process(void)
     	vm86s.cpu_type = config.realcpu;
     	fprintf(stderr, "CONF: emulated CPU forced down to real CPU: %ld86\n",vm86s.cpu_type);
     }
+    if (config.rdtsc) {
+	if (config.smp) {
+		c_printf("CONF: Denying use of pentium timer on SMP machine\n");
+		config.rdtsc = 0;
+	}
+	if (config.realcpu < CPU_586) {
+		c_printf("CONF: Ignoring 'rdtsc' statement\n");
+		config.rdtsc = 0;
+	}
+    }
     /* console scrub */
     if (config.X) {
 	config.console_video = config.vga = 0;
