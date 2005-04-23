@@ -11,9 +11,8 @@
 #include <termios.h>
 #include <sys/types.h>
 
-#include "termio.h"	/* for scr_state */
-#include "vc.h"		/* for scr_state */
-#include "port.h"	/* for port_out, port_in */
+#include "vc.h"
+#include "port.h"
 
 #include "mousevid.h"
 #include "mouse.h"
@@ -106,20 +105,20 @@ realize_cursor(short *scrmask,short *curmask,int org)
 }
 
 
-#define GRBASE (scr_state.phys_address + mouse_current_video.offset)
+#define GRBASE ((unsigned char *)GRAPH_BASE + mouse_current_video.offset)
 
 static inline 
 unsigned char read_ega_reg(int port,int index)
 {
-	port_out(index,port);
-	return port_in(port+1);
+	port_outb(port, index);
+	return port_inb(port+1);
 }
 
 static inline 
 void write_ega_reg(int port,int index,unsigned char value)
 {
-	port_out(index,port);
-	port_out(value,port+1);
+	port_outb(port, index);
+	port_outb(port+1, value);
 }
 
 /* these macros assume that the underlying hardware really is a

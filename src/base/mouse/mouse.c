@@ -1756,12 +1756,11 @@ do_mouse_irq()
 /* unconditional mouse cursor update */
 static void mouse_do_cur(void)
 {
-  if (!scr_state.current) 
-  	return;
-
   if (mouse.gfx_cursor) {
-    if (scr_state.mapped)
-	    graph_cursor();
+#if 1
+    if (!config.X)	// still doesn't work under X :(
+#endif
+    graph_cursor();
   }
   else {
     text_cursor();
