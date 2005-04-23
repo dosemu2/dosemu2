@@ -732,7 +732,6 @@ void init_vga_card(void)
 
   save_vga_state(&linux_regs);
   dosemu_vga_screenon();
-  dump_video_linux();
 
   config.vga = 1;
   set_vc_screen_page(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));

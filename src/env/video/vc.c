@@ -1007,7 +1007,6 @@ dump_video (void)
     v_printf ("0x%04X,", dosemu_regs.xregs16[i]);
   v_printf ("0x%04X\n", dosemu_regs.xregs16[MAX_X_REGS16]);
 }
-#endif
 
 /* Dump what's in the linux_regs */
 void
@@ -1046,6 +1045,7 @@ dump_video_linux (void)
     v_printf ("0x%04X,", linux_regs.xregs16[i]);
   v_printf ("0x%04X\n", linux_regs.xregs16[MAX_X_REGS16]);
 }
+#endif
 
 /*
  * install_int_10_handler - install a handler for the video-interrupt (int 10)
