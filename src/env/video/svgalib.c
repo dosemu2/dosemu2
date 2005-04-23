@@ -61,6 +61,8 @@ static int svgalib_init(void)
        int r;
 
        PRIV_SAVE_AREA
+       vga_norevokeprivs();
+       vga_disablechipset(VESA);
        enter_priv_on();
        r=vga_simple_init();
        leave_priv_setting();
