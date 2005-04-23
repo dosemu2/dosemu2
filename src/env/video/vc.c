@@ -71,10 +71,6 @@ static void set_dos_video (void);
 static void SIGRELEASE_call (void);
 static void SIGACQUIRE_call (void);
 
-#ifdef WANT_DUMP_VIDEO
-static void dump_video (void);
-#endif
-
 static int  color_text;
 
 #define MAXDOSINTS 032
@@ -186,9 +182,6 @@ set_dos_video (void)
     {
       v_printf ("Acquiring vt, restoring dosemu_regs\n");
       get_perm ();
-#ifdef WANT_DUMP_VIDEO
-      dump_video ();
-#endif
       restore_vga_state (&dosemu_regs);
     }
 
@@ -207,15 +200,9 @@ set_linux_video (void)
       v_printf ("Storing dosemu_regs, Releasing vt mode=%02x\n", *(u_char *) 0x449);
       dosemu_regs.video_mode = *(u_char *) 0x449;
       save_vga_state (&dosemu_regs);
-#ifdef WANT_DUMP_VIDEO
-      dump_video ();
-#endif
       if (linux_regs.mem != (u_char) NULL)
 	{
 	  v_printf ("Restoring linux_regs, Releasing vt\n");
-#if 0
-	  dump_video_linux ();
-#endif
 	  restore_vga_state (&linux_regs);
 	}
     }
@@ -963,89 +950,6 @@ video_port_out (ioport_t port, u_char value)
   return;
 }
 
-
-
-#ifdef WANT_DUMP_VIDEO
-/* Generally I will request a video mode change switch quickly, and have the
-   actuall registers printed out,as well as the dump of what dump_video
-   received and fix the differences */
-
-/* Dump what's in the dosemu_regs */
-static void
-dump_video (void)
-{
-  u_short i;
-
-  v_printf ("/* BIOS mode 0x%02X */\n", dosemu_regs.video_mode);
-  v_printf ("static char regs[60] = {\n  ");
-  for (i = 0; i < 12; i++)
-    v_printf ("0x%02X,", dosemu_regs.regs[CRT + i]);
-  v_printf ("\n  ");
-  for (i = 12; i < CRT_C; i++)
-    v_printf ("0x%02X,", dosemu_regs.regs[CRT + i]);
-  v_printf ("\n  ");
-  for (i = 0; i < 12; i++)
-    v_printf ("0x%02X,", dosemu_regs.regs[ATT + i]);
-  v_printf ("\n  ");
-  for (i = 12; i < ATT_C; i++)
-    v_printf ("0x%02X,", dosemu_regs.regs[ATT + i]);
-  v_printf ("\n  ");
-  for (i = 0; i < GRA_C; i++)
-    v_printf ("0x%02X,", dosemu_regs.regs[GRA + i]);
-  v_printf ("\n  ");
-  for (i = 0; i < SEQ_C; i++)
-    v_printf ("0x%02X,", dosemu_regs.regs[SEQ + i]);
-  v_printf ("\n  ");
-  v_printf ("0x%02X", dosemu_regs.regs[MIS]);
-  v_printf ("\n};\n");
-  v_printf ("Extended Regs/if applicable:\n");
-  for (i = 0; i < MAX_X_REGS; i++)
-    v_printf ("0x%02X,", dosemu_regs.xregs[i]);
-  v_printf ("0x%02X\n", dosemu_regs.xregs[MAX_X_REGS]);
-  v_printf ("Extended 16 bit Regs/if applicable:\n");
-  for (i = 0; i < MAX_X_REGS16; i++)
-    v_printf ("0x%04X,", dosemu_regs.xregs16[i]);
-  v_printf ("0x%04X\n", dosemu_regs.xregs16[MAX_X_REGS16]);
-}
-
-/* Dump what's in the linux_regs */
-void
-dump_video_linux (void)
-{
-  u_short i;
-
-  v_printf ("/* BIOS mode 0x%02X */\n", linux_regs.video_mode);
-  v_printf ("static char regs[60] = {\n  ");
-  for (i = 0; i < 12; i++)
-    v_printf ("0x%02X,", linux_regs.regs[CRT + i]);
-  v_printf ("\n  ");
-  for (i = 12; i < CRT_C; i++)
-    v_printf ("0x%02X,", linux_regs.regs[CRT + i]);
-  v_printf ("\n  ");
-  for (i = 0; i < 12; i++)
-    v_printf ("0x%02X,", linux_regs.regs[ATT + i]);
-  v_printf ("\n  ");
-  for (i = 12; i < ATT_C; i++)
-    v_printf ("0x%02X,", linux_regs.regs[ATT + i]);
-  v_printf ("\n  ");
-  for (i = 0; i < GRA_C; i++)
-    v_printf ("0x%02X,", linux_regs.regs[GRA + i]);
-  v_printf ("\n  ");
-  for (i = 0; i < SEQ_C; i++)
-    v_printf ("0x%02X,", linux_regs.regs[SEQ + i]);
-  v_printf ("\n  ");
-  v_printf ("0x%02X", linux_regs.regs[MIS]);
-  v_printf ("\n};\n");
-  v_printf ("Extended Regs/if applicable:\n");
-  for (i = 0; i < MAX_X_REGS; i++)
-    v_printf ("0x%02X,", linux_regs.xregs[i]);
-  v_printf ("0x%02X\n", linux_regs.xregs[MAX_X_REGS]);
-  v_printf ("Extended 16 bit Regs/if applicable:\n");
-  for (i = 0; i < MAX_X_REGS16; i++)
-    v_printf ("0x%04X,", linux_regs.xregs16[i]);
-  v_printf ("0x%04X\n", linux_regs.xregs16[MAX_X_REGS16]);
-}
-#endif
 
 /*
  * install_int_10_handler - install a handler for the video-interrupt (int 10)
