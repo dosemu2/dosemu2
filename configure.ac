@@ -166,15 +166,35 @@ dnl Check whether we have svgalib and whether to use it
 AC_ARG_WITH(svgalib,
 	[  --with-svgalib          use svgalib if available])
 if test "$with_svgalib" = "yes"; then
-  AC_CHECK_LIB(vga, vga_simple_init, , with_svgalib="no")
-fi
-if test "$with_svgalib" = "yes"; then
-  AC_MSG_NOTICE(Compiling with svgalib support...)
-  AC_DEFINE(USE_SVGALIB)
-  USE_SVGALIB="USE_SVGALIB=1"
-  AC_SUBST(USE_SVGALIB)
-else
-  AC_MSG_NOTICE(Compiling without svgalib support...)
+  AC_MSG_NOTICE(Checking for svgalib... )
+  AC_CHECK_LIB(vga, vga_simple_init,
+  [ AC_CHECK_HEADER(vga.h,
+    [ svgalib_ver=`${CC-cc} -E - << "" | tail -n 1 | cut -dx -f2
+        #include <vga.h>
+        SVGALIB_VER
+      `
+      svgalib_ver_a=`expr $svgalib_ver / 10000`
+      svgalib_ver_b=`expr $svgalib_ver / 100 % 100`
+      svgalib_ver_c=`expr $svgalib_ver % 100`
+      AC_MSG_NOTICE(Checking for svgalib version... ${svgalib_ver_a}.${svgalib_ver_b}.${svgalib_ver_c})
+      if test $svgalib_ver -ge 010921; then
+        use_svgalib="yes"
+      else
+        AC_MSG_WARN([Your svgalib is too old, at least ver 1.9.21 is required!])
+        use_svgalib="no"
+      fi
+    ], AC_MSG_WARN(svgalib headers not found.))
+  ], AC_MSG_WARN(svgalib not found.))
+
+  if test "$use_svgalib" = "yes"; then
+    AC_MSG_NOTICE(Compiling with svgalib support)
+    AC_DEFINE(USE_SVGALIB)
+    USE_SVGALIB="USE_SVGALIB=1"
+    AC_SUBST(USE_SVGALIB)
+    LIBS="-lvga $LIBS"
+  else
+    AC_MSG_NOTICE(Compiling without svgalib support)
+  fi
 fi
 
 dnl Check whether we have gpm and whether to use it
