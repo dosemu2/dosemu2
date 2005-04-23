@@ -434,6 +434,7 @@ int linux_sb_dma_start_init(int read)
 	return 0;
       }
     dsp_fd = dsp_fd_read;
+    dsp_fd_write = -1;
   }
 
   if (oss_block_size != new_block_size) {
@@ -512,7 +513,10 @@ int linux_sb_get_free_fragments(int *total, int *free, int *bytes)
   *free = 0;
   *bytes = 0;
 
-  if (ioctl(dsp_fd, SNDCTL_DSP_GETOSPACE, &data) > -1) {
+  if (dsp_fd_write == -1)
+    return DMA_HANDLER_OK;
+
+  if (ioctl(dsp_fd_write, SNDCTL_DSP_GETOSPACE, &data) > -1) {
     S_printf ("SB:[Linux] Get Free Fragments (%d, %d)\n", 
 	      data.fragstotal, data.fragments);
 
