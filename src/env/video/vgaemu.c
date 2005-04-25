@@ -612,7 +612,7 @@ static Bit32u color2pixels[16] = {0,0xff,0xff00,0xffff,0xff0000,0xff00ff,0xffff0
 
 #define VGALatch	vga.latch
 
-unsigned char Logical_VGA_read(unsigned offset)
+static unsigned char Logical_VGA_read(unsigned offset)
 {
   
   switch (ReadMode) {
@@ -727,7 +727,7 @@ static Bit32u Logical_VGA_CalcNewVal (unsigned char value)
   return new_val;
 }
 
-void Logical_VGA_write(unsigned offset, unsigned char value)
+static void Logical_VGA_write(unsigned offset, unsigned char value)
 {
   unsigned vga_page;
   unsigned char *p;

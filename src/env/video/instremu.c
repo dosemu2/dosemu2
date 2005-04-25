@@ -397,7 +397,7 @@ unsigned char instr_read_byte(unsigned addr)
 
   if(addr >= vga_base && addr < vga_end) {
     count = COUNT;
-    u = Logical_VGA_read(addr - vga_base);
+    u = vga_read((unsigned char *)addr);
   }
   else {
     u = *(unsigned char *) addr;
@@ -420,10 +420,9 @@ unsigned instr_read_word(unsigned addr)
    */
   if(addr >= vga_base && addr < vga_end) {
     count = COUNT;
-    addr -= vga_base;
     u = 0;
-    R_LO(u) = Logical_VGA_read(addr);
-    R_HI(u) = Logical_VGA_read(addr+1);
+    R_LO(u) = vga_read((unsigned char *)addr);
+    R_HI(u) = vga_read((unsigned char *)addr+1);
   } else 
     u = *(unsigned *)addr & 0xffff;
 
@@ -444,11 +443,10 @@ unsigned instr_read_dword(unsigned addr)
    */
   if(addr >= vga_base && addr < vga_end) {
     count = COUNT;
-    addr -= vga_base;
-    R_LO(u) = Logical_VGA_read(addr);
-    R_HI(u) = Logical_VGA_read(addr+1);
-    ((unsigned char *) &u)[2] = Logical_VGA_read(addr+2);
-    ((unsigned char *) &u)[3] = Logical_VGA_read(addr+3);
+    R_LO(u) = vga_read((unsigned char *)addr);
+    R_HI(u) = vga_read((unsigned char *)addr+1);
+    ((unsigned char *) &u)[2] = vga_read((unsigned char *)addr+2);
+    ((unsigned char *) &u)[3] = vga_read((unsigned char *)addr+3);
   } else 
     u = *(unsigned *)addr;
 
@@ -463,7 +461,7 @@ void instr_write_byte(unsigned addr, unsigned char u)
 {
   if(addr >= vga_base && addr < vga_end) {
     count = COUNT;
-    Logical_VGA_write(addr - vga_base, u);
+    vga_write((unsigned char *)addr, u);
   }
   else if (ldt_buffer && addr >= (int)ldt_buffer &&
       addr < (int)ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
@@ -488,9 +486,8 @@ void instr_write_word(unsigned dst, unsigned u)
 
   if(dst >= vga_base && dst < vga_end) {
     count = COUNT;
-    dst -= vga_base;
-    Logical_VGA_write(dst, R_LO(u));
-    Logical_VGA_write(dst+1, R_HI(u));
+    vga_write((unsigned char *)dst, R_LO(u));
+    vga_write((unsigned char *)dst+1, R_HI(u));
   }
   else if (ldt_buffer && dst >= (int)ldt_buffer &&
       dst < (int)ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
@@ -515,11 +512,10 @@ void instr_write_dword(unsigned dst, unsigned u)
 
   if(dst >= vga_base && dst < vga_end) {
     count = COUNT;
-    dst -= vga_base;
-    Logical_VGA_write(dst, R_LO(u));
-    Logical_VGA_write(dst+1, R_HI(u));
-    Logical_VGA_write(dst+2, ((unsigned char *) &u)[2]);
-    Logical_VGA_write(dst+3, ((unsigned char *) &u)[3]);
+    vga_write((unsigned char *)dst, R_LO(u));
+    vga_write((unsigned char *)dst+1, R_HI(u));
+    vga_write((unsigned char *)dst+2, ((unsigned char *) &u)[2]);
+    vga_write((unsigned char *)dst+3, ((unsigned char *) &u)[3]);
   }
   else if (ldt_buffer && dst >= (int)ldt_buffer &&
       dst < (int)ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
