@@ -761,6 +761,57 @@ void Logical_VGA_write(unsigned offset, unsigned char value)
   
 }
 
+unsigned char vga_read(unsigned char *addr)
+{
+  int vga_base = vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page << 12;
+  if (!vga.inst_emu)
+    return READ_BYTE(addr);
+  return Logical_VGA_read((unsigned int)addr - vga_base);
+}
+
+void vga_write(unsigned char *addr, unsigned char val)
+{
+  int vga_base = vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page << 12;
+  if (!vga.inst_emu) {
+    WRITE_BYTE(addr, val);
+    return;
+  }
+  Logical_VGA_write((unsigned int)addr - vga_base, val);
+}
+
+void memcpy_to_vga(unsigned char *dst, unsigned char *src, size_t len)
+{
+  int i;
+  if (!vga.inst_emu) {
+    MEMCPY_2DOS(dst, src, len);
+    return;
+  }
+  for (i = 0; i < len; i++)
+    vga_write(dst + i, READ_BYTE(src + i));
+}
+
+void memcpy_from_vga(unsigned char *dst, unsigned char *src, size_t len)
+{
+  int i;
+  if (!vga.inst_emu) {
+    MEMCPY_2UNIX(dst, src, len);
+    return;
+  }
+  for (i = 0; i < len; i++) {
+    WRITE_BYTE(dst + i, vga_read(src + i));
+  }
+}
+
+void vga_memcpy(unsigned char *dst, unsigned char *src, size_t len)
+{
+  int i;
+  if (!vga.inst_emu) {
+    MEMCPY_DOS2DOS(dst, src, len);
+    return;
+  }
+  for (i = 0; i < len; i++)
+    vga_write(dst + i, vga_read(src + i));
+}
 
 /*
  * DANG_BEGIN_FUNCTION vga_emu_fault

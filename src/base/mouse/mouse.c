@@ -1226,9 +1226,7 @@ mouse_set_gcur(void)
   memcpy((void *)mouse.graphcursormask,ptr+16,32);
 
   /* compile it so that it can acutally be drawn. */
-  if (Mouse == &Mouse_raw) {
-    define_graphics_cursor((short *)mouse.graphscreenmask,(short *)mouse.graphcursormask);
-  }
+  define_graphics_cursor((short *)mouse.graphscreenmask,(short *)mouse.graphcursormask);
 }
 
 void 
@@ -1757,9 +1755,6 @@ do_mouse_irq()
 static void mouse_do_cur(void)
 {
   if (mouse.gfx_cursor) {
-#if 1
-    if (!config.X)	// still doesn't work under X :(
-#endif
     graph_cursor();
   }
   else {
