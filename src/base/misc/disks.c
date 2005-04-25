@@ -1206,6 +1206,9 @@ int int13(void)
       case 18:
 	LO(bx) = THREE_INCH_FLOPPY;
 	break;
+      case 36:
+	LO(bx) = THREE_INCH_288MFLOP;
+	break;
       case 0:
 	LO(bx) = dp->default_cmos;
 	dp->tracks = 80;

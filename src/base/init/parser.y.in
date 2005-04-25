@@ -272,7 +272,7 @@ static int is_in_allowed_classes(int mask);
 	/* printer */
 %token COMMAND TIMEOUT OPTIONS L_FILE
 	/* disk */
-%token L_PARTITION BOOTFILE WHOLEDISK THREEINCH FIVEINCH ATAPI READONLY LAYOUT
+%token L_PARTITION BOOTFILE WHOLEDISK THREEINCH THREEINCH_720 THREEINCH_2880 FIVEINCH ATAPI READONLY LAYOUT
 %token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE DISKCYL4096
 	/* ports/io */
 %token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE FAST SLOW
@@ -1352,6 +1352,8 @@ disk_flags	: disk_flag
 		;
 disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		| THREEINCH	{ dptr->default_cmos = THREE_INCH_FLOPPY; }
+		| THREEINCH_2880	{ dptr->default_cmos = THREE_INCH_288MFLOP; }		
+		| THREEINCH_720	{ dptr->default_cmos = THREE_INCH_720KFLOP; }		
 		| ATAPI		{ dptr->default_cmos = ATAPI_FLOPPY; }
 		| FIVEINCH	{ dptr->default_cmos = FIVE_INCH_FLOPPY; }
 		| DISKCYL4096	{ dptr->diskcyl4096 = 1; }
