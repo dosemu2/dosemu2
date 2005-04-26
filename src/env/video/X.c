@@ -1375,9 +1375,6 @@ int NewXErrorHandler(Display *dsp, XErrorEvent *xev)
 static void X_show_mouse_cursor(int yes)
 {
    if (yes || vga.mode_class != GRAPH) {
-      if (force_grab && grab_active) {
-         toggle_mouse_grab();
-      }
       if (mouse_cursor_visible) return;
       if (grab_active) {
          XDefineCursor(display, normalwindow, X_mouse_nocursor);
@@ -1388,9 +1385,6 @@ static void X_show_mouse_cursor(int yes)
       }
       mouse_cursor_visible = 1;
    } else {
-      if (force_grab && !grab_active) {
-         toggle_mouse_grab();
-      }
       if (!mouse_cursor_visible) return;
       XDefineCursor(display, normalwindow, X_mouse_nocursor);
       XDefineCursor(display, fullscreenwindow, X_mouse_nocursor);
@@ -1487,13 +1481,7 @@ static void X_set_mouse_cursor(int action, int mx, int my, int x_range, int y_ra
 	x = (x_range * mouse_x)/w_x_res;
 	y = (y_range * mouse_y)/w_y_res;
 	if ((mx != x) || (my != y)) {
-		if (grab_active) {
-			if (force_grab)
-				toggle_mouse_grab();
-			else
-				return;
-		}
-		if (have_focus)
+		if (!grab_active && have_focus)
 			XWarpPointer(display, None, mainwindow, 0, 0, 0, 0,
 				     shift_x + (w_x_res * mx)/x_range,
 				     shift_y + (w_y_res * my)/y_range);
@@ -1512,9 +1500,7 @@ static void toggle_fullscreen_mode(void)
     saved_w_x_res = w_x_res;
     saved_w_y_res = w_y_res;
     if (!grab_active) {
-      if(vga.mode_class == GRAPH && !mouse_cursor_visible) {
-        toggle_mouse_grab();
-      }
+      toggle_mouse_grab();
       force_grab = 1;
     }
     X_vidmode(x_res, y_res, &resize_width, &resize_height);
