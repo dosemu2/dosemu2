@@ -178,7 +178,7 @@ static void old_dos_terminate(struct sigcontext_struct *scp, int i)
     *(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa+2) = DPMI_SEG;
 
     psp_seg_sel = *(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0x16);
-    ptr = (char *)SEG2LINEAR(psp_seg_sel);
+    ptr = (unsigned char *)SEG2LINEAR(psp_seg_sel);
     if (ptr[0] != 0xCD || ptr[1] != 0x20) {
 	unsigned short psp_seg = DPMI_CLIENT.CURRENT_PSP;
 	D_printf("DPMI: Trying PSP sel=%#x, V=%i, d=%i, l=%#lx\n",
@@ -186,7 +186,7 @@ static void old_dos_terminate(struct sigcontext_struct *scp, int i)
 	    in_dos_space(psp_seg_sel, 0), GetSegmentLimit(psp_seg_sel));
 	if (ValidAndUsedSelector(psp_seg_sel) && in_dos_space(psp_seg_sel, 0) &&
 		GetSegmentLimit(psp_seg_sel) >= 0xff) {
-	    ptr = (char *)GetSegmentBaseAddress(psp_seg_sel);
+	    ptr = (unsigned char *)GetSegmentBaseAddress(psp_seg_sel);
 	    D_printf("DPMI: Trying PSP sel=%#x, addr=%p\n", psp_seg_sel, ptr);
 	    if ((!(((int)ptr) & 0x0f)) && ptr[0] == 0xCD && ptr[1] == 0x20) {
 		psp_seg = ((int)ptr) >> 4;
@@ -999,8 +999,13 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	    }
 	    break;
 	case 0x38:
-	    if (_LO(ax) == 0x00) { /* get country info */
-		SET_REG(ds, ConvertSegmentToDescriptor(REG(ds)));
+	    if (_LWORD(edx) != 0xffff) { /* get country info */
+		PRESERVE1(edx);
+		if (LWORD(eflags) & CF)
+		    break;
+		/* FreeDOS copies only 0x18 bytes */
+		MEMCPY_DOS2DOS((void *)(GetSegmentBaseAddress(REG(ds)) +
+		    D_16_32(_edx)), SEG_ADR((void *), ds, dx), 0x18);
 	    }
 	    break;
 	case 0x47:		/* get CWD */
