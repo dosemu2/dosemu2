@@ -52,6 +52,7 @@ struct mousevideoinfo mouse_current_video;
 int
 get_current_video_mode(void)
 {
+#if 0
   if(config.X) {
     mouse_current_video.mode = vga.mode;
     mouse_current_video.textgraph = vga.mode_class == TEXT ? 'T' : 'G';
@@ -71,11 +72,11 @@ get_current_video_mode(void)
       case  PL4: mouse_current_video.organization = ORG_EGA16; break;
       default: mouse_current_video.organization = ORG_VGA;
     }
-    mouse_current_video.offset = (vga.buffer_seg - 0xa000) << 4;
+    mouse_current_video.offset = ((vga.buffer_seg - 0xa000) << 4) + vga.display_start;
   }
   else 
+#endif
   {
-
     int i = READ_BYTE(BIOS_VIDEO_MODE);
     /* invalid video mode */
     if(i < 0 || i > 0x13 || !videomodes[i].textgraph) {
@@ -87,6 +88,8 @@ get_current_video_mode(void)
 	    mouse_current_video.width = READ_WORD(BIOS_SCREEN_COLUMNS);
 	    mouse_current_video.height = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) +1;
 	    mouse_current_video.bytesperline = mouse_current_video.width *2;
+    } else {
+      mouse_current_video.offset += READ_WORD(BIOS_VIDEO_MEMORY_ADDRESS);
     }
   }
 

@@ -790,7 +790,7 @@ void int10_old(void) /* with dualmon */
 {
   /* some code here is copied from Alan Cox ***************/
   int x, y;
-  unsigned int page;
+  unsigned int page, page_size;
   u_char c;
   us *sm;
   int co, li;
@@ -809,6 +809,7 @@ void int10_old(void) /* with dualmon */
 
   li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
   co= READ_WORD(BIOS_SCREEN_COLUMNS);
+  page_size = TEXT_SIZE;
 
   if (debug_level('v') >= 3)
     {
@@ -891,10 +892,13 @@ void int10_old(void) /* with dualmon */
 	break;
       }
       if (config.console_video) set_vc_screen_page(page);
-      if (Video->update_screen) vga_emu_set_text_page(page, TEXT_SIZE);
+      if (Video->update_screen) {
+        page_size = vga_emu_get_page_size();
+        vga_emu_set_text_page(page, page_size);
+      }
 
       WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, video_page = page);
-      WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, TEXT_SIZE * page);
+      WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, page_size * page);
       screen_adr = SCREEN_ADR(page);
       screen_mask = 1 << page;
       set_dirty(page);
@@ -1356,12 +1360,13 @@ void int10_new(void) /* with X but without dualmon */
 {
   /* some code here is copied from Alan Cox ***************/
   int x, y, co, li;
-  unsigned m, page;
+  unsigned m, page, page_size;
   u_char c;
   us *sm;
 
   li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
   co= READ_WORD(BIOS_SCREEN_COLUMNS);
+  page_size = TEXT_SIZE;
 
   if(HI(ax) > 0x0f)	// EVIL hack! Remove it later!!!
   if (debug_level('v') >= 3)
@@ -1456,10 +1461,13 @@ void int10_new(void) /* with X but without dualmon */
 	break;
       }
       if (config.console_video) set_vc_screen_page(page);
-      if (Video->update_screen) vga_emu_set_text_page(page, TEXT_SIZE);
+      if (Video->update_screen) {
+        page_size = vga_emu_get_page_size();
+        vga_emu_set_text_page(page, page_size);
+      }
 
       WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, video_page = page);
-      WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, TEXT_SIZE * page);
+      WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, page_size * page);
       screen_adr = SCREEN_ADR(page);
       screen_mask = 1 << page;
       set_dirty(page);		// ??? evil stuff: what about xdos?

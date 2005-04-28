@@ -2387,6 +2387,22 @@ void dirty_all_video_pages()
   memset(vga.mem.dirty_map, 1, vga.mem.pages);
 }
 
+unsigned int vga_emu_get_page_size()
+{
+  unsigned int page_size;
+  if(vga.mode_class != TEXT) {
+    page_size = vga.scan_len * vga.height;
+    if (page_size != 0) {
+      page_size = vga.mem.bank_pages * 4096 / page_size;
+      if (page_size != 0) {
+	page_size = vga.mem.bank_pages * 4096 / page_size;
+      }
+    }
+  } else {
+    page_size = TEXT_SIZE;
+  }
+  return page_size;
+}
 
 /*
  * DANG_BEGIN_FUNCTION vga_emu_set_text_page
@@ -2407,16 +2423,6 @@ void dirty_all_video_pages()
 
 int vga_emu_set_text_page(unsigned page, unsigned page_size)
 {
-  if(vga.mode_class != TEXT) {
-    page_size = vga.scan_len * vga.height;
-    if (page_size != 0) {
-      page_size = vga.mem.bank_pages * 4096 / page_size;
-      if (page_size != 0) {
-	page_size = vga.mem.bank_pages * 4096 / page_size;
-      }
-    }
-  }
-
   if((page + 1) * page_size > vga.mem.size) {
     vga_msg("vga_emu_set_text_page: page number %d to high\n", page);
     return 2;
