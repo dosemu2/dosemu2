@@ -777,13 +777,13 @@ mfs_redirector(void)
   sigalarm_block(0);
   vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
 
-  Debug0((dbg_fd, "Finished dos_fs_redirect\n"));
-
   switch (ret) {
   case FALSE:
+    Debug0((dbg_fd, "dos_fs_redirect failed\n"));
     REG(eflags) |= CF;
     return 1;
   case TRUE:
+    Debug0((dbg_fd, "Finished dos_fs_redirect\n"));
     REG(eflags) &= ~CF;
     return 1;
   case UNCHANGED:
