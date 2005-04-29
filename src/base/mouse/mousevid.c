@@ -88,9 +88,8 @@ get_current_video_mode(void)
 	    mouse_current_video.width = READ_WORD(BIOS_SCREEN_COLUMNS);
 	    mouse_current_video.height = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) +1;
 	    mouse_current_video.bytesperline = mouse_current_video.width *2;
-    } else {
-      mouse_current_video.offset += READ_WORD(BIOS_VIDEO_MEMORY_ADDRESS);
     }
+    mouse_current_video.offset += READ_WORD(BIOS_VIDEO_MEMORY_ADDRESS);
   }
 
   m_printf(
