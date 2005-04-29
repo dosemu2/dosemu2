@@ -60,9 +60,7 @@ static int need_copy_dseg(struct sigcontext_struct *scp, int intr)
 	case 0x21:
 	    switch (_HI(ax)) {
 		case 0x0a:		/* buffered keyboard input */
-		case 0x38:
 		case 0x5a:		/* mktemp */
-		case 0x5d:		/* Critical Error Information  */
 		case 0x69:
 		    return 1;
 		case 0x44:		/* IOCTL */
@@ -72,6 +70,8 @@ static int need_copy_dseg(struct sigcontext_struct *scp, int intr)
 			    return 1;
 		    }
 		    break;
+		case 0x5d:		/* Critical Error Information  */
+		    return (_LO(ax) != 0x06 && _LO(ax) != 0x0b);
 		case 0x5e:
 		    return (_LO(ax) != 0x03);
 	    }
@@ -497,6 +497,13 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
                 snprintf(dst, MAX_DOS_PATH, "%s", src);
 	    }
 	    return 0;
+	case 0x38:
+	    if (_LWORD(edx) != 0xffff) { /* get country info */
+		prepare_ems_frame();
+		REG(ds) = TRANS_BUFFER_SEG;
+		REG(edx) = 0;
+	    }
+	    break;
 	case 0x3f:		/* dos read */
 	    set_io_buffer((char*)GetSegmentBaseAddress(_ds) + D_16_32(_edx),
 		D_16_32(_ecx));
@@ -1056,7 +1063,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	    PRESERVE2(edx, edi);
 	    break ;
 	case 0x5d:
-	    if (_LO(ax) == 0x06) /* get address of DOS swappable area */
+	    if (_LO(ax) == 0x06 || _LO(ax) == 0x0b) /* get address of DOS swappable area */
 				/*        -> DS:SI                     */
 		SET_REG(ds, ConvertSegmentToDescriptor(REG(ds)));
 	    break;
