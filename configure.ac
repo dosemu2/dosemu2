@@ -533,11 +533,11 @@ fi
 
 
 AC_ARG_WITH(target_cpu, [--with-target-cpu=CPU	Use the specified target CPU (default=auto)])
-target_cpu=$with_target_cpu
-if test "$target_cpu" = ""; then
+if test "$with_target_cpu" = ""; then
   AC_MSG_NOTICE(Compiling with default target CPU...)
 else
   AC_MSG_NOTICE(Compiling with specified target CPU...)
+  target_cpu=$with_target_cpu
 fi
 
 
@@ -564,6 +564,11 @@ if test "$GCC" = "yes" ; then
        OPT="$OPT -fno-strict-aliasing"
        if test "$(( $GCC_VERSION_CODE >= 3000 ))" = "1"; then
          CPPFLAGS="$CPPFLAGS -MP"
+         if test "$(( $GCC_VERSION_CODE >= 4000 ))" = "1"; then
+           # ideally we should fix these warnings, but for now, it's too
+           # much noise. The Linux kernel does the same thing.
+           OPT="$OPT -Wno-pointer-sign"
+         fi
        fi
      else
        AC_MSG_RESULT(no)
