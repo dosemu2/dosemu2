@@ -220,12 +220,11 @@ int ser_open(int num)
   {
     s_printf("SER: Running ser_open, %s\n", com[num].dev);
     /* don't try to remove any lock: they don't make sense for ttyname(0) */
-    dbug_printf("Opening Virtual Port\n");
+    s_printf("Opening Virtual Port\n");
     com[num].dev_locked = FALSE;
     com[num].fd = 0;
-  }
-  else
-    if ( tty_lock(com[num].dev, 1) >= 0) {		/* Lock port */
+  } else if (config.tty_lockdir[0]) {
+    if (tty_lock(com[num].dev, 1) >= 0) {		/* Lock port */
       /* We know that we have access to the serial port */
       com[num].dev_locked = TRUE;
     
@@ -236,12 +235,15 @@ int ser_open(int num)
       if (com[num].mouse)
         if (tty_lock(com[num].dev, 0) >= 0)   		/* Unlock port */
           com[num].dev_locked = FALSE;
+    } else {
+      /* The port is in use by another process!  Don't touch the port! */
+      com[num].dev_locked = FALSE;
+      com[num].fd = -2;
+      return(-1);
     }
-  else {
-    /* The port is in use by another process!  Don't touch the port! */
+  } else {
+    s_printf("Warning: Port locking disabled in the config.\n");
     com[num].dev_locked = FALSE;
-    com[num].fd = -2;
-    return(-1);
   }
   
   if (com[num].dev[0] == 0) {
@@ -268,7 +270,7 @@ fail_close:
   close(com[num].fd);
   /* fall through */
 fail_unlock:
-  if (tty_lock(com[num].dev, 0) >= 0)   		/* Unlock port */
+  if (com[num].dev_locked && tty_lock(com[num].dev, 0) >= 0)   		/* Unlock port */
     com[num].dev_locked = FALSE;
 
   com[num].fd = -2; // disable permanently
