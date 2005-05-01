@@ -148,9 +148,6 @@ EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MID
 /* Define to 1 if you have the `rt' library (-lrt). */
 #undef HAVE_LIBRT
 
-/* Define to 1 if you have the `vga' library (-lvga). */
-#undef HAVE_LIBVGA
-
 /* Define to 1 if you have the `X11' library (-lX11). */
 #undef HAVE_LIBX11
 

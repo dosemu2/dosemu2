@@ -7068,8 +7068,9 @@ if test "${with_svgalib+set}" = set; then
 
 fi;
 if test "$with_svgalib" = "yes"; then
-
-echo "$as_me:$LINENO: checking for vga_simple_init in -lvga" >&5
+  { echo "$as_me:$LINENO: Checking for svgalib... " >&5
+echo "$as_me: Checking for svgalib... " >&6;}
+  echo "$as_me:$LINENO: checking for vga_simple_init in -lvga" >&5
 echo $ECHO_N "checking for vga_simple_init in -lvga... $ECHO_C" >&6
 if test "${ac_cv_lib_vga_vga_simple_init+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
@@ -7133,29 +7134,187 @@ fi
 echo "$as_me:$LINENO: result: $ac_cv_lib_vga_vga_simple_init" >&5
 echo "${ECHO_T}$ac_cv_lib_vga_vga_simple_init" >&6
 if test $ac_cv_lib_vga_vga_simple_init = yes; then
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_LIBVGA 1
+   if test "${ac_cv_header_vga_h+set}" = set; then
+  echo "$as_me:$LINENO: checking for vga.h" >&5
+echo $ECHO_N "checking for vga.h... $ECHO_C" >&6
+if test "${ac_cv_header_vga_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+fi
+echo "$as_me:$LINENO: result: $ac_cv_header_vga_h" >&5
+echo "${ECHO_T}$ac_cv_header_vga_h" >&6
+else
+  # Is the header compilable?
+echo "$as_me:$LINENO: checking vga.h usability" >&5
+echo $ECHO_N "checking vga.h usability... $ECHO_C" >&6
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
 _ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+$ac_includes_default
+#include <vga.h>
+_ACEOF
+rm -f conftest.$ac_objext
+if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
+  (eval $ac_compile) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest.$ac_objext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_header_compiler=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
 
-  LIBS="-lvga $LIBS"
+ac_header_compiler=no
+fi
+rm -f conftest.err conftest.$ac_objext conftest.$ac_ext
+echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
+echo "${ECHO_T}$ac_header_compiler" >&6
+
+# Is the header present?
+echo "$as_me:$LINENO: checking vga.h presence" >&5
+echo $ECHO_N "checking vga.h presence... $ECHO_C" >&6
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+#include <vga.h>
+_ACEOF
+if { (eval echo "$as_me:$LINENO: \"$ac_cpp conftest.$ac_ext\"") >&5
+  (eval $ac_cpp conftest.$ac_ext) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } >/dev/null; then
+  if test -s conftest.err; then
+    ac_cpp_err=$ac_c_preproc_warn_flag
+    ac_cpp_err=$ac_cpp_err$ac_c_werror_flag
+  else
+    ac_cpp_err=
+  fi
+else
+  ac_cpp_err=yes
+fi
+if test -z "$ac_cpp_err"; then
+  ac_header_preproc=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+  ac_header_preproc=no
+fi
+rm -f conftest.err conftest.$ac_ext
+echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
+echo "${ECHO_T}$ac_header_preproc" >&6
+
+# So?  What about this header?
+case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in
+  yes:no: )
+    { echo "$as_me:$LINENO: WARNING: vga.h: accepted by the compiler, rejected by the preprocessor!" >&5
+echo "$as_me: WARNING: vga.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
+    { echo "$as_me:$LINENO: WARNING: vga.h: proceeding with the compiler's result" >&5
+echo "$as_me: WARNING: vga.h: proceeding with the compiler's result" >&2;}
+    ac_header_preproc=yes
+    ;;
+  no:yes:* )
+    { echo "$as_me:$LINENO: WARNING: vga.h: present but cannot be compiled" >&5
+echo "$as_me: WARNING: vga.h: present but cannot be compiled" >&2;}
+    { echo "$as_me:$LINENO: WARNING: vga.h:     check for missing prerequisite headers?" >&5
+echo "$as_me: WARNING: vga.h:     check for missing prerequisite headers?" >&2;}
+    { echo "$as_me:$LINENO: WARNING: vga.h: see the Autoconf documentation" >&5
+echo "$as_me: WARNING: vga.h: see the Autoconf documentation" >&2;}
+    { echo "$as_me:$LINENO: WARNING: vga.h:     section \"Present But Cannot Be Compiled\"" >&5
+echo "$as_me: WARNING: vga.h:     section \"Present But Cannot Be Compiled\"" >&2;}
+    { echo "$as_me:$LINENO: WARNING: vga.h: proceeding with the preprocessor's result" >&5
+echo "$as_me: WARNING: vga.h: proceeding with the preprocessor's result" >&2;}
+    { echo "$as_me:$LINENO: WARNING: vga.h: in the future, the compiler will take precedence" >&5
+echo "$as_me: WARNING: vga.h: in the future, the compiler will take precedence" >&2;}
+    (
+      cat <<\_ASBOX
+## ------------------------------------------ ##
+## Report this to the AC_PACKAGE_NAME lists.  ##
+## ------------------------------------------ ##
+_ASBOX
+    ) |
+      sed "s/^/$as_me: WARNING:     /" >&2
+    ;;
+esac
+echo "$as_me:$LINENO: checking for vga.h" >&5
+echo $ECHO_N "checking for vga.h... $ECHO_C" >&6
+if test "${ac_cv_header_vga_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_cv_header_vga_h=$ac_header_preproc
+fi
+echo "$as_me:$LINENO: result: $ac_cv_header_vga_h" >&5
+echo "${ECHO_T}$ac_cv_header_vga_h" >&6
+
+fi
+if test $ac_cv_header_vga_h = yes; then
+   svgalib_ver=`${CC-cc} -E - << "" | tail -n 1 | cut -dx -f2
+        #include <vga.h>
+        SVGALIB_VER
+      `
+      svgalib_ver_a=`expr $svgalib_ver / 10000`
+      svgalib_ver_b=`expr $svgalib_ver / 100 % 100`
+      svgalib_ver_c=`expr $svgalib_ver % 100`
+      { echo "$as_me:$LINENO: Checking for svgalib version... ${svgalib_ver_a}.${svgalib_ver_b}.${svgalib_ver_c}" >&5
+echo "$as_me: Checking for svgalib version... ${svgalib_ver_a}.${svgalib_ver_b}.${svgalib_ver_c}" >&6;}
+      if test $svgalib_ver -ge 010921; then
+        use_svgalib="yes"
+      else
+        { echo "$as_me:$LINENO: WARNING: Your svgalib is too old, at least ver 1.9.21 is required!" >&5
+echo "$as_me: WARNING: Your svgalib is too old, at least ver 1.9.21 is required!" >&2;}
+        use_svgalib="no"
+      fi
 
 else
-  with_svgalib="no"
+  { echo "$as_me:$LINENO: WARNING: svgalib headers not found." >&5
+echo "$as_me: WARNING: svgalib headers not found." >&2;}
 fi
 
+
+
+else
+  { echo "$as_me:$LINENO: WARNING: svgalib not found." >&5
+echo "$as_me: WARNING: svgalib not found." >&2;}
 fi
-if test "$with_svgalib" = "yes"; then
-  { echo "$as_me:$LINENO: Compiling with svgalib support..." >&5
-echo "$as_me: Compiling with svgalib support..." >&6;}
-  cat >>confdefs.h <<\_ACEOF
+
+
+  if test "$use_svgalib" = "yes"; then
+    { echo "$as_me:$LINENO: Compiling with svgalib support" >&5
+echo "$as_me: Compiling with svgalib support" >&6;}
+    cat >>confdefs.h <<\_ACEOF
 #define USE_SVGALIB 1
 _ACEOF
 
-  USE_SVGALIB="USE_SVGALIB=1"
+    USE_SVGALIB="USE_SVGALIB=1"
 
-else
-  { echo "$as_me:$LINENO: Compiling without svgalib support..." >&5
-echo "$as_me: Compiling without svgalib support..." >&6;}
+    LIBS="-lvga $LIBS"
+  else
+    { echo "$as_me:$LINENO: Compiling without svgalib support" >&5
+echo "$as_me: Compiling without svgalib support" >&6;}
+  fi
 fi
 
 
