@@ -532,6 +532,15 @@ if test "$CONFIG_HOST" = "linux"; then
 fi
 
 
+AC_ARG_WITH(target_cpu, [--with-target-cpu=CPU	Use the specified target CPU (default=auto)])
+target_cpu=$with_target_cpu
+if test "$target_cpu" = ""; then
+  AC_MSG_NOTICE(Compiling with default target CPU...)
+else
+  AC_MSG_NOTICE(Compiling with specified target CPU...)
+fi
+
+
 if test "$GCC" = "yes" ; then
   AC_MSG_CHECKING(for the version of gcc...)
   minor=`echo "" |${CC-cc} -E -dM -|awk '/__GNUC_MINOR__/{print $3}'`

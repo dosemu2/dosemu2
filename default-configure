@@ -84,7 +84,7 @@ while [ "$1" != "" ]; do
       STRING="$STRING --$1=`echo $2`"
       ;;
     target_cpu)
-      if [ "$2" != "auto" ]; then STRING="$STRING --target_cpu=$2"; fi
+      if [ "$2" != "auto" ]; then STRING="$STRING --with-target-cpu=$2"; fi
       ;;
     plugin_*)
       plugin=`expr substr $1 8 100`
