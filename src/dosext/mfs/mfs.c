@@ -4054,7 +4054,7 @@ dos_fs_redirect(state_t *state)
       return (FALSE);
     }    
     fd = open_files[sft_fd(sft)].fd;
-    return (dos_flush(fd));
+    return (dos_flush(fd) == 0);
     break;
   case MULTIPURPOSE_OPEN:
     {
