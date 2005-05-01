@@ -27,5 +27,5 @@ all: lib
 install: all
 
 realclean::
-	rm -f Makefile.conf config.log config.status include/plugin_config.h
+	rm -f Makefile.conf config.log config.status include/sdl_config.h
 	rm -rf autom4te*.cache
