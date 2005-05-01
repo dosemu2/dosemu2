@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT
 AC_CONFIG_SRCDIR([sdl.c])
-AC_CONFIG_HEADER([config/plugin_config.h])
+AC_CONFIG_HEADER([include/sdl_config.h])
 AC_CONFIG_AUX_DIR([../../..])
 
 dnl Check for SDL

@@ -1259,7 +1259,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 
-          ac_config_headers="$ac_config_headers config/plugin_config.h"
+          ac_config_headers="$ac_config_headers include/sdl_config.h"
 
 ac_aux_dir=
 for ac_dir in ../../.. $srcdir/../../..; do
@@ -3126,7 +3126,7 @@ do
   case "$ac_config_target" in
   # Handling of arguments.
   "Makefile.conf" ) CONFIG_FILES="$CONFIG_FILES Makefile.conf" ;;
-  "config/plugin_config.h" ) CONFIG_HEADERS="$CONFIG_HEADERS config/plugin_config.h" ;;
+  "include/sdl_config.h" ) CONFIG_HEADERS="$CONFIG_HEADERS include/sdl_config.h" ;;
   *) { { echo "$as_me:$LINENO: error: invalid argument: $ac_config_target" >&5
 echo "$as_me: error: invalid argument: $ac_config_target" >&2;}
    { (exit 1); exit 1; }; };;
