@@ -87,7 +87,7 @@ static void keyb_mod(int wich, t_keysym keynum, int unicode)
 	}
 
 
-	if (!table || (count == 0) || (keynum >= count)) {
+	if (!table || (count == 0) || (wich != 0 && keynum >= count)) {
 		count = 0;
 		table = 0;
 		return;
