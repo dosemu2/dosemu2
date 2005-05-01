@@ -540,7 +540,7 @@ static void SIGALRM_call(void)
 #if 0
        v_printf("update_screen returned %d\n",retval);
 #endif
-       running = retval ? (Video==&Video_term?config.term_updatefreq:config.X_updatefreq) 
+       running = retval ? (config.X?config.X_updatefreq:config.term_updatefreq) 
                         : 0;
 #if VIDEO_CHECK_DIRTY
        update_pending=(retval==2);

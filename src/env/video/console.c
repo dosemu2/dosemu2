@@ -104,8 +104,7 @@ void set_console_video(void)
 static int console_post_init(void)
 {
   int kdmode;
-  if (!config.vga)
-    Video_term.init();
+
   set_process_control();
   k_printf("KBD: Taking mouse control\n");  /* Actually only in KD_GRAPHICS... */
   /* Some escape sequences don't work in KD_GRAPHICS... */
@@ -208,17 +207,12 @@ static int console_init(void)
   return 0;
 }
 
-static void console_close(void)
-{
-  Video_term.close();
-}
-
 #define console_setmode NULL
 
 struct video_system Video_console = {
    console_init,
    console_post_init,
-   console_close,
+   NULL,
    console_setmode,
    NULL,             /* update_screen */
    do_console_update_cursor,

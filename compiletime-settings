@@ -14,7 +14,6 @@ config {
   plugin_kbd_unicode on
   plugin_extra_charsets on
   plugin_term on
-  plugin_slang off
   plugin_sdl off
   plugin_translate on
   plugin_commands on

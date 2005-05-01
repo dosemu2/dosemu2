@@ -22,7 +22,6 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <slang.h>
 
 #include "emu.h"
 #include "bios.h"
@@ -163,7 +162,9 @@ static struct mouse_client *mouse_clients[] =
 #ifdef USE_GPM
   &Mouse_gpm,
 #endif
+#ifdef USE_SLANG
   &Mouse_xterm,
+#endif
   &Mouse_raw,
   &Mouse_serial,
   &Mouse_none,  /* This must be last */

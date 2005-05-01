@@ -102,8 +102,6 @@ gpm		"compile with gpm support" gpm
 		Linux console; it is only used when you run DOSEMU on the 
 		Linux console without graphics (unprivileged).
 
-plugin_keyboard	"Use old keyboard code" plugin_keyboard
-
 plugin_kbd_unicode "Use new keyboard code" plugin_kbd_unicode
 
 plugin_extra_charsets "Use extra character sets" plugin_extra_charsets
@@ -113,18 +111,6 @@ plugin_term     "Use new terminal plugin"
 plugin_translate "Use Unicode translation plugin" plugin_translate
 
 plugin_demo 	"Use demo plugin" plugin_demo
-
-plugin_slang	"Use S-Lang plugin"
-
-		If leave this switch to "off", then DOSEMU tries to tries to
-		compile with your system supplied S-Lang library.  Note however
-		that some distributions ship UTF8-enabled S-Lang libraries that
-		break DOSEMU; DOSEMU will refuse to use those. In that case, or
-		if you don't have a slang-devel package installed, or if you set
-		the switch to "on", then DOSEMU uses the S-Lang plugin, which is
-		a subset of the official S-Lang library.
-		Instead of "on" or "off" you may also specify a directory
-		pointing directly to your S-Lang library.
 
 target_cpu	"Target cpu" target_cpu
 

@@ -90,8 +90,16 @@ static int video_init(void)
      Video=&Video_none;
   }
   else {
+#ifdef USE_SLANG
      v_printf("VID: Video set to Video_term\n");
-     Video=&Video_term;       /* ansi or ncurses */
+     Video=&Video_term;       /* S-Lang */
+#else
+     error("Terminal (S-Lang library) support not compiled in.\n"
+           "Install slang-devel and recompile, use xdosemu or console "
+           "dosemu (needs root) instead.\n");
+     /* too early to call leavedos */
+     exit(1);
+#endif
   }
 
 #if USE_DUALMON
@@ -303,7 +311,6 @@ gettermcap(int i)
   }
   else
     v_printf("VID: Setting windows size to li=%d, co=%d\n", li, co);
-  get_screen_size();
 }
 
 void video_mem_setup(void)

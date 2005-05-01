@@ -135,7 +135,7 @@ EXTERN int li INIT(25);
 
 EXTERN int cursor_col INIT(0);
 EXTERN int cursor_row INIT(0);
-extern int cursor_blink;
+EXTERN int cursor_blink INIT(1);
 EXTERN ushort cursor_shape INIT(0xe0f);
 /* bit mask for testing vm86s.screen_bitmap */
 EXTERN unsigned int screen_mask;

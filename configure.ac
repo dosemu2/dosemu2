@@ -206,9 +206,6 @@ if test "$with_gpm" != "no"; then
 fi
 if test "$with_gpm" != "no"; then
   AC_MSG_NOTICE(Compiling with GPM support...)
-  AC_DEFINE(USE_GPM)
-  USE_GPM="USE_GPM=1"
-  AC_SUBST(USE_GPM)
 else
   AC_MSG_NOTICE(Compiling without GPM support...)
 fi
@@ -229,55 +226,62 @@ else
 fi
 
 #S-Lang directory checking -- thanks to mutt's configure script.
-AC_ARG_WITH(slangdir, [  --with-slangdir=dir     Specify S-Lang directory],
-  AC_MSG_CHECKING(for S-Lang)
-  SLANGINC=""
-  if test "$withval" = "src/plugin/slang"; then
-    $srcdir/mkpluginhooks enable slang yes
-  elif test "$withval" = "default"; then
-    if test -d $srcdir/../slang; then
-      SLANGINC="-I ${srcdir}/../slang/src"
-      SLANGLIB="-L ${srcdir}/../slang/src/objs"
-    else
-      if test -d $prefix/include/slang; then
-        SLANGINC="-I${prefix}/include/slang"
-      elif test -d /usr/include/slang; then
-        SLANGINC="-I/usr/include/slang"
-      fi
-    fi
+AC_ARG_WITH(slangdir, [  --with-slangdir=dir     Specify S-Lang directory])
+AC_MSG_CHECKING(for S-Lang)
+SLANGINC=""
+if test "$with_slangdir" = ""; then
+  if test -d $srcdir/../slang; then
+    SLANGINC="-I ${srcdir}/../slang/src"
+    SLANGLIB="-L ${srcdir}/../slang/src/objs"
   else
-    dnl ---Check to see if $withval is a source directory
-    if test -f $withval/src/slang.h; then
-      SLANGINC="-I${withval}/src"
-      SLANGLIB="-L${withval}/src/objs"
-    else
-      dnl ---Must be installed somewhere
-      if test -d $withval/include/slang; then
-        SLANGINC="-I${withval}/include/slang"
-      elif test -d $withval/include; then
-        SLANGINC="-I${withval}/include"
-      fi
-      SLANGLIB="-L${withval}/lib"
+    if test -d $prefix/include/slang; then
+      SLANGINC="-I${prefix}/include/slang"
+    elif test -d /usr/include/slang; then
+      SLANGINC="-I/usr/include/slang"
     fi
   fi
-  dnl --- now that we've found it, check the link
-  if test "$withval" = "src/plugin/slang"; then
-   LIBS="$LIBS -lm -ldl"
-   AC_MSG_RESULT() 
+else
+  dnl ---Check to see if $withval is a source directory
+  if test -f $with_slangdir/src/slang.h; then
+    SLANGINC="-I${with_slangdir}/src"
+    SLANGLIB="-L${with_slangdir}/src/objs"
   else
-   AC_MSG_RESULT($SLANGINC $SLANGLIB)
-   AC_CHECK_LIB(slang, SLtt_get_terminfo, 
-                LIBS="$LIBS -lslang -lm -ldl";LDFLAGS="$LDFLAGS $SLANGLIB",
-                [AC_MSG_WARN([No S-Lang library found. Using supplied S-Lang.])]
-		$srcdir/mkpluginhooks enable slang yes,
-   -lm -ldl)
+    dnl ---Must be installed somewhere
+    if test -d $with_slangdir/include/slang; then
+      SLANGINC="-I${with_slangdir}/include/slang"
+    elif test -d $with_slangdir/include; then
+      SLANGINC="-I${with_slangdir}/include"
+    fi
+    SLANGLIB="-L${with_slangdir}/lib"
   fi
+fi
+dnl --- now that we've found it, check the link
+CPPFLAGS="$SLANGINC"
+AC_MSG_RESULT($SLANGINC $SLANGLIB)
+AC_CHECK_HEADER(slang.h,
+  AC_CHECK_LIB(slang, SLtt_get_terminfo,
+    AC_MSG_NOTICE(Compiling with S-Lang support...)
+    AC_DEFINE(USE_SLANG)
+    LIBS="$LIBS -lslang -lm -ldl";LDFLAGS="$LDFLAGS $SLANGLIB",
+    [AC_MSG_WARN([No S-Lang library found.])]
+    $srcdir/mkpluginhooks enable term no
+  ),
+  [AC_MSG_WARN([No S-Lang header file found.])]
+  $srcdir/mkpluginhooks enable term no
 )
+if test "$with_gpm" != "no"; then
+  AC_MSG_NOTICE(Compiling with GPM support...)
+  AC_DEFINE(USE_GPM)
+  USE_GPM="USE_GPM=1"
+  AC_SUBST(USE_GPM)
+else
+  AC_MSG_NOTICE(Compiling without GPM support...)
+fi
 
 AC_PATH_XTRA
 if test "$have_x" = "yes" ; then
   LDFLAGS="$LDFLAGS $X_LIBS"
-  CPPFLAGS="$X_CFLAGS"
+  CPPFLAGS="$CPPFLAGS $X_CFLAGS"
 
   AC_CHECK_LIB(X11, XOpenDisplay, , 
    # sometimes statically linked binaries need libdl too ...
@@ -459,7 +463,7 @@ AC_SUBST(PLUGINSUBDIRS)
 
 dnl Now CFLAGS and INCLUDES
 
-INCDIR="-I\${top_builddir}/src/include -I\${top_builddir}/src/plugin/include ${SLANGINC}"
+INCDIR="-I\${top_builddir}/src/include -I\${top_builddir}/src/plugin/include"
 AC_SUBST(INCDIR)
 
 CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations -Wnested-externs"
@@ -753,6 +757,9 @@ Most compilers have this one, but just to be sure...])
 AH_TEMPLATE([__LINE__],
 [ Define if the compiler doesn't have __LINE__ macro.
 Most compilers have this one, but just to be sure...])
+
+AH_TEMPLATE([USE_SLANG],
+[ DEFINE this, if you want S-Lang support ])
 
 AH_TEMPLATE([USE_SVGALIB],
 [ DEFINE this, if you want svgalib support ])

@@ -24,6 +24,31 @@
  * John E. Davis (Nov 17, 1994).
  */
 
+/* Some notes about how various versions of the SLang library are used,
+ * and UTF8. Right now (May 2005) there are three SLangs in mainstream use:
+ * a) slang 1.4.x
+ * b) slang 1.4.x + utf8 patch
+ * c) slang 2.0
+ *
+ * a) works with 8 bit character sets, but not with utf8
+ *    workarounds: upgrade to 2.0 or don't use utf8
+ * b) works with 8 bit and utf8, but has problems when the external
+ *    charset=cp437 (*)
+ * c) is ideal. It works, no problems.
+ *
+ * (*): b) ignores the setting of SLsmg_Display_Eight_Bit.
+ * any character between 0x80 and 0x9f is not displayed.
+ * in any case $_external_charset="cp437" is rarely necessary, perhaps
+ * only if you like to use an xterm with the vga font (but then, why not
+ * use xdosemu?)
+ *
+ * On the Linux console in non-utf8 mode a special trick is used to
+ * be able to display almost all cp437 characters: a reconstruction
+ * of the "alternate character string" that takes advantage of the
+ * fact that ACS=cp437 here. All cp437 characters with unicode>=256
+ * are placed in this table.
+ */
+
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -79,7 +104,6 @@ static int Color_Attribute_Map[256];
 static int *Attribute_Map;
 /* if negative, char is invisible */
 
-int cursor_blink = 1;
 /* The layout of one charset element is:
    mb0 mb1 mb2 len
    as we never need more than 3 characters to represent a DOS character
@@ -298,14 +322,6 @@ static int terminal_initialize(void)
    int rotate[8];
 
    v_printf("VID: terminal_initialize() called \n");
-   /* I do not know why this routine is called if our update is not
-    * called.  Oh well.... 
-    */
-   if (config.console_video) 
-     {
-	Slsmg_is_not_initialized = 1;
-	return 0;
-     }
    Slsmg_is_not_initialized = 0;
    
    /* This maps (r,g,b) --> (b,g,r) */

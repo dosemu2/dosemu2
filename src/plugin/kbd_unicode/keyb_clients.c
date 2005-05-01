@@ -107,7 +107,9 @@ static struct keyboard_client *keyb_clients[] =
 	&Keyboard_X,
 #endif
 	&Keyboard_raw,
+#ifdef USE_SLANG
 	&Keyboard_slang,
+#endif
 	&Keyboard_none,  /* This must be last */
 };
 

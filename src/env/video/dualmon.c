@@ -129,11 +129,14 @@ static unsigned char dualmon_text_table[] =
 static int map_MDA_for_dualmon(void)
 {
   if (!config.dualmon) return 0;
-  if ( (    _IS_VS(Video_term)
+  if ( (
+#ifdef USE_SLANG
+            _IS_VS(Video_term) ||
+#endif
 #if 0    /* not stable yet: works with "mode mono", but not yet with "TD -do" */
          || _IS_VS(Video_X)
 #endif
-         || _IS_VS(Video_console)
+         _IS_VS(Video_console)
        ) && (!_IS_VS(Video_hgc))) {
     int size=TEXT_SIZE;
     if (alloc_mapping(MAPPING_HGC | MAPPING_KMEM, (size_t) size,

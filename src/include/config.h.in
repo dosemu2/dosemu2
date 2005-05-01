@@ -296,6 +296,9 @@ EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MID
    enough - you must reconfigure. */
 #undef USE_SBEMU
 
+/* DEFINE this, if you want S-Lang support */
+#undef USE_SLANG
+
 /* DEFINE this, if you want svgalib support */
 #undef USE_SVGALIB
 
