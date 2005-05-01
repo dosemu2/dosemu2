@@ -57,7 +57,7 @@ define hook-run
 end
      
 define hook-continue
-     handle SIGLARM pass
+     handle SIGALRM pass
 end
 
 handle SIGSEGV nostop noprint
