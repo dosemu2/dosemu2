@@ -22,10 +22,16 @@ CFLAGS+=$(DEFINES)
 
 
 CFILES = mouse.c mouseint.c mousevid.c gcursor.c
+ifdef USE_GPM
+CFILES += mouse_gpm.c
+endif
 DEPENDS=$(CFILES:.c=.d)
 HFILES = mousevid.h
 ALL = $(CFILES) $(HFILES)
 OBJS = mouse.o mouseint.o mousevid.o gcursor.o
+ifdef USE_GPM
+OBJS += mouse_gpm.o
+endif
 
 all:  	lib
 

@@ -9,9 +9,6 @@ include $(top_builddir)/Makefile.conf
 
 
 CFILES=term_core.c terminal.c keyb_slang.c mouse_xterm.c
-ifdef USE_GPM
-CFILES += mouse_gpm.c
-endif
 
 SFILES=
 ALL=$(CFILES) $(SFILES)
