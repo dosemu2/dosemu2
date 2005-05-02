@@ -2298,6 +2298,7 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
   sh.height = sh.min_height = sh.max_height = wy_res;
 
   sh.flags = PSize  | PMinSize | PMaxSize;
+  if(config.X_fixed_aspect || config.X_aspect_43) sh.flags |= PAspect;
   if (font == NULL) {
     sh.flags |= PResizeInc;
     sh.max_width = 32767;
@@ -2307,6 +2308,9 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
     sh.width_inc = 1;
     sh.height_inc = 1;
   }
+  sh.min_aspect.x = w_x_res;
+  sh.min_aspect.y = w_y_res;
+  sh.max_aspect = sh.min_aspect;
   XSetNormalHints(display, normalwindow, &sh);
   XSync(display, False);
 
