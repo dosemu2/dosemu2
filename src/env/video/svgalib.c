@@ -58,7 +58,7 @@ void svgalib_setbank(unsigned char bank)
 
 static int svgalib_init(void)
 {
-       int r;
+       int r, chipset;
 
        PRIV_SAVE_AREA
        vga_norevokeprivs();
@@ -66,6 +66,8 @@ static int svgalib_init(void)
        enter_priv_on();
        r=vga_simple_init();
        leave_priv_setting();
+       chipset = vga_getcurrentchipset();
+       v_printf("SVGALIB: selected chipset %i\n", chipset);
        return r;
 }
 

@@ -27,7 +27,7 @@
 #include "dosemu_config.h"
 
 static int vesa_regs_size, vesa_granularity, vesa_read_write;
-static char *vesa_oemstring;
+static char *vesa_oemstring = NULL;
 static size_t vesa_linear_vbase;
 static unsigned long vesa_int10, vesa_oemid;
 static unsigned vesa_version;
