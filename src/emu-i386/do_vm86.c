@@ -551,7 +551,11 @@ void do_call_back(Bit32u codefarptr)
 	}
 	if (fault_cnt) {
 		error("do_call_back() executed within the signal context!\n");
+		/* happens if leavedos() called within a signal context too,
+		 * so dont recurse. */
+#if 0
 		leavedos(25);
+#endif
 	}
 	if (callback_level) {
 		g_printf("do_call_back() re-entered! level=%i\n", callback_level);
