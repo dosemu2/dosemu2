@@ -91,6 +91,7 @@ __asm__("___START___: jmp _emulate\n");
 #ifdef USE_MHPDBG
 #include "mhpdbg.h"
 #endif
+#include "debug.h"
 
 #ifdef X_SUPPORT
 #include "../env/video/X.h"
@@ -447,6 +448,7 @@ leavedos(int sig)
     if (leavedos_recurse_check)
       {
        error("leavedos called recursively, forgetting the graceful exit!\n");
+       gdb_debug();
        flush_log();
        longjmp(NotJEnv, sig);
       }
