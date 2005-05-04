@@ -292,9 +292,9 @@ bool run_bender(Device * dev, va_list args)
 
 bool run_sysex(Device * dev, va_list args)
 {				/* 0xF0 */
-  char *buf;
+  unsigned char *buf;
   int len;
-  buf = va_arg(args, char*);
+  buf = va_arg(args, unsigned char *);
   len = va_arg(args, int);
   if (dev->sysex)
     dev->sysex(buf, len);

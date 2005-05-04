@@ -45,7 +45,7 @@ typedef struct Device {
 	void (*control) (int chn, int control, int value);       /* 0xB0 */
 	void (*program) (int chn, int pgm);                      /* 0xC0 */
 	void (*bender) (int chn, int pitch);                     /* 0xE0 */
-	void (*sysex) (char buf[], int len);                     /* 0xF0 */
+	void (*sysex) (unsigned char buf[], int len);            /* 0xF0 */
 } Device;
 
 void device_add(void (*register_func) (Device * dev));

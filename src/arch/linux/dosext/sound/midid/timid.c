@@ -44,7 +44,7 @@ SEQ_USE_EXTBUF();
 
 void timid_start_timer()
 {
-static char cmd[] = "TIMEBASE\n";
+static const char *cmd = "TIMEBASE\n";
 char buf[255];
 struct timeval time;
 int n;
@@ -159,9 +159,9 @@ struct timeval tv;
 
 bool timid_init(void)
 {
-static char cmd1[] = "CLOSE\n";
-static char cmd2[] = "SETBUF %1.2f %1.2f\n";
-static char cmd3[] = "OPEN %s\n";
+static const char *cmd1 = "CLOSE\n";
+static const char *cmd2 = "SETBUF %1.2f %1.2f\n";
+static const char *cmd3 = "OPEN %s\n";
 char buf[255];
 char * pbuf;
 int n, i, data_port, ret = FALSE, selret = 0;
@@ -249,8 +249,8 @@ struct timeval tv;
 
 void timid_done(void)
 {
-static char cmd1[] = "CLOSE\n";
-static char cmd2[] = "QUIT\n";
+static const char *cmd1 = "CLOSE\n";
+static const char *cmd2 = "QUIT\n";
 char buf[255];
 int n;
   timid_sync_timidity();
@@ -314,7 +314,7 @@ void timid_program(int chn, int pgm)
   SEQ_PGM_CHANGE(0, chn, pgm);
 }
 
-void timid_sysex(char buf[], int len)
+void timid_sysex(unsigned char *buf, int len)
 {
   int i;
   timid_timestamp();
