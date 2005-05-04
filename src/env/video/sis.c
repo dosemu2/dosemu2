@@ -106,7 +106,7 @@ static int sis_memorydetect(void)
 static int SiSProbe(void)
 {
 	if (sis_test()) {
-		if (config.gfxmemsize == 0) config.gfxmemsize = sis_memorydetect();
+		if (config.gfxmemsize < 0) config.gfxmemsize = sis_memorydetect();
 		return 1;
 	}
 	return 0;

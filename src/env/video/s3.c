@@ -760,7 +760,7 @@ void vga_init_s3(void)
 
 	v_printf("S3 memory size : %d kbyte\n", s3_memsize);
 
-	if (config.gfxmemsize == 0) config.gfxmemsize = s3_memsize;
+	if (config.gfxmemsize < 0) config.gfxmemsize = s3_memsize;
 	v_8514_base = s3_8514_base;
 	out_crt(0x38, mode);
 }

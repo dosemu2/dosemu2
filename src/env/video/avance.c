@@ -168,7 +168,7 @@ static int ali_memorydetect(void)
 static int AvanceProbe(void)
 {
 	if (ali_test()) {
-		if (config.gfxmemsize == 0) config.gfxmemsize = ali_memorydetect();
+		if (config.gfxmemsize < 0) config.gfxmemsize = ali_memorydetect();
 		return 1;
 	}
 	return 0;

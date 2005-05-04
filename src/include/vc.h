@@ -136,7 +136,7 @@ struct video_save_struct {
   unsigned short xregs16[MAX_X_REGS16]; /* These are 16-bit EXT regs */
   unsigned char *mem;
   unsigned char pal[3 * 256];
-  unsigned char banks;
+  unsigned int banks;
   unsigned char video_mode;
   unsigned char *video_name;	/* Debugging only */
   unsigned char release_video;

@@ -53,7 +53,7 @@ static void vesa_reinit(void)
   do_int10_callback(&vesa_r);
   if ((vesa_r.eax & 0xffff) != 0x4f || VBE_viVBESig != 0x41534556 /* "VESA" */ ) {
     v_printf("No VESA bios detected!\n");
-    if (config.gfxmemsize == 0) config.gfxmemsize = 256;
+    if (config.gfxmemsize < 0) config.gfxmemsize = 256;
     vesa_regs_size = 0;
     vesa_linear_vbase = 0;
     goto out;
@@ -68,7 +68,7 @@ static void vesa_reinit(void)
   if (vesa_oemstring) free(vesa_oemstring);
   vesa_oemstring = strdup(s);
 
-  if (config.gfxmemsize == 0) config.gfxmemsize = VBE_viMemory*64;
+  if (config.gfxmemsize < 0) config.gfxmemsize = VBE_viMemory*64;
   vesa_version = VBE_viVESAVersion;
 
   vbe_buffer += VBE_viSize;

@@ -416,11 +416,13 @@ void save_vga_state(struct video_save_struct *save_regs)
       (4 * PLANE_SIZE / 1024);
   v_printf("Mode  == %d\n", save_regs->video_mode);
   v_printf("Banks == %d\n", save_regs->banks);
-  if (!save_regs->mem) {
-    save_regs->mem = malloc(save_regs->banks * 4 * PLANE_SIZE);
-  }
+  if (save_regs->banks) {
+    if (!save_regs->mem) {
+      save_regs->mem = malloc(save_regs->banks * 4 * PLANE_SIZE);
+    }
 
-  store_vga_mem(save_regs->mem, save_regs->banks);
+    store_vga_mem(save_regs->mem, save_regs->banks);
+  }
   dosemu_vga_getpalvec(0, 256, save_regs->pal);
   restore_vga_regs(save_regs->regs, save_regs->xregs, save_regs->xregs16);
   enable_vga_card();
@@ -447,7 +449,8 @@ void restore_vga_state(struct video_save_struct *save_regs)
   dosemu_vga_screenoff();
   disable_vga_card();
   restore_vga_regs(save_regs->regs, save_regs->xregs, save_regs->xregs16);
-  restore_vga_mem(save_regs->mem, save_regs->banks);
+  if (save_regs->banks)
+    restore_vga_mem(save_regs->mem, save_regs->banks);
   if (save_regs->release_video) {
     v_printf("Releasing video memory\n");
     free(save_regs->mem);
@@ -727,7 +730,7 @@ void init_vga_card(void)
   }
 
   /* fall back to 256K if not autodetected at this stage */
-  if (config.gfxmemsize == 0) config.gfxmemsize = 256;
+  if (config.gfxmemsize < 0) config.gfxmemsize = 256;
   v_printf("VGA: mem size %ld\n", config.gfxmemsize);
 
   save_vga_state(&linux_regs);
