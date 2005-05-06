@@ -1011,7 +1011,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 		if (LWORD(eflags) & CF)
 		    break;
 		/* FreeDOS copies only 0x18 bytes */
-		MEMCPY_DOS2DOS((void *)(GetSegmentBaseAddress(REG(ds)) +
+		MEMCPY_DOS2DOS((void *)(GetSegmentBaseAddress(_ds) +
 		    D_16_32(_edx)), SEG_ADR((void *), ds, dx), 0x18);
 	    }
 	    break;
