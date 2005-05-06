@@ -196,11 +196,21 @@ void vesa_init(void)
 
 char *vesa_get_lfb(void)
 {
+  /*
+   * The below trick doesn't seem to work on my Matrox G550 -
+   * looks like it ignores the bit15 and clears the video memory.
+   * We don't really need that special mode after all, so
+   * it is disabled.
+   */
+#if 0
   vesa_r.eax = 0x4f02;
   /* 0x81ff | 0x4000 is the special "all memory access mode" + LFB */
   vesa_r.ebx = vesa_linear_vbase ? 0xc1ff :
     vesa_version >= 0x200 ? 0x81ff : 0x101;
   do_int10_callback(&vesa_r);
+  if ((vesa_r.eax & 0xffff) != 0x4f)
+    return (char *)GRAPH_BASE;
+#endif
   if (vesa_linear_vbase)
     return (char *)vesa_linear_vbase;
   return (char *)GRAPH_BASE;

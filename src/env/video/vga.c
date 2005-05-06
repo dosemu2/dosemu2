@@ -221,7 +221,8 @@ void do_int10_callback(struct vm86_regs *regs)
 static void do_int10_setmode(int mode)
 {
   struct vm86_regs r;
-  r.eax = mode;
+  r.eax = 0x4f02;
+  r.ebx = mode;
   do_int10_callback(&r);
 }
 
@@ -275,9 +276,6 @@ static void store_vga_mem(u_char * mem, int banks)
   int cbank, plane, planar;
   char *vmem = (char *)GRAPH_BASE;
 
-#if 0
-  dump_video_regs();
-#endif
   if (config.chipset == VESA && banks > 1)
     vmem = vesa_get_lfb();
   else if (config.chipset == ET4000) {
@@ -338,10 +336,6 @@ static void restore_vga_mem(u_char * mem, int banks)
 {
   int plane, cbank, planar;
   char *vmem = (char *)GRAPH_BASE;
-
-#if 0
-  dump_video_regs();
-#endif
 
   if (config.chipset == VESA && banks > 1)
     vmem = vesa_get_lfb();
@@ -425,6 +419,7 @@ void save_vga_state(struct video_save_struct *save_regs)
   }
   dosemu_vga_getpalvec(0, 256, save_regs->pal);
   restore_vga_regs(save_regs->regs, save_regs->xregs, save_regs->xregs16);
+  restore_ext_regs(save_regs->xregs, save_regs->xregs16);
   enable_vga_card();
   port_leave_critical_section();
 
@@ -437,18 +432,27 @@ void restore_vga_state(struct video_save_struct *save_regs)
 
   v_printf("Restoring data for %s\n", save_regs->video_name);
   port_enter_critical_section(__FUNCTION__);
+  /* my Matrox G550 seem to completely ignore the bit15, so
+   * lets disable the below trick. Are there any cards that
+   * really need this? */
+#if 0
   /* do a BIOS setmode to the original mode before restoring registers.
      This helps if we don't restore all registers ourselves or if the
      VESA BIOS is buggy */
   if (config.chipset == PLAINVGA || config.chipset == VESA) {
     char bios_data_area[0x100];
+    int mode = save_regs->video_mode;
+    if (config.chipset == VESA && !config.gfxmemsize)
+      mode |= 0x8000;		/* preserve video memory */
     memcpy(bios_data_area, (void *)BIOS_DATA_SEG, 0x100);
-    do_int10_setmode(save_regs->video_mode);
+    do_int10_setmode(mode);
     memcpy((void *)BIOS_DATA_SEG, bios_data_area, 0x100);
   }
+#endif
   dosemu_vga_screenoff();
   disable_vga_card();
   restore_vga_regs(save_regs->regs, save_regs->xregs, save_regs->xregs16);
+  restore_ext_regs(save_regs->xregs, save_regs->xregs16);
   if (save_regs->banks)
     restore_vga_mem(save_regs->mem, save_regs->banks);
   if (save_regs->release_video) {
@@ -458,6 +462,7 @@ void restore_vga_state(struct video_save_struct *save_regs)
   }
   dosemu_vga_setpalvec(0, 256, save_regs->pal);
   restore_vga_regs(save_regs->regs, save_regs->xregs, save_regs->xregs16);
+  restore_ext_regs(save_regs->xregs, save_regs->xregs16);
   v_printf("Permissions=%d\n", permissions);
   enable_vga_card();
   dosemu_vga_screenon();
