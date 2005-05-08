@@ -387,6 +387,7 @@ select_drive(state_t *state)
   boolean_t check_sda_ffn = FALSE;
   boolean_t check_always = FALSE;
   boolean_t check_dssi_fn = FALSE;
+  boolean_t cds_changed = FALSE;
 
   cds_t sda_cds = sda_cds(sda);
   cds_t esdi_cds = (cds_t) Addr(state, es, edi);
@@ -465,7 +466,11 @@ select_drive(state_t *state)
 			  (CDS_FLAG_REMOTE | CDS_FLAG_READY)) !=
 	(CDS_FLAG_REMOTE | CDS_FLAG_READY)) {
       calculate_drive_pointers(dd);
+      cds_changed = TRUE;
     }
+  /* try to convert any fatfs drives that did not fit in the CDS before */
+  if (cds_changed)
+    redirect_devices();
 
   if (check_always)
     found = 1;

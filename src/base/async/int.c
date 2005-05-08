@@ -1645,7 +1645,7 @@ static int int19(void) {
 /*
  * Turn all simulated FAT devices into network drives.
  */
-static void redirect_devices(void)
+void redirect_devices(void)
 {
   static char s[256] = "\\\\LINUX\\FS", *t = s + 10;
   int i, j;
