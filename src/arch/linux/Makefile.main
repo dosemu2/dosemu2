@@ -210,20 +210,21 @@ ifdef X_SUPPORT
 	if [ ! -e $(DESTDIR)$(bindir)/xdosemu ]; then ln -s dosemu $(DESTDIR)$(bindir)/xdosemu; fi
 	$(INSTALL) -d $(DESTDIR)$(x11fontdir)
 	if [ -w $(DESTDIR)$(x11fontdir) ] && \
-	    [ ! -e $(DESTDIR)$(x11fontdir)/vga.pcf ] && \
-	    [ ! -e $(DESTDIR)$(x11fontdir)/vga.pcf.Z ] && \
-	    [ ! -e $(DESTDIR)$(x11fontdir)/vga.pcf.gz ]; then \
+	    [ ! -e $(DESTDIR)$(x11fontdir)/vga10x24.pcf ] && \
+	    [ ! -e $(DESTDIR)$(x11fontdir)/vga10x24.pcf.Z ] && \
+	    [ ! -e $(DESTDIR)$(x11fontdir)/vga10x24.pcf.gz ]; then \
 		echo "-> Main DOSEMU files installation done. Installing the X PC fonts..."; \
-		bdftopcf $(REALTOPDIR)/etc/vga.bdf | gzip -c -9 > $(DESTDIR)$(x11fontdir)/vga.pcf.gz; \
-		bdftopcf $(REALTOPDIR)/etc/vga11x19.bdf | gzip -c -9 > $(DESTDIR)$(x11fontdir)/vga11x19.pcf.gz; \
-		bdftopcf $(REALTOPDIR)/etc/vga-cp866.bdf | gzip -c -9 > $(DESTDIR)$(x11fontdir)/vga-cp866.pcf.gz; \
-		bdftopcf $(REALTOPDIR)/etc/vga10x20-cp866.bdf | gzip -c -9 > $(DESTDIR)$(x11fontdir)/vga10x20-cp866.pcf.gz; \
-		chmod 0644 $(DESTDIR)$(x11fontdir)/vga11x19.pcf.gz $(DESTDIR)$(x11fontdir)/vga-cp866.pcf.gz \
-          $(DESTDIR)$(x11fontdir)/vga10x20-cp866.pcf.gz; \
+		cd $(REALTOPDIR)/etc; \
+		for i in *.bdf; do \
+		    bdftopcf $$i | gzip -c -9 > $(DESTDIR)$(x11fontdir)/`basename $$i .bdf`.pcf.gz; \
+		done; \
+		chmod 0644 $(DESTDIR)$(x11fontdir)/*.pcf.gz; \
 		if [ ! -f $(DESTDIR)$(x11fontdir)/fonts.alias ]; then \
-		  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.alias $(DESTDIR)$(x11fontdir)/fonts.alias; \
-		elif [ grep ^vga $(DESTDIR)$(x11fontdir)/fonts.alias ]; then \
-	          cat $(REALTOPDIR)/etc/dosemu.alias >> $(DESTDIR)$(x11fontdir)/fonts.alias; \
+		  $(INSTALL) -m 0644 dosemu.alias $(DESTDIR)$(x11fontdir)/fonts.alias; \
+		elif ! grep -q ^vga $(DESTDIR)$(x11fontdir)/fonts.alias; then \
+		  cat dosemu.alias >> $(DESTDIR)$(x11fontdir)/fonts.alias; \
+		elif ! grep -q ^[^v][^g][^a] $(DESTDIR)$(x11fontdir)/fonts.alias; then \
+		  $(INSTALL) -m 0644 dosemu.alias $(DESTDIR)$(x11fontdir)/fonts.alias; \
 		fi; \
 		cd $(DESTDIR)$(x11fontdir); \
 		mkfontdir; \
