@@ -89,7 +89,7 @@ static char *bootfile = 0;
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void fatfs_init(struct disk *dp)
 {
-  fatfs_t *f;
+  fatfs_t *f0, *f;
   unsigned u;
 
   if(dp->fatfs) fatfs_done(dp);
@@ -158,7 +158,10 @@ void fatfs_init(struct disk *dp)
 
   f->obj[0].name = f->dir;
   f->obj[0].is.dir = 1;
-  scan_dir(f, 0);	/* set # of root entries accordingly ??? */
+  f0 = hdisktab[0].fatfs;
+  if(!(hdisktab[0].type == DIR_TYPE && f0 && f0->sys_type == 0x20))
+    /* check for FreeDOS on C:; if it is, no need to scan */
+    scan_dir(f, 0);	/* set # of root entries accordingly ??? */
   if(f->boot_sec == NULL) {
     build_boot_blk(f);
   }
@@ -553,7 +556,9 @@ void scan_dir(fatfs_t *f, unsigned oi)
       f->sys_type = 0x20;	/* FreeDOS, FD maintained kernel */
       name = full_name(f, oi, "");
       sf[0] = "kernel.sys";
-      scans = 2;
+      /* it's not necessary to scan for FreeDOS as redirection happens
+	 so early that files are never read via int13 */
+      scans = 0;
       bootfile = malloc(strlen(name) + strlen(sf[0]) + 1);
       sprintf(bootfile, "%s%s", name, sf[0]);
     }
