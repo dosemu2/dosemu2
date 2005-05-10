@@ -321,10 +321,21 @@ xms_init(void)
     handles[i].valid = 0;
 }
 
+static void XMS_RET(int err)
+{
+  /* careful here: BL should NOT be set to 0 if there is no error,
+     in particular for "get handle information" that is wrong,
+     but also for locking a handle.
+     An exception is xms_query_freemem, which sets BL to zero
+     itself, and does not use AX to report an error */
+  LWORD(eax) = err ? 0 : 1;
+  if (err)
+    LO(bx) = err;
+}
+
 void
 xms_control(void)
 {
-#define XMS_RET(err) (LWORD(eax) = ((LO(bx) = (err)) ? 0 : 1))
   int is_umb_fn = 0;
 
  /* First do the UMB functions */
@@ -452,7 +463,7 @@ xms_control(void)
     break;
 
   case 8:			/* Query Free Extended Memory */
-    XMS_RET(xms_query_freemem(OLDXMS));
+    xms_query_freemem(OLDXMS);
     break;
 
   case 9:			/* Allocate Extended Memory Block */
@@ -486,7 +497,7 @@ xms_control(void)
     /* the functions below are the newer, 32-bit XMS 3.0 interface */
 
   case 0x88:			/* Query Any Free Extended Memory */
-    XMS_RET(xms_query_freemem(NEWXMS));
+    xms_query_freemem(NEWXMS);
     break;
 
   case 0x89:			/* Allocate Extended Memory */
@@ -513,7 +524,8 @@ xms_control(void)
    if (is_umb_fn)
      LWORD(esp) += 4;
    else
-     x_printf("XMS: skipping external request, ax=0x%04x\n", LWORD(eax));
+     x_printf("XMS: skipping external request, ax=0x%04x, dx=0x%04x\n",
+	      LWORD(eax), LWORD(edx));
  }
 }
 
@@ -547,7 +559,7 @@ ValidHandle(unsigned short h)
 static unsigned char
 xms_query_freemem(int api)
 {
-  unsigned long totalBytes = 0, total, largest;
+  unsigned long totalBytes = 0, subtotal;
   int h;
 
   /* the new XMS api should actually work with the function as it
@@ -566,8 +578,7 @@ xms_query_freemem(int api)
       totalBytes += handles[h].size;
   }
 
-  largest = config.xms_size - (totalBytes / 1024);
-  total = config.xms_size;
+  subtotal = config.xms_size - (totalBytes / 1024);
   /* total free is max allowable XMS - the number of K already allocated */
 
   if (api == OLDXMS) {
@@ -578,21 +589,23 @@ xms_query_freemem(int api)
        * know of 64MB of the > 64MB available memory.
        */
 
-    if (total > 65535)
-      total = 65535;
-    if (largest > 65535)
-      largest = 65535;
-    LWORD(eax) = largest;
-    LWORD(edx) = total;
+    if (subtotal > 65535)
+      subtotal = 65535;
+    /* these really are the same in DOSEMU. edx refers to total *free*
+       XMS memory not the grand total XMS memory
+       eax and edx can only be different upon fragmentation which does
+       not occur here because we use malloc() */
+    LWORD(eax) = LWORD(edx) = subtotal;
     x_printf("XMS query free memory(old): %dK %dK\n", LWORD(eax),
 	     LWORD(edx));
   }
   else {
-    REG(eax) = largest;
-    REG(edx) = total;
+    REG(eax) = REG(edx) = subtotal;
     x_printf("XMS query free memory(new): %ldK %ldK\n",
 	     REG(eax), REG(edx));
   }
+  /* the following line is NOT superfluous!! (see above) */
+  LO(bx) = 0;
   return 0;
 }
 
