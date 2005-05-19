@@ -1,4 +1,2691 @@
+2005-05-10  Bart
+
+	* src/dosext/misc/xms.c:
+	Fix the XMS_RET() macro; and making it a function is more efficient.
+	Added some comments to hopefully make sure the same bugs don't creep in
+	again. This fixes Aladdin's issues with XMS.
+
+2005-05-09  Bart
+
+	* src/base/misc/fatfs.c:
+	Don't scan files on fatfs drives for FreeDOS, as this DOS has these
+	drives redirected early enough for int13 never to be necessary.
+	This can save quite a bit of startup time.
+
+	* src/: base/async/int.c, dosext/mfs/mfs.c, include/redirect.h:
+	If the CDS changes, try to redirect any fatfs drives that did not fit in
+	the CDS before. This may happen when FreeDOS changes LASTDRIVE from
+	config.sys, and more than 4 fatfs drives are defined.
+
+2005-05-08  Bart
+
+	* etc/dosemu.alias, etc/vga10x24.bdf, etc/vga12x30.bdf,
+	  etc/vga8x19.bdf, src/arch/linux/Makefile.main:
+	Added some more vga fonts, which more or less match 640x480, 800x600
+	and 1024x768 resolutions. Thanks to Martin Reuber, OFD Kiel,
+	German Fiscal Administration
+
+2005-05-06  Stas
+
+	* src/env/video/: vga.c, vbe.c:
+	- Make do_int10_setmode() to do something more than just locking up
+	the video bios.
+	- Disabled the "special memory mode" - Matrox G550 doesn't honour
+	the bit15 (even for that mode!), so the memory was cleared before
+	saving. By the way, Matrox can handle our banked saving/restoring
+	very well, but Radeon 7500 miserably fails on our bankswitching code.
+	- Disabled the "set mode before restore" hack - that never worked
+	because of the both the above bugs, it only makes problems.
+	- Restoring the ext regs is necessary after saving/restoring the video
+	memory (well, without using the "special memory mode" it may not be
+	necessary, but I added it to stay safe).
+
+	This makes the console VESA driver pretty much usable.
+
+	* src/dosext/dpmi/msdos.c:
+	Really fix int21h/ah=38h this time! tasmx is now finally... yuck
+
+2005-05-05  Stas
+
+	* etc/dosemu.conf, src/include/emu.h, src/include/vc.h,
+	  src/env/video/avance.c, src/env/video/cirrus.c,
+	  src/env/video/matrox.c, src/env/video/s3.c, src/env/video/sis.c,
+	  src/env/video/vbe.c, src/env/video/vga.c:
+	Fixed some bugs with $_vmemsize, made it to accept (auto) and (off),
+	defaulted to 4096 to make the console switching faster.
+
+2005-05-05  Stas
+
+	* src/arch/linux/dosext/sound/midid/: device.c, device.h, timid.c:
+	Cosmetics and gcc-4 warning fixes.
+
+2005-05-04  Stas
+
+	* src/env/video/: svgalib.c, vbe.c:
+	Cosmetic.
+
+	* src/: include/debug.h, emu.c:
+	Make the gdb stacktracer interface globally available.
+
+	* src/emu-i386/do_vm86.c:
+	This sanity check made problems.
+
+2005-05-02  Stas
+
+	* src/env/video/X.c:
+	$_X_fixed_aspect can work for the text modes too.
+
+2005-05-02  Bart
+
+	* src/plugin/sdl/include/sdl_config.h.in:
+	Added forgotten file sdl_config.h.in
+
+2005-05-01  Bart
+
+	* configure, configure.ac:
+	Re-fix auto setting for target-cpu.
+	Use -Wno-pointer-sign for gcc-4.0 to avoid obscuring really useful warnings
+	for now.
+
+	* src/plugin/sdl/Makefile:
+	Fix makefile in previous commit.
+
+	* src/plugin/sdl/: Makefile, configure, configure.ac,
+	  config/plugin_config.h, config/plugin_config.h.in:
+	Use include/sdl_config.h[.in] included in config/plugin_config.h just like the
+	kbd_unicode plugin does. This avoids the "mkpluginhooks-before-configure"
+	problem.
+
+	* configure, configure.ac, default-configure:
+	#1118031: --target_cpu should be --with-target-cpu or it doesn't work.
+
+	* src/dosext/mfs/mfs.c:
+	Let MFS "commit" return TRUE if fsync was successful (it was reversed).
+	Happens to fix the problem with Word's "disk is full" message.
+
+2005-05-01  Stas
+
+	* etc/dosemu.conf, src/base/serial/ser_init.c:
+	tty locking can be disabled by $_ttylocks=""
+
+2005-05-01  Bart
+
+	* etc/global.conf, src/plugin/kbd_unicode/config/plugin_parser:
+	Fix #1110543 Custom keyboard layout
+	The underlying foreach parser problem is still a mystery, but as long the
+	keytables work...
+
+	* compiletime-settings, compiletime-settings.devel,
+	  compiletime-settings.help, configure, configure.ac,
+	  default-configure, src/arch/linux/async/signal.c,
+	  src/base/mouse/mouse.c, src/env/video/console.c,
+	  src/env/video/dualmon.c, src/env/video/video.c,
+	  src/include/config.h.in, src/include/video.h,
+	  src/plugin/kbd_unicode/dosemu_keys.c,
+	  src/plugin/kbd_unicode/keyb_clients.c,
+	  src/plugin/term/terminal.c:
+	Remove the S-Lang plugin. DOSEMU now cooperates nicely with all SLang
+	libraries that are present in Linux distributions, so it is no longer
+	necessary. Made a comment about some minor issues with the various
+	library versions in existence.
+	If no slang-devel library is installed, DOSEMU can now compile without
+	terminal support.
+
+	* doc/README.gdb:
+	correct typo
+
+	* src/: plugin/term/Makefile, plugin/term/mouse_gpm.c,
+	  base/mouse/Makefile, base/mouse/mouse_gpm.c:
+	Move mouse_gpm.c from src/plugin/term to src/base/mouse.
+
+	* configure, src/include/config.h.in:
+	Regenerate autoconf files.
+
+2005-04-29  Stas
+
+	* src/dosext/dpmi/msdos.c:
+	Further fixes for translation of int21h/ah=38h and 5dh
+
+	* src/base/mouse/mousevid.c:
+	for text modes too.
+
+	* src/dosext/mfs/mfs.c:
+	Debug msg.
+
+	* src/: base/bios/int10.c, base/mouse/mousevid.c,
+	  env/video/vgaemu.c, include/vgaemu.h:
+	- Fixed 40h:4eh bios value (current video page start)
+	- Made the gfx-cursor code to take that value into an account
+	(works in Orbits3 properly now)
+	- Disabled the X-specific code for gfx-cursor. This can introduce
+	the regressions, but as the gfx-cursor for X was added just a few
+	days ago (what was that X-specific code then, if there wasn't a
+	gfx-cursor under X before?), the regressions on it are not a problem.
+
+	* src/dosext/mfs/mfs.c:
+	Off-by-one error in MFS code causes lock-ups (bug #1189666)
+
+2005-04-27  Stas
+
+	* src/dosext/dpmi/msdos.c:
+	Fixed int21h/ah=38h translation to get tasmx to work. Yes, tasmx
+	used to work sometime in the past, but the bug was always there,
+	so it couldn't work properly.
+	Also fixed 2 gcc4 warnings.
+
+2005-04-26  Stas
+
+	* src/env/video/X.c:
+	Fullscreen mode can now always enable mouse grab.
+
+	* src/base/: init/lexer.l.in, init/parser.y.in, misc/disks.c:
+	Applied patch #845119 - 2.8M floppy support.
+	The patch was there for 1.5year already - enough!
+
+	* src/: env/video/instremu.c, env/video/vgaemu.c, include/vgaemu.h:
+	Moved instremu to the new vga helpers, Logical_VGA_xxx can now be static.
+
+	* src/: include/vgaemu.h, base/mouse/gcursor.c, base/mouse/mouse.c,
+	  env/video/vgaemu.c:
+	- Added the vga memory access helpers
+	- Moved gfx-cursor code to use that helpers
+	- Enabled the gfx mouse cursor code under X
+
+	GFX mouse cursor now works under X!
+
+2005-04-24  Stas
+
+	* src/arch/linux/dosext/sound/linux_sound.c:
+	Fix recent small regression with sound code (kryptegg works again)
+
+	* src/env/video/vc.c:
+	Remove unused (and crap) DUMP_VIDEO
+
+	* src/base/mouse/: gcursor.c, mouse.c:
+	Another small step towards the gfx mouse cursor under X.
+
+	* src/env/video/svgalib.c:
+	Trying to resurrect the svgalib support.
+	It really works much faster than our VESA driver (due to the
+	use of the native driver) but it doesn't save the video memory,
+	so there may be some problems.
+
+	* configure.ac:
+	Added proper svgalib checks. New svgalibs are better, but we can't
+	even link the old ones in.
+	But not enable it for now - svgalib still misses one very small
+	patch that I forgot to submit, and so it crashes, damn. Will have
+	to wait for the next version again :(((
+
+	* src/include/vc.h:
+	Increase MAX_X_REGS as per the new svgalib.
+
+	* src/env/video/: vc.c, vga.c:
+	Disable dump_video(). It can crash if the MAX_X_REGS of dosemu
+	mismatches with MAX_REGS of svgalib.
+
+2005-04-20  Stas
+
+	* src/emu-i386/ports.c:
+	set_ioperm() should also set the std-handler. This allows the dosemu
+	code to call port_outb/port_inb even for the iopermed ports, and the
+	real I/O will occur. This is necessary for the mouse gfx code to work
+	under X.
+	Also disabled HANDLE_VID_IO and HANDLE_SPECIAL. They prevented the
+	above code from working and also these features looks completely
+	broken and useless.
+
+2005-04-19  Stas
+
+	* src/base/init/: config.c, parser.y.in:
+	Repair $_rdtsc
+
+2005-04-17  Stas
+
+	* src/arch/linux/dosext/sound/midid/timid.c:
+	Increase timidity timeout from 1 to 3 seconds - timidity is slow
+	these days.
+
+	* etc/dosemu.conf, etc/global.conf, src/include/emu.h,
+	  src/arch/linux/dosext/sound/linux_sound.c,
+	  src/arch/linux/dosext/sound/linux_sound.h,
+	  src/base/init/config.c, src/base/init/lexer.l.in,
+	  src/base/init/parser.y.in:
+	Added the option to control the direct DAC write frequency for OSS.
+	No longer need to hack linux_sound.h
+
+	* src/: base/mouse/mouse.c, include/memory.h:
+	Moved Mouse_INT_OFF to memory.h and adjusted it instead of changing
+	the segment (Stas wake up and stop stumbling around the mouse code!)
+
+	* src/base/mouse/mouse.c:
+	Mouse_INT now requires BIOSSEG.
+
+	* src/: env/video/X.c, base/mouse/mouse.c, base/mouse/mouseint.c,
+	  plugin/sdl/mouse_SDL.c:
+	Enable the native mouse cursor by default (to stay compatible), and
+	the X and SDL frontends disable it manually.
+	Also "raw" mouse needed the *2 for Y coordinate too. I don't know
+	why, maybe the screen resolution is not taken into an account somewhere.
+
+2005-04-16  Stas
+
+	* src/: base/mouse/mouse.c, include/mouse.h:
+	Move "native_cursor" to config.mouse, where it actually should be.
+
+	* src/: env/video/X.c, plugin/sdl/mouse_SDL.c:
+	X and SDL frontends were erroneously overriding the mouse sensitivity
+	values. Also teached X.c about the 2:1 resolution. Native mouse cursor
+	now have the proper speed.
+
+	* src/base/mouse/mouse.c:
+	Native cursor state should survive save/restore.
+
+	* src/include/memory.h:
+	Set 0x33 ivec (mouse) not to 0xf000 segment, as some programs (td)
+	are refusing to use it in that case, and the offset should not be 0 too.
+	(bug #818094 of myself)
+
+2005-04-15  Stas
+
+	* src/: env/video/X.c, base/mouse/mouse.c, include/mouse.h:
+	Enable the native cursor code. Used under X only for now (not for SDL,
+	for example). (RFE #1079033 of my own)
+
+	* src/env/video/X.c:
+	Disable the selection ability when mouse grab is enabled.
+
+2005-04-14  Stas
+
+	* src/env/video/: X.c, render.c, vbe.c, vga.c:
+	Abort dosemu on the fatal video errors instead of having the blank screen.
+
+2005-04-12  Stas
+
+	* src/env/video/X.c:
+	Added keyboard grab - hardcoded to Ctrl-Alt-k for now.
+
+	* src/env/video/X.c:
+	Remove some ancient code.
+
+2005-04-09  Stas
+
+	* src/: emu-i386/ports.c, base/dev/misc/joystick.c,
+	  base/init/parser.y.in:
+	Dont try to register the joystick if it is disabled/unavail. (SR #1178900)
+
+2005-04-05  Stas
+
+	* src/env/video/: crtcemu.c, seqemu.c:
+	Previous patch needed this too.
+
+	* src/env/video/: crtcemu.c, seqemu.c:
+	Kill the optimization that optimizes nothing.
+
+2005-04-04  Stas
+
+	* src/env/video/X.c:
+	Handle the unlikely case of the miltiple KeyRelease events.
+
+	* src/dosext/dpmi/dpmi.c:
+	This keyboard hack is no longer needed.
+
+	* src/env/video/X.c:
+	Filter out the fake X KeyRelease events of the autorepeat keyboard mode.
+	This fixes bug #1113468, all the recent keyboard regressions, and the
+	number of the old keyboard bugs too.
+	There are lots of hacks all around dosemu that were trying to work
+	around that problem with the different level of success. They all now
+	have to be located and removed.
+
+2005-04-01  Stas
+
+	* etc/global.conf:
+	Set $BEING_ON for X too.
+
+2005-03-28  Stas
+
+	* src/plugin/commands/commands.c:
+	generic.com should print something usefull too.
+
+2005-03-27  Stas
+
+	* src/plugin/commands/unix.c:
+	Nah, use-after-free on error path.
+
+2005-03-26  Stas
+
+	* src/plugin/commands/unix.c:
+	Fixes to unix builtin:
+	- Dont strip the trailing slashes for the DOS directory path, as this
+	path may consist of only that slash (second part of #1152829)
+	- Dont terminate if the linux path we wanted to execute, doesn't exist.
+	For the DOS path, figuring out the existance is more difficult, so left
+	as is for now.
+
+	* src/plugin/commands/builtins.c:
+	Small cleanup.
+
+	* src/emu-i386/: cpu.c, ports.c:
+	Enlarge line buffer for proc scans, remove smiley ":)" from asm
+	constraints (lets put smiles in a comments, not in the code:)
+
+	* src/base/serial/ser_ports.c:
+	Update the MSR status before reading it - should make the serial more
+	robust.
+
+	* src/base/dev/misc/rtc.c:
+	Properly initialize date in cmos. "bios" timesource should now be
+	quite usable.
+
+	* src/base/dev/misc/rtc.c:
+	Multiple bugs with date in RTC.
+
+2005-03-22  Stas
+
+	* src/include/dos2linux.h, src/base/misc/dos2linux.c,
+	  src/plugin/commands/unix.c, src/base/misc/utilities.c,
+	  etc/dosemu.conf:
+	Fixed (and re-enabled) the terminate-after-execute feature (bug #1152829).
+	Also some minor adjustments/leftovers.
+
+2005-03-21  Stas
+
+	* src/base/misc/utilities.c:
+	/proc/self/maps can contain lines longer than 100 chars, causing DPMI
+	to fail (old bug btw).
+
+	* etc/dosemu.conf:
+	0x40000000 for the $_dpmi_base was a bad choise for the non-flexmmap
+	kernels. 0x10000000 looks safer.
+
+2005-03-20  Stas
+
+	* src/base/async/int.c:
+	Calling io_select() is too expensive, dont do it more than 1000 times
+	per second (a cheap fix for the keen4 lockups, but it is still too slow).
+
+	* src/base/mouse/mouse.c:
+	This improves the mouse responsiveness a lot.
+
+	* src/base/mouse/mouse.c:
+	Repair the mouse too.
+
+	* src/: arch/linux/dosext/sound/linux_sound.c,
+	  arch/linux/dosext/sound/linux_sound.h, dosext/sound/sound.c,
+	  include/sound.h:
+	This should make the sound recording to work properly (bug #1074310,
+	was not confirmed)
+
+	* src/doc/HOWTO/EMUfailure.sgml:
+	This was fixed.
+
+	* etc/dosemu.conf:
+	Set $_X_aspect_43 to (off), as we agreed, AFAIR.
+	This fixes z80s emulator visual artifacts, and many games too.
+
+	* src/base/dev/pic/pic.c:
+	Remove the PIC recursion.
+	This will probably break everything again, but at least the keyboard
+	should survive.
+
+	* src/plugin/kbd_unicode/serv_backend.c:
+	Preparing (again) the keyboard code for the removal of the PIC
+	recursion. We have to simulate the proper delay between the chars,
+	otherwise the nasties races are happening, and whatever is typed,
+	gets doubled (bug #1037915).
+	Set the emulated kbd clock frequency to 27.5KHz (that is, actually,
+	after the set2->set1 translation of 8042; the real frequency may
+	be slightly different).
+	I hope this is the last implicit dependancy the keyboard code had
+	to the PIC code. If all the other subsystems have so many too, then
+	we'll be in a big troubles:)
+
+2005-03-18  Stas
+
+	* etc/dosemu.conf, etc/global.conf, src/base/init/config.c,
+	  src/base/init/init.c, src/base/init/lexer.l.in,
+	  src/base/init/parser.y.in, src/base/misc/utilities.c,
+	  src/dosext/dpmi/dpmi.c, src/dosext/dpmi/dpmi.h,
+	  src/dosext/dpmi/memory.c, src/include/emu.h,
+	  src/include/utilities.h:
+	Introduce the $_dpmi_base option which allows to choose the address
+	of a DPMI memory pool. The problem with the dynamic allocation is
+	that some programs can't handle the bit 31 in the pointers, and that's
+	what being set now in the recent 2.6 kernels.
+	Fixes Mortal Kombat 2 and SerfCity game saving (bug #1164054)
+
+2005-03-17  Stas
+
+	* src/base/async/int.c:
+	Returned the old mouse hack of mine instead of the (currently disabled
+	anyway) Bart's one. This fixes the mouse for SerfCity game, makes the
+	mouse pointer to be syncronized at startup again, and (hopefully)
+	removes the possibility of a crash when the DOS sets int33 to some crap.
+	This doesn't allow to call into an external mouse driver, but thats
+	a useless feature anyway.
+
+	* src/doc/HOWTO/EMUfailure.sgml:
+	Updated to reflect the current state of affairs.
+
+2005-03-16  Stas
+
+	* src/: base/init/init.c, plugin/kbd_unicode/include/keyb_server.h,
+	  plugin/kbd_unicode/serv_8042.c,
+	  plugin/kbd_unicode/serv_backend.c:
+	More work on preparing the keyboard code for the PIC recursion removal.
+
+	* src/base/dev/pic/pic.c:
+	Remove the now harmfull sanity check from pic_request(). This should
+	fix most of the breakages of the previous commit.
+
+2005-03-06  Stas
+
+	* src/plugin/commands/: Makefile, blaster.c, blaster.h, commands.c:
+	New helper: blaster.com. Sets the BLASTER and MIDI variables accordingly
+	to the dosemu configuration.
+	Patch from Ryan Underwood, #1157059.
+
+2005-03-05  Stas
+
+	* src/plugin/kbd_unicode/keymaps.c:
+	Fix problem with '<' key in non-keycode mode (bug #818145)
+
+2005-03-02  Stas
+
+	* src/: arch/linux/async/signal.c, base/dev/misc/rtc.c,
+	  base/dev/misc/timers.c, base/dev/pic/pic.c, base/init/init.c,
+	  base/mouse/mouse.c, base/serial/ser_defs.h,
+	  base/serial/ser_irq.c, dosext/net/net/ipx.c,
+	  dosext/net/net/pktnew.c, dosext/sound/sound.c, include/iodev.h,
+	  include/ipx.h, include/mouse.h, include/pic.h, include/pktdrvr.h,
+	  plugin/kbd_unicode/include/keyb_server.h,
+	  plugin/kbd_unicode/serv_8042.c:
+	Abruptly terminate the PIC recursion usage. Globally, for all drivers.
+	This will probably break everything at once, but at least those
+	subsystems that were prepared, should tolerate.
+
+2005-03-01  Stas
+
+	* src/: include/emu.h, arch/linux/async/signal.c,
+	  base/misc/ioctl.c:
+	Trying to unbind SillyG (irqpassing) from PIC recursion. I dont have a
+	test-case for it, hope it still work.
+
+	* src/base/mouse/mouse.c:
+	Unbind mouse from the PIC recursion.
+	That looks pretty much it. Next thing would be to try remove the
+	recursion. Havoc to come...
+
+	* src/: base/serial/ser_init.c, base/serial/ser_irq.c,
+	  base/serial/ser_ports.c, include/serial.h:
+	Trying to unbind serial from PIC recursion.
+	Sorry, no way to keep serial functional any longer, lets break it again:)
+
+	* compiletime-settings.devel:
+	Linking with svgalib can produce a broken build because the svgalib
+	was linked without -Bsymbolic.
+	svgalib is probably dead...
+
+2005-02-28  Bart
+
+	* src/plugin/sdl/sdl.c:
+	Implemented handling of the SDL_QUIT event so that clicking "x" quits DOSEMU.
+
+	* src/tools/periph/Makefile:
+	Do not generate hdimage.dist in the default build as we don't need it anymore.
+
+2005-02-24  Stas
+
+	* src/dosext/dpmi/msdos.c:
+	Get rid of DS_MAPPED/ES_MAPPED to make the translator code fully
+	re-entrant (again)
+
+	* src/dosext/dpmi/msdos.c:
+	Remove some usages of ES_MAPPED/DS_MAPPED.
+
+2005-02-17  Stas
+
+	* src/dosext/dpmi/dpmi.c:
+	Call keyb_server_run() from dpmi_fault() to improve the keyboard
+	response time (bug #1113468). I hope doing that is safe.
+
+	* src/base/async/int.c:
+	Disable the mouse iret hack (again).
+	It turned out that DOS initializes the IVT to not always point to irets.
+	If PC-DOS is booted without DOS=HIGH, then for some reasons it sets
+	int33 (and others) to some crap, then the crash.
+	Besides, this code simply asks for being disabled: the recursion have
+	to be addressed in do_int(), not here.
+
+2005-02-11  Stas
+
+	* src/base/serial/ser_init.c:
+	Made serial ports to work *again*.
+	Lets keep them working at least for some time, pleeease! :)
+
+2005-02-07  Stas
+
+	* src/: arch/linux/async/signal.c, base/async/int.c,
+	  base/bios/int16.c, base/dev/misc/lpt.c, base/misc/ioctl.c,
+	  dosext/net/net/ipx.c, emu-i386/cputime.c, include/timers.h:
+	More flexible idle system. For now tuned similar to the current one,
+	except for the printer and async I/O, which, when active, give more
+	power to dosemu.
+	Now we can easily tune the things as per 1.2.1 and better.
+	Helper would be nice to allow the run-time adjustments, or perhaps
+	we need a section in dosemu.conf dedicated to the idle stuff.
+
+2005-02-06  Bart
+
+	* doc/README.gdb:
+	Add some more info about how to deal with GDB and avoid SIGALRM getting
+	in the way of single stepping.
+
+	* src/base/bios/int10.c:
+	Fix problem with cursor drawing with bigger fonts such as vga11x19.
+
+2005-02-05  Stas
+
+	* src/dosext/dpmi/dpmi.c:
+	Per-client stack must be freed on a client termination btw.
+
+2005-02-05  Bart
+
+	* etc/dosemu.conf, etc/global.conf, src/doc/README/config,
+	  src/env/video/avance.c, src/env/video/cirrus.c,
+	  src/env/video/matrox.c, src/env/video/s3.c, src/env/video/sis.c,
+	  src/env/video/vbe.c, src/env/video/vga.c:
+	$_vmemsize = (0) now means autodetect just like $_vbios_size = (0).
+	If you specify a fixed amount DOSEMU will only try to save/restore this
+	amount so console switching does not take such a long time.
+
+	* src/include/emu.h:
+	gcc-4.0 warning fixes
+
+	* src/doc/HOWTO/EMUfailure.sgml:
+	Add missing "of".
+
+	* src/env/video/text.c:
+	Fix gcc-4.0 warning.
+
+	* src/emu-i386/ports.c:
+	Remove unused devstat struct.
+
+	* src/base/init/: config.c, lexer.l.in:
+	Fix gcc warnings.
+
+	* src/base/serial/ser_init.c:
+	ser_init cleanups: use a table instead of switch for default COM settings,
+	get rid of some gcc-4.0 warnings.
+
+2005-02-05  Stas
+
+	* src/dosext/dpmi/: dpmi.c, dpmi.h, memory.c:
+	Make PM stacks per-client.
+	Borland C IDE can benefit from this.
+
+2005-02-04  Stas
+
+	* src/doc/README/dosnet:
+	Networking documentation update.
+	I am not a doc writer, but I tried to make it short, simple and
+	informative. Please dont beat me on that:) It should be better
+	than the old (completely outdated) one anyway.
+
+	* src/base/init/config.c:
+	Dont parse /proc/cpuinfo if not necessary, plus some cleanups. (SR #1081283)
+
+	* etc/global.conf, src/base/async/int.c, src/base/dev/misc/rtc.c,
+	  src/base/init/lexer.l.in, src/base/init/parser.y.in,
+	  src/include/emu.h, src/include/iodev.h:
+	First pass on merging the timing patch from Paul Crawford and Andrew Brooks.
+	This includes BIOS timing and a few fixes and enhancements to the old
+	code.
+	Linux timing is not yet.
+
+2005-02-01  Stas
+
+	* src/base/serial/ser_irq.c:
+	Completely draining the queue appears to be somewhat slow.
+	This patch allows up to 2 (QUEUE_THRESHOLD) chars to queue.
+	This returns the previous speed while still allowing my test-cases
+	to work.
+
+2005-01-30  Stas
+
+	* src/base/serial/ser_irq.c:
+	Get the queue size from linux and dont request the TX interrupt
+	before it is empty.
+	This makes my ancient test-case to work and hopefully is not as
+	slow as my previous attempt of using tcdrain().
+
+	* src/base/serial/: ser_defs.h, ser_irq.c, ser_ports.c:
+	Made transmit queue a sliding buffer (like the receive one) so that
+	the end-start calculation to always give the right result.
+
+2005-01-28  Stas
+
+	* src/: dosext/misc/emm.c, commands/ems.S:
+	Added int2f hook to ems.sys to provide the "unhooked" version of
+	the XMS callback that we hooked for UMB... Windows really demands
+	that (works unreliably otherwise when the native himem.sys is in
+	the game).
+	Also while I was at it, I reworte the ems.S almost entirely to get
+	rid of the ancient crap that was all there.
+
+	* src/: include/serial.h, base/serial/fossil.c,
+	  base/serial/ser_irq.c, base/serial/ser_ports.c:
+	Replaced tx_buf_bytes/rx_buf_bytes vars with the macros to reduce
+	the chances for the counters-out-of-sync bugs.
+
+	* src/base/serial/ser_ports.c:
+	Properly update the buffer counters when receiving data. Horrible
+	bug in fact, it used to work by a pure luck before - rx_buffer_slide()
+	was bringing the counters in sync at some point, but not always, and
+	not any more. This bug was there since the creation of the world.
+	This fix whould make the fifo transfers much faster and more reliable.
+	Closes #1103434.
+
+	* src/base/serial/ser_ports.c:
+	Be more carefull about the fifo counter. Mostly cosmetic.
+
+2005-01-26  Stas
+
+	* src/dosext/dpmi/dpmi.c:
+	Remove RealModeContext and the surrounding stuff.
+	I dont know why it was introduced. It is stated it helps some DJ200
+	compiler (djgpp?), but it looks like the hack to work around some
+	bugs that are not there any more. If someone know why this stuff
+	was necessary, let me know.
+	Bart, please see if djgpp feels well now without the hack.
+
+	* src/dosext/dpmi/dpmi.c:
+	Made it possible for the 16bit clients to safely access the 32bit API.
+	This is not defined in a DPMI specs, so this is a small extension.
+	No 16bit client is allowed to use 32bit API, but it is necessary
+	for the djgpp-ported API translator to provide the service for 16bit
+	clients.
+
+	* src/: include/pci.h, base/dev/misc/pci.c, base/async/pci_bios.c:
+	Made pciemu to do something more than just locking up the card
+	by fixing the inb/inw.
+	Also the header space is enlarged (still reading 64bytes only though).
+	Now it works with some cards, but in most cases it still doesnt.
+	The cards that reserve an extra PCI ports (like my Radeon) are
+	fine, but the ones that dont, usually keep the extended registers
+	in the config space, right after the config header. The emulation
+	approach cannot fork for them...
+	The last argument I've heard against just limiting the direct PCI
+	access, was that it would be too slow. But pci_port_inb/pci_port_outb
+	already do this!
+	I think pciemu have to go away. It is useless, at least for its
+	currently intended usage.
+
+2005-01-24  Stas
+
+	* man/dosemu.bin.1.in:
+	the related man adjustment
+
+	* etc/dosemu.conf, man/dosemu.bin.1.in:
+	Change $_cpu to 586 as people report problems about 386.
+	Dosemu is beleived to be 586-safe these days.
+
+2005-01-17  Stas
+
+	* src/env/video/text.c:
+	Use MB_LEN_MAX
+
+	* etc/dosemu.conf, etc/global.conf,
+	  src/arch/linux/mapping/mapping.c, src/base/async/int.c,
+	  src/base/dev/misc/cmos.c, src/base/init/config.c,
+	  src/base/init/init.c, src/base/init/lexer.l.in,
+	  src/base/init/parser.y.in, src/base/misc/hma.c,
+	  src/commands/ems.S, src/dosext/misc/xms.c, src/include/emu.h,
+	  src/include/hma.h, src/include/mapping.h, src/include/memory.h,
+	  src/include/xms.h:
+	Implemented int15 block move support and the infrastructure for
+	using the native himem.sys.
+	Dont forget to update your ems.sys!
+
+2005-01-15  Stas
+
+	* src/dosext/dpmi/: dpmi.c, msdos.c, msdos.h:
+	Got rid of S_xxx macros of msdos.c
+
+	* src/dosext/dpmi/dpmi.c:
+	Preserve the high word of ESP across the hw interrupts and exceptions
+	for 16bit DPMI clients.
+	This fixes the 16bit clients that use the 32bit code with 32bit stack
+	sometimes.
+	If the 16bit client is interrupted while on 32bit code/stack, it gets
+	switched to 16bit stack, where the high word of ESP is lost because of
+	the CPU bug. We can save/restore it by hands.
+	The 32bit clients that work on 16bit stack are still vulnirable.
+
+	* src/dosext/dpmi/dpmi.c:
+	Consolidate the stack switching into enter_lpms()/leave_lpms().
+	This saves 8K of the code and will make it easier to make the
+	per-client stacks.
+
+2005-01-11  Stas
+
+	* src/base/async/int.c:
+	- Improved windows hacks to support Standard mode.
+	- Made xtitle code to properly handle DOS shells of Windows.
+
+2005-01-10  Stas
+
+	* src/dosext/dpmi/msdos.c:
+	Small bug in int33/ax=0ch translation: offsets of 0 must be allowed.
+	(Japheth)
+
+	* src/dosext/dpmi/msdos.c:
+	Better fix for int33/ax=14h translation.
+
+2005-01-09  Stas
+
+	* src/env/video/text.c:
+	Fixed memory corruptions in save_selection(). utf8 seem to use up to
+	6 bytes per char, so the allocated buffer was too small. Also it was
+	not properly tracked.
+	Are there the charsets that can use more than 6 bytes?
+
+	* src/dosext/dpmi/msdos.c:
+	Fixed int33/ax=14h translation (noticed by Japheth)
+
+	* src/dosext/dpmi/dpmi.c:
+	Fixed a diabolical bug in do_LAR asm. It was not taking an argument!
+	So it operated on whatever random value was in %ax. Sometimes it
+	worked because %ax happened to contain the selector, but in most
+	cases it just did crap, corrupting the LDT cache. Now z80s emulator
+	works (again) and I suppose many other progs do as well.
+	This bug was here (presumably) since 1996, and noone noticed?!!!
+	This might explain the most of the oddities I observed for years,
+	like adding some debugging output makes one program to work and
+	breaks another...
+
+	* src/base/mouse/mouse.c:
+	Made ps2mouse enable/disable state to not interfere with int33 state.
+	Fixes some problems with Windows.
+
+	* src/dosext/dpmi/: dpmi.c, dpmi.h:
+	Added DPMI functions 0xe and 0xf.
+	Just because these were easy to code up:)
+
+	* src/dosext/dpmi/dpmi.c:
+	Added DPMI function 0x801 (free physical mapping).
+	This function does nothing for us, but it should not fail.
+
+2005-01-07  Stas
+
+	* src/dosext/dpmi/dpmi.c:
+	Dont reset in_win31 before LDT is unprotected (bug of RSP patches)
+
+	* src/dosext/dpmi/dpmi.c:
+	Evil typo in a (rarely used) DPMI function 0x50a
+
+	* src/: dosext/dpmi/dpmi.c, dosext/dpmi/dpmi.h, base/bios/bios.S,
+	  include/bios.h:
+	PM RSP functionality added (DPMI functions 0xc00, 0xc01).
+	No sufficient test-case, but needed for djgpp-ported msdos.c
+
+2004-12-29  Stas
+
+	* src/base/async/int.c:
+	gcc warning
+
+2004-12-27  Stas
+
+	* src/base/init/init.c:
+	Always report Game port and DMA.
+
+	* src/base/bios/bios.S:
+	Fixes to bios-reported caps:
+	- Table length does not count itself, so it is 8, not 9
+	- Report extended keyboard in features byte 2.
+
+2004-12-23  Stas
+
+	* src/dosext/dpmi/: dpmi.c, msdos.c, vxd.c, vxd.h:
+	Moved the VxD glue code from msdos.c to vxd.c. msdos.c must be kept
+	clean and perhaps it will be possible to port it to DJGPP one day.
+
+2004-12-22  Stas
+
+	* src/dosext/dpmi/vxd.c:
+	VTDAPI function 4 added. Media Player (Video for Windows) now works properly.
+
+2004-12-19  Stas
+
+	* src/emu-i386/ports.c:
+	Some more debug messages from ports.
+
+2004-12-16  Stas
+
+	* src/dosext/dpmi/dpmi.c:
+	2 small fixes:
+	- dont trash BP on return from int24 PM inthandler
+	- attribute the segments to the proper client for direct LDT writes
+
+2004-12-14  Bart
+
+	* src/dosext/mfs/lfn.c:
+	Return FILE_NOT_FOUND if the LFN wildcard search for "delete file"
+	does not find anything (Bug #1020635)
+
+2004-12-12  Stas
+
+	* src/dosext/dpmi/dpmi.c:
+	Missing return.
+
+	* src/dosext/dpmi/dpmi.c:
+	Re-applied accidentally removed commit.
+
+2004-12-11  Stas
+
+	* src/dosext/dpmi/dpmi.c:
+	Reflect the exceptions 1,3,4 to realmode handlers as the last resort,
+	if neither the exception handler nor the prot.mode interrupt handler
+	is installed.
+
+	* src/base/serial/ser_ports.c:
+	Dont try to raise IRQ if read() returns -1.
+
+2004-12-10  Stas
+
+	* src/dosext/dpmi/dpmi.c:
+	Unhandled exceptions 6 and >=8 should still terminate the client.
+
+	* src/dosext/dpmi/dpmi.c:
+	Reflect the unhandled exceptions to protected mode interrupts
+	handlers. If such a handler is not installed, the client is
+	terminated. This heavily contradicts with the DPMI specs, but
+	the specs are nonsense - reflecting the fault exceptions to
+	realmode inthandlers cant work.
+	(with the input from Japheth)
+
+	* src/: dosext/dpmi/dpmi.c, dosext/dpmi/dpmi.h,
+	  dosext/dpmi/memory.c, arch/linux/debugger/mhpdbgc.c:
+	Scan the LDT at startup and find all the used entries (usually there
+	are none, sometimes one). These entries are not allowed to be changed
+	by the DOS code. May help with pthreads.
+
+	* src/plugin/commands/builtins.c:
+	Made builtins version checking to work again. com_error() must be
+	called only *after* the memory pool is allocated. Fixes the
+	"builtin  OOM" problem reported by Reinhard.
+
+2004-12-09  Bart
+
+	* src/include/timers.h:
+	Replaced all assembly language in timers.h except for "rdtsc" itself by C.
+	This fixes bug #1080784.
+
+2004-12-09  Stas
+
+	* src/dosext/dpmi/dpmi.c:
+	Removed most of the ADD_16_32 usages.
+
+	* src/dosext/dpmi/dpmi.c:
+	One should not use "m" constraint for the variables that are in
+	the stack and the stack pointer is altered... set back to "d".
+	(thanks to Reinhard)
+
+2004-12-08  Stas
+
+	* src/dosext/dpmi/dpmi.c:
+	Reworked direct context-switching code. It is now 2 times shorter,
+	easily readable and more gcc-friendly.
+
+2004-12-07  Stas
+
+	* src/base/serial/ser_init.c:
+	Fixed error message
+
+2004-12-03  Stas
+
+	* src/dosext/dpmi/: dpmi.c, dpmi.h, msdos.c:
+	- Always use copy_context() instead of direct assignments (bug #1076593)
+	- Improved int23 handling
+
+	* src/base/mouse/mouse.c:
+	Reset the PS2 pointer callback on mouse reset. Fixes Windows problem
+	with mouse.
+
+	* src/dosext/dpmi/dpmi.c:
+	Made "Map Device" function to always fail.
+	It turned out we dont support that functionality, it just didn't return
+	the error. We can't support that before the .nopage method is implemented
+	for /dev/mem VMAs in the kernel.
+	Changed the DPMI caps again.
+
+	* src/dosext/dpmi/dpmi.c:
+	Make sure the realmode callbacks never use an unallocated descriptors.
+
+2004-12-02  Stas
+
+	* src/arch/linux/dosext/sound/linux_sound.c:
+	Use blocking sync for "disable speaker" SB function. (part of bug #1074310)
+	SNDCTL_DSP_SYNC ioctl() call is blocking. We need threading...
+
+	* src/: base/dev/misc/timers.c, dosext/dpmi/dpmi.c:
+	Preserve the "cli_timeout" hack state across the realmode calls.
+	Fixes the problem with Death Rally.
+
+	* src/emu-i386/do_vm86.c:
+	do_intr_call_back should push "vflags", not "eflags".
+
+	* src/base/serial/: ser_irq.c, ser_ports.c:
+	- Disable the left-over modstat timer code. This makes MSR to
+	work again (bug #1075088)
+	- moved TIOCSSERIAL ioctl closer to TIOCGSERIAL, for safety.
+
+2004-12-01  Stas
+
+	* src/: arch/linux/dosext/sound/linux_sound.c,
+	  dosext/sound/sound.c:
+	Make sound recording kinda work (part of bug #1074310)
+
+	* src/dosext/mfs/mfs.c:
+	dont dump uninitialized memory to the log.
+
+2004-11-29  Stas
+
+	* src/: include/pic.h, include/vm86plus.h,
+	  arch/linux/async/signal.c, base/dev/pic/pic.c,
+	  base/mouse/mouse.c, base/serial/ser_init.c, dosext/sound/sound.c,
+	  base/init/init.c:
+	Remove never really used pic_maski/pic_unmaski.
+
+	* src/: base/mouse/mouse.c, include/pic.h, base/async/int.c:
+	Unmask IRQ8 and IRQ12 initially.
+
+2004-11-28  Bart
+
+	* src/: base/async/int.c, base/dev/misc/lpt.c, include/lpt.h:
+	Printer fixes, enhancements and cleanups:
+	* printer_close must reset the write function to the stub.
+	* distinguish between "pipe" and "dev" files. The function pointers
+	  really make sense now I think.
+	* use line buffering for the printer files, so we don't need to wait
+	  timeout seconds before output appears
+	* after printer_timeout seconds the printer dev/pipe is closed
+	* remove unnecessary flush function, fclose/pclose do that automatically
+
+2004-11-28  Stas
+
+	* src/arch/linux/async/sigsegv.c:
+	Route coprocessor exceptions to IRQ13 (hints from Japheth).
+	This allows Netscape 4.x to work.
+
+	* src/include/pic.h:
+	Make IRQ13 unmasked on startup.
+
+	* src/base/init/init.c:
+	Enable IRQ13 on PIC, it can be invoked by FPU.
+
+2004-11-28  Bart
+
+	* doc/: EMUfailure.txt, dosemu-HOWTO.txt:
+	Regenerate EMUfailure and HOWTO
+
+2004-11-27  Stas
+
+	* src/dosext/dpmi/Makefile:
+	Stop mentioning winemu.bat in Makefile.
+
+	* src/base/mouse/mouse.c:
+	Added dummy "set rate" function to PS2 mouse. This allows Windows
+	to use the mouse without the custom driver.
+
+	* src/: dosext/dpmi/dpmi.c, dosext/dpmi/dpmi.h, emu-i386/do_vm86.c:
+	Moved dpmi_init() call to do_vm86.c. All other DPMI calls are now
+	ignored if DPMI is not initialized.
+	Windows seem to forget to unregister the mouse handler on exit.
+	This patch avoids the crash afterwards. There might be better fix
+	of course.
+
+	* src/base/async/int.c:
+	Setting int66 to iret is a Windows hack.
+
+	* src/: base/bios/bios.S, dosext/dpmi/dpmi.c, dosext/dpmi/dpmi.h,
+	  dosext/dpmi/msdos.c, dosext/dpmi/msdos.h, emu-i386/do_vm86.c,
+	  include/bios.h:
+	- Made the API translator fully reentrant, which allowed lots of cleanups.
+	- Implemented the proper reflection to PM of interrupts 0x1c, 0x23, 0x24.
+	It never worked properly before.
+	Windows feels much better now when accessing the missing floppies or CD.
+
+	* src/dosext/dpmi/winemu.bat:
+	winemu.bat is no longer needed as win.com works perfectly.
+
+	* src/dosext/dpmi/: Makefile, dpmi.c, meminfo.c, meminfo.h,
+	  memory.c:
+	Dont export the /proc/meminfo to the DPMI client. This is just plain
+	wrong. It is not supposed to know the real amount of mem or swap on
+	a system. It is only supposed to know the amount we allow it to use,
+	which is config.dpmi.
+
+	* src/dosext/dpmi/dpmi.c:
+	Allow the DPMI API to operate with some reserved descriptors
+	(like LDT alias, PM stack and DPMI_SEL).
+
+	* src/dosext/dpmi/dpmi.c:
+	Changed the DPMI caps: we do not support the exception restartability,
+	and never did. But we do support device mapping - we can map LFB :)
+
+2004-11-23  Stas
+
+	* src/dosext/dpmi/: dpmi.c, dpmi.h, msdos.c:
+	Make mouse, ps2 and XMS DPMI callbacks per-client.
+
+	* etc/: dosemu.conf, global.conf:
+	Remove $_pm_dos_api from dosemu.conf. $_ems now implicitly controls
+	the API translator (as was discussed).
+
+	* THANKS:
+	Japheth helped with 32rtm and Windows - thanks.
+
+2004-11-22  Bart
+
+	* src/dosext/mfs/: lfn.c, mangle.c, mangle.h, mfs.c, mfs.h:
+	Removed name_ufs_to_dos call from name_convert, so the caller is responsible.
+	Often the caller did this already, and so we are saving double work this way.
+	Simplified LFN int21/71a8 to work directly on the DOS character set.
+
+	* src/dosext/mfs/: lfn.c, mangle.c, mangle.h, mfs.c, util.c:
+	name_convert no longer uppercases. Leave this to the caller if it's
+	necessary, and if not it can use strcasecmp style functions.
+
+	* src/dosext/mfs/mfs.c:
+	Moved find_again into a function instead of messing around with goto's.
+
+	* src/dosext/mfs/mfs.c:
+	Must compare . and .. to the wildcard too. Fixes problem with Rocket Chase
+
+	* src/: base/async/int.c, base/bios/bios.S, dosext/dpmi/msdos.c,
+	  emu-i386/do_vm86.c, include/memory.h, include/mouse.h:
+	Use a HLT to deal with the hogthreshold code for real mode mouse drivers.
+	Correct EOI procedure in bios.S (used by IPX and packet driver)
+
+2004-11-22  Stas
+
+	* src/dosext/dpmi/dpmi.c:
+	debug output.
+
+	* src/dosext/dpmi/msdos.c:
+	Respect the returned CX value for int21/ah=65,al=1...7.
+	(suggested by Japheth)
+
+2004-11-22  Clarence
+
+	* src/plugin/translate/translate_config.c:
+	newline
+
+2004-11-21  Bart
+
+	* src/: base/async/int.c, dosext/dpmi/msdos.c, include/mouse.h:
+	Call int33 the old way using real_run_int() when it's called from a signal
+	handler. In this case DPMI's post extender takes care of the hogthreshold
+	code.
+
+2004-11-21  Stas
+
+	* src/emu-i386/do_vm86.c:
+	Make sure do_call_back() never executed from within the signal
+	context.
+
+	* src/base/async/int.c:
+	Disable int33 to DOS callouts. This allows windows to be started
+	in enhanced mode by win.com, otherwise crashes.
+	The reason is that do_int() can be called from within the signal
+	context (by DPMI). Calling realmode code from within the signal
+	context is not possible for many reasons (vm86() can emit the signals
+	itself, or DPMI may not yet set everything up for realmode code, etc).
+	So do_int() must *never* use the do_call_back() variations.
+
+	* src/dosext/dpmi/msdos.c:
+	int21/ah=65h calls added to API translator. This allows Win3.11
+	install to go further, but it still doesnt finish.
+
+	* src/: dosext/dpmi/dpmi.c, dosext/dpmi/dpmi.h,
+	  dosext/dpmi/msdos.c, base/bios/bios.S, include/bios.h,
+	  include/cpu.h, plugin/commands/builtins.c:
+	- Added XMS calls from DPMI thunk. This allows the Win3.1 installation.
+	Win3.11 installation still doesn't work.
+	- Some cleanups in msdos.c
+
+	* src/: include/dos2linux.h, plugin/commands/builtins.c:
+	Forgotten bits of the previous commit.
+
+	* src/base/async/int.c:
+	Introducing "Windows Hacks".
+	With these hacks it is now possible to:
+	- run Windows 3.1 in an usual way (via win.com) in both the 286 and 386
+	mode. The mode will be displayed in the window title.
+	- install Windows 3.1 under dosemu. But the installation crashes
+	at the very end :( This is to work out later.
+
+2004-11-20  Stas
+
+	* compiletime-settings.devel, src/arch/linux/async/signal.c,
+	  src/arch/linux/async/sigsegv.c, src/arch/linux/debugger/mhpdbg.c,
+	  src/base/async/int.c, src/base/dev/misc/timers.c,
+	  src/base/dev/pic/pic.c, src/dosext/dpmi/dpmi.c,
+	  src/dosext/dpmi/dpmi.h, src/dosext/sound/sound.c,
+	  src/emu-i386/do_vm86.c, src/include/cpu.h:
+	First pass on the IF flag virtualization.
+	cpuemu is disabled for now - have to be updated somehow.
+	This patch fixes (probably partially) bugs: #1027805, #855948, #855556,
+	#811365 and the rest of the world.
+	Give it some testing, make sure it doesnt lock up you favourite DPMI app.
+
+2004-11-20  Bart
+
+	* src/base/misc/fatfs.c:
+	Fixed problem trying to open io.syskernel.sys if io.sys has 0 bytes.
+
+2004-11-20  Stas
+
+	* src/base/async/int.c:
+	int21/ah=6 is output only when dl!=0xff, otherwise it is input and
+	must not reset idle. (Bug #1067680)
+
+2004-11-18  Bart
+
+	* src/include/bios.h, src/base/misc/disks.c:
+	For floppies call disk_close() only when the floppy MOTOR_TIMEOUT expired.
+	Otherwise call fsync(). This improves floppy performance, particularly when
+	using kernel 2.6.
+
+	* etc/global.conf:
+	Fix typo in $_X_vesamode
+
+2004-11-14  Bart
+
+	* src/: base/async/pci_bios.c, base/dev/misc/pci.c, include/pci.h:
+	Restrict PCI configuration space access to the first 64 bytes (16 longs).
+	Some machines crash otherwise. Thanks to MIchael and Reinhard Karcher for
+	reporting and fixing this.
+
+2004-11-12  Stas
+
+	* etc/dosemu.conf:
+	IPX is presumed to be fixed and DPMI-safe.
+
+2004-11-11  Bart
+
+	* src/: arch/linux/mapping/mapping.c, env/video/console.c,
+	  env/video/vga.c, env/video/video.c:
+	Ignore PCI memory ranges under 1MB. Decouple memcheck_reserve from
+	map_hardware_ram for video memory. Fix console=1, graphics=0 mode,
+	by fixing its map_hardware_ram but still having a 128K chunk reserved
+	at 0xa0000 as virtual hardware RAM.
+
+2004-11-10  Bart
+
+	* src/plugin/commands/builtins.c:
+	lowmem_alloc cannot call com_error in case of failure, since com_error
+	will call lowmem_alloc again (via com_doswrite). This fails and causes
+	infinite recursion.
+
+2004-11-09  Bart
+
+	* src/base/async/int.c:
+	int33() now takes over the int33 vector if it points to an iret. This is still
+	a bit dirty but not worse than what we did before. I reverted the other
+	workarounds.
+
+2004-11-09  Stas
+
+	* src/dosext/dpmi/msdos.c:
+	- Set MAX_DOS_PATH to 260 and use it instead of some hardcoded vals
+	- Use sprintf instead of memcpy for ax=7160
+
+	* src/dosext/dpmi/msdos.c:
+	Better to use MEMCPY_DOS2DOS macro
+
+	* src/dosext/dpmi/msdos.c:
+	Silly strncpy vs memcpy confusion.
+
+2004-11-08  Bart
+
+	* src/env/video/text.c:
+	Fix invisible mouse selection in colour text programs. This code is what
+	the Linux console selection code also uses to invert on VGA displays.
+
+	* src/base/async/int.c:
+	Simplified int code a bit: moved some code from run_caller_func() to
+	do_int() to avoid checking things twice, and have only one place
+	where real_run_int() is called. The mouse workarounds aren't necessary
+	anymore; ctrl-c still works.
+
+2004-11-08  Stas
+
+	* src/base/async/int.c:
+	If dosemu have no internal function for interrupt, just call the
+	DOS interrupt handler. This fixes the problem with ^C.
+
+	* src/dosext/dpmi/dpmi.c:
+	Increase instremu count to 10 for LDT writes - looks a bit faster.
+
+	* src/: base/async/int.c, dosext/dpmi/dpmi.c:
+	Revector interrupts 0x1c, 0x23 and 0x24 for DPMI.
+	This allows windows to handle critical errors like missing diskette
+	in drive.
+
+	* src/base/async/int.c:
+	Dont call post_boot() anywhere but from int21/ah=4b and even then
+	ignore the first invocation.
+	The reason is that DOS sets int33 vector (and probably some other)
+	to iret on the very late stages of its startup. This hack makes
+	mouse to work again.
+
+	* src/dosext/dpmi/dpmi.c:
+	- Fix bug with LDT segment expanding (hint from Japheth)
+	- This makes it possible to decrease the initial LDT limit to 0xfff
+
+	* src/dosext/dpmi/msdos.c:
+	- Increased MAX_DOS_PATH: int21/ax=7160 needs 261 bytes.
+	- Added API translation for int21/ax=7160 (Japheth)
+	- Fixed bug in translation for int21/ax=7147 (Japheth)
+
+	* src/: dosext/dpmi/dpmi.c, dosext/dpmi/dpmi.h,
+	  dosext/dpmi/msdos.c, base/bios/bios.S, base/mouse/mouse.c,
+	  include/bios.h:
+	Add PS2 mouse support for DPMI.
+	This allows WinOS2 to work again (otherwise crashes with recent CVS),
+	but mouse no longer works :(
+	Maybe there are some bugs, but we need the config switch to choose
+	between int15 and int33 interfaces.
+
+	* src/base/serial/ser_init.c:
+	Hi Bart:)
+
+	* src/base/serial/ser_ports.c:
+	Revert the ser_ports.c patch of 2004-05-07. It seems to be no longer
+	necessary and causes problems.
+
+2004-11-05  Bart
+
+	* src/include/serial.h, etc/global.conf, src/base/init/parser.y.in,
+	  src/base/serial/ser_init.c:
+	Fix parser for $_com1 = "/dev/ttyS0 irq 4" (#1012035)
+	Don't try to remove a lock file for virtual com ports -- it just gives
+	a spurious ERROR.
+	Avoid some buffer overflows and NULL pointer dereferences
+	(sptr->dev is a pointer now, space for path determined at runtime,
+	 take care of strrchr, remove unused dev_nam array)
+
+	* src/: base/misc/ioctl.c, env/video/matrox.h, include/bitops.h:
+	gcc-4.0 warning/error fixes
+
+	* src/: base/init/config.c, base/init/dev_list.c, base/init/init.c,
+	  emu.c, include/emu.h:
+	Removed the remaining old keyboard code that was still around at various
+	places.
+
+	* src/arch/linux/async/signal.c:
+	The sigreturn caller really needs to be called __restore and not restore__,
+	otherwise gdb will still be confused.
+
+2004-11-04  Bart
+
+	* src/arch/linux/async/signal.c:
+	Set the SA_RESTORER flag when calling the kernel sigaction (for the wrapper
+	case), because glibc does the same thing. Hopefully that solves some problems
+	with GDB on 2.4 kernels.
+
+	* src/: base/bios/bios.S, env/video/X.c, include/mouse.h,
+	  include/pic.h, base/mouse/mouse.c, plugin/sdl/sdl.c,
+	  plugin/term/mouse_xterm.c:
+	Handle user and int15 mouse event handlers via int74/irq12.
+	Some DOS mouse drivers hook int74 and only work if we handle events this
+	way.
+
+	* src/base/mouse/mouse.c:
+	scale ps2mouse dy by a factor 2; the speed_x and speed_y are already changed
+	by a video mode switch. Also don't call do_mouse_irq_ps2 if no events occur.
+	ctmouse is now more usable without the grab active
+	(if you use ctmouse /r1 to disable acceleration).
+
+2004-11-03  Bart
+
+	* src/plugin/: term/keyb_slang.c, translate/translate.c:
+	Compute the shift/alt/ctrl modifier for xterms/rxvt instead of relying on
+	a very long table that would cover all possibilities.
+	Assume high bit means ALT when the external charset is ASCII or "" with C
+	locale. Fix segfaults when $_external_char_set = "ascii".
+
+2004-11-03  Stas
+
+	* src/emu-i386/do_vm86.c:
+	Remove the re-entry check from do_call_back(), IPX (Reinhard) have
+	problems with it.
+	do_call_back() must be reenterable, but I am worrying about the
+	case where it is re-entered by the VESA switch, after which
+	dosemu will be frozen while callback is processing. Probably the
+	VESA driver have to wait if any callback is active?
+
+2004-11-03  Bart
+
+	* src/: base/async/int.c, base/mouse/mouse.c, base/bios/bios.S,
+	  include/memory.h, include/mouse.h:
+	int33() now uses a callback into the mouse driver to make sure the
+	hogthreshold is done after the call even for DOS mouse drivers.
+	A DOS mouse driver can now redirect int33; in that case we use NOREVECT
+	for mouse_int(). To combine this with the callback via the hog code (which
+	is always revectored) some extra checks and function pointer adjustments
+	have to be made.
+	Removed the unused indirect function pointer for the mouse callback.
+	Enabling the internal driver no longer always sets the int33 vector.
+	Implemented a second mouse callback for the PS/2 mouse BIOS.
+	All this combined gives a PS/2 mouse bios that actually works so a
+	DOS mouse driver (such as CTMOUSE 1.9) can be loaded into xdosemu --
+	although to have it usable one needs to grab the mouse.
+
+2004-11-02  Bart
+
+	* src/doc/HOWTO/dosemu-HOWTO.sgml:
+	Removed any version information about Windows 3.x and dosemu.
+	This remark was merely a historical saying when the VGA emulator was
+	good enough to run Windows 3.x, it doesn't really matter today.
+	The 1.2.0 fixes were merely to get it back on track, nothing specific
+	to xdosemu vs. console dosemu.
+
+2004-11-02  Stas
+
+	* src/doc/HOWTO/dosemu-HOWTO.sgml:
+	Rip some FUD/crap about Windows support from HOWTO:
+	- .386 doesnt mean 32bit. There is nearly no 32bit code in Win31.
+	- dosemu can run Windows since 1.2.0, not 0.64.3 (or it was broken
+	for ages, at least on 1.0.x it doesnt work).
+	- Icons do not disappear from Windows desktop, and winos2 doesnt
+	make progman.exe to use system.ini instead of progman.ini (who wrote
+	that kind of crap?)
+	- Some other Windows-related junk ripped.
+
+	* src/dosext/dpmi/dpmi.c:
+	Support for unmodified Win31 386 kernel (thanks Japheth!):
+	- Dynamically growing LDT, initial limit set to 0x1fff. This
+	supercedes the allocation hack I've done for 286 kernel (hack removed).
+	- Check for eIP to not exceed the CS limit (CheckSelectors())
+	- When Windows creates the invalid LDT entries, just free the
+	entry (type 0). This causes LAR to fail, same as if it would be of
+	a type 0x0f, which Windows uses. Bingo!
+
+	And oh yeah, there are still no reasons to use the unmodified
+	Win31, at least before the proper mouse event translation is
+	implemented.
+
+2004-11-01  Bart
+
+	* src/plugin/term/keyb_slang.c:
+	If only "20" function keys are available let "F11" appear as shift-F1 to
+	DOS apps. This is consistent with older dosemu's; and more DOS apps use
+	shift-F1 than F11 (because there was no F11 on XT keyboards).
+
+2004-10-31  Stas
+
+	* src/plugin/commands/: builtins.c, builtins.h:
+	- Remove no longer used com_int86()
+	- Duplicate some "builtins" error message to the DOS screen
+
+2004-10-31  Bart
+
+	* src/plugin/term/keyb_slang.c:
+	keyb_slang.c cleanups and enhancements:
+	* Use our own definitions only as fallbacks for the terminfo definitions.
+	  Some definitions could be removed because the terminfo is reliable
+	  enough.
+	* Added logic to translate esc-key into alt-key so many definitions could
+	  be removed from the table.
+	* Added some entries for shift/ctrl/alt arrow keys etc in xterm and friends
+	* Add support for kf1--kf48 as used by recent xterms. Makes it possible
+	  to distinguish shift-f1 from f11 and use ctrl-f1 etc.
+	* Force application keypad mode to be able to distinguish keypad keys from
+	  others.
+
+2004-10-31  Stas
+
+	* src/dosext/dpmi/dpmi.c:
+	Remove some leftover debugging stuff.
+
+	* src/: dosext/dpmi/dpmi.c, dosext/dpmi/dpmi.h,
+	  dosext/dpmi/memory.c, dosext/dpmi/msdos.c,
+	  arch/linux/debugger/mhpdbgc.c, env/video/instremu.c:
+	Win3.1 support:
+	- Added LDT R/W emulation.
+	- Added several tricks that Windows relies upon.
+	- Static DPMI initialization is now done only once, in dpmi_memory_init().
+
+	This allows unmodified Win3.1 to work, but only krnl286.exe so far.
+	krnl386.exe is not yet.
+	There are no advantages in running unmodified windows, compared to WinOS2,
+	only the disadvantages, like that you cant use mouse under X (don't even
+	try WinOS2 mouse driver under unmodified winkernel, it will crash!).
+	But it is an imminent step towards win32s, Win95 etc...
+
+2004-10-30  Bart
+
+	* etc/dosemu.conf, src/plugin/translate/translate_config.c:
+	$_term_char_set is obsolete (it really has been for over two years now).
+
+2004-10-30  Stas
+
+	* src/dosext/dpmi/: dpmi.c, dpmi.h:
+	Enlarge PM locked stack to 0xf000 as needed for Windows.
+	Also be more carefull calculating the stack offsets.
+
+2004-10-30  Bart
+
+	* src/plugin/kbd_unicode/keyb_raw.c:
+	Fix gcc warning.
+
+2004-10-30  Stas
+
+	* src/: env/video/instremu.c, env/video/vgaemu.c, include/vgaemu.h:
+	Add the "cnt" arg to instr_emu(), which specifies how many insns
+	to emulate. 0 means default count. When cnt!=0, signal_pending is ignored.
+
+2004-10-30  Bart
+
+	* src/plugin/: term/terminal.c, translate/charsets/vt100.c:
+	Optimize terminal->utf8 support to use a max of 3 bytes: DOS characters
+	never get beyond the BMP.
+	Implement support for VT100 drawing characters; add this character set.
+	Exploit cp437 as the alternate character set on the Linux console.
+	This makes the Use_IBM_Codes escape sequence trick superfluous, and
+	allows us to even use most IBM characters < 0x20.
+
+2004-10-30  Stas
+
+	* src/base/async/int.c:
+	Set vector 0x66 to iret because Win3.1 calls it and crashes otherwise.
+
+	* src/dosext/dpmi/dpmi.c:
+	Make FreeAllDescriptors() to actually work.
+
+	* src/: base/mouse/mouse.c, base/async/int.c, include/emu.h,
+	  plugin/commands/emumouse.c:
+	- Make emumouse to call the mouse_helper() directly, rather than via
+	DOS interrupt.
+	- Fix the bug with permanently disabling mouse internaldriver.
+
+	* src/: arch/linux/async/signal.c, base/async/int.c,
+	  base/bios/bios.S, base/init/init.c, dosext/mfs/mfs.h,
+	  dosext/net/net/ipx.c, dosext/net/net/ipxglt.c, include/bios.h,
+	  include/cpu.h, include/doshelpers.h, include/emu.h,
+	  include/ipx.h, include/pic.h:
+	IPX updates:
+	- Switch to async IO
+	- Route all the callback stuff via PIC
+	- Removed all the horrible asm hackery from bios.S, it is all in C now
+
+	This was tested and benchmarked by Reinhard - thanks!
+	Benchmarks shows that it is not faster than the old code, but the
+	CPU load was dropped from 100% to 10%, which is very good.
+	It also should not have the problems with DPMI, but this remains
+	unconfirmed. We'll see.
+
+2004-10-27  Bart
+
+	* src/plugin/kbd_unicode/keyb_raw.c:
+	The raw keyboard needs to switch back to the original mode when you quit:
+	it may not be XLATE, but can be UNICODE as well.
+
+2004-10-27  Stas
+
+	* src/arch/linux/async/signal.c:
+	Calling io_select() in sigalrm() is still necessary for dosdebug.
+
+2004-10-27  Bart
+
+	* src/arch/linux/Makefile.main:
+	Removed some obsolete advise about xmodmap and xset fp rehash.
+
+2004-10-26  Bart
+
+	* src/env/video/text.c:
+	Don't use the remapper unless bitmap fonts are used. This fixes a crash in
+	some text mode programs in terminal mode or when an X font is used.
+
+	* src/dosext/dpmi/: dpmi.c, msdos.c:
+	Removed more lvalue casts.
+
+	* src/plugin/kbd_unicode/include/keyboard.h:
+	Added symbol for Altgr lock which is used in the console keyboard detection.
+
+	* src/plugin/kbd_unicode/keymaps.c:
+	Use a more generic approach to scan for alternate keyboards than using the
+	KT_ALTERNATE flag.
+	The console keyboard detector can now deal with alternate layouts,
+	non-ISO-8859-1 symbols and Unicode symbols (if kbd_mode -u is used).
+
+2004-10-25  Bart
+
+	* src/plugin/kbd_unicode/keymaps.c:
+	Detect alternate keymaps by checking keys 2 and 3 from the X server.
+	Fixes the problem with setxkbmap us,ru
+
+2004-10-25  Stas
+
+	* src/dosext/net/net/pktnew.c:
+	Supress error messages.
+
+2004-10-24  Bart
+
+	* src/plugin/kbd_unicode/keymaps.c:
+	Only report a mismatch if the X server reports a valid key which is different
+	from our valid key. This seems to fix both "uk" and "ru" autodetection.
+
+	* src/dosext/dpmi/dpmi.c:
+	Fix gcc warning, remove unnecessary PAGE_SIZE definition.
+
+	* src/plugin/kbd_unicode/keymaps.c:
+	Clean up auto detection to use the "X_keysym" character set and to not
+	compare too many keys.
+
+2004-10-23  Bart
+
+	* src/: base/init/parser.y.in, plugin/kbd_unicode/keymaps.c,
+	  plugin/kbd_unicode/serv_xlat.c,
+	  plugin/kbd_unicode/include/keymaps.h:
+	The console keyboard auto detection now merges with the US def, instead
+	of replacing it.
+	Changed $_layout="auto" to no longer blindly trust the console keyboard
+	when running under X. A function was borrowed from Wine which compares
+	the X keymap with all keymaps that we have (including perhaps the console
+	keymap) and choose the one that matches best (as there is no way to
+	obtain scancodes from X; X terminals may not be PCs after all).
+	Hopefully fixes bug #999831.
+
+	* src/dosext/mfs/mfs.c:
+	Don't use asprintf() in exists() as there may not be enough space
+	(fullname can become longer in find_file as names are unmangled).
+	This caused a very nasty SIGSEGV when trying to delete a mangled name.
+	Change to cheaper allocation on the stack with NAME_MAX+1 bytes for
+	the filename component.
+
+	* src/dosext/mfs/mfs.c:
+	Converted chmod error into a warning; also used for utime() now.
+	It now causes DOSEMU to ignore the request (not return an error),
+	but only if errno==EPERM (not e.g. EROFS), the directory is writable,
+	and chmod would actually change the mode.
+
+	* src/dosext/mfs/mfs.c:
+	convert_compare() now checks if the name has a ~ or ? at position 5;
+	otherwise we don't need to mangle.
+	Simplified extract_filename(), and auspr(): they may assume valid filenames.
+	Convert * to ? before searching, so we don't need to check '*' in the
+	comparison routines anymore.
+
+	* Makefile:
+	Removed the automatic autoconf rule again; it appears to have more drawbacks
+	than advantages. Sometimes configure.ac changes only the autoheader part
+	so that configure does not change and autoconf is not necessary (only
+	autoheader).
+
+2004-10-22  Bart
+
+	* src/env/video/vgaemu.c:
+	Fix wrong comparison for character heights. This fixes many fonts in
+	graphics modes.
+
+	* src/plugin/: sdl/Makefile, kbd_unicode/Makefile:
+	Clean some generated files with make distclean/realclean.
+
+	* src/plugin/sdl/sdl.c:
+	Enable key repeat in SDL
+
+2004-10-21  Stas
+
+	* src/arch/linux/async/signal.c:
+	Dont trust the "old" action struct, it may contain not what we want.
+	This patch allows njamd to be used with dosemu, btw.
+
+	* src/include/pic.h:
+	Revert patch of 11.10.2004.
+	Reinhard pointed the stupidity of it, and the fact that pic_unmaski()
+	takes care about that automagically for more than a year already,
+	makes it even not worth fixing.
+
+	* etc/dosemu.conf, src/dosext/net/net/pktnew.c:
+	I tested $_novell_hack, it appears to work (for my test-case at least).
+	So the comment in the code that said it was disabled (that I propagated
+	to dosemu.conf) appeared to be misleading. Removed.
+
+2004-10-20  Bart
+
+	* src/dosext/drivers/cdrom.c:
+	Check for ENOTTY when doing the cdrom ioctl before reading. This allows
+	using image files with cdrom.sys and *cdex.exe.
+
+2004-10-20  Stas
+
+	* src/dosext/net/net/pktnew.c:
+	Dont try to init pkt when disabled in config.
+
+	* src/dosext/mfs/mfs.c:
+	Mounting FAT without "quiet" causes many obscure problems for dosemu.
+
+	* src/dosext/net/net/pktnew.c:
+	Return two accidentally removed strcpy() calls to packet driver...
+
+2004-10-19  Bart
+
+	* src/arch/linux/Makefile.main:
+	Do the final link using a recursive invocation of make. That seems
+	to avoid the problems with parallel makes, because this rule can
+	now reliably depend on a phony target.
+
+2004-10-18  Bart
+
+	* src/env/video/vbe.c:
+	removed protected mode bank switch caller again, because we don't handle
+	cli and sti for it.
+
+2004-10-18  Stas
+
+	* src/: include/inifile.h, dosext/net/net/ipx.c:
+	Really really remove the dos.ini support.
+
+	* src/dosext/net/net/inifile.c:
+	Remove dos.ini again (escaped from previous commit).
+
+	* configure.ac, etc/dosemu.conf, etc/global.conf,
+	  src/base/init/lexer.l.in, src/base/init/parser.y.in,
+	  src/dosext/net/net/Makefile, src/dosext/net/net/ipx.c,
+	  src/include/config.h.in, src/include/emu.h:
+	- Removed never used (not even mentioned in docs) dos.ini file support.
+	- Added $_ipx_network option to dosemu.conf (was in dos.ini previously).
+
+2004-10-18  Bart
+
+	* src/dosext/mfs/lfn.c:
+	Fix semicolon typo. Should solve Clarence' problem.
+
+2004-10-17  Bart
+
+	* src/dosext/mfs/: mangle.h, mfs.c, util.c:
+	Use a dos_to_unicode_table to complement unicode_to_dos_table and make
+	path_to_ufs faster.
+
+	* src/dosext/mfs/lfn.c:
+	Fix possible buffer overflow.
+
+	* src/dosext/mfs/mfs.c:
+	For findfirst delay the filename compare and stat to findnext's.
+	This makes get_dir() so much faster (70x) that the sigalrm check is no
+	longer necessary.
+	Also moved the . and .. in root dir check out of the loop in
+	scan_dir.
+
+	* src/dosext/mfs/: lfn.c, mangle.c, mangle.h, mfs.c, util.c:
+	Reverted VFAT optimization. It's not reliable for say \`o (o with accent
+	grave) where the uppercase equivalent does not exist in CP437. The kernel
+	does not uppercase it but DOS and DOSEMU convert it to O. So searching
+	for POT where the filename is p\`ot means the expensive way is necessary.
+	Introduced a DOS uppercase table to be able to do this quickly, and
+	let the LFN code use this. Simplify name_ufs_to_dos to no longer do any
+	uppercasing as strupperDOS does this much more quickly. Some cleanups
+	in scan_dir to make it more similar to what it was before.
+
+2004-10-16  Bart
+
+	* src/dosext/mfs/mfs.c:
+	Simplify last part of loop: the strcasecmp for long and short names could
+	be the same thing for a non-mangled name on a non-FAT fs.
+
+	* src/dosext/mfs/: mangle.c, mfs.c:
+	Fixed a regression in mangle.c with the unicode->dos table.
+	Use the stack instead of malloc in name_convert.
+	Only mangle all names in the directory if what we are looking for
+	is a mangled name in the first place! Otherwise a simple strcasecmp
+	is sufficient. That's another 12x faster for scan_dir(non_mangled_name).
+	On VFAT (case insensitive fs) we don't need to scan at all.
+
+	* src/: dosext/mfs/lfn.c, dosext/mfs/mangle.c, dosext/mfs/mfs.c,
+	  dosext/mfs/util.c, plugin/translate/translate_config.c,
+	  plugin/translate/config/plugin_parser,
+	  plugin/translate/include/translate.h:
+	Use current locale for the external filename character set (leaving
+	keyboard/terminal/paste untouched for now). Allows simply using
+	strcasecmp instead of slow unicode compare, and mbsrtowcs for the
+	unix->dos filename translation. Gives a further 30% speed improvement
+	of readdir searches.
+
+	* src/dosext/mfs/mangle.c:
+	Use a 64K-sized char table for unicode->DOS lookups. This makes the
+	readdir searches about 3x faster.
+
+2004-10-15  Bart
+
+	* src/plugin/kbd_unicode/keyb_clients.c:
+	Add the SDL keyboard to the keyb_clients struct.
+
+	* src/env/video/X.c:
+	Properly handle TIMESTAMP requests. Now klipper doesn't cause bad events
+	anymore.
+
+2004-10-14  Bart
+
+	* src/env/video/X.c:
+	Implement support for the TARGETS and TIMESTAMP atoms used in selection.
+	This fixes the copy/paste problems with KDE 3.2.3.
+
+2004-10-14  Stas
+
+	* src/: arch/linux/debugger/mhpdbgc.c, emu-i386/do_vm86.c:
+	Dont unfreeze dosemu when dosdebug is attached, do it only if
+	explicitly asked via dosdebug.
+
+2004-10-13  Bart
+
+	* src/arch/linux/mapping/mapping.c:
+	Allow virtual maps of the video memory at 0xa0000 if !config.console_video
+
+	* src/: arch/linux/mapping/mapping.c, base/init/config.c,
+	  base/init/init.c, base/init/parser.y.in, dosext/dpmi/dpmi.c,
+	  env/video/vbe.c, env/video/vc.c, env/video/vga.c,
+	  env/video/vgaemu.c, env/video/video.c, include/emu.h,
+	  include/mapping.h, include/pci.h:
+	Extend $_hardware_ram to allow maps over 1MB with a virtual base that
+	DPMI can get. Implement a new set of hardware RAM functions (register,
+	map, list, get) and make $_hardware_ram, VGA(PCI), DPMI, and VESA its
+	users. A special type (0) is used for virtual mappings (used by VGAEMU);
+	otherwise the memcheck character types are used.
+	map_hardware_ram tries to map everything that was registered, including
+	the low VGA display memory.
+
+	* src/dosext/mfs/mfs.c:
+	Speed up scan_dir by uppercasing the name to search for outside the loop
+	and only comparing the mangled short name for SFN searches.
+	LFN searches only compare the long name case insensitively.
+	Use VFAT_IOCTL_READDIR_SHORT on vfat partitions from non-LFN code to
+	make sure that LFN's are invisible when they aren't needed.
+	Plug memory leak and page fault if you lredir'ed a non-existent
+	directory.
+
+2004-10-13  Stas
+
+	* src/include/emu.h:
+	Making config.hogthreshold (and ocasionally a couple of other vars)
+	signed - needed for my upcoming hogthreshold updates (using the
+	negative thresholds sometimes).
+
+	* src/: arch/linux/async/signal.c, base/async/int.c:
+	Moving io_select() from sigalrm to do_periodic_stuff() speeds up the
+	packet driver twice.
+
+	* src/env/video/X.c:
+	Set the real resolution for fullscrean, not the scaled one.
+
+2004-10-12  Bart
+
+	* etc/dosemu.conf, src/arch/linux/async/signal.c,
+	  src/base/init/lexer.l.in, src/env/video/Makefile,
+	  src/env/video/vbe.c, src/env/video/vbe.h, src/env/video/vga.c,
+	  src/env/video/vga.h, src/include/emu.h, src/include/vc.h,
+	  src/include/video.h:
+	Add a VESA VBE graphics driver and make that the default. This driver
+	should work with any VBE version; an LFB is not necessary
+	LFB availability is only possible on PCI boards right now.
+	If (say) your PCI VGA BIOS only supports VESA 1.2 then it should even be
+	possible to load a TSR such as UNIVBE in DOSEMU and the driver will use
+	that.
+
+	Provide a way to force reentry into handle_signals() so that we don't
+	miss too many SIGALRMs whilst saving the video memory (a thread would
+	perhaps be a nicer solution).
+
+2004-10-12  Stas
+
+	* src/dosext/net/net/pktnew.c:
+	Complain if the pkt driver is not able to handle the bandwidth.
+	I was not able to trigger that, so I need to know it some queueing
+	should be implemented or not.
+
+	* src/include/pic.h:
+	Allow PIC to process EOI from pkt and mouse. They no longer need any
+	special treatment.
+
+	* src/dosext/net/net/pktnew.c:
+	With bound socket we dont need that hack any more.
+
+	* src/env/video/X.c:
+	Restore dotclock rate on switching from fullscreen to windowed mode,
+	otherwise the very bad things happen.
+
+2004-10-11  Bart
+
+	* src/: base/async/int.c, base/bios/bios.S, emu-i386/do_vm86.c,
+	  emu-i386/ports.c, env/video/vga.c, include/bios.h,
+	  include/port.h:
+	Call int10/ax=mode for PLAINVGA before restoring registers. This helps
+	when the BIOS is buggy or we don't restore enough registers ourselves;
+	otherwise it doesn't hurt. The BIOS needs a check not to mess with
+	the mouse driver.
+	From Stas: introduce in_crit_section to make sure that the BIOS survives
+	the callback. Allow callbacks when "frozen". Some small cleanups.
+
+2004-10-11  Stas
+
+	* src/dosext/net/net/: libpacket.c, libpacket.h, pktnew.c:
+	Packet driver networking updates:
+	- Use PF_PACKET/SOCK_RAW sockets instead of the deprecated and buggy
+	AF_INET/SOCK_PACKET ones, changed the interfaces accordingly.
+	- Put the sockets in a bind state - this allows to use the Async IO,
+	which makes the direct NIC access mode ~50x faster.
+	- Use simple read/write for IO - this is possible with the binded
+	RAW sockets (not with the PACKET sockets though - they insist on
+	sendto() even when binded, which is a bug).
+	- Some large cleanups.
+
+2004-10-10  Stas
+
+	* etc/dosemu.conf, src/dosext/net/net/libpacket.c,
+	  src/dosext/net/net/pktnew.c:
+	Direct NIC access no longer requires root all the time, only at
+	startup now, similar to dosnet.
+	It looks like this was the last thing that required root all the time.
+
+2004-10-09  Stas
+
+	* src/base/serial/ser_ports.c:
+	Fix another bug with IIR clearing. (part of #1042020)
+
+2004-10-09  Bart
+
+	* src/: include/vc.h, env/video/Makefile, env/video/vc.c,
+	  env/video/vga.c, env/video/vga.h, env/video/video.c:
+	vga.c cleanups and changes:
+	* made lots of functions static, moved out of vga.h
+	* use constant PLANE_SIZE of 64K; always save 256K in standard VGA modes
+	* moved the state save to the end of the video init (init_vga_card)
+	  and don't let it clear the saved Linux video memory (from Stas)
+	* improved diagnostics
+	vc.c: repaired dosemu -c
+
+	* src/plugin/kbd_unicode/serv_xlat.c:
+	Dead keys should not cause the display of question marks.
+
+	* src/plugin/term/: keyb_slang.c, terminal.c:
+	Make DOSEMU compatible with SLang 2.0.
+
+	* src/emu.c:
+	Don't call pcibios_init() in emu.c anymore as it's done elsewhere now.
+
+2004-10-09  Stas
+
+	* src/base/serial/ser_irq.c:
+	Fix IIR clearing. (part of #1042020)
+
+	* src/base/serial/ser_ports.c:
+	Fix the problem introduced by the previous patch...
+
+2004-10-09  Bart
+
+	* etc/dosemu.conf, etc/global.conf, src/base/async/pci_bios.c,
+	  src/base/dev/misc/pci.c, src/base/init/parser.y.in,
+	  src/env/video/matrox.c, src/env/video/vga.c, src/include/pci.h,
+	  src/dosext/dpmi/dpmi.c:
+	* cleaned up pci_bios.c<->pci.c interface (Stas)
+	* pci_bios.c now registers i/o and memory areas for all PCI devices
+	* the real PCI interface can no longer be iopl(3) optimized because
+	  of the port server
+	* don't allow byte access to port 0xcf9 (can reset the CPU)
+	* implemented a read-only PCI emulation interface based on the values
+	  found at init. This only applies to selected PCI devices (eg VGA)
+	* use PCI emulation by default with console graphics if PCI is available,
+	  unless $_pci=(on)
+	* allow I/O to all ports that PCI reports about VGA (closes #687024)
+	* changed DPMI fn 0x800 to report about mmap'ed PCI memory areas, so
+	  that LFB's work in the console
+	* removed now obsolete $_console_pci and $_console_ports
+
+2004-10-08  Bart
+
+	* src/env/video/console.c:
+	If the Linux console uses fbcon we can force a complete text redraw
+	by doing two (round-trip) vc switches; otherwise (vgacon) it doesn't hurt.
+
+	* src/: env/video/vc.c, env/video/vga.c, include/vc.h:
+	Only reprogram the graphics and sequencer registers like they are in
+	VGA mode 12 when saving/restoring video memory. Skipping the CRT registers
+	is sometimes a little easier on the eye, when fbdev causes
+	dosemu_vga_screenoff() not to do its job.
+
+2004-10-07  Bart
+
+	* src/emu-i386/do_vm86.c:
+	0x66 0xef should be "out dx,eax", NOT "out edx,eax".
+
+2004-10-03  Stas
+
+	* src/base/init/parser.y.in:
+	Do not fallback to "direct" for unknown vnet mode, just abort the dosemu.
+	Wrong configs should not be allowed.
+
+	* src/dosext/net/net/pktnew.c:
+	Do not fallback to dynamic TAP allocation if the requested static
+	allocation fails.
+
+	* src/base/misc/smalloc.c:
+	smalloc: It turned out safer to fail on zero-sized mallocs, rather than
+	to do nothing. Otherwise people expect realloc() to work on the pointers
+	returned by malloc(0).
+
+	* etc/dosemu.conf:
+	Increased LFB size to 4Mb under X.
+
+	* etc/dosemu.conf, src/base/init/parser.y.in,
+	  src/dosext/net/net/libpacket.c:
+	- Enabled Packet Driver by default.
+	- Clarified the pkt-related options in dosemu.conf.
+	- $_vnet="direct" added - same as $_vnet="".
+
+2004-10-02  Stas
+
+	* src/base/serial/ser_ports.c:
+	Dont reset "data ready" before the receive queue is empty.
+	(Should fix #1029819)
+
+2004-09-30  Bart
+
+	* src/dosext/mfs/mfs.c:
+	Include lfn.h (compiler warning)
+
+2004-09-29  Bart
+
+	* src/dosext/misc/xms.c:
+	Removed some unnecessary #includes and function.
+
+	* src/: dosext/misc/xms.c, env/video/vesa.c, include/vesa.h:
+	Split off VESA definitions into a global header file.
+	Always use the "aggressive" way to find UMBs (this is really the clean
+	way, the real difference for umb_max is in video.c).
+	For this to work the VGAEMU BIOS has to be registered though (in vesa.c).
+
+	* src/arch/linux/mapping/mapping.c:
+	Allow kmem mmaps with non-fixed targets.
+
+2004-09-27  Stas
+
+	* src/: include/smalloc.h, base/misc/smalloc.c:
+	Made smget_area_size() signed.
+
+	* src/dosext/dpmi/dpmi.c:
+	Install the realmode callback trampoline only when program allocates
+	the callback. This fixes some extremely buggy program. (Bug #1033901)
+
+	* src/: dosext/dpmi/dpmi.c, dosext/dpmi/dpmi.h, emu-i386/do_vm86.c:
+	More accurate realmode callback address calculations.
+
+	* src/base/misc/smalloc.c:
+	smalloc: smget_area_size() should return -1 on failure, since 0 can be valid
+	(found by megath@users.sourceforge.net)
+
+	* src/base/misc/smalloc.c:
+	smalloc: realloc(NULL, size) should work as malloc(size), rather than to fail.
+	Bug found by megath@users.sourceforge.net.
+	I was sure there are no bugs in smalloc... but dosemu never uses that trick.
+
+2004-09-26  Bart
+
+	* src/base/mouse/mouseint.c:
+	Don't (un)freeze the mouse if there is no mouse,  because if we do that
+	we get a SIGSEGV.
+
+	* src/env/video/console.c:
+	Don't clear the Linux console screen for $_graphics=(1). This will happen
+	later anyway.
+
+	* src/env/video/svgalib.c:
+	Remove (now) useless #undef SVGALIB_C
+
+2004-09-26  Stas
+
+	* src/base/async/int.c:
+	- NULL checks in xtitle code.
+	- Replaced !strlen(str) with !str[0] - cosmetic.
+
+	* src/emu-i386/ports.c:
+	Make dosemu to work again.
+
+2004-09-25  Bart
+
+	* etc/dosemu.conf, etc/global.conf, src/base/init/lexer.l.in,
+	  src/base/init/parser.y.in, src/emu-i386/ports.c,
+	  src/include/port.h:
+	- export trace_ports from global.conf to dosemu.conf
+	- ports are now fast by default unless they are mentioned in $_trace_ports
+	- using explicit "fast" or "slow" it is possible to force the ioperm
+	  independently of any tracing set -- based on patch #1019824
+
+2004-09-24  Bart
+
+	* src/dosext/mfs/: lfn.c, lfn.h, mfs.c:
+	LFN: only explicitly close findfirst handles for ax=71a1, not if no more
+	files are found. For unknown filehandles, chain through to DOS to give
+	DOSLFN a chance if that is loaded.
+	A process termination hook closes all findfirst handles connected to
+	the PSP that is terminated.
+
+2004-09-23  Stas
+
+	* src/dosext/dpmi/msdos.c:
+	Fix 2 silly bugs in msdos_pre_exec() noticed by Japheth (Bug #1028236)
+
+2004-09-22  Bart
+
+	* src/arch/linux/async/signal.c:
+	Remove the signal wrapper wrapper again -- it may not work with some old
+	glibc's. So may be worse after all than simply bypassing the wrapper.
+	Now detect if glibc installs a wrapper, and if it does, use the kernel
+	sigaction instead to force the kernel to call our handlers directly.
+
+	* src/dosext/mfs/lfn.c:
+	LFN: don't return . and .. in findfirst/next for root directories.
+	don't clobber the getcwd dest more than absolutely necessary.
+	small cleanup of /. removal -- this is already done by truename now
+
+2004-09-16  Stas
+
+	* src/base/misc/smalloc.c:
+	Cosmetic optimization for smalloc.
+
+2004-09-15  Bart
+
+	* src/env/video/X.c:
+	Fix X.c to choose a better fitting resolution if (say) both 320x240 and
+	320x200 modes are defined in XF86Config.
+
+	* src/: base/bios/bios.S, dosext/mfs/lfn.c, dosext/mfs/mfs.c:
+	Fix two bugs in the LFN support as per #1020635:
+	* do not remove embedded spaces before dots and leading spaces.
+	* fix interface between int21/ax=716c and int21/ax=6c00 to only transform
+	  a "create" into an "open" if a file was really created, not if it already
+	  existed, and to set cx to "created" (2).
+
+2004-09-15  Stas
+
+	* src/base/misc/smalloc.c:
+	Small improvements and optimizations to smalloc.
+
+2004-09-14  Stas
+
+	* src/plugin/commands/builtins.c:
+	com_dosallocmem()/com_dosfreemem() are no longer necessary.
+	Why lowmem_alloc()/lowmem_free() are still there is because the
+	builtins used to have many memory leaks and other mem violations.
+	So allocating a private 2K pool for them is safer than to allow
+	them to allocate from the main 32K pool. At least for a time.
+
+	* src/: base/bios/bios.S, base/init/init.c, base/misc/Makefile,
+	  base/misc/lowmem.c, include/lowmem.h, include/memory.h,
+	  plugin/commands/builtins.c:
+	- Shuffled the bios.S a bit to get a 32Kb of low memory for free.
+	- Added a management for it - lowmem.[ch]. This is needed for VESA
+	support.
+	- Since the VESA support is not there yet, the usual victim is builtins,
+	which are moved to use that heap instead of the on-fly DOS allocation
+	that may be not always safe.
+
+2004-09-13  Stas
+
+	* src/: arch/linux/mapping/mapfile.c, base/misc/Makefile,
+	  base/misc/pagemalloc.c, dosext/dpmi/memory.c,
+	  include/pagemalloc.h:
+	smalloc replaces pagemalloc. The advantages:
+	- Allocations are not limited with the page-granularity.
+	- Doesnt require garbage-collection and therefore probaly has fewer bugs.
+	- Much simpler and smaller code (4K vs 12K).
+
+	* src/: base/misc/Makefile, base/misc/smalloc.c,
+	  base/misc/zalloc.c, env/video/matrox.c, env/video/vga.c,
+	  include/smalloc.h, include/zalloc.h, plugin/commands/builtins.c:
+	Introducing the new memory allocator - smalloc. It is intended to
+	replace both zalloc and pagemalloc and being suitable for the VESA
+	driver.
+	- Replaced zalloc allocator by smalloc. smalloc is only 4K of code,
+	compared to 12K of zalloc. The advantages over zalloc:
+	-- Has realloc() (smrealloc)
+	-- Has normal free(), which doesn't require to specify the length to free.
+	-- Code is much smaller and almost as simple as of zalloc.
+
+	* src/: dosext/mfs/mfs.c, emu-i386/do_vm86.c, include/emu.h,
+	  plugin/commands/builtins.c, plugin/commands/builtins.h,
+	  plugin/commands/commands.c, plugin/commands/dosdbg.c,
+	  plugin/commands/lredir.c, plugin/commands/unix.c,
+	  plugin/commands/xmode.c:
+	Fix dozens of memory violations in builtins, mostly detected by the
+	smalloc memory allocator. The fixes include (but not limited to the)
+	following:
+	- Cease the usage of the low mem considerably by calling the helpers
+	directly.
+	- Protect do_call_back() against re-entering. This was happening
+	when eg. cmdline is interrupted by ^C, it was not able to recover.
+	- Track all the allocations of load_and_run_DOS_program() to free it
+	on termination (leaks).
+	- On dos_read()/dos_write() set int0x23 to our return point, so that
+	dosemu can recover even in case of ^C.
+	- Fix com_strfree() to free the region of a proper size.
+	- dos_helper_r is no longer necessary.
+	- com_dosread() was not checking the size specified by caller -
+	memory corruption.
+	- memory corruption with builtin_name, no longer use DOS mem for it.
+	- etc...
+
+	* src/emu.c:
+	Fix gcc warning.
+
+	* src/include/shared.h:
+	shared.h must die.
+
+	* src/include/emu.h:
+	Video memory size should not be of a short type.
+
+2004-09-11  Bart
+
+	* VERSION, configure, configure.ac, src/plugin/commands/generic.S:
+	Make generic.S backwards compatible with older DOSEMUs so we can easily
+	use DOSEMU 1.2 & 1.3 at the same time. Bump version code to 1.3.1.1
+	so that generic.S can do a runtime check. Remove obsolete pthread
+	comment in configure.ac (forces reconfigure).
+
+2004-09-10  Bart
+
+	* src/: emu-i386/do_vm86.c, arch/linux/async/signal.c:
+	Force restoration of GS before signal handlers but only if
+	the libc uses signal wrappers and GS != 0.
+	Also restore flags/fs/gs after a vm86 call to work around a bug
+	in 2.4 kernels.
+	The implementation is hackish -- any beautification improvements
+	are welcome, but it seems to work.
+
+	* src/: include/emu.h, arch/linux/async/signal.c:
+	Move common sigaction calling code into one static function
+	(dosemu_sigaction_wrapper).
+
+	* src/: emu.c, arch/linux/async/signal.c, include/emu.h,
+	  base/misc/ioctl.c, emu-i386/simx86/cpu-emu.c, env/video/vc.c,
+	  plugin/term/terminal.c:
+	Convert ADDSET_SIGNALS_THAT_QUEUE, SETSIG, NEWSETSIG, and NEWSETQSIG from
+	macros to functions.
+
+2004-09-10  Stas
+
+	* etc/dosemu.conf:
+	$_oss_stalled_frags=(2) - this enables aoss to work.
+
+	* src/emu.c:
+	Dont close mouse twice, doing that in iodev_term() is enough.
+
+2004-09-09  Stas
+
+	* src/: include/cpu.h, arch/linux/async/signal.c,
+	  dosext/dpmi/dpmi.h, emu-i386/cpu.c:
+	Optimization: ucodesel/udatasel are unnecessary, use _emu_stack_frame
+	instead.
+
+	* src/: arch/linux/async/sigsegv.c, dosext/dpmi/dpmi.c:
+	Prevent DPMI from trashing the entire LDT at startup! This makes
+	pthreads much happier, and it was a horrible bug overall.
+
+2004-09-08  Stas
+
+	* src/: arch/linux/async/signal.c, include/emu.h:
+	SIGWINCH was hijacked and no longer works for console switching.
+	Changed to USR1 - now the console switching works again.
+
+	* src/: base/mouse/mouseint.c, env/video/vc.c, include/mouse.h:
+	closing/reopening mouse on console switch doesnt work: we need to call
+	DOSEMUMouseSetup() (at least) after opening, but we dont.
+	It is better to not close it at all, just halt reading it should be enough.
+
+	* src/plugin/kbd_unicode/keyb_raw.c:
+	set_shiftstate() in raw_keyboard_init() causes NULL deref.
+
+	* src/env/video/: svgalib.c, svgalib.h, vga.h:
+	There is no conflict anymore between <vga.h> and "vga.h" so svgalib.c
+	can include both and svgalib.h can have the extern defs removed.
+
+2004-09-04  Stas
+
+	* src/dosext/dpmi/msdos.c:
+	From japheth@users.sourceforge.net:
+	Support for the following LFN functions added to PM API translator:
+	3b, 41, 4e, 4f, 47, 6c, a1.
+
+	* src/dosext/dpmi/msdos.c:
+	Stop assuming 0 being in some regs and converted the mess to use the
+	prominent macros.
+
+2004-09-02  Stas
+
+	* src/plugin/commands/: builtins.c, detect.h, generic.S:
+	dosemu builtins locks up the machine if started under pure DOS.
+	Fixed detect.h and used it to prevent that.
+
+2004-09-01  Stas
+
+	* src/plugin/commands/builtins.c:
+	typo.
+
+	* src/dosext/dpmi/dpmi.c:
+	A little more info on exception.
+
+	* src/plugin/commands/: Makefile, builtins.c, builtins.h,
+	  generic.S, lredir.c, config/plugin_config.h,
+	  config/plugin_inte6.h:
+	Builtins plugin work:
+	- Recursive invocations (unix -r et al) were not handled properly:
+	every new invocation allocated the new mem pool, making the previous
+	pool unaccessable. Now only one pool is allocated. Refcounting added
+	to know when the pool is safe to destroy.
+	- The above is an incompatible change for generic.S. Introduced the
+	builtins interface versioning. Now if dosemu detects the outdated
+	version of builtins, it will not run them and will ask user to upgrade.
+	- Removed the code that was intended to allow calling builtins with
+	far call. This code was never used and was broken since generic.S
+	started to release memory at startup.
+	- Moved DOS version checking from builtins.c to lredir.c.
+
+	* src/base/serial/ser_init.c:
+	Unlink the stalled lockfiles for serial and some debug messages cleanup.
+
+	* src/emu.c:
+	Remove dummy ign_sigs sighandler for leavedos() - our main sighandler
+	is now mature enough to handle that, and also this will allow to get
+	the stack traces from within the leavedos.
+
+2004-08-30  Stas
+
+	* src/: arch/linux/async/signal.c, emu-i386/do_vm86.c,
+	  plugin/kbd_unicode/serv_8042.c,
+	  plugin/kbd_unicode/serv_backend.c:
+	- Completed the unbinding kbd code from PIC recursion.
+	- keyb_server_run() must now be called more frequently, so moved from
+	sigalrm handler to loopstep_run_vm86().
+
+	* src/plugin/sdl/sdl.c:
+	Please use -Wdeclaration-after-statement gcc option.
+
+	* src/base/serial/: ser_irq.c, ser_ports.c:
+	Dont try to clear FIFO when it is not enabled (bug #1012035).
+
+2004-08-29  Bart
+
+	* etc/global.conf:
+	Fix problem with in global.conf with $_term_char_set.
+
+	* src/base/misc/Makefile:
+	Simplify the Makefile for src/base/misc.
+
+	* src/base/misc/Makefile:
+	Fix possible compilation problem (#1007380) that happened in some
+	circumstances.
+
+2004-08-28  Bart
+
+	* configure, configure.ac, etc/global.conf,
+	  src/plugin/term/terminal.c:
+	Allow the utf8 patched slang to be linked in.
+	Use "default" (mbrtowc and wcrtomb, following LC_CTYPE) for the output
+	charset unless $_external_charset is specified.
+	Switch the console to cp437 mode only if "linux" is in $TERM and the
+	external character set is single-byte.
+	The terminal code can now work with multibyte output character sets
+	(including utf-8), if the patched slang (and hopefully slang 2.0 when it's
+	released) is used.
+
+	* src/plugin/translate/translate_config.c:
+	Use the default (multibyte) charset for the unix_charset instead of
+	manually playing with nl_langinfo.
+
+	* src/plugin/translate/charsets/: multibyte.c, utf8.c:
+	Fix a bounds check that was the wrong way around in multibyte.c.
+	Fix unicode to utf8 conversion for 1- and 2- bytes sequences.
+
+	* src/: arch/linux/async/signal.c, plugin/term/terminal.c:
+	Move SIGWINCH sig init to the terminal init function and correct a
+	problem where ctrl-alt-fn didn't work on the console with rawkeyboard
+	in terminmal mode. Also made sure that vga.text* are set to the right
+	values for non 80x25 terminals.
+
+2004-08-15  Stas
+
+	* src/: plugin/kbd_unicode/serv_8042.c, env/video/video.c:
+	Repair $_speaker="native":
+	- It should not use fast port access, it should go via portserver
+	- Dont always disable it, the bug with killing linux is already fixed.
+
+	* src/: base/bios/bios.S, plugin/kbd_unicode/serv_8042.c,
+	  plugin/kbd_unicode/serv_backend.c:
+	Attempt to unbind the keyboard code from the PIC recursion.
+
+2004-08-15  Bart
+
+	* src/plugin/sdl/sdl.c:
+	Add support for resizing windows with SDL
+
+	* Makefile.conf.in, compiletime-settings,
+	  compiletime-settings.devel, etc/global.conf,
+	  src/base/init/config.c, src/base/mouse/mouse.c,
+	  src/base/mouse/mouseint.c, src/env/video/X.c,
+	  src/env/video/text.c, src/env/video/video.c, src/include/mouse.h,
+	  src/include/vgatext.h, src/include/video.h,
+	  src/plugin/kbd_unicode/include/keyb_clients.h,
+	  src/plugin/sdl/Makefile, src/plugin/sdl/Makefile.conf.in,
+	  src/plugin/sdl/acinclude.m4, src/plugin/sdl/configure,
+	  src/plugin/sdl/configure.ac, src/plugin/sdl/keyb_SDL.c,
+	  src/plugin/sdl/mouse_SDL.c, src/plugin/sdl/sdl.c,
+	  src/plugin/sdl/sdl.h, src/plugin/sdl/config/plugin_config.h.in:
+	Added SDL plugin, based on the initial patch by Emmanuel Jeandel.
+	Mostly functional, tested for X and fbdev.
+	Start dosemu with the -S switch to use it.
+	Still missing: dynamic window resizing, ctrl-alt-f/home, keyboard repeat,
+	OpenGL/Overlay optimizations, PC speaker support, copy/paste, xtitle.
+
+2004-08-14  Stas
+
+	* src/: base/bios/bios.S, dosext/dpmi/dpmi.c, dosext/dpmi/dpmi.h,
+	  dosext/dpmi/msdos.c, emu-i386/do_vm86.c, include/bios.h:
+	Allocate realmode callbacks on a client's data area. This allows the
+	client to allocate all the 16 callbacks (and avoids any limitations
+	on the amount of clients), while still being able to use those of its
+	parents parents parents
+
+2004-08-14  Bart
+
+	* src/: env/video/X.c, env/video/render.c, include/render.h:
+	Introduce new function (get_mode_parameters() in render.c), which translates
+	the vgaemu mode parameters into a convenient display mode.
+
+	* src/: env/video/X.c, env/video/remap.h, env/video/vgaemu.c,
+	  include/vgaemu.h, plugin/kbd_unicode/keyb_X.c,
+	  plugin/term/terminal.c:
+	Move vgaemu_display_type fill-in of fields from X.c to vgaemu.c (vga_emu_init)
+
+	* src/: env/video/X.c, env/video/text.c, include/vgatext.h:
+	Move resize_text_mapper() from X.c to text.c.
+
+	* src/: env/video/X.c, env/video/render.c, include/render.h:
+	Move the graphics update-related functions from X.c to render.c.
+	Simplify the put_ximage interface as src_x/y are always equal to dest_x/y
+	the way we call it.
+
+2004-08-13  Bart
+
+	* src/base/dev/misc/lpt.c:
+	Fix printer code problem by making all fops members static and the public
+	printer_* functions wrappers.
+
+	* src/: arch/linux/async/signal.c, env/video/X.c, env/video/text.c,
+	  include/video.h:
+	Removed X_blink_cursor (use blink_cursor() in text.c instead) and made the
+	call independent of config.X.
+
+2004-08-11  Stas
+
+	* src/dosext/net/net/pktnew.c:
+	Small cleanup.
+
+	* src/dosext/dpmi/msdos.c:
+	Disable VXDLDR: some DOS progs think they can use it to load vxd
+	and crash.
+
+2004-08-09  Stas
+
+	* src/base/dev/pic/pic.c:
+	Misplaced bracket in do_irq() caused problems for console mouse
+	driver (probably also in 1.2).
+
+	* src/: base/dev/misc/rtc.c, base/dev/misc/timers.c,
+	  base/dev/pic/pic.c, base/init/init.c, base/misc/ioctl.c,
+	  base/mouse/mouse.c, base/serial/ser_defs.h,
+	  base/serial/ser_irq.c, dosext/net/net/pktnew.c,
+	  dosext/sound/sound.c, include/emu.h, include/iodev.h,
+	  include/mouse.h, include/pic.h, include/pktdrvr.h,
+	  plugin/kbd_unicode/serv_8042.c,
+	  plugin/kbd_unicode/include/keyb_server.h:
+	- Removed global variable pic_ilevel. ilevel is now passed as an argument
+	to IRQ handlers. This is another step to upcoming removal of the recursion
+	from PIC.
+	Note: This change may yield bugs!
+	- Fixed packet driver to work with that technique. Other drivers must be
+	carefully tested (well, whats the use, they'll be broken again anyway
+	when the recursion is removed:).
+
+	* src/base/dev/pic/pic.c:
+	Set ISR bits only in do_irq(). We don't need to clear them in
+	run_irqs() then, which makes it easier to remove recursion from PIC
+	without fixing all the drivers that produce the spurious interrupts.
+
+2004-08-08  Stas
+
+	* src/emu-i386/do_vm86.c:
+	Small cleanup.
+
+	* src/: env/video/Makefile, env/video/X.c, env/video/render.c,
+	  env/video/text.c, include/render.h, include/vgatext.h,
+	  plugin/term/terminal.c:
+	Introduce render.c and render.h which form the middle layer between
+	SDL and X and the remapper. One global remap_obj (hopefully a file scope
+	static later) is defined in render.c.
+
+	* src/dosext/dpmi/memory.c:
+	Allocate 5 extra pages for DPMI pool to work around the possible
+	memory fragmentation and potential pagemalloc bugs.
+
+	* src/base/misc/pagemalloc.c:
+	pagemalloc was refusing the last page.
+
+	* src/dosext/dpmi/dpmi.c:
+	Dont touch hi words of %eax/%ebx in dos memory functions of DPMI.
+	(Bug #1004472)
+
+	* src/dosext/dpmi/dpmi.c:
+	Inherit the realmode callbacks on DPMI client creation. (Bug #1005015)
+
+	* src/base/serial/ser_ports.c:
+	Dont tcdrain() after transmitting the char as slows the transfer.
+	There might be better ways to avoid queueing.
+
+2004-08-07  Bart
+
+	* src/: arch/linux/async/signal.c, arch/linux/async/sigsegv.c,
+	  base/bios/int10.c, env/video/X.c, env/video/console.c,
+	  env/video/dualmon.c, env/video/hgc.c, env/video/video.c,
+	  include/video.h, plugin/term/terminal.c:
+	Eliminated is_mapped field in Video, using checks whether the
+	update_screen function pointer is NULL instead.
+	Since update_screen now always goes through vgaemu we can use this to
+	check for vgaemu instead of config.X.
+	Add handle_events function pointer.
+
+2004-08-01  Bart
+
+	* src/: arch/linux/async/signal.c, arch/linux/async/sigsegv.c,
+	  base/bios/int10.c, base/mouse/mousevid.c,
+	  emu-i386/simx86/interp.c, emu-i386/simx86/sigsegv.c,
+	  env/video/X.c, env/video/X.h, env/video/text.c,
+	  include/vgatext.h:
+	Remove many X_GRAPHICS and X_SUPPORT #ifdefs that are no longer necessary.
+	Move (X_)set_textsize from X.c to text.c
+
+2004-07-31  Bart
+
+	* src/: env/video/X.c, env/video/text.c, plugin/term/terminal.c:
+	Solve link problem when X is enabled with have_focus.
+
+	* src/: emu-i386/ports.c, env/video/Makefile, env/video/miscemu.c,
+	  env/video/remap.h, env/video/vgaemu.c, include/vgatext.h,
+	  plugin/term/terminal.c:
+	Use vgaemu for the terminal code and unconditionally compile vgaemu support.
+
+2004-07-30  Bart
+
+	* src/arch/linux/mapping/mapfile.c:
+	Fix memory leak in case shm_open fails.
+
+	* configure, configure.ac, src/arch/linux/mapping/mapfile.c,
+	  src/arch/linux/mapping/mapping.c, src/include/config.h.in:
+	Use shm_open and shm_unlink(). This is the new default for $_mapping = "auto"
+	(tmpfile is the last resort); if it works out well we can remove mapshm.c later.
+
+	* src/: emu.c, arch/linux/async/signal.c, include/emu.h:
+	Allocate the signal stack on DOSEMU's stack instead of allocating it
+	statically. Now it is possible to link with Linuxthreads without
+	crashing, because the thread handling code is no longer confused
+	about the thread id of the stack it is using.
+
+	* configure, src/base/mouse/gcursor.c, src/base/mouse/mouse.c,
+	  src/base/mouse/mousevid.c, src/base/mouse/mousevid.h,
+	  src/include/config.h.in:
+	Rename current_video to mouse_current_video, because of a namespace conflict
+	with SDL.
+
+2004-07-29  Bart
+
+	* src/: env/video/X.c, include/vgatext.h, env/video/text.c:
+	Move conversion from text map to bitmap in bitmap_draw_string() from X.c
+	to text.c.
+
+2004-07-27  Bart
+
+	* src/env/video/Makefile:
+	Adjust env/video/Makefile to text.c split.
+
+2004-07-26  Bart
+
+	* src/: include/vgatext.h, env/video/X.c, env/video/text.c:
+	(Originally by Emmanuel Jeandel) Split most of the X-independent
+	text mode functionality from X.c. That will make it easier to
+	implement SDL support.
+
+2004-07-22  Stas
+
+	* src/arch/linux/async/: signal.c, sigsegv.c:
+	- Invoking gdb in cleanup_child() is useless
+	- Invoke gdb in dosemu_fault() before printing an exception info,
+	because printing exception info can sigsegv itself.
+
+2004-07-21  Stas
+
+	* src/arch/linux/dosext/sound/linux_sound.c:
+	Write some diagnostic when DSP open fails.
+
+2004-07-19  Stas
+
+	* src/base/dev/misc/lpt.c:
+	reset_idle() when printing, and some cleanups.
+
+	* src/dosext/dpmi/memory.c:
+	Fix return value check.
+
+	* src/dosext/dpmi/: dpmi.c, dpmi.h, memory.c, msdos.c:
+	Attempt to separate committed and uncommitted memory handling on a
+	DPMI level. DPMI spec says "Resize Linear Memory Block" (0x505) cannot
+	be used on a block allocated with "Allocate Memory Block" (0x501), but
+	only on a block allocated with "Allocate Linear Memory Block" (0x504).
+	That helps.
+
+	- DPMImalloc() splitted into DPMImalloc() and DPMImallocLinear()
+	- DPMImallocFixed() merged into DPMImallocLinear()
+	- DPMIrealloc() splitted into DPMIrealloc() and DPMIreallocLinear()
+	- "Resize Linear Memory Block" can now create uncommitted pages.
+
+2004-07-17  Stas
+
+	* src/: dosext/dpmi/dpmi.c, arch/linux/async/sigsegv.c,
+	  dosext/dpmi/dpmi.h:
+	- Make CheckSelectors() to not terminate dosemu, but just to return
+	whether the selectors are valid or not. The caller have to decide
+	what to do.
+	- Dont CheckSelectors() in direct_dpmi_switch() and indirect_dpmi_switch().
+	Do it in dpmi_control() instead, which is within dosemu context.
+
+	This all results in that dosemu now drops to dosdebug when encounters
+	the invalid selector. A bit easier to debug.
+
+	* src/dosext/dpmi/dpmi.c:
+	Check stack segment against being read-only.
+
+2004-07-16  Stas
+
+	* src/dosext/dpmi/msdos.c:
+	Clear higher word of %ebx when returning the DTA pointer.
+	(bug #991194, Japheth)
+
+2004-07-15  Bart
+
+	* src/env/video/X.c:
+	Add bound checks for text cursor drawing. Fixes #990235
+
+2004-07-14  Stas
+
+	* src/dosext/dpmi/vxd.c:
+	Fixed bug in VTD VxD (timer). It turned out that dos4gw, at least the
+	one from Tenberry, uses this VxD when available, so some games were
+	screwed up with the timing.
+
+	* src/emu-i386/do_vm86.c:
+	Put the DPMI IF hacks exactly where they used to be in dpmi.c, to avoid
+	regressions.
+
+	* src/: base/dev/pic/pic.c, dosext/dpmi/dpmi.c, emu-i386/do_vm86.c:
+	Merge the real-mode part of run_dpmi() into run_vm86().
+	This allows to remove the "main loop" from dpmi_init(), using the
+	loopstep_run_vm86() also for DPMI.
+	There is yet another "main loop" in do_irq(), but that would be more
+	difficult to remove.
+	Note: this is a moderately intrusive change.
+
+	* src/: arch/linux/mapping/Makefile, arch/linux/mapping/mapfile.c,
+	  arch/linux/mapping/mapping.c, arch/linux/mapping/pagemalloc.c,
+	  arch/linux/mapping/pagemalloc.h, base/init/init.c,
+	  base/misc/Makefile, base/misc/pagemalloc.c, dosext/dpmi/dpmi.c,
+	  dosext/dpmi/dpmi.h, dosext/dpmi/memory.c, include/pagemalloc.h:
+	Use pagemalloc for DPMI allocations since the kernel no longer meets the
+	expectations of DOS progs. See comments in memory.c for details.
+	This makes GTA to work again.
+	What a mess in fact...
+	This cannot be done effectively via mapping system because of the problems
+	with uncommitted memory.
+	This cannot be done via zalloc because zalloc lacks realloc.
+	This patch does:
+	- Make pagemalloc to manage multiple pools, and move it to src/base/misc
+	- Allocate a memory pool for the committed DPMI allocations and manage it
+	with pagemalloc. Uncommitted allocations, even after being committed, are
+	still handled separately. This probably cannot be generalized.
+
+2004-07-12  Stas
+
+	* src/base/misc/: fatfs.c, fatfs_boot.S:
+	Make it possible to terminate dosemu by "any key" when no OS to boot.
+
+	* src/base/misc/fatfs.c:
+	Specify the directory where's the OS files are expected to be.
+
+2004-07-11  Stas
+
+	* src/doc/HOWTO/EMUfailure.sgml:
+	Updated for 1.2.2 (hi Bart :), removed outdated things because of the
+	following events:
+	 - Windows (winos2) runs fine
+	 - Protected mode "make" runs fine since 1.2.1
+	 - DPMI call 0x506 is implemented (in -devel only so far)
+	 - Bitmap fonts backported
+	 - Keen4 works, you just need the proper version of it.
+	(please regenerate docs)
+
 2004-07-11  Bart
+
+	* ChangeLog:
+	Update ChangeLog for 1.3.1
 
 	* NEWS, dosemu.spec.in:
 	Added one more NEWS entry. Adjust dosemu.spec.in.

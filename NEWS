@@ -4,6 +4,92 @@ NEWS file for DOSEMU
 This file contains a list of user visible changes in DOSEMU. For the
 raw developer changelog please refer to ChangeLog.
 
+Version 1.3.2 (2005-06-01)
+=============
+* Windows 3.1 now works natively, without any need for WINOS2.
+* many other improvements to make Windows 3 in DOSEMU more stable and usable.
+* TASMX works now.
+* IF flag virtualization for DPMI allows some additional DPMI applications
+  to work such as Transport Tycoon, Screamer, and Vchess, 
+* The redirected drive filesystem code is much faster than before.
+* Fixed new errors and warnings with GCC 4.0.
+* Allow a native himem.sys to be used in DOSEMU.
+* I/O ports are "fast" by default.
+* Added support for sound recording.
+* the floppy is much faster with 2.6 kernels.
+* added support for 2.88M floppies
+* The printer code now uses line buffering so that you do not have to
+  wait $_printer_timeout seconds before printing starts.
+* TTY locking can be disabled by $_ttylocks=""
+* IPX and network code improvements and fixes.
+* Terminal improvements:
+  - UTF-8 terminals are supported if you use SLang 2 or a UTF-8
+    patched SLang 1 library. The supplied SLang library subset is no
+    longer necessary and no longer provided.
+  - $_term_char_set no longer exists;
+    $_external_char_set now defaults to the current locale.
+  - Even on non UTF-8 terminals many line drawing characters can now
+    be used, and on the Linux console almost the full CP437 character set.
+  - Many ctrl, alt, shift combinations with function keys, arrow keys, etc,
+    can now be used in xterm and friends.
+  - VGA hardware is emulated in terminal mode as well as in X mode.
+* Console improvements:
+  - VESA driver added which should be compatible with most BIOSes. This
+    is the default.
+  - Optional svgalib driver updated; only works with svgalib >=1.9.21 now.
+  - Linear frame buffers now work.
+* X improvements:
+  - Added extra X fonts (thanks to Martin Reuber)
+  - The X aspect ratio is no longer set to 4:3 by default, but to an integer
+    multiple of the real resolution.
+  - much improved keyboard layout autodetection
+  - A graphical mouse cursor now works under X with mouse grab enabled.
+  - Added keyboard grab - hardcoded to Ctrl-Alt-k for now.
+* Added experimental SDL plugin. Mostly functional; makes it possible to run
+  DOSEMU on all supported SDL backends.
+
+List of SourceForge tracker numbers with bugs that were closed:
+# 687024 parse /proc/pci for video ports
+# 811365 Vchess crashe under dosemu 1.1.5.7 with mouse
+# 818094 Mouse doesn't work in a Turbo Debugger
+# 818145 certain keys doesn't work in xdosemu (i ,)
+# 845119 (patch) 2.88 MB floppy support
+# 855556 Problems running transport tycoon deluxe
+# 855948 Problems with Screamer
+# 990235 vgaemu crashes (regres)
+# 991194 Int 21, AH=2F in protected mode doesnt work in all cases
+# 999831 No upper case A or S 
+#1004472 Problems with int 0x31, ah=01 functions
+#1005015 Design error in DOSEMU's realmode callbacks?
+#1007380 Compilation fails first time
+#1012035 DOSEMU 1.3.1 : App hangs on COM Port access
+#1019824 (patch) LFN support for DPMI host
+#1019894 (patch) Fast port access
+#1020635 bug in dosemu's LFN support
+#1027805 Dos App hangs - PIC and DPMI related.
+#1028236 About int 21, ax=0x4b00 in msdos.c
+#1029819 serial port
+#1033901 dosemu-CVS crashes DPMI
+#1037915 Everything I type is double.
+#1042020 serial port and cache register
+#1067680 clipper take 99% of CPU
+#1074310 Sound recording fails, playback is truncated
+#1075068 dosemu 1.31. does not sense DCD
+#1076593 (RFE) Windows support
+#1079033 (RFE) mouse cursor in text mode with grab
+#1080784 Compile Failure
+#1081283 (SR) /proc access
+#1089201 (patch) int15 block move support
+#1103434 Serial communication fails with CVS version
+#1110543 Custom keyboard layout
+#1113468 Keyboard regression from v1.2 to latest CVS version
+#1118031 (patch) fix target_cpu option
+#1152829 dosemu should exit when the DOS process terminates
+#1157059 (patch) command to automatically set sound env vars
+#1164054 Saving fails in Settlers
+#1178900 (SR) Joystick support!
+#1189666 dbfcdx hangs on lredir drive
+
 Version 1.3.1 (2004-07-11)
 =============
 * Support for 32rtm extender was added. It is now possible to use the
