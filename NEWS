@@ -45,8 +45,8 @@ Version 1.3.2 (2005-06-01)
 * Console improvements:
   - VESA driver added which should be compatible with most BIOSes. This
     is the default.
-  - Optional svgalib driver updated; only works with svgalib >=1.9.21 now.
   - Linear frame buffers now work.
+  - dosemu can now be started from under the FB console.
 * X improvements:
   - Added extra X fonts (thanks to Martin Reuber)
   - The X aspect ratio is no longer set to 4:3 by default, but to an integer
