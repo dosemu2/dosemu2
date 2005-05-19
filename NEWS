@@ -6,22 +6,31 @@ raw developer changelog please refer to ChangeLog.
 
 Version 1.3.2 (2005-06-01)
 =============
-* Windows 3.1 now works natively, without any need for WINOS2.
+* Windows 3.1 now works natively, without any need for the WINOS2 patches.
 * many other improvements to make Windows 3 in DOSEMU more stable and usable.
-* TASMX works now.
-* IF flag virtualization for DPMI allows some additional DPMI applications
-  to work such as Transport Tycoon, Screamer, and Vchess, 
+* fixed IF flag virtualization for DPMI, this makes many DPMI applications
+  to work reliably without the random crashes (such as Transport Tycoon,
+  Screamer, Vchess).
+* Implemented LDT virtualization / direct LDT access for the DPMI clients.
+* Many DPMI and PM API translator fixes to support all the commercial
+  Borland tools and other protected-mode programs. You may need the linux
+  kernel 2.6.12-rc3 or more recent versions however to get the truely
+  reliable DPMI support.
+* Most of the DPMI 1.0 API and functionality have been added.
 * The redirected drive filesystem code is much faster than before.
 * Fixed new errors and warnings with GCC 4.0.
 * Allow a native himem.sys to be used in DOSEMU.
+* Added the int15h PS/2 mouse interface.
 * I/O ports are "fast" by default.
-* Added support for sound recording.
+* Added some support for sound recording.
 * the floppy is much faster with 2.6 kernels.
 * added support for 2.88M floppies
 * The printer code now uses line buffering so that you do not have to
   wait $_printer_timeout seconds before printing starts.
 * TTY locking can be disabled by $_ttylocks=""
-* IPX and network code improvements and fixes.
+* IPX and Packet Driver code was seriously reworked.
+* serial ports emulation was improved a lot in both reliability
+  and performance.
 * Terminal improvements:
   - UTF-8 terminals are supported if you use SLang 2 or a UTF-8
     patched SLang 1 library. The supplied SLang library subset is no
@@ -43,6 +52,8 @@ Version 1.3.2 (2005-06-01)
   - The X aspect ratio is no longer set to 4:3 by default, but to an integer
     multiple of the real resolution.
   - much improved keyboard layout autodetection
+  - fixed the grave bug which made the keyboard not to work properly in
+    some games.
   - A graphical mouse cursor now works under X with mouse grab enabled.
   - Added keyboard grab - hardcoded to Ctrl-Alt-k for now.
 * Added experimental SDL plugin. Mostly functional; makes it possible to run
