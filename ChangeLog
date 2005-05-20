@@ -1,3 +1,45 @@
+2005-05-20  Bart
+
+	* NEWS, src/env/video/vga.c:
+	gcc warning; set date in NEWS
+
+	* (almost all files)
+	It's 2005 this year.
+
+	* NEWS, doc/EMUfailure.txt, doc/README.txt, man/dosemu.1.in,
+	  man/dosemu.bin.1.in, src/doc/HOWTO/EMUfailure.sgml:
+	Documentation updates. Mostly grammatical stuff, and a clarification
+	about framebuffer consoles: it was possible before with some video cards
+	(e.g. SiS) but with others only with major problems (needing fbset after
+	exitemu, not being able to switch consoles and then go back etc).
+
+	* configure:
+	Regenerated
+
+	* etc/dosemu.conf, src/commands/ems.S:
+	Soften language about external XMS drivers a bit. No need to rush
+	dosemu-freedos users at the moment since the only known problematic
+	program is MS MEM.
+
+2005-05-20  Stas
+
+	* NEWS:
+	No need to mention svgalib since it doesn't work very well yet
+	(lacks one small fix in svgalib), but mention the fact that dosemu
+	can be started from under the fbcon.
+
+	* NEWS:
+	Some more news added. But do not mention tasmx since it was just a
+	regression at some point after all (2005-02-24 namely)
+
+	* configure.ac:
+	Cosmetic about the svgalib detection.
+
+2005-05-19  Bart
+
+	* ChangeLog, NEWS, VERSION:
+	NEWS and ChangeLog updates for 1.3.2.
+
 2005-05-10  Bart
 
 	* src/dosext/misc/xms.c:
