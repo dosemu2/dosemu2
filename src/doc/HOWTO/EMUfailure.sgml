@@ -15,7 +15,7 @@ url="mailto:bon@elektron.ikp.physik.th-darmstadt.de"
 ></emphasis> </firstname>
 </author>
 
-<pubdate> Jul 11, 2004 for dosemu 1.2.2 (and possibly earlier
+<pubdate> May 20, 2005 for dosemu 1.3.2 (and possibly earlier
 versions) </pubdate>
 
 <abstract>
@@ -75,10 +75,10 @@ Example: sim2181.exe from Analog Devices DSP Kit
 <title>Programs using older versions of the Pharlap Extender </title>
 
 <para>
-The Pharlap Extender in it's older versions (run286) needs ring-0 access
-under dosemu to install its own DPMI server. Since it uses the proprietary
-undocumented extensions to the DPMI protocol, dosemu's DPMI server is
-not suitable for that extender.
+Older versions of the Pharlap Extender (run286) need ring-0 access
+under DOSEMU to install their own DPMI server. The use of proprietary
+undocumented extensions to the DPMI protocol makes DOSEMU's DPMI server
+unsuitable for this extender.
 </para>
 
 <para>
@@ -86,17 +86,17 @@ Example: Autocad Version 12c1 For DOS
 </para>
 
 <para>
-Example: BioForge game by Origin Systems.
+Example: the game BioForge by Origin Systems.
 </para>
 
 </sect2>
 
 <sect2>
-<title>Programs using JEMM memory manager</title>
+<title>Programs using the JEMM memory manager</title>
 
 <para>
-JEMM memory manager provides the proprietary extensions to the EMS
-protocol which are not supported by dosemu.
+The JEMM memory manager provides proprietary extensions to the EMS
+protocol. These are not supported by DOSEMU.
 </para>
 
 <para>
@@ -110,7 +110,7 @@ Example: Wing Commander Privateer by Origin Systems
 
 <para>
 Check with "strings &lt;program.exe&gt; | less" if the program
-contains some of these keywords <emphasis remap="bf"> vcpi, RUN286</emphasis>.
+contains some of these keywords: <emphasis remap="bf"> vcpi, RUN286</emphasis>.
 </para>
 
 </sect2>

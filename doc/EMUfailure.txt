@@ -3,7 +3,7 @@ EMUfailure.txt
 
 Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
 
-   Jul 11, 2004 for dosemu 1.2.2 (and possibly earlier versions)
+   May 20, 2005 for dosemu 1.3.2 (and possibly earlier versions)
 
    This file lists programs and groups of programs not running or running
    only partially under dosemu. The most up-to-date version of this file
@@ -17,27 +17,20 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
    1. Fundamental problems
 
         1.1. Virtual Control Program Interface (VCPI)
-        1.2. Programs using older Versions of the Pharlap Extender
-        1.3. MSDOS enhanced mode Windows kernel krnl386.exe
-        1.4. Windows programs using Win32s
-        1.5. Does my failing program belong to these groups?
-        1.6. Fundamental problem with the Linux kernel
-        1.7. Fundamental problems with the CPU
+        1.2. Programs using older versions of the Pharlap Extender
+        1.3. Programs using the JEMM memory manager
+        1.4. Does my failing program belong to these groups?
+        1.5. Fundamental problem with the Linux kernel
+        1.6. Fundamental problems with the CPU
 
-              1.7.1. Problem with the virtualization of the IF flag
-              1.7.2. ESP register corruption
+              1.6.1. Problem with the virtualization of the IF flag
+              1.6.2. ESP register corruption
 
    2. Known bugs
 
         2.1. Things YOU may help changing
 
               2.1.1. List of currently known bugs in Dosemu 1.2.2.
-              2.1.2. Bug reports that are currently open at
-                      http://www.dosemu.org/. but that were not yet
-                      confirmed by dosemu developers.
-
-        2.2. Problems probably solved
-        2.3. QIC tape programs
 
    3. Programs exhibiting graphical problems in xdosemu
 
@@ -60,32 +53,33 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
    Example: sim2181.exe from Analog Devices DSP Kit
      _________________________________________________________________
 
-1.2. Programs using older Versions of the Pharlap Extender
+1.2. Programs using older versions of the Pharlap Extender
 
-   The Pharlap Extender in it's older versions needed ring 0 access too,
-   so it can't me made working in the emulator.
+   Older versions of the Pharlap Extender (run286) need ring-0 access
+   under DOSEMU to install their own DPMI server. The use of proprietary
+   undocumented extensions to the DPMI protocol makes DOSEMU's DPMI
+   server unsuitable for this extender.
 
-   Example:Autocad Version 12c1 For DOS
+   Example: Autocad Version 12c1 For DOS
+
+   Example: the game BioForge by Origin Systems.
      _________________________________________________________________
 
-1.3. MSDOS enhanced mode Windows kernel krnl386.exe
+1.3. Programs using the JEMM memory manager
 
-   krnl386.exe needs Ring 0 access too.
+   The JEMM memory manager provides proprietary extensions to the EMS
+   protocol. These are not supported by DOSEMU.
+
+   Example: Wing Commander Privateer by Origin Systems
      _________________________________________________________________
 
-1.4. Windows programs using Win32s
-
-   Win32s needs Ring 0 access too.
-     _________________________________________________________________
-
-1.5. Does my failing program belong to these groups?
+1.4. Does my failing program belong to these groups?
 
    Check with "strings <program.exe> | less" if the program contains some
-   of these keywords vcpi, pharlap and win32s. Newer Pharlap programs may
-   work.
+   of these keywords: vcpi, RUN286.
      _________________________________________________________________
 
-1.6. Fundamental problem with the Linux kernel
+1.5. Fundamental problem with the Linux kernel
 
    The PC Internal Timer (PIT) can be programmed to produce interrupts
    with frequencies up to almost 2MHz. Linux sets this to only 100Hz (2.6
@@ -111,14 +105,14 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
    Possibly a workaround may be found in future DOSEMU versions.
      _________________________________________________________________
 
-1.7. Fundamental problems with the CPU
+1.6. Fundamental problems with the CPU
 
    There are several defects in Intel's x86 CPUs that are causing
    problems for some software. Below is a description of the defects that
    are known to cause problems for software running under dosemu.
      _________________________________________________________________
 
-1.7.1. Problem with the virtualization of the IF flag
+1.6.1. Problem with the virtualization of the IF flag
 
    Intel's manual
    http://www.intel.com/design/intarch/techinfo/pentium/inout.htm says:
@@ -156,7 +150,7 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
    completely, making Doom2 unplayable with sound enabled.
      _________________________________________________________________
 
-1.7.2. ESP register corruption
+1.6.2. ESP register corruption
 
    Intel's x86 CPUs have a defect described here:
    http://www.intel.com/design/intarch/specupdt/27287402.PDF chapter
@@ -221,67 +215,13 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
 
      * Some documentation is known to be well out of date.
      * OPL3 FM is not implemented yet (but Midi, SB8 and SB16 work)
-     * IPX doesn't play well with DPMI. You might be able to use the
-       packet driver in combination with DOS TSR drivers such as LSL,
-       PDETHER and IPXODI. See NOVELL-HOWTO.txt and README.txt for
-       details.
      * Some database programs (Clipper, FoxPro) have problems with
        locking in certain configurations. smbfs doesn't support locking.
        $_full_file_locks=(on) may or may not help.
-     * The direct text console (without graphics) may have the whole
-       screen jumping one line up.
-     * Console graphics (especially switching VCs) can be problematic
-       with certain video cards, in particular in combination with fbdev
-       graphical consoles.
-     * DPMI interrupt handling may be unreliable. Transport Tycoon game
-       crashes sometimes.
      * Mortal Kombat 1 and 2 are not producing any sound for unknown
        reasons.
      * X-COM Apocalypse locks up at startup if configured with sound.
      * RTC periodic interrupts are not implemented yet.
-     _________________________________________________________________
-
-2.1.2. Bug reports that are currently open at http://www.dosemu.org/. but
-that were not yet confirmed by dosemu developers.
-
-     * A chess program (VChess) may crash in xdosemu when the mouse is
-       moved (there are still some issues with the internal mouse driver)
-     * Another chess program (Nimzo 3) crashes when there is no CD in the
-       CDROM drive.
-     * Watcom C may fail freeze on AMD but not PIV.
-     _________________________________________________________________
-
-2.2. Problems probably solved
-
-   Here reported problems with older versions are listed. The current
-   version should have solved them, but this has to be validated. Please
-   report if you had problems in the listed areas and these problems are
-   now solved.
-
-     * There are known problems with xdosemu.
-     * xdosemu sessions accessed from remote, non-Linux X-sessions (e.g.
-       SUN stations and others) may not work correctly. Use
-       $_mitshm=(off).
-     * The internal mouse driver is known to have problems.
-     * bae.exe
-       This is a demo version of an Electronic CAD programm, found at
-
-    http://www.bartels.de/
-
-       Reported by Uwe Bonnes, it stops dosemu with a blank screen in an
-       unusable state. You have to do a remote login to kill dosemu, or
-       hit reset with all it's possible fatal result. The possible reason
-       is the missing implementation of DMPI Call 0x0800, as Uwe Bonnes
-       reported it once working on the console with some hack.
-       However, this demo is no longer for download, and, moreover, they
-       have a native Linux version.
-     _________________________________________________________________
-
-2.3. QIC tape programs
-
-   Reported by vignani@mail.tin.it (Alberto Vignani): Tape is not
-   supported. Worse, if you use a floppy under dosemu, you have sometimes
-   to remove/reinstall the ftape module.
      _________________________________________________________________
 
 3. Programs exhibiting graphical problems in xdosemu
