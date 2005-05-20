@@ -7272,21 +7272,25 @@ echo "${ECHO_T}$ac_cv_header_vga_h" >&6
 
 fi
 if test $ac_cv_header_vga_h = yes; then
-   svgalib_ver=`${CC-cc} -E - << "" | tail -n 1 | cut -dx -f2
+   echo "$as_me:$LINENO: checking for svgalib version >= 2.9.21" >&5
+echo $ECHO_N "checking for svgalib version >= 2.9.21... $ECHO_C" >&6
+      svgalib_ver=`${CC-cc} -E - << "" | tail -n 1 | cut -dx -f2
         #include <vga.h>
         SVGALIB_VER
       `
       svgalib_ver_a=`expr $svgalib_ver / 10000`
       svgalib_ver_b=`expr $svgalib_ver / 100 % 100`
       svgalib_ver_c=`expr $svgalib_ver % 100`
-      { echo "$as_me:$LINENO: Checking for svgalib version... ${svgalib_ver_a}.${svgalib_ver_b}.${svgalib_ver_c}" >&5
-echo "$as_me: Checking for svgalib version... ${svgalib_ver_a}.${svgalib_ver_b}.${svgalib_ver_c}" >&6;}
       if test $svgalib_ver -ge 010921; then
         use_svgalib="yes"
       else
-        { echo "$as_me:$LINENO: WARNING: Your svgalib is too old, at least ver 1.9.21 is required!" >&5
-echo "$as_me: WARNING: Your svgalib is too old, at least ver 1.9.21 is required!" >&2;}
         use_svgalib="no"
+      fi
+      echo "$as_me:$LINENO: result: $use_svgalib, found ${svgalib_ver_a}.${svgalib_ver_b}.${svgalib_ver_c}" >&5
+echo "${ECHO_T}$use_svgalib, found ${svgalib_ver_a}.${svgalib_ver_b}.${svgalib_ver_c}" >&6
+      if test "$use_svgalib" = "no"; then
+        { echo "$as_me:$LINENO: WARNING: Your svgalib is too old." >&5
+echo "$as_me: WARNING: Your svgalib is too old." >&2;}
       fi
 
 else
