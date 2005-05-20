@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 2004 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -28,10 +28,14 @@
  * DANG_BEGIN_CHANGELOG
  *
  *	$Log$
+ *	Revision 1.4  2005/05/20 00:26:09  bartoldeman
+ *	It's 2005 this year.
+ *
  *	Revision 1.3  2005/03/21 17:24:09  stsp
+ *	
  *	Fixed (and re-enabled) the terminate-after-execute feature (bug #1152829).
  *	Also some minor adjustments/leftovers.
- *
+ *	
  *	Revision 1.2  2004/01/16 20:50:27  bartoldeman
  *	Happy new year!
  *	
