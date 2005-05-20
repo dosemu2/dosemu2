@@ -313,9 +313,11 @@ NoEMSMsg:
 	.ascii	"Warning: EMS support not enabled."
 	.byte	cr,lf,eom
 InternDrvMsg:
+#if 0 /* maybe activate this later when dosemu-freedos is updated */
 	.ascii	"Warning: dosemu internal XMS driver detected.\r\n"
 	.ascii	"This is deprecated, please consider using\r\n"
 	.ascii  "an external XMS driver, like himem.sys or fdxms.sys.\r\n"
+#endif
 	.byte	eom
 
 ErrMess:
