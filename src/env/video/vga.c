@@ -218,6 +218,7 @@ void do_int10_callback(struct vm86_regs *regs)
   vm86s = saved_vm86;
 }
 
+#if 0
 static void do_int10_setmode(int mode)
 {
   struct vm86_regs r;
@@ -225,6 +226,7 @@ static void do_int10_setmode(int mode)
   r.ebx = mode;
   do_int10_callback(&r);
 }
+#endif
 
 /* Store current EGA/VGA regs */
 static void store_vga_regs(char regs[])

@@ -4,7 +4,7 @@ NEWS file for DOSEMU
 This file contains a list of user visible changes in DOSEMU. For the
 raw developer changelog please refer to ChangeLog.
 
-Version 1.3.2 (2005-06-01)
+Version 1.3.2 (2005-05-20)
 =============
 * Windows 3.1 now works natively, without any need for WINOS2 patches.
 * Many other improvements to make Windows 3 in DOSEMU more stable and usable.
