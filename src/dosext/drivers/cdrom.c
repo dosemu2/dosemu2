@@ -232,7 +232,7 @@ void cdrom_helper(void)
    struct cdrom_tochdr cdrom_tochdr;
    struct cdrom_tocentry cdrom_tocentry;
    struct cdrom_volctrl cdrom_volctrl;
-   int n, error;
+   int n, err;
 
    cdrom_subchnl.cdsc_format = CDROM_MSF;
 
@@ -289,13 +289,13 @@ void cdrom_helper(void)
                 audio_status.outchan3 = 3;
 
                 cdrom_fd = open (path_cdrom, O_RDONLY);
-		error = errno;
+		err = errno;
 
                 if (cdrom_fd < 0) {
 		  C_printf("CDROM: cdrom open (%s) failed: %s\n",
-			    path_cdrom, strerror(error));
+			    path_cdrom, strerror(err));
                   LO(ax) = 0;
-                  if ((error == EIO) || (error==ENOMEDIUM)) {
+                  if ((err == EIO) || (err==ENOMEDIUM)) {
                     /* drive which cannot be opened if no
                        disc is inserted!                   */
                     cdu33a = 1;
@@ -533,8 +533,9 @@ void cdrom_helper(void)
                 if ((eject_allowed) && (audio_status.status & 0x02)) /* drive unlocked ? */
                 {
                   audio_status.media_changed = 1;
-                  if (ioctl (cdrom_fd, CDROMEJECT, NULL))
-                    LO(ax) = 1;
+                  if (ioctl (cdrom_fd, CDROMEJECT, NULL)) {
+                    LO(ax) = errno;
+		  }
                 }
                 break;
      case 0x0E: /* close tray */

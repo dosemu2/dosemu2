@@ -77,6 +77,9 @@ int eject_main(int argc, char **argv)
 {
 	do_doshelper(DOS_HELPER_CDROM_HELPER+0xc00, 0);	/* unlock door */
 	do_doshelper(DOS_HELPER_CDROM_HELPER+0xd00, 0);	/* eject disk */
+	if (LO(ax)) {
+		com_printf("cdrom eject failed, error code %i\n", LO(ax));
+	}
 	return 0;
 }
 
