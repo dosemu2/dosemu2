@@ -2554,17 +2554,27 @@ static void X_vidmode(int w, int h, int *new_width, int *new_height)
       XF86VidModeGetViewPort(display,screen,&viewport_x,&viewport_y);
       mainwindow = fullscreenwindow;
     }
-    j=0;
+    j = -1;
     for (i=0; i<modecount; i++) {
       if ((vidmode_modes[i]->hdisplay >= w) && 
           (vidmode_modes[i]->vdisplay >= h) &&
           (vidmode_modes[i]->hdisplay <= nw) &&
           (vidmode_modes[i]->vdisplay <= nh) &&
-	  (!restore_dotclock || vidmode_modes[i]->dotclock == dotclock)) {
+	  (!restore_dotclock || vidmode_modes[i]->dotclock == dotclock) &&
+	  ( j == -1 ||
+	    vidmode_modes[i]->dotclock >= vidmode_modes[j]->dotclock ||
+	    vidmode_modes[i]->hdisplay != nw ||
+	    vidmode_modes[i]->vdisplay != nh)) {
         nw = vidmode_modes[i]->hdisplay;
         nh = vidmode_modes[i]->vdisplay;
         j = i;
       }
+    }
+    if (j == -1) {
+      error("X: vidmode for (%d,%d) not found!\n", w, h);
+      *new_width = w;
+      *new_height = h;
+      return;
     }
 
     X_printf("X: vidmode asking for (%d,%d); setting (%d,%d)\n", w, h, nw, nh);
