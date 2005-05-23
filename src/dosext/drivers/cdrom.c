@@ -214,7 +214,7 @@ static void cdrom_reset(void)
      Does someone know a better way?                   */
    C_printf("CDROM: cdrom reset\n");
    close (cdrom_fd);
-   cdrom_fd = open (path_cdrom, O_RDONLY);
+   cdrom_fd = open (path_cdrom, O_RDONLY | O_NONBLOCK);
    if (cdrom_fd >= 0) ioctl (cdrom_fd, CDROMRESET, NULL);
 }
 
@@ -240,7 +240,7 @@ void cdrom_helper(void)
    HI(ax) = HI(ax) & 0x3F;
 
    if ((cdu33a) && (cdrom_fd < 0)) {
-        cdrom_fd = open (path_cdrom, O_RDONLY);
+        cdrom_fd = open (path_cdrom, O_RDONLY | O_NONBLOCK);
 
         if (cdrom_fd < 0) {
           switch (HI(ax)) {
@@ -288,7 +288,7 @@ void cdrom_helper(void)
                 audio_status.outchan2 = 2;
                 audio_status.outchan3 = 3;
 
-                cdrom_fd = open (path_cdrom, O_RDONLY);
+                cdrom_fd = open (path_cdrom, O_RDONLY | O_NONBLOCK);
 		err = errno;
 
                 if (cdrom_fd < 0) {
