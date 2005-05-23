@@ -9,6 +9,9 @@
 
 #include <gpm.h>
 #include <fcntl.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "config.h"
 #include "emu.h"
@@ -20,6 +23,11 @@ static void gpm_getevent(void)
 {
 	static unsigned char buttons;
 	Gpm_Event ev;
+	fd_set mfds;
+	FD_ZERO(&mfds);
+	FD_SET(config.mouse.fd, &mfds);
+	if (select(config.mouse.fd + 1, &mfds, NULL, NULL, NULL) <= 0)
+		return;
 	Gpm_GetEvent(&ev);
 	m_printf("MOUSE: Get GPM Event, %d\n", ev.type);
 	switch (GPM_BARE_EVENTS(ev.type)) {
