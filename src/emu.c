@@ -444,6 +444,9 @@ void
 leavedos(int sig)
 {
     struct itimerval itv;
+
+    /* need this to allow do_call_back() to do its work */
+    fatalerr = 0;
    
     if (leavedos_recurse_check)
       {
