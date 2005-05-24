@@ -2839,14 +2839,12 @@ void set_mouse_position(int x, int y)
   if(grab_active) {
     center_x = w_x_res >> 1;
     center_y = w_y_res >> 1;
-    dx = dy = 0;
     if (x == center_x && y == center_y) return;  /* assume pointer warp event */
-    x = x - center_x + mouse_x;
-    y = y - center_y + mouse_y;
-    x0 = x; y0 = y;
+    dx = x - center_x;
+    dy = y - center_y;
+    x0 = dx + mouse_x;
+    y0 = dy + mouse_y;
     XWarpPointer(display, None, mainwindow, 0, 0, 0, 0, center_x, center_y);
-    dx = x - mouse_x;
-    dy = (y - mouse_y) * 2;
     mouse_move_relative(dx, dy);
   } else if(snap_X) {
     /*
@@ -2854,8 +2852,8 @@ void set_mouse_position(int x, int y)
      * upper left corner (0,0). If we after that release snapping,
      * normal X-events will move the cursor to the exact position. (Hans)
      */
-     dx = dy = x0 = y0 = 0;
-     dx = -3 * x_res; dy = -6 * y_res;		/* enough ??? -- sw */
+     x0 = y0 = 0;
+     dx = -3 * x_res; dy = -3 * y_res;		/* enough ??? -- sw */
      mouse_move_relative(dx, dy);
      snap_X--;
   } else {

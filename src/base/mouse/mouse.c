@@ -1435,10 +1435,22 @@ static void mouse_round_coords(void)
 #endif
 
 	/* put the mouse coordinate in bounds */
-	if (mouse.x <= mouse.virtual_minx) mouse.x = mouse.virtual_minx;
-	if (mouse.y <= mouse.virtual_miny) mouse.y = mouse.virtual_miny;
-	if (mouse.x >= mouse.virtual_maxx) mouse.x = mouse.virtual_maxx;
-	if (mouse.y >= mouse.virtual_maxy) mouse.y = mouse.virtual_maxy;
+	if (mouse.x <= mouse.virtual_minx) {
+		mouse.x = mouse.virtual_minx;
+		mouse.unsc_x = mouse.x * mouse.speed_x;
+	}
+	if (mouse.y <= mouse.virtual_miny) {
+		mouse.y = mouse.virtual_miny;
+		mouse.unsc_y = mouse.y * mouse.speed_y;
+	}
+	if (mouse.x >= mouse.virtual_maxx) {
+		mouse.x = mouse.virtual_maxx;
+		mouse.unsc_x = mouse.x * mouse.speed_x;
+	}
+	if (mouse.y >= mouse.virtual_maxy) {
+		mouse.y = mouse.virtual_maxy;
+		mouse.unsc_y = mouse.y * mouse.speed_y;
+	}
 
 	/* we round these down depending on the granularity of the
 		screen mode; text mode has all coordinates multiplied
@@ -1573,8 +1585,10 @@ void mouse_move_relative(int dx, int dy)
 	/* IDEA: running dx and dy through a filter which dampens
 		values near zero and amplifies larger values might
 		give us a cheap acceleration profile. */
-	mouse.x += ((dx << 3) / mouse.speed_x);
-	mouse.y += ((dy << 3) / mouse.speed_y);
+	mouse.unsc_x += dx << 3;
+	mouse.unsc_y += dy << 3;
+	mouse.x = mouse.unsc_x / mouse.speed_x;
+	mouse.y = mouse.unsc_y / mouse.speed_y;
 	mouse.mickeyx += dx;
 	mouse.mickeyy += dy;
 
@@ -1607,6 +1621,7 @@ void mouse_move_absolute(int x, int y, int x_range, int y_range)
 	mouse.mickeyy += dy;
 	mouse.x = new_x;
 	mouse.y = new_y;
+	mouse_round_coords();
 
 	m_printf("mouse_move_absolute(%d, %d, %d, %d) -> %d %d \n",
 		 x, y, x_range, y_range, mouse.x, mouse.y);

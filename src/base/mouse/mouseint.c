@@ -358,8 +358,7 @@ static int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes)
   	 * Ensuring that speed is calculated from current values.
 	 */
 	mouse_move_buttons(buttons & 0x04, buttons & 0x02, buttons & 0x01);
-	/* I dont know why we need *2 for y but that works */
-	mouse_move_relative(dx, dy*2);
+	mouse_move_relative(dx, dy);
 
 	pBufP = 0;
 	return (i + 1);

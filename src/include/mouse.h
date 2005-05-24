@@ -101,6 +101,8 @@ struct mouse_struct {
 
   /* these are clipped to min and max x; they are *not* rounded. */
   short x, y;
+  /* unscaled ones, to not loose the precision */
+  short unsc_x, unsc_y;
   /* these are rounded-off versions of the above which are returned
   	to a client */
   short rx, ry;
