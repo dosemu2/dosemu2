@@ -523,6 +523,7 @@ void cdrom_helper(void)
                 LO(ax) = 0;
                 break;
      case 0x0C: /* lock/unlock door */
+                cdrom_reset();
                 if (LO(bx) == 1)
                   audio_status.status &= 0xFFFFFFFD;
                  else audio_status.status |= 0x2;
@@ -533,13 +534,20 @@ void cdrom_helper(void)
                 if ((eject_allowed) && (audio_status.status & 0x02)) /* drive unlocked ? */
                 {
                   audio_status.media_changed = 1;
-                  if (ioctl (cdrom_fd, CDROMEJECT, NULL)) {
+                  if (ioctl (cdrom_fd, CDROMEJECT)) {
                     LO(ax) = errno;
 		  }
                 }
                 break;
      case 0x0E: /* close tray */
                 LO(ax) = 0;
+                if ((eject_allowed) && (audio_status.status & 0x02)) /* drive unlocked ? */
+                {
+                  audio_status.media_changed = 1;
+                  if (ioctl (cdrom_fd, CDROMCLOSETRAY)) {
+                    LO(ax) = errno;
+		  }
+                }
                 break;
      case 0x0F: /* audio channel control */
                 LWORD(eax) = 0;

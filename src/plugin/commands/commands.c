@@ -76,7 +76,14 @@ int ecpuoff_main(int argc, char **argv)
 int eject_main(int argc, char **argv)
 {
 	do_doshelper(DOS_HELPER_CDROM_HELPER+0xc00, 0);	/* unlock door */
-	do_doshelper(DOS_HELPER_CDROM_HELPER+0xd00, 0);	/* eject disk */
+	optind = 0;
+	switch (getopt(argc, argv, "t")) {
+		case 't':
+			do_doshelper(DOS_HELPER_CDROM_HELPER+0xe00, 0);	/* close tray */
+			break;
+		default:
+			do_doshelper(DOS_HELPER_CDROM_HELPER+0xd00, 0);	/* eject disk */
+	}
 	if (LO(ax)) {
 		com_printf("cdrom eject failed, error code %i\n", LO(ax));
 	}
