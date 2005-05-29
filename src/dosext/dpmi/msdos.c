@@ -350,6 +350,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    return 0;
 	case 0x00:		/* DOS terminate */
 	    old_dos_terminate(scp, intr);
+	    LWORD(eax) = 0x4c00;
 	    return 0;
 	case 0x09:		/* Print String */
 	    {
@@ -917,6 +918,9 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 
     case 0x21:
 	switch (_HI(ax)) {
+	case 0x00:		/* psp kill */
+	    PRESERVE1(eax);
+	    break;
 	case 0x09:		/* print String */
 	case 0x1a:		/* set DTA */
 	    PRESERVE1(edx);
