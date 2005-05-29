@@ -638,6 +638,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
         switch (_LO(ax)) {
         case 0x3B: /* change dir */
         case 0x41: /* delete file */
+        case 0x43: /* get file attributes */
             REG(ds) = TRANS_BUFFER_SEG;
             REG(edx) = 0;
             src = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_edx);
@@ -678,6 +679,15 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
             REG(esi) = 0;
             src = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_esi);
             dst = SEG_ADR((char *), ds, si);
+            snprintf(dst, MAX_DOS_PATH, "%s", src);
+            return 0;
+        case 0xA0: /* get volume info */
+            REG(ds) = TRANS_BUFFER_SEG;
+            REG(edx) = 0;
+            REG(es) = TRANS_BUFFER_SEG;
+            REG(edi) = MAX_DOS_PATH;
+            src = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_edx);
+            dst = SEG_ADR((char *), ds, dx);
             snprintf(dst, MAX_DOS_PATH, "%s", src);
             return 0;
         case 0xA1: /* close find */
@@ -1132,6 +1142,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
         switch (_LO(ax)) {
         case 0x3B:
         case 0x41:
+        case 0x43:
 	    PRESERVE1(edx);
             break;
         case 0x4E:
@@ -1164,6 +1175,14 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	    break;
         case 0x6c:
 	    PRESERVE1(esi);
+            break;
+        case 0xA0:
+            PRESERVE2(edx, edi);
+            if (LWORD(eflags) & CF)
+                break;
+            snprintf((void *)GetSegmentBaseAddress(_es) +
+                     D_16_32(_edi), _LWORD(ecx), "%s",
+                     SEG_ADR((char *), es, di));
             break;
         };
 
