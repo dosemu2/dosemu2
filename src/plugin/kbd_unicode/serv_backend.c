@@ -239,17 +239,10 @@ static inline void put_bios_keybuf(Bit16u scancode)
  * control of int9.
  */
 
-void copy_shift_state(t_shiftstate shift) 
+static void put_shift_state(t_shiftstate shift) 
 {
    Bit8u flags1, flags2, flags3, leds;
 
-#ifdef X86_EMULATOR
-   int tmp = E_MUNPROT_STACK(0);	/* no faults in BIOS area! */
-#endif
-#if 0
-   k_printf("KBD: copy_shift_state() %04x\n",shift);
-#endif
-   
    flags1=flags3=leds=0;
    /* preserve pause bit */
    flags2 = READ_BYTE(BIOS_KEYBOARD_FLAGS2) & PAUSE_MASK;
@@ -279,9 +272,36 @@ void copy_shift_state(t_shiftstate shift)
    WRITE_BYTE(BIOS_KEYBOARD_FLAGS2,flags2);
    WRITE_BYTE(BIOS_KEYBOARD_FLAGS3,flags3);
    WRITE_BYTE(BIOS_KEYBOARD_LEDS,leds);
-#ifdef X86_EMULATOR
-   if (tmp) E_MPROT_STACK(0);
-#endif
+}
+
+static t_shiftstate get_shift_state(void) 
+{
+   Bit8u flags1, flags2, flags3;
+   t_shiftstate shift = 0;
+
+   flags1 = READ_BYTE(BIOS_KEYBOARD_FLAGS1);
+   flags2 = READ_BYTE(BIOS_KEYBOARD_FLAGS2);
+   flags3 = READ_BYTE(BIOS_KEYBOARD_FLAGS3);
+   
+   if (flags1 & 0x80)         shift |= INS_LOCK;
+   if (flags1 & 0x40)         shift |= CAPS_LOCK;
+   if (flags1 & 0x20)         shift |= NUM_LOCK;
+   if (flags1 & 0x10)         shift |= SCR_LOCK;
+   if (flags1 & 0x02)         shift |= L_SHIFT;
+   if (flags1 & 0x01)         shift |= R_SHIFT;
+
+   if (flags2 & 0x80)         shift |= INS_PRESSED;
+   if (flags2 & 0x40)         shift |= CAPS_PRESSED;
+   if (flags2 & 0x20)         shift |= NUM_PRESSED;
+   if (flags2 & 0x10)         shift |= SCR_PRESSED;
+   if (flags2 & 0x04)         shift |= SYSRQ_PRESSED;
+   if (flags2 & 0x02)         shift |= L_ALT;
+   if (flags2 & 0x01)         shift |= L_CTRL;
+
+   if (flags3 & 0x08)         shift |= R_ALT;
+   if (flags3 & 0x04)         shift |= R_CTRL;
+
+   return shift;
 }
 
 
@@ -293,9 +313,13 @@ Bit16u get_bios_key(t_rawkeycode raw)
 	key = compute_keynum(&make, raw, &dos_keyboard_state.raw_state);
 	key = compute_functional_keynum(make, key, &dos_keyboard_state.keys_pressed);
 	if (key != NUM_VOID) {
+		t_shiftstate shiftstate = get_shift_state();
+		dos_keyboard_state.shiftstate = shiftstate;
 		bios_key = translate_key(make, key, &dos_keyboard_state);
-		copy_shift_state(dos_keyboard_state.shiftstate);
-		keyb_client_set_leds(get_modifiers_r(dos_keyboard_state.shiftstate));
+		if (shiftstate != dos_keyboard_state.shiftstate) {
+			put_shift_state(dos_keyboard_state.shiftstate);
+			keyb_client_set_leds(get_modifiers_r(dos_keyboard_state.shiftstate));
+		}
 	}
 	return bios_key;
 }
@@ -374,6 +398,6 @@ void backend_reset(void)
    if (tmp) E_MPROT_STACK(0);
 #endif
    clear_bios_keybuf();
-   copy_shift_state(dos_keyboard_state.shiftstate);
+   put_shift_state(dos_keyboard_state.shiftstate);
    keyb_client_set_leds(get_modifiers_r(dos_keyboard_state.shiftstate));
 }
