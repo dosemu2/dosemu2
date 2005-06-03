@@ -1660,7 +1660,7 @@ static void call_int15_mouse_event_handler(void)
 
     dx = mouse.mickeyx - mouse.old_mickeyx;
     /* PS/2 wants the y direction reversed */
-    dy = (mouse.old_mickeyy - mouse.mickeyy) * 2;
+    dy = mouse.old_mickeyy - mouse.mickeyy;
 
     status = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0) | 8;
     if (mouse.threebuttons)
@@ -1676,7 +1676,7 @@ static void call_int15_mouse_event_handler(void)
     if (dy < 0)
       status |= 0x20;
     mouse.old_mickeyx += dx;
-    mouse.old_mickeyy -= dy / 2;
+    mouse.old_mickeyy -= dy;
 
     m_printf("PS2MOUSE data: dx=%hhx, dy=%hhx, status=%hx\n", (Bit8u)dx, (Bit8u)dy, status);
     pushw(ssp, sp, status | 8);
