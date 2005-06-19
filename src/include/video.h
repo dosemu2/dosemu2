@@ -129,7 +129,7 @@ EXTERN ushort *prev_screen;  /* pointer to currently displayed screen   */
 
 EXTERN int video_mode INIT(0);
 EXTERN int video_page INIT(0); 
-EXTERN int char_blink INIT(0);
+EXTERN int char_blink INIT(1);
 EXTERN int co INIT(80);
 EXTERN int li INIT(25);
 

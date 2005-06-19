@@ -111,11 +111,13 @@ static int *Attribute_Map;
    this allows an efficient memcpy of 4 (gcc makes that "mov") followed
    by an increase by len bytes of the buffer pointer in the draw_string
    routine
-   mb0 == 0 means that mb1 is in the alternate character set. This set
-   is only used in non-utf8 mode.
+   mb1 != 0 in utf8 mode means that mb1 is in the alternate character set.
  */
 static unsigned char The_Charset[256][4];
 static int slang_update (void);
+static void term_write_nchars_8bit(unsigned char *text, int len, Bit8u attr);
+static void term_write_nchars_utf8(unsigned char *text, int len, Bit8u attr);
+static void (*term_write_nchars)(unsigned char *, int, Bit8u) = term_write_nchars_utf8;
 
 static int Slsmg_is_not_initialized = 1;
 
@@ -236,16 +238,13 @@ static void set_char_set (void)
 		buff[3] = result;
 		if (result == 1 && uni >= 0x100) {
 			int j;
-			for (j = 1; j < 128; j++) {
-				if (acs_to_uni[j] == uni) {
-					buff[0] = '\0';
+			for (j = 1; j < 128; j++)
+				if (acs_to_uni[j] == uni)
 					buff[1] = j;
-				}
-			}
 		}
 		memcpy(The_Charset + i, buff, 4);
 		v_printf("mapping: %x -> %04x -> %.*s (len=%d,acs=%d)\n", i, uni,
-			 result, buff[0] ? buff : buff + 1, result, buff[0]=='\0');
+			 result, buff, result, result == 1 && buff[1]);
 
 		/* If we have any non control charcters in 0x80 - 0x9f
 		 * set up  the slang code up so we can send them. 
@@ -372,6 +371,9 @@ static int terminal_initialize(void)
    register_text_system(&Text_term);
    vga_emu_setmode(video_mode, Columns, Rows);
 
+#if SLANG_VERSION < 20000
+   SLtt_Use_Blink_For_ACS = 1;
+#endif
    SLtt_Blink_Mode = 1;
 
    SLtt_Use_Ansi_Colors = is_color;
@@ -381,8 +383,10 @@ static int terminal_initialize(void)
 
    if (!SLutf8_enable(
 	strstr("utf8", trconfig.output_charset->names[0]) ? 1 :
-	strstr("default", trconfig.output_charset->names[0]) ? -1 : 0))
+	strstr("default", trconfig.output_charset->names[0]) ? -1 : 0)) {
       construct_acs_table();
+      term_write_nchars = term_write_nchars_8bit;
+   }
 
 #if SLANG_VERSION < 10000
    if (!SLsmg_init_smg ())
@@ -436,9 +440,12 @@ static int terminal_initialize(void)
    
    /* object 0 is special.  It is normal video.  Lets fix that now. */   
    BW_Attribute_Map[0x7] = Color_Attribute_Map[0x7] = 0;
+   BW_Attribute_Map[0] = Color_Attribute_Map[0] = 7;
    
    SLtt_set_color_object (0, 0x000700);
    SLtt_set_mono (0, NULL, 0x000700);
+   SLtt_set_color_object (7, 0);
+   SLtt_set_mono (7, NULL, 0);
    
    SLsmg_refresh ();
    /* This goes after the refresh because it might try 
@@ -612,43 +619,77 @@ static int slang_update (void)
    return 1;
 }
 
-static void term_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
+static void term_write_nchars_8bit(unsigned char *text, int len, Bit8u attr)
 {
-   unsigned char buf[(len + 1) * 3];
+   unsigned char buf[len + 1];
    unsigned char *bufp, *text_end;
-   int this_obj = Attribute_Map[attr];
-   int acs = 0;
+   unsigned char ch, ach, acs;
 
-   y -= DOSemu_Terminal_Scroll_Min;
-   if (y < 0 || y >= SLtt_Screen_Rows) return;
-   SLsmg_gotorc (y, x);
-   SLsmg_set_color (abs(this_obj));
-#if SLANG_VERSION < 20000 
-   SLtt_Use_Blink_For_ACS = char_blink && ((attr & 0x80) >> 7);
-#endif
+   text_end = text + len;
 
-   /* take care of invisible character */
-   if (this_obj < 0) {
-      memset(buf, ' ', len);
-      SLsmg_write_nchars(buf, len);
+#if SLANG_VERSION < 20000
+   /* switch off blinking for bright backgrounds */
+   if ((attr & 0x80) && !char_blink) {
+      attr &= ~0x80;
+      SLsmg_set_color (Attribute_Map[attr]);
+   }
+   SLtt_Use_Blink_For_ACS = (attr & 0x80) >> 7;
+   /* we can't use the ACS when blinking */
+   if (SLtt_Use_Blink_For_ACS) {
+      for (bufp = buf; text < text_end; bufp++, text++)
+         *bufp = The_Charset[*text][0];
+      SLsmg_write_nchars(buf, bufp - buf);
+      SLsmg_refresh ();
       return;
    }
-   text_end = text + len;
+#endif
+
+   acs = 0;
    while (text < text_end) {
-      for (bufp = buf; text < text_end; bufp += bufp[3], text++) {
-	 memcpy(bufp, The_Charset + *text, 4);
+      for (bufp = buf; text < text_end; bufp++, text++) {
+         ch = The_Charset[*text][0];
+	 ach = The_Charset[*text][1];
 	 if (acs) {
-	    if (bufp[0] != '\0') break;
-	    bufp[0] = bufp[1];
+	    if (ach == '\0') break;
+	    ch = ach;
 	 } else {
-	    if (bufp[0] == '\0') break;
+	    if (ach != '\0') break;
 	 }
+         *bufp = ch;
       }
       if (acs) SLsmg_set_char_set(1);
       SLsmg_write_nchars(buf, bufp - buf);
       if (acs) SLsmg_set_char_set(0);
       acs = !acs;
    }
+}
+
+static void term_write_nchars_utf8(unsigned char *text, int len, Bit8u attr)
+{
+   unsigned char buf[(len + 1) * 3];
+   unsigned char *bufp, *text_end = text + len;
+
+   for (bufp = buf; text < text_end; bufp += bufp[3], text++)
+      memcpy(bufp, The_Charset + *text, 4);
+   SLsmg_write_nchars(buf, bufp - buf);
+}
+
+static void term_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
+{
+   int this_obj = Attribute_Map[attr];
+
+   y -= DOSemu_Terminal_Scroll_Min;
+   if (y < 0 || y >= SLtt_Screen_Rows) return;
+   SLsmg_gotorc (y, x);
+   SLsmg_set_color (abs(this_obj));
+
+   /* take care of invisible character */
+   if (this_obj < 0) {
+      unsigned char buf[len];
+      memset(buf, ' ', len);
+      SLsmg_write_nchars(buf, len);
+   } else
+      term_write_nchars(text, len, attr);
 }
 
 static void term_update(void)
