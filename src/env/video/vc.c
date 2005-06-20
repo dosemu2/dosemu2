@@ -116,11 +116,7 @@ void check_console(void) {
 void
 vt_activate(int con_num)
 {
-    if (in_ioctl) {
-	k_printf("KBD: can't ioctl for activate, in a signal handler\n");
-/*	do_ioctl(console_fd, VT_ACTIVATE, con_num); */
-    } else
-	do_ioctl(console_fd, VT_ACTIVATE, con_num);
+    do_ioctl(console_fd, VT_ACTIVATE, con_num);
 }
 
 void

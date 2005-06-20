@@ -158,8 +158,6 @@ io_select(fd_set fds)
 
 
 
-/*  */
-/* io_select_init,add_to_io_select,remove_from_io_select,do_ioctl,queue_ioctl,do_queued_ioctl @@@  32768 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/emu.c --> src/base/misc/ioctl.c  */
 /*
  * DANG_BEGIN_FUNCTION io_select_init
  * 
@@ -254,61 +252,6 @@ remove_from_io_select(int new_fd, u_char used_sigio)
     io_callback_func[new_fd] = NULL;
 }
 
-int
-do_ioctl(int fd, int req, int param3)
-{
-    int             tmp;
-
-    if (in_sighandler && in_ioctl) {
-	k_printf("KBD: do_ioctl(): in ioctl %d 0x%04x 0x%04x.\nqueuing: %d 0x%04x 0x%04x\n",
-		 curi.fd, curi.req, curi.param3, fd, req, param3);
-	queue_ioctl(fd, req, param3);
-	errno = EDEADLOCK;
-#ifdef SYNC_ALOT
-	fflush(stdout);
-	sync();			/* for safety */
-#endif
-	return -1;
-    } else {
-	in_ioctl = 1;
-	curi.fd = fd;
-	curi.req = req;
-	curi.param3 = param3;
-	if (iq.queued) {
-	    k_printf("KBD: detected queued ioctl in do_ioctl(): %d 0x%04x 0x%04x\n",
-		     iq.fd, iq.req, iq.param3);
-	}
-	k_printf("KBD: IOCTL fd=0x%x, req=0x%x, param3=0x%x\n", fd, req, param3);
-	tmp = ioctl(fd, req, param3);
-	in_ioctl = 0;
-	return tmp;
-    }
-}
-
-int
-queue_ioctl(int fd, int req, int param3)
-{
-    if (iq.queued) {
-	error("ioctl already queued: %d 0x%04x 0x%04x\n", iq.fd, iq.req,
-	      iq.param3);
-	return 1;
-    }
-    iq.fd = fd;
-    iq.req = req;
-    iq.param3 = param3;
-    iq.queued = 1;
-
-    return 0;			/* success */
-}
-
-void
-do_queued_ioctl(void)
-{
-    if (iq.queued) {
-	iq.queued = 0;
-	do_ioctl(iq.fd, iq.req, iq.param3);
-    }
-}
 /* @@@ MOVE_END @@@ 32768 */
 
 

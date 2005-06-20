@@ -15,6 +15,7 @@
 #include "config.h"
 
 #include <sys/types.h>
+#include <sys/ioctl.h>
 #include <setjmp.h>
 #include <signal.h> 
 
@@ -131,21 +132,9 @@ void getKeys(void);
 
      void char_out(u_char, int);
 
-     struct ioctlq {
-       int fd, req, param3;
-       int queued;
-     };
-
-     void do_queued_ioctl(void);
-     int queue_ioctl(int, int, int), do_ioctl(int, int, int);
      void keybuf_clear(void);
 
-EXTERN u_char in_sighandler;
-/* one-entry queue ;-( for ioctl's */
-EXTERN struct ioctlq iq INIT({0, 0, 0, 0}); 
-EXTERN u_char in_ioctl INIT(0);
-EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
-
+#define do_ioctl(x,y,z) ioctl(z,y,z)
 
 /* this macro can be safely wrapped around a system call with no side
  * effects; using a feature of GCC, it returns the same value as the

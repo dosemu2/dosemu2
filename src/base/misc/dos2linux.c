@@ -28,9 +28,12 @@
  * DANG_BEGIN_CHANGELOG
  *
  *	$Log$
+ *	Revision 1.5  2005/06/20 17:12:11  stsp
+ *	Remove the ancient (unused) ioctl queueing code.
+ *
  *	Revision 1.4  2005/05/20 00:26:09  bartoldeman
  *	It's 2005 this year.
- *
+ *	
  *	Revision 1.3  2005/03/21 17:24:09  stsp
  *	
  *	Fixed (and re-enabled) the terminate-after-execute feature (bug #1152829).
@@ -336,8 +339,6 @@ void run_unix_command(char *buffer)
 			 * (e.g. currently we can't stop the child!)
 			 */
 			handle_signals();
-			if (iq.queued)
-				do_queued_ioctl();
 			/*
 			 * if the child doesn't send anything to the
 			 * pipes, we check here for termination
@@ -392,8 +393,6 @@ int run_system_command(char *buffer)
 	/* parent */
         while (waitpid(pid, &status, WNOHANG) != pid) {
             handle_signals();
-            if (iq.queued)
-                  do_queued_ioctl();
             usleep(10000);
         }
         return WEXITSTATUS(status);

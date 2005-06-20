@@ -592,10 +592,6 @@ d_ready(int fd)
 
 void activate(int con_num)
 {
-    if (in_ioctl) {
-	k_printf("KBD: can't ioctl for activate, in a signal handler\n");
-	do_ioctl(kbd_fd, VT_ACTIVATE, con_num);
-    } else
-	do_ioctl(kbd_fd, VT_ACTIVATE, con_num);
+    do_ioctl(kbd_fd, VT_ACTIVATE, con_num);
 }
 #endif

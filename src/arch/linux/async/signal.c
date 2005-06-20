@@ -716,24 +716,3 @@ sigquit(int sig)
 
   do_soft_int(0x1b);
 }
-
-#if 0
-void
-timint(int sig)
-{
-  restore_eflags_fs_gs();
-  in_vm86 = 0;
-  in_sighandler = 1;
-
-  warn("timint called: %04x:%04x -> %05x\n", ISEG(8), IOFF(8), IVEC(8));
-  warn("(vec 0x1c)     %04x:%04x -> %05x\n", ISEG(0x1c), IOFF(0x1c),
-       IVEC(0x1c));
-  show_regs(__FILE__, __LINE__);
-
-  pic_request(PIC_IRQ0);
-
-  in_sighandler = 0;
-}
-#endif
-
-
