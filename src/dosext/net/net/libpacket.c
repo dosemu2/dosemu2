@@ -72,12 +72,14 @@ void GenerateDosnetID(void)
 int OpenNetworkLink(char *name, unsigned short netid)
 {
 	PRIV_SAVE_AREA
-	int s, proto;
+	int s, proto, ret;
 	struct ifreq req;
 	struct sockaddr_ll addr;
 
-	if (config.vnet == VNET_TYPE_TAP)
+	if (config.vnet == VNET_TYPE_TAP) {
+		receive_mode = 6;
 		return tun_alloc(name);
+	}
 
 	proto = htons(netid);
 
@@ -103,6 +105,18 @@ int OpenNetworkLink(char *name, unsigned short netid)
 		close(s);
 		return -1;
 	}
+
+	enter_priv_on();
+	ret = ioctl(s, SIOCGIFFLAGS, &req);
+	leave_priv_setting();
+	if (ret < 0) {
+		close(s);
+		return -1;
+	}
+
+	receive_mode = (req.ifr_flags & IFF_PROMISC) ? 6 :
+		((req.ifr_flags & IFF_BROADCAST) ? 3 : 2);
+
 	return s;
 }
 

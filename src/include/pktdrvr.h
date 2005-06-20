@@ -91,4 +91,6 @@ extern void pkt_receive_async(void);
 extern void pkt_priv_init (void);
 extern void pkt_init (int vec);
 
+extern unsigned short receive_mode;
+
 #endif				/* PKTDRVR_H */

@@ -59,6 +59,9 @@ static void printbuf(char *, struct ethhdr *);
 int pkt_fd=-1, pkt_broadcast_fd=-1, max_pkt_fd;
 static int pktdrvr_installed;
 
+unsigned short receive_mode;
+static unsigned short local_receive_mode;
+
 /* array used by virtual net to keep track of packet types */
 #define MAX_PKT_TYPE_SIZE 10
 struct pkt_type {
@@ -154,6 +157,7 @@ pkt_init(int vec)
     switch (config.vnet) {
       case VNET_TYPE_ETH:
 	strncpy(devname, config.netdev, sizeof(devname) - 1);
+        devname[sizeof(devname) - 1] = 0;
 	add_to_io_select(pkt_fd, 1, pkt_receive_async);
 	break;
 
@@ -461,10 +465,11 @@ pkt_int (void)
 	    HI(dx) = E_BAD_HANDLE;
 	    break;
 	}
-	if (LWORD(ecx) != 3) {			/* only mode 3 supported */
+	if (LWORD(ecx) != receive_mode && LWORD(ecx) != 1) {
 	    HI(dx) = E_BAD_MODE;
 	    break;
 	}
+	local_receive_mode = LWORD(ecx);
 	return 1;
 
     case F_GET_RCV_MODE:
@@ -472,7 +477,7 @@ pkt_int (void)
 	    HI(dx) = E_BAD_HANDLE;
 	    break;
 	}
-	REG(eax) = 3;
+	REG(eax) = local_receive_mode;
 	return 1;
 
     case F_GET_STATS:
@@ -529,6 +534,10 @@ Open_sockets(char *name)
     max_pkt_fd = pkt_fd + 1;
     if (max_pkt_fd <= pkt_broadcast_fd) 
 	max_pkt_fd = pkt_broadcast_fd + 1; 
+
+    local_receive_mode = receive_mode;
+    pd_printf("PKT: detected receive mode %i\n", receive_mode);
+
     return 0;    
 }
 
@@ -611,6 +620,8 @@ out:
 
 void pkt_receive_async(void)
 {
+  if (local_receive_mode == 1)
+    return;
   pic_request(PIC_NET);
 }
 
