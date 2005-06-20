@@ -2793,8 +2793,10 @@ void X_draw_text_cursor(int x, int y, Bit8u attr, int start, int end, Boolean fo
       );
   }
   else {
-    cstart = start * font_height / 16;
-    cend = end * font_height / 16;
+    cstart = ((start + 1) * font_height) / vga.char_height - 1;
+    if (cstart == -1) cstart = 0;
+    cend = ((end + 1) * font_height) / vga.char_height - 1;
+    if (cend == -1) cend = 0;
     XFillRectangle(
       display, mainwindow, gc,
       (shift_x + x * font_width) * w_x_res / x_res,

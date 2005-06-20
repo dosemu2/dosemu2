@@ -177,7 +177,6 @@ static void redraw_cursor(void)
 
 RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end, Boolean focus)
 {
-  int cstart, cend; 
   int i,j;
   int fg = ATTR_FG(attr);
   int len = co * vga.char_width;
@@ -185,10 +184,8 @@ RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end, Boolea
 
   deb = remap_obj.src_image + vga.char_width * x + len *(vga.char_height*  y);
   if (focus) {
-    cstart = start * vga.char_height / 16;
-    cend = end * vga.char_height / 16;
-    deb += len * cstart;
-    for (i = 0; i < cend - cstart + 1; i++) {
+    deb += len * start;
+    for (i = 0; i < end - start + 1; i++) {
       for (j = 0; j < vga.char_width; j++) {
 	*deb++ = fg;
       }
