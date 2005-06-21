@@ -601,9 +601,11 @@ int update_text_screen(void)
 */
 		bp = charbuff;
 		start_x=x;
-		/* don't show selection if the DOS app changed the attr */
-		if (ATTR(oldsp) != ATTR(sp))
+#if CONFIG_SELECTION
+		/* don't show selection if the DOS app changed it */
+		if (SEL_ACTIVE(sp) && *sp != *oldsp)
 		  visible_selection = FALSE;
+#endif
 		attr=XATTR(sp);
 		unchanged=0;         /* counter for unchanged chars */
 		
@@ -621,8 +623,14 @@ int update_text_screen(void)
 			break;
 		      unchanged++;
 		    }
-		    else
+		    else {
 		      unchanged=0;
+#if CONFIG_SELECTION
+		      /* don't show selection if the DOS app changed it */
+		      if (SEL_ACTIVE(sp) && *sp != *oldsp)
+			visible_selection = FALSE;
+#endif
+		    }
 		  } 
 		len=x-start_x-unchanged;
 
