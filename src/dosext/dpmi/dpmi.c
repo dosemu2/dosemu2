@@ -2384,14 +2384,20 @@ static void dpmi_RSP_call(struct sigcontext *scp, int num, int terminating)
 static void dpmi_cleanup(struct sigcontext_struct *scp)
 {
   D_printf("DPMI: cleanup\n");
-  if (in_dpmi==1) {
+  if (in_dpmi == 1) {
     in_win31 = 0;
     mprotect_mapping(MAPPING_DPMI, ldt_buffer,
       PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE);
-    dpmi_free_pool();
+    if (!RSP_num)
+      dpmi_free_pool();
   }
   FreeAllDescriptors();
   free(DPMI_CLIENT.pm_stack);
+  if (!DPMI_CLIENT.RSP_installed) {
+    DPMIfreeAll();
+    free(DPMI_CLIENT.pm_block_root);
+    DPMI_CLIENT.pm_block_root = NULL;
+  }
   cli_blacklisted = 0;
   in_dpmi--;
   if (in_dpmi) {
@@ -2403,6 +2409,10 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
     int tsr, unsigned short tsr_para)
 {
   int i;
+  int have_tsr = tsr && DPMI_CLIENT.RSP_installed;
+
+  /* this is checked in dpmi_cleanup */
+  DPMI_CLIENT.RSP_installed = have_tsr;
 
   /* do this all before doing RSP call */
   in_dpmi_dos_int = 1;
@@ -2425,16 +2435,10 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
       *(unsigned short *)(((char *)(DPMI_CLIENT.CURRENT_PSP<<4))+0x2c) =
              (unsigned long)(GetSegmentBaseAddress(DPMI_CLIENT.CURRENT_ENV_SEL)) >> 4;
 
-  if (!tsr || !DPMI_CLIENT.RSP_installed) {
-    if (DPMI_CLIENT.pm_block_root) {
-      DPMIfreeAll();
-      free(DPMI_CLIENT.pm_block_root);
-    }
-  } else {
+  if (have_tsr) {
     RSP_callbacks[RSP_num].pm_block_root = DPMI_CLIENT.pm_block_root;
     RSP_num++;
   }
-  DPMI_CLIENT.pm_block_root = NULL;
   if (in_dpmi_dos_int) {
     dpmi_cleanup(scp);
   }
@@ -2447,7 +2451,7 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
 
   REG(cs) = DPMI_SEG;
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
-  if (!tsr || !DPMI_CLIENT.RSP_installed || !tsr_para) {
+  if (!have_tsr || !tsr_para) {
     HI(ax) = 0x4c;
     LO(ax) = errcode;
     do_int(0x21);
@@ -2731,7 +2735,7 @@ void dpmi_init(void)
 
   DPMI_CLIENT.is_32 = LWORD(eax) ? 1 : 0;
 
-  if (in_dpmi == 1) {
+  if (in_dpmi == 1 && !RSP_num) {
     dpmi_alloc_pool();
     dpmi_free_memory = dpmi_total_memory;
     DPMI_rm_procedure_running = 0;
