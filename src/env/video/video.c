@@ -161,10 +161,6 @@ void video_close(void) {
     Video->close();
     v_printf("VID: video_close()->Video->close() called\n");
   }
-  if (config.console_video /* && config.vga */) {
-    v_printf("VID: video_close():clear console video\n");
-    clear_console_video();
-  }
 }
 
 /* load <msize> bytes of file <name> starting at offset <foffset>
@@ -425,39 +421,12 @@ video_config_init(void) {
   screen_mask = 1 << (((int)phys_text_base-0xA0000)/4096);
   screen_adr = (void *)virt_text_base;
 
-  if (config.console_video)
-    set_console_video();
-
   video_init();
 
   reserve_video_memory();
-}
-
-static int vga_post_init(void)
-{
-  /* this function sets up the video ram mmaps and initializes
-     vc switch routines */
-
-  WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
-  WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
-  Video_console.init();
-  /* release_perm(); */
-  return 0;
 }
 
 void video_post_init(void)
 {
   if (Video && Video->init) Video->init();
 }
-
-struct video_system Video_graphics = {
-   vga_initialize,
-   vga_post_init,
-   NULL,
-   NULL,
-   NULL,             /* update_screen */
-   NULL,
-   NULL,
-   NULL
-};
-

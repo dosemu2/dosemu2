@@ -21,8 +21,7 @@
 #include "mapping.h"
 #include "bios.h"
 
-inline void
-console_update_cursor(int xpos, int ypos, int blinkflag, int forceflag)
+static void console_update_cursor(void)
 {
   /* This routine updates the state of the cursor, including its cursor
    * position and visibility.  The linux console recognizes the ANSI code 
@@ -39,14 +38,9 @@ console_update_cursor(int xpos, int ypos, int blinkflag, int forceflag)
   
   int li = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
   int co = READ_WORD(BIOS_SCREEN_COLUMNS);
-
-  /* If forceflag is set, then this ensures that the cursor is actually
-   * updated irregardless of its previous state. */
-  if (forceflag) {
-    oldx = -1;
-    oldy = -1;
-    oldblink = !blinkflag;
-  }
+  int xpos = cursor_col;
+  int ypos = cursor_row;
+  int blinkflag = cursor_blink;
 
   /* The cursor is off-screen, so disable its blinking */
   if ((unsigned) xpos >= co || (unsigned) ypos >= li)
@@ -68,41 +62,6 @@ console_update_cursor(int xpos, int ypos, int blinkflag, int forceflag)
   
   /* Save current state of cursor for next call to this function. */
   oldx = xpos; oldy = ypos; oldblink = blinkflag;
-}
-
-static void do_console_update_cursor(void) {
-   console_update_cursor(cursor_col,cursor_row,cursor_blink,0);
-}
-
-void set_console_video(void)
-{
-  /* warning! this must come first! the VT_ACTIVATES which some below
-     * cause set_dos_video() and set_linux_video() to use the modecr
-     * settings.  We have to first find them here.
-     */
-  if (config.vga) {
-    int permtest;
-
-    permtest = set_ioperm(0x3d4, 2, 1);	/* get 0x3d4 and 0x3d5 */
-    permtest |= set_ioperm(0x3da, 1, 1);
-    permtest |= set_ioperm(0x3c0, 2, 1);	/* get 0x3c0 and 0x3c1 */
-    if ((config.chipset == S3) ||
-        (config.chipset == CIRRUS) ||
-        (config.chipset == WDVGA) ||
-        (config.chipset == MATROX)) {
-      permtest |= set_ioperm(0x102, 2, 1);
-      permtest |= set_ioperm(0x2ea, 4, 1);
-    }
-    if (config.chipset == ATI) {
-      permtest |= set_ioperm(0x102, 1, 1);
-      permtest |= set_ioperm(0x1ce, 2, 1);
-      permtest |= set_ioperm(0x2ec, 4, 1);
-    }
-    if ((config.chipset == MATROX) ||
-        (config.chipset == WDVGA)) {
-      permtest |= set_ioperm(0x3de, 2, 1);
-    }
-  }
 }
 
 static int console_post_init(void)
@@ -175,34 +134,16 @@ static int console_post_init(void)
 
 void clear_console_video(void)
 {
+  v_printf("VID: video_close():clear console video\n");
   if (scr_state.current) {
     set_linux_video();
     release_perm();
     put_video_ram();		/* unmap the screen */
   }
 
-  /* XXX - must be current console! */
-
-  if (config.vga) 
-    ioctl(console_fd, KIOCSOUND, 0);	/* turn off any sound */
-  else
-    fprintf(stdout,"\033[?25h");        /* Turn on the cursor */
-
-  if (config.console_video) {
-    k_printf("KBD: Release mouse control\n");
-    ioctl(console_fd, KDSETMODE, KD_TEXT);
-    clear_process_control();
-    /* if the Linux console uses fbcon we can force
-       a complete text redraw by doing round-trip
-       vc switches; otherwise (vgacon) it doesn't hurt */
-    if(!config.detach && config.vga) {
-      int arg;
-      ioctl(console_fd, VT_OPENQRY, &arg);
-      vt_activate(arg);
-      vt_activate(scr_state.console_no);
-      ioctl(console_fd, VT_DISALLOCATE, arg);
-    }
-  }
+  k_printf("KBD: Release mouse control\n");
+  ioctl(console_fd, KDSETMODE, KD_TEXT);
+  clear_process_control();
 }
 
 static int consolesize;
@@ -221,15 +162,21 @@ static int console_init(void)
   return 0;
 }
 
+static void console_close(void)
+{
+  clear_console_video();
+  fprintf(stdout,"\033[?25h\r");      /* Turn on the cursor */
+}
+
 #define console_setmode NULL
 
 struct video_system Video_console = {
    console_init,
    console_post_init,
-   NULL,
+   console_close,
    console_setmode,
    NULL,             /* update_screen */
-   do_console_update_cursor,
+   console_update_cursor,
    NULL,
    NULL              /* handle_events */
 };

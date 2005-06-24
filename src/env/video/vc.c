@@ -223,22 +223,6 @@ SIGRELEASE_call (void)
 
       if (config.console_video)
 	{
-
-#if 0 /* 94/01/12 Why was this here :-( ? */
-	  unsigned short pos;
-
-	  /* Read the cursor position from the 6845 registers. */
-	  /* Must have bios_video_port initialized */
-	  asm volatile ("movw %1,%%dx; movb $0xe,%%al; outb %%al,%%dx; "
-			"incl %%edx; in %%dx,%%al; mov %%al,%%ah; "
-			"decl %%edx; movb $0xf,%%al; outb %%al,%%dx; "
-			"incl %%edx; inb %%dx,%%al; mov %%ax,%0"
-			:"=g" (pos):"m" (READ_WORD(BIOS_VIDEO_PORT)):"%dx", "%ax");
-
-	  /* Let kernel know the cursor location. */
-	  console_update_cursor (pos % 80, pos / 80, 1, 1);
-#endif
-
 	  set_linux_video ();
 	  if (can_do_root_stuff) 
 	    release_perm ();

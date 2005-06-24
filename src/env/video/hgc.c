@@ -446,7 +446,9 @@ static void hga_close(void)
 
   /* The display is in text mode, use the kernel to put the cursor
      at the end of the screen, then scroll up. */
-  fputs("\033[25;80H\n", stdout);
+  fputs("\033[?25h\033[25;80H\n", stdout);
+
+  clear_console_video();
 }
 
 

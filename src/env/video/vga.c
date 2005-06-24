@@ -11,6 +11,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef __linux__
+#include <sys/kd.h>
+#include <sys/vt.h>
+#endif
 
 #include "bios.h"
 #include "emu.h" 
@@ -19,6 +23,7 @@
 #include "video.h"
 #include "vc.h"
 #include "vga.h"
+#include "termio.h"
 
 #include "et4000.h"
 #include "s3.h"
@@ -515,8 +520,39 @@ static void pcivga_init(void)
   }
 }
 
-int vga_initialize(void)
+static void set_console_video(void)
 {
+  /* warning! this must come first! the VT_ACTIVATES which some below
+     * cause set_dos_video() and set_linux_video() to use the modecr
+     * settings.  We have to first find them here.
+     */
+  int permtest;
+
+  permtest = set_ioperm(0x3d4, 2, 1);	/* get 0x3d4 and 0x3d5 */
+  permtest |= set_ioperm(0x3da, 1, 1);
+  permtest |= set_ioperm(0x3c0, 2, 1);	/* get 0x3c0 and 0x3c1 */
+  if ((config.chipset == S3) ||
+      (config.chipset == CIRRUS) ||
+      (config.chipset == WDVGA) ||
+      (config.chipset == MATROX)) {
+    permtest |= set_ioperm(0x102, 2, 1);
+    permtest |= set_ioperm(0x2ea, 4, 1);
+  }
+  if (config.chipset == ATI) {
+    permtest |= set_ioperm(0x102, 1, 1);
+    permtest |= set_ioperm(0x1ce, 2, 1);
+    permtest |= set_ioperm(0x2ec, 4, 1);
+  }
+  if ((config.chipset == MATROX) ||
+      (config.chipset == WDVGA)) {
+    permtest |= set_ioperm(0x3de, 2, 1);
+  }
+}
+
+static int vga_initialize(void)
+{
+  set_console_video();
+
   register_hardware_ram('v', GRAPH_BASE, GRAPH_SIZE);
 
   linux_regs.mem = NULL;
@@ -609,6 +645,45 @@ int vga_initialize(void)
 
   return 0;
 }
+
+static int vga_post_init(void)
+{
+  /* this function sets up the video ram mmaps and initializes
+     vc switch routines */
+
+  WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
+  WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
+  Video_console.init();
+  /* release_perm(); */
+  return 0;
+}
+
+static void vga_close(void)
+{
+  clear_console_video();
+  /* if the Linux console uses fbcon we can force
+     a complete text redraw by doing round-trip
+     vc switches; otherwise (vgacon) it doesn't hurt */
+  if(!config.detach) {
+    int arg;
+    ioctl(console_fd, VT_OPENQRY, &arg);
+    vt_activate(arg);
+    vt_activate(scr_state.console_no);
+    ioctl(console_fd, VT_DISALLOCATE, arg);
+  }
+  ioctl(console_fd, KIOCSOUND, 0);	/* turn off any sound */
+}
+
+struct video_system Video_graphics = {
+   vga_initialize,
+   vga_post_init,
+   vga_close,
+   NULL,
+   NULL,             /* update_screen */
+   NULL,
+   NULL,
+   NULL
+};
 
 #if 0
 /* Store current actuall EGA/VGA regs */
