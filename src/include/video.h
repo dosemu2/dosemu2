@@ -13,7 +13,7 @@ typedef unsigned char byte;
 
 typedef struct { byte end, start; } cshape;
 
-extern void gettermcap(int);
+extern void gettermcap(int,int *, int *);
 
 /* if you set this to 1, the video memory dirty bit will be checked 
    before updating the screen.
@@ -130,8 +130,6 @@ EXTERN ushort *prev_screen;  /* pointer to currently displayed screen   */
 EXTERN int video_mode INIT(0);
 EXTERN int video_page INIT(0); 
 EXTERN int char_blink INIT(1);
-EXTERN int co INIT(80);
-EXTERN int li INIT(25);
 
 EXTERN int cursor_col INIT(0);
 EXTERN int cursor_row INIT(0);
@@ -260,14 +258,13 @@ enum {
 #define GET_TITLE_APPNAME	10
 #define CHG_FULLSCREEN	11
 
-EXTERN void get_screen_size (void);
-EXTERN void set_video_bios_size(void);
 EXTERN void init_vga_card(void);
 EXTERN void scr_state_init(void);
 
 extern void set_console_video(void);
 extern void clear_console_video(void);
 extern inline void console_update_cursor (int, int, int, int);
+extern int console_size(void);
 extern int load_file(char *name, int foffset, char *mstart, int msize);
 
 

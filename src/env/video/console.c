@@ -19,6 +19,7 @@
 #include "video.h"
 #include "vc.h"
 #include "mapping.h"
+#include "bios.h"
 
 inline void
 console_update_cursor(int xpos, int ypos, int blinkflag, int forceflag)
@@ -36,6 +37,9 @@ console_update_cursor(int xpos, int ypos, int blinkflag, int forceflag)
   static int oldy = -1;
   static int oldblink = 0;
   
+  int li = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
+  int co = READ_WORD(BIOS_SCREEN_COLUMNS);
+
   /* If forceflag is set, then this ensures that the cursor is actually
    * updated irregardless of its previous state. */
   if (forceflag) {
@@ -201,9 +205,19 @@ void clear_console_video(void)
   }
 }
 
+static int consolesize;
+
+int console_size(void)
+{
+  return consolesize;
+}
+
 static int console_init(void)
 {
-  register_hardware_ram('v', phys_text_base, TEXT_SIZE);
+  int co, li;
+  gettermcap(0, &co, &li);
+  consolesize = TEXT_SIZE(co,li);
+  register_hardware_ram('v', phys_text_base, TEXT_SIZE(co,li));
   return 0;
 }
 

@@ -102,8 +102,6 @@ int SDL_init(void)
   int have_true_color;
 
   use_bitmap_font = 1;
-  co = 80; li = 25;
-  set_video_bios_size();		/* make it stick */
   if (SDL_Init(SDL_INIT_VIDEO| SDL_INIT_NOPARACHUTE) < 0) {
     error("SDL: %s\n", SDL_GetError());
     leavedos(99);
@@ -143,7 +141,7 @@ int SDL_init(void)
     leavedos(99);
   }
 
-  SDL_set_videomode(TEXT, co, li); 
+  SDL_set_videomode(TEXT, CO, LI); 
    
   /* SDL_APPACTIVE event does not occur when an application window is first
    * created.
@@ -249,8 +247,6 @@ int SDL_set_text_mode(int tw, int th, int w ,int h)
   /* We only have fonts by 8 x y pixels, so we just have to choose y */
   font_width = vga.char_width;
   font_shift = (w / tw ) - vga.char_width;
-  co = tw;
-  li = th;
   /* re adjust h */
   h = vga.char_height * th;
   resize_text_mapper(SDL_image_mode);

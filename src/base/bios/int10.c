@@ -292,7 +292,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
 
   case '\n':         /* Newline */
     /* Color newline */
-    newline_att = gfx_mode ? 0 : ATTR(SCREEN_ADR(s) + ypos*co + xpos);
+    newline_att = gfx_mode ? 0 : ATTR(SCREEN_ADR(s,co,li) + ypos*co + xpos);
     ypos++;
     xpos = 0;                  /* EDLIN needs this behavior */
     break;
@@ -319,7 +319,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
     }
     else
     {
-      dst = (unsigned char *) (SCREEN_ADR(s) + ypos*co + xpos);
+      dst = (unsigned char *) (SCREEN_ADR(s,co,li) + ypos*co + xpos);
       WRITE_BYTE(dst, ch);
       if(attr != -1) WRITE_BYTE(dst + 1, attr);
       set_dirty(s);
@@ -364,10 +364,10 @@ clear_screen(int s, int att)
   li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
   co= READ_WORD(BIOS_SCREEN_COLUMNS);
 
-  v_printf("INT10: cleared screen: page %d, attr 0x%02x, screen_adr %p\n", s, att, SCREEN_ADR(s));
+  v_printf("INT10: cleared screen: page %d, attr 0x%02x, screen_adr %p\n", s, att, SCREEN_ADR(s,co,li));
   if (s > max_page) return;
   
-  for (schar = SCREEN_ADR(s), 
+  for (schar = SCREEN_ADR(s,co,li), 
        lx = 0; lx < (co * li); 
 /*       *(schar++) = blank, lx++); */
        WRITE_WORD(schar++, blank), lx++);
@@ -393,6 +393,7 @@ static boolean X_set_video_mode(int mode) {
   int clear_mem = 1;
   int adjust_font_size = 0;
   unsigned u;
+  int co, li;
 
   if (config.cardtype == CARD_NONE) {
     i10_msg("set_video_mode: no video!\n");
@@ -564,12 +565,12 @@ static boolean X_set_video_mode(int mode) {
 
 boolean set_video_mode(int mode) {
   int type=0;
-  int old_video_mode,oldco;
+  int old_video_mode,oldco,co,li;
 
   if (Video->update_screen) return X_set_video_mode(mode);
   i10_msg("set_video_mode: mode 0x%02x\n",mode);
   
-  oldco = co;
+  co = oldco = READ_WORD(BIOS_SCREEN_COLUMNS);
   old_video_mode = video_mode;
   video_mode=mode&0x7f;
 
@@ -809,7 +810,7 @@ void int10_old(void) /* with dualmon */
 
   li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
   co= READ_WORD(BIOS_SCREEN_COLUMNS);
-  page_size = TEXT_SIZE;
+  page_size = TEXT_SIZE(co,li);
 
   if (debug_level('v') >= 3)
     {
@@ -899,7 +900,7 @@ void int10_old(void) /* with dualmon */
 
       WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, video_page = page);
       WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, page_size * page);
-      screen_adr = SCREEN_ADR(page);
+      screen_adr = SCREEN_ADR(page,co,li);
       screen_mask = 1 << page;
       set_dirty(page);
       cursor_col = get_bios_cursor_x_position(page);
@@ -923,7 +924,7 @@ void int10_old(void) /* with dualmon */
       v_printf("ERROR: read char from bad page %d\n", page);
       break;
     }
-    sm = SCREEN_ADR(page);
+    sm = SCREEN_ADR(page,co,li);
     REG(eax) = sm[co * get_bios_cursor_y_position(page) 
 		     + get_bios_cursor_x_position(page)];
     break;
@@ -940,7 +941,7 @@ void int10_old(void) /* with dualmon */
       int n;
 
       page = HI(bx);
-      sadr = (u_short *) SCREEN_ADR(page) 
+      sadr = (u_short *) SCREEN_ADR(page,co,li) 
 	     + get_bios_cursor_y_position(page) * co
 	     + get_bios_cursor_x_position(page);
       n = LWORD(ecx);
@@ -977,7 +978,7 @@ void int10_old(void) /* with dualmon */
       page = HI(bx);
       x = LO(dx);
       y = HI(dx);
-      sadr = (u_short *) SCREEN_ADR(page) + y*co + x;
+      sadr = (u_short *) SCREEN_ADR(page,co,li) + y*co + x;
       n = LWORD(ecx);
       src = SEG_ADR((char*),es,bp);
       
@@ -990,7 +991,7 @@ void int10_old(void) /* with dualmon */
           if (*src <= 0x1a) {
             switch(*src) {
               case 0x0d :
-                sadr = (u_short *) SCREEN_ADR(page) + y*co, x = n;
+                sadr = (u_short *) SCREEN_ADR(page,co,li) + y*co, x = n;
                 src++;
                 break;
               case 0x0a :
@@ -1366,7 +1367,7 @@ void int10_new(void) /* with X but without dualmon */
 
   li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
   co= READ_WORD(BIOS_SCREEN_COLUMNS);
-  page_size = TEXT_SIZE;
+  page_size = TEXT_SIZE(co,li);
 
   if(HI(ax) > 0x0f)	// EVIL hack! Remove it later!!!
   if (debug_level('v') >= 3)
@@ -1468,7 +1469,7 @@ void int10_new(void) /* with X but without dualmon */
 
       WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, video_page = page);
       WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, page_size * page);
-      screen_adr = SCREEN_ADR(page);
+      screen_adr = SCREEN_ADR(page,co,li);
       screen_mask = 1 << page;
       set_dirty(page);		// ??? evil stuff: what about xdos?
       cursor_col = get_bios_cursor_x_position(page);
@@ -1511,7 +1512,7 @@ void int10_new(void) /* with X but without dualmon */
         break;
       }
       if(using_text_mode()) {
-        sm = SCREEN_ADR(page);
+        sm = SCREEN_ADR(page,co,li);
         LWORD(eax) = sm[co * get_bios_cursor_y_position(page)
                    + get_bios_cursor_x_position(page)];
       }
@@ -1546,7 +1547,7 @@ void int10_new(void) /* with X but without dualmon */
         int n;
 
         page = HI(bx);
-        sadr = (u_short *) SCREEN_ADR(page) 
+        sadr = (u_short *) SCREEN_ADR(page,co,li) 
   	     + get_bios_cursor_y_position(page) * co
   	     + get_bios_cursor_x_position(page);
         n = LWORD(ecx);

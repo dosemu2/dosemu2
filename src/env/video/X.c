@@ -661,8 +661,6 @@ int X_init()
 
   X_printf("X: X_init\n");
 
-  co = 80; li = 25;
-
   /* Open X connection. */
   display_name = config.X_display ? config.X_display : getenv("DISPLAY");
   display = XKBOpenDisplay(display_name);
@@ -714,8 +712,8 @@ int X_init()
   if (font == NULL)
     font_width = 9;
 
-  saved_w_x_res = w_x_res = x_res = co * font_width;
-  saved_w_y_res = w_y_res = y_res = li * font_height;
+  saved_w_x_res = w_x_res = x_res = CO * font_width;
+  saved_w_y_res = w_y_res = y_res = LI * font_height;
 
   s = getenv("DOSEMU_WINDOW_ID");
   if(s && (i = strtol(s, NULL, 0)) > 0) {
@@ -863,7 +861,7 @@ int X_init()
   }
 
   /* start with some standard text mode */
-  X_set_videomode(TEXT, co, li);
+  X_set_videomode(TEXT, CO, LI);
   mouse_reset_to_current_video_mode();
 
   if (config.X_fullscreen)
@@ -2907,14 +2905,10 @@ struct mouse_client Mouse_X =  {
 int x_to_col(int x)
 {
   int col = x_res*(x-shift_x)/font_width/w_x_res;
-  if (font == NULL) {
-    li = vga.text_height;
-    co = vga.text_width;
-  }
   if (col < 0)
     col = 0;
-  else if (col >= co)
-    col = co-1;
+  else if (col >= vga.text_width)
+    col = vga.text_width-1;
   return(col);
 }
 
@@ -2925,14 +2919,10 @@ int x_to_col(int x)
 int y_to_row(int y)
 {
   int row = y_res*(y-shift_y)/font_height/w_y_res;
-  if (font == NULL) {
-    li = vga.text_height;
-    co = vga.text_width;
-  }
   if (row < 0)
     row = 0;
-  else if (row >= li)
-    row = li-1;
+  else if (row >= vga.text_height)
+    row = vga.text_height-1;
   return(row);
 }
 

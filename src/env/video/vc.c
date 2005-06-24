@@ -313,7 +313,7 @@ static void unmap_video_ram(int copyback)
   int cap = MAPPING_VC | MAPPING_LOWMEM;
 
   if (!config.vga) {
-    size = TEXT_SIZE;
+    size = console_size();
     base = scr_state.virt_address;
   }
   if (copyback) cap |= MAPPING_COPYBACK;
@@ -332,7 +332,7 @@ static void map_video_ram(void)
   if (!config.vga) {
     pbase = (char *)phys_text_base; /* physical page address    */
     vbase = scr_state.virt_address; /* new virtual page address */
-    ssize = TEXT_SIZE;
+    ssize = console_size();
     /* this is used for page switching */
     cap |= MAPPING_COPYBACK;
   }
@@ -361,13 +361,13 @@ void init_get_video_ram(int waitflag)
   size_t size = GRAPH_SIZE;
   char *base = (char *) GRAPH_BASE;
   if (!config.vga) {
-    size = TEXT_SIZE;
+    size = console_size();
     base = (char *)phys_text_base;
   }
   if (waitflag == WAIT)
     wait_for_active_vc();
   scr_state.pageno = 0;
-  scr_state.virt_address = PAGE_ADDR(scr_state.pageno);
+  scr_state.virt_address = (void *)virt_text_base;
   scr_state.phys_address = base;
   scr_state.mapped = 1;
   /* mapping is done later in map_hardware_ram */
@@ -388,13 +388,8 @@ void get_video_ram (int waitflag)
   page = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
   if (!scr_state.mapped && config.vga
       && READ_BYTE(BIOS_VIDEO_MODE) == 3 && page < 8) {
-    size_t size;
-    li = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1);
-    co = READ_WORD(BIOS_SCREEN_COLUMNS);
-    size = TEXT_SIZE * 8;
-    if (size > 32768) size = 32768;
     if (dosemu_regs.mem)
-      memcpy (dosemu_regs.mem, PAGE_ADDR(0), size);
+      memcpy (dosemu_regs.mem, (void *)virt_text_base, 32768);
     /* else error("ERROR: no dosemu_regs.mem!\n"); */
   }
 
@@ -402,7 +397,11 @@ void get_video_ram (int waitflag)
     unmap_video_ram(1);
 
   scr_state.pageno = page;
-  scr_state.virt_address = PAGE_ADDR(scr_state.pageno);
+  if (!config.vga) {
+    int li = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
+    int co = READ_WORD(BIOS_SCREEN_COLUMNS);
+    scr_state.virt_address = (void*)SCREEN_ADR(scr_state.pageno,co,li);
+  }
   map_video_ram();
 }
 
@@ -412,14 +411,9 @@ void put_video_ram (void)
     v_printf ("put_video_ram called\n");
     unmap_video_ram(!config.vga);
     if (!scr_state.mapped && config.vga) {
-      size_t size;
-      li = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1);
-      co = READ_WORD(BIOS_SCREEN_COLUMNS);
-      size = TEXT_SIZE * 8;
-      if (size > 32768) size = 32768;
       if (dosemu_regs.mem && READ_BYTE(BIOS_VIDEO_MODE) == 3 &&
 	  READ_BYTE(BIOS_CURRENT_SCREEN_PAGE) < 8)
-	memcpy (PAGE_ADDR(0), dosemu_regs.mem, size);
+	memcpy ((void*)virt_text_base, dosemu_regs.mem, 32768);
     }
   }
   else

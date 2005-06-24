@@ -111,14 +111,12 @@ static int video_init(void)
 
   if (Video->update_screen) {
      /* allocate screen buffer for non-console video compare speedup */
-     int co_ = co;
-     if (co_ < MAX_COLUMNS) co_ = MAX_COLUMNS; /* sanity check */
-     prev_screen = (ushort *)malloc(co_ * MAX_LINES * 2);
+     prev_screen = (ushort *)malloc(MAX_COLUMNS * MAX_LINES * sizeof(ushort));
      if (prev_screen==NULL) {
         error("could not malloc prev_screen\n");
         leavedos(99);
      }
-     v_printf("SCREEN saves at: %p of %d size\n", prev_screen, co * li * 2);
+     v_printf("SCREEN saves at: %p of %d size\n", prev_screen, MAX_COLUMNS * MAX_LINES * sizeof(ushort));
 /* 
  * DANG_BEGIN_REMARK
  * Here the sleeping lion will be awoken and eat much of CPU time !!!
@@ -152,7 +150,7 @@ scr_state_init(void){
   scr_state.vt_requested = 0;
   scr_state.mapped = 0;
   scr_state.pageno = 0;
-  scr_state.virt_address = PAGE_ADDR(0);
+  scr_state.virt_address = (void *)virt_text_base;
   /* Assume the screen is initially mapped. */
   scr_state.current = 1;
 }
@@ -279,47 +277,47 @@ reserve_video_memory(void)
   memcheck_reserve('v', graph_base, graph_size);
 }
 
-void 
-set_video_bios_size(void){
-  WRITE_WORD(BIOS_SCREEN_COLUMNS, co);     /* chars per line */
-  WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1); /* lines on screen - 1 */
-  WRITE_WORD(BIOS_VIDEO_MEMORY_USED, TEXT_SIZE);   /* size of video regen area in bytes */
-}
-
 void
-gettermcap(int i)
+gettermcap(int i, int *co, int *li)
 {
   struct winsize ws;		/* buffer for TIOCSWINSZ */
 
-  li = LI;
-  co = CO;
   if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) >= 0) {
-    li = ws.ws_row;
-    co = ws.ws_col;
+    *li = ws.ws_row;
+    *co = ws.ws_col;
   }
 
-  if (co > MAX_COLUMNS || li > MAX_LINES) {
+  if (*co > MAX_COLUMNS || *li > MAX_LINES) {
     error("Screen size is too large: %dx%d, max is %dx%d\n",
-      co, li, MAX_COLUMNS, MAX_LINES);
+      *co, *li, MAX_COLUMNS, MAX_LINES);
     leavedos(0x63);
   }
 
-  if (li == 0 || co == 0) {
-    error("unknown window sizes li=%d  co=%d, setting to 80x25\n", li, co);
-    li = LI;
-    co = CO;
+  if (*li == 0 || *co == 0) {
+    error("unknown window sizes li=%d  co=%d, setting to 80x25\n", *li, *co);
+    *li = LI;
+    *co = CO;
   }
   else
-    v_printf("VID: Setting windows size to li=%d, co=%d\n", li, co);
+    v_printf("VID: Setting windows size to li=%d, co=%d\n", *li, *co);
 }
 
 void video_mem_setup(void)
 {
+  int co, li;
+
   if (config.vga)
     /* the real bios will set all this ... */
     return;
 
-  set_video_bios_size();
+  li = LI;
+  co = CO;
+  if (!config.X)
+    gettermcap(0, &co, &li);
+
+  WRITE_WORD(BIOS_SCREEN_COLUMNS, co);     /* chars per line */
+  WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1); /* lines on screen - 1 */
+  WRITE_WORD(BIOS_VIDEO_MEMORY_USED, TEXT_SIZE(co,li));   /* size of video regen area in bytes */
 
   WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0x0);	/* Current Screen Page */
   WRITE_WORD(BIOS_CURSOR_SHAPE, (configuration&MDA_CONF_SCREEN_MODE)?0x0A0B:0x0607);
@@ -351,8 +349,6 @@ void video_mem_setup(void)
 
 void
 video_config_init(void) {
-  gettermcap(0);
-
   switch (config.cardtype) {
   case CARD_MDA:
     {
@@ -427,7 +423,7 @@ video_config_init(void) {
   }
   video_page = 0;
   screen_mask = 1 << (((int)phys_text_base-0xA0000)/4096);
-  screen_adr = SCREEN_ADR(0);
+  screen_adr = (void *)virt_text_base;
 
   if (config.console_video)
     set_console_video();

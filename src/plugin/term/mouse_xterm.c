@@ -14,6 +14,7 @@
 #include "env_term.h"
 #include "mouse.h"
 #include "utilities.h"
+#include "vgaemu.h"
 
 /* XTERM MOUSE suport by M.Laak */
 void xtermmouse_get_event (Bit8u **kbp, int *kbcount)
@@ -28,7 +29,7 @@ void xtermmouse_get_event (Bit8u **kbp, int *kbcount)
 
 		x_pos = (*kbp)[1] - 32;
 		y_pos = (*kbp)[2] - 32;
-		mouse_move_absolute(x_pos-1, y_pos-1, co, li);
+		mouse_move_absolute(x_pos-1, y_pos-1, vga.text_width, vga.text_height);
 		m_printf("XTERM MOUSE: movement (click follows) detected to pos x=%d: y=%d\n", x_pos, y_pos);
 
 		/* Variable btn has following meaning: */

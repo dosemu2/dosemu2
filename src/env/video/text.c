@@ -118,18 +118,15 @@ static void restore_cell(int x, int y)
 {
   Bit16u *sp, *oldsp;
   u_char c;
+  int co;
 
   /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
   if(vga.mode_class == GRAPH) return;
 
-  if (use_bitmap_font) {
-    li = vga.text_height;
-    co = vga.scan_len / 2;
-  }
-  
   /* don't draw it if it's out of bounds */
-  if(y < 0 || y >= li || x < 0 || x >= co) return;
+  if(y < 0 || y >= vga.text_height || x < 0 || x >= vga.text_width) return;
 
+  co = vga.scan_len / 2;
   sp = screen_adr + y * co + x;
   oldsp = prev_screen + y * co + x;
   c = XCHAR(sp);
@@ -144,12 +141,15 @@ static void restore_cell(int x, int y)
  */
 static void draw_cursor(int x, int y)
 {  
+  int co;
+
   /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
   if(vga.mode_class == GRAPH) return;
 
   /* don't draw it if it's out of bounds */
-  if(cursor_row < 0 || cursor_row >= li) return;
-  if(cursor_col < 0 || cursor_col >= co) return;
+  if(cursor_row < 0 || cursor_row >= vga.text_height) return;
+  if(cursor_col < 0 || cursor_col >= vga.text_width) return;
+  co = vga.scan_len / 2;
   if(blink_state || !have_focus)
     Text->Draw_cursor(cursor_col, cursor_row, XATTR(screen_adr + y * co + x),
 		      CURSOR_START(cursor_shape), CURSOR_END(cursor_shape),
@@ -179,7 +179,7 @@ RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end, Boolea
 {
   int i,j;
   int fg = ATTR_FG(attr);
-  int len = co * vga.char_width;
+  int len = vga.scan_len / 2 * vga.char_width;
   unsigned char *  deb;
 
   deb = remap_obj.src_image + vga.char_width * x + len *(vga.char_height*  y);
@@ -220,10 +220,6 @@ void reset_redraw_text_screen(void)
     if (vga.scan_len > MAX_COLUMNS * 2) vga.scan_len = MAX_COLUMNS * 2;
     if (vga.text_width > MAX_COLUMNS  ) vga.text_width = MAX_COLUMNS;
     if (vga.text_height > MAX_LINES   ) vga.text_height = MAX_LINES;
-  }
-  if (2 * co * li > 65535) {
-    if (co > MAX_COLUMNS) co = MAX_COLUMNS;
-    if (li > MAX_LINES  ) li = MAX_LINES;
   }
   MEMCPY_2UNIX(prev_screen, screen_adr, vga.scan_len * vga.text_height);
 }
@@ -283,12 +279,10 @@ void redraw_text_screen()
       Text->Resize_text_screen();
     }
     vga.reconfig.mem = 0;
-    co = vga.text_width;
-    li = vga.text_height;
   }
 
-  if(co > MAX_COLUMNS) {
-    x_msg("X_redraw_text_screen: unable to handle %d colums\n", co);
+  if(vga.text_width > MAX_COLUMNS) {
+    x_msg("X_redraw_text_screen: unable to handle %d colums\n", vga.text_width);
     return;
   }
 
@@ -302,7 +296,7 @@ void redraw_text_screen()
   sp = screen_adr;
   oldsp = prev_screen;
 
-  for(y = 0; y < li; y++) {
+  for(y = 0; y < vga.text_height; y++) {
     x = 0;
     do {	/* scan in a string of chars of the same attribute */
       bp = charbuff; start_x = x; attr = XATTR(sp);
@@ -310,14 +304,12 @@ void redraw_text_screen()
       do {	/* conversion of string to X */
         *oldsp++ = XREAD_WORD(sp); *bp++ = XCHAR(sp);
         sp++; x++;
-      } while(XATTR(sp) == attr && x < co);
+      } while(XATTR(sp) == attr && x < vga.text_width);
 
       draw_string(start_x, y, charbuff, x - start_x, attr);
-    } while(x < co);
-    if (co * 2 < vga.scan_len) {
-      sp += vga.scan_len / 2 - co;
-      oldsp += vga.scan_len / 2 - co;
-    }
+    } while(x < vga.text_width);
+    sp += vga.scan_len / 2 - vga.text_width;
+    oldsp += vga.scan_len / 2 - vga.text_width;
   }
 
   reset_redraw_text_screen();
@@ -503,7 +495,7 @@ int update_text_screen(void)
   Bit16u *sp, *oldsp;
   u_char charbuff[MAX_COLUMNS], *bp;
   int x, y;	/* X and Y position of character being updated */
-  int start_x, len, unchanged;
+  int start_x, len, unchanged, co;
   Bit8u attr;
 
   static int yloop = -1;
@@ -511,11 +503,6 @@ int update_text_screen(void)
   int numscan = 0;         /* Number of lines scanned. */
   int numdone = 0;         /* Number of lines actually updated. */
 
-  if (use_bitmap_font) {
-    li = vga.text_height;
-    co = vga.text_width;
-  }
-  
   refresh_text_palette();
 
   if(vga.reconfig.display) {
@@ -540,8 +527,8 @@ int update_text_screen(void)
 	lines = config.X_updatelines;
 	if (lines < 2) 
 	  lines = 2;
-	else if (lines > li)
-	  lines = li;
+	else if (lines > vga.text_height)
+	  lines = vga.text_height;
 
   /* The highest priority is given to the current screen row for the
    * first iteration of the loop, for maximum typing response.  
@@ -549,7 +536,7 @@ int update_text_screen(void)
    * can be given a different value during the loop.
    */
 	y = cursor_row;
-	if ((y < 0) || (y >= li)) 
+	if ((y < 0) || (y >= vga.text_height)) 
 	  y = -1;
 
 /*  X_printf("X: X_update_screen, co=%d, li=%d, yloop=%d, y=%d, lines=%d\n",
@@ -558,7 +545,8 @@ int update_text_screen(void)
   /* The following loop scans lines on the screen until the maximum number
    * of lines have been updated, or the entire screen has been scanned.
    */
-	while ((numdone < lines) && (numscan < li)) 
+	co = vga.scan_len / 2;
+	while ((numdone < lines) && (numscan < vga.text_height)) 
 	  {
     /* The following sets the row to be scanned and updated, if it is not
      * the first iteration of the loop, or y has an invalid value from
@@ -566,19 +554,15 @@ int update_text_screen(void)
      */
 	    if ((numscan > 0) || (y < 0)) 
 	      {
-		yloop = (yloop+1) % li;
+		yloop = (yloop+1) % vga.text_height;
 		if (yloop == cursor_row)
-		  yloop = (yloop+1) % li;
+		  yloop = (yloop+1) % vga.text_height;
 		y = yloop;
 	      }
 	    numscan++;
 	    
 	    sp = screen_adr + y*co;
 	    oldsp = prev_screen + y*co;
-	    if (use_bitmap_font || co * 2 < vga.scan_len) {
-	      sp = screen_adr + y * vga.scan_len / 2;
-	      oldsp = prev_screen + y * vga.scan_len / 2;
-	    }
 
 	    x=0;
 	    do 
@@ -587,7 +571,7 @@ int update_text_screen(void)
 		start_x = x;
 		while (XREAD_WORD(sp)==*oldsp) {
 		  sp++; oldsp++; x++;
-		  if (x==co) {
+		  if (x==vga.text_width) {
 		    if (start_x == 0)
 		      goto chk_cursor;
 		    else
@@ -616,7 +600,7 @@ int update_text_screen(void)
 		    sp++; 
 		    x++;
 
-		    if ((XATTR(sp) != attr) || (x == co))
+		    if ((XATTR(sp) != attr) || (x == vga.text_width))
 		      break;
 		    if (XREAD_WORD(sp) == *oldsp) {
 		      if (unchanged > MAX_UNCHANGED) 
@@ -646,7 +630,7 @@ int update_text_screen(void)
 /* old cursor was overwritten */
 		  }
 	      } 
-	    while(x<co);
+	    while(x<vga.text_width);
 line_done:
 /* Increment the number of successfully updated lines counter */
 	    numdone++;
@@ -664,8 +648,7 @@ chk_cursor:
 	
 	if (numdone) 
 	  {
-            if ((use_bitmap_font && numscan==vga.text_height) ||
-                (!use_bitmap_font && numscan==li))
+            if (numscan==vga.text_height)
               return 1;     /* changed, entire screen updated */
             else
               return 2;     /* changed, part of screen updated */
@@ -713,10 +696,7 @@ void text_gain_focus()
  */
 static void calculate_selection(void)
 {
-  if (use_bitmap_font) {
-    li = vga.text_height;
-    co = vga.scan_len / 2;
-  }
+  int co = vga.scan_len / 2;
   if ((sel_end_row < sel_start_row) || 
     ((sel_end_row == sel_start_row) && (sel_end_col < sel_start_col)))
   {
@@ -832,11 +812,7 @@ static void save_selection(int col1, int row1, int col2, int row2)
   u_char *sel_text_latin;
   size_t sel_text_bytes;
   u_char *p;
-
-  if (use_bitmap_font) {
-    li = vga.text_height;
-    co = vga.scan_len / 2;
-  }
+  int co = vga.scan_len / 2;
 
   sel_text_latin = sel_text = malloc((row2-row1+1)*(co+1)+2);
   
@@ -844,14 +820,14 @@ static void save_selection(int col1, int row1, int col2, int row2)
   for (row = row1; (row <= row2); row++)
   {
     line_start_col = ((row == row1) ? col1 : 0);
-    line_end_col = ((row == row2) ? col2 : co-1);
+    line_end_col = ((row == row2) ? col2 : vga.text_width-1);
     p = sel_text_latin;
     for (col = line_start_col; (col <= line_end_col); col++)
     {
       *p++ = XCHAR(screen_adr+row*co+col);
     }
     /* Remove end-of-line spaces and add a newline. */
-    if (col == co)
+    if (col == vga.text_width)
     { 
       p--;
       while ((*p == ' ') && (p > sel_text_latin))
@@ -899,7 +875,7 @@ static void save_selection(int col1, int row1, int col2, int row2)
 
 static void save_selection(int col1, int row1, int col2, int row2)
 {
-	int row, col, line_start_col, line_end_col;
+	int row, col, line_start_col, line_end_col, co;
 	u_char *sel_text_dos, *sel_text_latin, *sel_text_ptr, *prev_sel_text_latin;
 	size_t sel_space, sel_text_bytes;
 	u_char *p;
@@ -913,7 +889,8 @@ static void save_selection(int col1, int row1, int col2, int row2)
 	init_charset_state(&video_state, video_charset);
 	init_charset_state(&paste_state, paste_charset);
 	
-	p = sel_text_dos = malloc(co);
+	co = vga.scan_len / 2;
+	p = sel_text_dos = malloc(vga.text_width);
 	sel_space = (row2-row1+1)*(co+1)*MB_LEN_MAX+1;
 	sel_text_latin = sel_text = malloc(sel_space);
   
@@ -922,7 +899,7 @@ static void save_selection(int col1, int row1, int col2, int row2)
 	{
 		prev_sel_text_latin = sel_text_latin;
 		line_start_col = ((row == row1) ? col1 : 0);
-		line_end_col = ((row == row2) ? col2 : co-1);
+		line_end_col = ((row == row2) ? col2 : vga.text_width-1);
 		p = sel_text_ptr = sel_text_dos;
 		for (col = line_start_col; (col <= line_end_col); col++)
 		{
@@ -951,7 +928,7 @@ static void save_selection(int col1, int row1, int col2, int row2)
 			sel_space -= result;
 		}
 		/* Remove end-of-line spaces and add a newline. */
-		if (col == co)
+		if (col == vga.text_width)
 		{ 
 			sel_text_latin--;
 			while ((*sel_text_latin == ' ') && (sel_text_latin > prev_sel_text_latin)) {
@@ -986,13 +963,14 @@ static void save_selection(int col1, int row1, int col2, int row2)
  */
 static void save_selection_data(void)
 {
-  int col1, row1, col2, row2;
+  int col1, row1, col2, row2, co;
 
   if ((sel_end-sel_start) < 0)
   {
     visible_selection = FALSE;
     return;
   }
+  co = vga.scan_len / 2;
   row1 = (sel_start-screen_adr)/co;
   row2 = (sel_end-screen_adr)/co;
   col1 = (sel_start-screen_adr)%co;

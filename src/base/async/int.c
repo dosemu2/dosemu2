@@ -1594,7 +1594,9 @@ static int can_revector_int21(int i)
 
 static void do_print_screen(void) {
 int x_pos, y_pos;
-ushort *base=SCREEN_ADR(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+int li = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
+int co = READ_WORD(BIOS_SCREEN_COLUMNS);
+ushort *base=SCREEN_ADR(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE),co,li);
     g_printf("PrintScreen: base=%p, lines=%i columns=%i\n", base, li, co);
     printer_open(0);
     for (y_pos=0; y_pos < li; y_pos++) {

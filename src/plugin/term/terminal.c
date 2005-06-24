@@ -128,7 +128,7 @@ static int Columns = 80;
 /* sliding window for terminals < 25 lines */
 static int DOSemu_Terminal_Scroll_Min = 0;
 
-void get_screen_size (void)
+static void get_screen_size (void)
 {
   struct winsize ws;		/* buffer for TIOCSWINSZ */
 
@@ -136,6 +136,12 @@ void get_screen_size (void)
    SLtt_Screen_Cols = 0;
    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) >= 0) 
      {
+        if (ws.ws_row > MAX_LINES || ws.ws_col > MAX_COLUMNS)
+	  {
+	    error("Screen size is too large: %dx%d, max is %dx%d\n",
+		  ws.ws_col, ws.ws_row, MAX_COLUMNS, MAX_LINES);
+	    leavedos(0x63);
+	  }
 	SLtt_Screen_Rows = ws.ws_row;
 	SLtt_Screen_Cols = ws.ws_col;
      }
@@ -298,7 +304,7 @@ static int term_change_config(unsigned item, void *buf)
 static void sigwinch(int sig)
 {
   restore_eflags_fs_gs();
-  gettermcap(sig);
+  get_screen_size();
 }
 
 #if SLANG_VERSION < 20000
@@ -342,16 +348,6 @@ static int terminal_initialize(void)
 
    get_screen_size ();
 
-   /* Now set the variables li and co back to their dos defaults. */
-
-#if 0
-   if (li < 25)
-     {
-        li = Rows;
-        co = Columns;
-     }
-#endif
-
    /* respond to resize events unless we're running on the Linux console
       with raw keyboard: then SIGWINCH = SIG_RELEASE ! */
    if (!config.console_keyb) {
@@ -360,7 +356,7 @@ static int terminal_initialize(void)
 
    /* initialize VGA emulator */
    use_bitmap_font = FALSE;
-   config.X_updatelines = li;
+   config.X_updatelines = Rows;
    if (vga_emu_init(0, NULL)) {
      error("X: X_init: VGAEmu init failed!\n");
      leavedos(99);
