@@ -123,7 +123,6 @@ static int compute_missing_attribute(int letter)
 {
 	int attrib = KEYSYM_UNKNOWN;
 	switch(letter) {
-#ifdef HAVE_UNICODE_KEYB
 		/* keypad */
 	case KEY_PAD_0:
 	case KEY_PAD_1:
@@ -299,7 +298,6 @@ static int compute_missing_attribute(int letter)
 	case KEY_DOSEMU_X86EMU_DEBUG:
 		attrib = KEYSYM_INTERNAL_FUNCTION;
 		break;
-#endif /* HAVE_UNICODE_KEYB */
 	}
 	return attrib;
 }

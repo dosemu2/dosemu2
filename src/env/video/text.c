@@ -41,10 +41,7 @@
 #include "remap.h"
 #include "vgatext.h"
 #include "render.h"
-
-#ifdef HAVE_UNICODE_TRANSLATION
 #include "translate.h"
-#endif
 
 struct text_system * Text = NULL;
 int use_bitmap_font = TRUE;
@@ -803,76 +800,6 @@ void start_extend_selection(int col, int row)
   
 }
 
-#ifndef HAVE_UNICODE_TRANSLATION
-
-static void save_selection(int col1, int row1, int col2, int row2)
-{
-  size_t i;
-  int row, col, line_start_col, line_end_col;
-  u_char *sel_text_latin;
-  size_t sel_text_bytes;
-  u_char *p;
-  int co = vga.scan_len / 2;
-
-  sel_text_latin = sel_text = malloc((row2-row1+1)*(co+1)+2);
-  
-  /* Copy the text data. */
-  for (row = row1; (row <= row2); row++)
-  {
-    line_start_col = ((row == row1) ? col1 : 0);
-    line_end_col = ((row == row2) ? col2 : vga.text_width-1);
-    p = sel_text_latin;
-    for (col = line_start_col; (col <= line_end_col); col++)
-    {
-      *p++ = XCHAR(screen_adr+row*co+col);
-    }
-    /* Remove end-of-line spaces and add a newline. */
-    if (col == vga.text_width)
-    { 
-      p--;
-      while ((*p == ' ') && (p > sel_text_latin))
-        p--;
-      p++;
-      *p++ = '\n';
-    }
-    
-    sel_text_bytes = p - sel_text_latin;
-    for (i=0; i<sel_text_bytes;i++)
-      switch (sel_text_latin[i]) 
-      {
-      case 21 : /* § */
-        sel_text_latin[i] = 0xa7;
-        break;
-      case 20 : /* ¶ */
-        sel_text_latin[i] = 0xb6;
-        break;
-      case 124 : /* ¦ */
-        sel_text_latin[i] = 0xa6;
-        break;
-      case 0x80 ... 0xff: 
-        switch (config.term_charset) {
-        case CHARSET_KOI8:
-          sel_text_latin[i]=dos_to_koi8[sel_text_latin[i] - 0x80];
-          break;
-        case CHARSET_LATIN1:
-          sel_text_latin[i]=dos_to_latin1[sel_text_latin[i] - 0x80];
-          break;
-        case CHARSET_LATIN2:
-          sel_text_latin[i]=dos_to_latin2[sel_text_latin[i] - 0x80];
-          break;
-        case CHARSET_LATIN:
-        default:
-          sel_text_latin[i]=dos_to_latin[sel_text_latin[i] - 0x80];
-          break;
-        }
-      }
-    sel_text_latin += sel_text_bytes;
-  }
-  *sel_text_latin = '\0';
-}
-
-#else /* HAVE_UNICODE_TRANSLATION */
-
 static void save_selection(int col1, int row1, int col2, int row2)
 {
 	int row, col, line_start_col, line_end_col, co;
@@ -955,8 +882,6 @@ static void save_selection(int col1, int row1, int col2, int row2)
 	cleanup_charset_state(&video_state);
 	cleanup_charset_state(&paste_state);
 }
-
-#endif /* HAVE_UNICODE_TRANSLATION */
 
 /*
  * Copy the selected text to sel_text, and inform the X server about it.

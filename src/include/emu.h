@@ -19,10 +19,6 @@
 #include <setjmp.h>
 #include <signal.h> 
 
-#if defined(HAVE_UNICODE_KEYB) && (HAVE_UNICODE_KEYB != 2)
-  #error "Sorry, wrong unicode keyboard code version for this DOSEMU version"
-#endif
-
 #include "types.h"
 #include "extern.h"
 #include "machcompat.h"

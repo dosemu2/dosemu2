@@ -166,12 +166,8 @@ extern struct mouse_client Mouse_xterm;
 extern struct mouse_client Mouse_gpm;
 extern struct mouse_client Mouse_none;
 
-#ifdef HAVE_UNICODE_KEYB
 #include "keyboard.h"
 void mouse_keyboard(Boolean make, t_keysym key);
-#else
-void mouse_keyboard(int);
-#endif
 void mouse_curtick(void);
 
 EXTERN int keyboard_mouse;

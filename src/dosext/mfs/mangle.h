@@ -75,11 +75,7 @@ extern unsigned short dos_to_unicode_table[0x100];
 extern unsigned char upperDOS_table[0x100];
 
 BOOL isupperDOS(int c);
-#ifdef HAVE_UNICODE_TRANSLATION
 #define toupperDOS(c) (upperDOS_table[(unsigned char)(c)])
-#else
-int  toupperDOS(int c);
-#endif
 BOOL islowerDOS(int c);
 int  tolowerDOS(int c);
 void strupperDOS(char *s);

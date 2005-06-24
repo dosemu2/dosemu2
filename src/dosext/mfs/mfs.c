@@ -1602,10 +1602,8 @@ path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar,
 {
   char ch;
 
-#ifdef HAVE_UNICODE_TRANSLATION
   mbstate_t unix_state;
   memset(&unix_state, 0, sizeof unix_state);
-#endif
 
   if (ufs_offset < MAXPATHLEN) do {
     ch = *path++;
@@ -1627,10 +1625,6 @@ path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar,
     default:
       break;
     }
-#ifndef HAVE_UNICODE_TRANSLATION
-    if (lowercase)
-      ch = tolowerDOS(ch);
-#else
     if (ch != EOS) {
       size_t result;
       wchar_t symbol = dos_to_unicode_table[(unsigned char)ch];
@@ -1642,7 +1636,6 @@ path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar,
       else
         ufs_offset += result;
     } else
-#endif
       ufs[ufs_offset++] = ch;
   } while(ch != EOS);
 
@@ -1874,17 +1867,6 @@ compare(char *fname, char *fext, char *mname, char *mext)
     if (mname[i] == '?') {
       continue;
     }
-#ifndef HAVE_UNICODE_TRANSLATION
-    if (isalphaDOS(mname[i]) && isalphaDOS(fname[i])) {
-      char x = isupperDOS(mname[i]) ?
-      mname[i] : toupperDOS(mname[i]);
-      char y = isupperDOS(fname[i]) ?
-      fname[i] : toupperDOS(fname[i]);
-
-      if (x != y)
-	return (FALSE);
-    } else
-#endif
     if (mname[i] != fname[i]) {
       return (FALSE);
     }
@@ -1898,17 +1880,6 @@ compare(char *fname, char *fext, char *mname, char *mext)
     if (mext[i] == '?') {
       continue;
     }
-#ifndef HAVE_UNICODE_TRANSLATION
-    if (isalphaDOS(mext[i]) && isalphaDOS(fext[i])) {
-      char x = isupperDOS(mext[i]) ?
-      mext[i] : toupperDOS(mext[i]);
-      char y = isupperDOS(fext[i]) ?
-      fext[i] : toupperDOS(fext[i]);
-
-      if (x != y)
-	return (FALSE);
-    } else
-#endif
     if (mext[i] != fext[i]) {
       return (FALSE);
     }

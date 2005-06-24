@@ -31,9 +31,5 @@ void X_restore_cell(int x,int y);
 void X_init_videomode(void);
 
 void X_process_key(XKeyEvent *); 
-#ifdef HAVE_UNICODE_KEYB
 void X_process_keys(XKeymapEvent *);
-#else
-static inline void X_process_keys(XKeymapEvent *event) { return; }
-#endif
 

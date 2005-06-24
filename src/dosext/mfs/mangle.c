@@ -38,10 +38,8 @@ Modified by O.V.Zhirov, July 1998
 #include "mfs.h"
 #include "dos2linux.h"
 #include "emu.h"
-#ifdef HAVE_UNICODE_TRANSLATION
 #include "translate.h"
 #include <wctype.h>
-#endif
 #else
 #include "includes.h"
 #include "loadparm.h"
@@ -445,7 +443,6 @@ void mangle_name_83(char *s, char *MangledMap)
 /****************************************************************************
 convert a filename from a UNIX to a DOS character set.
 ****************************************************************************/
-#ifdef HAVE_UNICODE_TRANSLATION
 
 BOOL name_ufs_to_dos(char *dest, const char *src)
 {
@@ -476,7 +473,6 @@ BOOL name_ufs_to_dos(char *dest, const char *src)
   *dest = '\0';
   return retval;
 }
-#endif
 
 /****************************************************************************
 convert a filename to 8.3 format. return True if successful.
