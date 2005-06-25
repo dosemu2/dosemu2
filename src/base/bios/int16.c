@@ -121,8 +121,9 @@ static unsigned check_key_available(int extended)
       trigger_idle();
     else
       reset_idle(0);
-    if (idle(500, 20, 0, INT2F_IDLE_USECS, "int16"))
-      keyptr = get_key(extended);
+    idle(500, 20, 0, INT2F_IDLE_USECS, "int16");
+  } else {
+    reset_idle(1);
   }
   return get_key(extended);
 }
