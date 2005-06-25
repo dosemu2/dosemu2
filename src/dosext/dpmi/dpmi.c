@@ -2384,19 +2384,19 @@ static void dpmi_RSP_call(struct sigcontext *scp, int num, int terminating)
 static void dpmi_cleanup(struct sigcontext_struct *scp)
 {
   D_printf("DPMI: cleanup\n");
-  if (in_dpmi == 1) {
-    in_win31 = 0;
-    mprotect_mapping(MAPPING_DPMI, ldt_buffer,
-      PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE);
-    if (!RSP_num)
-      dpmi_free_pool();
-  }
   FreeAllDescriptors();
   free(DPMI_CLIENT.pm_stack);
   if (!DPMI_CLIENT.RSP_installed) {
     DPMIfreeAll();
     free(DPMI_CLIENT.pm_block_root);
     DPMI_CLIENT.pm_block_root = NULL;
+  }
+  if (in_dpmi == 1) {
+    in_win31 = 0;
+    mprotect_mapping(MAPPING_DPMI, ldt_buffer,
+      PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE);
+    if (!RSP_num)
+      dpmi_free_pool();
   }
   cli_blacklisted = 0;
   in_dpmi--;
