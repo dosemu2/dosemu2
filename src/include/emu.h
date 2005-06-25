@@ -130,8 +130,6 @@ void getKeys(void);
 
      void keybuf_clear(void);
 
-#define do_ioctl(x,y,z) ioctl(x,y,z)
-
 /* this macro can be safely wrapped around a system call with no side
  * effects; using a feature of GCC, it returns the same value as the
  * function call argument inside.

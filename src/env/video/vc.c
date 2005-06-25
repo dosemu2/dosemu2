@@ -116,7 +116,7 @@ void check_console(void) {
 void
 vt_activate(int con_num)
 {
-    do_ioctl(console_fd, VT_ACTIVATE, con_num);
+    ioctl(console_fd, VT_ACTIVATE, con_num);
 }
 
 void
@@ -238,7 +238,7 @@ SIGRELEASE_call (void)
     }
 
   scr_state.current = 0;	/* our console is no longer current */
-  if (do_ioctl (console_fd, VT_RELDISP, 1))	/* switch ok by me */
+  if (ioctl (console_fd, VT_RELDISP, 1))	/* switch ok by me */
     v_printf ("VT_RELDISP failed!\n");
   else {
    /* we don't want any debug activity while VC is not active */
@@ -424,7 +424,7 @@ set_process_control (void)
   newsetqsig (SIG_RELEASE, release_vt);
   newsetqsig (SIG_ACQUIRE, acquire_vt);
 
-  if (do_ioctl (console_fd, VT_SETMODE, (int) &vt_mode))
+  if (ioctl (console_fd, VT_SETMODE, (int) &vt_mode))
     v_printf ("initial VT_SETMODE failed!\n");
   v_printf ("VID: Set process control\n");
 }

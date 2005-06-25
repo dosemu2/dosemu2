@@ -592,6 +592,6 @@ d_ready(int fd)
 
 void activate(int con_num)
 {
-    do_ioctl(kbd_fd, VT_ACTIVATE, con_num);
+    ioctl(kbd_fd, VT_ACTIVATE, con_num);
 }
 #endif

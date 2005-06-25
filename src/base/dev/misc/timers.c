@@ -695,5 +695,5 @@ void pit_reset(void)
   timer_handle = timer_create(pit_timer_func, NULL, pit_timer_usecs(0x10000));
 #endif
   port61 = 0x0c;
-  do_ioctl(console_fd,KIOCSOUND,0);    /* sound off */
+  ioctl(console_fd,KIOCSOUND,0);    /* sound off */
 }

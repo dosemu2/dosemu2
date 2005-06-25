@@ -49,7 +49,7 @@ static void set_kbd_leds(t_modifiers shiftstate)
     led_state |= (1 << LED_CAPSLOCK);
   }
   k_printf("KBD(raw): kbd_set_leds() setting LED state\n");
-  do_ioctl(kbd_fd, KDSETLED, led_state);
+  ioctl(kbd_fd, KDSETLED, led_state);
 }
 
 
@@ -63,7 +63,7 @@ static t_shiftstate get_kbd_flags(void)
   /* note: this reads the keyboard flags, not the LED state (which would
    * be KDGETLED).
    */
-  do_ioctl(kbd_fd, KDGKBLED, (int) &led_state);
+  ioctl(kbd_fd, KDGKBLED, (int) &led_state);
 
   if (led_state & (1 << LED_SCRLOCK))  s|=MODIFIER_SCR;
   if (led_state & (1 << LED_NUMLOCK))  s|=MODIFIER_NUM;
@@ -110,7 +110,7 @@ static inline void set_raw_mode(void)
   struct termios buf = save_termios;
 
   k_printf("KBD(raw): Setting keyboard to RAW mode\n");
-  do_ioctl(kbd_fd, KDSKBMODE, K_RAW);
+  ioctl(kbd_fd, KDSKBMODE, K_RAW);
 
   buf.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
   buf.c_iflag &= ~(IMAXBEL | IGNBRK | IGNCR | IGNPAR | BRKINT | INLCR | ICRNL | INPCK | ISTRIP | IXON | IUCLC | IXANY | IXOFF | IXON);
@@ -146,7 +146,7 @@ static int raw_keyboard_init(void)
   kbd_fd = STDIN_FILENO;
   set_process_control();
 
-  do_ioctl(kbd_fd, KDGKBMODE, (int)&save_mode);
+  ioctl(kbd_fd, KDGKBMODE, (int)&save_mode);
 
   if (tcgetattr(kbd_fd, &save_termios) < 0) {
     error("KBD(raw): Couldn't tcgetattr(kbd_fd,...) !\n");
@@ -193,10 +193,10 @@ static void raw_keyboard_close(void)
 {
   if (kbd_fd != -1) {
     k_printf("KBD(raw): raw_keyboard_close: resetting keyboard to original mode\n");
-    do_ioctl(kbd_fd, KDSKBMODE, save_mode);
+    ioctl(kbd_fd, KDSKBMODE, save_mode);
 
     k_printf("KBD(raw): resetting LEDs to normal mode\n");
-    do_ioctl(kbd_fd, KDSETLED, LED_NORMAL);
+    ioctl(kbd_fd, KDSETLED, LED_NORMAL);
    
     k_printf("KBD(raw): Resetting TERMIOS structure.\n");
     if (tcsetattr(kbd_fd, TCSAFLUSH, &save_termios) < 0) {
