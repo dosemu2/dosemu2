@@ -29,6 +29,7 @@
 #include "timers.h"
 #include "pic.h"
 #include "dpmi.h"
+#include "debug.h"
 #include "utilities.h"
 #ifdef USE_MHPDBG
 #include "mhpdbg.h"
@@ -724,4 +725,13 @@ int check_memory_range(unsigned long base, unsigned long size)
     }
     fclose(fp);
     return 1;
+}
+
+void dosemu_error(char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    verror(fmt, args);
+    va_end(args);
+    gdb_debug();
 }

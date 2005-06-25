@@ -15,6 +15,7 @@
 #include "emu.h"
 #include "memory.h"
 #include "smalloc.h"
+#include "utilities.h"
 #include "lowmem.h"
 
 static smpool mp;
@@ -23,6 +24,7 @@ int lowmem_heap_init()
 {
     sminit(&mp, (void *)SEGOFF2LINEAR(DOSEMU_LMHEAP_SEG, DOSEMU_LMHEAP_OFF),
 	DOSEMU_LMHEAP_SIZE);
+    smregister_error_notifier(dosemu_error);
     return 1;
 }
 

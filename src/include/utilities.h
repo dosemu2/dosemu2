@@ -44,6 +44,7 @@ char *readlink_malloc (const char *filename);
 char * strupr(char *s);
 char * strlower(char *s);
 int check_memory_range(unsigned long base, unsigned long size);
+void dosemu_error(char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
 /* returns y = sqrt(x), for y*y beeing a power of 2 below x
  */

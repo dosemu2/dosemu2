@@ -15,6 +15,16 @@
 #include <assert.h>
 #include "smalloc.h"
 
+static void smerror_dummy(char *fmt, ...)
+  __attribute__((format(printf, 1, 2)));
+
+static void (*smerror)(char *fmt, ...)
+  __attribute__((format(printf, 1, 2))) = smerror_dummy;
+
+static void smerror_dummy(char *fmt, ...)
+{
+}
+
 static void mntruncate(struct memnode *pmn, size_t size)
 {
   int delta = pmn->size - size;
@@ -54,7 +64,10 @@ static void mntruncate(struct memnode *pmn, size_t size)
 static struct memnode *find_mn_prev(struct memnode *mp, unsigned char *ptr)
 {
   struct memnode *pmn;
-  assert(mp->used);
+  if (!mp->used) {
+    smerror("SMALLOC: unused pool passed\n");
+    return NULL;
+  }
   for (pmn = mp; pmn->next; pmn = pmn->next) {
     struct memnode *mn = pmn->next;
     if (mn->mem_area > ptr)
@@ -68,16 +81,20 @@ static struct memnode *find_mn_prev(struct memnode *mp, unsigned char *ptr)
 void *smalloc(struct memnode *mp, size_t size)
 {
   struct memnode *mn;
-  if (!size)
+  if (!size) {
+    smerror("SMALLOC: zero-sized allocation attempted\n");
     return NULL;
+  }
   /* Find the unused region, large enough to hold an object */
   for (mn = mp; mn; mn = mn->next) {
     if (!mn->used && mn->size >= size)
       break;
   }
-  if (!mn)
-    return NULL;	/* OOM */
-  /* Now fit the object */
+  if (!mn) {
+    smerror("SMALLOC: Out Of Memory on alloc, requested=%i free=%i\n",
+      size, smget_free_space(mp));
+    return NULL;
+  }
   mn->used = 1;
   if (mn == mp) {
     /* first allocation, lock the pool */
@@ -94,11 +111,16 @@ void *smalloc(struct memnode *mp, size_t size)
 void smfree(struct memnode *mp, void *ptr)
 {
   struct memnode *mn, *pmn;
-  if (!(pmn = find_mn_prev(mp, ptr)))
+  if (!(pmn = find_mn_prev(mp, ptr))) {
+    smerror("SMALLOC: bad pointer passed to smfree()\n");
     return;
+  }
   mn = pmn->next;
-  if (!mn || !mn->used)
-    return;	/* bad pointer */
+  assert(mn);
+  if (!mn->used) {
+    smerror("SMALLOC: attempt to free the not allocated region (double-free)\n");
+    return;
+  }
   assert(mn->size > 0);
   mn->used = 0;
   if (mn->next && !mn->next->used) {
@@ -127,11 +149,16 @@ void *smrealloc(struct memnode *mp, void *ptr, size_t size)
   struct memnode *mn, *pmn;
   if (!ptr)
     return smalloc(mp, size);
-  if (!(pmn = find_mn_prev(mp, ptr)))
+  if (!(pmn = find_mn_prev(mp, ptr))) {
+    smerror("SMALLOC: bad pointer passed to smrealloc()\n");
     return NULL;
+  }
   mn = pmn->next;
-  if (!mn || !mn->used)
-    return NULL;	/* bad pointer */
+  assert(mn);
+  if (!mn->used) {
+    smerror("SMALLOC: attempt to realloc the not allocated region\n");
+    return NULL;
+  }
   if (size == 0) {
     smfree(mp, ptr);
     return ptr;
@@ -160,8 +187,11 @@ void *smrealloc(struct memnode *mp, void *ptr, size_t size)
       } else {
         /* relocate */
         void *new_ptr = smalloc(mp, size);
-        if (!new_ptr)
+        if (!new_ptr) {
+          smerror("SMALLOC: Out Of Memory on realloc, requested=%i free=%i\n",
+            size, smget_free_space(mp));
           return NULL;
+        }
         memcpy(new_ptr, mn->mem_area, mn->size);
         smfree(mp, mn->mem_area);
         return new_ptr;
@@ -193,7 +223,6 @@ int smdestroy(struct memnode *mp)
   }
   assert(mp && !mp->used && mp->size >= avail);
   leaked = mp->size - avail;
-  sminit(mp, NULL, 0);
   return leaked;
 }
 
@@ -217,4 +246,10 @@ int smget_area_size(struct memnode *mp, void *ptr)
       return mn->size;
   }
   return -1;
+}
+
+void smregister_error_notifier(void (*func)(char *fmt, ...)
+    __attribute__((format(printf, 1, 2))))
+{
+  smerror = func;
 }
