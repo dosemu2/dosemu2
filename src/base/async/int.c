@@ -1197,7 +1197,25 @@ Return: nothing
 
 static int redir_it(void);
 
-static int int21(void)
+static unsigned short int21seg, int21off;
+
+static void int21_post_boot(void)
+{
+  if (config.lfn) {
+    int21seg = ISEG(0x21);
+    int21off = IOFF(0x21);
+    SETIVEC(0x21, BIOSSEG, INT_OFF(0x21));
+  }
+}
+
+static int int21lfnhook(void)
+{
+  if (HI(ax) != 0x71 || !mfs_lfn())
+    fake_int_to(int21seg, int21off);
+  return 1;
+}
+
+static int msdos(void)
 {
 #ifdef X86_EMULATOR
   static char buf[80];
@@ -1377,16 +1395,19 @@ static int int21(void)
       return 0;
   }
 
-  case 0x71:
-    if (config.lfn)
-      return mfs_lfn();
-
   default:
     return 0;
   }
   return 1;
 }
 
+static int int21(void)
+{
+  int ret = msdos();
+  if (ret == 0 && !IS_REDIRECTED(0x21))
+    return int21lfnhook();
+  return ret;
+}
 /* ========================================================================= */
 
 void real_run_int(int i)
@@ -1770,6 +1791,7 @@ static void dos_post_boot(void)
   if (first) {
     first = 0;
     mouse_post_boot();
+    int21_post_boot();
   }
 }
 
@@ -2255,6 +2277,8 @@ void setup_interrupts(void) {
   interrupt_function[0x18][NO_REVECT] = int18;
   interrupt_function[0x19][NO_REVECT] = int19;
   interrupt_function[0x1a][NO_REVECT] = int1a;
+  if (config.lfn)
+    interrupt_function[0x21][NO_REVECT] = int21lfnhook;
   interrupt_function[0x21][REVECT] = int21;
   interrupt_function[0x28][REVECT] = int28;
   interrupt_function[0x29][NO_REVECT] = int29;
