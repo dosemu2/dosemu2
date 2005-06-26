@@ -73,7 +73,7 @@ static void dos_post_boot(void);
 static int int33(void);
 
 typedef int interrupt_function_t(void);
-static interrupt_function_t *interrupt_function[0x100];
+static interrupt_function_t *interrupt_function[0x100][2];
 
 static char *dos_io_buffer;
 static int dos_io_buffer_size = 0;
@@ -1343,6 +1343,8 @@ static int int21(void)
           }
         }
 	/* WinOS2 mouse driver calls this vector */
+	/* INT_OFF(0x68) is where we have an IRET (hack) -
+	   INT_OFF(0x66) didn't have one. */
 	SETIVEC(0x66, BIOSSEG, INT_OFF(0x68));
       }
 #endif
@@ -1424,12 +1426,19 @@ void real_run_int(int i)
   clear_IF();
 }
 
-/* DANG_BEGIN_FUNCTION run_caller_func(i, from_int)
+/* DANG_BEGIN_FUNCTION run_caller_func(i, from_int, revect)
  *
  * This function runs the specified caller function in response to an
  * int instruction.  Where i is the interrupt function to execute and
  * from_int specifies if we are comming directly from an int
  * instruction.
+ *
+ * revect specifies whether we call a non-revectored leaf interrupt function
+ * or a "watcher" that sits in between:
+ * the leaf interrupt function is called if cs:ip is at f000:i*10 or if
+ *  (the int vector points there and the int is labelled non-revectored)
+ * otherwise the non-leaf interrupt function is called, which may chain
+ * through to the real interrupt function (if it returns 0)
  *
  * This function runs the instruction with the following model _CS:_IP is the
  * address to start executing at after the caller function terminates, and
@@ -1479,7 +1488,7 @@ void real_run_int(int i)
  * DANG_END_FUNCTION
  */
 
-static int run_caller_func(int i, Boolean from_int)
+static int run_caller_func(int i, Boolean from_int, int revect)
 {
 	interrupt_function_t *caller_function;
 	g_printf("Do INT0x%02x: Using caller_function()\n", i);
@@ -1492,7 +1501,7 @@ static int run_caller_func(int i, Boolean from_int)
 		_CS = popw(ssp, sp);
 		set_FLAGS(popw(ssp, sp));
 	}
-	caller_function = interrupt_function[i];
+	caller_function = interrupt_function[i][revect];
 	if (caller_function) {
 		return caller_function();
 	} else {
@@ -1581,12 +1590,6 @@ static int can_revector_int21(int i)
     else
       return NO_REVECT;
 
-  case 0x71:          /* LFN functions */
-    if (config.lfn)
-      return REVECT;
-    else
-      return NO_REVECT;
-          
   default:
     return NO_REVECT;      /* don't emulate most int 21h functions */
   }
@@ -1950,36 +1953,28 @@ static int int2f(void)
   return !IS_REDIRECTED(0x2f);
 }
 
-static int int33_check_hog(void);
+static void int33_check_hog(void);
 
 /* mouse */
 static int int33(void) {
 /* New code introduced by Ed Sirett (ed@cityscape.co.uk)  26/1/95 to give 
  * garrot control when the dos app is polling the mouse and the mouse is 
  * taking a break. */
-#if 0
-  /* set the mouse int33 back to where it should be in case DOS put it to iret */
-  if (config.mouse.intdrv && IS_IRET(0x33)) {
-    SETIVEC(0x33, BIOSSEG, INT_OFF(0x33));
-  }
 
 /* Firstly do the actual mouse function. */   
 /* N.B. This code lets the real mode mouse driver return at a HLT, so
  * after it returns the hogthreshold code can do its job.
  */
   if (IS_REDIRECTED(0x33)) {
-    /* avoid recursion */
-    interrupt_function[0x33] = mouse_int;
     fake_int_to(Mouse_SEG, Mouse_HLT_OFF);
     return 0;
   }
-#endif
   mouse_int();
   int33_check_hog();
   return 1;
 }
 
-static int int33_check_hog(void)
+static void int33_check_hog(void)
 {
   static unsigned short int oldx=0, oldy=0;
 
@@ -2008,7 +2003,6 @@ m_printf("Called/ing the mouse with AX=%x \n",LWORD(eax));
 /* Ok now we test to see if the mouse has been taking a break and we can let the 
  * system get on with some real work. :-) */
   idle(200, 20, 0, INT15_IDLE_USECS, "mouse");
-  return 1;
 }
 
 /* this function is called from the HLT at Mouse_SEG:Mouse_HLT_OFF */
@@ -2024,8 +2018,6 @@ void int33_post(void)
   _IP = popw(ssp, sp);
   _CS = popw(ssp, sp);
   set_FLAGS(popw(ssp, sp));
-
-  interrupt_function[0x33] = int33;
 
   int33_check_hog();
 }
@@ -2092,7 +2084,7 @@ void do_int(int i)
 	
  	magic_address = SEGOFF2LINEAR(BIOSSEG, INT_OFF(i));
  	if (magic_address == (SEGOFF2LINEAR(_CS, _IP) -2)) {
- 		run_caller_func(i, FALSE);
+ 		run_caller_func(i, FALSE, NO_REVECT);
         	if ((debug_level('#') > 2) && (((i != 0x28) && (i != 0x2f)) || in_dpmi)) {
         		di_printf("RET INT0x%02x eax=0x%08x ebx=0x%08x ss=0x%04x esp=0x%08x\n"
  			  "           ecx=0x%08x edx=0x%08x ds=0x%04x  cs=0x%04x ip=0x%04x\n"
@@ -2102,8 +2094,8 @@ void do_int(int i)
  			  _ESI, _EDI, _ES, (int) read_EFLAGS());
 		}
  	} else if (magic_address == IVEC(i)) {
-		run_caller_func(i, TRUE);
-	} else if (can_revector(i) != REVECT || !run_caller_func(i, TRUE)) {
+		run_caller_func(i, TRUE, can_revector(i));
+	} else if (can_revector(i) != REVECT || !run_caller_func(i, TRUE, REVECT)) {
 		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
 		if (IS_IRET(i)) {
 			if ((i != 0x2a) && (i != 0x28))
@@ -2233,7 +2225,8 @@ void setup_interrupts(void) {
 
   /* init trapped interrupts called via jump */
   for (i = 0; i < 256; i++) {
-    interrupt_function[i] = NULL;
+    interrupt_function[i][NO_REVECT] =
+      interrupt_function[i][REVECT] = NULL;
 
     /* don't overwrite; these have been set during video init */
     if(video_ints[i]) continue;
@@ -2249,34 +2242,35 @@ void setup_interrupts(void) {
     }
   }
   
-  interrupt_function[5] = int05;
+  interrupt_function[5][NO_REVECT] = int05;
   /* This is called only when revectoring int10 */
-  interrupt_function[0x10] = int10;
-  interrupt_function[0x11] = int11;
-  interrupt_function[0x12] = int12;
-  interrupt_function[0x13] = int13;
-  interrupt_function[0x14] = int14;
-  interrupt_function[0x15] = int15;
-  interrupt_function[0x16] = int16;
-  interrupt_function[0x17] = int17;
-  interrupt_function[0x18] = int18;
-  interrupt_function[0x19] = int19;
-  interrupt_function[0x1a] = int1a;
-  interrupt_function[0x21] = int21;
-  interrupt_function[0x28] = int28;
-  interrupt_function[0x29] = int29;
-  interrupt_function[0x2f] = int2f;
-  interrupt_function[0x33] = int33;
+  interrupt_function[0x10][NO_REVECT] = int10;
+  interrupt_function[0x11][NO_REVECT] = int11;
+  interrupt_function[0x12][NO_REVECT] = int12;
+  interrupt_function[0x13][NO_REVECT] = int13;
+  interrupt_function[0x14][NO_REVECT] = int14;
+  interrupt_function[0x15][NO_REVECT] = int15;
+  interrupt_function[0x16][NO_REVECT] = int16;
+  interrupt_function[0x17][NO_REVECT] = int17;
+  interrupt_function[0x18][NO_REVECT] = int18;
+  interrupt_function[0x19][NO_REVECT] = int19;
+  interrupt_function[0x1a][NO_REVECT] = int1a;
+  interrupt_function[0x21][REVECT] = int21;
+  interrupt_function[0x28][REVECT] = int28;
+  interrupt_function[0x29][NO_REVECT] = int29;
+  interrupt_function[0x2f][REVECT] = int2f;
+  interrupt_function[0x33][NO_REVECT] = mouse_int;
+  interrupt_function[0x33][REVECT] = int33;
 #ifdef USING_NET
   if (config.pktdrv)
-    interrupt_function[0x60] = pkt_int;
+    interrupt_function[0x60][NO_REVECT] = pkt_int;
 #endif
 #ifdef IPX
   if (config.ipxsup)
-    interrupt_function[0x7a] = ipx_int7a;
+    interrupt_function[0x7a][NO_REVECT] = ipx_int7a;
 #endif
-  interrupt_function[0xe6] = inte6;
-  interrupt_function[0xe7] = inte7;
+  interrupt_function[0xe6][REVECT] = inte6;
+  interrupt_function[0xe7][REVECT] = inte7;
 
   /* Let kernel handle this, no need to return to DOSEMU */
  #if 0
@@ -2310,7 +2304,7 @@ void setup_interrupts(void) {
 
   /* set up relocated video handler (interrupt 0x42) */
   if (config.dualmon == 2) {
-    interrupt_function[0x42] = interrupt_function[0x10];
+    interrupt_function[0x42][NO_REVECT] = interrupt_function[0x10][NO_REVECT];
   }
 
   set_int21_revectored(redir_state = 1);
