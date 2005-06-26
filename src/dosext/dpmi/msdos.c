@@ -1223,10 +1223,85 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 
 static char decode_use_16bit;
 static char use_prefix;
+
+static unsigned long *getreg(struct sigcontext *scp, int number)
+{
+    switch (number & 0x7) {
+    case 0: return &_eax;
+    case 1: return &_ecx;
+    case 2: return &_edx;
+    case 3: return &_ebx;
+    case 4: return &_esp;
+    case 5: return &_ebp;
+    case 6: return &_esi;
+    case 7: return &_edi;
+    }
+    return 0;
+}
+
+static unsigned char *
+decode_sib(struct sigcontext_struct *scp, unsigned char *prefix)
+{
+    unsigned char *csp = (unsigned char *) SEL_ADR(_cs, _eip);
+    int sib = csp[2];
+    size_t addr = 0;
+
+    if ((sib & 0x38) != 0x20) /* index cannot be esp */
+	addr = *getreg(scp, sib>>3) << (sib >> 6);
+
+    switch(sib & 0x07) { /* decode address */
+    case 0x00: 
+    case 0x01: 
+    case 0x02: 
+    case 0x03: 
+    case 0x06: 
+    case 0x07: 
+	return addr + *getreg(scp, sib) + prefix;
+    case 0x04: /* esp */
+	if (!use_prefix)
+	    prefix = (unsigned char *)GetSegmentBaseAddress(_ss);
+	return addr + _esp + prefix;
+    case 0x05: 
+	if (csp[1] >= 0x40) {
+	    if (!use_prefix)
+		prefix = (unsigned char *)GetSegmentBaseAddress(_ss);
+	    return addr + _ebp + prefix;
+	} else {
+	    return addr + prefix;
+	}
+    }
+    return 0; /* keep gcc happy */
+}
+
+static  unsigned char *
+decode_8e_index32(struct sigcontext_struct *scp, unsigned char *prefix, int rm)
+{
+    switch (rm) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 6:
+    case 7:
+	return prefix + *getreg(scp, rm);
+    case 4:
+	return (char *)decode_sib(scp, prefix);
+    case 5:
+	if (use_prefix)
+	    return prefix + _ebp;
+	else
+	    return (unsigned char *)(GetSegmentBaseAddress(_ss)+ _ebp);
+    }
+    D_printf("DPMI: decode_8e_index32 returns with NULL\n");
+    return(NULL);
+}
+
 static  unsigned char *
 decode_8e_index(struct sigcontext_struct *scp, unsigned char *prefix,
-		int rm)
+		int rm, int decode_use_16bit)
 {
+    if (!decode_use_16bit)
+	return decode_8e_index32(scp, prefix, rm);
     switch (rm) {
     case 0:
 	if (use_prefix)
@@ -1330,9 +1405,9 @@ check_prefix (struct sigcontext_struct *scp)
 
 static int
 decode_8e(struct sigcontext_struct *scp, unsigned short *src,
-	  unsigned  char * sreg)
+	  unsigned  char * sreg, int decode_use_16bit)
 {
-    unsigned char *prefix, *csp;
+    unsigned char *csp, *prefix, *addr = NULL;
     unsigned char mod, rm, reg;
     int len = 0;
 
@@ -1342,6 +1417,8 @@ decode_8e(struct sigcontext_struct *scp, unsigned short *src,
     if (use_prefix) {
 	csp++;
 	len++;
+    } else {
+	prefix = (unsigned char *)GetSegmentBaseAddress(_ds);
     }
 
     if (*csp != 0x8e)
@@ -1352,58 +1429,45 @@ decode_8e(struct sigcontext_struct *scp, unsigned short *src,
     mod = (*csp>>6) & 3;
     reg = (*csp>>3) & 7;
     rm = *csp & 0x7;
+    csp++;
+
+    if (!decode_use_16bit && rm == 4 && mod < 3) { /* sib */
+	csp++;
+	len++;
+    }
 
     switch (mod) {
     case 0:
-	if (rm == 6) {		/* disp16 */
-	    if(use_prefix)
-		*src = *(unsigned short *)(prefix +
-					   (int)(*(short *)(csp+1)));
-	    else
-		*src =  *(unsigned short *)(GetSegmentBaseAddress(_ds) +
-					    (int)(*(short *)(csp+1)));
+	if (rm == 6 && decode_use_16bit) {		/* disp16 */
+	    addr = prefix + (int)(*(short *)csp);
 	    len += 2;
+	} else if (rm == 5 && !decode_use_16bit) {	/* disp32 */
+	    addr = prefix + (*(int *)csp);
+	    len += 4;
 	} else
-	    *src = *(unsigned short *)decode_8e_index(scp, prefix, rm);
+	    addr = decode_8e_index(scp, prefix, rm, decode_use_16bit);
 	break;
     case 1:			/* disp8 */
-	*src = *(unsigned short *)(decode_8e_index(scp, prefix, rm) +
-				   (int)(*(char *)(csp+1)));
+	addr = decode_8e_index(scp, prefix, rm, decode_use_16bit) +
+	    (int)(*(signed char *)csp);
 	len++;
 	break;
     case 2:			/* disp16 */
-	*src = *(unsigned short *)(decode_8e_index(scp, prefix, rm) +
-				   (int)(*(short *)(csp+1)));
-	len += 2;
+	addr = decode_8e_index(scp, prefix, rm, decode_use_16bit);
+	if (decode_use_16bit) {
+	    addr += (int)(*(short *)csp);
+	    len += 2;
+	} else {                /* disp32 */
+	    addr += *(int *)csp;
+	    len += 4;
+	}
 	break;
     case 3:			/* register */
-	switch (rm) {
-	case 0:
-	    *src = (unsigned short)_LWORD(eax);
-	    break;
-	case 1:
-	    *src = (unsigned short)_LWORD(ecx);
-	    break;
-	case 2:
-	    *src = (unsigned short)_LWORD(edx);
-	    break;
-	case 3:
-	    *src = (unsigned short)_LWORD(ebx);
-	    break;
-	case 4:
-	    *src = (unsigned short)_LWORD(esp);
-	    break;
-	case 5:
-	    *src = (unsigned short)_LWORD(ebp);
-	    break;
-	case 6:
-	    *src = (unsigned short)_LWORD(esi);
-	    break;
-	case 7:
-	    *src = (unsigned short)_LWORD(edi);
-	    break;
-	}
+	*src = *getreg(scp, rm);
+	break;
     }
+    if (mod < 3)
+	*src = *(unsigned short *)addr;
 
     *sreg = reg;
     return len;
@@ -1455,15 +1519,15 @@ decode_load_descriptor(struct sigcontext_struct *scp, unsigned short
 					    (int)(*(short *)(csp+1)));
 	    len += 2;
 	} else
-	    lp = (unsigned long *)decode_8e_index(scp, prefix, rm);
+	    lp = (unsigned long *)decode_8e_index(scp, prefix, rm, 0);
 	break;
     case 1:			/* disp8 */
-	lp = (unsigned long *)(decode_8e_index(scp, prefix, rm) +
+	lp = (unsigned long *)(decode_8e_index(scp, prefix, rm, 0) +
 				   (int)(*(char *)(csp+1)));
 	len++;
 	break;
     case 2:			/* disp16 */
-	lp = (unsigned long *)(decode_8e_index(scp, prefix, rm) +
+	lp = (unsigned long *)(decode_8e_index(scp, prefix, rm, 0) +
 				   (int)(*(short *)(csp+1)));
 	len += 2;
 	break;
@@ -1636,7 +1700,7 @@ decode_modify_segreg_insn(struct sigcontext_struct *scp, unsigned
     }
 	
     /* first try mov sreg, .. (equal for 16/32 bit operand size) */
-    if ((len = decode_8e(scp, segment, sreg))) {
+    if ((len = decode_8e(scp, segment, sreg, decode_use_16bit))) {
       _eip += len;
       return len + size_prfix;
     }
