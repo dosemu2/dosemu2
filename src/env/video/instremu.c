@@ -1576,7 +1576,14 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     eip += inst_len + 2; break;
 
   case 0x8e:		/* mov segreg,r/m16 */
-    if (pmode || x86->operand_size == 4) 
+    if (pmode == 2) {
+      cs[eip]++;
+      *sreg(cs[eip + 1] >> 3, x86) =
+	instr_read_word(x86->modrm(cs + eip, x86, &inst_len));
+      cs[eip]--;
+      eip += inst_len + 2;
+    }
+    else if (pmode || x86->operand_size == 4) 
       return 0;
     else switch (cs[eip + 1]&0x38) {
     case 0:      
@@ -1873,7 +1880,15 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     break;
 
   case 0xc4:		/* les */
-    if (pmode || x86->operand_size == 4)
+    if (pmode == 2) {
+      mem = x86->modrm(cs + eip, x86, &inst_len);
+      x86->es = instr_read_word(mem+x86->operand_size);
+      if (x86->operand_size == 2)
+	R_WORD(*reg(cs[eip + 1] >> 3, x86)) = instr_read_word(mem);
+      else
+	*reg(cs[eip + 1] >> 3, x86) = instr_read_dword(mem);
+      eip += inst_len + 2; break;
+    } else if (pmode || x86->operand_size == 4)
       return 0;
     else {
       mem = x86->modrm(cs + eip, x86, &inst_len);
@@ -1885,7 +1900,15 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     }   
 
   case 0xc5:		/* lds */
-    if (pmode || x86->operand_size == 4)
+    if (pmode == 2) {
+      mem = x86->modrm(cs + eip, x86, &inst_len);
+      x86->ds = instr_read_word(mem+x86->operand_size);
+      if (x86->operand_size == 2)
+	R_WORD(*reg(cs[eip + 1] >> 3, x86)) = instr_read_word(mem);
+      else
+	*reg(cs[eip + 1] >> 3, x86) = instr_read_dword(mem);
+      eip += inst_len + 2; break;
+    } else if (pmode || x86->operand_size == 4)
       return 0;
     else {
       mem = x86->modrm(cs + eip, x86, &inst_len);
@@ -2350,6 +2373,14 @@ static void scp_to_x86_regs(x86_regs *x86, struct sigcontext_struct *scp, int pm
 
 static void x86_regs_to_scp(x86_regs *x86, struct sigcontext_struct *scp, int pmode)
 {
+  if(pmode == 2) {
+    _cs = x86->cs;
+    _ds = x86->ds;
+    _es = x86->es;
+    _fs = x86->fs;
+    _gs = x86->gs;
+    _ss = x86->ss;
+  }
   if(pmode) {
     _eax = x86->eax;
     _ebx = x86->ebx;
@@ -2385,7 +2416,10 @@ static void x86_regs_to_scp(x86_regs *x86, struct sigcontext_struct *scp, int pm
  *
  * arguments:
  * scp - A pointer to a struct sigcontext_struct holding some relevant data.
- * cp - A pointer to the instruction to be simulated
+ * pmode - flags protected mode
+ * pmode == 2 flags a special "ignore GPF" state for use by msdos.c to
+ *            simulate setting segment registers
+ * cnt - number of instructions to be simulated
  *
  * DANG_END_FUNCTION                        
  */

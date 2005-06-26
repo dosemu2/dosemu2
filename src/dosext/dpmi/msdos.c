@@ -29,6 +29,7 @@
 #include "emm.h"
 #include "dpmi.h"
 #include "msdos.h"
+#include "vgaemu.h"
 
 #define TRANS_BUFFER_SEG EMM_SEGMENT
 
@@ -1221,352 +1222,6 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
     return update_mask;
 }
 
-static char decode_use_16bit;
-static char use_prefix;
-
-static unsigned long *getreg(struct sigcontext *scp, int number)
-{
-    switch (number & 0x7) {
-    case 0: return &_eax;
-    case 1: return &_ecx;
-    case 2: return &_edx;
-    case 3: return &_ebx;
-    case 4: return &_esp;
-    case 5: return &_ebp;
-    case 6: return &_esi;
-    case 7: return &_edi;
-    }
-    return 0;
-}
-
-static unsigned char *
-decode_sib(struct sigcontext_struct *scp, unsigned char *prefix)
-{
-    unsigned char *csp = (unsigned char *) SEL_ADR(_cs, _eip);
-    int sib = csp[2];
-    size_t addr = 0;
-
-    if ((sib & 0x38) != 0x20) /* index cannot be esp */
-	addr = *getreg(scp, sib>>3) << (sib >> 6);
-
-    switch(sib & 0x07) { /* decode address */
-    case 0x00: 
-    case 0x01: 
-    case 0x02: 
-    case 0x03: 
-    case 0x06: 
-    case 0x07: 
-	return addr + *getreg(scp, sib) + prefix;
-    case 0x04: /* esp */
-	if (!use_prefix)
-	    prefix = (unsigned char *)GetSegmentBaseAddress(_ss);
-	return addr + _esp + prefix;
-    case 0x05: 
-	if (csp[1] >= 0x40) {
-	    if (!use_prefix)
-		prefix = (unsigned char *)GetSegmentBaseAddress(_ss);
-	    return addr + _ebp + prefix;
-	} else {
-	    return addr + prefix;
-	}
-    }
-    return 0; /* keep gcc happy */
-}
-
-static  unsigned char *
-decode_8e_index32(struct sigcontext_struct *scp, unsigned char *prefix, int rm)
-{
-    switch (rm) {
-    case 0:
-    case 1:
-    case 2:
-    case 3:
-    case 6:
-    case 7:
-	return prefix + *getreg(scp, rm);
-    case 4:
-	return (char *)decode_sib(scp, prefix);
-    case 5:
-	if (use_prefix)
-	    return prefix + _ebp;
-	else
-	    return (unsigned char *)(GetSegmentBaseAddress(_ss)+ _ebp);
-    }
-    D_printf("DPMI: decode_8e_index32 returns with NULL\n");
-    return(NULL);
-}
-
-static  unsigned char *
-decode_8e_index(struct sigcontext_struct *scp, unsigned char *prefix,
-		int rm, int decode_use_16bit)
-{
-    if (!decode_use_16bit)
-	return decode_8e_index32(scp, prefix, rm);
-    switch (rm) {
-    case 0:
-	if (use_prefix)
-	    return prefix + _LWORD(ebx) + _LWORD(esi);
-	else
-	    return (unsigned char *)(GetSegmentBaseAddress(_ds)+
-				     _LWORD(ebx) + _LWORD(esi));
-    case 1:
-	if (use_prefix)
-	    return prefix + _LWORD(ebx) + _LWORD(edi);
-	else
-	    return (unsigned char *)(GetSegmentBaseAddress(_ds)+
-				     _LWORD(ebx) + _LWORD(edi));
-    case 2:
-	if (use_prefix)
-	    return prefix + _LWORD(ebp) + _LWORD(esi);
-	else
-	    return (unsigned char *)(GetSegmentBaseAddress(_ss)+
-				     _LWORD(ebp) + _LWORD(esi));
-    case 3:
-	if (use_prefix)
-	    return prefix + _LWORD(ebp) + _LWORD(edi);
-	else
-	    return (unsigned char *)(GetSegmentBaseAddress(_ss)+
-				     _LWORD(ebp) + _LWORD(edi));
-    case 4:
-	if (use_prefix)
-	    return prefix + _LWORD(esi);
-	else
-	    return (unsigned char *)(GetSegmentBaseAddress(_ds)+
-				     _LWORD(esi));
-    case 5:
-	if (use_prefix)
-	    return prefix + _LWORD(edi);
-	else
-	    return (unsigned char *)(GetSegmentBaseAddress(_ds)+
-				     _LWORD(edi));
-    case 6:
-	if (use_prefix)
-	    return prefix + _LWORD(ebp);
-	else
-	    return (unsigned char *)(GetSegmentBaseAddress(_ss)+
-				     _LWORD(ebp));
-    case 7:
-	if (use_prefix)
-	    return prefix + _LWORD(ebx);
-	else
-	    return (unsigned char *)(GetSegmentBaseAddress(_ds)+
-				     _LWORD(ebx));
-    }
-    D_printf("DPMI: decode_8e_index returns with NULL\n");
-    return(NULL);
-}
-
-static unsigned char *
-check_prefix (struct sigcontext_struct *scp)
-{
-    unsigned char *prefix, *csp;
-
-    csp = (unsigned char *) SEL_ADR(_cs, _eip);
-
-    prefix = NULL;
-    use_prefix = 0;
-    switch (*csp) {
-    case 0x2e:
-	prefix = (unsigned char *)GetSegmentBaseAddress(_cs);
-	use_prefix = 1;
-	break;
-    case 0x36:
-	prefix = (unsigned char *)GetSegmentBaseAddress(_ss);
-	use_prefix = 1;
-	break;
-    case 0x3e:
-	prefix = (unsigned char *)GetSegmentBaseAddress(_ds);
-	use_prefix = 1;
-	break;
-    case 0x26:
-	prefix = (unsigned char *)GetSegmentBaseAddress(_es);
-	use_prefix = 1;
-	break;
-    case 0x64:
-	prefix = (unsigned char *)GetSegmentBaseAddress(_fs);
-	use_prefix = 1;
-	break;
-    case 0x65:
-	prefix = (unsigned char *)GetSegmentBaseAddress(_gs);
-	use_prefix = 1;
-	break;
-    default:
-	break;
-    }
-    if (use_prefix) {
-    	D_printf("DPMI: check_prefix covered for *csp=%x\n", *csp);
-    }
-    return prefix;
-}
-/*
- * this function tries to decode opcode 0x8e (mov Sreg,m/r16), returns
- * the length of the instruction.
- */
-
-static int
-decode_8e(struct sigcontext_struct *scp, unsigned short *src,
-	  unsigned  char * sreg, int decode_use_16bit)
-{
-    unsigned char *csp, *prefix, *addr = NULL;
-    unsigned char mod, rm, reg;
-    int len = 0;
-
-    csp = (unsigned char *) SEL_ADR(_cs, _eip);
-
-    prefix = check_prefix(scp);
-    if (use_prefix) {
-	csp++;
-	len++;
-    } else {
-	prefix = (unsigned char *)GetSegmentBaseAddress(_ds);
-    }
-
-    if (*csp != 0x8e)
-	return 0;
-
-    csp++;
-    len += 2;
-    mod = (*csp>>6) & 3;
-    reg = (*csp>>3) & 7;
-    rm = *csp & 0x7;
-    csp++;
-
-    if (!decode_use_16bit && rm == 4 && mod < 3) { /* sib */
-	csp++;
-	len++;
-    }
-
-    switch (mod) {
-    case 0:
-	if (rm == 6 && decode_use_16bit) {		/* disp16 */
-	    addr = prefix + (int)(*(short *)csp);
-	    len += 2;
-	} else if (rm == 5 && !decode_use_16bit) {	/* disp32 */
-	    addr = prefix + (*(int *)csp);
-	    len += 4;
-	} else
-	    addr = decode_8e_index(scp, prefix, rm, decode_use_16bit);
-	break;
-    case 1:			/* disp8 */
-	addr = decode_8e_index(scp, prefix, rm, decode_use_16bit) +
-	    (int)(*(signed char *)csp);
-	len++;
-	break;
-    case 2:			/* disp16 */
-	addr = decode_8e_index(scp, prefix, rm, decode_use_16bit);
-	if (decode_use_16bit) {
-	    addr += (int)(*(short *)csp);
-	    len += 2;
-	} else {                /* disp32 */
-	    addr += *(int *)csp;
-	    len += 4;
-	}
-	break;
-    case 3:			/* register */
-	*src = *getreg(scp, rm);
-	break;
-    }
-    if (mod < 3)
-	*src = *(unsigned short *)addr;
-
-    *sreg = reg;
-    return len;
-}
-
-static int
-decode_load_descriptor(struct sigcontext_struct *scp, unsigned short
-		       *segment, unsigned char * sreg)
-{
-    unsigned char *prefix, *csp;
-    unsigned char mod, rm, reg;
-    unsigned long *lp=NULL;
-    unsigned offset;
-    int len = 0;
-
-    csp = (unsigned char *) SEL_ADR(_cs, _eip);
-
-    prefix = check_prefix(scp);
-    if (use_prefix) {
-	csp++;
-	len++;
-    }
-
-    switch (*csp) {
-    case 0xc5:
-	*sreg = ds_INDEX;		/* LDS */
-	break;
-    case 0xc4:
-	*sreg = es_INDEX;		/* LES */
-	break;
-    default:
-	return 0;
-    }
-
-    csp++;
-    len += 2;
-    mod = (*csp>>6) & 3;
-    reg = (*csp>>3) & 7;
-    rm = *csp & 0x7;
-
-    switch (mod) {
-    case 0:
-	if (rm == 6) {		/* disp16 */
-	    if(use_prefix)
-		lp = (unsigned long *)(prefix +
-					   (int)(*(short *)(csp+1)));
-	    else
-		lp =  (unsigned long *)(GetSegmentBaseAddress(_ds) +
-					    (int)(*(short *)(csp+1)));
-	    len += 2;
-	} else
-	    lp = (unsigned long *)decode_8e_index(scp, prefix, rm, 0);
-	break;
-    case 1:			/* disp8 */
-	lp = (unsigned long *)(decode_8e_index(scp, prefix, rm, 0) +
-				   (int)(*(char *)(csp+1)));
-	len++;
-	break;
-    case 2:			/* disp16 */
-	lp = (unsigned long *)(decode_8e_index(scp, prefix, rm, 0) +
-				   (int)(*(short *)(csp+1)));
-	len += 2;
-	break;
-    case 3:			/* register */
-				/* must be memory address */
-	return 0;
-    }
-
-    offset = *lp & 0xffff;
-    *segment = (*lp >> 16) & 0xffff;
-    switch (reg) {
-	case 0:
-	    _LWORD(eax) = offset;
-	    break;
-	case 1:
-	    _LWORD(ecx) = offset;
-	    break;
-	case 2:
-	    _LWORD(edx) = offset;
-	    break;
-	case 3:
-	    _LWORD(ebx) = offset;
-	    break;
-	case 4:
-	    _LWORD(esp) = offset;
-	    break;
-	case 5:
-	    _LWORD(ebp) = offset;
-	    break;
-	case 6:
-	    _LWORD(esi) = offset;
-	    break;
-	case 7:
-	    _LWORD(edi) = offset;
-	    break;
-	}
-    return len;
-}
-
 static int
 decode_pop_segreg(struct sigcontext_struct *scp, unsigned short
 		       *segment, unsigned char * sreg)
@@ -1686,6 +1341,7 @@ static  int
 decode_modify_segreg_insn(struct sigcontext_struct *scp, unsigned
 			  short *segment, unsigned char *sreg)
 {
+    unsigned char decode_use_16bit;
     unsigned char *csp;
     int len, size_prfix;
 
@@ -1699,21 +1355,7 @@ decode_modify_segreg_insn(struct sigcontext_struct *scp, unsigned
 	size_prfix++;
     }
 	
-    /* first try mov sreg, .. (equal for 16/32 bit operand size) */
-    if ((len = decode_8e(scp, segment, sreg, decode_use_16bit))) {
-      _eip += len;
-      return len + size_prfix;
-    }
- 
-    if (decode_use_16bit) {	/*  32bit decode not implemented yet */
-      /* then try lds, les ... */
-      if ((len = decode_load_descriptor(scp, segment, sreg))) {
-        _eip += len;
-	return len+size_prfix;
-      }
-    }
-
-    /* now try pop sreg */
+    /* first try pop sreg */
     if ((len = decode_pop_segreg(scp, segment, sreg))) {
       _esp += decode_use_16bit ? 2 : 4;
       _eip += len;
@@ -1856,12 +1498,45 @@ int msdos_fault(struct sigcontext_struct *scp)
     }
     
     /* now it is a invalid selector error, try to fix it if it is */
-    /* caused by an instruction mov Sreg,m/r16                    */
+    /* caused by an instruction such as mov Sreg,r/m16            */
 
     copy_context(&new_sct, scp);
     len = decode_modify_segreg_insn(&new_sct, &segment, &reg);
-    if (len == 0) 
-	return 0;
+
+    if (len == 0) {
+	/* simulate one instruction in instremu, and check which
+	   segment register has changed;
+	   pmode==2 means "simulate", count==1
+	*/
+	instr_emu(&new_sct, 2, 1);
+
+	len = new_sct.eip - _eip;
+	if (len == 0)
+	    return 0;
+	reg = 0xff;
+	segment = 0xffff;
+	if (_cs != new_sct.cs) {
+	    reg = cs_INDEX;
+	    segment = new_sct.cs;
+	} else if (_ds != new_sct.ds) {
+	    reg = ds_INDEX;
+	    segment = new_sct.ds;
+	} else if (_es != new_sct.es) {
+	    reg = es_INDEX;
+	    segment = new_sct.es;
+	} else if (_fs != new_sct.fs) {
+	    reg = fs_INDEX;
+	    segment = new_sct.fs;
+	} else if (_gs != new_sct.gs) {
+	    reg = gs_INDEX;
+	    segment = new_sct.gs;
+	} else if (_ss != new_sct.ss) {
+	    reg = ss_INDEX;
+	    segment = new_sct.ss;
+	}
+	if (reg == 0xff)
+	    return 0;
+    }
     if (ValidAndUsedSelector(segment)) {
 	/*
 	 * The selector itself is OK, but the descriptor (type) is not.
