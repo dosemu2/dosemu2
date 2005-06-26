@@ -334,8 +334,9 @@ void Seq_write_value(unsigned char data)
 
     case 0x0e:		/* Trident: Old/New Mode Control 1 */
       if(vga.seq.mode == NEW_MODE) {
-        u = (data ^= 0x02) & 0x0f;	/* XOR 0x02, used for Trident detection */
+        u = (data ^ 0x02) & 0x0f;	/* XOR 0x02, used for Trident detection */
         vga_emu_switch_bank(u);
+        vga.seq.data[0x0e] = data ^ 0x02;
       }
       else {	/* Seq_mode == OLD_MODE */
         /* don't know what to do, we don't support 128K pages -- Erik */
