@@ -1658,7 +1658,7 @@ static void start_mouse(void)
 static void stop_mouse(void)
 {
   c_printf("MOUSE: %s, type %x using internaldriver: %s, emulate3buttons: %s baudrate: %d\n", 
-        mptr->dev[0] ? mptr->dev : "no device specified",
+        mptr->dev && mptr->dev[0] ? mptr->dev : "no device specified",
         mptr->type, mptr->intdrv ? "yes" : "no", 
         mptr->emulate3buttons ? "yes" : "no", mptr->baudRate);
 }

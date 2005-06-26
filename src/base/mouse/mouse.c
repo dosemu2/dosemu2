@@ -165,8 +165,8 @@ static struct mouse_client *mouse_clients[] =
 #ifdef USE_SLANG
   &Mouse_xterm,
 #endif
-  &Mouse_raw,
   &Mouse_serial,
+  &Mouse_raw,
   &Mouse_none,  /* This must be last */
 };
 
@@ -1991,8 +1991,6 @@ static int serial_mouse_init(void)
 {
   int x;
   serial_t *sptr=NULL;
-  if (mice->intdrv)
-    return FALSE;
   for (x=0;x<config.num_ser;x++){
     sptr = &com[x];
     if (sptr->mouse) break;
@@ -2001,9 +1999,8 @@ static int serial_mouse_init(void)
     m_printf("MOUSE: No mouse configured in serial config! num_ser=%d\n",config.num_ser);
     return FALSE;
   }
-  else {
-    m_printf("MOUSE: Mouse configured in serial config! num_ser=%d\n",config.num_ser);
-  }
+  m_printf("MOUSE: Mouse configured in serial config! num_ser=%d\n",config.num_ser);
+  mice->intdrv = FALSE;
   return TRUE;
 }
 

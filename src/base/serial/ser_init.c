@@ -214,6 +214,11 @@ int ser_open(int num)
 {
   s_printf("SER%d: Running ser_open, fd=%d\n",num, com[num].fd);
   
+  if (com[num].mouse && !config.console) {
+    s_printf("SER%d: Not touching mouse outside of the console!\n",num);
+    return(-1);
+  }
+
   if (com[num].fd != -1) return (com[num].fd);
   
   if ( com[num].virtual )
