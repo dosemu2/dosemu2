@@ -54,6 +54,8 @@
 
 
 #include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include "cpu.h"
 #include "emu.h"
 #include "video.h"
@@ -61,6 +63,7 @@
 #include "vgaemu.h"
 #include "dpmi.h"
 #include "vesa.h"
+#include "int.h"
 
 #define VBE_BIOS_MAXPAGES	2	/* max. 8k BIOS size, more than enough */
 
@@ -202,6 +205,17 @@ void vbe_init(vgaemu_display_type *vedt)
 
   dos_vga_bios[2] = (bios_ptr + ((1 << 9) - 1)) >> 9;
   vgaemu_bios.pages = (bios_ptr + ((1 << 12) - 1)) >> 12;
+
+  if (config.vbios_file) {
+    /* EXPERIMENTAL: load and boot the Bochs BIOS */
+    int fd = open(config.vbios_file, O_RDONLY);
+    if (fd != -1) {
+      read(fd, (void*)0xc0000, 32768);
+      close(fd);
+      vgaemu_bios.pages = 8;
+      fake_call_to(INT10_SEG, INT10_OFF);
+    }
+  }
 
   memcheck_addtype('V', "VGAEMU Video BIOS");
   memcheck_reserve('V', (size_t)dos_vga_bios, vgaemu_bios.pages << 12);

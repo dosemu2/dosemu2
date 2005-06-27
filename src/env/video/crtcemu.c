@@ -271,6 +271,10 @@ void CRTC_write_value(unsigned char data)
       break;
 
     case 0x17:		/* Mode Control */
+      if(NEWBITS(0x03)) {
+	crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (guessed)\n", ind, u);
+	vgaemu_adj_cfg(CFG_MODE_CONTROL, 0);
+      }
       if(NEWBITS(0x40)) {
 	vgaemu_adj_cfg(CFG_CRTC_ADDR_MODE, 0);
       }

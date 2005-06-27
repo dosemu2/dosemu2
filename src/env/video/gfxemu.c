@@ -58,7 +58,7 @@
 #define gfx_deb2(x...)
 #endif
 
-#define NEWBITS(a) ((vga.gfx.data[ind] ^ data) & (a))
+#define NEWBITS(a) ((olddata ^ data) & (a))
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -167,6 +167,7 @@ void GFX_write_value(unsigned char data)
   unsigned u = data;
 #endif
   unsigned ind = vga.gfx.index;
+  unsigned char olddata;
 
   if(ind > GFX_MAX_INDEX) {
     gfx_deb("GFX_write_value: data (0x%02x) ignored\n", data);
@@ -176,6 +177,8 @@ void GFX_write_value(unsigned char data)
   gfx_deb2("GFX_write_value: gfx[0x%02x] = 0x%02x\n", ind, data);
 
   if(vga.gfx.data[ind] == data) return;
+  olddata = vga.gfx.data[ind];
+  vga.gfx.data[ind] = data;
 
   switch(ind) {
     case 0x00:		/* Set/Reset */
@@ -231,16 +234,20 @@ void GFX_write_value(unsigned char data)
         gfx_deb("GFX_write_value: odd/even = %s (ignored)\n", (data & 0x10) ? "on" : "off");
       }
       if(NEWBITS(0x20)) {
-        gfx_deb("GFX_write_value: CGA 4 color mode = %s (ignored)\n", (data & 0x20) ? "on" : "off");
+        gfx_deb("GFX_write_value: CGA 4 color mode = %s\n", (data & 0x20) ? "on" : "off");
       }
       if(NEWBITS(0x40)) {
-        gfx_deb("GFX_write_value: VGA 256 color mode = %s (ignored)\n", (data & 0x40) ? "on" : "off");
+        gfx_deb("GFX_write_value: VGA 256 color mode = %s\n", (data & 0x40) ? "on" : "off");
+      }
+      if(NEWBITS(0x60)) {
+        vgaemu_adj_cfg(CFG_MODE_CONTROL, 0);
       }
       break;
 
     case 0x06:		/* Miscellaneous */
       if(NEWBITS(0x01)) {
-        gfx_deb("GFX_write_value: %s mode (ignored)\n", (data & 1) ? "text" : "graphics");
+        gfx_deb("GFX_write_value: %s mode\n", (data & 1) ? "graphics" : "text");
+        vgaemu_adj_cfg(CFG_MODE_CONTROL, 0);
       }
       if(NEWBITS(0x02)) {
         gfx_deb("GFX_write_value: odd/even address mode = %s (ignored)\n", (data & 2) ? "on" : "off");
@@ -292,8 +299,6 @@ void GFX_write_value(unsigned char data)
       break;
 
   }
-
-  vga.gfx.data[ind] = data;
 }
 
 

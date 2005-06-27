@@ -162,6 +162,7 @@ void Misc_set_misc_output(unsigned char data)
   if(u != vga.config.mono_port) {
     vga.config.mono_port = u;
     misc_msg("Misc_set_misc_output: VGA changed to %s mode\n", u ? "mono" : "color");
+    vgaemu_adj_cfg(CFG_MODE_CONTROL, 0);
   }
 }
 

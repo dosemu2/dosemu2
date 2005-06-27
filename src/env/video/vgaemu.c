@@ -2597,6 +2597,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
 	if ((vga.width != width) || (vga.char_width != multiplier)) {
 	  vga.width = width;
 	  vga.char_width = multiplier;
+	  vga.text_width = horizontal_display_end;
 	  vga.reconfig.display = 1;
 	}
       }
@@ -2727,6 +2728,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       if ((vga.width != width) || (vga.char_width != multiplier)) {
         vga.width = width;
         vga.char_width = (multiplier >= 8) ? multiplier : 8;
+	vga.text_width = horizontal_display_end;
         vga.reconfig.display = 1;
       }
       break;
@@ -2745,6 +2747,46 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
         vga.line_compare = vga.crtc.line_compare / vertical_multiplier;
         dirty_all_video_pages();
       }
+      break;
+    }
+    case CFG_MODE_CONTROL:
+    {
+      vga.mode_class = (vga.gfx.data[6] & 1) ? GRAPH : TEXT;
+      vga.pixel_size = 4;
+      if (vga.mode_class == TEXT) {
+	vga.mode_type = vga.config.mono_port ? TEXT_MONO : TEXT;
+      } else {
+	unsigned char gdata = vga.gfx.data[5];
+	unsigned char cdata = vga.crtc.data[0x17];
+	unsigned char adata = vga.attr.data[0x12];
+
+	vga.pixel_size = 1;
+	if (gdata & 0x40) {
+	  vga.mode_type = P8;
+	  vga.pixel_size = 8;
+	} else if (gdata & 0x20) {
+	  vga.mode_type = CGA;
+	  vga.pixel_size = 2;
+	} else if (!(cdata & 1)) {
+	  vga.mode_type = CGA;
+	} else if (!(cdata & 2)) {
+	  vga.mode_type = HERC;
+	} else if (adata == 5) {
+	  vga.mode_type = PL2;
+	  vga.pixel_size = 2;
+	} else if (adata == 1) {
+	  vga.mode_type = PL1;
+	} else {
+	  vga.mode_type = PL4;
+	  vga.pixel_size = 4;
+	}
+      }
+      vga.color_bits = vga.pixel_size;
+      vga.inst_emu = (vga.mode_type==PL4 || vga.mode_type==PL2 ||
+	(vga.color_bits == 8 && 
+	 ((vga.seq.map_mask | 0xf8) & (vga.seq.map_mask - 1))))
+	? EMU_ALL_INST : 0;
+      vga.reconfig.re_init = 1;
       break;
     }
     default:

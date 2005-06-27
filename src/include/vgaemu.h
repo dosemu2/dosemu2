@@ -151,6 +151,7 @@
 #define CFG_CRTC_HEIGHT         3
 #define CFG_CRTC_WIDTH          4
 #define CFG_CRTC_LINE_COMPARE   5
+#define CFG_MODE_CONTROL        6
 
 
 /*

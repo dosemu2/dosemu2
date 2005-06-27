@@ -353,6 +353,8 @@ void Attr_write_value(unsigned char data)
         vga.attr.data[i] = data;
         vga.attr.dirty[i] = True;
         vga.color_modified = True;
+	if (i == ATTR_COL_PLANE)
+	  vgaemu_adj_cfg(CFG_MODE_CONTROL, 0);
       }
       if(i == ATTR_MODE_CTL || i == ATTR_COL_SELECT) {
         for(j = 0; j < 16; j++) vga.attr.dirty[j] = True;

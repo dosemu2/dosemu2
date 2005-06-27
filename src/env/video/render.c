@@ -233,10 +233,10 @@ static void modify_mode(vga_emu_update_type *veut)
        */
       dirty_all_vga_colors();
 
-      vga.reconfig.mem =
       vga.reconfig.display =
       vga.reconfig.dac = 0;
     }
+    vga.reconfig.mem = 0;
   }
 
   if(vga.reconfig.display) {
