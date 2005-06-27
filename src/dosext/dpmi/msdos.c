@@ -33,26 +33,53 @@
 
 #define TRANS_BUFFER_SEG EMM_SEGMENT
 
-#define DTA_over_1MB (void*)(GetSegmentBaseAddress(DPMI_CLIENT.USER_DTA_SEL) + DPMI_CLIENT.USER_DTA_OFF)
-#define DTA_under_1MB (void*)((DPMI_CLIENT.private_data_segment + DTA_Para_ADD) << 4)
+#define DTA_over_1MB (void*)(GetSegmentBaseAddress(MSDOS_CLIENT.user_dta_sel) + MSDOS_CLIENT.user_dta_off)
+#define DTA_under_1MB (void*)((MSDOS_CLIENT.lowmem_seg + DTA_Para_ADD) << 4)
 
 #define MAX_DOS_PATH 260
 
+#define D_16_32(reg)		(MSDOS_CLIENT.is_32 ? reg : reg & 0xffff)
+
+int msdos_client_num = 0;
+struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
+
+void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
+{
+    msdos_client_num++;
+    memset(&MSDOS_CLIENT, 0, sizeof(struct msdos_struct));
+    MSDOS_CLIENT.is_32 = is_32;
+    MSDOS_CLIENT.lowmem_seg = mseg;
+    MSDOS_CLIENT.current_psp = psp;
+    MSDOS_CLIENT.current_env_sel = READ_WORD(SEGOFF2LINEAR(psp, 0x2c));
+    D_printf("MSDOS: init, %i\n", msdos_client_num);
+}
+
+void msdos_done(void)
+{
+    msdos_client_num--;
+    D_printf("MSDOS: done, %i\n", msdos_client_num);
+}
+
+int msdos_get_lowmem_size(void)
+{
+    return DTA_Para_SIZE;
+}
+
 static void prepare_ems_frame(void)
 {
-    if (DPMI_CLIENT.ems_frame_mapped)
+    if (MSDOS_CLIENT.ems_frame_mapped)
 	return;
-    DPMI_CLIENT.ems_frame_mapped = 1;
-    emm_get_map_registers(DPMI_CLIENT.ems_map_buffer);
+    MSDOS_CLIENT.ems_frame_mapped = 1;
+    emm_get_map_registers(MSDOS_CLIENT.ems_map_buffer);
     emm_unmap_all();
 }
 
 static void restore_ems_frame(void)
 {
-    if (!DPMI_CLIENT.ems_frame_mapped)
+    if (!MSDOS_CLIENT.ems_frame_mapped)
 	return;
-    emm_set_map_registers(DPMI_CLIENT.ems_map_buffer);
-    DPMI_CLIENT.ems_frame_mapped = 0;
+    emm_set_map_registers(MSDOS_CLIENT.ems_map_buffer);
+    MSDOS_CLIENT.ems_frame_mapped = 0;
 }
 
 static int need_copy_dseg(struct sigcontext_struct *scp, int intr)
@@ -159,52 +186,61 @@ static int in_dos_space(unsigned short sel, unsigned long off)
 
 static void old_dos_terminate(struct sigcontext_struct *scp, int i)
 {
-    unsigned short psp_seg_sel;
-    unsigned char *ptr;
+    unsigned short psp_seg_sel, parent_psp = 0;
+    unsigned short psp_sig;
 
     D_printf("DPMI: old_dos_terminate, int=%#x\n", i);
 
-    REG(cs)  = DPMI_CLIENT.CURRENT_PSP;
+    REG(cs)  = MSDOS_CLIENT.current_psp;
     REG(eip) = 0x100;
 
 #if 0
-    _eip = *(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa);
+    _eip = READ_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0xa));
     _cs = ConvertSegmentToCodeDescriptor(
-      *(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa+2));
+      READ_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0xa+2)));
 #endif
 
     /* put our return address there */
-    *(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa) =
-	     DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
-    *(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa+2) = DPMI_SEG;
+    WRITE_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0xa),
+	     DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i);
+    WRITE_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0xa+2), DPMI_SEG);
 
-    psp_seg_sel = *(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0x16);
-    ptr = (unsigned char *)SEG2LINEAR(psp_seg_sel);
-    if (ptr[0] != 0xCD || ptr[1] != 0x20) {
-	unsigned short psp_seg = DPMI_CLIENT.CURRENT_PSP;
+    psp_seg_sel = READ_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0x16));
+    /* try segment */
+    psp_sig = READ_WORD(SEG2LINEAR(psp_seg_sel));
+    if (psp_sig != 0x20CD) {
+	/* now try selector */
+	unsigned long addr;
 	D_printf("DPMI: Trying PSP sel=%#x, V=%i, d=%i, l=%#lx\n",
 	    psp_seg_sel, ValidAndUsedSelector(psp_seg_sel),
 	    in_dos_space(psp_seg_sel, 0), GetSegmentLimit(psp_seg_sel));
 	if (ValidAndUsedSelector(psp_seg_sel) && in_dos_space(psp_seg_sel, 0) &&
 		GetSegmentLimit(psp_seg_sel) >= 0xff) {
-	    ptr = (unsigned char *)GetSegmentBaseAddress(psp_seg_sel);
-	    D_printf("DPMI: Trying PSP sel=%#x, addr=%p\n", psp_seg_sel, ptr);
-	    if ((!(((int)ptr) & 0x0f)) && ptr[0] == 0xCD && ptr[1] == 0x20) {
-		psp_seg = ((int)ptr) >> 4;
+	    addr = GetSegmentBaseAddress(psp_seg_sel);
+	    psp_sig = READ_WORD(addr);
+	    D_printf("DPMI: Trying PSP sel=%#x, addr=%#lx\n", psp_seg_sel, addr);
+	    if (!(addr & 0x0f) && psp_sig == 0x20CD) {
+		/* found selector */
+		parent_psp = addr >> 4;
 	        D_printf("DPMI: parent PSP sel=%#x, seg=%#x\n",
-		    psp_seg_sel, psp_seg);
+		    psp_seg_sel, parent_psp);
 	    }
-	} else {
-	    D_printf("DPMI: using current PSP as parent!\n");
 	}
-	*(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0x16) = psp_seg;
     } else {
-	D_printf("DPMI: parent PSP seg=%#x\n", psp_seg_sel);
+	/* found segment */
+	parent_psp = psp_seg_sel;
+    }
+    if (!parent_psp) {
+	/* no PSP found, use current as the last resort */
+	D_printf("DPMI: using current PSP as parent!\n");
+	parent_psp = MSDOS_CLIENT.current_psp;
     }
 
+    D_printf("DPMI: parent PSP seg=%#x\n", psp_seg_sel);
+    if (parent_psp != psp_seg_sel)
+	WRITE_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0x16), parent_psp);
     /* And update our PSP pointer */
-    DPMI_CLIENT.CURRENT_PSP =
-	*(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0x16);
+    MSDOS_CLIENT.current_psp = parent_psp;
 }
 
 /*
@@ -222,7 +258,7 @@ static void old_dos_terminate(struct sigcontext_struct *scp, int i)
 int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 {
     D_printf("DPMI: pre_extender: int 0x%x, ax=0x%x\n", intr, _LWORD(eax));
-    if (DPMI_CLIENT.USER_DTA_SEL && intr == 0x21) {
+    if (MSDOS_CLIENT.user_dta_sel && intr == 0x21) {
 	switch (_HI(ax)) {	/* functions use DTA */
 	case 0x11: case 0x12:	/* find first/next using FCB */
 	case 0x4e: case 0x4f:	/* find first/next */
@@ -245,8 +281,8 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		if ( _es && D_16_32(_ebx) ) {
 		  D_printf("DPMI: PS2MOUSE: set handler addr 0x%x:0x%lx\n",
 		    _es, D_16_32(_ebx));
-		  DPMI_CLIENT.PS2mouseCallBack.selector = _es;
-		  DPMI_CLIENT.PS2mouseCallBack.offset = D_16_32(_ebx); 
+		  MSDOS_CLIENT.PS2mouseCallBack.selector = _es;
+		  MSDOS_CLIENT.PS2mouseCallBack.offset = D_16_32(_ebx); 
 		  REG(es) = DPMI_SEG;
 		  REG(ebx) = DPMI_OFF + HLT_OFF(DPMI_PS2_mouse_callback);
 		} else {
@@ -268,17 +304,22 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
     case 0x21:
 	switch (_HI(ax)) {
 	    /* first see if we don\'t need to go to real mode */
-	case 0x25:		/* set vector */
-	    DPMI_CLIENT.Interrupt_Table[_LO(ax)].selector = _ds;
-	    DPMI_CLIENT.Interrupt_Table[_LO(ax)].offset = D_16_32(_edx);
-	    D_printf("DPMI: int 21,ax=0x%04x, ds=0x%04x. dx=0x%04x\n",
+	case 0x25: {		/* set vector */
+	      INTDESC desc;
+	      desc.selector = _ds;
+	      desc.offset = D_16_32(_edx);
+	      dpmi_set_interrupt_vector(_LO(ax), desc);
+	      D_printf("DPMI: int 21,ax=0x%04x, ds=0x%04x. dx=0x%04x\n",
 		     _LWORD(eax), _ds, _LWORD(edx));
+	    }
 	    return MSDOS_DONE;
-	case 0x35:	/* Get Interrupt Vector */
-	    _es = DPMI_CLIENT.Interrupt_Table[_LO(ax)].selector;
-	    _ebx = DPMI_CLIENT.Interrupt_Table[_LO(ax)].offset;
-	    D_printf("DPMI: int 21,ax=0x%04x, es=0x%04x. bx=0x%04x\n",
+	case 0x35: {	/* Get Interrupt Vector */
+	      INTDESC desc = dpmi_get_interrupt_vector(_LO(ax));
+	      _es = desc.selector;
+	      _ebx = desc.offset;
+	      D_printf("DPMI: int 21,ax=0x%04x, es=0x%04x. bx=0x%04x\n",
 		     _LWORD(eax), _es, _LWORD(ebx));
+	    }
 	    return MSDOS_DONE;
 	case 0x48:		/* allocate memory */
 	    {
@@ -373,14 +414,14 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	  {
 	    unsigned long off = D_16_32(_edx);
 	    if ( !in_dos_space(_ds, off)) {
-		DPMI_CLIENT.USER_DTA_SEL = _ds;
-		DPMI_CLIENT.USER_DTA_OFF = off;
-		REG(ds) = DPMI_CLIENT.private_data_segment+DTA_Para_ADD;
+		MSDOS_CLIENT.user_dta_sel = _ds;
+		MSDOS_CLIENT.user_dta_off = off;
+		REG(ds) = MSDOS_CLIENT.lowmem_seg+DTA_Para_ADD;
 		REG(edx)=0;
                 MEMCPY_DOS2DOS(DTA_under_1MB, DTA_over_1MB, 0x80);
 	    } else {
                 REG(ds) = GetSegmentBaseAddress(_ds) >> 4;
-                DPMI_CLIENT.USER_DTA_SEL = 0;
+                MSDOS_CLIENT.user_dta_sel = 0;
             }
 	  }
 	  return 0;
@@ -437,8 +478,8 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	  {
 	    unsigned short envp;
 	    if ( !in_dos_space(_LWORD(ebx), 0)) {
-		DPMI_CLIENT.USER_PSP_SEL = _LWORD(ebx);
-		LWORD(ebx) = DPMI_CLIENT.CURRENT_PSP;
+		MSDOS_CLIENT.user_psp_sel = _LWORD(ebx);
+		LWORD(ebx) = MSDOS_CLIENT.current_psp;
 		MEMCPY_DOS2DOS((void *)SEG2LINEAR(LWORD(ebx)), 
 		    (void *)GetSegmentBaseAddress(_LWORD(ebx)), 0x100);
 		D_printf("DPMI: PSP moved from %p to %p\n",
@@ -446,16 +487,16 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		    (void *)SEG2LINEAR(LWORD(ebx)));
 	    } else {
 		REG(ebx) = GetSegmentBaseAddress(_LWORD(ebx)) >> 4;
-		DPMI_CLIENT.USER_PSP_SEL = 0;
+		MSDOS_CLIENT.user_psp_sel = 0;
 	    }
-	    DPMI_CLIENT.CURRENT_PSP = LWORD(ebx);
+	    MSDOS_CLIENT.current_psp = LWORD(ebx);
 	    envp = *(unsigned short *)(((char *)(LWORD(ebx)<<4)) + 0x2c);
-	    if ( !in_dos_space(envp, 0)) {
+	    if (envp && !in_dos_space(envp, 0)) {
 		/* DANG_FIXTHIS: Please implement the ENV translation! */
 		error("FIXME: ENV translation is not implemented\n");
-		DPMI_CLIENT.CURRENT_ENV_SEL = 0;
+		MSDOS_CLIENT.current_env_sel = 0;
 	    } else {
-		DPMI_CLIENT.CURRENT_ENV_SEL = envp;
+		MSDOS_CLIENT.current_env_sel = envp;
 	    }
 	  }
 	  return 0;
@@ -467,12 +508,12 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 
 	case 0x55:		/* create & set PSP */
 	    if ( !in_dos_space(_LWORD(edx), 0)) {
-		DPMI_CLIENT.USER_PSP_SEL = _LWORD(edx);
-		LWORD(edx) = DPMI_CLIENT.CURRENT_PSP;
+		MSDOS_CLIENT.user_psp_sel = _LWORD(edx);
+		LWORD(edx) = MSDOS_CLIENT.current_psp;
 	    } else {
 		REG(edx) = GetSegmentBaseAddress(_LWORD(edx)) >> 4;
-		DPMI_CLIENT.CURRENT_PSP = LWORD(edx);
-		DPMI_CLIENT.USER_PSP_SEL = 0;
+		MSDOS_CLIENT.current_psp = LWORD(edx);
+		MSDOS_CLIENT.user_psp_sel = 0;
 	    }
 	    return 0;
 
@@ -715,9 +756,9 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    return 0;
 	case 0x0c:		/* set call back */
 	case 0x14: {		/* swap call back */
-	    struct pmaddr_s old_callback = DPMI_CLIENT.mouseCallBack;
-	    DPMI_CLIENT.mouseCallBack.selector = _es;
-	    DPMI_CLIENT.mouseCallBack.offset = D_16_32(_edx);
+	    struct pmaddr_s old_callback = MSDOS_CLIENT.mouseCallBack;
+	    MSDOS_CLIENT.mouseCallBack.selector = _es;
+	    MSDOS_CLIENT.mouseCallBack.offset = D_16_32(_edx);
 	    if (_es) {
 		D_printf("DPMI: set mouse callback\n");
 		REG(es) = DPMI_SEG;
@@ -729,7 +770,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    }
 	    if (_LWORD(eax) == 0x14) {
 		_es = old_callback.selector;
-		if (DPMI_CLIENT.is_32)
+		if (MSDOS_CLIENT.is_32)
 		    _edx = old_callback.offset;
 		else
 		    _LWORD(edx) = old_callback.offset;
@@ -823,23 +864,23 @@ void msdos_pre_exec(struct sigcontext_struct *scp)
     segment += 3;
 
     /* then the enviroment seg */
-    if (DPMI_CLIENT.CURRENT_ENV_SEL)
-	WRITE_WORD(SEGOFF2LINEAR(DPMI_CLIENT.CURRENT_PSP, 0x2c),
-	    GetSegmentBaseAddress(DPMI_CLIENT.CURRENT_ENV_SEL) >> 4);
+    if (MSDOS_CLIENT.current_env_sel)
+	WRITE_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0x2c),
+	    GetSegmentBaseAddress(MSDOS_CLIENT.current_env_sel) >> 4);
 }
 
-void msdos_post_exec(void)
+void msdos_post_exec(struct sigcontext_struct *scp)
 {
-    DPMI_CLIENT.stack_frame.eflags = 0x0202 | (0x0dd5 & REG(eflags));
-    DPMI_CLIENT.stack_frame.eax = REG(eax);
+    _eflags = 0x0202 | (0x0dd5 & REG(eflags));
+    _eax = REG(eax);
     if (!(LWORD(eflags) & CF)) {
-	DPMI_CLIENT.stack_frame.ebx = REG(ebx);
-        DPMI_CLIENT.stack_frame.edx = REG(edx);
+        _ebx = REG(ebx);
+        _edx = REG(edx);
      }
 
-    if (DPMI_CLIENT.CURRENT_ENV_SEL)
-	*(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0x2c) =
-	                     DPMI_CLIENT.CURRENT_ENV_SEL;
+    if (MSDOS_CLIENT.current_env_sel)
+	WRITE_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0x2c),
+	    MSDOS_CLIENT.current_env_sel);
 
     restore_ems_frame();
 }
@@ -863,7 +904,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 #define SET_REG(rg, val) (PRESERVE1(rg), _##rg = (val))
     D_printf("DPMI: post_extender: int 0x%x ax=0x%04x\n", intr, _LWORD(eax));
 
-    if (DPMI_CLIENT.USER_DTA_SEL && intr == 0x21 ) {
+    if (MSDOS_CLIENT.user_dta_sel && intr == 0x21 ) {
 	switch (_HI(ax)) {	/* functions use DTA */
 	case 0x11: case 0x12:	/* find first/next using FCB */
 	case 0x4e: case 0x4f:	/* find first/next */
@@ -920,8 +961,8 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
     case 0x2f:
 	switch (_LWORD(eax)) {
 	    case 0x4310:
-                DPMI_CLIENT.XMS_call = MK_FARt(REG(es), LWORD(ebx));
-                SET_REG(es, DPMI_CLIENT.DPMI_SEL);
+                MSDOS_CLIENT.XMS_call = MK_FARt(REG(es), LWORD(ebx));
+                SET_REG(es, ConvertSegmentToCodeDescriptor(DPMI_SEG));
                 SET_REG(ebx, DPMI_OFF + HLT_OFF(DPMI_XMS_call));
 		break;
 	}
@@ -957,10 +998,10 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 
 	case 0x2f:		/* GET DTA */
 	    if (SEG_ADR((void*), es, bx) == DTA_under_1MB) {
-		if (!DPMI_CLIENT.USER_DTA_SEL)
+		if (!MSDOS_CLIENT.user_dta_sel)
 		    error("Selector is not set for the translated DTA\n");
-		SET_REG(es, DPMI_CLIENT.USER_DTA_SEL);
-		SET_REG(ebx, DPMI_CLIENT.USER_DTA_OFF);
+		SET_REG(es, MSDOS_CLIENT.user_dta_sel);
+		SET_REG(ebx, MSDOS_CLIENT.user_dta_off);
 	    } else {
 		SET_REG(es, ConvertSegmentToDescriptor(REG(es)));
 		/* it is important to copy only the lower word of ebx
@@ -1000,8 +1041,8 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	  {
 	    unsigned short envp;
 	    PRESERVE1(edx);
-	    envp = *(unsigned short *)(((char *)(LWORD(edx)<<4)) + 0x2c);
-	    DPMI_CLIENT.CURRENT_ENV_SEL = ConvertSegmentToDescriptor(envp);
+	    envp = READ_WORD(SEGOFF2LINEAR(LWORD(edx), 0x2c));
+	    MSDOS_CLIENT.current_env_sel = ConvertSegmentToDescriptor(envp);
 	    if ( !in_dos_space(_LWORD(edx), 0)) {
 		MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(_LWORD(edx)),
 		    SEG2LINEAR(LWORD(edx)), 0x100);
@@ -1061,10 +1102,10 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 		envp = ConvertSegmentToDescriptor(envp);
 		*(unsigned short *)(((char *)(psp<<4))+0x2c) = envp;
 #endif
-		if (psp == DPMI_CLIENT.CURRENT_PSP && DPMI_CLIENT.USER_PSP_SEL) {
-		    SET_REG(ebx, DPMI_CLIENT.USER_PSP_SEL);
+		if (psp == MSDOS_CLIENT.current_psp && MSDOS_CLIENT.user_psp_sel) {
+		    SET_REG(ebx, MSDOS_CLIENT.user_psp_sel);
 		} else {
-		    SET_REG(ebx, ConvertSegmentToDescriptor(psp));
+		    SET_REG(ebx, ConvertSegmentToDescriptor_lim(psp, 0xff));
 		}
 	    }
 	    break;
@@ -1194,12 +1235,12 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
     case 0x25:			/* Absolute Disk Read */
     case 0x26:			/* Absolute Disk Write */
 	/* the flags should be pushed to stack */
-	if (DPMI_CLIENT.is_32) {
-	    DPMI_CLIENT.stack_frame.esp -= 4;
+	if (MSDOS_CLIENT.is_32) {
+	    _esp -= 4;
 	    *(unsigned long *)(GetSegmentBaseAddress(_ss) + _esp - 4) =
 	      REG(eflags);
 	} else {
-	    DPMI_CLIENT.stack_frame.esp -= 2;
+	    _esp -= 2;
 	    *(unsigned short *)(GetSegmentBaseAddress(_ss) +
 	      _LWORD(esp) - 2) = LWORD(eflags);
 	}
@@ -1559,8 +1600,8 @@ int msdos_fault(struct sigcontext_struct *scp)
 	return 0;
 #endif    
 
-    if (!(desc = (reg != cs_INDEX ? ConvertSegmentToDescriptor(segment) :
-	ConvertSegmentToCodeDescriptor(segment))))
+    if (!(desc = (reg != cs_INDEX ? ConvertSegmentToDescriptor_lim(segment, 0xfffff) :
+	ConvertSegmentToCodeDescriptor_lim(segment, 0xfffff))))
 	return 0;
 
     /* OKay, all the sanity checks passed. Now we go and fix the selector */

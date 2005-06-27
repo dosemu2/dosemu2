@@ -102,6 +102,9 @@
     PAGE_ALIGN(LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE)
 #define LDT_INIT_LIMIT 0xfff
 
+#define D_16_32(reg)		(DPMI_CLIENT.is_32 ? reg : reg & 0xffff)
+#define ADD_16_32(acc, val)	{ if (DPMI_CLIENT.is_32) acc+=val; else LO_WORD(acc)+=val; }
+
 SEGDESC Segments[MAX_SELECTORS];
 
 #define CLI_BLACKLIST_LEN 128
@@ -122,7 +125,7 @@ int DPMI_pm_procedure_running = 0;
 char *ldt_buffer;
 
 struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
-struct RSP_s RSP_callbacks[DPMI_MAX_CLIENTS];
+static struct RSP_s RSP_callbacks[DPMI_MAX_CLIENTS];
 
 static struct sigcontext_struct *emu_stack_frame = &_emu_stack_frame;
 
@@ -562,7 +565,7 @@ void dpmi_get_entry_point(void)
     REG(edi) = DPMI_OFF;
 
     /* private data */
-    LWORD(esi) = DPMI_private_paragraphs + DTA_Para_SIZE + RM_CB_Para_SIZE;
+    LWORD(esi) = DPMI_private_paragraphs + RM_CB_Para_SIZE + msdos_get_lowmem_size();
 
     D_printf("DPMI entry returned\n");
 }
@@ -718,56 +721,58 @@ static void FreeAllDescriptors(void)
     }
 }
 
-static int ConvertSegmentToDescriptor32(unsigned short segment, int limit_is_32)
+int ConvertSegmentToDescriptor_lim(unsigned short segment, unsigned long limit)
 {
   unsigned long baseaddr = segment << 4;
-  unsigned long limit = limit_is_32 ? 0xfffff : 0xffff;
   unsigned short selector;
   int i;
   D_printf("DPMI: convert seg %#x to desc\n", segment);
   for (i=1;i<MAX_SELECTORS;i++)
-    if ((Segments[i].base_addr==baseaddr) && (Segments[i].limit>=0xffff ||
-	 Segments[i].limit==0xff /* 0xff is the limit of the PSP seg */) &&
-	(Segments[i].type==MODIFY_LDT_CONTENTS_DATA) && Segments[i].used) {
+    if ((Segments[i].base_addr==baseaddr) && (Segments[i].limit==limit) &&
+	(Segments[i].type==MODIFY_LDT_CONTENTS_DATA) && Segments[i].used &&
+	(Segments[i].is_32==DPMI_CLIENT.is_32)) {
       D_printf("DPMI: found descriptor at %#x\n", (i<<3) | 0x0007);
+      if (debug_level('M') >= 9 && limit != 0xffff)
+        D_printf("DPMI: limit=%#lx for converted desc\n", limit);
       return (i<<3) | 0x0007;
     }
   D_printf("DPMI: SEG at base=%#lx not found, allocate a new one\n", baseaddr);
   if (!(selector = AllocateDescriptors(1))) return 0;
   if (SetSelector(selector, baseaddr, limit, DPMI_CLIENT.is_32,
-                  MODIFY_LDT_CONTENTS_DATA, 0, limit_is_32, 0, 0)) return 0;
+                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   return selector;
 }
 
 int ConvertSegmentToDescriptor(unsigned short segment)
 {
-  return ConvertSegmentToDescriptor32(segment, DPMI_CLIENT.is_32);
+  return ConvertSegmentToDescriptor_lim(segment, 0xffff);
 }
 
-static int ConvertSegmentToDescriptor16(unsigned short segment)
-{
-  return ConvertSegmentToDescriptor32(segment, 0);
-}
-
-int ConvertSegmentToCodeDescriptor(unsigned short segment)
+int ConvertSegmentToCodeDescriptor_lim(unsigned short segment, unsigned long limit)
 {
   unsigned long baseaddr = segment << 4;
-  unsigned long limit = DPMI_CLIENT.is_32 ? 0xfffff : 0xffff;
   unsigned short selector;
   int i;
   D_printf("DPMI: convert seg %#x to *code* desc\n", segment);
   for (i=1;i<MAX_SELECTORS;i++)
-    if ((Segments[i].base_addr==baseaddr) && (Segments[i].limit>=0xffff) &&
+    if ((Segments[i].base_addr==baseaddr) && (Segments[i].limit==limit) &&
 	(Segments[i].type==MODIFY_LDT_CONTENTS_CODE) && Segments[i].used &&
 	(Segments[i].is_32==DPMI_CLIENT.is_32)) {
       D_printf("DPMI: found *code* descriptor at %#x\n", (i<<3) | 0x0007);
+      if (debug_level('M') >= 9 && limit != 0xffff)
+        D_printf("DPMI: limit=%#lx for converted desc\n", limit);
       return (i<<3) | 0x0007;
     }
   D_printf("DPMI: Code SEG at base=%#lx not found, allocate a new one\n", baseaddr);
   if (!(selector = AllocateDescriptors(1))) return 0;
   if (SetSelector(selector, baseaddr, limit, DPMI_CLIENT.is_32,
-                  MODIFY_LDT_CONTENTS_CODE, 0, DPMI_CLIENT.is_32, 0, 0)) return 0;
+                  MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) return 0;
   return selector;
+}
+
+int ConvertSegmentToCodeDescriptor(unsigned short segment)
+{
+  return ConvertSegmentToCodeDescriptor_lim(segment, 0xffff);
 }
 
 static inline unsigned short GetNextSelectorIncrementValue(void)
@@ -1449,6 +1454,20 @@ static int ResizeDescriptorBlock(struct sigcontext_struct *scp,
     return 1;
 }
 
+INTDESC dpmi_get_interrupt_vector(unsigned char num)
+{
+    INTDESC desc;
+    desc.selector = DPMI_CLIENT.Interrupt_Table[num].selector;
+    desc.offset = DPMI_CLIENT.Interrupt_Table[num].offset;
+    return desc;
+}
+
+void dpmi_set_interrupt_vector(unsigned char num, INTDESC desc)
+{
+    DPMI_CLIENT.Interrupt_Table[num].selector = desc.selector;
+    DPMI_CLIENT.Interrupt_Table[num].offset = desc.offset;
+}
+
 static void do_int31(struct sigcontext_struct *scp)
 {
 #if 0
@@ -1491,7 +1510,7 @@ static void do_int31(struct sigcontext_struct *scp)
 #endif    
     break;
   case 0x0002:
-    if (!(_LWORD(eax)=ConvertSegmentToDescriptor16(_LWORD(ebx)))) {
+    if (!(_LWORD(eax)=ConvertSegmentToDescriptor(_LWORD(ebx)))) {
       _LWORD(eax) = 0x8011;
       _eflags |= CF;
     }
@@ -1687,10 +1706,12 @@ err:
     DPMI_CLIENT.Exception_Table[_LO(bx)].selector = _LWORD(ecx);
     DPMI_CLIENT.Exception_Table[_LO(bx)].offset = API_16_32(_edx);
     break;
-  case 0x0204:	/* Get Protected Mode Interrupt vector */
-    _LWORD(ecx) = DPMI_CLIENT.Interrupt_Table[_LO(bx)].selector;
-    _edx = DPMI_CLIENT.Interrupt_Table[_LO(bx)].offset;
-    D_printf("DPMI: Get Prot. vec. bx=%x sel=%x, off=%lx\n", _LO(bx), _LWORD(ecx), _edx);
+  case 0x0204: {	/* Get Protected Mode Interrupt vector */
+      INTDESC desc = dpmi_get_interrupt_vector(_LO(bx));
+      _LWORD(ecx) = desc.selector;
+      _edx = desc.offset;
+      D_printf("DPMI: Get Prot. vec. bx=%x sel=%x, off=%lx\n", _LO(bx), _LWORD(ecx), _edx);
+    }
     break;
   case 0x0205:	/* Set Protected Mode Interrupt vector */
     DPMI_CLIENT.Interrupt_Table[_LO(bx)].selector = _LWORD(ecx);
@@ -2384,6 +2405,7 @@ static void dpmi_RSP_call(struct sigcontext *scp, int num, int terminating)
 static void dpmi_cleanup(struct sigcontext_struct *scp)
 {
   D_printf("DPMI: cleanup\n");
+  msdos_done();
   FreeAllDescriptors();
   free(DPMI_CLIENT.pm_stack);
   if (!DPMI_CLIENT.RSP_installed) {
@@ -2431,9 +2453,9 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
   }
 
   /* Restore environment, must before FreeDescriptor */
-  if (DPMI_CLIENT.CURRENT_ENV_SEL)
-      *(unsigned short *)(((char *)(DPMI_CLIENT.CURRENT_PSP<<4))+0x2c) =
-             (unsigned long)(GetSegmentBaseAddress(DPMI_CLIENT.CURRENT_ENV_SEL)) >> 4;
+  if (ENV_SEL)
+      WRITE_WORD(SEGOFF2LINEAR(DPMI_CLIENT.psp, 0x2c),
+             (unsigned long)(GetSegmentBaseAddress(ENV_SEL)) >> 4);
 
   if (have_tsr) {
     RSP_callbacks[RSP_num].pm_block_root = DPMI_CLIENT.pm_block_root;
@@ -2530,7 +2552,9 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
     copy_context(&DPMI_CLIENT.stack_frame, scp);
     in_dpmi++;
     DPMI_CLIENT = PREV_DPMI_CLIENT;
-    DPMI_CLIENT.ems_frame_mapped = 0;
+    msdos_init(DPMI_CLIENT.is_32,
+      DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs,
+      DPMI_CLIENT.psp);
     D_printf("DPMI: fork, in_dpmi=%i\n", in_dpmi);
   }
   in_dpmi_dos_int = 1;
@@ -2712,10 +2736,10 @@ void run_dpmi(void)
 void dpmi_init(void)
 {
   /* Holding spots for REGS and Return Code */
-  unsigned short CS, DS, ES, SS;
+  unsigned short CS, DS, ES, SS, psp, envp, envpd, my_cs;
   unsigned char *ssp;
   unsigned long sp;
-  unsigned int my_ip, my_cs, my_sp, psp, i;
+  unsigned int my_ip, my_sp, i;
   unsigned char *cp;
   int inherit_idt;
 
@@ -2863,10 +2887,9 @@ void dpmi_init(void)
   if (SetSelector(ES, (unsigned long) (psp << 4), 0x00ff, DPMI_CLIENT.is_32,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
-  {/* convert environment pointer to a descriptor*/
-     unsigned short envp, envpd;
-     envp = *(unsigned short *)(((char *)(psp<<4))+0x2c);
-     if (envp) {
+  /* convert environment pointer to a descriptor*/
+  envp = *(unsigned short *)(((char *)(psp<<4))+0x2c);
+  if (envp) {
 	if(!(envpd = AllocateDescriptors(1))) goto err;
 #if 0
 	if (SetSelector(envpd, (unsigned long) (envp << 4), 0x03ff,
@@ -2876,14 +2899,10 @@ void dpmi_init(void)
 #endif
 		DPMI_CLIENT.is_32, MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 	*(unsigned short *)(((char *)(psp<<4))+0x2c) = envpd;
-
-        DPMI_CLIENT.CURRENT_ENV_SEL = envpd;
 	D_printf("DPMI: env segment %#x converted to descriptor %#x\n",
 		envp,envpd);
-     } else
-          DPMI_CLIENT.CURRENT_ENV_SEL = 0;
-     DPMI_CLIENT.CURRENT_PSP = psp;
   }
+  DPMI_CLIENT.psp = psp;
 
   if (debug_level('M')) {
     print_ldt();
@@ -2908,7 +2927,6 @@ void dpmi_init(void)
     pic_resched();
   }
   DPMI_CLIENT.pm_block_root = calloc(1, sizeof(dpmi_pm_block_root));
-  DPMI_CLIENT.ems_frame_mapped = 0;
   DPMI_CLIENT.in_dpmi_rm_stack = 0;
   DPMI_CLIENT.stack_frame.eip	= my_ip;
   DPMI_CLIENT.stack_frame.cs	= CS;
@@ -2919,6 +2937,10 @@ void dpmi_init(void)
   DPMI_CLIENT.stack_frame.fs	= 0;
   DPMI_CLIENT.stack_frame.gs	= 0;
   rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
+
+  msdos_init(DPMI_CLIENT.is_32,
+    DPMI_CLIENT.private_data_segment + DPMI_private_paragraphs,
+    psp);
 
   for (i = 0; i < RSP_num; i++) {
     D_printf("DPMI: Calling RSP %i\n", i);
@@ -3445,13 +3467,13 @@ void dpmi_fault(struct sigcontext_struct *scp)
 
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_XMS_call)) {
 	  D_printf("DPMI: XMS call to 0x%x:0x%x\n",
-	    DPMI_CLIENT.XMS_call.segment, DPMI_CLIENT.XMS_call.offset);
+	    MSDOS_CLIENT.XMS_call.segment, MSDOS_CLIENT.XMS_call.offset);
 	  save_rm_regs();
 	  pm_to_rm_regs(scp, ~0);
 	  REG(cs) = DPMI_SEG;
 	  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_XMS_call);
 	  in_dpmi_dos_int = 1;
-	  fake_call_to(DPMI_CLIENT.XMS_call.segment, DPMI_CLIENT.XMS_call.offset);
+	  fake_call_to(MSDOS_CLIENT.XMS_call.segment, MSDOS_CLIENT.XMS_call.offset);
 
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_pm)) {
 	  leave_lpms(scp);
@@ -4045,8 +4067,9 @@ void dpmi_realmode_hlt(unsigned char * lina)
   } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_return_from_dos_exec))) {
 
     D_printf("DPMI: Return from DOS exec\n");
+    msdos_done();
     in_dpmi--;
-    msdos_post_exec();
+    msdos_post_exec(&DPMI_CLIENT.stack_frame);
 
     restore_rm_regs();
     in_dpmi_dos_int = 0;
@@ -4172,7 +4195,7 @@ done:
     unsigned short *ssp;
 
     REG(eip) += 1;            /* skip halt to point to FAR RET */
-    if (!Segments[DPMI_CLIENT.mouseCallBack.selector >> 3].used) {
+    if (!Segments[MSDOS_CLIENT.mouseCallBack.selector >> 3].used) {
       D_printf("DPMI: ERROR: mouse callback to unused segment\n");
       CARRY;
       return;
@@ -4182,8 +4205,8 @@ done:
     rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
     ssp = enter_lpms(&DPMI_CLIENT.stack_frame);
     DPMI_CLIENT.stack_frame.ds = ConvertSegmentToDescriptor(REG(ds));
-    DPMI_CLIENT.stack_frame.cs = DPMI_CLIENT.mouseCallBack.selector;
-    DPMI_CLIENT.stack_frame.eip = DPMI_CLIENT.mouseCallBack.offset;
+    DPMI_CLIENT.stack_frame.cs = MSDOS_CLIENT.mouseCallBack.selector;
+    DPMI_CLIENT.stack_frame.eip = MSDOS_CLIENT.mouseCallBack.offset;
 
     if (DPMI_CLIENT.is_32) {
 	*--ssp = (us) 0;
@@ -4205,7 +4228,7 @@ done:
     unsigned short *ssp, *rm_ssp;
 
     REG(eip) += 1;            /* skip halt to point to FAR RET */
-    if (!Segments[DPMI_CLIENT.PS2mouseCallBack.selector >> 3].used) {
+    if (!Segments[MSDOS_CLIENT.PS2mouseCallBack.selector >> 3].used) {
       D_printf("DPMI: ERROR: PS2 mouse callback to unused segment\n");
       CARRY;
       return;
@@ -4216,8 +4239,8 @@ done:
 
     DPMI_CLIENT.stack_frame.eflags = 0x0202 | (0x0dd5 & REG(eflags)) |
       dpmi_mhp_TF;
-    DPMI_CLIENT.stack_frame.cs = DPMI_CLIENT.PS2mouseCallBack.selector;
-    DPMI_CLIENT.stack_frame.eip = DPMI_CLIENT.PS2mouseCallBack.offset;
+    DPMI_CLIENT.stack_frame.cs = MSDOS_CLIENT.PS2mouseCallBack.selector;
+    DPMI_CLIENT.stack_frame.eip = MSDOS_CLIENT.PS2mouseCallBack.offset;
 
     rm_ssp = (unsigned short *)SEGOFF2LINEAR(LWORD(ss), LWORD(esp) + 4 + 8);
 

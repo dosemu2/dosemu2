@@ -28,16 +28,11 @@
 
 #define DPMI_private_paragraphs	((DPMI_rm_stacks * DPMI_rm_stack_size)>>4)
 					/* private data for DPMI server */
-#define DTA_Para_ADD DPMI_private_paragraphs
-#define DTA_Para_SIZE 8
 #define RM_CB_Para_ADD (DTA_Para_ADD+DTA_Para_SIZE)
 #define RM_CB_Para_SIZE 1
 #define current_client (in_dpmi-1)
 #define DPMI_CLIENT (DPMIclient[current_client])
 #define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
-
-#define D_16_32(reg)		(DPMI_CLIENT.is_32 ? reg : reg & 0xffff)
-#define ADD_16_32(acc, val)	{ if (DPMI_CLIENT.is_32) acc+=val; else LO_WORD(acc)+=val; }
 
 #define PAGE_MASK	(~(PAGE_SIZE-1))
 /* to align the pointer to the (next) page boundary */
@@ -158,21 +153,13 @@ struct DPMIclient_struct {
   unsigned short LDT_ALIAS;
   unsigned short PMSTACK_SEL;	/* protected mode stack selector */
   unsigned short DPMI_SEL;
-  struct pmaddr_s mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
-  far_t XMS_call;
   /* used for RSP calls */
   unsigned short RSP_cs[DPMI_MAX_CLIENTS], RSP_ds[DPMI_MAX_CLIENTS];
   int RSP_state, RSP_installed;
-  /* used when passing a DTA higher than 1MB */
-  unsigned short USER_DTA_SEL;
-  unsigned long USER_DTA_OFF;
-  unsigned short USER_PSP_SEL;
-  unsigned short CURRENT_PSP;
-  unsigned short CURRENT_ENV_SEL;
-  char ems_map_buffer[PAGE_MAP_SIZE];
-  int ems_frame_mapped;
+  unsigned short psp;
 };
 extern struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
+#define ENV_SEL (READ_WORD(SEGOFF2LINEAR(DPMI_CLIENT.psp, 0x2c)))
 
 struct RSPcall_s {
   unsigned char data16[8];
@@ -254,10 +241,14 @@ extern void dpmi_sigio(struct sigcontext_struct *scp);
 extern void run_dpmi(void);
 
 extern int ConvertSegmentToDescriptor(unsigned short segment);
+extern int ConvertSegmentToDescriptor_lim(unsigned short segment, unsigned long limit);
 extern int ConvertSegmentToCodeDescriptor(unsigned short segment);
+extern int ConvertSegmentToCodeDescriptor_lim(unsigned short segment, unsigned long limit);
 extern int SetSegmentBaseAddress(unsigned short selector,
 					unsigned long baseaddr);
 extern int SetSegmentLimit(unsigned short, unsigned int);
+extern INTDESC dpmi_get_interrupt_vector(unsigned char num);
+extern void dpmi_set_interrupt_vector(unsigned char num, INTDESC desc);
 extern void save_pm_regs(struct sigcontext_struct *);
 extern void restore_pm_regs(struct sigcontext_struct *);
 extern unsigned short AllocateDescriptors(int);
