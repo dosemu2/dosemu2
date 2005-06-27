@@ -2406,6 +2406,10 @@ static void dpmi_cleanup(struct sigcontext_struct *scp)
 {
   D_printf("DPMI: cleanup\n");
   msdos_done();
+  /* Restore environment, must before FreeDescriptor */
+  if (ENV_SEL)
+      WRITE_WORD(SEGOFF2LINEAR(DPMI_CLIENT.psp, 0x2c),
+             (unsigned long)(GetSegmentBaseAddress(ENV_SEL)) >> 4);
   FreeAllDescriptors();
   free(DPMI_CLIENT.pm_stack);
   if (!DPMI_CLIENT.RSP_installed) {
@@ -2451,11 +2455,6 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
       dpmi_RSP_call(scp, i, 1);
     }
   }
-
-  /* Restore environment, must before FreeDescriptor */
-  if (ENV_SEL)
-      WRITE_WORD(SEGOFF2LINEAR(DPMI_CLIENT.psp, 0x2c),
-             (unsigned long)(GetSegmentBaseAddress(ENV_SEL)) >> 4);
 
   if (have_tsr) {
     RSP_callbacks[RSP_num].pm_block_root = DPMI_CLIENT.pm_block_root;
