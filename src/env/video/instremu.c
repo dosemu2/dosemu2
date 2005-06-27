@@ -1560,8 +1560,8 @@ static inline int instr_sim(x86_regs *x86, int pmode)
 
   case 0x8c: /* mov r/m16,segreg */
     mem = x86->modrm(cs + eip, x86, &inst_len);
-    if ((cp[eip + 1] & 0xc0) == 0xc0) /* compensate for mov r,segreg */
-      mem = (unsigned) reg(cp[eip + 1], x86);
+    if ((cs[eip + 1] & 0xc0) == 0xc0) /* compensate for mov r,segreg */
+      mem = (unsigned) reg(cs[eip + 1], x86);
     instr_write_word(mem, *sreg(cs[eip + 1]>>3, x86));
     eip += inst_len + 2; break;
 
@@ -1579,7 +1579,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     if (pmode == 2) {
       mem = x86->modrm(cs + eip, x86, &inst_len);
       if ((cs[eip + 1] & 0xc0) == 0xc0)  /* compensate for mov r,segreg */
-        mem = (unsigned) reg(cp[eip + 1], x86);
+        mem = (unsigned) reg(cs[eip + 1], x86);
       *sreg(cs[eip + 1] >> 3, x86) = instr_read_word(mem);
       eip += inst_len + 2;
     }
@@ -1588,15 +1588,15 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     else switch (cs[eip + 1]&0x38) {
     case 0:      
       mem = x86->modrm(cs + eip, x86, &inst_len);
-      if ((cp[eip + 1] & 0xc0) == 0xc0)  /* compensate for mov r,segreg */
-        mem = (unsigned) reg(cp[eip + 1], x86);
+      if ((cs[eip + 1] & 0xc0) == 0xc0)  /* compensate for mov r,segreg */
+        mem = (unsigned) reg(cs[eip + 1], x86);
       REG(es) = x86->es = instr_read_word(mem);
       x86->es_base = x86->es << 4;
       eip += inst_len + 2; break;
     case 0x18:  
       mem = x86->modrm(cs + eip, x86, &inst_len);
-      if ((cp[eip + 1] & 0xc0) == 0xc0) /* compensate for mov es,reg */
-	mem = (unsigned) reg(cp[eip + 1], x86);
+      if ((cs[eip + 1] & 0xc0) == 0xc0) /* compensate for mov es,reg */
+	mem = (unsigned) reg(cs[eip + 1], x86);
       REG(ds) = x86->ds = instr_read_word(mem);
       x86->ds_base = x86->ds << 4;
       x86->seg_base = x86->ds_base;
