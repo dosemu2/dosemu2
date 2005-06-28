@@ -39,9 +39,11 @@
 #define MAX_DOS_PATH 260
 
 #define D_16_32(reg)		(MSDOS_CLIENT.is_32 ? reg : reg & 0xffff)
+#define MSDOS_CLIENT (msdos_client[msdos_client_num - 1])
+#define CURRENT_ENV_SEL (READ_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0x2c)))
 
-int msdos_client_num = 0;
-struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
+static int msdos_client_num = 0;
+static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
 
 void msdos_init(int is_32, unsigned short mseg, unsigned short psp)
 {

@@ -33,10 +33,6 @@ struct msdos_struct {
   char ems_map_buffer[PAGE_MAP_SIZE];
   int ems_frame_mapped;
 };
-extern struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
-extern int msdos_client_num;
-#define MSDOS_CLIENT (msdos_client[msdos_client_num - 1])
-#define CURRENT_ENV_SEL (READ_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0x2c)))
 
 extern void msdos_init(int is_32, unsigned short mseg,
     unsigned short psp);

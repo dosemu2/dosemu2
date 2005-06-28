@@ -75,7 +75,7 @@ enum { es_INDEX, cs_INDEX, ss_INDEX, ds_INDEX, fs_INDEX, gs_INDEX,
 typedef struct pmaddr_s
 {
     unsigned long	offset;
-    unsigned short	selector, __selectorh;
+    unsigned short	selector;
 } INTDESC;
 
 typedef struct segment_descriptor_s
