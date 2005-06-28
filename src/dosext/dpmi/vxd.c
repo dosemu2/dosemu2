@@ -74,69 +74,69 @@ void get_VXD_entry( struct sigcontext *scp )
     switch (_LWORD(ebx)) {
 	case 0x01:
 	    D_printf("DPMI: VMM VxD entry point requested\n");
-	    _es = DPMI_CLIENT.DPMI_SEL;
+	    _es = dpmi_sel();
 	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_VMM);
 	    break;
 	case 0x05:
 	    D_printf("DPMI: VTD VxD entry point requested\n");
-	    _es = DPMI_CLIENT.DPMI_SEL;
+	    _es = dpmi_sel();
 	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_VTD);
 	    break;
 	case 0x09:
 	    D_printf("DPMI: Reboot VxD entry point requested\n");
-	    _es = DPMI_CLIENT.DPMI_SEL;
+	    _es = dpmi_sel();
 	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_Reboot);
 	    break;
 	case 0x0a:
 	    D_printf("DPMI: VDD VxD entry point requested\n");
-	    _es = DPMI_CLIENT.DPMI_SEL;
+	    _es = dpmi_sel();
 	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_VDD);
 	    break;
 	case 0x0c:
 	    D_printf("DPMI: VMD VxD entry point requested\n");
-	    _es = DPMI_CLIENT.DPMI_SEL;
+	    _es = dpmi_sel();
 	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_VMD);
 	    break;
 	case 0x0e:
 	    D_printf("DPMI: VCD VxD entry point requested\n");
-	    _es = DPMI_CLIENT.DPMI_SEL;
+	    _es = dpmi_sel();
 	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_VCD);
 	    break;
 	case 0x17:
 	    D_printf("DPMI: SHELL VxD entry point requested\n");
-	    _es = DPMI_CLIENT.DPMI_SEL;
+	    _es = dpmi_sel();
 	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_SHELL);
 	    break;
 	case 0x21:
 	    D_printf("DPMI: PageFile VxD entry point requested\n");
-	    _es = DPMI_CLIENT.DPMI_SEL;
+	    _es = dpmi_sel();
 	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_PageFile);
 	    break;
 	case 0x26:
 	    D_printf("DPMI: APM VxD entry point requested\n");
-	    _es = DPMI_CLIENT.DPMI_SEL;
+	    _es = dpmi_sel();
 	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_APM);
 	    break;
 #if 0
 	case 0x27:
 	    D_printf("DPMI: VXDLDR VxD entry point requested\n");
-	    _es = DPMI_CLIENT.DPMI_SEL;
+	    _es = dpmi_sel();
 	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_VXDLDR);
 	    break;
 #endif
 	case 0x33:
 	    D_printf("DPMI: CONFIGMG VxD entry point requested\n");
-	    _es = DPMI_CLIENT.DPMI_SEL;
+	    _es = dpmi_sel();
 	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_CONFIGMG);
 	    break;
 	case 0x37:
 	    D_printf("DPMI: ENABLE VxD entry point requested\n");
-	    _es = DPMI_CLIENT.DPMI_SEL;
+	    _es = dpmi_sel();
 	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_ENABLE);
 	    break;
 	case 0x442:
 	    D_printf("DPMI: VTDAPI VxD entry point requested\n");
-	    _es = DPMI_CLIENT.DPMI_SEL;
+	    _es = dpmi_sel();
 	    _edi = DPMI_OFF + HLT_OFF(DPMI_VXD_VTDAPI);
 	    break;
 	default:

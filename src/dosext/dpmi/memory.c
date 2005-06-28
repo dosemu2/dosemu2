@@ -122,35 +122,6 @@ unsigned long base2handle( void *base )
     return 0;
 }
 
-void dpmi_setup(void)
-{
-    int i, type;
-    unsigned long base_addr, limit, *lp;
-
-    ldt_buffer = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
-      PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE, 0);
-    if (ldt_buffer == MAP_FAILED) {
-      error("DPMI: can't allocate memory for ldt_buffer\n");
-      leavedos(2);
-    }
-
-    get_ldt(ldt_buffer);
-    memset(Segments, 0, sizeof(Segments));
-    for (i = 0; i < MAX_SELECTORS; i++) {
-      lp = (unsigned long *)&ldt_buffer[i * LDT_ENTRY_SIZE];
-      base_addr = (*lp >> 16) & 0x0000FFFF;
-      limit = *lp & 0x0000FFFF;
-      lp++;
-      base_addr |= (*lp & 0xFF000000) | ((*lp << 16) & 0x00FF0000);
-      limit |= (*lp & 0x000F0000);
-      type = (*lp >> 10) & 3;
-      if (base_addr || limit || type) {
-        D_printf("LDT entry 0x%x used: b=0x%lx l=0x%lx t=%i\n",i,base_addr,limit,type);
-        Segments[i].used = 0xff;
-      }
-    }
-}
-
 void dpmi_alloc_pool(void)
 {
     int num_pages, mpool_numpages;

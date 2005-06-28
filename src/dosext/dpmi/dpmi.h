@@ -152,7 +152,6 @@ struct DPMIclient_struct {
   INTDESC Exception_Table[0x20];
   unsigned short LDT_ALIAS;
   unsigned short PMSTACK_SEL;	/* protected mode stack selector */
-  unsigned short DPMI_SEL;
   /* used for RSP calls */
   unsigned short RSP_cs[DPMI_MAX_CLIENTS], RSP_ds[DPMI_MAX_CLIENTS];
   int RSP_state, RSP_installed;
@@ -267,5 +266,6 @@ void dpmi_return_request(void);
 void dpmi_check_return(struct sigcontext_struct *scp);
 void dpmi_init(void);
 extern inline void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *s);
+extern inline unsigned short dpmi_sel(void);
 
 #endif /* DPMI_H */
