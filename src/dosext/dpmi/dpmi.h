@@ -267,5 +267,7 @@ void dpmi_check_return(struct sigcontext_struct *scp);
 void dpmi_init(void);
 extern inline void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *s);
 extern inline unsigned short dpmi_sel(void);
+extern void pm_to_rm_regs(struct sigcontext_struct *scp, unsigned int mask);
+extern void rm_to_pm_regs(struct sigcontext_struct *scp, unsigned int mask);
 
 #endif /* DPMI_H */

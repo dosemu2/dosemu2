@@ -649,8 +649,7 @@ CISH(DPMI_return_from_realmode):
 CISH(DPMI_return_from_dos_memory):
 	hlt
 /* ======================= Addr = F800:490E (FC90E) */
-	.globl	CISH(DPMI_mouse_callback)
-CISH(DPMI_mouse_callback):
+CISH(DPMI_reserved):
 	hlt
 	lret
 /* ======================= Addr = F800:4910 (FC910) */
@@ -680,8 +679,7 @@ CISH(DPMI_return_from_exception):
 CISH(DPMI_return_from_rm_callback):
 	hlt
 /* ======================= Addr = F800:4918 (FC918) */
-	.globl	CISH(DPMI_return_from_mouse_callback)
-CISH(DPMI_return_from_mouse_callback):
+CISH(DPMI_reserved4):
 	hlt
 /* ======================= Addr = F800:4919 (FC919+except) */
 	.globl	CISH(DPMI_exception)
@@ -761,22 +759,18 @@ CISH(DPMI_VXD_VTDAPI):
 	hlt
 	lret
 /* ======================= Addr = F800:4A54 (FCA54) */
-	.globl	CISH(DPMI_PS2_mouse_callback)
-CISH(DPMI_PS2_mouse_callback):
+CISH(DPMI_reserved2):
 	hlt
 	lret
 /* ======================= Addr = F800:4A56 (FCA56) */
-	.globl	CISH(DPMI_return_from_PS2_mouse_callback)
-CISH(DPMI_return_from_PS2_mouse_callback):
+CISH(DPMI_reserved3):
 	hlt
 /* ======================= Addr = F800:4A57 (FCA57) */
-	.globl	CISH(DPMI_XMS_call)
-CISH(DPMI_XMS_call):
+CISH(DPMI_reserved8):
 	hlt
 	lret
 /* ======================= Addr = F800:4A59 (FCA59) */
-	.globl	CISH(DPMI_return_from_XMS_call)
-CISH(DPMI_return_from_XMS_call):
+CISH(DPMI_reserved9):
 	hlt
 /* ======================= Addr = F800:4A5A (FCA5A) */
 	.globl	CISH(DPMI_return_from_int_1c)
@@ -794,7 +788,43 @@ CISH(DPMI_return_from_int_24):
 	.globl	CISH(DPMI_return_from_RSPcall)
 CISH(DPMI_return_from_RSPcall):
 	hlt
+
 /* ======================= Addr = F800:4A5E (FCA5E) */
+	.globl	CISH(MSDOS_rm_start)
+CISH(MSDOS_rm_start):
+/* ======================= Addr = F800:4A5E (FCA5E) */
+	.globl	CISH(MSDOS_mouse_callback)
+CISH(MSDOS_mouse_callback):
+	hlt
+	lret
+/* ======================= Addr = F800:4A60 (FCA60) */
+	.globl	CISH(MSDOS_PS2_mouse_callback)
+CISH(MSDOS_PS2_mouse_callback):
+	hlt
+	lret
+/* ======================= Addr = F800:4A62 (FCA62) */
+	.globl	CISH(MSDOS_return_from_pm)
+CISH(MSDOS_return_from_pm):
+	hlt
+/* ======================= Addr = F800:4A63 (FCA63) */
+	.globl	CISH(MSDOS_rm_end)
+CISH(MSDOS_rm_end):
+
+	.globl	CISH(MSDOS_pm_start)
+CISH(MSDOS_pm_start):
+/* ======================= Addr = F800:4A63 (FCA63) */
+	.globl	CISH(MSDOS_XMS_call)
+CISH(MSDOS_XMS_call):
+	hlt
+	lret
+/* ======================= Addr = F800:4A65 (FCA65) */
+	.globl	CISH(MSDOS_return_from_rm)
+CISH(MSDOS_return_from_rm):
+	hlt
+/* ======================= Addr = F800:4A66 (FCA66) */
+	.globl	CISH(MSDOS_pm_end)
+CISH(MSDOS_pm_end):
+/* ======================= Addr = F800:4A66 (FCA66) */
 	.globl	CISH(DPMI_dummy_end)
 CISH(DPMI_dummy_end):
 

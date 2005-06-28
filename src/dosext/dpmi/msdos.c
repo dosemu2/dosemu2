@@ -174,11 +174,11 @@ static int in_dos_space(unsigned short sel, unsigned long off)
     unsigned long base = Segments[sel >> 3].base_addr;
 
     if (base + off > 0x10ffef) {	/* ffff:ffff for DOS high */
-      D_printf("DPMI: base address %#lx of sel %#x > DOS limit\n", base, sel);
+      D_printf("MSDOS: base address %#lx of sel %#x > DOS limit\n", base, sel);
       return 0;
     } else
     if (base & 0xf) {
-      D_printf("DPMI: base address %#lx of sel %#x not para. aligned.\n", base, sel);
+      D_printf("MSDOS: base address %#lx of sel %#x not para. aligned.\n", base, sel);
       return 0;
     } else
       return 1;
@@ -189,7 +189,7 @@ static void old_dos_terminate(struct sigcontext_struct *scp, int i)
     unsigned short psp_seg_sel, parent_psp = 0;
     unsigned short psp_sig;
 
-    D_printf("DPMI: old_dos_terminate, int=%#x\n", i);
+    D_printf("MSDOS: old_dos_terminate, int=%#x\n", i);
 
     REG(cs)  = MSDOS_CLIENT.current_psp;
     REG(eip) = 0x100;
@@ -211,18 +211,18 @@ static void old_dos_terminate(struct sigcontext_struct *scp, int i)
     if (psp_sig != 0x20CD) {
 	/* now try selector */
 	unsigned long addr;
-	D_printf("DPMI: Trying PSP sel=%#x, V=%i, d=%i, l=%#lx\n",
+	D_printf("MSDOS: Trying PSP sel=%#x, V=%i, d=%i, l=%#lx\n",
 	    psp_seg_sel, ValidAndUsedSelector(psp_seg_sel),
 	    in_dos_space(psp_seg_sel, 0), GetSegmentLimit(psp_seg_sel));
 	if (ValidAndUsedSelector(psp_seg_sel) && in_dos_space(psp_seg_sel, 0) &&
 		GetSegmentLimit(psp_seg_sel) >= 0xff) {
 	    addr = GetSegmentBaseAddress(psp_seg_sel);
 	    psp_sig = READ_WORD(addr);
-	    D_printf("DPMI: Trying PSP sel=%#x, addr=%#lx\n", psp_seg_sel, addr);
+	    D_printf("MSDOS: Trying PSP sel=%#x, addr=%#lx\n", psp_seg_sel, addr);
 	    if (!(addr & 0x0f) && psp_sig == 0x20CD) {
 		/* found selector */
 		parent_psp = addr >> 4;
-	        D_printf("DPMI: parent PSP sel=%#x, seg=%#x\n",
+	        D_printf("MSDOS: parent PSP sel=%#x, seg=%#x\n",
 		    psp_seg_sel, parent_psp);
 	    }
 	}
@@ -232,11 +232,11 @@ static void old_dos_terminate(struct sigcontext_struct *scp, int i)
     }
     if (!parent_psp) {
 	/* no PSP found, use current as the last resort */
-	D_printf("DPMI: using current PSP as parent!\n");
+	D_printf("MSDOS: using current PSP as parent!\n");
 	parent_psp = MSDOS_CLIENT.current_psp;
     }
 
-    D_printf("DPMI: parent PSP seg=%#x\n", psp_seg_sel);
+    D_printf("MSDOS: parent PSP seg=%#x\n", parent_psp);
     if (parent_psp != psp_seg_sel)
 	WRITE_WORD(SEGOFF2LINEAR(MSDOS_CLIENT.current_psp, 0x16), parent_psp);
     /* And update our PSP pointer */
@@ -257,7 +257,7 @@ static void old_dos_terminate(struct sigcontext_struct *scp, int i)
 
 int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 {
-    D_printf("DPMI: pre_extender: int 0x%x, ax=0x%x\n", intr, _LWORD(eax));
+    D_printf("MSDOS: pre_extender: int 0x%x, ax=0x%x\n", intr, _LWORD(eax));
     if (MSDOS_CLIENT.user_dta_sel && intr == 0x21) {
 	switch (_HI(ax)) {	/* functions use DTA */
 	case 0x11: case 0x12:	/* find first/next using FCB */
@@ -275,18 +275,18 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
     case 0x15:			/* misc */
 	switch (_HI(ax)) {
 	  case 0xc2:
-	    D_printf("DPMI: PS2MOUSE function 0x%x\n", _LO(ax));
+	    D_printf("MSDOS: PS2MOUSE function 0x%x\n", _LO(ax));
 	    switch (_LO(ax)) {
 	      case 0x07:		/* set handler addr */
 		if ( _es && D_16_32(_ebx) ) {
-		  D_printf("DPMI: PS2MOUSE: set handler addr 0x%x:0x%lx\n",
+		  D_printf("MSDOS: PS2MOUSE: set handler addr 0x%x:0x%lx\n",
 		    _es, D_16_32(_ebx));
 		  MSDOS_CLIENT.PS2mouseCallBack.selector = _es;
 		  MSDOS_CLIENT.PS2mouseCallBack.offset = D_16_32(_ebx); 
 		  REG(es) = DPMI_SEG;
-		  REG(ebx) = DPMI_OFF + HLT_OFF(DPMI_PS2_mouse_callback);
+		  REG(ebx) = DPMI_OFF + HLT_OFF(MSDOS_PS2_mouse_callback);
 		} else {
-		  D_printf("DPMI: PS2MOUSE: reset handler addr\n");
+		  D_printf("MSDOS: PS2MOUSE: reset handler addr\n");
 		  REG(es) = 0;
 		  REG(ebx) = 0;
 		}
@@ -309,7 +309,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	      desc.selector = _ds;
 	      desc.offset = D_16_32(_edx);
 	      dpmi_set_interrupt_vector(_LO(ax), desc);
-	      D_printf("DPMI: int 21,ax=0x%04x, ds=0x%04x. dx=0x%04x\n",
+	      D_printf("MSDOS: int 21,ax=0x%04x, ds=0x%04x. dx=0x%04x\n",
 		     _LWORD(eax), _ds, _LWORD(edx));
 	    }
 	    return MSDOS_DONE;
@@ -317,7 +317,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	      INTDESC desc = dpmi_get_interrupt_vector(_LO(ax));
 	      _es = desc.selector;
 	      _ebx = desc.offset;
-	      D_printf("DPMI: int 21,ax=0x%04x, es=0x%04x. bx=0x%04x\n",
+	      D_printf("MSDOS: int 21,ax=0x%04x, es=0x%04x. bx=0x%04x\n",
 		     _LWORD(eax), _es, _LWORD(ebx));
 	    }
 	    return MSDOS_DONE;
@@ -482,7 +482,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		LWORD(ebx) = MSDOS_CLIENT.current_psp;
 		MEMCPY_DOS2DOS((void *)SEG2LINEAR(LWORD(ebx)), 
 		    (void *)GetSegmentBaseAddress(_LWORD(ebx)), 0x100);
-		D_printf("DPMI: PSP moved from %p to %p\n",
+		D_printf("MSDOS: PSP moved from %p to %p\n",
 		    (char *)GetSegmentBaseAddress(_LWORD(ebx)),
 		    (void *)SEG2LINEAR(LWORD(ebx)));
 	    } else {
@@ -527,7 +527,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	case 0x4e:		/* find first */
 	case 0x5b:		/* Create */
 	    if ((_HI(ax) == 0x4e) && (_ecx & 0x8))
-		D_printf("DPMI: MS-DOS try to find volume label\n");
+		D_printf("MSDOS: MS-DOS try to find volume label\n");
 	    {
 		char *src, *dst;
 		prepare_ems_frame();
@@ -535,7 +535,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		REG(edx) = 0;
 		src = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_edx);
 		dst = SEG_ADR((char *), ds, dx);
-		D_printf("DPMI: passing ASCIIZ > 1MB to dos %#x\n", (int)dst); 
+		D_printf("MSDOS: passing ASCIIZ > 1MB to dos %#x\n", (int)dst); 
 		D_printf("%#x: '%s'\n", (int)src, src);
                 snprintf(dst, MAX_DOS_PATH, "%s", src);
 	    }
@@ -635,7 +635,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		REG(esi) = 0;
 		src = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_esi);
 		dst = SEG_ADR((char *), ds, si);
-		D_printf("DPMI: passing ASCIIZ > 1MB to dos %#x\n", (int)dst); 
+		D_printf("MSDOS: passing ASCIIZ > 1MB to dos %#x\n", (int)dst); 
 		D_printf("%#x: '%s'\n", (int)src, src);
 		snprintf(dst, MAX_DOS_PATH, "%s", src);
 	    }
@@ -760,11 +760,11 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    MSDOS_CLIENT.mouseCallBack.selector = _es;
 	    MSDOS_CLIENT.mouseCallBack.offset = D_16_32(_edx);
 	    if (_es) {
-		D_printf("DPMI: set mouse callback\n");
+		D_printf("MSDOS: set mouse callback\n");
 		REG(es) = DPMI_SEG;
-		REG(edx) = DPMI_OFF + HLT_OFF(DPMI_mouse_callback);
+		REG(edx) = DPMI_OFF + HLT_OFF(MSDOS_mouse_callback);
 	    } else {
-		D_printf("DPMI: reset mouse callback\n");
+		D_printf("MSDOS: reset mouse callback\n");
 		REG(es) = 0;
 		REG(edx) = 0;
 	    }
@@ -791,7 +791,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	len = ((Segments[_ds >> 3].limit > 0xffff) ||
 	    	Segments[_ds >> 3].is_big) ?
 		0xffff : Segments[_ds >> 3].limit;
-	D_printf("DPMI: whole segment of DS at %#x copy to DOS at %#x for %#x\n",
+	D_printf("MSDOS: whole segment of DS at %#x copy to DOS at %#x for %#x\n",
 		(int)src, (int)dst, len);
 	MEMCPY_DOS2DOS(dst, src, len);
     }
@@ -806,7 +806,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	len = ((Segments[_es >> 3].limit > 0xffff) ||
 	    	Segments[_es >> 3].is_big) ?
 		0xffff : Segments[_es >> 3].limit;
-	D_printf("DPMI: whole segment of ES at %#x copy to DOS at %#x for %#x\n",
+	D_printf("MSDOS: whole segment of ES at %#x copy to DOS at %#x for %#x\n",
 		(int)src, (int)dst, len);
 	MEMCPY_DOS2DOS(dst, src, len);
     }
@@ -902,7 +902,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 #define PRESERVE1(rg) (update_mask &= ~(1 << rg##_INDEX))
 #define PRESERVE2(rg1, rg2) (update_mask &= ~((1 << rg1##_INDEX) | (1 << rg2##_INDEX)))
 #define SET_REG(rg, val) (PRESERVE1(rg), _##rg = (val))
-    D_printf("DPMI: post_extender: int 0x%x ax=0x%04x\n", intr, _LWORD(eax));
+    D_printf("MSDOS: post_extender: int 0x%x ax=0x%04x\n", intr, _LWORD(eax));
 
     if (MSDOS_CLIENT.user_dta_sel && intr == 0x21 ) {
 	switch (_HI(ax)) {	/* functions use DTA */
@@ -923,7 +923,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	len = ((Segments[_ds >> 3].limit > 0xffff) ||
 	    	Segments[_ds >> 3].is_big) ?
 		0xffff : Segments[_ds >> 3].limit;
-	D_printf("DPMI: DS seg at %#x copy back at %#x for %#x\n",
+	D_printf("MSDOS: DS seg at %#x copy back at %#x for %#x\n",
 		(int)src, (int)dst, len);
 	MEMCPY_DOS2DOS(dst, src, len);
     } 
@@ -938,7 +938,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	len = ((Segments[_es >> 3].limit > 0xffff) ||
 	    	Segments[_es >> 3].is_big) ?
 		0xffff : Segments[_es >> 3].limit;
-	D_printf("DPMI: ES seg at %#x copy back at %#x for %#x\n",
+	D_printf("MSDOS: ES seg at %#x copy back at %#x for %#x\n",
 		(int)src, (int)dst, len);
 	MEMCPY_DOS2DOS(dst, src, len);
     } 
@@ -963,7 +963,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	    case 0x4310:
                 MSDOS_CLIENT.XMS_call = MK_FARt(REG(es), LWORD(ebx));
                 SET_REG(es, ConvertSegmentToCodeDescriptor(DPMI_SEG));
-                SET_REG(ebx, DPMI_OFF + HLT_OFF(DPMI_XMS_call));
+                SET_REG(ebx, DPMI_OFF + HLT_OFF(MSDOS_XMS_call));
 		break;
 	}
 	break;
@@ -1078,7 +1078,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	    snprintf((char *)(GetSegmentBaseAddress(_ds) +
 			D_16_32(_esi)), 0x40, "%s", 
 		        SEG_ADR((char *), ds, si));
-	    D_printf("DPMI: CWD: %s\n",(char *)(GetSegmentBaseAddress(_ds) +
+	    D_printf("MSDOS: CWD: %s\n",(char *)(GetSegmentBaseAddress(_ds) +
 			D_16_32(_esi)));
 	    break;
 #if 0	    
@@ -1263,6 +1263,111 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
     return update_mask;
 }
 
+int msdos_pre_rm(struct sigcontext_struct *scp)
+{
+  unsigned char *lina = SEG_ADR((unsigned char *), cs, ip) - 1;
+  unsigned short *ssp = (us *) (GetSegmentBaseAddress(_ss) + D_16_32(_esp));
+
+  if (lina == (unsigned char *)(DPMI_ADD + HLT_OFF(MSDOS_mouse_callback))) {
+    if (!Segments[MSDOS_CLIENT.mouseCallBack.selector >> 3].used) {
+      D_printf("MSDOS: ERROR: mouse callback to unused segment\n");
+      return 0;
+    }
+    D_printf("MSDOS: starting mouse callback\n");
+    rm_to_pm_regs(scp, ~0);
+    _ds = ConvertSegmentToDescriptor(REG(ds));
+    _cs = MSDOS_CLIENT.mouseCallBack.selector;
+    _eip = MSDOS_CLIENT.mouseCallBack.offset;
+
+    if (MSDOS_CLIENT.is_32) {
+	*--ssp = (us) 0;
+	*--ssp = dpmi_sel(); 
+	ssp -= 2, *((unsigned long *) ssp) =
+	     DPMI_OFF + HLT_OFF(MSDOS_return_from_pm);
+	_esp -= 8;
+    } else {
+	*--ssp = dpmi_sel(); 
+	*--ssp = DPMI_OFF + HLT_OFF(MSDOS_return_from_pm);
+	_LWORD(esp) -= 4;
+    }
+
+  } else if (lina ==(unsigned char *)(DPMI_ADD +
+				      HLT_OFF(MSDOS_PS2_mouse_callback))) {
+    unsigned short *rm_ssp;
+    if (!Segments[MSDOS_CLIENT.PS2mouseCallBack.selector >> 3].used) {
+      D_printf("MSDOS: ERROR: PS2 mouse callback to unused segment\n");
+      return 0;
+    }
+    D_printf("MSDOS: starting PS2 mouse callback\n");
+
+    _cs = MSDOS_CLIENT.PS2mouseCallBack.selector;
+    _eip = MSDOS_CLIENT.PS2mouseCallBack.offset;
+
+    rm_ssp = (unsigned short *)SEGOFF2LINEAR(LWORD(ss), LWORD(esp) + 4 + 8);
+
+    if (MSDOS_CLIENT.is_32) {
+	*--ssp = (us) 0;
+	*--ssp = *--rm_ssp;
+	D_printf("data: 0x%x ", *ssp);
+	*--ssp = (us) 0;
+	*--ssp = *--rm_ssp;
+	D_printf("0x%x ", *ssp);
+	*--ssp = (us) 0;
+	*--ssp = *--rm_ssp;
+	D_printf("0x%x ", *ssp);
+	*--ssp = (us) 0;
+	*--ssp = *--rm_ssp;
+	D_printf("0x%x\n", *ssp);
+	*--ssp = (us) 0;
+	*--ssp = dpmi_sel(); 
+	ssp -= 2, *((unsigned long *) ssp) =
+	     DPMI_OFF + HLT_OFF(MSDOS_return_from_pm);
+	_esp -= 24;
+    } else {
+	*--ssp = *--rm_ssp;
+	D_printf("data: 0x%x ", *ssp);
+	*--ssp = *--rm_ssp;
+	D_printf("0x%x ", *ssp);
+	*--ssp = *--rm_ssp;
+	D_printf("0x%x ", *ssp);
+	*--ssp = *--rm_ssp;
+	D_printf("0x%x\n", *ssp);
+	*--ssp = dpmi_sel(); 
+	*--ssp = DPMI_OFF + HLT_OFF(MSDOS_return_from_pm);
+	_LWORD(esp) -= 12;
+    }
+  }
+  return 1;
+}
+
+void msdos_post_rm(struct sigcontext_struct *scp)
+{
+  pm_to_rm_regs(scp, ~0);
+}
+
+int msdos_pre_pm(struct sigcontext_struct *scp)
+{
+  if (_eip==DPMI_OFF+1+HLT_OFF(MSDOS_XMS_call)) {
+    D_printf("MSDOS: XMS call to 0x%x:0x%x\n",
+	MSDOS_CLIENT.XMS_call.segment, MSDOS_CLIENT.XMS_call.offset);
+    pm_to_rm_regs(scp, ~0);
+    REG(cs) = DPMI_SEG;
+    REG(eip) = DPMI_OFF + HLT_OFF(MSDOS_return_from_rm);
+    fake_call_to(MSDOS_CLIENT.XMS_call.segment, MSDOS_CLIENT.XMS_call.offset);
+  } else {
+    error("MSDOS: unknown pm call %p\n", _eip);
+    return 0;
+  }
+  return 1;
+}
+
+void msdos_post_pm(struct sigcontext_struct *scp)
+{
+  rm_to_pm_regs(scp, ~0);
+}
+
+
+
 static int
 decode_pop_segreg(struct sigcontext_struct *scp, unsigned short
 		       *segment, unsigned char * sreg)
@@ -1344,7 +1449,7 @@ decode_retf_iret(struct sigcontext_struct *scp, unsigned short *segment,
 	    break;
     }
     if (len)
-	D_printf("DPMI: retf decoded, seg=0x%x\n", *segment);
+	D_printf("MSDOS: retf decoded, seg=0x%x\n", *segment);
     return len;
 }
 
@@ -1370,7 +1475,7 @@ decode_jmp_f(struct sigcontext_struct *scp, unsigned short *segment,
 	    break;
     }
     if (len)
-	D_printf("DPMI: jmpf decoded, seg=0x%x\n", *segment);
+	D_printf("MSDOS: jmpf decoded, seg=0x%x\n", *segment);
     return len;
 }
 
@@ -1450,7 +1555,7 @@ int msdos_fault(struct sigcontext_struct *scp)
     unsigned short segment, desc;
     unsigned long len;
 
-    D_printf("DPMI: msdos_fault, err=%#lx\n",_err);
+    D_printf("MSDOS: msdos_fault, err=%#lx\n",_err);
     if ((_err & 0xffff) == 0) {	/*  not a selector error */
     /* Why should we "fix" the NULL dereferences? */
     /* Because the unmodified Win3.1 kernel (not WinOS2) needs this */
@@ -1474,21 +1579,21 @@ int msdos_fault(struct sigcontext_struct *scp)
 	    break;		/* do nothing */
 	case 0x26:		/* es: */
 	    if (_es == 0) {
-		D_printf("DPMI: client tries to use use gdt 0 as es\n");
+		D_printf("MSDOS: client tries to use use gdt 0 as es\n");
 		_es = ConvertSegmentToDescriptor(0);
 		fixed = 1;
 	    }
 	    break;
 	case 0x64:		/* fs: */
 	    if (_fs == 0) {
-		D_printf("DPMI: client tries to use use gdt 0 as fs\n");
+		D_printf("MSDOS: client tries to use use gdt 0 as fs\n");
 		_fs = ConvertSegmentToDescriptor(0);
 		fixed = 1;
 	    }
 	    break;
 	case 0x65:		/* gs: */
 	    if (_gs == 0) {
-		D_printf("DPMI: client tries to use use gdt 0 as es\n");
+		D_printf("MSDOS: client tries to use use gdt 0 as es\n");
 		_gs = ConvertSegmentToDescriptor(0);
 		fixed = 1;
 	    }
@@ -1501,7 +1606,7 @@ int msdos_fault(struct sigcontext_struct *scp)
 	    case 0xae: case 0xaf:	        /* scas */
 		/* only use es */
 		if (_es == 0) {
-		    D_printf("DPMI: client tries to use use gdt 0 as es\n");
+		    D_printf("MSDOS: client tries to use use gdt 0 as es\n");
 		    _es = ConvertSegmentToDescriptor(0);
 		    fixed = 1;
 		}
@@ -1510,12 +1615,12 @@ int msdos_fault(struct sigcontext_struct *scp)
 	    case 0xa6: case 0xa7:         /* cmps */
 		/* use both ds and es */
 		if (_es == 0) {
-		    D_printf("DPMI: client tries to use use gdt 0 as es\n");
+		    D_printf("MSDOS: client tries to use use gdt 0 as es\n");
 		    _es = ConvertSegmentToDescriptor(0);
 		    fixed = 1;
 		}
 		if (_ds == 0) {
-		    D_printf("DPMI: client tries to use use gdt 0 as ds\n");
+		    D_printf("MSDOS: client tries to use use gdt 0 as ds\n");
 		    _ds = ConvertSegmentToDescriptor(0);
 		    fixed = 1;
 		}
@@ -1526,7 +1631,7 @@ int msdos_fault(struct sigcontext_struct *scp)
 	default:		/* assume default is using ds, but if the */
 				/* client sets ss to 0, it is totally broken */
 	    if (_ds == 0) {
-		D_printf("DPMI: client tries to use use gdt 0 as ds\n");
+		D_printf("MSDOS: client tries to use use gdt 0 as ds\n");
 		_ds = ConvertSegmentToDescriptor(0);
 		fixed = 1;
 	    }
@@ -1584,11 +1689,11 @@ int msdos_fault(struct sigcontext_struct *scp)
 	 * We cannot fix this! So just give up immediately and dont
 	 * screw up the context.
 	 */
-	D_printf("DPMI: msdos_fault: Illegal use of selector %#x\n", segment);
+	D_printf("MSDOS: msdos_fault: Illegal use of selector %#x\n", segment);
 	return 0;
     }
 
-    D_printf("DPMI: try mov to a invalid selector 0x%04x\n", segment);
+    D_printf("MSDOS: try mov to a invalid selector 0x%04x\n", segment);
 
 #if 0
     /* only allow using some special GTD\'s */
@@ -1624,10 +1729,6 @@ int msdos_fault(struct sigcontext_struct *scp)
     case gs_INDEX:
 	new_sct.gs = desc;
 	break;
-    default :
-	/* Cannot be here */
-	error("DPMI: Invalid segreg %#x\n", reg);
-	return 0;
     }
 
     /* lets hope we fixed the thing, apply the "fix" to context and return */

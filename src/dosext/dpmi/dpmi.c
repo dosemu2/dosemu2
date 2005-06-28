@@ -1259,7 +1259,7 @@ static void leave_lpms(struct sigcontext_struct *scp)
   }
 }
 
-static void pm_to_rm_regs(struct sigcontext_struct *scp, unsigned int mask)
+void pm_to_rm_regs(struct sigcontext_struct *scp, unsigned int mask)
 {
   REG(eflags) = eflags_VIF(_eflags);
   if (mask & (1 << eax_INDEX))
@@ -1278,7 +1278,7 @@ static void pm_to_rm_regs(struct sigcontext_struct *scp, unsigned int mask)
     REG(ebp) = _ebp;
 }
 
-static void rm_to_pm_regs(struct sigcontext_struct *scp, unsigned int mask)
+void rm_to_pm_regs(struct sigcontext_struct *scp, unsigned int mask)
 {
   DPMI_CLIENT.stack_frame.eflags = 0x0202 | (0x0dd5 & REG(eflags)) |
       dpmi_mhp_TF;
@@ -3484,16 +3484,6 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  } else
             _eflags |= CF;
 
-        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_XMS_call)) {
-	  D_printf("DPMI: XMS call to 0x%x:0x%x\n",
-	    MSDOS_CLIENT.XMS_call.segment, MSDOS_CLIENT.XMS_call.offset);
-	  save_rm_regs();
-	  pm_to_rm_regs(scp, ~0);
-	  REG(cs) = DPMI_SEG;
-	  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_XMS_call);
-	  in_dpmi_dos_int = 1;
-	  fake_call_to(MSDOS_CLIENT.XMS_call.segment, MSDOS_CLIENT.XMS_call.offset);
-
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_pm)) {
 	  leave_lpms(scp);
           D_printf("DPMI: Return from protected mode interrupt handler, "
@@ -3613,24 +3603,6 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  REG(ss) = rmreg->ss;
 	  REG(esp) = (long) rmreg->sp;
 	  
-	  restore_pm_regs(scp);
-	  in_dpmi_dos_int = 1;
-
-        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_mouse_callback)) {
-	  leave_lpms(scp);
-	  D_printf("DPMI: Return from mouse callback, in_dpmi_pm_stack=%i\n",
-	    DPMI_CLIENT.in_dpmi_pm_stack);
-
-	  pm_to_rm_regs(scp, ~0);
-	  restore_pm_regs(scp);
-	  in_dpmi_dos_int = 1;
-
-        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_PS2_mouse_callback)) {
-	  leave_lpms(scp);
-	  D_printf("DPMI: Return from PS2 mouse callback, in_dpmi_pm_stack=%i\n",
-	    DPMI_CLIENT.in_dpmi_pm_stack);
-
-	  pm_to_rm_regs(scp, ~0);
 	  restore_pm_regs(scp);
 	  in_dpmi_dos_int = 1;
 
@@ -3802,6 +3774,25 @@ void dpmi_fault(struct sigcontext_struct *scp)
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_VXD_VTDAPI)) {
 	  D_printf("DPMI: VTDAPI VxD called, ax=%#x\n", _LWORD(eax));
 	  VXD_TimerAPI(scp);
+
+	} else if ((_eip>=DPMI_OFF+1+HLT_OFF(MSDOS_rm_start)) &&
+		(_eip<DPMI_OFF+1+HLT_OFF(MSDOS_rm_end))) {
+	  leave_lpms(scp);
+	  D_printf("DPMI: Return from MSDOS rm callback, in_dpmi_pm_stack=%i\n",
+	    DPMI_CLIENT.in_dpmi_pm_stack);
+	  msdos_post_rm(scp);
+	  restore_pm_regs(scp);
+	  in_dpmi_dos_int = 1;
+
+	} else if ((_eip>=DPMI_OFF+1+HLT_OFF(MSDOS_pm_start)) &&
+		(_eip<DPMI_OFF+1+HLT_OFF(MSDOS_pm_end))) {
+	  D_printf("DPMI: Starting MSDOS pm callback\n");
+	  save_rm_regs();
+	  if (!msdos_pre_pm(scp)) {
+	    restore_rm_regs();
+	    break;
+	  }
+	  in_dpmi_dos_int = 1;
 
 	} else
 	  return;
@@ -4108,13 +4099,6 @@ void dpmi_realmode_hlt(unsigned char * lina)
     restore_rm_regs();
     in_dpmi_dos_int = 0;
 
-  } else if (lina == (unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_return_from_XMS_call))) {
-    D_printf("DPMI: Return from XMS call\n");
-
-    rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
-    restore_rm_regs();
-    in_dpmi_dos_int = 0;
-
   } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_return_from_realmode))) {
     struct RealModeCallStructure *rmreg = (struct RealModeCallStructure *)
       (GetSegmentBaseAddress(DPMI_CLIENT.stack_frame.es) +
@@ -4209,94 +4193,6 @@ void dpmi_realmode_hlt(unsigned char * lina)
 
 done:
     restore_rm_regs();
-  } else if (lina ==(unsigned char *)(DPMI_ADD +
-				      HLT_OFF(DPMI_mouse_callback))) {
-    unsigned short *ssp;
-
-    REG(eip) += 1;            /* skip halt to point to FAR RET */
-    if (!Segments[MSDOS_CLIENT.mouseCallBack.selector >> 3].used) {
-      D_printf("DPMI: ERROR: mouse callback to unused segment\n");
-      CARRY;
-      return;
-    }
-    D_printf("DPMI: starting mouse callback\n");
-    save_pm_regs(&DPMI_CLIENT.stack_frame);
-    rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
-    ssp = enter_lpms(&DPMI_CLIENT.stack_frame);
-    DPMI_CLIENT.stack_frame.ds = ConvertSegmentToDescriptor(REG(ds));
-    DPMI_CLIENT.stack_frame.cs = MSDOS_CLIENT.mouseCallBack.selector;
-    DPMI_CLIENT.stack_frame.eip = MSDOS_CLIENT.mouseCallBack.offset;
-
-    if (DPMI_CLIENT.is_32) {
-	*--ssp = (us) 0;
-	*--ssp = dpmi_sel(); 
-	ssp -= 2, *((unsigned long *) ssp) =
-	     DPMI_OFF + HLT_OFF(DPMI_return_from_mouse_callback);
-	DPMI_CLIENT.stack_frame.esp -= 8;
-    } else {
-	*--ssp = dpmi_sel(); 
-	*--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_mouse_callback);
-	LO_WORD(DPMI_CLIENT.stack_frame.esp) -= 4;
-    }
-    DPMI_CLIENT.stack_frame.eflags &= ~(AC|TF|NT);
-    clear_IF();
-    in_dpmi_dos_int = 0;
-
-  } else if (lina ==(unsigned char *)(DPMI_ADD +
-				      HLT_OFF(DPMI_PS2_mouse_callback))) {
-    unsigned short *ssp, *rm_ssp;
-
-    REG(eip) += 1;            /* skip halt to point to FAR RET */
-    if (!Segments[MSDOS_CLIENT.PS2mouseCallBack.selector >> 3].used) {
-      D_printf("DPMI: ERROR: PS2 mouse callback to unused segment\n");
-      CARRY;
-      return;
-    }
-    D_printf("DPMI: starting PS2 mouse callback\n");
-    save_pm_regs(&DPMI_CLIENT.stack_frame);
-    ssp = enter_lpms(&DPMI_CLIENT.stack_frame);
-
-    DPMI_CLIENT.stack_frame.eflags = 0x0202 | (0x0dd5 & REG(eflags)) |
-      dpmi_mhp_TF;
-    DPMI_CLIENT.stack_frame.cs = MSDOS_CLIENT.PS2mouseCallBack.selector;
-    DPMI_CLIENT.stack_frame.eip = MSDOS_CLIENT.PS2mouseCallBack.offset;
-
-    rm_ssp = (unsigned short *)SEGOFF2LINEAR(LWORD(ss), LWORD(esp) + 4 + 8);
-
-    if (DPMI_CLIENT.is_32) {
-	*--ssp = (us) 0;
-	*--ssp = *--rm_ssp;
-	D_printf("data: 0x%x ", *ssp);
-	*--ssp = (us) 0;
-	*--ssp = *--rm_ssp;
-	D_printf("0x%x ", *ssp);
-	*--ssp = (us) 0;
-	*--ssp = *--rm_ssp;
-	D_printf("0x%x ", *ssp);
-	*--ssp = (us) 0;
-	*--ssp = *--rm_ssp;
-	D_printf("0x%x\n", *ssp);
-	*--ssp = (us) 0;
-	*--ssp = dpmi_sel(); 
-	ssp -= 2, *((unsigned long *) ssp) =
-	     DPMI_OFF + HLT_OFF(DPMI_return_from_PS2_mouse_callback);
-	DPMI_CLIENT.stack_frame.esp -= 24;
-    } else {
-	*--ssp = *--rm_ssp;
-	D_printf("data: 0x%x ", *ssp);
-	*--ssp = *--rm_ssp;
-	D_printf("0x%x ", *ssp);
-	*--ssp = *--rm_ssp;
-	D_printf("0x%x ", *ssp);
-	*--ssp = *--rm_ssp;
-	D_printf("0x%x\n", *ssp);
-	*--ssp = dpmi_sel(); 
-	*--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_PS2_mouse_callback);
-	LO_WORD(DPMI_CLIENT.stack_frame.esp) -= 12;
-    }
-    DPMI_CLIENT.stack_frame.eflags &= ~(AC|TF|NT);
-    clear_IF();
-    in_dpmi_dos_int = 0;
 
   } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_raw_mode_switch))) {
     if (!Segments[LWORD(esi) >> 3].used) {
@@ -4369,6 +4265,29 @@ done:
       DPMI_CLIENT.stack_frame.gs =  *buffer++;
     }
     REG(eip) += 1;            /* skip halt to point to FAR RET */
+
+  } else if ((lina >= (unsigned char *)(DPMI_ADD + HLT_OFF(MSDOS_rm_start))) &&
+	     (lina < (unsigned char *)(DPMI_ADD + HLT_OFF(MSDOS_rm_end)))) {
+    REG(eip) += 1;            /* skip halt to point to FAR RET */
+    D_printf("DPMI: Starting MSDOS rm callback\n");
+    save_pm_regs(&DPMI_CLIENT.stack_frame);
+    enter_lpms(&DPMI_CLIENT.stack_frame);
+    if (!msdos_pre_rm(&DPMI_CLIENT.stack_frame)) {
+	leave_lpms(&DPMI_CLIENT.stack_frame);
+	restore_pm_regs(&DPMI_CLIENT.stack_frame);
+	CARRY;
+	return;
+    }
+    DPMI_CLIENT.stack_frame.eflags = 0x0202 | (0x0dd5 & REG(eflags)) | dpmi_mhp_TF;
+    clear_IF();
+    in_dpmi_dos_int = 0;
+
+  } else if ((lina >= (unsigned char *)(DPMI_ADD + HLT_OFF(MSDOS_pm_start))) &&
+	     (lina < (unsigned char *)(DPMI_ADD + HLT_OFF(MSDOS_pm_end)))) {
+    D_printf("DPMI: Return from MSDOS pm callback\n");
+    msdos_post_pm(&DPMI_CLIENT.stack_frame);
+    restore_rm_regs();
+    in_dpmi_dos_int = 0;
 
   } else {
     if(pic_icount)
