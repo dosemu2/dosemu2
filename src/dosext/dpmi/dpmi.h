@@ -10,6 +10,7 @@
 
 #include "emu-ldt.h"
 #include "emm.h"
+#include "dmemory.h"
 
 #define DPMI_VERSION   		0x00	/* major version 0 */
 #define DPMI_DRIVER_VERSION	0x5a	/* minor version 0.90 */
@@ -33,10 +34,6 @@
 #define current_client (in_dpmi-1)
 #define DPMI_CLIENT (DPMIclient[current_client])
 #define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
-
-#define PAGE_MASK	(~(PAGE_SIZE-1))
-/* to align the pointer to the (next) page boundary */
-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
 
 /* Aargh!! Is this the only way we have to know if a signal interrupted
  * us in DPMI server or client code? */
@@ -125,19 +122,6 @@ typedef struct {
     unsigned rm_ss_selector;
 } RealModeCallBack;
 
-typedef struct dpmi_pm_block_stuct {
-  struct   dpmi_pm_block_stuct *next;
-  unsigned long handle;
-  unsigned long size;
-  char     *base;
-  u_short  *attrs;
-  int linear;
-} dpmi_pm_block;
-
-typedef struct dpmi_pm_block_root_struc {
-  dpmi_pm_block *first_pm_block;
-} dpmi_pm_block_root;
-
 struct DPMIclient_struct {
   struct sigcontext_struct stack_frame;
   int is_32;
@@ -157,7 +141,6 @@ struct DPMIclient_struct {
   int RSP_state, RSP_installed;
   unsigned short psp;
 };
-extern struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 #define ENV_SEL (READ_WORD(SEGOFF2LINEAR(DPMI_CLIENT.psp, 0x2c)))
 
 struct RSPcall_s {
@@ -175,7 +158,6 @@ struct RSP_s {
 };
 
 EXTERN volatile int in_dpmi INIT(0);/* Set to 1 when running under DPMI */
-EXTERN volatile int RSP_num INIT(0);/* Set to 1 when running under DPMI */
 EXTERN volatile int in_win31 INIT(0); /* Set to 1 when running Windows 3.1 */
 EXTERN volatile int in_dpmi_dos_int INIT(0);
 EXTERN volatile int dpmi_mhp_TF INIT(0);
@@ -214,20 +196,17 @@ void dpmi_mhp_modify_eip(int delta);
 #endif
 
 void add_cli_to_blacklist(void);
-dpmi_pm_block* DPMImalloc(unsigned long size);
-dpmi_pm_block* DPMImallocLinear(unsigned long base, unsigned long size, int committed);
-int DPMIfree(unsigned long handle);
-dpmi_pm_block *DPMIrealloc(unsigned long handle, unsigned long size);
-dpmi_pm_block *DPMIreallocLinear(unsigned long handle, unsigned long size,
+inline dpmi_pm_block* DPMImalloc(unsigned long size);
+inline dpmi_pm_block* DPMImallocLinear(unsigned long base, unsigned long size, int committed);
+inline int DPMIfree(unsigned long handle);
+inline dpmi_pm_block *DPMIrealloc(unsigned long handle, unsigned long size);
+inline dpmi_pm_block *DPMIreallocLinear(unsigned long handle, unsigned long size,
   int committed);
-void DPMIfreeAll(void);
-unsigned long base2handle(void *);
-dpmi_pm_block *lookup_pm_block(unsigned long h);
-int
-DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
+inline void DPMIfreeAll(void);
+inline int DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
 			  unsigned long low_addr, unsigned long cnt);
-int DPMISetPageAttributes(unsigned long handle, int offs, us attrs[], int count);
-int DPMIGetPageAttributes(unsigned long handle, int offs, us attrs[], int count);
+inline int DPMISetPageAttributes(unsigned long handle, int offs, us attrs[], int count);
+inline int DPMIGetPageAttributes(unsigned long handle, int offs, us attrs[], int count);
 unsigned long dpmi_GetSegmentBaseAddress(unsigned short selector);
 unsigned long GetSegmentBaseAddress(unsigned short);
 unsigned long GetSegmentLimit(unsigned short);
@@ -257,8 +236,6 @@ extern int SetSelector(unsigned short selector, unsigned long base_addr, unsigne
 extern int FreeDescriptor(unsigned short selector);
 extern void FreeSegRegs(struct sigcontext_struct *scp, unsigned short selector);
 extern void dpmi_setup(void);
-extern void dpmi_alloc_pool(void);
-extern void dpmi_free_pool(void);
 extern int lookup_realmode_callback(char *lina, int *num);
 extern void dpmi_realmode_callback(int rmcb_client, int num);
 extern int get_ldt(void *buffer);

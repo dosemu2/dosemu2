@@ -19,6 +19,8 @@
  *
  */
 
+#define MSDOS_MAX_MEM_ALLOCS 1024
+
 struct msdos_struct {
   int is_32;
   struct pmaddr_s mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
@@ -32,6 +34,7 @@ struct msdos_struct {
   unsigned short lowmem_seg;
   char ems_map_buffer[PAGE_MAP_SIZE];
   int ems_frame_mapped;
+  dpmi_pm_block mem_map[MSDOS_MAX_MEM_ALLOCS];
 };
 
 extern void msdos_init(int is_32, unsigned short mseg,

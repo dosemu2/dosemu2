@@ -67,6 +67,54 @@ int msdos_get_lowmem_size(void)
     return DTA_Para_SIZE;
 }
 
+static void *msdos_malloc(unsigned long size)
+{
+  int i;
+  dpmi_pm_block *block = DPMImalloc(size);
+  if (!block)
+    return NULL;
+  for (i = 0; i < MSDOS_MAX_MEM_ALLOCS; i++) {
+    if (MSDOS_CLIENT.mem_map[i].size == 0) {
+      MSDOS_CLIENT.mem_map[i] = *block;
+      break;
+    }
+  }
+  return block->base;
+}
+
+static int msdos_free(void *addr)
+{
+  int i;
+  for (i = 0; i < MSDOS_MAX_MEM_ALLOCS; i++) {
+    if (MSDOS_CLIENT.mem_map[i].base == addr) {
+      DPMIfree(MSDOS_CLIENT.mem_map[i].handle);
+      MSDOS_CLIENT.mem_map[i].size = 0;
+      return 0;
+    }
+  }
+  return -1;
+}
+
+static void *msdos_realloc(void *addr, unsigned long new_size)
+{
+  void *base;
+  int i;
+  dpmi_pm_block *block = NULL;
+  for (i = 0; i < MSDOS_MAX_MEM_ALLOCS; i++) {
+    if (MSDOS_CLIENT.mem_map[i].base == addr) {
+      block = &MSDOS_CLIENT.mem_map[i];
+      break;
+    }
+  }
+  if (!block)
+    return NULL;
+  if ((base = DPMIrealloc(block->handle, new_size))) {
+    block->base = base;
+    block->size = new_size;
+  }
+  return base;
+}
+
 static void prepare_ems_frame(void)
 {
     if (MSDOS_CLIENT.ems_frame_mapped)
@@ -325,15 +373,16 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    return MSDOS_DONE;
 	case 0x48:		/* allocate memory */
 	    {
-		dpmi_pm_block *bp = DPMImalloc(_LWORD(ebx)<<4);
-		if (!bp) {
+		unsigned long size = _LWORD(ebx) << 4;
+		void *addr = msdos_malloc(size);
+		if (!addr) {
 		    _eflags |= CF;
 		    _LWORD(ebx) = dpmi_free_memory >> 4;
 		    _LWORD(eax) = 0x08;
 		} else {
 		    unsigned short sel = AllocateDescriptors(1);
-		    SetSegmentBaseAddress(sel, (unsigned long)bp->base);
-		    SetSegmentLimit(sel, bp -> size - 1);
+		    SetSegmentBaseAddress(sel, (unsigned long)addr);
+		    SetSegmentLimit(sel, size - 1);
 		    _LWORD(eax) = sel;
 		    _eflags &= ~CF;
 		}
@@ -341,13 +390,10 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    }
 	case 0x49:		/* free memory */
 	    {
-		unsigned long h =
-		    base2handle((void *)GetSegmentBaseAddress(_es));
-		if (!h) 
+		if (msdos_free((void *)GetSegmentBaseAddress(_es)) == -1) {
 		    _eflags |= CF;
-		else {
+		} else {
 		    _eflags &= ~CF;
-		    DPMIfree(h);
 		    FreeDescriptor(_es);
 		    FreeSegRegs(scp, _es);
 		}
@@ -355,22 +401,15 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    }
 	case 0x4a:		/* reallocate memory */
 	    {
-		unsigned long h;
-		dpmi_pm_block *bp;
-
-		h = base2handle((void *)GetSegmentBaseAddress(_es));
-		if (!h) {
-		    _eflags |= CF;
-		    return MSDOS_DONE;
-		}
-		bp = DPMIrealloc(h, _LWORD(ebx)<<4);
-		if (!bp) {
+		unsigned long new_size = _LWORD(ebx) << 4;
+		void *addr = msdos_realloc((void *)GetSegmentBaseAddress(_es), new_size);
+		if (!addr) {
 		    _eflags |= CF;
 		    _LWORD(ebx) = dpmi_free_memory >> 4;
 		    _LWORD(eax) = 0x08;
 		} else {
-		    SetSegmentBaseAddress(_es, (unsigned long)bp->base);
-		    SetSegmentLimit(_es, bp -> size - 1);
+		    SetSegmentBaseAddress(_es, (unsigned long)addr);
+		    SetSegmentLimit(_es, new_size - 1);
 		    _eflags &= ~CF;
 		}
 		return MSDOS_DONE;

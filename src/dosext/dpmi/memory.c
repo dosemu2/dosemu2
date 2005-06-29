@@ -35,11 +35,10 @@
 #include <sys/mman.h>		/* for MREMAP_MAYMOVE */
 #include <sys/param.h>
 #include <errno.h>
-#include "dpmi.h"
-#include "pic.h"
 #include "utilities.h"
 #include "mapping.h"
 #include "smalloc.h"
+#include "dmemory.h"
 
 #ifndef PAGE_SHIFT
 #define PAGE_SHIFT		12
@@ -58,7 +57,7 @@ static unsigned long memsize = 0;
 /* I don\'t think these function will ever become bottleneck, so just */
 /* keep it simple, --dong */
 /* alloc_pm_block: allocate a dpmi_pm_block struct and add it to the list */
-static dpmi_pm_block * alloc_pm_block(unsigned long size)
+static dpmi_pm_block * alloc_pm_block(dpmi_pm_block_root *root, unsigned long size)
 {
     dpmi_pm_block *p = malloc(sizeof(dpmi_pm_block));
     if(!p)
@@ -68,8 +67,8 @@ static dpmi_pm_block * alloc_pm_block(unsigned long size)
 	free(p);
 	return NULL;
     }
-    p->next = DPMI_CLIENT.pm_block_root->first_pm_block;	/* add it to list */
-    DPMI_CLIENT.pm_block_root->first_pm_block = p;
+    p->next = root->first_pm_block;	/* add it to list */
+    root->first_pm_block = p;
     return p;
 }
 
@@ -83,17 +82,17 @@ static void * realloc_pm_block(dpmi_pm_block *block, unsigned long newsize)
 }
 
 /* free_pm_block free a dpmi_pm_block struct and delete it from list */
-static int free_pm_block(dpmi_pm_block *p)
+static int free_pm_block(dpmi_pm_block_root *root, dpmi_pm_block *p)
 {
     dpmi_pm_block *tmp;
     if (!p) return -1;
-    if (p == DPMI_CLIENT.pm_block_root->first_pm_block) {
-	DPMI_CLIENT.pm_block_root->first_pm_block = p -> next;
+    if (p == root->first_pm_block) {
+	root->first_pm_block = p -> next;
 	free(p->attrs);
 	free(p);
 	return 0;
     }
-    for(tmp = DPMI_CLIENT.pm_block_root->first_pm_block; tmp; tmp = tmp->next)
+    for(tmp = root->first_pm_block; tmp; tmp = tmp->next)
 	if (tmp -> next == p)
 	    break;
     if (!tmp) return -1;
@@ -104,21 +103,12 @@ static int free_pm_block(dpmi_pm_block *p)
 }
 
 /* lookup_pm_block returns a dpmi_pm_block struct from its handle */
-dpmi_pm_block * lookup_pm_block(unsigned long h)
+dpmi_pm_block * lookup_pm_block(dpmi_pm_block_root *root, unsigned long h)
 {
     dpmi_pm_block *tmp;
-    for(tmp = DPMI_CLIENT.pm_block_root->first_pm_block; tmp; tmp = tmp->next)
+    for(tmp = root->first_pm_block; tmp; tmp = tmp->next)
 	if (tmp -> handle == h)
 	    return tmp;
-    return 0;
-}
-
-unsigned long base2handle( void *base )
-{
-    dpmi_pm_block *tmp;
-    for(tmp = DPMI_CLIENT.pm_block_root->first_pm_block; tmp; tmp = tmp->next)
-	if (tmp -> base == base)
-	    return tmp -> handle;
     return 0;
 }
 
@@ -169,9 +159,9 @@ static int SetAttribsForPage(char *ptr, us attr, us old_attr)
         D_printf("UnCom");
         if (old_com == 1) {
           D_printf("[!]");
-          mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, ptr, DPMI_page_size,
+          mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, ptr, PAGE_SIZE,
             PROT_NONE, 0);
-          dpmi_free_memory += DPMI_page_size;
+          dpmi_free_memory += PAGE_SIZE;
         }
         D_printf(" ");
         break;
@@ -179,11 +169,11 @@ static int SetAttribsForPage(char *ptr, us attr, us old_attr)
         D_printf("Com");
         if (old_com == 0) {
           D_printf("[!]");
-          if (dpmi_free_memory < DPMI_page_size) {
+          if (dpmi_free_memory < PAGE_SIZE) {
             D_printf("\nERROR: Memory limit reached, cannot commit page\n");
             return 0;
           }
-          dpmi_free_memory -= DPMI_page_size;
+          dpmi_free_memory -= PAGE_SIZE;
         }
         D_printf(" ");
 	break;
@@ -217,7 +207,7 @@ static int SetAttribsForPage(char *ptr, us attr, us old_attr)
 
     D_printf("Addr=%p\n", ptr);
 
-    if (mprotect_mapping(MAPPING_DPMI, ptr, DPMI_page_size,
+    if (mprotect_mapping(MAPPING_DPMI, ptr, PAGE_SIZE,
         com ? prot : PROT_NONE) == -1) {
       D_printf("mprotect() failed: %s\n", strerror(errno));
       return 0;
@@ -250,11 +240,11 @@ static void restore_page_protection(dpmi_pm_block *block)
   for (i = 0; i < block->size >> PAGE_SHIFT; i++) {
     if ((block->attrs[i] & 7) == 0)
       mprotect_mapping(MAPPING_DPMI, block->base + (i << PAGE_SHIFT),
-        DPMI_page_size, PROT_NONE);
+        PAGE_SIZE, PROT_NONE);
   }
 }
 	 
-dpmi_pm_block * DPMImalloc(unsigned long size)
+dpmi_pm_block * DPMI_malloc(dpmi_pm_block_root *root, unsigned long size)
 {
     dpmi_pm_block *block;
     int i;
@@ -263,11 +253,11 @@ dpmi_pm_block * DPMImalloc(unsigned long size)
     size = PAGE_ALIGN(size);
     if (size > dpmi_free_memory)
 	return NULL;
-    if ((block = alloc_pm_block(size)) == NULL)
+    if ((block = alloc_pm_block(root, size)) == NULL)
 	return NULL;
 
     if (!(block->base = smalloc(&mem_pool, size))) {
-	free_pm_block(block);
+	free_pm_block(root, block);
 	return NULL;
     }
     block->linear = 0;
@@ -283,7 +273,8 @@ dpmi_pm_block * DPMImalloc(unsigned long size)
 /* we can not allow memory blocks be overlapped, but linux kernel */
 /* doesn\'t support a way to find a block is mapped or not, so we */
 /* parse /proc/self/maps instead. This is a kluge! */
-dpmi_pm_block * DPMImallocLinear(unsigned long base, unsigned long size, int committed)
+dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
+  unsigned long base, unsigned long size, int committed)
 {
     dpmi_pm_block *block;
     int i;
@@ -298,13 +289,13 @@ dpmi_pm_block * DPMImallocLinear(unsigned long base, unsigned long size, int com
     } else {
       base = -1;
     }
-    if ((block = alloc_pm_block(size)) == NULL)
+    if ((block = alloc_pm_block(root, size)) == NULL)
 	return NULL;
 
     block->base = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)base,
         size, committed ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE, 0);
     if (block->base == MAP_FAILED) {
-	free_pm_block(block);
+	free_pm_block(root, block);
 	return NULL;
     }
     block->linear = 1;
@@ -317,12 +308,12 @@ dpmi_pm_block * DPMImallocLinear(unsigned long base, unsigned long size, int com
     return block;
 }
 
-int DPMIfree(unsigned long handle)
+int DPMI_free(dpmi_pm_block_root *root, unsigned long handle)
 {
     dpmi_pm_block *block;
     int i;
 
-    if ((block = lookup_pm_block(handle)) == NULL)
+    if ((block = lookup_pm_block(root, handle)) == NULL)
 	return -1;
     if (block->linear) {
 	munmap_mapping(MAPPING_DPMI, block->base, block->size);
@@ -333,9 +324,9 @@ int DPMIfree(unsigned long handle)
     }
     for (i = 0; i < block->size >> PAGE_SHIFT; i++) {
 	if ((block->attrs[i] & 7) == 1)    // if committed page, account it
-	    dpmi_free_memory += DPMI_page_size;
+	    dpmi_free_memory += PAGE_SIZE;
     }
-    free_pm_block(block);
+    free_pm_block(root, block);
     return 0;
 }
 
@@ -355,22 +346,23 @@ static void finish_realloc(dpmi_pm_block *block, unsigned long newsize,
     } else {
 	for (i = new_npages; i < npages; i++)
 	    if ((block->attrs[i] & 7) == 1)
-		dpmi_free_memory += DPMI_page_size;
+		dpmi_free_memory += PAGE_SIZE;
 	realloc_pm_block(block, newsize);
     }
 }
 
-dpmi_pm_block * DPMIrealloc(unsigned long handle, unsigned long newsize)
+dpmi_pm_block * DPMI_realloc(dpmi_pm_block_root *root,
+  unsigned long handle, unsigned long newsize)
 {
     dpmi_pm_block *block;
     void *ptr;
 
     if (!newsize)	/* DPMI spec. says resize to 0 is an error */
 	return NULL;
-    if ((block = lookup_pm_block(handle)) == NULL)
+    if ((block = lookup_pm_block(root, handle)) == NULL)
 	return NULL;
     if (block->linear) {
-	return DPMIreallocLinear(handle, newsize, 1);
+	return DPMI_reallocLinear(root, handle, newsize, 1);
     }
 
    /* align newsize to PAGE size */
@@ -398,15 +390,15 @@ dpmi_pm_block * DPMIrealloc(unsigned long handle, unsigned long newsize)
     return block;
 }
 
-dpmi_pm_block * DPMIreallocLinear(unsigned long handle, unsigned long newsize,
-  int committed)
+dpmi_pm_block * DPMI_reallocLinear(dpmi_pm_block_root *root,
+  unsigned long handle, unsigned long newsize, int committed)
 {
     dpmi_pm_block *block;
     void *ptr;
 
     if (!newsize)	/* DPMI spec. says resize to 0 is an error */
 	return NULL;
-    if ((block = lookup_pm_block(handle)) == NULL)
+    if ((block = lookup_pm_block(root, handle)) == NULL)
 	return NULL;
     if (!block->linear) {
 	D_printf("DPMI: Attempt to realloc memory region with inappropriate function\n");
@@ -445,15 +437,16 @@ dpmi_pm_block * DPMIreallocLinear(unsigned long handle, unsigned long newsize,
     return block;
 }
 
-void DPMIfreeAll(void)
+void DPMI_freeAll(dpmi_pm_block_root *root)
 {
-    dpmi_pm_block **p = &DPMI_CLIENT.pm_block_root->first_pm_block;
+    dpmi_pm_block **p = &root->first_pm_block;
     while(*p) {
-	DPMIfree((*p)->handle);
+	DPMI_free(root, (*p)->handle);
     }
 }
 
-int DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
+int DPMI_MapConventionalMemory(dpmi_pm_block_root *root,
+			  dpmi_pm_block *block, unsigned long offset,
 			  unsigned long low_addr, unsigned long cnt)
 {
     /* NOTE:
@@ -465,7 +458,7 @@ int DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
 
     mapped_base = block->base + offset;
 
-    if (mmap_mapping(MAPPING_LOWMEM, mapped_base, cnt*DPMI_page_size,
+    if (mmap_mapping(MAPPING_LOWMEM, mapped_base, cnt*PAGE_SIZE,
        PROT_READ | PROT_WRITE | PROT_EXEC, (void *)low_addr) != mapped_base) {
 
 	D_printf("DPMI MapConventionalMemory mmap failed, errno = %d\n",errno);
@@ -475,11 +468,12 @@ int DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
     return 0;
 }
 
-int DPMISetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
+int DPMI_SetPageAttributes(dpmi_pm_block_root *root, unsigned long handle,
+  int offs, us attrs[], int count)
 {
   dpmi_pm_block *block;
 
-  if ((block = lookup_pm_block(handle)) == NULL)
+  if ((block = lookup_pm_block(root, handle)) == NULL)
     return 0;
   if (!block->linear) {
     D_printf("DPMI: Attempt to set page attributes for inappropriate mem region\n");
@@ -493,11 +487,12 @@ int DPMISetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
   return 1;
 }
 
-int DPMIGetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
+int DPMI_GetPageAttributes(dpmi_pm_block_root *root, unsigned long handle,
+  int offs, us attrs[], int count)
 {
   dpmi_pm_block *block;
 
-  if ((block = lookup_pm_block(handle)) == NULL)
+  if ((block = lookup_pm_block(root, handle)) == NULL)
     return 0;
 
   memcpy(attrs, block->attrs + (offs >> PAGE_SHIFT), count * sizeof(u_short));

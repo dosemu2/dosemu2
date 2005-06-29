@@ -122,12 +122,14 @@ int DPMI_rm_procedure_running = 0;
 struct sigcontext_struct DPMI_pm_stack[DPMI_max_rec_pm_func];
 int DPMI_pm_procedure_running = 0;
 
+static struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
+
 char *ldt_buffer;
 static unsigned short dpmi_sel16, dpmi_sel32;
 inline unsigned short dpmi_sel()
 { return DPMI_CLIENT.is_32 ? dpmi_sel32 : dpmi_sel16; }
 
-struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
+static int RSP_num = 0;
 static struct RSP_s RSP_callbacks[DPMI_MAX_CLIENTS];
 
 static struct sigcontext_struct *emu_stack_frame = &_emu_stack_frame;
@@ -1467,6 +1469,48 @@ void dpmi_set_interrupt_vector(unsigned char num, INTDESC desc)
     DPMI_CLIENT.Interrupt_Table[num].offset = desc.offset;
 }
 
+inline dpmi_pm_block* DPMImalloc(unsigned long size)
+{
+    return DPMI_malloc(DPMI_CLIENT.pm_block_root, size);
+}
+inline dpmi_pm_block* DPMImallocLinear(unsigned long base, unsigned long size, int committed)
+{
+    return DPMI_mallocLinear(DPMI_CLIENT.pm_block_root, base, size, committed);
+}
+inline int DPMIfree(unsigned long handle)
+{
+    return DPMI_free(DPMI_CLIENT.pm_block_root, handle);
+}
+inline dpmi_pm_block *DPMIrealloc(unsigned long handle, unsigned long size)
+{
+    return DPMI_realloc(DPMI_CLIENT.pm_block_root, handle, size);
+}
+inline dpmi_pm_block *DPMIreallocLinear(unsigned long handle, unsigned long size,
+  int committed)
+{
+    return DPMI_reallocLinear(DPMI_CLIENT.pm_block_root, handle, size, committed);
+}
+inline void DPMIfreeAll(void)
+{
+    return DPMI_freeAll(DPMI_CLIENT.pm_block_root);
+}
+inline int DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
+			  unsigned long low_addr, unsigned long cnt)
+{
+    return DPMI_MapConventionalMemory(DPMI_CLIENT.pm_block_root,
+	block, offset, low_addr, cnt);
+}
+inline int DPMISetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
+{
+    return DPMI_SetPageAttributes(DPMI_CLIENT.pm_block_root,
+	handle, offs, attrs, count);
+}
+inline int DPMIGetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
+{
+    return DPMI_GetPageAttributes(DPMI_CLIENT.pm_block_root,
+	handle, offs, attrs, count);
+}
+
 static void do_int31(struct sigcontext_struct *scp)
 {
 #if 0
@@ -1989,7 +2033,7 @@ err:
 
 	D_printf("DPMI: Resize linear mem to size %lx, flags %lx\n", newsize, _edx);
 	D_printf("DPMI: For Mem Blk. for handle   0x%08lx\n", handle);
-	block = lookup_pm_block(handle);
+	block = lookup_pm_block(DPMI_CLIENT.pm_block_root, handle);
 	if(block == NULL || block -> handle != handle) {
 	    _eflags |= CF;
 	    _LWORD(eax) = 0x8023; /* invalid handle */
@@ -2057,7 +2101,7 @@ err:
 	}
 
 	D_printf("DPMI: Map conventional mem for handle %ld, offset %lx at low address %lx\n", handle, offset, low_addr);
-	block = lookup_pm_block(handle);
+	block = lookup_pm_block(DPMI_CLIENT.pm_block_root, handle);
 	if(block == NULL || block -> handle != handle) {
 	    _eflags |= CF;
 	    _LWORD(eax) = 0x8023; /* invalid handle */
@@ -2077,7 +2121,7 @@ err:
 	dpmi_pm_block *block;
 	handle = (_LWORD(esi))<<16 | (_LWORD(edi));
 
-	if((block = lookup_pm_block(handle)) == NULL) {
+	if((block = lookup_pm_block(DPMI_CLIENT.pm_block_root, handle)) == NULL) {
 	    _LWORD(eax) = 0x8023;
 	    _eflags |= CF;
 	    break;
