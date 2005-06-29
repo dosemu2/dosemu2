@@ -11,6 +11,10 @@
 #include <sys/types.h> /* for u_char */
 #include <time.h> /* for time_t */
 
+#define WINDOWS_HACKS 1
+#if WINDOWS_HACKS
+EXTERN int win31_mode INIT(3);
+#endif
 
 EXTERN unsigned int  check_date INIT(0);
 EXTERN time_t        start_time;

@@ -65,8 +65,6 @@
 
 #undef  DEBUG_INT1A
 
-#define WINDOWS_HACKS 1
-static int win31_mode = 3;
 static char win31_title[256];
 
 static void dos_post_boot(void);

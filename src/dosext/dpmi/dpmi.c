@@ -2874,7 +2874,12 @@ void dpmi_init(void)
     inherit_idt = 0;
 
   for (i=0;i<0x100;i++) {
-    if (inherit_idt) {
+    if (inherit_idt
+#if WINDOWS_HACKS
+/* work around the disability of win31 in Standard mode to run the DPMI apps */
+	&& !(in_win31 && win31_mode == 2)
+#endif
+    ) {
       DPMI_CLIENT.Interrupt_Table[i].offset = PREV_DPMI_CLIENT.Interrupt_Table[i].offset;
       DPMI_CLIENT.Interrupt_Table[i].selector = PREV_DPMI_CLIENT.Interrupt_Table[i].selector;
     } else {
@@ -2883,7 +2888,12 @@ void dpmi_init(void)
     }
   }
   for (i=0;i<0x20;i++) {
-    if (inherit_idt) {
+    if (inherit_idt
+#if WINDOWS_HACKS
+/* work around the disability of win31 in Standard mode to run the DPMI apps */
+	&& !(in_win31 && win31_mode == 2)
+#endif
+    ) {
       DPMI_CLIENT.Exception_Table[i].offset = PREV_DPMI_CLIENT.Exception_Table[i].offset;
       DPMI_CLIENT.Exception_Table[i].selector = PREV_DPMI_CLIENT.Exception_Table[i].selector;
     } else {
