@@ -2869,17 +2869,17 @@ void dpmi_init(void)
         MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
   if (in_dpmi > 1)
-    inherit_idt = DPMI_CLIENT.is_32 == PREV_DPMI_CLIENT.is_32;
-  else
-    inherit_idt = 0;
-
-  for (i=0;i<0x100;i++) {
-    if (inherit_idt
+    inherit_idt = DPMI_CLIENT.is_32 == PREV_DPMI_CLIENT.is_32
 #if WINDOWS_HACKS
 /* work around the disability of win31 in Standard mode to run the DPMI apps */
 	&& !(in_win31 && win31_mode == 2)
 #endif
-    ) {
+    ;
+  else
+    inherit_idt = 0;
+
+  for (i=0;i<0x100;i++) {
+    if (inherit_idt) {
       DPMI_CLIENT.Interrupt_Table[i].offset = PREV_DPMI_CLIENT.Interrupt_Table[i].offset;
       DPMI_CLIENT.Interrupt_Table[i].selector = PREV_DPMI_CLIENT.Interrupt_Table[i].selector;
     } else {
@@ -2888,12 +2888,7 @@ void dpmi_init(void)
     }
   }
   for (i=0;i<0x20;i++) {
-    if (inherit_idt
-#if WINDOWS_HACKS
-/* work around the disability of win31 in Standard mode to run the DPMI apps */
-	&& !(in_win31 && win31_mode == 2)
-#endif
-    ) {
+    if (inherit_idt) {
       DPMI_CLIENT.Exception_Table[i].offset = PREV_DPMI_CLIENT.Exception_Table[i].offset;
       DPMI_CLIENT.Exception_Table[i].selector = PREV_DPMI_CLIENT.Exception_Table[i].selector;
     } else {
