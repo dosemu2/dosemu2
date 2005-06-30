@@ -161,6 +161,20 @@ static inline int modify_ldt(int func, void *ptr, unsigned long bytecount)
 }
 #endif
 
+unsigned long SEL_ADR(unsigned short sel, unsigned long reg)
+{
+  if (!(sel & 0x0004)) {
+    /* GDT */
+    return (unsigned long) reg;
+  } else {
+    /* LDT */
+    if (Segments[sel>>3].is_32)
+      return (unsigned long) (GetSegmentBaseAddress(sel) + reg );
+    else
+      return (unsigned long) (GetSegmentBaseAddress(sel) + LO_WORD(reg));
+  }
+}
+
 int get_ldt(void *buffer)
 {
 #ifdef __linux__
@@ -1034,7 +1048,7 @@ static int inline do_LAR(us selector)
   return ret;
 }
 
-static int GetDescriptor(us selector, unsigned long *lp)
+int GetDescriptor(us selector, unsigned long *lp)
 {
   int typebyte;
   unsigned char *type_ptr;
@@ -1118,7 +1132,7 @@ void direct_ldt_write(int offset, int length, char *buffer)
   MPROT_LDT_ENTRY(ldt_entry);
 }
 
-static void GetFreeMemoryInformation(unsigned int *lp)
+void GetFreeMemoryInformation(unsigned long *lp)
 {
   /*00h*/	*lp = dpmi_free_memory;
   /*04h*/	*++lp = dpmi_free_memory/DPMI_page_size;
@@ -1469,43 +1483,63 @@ void dpmi_set_interrupt_vector(unsigned char num, INTDESC desc)
     DPMI_CLIENT.Interrupt_Table[num].offset = desc.offset;
 }
 
-inline dpmi_pm_block* DPMImalloc(unsigned long size)
+dpmi_pm_block DPMImalloc(unsigned long size)
 {
-    return DPMI_malloc(DPMI_CLIENT.pm_block_root, size);
+    dpmi_pm_block dummy, *ptr;
+    memset(&dummy, 0, sizeof(dummy));
+    ptr = DPMI_malloc(DPMI_CLIENT.pm_block_root, size);
+    if (ptr)
+	return *ptr;
+    return dummy;
 }
-inline dpmi_pm_block* DPMImallocLinear(unsigned long base, unsigned long size, int committed)
+dpmi_pm_block DPMImallocLinear(unsigned long base, unsigned long size, int committed)
 {
-    return DPMI_mallocLinear(DPMI_CLIENT.pm_block_root, base, size, committed);
+    dpmi_pm_block dummy, *ptr;
+    memset(&dummy, 0, sizeof(dummy));
+    ptr = DPMI_mallocLinear(DPMI_CLIENT.pm_block_root, base, size, committed);
+    if (ptr)
+	return *ptr;
+    return dummy;
 }
-inline int DPMIfree(unsigned long handle)
+int DPMIfree(unsigned long handle)
 {
     return DPMI_free(DPMI_CLIENT.pm_block_root, handle);
 }
-inline dpmi_pm_block *DPMIrealloc(unsigned long handle, unsigned long size)
+dpmi_pm_block DPMIrealloc(unsigned long handle, unsigned long size)
 {
-    return DPMI_realloc(DPMI_CLIENT.pm_block_root, handle, size);
+    dpmi_pm_block dummy, *ptr;
+    memset(&dummy, 0, sizeof(dummy));
+    ptr = DPMI_realloc(DPMI_CLIENT.pm_block_root, handle, size);
+    if (ptr)
+	return *ptr;
+    return dummy;
 }
-inline dpmi_pm_block *DPMIreallocLinear(unsigned long handle, unsigned long size,
+dpmi_pm_block DPMIreallocLinear(unsigned long handle, unsigned long size,
   int committed)
 {
-    return DPMI_reallocLinear(DPMI_CLIENT.pm_block_root, handle, size, committed);
+    dpmi_pm_block dummy, *ptr;
+    memset(&dummy, 0, sizeof(dummy));
+    ptr = DPMI_reallocLinear(DPMI_CLIENT.pm_block_root, handle, size, committed);
+    if (ptr)
+	return *ptr;
+    return dummy;
 }
-inline void DPMIfreeAll(void)
+void DPMIfreeAll(void)
 {
     return DPMI_freeAll(DPMI_CLIENT.pm_block_root);
 }
-inline int DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
+int DPMIMapConventionalMemory(unsigned long handle, unsigned long offset,
 			  unsigned long low_addr, unsigned long cnt)
 {
     return DPMI_MapConventionalMemory(DPMI_CLIENT.pm_block_root,
-	block, offset, low_addr, cnt);
+	handle, offset, low_addr, cnt);
 }
-inline int DPMISetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
+int DPMISetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
 {
     return DPMI_SetPageAttributes(DPMI_CLIENT.pm_block_root,
 	handle, offs, attrs, count);
 }
-inline int DPMIGetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
+int DPMIGetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
 {
     return DPMI_GetPageAttributes(DPMI_CLIENT.pm_block_root,
 	handle, offs, attrs, count);
@@ -1928,26 +1962,27 @@ err:
     break;
 	  
   case 0x0500:
-    GetFreeMemoryInformation( (unsigned int *)
+    GetFreeMemoryInformation( (unsigned long *)
 	(GetSegmentBaseAddress(_es) + API_16_32(_edi)));
     break;
   case 0x0501:	/* Allocate Memory Block */
     { 
-      dpmi_pm_block *block;
+      dpmi_pm_block block;
       unsigned long mem_required = (_LWORD(ebx))<<16 | (_LWORD(ecx));
 
-      if ((block = DPMImalloc(mem_required)) == NULL) {
+      block = DPMImalloc(mem_required);
+      if (!block.size) {
 	D_printf("DPMI: client allocate memory failed.\n");
 	_eflags |= CF;
 	break;
       }
       D_printf("DPMI: malloc attempt for siz 0x%08x\n", (_LWORD(ebx))<<16 | (_LWORD(ecx)));
-      D_printf("      malloc returns address %p\n", block->base);
-      D_printf("                using handle 0x%08lx\n",block->handle);
-      _LWORD(edi) = (block -> handle)&0xffff;
-      _LWORD(esi) = ((block -> handle) >> 16) & 0xffff;
-      _LWORD(ecx) = (unsigned long)block -> base & 0xffff;
-      _LWORD(ebx) = ((unsigned long)block -> base >> 16) & 0xffff;
+      D_printf("      malloc returns address %p\n", block.base);
+      D_printf("                using handle 0x%08lx\n",block.handle);
+      _LWORD(edi) = (block.handle)&0xffff;
+      _LWORD(esi) = ((block.handle) >> 16) & 0xffff;
+      _LWORD(ecx) = (unsigned long)block.base & 0xffff;
+      _LWORD(ebx) = ((unsigned long)block.base >> 16) & 0xffff;
     }
     break;
   case 0x0502:	/* Free Memory Block */
@@ -1964,27 +1999,28 @@ err:
   case 0x0503:	/* Resize Memory Block */
     {
 	unsigned long newsize, handle;
-	dpmi_pm_block *block;
+	dpmi_pm_block block;
 	handle = (_LWORD(esi))<<16 | (_LWORD(edi));
 	newsize = (_LWORD(ebx)<<16 | _LWORD(ecx));
 	D_printf("DPMI: Realloc to size %x\n", (_LWORD(ebx)<<16 | _LWORD(ecx)));
 	D_printf("DPMI: For Mem Blk. for handle   0x%08lx\n", handle);
 
-	if((block = DPMIrealloc(handle, newsize)) == NULL) {
+	block = DPMIrealloc(handle, newsize);
+	if (!block.size) {
 	    D_printf("DPMI: client resize memory failed\n");
 	    _eflags |= CF;
 	    break;
 	}
 	D_printf("DPMI: realloc attempt for siz 0x%08lx\n", newsize);
-	D_printf("      realloc returns address %p\n", block->base);
-	_LWORD(ecx) = (unsigned long)(block->base) & 0xffff;
-	_LWORD(ebx) = ((unsigned long)(block->base) >> 16) & 0xffff;
+	D_printf("      realloc returns address %p\n", block.base);
+	_LWORD(ecx) = (unsigned long)(block.base) & 0xffff;
+	_LWORD(ebx) = ((unsigned long)(block.base) >> 16) & 0xffff;
     }
     break;
   case 0x0504:			/* Allocate linear mem, 1.0 */
       {
 	  unsigned long base_address = _ebx;
-	  dpmi_pm_block *block;
+	  dpmi_pm_block block;
 	  unsigned long length = _ecx;
 	  if (!length) {
 	      _eflags |= CF;
@@ -1997,7 +2033,7 @@ err:
 	      break;
 	  }
 	  block = DPMImallocLinear(base_address, length, _edx & 1);
-	  if (block == NULL) {
+	  if (!block.size) {
 	      if (!base_address)
 		  _LWORD(eax) = 0x8013;	/* mem not available */
 	      else
@@ -2005,18 +2041,18 @@ err:
 	      _eflags |= CF;
 	      break;
 	  }
-	  _ebx = (unsigned long)block -> base;
-	  _esi = block -> handle;
+	  _ebx = (unsigned long)block.base;
+	  _esi = block.handle;
 	  D_printf("DPMI: allocate linear mem attempt for siz 0x%08lx at 0x%08lx (%s)\n",
 		   _ecx, base_address, _edx ? "commited" : "uncommitted");
-	  D_printf("      malloc returns address %p\n", block->base);
-	  D_printf("                using handle 0x%08lx\n",block->handle);
+	  D_printf("      malloc returns address %p\n", block.base);
+	  D_printf("                using handle 0x%08lx\n",block.handle);
 	  break;
       }
   case 0x0505:			/* Resize memory block, 1.0 */
     {
 	unsigned long newsize, handle;
-	dpmi_pm_block *block;
+	dpmi_pm_block *old_block, block;
 	unsigned short *sel_array;
 	unsigned long old_base, old_len;
 	
@@ -2033,26 +2069,27 @@ err:
 
 	D_printf("DPMI: Resize linear mem to size %lx, flags %lx\n", newsize, _edx);
 	D_printf("DPMI: For Mem Blk. for handle   0x%08lx\n", handle);
-	block = lookup_pm_block(DPMI_CLIENT.pm_block_root, handle);
-	if(block == NULL || block -> handle != handle) {
+	old_block = lookup_pm_block(DPMI_CLIENT.pm_block_root, handle);
+	if(!old_block) {
 	    _eflags |= CF;
 	    _LWORD(eax) = 0x8023; /* invalid handle */
 	    break;
 	}
-	old_base = (unsigned long)block -> base;
-	old_len = block -> size;
+	old_base = (unsigned long)old_block->base;
+	old_len = old_block->size;
 	
 	if(_edx & 0x2) {		/* update descriptor required */
 	    sel_array = (unsigned short *)(GetSegmentBaseAddress(_es) + API_16_32(_ebx));
 	    D_printf("DPMI: update descriptor required\n");
 	}
-	if((block = DPMIreallocLinear(handle, newsize, _edx & 1)) == NULL) {
+	block = DPMIreallocLinear(handle, newsize, _edx & 1);
+	if (!block.size) {
 	    _LWORD(eax) = 0x8012;
 	    _eflags |= CF;
 	    break;
 	}
-	_ebx = (unsigned long)block->base;
-	_esi = block->handle;
+	_ebx = (unsigned long)block.base;
+	_esi = block.handle;
 	if(_edx & 0x2)	{	/* update descriptor required */
 	    int i;
 	    unsigned short sel;
@@ -2073,7 +2110,7 @@ err:
 		    ( sel_base < (old_base+old_len)))
 		    SetSegmentBaseAddress(sel,
 					  Segments[sel>>3].base_addr +
-					  (unsigned long)block->base -
+					  (unsigned long)block.base -
 					  old_base);
 	    }
 	}
@@ -2082,7 +2119,6 @@ err:
   case 0x0509:			/* Map conventional memory,1.0 */
     {
 	unsigned long low_addr, handle, offset;
-	dpmi_pm_block *block;
 	
 	handle = _esi;
 	low_addr = _edx;
@@ -2101,14 +2137,12 @@ err:
 	}
 
 	D_printf("DPMI: Map conventional mem for handle %ld, offset %lx at low address %lx\n", handle, offset, low_addr);
-	block = lookup_pm_block(DPMI_CLIENT.pm_block_root, handle);
-	if(block == NULL || block -> handle != handle) {
+	switch (DPMIMapConventionalMemory(handle, offset, low_addr, _ecx)) {
+	  case -2:
 	    _eflags |= CF;
 	    _LWORD(eax) = 0x8023; /* invalid handle */
 	    break;
-	}
-	if (DPMIMapConventionalMemory(block, offset, low_addr, _ecx))
-	{
+	  case -1:
 	    _LWORD(eax) = 0x8001;
 	    _eflags |= CF;
 	    break;

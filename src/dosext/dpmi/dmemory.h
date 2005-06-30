@@ -29,7 +29,8 @@ int DPMI_free(dpmi_pm_block_root *root, unsigned long handle);
 dpmi_pm_block *DPMI_realloc(dpmi_pm_block_root *root, unsigned long handle, unsigned long newsize);
 dpmi_pm_block *DPMI_reallocLinear(dpmi_pm_block_root *root, unsigned long handle, unsigned long newsize, int committed);
 void DPMI_freeAll(dpmi_pm_block_root *root);
-int DPMI_MapConventionalMemory(dpmi_pm_block_root *root, dpmi_pm_block *block, unsigned long offset, unsigned long low_addr, unsigned long cnt);
+int DPMI_MapConventionalMemory(dpmi_pm_block_root *root, unsigned long handle,
+  unsigned long offset, unsigned long low_addr, unsigned long cnt);
 int DPMI_SetPageAttributes(dpmi_pm_block_root *root, unsigned long handle, int offs, us attrs[], int count);
 int DPMI_GetPageAttributes(dpmi_pm_block_root *root, unsigned long handle, int offs, us attrs[], int count);
 

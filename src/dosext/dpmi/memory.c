@@ -446,7 +446,7 @@ void DPMI_freeAll(dpmi_pm_block_root *root)
 }
 
 int DPMI_MapConventionalMemory(dpmi_pm_block_root *root,
-			  dpmi_pm_block *block, unsigned long offset,
+			  unsigned long handle, unsigned long offset,
 			  unsigned long low_addr, unsigned long cnt)
 {
     /* NOTE:
@@ -455,7 +455,10 @@ int DPMI_MapConventionalMemory(dpmi_pm_block_root *root,
      * DPMI function 0x0509 (Map conventional memory, DPMI version 1.0)
      */
     char *mapped_base;
+    dpmi_pm_block *block;
 
+    if ((block = lookup_pm_block(root, handle)) == NULL)
+	return -2;
     mapped_base = block->base + offset;
 
     if (mmap_mapping(MAPPING_LOWMEM, mapped_base, cnt*PAGE_SIZE,

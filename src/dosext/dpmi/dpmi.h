@@ -49,19 +49,7 @@ int modify_ldt(int func, void *ptr, unsigned long bytecount);
 void direct_ldt_write(int offset, int length, char *buffer);
 
 /* this is used like: SEL_ADR(_ss, _esp) */
-#define SEL_ADR(seg, reg) \
-({ unsigned long __res; \
-  if (!((seg) & 0x0004)) { \
-    /* GDT */ \
-    __res = (unsigned long) reg; \
-  } else { \
-    /* LDT */ \
-    if (Segments[seg>>3].is_32) \
-      __res = (unsigned long) (GetSegmentBaseAddress(seg) + reg ); \
-    else \
-      __res = (unsigned long) (GetSegmentBaseAddress(seg) + *((unsigned short *)&(reg)) ); \
-  } \
-__res; })
+unsigned long SEL_ADR(unsigned short sel, unsigned long reg);
 
 #define HLT_OFF(addr) ((unsigned long)addr-(unsigned long)DPMI_dummy_start)
 
@@ -196,17 +184,19 @@ void dpmi_mhp_modify_eip(int delta);
 #endif
 
 void add_cli_to_blacklist(void);
-inline dpmi_pm_block* DPMImalloc(unsigned long size);
-inline dpmi_pm_block* DPMImallocLinear(unsigned long base, unsigned long size, int committed);
-inline int DPMIfree(unsigned long handle);
-inline dpmi_pm_block *DPMIrealloc(unsigned long handle, unsigned long size);
-inline dpmi_pm_block *DPMIreallocLinear(unsigned long handle, unsigned long size,
+dpmi_pm_block DPMImalloc(unsigned long size);
+dpmi_pm_block DPMImallocLinear(unsigned long base, unsigned long size, int committed);
+int DPMIfree(unsigned long handle);
+dpmi_pm_block DPMIrealloc(unsigned long handle, unsigned long size);
+dpmi_pm_block DPMIreallocLinear(unsigned long handle, unsigned long size,
   int committed);
-inline void DPMIfreeAll(void);
-inline int DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
+void DPMIfreeAll(void);
+int DPMIMapConventionalMemory(unsigned long handle, unsigned long offset,
 			  unsigned long low_addr, unsigned long cnt);
-inline int DPMISetPageAttributes(unsigned long handle, int offs, us attrs[], int count);
-inline int DPMIGetPageAttributes(unsigned long handle, int offs, us attrs[], int count);
+int DPMISetPageAttributes(unsigned long handle, int offs, us attrs[], int count);
+int DPMIGetPageAttributes(unsigned long handle, int offs, us attrs[], int count);
+void GetFreeMemoryInformation(unsigned long *lp);
+int GetDescriptor(us selector, unsigned long *lp);
 unsigned long dpmi_GetSegmentBaseAddress(unsigned short selector);
 unsigned long GetSegmentBaseAddress(unsigned short);
 unsigned long GetSegmentLimit(unsigned short);

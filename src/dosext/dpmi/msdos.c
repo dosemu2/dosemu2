@@ -70,16 +70,16 @@ int msdos_get_lowmem_size(void)
 static void *msdos_malloc(unsigned long size)
 {
   int i;
-  dpmi_pm_block *block = DPMImalloc(size);
-  if (!block)
+  dpmi_pm_block block = DPMImalloc(size);
+  if (!block.size)
     return NULL;
   for (i = 0; i < MSDOS_MAX_MEM_ALLOCS; i++) {
     if (MSDOS_CLIENT.mem_map[i].size == 0) {
-      MSDOS_CLIENT.mem_map[i] = *block;
+      MSDOS_CLIENT.mem_map[i] = block;
       break;
     }
   }
-  return block->base;
+  return block.base;
 }
 
 static int msdos_free(void *addr)
@@ -97,22 +97,21 @@ static int msdos_free(void *addr)
 
 static void *msdos_realloc(void *addr, unsigned long new_size)
 {
-  void *base;
   int i;
-  dpmi_pm_block *block = NULL;
+  dpmi_pm_block block;
+  block.size = 0;
   for (i = 0; i < MSDOS_MAX_MEM_ALLOCS; i++) {
     if (MSDOS_CLIENT.mem_map[i].base == addr) {
-      block = &MSDOS_CLIENT.mem_map[i];
+      block = MSDOS_CLIENT.mem_map[i];
       break;
     }
   }
-  if (!block)
+  if (!block.size)
     return NULL;
-  if ((base = DPMIrealloc(block->handle, new_size))) {
-    block->base = base;
-    block->size = new_size;
-  }
-  return base;
+  block = DPMIrealloc(block.handle, new_size);
+  if (!block.size)
+    return NULL;
+  return block.base;
 }
 
 static void prepare_ems_frame(void)
@@ -221,7 +220,7 @@ static int need_copy_eseg(struct sigcontext_struct *scp, int intr)
 /* and para. aligned.                                                 */
 static int in_dos_space(unsigned short sel, unsigned long off)
 {
-    unsigned long base = Segments[sel >> 3].base_addr;
+    unsigned long base = GetSegmentBaseAddress(sel);
 
     if (base + off > 0x10ffef) {	/* ffff:ffff for DOS high */
       D_printf("MSDOS: base address %#lx of sel %#x > DOS limit\n", base, sel);
@@ -376,8 +375,10 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		unsigned long size = _LWORD(ebx) << 4;
 		void *addr = msdos_malloc(size);
 		if (!addr) {
+		    unsigned long meminfo[12];
+		    GetFreeMemoryInformation(meminfo);
 		    _eflags |= CF;
-		    _LWORD(ebx) = dpmi_free_memory >> 4;
+		    _LWORD(ebx) = meminfo[0] >> 4;
 		    _LWORD(eax) = 0x08;
 		} else {
 		    unsigned short sel = AllocateDescriptors(1);
@@ -404,8 +405,10 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		unsigned long new_size = _LWORD(ebx) << 4;
 		void *addr = msdos_realloc((void *)GetSegmentBaseAddress(_es), new_size);
 		if (!addr) {
+		    unsigned long meminfo[12];
+		    GetFreeMemoryInformation(meminfo);
 		    _eflags |= CF;
-		    _LWORD(ebx) = dpmi_free_memory >> 4;
+		    _LWORD(ebx) = meminfo[0] >> 4;
 		    _LWORD(eax) = 0x08;
 		} else {
 		    SetSegmentBaseAddress(_es, (unsigned long)addr);
@@ -829,9 +832,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	REG(ds) = TRANS_BUFFER_SEG;
 	src = (char *)GetSegmentBaseAddress(_ds);
 	dst = (char *)(REG(ds)<<4);
-	len = ((Segments[_ds >> 3].limit > 0xffff) ||
-	    	Segments[_ds >> 3].is_big) ?
-		0xffff : Segments[_ds >> 3].limit;
+	len = GetSegmentLimit(_ds) + 1;
 	D_printf("MSDOS: whole segment of DS at %#x copy to DOS at %#x for %#x\n",
 		(int)src, (int)dst, len);
 	MEMCPY_DOS2DOS(dst, src, len);
@@ -844,9 +845,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	REG(es) = TRANS_BUFFER_SEG;
 	src = (char *)GetSegmentBaseAddress(_es);
 	dst = (char *)(REG(es)<<4);
-	len = ((Segments[_es >> 3].limit > 0xffff) ||
-	    	Segments[_es >> 3].is_big) ?
-		0xffff : Segments[_es >> 3].limit;
+	len = GetSegmentLimit(_es) + 1;
 	D_printf("MSDOS: whole segment of ES at %#x copy to DOS at %#x for %#x\n",
 		(int)src, (int)dst, len);
 	MEMCPY_DOS2DOS(dst, src, len);
@@ -961,9 +960,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	my_ds = TRANS_BUFFER_SEG;
 	src = (char *)(my_ds<<4);
 	dst = (char *)GetSegmentBaseAddress(_ds);
-	len = ((Segments[_ds >> 3].limit > 0xffff) ||
-	    	Segments[_ds >> 3].is_big) ?
-		0xffff : Segments[_ds >> 3].limit;
+	len = GetSegmentLimit(_ds) + 1;
 	D_printf("MSDOS: DS seg at %#x copy back at %#x for %#x\n",
 		(int)src, (int)dst, len);
 	MEMCPY_DOS2DOS(dst, src, len);
@@ -976,9 +973,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	my_es = TRANS_BUFFER_SEG;
 	src = (char *)(my_es<<4);
 	dst = (char *)GetSegmentBaseAddress(_es);
-	len = ((Segments[_es >> 3].limit > 0xffff) ||
-	    	Segments[_es >> 3].is_big) ?
-		0xffff : Segments[_es >> 3].limit;
+	len = GetSegmentLimit(_es) + 1;
 	D_printf("MSDOS: ES seg at %#x copy back at %#x for %#x\n",
 		(int)src, (int)dst, len);
 	MEMCPY_DOS2DOS(dst, src, len);
@@ -1310,7 +1305,7 @@ int msdos_pre_rm(struct sigcontext_struct *scp)
   unsigned short *ssp = (us *) (GetSegmentBaseAddress(_ss) + D_16_32(_esp));
 
   if (lina == (unsigned char *)(DPMI_ADD + HLT_OFF(MSDOS_mouse_callback))) {
-    if (!Segments[MSDOS_CLIENT.mouseCallBack.selector >> 3].used) {
+    if (!ValidAndUsedSelector(MSDOS_CLIENT.mouseCallBack.selector)) {
       D_printf("MSDOS: ERROR: mouse callback to unused segment\n");
       return 0;
     }
@@ -1335,7 +1330,7 @@ int msdos_pre_rm(struct sigcontext_struct *scp)
   } else if (lina ==(unsigned char *)(DPMI_ADD +
 				      HLT_OFF(MSDOS_PS2_mouse_callback))) {
     unsigned short *rm_ssp;
-    if (!Segments[MSDOS_CLIENT.PS2mouseCallBack.selector >> 3].used) {
+    if (!ValidAndUsedSelector(MSDOS_CLIENT.PS2mouseCallBack.selector)) {
       D_printf("MSDOS: ERROR: PS2 mouse callback to unused segment\n");
       return 0;
     }
@@ -1530,11 +1525,14 @@ decode_modify_segreg_insn(struct sigcontext_struct *scp, unsigned
 {
     unsigned char decode_use_16bit;
     unsigned char *csp;
+    unsigned long cs_desc[2];
     int len, size_prfix;
 
     csp = (unsigned char *) SEL_ADR(_cs, _eip);
     size_prfix = 0;
-    decode_use_16bit = !Segments[_cs>>3].is_32;
+    if (GetDescriptor(_cs, cs_desc) < 0)
+	return 0;
+    decode_use_16bit = !((cs_desc[1] >> 22) & 1);
     if (*csp == 0x66) { /* Operand-Size prefix */
 	csp++;
 	_eip++;
