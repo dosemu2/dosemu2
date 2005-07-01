@@ -110,8 +110,6 @@
 #endif
 
 static void tty_char_out(unsigned char ch, int s, int attr);
-static void int10_old(void);
-static void int10_new(void);
 static void vga_ROM_to_RAM(unsigned height, int bank);
 
 static inline void set_cursor_shape(ushort shape) {
@@ -778,23 +776,13 @@ static void vga_ROM_to_RAM(unsigned height, int bank)
 
 /* the actual int10 handler */
 
-int int10(void)
-{
-  if(!config.dualmon && Video->update_screen) {
-    int10_new();
-  } else
-    int10_old();
-  return 1;
-}
-
-void int10_old(void) /* with dualmon */
+int int10(void) /* with dualmon */
 {
   /* some code here is copied from Alan Cox ***************/
-  int x, y;
-  unsigned int page, page_size;
+  int x, y, co, li;
+  unsigned page, page_size;
   u_char c;
   us *sm;
-  int co, li;
 
 #if USE_DUALMON
   int virt_text_base = BIOS_SCREEN_BASE;
@@ -812,564 +800,6 @@ void int10_old(void) /* with dualmon */
   co= READ_WORD(BIOS_SCREEN_COLUMNS);
   page_size = TEXT_SIZE(co,li);
 
-  if (debug_level('v') >= 3)
-    {
-      if (debug_level('v') >= 4)
-/*	dbug_printf("int10 near %04x:%08lx\n", LWORD(cs), REG(eip));*/
-	dbug_printf("int10 near %04x:%08lx\n", READ_SEG_REG(cs), REG(eip));
-      if ( (LO(ax) >= ' ') && (LO(ax) < 0x7f) )
-	dbug_printf("int10 AH=%02x AL=%02x '%c'\n",
-		    HI(ax), LO(ax), LO(ax));
-      else
-	dbug_printf("int10 AH=%02x AL=%02x\n", HI(ax), LO(ax));
-    }
-
-#if 0
-  v_printf("VID: int10, ax=%04x bx=%04x\n",LWORD(eax),LWORD(ebx));
-#endif
-
-  switch (HI(ax)) {
-  case 0x0:			/* define mode */
-    v_printf("define mode: 0x%x\n", LO(ax));
-    /* set appropriate font height for 25 lines */
-    vga_font_height=text_scanlines/25;
-    if (!set_video_mode(LO(ax))) {
-       v_printf("int10,0: set_video_mode failed\n");
-    }
-    break;
-
-  case 0x1:			/* define cursor shape */
-    v_printf("define cursor: 0x%04x\n", LWORD(ecx));
-    set_cursor_shape(LWORD(ecx));
-    WRITE_WORD(BIOS_CURSOR_SHAPE, LWORD(ecx));
-    break;
-    
-  case 0x2:			/* set cursor pos */
-    page = HI(bx);
-    x = LO(dx);
-    y = HI(dx);
-    v_printf("set cursor: pg:%d x:%d y:%d\n", page, x, y);
-    if (page > 7) {
-      v_printf("ERROR: video error (setcur/page>7: %d)\n", page);
-      return;
-    }
-    if (x >= co || y >= li) {
-      /* some apps use this to hide the cursor,
-       * we move it 1 char behind the visible part
-       */
-      x = co;
-      y = li -1;
-    }
-
-    set_bios_cursor_x_position(page, x);
-    set_bios_cursor_y_position(page, y);
-    cursor_col = x;
-    cursor_row = y;
-    break;
-
-  case 0x3:			/* get cursor pos/shape */
-    /* output start & end scanline even if the requested page is invalid */
-    LWORD(ecx) = READ_WORD(BIOS_CURSOR_SHAPE);
-
-    page = HI(bx);
-    if (page > 7) {
-      LWORD(edx) = 0;
-      v_printf("ERROR: video error(0x3 page>7: %d)\n", page);
-    } else {
-      LO(dx) = get_bios_cursor_x_position(page);
-      HI(dx) = get_bios_cursor_y_position(page);
-    }
-    break;
-
-  case 0x5:
-    {				/* change page */
-#if USE_DUALMON
-      if (config.dualmon && IS_SCREENMODE_MDA) break;
-#endif
-      page = LO(ax);
-      v_printf("VID: change page from %d to %d!\n", READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), page);
-      if (page > max_page) {
-	v_printf("ERROR: video error: set bad page %d\n", page);
-	break;
-      }
-      if (config.console_video) set_vc_screen_page(page);
-      if (Video->update_screen) {
-        page_size = vga_emu_get_page_size();
-        vga_emu_set_text_page(page, page_size);
-      }
-
-      WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, video_page = page);
-      WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, page_size * page);
-      screen_adr = SCREEN_ADR(page,co,li);
-      screen_mask = 1 << page;
-      set_dirty(page);
-      cursor_col = get_bios_cursor_x_position(page);
-      cursor_row = get_bios_cursor_y_position(page);
-      break;
-    }
-
-  case 0x6:			/* scroll up */
-    v_printf("scroll up %d %d, %d %d, %d, %d\n", LO(cx), HI(cx), LO(dx), HI(dx), LO(ax), HI(bx));
-    bios_scroll(LO(cx), HI(cx), LO(dx), HI(dx), LO(ax), HI(bx));
-    break;
-
-  case 0x7:			/* scroll down */
-    v_printf("scroll dn %d %d, %d %d, %d, %d\n", LO(cx), HI(cx), LO(dx), HI(dx), LO(ax),HI(bx));
-    bios_scroll(LO(cx), HI(cx), LO(dx), HI(dx), -LO(ax), HI(bx));
-    break;
-
-  case 0x8:			/* read character at x,y + attr */
-    page = HI(bx);
-    if (page > max_page) {
-      v_printf("ERROR: read char from bad page %d\n", page);
-      break;
-    }
-    sm = SCREEN_ADR(page,co,li);
-    REG(eax) = sm[co * get_bios_cursor_y_position(page) 
-		     + get_bios_cursor_x_position(page)];
-    break;
-
-    /* these two put literal character codes into memory, and do
-       * not scroll or move the cursor...
-       * the difference is that 0xA ignores color for text modes
-       */
-  case 0x9:
-  case 0xA:
-    {
-      u_short *sadr;
-      u_short c_attr;
-      int n;
-
-      page = HI(bx);
-      sadr = (u_short *) SCREEN_ADR(page,co,li) 
-	     + get_bios_cursor_y_position(page) * co
-	     + get_bios_cursor_x_position(page);
-      n = LWORD(ecx);
-      c = LO(ax);
-
-      /* XXX - need to make sure this doesn't overrun video memory!
-       * we don't really know how large video memory is yet (I haven't
-       * abstracted things yet) so we'll just leave it for the
-       * Great Video Housecleaning foretold in the TODO file of the
-       * ancients
-       */
-      if (HI(ax) == 9) {                /* use attribute from BL */
-	 c_attr = c | LO(bx)<<8;
-	 while(n--)
-	    /* *(sadr++) = c_attr; */
-	    WRITE_WORD(sadr++, c_attr);
-      }
-      else {                            /* leave attribute as it is */
-	 while(n--)
-	    /* *(char*)(sadr++) = c; */
-	    WRITE_BYTE(sadr++, c);
-      }
-      set_dirty(page);
-      break;
-    }
-
-  case 0x13:                    /* write string */
-    {
-      u_short *sadr;
-      u_short attr;
-      char *src;
-      int n,x,y;
-
-      page = HI(bx);
-      x = LO(dx);
-      y = HI(dx);
-      sadr = (u_short *) SCREEN_ADR(page,co,li) + y*co + x;
-      n = LWORD(ecx);
-      src = SEG_ADR((char*),es,bp);
-      
-      if (LO(ax) < 2) {                  /* use attribute in BL */
-        attr=LO(bx)<<8;
-#if 1					/* 1998/03/13 sengoku@intsys.co.jp */
-        x += n;
-	while(n--) {
-	  /* *(sadr++) = *src++ | attr; */
-          if (*src <= 0x1a) {
-            switch(*src) {
-              case 0x0d :
-                sadr = (u_short *) SCREEN_ADR(page,co,li) + y*co, x = n;
-                src++;
-                break;
-              case 0x0a :
-                sadr += co, x--, y++;
-                src++;
-                break;
-              case 0x07 : /* beep */
-                speaker_on(125, 0x637);
-                x--;
-                src++;
-                break;
-              case 0x08 : /* backspace */
-                sadr--, x--;
-                src++;
-                break;
-              default:
-                WRITE_WORD(sadr++, READ_BYTE(src++) | attr);
-                break;
-            }
-          } else {
-            WRITE_WORD(sadr++, READ_BYTE(src++) | attr);
-          }
-        }
-#else
-	while(n--)
-	  /* *(sadr++) = *src++ | attr; */
-            WRITE_WORD(sadr++, READ_BYTE(src++) | attr);
-#endif
-      }
-      else {                             /* use attributes in buffer */
-	/*memcpy(sadr,src,n*2);*/
-	MEMCPY_DOS2DOS(sadr,src,n*2);
-      }
-
-      if (LO(ax)&1) {                    /* update cursor position */
-         n = x+co*y;
-	 set_bios_cursor_x_position(page, n%co);
-	 set_bios_cursor_y_position(page, n/co);
-      }
-      set_dirty(page);
-    }
-    break;
-
-  case 0xe:			/* print char */
-    char_out(LO(ax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)); 
-    break;
-
-  case 0x0f:			/* get video mode */
-    HI(ax) = co & 0xff;
-#if USE_DUALMON
-    if(IS_SCREENMODE_MDA)
-      LO(ax) = READ_BYTE(BIOS_VIDEO_MODE);
-    else 
-#endif
-    {
-      unsigned m = video_mode & 0xff;
-
-      if(Video->update_screen) {
-        if(vga.mode & ~0xff) {
-          /*
-           * For VESA modes we look for an equivalent VGA mode number
-           * and, if we don't have one, use 0x7f.
-           */
-          m = vga.VGA_mode == -1 ? 0x7f : vga.VGA_mode;
-          if(vga.mode & 0x8000) m |= 0x80;
-        }
-      }
-      LO(ax) = m;
-      HI(bx) = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
-      v_printf(
-        "INT10: get screen mode: mode = 0x%02x (%u colums, page %u)\n",
-        (unsigned) LO(ax), (unsigned) HI(ax), (unsigned) HI(bx)
-      );
-    }
-    break;
-
-  case 0x10:			/* ega palette */
-    /* Sets blinking or bold background mode.  This is important for 
-     * PCTools type programs that uses bright background colors.
-     */
-    if(LO(ax) == 3) char_blink = LO(bx) & 1;
-
-    /* root@zaphod */
-    /* Palette register stuff. Only for the VGA emulator */
-    if(Video->update_screen) {
-       int i, count;
-       unsigned char *src;
-       unsigned char index, m;
-       DAC_entry rgb;
-
-       switch(LO(ax)) {
-         case 0x00:	/* Set Palette Register */
-           Attr_set_entry(LO(bx), HI(bx));
-           break;
-
-         case 0x01:	/* Set Overscan Color */
-           Attr_set_entry(0x11, HI(bx));
-           break;
-
-         case 0x02:	/* Set Palette & Overscan Color */
-           src = SEG_ADR((unsigned char *), es, dx);
-           for(i = 0; i < 0x10; i++) Attr_set_entry(i, src[i]);
-           Attr_set_entry(0x11, src[i]);
-           break;
-
-         case 0x03:	/* Toggle Intensity/Blinking Bit */
-           m = Attr_get_entry(0x10) & ~(1 << 3);
-           m |= (LO(bx) & 1) << 3;
-           Attr_set_entry(0x10, m);
-           break;
-
-         case 0x07:	/* Read Palette Register */
-           HI(bx) = Attr_get_entry(LO(bx));
-           break;
-
-         case 0x08:	/* Read Overscan Color */
-           HI(bx) = Attr_get_entry(0x11);
-           break;
-
-         case 0x09:	/* Read Palette & Overscan Color */
-           src = SEG_ADR((unsigned char *), es, dx);
-           for(i = 0; i < 0x10; i++) src[i] = Attr_get_entry(i);
-           src[i] = Attr_get_entry(0x11);
-           break;
-
-         case 0x10:	/* Set Individual DAC Register */
-           DAC_set_entry(LO(bx), HI(dx), HI(cx), LO(cx));
-           break;
-
-         case 0x12:	/* Set Block of DAC Registers */
-           index = LO(bx);
-           count = LWORD(ecx);
-           src = SEG_ADR((unsigned char *), es, dx);
-           for(i = 0; i < count; i++, index++)
-             DAC_set_entry(index, src[3*i], src[3*i + 1], src[3*i + 2]);
-           break;
-
-         case 0x13:	/* Select Video DAC Color Page */
-           m = Attr_get_entry(0x10);
-           switch(LO(bx)) {
-             case 0:	/* Select Page Mode */
-               m &= ~(1 << 7);
-               m |= (HI(bx) & 1) << 7;
-               Attr_set_entry(0x10, m);
-               break;
-             case 1:	/* Select Page */
-               if(m & (1 << 7))
-                 Attr_set_entry(0x14, HI(bx) & 0xf);
-               else
-                 Attr_set_entry(0x14, (HI(bx) & 0x3) << 2);
-               break;
-           }
-           break;
-
-         case 0x15:	/* Read Individual DAC Register */
-           rgb.index = LO(bx);
-           DAC_get_entry(&rgb);
-           HI(dx) = rgb.r; HI(cx) = rgb.g; LO(cx) = rgb.b;
-           break;
-
-         case 0x17:	/* Read Block of DAC Registers */
-           index = LO(bx);
-           count = LWORD(ecx);
-           src = SEG_ADR((unsigned char *), es, dx);
-           for(i = 0; i < count; i++, index++) {
-             rgb.index = index;
-             DAC_get_entry(&rgb);
-             src[3*i] = rgb.r; src[3*i + 1] = rgb.g; src[3*i + 2] = rgb.b;
-           }
-           break;
-
-         case 0x18:	/* Set PEL Mask */
-           DAC_set_pel_mask(LO(bx));
-           break;
-
-         case 0x19:	/* Read PEL Mask */
-           LO(bx) = DAC_get_pel_mask();
-           break;
-
-         case 0x1a:	/* Get Video DAC Color Page */
-           LO(bx) = m = (Attr_get_entry(0x10) >> 7) & 1;
-           HI(bx) = (Attr_get_entry(0x14) & 0xf) >> (m ? 0 : 2);
-           break;
-
-         case 0x1b:	/* Convert to Gray */
-           for(index = LO(bx), count = LWORD(ecx); count--; index++)
-             DAC_rgb2gray(index);
-           break;
-
-         default:
-           break;
-       }
-    }
-    break;
-
-#if 0
-  case 0xb:			/* palette */
-  case 0xc:			/* set dot */
-  case 0xd:			/* get dot */
-    break;
-#endif
-
-  case 0x4:			/* get light pen */
-    v_printf("ERROR: video error(no light pen)\n");
-    HI(ax) = 0;   /* "light pen switch not pressed" */
-                  /* This is how my VGA BIOS behaves [rz] */
-    return;
-
-  case 0x1a:			/* get display combo */
-    if (LO(ax) == 0) {
-      int active_dcc, alternate_dcc;
-      v_printf("get display combo!\n");
-      LO(ax) = 0x1a;		/* valid function=0x1a */
-      get_dcc(&active_dcc, &alternate_dcc);
-      LO(bx) = active_dcc;
-      HI(bx) = alternate_dcc;
-    }
-    else {
-      v_printf("set display combo not supported\n");
-    }
-    break;
-
-  case 0x11:                    /* character generator functions */
-    {
-      int old_li = li;           /* preserve the state in case of error */
-      int old_font_height = vga_font_height;
-
-      v_printf("video character generator functions ax=0x%04x bx=0x%04x\n",
-	       LWORD(eax), LWORD(ebx));
-      switch (LO(ax)) {
-      case 0x01:                  /* load 8x14 charset */
-      case 0x11:
-	vga_font_height = 14;
-	goto more_lines;
-	
-      case 0x02:
-      case 0x12:
-	vga_font_height = 8;
-	goto more_lines;
-	
-      case 0x04:
-      case 0x14:
-	vga_font_height = 16;
-	goto more_lines;
-	
-	/* load a custom font */
-	/* for now just ust it's size to set things */
-      case 0x00:
-      case 0x10:
-	vga_font_height = HI(bx);
-	v_printf("loaded font completely ignored except size!\n");
-        v_printf("hint: new int 10 + FONT_LAB* process this :-)\n");
-        /* the rest is ignored for now */
-	goto more_lines;
-	
-      more_lines:
-	{
-	  if(!set_video_mode(video_mode | (1 << 16))) 
-	    {
-	      li = old_li; /* not that it changed */
-	      vga_font_height = old_font_height;
-	    }
-#if 0
-	  else if (old_li < li) 
-	    {
-	      /* The attribute is just like my Bios, weird! */
-	      bios_scroll(0,old_li,co-1,li-1,0,07);
-	    }
-#endif
-	  break;
-	}
-	
-      case 0x30:     /* get current character generator info */
-	LWORD(ecx)=vga_font_height;
-	LO(dx)= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1);
-	/* LWORD(es)=LWORD(ebp)=0;*/  /* return NULL pointer */
-	WRITE_SEG_REG(es, 0);   /* return NULL pointer */
-	LWORD(ebp)= 0;        /* return NULL pointer */
-      }
-      break;
-    }
-      
-  case 0x12:			/* video subsystem config */
-    v_printf("video subsystem config ax=0x%04x bx=0x%04x\n",
-	     LWORD(eax), LWORD(ebx));
-    switch (LO(bx)) {
-    case 0x10:
-      HI(bx) = video_subsys;
-      LO(bx)=3;
-      v_printf("video subsystem 0x10 BX=0x%04x\n", LWORD(ebx));
-      HI(cx)=0xf;  /* feature bits (no feature controller) */
-      LO(cx)=READ_BYTE(BIOS_VIDEO_INFO_1) & 0xf;
-      break;
-    case 0x20:
-      v_printf("select alternate printscreen\n");
-      break;
-    case 0x30:
-      {  static int scanlines[3] = {200, 350, 400};
-	 if ((unsigned)LO(ax)<3) {
-	    text_scanlines = scanlines[LO(ax)];
-            v_printf("select textmode scanlines: %d", text_scanlines);
-	    LO(ax) = 0x12;  
-	 }
-      }
-      break;
-    case 0x32:          /* enable/disable cpu access to video ram */
-      if (LO(ax) == 0)
-	v_printf("disable cpu access to video!\n");
-      else
-	v_printf("enable cpu access to video!\n");
-      break;
-#if 0
-    case 0x34:
-      /* enable/disable cursor emulation */
-      cursor_emulation = LO(ax);
-      LO(ax)=0x12;
-      break;
-#endif
-    case 0x36:          /* video screen ON/OFF */
-      if (LO(ax) == 0)
-	v_printf("turn video screen off!\n");
-      else
-	v_printf("turn video screen on!\n");
-#if 0
-      LO(ax)=0x12;  
-#endif
-      break;
-      
-    default:
-      v_printf("ERROR: unrecognized video subsys config!!\n");
-      show_regs(__FILE__, __LINE__);
-    }
-    break;
-    
-  case 0xcc:			/* called from NC 5.0 */
-    _CX = 0; _AL = 0xff;
-    break;
-
-  case 0xfe:			/* get shadow buffer..return unchanged */
-  case 0xff:			/* update shadow buffer...do nothing */
-    break;
-
-  case 0x1b:                    /* functionality/state information */
-    if (LWORD(ebx) == 0) {
-      v_printf("return functionality/state information");
-      return_state(SEG_ADR((Bit8u *), es, di));
-      LO(ax) = 0x1b;
-    } else
-      v_printf("unknown functionality/state request: %d", LWORD(ebx));
-    break;
-#if 0
-  case 0x1c:                    /* return save/restore */
-#endif
-
-  case 0x4f:                    /* vesa interrupt */
-    if(Video->update_screen)
-      do_vesa_int();
-    break;
-
-  default:
-    v_printf("new unknown video int 0x%x\n", LWORD(eax));
-    break;
-  }
-}
-
-void int10_new(void) /* with X but without dualmon */
-{
-  /* some code here is copied from Alan Cox ***************/
-  int x, y, co, li;
-  unsigned m, page, page_size;
-  u_char c;
-  us *sm;
-
-  li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
-  co= READ_WORD(BIOS_SCREEN_COLUMNS);
-  page_size = TEXT_SIZE(co,li);
-
-  if(HI(ax) > 0x0f)	// EVIL hack! Remove it later!!!
   if (debug_level('v') >= 3)
     {
       if (debug_level('v') >= 4)
@@ -1410,7 +840,7 @@ void int10_new(void) /* with X but without dualmon */
       i10_deb("set cursor pos: page %d, x.y %d.%d\n", page, x, y);
       if(page > 7) {
         i10_msg("set cursor pos: page > 7: %d\n", page);
-        return;
+        return 1;
       }
       if (x >= co || y >= li) {
         /* some apps use this to hide the cursor,
@@ -1455,6 +885,9 @@ void int10_new(void) /* with X but without dualmon */
 
 
     case 0x05:		/* set active display page */
+#if USE_DUALMON
+      if (config.dualmon && IS_SCREENMODE_MDA) break;
+#endif
       page = LO(ax);
       i10_deb("set display page: from %d to %d\n", READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), page);
       if(page > max_page) {
@@ -1527,6 +960,10 @@ void int10_new(void) /* with X but without dualmon */
       break;
 
 
+    /* these two put literal character codes into memory, and do
+       * not scroll or move the cursor...
+       * the difference is that 0xA ignores color for text modes
+       */
     case 0x09:		/* write char & attr */
     case 0x0a:		/* write char */
       if(HI(ax) == 0x0a && using_text_mode()) {
@@ -1634,18 +1071,27 @@ void int10_new(void) /* with X but without dualmon */
 
 
     case 0x0f:		/* get video mode */
-      m = video_mode & 0xff;
-      if(vga.mode & ~0xff) {
-        /*
-         * For VESA modes we look for an equivalent VGA mode number
-         * and, if we don't have one, use 0x7f.
-         */
-        m = vga.VGA_mode == -1 ? 0x7f : vga.VGA_mode;
-        if(vga.mode & 0x8000) m |= 0x80;
-      }
+#if USE_DUALMON
+      if(IS_SCREENMODE_MDA)
+	LO(ax) = READ_BYTE(BIOS_VIDEO_MODE);
+      else 
+#endif
+      {
+	unsigned m = video_mode & 0xff;
 
+	if(Video->update_screen) {
+	  if(vga.mode & ~0xff) {
+	    /*
+	     * For VESA modes we look for an equivalent VGA mode number
+	     * and, if we don't have one, use 0x7f.
+	     */
+	    m = vga.VGA_mode == -1 ? 0x7f : vga.VGA_mode;
+	    if(vga.mode & 0x8000) m |= 0x80;
+	  }
+	}
+	LO(ax) = m;
+      }
       HI(ax) = co & 0xff;
-      LO(ax) = m;
       HI(bx) = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
       i10_deb(
         "get video mode: mode 0x%02x, page %u, %u colums\n",
@@ -2146,5 +1592,6 @@ void int10_new(void) /* with X but without dualmon */
       i10_msg("unknown video int 0x%04x\n", LWORD(eax));
       break;
   }
+  return 1;
 }
 
