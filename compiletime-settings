@@ -14,7 +14,7 @@ config {
   plugin_kbd_unicode on
   plugin_extra_charsets on
   plugin_term on
-  plugin_sdl off
+  plugin_sdl on
   plugin_translate on
   plugin_commands on
   plugin_demo off
@@ -22,6 +22,7 @@ config {
   prefix /usr/local
   bindir ${prefix}/bin
   sysconfdir /etc/dosemu
+  libdir ${prefix}/lib
   datadir ${prefix}/share
   mandir ${prefix}/man
   docdir ${datadir}/doc/dosemu

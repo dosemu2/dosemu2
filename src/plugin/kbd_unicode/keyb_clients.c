@@ -100,9 +100,6 @@ static void paste_run(void)
 
 static struct keyboard_client *keyb_clients[] =
 {
-#ifdef SDL_SUPPORT
-	&Keyboard_SDL,
-#endif
 #ifdef X_SUPPORT
 	&Keyboard_X,
 #endif
@@ -132,7 +129,8 @@ int keyb_client_init(void)
 	int ok;
 
 	i = 0;
-	Keyboard = keyb_clients[i++];
+	if(Keyboard == NULL)
+		Keyboard = keyb_clients[i++];
 	while(TRUE) {
 		k_printf("KBD: probing '%s' mode keyboard client\n",
 			Keyboard->name);

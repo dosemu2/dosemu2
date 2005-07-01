@@ -6,8 +6,9 @@
 
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
+include Makefile.conf
 
-CFLAGS+=$(SDL_CFLAGS)
+CFLAGS+=$(SDL_CFLAGS) -fPIC
 CFILES=
 ifdef SDL_SUPPORT
 CFILES=sdl.c keyb_SDL.c mouse_SDL.c
@@ -20,12 +21,18 @@ OBJS=$(CFILES:.c=.o)
 OOBJS=
 DEPENDS=$(CFILES:.c=.d)
 
+ifdef SDL_SUPPORT
+all: $(BINPATH)/bin/libplugin_sdl.so $(LIB)
+endif
+
 include $(REALTOPDIR)/src/Makefile.common
 
-all: lib
+$(BINPATH)/bin/libplugin_sdl.so: $(OBJS)
+	$(CC) $(LIBS) -shared -o $@ $^
+	$(AR) crs $(LIB)
 
 install: all
 
 realclean::
-	rm -f Makefile.conf config.log config.status include/sdl_config.h
+	rm -f Makefile.conf config.log config.status
 	rm -rf autom4te*.cache

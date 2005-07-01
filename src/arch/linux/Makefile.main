@@ -73,7 +73,7 @@ default: version include/confpath.h doslib \
 emu.o: emu.c
 
 $(BINPATH)/bin/$(DOSBIN): emu.o ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
-	$(LD) $(LDFLAGS) -o $@ emu.o $(addprefix -L,$(LIBPATH)) \
+	$(LD) $(LDFLAGS) -o $@ emu.o $(addprefix -L,$(LIBPATH)) -rdynamic \
 	   -Wl,--whole-archive $(addprefix -l, $(LIBS_)) -Wl,--no-whole-archive $(LIBS)
 	@nm $(BINPATH)/bin/$(DOSBIN) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > $(BINPATH)/bin/dosemu.map
@@ -122,6 +122,7 @@ versetup:
 
 include/confpath.h: ../Makefile.conf
 	echo '#define  ALTERNATE_ETC      "$(sysconfdir)"' > $@
+	echo '#define  LIB_DEFAULT  "$(libdir)"' >> $@
 	echo '#define  DOSEMULIB_DEFAULT  "$(dosemudir)"' >> $@
 	echo '#define  DOSEMUHDIMAGE_DEFAULT "$(syshdimagedir)"' >> $@
 
@@ -200,6 +201,8 @@ endif
 ifdef  USE_MHPDBG
 	$(INSTALL) -m 0755 ../bin/dosdebug $(DESTDIR)$(bindir)
 endif
+	$(INSTALL) -d $(DESTDIR)$(libdir)/dosemu
+	$(INSTALL) -m 0644 ../bin/*.so $(DESTDIR)$(libdir)/dosemu
 	$(INSTALL) -d $(DESTDIR)$(docdir)
 	$(INSTALL) -m 0644 $(REALTOPDIR)/{README.bindist,NEWS,THANKS} $(DESTDIR)$(docdir)
 	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/{README,README-tech,dosemu-HOWTO,sound-usage}.txt \
@@ -290,7 +293,7 @@ newhd:  tools/periph/bootsect
 
 local_clean:
 	-rm -f $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/xdos \
-	  $(BINPATH)/bin/dos $(BINPATH)/bin/libdosemu *.s core \
+	  $(BINPATH)/bin/dos $(BINPATH)/bin/*.so *.s core \
 	  *.tmp $(BINPATH)/bin/dosemu.map *.o $(BINPATH)/bin/dosdebug
 
 local_realclean:

@@ -14,6 +14,7 @@ DOSBIN = dosemu.bin
 prefix:=@prefix@
 bindir:=@bindir@
 sysconfdir:=@sysconfdir@
+libdir:=@libdir@
 datadir:=@datadir@
 mandir:=@mandir@
 docdir:=@docdir@
@@ -99,4 +100,3 @@ BINPATH:=$(top_builddir)/$(THISVERSION)
 EMUVER:=$(VERSION).$(SUBLEVEL)
 
 CFLAGS += $(XXXCFLAGS)
--include $(top_builddir)/src/plugin/*/Makefile.conf

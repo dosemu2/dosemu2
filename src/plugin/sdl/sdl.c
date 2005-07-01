@@ -15,6 +15,7 @@
 #include <SDL/SDL.h>
 
 #include "emu.h"
+#include "init.h"
 #include "bios.h"
 #include "video.h"
 #include "memory.h"
@@ -23,6 +24,7 @@
 #include "vgatext.h"
 #include "render.h"
 #include "sdl.h"
+#include "keyb_clients.h"
 
 static int SDL_init(void);
 static void SDL_close(void);
@@ -451,4 +453,12 @@ static void SDL_handle_events(void)
    }
    busy = 0;
    do_mouse_irq();
+}
+
+CONSTRUCTOR(static void init(void))
+{
+   config.X = 1;
+   Video = &Video_SDL;
+   Keyboard = &Keyboard_SDL;
+   Mouse = &Mouse_SDL;
 }

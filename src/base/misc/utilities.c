@@ -23,6 +23,7 @@
 #include <sys/vt.h>
 #include <sys/ioctl.h>
 #include <errno.h>
+#include <dlfcn.h>
 
 #include "machcompat.h"
 #include "bios.h"
@@ -31,6 +32,7 @@
 #include "dpmi.h"
 #include "debug.h"
 #include "utilities.h"
+#include "dosemu_config.h"
 #ifdef USE_MHPDBG
 #include "mhpdbg.h"
 #endif
@@ -734,4 +736,29 @@ void dosemu_error(char *fmt, ...)
     verror(fmt, args);
     va_end(args);
     gdb_debug();
+}
+
+void load_plugin(const char *plugin_name)
+{
+    char *fullname = malloc(strlen(dosemu_proc_self_exe) +
+			    strlen(plugin_name) + 20);
+    void *handle;
+    char *slash;
+
+    strcpy(fullname, dosemu_proc_self_exe);
+    slash = strrchr(fullname, '/');
+    if (slash == NULL) return;
+    sprintf(slash + 1, "libplugin_%s.so", plugin_name);
+    handle = dlopen(fullname, RTLD_LAZY);
+    free(fullname);
+    if (handle != NULL)
+	return;
+    asprintf(&fullname, "%s/dosemu/libplugin_%s.so",
+	     LIB_DEFAULT, plugin_name);
+    handle = dlopen(fullname, RTLD_LAZY);
+    free(fullname);
+    if (handle != NULL)
+	return;
+    error("SDL support not compiled in or not found:\n");
+    error("%s\n", dlerror());
 }

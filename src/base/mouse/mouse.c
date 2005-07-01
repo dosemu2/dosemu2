@@ -153,9 +153,6 @@ static short default_graphscreenmask[HEIGHT] =  {
 
 static struct mouse_client *mouse_clients[] =
 {
-#ifdef SDL_SUPPORT
-  &Mouse_SDL,
-#endif
 #ifdef X_SUPPORT
   &Mouse_X,
 #endif
@@ -1860,7 +1857,8 @@ static void mouse_client_init(void)
   int ok;
 
   i = 0;
-  Mouse = mouse_clients[i++];
+  if (Mouse == NULL)
+    Mouse = mouse_clients[i++];
   while(TRUE) {
     m_printf("MOUSE: initialising '%s' mode mouse client\n",
              Mouse->name);

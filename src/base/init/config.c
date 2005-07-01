@@ -945,12 +945,7 @@ config_init(int argc, char **argv)
 #endif
 	    break;
 	case 'S':
-#ifdef SDL_SUPPORT
-	    config.X = 1;
-	    Video = &Video_SDL;
-#else
-	    error("SDL support not compiled in\n");
-#endif
+	    load_plugin("sdl");
 	    break;
 	case 'w':
             config.X_fullscreen = !config.X_fullscreen;

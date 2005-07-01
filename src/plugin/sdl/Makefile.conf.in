@@ -7,7 +7,7 @@
 #
 # This file is included by all Makefiles
 
-LIBS+=@SDL_LIBS@
+LIBS:=@SDL_LIBS@
 SDL_CFLAGS:=@SDL_CFLAGS@
 
 @SDL_SUPPORT@
