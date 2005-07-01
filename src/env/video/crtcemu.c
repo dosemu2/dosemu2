@@ -113,6 +113,7 @@ void CRTC_init()
   vgaemu_adj_cfg(CFG_CRTC_WIDTH, 1);
   vgaemu_adj_cfg(CFG_CRTC_HEIGHT, 1);
   vgaemu_adj_cfg(CFG_CRTC_LINE_COMPARE, 1);
+  vgaemu_adj_cfg(CFG_MODE_CONTROL, 1);
 
   crtc_msg("CRTC_init done\n");
 }
