@@ -9,10 +9,6 @@ include $(top_builddir)/Makefile.conf
 
 # Makefile for speaker code.
 
-ifdef X_SUPPORT
-X_CFILES=X_speaker.c
-endif
-
 CFILES=speaker.c $(X_CFILES) console_speaker.c
 
 SFILES=

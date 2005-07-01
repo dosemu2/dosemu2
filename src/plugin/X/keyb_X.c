@@ -30,11 +30,10 @@ Since this code has been totally rewritten the pcemu license no longer applies
 #include <X11/XKBlib.h>
 #endif
 
-#include "../../env/video/X.h"
+#include "X.h"
 #include "emu.h"
 #include "keyb_clients.h"
 #include "keyboard.h"
-#include "keystate.h"
 #include "video.h"
 #include "translate.h"
 #include "keysym_attributes.h"

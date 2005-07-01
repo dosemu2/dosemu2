@@ -13,11 +13,10 @@
 #include "keyboard.h"
 #include "keyb_clients.h"
 #include "emu.h"
-#include "keystate.h"
 #include "keyb_X.h"
-#include "keynum.h"
+#include "../kbd_unicode/keynum.h"
 #include "translate.h"
-#include "../../env/video/X.h"
+#include "X.h"
 #ifdef HAVE_XKB
 #include <X11/XKBlib.h>
 #include <X11/extensions/XKBgeom.h>

@@ -13,10 +13,6 @@ include $(top_builddir)/Makefile.conf
 #
 
 
-ifdef X_SUPPORT
-X_CFILES:=keyb_X.c keyb_X_keycode.c
-endif
-
 CFILES:=dosemu_keys.c keynum.c
 
 CFILES := serv_xlat.c serv_backend.c serv_8042.c keymaps.c keyb_raw.c getfd.c \

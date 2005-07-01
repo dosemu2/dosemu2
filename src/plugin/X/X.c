@@ -245,6 +245,7 @@
 #include "vgatext.h"
 #include "render.h"
 #include "keyb_server.h"
+#include "keyb_clients.h"
 #include "X.h"
 #include "dosemu_config.h"
 
@@ -2929,4 +2930,13 @@ void kdos_close_msg()
 {
   unsigned char m[20] = { KDOS_CLOSE_MSG, };
   kdos_send_msg(m);
+}
+
+void init_X(void)
+{
+	register_debug_class('X', 0, "X support");
+	config.X = 1;	/* activate X mode if dosemu was */
+	Video = &Video_X;
+	Keyboard = &Keyboard_X;
+	Mouse = &Mouse_X;
 }

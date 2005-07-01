@@ -100,9 +100,6 @@ static void paste_run(void)
 
 static struct keyboard_client *keyb_clients[] =
 {
-#ifdef X_SUPPORT
-	&Keyboard_X,
-#endif
 	&Keyboard_raw,
 #ifdef USE_SLANG
 	&Keyboard_slang,

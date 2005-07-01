@@ -1,5 +1,4 @@
 #include <config.h>
-#ifdef X_SUPPORT
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
@@ -1957,5 +1956,3 @@ CONSTRUCTOR(static void init(void))
 {
 	register_charset(&X_keysym);
 }
-
-#endif /* X_SUPPORT */

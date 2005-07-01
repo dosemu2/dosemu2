@@ -753,8 +753,7 @@ config_init(int argc, char **argv)
      * into X-mode. DANG_END_REMARK
      */
     if (strcmp(basename, "xdos") == 0) {
-	    config.X = 1;	/* activate X mode if dosemu was */
-	    Video = &Video_X;
+            init_X();     
 	    usedoptions['X'] = 'X';
 	/* called as 'xdos'              */
     }
@@ -938,8 +937,7 @@ config_init(int argc, char **argv)
 	    break;
 	case 'X':
 #ifdef X_SUPPORT
-	    config.X = 1;
-	    Video = &Video_X;
+	    init_X();
 #else
 	    error("X support not compiled in\n");
 #endif

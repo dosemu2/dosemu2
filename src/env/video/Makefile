@@ -14,12 +14,6 @@ include $(top_builddir)/Makefile.conf
 # $Id$
 
 
-ifdef X_SUPPORT
-XCFILES	= X.c screen.c
-XHDRS	= X.h screen.h
-XOBJS	= X.o screen.o
-endif
-
 ifdef USE_SVGALIB
 VCFILES = svgalib.c
 VHDRS = svgalib.h

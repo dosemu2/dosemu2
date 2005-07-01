@@ -93,10 +93,6 @@ __asm__("___START___: jmp _emulate\n");
 #endif
 #include "debug.h"
 
-#ifdef X_SUPPORT
-#include "../env/video/X.h"
-#endif
-
 #include "emu.h"
 
 #include "bios.h"

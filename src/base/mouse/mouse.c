@@ -153,9 +153,6 @@ static short default_graphscreenmask[HEIGHT] =  {
 
 static struct mouse_client *mouse_clients[] =
 {
-#ifdef X_SUPPORT
-  &Mouse_X,
-#endif
 #ifdef USE_GPM
   &Mouse_gpm,
 #endif
