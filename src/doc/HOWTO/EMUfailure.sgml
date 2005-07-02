@@ -120,8 +120,8 @@ contains some of these keywords: <emphasis remap="bf"> vcpi, RUN286</emphasis>.
 Fundamental problem with the Linux kernel
 </title>
 <para>
-The PC Internal Timer (PIT) can be programmed to produce interrupts
-with frequencies up to almost 2MHz. Linux sets this to
+The Programmable Interval Timer (PIT) can be programmed to produce
+interrupts with frequencies up to almost 2MHz. Linux sets this to
 only 100Hz (2.6 kernels can set it to 1KHz) and doesn't allow the
 software to change that. This limits the minimal interval between subsequent
 SIGALRM notifications for software that uses the setitimer(2) syscall.
