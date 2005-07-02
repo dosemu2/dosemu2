@@ -29,5 +29,6 @@ extern int using_xkb;
 void X_keycode_process_key(XKeyEvent *e);
 void X_keycode_process_keys(XKeymapEvent *e);
 void X_sync_shiftstate(Boolean make, KeyCode kc, unsigned int e_state);
+int X11_DetectLayout (void);
 
 #endif /* KEYB_X_H */

@@ -151,6 +151,8 @@ fi
 dnl Check for static and then also use it for tests
 
 LDFLAGS="-Wl,-warn-common"
+LIBS="$LIBS -ldl"
+X_LIBS=""
 
 AC_ARG_ENABLE(linkstatic,
               [  --enable-linkstatic     make statically linked binaries])
@@ -265,7 +267,7 @@ AC_CHECK_HEADER(slang.h,
   AC_CHECK_LIB(slang, SLtt_get_terminfo,
     AC_MSG_NOTICE(Compiling with S-Lang support...)
     AC_DEFINE(USE_SLANG)
-    LIBS="$LIBS -lslang -lm -ldl";LDFLAGS="$LDFLAGS $SLANGLIB",
+    LIBS="$LIBS -lslang -lm";LDFLAGS="$LDFLAGS $SLANGLIB",
     [AC_MSG_WARN([No S-Lang library found.])]
     $srcdir/mkpluginhooks enable term no
   ),
@@ -283,14 +285,13 @@ fi
 
 AC_PATH_XTRA
 if test "$have_x" = "yes" ; then
-  LDFLAGS="$LDFLAGS $X_LIBS"
-  CPPFLAGS="$CPPFLAGS $X_CFLAGS"
-
-  AC_CHECK_LIB(X11, XOpenDisplay, , 
-   # sometimes statically linked binaries need libdl too ...
-   AC_CHECK_LIB(X11, XCloseDisplay, LIBS="$LIBS -lX11 -ldl", 
-     AC_CHECK_LIB(Xwindow, main, , have_x="no" ),
-  -ldl))
+  SLIBS=$LIBS
+  LIBS="$LIBS $X_LIBS"
+  AC_CHECK_LIB(X11, XOpenDisplay, X_LIBS="$X_LIBS -lX11",
+   AC_CHECK_LIB(X11, XCloseDisplay, X_LIBS="$X_LIBS -lX11",
+     AC_CHECK_LIB(Xwindow, main, , have_x="no" )))
+  LIBS=$SLIBS
+  unset SLIBS
 fi
 
 if test "$have_x" = "yes" ; then
@@ -298,10 +299,6 @@ if test "$have_x" = "yes" ; then
     AC_DEFINE(X_SUPPORT) 
     X_SUPPORT="X_SUPPORT=1"
     AC_SUBST(X_SUPPORT)
-    AC_DEFINE(X_GRAPHICS)
-    X_GRAPHICS="X_GRAPHICS=1"
-    AC_SUBST(X_GRAPHICS)
-
 
   dnl Check for the MITSHM extention to speed up VGAemu
 
@@ -310,7 +307,7 @@ if test "$have_x" = "yes" ; then
 
     if test "$enable_mitshm" != "no" ; then
       AC_CHECK_HEADER(X11/extensions/XShm.h,
-         [AC_DEFINE(HAVE_MITSHM,1) LIBS="-lXext $LIBS"],
+         [AC_DEFINE(HAVE_MITSHM,1) X_LIBS="-lXext $X_LIBS"],
          AC_MSG_NOTICE(Compiling without the MITSHM X extension),
          [#include <X11/Xlib.h>])
     fi
@@ -321,7 +318,7 @@ if test "$have_x" = "yes" ; then
                AC_MSG_NOTICE(Compiling without the XF86 video mode extension)
     else
 	       AC_CHECK_HEADER(X11/extensions/xf86vmode.h,
-		 [AC_DEFINE(HAVE_XVIDMODE,1) LIBS="-lXxf86vm $LIBS"],
+		 [AC_DEFINE(HAVE_XVIDMODE,1) X_LIBS="-lXxf86vm $X_LIBS"],
                  AC_MSG_NOTICE(Compiling without the XF86 video mode extension),
                  [#include <X11/Xlib.h>])
     fi
@@ -635,6 +632,8 @@ CFLAGS="${CFLAGS} ${OPT} ${PIPE}"
 CPPFLAGS="${CPPFLAGS} -MMD \${INCDIR}"
 AC_SUBST(LDFLAGS)
 AC_SUBST(LIBS)
+AC_SUBST(X_LIBS)
+AC_SUBST(X_CFLAGS)
 
 dnl Create output files. If you add new ones, please do it in order.
 
@@ -790,9 +789,8 @@ AH_TEMPLATE([USE_PTHREADS],
 AH_TEMPLATE([USE_MHPDBG],
 [ DEFINE this, if you want the dosdebugger (mhpdbg) ])
 
-AH_TEMPLATE([X_SUPPORT])
-AH_TEMPLATE([X_GRAPHICS],
-[ Define these for X support ])
+AH_TEMPLATE([X_SUPPORT],
+[ Define this, if you want X support ])
 
 AH_TEMPLATE([USE_SBEMU],
 [ This is DEFINED when SB emulation is required. Just changing this is not

@@ -2932,8 +2932,10 @@ void kdos_close_msg()
   kdos_send_msg(m);
 }
 
-void init_X(void)
+CONSTRUCTOR(static void init(void))
 {
+	if (Video) return;
+
 	register_debug_class('X', 0, "X support");
 	config.X = 1;	/* activate X mode if dosemu was */
 	Video = &Video_X;

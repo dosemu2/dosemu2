@@ -311,7 +311,7 @@ ac_includes_default="\
 #endif"
 
 ac_subdirs_all="$ac_subdirs_all `touch ./plugin_configure; cat ./plugin_configure`"
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS build build_cpu build_vendor build_os host host_cpu host_vendor host_os target target_cpu target_vendor target_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CPP EGREP AWK INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA LEX LEXLIB LEX_OUTPUT_ROOT lex_ok LN_S SET_MAKE RANLIB ac_ct_RANLIB YACC ALLOCA LIBOBJS docdir x11fontdir syshdimagedir fdtarball CONFIG_HOST USE_SVGALIB USE_PTHREADS USE_GPM X_CFLAGS X_PRE_LIBS X_LIBS X_EXTRA_LIBS X_SUPPORT X_GRAPHICS VERSION SUBLEVEL PATCHLEVEL1 PATCHLEVEL2 USE_MHPDBG DEBUGGER subdirs ASPI_SUPPORT USE_ULTRA USE_SBEMU OPTIONALSUBDIRS REQUIRED PLUGINSUBDIRS INCDIR X86_EMULATOR ASM_PEDANTIC LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS build build_cpu build_vendor build_os host host_cpu host_vendor host_os target target_cpu target_vendor target_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CPP EGREP AWK INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA LEX LEXLIB LEX_OUTPUT_ROOT lex_ok LN_S SET_MAKE RANLIB ac_ct_RANLIB YACC ALLOCA LIBOBJS docdir x11fontdir syshdimagedir fdtarball CONFIG_HOST USE_SVGALIB USE_PTHREADS USE_GPM X_CFLAGS X_PRE_LIBS X_LIBS X_EXTRA_LIBS X_SUPPORT VERSION SUBLEVEL PATCHLEVEL1 PATCHLEVEL2 USE_MHPDBG DEBUGGER subdirs ASPI_SUPPORT USE_ULTRA USE_SBEMU OPTIONALSUBDIRS REQUIRED PLUGINSUBDIRS INCDIR X86_EMULATOR ASM_PEDANTIC LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -7046,6 +7046,8 @@ fi
 
 
 LDFLAGS="-Wl,-warn-common"
+LIBS="$LIBS -ldl"
+X_LIBS=""
 
 # Check whether --enable-linkstatic or --disable-linkstatic was given.
 if test "${enable_linkstatic+set}" = set; then
@@ -7756,7 +7758,7 @@ echo "$as_me: Compiling with S-Lang support..." >&6;}
 #define USE_SLANG 1
 _ACEOF
 
-    LIBS="$LIBS -lslang -lm -ldl";LDFLAGS="$LDFLAGS $SLANGLIB"
+    LIBS="$LIBS -lslang -lm";LDFLAGS="$LDFLAGS $SLANGLIB"
 else
   { echo "$as_me:$LINENO: WARNING: No S-Lang library found." >&5
 echo "$as_me: WARNING: No S-Lang library found." >&2;}
@@ -9167,11 +9169,9 @@ fi
 fi
 
 if test "$have_x" = "yes" ; then
-  LDFLAGS="$LDFLAGS $X_LIBS"
-  CPPFLAGS="$CPPFLAGS $X_CFLAGS"
-
-
-echo "$as_me:$LINENO: checking for XOpenDisplay in -lX11" >&5
+  SLIBS=$LIBS
+  LIBS="$LIBS $X_LIBS"
+  echo "$as_me:$LINENO: checking for XOpenDisplay in -lX11" >&5
 echo $ECHO_N "checking for XOpenDisplay in -lX11... $ECHO_C" >&6
 if test "${ac_cv_lib_X11_XOpenDisplay+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
@@ -9235,21 +9235,15 @@ fi
 echo "$as_me:$LINENO: result: $ac_cv_lib_X11_XOpenDisplay" >&5
 echo "${ECHO_T}$ac_cv_lib_X11_XOpenDisplay" >&6
 if test $ac_cv_lib_X11_XOpenDisplay = yes; then
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_LIBX11 1
-_ACEOF
-
-  LIBS="-lX11 $LIBS"
-
+  X_LIBS="$X_LIBS -lX11"
 else
-  # sometimes statically linked binaries need libdl too ...
-   echo "$as_me:$LINENO: checking for XCloseDisplay in -lX11" >&5
+  echo "$as_me:$LINENO: checking for XCloseDisplay in -lX11" >&5
 echo $ECHO_N "checking for XCloseDisplay in -lX11... $ECHO_C" >&6
 if test "${ac_cv_lib_X11_XCloseDisplay+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lX11 -ldl $LIBS"
+LIBS="-lX11  $LIBS"
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -9307,7 +9301,7 @@ fi
 echo "$as_me:$LINENO: result: $ac_cv_lib_X11_XCloseDisplay" >&5
 echo "${ECHO_T}$ac_cv_lib_X11_XCloseDisplay" >&6
 if test $ac_cv_lib_X11_XCloseDisplay = yes; then
-  LIBS="$LIBS -lX11 -ldl"
+  X_LIBS="$X_LIBS -lX11"
 else
 
 echo "$as_me:$LINENO: checking for main in -lXwindow" >&5
@@ -9382,6 +9376,8 @@ fi
 
 fi
 
+  LIBS=$SLIBS
+  unset SLIBS
 fi
 
 if test "$have_x" = "yes" ; then
@@ -9392,13 +9388,6 @@ echo "$as_me: Compiling with X support..." >&6;}
 _ACEOF
 
     X_SUPPORT="X_SUPPORT=1"
-
-    cat >>confdefs.h <<\_ACEOF
-#define X_GRAPHICS 1
-_ACEOF
-
-    X_GRAPHICS="X_GRAPHICS=1"
-
 
 
 
@@ -9460,7 +9449,7 @@ if test $ac_cv_header_X11_extensions_XShm_h = yes; then
   cat >>confdefs.h <<\_ACEOF
 #define HAVE_MITSHM 1
 _ACEOF
- LIBS="-lXext $LIBS"
+ X_LIBS="-lXext $X_LIBS"
 else
   { echo "$as_me:$LINENO: Compiling without the MITSHM X extension" >&5
 echo "$as_me: Compiling without the MITSHM X extension" >&6;}
@@ -9529,7 +9518,7 @@ if test $ac_cv_header_X11_extensions_xf86vmode_h = yes; then
   cat >>confdefs.h <<\_ACEOF
 #define HAVE_XVIDMODE 1
 _ACEOF
- LIBS="-lXxf86vm $LIBS"
+ X_LIBS="-lXxf86vm $X_LIBS"
 else
   { echo "$as_me:$LINENO: Compiling without the XF86 video mode extension" >&5
 echo "$as_me: Compiling without the XF86 video mode extension" >&6;}
@@ -10027,12 +10016,12 @@ CPPFLAGS="${CPPFLAGS} -MMD \${INCDIR}"
 
 
 
+
+
                     ac_config_files="$ac_config_files Makefile.conf dosemu.spec"
 
 
           ac_config_commands="$ac_config_commands Makefile"
-
-
 
 
 
@@ -10797,7 +10786,6 @@ s,@X_PRE_LIBS@,$X_PRE_LIBS,;t t
 s,@X_LIBS@,$X_LIBS,;t t
 s,@X_EXTRA_LIBS@,$X_EXTRA_LIBS,;t t
 s,@X_SUPPORT@,$X_SUPPORT,;t t
-s,@X_GRAPHICS@,$X_GRAPHICS,;t t
 s,@VERSION@,$VERSION,;t t
 s,@SUBLEVEL@,$SUBLEVEL,;t t
 s,@PATCHLEVEL1@,$PATCHLEVEL1,;t t

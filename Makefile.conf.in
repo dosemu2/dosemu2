@@ -43,8 +43,10 @@ endif
 
 CFLAGS:=@CFLAGS@
 CPPFLAGS:=@CPPFLAGS@
+X_CPPFLAGS:=@X_CFLAGS@
 LDFLAGS:=@LDFLAGS@
 LIBS:=@LIBS@
+X_LIBS:=@X_LIBS@
 CC:=@CC@
 CPP:=@CPP@
 LD:=@CC@
@@ -59,7 +61,6 @@ YACC:=@YACC@
 LEX:=@LEX@
 
 @X_SUPPORT@
-@X_GRAPHICS@
 
 # This gets defined even if we chose via ./include/config.h NOT to
 # use the debugger

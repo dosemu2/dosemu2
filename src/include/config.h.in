@@ -148,9 +148,6 @@ EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MID
 /* Define to 1 if you have the `rt' library (-lrt). */
 #undef HAVE_LIBRT
 
-/* Define to 1 if you have the `X11' library (-lX11). */
-#undef HAVE_LIBX11
-
 /* Define to 1 if you have the `Xwindow' library (-lXwindow). */
 #undef HAVE_LIBXWINDOW
 
@@ -323,10 +320,7 @@ EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MID
 /* Define to 1 if the X Window System is missing or not being used. */
 #undef X_DISPLAY_MISSING
 
-/* Define these for X support */
-#undef X_GRAPHICS
-
-/* */
+/* Define this, if you want X support */
 #undef X_SUPPORT
 
 /* Define to 1 if `lex' declares `yytext' as a `char *' by default, not a

@@ -746,18 +746,16 @@ config_init(int argc, char **argv)
     our_envs_init(0);
     parse_debugflags("+cw", 1);
 
-#ifdef X_SUPPORT
     /*
      * DANG_BEGIN_REMARK For simpler support of X, DOSEMU can be started
      * by a symbolic link called `xdos` which DOSEMU will use to switch
      * into X-mode. DANG_END_REMARK
      */
     if (strcmp(basename, "xdos") == 0) {
-            init_X();     
+	    load_plugin("X");
 	    usedoptions['X'] = 'X';
 	/* called as 'xdos'              */
     }
-#endif
 
     opterr = 0;
     if (strcmp(config_script_name, DEFAULT_CONFIG_SCRIPT))
@@ -936,11 +934,7 @@ config_init(int argc, char **argv)
 	    config.console_keyb = 1;
 	    break;
 	case 'X':
-#ifdef X_SUPPORT
-	    init_X();
-#else
-	    error("X support not compiled in\n");
-#endif
+	    load_plugin("X");
 	    break;
 	case 'S':
 	    load_plugin("sdl");
@@ -1080,9 +1074,7 @@ usage(char *basename)
 	"    -C boot from first defined hard disk (C)\n"
 	"    -c use PC console video (!%%)\n"
 	"    -d detach (?)\n"
-#ifdef X_SUPPORT
 	"    -X run in X Window (#)\n"
-#endif
     ,basename, basename);
     print_debug_usage(stderr);
     fprintf(stderr,

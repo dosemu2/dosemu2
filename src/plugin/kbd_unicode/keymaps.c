@@ -18,11 +18,13 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <limits.h>
+#include <dlfcn.h>
 
 #include "keymaps.h"
 #include "keyb_clients.h"
 #include "keynum.h"
 #include "getfd.h"
+#include "utilities.h"
 
 /* DANG_BEGIN_MODULE
  * 
@@ -2463,6 +2465,7 @@ void setup_default_keytable()
 	  ctrl_alt_map[NUM_KEY_NUMS];
   struct keytable_entry *kt, *altkt;
   int i, idx;
+  void *handle;
 
   idx = sizeof keytable_list / sizeof *keytable_list - 3;
 
@@ -2511,11 +2514,15 @@ void setup_default_keytable()
     kt->name = NULL;
   }
 
-#ifdef X_SUPPORT
-  idx = X11_DetectLayout();
-#else
   idx = 1;
-#endif
+  handle = load_plugin("X");
+  if (handle) {
+    int (*X11_DetectLayout)(void) = 
+      (int(*)(void))dlsym(handle, "X11_DetectLayout");
+    if (X11_DetectLayout)
+      idx = X11_DetectLayout();
+    dlclose(handle);
+  }
   if (idx && kt->name == NULL) {
     error("Unable to open console or check with X to evaluate the keyboard "
 	  "map.\nPlease specify your keyboard map explicitly via the "

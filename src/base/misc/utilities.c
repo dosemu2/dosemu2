@@ -738,7 +738,7 @@ void dosemu_error(char *fmt, ...)
     gdb_debug();
 }
 
-void load_plugin(const char *plugin_name)
+void *load_plugin(const char *plugin_name)
 {
     char *fullname = malloc(strlen(dosemu_proc_self_exe) +
 			    strlen(plugin_name) + 20);
@@ -752,13 +752,14 @@ void load_plugin(const char *plugin_name)
     handle = dlopen(fullname, RTLD_LAZY);
     free(fullname);
     if (handle != NULL)
-	return;
+	return handle;
     asprintf(&fullname, "%s/dosemu/libplugin_%s.so",
 	     LIB_DEFAULT, plugin_name);
     handle = dlopen(fullname, RTLD_LAZY);
     free(fullname);
     if (handle != NULL)
-	return;
-    error("SDL support not compiled in or not found:\n");
+	return handle;
+    error("%s support not compiled in or not found:\n", plugin_name);
     error("%s\n", dlerror());
+    return handle;
 }
