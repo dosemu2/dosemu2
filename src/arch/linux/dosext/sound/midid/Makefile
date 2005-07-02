@@ -18,9 +18,16 @@ include $(top_builddir)/Makefile.conf
 ######################################################################
 # No servicable parts below
 
+ifeq ($(CC),)
 CC=gcc
+endif
+ifeq ($(CFLAGS),)
 CFLAGS=-Wall -pipe -O -g
+endif
+ifeq ($(LDFLAGS),)
 LDFLAGS += -Wall
+endif
+
 OBJECTS=midid.o events.o io.o stats.o emulation.o device.o \
 oss.o midout.o timid.o null.o
 
