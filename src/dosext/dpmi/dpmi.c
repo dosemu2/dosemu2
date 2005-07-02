@@ -73,10 +73,7 @@
 #include "timers.h"
 #include "userhook.h"
 #include "mapping.h"
-
-#if X_GRAPHICS
 #include "vgaemu.h"
-#endif
 
 /*
  * DPMI 1.0 specs erroneously claims that the exceptions 1..5 and 7

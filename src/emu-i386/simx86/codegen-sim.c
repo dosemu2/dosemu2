@@ -601,7 +601,6 @@ void Gen(int op, int mode, ...)
 		break;
 
 	case L_VGAREAD:
-#if X_GRAPHICS
 		if (!(TheCPU.mode&RM_REG) && TrapVgaOn && vga.inst_emu &&
 			(OVERR_DS!=Ofs_XCS) && (OVERR_DS!=Ofs_XSS)) {
 		    if ((AR1.d >= e_vga_base) && (AR1.d < e_vga_end)) {
@@ -609,7 +608,6 @@ void Gen(int op, int mode, ...)
 			DR1.d = e_VgaRead(AR1.d, mode); break;
 		    }
 		}
-#endif
 		GTRACE0("L_DI");
 		if (mode & MBYTE) {
 		    DR1.b.bl = *AR1.pu;
@@ -623,7 +621,6 @@ void Gen(int op, int mode, ...)
 		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
 		break;
 	case L_VGAWRITE:
-#if X_GRAPHICS
 		if (!(TheCPU.mode&RM_REG) && TrapVgaOn && vga.inst_emu &&
 			(OVERR_DS!=Ofs_XCS) && (OVERR_DS!=Ofs_XSS)) {
 		    if ((AR1.d >= e_vga_base) && (AR1.d < e_vga_end)) {
@@ -631,7 +628,6 @@ void Gen(int op, int mode, ...)
 			e_VgaWrite(AR1.d, DR1.d, mode); break;
 		    }
 		}
-#endif
 		GTRACE0("S_DI");
 		if (mode&MBYTE) {
 		    *AR1.pu = DR1.b.bl;

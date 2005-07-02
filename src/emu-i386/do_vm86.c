@@ -29,9 +29,6 @@
 #include <limits.h>
 #include <getopt.h>
 
-#if X_GRAPHICS
-#include <sys/mman.h>           /* root@sjoerd*/
-#endif
 #ifdef __linux__
 #include <sys/vt.h>
 #include "Linux/fd.h"
@@ -63,9 +60,6 @@
 #endif
 
 #include "video.h"
-#if X_GRAPHICS
-#include "vgaemu.h" /* root@zaphod */
-#endif
 
 #include "pic.h"
 

@@ -435,7 +435,6 @@ static void CodeGen(IMeta *I, int j)
 
 //	case L_DI_R1:
 	case L_VGAREAD:
-#if X_GRAPHICS
 		if (!(TheCPU.mode&RM_REG) && TrapVgaOn && vga.inst_emu &&
 			(IG->ovds!=Ofs_XCS) && (IG->ovds!=Ofs_XSS)) {
 		    // cmpl e_vga_end,%%edi
@@ -456,7 +455,6 @@ static void CodeGen(IMeta *I, int j)
 	    	    // jmp (skip normal read)
 		    G2M(0xeb,((mode&(DATA16|MBYTE))==DATA16? 3:2),Cp);
 		}
-#endif
 		if (mode&MBYTE) {
 		    G2(0x078a,Cp);
 		}
@@ -467,7 +465,6 @@ static void CodeGen(IMeta *I, int j)
 		break;
 //	case S_DI:
 	case L_VGAWRITE:
-#if X_GRAPHICS
 		if (!(TheCPU.mode&RM_REG) && TrapVgaOn && vga.inst_emu &&
 			(IG->ovds!=Ofs_XCS) && (IG->ovds!=Ofs_XSS)) {
 		    // cmpl e_vga_end,%%edi
@@ -489,7 +486,6 @@ static void CodeGen(IMeta *I, int j)
 	    	    // jmp (skip normal read)
 		    G2(0x05eb,Cp);
 		}
-#endif
 		if (mode&MBYTE) {
 		    STD_WRITE_B;
 		}
