@@ -12,7 +12,7 @@
 #include <string.h> /* for memset */
 #include <unistd.h>
 #include <fcntl.h>
-#include <SDL/SDL.h>
+#include <SDL.h>
 
 #include "emu.h"
 #include "init.h"

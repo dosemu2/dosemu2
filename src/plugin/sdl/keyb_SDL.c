@@ -6,7 +6,7 @@
 
 #include "config.h"
 
-#include <SDL/SDL.h>
+#include <SDL.h>
 
 #include "emu.h"
 #include "keyb_clients.h"
