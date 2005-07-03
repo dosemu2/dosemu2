@@ -420,6 +420,7 @@ static boolean X_set_video_mode(int mode) {
     virt_text_base = (int)vga.mem.base;
     screen_adr = (void *)vga.mem.base;
     WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
+    WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);
     i10_msg("set_video_mode: no setmode handler!\n");
     return 0;
   }

@@ -2135,6 +2135,8 @@ int vga_emu_setmode(int mode, int width, int height)
         vmi2 = vmi;
       }
     }
+    if(vmi == NULL && Video->setmode == NULL)
+      vmi2 = vga_emu_find_mode(mode, vmi);
     vmi = vmi2;
   }
 
