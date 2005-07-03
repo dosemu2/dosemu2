@@ -151,20 +151,22 @@ static short default_graphscreenmask[HEIGHT] =  {
   0xfcff   /*1111110011111111*/
 };
 
-static struct mouse_client *mouse_clients[] =
-{
-#ifdef USE_GPM
-  &Mouse_gpm,
-#endif
-#ifdef USE_SLANG
-  &Mouse_xterm,
-#endif
-  &Mouse_serial,
-  &Mouse_raw,
-  &Mouse_none,  /* This must be last */
-};
 
 struct mouse_client *Mouse;
+
+/* register mouse at the back of the linked list */
+void register_mouse_client(struct mouse_client *mouse)
+{
+	struct mouse_client *m;
+
+	mouse->next = NULL;
+	if (Mouse == NULL)
+		Mouse = mouse;
+	else {
+		for (m = Mouse; m->next; m = m->next);
+		m->next = mouse;
+	}
+}
 
 void
 mouse_helper(struct vm86_regs *regs) 
@@ -1850,12 +1852,15 @@ mouse_curtick(void)
 
 static void mouse_client_init(void)
 {
-  int i;
   int ok;
 
-  i = 0;
+#ifdef USE_GPM
   if (Mouse == NULL)
-    Mouse = mouse_clients[i++];
+    register_mouse_client(&Mouse_gpm);
+#endif
+  register_mouse_client(&Mouse_serial);
+  register_mouse_client(&Mouse_raw);
+  register_mouse_client(&Mouse_none);
   while(TRUE) {
     m_printf("MOUSE: initialising '%s' mode mouse client\n",
              Mouse->name);
@@ -1869,7 +1874,7 @@ static void mouse_client_init(void)
       m_printf("MOUSE: Mouse init ***failed***, '%s' mode\n",
                Mouse->name);
     }
-    Mouse = mouse_clients[i++];
+    Mouse = Mouse->next;
   }
 }
 

@@ -234,6 +234,7 @@ fi
 AC_ARG_WITH(slangdir, [  --with-slangdir=dir     Specify S-Lang directory])
 AC_MSG_CHECKING(for S-Lang)
 SLANGINC=""
+SLANGLIB=""
 if test "$with_slangdir" = ""; then
   if test -d $srcdir/../slang; then
     SLANGINC="-I ${srcdir}/../slang/src"
@@ -266,14 +267,16 @@ AC_MSG_RESULT($SLANGINC $SLANGLIB)
 AC_CHECK_HEADER(slang.h,
   AC_CHECK_LIB(slang, SLtt_get_terminfo,
     AC_MSG_NOTICE(Compiling with S-Lang support...)
-    AC_DEFINE(USE_SLANG)
-    LIBS="$LIBS -lslang -lm";LDFLAGS="$LDFLAGS $SLANGLIB",
+    SLANGLIB="$SLANGLIB -lslang -lm",
     [AC_MSG_WARN([No S-Lang library found.])]
     $srcdir/mkpluginhooks enable term no
   ),
   [AC_MSG_WARN([No S-Lang header file found.])]
   $srcdir/mkpluginhooks enable term no
 )
+AC_SUBST(SLANGINC)
+AC_SUBST(SLANGLIB)
+
 if test "$with_gpm" != "no"; then
   AC_MSG_NOTICE(Compiling with GPM support...)
   AC_DEFINE(USE_GPM)
@@ -773,9 +776,6 @@ Most compilers have this one, but just to be sure...])
 AH_TEMPLATE([__LINE__],
 [ Define if the compiler doesn't have __LINE__ macro.
 Most compilers have this one, but just to be sure...])
-
-AH_TEMPLATE([USE_SLANG],
-[ DEFINE this, if you want S-Lang support ])
 
 AH_TEMPLATE([USE_SVGALIB],
 [ DEFINE this, if you want svgalib support ])

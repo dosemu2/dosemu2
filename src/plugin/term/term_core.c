@@ -23,6 +23,9 @@
 #include <slang.h>
 #include "dosemu_debug.h"
 #include "emu.h"
+#include "init.h"
+#include "video.h"
+#include "keyb_clients.h"
 
 #include "env_term.h"
 
@@ -76,4 +79,18 @@ void term_close(void)
 {
 	if (--term_initialized != 0) 
 		return;
+}
+
+CONSTRUCTOR(static void init(void))
+{
+	if (!Video) {
+		Video = &Video_term;
+		v_printf("VID: Video set to Video_term\n");
+	}
+	register_keyboard_client(&Keyboard_raw);
+	register_keyboard_client(&Keyboard_slang);
+#ifdef USE_GPM
+	register_mouse_client(&Mouse_gpm);
+#endif
+	register_mouse_client(&Mouse_xterm);
 }

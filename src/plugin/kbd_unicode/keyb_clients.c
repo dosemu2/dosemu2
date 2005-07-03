@@ -96,16 +96,19 @@ static void paste_run(void)
 	}
 }
 
-
-
-static struct keyboard_client *keyb_clients[] =
+/* register keyboard at the back of the linked list */
+void register_keyboard_client(struct keyboard_client *keyboard)
 {
-	&Keyboard_raw,
-#ifdef USE_SLANG
-	&Keyboard_slang,
-#endif
-	&Keyboard_none,  /* This must be last */
-};
+	struct keyboard_client *k;
+
+	keyboard->next = NULL;
+	if (Keyboard == NULL)
+		Keyboard = keyboard;
+	else {
+		for (k = Keyboard; k->next; k = k->next);
+		k->next = keyboard;
+	}
+}
 
 /* DANG_BEGIN_FUNCTION keyb_client_init
  * 
@@ -122,13 +125,12 @@ static struct keyboard_client *keyb_clients[] =
  */
 int keyb_client_init(void)
 {
-	int i;
 	int ok;
 
-	i = 0;
 	if(Keyboard == NULL)
-		Keyboard = keyb_clients[i++];
-	while(TRUE) {
+		register_keyboard_client(&Keyboard_raw);
+	register_keyboard_client(&Keyboard_none);
+	while(Keyboard) {
 		k_printf("KBD: probing '%s' mode keyboard client\n",
 			Keyboard->name);
 		ok = Keyboard->probe && Keyboard->probe();
@@ -148,7 +150,7 @@ int keyb_client_init(void)
 					Keyboard->name);
 			}
 		}
-		Keyboard = keyb_clients[i++];
+		Keyboard = Keyboard->next;
 	}
 	
 	/* Rationalize the keyboard config.
@@ -157,6 +159,8 @@ int keyb_client_init(void)
 	config.console_keyb = (Keyboard == &Keyboard_raw);
 
 	/* We always have a least Keyboard_none to fall back too */
+	if(Keyboard == NULL)
+		Keyboard = &Keyboard_none;
 	return TRUE;
 }
 

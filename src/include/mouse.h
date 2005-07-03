@@ -155,7 +155,10 @@ struct mouse_client {
   void   (*close)(void);
   void   (*run)(void);         /* handle mouse events */
   void   (*set_cursor)(int action, int mx, int my, int x_range, int y_range);
+  struct mouse_client *next;
 };
+
+void register_mouse_client(struct mouse_client *mouse);
 
 extern struct mouse_client *Mouse;
 extern struct mouse_client Mouse_serial;

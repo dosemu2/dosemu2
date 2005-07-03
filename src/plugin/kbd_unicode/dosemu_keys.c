@@ -99,11 +99,9 @@ Boolean handle_dosemu_keys(Boolean make, t_keysym key)
 	case KEY_DOSEMU_PAN_DOWN:
 	case KEY_DOSEMU_PAN_LEFT:
 	case KEY_DOSEMU_PAN_RIGHT:
-#ifdef USE_SLANG
-		if (Keyboard == &Keyboard_slang) {
-			handle_slang_keys(make, key);
+		if (Keyboard->handle_keys) {
+			Keyboard->handle_keys(make, key);
 		} else
-#endif
 		{
 			result = FALSE;
 		}

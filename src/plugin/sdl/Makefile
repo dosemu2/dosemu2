@@ -8,7 +8,8 @@ top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 include Makefile.conf
 
-CFLAGS+=$(SDL_CFLAGS) -fPIC
+CFLAGS+=-fPIC
+CPPFLAGS+=$(SDL_CFLAGS)
 CFILES=
 ifdef SDL_SUPPORT
 CFILES=sdl.c keyb_SDL.c mouse_SDL.c

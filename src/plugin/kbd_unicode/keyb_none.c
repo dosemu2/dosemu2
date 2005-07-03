@@ -10,17 +10,19 @@
 
 #include "keyboard.h"
 #include "keyb_clients.h"
+#include "utilities.h"
 
 /* DANG_BEGIN_FUNCTION none_probe
  *
  * Succeed if we can run the dummy keyboard client, (we always can).
+ * but first try the other fall-back (slang keyboard)
  *
  * DANG_END_FUNCTION
  */
 
 static int none_probe(void)
 {
-	return TRUE;
+	return !load_plugin("term");
 }
 
 struct keyboard_client Keyboard_none = 

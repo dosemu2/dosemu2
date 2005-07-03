@@ -1510,4 +1510,5 @@ struct keyboard_client Keyboard_slang =  {
 	slang_keyb_close,           /* close */
 	do_slang_getkeys,           /* run */
 	NULL,                       /* set_leds */
+	handle_slang_keys	    /* handle_keys */
 };

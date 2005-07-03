@@ -459,6 +459,6 @@ CONSTRUCTOR(static void init(void))
 {
    config.X = 1;
    Video = &Video_SDL;
-   Keyboard = &Keyboard_SDL;
-   Mouse = &Mouse_SDL;
+   register_keyboard_client(&Keyboard_SDL);
+   register_mouse_client(&Mouse_SDL);
 }

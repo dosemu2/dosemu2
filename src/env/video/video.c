@@ -32,6 +32,7 @@
 #include "vc.h"
 #include "mapping.h"
 #include "vga.h"
+#include "utilities.h"
 
 struct video_system *Video = NULL;
 
@@ -89,17 +90,12 @@ static int video_init(void)
      v_printf("VID: Video set to Video_none");
      Video=&Video_none;
   }
-  else {
-#ifdef USE_SLANG
-     v_printf("VID: Video set to Video_term\n");
-     Video=&Video_term;       /* S-Lang */
-#else
+  else if (!load_plugin("term")) {
      error("Terminal (S-Lang library) support not compiled in.\n"
            "Install slang-devel and recompile, use xdosemu or console "
            "dosemu (needs root) instead.\n");
      /* too early to call leavedos */
      exit(1);
-#endif
   }
 
 #if USE_DUALMON

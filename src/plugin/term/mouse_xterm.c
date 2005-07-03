@@ -87,6 +87,13 @@ static int xterm_mouse_init(void)
 {
 	mouse_t *mice = &config.mouse;
 
+#ifdef USE_GPM
+	if (Mouse_gpm.init()) {
+		Mouse = &Mouse_gpm;
+		return TRUE;
+	}
+#endif
+
 	if (!has_xterm_mouse_support() || !mice->intdrv)
 		return FALSE;
 

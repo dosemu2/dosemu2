@@ -7,7 +7,8 @@
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
-
+CFLAGS+=-fPIC
+CPPFLAGS+=$(SLANGINC)
 CFILES=term_core.c terminal.c keyb_slang.c mouse_xterm.c
 
 SFILES=
@@ -17,9 +18,12 @@ OBJS=$(CFILES:.c=.o)
 OOBJS=
 DEPENDS=$(CFILES:.c=.d)
 
+all: $(BINPATH)/bin/libplugin_term.so $(LIB)
 
 include $(REALTOPDIR)/src/Makefile.common
 
-all: lib
+$(BINPATH)/bin/libplugin_term.so: $(OBJS)
+	$(CC) $(LDFLAGS) -shared -o $@ $^ $(LIBS) $(SLANGLIB)
+	$(AR) crs $(LIB)
 
 install: all

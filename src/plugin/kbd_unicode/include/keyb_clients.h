@@ -36,7 +36,11 @@ struct keyboard_client {
   void   (*close)(void);
   void   (*run)(void);         /* check if keys are ready and process them */
   void   (*set_leds)(t_modifiers modifiers);
+  void   (*handle_keys)(Boolean make, t_keysym key);
+  struct keyboard_client *next;
 };
+
+void register_keyboard_client(struct keyboard_client *keyboard);
 
 EXTERN struct keyboard_client *Keyboard INIT(NULL);
 extern struct keyboard_client Keyboard_raw;
