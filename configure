@@ -311,7 +311,7 @@ ac_includes_default="\
 #endif"
 
 ac_subdirs_all="$ac_subdirs_all `touch ./plugin_configure; cat ./plugin_configure`"
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS build build_cpu build_vendor build_os host host_cpu host_vendor host_os target target_cpu target_vendor target_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CPP EGREP AWK INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA LEX LEXLIB LEX_OUTPUT_ROOT lex_ok LN_S SET_MAKE RANLIB ac_ct_RANLIB YACC ALLOCA LIBOBJS docdir x11fontdir syshdimagedir fdtarball CONFIG_HOST USE_SVGALIB USE_PTHREADS SLANGINC SLANGLIB USE_GPM X_CFLAGS X_PRE_LIBS X_LIBS X_EXTRA_LIBS X_SUPPORT VERSION SUBLEVEL PATCHLEVEL1 PATCHLEVEL2 USE_MHPDBG DEBUGGER subdirs ASPI_SUPPORT USE_ULTRA USE_SBEMU OPTIONALSUBDIRS REQUIRED PLUGINSUBDIRS INCDIR X86_EMULATOR ASM_PEDANTIC LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS build build_cpu build_vendor build_os host host_cpu host_vendor host_os target target_cpu target_vendor target_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CPP EGREP AWK INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA LEX LEXLIB LEX_OUTPUT_ROOT lex_ok LN_S SET_MAKE RANLIB ac_ct_RANLIB YACC ALLOCA LIBOBJS docdir x11fontdir syshdimagedir fdtarball CONFIG_HOST USE_SVGALIB USE_GPM USE_PTHREADS SLANGINC SLANGLIB X_CFLAGS X_PRE_LIBS X_LIBS X_EXTRA_LIBS X_SUPPORT VERSION SUBLEVEL PATCHLEVEL1 PATCHLEVEL2 USE_MHPDBG DEBUGGER subdirs ASPI_SUPPORT USE_ULTRA USE_SBEMU OPTIONALSUBDIRS REQUIRED PLUGINSUBDIRS INCDIR X86_EMULATOR ASM_PEDANTIC LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -7332,8 +7332,7 @@ if test "${with_gpm+set}" = set; then
 
 fi;
 if test "$with_gpm" != "no"; then
-
-echo "$as_me:$LINENO: checking for Gpm_Open in -lgpm" >&5
+  echo "$as_me:$LINENO: checking for Gpm_Open in -lgpm" >&5
 echo $ECHO_N "checking for Gpm_Open in -lgpm... $ECHO_C" >&6
 if test "${ac_cv_lib_gpm_Gpm_Open+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
@@ -7397,12 +7396,7 @@ fi
 echo "$as_me:$LINENO: result: $ac_cv_lib_gpm_Gpm_Open" >&5
 echo "${ECHO_T}$ac_cv_lib_gpm_Gpm_Open" >&6
 if test $ac_cv_lib_gpm_Gpm_Open = yes; then
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_LIBGPM 1
-_ACEOF
-
-  LIBS="-lgpm $LIBS"
-
+  with_gpm="yes"
 else
   with_gpm="no"
 fi
@@ -7411,9 +7405,17 @@ fi
 if test "$with_gpm" != "no"; then
   { echo "$as_me:$LINENO: Compiling with GPM support..." >&5
 echo "$as_me: Compiling with GPM support..." >&6;}
+  cat >>confdefs.h <<\_ACEOF
+#define USE_GPM 1
+_ACEOF
+
+  USE_GPM="USE_GPM=1"
+
+  $srcdir/mkpluginhooks enable gpm yes
 else
   { echo "$as_me:$LINENO: Compiling without GPM support..." >&5
 echo "$as_me: Compiling without GPM support..." >&6;}
+  $srcdir/mkpluginhooks enable gpm no
 fi
 
 
@@ -7773,20 +7775,6 @@ fi
 
 
 
-
-if test "$with_gpm" != "no"; then
-  { echo "$as_me:$LINENO: Compiling with GPM support..." >&5
-echo "$as_me: Compiling with GPM support..." >&6;}
-  cat >>confdefs.h <<\_ACEOF
-#define USE_GPM 1
-_ACEOF
-
-  USE_GPM="USE_GPM=1"
-
-else
-  { echo "$as_me:$LINENO: Compiling without GPM support..." >&5
-echo "$as_me: Compiling without GPM support..." >&6;}
-fi
 
 
 if test "x$ac_path_x_has_been_run" != xyes; then
@@ -10776,10 +10764,10 @@ s,@syshdimagedir@,$syshdimagedir,;t t
 s,@fdtarball@,$fdtarball,;t t
 s,@CONFIG_HOST@,$CONFIG_HOST,;t t
 s,@USE_SVGALIB@,$USE_SVGALIB,;t t
+s,@USE_GPM@,$USE_GPM,;t t
 s,@USE_PTHREADS@,$USE_PTHREADS,;t t
 s,@SLANGINC@,$SLANGINC,;t t
 s,@SLANGLIB@,$SLANGLIB,;t t
-s,@USE_GPM@,$USE_GPM,;t t
 s,@X_CFLAGS@,$X_CFLAGS,;t t
 s,@X_PRE_LIBS@,$X_PRE_LIBS,;t t
 s,@X_LIBS@,$X_LIBS,;t t

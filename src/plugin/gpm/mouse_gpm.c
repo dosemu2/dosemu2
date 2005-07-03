@@ -9,28 +9,58 @@
 
 #include <gpm.h>
 #include <fcntl.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <unistd.h>
 
 #include "config.h"
 #include "emu.h"
 #include "video.h"
 #include "mouse.h"
 #include "utilities.h"
+#include "init.h"
+
+/* there exist several binary incompatible Gpm_Event structures,
+   depending on the GPM version and distribution. 
+   This makes it impossible to use the structure from gpm.h while
+   still having cross-distribution binaries */
+typedef struct {
+	unsigned char buttons, modifiers;
+	unsigned short vc;
+	short dx, dy, x, y;
+	union {
+		/* official GPM >= 1.20.1 */
+		struct {
+			int     type, clicks, margin;
+			/* old GPMs did not have wdx and wdy */
+			short   wdx, wdy;
+		} gpm_w1;
+		/* patched Debian GPM */
+		struct {
+			short   wdx, wdy;
+			int     type, clicks, margin;
+		} gpm_w2;
+	} tail;
+} dosemu_Gpm_Event;
 
 static void gpm_getevent(void)
 {
 	static unsigned char buttons;
-	Gpm_Event ev;
+	static int variety = 1;
+	dosemu_Gpm_Event ev;
 	fd_set mfds;
+	int type;
+
 	FD_ZERO(&mfds);
 	FD_SET(config.mouse.fd, &mfds);
 	if (select(config.mouse.fd + 1, &mfds, NULL, NULL, NULL) <= 0)
 		return;
-	Gpm_GetEvent(&ev);
-	m_printf("MOUSE: Get GPM Event, %d\n", ev.type);
-	switch (GPM_BARE_EVENTS(ev.type)) {
+	Gpm_GetEvent((Gpm_Event*)&ev);
+	type = GPM_BARE_EVENTS(ev.tail.gpm_w1.type);
+	if( variety == 1 && type != GPM_DRAG && type != GPM_DOWN &&
+	    type != GPM_UP && type != GPM_MOVE )
+		variety = 2;
+	if( variety == 2 )
+		type = GPM_BARE_EVENTS(ev.tail.gpm_w2.type);
+	m_printf("MOUSE: Get GPM Event, %d\n", type);
+	switch (type) {
 	case GPM_MOVE:
 	case GPM_DRAG:
 		mouse_move_absolute(ev.x - 1, ev.y - 1, gpm_mx, gpm_my);
@@ -85,10 +115,15 @@ static void gpm_close(void)
 	m_printf("GPM MOUSE: Mouse tracking deinitialized\n");
 }
 
-struct mouse_client Mouse_gpm =	 {
+static struct mouse_client Mouse_gpm = {
 	"gpm",		/* name */
 	gpm_init,	/* init */
 	gpm_close,	/* close */
 	gpm_getevent,	/* run */
 	NULL		/* set_cursor */
 };
+
+CONSTRUCTOR(static void init(void))
+{
+	register_mouse_client(&Mouse_gpm);
+}

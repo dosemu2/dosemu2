@@ -1856,7 +1856,7 @@ static void mouse_client_init(void)
 
 #ifdef USE_GPM
   if (Mouse == NULL)
-    register_mouse_client(&Mouse_gpm);
+    load_plugin("gpm");
 #endif
   register_mouse_client(&Mouse_serial);
   register_mouse_client(&Mouse_raw);
