@@ -998,7 +998,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	switch (_LWORD(eax)) {
 	    case 0x4310:
                 MSDOS_CLIENT.XMS_call = MK_FARt(REG(es), LWORD(ebx));
-                SET_REG(es, ConvertSegmentToCodeDescriptor(DPMI_SEG));
+                SET_REG(es, dpmi_sel());
                 SET_REG(ebx, DPMI_OFF + HLT_OFF(MSDOS_XMS_call));
 		break;
 	}
