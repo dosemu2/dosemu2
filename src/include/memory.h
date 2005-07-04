@@ -194,7 +194,7 @@
 #define CO      80 /* A-typical screen width */
 #define LI      25 /* Normal rows on a screen */
 #define TEXT_SIZE(co,li) (((co*li)+4095)&(~4095)) /* 4000(4096?) text page size */
-#define SCREEN_ADR(s,co,li) ((us *)(virt_text_base + ((s)*TEXT_SIZE(co,li))))
+#define SCREEN_ADR(s) ((us *)(virt_text_base + s*READ_WORD(BIOS_VIDEO_MEMORY_USED)))
 
 #define GRAPH_BASE 0xA0000
 #define GRAPH_SIZE 0x20000

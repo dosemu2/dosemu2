@@ -42,6 +42,7 @@ struct video_system *Video = NULL;
 static int i_empty_void (void) {return 0;}
 static void v_empty_void (void) {}
 static int i_empty_3int (int type, int xsize, int ysize) {return 0;}
+static int video_combo;
 
 struct video_system Video_none = {
   i_empty_void,	/* priv_init */
@@ -336,7 +337,7 @@ void video_mem_setup(void)
     
   WRITE_DWORD(BIOS_VIDEO_SAVEPTR, 0);		/* pointer to video table */
 
-  clear_screen(video_page, 7);
+  clear_screen(0, 7);
 }
 
 void
@@ -413,7 +414,6 @@ video_config_init(void) {
      config.vga = 0;
      config.console = 0;
   }
-  video_page = 0;
   screen_mask = 1 << (((int)phys_text_base-0xA0000)/4096);
   screen_adr = (void *)virt_text_base;
 

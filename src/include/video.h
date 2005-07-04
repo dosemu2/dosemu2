@@ -52,23 +52,14 @@ void init_dualmon(void);
 #define MAX_COLUMNS 255
 #define MAX_LINES 128
 
-#if 0
-#define SCREEN_ADR(s)	((ushort *)(virt_text_base + (s*TEXT_SIZE)))
-#endif
-
 /********************************************/
 
 /* macros for accessing video memory. w is an ushort* 
    to a character cell, attr is a byte.
 */
 
-#if 0
-#define CHAR(w) (((char*)(w))[0])
-#define ATTR(w) (((byte*)(w))[1])
-#else
 #define CHAR(w) ((char)READ_BYTE(w))
 #define ATTR(w) ((byte)READ_BYTE(((Bit8u *)(w))+1))
-#endif
 #define ATTR_FG(attr) (attr & 0x0F)
 #define ATTR_BG(attr) (attr >> 4)
 
@@ -129,7 +120,6 @@ EXTERN ushort *prev_screen;  /* pointer to currently displayed screen   */
                              /* used&updated by Video->update_screen    */
 
 EXTERN int video_mode INIT(0);
-EXTERN int video_page INIT(0); 
 EXTERN int char_blink INIT(1);
 
 EXTERN int cursor_col INIT(0);
@@ -162,7 +152,6 @@ extern void Scroll(us *sadr,int x0,int y0,int x1,int y1,int n,int attr);
 
 EXTERN int virt_text_base INIT(0);
 EXTERN int phys_text_base INIT(0);
-EXTERN int video_combo INIT(0);
 EXTERN int video_subsys;
 EXTERN int v_8514_base INIT(0);
 

@@ -112,6 +112,23 @@
 static void tty_char_out(unsigned char ch, int s, int attr);
 static void vga_ROM_to_RAM(unsigned height, int bank);
 
+static void crt_outw(unsigned index, unsigned value)
+{
+  unsigned port = READ_WORD(BIOS_VIDEO_PORT);
+  port_outw(port, index | (value & 0xff00));
+  port_outw(port, (index + 1) | ((value & 0xff) << 8));
+}
+
+static void set_cursor_pos(unsigned page, int x, int y)
+{
+  unsigned co;
+
+  set_bios_cursor_x_position(page, x);
+  set_bios_cursor_y_position(page, y);
+  co = READ_WORD(BIOS_SCREEN_COLUMNS);
+  crt_outw(0xe, READ_WORD(BIOS_VIDEO_MEMORY_ADDRESS)/2 + y * co + x);
+}
+
 static inline void set_cursor_shape(ushort shape) {
    int cs,ce;
 
@@ -197,7 +214,7 @@ Scroll(us *sadr, int x0, int y0, int x1, int y1, int l, int att)
   if (l >= dy || l <= -dy)
     l = 0;
 
-  set_dirty(video_page);
+  set_dirty(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
   
   if (l == 0) {			/* Wipe mode */
     for (y = y0; y <= y1; y++)
@@ -290,7 +307,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
 
   case '\n':         /* Newline */
     /* Color newline */
-    newline_att = gfx_mode ? 0 : ATTR(SCREEN_ADR(s,co,li) + ypos*co + xpos);
+    newline_att = gfx_mode ? 0 : ATTR(SCREEN_ADR(s) + ypos*co + xpos);
     ypos++;
     xpos = 0;                  /* EDLIN needs this behavior */
     break;
@@ -317,7 +334,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
     }
     else
     {
-      dst = (unsigned char *) (SCREEN_ADR(s,co,li) + ypos*co + xpos);
+      dst = (unsigned char *) (SCREEN_ADR(s) + ypos*co + xpos);
       WRITE_BYTE(dst, ch);
       if(attr != -1) WRITE_BYTE(dst + 1, attr);
       set_dirty(s);
@@ -336,10 +353,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
     else
       bios_scroll(0,0,co-1,li-1,1,newline_att);
   }
-  set_bios_cursor_x_position(s, xpos);
-  set_bios_cursor_y_position(s, ypos);
-  cursor_col = xpos;
-  cursor_row = ypos;
+  set_cursor_pos(s, xpos, ypos);
 }
 
 /* The following clears the screen buffer. It does it only to the screen 
@@ -362,18 +376,16 @@ clear_screen(int s, int att)
   li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
   co= READ_WORD(BIOS_SCREEN_COLUMNS);
 
-  v_printf("INT10: cleared screen: page %d, attr 0x%02x, screen_adr %p\n", s, att, SCREEN_ADR(s,co,li));
+  v_printf("INT10: cleared screen: page %d, attr 0x%02x, screen_adr %p\n", s, att, SCREEN_ADR(s));
   if (s > max_page) return;
   
-  for (schar = SCREEN_ADR(s,co,li), 
+  for (schar = SCREEN_ADR(s), 
        lx = 0; lx < (co * li); 
 /*       *(schar++) = blank, lx++); */
        WRITE_WORD(schar++, blank), lx++);
 
   set_dirty(s);
-  set_bios_cursor_x_position(s, 0);
-  set_bios_cursor_y_position(s, 0);
-  cursor_row = cursor_col = 0;
+  set_cursor_pos(s, 0, 0);
 }
 
 
@@ -519,13 +531,10 @@ static boolean X_set_video_mode(int mode) {
   WRITE_BYTE(BIOS_VIDEO_INFO_0, clear_mem ? 0x60 : 0xe0);
   memset((void *) 0x450, 0, 0x10);	/* equiv. to set_bios_cursor_(x/y)_position(0..7, 0) */
 
-  video_page = 0;
   WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);
   virt_text_base = (int)vga.mem.base;
   screen_adr = (void *)vga.mem.base;
   screen_mask = 0;
-  cursor_col = get_bios_cursor_x_position(0);
-  cursor_row = get_bios_cursor_y_position(0);
 
   set_cursor_shape(0x0607);
   WRITE_WORD(BIOS_CURSOR_SHAPE, 0x0607);
@@ -679,6 +688,8 @@ error:
 /* get the active and alternate display combination code */
 static void get_dcc(int *active_dcc, int *alternate_dcc)
 {
+  int video_combo = READ_BYTE(BIOS_VIDEO_COMBO);
+
 #if USE_DUALMON
   if (config.dualmon) {
     if (IS_SCREENMODE_MDA) {
@@ -781,7 +792,7 @@ int int10(void) /* with dualmon */
 {
   /* some code here is copied from Alan Cox ***************/
   int x, y, co, li;
-  unsigned page, page_size;
+  unsigned page, page_size, address;
   u_char c;
   us *sm;
 
@@ -799,7 +810,6 @@ int int10(void) /* with dualmon */
 
   li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
   co= READ_WORD(BIOS_SCREEN_COLUMNS);
-  page_size = TEXT_SIZE(co,li);
 
   if (debug_level('v') >= 3)
     {
@@ -851,10 +861,7 @@ int int10(void) /* with dualmon */
         y = li -1;
       }
 
-      set_bios_cursor_x_position(page, x);
-      set_bios_cursor_y_position(page, y);
-      cursor_col = x;
-      cursor_row = y;
+      set_cursor_pos(page, x, y);
       break;
 
 
@@ -896,18 +903,17 @@ int int10(void) /* with dualmon */
 	break;
       }
       if (config.console_video) set_vc_screen_page(page);
-      if (Video->update_screen) {
-        page_size = vga_emu_get_page_size();
-        vga_emu_set_text_page(page, page_size);
-      }
+      page_size = READ_WORD(BIOS_VIDEO_MEMORY_USED);
+      address = page_size * page;
+      crt_outw(0xc, address/2);
 
-      WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, video_page = page);
-      WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, page_size * page);
-      screen_adr = SCREEN_ADR(page,co,li);
+      WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, page);
+      WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, address);
       screen_mask = 1 << page;
       set_dirty(page);		// ??? evil stuff: what about xdos?
-      cursor_col = get_bios_cursor_x_position(page);
-      cursor_row = get_bios_cursor_y_position(page);
+      x = get_bios_cursor_x_position(page);
+      y = get_bios_cursor_y_position(page);
+      set_cursor_pos(page, x, y);
       break;
 
 
@@ -946,7 +952,7 @@ int int10(void) /* with dualmon */
         break;
       }
       if(using_text_mode()) {
-        sm = SCREEN_ADR(page,co,li);
+        sm = SCREEN_ADR(page);
         LWORD(eax) = sm[co * get_bios_cursor_y_position(page)
                    + get_bios_cursor_x_position(page)];
       }
@@ -985,7 +991,7 @@ int int10(void) /* with dualmon */
         int n;
 
         page = HI(bx);
-        sadr = (u_short *) SCREEN_ADR(page,co,li) 
+        sadr = (u_short *) SCREEN_ADR(page) 
   	     + get_bios_cursor_y_position(page) * co
   	     + get_bios_cursor_x_position(page);
         n = LWORD(ecx);
@@ -1496,19 +1502,15 @@ int int10(void) /* with dualmon */
         unsigned len = LWORD(ecx);
         unsigned char *str = SEG_ADR((unsigned char *), es, bp);
         unsigned old_x, old_y;
-        int old_cursor_col, old_cursor_row;
 
         old_x = get_bios_cursor_x_position(page);
         old_y = get_bios_cursor_y_position(page);
-        old_cursor_col = cursor_col;
-        old_cursor_row = cursor_row;
 
-        set_bios_cursor_x_position(page, cursor_col = LO(dx));
-        set_bios_cursor_y_position(page, cursor_row = HI(dx));
+	set_cursor_pos(page, LO(dx), HI(dx))
 
         i10_deb(
           "write string: page %u, x.y %d.%d, attr 0x%02x, len %u, addr 0x%04x:0x%04x\n",
-          page, cursor_col, cursor_row, attr, len, REG(es), LWORD(ebp)
+          page, LO(dx), HI(dx), attr, len, REG(es), LWORD(ebp)
         );
 #if DEBUG_INT10
         i10_deb("write string: str \"");
@@ -1532,10 +1534,7 @@ int int10(void) /* with dualmon */
         }
 
         if(!(LO(ax) & 1)) {	/* no cursor update */
-          set_bios_cursor_x_position(page, old_x);
-          set_bios_cursor_y_position(page, old_y);
-          cursor_col = old_cursor_col;
-          cursor_row = old_cursor_row;
+	  set_cursor_pos(page, old_x, old_y);
         }
       }
       break;

@@ -1793,9 +1793,8 @@ text_cursor(void)
   unsigned short *p;
   int offset;
   int cx, cy;
-  int li = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
   int co = READ_WORD(BIOS_SCREEN_COLUMNS);
-  p = SCREEN_ADR(mouse.display_page,co,li);
+  p = SCREEN_ADR(mouse.display_page);
   offset = mouse_erase.x;
   cx = mouse.rx >> mouse.xshift;
   cy = mouse.ry >> mouse.yshift;
