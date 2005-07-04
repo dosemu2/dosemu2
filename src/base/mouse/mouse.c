@@ -99,6 +99,7 @@ static int mouse_events = 0;
 static mouse_erase_t mouse_erase;
 static int sent_mouse_esc = FALSE;
 
+static struct mouse_client Mouse_serial, Mouse_none;
 static mouse_t *mice = &config.mouse;
 /* the 'volatile' is there to cover some bug in gcc -O -g3 */
 volatile struct mouse_struct mouse;
@@ -2003,7 +2004,7 @@ static int serial_mouse_init(void)
   return TRUE;
 }
 
-struct mouse_client Mouse_serial =  {
+static struct mouse_client Mouse_serial =  {
   "No Mouse",   /* name */
   serial_mouse_init,	/* init */
   NULL,		/* close */
@@ -2016,7 +2017,7 @@ static int none_init(void)
   return TRUE;
 }
 
-struct mouse_client Mouse_none =  {
+static struct mouse_client Mouse_none =  {
   "No Mouse",   /* name */
   none_init,	/* init */
   NULL,		/* close */

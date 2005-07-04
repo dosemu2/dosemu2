@@ -161,13 +161,7 @@ struct mouse_client {
 void register_mouse_client(struct mouse_client *mouse);
 
 extern struct mouse_client *Mouse;
-extern struct mouse_client Mouse_serial;
 extern struct mouse_client Mouse_raw;
-extern struct mouse_client Mouse_SDL;
-extern struct mouse_client Mouse_X;
-extern struct mouse_client Mouse_xterm;
-extern struct mouse_client Mouse_gpm;
-extern struct mouse_client Mouse_none;
 
 #include "keyboard.h"
 void mouse_keyboard(Boolean make, t_keysym key);

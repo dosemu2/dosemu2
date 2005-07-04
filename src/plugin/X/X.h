@@ -23,6 +23,7 @@
 #define X_TITLE_APPNAME_MAXLEN TITLE_APPNAME_MAXLEN
 
 extern Display *display;
+extern struct keyboard_client Keyboard_X;
 
 void           get_vga_colors (void);
 void           X_handler      (void);

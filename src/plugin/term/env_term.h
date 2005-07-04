@@ -7,6 +7,7 @@
 extern const char *DOSemu_Keyboard_Keymap_Prompt;
 extern int DOSemu_Terminal_Scroll;
 extern int DOSemu_Slang_Show_Help;
+extern struct mouse_client Mouse_xterm;
 int term_init(void);
 void term_close(void);
 int using_xterm(void);

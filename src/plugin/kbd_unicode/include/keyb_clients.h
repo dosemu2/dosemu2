@@ -45,8 +45,6 @@ void register_keyboard_client(struct keyboard_client *keyboard);
 EXTERN struct keyboard_client *Keyboard INIT(NULL);
 extern struct keyboard_client Keyboard_raw;
 extern struct keyboard_client Keyboard_slang;
-extern struct keyboard_client Keyboard_X;
-extern struct keyboard_client Keyboard_SDL;
 extern struct keyboard_client Keyboard_none;
 
 extern void  dos_slang_redraw(void);

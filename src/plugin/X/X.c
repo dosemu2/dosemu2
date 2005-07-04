@@ -2806,7 +2806,7 @@ static int X_mouse_init(void)
   return TRUE;
 }
 
-struct mouse_client Mouse_X =  {
+static struct mouse_client Mouse_X =  {
   "X",          /* name */
   X_mouse_init, /* init */
   NULL,		/* close */
