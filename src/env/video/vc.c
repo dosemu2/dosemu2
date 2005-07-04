@@ -381,11 +381,8 @@ void get_video_ram (int waitflag)
     unmap_video_ram(1);
 
   scr_state.pageno = page;
-  if (!config.vga) {
-    int li = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
-    int co = READ_WORD(BIOS_SCREEN_COLUMNS);
-    scr_state.virt_address = (void*)SCREEN_ADR(scr_state.pageno,co,li);
-  }
+  if (!config.vga)
+    scr_state.virt_address = (void*)SCREEN_ADR(scr_state.pageno);
   map_video_ram();
 }
 
@@ -742,6 +739,8 @@ static int isr_read = 0;
 u_char
 video_port_in (ioport_t port)
 {
+  if (permissions)
+    return port_real_inb (port);
   /* v_printf("Video read on port 0x%04x.\n",port); */
   switch (port)
     {
@@ -826,6 +825,10 @@ video_port_in (ioport_t port)
 void
 video_port_out (ioport_t port, u_char value)
 {
+  if (permissions) {
+    port_real_outb (port, value);
+    return;
+  }
   /* v_printf("Video write on port 0x%04x,byte 0x%04x.\n",port, value); */
   switch (port)
     {

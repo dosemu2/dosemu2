@@ -697,6 +697,9 @@ static Bit8u special_port_inb(ioport_t port)
 {
 	Bit8u res = 0xff;
 
+        if (current_iopl == 3 || test_bit(port, emu_io_bitmap)) {
+		return port_real_inb(port);
+	}
 	if ((port==0x3ba)||(port==0x3da)) {
 		res = Misc_get_input_status_1();
 		if (!r3da_pending && (config.emuretrace>1)) {
@@ -711,6 +714,10 @@ static Bit8u special_port_inb(ioport_t port)
 
 static void special_port_outb(ioport_t port, Bit8u byte)
 {
+        if (current_iopl == 3 || test_bit(port, emu_io_bitmap)) {
+		port_real_outb(port, byte);
+		return;
+        }
 	/* Port writes for enable/disable blinking character mode */
 	if (port == 0x03c0) {
 		static int last_byte = -1;
@@ -868,18 +875,18 @@ int port_init(void)
 
 	port_handler[HANDLE_VID_IO].read_portb = video_port_in;
 	port_handler[HANDLE_VID_IO].write_portb = video_port_out;
-	port_handler[HANDLE_VID_IO].read_portw = port_not_avail_inw;
-	port_handler[HANDLE_VID_IO].write_portw = port_not_avail_outw;
-	port_handler[HANDLE_VID_IO].read_portd = port_not_avail_ind;
-	port_handler[HANDLE_VID_IO].write_portd = port_not_avail_outd;
+	port_handler[HANDLE_VID_IO].read_portw = NULL;
+	port_handler[HANDLE_VID_IO].write_portw = NULL;
+	port_handler[HANDLE_VID_IO].read_portd = NULL;
+	port_handler[HANDLE_VID_IO].write_portd = NULL;
 	port_handler[HANDLE_VID_IO].handler_name = "video port io";
 
 	port_handler[HANDLE_SPECIAL].read_portb = special_port_inb;
 	port_handler[HANDLE_SPECIAL].write_portb = special_port_outb;
-	port_handler[HANDLE_SPECIAL].read_portw = port_not_avail_inw;
-	port_handler[HANDLE_SPECIAL].write_portw = port_not_avail_outw;
-	port_handler[HANDLE_SPECIAL].read_portd = port_not_avail_ind;
-	port_handler[HANDLE_SPECIAL].write_portd = port_not_avail_outd;
+	port_handler[HANDLE_SPECIAL].read_portw = NULL;
+	port_handler[HANDLE_SPECIAL].write_portw = NULL;
+	port_handler[HANDLE_SPECIAL].read_portd = NULL;
+	port_handler[HANDLE_SPECIAL].write_portd = NULL;
 	port_handler[HANDLE_SPECIAL].handler_name = "extra stuff";
 
 	port_handles = STD_HANDLES;
@@ -998,7 +1005,6 @@ int extra_port_init(void)
 			SET_HANDLE_COND(i+1,HANDLE_STD_IO);
 		}
 	}
-#if 0
 	if (config.chipset && config.mapped_bios) {
 		for (i=0x3b4; i<0x3df; i++)
 			SET_HANDLE_COND(i,HANDLE_VID_IO);
@@ -1013,12 +1019,11 @@ int extra_port_init(void)
 	  i = 0x3d4;
 	  if ((configuration & MDA_CONF_SCREEN_MODE) == MDA_CONF_SCREEN_MODE)
 	    i = 0x3b4;
-	  if (i) {	/* !config.vga */
+	  if (!config.vga) {
 	    SET_HANDLE_COND(i,HANDLE_SPECIAL);		/* W */
 	    SET_HANDLE_COND(i+1,HANDLE_SPECIAL);	/* W */
 	  }
 	}
-#endif
 
 	if (portlog_map) {
 	    /* switch off ioperm for $_ports that are traced and not forced fast */
@@ -1355,17 +1360,10 @@ set_ioperm(int start, int size, int flag)
 	if (tmp==0) {
 	    int i;
 	    for (i=start; i<(start+size); i++) {
-		if (port_handle_table[i] > HANDLE_STD_WR) {
-		    error("Attempt to ioperm the already claimed port %#x, handle=%i\n",
-			i, port_handle_table[i]);
-		    config.exitearly = 1;
-		}
 		if (flag) {
 		    set_bit(i, emu_io_bitmap);
-		    SET_HANDLE(i, HANDLE_STD_IO);
 		} else {
 		    clear_bit(i, emu_io_bitmap);
-		    SET_HANDLE(i, NO_HANDLE);
 		}
 	    }
 	}
