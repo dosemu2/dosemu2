@@ -58,7 +58,6 @@ static struct mappingdrivers *mappingdrv[] = {
   &mappingdriver_file, /* first try shm_open */
   &mappingdriver_shm,  /* then anon-shared-mmap */
   &mappingdriver_file, /* and then a temp file */
-  0
 };
 
 static int map_find_idx(struct mem_map_struct *map, int max,
@@ -287,6 +286,10 @@ void mapping_init(void)
         found = i;
         break;
       }
+    }
+    if (found < 0) {
+      error("Wrong mapping driver specified: %s\n", config.mappingdriver);
+      leavedos(2);
     }
   }
   if (found < 0) found = 0;
