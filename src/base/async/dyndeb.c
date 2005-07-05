@@ -122,8 +122,6 @@ int parse_debugflags(const char *s, unsigned char flag)
 		case '-':		/* begin options to turn off */
 			flag = 0;
 			break;
-			
-		break;
 		case '0'...'9':	/* set debug level, 0 is off, 9 is most
 				 * verbose */
 			flag = c - '0';
