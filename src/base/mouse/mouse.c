@@ -153,7 +153,7 @@ static short default_graphscreenmask[HEIGHT] =  {
 };
 
 
-struct mouse_client *Mouse;
+struct mouse_client *Mouse = NULL;
 
 /* register mouse at the back of the linked list */
 void register_mouse_client(struct mouse_client *mouse)
@@ -1982,7 +1982,7 @@ dosemu_mouse_close(void)
 {
   if (mice->type == MOUSE_XTERM && !sent_mouse_esc)
     return;
-  if (Mouse->close) Mouse->close(); 
+  if (Mouse && Mouse->close) Mouse->close(); 
   sent_mouse_esc = FALSE;
 }
 
