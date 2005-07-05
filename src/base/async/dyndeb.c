@@ -247,6 +247,7 @@ CONSTRUCTOR(static void init(void))
 	register_debug_class('D', int21_change_level, "dos int 21h");
 	register_debug_class('C', 0, "CDROM");
 	register_debug_class('v', 0, "video");
+	register_debug_class('X', 0, "X support");       
 	register_debug_class('k', 0, "keyboard");
 	register_debug_class('i', 0, "i/o instructions (in/out)");
 	register_debug_class('T', port_trace_change_level, "I/O trace");

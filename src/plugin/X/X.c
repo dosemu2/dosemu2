@@ -2936,7 +2936,6 @@ CONSTRUCTOR(static void init(void))
 {
 	if (Video) return;
 
-	register_debug_class('X', 0, "X support");
 	config.X = 1;	/* activate X mode if dosemu was */
 	Video = &Video_X;
 	register_keyboard_client(&Keyboard_X);
