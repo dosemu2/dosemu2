@@ -256,7 +256,11 @@ void dump_config_status(void *printfunc)
 	GetDebugFlagsHelper(buf, 0);
 	(*print)("debug_flags \"%s\"\n", buf);
     }
-    if (!printfunc) dump_keytable(stderr, config.keytable);
+    if (!printfunc && config.keytable) {
+        dump_keytable(stderr, config.keytable);
+    } else {
+        (*print) ("keytable not setup yet\n");
+    }
     (*print)("pre_stroke \"%s\"\n", (config.pre_stroke ? config.pre_stroke : ""));
     (*print)("irqpassing= ");
     if (config.sillyint) {
