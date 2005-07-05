@@ -30,7 +30,7 @@ USAGE:
 install_from_template () {
 # $BOOT_DIR_PATH = path to install to
   if [ -z "$PROPRIETARY" ]; then
-    (cd $BOOT_DIR_PATH
+    (cd "$BOOT_DIR_PATH"
       tar -xzf $SYSTEM_INSTALL_PATH/dosemu-bin.tgz
     )
     BOOTDIR="$BOOT_DIR_PATH/dosemu/freedos"
@@ -42,9 +42,9 @@ install_from_template () {
 "
   mkdir -p $HOME/.dosemu/drives
   rm -f $HOME/.dosemu/drives/c
-  ln -sf $BOOTDIR $HOME/.dosemu/drives/c
+  ln -sf "$BOOTDIR" $HOME/.dosemu/drives/c
   if [ -z "$PROPRIETARY" ]; then
-    (cd $BOOT_DIR_PATH
+    (cd "$BOOT_DIR_PATH"
       tar -xzf $SYSTEM_INSTALL_PATH/dosemu-freedos-bin.tgz
     )
   else
@@ -216,12 +216,14 @@ if [ -n "$INSTALL" -o \
           if [ "${BOOT_DIR_PATH#/*}" != "$BOOT_DIR_PATH" ]; then
             echo "  You gave an absolute path, type ENTER to confirm or Ctrl-C"
             read x
+          else
+            BOOT_DIR_PATH="$THISDIR/$BOOT_DIR_PATH"
           fi
           echo "
   Ok, will install into $BOOT_DIR_PATH
   type ENTER to confirm or Ctrl-C to abort"
           read x
-          if ! mkdir -p $BOOT_DIR_PATH 2>/dev/null; then
+          if ! mkdir -p "$BOOT_DIR_PATH" 2>/dev/null; then
             echo "  unable to create $BOOT_DIR_PATH, giving up"
             exit 1
           fi
