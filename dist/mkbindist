@@ -1,10 +1,10 @@
 #! /bin/bash
 #
 # NOTE: This script is only of interest for the DOSEMU developers and
-#	distributors, who want to built their packages.
+#	distributors, who want to build their packages.
 #
-# This generates the dosemu part (dosemu-<version>-bin.tgz of the dosemu
-# binary distribution. Read README.bindist for details on hoe to use the
+# This generates the dosemu part (dosemu-<version>-bin.tgz) of the dosemu
+# binary distribution. Read README.bindist for details on how to use the
 # generated output.
 #
 # Usage:
