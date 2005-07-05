@@ -428,9 +428,9 @@ void pit_outp(ioport_t port, Bit8u val)
       timer_div     = (pit[0].cntr * 10000) / PIT_TICK_RATE;
       if (timer_div == 0)
 	timer_div = 1;
-#if 0
-      i_printf("timer_interrupt_rate requested %.3g Hz, granted %.3g Hz\n",
-	       PIT_TICK_RATE/(double)pit[0].cntr, 10000.0/timer_div);
+#if 1
+      i_printf("timer_interrupt_rate count %i, requested %.3g Hz, granted %.3g Hz\n",
+	       pit[0].cntr, PIT_TICK_RATE/(double)pit[0].cntr, 10000.0/timer_div);
 #endif
     }
     else if (port == 2 && config.speaker == SPKR_EMULATED) {
