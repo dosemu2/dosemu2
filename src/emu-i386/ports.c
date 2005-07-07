@@ -42,7 +42,6 @@
 #include "timers.h"
 #include "video.h"
 #include "vgaemu.h"	/* for video retrace */
-#include "hgc.h"
 #include "bios.h"
 #include "vc.h"
 #include "serial.h"

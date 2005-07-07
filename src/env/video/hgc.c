@@ -15,9 +15,6 @@
  *
  */
 
-#define HGC_C
-
-
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -30,13 +27,22 @@
 #include "video.h"
 #include "vc.h"
 #include "vga.h"
-#include "hgc.h"
 #include "mapping.h"
 
-char hgc_Mode = 0;
-char hgc_Konv = 0;
-int hgc_Page = 0;
-int hgc_ctrl = 0;
+#define HGC_BASE0 ( (caddr_t) 0xb0000)
+#define HGC_BASE1 ( (caddr_t) 0xb8000)
+#define HGC_PLEN (32 * 1024)
+
+static void hgc_meminit(void);
+static void mda_initialize(void);
+static void mda_reinitialize(void);
+static void set_hgc_page(int page);
+
+static char hgc_Mode;
+static char hgc_Konv;
+static int hgc_Page;
+static int hgc_ctrl;
+
 static char * phgcp0;
 static char * phgcp1;
 static char * syncadr;
@@ -48,7 +54,7 @@ static void hga_restore_cursor(void)
 }
 
 
-void poshgacur(int x, int  y)
+static void poshgacur(int x, int  y)
 {
   if ( !dos_has_vt )
     {
@@ -71,7 +77,7 @@ void poshgacur(int x, int  y)
   return;
 }
 
-void hgc_meminit(void)
+static void hgc_meminit(void)
 {
   char *maperr;
 
@@ -98,7 +104,7 @@ void hgc_meminit(void)
   }
 }
 
-void mda_initialize(void)
+static void mda_initialize(void)
 {
   cursor_shape = 0x0b0c;
 
@@ -165,7 +171,11 @@ void mda_initialize(void)
   video_initialized = 1;
 }
 
-void mda_reinitialize(void)
+static void map_hgc_page( int fullmode )
+{
+}
+
+static void mda_reinitialize(void)
 {
 
 #if 0
@@ -310,7 +320,7 @@ void mda_reinitialize(void)
 }
 
 
-void set_hgc_page(int page)
+static void set_hgc_page(int page)
 {
   caddr_t Test;
 
@@ -403,10 +413,6 @@ void set_hgc_page(int page)
   return;
 }
 
-void map_hgc_page( int fullmode )
-{
-}
-
 static int hgc_init(void)
 {
   hgc_meminit();
@@ -420,6 +426,12 @@ static int hgc_init(void)
       *p++ = blank;
   }
 
+  return 0;
+}
+
+static int hgc_post_init(void)
+{
+  Video_console.init();
   return 0;
 }
 
@@ -454,7 +466,7 @@ static void hga_close(void)
 
 struct video_system Video_hgc = {
    hgc_init,
-   NULL,
+   hgc_post_init,
    hga_close,
    hgc_setmode,
    NULL,             /* update_screen */
@@ -462,7 +474,3 @@ struct video_system Video_hgc = {
    NULL,
    NULL
 };
-
-
-#undef HGC_C
-

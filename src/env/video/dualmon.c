@@ -72,7 +72,6 @@
 #include "video.h"
 #include "vc.h"
 #include "vga.h"
-#include "hgc.h"
 #include "mapping.h"
 
 #define _IS_VS(s) (Video == ((struct video_system *)&(s)) )
@@ -291,15 +290,21 @@ static void reinit_MDA_regs(void)
 
 static int dualmon_init(void)
 {
-v_printf("VID: dualmon_init called\n");
-   /* We never need to intercept, if we get the ports now. */ 
-   if ( set_ioperm(0x3b4, 1, 1) || set_ioperm(0x3b5, 1, 1) || set_ioperm(0x3b8, 1, 1) 
+  v_printf("VID: dualmon_init called\n");
+  /* We never need to intercept, if we get the ports now. */ 
+  if ( set_ioperm(0x3b4, 1, 1) || set_ioperm(0x3b5, 1, 1) || set_ioperm(0x3b8, 1, 1) 
                             || set_ioperm(0x3ba, 1, 1) || set_ioperm(0x3bf, 1, 1) ) {
               v_printf("VID: dualmon, can't get I/O permissions \n");
                     exit(-1);
-   }
-   MDA_init();
-   return Video_default->init();
+  }
+  return Video_default->priv_init();
+}
+
+static int dualmon_post_init(void)
+{
+  v_printf("VID: dualmon_post_init called\n");
+  MDA_init();
+  return Video_default->init();
 }
 
 static void dualmon_close(void)
@@ -352,7 +357,7 @@ if (old != READ_WORD(BIOS_CONFIGURATION)) {
 
 struct video_system Video_dualmon = {
    dualmon_init,
-   NULL,
+   dualmon_post_init,
    dualmon_close,
    dualmon_setmode,
    NULL,                  /* will be overwritten by parent Video system */

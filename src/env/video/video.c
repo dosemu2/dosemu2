@@ -25,9 +25,6 @@
 #include "port.h"
 #include "memory.h"
 #include "video.h"
-#if 0
-#include "hgc.h"
-#endif
 #include "termio.h"
 #include "vc.h"
 #include "mapping.h"

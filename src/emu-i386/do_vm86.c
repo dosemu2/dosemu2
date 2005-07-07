@@ -49,7 +49,6 @@
 #include "config.h"
 #include "port.h"
 #include "int.h"
-#include "hgc.h"
 #include "disks.h"
 #include "ipx.h"                /* TRB - add support for ipx */
 #include "keymaps.h"

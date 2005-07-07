@@ -103,7 +103,6 @@ __asm__("___START___: jmp _emulate\n");
 #include "mouse.h"
 #include "disks.h"
 #include "xms.h"
-#include "hgc.h"
 #include "ipx.h"		/* TRB - add support for ipx */
 #include "serial.h"
 #include "int.h"
