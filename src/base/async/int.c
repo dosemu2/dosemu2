@@ -263,7 +263,7 @@ int dos_helper(void)
       if (set_ioperm(0x3b0, 0x3db - 0x3b0, 1))
 	warn("couldn't get range!\n");
       config.vga = 1;
-      set_vc_screen_page(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+      set_vc_screen_page();
       warn("WARNING: jumping to 0[c/e]000:0003\n");
 
       ssp = (unsigned char *) (REG(ss) << 4);

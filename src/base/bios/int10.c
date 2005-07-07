@@ -815,7 +815,6 @@ int int10(void) /* with dualmon */
 	i10_msg("set display page: bad page %d\n", page);
 	break;
       }
-      if (config.console_video) set_vc_screen_page(page);
       page_size = READ_WORD(BIOS_VIDEO_MEMORY_USED);
       address = page_size * page;
       crt_outw(0xc, address/2);

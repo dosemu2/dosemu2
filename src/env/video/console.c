@@ -41,6 +41,11 @@ static void console_update_cursor(void)
   int ypos = (vga.crtc.cursor_location - vga.display_start) / vga.scan_len;
   int blinkflag = cursor_blink;
 
+  if ((vga.display_start / PAGE_SIZE) != scr_state.pageno) {
+    /* page flipping, if possible */
+    set_vc_screen_page();
+  }
+
   /* The cursor is off-screen, so disable its blinking */
   if ((unsigned) xpos >= vga.text_width || (unsigned) ypos >= vga.text_height)
     blinkflag = 0;

@@ -819,7 +819,7 @@ void init_vga_card(void)
   dosemu_vga_screenon();
 
   config.vga = 1;
-  set_vc_screen_page(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+  set_vc_screen_page();
   video_initialized = 1;
 
   ssp = (unsigned char *)(READ_SEG_REG(ss)<<4);

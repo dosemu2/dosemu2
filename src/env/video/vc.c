@@ -65,6 +65,7 @@
 #include "priv.h"
 #include "mapping.h"
 #include "timers.h"
+#include "vgaemu.h"
 
 static void set_dos_video (void);
 
@@ -369,9 +370,8 @@ void get_video_ram (int waitflag)
   if (waitflag == WAIT)
     wait_for_active_vc();
 
-  page = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
   if (!scr_state.mapped && config.vga
-      && READ_BYTE(BIOS_VIDEO_MODE) == 3 && page < 8) {
+      && READ_BYTE(BIOS_VIDEO_MODE) == 3) {
     if (dosemu_regs.mem)
       memcpy (dosemu_regs.mem, (void *)virt_text_base, 32768);
     /* else error("ERROR: no dosemu_regs.mem!\n"); */
@@ -380,9 +380,10 @@ void get_video_ram (int waitflag)
   if (scr_state.mapped)
     unmap_video_ram(1);
 
+  page = vga.display_start / PAGE_SIZE;
   scr_state.pageno = page;
   if (!config.vga)
-    scr_state.virt_address = (void*)SCREEN_ADR(scr_state.pageno);
+    scr_state.virt_address = (void *)(virt_text_base + (page * PAGE_SIZE));
   map_video_ram();
 }
 
@@ -392,8 +393,7 @@ void put_video_ram (void)
     v_printf ("put_video_ram called\n");
     unmap_video_ram(!config.vga);
     if (!scr_state.mapped && config.vga) {
-      if (dosemu_regs.mem && READ_BYTE(BIOS_VIDEO_MODE) == 3 &&
-	  READ_BYTE(BIOS_CURRENT_SCREEN_PAGE) < 8)
+      if (dosemu_regs.mem && READ_BYTE(BIOS_VIDEO_MODE) == 3)
 	memcpy ((void*)virt_text_base, dosemu_regs.mem, 32768);
     }
   }
@@ -497,11 +497,8 @@ vc_active (void)
 
 }
 
-void
-set_vc_screen_page (int page)
+void set_vc_screen_page (void)
 {
-  WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, page);
-
   /* okay, if we have the current console, and video ram is mapped.
    * this has to be "atomic," or there is a "race condition": the
    * user may change consoles between our check and our remapping
