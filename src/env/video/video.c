@@ -25,6 +25,7 @@
 #include "port.h"
 #include "memory.h"
 #include "video.h"
+#include "vgaemu.h"
 #include "termio.h"
 #include "vc.h"
 #include "mapping.h"
@@ -41,9 +42,16 @@ static void v_empty_void (void) {}
 static int i_empty_3int (int type, int xsize, int ysize) {return 0;}
 static int video_combo;
 
+static int video_none_init(void)
+{
+  vga_emu_init(0, NULL);
+  vga_emu_setmode(video_mode, CO, LI);
+  return 0;
+}
+
 struct video_system Video_none = {
   i_empty_void,	/* priv_init */
-  i_empty_void,	/* init */
+  video_none_init,	/* init */
   v_empty_void,	/* close */
   i_empty_3int,	/* setmode */
   NULL,	        /* update_screen */

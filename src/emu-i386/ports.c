@@ -761,38 +761,6 @@ static void special_port_outb(ioport_t port, Bit8u byte)
 		return;
 	}
 
-	/* Port writes for cursor position: 3b4-3b5 or 3d4-3d5 */
-	if ((port & 0xfffe)==READ_WORD(BIOS_VIDEO_PORT)) {
-		/* Writing to the 6845 */
-		static int last_port;
-		static int last_byte;
-		static unsigned int hi = 0, lo = 0;
-		int pos;
-
-		v_printf("PORT: 6845 outb [0x%04x]\n", port);
-		if ((port == READ_WORD(BIOS_VIDEO_PORT) + 1) && (last_port == READ_WORD(BIOS_VIDEO_PORT))) {
-			/* We only take care of cursor positioning for now. */
-			/* This code should work most of the time, but can
-			   be defeated if i/o permissions change (e.g. by a vt
-			   switch) while a new cursor location is being written
-			   to the 6845. */
-			if (last_byte == 14) {
-				hi = byte;
-				pos = (hi << 8) | lo;
-				cursor_col = pos % 80;
-				cursor_row = pos / 80;
-			}
-			else if (last_byte == 15) {
-				lo = byte;
-				pos = (hi << 8) | lo;
-				cursor_col = pos % 80;
-				cursor_row = pos / 80;
-			}
-		}
-		last_port = port;
-		last_byte = byte;
-		return;
-	}
 defout:
 	std_port_outb (port, byte);
 }
@@ -1008,20 +976,13 @@ int extra_port_init(void)
 		for (i=0x3b4; i<0x3df; i++)
 			SET_HANDLE_COND(i,HANDLE_VID_IO);
 	}
-	if (config.cardtype == CARD_NONE || config.console_video) {
+	if (config.vga) {
  	  SET_HANDLE_COND(0x3b8,HANDLE_SPECIAL);
 	  SET_HANDLE_COND(0x3bf,HANDLE_SPECIAL);
 	  SET_HANDLE_COND(0x3c0,HANDLE_SPECIAL);	/* W */
   	  SET_HANDLE_COND(0x3ba,HANDLE_SPECIAL);		/* R */
 	  SET_HANDLE_COND(0x3da,HANDLE_SPECIAL);		/* R */
 	  SET_HANDLE_COND(0x3db,HANDLE_SPECIAL);		/* R */
-	  i = 0x3d4;
-	  if ((configuration & MDA_CONF_SCREEN_MODE) == MDA_CONF_SCREEN_MODE)
-	    i = 0x3b4;
-	  if (!config.vga) {
-	    SET_HANDLE_COND(i,HANDLE_SPECIAL);		/* W */
-	    SET_HANDLE_COND(i+1,HANDLE_SPECIAL);	/* W */
-	  }
 	}
 
 	if (portlog_map) {

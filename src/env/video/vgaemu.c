@@ -1344,6 +1344,7 @@ void vgaemu_reset_mapping()
 {
   int i, prot, page;
 
+  if (!Video->update_screen) return;
   memset((void *) (vga.mem.scratch_page << 12), 0xff, 1 << 12);
 
   prot = VGA_EMU_RW_PROT;
@@ -1368,6 +1369,54 @@ void vgaemu_reset_mapping()
   }
 }
 
+static void vgaemu_register_ports(void)
+{
+  emu_iodev_t io_device;
+
+  /* register VGA ports */
+  io_device.read_portb = VGA_emulate_inb;
+  io_device.write_portb = (void (*)(ioport_t, Bit8u)) VGA_emulate_outb;
+  io_device.read_portw = VGA_emulate_inw;
+  io_device.write_portw = (void (*)(ioport_t, Bit16u)) VGA_emulate_outw;
+  io_device.read_portd = NULL;
+  io_device.write_portd = NULL;
+  io_device.irq = EMU_NO_IRQ;
+  io_device.fd = -1;
+  
+  /* register VGAEmu */
+  io_device.handler_name = "VGAEmu VGA Controller";
+  io_device.start_addr = VGA_BASE;
+  io_device.end_addr = VGA_BASE + 0x0f;
+  port_register_handler(io_device, 0);
+
+  /* register CRT Controller */
+  io_device.handler_name = "VGAEmu CRT Controller";
+  io_device.start_addr = CRTC_INDEX;
+  io_device.end_addr = CRTC_DATA;
+  port_register_handler(io_device, 0);
+
+  /* register Input Status #1/Feature Control */
+  io_device.handler_name = "VGAEmu Input Status #1/Feature Control";
+  io_device.start_addr = INPUT_STATUS_1;
+  io_device.end_addr = INPUT_STATUS_1;
+  port_register_handler(io_device, 0);
+
+  /*
+   * Instead of single ports, we take them all - this way we can see
+   * if something is missing. -- sw
+   */
+  if(vga.config.mono_support) {
+    io_device.handler_name = "VGAEmu Mono/Hercules Card Range 0";
+    io_device.start_addr = 0x3b0;
+    io_device.end_addr = 0x3bb;
+    port_register_handler(io_device, 0);
+
+    io_device.handler_name = "VGAEmu Mono/Hercules Card Range 1";
+    io_device.start_addr = 0x3bf;
+    io_device.end_addr = 0x3bf;
+    port_register_handler(io_device, 0);
+  }
+}
 
 /*
  * DANG_BEGIN_FUNCTION vga_emu_init
@@ -1395,10 +1444,7 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
 {
   int i;
   vga_mapping_type vmt = {0, 0, 0};
-  emu_iodev_t io_device;
   static unsigned char *lfb_base = NULL;
-
-  open_mapping(MAPPING_VGAEMU);
 
   /* clean it up - just in case */
   memset(&vga, 0, sizeof vga);
@@ -1406,6 +1452,15 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
   vga.mode = vga.VGA_mode = vga.VESA_mode = 0;
 
   vga.config.mono_support = config.dualmon ? 0 : 1;
+
+  if (!Video->update_screen) {
+    vga_emu_setup_mode_table();
+    vgaemu_register_ports();
+    memcpy((void *) GFX_CHARS, vga_rom_08, 128 * 8);
+    return 0;
+  }
+
+  open_mapping(MAPPING_VGAEMU);
 
   if(config.vgaemu_memsize)
     vga.mem.size = config.vgaemu_memsize << 10;
@@ -1497,49 +1552,7 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
   vga_msg("vga_emu_init: protecting ROM area 0xc0000 - 0x%05x\n", (0xc0 + vgaemu_bios.pages) << 12);
   for(i = 0; i < vgaemu_bios.pages; i++) vga_emu_protect_page(0xc0 + i, RO);
 
-  /* register VGA ports */
-  io_device.read_portb = VGA_emulate_inb;
-  io_device.write_portb = (void (*)(ioport_t, Bit8u)) VGA_emulate_outb;
-  io_device.read_portw = VGA_emulate_inw;
-  io_device.write_portw = (void (*)(ioport_t, Bit16u)) VGA_emulate_outw;
-  io_device.read_portd = NULL;
-  io_device.write_portd = NULL;
-  io_device.irq = EMU_NO_IRQ;
-  io_device.fd = -1;
-  
-  /* register VGAEmu */
-  io_device.handler_name = "VGAEmu VGA Controller";
-  io_device.start_addr = VGA_BASE;
-  io_device.end_addr = VGA_BASE + 0x0f;
-  port_register_handler(io_device, 0);
-
-  /* register CRT Controller */
-  io_device.handler_name = "VGAEmu CRT Controller";
-  io_device.start_addr = CRTC_INDEX;
-  io_device.end_addr = CRTC_DATA;
-  port_register_handler(io_device, 0);
-
-  /* register Input Status #1/Feature Control */
-  io_device.handler_name = "VGAEmu Input Status #1/Feature Control";
-  io_device.start_addr = INPUT_STATUS_1;
-  io_device.end_addr = INPUT_STATUS_1;
-  port_register_handler(io_device, 0);
-
-  /*
-   * Instead of single ports, we take them all - this way we can see
-   * if something is missing. -- sw
-   */
-  if(vga.config.mono_support) {
-    io_device.handler_name = "VGAEmu Mono/Hercules Card Range 0";
-    io_device.start_addr = 0x3b0;
-    io_device.end_addr = 0x3bb;
-    port_register_handler(io_device, 0);
-
-    io_device.handler_name = "VGAEmu Mono/Hercules Card Range 1";
-    io_device.start_addr = 0x3bf;
-    io_device.end_addr = 0x3bf;
-    port_register_handler(io_device, 0);
-  }
+  vgaemu_register_ports();
 
   /*
    * init the ROM-BIOS font (the VGA fonts are added in vbe_init())
@@ -2204,12 +2217,9 @@ int vga_emu_setmode(int mode, int width, int height)
    */
 
   if(!(mode & 0x8000) && !(mode < 0x100 && (mode & 0x80))) {
-    unsigned *p = (unsigned *) vga.mem.base;
-    if(vga.mode_class == TEXT) {
-      int i;      
-      for(i = 0; i < 0x2000; i++) p[i] = 0x07200720;
-    } else {
-      memset(p, 0, vga.mem.size);
+    if(vga.mode_class != TEXT && vga.mem.base) {
+      /* should be moved to BIOS */
+      memset((void *)vga.mem.base, 0, vga.mem.size);
     }
   }
 
@@ -2280,6 +2290,7 @@ int vgaemu_map_bank()
   int j, k0, k1;
 #endif
 
+  if(!Video->update_screen) return False;
   if((vga.mem.bank + 1) * vga.mem.bank_pages > vga.mem.pages) {
     vga_msg("vgaemu_map_bank: invalid bank %d\n", vga.mem.bank);
     return False;
@@ -2381,7 +2392,8 @@ int vga_emu_set_textsize(int width, int height)
 
 void dirty_all_video_pages()
 {
-  memset(vga.mem.dirty_map, 1, vga.mem.pages);
+  if (vga.mem.dirty_map)
+    memset(vga.mem.dirty_map, 1, vga.mem.pages);
 }
 
 /*
