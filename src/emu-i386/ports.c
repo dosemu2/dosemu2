@@ -875,6 +875,7 @@ static void port_server(void)
 {
         struct portreq pr;
 	_port_handler *ph;
+	signal(SIGINT, SIG_IGN);
         priv_iopl(3);
 	priv_drop();
         close(port_fd_in[0]);
