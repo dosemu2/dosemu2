@@ -139,12 +139,7 @@ EXTERN int text_scanlines INIT(400);   /* # of scan lines in textmodes */
 
 EXTERN unsigned char video_initialized INIT(0);
 extern void install_int_10_handler(void);
-extern void clear_screen(int s,int att);
 extern boolean set_video_mode(int);
-
-extern void Scroll(us *sadr,int x0,int y0,int x1,int y1,int n,int attr);
-#define scrollup(x0,y0,x1,y1,l,att) Scroll(x0,y0,x1,y1,l,att)
-#define scrolldn(x0,y0,x1,y1,l,att) Scroll(x0,y0,x1,y1,-(l),att)
 
 /* Values are set by video_config_init depending on video-card defined in config */
 /* Values are set from emu.c depending on video-config */

@@ -169,20 +169,22 @@ static inline void set_cursor_shape(ushort shape) {
  * It may give some performance improvement on some systems (it does
  * on mine) (Andrew Tridgell)
  */
-void
-Scroll(us *sadr, int x0, int y0, int x1, int y1, int l, int att)
+static void
+Scroll(int addr, int x0, int y0, int x1, int y1, int l, int att)
 {
   int dx = x1 - x0 + 1;
   int dy = y1 - y0 + 1;
   int x, y, co, li;
   us blank = ' ' | (att << 8);
   us tbuf[MAX_COLUMNS];
+  us *sadr;
 
   if (config.cardtype == CARD_NONE)
      return;
 
   li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
   co= READ_WORD(BIOS_SCREEN_COLUMNS);
+  sadr = (us *)(addr + READ_WORD(BIOS_VIDEO_MEMORY_ADDRESS));
 
   if ( (config.cardtype == CARD_MDA) && ((att & 7) != 0) && ((att & 7) != 7) )
     {
@@ -249,11 +251,11 @@ Scroll(us *sadr, int x0, int y0, int x1, int y1, int l, int att)
 
 #if USE_DUALMON
   #define bios_scroll(x0,y0,x1,y1,n,attr) ({\
-   if (IS_SCREENMODE_MDA) Scroll((void *)MDA_PHYS_TEXT_BASE,x0,y0,x1,y1,n,attr); \
-   else Scroll(screen_adr,x0,y0,x1,y1,n,attr);\
+   if (IS_SCREENMODE_MDA) Scroll(MDA_PHYS_TEXT_BASE,x0,y0,x1,y1,n,attr); \
+   else Scroll(virt_text_base,x0,y0,x1,y1,n,attr);\
   })
 #else
-  #define bios_scroll(x0,y0,x1,y1,n,attr) Scroll(screen_adr,x0,y0,x1,y1,n,attr)
+  #define bios_scroll(x0,y0,x1,y1,n,attr) Scroll(virt_text_base,x0,y0,x1,y1,n,attr)
 #endif
 
 static int using_text_mode(void)
@@ -360,32 +362,25 @@ void tty_char_out(unsigned char ch, int s, int attr)
  * buffer.  If in termcap mode, the screen will be cleared the next time
  * restore_screen() is called.
  */
-void
-clear_screen(int s, int att)
+static void clear_screen(void)
 {
-  u_short *schar, blank = ' ' | (att << 8);
-  int lx, co, li;
-#if USE_DUALMON
+  u_short *schar, blank = ' ' | (7 << 8);
+  int lx, s;
   int virt_text_base = BIOS_SCREEN_BASE;
   if (Video->update_screen) virt_text_base = (int)vga.mem.base;
-#endif
 
   if (config.cardtype == CARD_NONE)
      return;
 
-  li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
-  co= READ_WORD(BIOS_SCREEN_COLUMNS);
+  v_printf("INT10: cleared screen: screen_adr %p\n", SCREEN_ADR(0));
 
-  v_printf("INT10: cleared screen: page %d, attr 0x%02x, screen_adr %p\n", s, att, SCREEN_ADR(s));
-  if (s > max_page) return;
-  
-  for (schar = SCREEN_ADR(s), 
-       lx = 0; lx < (co * li); 
-/*       *(schar++) = blank, lx++); */
+  for (schar = SCREEN_ADR(0), lx = 0; lx < 16*1024;
        WRITE_WORD(schar++, blank), lx++);
 
-  set_dirty(s);
-  set_cursor_pos(s, 0, 0);
+  for (s = 0; s < 8; s++) {
+    set_dirty(s);
+    set_cursor_pos(s, 0, 0);
+  }
 }
 
 
@@ -398,7 +393,7 @@ clear_screen(int s, int att)
  * -- 1998/04/04 sw
  */
 
-static boolean X_set_video_mode(int mode) {
+boolean set_video_mode(int mode) {
   vga_mode_info *vmi;
   int clear_mem = 1;
   int adjust_font_size = 0;
@@ -429,10 +424,15 @@ static boolean X_set_video_mode(int mode) {
 
   if(Video->setmode == NULL) {
     vga.display_start = 0;
-    virt_text_base = (int)vga.mem.base;
-    screen_adr = (void *)vga.mem.base;
+    if(Video->update_screen) {
+      virt_text_base = (int)vga.mem.base;
+      screen_adr = (void *)vga.mem.base;
+    }
     WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
     WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);
+    /* mode change clears screen unless bit7 of AL set */
+    if (!(mode & 0x80))
+      clear_screen();
     i10_msg("set_video_mode: no setmode handler!\n");
     return 0;
   }
@@ -460,8 +460,6 @@ static boolean X_set_video_mode(int mode) {
     return 1;
   }
 
-  video_mode = mode;
-
   if(mode >= 0x80 && mode < 0x100) {
     mode &= 0x7f;
     clear_mem = 0;
@@ -471,7 +469,37 @@ static boolean X_set_video_mode(int mode) {
     clear_mem = 0;
   }
 
-  if(config.cardtype == CARD_MDA) video_mode = 7;
+  if(config.cardtype == CARD_MDA) mode = 7;
+
+  if (Video->update_screen == NULL) {
+    int type=0;
+    co = READ_WORD(BIOS_SCREEN_COLUMNS);
+    if (mode <= 3 || mode == 7 || (mode >= 0x50 && mode <= 0x5a)) {
+      co = vmi->text_width;
+#if USE_DUALMON
+      if (mode == 7 && config.dualmon) {
+	type=7;
+	text_scanlines = 400;
+	vga_font_height=text_scanlines/25;
+      }
+#endif
+    } else
+      return 0;
+    li=text_scanlines/vga_font_height;
+    if (li>MAX_LINES) li=MAX_LINES;
+    WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li-1);
+    WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
+    WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
+    WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
+    Video->setmode(type,co,li);
+    /* mode change clears screen unless bit7 of AL set */
+    if (clear_mem)
+      clear_screen();
+    if ( config.cardtype == CARD_MDA )
+      mode = 7;
+    WRITE_BYTE(BIOS_VIDEO_MODE, video_mode=mode);
+    return 1;
+  }
 
   /*
    * We store the SVGA mode number (if possible) even when setting
@@ -495,6 +523,8 @@ static boolean X_set_video_mode(int mode) {
   WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
   WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
   WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
+
+  video_mode = mode;
 
 #if USE_DUALMON
   /*
@@ -526,7 +556,7 @@ static boolean X_set_video_mode(int mode) {
    */
   video_mode = mode;
 
-  if(clear_mem && using_text_mode()) clear_screen(0, 7);
+  if(clear_mem && using_text_mode()) clear_screen();
 
   WRITE_BYTE(BIOS_VIDEO_INFO_0, clear_mem ? 0x60 : 0xe0);
   memset((void *) 0x450, 0, 0x10);	/* equiv. to set_bios_cursor_(x/y)_position(0..7, 0) */
@@ -566,123 +596,6 @@ static boolean X_set_video_mode(int mode) {
   SETIVEC(0x43, 0xc000, u);
 
   return 1;
-}    
-
-/* XXX- shouldn't this reset the current video page to 0 ? 
-*/
-
-boolean set_video_mode(int mode) {
-  int type=0;
-  int old_video_mode,oldco,co,li;
-
-  if (Video->update_screen) return X_set_video_mode(mode);
-  i10_msg("set_video_mode: mode 0x%02x\n",mode);
-  
-  co = oldco = READ_WORD(BIOS_SCREEN_COLUMNS);
-  old_video_mode = video_mode;
-  video_mode=mode&0x7f;
-
-  if (Video->setmode == 0)
-    { 
-      v_printf("video: no setmode handler!\n");
-      goto error;
-    }
-
-
-  switch (mode&0x7f) {
-  case 0x50:
-  case 0x51:
-  case 0x52:
-    co=80;
-    goto do_text_mode;
-  case 0x53:
-  case 0x54:
-  case 0x55:
-  case 0x56:
-  case 0x57:
-  case 0x58:
-  case 0x59:
-  case 0x5a:
-    co=132;
-    goto do_text_mode;
-  
-  case 0:
-  case 1:
-    /* 40 column modes... */
-    co=40;
-    goto do_text_mode;
-    
-  case 7:
-    /*
-     * This to be sure in case of older DOS programs probing HGC.
-     * There was no secure way to detect a HGC before VGA was invented.
-     * ( Now we can do INT 10, AX=1A00 ).
-     * Some older DOS programs do it by modifying EQUIP-flags
-     * and then let the BIOS say, if it can ?!?!)
-     * If we have config.dualmon, this happens legaly.
-     */
-#if USE_DUALMON
-    if (config.dualmon) {
-      type=7;
-      text_scanlines = 400;
-      vga_font_height=text_scanlines/25;
-    }
-#endif
-    /* fall through */
-     
-  case 2:
-  case 3:
-    /* set 80 column text mode */
-#if USE_DUALMON
-    WRITE_WORD(BIOS_SCREEN_COLUMNS, co = CO); /*80*/
-#else
-    co=80;
-#endif
-    
-do_text_mode:
-
-    li=text_scanlines/vga_font_height;
-    if (li>MAX_LINES) li=MAX_LINES;
-    WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li-1);
-    WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
-    WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
-    Video->setmode(type,co,li);
-    /* mode change clears screen unless bit7 of AL set */
-    if (!(mode & 0x80))
-       clear_screen(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), 7);
-
-    if ( config.cardtype == CARD_MDA )
-      mode = 7;
-       
-    break;
-
-
-case 0x13:	/*Not finished ! */
-case 0x5c:
-case 0x5d:
-case 0x5e:
-case 0x62:
-  /* 0x01 == GRAPH for us, but now it's sure! */
-  if (Video->setmode != NULL)
-  Video->setmode(0x01,0,0);
-  break;
-
-  default:
-    /* handle graphics modes here */
-    v_printf("undefined video mode 0x%x\n", mode);
-  goto error;
-  }
-
-  WRITE_BYTE(BIOS_VIDEO_MODE, video_mode=mode&0x7f);
-
-  if (oldco != co)
-    WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
-  return 1;
-
-error:
-  /* don't change any state on failure */
-  video_mode = old_video_mode;
-  return 0;
 }    
 
 /* get the active and alternate display combination code */

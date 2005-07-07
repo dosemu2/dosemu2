@@ -1589,11 +1589,6 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
     vga.config.mono_support ? "" : "no "
   );
 
-  /*
-   * Set some mode; this initializes the DAC, CRTC, etc. as well.
-   */
-  set_video_mode(3);		/* initialize some mode */
-
   return 0;
 }
 

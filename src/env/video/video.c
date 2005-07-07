@@ -334,7 +334,7 @@ void video_mem_setup(void)
     
   WRITE_DWORD(BIOS_VIDEO_SAVEPTR, 0);		/* pointer to video table */
 
-  clear_screen(0, 7);
+  set_video_mode(video_mode);
 }
 
 void
