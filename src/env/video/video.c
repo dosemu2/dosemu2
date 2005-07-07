@@ -420,7 +420,6 @@ video_config_init(void) {
      config.console = 0;
   }
   screen_mask = 1 << (((int)phys_text_base-0xA0000)/4096);
-  screen_adr = (void *)virt_text_base;
 
   video_init();
 

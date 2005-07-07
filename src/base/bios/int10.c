@@ -424,10 +424,8 @@ boolean set_video_mode(int mode) {
 
   if(Video->setmode == NULL) {
     vga.display_start = 0;
-    if(Video->update_screen) {
+    if(Video->update_screen)
       virt_text_base = (int)vga.mem.base;
-      screen_adr = (void *)vga.mem.base;
-    }
     WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
     WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);
     /* mode change clears screen unless bit7 of AL set */
@@ -563,7 +561,6 @@ boolean set_video_mode(int mode) {
 
   WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);
   virt_text_base = (int)vga.mem.base;
-  screen_adr = (void *)vga.mem.base;
   screen_mask = 0;
 
   set_cursor_shape(0x0607);
@@ -708,9 +705,9 @@ int int10(void) /* with dualmon */
   unsigned page, page_size, address;
   u_char c;
   us *sm;
+  int virt_text_base;
 
 #if USE_DUALMON
-  int virt_text_base = BIOS_SCREEN_BASE;
   static int last_equip=-1;
 
   if (config.dualmon && (last_equip != BIOS_CONFIG_SCREEN_MODE)) {
@@ -720,6 +717,9 @@ int int10(void) /* with dualmon */
     else Video->update_screen = Video_default->update_screen;
   }
 #endif
+
+  virt_text_base = BIOS_SCREEN_BASE;
+  if (Video->update_screen) virt_text_base = (int)vga.mem.base;
 
   li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
   co= READ_WORD(BIOS_SCREEN_COLUMNS);

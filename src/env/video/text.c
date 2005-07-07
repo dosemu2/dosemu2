@@ -47,7 +47,7 @@ struct text_system * Text = NULL;
 int use_bitmap_font = TRUE;
 Boolean have_focus = FALSE;
 
-static int prev_cursor_row = -1, prev_cursor_col = -1;
+static unsigned prev_cursor_location = -1;
 static ushort prev_cursor_shape = NO_CURSOR;
 static int blink_state = 1;
 static int blink_count = 8;
@@ -108,24 +108,35 @@ static void draw_string(int x, int y, char *text, int len, Bit8u attr)
 
 
 /*
+ * check if the cursor location is within bounds and it's text mode
+ */
+static int check_cursor_location(unsigned cursor_location, int *x, int *y)
+{
+  /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
+  if(vga.mode_class == GRAPH) return 0;
+
+  *x = (cursor_location % vga.scan_len) / 2;
+  *y = cursor_location / vga.scan_len;
+
+  /* don't draw it if it's out of bounds */
+  return (*y >= 0 && *y < vga.text_height && *x >= 0 && *x < vga.text_width);
+}
+
+/*
  * Restore a character cell (used to remove the cursor).
  * Do nothing in graphics modes.
  */
-static void restore_cell(int x, int y)
+static void restore_cell(unsigned cursor_location)
 {
   Bit16u *sp, *oldsp;
   u_char c;
-  int co;
+  int x, y;
 
-  /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
-  if(vga.mode_class == GRAPH) return;
+  if (!check_cursor_location(cursor_location, &x, &y))
+    return;
 
-  /* don't draw it if it's out of bounds */
-  if(y < 0 || y >= vga.text_height || x < 0 || x >= vga.text_width) return;
-
-  co = vga.scan_len / 2;
-  sp = screen_adr + y * co + x;
-  oldsp = prev_screen + y * co + x;
+  sp = (Bit16u *)(vga.mem.base + vga.display_start + cursor_location);
+  oldsp = prev_screen + cursor_location / 2;
   c = XCHAR(sp);
 
   *oldsp = XREAD_WORD(sp);
@@ -136,21 +147,17 @@ static void restore_cell(int x, int y)
  * Draw the cursor (nothing in graphics modes, normal if we have focus,
  * rectangle otherwise).
  */
-static void draw_cursor(int x, int y)
+static void draw_cursor(void)
 {  
-  int co;
+  int x, y;
 
-  /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
-  if(vga.mode_class == GRAPH) return;
-
-  /* don't draw it if it's out of bounds */
-  if(cursor_row < 0 || cursor_row >= vga.text_height) return;
-  if(cursor_col < 0 || cursor_col >= vga.text_width) return;
-  co = vga.scan_len / 2;
-  if(blink_state || !have_focus)
-    Text->Draw_cursor(cursor_col, cursor_row, XATTR(screen_adr + y * co + x),
+  if(check_cursor_location(vga.crtc.cursor_location - vga.display_start, &x, &y) &&
+     (blink_state || !have_focus)) {
+    Bit16u *cursor = (Bit16u *)(vga.mem.base + vga.crtc.cursor_location);
+    Text->Draw_cursor(x, y, XATTR(cursor),
 		      CURSOR_START(cursor_shape), CURSOR_END(cursor_shape),
 		      have_focus);
+  }
 }
 
 /*
@@ -160,15 +167,14 @@ static void draw_cursor(int x, int y)
 static void redraw_cursor(void)
 {
   if(prev_cursor_shape != NO_CURSOR)
-    restore_cell(prev_cursor_col, prev_cursor_row);
+    restore_cell(prev_cursor_location);
 
   if(cursor_shape != NO_CURSOR)
-    draw_cursor(cursor_col, cursor_row);
+    draw_cursor();
 
   Text->Update();
 
-  prev_cursor_row = cursor_row;
-  prev_cursor_col = cursor_col;
+  prev_cursor_location = vga.crtc.cursor_location - vga.display_start;
   prev_cursor_shape = cursor_shape;
 }
 
@@ -218,7 +224,8 @@ void reset_redraw_text_screen(void)
     if (vga.text_width > MAX_COLUMNS  ) vga.text_width = MAX_COLUMNS;
     if (vga.text_height > MAX_LINES   ) vga.text_height = MAX_LINES;
   }
-  MEMCPY_2UNIX(prev_screen, screen_adr, vga.scan_len * vga.text_height);
+  MEMCPY_2UNIX(prev_screen, vga.mem.base + vga.display_start,
+	       vga.scan_len * vga.text_height);
 }
 
 /*
@@ -283,15 +290,13 @@ void redraw_text_screen()
     return;
   }
 
-  x_deb(
-    "X_redraw_text_screen: mode 0x%x (%d x %d), screen_adr = 0x%x\n",
-    vga.mode, co, li, (unsigned) screen_adr
-  );
-
-  /* sp = (Bit16u *) (vga.mem.base + vga.display_start); */
-
-  sp = screen_adr;
+  sp = (Bit16u *) (vga.mem.base + vga.display_start);
   oldsp = prev_screen;
+
+  x_deb(
+    "X_redraw_text_screen: mode 0x%x (%d x %d), screen_adr = %p\n",
+    vga.mode, co, li, sp
+  );
 
   for(y = 0; y < vga.text_height; y++) {
     x = 0;
@@ -319,8 +324,7 @@ void redraw_text_screen()
 void update_cursor(void)
 {
   if(
-    cursor_row != prev_cursor_row ||
-    cursor_col != prev_cursor_col ||
+    vga.crtc.cursor_location - vga.display_start != prev_cursor_location ||
     cursor_shape != prev_cursor_shape
   ) {
     redraw_cursor();
@@ -343,20 +347,16 @@ void blink_cursor()
   blink_state = !blink_state;
 
   if(cursor_shape != NO_CURSOR) {
-    if(
-      cursor_row != prev_cursor_row ||
-      cursor_col != prev_cursor_col
-    ) {
-      restore_cell(prev_cursor_col, prev_cursor_row);
-      prev_cursor_row = cursor_row;
-      prev_cursor_col = cursor_col;
+    if(vga.crtc.cursor_location - vga.display_start != prev_cursor_location) {
+      restore_cell(prev_cursor_location);
+      prev_cursor_location = vga.crtc.cursor_location -vga.display_start;
       prev_cursor_shape = cursor_shape;
     }
 
     if(blink_state)
-      draw_cursor(cursor_col, cursor_row);
+      draw_cursor();
     else
-      restore_cell(cursor_col, cursor_row);
+      restore_cell(vga.crtc.cursor_location - vga.display_start);
   }
 }
 
@@ -492,7 +492,8 @@ int update_text_screen(void)
   Bit16u *sp, *oldsp;
   u_char charbuff[MAX_COLUMNS], *bp;
   int x, y;	/* X and Y position of character being updated */
-  int start_x, len, unchanged, co;
+  int start_x, len, unchanged, co, cursor_row;
+  unsigned start_off;
   Bit8u attr;
 
   static int yloop = -1;
@@ -532,7 +533,8 @@ int update_text_screen(void)
    * If y is out of bounds, then give it an invalid value so that it
    * can be given a different value during the loop.
    */
-	y = cursor_row;
+	y = cursor_row =
+	  (vga.crtc.cursor_location - vga.display_start) / vga.scan_len;
 	if ((y < 0) || (y >= vga.text_height)) 
 	  y = -1;
 
@@ -558,7 +560,7 @@ int update_text_screen(void)
 	      }
 	    numscan++;
 	    
-	    sp = screen_adr + y*co;
+	    sp = (Bit16u*)(vga.mem.base + vga.display_start) + y*co;
 	    oldsp = prev_screen + y*co;
 
 	    x=0;
@@ -581,7 +583,8 @@ int update_text_screen(void)
    a row) in the 'changed' string. 
 */
 		bp = charbuff;
-		start_x=x;
+		start_off = (u_char *)sp - vga.mem.base - vga.display_start;
+		start_x = x;
 #if CONFIG_SELECTION
 		/* don't show selection if the DOS app changed it */
 		if (SEL_ACTIVE(sp) && *sp != *oldsp)
@@ -619,9 +622,8 @@ int update_text_screen(void)
 
                 draw_string(start_x, y, charbuff, len, attr);
 
-		if ((prev_cursor_row == y) && 
-		    (prev_cursor_col >= start_x) && 
-		    (prev_cursor_col < start_x+len))
+		if ((prev_cursor_location >= start_off) &&
+		    (prev_cursor_location < start_off + len*2))
 		  {
 		    prev_cursor_shape=NO_CURSOR;  
 /* old cursor was overwritten */
@@ -694,6 +696,7 @@ void text_gain_focus()
 static void calculate_selection(void)
 {
   int co = vga.scan_len / 2;
+  Bit16u *screen_adr = (Bit16u *)(vga.mem.base + vga.display_start);
   if ((sel_end_row < sel_start_row) || 
     ((sel_end_row == sel_start_row) && (sel_end_col < sel_start_col)))
   {
@@ -741,9 +744,13 @@ void clear_selection_data(void)
 */
 void clear_if_in_selection()
 {
+  unsigned cursor_row, cursor_col;
+  
   if (!visible_selection)
     return;
 
+  cursor_row = (vga.crtc.cursor_location - vga.display_start) / vga.scan_len;
+  cursor_col = ((vga.crtc.cursor_location - vga.display_start) % vga.scan_len) / 2;
   X_printf("X:clear check selection , cursor at %d %d\n",
 	   cursor_col,cursor_row);
   if (((sel_start_row <= cursor_row)&&(cursor_row <= sel_end_row)&&
@@ -806,6 +813,7 @@ static void save_selection(int col1, int row1, int col2, int row2)
 	u_char *sel_text_dos, *sel_text_latin, *sel_text_ptr, *prev_sel_text_latin;
 	size_t sel_space, sel_text_bytes;
 	u_char *p;
+	Bit16u *screen_adr;
         
 	struct char_set_state paste_state;
 	struct char_set_state video_state; /* must not have any... */
@@ -817,6 +825,7 @@ static void save_selection(int col1, int row1, int col2, int row2)
 	init_charset_state(&paste_state, paste_charset);
 	
 	co = vga.scan_len / 2;
+	screen_adr = (Bit16u *)(vga.mem.base + vga.display_start);
 	p = sel_text_dos = malloc(vga.text_width);
 	sel_space = (row2-row1+1)*(co+1)*MB_LEN_MAX+1;
 	sel_text_latin = sel_text = malloc(sel_space);
@@ -889,6 +898,7 @@ static void save_selection(int col1, int row1, int col2, int row2)
 static void save_selection_data(void)
 {
   int col1, row1, col2, row2, co;
+  Bit16u *screen_adr = (Bit16u *)(vga.mem.base + vga.display_start);
 
   if ((sel_end-sel_start) < 0)
   {

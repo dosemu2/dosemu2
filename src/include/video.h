@@ -114,16 +114,12 @@ extern struct video_system *Video_default;
 extern struct video_system Video_none, Video_graphics, Video_X,
   Video_console, Video_hgc, Video_term, Video_SDL;
 
-EXTERN ushort *screen_adr;   /* pointer to video memory of current page */
-/* currently displayed page (was scrbuf) */
 EXTERN ushort *prev_screen;  /* pointer to currently displayed screen   */
                              /* used&updated by Video->update_screen    */
 
 EXTERN int video_mode INIT(0);
 EXTERN int char_blink INIT(1);
 
-EXTERN int cursor_col INIT(0);
-EXTERN int cursor_row INIT(0);
 EXTERN int cursor_blink INIT(1);
 EXTERN ushort cursor_shape INIT(0xe0f);
 /* bit mask for testing vm86s.screen_bitmap */

@@ -28,6 +28,7 @@
 #include "vc.h"
 #include "vga.h"
 #include "mapping.h"
+#include "vgaemu.h"
 
 #define HGC_BASE0 ( (caddr_t) 0xb0000)
 #define HGC_BASE1 ( (caddr_t) 0xb8000)
@@ -51,30 +52,6 @@ static void hga_restore_cursor(void)
 {
   port_out(10,0x03b4); port_out( 11,0x03b5);
   port_out(11,0x03b4); port_out( 12,0x03b5);
-}
-
-
-static void poshgacur(int x, int  y)
-{
-  if ( !dos_has_vt )
-    {
-      hga_restore_cursor();
-      return;
-    }
-
-  /* cursor address high */
-  port_out(14,0x03b4); port_out( ( ( y*80+x ) & 0xFF00 )>>8 ,0x03b5);
-
-  /* cursor address low */
-  port_out(15,0x03b4); port_out( ( y*80+x ) & 0x0FF ,0x03b5);
-
-  /* cursor start */
-  port_out(10,0x03b4); port_out( CURSOR_START(cursor_shape),0x03b5);
-
-  /* cursor end */
-  port_out(11,0x03b4); port_out( CURSOR_END(cursor_shape),0x03b5);
-
-  return;
 }
 
 static void hgc_meminit(void)
@@ -442,13 +419,6 @@ static int hgc_setmode(int type, int xsize,int ysize)
   return 0;
 }
 
-static void do_hgc_update_cursor(void)
-{
-  poshgacur(cursor_col,cursor_row);
-  return;
-}
-
-
 static void hga_close(void)
 {
   /* Later modifications may make it necessary to put the
@@ -470,7 +440,7 @@ struct video_system Video_hgc = {
    hga_close,
    hgc_setmode,
    NULL,             /* update_screen */
-   do_hgc_update_cursor,
+   NULL,
    NULL,
    NULL
 };

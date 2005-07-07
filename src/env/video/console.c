@@ -37,14 +37,12 @@ static void console_update_cursor(void)
   static int oldy = -1;
   static int oldblink = 0;
   
-  int li = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
-  int co = READ_WORD(BIOS_SCREEN_COLUMNS);
-  int xpos = cursor_col;
-  int ypos = cursor_row;
+  int xpos = ((vga.crtc.cursor_location - vga.display_start) % vga.scan_len) / 2;
+  int ypos = (vga.crtc.cursor_location - vga.display_start) / vga.scan_len;
   int blinkflag = cursor_blink;
 
   /* The cursor is off-screen, so disable its blinking */
-  if ((unsigned) xpos >= co || (unsigned) ypos >= li)
+  if ((unsigned) xpos >= vga.text_width || (unsigned) ypos >= vga.text_height)
     blinkflag = 0;
   
   if (blinkflag) {

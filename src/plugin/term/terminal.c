@@ -546,7 +546,7 @@ static void show_help (void)
  */
 static int slang_update (void)
 {
-   int changed, imin;
+   int changed, imin, cursor_row, cursor_col;
 
    static int last_row, last_col, help_showing;
    static const char *last_prompt = NULL;
@@ -561,6 +561,8 @@ static int slang_update (void)
      }
    help_showing = 0;
    
+   cursor_row = (vga.crtc.cursor_location - vga.display_start) / vga.scan_len;
+   cursor_col = ((vga.crtc.cursor_location - vga.display_start) % vga.scan_len) / 2;
    imin = Rows - SLtt_Screen_Rows;
    if (((DOSemu_Terminal_Scroll == 0) && 
 	(cursor_row < SLtt_Screen_Rows))
@@ -722,7 +724,7 @@ void dos_slang_smart_set_mono (void)
    register unsigned short *s, *smax;
    
    Attribute_Map = BW_Attribute_Map;
-   s = screen_adr;
+   s = (unsigned short *)(vga.mem.base + vga.display_start);
    smax = s + Rows * Columns;
    
    for (i = 0; i < 256; i++) attr_count[i] = 0;
