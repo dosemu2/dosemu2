@@ -19,6 +19,7 @@
  */
 
 #include "emu.h"
+#include "utilities.h"
 #include "Linux/mman.h"
 #include "mapping.h"
 #include <string.h>
@@ -420,6 +421,14 @@ void free_mapping(int cap, void *addr, int mapsize)
 
 void *realloc_mapping(int cap, void *addr, int oldsize, int newsize)
 {
+  if (!addr) {
+    if (oldsize)  // no-no, realloc of the lowmem is not good too
+      dosemu_error("realloc_mapping() called with addr=NULL, oldsize=%#x\n", oldsize);
+    Q_printf("MAPPING: realloc from NULL changed to malloc\n");
+    return alloc_mapping(cap, newsize, (void*)-1);
+  }
+  if (!oldsize)
+    dosemu_error("realloc_mapping() addr=%p, oldsize=0\n", addr);
   return mappingdriver.realloc(cap, addr, oldsize, newsize);
 }
 
