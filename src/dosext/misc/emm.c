@@ -324,7 +324,8 @@ static mach_port_t
 new_memory_object(size_t bytes)
 {
   mach_port_t addr;
-
+  if (!bytes)
+    return NULL;
   addr = alloc_mapping(MAPPING_EMS, bytes, 0);
   if (!addr) return 0;
   E_printf("EMS: allocating 0x%08x bytes @ %p\n", bytes, (void *) addr);
@@ -334,6 +335,8 @@ new_memory_object(size_t bytes)
 static inline void
 destroy_memory_object(mach_port_t object, int length)
 {
+  if (!object)
+    return;
   E_printf("EMS: destroyed EMS object @ %p\n", (void *) object);
   free_mapping(MAPPING_EMS, object, length);
 }
