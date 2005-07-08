@@ -347,15 +347,16 @@ void joy_init (void)
 	{
 		int axis;
 
+		joy_fd [joynum] = -1;
+
+		joy_numaxes [joynum] = 0;
+		joy_numbuttons [joynum] = 0;
+		
 		/* set to initial values */
 		for (axis = 0; axis < 4; axis++)
 			joy_axis [joynum][axis] = JOY_AXIS_INVALID;
 
-		joy_port_x [joynum] = joy_port_y [joynum] = 0;
-		joy_fd [joynum] = -1;
-
-		joy_numbuttons [joynum] = 0;
-		joy_numaxes [joynum] = 0;
+		joy_port_x [joynum] = joy_port_y [joynum] = -1;
 	}
 
 
@@ -546,6 +547,13 @@ void joy_init (void)
 		joy_init_printf ("WARNING! No joysticks enabled!\n");
 	#endif
 		joy_status = 0;
+		
+		/* 
+		 * We don't need to register the port - leave it for direct port
+		 * access (Sourceforge Support Request #1178900).  If direct port
+		 * access is not used, the DOSEMU port emulation will return the
+		 * correct value of 0xff (port_not_avail_inb()).
+		 */
 		return;
 	}
 	else
@@ -565,14 +573,7 @@ void joy_init (void)
 	io_device.end_addr     = 0x20F;
 	io_device.irq          = EMU_NO_IRQ;
 	io_device.fd           = -1;
-	/*
-	 * DANG_BEGIN_REMARK
-	 *
-	 * Register the joystick ports so that correct port values are returned
-	 * for programs that try to detect the joystick (or the lack of one).
-	 *
-	 * DANG_END_REMARK
-	 */
+
 	if (port_register_handler (io_device, 0) != 0)
 	{
 	#ifdef JOY_INIT_DEBUG

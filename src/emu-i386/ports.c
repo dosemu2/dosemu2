@@ -321,7 +321,12 @@ static Bit8u port_not_avail_inb(ioport_t port)
 {
 /* it is a fact of (hardware) life that unused locations return all
    (or almost all) the bits at 1; some software can try to detect a
-   card basing on this fact and fail if it reads 0x00 - AV */
+   card basing on this fact and fail if it reads 0x00 - AV
+   
+   The joystick code is dependent on 0xff as joystick.c:r1.4
+   (2005-04-08) stopped registering port handlers if no joystick
+   is initialised - Clarence Dang
+*/
 	check_crit_section(port, "inb");
 	if (debug_level('i')) pna_emsg(port,'b',"read");
 	return 0xff;
