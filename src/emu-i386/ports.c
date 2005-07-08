@@ -992,7 +992,7 @@ int extra_port_init(void)
 		if (test_bit(i, portlog_map) &&
 		    port_handle_table[i] >= HANDLE_STD_IO &&
 		    port_handle_table[i] <= HANDLE_STD_WR) {
-			ioperm(i, 1, 0);
+			set_ioperm(i, 1, 0);
 			i_printf ("PORT: switched off ioperm for traced port 0x%x\n", i);
 		}
 	    }
@@ -1132,7 +1132,7 @@ int port_register_handler(emu_iodev_t device, int flags)
     if (flags & PORT_FAST) {
 	i_printf("PORT: trying to give fast access to ports [0x%04x-0x%04x]\n",
 		 device.start_addr, device.end_addr);
-	if (ioperm(device.start_addr, device.end_addr-device.start_addr+1, 1) == -1) {
+	if (set_ioperm(device.start_addr, device.end_addr-device.start_addr+1, 1) == -1) {
 	  i_printf("PORT: fast failed: using perm/iopl for ports [0x%04x-0x%04x]\n",
 		   device.start_addr, device.end_addr);
 	}

@@ -418,6 +418,8 @@ video_config_init(void) {
      config.mapped_bios = 0;
      config.vga = 0;
      config.console = 0;
+     if (config.speaker == SPKR_NATIVE)
+       config.speaker = SPKR_EMULATED;
   }
   screen_mask = 1 << (((int)phys_text_base-0xA0000)/4096);
 
