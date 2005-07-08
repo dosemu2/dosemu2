@@ -317,15 +317,9 @@ static int dualmon_setmode(int type, int xsize,int ysize)
   if (type==7) {
     if (config.dualmon == 2) reinit_MDA_regs();
     Video->update_screen = NULL;
-    WRITE_WORD(BIOS_CONFIGURATION, READ_WORD(BIOS_CONFIGURATION) | 0x30);
-    WRITE_WORD(BIOS_CURSOR_SHAPE, 0x0b0d);
-    WRITE_WORD(BIOS_VIDEO_PORT, 0x3b4);
   }
   else {
     Video->update_screen = Video_default->update_screen;
-    WRITE_WORD(BIOS_CONFIGURATION, READ_WORD(BIOS_CONFIGURATION) & ~0x30);
-    WRITE_WORD(BIOS_CURSOR_SHAPE, 0x0607);
-    WRITE_WORD(BIOS_VIDEO_PORT, 0x3d4);
     if (Video_default->setmode) return Video_default->setmode(type, xsize,ysize);
   }
   return 0;

@@ -500,9 +500,11 @@ void vgaemu_put_pixel(int x, int y, unsigned char page, unsigned char attr);
 unsigned char vgaemu_get_pixel(int x, int y, unsigned char page);
 unsigned char vga_read(unsigned char *addr);
 void vga_write(unsigned char *addr, unsigned char val);
-void memcpy_to_vga(unsigned char *dst, unsigned char *src, size_t len);
-void memcpy_from_vga(unsigned char *dst, unsigned char *src, size_t len);
-void vga_memcpy(unsigned char *dst, unsigned char *src, size_t len);
+unsigned short vga_read_word(unsigned short *addr);
+void vga_write_word(unsigned short *addr, unsigned short val);
+void memcpy_to_vga(void *dst, const void *src, size_t len);
+void memcpy_from_vga(void *dst, const void *src, size_t len);
+void vga_memcpy(void *dst, const void *src, size_t len);
 /* for cpuemu: */
 int vga_emu_protect_page(unsigned, int);
 int vga_emu_adjust_protection(unsigned, unsigned);

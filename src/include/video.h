@@ -133,6 +133,7 @@ EXTERN int text_scanlines INIT(400);   /* # of scan lines in textmodes */
 EXTERN unsigned char video_initialized INIT(0);
 extern void install_int_10_handler(void);
 extern boolean set_video_mode(int);
+extern unsigned short *screen_adr(int page);
 
 /* Values are set by video_config_init depending on video-card defined in config */
 /* Values are set from emu.c depending on video-config */

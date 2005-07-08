@@ -79,9 +79,11 @@
 #define set_dirty(page)
 #endif
 
-#if USE_DUALMON
-  #define BIOS_CONFIG_SCREEN_MODE (READ_WORD(BIOS_CONFIGURATION) & 0x30)
-  #define IS_SCREENMODE_MDA (BIOS_CONFIG_SCREEN_MODE == 0x30)
+#define BIOS_CONFIG_SCREEN_MODE (READ_WORD(BIOS_CONFIGURATION) & 0x30)
+#define IS_SCREENMODE_MDA (BIOS_CONFIG_SCREEN_MODE == 0x30)
+
+unsigned short *screen_adr(int page)
+{
   /* This is the text screen base, the DOS program actually has to use.
    * Programs that support simultaneous dual monitor support rely on
    * the fact, that the BIOS takes B0000 for EQUIP-flags 4..5 = 3
@@ -89,8 +91,10 @@
    * This is ugly, but there is no screen buffer address in the BIOS-DATA
    * at 0x400. (Hans)
    */
-  #define BIOS_SCREEN_BASE (IS_SCREENMODE_MDA ? MDA_PHYS_TEXT_BASE : VGA_PHYS_TEXT_BASE)
-#endif
+  unsigned short *base = (unsigned short *)(IS_SCREENMODE_MDA ?
+    MDA_PHYS_TEXT_BASE : VGA_PHYS_TEXT_BASE);
+  return base + page * READ_WORD(BIOS_VIDEO_MEMORY_USED) / 2;
+}
 
 /* this maps the cursor shape given by int10, fn1 to the actually
    displayed cursor start&end values in cursor_shape. This seems 
@@ -163,7 +167,7 @@ static inline void set_cursor_shape(ushort shape) {
  * on mine) (Andrew Tridgell)
  */
 static void
-Scroll(int addr, int x0, int y0, int x1, int y1, int l, int att)
+bios_scroll(int x0, int y0, int x1, int y1, int l, int att)
 {
   int dx = x1 - x0 + 1;
   int dy = y1 - y0 + 1;
@@ -177,9 +181,9 @@ Scroll(int addr, int x0, int y0, int x1, int y1, int l, int att)
 
   li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
   co= READ_WORD(BIOS_SCREEN_COLUMNS);
-  sadr = (us *)(addr + READ_WORD(BIOS_VIDEO_MEMORY_ADDRESS));
+  sadr = screen_adr(0) + READ_WORD(BIOS_VIDEO_MEMORY_ADDRESS)/2;
 
-  if ( (config.cardtype == CARD_MDA) && ((att & 7) != 0) && ((att & 7) != 7) )
+  if ((sadr < (us*)VGA_PHYS_TEXT_BASE) && ((att & 7) != 0) && ((att & 7) != 7))
     {
       blank = ' ' | ((att | 7) << 8);
     }
@@ -213,43 +217,28 @@ Scroll(int addr, int x0, int y0, int x1, int y1, int l, int att)
   
   if (l == 0) {			/* Wipe mode */
     for (y = y0; y <= y1; y++)
-      /*memcpy(&sadr[y * co + x0], tbuf, dx * sizeof(us));*/
-      MEMCPY_2DOS(&sadr[y * co + x0], tbuf, dx * sizeof(us));
+      memcpy_to_vga(&sadr[y * co + x0], tbuf, dx * sizeof(us));
     return;
   }
 
   if (l > 0) {
     if (dx == co)
-      /*memcpy(&sadr[y0 * co], &sadr[(y0 + l) * co], (dy - l) * dx * sizeof(us));*/
-      MEMCPY_DOS2DOS(&sadr[y0 * co], &sadr[(y0 + l) * co], (dy - l) * dx * sizeof(us));
+      vga_memcpy(&sadr[y0 * co], &sadr[(y0 + l) * co], (dy - l) * dx * sizeof(us));
     else
       for (y = y0; y <= (y1 - l); y++)
-	/*memcpy(&sadr[y * co + x0], &sadr[(y + l) * co + x0], dx * sizeof(us));*/
-	MEMCPY_DOS2DOS(&sadr[y * co + x0], &sadr[(y + l) * co + x0], dx * sizeof(us));
+	vga_memcpy(&sadr[y * co + x0], &sadr[(y + l) * co + x0], dx * sizeof(us));
 
     for (y = y1 - l + 1; y <= y1; y++)
-      /*memcpy(&sadr[y * co + x0], tbuf, dx * sizeof(us));*/
-      MEMCPY_2DOS(&sadr[y * co + x0], tbuf, dx * sizeof(us));
+      memcpy_to_vga(&sadr[y * co + x0], tbuf, dx * sizeof(us));
   }
   else {
     for (y = y1; y >= (y0 - l); y--)
-      /*memcpy(&sadr[y * co + x0], &sadr[(y + l) * co + x0], dx * sizeof(us));*/
-      MEMCPY_DOS2DOS(&sadr[y * co + x0], &sadr[(y + l) * co + x0], dx * sizeof(us));
+      vga_memcpy(&sadr[y * co + x0], &sadr[(y + l) * co + x0], dx * sizeof(us));
 
     for (y = y0 - l - 1; y >= y0; y--)
-      /*memcpy(&sadr[y * co + x0], tbuf, dx * sizeof(us));*/
-      MEMCPY_2DOS(&sadr[y * co + x0], tbuf, dx * sizeof(us));
+      memcpy_to_vga(&sadr[y * co + x0], tbuf, dx * sizeof(us));
   }
 }
-
-#if USE_DUALMON
-  #define bios_scroll(x0,y0,x1,y1,n,attr) ({\
-   if (IS_SCREENMODE_MDA) Scroll(MDA_PHYS_TEXT_BASE,x0,y0,x1,y1,n,attr); \
-   else Scroll(virt_text_base,x0,y0,x1,y1,n,attr);\
-  })
-#else
-  #define bios_scroll(x0,y0,x1,y1,n,attr) Scroll(virt_text_base,x0,y0,x1,y1,n,attr)
-#endif
 
 static int using_text_mode(void)
 {
@@ -274,11 +263,6 @@ void tty_char_out(unsigned char ch, int s, int attr)
   int gfx_mode = 0;
   unsigned char *dst;
 
-#if USE_DUALMON
-  int virt_text_base = BIOS_SCREEN_BASE;
-  if (Video->update_screen) virt_text_base = (int)vga.mem.base;
-#endif
-
 /* i10_deb("tty_char_out: char 0x%02x, page %d, attr 0x%02x\n", ch, s, attr); */
 
   if (config.cardtype == CARD_NONE) {
@@ -302,7 +286,8 @@ void tty_char_out(unsigned char ch, int s, int attr)
 
   case '\n':         /* Newline */
     /* Color newline */
-    newline_att = gfx_mode ? 0 : ATTR(SCREEN_ADR(s) + ypos*co + xpos);
+    newline_att = gfx_mode ? 0 :
+      vga_read((unsigned char *)(screen_adr(s) + ypos*co + xpos) + 1);
     ypos++;
     xpos = 0;                  /* EDLIN needs this behavior */
     break;
@@ -329,9 +314,9 @@ void tty_char_out(unsigned char ch, int s, int attr)
     }
     else
     {
-      dst = (unsigned char *) (SCREEN_ADR(s) + ypos*co + xpos);
-      WRITE_BYTE(dst, ch);
-      if(attr != -1) WRITE_BYTE(dst + 1, attr);
+      dst = (unsigned char *) (screen_adr(s) + ypos*co + xpos);
+      vga_write(dst, ch);
+      if(attr != -1) vga_write(dst + 1, attr);
       set_dirty(s);
     }
     xpos++;
@@ -359,16 +344,14 @@ static void clear_screen(void)
 {
   u_short *schar, blank = ' ' | (7 << 8);
   int lx, s;
-  int virt_text_base = BIOS_SCREEN_BASE;
-  if (Video->update_screen) virt_text_base = (int)vga.mem.base;
 
   if (config.cardtype == CARD_NONE)
      return;
 
-  v_printf("INT10: cleared screen: screen_adr %p\n", SCREEN_ADR(0));
+  v_printf("INT10: cleared screen: screen_adr %p\n", screen_adr(0));
 
-  for (schar = SCREEN_ADR(0), lx = 0; lx < 16*1024;
-       WRITE_WORD(schar++, blank), lx++);
+  for (schar = screen_adr(0), lx = 0; lx < 16*1024;
+       vga_write_word(schar++, blank), lx++);
 
   for (s = 0; s < 8; s++) {
     set_dirty(s);
@@ -415,19 +398,6 @@ boolean set_video_mode(int mode) {
     return 0;
   }
 
-  if(Video->setmode == NULL) {
-    vga.display_start = 0;
-    if(Video->update_screen)
-      virt_text_base = (int)vga.mem.base;
-    WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
-    WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);
-    /* mode change clears screen unless bit7 of AL set */
-    if (!(mode & 0x80))
-      clear_screen();
-    i10_msg("set_video_mode: no setmode handler!\n");
-    return 0;
-  }
-
   if(adjust_font_size) {
     i10_msg("set_video_mode: font size %d lines\n", vga_font_height);
 
@@ -460,7 +430,30 @@ boolean set_video_mode(int mode) {
     clear_mem = 0;
   }
 
+  WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
+  WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);
+
+  if(Video->setmode == NULL) {
+    vga.display_start = 0;
+    /* mode change clears screen unless bit7 of AL set */
+    if(clear_mem)
+      clear_screen();
+    i10_msg("set_video_mode: no setmode handler!\n");
+    return 0;
+  }
+
   if(config.cardtype == CARD_MDA) mode = 7;
+
+  if(mode == 7) {
+    WRITE_BYTE(BIOS_CONFIGURATION, READ_BYTE(BIOS_CONFIGURATION) | 0x30);
+    WRITE_WORD(BIOS_CURSOR_SHAPE, 0x0b0d);
+    WRITE_WORD(BIOS_VIDEO_PORT, 0x3b4);
+  } else {
+    WRITE_BYTE(BIOS_CONFIGURATION, 
+	       (READ_BYTE(BIOS_CONFIGURATION) & ~0x30) | 0x20);
+    WRITE_WORD(BIOS_CURSOR_SHAPE, 0x0607);
+    WRITE_WORD(BIOS_VIDEO_PORT, 0x3d4);
+  }
 
   if (Video->update_screen == NULL) {
     int type=0;
@@ -499,7 +492,6 @@ boolean set_video_mode(int mode) {
    * had been assigned. -- sw
    */
   WRITE_BYTE(BIOS_VIDEO_MODE, vmi->VGA_mode & 0x7f);
-  WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
 
   li = vmi->text_height;
   co = vmi->text_width;
@@ -532,7 +524,7 @@ boolean set_video_mode(int mode) {
    * and then let the BIOS say, if it can ?!?!)
    * If we have config.dualmon, this happens legally.
    */
-  if(config.dualmon)
+  if(mode == 7 && config.dualmon)
     Video->setmode(7, co, li);
   else
 #endif
@@ -552,14 +544,8 @@ boolean set_video_mode(int mode) {
   WRITE_BYTE(BIOS_VIDEO_INFO_0, clear_mem ? 0x60 : 0xe0);
   memset((void *) 0x450, 0, 0x10);	/* equiv. to set_bios_cursor_(x/y)_position(0..7, 0) */
 
-  WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);
-  virt_text_base = (int)vga.mem.base;
   screen_mask = 0;
 
-  set_cursor_shape(0x0607);
-  WRITE_WORD(BIOS_CURSOR_SHAPE, 0x0607);
-
-  WRITE_WORD(BIOS_VIDEO_PORT, vga.config.mono_port ? 0x3b4 : 0x3d4);
   if (mode == 0x6)
     WRITE_BYTE(BIOS_VDU_COLOR_REGISTER, 0x3f);
   else if (mode <= 0x7)
@@ -698,7 +684,6 @@ int int10(void) /* with dualmon */
   unsigned page, page_size, address;
   u_char c;
   us *sm;
-  int virt_text_base;
 
 #if USE_DUALMON
   static int last_equip=-1;
@@ -710,9 +695,6 @@ int int10(void) /* with dualmon */
     else Video->update_screen = Video_default->update_screen;
   }
 #endif
-
-  virt_text_base = BIOS_SCREEN_BASE;
-  if (Video->update_screen) virt_text_base = (int)vga.mem.base;
 
   li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
   co= READ_WORD(BIOS_SCREEN_COLUMNS);
@@ -857,9 +839,9 @@ int int10(void) /* with dualmon */
         break;
       }
       if(using_text_mode()) {
-        sm = SCREEN_ADR(page);
-        LWORD(eax) = sm[co * get_bios_cursor_y_position(page)
-                   + get_bios_cursor_x_position(page)];
+        sm = screen_adr(page);
+        LWORD(eax) = vga_read_word(sm + co * get_bios_cursor_y_position(page)
+				   + get_bios_cursor_x_position(page));
       }
       else {
         LWORD(eax) = 0;
@@ -896,7 +878,7 @@ int int10(void) /* with dualmon */
         int n;
 
         page = HI(bx);
-        sadr = (u_short *) SCREEN_ADR(page) 
+        sadr = (u_short *) screen_adr(page) 
   	     + get_bios_cursor_y_position(page) * co
   	     + get_bios_cursor_x_position(page);
         n = LWORD(ecx);
@@ -910,10 +892,10 @@ int int10(void) /* with dualmon */
          */
         if(HI(ax) == 9) {		/* use attribute from BL */
   	 c_attr = c | (LO(bx) << 8);
-  	 while(n--) WRITE_WORD(sadr++, c_attr);
+	 while(n--) vga_write_word(sadr++, c_attr);
         }
         else {				/* leave attribute as it is */
-  	 while(n--) WRITE_BYTE(sadr++, c);
+  	 while(n--) vga_write((unsigned char *)(sadr++), c);
         }
         set_dirty(page);
         break;

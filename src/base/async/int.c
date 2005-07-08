@@ -45,6 +45,7 @@
 #include "pci.h"
 #include "joystick.h"
 #include "aspi.h"
+#include "vgaemu.h"
 
 #ifdef USE_MHPDBG
 #include "mhpdbg.h"
@@ -1618,12 +1619,12 @@ static void do_print_screen(void) {
 int x_pos, y_pos;
 int li = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
 int co = READ_WORD(BIOS_SCREEN_COLUMNS);
-ushort *base=SCREEN_ADR(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+ushort *base=screen_adr(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
     g_printf("PrintScreen: base=%p, lines=%i columns=%i\n", base, li, co);
     printer_open(0);
     for (y_pos=0; y_pos < li; y_pos++) {
 	for (x_pos=0; x_pos < co; x_pos++) 
-	    printer_write(0, READ_BYTE(base + y_pos*co + x_pos));
+	    printer_write(0, vga_read((unsigned char *)(base + y_pos*co + x_pos)));
 	printer_write(0, 0x0d);
 	printer_write(0, 0x0a);
     }

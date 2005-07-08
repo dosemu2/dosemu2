@@ -48,6 +48,7 @@
  * mousevid.h will become part of VGA emulator package */
 #include "mousevid.h"
 #include "gcursor.h"
+#include "vgaemu.h"
 
 /* DANG_BEGIN_REMARK
  * I have not properly tested this INT74 - JES 96/10/20 
@@ -1795,7 +1796,7 @@ text_cursor(void)
   int offset;
   int cx, cy;
   int co = READ_WORD(BIOS_SCREEN_COLUMNS);
-  p = SCREEN_ADR(mouse.display_page);
+  p = screen_adr(mouse.display_page);
   offset = mouse_erase.x;
   cx = mouse.rx >> mouse.xshift;
   cy = mouse.ry >> mouse.yshift;
@@ -1805,8 +1806,8 @@ text_cursor(void)
   		drew; some applications seem to reset the mouse
   		*after* clearing the screen and we end up leaving
   		glitches behind. */
-  	if (p[offset] == mouse_erase.backingstore.text[1])
-		p[offset] = mouse_erase.backingstore.text[0];
+  	if (vga_read_word(p + offset) == mouse_erase.backingstore.text[1])
+	  vga_write_word(p + offset, mouse_erase.backingstore.text[0]);
   	mouse_erase.drawn = FALSE;
   }
 
@@ -1815,11 +1816,12 @@ text_cursor(void)
 
   /* remember where we drew this. */
   mouse_erase.x = offset = cx + cy * co;
-  mouse_erase.backingstore.text[0] = p[offset];
+  mouse_erase.backingstore.text[0] = vga_read_word(p + offset);
 
   /* draw it. */
-  mouse_erase.backingstore.text[1] = p[offset] = 
-  	(p[offset] & mouse.textscreenmask) ^ mouse.textcursormask;
+  mouse_erase.backingstore.text[1] = 
+    (vga_read_word(p + offset) & mouse.textscreenmask) ^ mouse.textcursormask;
+  vga_write_word(p + offset, mouse_erase.backingstore.text[1]);
 
   mouse_erase.drawn = TRUE;
 }
