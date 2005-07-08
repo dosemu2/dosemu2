@@ -751,8 +751,7 @@ static void special_port_outb(ioport_t port, Bit8u byte)
 		flip_flop = !flip_flop;
 		if (flip_flop) {
 		/* JES This was last_index = 0x10..... WRONG? */
-			if (last_index == 0x10)
-				char_blink = (byte & 8) ? 1 : 0;
+			vga.attr.data[last_index] = byte;
 			last_byte = byte;
 		}
 		else {

@@ -155,7 +155,7 @@ static void draw_cursor(void)
      (blink_state || !have_focus)) {
     Bit16u *cursor = (Bit16u *)(vga.mem.base + vga.crtc.cursor_location);
     Text->Draw_cursor(x, y, XATTR(cursor),
-		      CURSOR_START(cursor_shape), CURSOR_END(cursor_shape),
+		      CURSOR_START(vga.crtc.cursor_shape), CURSOR_END(vga.crtc.cursor_shape),
 		      have_focus);
   }
 }
@@ -169,13 +169,13 @@ static void redraw_cursor(void)
   if(prev_cursor_shape != NO_CURSOR)
     restore_cell(prev_cursor_location);
 
-  if(cursor_shape != NO_CURSOR)
+  if(vga.crtc.cursor_shape != NO_CURSOR)
     draw_cursor();
 
   Text->Update();
 
   prev_cursor_location = vga.crtc.cursor_location - vga.display_start;
-  prev_cursor_shape = cursor_shape;
+  prev_cursor_shape = vga.crtc.cursor_shape;
 }
 
 RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end, Boolean focus)
@@ -325,7 +325,7 @@ void update_cursor(void)
 {
   if(
     vga.crtc.cursor_location - vga.display_start != prev_cursor_location ||
-    cursor_shape != prev_cursor_shape
+    vga.crtc.cursor_shape != prev_cursor_shape
   ) {
     redraw_cursor();
   }
@@ -346,11 +346,11 @@ void blink_cursor()
   blink_count = config.X_blinkrate;
   blink_state = !blink_state;
 
-  if(cursor_shape != NO_CURSOR) {
+  if(vga.crtc.cursor_shape != NO_CURSOR) {
     if(vga.crtc.cursor_location - vga.display_start != prev_cursor_location) {
       restore_cell(prev_cursor_location);
       prev_cursor_location = vga.crtc.cursor_location -vga.display_start;
-      prev_cursor_shape = cursor_shape;
+      prev_cursor_shape = vga.crtc.cursor_shape;
     }
 
     if(blink_state)

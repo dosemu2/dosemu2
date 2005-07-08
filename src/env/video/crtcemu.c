@@ -206,6 +206,16 @@ void CRTC_write_value(unsigned char data)
       crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (guessed)\n", ind, u);
       break; 
      
+    case 0x0a:          /* cursor shape start */
+      CURSOR_START(vga.crtc.cursor_shape) = u;
+      crtc_deb("CRTC_write_value: cursor shape start = 0x%02x\n", u);
+      break; 
+     
+    case 0x0b:          /* cursor shape end   */
+      CURSOR_END(vga.crtc.cursor_shape) = u;
+      crtc_deb("CRTC_write_value: cursor shape end = 0x%02x\n", u);
+      break; 
+     
     case 0x0c:		/* Start Address High */
       /* these shifts involving vga.crtc.addr_mode should really be rotations, 
          depending on mode control bit 5 */

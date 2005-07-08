@@ -42,7 +42,7 @@ void init_dualmon(void);
 
 #define CURSOR_START(c) (((cshape*)&c)->start)
 #define CURSOR_END(c)   (((cshape*)&c)->end)
-#define NO_CURSOR 0x0100
+#define NO_CURSOR 0x2000
 
 /* 
  * xterm allows to set virtually any screen size, but DOS applications
@@ -118,10 +118,7 @@ EXTERN ushort *prev_screen;  /* pointer to currently displayed screen   */
                              /* used&updated by Video->update_screen    */
 
 EXTERN int video_mode INIT(0);
-EXTERN int char_blink INIT(1);
 
-EXTERN int cursor_blink INIT(1);
-EXTERN ushort cursor_shape INIT(0xe0f);
 /* bit mask for testing vm86s.screen_bitmap */
 EXTERN unsigned int screen_mask;
 

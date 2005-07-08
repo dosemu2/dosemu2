@@ -131,25 +131,17 @@ static void set_cursor_pos(unsigned page, int x, int y)
 
 static inline void set_cursor_shape(ushort shape) {
    int cs,ce;
-
-   if (config.cardtype == CARD_NONE)
-     return;
+   unsigned short cursor_shape;
 
    cs=CURSOR_START(shape) & 0x1F;
    ce=CURSOR_END(shape) & 0x1F;
 
    if (shape & 0x6000 || cs>ce) {
       i10_deb("no cursor\n");
-      cursor_shape=NO_CURSOR;
-      cursor_blink=0;
+      crt_outw(0xa, NO_CURSOR);
       return;
    }
    
-   /* is this correct (my own VGA just turns off the cursor if
-      this bit is set)
-   */
-   cursor_blink = 1;
-
    cs&=0x0F;
    ce&=0x0F;
    if (ce>3 && ce<12 && (config.cardtype != CARD_MDA)) {
@@ -160,6 +152,7 @@ static inline void set_cursor_shape(ushort shape) {
    i10_msg("mapped cursor: start %d, end %d\n", cs, ce);
    CURSOR_START(cursor_shape)=cs;
    CURSOR_END(cursor_shape)=ce;
+   crt_outw(0xa, cursor_shape);
 }
 
 /* This is a better scroll routine, mostly for aesthetic reasons. It was
@@ -1022,14 +1015,9 @@ int int10(void) /* with dualmon */
     case 0x10:		/* ega/vga palette functions */
       i10_deb("ega/vga palette: sub function 0x%02x\n", LO(ax));
 
-      /* Sets blinking or bold background mode.  This is important for 
-       * PCTools type programs that uses bright background colors.
-       */
-      if(LO(ax) == 3) char_blink = LO(bx) & 1;
-
       /* root@zaphod */
       /* Palette register stuff. Only for the VGA emulator */
-      if(Video->update_screen) {
+      {
          int i, count;
          unsigned char *src;
          unsigned char index, m;

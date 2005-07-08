@@ -551,7 +551,7 @@ static int slang_update (void)
    static int last_row, last_col, help_showing;
    static const char *last_prompt = NULL;
 
-   SLtt_Blink_Mode = char_blink;
+   SLtt_Blink_Mode = (vga.attr.data[0x10] & 0x8) != 0;
 
    if (DOSemu_Slang_Show_Help) 
      {
@@ -603,7 +603,7 @@ static int slang_update (void)
 	       }
 	     else last_col -= 1;
 	  }
-	else if (cursor_blink == 0) last_row = last_col = 0;
+	else if (vga.crtc.cursor_shape & 0x6000) last_row = last_col = 0;
 	else
 	  {
 	     last_row = cursor_row - imin;
@@ -627,7 +627,7 @@ static void term_write_nchars_8bit(unsigned char *text, int len, Bit8u attr)
 
 #if SLANG_VERSION < 20000
    /* switch off blinking for bright backgrounds */
-   if ((attr & 0x80) && !char_blink) {
+   if ((attr & 0x80) && !(vga.attr.data[0x10] & 0x8)) {
       attr &= ~0x80;
       SLsmg_set_color (Attribute_Map[attr]);
    }

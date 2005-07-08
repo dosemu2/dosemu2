@@ -320,6 +320,7 @@ typedef struct {
 typedef struct {
   unsigned addr_mode;
   unsigned cursor_location;
+  unsigned short cursor_shape;
   unsigned line_compare;
   unsigned char readonly;
   unsigned char index;
