@@ -308,7 +308,7 @@ static int setupDOSCommand (char *linux_path)
 
 static int do_execute_dos (int argc, char **argv, int CommandStyle)
 {
-  char data[PATH_MAX];
+  char data[PATH_MAX], *ptr1, *ptr2;
   int ret, terminate, linux_path;
 
   if (argc == 0) {
@@ -323,7 +323,8 @@ static int do_execute_dos (int argc, char **argv, int CommandStyle)
   if (! ret) {
     /* SUCCESSFUL */
 
-    if (CommandStyle == EXEC_CHOICE && strchr(data, '/'))
+    if (CommandStyle == EXEC_CHOICE && (ptr1 = strchr(data, '/')) &&
+	(!(ptr2 = strchr(data, ' ')) || ptr1 < ptr2))
       linux_path = 1;
     if (linux_path) {
       if (setupDOSCommand (data))
