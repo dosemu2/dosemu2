@@ -323,7 +323,7 @@ static int do_execute_dos (int argc, char **argv, int CommandStyle)
   if (! ret) {
     /* SUCCESSFUL */
 
-    if (CommandStyle == EXEC_CHOICE && data[0] == '/')
+    if (CommandStyle == EXEC_CHOICE && strchr(data, '/'))
       linux_path = 1;
     if (linux_path) {
       if (setupDOSCommand (data))
