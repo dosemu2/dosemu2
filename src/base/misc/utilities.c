@@ -753,7 +753,6 @@ void *load_plugin(const char *plugin_name)
     free(fullname);
     if (handle != NULL)
 	return handle;
-    c_printf("CONF: problems loading plugin: %s\n", dlerror());
     asprintf(&fullname, "%s/dosemu/libplugin_%s.so",
 	     LIB_DEFAULT, plugin_name);
     handle = dlopen(fullname, RTLD_LAZY);
