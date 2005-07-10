@@ -122,12 +122,6 @@ EXTERN int video_mode INIT(0);
 /* bit mask for testing vm86s.screen_bitmap */
 EXTERN unsigned int screen_mask;
 
-EXTERN int vga_font_height INIT(16);  /* current EMULATED setting for vga font height */
-
-EXTERN int std_font_height INIT(16);  /* font height set by int10,0 mode 3 */
-EXTERN int text_scanlines INIT(400);   /* # of scan lines in textmodes */
-                             /* these have effect only on video mode sets! */
-
 EXTERN unsigned char video_initialized INIT(0);
 extern void install_int_10_handler(void);
 extern boolean set_video_mode(int);
@@ -139,7 +133,6 @@ extern unsigned short *screen_adr(int page);
 
 EXTERN int virt_text_base INIT(0);
 EXTERN int phys_text_base INIT(0);
-EXTERN int video_subsys;
 EXTERN int v_8514_base INIT(0);
 
 /* Various defines for all common video adapters */
@@ -155,7 +148,6 @@ EXTERN int v_8514_base INIT(0);
 #define MDA_INIT_SCREEN_MODE   7 /* 80x25 MDA monochrome */
 #define MDA_CONF_SCREEN_MODE   (3<<4)	/* for int 11h info     */
 #define MDA_VIDEO_COMBO        1
-#define MDA_VIDEO_SUBSYS       1 /* 1=mono               */
 /* #define BASE_CRTC               0x3b4  currently not used */
 
 /* Defines for Color Graphics Adapter */
@@ -163,7 +155,6 @@ EXTERN int v_8514_base INIT(0);
 #define CGA_INIT_SCREEN_MODE   3 /* 80x25 VGA color */
 #define CGA_CONF_SCREEN_MODE   (2<<4)	/* (2<<4)=80x25 color CGA/EGA/VGA */
 #define CGA_VIDEO_COMBO        4 /* 4=EGA (ok), 8=VGA (not ok?) */
-#define CGA_VIDEO_SUBSYS       0 /* 0=color */
 /* #define BASE_CRTC               0x3d4  currently not used */
 
 /* Defines for Enhanched Graphics Adapter, same as CGA */
@@ -171,7 +162,6 @@ EXTERN int v_8514_base INIT(0);
 #define EGA_INIT_SCREEN_MODE   3 /* 80x25 VGA color */
 #define EGA_CONF_SCREEN_MODE   (2<<4)	/* (2<<4)=80x25 color CGA/EGA/VGA */
 #define EGA_VIDEO_COMBO        4 /* 4=EGA (ok), 8=VGA (not ok?) */
-#define EGA_VIDEO_SUBSYS       0 /* 0=color */
 /* #define BASE_CRTC               0x3d4  currently not used */
 
 /* Defines for Video Graphic Array, same as CGA */
@@ -179,7 +169,6 @@ EXTERN int v_8514_base INIT(0);
 #define VGA_INIT_SCREEN_MODE   3 /* 80x25 VGA color */
 #define VGA_CONF_SCREEN_MODE   (2<<4)	/* (2<<4)=80x25 color CGA/EGA/VGA */
 #define VGA_VIDEO_COMBO        8 /* 4=EGA (ok), 8=VGA (not ok?) */
-#define VGA_VIDEO_SUBSYS       0 /* 0=color */
 /* #define BASE_CRTC               0x3d4  currently not used */
 
 

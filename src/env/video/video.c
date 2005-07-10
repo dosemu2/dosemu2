@@ -21,6 +21,7 @@
 
 #include "config.h"
 #include "emu.h"
+#include "int.h"
 #include "bios.h"
 #include "port.h"
 #include "memory.h"
@@ -358,7 +359,6 @@ video_config_init(void) {
       phys_text_base = MDA_PHYS_TEXT_BASE;
       virt_text_base = MDA_VIRT_TEXT_BASE;
       video_combo = MDA_VIDEO_COMBO;
-      video_subsys = MDA_VIDEO_SUBSYS;
       break;
     }
   case CARD_CGA:
@@ -368,7 +368,6 @@ video_config_init(void) {
       phys_text_base = CGA_PHYS_TEXT_BASE;
       virt_text_base = CGA_VIRT_TEXT_BASE;
       video_combo = CGA_VIDEO_COMBO;
-      video_subsys = CGA_VIDEO_SUBSYS;
       break;
     }
   case CARD_EGA:
@@ -378,7 +377,6 @@ video_config_init(void) {
       phys_text_base = EGA_PHYS_TEXT_BASE;
       virt_text_base = EGA_VIRT_TEXT_BASE;
       video_combo = EGA_VIDEO_COMBO;
-      video_subsys = EGA_VIDEO_SUBSYS;
       break;
     }
   case CARD_VGA:
@@ -388,7 +386,6 @@ video_config_init(void) {
       phys_text_base = VGA_PHYS_TEXT_BASE;
       virt_text_base = VGA_VIRT_TEXT_BASE;
       video_combo = VGA_VIDEO_COMBO;
-      video_subsys = VGA_VIDEO_SUBSYS;
       break;
     }
   default:			/* or Terminal, is this correct ? */
@@ -398,7 +395,6 @@ video_config_init(void) {
       phys_text_base = CGA_PHYS_TEXT_BASE;
       virt_text_base = CGA_VIRT_TEXT_BASE;
       video_combo = CGA_VIDEO_COMBO;
-      video_subsys = CGA_VIDEO_SUBSYS;
       break;
     }
   }

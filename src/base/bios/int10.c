@@ -59,7 +59,6 @@
 
 #include "emu.h"
 #include "video.h"
-#include "memory.h"
 #include "bios.h"
 #include "vc.h"
 #include "speaker.h"
@@ -81,6 +80,8 @@
 
 #define BIOS_CONFIG_SCREEN_MODE (READ_WORD(BIOS_CONFIGURATION) & 0x30)
 #define IS_SCREENMODE_MDA (BIOS_CONFIG_SCREEN_MODE == 0x30)
+
+static int text_scanlines;
 
 unsigned short *screen_adr(int page)
 {
@@ -149,6 +150,7 @@ static inline void set_cursor_shape(ushort shape) {
    cs&=0x0F;
    ce&=0x0F;
    if (ce>3 && ce<12 && (config.cardtype != CARD_MDA)) {
+      int vga_font_height = READ_WORD(BIOS_FONT_HEIGHT);
       if (cs>ce-3) cs+=vga_font_height-ce-1;
       else if (cs>3) cs=vga_font_height/2;
       ce=vga_font_height-1;
@@ -157,6 +159,7 @@ static inline void set_cursor_shape(ushort shape) {
    CURSOR_START(cursor_shape)=cs;
    CURSOR_END(cursor_shape)=ce;
    crt_outw(0xa, cursor_shape);
+   WRITE_WORD(BIOS_CURSOR_SHAPE, shape);
 }
 
 /* This is a better scroll routine, mostly for aesthetic reasons. It was
@@ -374,22 +377,21 @@ boolean set_video_mode(int mode) {
   int clear_mem = 1;
   int adjust_font_size = 0;
   unsigned u;
-  int co, li;
+  int co, li, vga_font_height = 0;
 
   if (config.cardtype == CARD_NONE) {
     i10_msg("set_video_mode: no video!\n");
     return 0;
   }
 
-
-  if(mode & (1 << 16)) {
+  if(mode >= 0x10000) {
     adjust_font_size = 1;
-    mode &= ~(1 << 16);
+    vga_font_height = mode >> 16;
   }
 
   mode &= 0xffff;
 
-  if(mode != video_mode) adjust_font_size = 0;
+  if((mode & 0x7f) != READ_BYTE(BIOS_VIDEO_MODE)) adjust_font_size = 0;
 
   i10_msg("set_video_mode: mode 0x%02x%s\n", mode, adjust_font_size ? " (adjust font size)" : "");
 
@@ -432,6 +434,8 @@ boolean set_video_mode(int mode) {
 
   WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
   WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);
+  WRITE_BYTE(BIOS_VIDEO_INFO_0, clear_mem ? 0x60 : 0xe0);
+  memset((void *) 0x450, 0, 0x10);	/* equiv. to set_bios_cursor_(x/y)_position(0..7, 0) */
 
   if(Video->setmode == NULL) {
     vga.display_start = 0;
@@ -446,31 +450,30 @@ boolean set_video_mode(int mode) {
 
   if(mode == 7) {
     WRITE_BYTE(BIOS_CONFIGURATION, READ_BYTE(BIOS_CONFIGURATION) | 0x30);
-    WRITE_WORD(BIOS_CURSOR_SHAPE, 0x0b0d);
+    set_cursor_shape(0x0b0d);
     WRITE_WORD(BIOS_VIDEO_PORT, 0x3b4);
   } else {
     WRITE_BYTE(BIOS_CONFIGURATION, 
 	       (READ_BYTE(BIOS_CONFIGURATION) & ~0x30) | 0x20);
-    WRITE_WORD(BIOS_CURSOR_SHAPE, 0x0607);
+    set_cursor_shape(0x0607);
     WRITE_WORD(BIOS_VIDEO_PORT, 0x3d4);
   }
 
   if (Video->update_screen == NULL) {
     int type=0;
-    co = READ_WORD(BIOS_SCREEN_COLUMNS);
     if (mode <= 3 || mode == 7 || (mode >= 0x50 && mode <= 0x5a)) {
       co = vmi->text_width;
+      li = vmi->text_height;
+      vga_font_height = text_scanlines / li;
 #if USE_DUALMON
       if (mode == 7 && config.dualmon) {
 	type=7;
 	text_scanlines = 400;
-	vga_font_height=text_scanlines/25;
+	vga_font_height = 16;
       }
 #endif
     } else
       return 0;
-    li=text_scanlines/vga_font_height;
-    if (li>MAX_LINES) li=MAX_LINES;
     WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li-1);
     WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
     WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
@@ -507,6 +510,7 @@ boolean set_video_mode(int mode) {
   WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
   WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
 
+
   video_mode = mode;
 
 #if USE_DUALMON
@@ -541,9 +545,6 @@ boolean set_video_mode(int mode) {
 
   if(clear_mem && using_text_mode()) clear_screen();
 
-  WRITE_BYTE(BIOS_VIDEO_INFO_0, clear_mem ? 0x60 : 0xe0);
-  memset((void *) 0x450, 0, 0x10);	/* equiv. to set_bios_cursor_(x/y)_position(0..7, 0) */
-
   screen_mask = 0;
 
   if (mode == 0x6)
@@ -564,8 +565,8 @@ boolean set_video_mode(int mode) {
 
   if (using_text_mode()) {
     v_printf("INT10: X_set_video_mode: 8x%d ROM font -> bank 0\n",
-             vga.char_height);
-    vga_ROM_to_RAM(vga.char_height, 0); /* 0 is default bank */
+             vga_font_height);
+    vga_ROM_to_RAM(vga_font_height, 0); /* 0 is default bank */
     i10_msg("activated font bank 0\n");
   }
 
@@ -717,8 +718,6 @@ int int10(void) /* with dualmon */
   switch(HI(ax)) {
     case 0x00:		/* set video mode */
       i10_msg("set video mode: 0x%x\n", LO(ax));
-      /* set appropriate font height for 25 lines */
-      vga_font_height = text_scanlines / 25;
       if(!set_video_mode(LO(ax))) {
         i10_msg("set_video_mode() failed\n");
       }
@@ -728,7 +727,6 @@ int int10(void) /* with dualmon */
     case 0x01:		/* set text cursor shape */
       i10_deb("set text cursor shape: %u-%u\n", HI(cx), LO(cx));
       set_cursor_shape(LWORD(ecx));
-      WRITE_WORD(BIOS_CURSOR_SHAPE, LWORD(ecx));
       break;
 
 
@@ -965,26 +963,8 @@ int int10(void) /* with dualmon */
 
 
     case 0x0f:		/* get video mode */
-#if USE_DUALMON
-      if(IS_SCREENMODE_MDA)
-	LO(ax) = READ_BYTE(BIOS_VIDEO_MODE);
-      else 
-#endif
-      {
-	unsigned m = video_mode & 0xff;
-
-	if(Video->update_screen) {
-	  if(vga.mode & ~0xff) {
-	    /*
-	     * For VESA modes we look for an equivalent VGA mode number
-	     * and, if we don't have one, use 0x7f.
-	     */
-	    m = vga.VGA_mode == -1 ? 0x7f : vga.VGA_mode;
-	    if(vga.mode & 0x8000) m |= 0x80;
-	  }
-	}
-	LO(ax) = m;
-      }
+      LO(ax) = READ_BYTE(BIOS_VIDEO_MODE) |
+	(READ_BYTE(BIOS_VIDEO_INFO_0) & 0x80);
       HI(ax) = co & 0xff;
       HI(bx) = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
       i10_deb(
@@ -1114,7 +1094,7 @@ int int10(void) /* with dualmon */
 
     case 0x11:		/* character generator functions */
       {
-        int old_li = li;	/* preserve the state in case of error */
+	int vga_font_height = READ_WORD(BIOS_FONT_HEIGHT);
         int old_font_height = vga_font_height;
         unsigned ofs, seg;
         unsigned rows, char_height;
@@ -1175,7 +1155,6 @@ int int10(void) /* with dualmon */
             /* Also activating the target bank - some programs */
             /* seem to assume this. Sigh...                    */
             
-            /* FIXME: only useful when using VGAEMU, add a #define   */
             Seq_set_index(3);     /* sequencer: character map select */
             /* available: x, y, c...!?    transforming bitfields...  */
             x = (LO(bx) & 3) | ((LO(bx) & 4) << 2);
@@ -1183,14 +1162,13 @@ int int10(void) /* with dualmon */
             Seq_write_value(x);         /* set bank N for both fonts */
             i10_msg("activated font bank %d (0x%02x)\n",
                 (LO(bx) & 7), x);
-            /* | (1 << 16) is "only update font stuff" */
-            if(!set_video_mode(video_mode | (1 << 16))) {
-              li = old_li;	/* not that it changed */
+            /* | (... << 16) is "only update font stuff" */
+            if(!set_video_mode(READ_BYTE(BIOS_VIDEO_MODE) | 0x80 |
+			       (vga_font_height << 16)))
               v_printf("Problem changing font height %d->%d\n",
                   old_font_height, vga_font_height);
-              vga_font_height = old_font_height;
-            }
-            WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
+	    else
+	      WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
             break;
 
           case 0x20:		/* set 8x8 gfx chars */
@@ -1249,7 +1227,7 @@ int int10(void) /* with dualmon */
             break;
 
           case 0x30:		/* get current character generator info */
-            LWORD(ecx) = vga_font_height;
+            LWORD(ecx) = READ_WORD(BIOS_FONT_HEIGHT);
             LO(dx) = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1);
             seg = 0xc000;
             switch((HI(bx))) {
@@ -1300,7 +1278,7 @@ int int10(void) /* with dualmon */
     case 0x12:		/* alternate function select */
       switch(LO(bx)) {
         case 0x10:	/* get ega info */
-          HI(bx) = video_subsys;
+          HI(bx) = READ_WORD(BIOS_VIDEO_PORT) == 0x3b4;
           LO(bx) = 3;
           HI(cx)=0xf;	/* feature bits (no feature controller) */
           LO(cx)=READ_BYTE(BIOS_VIDEO_INFO_1) & 0xf;
