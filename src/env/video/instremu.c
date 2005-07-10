@@ -769,6 +769,7 @@ static inline void pop(unsigned *val, x86_regs *x86)
 #define reg8(reg, x86) (((unsigned char *)(x86))+((reg)&0x3)*4+(((reg)>>2)&1))
 #define reg(reg, x86) (((unsigned *)(x86))+((reg)&0x7))
 #define sreg(reg, x86) (((unsigned *)(&((x86)->es)))+((reg)&0x7))
+#define sreg_idx(reg) (es_INDEX+((reg)&0x7))
 
 unsigned sib(unsigned char *cp, x86_regs *x86, int *inst_len)
 {
@@ -897,7 +898,7 @@ unsigned modrm32(unsigned char *cp, x86_regs *x86, int *inst_len)
   return 0; /* keep gcc happy */
 }
 
-static inline int handle_prefixes(x86_regs *x86)
+static int handle_prefixes(x86_regs *x86)
 {
   unsigned eip = x86->eip;
   unsigned char *cs = (unsigned char *) x86->cs_base;
@@ -963,6 +964,26 @@ static inline int handle_prefixes(x86_regs *x86)
   return prefix;
 }
 
+static void prepare_x86(x86_regs *x86)
+{
+  x86->seg_base = x86->ds_base;
+  x86->seg_ss_base = x86->ss_base;
+  x86->address_size = x86->operand_size = (x86->_32bit + 1) * 2;
+
+  x86->modrm = (x86->address_size == 4 ? modrm32 : modrm16);
+  x86->rep = REP_NONE;
+
+  if (x86->operand_size == 4) {
+    x86->instr_binary = instr_binary_dword;
+    x86->instr_read = instr_read_dword;
+    x86->instr_write = instr_write_dword;
+  } else {
+    x86->instr_binary = instr_binary_word;
+    x86->instr_read = instr_read_word;
+    x86->instr_write = instr_write_word;
+  }
+}
+
 /* return value: 1 => instruction known; 0 => instruction not known */
 static inline int instr_sim(x86_regs *x86, int pmode)
 {
@@ -988,22 +1009,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
 #endif
 
   if (x86->prefixes) {
-    x86->seg_base = x86->ds_base;
-    x86->seg_ss_base = x86->ss_base;
-    x86->address_size = x86->operand_size = (x86->_32bit + 1) * 2;
-
-    x86->modrm = (x86->address_size == 4 ? modrm32 : modrm16);
-    x86->rep = REP_NONE;
-
-    if (x86->operand_size == 4) {
-      x86->instr_binary = instr_binary_dword;
-      x86->instr_read = instr_read_dword;
-      x86->instr_write = instr_write_dword;
-    } else {
-      x86->instr_binary = instr_binary_word;
-      x86->instr_read = instr_read_word;
-      x86->instr_write = instr_write_word;
-    }
+    prepare_x86(x86);
   }
   
   x86->prefixes = handle_prefixes(x86);
@@ -1576,14 +1582,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     eip += inst_len + 2; break;
 
   case 0x8e:		/* mov segreg,r/m16 */
-    if (pmode == 2) {
-      mem = x86->modrm(cs + eip, x86, &inst_len);
-      if ((cs[eip + 1] & 0xc0) == 0xc0)  /* compensate for mov r,segreg */
-        mem = (unsigned) reg(cs[eip + 1], x86);
-      *sreg(cs[eip + 1] >> 3, x86) = instr_read_word(mem);
-      eip += inst_len + 2;
-    }
-    else if (pmode || x86->operand_size == 4) 
+    if (pmode || x86->operand_size == 4) 
       return 0;
     else switch (cs[eip + 1]&0x38) {
     case 0:      
@@ -1880,15 +1879,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     break;
 
   case 0xc4:		/* les */
-    if (pmode == 2) {
-      mem = x86->modrm(cs + eip, x86, &inst_len);
-      x86->es = instr_read_word(mem+x86->operand_size);
-      if (x86->operand_size == 2)
-	R_WORD(*reg(cs[eip + 1] >> 3, x86)) = instr_read_word(mem);
-      else
-	*reg(cs[eip + 1] >> 3, x86) = instr_read_dword(mem);
-      eip += inst_len + 2; break;
-    } else if (pmode || x86->operand_size == 4)
+    if (pmode || x86->operand_size == 4)
       return 0;
     else {
       mem = x86->modrm(cs + eip, x86, &inst_len);
@@ -1900,15 +1891,7 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     }   
 
   case 0xc5:		/* lds */
-    if (pmode == 2) {
-      mem = x86->modrm(cs + eip, x86, &inst_len);
-      x86->ds = instr_read_word(mem+x86->operand_size);
-      if (x86->operand_size == 2)
-	R_WORD(*reg(cs[eip + 1] >> 3, x86)) = instr_read_word(mem);
-      else
-	*reg(cs[eip + 1] >> 3, x86) = instr_read_dword(mem);
-      eip += inst_len + 2; break;
-    } else if (pmode || x86->operand_size == 4)
+    if (pmode || x86->operand_size == 4)
       return 0;
     else {
       mem = x86->modrm(cs + eip, x86, &inst_len);
@@ -2369,19 +2352,18 @@ static void scp_to_x86_regs(x86_regs *x86, struct sigcontext_struct *scp, int pm
     x86->gs_base = x86->gs << 4;
     x86->_32bit = 0;
   }
+  prepare_x86(x86);
 }
 
 static void x86_regs_to_scp(x86_regs *x86, struct sigcontext_struct *scp, int pmode)
 {
-  if(pmode == 2) {
+  if(pmode) {
     _cs = x86->cs;
     _ds = x86->ds;
     _es = x86->es;
     _fs = x86->fs;
     _gs = x86->gs;
     _ss = x86->ss;
-  }
-  if(pmode) {
     _eax = x86->eax;
     _ebx = x86->ebx;
     _ecx = x86->ecx;
@@ -2417,8 +2399,6 @@ static void x86_regs_to_scp(x86_regs *x86, struct sigcontext_struct *scp, int pm
  * arguments:
  * scp - A pointer to a struct sigcontext_struct holding some relevant data.
  * pmode - flags protected mode
- * pmode == 2 flags a special "ignore GPF" state for use by msdos.c to
- *            simulate setting segment registers
  * cnt - number of instructions to be simulated
  *
  * DANG_END_FUNCTION                        
@@ -2476,4 +2456,138 @@ void instr_emu(struct sigcontext_struct *scp, int pmode, int cnt)
   
 
   x86_regs_to_scp(&x86, scp, pmode);
+}
+
+int decode_modify_segreg_insn(struct sigcontext_struct *scp, int pmode,
+    unsigned int *new_val)
+{
+  unsigned mem;
+  unsigned char *cs;
+  int inst_len, ret = -1;
+  x86_regs x86;
+
+  scp_to_x86_regs(&x86, scp, pmode);
+
+  cs = (unsigned char *) x86.cs_base;
+  x86.prefixes = handle_prefixes(&x86);
+  x86.eip += x86.prefixes;
+
+  switch(cs[x86.eip]) {
+    case 0x8e:		/* mov segreg,r/m16 */
+      ret = sreg_idx(cs[x86.eip + 1] >> 3);
+      mem = x86.modrm(cs + x86.eip, &x86, &inst_len);
+      if ((cs[x86.eip + 1] & 0xc0) == 0xc0)  /* compensate for mov r,segreg */
+        mem = (unsigned) reg(cs[x86.eip + 1], &x86);
+      *new_val = instr_read_word(mem);
+      x86.eip += inst_len + 2;
+      break;
+
+    case 0xca: /*retf imm 16*/
+    case 0xcb: /*retf*/
+    case 0xcf: /*iret*/
+    {
+      unsigned tmp_eip;
+      pop(&tmp_eip, &x86);
+      pop(new_val, &x86);
+      ret = cs_INDEX;
+      switch (cs[x86.eip]) {
+        case 0xca: /*retf imm 16*/
+	  x86.esp += ((unsigned short *) (&cs[x86.eip + 1]))[0];
+	  break;
+        case 0xcf: /*iret*/
+          pop(&x86.eflags, &x86);
+	  break;
+      }
+      x86.eip = tmp_eip;
+    }
+    break;
+
+    case 0xea:			/* jmp seg:off16/off32 */
+    {
+      unsigned tmp_eip;
+      tmp_eip = x86.instr_read(x86.cs_base + x86.eip + 1);
+      *new_val = instr_read_word(x86.cs_base + x86.eip + 1 + x86.operand_size);
+      ret = cs_INDEX;
+      x86.eip = tmp_eip;
+    }
+    break;
+
+    case 0xc4:		/* les */
+      mem = x86.modrm(cs + x86.eip, &x86, &inst_len);
+      *new_val = instr_read_word(mem+x86.operand_size);
+      if (x86.operand_size == 2)
+	R_WORD(*reg(cs[x86.eip + 1] >> 3, &x86)) = instr_read_word(mem);
+      else
+	*reg(cs[x86.eip + 1] >> 3, &x86) = instr_read_dword(mem);
+      ret = es_INDEX;
+      x86.eip += inst_len + 2;
+      break;
+
+    case 0xc5:		/* lds */
+      mem = x86.modrm(cs + x86.eip, &x86, &inst_len);
+      *new_val = instr_read_word(mem+x86.operand_size);
+      if (x86.operand_size == 2)
+	R_WORD(*reg(cs[x86.eip + 1] >> 3, &x86)) = instr_read_word(mem);
+      else
+	*reg(cs[x86.eip + 1] >> 3, &x86) = instr_read_dword(mem);
+      ret = ds_INDEX;
+      x86.eip += inst_len + 2;
+      break;
+
+    case 0x07:	/* pop es */
+    case 0x17:	/* pop ss */
+    case 0x1f:	/* pop ds */
+      ret = sreg_idx(cs[x86.eip] >> 3);
+      pop(new_val, &x86);
+      x86.eip++; 
+      break;
+
+    case 0x0f:
+      x86.eip++;
+      switch (cs[x86.eip]) {
+        case 0xa1:	/* pop fs */
+        case 0xa9:	/* pop gs */
+	  pop(new_val, &x86);
+	  ret = sreg_idx(cs[x86.eip] >> 3);
+	  x86.eip++; 
+	  break;
+
+	case 0xb2:	/* lss */
+	  mem = x86.modrm(cs + x86.eip, &x86, &inst_len);
+	  *new_val = instr_read_word(mem+x86.operand_size);
+	  if (x86.operand_size == 2)
+	    R_WORD(*reg(cs[x86.eip + 1] >> 3, &x86)) = instr_read_word(mem);
+	  else
+	    *reg(cs[x86.eip + 1] >> 3, &x86) = instr_read_dword(mem);
+	  ret = ss_INDEX;
+	  x86.eip += inst_len + 2;
+	  break;
+
+	case 0xb4:	/* lfs */
+	  mem = x86.modrm(cs + x86.eip, &x86, &inst_len);
+	  *new_val = instr_read_word(mem+x86.operand_size);
+	  if (x86.operand_size == 2)
+	    R_WORD(*reg(cs[x86.eip + 1] >> 3, &x86)) = instr_read_word(mem);
+	  else
+	    *reg(cs[x86.eip + 1] >> 3, &x86) = instr_read_dword(mem);
+	  ret = fs_INDEX;
+	  x86.eip += inst_len + 2;
+	  break;
+
+	case 0xb5:	/* lgs */
+	  mem = x86.modrm(cs + x86.eip, &x86, &inst_len);
+	  *new_val = instr_read_word(mem+x86.operand_size);
+	  if (x86.operand_size == 2)
+	    R_WORD(*reg(cs[x86.eip + 1] >> 3, &x86)) = instr_read_word(mem);
+	  else
+	    *reg(cs[x86.eip + 1] >> 3, &x86) = instr_read_dword(mem);
+	  ret = gs_INDEX;
+	  x86.eip += inst_len + 2;
+	  break;
+      }
+      break;
+  }
+
+  x86_regs_to_scp(&x86, scp, pmode);
+  return ret;
 }
