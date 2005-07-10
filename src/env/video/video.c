@@ -304,6 +304,11 @@ void video_mem_setup(void)
 {
   int co, li;
 
+  WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
+  WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
+
+  fake_call_to(INT10_SEG, config.vbios_post ? INT10_OFF : INT10_POSTLESS_OFF);
+
   if (config.vga)
     /* the real bios will set all this ... */
     return;
@@ -317,7 +322,6 @@ void video_mem_setup(void)
   WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1); /* lines on screen - 1 */
   WRITE_WORD(BIOS_VIDEO_MEMORY_USED, TEXT_SIZE(co,li));   /* size of video regen area in bytes */
 
-  WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0x0);	/* Current Screen Page */
   WRITE_WORD(BIOS_CURSOR_SHAPE, (configuration&MDA_CONF_SCREEN_MODE)?0x0A0B:0x0607);
     
   /* This is needed in the video stuff. Grabbed from boot(). */
@@ -328,7 +332,6 @@ void video_mem_setup(void)
     
   WRITE_BYTE(BIOS_VDU_CONTROL, 9);	/* current 3x8 (x=b or d) value */
     
-  WRITE_BYTE(BIOS_VIDEO_MODE, video_mode); /* video mode */
   WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);/* offset of current page in buffer */
     
   WRITE_WORD(BIOS_FONT_HEIGHT, 16);

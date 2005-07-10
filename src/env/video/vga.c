@@ -45,6 +45,8 @@
 
 #define PLANE_SIZE (64*1024)
 
+static int vga_post_init(void);
+
 /* Here are the REGS values for valid dos int10 call */
 
 static unsigned char vregs[60] =
@@ -646,18 +648,6 @@ static int vga_initialize(void)
   return 0;
 }
 
-static int vga_post_init(void)
-{
-  /* this function sets up the video ram mmaps and initializes
-     vc switch routines */
-
-  WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
-  WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
-  Video_console.init();
-  /* release_perm(); */
-  return 0;
-}
-
 static void vga_close(void)
 {
   clear_console_video();
@@ -783,16 +773,18 @@ static void dump_video_regs(void)
 
 /* init_vga_card - Initialize a VGA-card */
 
-void init_vga_card(void)
+static int vga_post_init(void)
 {
-
-  unsigned char *ssp;
-  unsigned long sp;
+  /* this function initialises vc switch routines */
+  Video_console.init();
 
   if (!config.mapped_bios) {
     error("CAN'T DO VIDEO INIT, BIOS NOT MAPPED!\n");
     leavedos(23);
   }
+
+  g_printf("INITIALIZING VGA CARD BIOS!\n");
+
   /* If there's a DOS TSR in real memory (say, univbe followed by loadlin)
      then don't call int10 here yet */
   if (FP_SEG32(IVEC(0x10)) < config.vbios_seg ||
@@ -821,14 +813,7 @@ void init_vga_card(void)
   config.vga = 1;
   set_vc_screen_page();
   video_initialized = 1;
-
-  ssp = (unsigned char *)(READ_SEG_REG(ss)<<4);
-  sp = (unsigned long) LWORD(esp);
-  pushw(ssp, sp, READ_SEG_REG(cs));
-  pushw(ssp, sp, LWORD(eip));
-  LWORD(esp) -= 4;
-  WRITE_SEG_REG(cs, INT10_SEG);
-  LWORD(eip) = config.vbios_post ? INT10_OFF : INT10_POSTLESS_OFF;
+  return 0;
 }
 
 /* End of video/vga.c */

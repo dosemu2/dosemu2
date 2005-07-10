@@ -39,6 +39,7 @@
 #define BIOS_TIMER_OVERFLOW 0x470
 #define HOUR24_ADJUST 176
 #define DISKETTE_MOTOR_TIMEOUT 0x440
+#define BIOS_VIDEO_MODE 0x449
 
 /* NOTE: The following definition need to be in memory.h, but at this
  *       moment they aren't, so I define them here.
@@ -454,14 +455,18 @@ CISH(bios_f000_int10ptr):
 	.org	((INT10_SEG-BIOSSEG) << 4)+INT10_POSTLESS_OFF
 /* ======================= Addr = F800:4220 (FC220) */
 	pushw	%ax
+	pushw	%ds
 	cli
 	movb	$DOS_HELPER_VIDEO_INIT,%al		/*  Start Video init */
 	int	$DOSHELPER_INT
-	movw	$3,%ax
+	xorw	%ax,%ax
+	movw	%ax,%ds
+	movb	BIOS_VIDEO_MODE,%al
 	int	$0x10
 	movb	$DOS_HELPER_VIDEO_INIT_DONE,%al		/* Finished video init */
 	int     $DOSHELPER_INT
 	sti
+	popw	%ds
 	popw	%ax
 	lret
 

@@ -81,7 +81,7 @@ static int SDL_image_mode;
 static Boolean is_mapped = FALSE;
 static int exposure = 0;
 
-static int font_width = 8, font_shift = 1;
+static int font_width = 8, font_height = 16, font_shift = 1;
 
 static int w_x_res, w_y_res;
 
@@ -143,8 +143,6 @@ int SDL_init(void)
     leavedos(99);
   }
 
-  SDL_set_videomode(TEXT, CO, LI); 
-   
   /* SDL_APPACTIVE event does not occur when an application window is first
    * created.
    * So we push that event into the queue */
@@ -187,7 +185,8 @@ static void SDL_resize_text_screen(void)
 /* NOTE : Like X.c, the actual mode is taken via video_mode */
 int SDL_set_videomode(int mode_class, int text_width, int text_height)
 {
-  int mode = video_mode;
+  int mode = READ_BYTE(BIOS_VIDEO_MODE) | 
+    (READ_BYTE(BIOS_VIDEO_INFO_0) & 0x80);
 
   if(mode_class != -1) {
     if(!vga_emu_setmode(mode, text_width, text_height)) {

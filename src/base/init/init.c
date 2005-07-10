@@ -76,17 +76,7 @@ static inline void dbug_dumpivec(void)
 static void
 dosemu_banner(void)
 {
-  unsigned char *ssp;
-  unsigned long sp;
-
-  ssp = (unsigned char *) (REG(ss) << 4);
-  sp = (unsigned long) LWORD(esp);
-
-  pushw(ssp, sp, LWORD(cs));
-  pushw(ssp, sp, LWORD(eip));
-  LWORD(esp) -= 4;
-  LWORD(cs) = Banner_SEG;
-  LWORD(eip) = Banner_OFF;
+  fake_call_to(Banner_SEG, Banner_OFF);
 }
 
 /*
@@ -335,10 +325,6 @@ static inline void bios_mem_setup(void)
  */
 void memory_init(void)
 {
-  static int first_call = 1;
-  /* first_call is a truly awful hack to keep some of these procedures from
-     being called twice.  It should be fixed sometime. */
-
   map_custom_bios();           /* map the DOSEMU bios */
   setup_interrupts();          /* setup interrupts */
 
@@ -360,8 +346,6 @@ void memory_init(void)
     pkt_init(0x60);              /* Install the new packet driver interface */
 #endif
 
-  bios_mem_setup();            /* setup values in BIOS area */
-
   /* 
    * The banner helper actually gets called *after* the VGA card
    * is initialized (if it is) because we set up a return chain:
@@ -371,17 +355,7 @@ void memory_init(void)
   if (config.dosbanner)
     dosemu_banner();
 
-  if (config.vga) {
-    g_printf("INITIALIZING VGA CARD BIOS!\n");
-    init_vga_card();
-  }
-
-  if (first_call) {
-    ems_init();                /* initialize ems */
-    xms_init();                /* initialize xms */
-    dpmi_setup();
-  }
-  first_call = 0;
+  bios_mem_setup();            /* setup values in BIOS area */
 }
 
 /* 
@@ -405,7 +379,6 @@ void device_init(void)
   if (!config.vga)
     config.vbios_post = 0;
 
-  video_config_init();
   if (config.console && (config.speaker == SPKR_EMULATED)) {
     register_speaker((void *)console_fd,
 		     console_speaker_on, console_speaker_off);

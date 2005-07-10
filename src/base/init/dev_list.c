@@ -84,6 +84,7 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "sound",   sound_init,   sound_reset,   NULL },
 #endif
   { "joystick", joy_init,    joy_reset,     joy_term },
+  { "video",   video_config_init, video_post_init, video_close },
   { NULL,      NULL,         NULL,          NULL }
 };
 

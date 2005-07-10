@@ -340,7 +340,7 @@ static GC gc, fullscreengc, normalgc;
 static Font vga_font;
 static Atom proto_atom = None, delete_atom = None;
 static XFontStruct *font = NULL;
-static int font_width, font_shift, shift_x, shift_y;
+static int font_width, font_height, font_shift, shift_x, shift_y;
 
 #if CONFIG_X_SELECTION
 static u_char *sel_text = NULL;
@@ -781,10 +781,6 @@ int X_init()
   else {
     X_printf("X: X_init: mouse grabbing disabled\n");
   }
-
-  /* start with some standard text mode */
-  X_set_videomode(TEXT, CO, LI);
-  mouse_reset_to_current_video_mode();
 
   if (config.X_fullscreen)
     toggle_fullscreen_mode();
@@ -2266,7 +2262,8 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
  */
 int X_set_videomode(int mode_class, int text_width, int text_height)
 {
-  int mode = video_mode;
+  int mode = READ_BYTE(BIOS_VIDEO_MODE) | 
+    (READ_BYTE(BIOS_VIDEO_INFO_0) & 0x80);
   XSizeHints sh; /* for graphics modes, text size locking is above */
 #ifdef X_USE_BACKING_STORE
   XSetWindowAttributes xwa;

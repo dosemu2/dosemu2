@@ -368,7 +368,6 @@ emulate(int argc, char **argv)
     mapping_init();		/* initialize mapping drivers */
     low_mem_init();		/* initialize the lower 1Meg */
     map_hardware_ram();         /* map the direct hardware ram */
-    video_post_init();          /* map the Video RAM, init VC switch */
     map_video_bios();           /* map (really: copy) the video bios */
     close_kmem();
 
@@ -376,6 +375,9 @@ emulate(int argc, char **argv)
                                    is initialized*/
     memory_init();		/* initialize the memory contents */
     iodev_reset();		/* reset all i/o devices          */
+    ems_init();			/* initialize ems */
+    xms_init();			/* initialize xms */
+    dpmi_setup();
     boot();			/* read the boot sector & get moving */
 
     if (not_use_sigio)
@@ -411,7 +413,6 @@ dos_ctrl_alt_del(void)
     HMA_MAP(1);
     time_setting_init();
     iodev_reset();
-    video_config_init();
     serial_init();
     dosemu_mouse_init();
     printer_init();
@@ -512,8 +513,6 @@ leavedos(int sig)
     show_ints(0, 0x33);
     g_printf("calling disk_close_all\n");
     disk_close_all();
-    g_printf("calling video_close\n");
-    video_close();
    
     if (config.emuretrace) {
       do_r3da_pending ();

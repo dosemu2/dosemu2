@@ -213,7 +213,7 @@ void vbe_init(vgaemu_display_type *vedt)
       read(fd, (void*)0xc0000, 32768);
       close(fd);
       vgaemu_bios.pages = 8;
-      fake_call_to(INT10_SEG, INT10_OFF);
+      config.vbios_post = 1;
     }
   }
 

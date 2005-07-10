@@ -122,8 +122,6 @@ EXTERN int video_mode INIT(0);
 /* bit mask for testing vm86s.screen_bitmap */
 EXTERN unsigned int screen_mask;
 
-EXTERN int font_height INIT(16);
-
 EXTERN int vga_font_height INIT(16);  /* current EMULATED setting for vga font height */
 
 EXTERN int std_font_height INIT(16);  /* font height set by int10,0 mode 3 */
