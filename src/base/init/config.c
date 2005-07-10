@@ -170,16 +170,8 @@ void dump_config_status(void *printfunc)
         config.fdisks, config.hdisks, config.bootdisk);
     (*print)("term_esc_char 0x%x\nterm_color %d\nterm_updatefreq %d\n",
         config.term_esc_char, config.term_color, config.term_updatefreq);
-    switch (config.term_charset) {
-      case CHARSET_LATIN: s = "latin"; break;
-      case CHARSET_LATIN1: s = "latin1"; break;
-      case CHARSET_LATIN2: s = "latin2"; break;
-      case CHARSET_IBM: s = "ibm"; break;
-      case CHARSET_FULLIBM: s = "fullibm"; break;
-      default: s = "(unknown)";
-    }
     (*print)("term_charset \"%s\"\nX_updatelines %d\nX_updatefreq %d\n",
-        s, config.X_updatelines, config.X_updatefreq);
+        config.X_updatelines, config.X_updatefreq);
     (*print)("xterm_title\n", config.xterm_title);
     (*print)("X_display \"%s\"\nX_title \"%s\"\nX_icon_name \"%s\"\n",
         (config.X_display ? config.X_display :""), config.X_title, config.X_icon_name);

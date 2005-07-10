@@ -518,24 +518,6 @@ xterm_title		RETURN(XTERM_TITLE);
 updatefreq		RETURN(UPDATEFREQ);
 color			RETURN(COLOR);
 escchar			RETURN(ESCCHAR);
-	/* corner			RETURN(CORNER); */
-	/* method			RETURN(METHOD); */
-	/* normal			RETURN(NORMAL); */
-	/* xterm			RETURN(XTERM); */
-	/* fast			RETURN(FAST); */
-	/* ncurses			RETURN(NCURSES); */
-latin1			MAY_BE { yylval->i_value = CHARSET_LATIN1;
-			  return(CHARSET_TYPE); }
-latin2			MAY_BE { yylval->i_value = CHARSET_LATIN2;
-			  return(CHARSET_TYPE); }
-latin			MAY_BE { yylval->i_value = CHARSET_LATIN;
-			  return(CHARSET_TYPE); }
-ibm			MAY_BE { yylval->i_value = CHARSET_IBM;
-			  return(CHARSET_TYPE); }
-fullibm			MAY_BE { yylval->i_value = CHARSET_FULLIBM;
-			  return(CHARSET_TYPE); }
-koi8r		MAY_BE { yylval->i_value = CHARSET_KOI8;
-				return(CHARSET_TYPE); }
 
 	/* mouse types */
 

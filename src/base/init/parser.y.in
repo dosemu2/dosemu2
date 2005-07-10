@@ -193,7 +193,7 @@ static int is_in_allowed_classes(int mask);
 %}
 
 %token <i_value> INTEGER L_OFF L_ON L_AUTO L_YES L_NO CHIPSET_TYPE
-%token <i_value> CHARSET_TYPE KEYB_LAYOUT
+%token <i_value> KEYB_LAYOUT
 %token <r_value> REAL
 %token <s_value> STRING VARIABLE
 
@@ -246,7 +246,7 @@ static int is_in_allowed_classes(int mask);
         /* lock files */
 %token DIRECTORY NAMESTUB BINARY
 	/* serial */
-%token BASE IRQ INTERRUPT DEVICE CHARSET  BAUDRATE VIRTUAL
+%token BASE IRQ INTERRUPT DEVICE CHARSET BAUDRATE VIRTUAL
 	/* mouse */
 %token MICROSOFT MS3BUTTON LOGITECH MMSERIES MOUSEMAN HITACHI MOUSESYSTEMS BUSMOUSE PS2 IMPS2
 %token INTERNALDRIVER EMULATE3BUTTONS CLEARDTR
@@ -607,7 +607,6 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    { start_video(); }
 		  '{' video_flags '}'
 		    { stop_video(); }
-		| CHARSET CHARSET_TYPE	{ config.term_charset = $2; }
 		| XTERM_TITLE string_expr { config.xterm_title = $2; }
 		| TERMINAL
                   '{' term_flags '}'
@@ -1121,7 +1120,6 @@ term_flags	: term_flag
 		;
 term_flag	: ESCCHAR expression       { config.term_esc_char = $2; }
 		| UPDATEFREQ expression	{ config.term_updatefreq = $2; }
-		| CHARSET CHARSET_TYPE	{ config.term_charset = $2; }
 		| COLOR bool		{ config.term_color = ($2!=0); }
 		| STRING
 		    { yyerror("unrecognized terminal option '%s'", $1);

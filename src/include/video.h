@@ -144,25 +144,6 @@ EXTERN int phys_text_base INIT(0);
 EXTERN int video_subsys;
 EXTERN int v_8514_base INIT(0);
 
-/* The following defines are for terminal (curses) mode */
-
-/* Character set defines */
-#define CHARSET_LATIN	1
-#define CHARSET_IBM	2
-#define CHARSET_FULLIBM	3
-#define CHARSET_LATIN1  4
-#define CHARSET_LATIN2  5
-#define CHARSET_KOI8    6
-
-
-/* Color set defines */
-/* #define COLOR_NORMAL	1 */
-/* #define COLOR_XTERM	2 */
-
-/* Terminal update defines. For using direct ANSI sequences, or NCURSES */
-/* #define METHOD_FAST	1 */
-/* #define METHOD_NCURSES	2 */
-
 /* Various defines for all common video adapters */
 
 #define CARD_VGA	1
