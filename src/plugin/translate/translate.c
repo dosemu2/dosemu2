@@ -857,39 +857,10 @@ void translate_test(void)
 	memset(test_charset_old, 0, 256);
 	memset(reverse_charset_new, 0, 256);
 	memset(reverse_charset_old, 0, 256);
-	switch(config.term_charset) {
-	case CHARSET_KOI8:
-		paste_charset = lookup_charset("koi8_r_terminal");
-		video_charset = lookup_charset("cp866_display");
-		old_charset = dos_to_koi8;
-		old_reverse_charset = koi8_to_dos;
-		break;
-	case CHARSET_LATIN1:
-		paste_charset = lookup_charset("iso8859_1_terminal");
-		video_charset = lookup_charset("cp850_display");
-		old_charset = dos_to_latin1;
-		old_reverse_charset = latin1_to_dos;
-		break;
-	case CHARSET_LATIN2:
-		paste_charset = lookup_charset("iso8859_2_terminal");
-		video_charset = lookup_charset("cp852_display");
-		old_charset = dos_to_latin2;
-		old_reverse_charset = latin2_to_dos;
-		break;
-	default:
-	case CHARSET_LATIN:
-		paste_charset = lookup_charset("iso8859_1_terminal");
-		video_charset = lookup_charset("cp437_display");
-		old_charset = dos_to_latin;
-		old_reverse_charset = latin_to_dos;
-		break;
-	case CHARSET_IBM:
-		paste_charset = lookup_charset("cp437_terminal");
-		video_charset = lookup_charset("cp437_display");
-		old_charset = dos_to_latin;
-		old_reverse_charset = latin_to_dos;
-		break;
-	}
+	paste_charset = lookup_charset("iso8859_1_terminal");
+	video_charset = lookup_charset("cp437_display");
+	old_charset = dos_to_latin;
+	old_reverse_charset = latin_to_dos;
 	/* Build the translate tables */	
 	for(i = 0; i < 256; i++) {
 		t_unicode uni;
