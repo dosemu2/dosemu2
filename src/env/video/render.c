@@ -165,7 +165,11 @@ void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
   if(!(remap_obj.state & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
     error("setmode: video mode 0x%02x not supported on this screen\n", vga.mode);
     /* why do we need a blank screen? */
+    /* Because many games use 16bpp only for the trailer, so not quitting
+     * here may actually help. */
+#if 0
     leavedos(24);
+#endif
   }
   adjust_gamma(&remap_obj, config.X_gamma);
 
