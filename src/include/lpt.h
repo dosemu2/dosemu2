@@ -17,7 +17,6 @@ struct p_fops {
 struct printer {
   char *dev;
   char *prtcmd;
-  char *prtopt;
   int delay;
   ioport_t base_port;		/* Base port address handled by device */
 

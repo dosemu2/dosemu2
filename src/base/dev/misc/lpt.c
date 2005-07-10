@@ -29,9 +29,9 @@ static int stub_printer_write(int, int);
 
 static struct printer lpt[NUM_PRINTERS] =
 {
-  {NULL, "lpr", "", 5, 0x378},
-  {NULL, "lpr", "", 5, 0x278},
-  {NULL, NULL, NULL, 10, 0x3bc}
+  {NULL, "lpr", 5, 0x378},
+  {NULL, "lpr", 5, 0x278},
+  {NULL, NULL, 10, 0x3bc}
 };
 
 int int17(void)
@@ -84,29 +84,12 @@ static int dev_printer_open(int prnum)
 
 static int pipe_printer_open(int prnum)
 {
-  size_t cmdbuflen;
-  char *cmdbuf;
-  
-  cmdbuflen = strlen(lpt[prnum].prtcmd) + 1 +
-    strlen(lpt[prnum].prtopt) + 1;
+  p_printf("LPT: doing printer command ..%s..\n", lpt[prnum].prtcmd);
 
-  cmdbuf = malloc(cmdbuflen);
-  if (!cmdbuf) {
-    fprintf(stderr, "out of memory, giving up\n");
-    longjmp(NotJEnv, 0x4d);
-  }
-
-  strcpy(cmdbuf, lpt[prnum].prtcmd);
-  strcat(cmdbuf, " ");
-  strcat(cmdbuf, lpt[prnum].prtopt);
-  p_printf("LPT: doing printer command ..%s..\n",
-	   cmdbuf);
-
-  lpt[prnum].file = popen(cmdbuf, "w");
+  lpt[prnum].file = popen(lpt[prnum].prtcmd, "w");
   if (lpt[prnum].file == NULL)
     error("system(\"%s\") in lpt.c failed, cannot print!\
-  Command returned error %s\n", cmdbuf, strerror(errno));
-  free(cmdbuf);
+  Command returned error %s\n", lpt[prnum].prtcmd, strerror(errno));
   return 0;
 }
 
@@ -265,7 +248,6 @@ void printer_config(int prnum, struct printer *pptr)
   if (prnum < NUM_PRINTERS) {
     destptr = &lpt[prnum];
     destptr->prtcmd = pptr->prtcmd;
-    destptr->prtopt = pptr->prtopt;
     destptr->dev = pptr->dev;
     destptr->file = pptr->file;
     destptr->remaining = pptr->remaining;
@@ -276,8 +258,8 @@ void printer_config(int prnum, struct printer *pptr)
 void printer_print_config(int prnum, void (*print)(char *, ...))
 {
   struct printer *pptr = &lpt[prnum];
-  (*print)("LPT%d command \"%s  %s\"  timeout %d  device \"%s\"  baseport 0x%03x\n",
-	  prnum+1, pptr->prtcmd, pptr->prtopt, pptr->delay, (pptr->dev ? pptr->dev : ""), pptr->base_port); 
+  (*print)("LPT%d command \"%s\"  timeout %d  device \"%s\"  baseport 0x%03x\n",
+	  prnum+1, pptr->prtcmd, pptr->delay, (pptr->dev ? pptr->dev : ""), pptr->base_port); 
 }
 
 #undef LPT_C

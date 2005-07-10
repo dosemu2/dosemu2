@@ -228,7 +228,6 @@ static int is_in_allowed_classes(int mask);
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO EMURETRACE TIMER
 %token MATHCO CPU CPUSPEED RDTSC BOOTA BOOTB BOOTC
 %token L_XMS L_DPMI DPMI_BASE PM_DOS_API PORTS DISK DOSMEM EXT_MEM
-%token PRINTER
 %token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK FULL_FILE_LOCKS
 %token DEXE ALLOWDISK FORCEXDOS XDOSONLY
 %token ABORT WARN
@@ -1328,7 +1327,6 @@ printer_flags	: printer_flag
 		;
 printer_flag	: COMMAND string_expr	{ pptr->prtcmd = $2; }
 		| TIMEOUT expression	{ pptr->delay = $2; }
-		| OPTIONS string_expr	{ pptr->prtopt = $2; }
 		| L_FILE string_expr		{ pptr->dev = $2; }
 		| BASE expression		{ pptr->base_port = $2; }
 		| STRING
@@ -1829,7 +1827,6 @@ static void stop_terminal(void)
 static void start_printer(void)
 {
   pptr->prtcmd = "lpr";
-  pptr->prtopt = "%s";
   pptr->dev = NULL;
   pptr->file = NULL;
   pptr->remaining = -1;
@@ -1839,8 +1836,8 @@ static void start_printer(void)
 static void stop_printer(void)
 {
   printer_config(c_printers, pptr);
-  c_printf("CONF(LPT%d) f: %s   c: %s  o: %s  t: %d  port: %x\n",
-           c_printers, pptr->dev, pptr->prtcmd, pptr->prtopt,
+  c_printf("CONF(LPT%d) f: %s   c: %s  t: %d  port: %x\n",
+           c_printers, pptr->dev, pptr->prtcmd,
            pptr->delay, pptr->base_port);
   c_printers++;
   config.num_lpt = c_printers;

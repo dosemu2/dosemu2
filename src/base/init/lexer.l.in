@@ -670,7 +670,6 @@ joystick		RETURN(JOYSTICK);
 
 command			RETURN(COMMAND);
 timeout			RETURN(TIMEOUT);
-options			RETURN(OPTIONS);
 file			RETURN(L_FILE);
 
 	/* port/io stuff */
