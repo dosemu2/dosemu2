@@ -294,7 +294,7 @@ int xkb_error_base = 0;
 
 #ifdef HAVE_MITSHM
 static int shm_ok = 0;
-static int shm_error_base = 0;
+static int shm_major_opcode = 0;
 static XShmSegmentInfo shminfo;
 #endif
 
@@ -413,6 +413,7 @@ static void X_keymap_init(void);
 
 /* error/event handler */
 static int NewXErrorHandler(Display *, XErrorEvent *);
+static int NewXIOErrorHandler(Display *);
 static void X_handle_events(void);
 
 /* interface to xmode.exe */
@@ -602,6 +603,7 @@ int X_init()
   X_get_screen_info();
 
   OldXErrorHandler = XSetErrorHandler(NewXErrorHandler);
+  XSetIOErrorHandler(NewXIOErrorHandler);
 
 #ifdef HAVE_MITSHM
   X_shm_init();
@@ -941,19 +943,19 @@ void X_get_screen_info()
  */
 void X_shm_init()
 {
-  int major_opcode, event_base, major_version, minor_version;
+  int event_base, error_base, major_version, minor_version;
   Bool shared_pixmaps;
 
   shm_ok = 0;
 
   if(!config.X_mitshm) return;
 
-  if(!XQueryExtension(display, "MIT-SHM", &major_opcode, &event_base, &shm_error_base)) {
+  if(!XQueryExtension(display, "MIT-SHM", &shm_major_opcode, &event_base, &error_base)) {
     X_printf("X: X_shm_init: server does not support MIT-SHM\n");
     return;
   }
 
-  X_printf("X: MIT-SHM ErrorBase: %d\n", shm_error_base);
+  X_printf("X: MIT-SHM major opcode: %d\n", shm_major_opcode);
 
   if(!XShmQueryVersion(display, &major_version, &minor_version, &shared_pixmaps)) {
     X_printf("X: X_shm_init: XShmQueryVersion() failed\n");
@@ -1250,6 +1252,15 @@ static int X_change_config(unsigned item, void *buf)
   return err;
 }
 
+/*
+ * fatal error handler
+ */
+int NewXIOErrorHandler(Display *dsp)
+{
+  error("Fatal X error, leaving\n");
+  leavedos(99);
+  return 0;
+}
 
 /*
  * The error handler just catches the first MIT-SHM errors.
@@ -1258,14 +1269,16 @@ static int X_change_config(unsigned item, void *buf)
 int NewXErrorHandler(Display *dsp, XErrorEvent *xev)
 {
 #ifdef HAVE_MITSHM
-  if(xev->request_code == shm_error_base || xev->request_code == shm_error_base + 1) {
+  if(xev->request_code == shm_major_opcode) {
     X_printf("X::NewXErrorHandler: error using shared memory\n");
     shm_ok = 0;
   }
   else
 #endif
   {
-    return OldXErrorHandler(dsp, xev);
+    /* the default X handler causes DOSEMU to exit uncleanly
+       so we call leavedos() here */
+    leavedos(99);
   }
 #ifdef HAVE_MITSHM
   return 0;
