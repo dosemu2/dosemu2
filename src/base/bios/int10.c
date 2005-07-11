@@ -407,12 +407,15 @@ boolean set_video_mode(int mode) {
     CRTC_write_value((CRTC_read_value() & ~0x1f) + vga_font_height -1);
     vmi->char_height = vga_font_height; /* should already be done, */
     /* as side effect of the CRTC write access in crtcemu... */
+    WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
+    if (Video->setmode == NULL)
+      /* can't change li */
+      return 1;
 
     text_scanlines = vmi->height;
     li = text_scanlines / vga_font_height;
     if(li > MAX_LINES) li = MAX_LINES;
     WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
-    WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
     if(using_text_mode()) {
       /* we must also load a FONT here                */
       /* but we can do this later where int 0x43      */
