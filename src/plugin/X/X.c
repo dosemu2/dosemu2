@@ -2275,8 +2275,7 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
  */
 int X_set_videomode(int mode_class, int text_width, int text_height)
 {
-  int mode = READ_BYTE(BIOS_VIDEO_MODE) | 
-    (READ_BYTE(BIOS_VIDEO_INFO_0) & 0x80);
+  int mode = video_mode;
   XSizeHints sh; /* for graphics modes, text size locking is above */
 #ifdef X_USE_BACKING_STORE
   XSetWindowAttributes xwa;

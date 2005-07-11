@@ -185,8 +185,7 @@ static void SDL_resize_text_screen(void)
 /* NOTE : Like X.c, the actual mode is taken via video_mode */
 int SDL_set_videomode(int mode_class, int text_width, int text_height)
 {
-  int mode = READ_BYTE(BIOS_VIDEO_MODE) | 
-    (READ_BYTE(BIOS_VIDEO_INFO_0) & 0x80);
+  int mode = video_mode;
 
   if(mode_class != -1) {
     if(!vga_emu_setmode(mode, text_width, text_height)) {
