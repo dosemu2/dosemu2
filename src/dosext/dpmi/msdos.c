@@ -111,6 +111,7 @@ static void *msdos_realloc(void *addr, unsigned long new_size)
   block = DPMIrealloc(block.handle, new_size);
   if (!block.size)
     return NULL;
+  MSDOS_CLIENT.mem_map[i] = block;
   return block.base;
 }
 

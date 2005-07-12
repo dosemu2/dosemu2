@@ -1293,22 +1293,21 @@ void pm_to_rm_regs(struct sigcontext_struct *scp, unsigned int mask)
 
 void rm_to_pm_regs(struct sigcontext_struct *scp, unsigned int mask)
 {
-  DPMI_CLIENT.stack_frame.eflags = 0x0202 | (0x0dd5 & REG(eflags)) |
-      dpmi_mhp_TF;
+  _eflags = 0x0202 | (0x0dd5 & REG(eflags)) | dpmi_mhp_TF;
   if (mask & (1 << eax_INDEX))
-    DPMI_CLIENT.stack_frame.eax = REG(eax);
+    _eax = REG(eax);
   if (mask & (1 << ebx_INDEX))
-    DPMI_CLIENT.stack_frame.ebx = REG(ebx);
+    _ebx = REG(ebx);
   if (mask & (1 << ecx_INDEX))
-    DPMI_CLIENT.stack_frame.ecx = REG(ecx);
+    _ecx = REG(ecx);
   if (mask & (1 << edx_INDEX))
-    DPMI_CLIENT.stack_frame.edx = REG(edx);
+    _edx = REG(edx);
   if (mask & (1 << esi_INDEX))
-    DPMI_CLIENT.stack_frame.esi = REG(esi);
+    _esi = REG(esi);
   if (mask & (1 << edi_INDEX))
-    DPMI_CLIENT.stack_frame.edi = REG(edi);
+    _edi = REG(edi);
   if (mask & (1 << ebp_INDEX))
-    DPMI_CLIENT.stack_frame.ebp = REG(ebp);
+    _ebp = REG(ebp);
 }
 
 static void save_rm_regs(void)
