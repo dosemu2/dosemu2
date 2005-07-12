@@ -180,11 +180,6 @@ extern void unfreeze_mouse(void);
 extern void mouse_post_boot(void);
 extern void int74(void);
 
-extern void mouse_move(void);
-extern void mouse_lb(void);
-extern void mouse_mb(void);
-extern void mouse_rb(void);
-
 extern int DOSEMUMouseEvents(int);
 
 extern void do_mouse_irq(void);

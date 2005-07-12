@@ -1103,7 +1103,9 @@ mouse_setpos(void)
     return;
   }
   mouse.x = LWORD(ecx);
+  mouse.unsc_x = mouse.x * mouse.speed_x;
   mouse.y = LWORD(edx);
+  mouse.unsc_y = mouse.y * mouse.speed_y;
   mouse_round_coords();
   mouse_hide_on_exclusion();
   m_printf("MOUSE: set cursor pos x:%d, y:%d\n", mouse.x, mouse.y);
@@ -1308,8 +1310,6 @@ mouse_enable_internaldriver()
   m_printf("MOUSE: Enable InternalDriver\n");
 }
 
-
-#ifdef HAVE_UNICODE_KEYB
 /* Keyboard mouse control :)  */
 void mouse_keyboard(Boolean make, t_keysym key)
 {
@@ -1389,48 +1389,10 @@ void mouse_keyboard(Boolean make, t_keysym key)
 	mouse_move_relative(dx, dy);
 	mouse_move_buttons(state.lbutton, state.mbutton, state.rbutton);
 }
-#else
-/* XXX - something's wrong here. Shouldn't the first 4 cases move the cursor?
- */
-void mouse_keyboard(int sc)
-{
-  switch (sc) {
-  case KEY_DOWN:
-    mouse.rbutton = mouse.lbutton = mouse.mbutton = 0;
-    mouse_move();
-    break;
-  case KEY_LEFT:
-    mouse.rbutton = mouse.lbutton = mouse.mbutton = 0;
-    mouse_move();
-    break;
-  case KEY_RIGHT:
-    mouse.rbutton = mouse.lbutton = mouse.mbutton = 0;
-    mouse_move();
-    break;
-  case KEY_UP:
-    mouse.rbutton = mouse.lbutton = mouse.mbutton = 0;
-    mouse_move();
-    break;
-  case KEY_HOME:
-    mouse_lb();
-    break;
-  case KEY_END:
-    mouse_rb();
-    break;
-  default:
-    m_printf("MOUSE: keyboard_mouse(), sc 0x%02x unknown!\n", sc);
-  }
-}
-#endif
-
 
 static void mouse_round_coords(void)
 {
 	/* Make certain we have the correct screen boundaries */
-#if !defined(USE_NEW_INT) && (INT10_WATCHER_SEG == BIOSSEG)
-	/* With the mouse watcher can do this only on mode resets */ 
-	mouse_reset_to_current_video_mode();
-#endif
 
 	/* put the mouse coordinate in bounds */
 	if (mouse.x <= mouse.virtual_minx) {
@@ -1476,8 +1438,7 @@ static void mouse_hide_on_exclusion(void)
   }
 }
 
-void 
-mouse_move(void)
+static void mouse_move(void)
 {
   mouse_round_coords();
   mouse_hide_on_exclusion();
@@ -1488,8 +1449,7 @@ mouse_move(void)
   mouse_delta(DELTA_CURSOR);
 }
 
-void 
-mouse_lb(void)
+static void mouse_lb(void)
 {
   m_printf("MOUSE: left button %s\n", mouse.lbutton ? "pressed" : "released");
   if (!mouse.lbutton) {
@@ -1506,8 +1466,7 @@ mouse_lb(void)
   }
 }
 
-void 
-mouse_mb(void)
+static void mouse_mb(void)
 {
   m_printf("MOUSE: middle button %s\n", mouse.mbutton ? "pressed" : "released");
   if (!mouse.mbutton) {
@@ -1524,8 +1483,7 @@ mouse_mb(void)
   }
 }
 
-void 
-mouse_rb(void)
+static void mouse_rb(void)
 {
   m_printf("MOUSE: right button %s\n", mouse.rbutton ? "pressed" : "released");
   if (!mouse.rbutton) {
@@ -1768,12 +1726,29 @@ do_mouse_irq()
 /* unconditional mouse cursor update */
 static void mouse_do_cur(void)
 {
+  int minx, maxx, miny, maxy;
+
   if (mouse.gfx_cursor) {
     graph_cursor();
   }
   else {
     text_cursor();
   }
+
+  if (mice->native_cursor || !Mouse->set_cursor)
+    return;
+
+  /* this callback is used to e.g. warp the X cursor if int33/ax=4
+     requested it to be moved */
+
+  minx = mouse.minx<mouse.virtual_minx ? mouse.minx : mouse.virtual_minx;
+  maxx = mouse.maxx>mouse.virtual_maxx ? mouse.maxx : mouse.virtual_maxx;
+  miny = mouse.miny<mouse.virtual_miny ? mouse.miny : mouse.virtual_miny;
+  maxy = mouse.maxy>mouse.virtual_maxy ? mouse.maxy : mouse.virtual_maxy;
+
+  Mouse->set_cursor(mouse.cursor_on == 0?1: 0, 
+		    mouse.x - minx, mouse.y - miny,
+		    maxx - minx +1, maxy - miny +1);
 }
 
 /* conditionally update the mouse cursor only if it's changed position. */
@@ -1907,9 +1882,6 @@ dosemu_mouse_init(void)
   char p[32];
 #else
   char *p=(char *)0xefe00;
-#endif
-#if 0 /* Not sure why she's here? 94/09/19 */
-  int old_mice_flags = -1;
 #endif
  
   mouse.ignorexy = FALSE;
