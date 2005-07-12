@@ -81,8 +81,6 @@
 #define BIOS_CONFIG_SCREEN_MODE (READ_WORD(BIOS_CONFIGURATION) & 0x30)
 #define IS_SCREENMODE_MDA (BIOS_CONFIG_SCREEN_MODE == 0x30)
 
-static int text_scanlines;
-
 unsigned short *screen_adr(int page)
 {
   /* This is the text screen base, the DOS program actually has to use.
@@ -362,6 +360,86 @@ static void clear_screen(void)
   }
 }
 
+/* return number of vertical scanlines based on the bytes at
+   40:88 and 40:89 */
+static int get_text_scanlines(void)
+{
+  int info = READ_WORD(BIOS_VIDEO_INFO_1);
+  v_printf("scanlines=%x\n", info);
+  if ((info & 1) == 0)
+    return 200;
+  if ((info & 0x1000) == 0)
+    return 350;
+  if ((info & 0x8000) == 0)
+    return 400;
+  return 480;
+}
+
+/* set number of vertical scanlines at the bytes at
+   40:88 and 40:89 */
+static void set_text_scanlines(int lines)
+{
+  int info = READ_WORD(BIOS_VIDEO_INFO_1) & ~0x9001;
+  if (lines == 200)
+    info |= 0x8000;
+  else {
+    info |= 1;
+    if (lines == 400)
+      info |= 0x1000;
+    else if (lines == 480)
+      info |= 0x9000;
+  }
+  v_printf("scanlines=%x %d\n", info, lines);
+  WRITE_WORD(BIOS_VIDEO_INFO_1, info);
+}
+
+static int adjust_font_size(int vga_font_height)
+{
+  /* RBIL says:
+     Recalculate: BIOS_FONT_HEIGHT, BIOS_ROWS_ON_SCREEN_MINUS_1, and
+     BIOS_VIDEO_MEMORY_USED.
+     Update CRTC registers 9 (for font height), A/B (cursor), 12 (display end),
+     14 (underline location) */
+  int li, text_scanlines;
+  ioport_t port;
+
+  if(vga_font_height == 0)
+    return 0;
+
+  i10_msg("adjust_font_size: font size %d lines\n", vga_font_height);
+
+  text_scanlines = (READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1) *
+    READ_WORD(BIOS_FONT_HEIGHT);
+  if (text_scanlines <= 200) text_scanlines = 200;
+  else if (text_scanlines <= 350) text_scanlines = 350;
+  else if (text_scanlines <= 400) text_scanlines = 400;
+  else text_scanlines = 480;
+  li = text_scanlines / vga_font_height;
+  if (li > MAX_LINES)
+    return 0;
+  text_scanlines = li * vga_font_height;
+
+  port = READ_WORD(BIOS_VIDEO_PORT);
+  port_outw(port, 0x12 | (((text_scanlines-1) & 0xff) << 8));
+  port_outb(port, 0x14);
+  port_outb(port + 1, (port_inb(port + 1) & ~0x1f) + vga_font_height);
+  port_outb(port, 9);
+  port_outb(port + 1, (port_inb(port + 1) & ~0x1f) + vga_font_height -1);
+  WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
+
+  if(READ_BYTE(BIOS_VIDEO_MODE) == 7)
+    set_cursor_shape(0x0b0d);
+  else
+    set_cursor_shape(0x0607);
+
+  if (Video->setmode != NULL) {
+    /* otherwise we can't change li */
+    WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
+    WRITE_WORD(BIOS_VIDEO_MEMORY_USED, 
+	       TEXT_SIZE(READ_WORD(BIOS_SCREEN_COLUMNS), li));
+  }
+  return 1;
+}
 
 /*
  * set_video_mode() accepts both (S)VGA and VESA mode numbers
@@ -375,55 +453,20 @@ static void clear_screen(void)
 boolean set_video_mode(int mode) {
   vga_mode_info *vmi;
   int clear_mem = 1;
-  int adjust_font_size = 0;
   unsigned u;
-  int co, li, vga_font_height = 0;
+  int co, li, text_scanlines, vga_font_height;
+  ioport_t port;
 
   if (config.cardtype == CARD_NONE) {
     i10_msg("set_video_mode: no video!\n");
     return 0;
   }
 
-  if(mode >= 0x10000) {
-    adjust_font_size = 1;
-    vga_font_height = mode >> 16;
-  }
-
-  mode &= 0xffff;
-
-  if((mode & 0x7f) != READ_BYTE(BIOS_VIDEO_MODE)) adjust_font_size = 0;
-
-  i10_msg("set_video_mode: mode 0x%02x%s\n", mode, adjust_font_size ? " (adjust font size)" : "");
+  i10_msg("set_video_mode: mode 0x%02x\n", mode);
 
   if((vmi = vga_emu_find_mode(mode, NULL)) == NULL) {
     i10_msg("set_video_mode: undefined video mode\n");
     return 0;
-  }
-
-  if(adjust_font_size) {
-    i10_msg("set_video_mode: font size %d lines\n", vga_font_height);
-
-    CRTC_set_index(9);
-    CRTC_write_value((CRTC_read_value() & ~0x1f) + vga_font_height -1);
-    vmi->char_height = vga_font_height; /* should already be done, */
-    /* as side effect of the CRTC write access in crtcemu... */
-    WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
-    if (Video->setmode == NULL)
-      /* can't change li */
-      return 1;
-
-    text_scanlines = vmi->height;
-    li = text_scanlines / vga_font_height;
-    if(li > MAX_LINES) li = MAX_LINES;
-    WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
-    if(using_text_mode()) {
-      /* we must also load a FONT here                */
-      /* but we can do this later where int 0x43      */
-      /* is set (below, in -this- function).          */
-      /* (as long as set_textsize does not need it) */
-      set_textsize(vmi->text_width, li);
-    }
-    return 1;
   }
 
   if(mode >= 0x80 && mode < 0x100) {
@@ -454,17 +497,20 @@ boolean set_video_mode(int mode) {
 
   if(mode == 7) {
     WRITE_BYTE(BIOS_CONFIGURATION, READ_BYTE(BIOS_CONFIGURATION) | 0x30);
+    port = 0x3b4;
     set_cursor_shape(0x0b0d);
-    WRITE_WORD(BIOS_VIDEO_PORT, 0x3b4);
   } else {
     WRITE_BYTE(BIOS_CONFIGURATION, 
 	       (READ_BYTE(BIOS_CONFIGURATION) & ~0x30) | 0x20);
+    port = 0x3d4;
     set_cursor_shape(0x0607);
-    WRITE_WORD(BIOS_VIDEO_PORT, 0x3d4);
   }
+  WRITE_WORD(BIOS_VIDEO_PORT, port);
 
+  text_scanlines = get_text_scanlines();
   if (Video->update_screen == NULL) {
     int type=0;
+    set_text_scanlines(400);
     if (mode <= 3 || mode == 7 || (mode >= 0x50 && mode <= 0x5a)) {
       co = vmi->text_width;
       li = vmi->text_height;
@@ -472,7 +518,6 @@ boolean set_video_mode(int mode) {
 #if USE_DUALMON
       if (mode == 7 && config.dualmon) {
 	type=7;
-	text_scanlines = 400;
 	vga_font_height = 16;
       }
 #endif
@@ -502,18 +547,6 @@ boolean set_video_mode(int mode) {
 
   li = vmi->text_height;
   co = vmi->text_width;
-  if(li > MAX_LINES) li = MAX_LINES;
-  vga_font_height = vmi->char_height;
-  text_scanlines = vmi->height;
-  if (using_text_mode()) {
-    vga_font_height = text_scanlines / 25;
-    vmi->char_height = vga.char_height = vga_font_height;
-  }
-
-  WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
-  WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
-  WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
-
 
   video_mode = mode;
 
@@ -556,7 +589,29 @@ boolean set_video_mode(int mode) {
   else if (mode <= 0x7)
     WRITE_BYTE(BIOS_VDU_COLOR_REGISTER, 0x30);
 
-  switch(vga.char_height) {
+  vga_font_height = vmi->char_height;
+  if (using_text_mode())
+    vga_font_height = text_scanlines / li;
+
+  if (li <= MAX_LINES) {
+    if(using_text_mode()) {
+      port_outb(port, 9);
+      port_outb(port + 1, (port_inb(port + 1) & ~0x1f) + vga_font_height -1);
+      /* adjust number of scanlines in the CRT; setmode set it at 400 */
+      if (text_scanlines == 200) {
+	/* just set doublescan */
+	port_outb(port + 1, 0x80 | port_inb(port + 1));
+      } else if (text_scanlines != 400) {
+	/* adjust display end */
+	port_outw(port, 0x12 | (((text_scanlines-1) & 0xff) << 8));
+      }
+    }
+    WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
+    WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
+    WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
+  }
+
+  switch(vga_font_height) {
     case 14:
       u = vgaemu_bios.font_14;
       break;
@@ -576,6 +631,7 @@ boolean set_video_mode(int mode) {
 
   SETIVEC(0x43, 0xc000, u);
 
+  set_text_scanlines(400);
   return 1;
 }    
 
@@ -653,8 +709,12 @@ static void vga_RAM_to_RAM(unsigned height, unsigned char chr, unsigned count,
           height, chr, chr+count-1, seg, ofs, bank);
   dst = vga.mem.base + 0x20000 + bankofs;
   /* copy count characters of height bytes each to vga_font_mem */
-  for(i = chr; i < chr + count; i++)
+  for(i = chr; i < chr + count; i++) {
     MEMCPY_2UNIX(dst + i * 32, src + i * height, height);
+    if (height < 32)
+      memset(dst + i * 32 + height, 0, 32 - height);
+  }
+  vga.reconfig.mem = 1;
 }
 
 static void vga_ROM_to_RAM(unsigned height, int bank)
@@ -1098,8 +1158,7 @@ int int10(void) /* with dualmon */
 
     case 0x11:		/* character generator functions */
       {
-	int vga_font_height = READ_WORD(BIOS_FONT_HEIGHT);
-        int old_font_height = vga_font_height;
+	int vga_font_height;
         unsigned ofs, seg;
         unsigned rows, char_height;
 
@@ -1166,14 +1225,10 @@ int int10(void) /* with dualmon */
             Seq_write_value(x);         /* set bank N for both fonts */
             i10_msg("activated font bank %d (0x%02x)\n",
                 (LO(bx) & 7), x);
-            /* | (... << 16) is "only update font stuff" */
-            if(!set_video_mode(READ_BYTE(BIOS_VIDEO_MODE) | 0x80 |
-			       (vga_font_height << 16)))
-              v_printf("Problem changing font height %d->%d\n",
-                  old_font_height, vga_font_height);
-	    else
-	      WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
-            break;
+	    if(LO(ax) >= 0x10 && !adjust_font_size(vga_font_height))
+	      v_printf("Problem changing font height %d->%d\n",
+		       READ_WORD(BIOS_FONT_HEIGHT), vga_font_height);
+	    break;
 
           case 0x20:		/* set 8x8 gfx chars */
             SETIVEC(0x1f, REG(es), LWORD(ebp));
@@ -1300,11 +1355,10 @@ int int10(void) /* with dualmon */
           {
             static int scanlines[4] = {200, 350, 400, 480};
             /* 480 (undocumented) (int 0x10 AH=12 BL=30)          */
-            /* "will take effect on the next mode set" is         */
-            /* not yet implemented                                */
             if((unsigned) LO(ax) < 4) {
-              text_scanlines = scanlines[LO(ax)];
-              LO(ax) = 0x12;  
+	      int text_scanlines = scanlines[LO(ax)];
+	      set_text_scanlines(text_scanlines);
+              LO(ax) = 0x12;
               i10_deb("select vert res: %d lines", text_scanlines);
             }
             else {
