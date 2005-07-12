@@ -441,7 +441,8 @@ boolean set_video_mode(int mode) {
   memset((void *) 0x450, 0, 0x10);	/* equiv. to set_bios_cursor_(x/y)_position(0..7, 0) */
 
   if(Video->setmode == NULL) {
-    vga.display_start = 0;
+    /* set display start to 0 */
+    crt_outw(0xc, 0);
     /* mode change clears screen unless bit7 of AL set */
     if(clear_mem)
       clear_screen();
