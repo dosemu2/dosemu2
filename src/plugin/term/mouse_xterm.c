@@ -92,6 +92,7 @@ static int xterm_mouse_init(void)
 
 	mice->type = MOUSE_XTERM;
 	mice->use_absolute = 1;
+	mice->native_cursor = 0;      /* we have the xterm cursor */
 
 	return TRUE;
 }
@@ -107,16 +108,10 @@ static void xterm_mouse_close(void)
 	m_printf("XTERM MOUSE: Mouse tracking deinitialized\n");
 }
 
-static void xterm_mouse_set_cursor(int action, int mx, int my, int x_range, int y_range)
-{
-	/* do nothing: we cannot affect the mouse cursor in an xterm */
-}
-
-
 struct mouse_client Mouse_xterm =  {
 	"xterm",		/* name */
 	xterm_mouse_init,	/* init */
 	xterm_mouse_close,	/* close */
 	NULL,			/* run */
-	xterm_mouse_set_cursor	/* set_cursor */
+	NULL,
 };
