@@ -36,7 +36,7 @@ static smpool pgmpool;
 static int mpool_numpages = (32 * 1024) / 4;
 static char *mpool = 0;
 
-static int tmpfile_fd = -2;
+static int tmpfile_fd = -1;
 
 static void *alias_map(void *target, int mapsize, int protect, void *source)
 {
@@ -64,12 +64,11 @@ static void discardtempfile(void)
   tmpfile_fd = -1;
 }
 
-static int open_mapping_file(int cap)
+static int open_mapping_f(int cap)
 {
   if (cap) Q_printf("MAPPING: open, cap=%s\n",
 	  decode_mapping_cap(cap));
 
-  if (tmpfile_fd < 0) {
     int mapsize, estsize, padsize = 4*1024;
 
     /* first estimate the needed size of the mapfile */
@@ -84,22 +83,6 @@ static int open_mapping_file(int cap)
     mpool_numpages = mapsize / 4;
     mapsize = mpool_numpages * PAGE_SIZE; /* make sure we are page aligned */
 
-#ifdef HAVE_SHM_OPEN
-    if (tmpfile_fd == -2) {
-      char *name;
-      asprintf(&name, "%s%d", "DOSEMU:", getpid());
-      tmpfile_fd = shm_open(name, O_RDWR|O_CREAT|O_TRUNC, 700);
-      if (tmpfile_fd == -1) {
-	free(name);
-	return 0;
-      }
-      shm_unlink(name);
-      free(name);
-    } else
-#endif
-    {
-      tmpfile_fd = fileno(tmpfile());
-    }
     ftruncate(tmpfile_fd, 0);
     if (ftruncate(tmpfile_fd, mapsize) == -1) {
       error("MAPPING: cannot size temp file pool, %s\n",strerror(errno));
@@ -118,7 +101,6 @@ static int open_mapping_file(int cap)
     Q_printf("MAPPING: open, mpool (min %dK) is %d Kbytes at %p-%p\n",
 		estsize, mapsize/1024, mpool, mpool+mapsize-1);
     sminit(&pgmpool, mpool, mapsize);
-  }
 
   /*
    * Now handle individual cases.
@@ -179,6 +161,34 @@ static int open_mapping_file(int cap)
 
   return 1;
 }
+
+static int open_mapping_file(int cap)
+{
+  if (tmpfile_fd < 0) {
+    tmpfile_fd = fileno(tmpfile());
+    open_mapping_f(cap);
+  }
+  return 1;
+}
+
+#ifdef HAVE_SHM_OPEN
+static int open_mapping_pshm(int cap)
+{
+  char *name;
+  if (tmpfile_fd < 0) {
+    asprintf(&name, "%s%d", "dosemu_", getpid());
+    tmpfile_fd = shm_open(name, O_RDWR|O_CREAT|O_TRUNC, 700);
+    if (tmpfile_fd == -1) {
+      free(name);
+      return 0;
+    }
+    shm_unlink(name);
+    free(name);
+    open_mapping_f(cap);
+  }
+  return 1;
+}
+#endif
 
 static void close_mapping_file(int cap)
 {
@@ -242,6 +252,20 @@ static int munmap_mapping_file(int cap, void *addr, int mapsize)
 	cap, addr, mapsize);
   return munmap(addr, mapsize);
 }
+
+#ifdef HAVE_SHM_OPEN
+struct mappingdrivers mappingdriver_shm = {
+  "mapshm",
+  "Posix SHM mapping",
+  open_mapping_pshm,
+  close_mapping_file,
+  alloc_mapping_file,
+  free_mapping_file,
+  realloc_mapping_file,
+  mmap_mapping_file,
+  munmap_mapping_file
+};
+#endif
 
 struct mappingdrivers mappingdriver_file = {
   "mapfile",

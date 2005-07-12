@@ -4,11 +4,6 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-/* file mapshm.c
- * IPC shared memory mapping driver
- *	Hans Lermen, lermen@fgan.de
- */
-
 #include "emu.h"
 #include <unistd.h>
 #include <string.h>
@@ -187,9 +182,9 @@ static int munmap_mapping_shm(int cap, void *addr, int mapsize)
   return munmap(addr, mapsize);
 }
 
-struct mappingdrivers mappingdriver_shm = {
-  "mapshm",
-  "IPC shared memory mapping",
+struct mappingdrivers mappingdriver_ashm = {
+  "mapashm",
+  "anonymous non-expandable shared memory mapping",
   open_mapping_shm,
   close_mapping_shm,
   alloc_mapping_shm,

@@ -56,8 +56,10 @@ int have_mremap_fixed = 1;
 #endif
 
 static struct mappingdrivers *mappingdrv[] = {
-  &mappingdriver_file, /* first try shm_open */
-  &mappingdriver_shm,  /* then anon-shared-mmap */
+#ifdef HAVE_SHM_OPEN
+  &mappingdriver_shm, /* first try shm_open */
+#endif
+  &mappingdriver_ashm,  /* then anon-shared-mmap */
   &mappingdriver_file, /* and then a temp file */
 };
 
