@@ -23,7 +23,7 @@ static int start_gdb(pid_t dosemu_pid)
 
   printf("Debug info:\n");
   fflush(stdout);
-  asprintf(&buf, "gdb %s", dosemu_proc_self_exe);
+  asprintf(&buf, "gdb %s", dosemu_argv[0]);
   printf(buf);
   putchar('\n');
   fflush(stdout);
@@ -70,7 +70,7 @@ static void collect_info(pid_t pid)
 
   printf("System info:\n");
   fflush(stdout);
-  asprintf(&tmp, cmd0, dosemu_proc_self_exe);
+  asprintf(&tmp, cmd0, dosemu_argv[0]);
   system(tmp);
   free(tmp);
   system(cmd1);

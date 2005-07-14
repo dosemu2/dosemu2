@@ -58,7 +58,6 @@ int config_check_only = 0;
 
 int dosemu_argc;
 char **dosemu_argv;
-char *dosemu_proc_self_exe = NULL;
 
 static void     check_for_env_autoexec_or_config(void);
 static void     usage(char *basename);

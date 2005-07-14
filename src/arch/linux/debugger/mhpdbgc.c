@@ -369,11 +369,11 @@ static void mhp_rmapfile(int argc, char *argv[])
   if (argc >= 2) {
     map_fname = argv[1];
   }
-  if (map_fname == NULL && dosemu_proc_self_exe != NULL) {
+  if (map_fname == NULL) {
     /* try to get symbols on the fly */
-    map_fname = malloc(strlen(dosemu_proc_self_exe) + 60);
+    map_fname = malloc(strlen(dosemu_argv[0]) + 60);
     strcpy(map_fname, "nm ");
-    strcat(map_fname, dosemu_proc_self_exe);
+    strcat(map_fname, dosemu_argv[0]);
     strcat(map_fname, " | grep -v '\\(compiled\\)\\|\\(\\.o$\\)\\|\\( a \\)' | sort");
     ifp = popen(map_fname, "r");
   } else if (map_fname != NULL) {

@@ -219,9 +219,6 @@ void priv_init(void)
   gid  = cur_gid  = getgid();
   egid = cur_egid = getegid();
 
-  /* must store the /proc/self/exe symlink contents before dropping
-     privs! */
-  dosemu_proc_self_exe = readlink_malloc("/proc/self/exe");
   if (under_root_login)
   {
     /* check for sudo and set to original user */
