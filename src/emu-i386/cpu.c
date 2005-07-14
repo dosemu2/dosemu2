@@ -223,7 +223,6 @@ void cpu_setup(void)
 {
   unsigned long int stk_ptr, stk_beg, stk_end;
   FILE *fp;
-  char line[PATH_MAX];
 
   int_vector_setup();
 
@@ -267,8 +266,7 @@ void cpu_setup(void)
    "=m"(stk_ptr));
 
   if ((fp = fopen("/proc/self/maps", "r"))) {
-    while(fgets(line, sizeof(line) - 1, fp)) {
-      sscanf(line, "%lx-%lx", &stk_beg, &stk_end);
+    while(fscanf(fp, "%lx-%lx%*[^\n]", &stk_beg, &stk_end) == 2) {
       if (stk_ptr >= stk_beg && stk_ptr < stk_end) {
         stack_init_top = stk_end;
         stack_init_bot = stk_beg;

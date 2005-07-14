@@ -709,15 +709,13 @@ char * strlower(char *s)
 int check_memory_range(unsigned long base, unsigned long size)
 {
     FILE *fp;
-    char line[PATH_MAX];
     unsigned long beg, end;
     /* find out whether the address request is available */
     if ((fp = fopen("/proc/self/maps", "r")) == NULL) {
 	error("can't open /proc/self/maps\n");
 	return 0;
     }
-    while(fgets(line, sizeof(line) - 1, fp)) {
-	sscanf(line, "%lx-%lx", &beg, &end);
+    while(fscanf(fp, "%lx-%lx%*[^\n]", &beg, &end) == 2) {
 	if ((base + size) < beg ||  base >= end) {
 	    continue;
 	} else {

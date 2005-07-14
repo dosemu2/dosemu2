@@ -1158,7 +1158,7 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 	static emu_iodev_t io_device;
 	FILE *fp;
 	unsigned int beg, end;
-	char line[1024], portname[50], lock_file[64];
+	char portname[50], lock_file[64];
 	unsigned char mapped;
 	char *devrname;
 	int fd, usemasks = 0;
@@ -1195,10 +1195,10 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 		return FALSE;
 	}
 	mapped = 0;
-	while (fgets(line, sizeof(line) - 1, fp)) {
-		sscanf(line, "%x-%x : %s", &beg, &end, portname);
+	while (fscanf(fp, "%x-%x : ", &beg, &end) == 2) {
 		if ((start <= end) && ((start+size) > beg)) {
 			/* ports are besetzt, try to open the according device */
+			fgets(portname, sizeof(portname) - 1, fp);
 			i_printf("PORT: range 0x%04x-0x%04x already registered as %s\n",
 				 beg, end, portname);
 			if (!strncasecmp(portname,"dosemu",6)) return FALSE;
