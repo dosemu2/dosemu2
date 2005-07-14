@@ -139,63 +139,67 @@ void vbe_init(vgaemu_display_type *vedt)
     save_function_flags:0x3f 
   };
 
-  vbe_screen = *vedt;
-
   memset(dos_vga_bios, 0, VBE_BIOS_MAXPAGES << 12);	/* one page */
   memcpy(dos_vga_bios, vgaemu_bios_start, bios_ptr);
 
   vgaemu_bios.prod_name = (char *) vgaemu_bios_prod_name - (char *) vgaemu_bios_start;
 
-  i = (char *) vgaemu_bios_pm_interface_end - (char *) vgaemu_bios_pm_interface;
+  if (Video->setmode) {
+    i = (char *) vgaemu_bios_pm_interface_end - (char *) vgaemu_bios_pm_interface;
 
-  if(i + bios_ptr > (VBE_BIOS_MAXPAGES << 12) - 8) {
-    error("VBE: vbe_init: protected mode interface to large, disabling\n");
-    vgaemu_bios.vbe_pm_interface_len =
-    vgaemu_bios.vbe_pm_interface = 0;
-  }
+    if(i + bios_ptr > (VBE_BIOS_MAXPAGES << 12) - 8) {
+      error("VBE: vbe_init: protected mode interface to large, disabling\n");
+      vgaemu_bios.vbe_pm_interface_len =
+	vgaemu_bios.vbe_pm_interface = 0;
+    }
 
-  vgaemu_bios.vbe_pm_interface_len = i;
-  vgaemu_bios.vbe_pm_interface = bios_ptr;
-  memcpy(dos_vga_bios + bios_ptr, vgaemu_bios_pm_interface, i);
-  bios_ptr += i;
+    vgaemu_bios.vbe_pm_interface_len = i;
+    vgaemu_bios.vbe_pm_interface = bios_ptr;
+    memcpy(dos_vga_bios + bios_ptr, vgaemu_bios_pm_interface, i);
+    bios_ptr += i;
 
-  bios_ptr = (bios_ptr + 3) & ~3;
-  vgaemu_bios.vbe_mode_list = bios_ptr;
+    bios_ptr = (bios_ptr + 3) & ~3;
+    vgaemu_bios.vbe_mode_list = bios_ptr;
 
-  /* set up video mode list */
-  for(i = 0x100; i <= vgaemu_bios.vbe_last_mode; i++) {
-    if((vmi = vga_emu_find_mode(i, NULL))) {
-      if(vmi->VESA_mode != -1 && bios_ptr < ((VBE_BIOS_MAXPAGES << 12) - 4)) {
-        *((unsigned short *) (dos_vga_bios + bios_ptr)) = vmi->VESA_mode;
-        bios_ptr += 2;
+    /* set up video mode list */
+    for(i = 0x100; i <= vgaemu_bios.vbe_last_mode; i++) {
+      if((vmi = vga_emu_find_mode(i, NULL))) {
+	if(vmi->VESA_mode != -1 && bios_ptr < ((VBE_BIOS_MAXPAGES << 12) - 4)) {
+	  *((unsigned short *) (dos_vga_bios + bios_ptr)) = vmi->VESA_mode;
+	  bios_ptr += 2;
+	}
       }
     }
+
+    *((short *) (dos_vga_bios + bios_ptr)) = -1;
+    bios_ptr += 2;
+
+    /* add fonts */
+    vgaemu_bios.font_8 = bios_ptr;
+    memcpy(dos_vga_bios + bios_ptr, vga_rom_08, sizeof vga_rom_08);
+    bios_ptr += sizeof vga_rom_08;
+
+    vgaemu_bios.font_14 = bios_ptr;
+    memcpy(dos_vga_bios + bios_ptr, vga_rom_14, sizeof vga_rom_14);
+    bios_ptr += sizeof vga_rom_14;
+
+    vgaemu_bios.font_16 = bios_ptr;
+    memcpy(dos_vga_bios + bios_ptr, vga_rom_16, sizeof vga_rom_16);
+    bios_ptr += sizeof vga_rom_16;
+
+    vgaemu_bios.font_14_alt = bios_ptr;
+    memcpy(dos_vga_bios + bios_ptr, vga_rom_14_alt, sizeof vga_rom_14_alt);
+    bios_ptr += sizeof vga_rom_14_alt;
+
+    vgaemu_bios.font_16_alt = bios_ptr;
+    memcpy(dos_vga_bios + bios_ptr, vga_rom_16_alt, sizeof vga_rom_16_alt);
+    bios_ptr += sizeof vga_rom_16_alt;
+  } else {
+    /* only support the initial video mode, can't change it */
+    vgaemu_bios_functionality_table.modes[0] = 1 << video_mode;
+    vgaemu_bios_functionality_table.modes[1] =
+      vgaemu_bios_functionality_table.modes[2] = 0;
   }
-
-  *((short *) (dos_vga_bios + bios_ptr)) = -1;
-  bios_ptr += 2;
-
-  /* add fonts */
-  vgaemu_bios.font_8 = bios_ptr;
-  memcpy(dos_vga_bios + bios_ptr, vga_rom_08, sizeof vga_rom_08);
-  bios_ptr += sizeof vga_rom_08;
-
-  vgaemu_bios.font_14 = bios_ptr;
-  memcpy(dos_vga_bios + bios_ptr, vga_rom_14, sizeof vga_rom_14);
-  bios_ptr += sizeof vga_rom_14;
-
-  vgaemu_bios.font_16 = bios_ptr;
-  memcpy(dos_vga_bios + bios_ptr, vga_rom_16, sizeof vga_rom_16);
-  bios_ptr += sizeof vga_rom_16;
-
-  vgaemu_bios.font_14_alt = bios_ptr;
-  memcpy(dos_vga_bios + bios_ptr, vga_rom_14_alt, sizeof vga_rom_14_alt);
-  bios_ptr += sizeof vga_rom_14_alt;
-
-  vgaemu_bios.font_16_alt = bios_ptr;
-  memcpy(dos_vga_bios + bios_ptr, vga_rom_16_alt, sizeof vga_rom_16_alt);
-  bios_ptr += sizeof vga_rom_16_alt;
-  
   vgaemu_bios.functionality = bios_ptr;
   memcpy(dos_vga_bios + bios_ptr, &vgaemu_bios_functionality_table,
       sizeof vgaemu_bios_functionality_table);
@@ -228,6 +232,11 @@ void vbe_init(vgaemu_display_type *vedt)
     "VBE: vbe_init: %d pages for VGA BIOS, vga.mem.base = 0x%x\n",
     vgaemu_bios.pages, (unsigned) vga.mem.base
   );
+
+  if(!vedt)
+    return;
+
+  vbe_screen = *vedt;
 
   v_printf(
     "VBE: vbe_init: real display: bits/pixel = %d, color bits (rgb) = %d/%d/%d\n",

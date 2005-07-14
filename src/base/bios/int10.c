@@ -56,11 +56,12 @@
 
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "emu.h"
 #include "video.h"
 #include "bios.h"
-#include "vc.h"
+#include "int.h"
 #include "speaker.h"
 
 #include "vgaemu.h"
@@ -660,12 +661,10 @@ static void get_dcc(int *active_dcc, int *alternate_dcc)
 /* INT 10 AH=1B - FUNCTIONALITY/STATE INFORMATION (PS,VGA/MCGA) */
 static void return_state(Bit8u *statebuf) {
 	int active_dcc, alternate_dcc;
-	
-        if(!config.dualmon && Video->update_screen) {
-	   WRITE_WORD(statebuf, vgaemu_bios.functionality - 0xc0000);
-	   WRITE_WORD(statebuf + 2, 0xc000);
-        } else
-	  memset(statebuf, 0, 4); /* XXX pointer to static functionality table */
+
+	WRITE_WORD(statebuf, vgaemu_bios.functionality - 0xc0000);
+	WRITE_WORD(statebuf + 2, 0xc000);
+
 	/* store bios 0:449-0:466 at ofs 0x04 */
 	memcpy(statebuf + 0x04, (char *)0x449, 0x466 - 0x449 + 1);
 	/* store bios 0:484-0:486 at ofs 0x22 */
@@ -1513,3 +1512,96 @@ int int10(void) /* with dualmon */
   return 1;
 }
 
+void video_mem_setup(void)
+{
+  int co, li, video_combo;
+
+  switch (config.cardtype) {
+  case CARD_MDA:
+    {
+      configuration |= (MDA_CONF_SCREEN_MODE);
+      video_mode = MDA_INIT_SCREEN_MODE;
+      phys_text_base = MDA_PHYS_TEXT_BASE;
+      virt_text_base = MDA_VIRT_TEXT_BASE;
+      video_combo = MDA_VIDEO_COMBO;
+      break;
+    }
+  case CARD_CGA:
+    {
+      configuration |= (CGA_CONF_SCREEN_MODE);
+      video_mode = CGA_INIT_SCREEN_MODE;
+      phys_text_base = CGA_PHYS_TEXT_BASE;
+      virt_text_base = CGA_VIRT_TEXT_BASE;
+      video_combo = CGA_VIDEO_COMBO;
+      break;
+    }
+  case CARD_EGA:
+    {
+      configuration |= (EGA_CONF_SCREEN_MODE);
+      video_mode = EGA_INIT_SCREEN_MODE;
+      phys_text_base = EGA_PHYS_TEXT_BASE;
+      virt_text_base = EGA_VIRT_TEXT_BASE;
+      video_combo = EGA_VIDEO_COMBO;
+      break;
+    }
+  case CARD_VGA:
+    {
+      configuration |= (VGA_CONF_SCREEN_MODE);
+      video_mode = VGA_INIT_SCREEN_MODE;
+      phys_text_base = VGA_PHYS_TEXT_BASE;
+      virt_text_base = VGA_VIRT_TEXT_BASE;
+      video_combo = VGA_VIDEO_COMBO;
+      break;
+    }
+  default:			/* or Terminal, is this correct ? */
+    {
+      configuration |= (CGA_CONF_SCREEN_MODE);
+      video_mode = CGA_INIT_SCREEN_MODE;
+      phys_text_base = CGA_PHYS_TEXT_BASE;
+      virt_text_base = CGA_VIRT_TEXT_BASE;
+      video_combo = CGA_VIDEO_COMBO;
+      break;
+    }
+  }
+
+  WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
+  WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
+
+  fake_call_to(INT10_SEG, config.vbios_post ? INT10_OFF : INT10_POSTLESS_OFF);
+
+  if (config.vga)
+    /* the real bios will set all this ... */
+    return;
+
+  li = LI;
+  co = CO;
+  if (!config.X)
+    gettermcap(0, &co, &li);
+
+  WRITE_WORD(BIOS_SCREEN_COLUMNS, co);     /* chars per line */
+  WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1); /* lines on screen - 1 */
+  WRITE_WORD(BIOS_VIDEO_MEMORY_USED, TEXT_SIZE(co,li));   /* size of video regen area in bytes */
+
+  WRITE_WORD(BIOS_CURSOR_SHAPE, (configuration&MDA_CONF_SCREEN_MODE)?0x0A0B:0x0607);
+    
+  /* This is needed in the video stuff. Grabbed from boot(). */
+  if ((configuration & MDA_CONF_SCREEN_MODE) == MDA_CONF_SCREEN_MODE)
+    WRITE_WORD(BIOS_VIDEO_PORT, 0x3b4);	/* base port of CRTC - IMPORTANT! */
+  else
+    WRITE_WORD(BIOS_VIDEO_PORT, 0x3d4);	/* base port of CRTC - IMPORTANT! */
+    
+  WRITE_BYTE(BIOS_VDU_CONTROL, 9);	/* current 3x8 (x=b or d) value */
+    
+  WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);/* offset of current page in buffer */
+    
+  WRITE_WORD(BIOS_FONT_HEIGHT, 16);
+    
+  /* XXX - these are the values for VGA color!
+     should reflect the real display hardware. */
+  WRITE_BYTE(BIOS_VIDEO_INFO_0, 0x60);
+  WRITE_BYTE(BIOS_VIDEO_INFO_1, 0xF9);
+  WRITE_BYTE(BIOS_VIDEO_INFO_2, 0x51);
+  WRITE_BYTE(BIOS_VIDEO_COMBO, video_combo);
+    
+  WRITE_DWORD(BIOS_VIDEO_SAVEPTR, 0);		/* pointer to video table */
+}

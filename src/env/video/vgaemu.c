@@ -1477,6 +1477,7 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
     vga_emu_setup_mode_table();
     vgaemu_register_ports();
     memcpy((void *) GFX_CHARS, vga_rom_08, 128 * 8);
+    vbe_init(NULL);
     return 0;
   }
 
@@ -1562,6 +1563,8 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
     vedt.g_bits = csd->g_bits;
     vedt.b_bits = csd->b_bits;
     vbe_init(&vedt);
+  } else {
+    vbe_init(NULL);
   }
 
   /*

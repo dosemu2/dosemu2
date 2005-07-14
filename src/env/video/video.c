@@ -40,8 +40,6 @@ struct video_system *Video = NULL;
  */
 static int i_empty_void (void) {return 0;}
 static void v_empty_void (void) {}
-static int i_empty_3int (int type, int xsize, int ysize) {return 0;}
-static int video_combo;
 
 static int video_none_init(void)
 {
@@ -54,7 +52,7 @@ struct video_system Video_none = {
   i_empty_void,	/* priv_init */
   video_none_init,	/* init */
   v_empty_void,	/* close */
-  i_empty_3int,	/* setmode */
+  NULL,		/* setmode */
   NULL,	        /* update_screen */
   v_empty_void,	/* update_cursor */
   NULL,         /* change_config */
@@ -301,103 +299,8 @@ gettermcap(int i, int *co, int *li)
     v_printf("VID: Setting windows size to li=%d, co=%d\n", *li, *co);
 }
 
-void video_mem_setup(void)
-{
-  int co, li;
-
-  WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
-  WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
-
-  fake_call_to(INT10_SEG, config.vbios_post ? INT10_OFF : INT10_POSTLESS_OFF);
-
-  if (config.vga)
-    /* the real bios will set all this ... */
-    return;
-
-  li = LI;
-  co = CO;
-  if (!config.X)
-    gettermcap(0, &co, &li);
-
-  WRITE_WORD(BIOS_SCREEN_COLUMNS, co);     /* chars per line */
-  WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1); /* lines on screen - 1 */
-  WRITE_WORD(BIOS_VIDEO_MEMORY_USED, TEXT_SIZE(co,li));   /* size of video regen area in bytes */
-
-  WRITE_WORD(BIOS_CURSOR_SHAPE, (configuration&MDA_CONF_SCREEN_MODE)?0x0A0B:0x0607);
-    
-  /* This is needed in the video stuff. Grabbed from boot(). */
-  if ((configuration & MDA_CONF_SCREEN_MODE) == MDA_CONF_SCREEN_MODE)
-    WRITE_WORD(BIOS_VIDEO_PORT, 0x3b4);	/* base port of CRTC - IMPORTANT! */
-  else
-    WRITE_WORD(BIOS_VIDEO_PORT, 0x3d4);	/* base port of CRTC - IMPORTANT! */
-    
-  WRITE_BYTE(BIOS_VDU_CONTROL, 9);	/* current 3x8 (x=b or d) value */
-    
-  WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);/* offset of current page in buffer */
-    
-  WRITE_WORD(BIOS_FONT_HEIGHT, 16);
-    
-  /* XXX - these are the values for VGA color!
-     should reflect the real display hardware. */
-  WRITE_BYTE(BIOS_VIDEO_INFO_0, 0x60);
-  WRITE_BYTE(BIOS_VIDEO_INFO_1, 0xF9);
-  WRITE_BYTE(BIOS_VIDEO_INFO_2, 0x51);
-  WRITE_BYTE(BIOS_VIDEO_COMBO, video_combo);
-    
-  WRITE_DWORD(BIOS_VIDEO_SAVEPTR, 0);		/* pointer to video table */
-
-  set_video_mode(video_mode);
-}
-
 void
 video_config_init(void) {
-  switch (config.cardtype) {
-  case CARD_MDA:
-    {
-      configuration |= (MDA_CONF_SCREEN_MODE);
-      video_mode = MDA_INIT_SCREEN_MODE;
-      phys_text_base = MDA_PHYS_TEXT_BASE;
-      virt_text_base = MDA_VIRT_TEXT_BASE;
-      video_combo = MDA_VIDEO_COMBO;
-      break;
-    }
-  case CARD_CGA:
-    {
-      configuration |= (CGA_CONF_SCREEN_MODE);
-      video_mode = CGA_INIT_SCREEN_MODE;
-      phys_text_base = CGA_PHYS_TEXT_BASE;
-      virt_text_base = CGA_VIRT_TEXT_BASE;
-      video_combo = CGA_VIDEO_COMBO;
-      break;
-    }
-  case CARD_EGA:
-    {
-      configuration |= (EGA_CONF_SCREEN_MODE);
-      video_mode = EGA_INIT_SCREEN_MODE;
-      phys_text_base = EGA_PHYS_TEXT_BASE;
-      virt_text_base = EGA_VIRT_TEXT_BASE;
-      video_combo = EGA_VIDEO_COMBO;
-      break;
-    }
-  case CARD_VGA:
-    {
-      configuration |= (VGA_CONF_SCREEN_MODE);
-      video_mode = VGA_INIT_SCREEN_MODE;
-      phys_text_base = VGA_PHYS_TEXT_BASE;
-      virt_text_base = VGA_VIRT_TEXT_BASE;
-      video_combo = VGA_VIDEO_COMBO;
-      break;
-    }
-  default:			/* or Terminal, is this correct ? */
-    {
-      configuration |= (CGA_CONF_SCREEN_MODE);
-      video_mode = CGA_INIT_SCREEN_MODE;
-      phys_text_base = CGA_PHYS_TEXT_BASE;
-      virt_text_base = CGA_VIRT_TEXT_BASE;
-      video_combo = CGA_VIDEO_COMBO;
-      break;
-    }
-  }
   if (!config.console) {
      /* NOTE: BIG FAT WARNING !!!
       *       without this you will reproduceable KILL LINUX

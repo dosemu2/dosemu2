@@ -89,7 +89,7 @@ static int console_post_init(void)
     gettermcap(0, &co, &li);
     fprintf(stdout,"\033[?25h\033[0m\033[H\033[2J");
     vga_emu_init(0, NULL);
-    vga_emu_setmode(video_mode, co, li);
+    vga_emu_setmode(config.cardtype == CARD_MDA ? 7 : 3, co, li);
   }
   scr_state.mapped = 0;
   allow_switch();
@@ -167,7 +167,7 @@ static int console_init(void)
   int co, li;
   gettermcap(0, &co, &li);
   consolesize = TEXT_SIZE(co,li);
-  register_hardware_ram('v', phys_text_base, TEXT_SIZE(co,li));
+  register_hardware_ram('v', VGA_PHYS_TEXT_BASE, TEXT_SIZE(co,li));
   return 0;
 }
 

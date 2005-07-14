@@ -148,28 +148,24 @@ EXTERN int v_8514_base INIT(0);
 #define MDA_INIT_SCREEN_MODE   7 /* 80x25 MDA monochrome */
 #define MDA_CONF_SCREEN_MODE   (3<<4)	/* for int 11h info     */
 #define MDA_VIDEO_COMBO        1
-/* #define BASE_CRTC               0x3b4  currently not used */
 
 /* Defines for Color Graphics Adapter */
 
 #define CGA_INIT_SCREEN_MODE   3 /* 80x25 VGA color */
 #define CGA_CONF_SCREEN_MODE   (2<<4)	/* (2<<4)=80x25 color CGA/EGA/VGA */
 #define CGA_VIDEO_COMBO        4 /* 4=EGA (ok), 8=VGA (not ok?) */
-/* #define BASE_CRTC               0x3d4  currently not used */
 
 /* Defines for Enhanched Graphics Adapter, same as CGA */
 
 #define EGA_INIT_SCREEN_MODE   3 /* 80x25 VGA color */
 #define EGA_CONF_SCREEN_MODE   (2<<4)	/* (2<<4)=80x25 color CGA/EGA/VGA */
 #define EGA_VIDEO_COMBO        4 /* 4=EGA (ok), 8=VGA (not ok?) */
-/* #define BASE_CRTC               0x3d4  currently not used */
 
 /* Defines for Video Graphic Array, same as CGA */
 
 #define VGA_INIT_SCREEN_MODE   3 /* 80x25 VGA color */
 #define VGA_CONF_SCREEN_MODE   (2<<4)	/* (2<<4)=80x25 color CGA/EGA/VGA */
 #define VGA_VIDEO_COMBO        8 /* 4=EGA (ok), 8=VGA (not ok?) */
-/* #define BASE_CRTC               0x3d4  currently not used */
 
 
 enum {
@@ -205,7 +201,6 @@ enum {
 #define GET_TITLE_APPNAME	10
 #define CHG_FULLSCREEN	11
 
-EXTERN void init_vga_card(void);
 EXTERN void scr_state_init(void);
 
 extern void clear_console_video(void);
