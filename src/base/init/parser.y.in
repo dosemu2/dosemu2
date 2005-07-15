@@ -388,18 +388,18 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		| WARN strarglist	{ c_printf("CONF: %s\n", $2); free($2); }
  		| EMUSYS string_expr
 		    {
-		    config.emusys = $2;
+		    free(config.emusys); config.emusys = $2;
 		    c_printf("CONF: config.emusys = '%s'\n", $2);
 		    }
 		| EMUSYS '{' string_expr '}'
 		    {
-		    config.emusys = $3;
+		    free(config.emusys); config.emusys = $3;
 		    c_printf("CONF: config.emusys = '%s'\n", $3);
 		    }
 		| DOSEMUMAP string_expr
 		    {
 #ifdef USE_MHPDBG
-		    DOSEMU_MAP_PATH = $2;
+		    free(DOSEMU_MAP_PATH); DOSEMU_MAP_PATH = $2;
 		    c_printf("CONF: dosemu.map path = '%s'\n", $2);
 #else
 		    free($2);
@@ -407,17 +407,17 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    }
 		| MAPPINGDRIVER string_expr
 		    {
-		    config.mappingdriver = $2;
+		    free(config.mappingdriver); config.mappingdriver = $2;
 		    c_printf("CONF: mapping driver = '%s'\n", $2);
 		    }
                 | EMUINI string_expr
                     {
-                    config.emuini = $2;
+                    free(config.emuini); config.emuini = $2;
                     c_printf("CONF: config.emuini = '%s'\n", $2);
                     }
                 | EMUINI '{' string_expr '}'
                     {
-                    config.emuini = $3;
+                    free(config.emuini); config.emuini = $3;
                     c_printf("CONF: config.emuini = '%s'\n", $3);
 		    }
 		| FULL_FILE_LOCKS bool
@@ -586,7 +586,7 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 				($2) ? "enabled" : "disabled");
 		      }
 		    }
-		| NETDEV string_expr	{ config.netdev = $2; }
+		| NETDEV string_expr	{ free(config.netdev); config.netdev = $2; }
 		| NOVELLHACK bool	{ config.pktflags = ($2!=0); }
 		| VNET string_expr	{ start_vnet($2); free($2); }
 		| SPEAKER speaker
@@ -607,7 +607,7 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    { start_video(); }
 		  '{' video_flags '}'
 		    { stop_video(); }
-		| XTERM_TITLE string_expr { config.xterm_title = $2; }
+		| XTERM_TITLE string_expr { free(config.xterm_title); config.xterm_title = $2; }
 		| TERMINAL
                   '{' term_flags '}'
 		    { stop_terminal(); }
@@ -670,6 +670,7 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 			free($3);
 		    }
 		    else {
+			free(Path_cdrom[which]);
 			Path_cdrom[which] = $3;
 			c_printf("CONF: cdrom MSCD000%d on %s\n", which+1 ,$3);
 			which++;
@@ -696,7 +697,7 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		| L_SOUND bool	{ if (! $2) config.sound = $2; }
                 | L_SOUND { config.sound = 1; } '{' sound_flags '}'
                 | L_SND_OSS '{' snd_oss_flags '}'
-		| L_JOYSTICK bool { if (! $2) { config.joy_device[0] = config.joy_device[1] = ""; } }
+		| L_JOYSTICK bool { if (! $2) { config.joy_device[0] = config.joy_device[1] = NULL; } }
                 | L_JOYSTICK '{' joystick_flags '}'
 		| SILLYINT
                     { IFCLASS(CL_IRQ) config.sillyint=0; }
@@ -726,6 +727,7 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    {
 		    config.timemode = parse_timemode($2);
 		    c_printf("CONF: time mode = '%s'\n", $2);
+		    free($2);
 		    }
 		| STRING
 		    { yyerror("unrecognized command '%s'", $1); free($1); }
@@ -901,7 +903,7 @@ string_expr:	STRING {S_VAL($$) = $1;}
 			char *s = strdup($3);
 			if ((i >=0) && (i < slen) && (len > 0)) {
 				if ((i+len) > slen) s[i] = 0;
-				else memcpy(s+i, s+i+len, slen-i-len+1);
+				else memmove(s+i, s+i+len, slen-i-len+1);
 			}
 			free($3);
 			S_VAL($$) = s;
@@ -952,16 +954,16 @@ x_flags		: x_flag
 		;
 x_flag		: UPDATELINES expression	{ config.X_updatelines = $2; }
 		| UPDATEFREQ expression	{ config.X_updatefreq = $2; }
-		| L_DISPLAY string_expr	{ config.X_display = $2; }
-		| L_TITLE string_expr	{ config.X_title = $2; }
+		| L_DISPLAY string_expr	{ free(config.X_display); config.X_display = $2; }
+		| L_TITLE string_expr	{ free(config.X_title); config.X_title = $2; }
 		| X_TITLE_SHOW_APPNAME bool	{ config.X_title_show_appname = ($2!=0); }
-		| ICON_NAME string_expr	{ config.X_icon_name = $2; }
+		| ICON_NAME string_expr	{ free(config.X_icon_name); config.X_icon_name = $2; }
 		| X_KEYCODE expression	{ config.X_keycode = $2; }
 		| X_BLINKRATE expression	{ config.X_blinkrate = $2; }
 		| X_SHARECMAP		{ config.X_sharecmap = 1; }
 		| X_MITSHM              { config.X_mitshm = 1; }
 		| X_MITSHM bool         { config.X_mitshm = ($2!=0); }
-		| X_FONT string_expr		{ config.X_font = $2; }
+		| X_FONT string_expr		{ free(config.X_font); config.X_font = $2; }
 		| X_FIXED_ASPECT bool   { config.X_fixed_aspect = ($2!=0); }
 		| X_ASPECT_43           { config.X_aspect_43 = 1; }
 		| X_LIN_FILT            { config.X_lin_filt = 1; }
@@ -987,7 +989,7 @@ x_flag		: UPDATELINES expression	{ config.X_updatelines = $2; }
 			{ set_vesamodes($2,$4,$6);}
 		| X_LFB bool            { config.X_lfb = ($2!=0); }
 		| X_PM_INTERFACE bool   { config.X_pm_interface = ($2!=0); }
-		| X_MGRAB_KEY string_expr { config.X_mgrab_key = $2; }
+		| X_MGRAB_KEY string_expr { free(config.X_mgrab_key); config.X_mgrab_key = $2; }
 		| X_BACKGROUND_PAUSE bool	{ config.X_background_pause = ($2!=0); }
 		;
 
@@ -1019,10 +1021,10 @@ sound_flag	: SB_BASE expression	{ config.sb_base = $2; }
 		| SB_DMA expression	{ config.sb_dma = $2; }
 		| SB_HDMA expression { config.sb_hdma = $2; }
 		| SB_IRQ expression	{ config.sb_irq = $2; }
-                | SB_MIXER string_expr       { config.sb_mixer = $2; }
-                | SB_DSP string_expr         { config.sb_dsp = $2; }
+                | SB_MIXER string_expr       { free(config.sb_mixer); config.sb_mixer = $2; }
+                | SB_DSP string_expr         { free(config.sb_dsp); config.sb_dsp = $2; }
 		| MPU_BASE expression	{ config.mpu401_base = $2; }
-		| SOUND_DRIVER string_expr	{ config.sound_driver = $2; }
+		| SOUND_DRIVER string_expr	{ free(config.sound_driver); config.sound_driver = $2; }
 		;
 snd_oss_flags	: snd_oss_flag
 		| snd_oss_flags snd_oss_flag
@@ -1072,13 +1074,15 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		    }
 		| FULLREST		{ config.fullrestore = 1; }
 		| PARTREST		{ config.fullrestore = 0; }
-		| VBIOS_FILE string_expr	{ config.vbios_file = $2;
+		| VBIOS_FILE string_expr	{ free(config.vbios_file); config.vbios_file = $2;
 					  config.mapped_bios = 1;
 					  config.vbios_copy = 0; }
-		| VBIOS_COPY		{ config.vbios_file = NULL;
+		| VBIOS_COPY		{ free(config.vbios_file);
+					  config.vbios_file = NULL;
 					  config.mapped_bios = 1;
 					  config.vbios_copy = 1; }
-		| VBIOS_MMAP		{ config.vbios_file = NULL;
+		| VBIOS_MMAP		{ free(config.vbios_file);
+					  config.vbios_file = NULL;
 					  config.mapped_bios = 1;
 					  config.vbios_copy = 1; }
 		| VBIOS_SEG expression
@@ -1170,7 +1174,7 @@ debug_flag	: VIDEO bool		{ set_debug_level('v', ($2!=0)); }
 mouse_flags	: mouse_flag
 		| mouse_flags mouse_flag
 		;
-mouse_flag	: DEVICE string_expr	{ mptr->dev = $2; }
+mouse_flag	: DEVICE string_expr	{ free(mptr->dev); mptr->dev = $2; }
 		| INTERNALDRIVER	{ mptr->intdrv = TRUE; }
 		| EMULATE3BUTTONS	{ mptr->emulate3buttons = TRUE; }
 		| BAUDRATE expression	{ mptr->baudRate = $2; }
@@ -1280,8 +1284,8 @@ keyboard_modval : INTEGER { keyb_mod(0, $1, 0); }
 ttylocks_flags	: ttylocks_flag
 		| ttylocks_flags ttylocks_flag
 		;
-ttylocks_flag	: DIRECTORY string_expr	{ config.tty_lockdir = $2; }
-		| NAMESTUB string_expr	{ config.tty_lockfile = $2; }
+ttylocks_flag	: DIRECTORY string_expr	{ free(config.tty_lockdir); config.tty_lockdir = $2; }
+		| NAMESTUB string_expr	{ free(config.tty_lockfile); config.tty_lockfile = $2; }
 		| BINARY		{ config.tty_lockbinary = TRUE; }
 		| STRING
 		    { yyerror("unrecognized ttylocks flag '%s'", $1); free($1); }
@@ -1293,7 +1297,7 @@ ttylocks_flag	: DIRECTORY string_expr	{ config.tty_lockdir = $2; }
 serial_flags	: serial_flag
 		| serial_flags serial_flag
 		;
-serial_flag	: DEVICE string_expr		{ sptr->dev = $2;
+serial_flag	: DEVICE string_expr		{ free(sptr->dev); sptr->dev = $2;
 					  if (!strcmp("/dev/mouse",sptr->dev)) sptr->mouse=1; }
 		| VIRTUAL		  {
 					   if (isatty(0)) {
@@ -1634,8 +1638,9 @@ static void set_joy_device(char *devstring)
 {
   char *spacepos;
 
+  free(config.joy_device[0]);
   config.joy_device[0] = devstring;
-  config.joy_device[1] = "";
+  config.joy_device[1] = NULL;
   spacepos = strchr(devstring, ' ');
   if (spacepos != NULL) {
     *spacepos = '\0';
@@ -1681,6 +1686,7 @@ static void start_debug(void)
 
 static void start_video(void)
 {
+  free(config.vbios_file);
   config.vbios_file = NULL;
   config.vbios_copy = 0;
   config.vbios_seg  = 0xc000;
@@ -1720,6 +1726,7 @@ static void set_vesamodes(int width, int height, int color_bits)
     vmt->height = height;
     vmt->color_bits = color_bits;
     vmt->next = config.vesamode_list;
+    free(config.vesamode_list);
     config.vesamode_list = vmt;
   }
 }
@@ -1824,7 +1831,7 @@ static void stop_terminal(void)
 
 static void start_printer(void)
 {
-  pptr->prtcmd = "lpr";
+  pptr->prtcmd = NULL;
   pptr->dev = NULL;
   pptr->file = NULL;
   pptr->remaining = -1;

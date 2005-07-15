@@ -366,7 +366,7 @@ void joy_init (void)
 	for (joynum = 0; joynum < 2; joynum++)
 	{
 		/* does the user even want this joystick? */
-		if (strlen (config.joy_device [joynum]) == 0)
+		if (!config.joy_device[joynum] || strlen (config.joy_device [joynum]) == 0)
 		{
 		#ifdef JOY_INIT_DEBUG
 			joy_init_printf ("joystick 0x%X: will not be initialised\n", joynum);

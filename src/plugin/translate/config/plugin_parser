@@ -24,8 +24,8 @@ charset_flags	: charset_flag
 		| charset_flags charset_flag
 		;
 
-charset_flag	: INTERNAL STRING { set_internal_charset ($2); }
-		| EXTERNAL STRING { set_external_charset ($2); }
+charset_flag	: INTERNAL STRING { set_internal_charset ($2); free($2); }
+		| EXTERNAL STRING { set_external_charset ($2); free($2); }
 		;
 
 %%

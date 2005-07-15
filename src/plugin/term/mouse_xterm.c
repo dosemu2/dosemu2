@@ -72,15 +72,11 @@ void xtermmouse_get_event (Bit8u **kbp, int *kbcount)
 
 static int has_xterm_mouse_support(void)
 {
-	char *term = getenv("TERM");
-	char *term_entry, *xmouse_seq;
-	
-	if (term == NULL || config.vga || is_console(0))
+	if (config.vga || is_console(0))
 		return 0;
 
-	term_entry = SLtt_tigetent(term);
-	xmouse_seq = SLtt_tigetstr ("Km", &term_entry);
-	return xmouse_seq || using_xterm();
+	term_init();
+	return SLtt_tgetstr ("Km") || using_xterm();
 }
 
 static int xterm_mouse_init(void)

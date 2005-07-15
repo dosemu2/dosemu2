@@ -29,8 +29,8 @@ static int stub_printer_write(int, int);
 
 static struct printer lpt[NUM_PRINTERS] =
 {
-  {NULL, "lpr", 5, 0x378},
-  {NULL, "lpr", 5, 0x278},
+  {NULL, NULL, 5, 0x378},
+  {NULL, NULL, 5, 0x278},
   {NULL, NULL, 10, 0x3bc}
 };
 
@@ -259,7 +259,8 @@ void printer_print_config(int prnum, void (*print)(char *, ...))
 {
   struct printer *pptr = &lpt[prnum];
   (*print)("LPT%d command \"%s\"  timeout %d  device \"%s\"  baseport 0x%03x\n",
-	  prnum+1, pptr->prtcmd, pptr->delay, (pptr->dev ? pptr->dev : ""), pptr->base_port); 
+	  prnum+1, (pptr->prtcmd ? pptr->prtcmd : ""), pptr->delay,
+	   (pptr->dev ? pptr->dev : ""), pptr->base_port); 
 }
 
 #undef LPT_C
