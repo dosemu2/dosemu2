@@ -58,6 +58,7 @@ int config_check_only = 0;
 
 int dosemu_argc;
 char **dosemu_argv;
+char *dosemu_proc_self_exe = NULL;
 
 static void     check_for_env_autoexec_or_config(void);
 static void     usage(char *basename);
@@ -735,6 +736,8 @@ config_init(int argc, char **argv)
 
     dosemu_argc = argc;
     dosemu_argv = argv;
+    if (dosemu_proc_self_exe == NULL)
+	dosemu_proc_self_exe = dosemu_argv[0];
 
     memset(usedoptions,0,sizeof(usedoptions));
     memcheck_type_init();
@@ -1037,8 +1040,10 @@ check_for_env_autoexec_or_config(void)
 {
     char           *cp;
     cp = getenv("CONFIG");
-    if (cp)
-	config.emusys = cp;
+    if (cp) {
+	free(config.emusys);
+	config.emusys = strdup(cp);
+    }
 
 
      /*

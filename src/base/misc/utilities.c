@@ -738,12 +738,12 @@ void dosemu_error(char *fmt, ...)
 
 void *load_plugin(const char *plugin_name)
 {
-    char *fullname = malloc(strlen(dosemu_argv[0]) +
+    char *fullname = malloc(strlen(dosemu_proc_self_exe) +
 			    strlen(plugin_name) + 20);
     void *handle;
     char *slash;
 
-    strcpy(fullname, dosemu_argv[0]);
+    strcpy(fullname, dosemu_proc_self_exe);
     slash = strrchr(fullname, '/');
     if (slash == NULL) return NULL;
     sprintf(slash + 1, "libplugin_%s.so", plugin_name);

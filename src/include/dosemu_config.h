@@ -20,6 +20,7 @@ char *get_config_variable(char *name);
 char *checked_getenv(const char *name);
 extern char dosemu_conf[];
 extern char global_conf[];
+extern char *dosemu_proc_self_exe;
 extern int dosemu_argc;
 extern char **dosemu_argv;
 extern char *commandline_statements;
