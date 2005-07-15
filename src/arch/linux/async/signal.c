@@ -4,6 +4,8 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
+#include "config.h"
+
 #include <stdio.h>
 #include <termios.h>
 #include <unistd.h>
@@ -13,8 +15,8 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <dlfcn.h>
 
-#include "config.h"
 #include "emu.h"
 #include "bios.h"
 #include "mouse.h"
@@ -107,24 +109,11 @@ dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
   return(syscall(SYS_sigaction, sig, &my_sa, NULL));
 }
 
-/* glibc non-pthread sigaction installs this restore
-   function, which GDB recognizes as a signal trampoline.
-   So it's a good idea for us to do the same
-*/
-#define RESTORE2(name, syscall) asm (	\
-   ".text\n"				\
-   "    .align 8\n"			\
-   "__"#name":\n"				\
-   "    popl %eax\n"			\
-   "    movl $" #syscall ", %eax\n" 	\
-   "    int  $0x80");
-#define RESTORE(restore, SYS_sigreturn) RESTORE2(restore, SYS_sigreturn)
-RESTORE(restore, SYS_sigreturn)
-void restore (void) asm ("__restore");
-
 static void
 dosemu_sigaction_wrapper(int sig, void *fun, int flags)
 {
+  static int (*libc_sigaction)(int signum, const struct sigaction *act,
+			       struct sigaction *oldact);
   struct sigaction sa;
   struct kernel_sigaction kernel_sa;
   sigset_t mask;
@@ -146,14 +135,7 @@ dosemu_sigaction_wrapper(int sig, void *fun, int flags)
     return;
   }
 
-  sigaction(sig, &sa, NULL);
-
-  syscall(SYS_sigaction, sig, NULL, &kernel_sa);
-  /* no wrapper: no problem */
-  if (kernel_sa.kernel_sa_handler == (__sighandler_t)fun)
-    return;
-
-  /* if glibc installs a wrapper it's incompatible with dosemu:
+  /* Linuxthread's signal wrappers are incompatible with dosemu:
      1. some old versions don't copy back the sigcontext_struct
         on sigreturn
      2. it may assume %gs points to something valid which it
@@ -161,11 +143,11 @@ dosemu_sigaction_wrapper(int sig, void *fun, int flags)
      and it doesn't seem that the actions done by the wrapper
         would affect dosemu: if only seems to affect sigwait()
 	and sem_post(), and we (most probably) don't use these */
-  kernel_sa.kernel_sa_handler = (__sighandler_t)fun;
-  kernel_sa.sa_mask = *((unsigned long *) &mask);
-  kernel_sa.sa_flags = flags | SA_RESTORER;
-  kernel_sa.sa_restorer = restore;
-  syscall(SYS_sigaction, sig, &kernel_sa, NULL);
+  /* So get the sigaction from plain glibc, not the pthread one; this
+     is the same as what wine does: */
+  if (!libc_sigaction)
+    libc_sigaction = dlsym(RTLD_NEXT, "sigaction");
+  libc_sigaction(sig, &sa, NULL);
 }
 
 /* DANG_BEGIN_FUNCTION NEWSETQSIG
