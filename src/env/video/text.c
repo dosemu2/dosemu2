@@ -112,8 +112,9 @@ static void draw_string(int x, int y, char *text, int len, Bit8u attr)
  */
 static int check_cursor_location(unsigned cursor_location, int *x, int *y)
 {
-  /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
-  if(vga.mode_class == GRAPH) return 0;
+  /* no hardware cursor emulation in graphics modes (erik@sjoerd)
+     or if vga.scan_len==0 (before vgaemu is fully initialized) */
+  if(vga.mode_class == GRAPH || vga.scan_len == 0) return 0;
 
   *x = (cursor_location % vga.scan_len) / 2;
   *y = cursor_location / vga.scan_len;

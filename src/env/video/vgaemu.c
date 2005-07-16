@@ -1470,6 +1470,7 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
   memset(&vga, 0, sizeof vga);
 
   vga.mode = vga.VGA_mode = vga.VESA_mode = 0;
+  vga.config.video_off = 1;
 
   vga.config.mono_support = config.dualmon ? 0 : 1;
 
