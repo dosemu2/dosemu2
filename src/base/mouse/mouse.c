@@ -1108,6 +1108,7 @@ mouse_setpos(void)
   mouse.unsc_y = mouse.y * mouse.speed_y;
   mouse_round_coords();
   mouse_hide_on_exclusion();
+  mouse_do_cur();
   m_printf("MOUSE: set cursor pos x:%d, y:%d\n", mouse.x, mouse.y);
 }
 
