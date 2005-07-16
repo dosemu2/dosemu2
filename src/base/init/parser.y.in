@@ -1726,7 +1726,6 @@ static void set_vesamodes(int width, int height, int color_bits)
     vmt->height = height;
     vmt->color_bits = color_bits;
     vmt->next = config.vesamode_list;
-    free(config.vesamode_list);
     config.vesamode_list = vmt;
   }
 }
