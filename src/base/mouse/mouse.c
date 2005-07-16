@@ -62,6 +62,9 @@
  * DANG_END_REMARK
  */
 
+#define MOUSE_RX mouse_roundx(mouse.x)
+#define MOUSE_RY mouse_roundy(mouse.y)
+
 static
 void mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
  mouse_setxminmax(void), mouse_setyminmax(void), mouse_set_tcur(void),
@@ -1082,8 +1085,8 @@ mouse_pos(void)
 {
   m_printf("MOUSE: get mouse position x:%d, y:%d, b(l%d m%d r%d)\n", mouse.x,
 	   mouse.y, mouse.lbutton, mouse.mbutton, mouse.rbutton);
-  LWORD(ecx) = mouse.rx;
-  LWORD(edx) = mouse.ry;
+  LWORD(ecx) = MOUSE_RX;
+  LWORD(edx) = MOUSE_RY;
   LWORD(ebx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
   if (mouse.threebuttons)
      LWORD(ebx) |= (mouse.mbutton ? 4 : 0);
@@ -1412,18 +1415,6 @@ static void mouse_round_coords(void)
 		mouse.y = mouse.virtual_maxy;
 		mouse.unsc_y = mouse.y * mouse.speed_y;
 	}
-
-	/* we round these down depending on the granularity of the
-		screen mode; text mode has all coordinates multiplied
-		by eight; 320 pixel-wide graphics modes have x coordinates
-		multiplied by two */
-	/* (the mouse driver simulates a resolution of at least 640x200
-		if the underlying screen mode isn't that wide.) */
-	mouse.rx = mouse_roundx(mouse.x);
-	mouse.ry = mouse_roundy(mouse.y);
-	m_printf("MOUSE coords (%d,%d) rounded to (%d,%d) (%d,%d-%d,%d)\n",
-		mouse.x,mouse.y,mouse.rx,mouse.ry,
-		mouse.minx,mouse.miny,mouse.maxx,mouse.maxy);
 }
 
 static void mouse_hide_on_exclusion(void)
@@ -1455,14 +1446,14 @@ static void mouse_lb(void)
   m_printf("MOUSE: left button %s\n", mouse.lbutton ? "pressed" : "released");
   if (!mouse.lbutton) {
     mouse.lrcount++;
-    mouse.lrx = mouse.rx;
-    mouse.lry = mouse.ry;
+    mouse.lrx = MOUSE_RX;
+    mouse.lry = MOUSE_RY;
     mouse_delta(DELTA_LEFTBUP);
   }
   else {
     mouse.lpcount++;
-    mouse.lpx = mouse.rx;
-    mouse.lpy = mouse.ry;
+    mouse.lpx = MOUSE_RX;
+    mouse.lpy = MOUSE_RY;
     mouse_delta(DELTA_LEFTBDOWN);
   }
 }
@@ -1472,14 +1463,14 @@ static void mouse_mb(void)
   m_printf("MOUSE: middle button %s\n", mouse.mbutton ? "pressed" : "released");
   if (!mouse.mbutton) {
     mouse.mrcount++;
-    mouse.mrx = mouse.rx;
-    mouse.mry = mouse.ry;
+    mouse.mrx = MOUSE_RX;
+    mouse.mry = MOUSE_RY;
     mouse_delta(DELTA_MIDDLEBUP);
   }
   else {
     mouse.mpcount++;
-    mouse.mpx = mouse.rx;
-    mouse.mpy = mouse.ry;
+    mouse.mpx = MOUSE_RX;
+    mouse.mpy = MOUSE_RY;
     mouse_delta(DELTA_MIDDLEBDOWN);
   }
 }
@@ -1489,14 +1480,14 @@ static void mouse_rb(void)
   m_printf("MOUSE: right button %s\n", mouse.rbutton ? "pressed" : "released");
   if (!mouse.rbutton) {
     mouse.rrcount++;
-    mouse.rrx = mouse.rx;
-    mouse.rry = mouse.ry;
+    mouse.rrx = MOUSE_RX;
+    mouse.rry = MOUSE_RY;
     mouse_delta(DELTA_RIGHTBUP);
   }
   else {
     mouse.rpcount++;
-    mouse.rpx = mouse.rx;
-    mouse.rpy = mouse.ry;
+    mouse.rpx = MOUSE_RX;
+    mouse.rpy = MOUSE_RY;
     mouse_delta(DELTA_RIGHTBDOWN);
   }
 }
@@ -1758,10 +1749,10 @@ mouse_update_cursor(void)
 {
 	/* sigh, too many programs seem to expect the mouse cursor
 		to magically redraw itself, so we'll bend to their will... */
-	if (mouse.rx != mouse.oldrx || mouse.ry != mouse.oldry) {
+	if (MOUSE_RX != mouse.oldrx || MOUSE_RY != mouse.oldry) {
 		mouse_do_cur();
-		mouse.oldrx = mouse.rx;
-		mouse.oldry = mouse.ry;
+		mouse.oldrx = MOUSE_RX;
+		mouse.oldry = MOUSE_RY;
 	}
 }
 
@@ -1774,8 +1765,8 @@ text_cursor(void)
   int co = READ_WORD(BIOS_SCREEN_COLUMNS);
   p = screen_adr(mouse.display_page);
   offset = mouse_erase.x;
-  cx = mouse.rx >> mouse.xshift;
-  cy = mouse.ry >> mouse.yshift;
+  cx = MOUSE_RX >> mouse.xshift;
+  cy = MOUSE_RY >> mouse.yshift;
 
   if (mouse_erase.drawn || !mice->native_cursor) {
   	/* only erase the mouse cursor if it's the same thing we
@@ -1810,7 +1801,7 @@ graph_cursor(void)
   /* draw_graphics_cursor wants screen coordinates, we have coordinates
   	based on width of 640; hotspot is always in screen coordinates. */
   if (mouse.cursor_on == 0 && mice->native_cursor)
-	  draw_graphics_cursor(mouse.rx >> mouse.xshift, mouse.ry >> mouse.yshift,
+	  draw_graphics_cursor(MOUSE_RX >> mouse.xshift, MOUSE_RY >> mouse.yshift,
 		mouse.hotx,mouse.hoty,16,16,&mouse_erase);
 }
 
@@ -1821,7 +1812,7 @@ mouse_curtick(void)
   if (!mice->intdrv || mouse.cursor_on != 0 || Mouse->set_cursor)
     return;
 
-  m_printf("MOUSE: curtick x:%d  y:%d\n", mouse.rx, mouse.ry);
+  m_printf("MOUSE: curtick x:%d  y:%d\n", MOUSE_RX, MOUSE_RY);
 
   /* we used to do an unconditional update here, but that causes a
   	distracting flicker in the mouse cursor. */

@@ -103,9 +103,6 @@ struct mouse_struct {
   short x, y;
   /* unscaled ones, to not loose the precision */
   short unsc_x, unsc_y;
-  /* these are rounded-off versions of the above which are returned
-  	to a client */
-  short rx, ry;
   /* coordinates at which the cursor was last drawn */
   short oldrx, oldry;
   /* these are the cursor extents; they are rounded off. */
