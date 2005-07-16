@@ -1401,7 +1401,7 @@ static void X_set_mouse_cursor(int action, int mx, int my, int x_range, int y_ra
 		last_cursor = new_cursor;
 	}
 
-	if (grab_active || snap_X || !have_focus || new_cursor == mouse_cursor_off)
+	if (grab_active || snap_X || !have_focus)
 		return;
 
 	/* Move the X cursor if needed */
