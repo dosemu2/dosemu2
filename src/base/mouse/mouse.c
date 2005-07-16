@@ -243,7 +243,7 @@ mouse_helper(struct vm86_regs *regs)
   case 0xf1:
     m_printf("MOUSE End video mode set\n");
     /* redetermine the video mode */
-    mouse_reset_to_current_video_mode();
+    mouse_reset_to_current_video_mode(_CX);
     /* replace cursor if necessary */
     mouse_cursor(1);
     break;
@@ -874,7 +874,7 @@ mouse_setcurspeed(void)
  * the only clue we have is the video mode (0x62 and 0x06 for 1024x768)
  */
 void
-mouse_reset_to_current_video_mode(void)
+mouse_reset_to_current_video_mode(int mode)
 {
   /* Setup MAX / MIN co-ordinates */
   mouse.minx = mouse.miny = 0;
@@ -891,7 +891,7 @@ mouse_reset_to_current_video_mode(void)
   * standard vga/ega/cga/mda specs for int10. If we don't know that we are
   * in text mode, then we return pixel resolution and assume graphic mode.
   */
-  get_current_video_mode();
+  get_current_video_mode(mode);
 
   /* 
    * Actually what happens is: if a Text mode is found, height and width
@@ -1014,7 +1014,7 @@ static void mouse_reset(int flag)
       LWORD(ebx)=3; 
     else 
       LWORD(ebx)=2; 
-    mouse_reset_to_current_video_mode();
+    mouse_reset_to_current_video_mode(-1);
   }
 
   /* turn cursor off if reset requested by software and it was on. */
@@ -1928,7 +1928,7 @@ void mouse_post_boot(void)
   /* This is needed here to revectoring the interrupt, after dos
    * has revectored it. --EB 1 Nov 1997 */
   
-  mouse_reset_to_current_video_mode();
+  mouse_reset_to_current_video_mode(-1);
   mouse_enable_internaldriver();
   SETIVEC(0x33, Mouse_SEG, Mouse_INT_OFF);
   

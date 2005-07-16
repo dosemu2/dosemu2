@@ -424,7 +424,7 @@ get_current_graphics_video_mode(void)
 {
 	int badmode;
 
-	if ((badmode = get_current_video_mode()) != 0) {
+	if ((badmode = get_current_video_mode(-1)) != 0) {
 		m_printf("MOUSE: Unknown video mode 0x%x.\n",badmode);
 		return 0;
 	}

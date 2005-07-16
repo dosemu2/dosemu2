@@ -1475,9 +1475,12 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
 
   if (!Video->update_screen) {
     vga_emu_setup_mode_table();
-    vgaemu_register_ports();
-    memcpy((void *) GFX_CHARS, vga_rom_08, 128 * 8);
-    vbe_init(NULL);
+    if (Video->update_cursor) {
+      vgaemu_register_ports();
+      memcpy((void *) GFX_CHARS, vga_rom_08, 128 * 8);
+      vbe_init(NULL);
+      for(i = 0; i < vgaemu_bios.pages; i++) vga_emu_protect_page(0xc0 + i, RO);
+    }
     return 0;
   }
 

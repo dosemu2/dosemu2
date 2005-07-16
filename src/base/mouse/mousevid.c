@@ -45,44 +45,68 @@ struct mousevideoinfo videomodes[] =  {
 	{ 0x11,'G',640,480,80,ORG_EGA16,EGA_OFFS }, /* actually mono */
 	{ 0x12,'G',640,480,80,ORG_EGA16,EGA_OFFS },
 	{ 0x13,'G',320,200,320,ORG_VGA,EGA_OFFS },
+	{ 0x6a,'G',800,600,100,ORG_EGA16,EGA_OFFS },
 };
 
 struct mousevideoinfo mouse_current_video;
 
 int
-get_current_video_mode(void)
+get_current_video_mode(int mode)
 {
-#if 0
-  if(config.X) {
-    mouse_current_video.mode = vga.mode;
-    mouse_current_video.textgraph = vga.mode_class == TEXT ? 'T' : 'G';
-    if(vga.mode_class == TEXT) {
-      mouse_current_video.width = vga.text_width;
-      mouse_current_video.height = vga.text_height;
+  vga_mode_info *vmi = NULL;
+  /* we catch int10; every vesa mode set calls the helper (via cx) */
+  static int vesamode = -1;
+  int i = READ_BYTE(BIOS_VIDEO_MODE);
+  int ret;
+
+  if (mode != -1)
+    vesamode = mode;
+
+  if(i > 13 && i != 0x6a && vesamode != -1) {
+    /* vesa mode?:
+       use the VGAEMU mode table; it may not be 100% correct for
+       the console but it's right for most common modes */
+    m_printf("MOUSE: looking for vesamode %x\n", vesamode);
+    vmi = vga_emu_find_mode(vesamode, NULL);
+    if (vmi == NULL) {
+      m_printf("MOUSE: Unknown video mode 0x%04x, no mouse cursor.\n", i);
+      return i;
+    }
+    mouse_current_video.mode = vmi->VGA_mode;
+    mouse_current_video.textgraph = vmi->mode_class == TEXT ? 'T' : 'G';
+    if(vmi->mode_class == TEXT) {
+      mouse_current_video.width = vmi->text_width;
+      mouse_current_video.height = vmi->text_height;
+      mouse_current_video.bytesperline = vmi->text_width * 2;
     }
     else {
-      mouse_current_video.width = vga.width;
-      mouse_current_video.height = vga.height;
+      mouse_current_video.width = vmi->width;
+      mouse_current_video.height = vmi->height;
+      /* dword aligned */
+      mouse_current_video.bytesperline = (vmi->width + 3) & ~3;
+      if(vmi->color_bits > 8)
+	mouse_current_video.bytesperline *= ((vmi->color_bits + 7) & ~7) >> 3;
     }
-    mouse_current_video.bytesperline = vga.scan_len;
-    switch(vga.mode_type) {
+    switch(vmi->type) {
       case TEXT:
       case TEXT_MONO: mouse_current_video.organization = ORG_TEXT; break;
       case  CGA: mouse_current_video.organization = ORG_CGA4; break;
       case  PL4: mouse_current_video.organization = ORG_EGA16; break;
       default: mouse_current_video.organization = ORG_VGA;
     }
-    mouse_current_video.offset = ((vga.buffer_seg - 0xa000) << 4) + vga.display_start;
+    mouse_current_video.offset = ((vmi->buffer_start - 0xa000) << 4);
+    /* but don't draw a mouse cursor just yet, as the blitters don't know
+       about bank switching and LFBs */
+    ret = vesamode;
   }
   else 
-#endif
   {
-    int i = READ_BYTE(BIOS_VIDEO_MODE);
     /* invalid video mode */
-    if(i < 0 || i > 0x13 || !videomodes[i].textgraph) {
+    if(i != 0x6a && (i < 0 || i > 0x13 || !videomodes[i].textgraph)) {
       m_printf("MOUSE: Unknown video mode 0x%02x, no mouse cursor.\n", i);
       return i;
     }
+    if(i == 0x6a) i = 0x14;
     mouse_current_video = videomodes[i];
     if (mouse_current_video.textgraph == 'T') { /* read the size from the bios data area */
 	    mouse_current_video.width = READ_WORD(BIOS_SCREEN_COLUMNS);
@@ -90,6 +114,7 @@ get_current_video_mode(void)
 	    mouse_current_video.bytesperline = mouse_current_video.width *2;
     }
     mouse_current_video.offset += READ_WORD(BIOS_VIDEO_MEMORY_ADDRESS);
+    ret = 0;
   }
 
   m_printf(
@@ -100,5 +125,5 @@ get_current_video_mode(void)
   );
 
   /* valid video mode */
-  return 0;
+  return ret;
 }

@@ -488,7 +488,7 @@ WINT10:
 	cmpw	$0x4F02,%ax
 	jne	L10	/* svga mode set */
 L9:
-	cmpb	$1, %cs:bios_in_int10_callback
+	cmpb	$1, %cs:bios_in_int10_callback-((INT10_WATCHER_SEG-BIOSSEG) << 4)
 	je	L10
 
 	pushw 	%ax	/* save everything */
@@ -508,9 +508,12 @@ L9:
 /* since following code doesn't affect flags, we keep current values */
 	pushw	%ax	/* remember everything from int10 call */
 	pushw	%bx
+	pushw	%cx
+	movw	%bx,%cx /* a vesa mode set bx is saved in cx   */
 	movw	$DOS_HELPER_MOUSE_HELPER,%ax	/* mouse helper */
 	movw	$0xf1,%bx	/* end video mode set */
 	int	$DOSHELPER_INT
+	popw	%cx
 	popw	%bx
 	popw	%ax
 	lret	$2    /* keep current flags and avoid another GPF from iret */

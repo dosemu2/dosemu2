@@ -84,11 +84,11 @@ static int console_post_init(void)
    * \033[H = Move cursor to upper-left corner of screen.  
    * \033[2J = Clear screen.  
    */
+  vga_emu_init(0, NULL);
   if (!config.vga) {
     int co, li;
     gettermcap(0, &co, &li);
     fprintf(stdout,"\033[?25h\033[0m\033[H\033[2J");
-    vga_emu_init(0, NULL);
     vga_emu_setmode(config.cardtype == CARD_MDA ? 7 : 3, co, li);
   }
   scr_state.mapped = 0;

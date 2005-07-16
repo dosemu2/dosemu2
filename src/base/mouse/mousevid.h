@@ -39,4 +39,4 @@ struct mousevideoinfo {
 
 extern struct mousevideoinfo videomodes[], mouse_current_video;
 
-int get_current_video_mode(void);
+int get_current_video_mode(int mode);
