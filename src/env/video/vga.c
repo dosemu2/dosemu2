@@ -787,8 +787,9 @@ static int vga_post_init(void)
 
   /* If there's a DOS TSR in real memory (say, univbe followed by loadlin)
      then don't call int10 here yet */
-  if (FP_SEG32(IVEC(0x10)) < config.vbios_seg ||
-      FP_SEG32(IVEC(0x10)) >= config.vbios_seg + (config.vbios_size >> 4)) {
+  if (!config.vbios_post &&
+      (FP_SEG32(IVEC(0x10)) < config.vbios_seg ||
+       FP_SEG32(IVEC(0x10)) >= config.vbios_seg + (config.vbios_size >> 4))) {
     error("VGA: int10 is not in the BIOS (loadlin used?)\n"
 	    "Try the vga_reset utility of svgalib or set $_vbios_post=(1) "
 	    " in dosemu.conf\n");
