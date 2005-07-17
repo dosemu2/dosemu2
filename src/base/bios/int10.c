@@ -137,6 +137,8 @@ static inline void set_cursor_shape(ushort shape) {
    int cs,ce;
    unsigned short cursor_shape;
 
+   WRITE_WORD(BIOS_CURSOR_SHAPE, shape);
+
    cs=CURSOR_START(shape) & 0x1F;
    ce=CURSOR_END(shape) & 0x1F;
 
@@ -158,7 +160,6 @@ static inline void set_cursor_shape(ushort shape) {
    CURSOR_START(cursor_shape)=cs;
    CURSOR_END(cursor_shape)=ce;
    crt_outw(0xa, cursor_shape);
-   WRITE_WORD(BIOS_CURSOR_SHAPE, shape);
 }
 
 /* This is a better scroll routine, mostly for aesthetic reasons. It was
