@@ -481,16 +481,19 @@ CISH(bios_f000_int10ptr):
 	.org	((INT10_WATCHER_SEG-BIOSSEG) << 4)+INT10_WATCHER_OFF
 /* ======================= Addr = F800:4240 (FC240) */
 WINT10:
+	cmpb	$1, %cs:bios_in_int10_callback-((INT10_WATCHER_SEG-BIOSSEG) << 4)
+	je	L10
 	or	%ah,%ah
 	jz	L9	/* normal mode set */
 	cmpb	$0x11,%ah
 	je	L9	/* character generator, possibly resize the screen */
 	cmpw	$0x4F02,%ax
 	jne	L10	/* svga mode set */
+	pushw	%bx	/* vesa mode on stack */
+	jmp     L9a
 L9:
-	cmpb	$1, %cs:bios_in_int10_callback-((INT10_WATCHER_SEG-BIOSSEG) << 4)
-	je	L10
-
+	pushw	%ax	/* normal mode (or 0x110?) on stack */
+L9a:
 	pushw 	%ax	/* save everything */
 	pushw	%bx
 	movw	$DOS_HELPER_MOUSE_HELPER,%ax	/* mouse helper */
@@ -501,21 +504,19 @@ L9:
 
 /* fake stack frame for iret: push original flags and avoid a GPF from pushf */
 	movzwl	%sp,%esp	/* make sure high of esp is zero */
-	CODE32  pushw	4(%esp)
+	CODE32  pushw	6(%esp)
 	pushw	%cs
 	call	L10	/* perform the actual mode set */
 
 /* since following code doesn't affect flags, we keep current values */
 	pushw	%ax	/* remember everything from int10 call */
 	pushw	%bx
-	pushw	%cx
-	movw	%bx,%cx /* a vesa mode set bx is saved in cx   */
 	movw	$DOS_HELPER_MOUSE_HELPER,%ax	/* mouse helper */
 	movw	$0xf1,%bx	/* end video mode set */
 	int	$DOSHELPER_INT
-	popw	%cx
 	popw	%bx
 	popw	%ax
+	addw	$2,%sp/* pop video mode */	    
 	lret	$2    /* keep current flags and avoid another GPF from iret */
 
 L10:	/* chain to original handler (probably the video bios) */

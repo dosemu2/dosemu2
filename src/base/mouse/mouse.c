@@ -245,8 +245,20 @@ mouse_helper(struct vm86_regs *regs)
     break;
   case 0xf1:
     m_printf("MOUSE End video mode set\n");
-    /* redetermine the video mode */
-    mouse_reset_to_current_video_mode(_CX);
+    {
+      /* redetermine the video mode:
+         the stack contains: mode, saved ax, saved bx */
+      int video_mode = -1;
+      unsigned char *ssp = (unsigned char *)(regs->ss<<4);
+      unsigned long sp = WORD(regs->esp + 2);
+      unsigned ax = popw(ssp, sp);
+      int mode = popw(ssp, sp);
+
+      if (mode >= 0x100 && (mode & 0xff00) != 0x1100 && ax == 0x4f)
+	/* no chargen function; check if vesa mode set successful */
+	video_mode = mode;
+      mouse_reset_to_current_video_mode(video_mode);
+    }
     /* replace cursor if necessary */
     mouse_cursor(1);
     break;

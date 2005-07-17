@@ -62,7 +62,7 @@ get_current_video_mode(int mode)
   if (mode != -1)
     vesamode = mode;
 
-  if(i > 13 && i != 0x6a && vesamode != -1) {
+  if(i > 0x13 && i != 0x6a && vesamode != -1) {
     /* vesa mode?:
        use the VGAEMU mode table; it may not be 100% correct for
        the console but it's right for most common modes */
