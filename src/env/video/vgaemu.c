@@ -2563,7 +2563,9 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
   static char *txt1[] = { "byte", "odd/even (word)", "chain4 (dword)" };
   static char *txt2[] = { "byte", "word", "dword" };
 
-  if(!vga.config.standard) return;
+  if(!vga.config.standard &&
+     /* special exception for 8bpp vesa modes for which the scan line fits */
+     !(what == CFG_CRTC_ADDR_MODE && vga.scan_len < 2048 && vga.pixel_size == 8)) return;
 
   switch(what) {
     case CFG_SEQ_ADDR_MODE:
@@ -2596,7 +2598,8 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       u = vga.crtc.data[0x17] & 0x40 ? 0 : 1;
       u = vga.crtc.data[0x14] & 0x40 ? 2 : u;
       vga.crtc.addr_mode = u;
-      vga.display_start = (vga.crtc.data[0x0d] + (vga.crtc.data[0x0c] << 8)) << 
+      if (vga.config.standard)
+	vga.display_start = (vga.crtc.data[0x0d] + (vga.crtc.data[0x0c] << 8)) << 
 	      vga.crtc.addr_mode;
       /* this shift should really be a rotation, depending on mode control bit 5 */
       vga.crtc.cursor_location =  (vga.crtc.data[0x0f] + (vga.crtc.data[0x0e] << 8)) <<

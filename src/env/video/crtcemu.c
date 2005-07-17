@@ -109,6 +109,12 @@ void CRTC_init()
   vga.crtc.index = 0;
   vga.crtc.readonly = 1;
 
+  if(j == 15 && vga.scan_len < 2048 && vga.pixel_size == 8) {
+    /* adjust scanlen for 8bpp vesa modes */
+    vga.crtc.data[0x13] = vga.scan_len / 8;
+    vga.crtc.data[0x14] = 0x40;
+  }
+
   vgaemu_adj_cfg(CFG_CRTC_ADDR_MODE, 1);
   vgaemu_adj_cfg(CFG_CRTC_WIDTH, 1);
   vgaemu_adj_cfg(CFG_CRTC_HEIGHT, 1);
