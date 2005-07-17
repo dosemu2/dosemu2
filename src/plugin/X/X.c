@@ -1556,6 +1556,7 @@ static void X_handle_events(void)
 	  X_printf("X: focus in\n");
 	  if (vga.mode_class == TEXT) text_gain_focus();
 	  if (config.X_background_pause && !dosemu_user_froze) unfreeze_dosemu ();
+	  have_focus = TRUE;
 	  break;
 
 	case FocusOut:
@@ -1564,6 +1565,7 @@ static void X_handle_events(void)
 	  if (vga.mode_class == TEXT) text_lose_focus();
 	  output_byte_8042(port60_buffer | 0x80);
 	  if (config.X_background_pause && !dosemu_user_froze) freeze_dosemu ();
+	  have_focus = FALSE;
 	  break;
 
 	case DestroyNotify:
