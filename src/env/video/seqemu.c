@@ -174,6 +174,11 @@ void Seq_init()
   for(i = 0; i < 5; i++) {
     vga.seq.data[i] = seq_ival[j][i];
   }
+  if(j == 15 ) {
+    /* adjust reg 4 for vesa modes */
+    vga.seq.data[4] = vga.mode_class == TEXT ? 0x02 :
+      vga.pixel_size == 4 ? 0x06 : 0x0a;
+  }
   /* font offset processing, see below: */
   seq_map_select(vga.seq.data[3]);
   while(i <= SEQ_MAX_INDEX) vga.seq.data[i++] = 0;
