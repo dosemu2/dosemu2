@@ -84,7 +84,7 @@ void mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
 
 /* mouse movement functions */
 static void mouse_reset(int);
-static void mouse_do_cur(void), mouse_update_cursor(void);
+static void mouse_do_cur(int callback), mouse_update_cursor(int clipped);
 
 /* graphics cursor */
 void graph_cursor(void), text_cursor(void);
@@ -94,7 +94,7 @@ void graph_plane(int);
 static void mouse_delta(int);
 
 /* Internal mouse helper functions */
-static void mouse_round_coords(void);
+static int mouse_round_coords(void);
 static void mouse_hide_on_exclusion(void);
 static int last_mouse_call_read_mickeys = 0;
 
@@ -619,7 +619,7 @@ mouse_int(void)
   }
 
   if (mouse.cursor_on == 0)
-     mouse_update_cursor();
+     mouse_update_cursor(0);
 
   return 1;
 }
@@ -1010,7 +1010,7 @@ mouse_reset_to_current_video_mode(int mode)
 void mouse_enable_native_cursor(int flag)
 {
   mice->native_cursor = flag;
-  mouse_do_cur();
+  mouse_do_cur(1);
 }
 
 static void mouse_reset(int flag)
@@ -1064,7 +1064,7 @@ static void mouse_reset(int flag)
   memcpy((void *)mouse.graphcursormask,default_graphcursormask,32);
   mouse.hotx = mouse.hoty = -1;
 
-  mouse_do_cur();
+  mouse_do_cur(1);
 }
 
 void 
@@ -1086,7 +1086,7 @@ mouse_cursor(int flag)	/* 1=show, -1=hide */
   /* update the cursor if we just turned it off or on */
   if ((flag == -1 && mouse.cursor_on == -1) ||
   		(flag == 1 && mouse.cursor_on == 0)){
-	  mouse_do_cur();
+	  mouse_do_cur(1);
   }
  
   m_printf("MOUSE: %s mouse cursor %d\n", mouse.cursor_on ? "hide" : "show", mouse.cursor_on);
@@ -1123,7 +1123,7 @@ mouse_setpos(void)
   mouse.unsc_y = mouse.y * mouse.speed_y;
   mouse_round_coords();
   mouse_hide_on_exclusion();
-  mouse_do_cur();
+  mouse_do_cur(1);
   m_printf("MOUSE: set cursor pos x:%d, y:%d\n", mouse.x, mouse.y);
 }
 
@@ -1255,7 +1255,7 @@ mouse_set_tcur(void)
   if (LWORD(ebx)==0) {				/* Software cursor */
 	  mouse.textscreenmask = LWORD(ecx);
 	  mouse.textcursormask = LWORD(edx);
-	  mouse_do_cur();
+	  mouse_do_cur(1);
   } else {					/* Hardware cursor */
   /* CX - should be starting line of hardware cursor 
    * DX - should be ending line of hardware cursor
@@ -1264,7 +1264,7 @@ mouse_set_tcur(void)
    	erase it before hitting vram */
 	  mouse.textscreenmask = 0x7fff;
 	  mouse.textcursormask = 0xff00;
-	  mouse_do_cur();
+	  mouse_do_cur(1);
   }
 }
 
@@ -1406,27 +1406,34 @@ void mouse_keyboard(Boolean make, t_keysym key)
 	mouse_move_buttons(state.lbutton, state.mbutton, state.rbutton);
 }
 
-static void mouse_round_coords(void)
+static int mouse_round_coords(void)
 {
 	/* Make certain we have the correct screen boundaries */
 
+	int clipped = 0;
+
 	/* put the mouse coordinate in bounds */
-	if (mouse.x <= mouse.virtual_minx) {
+	if (mouse.x < mouse.virtual_minx) {
 		mouse.x = mouse.virtual_minx;
 		mouse.unsc_x = mouse.x * mouse.speed_x;
+		clipped = 1;
 	}
-	if (mouse.y <= mouse.virtual_miny) {
+	if (mouse.y < mouse.virtual_miny) {
 		mouse.y = mouse.virtual_miny;
 		mouse.unsc_y = mouse.y * mouse.speed_y;
+		clipped = 1;
 	}
-	if (mouse.x >= mouse.virtual_maxx) {
+	if (mouse.x > mouse.virtual_maxx) {
 		mouse.x = mouse.virtual_maxx;
 		mouse.unsc_x = mouse.x * mouse.speed_x;
+		clipped = 1;
 	}
-	if (mouse.y >= mouse.virtual_maxy) {
+	if (mouse.y > mouse.virtual_maxy) {
 		mouse.y = mouse.virtual_maxy;
 		mouse.unsc_y = mouse.y * mouse.speed_y;
+		clipped = 1;
 	}
+	return clipped;
 }
 
 static void mouse_hide_on_exclusion(void)
@@ -1442,11 +1449,11 @@ static void mouse_hide_on_exclusion(void)
   }
 }
 
-static void mouse_move(void)
+static void mouse_move(int clipped)
 {
   mouse_round_coords();
   mouse_hide_on_exclusion();
-  mouse_update_cursor();
+  mouse_update_cursor(clipped);
 
   m_printf("MOUSE: move: x=%d,y=%d\n", mouse.x, mouse.y);
    
@@ -1559,13 +1566,13 @@ void mouse_move_relative(int dx, int dy)
 	 * update the event mask
 	 */
 	if (dx || dy)
-	   mouse_move();
+	   mouse_move(0);
 }
 
 void mouse_move_absolute(int x, int y, int x_range, int y_range)
 {
 	int dx, dy, new_x, new_y, mx_range, my_range,
-            minx, maxx, miny, maxy;
+            minx, maxx, miny, maxy, clipped;
         
 	minx = mouse.minx<mouse.virtual_minx ? mouse.minx : mouse.virtual_minx;
 	maxx = mouse.maxx>mouse.virtual_maxx ? mouse.maxx : mouse.virtual_maxx;
@@ -1581,7 +1588,7 @@ void mouse_move_absolute(int x, int y, int x_range, int y_range)
 	mouse.mickeyy += dy;
 	mouse.x = new_x;
 	mouse.y = new_y;
-	mouse_round_coords();
+	clipped = mouse_round_coords();
 
 	m_printf("mouse_move_absolute(%d, %d, %d, %d) -> %d %d \n",
 		 x, y, x_range, y_range, mouse.x, mouse.y);
@@ -1591,7 +1598,7 @@ void mouse_move_absolute(int x, int y, int x_range, int y_range)
 	 * update the event mask
 	 */
 	if (dx || dy || mouse.x != new_x || mouse.y != new_y) 
-	   mouse_move();
+	   mouse_move(clipped);
 }
 
 /*
@@ -1728,7 +1735,7 @@ do_mouse_irq()
 }
 
 /* unconditional mouse cursor update */
-static void mouse_do_cur(void)
+static void mouse_do_cur(int callback)
 {
   int minx, maxx, miny, maxy;
 
@@ -1739,7 +1746,7 @@ static void mouse_do_cur(void)
     text_cursor();
   }
 
-  if (mice->native_cursor || !Mouse->set_cursor)
+  if (mice->native_cursor || !Mouse->set_cursor || !callback)
     return;
 
   /* this callback is used to e.g. warp the X cursor if int33/ax=4
@@ -1757,12 +1764,12 @@ static void mouse_do_cur(void)
 
 /* conditionally update the mouse cursor only if it's changed position. */
 static void
-mouse_update_cursor(void)
+mouse_update_cursor(int clipped)
 {
 	/* sigh, too many programs seem to expect the mouse cursor
 		to magically redraw itself, so we'll bend to their will... */
 	if (MOUSE_RX != mouse.oldrx || MOUSE_RY != mouse.oldry) {
-		mouse_do_cur();
+		mouse_do_cur(clipped);
 		mouse.oldrx = MOUSE_RX;
 		mouse.oldry = MOUSE_RY;
 	}
@@ -1828,7 +1835,7 @@ mouse_curtick(void)
 
   /* we used to do an unconditional update here, but that causes a
   	distracting flicker in the mouse cursor. */
-  mouse_update_cursor();
+  mouse_update_cursor(0);
 }
 
 static void mouse_client_init(void)
