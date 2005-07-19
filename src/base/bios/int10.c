@@ -1568,8 +1568,6 @@ void video_mem_setup(void)
   WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
   WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
 
-  fake_call_to(INT10_SEG, config.vbios_post ? INT10_OFF : INT10_POSTLESS_OFF);
-
   if (config.vga)
     /* the real bios will set all this ... */
     return;

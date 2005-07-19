@@ -333,4 +333,5 @@ video_config_init(void) {
 void video_post_init(void)
 {
   if (Video && Video->init) Video->init();
+  fake_call_to(INT10_SEG, config.vbios_post ? INT10_OFF : INT10_POSTLESS_OFF);
 }

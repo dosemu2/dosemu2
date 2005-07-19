@@ -1471,6 +1471,9 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
 
   vga.mode = vga.VGA_mode = vga.VESA_mode = 0;
   vga.config.video_off = 1;
+  vga.config.standard = 1;
+  vga.mem.plane_pages = 0x10;	/* 16 pages = 64k */
+  vga.dac.bits = 6;
 
   vga.config.mono_support = config.dualmon ? 0 : 1;
 
