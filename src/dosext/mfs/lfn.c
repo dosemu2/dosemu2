@@ -12,7 +12,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
-#include <sys/param.h>
 #include <utime.h>
 #include <sys/time.h>
 #include <ctype.h>
@@ -819,7 +818,7 @@ int mfs_lfn(void)
 			return lfn_error(PATH_NOT_FOUND);
 		d_printf("LFN: rmdir %s\n", fpath);
 		if (rmdir(fpath) != 0)
-			return lfn_error(PATH_NOT_FOUND);
+			return lfn_error(ACCESS_DENIED);
 		break;
 	case 0x3b: /* chdir */
 		dest = LFN_string - (long)bios_f000 + (BIOSSEG << 4);
@@ -944,6 +943,22 @@ int mfs_lfn(void)
 		dir->psp = sda_cur_psp(sda);
 		name_ufs_to_dos(dir->pattern, slash);
 		strupperDOS(dir->pattern);
+		if (((_CX & (VOLUME_LABEL|DIRECTORY)) == VOLUME_LABEL) &&
+		    strcmp(slash, "*.*") == 0) {
+			dest = (char *)SEGOFF2LINEAR(_ES, _DI);
+			memset(dest, 0, 0x20);
+			*dest = VOLUME_LABEL;
+			dest[0x2c + 8 + 3] = '\0';
+			get_volume_label(dest + 0x2c, dest + 0x2c + 8, drive);
+			d_printf("LFN: get volume label: %s\n", dest + 0x2c);
+			dest[0x130] = '\0';
+			lfndirs[dirhandle] = dir;
+			dir->dir = NULL;
+			_AX = dirhandle;
+			_CX = 0;
+			return 1;
+		}
+
 		/* XXX check for device (special dir entry) */
 		if (!find_file(dir->dirbase, &st, drive) || is_dos_device(fpath)) {
 			Debug0((dbg_fd, "Get failed: '%s'\n", fpath));

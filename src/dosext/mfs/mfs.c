@@ -165,16 +165,11 @@ TODO:
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/vfs.h>
-#include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
-#include <sys/mman.h>
 #include <unistd.h>
-#include <sys/types.h>
 #include <time.h>
-#include <ctype.h>
 #include <errno.h>
-#include <sys/param.h>
 #include <stdlib.h>
 #include <utime.h>
 #include <wchar.h>
@@ -186,7 +181,6 @@ TODO:
 #include "dos.h"
 #else
 #include <dirent.h>
-#include <signal.h>
 #include <string.h>
 #include <wctype.h>
 #include "mfs.h"
@@ -637,7 +631,7 @@ init_all_drives(void)
 static void
 get_unix_path(char *new_path, char *path)
 {
-  char str[MAXPATHLEN];
+  char str[PATH_MAX];
   char var[256];
   char *orig_path = path;
   char *val;
@@ -657,8 +651,8 @@ get_unix_path(char *new_path, char *path)
 	tmp_str = getenv("TMPDIR");
 	if (!tmp_str) tmp_str = getenv("TMP");
 	if (!tmp_str) tmp_str = "/tmp";
-	strncpy(&str[i], tmp_str, MAXPATHLEN - 2 - i);
-	str[MAXPATHLEN - 2] = 0;
+	strncpy(&str[i], tmp_str, PATH_MAX - 2 - i);
+	str[PATH_MAX - 2] = 0;
 	i = strlen(str);
 	break;
       case '$':		/* substitute an environment variable. */
@@ -682,8 +676,8 @@ get_unix_path(char *new_path, char *path)
 		    orig_path, var));
 	    break;
 	  }
-	  strncpy(&str[i], val, MAXPATHLEN - 2 - i);
-	  str[MAXPATHLEN - 2] = 0;
+	  strncpy(&str[i], val, PATH_MAX - 2 - i);
+	  str[PATH_MAX - 2] = 0;
 	  i = strlen(str);
 	  esc = 0;
 	  break;
@@ -698,8 +692,8 @@ get_unix_path(char *new_path, char *path)
 	str[i++] = *path;
       }
     }
-    if (i >= MAXPATHLEN - 2) {
-      i = MAXPATHLEN - 2;
+    if (i >= PATH_MAX - 2) {
+      i = PATH_MAX - 2;
       break;
     }
   }
@@ -720,7 +714,7 @@ init_drive(int dd, char *path, char *options)
   char *new_path;
   int new_len;
 
-  new_path = malloc(MAXPATHLEN + 1);
+  new_path = malloc(PATH_MAX + 1);
   if (new_path == NULL) {
     Debug0((dbg_fd,
 	    "Out of memory in path %s.\n",
@@ -1605,9 +1599,9 @@ path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar,
   mbstate_t unix_state;
   memset(&unix_state, 0, sizeof unix_state);
 
-  if (ufs_offset < MAXPATHLEN) do {
+  if (ufs_offset < PATH_MAX) do {
     ch = *path++;
-    if (ufs_offset == MAXPATHLEN - 1)
+    if (ufs_offset == PATH_MAX - 1)
       ch = EOS;
     switch (ch) {
     case BACKSLASH:
@@ -1823,7 +1817,7 @@ boolean_t find_file(char *fpath, struct stat * st, int drive)
       return (FALSE);
     }
     else {
-      char remainder[MAXPATHLEN];
+      char remainder[PATH_MAX];
       *slash1 = 0;
       if (slash2) {
 	remainder[0] = '/';
@@ -2302,7 +2296,7 @@ int
 GetRedirectionRoot(int dsk, char **resourceName,int *ro_flag)
 {
   if (!drives[dsk].root) return 1;
-  *resourceName = malloc(MAXPATHLEN + 1);
+  *resourceName = malloc(PATH_MAX + 1);
   if (*resourceName == NULL) return 1;
   strcpy(*resourceName, drives[dsk].root );
   *ro_flag=drives[dsk].read_only;
@@ -2907,6 +2901,35 @@ static boolean_t find_again(boolean_t firstfind, int drive, char *fpath,
   return (FALSE);
 }
 
+void get_volume_label(char *fname, char *fext, int drive)
+{
+  char *label, *root, *p;
+  Debug0((dbg_fd, "DO LABEL!!\n"));
+
+  p = drives[drive].root;
+  label = (char *) malloc(8 + 3 + 1);
+  root = strdup(p);
+  if (root[strlen(root) - 1] == '/' && strlen(root) > 1)
+    root[strlen(root) - 1] = '\0';
+
+  label[0] = '\0';
+
+  if (strlen(label) + strlen(root) <= 8 + 3) {
+    strcat(label, root);
+  }
+  else {
+    strcat(label, root + strlen(root) - (8 + 3 - strlen(label)));
+  }
+  p = label + strlen(label);
+  if (p < label + 8 + 3)
+    memset(p, ' ', label + 8 + 3 - p);
+
+  memcpy(fname, label, 8);
+  memcpy(fext, label + 8, 3);
+  free(label);
+  free(root);
+}
+
 static int
 dos_fs_redirect(state_t *state)
 {
@@ -2929,8 +2952,8 @@ dos_fs_redirect(state_t *state)
   char *bs_pos;
   char fname[8];
   char fext[3];
-  char fpath[MAXPATHLEN];
-  char buf[MAXPATHLEN];
+  char fpath[PATH_MAX];
+  char buf[PATH_MAX];
   struct stat st;
   boolean_t long_path;
   struct dir_list *hlist;
@@ -3767,39 +3790,10 @@ dos_fs_redirect(state_t *state)
 	    (char *) sdb_template_ext(sdb)));
 
 
-#ifndef NO_VOLUME_LABELS
     if (((attr & (VOLUME_LABEL|DIRECTORY)) == VOLUME_LABEL) &&
 	strncmp(sdb_template_name(sdb), "????????", 8) == 0 &&
 	strncmp(sdb_template_ext(sdb), "???", 3) == 0) {
-      Debug0((dbg_fd, "DO LABEL!!\n"));
-      {
-        char *label, *root, *p;
-
-        p = drives[drive].root;
-        label = (char *) malloc(8 + 3 + 1);
-        root = strdup(p);
-        if (root[strlen(root) - 1] == '/' && strlen(root) > 1)
-          root[strlen(root) - 1] = '\0';
-
-        label[0] = '\0';
-
-        if (strlen(label) + strlen(root) <= 8 + 3) {
-          strcat(label, root);
-        }
-        else {
-
-          strcat(label, root + strlen(root) - (8 + 3 - strlen(label)));
-        }
-        p = label + strlen(label);
-        if (p < label + 8 + 3)
-          memset(p, ' ', label + 8 + 3 - p);
-
-        memcpy(fname, label, 8);
-        memcpy(fext, label + 8, 3);
-        free(label);
-        free(root);
-      }
-
+      get_volume_label(fname, fext, drive);
       memcpy(sdb_file_name(sdb), fname, 8);
       memcpy(sdb_file_ext(sdb), fext, 3);
       sdb_file_attr(sdb) = VOLUME_LABEL;
@@ -3808,12 +3802,7 @@ dos_fs_redirect(state_t *state)
       /* We fill the hlist for labels not here,
        * we do it a few lines later. --ms
        */
-
     }
-#else
-    if (attr == VOLUME_LABEL)
-      return (FALSE);
-#endif
 
     bs_pos = getbasename(fpath);
     *bs_pos = '\0';

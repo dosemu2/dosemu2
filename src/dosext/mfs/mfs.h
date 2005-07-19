@@ -358,7 +358,7 @@ extern void extract_filename(const char *filestring0, char *name, char *ext);
 extern struct mfs_dir *dos_opendir(const char *name);
 extern struct mfs_dirent *dos_readdir(struct mfs_dir *);
 extern int dos_closedir(struct mfs_dir *dir);
-
+extern void get_volume_label(char *fname, char *fext, int drive);
 
 
 
