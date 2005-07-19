@@ -2563,10 +2563,6 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
   static char *txt1[] = { "byte", "odd/even (word)", "chain4 (dword)" };
   static char *txt2[] = { "byte", "word", "dword" };
 
-  if(!vga.config.standard &&
-     /* special exception for 8bpp vesa modes for which the scan line fits */
-     !(what == CFG_CRTC_ADDR_MODE && vga.scan_len < 2048 && vga.pixel_size == 8)) return;
-
   switch(what) {
     case CFG_SEQ_ADDR_MODE:
       u0 = vga.seq.addr_mode;
@@ -2579,7 +2575,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
         vga_msg("vgaemu_adj_cfg: mem reconfig (%u planes)\n", u1);
       }
       if(msg || u != u0) vga_msg("vgaemu_adj_cfg: seq.addr_mode = %s\n", txt1[u]);
-      if (vga.mode_class == TEXT) {
+      if (vga.mode_class == TEXT && vga.width < 2048) {
         int horizontal_display_end = vga.crtc.data[0x1] + 1;
 	int multiplier = 9 - (vga.seq.data[1] & 1);
 	int width = horizontal_display_end * multiplier;
@@ -2593,10 +2589,16 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
     break;
 
     case CFG_CRTC_ADDR_MODE:
+      if (vga.color_bits > 8)
+	return;
       u0 = vga.crtc.addr_mode;
       u1 = vga.scan_len;
       u = vga.crtc.data[0x17] & 0x40 ? 0 : 1;
       u = vga.crtc.data[0x14] & 0x40 ? 2 : u;
+      if (vga.scan_len > (255 << (u + 1)))
+	return;
+      if (vga.scan_len & ((1 << (u + 1)) - 1))
+	return;
       vga.crtc.addr_mode = u;
       if (vga.config.standard)
 	vga.display_start = (vga.crtc.data[0x0d] + (vga.crtc.data[0x0c] << 8)) << 
@@ -2622,6 +2624,10 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       int vertical_blanking_end;
       int char_height;
       int height;
+
+      if (vga.height > 1024)
+	return;
+
       vertical_total = 
 	      vga.crtc.data[0x6] + 
 	      ((vga.crtc.data[0x7] & 0x1) << (8 - 0)) +
@@ -2691,6 +2697,10 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       int horizontal_blanking_end;
       int multiplier;
       int width;
+
+      if (vga.width >= 2048)
+	return;
+
       /* everything below is in characters */
       horizontal_total = vga.crtc.data[0x0] +5;
       horizontal_display_end = vga.crtc.data[0x1] + 1;
@@ -2701,8 +2711,10 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       if (vga.mode_class == TEXT) {
         multiplier = 9 - (vga.seq.data[1] & 1);
       } else {
-	multiplier = (vga.mode_type == P8) ? 4 : 8;
+	multiplier = (vga.color_bits == 8 && vga.config.standard) ? 4 : 8;
       }
+      if (vga.width % multiplier != 0) /* special user defined mode? */
+	return;
       width = horizontal_display_end * multiplier;
       vga_msg("vgaemu_adj_cfg: horizontal_total = %d\n", horizontal_total);
       vga_msg("vgaemu_adj_cfg: horizontal_retrace_start = %d\n", horizontal_retrace_start);
@@ -2723,6 +2735,10 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
     case CFG_CRTC_LINE_COMPARE:
     {
       int vertical_multiplier;
+
+      if (vga.height >= 1024)
+	return;
+
       vga.crtc.line_compare =
               vga.crtc.data[0x18] +
               ((vga.crtc.data[0x7] & 0x10) << (8 - 4)) +
@@ -2738,6 +2754,9 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
     }
     case CFG_MODE_CONTROL:
     {
+      if (vga.color_bits > 8)
+	return;
+
       vga.mode_class = (vga.gfx.data[6] & 1) ? GRAPH : TEXT;
       vga.pixel_size = 4;
       if (vga.mode_class == TEXT) {

@@ -109,10 +109,25 @@ void CRTC_init()
   vga.crtc.index = 0;
   vga.crtc.readonly = 1;
 
-  if(j == 15 && vga.scan_len < 2048 && vga.pixel_size == 8) {
-    /* adjust scanlen for 8bpp vesa modes */
-    vga.crtc.data[0x13] = vga.scan_len / 8;
-    vga.crtc.data[0x14] = 0x40;
+  if(j == 15) {
+    /* adjust crtc values for vesa modes that fit certain conditions */
+    if (vga.width < 2048 && vga.width % vga.char_width == 0)
+      vga.crtc.data[0x1] = vga.width / vga.char_width - 1;
+    if (vga.height <= 1024) {
+      int h = vga.height - 1;
+      vga.crtc.data[0x12] = h & 0xff;
+      vga.crtc.data[0x7] &= ~0x42;
+      vga.crtc.data[0x7] |= ((h & 0x100) >> (8 - 1))|((h & 0x200) >> (9 - 6));
+    }
+    if (vga.scan_len < 2048 && vga.color_bits == 8) {
+      vga.crtc.data[0x13] = vga.scan_len / 8;
+      vga.crtc.data[0x14] = 0x40;
+    } else if (vga.scan_len < 1024 && vga.mode_class == TEXT) {
+      vga.crtc.data[0x13] = vga.scan_len / 4;
+      vga.crtc.data[0x17] = 0xa3;
+    } else if (vga.scan_len < 512) { /* 4 bpp */
+      vga.crtc.data[0x13] = vga.scan_len / 2;
+    }
   }
 
   vgaemu_adj_cfg(CFG_CRTC_ADDR_MODE, 1);
