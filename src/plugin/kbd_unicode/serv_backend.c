@@ -243,9 +243,10 @@ static void put_shift_state(t_shiftstate shift)
 {
    Bit8u flags1, flags2, flags3, leds;
 
-   flags1=flags3=leds=0;
+   flags1=leds=0;
    /* preserve pause bit */
    flags2 = READ_BYTE(BIOS_KEYBOARD_FLAGS2) & PAUSE_MASK;
+   flags3 = READ_BYTE(BIOS_KEYBOARD_FLAGS3) & ~0x0c;
    
    if (shift & INS_LOCK)      flags1 |= 0x80;
    if (shift & CAPS_LOCK)   { flags1 |= 0x40;  leds |= 0x04; }
@@ -321,6 +322,17 @@ Bit16u get_bios_key(t_rawkeycode raw)
 			keyb_client_set_leds(get_modifiers_r(dos_keyboard_state.shiftstate));
 		}
 	}
+
+	WRITE_BYTE(BIOS_KEYBOARD_FLAGS3, READ_BYTE(BIOS_KEYBOARD_FLAGS3) & ~3);
+	switch (raw) {
+		case 0xe0:
+			WRITE_BYTE(BIOS_KEYBOARD_FLAGS3, READ_BYTE(BIOS_KEYBOARD_FLAGS3) | 2);
+			break;
+		case 0xe1:
+			WRITE_BYTE(BIOS_KEYBOARD_FLAGS3, READ_BYTE(BIOS_KEYBOARD_FLAGS3) | 1);
+			break;
+	}
+
 	return bios_key;
 }
 
