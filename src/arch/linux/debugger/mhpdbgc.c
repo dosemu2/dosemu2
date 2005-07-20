@@ -324,7 +324,7 @@ static void mhp_rusermap(int argc, char *argv[])
   mhp_printf("reading map file %s\n", argv[2]);
   last_symbol2 = 0;
   for(;;) {
-     if(!fgets(bytebuf, 100, ifp)) {
+     if(!fgets(bytebuf, sizeof (bytebuf), ifp)) {
         mhp_printf("error: could not find following in %s:\n%s\n",
                    argv[2], srchfor);
         return;
@@ -335,7 +335,7 @@ static void mhp_rusermap(int argc, char *argv[])
         break;
   }
   for(;;) {
-     if(!fgets(bytebuf, 100, ifp))
+     if(!fgets(bytebuf, sizeof (bytebuf), ifp))
         break;
      if(bytebuf[5] != ':')
         continue;
@@ -386,7 +386,7 @@ static void mhp_rmapfile(int argc, char *argv[])
   mhp_printf("Reading map file %s\n", map_fname);
   last_symbol = 0;
   while (last_symbol < MAXSYM) {
-     if(!fgets(bytebuf, 100, ifp))
+     if(!fgets(bytebuf, sizeof (bytebuf), ifp))
         break;
      if (!strlen(bytebuf) || !isxdigit(*bytebuf))
         continue;

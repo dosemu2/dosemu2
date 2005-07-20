@@ -196,10 +196,10 @@ static Boolean matroxProbe(void)
 
   fp=fopen("/proc/pci","r");
   if (fp) {
-    char Line[132], *p;
-    while (fgets(Line,100,fp)) {
+    char Line[100], *p;
+    while (fgets(Line,sizeof(Line),fp)) {
       if (sscanf(Line," Bus %d, device %d, function %d",&bus,&device,&fn)==3) {
-	fgets(Line,100,fp);
+	fgets(Line,sizeof(Line),fp);
 	if ((p=strstr(Line,"Matrox"))) {
 	  ok=1;
 	  break;

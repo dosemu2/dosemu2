@@ -1198,7 +1198,7 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 	while (fscanf(fp, "%x-%x : ", &beg, &end) == 2) {
 		if ((start <= end) && ((start+size) > beg)) {
 			/* ports are besetzt, try to open the according device */
-			fgets(portname, sizeof(portname) - 1, fp);
+			fgets(portname, sizeof(portname), fp);
 			i_printf("PORT: range 0x%04x-0x%04x already registered as %s\n",
 				 beg, end, portname);
 			if (!strncasecmp(portname,"dosemu",6)) return FALSE;
