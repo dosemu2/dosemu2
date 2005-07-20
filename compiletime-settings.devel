@@ -6,8 +6,7 @@ config {
   x on
   net on
   debug on
-  linkstatic off
-  cpuemu off
+  cpuemu on
   aspi on
   svgalib off
   gpm on

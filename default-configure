@@ -62,9 +62,6 @@ while [ "$1" != "" ]; do
     sbemu)
       if [ "$2" = "off" ]; then STRING="$STRING --disable-sbemu"; fi
       ;;
-    linkstatic)
-      if [ "$2" = "on" ]; then STRING="$STRING --enable-linkstatic"; fi
-      ;;
     cpuemu)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-cpuemu"; fi
       ;;
