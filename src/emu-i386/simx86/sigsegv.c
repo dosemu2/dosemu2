@@ -56,12 +56,12 @@ unsigned e_VgaRead(unsigned addr, int mode)
   unsigned u=0;
   if (vga.inst_emu) {
     addr -= e_vga_base;
-    ((unsigned char *) &u)[0] = Logical_VGA_read(addr);
+    ((unsigned char *) &u)[0] = vga_read((void *)addr);
     if (mode&MBYTE) return u;
-    ((unsigned char *) &u)[1] = Logical_VGA_read(addr+1);
+    ((unsigned char *) &u)[1] = vga_read((void *)(addr+1));
     if (!(mode&DATA16)) {
-      ((unsigned char *) &u)[2] = Logical_VGA_read(addr+2);
-      ((unsigned char *) &u)[3] = Logical_VGA_read(addr+3);
+      ((unsigned char *) &u)[2] = vga_read((void *)(addr+2));
+      ((unsigned char *) &u)[3] = vga_read((void *)(addr+3));
     }
   }
   else {
@@ -82,12 +82,12 @@ void e_VgaWrite(unsigned addr, unsigned u, int mode)
 #endif
   if (vga.inst_emu) {
     addr -= e_vga_base;
-    Logical_VGA_write(addr, u);
+    vga_write((void *)addr, u);
     if (mode&MBYTE) return;
-    Logical_VGA_write(addr+1, u>>8);
+    vga_write((void *)(addr+1), u>>8);
     if (mode&DATA16) return;
-    Logical_VGA_write(addr+2, u>>16);
-    Logical_VGA_write(addr+3, u>>24);
+    vga_write((void *)(addr+2), u>>16);
+    vga_write((void *)(addr+3), u>>24);
   }
   else {
     if (mode&MBYTE) *((unsigned char *)addr) = (unsigned char)u;
