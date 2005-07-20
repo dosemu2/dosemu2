@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <string.h>		/* for memset */
 #include <setjmp.h>
+#include <sys/time.h>
 #include "emu.h"
 #include "timers.h"
 #include "pic.h"
@@ -317,7 +318,7 @@ char *e_print_regs(void)
 	if (TheCPU.eflags&EFLAGS_VM)
 		exprintl(TheCPU.veflags,buf,(ERB_L3+ERB_LEFTM));
 	else
-		exprintl(dpmi_eflags,buf,(ERB_L3+ERB_LEFTM));
+		exprintl(_EFLAGS,buf,(ERB_L3+ERB_LEFTM));
 	exprintw(TheCPU.cs,buf,(ERB_L3+ERB_LEFTM)+13);
 	exprintw(TheCPU.ds,buf,(ERB_L3+ERB_LEFTM)+26);
 	exprintw(TheCPU.es,buf,(ERB_L3+ERB_LEFTM)+39);
@@ -362,7 +363,7 @@ char *e_print_scp_regs(struct sigcontext_struct *scp, int pmode)
 	exprintl(_ebp,buf,(ERB_L2+ERB_LEFTM)+26);
 	exprintl(_esp,buf,(ERB_L2+ERB_LEFTM)+39);
 	if (pmode & 1)
-		exprintl(dpmi_eflags,buf,(ERB_L3+ERB_LEFTM));
+		exprintl(_EFLAGS,buf,(ERB_L3+ERB_LEFTM));
 	else
 		exprintl(TheCPU.veflags,buf,(ERB_L3+ERB_LEFTM));
 	exprintw(_cs,buf,(ERB_L3+ERB_LEFTM)+13);
@@ -595,7 +596,7 @@ static void Reg2Cpu (int mode)
   }
 
   if (debug_level('e')>1) e_printf("Reg2Cpu> vm86=%08lx dpm=%08x emu=%08lx evf=%08lx\n",
-	vm86s.regs.eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags);
+	vm86s.regs.eflags,_EFLAGS,TheCPU.eflags,TheCPU.veflags);
   TheCPU.eax     = vm86s.regs.eax;	/* 2c -> 18 */
   TheCPU.ebx     = vm86s.regs.ebx;	/* 20 -> 00 */
   TheCPU.ecx     = vm86s.regs.ecx;	/* 28 -> 04 */
@@ -617,10 +618,10 @@ static void Reg2Cpu (int mode)
 
   if (debug_level('e')>1) {
 	if (debug_level('e')==3) e_printf("Reg2Cpu< vm86=%08lx dpm=%08x emu=%08lx evf=%08lx\n%s\n",
-		vm86s.regs.eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags,
+		vm86s.regs.eflags,_EFLAGS,TheCPU.eflags,TheCPU.veflags,
 		e_print_regs());
 	else e_printf("Reg2Cpu< vm86=%08lx dpm=%08x emu=%08lx evf=%08lx\n",
-		vm86s.regs.eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags);
+		vm86s.regs.eflags,_EFLAGS,TheCPU.eflags,TheCPU.veflags);
   }
 }
 
@@ -631,7 +632,7 @@ static void Cpu2Reg (void)
 {
   int mask;
   if (debug_level('e')>1) e_printf("Cpu2Reg> vm86=%08lx dpm=%08x emu=%08lx evf=%08lx\n",
-	vm86s.regs.eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags);
+	vm86s.regs.eflags,_EFLAGS,TheCPU.eflags,TheCPU.veflags);
   vm86s.regs.eax = TheCPU.eax;
   vm86s.regs.ebx = TheCPU.ebx;
   vm86s.regs.ecx = TheCPU.ecx;
@@ -657,7 +658,7 @@ static void Cpu2Reg (void)
   			(eVEFLAGS & mask) | (TheCPU.eflags & ~(mask|VIP));
 
   if (debug_level('e')>1) e_printf("Cpu2Reg< vm86=%08lx dpm=%08x emu=%08lx evf=%08lx\n",
-	vm86s.regs.eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags);
+	vm86s.regs.eflags,_EFLAGS,TheCPU.eflags,TheCPU.veflags);
 }
 
 
@@ -669,7 +670,7 @@ static void Cpu2Reg (void)
 static void Scp2CpuR (struct sigcontext_struct *scp)
 {
   if (debug_level('e')>1) e_printf("Scp2CpuR> scp=%08lx dpm=%08x fl=%08lx vf=%08lx\n",
-	scp->eflags,dpmi_eflags,TheCPU.eflags,eVEFLAGS);
+	scp->eflags,_EFLAGS,TheCPU.eflags,eVEFLAGS);
   __memcpy(&TheCPU.gs,scp,sizeof(struct sigcontext_struct));
   TheCPU.err = 0;
 
@@ -680,7 +681,7 @@ static void Scp2CpuR (struct sigcontext_struct *scp)
   trans_addr = ((scp->cs<<4) + scp->eip);
 
   if (debug_level('e')>1) e_printf("Scp2CpuR< scp=%08lx dpm=%08x fl=%08lx vf=%08lx\n",
-	scp->eflags,dpmi_eflags,TheCPU.eflags,eVEFLAGS);
+	scp->eflags,_EFLAGS,TheCPU.eflags,eVEFLAGS);
 }
 
 /*
@@ -689,7 +690,7 @@ static void Scp2CpuR (struct sigcontext_struct *scp)
 static void Cpu2Scp (struct sigcontext_struct *scp, int trapno)
 {
   if (debug_level('e')>1) e_printf("Cpu2Scp> scp=%08lx dpm=%08x fl=%08lx vf=%08lx\n",
-	scp->eflags,dpmi_eflags,TheCPU.eflags,eVEFLAGS);
+	scp->eflags,_EFLAGS,TheCPU.eflags,eVEFLAGS);
 
   /* setup stack context from cpu registers */
   __memcpy(scp,&TheCPU.gs,sizeof(struct sigcontext_struct));
@@ -719,7 +720,7 @@ static void Cpu2Scp (struct sigcontext_struct *scp, int trapno)
     scp->eflags = vm86s.regs.eflags & ~VM;
   }
   if (debug_level('e')>1) e_printf("Cpu2Scp< scp=%08lx vm86=%08lx dpm=%08x fl=%08lx vf=%08lx\n",
-	scp->eflags,vm86s.regs.eflags,dpmi_eflags,TheCPU.eflags,eVEFLAGS);
+	scp->eflags,vm86s.regs.eflags,_EFLAGS,TheCPU.eflags,eVEFLAGS);
 }
 
 
@@ -870,7 +871,8 @@ void enter_cpu_emu(void)
 	GDT = NULL; IDT = NULL;
 	/* allocate the LDT used by dpmi (w/o GDT) */
 	if (LDT==NULL) {
-		alloc_LDT = LDT = (Descriptor *)calloc(LGDT_ENTRIES, sizeof(Descriptor));
+		alloc_LDT = LDT = (Descriptor *)malloc(LGDT_ENTRIES * sizeof(Descriptor));
+		memcpy(LDT, ldt_buffer, LGDT_ENTRIES * sizeof(Descriptor));
 		e_printf("LDT allocated at %08lx\n",(long)LDT);
 		TheCPU.LDTR.Base = (long)LDT;
 		TheCPU.LDTR.Limit = 0xffff;

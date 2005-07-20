@@ -1263,7 +1263,7 @@ shrot0:
 		    if (mode&DATA16) p=pseq16d,sz=sizeof(pseq16d);
 			else p=pseq32d,sz=sizeof(pseq32d);
 		    q=Cp; GNX(Cp, p, sz);
-		    *((int *)(q+0x15)) = (int)&dpmi_eflags;
+		    *((int *)(q+0x15)) = (int)&_EFLAGS;
 		}
 		else
 		{

@@ -1532,7 +1532,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 				EFLAGS = (EFLAGS&amask) |
 					 ((temp&(eTSSMASK|0xfd7))&~amask);
 			    if (debug_level('e')>1)
-				e_printf("Popped flags %08lx->{r=%08lx v=%08x}\n",temp,EFLAGS,dpmi_eflags);
+				e_printf("Popped flags %08lx->{r=%08lx v=%08x}\n",temp,EFLAGS,_EFLAGS);
 			}
 #ifdef HOST_ARCH_SIM
 			RFL.valid = V_INVALID;
@@ -1596,12 +1596,14 @@ stack_return_from_vm86:
 					 ((temp&(eTSSMASK|0xfd7))&~amask);
 			    if (in_dpmi) {
 				if (EFLAGS_IF)
-				    dpmi_sti();
-				else
-				    dpmi_cli();
+				    set_IF();
+				else {
+				    clear_IF();
+				    is_cli = 1;
+				}
 			    }
 			    if (debug_level('e')>1)
-				e_printf("Popped flags %08lx->{r=%08lx v=%08x}\n",temp,EFLAGS,dpmi_eflags);
+				e_printf("Popped flags %08lx->{r=%08lx v=%08x}\n",temp,EFLAGS,_EFLAGS);
 			}
 #ifdef HOST_ARCH_SIM
 			RFL.valid = V_INVALID;
@@ -1806,8 +1808,10 @@ repag0:
 			    }
 			    else if (in_dpmi) {
 				if (debug_level('e')>2) e_printf("Virtual DPMI CLI\n");
-				/* does not change eflags, but dpmi_eflags */
-				dpmi_cli();
+				/* ??? */
+				clear_IF();
+				eVEFLAGS &= ~EFLAGS_VIF;
+				is_cli = 1;
 			    }
 			    else
 				goto not_permitted;	/* GPF */
@@ -1836,8 +1840,8 @@ repag0:
 			    }
 			    else if (in_dpmi) {
 				if (debug_level('e')>2) e_printf("Virtual DPMI STI\n");
-				/* does not change eflags, but dpmi_eflags */
-				dpmi_sti();
+				/* ??? */
+				set_IF();
 			    }
 			    else
 				goto not_permitted;	/* GPF */
