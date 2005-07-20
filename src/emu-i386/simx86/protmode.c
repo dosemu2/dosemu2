@@ -455,7 +455,7 @@ int e_larlsl(int mode, unsigned short sel)
 	/* "if the selector is visible at the current privilege level
 	 *  (modified by the selector's RPL)" */
 	pl = CPL; if ((sel&3)>pl) pl=(sel&3);
-	if (pl > dt->DPL) {
+	if (pl > dt[sel>>3].DPL) {
 		return 0;
 	}
 	/* Intel manual says nothing about present bit */
