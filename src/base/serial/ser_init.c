@@ -251,7 +251,7 @@ int ser_open(int num)
     com[num].dev_locked = FALSE;
   }
   
-  if (com[num].dev[0] == 0) {
+  if (!com[num].dev || !com[num].dev[0]) {
     s_printf("SER%d: Device file not yet defined!\n",num);
     return (-1);
   }
@@ -458,7 +458,7 @@ static void do_ser_init(int num)
     com[num].base_port = default_com[com[num].real_comport-1].base_port;
   }
 
-  if (com[num].dev[0] == 0) {			/* Is the device file undef? */
+  if (!com[num].dev || !com[num].dev[0]) {	/* Is the device file undef? */
     /* Define it using std devs */
     com[num].dev = default_com[com[num].real_comport-1].dev;
   }

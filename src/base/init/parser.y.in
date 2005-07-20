@@ -1781,7 +1781,7 @@ static void start_serial(void)
     ** automatically filled in inside the do_ser_init routine of serial.c
     */
     sptr = &com[c_ser];
-    sptr->dev = "";
+    sptr->dev = NULL;
     sptr->interrupt = 0; 
     sptr->base_port = 0;
     sptr->real_comport = 0;
