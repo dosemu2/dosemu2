@@ -1599,7 +1599,6 @@ stack_return_from_vm86:
 				    set_IF();
 				else {
 				    clear_IF();
-				    is_cli = 1;
 				}
 			    }
 			    if (debug_level('e')>1)
@@ -1811,7 +1810,6 @@ repag0:
 				/* ??? */
 				clear_IF();
 				eVEFLAGS &= ~EFLAGS_VIF;
-				is_cli = 1;
 			    }
 			    else
 				goto not_permitted;	/* GPF */
@@ -1842,6 +1840,7 @@ repag0:
 				if (debug_level('e')>2) e_printf("Virtual DPMI STI\n");
 				/* ??? */
 				set_IF();
+				eVEFLAGS |= EFLAGS_VIF;
 			    }
 			    else
 				goto not_permitted;	/* GPF */
@@ -1967,15 +1966,18 @@ repag0:
 			a = rDX;
 			if (config.X && (a>=0x3c0) && (a<=0x3df)) {
 			  switch(a&0x1f) {
-			    // [01..456789....ef....45....a.....]
+			    // [012.456789a.c.ef....45....a.....]
 			    case 0x00:	/*ATTRIBUTE_INDEX*/
 			    case 0x01:	/*ATTRIBUTE_DATA*/
+			    case 0x02:	/*INPUT_STATUS_0*/
 			    case 0x04:	/*SEQUENCER_INDEX*/
 			    case 0x05:	/*SEQUENCER_DATA*/
 			    case 0x06:	/*DAC_PEL_MASK*/
 			    case 0x07:	/*DAC_STATE*/
 			    case 0x08:	/*DAC_WRITE_INDEX*/
 			    case 0x09:	/*DAC_DATA*/
+			    case 0x0a:	/*FEATURE_CONTROL_R*/
+			    case 0x0c:	/*MISC_OUTPUT_R*/
 			    case 0x0f:	/*GFX_DATA*/
 			    case 0x14:	/*CRTC_INDEX*/
 			    case 0x15:	/*CRTC_DATA*/
@@ -2121,8 +2123,9 @@ repag0:
 			a = rDX;
 			if (config.X && (a>=0x3c0) && (a<=0x3df)) {
 			  switch(a&0x1f) {
-			    // [0...456789....e.....45..........]
+			    // [0.2.456789....e.....45...9a.....]
 			    case 0x00:	/*ATTRIBUTE_INDEX*/
+			    case 0x02:	/*MISC_OUTPUT_W*/
 			    case 0x04:	/*SEQUENCER_INDEX*/
 			    case 0x05:	/*SEQUENCER_DATA*/
 			    case 0x06:	/*DAC_PEL_MASK*/
@@ -2133,6 +2136,8 @@ repag0:
 			    case 0x0f:	/*GFX_DATA*/
 			    case 0x14:	/*CRTC_INDEX*/
 			    case 0x15:	/*CRTC_DATA*/
+			    case 0x19:  /*COLOR_SELECT*/
+			    case 0x1a:  /*FEATURE_CONTROL_W*/
 				VGA_emulate_outb(a,rAL);
 				break;
 			    default: dbug_printf("not emulated EE %x\n",a);

@@ -53,21 +53,13 @@ int TryMemRef = 0;
 
 unsigned e_VgaRead(unsigned addr, int mode)
 {
-  unsigned u=0;
-  if (vga.inst_emu) {
-    addr -= e_vga_base;
-    ((unsigned char *) &u)[0] = vga_read((void *)addr);
-    if (mode&MBYTE) return u;
-    ((unsigned char *) &u)[1] = vga_read((void *)(addr+1));
-    if (!(mode&DATA16)) {
-      ((unsigned char *) &u)[2] = vga_read((void *)(addr+2));
-      ((unsigned char *) &u)[3] = vga_read((void *)(addr+3));
-    }
-  }
+  unsigned u;
+  if (mode&MBYTE)
+    u = vga_read((unsigned char *)addr);
   else {
-    if (mode&MBYTE) u = *((unsigned char *)addr);
-      else if (mode&DATA16) u = *((unsigned short *)addr);
-        else u = *((unsigned long *)addr);
+    u = vga_read_word((unsigned short *)addr);
+    if (!(mode&DATA16))
+      u |= vga_read_word((unsigned short *)addr+1) << 16;
   }
 #ifdef DEBUG_VGA
   e_printf("eVGAEmuFault: VGA read at %08x = %08x mode %x\n",addr,u,mode);
@@ -80,20 +72,13 @@ void e_VgaWrite(unsigned addr, unsigned u, int mode)
 #ifdef DEBUG_VGA
   e_printf("eVGAEmuFault: VGA write %08x at %08x mode %x\n",u,addr,mode);
 #endif
-  if (vga.inst_emu) {
-    addr -= e_vga_base;
-    vga_write((void *)addr, u);
-    if (mode&MBYTE) return;
-    vga_write((void *)(addr+1), u>>8);
-    if (mode&DATA16) return;
-    vga_write((void *)(addr+2), u>>16);
-    vga_write((void *)(addr+3), u>>24);
+  if (mode&MBYTE) {
+    vga_write((unsigned char *)addr, u);
+    return;
   }
-  else {
-    if (mode&MBYTE) *((unsigned char *)addr) = (unsigned char)u;
-      else if (mode&DATA16) *((unsigned short *)addr) = (unsigned short)u;
-        else *((unsigned long *)addr) = u;
-  }
+  vga_write_word((unsigned short *)addr, u);
+  if (mode&DATA16) return;
+  vga_write_word((unsigned short *)addr+1, u>>16);
 }
 
 static void e_VgaMovs(struct sigcontext_struct *scp, char op, int w16, int dp)
