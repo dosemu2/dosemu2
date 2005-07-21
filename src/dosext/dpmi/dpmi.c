@@ -3512,6 +3512,9 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  REG(cs) = (long) _LWORD(esi);
 	  REG(eip) = (long) _LWORD(edi);
 	  REG(ebp) = _ebp;
+	  REG(fs) = REG(gs) = 0;
+	  /* zero out also the "undefined" registers? */
+	  REG(eax) = REG(ebx) = REG(ecx) = REG(edx) = REG(esi) = REG(edi) = 0;
 	  in_dpmi_dos_int = 1;
 
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_save_restore)) {
@@ -4296,15 +4299,16 @@ done:
     DPMI_CLIENT.stack_frame.es	 = LWORD(ecx);
     DPMI_CLIENT.stack_frame.fs	 = 0;
     DPMI_CLIENT.stack_frame.gs	 = 0;
+    DPMI_CLIENT.stack_frame.ebp = REG(ebp);
     DPMI_CLIENT.stack_frame.eflags = 0x0202 | (0x0cd5 & REG(eflags)) |
       dpmi_mhp_TF;
+    /* zero out also the "undefined" registers? */
     DPMI_CLIENT.stack_frame.eax = 0;
     DPMI_CLIENT.stack_frame.ebx = 0;
     DPMI_CLIENT.stack_frame.ecx = 0;
     DPMI_CLIENT.stack_frame.edx = 0;
     DPMI_CLIENT.stack_frame.esi = 0;
     DPMI_CLIENT.stack_frame.edi = 0;
-    DPMI_CLIENT.stack_frame.ebp = REG(ebp);
 
   } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_save_restore))) {
     unsigned long *buffer = SEG_ADR((unsigned long *),es,di);
