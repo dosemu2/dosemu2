@@ -24,7 +24,7 @@ extern void e_priv_iopl(int);
  * by int0xe6. Technically: if we want to trace DOS boot we undefine this
  * and config.cpuemu will be set at 3 from the start - else it is set at 1
  */
-#if 1
+#if 0
 #define DONT_START_EMU
 #endif
 
@@ -33,7 +33,7 @@ extern void e_priv_iopl(int);
  * a drawback: when we jump into REAL vm86 in the VBIOS, we never know
  * where we will exit back to the cpuemu. Oh, well, speed is what matters...
  */
-#if 1
+#if 0
 #define	SKIP_EMU_VBIOS
 #endif
 

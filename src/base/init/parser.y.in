@@ -236,6 +236,8 @@ static int is_in_allowed_classes(int mask);
 %token LFN_SUPPORT
 	/* speaker */
 %token EMULATED NATIVE
+	/* cpuemu */
+%token CPUEMU VM86 FULL
 	/* keyboard */
 %token RAWKEYBOARD
 %token PRESTROKE
@@ -299,7 +301,7 @@ static int is_in_allowed_classes(int mask);
 	 * and tell the parser to ignore that */
 	/* %expect 1 */
 
-%type <i_value> int_bool irq_bool bool speaker floppy_bool
+%type <i_value> int_bool irq_bool bool speaker floppy_bool cpuemu
 
 %%
 
@@ -450,8 +452,16 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 #ifdef DONT_START_EMU
 			config.cpuemu = 1;
 #else
-			config.cpuemu = 3;
+			config.cpuemu = 4;
 #endif
+			c_printf("CONF: CPUEMU set to %d for %ld86\n",
+				config.cpuemu, vm86s.cpu_type);
+#endif
+			}
+		| CPUEMU cpuemu
+			{
+#ifdef X86_EMULATOR
+			config.cpuemu = $2;
 			c_printf("CONF: CPUEMU set to %d for %ld86\n",
 				config.cpuemu, vm86s.cpu_type);
 #endif
@@ -1615,6 +1625,16 @@ speaker		: L_OFF		{ $$ = SPKR_OFF; }
 		| STRING        { yyerror("got '%s', expected 'emulated' or 'native'", $1);
 				  free($1); }
 		| error         { yyerror("expected 'emulated' or 'native'"); }
+		;
+
+	/* cpuemu value */
+
+cpuemu		: L_OFF		{ $$ = 0; }
+		| VM86		{ $$ = 3; }
+		| FULL		{ $$ = 4; }
+		| STRING        { yyerror("got '%s', expected 'off', 'vm86' or 'full'", $1);
+				  free($1); }
+		| error         { yyerror("expected 'off', 'vm86' or 'full'"); }
 		;
 
 %%

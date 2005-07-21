@@ -176,7 +176,7 @@ int get_ldt(void *buffer)
 {
 #ifdef __linux__
 #ifdef X86_EMULATOR
-  if (config.cpuemu>1)
+  if (config.cpuemu>3)
 	return emu_modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
   else
 #endif
@@ -204,7 +204,7 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   ldt_info.useable = useable;
 
 #ifdef X86_EMULATOR
-  if (config.cpuemu>1)
+  if (config.cpuemu>3)
 	__retval = emu_modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
   else
 #endif
@@ -1029,7 +1029,7 @@ static int inline do_LAR(us selector)
 {
   int ret;
 #ifdef X86_EMULATOR
-  if (config.cpuemu>1)
+  if (config.cpuemu>3)
     return emu_do_LAR(selector);
   else
 #endif
@@ -1206,7 +1206,8 @@ inline void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *
 static void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode)
 {
 #ifdef X86_EMULATOR
- if (config.cpuemu<2) {	/* 0=off 1=on-inactive 2=active 3=on-first time */
+ if (config.cpuemu<4) {	/* 0=off 1=on-inactive 2=on-first time
+                           3=vm86 only, 4=all active */
 #endif
   if (in_dpmi) {
     copy_context(&DPMI_CLIENT.stack_frame,scp);
@@ -2199,7 +2200,7 @@ err:
       D_printf("DPMI: Set breakpoint type %x size %x at %04x%04x\n",
 	_HI(dx),_LO(dx),_LWORD(ebx),_LWORD(ecx));
 #ifdef X86_EMULATOR
-      if (config.cpuemu>1) {
+      if (config.cpuemu>3) {
 	e_dpmi_b0x(0,scp);
       } else
 #endif
@@ -2211,7 +2212,7 @@ err:
     {
       D_printf("DPMI: Clear breakpoint %x\n",_LWORD(ebx));
 #ifdef X86_EMULATOR
-      if (config.cpuemu>1) {
+      if (config.cpuemu>3) {
 	e_dpmi_b0x(1,scp);
       } else
 #endif
@@ -2223,7 +2224,7 @@ err:
     {
       D_printf("DPMI: Breakpoint %x state\n",_LWORD(ebx));
 #ifdef X86_EMULATOR
-      if (config.cpuemu>1) {
+      if (config.cpuemu>3) {
 	e_dpmi_b0x(2,scp);
       } else
 #endif
@@ -2235,7 +2236,7 @@ err:
     {
       D_printf("DPMI: Reset breakpoint %x\n",_LWORD(ebx));
 #ifdef X86_EMULATOR
-      if (config.cpuemu>1) {
+      if (config.cpuemu>3) {
 	e_dpmi_b0x(3,scp);
       } else
 #endif
@@ -2793,7 +2794,7 @@ void run_dpmi(void)
     int retcode;
     retcode = (
 #ifdef X86_EMULATOR
-	config.cpuemu>1?
+	config.cpuemu>3?
 	e_dpmi(&DPMI_CLIENT.stack_frame) :
 #endif
 	dpmi_control());
@@ -3435,7 +3436,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
     _eip += (csp-lina);
 
 #ifdef X86_EMULATOR
-    if (config.cpuemu>1) {
+    if (config.cpuemu>3) {
 	/* trick, because dpmi_fault must return void */
 	_trapno = *csp;
 #ifdef CPUEMU_DIRECT_IO

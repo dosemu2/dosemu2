@@ -401,6 +401,12 @@ ems_frame		RETURN(EMS_FRAME);
 emulated		RETURN(EMULATED);
 native			RETURN(NATIVE);
 
+	/* cpuemu values */
+
+cpuemu			RETURN(CPUEMU);
+vm86			RETURN(VM86);
+full			RETURN(FULL);
+
 	/* disk keywords */
 hdimage			RETURN(HDIMAGE);
 image			RETURN(HDIMAGE);

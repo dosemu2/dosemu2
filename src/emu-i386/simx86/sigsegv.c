@@ -384,6 +384,18 @@ badrw:
 
 static void e_emu_fault1(int signal, struct sigcontext_struct *scp)
 {
+  if (config.cpuemu < 4 && _trapno == 0x0e && in_dpmi && !in_dpmi_dos_int) {
+    /* delayed quitting if only vm86 is emulated: normally DPMI can be
+       executed natively just like DOSEMU code while cpuemu is active
+       for vm86. Until we hit a page fault, and we must quit it for
+       sanity, and the next e_vm86 call will activate it again.
+       This is cheaper than deactivating it every time we
+       go to dpmi */
+    leave_cpu_emu();
+    /* we'll just get a page fault again: that will be handled by
+       dosemu_fault(), if it comes (e.g.) from VGAEMU */
+    return;
+  }
 
   if ((debug_level('e')>1) || (_trapno!=0x0e)) {
     dbug_printf("==============================================================\n");
@@ -409,7 +421,7 @@ static void e_emu_fault1(int signal, struct sigcontext_struct *scp)
    *	TheCPU.err.
    */
 
-  if (config.X && (_trapno==0x0e)) {
+  if (Video->update_screen && (_trapno==0x0e)) {
       unsigned pf = (unsigned)_cr2 >> 12;
       if ((pf & 0xfffe0) == 0xa0) {
       	if (!TrapVgaOn) {
@@ -524,6 +536,7 @@ verybad:
 
 void e_emu_fault(int signal, struct sigcontext_struct context)
 {
+    restore_eflags_fs_gs();
     e_emu_fault1 (signal, &context);
 }
 
