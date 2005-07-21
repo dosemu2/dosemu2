@@ -60,6 +60,9 @@
 #include "disks.h"
 #include "fatfs.h"
 #include "doshelpers.h"
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
+#endif
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -1058,6 +1061,10 @@ void fdkernel_boot_mimic(void)
   }
   size = lseek(f, 0, SEEK_END);
   lseek(f, 0, SEEK_SET);
+#ifdef X86_EMULATOR
+  if (config.cpuemu>1) e_dos_read(f, (void *)loadaddress, size);
+  else
+#endif
   read(f, (void *)loadaddress, size);
   close(f);
   LWORD(cs) = LWORD(ds) = LWORD(es) = loadaddress >> 4;
