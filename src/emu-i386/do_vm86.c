@@ -33,7 +33,6 @@
 #include <sys/vt.h>
 #include "Linux/fd.h"
 #include "Linux/hdreg.h"
-#include <sys/vm86.h>
 #include <syscall.h>
 #endif
 

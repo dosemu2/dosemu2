@@ -9,7 +9,7 @@
 
 #ifdef __linux__
 #include "config.h"
-#include <sys/vm86.h>
+#include <Asm/vm86.h>
 #include <sys/syscall.h>
 #endif /* __linux__ */
 

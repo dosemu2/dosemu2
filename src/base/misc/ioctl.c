@@ -27,7 +27,6 @@
 #ifdef __linux__
 #include <signal.h>
 #include <sys/vt.h>
-#include <sys/vm86.h>
 #include <syscall.h>
 #endif
 

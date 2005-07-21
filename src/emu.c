@@ -82,7 +82,6 @@ __asm__("___START___: jmp _emulate\n");
 #include <sys/kd.h>
 #include "Linux/fd.h"
 #include "Linux/hdreg.h"
-#include <sys/vm86.h>
 #include <syscall.h>
 #endif
 

@@ -134,7 +134,6 @@
 #include "bitops.h"
 #include "pic.h"
 #include "memory.h"
-/* #include <sys/vm86.h> */
 #include <sys/time.h>
 #include "cpu.h"
 #include "emu.h"
