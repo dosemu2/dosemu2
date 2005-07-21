@@ -1532,7 +1532,7 @@ checkpic:		    if (vm86s.vm86plus.force_return_for_pic &&
 				EFLAGS = (EFLAGS&amask) |
 					 ((temp&(eTSSMASK|0xfd7))&~amask);
 			    if (debug_level('e')>1)
-				e_printf("Popped flags %08lx->{r=%08lx v=%08x}\n",temp,EFLAGS,_EFLAGS);
+				e_printf("Popped flags %08lx->{r=%08lx v=%08x}\n",temp,EFLAGS,get_vFLAGS(EFLAGS));
 			}
 #ifdef HOST_ARCH_SIM
 			RFL.valid = V_INVALID;
@@ -1807,9 +1807,7 @@ repag0:
 			    }
 			    else if (in_dpmi) {
 				if (debug_level('e')>2) e_printf("Virtual DPMI CLI\n");
-				/* ??? */
 				clear_IF();
-				eVEFLAGS &= ~EFLAGS_VIF;
 			    }
 			    else
 				goto not_permitted;	/* GPF */
@@ -1838,9 +1836,7 @@ repag0:
 			    }
 			    else if (in_dpmi) {
 				if (debug_level('e')>2) e_printf("Virtual DPMI STI\n");
-				/* ??? */
 				set_IF();
-				eVEFLAGS |= EFLAGS_VIF;
 			    }
 			    else
 				goto not_permitted;	/* GPF */

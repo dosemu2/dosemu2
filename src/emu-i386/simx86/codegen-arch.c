@@ -1260,10 +1260,12 @@ shrot0:
 		     * Since PUSHF doesn't trap in PM, non-cpuemued
 		     * dosemu will always fail this particular test.
 		     */
+		    static int dpmi_eflags;
 		    if (mode&DATA16) p=pseq16d,sz=sizeof(pseq16d);
 			else p=pseq32d,sz=sizeof(pseq32d);
 		    q=Cp; GNX(Cp, p, sz);
-		    *((int *)(q+0x15)) = (int)&_EFLAGS;
+		    dpmi_eflags = get_vFLAGS(TheCPU.eflags);
+		    *((int *)(q+0x15)) = (int)&dpmi_eflags;
 		}
 		else
 		{
