@@ -47,11 +47,21 @@
 #define MAX_MEM_SIZE    640
 
 
-#if 0  /* initialized in data.c (via emu.h) */
-struct debug_flags d =
-{  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-/* d  R  W  D  C  v  X  k  i  T  s  m  #  p  g  c  w  h  I  E  x  M  n  P  r  S  j */
-#endif
+/*
+ * Options used in config_init().
+ *
+ * Please keep "getopt_string", secure_option_preparse(), config_init(),
+ * usage() and the manpage in sync!
+ *
+ * No more undocumented switches *please*.
+ *
+ * "--Fusers", "--Flibdir", "--Fimagedir" and "-n" not in "getopt_string"
+ * they are eaten by secure_option_preparse().
+ */
+static const char * const getopt_string =
+	"23456ABCcdXSD:E:e:F:f:L:I:h:H:kM:mNOo:P:u:Vv:wx:U:"
+	"tsgK"/*NOPs kept for compat (not documented in usage())*/;
+
 
 int kernel_version_code = 0;
 int config_check_only = 0;
@@ -387,6 +397,10 @@ static int option_delete(int option, int *argc, char **argv)
   return option;
 }
 
+/*
+ * Please keep "getopt_string", secure_option_preparse(), config_init(),
+ * usage() and the manpage in sync!
+ */
 void secure_option_preparse(int *argc, char **argv)
 {
   char *opt;
@@ -445,6 +459,7 @@ void secure_option_preparse(int *argc, char **argv)
     dosemu_hdimage_dir_path = opt;
   }
 
+  /* "-Xn" is enough to throw this parser off :( */
   opt = get_option("-n", 0);
   if (opt) {
     if (runningsuid) {
@@ -729,7 +744,8 @@ config_init(int argc, char **argv)
     basename = strrchr(argv[0], '/');   /* parse the program name */
     basename = basename ? basename + 1 : argv[0];
 
-    if (argv[1] && !strcmp("--version",argv[1])) {
+    if (argv[1] &&
+        (!strcmp("--version",argv[1]) || !strcmp("--help",argv [1]))) {
       usage(basename);
       exit(0);
     }
@@ -752,13 +768,14 @@ config_init(int argc, char **argv)
     if (strcmp(basename, "xdos") == 0) {
 	    load_plugin("X");
 	    usedoptions['X'] = 'X';
-	/* called as 'xdos'              */
+	/* called as 'xdos' */
     }
-
+    
+    /* options get parsed twice so show our own errors and only once */
     opterr = 0;
     if (strcmp(config_script_name, DEFAULT_CONFIG_SCRIPT))
       confname = config_script_path;
-    while ((c = getopt(argc, argv, "ABCScF:f:I:kM:D:P:VNtsgh:H:x:KL:mn23456e:E:dwXY:Z:o:Ou:U:")) != EOF) {
+    while ((c = getopt(argc, argv, getopt_string)) != EOF) {
 	usedoptions[(unsigned char)c] = c;
 	switch (c) {
 	case 'h':
@@ -892,8 +909,7 @@ config_init(int argc, char **argv)
     optind = 0;
 #endif
     opterr = 0;
-    while ((c = getopt(argc, argv, "ABCScF:f:I:kM:D:P:v:VNtsgh:H:x:KLm23456e:dwXY:Z:E:o:Ou:U:")) != EOF) {
-	/* currently _NOT_ used option characters: abGjJlpqQrRSTWyz */
+    while ((c = getopt(argc, argv, getopt_string)) != EOF) {
 
 	/* Note: /etc/dosemu.conf may have disallowed some options
 	 *	 ( by removing them from $DOSEMU_OPTIONS ).
@@ -915,6 +931,18 @@ config_init(int argc, char **argv)
 	case 'u':
 	case 'U':
 	case '2': case '3': case '4': case '5': case '6':
+	    break;
+	case 't': /* obsolete "timer" option */
+	    break;
+	case 's': /* obsolete */
+	    /*g_printf("using new scrn size code\n");*/
+	    break;
+	case 'g': /* obsolete "graphics" option */
+	    break;
+	case 'K':
+#if 0 /* now dummy, leave it for compatibility */
+	    warn("Keyboard interrupt enabled...this is still buggy!\n");
+#endif
 	    break;
 	case 'A':
 	    if (!dexe_running) config.hdiskboot = 0;
@@ -939,11 +967,6 @@ config_init(int argc, char **argv)
 	    break;
 	case 'w':
             config.X_fullscreen = !config.X_fullscreen;
-	    break;
-	case 'K':
-#if 0 /* now dummy, leave it for compatibility */
-	    warn("Keyboard interrupt enabled...this is still buggy!\n");
-#endif
 	    break;
 	case 'M':{
 		int             max_mem = config.vga ? 640 : MAX_MEM_SIZE;
@@ -979,14 +1002,6 @@ config_init(int argc, char **argv)
 	    warn("DOS will not be started\n");
 	    config.exitearly = 1;
 	    break;
-	case 't': /* obsolete "timer" option */
-	    break;
-	case 's':
-	    g_printf("using new scrn size code\n");
-	    sizes = 1;
-	    break;
-	case 'g': /* obsolete "graphics" option */
-	    break;
 
 	case 'x':
 	    config.xms_size = atoi(optarg);
@@ -1011,7 +1026,7 @@ config_init(int argc, char **argv)
 
 	case '?':
 	default:
-	    fprintf(stderr, "unrecognized option: -%c\n\r", c);
+	    fprintf(stderr, "unrecognized option or missing argument: -%c\n\r", optopt);
 	    usage(basename);
 	    fflush(stdout);
 	    fflush(stderr);
@@ -1057,38 +1072,42 @@ check_for_env_autoexec_or_config(void)
 #endif
 }
 
+/*
+ * Please keep "getopt_string", secure_option_preparse(), config_init(),
+ * usage() and the manpage in sync!
+ */
 static void
 usage(char *basename)
 {
     fprintf(stderr,
 	"dosemu-" VERSTR "\n\n"
 	"USAGE:\n"
-	"  %s  [-ABCckbVNtsgxKm23456ez] [-h{0|1|2}] [-H dflags \\\n"
-	"       [-D flags] [-M SIZE] [-P FILE] [ {-F|-L} File ] \\\n"
-	"       [-u confvar] [-f dosrcFile] [-o dbgfile] 2> vital_logs\n"
-	"  %s --version\n\n"
+	"  %s [options] [ [-E] linux path or dos command ]\n"
+	"\n"
 	"    -2,3,4,5,6 choose 286, 386, 486 or 586 or 686 CPU\n"
 	"    -A boot from first defined floppy disk (A)\n"
 	"    -B boot from second defined floppy disk (B) (#)\n"
-	"    -b map BIOS into emulator RAM (%%)\n"
 	"    -C boot from first defined hard disk (C)\n"
 	"    -c use PC console video (!%%)\n"
-	"    -d detach (?)\n"
+	"    -d detach console\n"
 	"    -X run in X Window (#)\n"
-    ,basename, basename);
+	"    -S run in SDL (#)\n"
+    , basename);
     print_debug_usage(stderr);
     fprintf(stderr,
-	"    -E STRING pass DOS command on command line\n"
+	"    -E STRING pass DOS command on command line (but don't exit afterwards)\n"
 	"    -e SIZE enable SIZE K EMS RAM\n"
 	"    -F use File as global config-file\n"
 	"    -f use dosrcFile as user config-file\n"
-	"    -n causes DOSEMU to bypass the system configuration file\n"
+	"    --Fusers bypass /etc/dosemu.users (^^)\n"
+	"    --Flibdir bypass systemwide configuration (^^)\n"
+	"    --Fimagedir bypass systemwide boot path (^^)\n"
+	"    -n bypass the system configuration file (^^)\n"
 	"    -L load and execute DEXE File\n"
 	"    -I insert config statements (on commandline)\n"
 	"    -h dump configuration to stderr and exit (sets -D+c)\n"
 	"       0=no parser debug, 1=loop debug, 2=+if_else debug\n"
 	"    -H wait for dosdebug terminal at startup and pass dflags\n"
-	"    -K no effect, left for compatibility\n"
 	"    -k use PC console keyboard (!)\n"
 	"    -M set memory size to SIZE kilobytes (!)\n"
 	"    -m toggle internal mouse driver\n"
@@ -1101,10 +1120,16 @@ usage(char *basename)
 	"    -v NUM force video card type\n"
 	"    -w toggle windowed/fullscreen mode in X\n"
 	"    -x SIZE enable SIZE K XMS RAM\n"
-	"    --version, print version of dosemu\n"
+	"    -U PIPES calls init_uhook(PIPES) (??\?)\n"  /* "??)" is a trigraph */
+	"\n"
 	"    (!) BE CAREFUL! READ THE DOCS FIRST!\n"
 	"    (%%) require DOSEMU be run as root (i.e. suid)\n"
-	"    (#) options do not fully work yet\n\n"
-	"xdosemu [options]        == %s [options] -X\n"
-    ,basename);
+        "    (^^) require DOSEMU not be run as root (i.e. not suid)\n"
+	"    (#) options do not fully work yet\n"
+	"\n"
+	"  xdosemu [options]   == %s [options] -X\n"
+	"\n"
+	"  %s --help\n"
+	"  %s --version    print version of dosemu (and show this help)\n"
+    ,basename, basename, basename);
 }

@@ -63,9 +63,6 @@ EXTERN int running_kversion INIT(0);
 
 EXTERN char *(*cstack)[16384];
 
-/* this is DEBUGGING code! */
-EXTERN int sizes INIT(0);
-
 EXTERN int screen_mode;
 
 /* number of highest vid page - 1 */
