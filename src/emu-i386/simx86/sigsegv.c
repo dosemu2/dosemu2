@@ -384,20 +384,10 @@ badrw:
 
 static void e_emu_fault1(int signal, struct sigcontext_struct *scp)
 {
-  if (config.cpuemu < 4 && _trapno == 0x0e && in_dpmi && !in_dpmi_dos_int) {
-    /* delayed quitting if only vm86 is emulated: normally DPMI can be
-       executed natively just like DOSEMU code while cpuemu is active
-       for vm86. Until we hit a page fault, and we must quit it for
-       sanity, and the next e_vm86 call will activate it again.
-       This is cheaper than deactivating it every time we
-       go to dpmi */
-    leave_cpu_emu();
-    /* we'll just get a page fault again: that will be handled by
-       dosemu_fault(), if it comes (e.g.) from VGAEMU */
-    return;
-  }
-
-  if ((debug_level('e')>1) || (_trapno!=0x0e)) {
+  /* if config.cpuemu==3 (only vm86 emulated) then this function can
+     be trapped from within DPMI, and we still must be prepared to
+     reset permissions on code pages */
+  if (_cs ==UCODESEL && ((debug_level('e')>1) || (_trapno!=0x0e))) {
     dbug_printf("==============================================================\n");
     dbug_printf("CPU exception 0x%02lx err=0x%08lx cr2=%08lx eip=%08lx\n",
 	  	 _trapno, _err, _cr2, _eip);
@@ -421,35 +411,36 @@ static void e_emu_fault1(int signal, struct sigcontext_struct *scp)
    *	TheCPU.err.
    */
 
-  if (Video->update_screen && (_trapno==0x0e)) {
-      unsigned pf = (unsigned)_cr2 >> 12;
-      if ((pf & 0xfffe0) == 0xa0) {
-      	if (!TrapVgaOn) {
-	    TrapVgaOn = 1;
+  if (_trapno==0x0e) {
+	if (Video->update_screen) {
+		if (_cs == UCODESEL) {
+			unsigned pf = (unsigned)_cr2 >> 12;
+			if ((pf & 0xfffe0) == 0xa0 && !TrapVgaOn) {
+				TrapVgaOn = 1;
+			}
+			/* VGAEMU may also access/protect the LFB */
+			if (e_vgaemu_fault(scp,pf) == 1) return;
+			if ((pf & 0xfffe0) == 0xa0) goto verybad;
+		} else {
+			if(VGA_EMU_FAULT(scp,code,1)==True) {
+				dpmi_check_return(scp);
+				return;
+			}
+		}
 	}
-	if (e_vgaemu_fault(scp,pf) == 1) return;
-	goto verybad;
-      }
-#ifndef HOST_ARCH_SIM
-      goto cont0e;
-#endif
-  }
 
-#ifndef HOST_ARCH_SIM
-  if (_trapno==0x0d) {
-#endif
-	(void)dosemu_fault1(signal, scp);
-	return;
-#ifndef HOST_ARCH_SIM
+#ifdef HOST_ARCH_SIM
   }
-  else if (_trapno==0x0e) {
+  (void)dosemu_fault1(signal, scp);
+  return;
+#else
+
         /* bit 0 = 1	page protect
          * bit 1 = 1	writing
          * bit 2 = 1	user mode
          * bit 3 = 0	no reserved bit err
          */
-cont0e:
-	if ((int)_cr2 < 0) {
+	if (_cr2 > stack_init_bot) {
 		error("Accessing reserved memory at %08lx\n"
 		      "\tMaybe a null segment register\n",_cr2);
 		goto verybad;
@@ -516,7 +507,7 @@ cont0e:
 		return;		// restore CPU and jump to our tail code
 	}
   }
-  if (!TryMemRef)
+  if (!TryMemRef || _trapno == 0x0d)
 	(void)dosemu_fault1(signal, scp);
   return;
 #endif

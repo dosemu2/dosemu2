@@ -68,6 +68,7 @@ hitimer_t GenTime, LinkTime;
 
 hitimer_t TotalTime;
 static int iniflag = 0;
+static int vm86only = 0;
 
 hitimer_t sigEMUtime = 0;
 static hitimer_t lastEMUsig = 0;
@@ -589,10 +590,10 @@ static void Reg2Cpu (int mode)
   TheCPU.eflags |= (flg & notSAFE_MASK); // which VIP do we get here?
   TheCPU.eflags |= (VM | RF);	// RF is cosmetic...
 
-  if (config.cpuemu>2) {
+  if (config.cpuemu==2) {
     /* a vm86 call switch has been detected.
        Setup flags for the 1st time. */
-    config.cpuemu=2;
+    config.cpuemu=4-vm86only;
   }
 
   if (debug_level('e')>1) e_printf("Reg2Cpu> vm86=%08lx dpm=%08x emu=%08lx evf=%08lx\n",
@@ -776,6 +777,8 @@ erseg:
 
 void init_emu_cpu (void)
 {
+  if (config.cpuemu == 3)
+    vm86only = 1;
   memset(&TheCPU, 0, sizeof(SynCPU));
   TheCPU.cr[0] = 0x13;	/* valid bits: 0xe005003f */
   TheCPU.dr[4] = 0xffff1ff0;
@@ -826,6 +829,8 @@ void init_emu_cpu (void)
  */
 static void e_gen_sigalrm(int sig, struct sigcontext_struct context)
 {
+	restore_eflags_fs_gs();
+
 	/* here we come from the kernel with cs==UCODESEL, as
 	 * the passed context is that of dosemu, NOT that of the
 	 * emulated CPU! */
@@ -866,7 +871,7 @@ void enter_cpu_emu(void)
 	  fprintf(stderr,"Cannot execute CPUEMU without TSC counter\n");
 	  leavedos(0);
 	}
-	config.cpuemu=3;	/* for saving CPU flags */
+	config.cpuemu=2;	/* for saving CPU flags */
 	emu_dpmi_retcode = -1;
 	GDT = NULL; IDT = NULL;
 	/* allocate the LDT used by dpmi (w/o GDT) */
@@ -892,7 +897,7 @@ void enter_cpu_emu(void)
 #endif
 	e_printf("EMU86: delta alrm=%d speed=%d\n",realdelta,config.CPUSpeedInMhz);
 	e_sigpa_count = 0;
-	setsig(SIGALRM, e_gen_sigalrm);
+	newsetqsig(SIGALRM, e_gen_sigalrm);
 
 	itv.it_interval.tv_sec = 0;
 	itv.it_interval.tv_usec = realdelta;
@@ -900,7 +905,7 @@ void enter_cpu_emu(void)
 	itv.it_value.tv_usec = realdelta;
 	e_printf("TIME: using %d usec for updating PROF timer\n", realdelta);
 	setitimer(ITIMER_PROF, &itv, NULL);
-	setsig(SIGPROF, e_gen_sigprof);
+	newsetsig(SIGPROF, e_gen_sigprof);
 	newsetsig(SIGFPE, e_emu_fault);
 	newsetsig(SIGSEGV, e_emu_fault);
 
@@ -920,6 +925,7 @@ void leave_cpu_emu(void)
 	struct itimerval itv;
 
 	if (config.cpuemu > 1) {
+		iniflag = 0;
 		config.cpuemu=1;
 #ifdef SKIP_EMU_VBIOS
 		if (IOFF(0x10)==CPUEMU_WATCHER_OFF)

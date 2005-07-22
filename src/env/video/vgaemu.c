@@ -971,7 +971,7 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
   if(vga_page < vga.mem.pages) {
     vga.mem.dirty_map[vga_page] = 1;
 #ifdef X86_EMULATOR
-    if (config.cpuemu>1) {
+    if (config.cpuemu>1 && _cs == UCODESEL) {
 	error("VGAEmu: CPU emulation collision, should not be here\n");
 	leavedos(0x4945);
     }
