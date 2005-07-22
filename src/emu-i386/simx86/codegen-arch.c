@@ -2266,6 +2266,7 @@ void Gen(int op, int mode, ...)
 	IG->mode = mode;
 	IG->ovds = OVERR_DS;
 	GenBufSize += GendBytesPerOp[op];
+#define HACKHACK 1
 #ifdef HACKHACK
 	/* apparently GenBufSize is often too small ...
 	 * need to investigate further
