@@ -115,7 +115,6 @@ dosemu_sigaction_wrapper(int sig, void *fun, int flags)
   static int (*libc_sigaction)(int signum, const struct sigaction *act,
 			       struct sigaction *oldact);
   struct sigaction sa;
-  struct kernel_sigaction kernel_sa;
   sigset_t mask;
 
   sa.sa_handler = (__sighandler_t)fun;
