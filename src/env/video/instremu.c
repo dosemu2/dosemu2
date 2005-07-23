@@ -93,27 +93,27 @@
 /* assembly macros to speed up x86 on x86 emulation: the cpu helps us in setting
    the flags */
 
-#define OPandFLAG0(eflags, insn, op1) __asm__ __volatile__("\n\
+#define OPandFLAG0(eflags, insn, op1, type) __asm__ __volatile__("\n\
 	"#insn"	%0\n\
 	pushfl; pop	%1\n \
-	" : "=r" (op1), "=g" (eflags) : "0" (op1));
+	" : "="#type (op1), "=g" (eflags) : "0" (op1));
 
-#define OPandFLAG1(eflags, insn, op1) __asm__ __volatile__("\n\
+#define OPandFLAG1(eflags, insn, op1, type) __asm__ __volatile__("\n\
 	"#insn"	%0, %0\n\
 	pushfl; pop	%1\n \
-	" : "=r" (op1), "=g" (eflags) : "0" (op1));
+	" : "="#type (op1), "=g" (eflags) : "0" (op1));
 
-#define OPandFLAG(eflags, insn, op1, op2) __asm__ __volatile__("\n\
+#define OPandFLAG(eflags, insn, op1, op2, type) __asm__ __volatile__("\n\
 	"#insn"	%3, %0\n\
 	pushfl; pop	%1\n \
-	" : "=r" (op1), "=g" (eflags) : "0" (op1), "r" (op2));
+	" : "="#type (op1), "=g" (eflags) : "0" (op1), #type (op2));
 
-#define OPandFLAGC(eflags, insn, op1, op2) __asm__ __volatile__("\n\
+#define OPandFLAGC(eflags, insn, op1, op2, type) __asm__ __volatile__("\n\
        roll    $8, %0\n\
        sahf\n\
        "#insn" %4, %1\n\
        pushfl; pop     %0\n \
-       " : "=a" (eflags), "=r" (op1)  : "0" (eflags), "1" (op1), "r" (op2));
+       " : "=a" (eflags), "="#type (op1)  : "0" (eflags), "1" (op1), #type (op2));
 
 
 #if !defined True
@@ -539,7 +539,7 @@ void instr_flags(unsigned val, unsigned smask, unsigned *eflags)
   *eflags &= ~(OF|ZF|SF|PF|CF);
   if (val & smask)
     *eflags |= SF;
-  OPandFLAG1(flags, orl, val);
+  OPandFLAG1(flags, orl, val, r);
   *eflags |= flags & (ZF|PF);
 }
 
@@ -552,22 +552,22 @@ unsigned char instr_binary_byte(unsigned char op, unsigned char op1, unsigned ch
   
   switch (op&0x7){
   case 1: /* or */
-    OPandFLAG(flags, orb, op1, op2);
+    OPandFLAG(flags, orb, op1, op2, q);
     *eflags = (*eflags & ~(OF|ZF|SF|PF|CF)) | (flags & (OF|ZF|SF|PF|CF));
     return op1;
   case 4: /* and */
-    OPandFLAG(flags, andb, op1, op2);
+    OPandFLAG(flags, andb, op1, op2, q);
     *eflags = (*eflags & ~(OF|ZF|SF|PF|CF)) | (flags & (OF|ZF|SF|PF|CF));
     return op1;
   case 6: /* xor */
-    OPandFLAG(flags, xorb, op1, op2);
+    OPandFLAG(flags, xorb, op1, op2, q);
     *eflags = (*eflags & ~(OF|ZF|SF|PF|CF)) | (flags & (OF|ZF|SF|PF|CF));
     return op1;
   case 0: /* add */
     *eflags &= ~CF; /* Fall through */
   case 2: /* adc */
     flags = *eflags;
-    OPandFLAGC(flags, adcb, op1, op2);
+    OPandFLAGC(flags, adcb, op1, op2, q);
     *eflags = (*eflags & ~(OF|ZF|SF|AF|PF|CF)) | (flags & (OF|ZF|AF|SF|PF|CF));
     return op1;
   case 5: /* sub */
@@ -575,7 +575,7 @@ unsigned char instr_binary_byte(unsigned char op, unsigned char op1, unsigned ch
     *eflags &= ~CF; /* Fall through */
   case 3: /* sbb */
     flags = *eflags;
-    OPandFLAGC(flags, sbbb, op1, op2);
+    OPandFLAGC(flags, sbbb, op1, op2, q);
     *eflags = (*eflags & ~(OF|ZF|SF|AF|PF|CF)) | (flags & (OF|ZF|AF|SF|PF|CF));
     return op1;
   }
@@ -590,22 +590,22 @@ unsigned instr_binary_word(unsigned op, unsigned op1, unsigned op2, unsigned *ef
   
   switch (op&0x7){
   case 1: /* or */
-    OPandFLAG(flags, orw, opw1, opw2);
+    OPandFLAG(flags, orw, opw1, opw2, r);
     *eflags = (*eflags & ~(OF|ZF|SF|PF|CF)) | (flags & (OF|ZF|SF|PF|CF));
     return opw1;
   case 4: /* and */
-    OPandFLAG(flags, andw, opw1, opw2);
+    OPandFLAG(flags, andw, opw1, opw2, r);
     *eflags = (*eflags & ~(OF|ZF|SF|PF|CF)) | (flags & (OF|ZF|SF|PF|CF));
     return opw1;
   case 6: /* xor */
-    OPandFLAG(flags, xorw, opw1, opw2);
+    OPandFLAG(flags, xorw, opw1, opw2, r);
     *eflags = (*eflags & ~(OF|ZF|SF|PF|CF)) | (flags & (OF|ZF|SF|PF|CF));
     return opw1;
   case 0: /* add */
     *eflags &= ~CF; /* Fall through */
   case 2: /* adc */
     flags = *eflags;
-    OPandFLAGC(flags, adcw, opw1, opw2);
+    OPandFLAGC(flags, adcw, opw1, opw2, r);
     *eflags = (*eflags & ~(OF|ZF|SF|AF|PF|CF)) | (flags & (OF|ZF|AF|SF|PF|CF));
     return opw1;
   case 5: /* sub */
@@ -613,7 +613,7 @@ unsigned instr_binary_word(unsigned op, unsigned op1, unsigned op2, unsigned *ef
     *eflags &= ~CF; /* Fall through */
   case 3: /* sbb */
     flags = *eflags;
-    OPandFLAGC(flags, sbbw, opw1, opw2);
+    OPandFLAGC(flags, sbbw, opw1, opw2, r);
     *eflags = (*eflags & ~(OF|ZF|SF|AF|PF|CF)) | (flags & (OF|ZF|AF|SF|PF|CF));
     return opw1;
   }
@@ -626,22 +626,22 @@ unsigned instr_binary_dword(unsigned op, unsigned op1, unsigned op2, unsigned *e
   
   switch (op&0x7){
   case 1: /* or */
-    OPandFLAG(flags, orl, op1, op2);
+    OPandFLAG(flags, orl, op1, op2, r);
     *eflags = (*eflags & ~(OF|ZF|SF|PF|CF)) | (flags & (OF|ZF|SF|PF|CF));
     return op1;
   case 4: /* and */
-    OPandFLAG(flags, andl, op1, op2);
+    OPandFLAG(flags, andl, op1, op2, r);
     *eflags = (*eflags & ~(OF|ZF|SF|PF|CF)) | (flags & (OF|ZF|SF|PF|CF));
     return op1;
   case 6: /* xor */
-    OPandFLAG(flags, xorl, op1, op2);
+    OPandFLAG(flags, xorl, op1, op2, r);
     *eflags = (*eflags & ~(OF|ZF|SF|PF|CF)) | (flags & (OF|ZF|SF|PF|CF));
     return op1;
   case 0: /* add */
     *eflags &= ~CF; /* Fall through */
   case 2: /* adc */
     flags = *eflags;
-    OPandFLAGC(flags, adcl, op1, op2);
+    OPandFLAGC(flags, adcl, op1, op2, r);
     *eflags = (*eflags & ~(OF|ZF|SF|AF|PF|CF)) | (flags & (OF|ZF|AF|SF|PF|CF));
     return op1;
   case 5: /* sub */
@@ -649,7 +649,7 @@ unsigned instr_binary_dword(unsigned op, unsigned op1, unsigned op2, unsigned *e
     *eflags &= ~CF; /* Fall through */
   case 3: /* sbb */
     flags = *eflags;
-    OPandFLAGC(flags, sbbl, op1, op2);
+    OPandFLAGC(flags, sbbl, op1, op2, r);
     *eflags = (*eflags & ~(OF|ZF|SF|AF|PF|CF)) | (flags & (OF|ZF|AF|SF|PF|CF));
     return op1;
   }
@@ -1413,9 +1413,9 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     EFLAGS &= ~(OF|ZF|SF|PF|AF);
     dstreg = reg(cs[eip], x86);
     if (x86->operand_size == 2) {
-      OPandFLAG0(und, incw, *((unsigned short *)dstreg));
+      OPandFLAG0(und, incw, *((unsigned short *)dstreg), r);
     } else {
-      OPandFLAG0(und, incl, *dstreg);
+      OPandFLAG0(und, incl, *dstreg, r);
     }
     EFLAGS |= und & (OF|ZF|SF|PF|AF);
     eip++; break;
@@ -1431,9 +1431,9 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     EFLAGS &= ~(OF|ZF|SF|PF|AF);
     dstreg = reg(cs[eip], x86);
     if (x86->operand_size == 2) {
-      OPandFLAG0(und, decw, *((unsigned short *)dstreg));
+      OPandFLAG0(und, decw, *((unsigned short *)dstreg), r);
     } else {
-      OPandFLAG0(und, decl, *dstreg);
+      OPandFLAG0(und, decl, *dstreg, r);
     }
     EFLAGS |= und & (OF|ZF|SF|PF|AF);
     eip++; break;
@@ -2211,13 +2211,13 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     switch (cs[eip + 1]&0x38) {
     case 0x00:
       EFLAGS &= ~(OF|ZF|SF|PF|AF);
-      OPandFLAG0(und, incb, uc);
+      OPandFLAG0(und, incb, uc, q);
       EFLAGS |= und & (OF|ZF|SF|PF|AF);
       instr_write_byte(mem, uc);
       eip += inst_len + 2; break;
     case 0x08:        
       EFLAGS &= ~(OF|ZF|SF|PF|AF);
-      OPandFLAG0(und, decb, uc);
+      OPandFLAG0(und, decb, uc, q);
       EFLAGS |= und & (OF|ZF|SF|PF|AF);
       instr_write_byte(mem, uc);
       eip += inst_len + 2; break;
@@ -2233,13 +2233,13 @@ static inline int instr_sim(x86_regs *x86, int pmode)
     switch (cs[eip + 1]&0x38) {
     case 0x00: /* inc */
       EFLAGS &= ~(OF|ZF|SF|PF|AF);
-      OPandFLAG0(und, incw, uns);
+      OPandFLAG0(und, incw, uns, r);
       EFLAGS |= und & (OF|ZF|SF|PF|AF);
       instr_write_word(mem, uns);
       eip += inst_len + 2; break;
     case 0x08: /* dec */       
       EFLAGS &= ~(OF|ZF|SF|PF|AF);
-      OPandFLAG0(und, decw, uns);
+      OPandFLAG0(und, decw, uns, r);
       EFLAGS |= und & (OF|ZF|SF|PF|AF);
       instr_write_word(mem, uns);
       eip += inst_len + 2; break;;
