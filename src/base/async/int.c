@@ -838,8 +838,6 @@ void set_ticks(unsigned long new_ticks)
 
 static int int1a(void)
 {
-  int time_view = config.timemode; /* Time mode, choice is TM_BIOS, TM_PIT, TM_LINUX */
-
 #ifdef X86_EMULATOR
   int tmp = E_MUNPROT_STACK(0);		/* no faults in BIOS area! */
 #endif
@@ -864,15 +862,12 @@ Notes:	there are approximately 18.2 clock ticks per second, 1800B0h per 24 hrs
   case 0:			/* read time counter */
    {
    int day_rollover = 0;
-#if 0
-   if(time_view == TM_LINUX)
+   if(config.timemode == TM_LINUX)
    {
      /* Set BIOS area flags to LINUX time computed values always */
      last_ticks = get_linux_ticks(0, &day_rollover);
    }
-   else
-#endif
-   if(time_view == TM_BIOS)
+   else if(config.timemode == TM_BIOS)
    {
     /* BIOSTIMER_ONLY_VIEW
      *
@@ -896,7 +891,7 @@ Notes:	there are approximately 18.2 clock ticks per second, 1800B0h per 24 hrs
       last_ticks = (*((unsigned long *)(BIOS_TICK_ADDR)));
       day_rollover = (int)(*((u_char *)(TICK_OVERFLOW_ADDR)));
     }
-    else /* (time_view == TM_PIT) assumed */
+    else /* (config.timemode == TM_PIT) assumed */
     {
     /* not BIOSTIMER_ONLY_VIEW
      * pic_sys_time is a zero-based tick (1.19MHz) counter. As such, if we
@@ -955,7 +950,7 @@ Notes:	there are approximately 18.2 clock ticks per second, 1800B0h per 24 hrs
 SeeAlso: AH=00h,AH=03h,INT 21/AH=2Dh
 */
   case 1:			/* write time counter */
-    if(time_view == TM_LINUX)
+    if(config.timemode == TM_LINUX)
     {
       g_printf("INT1A: can't set DOS timer\n");	/* Allow time set except in 'LINUX view' case. */
     }
@@ -999,6 +994,10 @@ Note:	this function is also supported by the Sperry PC, which predates the
 SeeAlso: AH=00h,AH=03h,AH=04h,INT 21/AH=2Ch
 */
   case 2:			/* get time */
+    if(config.timemode != TM_BIOS)
+    {
+      get_linux_ticks(1, NULL); /* Except BIOS view time, force RTC to LINUX time. */
+    }
     LOCK_CMOS;
     HI(cx) = BCD(GET_CMOS(CMOS_HOUR));
     LO(cx) = BCD(GET_CMOS(CMOS_MIN));
@@ -1023,12 +1022,19 @@ Note:	this function is also supported by the Sperry PC, which predates the
 	  Sperry, and the value of DL is ignored
 */
   case 3:			/* set time */
+    if(config.timemode != TM_BIOS)
+    {
+      g_printf("INT1A: RTC: can't set time\n");
+    }
+    else
+    {
     LOCK_CMOS;
     SET_CMOS(CMOS_HOUR, BIN(HI(cx)));
     SET_CMOS(CMOS_MIN,  BIN(LO(cx)));
     SET_CMOS(CMOS_SEC,  BIN(HI(dx)));
     UNLOCK_CMOS;
     g_printf("INT1A: RTC set time %02x:%02x:%02x\n",HI(cx),LO(cx),HI(dx));
+    }
     NOCARRY;
     break;
 	  
@@ -1045,35 +1051,18 @@ Return: CF clear if successful
 SeeAlso: AH=02h,AH=04h"Sperry",AH=05h,INT 21/AH=2Ah,INT 4B/AH=02h"TI"
 */
   case 4:			/* get date */
-   if(time_view != TM_BIOS) {
-    time_t time_val;
-    struct tm *tm;
-    time(&time_val);
-    tm = localtime((time_t *) &time_val);
-    tm->tm_year += 1900;
-    tm->tm_mon++;
-    LWORD(ecx) = tm->tm_year % 10;
-    tm->tm_year /= 10;
-    LWORD(ecx) |= (tm->tm_year % 10) << 4;
-    tm->tm_year /= 10;
-    LWORD(ecx) |= (tm->tm_year % 10) << 8;
-    tm->tm_year /= 10;
-    LWORD(ecx) |= (tm->tm_year) << 12;
-    LO(dx) = tm->tm_mday % 10;
-    tm->tm_mday /= 10;
-    LO(dx) |= tm->tm_mday << 4;
-    HI(dx) = tm->tm_mon % 10;
-    tm->tm_mon /= 10;
-    HI(dx) |= tm->tm_mon << 4;
-   } else {
+    if(config.timemode != TM_BIOS)
+    {
+      get_linux_ticks(1, NULL);
+    }
     LOCK_CMOS;
     HI(cx) = BCD(GET_CMOS(CMOS_CENTURY));
     LO(cx) = BCD(GET_CMOS(CMOS_YEAR));
     HI(dx) = BCD(GET_CMOS(CMOS_MONTH));
     LO(dx) = BCD(GET_CMOS(CMOS_DOM));
     UNLOCK_CMOS;
-   }
-    g_printf("INT1A: RTC date %04x%02x%02x (DOS format)\n", _CX, _DH, _DL);
+    /* REG(eflags) &= ~CF; */
+    g_printf("INT1A: RTC date %04x%02x%02x (DOS format)\n", LWORD(ecx), HI(dx), LO(dx));
     NOCARRY;
     break;
 
@@ -1088,7 +1077,7 @@ INT 1A - TIME - SET REAL-TIME CLOCK DATE (AT,XT286,PS)
 Return: nothing
 */
   case 5:			/* set date */
-    if(time_view != TM_BIOS)
+    if(config.timemode != TM_BIOS)
     {
       g_printf("INT1A: RTC: can't set date\n");
     }

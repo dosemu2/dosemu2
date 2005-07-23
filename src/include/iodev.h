@@ -93,6 +93,8 @@ extern long  usr_delta_ticks;
 #define TM_PIT      1   /* INT-1A AH=0 returns PIC timer based 'ticks', can't set RTC */
 #define TM_LINUX    2   /* INT-1A AH=0 returns LINUX time always, cant set DOS/RTC time */
 
+unsigned long get_linux_ticks(int set_cmos, int *day_rollover);
+
 /*******************************************************************
  * Dummy hardware support stubs                                    *
  *******************************************************************/
