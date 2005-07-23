@@ -35,17 +35,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include "vm86plus.h"
-
-#ifdef __linux__
-#ifdef X86_EMULATOR
-#include "cpu-emu.h"
-#endif
-#include "emu-ldt.h"
-#endif
-
 #include <string.h>
 #include <errno.h>
+
 #include "emu.h"
 #include "memory.h"
 #ifdef USE_MHPDBG
@@ -74,6 +66,13 @@
 #include "userhook.h"
 #include "mapping.h"
 #include "vgaemu.h"
+
+#ifdef __linux__
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
+#endif
+#include "emu-ldt.h"
+#endif
 
 /*
  * DPMI 1.0 specs erroneously claims that the exceptions 1..5 and 7
@@ -149,6 +148,7 @@ static struct sigcontext_struct *emu_stack_frame = &_emu_stack_frame;
 
 static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
     int tsr, unsigned short tsr_para);
+static inline int ValidSelector(unsigned short selector);
 
 #ifdef __linux__
 #define modify_ldt dosemu_modify_ldt
@@ -792,18 +792,61 @@ static inline unsigned short GetNextSelectorIncrementValue(void)
   return 8;
 }
 
-int ValidSelector(unsigned short selector)
+static inline int ValidSelector(unsigned short selector)
 {
-  if (selector && ((selector >> 3) < MAX_SELECTORS) && (selector & 4) == 4)
-    return 1;
-  return 0;
+  /* does this selector refer to the LDT? */
+#if MAX_SELECTORS < 8192
+  return selector < (MAX_SELECTORS << 3) && (selector & 4);
+#else
+  return selector & 4;
+#endif
 }
 
 int ValidAndUsedSelector(unsigned short selector)
 {
-  if (ValidSelector(selector) && Segments[selector >> 3].used)
-    return 1;
-  return 0;
+  return ValidSelector(selector) && Segments[selector >> 3].used;
+}
+
+/*
+IF DS, ES, FS or GS is loaded with non-null selector;
+THEN
+   Selector index must be within its descriptor table limits
+      else #GP(selector);
+   AR byte must indicate data or readable code segment else
+      #GP(selector);
+   IF data or nonconforming code segment
+   THEN both the RPL and the CPL must be less than or equal to DPL in
+      AR byte;
+   ELSE #GP(selector);
+   FI;
+   Segment must be marked present else #NP(selector);
+   Load segment register with selector;
+   Load segment register with descriptor;
+FI;
+IF DS, ES, FS or GS is loaded with a null selector;
+THEN
+   Load segment register with selector;
+   Clear descriptor valid bit;
+FI;
+*/
+static inline int CheckDataSelector(struct sigcontext_struct *scp,
+				    unsigned short selector,
+				    char letter, int in_dosemu)
+{
+  /* a null selector can be either 0,1,2 or 3 (RPL field ignored);
+     apparently fs=3 and gs=3 show up sometimes when running in
+     x86-64 */
+  if (selector > 3 && (!ValidAndUsedSelector(selector)
+		       || Segments[selector >> 3].not_present)) {
+    if (in_dosemu) {
+      error("%cS selector invalid: 0x%04X, type=%x np=%i\n",
+        letter, selector, Segments[selector >> 3].type, 
+	    Segments[selector >> 3].not_present);
+      D_printf(DPMI_show_state(scp));
+    }
+    return 0;
+  }
+  return 1;
 }
 
 int CheckSelectors(struct sigcontext_struct *scp, int in_dosemu)
@@ -861,60 +904,10 @@ FI;
     return 0;
   }
 
-/*
-IF DS, ES, FS or GS is loaded with non-null selector;
-THEN
-   Selector index must be within its descriptor table limits
-      else #GP(selector);
-   AR byte must indicate data or readable code segment else
-      #GP(selector);
-   IF data or nonconforming code segment
-   THEN both the RPL and the CPL must be less than or equal to DPL in
-      AR byte;
-   ELSE #GP(selector);
-   FI;
-   Segment must be marked present else #NP(selector);
-   Load segment register with selector;
-   Load segment register with descriptor;
-FI;
-IF DS, ES, FS or GS is loaded with a null selector;
-THEN
-   Load segment register with selector;
-   Clear descriptor valid bit;
-FI;
-*/
-  if (_ds && (!ValidAndUsedSelector(_ds) || Segments[_ds >> 3].not_present)) {
-    if (in_dosemu) {
-      error("DS selector invalid: 0x%04X, type=%x np=%i\n",
-        _ds, Segments[_ds >> 3].type, Segments[_ds >> 3].not_present);
-      D_printf(DPMI_show_state(scp));
-    }
-    return 0;
-  }
-  if (_es && (!ValidAndUsedSelector(_es) || Segments[_es >> 3].not_present)) {
-    if (in_dosemu) {
-      error("ES selector invalid: 0x%04X, type=%x np=%i\n",
-        _es, Segments[_es >> 3].type, Segments[_es >> 3].not_present);
-      D_printf(DPMI_show_state(scp));
-    }
-    return 0;
-  }
-  if (_fs && (!ValidAndUsedSelector(_fs) || Segments[_fs >> 3].not_present)) {
-    if (in_dosemu) {
-      error("FS selector invalid: 0x%04X, type=%x np=%i\n",
-        _fs, Segments[_fs >> 3].type, Segments[_fs >> 3].not_present);
-      D_printf(DPMI_show_state(scp));
-    }
-    return 0;
-  }
-  if (_gs && (!ValidAndUsedSelector(_gs) || Segments[_gs >> 3].not_present)) {
-    if (in_dosemu) {
-      error("GS selector invalid: 0x%04X, type=%x np=%i\n",
-        _gs, Segments[_gs >> 3].type, Segments[_gs >> 3].not_present);
-      D_printf(DPMI_show_state(scp));
-    }
-    return 0;
-  }
+  if (!CheckDataSelector(scp, _ds, 'D', in_dosemu)) return 0;
+  if (!CheckDataSelector(scp, _es, 'E', in_dosemu)) return 0;
+  if (!CheckDataSelector(scp, _fs, 'F', in_dosemu)) return 0;
+  if (!CheckDataSelector(scp, _gs, 'G', in_dosemu)) return 0;
   return 1;
 }
 
