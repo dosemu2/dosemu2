@@ -1787,7 +1787,7 @@ text_cursor(void)
   cx = MOUSE_RX >> mouse.xshift;
   cy = MOUSE_RY >> mouse.yshift;
 
-  if (mouse_erase.drawn || !mice->native_cursor) {
+  if (mouse_erase.drawn && mice->native_cursor) {
   	/* only erase the mouse cursor if it's the same thing we
   		drew; some applications seem to reset the mouse
   		*after* clearing the screen and we end up leaving
