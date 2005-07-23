@@ -17,6 +17,14 @@ AC_CANONICAL_TARGET([])
 dnl Checks for programs.
 OPT=$CFLAGS
 AC_PROG_CC
+if test "$host_cpu" = "x86_64" -a -z "$CPPFLAGS"; then
+  # 64bit long mode dosemu is not yet
+  # but you can set CPPFLAGS="-m64" if you want to play with it
+  CPPFLAGS="-m32"
+  export CPPFLAGS
+  LDFLAGS="$LDFLAGS -m32"
+  export LDFLAGS
+fi
 AC_PROG_GCC_TRADITIONAL
 AC_PROG_AWK
 AC_PROG_INSTALL
@@ -150,7 +158,7 @@ fi
 
 dnl Check for static and then also use it for tests
 
-LDFLAGS="-Wl,-warn-common"
+LDFLAGS="$LDFLAGS -Wl,-warn-common"
 LIBS="$LIBS -ldl"
 X_LIBS=""
 
@@ -236,7 +244,7 @@ else
 fi
 
 #S-Lang directory checking -- thanks to mutt's configure script.
-AC_ARG_WITH(slangdir, [  --with-slangdir=dir     Specify S-Lang directory])
+AC_ARG_WITH(slangdir, [  --with-slangdir=dir     specify S-Lang directory])
 AC_MSG_CHECKING(for S-Lang)
 SLANGINC=""
 SLANGLIB=""
@@ -267,7 +275,7 @@ else
   fi
 fi
 dnl --- now that we've found it, check the link
-CPPFLAGS="$SLANGINC"
+CPPFLAGS="$CPPFLAGS $SLANGINC"
 AC_MSG_RESULT($SLANGINC $SLANGLIB)
 AC_CHECK_HEADER(slang.h,
   AC_CHECK_LIB(slang, SLtt_get_terminfo,
@@ -484,7 +492,7 @@ fi
 
 dnl CPU emulator
  AC_ARG_ENABLE(cpuemu,
-               [  --enable-cpuemu         EXPERIMENTAL, compile with optional x86 emulation code])
+               [  --enable-cpuemu         compile with optional x86 emulation code])
   if test "$enable_cpuemu" = "yes" -a "$enable_experimental" = "yes"; then
    AC_MSG_NOTICE(Compiling with optional 386 emulation code...);
    AC_DEFINE_UNQUOTED(X86_EMULATOR)
@@ -531,7 +539,7 @@ if test "$CONFIG_HOST" = "linux"; then
 fi
 
 
-AC_ARG_WITH(target_cpu, [--with-target-cpu=CPU	Use the specified target CPU (default=auto)])
+AC_ARG_WITH(target_cpu, [  --with-target-cpu=CPU	  use the specified target CPU (default=auto)])
 if test "$with_target_cpu" = ""; then
   AC_MSG_NOTICE(Compiling with default target CPU...)
 else
@@ -585,6 +593,9 @@ if test "$GCC" = "yes" ; then
   if test "$target_cpu" = "athlon" -a $GCC_VERSION_CODE -le 2095 ;  then
     target_cpu="i686"
   fi
+  if test "$target_cpu" = "x86_64"; then
+    target_cpu="k8"
+  fi
   if test "$GCC_VERSION_CODE" -ge 3004 ; then
      OPT="$OPT -mtune=$target_cpu"
   elif test "$GCC_VERSION_CODE" -ge 2095 ; then
@@ -628,7 +639,7 @@ AC_SUBST(ASM_PEDANTIC)
 AC_DEFINE(_GNU_SOURCE)
 
 CFLAGS="${CFLAGS} ${OPT} ${PIPE}"
-CPPFLAGS="${CPPFLAGS} -MMD \${INCDIR}"
+CPPFLAGS="${CPPFLAGS} -MMD"
 AC_SUBST(LDFLAGS)
 AC_SUBST(LIBS)
 AC_SUBST(X_LIBS)

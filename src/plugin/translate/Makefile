@@ -39,10 +39,10 @@ clean::
 include $(REALTOPDIR)/src/Makefile.common
 
 crunch_UnicodeData: crunch_UnicodeData.o
-	$(CC) $(CFLAGS) -o $@ $<
+	$(CC) $(LDFLAGS) -o $@ $<
 
 make_attributes: make_attributes.o
-	$(CC) $(CFLAGS) -o $@ $<
+	$(CC) $(LDFLAGS) -o $@ $<
 
 keysym_attributes.c: UnicodeCrunchedAttributes make_attributes
 	./make_attributes < $< > $@

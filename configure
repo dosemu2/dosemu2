@@ -858,7 +858,7 @@ Optional Features:
   --enable-debug          compile with debug info
   --disable-aspi          do NOT compile with ASPI support
   --disable-sbemu         do NOT use SoundBlaster emulator
-  --enable-cpuemu         EXPERIMENTAL, compile with optional x86 emulation code
+  --enable-cpuemu         compile with optional x86 emulation code
   --disable-net           do NOT use Linux net code
 
 Optional Packages:
@@ -875,9 +875,9 @@ Optional Packages:
   --with-svgalib          use svgalib if available
   --without-gpm           don't use gpm if available
 
-  --with-slangdir=dir     Specify S-Lang directory
+  --with-slangdir=dir     specify S-Lang directory
   --with-x                use the X Window System
---with-target-cpu=CPU	Use the specified target CPU (default=auto)
+  --with-target-cpu=CPU	  use the specified target CPU (default=auto)
 
 Some influential environment variables:
   CC          C compiler command
@@ -2371,6 +2371,14 @@ ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
 ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
 ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
+if test "$host_cpu" = "x86_64" -a -z "$CPPFLAGS"; then
+  # 64bit long mode dosemu is not yet
+  # but you can set CPPFLAGS="-m64" if you want to play with it
+  CPPFLAGS="-m32"
+  export CPPFLAGS
+  LDFLAGS="$LDFLAGS -m32"
+  export LDFLAGS
+fi
 
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
@@ -7045,7 +7053,7 @@ if ! printf '%b\n' '#ifdef __ELF__\n#define foo bar\n#endif\nfoo' \
 fi
 
 
-LDFLAGS="-Wl,-warn-common"
+LDFLAGS="$LDFLAGS -Wl,-warn-common"
 LIBS="$LIBS -ldl"
 X_LIBS=""
 
@@ -7551,7 +7559,7 @@ else
     SLANGLIB="-L${with_slangdir}/lib"
   fi
 fi
-CPPFLAGS="$SLANGINC"
+CPPFLAGS="$CPPFLAGS $SLANGINC"
 echo "$as_me:$LINENO: result: $SLANGINC $SLANGLIB" >&5
 echo "${ECHO_T}$SLANGINC $SLANGLIB" >&6
 if test "${ac_cv_header_slang_h+set}" = set; then
@@ -9944,6 +9952,9 @@ echo "${ECHO_T}no" >&6
   if test "$target_cpu" = "athlon" -a $GCC_VERSION_CODE -le 2095 ;  then
     target_cpu="i686"
   fi
+  if test "$target_cpu" = "x86_64"; then
+    target_cpu="k8"
+  fi
   if test "$GCC_VERSION_CODE" -ge 3004 ; then
      OPT="$OPT -mtune=$target_cpu"
   elif test "$GCC_VERSION_CODE" -ge 2095 ; then
@@ -9999,7 +10010,7 @@ _ACEOF
 
 
 CFLAGS="${CFLAGS} ${OPT} ${PIPE}"
-CPPFLAGS="${CPPFLAGS} -MMD \${INCDIR}"
+CPPFLAGS="${CPPFLAGS} -MMD"
 
 
 

@@ -29,7 +29,7 @@ endif
 include $(REALTOPDIR)/src/Makefile.common
 
 $(BINPATH)/bin/libplugin_sdl.so: $(OBJS)
-	$(CC) $(LIBS) -shared -o $@ $^
+	$(CC) $(LDFLAGS) $(LIBS) -shared -o $@ $^
 	$(AR) crs $(LIB)
 
 install: all

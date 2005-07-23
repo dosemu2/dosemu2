@@ -201,7 +201,17 @@ vm86plus_init(void)
       fprintf(stderr, "your kernel contains an older (interim) vm86plus version\n\r"
       		      "please upgrade to an newer one\n\r");
     }
-    else fprintf(stderr, "vm86plus service not available in your kernel\n\r");
+    else {
+#ifdef X86_EMULATOR
+      warn("WARN: vm86plus service not available in your kernel\n");
+      warn("WARN: using CPU emulation for vm86()\n");
+      if (config.cpuemu < 3) config.cpuemu = 3;
+      config.rdtsc = 1;
+      return;
+#else
+      fprintf(stderr, "vm86plus service not available in your kernel\n\r");
+#endif
+    }
     fflush(stdout);
     fflush(stderr);
     _exit(1);

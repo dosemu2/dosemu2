@@ -28,6 +28,9 @@
 #ifdef __linux__
 #define _regs vm86s.regs
 #endif
+#ifndef sigcontext_struct
+#define sigcontext_struct sigcontext
+#endif
 
 #include "extern.h"
 
