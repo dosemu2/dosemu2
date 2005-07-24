@@ -56,7 +56,6 @@
 #include <unistd.h>
 
 #include <scsi/sg.h>
-#include <sys/param.h>  /* for HZ */
 
 #include "emu.h"
 #include "aspi.h"
@@ -424,7 +423,7 @@ static int ASPI_OpenDevice16(SRB_ExecSCSICmd16 *prb)
 {
     int	fd;
     int i, sgminor;
-    int tout = 5 * 60 * HZ;
+    int tout = 5 * 60 * sysconf(_SC_CLK_TCK);
     static char	devname[50];
     int hostId, target, lun;
 

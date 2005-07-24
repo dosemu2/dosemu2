@@ -84,7 +84,8 @@
 static hitimer_t (*RAWcpuTIME)(void);
 
 hitimer_u ZeroTimeBase = { 0 };
-hitimer_u ZeroTSCBase = { 0 };
+static hitimer_u ZeroTSCBase = { 0 };
+static hitimer_t C4Base = 0;
 static hitimer_t LastTimeRead = 0;
 static hitimer_t StopTimeBase = 0;
 static hitimer_t StopTSCBase = 0;
@@ -128,10 +129,18 @@ static hitimer_t getC4time(void)
   return (rawC4time() - ZeroTimeBase.td);
 }
 
+/* this routine is called from the sigalrm handler to
+   update the TSC base */
+void update_cputime_TSCBase(void)
+{
+  C4Base = getC4time();
+  ZeroTSCBase.td = GETTSC();
+}
+
 static hitimer_t getP5time(void)
 {
   if (cpu_time_stop) return LastTimeRead;
-  return (rawP5time() - ZeroTimeBase.td);
+  return TSCtoUS(GETTSC() - ZeroTSCBase.td) + C4Base;
 }
 
 /*
@@ -177,6 +186,7 @@ hitimer_t GETusSYSTIME(void)
 
 void get_time_init (void)
 {
+  ZeroTimeBase.td = rawC4time();
   if ((config.realcpu > CPU_486) && config.rdtsc) {
     /* we are here if: a 586/686 was detected at startup, we are not
      * on a SMP machine and the user didn't say 'rdtsc off'. But
@@ -185,7 +195,6 @@ void get_time_init (void)
     RAWcpuTIME = rawP5time;		/* in usecs */
     GETcpuTIME = getP5time;		/* in usecs */
     ZeroTSCBase.td = GETTSC();
-    ZeroTimeBase.td = TSCtoUS(ZeroTSCBase.td);
     g_printf("TIMER: using pentium timing\n");
   }
   else {
@@ -193,7 +202,6 @@ void get_time_init (void)
      * 'rdtsc off' into config file */
     RAWcpuTIME = rawC4time;		/* in usecs */
     GETcpuTIME = getC4time;		/* in usecs */
-    ZeroTimeBase.td = rawC4time();
     if (config.realcpu) {
       if (kernel_version_code < 0x2017e)
         g_printf("TIMER: using gettimeofday\n");

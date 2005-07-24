@@ -8,24 +8,8 @@
 #define DOSEMU_TIMERS_H
 
 #include "config.h"
-#ifdef __linux__
-#include <sys/param.h>		/* for HZ */
-#endif
 #include "extern.h"
 #include "types.h"
-/* moved from attremu.c */
-#ifdef HAVE_GETTIMEOFDAY
-#  ifdef TIME_WITH_SYS_TIME
-#    include <sys/time.h>
-#    include <time.h>
-#  else
-#    if HAVE_SYS_TIME
-#      include <sys/time.h>
-#    else
-#      include <time.h>
-#    endif
-#  endif
-#endif
 
 /* A 'magical' constant used to force the result we want, in this case
  * getting 100Hz out of SIGALRM_call()
@@ -58,7 +42,7 @@ extern void pit_outp(ioport_t, Bit8u);
 
 /* --------------------------------------------------------------------- */
 
-#define JIFFIE_TIME		(1000000/HZ)
+#define JIFFIE_TIME		(1000000/sysconf(_SC_CLK_TCK))
 
 /* this specifies how many microseconds int 0x2f, ax=0x1680, will usleep().
  * we don't really have a "give up time slice" primitive, but something
@@ -111,7 +95,8 @@ static __inline__ hitimer_t _mul64x32_(hitimer_t v, unsigned long f)
 
 /* --------------------------------------------------------------------- */
 
-extern hitimer_u ZeroTimeBase, ZeroTSCBase;
+extern void update_cputime_TSCBase(void);
+extern hitimer_u ZeroTimeBase;
 extern hitimer_t t_vretrace;
 
 EXTERN hitimer_t (*GETcpuTIME)(void) INIT(0);

@@ -552,6 +552,8 @@ static void SIGALRM_call(void)
     AESTimerTick();
 #endif
 
+  if (config.rdtsc)
+    update_cputime_TSCBase();
   timer_tick();
 
 #if 0

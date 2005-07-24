@@ -145,7 +145,7 @@ void timer_interrupt_init(void)
   /* Check that the kernel actually supports such a frequency - we
    * can't go faster than jiffies with setitimer()
    */
-  if (((delta/1000)+1) < (1000/HZ)) {
+  if (((delta/1000)+1) < (1000/sysconf(_SC_CLK_TCK))) {
     c_printf("TIME: FREQ too fast, using defaults\n");
     config.update = 54925; config.freq = 18;
     delta = 54925 / TIMER_DIVISOR;

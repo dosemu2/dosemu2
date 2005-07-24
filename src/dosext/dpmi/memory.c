@@ -33,7 +33,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>		/* for MREMAP_MAYMOVE */
-#include <sys/param.h>
 #include <errno.h>
 #include "utilities.h"
 #include "mapping.h"
