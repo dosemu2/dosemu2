@@ -449,11 +449,7 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 			{
 			vm86s.cpu_type = 5;
 #ifdef X86_EMULATOR
-#ifdef DONT_START_EMU
 			config.cpuemu = 1;
-#else
-			config.cpuemu = 4;
-#endif
 			c_printf("CONF: CPUEMU set to %d for %ld86\n",
 				config.cpuemu, vm86s.cpu_type);
 #endif
@@ -680,7 +676,6 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 			free($3);
 		    }
 		    else {
-			free(Path_cdrom[which]);
 			Path_cdrom[which] = $3;
 			c_printf("CONF: cdrom MSCD000%d on %s\n", which+1 ,$3);
 			which++;
