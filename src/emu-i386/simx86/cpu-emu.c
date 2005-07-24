@@ -867,7 +867,7 @@ void enter_cpu_emu(void)
 	struct itimerval itv;
 	unsigned int realdelta = config.update / TIMER_DIVISOR;
 
-	if (config.rdtsc==0) {
+	if (config.realcpu < CPU_586) {
 	  fprintf(stderr,"Cannot execute CPUEMU without TSC counter\n");
 	  leavedos(0);
 	}

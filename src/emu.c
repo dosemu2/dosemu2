@@ -206,7 +206,6 @@ vm86plus_init(void)
       warn("WARN: vm86plus service not available in your kernel\n");
       warn("WARN: using CPU emulation for vm86()\n");
       if (config.cpuemu < 3) config.cpuemu = 3;
-      config.rdtsc = 1;
       return;
 #else
       fprintf(stderr, "vm86plus service not available in your kernel\n\r");
