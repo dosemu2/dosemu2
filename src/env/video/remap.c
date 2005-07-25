@@ -40,8 +40,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/mman.h>	/* mprotect() */
-#include <sys/param.h>	/* EXEC_PAGESIZE */
 
 #include "remap.h"
 #include "mapping.h"
@@ -1432,15 +1432,14 @@ void code_done(CodeObj *co)
  */
 void code_append_ins(CodeObj *co, int len, void *nc)
 {
-  /* EXEC_PAGESIZE is assumed to be a power of 2 */
-
   unsigned char *mem, *text;
+  size_t pagesize = sysconf(_SC_PAGESIZE);
   int size;
 
   if(co->size == -1) return;
 
   if(co->size < len + co->pc) {
-    size = len + co->pc + 2 * EXEC_PAGESIZE - 1;
+    size = len + co->pc + 2 * pagesize - 1;
     mem = (unsigned char *) malloc(size);
     if(mem == NULL) {
       co->size = -1;
@@ -1448,8 +1447,8 @@ void code_append_ins(CodeObj *co, int len, void *nc)
       return;
     }
 
-    text = mem + EXEC_PAGESIZE - 1;
-    text -= ((unsigned) text) & (EXEC_PAGESIZE - 1);
+    text = mem + pagesize - 1;
+    text -= ((unsigned) text) & (pagesize - 1);
     size -= text - mem;
 
     if(mprotect_mapping(MAPPING_VGAEMU, text, size, PROT_READ|PROT_WRITE|PROT_EXEC) < 0) {
@@ -2678,6 +2677,9 @@ void gen_24to24_1(RemapObject *);
 void gen_32to32_1(RemapObject *);
 void gen_24to32_1(RemapObject *);
 
+void gen_15to32_1(RemapObject *);
+void gen_16to32_1(RemapObject *);
+
 void gen_1to8p_all(RemapObject *);
 void gen_1to8_all(RemapObject *);
 void gen_1to16_all(RemapObject *);
@@ -2871,6 +2873,22 @@ static RemapFuncDesc remap_gen_list[] = {
     MODE_TRUE_24,
     MODE_TRUE_32,
     gen_24to32_1,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_1  | RFF_REMAP_LINES,
+    MODE_TRUE_15,
+    MODE_TRUE_32,
+    gen_15to32_1,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_1  | RFF_REMAP_LINES,
+    MODE_TRUE_16,
+    MODE_TRUE_32,
+    gen_16to32_1,
     NULL
   ),
 
@@ -3847,6 +3865,83 @@ void gen_24to32_1(RemapObject *ro)
   }
 }
 
+/*
+ * 15 bit true color --> 32 bit true color
+ * *** ignores color space description ***
+ */
+void gen_15to32_1(RemapObject *ro)
+{
+  int i, j;
+  unsigned char *src, *dst;
+  unsigned short *src_2;
+  unsigned *dst_4;
+
+  src = ro->src_image + ro->src_offset;
+  dst = ro->dst_image + ro->dst_offset;
+
+  for(i = ro->src_y0; i < ro->src_y1; i++) {
+    src_2 = (unsigned short *)src;
+    dst_4 = (unsigned *) dst;
+
+    for(j = 0; j < ro->dst_width; j++) {
+      // get 5-bit color values 
+      // (green channel is cut between two byte values)
+      //  [0] 00000000gggrrrrr
+      //  [1] 000000000bbbbbgg
+      unsigned char r, g, b;
+      r = (*src_2 << 3) & 0xf8;
+      g = (*src_2 >> 2) & 0xf8;
+      b = (*src_2 >> 7) & 0xf8;
+
+      // save color values
+      *dst_4++ = r | (g<<8) | (b<<16);
+
+      src_2++;
+    }
+
+    src += ro->src_scan_len;
+    dst += ro->dst_scan_len;
+  }
+}
+
+/*
+ * 16 bit true color --> 32 bit true color
+ * *** ignores color space description ***
+ */
+void gen_16to32_1(RemapObject *ro)
+{
+  int i, j;
+  unsigned char *src, *dst;
+  unsigned short *src_2;
+  unsigned *dst_4;
+
+  src = ro->src_image + ro->src_offset;
+  dst = ro->dst_image + ro->dst_offset;
+
+  for(i = ro->src_y0; i < ro->src_y1; i++) {
+    src_2 = (unsigned short *)src;
+    dst_4 = (unsigned *) dst;
+
+    for(j = 0; j < ro->dst_width; j++) {
+      // get 5-bit/6-bit color values 
+      // (green channel is cut between two byte values)
+      //  [0] 00000000gggrrrrr
+      //  [1] 00000000bbbbbggg
+      unsigned char r, g, b;
+      r = (*src_2 << 3) & 0xf8;
+      g = (*src_2 >> 3) & 0xfc;
+      b = (*src_2 >> 8) & 0xf8;
+
+      // save color values
+      *dst_4++ = r | (g<<8) | (b<<16);
+
+      src_2++;
+    }
+
+    src += ro->src_scan_len;
+    dst += ro->dst_scan_len;
+  }
+}
 
 /*
  * 1 bit pseudo color --> 8 bit pseudo color (private color map)
