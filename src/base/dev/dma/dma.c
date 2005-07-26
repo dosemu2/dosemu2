@@ -645,7 +645,7 @@ inline void dma_write_count(int dma_c, int channel, Bit8u value)
   h_printf("DMA: Wrote 0x%x into Channel %d Length (Byte %d)\n", value,
 	   (dma_c * 4) + channel, dma[dma_c].ff);
   if (dma[dma_c].ff) {
-    h_printf("DMA: Block size set to %ld\n",
+    h_printf("DMA: Block size set to %d\n",
 	     dma_get_block_size(get_ch(dma_c, channel)));
   }
 
@@ -1126,7 +1126,7 @@ static void dma_process_single_mode_read(int controller, int channel)
   target_addr = create_addr(dma[controller].page[channel],
 			    dma[controller].address[channel], controller);
 
-  h_printf("DMA: Single Mode Read - length %ld (%ld)\n",
+  h_printf("DMA: Single Mode Read - length %d (%ld)\n",
 	   dma_units_left(ch), dma[controller].i[channel].size);
 
   if (dma_test_DREQ(ch)) {
