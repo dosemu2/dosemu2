@@ -652,7 +652,7 @@ inline void dma_write_count(int dma_c, int channel, Bit8u value)
   dma_toggle_ff(dma_c);
 }
 
-inline long int dma_get_block_size(int channel)
+inline int dma_get_block_size(int channel)
 {
   int controller, ch;
 
@@ -661,7 +661,7 @@ inline long int dma_get_block_size(int channel)
   return (get_value(dma[controller].i[ch].length) + 1);
 }
 
-long int dma_units_left(int channel) /* units are bytes or words */
+int dma_units_left(int channel) /* units are bytes or words */
 {
   int controller, ch;
 
@@ -670,7 +670,7 @@ long int dma_units_left(int channel) /* units are bytes or words */
   return get_value(dma[controller].length[ch]) + 1;
 }
 
-inline long int dma_get_transfer_size(int channel)
+inline int dma_get_transfer_size(int channel)
 {
   int controller, ch;
 

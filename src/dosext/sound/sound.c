@@ -90,6 +90,8 @@
 #include "pic.h"
 #include "dpmi.h"
 #include "bitops.h"
+#include "utilities.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -2042,16 +2044,16 @@ void start_dsp_dma(void)
   S_printf("SB: Sampling rate is %u Hz\n", real_sampling_rate);
 
   /* Set up the housekeeping for the DMA transfer */
-  dma_transfer_length = MIN(SB_dsp.length/2, SB_MAX_DMA_TRANSFERSIZE);
+  dma_transfer_length = min(SB_dsp.length/2, SB_MAX_DMA_TRANSFERSIZE);
   if(dma_transfer_length < SB_MAX_DMA_TRANSFERSIZE &&
    dma_transfer_length * 2 < SB_dsp.length)
     dma_transfer_length++;
-  dma_transfer_length = MIN(dma_transfer_length,
+  dma_transfer_length = min(dma_transfer_length,
     dma_get_block_size(CURRENT_DMA_CHANNEL));
   if (dsp_block_size != SB_dsp.length) {
     if (SB_driver.DMA_set_blocksize != NULL)
       (*SB_driver.DMA_set_blocksize)
-	(MAX(SB_dsp.length/2, SB_MAX_DMA_TRANSFERSIZE*4), dma_transfer_length);
+	(max(SB_dsp.length/2, SB_MAX_DMA_TRANSFERSIZE*4), dma_transfer_length);
     dsp_block_size = SB_dsp.length;
   }
 
@@ -2076,8 +2078,8 @@ void start_dsp_dma(void)
   }
  } else {
     S_printf ("SB: Speaker not enabled\n");
-    dma_transfer_length = MIN(SB_dsp.length, SB_MAX_DMA_TRANSFERSIZE);
-    dma_transfer_length = MIN(dma_transfer_length,
+    dma_transfer_length = min(SB_dsp.length, SB_MAX_DMA_TRANSFERSIZE);
+    dma_transfer_length = min(dma_transfer_length,
       dma_get_block_size(CURRENT_DMA_CHANNEL));
     if (!(SB_dsp.dma_mode & SB_DMA_INPUT)) {
       /* we want only one irq when speaker not enabled */
@@ -2087,7 +2089,7 @@ void start_dsp_dma(void)
 
   dma_set_transfer_size(CURRENT_DMA_CHANNEL, dma_transfer_length);
   S_printf("SB: DSP block size is set to %d\n", SB_dsp.length);
-  S_printf("SB: DMA block size is %ld (%ld left)\n",
+  S_printf("SB: DMA block size is %d (%d left)\n",
     dma_get_block_size(CURRENT_DMA_CHANNEL), dma_units_left(CURRENT_DMA_CHANNEL));
   S_printf("SB: DMA transfer size is set to %d\n", dma_transfer_length);
 
@@ -2185,7 +2187,7 @@ static Bit8u missed_byte;
     S_printf ("SB: sb_dma_write: dosptr=%p size=%d\n", dosptr, size);
   }
 
-  length = MIN(size, SB_dsp.units_left);
+  length = min(size, SB_dsp.units_left);
   if (!length)
     return 0;
   S_printf("SB: Going to write %d bytes\n", length);
@@ -2263,7 +2265,7 @@ static Bit16u missed_word;
     S_printf ("SB: sb_dma16_write: dosptr=%p size=%d\n", dosptr, size);
   }
 
-  length = MIN(size/2, SB_dsp.units_left);
+  length = min(size/2, SB_dsp.units_left);
   if (!length)
     return 0;
   S_printf("SB: Going to write %d words\n", length);
@@ -2340,7 +2342,7 @@ char fill;
     S_printf ("SB: sb_dma_read: size=%d\n", size);
   }
 
-  length = MIN(size, SB_dsp.units_left);
+  length = min(size, SB_dsp.units_left);
   if (!length)
     return 0;
   S_printf("SB: Going to read %d bytes\n", length);    
@@ -2380,7 +2382,7 @@ char fill[2];
     S_printf ("SB: sb_dma16_read: size=%d\n", size);
   }
 
-  length = MIN(size/2, SB_dsp.units_left);
+  length = min(size/2, SB_dsp.units_left);
   if (!length)
     return 0;
   S_printf("SB: Going to read %d words\n", length);

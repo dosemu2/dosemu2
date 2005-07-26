@@ -97,7 +97,7 @@ EXTERN struct DSP_information_t {
   uint8_t  ready;                 /* Is DSP Ready ? */
   uint8_t  data;                  /* Data is available */
   int32_t  length;                /* Length of the DMA transfer, in bytes or words */
-  int32_t  units_left;            /* No. of bytes/words left in current blk */
+  size_t   units_left;            /* No. of bytes/words left in current blk */
 /* 
  * This is the maximum number of bytes/words transferred via DMA. If you turn
  * it too low, the dosemu-overhead gets too big, so the transfer is
@@ -237,7 +237,7 @@ EXTERN struct adlib_info_t {
 })
 #define Q_ADD(q, buf, len) ({ \
     int __len = len; \
-    int __to_copy = MIN(__len, Q_AVAIL(q)); \
+    int __to_copy = min(__len, Q_AVAIL(q)); \
     memcpy(q.output + q.end, buf, __to_copy); \
     q.end += __to_copy; \
 })
