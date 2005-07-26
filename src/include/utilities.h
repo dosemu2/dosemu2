@@ -59,4 +59,22 @@ static __inline__ int power_of_2_sqrt(int val)
 	return 1 << (res >> 1);
 }
 
+/*
+ * from the Linux kernel:
+ * min()/max() macros that also do
+ * strict type-checking.. See the
+ * "unnecessary" pointer comparison.
+ */
+#define min(x,y) ({ \
+	typeof(x) _x = (x);	\
+	typeof(y) _y = (y);	\
+	(void) (&_x == &_y);		\
+	_x < _y ? _x : _y; })
+
+#define max(x,y) ({ \
+	typeof(x) _x = (x);	\
+	typeof(y) _y = (y);	\
+	(void) (&_x == &_y);		\
+	_x > _y ? _x : _y; })
+
 #endif /* UTILITIES_H */
