@@ -1841,7 +1841,7 @@ static int int2f(void)
         break;
       strncpy(title_hint, mcb->name, 8);
       title_hint[8] = 0;
-      len = MIN(str->len, TITLE_APPNAME_MAXLEN - 1);
+      len = min(str->len, (unsigned char)(TITLE_APPNAME_MAXLEN - 1));
       memcpy(cmdname, str->s, len);
       cmdname[len] = 0;
       ptr = cmdname + strspn(cmdname, " \t");
