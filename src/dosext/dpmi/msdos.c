@@ -1502,7 +1502,7 @@ int msdos_fault(struct sigcontext_struct *scp)
     /* now it is a invalid selector error, try to fix it if it is */
     /* caused by an instruction such as mov Sreg,r/m16            */
 
-    copy_context(&new_sct, scp);
+    copy_context(&new_sct, scp, 0);
     reg = decode_modify_segreg_insn(&new_sct, 1, &segment);
     if (reg == -1)
       return 0;
@@ -1556,6 +1556,6 @@ int msdos_fault(struct sigcontext_struct *scp)
     }
 
     /* lets hope we fixed the thing, apply the "fix" to context and return */
-    copy_context(scp, &new_sct);
+    copy_context(scp, &new_sct, 0);
     return 1;
 }

@@ -139,10 +139,12 @@ typedef struct {
 	"popfl\n" \
 	"movw	 %1, %%fs\n" \
 	"movw	 %2, %%gs\n" \
+	"frstor  %3\n" \
 	: : \
 	"m"(_emu_stack_frame.eflags), \
 	"m"(_emu_stack_frame.fs), \
-	"m"(_emu_stack_frame.gs))
+	"m"(_emu_stack_frame.gs), \
+	"m"(*_emu_stack_frame.fpstate))
 
 /*
  * nearly directly stolen from Linus : linux/kernel/vm86.c

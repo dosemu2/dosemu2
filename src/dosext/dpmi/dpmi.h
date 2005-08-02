@@ -112,6 +112,7 @@ typedef struct {
 
 struct DPMIclient_struct {
   struct sigcontext_struct stack_frame;
+  struct _fpstate fpu_state;
   int is_32;
   dpmi_pm_block_root *pm_block_root;
   unsigned short private_data_segment;
@@ -231,7 +232,8 @@ extern int get_ldt(void *buffer);
 void dpmi_return_request(void);
 void dpmi_check_return(struct sigcontext_struct *scp);
 void dpmi_init(void);
-extern inline void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *s);
+extern void copy_context(struct sigcontext_struct *d,
+    struct sigcontext_struct *s, int copy_fpu);
 extern inline unsigned short dpmi_sel(void);
 extern void pm_to_rm_regs(struct sigcontext_struct *scp, unsigned int mask);
 extern void rm_to_pm_regs(struct sigcontext_struct *scp, unsigned int mask);

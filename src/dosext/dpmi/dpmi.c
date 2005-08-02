@@ -21,12 +21,7 @@
 
 #define DPMI_C
 
-#ifdef __linux__                  
-#define DIRECT_DPMI_CONTEXT_SWITCH
-#ifdef DIRECT_DPMI_CONTEXT_SWITCH
-  #define COPY_CONTEXT_USE_ASM
-#endif
-#endif
+#define DIRECT_DPMI_CONTEXT_SWITCH 1
 
 #include "config.h"
 #include <stdio.h>
@@ -127,8 +122,6 @@ inline unsigned short dpmi_sel()
 
 static int RSP_num = 0;
 static struct RSP_s RSP_callbacks[DPMI_MAX_CLIENTS];
-
-static struct sigcontext_struct *emu_stack_frame = &_emu_stack_frame;
 
 #define CHECK_SELECTOR(x) \
 { if (!ValidAndUsedSelector(x) || SystemSelector(x)) { \
@@ -360,7 +353,7 @@ static inline unsigned long client_esp(struct sigcontext_struct *scp)
 }
 
 
-#ifdef DIRECT_DPMI_CONTEXT_SWITCH
+#if DIRECT_DPMI_CONTEXT_SWITCH
 /* --------------------------------------------------------------
  *-15	context->gs, __gsh	copied, then popped
  *-14	context->fs, __fsh
@@ -415,22 +408,23 @@ static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
   dpmi_context->esp_at_signal = dpmi_context->esp;
 
   asm volatile (
-"      subl   $12,%%esp\n"		/* dummy, cr2,oldmask,fpstate */
+"      fsave  %1\n"
+"      frstor %4\n"
+"      movl   %%esp,%%eax\n"
+"      movl   %5,%%esp\n"
 "      push   %%ss\n"
 "      pushl  %%esp\n"			/* dummy, esp_at_signal */
 "      pushfl\n"
 "      push   %%cs\n"
 "      pushl  $dpmi_switch_return\n"
-"      xorl   %0,%0\n"			/* preset return code with 0 */
-"      push   %%eax\n"			/* dummy, err */
-"      push   %%eax\n"			/* dummy, trapno */
+"      pushl  $0\n"			/* dummy, err */
+"      pushl  $0\n"			/* dummy, trapno */
 "      pusha\n"
-"      addl   $10*4,12(%%esp)\n"	/* adjust esp */
+"      movl   %%eax,12(%%esp)\n"	/* adjust esp */
 "      push   %%ds\n"
 "      push   %%es\n"
 "      push   %%fs\n"
 "      push   %%gs\n"
-"      movl   %%esp,%1\n"
     /* Now put ESP to new context and pop it up */
 "      movl   %2,%%esp\n"
 "      pop    %%gs\n"
@@ -442,9 +436,14 @@ static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
 "      popfl\n"
 "      lss    (%%esp),%%esp\n"		/* this is: pop ss; pop esp */
 "      ljmp   *%%cs:%3\n"
-"   dpmi_switch_return:"
-    : "=a"(ret), "=m"(emu_stack_frame)
-    : "d"(dpmi_context), "m"(dpmi_switch_jmp)
+"   dpmi_switch_return:\n"
+    : "=&a"(ret),
+      "=m"(*_emu_stack_frame.fpstate)
+    : "d"(dpmi_context),
+      "m"(dpmi_switch_jmp),
+      "m"(*dpmi_context->fpstate),
+      "i"(&_emu_stack_frame.fpstate)
+    : "memory"
   );
   return ret;
 }
@@ -530,7 +529,7 @@ static int dpmi_control(void)
  */
 
   register int ret;
-#ifdef DIRECT_DPMI_CONTEXT_SWITCH
+#if DIRECT_DPMI_CONTEXT_SWITCH
   struct sigcontext_struct *scp=&DPMI_CLIENT.stack_frame;
 #ifdef TRACE_DPMI
   if (debug_level('t')) _eflags |= TF;
@@ -548,12 +547,10 @@ static int dpmi_control(void)
   }
   else {
     /* Note: we can't set TF with our speedup code */
-    emu_stack_frame=&_emu_stack_frame;
     asm("xorl %0,%0; hlt":"=a" (ret));
     return ret;
   }
 #else
-  emu_stack_frame=&_emu_stack_frame;
   asm("xorl %0,%0; hlt":"=a" (ret));
   return ret;
 #endif
@@ -1138,62 +1135,19 @@ void GetFreeMemoryInformation(unsigned long *lp)
   /*2ch*/	*++lp = 0xffffffff;
 }
 
-inline void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *s)
+void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *s,
+    int copy_fpu)
 {
-#ifdef DIRECT_DPMI_CONTEXT_SWITCH
-/* --------------------------------------------------------------
- * 00	unsigned short gs, __gsh;	COPIED
- * 01	unsigned short fs, __fsh;	COPIED
- * 02	unsigned short es, __esh;	COPIED
- * 03	unsigned short ds, __dsh;	COPIED
- * 04	unsigned long edi;		COPIED
- * 05	unsigned long esi;		COPIED
- * 06	unsigned long ebp;		COPIED
- * 07	unsigned long esp;		COPIED
- * 08	unsigned long ebx;		COPIED
- * 09	unsigned long edx;		COPIED
- * 10	unsigned long ecx;		COPIED
- * 11	unsigned long eax;		COPIED
- *
- * 12	unsigned long trapno;		NOT COPIED
- * 13	unsigned long err;		NOT COPIED
- * 14	unsigned long eip;		COPIED
- * 15	unsigned short cs, __csh;	COPIED
- * 16	unsigned long eflags;		COPIED
- *
- * 17	unsigned long esp_at_signal;	NOT COPIED
- * 18	unsigned short ss, __ssh;	COPIED
- * 19	struct _fpstate * fpstate;	NOT COPIED
- * 20	unsigned long oldmask;		NOT COPIED
- * 21	unsigned long cr2;		NOT COPIED
- * -------------------------------------------------------------- */
-
- #ifdef COPY_CONTEXT_USE_ASM
-  #ifdef ASM_PEDANTIC
-  unsigned long int d0, d1, d2;
-  #endif
-  __asm__ __volatile__ (" \
-	cld\n \
-	rep; movsl \
-  "
-  #ifndef ASM_PEDANTIC
-   :: "S" (s), "D" (d), "c" ((((int)(&s->eax) - (int)(s))+ sizeof(s->eax)) >> 2)
-   : "cx", "si", "di" );
-  #else
-   :"=&c" (d0), "=&D" (d1), "=&S" (d2)
-   :"0" ((((int)(&s->eax) - (int)(s))+ sizeof(s->eax)) >> 2), "1" (d), "2" (s)
-   :"memory");
-  #endif
- #else
-  memcpy(d, s, ((int)(&s->eax) - (int)(s))+ sizeof(s->eax));
- #endif
-  d->eip = s->eip;
-  *((long *)(&d->cs)) = *((long *)(&s->cs));
-  d->eflags = s->eflags;
-  *((long *)(&d->ss)) = *((long *)(&s->ss));
-#else /* not DIRECT_DPMI_CONTEXT_SWITCH */
-  memcpy(d, s, sizeof(struct sigcontext_struct));
+  struct _fpstate *fptr = d->fpstate;
+  *d = *s;
+  if (copy_fpu) {
+#if DIRECT_DPMI_CONTEXT_SWITCH
+    memcpy(fptr, s->fpstate, offsetof(struct _fpstate, _fxsr_env));
+#else
+    *fptr = *s->fpstate;
 #endif
+    d->fpstate = fptr;
+  }
 }
 
 static void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode)
@@ -1203,9 +1157,9 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode)
                            3=vm86 only, 4=all active */
 #endif
   if (in_dpmi) {
-    copy_context(&DPMI_CLIENT.stack_frame,scp);
+    copy_context(&DPMI_CLIENT.stack_frame, scp, 1);
   }
-  copy_context(scp, emu_stack_frame);
+  copy_context(scp, &_emu_stack_frame, 0);
   _eax = retcode;
 #ifdef X86_EMULATOR
  }
@@ -1218,8 +1172,8 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode)
 
 void indirect_dpmi_switch(struct sigcontext_struct *scp)
 {
-    copy_context(emu_stack_frame, scp);
-    copy_context(scp, &DPMI_CLIENT.stack_frame);
+    copy_context(&_emu_stack_frame, scp, 1);
+    copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
 }
 
 static unsigned short *enter_lpms(struct sigcontext_struct *scp)
@@ -1349,7 +1303,7 @@ void save_pm_regs(struct sigcontext_struct *scp)
     leavedos(25);
   }
   _eflags = eflags_VIF(_eflags);
-  copy_context(&DPMI_pm_stack[DPMI_pm_procedure_running++], scp);
+  copy_context(&DPMI_pm_stack[DPMI_pm_procedure_running++], scp, 0);
 }
 
 void restore_pm_regs(struct sigcontext_struct *scp)
@@ -1359,7 +1313,7 @@ void restore_pm_regs(struct sigcontext_struct *scp)
     error("DPMI: DPMI_pm_procedure_running = 0x%x\n",DPMI_pm_procedure_running);
     leavedos(25);
   }
-  copy_context(scp, &DPMI_pm_stack[--DPMI_pm_procedure_running]);
+  copy_context(scp, &DPMI_pm_stack[--DPMI_pm_procedure_running], 0);
   if (_eflags & VIF) {
     if (!isset_IF())
       D_printf("DPMI: set IF on restore_pm_regs\n");
@@ -2494,7 +2448,7 @@ static void dpmi_cleanup(struct sigcontext_struct *scp)
   cli_blacklisted = 0;
   in_dpmi--;
   if (in_dpmi) {
-    copy_context(scp, &DPMI_CLIENT.stack_frame);
+    copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
   }
 }
 
@@ -2615,7 +2569,7 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
   }
   /* If the API Translator needs fork, do it */
   if (msdos_ret & MSDOS_NEED_FORK) {
-    copy_context(&DPMI_CLIENT.stack_frame, scp);
+    copy_context(&DPMI_CLIENT.stack_frame, scp, 1);
     in_dpmi++;
     DPMI_CLIENT = PREV_DPMI_CLIENT;
     msdos_init(DPMI_CLIENT.is_32,
@@ -3018,6 +2972,7 @@ void dpmi_init(void)
 	pic_icount);
     pic_resched();
   }
+  DPMI_CLIENT.stack_frame.fpstate = &DPMI_CLIENT.fpu_state;
   DPMI_CLIENT.pm_block_root = calloc(1, sizeof(dpmi_pm_block_root));
   DPMI_CLIENT.in_dpmi_rm_stack = 0;
   DPMI_CLIENT.stack_frame.eip	= my_ip;
@@ -3705,7 +3660,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  old_esp = DPMI_CLIENT.in_dpmi_pm_stack ? D_16_32(old_ctx.esp) : D_16_32(DPMI_pm_stack_size);
 	  esp_delta = old_esp - D_16_32(_esp);
 	  ssp = (us *) SEL_ADR(_ss, _esp);
-	  copy_context(scp, &old_ctx);
+	  copy_context(scp, &old_ctx, 0);
 	  if (esp_delta) {
 	    unsigned char *rm_ssp;
 	    unsigned long sp;

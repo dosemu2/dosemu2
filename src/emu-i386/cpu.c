@@ -97,6 +97,9 @@ unsigned long TRs[2] =
 };
 #endif
 
+static struct _fpstate emu_fpu_state;
+struct sigcontext_struct _emu_stack_frame;
+
 /* 
  * DANG_BEGIN_FUNCTION cpu_trap_0f
  *
@@ -248,6 +251,7 @@ void cpu_setup(void)
   REG(eflags) |= (VIF | VIP);
 #endif
 
+  _emu_stack_frame.fpstate = &emu_fpu_state;
   /* initialize user data & code selector values (used by DPMI code) */
   /* And save %fs, %gs for NPTL */
   __asm__ volatile (
@@ -257,12 +261,14 @@ void cpu_setup(void)
   " movw %%gs, %3\n"
   " pushfl\n"
   " popl %4\n"
-  " movl %%esp, %5\n"
+  " fsave %5\n"
+  " movl %%esp, %6\n"
   :"=m"(_emu_stack_frame.cs),
    "=m"(_emu_stack_frame.ds),
    "=m"(_emu_stack_frame.fs),
    "=m"(_emu_stack_frame.gs),
    "=m"(_emu_stack_frame.eflags),
+   "=m"(*_emu_stack_frame.fpstate),
    "=m"(stk_ptr));
 
   if ((fp = fopen("/proc/self/maps", "r"))) {
