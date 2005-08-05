@@ -539,7 +539,7 @@ static int dpmi_control(void)
     leavedos(36);
   }
   if (dpmi_mhp_TF) _eflags |= TF;
-  if (!(_eflags & TF)) {
+  if (!(_eflags & TF) && scp->fpstate) {
 	if (debug_level('M')>6) {
 	  D_printf("DPMI SWITCH to 0x%x:0x%08lx (0x%08lx), Stack 0x%x:0x%08lx (0x%08lx) flags=%#lx\n",
 	    _cs, _eip, (long)SEL_ADR(_cs,_eip), _ss, _esp, (long)SEL_ADR(_ss, _esp), eflags_VIF(_eflags));
@@ -1176,6 +1176,11 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode)
 void indirect_dpmi_switch(struct sigcontext_struct *scp)
 {
     copy_context(&_emu_stack_frame, scp, 1);
+    if (!DPMI_CLIENT.stack_frame.fpstate) {
+	/* Init FPU state here */
+	DPMI_CLIENT.fpu_state = *scp->fpstate;
+	DPMI_CLIENT.stack_frame.fpstate = &DPMI_CLIENT.fpu_state;
+    }
     copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
 }
 
@@ -2975,8 +2980,6 @@ void dpmi_init(void)
 	pic_icount);
     pic_resched();
   }
-  DPMI_CLIENT.fpu_state = *_emu_stack_frame.fpstate;
-  DPMI_CLIENT.stack_frame.fpstate = &DPMI_CLIENT.fpu_state;
   DPMI_CLIENT.pm_block_root = calloc(1, sizeof(dpmi_pm_block_root));
   DPMI_CLIENT.in_dpmi_rm_stack = 0;
   DPMI_CLIENT.stack_frame.eip	= my_ip;
