@@ -14,14 +14,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
-#include <sys/utsname.h>
-#include <sys/file.h>
-#include <sys/ioctl.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
 #include <sys/mman.h>
 
 
@@ -66,10 +59,12 @@ static void discardtempfile(void)
 
 static int open_mapping_f(int cap)
 {
-  if (cap) Q_printf("MAPPING: open, cap=%s\n",
+    int mapsize, estsize, padsize;
+
+    if (cap) Q_printf("MAPPING: open, cap=%s\n",
 	  decode_mapping_cap(cap));
 
-    int mapsize, estsize, padsize = 4*1024;
+    padsize = 4*1024;
 
     /* first estimate the needed size of the mapfile */
     mapsize  = HMASIZE >> 10;	/* HMA */
