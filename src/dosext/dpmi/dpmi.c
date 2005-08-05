@@ -58,6 +58,7 @@
 #include "int.h"
 #include "port.h"
 #include "timers.h"
+#include "dma.h"
 #include "userhook.h"
 #include "mapping.h"
 #include "vgaemu.h"
@@ -2972,6 +2973,7 @@ void dpmi_init(void)
 	pic_icount);
     pic_resched();
   }
+  DPMI_CLIENT.fpu_state = *_emu_stack_frame.fpstate;
   DPMI_CLIENT.stack_frame.fpstate = &DPMI_CLIENT.fpu_state;
   DPMI_CLIENT.pm_block_root = calloc(1, sizeof(dpmi_pm_block_root));
   DPMI_CLIENT.in_dpmi_rm_stack = 0;
@@ -4062,6 +4064,8 @@ void dpmi_fault(struct sigcontext_struct *scp)
     Return_to_dosemu_code(scp,0);
     return;
   }
+
+  dma_run();  // DMA really needs a frequent polls
 
   if (debug_level('M') >= 8)
     D_printf("DPMI: Return to client at %04x:%08lx, Stack 0x%x:0x%08lx, flags=%#lx\n",
