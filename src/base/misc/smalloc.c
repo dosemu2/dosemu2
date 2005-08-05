@@ -13,13 +13,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include "dosemu_debug.h"
 #include "smalloc.h"
 
-static void smerror_dummy(char *fmt, ...)
-  __attribute__((format(printf, 1, 2)));
+static void smerror_dummy(char *fmt, ...) FORMAT(printf, 1, 2);
 
-static void (*smerror)(char *fmt, ...)
-  __attribute__((format(printf, 1, 2))) = smerror_dummy;
+static void (*smerror)(char *fmt, ...) FORMAT(printf, 1, 2) = smerror_dummy;
 
 static void smerror_dummy(char *fmt, ...)
 {
@@ -246,8 +245,7 @@ int smget_area_size(struct memnode *mp, void *ptr)
   return -1;
 }
 
-void smregister_error_notifier(void (*func)(char *fmt, ...)
-    __attribute__((format(printf, 1, 2))))
+void smregister_error_notifier(void (*func)(char *fmt, ...) FORMAT(printf, 1, 2))
 {
   smerror = func;
 }
