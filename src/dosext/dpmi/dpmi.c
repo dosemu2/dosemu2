@@ -1141,13 +1141,15 @@ void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *s,
 {
   struct _fpstate *fptr = d->fpstate;
   *d = *s;
-  if (copy_fpu) {
-#if DIRECT_DPMI_CONTEXT_SWITCH
-    memcpy(fptr, s->fpstate, offsetof(struct _fpstate, _fxsr_env));
-#else
-    *fptr = *s->fpstate;
-#endif
-    d->fpstate = fptr;
+  switch (copy_fpu) {
+    case 1:   // copy FPU context
+      if (fptr == s->fpstate)
+        error("Copy FPU context between the same locations?\n");
+      *fptr = *s->fpstate;
+      /* fallthrough */
+    case -1:  // don't copy
+      d->fpstate = fptr;
+      break;
   }
 }
 
@@ -1314,7 +1316,7 @@ void restore_pm_regs(struct sigcontext_struct *scp)
     error("DPMI: DPMI_pm_procedure_running = 0x%x\n",DPMI_pm_procedure_running);
     leavedos(25);
   }
-  copy_context(scp, &DPMI_pm_stack[--DPMI_pm_procedure_running], 0);
+  copy_context(scp, &DPMI_pm_stack[--DPMI_pm_procedure_running], -1);
   if (_eflags & VIF) {
     if (!isset_IF())
       D_printf("DPMI: set IF on restore_pm_regs\n");
@@ -3662,7 +3664,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  old_esp = DPMI_CLIENT.in_dpmi_pm_stack ? D_16_32(old_ctx.esp) : D_16_32(DPMI_pm_stack_size);
 	  esp_delta = old_esp - D_16_32(_esp);
 	  ssp = (us *) SEL_ADR(_ss, _esp);
-	  copy_context(scp, &old_ctx, 0);
+	  copy_context(scp, &old_ctx, -1);
 	  if (esp_delta) {
 	    unsigned char *rm_ssp;
 	    unsigned long sp;
