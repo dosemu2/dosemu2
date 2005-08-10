@@ -3006,6 +3006,8 @@ void dpmi_init(void)
 err:
   error("DPMI initialization failed!\n");
   dpmi_cleanup(&DPMI_CLIENT.stack_frame);
+  in_dpmi_dos_int = 1;
+  in_dpmi--;
 }
 
 void dpmi_sigio(struct sigcontext_struct *scp)
