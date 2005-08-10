@@ -2493,12 +2493,6 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
     dpmi_cleanup(scp);
   }
 
-  if(pic_icount) {
-    D_printf("DPMI: Warning: trying to leave DPMI when pic_icount=%i\n",
-	pic_icount);
-    pic_resched();
-  }
-
   REG(cs) = DPMI_SEG;
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
   if (!have_tsr || !tsr_para) {
@@ -2975,11 +2969,6 @@ void dpmi_init(void)
   SETIVEC(0x23, BIOSSEG, INT_OFF(0x68));
 
   in_dpmi_dos_int = 0;
-  if(pic_icount) {
-    D_printf("DPMI: Warning: trying to enter DPMI when pic_icount=%i\n",
-	pic_icount);
-    pic_resched();
-  }
   DPMI_CLIENT.pm_block_root = calloc(1, sizeof(dpmi_pm_block_root));
   DPMI_CLIENT.in_dpmi_rm_stack = 0;
   DPMI_CLIENT.stack_frame.eip	= my_ip;
@@ -4333,10 +4322,7 @@ done:
     in_dpmi_dos_int = 0;
 
   } else {
-    if(pic_icount)
-      D_printf("DPMI: unhandled HLT: lina=%p pic_icount=%i\n",
-        lina, pic_icount);
-    pic_resched();
+    D_printf("DPMI: unhandled HLT: lina=%p\n", lina);
   }
 }
 

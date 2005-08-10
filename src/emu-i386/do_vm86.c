@@ -321,13 +321,6 @@ void vm86_GP_fault(void)
     }
 
     else {
-      if(pic_icount) {
-    /* looks like we have failed to catch iret... */
-         g_printf("HLT requested with pic_icount=%u: lina=%p!\n",
-	    pic_icount, lina);
-         show_regs(__FILE__, __LINE__);
-      }
-      pic_resched();
 #if 0
       haltcount++;
       if (haltcount > MAX_HALT_COUNT)
