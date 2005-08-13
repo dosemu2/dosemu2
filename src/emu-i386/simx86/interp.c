@@ -2603,7 +2603,8 @@ repag0:
 				PC++; PC += ModRM(opc, PC, mode);
 				Gen(O_IMUL, mode|MEMADR, REG1);	// reg*[edi]->reg signed
 				break;
-			case 0xb0-0xb1:		/* CMPXCHG */
+			case 0xb0:
+			case 0xb1:		/* CMPXCHG */
 			    CODE_FLUSH();
 			    goto not_implemented;
 ///
