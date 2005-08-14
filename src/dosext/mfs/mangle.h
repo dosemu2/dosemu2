@@ -30,13 +30,6 @@ Modified by O.V.Zhirov, July 1998
 #define DEBUG(level,message)
 #define PTR_DIFF(p1,p2) ((ptrdiff_t)(((char *)(p1)) - (char *)(p2)))
 
-#ifndef MIN
-#define MIN(a,b) ((a)<(b)?(a):(b))
-#endif
-#ifndef MAX
-#define MAX(a,b) ((a)>(b)?(a):(b))
-#endif
-
 #define strnorm(s) strlowerDOS(s)
 #define strisnormal(s) (!strhasupperDOS(s))
 

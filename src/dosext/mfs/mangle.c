@@ -272,12 +272,12 @@ static void push_mangled_name(char *s)
       }
 
   safe_memcpy(mangled_stack[1],mangled_stack[0],
-	      sizeof(fstring)*MIN(mangled_stack_len,mangled_stack_size-1));
+	      sizeof(fstring)*min(mangled_stack_len,mangled_stack_size-1));
   strcpy(mangled_stack[0],s);
   p = strrchr(mangled_stack[0],'.');
   if (p && (!strhasupperDOS(p+1)) && (strlen(p+1) < 4))
     *p = 0;
-  mangled_stack_len = MIN(mangled_stack_size,mangled_stack_len+1);
+  mangled_stack_len = min(mangled_stack_size,mangled_stack_len+1);
 }
 
 /****************************************************************************
