@@ -13,7 +13,9 @@
 #include "extern.h"
 #include "machcompat.h"
 
-#if GCC_VERSION_CODE >= 2005
+/* Some older gccs accept the format attribute too,
+ * but not for the function pointers. :( */
+#if GCC_VERSION_CODE >= 3002
 # define FORMAT(T,A,B)  __attribute__((format(T,A,B)))
 #else
 # define FORMAT(T,A,B)
