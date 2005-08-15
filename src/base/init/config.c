@@ -740,14 +740,16 @@ config_init(int argc, char **argv)
     char           *basename;
     char           *dexe_name = 0;
     char usedoptions[256];
-
+    int i;
+    
     basename = strrchr(argv[0], '/');   /* parse the program name */
     basename = basename ? basename + 1 : argv[0];
 
-    if (argv[1] &&
-        (!strcmp("--version",argv[1]) || !strcmp("--help",argv [1]))) {
-      usage(basename);
-      exit(0);
+    for (i = 1; i < argc; i++) {
+        if (!strcmp("--version",argv[i]) || !strcmp("--help",argv [i])) {
+            usage(basename);
+            exit(0);
+        }
     }
 
     dosemu_argc = argc;
@@ -1124,12 +1126,17 @@ usage(char *basename)
 	"\n"
 	"    (!) BE CAREFUL! READ THE DOCS FIRST!\n"
 	"    (%%) require DOSEMU be run as root (i.e. suid)\n"
-        "    (^^) require DOSEMU not be run as root (i.e. not suid)\n"
+	"    (^^) require DOSEMU not be run as root (i.e. not suid)\n"
 	"    (#) options do not fully work yet\n"
-	"\n"
-	"  xdosemu [options]   == %s [options] -X\n"
-	"\n"
+	"\n");
+    if(!strcmp (basename, "dos") || !strcmp (basename, "dosemu")) {
+        fprintf (stderr,
+            "  x%s [options]   == %s [options] -X\n"
+            "\n",
+            basename, basename);
+    }
+    fprintf(stderr,
 	"  %s --help\n"
-	"  %s --version    print version of dosemu (and show this help)\n"
-    ,basename, basename, basename);
+	"  %s --version    print version of dosemu (and show this help)\n",
+        basename, basename);
 }

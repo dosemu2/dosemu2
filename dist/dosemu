@@ -401,7 +401,7 @@ fi
 
 eval "set -- $SUFFIX"
 if [ -n "$STRING_I" ] ; then
-  exec $SUDO $BINARY $IGNORE_DOSEMU_CONF $XFLAG "-I $STRING_I" "$@"
+  exec -a "$0" $SUDO $BINARY $IGNORE_DOSEMU_CONF $XFLAG "-I $STRING_I" "$@"
 else
-  exec $SUDO $BINARY $IGNORE_DOSEMU_CONF $XFLAG "$@"
+  exec -a "$0" $SUDO $BINARY $IGNORE_DOSEMU_CONF $XFLAG "$@"
 fi
