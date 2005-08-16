@@ -61,12 +61,7 @@ irqnum  =	0
 	.org	irqnum*16
 .REPT 8 
 	.align 16,0
-.ifeq	irqnum-3
-	.byte	0xcd,3
-.ELSE
-	int	$irqnum
-.ENDIF
-	lret	$2
+	hlt
 irqnum	=	irqnum+1
 .ENDR
 
@@ -75,8 +70,7 @@ irqnum	=	8
 	.org	irqnum*16
 .REPT 8
 	.align 16,0
-	int	$irqnum
-	iret
+	hlt
 irqnum	=	irqnum+1
 .ENDR
 
@@ -85,8 +79,7 @@ irqnum	=	0x10
 	.org	irqnum*16
 .REPT (0x13-0x10) 
 	.align 16,0
-	int	$irqnum
-	iret
+	hlt
 irqnum	=	irqnum+1
 .ENDR
 
@@ -96,8 +89,7 @@ irqnum	=	0x13
 	.org	irqnum*16
 .REPT (0x17-0x13) 
 	.align 16,0
-	int	$irqnum
-	lret	$2
+	hlt
 irqnum	=	irqnum+1
 .ENDR
 
@@ -107,8 +99,7 @@ irqnum	=	0x17
 	.org	irqnum*16
 .REPT (0x1c-0x17) 
 	.align 16,0
-	int	$irqnum
-	iret
+	hlt
 irqnum	=	irqnum+1
 .ENDR
 
@@ -116,8 +107,7 @@ irqnum	=	irqnum+1
 			/* user timer tick, should be an IRET */
 irqnum	=	0x1c
 	.org	irqnum*16
-	int	$irqnum
-	iret
+	hlt
 
 
 			/* system-soft ints 0x1d .. 0x5f */
@@ -125,8 +115,7 @@ irqnum	=	0x1d
 	.org	irqnum*16
 .REPT (0x60-0x1d) 
 	.align 16,0
-	int	$irqnum
-	lret	$2
+	hlt
 irqnum	=	irqnum+1
 .ENDR
 
@@ -134,8 +123,7 @@ irqnum	=	irqnum+1
 irqnum	=	0x60
 	.org	irqnum*16
 int_pktdrv:
-	int	$irqnum
-	lret	$2
+	hlt
 
 
 			/* soft ints 0x68 .. 0x6f */
@@ -153,8 +141,7 @@ irqnum	=	0x70
 	.org	irqnum*16
 .REPT (0x78-0x70) 
 	.align 16,0
-	int	$irqnum
-	iret
+	hlt
 irqnum	=	irqnum+1
 .ENDR
 
@@ -167,8 +154,7 @@ irqnum	=	0x7a
                         /* soft int 0xe6 (DOS helper int) */
 irqnum  =       DOSHELPER_INT  
         .org    irqnum*16
-	int	$DOSHELPER_INT
-        lret	$2
+      	hlt
 
 
 
