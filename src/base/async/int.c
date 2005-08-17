@@ -807,14 +807,11 @@ SeeAlso: AH=8Ah"Phoenix",AX=E802h,AX=E820h,AX=E881h"Phoenix"
 }
 
 /* Set the DOS ticks value in BIOS area, then clear midnight flag */
-void set_ticks(unsigned long new_ticks)
+static void set_ticks(unsigned long new_ticks)
 {
-  volatile unsigned long *ticks = BIOS_TICK_ADDR;
-  volatile unsigned char *overflow = TICK_OVERFLOW_ADDR;
-
-  *ticks = new_ticks;
+  WRITE_DWORD(BIOS_TICK_ADDR, new_ticks);
   /* A timer read/write should reset the overflow flag */
-  *overflow = 0;
+  WRITE_BYTE(TICK_OVERFLOW_ADDR, 0);
   h_printf("TICKS: update ticks to %ld\n", new_ticks);
 }
 
@@ -858,10 +855,13 @@ Notes:	there are approximately 18.2 clock ticks per second, 1800B0h per 24 hrs
 ->	since the midnight flag is cleared, if an application calls this
 ->	  function after midnight before DOS does, DOS will not receive the
 ->	  midnight flag and will fail to advance the date
+
+Note that DOSEMU's int8 (just like Bochs and some others, see bios.S)
+increments AL so we *don't* lose a day if two consecutive midnights pass.
 */
   case 0:			/* read time counter */
    {
-   int day_rollover = 0;
+   static int day_rollover;
    if(config.timemode == TM_LINUX)
    {
      /* Set BIOS area flags to LINUX time computed values always */
@@ -888,8 +888,8 @@ Notes:	there are approximately 18.2 clock ticks per second, 1800B0h per 24 hrs
         first = 0;
       }
 
-      last_ticks = (*((unsigned long *)(BIOS_TICK_ADDR)));
-      day_rollover = (int)(*((u_char *)(TICK_OVERFLOW_ADDR)));
+      last_ticks = READ_DWORD(BIOS_TICK_ADDR);
+      day_rollover = READ_BYTE(TICK_OVERFLOW_ADDR);
     }
     else /* (config.timemode == TM_PIT) assumed */
     {
@@ -911,7 +911,7 @@ Notes:	there are approximately 18.2 clock ticks per second, 1800B0h per 24 hrs
     /* has the midnight passed? */
     if (last_ticks > TICKS_IN_A_DAY)
       {
-      day_rollover = 1;
+      day_rollover++;
       last_ticks -= TICKS_IN_A_DAY;
       /* since pic_sys_time continues to increase, avoid further midnight overflows */
       sys_base_ticks -= TICKS_IN_A_DAY;
@@ -935,6 +935,7 @@ Notes:	there are approximately 18.2 clock ticks per second, 1800B0h per 24 hrs
     g_printf("INT1A: read timer=%ld, midnight=%d\n", last_ticks, LO(ax));
 #endif
     set_ticks(last_ticks);	/* Write to BIOS_TICK_ADDR & clear TICK_OVERFLOW_ADDR */
+    day_rollover = 0;
     }
     break;
 

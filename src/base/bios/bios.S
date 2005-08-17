@@ -37,7 +37,7 @@
 #define KEYBOARD_STATUS_3 0x96
 #define BIOS_TIMER 0x46c
 #define BIOS_TIMER_OVERFLOW 0x470
-#define HOUR24_ADJUST 176
+#define HOUR24_ADJUST 0x1800B0
 #define DISKETTE_MOTOR_TIMEOUT 0x440
 #define BIOS_VIDEO_MODE 0x449
 
@@ -358,18 +358,25 @@ CISH(INT08_dummy_start):		/* TIMER INTERRUPT ROUTINE	*/
 	xorw	%ax, %ax		/* set ax to segment 0		*/
         movw	%ax,%ds
 	incl	BIOS_TIMER
-	cmpw	$24, BIOS_TIMER+2	/* 24 hour check */
-	jb	CISH(INT08_L1)
-	cmpw	$HOUR24_ADJUST, BIOS_TIMER
+	cmpl	$HOUR24_ADJUST, BIOS_TIMER /* 24 hour check */
 	jb	CISH(INT08_L1)
 	movl	$0, BIOS_TIMER
-	movb	$1, BIOS_TIMER_OVERFLOW
+	incb	BIOS_TIMER_OVERFLOW
 CISH(INT08_L1):
 			/* emulate 'diskette motor running */
 			/* some old games rely on that --SW, --Hans */
 	cmpb	$0, DISKETTE_MOTOR_TIMEOUT
 	jz	CISH(INT08_L2)
 	decb	DISKETTE_MOTOR_TIMEOUT
+	jnz	CISH(INT08_L2)
+	/* turn floppy motor off (code from Bochs) */
+	pushw	%dx
+	movw	$0x3f2, %dx
+	inb	%dx, %al
+	andb	$0xcf, %al
+	outb	%al, %dx
+	popw	%dx
+	
 CISH(INT08_L2):
 	int	$0x1c		/* call int 0x1c, per bios spec	*/
 				/* must do it before EOI, but after count */
