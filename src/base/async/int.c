@@ -861,7 +861,7 @@ increments AL so we *don't* lose a day if two consecutive midnights pass.
 */
   case 0:			/* read time counter */
    {
-   static int day_rollover;
+   int day_rollover;
    if(config.timemode == TM_LINUX)
    {
      /* Set BIOS area flags to LINUX time computed values always */
@@ -909,13 +909,10 @@ increments AL so we *don't* lose a day if two consecutive midnights pass.
     last_ticks += (sys_base_ticks + usr_delta_ticks);
 
     /* has the midnight passed? */
-    if (last_ticks > TICKS_IN_A_DAY)
-      {
-      day_rollover++;
-      last_ticks -= TICKS_IN_A_DAY;
-      /* since pic_sys_time continues to increase, avoid further midnight overflows */
-      sys_base_ticks -= TICKS_IN_A_DAY;
-    }
+    day_rollover = last_ticks / TICKS_IN_A_DAY;
+    last_ticks %= TICKS_IN_A_DAY;
+    /* since pic_sys_time continues to increase, avoid further midnight overflows */
+    sys_base_ticks -= day_rollover * TICKS_IN_A_DAY;
     }
 
     LWORD(eax) = day_rollover;
@@ -935,7 +932,6 @@ increments AL so we *don't* lose a day if two consecutive midnights pass.
     g_printf("INT1A: read timer=%ld, midnight=%d\n", last_ticks, LO(ax));
 #endif
     set_ticks(last_ticks);	/* Write to BIOS_TICK_ADDR & clear TICK_OVERFLOW_ADDR */
-    day_rollover = 0;
     }
     break;
 
