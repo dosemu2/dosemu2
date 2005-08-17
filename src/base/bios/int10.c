@@ -607,6 +607,16 @@ boolean set_video_mode(int mode) {
 	/* adjust display end */
 	port_outw(port, 0x12 | (((text_scanlines-1) & 0xff) << 8));
       }
+      WRITE_WORD(BIOS_VIDEO_MEMORY_USED, TEXT_SIZE(co, li));
+    } else {
+      unsigned page_size = vga.scan_len * vga.height;
+      if (page_size != 0) {
+	page_size = vga.mem.bank_pages * 4096 / page_size;
+	if (page_size != 0) {
+	  page_size = vga.mem.bank_pages * 4096 / page_size;
+	}
+      }
+      WRITE_WORD(BIOS_VIDEO_MEMORY_USED, page_size);
     }
     WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
     WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
@@ -854,7 +864,7 @@ int int10(void) /* with dualmon */
       }
       page_size = READ_WORD(BIOS_VIDEO_MEMORY_USED);
       address = page_size * page;
-      crt_outw(0xc, address/2);
+      crt_outw(0xc, address/(using_text_mode() ? 2 : 1));
 
       WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, page);
       WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, address);
