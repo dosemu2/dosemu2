@@ -117,12 +117,55 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
 		key = KEY_NUM;
 		break;
 		
+	  case SDLK_SCROLLOCK:
+		key = KEY_SCROLL;
+		break;
+		
+	  case SDLK_KP0 ... SDLK_KP9:
+		key = (keysym.sym - SDLK_KP0) + KEY_PAD_0;
+		break;
+
+	  case SDLK_KP_PERIOD:
+		key = KEY_PAD_DECIMAL;
+		break;
+
+	  case SDLK_KP_DIVIDE:
+		key = KEY_PAD_SLASH;
+		break;
+
+	  case SDLK_KP_MULTIPLY:
+		key = KEY_PAD_AST;
+		break;
+
+	  case SDLK_KP_MINUS:
+		key = KEY_PAD_MINUS;
+		break;
+
+	  case SDLK_KP_PLUS:
+		key = KEY_PAD_PLUS;
+		break;
+
+	  case SDLK_KP_ENTER:
+		key = KEY_PAD_ENTER;
+		break;
+
+	  case SDLK_KP_EQUALS:
+		key = KEY_PAD_EQUAL;
+		break;
+
 	  case SDLK_F1 ... SDLK_F10:
 		key = (keysym.sym - SDLK_F1) + KEY_F1 ;
 		break;
 #define DOKEY(x) case SDLK_##x: key = KEY_##x; break;
 	  DOKEY(F11)
 	  DOKEY(F12)
+	  DOKEY(F13)
+	  DOKEY(F14)
+	  DOKEY(F15)
+	  DOKEY(RETURN)
+	  DOKEY(TAB)
+	  DOKEY(PAUSE)
+	  DOKEY(BREAK)
 	  DOKEY(HOME)
 	  DOKEY(LEFT)
 	  DOKEY(UP)
@@ -147,29 +190,59 @@ void SDL_process_key(SDL_KeyboardEvent keyevent)
 		key = KEY_BKSP;
 		break;
 		
-	  case SDLK_RETURN:
-		key = KEY_RETURN;		
-		break;		
-		
-	  case SDLK_TAB:
-		key = KEY_TAB;
-		break;
-		
 	  case SDLK_ESCAPE:
 		key = KEY_ESC;
+		break;
+
+	  case SDLK_SYSREQ:
+		key = KEY_SYSRQ;
+		break;
+
+	  case SDLK_CLEAR:
+		key = KEY_DOSEMU_CLEAR;
+		break;
+
+	  case SDLK_COMPOSE:
+		key = KEY_MULTI_KEY;
+		break;
+
+	  case SDLK_PRINT:
+		key = KEY_PRTSCR;
+		break;
+
+	  case SDLK_MENU:
+		key = KEY_DOSEMU_UNDO;
+		break;
+
+	  case SDLK_HELP:
+		key = KEY_DOSEMU_HELP;
+		break;
+
+	  case SDLK_EURO:
+		key = U_EURO_SIGN;
+		break;
+
+	  case SDLK_UNDO:
+		key = KEY_DOSEMU_UNDO;
 		break;
 
 	  case SDLK_RSHIFT: key = KEY_R_SHIFT ; break;		
 	  case SDLK_LSHIFT: key = KEY_L_SHIFT ; break;		
 	  case SDLK_RCTRL: key = KEY_R_CTRL ; break;		
 	  case SDLK_LCTRL: key = KEY_L_CTRL ; break;		
-	  case SDLK_RMETA:
-/*	  case SDLK_MODE: */
+	  case SDLK_RMETA: key = KEY_R_META ; break;
+	  case SDLK_MODE: key = KEY_MODE_SWITCH ; break;
 	  case SDLK_RALT: key = KEY_R_ALT ; break;		
-	  case SDLK_LMETA:
+	  case SDLK_RSUPER: key = KEY_R_SUPER ; break;
+	  case SDLK_LMETA: key = KEY_L_META ; break;
 	  case SDLK_LALT: key = KEY_L_ALT ; break;		
+	  case SDLK_LSUPER: key = KEY_L_SUPER ; break;
 
-	  default: break;
+	  /* case SDLK_POWER: */
+	  default: 
+		if (keysym.sym > 255)
+			key = KEY_VOID;
+		break;
 	 }
 
 	SDL_sync_shiftstate(keyevent.state==SDL_PRESSED, keysym.sym, keysym.mod);
