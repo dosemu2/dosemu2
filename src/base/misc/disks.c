@@ -31,6 +31,7 @@
 #include <sys/time.h>
 
 #include "emu.h"
+#include "port.h"
 #include "bios.h"
 #include "disks.h"
 #include "timers.h"
@@ -787,6 +788,24 @@ disk_close_all(void)
   disks_initiated = 0;
 }
 
+static Bit8u floppy_DOR = 0xc;
+
+static Bit8u floppy_io_read(ioport_t port)
+{
+  if (port == 0x3f2)
+    return floppy_DOR;
+  return 0xff;
+}
+
+static void floppy_io_write(ioport_t port, Bit8u value)
+{
+  if (port == 0x3f2) {
+    floppy_DOR = value;
+    if ((value & 0x30) == 0)
+      disk_close();
+  }
+}
+
 /*
  * DANG_BEGIN_FUNCTION disk_init
  *
@@ -878,6 +897,23 @@ disk_init(void)
   /* if we don't have any configured floppies, we have to use bootdisk instead */
     memcpy(&disktab[0], &bootdisk, sizeof(bootdisk));
     FDISKS++;	/* now we have one */
+  }
+
+  if (FDISKS) {
+    emu_iodev_t  io_device;
+
+    io_device.read_portb   = floppy_io_read;
+    io_device.write_portb  = floppy_io_write;
+    io_device.read_portw   = NULL;
+    io_device.write_portw  = NULL;
+    io_device.read_portd   = NULL;
+    io_device.write_portd  = NULL;
+    io_device.handler_name = "Floppy Drive";
+    io_device.start_addr   = 0x03F0;
+    io_device.end_addr     = 0x03F7;
+    io_device.irq          = 6;
+    io_device.fd           = -1;
+    port_register_handler(io_device, 0);
   }
 
   /*
@@ -1570,11 +1606,7 @@ int int13(void)
   return 1;
 }
 
-#define FLUSH_DELAY 2
-
-/* flush disks every FLUSH_DELAY seconds
- * XXX - make this configurable later
- */
+/* flush disks every config.fastfloppy ticks */
 void
 floppy_tick(void)
 {
@@ -1586,6 +1618,4 @@ floppy_tick(void)
       d_printf("FLOPPY: flushing after %d ticks\n", ticks);
     ticks = 0;
   }
-  if (READ_BYTE(BIOS_MOTOR_TIMEOUT) == 0)
-    disk_close();
 }
