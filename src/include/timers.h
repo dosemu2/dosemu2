@@ -17,7 +17,6 @@
 #define TIMER_DIVISOR   6
 
 extern void timer_tick(void);
-extern void set_ticks(unsigned long);
 extern Bit8u pit_inp(ioport_t);
 extern void pit_outp(ioport_t, Bit8u);
 
