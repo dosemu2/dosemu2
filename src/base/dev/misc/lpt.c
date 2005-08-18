@@ -20,6 +20,8 @@
 #include <sys/wait.h>
 
 #include "emu.h"
+#include "bios.h"
+#include "port.h"
 #include "timers.h"
 #include "lpt.h"
 #include "utilities.h"
@@ -29,49 +31,63 @@ static int stub_printer_write(int, int);
 
 static struct printer lpt[NUM_PRINTERS] =
 {
-  {NULL, NULL, 5, 0x378},
-  {NULL, NULL, 5, 0x278},
-  {NULL, NULL, 10, 0x3bc}
+  {NULL, NULL, 5, 0x378, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_IOERR | LPT_ACK},
+  {NULL, NULL, 5, 0x278, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_IOERR | LPT_ACK},
+  {NULL, NULL, 10, 0x3bc, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_IOERR | LPT_ACK}
 };
 
-int int17(void)
+static int get_printer(ioport_t port)
 {
-  int num;
+  int i;
+  for (i = 0; i < 3; i++)
+    if (lpt[i].base_port <= port && port <= lpt[i].base_port + 2)
+      return i;
+  return -1;
+}
 
-  if (LWORD(edx) + 1 > config.num_lpt) {
-    p_printf("LPT: print to non-defined printer LPT%d\n",
-	     LWORD(edx) + 1);
-    CARRY;
-    return 1;
-  }
+static Bit8u printer_io_read(ioport_t port)
+{
+  int i = get_printer(port);
+  Bit8u val;
 
-  reset_idle(2);
+  if (i == -1)
+    return 0xff;
 
-  switch (HI(ax)) {
-  case 0:			/* write char */
-    /* p_printf("print character on lpt%d : %c (%d)\n",
-			       LO(dx), LO(ax), LO(ax)); */
-    HI(ax) = printer_write(LO(dx), LO(ax));
-    break;
-
-  case 1:			/* init */
-    HI(ax) = LPT_NOTBUSY | LPT_ACK | LPT_ONLINE;
-    num = LWORD(edx);
-    p_printf("LPT: init printer %d\n", num);
-    break;
-
-  case 2:			/* get status */
-    HI(ax) = LPT_NOTBUSY | LPT_ONLINE;
-    /* dbug_printf("printer 0x%x status: 0x%x\n", LO(dx), HI(ax)); */
-    break;
-
+  switch (port - lpt[i].base_port) {
+  case 0:
+    return lpt[i].data; /* simple unidirectional port */
+  case 1: /* status port, r/o */
+    val = lpt[i].status;
+    /* we should really set ACK after 5 us but here we just
+       use the fact that the BIOS only checks this once */
+    lpt[i].status |= LPT_ACK;
+    return val;
+  case 2:
+    return lpt[i].control;
   default:
-    error("printer int17 bad call ax=0x%x\n", LWORD(eax));
-    show_regs(__FILE__, __LINE__);
-    /* fatalerr = 8; */
+    return 0xff;
+  }
+}
+
+static void printer_io_write(ioport_t port, Bit8u value)
+{
+  int i = get_printer(port);
+  if (i == -1)
+    return;
+  switch (port - lpt[i].base_port) {
+  case 0:
+    lpt[i].status = printer_write(i, value);
+    lpt[i].data = value;
+    break;
+  case 1: /* status port, r/o */
+    break;
+  case 2:
+    lpt[i].status &= ~LPT_ACK;
+    lpt[i].control = value;
+    break;
+  default:
     break;
   }
-  return 1;
 }
 
 static int dev_printer_open(int prnum)
@@ -153,7 +169,7 @@ static int file_printer_write(int prnum, int outchar)
   lpt[prnum].remaining = lpt[prnum].delay;
 
   fputc(outchar, lpt[prnum].file);
-  return (LPT_NOTBUSY | LPT_ACK | LPT_ONLINE);
+  return (LPT_NOTBUSY | LPT_IOERR | LPT_ONLINE);
 }
 
 int printer_write(int prnum, int outchar)
@@ -167,7 +183,8 @@ printer_mem_setup(void)
   int i;
   for (i = 0; i < 3; i++) {
     /* set the port address for each printer in bios */
-    *((u_short *)(0x408) + i) = lpt[i].base_port;
+    WRITE_WORD(BIOS_ADDRESS_LPT1 + i * 2, lpt[i].base_port);
+    WRITE_BYTE(BIOS_LPT1_TIMEOUT + i, 20);
   }
 }
 
@@ -197,6 +214,17 @@ void
 printer_init(void)
 {
   int i;
+  emu_iodev_t io_device;
+
+  io_device.read_portb   = printer_io_read;
+  io_device.write_portb  = printer_io_write;
+  io_device.read_portw   = NULL;
+  io_device.write_portw  = NULL;
+  io_device.read_portd   = NULL;
+  io_device.write_portd  = NULL;
+  io_device.handler_name = "Parallel printer";
+  io_device.irq          = 7;
+  io_device.fd           = -1;
 
   for (i = 0; i < 3; i++) {
     p_printf("LPT: initializing printer %s\n", lpt[i].dev ? lpt[i].dev : "<<NODEV>>");
@@ -207,6 +235,12 @@ printer_init(void)
     else
       lpt[i].fops = pipe_pfops;
     if (i >= config.num_lpt) lpt[i].base_port = 0;
+
+    if (lpt[i].base_port) {
+      io_device.start_addr = lpt[i].base_port;
+      io_device.end_addr   = lpt[i].base_port + 2;
+      port_register_handler(io_device, 0);
+    }
   }
 }
 

@@ -26,6 +26,7 @@ struct printer {
 
   struct p_fops fops;
 
+  Bit8u data, status, control;
 };
 
 /* public functions */
