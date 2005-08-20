@@ -371,12 +371,7 @@ mouse_int(void)
     sent_mouse_esc = TRUE;
   }
 
-  m_printf("MOUSEALAN: int 0x%x ebx=%x\n", LWORD(eax), LWORD(ebx));
-  if (!mice->intdrv || (!mouse.enabled && LWORD(eax) != 0x20)) {
-    m_printf("MOUSE: driver disabled, intdrv=%i enable=%i\n",
-      mice->intdrv, mouse.enabled);
-    return 0;
-  }
+  m_printf("MOUSE: int 33h, ax=%x bx=%x\n", LWORD(eax), LWORD(ebx));
 
   switch (LWORD(eax)) {
   case 0x00:			/* Mouse Reset/Get Mouse Installed Flag */
