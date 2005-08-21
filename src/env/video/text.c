@@ -232,8 +232,8 @@ void reset_redraw_text_screen(void)
     if (vga.text_width > MAX_COLUMNS  ) vga.text_width = MAX_COLUMNS;
     if (vga.text_height > MAX_LINES   ) vga.text_height = MAX_LINES;
   }
-  MEMCPY_2UNIX(prev_screen, vga.mem.base + vga.display_start,
-	       vga.scan_len * vga.text_height);
+  memcpy(prev_screen, vga.mem.base + vga.display_start,
+	 vga.scan_len * vga.text_height);
 }
 
 /*

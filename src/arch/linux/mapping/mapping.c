@@ -40,6 +40,7 @@
 struct mem_map_struct {
   void *src;
   void *base;
+  void *alias_base;
   void *dst;
   int len;
   int mapped;
@@ -51,6 +52,7 @@ static struct mem_map_struct kmem_map[MAX_KMEM_MAPPINGS];
  
 static int init_done = 0;
 static char *lowmem_base = NULL;
+char * const lowmem_alias;
 #ifndef HAVE_MREMAP_FIXED
 int have_mremap_fixed = 1;
 #endif
@@ -107,6 +109,10 @@ static void kmem_unmap_single(int cap, int idx)
 	       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   mremap_mapping(cap, kmem_map[idx].dst, kmem_map[idx].len,
       kmem_map[idx].len, MREMAP_MAYMOVE | MREMAP_FIXED, kmem_map[idx].base);
+  kmem_map[idx].alias_base = mmap(0, kmem_map[idx].len, PROT_NONE,
+	       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  mremap_mapping(cap, lowmem_alias + (size_t)kmem_map[idx].dst, kmem_map[idx].len,
+      kmem_map[idx].len, MREMAP_MAYMOVE | MREMAP_FIXED, kmem_map[idx].alias_base);
   kmem_map[idx].mapped = 0;
 }
 
@@ -128,6 +134,8 @@ static void kmem_map_single(int cap, int idx)
 {
   mremap_mapping(cap, kmem_map[idx].base, kmem_map[idx].len, kmem_map[idx].len,
       MREMAP_MAYMOVE | MREMAP_FIXED, kmem_map[idx].dst);
+  mremap_mapping(cap, kmem_map[idx].alias_base, kmem_map[idx].len, kmem_map[idx].len,
+      MREMAP_MAYMOVE | MREMAP_FIXED, lowmem_alias + (size_t)kmem_map[idx].dst);
   kmem_map[idx].mapped = 1;
 }
 
@@ -168,6 +176,9 @@ void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source
       if (!fixed) target = 0;
       target = mmap(target, mapsize, protect, MAP_SHARED | fixed,
 		    mem_fd, (size_t) source);
+      if ((size_t)target <= LOWMEM_SIZE)
+	mmap(lowmem_alias + (size_t)target, mapsize, protect, MAP_SHARED | fixed,
+	     mem_fd, (size_t) source);
       close_kmem();
       if (cap & MAPPING_COPYBACK)
 	/* copy from low shared memory to the /dev/mem memory */
@@ -222,11 +233,16 @@ void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source
     if (!fixed) target = 0;
     addr = mmap(target, mapsize, protect,
 		MAP_PRIVATE | fixed | MAP_ANONYMOUS, -1, 0);
-  } else if (cap & (MAPPING_LOWMEM | MAPPING_HMA)) {
-    addr = mappingdriver.mmap(cap | MAPPING_ALIAS, target, mapsize, protect,
-      lowmem_base + (size_t)source);
-  } else
+  } else {
+    if (cap & (MAPPING_LOWMEM | MAPPING_HMA)) {
+      cap |= MAPPING_ALIAS;
+      source += (size_t)lowmem_base;
+    }
     addr = mappingdriver.mmap(cap, target, mapsize, protect, source);
+    if ((size_t)target <= LOWMEM_SIZE)
+      mappingdriver.mmap(cap, lowmem_alias + (size_t)target, mapsize,
+			 PROT_READ | PROT_WRITE, source);
+  }
   Q__printf("MAPPING: map success, cap=%s, addr=%p\n", cap, addr);
   return addr;
 }        
@@ -367,7 +383,7 @@ void close_mapping(int cap)
 
 void *alloc_mapping(int cap, int mapsize, void *target)
 {
-  void *addr;
+  void *addr, *alias_addr = MAP_FAILED;
 
   if (cap & MAPPING_KMEM) {
 #ifndef HAVE_MREMAP_FIXED
@@ -385,12 +401,16 @@ void *alloc_mapping(int cap, int mapsize, void *target)
     open_kmem();
     addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd,
 		(size_t)target);
+    if ((size_t)target <= LOWMEM_SIZE)
+      alias_addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd,
+			(size_t)target);
     close_kmem();
     if (addr == MAP_FAILED)
       return addr;
     
     kmem_map[kmem_mappings].src = target; /* target is actually source */
     kmem_map[kmem_mappings].base = addr;
+    kmem_map[kmem_mappings].alias_base = alias_addr;
     kmem_map[kmem_mappings].dst = NULL;
     kmem_map[kmem_mappings].len = mapsize;
     kmem_map[kmem_mappings].mapped = 0;
@@ -408,6 +428,10 @@ void *alloc_mapping(int cap, int mapsize, void *target)
     lowmem_base = addr;
     addr = mmap_mapping(MAPPING_INIT_LOWRAM | MAPPING_ALIAS, target,
 	    mapsize, PROT_READ | PROT_WRITE | PROT_EXEC, lowmem_base);
+    *(void **)(&lowmem_alias) =
+      mmap_mapping(MAPPING_INIT_LOWRAM | MAPPING_ALIAS, (void *)-1,
+	    mapsize, PROT_READ | PROT_WRITE, lowmem_base);
+    Q_printf("MAPPING: LOWRAM_INIT, lowmem_alias=%p\n", lowmem_alias);
   }
   return addr;
 }

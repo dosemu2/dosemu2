@@ -27,113 +27,50 @@ extern char LFN_string[];
 
 #define INT2F_IDLE_MAGIC	0x1680
 
+/* lowmem_alias points to a mirror image of the area 0--1MB+64K, with all mmaps
+   (incl HMA, video RAM etc) the same as below)
+   The difference is that the mirror image is not read or write protected so
+   DOSEMU writes will not be trapped. This allows easy interference with
+   simx86, NULL page protection, and removal of the VGA protected memory
+   access hack.
+
+   It is set "const" for to help GCC optimize accesses. In reality it is set only
+   once, at startup
+*/
+extern char * const lowmem_alias;
+
+#define READ_BYTE(addr)                 (*(Bit8u *) ((size_t)(addr)+lowmem_alias))
+#define WRITE_BYTE(addr, val)           (*(Bit8u *) ((size_t)(addr)+lowmem_alias) = (val) )
+#define READ_WORD(addr)                 (*(Bit16u *) ((size_t)(addr)+lowmem_alias))
+#define WRITE_WORD(addr, val)           (*(Bit16u *) ((size_t)(addr)+lowmem_alias) = (val) )
+#define READ_DWORD(addr)                (*(Bit32u *) ((size_t)(addr)+lowmem_alias))
+#define WRITE_DWORD(addr, val)          (*(Bit32u *) ((size_t)(addr)+lowmem_alias) = (val) )
+
+#define MEMCPY_2UNIX(unix_addr, dos_addr, n) \
+	memcpy((unix_addr), lowmem_alias + (size_t)(dos_addr), (n))
+
+#define MEMCPY_2DOS(dos_addr, unix_addr, n) \
+	memcpy(lowmem_alias + (size_t)(dos_addr), (unix_addr), (n))
+
+#define MEMCPY_DOS2DOS(dos_addr, unix_addr, n) \
+	memcpy(lowmem_alias + (size_t)(dos_addr), \
+	       lowmem_alias + (size_t)(unix_addr), (n))
+
+#define MEMMOVE_DOS2DOS(dos_addr1, dos_addr2, n) \
+        memmove(lowmem_alias + (size_t)(dos_addr1), \
+		lowmem_alias + (size_t)(dos_addr2), (n))
+
+#define MEMCMP_DOS_VS_UNIX(dos_addr, unix_addr, n) \
+	memcmp(lowmem_alias + (size_t)(dos_addr), (Bit8u *)(unix_addr), (n))
+
+#define MEMSET_DOS(dos_addr, val, n) \
+        memset(lowmem_alias + (size_t)(dos_addr), (val), (n))
+
 /*
  * symbols to access BIOS-data with meaningful names, not just addresses,
  * which are only numbers. The names are retranslatios from an old german
  * book :-(
  */
-
-#define bios_base_address_com1          (*(unsigned short *) 0x400)
-#define bios_base_address_com2          (*(unsigned short *) 0x402)
-#define bios_base_address_com3          (*(unsigned short *) 0x404)
-#define bios_base_address_com4          (*(unsigned short *) 0x406)
-#define bios_address_lpt1               (*(unsigned short *) 0x408)
-#define bios_address_lpt2               (*(unsigned short *) 0x40a)
-#define bios_address_lpt3               (*(unsigned short *) 0x40c)
-/* 0x40e is reserved */
-#define bios_configuration              (*(unsigned short *) 0x410)
-/* 0x412 is reserved */
-#define bios_memory_size                (*(unsigned short *) 0x413)
-/* #define bios_expansion_memory_size      (*(unsigned int   *) 0x415) */
-#define bios_keyboard_state             (*(unsigned short *) 0x417)
-#define bios_keyboard_leds              (*(unsigned char  *) 0x418)
-#define bios_keyboard_token             (*(unsigned short *) 0x419)
-/* used for keyboard input with Alt-Number */
-#define bios_keyboard_buffer_head       (*(unsigned short *) 0x41a)
-#define bios_keyboard_buffer_tail       (*(unsigned short *) 0x41c)
-/* #define bios_keyboard_buffer            (*(unsigned int   *) 0x41e) */
-#define bios_drive_active               (*(unsigned char  *) 0x43e)
-#define bios_drive_running              (*(unsigned char  *) 0x43f)
-#define bios_motor_timeout              (*(unsigned char  *) 0x440)
-#define bios_disk_status                (*(unsigned char  *) 0x441)
-/* #define bios_fdc_result_buffer          (*(unsigned short *) 0x442) */
-#define bios_video_mode                 (*(unsigned char  *) 0x449)
-#define bios_screen_columns             (*(unsigned short *) 0x44a)
-#define bios_video_memory_used          (*(unsigned short *) 0x44c)
-#define bios_video_memory_address       (*(unsigned short *) 0x44e)
-
-#define bios_cursor_x_position(screen) \
-                        (*(unsigned char *)(0x450 + 2*(screen)))
-#define bios_cursor_y_position(screen) \
-                        (*(unsigned char *)(0x451 + 2*(screen)))
-
-#define bios_cursor_shape               (*(unsigned short *) 0x460)
-#define bios_cursor_last_line           (*(unsigned char  *) 0x460)
-#define bios_cursor_first_line          (*(unsigned char  *) 0x461)
-#define bios_current_screen_page        (*(unsigned char  *) 0x462)
-#define bios_video_port                 (*(unsigned short *) 0x463)
-#define bios_vdu_control                (*(         char  *) 0x465)
-#define bios_vdu_color_register         (*(unsigned short *) 0x466)
-/* 0x467-0x468 is reserved */
-#define bios_timer                      (*(unsigned long  *) 0x46c)
-#define bios_24_hours_flag              (*(unsigned char  *) 0x470)
-#define bios_keyboard_flags             (*(unsigned char  *) 0x471)
-#define bios_ctrl_alt_del_flag          (*(unsigned short *) 0x472)
-#define bios_harddisk_count		(*(unsigned short *) 0x475)
-/* 0x474, 0x476, 0x477 is reserved */
-#define bios_lpt1_timeout               (*(unsigned char  *) 0x478)
-#define bios_lpt2_timeout               (*(unsigned char  *) 0x479)
-#define bios_lpt3_timeout               (*(unsigned char  *) 0x47a)
-/* 0x47b is reserved */
-#define bios_com1_timeout               (*(unsigned char  *) 0x47c)
-#define bios_com2_timeout               (*(unsigned char  *) 0x47d)
-/* 0x47e is reserved */
-/* 0x47f-0x4ff is unknow for me */
-#define bios_keyboard_buffer_start      (*(unsigned short *) 0x480)
-#define bios_keyboard_buffer_end        (*(unsigned short *) 0x482)
-
-#define bios_rows_on_screen_minus_1     (*(unsigned char  *) 0x484)
-#define bios_font_height                (*(unsigned short *) 0x485)
-
-#define bios_video_info_0               (*(unsigned char  *) 0x487)
-#define bios_video_info_1               (*(unsigned char  *) 0x488)
-#define bios_video_info_2               (*(unsigned char  *) 0x489)
-#define bios_video_combo                (*(unsigned char  *) 0x48a)
-
-#define bios_keyboard_flags2            (*(unsigned short *) 0x496)
-#define bios_print_screen_flag          (*(unsigned short *) 0x500)
-
-#define bios_video_saveptr              (*(unsigned long  *) 0x4a8)
-
-
-
-
-#define READ_BYTE(addr)                 (*(Bit8u *) (addr))
-#define WRITE_BYTE(addr, val)           (*(Bit8u *) (addr) = (val) )
-#define READ_WORD(addr)                 (*(Bit16u *) (addr))
-#define WRITE_WORD(addr, val)           (*(Bit16u *) (addr) = (val) )
-#define READ_DWORD(addr)                (*(Bit32u *) (addr))
-#define WRITE_DWORD(addr, val)          (*(Bit32u *) (addr) = (val) )
-
-#define MEMCPY_2UNIX(unix_addr, dos_addr, n) \
-	memcpy((unix_addr), (Bit8u *)(dos_addr), (n))
-
-#define MEMCPY_2DOS(dos_addr, unix_addr, n) \
-	memcpy((Bit8u *)(dos_addr), (unix_addr), (n))
-
-#define MEMCPY_DOS2DOS(dos_addr, unix_addr, n) \
-	memcpy((Bit8u *)(dos_addr), (Bit8u *)(unix_addr), (n))
-
-#define MEMMOVE_DOS2DOS(dos_addr1, dos_addr2, n) \
-        memmove((Bit8u *)(dos_addr1), (Bit8u *)(dos_addr2), (n))
-
-#define MEMCMP_DOS_VS_UNIX(dos_addr, unix_addr, n) \
-	memcmp((Bit8u *)(dos_addr), (Bit8u *)(unix_addr), (n))
-
-#define MEMSET_DOS(dos_addr, val, n) \
-        memset((Bit8u *)(dos_addr), (val), (n))
-
-
 
 #define BIOS_BASE_ADDRESS_COM1          0x400
 #define BIOS_BASE_ADDRESS_COM2          0x402
