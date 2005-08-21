@@ -483,7 +483,7 @@ boolean set_video_mode(int mode) {
   WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
   WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);
   WRITE_BYTE(BIOS_VIDEO_INFO_0, clear_mem ? 0x60 : 0xe0);
-  MEMSET_DOS(lowmem_alias + 0x450, 0, 0x10);	/* equiv. to set_bios_cursor_(x/y)_position(0..7, 0) */
+  MEMSET_DOS(0x450, 0, 0x10);	/* equiv. to set_bios_cursor_(x/y)_position(0..7, 0) */
 
   if(Video->setmode == NULL) {
     /* set display start to 0 */
