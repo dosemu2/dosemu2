@@ -20,9 +20,6 @@
 
 int int17(void)
 {
-#ifdef X86_EMULATOR
-  int tmp = E_MUNPROT_STACK(0);	/* no faults in BIOS area! */
-#endif
   int timeout, val8;
   ioport_t addr;
 
@@ -60,8 +57,5 @@ int int17(void)
   if (!timeout) _AH |= LPT_TIMEOUT;
   NOCARRY;
 
-#ifdef X86_EMULATOR
-   if (tmp) E_MPROT_STACK(0);
-#endif
   return 1;
 }

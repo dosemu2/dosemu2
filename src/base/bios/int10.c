@@ -483,7 +483,7 @@ boolean set_video_mode(int mode) {
   WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
   WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);
   WRITE_BYTE(BIOS_VIDEO_INFO_0, clear_mem ? 0x60 : 0xe0);
-  memset((void *) 0x450, 0, 0x10);	/* equiv. to set_bios_cursor_(x/y)_position(0..7, 0) */
+  MEMSET_DOS(lowmem_alias + 0x450, 0, 0x10);	/* equiv. to set_bios_cursor_(x/y)_position(0..7, 0) */
 
   if(Video->setmode == NULL) {
     /* set display start to 0 */
@@ -677,23 +677,23 @@ static void return_state(Bit8u *statebuf) {
 	WRITE_WORD(statebuf + 2, 0xc000);
 
 	/* store bios 0:449-0:466 at ofs 0x04 */
-	memcpy(statebuf + 0x04, (char *)0x449, 0x466 - 0x449 + 1);
+	MEMCPY_DOS2DOS(statebuf + 0x04, (char *)0x449, 0x466 - 0x449 + 1);
 	/* store bios 0:484-0:486 at ofs 0x22 */
-	memcpy(statebuf + 0x22, (char *)0x484, 0x486 - 0x484 + 1);
+	MEMCPY_DOS2DOS(statebuf + 0x22, (char *)0x484, 0x486 - 0x484 + 1);
 	/* correct number of rows-1 to number of rows at offset 0x22 */
-	statebuf[0x22]++;
+	WRITE_BYTE(statebuf + 0x22, READ_BYTE(statebuf + 0x22) + 1);
 	get_dcc(&active_dcc, &alternate_dcc);
-	statebuf[0x25] = active_dcc;
-	statebuf[0x26] = alternate_dcc;
-	statebuf[0x27] = 16;/* XXX number of colors, low byte */
-	statebuf[0x28] = 0; /* XXX number of colors, high byte */
-	statebuf[0x29] = 8; /* XXX number of pages supported */
-	statebuf[0x2a] = 2; /* XXX number of scanlines 0-3=200,350,400,480 */
-	statebuf[0x2b] = 0; /* XXX primary character block */
-	statebuf[0x2c] = 0; /* XXX secondary character block */
-	statebuf[0x31] = 3; /* video memory: 3 = 256K */
-	statebuf[0x32] = 0; /* XXX save pointer state flags */
-	memset(statebuf + 0x33, 0, 13);
+	WRITE_BYTE(statebuf + 0x25, active_dcc);
+	WRITE_BYTE(statebuf + 0x26, alternate_dcc);
+	WRITE_BYTE(statebuf + 0x27, 16); /* XXX number of colors, low byte */
+	WRITE_BYTE(statebuf + 0x28, 0);  /* XXX number of colors, high byte */
+	WRITE_BYTE(statebuf + 0x29, 8); /* XXX number of pages supported */
+	WRITE_BYTE(statebuf + 0x2a, 2); /* XXX number of scanlines 0-3=200,350,400,480 */
+	WRITE_BYTE(statebuf + 0x2b, 0); /* XXX primary character block */
+	WRITE_BYTE(statebuf + 0x2c, 0); /* XXX secondary character block */
+	WRITE_BYTE(statebuf + 0x31, 3); /* video memory: 3 = 256K */
+	WRITE_BYTE(statebuf + 0x32, 0); /* XXX save pointer state flags */
+	MEMSET_DOS(statebuf + 0x33, 0, 13);
 }
 
 /* helpers for font processing - eric@coli.uni-sb.de  11/2002 */
