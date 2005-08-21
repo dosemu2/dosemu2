@@ -60,6 +60,13 @@ static Boolean doing_selection = FALSE, visible_selection = FALSE;
 #endif
 
 
+/* macros for accessing video memory. w is an ushort* 
+   to a character cell, attr is a byte.
+*/
+
+#define CHAR(w) (*(Bit8u *)(w))
+#define ATTR(w) (*(((Bit8u *)(w))+1))
+
 /* Kludge for incorrect ASCII 0 char in vga font. */
 #define XCHAR(w) (((u_char)CHAR(w)||use_bitmap_font)?(u_char)CHAR(w):(u_char)' ')
 

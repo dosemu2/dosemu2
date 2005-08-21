@@ -54,12 +54,6 @@ void init_dualmon(void);
 
 /********************************************/
 
-/* macros for accessing video memory. w is an ushort* 
-   to a character cell, attr is a byte.
-*/
-
-#define CHAR(w) ((char)READ_BYTE(w))
-#define ATTR(w) ((byte)READ_BYTE(((Bit8u *)(w))+1))
 #define ATTR_FG(attr) (attr & 0x0F)
 #define ATTR_BG(attr) (attr >> 4)
 
