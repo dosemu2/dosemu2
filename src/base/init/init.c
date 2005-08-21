@@ -309,8 +309,8 @@ static inline void bios_mem_setup(void)
     g_printf("%s%s", (configuration & (1 << b)) ? "1" : "0", (b%4) ? "" : " ");
   g_printf("\n");
 
-  bios_configuration = configuration;
-  bios_memory_size   = config.mem_size;	/* size of memory */
+  WRITE_WORD(BIOS_CONFIGURATION, configuration);
+  WRITE_WORD(BIOS_MEMORY_SIZE, config.mem_size);	/* size of memory */
 
 }
 

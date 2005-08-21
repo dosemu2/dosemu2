@@ -1942,8 +1942,8 @@ void mouse_post_boot(void)
   ptr = (us*)((BIOSSEG << 4) +
               ((long)bios_f000_int10_old - (long)bios_f000));
   m_printf("ptr is at %p; ptr[0] = %x, ptr[1] = %x\n",ptr,ptr[0],ptr[1]);
-  ptr[0] = IOFF(0x10);
-  ptr[1] = ISEG(0x10);
+  WRITE_WORD(ptr, IOFF(0x10));
+  WRITE_WORD(ptr + 1, ISEG(0x10));
   m_printf("after store, ptr[0] = %x, ptr[1] = %x\n",ptr[0],ptr[1]);
   /* Otherwise this isn't safe */
   SETIVEC(0x10, INT10_WATCHER_SEG, INT10_WATCHER_OFF);
