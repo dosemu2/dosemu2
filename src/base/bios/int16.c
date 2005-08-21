@@ -15,9 +15,6 @@
 #include "int.h"
 #include "memory.h"
 #include "keyb_server.h"
-#ifdef X86_EMULATOR
-#include "cpu-emu.h"
-#endif
 
 #define set_typematic_rate()
 #define adjust_keyclick()
@@ -201,9 +198,6 @@ static void store_key_in_buffer(void)
 
 int int16(void)
 {
-#ifdef X86_EMULATOR
-  int tmp = E_MUNPROT_STACK(0);	/* no faults in BIOS area! */
-#endif
   switch(HI(ax))
   {
   case 0:
@@ -234,8 +228,5 @@ int int16(void)
   default:
     break;
   }
-#ifdef X86_EMULATOR
-   if (tmp) E_MPROT_STACK(0);
-#endif
   return 1;
 }

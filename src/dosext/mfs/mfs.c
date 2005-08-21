@@ -183,6 +183,7 @@ TODO:
 #include <dirent.h>
 #include <string.h>
 #include <wctype.h>
+#include "int.h"
 #include "mfs.h"
 #include "lfn.h"
 #include "dos2linux.h"
@@ -2974,7 +2975,7 @@ dos_fs_redirect(state_t *state)
 
   my_cds = sda_cds(sda);
 
-  sft = (u_char *) Addr(state, es, edi);
+  sft = lowmem_alias + Addr(state, es, edi);
 
   Debug0((dbg_fd, "Entering dos_fs_redirect, FN=%02X\n",(int)LOW(state->eax)));
 
@@ -3575,36 +3576,8 @@ dos_fs_redirect(state_t *state)
 
     /* If FCB open requested, we need to call int2f 0x120c */
     if (FCBcall) {
-      unsigned char *ssp;
-      unsigned long sp;
-#ifdef X86_EMULATOR
-      int tmp;
-      unsigned char *tmp_ssp;
-#endif
-  
-      ssp = (unsigned char *)(REG(ss)<<4);
-      sp = (unsigned long) LWORD(esp);
-
       Debug0((dbg_fd, "FCB Open calling int2f 0x120c\n"));
-#ifdef X86_EMULATOR
-      tmp_ssp = ssp+sp;
-      tmp = E_MUNPROT_STACK(tmp_ssp);
-#endif
-      pushw(ssp, sp, vflags);
-      pushw(ssp, sp, LWORD(cs));
-      pushw(ssp, sp, LWORD(eip));
-#ifdef X86_EMULATOR
-      if (tmp) E_MPROT_STACK(tmp_ssp);
-#endif
-      LWORD(esp) -= 6;
-      REG(cs) = (us) INTE7_SEG;
-      REG(eip) = (us) INTE7_OFF;
-
-      /* clear TF (trap flag, singlestep), IF (interrupt flag), and
-       * NT (nested task) bits of EFLAGS
-      REG(eflags) &= ~(VIF | TF | IF | NT);
-       */
-
+      fake_int_to(INTE7_SEG, INTE7_OFF);
     }
 
     return (TRUE);
@@ -3719,36 +3692,8 @@ dos_fs_redirect(state_t *state)
 
     /* If FCB open requested, we need to call int2f 0x120c */
     if (FCBcall) {
-      unsigned char *ssp;
-      unsigned long sp;
-#ifdef X86_EMULATOR
-      int tmp;
-      unsigned char *tmp_ssp;
-#endif
-  
-      ssp = (unsigned char *)(REG(ss)<<4);
-      sp = (unsigned long) LWORD(esp);
-
       Debug0((dbg_fd, "FCB Open calling int2f 0x120c\n"));
-#ifdef X86_EMULATOR
-      tmp_ssp = ssp+sp;
-      tmp = E_MUNPROT_STACK(tmp_ssp);
-#endif
-      pushw(ssp, sp, vflags);
-      pushw(ssp, sp, LWORD(cs));
-      pushw(ssp, sp, LWORD(eip));
-#ifdef X86_EMULATOR
-      if (tmp) E_MPROT_STACK(tmp_ssp);
-#endif
-      LWORD(esp) -= 6;
-      REG(cs) = (us) INTE7_SEG;
-      REG(eip) = (us) INTE7_OFF;
-
-      /* clear TF (trap flag, singlestep), IF (interrupt flag), and
-       * NT (nested task) bits of EFLAGS
-      REG(eflags) &= ~(VIF | TF | IF | NT);
-       */
-
+      fake_int_to(INTE7_SEG, INTE7_OFF);
     }
     return (TRUE);
 

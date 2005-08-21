@@ -143,9 +143,6 @@
 #include "serial.h"
 #include "int.h"
 #include "ipx.h"
-#ifdef X86_EMULATOR
-#include "cpu-emu.h"
-#endif
 
 #undef us
 #define us unsigned
@@ -686,13 +683,7 @@ void run_irqs(void)
  */
 static void do_irq(int ilevel)
 {
- int intr;
- unsigned char * ssp;
- unsigned long sp;
-#ifdef X86_EMULATOR
- unsigned char *tmp_ssp;
- int tmp;
-#endif
+    int intr;
 
     set_bit(ilevel, &pic_isr);     /* set in-service bit */
     set_bit(ilevel, &pic1_isr);    /* pic1 too */
@@ -710,27 +701,12 @@ static void do_irq(int ilevel)
      }
 
      if (!in_dpmi || in_dpmi_dos_int) {
-      ssp = (unsigned char *)(LWORD(ss)<<4);
-      sp = (unsigned long) LWORD(esp);
-
  /* save the real return address on the stack. Make iret return to
   * PIC_SEG:PIC_OFF so we can catch it.
-  * change esp first to protect the stack we're about to use
   */
-      LWORD(esp) = (LWORD(esp) - 4) & 0xffff;  
-#ifdef X86_EMULATOR
-      tmp_ssp = ssp+sp;
-      tmp = E_MUNPROT_STACK(tmp_ssp);
-#endif
-      pushw(ssp, sp, REG(cs));
-      pushw(ssp, sp, LWORD(eip));
-#ifdef X86_EMULATOR
-      if (tmp) E_MPROT_STACK(tmp_ssp);
-#endif
+      fake_call_to(PIC_SEG, PIC_OFF);
       if(debug_level('r')>7) r_printf("PIC: setting iret trap at %04x:%04lx\n",
         REG(cs), REG(eip));
-      REG(cs) = PIC_SEG;
-      LWORD(eip) = PIC_OFF;
      }
 
      if (pic_iinfo[ilevel].callback)
@@ -878,9 +854,6 @@ void pic_untrigger(int inum)
 void
 pic_iret(void)
 {
-unsigned char * ssp;
-unsigned long sp;
-
   if(in_dpmi && !in_dpmi_dos_int) {
 /* Even if cs:ip now points to PIC_SEG:PIC_OFF hlt, it means nothing while
  * in protected mode, so we can't modify it here.
@@ -894,9 +867,7 @@ unsigned long sp;
      /* we will have an extra pic_iret() after this, but no problems
       * since pic_icount==0
       */
-      fake_call(REG(cs), LWORD(eip));
-      LWORD(eip) = cb_ip;
-      REG(cs) = cb_cs;
+      fake_call_to(cb_cs, cb_ip);
       cb_cs = cb_ip = 0;
     }
   }
@@ -918,6 +889,8 @@ unsigned long sp;
 	cb_cs = cb_ip = 0;
       }
       else {
+	unsigned char * ssp;
+	unsigned long sp;
 	ssp = (unsigned char *)(LWORD(ss)<<4);
 	sp = (unsigned long) LWORD(esp);
 	LWORD(eip) = popw(ssp, sp);

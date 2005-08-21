@@ -1721,8 +1721,7 @@ err:
     D_printf("DPMI: Getting RM vec %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_LWORD(edx));
     break;
   case 0x0201:	/* Set Real Mode Interrupt Vector */
-    ((us *) 0)[(_LO(bx) << 1) + 1] = _LWORD(ecx);
-    ((us *) 0)[_LO(bx) << 1] = (us) _LWORD(edx);
+    SETIVEC(_LO(bx), _LWORD(ecx), _LWORD(edx));
     D_printf("DPMI: Setting RM vec %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_LWORD(edx));
     break;
   case 0x0202:	/* Get Processor Exception Handler Vector */
@@ -1759,10 +1758,6 @@ err:
       unsigned char *rm_ssp;
       unsigned long rm_sp;
       int i;
-#ifdef X86_EMULATOR
-      int tmp;
-      unsigned char *tmp_ssp;
-#endif
 
       D_printf("DPMI: RealModeCallStructure at %p\n", rmreg);
       ssp = (us *) SEL_ADR(_ss, _esp);
@@ -1784,15 +1779,8 @@ err:
       }
       rm_ssp = (unsigned char *) (REG(ss) << 4);
       rm_sp = (unsigned long) LWORD(esp);
-#ifdef X86_EMULATOR
-      tmp_ssp = rm_ssp+rm_sp;
-      tmp = E_MUNPROT_STACK(tmp_ssp);
-#endif
       for (i=0;i<(_LWORD(ecx)); i++)
 	pushw(rm_ssp, rm_sp, *(ssp+(_LWORD(ecx)) - 1 - i));
-#ifdef X86_EMULATOR
-      if (tmp) E_MPROT_STACK(tmp_ssp);
-#endif
       LWORD(esp) -= 2 * (_LWORD(ecx));
       in_dpmi_dos_int=1;
       REG(cs) = DPMI_SEG;
@@ -2301,9 +2289,6 @@ int lookup_realmode_callback(char *lina, int *num)
 
 void dpmi_realmode_callback(int rmcb_client, int num)
 {
-#ifdef X86_EMULATOR
-    int tmp;
-#endif
     unsigned short *ssp;
     struct RealModeCallStructure *rmreg;
 
@@ -2314,9 +2299,6 @@ void dpmi_realmode_callback(int rmcb_client, int num)
     D_printf("DPMI: Real Mode Callback for #%i address of client %i (from %i)\n",
       num, rmcb_client, current_client);
 
-#ifdef X86_EMULATOR
-    tmp = E_MUNPROT_STACK(rmreg);
-#endif
     rmreg->edi = REG(edi);
     rmreg->esi = REG(esi);
     rmreg->ebp = REG(ebp);
@@ -2333,9 +2315,6 @@ void dpmi_realmode_callback(int rmcb_client, int num)
     rmreg->ip = LWORD(eip);
     rmreg->ss = REG(ss);
     rmreg->sp = LWORD(esp);
-#ifdef X86_EMULATOR
-    if (tmp) E_MPROT_STACK(rmreg);
-#endif
     save_pm_regs(&DPMI_CLIENT.stack_frame);
     ssp = enter_lpms(&DPMI_CLIENT.stack_frame);
 
@@ -2907,10 +2886,10 @@ void dpmi_init(void)
     D_printf("STACK: ");
     sp = (sp & 0xffff0000) | (((sp & 0xffff) - 10 ) & 0xffff);
     for (i = 0; i < 10; i++)
-      D_printf("%02lx ", popb(ssp, sp));
+      D_printf("%02x ", popb(ssp, sp));
     D_printf("-> ");
     for (i = 0; i < 10; i++)
-      D_printf("%02lx ", popb(ssp, sp));
+      D_printf("%02x ", popb(ssp, sp));
     D_printf("\n");
     flush_log();
   }
@@ -2936,7 +2915,7 @@ void dpmi_init(void)
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
 
   /* convert environment pointer to a descriptor*/
-  envp = *(unsigned short *)(((char *)(psp<<4))+0x2c);
+  envp = READ_WORD((psp<<4)+0x2c);
   if (envp) {
 	if(!(envpd = AllocateDescriptors(1))) goto err;
 #if 0
@@ -2946,7 +2925,7 @@ void dpmi_init(void)
 	if (SetSelector(envpd, (unsigned long) (envp << 4), 0x0ffff,
 #endif
 		DPMI_CLIENT.is_32, MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
-	*(unsigned short *)(((char *)(psp<<4))+0x2c) = envpd;
+	WRITE_WORD((psp<<4)+0x2c, envpd);
 	D_printf("DPMI: env segment %#x converted to descriptor %#x\n",
 		envp,envpd);
   }
@@ -4134,15 +4113,9 @@ void dpmi_realmode_hlt(unsigned char * lina)
     struct RealModeCallStructure *rmreg = (struct RealModeCallStructure *)
       (GetSegmentBaseAddress(DPMI_CLIENT.stack_frame.es) +
       APIx_16_32(&DPMI_CLIENT.stack_frame, edi));
-#ifdef X86_EMULATOR
-    int tmp;
-#endif
     D_printf("DPMI: Return from Real Mode Procedure\n");
 #ifdef SHOWREGS
     show_regs(__FILE__, __LINE__);
-#endif
-#ifdef X86_EMULATOR
-    tmp = E_MUNPROT_STACK(rmreg);
 #endif
     rmreg->edi = REG(edi);
     rmreg->esi = REG(esi);
@@ -4156,9 +4129,6 @@ void dpmi_realmode_hlt(unsigned char * lina)
     rmreg->ds = REG(ds);
     rmreg->fs = REG(fs);
     rmreg->gs = REG(gs);
-#ifdef X86_EMULATOR
-    if (tmp) E_MPROT_STACK(rmreg);
-#endif
 
     restore_rm_regs();
     in_dpmi_dos_int = 0;

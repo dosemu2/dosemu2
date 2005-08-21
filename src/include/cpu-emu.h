@@ -81,9 +81,6 @@ void avltr_destroy(void);
 int s_munprotect(caddr_t addr);
 int s_mprotect(caddr_t addr);
 
-#define E_MUNPROT_STACK(s)	(config.cpuemu>1? s_munprotect((caddr_t)(s)):0)
-#define E_MPROT_STACK(s)	(config.cpuemu>1? s_mprotect((caddr_t)(s)):0)
-
 /* called from dpmi.c */
 void emu_mhp_SetTypebyte (unsigned short selector, int typebyte);
 unsigned short emu_do_LAR (unsigned short selector);
