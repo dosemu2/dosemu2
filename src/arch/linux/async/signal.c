@@ -194,7 +194,7 @@ void setsig(int sig, void *fun)
 
 void newsetsig(int sig, void *fun)
 {
-	dosemu_sigaction_wrapper(sig, fun, SA_RESTART|SA_NODEFER|SA_ONSTACK);
+	dosemu_sigaction_wrapper(sig, fun, SA_RESTART|SA_ONSTACK);
 }
 
 /* this cleaning up is necessary to avoid the port server becoming

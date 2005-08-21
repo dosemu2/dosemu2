@@ -333,6 +333,8 @@ bad:
 #ifdef __linux__
 void dosemu_fault(int signal, struct sigcontext_struct context)
 {
+  sigset_t set;
+
   fault_cnt++;
   if (fault_cnt > 2) {
    /*
@@ -344,6 +346,15 @@ void dosemu_fault(int signal, struct sigcontext_struct context)
   }
 
   restore_eflags_fs_gs();
+
+  /* this emulates SA_NODEFER, so that we can double fault.
+     Hopefully SA_NODEFER will work as documented in Linux kernel
+     2.6.14. Then we can leave this out which would be an
+     optimization.
+  */
+  sigemptyset(&set);
+  sigaddset(&set, signal);
+  sigprocmask(SIG_UNBLOCK, &set, NULL);
 
   if (debug_level('g')>7)
     g_printf("Entering fault handler, signal=%i _trapno=0x%lX\n",

@@ -2413,7 +2413,13 @@ void instr_emu(struct sigcontext_struct *scp, int pmode, int cnt)
 #endif
   int i = 0;
   x86_regs x86;
-      
+  sigset_t set;
+
+  /* unblock SIGIO, SIGALRM, SIG_ACQUIRE, SIG_RELEASE */
+  sigemptyset(&set);
+  addset_signals_that_queue(&set);
+  sigprocmask(SIG_UNBLOCK, &set, NULL);
+
   scp_to_x86_regs(&x86, scp, pmode);
 
 #if DEBUG_INSTR >= 1
