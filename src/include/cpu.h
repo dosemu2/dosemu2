@@ -14,6 +14,7 @@
 
 #include "pic.h"
 #include "types.h"
+#include "bios.h"
 
 #ifdef BIOSSEG
 #undef BIOSSEG
@@ -147,40 +148,33 @@ typedef struct {
 	"m"(*_emu_stack_frame.fpstate))
 
 /*
- * nearly directly stolen from Linus : linux/kernel/vm86.c
- *
  * Boy are these ugly, but we need to do the correct 16-bit arithmetic.
- * Gcc makes a mess of it, so we do it inline and use non-obvious calling
- * conventions..
+ * Using non-obvious calling conventions..
  */
 #define pushw(base, ptr, val) \
-__asm__ __volatile__( \
-	"decw %w0\n\t" \
-	"movb %h2,(%1,%0)\n\t" \
-	"decw %w0\n\t" \
-	"movb %b2,(%1,%0)" \
-	: "=r" (ptr) \
-	: "r" (base), "q" (val), "0" (ptr))
-
-#define popw(base, ptr) \
-({ unsigned long __res; \
-__asm__ __volatile__( \
-	"movb (%1,%0),%b2\n\t" \
-	"incw %w0\n\t" \
-	"movb (%1,%0),%h2\n\t" \
-	"incw %w0" \
-	: "=r" (ptr), "=r" (base), "=q" (__res) \
-	: "0" (ptr), "1" (base), "2" (0)); \
-__res; })
+	do { \
+		ptr = (Bit16u)(ptr - 1); \
+		WRITE_BYTE((size_t)(base) + ptr, (val) >> 8); \
+		ptr = (Bit16u)(ptr - 1); \
+		WRITE_BYTE((size_t)(base) + ptr, val); \
+	} while(0)
 
 #define popb(base, ptr) \
-({ unsigned long __res; \
-__asm__ __volatile__( \
-	"movb (%1,%0),%b2\n\t" \
-	"incw %w0\n\t" \
-	: "=r" (ptr), "=r" (base), "=q" (__res) \
-	: "0" (ptr), "1" (base), "2" (0)); \
-__res; })
+	({ \
+		Bit8u __res = READ_BYTE((size_t)(base) + ptr); \
+		ptr = (Bit16u)(ptr + 1); \
+		__res; \
+	})
+
+#define popw(base, ptr) \
+	({ \
+		Bit8u __res0, __res1; \
+		__res0 = READ_BYTE((size_t)(base) + ptr); \
+		ptr = (Bit16u)(ptr + 1); \
+		__res1 = READ_BYTE((size_t)(base) + ptr); \
+		ptr = (Bit16u)(ptr + 1); \
+		(__res1 << 8) | __res0; \
+	})
 
 #ifdef __linux__
 static __inline__ void set_revectored(int nr, struct revectored_struct * bitmap)
@@ -287,13 +281,13 @@ EXTERN struct vec_t *ivecs;
 #define IOFF(i) ivecs[i].offset
 #define ISEG(i) ivecs[i].segment
 #else
-#define IOFF(i) ((us *)0)[  (i)<<1    ]
-#define ISEG(i) ((us *)0)[ ((i)<<1) +1]
+#define IOFF(i) READ_WORD(i * 4)
+#define ISEG(i) READ_WORD(i * 4 + 2)
 #endif
 
 #define IVEC(i) ((ISEG(i)<<4) + IOFF(i))
-#define SETIVEC(i, seg, ofs)	{ ((us *)0)[ ((i)<<1) +1] = (us)seg; \
-				  ((us *)0)[  (i)<<1    ] = (us)ofs; }
+#define SETIVEC(i, seg, ofs)	{ WRITE_WORD(i * 4 + 2, seg); \
+				  WRITE_WORD(i * 4, ofs); }
 
 #define OP_IRET			0xcf
 
