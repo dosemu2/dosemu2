@@ -15,7 +15,6 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <dlfcn.h>
 
 #include "emu.h"
 #include "bios.h"
@@ -109,11 +108,24 @@ dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
   return(syscall(SYS_sigaction, sig, &my_sa, NULL));
 }
 
+/* glibc non-pthread sigaction installs this restore
+   function, which GDB recognizes as a signal trampoline.
+   So it's a good idea for us to do the same
+*/
+#define XSTR(syscall) STR(syscall)
+#define STR(syscall) #syscall
+asm (
+   ".byte 0\n"
+   ".align 8\n"
+   "__restore:\n"
+   "  popl %eax\n"
+   "  movl $"XSTR(SYS_sigreturn)", %eax\n"
+   "  int  $0x80");
+void restore (void) asm ("__restore");
+
 static void
 dosemu_sigaction_wrapper(int sig, void *fun, int flags)
 {
-  static int (*libc_sigaction)(int signum, const struct sigaction *act,
-			       struct sigaction *oldact);
   struct sigaction sa;
   sigset_t mask;
 
@@ -130,10 +142,7 @@ dosemu_sigaction_wrapper(int sig, void *fun, int flags)
        just in case, and make it aligned  */
     sa.sa_restorer =
       (void (*)(void)) (((unsigned int)(cstack) + sizeof(*cstack) - 4) & ~3);
-    dosemu_sigaction(sig, &sa, NULL);
-    return;
-  }
-
+  } else {
   /* Linuxthread's signal wrappers are incompatible with dosemu:
      1. some old versions don't copy back the sigcontext_struct
         on sigreturn
@@ -142,11 +151,11 @@ dosemu_sigaction_wrapper(int sig, void *fun, int flags)
      and it doesn't seem that the actions done by the wrapper
         would affect dosemu: if only seems to affect sigwait()
 	and sem_post(), and we (most probably) don't use these */
-  /* So get the sigaction from plain glibc, not the pthread one; this
-     is the same as what wine does: */
-  if (!libc_sigaction)
-    libc_sigaction = dlsym(RTLD_NEXT, "sigaction");
-  libc_sigaction(sig, &sa, NULL);
+  /* So use the kernel sigaction */
+    sa.sa_flags |= SA_RESTORER;
+    sa.sa_restorer = restore;
+  }
+  dosemu_sigaction(sig, &sa, NULL);
 }
 
 /* DANG_BEGIN_FUNCTION NEWSETQSIG
