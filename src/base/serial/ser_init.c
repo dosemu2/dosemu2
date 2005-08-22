@@ -516,27 +516,16 @@ void serial_reset(void)
 {
   int num;
   /* Clean the BIOS data area at 0040:0000 for serial ports */
-#if 1
-  *(u_short *) 0x400 = 0;
-  *(u_short *) 0x402 = 0;
-  *(u_short *) 0x404 = 0;
-  *(u_short *) 0x406 = 0;
-#else
   WRITE_WORD(0x400, 0);
   WRITE_WORD(0x402, 0);
   WRITE_WORD(0x404, 0);
   WRITE_WORD(0x406, 0);
-#endif
   /* Write serial port information into BIOS data area 0040:0000
    * This is for DOS and many programs to recognize ports automatically
    */
   for (num = 0; num < config.num_ser; num++) {
     if ((com[num].real_comport >= 1) && (com[num].real_comport <= 4)) {
-#if 1
-      *((u_short *) (0x400) + (com[num].real_comport-1)) = com[num].base_port;
-#else
       WRITE_WORD(0x400 + (com[num].real_comport-1)*2, com[num].base_port);
-#endif
 
       /* Debugging to determine whether memory location was written properly */
       s_printf("SER%d: BIOS memory location 0x%x has value of 0x%x\n", num,

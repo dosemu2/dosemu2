@@ -154,10 +154,10 @@ static void process_master_boot_record(void)
      struct partition partition[4];
      unsigned short bootmagic;
    } __attribute__((packed));
-   struct mbr *mbr = (struct mbr *)0x600;
-   struct mbr *bootrec = (struct mbr *)0x7c00;
+   struct mbr *mbr = (struct mbr *)(lowmem_alias + 0x600);
+   struct mbr *bootrec = (struct mbr *)(lowmem_alias + 0x7c00);
    int i;
-      
+
    memcpy(mbr, bootrec, 0x200);	/* move the mbr down */
 
    for (i=0; i<4; i++) {
@@ -519,7 +519,7 @@ int dos_helper(void)
 	unsigned int size = REG(ecx);
 	unsigned char *dos_ptr = SEG_ADR((unsigned char *), ds, dx);
 	if (offs + size <= dos_io_buffer_size)
-	    MEMCPY_DOS2DOS(dos_io_buffer + offs, dos_ptr, size);
+	    MEMCPY_2UNIX(dos_io_buffer + offs, dos_ptr, size);
 	break;
     }
 
@@ -528,7 +528,7 @@ int dos_helper(void)
 	unsigned int size = REG(ecx);
 	unsigned char *dos_ptr = SEG_ADR((unsigned char *), ds, dx);
 	if (offs + size <= dos_io_buffer_size)
-	    MEMCPY_DOS2DOS(dos_ptr, dos_io_buffer + offs, size);
+	    MEMCPY_2DOS(dos_ptr, dos_io_buffer + offs, size);
 	break;
     }
 
@@ -1728,7 +1728,7 @@ static int redir_it(void)
       ds_printf("INT21: sda = 0x%x\n", x2 + (x3 << 4));
       ds_printf("INT21: ver = 0x%02x\n", x4);
 
-      if(*(unsigned *) (u + 0x16)) {		/* Do we have a CDS entry? */
+      if(READ_DWORD(u + 0x16)) {		/* Do we have a CDS entry? */
         /* Init the redirector. */
         LWORD(ecx) = x4;
         LWORD(edx) = x0; REG(es) = x1;
@@ -2336,7 +2336,7 @@ static void update_xtitle(void)
     return;
   force_update = !title_hint[0];
 
-  strncpy(cmdname, mcb->name, 8);
+  MEMCPY_2UNIX(cmdname, mcb->name, 8);
   cmdname[8] = 0;
   cmd_ptr = tmp_ptr = cmdname + strspn(cmdname, " \t");
   while (*tmp_ptr) {	/* Check whether the name is valid */
