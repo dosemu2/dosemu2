@@ -1978,19 +1978,19 @@ static void int33_check_hog(void)
  * after which they then wait for mouse events presumably in a tight loop, I think
  * that we won't be able to stop these programs from burning CPU cycles.
  */
-   if (LWORD(eax) ==0x0003)  {
-     if (LWORD(ebx) == 0 && oldx == LWORD(ecx) && oldy == LWORD(edx) ) 
-        trigger_idle();
-      else  { 
-        reset_idle(0);
-        oldx = LWORD(ecx);
-        oldy = LWORD(edx);
-      } 
-   }
-m_printf("Called/ing the mouse with AX=%x \n",LWORD(eax));
-/* Ok now we test to see if the mouse has been taking a break and we can let the 
- * system get on with some real work. :-) */
-  idle(200, 20, 0, INT15_IDLE_USECS, "mouse");
+  if (LWORD(eax) == 0x0003) {
+    if (LWORD(ebx) == 0 && oldx == LWORD(ecx) && oldy == LWORD(edx))
+      trigger_idle();
+    else {
+      reset_idle(0);
+      oldx = LWORD(ecx);
+      oldy = LWORD(edx);
+    }
+  }
+  m_printf("Called/ing the mouse with AX=%x \n",LWORD(eax));
+  /* Ok now we test to see if the mouse has been taking a break and we can let the 
+   * system get on with some real work. :-) */
+  idle(200, 20, 20, INT15_IDLE_USECS, "mouse");
 }
 
 /* this function is called from the HLT at Mouse_SEG:Mouse_HLT_OFF */
