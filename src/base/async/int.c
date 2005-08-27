@@ -154,8 +154,8 @@ static void process_master_boot_record(void)
      struct partition partition[4];
      unsigned short bootmagic;
    } __attribute__((packed));
-   struct mbr *mbr = (struct mbr *)(lowmem_alias + 0x600);
-   struct mbr *bootrec = (struct mbr *)(lowmem_alias + 0x7c00);
+   struct mbr *mbr = LOWMEM(0x600);
+   struct mbr *bootrec = LOWMEM(0x7c00);
    int i;
 
    memcpy(mbr, bootrec, 0x200);	/* move the mbr down */

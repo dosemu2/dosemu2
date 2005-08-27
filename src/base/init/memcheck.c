@@ -174,3 +174,16 @@ void memcheck_dump(void)
   c_printf(".:  (unused)\n");
   c_printf("CONF:  End dump\n");
 }
+
+void *dosaddr_to_unixaddr(Bit32u addr)
+{
+  unsigned char map_char;
+  Bit32u map_addr;
+  if (addr >= MEM_SIZE)
+    return (void *)addr;
+  map_char = mem_map[addr/GRAN_SIZE];
+  /* Not EMS, Hardware, or Video */
+  if (map_char == 'E' || map_char == 'h' || map_char == 'v')
+    return addr;
+  return LOWMEM(addr);
+}

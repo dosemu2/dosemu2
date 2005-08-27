@@ -27,45 +27,6 @@ extern char LFN_string[];
 
 #define INT2F_IDLE_MAGIC	0x1680
 
-/* lowmem_alias points to a mirror image of the area 0--1MB+64K, with all mmaps
-   (incl HMA, video RAM etc) the same as below)
-   The difference is that the mirror image is not read or write protected so
-   DOSEMU writes will not be trapped. This allows easy interference with
-   simx86, NULL page protection, and removal of the VGA protected memory
-   access hack.
-
-   It is set "const" for to help GCC optimize accesses. In reality it is set only
-   once, at startup
-*/
-extern char * const lowmem_alias;
-
-#define READ_BYTE(addr)                 (*(Bit8u *) ((size_t)(addr)+lowmem_alias))
-#define WRITE_BYTE(addr, val)           (*(Bit8u *) ((size_t)(addr)+lowmem_alias) = (val) )
-#define READ_WORD(addr)                 (*(Bit16u *) ((size_t)(addr)+lowmem_alias))
-#define WRITE_WORD(addr, val)           (*(Bit16u *) ((size_t)(addr)+lowmem_alias) = (val) )
-#define READ_DWORD(addr)                (*(Bit32u *) ((size_t)(addr)+lowmem_alias))
-#define WRITE_DWORD(addr, val)          (*(Bit32u *) ((size_t)(addr)+lowmem_alias) = (val) )
-
-#define MEMCPY_2UNIX(unix_addr, dos_addr, n) \
-	memcpy((unix_addr), lowmem_alias + (size_t)(dos_addr), (n))
-
-#define MEMCPY_2DOS(dos_addr, unix_addr, n) \
-	memcpy(lowmem_alias + (size_t)(dos_addr), (unix_addr), (n))
-
-#define MEMCPY_DOS2DOS(dos_addr, unix_addr, n) \
-	memcpy(lowmem_alias + (size_t)(dos_addr), \
-	       lowmem_alias + (size_t)(unix_addr), (n))
-
-#define MEMMOVE_DOS2DOS(dos_addr1, dos_addr2, n) \
-        memmove(lowmem_alias + (size_t)(dos_addr1), \
-		lowmem_alias + (size_t)(dos_addr2), (n))
-
-#define MEMCMP_DOS_VS_UNIX(dos_addr, unix_addr, n) \
-	memcmp(lowmem_alias + (size_t)(dos_addr), (Bit8u *)(unix_addr), (n))
-
-#define MEMSET_DOS(dos_addr, val, n) \
-        memset(lowmem_alias + (size_t)(dos_addr), (val), (n))
-
 /*
  * symbols to access BIOS-data with meaningful names, not just addresses,
  * which are only numbers. The names are retranslatios from an old german
@@ -104,15 +65,15 @@ extern char * const lowmem_alias;
 #define BIOS_VIDEO_MEMORY_ADDRESS       0x44e
 
 #define set_bios_cursor_x_position(screen, val) \
-                        WRITE_BYTE(0x450 + 2*(screen), (val))
+                        LOWMEM_WRITE_BYTE(0x450 + 2*(screen), (val))
 #define get_bios_cursor_x_position(screen) \
-                        READ_BYTE(0x450 + 2*(screen))
+                        LOWMEM_READ_BYTE(0x450 + 2*(screen))
 
 
 #define set_bios_cursor_y_position(screen, val) \
-                        WRITE_BYTE(0x451 + 2*(screen), (val))
+                        LOWMEM_WRITE_BYTE(0x451 + 2*(screen), (val))
 #define get_bios_cursor_y_position(screen) \
-                        READ_BYTE(0x451 + 2*(screen))
+                        LOWMEM_READ_BYTE(0x451 + 2*(screen))
 
 
 #define BIOS_CURSOR_SHAPE               0x460

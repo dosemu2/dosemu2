@@ -2975,7 +2975,7 @@ dos_fs_redirect(state_t *state)
 
   my_cds = sda_cds(sda);
 
-  sft = lowmem_alias + Addr(state, es, edi);
+  sft = LOWMEM(Addr(state, es, edi));
 
   Debug0((dbg_fd, "Entering dos_fs_redirect, FN=%02X\n",(int)LOW(state->eax)));
 

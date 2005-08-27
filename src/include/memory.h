@@ -225,6 +225,9 @@
 #define EXTMEM_SIZE (config.ext_mem << 10)
 
 #ifndef __ASSEMBLER__
+
+#include "types.h"
+
 /* memcheck memory conflict finder definitions */
 int  memcheck_addtype(unsigned char map_char, char *name);
 void memcheck_reserve(unsigned char map_char, int addr_start, int size);
@@ -233,6 +236,69 @@ int  memcheck_isfree(int addr_start, int size);
 int  memcheck_findhole(int *start_addr, int min_size, int max_size);
 void memcheck_dump(void);
 void memcheck_type_init(void);
+void *dosaddr_to_unixaddr(Bit32u addr);
+
+/* lowmem_base points to a shared memory image of the area 0--1MB+64K.
+   It does not have any holes or mapping for video RAM etc.
+   The difference is that the mirror image is not read or write protected so
+   DOSEMU writes will not be trapped. This allows easy interference with
+   simx86, NULL page protection, and removal of the VGA protected memory
+   access hack.
+
+   It is set "const" to help GCC optimize accesses. In reality it is set only
+   once, at startup
+*/
+extern char * const lowmem_base;
+
+#define UNIX_READ_BYTE(addr)		(*(Bit8u *) (addr))
+#define UNIX_WRITE_BYTE(addr, val)	(*(Bit8u *) (addr) = (val) )
+#define UNIX_READ_WORD(addr)		(*(Bit16u *) (addr))
+#define UNIX_WRITE_WORD(addr, val)	(*(Bit16u *) (addr) = (val) )
+#define UNIX_READ_DWORD(addr)		(*(Bit32u *) (addr))
+#define UNIX_WRITE_DWORD(addr, val)	(*(Bit32u *) (addr) = (val) )
+
+#define LOWMEM(addr) ((void *)((Bit32u)(addr) + lowmem_base))
+
+#define LOWMEM_READ_BYTE(addr)		UNIX_READ_BYTE(LOWMEM(addr))
+#define LOWMEM_WRITE_BYTE(addr, val)	UNIX_WRITE_BYTE(LOWMEM(addr), val)
+#define LOWMEM_READ_WORD(addr)		UNIX_READ_WORD(LOWMEM(addr))
+#define LOWMEM_WRITE_WORD(addr, val)	UNIX_WRITE_WORD(LOWMEM(addr), val)
+#define LOWMEM_READ_DWORD(addr)		UNIX_READ_DWORD(LOWMEM(addr))
+#define LOWMEM_WRITE_DWORD(addr, val)	UNIX_WRITE_DWORD(LOWMEM(addr), val)
+
+#define IS_CONSTANT_LOWMEM_ADDR(addr) \
+	(__builtin_constant_p(addr) && \
+	 (addr <= 0x9fffc || (addr >= 0xf0000 && addr <= 0xffffc)))
+
+#define LINEAR2UNIX(addr) \
+	(IS_CONSTANT_LOWMEM_ADDR((Bit32u)(addr)) ? LOWMEM(addr) : \
+	 dosaddr_to_unixaddr((Bit32u)(addr)))
+
+#define READ_BYTE(addr)		UNIX_READ_BYTE(LINEAR2UNIX(addr))
+#define WRITE_BYTE(addr, val)	UNIX_WRITE_BYTE(LINEAR2UNIX(addr), val)
+#define READ_WORD(addr)		UNIX_READ_WORD(LINEAR2UNIX(addr))
+#define WRITE_WORD(addr, val)	UNIX_WRITE_WORD(LINEAR2UNIX(addr), val)
+#define READ_DWORD(addr)	UNIX_READ_DWORD(LINEAR2UNIX(addr))
+#define WRITE_DWORD(addr, val)	UNIX_WRITE_DWORD(LINEAR2UNIX(addr), val)
+
+#define MEMCPY_2UNIX(unix_addr, dos_addr, n) \
+	memcpy((unix_addr), LINEAR2UNIX(dos_addr), (n))
+
+#define MEMCPY_2DOS(dos_addr, unix_addr, n) \
+	memcpy(LINEAR2UNIX(dos_addr), (unix_addr), (n))
+
+#define MEMCPY_DOS2DOS(dos_addr1, dos_addr2, n) \
+	memcpy(LINEAR2UNIX(dos_addr1), LINEAR2UNIX(dos_addr2), (n))
+
+#define MEMMOVE_DOS2DOS(dos_addr1, dos_addr2, n) \
+        memmove(LINEAR2UNIX(dos_addr1), LINEAR2UNIX(dos_addr2), (n))
+
+#define MEMCMP_DOS_VS_UNIX(dos_addr, unix_addr, n) \
+	memcmp(LINEAR2UNIX(dos_addr), (unix_addr), (n))
+
+#define MEMSET_DOS(dos_addr, val, n) \
+        memset(LINEAR2UNIX(dos_addr), (val), (n))
+
 #endif
 
 #endif /* MEMORY_H */
