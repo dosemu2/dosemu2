@@ -32,15 +32,29 @@
  *
  ***************************************************************************/
 
-#define asmlinkage static
 #include "emu86.h"
 #include "trees.h"
 #include "codegen-arch.h"
 
+#if GCC_VERSION_CODE >= 3003
+#define asmlinkage static __attribute__((used)) __attribute__((cdecl))
+#else
+#define asmlinkage static __attribute__((unused))
+#endif
+
+/* check if the address is aliased to a non protected page, and if it is,
+   do not try to unprotect it */
+static int check_munprotect(caddr_t addr)
+{
+	if (LINEAR2UNIX(addr) != addr)
+		return 0;
+	return e_munprotect(addr,0);
+}
+
 int s_munprotect(caddr_t addr)
 {
 	if (debug_level('e')>3) e_printf("\tS_MUNPROT %08lx\n",(long)addr);
-	return e_munprotect(addr,0);
+	return check_munprotect(addr);
 }
 
 int s_mprotect(caddr_t addr)
@@ -49,7 +63,7 @@ int s_mprotect(caddr_t addr)
 	return e_mprotect(addr,0);
 }
 
-__attribute__((unused)) static int m_mprotect(caddr_t addr)
+asmlinkage int m_mprotect(caddr_t addr)
 {
 	__asm__ ("cld");
 	if (debug_level('e')>3)
@@ -60,7 +74,7 @@ __attribute__((unused)) static int m_mprotect(caddr_t addr)
 /*
  * Return address of the stub function is passed into eip
  */
-__attribute__((unused)) static int m_munprotect(caddr_t addr, long eip)
+static int m_munprotect_check(caddr_t addr, long eip, int check)
 {
 	__asm__ ("cld");
 	if (debug_level('e')>3) e_printf("\tM_MUNPROT %08lx:%08lx [%08lx]\n",
@@ -68,17 +82,22 @@ __attribute__((unused)) static int m_munprotect(caddr_t addr, long eip)
 #ifndef HOST_ARCH_SIM
 	/* verify that data, not code, has been hit */
 	if (!e_querymark(addr))
-	    return e_munprotect(addr,0);
+	    return check ? check_munprotect(addr) : e_munprotect(addr,0);
 	/* Oops.. we hit code, maybe the stub was set up before that
 	 * code was parsed. Ok, undo the patch and clear that code */
 	e_printf("CODE %08lx hit in DATA %08lx patch\n",(long)addr,eip);
 /*	if (UnCpatch((void *)(eip-5))) leavedos(0); */
 	InvalidateSingleNode((long)addr, eip);
 #endif
-	return e_munprotect(addr,0);
+	return check ? check_munprotect(addr) : e_munprotect(addr,0);
 }
 
-__attribute__((unused)) static int r_munprotect(caddr_t addr, long len, long flags)
+asmlinkage int m_munprotect(caddr_t addr, long eip)
+{
+	return m_munprotect_check(addr, eip, 0);
+}
+
+asmlinkage int r_munprotect(caddr_t addr, long len, long flags)
 {
 	__asm__ ("cld");
 	if (flags & EFLAGS_DF) addr -= len;
@@ -91,13 +110,21 @@ __attribute__((unused)) static int r_munprotect(caddr_t addr, long len, long fla
 #endif
 	e_munprotect(addr,len);
 	return 0;
-}  __attribute__((unused))
+}
 
 /* ======================================================================= */
 
 #ifndef HOST_ARCH_SIM
 
 static long _pr_temp, _edi_temp;
+
+asmlinkage void stk_16(caddr_t addr, Bit16u value)
+{
+	int ret = s_munprotect(addr);
+	WRITE_WORD(addr, value);
+	if (ret & 1)
+		s_mprotect(addr);
+}
 
 /*
  * stack on entry:
@@ -109,29 +136,25 @@ asmlinkage void stub_stk_16(void)
 	__asm__ __volatile__ (" \
 		leal	(%%esi,%%ecx,1),%%edi\n \
 		pushal\n \
+		pushl	%%eax\n \
 		pushl	%%edi\n \
-		call	s_munprotect\n \
-		movl	%%eax,%0\n \
-		addl	$4,%%esp\n \
-		popal\n \
-		movw	%%ax,(%%edi)\n \
-		testb	$1,%0\n \
-		je	1f\n \
-		pushl	%%ebx\n \
-		pushl	%%esi\n \
-		pushl	%%ecx\n \
-		pushl	%%edi\n \
-		call	s_mprotect\n \
-		addl	$4,%%esp\n \
-		popl	%%ecx\n \
-		popl	%%esi\n \
-		popl	%%ebx\n"
+		call	stk_16\n \
+		addl	$8,%%esp\n \
+		popal\n"
 #ifdef _DEBUG
-"1:		nop"
+"		nop"
 #else
-"1:		ret"
+"		ret"
 #endif
-		: "=m"(_pr_temp) : );
+		: : );
+}
+
+asmlinkage void stk_32(caddr_t addr, Bit32u value)
+{
+	int ret = s_munprotect(addr);
+	WRITE_DWORD(addr, value);
+	if (ret & 1)
+		s_mprotect(addr);
 }
 
 asmlinkage void stub_stk_32(void)
@@ -139,29 +162,25 @@ asmlinkage void stub_stk_32(void)
 	__asm__ __volatile__ (" \
 		leal	(%%esi,%%ecx,1),%%edi\n \
 		pushal\n \
+		pushl	%%eax\n \
 		pushl	%%edi\n \
-		call	s_munprotect\n \
-		movl	%%eax,%0\n \
-		addl	$4,%%esp\n \
-		popal\n \
-		movl	%%eax,(%%edi)\n \
-		testb	$1,%0\n \
-		je	1f\n \
-		pushl	%%ebx\n \
-		pushl	%%esi\n \
-		pushl	%%ecx\n \
-		pushl	%%edi\n \
-		call	s_mprotect\n \
-		addl	$4,%%esp\n \
-		popl	%%ecx\n \
-		popl	%%esi\n \
-		popl	%%ebx\n"
+		call	stk_32\n \
+		addl	$8,%%esp\n \
+		popal\n"
 #ifdef _DEBUG
-"1:		nop"
+"		nop"
 #else
-"1:		ret"
+"		ret"
 #endif
-		: "=m"(_pr_temp) : );
+		: : );
+}
+
+asmlinkage void wri_8(caddr_t addr, Bit8u value, long eip)
+{
+	int ret = m_munprotect_check(addr, eip, 1);
+	WRITE_BYTE(addr, value);
+	if (ret & 1)
+		m_mprotect(addr);
 }
 
 asmlinkage void stub_wri_8(void)
@@ -175,27 +194,27 @@ asmlinkage void stub_wri_8(void)
 #else
 "		pushl	12(%%esp)\n"	/* return addr = patch point+5 */
 #endif
+"		pushl	%%eax\n"	/* value to write */
 "		pushl	%%edi\n"	/* addr where to write */
-"		call	m_munprotect\n"
-"		movl	%%eax,%0\n"	/* save old page protect status */
-"		addl	$8,%%esp\n"	/* remove parameters */
+"		call	wri_8\n"
+"		addl	$12,%%esp\n"	/* remove parameters */
 "		popl	%%eax\n"	/* restore regs */
 "		popl	%%ebx\n"
 "		popl	%%edi\n"
-"		movb	%%al,(%%edi)\n"	/* perform op al->(edi) */
-"		testb	$1,%0\n"	/* was the page protected? */
-"		je	1f\n"
-"		pushl	%%ebx\n"	/* yes, so reprotect it */
-"		pushl	%%edi\n"
-"		call	m_mprotect\n"
-"		addl	$4,%%esp\n"
-"		popl	%%ebx\n"
 #ifdef _DEBUG
-"1:		nop"
+"		nop"
 #else
-"1:		ret"
+"		ret"
 #endif
-		: "=m"(_pr_temp) : );
+		: : );
+}
+
+asmlinkage void wri_16(caddr_t addr, Bit16u value, long eip)
+{
+	int ret = m_munprotect_check(addr, eip, 1);
+	WRITE_WORD(addr, value);
+	if (ret & 1)
+		m_mprotect(addr);
 }
 
 asmlinkage void stub_wri_16(void)
@@ -209,27 +228,27 @@ asmlinkage void stub_wri_16(void)
 #else
 "		pushl	12(%%esp)\n"
 #endif
-"		pushl	%%edi\n \
-		call	m_munprotect\n \
-		movl	%%eax,%0\n \
-		addl	$8,%%esp\n \
+"		pushl	%%eax\n \
+		pushl	%%edi\n \
+		call	wri_16\n \
+		addl	$12,%%esp\n \
 		popl	%%eax\n \
 		popl	%%ebx\n \
-		popl	%%edi\n \
-		movw	%%ax,(%%edi)\n \
-		testb	$1,%0\n \
-		je	1f\n \
-		pushl	%%ebx\n \
-		pushl	%%edi\n \
-		call	m_mprotect\n \
-		addl	$4,%%esp\n \
-		popl	%%ebx\n"
+		popl	%%edi\n"
 #ifdef _DEBUG
-"1:		nop"
+"		nop"
 #else
-"1:		ret"
+"		ret"
 #endif
-		: "=m"(_pr_temp) : );
+		: : );
+}
+
+asmlinkage void wri_32(caddr_t addr, Bit32u value, long eip)
+{
+	int ret = m_munprotect_check(addr, eip, 1);
+	WRITE_DWORD(addr, value);
+	if (ret & 1)
+		m_mprotect(addr);
 }
 
 asmlinkage void stub_wri_32(void)
@@ -243,27 +262,19 @@ asmlinkage void stub_wri_32(void)
 #else
 "		pushl	12(%%esp)\n"
 #endif
-"		pushl	%%edi\n \
-		call	m_munprotect\n \
-		movl	%%eax,%0\n \
-		addl	$8,%%esp\n \
+"		pushl	%%eax\n \
+		pushl	%%edi\n \
+		call	wri_32\n \
+		addl	$12,%%esp\n \
 		popl	%%eax\n \
 		popl	%%ebx\n \
-		popl	%%edi\n \
-		movl	%%eax,(%%edi)\n \
-		testb	$1,%0\n \
-		je	1f\n \
-		pushl	%%ebx\n \
-		pushl	%%edi\n \
-		call	m_mprotect\n \
-		addl	$4,%%esp\n \
-		popl	%%ebx\n"
+		popl	%%edi\n"
 #ifdef _DEBUG
-"1:		nop"
+"		nop"
 #else
-"1:		ret"
+"		ret"
 #endif
-		: "=m"(_pr_temp) : );
+		: : );
 }
 
 asmlinkage void stub_movsb(void)
