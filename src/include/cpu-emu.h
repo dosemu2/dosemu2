@@ -97,4 +97,7 @@ void e_dpmi_b0x(int op,struct sigcontext_struct *scp);
 extern int emu_dpmi_retcode;
 extern int in_dpmi_emu;
 
+/* called from sigsegv.c */
+int e_emu_fault(struct sigcontext_struct *scp);
+
 #endif	/*DOSEMU_CPUEMU_H*/

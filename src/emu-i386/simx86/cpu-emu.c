@@ -831,8 +831,6 @@ void enter_cpu_emu(void)
 	e_printf("TIME: using %d usec for updating PROF timer\n", realdelta);
 	setitimer(ITIMER_PROF, &itv, NULL);
 	newsetsig(SIGPROF, e_gen_sigprof);
-	newsetsig(SIGFPE, e_emu_fault);
-	newsetsig(SIGSEGV, e_emu_fault);
 
 #ifdef DEBUG_TREE
 	tLog = fopen(DEBUG_TREE_FILE,"w");
@@ -856,8 +854,6 @@ void leave_cpu_emu(void)
 		if (IOFF(0x10)==CPUEMU_WATCHER_OFF)
 			IOFF(0x10)=INT10_WATCHER_OFF;
 #endif
-		newsetsig(SIGFPE, dosemu_fault);
-		newsetsig(SIGSEGV, dosemu_fault);
 		e_printf("EMU86: switching SIGALRMs\n");
 		newsetqsig(SIGALRM, sigalrm);
 

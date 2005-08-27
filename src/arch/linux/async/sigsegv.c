@@ -27,6 +27,7 @@
 #include "vgaemu.h" /* root@zaphod */
 
 #include "dpmi.h"
+#include "cpu-emu.h"
 
 
 /* Function prototypes */
@@ -70,6 +71,11 @@ int signal, struct sigcontext_struct *scp
     }
     goto bad;
   }
+
+#ifdef X86_EMULATOR
+  if (config.cpuemu > 1 && e_emu_fault(scp))
+    return;
+#endif
 
   if (in_vm86) {
     in_vm86 = 0;

@@ -661,9 +661,6 @@ void GCPrint(unsigned char *cp, unsigned char *cbase, int len);
 char *showreg(signed char r);
 char *showmode(unsigned int m);
 int e_debug_check(unsigned char *PC);
-//
-void e_emu_fault(int, struct sigcontext_struct);
-//
 int e_mprotect(caddr_t addr, size_t len);
 int e_munprotect(caddr_t addr, size_t len);
 int e_querymprot(caddr_t addr);

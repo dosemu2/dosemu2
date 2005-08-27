@@ -382,12 +382,13 @@ badrw:
 #define GetSegmentBaseAddress(s)	(((s) >= (MAX_SELECTORS << 3))? 0 :\
 					Segments[(s) >> 3].base_addr)
 
-static void e_emu_fault1(int signal, struct sigcontext_struct *scp)
+/* this function is called from dosemu_fault */
+int e_emu_fault(struct sigcontext_struct *scp)
 {
   /* if config.cpuemu==3 (only vm86 emulated) then this function can
      be trapped from within DPMI, and we still must be prepared to
      reset permissions on code pages */
-  if (_cs ==UCODESEL && ((debug_level('e')>1) || (_trapno!=0x0e))) {
+  if (_cs == UCODESEL && ((debug_level('e')>1) || (_trapno!=0x0e))) {
     dbug_printf("==============================================================\n");
     dbug_printf("CPU exception 0x%02lx err=0x%08lx cr2=%08lx eip=%08lx\n",
 	  	 _trapno, _err, _cr2, _eip);
@@ -415,24 +416,23 @@ static void e_emu_fault1(int signal, struct sigcontext_struct *scp)
 	if (Video->update_screen) {
 		if (_cs == UCODESEL) {
 			unsigned pf = (unsigned)_cr2 >> 12;
-			if ((pf & 0xfffe0) == 0xa0 && !TrapVgaOn) {
+			if ((pf & 0xfffe0) == 0xa0) {
 				TrapVgaOn = 1;
 			}
 			/* VGAEMU may also access/protect the LFB */
-			if (e_vgaemu_fault(scp,pf) == 1) return;
+			if (e_vgaemu_fault(scp,pf) == 1) return 1;
 			if ((pf & 0xfffe0) == 0xa0) goto verybad;
 		} else {
 			if(VGA_EMU_FAULT(scp,code,1)==True) {
 				dpmi_check_return(scp);
-				return;
+				return 1;
 			}
 		}
 	}
 
 #ifdef HOST_ARCH_SIM
   }
-  (void)dosemu_fault1(signal, scp);
-  return;
+  return 0;
 #else
 
         /* bit 0 = 1	page protect
@@ -488,13 +488,13 @@ static void e_emu_fault1(int signal, struct sigcontext_struct *scp)
 		 * linked by Cpatch will do it */
 		/* ACH: we can set up a data patch for code
 		 * which has not yet been executed! */
-		if (Cpatch((void *)_eip)) return;
+		if (Cpatch((void *)_eip)) return 1;
 		/* We HAVE to invalidate all the code in the page
 		 * if the page is going to be unprotected */
 		InvalidateNodePage(_cr2, 0, _eip, &codehit);
 		e_munprotect((void *)_cr2, 0);
 		/* now go back and perform the faulting op */
-		return;
+		return 1;
 	}
   }
   else if (_trapno==0x00) {
@@ -504,12 +504,10 @@ static void e_emu_fault1(int signal, struct sigcontext_struct *scp)
 		TheCPU.err = EXCP00_DIVZ;
 		*((unsigned long *)(SpecialTailCode+2)) = TheCPU.cr2;
 		_eip = (long)SpecialTailCode;
-		return;		// restore CPU and jump to our tail code
+		return 1;	// restore CPU and jump to our tail code
 	}
   }
-  if (!TryMemRef || _trapno == 0x0d)
-	(void)dosemu_fault1(signal, scp);
-  return;
+  return TryMemRef && _trapno != 0x0d;
 #endif
 
 verybad:
@@ -521,14 +519,7 @@ verybad:
   if (in_vm86) in_vm86=0;	/* otherwise leavedos() complains */
   fatalerr = 5;
   leavedos(fatalerr);		/* shouldn't return */
-}
-
-/* ======================================================================= */
-
-void e_emu_fault(int signal, struct sigcontext_struct context)
-{
-    restore_eflags_fs_gs();
-    e_emu_fault1 (signal, &context);
+  return 1;
 }
 
 /* ======================================================================= */
