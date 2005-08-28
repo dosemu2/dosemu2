@@ -1976,6 +1976,7 @@ repag0:
 			    case 0x09:	/*DAC_DATA*/
 			    case 0x0a:	/*FEATURE_CONTROL_R*/
 			    case 0x0c:	/*MISC_OUTPUT_R*/
+			    case 0x0e:	/*GFX_INDEX*/
 			    case 0x0f:	/*GFX_DATA*/
 			    case 0x14:	/*CRTC_INDEX*/
 			    case 0x15:	/*CRTC_DATA*/
