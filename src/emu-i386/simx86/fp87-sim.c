@@ -61,6 +61,12 @@ static double _fparea[8];
  * This function is only here for looking at the generated binary code
  * with objdump.
  */
+#if GCC_VERSION_CODE >= 3003
+static void _test_(void) __attribute__((used));
+#else
+static void _test_(void) __attribute__((unused));
+#endif
+
 static void _test_(void)
 {
 	__asm__ __volatile__ (" \
@@ -595,7 +601,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			"fldl	%2\n"
 			"f2xm1\n"
 			"fnstsw	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "0"(WFR0) : "memory" );
+			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR0) : "memory" );
 			fssync();
 			*ST0 = WFR0;
 			break;
@@ -607,7 +613,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			"fldl	%3\n"
 			"fyl2x\n"
 			"fnstsw	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"0"(WFR0) : "memory" );
+			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
 			INCFSP;
 			fssync();
 			*ST0 = WFR0;
@@ -620,7 +626,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			"fldl	%3\n"
 			"fpatan\n"
 			"fnstsw	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"0"(WFR0) : "memory" );
+			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
 			INCFSP;
 			fssync();
 			*ST0 = WFR0;
@@ -632,7 +638,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			"fptan\n"
 			"fnstsw	%2\n"
 			"fstpl	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=m"(WFR1),"=g"(WFRS) : "0"(WFR0) : "memory" );
+			"fstpl	%0" : "=m"(WFR0),"=m"(WFR1),"=g"(WFRS) : "m"(WFR0) : "memory" );
 			*ST0 = WFR0; DECFSP;
 			fssync();
 			*ST0 = WFR1;
@@ -644,7 +650,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			"fxtract\n"
 			"fnstsw	%2\n"
 			"fstpl	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=m"(WFR1),"=g"(WFRS) : "0"(WFR0) : "memory" );
+			"fstpl	%0" : "=m"(WFR0),"=m"(WFR1),"=g"(WFRS) : "m"(WFR0) : "memory" );
 			*ST0 = WFR0; DECFSP;
 			fssync();
 			*ST0 = WFR1;
@@ -658,7 +664,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			"fprem1\n"
 			"fnstsw	%1\n"
 			"fstpl	%0\n"
-			"fstp	%%st(0)" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"0"(WFR0) : "memory" );
+			"fstp	%%st(0)" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
 			fssync();
 			*ST0 = WFR0;
 			break;
@@ -687,7 +693,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			"fprem\n"
 			"fnstsw	%1\n"
 			"fstpl	%0\n"
-			"fstp	%%st(0)" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"0"(WFR0) : "memory" );
+			"fstp	%%st(0)" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
 			fssync();
 			*ST0 = WFR0;
 			break;
@@ -700,7 +706,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			"fscale\n"
 			"fnstsw	%1\n"
 			"fstpl	%0\n"
-			"fstpl	%%st(0)" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"0"(WFR0) : "memory" );
+			"fstp	%%st(0)" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
 			fssync();
 			*ST0 = WFR0;
 			break;
@@ -712,7 +718,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			"fldl	%3\n"
 			"fyl2xp1\n"
 			"fnstsw	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"0"(WFR0) : "memory" );
+			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR1),"m"(WFR0) : "memory" );
 			INCFSP;
 			fssync();
 			*ST0 = WFR0;
@@ -723,7 +729,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			"fldl	%2\n"
 			"fsqrt\n"
 			"fnstsw	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "0"(WFR0) : "memory" );
+			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR0) : "memory" );
 			fssync();
 			*ST0 = WFR0;
 			break;
@@ -733,7 +739,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			"fldl	%2\n"
 			"frndint\n"
 			"fnstsw	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "0"(WFR0) : "memory" );
+			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR0) : "memory" );
 			fssync();
 			*ST0 = WFR0;
 			break;
@@ -743,7 +749,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			"fldl	%2\n"
 			"fsin\n"
 			"fnstsw	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "0"(WFR0) : "memory" );
+			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR0) : "memory" );
 			fssync();
 			*ST0 = WFR0;
 			break;
@@ -753,7 +759,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			"fldl	%2\n"
 			"fcos\n"
 			"fnstsw	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "0"(WFR0) : "memory" );
+			"fstpl	%0" : "=m"(WFR0),"=g"(WFRS) : "m"(WFR0) : "memory" );
 			fssync();
 			*ST0 = WFR0;
 			break;
@@ -764,7 +770,7 @@ fcom00:			TheCPU.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
 			"fsincos\n"
 			"fnstsw	%2\n"
 			"fstpl	%1\n"
-			"fstpl	%0" : "=m"(WFR0),"=m"(WFR1),"=g"(WFRS) : "0"(WFR0) : "memory" );
+			"fstpl	%0" : "=m"(WFR0),"=m"(WFR1),"=g"(WFRS) : "m"(WFR0) : "memory" );
 			*ST0 = WFR0; DECFSP;
 			fssync();
 			*ST0 = WFR1;

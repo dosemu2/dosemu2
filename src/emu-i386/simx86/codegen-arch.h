@@ -5,7 +5,7 @@
  */
 
 #ifdef HOST_ARCH_SIM
-#include "codegne-sim.h"
+#include "codegen-sim.h"
 #else
 #include "codegen-x86.h"
 #endif

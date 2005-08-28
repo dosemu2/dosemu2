@@ -141,7 +141,11 @@ unsigned char TailCode[TAILSIZE+1] =
  * This function is only here for looking at the generated binary code
  * with objdump.
  */
+#if GCC_VERSION_CODE >= 3003
+static void _test_(void) __attribute__((used));
+#else
 static void _test_(void) __attribute__((unused));
+#endif
 
 static void _test_(void)
 {
