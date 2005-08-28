@@ -519,7 +519,7 @@ int dos_helper(void)
 	unsigned int size = REG(ecx);
 	unsigned char *dos_ptr = SEG_ADR((unsigned char *), ds, dx);
 	if (offs + size <= dos_io_buffer_size)
-	    MEMCPY_2UNIX(dos_io_buffer + offs, dos_ptr, size);
+	    MEMCPY_DOS2DOS(dos_io_buffer + offs, dos_ptr, size);
 	break;
     }
 
@@ -528,7 +528,7 @@ int dos_helper(void)
 	unsigned int size = REG(ecx);
 	unsigned char *dos_ptr = SEG_ADR((unsigned char *), ds, dx);
 	if (offs + size <= dos_io_buffer_size)
-	    MEMCPY_2DOS(dos_ptr, dos_io_buffer + offs, size);
+	    MEMCPY_DOS2DOS(dos_ptr, dos_io_buffer + offs, size);
 	break;
     }
 
