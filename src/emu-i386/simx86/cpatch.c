@@ -63,9 +63,8 @@ int s_mprotect(caddr_t addr)
 	return e_mprotect(addr,0);
 }
 
-asmlinkage int m_mprotect(caddr_t addr)
+static int m_mprotect(caddr_t addr)
 {
-	__asm__ ("cld");
 	if (debug_level('e')>3)
 	    e_printf("\tM_MPROT   %08lx\n",(long)addr);
 	return e_mprotect(addr,0);
@@ -74,27 +73,21 @@ asmlinkage int m_mprotect(caddr_t addr)
 /*
  * Return address of the stub function is passed into eip
  */
-static int m_munprotect_check(caddr_t addr, long eip, int check)
+static int m_munprotect(caddr_t addr, long eip)
 {
-	__asm__ ("cld");
 	if (debug_level('e')>3) e_printf("\tM_MUNPROT %08lx:%08lx [%08lx]\n",
 		(long)addr,eip,*((long *)(eip-5)));
 #ifndef HOST_ARCH_SIM
 	/* verify that data, not code, has been hit */
 	if (!e_querymark(addr))
-	    return check ? check_munprotect(addr) : e_munprotect(addr,0);
+	    return check_munprotect(addr);
 	/* Oops.. we hit code, maybe the stub was set up before that
 	 * code was parsed. Ok, undo the patch and clear that code */
 	e_printf("CODE %08lx hit in DATA %08lx patch\n",(long)addr,eip);
 /*	if (UnCpatch((void *)(eip-5))) leavedos(0); */
 	InvalidateSingleNode((long)addr, eip);
 #endif
-	return check ? check_munprotect(addr) : e_munprotect(addr,0);
-}
-
-asmlinkage int m_munprotect(caddr_t addr, long eip)
-{
-	return m_munprotect_check(addr, eip, 0);
+	return check_munprotect(addr);
 }
 
 asmlinkage int r_munprotect(caddr_t addr, long len, long flags)
@@ -177,7 +170,9 @@ asmlinkage void stub_stk_32(void)
 
 asmlinkage void wri_8(caddr_t addr, Bit8u value, long eip)
 {
-	int ret = m_munprotect_check(addr, eip, 1);
+	int ret;
+	__asm__ ("cld");
+	ret = m_munprotect(addr, eip);
 	WRITE_BYTE(addr, value);
 	if (ret & 1)
 		m_mprotect(addr);
@@ -186,21 +181,17 @@ asmlinkage void wri_8(caddr_t addr, Bit8u value, long eip)
 asmlinkage void stub_wri_8(void)
 {
 	__asm__ __volatile__ (
-"		pushl	%%edi\n"	/* save regs */
-"		pushl	%%ebx\n"
-"		pushl	%%eax\n"
+"		pushl	%%ebx\n"	/* save regs */
 #ifdef _DEBUG
 "		pushl	4(%%ebp)\n"	/* return addr = patch point+5 */
 #else
-"		pushl	12(%%esp)\n"	/* return addr = patch point+5 */
+"		pushl	4(%%esp)\n"	/* return addr = patch point+5 */
 #endif
 "		pushl	%%eax\n"	/* value to write */
 "		pushl	%%edi\n"	/* addr where to write */
 "		call	wri_8\n"
 "		addl	$12,%%esp\n"	/* remove parameters */
-"		popl	%%eax\n"	/* restore regs */
-"		popl	%%ebx\n"
-"		popl	%%edi\n"
+"		popl	%%ebx\n"	/* restore regs */
 #ifdef _DEBUG
 "		nop"
 #else
@@ -211,7 +202,9 @@ asmlinkage void stub_wri_8(void)
 
 asmlinkage void wri_16(caddr_t addr, Bit16u value, long eip)
 {
-	int ret = m_munprotect_check(addr, eip, 1);
+	int ret;
+	__asm__ ("cld");
+	ret = m_munprotect(addr, eip);
 	WRITE_WORD(addr, value);
 	if (ret & 1)
 		m_mprotect(addr);
@@ -220,21 +213,17 @@ asmlinkage void wri_16(caddr_t addr, Bit16u value, long eip)
 asmlinkage void stub_wri_16(void)
 {
 	__asm__ __volatile__ (" \
-		pushl	%%edi\n \
-		pushl	%%ebx\n \
-		pushl	%%eax\n"
+		pushl	%%ebx\n"
 #ifdef _DEBUG
 "		pushl	4(%%ebp)\n"
 #else
-"		pushl	12(%%esp)\n"
+"		pushl	4(%%esp)\n"
 #endif
 "		pushl	%%eax\n \
 		pushl	%%edi\n \
 		call	wri_16\n \
 		addl	$12,%%esp\n \
-		popl	%%eax\n \
-		popl	%%ebx\n \
-		popl	%%edi\n"
+		popl	%%ebx\n"
 #ifdef _DEBUG
 "		nop"
 #else
@@ -245,7 +234,9 @@ asmlinkage void stub_wri_16(void)
 
 asmlinkage void wri_32(caddr_t addr, Bit32u value, long eip)
 {
-	int ret = m_munprotect_check(addr, eip, 1);
+	int ret;
+	__asm__ ("cld");
+	ret = m_munprotect(addr, eip);
 	WRITE_DWORD(addr, value);
 	if (ret & 1)
 		m_mprotect(addr);
@@ -254,21 +245,17 @@ asmlinkage void wri_32(caddr_t addr, Bit32u value, long eip)
 asmlinkage void stub_wri_32(void)
 {
 	__asm__ __volatile__ (" \
-		pushl	%%edi\n \
-		pushl	%%ebx\n \
-		pushl	%%eax\n"
+		pushl	%%ebx\n"
 #ifdef _DEBUG
 "		pushl	4(%%ebp)\n"
 #else
-"		pushl	12(%%esp)\n"
+"		pushl	4(%%esp)\n"
 #endif
 "		pushl	%%eax\n \
 		pushl	%%edi\n \
 		call	wri_32\n \
 		addl	$12,%%esp\n \
-		popl	%%eax\n \
-		popl	%%ebx\n \
-		popl	%%edi\n"
+		popl	%%ebx\n"
 #ifdef _DEBUG
 "		nop"
 #else
@@ -280,37 +267,33 @@ asmlinkage void stub_wri_32(void)
 asmlinkage void stub_movsb(void)
 {
 	__asm__ __volatile__ (
-"		pushal\n"
+"		pushl	%%ebx\n"	/* save regs              */
 #ifdef _DEBUG
 "		pushl	8(%%ebp)\n"	/* push eflags from stack */
+#else
+"		pushl	8(%%esp)\n"	/* push eflags from stack */
+#endif
+"		popfl\n"		/* get eflags (DF)        */
+"		pushfl\n"		/* and push back          */
+#ifdef _DEBUG
 "		pushl	4(%%ebp)\n"	/* push return address    */
 #else
-"		pushl	36(%%esp)\n"	/* push eflags from stack */
-"		pushl	36(%%esp)\n"	/* push return address    */
+"		pushl	8(%%esp)\n"	/* push return address    */
 #endif
+"		lodsb\n"		/* fetch value to write   */
+"		pushl	%%eax\n"	/* value to write         */
 "		pushl	%%edi\n"	/* push fault address     */
-"		movl	%%edi,%1\n"	/* save fault address     */
-"		call	m_munprotect\n"
-"		movl	%%eax,%0\n"	/* save old protections   */
-"		addl	$8,%%esp\n"	/* remove RA and fault    */
+"		scasb\n"		/* adjust edi depends:DF  */
+"		call	wri_8\n"
+"		addl	$12,%%esp\n"	/* remove parameters      */
 "		popfl\n"		/* get eflags             */
-"		popal\n"
-"		movsb\n"		/* execute: depends on DF */
-"		pushfl\n"
-"		testb	$1,%0\n"
-"		je	1f\n"
-"		pushal\n"
-"		pushl	%1\n"		/* saved fault address    */
-"		call	m_mprotect\n"
-"		addl	$4,%%esp\n"
-"		popal\n"
-"1:		popfl\n"		/* restore DF             */
+"		popl	%%ebx\n"	/* restore regs           */
 #ifdef _DEBUG
 "		nop"
 #else
 "		ret"
 #endif
-		: "=m"(_pr_temp),"=m"(_edi_temp) : );
+		: : );
 }
 
 asmlinkage void stub_rep_movsb(void)
@@ -346,37 +329,33 @@ asmlinkage void stub_rep_movsb(void)
 asmlinkage void stub_movsw(void)
 {
 	__asm__ __volatile__ (" \
-		pushal\n"
+		pushl	%%ebx\n"
 #ifdef _DEBUG
-"		pushl	8(%%ebp)\n \
-		pushl	4(%%ebp)\n"
+"		pushl	8(%%ebp)\n"
 #else
-"		pushl	36(%%esp)\n \
-		pushl	36(%%esp)\n"
+"		pushl	8(%%esp)\n"
 #endif
-"		pushl	%%edi\n \
-		movl	%%edi,%1\n \
-		call	m_munprotect\n \
-		movl	%%eax,%0\n \
-		addl	$8,%%esp\n \
+"		popfl\n \
+		pushfl\n"
+#ifdef _DEBUG
+"		pushl	4(%%ebp)\n"
+#else
+"		pushl	8(%%esp)\n"
+#endif
+"		lodsw\n \
+		pushl	%%eax\n \
+		pushl	%%edi\n \
+		scasw\n \
+		call	wri_16\n \
+		addl	$12,%%esp\n \
 		popfl\n \
-		popal\n \
-		movsw\n \
-		pushfl\n \
-		testb	$1,%0\n \
-		je	1f\n \
-		pushal\n \
-		pushl	%1\n \
-		call	m_mprotect\n \
-		addl	$4,%%esp\n \
-		popal\n"
-"1:		popfl\n"
+		popl	%%ebx\n"
 #ifdef _DEBUG
 "		nop"
 #else
 "		ret"
 #endif
-		: "=m"(_pr_temp),"=m"(_edi_temp) : );
+		: : );
 }
 
 asmlinkage void stub_rep_movsw(void)
@@ -413,37 +392,33 @@ asmlinkage void stub_rep_movsw(void)
 asmlinkage void stub_movsl(void)
 {
 	__asm__ __volatile__ (" \
-		pushal\n"
+		pushl	%%ebx\n"
 #ifdef _DEBUG
-"		pushl	8(%%ebp)\n \
-		pushl	4(%%ebp)\n"
+"		pushl	8(%%ebp)\n"
 #else
-"		pushl	36(%%esp)\n \
-		pushl	36(%%esp)\n"
+"		pushl	8(%%esp)\n"
 #endif
-"		pushl	%%edi\n \
-		movl	%%edi,%1\n \
-		call	m_munprotect\n \
-		movl	%%eax,%0\n \
-		addl	$8,%%esp\n \
+"		popfl\n \
+		pushfl\n"
+#ifdef _DEBUG
+"		pushl	4(%%ebp)\n"
+#else
+"		pushl	8(%%esp)\n"
+#endif
+"		lodsl\n \
+		pushl	%%eax\n \
+		pushl	%%edi\n \
+		scasl\n \
+		call	wri_32\n \
+		addl	$12,%%esp\n \
 		popfl\n \
-		popal\n \
-		movsl\n \
-		pushfl\n \
-		testb	$1,%0\n \
-		je	1f\n \
-		pushal\n \
-		pushl	%1\n \
-		call	m_mprotect\n \
-		addl	$4,%%esp\n \
-		popal\n"
-"1:		popfl\n"
+		popl	%%ebx\n"
 #ifdef _DEBUG
 "		nop"
 #else
 "		ret"
 #endif
-		: "=m"(_pr_temp),"=m"(_edi_temp) : );
+		: : );
 }
 
 asmlinkage void stub_rep_movsl(void)
@@ -480,37 +455,30 @@ asmlinkage void stub_rep_movsl(void)
 asmlinkage void stub_stosb(void)
 {
 	__asm__ __volatile__ (" \
-		pushal\n"
+		pushl	%%ebx\n"
 #ifdef _DEBUG
-"		pushl	8(%%ebp)\n \
-		pushl	4(%%ebp)\n"
+"		pushl	4(%%ebp)\n"
 #else
-"		pushl	36(%%esp)\n \
-		pushl	36(%%esp)\n"
+"		pushl	4(%%esp)\n"
 #endif
-"		pushl	%%edi\n \
-		movl	%%edi,%1\n \
-		call	m_munprotect\n \
-		movl	%%eax,%0\n \
-		addl	$8,%%esp\n \
-		popfl\n \
-		popal\n \
-		stosb\n \
-		pushfl\n \
-		testb	$1,%0\n \
-		je	1f\n \
-		pushal\n \
-		pushl	%1\n \
-		call	m_mprotect\n \
-		addl	$4,%%esp\n \
-		popal\n"
-"1:		popfl\n"
+"		pushl	%%eax\n \
+		pushl	%%edi\n \
+		call	wri_8\n \
+		addl	$12,%%esp\n"
+#ifdef _DEBUG
+"		pushl	8(%%ebp)\n"
+#else
+"		pushl	8(%%esp)\n"
+#endif
+"		popfl\n \
+		scasb\n \
+		popl	%%ebx\n"
 #ifdef _DEBUG
 "		nop"
 #else
 "		ret"
 #endif
-		: "=m"(_pr_temp),"=m"(_edi_temp) : );
+		: : );
 }
 
 asmlinkage void stub_rep_stosb(void)
@@ -546,37 +514,30 @@ asmlinkage void stub_rep_stosb(void)
 asmlinkage void stub_stosw(void)
 {
 	__asm__ __volatile__ (" \
-		pushal\n"
+		pushl	%%ebx\n"
 #ifdef _DEBUG
-"		pushl	8(%%ebp)\n \
-		pushl	4(%%ebp)\n"
+"		pushl	4(%%ebp)\n"
 #else
-"		pushl	36(%%esp)\n \
-		pushl	36(%%esp)\n"
+"		pushl	4(%%esp)\n"
 #endif
-"		pushl	%%edi\n \
-		movl	%%edi,%1\n \
-		call	m_munprotect\n \
-		movl	%%eax,%0\n \
-		addl	$8,%%esp\n \
-		popfl\n \
-		popal\n \
-		stosw\n \
-		pushfl\n \
-		testb	$1,%0\n \
-		je	1f\n \
-		pushal\n \
-		pushl	%1\n \
-		call	m_mprotect\n \
-		addl	$4,%%esp\n \
-		popal\n"
-"1:		popfl\n"
+"		pushl	%%eax\n \
+		pushl	%%edi\n \
+		call	wri_16\n \
+		addl	$12,%%esp\n"
+#ifdef _DEBUG
+"		pushl	8(%%ebp)\n"
+#else
+"		pushl	8(%%esp)\n"
+#endif
+"		popfl\n \
+		scasw\n \
+		popl	%%ebx\n"
 #ifdef _DEBUG
 "		nop"
 #else
 "		ret"
 #endif
-		: "=m"(_pr_temp),"=m"(_edi_temp) : );
+		: : );
 }
 
 asmlinkage void stub_rep_stosw(void)
@@ -613,37 +574,30 @@ asmlinkage void stub_rep_stosw(void)
 asmlinkage void stub_stosl(void)
 {
 	__asm__ __volatile__ (" \
-		pushal\n"
+		pushl	%%ebx\n"
 #ifdef _DEBUG
-"		pushl	8(%%ebp)\n \
-		pushl	4(%%ebp)\n"
+"		pushl	4(%%ebp)\n"
 #else
-"		pushl	36(%%esp)\n \
-		pushl	36(%%esp)\n"
+"		pushl	4(%%esp)\n"
 #endif
-"		pushl	%%edi\n \
-		movl	%%edi,%1\n \
-		call	m_munprotect\n \
-		movl	%%eax,%0\n \
-		addl	$8,%%esp\n \
-		popfl\n \
-		popal\n \
-		stosl\n \
-		pushfl\n \
-		testb	$1,%0\n \
-		je	1f\n \
-		pushal\n \
-		pushl	%1\n \
-		call	m_mprotect\n \
-		addl	$4,%%esp\n \
-		popal\n"
-"1:		popfl\n"
+"		pushl	%%eax\n \
+		pushl	%%edi\n \
+		call	wri_32\n \
+		addl	$12,%%esp\n"
+#ifdef _DEBUG
+"		pushl	8(%%ebp)\n"
+#else
+"		pushl	8(%%esp)\n"
+#endif
+"		popfl\n \
+		scasl\n \
+		popl	%%ebx\n"
 #ifdef _DEBUG
 "		nop"
 #else
 "		ret"
 #endif
-		: "=m"(_pr_temp),"=m"(_edi_temp) : );
+		: : );
 }
 
 asmlinkage void stub_rep_stosl(void)
