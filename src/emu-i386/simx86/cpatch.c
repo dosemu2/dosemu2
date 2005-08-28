@@ -109,8 +109,6 @@ asmlinkage int r_munprotect(caddr_t addr, long len, long flags)
 
 #ifndef HOST_ARCH_SIM
 
-static long _pr_temp, _edi_temp;
-
 asmlinkage void stk_16(caddr_t addr, Bit16u value)
 {
 	int ret = s_munprotect(addr);
@@ -119,53 +117,12 @@ asmlinkage void stk_16(caddr_t addr, Bit16u value)
 		s_mprotect(addr);
 }
 
-/*
- * stack on entry:
- *	esp+00	return address
- *	esp+04	eflags
- */
-asmlinkage void stub_stk_16(void)
-{
-	__asm__ __volatile__ (" \
-		leal	(%%esi,%%ecx,1),%%edi\n \
-		pushal\n \
-		pushl	%%eax\n \
-		pushl	%%edi\n \
-		call	stk_16\n \
-		addl	$8,%%esp\n \
-		popal\n"
-#ifdef _DEBUG
-"		nop"
-#else
-"		ret"
-#endif
-		: : );
-}
-
 asmlinkage void stk_32(caddr_t addr, Bit32u value)
 {
 	int ret = s_munprotect(addr);
 	WRITE_DWORD(addr, value);
 	if (ret & 1)
 		s_mprotect(addr);
-}
-
-asmlinkage void stub_stk_32(void)
-{
-	__asm__ __volatile__ (" \
-		leal	(%%esi,%%ecx,1),%%edi\n \
-		pushal\n \
-		pushl	%%eax\n \
-		pushl	%%edi\n \
-		call	stk_32\n \
-		addl	$8,%%esp\n \
-		popal\n"
-#ifdef _DEBUG
-"		nop"
-#else
-"		ret"
-#endif
-		: : );
 }
 
 asmlinkage void wri_8(caddr_t addr, Bit8u value, long eip)
@@ -178,28 +135,6 @@ asmlinkage void wri_8(caddr_t addr, Bit8u value, long eip)
 		m_mprotect(addr);
 }
 
-asmlinkage void stub_wri_8(void)
-{
-	__asm__ __volatile__ (
-"		pushl	%%ebx\n"	/* save regs */
-#ifdef _DEBUG
-"		pushl	4(%%ebp)\n"	/* return addr = patch point+5 */
-#else
-"		pushl	4(%%esp)\n"	/* return addr = patch point+5 */
-#endif
-"		pushl	%%eax\n"	/* value to write */
-"		pushl	%%edi\n"	/* addr where to write */
-"		call	wri_8\n"
-"		addl	$12,%%esp\n"	/* remove parameters */
-"		popl	%%ebx\n"	/* restore regs */
-#ifdef _DEBUG
-"		nop"
-#else
-"		ret"
-#endif
-		: : );
-}
-
 asmlinkage void wri_16(caddr_t addr, Bit16u value, long eip)
 {
 	int ret;
@@ -208,28 +143,6 @@ asmlinkage void wri_16(caddr_t addr, Bit16u value, long eip)
 	WRITE_WORD(addr, value);
 	if (ret & 1)
 		m_mprotect(addr);
-}
-
-asmlinkage void stub_wri_16(void)
-{
-	__asm__ __volatile__ (" \
-		pushl	%%ebx\n"
-#ifdef _DEBUG
-"		pushl	4(%%ebp)\n"
-#else
-"		pushl	4(%%esp)\n"
-#endif
-"		pushl	%%eax\n \
-		pushl	%%edi\n \
-		call	wri_16\n \
-		addl	$12,%%esp\n \
-		popl	%%ebx\n"
-#ifdef _DEBUG
-"		nop"
-#else
-"		ret"
-#endif
-		: : );
 }
 
 asmlinkage void wri_32(caddr_t addr, Bit32u value, long eip)
@@ -242,59 +155,100 @@ asmlinkage void wri_32(caddr_t addr, Bit32u value, long eip)
 		m_mprotect(addr);
 }
 
-asmlinkage void stub_wri_32(void)
-{
-	__asm__ __volatile__ (" \
-		pushl	%%ebx\n"
-#ifdef _DEBUG
-"		pushl	4(%%ebp)\n"
-#else
-"		pushl	4(%%esp)\n"
-#endif
-"		pushl	%%eax\n \
-		pushl	%%edi\n \
-		call	wri_32\n \
-		addl	$12,%%esp\n \
-		popl	%%ebx\n"
-#ifdef _DEBUG
-"		nop"
-#else
-"		ret"
-#endif
-		: : );
-}
+/*
+ * stack on entry:
+ *	esp+00	return address
+ *	esp+04	eflags
+ */
 
-asmlinkage void stub_movsb(void)
-{
-	__asm__ __volatile__ (
-"		pushl	%%ebx\n"	/* save regs              */
-#ifdef _DEBUG
-"		pushl	8(%%ebp)\n"	/* push eflags from stack */
-#else
-"		pushl	8(%%esp)\n"	/* push eflags from stack */
-#endif
-"		popfl\n"		/* get eflags (DF)        */
-"		pushfl\n"		/* and push back          */
-#ifdef _DEBUG
-"		pushl	4(%%ebp)\n"	/* push return address    */
-#else
-"		pushl	8(%%esp)\n"	/* push return address    */
-#endif
-"		lodsb\n"		/* fetch value to write   */
-"		pushl	%%eax\n"	/* value to write         */
-"		pushl	%%edi\n"	/* push fault address     */
-"		scasb\n"		/* adjust edi depends:DF  */
-"		call	wri_8\n"
-"		addl	$12,%%esp\n"	/* remove parameters      */
-"		popfl\n"		/* get eflags             */
-"		popl	%%ebx\n"	/* restore regs           */
-#ifdef _DEBUG
-"		nop"
-#else
-"		ret"
-#endif
-		: : );
-}
+#define STUB_STK(cfunc) \
+"		pushl	%ebp\n \
+		movl	%esp, %ebp \n \
+		leal	(%esi,%ecx,1),%edi\n \
+		pushal\n \
+		pushl	%eax\n \
+		pushl	%edi\n \
+		call	"#cfunc"\n \
+		addl	$8,%esp\n \
+		popal\n \
+		popl	%ebp\n \
+		ret\n"
+
+
+#define STUB_WRI(cfunc) \
+"		pushl	%ebp\n" \
+"		movl	%esp, %ebp\n" \
+"		pushl	%ebx\n"		/* save regs */ \
+"		pushl	4(%ebp)\n"	/* return addr = patch point+5 */ \
+"		pushl	%eax\n"		/* value to write */ \
+"		pushl	%edi\n"		/* addr where to write */ \
+"		call	"#cfunc"\n" \
+"		addl	$12,%esp\n"	/* remove parameters */ \
+"		popl	%ebx\n"		/* restore regs */ \
+"		popl	%ebp\n" \
+"		ret\n"
+
+#define STUB_MOVS(cfunc,letter) \
+"		pushl	%ebp\n" \
+"		movl	%esp, %ebp\n" \
+"		pushl	%ebx\n"		/* save regs              */ \
+"		pushl	8(%ebp)\n"	/* push eflags from stack */ \
+"		popfl\n"		/* get eflags (DF)        */ \
+"		pushfl\n"		/* and push back          */ \
+"		pushl	4(%ebp)\n"	/* push return address    */ \
+"		lods"#letter"\n"	/* fetch value to write   */ \
+"		pushl	%eax\n"		/* value to write         */ \
+"		pushl	%edi\n"		/* push fault address     */ \
+"		scas"#letter"\n"	/* adjust edi depends:DF  */ \
+"		call	"#cfunc"\n" \
+"		addl	$12,%esp\n"	/* remove parameters      */ \
+"		popfl\n"		/* get eflags             */ \
+"		popl	%ebx\n"		/* restore regs           */ \
+"		popl	%ebp\n" \
+"		ret\n"
+
+#define STUB_STOS(cfunc,letter) \
+"		pushl	%ebp\n" \
+"		movl	%esp, %ebp\n" \
+"		pushl	%ebx\n"		/* save regs              */ \
+"		pushl	4(%ebp)\n"	/* push return address    */ \
+"		pushl	%eax\n"		/* value to write         */ \
+"		pushl	%edi\n"		/* push fault address     */ \
+"		call	"#cfunc"\n" \
+"		addl	$12,%esp\n"	/* remove parameters      */ \
+"		pushl	8(%ebp)\n"	/* push eflags from stack */ \
+"		popfl\n"		/* get eflags (DF)        */ \
+"		scas"#letter"\n"	/* adjust edi depends:DF  */ \
+"		popl	%ebx\n"		/* restore regs           */ \
+"		popl	%ebp\n" \
+"		ret\n"
+
+asm (
+		".text\n"
+"stub_stk_16__:"STUB_STK(stk_16)
+"stub_stk_32__:"STUB_STK(stk_32)
+"stub_wri_8__: "STUB_WRI(wri_8)
+"stub_wri_16__:"STUB_WRI(wri_16)
+"stub_wri_32__:"STUB_WRI(wri_32)
+"stub_movsb__: "STUB_MOVS(wri_8,b)
+"stub_movsw__: "STUB_MOVS(wri_16,w)
+"stub_movsl__: "STUB_MOVS(wri_32,l)
+"stub_stosb__: "STUB_STOS(wri_8,b)
+"stub_stosw__: "STUB_STOS(wri_16,w)
+"stub_stosl__: "STUB_STOS(wri_32,l)
+);
+
+void stub_stk_16(void) asm ("stub_stk_16__");
+void stub_stk_32(void) asm ("stub_stk_32__");
+void stub_wri_8 (void) asm ("stub_wri_8__" );
+void stub_wri_16(void) asm ("stub_wri_16__");
+void stub_wri_32(void) asm ("stub_wri_32__");
+void stub_movsb (void) asm ("stub_movsb__" );
+void stub_movsw (void) asm ("stub_movsw__" );
+void stub_movsl (void) asm ("stub_movsl__" );
+void stub_stosb (void) asm ("stub_stosb__" );
+void stub_stosw (void) asm ("stub_stosw__" );
+void stub_stosl (void) asm ("stub_stosl__" );
 
 asmlinkage void stub_rep_movsb(void)
 {
@@ -324,38 +278,6 @@ asmlinkage void stub_rep_movsb(void)
 #else
 		: : );
 #endif
-}
-
-asmlinkage void stub_movsw(void)
-{
-	__asm__ __volatile__ (" \
-		pushl	%%ebx\n"
-#ifdef _DEBUG
-"		pushl	8(%%ebp)\n"
-#else
-"		pushl	8(%%esp)\n"
-#endif
-"		popfl\n \
-		pushfl\n"
-#ifdef _DEBUG
-"		pushl	4(%%ebp)\n"
-#else
-"		pushl	8(%%esp)\n"
-#endif
-"		lodsw\n \
-		pushl	%%eax\n \
-		pushl	%%edi\n \
-		scasw\n \
-		call	wri_16\n \
-		addl	$12,%%esp\n \
-		popfl\n \
-		popl	%%ebx\n"
-#ifdef _DEBUG
-"		nop"
-#else
-"		ret"
-#endif
-		: : );
 }
 
 asmlinkage void stub_rep_movsw(void)
@@ -389,38 +311,6 @@ asmlinkage void stub_rep_movsw(void)
 #endif
 }
 
-asmlinkage void stub_movsl(void)
-{
-	__asm__ __volatile__ (" \
-		pushl	%%ebx\n"
-#ifdef _DEBUG
-"		pushl	8(%%ebp)\n"
-#else
-"		pushl	8(%%esp)\n"
-#endif
-"		popfl\n \
-		pushfl\n"
-#ifdef _DEBUG
-"		pushl	4(%%ebp)\n"
-#else
-"		pushl	8(%%esp)\n"
-#endif
-"		lodsl\n \
-		pushl	%%eax\n \
-		pushl	%%edi\n \
-		scasl\n \
-		call	wri_32\n \
-		addl	$12,%%esp\n \
-		popfl\n \
-		popl	%%ebx\n"
-#ifdef _DEBUG
-"		nop"
-#else
-"		ret"
-#endif
-		: : );
-}
-
 asmlinkage void stub_rep_movsl(void)
 {
 	__asm__ __volatile__ (" \
@@ -450,35 +340,6 @@ asmlinkage void stub_rep_movsl(void)
 #else
 		: : );
 #endif
-}
-
-asmlinkage void stub_stosb(void)
-{
-	__asm__ __volatile__ (" \
-		pushl	%%ebx\n"
-#ifdef _DEBUG
-"		pushl	4(%%ebp)\n"
-#else
-"		pushl	4(%%esp)\n"
-#endif
-"		pushl	%%eax\n \
-		pushl	%%edi\n \
-		call	wri_8\n \
-		addl	$12,%%esp\n"
-#ifdef _DEBUG
-"		pushl	8(%%ebp)\n"
-#else
-"		pushl	8(%%esp)\n"
-#endif
-"		popfl\n \
-		scasb\n \
-		popl	%%ebx\n"
-#ifdef _DEBUG
-"		nop"
-#else
-"		ret"
-#endif
-		: : );
 }
 
 asmlinkage void stub_rep_stosb(void)
@@ -511,35 +372,6 @@ asmlinkage void stub_rep_stosb(void)
 #endif
 }
 
-asmlinkage void stub_stosw(void)
-{
-	__asm__ __volatile__ (" \
-		pushl	%%ebx\n"
-#ifdef _DEBUG
-"		pushl	4(%%ebp)\n"
-#else
-"		pushl	4(%%esp)\n"
-#endif
-"		pushl	%%eax\n \
-		pushl	%%edi\n \
-		call	wri_16\n \
-		addl	$12,%%esp\n"
-#ifdef _DEBUG
-"		pushl	8(%%ebp)\n"
-#else
-"		pushl	8(%%esp)\n"
-#endif
-"		popfl\n \
-		scasw\n \
-		popl	%%ebx\n"
-#ifdef _DEBUG
-"		nop"
-#else
-"		ret"
-#endif
-		: : );
-}
-
 asmlinkage void stub_rep_stosw(void)
 {
 	__asm__ __volatile__ (" \
@@ -569,35 +401,6 @@ asmlinkage void stub_rep_stosw(void)
 #else
 		: : );
 #endif
-}
-
-asmlinkage void stub_stosl(void)
-{
-	__asm__ __volatile__ (" \
-		pushl	%%ebx\n"
-#ifdef _DEBUG
-"		pushl	4(%%ebp)\n"
-#else
-"		pushl	4(%%esp)\n"
-#endif
-"		pushl	%%eax\n \
-		pushl	%%edi\n \
-		call	wri_32\n \
-		addl	$12,%%esp\n"
-#ifdef _DEBUG
-"		pushl	8(%%ebp)\n"
-#else
-"		pushl	8(%%esp)\n"
-#endif
-"		popfl\n \
-		scasl\n \
-		popl	%%ebx\n"
-#ifdef _DEBUG
-"		nop"
-#else
-"		ret"
-#endif
-		: : );
 }
 
 asmlinkage void stub_rep_stosl(void)
