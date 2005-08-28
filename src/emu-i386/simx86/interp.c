@@ -385,7 +385,9 @@ jgnolink:
 		    return NULL;
 		}
 		if (debug_level('e')>2) e_printf("** Jump taken to %08lx\n",(long)j_t);
+#ifndef HOST_ARCH_SIM
 takejmp:
+#endif
 		TheCPU.eip = d_t;
 		return (unsigned char *)j_t;
 	}
@@ -2775,9 +2777,11 @@ repag0:
 not_implemented:
 	dbug_printf("!!! Unimplemented %02x %02x %02x\n",opc,PC[1],PC[2]);
 	TheCPU.err = -2; return PC;
+#ifndef HOST_ARCH_SIM
 bad_return:
 	dbug_printf("!!! Bad code return\n");
 	TheCPU.err = -3; return PC;
+#endif
 not_permitted:
 	if (debug_level('e')>1) e_printf("!!! Not permitted %02x\n",opc);
 	TheCPU.err = EXCP0D_GPF; return PC;
