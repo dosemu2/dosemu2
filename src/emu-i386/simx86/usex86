@@ -1,5 +1,0 @@
-#!/bin/sh
-rm -f *.d *.o
-ln -sf codegen-x86.c codegen-arch.c
-ln -sf codegen-x86.h codegen-arch.h
-ln -sf fp87-x86.c fp87-arch.c

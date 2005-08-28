@@ -141,6 +141,8 @@ unsigned char TailCode[TAILSIZE+1] =
  * This function is only here for looking at the generated binary code
  * with objdump.
  */
+static void _test_(void) __attribute__((unused));
+
 static void _test_(void)
 {
 	__asm__ __volatile__ (" \
@@ -1258,9 +1260,11 @@ shrot0:
 		     * Since PUSHF doesn't trap in PM, non-cpuemued
 		     * dosemu will always fail this particular test.
 		     */
+		    static int dpmi_eflags;
 		    if (mode&DATA16) p=pseq16d,sz=sizeof(pseq16d);
 			else p=pseq32d,sz=sizeof(pseq32d);
 		    q=Cp; GNX(Cp, p, sz);
+		    dpmi_eflags = get_vFLAGS(TheCPU.eflags);
 		    *((int *)(q+0x15)) = (int)&dpmi_eflags;
 		}
 		else
@@ -2262,6 +2266,13 @@ void Gen(int op, int mode, ...)
 	IG->mode = mode;
 	IG->ovds = OVERR_DS;
 	GenBufSize += GendBytesPerOp[op];
+#define HACKHACK 1
+#ifdef HACKHACK
+	/* apparently GenBufSize is often too small ...
+	 * need to investigate further
+	 */
+	GenBufSize += 100;
+#endif
 
 	switch(op) {
 	case L_NOP:
@@ -3021,7 +3032,7 @@ unsigned char *CloseAndExec(unsigned char *PC, TNode *G, int mode, int ln)
 "		rdtsc\n"
 "		movl	%%eax,%0\n"	/* save time before execution   */
 "		movl	%%edx,%1\n"
-#if GCC_VERSION_CODE >= 2096
+#if GCC_VERSION_CODE >= 2007
 "		.byte	0x68\n"		/* push immediate RA		*/
 "		.long	2f\n"
 "		pushl	%3\n"		/* push and get TheCPU flags    */

@@ -38,8 +38,6 @@
 #include "codegen.h"
 #include "vgaemu.h"
 
-#define HOST_ARCH_SIM
-
 #define TAILSIZE	7
 #define TAILFIX		1
 
