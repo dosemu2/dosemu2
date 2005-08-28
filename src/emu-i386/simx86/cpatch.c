@@ -223,6 +223,24 @@ asmlinkage void wri_32(caddr_t addr, Bit32u value, long eip)
 "		popl	%ebp\n" \
 "		ret\n"
 
+#define STUB_REP(op,ecxshift) \
+"		pushl	%ebp\n" \
+"		movl	%esp, %ebp\n" \
+"		jecxz	1f\n"		/* zero move, nothing to do */ \
+"		pushal\n"		/* save regs */ \
+"		pushl	8(%ebp)\n"	/* push eflags from stack */ \
+"		shll	$"#ecxshift",%ecx\n" \
+"		pushl	0x44(%ebx)\n"	/* eflags from TheCPU (Ofs_EFLAGS) */ \
+"		pushl	%ecx\n"		/* push count */ \
+"		pushl	%edi\n"		/* push base address */ \
+"		call	r_munprotect\n" \
+"		addl	$12,%esp\n"	/* remove parameters */ \
+"		popfl\n"		/* real CPU flags back */ \
+"		popal\n"		/* restore regs */ \
+"		rep; "#op"\n"		/* perform op */ \
+"1:		popl	%ebp\n" \
+"		ret\n"
+
 asm (
 		".text\n"
 "stub_stk_16__:"STUB_STK(stk_16)
@@ -236,6 +254,12 @@ asm (
 "stub_stosb__: "STUB_STOS(wri_8,b)
 "stub_stosw__: "STUB_STOS(wri_16,w)
 "stub_stosl__: "STUB_STOS(wri_32,l)
+"stub_rep_movsb__:"STUB_REP(movsb,0)
+"stub_rep_movsw__:"STUB_REP(movsw,1)
+"stub_rep_movsl__:"STUB_REP(movsl,2)
+"stub_rep_stosb__:"STUB_REP(stosb,0)
+"stub_rep_stosw__:"STUB_REP(stosw,1)
+"stub_rep_stosl__:"STUB_REP(stosl,2)
 );
 
 void stub_stk_16(void) asm ("stub_stk_16__");
@@ -249,191 +273,12 @@ void stub_movsl (void) asm ("stub_movsl__" );
 void stub_stosb (void) asm ("stub_stosb__" );
 void stub_stosw (void) asm ("stub_stosw__" );
 void stub_stosl (void) asm ("stub_stosl__" );
-
-asmlinkage void stub_rep_movsb(void)
-{
-	__asm__ __volatile__ (
-"		jecxz	1f\n"		/* zero move, nothing to do */
-"		pushal\n"		/* save regs */
-#ifdef _DEBUG
-"		pushl	8(%%ebp)\n"	/* push eflags from stack */
-#else
-"		pushl	36(%%esp)\n"	/* save eflags from stack */
-#endif
-"		pushl	0x44(%%ebx)\n"	/* eflags from TheCPU (Ofs_EFLAGS) */
-"		pushl	%%ecx\n"	/* push count */
-"		pushl	%%edi\n"	/* push base address */
-"		call	r_munprotect\n"
-"		addl	$12,%%esp\n"	/* remove parameters */
-"		popfl\n"		/* real CPU flags back */
-"		popal\n"		/* restore regs */
-"		rep; movsb\n"		/* perform op */
-#ifdef _DEBUG
-"1:		nop"
-#else
-"1:		ret"
-#endif
-#if GCC_VERSION_CODE >= 2096
-		: : : "%esp" );		/* BUG!! */
-#else
-		: : );
-#endif
-}
-
-asmlinkage void stub_rep_movsw(void)
-{
-	__asm__ __volatile__ (" \
-		jecxz	1f\n \
-		pushal\n"
-#ifdef _DEBUG
-"		pushl	8(%%ebp)\n"
-#else
-"		pushl	36(%%esp)\n"
-#endif
-"		shll	$1,%%ecx\n \
-		pushl	0x44(%%ebx)\n \
-		pushl	%%ecx\n \
-		pushl	%%edi\n \
-		call	r_munprotect\n \
-		addl	$12,%%esp\n \
-		popfl\n \
-		popal\n \
-		rep; movsw\n"
-#ifdef _DEBUG
-"1:		nop"
-#else
-"1:		ret"
-#endif
-#if GCC_VERSION_CODE >= 2096
-		: : : "%esp" );
-#else
-		: : );
-#endif
-}
-
-asmlinkage void stub_rep_movsl(void)
-{
-	__asm__ __volatile__ (" \
-		jecxz	1f\n \
-		pushal\n"
-#ifdef _DEBUG
-"		pushl	8(%%ebp)\n"
-#else
-"		pushl	36(%%esp)\n"
-#endif
-"		shll	$2,%%ecx\n \
-		pushl	0x44(%%ebx)\n \
-		pushl	%%ecx\n \
-		pushl	%%edi\n \
-		call	r_munprotect\n \
-		addl	$12,%%esp\n \
-		popfl\n \
-		popal\n \
-		rep; movsl\n"
-#ifdef _DEBUG
-"1:		nop"
-#else
-"1:		ret"
-#endif
-#if GCC_VERSION_CODE >= 2096
-		: : : "%esp" );
-#else
-		: : );
-#endif
-}
-
-asmlinkage void stub_rep_stosb(void)
-{
-	__asm__ __volatile__ (" \
-		jecxz	1f\n \
-		pushal\n"
-#ifdef _DEBUG
-"		pushl	8(%%ebp)\n"
-#else
-"		pushl	36(%%esp)\n"
-#endif
-"		pushl	0x44(%%ebx)\n \
-		pushl	%%ecx\n \
-		pushl	%%edi\n \
-		call	r_munprotect\n \
-		addl	$12,%%esp\n \
-		popfl\n \
-		popal\n \
-		rep; stosb\n"
-#ifdef _DEBUG
-"1:		nop"
-#else
-"1:		ret"
-#endif
-#if GCC_VERSION_CODE >= 2096
-		: : : "%esp" );
-#else
-		: : );
-#endif
-}
-
-asmlinkage void stub_rep_stosw(void)
-{
-	__asm__ __volatile__ (" \
-		jecxz	1f\n \
-		pushal\n"
-#ifdef _DEBUG
-"		pushl	8(%%ebp)\n"
-#else
-"		pushl	36(%%esp)\n"
-#endif
-"		shll	$1,%%ecx\n \
-		pushl	0x44(%%ebx)\n \
-		pushl	%%ecx\n \
-		pushl	%%edi\n \
-		call	r_munprotect\n \
-		addl	$12,%%esp\n \
-		popfl\n \
-		popal\n \
-		rep; stosw\n"
-#ifdef _DEBUG
-"1:		nop"
-#else
-"1:		ret"
-#endif
-#if GCC_VERSION_CODE >= 2096
-		: : : "%esp" );
-#else
-		: : );
-#endif
-}
-
-asmlinkage void stub_rep_stosl(void)
-{
-	__asm__ __volatile__ (" \
-		jecxz	1f\n \
-		pushal\n"
-#ifdef _DEBUG
-"		pushl	8(%%ebp)\n"
-#else
-"		pushl	36(%%esp)\n"
-#endif
-"		shll	$2,%%ecx\n \
-		pushl	0x44(%%ebx)\n \
-		pushl	%%ecx\n \
-		pushl	%%edi\n \
-		call	r_munprotect\n \
-		addl	$12,%%esp\n \
-		popfl\n \
-		popal\n \
-		rep; stosl\n"
-#ifdef _DEBUG
-"1:		nop"
-#else
-"1:		ret"
-#endif
-#if GCC_VERSION_CODE >= 2096
-		: : : "%esp" );
-#else
-		: : );
-#endif
-}
-
+void stub_rep_movsb (void) asm ("stub_rep_movsb__" );
+void stub_rep_movsw (void) asm ("stub_rep_movsw__" );
+void stub_rep_movsl (void) asm ("stub_rep_movsl__" );
+void stub_rep_stosb (void) asm ("stub_rep_stosb__" );
+void stub_rep_stosw (void) asm ("stub_rep_stosw__" );
+void stub_rep_stosl (void) asm ("stub_rep_stosl__" );
 
 /* ======================================================================= */
 
