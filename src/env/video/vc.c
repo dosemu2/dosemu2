@@ -134,13 +134,10 @@ allow_switch (void)
 static inline void
 SIGACQUIRE_call (void)
 {
-  if (config.console_video)
-    {
-      get_video_ram (WAIT);
-      set_dos_video ();
-      /*      if (config.vga) dos_unpause(); */
-      unfreeze_dosemu();
-    }
+  get_video_ram (WAIT);
+  set_dos_video ();
+  /*      if (config.vga) dos_unpause(); */
+  unfreeze_dosemu();
   unfreeze_mouse();
 }
 
@@ -222,20 +219,17 @@ SIGRELEASE_call (void)
 	  return;
 	}
 
-      if (config.console_video)
-	{
-	  set_linux_video ();
-	  if (can_do_root_stuff) 
-	    release_perm ();
-	  put_video_ram ();
+      set_linux_video ();
+      if (can_do_root_stuff) 
+	release_perm ();
+      put_video_ram ();
 
-	  /*      if (config.vga) dos_pause(); */
-	  scr_state.current = 0;
-	  /* NOTE: if DOSEMU is not frozen then a DOS program in the background
-	     is capable of changing the screen appearance, even while in another
-	     console or X */
-	  freeze_dosemu();
-	}
+      /*      if (config.vga) dos_pause(); */
+      scr_state.current = 0;
+      /* NOTE: if DOSEMU is not frozen then a DOS program in the background
+	 is capable of changing the screen appearance, even while in another
+	 console or X */
+      freeze_dosemu();
     }
 
   scr_state.current = 0;	/* our console is no longer current */

@@ -16,7 +16,6 @@
 #include "keyboard.h"
 #include "keyb_clients.h"
 #include "termio.h"
-#include "vc.h"
 
 #include "keystate.h"
 
@@ -144,7 +143,6 @@ static int raw_keyboard_init(void)
   k_printf("KBD(raw): raw_keyboard_init()\n");
    
   kbd_fd = STDIN_FILENO;
-  set_process_control();
 
   ioctl(kbd_fd, KDGKBMODE, (int)&save_mode);
 
@@ -203,8 +201,6 @@ static void raw_keyboard_close(void)
       k_printf("KBD(raw): Resetting keyboard termios failed.\n");
     }
     fcntl(kbd_fd, F_SETFL, save_kbd_flags);
-
-    clear_process_control();
 
     kbd_fd = -1;
   }
