@@ -51,9 +51,6 @@ int signal, struct sigcontext_struct *scp
 #endif /* __linux__ */
 )
 {
-  unsigned char *csp;
-  int i;
-
 #if 0
   _eflags &= ~(AC|ID);
   REG(eflags) &= ~(AC|ID);
@@ -105,6 +102,8 @@ int signal, struct sigcontext_struct *scp
 		 goto sgleave;
 
       case 0x06: /* invalid_op */
+		{
+		 unsigned char *csp;
 		 dbug_printf("SIGILL while in vm86()\n");
 #if 0
 		 show_regs(__FILE__, __LINE__);
@@ -132,6 +131,7 @@ int signal, struct sigcontext_struct *scp
  		   return;
  		 }
 		 goto sgleave;
+		}
       /* We want to protect the video memory and the VGA BIOS */
       case 0x0e:
                 if(Video->update_screen)
@@ -200,7 +200,7 @@ sgleave:
     if (_cs==UCODESEL) {
       /* Fault in dosemu code */
       /* Now see if it is HLT */
-      csp = (unsigned char *) SEL_ADR(_cs, _eip);
+      unsigned char *csp = (unsigned char *) SEL_ADR(_cs, _eip);
       if (*csp == 0xf4) {
 	/* Well, must come from dpmi_control() */
         _eip += 1;
@@ -285,8 +285,11 @@ bad:
     print_exception_info(scp);
 
     dbug_printf("  VFLAGS(b): ");
-    for (i = (1 << 17); i; i >>= 1)
-      dbug_printf((_eflags & i) ? "1" : "0");
+    {
+      int i;
+      for (i = (1 << 17); i; i >>= 1)
+	dbug_printf((_eflags & i) ? "1" : "0");
+    }
     dbug_printf("\n");
 
     dbug_printf("EAX: %08lx  EBX: %08lx  ECX: %08lx  EDX: %08lx"
@@ -320,6 +323,10 @@ bad:
     /* display the 10 bytes before and after CS:EIP.  the -> points
      * to the byte at address CS:EIP
      */
+    {
+    unsigned char *csp;
+    int i;
+
     dbug_printf("OOPS : ");
     csp = (unsigned char *) _eip - 10;
     for (i = 0; i < 10; i++)
@@ -333,6 +340,7 @@ bad:
 
     fatalerr = 4;
     leavedos(fatalerr);		/* shouldn't return */
+    }
   }
 }
 
