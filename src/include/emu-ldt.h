@@ -23,6 +23,17 @@
 
 #define MAX_SELECTORS	LDT_ENTRIES
 
+#define DT_LIMIT(dp)		(((dp)->limit_hi<<16) | ((dp)->limit_lo))
+#define DT_BASE(dp)		(((dp)->base_hi<<24) | ((dp)->base_mid<<16) | ((dp)->base_lo))
+#if defined(i386)||defined(__i386)||defined(__i386__)
+#define DT_FLAGS(dp)		(*((unsigned short *)(((char *)(dp))+5))&0xf0ff)
+#endif
+#if defined(ppc)||defined(__ppc)||defined(__ppc__)
+#define DT_FLAGS(dp)		(((char *)(dp))[5] | (unsigned int)(((char *)(dp))[6]&0xf0)<<8)
+#endif
+#define MKLIMIT(dp,l)		{(dp)->limit_lo=(l),(dp)->limit_hi=(l)>>16;}
+#define MKBASE(dp,b)		{(dp)->base_lo=(b),(dp)->base_mid=(b)>>16,(dp)->base_hi=(b)>>24;}
+
 /*
  *   segment descriptors - little endian
  *   Memory layout

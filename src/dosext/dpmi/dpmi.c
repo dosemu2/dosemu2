@@ -182,9 +182,6 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 	      int seg_32bit_flag, int contents, int read_only_flag,
 	      int limit_in_pages_flag, int seg_not_present, int useable)
 {
-  unsigned long *lp;
-/* --------------------- linux --------------------- */
-#ifdef __linux__
   struct modify_ldt_ldt_s ldt_info;
   int __retval;
   ldt_info.entry_number = entry;
@@ -198,15 +195,13 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   ldt_info.useable = useable;
 
 #ifdef X86_EMULATOR
-  if (config.cpuemu>3)
-	__retval = emu_modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
-  else
+  if (config.cpuemu<=3)
 #endif
-  __retval = modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
-  if (__retval)
-	return __retval;
-#endif /* __linux__ */
-
+  {
+    __retval = modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
+    if (__retval)
+      return __retval;
+  }
 
 /*
  * DANG_BEGIN_REMARK
@@ -219,39 +214,12 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
  * DANG_END_REMARK
  */
 
-  lp = (unsigned long *) &ldt_buffer[entry*LDT_ENTRY_SIZE];
-
-  if (base == 0 && limit == 0 &&
-      contents == 0 && read_only_flag == 1 &&
-      seg_32bit_flag == 0 && limit_in_pages_flag == 0 &&
-      seg_not_present == 1 && useable == 0) {
-        if (in_win31)
-          MUNPROT_LDT_ENTRY(entry);
-	*lp = 0;
-	*(lp+1) = 0;
-        if (in_win31)
-          MPROT_LDT_ENTRY(entry);
-	return 0;
-  }
-#ifdef __linux__
   if (in_win31)
     MUNPROT_LDT_ENTRY(entry);
-  *lp =     ((ldt_info.base_addr & 0x0000ffff) << 16) |
-            (ldt_info.limit & 0x0ffff);
-  *(lp+1) = (ldt_info.base_addr & 0xff000000) |
-            ((ldt_info.base_addr & 0x00ff0000)>>16) |
-            (ldt_info.limit & 0xf0000) |
-            (ldt_info.contents << 10) |
-            ((ldt_info.read_exec_only ^ 1) << 9) |
-            (ldt_info.seg_32bit << 22) |
-            (ldt_info.limit_in_pages << 23) |
-            ((ldt_info.seg_not_present ^1) << 15) |
-            (ldt_info.useable << 20) |
-            0x7000;
+  __retval = emu_modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info));
   if (in_win31)
     MPROT_LDT_ENTRY(entry);
-#endif
-  return 0;
+  return __retval;
 }
 
 static void _print_dt(char *buffer, int nsel, int isldt) /* stolen from WINE */

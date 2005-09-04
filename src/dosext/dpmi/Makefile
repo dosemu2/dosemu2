@@ -7,16 +7,7 @@
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
-
-# CC   = gcc
-# INCDIR is exported from ..
-#INCDIR = -I../ -I../include/
-CFLAGS+= $(KERNEL)
-
-ALL = dpmi.c dpmi.h memory.c msdos.c vxd.c
-
-OBJS = dpmi.o msdos.o memory.o vxd.o
-DEPENDS=dpmi.d msdos.d memory.d vxd.d
+CFILES = dpmi.c memory.c msdos.c vxd.c emu-ldt.c
 
 all:  lib
 

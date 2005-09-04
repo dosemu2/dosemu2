@@ -785,8 +785,6 @@ static void e_gen_sigprof(int sig, struct sigcontext_struct context)
 }
 
 
-Descriptor *alloc_LDT = NULL;
-
 void enter_cpu_emu(void)
 {
 	struct itimerval itv;
@@ -799,10 +797,9 @@ void enter_cpu_emu(void)
 	config.cpuemu=2;	/* for saving CPU flags */
 	emu_dpmi_retcode = -1;
 	GDT = NULL; IDT = NULL;
-	/* allocate the LDT used by dpmi (w/o GDT) */
+	/* use the cached LDT used by dpmi (w/o GDT) */
 	if (LDT==NULL) {
-		alloc_LDT = LDT = (Descriptor *)malloc(LGDT_ENTRIES * sizeof(Descriptor));
-		memcpy(LDT, ldt_buffer, LGDT_ENTRIES * sizeof(Descriptor));
+		LDT = (Descriptor *)ldt_buffer;
 		e_printf("LDT allocated at %08lx\n",(long)LDT);
 		TheCPU.LDTR.Base = (long)LDT;
 		TheCPU.LDTR.Limit = 0xffff;
@@ -874,8 +871,7 @@ void leave_cpu_emu(void)
 #endif
 		mprot_end();
 
-		if (alloc_LDT!=NULL) { free(alloc_LDT); alloc_LDT=LDT=NULL; }
-		GDT = NULL; IDT = NULL;
+		LDT = NULL; GDT = NULL; IDT = NULL;
 		dbug_printf("======================= LEAVE CPU-EMU ===============\n");
 #ifdef PROFILE
 		dbug_printf("Total cpuemu time %16lld us (incl.trace)\n",TotalTime/config.CPUSpeedInMhz);
