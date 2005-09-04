@@ -172,19 +172,27 @@ int e_querymark(caddr_t addr)
 	return (test_bit(idx, M->subpage) & 1);
 }
 
-int e_resetpagemarks(caddr_t addr)
+static void e_resetonepagemarks(caddr_t addr)
 {
 	int i, idx;
 	tMpMap *M;
 
-	M = FindM(addr); if (M==NULL) return 0;
+	M = FindM(addr); if (M==NULL) return;
 	/* reset all 256 bits=8 longs for the page */
 	idx = (((long)addr >> PAGE_SHIFT) & 255) << 3;
 	if (debug_level('e')>1) e_printf("UNMARK 256 bits at %08lx (long=%x)\n",(long)addr,idx);
 	for (i=0; i<8; i++) M->subpage[idx++] = 0;
-	return 1;
 }
 
+void e_resetpagemarks(caddr_t addr, size_t len)
+{
+	int i, pages;
+
+	pages = (((size_t)addr + len - 1) >> PAGE_SHIFT) -
+	  ((size_t)addr >> PAGE_SHIFT) + 1;
+	for (i = 0; i < pages; i++)
+		e_resetonepagemarks(addr + i * PAGE_SIZE);
+}
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -225,6 +233,15 @@ int e_munprotect(caddr_t addr, size_t len)
 	if (e>=0) return AddMpMap(abeg, aend, 0);
 	e_printf("MPUNMAP: %s\n",strerror(errno));
 	return -1;
+}
+
+/* check if the address is aliased to a non protected page, and if it is,
+   do not try to unprotect it */
+int e_check_munprotect(caddr_t addr)
+{
+	if (LINEAR2UNIX(addr) != addr)
+		return 0;
+	return e_munprotect(addr,0);
 }
 
 /////////////////////////////////////////////////////////////////////////////

@@ -192,9 +192,7 @@ TODO:
 #include "redirect.h"
 #include "mangle.h"
 #include "utilities.h"
-#ifdef X86_EMULATOR
 #include "cpu-emu.h"
-#endif
 #endif
 
 #ifdef __linux__
@@ -3152,13 +3150,7 @@ dos_fs_redirect(state_t *state)
 	return (TRUE);
       }
 
-#ifdef X86_EMULATOR
-      if (config.cpuemu>1) {
-	ret = e_dos_read(fd, dta, cnt);
-      }
-      else
-#endif
-      ret = dos_read(fd, dta, cnt);
+      ret = e_dos_read(fd, dta, cnt);
 
       Debug0((dbg_fd, "Read returned : %d\n",
 	      ret));

@@ -42,19 +42,10 @@
 #define asmlinkage static __attribute__((unused))
 #endif
 
-/* check if the address is aliased to a non protected page, and if it is,
-   do not try to unprotect it */
-static int check_munprotect(caddr_t addr)
-{
-	if (LINEAR2UNIX(addr) != addr)
-		return 0;
-	return e_munprotect(addr,0);
-}
-
 int s_munprotect(caddr_t addr)
 {
 	if (debug_level('e')>3) e_printf("\tS_MUNPROT %08lx\n",(long)addr);
-	return check_munprotect(addr);
+	return e_check_munprotect(addr);
 }
 
 int s_mprotect(caddr_t addr)
@@ -80,14 +71,14 @@ static int m_munprotect(caddr_t addr, long eip)
 #ifndef HOST_ARCH_SIM
 	/* verify that data, not code, has been hit */
 	if (!e_querymark(addr))
-	    return check_munprotect(addr);
+	    return e_check_munprotect(addr);
 	/* Oops.. we hit code, maybe the stub was set up before that
 	 * code was parsed. Ok, undo the patch and clear that code */
 	e_printf("CODE %08lx hit in DATA %08lx patch\n",(long)addr,eip);
 /*	if (UnCpatch((void *)(eip-5))) leavedos(0); */
 	InvalidateSingleNode((long)addr, eip);
 #endif
-	return check_munprotect(addr);
+	return e_check_munprotect(addr);
 }
 
 asmlinkage int r_munprotect(caddr_t addr, long len, long flags)
@@ -99,7 +90,7 @@ asmlinkage int r_munprotect(caddr_t addr, long len, long flags)
 		(long)addr,(long)addr+len,(flags&EFLAGS_DF?"back":"fwd"));
 #ifndef HOST_ARCH_SIM
 	InvalidateNodePage((long)addr,len,0,NULL);
-	e_resetpagemarks(addr);
+	e_resetpagemarks(addr,len);
 #endif
 	e_munprotect(addr,len);
 	return 0;

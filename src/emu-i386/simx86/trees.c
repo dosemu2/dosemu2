@@ -1326,27 +1326,21 @@ quit:
 
 /////////////////////////////////////////////////////////////////////////////
 
+void e_invalidate(char *data, int cnt)
+{
+	if (config.cpuemu <= 1)
+		return;
+	e_munprotect(data, cnt);
+	InvalidateNodePage((long)data, cnt, 0, NULL);
+	e_resetpagemarks(data, cnt);
+}
 
 int e_dos_read(int fd, char *data, int cnt)	// called from mfs.c
 {
-	long d2ep; int ret=0;
-
-	d2ep = PAGE_SIZE - ((long)data & (PAGE_SIZE-1));
-
-	while (cnt > 0) {
-	    int c2 = (cnt<d2ep? cnt:d2ep);
-	    int rcnt;
-	    e_munprotect(data, 0);
-	    InvalidateNodePage((long)data, 0, 0, NULL);
-	    e_resetpagemarks(data);
-	    rcnt = RPT_SYSCALL(read(fd, data, c2));
-/**/ e_printf("e_dos_read fd=%x %08lx:%x = %d(%d)\n",fd,(long)data,c2,rcnt,ret);
-	    if (rcnt < 0) return rcnt;
-	    ret += rcnt; if (rcnt < c2) break;
-	    data += c2;
-	    d2ep = PAGE_SIZE;
-	    cnt -= c2;
-	}
+	int ret = RPT_SYSCALL(read(fd, LOWMEM(data), cnt));
+/**/ e_printf("e_dos_read fd=%x %p:%x = %d\n",fd,data,cnt,ret);
+	if (ret > 0)
+		e_invalidate(data, ret);
 	return ret;
 }
 
