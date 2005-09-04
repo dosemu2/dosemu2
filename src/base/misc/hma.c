@@ -13,12 +13,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/param.h>
 #include "memory.h"
 #include "emu.h"
 #include "hma.h"
 #include "mapping.h"
 #include "bios.h"
+#include "utilities.h"
+#include "cpu-emu.h"
 
 #define HMAAREA (u_char *)0x100000
 
@@ -103,10 +104,12 @@ void extmem_copy(char *dst, char *src, unsigned long len)
     else if (d + dlen > edge)
       dlen = edge - d;
 
-    clen = MIN(slen, dlen);
+    clen = min(slen, dlen);
     x_printf("INT15: copy 0x%lx bytes from %p to %p%s\n",
       clen, s, d, clen != len ? " (split)" : "");
     MEMMOVE_DOS2DOS(d, s, clen);
+    if (d < edge)
+      e_invalidate(d, clen);
     copied += clen;
   }
 }
