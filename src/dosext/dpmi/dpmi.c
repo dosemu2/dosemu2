@@ -170,7 +170,7 @@ int get_ldt(void *buffer)
 {
 #ifdef __linux__
 #ifdef X86_EMULATOR
-  if (config.cpuemu>3)
+  if (config.cpuemu>3 && LDT)
 	return emu_modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
   else
 #endif
