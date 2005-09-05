@@ -88,7 +88,8 @@ static int exposure = 0;
 
 static int font_width = 8, font_height = 16, font_shift = 1;
 
-static int w_x_res, w_y_res;
+static int w_x_res, w_y_res;			/* actual window size */
+static int saved_w_x_res, saved_w_y_res;	/* saved normal window size */
 
 /* For graphics mode */
 static vga_emu_update_type veut;
@@ -242,10 +243,19 @@ void SDL_set_text_palette(DAC_entry col)
 
 void SDL_resize_image(unsigned width, unsigned height)
 {
-  X_printf("X: resize_ximage %d x %d\n", width, height);
+  v_printf("SDL: resize_image %d x %d\n", width, height);
   w_x_res = width;
   w_y_res = height;
   SDL_change_mode(&w_x_res, &w_y_res);
+}
+
+static void SDL_redraw_resize_image(unsigned width, unsigned height)
+{
+  SDL_resize_image(width, height);
+  dirty_all_video_pages();
+  if (vga.mode_class == TEXT)
+    vga.reconfig.mem = 1;
+  SDL_update_screen();
 }
 
 int SDL_set_text_mode(int tw, int th, int w ,int h)
@@ -266,6 +276,8 @@ int SDL_set_text_mode(int tw, int th, int w ,int h)
 static void SDL_change_mode(int *x_res, int *y_res)
 {
   Uint32 flags = SDL_HWPALETTE | SDL_HWSURFACE;
+  saved_w_x_res = *x_res;
+  saved_w_y_res = *y_res;
   if (config.X_fullscreen) {
     SDL_Rect **modes;
     int i;
@@ -281,11 +293,13 @@ static void SDL_change_mode(int *x_res, int *y_res)
       if (modes[i]) {
 	int factor;
 	factor = modes[i]->w / vga.width;
-	if (*y_res * factor > modes[i]->h) {
+	if (vga.height * factor > modes[i]->h) {
 	  factor = modes[i]->h / vga.height;
 	}
 	*x_res = vga.width * factor;
 	*y_res = vga.height * factor;
+	v_printf("SDL: using fullscreen mode: x=%d, y=%d\n",
+		 modes[i]->w, modes[i]->h);
       }
     }
     flags |= SDL_FULLSCREEN;
@@ -408,32 +422,22 @@ static void toggle_grab(void)
 
 static void toggle_fullscreen_mode(void)
 {
-  /*unsigned resize_height, resize_width; TBD */
-
-  if (!config.X_fullscreen) {
+  config.X_fullscreen = !config.X_fullscreen;
+  if (config.X_fullscreen) {
     v_printf("SDL: entering fullscreen mode\n");
-    SDL_WM_ToggleFullScreen(surface);
     if (!grab_active) {
       toggle_grab();
       force_grab = 1;
     }
-    /*X_vidmode(x_res, y_res, &resize_width, &resize_height); TBD*/
-    config.X_fullscreen = 1;
-    SDL_WM_GrabInput(SDL_GRAB_ON);
+    SDL_redraw_resize_image(w_x_res, w_y_res);
   } else {
     v_printf("SDL: entering windowed mode!\n");
-    SDL_WM_GrabInput(SDL_GRAB_OFF);
+    SDL_redraw_resize_image(saved_w_x_res, saved_w_y_res);
     if (force_grab && grab_active) {
       toggle_grab();
     }
     force_grab = 0;
-    config.X_fullscreen = 0;
-    SDL_WM_ToggleFullScreen(surface);
-    /*XResizeWindow(display, mainwindow, resize_width, resize_height); TBD*/
   }
-  /*resize_ximage(resize_width, resize_height); TBD */
-  dirty_all_video_pages();
-  SDL_update_screen();
 }
 
 /*
@@ -517,11 +521,7 @@ static void SDL_handle_events(void)
        }
        break;
      case SDL_VIDEORESIZE:
-       SDL_resize_image(event.resize.w, event.resize.h);
-       dirty_all_video_pages();
-       if (vga.mode_class == TEXT)
-	 vga.reconfig.mem = 1;
-       SDL_update_screen();
+       SDL_redraw_resize_image(event.resize.w, event.resize.h);
        break;
      case SDL_KEYDOWN:
        {
