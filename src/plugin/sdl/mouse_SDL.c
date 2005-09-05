@@ -57,7 +57,7 @@ static void SDL_show_mouse_cursor(int yes)
     return;
   }
   SDL_SetCursor(mouse_GFX_cursor);
-  SDL_ShowCursor(yes ? SDL_ENABLE : SDL_DISABLE);
+  SDL_ShowCursor((yes && !grab_active) ? SDL_ENABLE : SDL_DISABLE);
 }
 
 static void SDL_set_mouse_cursor(int action, int mx, int my, int x_range, int y_range)

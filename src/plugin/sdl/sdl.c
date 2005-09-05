@@ -19,12 +19,14 @@
 #include "bios.h"
 #include "video.h"
 #include "memory.h"
+#include "timers.h"
 #include "../../env/video/remap.h"
 #include "vgaemu.h"
 #include "vgatext.h"
 #include "render.h"
 #include "sdl.h"
 #include "keyb_clients.h"
+#include "dos2linux.h"
 
 static int SDL_init(void);
 static void SDL_close(void);
@@ -45,6 +47,10 @@ static void SDL_resize_image(unsigned width, unsigned height);
 static void SDL_handle_events(void);
 static int SDL_set_text_mode(int tw, int th, int w ,int h);
 
+/* interface to xmode.exe */
+static int SDL_change_config(unsigned, void *);
+static void toggle_grab(void);
+
 struct video_system Video_SDL = 
 {
   0,
@@ -53,7 +59,7 @@ struct video_system Video_SDL =
   SDL_set_videomode,
   SDL_update_screen,
   SDL_update_cursor,
-  NULL,
+  SDL_change_config,
   SDL_handle_events
 };
 
@@ -92,6 +98,9 @@ static SDL_Color vga_colors[256];
 
 static DAC_entry text_colors[16];
 
+static int force_grab = 0;
+int grab_active = 0;
+
 void SDL_update(void)
 {
   /* do nothing for now -- but see comment in SDL_put_image */
@@ -117,7 +126,7 @@ int SDL_init(void)
   if (video_info->wm_available) {
     SDL_WM_SetCaption(config.X_title, config.X_icon_name);
     if (config.X_fullscreen)
-      SDL_WM_GrabInput(SDL_GRAB_ON);
+      toggle_grab();
   } else {
     config.X_fullscreen = 1;
   }
@@ -210,7 +219,7 @@ int SDL_set_videomode(int mode_class, int text_width, int text_height)
    
   if(vga.mode_class == TEXT) {
     SDL_set_text_mode(vga.text_width, vga.text_height, vga.width, vga.height);
-    SDL_ShowCursor(SDL_ENABLE);
+    if (!grab_active) SDL_ShowCursor(SDL_ENABLE);
     if (is_mapped) reset_redraw_text_screen();
   } else {
     get_mode_parameters(&w_x_res, &w_y_res, SDL_image_mode, &veut);
@@ -376,6 +385,104 @@ void SDL_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
     SDL_UpdateRect(surface, ra.x, ra.y, ra.width, ra.height);
 }
 
+static void toggle_grab(void)
+{
+  if(grab_active ^= 1) {
+    v_printf("SDL: grab activated\n");
+    if (!config.X_fullscreen)
+      SDL_WM_GrabInput(SDL_GRAB_ON);
+    config.mouse.use_absolute = 0;
+    v_printf("SDL: mouse grab activated\n");
+    SDL_ShowCursor(SDL_DISABLE);
+    mouse_enable_native_cursor(1);
+  }
+  else {
+    config.mouse.use_absolute = 1;
+    v_printf("SDL: grab released\n");
+    if (!config.X_fullscreen)
+      SDL_WM_GrabInput(SDL_GRAB_OFF);
+    if(vga.mode_class == TEXT)
+      SDL_ShowCursor(SDL_ENABLE);
+    mouse_enable_native_cursor(0);
+  }
+  SDL_change_config(CHG_TITLE, NULL);
+}
+
+static void toggle_fullscreen_mode(void)
+{
+  /*unsigned resize_height, resize_width; TBD */
+
+  if (!config.X_fullscreen) {
+    v_printf("SDL: entering fullscreen mode\n");
+    SDL_WM_ToggleFullScreen(surface);
+    if (!grab_active) {
+      toggle_grab();
+      force_grab = 1;
+    }
+    /*X_vidmode(x_res, y_res, &resize_width, &resize_height); TBD*/
+    config.X_fullscreen = 1;
+    SDL_WM_GrabInput(SDL_GRAB_ON);
+  } else {
+    v_printf("SDL: entering windowed mode!\n");
+    SDL_WM_GrabInput(SDL_GRAB_OFF);
+    if (force_grab && grab_active) {
+      toggle_grab();
+    }
+    force_grab = 0;
+    config.X_fullscreen = 0;
+    SDL_WM_ToggleFullScreen(surface);
+    /*XResizeWindow(display, mainwindow, resize_width, resize_height); TBD*/
+  }
+  /*resize_ximage(resize_width, resize_height); TBD */
+  dirty_all_video_pages();
+  SDL_update_screen();
+}
+
+/*
+ * This function provides an interface to reconfigure parts
+ * of SDL and the VGA emulation during a DOSEMU session.
+ * It is used by the xmode.exe program that comes with DOSEMU.
+ */
+static int SDL_change_config(unsigned item, void *buf)
+{
+  int err = 0;
+
+  v_printf("SDL: SDL_change_config: item = %d, buffer = 0x%x\n", item, (unsigned) buf);
+
+  switch(item) {
+
+    case CHG_TITLE:
+      /* low-level write */
+      if (buf) {
+	v_printf("SDL: SDL_change_config: win_name = %s\n", (char *) buf);
+	SDL_WM_SetCaption(buf, config.X_icon_name);
+	break;
+      }
+      /* high-level write (shows name of emulator + running app) */
+      /* fallthrough */
+
+    case CHG_TITLE_EMUNAME:
+    case CHG_TITLE_APPNAME:
+    case CHG_TITLE_SHOW_APPNAME:
+    case CHG_WINSIZE:
+    case CHG_BACKGROUND_PAUSE:
+    case GET_TITLE_APPNAME:
+      change_config (item, buf, grab_active, grab_active);
+      break;
+
+    case CHG_FULLSCREEN:
+      v_printf("SDL: SDL_change_config: fullscreen %i\n", *((int *) buf));
+      if (*((int *) buf) == !config.X_fullscreen)
+	toggle_fullscreen_mode();
+      break;
+
+    default:
+      err = 100;
+  }
+
+  return err;
+}
+
 static void SDL_handle_events(void)
 {
    static int busy = 0;
@@ -418,8 +525,30 @@ static void SDL_handle_events(void)
 	 vga.reconfig.mem = 1;
        SDL_update_screen();
        break;
-     case SDL_KEYUP:
      case SDL_KEYDOWN:
+       {
+	 SDL_keysym keysym = event.key.keysym;
+	 if ((keysym.mod & KMOD_CTRL) && (keysym.mod & KMOD_ALT)) {
+	   if (keysym.sym == SDLK_HOME || keysym.sym == SDLK_k) {
+	     force_grab = 0;
+	     toggle_grab();
+	     break;
+	   } else if (keysym.sym == SDLK_p) {
+	     if (!dosemu_frozen) {
+	       freeze_dosemu_manual();
+	     } else {
+	       unfreeze_dosemu();
+	     }
+	     break;
+	   } else if (keysym.sym == SDLK_f) {
+	     toggle_fullscreen_mode();
+	     break;
+	   }
+	 }
+       }
+       SDL_process_key(event.key);
+       break;
+     case SDL_KEYUP:
        SDL_process_key(event.key);
        break;
      case SDL_MOUSEBUTTONDOWN:
