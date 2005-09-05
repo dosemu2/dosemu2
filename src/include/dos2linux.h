@@ -228,5 +228,6 @@ extern int misc_e6_need_terminate(void);
 
 extern void run_unix_command (char *buffer);
 extern int run_system_command(char *buffer);
+extern int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active);
 
 #endif /* DOS2LINUX_H */

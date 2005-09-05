@@ -28,9 +28,14 @@
  * DANG_BEGIN_CHANGELOG
  *
  *	$Log$
- *	Revision 1.5  2005/06/20 17:12:11  stsp
- *	Remove the ancient (unused) ioctl queueing code.
+ *	Revision 1.6  2005/09/05 09:47:56  bartoldeman
+ *	Moved much of X_change_config to dos2linux.c. Much of it will be shared
+ *	with SDL.
  *
+ *	Revision 1.5  2005/06/20 17:12:11  stsp
+ *	
+ *	Remove the ancient (unused) ioctl queueing code.
+ *	
  *	Revision 1.4  2005/05/20 00:26:09  bartoldeman
  *	It's 2005 this year.
  *	
@@ -70,7 +75,9 @@
 #include "priv.h"
 #include "pic.h"
 #include "int.h"
+#include "timers.h"
 #include "vc.h"
+#include "video.h"
 
 #ifndef max
 #define max(a,b)       ((a)>(b)? (a):(b))
@@ -397,4 +404,105 @@ int run_system_command(char *buffer)
         }
         return WEXITSTATUS(status);
     }
+}
+
+/*
+ * This function provides parts of the interface to reconfigure parts
+ * of X/SDL and the VGA emulation during a DOSEMU session.
+ * It is used by the xmode.exe program that comes with DOSEMU.
+ */
+int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active)
+{
+  static char title_emuname [TITLE_EMUNAME_MAXLEN] = {0};
+  static char title_appname [TITLE_APPNAME_MAXLEN] = {0};
+  int err = 0;
+
+  g_printf("change_config: item = %d, buffer = 0x%x\n", item, (unsigned) buf);
+
+  switch(item) {
+
+    case CHG_TITLE:
+      {
+	/* high-level write (shows name of emulator + running app) */
+	char title [TITLE_EMUNAME_MAXLEN + TITLE_APPNAME_MAXLEN + 35] = {0};
+         
+	/* app - DOS in a BOX */
+	/* name of running application (if any) */
+	if (config.X_title_show_appname && strlen (title_appname))
+	  strcpy (title, title_appname);
+         
+	/* append name of emulator */
+	if (strlen (title_emuname)) {
+	    if (strlen (title)) strcat (title, " - ");
+	    strcat (title, title_emuname);
+	} else if (strlen (config.X_title)) {
+	  if (strlen (title)) strcat (title, " - ");
+	  /* foreign string, cannot trust its length to be <= TITLE_EMUNAME_MAXLEN */
+	  snprintf (title + strlen (title), TITLE_EMUNAME_MAXLEN, "%s ", config.X_title);  
+	}
+
+	if (dosemu_frozen) {
+	  if (strlen (title)) strcat (title, " ");
+
+	  if (dosemu_user_froze)
+	    strcat (title, "[paused - Ctrl+Alt+P] ");
+	  else
+	    strcat (title, "[background pause] ");
+	}
+
+	if (grab_active || kbd_grab_active) {
+	  strcat(title, "[");
+	  if (kbd_grab_active) {
+	    strcat(title, "keyboard");
+	    if (grab_active)
+	      strcat(title, "+");
+	  }
+	  if (grab_active)
+	    strcat(title, "mouse");
+	  strcat(title, " grab] ");
+	}
+
+	/* now actually change the title of the Window */
+	Video->change_config (CHG_TITLE, title);
+      }
+       break;
+       
+    case CHG_TITLE_EMUNAME:
+      g_printf ("change_config: emu_name = %s\n", (char *) buf);
+      snprintf (title_emuname, TITLE_EMUNAME_MAXLEN, "%s", ( char *) buf);
+      Video->change_config (CHG_TITLE, NULL);
+      break;
+      
+    case CHG_TITLE_APPNAME:
+      g_printf ("change_config: app_name = %s\n", (char *) buf);
+      snprintf (title_appname, TITLE_APPNAME_MAXLEN, "%s", (char *) buf);
+      Video->change_config (CHG_TITLE, NULL);
+      break;
+
+    case CHG_TITLE_SHOW_APPNAME:
+      g_printf("change_config: show_appname %i\n", *((int *) buf));
+      config.X_title_show_appname = *((int *) buf);
+      Video->change_config (CHG_TITLE, NULL);
+      break;
+
+    case CHG_WINSIZE:
+      config.X_winsize_x = *((int *) buf);
+      config.X_winsize_y = ((int *) buf)[1];
+      g_printf("change_config: set initial graphics window size to %d x %d\n", config.X_winsize_x, config.X_winsize_y);
+      break;
+
+    case CHG_BACKGROUND_PAUSE:
+      g_printf("change_config: background_pause %i\n", *((int *) buf));
+      config.X_background_pause = *((int *) buf);
+      break;
+
+    case GET_TITLE_APPNAME:
+      snprintf (buf, TITLE_APPNAME_MAXLEN, "%s", title_appname);
+      break;
+          
+    default:
+      err = 100;
+  }
+
+  return err;
 }

@@ -249,6 +249,7 @@
 #include "X.h"
 #include "dosemu_config.h"
 #include "utilities.h"
+#include "dos2linux.h"
 
 #ifdef HAVE_MITSHM
 #include <sys/ipc.h>
@@ -418,8 +419,6 @@ static int NewXIOErrorHandler(Display *);
 static void X_handle_events(void);
 
 /* interface to xmode.exe */
-static char X_title_emuname [X_TITLE_EMUNAME_MAXLEN] = {0};
-static char X_title_appname [X_TITLE_APPNAME_MAXLEN] = {0};
 static int X_change_config(unsigned, void *);	/* modify X config data from DOS */
 
 /* colormap related stuff */
@@ -1097,83 +1096,27 @@ static int X_change_config(unsigned item, void *buf)
 
   switch(item) {
 
-    case X_CHG_TITLE:
-       /* low-level write */
-       if (buf)
-       {
-         X_printf("X: X_change_config: win_name = %s\n", (char *) buf);
-         /* always change the normal window's title - never the full-screen one */
-         XStoreName(display, normalwindow, buf);
-       }
-       /* high-level write (shows name of emulator + running app) */
-       else
-       {
-         char title [X_TITLE_EMUNAME_MAXLEN + X_TITLE_APPNAME_MAXLEN + 35] = {0};
-         
-         /* app - DOS in a BOX */
-         /* name of running application (if any) */
-         if (config.X_title_show_appname && strlen (X_title_appname))
-           strcpy (title, X_title_appname);
-         
-         /* append name of emulator */
-         if (strlen (X_title_emuname))
-         {
-           if (strlen (title)) strcat (title, " - ");
-           strcat (title, X_title_emuname);
-         }
-         else if (strlen (config.X_title))
-         {
-           if (strlen (title)) strcat (title, " - ");
-           /* foreign string, cannot trust its length to be <= X_TITLE_EMUNAME_MAXLEN */
-           snprintf (title + strlen (title), X_TITLE_EMUNAME_MAXLEN, "%s ", config.X_title);  
-         }
-
-         if (dosemu_frozen)
-         {
-           if (strlen (title)) strcat (title, " ");
-
-           if (dosemu_user_froze)
-             strcat (title, "[paused - Ctrl+Alt+P] ");
-           else
-             strcat (title, "[background pause] ");
-         }
-
-         if (grab_active || kbd_grab_active) {
-	   strcat(title, "[");
-	   if (kbd_grab_active) {
-	     strcat(title, "keyboard");
-	     if (grab_active)
-	       strcat(title, "+");
-	   }
-	   if (grab_active)
-	     strcat(title, "mouse");
-	   strcat(title, " grab] ");
-	 }
-
-         /* now actually change the title of the Window */
-         X_change_config (X_CHG_TITLE, title);
-       }
-       break;
+    case CHG_TITLE:
+      /* low-level write */
+      if (buf) {
+	X_printf("X: X_change_config: win_name = %s\n", (char *) buf);
+	/* always change the normal window's title - never the full-screen one */
+	XStoreName(display, normalwindow, buf);
+	break;
+      }
+      /* high-level write (shows name of emulator + running app) */
+      /* fall through */
        
-    case X_CHG_TITLE_EMUNAME:
-      X_printf ("X: X_change_config: emu_name = %s\n", (char *) buf);
-      snprintf (X_title_emuname, X_TITLE_EMUNAME_MAXLEN, "%s", ( char *) buf);
-      X_change_config (X_CHG_TITLE, NULL);
-      break;
-      
-    case X_CHG_TITLE_APPNAME:
-      X_printf ("X: X_change_config: app_name = %s\n", (char *) buf);
-      snprintf (X_title_appname, X_TITLE_APPNAME_MAXLEN, "%s", (char *) buf);
-      X_change_config (X_CHG_TITLE, NULL);
+    case CHG_TITLE_EMUNAME:
+    case CHG_TITLE_APPNAME:
+    case CHG_TITLE_SHOW_APPNAME:
+    case CHG_WINSIZE:
+    case CHG_BACKGROUND_PAUSE:
+    case GET_TITLE_APPNAME:
+      change_config(item, buf, grab_active, kbd_grab_active);
       break;
 
-    case X_CHG_TITLE_SHOW_APPNAME:
-      X_printf("X: X_change_config: show_appname %i\n", *((int *) buf));
-      config.X_title_show_appname = *((int *) buf);
-      X_change_config (X_CHG_TITLE, NULL);
-      break;
-
-    case X_CHG_FONT:
+    case CHG_FONT:
       xfont = XLoadQueryFont(display, (char *) buf);
       if(xfont == NULL) {
         if(font != NULL) XFreeFont(display, font);
@@ -1213,39 +1156,24 @@ static int X_change_config(unsigned item, void *buf)
       }
       break;
 
-    case X_CHG_MAP:
+    case CHG_MAP:
       X_map_mode = *((int *) buf);
       X_printf("X: X_change_config: map window at mode 0x%02x\n", X_map_mode);
       if(X_map_mode == -1) { XMapWindow(display, mainwindow); }
       break;
 
-    case X_CHG_UNMAP:
+    case CHG_UNMAP:
       X_unmap_mode = *((int *) buf);
       X_printf("X: X_change_config: unmap window at mode 0x%02x\n", X_unmap_mode);
       if(X_unmap_mode == -1) { XUnmapWindow(display, mainwindow); }
       break;
 
-    case X_CHG_WINSIZE:
-      config.X_winsize_x = *((int *) buf);
-      config.X_winsize_y = ((int *) buf)[1];
-      X_printf("X: X_change_config: set initial graphics window size to %d x %d\n", config.X_winsize_x, config.X_winsize_y);
-      break;
-
-    case X_CHG_BACKGROUND_PAUSE:
-      X_printf("X: X_change_config: background_pause %i\n", *((int *) buf));
-      config.X_background_pause = *((int *) buf);
-      break;
-
-    case X_CHG_FULLSCREEN:
+    case CHG_FULLSCREEN:
       X_printf("X: X_change_config: fullscreen %i\n", *((int *) buf));
       if (*((int *) buf) == (mainwindow == normalwindow))
 	toggle_fullscreen_mode();
       break;
 
-    case X_GET_TITLE_APPNAME:
-      snprintf (buf, X_TITLE_APPNAME_MAXLEN, "%s", X_title_appname);
-      break;
-          
     default:
       err = 100;
   }
@@ -1331,7 +1259,7 @@ static void toggle_kbd_grab(void)
       XUngrabKeyboard(display, CurrentTime);
     }
   }
-  X_change_config(X_CHG_TITLE, NULL);
+  X_change_config(CHG_TITLE, NULL);
 }
 
 static void toggle_mouse_grab(void)
@@ -1356,7 +1284,7 @@ static void toggle_mouse_grab(void)
     mouse_enable_native_cursor(0);
   }
   clear_selection_data();
-  X_change_config(X_CHG_TITLE, NULL);
+  X_change_config(CHG_TITLE, NULL);
 }
 
 /*
