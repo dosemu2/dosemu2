@@ -123,13 +123,12 @@ int SDL_init(void)
 
   /* Collect some data */
   video_info = SDL_GetVideoInfo();
-  if (video_info->wm_available) {
+  if (video_info->wm_available)
     SDL_WM_SetCaption(config.X_title, config.X_icon_name);
-    if (config.X_fullscreen)
-      toggle_grab();
-  } else {
+  else
     config.X_fullscreen = 1;
-  }
+  if (config.X_fullscreen)
+    toggle_grab();
    
   SDL_csd.bits = video_info->vfmt->BitsPerPixel;
   SDL_csd.bytes = (video_info->vfmt->BitsPerPixel + 7) >> 3;
