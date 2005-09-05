@@ -455,6 +455,8 @@ static void SDL_handle_events(void)
 
 CONSTRUCTOR(static void init(void))
 {
+   if (Video)
+     return;
    config.X = 1;
    Video = &Video_SDL;
    register_keyboard_client(&Keyboard_SDL);
