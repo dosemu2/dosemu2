@@ -19,7 +19,6 @@
 #include "bios.h"
 #include "video.h"
 #include "memory.h"
-#include "timers.h"
 #include "../../env/video/remap.h"
 #include "vgaemu.h"
 #include "vgatext.h"
@@ -531,13 +530,6 @@ static void SDL_handle_events(void)
 	   if (keysym.sym == SDLK_HOME || keysym.sym == SDLK_k) {
 	     force_grab = 0;
 	     toggle_grab();
-	     break;
-	   } else if (keysym.sym == SDLK_p) {
-	     if (!dosemu_frozen) {
-	       freeze_dosemu_manual();
-	     } else {
-	       unfreeze_dosemu();
-	     }
 	     break;
 	   } else if (keysym.sym == SDLK_f) {
 	     toggle_fullscreen_mode();

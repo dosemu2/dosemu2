@@ -1561,13 +1561,6 @@ static void X_handle_events(void)
             } else if (keysym == XK_k) {
               toggle_kbd_grab();
               break;
-	    } else if (keysym == XK_p) {
-              if (!dosemu_frozen) {
-                freeze_dosemu_manual();
-              } else {
-                unfreeze_dosemu();
-              }
-              break;
             } else if (keysym == XK_f) {
               toggle_fullscreen_mode();
               break;

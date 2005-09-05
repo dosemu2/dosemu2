@@ -379,6 +379,7 @@ static void init_misc_ctrl_alt_map(t_keysym *rule)
 
 	rule[NUM_PGDN] = KEY_DOSEMU_EXIT;
 	rule[NUM_PAD_3] = KEY_DOSEMU_EXIT;
+	rule[NUM_P] = KEY_DOSEMU_FREEZE;
 
 	rule[NUM_F1] = KEY_DOSEMU_VT_1;
 	rule[NUM_F2] = KEY_DOSEMU_VT_2;

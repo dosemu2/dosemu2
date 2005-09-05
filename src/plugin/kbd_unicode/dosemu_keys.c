@@ -6,6 +6,7 @@
 #include "bitops.h"
 #include "vc.h"
 #include "mouse.h"
+#include "timers.h"
 #include "keyb_clients.h"
 
 /* handle special dosemu keys like Ctrl-Alt-PgDn
@@ -57,6 +58,16 @@ Boolean handle_dosemu_keys(Boolean make, t_keysym key)
 		}
 		break;
 		
+	case KEY_DOSEMU_FREEZE:
+		if (make) {
+			if (!dosemu_frozen) {
+				freeze_dosemu_manual();
+			} else {
+				unfreeze_dosemu();
+			}
+		}
+		break;
+
 	case KEY_DOSEMU_VT_1: 
 	case KEY_DOSEMU_VT_2:
 	case KEY_DOSEMU_VT_3:
