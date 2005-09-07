@@ -275,11 +275,11 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		_eip = (long)(p+2); break;
 	case 0xa4: {	// MOVsb
 		int d = (_eflags & EFLAGS_DF? -1:1);
-		e_VgaMovs(scp, 0, 0, d);
+		e_VgaMovs(scp, 1, 0, d);
 		_eip = (long)(p+1); } break;
 	case 0xa5: {	// MOVsw
 		int d = (_eflags & EFLAGS_DF? -1:1);
-		e_VgaMovs(scp, 1, w16, d*2);
+		e_VgaMovs(scp, 0, w16, d*2);
 		_eip = (long)(p+1); } break;
 	case 0xaa: {	// STOsb
 		int d = (_eflags & EFLAGS_DF? -1:1);
@@ -323,7 +323,7 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		    _ecx = 0;
 		}
 		else if (p[1]==0xa4) {
-		    e_VgaMovs(scp, 2, 0, d);
+		    e_VgaMovs(scp, 3, 0, d);
 		}
 		else if (p[1]==0xab) {
 		    if ((_err&2)==0) goto badrw;
@@ -347,7 +347,7 @@ static int e_vgaemu_fault(struct sigcontext_struct *scp, unsigned page_fault)
 		    }
 		}
 		else if (p[1]==0xa5) {
-		    e_VgaMovs(scp, 3, w16, d*2);
+		    e_VgaMovs(scp, 2, w16, d*2);
 		}
 		else goto unimp;
 		_eip = (long)(p+2); }
