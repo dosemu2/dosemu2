@@ -1386,7 +1386,7 @@ dos_read(int fd, char *data, int cnt)
 
   if (cnt <= 0)
     return (0);
-  ret = RPT_SYSCALL(read(fd, data, cnt));
+  ret = e_dos_read(fd, data, cnt);
   return (ret);
 }
 
@@ -3150,7 +3150,7 @@ dos_fs_redirect(state_t *state)
 	return (TRUE);
       }
 
-      ret = e_dos_read(fd, dta, cnt);
+      ret = dos_read(fd, dta, cnt);
 
       Debug0((dbg_fd, "Read returned : %d\n",
 	      ret));

@@ -90,7 +90,7 @@ unsigned short emu_do_LAR (unsigned short selector);
 int e_dos_read(int fd, char *data, int cnt);
 void e_invalidate(char *data, int cnt);
 #else
-#define e_dos_read dos_read
+#define e_dos_read(fd,data,cnt) RPT_SYSCALL(read((fd), LOWMEM(data), (cnt)))
 #define e_invalidate(x,y)
 #endif
 
