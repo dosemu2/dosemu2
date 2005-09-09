@@ -160,6 +160,7 @@ install:
 	rm -rf ../tmp
 	mkdir -p -m 0755 $(TMP)/dosemu/freedos/dosemu
 	cd $(REALTOPDIR); if [ -f $(fdtarball) ]; then \
+	  rm -f $(DESTDIR)$(dosemudir)/freedos/tmp; \
 	  tar -C $(DESTDIR)$(dosemudir)/.. --no-same-owner -xpzf $(fdtarball); \
 	  tar -C $(TMP) --no-same-owner -xpzf $(fdtarball); \
 	  cd $(TMP)/dosemu; \
