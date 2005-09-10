@@ -1981,17 +1981,6 @@ static void type_alt_num(unsigned char ascii, struct keyboard_state *state)
 
 }
 
-static void put_preceding_dead_keys(t_keysym ch, struct keyboard_state *state)
-{
-	struct press_state *key;
-	key = &state->rules->charset.keys[ch];
-	if (key->deadsym != KEY_VOID) {
-		put_preceding_dead_keys(key->deadsym, state);
-		put_keynum_r(PRESS, key->deadsym, state);
-		put_keynum_r(RELEASE, key->deadsym, state);
-	}
-}
-
 /*
  * put_character_symbol() uses the precalculated reverse key maps to
  * press a specific character, and release it.  If there is no
@@ -2032,7 +2021,8 @@ static void put_character_symbol(
 		if (make) {
 			/* Note: dead keys always have the same shiftstate */
 			sync_shift_state(new_shiftstate, state);
-			put_preceding_dead_keys(ch, state);
+			put_character_symbol(PRESS, 0, key->deadsym, state);
+			put_character_symbol(RELEASE, 0, key->deadsym, state);
 			put_keynum_r(PRESS, key->key, state);
 		}
 		else {
