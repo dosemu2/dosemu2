@@ -57,7 +57,7 @@
 #include "pic.h"
 #include "int.h"
 #include "port.h"
-#include "timers.h"
+#include "utilities.h"
 #include "dma.h"
 #include "userhook.h"
 #include "mapping.h"
@@ -1112,7 +1112,7 @@ void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *s,
   switch (copy_fpu) {
     case 1:   // copy FPU context
       if (fptr == s->fpstate)
-        error("Copy FPU context between the same locations?\n");
+        dosemu_error("Copy FPU context between the same locations?\n");
       *fptr = *s->fpstate;
       /* fallthrough */
     case -1:  // don't copy
@@ -1121,15 +1121,18 @@ void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *s,
   }
 }
 
-static void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode)
+static void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode,
+    struct sigcontext_struct *dpmi_ctx)
 {
+ if (_cs == UCODESEL) {
+   dosemu_error("Return to dosemu requested within dosemu context\n");
+   return;
+ }
 #ifdef X86_EMULATOR
  if (config.cpuemu<4) {	/* 0=off 1=on-inactive 2=on-first time
                            3=vm86 only, 4=all active */
 #endif
-  if (in_dpmi) {
-    copy_context(&DPMI_CLIENT.stack_frame, scp, 1);
-  }
+  copy_context(dpmi_ctx, scp, 1);
   copy_context(scp, &_emu_stack_frame, 0);
   _eax = retcode;
 #ifdef X86_EMULATOR
@@ -2381,6 +2384,8 @@ static void dpmi_RSP_call(struct sigcontext *scp, int num, int terminating)
 static void dpmi_cleanup(struct sigcontext_struct *scp)
 {
   D_printf("DPMI: cleanup\n");
+  if (!in_dpmi_dos_int)
+    dosemu_error("Quitting DPMI while !in_dpmi_dos_int\n");
   msdos_done();
   /* Restore environment, must before FreeDescriptor */
   if (ENV_SEL)
@@ -2402,9 +2407,6 @@ static void dpmi_cleanup(struct sigcontext_struct *scp)
   }
   cli_blacklisted = 0;
   in_dpmi--;
-  if (in_dpmi) {
-    copy_context(scp, &DPMI_CLIENT.stack_frame, 0);
-  }
 }
 
 static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
@@ -2941,8 +2943,8 @@ void dpmi_init(void)
 
 err:
   error("DPMI initialization failed!\n");
-  dpmi_cleanup(&DPMI_CLIENT.stack_frame);
   in_dpmi_dos_int = 1;
+  dpmi_cleanup(&DPMI_CLIENT.stack_frame);
   in_dpmi--;
 }
 
@@ -2958,7 +2960,7 @@ void dpmi_sigio(struct sigcontext_struct *scp)
    Because IF is not set by popf and because dosemu have to do some background
    job (like DMA transfer) regardless whether IF is set or not.
 */
-    Return_to_dosemu_code(scp,0);
+    Return_to_dosemu_code(scp, 0, &DPMI_CLIENT.stack_frame);
   }
 }
 
@@ -3245,6 +3247,9 @@ void dpmi_fault(struct sigcontext_struct *scp)
   us *ssp;
   unsigned char *csp, *lina;
   int esp_fixed = 0;
+  /* Note: in_dpmi can change within that finction, and so will be the
+   * DPMI_CLIENT struct (macro). So we need to cache that pointer. */
+  struct DPMIclient_struct *ctx_ptr = &DPMI_CLIENT;
 
 #if 1
   /* Because of a CPU bug (see EMUFailures.txt:1.7.2), ESP can run to a
@@ -3271,7 +3276,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 #ifdef USE_MHPDBG
   if (mhpdbg.active) {
     if (_trapno == 3) {
-       Return_to_dosemu_code(scp,3);
+       Return_to_dosemu_code(scp, 3, &ctx_ptr->stack_frame);
        return;
     }
     if (dpmi_mhp_TF && (_trapno == 1)) {
@@ -3285,7 +3290,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  break;
       }
       dpmi_mhp_TF=0;
-      Return_to_dosemu_code(scp,1);
+      Return_to_dosemu_code(scp, 1, &ctx_ptr->stack_frame);
       return;
     }
   }
@@ -3350,7 +3355,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
         if (dpmi_mhp_intxxtab[*csp]) {
           int ret=dpmi_mhp_intxx_check(scp, *csp);
           if (ret) {
-            Return_to_dosemu_code(scp,ret);
+            Return_to_dosemu_code(scp, ret, &ctx_ptr->stack_frame);
             return;
           }
         }
@@ -3997,14 +4002,14 @@ void dpmi_fault(struct sigcontext_struct *scp)
   if (dpmi_mhp_TF) {
       dpmi_mhp_TF=0;
       _eflags &= ~TF;
-      Return_to_dosemu_code(scp,1);
+      Return_to_dosemu_code(scp, 1, &ctx_ptr->stack_frame);
       return;
   }
 
   if (in_dpmi_dos_int || (_eflags & VIP) ||
       (pic_irr & ~(pic_isr | pic_imr)) || return_requested) {
     return_requested = 0;
-    Return_to_dosemu_code(scp,0);
+    Return_to_dosemu_code(scp, 0, &ctx_ptr->stack_frame);
     return;
   }
 
