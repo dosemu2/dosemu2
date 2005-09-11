@@ -456,9 +456,7 @@ run_vm86(void)
 	     VM86_ARG(retval) == 0x1c || /* ROM BIOS timer tick interrupt */
 	     VM86_ARG(retval) == 0x23 || /* DOS Ctrl+C interrupt */
 	     VM86_ARG(retval) == 0x24    /* DOS critical error interrupt */
-	    ) &&
-	    SEGOFF2LINEAR(BIOSSEG, INT_OFF(VM86_ARG(retval))) !=
- 		SEG_ADR((int), cs, ip) -2) {
+	    )) {
 	  run_pm_dos_int(VM86_ARG(retval));
 	} else {
 	  do_int(VM86_ARG(retval));
