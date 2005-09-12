@@ -1056,12 +1056,12 @@ kbd_do_prtscr:				/* PRINT SCREEN pressed		*/
 	jmp	kbd_done
 
 kbd_do_sysrq_make:			/* Alt-SYSRQ pressed		*/
-	movw	0x8500,%ax
+	movw	$0x8500,%ax
 	int	$0x15
 	jmp	kbd_done
 
 kbd_do_sysrq_break:			/* ALT-SYSRQ released		*/
-	movw	0x8501,%ax
+	movw	$0x8501,%ax
 	int	$0x15
 	jmp	kbd_done
 
