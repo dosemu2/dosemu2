@@ -1132,7 +1132,8 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode,
  if (config.cpuemu<4) {	/* 0=off 1=on-inactive 2=on-first time
                            3=vm86 only, 4=all active */
 #endif
-  copy_context(dpmi_ctx, scp, 1);
+  if (dpmi_ctx)
+    copy_context(dpmi_ctx, scp, 1);
   copy_context(scp, &_emu_stack_frame, 0);
   _eax = retcode;
 #ifdef X86_EMULATOR
@@ -3247,9 +3248,10 @@ void dpmi_fault(struct sigcontext_struct *scp)
   us *ssp;
   unsigned char *csp, *lina;
   int esp_fixed = 0;
-  /* Note: in_dpmi can change within that finction, and so will be the
-   * DPMI_CLIENT struct (macro). So we need to cache that pointer. */
-  struct DPMIclient_struct *ctx_ptr = &DPMI_CLIENT;
+  /* Note: in_dpmi/current_client can change within that finction. */
+  int orig_client = current_client;
+#define ORIG_CTXP (current_client >= orig_client ? \
+  &DPMIclient[orig_client].stack_frame : NULL)
 
 #if 1
   /* Because of a CPU bug (see EMUFailures.txt:1.7.2), ESP can run to a
@@ -3276,7 +3278,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 #ifdef USE_MHPDBG
   if (mhpdbg.active) {
     if (_trapno == 3) {
-       Return_to_dosemu_code(scp, 3, &ctx_ptr->stack_frame);
+       Return_to_dosemu_code(scp, 3, ORIG_CTXP);
        return;
     }
     if (dpmi_mhp_TF && (_trapno == 1)) {
@@ -3290,7 +3292,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  break;
       }
       dpmi_mhp_TF=0;
-      Return_to_dosemu_code(scp, 1, &ctx_ptr->stack_frame);
+      Return_to_dosemu_code(scp, 1, ORIG_CTXP);
       return;
     }
   }
@@ -3355,7 +3357,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
         if (dpmi_mhp_intxxtab[*csp]) {
           int ret=dpmi_mhp_intxx_check(scp, *csp);
           if (ret) {
-            Return_to_dosemu_code(scp, ret, &ctx_ptr->stack_frame);
+            Return_to_dosemu_code(scp, ret, ORIG_CTXP);
             return;
           }
         }
@@ -4002,14 +4004,14 @@ void dpmi_fault(struct sigcontext_struct *scp)
   if (dpmi_mhp_TF) {
       dpmi_mhp_TF=0;
       _eflags &= ~TF;
-      Return_to_dosemu_code(scp, 1, &ctx_ptr->stack_frame);
+      Return_to_dosemu_code(scp, 1, ORIG_CTXP);
       return;
   }
 
   if (in_dpmi_dos_int || (_eflags & VIP) ||
       (pic_irr & ~(pic_isr | pic_imr)) || return_requested) {
     return_requested = 0;
-    Return_to_dosemu_code(scp, 0, &ctx_ptr->stack_frame);
+    Return_to_dosemu_code(scp, 0, ORIG_CTXP);
     return;
   }
 
