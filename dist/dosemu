@@ -192,8 +192,8 @@ if [ -n "$INSTALL" -o \
 
     if [ -z "$PROPRIETARY" ]; then
       echo "
-  Please enter the name of a directory which contains a bootable
-  DOS [ENTER = the default $SYSTEM_INSTALL_PATH/freedos]
+  Please enter the name of a directory which contains a bootable DOS
+  [ENTER = the default $SYSTEM_INSTALL_PATH/freedos]
          "
       read PROPRIETARY
     fi
