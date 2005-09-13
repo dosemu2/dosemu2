@@ -212,13 +212,15 @@ int smdestroy(struct memnode *mp)
 {
   struct memnode *mn;
   int leaked, avail = smget_free_space(mp);
-  while((mn = mp->next)) {
+  while (mp->used) {
+    mn = mp->next;
+    assert(mn);
     if (!mn->used)
       mn = mn->next;
     assert(mn && mn->used);
     smfree(mp, mn->mem_area);
   }
-  assert(mp && !mp->used && mp->size >= avail);
+  assert(mp && !mp->next && mp->size >= avail);
   leaked = mp->size - avail;
   return leaked;
 }
@@ -226,9 +228,8 @@ int smdestroy(struct memnode *mp)
 size_t smget_free_space(struct memnode *mp)
 {
   struct memnode *mn;
-  size_t count = mp->size;
-  assert((count!=0) ^ (mp->next!=NULL));
-  for (mn = mp->next; mn; mn = mn->next) {
+  size_t count = 0;
+  for (mn = mp; mn; mn = mn->next) {
     if (!mn->used)
       count += mn->size;
   }
@@ -237,12 +238,13 @@ size_t smget_free_space(struct memnode *mp)
 
 int smget_area_size(struct memnode *mp, void *ptr)
 {
-  struct memnode *mn;
-  for (mn = mp->next; mn; mn = mn->next) {
-    if (ptr == mn->mem_area)
-      return mn->size;
+  struct memnode *pmn;
+  if (!(pmn = find_mn_prev(mp, ptr))) {
+    smerror("SMALLOC: bad pointer passed to smget_area_size()\n");
+    return -1;
   }
-  return -1;
+  assert(pmn->next);
+  return pmn->next->size;
 }
 
 void smregister_error_notifier(void (*func)(char *fmt, ...) FORMAT(printf, 1, 2))
