@@ -172,7 +172,7 @@ static int open_mapping_pshm(int cap)
   char *name;
   if (tmpfile_fd < 0) {
     asprintf(&name, "%s%d", "dosemu_", getpid());
-    tmpfile_fd = shm_open(name, O_RDWR|O_CREAT|O_TRUNC, 700);
+    tmpfile_fd = shm_open(name, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (tmpfile_fd == -1) {
       free(name);
       return 0;
