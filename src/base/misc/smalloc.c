@@ -109,6 +109,8 @@ void *smalloc(struct memnode *mp, size_t size)
 void smfree(struct memnode *mp, void *ptr)
 {
   struct memnode *mn, *pmn;
+  if (!ptr)
+    return;
   if (!(pmn = find_mn_prev(mp, ptr))) {
     smerror("SMALLOC: bad pointer passed to smfree()\n");
     return;
