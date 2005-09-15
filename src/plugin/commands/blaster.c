@@ -34,17 +34,13 @@ int blaster_main(int argc, char **argv) {
 					config.mpu401_base, config.mpu401_base+1);
 		}
 
-		snprintf(blaster, sizeof(blaster), "A%x I%d D%d", config.sb_base,
-				config.sb_irq, config.sb_dma);
+		snprintf(blaster, sizeof(blaster), "A%x I%d D%d H%d", config.sb_base,
+				config.sb_irq, config.sb_dma,
+				config.sb_hdma ? : config.sb_dma);
 
 		if (config.mpu401_base) {
 			snprintf(tmpbuf, sizeof(tmpbuf), " P%x",
 					config.mpu401_base);
-			strncat(blaster, tmpbuf, 10);
-		}
-		if (config.sb_hdma) {
-			snprintf(tmpbuf, sizeof(tmpbuf), " H%d",
-					config.sb_hdma);
 			strncat(blaster, tmpbuf, 10);
 		}
 
