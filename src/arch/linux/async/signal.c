@@ -257,7 +257,6 @@ void SIG_init(void)
 		    sg->fd = -1;
 		    sg->irq = irq;
 		    g_printf("SIG: IRQ%d, enabling PIC-level %ld\n", irq, pic_irq_list[irq]);
-		    pic_seti(pic_irq_list[irq], NULL, 0, NULL);
 		    sg++;
 		}
 	    }
