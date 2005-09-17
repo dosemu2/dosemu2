@@ -2143,7 +2143,7 @@ static void handle_dma_IO(int size)
       sb_activate_irq(CURRENT_SB_IRQ);
       if (!SB_dsp.empty_state) {
 	S_printf("SB: Auto-reinitialized for next block\n");
-
+#if 0
 	/* bad HACK :( */
 	if (test_bit(SB_dsp.is_16bit ? SB_info.irq.irq16 : SB_info.irq.irq8, &pic0_imr)) {
           S_printf("SB: Warning: SB IRQ (%d) is masked!!!\n", config.sb_irq);
@@ -2152,6 +2152,7 @@ static void handle_dma_IO(int size)
 	  SB_dsp.empty_state &= ~DREQ_AT_EOI;
 	}
         else
+#endif
 	  SB_dsp.empty_state |= DREQ_AT_EOI;
       }
       else

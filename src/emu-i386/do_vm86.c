@@ -505,7 +505,6 @@ freeze_idle:
  */
 void loopstep_run_vm86(void)
 {
-	++pic_vm86_count;
 	run_vm86();
 	dma_run ();
 #ifdef USE_SBEMU

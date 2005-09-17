@@ -79,25 +79,6 @@ EXTERN unsigned long pic_irq_list[] INIT({PIC_IRQ0,  PIC_IRQ1,  PIC_IRQ9,  PIC_I
 EXTERN unsigned long pic_level_list[] INIT({
                  -1, 0, 1, 8, 9, 10, 11, 12, 13, 14, 15, 3, 4, 5, 6, 7 });
 
-/* Some dos extenders modify interrupt vectors, particularly for IRQs 0-7 */
-
-/* PIC "registers", plus a few more */
-
-EXTERN unsigned long pic_irr;          /* interrupt request register */
-EXTERN unsigned long pic_isr;          /* interrupt in-service register */
-EXTERN unsigned int pic_iflag;        /* interrupt enable flag: en-/dis- =0/0xfffe */
-EXTERN unsigned int pic_icount;       /* iret counter (to avoid filling stack) */
-EXTERN unsigned long pic_irqall INIT(0xfffe);       /* bits for all IRQs set. */
-
-EXTERN unsigned long pic0_imr INIT(0xf800);  /* interrupt mask register, pic0 */
-EXTERN unsigned long pic1_imr INIT(0x0670);         /* interrupt mask register, pic1 */
-EXTERN unsigned long pic_imr INIT(0xfff8);          /* interrupt mask register */
-EXTERN unsigned int pic_stack[32];     /* list of active irqd */
-EXTERN unsigned int pic_sp INIT(0);	       /* pointer to pic_stack */ 
-EXTERN unsigned int pic_rflag;        /* flag to control pic_watch */
-EXTERN unsigned int pic_vm86_count INIT(0);   /* count of times 'round the vm86 loop*/
-EXTERN unsigned int pic_dpmi_count INIT(0);   /* count of times 'round the dpmi loop*/
-
 EXTERN hitimer_t pic_dos_time;     /* dos time of last interrupt,1193047/sec.*/
 EXTERN hitimer_t pic_sys_time INIT(NEVER);     /* system time set by pic_watch */
 extern hitimer_t pic_itime[33];
@@ -123,7 +104,7 @@ Bit8u read_pic1(ioport_t port);             /* read from PIC 1 */
 void pic_seti(unsigned int, int (*)(int), unsigned int, void (*)(void)); 
                                        /* set function and interrupt vector */
 void run_irqs(void);                                  /* run requested irqs */
-#define pic_run() if(pic_irr)run_irqs()   /* the right way to call run_irqs */
+#define pic_run() run_irqs()   /* the right way to call run_irqs */
 
 #define PIC_REQ_NOP	0
 #define PIC_REQ_OK	1
@@ -138,16 +119,15 @@ void pic_iret(void);                         /* interrupt completion notify */
 void pic_resched(void);
 inline void pic_watch(hitimer_u *s_time);    /* interrupt pending watchdog timer */
 void do_irq0(void);				/* timer interrupt */
-int pic_pending(int ilevel);			/* inform caller if interrupt is pending */
+int pic_pending(void);			/* inform caller if interrupt is pending */
 void pic_sched(int ilevel, int interval);          /* schedule an interrupt */
 /* The following are too simple to be anything but in-line */
 
 #define pic_set_mask pic_imr=(pic0_imr|pic1_imr|pic_iflag)
-#define pic_sti() (pic_iflag=0,pic_set_mask, (void)0)          /*    emulate STI      */
-#define pic_cli() (pic_iflag=pic_irqall,pic_set_mask, (void)0) /*    emulate CLI      */
+void pic_sti(void);
+void pic_cli(void);
 
-#define CAN_SLEEP() (!(pic_icount || pic_isr || (REG(eflags) & VIP) || \
-    (pic_sys_time > pic_dos_time)))
+int CAN_SLEEP(void);
 
 /* Experimental TIMER-IRQ CHAIN code */
 extern int timer_int_engine(int);

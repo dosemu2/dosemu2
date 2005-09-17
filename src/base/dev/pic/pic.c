@@ -166,6 +166,21 @@ static Bit16u cb_ip = 0;
  * occurs.
  */
 
+/* PIC "registers", plus a few more */
+
+static unsigned long pic_irr;          /* interrupt request register */
+static unsigned long pic_isr;          /* interrupt in-service register */
+static unsigned int pic_iflag;        /* interrupt enable flag: en-/dis- =0/0xfffe */
+static unsigned int pic_icount;       /* iret counter (to avoid filling stack) */
+static unsigned long pic_irqall = 0xfffe;       /* bits for all IRQs set. */
+
+static unsigned long pic0_imr = 0xf800;  /* interrupt mask register, pic0 */
+static unsigned long pic1_imr = 0x0670;         /* interrupt mask register, pic1 */
+static unsigned long pic_imr = 0xfff8;          /* interrupt mask register */
+static unsigned int pic_stack[32];     /* list of active irqd */
+static unsigned int pic_sp = 0;	       /* pointer to pic_stack */ 
+static unsigned int pic_vm86_count = 0;   /* count of times 'round the vm86 loop*/
+static unsigned int pic_dpmi_count = 0;   /* count of times 'round the dpmi loop*/
 static unsigned long pic1_mask = 0x07f8; /* bits set for pic1 levels */
 static unsigned long   pic_smm = 0;      /* 32=>special mask mode, 0 otherwise */
 
@@ -964,9 +979,9 @@ unsigned long pic_newirr;
  * DANG_END_FUNCTION
  */
  
-int pic_pending(int ilevel)
+int pic_pending(void)
 {
-    return (pic_irr|pic_pirr|~pic_imr)&(1<<ilevel);
+    return (pic_irr & ~(pic_isr | pic_imr | pic_irqs_active));
 }
 /* DANG_BEGIN_FUNCTION pic_activate
  * 
@@ -1057,6 +1072,24 @@ void pic_set_callback(Bit16u cs, Bit16u ip)
     cs, ip, pic_icount);
   cb_ip = ip;
   cb_cs = cs;
+}
+
+void pic_sti(void)
+{
+  pic_iflag = 0;
+  pic_set_mask;
+}
+
+void pic_cli(void)
+{
+  pic_iflag = pic_irqall;
+  pic_set_mask;
+}
+
+int CAN_SLEEP(void)
+{
+  return (!(pic_icount || pic_isr || (REG(eflags) & VIP) ||
+    (pic_sys_time > pic_dos_time)));
 }
 
 void pic_init(void)

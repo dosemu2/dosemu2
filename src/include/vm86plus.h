@@ -16,18 +16,18 @@
 #ifdef X86_EMULATOR
 int e_vm86(void);
 
-#define E_VM86(x) ( \
-    (x)->vm86plus.force_return_for_pic = (pic_irr & ~(pic_isr | pic_imr)) != 0, \
-    e_vm86() )
+#define E_VM86(x) ({ \
+    (x)->vm86plus.force_return_for_pic = (pic_pending() != 0); \
+    e_vm86(); })
 #endif
 
 #define vm86_plus(function,param) syscall(SYS_vm86, function, param)
 
   #undef vm86
   #define vm86(x) vm86_plus(VM86_ENTER, (int) /* struct vm86_struct* */(x))
-  #define _DO_VM86__(x) ( \
-    (x)->vm86plus.force_return_for_pic = (pic_irr & ~(pic_isr | pic_imr)) != 0, \
-    vm86((struct vm86_struct *)(x)) )
+  #define _DO_VM86__(x) ({ \
+    (x)->vm86plus.force_return_for_pic = (pic_pending() != 0); \
+    vm86((struct vm86_struct *)(x)); })
  #ifdef X86_EMULATOR
   #define _DO_VM86_(x) ( \
     config.cpuemu? E_VM86(x) : _DO_VM86__(x) )
