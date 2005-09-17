@@ -31,6 +31,7 @@
 #include "iodev.h"
 #include "serial.h"
 #include "debug.h"
+#include "dosemu_config.h"
 
 #include "keyb_clients.h"
 #include "keyb_server.h"
@@ -194,7 +195,10 @@ void setsig(int sig, void *fun)
 
 void newsetsig(int sig, void *fun)
 {
-	dosemu_sigaction_wrapper(sig, fun, SA_RESTART|SA_ONSTACK);
+	int flags = SA_RESTART|SA_ONSTACK;
+	if (kernel_version_code >= 0x20600+14)
+		flags |= SA_NODEFER;
+	dosemu_sigaction_wrapper(sig, fun, flags);
 }
 
 /* this cleaning up is necessary to avoid the port server becoming
