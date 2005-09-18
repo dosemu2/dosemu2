@@ -7,8 +7,6 @@
 #ifndef _EMU_HLT_H
 #define _EMU_HLT_H
 
-#ifdef USE_HLT_CODE  /* currently not used at all */
-
 #if 0
 #include "emu_defs.h"
 #endif
@@ -33,7 +31,5 @@ typedef struct {
 extern void hlt_init(void);
 extern int  hlt_register_handler(emu_hlt_t handler);
 extern void hlt_handle(void);
-
-#endif /* USE_HLT_CODE */
 
 #endif /* _EMU_HLT_H */

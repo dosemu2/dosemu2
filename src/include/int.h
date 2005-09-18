@@ -21,7 +21,6 @@ EXTERN time_t        start_time;
 EXTERN char video_ints[256];
 
 void do_int(int);
-void do_int_from_hlt(int);
 void fake_int(int, int);
 void fake_int_to(int cs, int ip);
 void fake_call(int, int);

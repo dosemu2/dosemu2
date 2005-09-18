@@ -39,7 +39,7 @@
 #define BIOSSEG		0xf000
 #endif
 
-#define INT_OFF(i) ((i) << 4)
+#define INT_OFF(i) (0xc000+(i))
 
 #define INT09_SEG	BIOSSEG
 #define INT09_OFF	0xe987		/* for 100% IBM compatibility */
@@ -54,35 +54,35 @@
 #define OUTB_ADD	(u_short *)((OUTB_SEG << 4) + OUTB_OFF)
 
 #define Pause_SEG	(BIOSSEG)
-#define Pause_OFF	0x3000
+#define Pause_OFF	0xf110
 
 /* The packet driver has some code in this segment which needs to be */
 /* at BIOSSEG.  therefore use BIOSSEG and compensate for the offset. */
 /* Memory required is about 2000 bytes, beware! */
 #define PKTDRV_SEG	(BIOSSEG)
-#define PKTDRV_OFF	0x3100
+#define PKTDRV_OFF	0xf130
 #define PKTDRV_ADD	((PKTDRV_SEG << 4) + PKTDRV_OFF)
 
 #define LFN_HELPER_SEG	BIOSSEG
-#define LFN_HELPER_OFF	0x3200
+#define LFN_HELPER_OFF	0xf230
 #define LFN_HELPER_ADD	((LFN_HELPER_SEG << 4) + LFN_HELPER_OFF)
 
 /* don't change these for now, they're hardwired! */
 #define Mouse_SEG       (BIOSSEG-1)
-#define Mouse_OFF       (0x20f0+0x10)
-#define Mouse_PS2_OFF   (0x2100+0x10)
-#define Mouse_ROUTINE_OFF  (0x2140+0x10)
-#define Mouse_HLT_OFF   (0x2160+0x10)
-#define Mouse_INT_OFF	(0x33 * 16 + 0x10)
+#define Mouse_OFF       (0xe2d0+0x10)
+#define Mouse_PS2_OFF   (0xe2d8+0x10)
+#define Mouse_ROUTINE_OFF  (0xe2e0+0x10)
+#define Mouse_HLT_OFF   (0xe2ff+0x10)
+#define Mouse_INT_OFF	(INT_OFF(0x33) + 0x10)
 #define Mouse_ADD      ((Mouse_SEG << 4)+Mouse_OFF)
 #define Mouse_ROUTINE  ((Mouse_SEG << 4)+Mouse_ROUTINE_OFF)
 #define Mouse_HLT_ADD  ((Mouse_SEG << 4)+Mouse_HLT_OFF)
 
-#define EOI_OFF         0x2180
+#define EOI_OFF         0xf100
 
 /* intercept-stub for dosdebugger (catches INT21/AX=4B00 */
 #define DBGload_SEG BIOSSEG
-#define DBGload_OFF 0x3300
+#define DBGload_OFF 0xf330
 
 #define DOSEMU_LMHEAP_SEG  BIOSSEG
 #define DOSEMU_LMHEAP_OFF  0x4000
@@ -92,8 +92,11 @@
 #define ROMBIOSSEG	0xf800
 #endif
 
+#define IRET_SEG	ROMBIOSSEG
+#define IRET_OFF	0x62cf
+
 #define XMSControl_SEG  ROMBIOSSEG
-#define XMSControl_OFF  0x4150
+#define XMSControl_OFF  0x6300
 #define XMSControl_ADD  ((XMSControl_SEG << 4)+XMSControl_OFF)
 #define XMSTrap_ADD     ((XMSControl_SEG << 4)+XMSControl_OFF+5)
 
@@ -107,28 +110,28 @@
 
 
 #define Banner_SEG	ROMBIOSSEG
-#define Banner_OFF	0x4300
+#define Banner_OFF	0x63e0
 #define Banner_ADD	((Banner_SEG << 4) + Banner_OFF)
 
 #define INT16_SEG	ROMBIOSSEG
-#define INT16_OFF	0x4400
+#define INT16_OFF	0x682e
 #define INT16_ADD	((INT16_SEG << 4) + INT16_OFF)
 
 #define IPX_SEG		ROMBIOSSEG
-#define IPX_OFF		0x4320
+#define IPX_OFF		0x6310
 #define IPX_ADD		((IPX_SEG << 4) + IPX_OFF)
 
 #define INT08_SEG	ROMBIOSSEG
-#define INT08_OFF	0x4000
+#define INT08_OFF	0x7ea5
 #define INT08_ADD	((INT08_SEG << 4) + INT08_OFF)
 
 #define INT70_SEG	ROMBIOSSEG
-#define INT70_OFF	0x4100
+#define INT70_OFF	0x63f0
 #define INT70_ADD	((INT70_SEG << 4) + INT70_OFF)
 
 #define INT10_SEG	ROMBIOSSEG
-#define INT10_OFF	0x4200
-#define INT10_POSTLESS_OFF	0x4220
+#define INT10_OFF	0x63a1
+#define INT10_POSTLESS_OFF	0x63c0
 #define INT10_ADD	((INT10_SEG << 4) + INT10_OFF)
 
 /* int10 watcher for mouse support */
@@ -136,25 +139,25 @@
  * when it made a difference...
  */
 #define INT10_WATCHER_SEG	ROMBIOSSEG
-#define INT10_WATCHER_OFF	0x4240
+#define INT10_WATCHER_OFF	0x6330
 #ifdef X86_EMULATOR
 #define CPUEMU_WATCHER_SEG	ROMBIOSSEG
-#define CPUEMU_WATCHER_OFF	0x42A0
+#define CPUEMU_WATCHER_OFF	0x6390
 #define CPUEMUI10_ADD		((CPUEMU_WATCHER_SEG << 4) +\
 				  CPUEMU_WATCHER_OFF + 11)
 #endif
 
 /* This inline interrupt is used for FCB open calls */
 #define INTE7_SEG	ROMBIOSSEG
-#define INTE7_OFF	0x4500
+#define INTE7_OFF	0x6320
 #define INTE7_ADD	((INTE7_SEG << 4) + INTE7_OFF)
 
 #define PIC_SEG       ROMBIOSSEG
-#define PIC_OFF       0x47f0
+#define PIC_OFF       0x47ff
 #define PIC_ADD       ((PIC_SEG << 4) + PIC_OFF)
 
 #define CBACK_SEG	ROMBIOSSEG	/* callback return to dosemu */
-#define CBACK_OFF	0x47f1
+#define CBACK_OFF	0x63ef
 #define CBACK_ADD	((CBACK_SEG << 4) + CBACK_OFF)
 
 #define DPMI_SEG	ROMBIOSSEG
@@ -170,6 +173,12 @@
 #define ROM_CONFIG_SEG  BIOSSEG
 #define ROM_CONFIG_OFF  0xe6f5
 #define ROM_CONFIG_ADD	((ROM_CONFIG_SEG << 4) + ROM_CONFIG_OFF)
+
+/*
+ * HLT block
+ */
+#define BIOS_HLT_BLK       0xfc000
+#define BIOS_HLT_BLK_SIZE  0x00800
 
 #define VBIOS_START	(config.vbios_seg << 4 )
 /*#define VBIOS_SIZE	(64*1024)*/

@@ -100,7 +100,7 @@ void memcheck_init(void)
 {
   memcheck_type_init();
   memcheck_reserve('d', 0x00000, config.mem_size*1024); /* dos memory  */
-  memcheck_reserve('r', 0xF0000, 0x10000);              /* dosemu bios */
+  memcheck_reserve('r', 0xF4000, 0xC000);               /* dosemu bios */
 }
 
 int memcheck_isfree(int addr_start, int size)

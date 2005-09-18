@@ -62,6 +62,7 @@
 #include "pic.h"
 
 #include "dpmi.h"
+#include "hlt.h"
 
 #ifdef USING_NET
 #include "ipx.h"
@@ -75,8 +76,6 @@
 #endif
 
 #include "dma.h"
-
-static void callback_return(void);
 
 /*  */
 /* vm86_GP_fault @@@  32768 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/arch/linux/async/sigsegv.c --> src/emu-i386/do_vm86.c  */
@@ -97,7 +96,6 @@ void vm86_GP_fault(void)
   Bit32u org_eip;
   int pref_seg;
   int done,is_rep,prefix66,prefix67;
-  int rmcb_client, rmcb_num;
 
 #if 0
   u_short *ssp;
@@ -276,63 +274,7 @@ void vm86_GP_fault(void)
 
   case 0xf4:			/* hlt...I use it for various things,
 		  like trapping direct jumps into the XMS function */
-#if defined(X86_EMULATOR) && defined(SKIP_EMU_VBIOS)
-    if ((config.cpuemu>1) && (lina == (unsigned char *) CPUEMUI10_ADD)) {
-      e_printf("EMU86: HLT at int10 end\n");
-      LWORD(eip) += 1;	/* simply skip, so that we go back to emu mode */
-      break;
-    }
-    else
-#endif
-
-    if (lina == (unsigned char *) PIC_ADD) {
-      pic_iret();
-    }
-
-    else if (lina >= (unsigned char *)0xf0000 && lina < (unsigned char *)0xf1000) {
-      /* hlt for int */
-      do_int_from_hlt((lina - (unsigned char *)0xf0000) / 0x10);
-    }
-
-    else if (lina == (unsigned char *) CBACK_ADD) {
-      /* we are back from a callback routine */
-      callback_return();
-    }
-
-    else if (lina == (unsigned char *) Mouse_HLT_ADD) {
-      int33_post();
-    }
-
-    else if (lina == (unsigned char *) XMSTrap_ADD) {
-      LWORD(eip) += 2;  /* skip halt and info byte to point to FAR RET */
-      xms_control();
-    }
-
-    else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_dpmi_init))) {
-      /* The hlt instruction is 6 bytes in from DPMI_ADD */
-      LWORD(eip) += 1;	/* skip halt to point to FAR RET */
-      CARRY;
-      dpmi_init();
-    }
-
-    else if ((lina >=(unsigned char *)DPMI_ADD) &&
-	(lina <(unsigned char *)(DPMI_ADD+(unsigned long)DPMI_dummy_end-(unsigned long)DPMI_dummy_start)))
-    {
-      dpmi_realmode_hlt(lina);
-    }
-
-    else if ((rmcb_client = lookup_realmode_callback(lina, &rmcb_num)) != -1) {
-      dpmi_realmode_callback(rmcb_client, rmcb_num);
-    }
-
-    else {
-#if 0
-      haltcount++;
-      if (haltcount > MAX_HALT_COUNT)
-	fatalerr = 0xf4;
-#endif
-      LWORD(eip) += 1;
-    }
+    hlt_handle();
     break;
 
   case 0x0f: /* was: RDE hack, now handled in cpu.c */
@@ -515,7 +457,7 @@ void loopstep_run_vm86(void)
 
 static int callback_level = 0;
 
-static void callback_return(void)
+void callback_return(void)
 {
 	callback_level--;
 }

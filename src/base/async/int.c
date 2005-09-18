@@ -46,6 +46,7 @@
 #include "joystick.h"
 #include "aspi.h"
 #include "vgaemu.h"
+#include "hlt.h"
 
 #ifdef USE_MHPDBG
 #include "mhpdbg.h"
@@ -2028,7 +2029,7 @@ static void debug_int(const char *s, int i)
  * DANG_END_FUNCTION
  */
 
-void do_int_from_hlt(int i)
+static void do_int_from_hlt(Bit32u i)
 {
 	unsigned char *ssp;
 	unsigned long sp;
@@ -2179,6 +2180,7 @@ void fake_pusha(void)
 
 void setup_interrupts(void) {
   int i;
+  emu_hlt_t hlt_hdlr;
 
   /* init trapped interrupts called via jump */
   for (i = 0; i < 256; i++) {
@@ -2194,6 +2196,8 @@ void setup_interrupts(void) {
       can_revector(i) == NO_REVECT)) { /* user interrupts */
 	/* show also EMS (int0x67) as disabled */
 	SETIVEC(i, 0, 0);
+    } else if ((i & 0xf8) == 0x68) {
+	SETIVEC(i, IRET_SEG, IRET_OFF);
     } else if (i < 0xc0 || can_revector(i) == REVECT) {
 	SETIVEC(i, BIOSSEG, INT_OFF(i));
     }
@@ -2267,6 +2271,12 @@ void setup_interrupts(void) {
   }
 
   set_int21_revectored(redir_state = 1);
+
+  hlt_hdlr.name       = "interrupts";
+  hlt_hdlr.start_addr = 0x0000;
+  hlt_hdlr.end_addr   = 0x00ff;
+  hlt_hdlr.func       = do_int_from_hlt;
+  hlt_register_handler(hlt_hdlr);
 }
 
 

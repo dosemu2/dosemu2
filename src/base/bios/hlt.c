@@ -11,7 +11,7 @@
  * 
  * Maintainers: 
  *
- * In the BIOS there is a 4K 'hlt block'.  When a HLT in this block is
+ * In the BIOS there is a 2K 'hlt block'.  When a HLT in this block is
  * reached, the corresponding handler function is called.  If a HLT is
  * called outside this block, an error is flagged.
  *
@@ -19,11 +19,12 @@
  *
  */
 
-#ifdef USE_HLT_CODE /* this currently is not used */
+#include <string.h>
 
 #include "config.h"
 #include "emu.h"
 #include "hlt.h"
+#include "int.h"
 #include "bios.h"
 #include "memory.h"
 #include "dpmi.h"
@@ -31,9 +32,9 @@
 #include "xms.h"
 #if 0
 #include "base/bios_entry.h"
-#endif
 
 EXTERN void _retf(Bit16u pop_count);
+#endif
 
 static struct {
   emu_hlt_func  func;
@@ -50,9 +51,11 @@ static Bit32u        hlt_handler_count;
 static void hlt_default(Bit32u addr)
 {
   /* Assume someone callf'd to get here and do a return far */
-  h_printf("HLT: hlt_default(0x%04lx) called, attemping a retf\n", addr);
+  h_printf("HLT: hlt_default(0x%04x) called, attemping a retf\n", addr);
 
+#if 0
   _retf(0);
+#endif
 }
 
 /* 
@@ -88,19 +91,22 @@ void hlt_handle(void)
 {
   Bit8u  *lina = SEG_ADR((Bit8u *), cs, ip);
   Bit32u  offs = (Bit32u)lina;
+  int rmcb_client, rmcb_num;
+
+#if defined(X86_EMULATOR) && defined(SKIP_EMU_VBIOS)
+  if ((config.cpuemu>1) && (lina == (Bit8u *) CPUEMUI10_ADD)) {
+    e_printf("EMU86: HLT at int10 end\n");
+    _IP += 1;	/* simply skip, so that we go back to emu mode */
+  }
+  else
+#endif
 
   if (lina == (Bit8u *)XMSTrap_ADD) {
-    _IP += 2;   /* skip hlt and info byte to point to FAR IRET */
+    _IP += 2;   /* skip hlt and info byte to point to FAR RET */
 #if CONFIG_HLT_TRACE > 0
     h_printf("HLT: XMSTrap_ADD handler\n");
 #endif
     xms_control();
-  }
-  else if (lina == (Bit8u *)PIC_ADD) {
-#if CONFIG_HLT_TRACE > 0
-    h_printf("HLT: pic_iret\n");
-#endif
-    pic_iret();
   }
   else if ((offs >= BIOS_HLT_BLK) && (offs < BIOS_HLT_BLK+BIOS_HLT_BLK_SIZE)) {
     offs -= BIOS_HLT_BLK;
@@ -110,6 +116,19 @@ void hlt_handle(void)
 #endif
     hlt_handler[hlt_handler_id[offs]].func(offs);
   }
+  else if (lina == (Bit8u *) CBACK_ADD) {
+    /* we are back from a callback routine */
+    callback_return();
+  }
+  else if (lina == (Bit8u *) Mouse_HLT_ADD) {
+    int33_post();
+  }
+  else if (lina == (Bit8u *) (DPMI_ADD + HLT_OFF(DPMI_dpmi_init))) {
+    /* The hlt instruction is 6 bytes in from DPMI_ADD */
+    _IP += 1;	/* skip halt to point to FAR RET */
+    CARRY;
+    dpmi_init();
+  }
   else if ((lina >= (Bit8u *)DPMI_ADD) &&
 	   (lina < (Bit8u *)(DPMI_ADD + (Bit32u)DPMI_dummy_end-(Bit32u)DPMI_dummy_start))) {
 #if CONFIG_HLT_TRACE > 0
@@ -117,9 +136,19 @@ void hlt_handle(void)
 #endif
     dpmi_realmode_hlt(lina);
   }
+  else if ((rmcb_client = lookup_realmode_callback(lina, &rmcb_num)) != -1) {
+    dpmi_realmode_callback(rmcb_client, rmcb_num);
+  }
   else {
+#if 0
+    haltcount++;
+    if (haltcount > MAX_HALT_COUNT)
+      fatalerr = 0xf4;
+#endif
     h_printf("HLT: unknown halt request CS:IP=%04x:%04x!\n", _CS, _IP);
+#if 0
     show_regs(__FILE__, __LINE__);
+#endif
     _IP += 1;
   }
 }
@@ -166,5 +195,3 @@ int hlt_register_handler(emu_hlt_t handler)
   }
   return(1);
 }
-
-#endif /* USE_HLT_CODE */

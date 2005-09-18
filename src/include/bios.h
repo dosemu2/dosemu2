@@ -208,11 +208,4 @@ void		PKTDRV_param(void);
 void		PKTDRV_stats(void);
 void		PKTDRV_start(void);
 
-/*
- * HLT block
- */
-
-#define BIOS_HLT_BLK       0xfc000
-#define BIOS_HLT_BLK_SIZE  0x01000
-
 #endif				/* BIOS_H */

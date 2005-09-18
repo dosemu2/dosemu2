@@ -1095,6 +1095,7 @@ void pic_init(void)
 {
   /* do any one-time initialization of the PIC */
   emu_iodev_t  io_device;
+  emu_hlt_t    hlt_hdlr;
 
   /* 8259 PIC (Programmable Interrupt Controller) */
   io_device.read_portb   = read_pic0;
@@ -1116,6 +1117,12 @@ void pic_init(void)
   io_device.read_portb   = read_pic1;
   io_device.write_portb  = write_pic1;
   port_register_handler(io_device, 0);
+
+  hlt_hdlr.name       = "PIC";
+  hlt_hdlr.start_addr = 0x07ff;
+  hlt_hdlr.end_addr   = 0x07ff;
+  hlt_hdlr.func       = (emu_hlt_func)pic_iret;
+  hlt_register_handler(hlt_hdlr);
 }
 
 void pic_reset(void)
