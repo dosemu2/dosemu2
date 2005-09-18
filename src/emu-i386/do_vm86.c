@@ -291,8 +291,7 @@ void vm86_GP_fault(void)
 
     else if (lina >= (unsigned char *)0xf0000 && lina < (unsigned char *)0xf1000) {
       /* hlt for int */
-      _IP += 2;
-      do_int((lina - (unsigned char *)0xf0000) / 0x10);
+      do_int_from_hlt((lina - (unsigned char *)0xf0000) / 0x10);
     }
 
     else if (lina == (unsigned char *) CBACK_ADD) {

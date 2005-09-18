@@ -1413,12 +1413,10 @@ void real_run_int(int i)
   clear_IF();
 }
 
-/* DANG_BEGIN_FUNCTION run_caller_func(i, from_int, revect)
+/* DANG_BEGIN_FUNCTION run_caller_func(i, revect)
  *
  * This function runs the specified caller function in response to an
- * int instruction.  Where i is the interrupt function to execute and
- * from_int specifies if we are comming directly from an int
- * instruction.
+ * int instruction.  Where i is the interrupt function to execute.
  *
  * revect specifies whether we call a non-revectored leaf interrupt function
  * or a "watcher" that sits in between:
@@ -1475,19 +1473,11 @@ void real_run_int(int i)
  * DANG_END_FUNCTION
  */
 
-static int run_caller_func(int i, Boolean from_int, int revect)
+static int run_caller_func(int i, int revect)
 {
 	interrupt_function_t *caller_function;
 	g_printf("Do INT0x%02x: Using caller_function()\n", i);
 
-	if (!from_int) {
-		unsigned char *ssp = (unsigned char *) (REG(ss) << 4);
-		unsigned long sp = (unsigned long) LWORD(esp);
-		_SP += 6;
-		_IP = popw(ssp, sp);
-		_CS = popw(ssp, sp);
-		set_FLAGS(popw(ssp, sp));
-	}
 	caller_function = interrupt_function[i][revect];
 	if (caller_function) {
 		return caller_function();
@@ -2016,6 +2006,17 @@ static int inte7(void) {
   return 0;
 }
 
+static void debug_int(const char *s, int i)
+{
+ 	if (((i != 0x28) && (i != 0x2f)) || in_dpmi) {
+ 		di_printf("%s INT0x%02x eax=0x%08x ebx=0x%08x ss=0x%04x esp=0x%08x\n"
+ 			  "           ecx=0x%08x edx=0x%08x ds=0x%04x  cs=0x%04x ip=0x%04x\n"
+ 			  "           esi=0x%08x edi=0x%08x es=0x%04x flg=0x%08x\n",
+ 			  s, i, _EAX, _EBX, _SS, _ESP,
+ 			  _ECX, _EDX, _DS, _CS, _IP,
+ 			  _ESI, _EDI, _ES, (int) read_EFLAGS());
+ 	}
+}
 
 /*
  * DANG_BEGIN_FUNCTION DO_INT 
@@ -2027,10 +2028,31 @@ static int inte7(void) {
  * DANG_END_FUNCTION
  */
 
+void do_int_from_hlt(int i)
+{
+	unsigned char *ssp;
+	unsigned long sp;
+
+	if (debug_level('#') > 2)
+		debug_int("Do", i);
+  
+ 	/* Always use the caller function: I am calling into the
+ 	   interrupt table at the start of the dosemu bios */
+
+	ssp = (unsigned char *)(_SS << 4);
+	sp = _SP;
+	_SP += 6;
+	_IP = popw(ssp, sp);
+	_CS = popw(ssp, sp);
+	set_FLAGS(popw(ssp, sp));
+
+	run_caller_func(i, NO_REVECT);
+	if (debug_level('#') > 2)
+		debug_int("RET", i);
+}
+
 void do_int(int i)
 {
- 	unsigned long magic_address;
-
         /* we must clear the AC flag here since real mode INT instructions
            do that too. An IRET (not IRETD) instruction then does not set AC
            because the AC flag is in the high part of the eflags.
@@ -2040,17 +2062,9 @@ void do_int(int i)
         */
         clear_AC();
 	
-#ifndef TRACE_DPMI
- 	if ((debug_level('#') > 2) && (((i != 0x28) && (i != 0x2f)) || in_dpmi)) {
- 		di_printf("Do INT0x%02x eax=0x%08x ebx=0x%08x ss=0x%04x esp=0x%08x\n"
- 			  "           ecx=0x%08x edx=0x%08x ds=0x%04x  cs=0x%04x ip=0x%04x\n"
- 			  "           esi=0x%08x edi=0x%08x es=0x%04x flg=0x%08x\n",
- 			  i, _EAX, _EBX, _SS, _ESP,
- 			  _ECX, _EDX, _DS, _CS, _IP,
- 			  _ESI, _EDI, _ES, (int) read_EFLAGS());
- 	}
-#endif
-	
+	if (debug_level('#') > 2)
+		debug_int("Do", i);
+  
 #if 1  /* This test really ought to be in the main loop before
  	*  instruction execution not here. --EB 10 March 1997 
  	*/
@@ -2065,25 +2079,13 @@ void do_int(int i)
   
   
  	/* see if I want to use the caller function */
- 	/* I want to use it if I must always use it, or I am calling into the
- 	   interrupt table at the start of the dosemu bios */
+ 	/* I want to use it if I must always use it */
  	/* assume IP was just incremented by 2 past int int instruction which set us
  	   off */
 	
- 	magic_address = SEGOFF2LINEAR(BIOSSEG, INT_OFF(i));
- 	if (magic_address == (SEGOFF2LINEAR(_CS, _IP) -2)) {
- 		run_caller_func(i, FALSE, NO_REVECT);
-        	if ((debug_level('#') > 2) && (((i != 0x28) && (i != 0x2f)) || in_dpmi)) {
-        		di_printf("RET INT0x%02x eax=0x%08x ebx=0x%08x ss=0x%04x esp=0x%08x\n"
- 			  "           ecx=0x%08x edx=0x%08x ds=0x%04x  cs=0x%04x ip=0x%04x\n"
- 			  "           esi=0x%08x edi=0x%08x es=0x%04x flg=0x%08x\n",
- 			  i, _EAX, _EBX, _SS, _ESP,
- 			  _ECX, _EDX, _DS, _CS, _IP,
- 			  _ESI, _EDI, _ES, (int) read_EFLAGS());
-		}
- 	} else if (magic_address == IVEC(i)) {
-		run_caller_func(i, TRUE, can_revector(i));
-	} else if (can_revector(i) != REVECT || !run_caller_func(i, TRUE, REVECT)) {
+ 	if (SEGOFF2LINEAR(BIOSSEG, INT_OFF(i)) == IVEC(i)) {
+		run_caller_func(i, can_revector(i));
+	} else if (can_revector(i) != REVECT || !run_caller_func(i, REVECT)) {
 		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
 		if (IS_IRET(i)) {
 			if ((i != 0x2a) && (i != 0x28))
