@@ -3502,25 +3502,26 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	    _HWORD(esp) = *ssp++;
 	  }
 /* Posibilities:
- * 1. If in_dpmi_dos_int==0, it is hardware interrupt: software pm ints are
- *    handled not here. pic_iret() must be called in this case.
- * 2. If in_dpmi_dos_int==1 and interrupt is from hardware, pic_iret()
+ * 1. If in_dpmi_dos_int==1 and interrupt is from hardware, pic_iret()
  *    will success here because realmode cs:ip were not modified in pm
  *    handler and still points to hlt. We can just skip this hlt or do_vm86()
  *    will do it for us, but pic_iret will be called with current cs:ip anyway.
  *    So calling pic_iret() here and skipping hlt in this case is also an
  *    optimization.
- * 3. If in_dpmi_dos_int==1 and int is software (0x1c, 0x23 or 0x24), then
- *    cs:ip is not on hlt now and pic_iret() will just return.
+ * 2. If in_dpmi_dos_int==1 and int is software (0x1c, 0x23 or 0x24), then
+ *    cs:ip is not on hlt now.
+ * 3. If in_dpmi_dos_int==0, it is hardware interrupt: software pm ints are
+ *    handled not here. pic_iret_dpmi() must be called in this case.
  *
  *
- * -- Stas Sergeev
+ * -- Stas Sergeev, Bart Oldeman
  */
 	  if (in_dpmi_dos_int) {
 	     if (*SEG_ADR((unsigned char *), cs, ip) == 0xf4) {
 		if (debug_level('M') > 3) D_printf("DPMI: returned to RM from hardware "
 		    "interrupt at %p, skip hlt at %04x:%04lx\n",
 		    lina, REG(cs), REG(eip));
+		pic_iret();
 	     }
 	     else {
 		if (debug_level('M') > 3) D_printf("DPMI: returned to RM from software "
@@ -3530,8 +3531,8 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  } else {
 	    if (debug_level('M') > 3) D_printf("DPMI: returned to PM from hardware "
 		"interrupt at %p\n", lina);
+	    pic_iret_dpmi();
 	  }
-	  pic_iret();
 
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_exception)) {
 	  return_from_exception(scp);

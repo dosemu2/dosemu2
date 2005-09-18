@@ -116,6 +116,7 @@ void pic_untrigger(int inum);                          /* interrupt untrigger */
 void pic_set_callback(Bit16u cs, Bit16u ip);
 
 void pic_iret(void);                         /* interrupt completion notify */
+void pic_iret_dpmi(void);                    /* interrupt completion notify */
 void pic_resched(void);
 inline void pic_watch(hitimer_u *s_time);    /* interrupt pending watchdog timer */
 void do_irq0(void);				/* timer interrupt */

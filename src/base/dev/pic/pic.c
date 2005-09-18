@@ -867,9 +867,8 @@ void pic_untrigger(int inum)
  * DANG_END_FUNCTION
  */
 void
-pic_iret(void)
+pic_iret_dpmi(void)
 {
-  if(in_dpmi && !in_dpmi_dos_int) {
 /* Even if cs:ip now points to PIC_SEG:PIC_OFF hlt, it means nothing while
  * in protected mode, so we can't modify it here.
  */
@@ -885,13 +884,15 @@ pic_iret(void)
       fake_call_to(cb_cs, cb_ip);
       cb_cs = cb_ip = 0;
     }
-  }
-  else {
+}
+
+void
+pic_iret(void)
+{
 /* if we've really come from an irq, cs:ip will point to PIC_SEG:PIC_OFF */
 /* if we haven't come from an irq and cs:ip points as above, we're going to
  * die anyway, since our next instruction is a hlt.
  */ 
-    if(REG(cs) == PIC_SEG && LWORD(eip) == PIC_OFF) {
       pic_resched();
       pic_print(2,"IRET in vm86, loops=", in_dpmi?
       pic_dpmi_count : pic_vm86_count," ");
@@ -912,8 +913,6 @@ pic_iret(void)
 	REG(cs) = popw(ssp, sp);
 	LWORD(esp) = (LWORD(esp) + 4) & 0xffff;
       }
-    }
-  }
 }
 
  

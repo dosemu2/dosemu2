@@ -447,7 +447,6 @@ run_vm86(void)
 	break;
     case VM86_STI:
 	I_printf("Return from vm86() for STI\n");
-	pic_iret();
 	break;
     case VM86_INTx:
 	if (
