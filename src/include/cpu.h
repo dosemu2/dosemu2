@@ -134,18 +134,9 @@ typedef struct {
   * forever, we must restore the eflags.
   * Also restore %fs and %gs for compatibility with NPTL.
   */
-#define restore_eflags_fs_gs() \
-  __asm__ __volatile__ ( \
-	"pushl	 %0\n" \
-	"popfl\n" \
-	"movw	 %1, %%fs\n" \
-	"movw	 %2, %%gs\n" \
-	"frstor  %3\n" \
-	: : \
-	"m"(_emu_stack_frame.eflags), \
-	"m"(_emu_stack_frame.fs), \
-	"m"(_emu_stack_frame.gs), \
-	"m"(*_emu_stack_frame.fpstate))
+extern struct sigcontext_struct _emu_stack_frame;
+extern struct _fpstate vm86_fpu_state;
+void restore_eflags_fs_gs(void);
 
 /*
  * Boy are these ugly, but we need to do the correct 16-bit arithmetic.

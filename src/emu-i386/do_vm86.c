@@ -351,10 +351,19 @@ run_vm86(void)
 			_SI, _DI, _ES, _EFLAGS);
     }
 
+    asm volatile (
+      "fsave %0\n"
+      "frstor %1\n"
+      : "=m"(*_emu_stack_frame.fpstate)
+      : "m"(vm86_fpu_state)
+    );
     in_vm86 = 1;
     retval = DO_VM86(&vm86s);
     in_vm86 = 0;
-
+    asm volatile (
+      "fsave %0\n"
+      : "=m"(vm86_fpu_state)
+    );
     /* kernel 2.4 doesn't preserve GS -- and it doesn't hurt to restore here */
     restore_eflags_fs_gs();
 

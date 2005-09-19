@@ -98,6 +98,7 @@ unsigned long TRs[2] =
 #endif
 
 static struct _fpstate emu_fpu_state;
+struct _fpstate vm86_fpu_state;
 struct sigcontext_struct _emu_stack_frame;
 
 /* 
@@ -270,6 +271,7 @@ void cpu_setup(void)
    "=m"(_emu_stack_frame.eflags),
    "=m"(*_emu_stack_frame.fpstate),
    "=m"(stk_ptr));
+  vm86_fpu_state = *_emu_stack_frame.fpstate;
 
   if ((fp = fopen("/proc/self/maps", "r"))) {
     while(fscanf(fp, "%lx-%lx%*[^\n]", &stk_beg, &stk_end) == 2) {
@@ -291,8 +293,20 @@ void cpu_setup(void)
 #endif
 }
 
-
-
+void restore_eflags_fs_gs(void)
+{
+  asm volatile (
+    "pushl	 %0\n"
+    "popfl\n"
+    "movw	 %1, %%fs\n"
+    "movw	 %2, %%gs\n"
+    "frstor  %3\n"
+    ::
+    "m"(_emu_stack_frame.eflags),
+    "m"(_emu_stack_frame.fs),
+    "m"(_emu_stack_frame.gs),
+    "m"(*_emu_stack_frame.fpstate));
+}
 
 int
 do_soft_int(int intno)

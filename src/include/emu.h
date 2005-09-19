@@ -51,7 +51,6 @@ extern SillyG_t *SillyG;
 EXTERN struct vm86plus_struct vm86s INIT ( {
    {0},0,0,0,{{0}},{{0}}, {0}
 } );
-extern struct sigcontext_struct _emu_stack_frame;
 
 EXTERN volatile sig_atomic_t signal_pending INIT(0);
 EXTERN volatile int fault_cnt INIT(0);
