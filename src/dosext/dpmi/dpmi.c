@@ -4057,7 +4057,7 @@ void dpmi_realmode_hlt(unsigned char * lina)
  *
  * -- Stas Sergeev
  */
-    pic_iret();
+    pic_iret_dpmi();
 
   } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_return_from_dos_exec))) {
 
