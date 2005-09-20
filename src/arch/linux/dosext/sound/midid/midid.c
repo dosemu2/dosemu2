@@ -75,7 +75,7 @@ SEQ_DEFINEBUF(1024);
 
 Config config = {EMUMODE_GM, FALSE, 2, 0, "", 0, FALSE, "", "midid.mid", 120, 144, "localhost", 7777 };	/* Current config */
 
-void usage()
+static void usage(void)
 {
   printf("midid [parameters] [input file]\n\n"
 	 "-h,  --help         : help\n"
@@ -107,7 +107,7 @@ void usage()
 	 "[NYI] indicates this option is not implemented yet.\n" "\n");
 }
 
-void options_read(int argc, char **argv)
+static void options_read(int argc, char **argv)
 /* Read and evaluate command line options */
 {
   int c, need_printall = FALSE, option_index = 0;
@@ -223,7 +223,7 @@ void options_read(int argc, char **argv)
 int main(int argc, char **argv)
 {
   int ch, chn;			/* Current status (==command) */
-  int last_status = MAGIC_EOF;	/* Last performed status */
+  int last_status = MAGIC_INV;	/* Last performed status */
 
   comments = 1;
 
@@ -271,31 +271,21 @@ int main(int argc, char **argv)
   while (1) {
     ch = getbyte_status();
     if (ch == MAGIC_EOF || ch == MAGIC_TIMEOUT) {
-      /* Resident; reset soundcard */
       if (initialised) {
 	device_stop_all();
 	initialised = 0;
       }
+      last_status = MAGIC_INV;
+      /* End of file? */
+      if (ch == MAGIC_EOF && !config.resident) {
+	/* Not resident; quit */
+	break;
+      }
       do {
-	/* End of file? */
-	if (ch == MAGIC_EOF && !config.resident) {
-	  /* Not resident; quit */
-	  break;
-	}
 	usleep(100000);
 	getbyte_next();
 	ch = getbyte();
       } while (ch == MAGIC_EOF || ch == MAGIC_TIMEOUT);
-      if (ch == MAGIC_EOF)
-	break;
-
-      if (!initialised) {
-	if (! (initialised = device_init_all())) {
-	  error("Driver init failed!\n");
-	  exit(1);
-	}
-        fprintf(stderr, "Initialised %i devices.\n\n", initialised);
-      }
       continue;
     }
     /* Illegal for a status byte? */
@@ -307,8 +297,13 @@ int main(int argc, char **argv)
       if ((ch & 0xf0) != MIDI_SYSTEM_PREFIX)
         last_status = ch;
       else
-        last_status = MIDI_CTL_CHANGE;	/* Is this correct? */
+        last_status = MAGIC_INV;
       getbyte_next();
+    }
+    if (ch == MAGIC_INV) {
+      fprintf(stderr, "Bad data, ignoring\n");
+      getbyte_next();
+      continue;
     }
 
     if (!initialised) {
@@ -421,5 +416,5 @@ int main(int argc, char **argv)
     device_stop_all();
     initialised = 0;
   }
-  return (0);
+  return 0;
 }
