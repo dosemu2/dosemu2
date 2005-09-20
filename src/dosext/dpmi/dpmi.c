@@ -32,6 +32,9 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/wait.h>
+#include <sys/ptrace.h>
+#include <sys/user.h>
 
 #include "emu.h"
 #include "memory.h"
@@ -1469,6 +1472,135 @@ int DPMIGetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
 	handle, offs, attrs, count);
 }
 
+static int get_dr(pid_t pid, int i, unsigned long *dri)
+{
+  *dri = ptrace(PTRACE_PEEKUSER, pid,
+		(void *)offsetof(struct user, u_debugreg[i]), 0);
+  D_printf("DPMI: ptrace peek user dr%d=%lx\n", i, *dri);
+  return *dri != -1 || errno == 0;
+}
+
+static int set_dr(pid_t pid, int i, unsigned long dri)
+{
+  int r = ptrace(PTRACE_POKEUSER, pid,
+		 (void *)offsetof(struct user, u_debugreg[i]), (void *)dri);
+  D_printf("DPMI: ptrace poke user r=%d dr%d=%lx\n", r, i, dri);
+  return r == 0;
+}
+
+static int dpmi_debug_breakpoint(int op, struct sigcontext_struct *scp)
+{
+  pid_t pid, vpid;
+  int err, r, status;
+
+  if (debug_level('M'))
+  {
+    switch(op) {
+    case 0:
+      D_printf("DPMI: Set breakpoint type %x size %x at %04x%04x\n",
+	_HI(dx),_LO(dx),_LWORD(ebx),_LWORD(ecx));
+    case 1:
+      D_printf("DPMI: Clear breakpoint %x\n",_LWORD(ebx));
+    case 2:
+      D_printf("DPMI: Breakpoint %x state\n",_LWORD(ebx));
+    case 3:
+      D_printf("DPMI: Reset breakpoint %x\n",_LWORD(ebx));
+    }
+  }
+
+  if (op == 0) {
+    err = 0x21; /* invalid value (in DL or DH) */
+    if (_LO(dx) == 0 || _LO(dx) == 3 || _LO(dx) > 4 || _HI(dx) > 2)
+      return err;
+    err = 0x16; /* too many breakpoints */
+  } else {
+    err = 0x23; /* invalid handle */
+    if (_LWORD(ebx) > 3)
+      return err;
+  }
+
+#ifdef X86_EMULATOR
+  if (config.cpuemu>3) {
+    e_dpmi_b0x(op,scp);
+    return 0;
+  }
+#endif
+
+  pid = getpid();
+  vpid = fork();
+  if (vpid == (pid_t)-1)
+    return err;
+  if (vpid == 0) {
+    unsigned long dr6, dr7;
+    /* child ptraces parent */
+    r = ptrace(PTRACE_ATTACH, pid, 0, 0);
+    D_printf("DPMI: ptrace attach %d op=%d\n", r, op);
+    if (r == -1)
+      _exit(err);
+    do {
+      r = waitpid(pid, &status, 0);
+    } while (r == pid && !WIFSTOPPED(status));
+    if (r == pid) switch (op) {
+      case 0: {   /* set */
+	int i;
+	if(get_dr(pid, 7, &dr7)) for (i=0; i<4; i++) {
+	  if ((~dr7 >> (i*2)) & 3) {
+	    unsigned mask;
+	    if (!set_dr(pid, i, (_LWORD(ebx) << 16) | _LWORD(ecx))) {
+	      err = 0x25;
+	      break;
+	    }
+	    dr7 |= (3 << (i*2));
+	    mask = _HI(dx) & 3; if (mask==2) mask++;
+	    mask |= ((_LO(dx)-1) << 2) & 0x0c;
+	    dr7 |= mask << (i*4 + 16);
+	    if (set_dr(pid, 7, dr7))
+	      err = i;
+	    break;
+	  }
+	}
+	break;
+      }
+      case 1:   /* clear */
+	if(get_dr(pid, 6, &dr6) && get_dr(pid, 7, &dr7)) {
+	  int i = _LWORD(ebx);
+	  dr6 &= ~(1 << i);
+	  dr7 &= ~(3 << (i*2));
+	  dr7 &= ~(15 << (i*4+16));
+	  if (set_dr(pid, 6, dr6) && set_dr(pid, 7, dr7))
+	    err = 0;
+	  break;
+	}
+      case 2:   /* get */
+	if(get_dr(pid, 6, &dr6))
+	  err = (dr6 >> _LWORD(ebx)) & 1;
+        break;
+      case 3:   /* reset */
+        dr6 &= ~(1 << _LWORD(ebx));
+	if (set_dr(pid, 6, dr6))
+	  err = 0;
+        break;
+    }
+    ptrace(PTRACE_DETACH, pid, 0, 0);
+    D_printf("DPMI: ptrace detach\n");
+    _exit(err);
+  }
+  D_printf("DPMI: waitpid start\n");
+  r = waitpid(vpid, &status, 0);
+  if (r != vpid || !WIFEXITED(status))
+    return err;
+  err = WEXITSTATUS(status);
+  if (err >= 0 && err < 4) {
+    if (op == 0)
+      _LWORD(ebx) = err;
+    else if (op == 2)
+      _LWORD(eax) = err;
+    err = 0;
+  }
+  D_printf("DPMI: waitpid end, err=%#x, op=%d\n", err, op);
+  return err;
+}
+
 static void do_int31(struct sigcontext_struct *scp)
 {
 #if 0
@@ -2111,52 +2243,15 @@ err:
     get_ext_API(scp);
     break;
   case 0x0b00:	/* Set Debug Breakpoint ->bx=handle(!CF) */
-    {
-      D_printf("DPMI: Set breakpoint type %x size %x at %04x%04x\n",
-	_HI(dx),_LO(dx),_LWORD(ebx),_LWORD(ecx));
-#ifdef X86_EMULATOR
-      if (config.cpuemu>3) {
-	e_dpmi_b0x(0,scp);
-      } else
-#endif
-      {_LWORD(eax) = 0x8016;	/* n.i. */
-	_eflags |= CF; }
-    }
-    break;
   case 0x0b01:	/* Clear Debug Breakpoint, bx=handle */
-    {
-      D_printf("DPMI: Clear breakpoint %x\n",_LWORD(ebx));
-#ifdef X86_EMULATOR
-      if (config.cpuemu>3) {
-	e_dpmi_b0x(1,scp);
-      } else
-#endif
-      { _LWORD(eax) = 0x8023;	/* n.i. */
-	_eflags |= CF; }
-    }
-    break;
   case 0x0b02:	/* Get Debug Breakpoint State, bx=handle->ax=state(!CF) */
-    {
-      D_printf("DPMI: Breakpoint %x state\n",_LWORD(ebx));
-#ifdef X86_EMULATOR
-      if (config.cpuemu>3) {
-	e_dpmi_b0x(2,scp);
-      } else
-#endif
-      { _LWORD(eax) = 0x8023;	/* n.i. */
-	_eflags |= CF; }
-    }
-    break;
   case 0x0b03:	/* Reset Debug Breakpoint, bx=handle */
     {
-      D_printf("DPMI: Reset breakpoint %x\n",_LWORD(ebx));
-#ifdef X86_EMULATOR
-      if (config.cpuemu>3) {
-	e_dpmi_b0x(3,scp);
-      } else
-#endif
-      { _LWORD(eax) = 0x8023;	/* n.i. */
-	_eflags |= CF; }
+      int err = dpmi_debug_breakpoint(_LWORD(eax)-0x0b00, scp);
+      if (err) {
+	_LWORD(eax) = 0x8000 | err;
+	_eflags |= CF;
+      }
     }
     break;
 
