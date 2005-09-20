@@ -352,7 +352,64 @@ done_write:
 	popl	%esi
 	lret	$2
 
+/******************************************************************
+ * DATA BLOCK
+ ******************************************************************/
+
+.org	0xd000
+
+	.globl	CISH(bios_f000_int10ptr)
+CISH(bios_f000_int10ptr):
+	.long	0xc0000003
+
+	.globl	CISH(bios_f000_int10_old)
+CISH(bios_f000_int10_old):
+	.long	0
+
+	.globl	CISH(bios_in_int10_callback)
+CISH(bios_in_int10_callback):
+	.byte	0
+
+	.globl	CISH(bios_f000_bootdrive)
+CISH(bios_f000_bootdrive):
+	.byte	0
+
+	/* this is the paramblock, we told DOS to use for INT21 AX=4B01 */
+	.align	16,0
+	.globl	CISH(DBGload_parblock)
+CISH(DBGload_parblock):	.word	0
+			.long	0,0,0
+DBGload_SSSP:		.long	0
+	.globl	CISH(DBGload_CSIP)
+CISH(DBGload_CSIP):	.long	0
+
+	/* parameter packet, filled in by pkt_init */
+	.globl	CISH(PKTDRV_param)
+CISH(PKTDRV_param):
+	.byte	0,0,0,0
+	.word	0,0,0,0,0
+
+	/* driver statistics structure */
+	.globl	CISH(PKTDRV_stats)	  
+CISH(PKTDRV_stats):
+	.long	0,0,0,0,0,0,0
+
+	.globl	CISH(LFN_string)
+CISH(LFN_string):
+	.REPT 128
+	    .byte 0
+	.ENDR
+
+/******************************************************************
+ * BIOS CODE BLOCK						  *
+ ******************************************************************/
+
+.org	0xe000
 /* COMPAS FE000-FE05A	reserved */
+	.ascii	"..............IBM..............."
+	.ascii	"DOSEMU Custom BIOS r0.01, Copyri"
+	.ascii	"ght 1992-2005.........."
+        
 /* COMPAS FE05B		jmp to POST */
 /* COMPAS FE05E-FE2C2	reserved */
 /* COMPAS FE2C3		jmp to NMI */
@@ -495,13 +552,7 @@ L9a:
 	lret	$2    /* keep current flags and avoid another GPF from iret */
 
 L10:	/* chain to original handler (probably the video bios) */
-	.byte 	0xea /* jump far */
-	.globl	CISH(bios_f000_int10_old)
-CISH(bios_f000_int10_old):
-	.word	0,0
-	.globl	CISH(bios_in_int10_callback)
-CISH(bios_in_int10_callback):
-	.byte	0
+	ljmp	INDIRECT_PTR(%cs:CISH(bios_f000_int10_old-0x8000))
 
 #ifdef X86_EMULATOR
 	.org	((INT10_WATCHER_SEG-BIOSSEG) << 4)+(INT10_WATCHER_OFF+0x60)
@@ -534,11 +585,9 @@ CISH(bios_in_int10_callback):
 	sti
 	movb	$DOS_HELPER_VIDEO_INIT,%al		/*  Start Video init */
 	int	$DOSHELPER_INT
-	.byte	0x9a   /* call far 0xc000:3  or call far 0xe000:3 */
-/* More general than just c000 or e000 ??? */	
-	.globl	CISH(bios_f000_int10ptr)
-CISH(bios_f000_int10ptr):
-	.long	0xc0000003
+	/* call far 0xc000:3  or call far 0xe000:3 */
+	/* More general than just c000 or e000 ??? */	
+	lcall	INDIRECT_PTR(%cs:CISH(bios_f000_int10ptr-0x8000))
 	movb	$DOS_HELPER_VIDEO_INIT_DONE,%al		/* Finished video init */
 	int     $DOSHELPER_INT
 	popw	%ax
@@ -573,12 +622,8 @@ CISH(bios_f000_int10ptr):
 
 	movb	$DOS_HELPER_SHOW_BANNER,%al
 	int	$DOSHELPER_INT
-	.byte	0xb2          /* mov dl,#0   or mov dl,#0x80 */
-	.globl	CISH(bios_f000_bootdrive)
-CISH(bios_f000_bootdrive):
-	.byte	0
+	movb	%cs:CISH(bios_f000_bootdrive),%dl
 	lret
-
 
 /* ----------------------------------------------------------------- */   
 /* This hlt address is used to return back from a call back */
@@ -876,11 +921,7 @@ idle_cycle:
 	.org	((PKTDRV_SEG - BIOSSEG) << 4) + PKTDRV_OFF
 /* ======================= Addr = F000:F130 (FF130) */
 
-	.globl	CISH(PKTDRV_driver_name)
-	.globl	CISH(PKTDRV_param)
-	.globl	CISH(PKTDRV_stats)
 	.globl	CISH(PKTDRV_start)
-
 CISH(PKTDRV_start):
 	jmp	bios_hlt_blk+0x60
 
@@ -888,17 +929,10 @@ CISH(PKTDRV_start):
    driver is initialized. */
 	.asciz	"PKT DRVR"
 
+	.globl	CISH(PKTDRV_driver_name)
 CISH(PKTDRV_driver_name):
 	.asciz	"Linux$"
 	.byte	0
-
-	/* parameter packet, filled in by pkt_init */
-CISH(PKTDRV_param):
-	.byte	0,0,0,0
-	.word	0,0,0,0,0
-	/* driver statistics structure */
-CISH(PKTDRV_stats):
-	.long	0,0,0,0,0,0,0
 
 /* ===== LFN helper f000:f230 */
 	.org	((LFN_HELPER_SEG-BIOSSEG) << 4)+LFN_HELPER_OFF
@@ -927,8 +961,6 @@ after_int21:
         popw	%dx
         popw	%ds
         lret
-        .globl  CISH(LFN_string)
-CISH(LFN_string):
 
 /* ----------------------------------------------------------------- */
 
@@ -939,8 +971,6 @@ CISH(LFN_string):
  * (wanting to debug a program from it's very beginning)
  */
 	.globl	CISH(DBGload)
-	.globl	CISH(DBGload_CSIP)
-	.globl	CISH(DBGload_parblock)
 CISH(DBGload):
 	cli	/* first we set up the users stack */
 	movw	%cs:DBGload_SSSP+2,%ss
@@ -961,13 +991,6 @@ CISH(DBGload):
 				/* and give control to the program */
 
 
-	/* this is the paramblock, we told DOS to use for INT21 AX=4B01 */
-	.align	16,0
-CISH(DBGload_parblock):	.word	0
-			.long	0,0,0
-DBGload_SSSP:		.long	0
-CISH(DBGload_CSIP):	.long	0
-        
 	.globl  CISH(bios_f000_endpart1)
 CISH(bios_f000_endpart1):
 
