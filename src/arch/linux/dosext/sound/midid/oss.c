@@ -48,7 +48,7 @@ typedef struct Voice {
 Voice *voices;
 int chn2prg[16];         /* The program on each channel */
 
-void oss_seqbuf_dump (void)
+static void oss_seqbuf_dump(void)
 {
   if (_seqbufptr) {
     if (write (seqfd, _seqbuf, _seqbufptr) == -1) {
@@ -61,7 +61,7 @@ void oss_seqbuf_dump (void)
 
 /* Load all FM instruments; routine from playmidi-2.3/patchload.c
    Return TRUE iff successful */
-bool loadfm(void)
+static bool loadfm(void)
 {
     int sbfd, i, n, voice_size, data_size;
     char buf[60];
@@ -133,7 +133,7 @@ bool loadfm(void)
     return(TRUE);
 }
 
-bool oss_detect(void)
+static bool oss_detect(void)
 {
   int sdevs;     /* Number of synthesizers */
   seqfd=open(SEQUENCER_DEV,O_WRONLY);
@@ -147,7 +147,7 @@ bool oss_detect(void)
   return(TRUE);
 }
 
-bool oss_init(void)
+static bool oss_init(void)
 {
   int sdevs;     /* Number of synthesizers */
   int i;
@@ -220,25 +220,25 @@ bool oss_init(void)
   return(TRUE);	
 }
 
-void oss_done(void)
+static void oss_done(void)
 {
   free(voices);
   close(seqfd);
 }
 
-void oss_flush(void)
+static void oss_flush(void)
 {
   SEQ_DUMPBUF();
 }
 
-bool oss_setmode(Emumode new_mode)
+static bool oss_setmode(Emumode new_mode)
 {
   if (new_mode == EMUMODE_GM)
     return TRUE;
   return FALSE;
 }
 
-void oss_noteon(int chn, int note, int vel)
+static void oss_noteon(int chn, int note, int vel)
 {
   int i;
   int mintime=timestamp+1;
@@ -265,22 +265,22 @@ void oss_noteon(int chn, int note, int vel)
   SEQ_START_NOTE(device, i, note, vel);
 }
 
-void oss_noteoff(int chn, int note, int vel)
+static void oss_noteoff(int chn, int note, int vel)
 {}
 
-void oss_control(int chn, int control, int value)
+static void oss_control(int chn, int control, int value)
 {}
 
-void oss_notepressure(int chn, int control, int value)
+static void oss_notepressure(int chn, int control, int value)
 {}
 
-void oss_channelpressure(int chn, int vel)
+static void oss_channelpressure(int chn, int vel)
 {}
 
-void oss_bender(int chn, int pitch)
+static void oss_bender(int chn, int pitch)
 {}
 
-void oss_program(int chn, int pgm)
+static void oss_program(int chn, int pgm)
 {}
 
 void register_oss(Device * dev)
@@ -300,5 +300,3 @@ void register_oss(Device * dev)
 	dev->program = oss_program;
 	dev->setmode = oss_setmode;
 }
-
-

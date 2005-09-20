@@ -20,7 +20,7 @@ static unsigned int track_num, track_bytes_written;
 static FILE *fp;
 static long track_size_pos;
 
-void midout_write_delta_time()
+static void midout_write_delta_time(void)
 {
   struct timeval time;
   struct timezone tz;
@@ -73,9 +73,9 @@ void midout_write_delta_time()
   fputc(c[3], fp);
 }
 
-bool midout_detect(void)
+static bool midout_detect(void)
 {
-bool ret = FALSE;
+  bool ret = FALSE;
   if (strcmp(config.midifile, "-") == 0)
     ret = TRUE;
   else {
@@ -89,7 +89,7 @@ bool ret = FALSE;
   return ret;
 }
 
-void midout_start_track(void)
+static void midout_start_track(void)
 {
   unsigned char t0, t1, t2;
   int quarter_note_us;
@@ -120,13 +120,13 @@ void midout_start_track(void)
   fprintf(fp, "%c%c%c%c%c%c%c%c", '\0','\xff','\x58','\4','\4','\x2','\x18','\x08');
 }
 
-void midout_finish_track(void)
+static void midout_finish_track(void)
 {
 /* Send (with delta-time of 0) "0xff 0x2f 0x0" to finish the track. */
   fprintf(fp, "%c%c%c%c", '\0', '\xff', '\x2f', '\0');
 }
 
-bool midout_init(void)
+static bool midout_init(void)
 {
   unsigned char t0, t1;
 
@@ -164,7 +164,7 @@ bool midout_init(void)
   return(TRUE);
 }
 
-void midout_done(void)
+static void midout_done(void)
 {
   long file_size;
   int track_bytes;
@@ -184,12 +184,12 @@ void midout_done(void)
   fclose(fp);
 }
 
-void midout_flush(void)
+static void midout_flush(void)
 {
   fflush(fp);
 }
 
-void midout_noteon(int chn, int note, int vel)
+static void midout_noteon(int chn, int note, int vel)
 {
   unsigned char cm, no, ve;
 
@@ -202,7 +202,7 @@ void midout_noteon(int chn, int note, int vel)
   fprintf(fp, "%c%c%c", cm, no, ve);
 }
 
-void midout_noteoff(int chn, int note, int vel)
+static void midout_noteoff(int chn, int note, int vel)
 {
   unsigned char cm, no, ve;
 
@@ -215,7 +215,7 @@ void midout_noteoff(int chn, int note, int vel)
   fprintf(fp, "%c%c%c", cm, no, ve);
 }
 
-void midout_control(int chn, int control, int value)
+static void midout_control(int chn, int control, int value)
 {
   unsigned char cm, co, va;
 
@@ -228,7 +228,7 @@ void midout_control(int chn, int control, int value)
   fprintf(fp, "%c%c%c", cm, co, va);
 }
 
-void midout_notepressure(int chn, int control, int value)
+static void midout_notepressure(int chn, int control, int value)
 {
   unsigned char cm, co, va;
 
@@ -241,7 +241,7 @@ void midout_notepressure(int chn, int control, int value)
   fprintf(fp, "%c%c%c", cm, co, va);
 }
 
-void midout_channelpressure(int chn, int vel)
+static void midout_channelpressure(int chn, int vel)
 {
   unsigned char cm, ve;
 
@@ -253,7 +253,7 @@ void midout_channelpressure(int chn, int vel)
   fprintf(fp, "%c%c", cm, ve);
 }
 
-void midout_bender(int chn, int pitch)
+static void midout_bender(int chn, int pitch)
 {
   unsigned char cm, pi0, pi1;
 
@@ -266,7 +266,7 @@ void midout_bender(int chn, int pitch)
   fprintf(fp, "%c%c%c", cm, pi0, pi1);
 }
 
-void midout_program(int chn, int pgm)
+static void midout_program(int chn, int pgm)
 {
   unsigned char cm, pg;
 
@@ -278,7 +278,7 @@ void midout_program(int chn, int pgm)
   fprintf(fp, "%c%c", cm, pg);
 }
 
-bool midout_setmode(Emumode new_mode)
+static bool midout_setmode(Emumode new_mode)
 {
   if (new_mode == EMUMODE_GM)
     return(TRUE);

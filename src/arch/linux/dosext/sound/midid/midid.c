@@ -12,9 +12,9 @@
 
    For use with DOSEMU0.65+, read the dosemu/doc/README.sound .
    
-   (c)1997 R.Nijlunsing <rutger@null.net>
-   (c)2002 Robert Komar <rkomar@telus.net>
-   (c)2002 Stas Sergeev <stsp@users.sourceforge.net>
+   (c) 1997 R.Nijlunsing <rutger@null.net>
+   (c) 2002 Robert Komar <rkomar@telus.net>
+   (c) 2002-2005 Stas Sergeev <stsp@users.sourceforge.net>
 
    #include GNU copyright
 
@@ -40,6 +40,9 @@
 	       Misc cleanups and fixes 		(Stas Sergeev, Rob Komar)
 	       The whole Rutger's TODO list is now covered and deleted:)
  */
+
+#define VER_MAJOR 1
+#define VER_MINOR 5
 
 #include "midid.h"
 #include "events.h"
@@ -235,10 +238,10 @@ int main(int argc, char **argv)
 
   /* Banner */
   if (comments)
-    fprintf(stderr, "Midi Daemon / interpreter v1.04\n"
-	    "(c)1997 R.Nijlunsing <rutger@null.net>\n"
-	    "(c)2002 Stas Sergeev <stsp@users.sourceforge.net>\n"
-	    "Use '%s --help' for options\n\n", argv[0]);
+    fprintf(stderr, "Midi Daemon / interpreter v%i.%02i\n"
+	    "(c) 1997 R.Nijlunsing <rutger@null.net>\n"
+	    "(c) 2002-2005 Stas Sergeev <stsp@users.sourceforge.net>\n"
+	    "Use '%s --help' for options\n\n", VER_MAJOR, VER_MINOR, argv[0]);
 
   /* Open input */
   if (strlen(config.inputfile)) {

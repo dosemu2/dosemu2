@@ -42,12 +42,13 @@ void timid_seqbuf_dump(void);
 
 SEQ_USE_EXTBUF();
 
-void timid_start_timer()
+static void timid_start_timer(void)
 {
-static const char *cmd = "TIMEBASE\n";
-char buf[255];
-struct timeval time;
-int n;
+  static const char *cmd = "TIMEBASE\n";
+  char buf[255];
+  struct timeval time;
+  int n;
+
   send(ctrl_sock, cmd, strlen(cmd), 0);
   n = recv(ctrl_sock, buf, sizeof(buf) - 1, 0);
   buf[n] = 0;
@@ -59,28 +60,28 @@ int n;
   SEQ_DUMPBUF();
 }
 
-void timid_stop_timer()
+static void timid_stop_timer(void)
 {
   SEQ_STOP_TIMER();
   SEQ_DUMPBUF();
 }
 
-long timid_get_ticks()
+static long timid_get_ticks(void)
 {
-struct timeval time;
+  struct timeval time;
   gettimeofday(&time, NULL);
   return (TIME2TICK(time) - start_time);
 }
 
-void timid_timestamp()
+static void timid_timestamp(void)
 {
   SEQ_WAIT_TIME(timid_get_ticks());
 }
 
-void timid_sync_timidity()
+static void timid_sync_timidity(void)
 {
-char buf[255];
-int n;
+  char buf[255];
+  int n;
 #define SEQ_META 0x7f
 #define SEQ_SYNC 0x02
   _CHN_COMMON(0, SEQ_EXTENDED, SEQ_META, SEQ_SYNC, 0, 0);
@@ -119,12 +120,12 @@ static int timid_preinit(void)
   return TRUE;
 }
 
-bool timid_detect(void)
+static bool timid_detect(void)
 {
-char buf[255];
-int n, selret = 0, ret = FALSE;
-fd_set rfds;
-struct timeval tv;
+  char buf[255];
+  int n, selret = 0, ret = FALSE;
+  fd_set rfds;
+  struct timeval tv;
 
   if (!timid_preinit())
     return FALSE;
@@ -157,16 +158,16 @@ struct timeval tv;
   return ret;
 }
 
-bool timid_init(void)
+static bool timid_init(void)
 {
-static const char *cmd1 = "CLOSE\n";
-static const char *cmd2 = "SETBUF %1.2f %1.2f\n";
-static const char *cmd3 = "OPEN %s\n";
-char buf[255];
-char * pbuf;
-int n, i, data_port, ret = FALSE, selret = 0;
-fd_set rfds;
-struct timeval tv;
+  static const char *cmd1 = "CLOSE\n";
+  static const char *cmd2 = "SETBUF %1.2f %1.2f\n";
+  static const char *cmd3 = "OPEN %s\n";
+  char buf[255];
+  char * pbuf;
+  int n, i, data_port, ret = FALSE, selret = 0;
+  fd_set rfds;
+  struct timeval tv;
 
   if (!timid_preinit())
     return FALSE;
@@ -247,12 +248,13 @@ struct timeval tv;
   return TRUE;
 }
 
-void timid_done(void)
+static void timid_done(void)
 {
-static const char *cmd1 = "CLOSE\n";
-static const char *cmd2 = "QUIT\n";
-char buf[255];
-int n;
+  static const char *cmd1 = "CLOSE\n";
+  static const char *cmd2 = "QUIT\n";
+  char buf[255];
+  int n;
+
   timid_sync_timidity();
   timid_stop_timer();
   send(ctrl_sock, cmd1, strlen(cmd1), 0);
@@ -272,49 +274,49 @@ int n;
   close(ctrl_sock);
 }
 
-void timid_noteon(int chn, int note, int vol)
+static void timid_noteon(int chn, int note, int vol)
 {
   timid_timestamp();
   SEQ_START_NOTE(0, chn, note, vol);
 }
 
-void timid_noteoff(int chn, int note, int vol)
+static void timid_noteoff(int chn, int note, int vol)
 {
   timid_timestamp();
   SEQ_STOP_NOTE(0, chn, note, vol);
 }
 
-void timid_control(int chn, int control, int value)
+static void timid_control(int chn, int control, int value)
 {
   timid_timestamp();
   SEQ_CONTROL(0, chn, control, value);
 }
 
-void timid_notepressure(int chn, int note, int pressure)
+static void timid_notepressure(int chn, int note, int pressure)
 {
   timid_timestamp();
   SEQ_KEY_PRESSURE(0, chn, note, pressure);
 }
 
-void timid_channelpressure(int chn, int pressure)
+static void timid_channelpressure(int chn, int pressure)
 {
   timid_timestamp();
   SEQ_CHN_PRESSURE(0, chn, pressure);
 }
 
-void timid_bender(int chn, int pitch)
+static void timid_bender(int chn, int pitch)
 {
   timid_timestamp();
   SEQ_BENDER(0, chn, pitch);
 }
 
-void timid_program(int chn, int pgm)
+static void timid_program(int chn, int pgm)
 {
   timid_timestamp();
   SEQ_PGM_CHANGE(0, chn, pgm);
 }
 
-void timid_sysex(unsigned char *buf, int len)
+static void timid_sysex(unsigned char *buf, int len)
 {
   int i;
   timid_timestamp();
@@ -322,7 +324,7 @@ void timid_sysex(unsigned char *buf, int len)
     SEQ_SYSEX(0, buf + i, MIN(len - i, 6));
 }
 
-void timid_flush(void)
+static void timid_flush(void)
 {
   SEQ_DUMPBUF();
 }
@@ -334,7 +336,7 @@ void timid_seqbuf_dump(void)
   _seqbufptr = 0;
 }
 
-bool timid_setmode(Emumode new_mode)
+static bool timid_setmode(Emumode new_mode)
 {
   if (new_mode == EMUMODE_GM)
     return TRUE;

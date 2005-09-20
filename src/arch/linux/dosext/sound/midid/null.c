@@ -10,29 +10,29 @@
 
 #include "device.h"
 
-bool null_detect(void)
+static bool null_detect(void)
 {
 	return(TRUE);
 }
 
-bool null_init(void)
+static bool null_init(void)
 {
 	return(TRUE);
 }
 
-void null_doall(void)
+static void null_doall(void)
 {
 }
 
-void null_doall2(int a,int b)
+static void null_doall2(int a,int b)
 {
 }
 
-void null_doall3(int a,int b,int c)
+static void null_doall3(int a,int b,int c)
 {
 }
 
-bool null_setmode(Emumode new_mode)
+static bool null_setmode(Emumode new_mode)
 {
   /* Our NULL driver has all emulations in the world :) */
   return TRUE;
@@ -55,4 +55,3 @@ void register_null(Device * dev)
 	dev->program = null_doall2;
 	dev->setmode = null_setmode;
 }
-
