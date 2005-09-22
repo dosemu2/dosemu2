@@ -66,20 +66,6 @@ static inline void dbug_dumpivec(void)
 #endif
 
 /*
- * DANG_BEGIN_FUNCTION dosemu_banner
- *
- * description:
- *  Setup the call stack to draw the dosemu banner
- * 
- * DANG_END_FUNCTION
- */
-static void
-dosemu_banner(void)
-{
-  fake_call_to(Banner_SEG, Banner_OFF);
-}
-
-/*
  * DANG_BEGIN_FUNCTION stdio_init
  *
  * description:
@@ -343,15 +329,6 @@ void memory_init(void)
   if (config.pktdrv)
     pkt_init(0x60);              /* Install the new packet driver interface */
 #endif
-
-  /* 
-   * The banner helper actually gets called *after* the VGA card
-   * is initialized (if it is) because we set up a return chain:
-   *      init_vga_card -> dosemu_banner -> 7c00:0000 (boot block)
-   */
-
-  if (config.dosbanner)
-    dosemu_banner();
 
   bios_mem_setup();            /* setup values in BIOS area */
 }

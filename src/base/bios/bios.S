@@ -39,7 +39,7 @@
 #define BIOS_TIMER_OVERFLOW 0x470
 #define HOUR24_ADJUST 0x1800B0
 #define DISKETTE_MOTOR_TIMEOUT 0x440
-#define BIOS_VIDEO_MODE 0x449
+#define BIOS_VIDEO_MODE 0x49
 
 /* NOTE: The following definition need to be in memory.h, but at this
  *       moment they aren't, so I define them here.
@@ -409,9 +409,52 @@ CISH(LFN_string):
 	.ascii	"..............IBM..............."
 	.ascii	"DOSEMU Custom BIOS r0.01, Copyri"
 	.ascii	"ght 1992-2005.........."
-        
+
+.org	ROM_BIOS_SELFTEST
 /* COMPAS FE05B		jmp to POST */
 /* COMPAS FE05E-FE2C2	reserved */
+	sti
+
+/* ----------------------------------------------------------------- */	  
+/* This is for the video init - it calls in order:
+   - first helper function (int0xe6,al=8)
+   - the video BIOS init entry point at C000:3 or E000:3
+   - second helper function (int 0xe6,al=9)
+ */
+	movb	$DOS_HELPER_VIDEO_INIT,%al		/*  Start Video init */
+	int	$DOSHELPER_INT
+	cmpb	$0, %al
+	je	no_vbios_post
+	/* call far 0xc000:3  or call far 0xe000:3 */
+	/* More general than just c000 or e000 ??? */	
+	pushw	%ds
+	lcall	INDIRECT_PTR(%cs:CISH(bios_f000_int10ptr))
+	popw	%ds
+	sti
+	jmp	video_init_done
+
+/* ----------------------------------------------------------------- */	  
+/* Post-less video init
+ */
+no_vbios_post:
+	movb	BIOS_VIDEO_MODE,%al
+	int	$0x10
+video_init_done:
+	movb	$DOS_HELPER_VIDEO_INIT_DONE,%al		/* Finished video init */
+	int	$DOSHELPER_INT
+
+	movb	$DOS_HELPER_SHOW_BANNER,%al
+	int	$DOSHELPER_INT
+	movb	%cs:CISH(bios_f000_bootdrive),%dl
+
+	ljmp	$0x0, $0x7c00		/* Some boot sectors require cs=0 */
+
+.org	ROM_BIOS_EXIT
+/* ======================= Addr = F000:E2B0 (FE2B0) */
+	/* set up BIOS exit routine */
+	movw	$DOS_HELPER_REALLY_EXIT,%ax
+	int	$DOSHELPER_INT
+
 /* COMPAS FE2C3		jmp to NMI */
 /* COMPAS FE2C6-FE3FD	reserved */
 
@@ -571,59 +614,6 @@ L10:	/* chain to original handler (probably the video bios) */
 	hlt
 	lret	$2    /* keep current flags and avoid another GPF from iret */
 #endif
-
-/* ----------------------------------------------------------------- */   
-/* This is for video init only - it calls in order:
-   - first helper function (int0xe6,al=8)
-   - the video BIOS init entry point at C000:3 or E000:3
-   - second helper function (int 0xe6,al=9)
-   It is called from memory_init() [init.c] -> init_vga_card() [vga.c]
- */
-	.org	((INT10_SEG-BIOSSEG) << 4)+INT10_OFF
-/* ======================= Addr = F800:63A1 (FE3A1) */
-	pushw	%ax
-	sti
-	movb	$DOS_HELPER_VIDEO_INIT,%al		/*  Start Video init */
-	int	$DOSHELPER_INT
-	/* call far 0xc000:3  or call far 0xe000:3 */
-	/* More general than just c000 or e000 ??? */	
-	lcall	INDIRECT_PTR(%cs:CISH(bios_f000_int10ptr-0x8000))
-	movb	$DOS_HELPER_VIDEO_INIT_DONE,%al		/* Finished video init */
-	int     $DOSHELPER_INT
-	popw	%ax
-	sti
-	lret
-
-
-/* ----------------------------------------------------------------- */   
-/* Post-less video init
- */
-	.org	((INT10_SEG-BIOSSEG) << 4)+INT10_POSTLESS_OFF
-/* ======================= Addr = F800:63C0 (FE3C0) */
-	pushw	%ax
-	pushw	%ds
-	cli
-	movb	$DOS_HELPER_VIDEO_INIT,%al		/*  Start Video init */
-	int	$DOSHELPER_INT
-	xorw	%ax,%ax
-	movw	%ax,%ds
-	movb	BIOS_VIDEO_MODE,%al
-	int	$0x10
-	movb	$DOS_HELPER_VIDEO_INIT_DONE,%al		/* Finished video init */
-	int     $DOSHELPER_INT
-	sti
-	popw	%ds
-	popw	%ax
-	lret
-
-/* ----------------------------------------------------------------- */
-	.org	((Banner_SEG - BIOSSEG) << 4) + Banner_OFF
-/* ======================= Addr = F800:63E0 (FE3E0) */
-
-	movb	$DOS_HELPER_SHOW_BANNER,%al
-	int	$DOSHELPER_INT
-	movb	%cs:CISH(bios_f000_bootdrive),%dl
-	lret
 
 /* ----------------------------------------------------------------- */   
 /* This hlt address is used to return back from a call back */
@@ -990,7 +980,6 @@ CISH(DBGload):
 	ljmp	INDIRECT_PTR(%cs:CISH(DBGload_CSIP))
 				/* and give control to the program */
 
-
 	.globl  CISH(bios_f000_endpart1)
 CISH(bios_f000_endpart1):
 
@@ -1076,9 +1065,7 @@ CISH(INT08_dummy_end):
 /* ----------------------------------------------------------------- */
 	.org	0xfff0
 /* COMPAS FFFF0		jmp to powerup */
-	/* set up BIOS exit routine (we have *just* enough room for this) */
-	movw	$DOS_HELPER_REALLY_EXIT,%ax
-	int	$DOSHELPER_INT
+	ljmp	$BIOSSEG, $ROM_BIOS_SELFTEST
 /* COMPAS FFFF5		ROM BIOS date */
 	.ascii	"02/25/93"  /* our bios date */
 /* COMPAS FFFFD		unused */

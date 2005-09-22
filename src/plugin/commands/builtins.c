@@ -233,7 +233,7 @@ static int load_and_run_DOS_program(char *command, char *cmdline, int quit)
 	LWORD(eax) = 0x4b00;
 	
 	if (quit)
-		fake_call_to(BIOSSEG, 0xfff0);
+		fake_call_to(BIOSSEG, ROM_BIOS_EXIT);
 
 	real_run_int(0x21);
 
@@ -517,7 +517,7 @@ int commands_plugin_inte6(void)
 	}
 
 	psp = COM_PSP_ADDR;
-	mcb = SEG2LINEAR(COM_PSP_SEG - 1);
+	mcb = LOWMEM(SEG2LINEAR(COM_PSP_SEG - 1));
 
 	/* first parse commandline */
 	args[0] = strlower(strdup(com_getarg0()));

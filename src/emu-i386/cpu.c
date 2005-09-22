@@ -238,19 +238,14 @@ void cpu_setup(void)
   REG(esi) = 0;
   REG(edi) = 0;
   REG(ebp) = 0;
-  REG(eip) = 0x7c00;
-  REG(cs) = 0;			/* Some boot sectors require cs=0 */
+  REG(eip) = 0;
+  REG(cs) = 0xffff;
   REG(esp) = 0x100;
   REG(ss) = 0x30;		/* This is the standard pc bios stack */
   REG(es) = 0;			/* standard pc es */
   REG(ds) = 0x40;		/* standard pc ds */
   REG(fs) = 0;
   REG(gs) = 0;
-#if 0
-  REG(eflags) |= (IF | VIF | VIP);
-#else
-  REG(eflags) |= (VIF | VIP);
-#endif
 
   _emu_stack_frame.fpstate = &emu_fpu_state;
   /* initialize user data & code selector values (used by DPMI code) */

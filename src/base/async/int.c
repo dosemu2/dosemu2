@@ -282,6 +282,8 @@ int dos_helper(void)
     }
 
   case DOS_HELPER_SHOW_BANNER:		/* show banner */
+    if (!config.dosbanner)
+      break;
     p_dos_str("\n\nLinux DOS emulator " VERSTR " $" "Date: " VERDATE "$\n");
     p_dos_str("Last configured at %s on %s\n", CONFIG_TIME, CONFIG_HOST);
 #if 1 
@@ -336,6 +338,7 @@ int dos_helper(void)
      */
     v_printf("Save hi vector area\n");
     MEMCPY_2UNIX(save_hi_ints,0x380,128);
+    _AL = config.vbios_post;
     break;
 
   case DOS_HELPER_VIDEO_INIT_DONE:

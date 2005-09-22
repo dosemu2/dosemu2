@@ -41,17 +41,12 @@
 
 #define INT_OFF(i) (0xc000+(i))
 
+#define ROM_BIOS_SELFTEST	0xe05b
+#define ROM_BIOS_EXIT		0xe2b0
+
 #define INT09_SEG	BIOSSEG
 #define INT09_OFF	0xe987		/* for 100% IBM compatibility */
 #define INT09_ADD	((INT09_SEG << 4) + INT09_OFF)
-
-#define LASTSCAN_SEG	(BIOSSEG + 0x100)
-#define LASTSCAN_OFF	0x0
-#define LASTSCAN_ADD	(u_short *)((LASTSCAN_SEG << 4) + LASTSCAN_OFF)
-
-#define OUTB_SEG	(BIOSSEG+0x100)
-#define OUTB_OFF	0x1000
-#define OUTB_ADD	(u_short *)((OUTB_SEG << 4) + OUTB_OFF)
 
 #define Pause_SEG	(BIOSSEG)
 #define Pause_OFF	0xf110
@@ -108,11 +103,6 @@
 #define EMM_BASE_ADDRESS        (config.ems_frame << 4)
 #define EMM_SEGMENT             (config.ems_frame)
 
-
-#define Banner_SEG	ROMBIOSSEG
-#define Banner_OFF	0x63e0
-#define Banner_ADD	((Banner_SEG << 4) + Banner_OFF)
-
 #define INT16_SEG	ROMBIOSSEG
 #define INT16_OFF	0x682e
 #define INT16_ADD	((INT16_SEG << 4) + INT16_OFF)
@@ -128,11 +118,6 @@
 #define INT70_SEG	ROMBIOSSEG
 #define INT70_OFF	0x63f0
 #define INT70_ADD	((INT70_SEG << 4) + INT70_OFF)
-
-#define INT10_SEG	ROMBIOSSEG
-#define INT10_OFF	0x63a1
-#define INT10_POSTLESS_OFF	0x63c0
-#define INT10_ADD	((INT10_SEG << 4) + INT10_OFF)
 
 /* int10 watcher for mouse support */
 /* This was in BIOSSEG (a) so we could write old_int10,
