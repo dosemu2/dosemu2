@@ -48,7 +48,7 @@ typedef struct Voice {
 Voice *voices;
 int chn2prg[16];         /* The program on each channel */
 
-static void oss_seqbuf_dump(void)
+void oss_seqbuf_dump(void)
 {
   if (_seqbufptr) {
     if (write (seqfd, _seqbuf, _seqbufptr) == -1) {
