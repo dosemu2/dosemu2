@@ -271,6 +271,18 @@ static void umb_cleanup(int umb)
     }
   } while (updated);
 }
+
+static void umb_free_all(void)
+{
+  int i;
+  for (i = 0; i < UMBS; i++) {
+    if (umbs[i].in_use && !umbs[i].free) {
+      umbs[i].free = TRUE;
+      umb_cleanup(i);
+    }
+  }
+}
+
 /* why int? */
 static int
 umb_free(int segbase)
@@ -304,22 +316,34 @@ umb_query(void)
 /* end of stuff from Mach */
 
 void
-xms_init(void)
+xms_reset(void)
 {
   int i;
 
+  umb_free_all();
+
+  if (!config.xms_size)
+    return;
+
+  freeHMA = 1;
+
+  handle_count = 0;
+  for (i = 0; i < NUM_HANDLES + 1; i++) {
+    if (handles[i].valid && handles[i].addr)
+      free(handles[i].addr);
+    handles[i].valid = 0;
+  }
+}
+
+void
+xms_init(void)
+{
   umb_setup();
 
   if (!config.xms_size)
     return;
 
   x_printf("XMS: initializing XMS... %d handles\n", NUM_HANDLES);
-
-  freeHMA = 1;
-
-  handle_count = 0;
-  for (i = 0; i < NUM_HANDLES + 1; i++)
-    handles[i].valid = 0;
 }
 
 static void XMS_RET(int err)

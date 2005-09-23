@@ -140,9 +140,7 @@ extern char LFN_string[];
 EXTERN unsigned int configuration INIT(0);	/* The virtual
 						 * BIOS-configuration */
 
-void            setup_rom_bios(void);
-void            bios_configuration_init(void);	/* init BIOS-configuration */
-void            bios_data_init(void);	/* init BIOS-data-areas */
+void            bios_setup_init(void);
 
 void            INT16_dummy_start(void);
 void            INT16_dummy_end(void);

@@ -59,3 +59,14 @@ int int17(void)
 
   return 1;
 }
+
+void
+printer_mem_setup(void)
+{
+  int i;
+  for (i = 0; i < 3; i++) {
+    /* set the port address for each printer in bios */
+    WRITE_WORD(BIOS_ADDRESS_LPT1 + i * 2, lpt[i].base_port);
+    WRITE_BYTE(BIOS_LPT1_TIMEOUT + i, 20);
+  }
+}

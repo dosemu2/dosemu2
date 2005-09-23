@@ -1987,20 +1987,12 @@ static void int33_check_hog(void)
   idle(200, 20, 20, INT15_IDLE_USECS, "mouse");
 }
 
+static void fake_iret(void);
+
 /* this function is called from the HLT at Mouse_SEG:Mouse_HLT_OFF */
 void int33_post(void)
 {
-  unsigned char *ssp;
-  unsigned long sp;
-
-  ssp = (unsigned char *) (REG(ss) << 4);
-  sp = (unsigned long) LWORD(esp);
-
-  _SP += 6;
-  _IP = popw(ssp, sp);
-  _CS = popw(ssp, sp);
-  set_FLAGS(popw(ssp, sp));
-
+  fake_iret();
   int33_check_hog();
 }
 
@@ -2034,22 +2026,12 @@ static void debug_int(const char *s, int i)
 
 static void do_int_from_hlt(Bit32u i)
 {
-	unsigned char *ssp;
-	unsigned long sp;
-
 	if (debug_level('#') > 2)
 		debug_int("Do", i);
   
  	/* Always use the caller function: I am calling into the
  	   interrupt table at the start of the dosemu bios */
-
-	ssp = (unsigned char *)(_SS << 4);
-	sp = _SP;
-	_SP += 6;
-	_IP = popw(ssp, sp);
-	_CS = popw(ssp, sp);
-	set_FLAGS(popw(ssp, sp));
-
+	fake_iret();
 	run_caller_func(i, NO_REVECT);
 	if (debug_level('#') > 2)
 		debug_int("RET", i);
@@ -2169,6 +2151,32 @@ void fake_pusha(void)
   LWORD(esp) -= 4;
 }
 
+void fake_retf(unsigned pop_count)
+{
+  unsigned char *ssp;
+  unsigned long sp;
+
+  ssp = (unsigned char *) (REG(ss) << 4);
+  sp = (unsigned long) LWORD(esp);
+
+  _IP = popw(ssp, sp);
+  _CS = popw(ssp, sp);
+  _SP += 4 + 2 * pop_count;
+}
+
+static void fake_iret(void)
+{
+  unsigned char *ssp;
+  unsigned long sp;
+
+  ssp = (unsigned char *) (REG(ss) << 4);
+  sp = (unsigned long) LWORD(esp);
+
+  _SP += 6;
+  _IP = popw(ssp, sp);
+  _CS = popw(ssp, sp);
+  set_FLAGS(popw(ssp, sp));
+}
 
 /*
  * DANG_BEGIN_FUNCTION setup_interrupts
@@ -2189,21 +2197,6 @@ void setup_interrupts(void) {
   for (i = 0; i < 256; i++) {
     interrupt_function[i][NO_REVECT] =
       interrupt_function[i][REVECT] = NULL;
-
-    /* don't overwrite; these have been set during video init */
-    if(video_ints[i]) continue;
-
-    /* interrupts >= 0xc0 are scratch (BIOS stack), 
-       unless defined by DOSEMU */	
-    if ((i & 0xf8) == 0x60 || (i >= 0x78 && i < 0xc0 &&
-      can_revector(i) == NO_REVECT)) { /* user interrupts */
-	/* show also EMS (int0x67) as disabled */
-	SETIVEC(i, 0, 0);
-    } else if ((i & 0xf8) == 0x68) {
-	SETIVEC(i, IRET_SEG, IRET_OFF);
-    } else if (i < 0xc0 || can_revector(i) == REVECT) {
-	SETIVEC(i, BIOSSEG, INT_OFF(i));
-    }
   }
   
   interrupt_function[5][NO_REVECT] = int05;
@@ -2237,36 +2230,6 @@ void setup_interrupts(void) {
 #endif
   interrupt_function[0xe6][REVECT] = inte6;
   interrupt_function[0xe7][REVECT] = inte7;
-
-  /* Let kernel handle this, no need to return to DOSEMU */
- #if 0
-  SETIVEC(0x1c, BIOSSEG + 0x10, INT_OFF(0x1c) +2 - 0x100);
- #endif
-
-  /* show EMS as disabled */
-  SETIVEC(0x67, 0, 0);
-
-  SETIVEC(0x16, INT16_SEG, INT16_OFF);
-  SETIVEC(0x09, INT09_SEG, INT09_OFF);
-  SETIVEC(0x08, INT08_SEG, INT08_OFF);
-  SETIVEC(0x70, INT70_SEG, INT70_OFF);
-
-  /* Install new handler for video-interrupt into bios_f000_int10ptr,
-   * for video initialization at f800:4200
-   * If config_vbios_seg=0xe000 -> e000:3, else c000:3
-   * Next will be the call to int0xe6,al=8 which starts video BIOS init
-   */
-  install_int_10_handler();
-
-  /* This is an int e7 used for FCB opens */
-  SETIVEC(0xe7, INTE7_SEG, INTE7_OFF);
-  /* End of int 0xe7 for FCB opens */
-
-#ifdef IPX
-  /* IPX. Dummy but should not crash */
-  if (config.ipxsup)
-    SETIVEC(0x7a, BIOSSEG, 0x7a * 16);
-#endif
 
   /* set up relocated video handler (interrupt 0x42) */
   if (config.dualmon == 2) {

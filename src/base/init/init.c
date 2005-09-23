@@ -259,46 +259,6 @@ static inline void map_custom_bios(void)
 }
 
 /* 
- * DANG_BEGIN_FUNCTION bios_mem_setup
- * 
- * description:
- *  Set up all memory areas as would be present on a typical i86 during
- * the boot phase.
- *
- * DANG_END_FUNCTION
- */
-static inline void bios_mem_setup(void)
-{
-  int b;
-
-  video_mem_setup();
-  printer_mem_setup();
-
-  /* show 0 serial ports and 3 parallel ports, maybe a mouse, game card and the
-   * configured number of floppy disks
-   */
-  CONF_NFLOP(configuration, config.fdisks);
-  CONF_NSER(configuration, config.num_ser);
-  CONF_NLPT(configuration, config.num_lpt);
-  if (config.mouse.intdrv)
-    configuration |= CONF_MOUSE;
-
-  configuration |= CONF_GAME | CONF_DMA;
-
-  if (config.mathco)
-    configuration |= CONF_MATHCO;
-
-  g_printf("CONFIG: 0x%04x    binary: ", configuration);
-  for (b = 15; b >= 0; b--)
-    g_printf("%s%s", (configuration & (1 << b)) ? "1" : "0", (b%4) ? "" : " ");
-  g_printf("\n");
-
-  WRITE_WORD(BIOS_CONFIGURATION, configuration);
-  WRITE_WORD(BIOS_MEMORY_SIZE, config.mem_size);	/* size of memory */
-
-}
-
-/* 
  * DANG_BEGIN_FUNCTION memory_init
  * 
  * description:
@@ -311,26 +271,7 @@ void memory_init(void)
 {
   map_custom_bios();           /* map the DOSEMU bios */
   setup_interrupts();          /* setup interrupts */
-
-  {
-    /* update boot drive in Banner-code */
-    u_char *ptr;
-
-    ptr = (u_char *)((BIOSSEG << 4) + ((long)bios_f000_bootdrive - (long)bios_f000));
-    *ptr = config.hdiskboot ? 0x80 : 0;
-  }
-
-#ifdef IPX
-  if (config.ipxsup)
-    ipx_init();    /* TRB - initialize IPX in boot() */
-#endif
-
-#ifdef USING_NET
-  if (config.pktdrv)
-    pkt_init(0x60);              /* Install the new packet driver interface */
-#endif
-
-  bios_mem_setup();            /* setup values in BIOS area */
+  bios_setup_init();
 }
 
 /* 

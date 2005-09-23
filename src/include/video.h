@@ -117,7 +117,6 @@ EXTERN int video_mode INIT(0);
 EXTERN unsigned int screen_mask;
 
 EXTERN unsigned char video_initialized INIT(0);
-extern void install_int_10_handler(void);
 extern boolean set_video_mode(int);
 extern unsigned short *screen_adr(int page);
 

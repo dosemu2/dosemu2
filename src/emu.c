@@ -386,7 +386,6 @@ emulate(int argc, char **argv)
     ems_init();			/* initialize ems */
     xms_init();			/* initialize xms */
     dpmi_setup();
-    boot();			/* read the boot sector & get moving */
 
     if (not_use_sigio)
 	k_printf("Atleast 1 NON-SIGIO file handle in use.\n");
@@ -411,35 +410,16 @@ emulate(int argc, char **argv)
     return 0;  /* just to make gcc happy */
 }
 
-#if 0    /* disable C-A-D until someone will fix it (if really needed) */
-static int      special_nowait = 0;
-
 void
 dos_ctrl_alt_del(void)
 {
     dbug_printf("DOS ctrl-alt-del requested.  Rebooting!\n");
-    HMA_MAP(1);
-    time_setting_init();
-    iodev_reset();
-    serial_init();
-    dosemu_mouse_init();
-    printer_init();
-    disk_close();
-    disk_init();
-    scr_state_init();
-    clear_screen(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), 7);
-    special_nowait = 0;
-    p_dos_str("Rebooting DOS.  Be careful...this is partially implemented\r\n");
-    disk_init();
-    cpu_setup();
-    hardware_setup();
-    memcheck_init();		/* lower 1M memory map support */
-    memory_init();
-    boot();
-    timer_interrupt_init();	/* start sending int 8h int signals */
+    while (in_dpmi) {
+	in_dpmi_dos_int = 1;
+	dpmi_cleanup();
+    }
+    cpu_reset();
 }
-#endif
-
 
 int leavedos_recurse_check = 0;
 

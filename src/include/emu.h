@@ -101,9 +101,7 @@ EXTERN volatile int in_vm86 INIT(0);
 
 EXTERN int scanseq;
 
-#if 0
 void dos_ctrl_alt_del(void);	/* disabled */
-#endif
 extern jmp_buf NotJEnv;
 
 EXTERN void run_vm86(void);
@@ -355,6 +353,7 @@ EXTERN int write_port(unsigned int, unsigned short);
 EXTERN __inline__ void parent_nextscan(void);
 EXTERN __inline__ void disk_close(void);
 EXTERN void cpu_setup(void);
+EXTERN void cpu_reset(void);
 EXTERN void real_run_int(int);
 #define run_int do_int
 EXTERN int mfs_redirector(void);
@@ -383,7 +382,6 @@ EXTERN int mfs_inte6(void);
 EXTERN int mfs_helper(state_t *regs);
 EXTERN void pkt_helper(void);
 EXTERN short pop_word(struct vm86_regs *);
-EXTERN void ems_init(void);
 EXTERN void leavedos(int) NORETURN;
 EXTERN void add_to_io_select(int, u_char, void(*)(void));
 EXTERN void remove_from_io_select(int, u_char);

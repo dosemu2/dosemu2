@@ -2477,7 +2477,7 @@ static void dpmi_RSP_call(struct sigcontext *scp, int num, int terminating)
   in_dpmi_dos_int = 0;
 }
 
-static void dpmi_cleanup(struct sigcontext_struct *scp)
+void dpmi_cleanup(void)
 {
   D_printf("DPMI: cleanup\n");
   if (!in_dpmi_dos_int)
@@ -2535,7 +2535,7 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
     RSP_num++;
   }
   if (in_dpmi_dos_int) {
-    dpmi_cleanup(scp);
+    dpmi_cleanup();
   }
 
   REG(cs) = DPMI_SEG;
@@ -3040,7 +3040,7 @@ void dpmi_init(void)
 err:
   error("DPMI initialization failed!\n");
   in_dpmi_dos_int = 1;
-  dpmi_cleanup(&DPMI_CLIENT.stack_frame);
+  dpmi_cleanup();
   in_dpmi--;
 }
 
@@ -3757,7 +3757,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  restore_pm_regs(scp);
 	  if (in_dpmi_dos_int) {
 	    /* app terminated */
-	    dpmi_cleanup(scp);
+	    dpmi_cleanup();
 	  }
 
 	} else if ((_eip>=DPMI_OFF+1+HLT_OFF(DPMI_exception)) && (_eip<=DPMI_OFF+32+HLT_OFF(DPMI_exception))) {

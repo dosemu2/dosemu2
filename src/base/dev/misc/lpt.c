@@ -29,7 +29,7 @@
 
 static int stub_printer_write(int, int);
 
-static struct printer lpt[NUM_PRINTERS] =
+struct printer lpt[NUM_PRINTERS] =
 {
   {NULL, NULL, 5, 0x378, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_IOERR | LPT_ACK},
   {NULL, NULL, 5, 0x278, .status = LPT_NOTBUSY | LPT_ONLINE | LPT_IOERR | LPT_ACK},
@@ -175,17 +175,6 @@ static int file_printer_write(int prnum, int outchar)
 int printer_write(int prnum, int outchar)
 {
   return lpt[prnum].fops.write(prnum, outchar);
-}
-
-void
-printer_mem_setup(void)
-{
-  int i;
-  for (i = 0; i < 3; i++) {
-    /* set the port address for each printer in bios */
-    WRITE_WORD(BIOS_ADDRESS_LPT1 + i * 2, lpt[i].base_port);
-    WRITE_BYTE(BIOS_LPT1_TIMEOUT + i, 20);
-  }
 }
 
 /* DANG_BEGIN_FUNCTION printer_init

@@ -42,7 +42,6 @@ Boolean handle_dosemu_keys(Boolean make, t_keysym key)
 		}
 		return 1;
 #endif
-#if 0		
 	/* C-A-D is disabled */
 	case KEY_DOSEMU_REBOOT:
 		if (make) {
@@ -50,7 +49,6 @@ Boolean handle_dosemu_keys(Boolean make, t_keysym key)
 			dos_ctrl_alt_del();
 		}
 		break;
-#endif
 	case KEY_DOSEMU_EXIT:
 		if (make) {
 			k_printf("KBD: Ctrl-Alt-PgDn: bye bye!\n");

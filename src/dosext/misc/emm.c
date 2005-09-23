@@ -167,8 +167,7 @@ static u_char emm_error;
 
 #define EMM_TOTAL	MAX_EMM
 
-static int handle_total = 0;
-static int emm_allocated = 0;
+static int handle_total, emm_allocated;
 
 static struct emm_record {
   int handle;
@@ -284,7 +283,7 @@ ems_helper(void) {
 }
 
 void
-ems_init(void)
+ems_reset(void)
 {
   int sh_base;
   int j;
@@ -292,9 +291,7 @@ ems_init(void)
   if (!config.ems_size && !config.pm_dos_api)
     return;
 
-  open_mapping(MAPPING_EMS);
-  E_printf("EMS: initializing memory\n");
-
+  emm_allocated = 0;
   for (sh_base = 0; sh_base < EMM_MAX_PHYS; sh_base++) {
     emm_map[sh_base].handle = NULL_HANDLE;
   }
@@ -313,8 +310,18 @@ ems_init(void)
     handle_info[OS_HANDLE].saved_mappings_logical[j] = NULL_PAGE;
   }
 
-  handle_total++;
+  handle_total = 1;
   SET_HANDLE_NAME(handle_info[OS_HANDLE].name, "SYSTEM  ");
+}
+
+void
+ems_init(void)
+{
+  if (!config.ems_size && !config.pm_dos_api)
+    return;
+
+  open_mapping(MAPPING_EMS);
+  E_printf("EMS: initializing memory\n");
 
   memcheck_addtype('E', "EMS page frame");
   memcheck_reserve('E', EMM_BASE_ADDRESS, EMM_MAX_PHYS * EMM_PAGE_SIZE);

@@ -24,4 +24,7 @@
 void emm_get_map_registers(char *ptr);
 void emm_set_map_registers(char *ptr);
 void emm_unmap_all(void);
+
+void ems_init(void);
+void ems_reset(void);
 #endif

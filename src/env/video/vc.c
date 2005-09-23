@@ -917,27 +917,3 @@ video_port_out (ioport_t port, u_char value)
     }
   return;
 }
-
-
-/*
- * install_int_10_handler - install a handler for the video-interrupt (int 10)
- *                          at address INT10_SEG:INT10_OFFS. Currently
- *                          it's f800:4200.
- *                          The new handler is only installed, if the bios
- *                          handler at f800:4200 is not the appropriate on
- *                          that means, if we use not mda with X
- */
-
-void 
-install_int_10_handler (void)
-{
-  unsigned char *ptr;
-  
-  if (config.vbios_seg == 0xe000 && config.vbios_post) {
-    ptr = (u_char *)((BIOSSEG << 4) + ((long)bios_f000_int10ptr - (long)bios_f000));
-    *((long *)ptr) = 0xe0000003;
-    v_printf("VID: new int10 handler at %p\n",ptr);
-  }
-  else
-    v_printf("VID: install_int_10_handler: do nothing\n");
-}

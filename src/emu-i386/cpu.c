@@ -213,6 +213,27 @@ int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
 	return 0;
 }
 
+void cpu_reset(void)
+{
+  /* ax,bx,cx,dx,si,di,bp,fs,gs can probably can be anything */
+  REG(eax) = 0;
+  REG(ebx) = 0;
+  REG(ecx) = 0;
+  REG(edx) = 0;
+  REG(esi) = 0;
+  REG(edi) = 0;
+  REG(ebp) = 0;
+  REG(eip) = 0;
+  REG(cs) = 0xffff;
+  REG(esp) = 0x100;
+  REG(ss) = 0x30;		/* This is the standard pc bios stack */
+  REG(es) = 0;			/* standard pc es */
+  REG(ds) = 0x40;		/* standard pc ds */
+  REG(fs) = 0;
+  REG(gs) = 0;
+  REG(eflags) = 0;
+}
+
 /* 
  * DANG_BEGIN_FUNCTION cpu_setup
  *
@@ -230,22 +251,7 @@ void cpu_setup(void)
 
   int_vector_setup();
 
-  /* ax,bx,cx,dx,si,di,bp,fs,gs can probably can be anything */
-  REG(eax) = 0;
-  REG(ebx) = 0;
-  REG(ecx) = 0;
-  REG(edx) = 0;
-  REG(esi) = 0;
-  REG(edi) = 0;
-  REG(ebp) = 0;
-  REG(eip) = 0;
-  REG(cs) = 0xffff;
-  REG(esp) = 0x100;
-  REG(ss) = 0x30;		/* This is the standard pc bios stack */
-  REG(es) = 0;			/* standard pc es */
-  REG(ds) = 0x40;		/* standard pc ds */
-  REG(fs) = 0;
-  REG(gs) = 0;
+  cpu_reset();
 
   _emu_stack_frame.fpstate = &emu_fpu_state;
   /* initialize user data & code selector values (used by DPMI code) */
