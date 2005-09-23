@@ -59,6 +59,33 @@ struct video_system Video_none = {
   NULL          /* handle_events */
 };
 
+static int no_real_terminal(void)
+{
+  char *term = getenv("TERM");
+  if ( term == NULL
+       || !strcmp(term,"dumb")        /* most cron's have this */
+       || !strcmp(term,"none")        /* ... some have this */
+       || !strcmp(term,"dosemu-none") /* ... when called recursivly */
+       ) {
+    /*
+     * We assume we are running without a terminal (e.g. in a cronjob).
+     * Hence, we setup the TERM variable to "dosemu-none",
+     * set a suitable TERMCAP entry ... and ignore the rest
+     * the TERMCAP is needed because we still use SLang for the keyboard.
+     */
+    setenv("TERM", "dosemu-none", 1);
+    setenv("TERMCAP",
+	   "dosemu-none|for running DOSEMU without real terminal:"
+	   ":am::co#80:it#8:li#25:"
+	   ":ce=\\E[K:cl=\\E[H\\E[2J:cm=\\E[%i%d;%dH:do=\\E[B:ho=\\E[H:"
+	   ":le=\\E[D:nd=\\E[C:ta=^I:up=\\E[A:",
+	   1
+	   );
+    return 1;
+  }
+  return 0;
+}
+
 /* 
  * DANG_BEGIN_FUNCTION video_init
  *
@@ -91,8 +118,9 @@ static int video_init(void)
 	 Video=&Video_console;
        }
   }
-  else if (config.cardtype == CARD_NONE) {
-     v_printf("VID: Video set to Video_none");
+  else if (no_real_terminal() || config.cardtype == CARD_NONE) {
+     v_printf("VID: Video set to Video_none\n");
+     config.cardtype = CARD_NONE;
      Video=&Video_none;
   }
   else if (!load_plugin("term")) {

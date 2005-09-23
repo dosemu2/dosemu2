@@ -1424,7 +1424,8 @@ static int slang_keyb_init(void)
 	keyb_state.save_kbd_flags = fcntl(keyb_state.kbd_fd, F_GETFL);
 	fcntl(keyb_state.kbd_fd, F_SETFL, O_RDONLY | O_NONBLOCK);
    
-	if (tcgetattr(keyb_state.kbd_fd, &keyb_state.save_termios) < 0) {
+	if (tcgetattr(keyb_state.kbd_fd, &keyb_state.save_termios) < 0
+	    && errno != EINVAL && errno != ENOTTY) {
 		error("slang_keyb_init(): Couldn't tcgetattr(kbd_fd,...) errno=%d\n", errno);
 		return FALSE;
 	}
@@ -1442,7 +1443,8 @@ static int slang_keyb_init(void)
 	buf.c_cc[VTIME] = 0;
 	keyb_state.erasekey = buf.c_cc[VERASE];
 
-	if (tcsetattr(keyb_state.kbd_fd, TCSANOW, &buf) < 0) {
+	if (tcsetattr(keyb_state.kbd_fd, TCSANOW, &buf) < 0
+	    && errno != EINVAL && errno != ENOTTY) {
 		error("slang_keyb_init(): Couldn't tcsetattr(kbd_fd,TCSANOW,...) !\n");
 		return FALSE;
 	}
@@ -1474,7 +1476,8 @@ static int slang_keyb_init(void)
 static void slang_keyb_close(void)  
 {
 	exit_pc_scancode_mode();
-	if (tcsetattr(keyb_state.kbd_fd, TCSAFLUSH, &keyb_state.save_termios) < 0) {
+	if (tcsetattr(keyb_state.kbd_fd, TCSAFLUSH, &keyb_state.save_termios) < 0
+	    && errno != EINVAL && errno != ENOTTY) {
 		error("slang_keyb_close(): failed to restore keyboard termios settings!\n");
 	}
 	if (keyb_state.save_kbd_flags != -1) {
@@ -1494,11 +1497,11 @@ static void slang_keyb_close(void)
 
 static int slang_keyb_probe(void)
 {
-	int result = FALSE;
 	struct termios buf;
-	if (tcgetattr(STDIN_FILENO, &buf) >= 0) {
+	int result = TRUE;
+	if (tcgetattr(STDIN_FILENO, &buf) >= 0
+	    || errno == EINVAL || errno == ENOTTY)
 		result = TRUE;
-	}
 	return result;
 }
 
