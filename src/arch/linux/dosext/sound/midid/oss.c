@@ -48,6 +48,7 @@ typedef struct Voice {
 Voice *voices;
 int chn2prg[16];         /* The program on each channel */
 
+void oss_seqbuf_dump(void);	// avoid gcc warning without using "static"
 void oss_seqbuf_dump(void)
 {
   if (_seqbufptr) {
