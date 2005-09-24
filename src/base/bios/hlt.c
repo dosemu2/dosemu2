@@ -28,13 +28,6 @@
 #include "bios.h"
 #include "memory.h"
 #include "dpmi.h"
-#include "pic.h"
-#include "xms.h"
-#if 0
-#include "base/bios_entry.h"
-
-EXTERN void _retf(Bit16u pop_count);
-#endif
 
 static struct {
   emu_hlt_func  func;
@@ -53,9 +46,7 @@ static void hlt_default(Bit32u addr)
   /* Assume someone callf'd to get here and do a return far */
   h_printf("HLT: hlt_default(0x%04x) called, attemping a retf\n", addr);
 
-#if 0
-  _retf(0);
-#endif
+  fake_retf(0);
 }
 
 /* 
@@ -101,14 +92,7 @@ void hlt_handle(void)
   else
 #endif
 
-  if (lina == (Bit8u *)XMSTrap_ADD) {
-    _IP += 2;   /* skip hlt and info byte to point to FAR RET */
-#if CONFIG_HLT_TRACE > 0
-    h_printf("HLT: XMSTrap_ADD handler\n");
-#endif
-    xms_control();
-  }
-  else if ((offs >= BIOS_HLT_BLK) && (offs < BIOS_HLT_BLK+BIOS_HLT_BLK_SIZE)) {
+  if ((offs >= BIOS_HLT_BLK) && (offs < BIOS_HLT_BLK+BIOS_HLT_BLK_SIZE)) {
     offs -= BIOS_HLT_BLK;
 #if CONFIG_HLT_TRACE > 0
     h_printf("HLT: fcn 0x%04lx called in HLT block, handler: %s\n", offs,

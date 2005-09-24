@@ -33,6 +33,8 @@
 #include "config.h"
 #include "memory.h"
 #include "xms.h"
+#include "hlt.h"
+#include "int.h"
 #include "hma.h"
 #include "machcompat.h"
 #include "cpu-emu.h"
@@ -40,9 +42,7 @@
 #undef  DEBUG_XMS
 
 static int umb_find_unused(void);
-/* 128*1024 is the amount of memory currently reserved in dos.c above
- * the 1 MEG mark.  ugly.  fix this.
- */
+static void xms_control(void);
 
 /*
 static char RCSxms[] = "$Header$";
@@ -72,9 +72,7 @@ static char RCSxms[] = "$Header$";
 #define XMS_OUT_OF_SPACE		0xa0
 #define XMS_INVALID_HANDLE		0xa2
 
-static int a20_local = 0;
-static int a20_global = 0;
-static int freeHMA = 1;		/* is HMA free? */
+static int a20_local, a20_global, freeHMA;	/* is HMA free? */
 
 static struct Handle handles[NUM_HANDLES + 1];
 static int handle_count = 0;
@@ -326,6 +324,7 @@ xms_reset(void)
     return;
 
   freeHMA = 1;
+  a20_global = a20_local = 0;
 
   handle_count = 0;
   for (i = 0; i < NUM_HANDLES + 1; i++) {
@@ -338,7 +337,15 @@ xms_reset(void)
 void
 xms_init(void)
 {
+  emu_hlt_t hlt_hdlr;
+
   umb_setup();
+
+  hlt_hdlr.name = "XMS";
+  hlt_hdlr.start_addr = 0x150;
+  hlt_hdlr.end_addr = 0x150;
+  hlt_hdlr.func = (emu_hlt_func)xms_control;
+  hlt_register_handler(hlt_hdlr);
 
   if (!config.xms_size)
     return;
@@ -358,8 +365,7 @@ static void XMS_RET(int err)
     LO(bx) = err;
 }
 
-void
-xms_control(void)
+static void xms_control(void)
 {
   int is_umb_fn = 0;
 
@@ -552,6 +558,7 @@ xms_control(void)
      x_printf("XMS: skipping external request, ax=0x%04x, dx=0x%04x\n",
 	      LWORD(eax), LWORD(edx));
  }
+ fake_retf(0);
 }
 
 static int

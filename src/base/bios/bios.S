@@ -515,18 +515,6 @@ Mouse_EOI:
 	hlt        
         
 /* ----------------------------------------------------------------- */
-	/* XMS has it's handler just after the interrupt dummy segment */
-	.org	((XMSControl_SEG - BIOSSEG) << 4) + XMSControl_OFF
-/* ======================= Addr = F800:6300 (FE300) */
-	jmp	(.+2+3)	/* jmp short forward 3 */
-	nop
-	nop
-	nop
-	hlt		/* HLT...the current emulator trap */
-	.byte	INT2F_XMS_MAGIC /* just an info byte. reserved for later */
-	lret
-
-/* ----------------------------------------------------------------- */
 	.org	((IPX_SEG - BIOSSEG) << 4) + IPX_OFF
 /* ======================= Addr = F800:6310 (FE310) */
 ipx_handler:

@@ -354,7 +354,7 @@ emulate(int argc, char **argv)
     time_setting_init();	/* get the startup time */
     cpu_setup();		/* setup the CPU */
     pci_setup();
-    device_init();		/* initialize keyboard, disk, video, etc. */
+    device_init();		/* priv initialization of video etc. */
     extra_port_init();		/* setup ports dependent on config */
     signal_init();              /* initialize sig's & sig handlers */
     pkt_priv_init();
@@ -382,7 +382,7 @@ emulate(int argc, char **argv)
     HMA_init();			/* HMA can only be done now after mapping
                                    is initialized*/
     memory_init();		/* initialize the memory contents */
-    iodev_reset();		/* reset all i/o devices          */
+    iodev_init();		/* initialize devices */
     ems_init();			/* initialize ems */
     xms_init();			/* initialize xms */
     dpmi_setup();
@@ -399,6 +399,10 @@ emulate(int argc, char **argv)
     mhp_debug(DBG_INIT, 0, 0);
 #endif
     timer_interrupt_init();	/* start sending int 8h int signals */
+
+    /* remap conventional memory just before booting */
+    mmap_mapping(MAPPING_LOWMEM, 0, config.mem_size * 1024,
+		 PROT_READ | PROT_WRITE | PROT_EXEC, (void *)0);
 
     while (!fatalerr) {
 	loopstep_run_vm86();

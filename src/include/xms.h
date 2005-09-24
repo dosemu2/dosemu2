@@ -44,7 +44,6 @@ struct UMB {
   int used;
 };
 
-void xms_control(void);
 void xms_init(void);
 void xms_reset(void);
 

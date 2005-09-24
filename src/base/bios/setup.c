@@ -16,6 +16,7 @@
 #include "iodev.h"
 #include "emm.h"
 #include "xms.h"
+#include "hma.h"
 
 /*
  * install_int_10_handler - install a handler for the video-interrupt (int 10)
@@ -80,6 +81,9 @@ static inline void bios_mem_setup(void)
 static void bios_setup(void)
 {
   int i;
+
+  /* initially, no HMA */
+  set_a20(0);
 
   /* init trapped interrupts called via jump */
   for (i = 0; i < 256; i++) {

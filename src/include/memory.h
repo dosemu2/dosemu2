@@ -91,9 +91,8 @@
 #define IRET_OFF	0x62cf
 
 #define XMSControl_SEG  ROMBIOSSEG
-#define XMSControl_OFF  0x6300
+#define XMSControl_OFF  0x4150
 #define XMSControl_ADD  ((XMSControl_SEG << 4)+XMSControl_OFF)
-#define XMSTrap_ADD     ((XMSControl_SEG << 4)+XMSControl_OFF+5)
 
 /* EMS origin must be at 0 */
 #define EMS_SEG		(ROMBIOSSEG+0x100)
