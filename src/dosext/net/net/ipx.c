@@ -42,6 +42,8 @@
 
 /* declare some function prototypes */
 static u_char IPXCancelEvent(far_t ECBPtr);
+static void ipx_recv_esr_call(void);
+static void ipx_aes_esr_call(void);
 
 static ipx_socket_t *ipx_socket_list = NULL;
 /* hopefully these static ECBs will not cause races... */
@@ -107,7 +109,7 @@ static int GetMyAddress( void )
 #endif
   return(0);
 }
-  
+
 void ipx_init(void)
 {
   int ccode;
@@ -117,6 +119,8 @@ void ipx_init(void)
   if( ccode ) {
     error("IPX: cannot get IPX node address for network %#lx\n", config.ipx_net);
   }
+  pic_seti(PIC_IPX, ipx_receive, 0, ipx_recv_esr_call);
+  pic_seti(PIC_IPX_AES, IPXCheckForAESReady, 0, ipx_aes_esr_call);
 }
 
 /*************************
@@ -459,13 +463,13 @@ static void ipx_esr_call(far_t ECBPtr, u_char AXVal)
   n_printf("IPX: ESR callback ended\n");
 }
 
-void ipx_recv_esr_call(void)
+static void ipx_recv_esr_call(void)
 {
   n_printf("IPX: Calling receive ESR\n");
   ipx_esr_call(recvECB, ESR_CALLOUT_IPX);
 }
 
-void ipx_aes_esr_call(void)
+static void ipx_aes_esr_call(void)
 {
   n_printf("IPX: Calling AES ESR\n");
   ipx_esr_call(aesECB, ESR_CALLOUT_AES);

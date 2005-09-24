@@ -147,34 +147,6 @@ void timer_interrupt_init(void)
 }
 
 /*
- * DANG_BEGIN_FUNCTION hardware_setup
- *
- * description:
- *  Initialize any leftover hardware. 
- * 
- * DANG_END_FUNCTION
- */
-void hardware_setup(void)
-{
-  /* PIC init */
-  pic_seti(PIC_IRQ0, timer_int_engine, 0, NULL);  /* do_irq0 in pic.c */
-  pic_request(PIC_IRQ0);  /* start timer */
-  pic_seti(PIC_IRQ8, rtc_int8, 0, NULL);
-#ifdef USING_NET
-#ifdef IPX
-  pic_seti(PIC_IPX, ipx_receive, 0, ipx_recv_esr_call);
-  pic_seti(PIC_IPX_AES, IPXCheckForAESReady, 0, ipx_aes_esr_call);
-#endif
-  pic_seti(PIC_NET, pkt_check_receive, 0, pkt_receiver_callback);
-#endif
-  
-  /* DMA Init */
-  /* dma_init(); - Currently in dev_list */
-
-  g_printf("PIC,IPX initialized\n");
-}
-
-/*
  * DANG_BEGIN_FUNCTION map_video_bios
  *
  * description:
@@ -265,8 +237,6 @@ void memory_init(void)
  */
 void device_init(void)
 {
-  hardware_setup();		/* setup any hardware */
-
   /* check whether we are running on the console */
   check_console();
 
@@ -279,9 +249,8 @@ void device_init(void)
     register_speaker((void *)console_fd,
 		     console_speaker_on, console_speaker_off);
   }
-  iodev_init();
-  printer_init();
-  disk_init();
+  pit_init();		/* for native speaker */
+  video_config_init();	/* privileged part of video init */
 }
 
 /* 
@@ -299,6 +268,9 @@ void low_mem_init(void)
   open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS+HMA memory area being mapped in\n");
   result = alloc_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE, 0);
+  /* keep conventional memory unmapped as long as possible to protect
+     NULL pointer dereferences */
+  munmap_mapping(MAPPING_LOWMEM, 0, config.mem_size * 1024);
 
   if (result != NULL)
     {

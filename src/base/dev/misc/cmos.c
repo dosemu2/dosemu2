@@ -153,6 +153,7 @@ cmos_write(ioport_t port, Bit8u byte)
 void cmos_init(void)
 {
   emu_iodev_t  io_device;
+  int i;
 
   /* CMOS RAM & RTC */
   io_device.read_portb   = cmos_read;
@@ -167,11 +168,6 @@ void cmos_init(void)
   io_device.irq          = EMU_NO_IRQ;
   io_device.fd           = -1;
   port_register_handler(io_device, 0);
-}
-
-void cmos_reset(void)
-{
-  int i;
 
   LOCK_CMOS;
   for (i = 0; i < 64; i++)
@@ -232,4 +228,8 @@ void cmos_reset(void)
   UNLOCK_CMOS;
 
   g_printf("CMOS initialized\n");
+}
+
+void cmos_reset(void)
+{
 }

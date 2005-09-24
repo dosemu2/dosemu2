@@ -130,9 +130,6 @@ void pic_cli(void);
 
 int CAN_SLEEP(void);
 
-/* Experimental TIMER-IRQ CHAIN code */
-extern int timer_int_engine(int);
-
 extern void pic_reset(void);
 extern void pic_init(void);
 

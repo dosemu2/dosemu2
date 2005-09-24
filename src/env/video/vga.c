@@ -776,8 +776,6 @@ static void dump_video_regs(void)
 
 static int vga_post_init(void)
 {
-  char saved_int_bios_area[sizeof(int_bios_area)];
-
   /* this function initialises vc switch routines */
   Video_console.init();
 
@@ -804,14 +802,11 @@ static int vga_post_init(void)
   if (config.chipset == PLAINVGA || config.chipset == VESA)
     rm_stack = lowmem_heap_alloc(RM_STACK_SIZE);
   if (config.chipset == VESA) {
-    char saved_int_bios_area[sizeof(int_bios_area)];
     /* vesa_init() calls vm86() before POST:
        temporarily fill interrupt table with real mode vectors:
-       the real initialization takes place later in setup.c, in POST
-       LATER: temporarily mmap just the first 4K of conv memory, all
-       other conventional memory remains unmapped until POST starts.
-    */
-    MEMCPY_2UNIX(saved_int_bios_area, 0, sizeof(saved_int_bios_area));
+       the real initialization takes place later in setup.c, in POST */
+    mmap_mapping(MAPPING_LOWMEM, 0, sizeof(int_bios_area),
+		 PROT_READ | PROT_WRITE | PROT_EXEC, 0);
     MEMCPY_2DOS(0, int_bios_area, sizeof(int_bios_area));
     port_enter_critical_section(__FUNCTION__);
     vesa_init();
@@ -823,11 +818,12 @@ static int vga_post_init(void)
   v_printf("VGA: mem size %ld\n", config.gfxmemsize);
 
   save_vga_state(&linux_regs);
+  if (config.chipset == VESA) {
+    MEMSET_DOS(0, 0, sizeof(int_bios_area));
+    munmap_mapping(MAPPING_LOWMEM, 0, sizeof(int_bios_area));
+  }
+
   dosemu_vga_screenon();
-
-  if (config.chipset == VESA)
-    MEMCPY_2DOS(0, saved_int_bios_area, sizeof(saved_int_bios_area));
-
   config.vga = 1;
   set_vc_screen_page();
   video_initialized = 1;

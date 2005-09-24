@@ -55,6 +55,8 @@ static int Insert_Type(int, int, char *);
 static int Remove_Type(int);
 int Find_Handle(u_char *buf);
 static void printbuf(char *, struct ethhdr *);
+static int pkt_check_receive(int ilevel);
+static void pkt_receiver_callback(void);
 
 int pkt_fd=-1, pkt_broadcast_fd=-1, max_pkt_fd;
 static int pktdrvr_installed;
@@ -142,7 +144,7 @@ void pkt_priv_init(void)
 }
 
 void
-pkt_init(int vec)
+pkt_init(void)
 {
     char devname[10];
     if (!config.pktdrv)
@@ -188,8 +190,7 @@ pkt_init(int vec)
     }
     pd_printf("PKT: Using device %s\n", devname);
 
-    /* hook the interrupt vector by pointing it into the magic table */
-    SETIVEC(vec, PKTDRV_SEG, PKTDRV_OFF);
+    pic_seti(PIC_NET, pkt_check_receive, 0, pkt_receiver_callback);
     
     /* fill other global data */
 
@@ -211,6 +212,15 @@ pkt_init(int vec)
 
 fail:
     pktdrvr_installed = 0;
+}
+
+void
+pkt_reset(void)
+{
+    if (!config.pktdrv)
+      return;
+    /* hook the interrupt vector by pointing it into the magic table */
+    SETIVEC(0x60, PKTDRV_SEG, PKTDRV_OFF);
 }
 
 /* this is the handler for INT calls from DOS to the packet driver */
@@ -587,7 +597,7 @@ Remove_Type(int handle)
     return 0;
 }
 
-void pkt_receiver_callback(void)
+static void pkt_receiver_callback(void)
 {
     struct vm86_regs saved_regs;
 
@@ -721,7 +731,7 @@ static int pkt_receive(void)
     return 0;
 }
 
-int pkt_check_receive(int ilevel)
+static int pkt_check_receive(int ilevel)
 {
   if (pkt_receive())
     return 1;	/* run IRQ */

@@ -41,6 +41,8 @@
 #include "disks.h"
 #include "dma.h"
 #include "dosemu_debug.h"
+#include "pktdrvr.h"
+#include "ipx.h"
 
 #ifdef USE_SBEMU
 #include "sound.h"
@@ -65,26 +67,32 @@ struct owned_devices_struct {
 static int current_device = -1;
 
 static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
-  { "pit",     pit_init,     pit_reset,     NULL },
+  { "pit",     NULL,         pit_reset,     NULL },
   { "cmos",    cmos_init,    cmos_reset,    NULL },
-  { "video",   video_config_init, video_post_init, video_close },
+  { "video",   video_post_init, NULL, video_close },
   { "internal_mouse",  dosemu_mouse_init,  dosemu_mouse_reset, dosemu_mouse_close },
   { "serial",  serial_init,  serial_reset,  serial_close },
   { "pic",     pic_init,     pic_reset,     NULL },
 #if 0
   { "pos",     pos_init,     pos_reset,     NULL },
-  { "lpt",     lpt_init,     lpt_reset,     lpt_term },
 #endif
+  { "lpt",     printer_init, NULL,	    NULL },
   { "dma",     dma_init,     dma_reset,     NULL },
 #if 0
   { "floppy",  floppy_init,  floppy_reset,  NULL },
   { "hdisk",   hdisk_init,   hdisk_reset,   NULL },
-  { "disks",   disk_init,    disk_reset,    disk_term },
 #endif
+  { "disks",   disk_init,    NULL,          NULL },
 #ifdef USE_SBEMU
   { "sound",   sound_init,   sound_reset,   NULL },
 #endif
   { "joystick", joy_init,    joy_reset,     joy_term },
+#ifdef IPX
+  { "ipx",      ipx_init,    NULL,          NULL },
+#endif
+#ifdef USING_NET
+  { "packet driver", pkt_init, pkt_reset,   NULL },
+#endif
   { NULL,      NULL,         NULL,          NULL }
 };
 

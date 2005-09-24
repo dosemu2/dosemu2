@@ -13,7 +13,7 @@
 #include "memory.h"
 #include "hlt.h"
 #include "int.h"
-#include "pktdrvr.h"
+#include "iodev.h"
 #include "emm.h"
 #include "xms.h"
 
@@ -145,17 +145,8 @@ static void bios_setup(void)
     *ptr = config.hdiskboot ? 0x80 : 0;
   }
 
-#ifdef IPX
-  if (config.ipxsup)
-    ipx_init();    /* TRB - initialize IPX in boot() */
-#endif
-
-#ifdef USING_NET
-  if (config.pktdrv)
-    pkt_init(0x60);              /* Install the new packet driver interface */
-#endif
-
-  bios_mem_setup();            /* setup values in BIOS area */
+  bios_mem_setup();		/* setup values in BIOS area */
+  iodev_reset();		/* reset all i/o devices          */
   ems_reset();
   xms_reset();
   boot();			/* read the boot sector & get moving */

@@ -442,7 +442,6 @@ EXTERN int dosc_interface(void);
 EXTERN void dump_config_status(void *);
 EXTERN void signal_init(void);
 EXTERN void device_init(void);
-EXTERN void hardware_setup(void);
 EXTERN void memory_init(void);
 EXTERN void map_video_bios(void);
 EXTERN void stdio_init(void);

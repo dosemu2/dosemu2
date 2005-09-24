@@ -85,11 +85,10 @@ struct pkt_statistics {
 				    /*  out of resources, etc. */
 };
 
-extern int pkt_check_receive(int);
-extern void pkt_receiver_callback(void);
 extern void pkt_receive_async(void);
 extern void pkt_priv_init (void);
-extern void pkt_init (int vec);
+extern void pkt_init (void);
+extern void pkt_reset (void);
 
 extern unsigned short receive_mode;
 

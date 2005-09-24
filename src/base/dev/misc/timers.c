@@ -540,7 +540,7 @@ void pit_control_outp(ioport_t port, Bit8u val)
  *
  * DANG_END_FUNCTION
  */
-int timer_int_engine(int ilevel)
+static int timer_int_engine(int ilevel)
 {
  pic_sched(PIC_IRQ0,pit[0].cntr);
  return 1;
@@ -647,6 +647,9 @@ void pit_init(void)
   io_device.end_addr     = 0x0047;
   port_register_handler(io_device, 0);
 #endif
+
+  pic_seti(PIC_IRQ0, timer_int_engine, 0, NULL);  /* do_irq0 in pic.c */
+  pic_request(PIC_IRQ0);  /* start timer */
 }
 
 void pit_reset(void)

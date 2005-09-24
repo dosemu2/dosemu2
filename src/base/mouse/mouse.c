@@ -1863,10 +1863,8 @@ static void mouse_client_init(void)
 
 void dosemu_mouse_reset(void)
 {
-  if (mice->intdrv) {
-    pic_seti(PIC_IMOUSE, DOSEMUMouseEvents, 0, NULL);
+  if (mice->intdrv)
     SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
-  }
 
   /* We set the defaults at the end so that we can test the mouse type */
   mouse_reset(1);		/* Let's set defaults now ! */
@@ -1919,8 +1917,10 @@ dosemu_mouse_init(void)
 
   mouse_client_init();
 
-  if (mice->intdrv)
+  if (mice->intdrv) {
     memcpy(p,mouse_ver,sizeof(mouse_ver));
+    pic_seti(PIC_IMOUSE, DOSEMUMouseEvents, 0, NULL);
+  }
 
   m_printf("MOUSE: INIT complete\n");
 }

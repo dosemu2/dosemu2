@@ -136,9 +136,7 @@ extern int IPXInt2FHandler(void);
 extern void AESTimerTick(void);
 extern int ipx_receive(int ilevel);
 extern int IPXCheckForAESReady(int ilevel);
-extern void ipx_recv_esr_call(void);
 extern void ipx_send_esr_call(void);
-extern void ipx_aes_esr_call(void);
 extern int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks );
 extern void ipx_close(void);
 
