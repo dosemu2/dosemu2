@@ -60,11 +60,14 @@ CISH(bios_f000):
 	    .byte 0
 	.ENDR
 
-	.org	BIOS_HLT_BLK - BIOSSEG << 4
+	.org	BIOS_HLT_BLK - (BIOSSEG << 4)
 bios_hlt_blk:
 /* ======================= Addr = F000:C000 (FC000) */
-	FILL_OPCODE BIOS_HLT_BLK_SIZE,hlt
-
+	FILL_OPCODE (XMSControl_ADD - BIOS_HLT_BLK),hlt
+        jmp     (.+2+3) /* jmp short forward 3 */
+        FILL_OPCODE 3,nop
+	FILL_OPCODE (BIOS_HLT_BLK + BIOS_HLT_BLK_SIZE - XMSControl_ADD - 5),hlt
+        
 /* ----------------------------------------------------------------- */   
 	.org	((DPMI_SEG-BIOSSEG) << 4)+DPMI_OFF
 /* ======================= Addr = F800:4800 (FC800) */

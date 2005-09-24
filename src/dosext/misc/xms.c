@@ -342,8 +342,8 @@ xms_init(void)
   umb_setup();
 
   hlt_hdlr.name = "XMS";
-  hlt_hdlr.start_addr = 0x150;
-  hlt_hdlr.end_addr = 0x150;
+  hlt_hdlr.start_addr = XMSControl_ADD - BIOS_HLT_BLK + 5;
+  hlt_hdlr.end_addr = hlt_hdlr.start_addr;
   hlt_hdlr.func = (emu_hlt_func)xms_control;
   hlt_register_handler(hlt_hdlr);
 
