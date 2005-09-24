@@ -8,7 +8,7 @@
 #define INT_H
 
 #include "extern.h"
-#include <sys/types.h> /* for u_char */
+#include <stdint.h>
 #include <time.h> /* for time_t */
 
 #define WINDOWS_HACKS 1
@@ -18,7 +18,8 @@ EXTERN int win31_mode INIT(3);
 
 EXTERN unsigned int  check_date INIT(0);
 EXTERN time_t        start_time;
-EXTERN char video_ints[256];
+
+extern uint32_t int_bios_area[0x500/sizeof(uint32_t)];
 
 void do_int(int);
 void fake_int(int, int);

@@ -182,12 +182,9 @@ void hardware_setup(void)
  * 
  * DANG_END_FUNCTION
  */
+uint32_t int_bios_area[0x500/sizeof(uint32_t)];
 void map_video_bios(void)
 {
-  uint32_t int_area[256];
-  uint16_t seg, off;
-  int i;
-
   v_printf("Mapping VBIOS = %d\n",config.mapped_bios);
 
   if (config.mapped_bios) {
@@ -211,25 +208,8 @@ void map_video_bios(void)
 
     memcheck_addtype('V', "Video BIOS");
     memcheck_reserve('V', VBIOS_START, VBIOS_SIZE);
-    video_ints[0x1f] = 1;
-    video_ints[0x43] = 1;    
-    if (!config.vbios_post) {
-      load_file("/dev/mem", 0, (char *)int_area, sizeof(int_area));
-      for (i = 0; i < 256; i++) {
-        seg = int_area[i] >> 16;
-        off = int_area[i] & 0xffff;
-        g_printf("int0x%x was 0x%04x:0x%04x\n", i, seg, off);
-        if (seg == VBIOS_START >> 4) {
-          g_printf("Setting int0x%x to 0x%04x:0x%04x\n", i, seg, off);
-          SETIVEC(i, seg, off);
-          video_ints[i] = 1;
-        } else video_ints[i] = 0;
-      }
-      g_printf("Now initialising 0x40:49-66, 84-8a and a8-ab\n");
-      load_file("/dev/mem", (0x40 << 4) + 0x49, (char *)(0x40 << 4) + 0x49, 0x67-0x49);
-      load_file("/dev/mem", (0x40 << 4) + 0x84, (char *)(0x40 << 4) + 0x84, 0x8b-0x84);
-      load_file("/dev/mem", (0x40 << 4) + 0xa8, (char *)(0x40 << 4) + 0xa8, 0xac-0xa8);
-    }
+    if (!config.vbios_post || config.chipset == VESA)
+      load_file("/dev/mem", 0, (char *)int_bios_area, sizeof(int_bios_area));
   }
 }
 

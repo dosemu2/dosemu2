@@ -1578,13 +1578,9 @@ void video_mem_setup(void)
   WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
   WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
 
-  if (config.vga)
-    /* the real bios will set all this ... */
-    return;
-
   li = LI;
   co = CO;
-  if (!config.X)
+  if (!config.X && !config.vga)
     gettermcap(0, &co, &li);
 
   WRITE_WORD(BIOS_SCREEN_COLUMNS, co);     /* chars per line */
@@ -1612,5 +1608,13 @@ void video_mem_setup(void)
   WRITE_BYTE(BIOS_VIDEO_INFO_2, 0x51);
   WRITE_BYTE(BIOS_VIDEO_COMBO, video_combo);
     
-  WRITE_DWORD(BIOS_VIDEO_SAVEPTR, 0);		/* pointer to video table */
+  if (!config.vga) {
+    WRITE_DWORD(BIOS_VIDEO_SAVEPTR, 0);		/* pointer to video table */
+    /* point int 1f to the default 8x8 graphics font for high characters */
+    SETIVEC(0x1f, 0xc000, vgaemu_bios.font_8 + 128 * 8);
+  }
+  else if (!config.vbios_post) {
+    v_printf("Now initialising 0x40:a8-ab\n");
+    WRITE_DWORD(BIOS_VIDEO_SAVEPTR, int_bios_area[0x4a8/4]);
+  }
 }

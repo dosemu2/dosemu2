@@ -83,8 +83,20 @@ static void bios_setup(void)
 
   /* init trapped interrupts called via jump */
   for (i = 0; i < 256; i++) {
-    /* don't overwrite; these have been set during video init */
-    if(video_ints[i]) continue;
+    if (config.vga && !config.vbios_post) {
+      uint16_t seg, off;
+      uint32_t addr;
+
+      seg = int_bios_area[i] >> 16;
+      off = int_bios_area[i] & 0xffff;
+      v_printf("int0x%x was 0x%04x:0x%04x\n", i, seg, off);
+      addr = SEGOFF2LINEAR(seg, off);
+      if (addr >= VBIOS_START && addr < VBIOS_START + VBIOS_SIZE) {
+	g_printf("Setting int0x%x to 0x%04x:0x%04x\n", i, seg, off);
+	SETIVEC(i, seg, off);
+	continue;
+      }
+    }
 
     /* interrupts >= 0xc0 are scratch (BIOS stack), 
        unless defined by DOSEMU */	

@@ -18,6 +18,7 @@
 
 #include "bios.h"
 #include "emu.h" 
+#include "int.h" 
 #include "port.h"
 #include "memory.h"
 #include "video.h"
@@ -775,6 +776,8 @@ static void dump_video_regs(void)
 
 static int vga_post_init(void)
 {
+  char saved_int_bios_area[sizeof(int_bios_area)];
+
   /* this function initialises vc switch routines */
   Video_console.init();
 
@@ -787,18 +790,29 @@ static int vga_post_init(void)
 
   /* If there's a DOS TSR in real memory (say, univbe followed by loadlin)
      then don't call int10 here yet */
-  if (!config.vbios_post &&
-      (FP_SEG32(IVEC(0x10)) < config.vbios_seg ||
-       FP_SEG32(IVEC(0x10)) >= config.vbios_seg + (config.vbios_size >> 4))) {
-    error("VGA: int10 is not in the BIOS (loadlin used?)\n"
+  if (!config.vbios_post) {
+    Bit32u addr = SEGOFF2LINEAR(FP_SEG16(int_bios_area[0x10]),
+				FP_OFF16(int_bios_area[0x10]));
+    if (addr < VBIOS_START || addr >= VBIOS_START + VBIOS_SIZE) {
+      error("VGA: int10 is not in the BIOS (loadlin used?)\n"
 	    "Try the vga_reset utility of svgalib or set $_vbios_post=(1) "
 	    " in dosemu.conf\n");
-    leavedos(23);
+      leavedos(23);
+    }
   }
 
   if (config.chipset == PLAINVGA || config.chipset == VESA)
     rm_stack = lowmem_heap_alloc(RM_STACK_SIZE);
   if (config.chipset == VESA) {
+    char saved_int_bios_area[sizeof(int_bios_area)];
+    /* vesa_init() calls vm86() before POST:
+       temporarily fill interrupt table with real mode vectors:
+       the real initialization takes place later in setup.c, in POST
+       LATER: temporarily mmap just the first 4K of conv memory, all
+       other conventional memory remains unmapped until POST starts.
+    */
+    MEMCPY_2UNIX(saved_int_bios_area, 0, sizeof(saved_int_bios_area));
+    MEMCPY_2DOS(0, int_bios_area, sizeof(int_bios_area));
     port_enter_critical_section(__FUNCTION__);
     vesa_init();
     port_leave_critical_section();
@@ -810,6 +824,9 @@ static int vga_post_init(void)
 
   save_vga_state(&linux_regs);
   dosemu_vga_screenon();
+
+  if (config.chipset == VESA)
+    MEMCPY_2DOS(0, saved_int_bios_area, sizeof(saved_int_bios_area));
 
   config.vga = 1;
   set_vc_screen_page();
