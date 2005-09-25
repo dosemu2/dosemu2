@@ -17,6 +17,7 @@
 #include "emm.h"
 #include "xms.h"
 #include "hma.h"
+#include "ipx.h"
 
 /*
  * install_int_10_handler - install a handler for the video-interrupt (int 10)
@@ -131,7 +132,7 @@ static void bios_setup(void)
 #ifdef IPX
   /* IPX. Dummy but should not crash */
   if (config.ipxsup)
-    SETIVEC(0x7a, BIOSSEG, 0x7a * 16);
+    SETIVEC(0x7a, BIOSSEG, INT_OFF(0x7a));
 #endif
 
   /* Install new handler for video-interrupt into bios_f000_int10ptr,
