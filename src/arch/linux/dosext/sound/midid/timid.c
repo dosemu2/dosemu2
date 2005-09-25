@@ -195,6 +195,7 @@ static int timid_preinit(void)
 	}
 	execvp(config.timid_bin, tmdty_args);
 	free(tmdty_cmd);
+	exit(1);
 	break;
       case -1:
 	perror("fork()");
