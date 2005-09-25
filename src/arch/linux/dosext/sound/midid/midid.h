@@ -17,7 +17,6 @@ typedef struct Config {
   bool resident;	/* TRUE if resident */
   int timeout;          /* timeout to turn off output after */
   int verbosity;        /* bitmask with outputoptions */
-  char *file;           /* Input filename; empty=stdin */
   int card;             /* GUS card */
   bool opl3;            /* TRUE if OPL3; FALSE if OPL2 */
   char *inputfile;      /* "" == stdin */
@@ -26,6 +25,13 @@ typedef struct Config {
   int ticks_per_quarter_note;	/* "" == 144 */
   char *timid_host;	/* timidity server host name */
   int timid_port;	/* timidity server control port */
+  char *timid_bin;	/* timidity binary name */
+  char *timid_args;	/* timidity command-line args */
+  int timid_mono;
+  int timid_8bit;
+  int timid_uns;
+  int timid_freq;
+  int timid_capture;
 } Config;
 
 extern Config config;

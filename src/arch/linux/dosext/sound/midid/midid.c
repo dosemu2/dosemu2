@@ -76,10 +76,13 @@ SEQ_DEFINEBUF(1024);
   Options handling
  ***********************************************************************/
 
-Config config = {EMUMODE_GM, FALSE, 2, 0, "", 0, FALSE, "", "midid.mid", 120, 144, "localhost", 7777 };	/* Current config */
+Config config = { EMUMODE_GM, FALSE, 0, 0, 0, FALSE,
+    "", "midid.mid", 120, 144, "localhost", 7777,
+    "timidity", "-EFreverb=d -EFchorus=d -EFresamp=l", 0, 0, 0, 44100, 0 };
 
 static void usage(void)
 {
+#define NEW_TIMIDITY 0
   printf("midid [parameters] [input file]\n\n"
 	 "-h,  --help         : help\n"
 	 "-l,  --list-devices : list devices\n"
@@ -89,31 +92,51 @@ static void usage(void)
 	 "-r,  --resident     : be resident; don't stop on end of file\n"
 	 "                      (only when input file != stdin)\n"
 	 "-o#,  --timeout=#   : turn output off after # seconds.\n"
-	 "                      (0 - no timeout, default - 2)\n"
-	 "-v#, --verbosity=#  : Set verbosity to bitmask # [NYI]\n"
+	 "                      (default: 0 - no timeout)\n"
 	 "input file defaults to stdin\n\n"
-	 "for UltraDriver device:\n"
-	 "-c#, --card=#       : Use card number # [NYI]\n\n"
-	 "for OSS/Lite device:\n"
-	 "-2, --opl2          : Use OPL-2 voices (2 operators per voice) [NYI]\n"
-	 "-4, --opl3          : Use OPL-3 voices (4 operators per voice) [NYI]\n"
+	 "Options for .MID file output device:\n"
+	 "-f, --file          : Set .MID output file name. Default: %s\n"
+	 "-t#, --tempo=#      : Set tempo (beats/minute). Default: %i\n"
+	 "-q#, --tick-rate=#  : Set # ticks/quarter note. Default: %i\n"
 	 "\n"
-	 "for .MID file output device:\n"
-	 "-f, --file          : Set .MID output file name\n"
-	 "-t#, --tempo=#      : Set tempo (beats/minute)\n"
-	 "-q#, --tick-rate=#  : Set # ticks/quarter note\n"
-	 "\n"
-	 "for timidity client:\n"
-	 "-s, --server-name   : timidity server host name\n"
-	 "-p#, --port=#       : timidity server control port\n"
-	 "\n"
-	 "[NYI] indicates this option is not implemented yet.\n" "\n");
+	 "Options for timidity client:\n"
+	 "-s, --server-name             : timidity server host name. Default: %s\n"
+	 "-p#, --port=#                 : timidity server control port. Default: %i\n"
+#if NEW_TIMIDITY
+	 "                                Specifying 0 enables the standalone mode:\n"
+	 "                                midid will attempt to start and configure\n"
+	 "                                timidity itself.\n"
+	 "\tIn standalone mode the following options are available:\n"
+	 "-B path, --timidity-bin=path  : timidity binary path or name\n"
+	 "-A args, --timidity-args=args : extra arguments to pass to timidity\n"
+	 "                                default: %s\n"
+	 "-C, --timidity-capture        : enables the capturing mode: the data produced\n"
+	 "                                by timidity gets captured by midid and\n"
+	 "                                forwarded to stdout.\n"
+	 "                                You won't hear any sound in that mode.\n"
+	 "\tCapturing mode enables the following options:\n"
+	 "-M, --timidity-mono           : tells timidity to produce mono sound\n"
+	 "                                instead of stereo\n"
+	 "-L, --timidity-low            : tells timidity to produce the low-q\n"
+	 "                                8bit sound instead of the 16bit\n"
+	 "-U, --timidity-uns            : tells timidity to produce the unsigned\n"
+	 "                                samples instead of the signed ones\n"
+	 "-F #, --timidity-freq=#       : set the sampling rate for timidity\n"
+	 "                                default: %i\n"
+#endif
+	 "\n",
+	 config.midifile, config.tempo, config.ticks_per_quarter_note,
+	 config.timid_host, config.timid_port
+#if NEW_TIMIDITY
+	 , config.timid_args, config.timid_freq
+#endif
+	 );
 }
 
 static void options_read(int argc, char **argv)
 /* Read and evaluate command line options */
 {
-  int c, need_printall = FALSE, option_index = 0;
+  int c, need_printall = FALSE, option_index = 0, need_detect = TRUE;
   char *ptr;
   static struct option long_options[] = {
     {"help", 0, 0, 'h'},
@@ -136,6 +159,13 @@ static void options_read(int argc, char **argv)
     /* for timid */
     {"server-name", 1, 0, 's'},
     {"port", 1, 0, 'p'},
+    {"timidity-bin", 1, 0, 'B'},
+    {"timidity-args", 1, 0, 'A'},
+    {"timidity-mono", 0, 0, 'M'},
+    {"timidity-low", 0, 0, 'L'},
+    {"timidity-uns", 0, 0, 'U'},
+    {"timidity-freq", 1, 0, 'F'},
+    {"timidity-capture", 0, 0, 'C'},
     {0, 0, 0, 0}
   };
   /* Set options to default values */
@@ -146,8 +176,8 @@ static void options_read(int argc, char **argv)
   statistics = 1;
   /* Read all command line options */
   while (1) {
-    c = getopt_long(argc, argv, "hld:mgro:v:c:24f:t:q:s:p:", long_options,
-		    &option_index);
+    c = getopt_long(argc, argv, "hld:mgro:v:c:24f:t:q:s:p:B:A:MLUF:C",
+		    long_options, &option_index);
     if (c == -1)
       break;
     switch (c) {
@@ -161,6 +191,7 @@ static void options_read(int argc, char **argv)
     case 'd':
       while ((ptr = strsep(&optarg, ",")))
         device_activate(atoi(ptr));
+      need_detect = FALSE;
       break;
     case 'm':
       config.mode = EMUMODE_MT32;
@@ -201,6 +232,27 @@ static void options_read(int argc, char **argv)
     case 'p':
       config.timid_port = atoi(optarg);
       break;
+    case 'B':
+      config.timid_bin = optarg;
+      break;
+    case 'A':
+      config.timid_args = optarg;
+      break;
+    case 'C':
+      config.timid_capture = 1;
+      break;
+    case 'M':
+      config.timid_mono = 1;
+      break;
+    case 'L':
+      config.timid_8bit = 1;
+      break;
+    case 'U':
+      config.timid_uns = 1;
+      break;
+    case 'F':
+      config.timid_freq = atoi(optarg);
+      break;
     }
   }
   if (optind < argc)
@@ -212,7 +264,8 @@ static void options_read(int argc, char **argv)
   }
   /* detection results may depend on options so we have to show devices
      after parsing is finished */
-  device_detect_all();
+  if (need_detect)
+    device_detect_all();
   if (need_printall) {
     device_printall();
     exit(1);

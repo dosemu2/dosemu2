@@ -8,11 +8,13 @@
   timidity server driver
  ***********************************************************************/
 
+#define _GNU_SOURCE
 #include "device.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <sys/wait.h>
 #include <sys/param.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -33,7 +35,8 @@
 #define TIME2TICK(t) ((long long)t.tv_sec * timebase + \
     (((long long)t.tv_usec * timebase) / 1000000))
 
-static int ctrl_sock, data_sock;
+static int ctrl_sock_in, ctrl_sock_out, data_sock;
+static pid_t tmdty_pid = -1;
 static struct sockaddr_in ctrl_adr, data_adr;
 static long long start_time;
 static int timebase = 100;
@@ -49,8 +52,8 @@ static void timid_start_timer(void)
   struct timeval time;
   int n;
 
-  send(ctrl_sock, cmd, strlen(cmd), 0);
-  n = recv(ctrl_sock, buf, sizeof(buf) - 1, 0);
+  write(ctrl_sock_out, cmd, strlen(cmd));
+  n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
   buf[n] = 0;
   sscanf(buf, "200 %i", &timebase);
   gettimeofday(&time, NULL);
@@ -86,9 +89,35 @@ static void timid_sync_timidity(void)
 #define SEQ_SYNC 0x02
   _CHN_COMMON(0, SEQ_EXTENDED, SEQ_META, SEQ_SYNC, 0, 0);
   SEQ_DUMPBUF();
-  n = recv(ctrl_sock, buf, sizeof(buf) - 1, 0);
+  n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
   buf[n] = 0;
   fprintf(stderr, "\tSync: %s\n", buf);
+}
+
+static void timid_io(int signum)
+{
+  char buf[16384];
+  int n, selret;
+  fd_set rfds;
+  struct timeval tv;
+  FD_ZERO(&rfds);
+  FD_SET(data_sock, &rfds);
+  tv.tv_sec = 0;
+  tv.tv_usec = 0;
+  while ((selret = select(data_sock + 1, &rfds, NULL, NULL, &tv)) > 0) {
+    n = read(data_sock, buf, sizeof(buf));
+    if (n > 0) {
+      fprintf(stderr, "Received %i data bytes\n", n);
+      write(STDOUT_FILENO, buf, n);
+    } else {
+      /* no EINTR in a sighandler */
+      break;
+    }
+    FD_ZERO(&rfds);
+    FD_SET(data_sock, &rfds);
+    tv.tv_sec = 0;
+    tv.tv_usec = 0;
+  }
 }
 
 static int timid_preinit(void)
@@ -97,27 +126,95 @@ static int timid_preinit(void)
   serv = gethostbyname(config.timid_host);
   if (! serv)
     return FALSE;
-  if ((ctrl_sock = socket(PF_INET, SOCK_STREAM, 0))==-1)
+  if ((data_sock = socket(PF_INET, SOCK_STREAM, 0))==-1)
     return FALSE;
-  if ((data_sock = socket(PF_INET, SOCK_STREAM, 0))==-1) {
-    close(ctrl_sock);
-    return FALSE;
-  }
-  
-  ctrl_adr.sin_family = AF_INET;
-  ctrl_adr.sin_port = htons(config.timid_port);
-  memcpy(&ctrl_adr.sin_addr.s_addr, serv->h_addr, sizeof(ctrl_adr.sin_addr.s_addr));
-
   data_adr.sin_family = AF_INET;
+  memcpy(&ctrl_adr.sin_addr.s_addr, serv->h_addr, sizeof(ctrl_adr.sin_addr.s_addr));
   data_adr.sin_addr.s_addr = ctrl_adr.sin_addr.s_addr;
 
-  if (connect(ctrl_sock, (struct sockaddr *)&ctrl_adr, sizeof(ctrl_adr)) != 0) {
-    close(ctrl_sock);
-    close(data_sock);
-    return FALSE;
+  if (config.timid_port) {
+    int ctrl_sock;
+
+    if ((ctrl_sock = socket(PF_INET, SOCK_STREAM, 0))==-1)
+      goto err_ds;
+
+    ctrl_adr.sin_family = AF_INET;
+    ctrl_adr.sin_port = htons(config.timid_port);
+
+    if (connect(ctrl_sock, (struct sockaddr *)&ctrl_adr, sizeof(ctrl_adr)) != 0) {
+      close(ctrl_sock);
+      goto err_ds;
+    }
+
+    ctrl_sock_in = ctrl_sock_out = ctrl_sock;
+  } else {
+    int tmdty_pipe_in[2], tmdty_pipe_out[2];
+    char *tmdty_args_hc = "-ir 0";
+    char *tmdty_sound_spec_t = "-Or%c%c%cl -o -";
+    char tmdty_sound_spec[20];
+    char *tmdty_cmd;
+#define T_MAX_ARGS 255
+    char *tmdty_args[T_MAX_ARGS];
+    char *ptr;
+    int i;
+    if (pipe(tmdty_pipe_in) == -1) {
+      perror("pipe()");
+      goto err_ds;
+    }
+    if (pipe(tmdty_pipe_out) == -1) {
+      perror("pipe()");
+      goto err_ds;
+    }
+    switch ((tmdty_pid = fork())) {
+      case 0:
+	close(tmdty_pipe_in[0]);
+	close(tmdty_pipe_out[1]);
+	dup2(tmdty_pipe_out[0], STDIN_FILENO);
+	dup2(tmdty_pipe_in[1], STDOUT_FILENO);
+#define STEREO 'S'
+#define MONO 'M'
+#define BIT_16 '1'
+#define BIT_8 '8'
+#define SIGNED 's'
+#define UNSIGNED 'u'
+	if (config.timid_capture)
+	  sprintf(tmdty_sound_spec, tmdty_sound_spec_t,
+	      config.timid_mono ? MONO : STEREO,
+	      config.timid_8bit ? BIT_8 : BIT_16,
+	      config.timid_uns ? UNSIGNED : SIGNED,
+	      config.timid_freq);
+	else
+	  strcpy(tmdty_sound_spec, "");
+	asprintf(&tmdty_cmd, "%s %s %s %s",
+	    config.timid_bin, config.timid_args, tmdty_sound_spec, tmdty_args_hc);
+	ptr = tmdty_cmd;
+	for (i = 0; i < T_MAX_ARGS; i++) {
+	  do tmdty_args[i] = strsep(&ptr, " ");
+	  while (tmdty_args[i] && !tmdty_args[i][0]);
+	  if (!tmdty_args[i]) break;
+	}
+	execvp(config.timid_bin, tmdty_args);
+	free(tmdty_cmd);
+	break;
+      case -1:
+	perror("fork()");
+	close(tmdty_pipe_out[0]);
+	close(tmdty_pipe_in[1]);
+	close(tmdty_pipe_in[0]);
+	close(tmdty_pipe_out[1]);
+	goto err_ds;
+    }
+    close(tmdty_pipe_out[0]);
+    close(tmdty_pipe_in[1]);
+    ctrl_sock_in = tmdty_pipe_in[0];
+    ctrl_sock_out = tmdty_pipe_out[1];
   }
 
   return TRUE;
+
+err_ds:
+  close(data_sock);
+  return FALSE;
 }
 
 static bool timid_detect(void)
@@ -131,11 +228,11 @@ static bool timid_detect(void)
     return FALSE;
 
   FD_ZERO(&rfds);
-  FD_SET(ctrl_sock, &rfds);
+  FD_SET(ctrl_sock_in, &rfds);
   tv.tv_sec = 3;
   tv.tv_usec = 0;
-  while ((selret = select(ctrl_sock + 1, &rfds, NULL, NULL, &tv)) > 0) {
-    n = recv(ctrl_sock, buf, sizeof(buf) - 1, 0);
+  while ((selret = select(ctrl_sock_in + 1, &rfds, NULL, NULL, &tv)) > 0) {
+    n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
     buf[n] = 0;
     if (!n) {
       break;
@@ -145,16 +242,15 @@ static bool timid_detect(void)
       break;
     }
     FD_ZERO(&rfds);
-    FD_SET(ctrl_sock, &rfds);
+    FD_SET(ctrl_sock_in, &rfds);
     tv.tv_sec = 1;
     tv.tv_usec = 0;
   }
   if (selret < 0)
     perror("select()");
 
-  shutdown(ctrl_sock, 2);
-  close(ctrl_sock);
   close(data_sock);
+  close(ctrl_sock_out);
   return ret;
 }
 
@@ -173,11 +269,11 @@ static bool timid_init(void)
     return FALSE;
 
   FD_ZERO(&rfds);
-  FD_SET(ctrl_sock, &rfds);
+  FD_SET(ctrl_sock_in, &rfds);
   tv.tv_sec = 3;
   tv.tv_usec = 0;
-  while ((selret = select(ctrl_sock + 1, &rfds, NULL, NULL, &tv)) > 0) {
-    n = recv(ctrl_sock, buf, sizeof(buf) - 1, 0);
+  while ((selret = select(ctrl_sock_in + 1, &rfds, NULL, NULL, &tv)) > 0) {
+    n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
     buf[n] = 0;
     if (n)
       fprintf(stderr, "\tInit: %s", buf);
@@ -190,7 +286,7 @@ static bool timid_init(void)
       break;
     }
     FD_ZERO(&rfds);
-    FD_SET(ctrl_sock, &rfds);
+    FD_SET(ctrl_sock_in, &rfds);
     tv.tv_sec = 1;
     tv.tv_usec = 0;
   }
@@ -200,11 +296,11 @@ static bool timid_init(void)
   if (!ret)
     return FALSE;
 
-  send(ctrl_sock, cmd1, strlen(cmd1), 0);
-  recv(ctrl_sock, buf, sizeof(buf) - 1, 0);
+  write(ctrl_sock_out, cmd1, strlen(cmd1));
+  read(ctrl_sock_in, buf, sizeof(buf) - 1);
   sprintf(buf, cmd2, BUF_LOW_SYNC, BUF_HIGH_SYNC);
-  send(ctrl_sock, buf, strlen(buf), 0);
-  recv(ctrl_sock, buf, sizeof(buf) - 1, 0);
+  write(ctrl_sock_out, buf, strlen(buf));
+  read(ctrl_sock_in, buf, sizeof(buf) - 1);
 
   i = 1;
   if(*(char *)&i == 1)
@@ -212,8 +308,8 @@ static bool timid_init(void)
   else
     sprintf(buf, cmd3, "msb");
   fprintf(stderr, "\t%s", buf);
-  send(ctrl_sock, buf, strlen(buf), 0);
-  n = recv(ctrl_sock, buf, sizeof(buf) - 1, 0);
+  write(ctrl_sock_out, buf, strlen(buf));
+  n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
   buf[n] = 0;
   fprintf(stderr, "\tOpen: %s\n", buf);
   pbuf = strstr(buf, " is ready");
@@ -226,22 +322,26 @@ static bool timid_init(void)
   data_port = atoi(pbuf + 1);
   if (!data_port) {
     error("Can't determine the data port number!\n");
-    shutdown(ctrl_sock, 2);
-    close(ctrl_sock);
     close(data_sock);
+    close(ctrl_sock_out);
     return FALSE;
   }
   fprintf(stderr, "\tUsing port %d for data\n", data_port);
+  i = 1;
   setsockopt(data_sock, SOL_TCP, TCP_NODELAY, &i, sizeof(i));
   data_adr.sin_port = htons(data_port);
   if (connect(data_sock, (struct sockaddr *)&data_adr, sizeof(data_adr)) != 0) {
     error("Can't open data connection!\n");
-    shutdown(ctrl_sock, 2);
-    close(ctrl_sock);
     close(data_sock);
+    close(ctrl_sock_out);
     return FALSE;
   }
-  n = recv(ctrl_sock, buf, sizeof(buf) - 1, 0);
+  if (config.timid_capture) {
+    signal(SIGIO, timid_io);
+    fcntl(data_sock, F_SETFL, fcntl(data_sock, F_GETFL) | O_ASYNC);
+    fcntl(data_sock, F_SETOWN, getpid());
+  }
+  n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
   buf[n] = 0;
   fprintf(stderr, "\tConnect: %s\n", buf);
   timid_start_timer();
@@ -253,25 +353,30 @@ static void timid_done(void)
   static const char *cmd1 = "CLOSE\n";
   static const char *cmd2 = "QUIT\n";
   char buf[255];
-  int n;
+  int n, status;
 
   timid_sync_timidity();
   timid_stop_timer();
-  send(ctrl_sock, cmd1, strlen(cmd1), 0);
-  n = recv(ctrl_sock, buf, sizeof(buf) - 1, 0);
+  write(ctrl_sock_out, cmd1, strlen(cmd1));
+  n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
   buf[n] = 0;
+  if (config.timid_capture) {
+    fcntl(data_sock, F_SETFL, fcntl(data_sock, F_GETFL) & ~O_ASYNC);
+    signal(SIGIO, SIG_DFL);
+  }
   fprintf(stderr, "\tClose: %s\n", buf);
   if (! strstr(buf, "already closed")) {
     shutdown(data_sock, 2);
     close(data_sock);
   }
-  send(ctrl_sock, cmd2, strlen(cmd2), 0);
-  n = recv(ctrl_sock, buf, sizeof(buf) - 1, 0);
+  write(ctrl_sock_out, cmd2, strlen(cmd2));
+  n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
   buf[n] = 0;
   fprintf(stderr, "\tQuit: %s\n", buf);
 
-  shutdown(ctrl_sock, 2);
-  close(ctrl_sock);
+  close(ctrl_sock_out);
+  if (tmdty_pid != -1)
+    waitpid(tmdty_pid, &status, 0);
 }
 
 static void timid_noteon(int chn, int note, int vol)
