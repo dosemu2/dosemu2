@@ -29,7 +29,7 @@ ASOBJS  = remap_asm.o vesabios_pm.o
 
 CFILES = miscemu.c text.c render.c video.c vc.c vga.c et4000.c s3.c trident.c avance.c ati.c cirrus.c vbe.c \
 	 matrox.c wdvga.c sis.c $(VCFILES) console.c $(XCFILES) hgc.c dualmon.c $(ASOBJS) vesabios.o \
-         vgaemu.c vesa.c dacemu.c attremu.c seqemu.c crtcemu.c gfxemu.c hercemu.c instremu.c remap.c vgafonts.c
+         vgaemu.c vesa.c dacemu.c attremu.c seqemu.c crtcemu.c gfxemu.c hercemu.c instremu.c remap.c remap_pent.c vgafonts.c
 HFILES = vga.h et4000.h s3.h trident.h avance.h ati.h cirrus.h matrox.h wdvga.h sis.h $(VHDRS) remap.h $(XHDRS)
 
 ALL = $(CFILES) $(HFILES) #$(SFILES)

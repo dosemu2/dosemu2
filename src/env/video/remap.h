@@ -160,6 +160,8 @@ CodeObj code_init(void);
 void code_done(CodeObj *);
 void code_append_ins(CodeObj *, int, void *);
 
+/* remap_pent.c */
+RemapFuncDesc *remap_opt(void);
 
 #else /* __ASSEMBLER__ */
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
