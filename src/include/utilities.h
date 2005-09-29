@@ -79,4 +79,26 @@ static __inline__ int power_of_2_sqrt(int val)
 	(void) (&_x == &_y);		\
 	_x > _y ? _x : _y; })
 
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#define ALIGN(x,a) (((x)+(a)-1)&~((a)-1))
+
+
+/* Ring buffer API */
+
+struct rng_s {
+  unsigned char *buffer;
+  int objnum, objsize, objcnt, tail;
+};
+void rng_init(struct rng_s *rng, size_t objnum, size_t objsize);
+int rng_destroy(struct rng_s *rng);
+int rng_get(struct rng_s *rng, void *buf);
+int rng_peek(struct rng_s *rng, int idx, void *buf);
+int rng_put(struct rng_s *rng, void *obj);
+int rng_put_const(struct rng_s *rng, int val);
+int rng_poke(struct rng_s *rng, int idx, void *buf);
+int rng_add(struct rng_s *rng, int num, void *buf);
+int rng_remove(struct rng_s *rng, int num, void *buf);
+int rng_count(struct rng_s *rng);
+void rng_clear(struct rng_s *rng);
+
 #endif /* UTILITIES_H */
