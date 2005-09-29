@@ -110,11 +110,6 @@ static void usage(void)
 	 "-B path, --timidity-bin=path  : timidity binary path or name\n"
 	 "-A args, --timidity-args=args : extra arguments to pass to timidity\n"
 	 "                                default: %s\n"
-	 "-C, --timidity-capture        : enables the capturing mode: the data produced\n"
-	 "                                by timidity gets captured by midid and\n"
-	 "                                forwarded to stdout.\n"
-	 "                                You won't hear any sound in that mode.\n"
-	 "\tCapturing mode enables the following options:\n"
 	 "-M, --timidity-mono           : tells timidity to produce mono sound\n"
 	 "                                instead of stereo\n"
 	 "-L, --timidity-low            : tells timidity to produce the low-q\n"
@@ -123,6 +118,10 @@ static void usage(void)
 	 "                                samples instead of the signed ones\n"
 	 "-F #, --timidity-freq=#       : set the sampling rate for timidity\n"
 	 "                                default: %i\n"
+	 "-C, --timidity-capture        : enables the capturing mode: the data produced\n"
+	 "                                by timidity gets captured by midid and\n"
+	 "                                forwarded to stdout.\n"
+	 "                                You won't hear any sound in that mode.\n"
 #endif
 	 "\n",
 	 config.midifile, config.tempo, config.ticks_per_quarter_note,

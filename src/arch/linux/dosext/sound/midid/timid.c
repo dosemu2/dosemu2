@@ -149,9 +149,9 @@ static int timid_preinit(void)
     ctrl_sock_in = ctrl_sock_out = ctrl_sock;
   } else {
     int tmdty_pipe_in[2], tmdty_pipe_out[2];
-    char *tmdty_args_hc = "-ir 0";
-    char *tmdty_sound_spec_t = "-Or%c%c%cl -o -";
-    char tmdty_sound_spec[20];
+    const char *tmdty_capt = "-o -";
+    const char *tmdty_sound_spec_t = "-ir 0 -O%c%c%c%cl -s %d";
+    char tmdty_sound_spec[100];
     char *tmdty_cmd;
 #define T_MAX_ARGS 255
     char *tmdty_args[T_MAX_ARGS];
@@ -177,16 +177,18 @@ static int timid_preinit(void)
 #define BIT_8 '8'
 #define SIGNED 's'
 #define UNSIGNED 'u'
-	if (config.timid_capture)
-	  sprintf(tmdty_sound_spec, tmdty_sound_spec_t,
-	      config.timid_mono ? MONO : STEREO,
-	      config.timid_8bit ? BIT_8 : BIT_16,
-	      config.timid_uns ? UNSIGNED : SIGNED,
-	      config.timid_freq);
-	else
-	  strcpy(tmdty_sound_spec, "");
-	asprintf(&tmdty_cmd, "%s %s %s %s",
-	    config.timid_bin, config.timid_args, tmdty_sound_spec, tmdty_args_hc);
+	sprintf(tmdty_sound_spec, tmdty_sound_spec_t,
+	    config.timid_capture ? 'r' : '_',
+	    config.timid_mono ? MONO : STEREO,
+	    config.timid_8bit ? BIT_8 : BIT_16,
+	    config.timid_uns ? UNSIGNED : SIGNED,
+	    config.timid_freq);
+	if (config.timid_capture) {
+	  strcat(tmdty_sound_spec, " ");
+	  strcat(tmdty_sound_spec, tmdty_capt);
+	}
+	asprintf(&tmdty_cmd, "%s %s %s",
+	    config.timid_bin, config.timid_args, tmdty_sound_spec);
 	ptr = tmdty_cmd;
 	for (i = 0; i < T_MAX_ARGS; i++) {
 	  do tmdty_args[i] = strsep(&ptr, " ");
