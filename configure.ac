@@ -54,10 +54,6 @@ dnl Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_MAJOR
 AC_HEADER_STDC
-AC_HEADER_SYS_WAIT
-AC_HEADER_TIME
-AC_CHECK_HEADERS(fcntl.h limits.h syslog.h sys/file.h sys/ioctl.h sys/time.h \
-    unistd.h termios.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -493,7 +489,7 @@ fi
 dnl CPU emulator
  AC_ARG_ENABLE(cpuemu,
                [  --enable-cpuemu         compile with optional x86 emulation code])
-  if test "$enable_cpuemu" = "yes" -a "$enable_experimental" = "yes"; then
+  if test "$enable_cpuemu" = "yes"; then
    AC_MSG_NOTICE(Compiling with optional 386 emulation code...);
    AC_DEFINE_UNQUOTED(X86_EMULATOR)
    X86_EMULATOR="X86_EMULATOR=1"
