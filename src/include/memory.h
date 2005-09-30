@@ -229,7 +229,7 @@ int  memcheck_isfree(int addr_start, int size);
 int  memcheck_findhole(int *start_addr, int min_size, int max_size);
 void memcheck_dump(void);
 void memcheck_type_init(void);
-void *dosaddr_to_unixaddr(Bit32u addr);
+void *dosaddr_to_unixaddr(void *addr);
 
 /* lowmem_base points to a shared memory image of the area 0--1MB+64K.
    It does not have any holes or mapping for video RAM etc.
@@ -259,13 +259,16 @@ extern char * const lowmem_base;
 #define LOWMEM_READ_DWORD(addr)		UNIX_READ_DWORD(LOWMEM(addr))
 #define LOWMEM_WRITE_DWORD(addr, val)	UNIX_WRITE_DWORD(LOWMEM(addr), val)
 
-#define IS_CONSTANT_LOWMEM_ADDR(addr) \
-	(__builtin_constant_p(addr) && \
-	 (addr <= 0x9fffc || (addr >= 0xf0000 && addr <= 0xffffc)))
+/* generic lowmem addresses are the ones below 1Mb, that are
+ * not in the EMS frame, hardware or video memory. We can _safely_
+ * add lowmem_base to those. */
+#define IS_GENERIC_LOWMEM_ADDR(addr) \
+	 ((Bit32u)(addr) <= 0x9fffc || \
+	 ((Bit32u)(addr) >= 0xf0000 && (Bit32u)(addr) <= 0xffffc))
 
 #define LINEAR2UNIX(addr) \
-	(IS_CONSTANT_LOWMEM_ADDR((Bit32u)(addr)) ? LOWMEM(addr) : \
-	 dosaddr_to_unixaddr((Bit32u)(addr)))
+	(IS_GENERIC_LOWMEM_ADDR(addr) ? LOWMEM(addr) : \
+	 dosaddr_to_unixaddr((void *)(addr)))
 
 #define READ_BYTE(addr)		UNIX_READ_BYTE(LINEAR2UNIX(addr))
 #define WRITE_BYTE(addr, val)	UNIX_WRITE_BYTE(LINEAR2UNIX(addr), val)

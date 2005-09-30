@@ -28,10 +28,18 @@
  * DANG_BEGIN_CHANGELOG
  *
  *	$Log$
+ *	Revision 1.7  2005/09/30 22:15:59  stsp
+ *	Avoid using LOWMEM for the non-const addresses.
+ *	This fixes iplay (again), as it read()s directly to the EMS frame.
+ *	Also, moved dos_read/write to dos2linux.c to make them globally
+ *	available. And removed the __builtin_constant_p() check in LINEAR2UNIX -
+ *	gcc might still be able to optimize the const addresses, but falling
+ *	back for dosaddr_to_unixaddr() will happen less frequently.
+ *
  *	Revision 1.6  2005/09/05 09:47:56  bartoldeman
  *	Moved much of X_change_config to dos2linux.c. Much of it will be shared
  *	with SDL.
- *
+ *	
  *	Revision 1.5  2005/06/20 17:12:11  stsp
  *	
  *	Remove the ancient (unused) ioctl queueing code.
@@ -72,6 +80,7 @@
 #include "config.h"
 #include "dos2linux.h" 
 #include "emu.h"
+#include "cpu-emu.h"
 #include "priv.h"
 #include "pic.h"
 #include "int.h"
@@ -505,4 +514,21 @@ int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active
   }
 
   return err;
+}
+
+int dos_read(int fd, char *data, int cnt)
+{
+  int ret;
+  ret = RPT_SYSCALL(read(fd, LINEAR2UNIX(data), cnt));
+  if (ret > 0)
+	e_invalidate(data, ret);
+  return (ret);
+}
+
+int dos_write(int fd, char *data, int cnt)
+{
+  int ret;
+  ret = RPT_SYSCALL(write(fd, LINEAR2UNIX(data), cnt));
+  g_printf("Wrote %10.10s\n", data);
+  return (ret);
 }

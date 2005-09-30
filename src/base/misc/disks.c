@@ -40,6 +40,7 @@
 #include "int.h"
 #include "fatfs.h"
 #include "utilities.h"
+#include "dos2linux.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
@@ -215,7 +216,7 @@ read_sectors(struct disk *dp, char *buffer, long head, long sector,
     }
 #ifdef X86_EMULATOR
     if (config.cpuemu>1)
-	tmpread = e_dos_read(dp->fdesc, buffer, count * SECTOR_SIZE - already);
+	tmpread = dos_read(dp->fdesc, buffer, count * SECTOR_SIZE - already);
     else
 #endif
     tmpread = RPT_SYSCALL(read(dp->fdesc, buffer, count * SECTOR_SIZE - already));

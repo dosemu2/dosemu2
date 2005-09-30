@@ -87,10 +87,8 @@ unsigned short emu_do_LAR (unsigned short selector);
 
 /* called from mfs.c, fatfs.c and some places that memcpy */
 #ifdef X86_EMULATOR
-int e_dos_read(int fd, char *data, int cnt);
 void e_invalidate(char *data, int cnt);
 #else
-#define e_dos_read(fd,data,cnt) RPT_SYSCALL(read((fd), LOWMEM(data), (cnt)))
 #define e_invalidate(x,y)
 #endif
 

@@ -1379,29 +1379,6 @@ dos_flush(int fd)
   return (ret);
 }
 
-static inline int
-dos_read(int fd, char *data, int cnt)
-{
-  int ret;
-
-  if (cnt <= 0)
-    return (0);
-  ret = e_dos_read(fd, data, cnt);
-  return (ret);
-}
-
-static inline int
-dos_write(int fd, char *data, int cnt)
-{
-  int ret;
-
-  if (cnt <= 0)
-    return (0);
-  ret = RPT_SYSCALL(write(fd, data, cnt));
-  Debug0((dbg_fd, "Wrote %10.10s\n", data));
-  return (ret);
-}
-
 static int
 calculate_drive_pointers(int dd)
 {
@@ -2973,7 +2950,7 @@ dos_fs_redirect(state_t *state)
 
   my_cds = sda_cds(sda);
 
-  sft = LOWMEM(Addr(state, es, edi));
+  sft = LINEAR2UNIX(Addr(state, es, edi));
 
   Debug0((dbg_fd, "Entering dos_fs_redirect, FN=%02X\n",(int)LOW(state->eax)));
 

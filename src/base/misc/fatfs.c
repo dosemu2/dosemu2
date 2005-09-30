@@ -62,6 +62,7 @@
 #include "fatfs.h"
 #include "doshelpers.h"
 #include "cpu-emu.h"
+#include "dos2linux.h"
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -1061,7 +1062,7 @@ void fdkernel_boot_mimic(void)
   }
   size = lseek(f, 0, SEEK_END);
   lseek(f, 0, SEEK_SET);
-  e_dos_read(f, (void *)loadaddress, size);
+  dos_read(f, (void *)loadaddress, size);
   close(f);
   LWORD(cs) = LWORD(ds) = LWORD(es) = loadaddress >> 4;
   LWORD(eip) = 0;

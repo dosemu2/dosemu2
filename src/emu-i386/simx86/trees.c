@@ -1335,15 +1335,6 @@ void e_invalidate(char *data, int cnt)
 	e_resetpagemarks(data, cnt);
 }
 
-int e_dos_read(int fd, char *data, int cnt)	// called from mfs.c
-{
-	int ret = RPT_SYSCALL(read(fd, LOWMEM(data), cnt));
-/**/ e_printf("e_dos_read fd=%x %p:%x = %d\n",fd,data,cnt,ret);
-	if (ret > 0)
-		e_invalidate(data, ret);
-	return ret;
-}
-
 
 /////////////////////////////////////////////////////////////////////////////
 

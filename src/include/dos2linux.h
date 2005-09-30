@@ -230,4 +230,7 @@ extern void run_unix_command (char *buffer);
 extern int run_system_command(char *buffer);
 extern int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active);
 
+int dos_read(int fd, char *data, int cnt);
+int dos_write(int fd, char *data, int cnt);
+
 #endif /* DOS2LINUX_H */
