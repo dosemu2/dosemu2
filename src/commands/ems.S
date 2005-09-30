@@ -150,14 +150,12 @@ Dummy:
 
 Int2f:
 	cmpw	$0x4310, %ax
-	jne	1f
-	pushw	%cs
+	je	1f
+	ljmp	*%cs:OldInt2f
+1:	pushw	%cs
 	popw	%es
 	movw	$XMSHook, %bx
-	jmp	2f
-1:	pushfw
-	lcall	*%cs:OldInt2f
-2:	lret	$2
+	iret
 
 Int67:
 	cmpb	$0, %cs:NoEMS
@@ -293,7 +291,7 @@ Error:
 	ret
 
 
-Mesage:	.ascii	"dosemu EMS 4.0 driver installed."
+Mesage:	.ascii	"dosemu EMS 4.0.1 driver installed."
 	.byte	cr,lf,eom
 
 NoHimemMsg:
