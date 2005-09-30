@@ -55,6 +55,7 @@
 
 #include "memory.h"
 #include "doshelpers.h"
+#include "emm.h"
 
 .code16
 .text
@@ -243,13 +244,21 @@ HookHimem:
 
 Init:
 	movb    $DOS_HELPER_EMS_HELPER, %al
+	movb    $DOSEMU_EMS_DRIVER_VERSION, %ah
 	int	$LinuxEMS
 	orb	%al, %al
 	jz	1f
 	movb	$1, NoEMS
+#if 1
+	movb	$9, %ah
+	movw	$DFailMsg, %dx
+	int	$0x21
+	jnz Error
+#else
 	movb	$9, %ah
 	movw	$NoEMSMsg, %dx
 	int	$0x21
+#endif
 1:
 	pushw	%es
 	pushw	%di
@@ -291,7 +300,7 @@ Error:
 	ret
 
 
-Mesage:	.ascii	"dosemu EMS 4.0.1 driver installed."
+Mesage:	.ascii	"dosemu EMS 4.0 driver installed."
 	.byte	cr,lf,eom
 
 NoHimemMsg:
@@ -306,6 +315,9 @@ CantHookMsg:
 	.byte	eom
 HimemOKMsg:
 	.ascii	"UMB support enabled."
+	.byte	cr,lf,eom
+DFailMsg:
+	.ascii	"ERROR: dosemu refused to enable EMS support."
 	.byte	cr,lf,eom
 NoEMSMsg:
 	.ascii	"Warning: EMS support not enabled."

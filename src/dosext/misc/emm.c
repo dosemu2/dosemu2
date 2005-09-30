@@ -248,6 +248,11 @@ ems_helper(void) {
     E_printf("EMS Init called!\n");
     if (!config.ems_size)
       return;
+    if (HI(ax) != DOSEMU_EMS_DRIVER_VERSION) {
+      error("EMS driver version mismatch: got %i, expected %i\n",
+        HI(ax), DOSEMU_EMS_DRIVER_VERSION);
+      return;
+    }
     break;
   case 3:
     E_printf("EMS IOCTL called!\n");
