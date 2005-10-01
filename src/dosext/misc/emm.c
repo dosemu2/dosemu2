@@ -249,7 +249,8 @@ ems_helper(void) {
     if (!config.ems_size)
       return;
     if (HI(ax) != DOSEMU_EMS_DRIVER_VERSION) {
-      error("EMS driver version mismatch: got %i, expected %i\n",
+      error("EMS driver version mismatch: got %i, expected %i, disabling.\n"
+    	    "Please upgrade your ems.sys from the latest dosemu package.\n",
         HI(ax), DOSEMU_EMS_DRIVER_VERSION);
       return;
     }

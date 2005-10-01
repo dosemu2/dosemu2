@@ -253,7 +253,7 @@ Init:
 	movb	$9, %ah
 	movw	$DFailMsg, %dx
 	int	$0x21
-	jnz Error
+	jmp     Error
 #else
 	movb	$9, %ah
 	movw	$NoEMSMsg, %dx
