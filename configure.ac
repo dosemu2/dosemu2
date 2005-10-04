@@ -449,11 +449,6 @@ dnl Do SB emulation
                 AC_MSG_NOTICE(Compiling with SB Emulation...)
                 AC_DEFINE(USE_SBEMU)
                 USE_SBEMU="USE_SBEMU=1"
-		AC_CHECK_LIB(gus, gus_close,
-			[AC_MSG_NOTICE(Compiling Midid with Ultra support...)
-			USE_ULTRA="USE_ULTRA=1"
-			AC_DEFINE(USE_ULTRA)
-			AC_SUBST(USE_ULTRA)],)
                 AC_SUBST(USE_SBEMU)
  fi
 
@@ -798,9 +793,6 @@ AH_TEMPLATE([X_SUPPORT],
 AH_TEMPLATE([USE_SBEMU],
 [ This is DEFINED when SB emulation is required. Just changing this is not
   enough - you must reconfigure. ])
-
-AH_TEMPLATE([USE_ULTRA],
-[This is DEFINED when the Ultra libraries are available ])
 
 AH_TEMPLATE([HAVE_MITSHM],
 [ Define this if you want to use MITSHM ])

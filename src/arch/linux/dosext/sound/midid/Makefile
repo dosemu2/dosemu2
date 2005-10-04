@@ -8,14 +8,6 @@ top_builddir=../../../../../..
 include $(top_builddir)/Makefile.conf
 
 ######################################################################
-# MIDID
-
-# Define USE_ULTRA if you've got the UltraDriver 2.60a installed
-#USE_ULTRA=OK
-# Should now be done by './configure' - Alistair
-
-
-######################################################################
 # No servicable parts below
 
 ifeq ($(CC),)
@@ -28,14 +20,10 @@ ifeq ($(LDFLAGS),)
 LDFLAGS += -Wall
 endif
 
-OBJECTS=midid.o events.o io.o stats.o emulation.o device.o \
-oss.o midout.o timid.o null.o
+CFILES = midid.c events.c io.c stats.c emulation.c device.c \
+oss.c midout.c timid.c null.c
 
-ifdef USE_ULTRA
- CFLAGS += -DUSE_ULTRA
- LDFLAGS += -lgus
- OBJECTS += gus.o
-endif
+OBJECTS=$(CFILES:.c=.o)
 
 all:		$(BINPATH)/bin/midid
 
