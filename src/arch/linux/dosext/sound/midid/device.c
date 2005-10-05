@@ -42,9 +42,6 @@ void device_register_all(void)
   device_add(register_midout);
   device_add(register_timid);
   device_add(register_oss);
-#ifdef USE_ULTRA
-  device_add(register_gus);
-#endif
 }
 
 Device *dev_find_first_detected(void)
@@ -107,8 +104,8 @@ void device_printactive(void)
 void device_detect_all(void)
 /* Detects available drivers */
 {
-int for_each = 1;
-Device *dev = devices;
+  int for_each = 1;
+  Device *dev = devices;
 
   if (dev_find_first_active())
     for_each = 0;
@@ -128,8 +125,9 @@ Device *dev = devices;
 int device_init_all(void)
 /* Initialises available drivers */
 {
-Device *dev = devices;
-int num = 0;
+  Device *dev = devices;
+  int num = 0;
+
   while (dev) {
     if (dev->active) {
       fprintf(stderr, "Initialising %s...\n", dev->name);
@@ -150,8 +148,9 @@ int num = 0;
 void device_stop_all(void)
 /* De-Initialises available drivers */
 {
-Device *dev = devices;
-int num = 0;
+  Device *dev = devices;
+  int num = 0;
+
   while (dev) {
     if (dev->ready) {
       fprintf(stderr, "Stopping %s...\n", dev->name);

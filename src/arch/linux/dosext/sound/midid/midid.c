@@ -77,8 +77,9 @@ SEQ_DEFINEBUF(1024);
  ***********************************************************************/
 
 Config config = { EMUMODE_GM, FALSE, 0, 0, 0, FALSE,
-    "", "midid.mid", 120, 144, "localhost", 7777,
-    "timidity", "-EFreverb=d -EFchorus=d -EFresamp=l", 0, 0, 0, 44100, 0 };
+    "", "midid.mid", 120, 144, "localhost", 0,
+    "timidity", "-EFreverb=1 -EFchorus=1 -EFresamp=1 -EFvlpf=1 -EFns=1",
+    0, 0, 0, 0, 0 };
 
 static void usage(void)
 {
@@ -187,10 +188,18 @@ static void options_read(int argc, char **argv)
     case 'l':
       need_printall = TRUE;
       break;
-    case 'd':
-      while ((ptr = strsep(&optarg, ",")))
-        device_activate(atoi(ptr));
-      need_detect = FALSE;
+    case 'd': {
+        int num = 0;
+        while ((ptr = strsep(&optarg, ","))) {
+          num = atoi(ptr);
+          if (!num)
+            break;
+          device_activate(num);
+        }
+        if (!num)
+          break;
+        need_detect = FALSE;
+      }
       break;
     case 'm':
       config.mode = EMUMODE_MT32;

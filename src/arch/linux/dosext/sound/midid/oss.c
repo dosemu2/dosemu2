@@ -26,7 +26,7 @@
     (((long long)t.tv_usec * timebase) / 1000000))
 
 static long long start_time;
-static int timebase = 100;
+static int timebase = 100, timer_started = 0;
 static int seqfd;  /* Sequencer file handle */
 
 void oss_seqbuf_dump(void);
@@ -35,14 +35,19 @@ SEQ_USE_EXTBUF();
 
 static void oss_start_timer(void)
 {
+  struct timeval time;
+  gettimeofday(&time, NULL);
+  start_time = TIME2TICK(time);
   SEQ_START_TIMER();
   SEQ_DUMPBUF();
+  timer_started = 1;
 }
 
 static void oss_stop_timer(void)
 {
   SEQ_STOP_TIMER();
   SEQ_DUMPBUF();
+  timer_started = 0;
 }
 
 static long oss_get_ticks(void)
@@ -54,6 +59,8 @@ static long oss_get_ticks(void)
 
 static void oss_timestamp(void)
 {
+  if (!timer_started)
+    oss_start_timer();
   SEQ_WAIT_TIME(oss_get_ticks());
 }
 
@@ -69,7 +76,6 @@ static bool oss_init(void)
 {
   if ((seqfd = open(SEQUENCER_DEV, O_WRONLY)) == -1)
     return 0;
-  oss_start_timer();
   return 1;
 }
 

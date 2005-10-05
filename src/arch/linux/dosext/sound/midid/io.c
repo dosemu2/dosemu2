@@ -31,10 +31,11 @@ int getbyte_buffer=MAGIC_EOF;
 void getbyte_next(void)
 /* Read next symbol into buffer */
 {
-fd_set rfds;
-struct timeval tv;
-byte ch;
-bool is_eof;
+        fd_set rfds;
+        struct timeval tv;
+        byte ch;
+        bool is_eof;
+
         FD_ZERO(&rfds);
         FD_SET(fd, &rfds);
         tv.tv_sec = config.timeout;

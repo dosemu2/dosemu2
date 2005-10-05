@@ -39,34 +39,40 @@ static int ctrl_sock_in, ctrl_sock_out, data_sock;
 static pid_t tmdty_pid = -1;
 static struct sockaddr_in ctrl_adr, data_adr;
 static long long start_time;
-static int timebase = 100;
+static int timebase = 100, timer_started = 0;
 
 void timid_seqbuf_dump(void);
 
 SEQ_USE_EXTBUF();
 
-static void timid_start_timer(void)
+static void timid_init_timer(void)
 {
   static const char *cmd = "TIMEBASE\n";
   char buf[255];
-  struct timeval time;
   int n;
 
   write(ctrl_sock_out, cmd, strlen(cmd));
   n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
   buf[n] = 0;
   sscanf(buf, "200 %i", &timebase);
+  fprintf(stderr, "\tTimer: timebase = %i HZ\n", timebase);
+}
+
+static void timid_start_timer(void)
+{
+  struct timeval time;
   gettimeofday(&time, NULL);
   start_time = TIME2TICK(time);
-  fprintf(stderr, "\tTimer: timebase = %i HZ, start = %lli\n", timebase, start_time);
   SEQ_START_TIMER();
   SEQ_DUMPBUF();
+  timer_started = 1;
 }
 
 static void timid_stop_timer(void)
 {
   SEQ_STOP_TIMER();
   SEQ_DUMPBUF();
+  timer_started = 0;
 }
 
 static long timid_get_ticks(void)
@@ -78,6 +84,8 @@ static long timid_get_ticks(void)
 
 static void timid_timestamp(void)
 {
+  if (!timer_started)
+    timid_start_timer();
   SEQ_WAIT_TIME(timid_get_ticks());
 }
 
@@ -149,9 +157,9 @@ static int timid_preinit(void)
     ctrl_sock_in = ctrl_sock_out = ctrl_sock;
   } else {
     int tmdty_pipe_in[2], tmdty_pipe_out[2];
-    const char *tmdty_capt = "-o -";
-    const char *tmdty_sound_spec_t = "-ir 0 -O%c%c%c%cl -s %d";
-    char tmdty_sound_spec[100];
+    const char *tmdty_capt = "-Or -o -";
+    const char *tmdty_opt_hc = "-ir 0";
+    char tmdty_sound_spec[200];
     char *tmdty_cmd;
 #define T_MAX_ARGS 255
     char *tmdty_args[T_MAX_ARGS];
@@ -171,18 +179,23 @@ static int timid_preinit(void)
 	close(tmdty_pipe_out[1]);
 	dup2(tmdty_pipe_out[0], STDIN_FILENO);
 	dup2(tmdty_pipe_in[1], STDOUT_FILENO);
-#define STEREO 'S'
-#define MONO 'M'
-#define BIT_16 '1'
-#define BIT_8 '8'
-#define SIGNED 's'
-#define UNSIGNED 'u'
-	sprintf(tmdty_sound_spec, tmdty_sound_spec_t,
-	    config.timid_capture ? 'r' : '_',
-	    config.timid_mono ? MONO : STEREO,
-	    config.timid_8bit ? BIT_8 : BIT_16,
-	    config.timid_uns ? UNSIGNED : SIGNED,
-	    config.timid_freq);
+#if 0
+        /* redirect stderr to /dev/null */
+        close(STDERR_FILENO);
+        open("/dev/null", O_WRONLY);
+#endif
+	strcpy(tmdty_sound_spec, tmdty_opt_hc);
+	if (config.timid_freq) {
+	  char opt_buf[100];
+	  sprintf(opt_buf, " --sampling-freq=%d", config.timid_freq);
+	  strcat(tmdty_sound_spec, opt_buf);
+	}
+	if (config.timid_mono)
+	  strcat(tmdty_sound_spec, " --output-mono");
+	if (config.timid_8bit)
+	  strcat(tmdty_sound_spec, " --output-8bit");
+	if (config.timid_uns)
+	  strcat(tmdty_sound_spec, " --output-unsigned");
 	if (config.timid_capture) {
 	  strcat(tmdty_sound_spec, " ");
 	  strcat(tmdty_sound_spec, tmdty_capt);
@@ -223,7 +236,7 @@ err_ds:
 static bool timid_detect(void)
 {
   char buf[255];
-  int n, selret = 0, ret = FALSE;
+  int n, status, selret = 0, ret = FALSE;
   fd_set rfds;
   struct timeval tv;
 
@@ -254,6 +267,10 @@ static bool timid_detect(void)
 
   close(data_sock);
   close(ctrl_sock_out);
+  if (tmdty_pid != -1) {
+    waitpid(tmdty_pid, &status, 0);
+    tmdty_pid = -1;
+  }
   return ret;
 }
 
@@ -347,7 +364,7 @@ static bool timid_init(void)
   n = read(ctrl_sock_in, buf, sizeof(buf) - 1);
   buf[n] = 0;
   fprintf(stderr, "\tConnect: %s\n", buf);
-  timid_start_timer();
+  timid_init_timer();
   return TRUE;
 }
 
@@ -378,8 +395,10 @@ static void timid_done(void)
   fprintf(stderr, "\tQuit: %s\n", buf);
 
   close(ctrl_sock_out);
-  if (tmdty_pid != -1)
+  if (tmdty_pid != -1) {
     waitpid(tmdty_pid, &status, 0);
+    tmdty_pid = -1;
+  }
 }
 
 static void timid_noteon(int chn, int note, int vol)
