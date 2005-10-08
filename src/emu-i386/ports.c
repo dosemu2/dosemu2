@@ -978,7 +978,9 @@ int extra_port_init(void)
 		}
 	}
 	if (config.chipset && config.mapped_bios) {
-		for (i=0x3b4; i<0x3df; i++)
+		for (i=0x3b4; i<0x3bc; i++)
+			SET_HANDLE_COND(i,HANDLE_VID_IO);
+		for (i=0x3c0; i<0x3df; i++)
 			SET_HANDLE_COND(i,HANDLE_VID_IO);
 	}
 	if (config.vga) {
