@@ -650,22 +650,22 @@ boolean set_video_mode(int mode) {
 /* get the active and alternate display combination code */
 static void get_dcc(int *active_dcc, int *alternate_dcc)
 {
-  int video_combo = READ_BYTE(BIOS_VIDEO_COMBO);
+  int cur_video_combo = READ_BYTE(BIOS_VIDEO_COMBO);
 
 #if USE_DUALMON
   if (config.dualmon) {
     if (IS_SCREENMODE_MDA) {
       *active_dcc = MDA_VIDEO_COMBO;  /* active display */
-      *alternate_dcc = video_combo;
+      *alternate_dcc = cur_video_combo;
     }
     else {
-      *active_dcc = video_combo;     /* active display */
+      *active_dcc = cur_video_combo;     /* active display */
       *alternate_dcc = MDA_VIDEO_COMBO;
     }
     return;
   }
 #endif
-  *active_dcc = video_combo;	/* active display */
+  *active_dcc = cur_video_combo;	/* active display */
   *alternate_dcc = 0;		/* no inactive display */
 }
 
@@ -1525,55 +1525,7 @@ int int10(void) /* with dualmon */
 
 void video_mem_setup(void)
 {
-  int co, li, video_combo;
-
-  switch (config.cardtype) {
-  case CARD_MDA:
-    {
-      configuration |= (MDA_CONF_SCREEN_MODE);
-      video_mode = MDA_INIT_SCREEN_MODE;
-      phys_text_base = MDA_PHYS_TEXT_BASE;
-      virt_text_base = MDA_VIRT_TEXT_BASE;
-      video_combo = MDA_VIDEO_COMBO;
-      break;
-    }
-  case CARD_CGA:
-    {
-      configuration |= (CGA_CONF_SCREEN_MODE);
-      video_mode = CGA_INIT_SCREEN_MODE;
-      phys_text_base = CGA_PHYS_TEXT_BASE;
-      virt_text_base = CGA_VIRT_TEXT_BASE;
-      video_combo = CGA_VIDEO_COMBO;
-      break;
-    }
-  case CARD_EGA:
-    {
-      configuration |= (EGA_CONF_SCREEN_MODE);
-      video_mode = EGA_INIT_SCREEN_MODE;
-      phys_text_base = EGA_PHYS_TEXT_BASE;
-      virt_text_base = EGA_VIRT_TEXT_BASE;
-      video_combo = EGA_VIDEO_COMBO;
-      break;
-    }
-  case CARD_VGA:
-    {
-      configuration |= (VGA_CONF_SCREEN_MODE);
-      video_mode = VGA_INIT_SCREEN_MODE;
-      phys_text_base = VGA_PHYS_TEXT_BASE;
-      virt_text_base = VGA_VIRT_TEXT_BASE;
-      video_combo = VGA_VIDEO_COMBO;
-      break;
-    }
-  default:			/* or Terminal, is this correct ? */
-    {
-      configuration |= (CGA_CONF_SCREEN_MODE);
-      video_mode = CGA_INIT_SCREEN_MODE;
-      phys_text_base = CGA_PHYS_TEXT_BASE;
-      virt_text_base = CGA_VIRT_TEXT_BASE;
-      video_combo = CGA_VIDEO_COMBO;
-      break;
-    }
-  }
+  int co, li;
 
   WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
   WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);

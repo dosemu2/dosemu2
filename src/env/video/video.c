@@ -174,7 +174,54 @@ static int video_init(void)
 }
 
 void
-scr_state_init(void){
+scr_state_init(void) {
+  switch (config.cardtype) {
+  case CARD_MDA:
+    {
+      configuration |= (MDA_CONF_SCREEN_MODE);
+      video_mode = MDA_INIT_SCREEN_MODE;
+      phys_text_base = MDA_PHYS_TEXT_BASE;
+      virt_text_base = MDA_VIRT_TEXT_BASE;
+      video_combo = MDA_VIDEO_COMBO;
+      break;
+    }
+  case CARD_CGA:
+    {
+      configuration |= (CGA_CONF_SCREEN_MODE);
+      video_mode = CGA_INIT_SCREEN_MODE;
+      phys_text_base = CGA_PHYS_TEXT_BASE;
+      virt_text_base = CGA_VIRT_TEXT_BASE;
+      video_combo = CGA_VIDEO_COMBO;
+      break;
+    }
+  case CARD_EGA:
+    {
+      configuration |= (EGA_CONF_SCREEN_MODE);
+      video_mode = EGA_INIT_SCREEN_MODE;
+      phys_text_base = EGA_PHYS_TEXT_BASE;
+      virt_text_base = EGA_VIRT_TEXT_BASE;
+      video_combo = EGA_VIDEO_COMBO;
+      break;
+    }
+  case CARD_VGA:
+    {
+      configuration |= (VGA_CONF_SCREEN_MODE);
+      video_mode = VGA_INIT_SCREEN_MODE;
+      phys_text_base = VGA_PHYS_TEXT_BASE;
+      virt_text_base = VGA_VIRT_TEXT_BASE;
+      video_combo = VGA_VIDEO_COMBO;
+      break;
+    }
+  default:			/* or Terminal, is this correct ? */
+    {
+      configuration |= (CGA_CONF_SCREEN_MODE);
+      video_mode = CGA_INIT_SCREEN_MODE;
+      phys_text_base = CGA_PHYS_TEXT_BASE;
+      virt_text_base = CGA_VIRT_TEXT_BASE;
+      video_combo = CGA_VIDEO_COMBO;
+      break;
+    }
+  }
   scr_state.vt_allow = 0;
   scr_state.vt_requested = 0;
   scr_state.mapped = 0;
