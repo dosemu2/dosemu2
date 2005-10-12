@@ -144,7 +144,7 @@ static struct RSP_s RSP_callbacks[DPMI_MAX_CLIENTS];
 }
 
 static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
-    int tsr, unsigned short tsr_para);
+    int tsr, unsigned short tsr_para, int dos_exit);
 static inline int ValidSelector(unsigned short selector);
 
 #ifdef __linux__
@@ -2270,7 +2270,7 @@ err:
     }
     break;
   case 0x0c01:	/* Terminate and Stay Resident */
-    quit_dpmi(scp, _LO(bx), 1, _LWORD(edx));
+    quit_dpmi(scp, _LO(bx), 1, _LWORD(edx), 1);
     break;
 
   case 0x0e00:	/* Get Coprocessor Status */
@@ -2506,7 +2506,7 @@ void dpmi_cleanup(void)
 }
 
 static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
-    int tsr, unsigned short tsr_para)
+    int tsr, unsigned short tsr_para, int dos_exit)
 {
   int i;
   int have_tsr = tsr && DPMI_CLIENT.RSP_installed;
@@ -2538,17 +2538,19 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode,
     dpmi_cleanup();
   }
 
-  REG(cs) = DPMI_SEG;
-  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
-  if (!have_tsr || !tsr_para) {
-    HI(ax) = 0x4c;
-    LO(ax) = errcode;
-    do_int(0x21);
-  } else {
-    HI(ax) = 0x31;
-    LO(ax) = errcode;
-    LWORD(edx) = tsr_para;
-    do_int(0x21);
+  if (dos_exit) {
+    REG(cs) = DPMI_SEG;
+    REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
+    if (!have_tsr || !tsr_para) {
+      HI(ax) = 0x4c;
+      LO(ax) = errcode;
+      do_int(0x21);
+    } else {
+      HI(ax) = 0x31;
+      LO(ax) = errcode;
+      LWORD(edx) = tsr_para;
+      do_int(0x21);
+    }
   }
 }
 
@@ -2595,7 +2597,7 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
         case 0x4c:
           D_printf("DPMI: leaving DPMI with error code 0x%02x, in_dpmi=%i\n",
             _LO(ax), in_dpmi);
-	  quit_dpmi(scp, _LO(ax), 0, 0);
+	  quit_dpmi(scp, _LO(ax), 0, 0, 1);
 	  return;
       }
       break;
@@ -3138,7 +3140,7 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
 		p_dos_str("DPMI: Unhandled Exception %02x - Terminating Client\n"
 		  "It is likely that dosemu is unstable now and should be rebooted\n",
 		  trapno);
-		quit_dpmi(scp, 0xff, 0, 0);
+		quit_dpmi(scp, 0xff, 0, 0, 1);
       }
       return;
     }
@@ -3185,7 +3187,7 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
 	       p_dos_str("DPMI: Unhandled Exception %02x - Terminating Client\n"
 			 "It is likely that dosemu is unstable now and should be rebooted\n",
 			 trapno);
-	       quit_dpmi(scp, 0xff, 0, 0);
+	       quit_dpmi(scp, 0xff, 0, 0, 1);
   }
 #endif
 }
@@ -3727,14 +3729,10 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	      REG(eflags) &= ~CF;
 	    }
 	    if (REG(eflags) & CF) {
-	      struct vm86_regs saved_regs = REGS;
 	      D_printf("DPMI: int23 termination request\n");
-	      quit_dpmi(scp, 0, 0, 0);
-	      REGS = saved_regs;
-	      D_printf("DPMI: int23 termination performed\n");
+	      quit_dpmi(scp, 0, 0, 0, 0);
 	    }
 	  }
-	  in_dpmi_dos_int = 1;
 
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_int_24)) {
 	  leave_lpms(scp);
