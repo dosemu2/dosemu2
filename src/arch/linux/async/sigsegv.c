@@ -105,7 +105,14 @@ int signal, struct sigcontext_struct *scp
       case 0x06: /* invalid_op */
 		{
 		 unsigned char *csp;
-		 dbug_printf("SIGILL while in vm86()\n");
+		 dbug_printf("SIGILL while in vm86(): %04x:%04x\n", REG(cs), LWORD(eip));
+		 if (config.vga && REG(cs) == config.vbios_seg) {
+		   if (!config.vbios_post)
+		     error("Fault in VBIOS code, try setting $_vbios_post=(1)\n");
+		   else
+		     error("Fault in VBIOS code, try running xdosemu under X\n");
+		   goto sgleave;
+		 }
 #if 0
 		 show_regs(__FILE__, __LINE__);
 #endif /* 0 */
