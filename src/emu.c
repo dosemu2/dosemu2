@@ -459,6 +459,8 @@ leavedos(int sig)
       dbug_printf("leavedos() called from within a signal context!\n");
     else
       mhp_exit_intercept(sig);
+    g_printf("closing debugger pipes\n");
+    mhp_close();
 #endif
     
     itv.it_interval.tv_sec = itv.it_interval.tv_usec = 0;
@@ -523,10 +525,6 @@ leavedos(int sig)
     g_printf("calling HMA exit\n");
     hma_exit();
     close_uhook();
-#ifdef USE_MHPDBG
-    g_printf("closing debugger pipes\n");
-    mhp_close();
-#endif
 
     g_printf("calling mapping_close()\n");
     mapping_close();
