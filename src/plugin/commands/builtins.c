@@ -1,3 +1,16 @@
+/*
+ * All modifications in this file to the original code are
+ * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+/*
+ * Purpose: handling of the dosemu-supplied utilities, AKA builtins.
+ *
+ * Author: Stas Sergeev
+ * Some code is taken from coopthreads.c by Hans Lermen.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
