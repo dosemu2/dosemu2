@@ -121,6 +121,7 @@ void pic_resched(void);
 inline void pic_watch(hitimer_u *s_time);    /* interrupt pending watchdog timer */
 void do_irq0(void);				/* timer interrupt */
 int pic_pending(void);			/* inform caller if interrupt is pending */
+int pic_irq_active(int num);
 void pic_sched(int ilevel, int interval);          /* schedule an interrupt */
 /* The following are too simple to be anything but in-line */
 

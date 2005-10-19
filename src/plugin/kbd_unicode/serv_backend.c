@@ -380,6 +380,11 @@ void int_check_queue(void)
    if (!kbd_period_elapsed())
       return;
 
+   /* HACK - extra sentinel needed, timing is not
+    * a reliable measure under heavy loads */
+   if (pic_irq_active(PIC_IRQ1))
+      return;
+
    rawscan = read_queue(&keyb_queue);
    k_printf("KBD: read queue: raw=%02x, queuelevel=%d\n",
 	rawscan, queue_level(&keyb_queue));

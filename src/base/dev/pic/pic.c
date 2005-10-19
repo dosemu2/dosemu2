@@ -982,6 +982,12 @@ int pic_pending(void)
 {
     return (pic_irr & ~(pic_isr | pic_imr | pic_irqs_active));
 }
+
+int pic_irq_active(int num)
+{
+    return (((pic_irr & ~pic_imr) | pic_isr) & (1 << num));
+}
+
 /* DANG_BEGIN_FUNCTION pic_activate
  * 
  * pic_activate requests any interrupts whose scheduled time has arrived.
