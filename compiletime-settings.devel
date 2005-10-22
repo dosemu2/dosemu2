@@ -8,7 +8,7 @@ config {
   debug on
   cpuemu on
   aspi on
-  svgalib off
+  svgalib on
   gpm on
   plugin_kbd_unicode on
   plugin_extra_charsets on
