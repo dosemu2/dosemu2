@@ -379,8 +379,6 @@ signal_init(void)
   sigemptyset(&set);
   addset_signals_that_queue(&set);
   sigprocmask(SIG_UNBLOCK, &set, NULL);
-
-  SIG_init();			/* silly int generator support */
 }
 
 /*

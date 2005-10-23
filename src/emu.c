@@ -356,7 +356,7 @@ emulate(int argc, char **argv)
     pci_setup();
     device_init();		/* priv initialization of video etc. */
     extra_port_init();		/* setup ports dependent on config */
-    signal_init();              /* initialize sig's & sig handlers */
+    SIG_init();			/* priv part of the signal init */
     pkt_priv_init();
 
     /* here we include the hooks to possible plug-ins */
@@ -382,7 +382,12 @@ emulate(int argc, char **argv)
     HMA_init();			/* HMA can only be done now after mapping
                                    is initialized*/
     memory_init();		/* initialize the memory contents */
+    /* iodev_init() can load plugins, like SDL, that can spawn a thread.
+     * This must be done before initializing signals, or problems ensue.
+     * This also must be done when the signals are blocked, so after
+     * the io_select_init(), which right now blocks the signals. */
     iodev_init();		/* initialize devices */
+    signal_init();              /* initialize sig's & sig handlers */
     ems_init();			/* initialize ems */
     xms_init();			/* initialize xms */
     dpmi_setup();
