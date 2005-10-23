@@ -16,6 +16,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #define seqbuf_dump oss_seqbuf_dump
 #include <sys/soundcard.h>
