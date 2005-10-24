@@ -167,6 +167,22 @@ void restore_eflags_fs_gs(void);
 		(__res1 << 8) | __res0; \
 	})
 
+#define loadflags(value) asm volatile("pushl %0 ; popfl"::"g" (value): "cc" )
+
+#define saveflags(value) asm volatile("pushfl ; popl %0":"=g" (value): )
+
+#define loadregister(reg, value) \
+	asm volatile("mov %0, %%" #reg ::"rm" (value))
+
+#define saveregister(reg, value) \
+	asm volatile("mov %%" #reg ",%0":"=rm" (value))
+
+#define loadfpstate(value) \
+	asm volatile("frstor  %0\n" :: "m"(value));
+
+#define savefpstate(value) \
+	asm volatile("fsave %0\n": "=m"(value));
+
 #ifdef __linux__
 static __inline__ void set_revectored(int nr, struct revectored_struct * bitmap)
 {

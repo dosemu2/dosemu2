@@ -256,22 +256,13 @@ void cpu_setup(void)
   _emu_stack_frame.fpstate = &emu_fpu_state;
   /* initialize user data & code selector values (used by DPMI code) */
   /* And save %fs, %gs for NPTL */
-  __asm__ volatile (
-  " movw %%cs, %0\n"
-  " movw %%ds, %1\n"
-  " movw %%fs, %2\n"
-  " movw %%gs, %3\n"
-  " pushfl\n"
-  " popl %4\n"
-  " fsave %5\n"
-  " movl %%esp, %6\n"
-  :"=m"(_emu_stack_frame.cs),
-   "=m"(_emu_stack_frame.ds),
-   "=m"(_emu_stack_frame.fs),
-   "=m"(_emu_stack_frame.gs),
-   "=m"(_emu_stack_frame.eflags),
-   "=m"(*_emu_stack_frame.fpstate),
-   "=m"(stk_ptr));
+  saveregister(cs, _emu_stack_frame.cs);
+  saveregister(ds, _emu_stack_frame.ds);
+  saveregister(fs, _emu_stack_frame.fs);
+  saveregister(gs, _emu_stack_frame.gs);
+  saveflags(_emu_stack_frame.eflags);
+  savefpstate(*_emu_stack_frame.fpstate);
+  saveregister(esp, stk_ptr);
   vm86_fpu_state = *_emu_stack_frame.fpstate;
 
   if ((fp = fopen("/proc/self/maps", "r"))) {
@@ -296,17 +287,10 @@ void cpu_setup(void)
 
 void restore_eflags_fs_gs(void)
 {
-  asm volatile (
-    "pushl	 %0\n"
-    "popfl\n"
-    "movw	 %1, %%fs\n"
-    "movw	 %2, %%gs\n"
-    "frstor  %3\n"
-    ::
-    "m"(_emu_stack_frame.eflags),
-    "m"(_emu_stack_frame.fs),
-    "m"(_emu_stack_frame.gs),
-    "m"(*_emu_stack_frame.fpstate));
+  loadflags(_emu_stack_frame.eflags);
+  loadregister(fs, _emu_stack_frame.fs);
+  loadregister(gs, _emu_stack_frame.gs);
+  loadfpstate(*_emu_stack_frame.fpstate);
 }
 
 int
