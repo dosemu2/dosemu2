@@ -23,7 +23,7 @@ all: $(BINPATH)/bin/libplugin_term.so $(LIB)
 include $(REALTOPDIR)/src/Makefile.common
 
 $(BINPATH)/bin/libplugin_term.so: $(OBJS)
-	$(CC) $(LDFLAGS) -shared -o $@ $^ $(LIBS) $(SLANGLIB)
+	$(CC) $(LDFLAGS) -shared -o $@ $^ $(SLANGLIB)
 	$(AR) crs $(LIB)
 
 install: all

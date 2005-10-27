@@ -16,6 +16,6 @@ endif
 include $(REALTOPDIR)/src/Makefile.common
 
 $(BINPATH)/bin/libplugin_gpm.so: $(OBJS)
-	$(CC) $(LIBS) -shared -o $@ $^ -lgpm
+	$(CC) -shared -o $@ $^ -lgpm
 	$(AR) crs $(LIB)
 
