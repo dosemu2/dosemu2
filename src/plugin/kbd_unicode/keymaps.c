@@ -26,6 +26,10 @@
 #include "getfd.h"
 #include "utilities.h"
 
+#ifdef X_SUPPORT
+int X11_DetectLayout (void);
+#endif
+
 /* DANG_BEGIN_MODULE
  * 
  * REMARK
@@ -2516,6 +2520,7 @@ void setup_default_keytable()
 
   idx = 1;
   handle = load_plugin("X");
+#ifdef USE_DL_PLUGINS
   if (handle) {
     int (*X11_DetectLayout)(void) = 
       (int(*)(void))dlsym(handle, "X11_DetectLayout");
@@ -2523,6 +2528,9 @@ void setup_default_keytable()
       idx = X11_DetectLayout();
     dlclose(handle);
   }
+#elif defined(X_SUPPORT)
+  idx = X11_DetectLayout();
+#endif
   if (idx && kt->name == NULL) {
     error("Unable to open console or check with X to evaluate the keyboard "
 	  "map.\nPlease specify your keyboard map explicitly via the "

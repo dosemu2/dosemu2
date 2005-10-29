@@ -7497,6 +7497,10 @@ echo "${ECHO_T}$ac_cv_lib_slang_SLtt_get_terminfo" >&6
 if test $ac_cv_lib_slang_SLtt_get_terminfo = yes; then
   { echo "$as_me:$LINENO: Compiling with S-Lang support..." >&5
 echo "$as_me: Compiling with S-Lang support..." >&6;}
+    cat >>confdefs.h <<\_ACEOF
+#define USE_SLANG 1
+_ACEOF
+
     SLANGLIB="$SLANGLIB -lslang -lm"
 else
   { echo "$as_me:$LINENO: WARNING: No S-Lang library found." >&5
@@ -9679,6 +9683,9 @@ CPPFLAGS="${CPPFLAGS} -MMD"
 
 
           ac_config_commands="$ac_config_commands Makefile"
+
+
+
 
 
 

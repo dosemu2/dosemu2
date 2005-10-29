@@ -99,7 +99,7 @@ static int video_init(void)
 {
   /* figure out which video front end we are to use */
   
-  if (Video) {
+  if (config.X) {
      /* already initialized */
   }
   else if (config.vga) {
@@ -123,13 +123,21 @@ static int video_init(void)
      config.cardtype = CARD_NONE;
      Video=&Video_none;
   }
-  else if (!load_plugin("term")) {
+  else
+#if !defined(USE_DL_PLUGINS) && defined(USE_SLANG)
+  {
+     v_printf("VID: Video set to Video_term\n");
+     Video=&Video_term;       /* S-Lang */
+  }
+#else
+  if (!load_plugin("term")) {
      error("Terminal (S-Lang library) support not compiled in.\n"
            "Install slang-devel and recompile, use xdosemu or console "
            "dosemu (needs root) instead.\n");
      /* too early to call leavedos */
      exit(1);
   }
+#endif
 
 #if USE_DUALMON
   init_dualmon();

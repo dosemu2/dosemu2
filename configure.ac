@@ -290,6 +290,7 @@ AC_MSG_RESULT($SLANGINC $SLANGLIB)
 AC_CHECK_HEADER(slang.h,
   AC_CHECK_LIB(slang, SLtt_get_terminfo,
     AC_MSG_NOTICE(Compiling with S-Lang support...)
+    AC_DEFINE(USE_SLANG)
     SLANGLIB="$SLANGLIB -lslang -lm",
     [AC_MSG_WARN([No S-Lang library found.])]
     $srcdir/mkpluginhooks enable term no
@@ -790,7 +791,10 @@ AH_TEMPLATE([__LINE__],
 Most compilers have this one, but just to be sure...])
 
 AH_TEMPLATE([USE_DL_PLUGINS],
-[ DEFINE this, if you dynamically loaded plugins ])
+[ DEFINE this, if you want dynamically loaded plugins ])
+
+AH_TEMPLATE([USE_SLANG],
+[ DEFINE this, if you want S-Lang support ])
 
 AH_TEMPLATE([USE_SVGALIB],
 [ DEFINE this, if you want svgalib support ])

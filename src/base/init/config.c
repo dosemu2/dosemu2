@@ -770,6 +770,10 @@ config_init(int argc, char **argv)
     if (strcmp(basename, "xdos") == 0) {
 	    load_plugin("X");
 	    usedoptions['X'] = 'X';
+#if !defined(USE_DL_PLUGINS) && defined(X_SUPPORT)
+	    config.X = 1;
+	    Video = &Video_X;
+#endif
 	/* called as 'xdos' */
     }
     
@@ -963,9 +967,17 @@ config_init(int argc, char **argv)
 	    break;
 	case 'X':
 	    load_plugin("X");
+#if !defined(USE_DL_PLUGINS) && defined(X_SUPPORT)
+	    config.X = 1;
+	    Video = &Video_X;
+#endif
 	    break;
 	case 'S':
 	    load_plugin("sdl");
+#if !defined(USE_DL_PLUGINS) && defined(SDL_SUPPORT)
+	    config.X = 1;
+	    Video = &Video_SDL;
+#endif
 	    break;
 	case 'w':
             config.X_fullscreen = !config.X_fullscreen;
