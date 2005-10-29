@@ -12,7 +12,9 @@
 #include <string.h> /* for memset */
 #include <unistd.h>
 #include <fcntl.h>
+#include <dlfcn.h>
 #include <SDL.h>
+#include <SDL_syswm.h>
 
 #include "emu.h"
 #include "init.h"
@@ -26,6 +28,8 @@
 #include "sdl.h"
 #include "keyb_clients.h"
 #include "dos2linux.h"
+#include "utilities.h"
+#include "speaker.h"
 
 static int SDL_init(void);
 static void SDL_close(void);
@@ -171,6 +175,20 @@ int SDL_init(void)
   /* enable repeat here (in the keyboard code it's too early) */
   SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
 
+  {
+    SDL_SysWMinfo info;
+    SDL_VERSION(&info.version);
+    if (SDL_GetWMInfo(&info) && info.subsystem == SDL_SYSWM_X11) {
+#if defined(USE_DL_PLUGINS) || !defined(X_SUPPORT)
+      void (*X_speaker_on)(void *, unsigned, unsigned short);
+      void (*X_speaker_off)(void *);
+      void *handle = load_plugin("X");
+      X_speaker_on = dlsym(handle, "X_speaker_on");
+      X_speaker_off = dlsym(handle, "X_speaker_off");
+#endif
+      register_speaker(info.info.x11.display, X_speaker_on, X_speaker_off);
+    }
+  }
   return 0;
 }
 
