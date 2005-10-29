@@ -167,6 +167,18 @@ else
 	      AC_MSG_NOTICE(Linking for shared libraries...)
 fi
 
+AC_ARG_ENABLE(dlplugins,
+              [  --disable-dlplugins     do NOT use dynamically loaded plugins])
+if test "$enable_dlplugins" != "no"; then
+	      AC_MSG_NOTICE(Using dynamically loaded plugins...)
+              AC_DEFINE(USE_DL_PLUGINS)
+              USE_DL_PLUGINS="USE_DL_PLUGINS=1"
+              AC_SUBST(USE_DL_PLUGINS)
+              LDFLAGS="${LDFLAGS} -rdynamic"
+else
+              AC_MSG_NOTICE(Not using dynamically loaded plugins...)
+fi
+
 dnl Check whether we have svgalib and whether to use it
 
 AC_ARG_WITH(svgalib,
@@ -175,7 +187,7 @@ if test "$with_svgalib" = "yes"; then
   AC_MSG_NOTICE(Checking for svgalib... )
   AC_CHECK_LIB(vga, vga_simple_init,
   [ AC_CHECK_HEADER(vga.h,
-    [ AC_MSG_CHECKING(for svgalib version >= 2.9.21)
+    [ AC_MSG_CHECKING(for svgalib version >= 1.9.21)
       svgalib_ver=`${CC-cc} -E - << "" | tail -n 1 | cut -dx -f2
         #include <vga.h>
         SVGALIB_VER
@@ -218,6 +230,8 @@ if test "$with_gpm" != "no"; then
   AC_DEFINE(USE_GPM)
   USE_GPM="USE_GPM=1"
   AC_SUBST(USE_GPM)
+  GPMLIB="-lgpm"
+  AC_SUBST(GPMLIB)
   $srcdir/mkpluginhooks enable gpm yes
 else
   AC_MSG_NOTICE(Compiling without GPM support...)
@@ -774,6 +788,9 @@ Most compilers have this one, but just to be sure...])
 AH_TEMPLATE([__LINE__],
 [ Define if the compiler doesn't have __LINE__ macro.
 Most compilers have this one, but just to be sure...])
+
+AH_TEMPLATE([USE_DL_PLUGINS],
+[ DEFINE this, if you dynamically loaded plugins ])
 
 AH_TEMPLATE([USE_SVGALIB],
 [ DEFINE this, if you want svgalib support ])

@@ -8,7 +8,7 @@ top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 include Makefile.conf
 
-CFLAGS+=-fPIC
+CFLAGS+=$(DL_CFLAGS)
 CPPFLAGS+=$(SDL_CFLAGS)
 CFILES=
 ifdef SDL_SUPPORT
@@ -22,15 +22,19 @@ OBJS=$(CFILES:.c=.o)
 OOBJS=
 DEPENDS=$(CFILES:.c=.d)
 
+ifdef USE_DL_PLUGINS
 ifdef SDL_SUPPORT
 all: $(BINPATH)/bin/libplugin_sdl.so $(LIB)
+endif
 endif
 
 include $(REALTOPDIR)/src/Makefile.common
 
+ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_sdl.so: $(OBJS)
-	$(CC) $(LDFLAGS) -shared -o $@ $^ -lSDL
+	$(CC) $(LDFLAGS) -shared -o $@ $^ $(SDL_LIBS)
 	$(AR) crs $(LIB)
+endif
 
 install: all
 

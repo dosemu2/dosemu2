@@ -737,6 +737,7 @@ void dosemu_error(char *fmt, ...)
     gdb_debug();
 }
 
+#ifdef USE_DL_PLUGINS
 void *load_plugin(const char *plugin_name)
 {
     char *fullname = malloc(strlen(dosemu_proc_self_exe) +
@@ -762,7 +763,12 @@ void *load_plugin(const char *plugin_name)
     error("%s\n", dlerror());
     return handle;
 }
-
+#else
+void *load_plugin(const char *plugin_name)
+{
+    return NULL;
+}
+#endif
 
 /* Ring buffer implementation */
 

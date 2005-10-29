@@ -377,7 +377,7 @@ static unsigned ximage_bits_per_pixel;
 static unsigned ximage_mode;
 static vga_emu_update_type veut;
 
-int grab_active = 0, kbd_grab_active = 0;
+static int grab_active = 0, kbd_grab_active = 0;
 #if CONFIG_X_MOUSE
 static char *grab_keystring = "Home";
 static KeySym grab_keysym = NoSymbol;

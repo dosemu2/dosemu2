@@ -311,7 +311,7 @@ ac_includes_default="\
 #endif"
 
 ac_subdirs_all="$ac_subdirs_all `touch ./plugin_configure; cat ./plugin_configure`"
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS build build_cpu build_vendor build_os host host_cpu host_vendor host_os target target_cpu target_vendor target_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CPP EGREP AWK INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA LEX LEXLIB LEX_OUTPUT_ROOT lex_ok LN_S SET_MAKE RANLIB ac_ct_RANLIB YACC ALLOCA LIBOBJS docdir x11fontdir syshdimagedir fdtarball CONFIG_HOST USE_SVGALIB USE_GPM USE_PTHREADS SLANGINC SLANGLIB X_CFLAGS X_PRE_LIBS X_LIBS X_EXTRA_LIBS X_SUPPORT VERSION SUBLEVEL PATCHLEVEL1 PATCHLEVEL2 USE_MHPDBG DEBUGGER subdirs ASPI_SUPPORT USE_ULTRA USE_SBEMU OPTIONALSUBDIRS REQUIRED PLUGINSUBDIRS INCDIR X86_EMULATOR ASM_PEDANTIC LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS build build_cpu build_vendor build_os host host_cpu host_vendor host_os target target_cpu target_vendor target_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CPP EGREP AWK INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA LEX LEXLIB LEX_OUTPUT_ROOT lex_ok LN_S SET_MAKE RANLIB ac_ct_RANLIB YACC ALLOCA LIBOBJS docdir x11fontdir syshdimagedir fdtarball CONFIG_HOST USE_DL_PLUGINS USE_SVGALIB USE_GPM GPMLIB USE_PTHREADS SLANGINC SLANGLIB X_CFLAGS X_PRE_LIBS X_LIBS X_EXTRA_LIBS X_SUPPORT VERSION SUBLEVEL PATCHLEVEL1 PATCHLEVEL2 USE_MHPDBG DEBUGGER subdirs ASPI_SUPPORT USE_SBEMU OPTIONALSUBDIRS REQUIRED PLUGINSUBDIRS INCDIR X86_EMULATOR ASM_PEDANTIC LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -852,6 +852,7 @@ Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-linkstatic     make statically linked binaries
+  --disable-dlplugins     do NOT use dynamically loaded plugins
   --disable-mitshm        do NOT use the MITSHM X extension
   --disable-vidmode       do NOT use the XF86 vidmode extension
   --enable-experimental   enable configuration of EXPERIMENTAL stuff
@@ -6780,6 +6781,26 @@ else
 echo "$as_me: Linking for shared libraries..." >&6;}
 fi
 
+# Check whether --enable-dlplugins or --disable-dlplugins was given.
+if test "${enable_dlplugins+set}" = set; then
+  enableval="$enable_dlplugins"
+
+fi;
+if test "$enable_dlplugins" != "no"; then
+	      { echo "$as_me:$LINENO: Using dynamically loaded plugins..." >&5
+echo "$as_me: Using dynamically loaded plugins..." >&6;}
+              cat >>confdefs.h <<\_ACEOF
+#define USE_DL_PLUGINS 1
+_ACEOF
+
+              USE_DL_PLUGINS="USE_DL_PLUGINS=1"
+
+              LDFLAGS="${LDFLAGS} -rdynamic"
+else
+              { echo "$as_me:$LINENO: Not using dynamically loaded plugins..." >&5
+echo "$as_me: Not using dynamically loaded plugins..." >&6;}
+fi
+
 
 
 # Check whether --with-svgalib or --without-svgalib was given.
@@ -6991,8 +7012,8 @@ echo "${ECHO_T}$ac_cv_header_vga_h" >&6
 
 fi
 if test $ac_cv_header_vga_h = yes; then
-   echo "$as_me:$LINENO: checking for svgalib version >= 2.9.21" >&5
-echo $ECHO_N "checking for svgalib version >= 2.9.21... $ECHO_C" >&6
+   echo "$as_me:$LINENO: checking for svgalib version >= 1.9.21" >&5
+echo $ECHO_N "checking for svgalib version >= 1.9.21... $ECHO_C" >&6
       svgalib_ver=`${CC-cc} -E - << "" | tail -n 1 | cut -dx -f2
         #include <vga.h>
         SVGALIB_VER
@@ -7127,6 +7148,8 @@ echo "$as_me: Compiling with GPM support..." >&6;}
 _ACEOF
 
   USE_GPM="USE_GPM=1"
+
+  GPMLIB="-lgpm"
 
   $srcdir/mkpluginhooks enable gpm yes
 else
@@ -7599,7 +7622,7 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-#include <X11/Intrinsic.h>
+#include <X11/Xlib.h>
 _ACEOF
 if { (eval echo "$as_me:$LINENO: \"$ac_cpp conftest.$ac_ext\"") >&5
   (eval $ac_cpp conftest.$ac_ext) 2>conftest.er1
@@ -7626,7 +7649,7 @@ else
 sed 's/^/| /' conftest.$ac_ext >&5
 
   for ac_dir in $ac_x_header_dirs; do
-  if test -r "$ac_dir/X11/Intrinsic.h"; then
+  if test -r "$ac_dir/X11/Xlib.h"; then
     ac_x_includes=$ac_dir
     break
   fi
@@ -7640,18 +7663,18 @@ if test "$ac_x_libraries" = no; then
   # See if we find them without any special options.
   # Don't add to $LIBS permanently.
   ac_save_LIBS=$LIBS
-  LIBS="-lXt $LIBS"
+  LIBS="-lX11 $LIBS"
   cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-#include <X11/Intrinsic.h>
+#include <X11/Xlib.h>
 int
 main ()
 {
-XtMalloc (0)
+XrmInitialize ()
   ;
   return 0;
 }
@@ -7689,7 +7712,7 @@ for ac_dir in `echo "$ac_x_includes $ac_x_header_dirs" | sed s/include/lib/g`
 do
   # Don't even attempt the hair of trying to link an X program!
   for ac_extension in a so sl; do
-    if test -r $ac_dir/libXt.$ac_extension; then
+    if test -r $ac_dir/libX11.$ac_extension; then
       ac_x_libraries=$ac_dir
       break 2
     fi
@@ -9410,80 +9433,6 @@ echo "$as_me: Compiling with SB Emulation..." >&6;}
 _ACEOF
 
                 USE_SBEMU="USE_SBEMU=1"
-		echo "$as_me:$LINENO: checking for gus_close in -lgus" >&5
-echo $ECHO_N "checking for gus_close in -lgus... $ECHO_C" >&6
-if test "${ac_cv_lib_gus_gus_close+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lgus  $LIBS"
-cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-
-/* Override any gcc2 internal prototype to avoid an error.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-/* We use char because int might match the return type of a gcc2
-   builtin and then its argument prototype would still apply.  */
-char gus_close ();
-int
-main ()
-{
-gus_close ();
-  ;
-  return 0;
-}
-_ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
-if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
-  (eval $ac_link) 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } &&
-	 { ac_try='test -z "$ac_c_werror_flag"			 || test ! -s conftest.err'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; } &&
-	 { ac_try='test -s conftest$ac_exeext'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; }; then
-  ac_cv_lib_gus_gus_close=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-ac_cv_lib_gus_gus_close=no
-fi
-rm -f conftest.err conftest.$ac_objext \
-      conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-echo "$as_me:$LINENO: result: $ac_cv_lib_gus_gus_close" >&5
-echo "${ECHO_T}$ac_cv_lib_gus_gus_close" >&6
-if test $ac_cv_lib_gus_gus_close = yes; then
-  { echo "$as_me:$LINENO: Compiling Midid with Ultra support..." >&5
-echo "$as_me: Compiling Midid with Ultra support..." >&6;}
-			USE_ULTRA="USE_ULTRA=1"
-			cat >>confdefs.h <<\_ACEOF
-#define USE_ULTRA 1
-_ACEOF
-
-
-fi
-
 
  fi
 
@@ -10483,8 +10432,10 @@ s,@x11fontdir@,$x11fontdir,;t t
 s,@syshdimagedir@,$syshdimagedir,;t t
 s,@fdtarball@,$fdtarball,;t t
 s,@CONFIG_HOST@,$CONFIG_HOST,;t t
+s,@USE_DL_PLUGINS@,$USE_DL_PLUGINS,;t t
 s,@USE_SVGALIB@,$USE_SVGALIB,;t t
 s,@USE_GPM@,$USE_GPM,;t t
+s,@GPMLIB@,$GPMLIB,;t t
 s,@USE_PTHREADS@,$USE_PTHREADS,;t t
 s,@SLANGINC@,$SLANGINC,;t t
 s,@SLANGLIB@,$SLANGLIB,;t t
@@ -10501,7 +10452,6 @@ s,@USE_MHPDBG@,$USE_MHPDBG,;t t
 s,@DEBUGGER@,$DEBUGGER,;t t
 s,@subdirs@,$subdirs,;t t
 s,@ASPI_SUPPORT@,$ASPI_SUPPORT,;t t
-s,@USE_ULTRA@,$USE_ULTRA,;t t
 s,@USE_SBEMU@,$USE_SBEMU,;t t
 s,@OPTIONALSUBDIRS@,$OPTIONALSUBDIRS,;t t
 s,@REQUIRED@,$REQUIRED,;t t

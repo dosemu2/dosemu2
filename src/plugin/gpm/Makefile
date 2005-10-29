@@ -7,15 +7,18 @@
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
-CFLAGS+=-fPIC
+CFLAGS+=$(DL_CFLAGS)
 ifdef USE_GPM
 CFILES=mouse_gpm.c
+ifdef USE_DL_PLUGINS
 all: $(BINPATH)/bin/libplugin_gpm.so $(LIB)
+endif
 endif
 
 include $(REALTOPDIR)/src/Makefile.common
 
+ifdef USE_DL_PLUGINS
 $(BINPATH)/bin/libplugin_gpm.so: $(OBJS)
-	$(CC) -shared -o $@ $^ -lgpm
+	$(CC) -shared -o $@ $^ $(GPMLIB)
 	$(AR) crs $(LIB)
-
+endif
