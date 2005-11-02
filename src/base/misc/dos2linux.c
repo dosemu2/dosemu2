@@ -28,14 +28,18 @@
  * DANG_BEGIN_CHANGELOG
  *
  *	$Log$
+ *	Revision 1.8  2005/11/02 04:52:55  stsp
+ *	Fix run_unix_command (#1345102)
+ *
  *	Revision 1.7  2005/09/30 22:15:59  stsp
+ *	
  *	Avoid using LOWMEM for the non-const addresses.
  *	This fixes iplay (again), as it read()s directly to the EMS frame.
  *	Also, moved dos_read/write to dos2linux.c to make them globally
  *	available. And removed the __builtin_constant_p() check in LINEAR2UNIX -
  *	gcc might still be able to optimize the const addresses, but falling
  *	back for dosaddr_to_unixaddr() will happen less frequently.
- *
+ *	
  *	Revision 1.6  2005/09/05 09:47:56  bartoldeman
  *	Moved much of X_change_config to dos2linux.c. Much of it will be shared
  *	with SDL.
@@ -320,9 +324,6 @@ void run_unix_command(char *buffer)
          * If both stdout and stderr produce output, we should
          * decide what to do (print only the stderr?)
          */
-	FD_ZERO(&rfds);
-	FD_SET(p[0], &rfds);
-	FD_SET(q[0], &rfds);
 	mxs = max(p[0], q[0]) + 1;
 
 	for (;;) {		/* nice eternal loop */
@@ -330,37 +331,31 @@ void run_unix_command(char *buffer)
 
 		tv.tv_sec = 0;
 		tv.tv_usec = 10000;
+		FD_ZERO(&rfds);
+		FD_SET(p[0], &rfds);
+		FD_SET(q[0], &rfds);
 		retval = select (mxs, &rfds, NULL, NULL, &tv);
 
 		if (retval > 0) {
 			/* one of the pipes has data, or EOF */
 			if (FD_ISSET(p[0], &rfds)) {
 				nr = read(p[0], si_buf, 80);
-				if (nr <= 0) break;
-				si_buf[nr] = 0;
-				p_dos_str("%s", si_buf);
+				if (nr > 0) {
+					si_buf[nr] = 0;
+					p_dos_str("%s", si_buf);
+				}
 			}
 			if (FD_ISSET(q[0], &rfds)) {
 				nr = read(q[0], se_buf, 80);
-				if (nr <= 0) break;
-				se_buf[nr] = 0;
-				p_dos_str("%s", se_buf);
+				if (nr > 0) {
+					se_buf[nr] = 0;
+					p_dos_str("%s", se_buf);
+				}
 			}
 		}
-		else {
-			/* return for timeout or signal
-			 * we'll lose a LOT of SIGALRMs here but
-			 * this is not critical; instead, we could
-			 * find a way to process other signals
-			 * (e.g. currently we can't stop the child!)
-			 */
-			handle_signals();
-			/*
-			 * if the child doesn't send anything to the
-			 * pipes, we check here for termination
-			 */
-			if (waitpid(pid, &status, WNOHANG)==pid) break;
-		}
+		handle_signals();
+		if (waitpid(pid, &status, WNOHANG)==pid)
+			break;
 	}
  
         
@@ -370,9 +365,6 @@ void run_unix_command(char *buffer)
             
         close(p[0]);		/* close read side of the stdout pipe */
         close(q[0]);		/* and the stderr pipe */
-        
-        /* anti-zombie code */
-        waitpid(pid, &status, WUNTRACED);
         
         /* print child exitcode. not perfect */
         g_printf("run_unix_command() (parent): child exit code: %i\n",
