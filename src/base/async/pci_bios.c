@@ -36,7 +36,7 @@
 				     
 /* variables get initialized by pcibios_init() */
 static pciPtr pciList = NULL;
-static int pciConfigType = 0;
+struct pci_funcs *pciConfigType = NULL;
 static int lastBus = 0;
 
 /* functions used by pci_bios() */
@@ -46,10 +46,6 @@ static unsigned short findClass(unsigned long class,  int num);
 static int interpretCfgSpace(unsigned long *pciheader,unsigned long *pcibuses,
 			     int busidx, unsigned char dev,
 			     unsigned char func);
-
-unsigned long (*readPci)(unsigned long reg) = readPciCfg1;
-void (*writePci)(unsigned long reg, unsigned long val) = writePciCfg1;
-
 
 static void write_dword(unsigned short loc,
 			unsigned short reg,unsigned long val);
@@ -80,7 +76,7 @@ pci_bios(void)
 	    HI(ax) = 0;
 	    clear_CF();
 	}
-	if (pciConfigType == 1)
+	if (pciConfigType != &pci_cfg2)
 	    LO(ax) = PCI_CONFIG_1; /*  no special cylce */
 	else 
 	    LO(ax) = PCI_CONFIG_2; /*  no special cylce */
@@ -168,52 +164,40 @@ pcibios_init(void)
     int idx = 0;
     int func = 0;
     int cardnum;
+    int cardnum_lo = 0;
+    int cardnum_hi = MAX_DEV_PER_VENDOR_CFG1;
+    int func_hi = 8;
 
     pcibuses[0] = 0;
 
     Z_printf("PCI enabled\n");
     
     pciConfigType = pci_check_conf();
-    Z_printf("PCI config type %i\n",pciConfigType);
+    Z_printf("PCI config type %s\n",pciConfigType == &pci_cfg1 ? "1" :
+	     pciConfigType == &pci_cfg2 ? "2" : "/proc");
 
-    if (pciConfigType == 1) {
-	do {
-	    for (cardnum = 0; cardnum < MAX_DEV_PER_VENDOR_CFG1; cardnum++) {
-		func = 0;
-		do {
-		    
-		    if (!pci_check_device_present_cfg1(pcibuses[busidx],
-						  cardnum,func))
-			break;
-		    pci_read_header_cfg1(pcibuses[busidx],cardnum,func,
-					 pciheader);
-		    func = interpretCfgSpace(pciheader,pcibuses,busidx,
-					     cardnum,func);
-		    if (idx++ > MAX_PCI_DEVICES)
-			continue;
-		} while (func < 8);
-	    }
-	} while (++busidx <= numbus);
-    } else if (pciConfigType == 2) {
-	writePci = writePciCfg2;
-	readPci = readPciCfg2;
-	pci_read_header = pci_read_header_cfg2;
-	
-	do {
-	    for (cardnum = 0xC0; cardnum < 0xD0; cardnum++) {
-		    if (!pci_check_device_present_cfg2(pcibuses[busidx],
-						  cardnum))
-			break;
-		    pci_read_header_cfg2(pcibuses[busidx],cardnum,0,pciheader);
-		    interpretCfgSpace(pciheader,pcibuses,busidx,
-					     cardnum,func);
-		    if (idx++ > MAX_PCI_DEVICES)
-			continue;
-	    }
-	} while (++busidx <= numbus);
+    if (pciConfigType == &pci_cfg2) {
+	cardnum_lo = 0xC0;
+	cardnum_hi = 0xD0;
+	func_hi = 1;
     }
-    
-    
+    do {
+	for (cardnum = cardnum_lo; cardnum < cardnum_hi; cardnum++) {
+	    func = 0;
+	    do {
+	    	if (!pciConfigType->check_device_present(pcibuses[busidx],
+							 cardnum,func))
+		    break;
+		pciConfigType->read_header(pcibuses[busidx],cardnum,func,
+					   pciheader);
+		func = interpretCfgSpace(pciheader,pcibuses,busidx,
+					 cardnum,func);
+		if (idx++ > MAX_PCI_DEVICES)
+		    continue;
+	    } while (func < func_hi);
+	}
+    } while (++busidx <= numbus);
+
     if (pciConfigType) {
 	lastBus = numbus;
 	return 1;
@@ -281,54 +265,38 @@ findClass(unsigned long class,  int num)
     return (pci && pci->enabled) ? pci->bdf : 0xffff;
 }
 
-unsigned long readPciCfg1(unsigned long reg)
+unsigned long readPci(unsigned long reg)
 {
     unsigned long val;
+    unsigned char bus, dev, fn, num;
 
-    unsigned char bus = (reg >> 16) & 0xff;
-    unsigned char dev = (reg >> 11) & 0x1f;
-    unsigned char fn  = (reg >>  8) & 7;
-    unsigned char num = reg & 0xff;
+    if (!(reg & PCI_EN))
+	return 0xffffffff;
+
+    bus = (reg >> 16) & 0xff;
+    dev = (reg >> 11) & 0x1f;
+    fn  = (reg >>  8) & 7;
+    num = reg & 0xff;
     
-    val = pci_read_cfg1(bus, dev, fn, num);
+    val = pciConfigType->read(bus, dev, fn, num);
     Z_printf("PCIBIOS: reading 0x%lx from 0x%lx\n",val,reg);
     return val;
 }
 
-void writePciCfg1(unsigned long reg, unsigned long val)
+void writePci(unsigned long reg, unsigned long val)
 {
-    unsigned char bus = (reg >> 16) & 0xff;
-    unsigned char dev = (reg >> 11) & 0x1f;
-    unsigned char fn  = (reg >>  8) & 7;
-    unsigned char num = reg & 0xff;
+    unsigned char bus, dev, fn, num;
 
-    Z_printf("PCIBIOS writing: 0x%lx to 0x%lx\n",val,reg);
-    pci_write_cfg1(bus, dev, fn, num, val);
-}
+    if (!(reg & PCI_EN) || reg == PCI_EN)
+	return;
 
-unsigned long readPciCfg2(unsigned long reg)
-{
-    unsigned long val;
-
-    unsigned char bus = (reg >> 16) & 0xff;
-    unsigned char dev = (reg >> 11) & 0x1f;
-    unsigned char fn  = (reg >>  8) & 7;
-    unsigned char num = reg & 0xff;
+    bus = (reg >> 16) & 0xff;
+    dev = (reg >> 11) & 0x1f;
+    fn  = (reg >>  8) & 7;
+    num = reg & 0xff;
     
-    val = pci_read_cfg2(bus, dev, fn, num);
-    Z_printf("PCIBIOS: reading 0x%lx from 0x%lx\n",val,reg);
-    return val;
-}
-
-void writePciCfg2(unsigned long reg, unsigned long val)
-{
-    unsigned char bus = (reg >> 16) & 0xff;
-    unsigned char dev = (reg >> 11) & 0x1f;
-    unsigned char fn  = (reg >>  8) & 7;
-    unsigned char num = reg & 0xff;
-
     Z_printf("PCIBIOS writing: 0x%lx to 0x%lx\n",val,reg);
-    pci_write_cfg2(bus, dev, fn, num, val);
+    pciConfigType->write(bus, dev, fn, num, val);
 }
 
 static void
@@ -438,7 +406,7 @@ interpretCfgSpace(unsigned long *pciheader,unsigned long *pcibuses,int busidx,
 
 	memset(&pciTmp->region[i], 0, sizeof(pciTmp->region[i]));
 	if (i == 6) reg = PCI_ROM_ADDRESS;
-	pci_val = pci_read_cfg1(pcibuses[busidx], dev, func, reg);
+	pci_val = pciConfigType->read(pcibuses[busidx], dev, func, reg);
 	if (pci_val == 0xffffffff || pci_val == 0)
 	    continue;
 	if (i == 6) {
@@ -456,9 +424,9 @@ interpretCfgSpace(unsigned long *pciheader,unsigned long *pcibuses,int busidx,
 	    continue;
 	pciTmp->region[i].base = base;
 	pciTmp->region[i].type = type;
-	pci_write_cfg1(pcibuses[busidx], dev, func, reg, 0xffffffff);
-	pci_val1 = pci_read_cfg1(pcibuses[busidx], dev, func, reg);
-	pci_write_cfg1(pcibuses[busidx], dev, func, reg, pci_val);
+	pciConfigType->write(pcibuses[busidx], dev, func, reg, 0xffffffff);
+	pci_val1 = pciConfigType->read(pcibuses[busidx], dev, func, reg);
+	pciConfigType->write(pcibuses[busidx], dev, func, reg, pci_val);
 	pciTmp->region[i].rawsize = pci_val1;
 	size = pci_val1 & mask;
 	size = (size & ~(size - 1)) - 1;

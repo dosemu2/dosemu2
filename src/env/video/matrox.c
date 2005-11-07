@@ -213,7 +213,7 @@ static Boolean matroxProbe(void)
   /* this is more a demo than a real useful thing - all the work is
    * done by the VGA BIOS anyway
    */
-  pci_read_header ((unsigned char)bus, (unsigned char)device,
+  pciConfigType->read_header ((unsigned char)bus, (unsigned char)device,
 	(unsigned char)fn, pciconf);
 
   MGAMMIOBase = MapVidMem(pciconf[4]&~0xfff, 0x4000);

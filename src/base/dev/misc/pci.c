@@ -14,8 +14,11 @@
  * SIDOC_END_MODULE
  */
 
+#include "config.h"
 #include <errno.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include "emu.h"
 #include "port.h"
 #include "pci.h"
@@ -28,16 +31,17 @@
  *
  * SIDOC_END_FUNCTION
  */
-int (*pci_read_header) (unsigned char bus, unsigned char device,
-			unsigned char func, unsigned long *buf) = pci_read_header_cfg1;
 
 /*
  * So far only config type 1 is supported. Return 0 if
  * no PCI is present or PCI config type != 1.
  */
-int pci_check_conf(void)
+struct pci_funcs *pci_check_conf(void)
 {
     unsigned long val;
+
+    if (!config.pci && access("/proc/bus/pci", R_OK) == 0)
+      return &pci_proc;
 
     if (priv_iopl(3)) {
       error("iopl(): %s\n", strerror(errno));
@@ -48,14 +52,14 @@ int pci_check_conf(void)
     port_real_outd(PCI_CONF_ADDR, 0);
     priv_iopl(0);
     if (val == PCI_EN)
-	return 1;
+	return &pci_cfg1;
     else
-	return 0;
+	return NULL;
 }
 
 /* only called from pci bios init */
-int pci_read_header_cfg1 (unsigned char bus, unsigned char device,
-	unsigned char fn, unsigned long *buf)
+static int pci_read_header_cfg1 (unsigned char bus, unsigned char device,
+				 unsigned char fn, unsigned long *buf)
 {
   int i;
   unsigned long bx = ((fn&7)<<8) | ((device&31)<<11) | (bus<<16) |
@@ -78,8 +82,8 @@ int pci_read_header_cfg1 (unsigned char bus, unsigned char device,
   return 0;
 }
 
-unsigned long pci_read_cfg1 (unsigned char bus, unsigned char device,
-	unsigned char fn, unsigned long reg)
+static unsigned long pci_read_cfg1 (unsigned char bus, unsigned char device,
+				    unsigned char fn, unsigned long reg)
 {
   unsigned long val;
   unsigned long bx = ((fn&7)<<8) | ((device&31)<<11) | (bus<<16) |
@@ -102,8 +106,8 @@ unsigned long pci_read_cfg1 (unsigned char bus, unsigned char device,
   return val;
 }
 
-void pci_write_cfg1 (unsigned char bus, unsigned char device,
-	unsigned char fn, unsigned long reg, unsigned long val)
+static void pci_write_cfg1 (unsigned char bus, unsigned char device,
+			    unsigned char fn, unsigned long reg, unsigned long val)
 {
   unsigned long bx = ((fn&7)<<8) | ((device&31)<<11) | (bus<<16) |
                       PCI_EN;
@@ -125,8 +129,8 @@ void pci_write_cfg1 (unsigned char bus, unsigned char device,
 }
 
 /* only called from pci bios init */
-int pci_check_device_present_cfg1(unsigned char bus, unsigned char device,
-			     unsigned char fn)
+static int pci_check_device_present_cfg1(unsigned char bus, unsigned char device,
+					 unsigned char fn)
 {
     unsigned long val;
     unsigned long bx = ((fn&7)<<8) | ((device&31)<<11) | (bus<<16) |
@@ -148,8 +152,8 @@ int pci_check_device_present_cfg1(unsigned char bus, unsigned char device,
 }
 
 /* only called from pci bios init */
-int pci_read_header_cfg2 (unsigned char bus, unsigned char device,
-			  unsigned char fn, unsigned long *buf)
+static int pci_read_header_cfg2 (unsigned char bus, unsigned char device,
+				 unsigned char fn, unsigned long *buf)
 {
   int i;
   
@@ -167,8 +171,8 @@ int pci_read_header_cfg2 (unsigned char bus, unsigned char device,
   return 0;
 }
 
-unsigned long pci_read_cfg2 (unsigned char bus, unsigned char device,
-			  unsigned char fn, unsigned long num)
+static unsigned long pci_read_cfg2 (unsigned char bus, unsigned char device,
+				    unsigned char fn, unsigned long num)
 {
   unsigned long val;
   
@@ -191,8 +195,8 @@ unsigned long pci_read_cfg2 (unsigned char bus, unsigned char device,
   return val;
 }
 
-void pci_write_cfg2 (unsigned char bus, unsigned char device,
-		unsigned char fn, unsigned long num, unsigned long val)
+static void pci_write_cfg2 (unsigned char bus, unsigned char device,
+			    unsigned char fn, unsigned long num, unsigned long val)
 {
   if (can_do_root_stuff) {
     if (priv_iopl(3)) {
@@ -213,7 +217,8 @@ void pci_write_cfg2 (unsigned char bus, unsigned char device,
 }
 
 /* only called from pci bios init */
-int pci_check_device_present_cfg2(unsigned char bus, unsigned char device)
+static int pci_check_device_present_cfg2(unsigned char bus, unsigned char device,
+					 unsigned char fn)
 {
     unsigned long val;
     
@@ -232,6 +237,105 @@ int pci_check_device_present_cfg2(unsigned char bus, unsigned char device)
     else
 	return 1;
 }
+
+static char proc_pci_name_buf[] = "/proc/bus/pci/00/00.0";
+
+static void proc_pci_set_name_buf(unsigned char bus, unsigned char device,
+	unsigned char fn)
+{
+  sprintf(proc_pci_name_buf + 14, "%02x/%02x.%d", bus, device, fn);
+}
+
+/* only called from pci bios init */
+static int pci_read_header_proc (unsigned char bus, unsigned char device,
+	unsigned char fn, unsigned long *buf)
+{
+  int fd;
+
+  proc_pci_set_name_buf(bus, device, fn);
+  Z_printf("PCI: reading %s\n", proc_pci_name_buf);
+  fd = open(proc_pci_name_buf, O_RDONLY);
+  if (fd == -1) {
+    error("can't open %s: %s\n", proc_pci_name_buf, strerror(errno));
+    return 0;
+  }
+
+  /* Get only first 64 bytes: See src/linux/drivers/pci/proc.c for
+     why. They are not joking. My NCR810 crashes the machine on read
+     of register 0xd8 */
+  
+  read(fd, buf, 64);
+  close(fd);
+  return 0;
+}
+
+static unsigned long pci_read_proc (unsigned char bus, unsigned char device,
+				    unsigned char fn, unsigned long reg)
+{
+  int fd;
+  unsigned long val;
+
+  proc_pci_set_name_buf(bus, device, fn);
+  sprintf(proc_pci_name_buf, "/proc/bus/pci/%02x/%02x.%d", bus, device, fn);
+  Z_printf("PCI: reading reg %ld from %s\n", reg, proc_pci_name_buf);
+  fd = open(proc_pci_name_buf, O_RDONLY);
+  if (fd == -1) {
+    error("can't open %s: %s\n", proc_pci_name_buf, strerror(errno));
+    return 0;
+  }
+  pread(fd, &val, sizeof(val), reg);
+  close(fd);
+  return val;
+}
+
+static void pci_write_proc (unsigned char bus, unsigned char device,
+			    unsigned char fn, unsigned long reg, unsigned long val)
+{
+  int fd;
+
+  PRIV_SAVE_AREA
+  proc_pci_set_name_buf(bus, device, fn);
+  Z_printf("PCI: writing reg %ld in %s\n", reg, proc_pci_name_buf);
+  enter_priv_on();
+  fd = open(proc_pci_name_buf, O_WRONLY);
+  leave_priv_setting();
+  if (fd == -1) {
+    error("can't open %s: %s\n", proc_pci_name_buf, strerror(errno));
+    return;
+  }
+  pwrite(fd, &val, sizeof(val), reg);
+  close(fd);
+}
+
+/* only called from pci bios init */
+static int pci_check_device_present_proc(unsigned char bus, unsigned char device,
+					 unsigned char fn)
+{
+  sprintf(proc_pci_name_buf, "/proc/bus/pci/%02x/%02x.%d", bus, device, fn);
+  Z_printf("PCI: checking access to %s\n", proc_pci_name_buf);
+  return !access(proc_pci_name_buf, R_OK);
+}
+
+struct pci_funcs pci_cfg1 = {
+  pci_read_cfg1,
+  pci_write_cfg1,
+  pci_read_header_cfg1,
+  pci_check_device_present_cfg1
+};
+
+struct pci_funcs pci_cfg2 = {
+  pci_read_cfg2,
+  pci_write_cfg2,
+  pci_read_header_cfg2,
+  pci_check_device_present_cfg2
+};
+
+struct pci_funcs pci_proc = {
+  pci_read_proc,
+  pci_write_proc,
+  pci_read_header_proc,
+  pci_check_device_present_proc
+};
 
 static Bit8u pci_port_inb(ioport_t port)
 {
@@ -295,17 +399,16 @@ static pciRec *set_pcirec(unsigned short bdf)
 }
 
 static unsigned long
-emureadPciCfg1(unsigned long reg)
+emureadPciCfg1(unsigned char bus, unsigned char device,
+	       unsigned char fn, unsigned long num)
 {
   unsigned long val;
   unsigned short bdf;
-  unsigned char num;
   pciRec *pci;
-  if (!(reg & PCI_EN))
-    return 0xffffffff;
-  bdf = (reg >> 8) & 0xffff;
+
+  bdf = (bus << 8) | (device << 3) | fn;
   pci = set_pcirec(bdf);
-  num = reg & 0xfc;
+  num &= 0xfc;
   if (pci == NULL)
     return 0xffffffff;
 #if 0
@@ -313,22 +416,21 @@ emureadPciCfg1(unsigned long reg)
     return readPciCfg1(reg);
 #endif
   val = pci->header[num >> 2];
-  Z_printf("PCIEMU: reading 0x%lx from 0x%hhx\n",val,num);
+  Z_printf("PCIEMU: reading 0x%lx from %#lx\n",val,num);
   return val;
 }
 
 static void
-emuwritePciCfg1(unsigned long reg, unsigned long val)
+emuwritePciCfg1(unsigned char bus, unsigned char device,
+		unsigned char fn, unsigned long num,
+		unsigned long val)
 {
   unsigned short bdf;
-  unsigned char num;
   pciRec *pci;
 
-  if (!(reg & PCI_EN) || reg == PCI_EN)
-    return;
-  bdf = (reg >> 8) & 0xffff;
+  bdf = (bus << 8) | (device << 3) | fn;
   pci = set_pcirec(bdf);
-  num = reg & 0xfc;
+  num &= 0xfc;
   if (pci == NULL)
     return;
 #if 0
@@ -341,7 +443,7 @@ emuwritePciCfg1(unsigned long reg, unsigned long val)
     if (num == PCI_ROM_ADDRESS) 
       val &= pci->region[6].rawsize;
   }
-  Z_printf("PCIEMU: writing 0x%lx to 0x%hhx\n",val,num);
+  Z_printf("PCIEMU: writing 0x%lx to %#lx\n",val,num);
   pci->header[num >> 2] = val;
 }
 
@@ -440,8 +542,8 @@ pciRec *pciemu_setup(unsigned long class)
     io_device.end_addr = PCI_CONF_DATA+3;
     port_register_handler(io_device, 0);
 
-    readPci = emureadPciCfg1;
-    writePci = emuwritePciCfg1;
+    pciConfigType->read = emureadPciCfg1;
+    pciConfigType->write = emuwritePciCfg1;
 
     pciemu_initialized = 1;
   }

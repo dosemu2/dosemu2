@@ -65,40 +65,27 @@ typedef struct _pciRec {
     struct _pciRec *next;
 } pciRec, *pciPtr;
 
+struct pci_funcs {
+    unsigned long (*read)(unsigned char bus, unsigned char device,
+			  unsigned char fn, unsigned long reg);
+    void (*write)(unsigned char bus, unsigned char device,
+		  unsigned char fn, unsigned long num, unsigned long val);
+    int (*read_header) (unsigned char bus, unsigned char device,
+			unsigned char fn, unsigned long *buf);
+    int (*check_device_present)(unsigned char bus, unsigned char device,
+				unsigned char fn);
+};
+
 void pci_bios(void);
 int pcibios_init(void);
 pciRec *pcibios_find_class(unsigned long class,  int num);
 pciRec *pcibios_find_bdf(unsigned short bdf);
-extern unsigned long (*readPci)(unsigned long reg);
-extern void (*writePci)(unsigned long reg, unsigned long val);
+unsigned long readPci(unsigned long reg);
+void writePci(unsigned long reg, unsigned long val);
 
-int pci_check_conf(void);
+struct pci_funcs *pci_check_conf(void);
+extern struct pci_funcs pci_cfg1, pci_cfg2, pci_proc, *pciConfigType;
 
-int pci_check_device_present_cfg1(unsigned char bus, unsigned char device,
-			     unsigned char fn);
-
-int pci_read_header_cfg1 (unsigned char bus, unsigned char device,
-	unsigned char fn, unsigned long *buf);
-unsigned long pci_read_cfg1 (unsigned char bus, unsigned char device,
-	unsigned char fn, unsigned long reg);
-void pci_write_cfg1 (unsigned char bus, unsigned char device,
-	unsigned char fn, unsigned long reg, unsigned long val);
-
-int pci_check_device_present_cfg2(unsigned char bus, unsigned char device);
-
-int pci_read_header_cfg2 (unsigned char bus, unsigned char device,
-			  unsigned char fn, unsigned long *buf);
-unsigned long pci_read_cfg2 (unsigned char bus, unsigned char device,
-			  unsigned char fn, unsigned long num);
-void pci_write_cfg2 (unsigned char bus, unsigned char device,
-		unsigned char fn, unsigned long num, unsigned long val);
-unsigned long readPciCfg1(unsigned long reg);
-void writePciCfg1(unsigned long reg, unsigned long val);
-unsigned long readPciCfg2(unsigned long reg);
-void writePciCfg2(unsigned long reg, unsigned long val);
-
-extern int (*pci_read_header) (unsigned char bus, unsigned char device,
-			       unsigned char fn, unsigned long *buf);
 int pci_setup (void);
 pciRec *pciemu_setup(unsigned long class);
 
