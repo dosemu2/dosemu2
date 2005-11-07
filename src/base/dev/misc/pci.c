@@ -57,6 +57,12 @@ struct pci_funcs *pci_check_conf(void)
 	return NULL;
 }
 
+static int pci_no_open(unsigned char bus, unsigned char device,
+		       unsigned char fn)
+{
+  return -1;
+}
+
 /* only called from pci bios init */
 static int pci_read_header_cfg1 (unsigned char bus, unsigned char device,
 				 unsigned char fn, unsigned long *buf)
@@ -238,27 +244,28 @@ static int pci_check_device_present_cfg2(unsigned char bus, unsigned char device
 	return 1;
 }
 
-static char proc_pci_name_buf[] = "/proc/bus/pci/00/00.0";
-
-static void proc_pci_set_name_buf(unsigned char bus, unsigned char device,
-	unsigned char fn)
+static int pci_open_proc(unsigned char bus, unsigned char device,
+			 unsigned char fn)
 {
+  static char proc_pci_name_buf[] = "/proc/bus/pci/00/00.0";
+  int fd;
+
+  PRIV_SAVE_AREA
   sprintf(proc_pci_name_buf + 14, "%02x/%02x.%d", bus, device, fn);
+  Z_printf("PCI: opening %s\n", proc_pci_name_buf);
+  enter_priv_on();
+  fd = open(proc_pci_name_buf, O_RDWR);
+  leave_priv_setting();
+  return fd;
 }
 
 /* only called from pci bios init */
 static int pci_read_header_proc (unsigned char bus, unsigned char device,
 	unsigned char fn, unsigned long *buf)
 {
-  int fd;
-
-  proc_pci_set_name_buf(bus, device, fn);
-  Z_printf("PCI: reading %s\n", proc_pci_name_buf);
-  fd = open(proc_pci_name_buf, O_RDONLY);
-  if (fd == -1) {
-    error("can't open %s: %s\n", proc_pci_name_buf, strerror(errno));
+  int fd = pci_open_proc(bus, device, fn);
+  if (fd == -1)
     return 0;
-  }
 
   /* Get only first 64 bytes: See src/linux/drivers/pci/proc.c for
      why. They are not joking. My NCR810 crashes the machine on read
@@ -272,17 +279,11 @@ static int pci_read_header_proc (unsigned char bus, unsigned char device,
 static unsigned long pci_read_proc (unsigned char bus, unsigned char device,
 				    unsigned char fn, unsigned long reg)
 {
-  int fd;
   unsigned long val;
-
-  proc_pci_set_name_buf(bus, device, fn);
-  sprintf(proc_pci_name_buf, "/proc/bus/pci/%02x/%02x.%d", bus, device, fn);
-  Z_printf("PCI: reading reg %ld from %s\n", reg, proc_pci_name_buf);
-  fd = open(proc_pci_name_buf, O_RDONLY);
-  if (fd == -1) {
-    error("can't open %s: %s\n", proc_pci_name_buf, strerror(errno));
+  int fd = pci_open_proc(bus, device, fn);
+  if (fd == -1)
     return 0;
-  }
+  Z_printf("PCI: reading reg %ld\n", reg);
   pread(fd, &val, sizeof(val), reg);
   close(fd);
   return val;
@@ -291,18 +292,10 @@ static unsigned long pci_read_proc (unsigned char bus, unsigned char device,
 static void pci_write_proc (unsigned char bus, unsigned char device,
 			    unsigned char fn, unsigned long reg, unsigned long val)
 {
-  int fd;
-
-  PRIV_SAVE_AREA
-  proc_pci_set_name_buf(bus, device, fn);
-  Z_printf("PCI: writing reg %ld in %s\n", reg, proc_pci_name_buf);
-  enter_priv_on();
-  fd = open(proc_pci_name_buf, O_WRONLY);
-  leave_priv_setting();
-  if (fd == -1) {
-    error("can't open %s: %s\n", proc_pci_name_buf, strerror(errno));
+  int fd = pci_open_proc(bus, device, fn);
+  if (fd == -1)
     return;
-  }
+  Z_printf("PCI: writing reg %ld\n", reg);
   pwrite(fd, &val, sizeof(val), reg);
   close(fd);
 }
@@ -311,12 +304,13 @@ static void pci_write_proc (unsigned char bus, unsigned char device,
 static int pci_check_device_present_proc(unsigned char bus, unsigned char device,
 					 unsigned char fn)
 {
-  sprintf(proc_pci_name_buf, "/proc/bus/pci/%02x/%02x.%d", bus, device, fn);
-  Z_printf("PCI: checking access to %s\n", proc_pci_name_buf);
-  return !access(proc_pci_name_buf, R_OK);
+  int fd = pci_open_proc(bus, device, fn);
+  close(fd);
+  return (fd != -1);
 }
 
 struct pci_funcs pci_cfg1 = {
+  pci_no_open,
   pci_read_cfg1,
   pci_write_cfg1,
   pci_read_header_cfg1,
@@ -324,6 +318,7 @@ struct pci_funcs pci_cfg1 = {
 };
 
 struct pci_funcs pci_cfg2 = {
+  pci_no_open,
   pci_read_cfg2,
   pci_write_cfg2,
   pci_read_header_cfg2,
@@ -331,6 +326,7 @@ struct pci_funcs pci_cfg2 = {
 };
 
 struct pci_funcs pci_proc = {
+  pci_open_proc,
   pci_read_proc,
   pci_write_proc,
   pci_read_header_proc,
@@ -411,11 +407,15 @@ emureadPciCfg1(unsigned char bus, unsigned char device,
   num &= 0xfc;
   if (pci == NULL)
     return 0xffffffff;
-#if 0
-  if (num >= 0x40)
-    return readPciCfg1(reg);
-#endif
-  val = pci->header[num >> 2];
+  /* FIXME: check which num values are dangerous.
+     the Linux kernel only lets us read if num < 64
+     unless we're root (even if the fd was opened as root)
+  */
+  val = 0;
+  if (pci->fd >= 0)
+    pread(pci->fd, &val, sizeof(val), num);
+  else
+    val = pci_read_cfg1(bus, device, fn, num);
   Z_printf("PCIEMU: reading 0x%lx from %#lx\n",val,num);
   return val;
 }
@@ -433,18 +433,12 @@ emuwritePciCfg1(unsigned char bus, unsigned char device,
   num &= 0xfc;
   if (pci == NULL)
     return;
-#if 0
-  if (num >= 0x40)
-    writePciCfg1(reg, val);
-#endif
-  if ((pci->header[3] & 0x007f0000) == 0) {
-    if (num >= PCI_BASE_ADDRESS_0 && num <= PCI_BASE_ADDRESS_5)
-      val &= pci->region[num - PCI_BASE_ADDRESS_0].rawsize;
-    if (num == PCI_ROM_ADDRESS) 
-      val &= pci->region[6].rawsize;
-  }
+  /* FIXME: check which num values are dangerous */
+  if (pci->fd >= 0)
+    pwrite(pci->fd, &val, sizeof(val), num);
+  else
+    pci_write_cfg1(bus, device, fn, num, val);
   Z_printf("PCIEMU: writing 0x%lx to %#lx\n",val,num);
-  pci->header[num >> 2] = val;
 }
 
 static unsigned long current_pci_reg;
@@ -524,6 +518,8 @@ pciRec *pciemu_setup(unsigned long class)
   if (pci == NULL)
     return pci;
   pci->enabled = 1;
+  pci->fd = pciConfigType->open(pci->bdf >> 8, (pci->bdf >> 3) & 0x1f,
+				pci->bdf & 7);
   if (!pciemu_initialized) {
     emu_iodev_t io_device;
 

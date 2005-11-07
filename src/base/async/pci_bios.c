@@ -392,6 +392,7 @@ interpretCfgSpace(unsigned long *pciheader,unsigned long *pcibuses,int busidx,
 	    Z_printf("PCI-HOST bridge:\n");
 	    /* always enable for PCI emulation */
 	    pciTmp->enabled = 1;
+	    pciTmp->fd = pciConfigType->open(pcibuses[busidx], dev, func);
 	    if (++hostbridges > 1) {/* HOST-PCI bridges*/
 		numbus++;
 		pcibuses[numbus] = numbus;

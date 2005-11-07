@@ -51,6 +51,7 @@
 
 typedef struct _pciRec {
     int enabled;
+    int fd;
     unsigned short bdf;
     unsigned short vendor;
     unsigned short device;
@@ -66,6 +67,7 @@ typedef struct _pciRec {
 } pciRec, *pciPtr;
 
 struct pci_funcs {
+    int (*open)(unsigned char bus, unsigned char device, unsigned char fn);
     unsigned long (*read)(unsigned char bus, unsigned char device,
 			  unsigned char fn, unsigned long reg);
     void (*write)(unsigned char bus, unsigned char device,
