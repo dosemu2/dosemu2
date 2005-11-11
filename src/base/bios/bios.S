@@ -313,14 +313,13 @@ do_read:
 	jnz	done_read
 	movl	%esi, %ecx
 	subl	%eax, %ecx
-	jz	done_read
-	jmp	start_read
+	jnz	start_read
 done_read:
 	movl	%edi, %eax
 	popl	%ecx
 	popl	%edi
 	popl	%esi
-	lret	$2
+	lret
 
 /* ======================= Addr = F800:4BA0 (FCBA0) */
 	.org	((DOS_LONG_WRITE_SEG - BIOSSEG) << 4) + DOS_LONG_WRITE_OFF
@@ -346,14 +345,13 @@ do_write:
 	jnz	done_write
 	movl	%esi, %ecx
 	subl	%eax, %ecx
-	jz	done_write
-	jmp	start_write
+	jnz	start_write
 done_write:
 	movl	%edi, %eax
 	popl	%ecx
 	popl	%edi
 	popl	%esi
-	lret	$2
+	lret
 
 /******************************************************************
  * DATA BLOCK

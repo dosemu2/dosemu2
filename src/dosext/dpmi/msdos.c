@@ -599,7 +599,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    REG(ds) = TRANS_BUFFER_SEG;
 	    REG(edx) = 0;
 	    REG(ecx) = D_16_32(_ecx);
-	    fake_int_to(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF);
+	    fake_call_to(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF);
 	    return MSDOS_ALT_ENT;
 	case 0x40:		/* DOS Write */
 	    set_io_buffer((char*)GetSegmentBaseAddress(_ds) + D_16_32(_edx),
@@ -608,7 +608,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    REG(ds) = TRANS_BUFFER_SEG;
 	    REG(edx) = 0;
 	    REG(ecx) = D_16_32(_ecx);
-	    fake_int_to(DOS_LONG_WRITE_SEG, DOS_LONG_WRITE_OFF);
+	    fake_call_to(DOS_LONG_WRITE_SEG, DOS_LONG_WRITE_OFF);
 	    return MSDOS_ALT_ENT;
 	case 0x53:		/* Generate Drive Parameter Table  */
 	    {
