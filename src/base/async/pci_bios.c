@@ -365,7 +365,39 @@ read_byte(unsigned short loc,unsigned short reg)
     return val;
 }
 
+static int proc_bus_pci_devices_get_sizes(pciPtr pci)
+{
+    FILE *f;
+    char buf[512];
 
+    f = fopen("/proc/bus/pci/devices", "r");
+    if (!f) {
+	Z_printf("PCI: Cannot open /proc/bus/pci/devices\n");
+	return 0;
+    }
+    while (fgets(buf, sizeof(buf)-1, f)) {
+	unsigned int cnt, i, bdf, tmp;
+	unsigned int lens[7];
+
+#define F " %08x"
+	cnt = sscanf(buf, "%x %x %x"  F F F F F F F  F F F F F F F,
+		    &bdf, &tmp, &tmp, &tmp, &tmp, &tmp, &tmp, &tmp, &tmp, &tmp,
+		    &lens[0], &lens[1], &lens[2], &lens[3], &lens[4], &lens[5],
+		    &lens[6]);
+#undef F
+	if (cnt != 17) {
+	    Z_printf("PCI: /proc: (read only %d items)", cnt);
+	    fclose(f);
+	    return 0;
+	}
+	if (pci->bdf == bdf)
+	    for (i = 0; i < 7; i++)
+		pci->region[i].rawsize = lens[i];
+    }
+    fclose(f);
+    Z_printf("PCI: proc_bus_pci_get_sizes done\n");
+    return 1;
+}
 
 static int
 interpretCfgSpace(unsigned long *pciheader,unsigned long *pcibuses,int busidx,
@@ -400,14 +432,16 @@ interpretCfgSpace(unsigned long *pciheader,unsigned long *pcibuses,int busidx,
 	}
     }
     memcpy(pciTmp->header, pciheader, sizeof(*pciheader) * 16);
-    if ((pciheader[3] & 0x007f0000) == 0) for (i = 0; i < 7; i++) {
+    memset(&pciTmp->region, 0, sizeof(pciTmp->region));
+    if ((pciheader[3] & 0x007f0000) == 0) {
+      int got_sizes = proc_bus_pci_devices_get_sizes(pciTmp);
+      for (i = 0; i < 7; i++) {
 	unsigned long mask, base, size, pci_val, pci_val1;
 	unsigned long reg = PCI_BASE_ADDRESS_0 + (i << 2);
 	int type;
 
-	memset(&pciTmp->region[i], 0, sizeof(pciTmp->region[i]));
 	if (i == 6) reg = PCI_ROM_ADDRESS;
-	pci_val = pciConfigType->read(pcibuses[busidx], dev, func, reg);
+	pci_val = pciheader[reg/4];
 	if (pci_val == 0xffffffff || pci_val == 0)
 	    continue;
 	if (i == 6) {
@@ -425,15 +459,18 @@ interpretCfgSpace(unsigned long *pciheader,unsigned long *pcibuses,int busidx,
 	    continue;
 	pciTmp->region[i].base = base;
 	pciTmp->region[i].type = type;
-	pciConfigType->write(pcibuses[busidx], dev, func, reg, 0xffffffff);
-	pci_val1 = pciConfigType->read(pcibuses[busidx], dev, func, reg);
-	pciConfigType->write(pcibuses[busidx], dev, func, reg, pci_val);
-	pciTmp->region[i].rawsize = pci_val1;
-	size = pci_val1 & mask;
+	if (!got_sizes) {
+	    pciConfigType->write(pcibuses[busidx], dev, func, reg, 0xffffffff);
+	    pci_val1 = pciConfigType->read(pcibuses[busidx], dev, func, reg);
+	    pciConfigType->write(pcibuses[busidx], dev, func, reg, pci_val);
+	    pciTmp->region[i].rawsize = pci_val1;
+	}
+	size = pciTmp->region[i].rawsize & mask;
 	size = (size & ~(size - 1)) - 1;
 	Z_printf("PCI: found %s region at %#lx [%#lx] (%lx,%lx)\n",
-		 typestr[type], base, size, pci_val, pci_val1);
+		 typestr[type], base, size, pci_val, pciTmp->region[i].rawsize);
 	pciTmp->region[i].size = size;
+      }
     }
 
     Z_printf("bus:%li dev:%i func:%i vend:0x%x dev:0x%x"
