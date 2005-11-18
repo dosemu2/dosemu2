@@ -129,8 +129,9 @@ static int send_command(char **argv)
         strcat(command_line, " ");
         argv++;
     }
-
+#if 0
     com_printf("Effective commandline: %s\n", command_line);
+#endif
     run_unix_command(command_line);
     return(0);
 }
@@ -339,8 +340,9 @@ static int do_execute_dos (int argc, char **argv, int CommandStyle)
 #endif
 
     if (*data) {
+#if 0
       com_printf ("About to Execute : %s\n", data);
-
+#endif
       if (com_system (data, terminate)) {
         /* SYSTEM failed ... */
         com_fprintf (com_stderr, "SYSTEM failed ....(%d)\n", com_errno);

@@ -28,9 +28,14 @@
  * DANG_BEGIN_CHANGELOG
  *
  *	$Log$
- *	Revision 1.8  2005/11/02 04:52:55  stsp
- *	Fix run_unix_command (#1345102)
+ *	Revision 1.9  2005/11/18 21:47:56  stsp
+ *	Make unix.com to use DOS/stdout instead of the direct video mem access,
+ *	so that the file redirection to work.
  *
+ *	Revision 1.8  2005/11/02 04:52:55  stsp
+ *	
+ *	Fix run_unix_command (#1345102)
+ *	
  *	Revision 1.7  2005/09/30 22:15:59  stsp
  *	
  *	Avoid using LOWMEM for the non-const addresses.
@@ -80,17 +85,17 @@
 #include <signal.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdarg.h>
 
 #include "config.h"
-#include "dos2linux.h" 
 #include "emu.h"
 #include "cpu-emu.h"
-#include "priv.h"
-#include "pic.h"
 #include "int.h"
 #include "timers.h"
-#include "vc.h"
 #include "video.h"
+#include "lowmem.h"
+#include "utilities.h"
+#include "dos2linux.h" 
 
 #ifndef max
 #define max(a,b)       ((a)>(b)? (a):(b))
@@ -104,6 +109,7 @@
 
 static char *misc_dos_command = NULL;
 static int need_terminate = 0;
+int com_errno;
 
 int misc_e6_envvar (char *str)
 {
@@ -234,9 +240,6 @@ static int fork_debug(void)
  *
  * C:\>unix "ps aux | grep dos > /msdos/c/unixcmd.txt"
  *
- * DOS output redirection doesn't work, p_dos_str() uses direct video 
- * memory access (I think).
- *
  * Be prepared to kill the child from a telnet session or a terminal 
  * on /dev/ttyS? when you start an interactive command!
  *
@@ -342,14 +345,14 @@ void run_unix_command(char *buffer)
 				nr = read(p[0], si_buf, 80);
 				if (nr > 0) {
 					si_buf[nr] = 0;
-					p_dos_str("%s", si_buf);
+					com_printf("%s", si_buf);
 				}
 			}
 			if (FD_ISSET(q[0], &rfds)) {
 				nr = read(q[0], se_buf, 80);
 				if (nr > 0) {
 					se_buf[nr] = 0;
-					p_dos_str("%s", se_buf);
+					com_printf("%s", se_buf);
 				}
 			}
 		}
@@ -523,4 +526,148 @@ int dos_write(int fd, char *data, int cnt)
   ret = RPT_SYSCALL(write(fd, LINEAR2UNIX(data), cnt));
   g_printf("Wrote %10.10s\n", data);
   return (ret);
+}
+
+#define BUF_SIZE 1024
+int com_vsprintf(char *str, char *format, va_list ap)
+{
+	char *s = str;
+	int i, size;
+	char scratch[BUF_SIZE];
+
+	size = vsnprintf(scratch, BUF_SIZE, format, ap);
+	for (i=0; i < size; i++) {
+		if (scratch[i] == '\n') *s++ = '\r';
+		*s++ = scratch[i];
+	}
+	*s = 0;
+	return s - str;
+}
+
+int com_sprintf(char *str, char *format, ...)
+{
+	va_list ap;
+	int ret;
+	va_start(ap, format);
+
+	ret = com_vsprintf(str, format, ap);
+	va_end(ap);
+	return ret;
+}
+
+int com_vfprintf(int dosfilefd, char *format, va_list ap)
+{
+	int size;
+	char scratch2[BUF_SIZE];
+
+	size = com_vsprintf(scratch2, format, ap);
+	if (!size) return 0;
+	return com_doswrite(dosfilefd, scratch2, size);
+}
+
+int com_vprintf(char *format, va_list ap)
+{
+	return com_vfprintf(1, format, ap);
+}
+
+int com_fprintf(int dosfilefd, char *format, ...)
+{
+	va_list ap;
+	int ret;
+	va_start(ap, format);
+
+	ret = com_vfprintf(dosfilefd, format, ap);
+	va_end(ap);
+	return ret;
+}
+
+int com_printf(char *format, ...)
+{
+	va_list ap;
+	int ret;
+	va_start(ap, format);
+
+	ret = com_vfprintf(1, format, ap);
+	va_end(ap);
+	return ret;
+}
+
+int com_puts(char *s)
+{
+	return com_printf("%s", s);
+}
+
+char *skip_white_and_delim(char *s, int delim)
+{
+	while (*s && isspace(*s)) s++;
+	if (*s == delim) s++;
+	while (*s && isspace(*s)) s++;
+	return s;
+}
+
+void call_msdos(void)
+{
+	do_intr_call_back(0x21);
+}
+
+int com_doswrite(int dosfilefd, char *buf32, u_short size)
+{
+	char *s;
+	u_short int23_seg, int23_off;
+
+	if (!size) return 0;
+	com_errno = 8;
+	s = lowmem_heap_alloc(size);
+	if (!s) return -1;
+	memcpy(s, buf32, size);
+	LWORD(ecx) = size;
+	LWORD(ebx) = dosfilefd;
+	LWORD(ds) = FP_SEG32(s);
+	LWORD(edx) = FP_OFF32(s);
+	LWORD(eax) = 0x4000;	/* write handle */
+	/* write() can be interrupted with ^C. Therefore we set int0x23 here
+	 * so that even in this case it will return to the proper place. */
+	int23_seg = ISEG(0x23);
+	int23_off = IOFF(0x23);
+	SETIVEC(0x23, CBACK_SEG, CBACK_OFF);
+	call_msdos();	/* call MSDOS */
+	SETIVEC(0x23, int23_seg, int23_off);	/* restore 0x23 ASAP */
+	lowmem_heap_free(s);
+	if (LWORD(eflags) & CF) {
+		com_errno = LWORD(eax);
+		return -1;
+	}
+	return  LWORD(eax);
+}
+
+int com_dosread(int dosfilefd, char *buf32, u_short size)
+{
+	char *s;
+	u_short int23_seg, int23_off;
+
+	if (!size) return 0;
+	com_errno = 8;
+	s = lowmem_heap_alloc(size);
+	if (!s) return -1;
+	LWORD(ecx) = size;
+	LWORD(ebx) = dosfilefd;
+	LWORD(ds) = FP_SEG32(s);
+	LWORD(edx) = FP_OFF32(s);
+	LWORD(eax) = 0x3f00;	/* read handle */
+	/* read() can be interrupted with ^C, esp. when it reads from a
+	 * console. Therefore we set int0x23 here so that even in this
+	 * case it will return to the proper place. */
+	int23_seg = ISEG(0x23);
+	int23_off = IOFF(0x23);
+	SETIVEC(0x23, CBACK_SEG, CBACK_OFF);
+	call_msdos();	/* call MSDOS */
+	SETIVEC(0x23, int23_seg, int23_off);	/* restore 0x23 ASAP */
+	if (LWORD(eflags) & CF) {
+		com_errno = LWORD(eax);
+		lowmem_heap_free(s);
+		return -1;
+	}
+	memcpy(buf32, s, min(size, LWORD(eax)));
+	lowmem_heap_free(s);
+	return  LWORD(eax);
 }

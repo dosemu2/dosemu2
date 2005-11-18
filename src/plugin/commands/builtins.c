@@ -28,15 +28,9 @@
 
 /* hope 2K is enough */
 #define LOWMEM_POOL_SIZE 0x800
-#define BUF_SIZE LOWMEM_POOL_SIZE
 #define MAX_NESTING 32
 
-static char scratch[BUF_SIZE];
-static char scratch2[BUF_SIZE];
 static char builtin_name[9];
-
-int com_errno;
-
 static smpool mp;
 static char *lowmem_pool;
 static int pool_used = 0;
@@ -48,148 +42,6 @@ struct {
     int allocated;
 } builtin_mem[MAX_NESTING];
 #define BMEM(x) (builtin_mem[current_builtin].x)
-  
-
-int com_vsprintf(char *str, char *format, va_list ap)
-{
-	char *s = str;
-	int i, size;
-
-	size = vsnprintf(scratch, BUF_SIZE, format, ap);
-	for (i=0; i < size; i++) {
-		if (scratch[i] == '\n') *s++ = '\r';
-		*s++ = scratch[i];
-	}
-	*s = 0;
-	return s - str;
-}
-
-int com_sprintf(char *str, char *format, ...)
-{
-	va_list ap;
-	int ret;
-	va_start(ap, format);
-
-	ret = com_vsprintf(str, format, ap);
-	va_end(ap);
-	return ret;
-}
-
-int com_vfprintf(int dosfilefd, char *format, va_list ap)
-{
-	int size;
-
-	size = com_vsprintf(scratch2, format, ap);
-	if (!size) return 0;
-	return com_doswrite(dosfilefd, scratch2, size);
-}
-
-int com_vprintf(char *format, va_list ap)
-{
-	return com_vfprintf(1, format, ap);
-}
-
-int com_fprintf(int dosfilefd, char *format, ...)
-{
-	va_list ap;
-	int ret;
-	va_start(ap, format);
-
-	ret = com_vfprintf(dosfilefd, format, ap);
-	va_end(ap);
-	return ret;
-}
-
-int com_printf(char *format, ...)
-{
-	va_list ap;
-	int ret;
-	va_start(ap, format);
-
-	ret = com_vfprintf(1, format, ap);
-	va_end(ap);
-	return ret;
-}
-
-int com_puts(char *s)
-{
-	return com_printf("%s", s);
-}
-
-char *skip_white_and_delim(char *s, int delim)
-{
-	while (*s && isspace(*s)) s++;
-	if (*s == delim) s++;
-	while (*s && isspace(*s)) s++;
-	return s;
-}
-
-void call_msdos(void)
-{
-	do_intr_call_back(0x21);
-}
-
-int com_doswrite(int dosfilefd, char *buf32, int size)
-{
-	char *s;
-	u_short int23_seg, int23_off;
-
-	if (!size) return 0;
-	com_errno = 8;
-	s = lowmem_alloc(size);
-	if (!s) return -1;
-	memcpy(s, buf32, size);
-	LWORD(ecx) = size;
-	LWORD(ebx) = dosfilefd;
-	LWORD(ds) = FP_SEG32(s);
-	LWORD(edx) = FP_OFF32(s);
-	LWORD(eax) = 0x4000;	/* write handle */
-	/* write() can be interrupted with ^C. Therefore we set int0x23 here
-	 * so that even in this case it will return to the proper place. */
-	int23_seg = ISEG(0x23);
-	int23_off = IOFF(0x23);
-	SETIVEC(0x23, CBACK_SEG, CBACK_OFF);
-	call_msdos();	/* call MSDOS */
-	SETIVEC(0x23, int23_seg, int23_off);	/* restore 0x23 ASAP */
-	lowmem_free(s, size);
-	if (LWORD(eflags) & CF) {
-		com_errno = LWORD(eax);
-		return -1;
-	}
-	return  LWORD(eax);
-}
-
-int com_dosread(int dosfilefd, char *buf32, int size)
-{
-	char *s;
-	u_short int23_seg, int23_off;
-
-	if (!size) return 0;
-	com_errno = 8;
-	s = lowmem_alloc(size);
-	if (!s) return -1;
-	LWORD(ecx) = size;
-	LWORD(ebx) = dosfilefd;
-	LWORD(ds) = FP_SEG32(s);
-	LWORD(edx) = FP_OFF32(s);
-	LWORD(eax) = 0x3f00;	/* read handle */
-	/* read() can be interrupted with ^C, esp. when it reads from a
-	 * console. Therefore we set int0x23 here so that even in this
-	 * case it will return to the proper place. */
-	int23_seg = ISEG(0x23);
-	int23_off = IOFF(0x23);
-	SETIVEC(0x23, CBACK_SEG, CBACK_OFF);
-	call_msdos();	/* call MSDOS */
-	SETIVEC(0x23, int23_seg, int23_off);	/* restore 0x23 ASAP */
-	if (LWORD(eflags) & CF) {
-		com_errno = LWORD(eax);
-		lowmem_free(s, size);
-		return -1;
-	}
-	memcpy(buf32, s, MIN(size, LWORD(eax)));
-	lowmem_free(s, size);
-	return  LWORD(eax);
-}
 
 char *com_getenv(char *keyword)
 {

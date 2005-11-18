@@ -220,6 +220,8 @@ typedef u_char *lol_t;
 extern lol_t lol;
 extern int lol_nuldev_off;
 
+extern int com_errno;
+
 extern int misc_e6_envvar (char *str);
 
 extern int misc_e6_commandline (char *str);
@@ -232,5 +234,16 @@ extern int change_config(unsigned item, void *buf, int grab_active, int kbd_grab
 
 int dos_read(int fd, char *data, int cnt);
 int dos_write(int fd, char *data, int cnt);
+int com_vsprintf(char *str, char *format, va_list ap);
+int com_sprintf(char *str, char *format, ...);
+int com_vfprintf(int dosfilefd, char *format, va_list ap);
+int com_vprintf(char *format, va_list ap);
+int com_fprintf(int dosfilefd, char *format, ...);
+int com_printf(char *format, ...);
+int com_puts(char *s);
+char *skip_white_and_delim(char *s, int delim);
+void call_msdos(void);
+int com_doswrite(int dosfilefd, char *buf32, u_short size);
+int com_dosread(int dosfilefd, char *buf32, u_short size);
 
 #endif /* DOS2LINUX_H */

@@ -3,6 +3,7 @@
 
 #include "emu.h"
 #include "bios.h"
+#include "dos2linux.h"
 
 #define COM_PSP_SEG	(REG(es))
 #define COM_PSP_ADDR	((struct PSP *)SEG2LINEAR(COM_PSP_SEG))
@@ -47,15 +48,6 @@ struct SREGS {
 #define com_stdout	1
 #define com_stderr	2
 
-int com_vsprintf(char *str, char *format, va_list ap);
-int com_sprintf(char *str, char *format, ...);
-int com_vfprintf(int dosfilefd, char *format, va_list ap);
-int com_vprintf(char *format, va_list ap);
-int com_fprintf(int dosfilefd, char *format, ...);
-int com_printf(char *format, ...);
-int com_puts(char *s);
-int com_doswrite(int dosfilefd, char *buf32, int size);
-int com_dosread(int dosfilefd, char *buf32, int size);
 int com_error(char *format, ...);
 char *com_getenv(char *keyword);
 int com_system(char *command, int quit);
