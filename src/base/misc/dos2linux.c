@@ -28,10 +28,19 @@
  * DANG_BEGIN_CHANGELOG
  *
  *	$Log$
+ *	Revision 1.10  2005/11/19 00:54:40  stsp
+ *	Make unix.com "keyboard-aware" (FR #1360156). It works like a tty
+ *	in a -icanon mode.
+ *	system() replaced with execlp() to make it possible to emulate ^C
+ *	with SIGINT.
+ *	Also reworked the output-grabbing again - it was still skipping an
+ *	output sometimes.
+ *
  *	Revision 1.9  2005/11/18 21:47:56  stsp
+ *	
  *	Make unix.com to use DOS/stdout instead of the direct video mem access,
  *	so that the file redirection to work.
- *
+ *	
  *	Revision 1.8  2005/11/02 04:52:55  stsp
  *	
  *	Fix run_unix_command (#1345102)
@@ -240,9 +249,6 @@ static int fork_debug(void)
  *
  * C:\>unix "ps aux | grep dos > /msdos/c/unixcmd.txt"
  *
- * Be prepared to kill the child from a telnet session or a terminal 
- * on /dev/ttyS? when you start an interactive command!
- *
  */
 void run_unix_command(char *buffer)
 {
@@ -250,76 +256,47 @@ void run_unix_command(char *buffer)
 
     /* IMPORTANT NOTE: euid=user uid=root (not the other way around!) */
 
-    int p[2];
-    int q[2];
-    int pid, status;
-    char si_buf[128], se_buf[128];
+    int out[2], err[2], in[2];
+    int pid, status, retval, mxs, rd;
+    char buf[128];
+    fd_set rfds;
+    struct timeval tv;
 
     if (buffer==NULL) return;
     g_printf("UNIX: run '%s'\n",buffer);
 
     /* create a pipe... */
-    if(pipe(p)!=0)
+    if(pipe(out) || pipe(in) || pipe(err))
     {
         g_printf("run_unix_command(): pipe(p) failed\n");
         return;
     }
     
-    /* ...or two */
-    if(pipe(q)!=0)
-    {
-        g_printf("run_unix_command(): pipe(q) failed\n");
-        return;
-    }
-    
-    /* fork child */
-    pid=fork();
-    if(pid==-1) /* failed */
-    {
-        g_printf("run_unix_command(): fork() failed\n");
-        return;
-    }
-    else if(pid==0) /* child */
-    {
-	int retval;
-
-        close(p[0]);		/* close read side of the stdout pipe */
-        close(q[0]);		/* and the stderr pipe */
-        close(1);		/* close stdout */
-        close(2);		/* close stderr */
-        if(dup(p[1])!=1)	/* copy write side of the pipe to stdout */
-        {
-            /* hmm, I wonder if the next line works ok... */
-            g_printf("run_unix_command() (child): dup(p) failed\n");
-            _exit(-1);
+	/* fork child */
+	switch ((pid = fork())) {
+	case -1: /* failed */
+    	    g_printf("run_unix_command(): fork() failed\n");
+    	    return;
+	case 0: /* child */
+    	    close(out[0]);		/* close read side of the stdout pipe */
+    	    close(err[0]);		/* and the stderr pipe */
+	    close(in[1]);
+	    dup2(in[0], 0);
+    	    dup2(out[1], 1);	/* copy write side of the pipe to stdout */
+    	    dup2(err[1], 2);	/* copy write side of the pipe to stderr */
+        
+	    priv_drop();
+        
+    	    retval = execlp("/bin/sh", "/bin/sh", "-c", buffer, NULL);	/* execute command */
+	    error("exec /bin/sh failed\n");
+    	    exit(retval);
+	    break;
         }
-        
-        if(dup(q[1])!=2)	/* copy write side of the pipe to stderr */
-        {
-            g_printf("run_unix_command() (child): dup(q) failed\n");
-            _exit(-1);
-        }
-        
-        /* DOSEMU runs setuid(root). go back to the real uid/gid for
-         * safety reasons.
-         *
-         * NOTE: euid=user uid=root!  -Steven P. Crain
-         */
-	priv_drop();
-        
-        retval=system(buffer);	/* execute command */
-        close(p[1]);		/* close write side of the stdout pipe */
-        close(q[1]);		/* and stderr pipe */
-        _exit(retval);
-    }
-    else /* parent */
-    {
-        fd_set rfds;
-        struct timeval tv;
-        int mxs, retval = 0;
 
-        close(p[1]);		/* close write side of the pipe */
-        close(q[1]);		/* and stderr pipe */
+        /* parent */
+        close(out[1]);		/* close write side of the pipe */
+        close(err[1]);		/* and stderr pipe */
+        close(in[0]);
         
         /* read bytes until an error occurs or child exits
          * no big buffer here, because speed is not important
@@ -327,52 +304,73 @@ void run_unix_command(char *buffer)
          * If both stdout and stderr produce output, we should
          * decide what to do (print only the stderr?)
          */
-	mxs = max(p[0], q[0]) + 1;
+        mxs = max(out[0], err[0]) + 1;
 
-	for (;;) {		/* nice eternal loop */
-		int nr;
+        for (;;) {		/* nice eternal loop */
+		int done = 0;
 
 		tv.tv_sec = 0;
 		tv.tv_usec = 10000;
 		FD_ZERO(&rfds);
-		FD_SET(p[0], &rfds);
-		FD_SET(q[0], &rfds);
+		FD_SET(out[0], &rfds);
+		FD_SET(err[0], &rfds);
 		retval = select (mxs, &rfds, NULL, NULL, &tv);
 
 		if (retval > 0) {
+			int nr;
 			/* one of the pipes has data, or EOF */
-			if (FD_ISSET(p[0], &rfds)) {
-				nr = read(p[0], si_buf, 80);
+			if (FD_ISSET(out[0], &rfds)) {
+				nr = read(out[0], buf, sizeof(buf));
 				if (nr > 0) {
-					si_buf[nr] = 0;
-					com_printf("%s", si_buf);
+					buf[nr] = 0;
+					com_printf("%s", buf);
 				}
+				if (nr == 0)
+					done++;
 			}
-			if (FD_ISSET(q[0], &rfds)) {
-				nr = read(q[0], se_buf, 80);
+			if (FD_ISSET(err[0], &rfds)) {
+				nr = read(err[0], buf, sizeof(buf));
 				if (nr > 0) {
-					se_buf[nr] = 0;
-					com_printf("%s", se_buf);
+					buf[nr] = 0;
+					com_printf("%s", buf);
 				}
+				if (nr == 0)
+					done++;
 			}
 		}
-		handle_signals();
-		if (waitpid(pid, &status, WNOHANG)==pid)
+		if (done == 2)
 			break;
+
+		if ((rd = com_dosreadcon(buf, sizeof(buf)))) {
+			char buf1[128];
+			int rd1 = rd;
+			memcpy(buf1, buf, rd);
+			if (buf[rd - 1] == 0x0d)
+				buf[rd - 1] =
+				buf1[rd1++] = 0x0a;
+			/* emulate echo :( */
+			com_doswrite(STDOUT_FILENO, buf1, rd1);
+			/* emulate ^C */
+			if (memchr(buf, 3, rd))
+				kill(pid, SIGINT);
+			write(in[1], buf, rd);
+		}
+
+		handle_signals();
 	}
- 
-        
+
         /* kill the child (to be sure (s)he (?) is really dead) */
         if(kill(pid, SIGTERM)!=0)
             kill(pid, SIGKILL);
-            
-        close(p[0]);		/* close read side of the stdout pipe */
-        close(q[0]);		/* and the stderr pipe */
+        waitpid(pid, &status, 0);
+
+        close(out[0]);		/* close read side of the stdout pipe */
+        close(err[0]);		/* and the stderr pipe */
+        close(in[1]);
         
         /* print child exitcode. not perfect */
         g_printf("run_unix_command() (parent): child exit code: %i\n",
             WEXITSTATUS(status));
-    }
 }
 
 
@@ -653,7 +651,7 @@ int com_dosread(int dosfilefd, char *buf32, u_short size)
 	LWORD(ebx) = dosfilefd;
 	LWORD(ds) = FP_SEG32(s);
 	LWORD(edx) = FP_OFF32(s);
-	LWORD(eax) = 0x3f00;	/* read handle */
+	LWORD(eax) = 0x3f00;
 	/* read() can be interrupted with ^C, esp. when it reads from a
 	 * console. Therefore we set int0x23 here so that even in this
 	 * case it will return to the proper place. */
@@ -669,5 +667,21 @@ int com_dosread(int dosfilefd, char *buf32, u_short size)
 	}
 	memcpy(buf32, s, min(size, LWORD(eax)));
 	lowmem_heap_free(s);
-	return  LWORD(eax);
+	return LWORD(eax);
+}
+
+int com_dosreadcon(char *buf32, u_short size)
+{
+	u_short rd = 0;
+
+	if (!size) return 0;
+	while (rd < size) {
+		LWORD(eax) = 0x600;
+		LO(dx) = 0xff;
+		call_msdos();
+		if (LWORD(eflags) & ZF)
+			break;
+		buf32[rd++] = LO(ax);
+	}
+	return rd;
 }
