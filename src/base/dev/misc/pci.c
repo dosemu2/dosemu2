@@ -411,9 +411,8 @@ emureadPciCfg1(unsigned char bus, unsigned char device,
      the Linux kernel only lets us read if num < 64
      unless we're root (even if the fd was opened as root)
   */
-  val = 0;
-  if (pci->fd >= 0)
-    pread(pci->fd, &val, sizeof(val), num);
+  if (num > 0x40)
+    val = pci->header[num >> 2];
   else
     val = pci_read_cfg1(bus, device, fn, num);
   Z_printf("PCIEMU: reading 0x%lx from %#lx\n",val,num);
@@ -434,9 +433,15 @@ emuwritePciCfg1(unsigned char bus, unsigned char device,
   if (pci == NULL)
     return;
   /* FIXME: check which num values are dangerous */
-  if (pci->fd >= 0)
-    pwrite(pci->fd, &val, sizeof(val), num);
-  else
+  if (num > 0x40) {
+    if ((pci->header[3] & 0x007f0000) == 0) {
+      if (num >= PCI_BASE_ADDRESS_0 && num <= PCI_BASE_ADDRESS_5)
+	val &= pci->region[num - PCI_BASE_ADDRESS_0].rawsize;
+      if (num == PCI_ROM_ADDRESS) 
+	val &= pci->region[6].rawsize;
+    }
+    pci->header[num >> 2] = val;
+  } else
     pci_write_cfg1(bus, device, fn, num, val);
   Z_printf("PCIEMU: writing 0x%lx to %#lx\n",val,num);
 }
@@ -518,8 +523,6 @@ pciRec *pciemu_setup(unsigned long class)
   if (pci == NULL)
     return pci;
   pci->enabled = 1;
-  pci->fd = pciConfigType->open(pci->bdf >> 8, (pci->bdf >> 3) & 0x1f,
-				pci->bdf & 7);
   if (!pciemu_initialized) {
     emu_iodev_t io_device;
 

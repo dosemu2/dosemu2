@@ -159,7 +159,7 @@ int
 pcibios_init(void)
 {
     unsigned long pcibuses[16];
-    unsigned long pciheader[64];
+    unsigned long pciheader[16];
     int busidx = 0;
     int idx = 0;
     int func = 0;
@@ -424,7 +424,6 @@ interpretCfgSpace(unsigned long *pciheader,unsigned long *pcibuses,int busidx,
 	    Z_printf("PCI-HOST bridge:\n");
 	    /* always enable for PCI emulation */
 	    pciTmp->enabled = 1;
-	    pciTmp->fd = pciConfigType->open(pcibuses[busidx], dev, func);
 	    if (++hostbridges > 1) {/* HOST-PCI bridges*/
 		numbus++;
 		pcibuses[numbus] = numbus;
