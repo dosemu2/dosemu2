@@ -28,14 +28,19 @@
  * DANG_BEGIN_CHANGELOG
  *
  *	$Log$
+ *	Revision 1.11  2005/11/21 18:12:51  stsp
+ *	- Map the DOS<-->unix STDOUT/STDERR properly for unix.com.
+ *	- Improved the DOS console reading for unix.com
+ *
  *	Revision 1.10  2005/11/19 00:54:40  stsp
+ *	
  *	Make unix.com "keyboard-aware" (FR #1360156). It works like a tty
  *	in a -icanon mode.
  *	system() replaced with execlp() to make it possible to emulate ^C
  *	with SIGINT.
  *	Also reworked the output-grabbing again - it was still skipping an
  *	output sometimes.
- *
+ *	
  *	Revision 1.9  2005/11/18 21:47:56  stsp
  *	
  *	Make unix.com to use DOS/stdout instead of the direct video mem access,
@@ -323,7 +328,7 @@ void run_unix_command(char *buffer)
 				nr = read(out[0], buf, sizeof(buf));
 				if (nr > 0) {
 					buf[nr] = 0;
-					com_printf("%s", buf);
+					com_fprintf(STDOUT_FILENO, "%s", buf);
 				}
 				if (nr == 0)
 					done++;
@@ -332,28 +337,33 @@ void run_unix_command(char *buffer)
 				nr = read(err[0], buf, sizeof(buf));
 				if (nr > 0) {
 					buf[nr] = 0;
-					com_printf("%s", buf);
+					com_fprintf(STDERR_FILENO, "%s", buf);
 				}
 				if (nr == 0)
 					done++;
 			}
 		}
-		if (done == 2)
+		if (done >= 2)		// if both pipes closed - return
 			break;
 
 		if ((rd = com_dosreadcon(buf, sizeof(buf)))) {
-			char buf1[128];
-			int rd1 = rd;
-			memcpy(buf1, buf, rd);
-			if (buf[rd - 1] == 0x0d)
-				buf[rd - 1] =
-				buf1[rd1++] = 0x0a;
-			/* emulate echo :( */
-			com_doswrite(STDOUT_FILENO, buf1, rd1);
+			char *ctrc = NULL;
+			if ((ctrc = memchr(buf, 3, rd)))
+				*ctrc = 0;	// avoid fancy char on screen
+			buf[rd] = 0;
+			if ((rd = strlen(buf))) {
+				char *OxD;
+				/* unix process doesn't like \r */
+				while ((OxD = memchr(buf, '\r', rd)))
+					*OxD = '\n';
+				/* emulate echo :( */
+				com_puts(buf); // this returns just-skipped \r's
+				/* write to unix process */
+				write(in[1], buf, rd);
+			}
 			/* emulate ^C */
-			if (memchr(buf, 3, rd))
+			if (ctrc)
 				kill(pid, SIGINT);
-			write(in[1], buf, rd);
 		}
 
 		handle_signals();
