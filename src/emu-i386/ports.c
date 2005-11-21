@@ -1007,7 +1007,8 @@ int extra_port_init(void)
 
         if (can_do_root_stuff) {
                 for (i = 0; i < sizeof(port_handle_table); i++) {
-                        if (config.pci || config.speaker == SPKR_NATIVE || (
+                        if (config.pci || config.pci_video ||
+			    config.speaker == SPKR_NATIVE || (
 			    port_handle_table[i] >= HANDLE_STD_IO &&
                             port_handle_table[i] <= HANDLE_STD_WR)) {
                                 /* fork the privileged port server */
