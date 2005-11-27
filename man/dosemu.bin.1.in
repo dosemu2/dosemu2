@@ -1,11 +1,11 @@
 .\" -*- nroff -*-  (This is for Emacs)
-.TH DOSEMU.BIN 1 "May, 2005" "Version 1.3.2" "DOS Emulation"
+.TH DOSEMU.BIN 1 "Dec, 2005" "Version 1.3.3" "DOS Emulation"
 .SH NAME
 dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 .SH SYNOPSIS
 .B dosemu.bin
 [
-.B \-ABCcdkVNXwtsgKm234OU
+.B \-234ABCcdKkmNnOSstVwX
 ]
 [
 .B \-h
@@ -30,9 +30,6 @@ dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 [
 .B \-f
 .I file
-]
-[
-.B \-n
 ]
 [
 .B \-L
@@ -125,6 +122,9 @@ kernel compile.
 
 .SH OPTIONS
 .TP
+.I -2,3,4,5
+choose 286, 386, 486 or 586 processor to simulate.
+.TP
 .I -A
 boot from floppy disk A (does not need to be a real floppy disk, see below)
 .TP
@@ -137,7 +137,9 @@ msdos filesystem, see below)
 .TP
 .I -c
 use direct Console video (must be at the console, requires special
-privileges).
+privileges, and
+.I -s
+).
 .TP
 .I -d
 detach from current virtual console or tty and attach to the first free
@@ -148,10 +150,6 @@ Run DOS command when starting DOSEMU, and, if '-E' is not given, exit
 DOSEMU after running the command. The command can also be given with
 a Linux path (for example /home/joeuser/dosemu/freedos/bin/xcopy.exe).
 Note: this only works if your autoexec.bat contains a "unix -e" command.
-.TP
-.I -V
-use direct console video with VGA graphics and use the native graphics 
-card's BIOS (must be at the console, requires special privileges).
 .TP
 .I -k
 use RAW console Keyboard (must be at the console)
@@ -252,26 +250,41 @@ DOSEMU will then lock before jumping into the loaded bootsector waiting
 for dosdebug to connect. Once connected you are in `stopped' state
 and can set breakpoints or singlestep through the bootstrap code.
 .TP
-.I -O
-use stderr for output of Debugging messages
-.TP
-.I -o
-use this file for output of Debugging messages
-.TP
 .I -M
 set base memory to SIZE Kilobytes
 .TP
 .I -m
 toggle internal mouse-support
 .TP
-.I -w
-toggle windowed/fullscreen mode in X
+.I -O
+use stderr for output of Debugging messages
+.TP
+.I -o
+use this file for output of Debugging messages
 .TP
 .I -P
 copy debugging output to FILE
 .TP
-.I -2,3,4,5
-choose 286, 386, 486 or 586 processor to simulate.
+.I -S
+run using SDL
+.TP
+.I -s
+super-user/full feature mode: enable direct hardware access.
+Use this switch if you wish to use graphics on the console,
+need direct port access, hardware interrupts or raw network access.
+Implies
+.I -V
+and
+.I -k
+by default.
+
+WARNING: THIS SWITCH NEEDS ROOT, SUID-ROOT, OR SUDO. GIVING
+DIRECT HARDWARE ACCESS TO DOS PROGRAMS MAY GIVE THESE THE ABILITY
+TO LOCK YOUR COMPUTER, OR (IN RARE CASES) EVEN DAMAGE HARDWARE.
+ONLY TRUSTED LOCAL USERS SHOULD BE GIVEN THIS TYPE OF ACCESS.
+.TP
+.I -t
+terminal mode: run using the S-Lang library
 .TP
 .I -U
 define inpipe and outpipe for asynchronous control of
@@ -320,7 +333,18 @@ Note that
 does not launch
 .B DOSEMU,
 you have to do it yourself.
-
+.TP
+.I -V
+use direct console video with VGA graphics and use the native graphics 
+card's BIOS (must be at the console, requires special privileges, and
+.I -s
+).
+.TP
+.I -w
+toggle windowed/fullscreen mode in X
+.TP
+.I -X
+run in an X Window
 .PD 1
 .SH HARD DISKS
 .B DOSEMU

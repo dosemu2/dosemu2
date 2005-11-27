@@ -253,7 +253,5 @@ void priv_init(void)
   getgroups(num_groups,groups);
 
   if (!skip_priv_setting) _priv_off();
-  if (can_do_root_stuff && !under_root_login)
-    fprintf(stderr,"\nRunning privileged (sudo/suid) in full feature mode\n");      
 }
 

@@ -562,7 +562,7 @@ static void read_cpu_info(void)
     close_proc_scan();
 }
 
-static void config_post_process(void)
+static void config_post_process(const char *usedoptions)
 {
     config.realcpu = CPU_386;
     if (vm86s.cpu_type > config.realcpu || config.rdtsc || config.mathco)
@@ -582,16 +582,24 @@ static void config_post_process(void)
 	}
     }
     /* console scrub */
-    if (config.X) {
+    if (config.X || usedoptions['X']) {
 	config.console_video = config.vga = 0;
 	config.emuretrace = 0;	/* already emulated */
+
+	if (!Video) {
+#if !defined(USE_DL_PLUGINS) && defined(X_SUPPORT)
+	    config.X = 1;
+	    Video = &Video_X;
+#else
+	    if (!load_plugin("X"))
+		config.X = 0;
+#endif
+	}
     }
     else {
 	if (!can_do_root_stuff && config.console_video) {
 	    /* force use of Slang-terminal on console too */
-	    config.console = config.console_video = config.vga = 0;
-	    config.cardtype = 0;
-	    config.vbios_seg = 0;
+	    config.console_video = config.vga = 0;
 	    config.mapped_bios = 0;
 	    fprintf(stderr, "no console on low feature (non-suid root) DOSEMU\n");
 	}
@@ -735,6 +743,7 @@ void
 config_init(int argc, char **argv)
 {
     int             c=0;
+    int             can_do_root_stuff_enabled = 0;
     char           *confname = NULL;
     char           *dosrcname = NULL;
     char           *basename;
@@ -767,13 +776,9 @@ config_init(int argc, char **argv)
      * by a symbolic link called `xdos` which DOSEMU will use to switch
      * into X-mode. DANG_END_REMARK
      */
-    if (strcmp(basename, "xdos") == 0) {
-	    load_plugin("X");
+    Video = NULL;
+    if (strcmp(basename, "xdos") == 0 || getenv("DISPLAY")) {
 	    usedoptions['X'] = 'X';
-#if !defined(USE_DL_PLUGINS) && defined(X_SUPPORT)
-	    config.X = 1;
-	    Video = &Video_X;
-#endif
 	/* called as 'xdos' */
     }
     
@@ -784,6 +789,10 @@ config_init(int argc, char **argv)
     while ((c = getopt(argc, argv, getopt_string)) != EOF) {
 	usedoptions[(unsigned char)c] = c;
 	switch (c) {
+	case 's':
+	    if (can_do_root_stuff)	
+		can_do_root_stuff_enabled = 1;
+	    break;
 	case 'h':
 	    config_check_only = atoi(optarg) + 1;
 	    break;
@@ -857,7 +866,10 @@ config_init(int argc, char **argv)
 	    }
 #endif
 	    break;
-
+	case 't':
+	    /* terminal mode */
+	    usedoptions['X'] = 0;
+	    break;
 	case 'u': {
 		char *s=malloc(strlen(optarg)+3);
 		s[0]='u'; s[1]='_';
@@ -870,6 +882,13 @@ config_init(int argc, char **argv)
 	    break;
 	}
     }
+
+    if (!can_do_root_stuff_enabled)
+	can_do_root_stuff = 0;
+    else if (under_root_login)
+    	fprintf(stderr,"\nRunning privileged (sudo/suid) in full feature mode\n");      
+    else
+    	fprintf(stderr,"\nRunning as root in full feature mode\n");      
 
     if (dbg_fd == 0) {
         if (config.debugout == NULL) {
@@ -936,12 +955,8 @@ config_init(int argc, char **argv)
 	case 'L':
 	case 'u':
 	case 'U':
+	case 's':
 	case '2': case '3': case '4': case '5': case '6':
-	    break;
-	case 't': /* obsolete "timer" option */
-	    break;
-	case 's': /* obsolete */
-	    /*g_printf("using new scrn size code\n");*/
 	    break;
 	case 'g': /* obsolete "graphics" option */
 	    break;
@@ -965,12 +980,13 @@ config_init(int argc, char **argv)
 	case 'k':
 	    config.console_keyb = 1;
 	    break;
+	case 't':
+	    /* terminal mode */
+	    config.X = config.console_keyb = config.console_video =
+	      config.mapped_bios = config.vga = 0;
+	    break;
 	case 'X':
-	    load_plugin("X");
-#if !defined(USE_DL_PLUGINS) && defined(X_SUPPORT)
-	    config.X = 1;
-	    Video = &Video_X;
-#endif
+	    /* check usedoptions later */
 	    break;
 	case 'S':
 	    load_plugin("sdl");
@@ -1051,7 +1067,7 @@ config_init(int argc, char **argv)
 	g_printf("DOS command given on command line\n");
 	misc_e6_store_command(argv[optind],1);
     }
-    config_post_process();
+    config_post_process(usedoptions);
     config_scrub();
     if (config_check_only) {
 	dump_config_status(0);
@@ -1129,6 +1145,8 @@ usage(char *basename)
 	"    -O write debug messages to stderr\n"
 	"    -o FILE put debug messages in file\n"
 	"    -P copy debugging output to FILE\n"
+	"    -s enable direct hardware access (full feature) (!%%)\n"
+	"    -t use terminal (S-Lang) mode\n"
 	"    -u set user configuration variable 'confvar' prefixed by 'u_'.\n"
 	"    -V use BIOS-VGA video modes (!#%%)\n"
 	"    -v NUM force video card type\n"
