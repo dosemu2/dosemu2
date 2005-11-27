@@ -39,6 +39,7 @@ int type_in_pre_strokes(void);
 void append_pre_strokes(unsigned char *s);
 struct char_set;
 
+void keyb_priv_init(void);
 void keyb_init(void);
 void keyb_reset(void);
 void keyb_close(void);
