@@ -886,9 +886,9 @@ config_init(int argc, char **argv)
     if (!can_do_root_stuff_enabled)
 	can_do_root_stuff = 0;
     else if (under_root_login)
-    	fprintf(stderr,"\nRunning privileged (sudo/suid) in full feature mode\n");      
-    else
     	fprintf(stderr,"\nRunning as root in full feature mode\n");      
+    else
+    	fprintf(stderr,"\nRunning privileged (sudo/suid) in full feature mode\n");      
 
     if (dbg_fd == 0) {
         if (config.debugout == NULL) {
@@ -976,6 +976,7 @@ config_init(int argc, char **argv)
 	    break;
 	case 'c':
 	    config.console_video = 1;
+	    config.mapped_bios = config.vga = 0;
 	    break;
 	case 'k':
 	    config.console_keyb = 1;
