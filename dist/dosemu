@@ -6,10 +6,10 @@
 #
 
 # the below line gets patched, when a systemwide install is done
-SYSTEM_INSTALL_PATH=/usr/local/share/dosemu
-SYSTEM_CONF_PATH=/etc/dosemu
-SYSTEM_XFONTS_PATH=/usr/local/share/dosemu/Xfonts
-SYSTEM_BIN_PATH=/usr/local/bin
+SYSTEM_INSTALL_PATH=NOT_SYSTEM_WIDE
+SYSTEM_CONF_PATH=NOT_SYSTEM_WIDE
+SYSTEM_XFONTS_PATH=NOT_SYSTEM_WIDE
+SYSTEM_BIN_PATH=NOT_SYSTEM_WIDE
 test "$SYSTEM_INSTALL_PATH" != "NOT_SYSTEM_WIDE" && IS_SYSTEM_WIDE=1
 
 # ignore dosemu.conf by default for non-systemwide installations
