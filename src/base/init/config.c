@@ -603,6 +603,8 @@ static void config_post_process(const char *usedoptions)
 	    config.mapped_bios = 0;
 	    fprintf(stderr, "no console on low feature (non-suid root) DOSEMU\n");
 	}
+	if (config.console_keyb == -1)
+	    config.console_keyb = can_do_root_stuff;
     }
     if ((config.vga || config.X) && config.mem_size > 640) {
 	error("$_dosmem = (%d) not allowed for X and VGA console graphics, "

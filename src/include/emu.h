@@ -211,7 +211,7 @@ typedef struct vesamode_type_struct {
        boolean force_vt_switch;         /* in case of console_video force switch to emu VT at start */
        int     dualmon;
 
-       boolean console_keyb;
+       int     console_keyb;
        boolean kbd_tty;
        boolean X_keycode;	/* use keycode field of event structure */
        boolean exitearly;
