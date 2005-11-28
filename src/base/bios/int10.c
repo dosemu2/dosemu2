@@ -1558,6 +1558,10 @@ void video_mem_setup(void)
   WRITE_BYTE(BIOS_VIDEO_INFO_0, 0x60);
   WRITE_BYTE(BIOS_VIDEO_INFO_1, 0xF9);
   WRITE_BYTE(BIOS_VIDEO_INFO_2, 0x51);
+
+  /* XXX - This usage isn't quite correct: this byte should be an index
+     into a table. Requires modification of our BIOS, and setting up
+     lots of tables*/
   WRITE_BYTE(BIOS_VIDEO_COMBO, video_combo);
     
   if (!config.vga) {
@@ -1566,7 +1570,32 @@ void video_mem_setup(void)
     SETIVEC(0x1f, 0xc000, vgaemu_bios.font_8 + 128 * 8);
   }
   else if (!config.vbios_post) {
-    v_printf("Now initialising 0x40:a8-ab\n");
+    Bit32u p, q;
+    Bit16u vc;
+
+    i10_msg("Now initialising 0x40:a8-ab\n");
     WRITE_DWORD(BIOS_VIDEO_SAVEPTR, int_bios_area[0x4a8/4]);
+
+    /* many BIOSes use this: take as fallback value */
+    WRITE_BYTE(BIOS_VIDEO_COMBO, 0xb);
+    /* correct BIOS_VIDEO_COMBO value */
+    p = READ_DWORD(BIOS_VIDEO_SAVEPTR) + 0x10;
+    /* [VGA only] ptr to Secondary Save Pointer Table, must be valid */
+    p = rFAR_PTR(Bit32u, p);
+    p = READ_DWORD(p) + 0x2;
+    /* ptr to Display Combination Code Table, must be valid */
+    p = rFAR_PTR(Bit32u, p);
+    p = READ_DWORD(p) + 0x4;
+    /* Each pair of bytes gives a valid display combination */
+    q = p = rFAR_PTR(Bit32u, p);
+    do {
+      vc = READ_WORD(q);
+      if (vc == video_combo || vc == (video_combo << 8)) {
+	WRITE_BYTE(BIOS_VIDEO_COMBO, (q-p)/2);
+	i10_msg("found video_combo: %x\n", (q-p)/2);
+	break;
+      }
+      q += 2;
+    } while ((vc & 0xff) < 0xd && vc < 0xd00);
   }
 }
