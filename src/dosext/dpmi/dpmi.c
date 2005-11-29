@@ -2861,7 +2861,7 @@ void dpmi_init(void)
 
   D_printf("DPMI: initializing\n");
   if (in_dpmi>=DPMI_MAX_CLIENTS) {
-    com_printf("Sorry, only %d DPMI clients supported under DOSEMU :-(\n", DPMI_MAX_CLIENTS);
+    p_dos_str("Sorry, only %d DPMI clients supported under DOSEMU :-(\n", DPMI_MAX_CLIENTS);
     return;
   }
 
@@ -3138,7 +3138,7 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
 	        do_int(trapno);
 		break;
         default:
-		com_printf("DPMI: Unhandled Exception %02x - Terminating Client\n"
+		p_dos_str("DPMI: Unhandled Exception %02x - Terminating Client\n"
 		  "It is likely that dosemu is unstable now and should be rebooted\n",
 		  trapno);
 		quit_dpmi(scp, 0xff, 0, 0, 1);
@@ -3185,7 +3185,7 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
 	       in_dpmi_dos_int = 1;
 	       return (void) do_int(trapno);
     default:
-	       com_printf("DPMI: Unhandled Exception %02x - Terminating Client\n"
+	       p_dos_str("DPMI: Unhandled Exception %02x - Terminating Client\n"
 			 "It is likely that dosemu is unstable now and should be rebooted\n",
 			 trapno);
 	       quit_dpmi(scp, 0xff, 0, 0, 1);
