@@ -28,10 +28,17 @@
  * DANG_BEGIN_CHANGELOG
  *
  *	$Log$
+ *	Revision 1.12  2005/11/29 10:25:04  bartoldeman
+ *	Adjust video.c init so that -dumb does not pop up an X window.
+ *	Make -dumb quiet until the command is executed if a command is given. So
+ *	dosemu -dumb dir
+ *	gives a directory listing and nothing else.
+ *
  *	Revision 1.11  2005/11/21 18:12:51  stsp
+ *	
  *	- Map the DOS<-->unix STDOUT/STDERR properly for unix.com.
  *	- Improved the DOS console reading for unix.com
- *
+ *	
  *	Revision 1.10  2005/11/19 00:54:40  stsp
  *	
  *	Make unix.com "keyboard-aware" (FR #1360156). It works like a tty
@@ -187,6 +194,7 @@ void misc_e6_store_command (char *str, int terminate)
   }
   misc_dos_command = strdup(str);
   need_terminate = terminate;
+  if (terminate) config.quiet = 1;
 
   g_printf ("Storing Command : %s\n", misc_dos_command);
 }

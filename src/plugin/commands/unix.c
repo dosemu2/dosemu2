@@ -53,7 +53,6 @@ int unix_main(int argc, char **argv)
     return usage();
   }
 
-
   if (*argv[1] == '-') {
     /* Got a switch */
     switch ((argv[1])[1]) {
@@ -343,6 +342,7 @@ static int do_execute_dos (int argc, char **argv, int CommandStyle)
 #if 0
       com_printf ("About to Execute : %s\n", data);
 #endif
+      config.quiet = 0;
       if (com_system (data, terminate)) {
         /* SYSTEM failed ... */
         com_fprintf (com_stderr, "SYSTEM failed ....(%d)\n", com_errno);

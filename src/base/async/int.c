@@ -584,7 +584,8 @@ int dos_helper(void)
     if (LWORD(eax) == DOS_HELPER_REALLY_EXIT) {
       /* terminate code is in bx */
       dbug_printf("DOS termination requested\n");
-      p_dos_str("\n\rLeaving DOS...\n\r");
+      if (config.cardtype != CARD_NONE)
+	p_dos_str("\n\rLeaving DOS...\n\r");
       leavedos(LO(bx));
     }
     break;

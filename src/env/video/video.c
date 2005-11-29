@@ -62,6 +62,8 @@ struct video_system Video_none = {
 static int no_real_terminal(void)
 {
   char *term = getenv("TERM");
+  if (config.X)
+    return 0;
   if ( term == NULL
        || !strcmp(term,"dumb")        /* most cron's have this */
        || !strcmp(term,"none")        /* ... some have this */
@@ -98,8 +100,13 @@ static int no_real_terminal(void)
 static int video_init(void)
 {
   /* figure out which video front end we are to use */
-  
-  if (config.X) {
+  if (no_real_terminal() || config.cardtype == CARD_NONE) {
+     v_printf("VID: Video set to Video_none\n");
+     config.cardtype = CARD_NONE;
+     config.X = config.console_video = config.mapped_bios = config.vga = 0;
+     Video=&Video_none;
+  }
+  else if (config.X) {
      /* already initialized */
   }
   else if (config.vga) {
@@ -117,11 +124,6 @@ static int video_init(void)
 	 v_printf("VID: Video set to Video_console\n");
 	 Video=&Video_console;
        }
-  }
-  else if (no_real_terminal() || config.cardtype == CARD_NONE) {
-     v_printf("VID: Video set to Video_none\n");
-     config.cardtype = CARD_NONE;
-     Video=&Video_none;
   }
   else
 #if !defined(USE_DL_PLUGINS) && defined(USE_SLANG)
