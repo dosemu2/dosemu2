@@ -353,9 +353,9 @@ reserve_video_memory(void)
 	break;
       }
     }
-
   }
-  register_hardware_ram(0, graph_base, graph_size);
+  if (config.vga)
+    register_hardware_ram('v', graph_base, graph_size);
   memcheck_reserve('v', graph_base, graph_size);
 }
 

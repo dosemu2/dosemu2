@@ -556,8 +556,6 @@ static int vga_initialize(void)
 {
   set_console_video();
 
-  register_hardware_ram('v', GRAPH_BASE, GRAPH_SIZE);
-
   linux_regs.mem = NULL;
   dosemu_regs.mem = NULL;
   get_perm();
