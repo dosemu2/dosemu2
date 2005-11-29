@@ -464,6 +464,10 @@ interpretCfgSpace(unsigned long *pciheader,unsigned long *pcibuses,int busidx,
 	    pciConfigType->write(pcibuses[busidx], dev, func, reg, pci_val);
 	    pciTmp->region[i].rawsize = pci_val1;
 	}
+	if (pciTmp->region[i].rawsize == 0) {
+	    pciTmp->region[i].base = 0;
+	    continue;
+	}
 	size = pciTmp->region[i].rawsize & mask;
 	size = (size & ~(size - 1)) - 1;
 	Z_printf("PCI: found %s region at %#lx [%#lx] (%lx,%lx)\n",
