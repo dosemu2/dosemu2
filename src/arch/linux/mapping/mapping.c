@@ -371,6 +371,7 @@ void *alloc_mapping(int cap, int mapsize, void *target)
 {
   void *addr, *alias_addr = MAP_FAILED;
 
+  Q__printf("MAPPING: alloc, cap=%s, source=%p\n", cap, target);
   if (cap & MAPPING_KMEM) {
 #ifndef HAVE_MREMAP_FIXED
     if (!have_mremap_fixed)
@@ -400,8 +401,7 @@ void *alloc_mapping(int cap, int mapsize, void *target)
     kmem_map[kmem_mappings].len = mapsize;
     kmem_map[kmem_mappings].mapped = 0;
     kmem_mappings++;
-    Q__printf("MAPPING: alloc, cap=%s, source=%p base=%p\n",
-	      cap, target, addr);
+    Q__printf("MAPPING: %s region allocated at %p\n", cap, addr);
     return addr;
   }
 
@@ -500,10 +500,11 @@ int register_hardware_ram(int type, size_t base, size_t size)
 {
   struct hardware_ram *hw;
 
-  if (!can_do_root_stuff && type == 'h') {
-    fprintf(stderr, "can't use hardware ram in low feature (non-suid root) DOSEMU\n");
+  if (!can_do_root_stuff && type) {
+    dosemu_error("can't use hardware ram in low feature (non-suid root) DOSEMU\n");
     return 0;
   }
+  c_printf("Registering HWRAM, type=%c base=%#x size=%#x\n", type, base, size);
   hw = malloc(sizeof(*hw));
   hw->base = base;
   hw->vbase = (void *)base;
