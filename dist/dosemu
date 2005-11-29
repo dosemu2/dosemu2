@@ -33,7 +33,7 @@ install_from_template () {
     (cd "$BOOT_DIR_PATH"
       tar -xzf $SYSTEM_INSTALL_PATH/dosemu-bin.tgz
     )
-    BOOTDIR="$BOOT_DIR_PATH/dosemu/freedos"
+    BOOTDIR="$BOOT_DIR_PATH"
   else
     BOOTDIR="$PROPRIETARY"
   fi
@@ -205,11 +205,10 @@ if [ -n "$INSTALL" -o \
       # to the users $HOME.
       echo "
   Going to install your private DOSEMU-freedos files into the directory
-  $HOME/dosemu
+  $HOME/.dosemu/drive_c
   Enter an empty string to confirm, a new path (the files will then
-  be installed in a subdirectory named \"dosemu\" under that new path),
-  or \"none\" (without the quotes) if you don't want a writable
-  C-drive.
+  be installed there instead), or \"none\" (without the quotes) if you
+  don't want a writable C-drive.
 "
       read BOOT_DIR_PATH
       if [ "$BOOT_DIR_PATH" != "none" ]; then
@@ -224,12 +223,12 @@ if [ -n "$INSTALL" -o \
   Ok, will install into $BOOT_DIR_PATH
   type ENTER to confirm or Ctrl-C to abort"
           read x
-          if ! mkdir -p "$BOOT_DIR_PATH" 2>/dev/null; then
-            echo "  unable to create $BOOT_DIR_PATH, giving up"
-            exit 1
-          fi
         else
-          BOOT_DIR_PATH=$HOME
+          BOOT_DIR_PATH=$HOME/.dosemu/drive_c
+        fi
+        if ! mkdir -p "$BOOT_DIR_PATH" 2>/dev/null; then
+          echo "  unable to create $BOOT_DIR_PATH, giving up"
+          exit 1
         fi
         install_from_template
       fi
@@ -247,7 +246,7 @@ if [ "`basename $ARG0`" = "xdosemu" ]; then
   ... falling back to non-X
 "
   else
-    XFLAG=1
+    XFLAG=-X
   fi
 fi
 
@@ -255,8 +254,7 @@ if [ -z "$IS_SYSTEM_WIDE" ]; then
   BOOT_DIR_PATH=`cd $HOME/.dosemu/drives && ls -l c | sed 's/.* -> //'`/..
 fi
 
-if [ -n "$XFLAG" ]; then
-  XFLAG=-X
+if [ -n "$XFLAG" -o -n "$DISPLAY" ]; then
   if [ -z "$DISPLAY" ]; then
     echo "
   You do not have the DISPLAY variable set, but want to run DOSEMU
