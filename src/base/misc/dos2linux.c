@@ -28,12 +28,15 @@
  * DANG_BEGIN_CHANGELOG
  *
  *	$Log$
+ *	Revision 1.13  2005/11/29 18:24:31  stsp
+ *	call_msdos() must switch to real mode before calling DOS, if needed.
+ *
  *	Revision 1.12  2005/11/29 10:25:04  bartoldeman
  *	Adjust video.c init so that -dumb does not pop up an X window.
  *	Make -dumb quiet until the command is executed if a command is given. So
  *	dosemu -dumb dir
  *	gives a directory listing and nothing else.
- *
+ *	
  *	Revision 1.11  2005/11/21 18:12:51  stsp
  *	
  *	- Map the DOS<-->unix STDOUT/STDERR properly for unix.com.
@@ -112,6 +115,7 @@
 #include "emu.h"
 #include "cpu-emu.h"
 #include "int.h"
+#include "dpmi.h"
 #include "timers.h"
 #include "video.h"
 #include "lowmem.h"
@@ -623,6 +627,8 @@ char *skip_white_and_delim(char *s, int delim)
 
 void call_msdos(void)
 {
+	if(in_dpmi && !in_dpmi_dos_int)
+		fake_pm_int();
 	do_intr_call_back(0x21);
 }
 
