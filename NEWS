@@ -4,6 +4,62 @@ NEWS file for DOSEMU
 This file contains a list of user visible changes in DOSEMU. For the
 raw developer changelog please refer to ChangeLog.
 
+Version 1.3.3 (2005-12-xx)
+=============
+* "dosemu" starts xdosemu by default in X. Use "dosemu -t" to force terminal
+  mode.
+* Everyone, including root, needs to use "dosemu -s" to be able to use direct
+  hardware access. The -s switch automatically uses direct VGA graphics and
+  raw keyboard mode on the Linux console.
+* Added support for x86-64, by using CPU emulation for V86 mode, running DPMI
+  code natively.
+* You can reboot the DOSEMU virtual machine using Ctrl-Alt-Del
+* Added $_time_mode="linux" option to force the DOS clock to sync with
+  the Linux time.
+* Freed up 4K of UMB space
+* The utility unix.com can now execute Linux commands within DOSEMU
+  interactively.
+* Run-time plugins are used to allow binary distribution without depending
+  on all libraries.
+* Implemented debug breakpoints for DPMI
+* The SDL plugin (-S option) was improved so that it is almost as capable
+  as the X plugin, and provides a safer way to get console graphics, using
+  fbdev.
+* 16 bpp graphics programs now run in X with 24/32 bpp.
+* Long File Names are enabled by default.
+
+List of SourceForge tracker numbers with bugs that were closed:
+# 830601 impossible to access /dev/lp0 directly
+# 920216 xdosemu mouse problem with Worms
+# 937984 Supporting debug registers in DOSEMU DPMI
+#1039909 pathname with a space character
+#1206135 1.3.2: mouse does not work in non-std mode
+#1206137 1.3.2: strange colors when resizing window in BC with mouse
+#1206525 1.3.2: text mode cursor uses only upper half of cell @ 80x50
+#1207940 DOSEMU's keyboard emulation isn't perfect
+#1211627 LFN issue again
+#1218406 int 66h not available with dosemu 1.3.2
+#1224934 1.3.2: make install changes permissions of /tmp
+#1227378 instruction decoding in msdos.c is buggy
+#1230579 Another (minor) keyboard emulation bug in dosemu
+#1230661 Accessing/Displaying Files under 1.2.2
+#1231686 ANSI / VGA text broken last year
+#1238148 VC cannot move directories (MFS) anymore
+#1239421 CVS dosemu crashes when started with -H1
+#1242171 small bug in dpmi
+#1244195 video remap from true color 15 to true color 32
+#1252147 xdosemu -S doesn't handle keypad
+#1255178 X Video regression on Orbits3
+#1262962 Keyboard input mangled running on a pty
+#1275661 memory (?) bug
+#1288107 possible bug in bios.s
+#1292250 Latest CVS: FPU bug?
+#1292257 DOSEMU will not build with gcc 4.0.2
+#1315913 video conflicts with printer in text console
+#1329881 Still keyboard trouble with latest CVS
+#1345102 unix command in the DOS-shell
+#1360156 keyboard in unix.com
+
 Version 1.3.2 (2005-05-20)
 =============
 * Windows 3.1 now works natively, without any need for WINOS2 patches.
