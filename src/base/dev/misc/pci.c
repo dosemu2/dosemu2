@@ -411,7 +411,7 @@ emureadPciCfg1(unsigned char bus, unsigned char device,
      the Linux kernel only lets us read if num < 64
      unless we're root (even if the fd was opened as root)
   */
-  if (num > 0x40)
+  if (num < 0x40)
     val = pci->header[num >> 2];
   else
     val = pci_read_cfg1(bus, device, fn, num);
@@ -433,7 +433,7 @@ emuwritePciCfg1(unsigned char bus, unsigned char device,
   if (pci == NULL)
     return;
   /* FIXME: check which num values are dangerous */
-  if (num > 0x40) {
+  if (num < 0x40) {
     if ((pci->header[3] & 0x007f0000) == 0) {
       if (num >= PCI_BASE_ADDRESS_0 && num <= PCI_BASE_ADDRESS_5)
 	val &= pci->region[num - PCI_BASE_ADDRESS_0].rawsize;
