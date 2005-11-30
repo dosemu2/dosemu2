@@ -50,7 +50,7 @@
 #define PCI_MODE2_ENABLE_REG 0xCF8
 
 typedef struct _pciRec {
-    int enabled;
+    int enabled, ext_enabled;
     unsigned short bdf;
     unsigned short vendor;
     unsigned short device;

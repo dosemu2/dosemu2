@@ -413,8 +413,10 @@ emureadPciCfg1(unsigned char bus, unsigned char device,
   */
   if (num < 0x40)
     val = pci->header[num >> 2];
-  else
+  else if (pci->ext_enabled)
     val = pci_read_cfg1(bus, device, fn, num);
+  else
+    val = 0xffffffff;
   Z_printf("PCIEMU: reading 0x%lx from %#lx\n",val,num);
   return val;
 }
@@ -441,7 +443,7 @@ emuwritePciCfg1(unsigned char bus, unsigned char device,
 	val &= pci->region[6].rawsize;
     }
     pci->header[num >> 2] = val;
-  } else
+  } else if (pci->ext_enabled)
     pci_write_cfg1(bus, device, fn, num, val);
   Z_printf("PCIEMU: writing 0x%lx to %#lx\n",val,num);
 }
@@ -522,7 +524,7 @@ pciRec *pciemu_setup(unsigned long class)
   pci = pcibios_find_class(class, 0);
   if (pci == NULL)
     return pci;
-  pci->enabled = 1;
+  pci->enabled = pci->ext_enabled = 1;
   if (!pciemu_initialized) {
     emu_iodev_t io_device;
 
