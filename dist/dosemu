@@ -254,7 +254,7 @@ if [ -z "$IS_SYSTEM_WIDE" ]; then
   BOOT_DIR_PATH=`cd $HOME/.dosemu/drives && ls -l c | sed 's/.* -> //'`/..
 fi
 
-if [ -n "$XFLAG" -o -n "$DISPLAY" ]; then
+if [ -n "$XFLAG" -o -n "$DISPLAY" -a -z "$DUMBTERM" ]; then
   if [ -z "$DISPLAY" ]; then
     echo "
   You do not have the DISPLAY variable set, but want to run DOSEMU
