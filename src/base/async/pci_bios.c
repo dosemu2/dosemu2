@@ -417,6 +417,8 @@ interpretCfgSpace(unsigned long *pciheader,unsigned long *pcibuses,int busidx,
     if (PCI_BRIDGE_CLASS(pciTmp->class))  {
 	if (PCI_BRIDGE_PCI_CLASS(pciTmp->class)) { /*PCI-PCI*/
 	    Z_printf("PCI-PCI bridge:\n");
+	    /* always enable for PCI emulation */
+	    pciTmp->enabled = 1;
 	    tmp = (pciheader[0x6] >> 8) & 0xff;
 	    if (tmp > 0)
 		pcibuses[++numbus] = tmp; /* secondary bus */
