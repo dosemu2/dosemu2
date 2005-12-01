@@ -27,6 +27,9 @@ Version 1.3.3 (2005-12-xx)
   fbdev.
 * 16 bpp graphics programs now run in X with 24/32 bpp.
 * Long File Names are enabled by default.
+* Many fixes for the outstanding mouse and keyboard problems.
+* Customized SVGA drivers of Windows 3.11 can now be used instead
+  of the Trident drivers (refer to chapter 9.2 of README).
 
 List of SourceForge tracker numbers with bugs that were closed:
 # 830601 impossible to access /dev/lp0 directly
