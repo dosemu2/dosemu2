@@ -2,247 +2,93 @@
 <title>Running Windows under DOSEMU</title>
 
 <para>
-Okay, perhaps you've heard the hooplah.  DOSEMU can run Windows (sort of.)
+DOSEMU can run any 16bit Windows up to 3.1, and have a limited
+support for Windows 3.11. You should be able to install and run
+these versions of Windows without any extra work. There are still
+a few caveats however, and if you have some problems, read on.
 </para>
 
 <sect2>
-<title>Windows 3.0 Real Mode</title>
-
+<title>Mouse in Windows under DOSEMU</title>
 <para>
-DOSEMU has been able to run Windows 3.0 in Real Mode for some time now.
-</para>
-
-</sect2>
-
-<sect2>
-<title>Windows 3.1 Protected Mode</title>
-
-<para>
-It is possible to boot WINOS2 (the modified version of Windows 3.1
-that OS/2 uses) under DOSEMU.  Many kudos to Lutz &#38; Dong!
-But, as far as we know, you cannot <emphasis>install</emphasis>
-Windows 3.1 in DOSEMU, but you must do that in real mode DOS.
-Windows 3.1 also does <emphasis>not</emphasis> run in FreeDOS.
-</para>
-
-<para>
-However, YOU NEED <emphasis remap="bf">BOTH</emphasis> LICENSES, for WINDOWS-3.1 as well OS/2 !!!
-</para>
-
-<para>
-
-<itemizedlist>
-<listitem>
-
-<para>
-  Get DOSEMU &#38; the Linux source distributions.
-</para>
-</listitem>
-<listitem>
-
-<para>
-  Unpack DOSEMU.
-</para>
-</listitem>
-<listitem>
-
-<para>
-  Configure DOSEMU typing './default-configure'.
-</para>
-</listitem>
-<listitem>
-
-<para>
-  Compile DOSEMU typing 'make'.
-</para>
-</listitem>
-<listitem>
-
-<para>
-  Get the OS2WIN31.ZIP distribution from somehere.
+Mouse is known to have a sensitivity issues when you run Windows
+under dosemu. For Windows 3.0 and earlier there is no workaround
+currently. The problem will be fixed in the future dosemu releases.
+For Windows 3.1 and 3.11 you can install an alternative mouse driver.
+Get the OS2WIN31.ZIP distribution from somehere.
 One place that distributes it is
 <ulink url="http://www.funet.fi/pub/os2/32bit/win_os2/">
 http://www.funet.fi/pub/os2/32bit/win_os2
 </ulink>
-</para>
-</listitem>
-<listitem>
-
-<para>
-  Unpack the OS2WIN31 files into your WINDOWS\SYSTEM directory.
-(Infact you only need WINDOWS/SYSTEM/os2k386.exe and the mouse driver)
-</para>
-</listitem>
-<listitem>
-
-<para>
-  Startup dosemu (make certain that DPMI is set to a value such as 4096)
-</para>
-</listitem>
-<listitem>
-
-<para>
-  Copy the file winemu.bat to your c: drive.
-</para>
-</listitem>
-<listitem>
-
-<para>
-  Cross your fingers.
-</para>
-</listitem>
-
-</itemizedlist>
-
-</para>
-
-<para>
-Good luck!
-</para>
-
-</sect2>
-
-<sect2>
-<title>Windows 3.x in xdos</title>
-
-<para>
-As of version 0.64.3 DOSEMU is able to run Windows in xdosemu.
-It is safer then
-starting windows-31 on the console, because <emphasis>when</emphasis> it crashes, it doesn't
-block your keyboard or freeze your screen.
-</para>
-
-<para>
-Hints:
-</para>
-
-<para>
-
-<itemizedlist>
-<listitem>
-
-<para>
- Get Dosemu &#38; Linux source.
-</para>
-</listitem>
-<listitem>
-
-<para>
- Unpack dosemu.
-</para>
-</listitem>
-<listitem>
-
-<para>
- Run "./default-configure" to configure Dosemu.
-</para>
-</listitem>
-<listitem>
-
-<para>
- Type "make" to compile.
-</para>
-</listitem>
-<listitem>
-
-<para>
-For faster graphics (256 colors instead of 16 is faster in xdosemu),
-get a Trident SVGA drivers for Windows. The files are tvgaw31a.zip
-and/or tvgaw31b.zip. They are available at garbo.uwasa.fi in
-/windows/drivers (any mirrors?).
-</para>
-</listitem>
-<listitem>
-
-<para>
- Unpack the Trident drivers.
-</para>
-</listitem>
-<listitem>
-
-<para>
- In Windows setup, install the Trident "800x600 256 color for 512K
-boards" driver.
-</para>
-</listitem>
-<listitem>
-
-<para>
- Do the things described above to get and install OS2WIN31.
-</para>
-</listitem>
-<listitem>
-
-<para>
- Start xdos.
-</para>
-</listitem>
-<listitem>
-
-<para>
- In Dosemu, go to windows directory and start winemu.
-</para>
-</listitem>
-<listitem>
-
-<para>
- Cross your fingers.
-</para>
-</listitem>
-
-</itemizedlist>
-
-</para>
-
-<para>
-Notes for the mouse under win31-in-xdos:
-</para>
-
-<para>
-
-<itemizedlist>
-<listitem>
-<para>
- In order to let the mouse properly work you need the following in your
-win.ini file:
-</para>
-
-<para>
-
+This archieve contains the file mouse.drv. Replace the mouse.drv
+of your WINDOWS\SYSTEM directory with that file and do the following
+adjustments in your win.ini file:
 <screen>
      [windows]
      MouseThreshold1=0
      MouseThreshold2=0
      MouseSpeed=0
 </screen>
-
+Note however, that with this driver you won't be able to run Windows
+under the real DOS environment any more, as that mouse driver only
+works under dosemu and OS/2.
 </para>
-</listitem>
-<listitem>
+</sect2>
+
+<sect2>
+<title>Windows 3.x in SVGA modes</title>
 
 <para>
- The mouse cursor gets not painted by X, but by windows itself, so it depends
-on the refresh rate how often it gets updated, though the mouse coordinates 
-movement itself will not get delayed.
-( In fact you have 2 cursors, but the X-cursor is given an 'invisible'
-cursor shape while within the DOS-Box. )
+If you want to run Windows in SVGA mode, you can either use the
+Trident drivers, or the patched SVGA drivers of Windows 3.11.
 </para>
-</listitem>
-<listitem>
 
 <para>
- Because the coordinates passed to windows are interpreted relatively, we
-need to calibrate the cursor. This is done automatically whenever you
-enter the DOS-Box window: The cursor gets forced to 0,0 and then back
-to its right coordinates. Hence, if you want to re-calibrate the cursor,
-just move the cursor outside and then inside the DOS-Box again.
-</para>
-</listitem>
-
-</itemizedlist>
-
+The Trident drivers for Windows are in the files tvgaw31a.zip
+and/or tvgaw31b.zip. Search www.winsite.com to get them.
+Unpack the archieve. In Windows setup, install the
+Trident "800x600 256 color for 512K boards" driver.
 </para>
 
+<para>
+Windows 3.11 comes with the SVGA drivers. You can also download
+them: search www.winsite.com for svga.exe and install the drivers.
+Then go to
+<ulink url="http://www.japheth.de/dwnload1.html">
+http://www.japheth.de/dwnload1.html
+</ulink>
+and get the SVGAPatch tool. This tool makes the above drivers to
+work with most of the video cards in a real DOS environment, and
+makes them dosemu-compatible too.
+</para>
+</sect2>
+
+<sect2>
+<title>VxD support</title>
+<para>
+By the time of writing this, dosemu doesn't have the support
+for Windows ring-0 device drivers (VxD). Fortunately, most of
+Windows 3.1 drivers are the ring-3 ones (.drv), so you can easily
+install the Sound Blaster drivers, for instance. This is not the
+case with Windows 3.11. Its network drivers are the ring-0 ones, so
+the native winsock won't work. In order to get the networking
+operational, you need to get the Trumpet Winsock package. Refer
+to chapter "Using Windows and Winsock" for more info on this.
+</para>
+</sect2>
+
+<sect2>
+<title>DOS shell in Windows</title>
+<para>
+There is probably a little use of a DOS shell under Windows under
+dosemu... But for those who needs it, here are the basic hints.
+DOS shell is supported by DOSEMU only if Windows is running in a
+Standard mode. The Enhanced mode DOS shell is currently unsupported.
+Note however, that unlike in a real DOS environment, under DOSEMU
+the DOS shell of the Windows in Standard mode allows you to run the
+protected mode apps (in the real DOS environment only the DOS shell
+of the Enhanced mode allows this).
+</para>
 </sect2>
 
 </sect1>
