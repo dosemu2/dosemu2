@@ -68,9 +68,10 @@ typedef struct _pciRec {
 struct pci_funcs {
     int (*open)(unsigned char bus, unsigned char device, unsigned char fn);
     unsigned long (*read)(unsigned char bus, unsigned char device,
-			  unsigned char fn, unsigned long reg);
+			  unsigned char fn, unsigned long reg, int len);
     void (*write)(unsigned char bus, unsigned char device,
-		  unsigned char fn, unsigned long num, unsigned long val);
+		  unsigned char fn, unsigned long num, unsigned long val,
+		  int len);
     int (*read_header) (unsigned char bus, unsigned char device,
 			unsigned char fn, unsigned long *buf);
     int (*check_device_present)(unsigned char bus, unsigned char device,
@@ -81,8 +82,8 @@ void pci_bios(void);
 int pcibios_init(void);
 pciRec *pcibios_find_class(unsigned long class,  int num);
 pciRec *pcibios_find_bdf(unsigned short bdf);
-unsigned long readPci(unsigned long reg);
-void writePci(unsigned long reg, unsigned long val);
+unsigned long readPci(unsigned long reg, int len);
+void writePci(unsigned long reg, unsigned long val, int len);
 
 struct pci_funcs *pci_check_conf(void);
 extern struct pci_funcs pci_cfg1, pci_cfg2, pci_proc, *pciConfigType;

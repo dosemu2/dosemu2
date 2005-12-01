@@ -265,29 +265,26 @@ findClass(unsigned long class,  int num)
     return (pci && pci->enabled) ? pci->bdf : 0xffff;
 }
 
-unsigned long readPci(unsigned long reg)
+unsigned long readPci(unsigned long reg, int len)
 {
     unsigned long val;
     unsigned char bus, dev, fn, num;
-
-    if (!(reg & PCI_EN))
-	return 0xffffffff;
 
     bus = (reg >> 16) & 0xff;
     dev = (reg >> 11) & 0x1f;
     fn  = (reg >>  8) & 7;
     num = reg & 0xff;
     
-    val = pciConfigType->read(bus, dev, fn, num);
-    Z_printf("PCIBIOS: reading 0x%lx from 0x%lx\n",val,reg);
+    val = pciConfigType->read(bus, dev, fn, num, len);
+    Z_printf("PCIBIOS: reading 0x%lx from 0x%lx, len=%d\n",val,reg,len);
     return val;
 }
 
-void writePci(unsigned long reg, unsigned long val)
+void writePci(unsigned long reg, unsigned long val, int len)
 {
     unsigned char bus, dev, fn, num;
 
-    if (!(reg & PCI_EN) || reg == PCI_EN)
+    if (reg == 0)
 	return;
 
     bus = (reg >> 16) & 0xff;
@@ -295,74 +292,44 @@ void writePci(unsigned long reg, unsigned long val)
     fn  = (reg >>  8) & 7;
     num = reg & 0xff;
     
-    Z_printf("PCIBIOS writing: 0x%lx to 0x%lx\n",val,reg);
-    pciConfigType->write(bus, dev, fn, num, val);
+    Z_printf("PCIBIOS writing: 0x%lx to 0x%lx, len=%d\n",val,reg,len);
+    pciConfigType->write(bus, dev, fn, num, val, len);
 }
 
 static void
 write_dword(unsigned short loc,unsigned short reg,unsigned long val)
 {
-    unsigned long reg32 = loc << 8 | (reg & 0xfc) | PCI_EN;
-    writePci(reg32, val);
+    writePci(loc << 8 | (reg & 0xfc), val, 4);
 }
 
 static void
 write_word(unsigned short loc,unsigned short reg,unsigned short word)
 {
-    unsigned long val;
-    unsigned long reg32 = loc << 8 | (reg & 0xfc) | PCI_EN;
-    int shift = reg & 0x2;
-
-    val = readPci(reg32);
-    val &= ~(unsigned long)(0xffff << (shift << 3));
-    val |= word << (shift << 3);
-    writePci(reg32, val);
-
+    writePci(loc << 8 | (reg & 0xfe), word, 2);
 }
 
 static void
 write_byte(unsigned short loc,unsigned short reg,unsigned char byte)
 {
-    unsigned long val;
-    unsigned long reg32 = loc << 8 | (reg & 0xfc) | PCI_EN;
-    int shift = reg & 0x3;
-
-    val = readPci(reg32);
-    val &= ~(unsigned long)(0xff << (shift << 3));
-    val |= byte << (shift << 3);
-    writePci(reg32, val);
+    writePci(loc << 8 | (reg & 0xff), byte, 1);
 }
 
 static unsigned long
 read_dword(unsigned short loc,unsigned short reg)
 {
-    unsigned long val;
-    unsigned long reg32 = loc << 8 | (reg & 0xfc) | PCI_EN;
-
-    val = readPci(reg32);
-    return val;
+    return readPci(loc << 8 | (reg & 0xfc), 4);
 }
 
 static unsigned short
 read_word(unsigned short loc,unsigned short reg)
 {
-    unsigned short val;
-    int shift = reg & 0x2;
-    unsigned long reg32 = loc << 8 | (reg & 0xfc) | PCI_EN;
-
-    val = (readPci(reg32) >> (shift << 3)) & 0xffff;
-    return val;
+    return readPci(loc << 8 | (reg & 0xfe), 2);
 }
 
 static unsigned char
 read_byte(unsigned short loc,unsigned short reg)
 {
-    unsigned char val;
-    int shift = reg & 0x3;
-    unsigned long reg32 = loc << 8 | (reg & 0xfc) | PCI_EN;
-
-    val = (readPci(reg32) >> (shift << 3)) & 0xff;
-    return val;
+    return readPci(loc << 8 | (reg & 0xff), 1);
 }
 
 static int proc_bus_pci_devices_get_sizes(pciPtr pci)
@@ -461,9 +428,9 @@ interpretCfgSpace(unsigned long *pciheader,unsigned long *pcibuses,int busidx,
 	pciTmp->region[i].base = base;
 	pciTmp->region[i].type = type;
 	if (!got_sizes) {
-	    pciConfigType->write(pcibuses[busidx], dev, func, reg, 0xffffffff);
-	    pci_val1 = pciConfigType->read(pcibuses[busidx], dev, func, reg);
-	    pciConfigType->write(pcibuses[busidx], dev, func, reg, pci_val);
+	    pciConfigType->write(pcibuses[busidx], dev, func, reg, 0xffffffff, 4);
+	    pci_val1 = pciConfigType->read(pcibuses[busidx], dev, func, reg, 4);
+	    pciConfigType->write(pcibuses[busidx], dev, func, reg, pci_val, 4);
 	    pciTmp->region[i].rawsize = pci_val1;
 	}
 	if (pciTmp->region[i].rawsize == 0) {
