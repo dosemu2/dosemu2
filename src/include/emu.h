@@ -373,6 +373,7 @@ EXTERN void close_kmem(void);
 EXTERN int parse_config(char *, char *);
 EXTERN void prepare_dexe_load(char *name);
 EXTERN void disk_init(void);
+EXTERN void disk_reset(void);
 EXTERN void serial_init(void);
 EXTERN void serial_reset(void);
 EXTERN void close_all_printers(void);

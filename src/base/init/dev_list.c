@@ -82,7 +82,7 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "floppy",  floppy_init,  floppy_reset,  NULL },
   { "hdisk",   hdisk_init,   hdisk_reset,   NULL },
 #endif
-  { "disks",   disk_init,    NULL,          NULL },
+  { "disks",   disk_init,    disk_reset,    NULL },
 #ifdef USE_SBEMU
   { "sound",   sound_init,   sound_reset,   NULL },
 #endif

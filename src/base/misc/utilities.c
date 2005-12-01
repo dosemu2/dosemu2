@@ -530,6 +530,12 @@ void subst_file_ext(char *ptr)
 		     while (*r) { *r=toupper(*r); r++; } }
     static int subst_sys=2;
 
+    if (ptr == NULL) {
+      /* reset */
+      subst_sys = 2;
+      return;
+    }
+
     /* skip leading drive name and \ */
     if (ptr[1]==':' && ptr[2]=='\\') ptr+=3;
     else if (ptr[0]=='\\') ptr++;

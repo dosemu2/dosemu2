@@ -467,7 +467,6 @@ void dir_setup(struct disk *dp)
   );
 
   dp->fatfs = NULL;
-  fatfs_init(dp);
 }
 
 /* XXX - relies upon a file of SECTOR_SIZE in PARTITION_PATH that which
@@ -1003,6 +1002,18 @@ disk_init(void)
     }
 #endif
   }
+}
+
+void disk_reset(void)
+{
+  struct disk *dp;
+
+  subst_file_ext(NULL);
+  for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++)
+    if(dp->type == DIR_TYPE) {
+      if (dp->fatfs) fatfs_done(dp);
+      fatfs_init(dp);
+    }
 }
 
 static int checkdp(struct disk *disk)
