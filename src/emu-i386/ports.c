@@ -1076,7 +1076,6 @@ int port_register_handler(emu_iodev_t device, int flags)
     }
 
     /* first find existing handle for function or create new one */
-    handle = port_handles;
     for (handle=0; handle < port_handles; handle++) {
 	if (!strcmp(port_handler[handle].handler_name, device.handler_name))
 	      break;
