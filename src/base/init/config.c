@@ -59,8 +59,8 @@
  * they are eaten by secure_option_preparse().
  */
 static const char * const getopt_string =
-	"23456ABCcdXSD:E:e:F:f:L:I:h:H:kM:mNOo:P:u:Vv:wx:U:"
-	"tsgK"/*NOPs kept for compat (not documented in usage())*/;
+       "23456ABCcD:dE:e:F:f:H:h:I:kL:M:mNOo:P:Sstu:Vv:wXx:U:"
+       "gK"/*NOPs kept for compat (not documented in usage())*/;
 
 
 int kernel_version_code = 0;
