@@ -338,7 +338,6 @@ Bit8u pit_inp(ioport_t port)
   port -= 0x40;
 
   if ((port == 2) && (config.speaker == SPKR_NATIVE)) {
-	/* how could we come here if we defined PORT_FAST? */
 	return safe_port_in_byte(0x42);
   }
   else if (port == 1)
@@ -381,7 +380,6 @@ void pit_outp(ioport_t port, Bit8u val)
   if (port == 1)
     i_printf("PORT: someone is writing the CMOS refresh time?!?");
   else if (port == 2 && config.speaker == SPKR_NATIVE) {
-    /* how could we come here if we defined PORT_FAST? */
     safe_port_out_byte(0x42, val);
     return;
   }
@@ -475,10 +473,6 @@ void pit_control_outp(ioport_t port, Bit8u val)
   switch (latch) {
     case 2:
       if (config.speaker == SPKR_NATIVE) {
-	/* hmmm.. timer 2 is in PORT_FAST mode, and there will be a
-	 * noticeable amount of time from this mode setting to the
-	 * timer freq settings... could this cause strange effects?
-	 */
         safe_port_out_byte(0x43, val);
 	break;
       }
@@ -571,7 +565,6 @@ static int timer_int_engine(int ilevel)
 Bit8u spkr_io_read(ioport_t port) {
    if (port==0x61)  {
       if (config.speaker == SPKR_NATIVE)
-	 /* how could we come here if we defined PORT_FAST? */
          return port_safe_inb(0x61);
       else {
 	 /* keep the connection between port 0x61 and PIT timer#2 */
@@ -588,7 +581,6 @@ void spkr_io_write(ioport_t port, Bit8u value) {
    if (port==0x61) {
       switch (config.speaker) {
        case SPKR_NATIVE:
-	  /* how could we come here if we defined PORT_FAST? */
           port_safe_outb(0x61, value & 0x03);
           break;
       
