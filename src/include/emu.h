@@ -279,22 +279,19 @@ typedef struct vesamode_type_struct {
        /* type of mapping driver */
        char *mappingdriver;
 
-       /* list of arbitrary features
-        * (at minimum 1, will be increased when needed)
-        * The purpose of these parameters is to switch between code
-        * or code pieces that in principal do the same, but for some
-        * unknown reasons behave different between machines.
+       /* List of temporary hacks
+        * (at minimum 16, will be increased when needed)
+        *
         * If a 'features' becomes obsolete (problem solved) it will
         * remain dummy for a while before re-used.
         *
         * NOTE: 'features' are not subject to permanent documentation!
-        *       They should be considered 'temporary hacks'
         *
         * Currently assigned:
         *
-        *   features[0]		use new(0) or old(1) Slangcode
+        *   (none)
         */
-       int features[1];
+       int features[16];
 
        /* Time mode is TM_BIOS / TM_PIT / TM_LINUX, see iodev.h */
        int timemode;
