@@ -270,6 +270,9 @@ unsigned long readPci(unsigned long reg, int len)
     unsigned long val;
     unsigned char bus, dev, fn, num;
 
+    if (!(reg & PCI_EN))
+	return 0xffffffff;
+
     bus = (reg >> 16) & 0xff;
     dev = (reg >> 11) & 0x1f;
     fn  = (reg >>  8) & 7;
@@ -284,7 +287,7 @@ void writePci(unsigned long reg, unsigned long val, int len)
 {
     unsigned char bus, dev, fn, num;
 
-    if (reg == 0)
+    if (!(reg & PCI_EN) || reg == PCI_EN)
 	return;
 
     bus = (reg >> 16) & 0xff;
@@ -299,37 +302,37 @@ void writePci(unsigned long reg, unsigned long val, int len)
 static void
 write_dword(unsigned short loc,unsigned short reg,unsigned long val)
 {
-    writePci(loc << 8 | (reg & 0xfc), val, 4);
+    writePci(loc << 8 | (reg & 0xfc) | PCI_EN, val, 4);
 }
 
 static void
 write_word(unsigned short loc,unsigned short reg,unsigned short word)
 {
-    writePci(loc << 8 | (reg & 0xfe), word, 2);
+    writePci(loc << 8 | (reg & 0xfe) | PCI_EN, word, 2);
 }
 
 static void
 write_byte(unsigned short loc,unsigned short reg,unsigned char byte)
 {
-    writePci(loc << 8 | (reg & 0xff), byte, 1);
+    writePci(loc << 8 | (reg & 0xff) | PCI_EN, byte, 1);
 }
 
 static unsigned long
 read_dword(unsigned short loc,unsigned short reg)
 {
-    return readPci(loc << 8 | (reg & 0xfc), 4);
+    return readPci(loc << 8 | (reg & 0xfc) | PCI_EN, 4);
 }
 
 static unsigned short
 read_word(unsigned short loc,unsigned short reg)
 {
-    return readPci(loc << 8 | (reg & 0xfe), 2);
+    return readPci(loc << 8 | (reg & 0xfe) | PCI_EN, 2);
 }
 
 static unsigned char
 read_byte(unsigned short loc,unsigned short reg)
 {
-    return readPci(loc << 8 | (reg & 0xff), 1);
+    return readPci(loc << 8 | (reg & 0xff) | PCI_EN, 1);
 }
 
 static int proc_bus_pci_devices_get_sizes(pciPtr pci)

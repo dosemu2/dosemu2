@@ -507,36 +507,34 @@ static Bit8u pciemu_port_inb(ioport_t port)
      for instance writing to 0xcf9 as a byte may reset the CPU */
   if (port == 0xcf9) /* TURBO/RESET control register */
     return 0;
-  if (port >= PCI_CONF_DATA && (current_pci_reg & PCI_EN))
-    return readPci((current_pci_reg & ~PCI_EN) + (port & 3), 1);
+  if (port >= PCI_CONF_DATA)
+    return readPci(current_pci_reg + (port & 3), 1);
   return 0xff;
 }
 
 static void pciemu_port_outb(ioport_t port, Bit8u byte)
 {
-  if (port >= PCI_CONF_DATA && (current_pci_reg & PCI_EN))
-    writePci((current_pci_reg & ~PCI_EN) + (port & 3), byte, 1);
+  if (port >= PCI_CONF_DATA)
+    writePci(current_pci_reg + (port & 3), byte, 1);
 }
 
 static Bit16u pciemu_port_inw(ioport_t port)
 {
-  if ((port == PCI_CONF_DATA || port == PCI_CONF_DATA + 2)
-      && (current_pci_reg & PCI_EN))
-    return readPci((current_pci_reg & ~PCI_EN) + (port & 2), 2);
+  if (port == PCI_CONF_DATA || port == PCI_CONF_DATA + 2)
+    return readPci(current_pci_reg + (port & 2), 2);
   return 0xffff;
 }
 
 static void pciemu_port_outw(ioport_t port, Bit16u value)
 {
-  if ((port == PCI_CONF_DATA || port == PCI_CONF_DATA + 2)
-      && (current_pci_reg & PCI_EN))
-    writePci((current_pci_reg & ~PCI_EN) + (port & 2), value, 2);
+  if (port == PCI_CONF_DATA || port == PCI_CONF_DATA + 2)
+    writePci(current_pci_reg + (port & 2), value, 2);
 }
 
 static Bit32u pciemu_port_ind(ioport_t port)
 {
-  if (port == PCI_CONF_DATA && (current_pci_reg & PCI_EN))
-    return readPci(current_pci_reg & ~PCI_EN, 4);
+  if (port == PCI_CONF_DATA)
+    return readPci(current_pci_reg, 4);
   if (port == PCI_CONF_ADDR)
     return current_pci_reg;
   return 0xffffffff;
@@ -545,9 +543,9 @@ static Bit32u pciemu_port_ind(ioport_t port)
 static void pciemu_port_outd(ioport_t port, Bit32u value)
 {
   if (port == PCI_CONF_ADDR)
-    current_pci_reg = value;
-  else if (port == PCI_CONF_DATA && (current_pci_reg & PCI_EN))
-    writePci(current_pci_reg & ~PCI_EN, value, 4);
+    current_pci_reg = value & 0x80fffffc;
+  else if (port == PCI_CONF_DATA)
+    writePci(current_pci_reg, value, 4);
 }
 
 /* set up emulated r/o PCI config space for the given class */
