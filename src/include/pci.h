@@ -82,8 +82,6 @@ void pci_bios(void);
 int pcibios_init(void);
 pciRec *pcibios_find_class(unsigned long class,  int num);
 pciRec *pcibios_find_bdf(unsigned short bdf);
-unsigned long readPci(unsigned long reg, int len);
-void writePci(unsigned long reg, unsigned long val, int len);
 
 struct pci_funcs *pci_check_conf(void);
 extern struct pci_funcs pci_cfg1, pci_cfg2, pci_proc, *pciConfigType;

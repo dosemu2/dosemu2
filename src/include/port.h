@@ -121,6 +121,7 @@ extern Bit16u std_port_inw(ioport_t port);
 extern void   std_port_outw(ioport_t port, Bit16u word);
 extern Bit32u std_port_ind(ioport_t port);
 extern void   std_port_outd(ioport_t port, Bit32u word);
+extern void   pci_port_outd(ioport_t port, Bit32u word);
 
 extern int port_rep_inb(ioport_t port, Bit8u *dest, int df, Bit32u count);
 extern int port_rep_outb(ioport_t port, Bit8u *dest, int df, Bit32u count);

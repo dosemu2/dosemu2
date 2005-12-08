@@ -70,7 +70,7 @@ static const char *crit_sect_caller;
 
 #define SET_HANDLE(p,h)		port_handle_table[(Bit16u)(p)]=(h)
 #define EMU_HANDLER(port)	port_handler[port_handle_table[(Bit16u)(port)]]
-enum{TYPE_INB, TYPE_OUTB, TYPE_INW, TYPE_OUTW, TYPE_IND, TYPE_OUTD, TYPE_EXIT};
+enum{TYPE_INB, TYPE_OUTB, TYPE_INW, TYPE_OUTW, TYPE_IND, TYPE_OUTD, TYPE_PCI, TYPE_EXIT};
 
 /* any user or system device which creates a new handle can't be later
  * remapped by extra_port_init()
@@ -475,25 +475,37 @@ Bit32u std_port_ind(ioport_t port)
 	return pr.word;
 }
 
-void std_port_outd(ioport_t port, Bit32u dword)
+static int do_port_outd(ioport_t port, Bit32u dword, int pci)
 {
         struct portreq pr;
 
         if (current_iopl == 3 || test_bit(port, emu_io_bitmap)) {
 		port_real_outd(port, dword);
-		return;
+		return 0;
         }
 	if (!portserver_pid) {
 		error ("std_port_outd(0x%X,0x%X): port server unavailable\n",
 		       port, dword);
 		port_not_avail_outd (port, dword);
-		return;
+		return 0;
 	}
         pr.word = dword;
         pr.port = port;
-        pr.type = TYPE_OUTD;
+        pr.type = pci ? TYPE_PCI : TYPE_OUTD;
 	write(port_fd_out[1], &pr, sizeof(pr));
-	read(port_fd_in[0], &pr, sizeof(pr));
+	return 1;
+}
+
+void std_port_outd(ioport_t port, Bit32u dword)
+{
+        struct portreq pr;
+	if (do_port_outd(port, dword, 0))
+		read(port_fd_in[0], &pr, sizeof(pr));
+}
+
+void pci_port_outd(ioport_t port, Bit32u dword)
+{
+	do_port_outd(port, dword, 1);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -890,6 +902,15 @@ static void port_server(void)
                 if (pr.type >= TYPE_EXIT)
                         exit(0);
 		ph = &EMU_HANDLER(pr.port);
+		if (pr.type == TYPE_PCI) {
+			/* get addr and data i/o access as close to each other
+			   as possible, both to minimize possible races, and
+			   for speed */
+			struct portreq pr2;
+			read(port_fd_out[0], &pr2, sizeof(pr2));
+			ph->write_portd(pr.port, pr.word);
+			pr = pr2;
+		}
                 switch (pr.type) {
                 case TYPE_INB:
                         pr.word = ph->read_portb(pr.port);

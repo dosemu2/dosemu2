@@ -265,7 +265,7 @@ findClass(unsigned long class,  int num)
     return (pci && pci->enabled) ? pci->bdf : 0xffff;
 }
 
-unsigned long readPci(unsigned long reg, int len)
+static unsigned long readPci(unsigned long reg, int len)
 {
     unsigned long val;
     unsigned char bus, dev, fn, num;
@@ -283,7 +283,7 @@ unsigned long readPci(unsigned long reg, int len)
     return val;
 }
 
-void writePci(unsigned long reg, unsigned long val, int len)
+static void writePci(unsigned long reg, unsigned long val, int len)
 {
     unsigned char bus, dev, fn, num;
 
