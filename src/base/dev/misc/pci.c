@@ -23,8 +23,6 @@
 #include "port.h"
 #include "pci.h"
 
-static int pci_initialized;
-
 /* SIDOC_BEGIN_FUNCTION pci_read_header
  *
  * Use standard 32-bit (type 1) access method to read PCI
@@ -32,6 +30,9 @@ static int pci_initialized;
  *
  * SIDOC_END_FUNCTION
  */
+
+
+static struct pci_funcs pci_cfg1, pci_cfg2, pci_proc;
 
 /*
  * So far only config type 1 is supported. Return 0 if
@@ -96,25 +97,14 @@ static unsigned long pci_read_cfg1 (unsigned char bus, unsigned char device,
   unsigned long bx = ((fn&7)<<8) | ((device&31)<<11) | (bus<<16) |
                       PCI_EN;
 
-  if (!pci_initialized) {
-    if (priv_iopl(3)) {
-      error("iopl(): %s\n", strerror(errno));
-      return 0;
-    }
-    port_real_outd (PCI_CONF_ADDR, bx | (reg & ~3));
-    val = port_real_ind (PCI_CONF_DATA);
-    port_real_outd (PCI_CONF_ADDR, 0);
-    priv_iopl(0);
-  } else {
-    port_outd (PCI_CONF_ADDR, bx | (reg & ~3));
-    if (len == 1)
-      val = port_inb (PCI_CONF_DATA + (reg & 3));
-    else if (len == 2)
-      val = port_inw (PCI_CONF_DATA + (reg & 2));
-    else
-      val = port_ind (PCI_CONF_DATA);
-    port_outd (PCI_CONF_ADDR, 0);
+  if (priv_iopl(3)) {
+    error("iopl(): %s\n", strerror(errno));
+    return 0;
   }
+  port_real_outd (PCI_CONF_ADDR, bx | (reg & ~3));
+  val = port_real_ind (PCI_CONF_DATA);
+  port_real_outd (PCI_CONF_ADDR, 0);
+  priv_iopl(0);
   return val;
 }
 
@@ -124,25 +114,14 @@ static void pci_write_cfg1 (unsigned char bus, unsigned char device,
   unsigned long bx = ((fn&7)<<8) | ((device&31)<<11) | (bus<<16) |
                       PCI_EN;
 
-  if (!pci_initialized) {
-    if (priv_iopl(3)) {
-      error("iopl(): %s\n", strerror(errno));
-      return;
-    }
-    port_real_outd (PCI_CONF_ADDR, bx | (reg & ~3));
-    port_real_outd (PCI_CONF_DATA, val);
-    port_real_outd (PCI_CONF_ADDR, 0);
-    priv_iopl(0);
-  } else {
-    port_outd (PCI_CONF_ADDR, bx | (reg & ~3));
-    if (len == 1)
-      port_outb (PCI_CONF_DATA + (reg & 3), val);
-    else if (len == 2)
-      port_outw (PCI_CONF_DATA + (reg & 2), val);
-    else
-      port_outd (PCI_CONF_DATA, val);
-    port_outd (PCI_CONF_ADDR, 0);
+  if (priv_iopl(3)) {
+    error("iopl(): %s\n", strerror(errno));
+    return;
   }
+  port_real_outd (PCI_CONF_ADDR, bx | (reg & ~3));
+  port_real_outd (PCI_CONF_DATA, val);
+  port_real_outd (PCI_CONF_ADDR, 0);
+  priv_iopl(0);
 }
 
 /* only called from pci bios init */
@@ -192,55 +171,31 @@ static unsigned long pci_read_cfg2 (unsigned char bus, unsigned char device,
 				    unsigned char fn, unsigned long num, int len)
 {
   unsigned long val;
-  
-  if (!pci_initialized) {
-    if (priv_iopl(3)) {
-      error("iopl(): %s\n", strerror(errno));
-      return 0;
-    }
-    port_real_outb(PCI_MODE2_ENABLE_REG, (fn << 1) | 0xF0);
-    port_real_outb(PCI_MODE2_FORWARD_REG, bus);
-    val = port_real_ind (0xc000 | (device << 8) | num);
-    port_real_outb(PCI_MODE2_ENABLE_REG, 0x00);
-    priv_iopl(0);
-  } else {
-    std_port_outb(PCI_MODE2_ENABLE_REG, (fn << 1) | 0xF0);
-    std_port_outb(PCI_MODE2_FORWARD_REG, bus);
-    if (len == 1)
-      val = std_port_inb (0xc000 | (device << 8) | num);
-    else if (len == 2)
-      val = std_port_inw (0xc000 | (device << 8) | num);
-    else
-      val = std_port_ind (0xc000 | (device << 8) | num);
-    std_port_outb(PCI_MODE2_ENABLE_REG, 0x00);
+
+  if (priv_iopl(3)) {
+    error("iopl(): %s\n", strerror(errno));
+    return 0;
   }
+  port_real_outb(PCI_MODE2_ENABLE_REG, (fn << 1) | 0xF0);
+  port_real_outb(PCI_MODE2_FORWARD_REG, bus);
+  val = port_real_ind (0xc000 | (device << 8) | num);
+  port_real_outb(PCI_MODE2_ENABLE_REG, 0x00);
+  priv_iopl(0);
   return val;
 }
 
 static void pci_write_cfg2 (unsigned char bus, unsigned char device,
 			    unsigned char fn, unsigned long num, unsigned long val, int len)
 {
-  if (!pci_initialized) {
-    if (priv_iopl(3)) {
-      error("iopl(): %s\n", strerror(errno));
-      return;
-    }
-    port_real_outb(PCI_MODE2_ENABLE_REG, (fn << 1) | 0xF0);
-    port_real_outb(PCI_MODE2_FORWARD_REG, bus);
-    port_real_outd (0xc000 | (device << 8) | num, val);
-    port_real_outb(PCI_MODE2_ENABLE_REG, 0x00);
-    priv_iopl(0);
-  } else {
-    std_port_outb(PCI_MODE2_ENABLE_REG, (fn << 1) | 0xF0);
-    std_port_outb(PCI_MODE2_FORWARD_REG, bus);
-    if (len == 1)
-      std_port_outb (0xc000 | (device << 8) | num, val);
-    else if (len == 2)
-      std_port_outw (0xc000 | (device << 8) | num, val);
-    else
-      std_port_outd (0xc000 | (device << 8) | num, val);
-    std_port_outb(PCI_MODE2_ENABLE_REG, 0x00);
+  if (priv_iopl(3)) {
+    error("iopl(): %s\n", strerror(errno));
+    return;
   }
+  port_real_outb(PCI_MODE2_ENABLE_REG, (fn << 1) | 0xF0);
+  port_real_outb(PCI_MODE2_FORWARD_REG, bus);
+  port_real_outd (0xc000 | (device << 8) | num, val);
+  port_real_outb(PCI_MODE2_ENABLE_REG, 0x00);
+  priv_iopl(0);
 }
 
 /* only called from pci bios init */
@@ -330,7 +285,8 @@ static int pci_check_device_present_proc(unsigned char bus, unsigned char device
   return (fd != -1);
 }
 
-struct pci_funcs pci_cfg1 = {
+static struct pci_funcs pci_cfg1 = {
+  "1",
   pci_no_open,
   pci_read_cfg1,
   pci_write_cfg1,
@@ -338,7 +294,8 @@ struct pci_funcs pci_cfg1 = {
   pci_check_device_present_cfg1
 };
 
-struct pci_funcs pci_cfg2 = {
+static struct pci_funcs pci_cfg2 = {
+  "2",
   pci_no_open,
   pci_read_cfg2,
   pci_write_cfg2,
@@ -346,7 +303,8 @@ struct pci_funcs pci_cfg2 = {
   pci_check_device_present_cfg2
 };
 
-struct pci_funcs pci_proc = {
+static struct pci_funcs pci_proc = {
+  "/proc",
   pci_open_proc,
   pci_read_proc,
   pci_write_proc,
@@ -394,7 +352,6 @@ int pci_setup (void)
     io_device.start_addr = PCI_CONF_ADDR;
     io_device.end_addr = PCI_CONF_DATA+3;
     port_register_handler(io_device, 0);
-    pci_initialized = 1;
   }
   return 0;
 }
@@ -574,11 +531,7 @@ pciRec *pciemu_setup(unsigned long class)
     io_device.end_addr = PCI_CONF_DATA+3;
     port_register_handler(io_device, 0);
 
-    pciConfigType->read = pci_read_cfg1;
-    pciConfigType->write = pci_write_cfg1;
-
     pciemu_initialized = 1;
-    pci_initialized = 1;
   }
   return pci;
 }

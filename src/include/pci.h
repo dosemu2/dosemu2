@@ -66,6 +66,7 @@ typedef struct _pciRec {
 } pciRec, *pciPtr;
 
 struct pci_funcs {
+    char *name;
     int (*open)(unsigned char bus, unsigned char device, unsigned char fn);
     unsigned long (*read)(unsigned char bus, unsigned char device,
 			  unsigned char fn, unsigned long reg, int len);
@@ -84,7 +85,7 @@ pciRec *pcibios_find_class(unsigned long class,  int num);
 pciRec *pcibios_find_bdf(unsigned short bdf);
 
 struct pci_funcs *pci_check_conf(void);
-extern struct pci_funcs pci_cfg1, pci_cfg2, pci_proc, *pciConfigType;
+extern struct pci_funcs *pciConfigType;
 
 int pci_setup (void);
 pciRec *pciemu_setup(unsigned long class);

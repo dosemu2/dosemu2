@@ -16,6 +16,7 @@
 #include "pci.h"
 #include "emu.h"
 #include "cpu.h"
+#include "port.h"
 
 #define PCI_VERSION 0x0210  /* version 2.10 */
 #define PCI_CONFIG_1 0x01 
@@ -47,6 +48,14 @@ static int interpretCfgSpace(unsigned long *pciheader,unsigned long *pcibuses,
 			     int busidx, unsigned char dev,
 			     unsigned char func);
 
+static unsigned long readPciCfg1(unsigned long reg, int len);
+static void writePciCfg1(unsigned long reg, unsigned long val, int len);
+static unsigned long readPciCfg2(unsigned long reg, int len);
+static void writePciCfg2(unsigned long reg, unsigned long val, int len);
+
+static unsigned long (*readPci)(unsigned long reg, int len) = readPciCfg1;
+static void (*writePci)(unsigned long reg, unsigned long val, int len) = writePciCfg1;
+
 static void write_dword(unsigned short loc,
 			unsigned short reg,unsigned long val);
 static void write_word(unsigned short loc,
@@ -76,7 +85,7 @@ pci_bios(void)
 	    HI(ax) = 0;
 	    clear_CF();
 	}
-	if (pciConfigType != &pci_cfg2)
+	if (pciConfigType->name[0] != '2')
 	    LO(ax) = PCI_CONFIG_1; /*  no special cylce */
 	else 
 	    LO(ax) = PCI_CONFIG_2; /*  no special cylce */
@@ -173,10 +182,9 @@ pcibios_init(void)
     Z_printf("PCI enabled\n");
     
     pciConfigType = pci_check_conf();
-    Z_printf("PCI config type %s\n",pciConfigType == &pci_cfg1 ? "1" :
-	     pciConfigType == &pci_cfg2 ? "2" : "/proc");
+    Z_printf("PCI config type %s\n",pciConfigType->name);
 
-    if (pciConfigType == &pci_cfg2) {
+    if (pciConfigType->name[0] == '2') {
 	cardnum_lo = 0xC0;
 	cardnum_hi = 0xD0;
 	func_hi = 1;
@@ -265,38 +273,77 @@ findClass(unsigned long class,  int num)
     return (pci && pci->enabled) ? pci->bdf : 0xffff;
 }
 
-static unsigned long readPci(unsigned long reg, int len)
+static unsigned long readPciCfg1 (unsigned long reg, int len)
 {
     unsigned long val;
-    unsigned char bus, dev, fn, num;
 
-    if (!(reg & PCI_EN))
-	return 0xffffffff;
-
-    bus = (reg >> 16) & 0xff;
-    dev = (reg >> 11) & 0x1f;
-    fn  = (reg >>  8) & 7;
-    num = reg & 0xff;
-    
-    val = pciConfigType->read(bus, dev, fn, num, len);
+    port_outd (PCI_CONF_ADDR, reg & ~3);
+    if (len == 1)
+	val = port_inb (PCI_CONF_DATA + (reg & 3));
+    else if (len == 2)
+	val = port_inw (PCI_CONF_DATA + (reg & 2));
+    else
+	val = port_ind (PCI_CONF_DATA);
+    port_outd (PCI_CONF_ADDR, 0);
     Z_printf("PCIBIOS: reading 0x%lx from 0x%lx, len=%d\n",val,reg,len);
     return val;
 }
 
-static void writePci(unsigned long reg, unsigned long val, int len)
+static void writePciCfg1 (unsigned long reg, unsigned long val, int len)
 {
-    unsigned char bus, dev, fn, num;
+    Z_printf("PCIBIOS writing: 0x%lx to 0x%lx, len=%d\n",val,reg,len);
+    port_outd (PCI_CONF_ADDR, reg & ~3);
+    if (len == 1)
+	port_outb (PCI_CONF_DATA + (reg & 3), val);
+    else if (len == 2)
+	port_outw (PCI_CONF_DATA + (reg & 2), val);
+    else
+	port_outd (PCI_CONF_DATA, val);
+    port_outd (PCI_CONF_ADDR, 0);
+}
 
-    if (!(reg & PCI_EN) || reg == PCI_EN)
-	return;
+static unsigned long readPciCfg2 (unsigned long reg, int len)
+{
+    unsigned long val;
+    unsigned char bus, dev, num, fn;
+  
+    bus = (reg >> 16) & 0xff;
+    dev = (reg >> 11) & 0x1f;
+    fn  = (reg >>  8) & 7;
+    num = reg & 0xff;
+
+    port_outb(PCI_MODE2_ENABLE_REG, (fn << 1) | 0xF0);
+    port_outb(PCI_MODE2_FORWARD_REG, bus);
+    if (len == 1)
+	val = port_inb (0xc000 | (dev << 8) | num);
+    else if (len == 2)
+	val = port_inw (0xc000 | (dev << 8) | num);
+    else
+	val = port_ind (0xc000 | (dev << 8) | num);
+    port_outb(PCI_MODE2_ENABLE_REG, 0x00);
+    Z_printf("PCIBIOS: reading 0x%lx from 0x%lx, len=%d\n",val,reg,len);
+    return val;
+}
+
+static void writePciCfg2 (unsigned long reg, unsigned long val, int len)
+{
+    unsigned char bus, dev, num, fn;
 
     bus = (reg >> 16) & 0xff;
     dev = (reg >> 11) & 0x1f;
     fn  = (reg >>  8) & 7;
     num = reg & 0xff;
-    
+
     Z_printf("PCIBIOS writing: 0x%lx to 0x%lx, len=%d\n",val,reg,len);
-    pciConfigType->write(bus, dev, fn, num, val, len);
+    port_outb(PCI_MODE2_ENABLE_REG, (fn << 1) | 0xF0);
+    port_outb(PCI_MODE2_FORWARD_REG, bus);
+    if (len == 1)
+	port_outb (0xc000 | (dev << 8) | num, val);
+    else if (len == 2)
+	port_outw (0xc000 | (dev << 8) | num, val);
+    else
+	port_outd (0xc000 | (dev << 8) | num, val);
+    port_outb(PCI_MODE2_ENABLE_REG, 0x00);
 }
 
 static void
