@@ -150,7 +150,6 @@ install:
 	done
 	rm -rf $(DESTDIR)$(dosemudir)/commands $(DESTDIR)$(dosemudir)/freedos/dosemu
 	cp -a $(TMP)/dosemu $(DESTDIR)$(dosemudir)/commands
-	ln -sf ../commands $(DESTDIR)$(dosemudir)/freedos/dosemu
 	cd $(TMP)/dosemu; \
 	for i in `find . -type f` ; do \
 	  ln -snf $(dosemudir)/commands/$${i:2} $$i; \
@@ -179,6 +178,7 @@ install:
 	  fi; \
 	  rm -rf $(DESTDIR)$(dosemudir)/freedos/tmp; \
 	  ln -sf /tmp $(DESTDIR)$(dosemudir)/freedos/tmp; \
+	  ln -sf ../commands $(DESTDIR)$(dosemudir)/freedos/dosemu; \
 	fi
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)
 	if [ ! -f $(DESTDIR)$(sysconfdir)/dosemu.conf ]; then \
