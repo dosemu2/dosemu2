@@ -1,4 +1,5 @@
 /* 
+ * Tim Bird, tbird@novell.com (original code)
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
  *
@@ -6,8 +7,6 @@
  */
 
 /* ipx.c for the DOS emulator
- * 		Tim Bird, tbird@novell.com
- *
  * 96/07/31 -	Add callback from ESR and procedure to call into 
  *		IPX from DOSEmu (bios.S ESRFarCall). JES
  *

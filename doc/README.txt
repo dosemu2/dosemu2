@@ -1256,8 +1256,8 @@ is,
    written for Dosemu.
 
    The driver consists of a server on the Linux side
-   (dosemu/drivers/cdrom.c, accessed via int 0xe6 handle 0x40) and a
-   device driver (dosemu/commands/cdrom.S) on the DOS side.
+   (src/dosext/drivers/cdrom.c, accessed via int 0xe6 handle 0x40) and a
+   device driver (src/commands/cdrom.S) on the DOS side.
 
    Please send any suggestions and bug reports to
    <rucker@astro.uni-bonn.de>

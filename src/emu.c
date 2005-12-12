@@ -230,16 +230,14 @@ static void do_liability_disclaimer_prompt(void)
   char buf[32];
   char disclaimer_file_name[256];
   static char text[] =
-  "The Linux DOSEMU, Copyright (C) 2003 the 'DOSEMU-Development-Team'.\n"
+  "The Linux DOSEMU, Copyright (C) 2005 the 'DOSEMU-Development-Team'.\n"
   "This program is  distributed  in  the  hope that it will be useful,\n"
   "but  WITHOUT  ANY  WARRANTY;   without even the implied warranty of\n"
   "MERCHANTABILITY  or  FITNESS FOR A PARTICULAR PURPOSE. See the file\n"
   "COPYING for more details.  Use  this  program  at  your  own  risk!\n\n"
-  "By continuing execution of this program,  you  are stating that you\n"
-  "have read the file  COPYING  and the above liability disclaimer and\n"
-  "that you accept these conditions.\n\n"
-  "Enter 'yes' to confirm/continue: ";
-
+  "By continuing execution of this program, you are stating that you have\n"
+  "read the above liability disclaimer and that you accept these conditions.\n"
+  "\nEnter 'yes' to confirm/continue: ";
 
   snprintf(disclaimer_file_name, 256, "%s/disclaimer", LOCALDIR);
   if (exists_file(disclaimer_file_name)) return;

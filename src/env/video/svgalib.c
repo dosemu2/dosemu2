@@ -1,4 +1,7 @@
 /*
+ * written March/April 2000 (original code)
+ * Bart Oldeman <bart.oldeman@bristol.ac.uk>
+ * with help from Matan Ziv-Av <matan@svgalib.org>
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
  *
@@ -6,10 +9,6 @@
 */
 
 /* Interface for svgalib.
- *
- * written March/April 2000
- * Bart Oldeman <bart.oldeman@bristol.ac.uk>
- * with help from Matan Ziv-Av <matan@svgalib.org>
  *
  * Notes:
  *  - This should work with any card directly supported by svgalib,

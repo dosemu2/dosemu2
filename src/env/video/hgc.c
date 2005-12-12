@@ -1,4 +1,6 @@
 /* 
+ * (C) 1994 Martin Ludwig  (original code)
+ *          Martin.Ludwig@ruba.rz.ruhr-uni-bochum.de
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
  *
@@ -9,10 +11,6 @@
  * hgc.c
  *
  * This file contains support for HGC-cards
- *
- * (C) 1994 Martin Ludwig
- *          Martin.Ludwig@ruba.rz.ruhr-uni-bochum.de
- *
  */
 
 #include <stdio.h>

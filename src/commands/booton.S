@@ -1,4 +1,5 @@
 # 
+# Theodore Ts'o, tytso@mit.edu (original code)
 # All modifications in this file to the original code are
 # (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
 #
@@ -6,7 +7,6 @@
 #
 
 # booton.S, to generate booton.com, for dosemu 0.49, 4/9/93
-# Theodore Ts'o, tytso@mit.edu
 #
 .code16
 .text

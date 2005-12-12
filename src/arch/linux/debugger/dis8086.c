@@ -1,4 +1,5 @@
 /* 
+ * Copyright 1993 by John F. Carr (jfc@athena.mit.edu) (original code)
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
  *
@@ -8,8 +9,6 @@
 /* 80x86 disassembler for real mode and 16 bit segments.
  * 32 bit address and data prefixes are partially supported; there
  * may be some missing cases.
- *
- * Copyright 1993 by John F. Carr (jfc@athena.mit.edu)
  *
  * Changes for dosemu-debugger by
  *              Hans Lermen <lermen@elserv.ffm.fgan.de>

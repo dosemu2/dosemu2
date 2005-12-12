@@ -1,4 +1,6 @@
 /* 
+ * (C) 1994 Christoph Niemann (original code)
+ *          Christoph.Niemann@linux.org
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
  *
@@ -9,9 +11,6 @@
  * s3.c
  *
  * This file contains support for VGA-cards with an S3 chip.
- *
- * (C) 1994 Christoph Niemann
- *          Christoph.Niemann@linux.org
  *
  * The programming information was taken from the file vgadoc3.zip
  * by Finn Thoegersen and from the german computer magazine c't,

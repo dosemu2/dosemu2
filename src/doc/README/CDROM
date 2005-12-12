@@ -10,9 +10,9 @@ written for Dosemu.
 </para>
 
 <para>
-The driver consists of a server on the Linux side (dosemu/drivers/cdrom.c,
-accessed via int 0xe6 handle 0x40) and a device driver
-(dosemu/commands/cdrom.S) on the DOS side.
+The driver consists of a server on the Linux side
+(src/dosext/drivers/cdrom.c, accessed via int 0xe6 handle 0x40) and a
+device driver (src/commands/cdrom.S) on the DOS side.
 </para>
 
 <para>

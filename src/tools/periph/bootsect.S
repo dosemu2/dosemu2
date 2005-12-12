@@ -1,11 +1,11 @@
 # 
+# Boot record program (C) Copyright Peter Norton (original code)
 # All modifications in this file to the original code are
 # (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
 #
 # for details see file COPYING in the DOSEMU distribution
 #
 
-#  Boot record program (C) Copyright Peter Norton 1986
 #  modified by Robert Sanders, gt8134b@prism.gatech.edu
 #   for dosemu 0.49, 4/1/93
 #
