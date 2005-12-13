@@ -1199,9 +1199,6 @@ static int int21lfnhook(void)
 
 static int msdos(void)
 {
-#ifdef X86_EMULATOR
-  static char buf[80];
-#endif
   ds_printf("INT21 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
        redir_state, LWORD(cs), LWORD(eip),
        LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
@@ -1216,26 +1213,6 @@ static int msdos(void)
     ds_printf("INT21: open file \"");
     for(i = 0; i < 64 && p[i]; i++) ds_printf("%c", p[i]);
     ds_printf("\"\n");
-  }
-#endif
-
-#ifdef X86_EMULATOR
-  if ((HI(ax)==0x40) && LWORD(ecx)) {
-	char *dp = (char *)((LWORD(ds)<<4)+LWORD(edx));
-	unsigned int nb = LWORD(ecx);
-	if (nb>78) nb=78; memcpy(buf,dp,nb); buf[nb]=0;
-	ds_printf("WRITE(40): [%s]\n",buf);
-  }
-  else if (HI(ax)==9) {
-	char *dp = (char *)((LWORD(ds)<<4)+LWORD(edx));
-	char *q = buf;
-	int nb;
-	for (nb=0; (nb<78)&&(*dp!='$'); nb++) *q++ = *dp++;
-	buf[nb]=0;
-	ds_printf("WRITE(09): [%s]\n",buf);
-  }
-  else if ((HI(ax)==6) && (LO(ax)!=0xff)) {
-	ds_printf("WRITE(06): [%c]\n",isprint(LO(ax)? LO(ax):'.'));
   }
 #endif
 
