@@ -303,9 +303,14 @@ Bit16u get_bios_key(t_rawkeycode raw)
 	Bit16u bios_key = 0;
 	Bit8u flags3 = READ_BYTE(BIOS_KEYBOARD_FLAGS3);
 
-	if (flags3 & 1)
-		dos_keyboard_state.raw_state.rawprefix = 0xe1;
-	else if (flags3 & 2)
+	if (flags3 & 1) {
+		if (raw == 0x1d || raw == 0x9d)
+			dos_keyboard_state.raw_state.rawprefix = 0xe1;
+		else if (raw & 0x80)
+			dos_keyboard_state.raw_state.rawprefix = 0xe19d;
+		else
+			dos_keyboard_state.raw_state.rawprefix = 0xe11d;
+	} else if (flags3 & 2)
 		dos_keyboard_state.raw_state.rawprefix = 0xe0;
 	else
 		dos_keyboard_state.raw_state.rawprefix = 0;
@@ -323,11 +328,13 @@ Bit16u get_bios_key(t_rawkeycode raw)
 	}
 
 	flags3 = READ_BYTE(BIOS_KEYBOARD_FLAGS3) & ~3;
-	switch (raw) {
+	switch (dos_keyboard_state.raw_state.rawprefix) {
 		case 0xe0:
 			flags3 |= 2;
 			break;
 		case 0xe1:
+		case 0xe11d:
+		case 0xe19d:
 			flags3 |= 1;
 			break;
 	}
