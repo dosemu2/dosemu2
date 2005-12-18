@@ -1528,7 +1528,6 @@ void video_mem_setup(void)
   int co, li;
 
   WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
-  WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
 
   li = LI;
   co = CO;
@@ -1542,11 +1541,15 @@ void video_mem_setup(void)
   WRITE_WORD(BIOS_CURSOR_SHAPE, (configuration&MDA_CONF_SCREEN_MODE)?0x0A0B:0x0607);
     
   /* This is needed in the video stuff. Grabbed from boot(). */
-  if ((configuration & MDA_CONF_SCREEN_MODE) == MDA_CONF_SCREEN_MODE)
+  if ((configuration & MDA_CONF_SCREEN_MODE) == MDA_CONF_SCREEN_MODE) {
     WRITE_WORD(BIOS_VIDEO_PORT, 0x3b4);	/* base port of CRTC - IMPORTANT! */
-  else
+    video_mode = 7;
+  } else {
     WRITE_WORD(BIOS_VIDEO_PORT, 0x3d4);	/* base port of CRTC - IMPORTANT! */
-    
+    video_mode = 3;
+  }
+  WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
+
   WRITE_BYTE(BIOS_VDU_CONTROL, 9);	/* current 3x8 (x=b or d) value */
     
   WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);/* offset of current page in buffer */
