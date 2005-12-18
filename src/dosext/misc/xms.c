@@ -37,6 +37,7 @@
 #include "int.h"
 #include "hma.h"
 #include "machcompat.h"
+#include "dos2linux.h"
 #include "cpu-emu.h"
 
 #undef  DEBUG_XMS
@@ -771,7 +772,7 @@ xms_move_EMB(void)
 
   x_printf("XMS: block move from %p to %p len 0x%lx\n",
 	   (void *) src, (void *) dest, e.Length);
-  MEMMOVE_DOS2DOS(dest, src, e.Length);
+  memmove_dos2dos(dest, src, e.Length);
   if ((size_t)dest < 0x110000)
     e_invalidate(dest, e.Length);
   x_printf("XMS: block move done\n");

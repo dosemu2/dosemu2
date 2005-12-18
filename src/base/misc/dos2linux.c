@@ -28,9 +28,15 @@
  * DANG_BEGIN_CHANGELOG
  *
  *	$Log$
- *	Revision 1.13  2005/11/29 18:24:31  stsp
- *	call_msdos() must switch to real mode before calling DOS, if needed.
+ *	Revision 1.14  2005/12/18 07:58:44  bartoldeman
+ *	Put some basic checks into dos_read/dos_write, and memmove_dos2dos to
+ *	avoid touching the protected video memory.
+ *	Fixes #1379806 (gw stopped to work under X).
  *
+ *	Revision 1.13  2005/11/29 18:24:31  stsp
+ *	
+ *	call_msdos() must switch to real mode before calling DOS, if needed.
+ *	
  *	Revision 1.12  2005/11/29 10:25:04  bartoldeman
  *	Adjust video.c init so that -dumb does not pop up an X window.
  *	Make -dumb quiet until the command is executed if a command is given. So
@@ -121,6 +127,7 @@
 #include "lowmem.h"
 #include "utilities.h"
 #include "dos2linux.h" 
+#include "vgaemu.h"
 
 #ifndef max
 #define max(a,b)       ((a)>(b)? (a):(b))
@@ -531,10 +538,31 @@ int change_config(unsigned item, void *buf, int grab_active, int kbd_grab_active
   return err;
 }
 
+void memmove_dos2dos(void *dest, const void *src, size_t n)
+{
+  /* XXX GW (Game Wizard Pro) does this.
+     TODO: worry about overlaps; could be a little cleaner
+     using the memcheck.c mechanism */
+  if (vga.inst_emu && (size_t)src >= 0xa0000 && (size_t)src < 0xc0000)
+    memcpy_from_vga(dest, src, n);
+  else if (vga.inst_emu && (size_t)dest >= 0xa0000 && (size_t)dest < 0xc0000)
+    memcpy_to_vga(dest, src, n);
+  else
+    MEMMOVE_DOS2DOS(dest, src, n);
+}
+
 int dos_read(int fd, char *data, int cnt)
 {
   int ret;
-  ret = RPT_SYSCALL(read(fd, LINEAR2UNIX(data), cnt));
+  /* GW also reads or writes directly from a file to protected video memory. */
+  if (vga.inst_emu && (size_t)data >= 0xa0000 && (size_t)data < 0xc0000) {
+    char buf[cnt];
+    ret = RPT_SYSCALL(read(fd, buf, cnt));
+    if (ret >= 0)
+      memcpy_to_vga(data, buf, ret);
+  }
+  else
+    ret = RPT_SYSCALL(read(fd, LINEAR2UNIX(data), cnt));
   if (ret > 0)
 	e_invalidate(data, ret);
   return (ret);
@@ -543,7 +571,12 @@ int dos_read(int fd, char *data, int cnt)
 int dos_write(int fd, char *data, int cnt)
 {
   int ret;
-  ret = RPT_SYSCALL(write(fd, LINEAR2UNIX(data), cnt));
+  char buf[cnt];
+  if (vga.inst_emu && (size_t)data >= 0xa0000 && (size_t)data < 0xc0000) {
+    memcpy_from_vga(buf, data, cnt);
+    data = buf;
+  }
+  ret = RPT_SYSCALL(write(fd, data, cnt));
   g_printf("Wrote %10.10s\n", data);
   return (ret);
 }

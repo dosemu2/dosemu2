@@ -19,6 +19,7 @@
 #include "mapping.h"
 #include "bios.h"
 #include "utilities.h"
+#include "dos2linux.h"
 #include "cpu-emu.h"
 
 #define HMAAREA (u_char *)0x100000
@@ -107,7 +108,7 @@ void extmem_copy(char *dst, char *src, unsigned long len)
     clen = min(slen, dlen);
     x_printf("INT15: copy 0x%lx bytes from %p to %p%s\n",
       clen, s, d, clen != len ? " (split)" : "");
-    MEMMOVE_DOS2DOS(d, s, clen);
+    memmove_dos2dos(d, s, clen);
     if (d < edge)
       e_invalidate(d, clen);
     copied += clen;

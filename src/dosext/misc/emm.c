@@ -66,6 +66,7 @@
 #include "machcompat.h"
 #include "mapping.h"
 #include "emm.h"
+#include "dos2linux.h"
 
 static inline boolean_t unmap_page(int);
 
@@ -1131,7 +1132,7 @@ move_memory_region(state_t * state)
     }
   }
   E_printf("EMS: Move Memory Region from 0x%x -> 0x%x\n", (int)source, (int)dest);
-  memmove((u_char *) dest, (u_char *) source, mem_move->size);
+  memmove_dos2dos(dest, source, mem_move->size);
 
   if (source < dest) {
     if (source + mem_move->size >= dest) {
