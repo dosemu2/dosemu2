@@ -154,6 +154,8 @@ static void bios_setup(void)
   iodev_reset();		/* reset all i/o devices          */
   ems_reset();
   xms_reset();
+  _AL = DOS_HELPER_COMMANDS_DONE;
+  while (dos_helper());		/* release memory used by helper utilities */
   boot();			/* read the boot sector & get moving */
 
   fake_retf(0);
