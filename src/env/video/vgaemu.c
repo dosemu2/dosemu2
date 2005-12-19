@@ -2753,9 +2753,12 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
     }
     case CFG_MODE_CONTROL:
     {
+      int oldclass;
+
       if (vga.color_bits > 8)
 	return;
 
+      oldclass = vga.mode_class;
       vga.mode_class = (vga.gfx.data[6] & 1) ? GRAPH : TEXT;
       vga.pixel_size = 4;
       if (vga.mode_class == TEXT) {
@@ -2791,6 +2794,11 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
 	(vga.color_bits == 8 && 
 	 ((vga.seq.map_mask | 0xf8) & (vga.seq.map_mask - 1))))
 	? EMU_ALL_INST : 0;
+      if (oldclass != vga.mode_class) {
+	vgaemu_adj_cfg(CFG_SEQ_ADDR_MODE, 0);
+	vgaemu_adj_cfg(CFG_CRTC_WIDTH, 0);
+	vgaemu_adj_cfg(CFG_CRTC_HEIGHT, 0);
+      }
       vga.reconfig.re_init = 1;
       break;
     }
