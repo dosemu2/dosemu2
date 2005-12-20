@@ -81,14 +81,14 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
 
 1.5. Fundamental problem with the Linux kernel
 
-   The PC Internal Timer (PIT) can be programmed to produce interrupts
-   with frequencies up to almost 2MHz. Linux sets this to only 100Hz (2.6
-   kernels can set it to 1KHz) and doesn't allow the software to change
-   that. This limits the minimal interval between subsequent SIGALRM
-   notifications for software that uses the setitimer(2) syscall. To
-   emulate the PIT frequencies that are higher than the frequency Linux
-   sets the PIT to, dosemu uses "interrupt bursts": on every SIGALRM
-   reception dosemu triggers the timer interrupt as many times as
+   The Programmable Interval Timer (PIT) can be programmed to produce
+   interrupts with frequencies up to almost 2MHz. Linux sets this to only
+   100Hz (2.6 kernels can set it to 1KHz) and doesn't allow the software
+   to change that. This limits the minimal interval between subsequent
+   SIGALRM notifications for software that uses the setitimer(2) syscall.
+   To emulate the PIT frequencies that are higher than the frequency
+   Linux sets the PIT to, dosemu uses "interrupt bursts": on every
+   SIGALRM reception dosemu triggers the timer interrupt as many times as
    necessary to compensate the gap since the previous SIGALRM reception.
    This allows to keep a precise timing but causes problems for some
    programs. When the timer interrupt handler is invoked more than once
@@ -220,7 +220,8 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
        $_full_file_locks=(on) may or may not help.
      * Mortal Kombat 1 and 2 are not producing any sound for unknown
        reasons.
-     * X-COM Apocalypse locks up at startup if configured with sound.
+     * X-COM Apocalypse (DEMO version) locks up at startup if configured
+       with sound.
      * RTC periodic interrupts are not implemented yet.
      _________________________________________________________________
 
@@ -240,7 +241,5 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
      * Commander Keen 1 wobbles like jelly and the window shakes every
        time it scrolls.
      * Commander Keen 4 has some problems with colours.
-     * Clyde's Adventures statsbar fonts completely garbled xdosemu.
-       Download at: http://www.gamesdomain.com/directd/513.html
      * Pinball Dreams 2 takes a long time to start. Once it's past the
        startup screen it runs fine though.
