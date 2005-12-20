@@ -204,7 +204,11 @@ ifdef  USE_MHPDBG
 	$(INSTALL) -m 0755 ../bin/dosdebug $(DESTDIR)$(bindir)
 endif
 	$(INSTALL) -d $(DESTDIR)$(libdir)/dosemu
-	$(INSTALL) -m 0644 ../bin/*.so $(DESTDIR)$(libdir)/dosemu
+	for i in ../bin/*.so; do \
+	  if [ -f $$i ]; then \
+	    $(INSTALL) -m 0644 $$i $(DESTDIR)$(libdir)/dosemu; \
+	  fi; \
+	done
 	$(INSTALL) -d $(DESTDIR)$(docdir)
 	$(INSTALL) -m 0644 $(REALTOPDIR)/{README.bindist,NEWS,THANKS} $(DESTDIR)$(docdir)
 	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/{README,README-tech,dosemu-HOWTO,sound-usage}.txt \

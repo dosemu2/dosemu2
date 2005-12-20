@@ -10,6 +10,7 @@ config {
   aspi on
   svgalib off
   gpm on
+  dlplugins on
   plugin_kbd_unicode on
   plugin_extra_charsets on
   plugin_term on

@@ -287,9 +287,11 @@ fi
 dnl --- now that we've found it, check the link
 CPPFLAGS="$CPPFLAGS $SLANGINC"
 AC_MSG_RESULT($SLANGINC $SLANGLIB)
+have_slang="no"
 AC_CHECK_HEADER(slang.h,
   AC_CHECK_LIB(slang, SLtt_get_terminfo,
     AC_MSG_NOTICE(Compiling with S-Lang support...)
+    have_slang="yes"
     AC_DEFINE(USE_SLANG)
     SLANGLIB="$SLANGLIB -lslang -lm",
     [AC_MSG_WARN([No S-Lang library found.])]
@@ -872,5 +874,10 @@ if test "$have_x" = "no" ; then
   AC_MSG_WARN( )
   AC_MSG_WARN(Compiling without X support.)
   AC_MSG_WARN(Install the X development libraries if you want support for X.)
+fi
+if test "$have_slang" = "no" ; then
+  AC_MSG_WARN( )
+  AC_MSG_WARN(Compiling without terminal support.)
+  AC_MSG_WARN(Install the slang development libraries if you want to run in a terminal.)
 fi
 echo ""

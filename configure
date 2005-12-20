@@ -7294,6 +7294,7 @@ fi
 CPPFLAGS="$CPPFLAGS $SLANGINC"
 echo "$as_me:$LINENO: result: $SLANGINC $SLANGLIB" >&5
 echo "${ECHO_T}$SLANGINC $SLANGLIB" >&6
+have_slang="no"
 if test "${ac_cv_header_slang_h+set}" = set; then
   echo "$as_me:$LINENO: checking for slang.h" >&5
 echo $ECHO_N "checking for slang.h... $ECHO_C" >&6
@@ -7497,6 +7498,7 @@ echo "${ECHO_T}$ac_cv_lib_slang_SLtt_get_terminfo" >&6
 if test $ac_cv_lib_slang_SLtt_get_terminfo = yes; then
   { echo "$as_me:$LINENO: Compiling with S-Lang support..." >&5
 echo "$as_me: Compiling with S-Lang support..." >&6;}
+    have_slang="yes"
     cat >>confdefs.h <<\_ACEOF
 #define USE_SLANG 1
 _ACEOF
@@ -11291,5 +11293,13 @@ echo "$as_me: WARNING: " >&2;}
 echo "$as_me: WARNING: Compiling without X support." >&2;}
   { echo "$as_me:$LINENO: WARNING: Install the X development libraries if you want support for X." >&5
 echo "$as_me: WARNING: Install the X development libraries if you want support for X." >&2;}
+fi
+if test "$have_slang" = "no" ; then
+  { echo "$as_me:$LINENO: WARNING: " >&5
+echo "$as_me: WARNING: " >&2;}
+  { echo "$as_me:$LINENO: WARNING: Compiling without terminal support." >&5
+echo "$as_me: WARNING: Compiling without terminal support." >&2;}
+  { echo "$as_me:$LINENO: WARNING: Install the slang development libraries if you want to run in a terminal." >&5
+echo "$as_me: WARNING: Install the slang development libraries if you want to run in a terminal." >&2;}
 fi
 echo ""

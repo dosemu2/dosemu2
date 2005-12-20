@@ -8,6 +8,8 @@ DOSEMU installation instructions (from source)
       2.6 kernels <= 2.6.5 can be problematic
     - x86 target CPU
     - bison (not just yacc) and flex
+    - development libraries: X and S-Lang are strongly recommended.
+      GPM, SDL, and SVGALIB can be used when available.
 
 --------------------------------------------------------------------------
 1. Compile
@@ -22,6 +24,8 @@ or
     $SRCDIR/configure (or $SRCDIR/default-configure; see below)
     make
   in that directory.
+
+See section 3 for compiling on x86-64.
 
 --------------------------------------------------------------------------
 2a. Install 
@@ -74,6 +78,21 @@ experimental features, and so on) then it is easier to use the file
 compiletime-settings.devel -- you can use it by running
 	./default-configure -d
 (*not* ./configure -d) prior to running make.
+
+Notes about x86-64.
+On x86-64 DOSEMU (at least for the time being) only runs in 32-bit mode.
+The configure script sets the correct command line options but it
+(depending on the distribution) may not find the correct libraries.
+Try something like
+--x-libraries=/usr/X11R6/lib
+as a configure option to explicitly give the location of the 32-bit
+X libraries.
+On Fedora Core 3 AMD64 the following was necessary:
+ ln -s /usr/lib/libslang-utf8.so.1 libslang.so
+ ln -s /usr/lib/libSDL-1.2.so.0 libSDL.so
+ LIBS=-L$PWD ./configure --x-libraries=/usr/X11R6/lib
+Your mileage may vary. Other distributions may use other directories
+for the 32-bit libraries.
 
 Optimizations: 
 BIG NOTE: do _not_ use -O3 in CFLAGS, because it forces _inline_ at
