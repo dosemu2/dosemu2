@@ -777,6 +777,19 @@ int ValidAndUsedSelector(unsigned short selector)
   return ValidSelector(selector) && Segments[selector >> 3].used;
 }
 
+static inline int check_verr(unsigned short selector)
+{
+  int ret;
+  asm volatile(
+    "verrw %%ax\n"
+    "jz 1f\n"
+    "xorl %%eax, %%eax\n"
+    "1:\n"
+    : "=a"(ret)
+    : "a"(selector));
+  return ret;
+}
+
 /*
 IF DS, ES, FS or GS is loaded with non-null selector;
 THEN
@@ -813,6 +826,14 @@ static inline int CheckDataSelector(struct sigcontext_struct *scp,
         letter, selector, Segments[selector >> 3].type, 
 	    Segments[selector >> 3].not_present);
       D_printf(DPMI_show_state(scp));
+#if 1
+      /* Some buggy programs load the arbitrary LDT or even GDT
+       * selectors after doing "verr" on them. We have to do the same. :( */
+      if (check_verr(selector)) {
+        error("... although verr succeeded, trying to continue\n");
+        return 1;
+      }
+#endif
     }
     return 0;
   }
@@ -988,7 +1009,7 @@ static unsigned short CreateCSAlias(unsigned short selector)
   return ds_selector;
 }
 
-static int inline do_LAR(us selector)
+static inline int do_LAR(us selector)
 {
   int ret;
 #ifdef X86_EMULATOR
@@ -997,7 +1018,6 @@ static int inline do_LAR(us selector)
   else
 #endif
     asm volatile(
-      "movzwl  %%ax,%%eax\n"
       "larw %%ax,%%ax\n"
       "jz 1f\n"
       "xorl %%eax,%%eax\n"
