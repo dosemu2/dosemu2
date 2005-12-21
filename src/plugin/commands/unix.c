@@ -87,7 +87,7 @@ int unix_main(int argc, char **argv)
 static int usage (void)
 {
   com_printf ("Usage: UNIX [FLAG COMMAND]\n");
-  com_printf ("Run Linux commands from DOSEMU\n\n");
+  com_printf ("Run Linux commands from DOSEMU\n");
 #if CAN_EXECUTE_DOS
   com_printf ("UNIX -e [ENVVAR]\n");
   com_printf ("  Execute the DOS program whose Linux path is given in the Linux environment\n");
@@ -99,17 +99,15 @@ static int usage (void)
   com_printf ("  If not given, use the argument to the -E flag of DOSEMU\n\n");
   com_printf ("UNIX -c [ENVVAR]\n");
   com_printf ("  Execute the DOS program whose Linux path is given in the Linux environment\n");
-  com_printf ("  variable \"ENVVAR\".\n");
-  com_printf ("  If not given, use the argument to the -E flag of DOSEMU\n\n");
+  com_printf ("  variable \"ENVVAR\".");
+  com_printf (" If not given, use the argument to the -E flag of DOSEMU\n\n");
 #endif
   com_printf ("UNIX -s ENVVAR\n");
   com_printf ("  Set the DOS environment to the Linux environment variable \"ENVVAR\".\n\n");
   com_printf ("UNIX command [arg1 ...]\n");
   com_printf ("  Execute the Linux command with the arguments given.\n\n");
   com_printf ("UNIX\n");
-  com_printf ("  show this help screen\n\n");
-  com_printf ("Note: Use UNIX only to run Linux commands that terminates without user\n");
-  com_printf ("      interaction. Otherwise it will start and wait forever!\n");
+  com_printf ("  show this help screen");
 
   return (1);
 }

@@ -7,6 +7,7 @@
 
 int bootoff_main(int argc, char **argv);
 int booton_main(int argc, char **argv);
+int dpmi_main(int argc, char **argv);
 int ecpuoff_main(int argc, char **argv);
 int ecpuon_main(int argc, char **argv);
 int eject_main(int argc, char **argv);

@@ -60,6 +60,21 @@ int booton_main(int argc, char **argv)
 	return 0;
 }
 
+int dpmi_main(int argc, char **argv)
+{
+	if (argc != 2 || strcmp(argv[1], "-x")) {
+		com_printf("Enabled DPMI NULL page protection for DJGPP "
+			   "programs.\n");
+		com_printf("Use \"DPMI -x\" to disable.");
+		config.no_null_checks = 0;
+	} else {
+		com_printf("Disabled DPMI NULL page protection for DJGPP "
+			   "programs.\n");
+		com_printf("Use \"DPMI\" to enable.");
+		config.no_null_checks = 1;
+	}
+	return 0;
+}
 
 int ecpuon_main(int argc, char **argv)
 {
@@ -195,6 +210,7 @@ void commands_plugin_init(void)
 	/* old xxx.S files */
 	register_com_program("bootoff", bootoff_main);
 	register_com_program("booton", booton_main);
+	register_com_program("dpmi", dpmi_main);
 	register_com_program("ecpuon", ecpuon_main);
 	register_com_program("ecpuoff", ecpuoff_main);
 	register_com_program("eject", eject_main);

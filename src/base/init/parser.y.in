@@ -227,7 +227,8 @@ static int is_in_allowed_classes(int mask);
 %token NETDEV VNET
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO EMURETRACE TIMER
 %token MATHCO CPU CPUSPEED RDTSC BOOTA BOOTB BOOTC
-%token L_XMS L_DPMI DPMI_BASE PM_DOS_API PORTS DISK DOSMEM EXT_MEM
+%token L_XMS L_DPMI DPMI_BASE PM_DOS_API NO_NULL_CHECKS 
+%token PORTS DISK DOSMEM EXT_MEM
 %token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK FULL_FILE_LOCKS
 %token DEXE ALLOWDISK FORCEXDOS XDOSONLY
 %token ABORT WARN
@@ -574,6 +575,11 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    {
 		    config.pm_dos_api = ($2!=0);
 		    c_printf("CONF: PM DOS API Translator %s\n", ($2) ? "on" : "off");
+		    }
+		| NO_NULL_CHECKS bool
+		    {
+		    config.no_null_checks = ($2!=0);
+		    c_printf("CONF: No DJGPP NULL deref checks: %s\n", ($2) ? "on" : "off");
 		    }
 		| DOSMEM int_bool	{ if ($2>=0) config.mem_size = $2; }
 		| EXT_MEM int_bool	{ if ($2>=0) config.ext_mem = $2; }
