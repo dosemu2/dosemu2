@@ -3,7 +3,7 @@ The DOSEMU Alterer Novices Guide
 
 Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 
-   version dosemu-1.1.99.1
+   version dosemu-1.3.3
 
    This Document is the DOSEMU Alterer Novices Guide. It is known as the
    DANG.
@@ -23,29 +23,21 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
               2.2.2. emulate
 
         2.3. Remarks in emu.c
-        2.4. Functions in include/emu.h
-
-              2.4.1. NEWSETQSIG
-
-        2.5. Remarks in include/emu.h
+        2.4. Remarks in include/emu.h
 
    3. The Init group of Modules
 
         3.1. Functions in base/init/init.c
 
-              3.1.1. dosemu_banner
-              3.1.2. stdio_init
-              3.1.3. time_setting_init
-              3.1.4. timer_interrupt_init
-              3.1.5. hardware_setup
-              3.1.6. map_video_bios
-              3.1.7. map_hardware_ram
-              3.1.8. map_custom_bios
-              3.1.9. bios_mem_setup
-              3.1.10. memory_init
-              3.1.11. device_init
-              3.1.12. low_mem_init
-              3.1.13. version_init
+              3.1.1. stdio_init
+              3.1.2. time_setting_init
+              3.1.3. timer_interrupt_init
+              3.1.4. map_video_bios
+              3.1.5. map_custom_bios
+              3.1.6. memory_init
+              3.1.7. device_init
+              3.1.8. low_mem_init
+              3.1.9. version_init
 
         3.2. Functions in base/init/config.c
 
@@ -63,13 +55,13 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 
               4.1.1. dpmi_control
               4.1.2. run_pm_int
-              4.1.3. do_default_cpu_exception
-              4.1.4. do_cpu_exception
-              4.1.5. dpmi_fault
+              4.1.3. run_pm_dos_int
+              4.1.4. do_default_cpu_exception
+              4.1.5. do_cpu_exception
+              4.1.6. dpmi_fault
 
         4.2. Remarks in dosext/dpmi/dpmi.c
         4.3. Items for Fixing in dosext/dpmi/dpmi.c
-        4.4. New Ideas for dosext/dpmi/dpmi.c
 
    5. The Video group of Modules
 
@@ -78,7 +70,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
               5.1.1. video_init
 
         5.2. Remarks in env/video/video.c
-        5.3. Functions in env/video/X.c
+        5.3. Functions in plugin/X/X.c
 
               5.3.1. X_init
               5.3.2. X_close
@@ -88,11 +80,9 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
               5.3.6. X_handle_events
               5.3.7. graphics_cmap_init
               5.3.8. X_set_videomode
-              5.3.9. X_setmode
-              5.3.10. X_update_screen
-              5.3.11. set_mouse_position
+              5.3.9. set_mouse_position
 
-        5.4. Remarks in env/video/X.c
+        5.4. Remarks in plugin/X/X.c
         5.5. Functions in env/video/vgaemu.c
 
               5.5.1. VGA_emulate_outb
@@ -106,10 +96,9 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
               5.5.9. vga_emu_setmode
               5.5.10. vga_emu_set_textsize
               5.5.11. dirty_all_video_pages
-              5.5.12. vga_emu_set_text_page
-              5.5.13. dirty_all_vga_colors
-              5.5.14. changed_vga_colors
-              5.5.15. vgaemu_adj_cfg
+              5.5.12. dirty_all_vga_colors
+              5.5.13. changed_vga_colors
+              5.5.14. vgaemu_adj_cfg
 
         5.6. Functions in env/video/vesa.c
 
@@ -162,10 +151,9 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
               5.12.9. vga_emu_setmode
               5.12.10. vga_emu_set_textsize
               5.12.11. dirty_all_video_pages
-              5.12.12. vga_emu_set_text_page
-              5.12.13. dirty_all_vga_colors
-              5.12.14. changed_vga_colors
-              5.12.15. vgaemu_adj_cfg
+              5.12.12. dirty_all_vga_colors
+              5.12.13. changed_vga_colors
+              5.12.14. vgaemu_adj_cfg
 
         5.13. Functions in env/video/instremu.c
 
@@ -209,231 +197,208 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
               6.5.4. slang_keyb_init()
               6.5.5. slang_keyb_probe()
 
-   7. The Old_Keyboard group of Modules
+   7. The Misc group of Modules
 
-        7.1. Remarks in plugin/keyboard/keymaps.c
-        7.2. Functions in plugin/keyboard/serv_xlat.c
+        7.1. Functions in base/async/int.c
 
-              7.2.1. putrawkey
-              7.2.2. putkey
-              7.2.3. set_shiftstate
+              7.1.1. int1a
+              7.1.2. ms_dos
+              7.1.3. run_caller_func(i, revect)
+              7.1.4. DO_INT
+              7.1.5. setup_interrupts
+              7.1.6. int_vector_setup
 
-        7.3. Functions in plugin/keyboard/keyb_raw.c
+        7.2. Remarks in base/async/int.c
+        7.3. Functions in arch/linux/async/sigsegv.c
 
-              7.3.1. raw_keyboard_init
+              7.3.1. dosemu_fault(int, struct sigcontext_struct);
+              7.3.2. print_exception_info
 
-        7.4. Functions in plugin/keyboard/keyb_slang.c
+        7.4. Functions in arch/linux/async/signal.c
 
-              7.4.1. slang_keyb_init()
+              7.4.1. NEWSETQSIG
+              7.4.2. SIG_init
+              7.4.3. signal_init
+              7.4.4. handle_signals
+              7.4.5. SIGNAL_save
+              7.4.6. SIGIO_call
 
-   8. The Misc group of Modules
+        7.5. Remarks in arch/linux/async/signal.c
+        7.6. Functions in base/misc/disks.c
 
-        8.1. Functions in base/async/int.c
+              7.6.1. disk_init
 
-              8.1.1. ms_dos
-              8.1.2. run_caller_func(i, from_int)
-              8.1.3. DO_INT
-              8.1.4. setup_interrupts
-              8.1.5. int_vector_setup
+        7.7. Functions in base/dev/misc/timers.c
 
-        8.2. Remarks in base/async/int.c
-        8.3. Functions in arch/linux/async/sigsegv.c
+              7.7.1. initialize_timers
+              7.7.2. timer_tick
+              7.7.3. do_sound
+              7.7.4. timer_int_engine
 
-              8.3.1. dosemu_fault(int, struct sigcontext_struct);
-              8.3.2. print_exception_info
+        7.8. Functions in base/misc/dos2linux.c
 
-        8.4. Functions in arch/linux/async/signal.c
+              7.8.1. run_unix_command
 
-              8.4.1. SIG_init
-              8.4.2. signal_init
-              8.4.3. cli
-              8.4.4. sti
-              8.4.5. handle_signals
-              8.4.6. SIGNAL_save
-              8.4.7. SIGIO_call
+        7.9. Functions in base/misc/ioctl.c
 
-        8.5. Remarks in arch/linux/async/signal.c
-        8.6. Functions in base/misc/disks.c
+              7.9.1. io_select_init
+              7.9.2. add_to_io_select
+              7.9.3. remove_from_io_select
 
-              8.6.1. disk_init
+        7.10. Functions in base/dev/misc/lpt.c
 
-        8.7. Functions in base/dev/misc/timers.c
+              7.10.1. printer_init
 
-              8.7.1. initialize_timers
-              8.7.2. timer_tick
-              8.7.3. do_sound
-              8.7.4. timer_int_engine
+        7.11. Functions in base/dev/misc/pci.c
 
-        8.8. Functions in base/misc/shared.c
+              7.11.1. pci_read_header
+              7.11.2. pci_setup
 
-              8.8.1. shared_qf_memory_init
+        7.12. Functions in base/dev/misc/joystick.c
 
-        8.9. Functions in base/misc/dos2linux.c
+              7.12.1. joy_latency_over
+              7.12.2. joy_emu_button_set
+              7.12.3. joy_emu_axis_set
+              7.12.4. joy_emu_axis_conv
+              7.12.5. joy_linux_process_event
+              7.12.6. joy_linux_read_events
+              7.12.7. joy_linux_read_status
+              7.12.8. joy_linux_read_buttons_(family)
+              7.12.9. joy_linux_read_axis_(family)
+              7.12.10. joy_bios_read
+              7.12.11. joy_port_inb
 
-              8.9.1. run_unix_command
+        7.13. Remarks in base/dev/misc/joystick.c
+        7.14. Items for Fixing in base/dev/misc/joystick.c
+        7.15. Remarks in include/doshelpers.h
 
-        8.10. Functions in base/misc/ioctl.c
+   8. The CPU_Intel group of Modules
 
-              8.10.1. io_select_init
-              8.10.2. add_to_io_select
-              8.10.3. remove_from_io_select
+        8.1. Functions in emu-i386/cpu.c
 
-        8.11. Functions in base/dev/misc/lpt.c
+              8.1.1. cpu_trap_0f
+              8.1.2. cpu_setup
 
-              8.11.1. printer_init
+        8.2. Functions in emu-i386/ports.c
 
-        8.12. Functions in base/dev/misc/pci.c
+              8.2.1. port_inb(ioport_t port)
+              8.2.2. port_outb(ioport_t port, Bit8u byte)
+              8.2.3. port_inw(ioport_t port)
+              8.2.4. port_outw(ioport_t port, Bit16u word)
+              8.2.5. port_ind(ioport_t port)
+              8.2.6. special_port_inb,special_port_outb
+              8.2.7. port_init()
+              8.2.8. extra_port_init()
+              8.2.9. port_register_handler
+              8.2.10. set_ioperm
 
-              8.12.1. pci_read_header
-              8.12.2. pci_read_header
-              8.12.3. pci_read_header
+        8.3. Remarks in emu-i386/ports.c
+        8.4. Items for Fixing in emu-i386/ports.c
+        8.5. Functions in emu-i386/do_vm86.c
 
-        8.13. Functions in base/dev/misc/joystick.c
+              8.5.1. vm86_GP_fault
+              8.5.2. run_vm86
+              8.5.3. loopstep_run_vm86
 
-              8.13.1. joy_latency_over
-              8.13.2. joy_emu_button_set
-              8.13.3. joy_emu_axis_set
-              8.13.4. joy_emu_axis_conv
-              8.13.5. joy_linux_process_event
-              8.13.6. joy_linux_read_events
-              8.13.7. joy_linux_read_status
-              8.13.8. joy_linux_read_buttons_(family)
-              8.13.9. joy_linux_read_axis_(family)
-              8.13.10. joy_bios_read
-              8.13.11. joy_port_inb
+        8.6. Remarks in emu-i386/do_vm86.c
+        8.7. Functions in emu-i386/cputime.c
 
-        8.14. Remarks in base/dev/misc/joystick.c
-        8.15. Items for Fixing in base/dev/misc/joystick.c
-        8.16. Remarks in include/doshelpers.h
+              8.7.1. GETcpuTIME
+              8.7.2. GETusTIME(sc)
+              8.7.3. GETtickTIME(sc)
+              8.7.4. GETusSYSTIME()
 
-   9. The CPU_Intel group of Modules
+        8.8. Remarks in emu-i386/cputime.c
+        8.9. Functions in emu-i386/simx86/sigsegv.c
 
-        9.1. Functions in emu-i386/cpu.c
+              8.9.1. dosemu_fault(int, struct sigcontext_struct);
 
-              9.1.1. cpu_trap_0f
-              9.1.2. cpu_setup
+   9. The Serial group of Modules
 
-        9.2. Functions in emu-i386/ports.c
+        9.1. Remarks in base/serial/ser_defs.h
+        9.2. Functions in base/serial/ser_init.c
 
-              9.2.1. port_inb(ioport_t port)
-              9.2.2. port_outb(ioport_t port, Bit8u byte)
-              9.2.3. port_inw(ioport_t port)
-              9.2.4. port_outw(ioport_t port, Bit16u word)
-              9.2.5. port_ind(ioport_t port)
-              9.2.6. special_port_inb,special_port_outb
-              9.2.7. port_init()
-              9.2.8. extra_port_init()
-              9.2.9. port_register_handler
-              9.2.10. set_ioperm
+              9.2.1. serial_init
 
-        9.3. Remarks in emu-i386/ports.c
-        9.4. Items for Fixing in emu-i386/ports.c
-        9.5. Functions in emu-i386/do_vm86.c
+        9.3. Items for Fixing in base/serial/ser_init.c
+        9.4. Functions in base/serial/ser_ports.c
 
-              9.5.1. vm86_GP_fault
-              9.5.2. run_vm86
-              9.5.3. loopstep_run_vm86
+              9.4.1. do_serial_in
+              9.4.2. do_serial_out
 
-        9.6. Remarks in emu-i386/do_vm86.c
-        9.7. Functions in emu-i386/cputime.c
+        9.5. Items for Fixing in base/serial/ser_ports.c
+        9.6. Functions in base/serial/ser_irq.c
 
-              9.7.1. GETcpuTIME
-              9.7.2. GETusTIME(sc)
-              9.7.3. GETtickTIME(sc)
-              9.7.4. GETusSYSTIME()
+              9.6.1. serial_int_engine
+              9.6.2. pic_serial_run
+              9.6.3. serial_run
 
-        9.8. Remarks in emu-i386/cputime.c
-        9.9. Functions in emu-i386/simx86/sigsegv.c
+        9.7. Remarks in base/serial/ser_irq.c
+        9.8. Items for Fixing in base/serial/ser_irq.c
+        9.9. Functions in base/serial/int14.c
 
-              9.9.1. dosemu_fault(int, struct sigcontext_struct);
+              9.9.1. int14
 
-   10. The Serial group of Modules
+        9.10. New Ideas for base/serial/int14.c
+        9.11. Items for Fixing in base/serial/fossil.c
+        9.12. Items for Fixing in include/serial.h
 
-        10.1. Remarks in base/serial/ser_defs.h
-        10.2. Functions in base/serial/ser_init.c
+   10. The Mouse group of Modules
 
-              10.2.1. serial_init
+        10.1. Functions in base/mouse/mouse.c
 
-        10.3. Items for Fixing in base/serial/ser_init.c
-        10.4. Functions in base/serial/ser_ports.c
+              10.1.1. mouse_init
 
-              10.4.1. do_serial_in
-              10.4.2. do_serial_out
+        10.2. Remarks in base/mouse/mouse.c
 
-        10.5. Items for Fixing in base/serial/ser_ports.c
-        10.6. Functions in base/serial/ser_irq.c
+   11. The Bios group of Modules
 
-              10.6.1. serial_int_engine
-              10.6.2. pic_serial_run
-              10.6.3. serial_run
+        11.1. Functions in base/bios/hlt.c
 
-        10.7. Remarks in base/serial/ser_irq.c
-        10.8. Items for Fixing in base/serial/ser_irq.c
-        10.9. Functions in base/serial/int14.c
+              11.1.1. hlt_init(void)
+              11.1.2. hlt_handle()
 
-              10.9.1. int14
+   12. The PIC group of Modules
 
-        10.10. New Ideas for base/serial/int14.c
-        10.11. Items for Fixing in base/serial/fossil.c
-        10.12. Items for Fixing in include/serial.h
+        12.1. Functions in base/dev/pic/pic.c
 
-   11. The Mouse group of Modules
+              12.1.1. pic_print
+              12.1.2. write_pic0,write_pic1
+              12.1.3. read_pic0,read_pic1
+              12.1.4. pic_seti
+              12.1.5. run_irqs
+              12.1.6. do_irq
+              12.1.7. pic_resched
+              12.1.8. pic_request
+              12.1.9. pic_iret
+              12.1.10. pic_watch
+              12.1.11. pic_pending
+              12.1.12. pic_activate
+              12.1.13. pic_sched
 
-        11.1. Functions in base/mouse/mouse.c
+        12.2. Remarks in base/dev/pic/pic.c
 
-              11.1.1. mouse_init
+   13. The Sound group of Modules
 
-        11.2. Remarks in base/mouse/mouse.c
+        13.1. Functions in dosext/sound/sound.c
 
-   12. The Bios group of Modules
+              13.1.1. sb_io_read
+              13.1.2. adlib_io_read
+              13.1.3. mpu401_io_read
+              13.1.4. sb_io_write
+              13.1.5. sb_dsp_write
 
-        12.1. Functions in base/bios/hlt.c
+        13.2. Remarks in dosext/sound/sound.c
+        13.3. Items for Fixing in dosext/sound/sound.c
+        13.4. Remarks in base/dev/dma/dma.c
+        13.5. Items for Fixing in base/dev/dma/dma.c
 
-              12.1.1. hlt_init(void)
-              12.1.2. hlt_handle()
+   14. The FileAccess group of Modules
 
-   13. The PIC group of Modules
+        14.1. Remarks in dosext/mfs/mfs.c
+        14.2. Items for Fixing in dosext/mfs/mfs.c
 
-        13.1. Functions in base/dev/pic/pic.c
-
-              13.1.1. pic_print
-              13.1.2. write_pic0,write_pic1
-              13.1.3. read_pic0,read_pic1
-              13.1.4. pic_mask,pic_unmask
-              13.1.5. pic_seti
-              13.1.6. run_irqs
-              13.1.7. do_irq
-              13.1.8. pic_resched
-              13.1.9. pic_request
-              13.1.10. pic_iret
-              13.1.11. pic_watch
-              13.1.12. pic_pending
-              13.1.13. pic_activate
-              13.1.14. pic_sched
-
-        13.2. Remarks in base/dev/pic/pic.c
-
-   14. The Sound group of Modules
-
-        14.1. Functions in dosext/sound/sound.c
-
-              14.1.1. sb_io_read
-              14.1.2. adlib_io_read
-              14.1.3. mpu401_io_read
-              14.1.4. sb_io_write
-              14.1.5. sb_dsp_write
-
-        14.2. Remarks in dosext/sound/sound.c
-        14.3. Items for Fixing in dosext/sound/sound.c
-        14.4. Remarks in base/dev/dma/dma.c
-        14.5. Items for Fixing in base/dev/dma/dma.c
-
-   15. The FileAccess group of Modules
-
-        15.1. Remarks in dosext/mfs/mfs.c
-        15.2. Items for Fixing in dosext/mfs/mfs.c
-
-   16. And Finally ...
+   15. And Finally ...
 
 1. Introduction
 
@@ -514,36 +479,10 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    libs), and org instruction is used to provide the jump above 1 meg.
      _________________________________________________________________
 
-2.4. Functions in include/emu.h
-
-   These are the functions defined in include/emu.h.
-     _________________________________________________________________
-
-2.4.1. NEWSETQSIG
-
-   Arguments are:
-
-     * sig - the signal to have a handler installed to.
-     * fun - the signal handler function to install
-
-   All signals that wish to be handled properly in context with the
-   execution of vm86() mode, and signals that wish to use non-reentrant
-   functions should add themselves to the ADDSET_SIGNALS_THAT_QUEUE
-   define and use SETQSIG(). To that end they will also need to be set up
-   in an order such as SIGIO.
-     _________________________________________________________________
-
-2.5. Remarks in include/emu.h
+2.4. Remarks in include/emu.h
 
    The `vm86_struct` is used to pass all the necessary status/registers
    to DOSEMU when running in vm86 mode.
-
-   -----
-
-   We assume system call restarting... under linux 0.99pl8 and earlier,
-   this was the default. SA_RESTART was defined in 0.99pl8 to explicitly
-   request restarting (and thus does nothing). However, if this ever
-   changes, I want to be safe
 
    -----
 
@@ -575,71 +514,50 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    These are the functions defined in base/init/init.c.
      _________________________________________________________________
 
-3.1.1. dosemu_banner
-
-   Setup the call stack to draw the dosemu banner
-     _________________________________________________________________
-
-3.1.2. stdio_init
+3.1.1. stdio_init
 
    Initialize stdio, open debugging output file if user specified one
      _________________________________________________________________
 
-3.1.3. time_setting_init
+3.1.2. time_setting_init
 
    Beats me
      _________________________________________________________________
 
-3.1.4. timer_interrupt_init
+3.1.3. timer_interrupt_init
 
    Tells the OS to send us periodic timer messages
      _________________________________________________________________
 
-3.1.5. hardware_setup
-
-   Initialize any leftover hardware.
-     _________________________________________________________________
-
-3.1.6. map_video_bios
+3.1.4. map_video_bios
 
    Map the video bios into main memory
      _________________________________________________________________
 
-3.1.7. map_hardware_ram
-
-   Initialize the hardware direct-mapped pages
-     _________________________________________________________________
-
-3.1.8. map_custom_bios
+3.1.5. map_custom_bios
 
    Setup the dosemu amazing custom BIOS, quietly overwriting anything was
    copied there before. Do not overwrite graphic fonts!
      _________________________________________________________________
 
-3.1.9. bios_mem_setup
+3.1.6. memory_init
 
    Set up all memory areas as would be present on a typical i86 during
    the boot phase.
      _________________________________________________________________
 
-3.1.10. memory_init
-
-   Set up all memory areas as would be present on a typical i86 during
-   the boot phase.
-     _________________________________________________________________
-
-3.1.11. device_init
+3.1.7. device_init
 
    Calls all initialization routines for devices (keyboard, video,
    serial, disks, etc.)
      _________________________________________________________________
 
-3.1.12. low_mem_init
+3.1.8. low_mem_init
 
    Initializes the lower 1Meg via mmap & sets up the HMA region
      _________________________________________________________________
 
-3.1.13. version_init
+3.1.9. version_init
 
    Find version of OS running and set necessary global parms.
      _________________________________________________________________
@@ -710,27 +628,33 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 
 4.1.2. run_pm_int
 
-   This routine is used for running protected mode hardware interrupts
-   and software interrupts 0x1c, 0x23 and 0x24. run_pm_int() switches to
-   the locked protected mode stack and calls the handler. If no handler
-   is installed the real mode interrupt routine is called.
+   This routine is used for running protected mode hardware interrupts.
+   run_pm_int() switches to the locked protected mode stack and calls the
+   handler. If no handler is installed the real mode interrupt routine is
+   called.
      _________________________________________________________________
 
-4.1.3. do_default_cpu_exception
+4.1.3. run_pm_dos_int
+
+   This routine is used for reflecting the software interrupts 0x1c, 0x23
+   and 0x24 to protected mode.
+     _________________________________________________________________
+
+4.1.4. do_default_cpu_exception
 
    This is the default CPU exception handler. Exceptions 0, 1, 2, 3, 4, 5
    and 7 are reflected to real mode. All other exceptions are terminating
    the client (and may be dosemu too :-)).
      _________________________________________________________________
 
-4.1.4. do_cpu_exception
+4.1.5. do_cpu_exception
 
    This routine switches to the locked protected mode stack, disables
    interrupts and calls the DPMI client exception handler. If no handler
    is installed the default handler is called.
      _________________________________________________________________
 
-4.1.5. dpmi_fault
+4.1.6. dpmi_fault
 
    This is the brain of DPMI. All CPU exceptions are first reflected
    (from the signal handlers) to this code.
@@ -791,18 +715,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 
 4.3. Items for Fixing in dosext/dpmi/dpmi.c
 
-   Should we really care for the Memory info?
-
-   -----
-
    We shouldn't return to dosemu code if IF=0, but it helps - WHY? */
-     _________________________________________________________________
-
-4.4. New Ideas for dosext/dpmi/dpmi.c
-
-   Simulate Local Descriptor Table for MS-Windows 3.1 must be read only,
-   so if krnl386.exe/krnl286.exe try to write to this table, we will bomb
-   into sigsegv() and and emulate direct ldt access
      _________________________________________________________________
 
 5. The Video group of Modules
@@ -849,9 +762,9 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    address values.
      _________________________________________________________________
 
-5.3. Functions in env/video/X.c
+5.3. Functions in plugin/X/X.c
 
-   These are the functions defined in env/video/X.c.
+   These are the functions defined in plugin/X/X.c.
      _________________________________________________________________
 
 5.3.1. X_init
@@ -902,35 +815,17 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    video mode.
 
    NOTE: The actual mode is taken from the global variable "video_mode".
-     _________________________________________________________________
 
-5.3.9. X_setmode
-
-   Set the video mode. If init_vga is zero, this will only reinitialize
+   Set the video mode. If mode_class is -1, this will only reinitialize
    the current mode. The other arguments are ignored in this case.
      _________________________________________________________________
 
-5.3.10. X_update_screen
-
-   Update the part of the screen which has changed, in text mode and in
-   graphics mode. Usually called from the SIGALRM handler.
-
-   X_update_screen returns 0 if nothing was updated, 1 if the whole
-   screen was updated, and 2 for a partial update.
-
-   It is called in arch/linux/async/signal.c::SIGALRM_call() as part of a
-   struct video_system (see top of X.c) every 50 ms or every 10 ms if 2
-   was returned, depending somewhat on various config options as e.g.
-   config.X_updatefreq and VIDEO_CHECK_DIRTY. At least it is supposed to
-   do that.
-     _________________________________________________________________
-
-5.3.11. set_mouse_position
+5.3.9. set_mouse_position
 
    Place the mouse on the right position.
      _________________________________________________________________
 
-5.4. Remarks in env/video/X.c
+5.4. Remarks in plugin/X/X.c
 
    DO NOT REMOVE THIS TEST!!! It is magic, without it EMS fails on my
    machine under X. Perhaps someday when we don't use a buggy
@@ -1110,25 +1005,12 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    Marks the whole VGA memory as modified.
      _________________________________________________________________
 
-5.5.12. vga_emu_set_text_page
-
-   Set visible text page.
-
-   `vga.display_start' is set to `page' * `page_size'. This function
-   works only in text modes.
-
-   Arguments are:
-
-     * page - Number of the text page.
-     * page_size - Size of one text page.
-     _________________________________________________________________
-
-5.5.13. dirty_all_vga_colors
+5.5.12. dirty_all_vga_colors
 
    Marks all colors as changed.
      _________________________________________________________________
 
-5.5.14. changed_vga_colors
+5.5.13. changed_vga_colors
 
    Checks DAC and Attribute Controller to find all colors with changed
    RGB-values. Returns number of changed colors. Note: the list _must_ be
@@ -1140,7 +1022,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
      * de - list of DAC entries to store changed colors in
      _________________________________________________________________
 
-5.5.15. vgaemu_adj_cfg
+5.5.14. vgaemu_adj_cfg
 
    Adjust VGAEmu according to VGA register changes.
      _________________________________________________________________
@@ -1512,25 +1394,12 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    Marks the whole VGA memory as modified.
      _________________________________________________________________
 
-5.12.12. vga_emu_set_text_page
-
-   Set visible text page.
-
-   `vga.display_start' is set to `page' * `page_size'. This function
-   works only in text modes.
-
-   Arguments are:
-
-     * page - Number of the text page.
-     * page_size - Size of one text page.
-     _________________________________________________________________
-
-5.12.13. dirty_all_vga_colors
+5.12.12. dirty_all_vga_colors
 
    Marks all colors as changed.
      _________________________________________________________________
 
-5.12.14. changed_vga_colors
+5.12.13. changed_vga_colors
 
    Checks DAC and Attribute Controller to find all colors with changed
    RGB-values. Returns number of changed colors. Note: the list _must_ be
@@ -1542,7 +1411,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
      * de - list of DAC entries to store changed colors in
      _________________________________________________________________
 
-5.12.15. vgaemu_adj_cfg
+5.12.14. vgaemu_adj_cfg
 
    Adjust VGAEmu according to VGA register changes.
      _________________________________________________________________
@@ -1584,7 +1453,8 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 
      * scp - A pointer to a struct sigcontext_struct holding some
        relevant data.
-     * cp - A pointer to the instruction to be simulated
+     * pmode - flags protected mode
+     * cnt - number of instructions to be simulated
      _________________________________________________________________
 
 6. The New_Keyboard group of Modules
@@ -1772,7 +1642,8 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 
 6.3.1. none_probe
 
-   Succeed if we can run the dummy keyboard client, (we always can).
+   Succeed if we can run the dummy keyboard client, (we always can). but
+   first try the other fall-back (slang keyboard)
      _________________________________________________________________
 
 6.4. Functions in plugin/kbd_unicode/keyb_raw.c
@@ -1824,115 +1695,35 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    Code is called at start up to see if we can use the slang keyboard.
      _________________________________________________________________
 
-7. The Old_Keyboard group of Modules
-
-   All of the Old Keyboard handling code is in the "plugin/keyboard"
-   subdirectory.
-
-   Latest addition is SLANG.
-     _________________________________________________________________
-
-7.1. Remarks in plugin/keyboard/keymaps.c
-
-   The DEAD codes must refer to keys that don't exist on any language
-   keyboard. I hope nobody has a smily face key :-) dead_key_table is a
-   list of the dead keys supported. They must be placed on the correct
-   key in the keymaps above. See key_map_es_latin1.
-
-   -----
-
-   dos850_dead_map consists of the triple, {deadkey, letter, result}. It
-   should be correct for all the code page 850 users (Western Europe). If
-   you uses a different code page, please create a map! Jon Tombs
-   jon@gtex02.us.es
-     _________________________________________________________________
-
-7.2. Functions in plugin/keyboard/serv_xlat.c
-
-   These are the functions defined in plugin/keyboard/serv_xlat.c.
-     _________________________________________________________________
-
-7.2.1. putrawkey
-
-   This function sends a raw keycode byte, e.g. read directly from the
-   hardware, to DOS. It is both queued for the port60h emulation and
-   processed for the BIOS keyboard buffer, using the national translation
-   tables etc.
-
-   For DOS applications using int16h we will therefore not have to load
-   KEYB.EXE, others (e.g. games) need their own drivers anyway.
-
-   This function is used if we are at the console and
-   config.rawkeyboard=on.
-     _________________________________________________________________
-
-7.2.2. putkey
-
-   This does all the work of sending a key event to DOS. scan - the
-   keycode, one of the KEY_ constants from new-kbd.h make - TRUE for key
-   press, FALSE for release ascii - the key's ascii value, or 0 for none.
-
-   Applications using int16h will always see the ASCII code passed here
-   independently of the scancode, so no character translation
-   needs/should be done. As DOS expects characters in IBM Extended ASCII,
-   the keyboard clients may have to do ISO->IBM character translation or
-   similar!
-
-   An emulated hardware scancode is also sent to port60h.
-
-   Note that you have to send both MAKE (press) and BREAK (release)
-   events. If no BREAK codes are available (e.g. terminal mode), send
-   them immediately after the MAKE codes. Also, shift keys should be sent
-   (with ascii = 0).
-     _________________________________________________________________
-
-7.2.3. set_shiftstate
-
-   This simply sets the keyboard server's shift state.
-
-   USE WITH CAUTION: this changes the keyboard flags without generating
-   the appropriate shift key make/break codes that normally come along
-   with such changes. This function is mostly intended for start-up
-   shiftstate synchronisation.
-
-   Note also that you can't simply write to the shiftstate variable
-   instead of using this function.
-     _________________________________________________________________
-
-7.3. Functions in plugin/keyboard/keyb_raw.c
-
-   These are the functions defined in plugin/keyboard/keyb_raw.c.
-     _________________________________________________________________
-
-7.3.1. raw_keyboard_init
-
-   Initialize the keyboard for RAW mode.
-     _________________________________________________________________
-
-7.4. Functions in plugin/keyboard/keyb_slang.c
-
-   These are the functions defined in plugin/keyboard/keyb_slang.c.
-     _________________________________________________________________
-
-7.4.1. slang_keyb_init()
-
-   Code is called at start up to set up the terminal line for non-raw
-   mode.
-     _________________________________________________________________
-
-8. The Misc group of Modules
+7. The Misc group of Modules
 
    These are the remaining important files, that do not really fit into
    another group. These should not be dismissed as unimportant - rather,
    they are often amongst the most important.
      _________________________________________________________________
 
-8.1. Functions in base/async/int.c
+7.1. Functions in base/async/int.c
 
    These are the functions defined in base/async/int.c.
      _________________________________________________________________
 
-8.1.1. ms_dos
+7.1.1. int1a
+
+   int 0x1A call
+
+   This has (among other things) the calls that DOS makes to get/set its
+   sense of time. On booting, DOS gets the RTC time and date with AH=2
+   and AH=4, after that it should use AH=0 calls to read the 'tick'
+   counter from BIOS memory. Each time this crosses midnight, a flag is
+   set that DOS uses to increment its date.
+
+   Here we can now change the 'view' of time so the calls either return
+   BIOS tick (most DOS like), read the PIT counter (avoids INT-8 changes)
+   or gets LINUX time (most accurate for long term NTP-adjusted time
+   keeping).
+     _________________________________________________________________
+
+7.1.2. ms_dos
 
    int0x21 call
 
@@ -1946,11 +1737,17 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    for the moment, ANSI.SYS won't work anyway, so it's no problem.
      _________________________________________________________________
 
-8.1.2. run_caller_func(i, from_int)
+7.1.3. run_caller_func(i, revect)
 
    This function runs the specified caller function in response to an int
-   instruction. Where i is the interrupt function to execute and from_int
-   specifies if we are comming directly from an int instruction.
+   instruction. Where i is the interrupt function to execute.
+
+   revect specifies whether we call a non-revectored leaf interrupt
+   function or a "watcher" that sits in between: the leaf interrupt
+   function is called if cs:ip is at f000:i*10 or if (the int vector
+   points there and the int is labelled non-revectored) otherwise the
+   non-leaf interrupt function is called, which may chain through to the
+   real interrupt function (if it returns 0)
 
    This function runs the instruction with the following model _CS:_IP is
    the address to start executing at after the caller function
@@ -1994,28 +1791,31 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    as if I could handle it the way I would like. -- EB 30 Nov 1997
 
    Trying to get it right now -- BO 25 Jan 2003
+
+   This function returns 1 if it's completely finished (no need to run
+   real_run_int()), otherwise 0.
      _________________________________________________________________
 
-8.1.3. DO_INT
+7.1.4. DO_INT
 
    DO_INT is used to deal with interrupts returned to DOSEMU by the
    kernel.
      _________________________________________________________________
 
-8.1.4. setup_interrupts
+7.1.5. setup_interrupts
 
    SETUP_INTERRUPTS is used to initialize the interrupt_function array
    which directs handling of interrupts in protected mode and also
    initializes the base vector for interrupts in real mode.
      _________________________________________________________________
 
-8.1.5. int_vector_setup
+7.1.6. int_vector_setup
 
    Setup initial interrupts which can be revectored so that the kernel
    does not need to return to DOSEMU if such an interrupt occurs.
      _________________________________________________________________
 
-8.2. Remarks in base/async/int.c
+7.2. Remarks in base/async/int.c
 
    Some video BIOSes need access to the PIT timer 2, and some (e.g.
    Matrox) directly read the timer output on port 0x61. If we don't allow
@@ -2033,52 +1833,56 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    area) - change anything in the vector area _after_ installation - AV
      _________________________________________________________________
 
-8.3. Functions in arch/linux/async/sigsegv.c
+7.3. Functions in arch/linux/async/sigsegv.c
 
    These are the functions defined in arch/linux/async/sigsegv.c.
      _________________________________________________________________
 
-8.3.1. dosemu_fault(int, struct sigcontext_struct);
+7.3.1. dosemu_fault(int, struct sigcontext_struct);
 
    All CPU exceptions (except 13=general_protection from V86 mode, which
    is directly scanned by the kernel) are handled here.
      _________________________________________________________________
 
-8.3.2. print_exception_info
+7.3.2. print_exception_info
 
    Prints information about an exception: exception number, error code,
    address, reason, etc.
      _________________________________________________________________
 
-8.4. Functions in arch/linux/async/signal.c
+7.4. Functions in arch/linux/async/signal.c
 
    These are the functions defined in arch/linux/async/signal.c.
      _________________________________________________________________
 
-8.4.1. SIG_init
+7.4.1. NEWSETQSIG
+
+   Arguments are:
+
+     * sig - the signal to have a handler installed to.
+     * fun - the signal handler function to install
+
+   All signals that wish to be handled properly in context with the
+   execution of vm86() mode, and signals that wish to use non-reentrant
+   functions should add themselves to the ADDSET_SIGNALS_THAT_QUEUE
+   define and use SETQSIG(). To that end they will also need to be set up
+   in an order such as SIGIO.
+     _________________________________________________________________
+
+7.4.2. SIG_init
 
    The IRQ numbers to monitor are taken from config.sillyint, each bit
    corresponding to one IRQ. The higher 16 bit are defining the use of
    SIGIO
      _________________________________________________________________
 
-8.4.2. signal_init
+7.4.3. signal_init
 
    Initialize the signals to have NONE being blocked. Currently this is
    NOT of much use to DOSEMU.
      _________________________________________________________________
 
-8.4.3. cli
-
-   Stop additional signals from interrupting DOSEMU.
-     _________________________________________________________________
-
-8.4.4. sti
-
-   Allow all signals to interrupt DOSEMU.
-     _________________________________________________________________
-
-8.4.5. handle_signals
+7.4.4. handle_signals
 
    Due to signals happening at any time, the actual work to be done
    because a signal occurs is done here in a serial fashion.
@@ -2088,7 +1892,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    fashion as it executes the rest of it's code.
      _________________________________________________________________
 
-8.4.6. SIGNAL_save
+7.4.5. SIGNAL_save
 
    Arguments are:
 
@@ -2101,47 +1905,54 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    DOSEMU deals with it down the road.
      _________________________________________________________________
 
-8.4.7. SIGIO_call
+7.4.6. SIGIO_call
 
    Whenever I/O occurs on devices allowing SIGIO to occur, DOSEMU will be
    flagged to run this call which inturn checks which fd(s) was set and
    execute the proper routine to get the I/O from that device.
      _________________________________________________________________
 
-8.5. Remarks in arch/linux/async/signal.c
+7.5. Remarks in arch/linux/async/signal.c
+
+   We assume system call restarting... under linux 0.99pl8 and earlier,
+   this was the default. SA_RESTART was defined in 0.99pl8 to explicitly
+   request restarting (and thus does nothing). However, if this ever
+   changes, I want to be safe
+
+   -----
 
    Check for keyboard coming from client For now, first byte is interrupt
    requests from Client
      _________________________________________________________________
 
-8.6. Functions in base/misc/disks.c
+7.6. Functions in base/misc/disks.c
 
    These are the functions defined in base/misc/disks.c.
      _________________________________________________________________
 
-8.6.1. disk_init
+7.6.1. disk_init
 
    Test by opening all floppies/hardrives configured.
      _________________________________________________________________
 
-8.7. Functions in base/dev/misc/timers.c
+7.7. Functions in base/dev/misc/timers.c
 
    These are the functions defined in base/dev/misc/timers.c.
      _________________________________________________________________
 
-8.7.1. initialize_timers
+7.7.1. initialize_timers
 
    ensure the 0x40 port timer is initially set correctly
      _________________________________________________________________
 
-8.7.2. timer_tick
+7.7.2. timer_tick
 
    Every time we get a TIMER signal from Linux, this procedure is called.
    It checks to see if we should queue a timer interrupt based on the
    current values.
      _________________________________________________________________
 
-8.7.3. do_sound
+7.7.3. do_sound
 
    do_sound handles the _emulated_ mode pc-speaker emulation.
 
@@ -2165,7 +1976,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    --EB 21 September 1997
      _________________________________________________________________
 
-8.7.4. timer_int_engine
+7.7.4. timer_int_engine
 
    This is experimental TIMER-IRQ CHAIN code! This is a function to
    determine whether it is time to invoke a new timer irq 0 event.
@@ -2185,22 +1996,12 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    the new code causes no problems, I'll revise this section permanently.
      _________________________________________________________________
 
-8.8. Functions in base/misc/shared.c
-
-   These are the functions defined in base/misc/shared.c.
-     _________________________________________________________________
-
-8.8.1. shared_qf_memory_init
-
-   Setup all memory areas to be shared with clients.
-     _________________________________________________________________
-
-8.9. Functions in base/misc/dos2linux.c
+7.8. Functions in base/misc/dos2linux.c
 
    These are the functions defined in base/misc/dos2linux.c.
      _________________________________________________________________
 
-8.9.1. run_unix_command
+7.8.1. run_unix_command
 
    Runs a command and prints the (stdout and stderr) output on the dosemu
    screen.
@@ -2212,17 +2013,17 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
      * buffer - string with command to execute
      _________________________________________________________________
 
-8.10. Functions in base/misc/ioctl.c
+7.9. Functions in base/misc/ioctl.c
 
    These are the functions defined in base/misc/ioctl.c.
      _________________________________________________________________
 
-8.10.1. io_select_init
+7.9.1. io_select_init
 
    Initialize fd_sets to NULL for both SIGIO and NON-SIGIO.
      _________________________________________________________________
 
-8.10.2. add_to_io_select
+7.9.2. add_to_io_select
 
    Arguments are:
 
@@ -2233,7 +2034,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    kernel can handle SIGIO.
      _________________________________________________________________
 
-8.10.3. remove_from_io_select
+7.9.3. remove_from_io_select
 
    Arguments are:
 
@@ -2244,47 +2045,38 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    whether the kernel can handle SIGIO.
      _________________________________________________________________
 
-8.11. Functions in base/dev/misc/lpt.c
+7.10. Functions in base/dev/misc/lpt.c
 
    These are the functions defined in base/dev/misc/lpt.c.
      _________________________________________________________________
 
-8.11.1. printer_init
+7.10.1. printer_init
 
    Initialize printer control structures
      _________________________________________________________________
 
-8.12. Functions in base/dev/misc/pci.c
+7.11. Functions in base/dev/misc/pci.c
 
    These are the functions defined in base/dev/misc/pci.c.
      _________________________________________________________________
 
-8.12.1. pci_read_header
+7.11.1. pci_read_header
 
    Use standard 32-bit (type 1) access method to read PCI configuration
    space data
      _________________________________________________________________
 
-8.12.2. pci_read_header
-
-   32-bit I/O port output on PCI ports (0xcf8=addr,0xcfc=data)
-   Optimization: trap the config writes (outd 0xcf8 with bit31=1). Since
-   this kind of access is always followed by another R/W access to port
-   0xcfc, we can just set it as pending and merge it with the following
-   operation, saving two calls to priv_iopl().
-     _________________________________________________________________
-
-8.12.3. pci_read_header
+7.11.2. pci_setup
 
    Register standard PCI ports 0xcf8-0xcff
      _________________________________________________________________
 
-8.13. Functions in base/dev/misc/joystick.c
+7.12. Functions in base/dev/misc/joystick.c
 
    These are the functions defined in base/dev/misc/joystick.c.
      _________________________________________________________________
 
-8.13.1. joy_latency_over
+7.12.1. joy_latency_over
 
    Tells DOSEMU whether or not it is time to update its internal status
    of the joystick (for nonblocking reads only).
@@ -2307,25 +2099,25 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    registers any changes at all.
      _________________________________________________________________
 
-8.13.2. joy_emu_button_set
+7.12.2. joy_emu_button_set
 
    Update the button status for each joystick.
 
    We must perform "button mapping" if only the first joystick is enabled
-   ie. we are required to map the "excessive" buttons (>2) from the first
-   joystick onto the second:
+   i.e. we are required to map the "excessive" buttons (>2) from the
+   first joystick onto the second:
 
    a) 3rd button of 1st joy --> 1st button of 2nd joy
 
    b) 4th button of 1st joy --> 2nd button of 2nd joy
      _________________________________________________________________
 
-8.13.3. joy_emu_axis_set
+7.12.3. joy_emu_axis_set
 
    Update the axis status for each joystick.
 
    We must perform "axis mapping" if only the first joystick is enabled
-   ie. we are required to map the "excessive" axes (>2) from the first
+   i.e. we are required to map the "excessive" axes (>2) from the first
    joystick onto the second:
 
    a) 3rd axis of 1st joy --> 2st axis of 2nd joy
@@ -2334,7 +2126,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    reversed deliberately because it's what happens in DOS)
      _________________________________________________________________
 
-8.13.4. joy_emu_axis_conv
+7.12.4. joy_emu_axis_conv
 
    Convert a Linux joystick axis reading to a DOS one by making use of
    the differences in the allowable range of axis values.
@@ -2345,12 +2137,12 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    in this function.
      _________________________________________________________________
 
-8.13.5. joy_linux_process_event
+7.12.5. joy_linux_process_event
 
    Update global joystick status variables given a Linux joystick event.
      _________________________________________________________________
 
-8.13.6. joy_linux_read_events
+7.12.6. joy_linux_read_events
 
    Process the event queue for _both_ linux joysticks using nonblocking
    reads with the new joystick API (joy_driver_new).
@@ -2364,20 +2156,20 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    joysticks (what DOS sees).
      _________________________________________________________________
 
-8.13.7. joy_linux_read_status
+7.12.7. joy_linux_read_status
 
    Read both the current position and current button status of the
    joystick from Linux (joy_driver_old).
      _________________________________________________________________
 
-8.13.8. joy_linux_read_buttons_(family)
+7.12.8. joy_linux_read_buttons_(family)
 
    Eventually called from DOS to get the button status of the joysticks.
    The threaded version will simply get the status from global variables.
    The unthreaded versions will perform non-blocking reads.
      _________________________________________________________________
 
-8.13.9. joy_linux_read_axis_(family)
+7.12.9. joy_linux_read_axis_(family)
 
    Eventually called from DOS to get the axis status of the joysticks.
    The threaded version will simply get the values from global variables.
@@ -2393,10 +2185,10 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
      * the axis positions to be from different points in time :)
      _________________________________________________________________
 
-8.13.10. joy_bios_read
+7.12.10. joy_bios_read
 
-   This is the int15 function 0x84 handler (ie. BIOS joystick emulation),
-   called from src/base/async/int.c.
+   This is the int15 function 0x84 handler (i.e. BIOS joystick
+   emulation), called from src/base/async/int.c.
 
    The real BIOS actually reads its values straight from the joystick
    port (0x201) but we don't bother because we can do it faster :)
@@ -2407,7 +2199,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    this won't cause any problems).
      _________________________________________________________________
 
-8.13.11. joy_port_inb
+7.12.11. joy_port_inb
 
    This function emulates reads from the joystick port (0x201) -- this is
    the most common way of detecting and reading the joystick.
@@ -2429,7 +2221,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    times, there would be trouble).
      _________________________________________________________________
 
-8.14. Remarks in base/dev/misc/joystick.c
+7.13. Remarks in base/dev/misc/joystick.c
 
    We make a runtime decision based on the detected joystick API version
    and #ifdef USE_PTHREADS, on the way in which we obtain the joystick
@@ -2449,11 +2241,6 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    unstable!)
 
    The same driver is used for both joysticks.
-
-   -----
-
-   Register the joystick ports so that correct port values are returned
-   for programs that try to detect the joystick (or the lack of one).
 
    -----
 
@@ -2496,7 +2283,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    port first so the Linux read must be done _here_) and return it.
      _________________________________________________________________
 
-8.15. Items for Fixing in base/dev/misc/joystick.c
+7.14. Items for Fixing in base/dev/misc/joystick.c
 
    does this code work for ports other than 0x201?
 
@@ -2509,15 +2296,10 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 
    -----
 
-   I've lost my joystick Y-cable (lets you connect two joysticks to one
-   gameport) so the code to handle two joysticks is totally untested!
-
-   -----
-
    perhaps we should not have been called to start with?
      _________________________________________________________________
 
-8.16. Remarks in include/doshelpers.h
+7.15. Remarks in include/doshelpers.h
 
    The Helper Interrupt uses the following groups:
 
@@ -2536,17 +2318,17 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    There are (as yet) no guidelines on choosing areas for new functions.
      _________________________________________________________________
 
-9. The CPU_Intel group of Modules
+8. The CPU_Intel group of Modules
 
    These files all relate to Intel-x86 specific code.
      _________________________________________________________________
 
-9.1. Functions in emu-i386/cpu.c
+8.1. Functions in emu-i386/cpu.c
 
    These are the functions defined in emu-i386/cpu.c.
      _________________________________________________________________
 
-9.1.1. cpu_trap_0f
+8.1.1. cpu_trap_0f
 
    process opcodes 0F xx xx trapped by GP_fault returns 1 if handled, 0
    otherwise Main difference with previous version: bits in our
@@ -2554,45 +2336,45 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    pgms happy.
      _________________________________________________________________
 
-9.1.2. cpu_setup
+8.1.2. cpu_setup
 
    Setup initial interrupts which can be revectored so that the kernel
    does not need to return to DOSEMU if such an interrupt occurs.
      _________________________________________________________________
 
-9.2. Functions in emu-i386/ports.c
+8.2. Functions in emu-i386/ports.c
 
    These are the functions defined in emu-i386/ports.c.
      _________________________________________________________________
 
-9.2.1. port_inb(ioport_t port)
+8.2.1. port_inb(ioport_t port)
 
    Handles/simulates an inb() port IO read
      _________________________________________________________________
 
-9.2.2. port_outb(ioport_t port, Bit8u byte)
+8.2.2. port_outb(ioport_t port, Bit8u byte)
 
    Handles/simulates an outb() port IO write
      _________________________________________________________________
 
-9.2.3. port_inw(ioport_t port)
+8.2.3. port_inw(ioport_t port)
 
    Handles/simulates an inw() port IO read. Usually this invokes
    port_inb() twice, but it may be necessary to do full word i/o for some
    video boards.
      _________________________________________________________________
 
-9.2.4. port_outw(ioport_t port, Bit16u word)
+8.2.4. port_outw(ioport_t port, Bit16u word)
 
    Handles/simulates an outw() port IO write
      _________________________________________________________________
 
-9.2.5. port_ind(ioport_t port)
+8.2.5. port_ind(ioport_t port)
 
    Handles/simulates an ind()/outd() port IO read/write.
      _________________________________________________________________
 
-9.2.6. special_port_inb,special_port_outb
+8.2.6. special_port_inb,special_port_outb
 
    I don't know what to do of this stuff... it was added incrementally to
    port.c and has mainly to do with video code. This is not the right
@@ -2600,14 +2382,14 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    emuretrace port access for 0x3c0/0x3da
      _________________________________________________________________
 
-9.2.7. port_init()
+8.2.7. port_init()
 
    Resets all the port port_handler information. This must be called
    before parsing the config file - This must NOT be called again when
    warm booting! Can't use debug logging, it is called too early.
      _________________________________________________________________
 
-9.2.8. extra_port_init()
+8.2.8. extra_port_init()
 
    Catch all the special cases previously defined in ports.c mainly video
    stuff that should be moved away from here This must be called at the
@@ -2618,18 +2400,18 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    still have bugs
      _________________________________________________________________
 
-9.2.9. port_register_handler
+8.2.9. port_register_handler
 
    Assigns a handle in the port table to a range of ports with or without
    a device, and registers the ports
      _________________________________________________________________
 
-9.2.10. set_ioperm
+8.2.10. set_ioperm
 
-   wrapper for the ioperm() syscall, returns -1 if port>=0x400
+   wrapper for the ioperm() syscall, returns -1 if not successful.
      _________________________________________________________________
 
-9.3. Remarks in emu-i386/ports.c
+8.3. Remarks in emu-i386/ports.c
 
    The following port_{in|out}{bwd} functions are the main entry points
    to the port code. They look into the port_handle_table and call the
@@ -2675,7 +2457,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    wasn't used, just locked, and only then port access was granted.
      _________________________________________________________________
 
-9.4. Items for Fixing in emu-i386/ports.c
+8.4. Items for Fixing in emu-i386/ports.c
 
    This stuff should be moved to video code!!
 
@@ -2684,18 +2466,18 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    we should free the name but we are going to exit anyway
      _________________________________________________________________
 
-9.5. Functions in emu-i386/do_vm86.c
+8.5. Functions in emu-i386/do_vm86.c
 
    These are the functions defined in emu-i386/do_vm86.c.
      _________________________________________________________________
 
-9.5.1. vm86_GP_fault
+8.5.1. vm86_GP_fault
 
    All from the kernel unhandled general protection faults from V86 mode
    are handled here. This are mainly port IO and the HLT instruction.
      _________________________________________________________________
 
-9.5.2. run_vm86
+8.5.2. run_vm86
 
    Here is where DOSEMU runs VM86 mode with the vm86() call which also
    has the registers that it will be called with. It will stop vm86 mode
@@ -2703,13 +2485,13 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    to ports not opened for I/O, etc ...
      _________________________________________________________________
 
-9.5.3. loopstep_run_vm86
+8.5.3. loopstep_run_vm86
 
    Here we collect all stuff, that has to be executed within _one_ pass
    (step) of a loop containing run_vm86().
      _________________________________________________________________
 
-9.6. Remarks in emu-i386/do_vm86.c
+8.6. Remarks in emu-i386/do_vm86.c
 
    Here we handle all prefixes prior switching to the appropriate
    routines The exception CS:EIP will point to the first prefix that
@@ -2717,12 +2499,12 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    0x65. So we collect all prefixes and remember them. - Hans Lermen
      _________________________________________________________________
 
-9.7. Functions in emu-i386/cputime.c
+8.7. Functions in emu-i386/cputime.c
 
    These are the functions defined in emu-i386/cputime.c.
      _________________________________________________________________
 
-9.7.1. GETcpuTIME
+8.7.1. GETcpuTIME
 
    GETcpuTIME is a pointer to a function which returns the relative CPU
    time. Different methods of getting the time can then be implemented,
@@ -2730,26 +2512,26 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    pentium
      _________________________________________________________________
 
-9.7.2. GETusTIME(sc)
+8.7.2. GETusTIME(sc)
 
    GETusTIME returns the DOS time with 1-usec resolution using GETcpuTIME
    to get the implementation-dependent CPU time. The 'sc' parameter is
    unused.
      _________________________________________________________________
 
-9.7.3. GETtickTIME(sc)
+8.7.3. GETtickTIME(sc)
 
    GETtickTIME returns the DOS time with 838ns resolution using
    GETcpuTIME to get the implementation-dependent CPU time. The 'sc'
    parameter is unused.
      _________________________________________________________________
 
-9.7.4. GETusSYSTIME()
+8.7.4. GETusSYSTIME()
 
    GETusSYSTIME returns the real CPU time with 1-usec resolution
      _________________________________________________________________
 
-9.8. Remarks in emu-i386/cputime.c
+8.8. Remarks in emu-i386/cputime.c
 
    At the heart of the timing system in dosemu >= 0.67.11 is the
    availability of the system time as a 64-bit [type hitimer_t] monoton
@@ -2798,25 +2580,25 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    PIC are not sensitive.
      _________________________________________________________________
 
-9.9. Functions in emu-i386/simx86/sigsegv.c
+8.9. Functions in emu-i386/simx86/sigsegv.c
 
    These are the functions defined in emu-i386/simx86/sigsegv.c.
      _________________________________________________________________
 
-9.9.1. dosemu_fault(int, struct sigcontext_struct);
+8.9.1. dosemu_fault(int, struct sigcontext_struct);
 
    All CPU exceptions (except 13=general_protection from V86 mode, which
    is directly scanned by the kernel) are handled here.
      _________________________________________________________________
 
-10. The Serial group of Modules
+9. The Serial group of Modules
 
    This is the code that works our serial emulation. This needs to be
    very fast if we are to convince DOS that we have a very fast serial
    port.
      _________________________________________________________________
 
-10.1. Remarks in base/serial/ser_defs.h
+9.1. Remarks in base/serial/ser_defs.h
 
    Extensions to serial debugging.
 
@@ -2868,12 +2650,12 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    base address of %x", com[i].real_comport, com[i].base_port);
      _________________________________________________________________
 
-10.2. Functions in base/serial/ser_init.c
+9.2. Functions in base/serial/ser_init.c
 
    These are the functions defined in base/serial/ser_init.c.
      _________________________________________________________________
 
-10.2.1. serial_init
+9.2.1. serial_init
 
    This is the master serial initialization function that is called upon
    startup of DOSEMU to initialize ALL the emulated UARTs for all
@@ -2884,18 +2666,18 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    If the port is a mouse, the port is only initialized when i
      _________________________________________________________________
 
-10.3. Items for Fixing in base/serial/ser_init.c
+9.3. Items for Fixing in base/serial/ser_init.c
 
    This needs more work before it is implemented into /etc/dosemu.conf as
    an 'rtscts' option.
      _________________________________________________________________
 
-10.4. Functions in base/serial/ser_ports.c
+9.4. Functions in base/serial/ser_ports.c
 
    These are the functions defined in base/serial/ser_ports.c.
      _________________________________________________________________
 
-10.4.1. do_serial_in
+9.4.1. do_serial_in
 
    The following function returns a value from an I/O port. The port is
    an I/O address such as 0x3F8 (the base port address of COM1). There
@@ -2904,7 +2686,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    abritary port number for serial line, address = I/O port address]
      _________________________________________________________________
 
-10.4.2. do_serial_out
+9.4.2. do_serial_out
 
    The following function writes a value to an I/O port. The port is an
    I/O address such as 0x3F8 (the base port address of COM1). [num =
@@ -2912,7 +2694,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    = value to write to I/O port address]
      _________________________________________________________________
 
-10.5. Items for Fixing in base/serial/ser_ports.c
+9.5. Items for Fixing in base/serial/ser_ports.c
 
    Should clearing UART cause THRE int if it's enabled? */
 
@@ -2929,12 +2711,12 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    Is this safe to put this here? */
      _________________________________________________________________
 
-10.6. Functions in base/serial/ser_irq.c
+9.6. Functions in base/serial/ser_irq.c
 
    These are the functions defined in base/serial/ser_irq.c.
      _________________________________________________________________
 
-10.6.1. serial_int_engine
+9.6.1. serial_int_engine
 
    This function is the serial interrupts scheduler. Its purpose is to
    update interrupt status and/or invoke a requested serial interrupt. If
@@ -2950,7 +2732,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    [num = port, int_requested = the requested serial interrupt]
      _________________________________________________________________
 
-10.6.2. pic_serial_run
+9.6.2. pic_serial_run
 
    This function is called by the priority iunterrupt controller when a
    serial interrupt occurs. It executes the highest priority serial
@@ -2961,7 +2743,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    repeated.
      _________________________________________________________________
 
-10.6.3. serial_run
+9.6.3. serial_run
 
    This is the main housekeeping function, which should be called about
    20 to 100 times per second. The more frequent, the better, up to a
@@ -2973,7 +2755,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    to serial_run are smaller.
      _________________________________________________________________
 
-10.7. Remarks in base/serial/ser_irq.c
+9.7. Remarks in base/serial/ser_irq.c
 
    Linux code hackers: How do I detect a break signal without having to
    rely on Linux signals? Can I peek a 'break state bit'? Also, how do I
@@ -2981,21 +2763,17 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    tcsetattr(), rather than using POSIX tcsendbrk()?
      _________________________________________________________________
 
-10.8. Items for Fixing in base/serial/ser_irq.c
+9.8. Items for Fixing in base/serial/ser_irq.c
 
    how do we cancel a PIC interrupt, when we have come this far?
-
-   -----
-
-   Perhaps this can be modified to limit max chain length?
      _________________________________________________________________
 
-10.9. Functions in base/serial/int14.c
+9.9. Functions in base/serial/int14.c
 
    These are the functions defined in base/serial/int14.c.
      _________________________________________________________________
 
-10.9.1. int14
+9.9.1. int14
 
    The following function executes a BIOS interrupt 0x14 function. This
    code by Mark Rejhon replaced some very buggy, old int14 interface a
@@ -3003,41 +2781,41 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    a character during receive, and this may confuse some programs.
      _________________________________________________________________
 
-10.10. New Ideas for base/serial/int14.c
+9.10. New Ideas for base/serial/int14.c
 
    If any of you coders are ambitious, try thinking of the following: -
    Converting this into inline assembler and use direct port access
      _________________________________________________________________
 
-10.11. Items for Fixing in base/serial/fossil.c
+9.11. Items for Fixing in base/serial/fossil.c
 
    This really should be write-with-wait. */
      _________________________________________________________________
 
-10.12. Items for Fixing in include/serial.h
+9.12. Items for Fixing in include/serial.h
 
    Why does a RX_BUFFER_SIZE of 256 cause slower performance than a size
    of 128?
      _________________________________________________________________
 
-11. The Mouse group of Modules
+10. The Mouse group of Modules
 
    All of the Mouse handling code is in the "mouse" subdirectory.
 
    There are only 2 main files, mouse.c and mouseint.c.
      _________________________________________________________________
 
-11.1. Functions in base/mouse/mouse.c
+10.1. Functions in base/mouse/mouse.c
 
    These are the functions defined in base/mouse/mouse.c.
      _________________________________________________________________
 
-11.1.1. mouse_init
+10.1.1. mouse_init
 
    Initialize internal mouse.
      _________________________________________________________________
 
-11.2. Remarks in base/mouse/mouse.c
+10.2. Remarks in base/mouse/mouse.c
 
    I have not properly tested this INT74 - JES 96/10/20 I have removed
    it. INT74 is irq 12. Which I suppose is the proper irq for a ps2
@@ -3045,7 +2823,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    Mouse_ROUTINE_OFF is a routine that acknowledges an irq. That routine
    is probably what should be acknowledging irq12, and what int 0x74
    should point to. I have disabled int0x74 support for now. --EB 29 Oct
-   1997
+   1997 Got it working --BO 4 Nov 2004
 
    -----
 
@@ -3087,7 +2865,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    -- Eric Biederman 29 May 2000
      _________________________________________________________________
 
-12. The Bios group of Modules
+11. The Bios group of Modules
 
    All of the Bios code is in the "bios" subdirectory.
 
@@ -3096,32 +2874,32 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    put.
      _________________________________________________________________
 
-12.1. Functions in base/bios/hlt.c
+11.1. Functions in base/bios/hlt.c
 
    These are the functions defined in base/bios/hlt.c.
      _________________________________________________________________
 
-12.1.1. hlt_init(void)
+11.1.1. hlt_init(void)
 
    Resets all the HLT handlers
      _________________________________________________________________
 
-12.1.2. hlt_handle()
+11.1.2. hlt_handle()
 
    Handles a HLT instruction reached inside the dos emulator.
      _________________________________________________________________
 
-13. The PIC group of Modules
+12. The PIC group of Modules
 
    All of the PIC handling code is in the "PIC" subdirectory.
      _________________________________________________________________
 
-13.1. Functions in base/dev/pic/pic.c
+12.1. Functions in base/dev/pic/pic.c
 
    These are the functions defined in base/dev/pic/pic.c.
      _________________________________________________________________
 
-13.1.1. pic_print
+12.1.1. pic_print
 
    This is the pic debug message printer. It writes out some basic
    information, followed by an informative message. The basic information
@@ -3141,7 +2919,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    Instead, a header line is printed every 15 messages.
      _________________________________________________________________
 
-13.1.2. write_pic0,write_pic1
+12.1.2. write_pic0,write_pic1
 
    write_pic_0() and write_pic1() implement dos writes to the pic ports.
    They are called by the code that emulates inb and outb instructions.
@@ -3151,7 +2929,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    Arguments are:
      _________________________________________________________________
 
-13.1.3. read_pic0,read_pic1
+12.1.3. read_pic0,read_pic1
 
    read_pic0 and read_pic1 return the values for the interrupt mask
    register (port 1), or either the in service register or interrupt
@@ -3160,17 +2938,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    1). They are called by code that emulates the inb instruction.
      _________________________________________________________________
 
-13.1.4. pic_mask,pic_unmask
-
-   The pic maintains an additional interrupt mask which is not visible to
-   the DOS process. This is normally cleared (enabling an interrupt) when
-   an interrupt is initialized, but dosemu code may choose to use this
-   mask internally. One possible use is to implement the interrupt gate
-   controlled by the OUT2 bit of the 16550A UART's Modem Control
-   Register. This mask is cleared by pic_unmaski() and set by pic_maski()
-     _________________________________________________________________
-
-13.1.5. pic_seti
+12.1.4. pic_seti
 
    pic_seti is used to initialize an interrupt for dosemu. It requires
    four parameters. The first parameter is the interrupt level, which may
@@ -3187,7 +2955,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    function MUST provide a EOI at the end of a callback.
      _________________________________________________________________
 
-13.1.6. run_irqs
+12.1.5. run_irqs
 
    run_irqs, which is initiated via the macro pic_run, is the "brains" of
    the pic. It is called from the vm86() loop, checks for the highest
@@ -3202,7 +2970,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    I found a way to write it in C --EB 15 Jan 97
      _________________________________________________________________
 
-13.1.7. do_irq
+12.1.6. do_irq
 
    do_irq() calls the correct do_int(). It then executes a vm86 loop
    until an outb( end-of-interrupt) is found. For priority levels 0 and
@@ -3222,7 +2990,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    dosext/sound/sound.c dosext/net/net/pktnew.c
      _________________________________________________________________
 
-13.1.8. pic_resched
+12.1.7. pic_resched
 
    pic_resched decrements a count of interrupts on the stack (set by
    do_irq()). If the count is then less or equal to some pre-defined
@@ -3233,7 +3001,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    directly if dosemu was fooled by the program and failed to catch iret.
      _________________________________________________________________
 
-13.1.9. pic_request
+12.1.8. pic_request
 
    pic_request triggers an interrupt. There is presently no way to
    "un-trigger" an interrupt. The interrupt will be initiated the next
@@ -3246,7 +3014,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    code to retrigger itself if more interrupts are needed.
      _________________________________________________________________
 
-13.1.10. pic_iret
+12.1.9. pic_iret
 
    pic_iret is used to sense that all active interrupts are really
    complete, so that interrupts queued by pic_request can be triggered.
@@ -3264,7 +3032,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    event.
      _________________________________________________________________
 
-13.1.11. pic_watch
+12.1.10. pic_watch
 
    pic_watch is a watchdog timer for pending interrupts. If pic_iret
    somehow fails to activate a pending interrupt request for 2
@@ -3273,7 +3041,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    handler, so the two functions will probably be merged.
      _________________________________________________________________
 
-13.1.12. pic_pending
+12.1.11. pic_pending
 
    This function returns a non-zero value if the designated interrupt has
    been requested and is not masked. In these circumstances, it is
@@ -3291,14 +3059,14 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    returned.
      _________________________________________________________________
 
-13.1.13. pic_activate
+12.1.12. pic_activate
 
    pic_activate requests any interrupts whose scheduled time has arrived.
    anything after pic_dos_time and before pic_sys_time is activated.
    pic_dos_time is advanced to the earliest time scheduled.
      _________________________________________________________________
 
-13.1.14. pic_sched
+12.1.13. pic_sched
 
    pic_sched schedules an interrupt for activation after a designated
    time interval. The time measurement is in unis of 1193047/second, the
@@ -3322,7 +3090,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    interval is 15 minutes (0x3fffffff).
      _________________________________________________________________
 
-13.2. Remarks in base/dev/pic/pic.c
+12.2. Remarks in base/dev/pic/pic.c
 
    pic_push,pic_pop
 
@@ -3337,7 +3105,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    pic_push and pic_pop maintain the external stack.
      _________________________________________________________________
 
-14. The Sound group of Modules
+13. The Sound group of Modules
 
    The sound code provides emulation of the SB. The actual emulation
    provided depends upon the support available from the kernel sound
@@ -3347,12 +3115,12 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    functions and the device independant structures.
      _________________________________________________________________
 
-14.1. Functions in dosext/sound/sound.c
+13.1. Functions in dosext/sound/sound.c
 
    These are the functions defined in dosext/sound/sound.c.
      _________________________________________________________________
 
-14.1.1. sb_io_read
+13.1.1. sb_io_read
 
    Arguments are:
 
@@ -3363,7 +3131,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    ports float high when not pulled low by the hardware.)
      _________________________________________________________________
 
-14.1.2. adlib_io_read
+13.1.2. adlib_io_read
 
    Arguments are:
 
@@ -3377,7 +3145,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    FM sound.
      _________________________________________________________________
 
-14.1.3. mpu401_io_read
+13.1.3. mpu401_io_read
 
    Arguments are:
 
@@ -3388,7 +3156,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    pass-through driver.
      _________________________________________________________________
 
-14.1.4. sb_io_write
+13.1.4. sb_io_write
 
    Arguments are:
 
@@ -3403,7 +3171,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    give.
      _________________________________________________________________
 
-14.1.5. sb_dsp_write
+13.1.5. sb_dsp_write
 
    Arguments are:
 
@@ -3421,13 +3189,13 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    basically a large switch statement.
      _________________________________________________________________
 
-14.2. Remarks in dosext/sound/sound.c
+13.2. Remarks in dosext/sound/sound.c
 
    Write silence could probably be implemented by setting up a "DMA"
    transfer from /dev/null - AM
      _________________________________________________________________
 
-14.3. Items for Fixing in dosext/sound/sound.c
+13.3. Items for Fixing in dosext/sound/sound.c
 
    The file header needs tidying up a _LOT_ ! */
 
@@ -3472,7 +3240,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    AUX Status is Unimplemented
      _________________________________________________________________
 
-14.4. Remarks in base/dev/dma/dma.c
+13.4. Remarks in base/dev/dma/dma.c
 
    **** WARNING **** This Code _HAS_ changed.
 
@@ -3487,7 +3255,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    controller 1 uses byte granular address ... this simplifies the code !
      _________________________________________________________________
 
-14.5. Items for Fixing in base/dev/dma/dma.c
+13.5. Items for Fixing in base/dev/dma/dma.c
 
    : Cascade Mode Reads are not supported
 
@@ -3500,12 +3268,12 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    : The Invalid Mode is not supported (!)
      _________________________________________________________________
 
-15. The FileAccess group of Modules
+14. The FileAccess group of Modules
 
    This hold all kind of accessing files on a Unix filesysten from DOS.
      _________________________________________________________________
 
-15.1. Remarks in dosext/mfs/mfs.c
+14.1. Remarks in dosext/mfs/mfs.c
 
    The msdos_dir_ent structure has much more than 28 bytes. Is this
    significant?
@@ -3516,7 +3284,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    directories using xx\yy\device perform closer to whats DOS does.
      _________________________________________________________________
 
-15.2. Items for Fixing in dosext/mfs/mfs.c
+14.2. Items for Fixing in dosext/mfs/mfs.c
 
    We probably should use llseek here for file > 2 GBytes
 
@@ -3525,7 +3293,7 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    returned size of struct dir_ent seems wrong at 28 bytes. */
      _________________________________________________________________
 
-16. And Finally ...
+15. And Finally ...
 
    The Following items are used to delimit the text used to create this
    file. Whilst it is not necessary to know this, they are included

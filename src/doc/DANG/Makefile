@@ -7,7 +7,7 @@
 top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
-DOCSOURCES := $(notdir $(wildcard $srcdir/*.sgml))
+DOCSOURCES := $(notdir $(wildcard $(srcdir)/*.sgml))
 TXT = $(DOCSOURCES:.sgml=.txt)
 HTML = $(DOCSOURCES:.sgml=.html)
 

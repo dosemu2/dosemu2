@@ -21,7 +21,7 @@ GROUP:		Init doc/DANG/summary_Init base/init/init.c
 GROUP:		DPMI doc/DANG/summary_DPMI dosext/dpmi/dpmi.c
 		dosext/dpmi/msdos.h
 GROUP:		Video doc/DANG/summary_Video env/video/vc.c
-			env/video/video.c env/video/X.c env/video/vgaemu.c
+			env/video/video.c plugin/X/X.c env/video/vgaemu.c
 			env/video/vesa.c
 			env/video/vesabios.S
 			env/video/vesabios_pm.S
@@ -45,13 +45,6 @@ GROUP:		New_Keyboard doc/DANG/summary_New_Keyboard
 			plugin/kbd_unicode/keyb_raw.c
 			plugin/term/keyb_slang.c
 			plugin/term/term_core.c
-GROUP:          Old_Keyboard doc/DANG/summary_Old_Keyboard
-                        plugin/keyboard/keymaps.c
-                        plugin/keyboard/serv_xlat.c
-                        plugin/keyboard/serv_backend.c
-                        plugin/keyboard/serv_8042.c
-                        plugin/keyboard/keyb_raw.c
-                        plugin/keyboard/keyb_slang.c
 GROUP:		Misc doc/DANG/summary_Misc dosext/misc/emm.c 
 			dosext/misc/xms.c 
 			base/async/int.c include/int.h
