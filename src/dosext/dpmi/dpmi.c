@@ -2692,24 +2692,12 @@ void run_pm_int(int i)
   ssp = enter_lpms(&DPMI_CLIENT.stack_frame);
 
   D_printf("DPMI: Calling protected mode handler for int 0x%02x\n", i);
-/* ---------------------------------------------------
-	| 000FC925 | <- ssp here, executes pm int
-	| dpmi_sel |
-	|  eflags  |
-	|   eip    | <- ssp at fc925 -> hlt, see line 2709
-	|    cs    |
-	|  eflags  |
-	|   esp    |
-	|    ss    |
-	| i_d_d_i  |
-   --------------------------------------------------- */
   if (DPMI_CLIENT.is_32) {
     ssp -= 2, *((unsigned long *) ssp) = 0;	/* reserved */
     ssp -= 2, *((unsigned long *) ssp) = (unsigned long) in_dpmi_dos_int;
     *--ssp = (us) 0;
     *--ssp = old_ss;
     ssp -= 2, *((unsigned long *) ssp) = old_esp;
-    ssp -= 2, *((unsigned long *) ssp) = get_vFLAGS(DPMI_CLIENT.stack_frame.eflags);
     *--ssp = (us) 0;
     *--ssp = DPMI_CLIENT.stack_frame.cs;
     ssp -= 2, *((unsigned long *) ssp) = DPMI_CLIENT.stack_frame.eip;
@@ -2717,20 +2705,19 @@ void run_pm_int(int i)
     *--ssp = (us) 0;
     *--ssp = dpmi_sel();
     ssp -= 2, *((unsigned long *) ssp) = DPMI_OFF + HLT_OFF(DPMI_return_from_pm);
-    DPMI_CLIENT.stack_frame.esp -= 40;
+    DPMI_CLIENT.stack_frame.esp -= 36;
   } else {
     /* store the high word of ESP, because CPU corrupts it */
     *--ssp = HI_WORD(old_esp);
     *--ssp = (unsigned short) in_dpmi_dos_int;
     *--ssp = old_ss;
     *--ssp = LO_WORD(old_esp);
-    *--ssp = (unsigned short) get_vFLAGS(DPMI_CLIENT.stack_frame.eflags);
     *--ssp = DPMI_CLIENT.stack_frame.cs; 
     *--ssp = (unsigned short) DPMI_CLIENT.stack_frame.eip;
     *--ssp = (unsigned short) get_vFLAGS(DPMI_CLIENT.stack_frame.eflags);
     *--ssp = dpmi_sel(); 
     *--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_pm);
-    LO_WORD(DPMI_CLIENT.stack_frame.esp) -= 20;
+    LO_WORD(DPMI_CLIENT.stack_frame.esp) -= 18;
   }
   DPMI_CLIENT.stack_frame.cs = DPMI_CLIENT.Interrupt_Table[i].selector;
   DPMI_CLIENT.stack_frame.eip = DPMI_CLIENT.Interrupt_Table[i].offset;
@@ -3589,22 +3576,10 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  leave_lpms(scp);
           D_printf("DPMI: Return from protected mode interrupt handler, "
 	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
-/* ---------------------------------------------------
-	|(000FC925)|
-	|(dpmi_sel)|
-	|( eflags )|
-	|   eip    | <- ssp here
-	|    cs    |
-	|  eflags  |
-	|   esp    |
-	|    ss    |
-	| i_d_d_i  |
-   --------------------------------------------------- */
 	  if (DPMI_CLIENT.is_32) {
 	    _eip = *((unsigned long *) ssp), ssp += 2;
 	    _cs = *ssp++;
 	    ssp++;
-	    set_EFLAGS(_eflags, *((unsigned long *) ssp)), ssp += 2;
 	    _esp = *((unsigned long *) ssp), ssp += 2;
 	    _ss = *ssp++;
 	    ssp++;
@@ -3613,39 +3588,18 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  } else {
 	    _LWORD(eip) = *ssp++;
 	    _cs = *ssp++;
-	    set_EFLAGS(_eflags, *ssp++);
 	    _LWORD(esp) = *ssp++;
 	    _ss = *ssp++;
 	    in_dpmi_dos_int = (int) *ssp++;
 	    _HWORD(esp) = *ssp++;
 	  }
-/* Posibilities:
- * 1. If in_dpmi_dos_int==1 and interrupt is from hardware, pic_iret()
- *    will success here because realmode cs:ip were not modified in pm
- *    handler and still points to hlt. We can just skip this hlt or do_vm86()
- *    will do it for us, but pic_iret will be called with current cs:ip anyway.
- *    So calling pic_iret() here and skipping hlt in this case is also an
- *    optimization.
- * 2. If in_dpmi_dos_int==1 and int is software (0x1c, 0x23 or 0x24), then
- *    cs:ip is not on hlt now.
- * 3. If in_dpmi_dos_int==0, it is hardware interrupt: software pm ints are
- *    handled not here. pic_iret_dpmi() must be called in this case.
- *
- *
- * -- Stas Sergeev, Bart Oldeman
- */
+	  set_IF();
+
 	  if (in_dpmi_dos_int) {
-	     if (*SEG_ADR((unsigned char *), cs, ip) == 0xf4) {
-		if (debug_level('M') > 3) D_printf("DPMI: returned to RM from hardware "
+	    if (debug_level('M') > 3) D_printf("DPMI: returned to RM from hardware "
 		    "interrupt at %p, skip hlt at %04x:%04lx\n",
 		    lina, REG(cs), REG(eip));
-		pic_iret();
-	     }
-	     else {
-		if (debug_level('M') > 3) D_printf("DPMI: returned to RM from software "
-		    "interrupt at %p, we are at %04x:%04lx\n",
-		    lina, REG(cs), REG(eip));
-	     }
+	    pic_iret();
 	  } else {
 	    if (debug_level('M') > 3) D_printf("DPMI: returned to PM from hardware "
 		"interrupt at %p\n", lina);
@@ -4166,8 +4120,6 @@ void dpmi_realmode_hlt(unsigned char * lina)
  * called without an active interrupt handler, pic_iret() does nothing, and
  * CPU exceptions should not happen inside the interrupt handler under normal
  * conditions.
- * Calling pic_iret() on other client termination is good idea, I even revector
- * int 21h/4ch for this.
  *
  * -- Stas Sergeev
  */
