@@ -184,6 +184,8 @@ pcibios_init(void)
     Z_printf("PCI config type %s\n",pciConfigType->name);
 
     if (pciConfigType->name[0] == '2') {
+	writePci = writePciCfg2;
+	readPci = readPciCfg2;
 	cardnum_lo = 0xC0;
 	cardnum_hi = 0xD0;
 	func_hi = 1;

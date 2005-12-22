@@ -35,12 +35,48 @@
 static struct pci_funcs pci_cfg1, pci_cfg2, pci_proc;
 
 /*
- * So far only config type 1 is supported. Return 0 if
- * no PCI is present or PCI config type != 1.
+ * from PCIUTILS and Linux kernel arch/i386/pci/direct.c:
+ *
+ * Before we decide to use direct hardware access mechanisms, we try to do some
+ * trivial checks to ensure it at least _seems_ to be working -- we just test
+ * whether bus 00 contains a host bridge (this is similar to checking
+ * techniques used in XFree86, but ours should be more reliable since we
+ * attempt to make use of direct access hints provided by the PCI BIOS).
+ *
+ * This should be close to trivial, but it isn't, because there are buggy
+ * chipsets (yes, you guessed it, by Intel and Compaq) that have no class ID.
+ */
+
+static int
+intel_sanity_check(struct pci_funcs *m)
+{
+  int dev;
+
+  Z_printf("PCI: ...sanity check for mechanism %s ", m->name);
+  for(dev = 0; dev < 32; dev++) {
+    uint16_t class, vendor;
+    class = m->read(0, dev, 0, PCI_CLASS_DEVICE, 2);
+    if (class == PCI_CLASS_BRIDGE_HOST || class == PCI_CLASS_DISPLAY_VGA)
+      break;
+    vendor = m->read(0, dev, 0, PCI_VENDOR_ID, 2);
+    if (vendor == PCI_VENDOR_ID_INTEL || vendor == PCI_VENDOR_ID_COMPAQ)
+      break;
+  }
+  if (dev < 32) {
+    Z_printf("succeeded for dev=%x\n", dev);
+    return 1;
+  }
+  Z_printf("not succeeded\n");
+  return 0;
+}
+
+/*
+ * Return NULL if no PCI is present.
  */
 struct pci_funcs *pci_check_conf(void)
 {
     unsigned long val;
+    struct pci_funcs *m;
 
     if (!config.pci && access("/proc/bus/pci", R_OK) == 0)
       return &pci_proc;
@@ -49,14 +85,26 @@ struct pci_funcs *pci_check_conf(void)
       error("iopl(): %s\n", strerror(errno));
       return 0;
     }
+
+    m = &pci_cfg1;
     port_real_outd(PCI_CONF_ADDR,PCI_EN);
     val = port_real_ind(PCI_CONF_ADDR);
     port_real_outd(PCI_CONF_ADDR, 0);
+
+    if (val != PCI_EN) {
+      /* from PCIUTILS: */
+      /* This is ugly and tends to produce false positives. Beware. */
+
+      port_real_outb(PCI_MODE2_ENABLE_REG, 0x00);
+      port_real_outb(PCI_MODE2_FORWARD_REG, 0x00);
+      m = (inb(PCI_MODE2_ENABLE_REG) == 0x00 &&
+	   inb(PCI_MODE2_FORWARD_REG) == 0x00) ? &pci_cfg2 : NULL;
+    }
+
     priv_iopl(0);
-    if (val == PCI_EN)
-	return &pci_cfg1;
-    else
-	return NULL;
+    if (m && intel_sanity_check(m))
+      return m;
+    return NULL;
 }
 
 static int pci_no_open(unsigned char bus, unsigned char device,
@@ -348,10 +396,20 @@ int pci_setup (void)
     io_device.irq = EMU_NO_IRQ;
     io_device.fd = -1;
   
-    io_device.handler_name = "PCI Config";
-    io_device.start_addr = PCI_CONF_ADDR;
-    io_device.end_addr = PCI_CONF_DATA+3;
-    port_register_handler(io_device, 0);
+    if (pciConfigType->name[0] == '1') {
+      io_device.handler_name = "PCI Config Type 1";
+      io_device.start_addr = PCI_CONF_ADDR;
+      io_device.end_addr = PCI_CONF_DATA+3;
+      port_register_handler(io_device, 0);
+    } else {
+      io_device.handler_name = "PCI Config Type 2";
+      io_device.start_addr = PCI_MODE2_ENABLE_REG;
+      io_device.end_addr = PCI_MODE2_FORWARD_REG + 1;
+      port_register_handler(io_device, 0);
+      io_device.start_addr = 0xc000;
+      io_device.end_addr = 0xcfff;
+      port_register_handler(io_device, 0);
+    }
   }
   return 0;
 }
