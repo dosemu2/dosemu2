@@ -1,4 +1,224 @@
+2005-12-22  Bart
+
+	* configure, configure.ac:
+	Make svgalib version check more robust (did not work with gcc-2.95).
+
+	* doc/DANG.txt, src/doc/DANG/DANG.sgml, src/doc/DANG/DANG_CONFIG,
+	  src/doc/DANG/Makefile, src/doc/DANG/make_DANG:
+	Regenerated DANG
+
+	* etc/dosemu.conf, etc/global.conf, src/base/init/config.c,
+	  src/base/init/lexer.l.in, src/base/init/parser.y.in,
+	  src/dosext/dpmi/memory.c, src/include/emu.h,
+	  src/plugin/commands/Makefile, src/plugin/commands/commands.c,
+	  src/plugin/commands/commands.h, src/plugin/commands/unix.c:
+	Apply #1023178 Option for disabling DJGPP null checks.
+	Also add a dpmi.com command, with a -x option similar to cwsdpmi.
+	Shorten unix.com usage help a bit.
+
+2005-12-22  Stas
+
+	* src/dosext/dpmi/dpmi.c:
+	Try "verr" before giving up on an arbitrary selector usage.
+	(Bugs #988992, #1358562)
+
+2005-12-21  Bart
+
+	* doc/EMUfailure.txt, doc/README.txt, src/doc/DANG/DANG.sgml,
+	  src/doc/HOWTO/EMUfailure.sgml:
+	Regenerated documentation.
+
+	* INSTALL, VERSION, compiletime-settings,
+	  compiletime-settings.devel, configure, configure.ac,
+	  default-configure, etc/dosemu.conf, src/arch/linux/Makefile.main:
+	bump up VERSION
+	put some notes about compiling on x86-64 in INSTALL
+	mention that full CPU emulation is experimental
+	add dlplugins option to compiletime-settings*
+	warn if no S-Lang library is available
+	allow "make install" without plugins (#1308052)
+
+2005-12-19  Bart
+
+	* src/base/bios/setup.c:
+	Release DOS helper memory for ctrl-alt-del, to avoid OOM after a few times.
+
+	* src/env/video/vgaemu.c:
+	TEXT<->GRAPHICS mode changes via register programming needs adjustment
+	of some other parts in vgaemu_adj_cfg too. Fixes aladdin/gw interaction.
+
+	* src/plugin/kbd_unicode/serv_backend.c:
+	Fix #1377671 Pause button doesn't work
+
+2005-12-18  Bart
+
+	* src/: base/bios/int10.c, env/video/video.c:
+	Initialize video_mode/0:449 in video_mem_setup instead of scr_state_init.
+	Fixes #1379838 Ctrl-Alt-Del from graphics mode
+
+	* src/: base/misc/dos2linux.c, base/misc/hma.c, dosext/misc/emm.c,
+	  dosext/misc/xms.c, include/dos2linux.h:
+	Put some basic checks into dos_read/dos_write, and memmove_dos2dos to
+	avoid touching the protected video memory.
+	Fixes #1379806 (gw stopped to work under X).
+
+2005-12-14  Stas
+
+	* src/base/async/int.c:
+	Remove debugging that causes "dosemu touched the protected memory"
+	bug with some apps.
+
+2005-12-13  Bart
+
+	* doc/README.txt, src/emu.c, src/arch/linux/debugger/dis8086.c,
+	  src/base/async/pci_bios.c, src/commands/bootoff.S,
+	  src/commands/booton.S, src/commands/dosdbg.c,
+	  src/commands/exitemu.S, src/commands/lredir.c,
+	  src/doc/README/CDROM, src/dosext/drivers/cdrom.c,
+	  src/dosext/net/net/ipx.c, src/env/video/hercemu.c,
+	  src/env/video/hgc.c, src/env/video/miscemu.c,
+	  src/env/video/remap.c, src/env/video/remap_asm.S,
+	  src/env/video/s3.c, src/env/video/svgalib.c,
+	  src/env/video/vesa.c, src/env/video/vesabios_pm.S,
+	  src/plugin/commands/dosdbg.c, src/plugin/commands/lredir.c,
+	  src/tools/periph/bootsect.S:
+	From: Hans de Goede <j.w.r.degoede@hhs.nl>
+	Clarify copyrights. This is necessary for inclusion of DOSEMU into Fedora
+	Extras, which is what Hans likes to do.
+
+	* src/arch/linux/Makefile.main:
+	Correct fresh "make install" (bug reported by Victor Warner, linux-msdos)
+
+2005-12-10  Bart
+
+	* src/: base/async/pci_bios.c, base/dev/misc/pci.c, include/pci.h:
+	Move the PCI r/w's that are strictly called by int1a (and may be emulated)
+	to pci_bios.c; made some configuration static.
+
+2005-12-09  Bart
+
+	* src/: base/async/pci_bios.c, base/dev/misc/pci.c,
+	  emu-i386/ports.c, include/pci.h, include/port.h:
+	Handle PCIEMU completely within pci.c.
+	Direct hardware accesses for extended configuration space are fed
+	directly to the portserver.
+	Let the port server handle an address and data PCI i/o access as close
+	to each other as possible.
+	INT1A pci_bios accesses are handled via port_in/out*.
+
+2005-12-03  Clarence
+
+	* src/base/dev/misc/timers.c:
+	Bart said: "This is about port 0x42 which is set to FAST in pit_init(),
+	timers.c. Port 0x61 was indeed made slow, (because it needs special
+	treatment in keyb_io_write()) but that's not what this is about."
+
+2005-12-03  Bart
+
+	* src/base/: dev/misc/pci.c, async/pci_bios.c:
+	Explicitly clear 0 bits in CF8 dword writes. Revert PCI_EN handling to what
+	it was (for some reason I thought PCI_EN=1, but it's 0x80000000).
+
+2005-12-03  Clarence
+
+	* src/include/emu.h:
+	* make config.features doc realistic
+	* bump up number of features to 16 to avoid recompile of every
+	file that #include's emu.h every time a different vendor wants to
+	add a different hack - Bart suggested in 2003 to use malloc()
+	but I think that's overkill
+
+	* src/base/init/config.c:
+	update intrinsic doc on newly added -t and -s options
+
+	* src/base/dev/misc/timers.c:
+	remove obsolete comments following the removal of PORT_FAST on
+	SPRK_NATIVE thanks to src/plugin/kbd_unicode/serv_8042.c:r1.7
+
+	* src/emu-i386/ports.c:
+	remove useless statement
+
+2005-12-02  Bart
+
+	* src/: base/async/pci_bios.c, base/dev/misc/pci.c, include/pci.h:
+	PCI: let word and byte accesses use inw/outw and inb/outb when appropriate,
+	instead of ind/outd + masking. Suggested by Stas.
+
+2005-12-02  Stas
+
+	* NEWS:
+	minor news
+
+	* src/doc/README/Windows:
+	Rewrote the "Windows" chapter.
+
+2005-12-01  Bart
+
+	* src/base/async/pci_bios.c:
+	Enable R/O emulation of PCI-PCI bridges.
+
+	* dosemu.spec.in, dist/dosemu:
+	Mark directories in the spec file (fixes #1165147).
+	Don't look at X fonts for dosemu -dumb.
+
+	* src/dosext/mfs/mfs.c:
+	Check for errno == ESPIPE for lseeks before read or write,
+	then they should not fail (#1347960)
+
+	* src/: base/init/dev_list.c, base/misc/disks.c,
+	  base/misc/utilities.c, include/emu.h:
+	Fix ctrl-alt-del + $_emusys (#1310344)
+
+2005-11-30  Bart
+
+	* src/: base/dev/misc/pci.c, include/pci.h:
+	Introduce ext_enabled flag to only allow direct h/w access to the extended
+	VGA PCI config space, and not to the PCI-HOST bridge.
+
+	* src/base/dev/misc/pci.c:
+	Fix fatal (for Matrox) typo: > 0x40 should be < 0x40.
+
+2005-11-30  Stas
+
+	* src/env/video/: vga.c, video.c:
+	Dont register the video memory twice.
+
+	* src/base/async/pci_bios.c:
+	Skip bogus PCI memory regions
+
+	* src/arch/linux/mapping/mapping.c:
+	debug messages
+
+	* src/dosext/dpmi/dpmi.c:
+	Revert the "dpmi.c can use com_printf" thing. It cant - calling
+	the realmode code from the signal context is unsafe.
+
+	* src/base/misc/dos2linux.c:
+	call_msdos() must switch to real mode before calling DOS, if needed.
+
 2005-11-29  Bart
+
+	* src/: base/async/int.c, base/bios/int10.c, base/misc/dos2linux.c,
+	  env/video/video.c, include/emu.h, plugin/commands/unix.c:
+	Adjust video.c init so that -dumb does not pop up an X window.
+	Make -dumb quiet until the command is executed if a command is given. So
+	dosemu -dumb dir
+	gives a directory listing and nothing else.
+
+	* dist/dosemu, src/arch/linux/Makefile.main:
+	Change default C: drive from ~/dosemu/freedos to ~/.dosemu/drive_c
+	(similar to Wine).
+	Remove dosemu/freedos/ directory prefixes from the files in the symlink
+	tarballs. The primary location for the DOSEMU utilities is now
+	$prefix/share/dosemu/commands.
+	Make the dosemu script aware of "-X by default".
+
+	* NEWS:
+	Update NEWS file for 1.3.3. This will be the last developer's release,
+	almost release candidate, before 1.4.0.
+
+	* ChangeLog:
+	update ChangeLog
 
 	* src/base/bios/int10.c:
 	Correct VIDEO_BIOS_COMBO for vbios_post=0. Thanks Michael and Reinhard

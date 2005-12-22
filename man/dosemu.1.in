@@ -1,5 +1,5 @@
 .\" -*- nroff -*-  (This is for Emacs)
-.TH DOSEMU 1 "May, 2005" "Version 1.3.2" "DOS Emulation"
+.TH DOSEMU 1 "Dec, 2005" "Version 1.3.3" "DOS Emulation"
 .SH NAME
 dosemu, xdosemu \- run DOS and DOS programs under Linux
 .SH SYNOPSIS

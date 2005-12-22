@@ -4,7 +4,7 @@ NEWS file for DOSEMU
 This file contains a list of user visible changes in DOSEMU. For the
 raw developer changelog please refer to ChangeLog.
 
-Version 1.3.3 (2005-12-xx)
+Version 1.3.3 (2005-12-22)
 =============
 * "dosemu" starts xdosemu by default in X. Use "dosemu -t" to force terminal
   mode.
@@ -16,12 +16,12 @@ Version 1.3.3 (2005-12-xx)
 * You can reboot the DOSEMU virtual machine using Ctrl-Alt-Del
 * Added $_time_mode="linux" option to force the DOS clock to sync with
   the Linux time.
-* Freed up 4K of UMB space
+* Freed up 4K of UMB space.
 * The utility unix.com can now execute Linux commands within DOSEMU
   interactively.
 * Run-time plugins are used to allow binary distribution without depending
   on all libraries.
-* Implemented debug breakpoints for DPMI
+* Implemented debug breakpoints for DPMI.
 * The SDL plugin (-S option) was improved so that it is almost as capable
   as the X plugin, and provides a safer way to get console graphics, using
   fbdev.
@@ -29,13 +29,19 @@ Version 1.3.3 (2005-12-xx)
 * Long File Names are enabled by default.
 * Many fixes for the outstanding mouse and keyboard problems.
 * Customized SVGA drivers of Windows 3.11 can now be used instead
-  of the Trident drivers (refer to chapter 9.2 of README).
+  of the Trident drivers (refer to Section 9.2 of README.txt).
+* The -dumb switch quietens DOSEMU until the command is executed if a command
+  is given. So "dosemu -dumb dir" gives a directory listing and nothing else.
+* The default C: drive has changed from ~/dosemu/freedos to ~/.dosemu/drive_c
+  (similar to Wine).
 
 List of SourceForge tracker numbers with bugs that were closed:
 # 830601 impossible to access /dev/lp0 directly
 # 920216 xdosemu mouse problem with Worms
 # 937984 Supporting debug registers in DOSEMU DPMI
+#1023178 (patch) Option for disabling DJGPP null checks
 #1039909 pathname with a space character
+#1165147 RPM doesn't own dirs in /etc 
 #1206135 1.3.2: mouse does not work in non-std mode
 #1206137 1.3.2: strange colors when resizing window in BC with mouse
 #1206525 1.3.2: text mode cursor uses only upper half of cell @ 80x50
@@ -58,10 +64,17 @@ List of SourceForge tracker numbers with bugs that were closed:
 #1288107 possible bug in bios.s
 #1292250 Latest CVS: FPU bug?
 #1292257 DOSEMU will not build with gcc 4.0.2
+#1308052 make, make install bug
+#1310344 Ctrl-Alt-Del vs $_emusys
 #1315913 video conflicts with printer in text console
 #1329881 Still keyboard trouble with latest CVS
 #1345102 unix command in the DOS-shell
+#1347960 MFS: FIFO pipes broken 
+#1358562 dosemu crashes on 2.6.14
 #1360156 keyboard in unix.com
+#1377671 Pause button doesn't work
+#1379806 gw stopped to work under X
+#1379838 Ctrl-Alt-Del from graphics mode
 
 Version 1.3.2 (2005-05-20)
 =============
