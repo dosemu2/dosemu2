@@ -143,7 +143,7 @@ AC_SUBST(CONFIG_HOST)
 dnl Do ELF if possible
 
 if ! printf '%b\n' '#ifdef __ELF__\n#define foo bar\n#endif\nfoo' \
-   | gcc -E - | grep bar > /dev/null; then
+   | ${CC-cc} -E - | grep bar > /dev/null; then
   if test "$CONFIG_HOST" = "linux"; then
     echo "------------------------------------------------------------"
     echo "Sorry, a.out system detected, but we do no longer support it"
@@ -188,10 +188,7 @@ if test "$with_svgalib" = "yes"; then
   AC_CHECK_LIB(vga, vga_simple_init,
   [ AC_CHECK_HEADER(vga.h,
     [ AC_MSG_CHECKING(for svgalib version >= 1.9.21)
-      svgalib_ver=`${CC-cc} -E - << "" | tail -n 1 | cut -dx -f2
-        #include <vga.h>
-        SVGALIB_VER
-      `
+      svgalib_ver=`printf '%b\n' '#include <vga.h>\nXXAaZZ SVGALIB_VER'|${CC-cc} -E -|awk '/XXAaZZ/ {print $2}' | cut -dx -f2`
       svgalib_ver_a=`expr $svgalib_ver / 10000`
       svgalib_ver_b=`expr $svgalib_ver / 100 % 100`
       svgalib_ver_c=`expr $svgalib_ver % 100`
@@ -627,7 +624,7 @@ if test "$GCC" = "yes" ; then
   fi
 
   AC_MSG_CHECKING(for glibc...)
-  set `printf '%b\n' '#include <features.h>\nXXAaZZ __GLIBC__ XXBbZZ __GLIBC_MINOR__'|gcc -E -|awk '/XXAaZZ/ {print $2 " " $4}'`
+  set `printf '%b\n' '#include <features.h>\nXXAaZZ __GLIBC__ XXBbZZ __GLIBC_MINOR__'|${CC-cc} -E -|awk '/XXAaZZ/ {print $2 " " $4}'`
   major=$1; minor=$2
   if test "$major" = "__GLIBC__"; then
     AC_MSG_ERROR([Sorry, you need glibc-2.1.3 or newer.])
