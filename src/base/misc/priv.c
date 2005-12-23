@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <grp.h>
 #include <sys/io.h>
 #include "emu.h"
 #include "priv.h"
@@ -240,8 +241,12 @@ void priv_init(void)
       uid = cur_uid = atoi(s);
       if (uid) {
         skip_priv_setting = under_root_login = 0;
+	s = getenv("SUDO_USER");
+	if (s) {
+	  initgroups(s, gid);
+	  setenv("USER", s, 1);
+	}
         setreuid(uid, euid);
-        setenv("USER", getenv("SUDO_USER"), 1);
       }
     }
   }
