@@ -402,6 +402,7 @@ void
 set_process_control (void)
 {
   struct vt_mode vt_mode;
+  sigset_t set;
 
   vt_mode.mode = VT_PROCESS;
   vt_mode.waitv = 0;
@@ -414,6 +415,11 @@ set_process_control (void)
 
   newsetqsig (SIG_RELEASE, release_vt);
   newsetqsig (SIG_ACQUIRE, acquire_vt);
+
+  sigemptyset(&set);
+  sigaddset(&set, SIG_RELEASE);
+  sigaddset(&set, SIG_ACQUIRE);
+  sigprocmask(SIG_UNBLOCK, &set, NULL);
 
   if (ioctl (console_fd, VT_SETMODE, (int) &vt_mode))
     v_printf ("initial VT_SETMODE failed!\n");
