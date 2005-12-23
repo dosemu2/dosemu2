@@ -717,11 +717,14 @@ int check_memory_range(unsigned long base, unsigned long size)
 {
     FILE *fp;
     unsigned long beg, end;
+    int fd;
     /* find out whether the address request is available */
-    if ((fp = fopen("/proc/self/maps", "r")) == NULL) {
+    fd = dup(dosemu_proc_self_maps_fd);
+    if ((fp = fdopen(fd, "r")) == NULL) {
 	error("can't open /proc/self/maps\n");
 	return 0;
     }
+    fseek(fp, 0, SEEK_SET);
     while(fscanf(fp, "%lx-%lx%*[^\n]", &beg, &end) == 2) {
 	if ((base + size) < beg ||  base >= end) {
 	    continue;

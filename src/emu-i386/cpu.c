@@ -30,6 +30,7 @@
 #include <errno.h>
 
 #include "config.h"
+#include "dosemu_config.h"
 #include "memory.h"
 #include "termio.h"
 #include "emu.h"
@@ -248,6 +249,7 @@ void cpu_setup(void)
 {
   unsigned long int stk_ptr, stk_beg, stk_end;
   FILE *fp;
+  int fd;
 
   int_vector_setup();
 
@@ -265,7 +267,8 @@ void cpu_setup(void)
   saveregister(esp, stk_ptr);
   vm86_fpu_state = *_emu_stack_frame.fpstate;
 
-  if ((fp = fopen("/proc/self/maps", "r"))) {
+  fd = dup(dosemu_proc_self_maps_fd);
+  if ((fp = fdopen(fd, "r"))) {
     while(fscanf(fp, "%lx-%lx%*[^\n]", &stk_beg, &stk_end) == 2) {
       if (stk_ptr >= stk_beg && stk_ptr < stk_end) {
         stack_init_top = stk_end;

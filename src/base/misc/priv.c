@@ -6,6 +6,7 @@
 
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/io.h>
 #include "emu.h"
 #include "priv.h"
@@ -222,6 +223,8 @@ void priv_init(void)
   /* must store the /proc/self/exe symlink contents before dropping
      privs! */
   dosemu_proc_self_exe = readlink_malloc("/proc/self/exe");
+  /* For Fedora we must also save a file descriptor to /proc/self/maps */
+  dosemu_proc_self_maps_fd = open("/proc/self/maps", O_RDONLY);
   if (under_root_login)
   {
     /* check for sudo and set to original user */
