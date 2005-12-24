@@ -264,7 +264,7 @@ extern char * const lowmem_base;
  * add lowmem_base to those. */
 #define IS_GENERIC_LOWMEM_ADDR(addr) \
 	 ((Bit32u)(addr) <= 0x9fffc || \
-	 ((Bit32u)(addr) >= 0xf0000 && (Bit32u)(addr) <= 0xffffc))
+	 ((Bit32u)(addr) >= 0xf4000 && (Bit32u)(addr) <= 0xffffc))
 
 #define LINEAR2UNIX(addr) \
 	(IS_GENERIC_LOWMEM_ADDR(addr) ? LOWMEM(addr) : \
