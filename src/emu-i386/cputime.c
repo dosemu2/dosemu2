@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <signal.h>
 #include "emu.h"
 #include "video.h"
 #include "timers.h"
@@ -372,7 +373,9 @@ int idle(int threshold1, int threshold, int threshold2, int usec, const char *wh
   if (config.hogthreshold && CAN_SLEEP()) {
     if(trigger1 >= config.hogthreshold * threshold1) {
       if (trigger++ > (config.hogthreshold - 1) * threshold + threshold2) {
-	usleep(usec);
+	sigset_t mask;
+	sigemptyset(&mask);
+	sigsuspend(&mask);
 	trigger = 0;
       }
       if (trigger1 > 0)
