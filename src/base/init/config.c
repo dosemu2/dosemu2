@@ -80,7 +80,7 @@ static void     usage(char *basename);
  * description: 
  * Process user CPU override from the config file ('cpu xxx') or
  * from the command line. Returns the selected CPU identifier or
- * -1 on error. 'config.realcpu' should have already been defined.
+ * -1 on error.
  * 
  * DANG_END_FUNCTION
  * 
@@ -91,10 +91,10 @@ int cpu_override (int cpu)
 	case 2:
 	    return CPU_286;
 	case 5: case 6:
-	    if (config.realcpu > CPU_486) return CPU_586;
+	    return CPU_586;
 	/* fall thru */
 	case 4:
-	    if (config.realcpu > CPU_386) return CPU_486;
+	    return CPU_486;
 	/* fall thru */
 	case 3:
 	    return CPU_386;
