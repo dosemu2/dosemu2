@@ -1078,6 +1078,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
     entry->mode = S_IFREG;
     entry->size = 0;
     entry->time = time(NULL);
+    entry->attr = get_dos_attr(NULL,entry->mode,entry->hidden);
 
     dos_closedir(cur_dir);
     return (dir_list);
@@ -1098,6 +1099,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
       entry->mode = sbuf.st_mode;
       entry->size = sbuf.st_size;
       entry->time = sbuf.st_mtime;
+      entry->attr = get_dos_attr(buf,entry->mode,entry->hidden);
     }
     dos_closedir(cur_dir);
     return (dir_list);      
