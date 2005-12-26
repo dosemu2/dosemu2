@@ -207,6 +207,8 @@ struct kernel_dirent {
 #define VFAT_IOCTL_READDIR_SHORT _IOR('r', 2, struct kernel_dirent [2])
 /* vfat_ioctl to use is short for int2f/ax=11xx, both for int21/ax=71xx */
 static int vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
+#define FAT_IOCTL_GET_ATTRIBUTES _IOR('r', 0x10, uint32_t)
+#define FAT_IOCTL_SET_ATTRIBUTES _IOW('r', 0x11, uint32_t)
 #endif
 
 /* these universal globals defined here (externed in dos.h) */
@@ -273,6 +275,7 @@ static int dos_fs_redirect(state_t *);
 static int is_long_path(const char *s);
 static void path_to_ufs(char *ufs, size_t ufs_offset, const char *path,
                         int PreserveEnvVar, int lowercase);
+static boolean_t dos_would_allow(char *fpath, const char *op, boolean_t equal);
 
 static boolean_t drives_initialized = FALSE;
 
@@ -548,9 +551,19 @@ boolean_t is_hidden(char *fname)
   return(fname[0] == '.' && strcmp(fname,"..") && fname[1]);
 }
 
-int get_dos_attr(int mode,boolean_t hidden)
+int get_dos_attr(const char *fname,int mode,boolean_t hidden)
 {
   int attr = 0;
+
+  if (fname) {
+    int fd = open(fname, O_RDONLY);
+    if (fd != -1) {
+      int res = ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &attr);
+      close(fd);
+      if (res == 0)
+	return attr;
+    }
+  }
 
   if (S_ISDIR(mode) && !S_ISCHR(mode) && !S_ISBLK(mode))
     attr |= DIRECTORY;
@@ -583,6 +596,48 @@ int get_unix_attr(int mode, int attr)
   mode &= ~(((mode & S_IROTH) ? 0 : S_IWOTH) |
 	    ((mode & S_IRGRP) ? 0 : S_IWGRP));
   return (mode);
+}
+
+int set_fat_attr(int fd, int attr)
+{
+  return ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
+}
+
+int set_dos_attr(char *fpath, int mode, int attr)
+{
+  int res, fd, newmode;
+
+  fd = open(fpath, O_RDONLY);
+  if (fd != -1) {
+    res = set_fat_attr(fd, attr);
+    if (res && errno != ENOTTY) {
+      int oldattr = 1;
+      ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &oldattr);
+      if (dos_would_allow(fpath, "FAT_IOCTL_SET_ATTRIBUTES", attr == oldattr))
+	res = 0;
+      close(fd);
+      return res;
+    }
+    close(fd);
+    if (res == 0)
+      return res;
+  }
+
+  newmode = get_unix_attr(mode, attr);
+  if (chmod(fpath, newmode) != 0 &&
+      !dos_would_allow(fpath, "chmod", newmode == mode))
+    return -1;
+  return 0;
+}
+
+int dos_utime(char *fpath, struct utimbuf *ut)
+{
+  if (utime(fpath,ut) == 0)
+    return 0;
+  /* output a warning if we can't do this */
+  if (dos_would_allow(fpath, "utime", 0))
+    return 0;
+  return -1;
 }
 
 static int
@@ -921,7 +976,7 @@ static void fill_entry(struct dir_ent *entry, const char *name, int drive)
 {
   int slen;
   char *sptr;
-  char buf[256];
+  char buf[PATH_MAX];
   struct stat sbuf;
 
   entry->hidden = is_hidden(entry->d_name);
@@ -937,11 +992,13 @@ static void fill_entry(struct dir_ent *entry, const char *name, int drive)
     entry->mode = S_IFREG;
     entry->size = 0;
     entry->time = 0;
+    entry->attr = get_dos_attr(NULL,entry->mode,entry->hidden);
   }
   else {
     entry->mode = sbuf.st_mode;
     entry->size = sbuf.st_size;
     entry->time = sbuf.st_mtime;
+    entry->attr = get_dos_attr(buf,entry->mode,entry->hidden);
   }
 } 
 
@@ -2830,7 +2887,7 @@ static boolean_t find_again(boolean_t firstfind, int drive, char *fpath,
 
     Debug0((dbg_fd, "find_again entered with %.8s.%.3s\n", de->name, de->ext));
     fill_entry(de, fpath, drive);
-    sdb_file_attr(sdb) = get_dos_attr(de->mode,de->hidden);
+    sdb_file_attr(sdb) = de->attr;
 
     if (de->mode & S_IFDIR) {
       Debug0((dbg_fd, "Directory ---> YES 0x%x\n", de->mode));
@@ -3088,10 +3145,8 @@ dos_fs_redirect(state_t *state)
                  dos_date,dos_time));
          ut.actime=ut.modtime=time_to_unix(dos_date,dos_time);
 
-         if (filename1!=NULL && *filename1) 
-	   if (utime(filename1,&ut) != 0)
-	     /* output a warning if we can't do this */
-	     dos_would_allow(filename1, "utime", 0);
+         if (filename1!=NULL && *filename1)
+	   dos_utime(filename1, &ut);
       }
       else {
          Debug0((dbg_fd,"close: not setting file date/time\n"));
@@ -3259,7 +3314,6 @@ dos_fs_redirect(state_t *state)
   case SET_FILE_ATTRIBUTES:	/* 0x0e */
     {
       u_short att = *(u_short *) Addr(state, ss, esp);
-      int mode;
 
       Debug0((dbg_fd, "Set File Attributes %s 0%o\n", filename1, att));
       if (drives[drive].read_only || is_long_path(filename1)) {
@@ -3273,9 +3327,7 @@ dos_fs_redirect(state_t *state)
 	SETWORD(&(state->eax), FILE_NOT_FOUND);
 	return (FALSE);
       }
-      mode = get_unix_attr(st.st_mode, att);
-      if (chmod(fpath, mode) != 0 &&
-	  !dos_would_allow(fpath, "chmod", mode == st.st_mode)) {
+      if (set_dos_attr(fpath, st.st_mode, att) != 0) {
 	SETWORD(&(state->eax), ACCESS_DENIED);
 	return (FALSE);
       }
@@ -3292,7 +3344,7 @@ dos_fs_redirect(state_t *state)
       return (FALSE);
     }
 
-    attr = get_dos_attr(st.st_mode,is_hidden(fpath));
+    attr = get_dos_attr(fpath,st.st_mode,is_hidden(fpath));
     if (is_long_path(filename1)) {
       /* turn off directory attr for directories with long path */
       attr &= ~DIRECTORY;
@@ -3476,7 +3528,7 @@ dos_fs_redirect(state_t *state)
       SETWORD(&(state->eax), FILE_NOT_FOUND);
       return (FALSE);
     }
-    attr = get_dos_attr(st.st_mode,is_hidden(fpath));
+    attr = get_dos_attr(fpath,st.st_mode,is_hidden(fpath));
     if (dos_mode == READ_ACC) {
       unix_mode = O_RDONLY;
     }
@@ -3606,6 +3658,7 @@ dos_fs_redirect(state_t *state)
 	return (FALSE);
       }
     }
+    set_fat_attr(fd, attr);
 
     if (!share(fd, O_RDWR, drive, sft) || ftruncate(fd, 0) != 0) {
       Debug0((dbg_fd, "unable to truncate %s: %s (%d)\n",

@@ -13,6 +13,7 @@ Andrew.Tridgell@anu.edu.au 30th March 1993
 
 #include <sys/stat.h>
 #include <dirent.h>
+#include <utime.h>
 
 /* definitions to make mach emu code compatible with dosemu */
 #include "emu.h"
@@ -257,6 +258,7 @@ struct dir_ent {
   u_short long_path;            /* directory has long path */
   long size;			/* size of file */
   time_t time;			/* st_mtime */
+  int attr;
 };
 
 struct dir_list {
@@ -350,7 +352,10 @@ extern int build_ufs_path_(char *ufs, const char *path, int drive,
                            int lowercase);
 extern boolean_t find_file(char *fpath, struct stat *st, int drive);
 extern boolean_t is_hidden(char *fname);
-extern int get_dos_attr(int mode,boolean_t hidden);
+extern int get_dos_attr(const char *fname,int mode,boolean_t hidden);
+extern int set_fat_attr(int fd,int attr);
+extern int set_dos_attr(char *fname,int mode,int attr);
+extern int dos_utime(char *fpath, struct utimbuf *ut);
 extern int get_unix_attr(int mode, int attr);
 extern void time_to_dos(time_t clock, u_short *date, u_short *time);
 extern time_t time_to_unix(u_short dos_date, u_short dos_time);

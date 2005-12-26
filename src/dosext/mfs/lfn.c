@@ -629,18 +629,22 @@ static int getfindnext(struct mfs_dirent *de, struct lfndir *dir)
 		free(fpath);
 		return 0;
 	}
-	free(fpath);
 	if (st.st_mode & S_IFDIR) {
-		if ((dir->dirattr & DIRECTORY) == 0)
+		if ((dir->dirattr & DIRECTORY) == 0) {
+			free(fpath);
 			return 0;
+		}
 	} else {
-		if ((dir->dirattr >> 8) & DIRECTORY)
+		if ((dir->dirattr >> 8) & DIRECTORY) {
+			free(fpath);
 			return 0;
+		}
 	}
 
 	dest = (char *)SEGOFF2LINEAR(_ES, _DI);
 	memset(dest, 0, 0x20);
-	*dest = get_dos_attr(st.st_mode,is_hidden(de->d_long_name));
+	*dest = get_dos_attr(fpath,st.st_mode,is_hidden(de->d_long_name));
+	free(fpath);
 	*((unsigned *)(dest + 0x20)) = st.st_size;
 	if (_SI == 1) {
 		d_printf("LFN: using DOS date/time\n");
@@ -858,12 +862,11 @@ int mfs_lfn(void)
 		utimbuf.modtime = st.st_mtime;
 		switch (_BL) {
 		case 0: /* retrieve attributes */
-			_CX = get_dos_attr(st.st_mode,is_hidden(fpath));
+			_CX = get_dos_attr(fpath, st.st_mode,is_hidden(fpath));
 			break;
 		case 1: /* set attributes */
-			if (chmod(fpath, get_unix_attr(st.st_mode, _CX)) != 0) {
+			if (set_dos_attr(fpath, st.st_mode, _CX) != 0)
 				return lfn_error(ACCESS_DENIED);
-			}
 			break;
 		case 2: /* get physical size of uncompressed file */
 			_DX = st.st_size >> 16;
@@ -871,7 +874,7 @@ int mfs_lfn(void)
 			break; 
 		case 3: /* set last write date/time */
 			utimbuf.modtime = time_to_unix(_DI, _CX);
-			if (utime(fpath, &utimbuf) != 0)
+			if (dos_utime(fpath, &utimbuf) != 0)
 				return lfn_error(ACCESS_DENIED);
 			break;
 		case 4: /* get last write date/time */
@@ -879,7 +882,7 @@ int mfs_lfn(void)
 			break;
 		case 5: /* set last access date */
 			utimbuf.actime = time_to_unix(_DI, _CX);
-			if (utime(fpath, &utimbuf) != 0)
+			if (dos_utime(fpath, &utimbuf) != 0)
 				return lfn_error(ACCESS_DENIED);
 			break;
 		case 6: /* get last access date */
@@ -1090,6 +1093,7 @@ int mfs_lfn(void)
 						 fpath, strerror(errno));
 					return lfn_error(ACCESS_DENIED);
 				}
+				set_fat_attr(fd, _CL | ARCHIVE_NEEDED);
 				d_printf("LFN: open: created %s\n", fpath);
 				close(fd);
 				_AL = 1; /* flags creation to DOS helper */
