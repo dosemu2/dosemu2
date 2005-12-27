@@ -736,13 +736,13 @@ $${IDENT}		MAY_BE { enter_macrofile(&yytext[2]);}
 
 
 %%
-	/* the above '\n' rule (last rule) has rule-number 'YY_NUM_RULES-1'
+	/* the above '\n' rule (last rule) has rule-number 'YY_NUM_RULES-2'
 	 * We have no other chance as to 'count' backward to get the
 	 * rule number of ' quoted string, comments, e.t.c'
 	 * BIG_FAT_NOTE: If you insert rules behind INCLUDEFILE_RULE_NUM,
 	 *               change INCLUDEFILE_RULE_NUM too !!!
 	 */
-#define INCLUDEFILE_RULE_NUM (YY_NUM_RULES-1 - 3)
+#define INCLUDEFILE_RULE_NUM (YY_NUM_RULES-2 - 3)
 #define COMMENT_RULE_NUM (INCLUDEFILE_RULE_NUM +1)
 #define WHITESPACE_RULE_NUM (COMMENT_RULE_NUM +1)
 #define NEWLINE__RULE_NUM (WHITESPACE_RULE_NUM +1)
@@ -828,7 +828,7 @@ int yywrap(void)    /* this gets called at EOF of a parsed file */
 static void push__active(void)
 {
   if (config_check_only>2)
-    fprintf(stderr, "PUSH %d->%d %d >%s<\n", __active_i, __active_i+1, __active__, yytext);
+    fprintf(stderr, "%03d: PUSH %d->%d %d >%s<\n", line_count, __active_i, __active_i+1, __active__, yytext);
   __active_stack[__active_i++]=__active__;
   if (__active_i > __active_max) {
     __active_i = __active_max;
@@ -839,7 +839,7 @@ static void push__active(void)
 static void pop__active(void)
 {
   if (config_check_only>2)
-    fprintf(stderr, "POP %d<-%d %d >%s< %d\n", __active_i-1, __active_i, __active__, yytext, __loop_handling__);
+    fprintf(stderr, "%03d: POP %d<-%d %d >%s< %d\n", line_count, __active_i-1, __active_i, __active__, yytext, __loop_handling__);
   if (__active_i <=0) {
     yyerror("Lexer block stack underflow, unmatching  if..else..endif");
     return;
