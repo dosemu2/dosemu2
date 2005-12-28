@@ -75,15 +75,14 @@ pci_bios(void)
 {
     unsigned short val;
     
+    if (!pciConfigType)
+	return;
+
     switch (LWORD(eax)) {
     case PCIBIOS_PCI_BIOS_PRESENT:
 	Z_printf("PCIBIOS: pcibios present\n");
-	if (!pciConfigType)
-	    set_CF();
-	else {
-	    HI(ax) = 0;
-	    clear_CF();
-	}
+	HI(ax) = 0;
+	clear_CF();
 	if (pciConfigType->name[0] != '2')
 	    LO(ax) = PCI_CONFIG_1; /*  no special cylce */
 	else 
@@ -181,6 +180,12 @@ pcibios_init(void)
     Z_printf("PCI enabled\n");
     
     pciConfigType = pci_check_conf();
+
+    if (!pciConfigType) {
+	Z_printf("Unable to access PCI config space\n");
+	return 0;
+    }
+
     Z_printf("PCI config type %s\n",pciConfigType->name);
 
     if (pciConfigType->name[0] == '2') {
@@ -207,11 +212,8 @@ pcibios_init(void)
 	}
     } while (++busidx <= numbus);
 
-    if (pciConfigType) {
-	lastBus = numbus;
-	return 1;
-    } else
-	return 0;
+    lastBus = numbus;
+    return 1;
 }
 
 static unsigned short
