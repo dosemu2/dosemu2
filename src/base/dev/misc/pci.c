@@ -150,7 +150,12 @@ static unsigned long pci_read_cfg1 (unsigned char bus, unsigned char device,
     return 0;
   }
   port_real_outd (PCI_CONF_ADDR, bx | (reg & ~3));
-  val = port_real_ind (PCI_CONF_DATA);
+  if (len == 1)
+    val = port_real_inb (PCI_CONF_DATA + (reg & 3));
+  else if (len == 2)
+    val = port_real_inw (PCI_CONF_DATA + (reg & 2));
+  else
+    val = port_real_ind (PCI_CONF_DATA);
   port_real_outd (PCI_CONF_ADDR, 0);
   priv_iopl(0);
   return val;
@@ -167,7 +172,12 @@ static void pci_write_cfg1 (unsigned char bus, unsigned char device,
     return;
   }
   port_real_outd (PCI_CONF_ADDR, bx | (reg & ~3));
-  port_real_outd (PCI_CONF_DATA, val);
+  if (len == 1)
+    port_real_outb (PCI_CONF_DATA + (reg & 3), val);
+  else if (len == 2)
+    port_real_outw (PCI_CONF_DATA + (reg & 2), val);
+  else
+    port_real_outd (PCI_CONF_DATA, val);
   port_real_outd (PCI_CONF_ADDR, 0);
   priv_iopl(0);
 }
@@ -226,7 +236,12 @@ static unsigned long pci_read_cfg2 (unsigned char bus, unsigned char device,
   }
   port_real_outb(PCI_MODE2_ENABLE_REG, (fn << 1) | 0xF0);
   port_real_outb(PCI_MODE2_FORWARD_REG, bus);
-  val = port_real_ind (0xc000 | (device << 8) | num);
+  if (len == 1)
+    val = port_real_inb (0xc000 | (device << 8) | num);
+  else if (len == 2)
+    val = port_real_inw (0xc000 | (device << 8) | num);
+  else
+    val = port_real_ind (0xc000 | (device << 8) | num);
   port_real_outb(PCI_MODE2_ENABLE_REG, 0x00);
   priv_iopl(0);
   return val;
@@ -241,7 +256,12 @@ static void pci_write_cfg2 (unsigned char bus, unsigned char device,
   }
   port_real_outb(PCI_MODE2_ENABLE_REG, (fn << 1) | 0xF0);
   port_real_outb(PCI_MODE2_FORWARD_REG, bus);
-  port_real_outd (0xc000 | (device << 8) | num, val);
+  if (len == 1)
+    port_real_outb (0xc000 | (device << 8) | num, val);
+  else if (len == 2)
+    port_real_outw (0xc000 | (device << 8) | num, val);
+  else
+    port_real_outd (0xc000 | (device << 8) | num, val);
   port_real_outb(PCI_MODE2_ENABLE_REG, 0x00);
   priv_iopl(0);
 }
