@@ -491,8 +491,9 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    }
 		| PCI bool 
 		    { 
+		      config.pci_video = ($2!=0);
 		      IFCLASS(CL_PCI);
-		      config.pci = ($2!=0); 
+		      config.pci = (abs($2)==2); 
 		    }
 		| BOOTA
                     {
@@ -1074,7 +1075,6 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		    {
 		    config.chipset = $2;
                     c_printf("CHIPSET: %d\n", $2);
-		    config.pci_video=1;
 		    }
 		| MEMSIZE expression	{ config.gfxmemsize = $2; }
 		| GRAPHICS

@@ -219,6 +219,7 @@ void dump_config_status(void *printfunc)
 #ifdef USE_SVGALIB
       case SVGALIB: s = "svgalib"; break;
 #endif
+      case VESA: s = "vesa"; break;
       default: s = "unknown"; break;
     }
     (*print)("config.X %d\nhogthreshold %d\nchipset \"%s\"\n",
