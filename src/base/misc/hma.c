@@ -24,7 +24,7 @@
 
 #define HMAAREA (u_char *)0x100000
 
-static unsigned char *ext_mem_base = NULL;
+unsigned char *ext_mem_base = NULL;
 
 void HMA_MAP(int HMA)
 {

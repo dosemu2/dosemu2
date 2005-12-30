@@ -21,6 +21,7 @@ extern void *smrealloc(struct memnode *mp, void *ptr, size_t size);
 extern int sminit(struct memnode *mp, void *start, size_t size);
 extern int smdestroy(struct memnode *mp);
 extern size_t smget_free_space(struct memnode *mp);
+extern size_t smget_largest_free_area(struct memnode *mp);
 extern int smget_area_size(struct memnode *mp, void *ptr);
 extern void smregister_error_notifier(void (*func)(char *fmt, ...)
   FORMAT(printf, 1, 2));

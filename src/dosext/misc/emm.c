@@ -249,7 +249,7 @@ ems_helper(void) {
     E_printf("EMS Init called!\n");
     if (!config.ems_size)
       return;
-    if (HI(ax) != DOSEMU_EMS_DRIVER_VERSION) {
+    if (HI(ax) < DOSEMU_EMS_DRIVER_VERSION) {
       error("EMS driver version mismatch: got %i, expected %i, disabling.\n"
     	    "Please upgrade your ems.sys from the latest dosemu package.\n",
         HI(ax), DOSEMU_EMS_DRIVER_VERSION);

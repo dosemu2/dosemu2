@@ -39,6 +39,7 @@
 #include "machcompat.h"
 #include "dos2linux.h"
 #include "cpu-emu.h"
+#include "smalloc.h"
 
 #undef  DEBUG_XMS
 
@@ -314,15 +315,25 @@ umb_query(void)
 
 /* end of stuff from Mach */
 
+static smpool mp;
+
 void
 xms_reset(void)
 {
+  umb_free_all();
+  config.xms_size = 0;
+}
+
+
+void xms_helper(void)
+{
   int i;
 
-  umb_free_all();
-
-  if (!config.xms_size)
+  if (config.xms_size)
     return;
+
+  config.xms_size = EXTMEM_SIZE >> 10;
+  x_printf("XMS: initializing XMS... %d handles\n", NUM_HANDLES);
 
   freeHMA = 1;
   a20_global = a20_local = 0;
@@ -330,9 +341,12 @@ xms_reset(void)
   handle_count = 0;
   for (i = 0; i < NUM_HANDLES + 1; i++) {
     if (handles[i].valid && handles[i].addr)
-      free(handles[i].addr);
+      smfree(&mp, handles[i].addr);
     handles[i].valid = 0;
   }
+
+  smdestroy(&mp);
+  sminit(&mp, ext_mem_base, config.xms_size * 1024);
 }
 
 void
@@ -347,11 +361,6 @@ xms_init(void)
   hlt_hdlr.end_addr = hlt_hdlr.start_addr;
   hlt_hdlr.func = (emu_hlt_func)xms_control;
   hlt_register_handler(hlt_hdlr);
-
-  if (!config.xms_size)
-    return;
-
-  x_printf("XMS: initializing XMS... %d handles\n", NUM_HANDLES);
 }
 
 static void XMS_RET(int err)
@@ -624,11 +633,12 @@ xms_query_freemem(int api)
 
     if (subtotal > 65535)
       subtotal = 65535;
-    /* these really are the same in DOSEMU. edx refers to total *free*
-       XMS memory not the grand total XMS memory
-       eax and edx can only be different upon fragmentation which does
-       not occur here because we use malloc() */
-    LWORD(eax) = LWORD(edx) = subtotal;
+    LWORD(eax) = smget_largest_free_area(&mp);
+    LWORD(edx) = subtotal;
+    if (debug_level('x')) {
+      if (smget_free_space(&mp) != subtotal)
+	x_printf("XMS smalloc mismatch!!!\n");
+    }
     x_printf("XMS query free memory(old): %dK %dK\n", LWORD(eax),
 	     LWORD(edx));
   }
@@ -685,7 +695,7 @@ xms_allocate_EMB(int api)
        * to mean that reserving a handle of size 0 gives it no address
        */
     if (handles[h].size)
-      handles[h].addr = malloc((long)handles[h].size);
+      handles[h].addr = smalloc(&mp, handles[h].size);
     else {
       x_printf("XMS WARNING: allocating 0 size EMB\n");
       handles[h].addr = 0;
@@ -716,7 +726,7 @@ xms_free_EMB(void)
   else {
 
     if (handles[h].addr)
-      free(handles[h].addr);
+      smfree(&mp, handles[h].addr);
     else
       x_printf("XMS WARNING: freeing handle w/no address, size 0x%08lx\n",
 	       handles[h].size);
@@ -784,6 +794,7 @@ static unsigned char
 xms_lock_EMB(int flag)
 {
   int h = LWORD(edx);
+  unsigned addr;
 
   if (flag)
     x_printf("XMS lock EMB %d\n", h);
@@ -803,8 +814,9 @@ xms_lock_EMB(int flag)
         return 0xaa;		/* Block is not locked */
       }
 
-    LWORD(edx) = (int) handles[h].addr >> 16;
-    LWORD(ebx) = (int) handles[h].addr & 0xffff;
+    addr = handles[h].addr - (char *)ext_mem_base + LOWMEM_SIZE + HMASIZE;
+    LWORD(edx) = addr >> 16;
+    LWORD(ebx) = addr & 0xffff;
     return 0;
   }
   else {
@@ -872,7 +884,7 @@ xms_realloc_EMB(int api)
 	   "XMS realloc EMB(new) %d to size 0x%08lx\n",
 	   h, handles[h].size);
 
-  handles[h].addr = malloc(handles[h].size);
+  handles[h].addr = smalloc(&mp, handles[h].size);
 
   /* memcpy() the old data into the new block, but only
    * min(new,old) bytes.
@@ -881,7 +893,7 @@ xms_realloc_EMB(int api)
 	 (oldsize <= handles[h].size) ? oldsize : handles[h].size);
 
   /* free the EMB's old Linux memory */
-  free(oldaddr);
+  smfree(&mp, oldaddr);
   return 0;
 }
 

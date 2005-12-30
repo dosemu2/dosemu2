@@ -238,6 +238,17 @@ size_t smget_free_space(struct memnode *mp)
   return count;
 }
 
+size_t smget_largest_free_area(struct memnode *mp)
+{
+  struct memnode *mn;
+  size_t size = 0;
+  for (mn = mp; mn; mn = mn->next) {
+    if (!mn->used && mn->size > size)
+      size = mn->size;
+  }
+  return size;
+}
+
 int smget_area_size(struct memnode *mp, void *ptr)
 {
   struct memnode *pmn;

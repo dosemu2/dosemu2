@@ -419,6 +419,10 @@ int dos_helper(void)
     break;
   }
 
+  case DOS_HELPER_XMS_HELPER:
+    xms_helper();
+    return 1;
+
   case DOS_HELPER_GARROT_HELPER:             /* Mouse garrot helper */
     if (!LWORD(ebx))   /* Wait sub-function requested */
       usleep(INT28_IDLE_USECS);
@@ -714,7 +718,10 @@ static int int15(void)
    }
 
   case 0x88:
-    LWORD(eax) = (EXTMEM_SIZE + HMASIZE) >> 10;
+    if (config.xms_size)
+      LWORD(eax) = 0;
+    else
+      LWORD(eax) = (EXTMEM_SIZE + HMASIZE) >> 10;
     NOCARRY;
     break;
 
@@ -796,8 +803,13 @@ SeeAlso: AH=8Ah"Phoenix",AX=E802h,AX=E820h,AX=E881h"Phoenix"
 #endif
     if (LO(ax) == 1) {
 	Bit32u mem = (EXTMEM_SIZE + HMASIZE) >> 10;
-	LWORD(eax) = mem;
-	LWORD(ebx) = mem >>6;
+	if (mem < 0x3c00) {
+	  LWORD(eax) = mem;
+	  LWORD(ebx) = 0;
+	} else {
+	  LWORD(eax) = 0x3c00;
+	  LWORD(ebx) = ((mem - 0x3c00) >>6);
+	}
 	NOCARRY;
 	break;
     }

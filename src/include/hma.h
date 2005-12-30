@@ -10,6 +10,7 @@
 #include "extern.h"
 
 EXTERN int a20;
+extern unsigned char *ext_mem_base;
 void set_a20(int);
 void extmem_copy(char *dst, char *src, unsigned long len);
 

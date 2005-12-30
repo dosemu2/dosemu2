@@ -61,6 +61,7 @@
 #define DOS_HELPER_MFS_HELPER       0x20
 #define DOS_HELPER_EMS_HELPER       0x21
 #define DOS_HELPER_EMS_BIOS         0x22
+#define DOS_HELPER_XMS_HELPER       0x23
 
 #define DOS_HELPER_GARROT_HELPER    0x28
 #define DOS_HELPER_SERIAL_HELPER    0x29

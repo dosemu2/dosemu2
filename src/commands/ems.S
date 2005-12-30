@@ -149,6 +149,14 @@ Dummy:
 	int	$LinuxEMS
 	ret
 
+Int67:
+	cmpb	$0, %cs:NoEMS
+	jne	10f
+	pushw	%ax
+	movw	$DOS_HELPER_EMS_BIOS, %ax
+	int	$LinuxEMS
+10:	iret
+
 Int2f:
 	cmpw	$0x4310, %ax
 	je	1f
@@ -157,14 +165,6 @@ Int2f:
 	popw	%es
 	movw	$XMSHook, %bx
 	iret
-
-Int67:
-	cmpb	$0, %cs:NoEMS
-	jne	10f
-	pushw	%ax
-	movw	$DOS_HELPER_EMS_BIOS, %ax
-	int	$LinuxEMS
-10:	iret
 
 XMSHook:
 	jmp 1f
@@ -186,9 +186,18 @@ HookHimem:
 	int	$0x2f
 	cmpb	$0x80, %al
 	je	1f
-	/* no XMS driver - no XMS, no UMB */
+	/* no XMS driver - try to install internal driver */
 	movb	$9, %ah
 	movw	$NoHimemMsg, %dx
+	pushw	$0xf000
+	popw	%es
+        /* version < 1.3.3.1? */
+	cmpl	$0x01030301, %es:(0xffe8)
+	jb	0f
+	movb    $DOS_HELPER_XMS_HELPER, %al
+	int	$DOS_HELPER_INT
+	movw	$XMSMsg, %dx
+0:      
 	int	$0x21
 	jmp	9f
 1:
@@ -207,12 +216,7 @@ HookHimem:
 	/* see if it is our internal driver */
 	movw	%es, %ax
 	cmpw	$XMSControl_SEG, %ax
-	jne	3f
-	/* our driver */
-	movb	$9, %ah
-	movw	$InternDrvMsg, %dx
-	int	$0x21
-	jmp	9f
+	je	9f
 3:
 	/* now install the hook for UMB */
 	movw	%bx, %di
@@ -246,19 +250,14 @@ Init:
 	movb    $DOS_HELPER_EMS_HELPER, %al
 	movb    $DOSEMU_EMS_DRIVER_VERSION, %ah
 	int	$LinuxEMS
+	cmpb	$DOS_HELPER_EMS_HELPER, %al
+	jz	1f
 	orb	%al, %al
 	jz	1f
 	movb	$1, NoEMS
-#if 1
-	movb	$9, %ah
-	movw	$DFailMsg, %dx
-	int	$0x21
-	jmp     Error
-#else
 	movb	$9, %ah
 	movw	$NoEMSMsg, %dx
 	int	$0x21
-#endif
 1:
 	pushw	%es
 	pushw	%di
@@ -267,6 +266,12 @@ Init:
 	call	HookHimem
 	popw	%di
 	popw	%es
+
+	movw	$InitCodeStart,%es:14(%di)
+	orb	%al, %al
+	jz	2f
+	movw	$Int2f,%es:14(%di)
+2:
 
 	/* if both EMS and HookHimem fail, disable driver */
 	andb	NoEMS, %al
@@ -278,20 +283,18 @@ Init:
 	int	$0x21
 
 	movb	$1,%es:13(%di)
-	movw	$InitCodeStart,%es:14(%di)
 	movw	%cs,%es:16(%di)
 
+	cmpb	$1, NoEMS
+	je	3f
 	movb	$9, %ah
 	movw	$Mesage, %dx
 	int	$0x21
+3:
 	xorw 	%ax, %ax
 	ret
 
 Error:
-	mov	$9, %ah
-	mov	$ErrMess, %dx
-	int	$0x21
-
 	movb	$0,%es:13(%di)		# No units!!
 	movw	$0,%es:14(%di)		# Break addr = cs:0000
 	movw	%cs,%es:16(%di)
@@ -308,6 +311,9 @@ NoHimemMsg:
 	.ascii  "XMS and UMB services will not be available.\r\n"
 	.ascii	"Please adjust your config.sys.\r\n"
 	.byte	eom
+XMSMsg:
+	.ascii	"dosemu XMS 3.0 driver installed."
+	.byte	cr,lf,eom
 CantHookMsg:
 	.ascii	"Unable to hook into himem.sys, UMB disabled.\r\n"
 	.ascii	"Make sure himem.sys is loaded right before ems.sys in "
@@ -322,17 +328,6 @@ DFailMsg:
 NoEMSMsg:
 	.ascii	"Warning: EMS support not enabled."
 	.byte	cr,lf,eom
-InternDrvMsg:
-#if 0 /* maybe activate this later when dosemu-freedos is updated */
-	.ascii	"Warning: dosemu internal XMS driver detected.\r\n"
-	.ascii	"This is deprecated, please consider using\r\n"
-	.ascii  "an external XMS driver, like himem.sys or fdxms.sys.\r\n"
-#endif
-	.byte	eom
-
-ErrMess:
-	.ascii	"Installation aborted."
-	.byte	cr,lf,lf,eom
 
 NoName:	.ascii	"NO NAME"
 	.byte	0
