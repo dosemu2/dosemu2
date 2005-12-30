@@ -2691,14 +2691,17 @@ void gen_15to32_1(RemapObject *ro)
       //  [0] 00000000gggrrrrr
       //  [1] 000000000bbbbbgg
       unsigned char r, g, b;
-      r = (*src_2 << 3) & 0xf8;
-      g = (*src_2 >> 2) & 0xf8;
-      b = (*src_2 >> 7) & 0xf8;
+      unsigned short s = *src_2++;
+
+      r = (s << 3) & 0xf8;
+      r |= r >> 5;
+      g = (s >> 2) & 0xf8;
+      g |= g >> 5;
+      b = (s >> 7) & 0xf8;
+      b |= b >> 5;
 
       // save color values
       *dst_4++ = r | (g<<8) | (b<<16);
-
-      src_2++;
     }
 
     src += ro->src_scan_len;
@@ -2730,14 +2733,17 @@ void gen_16to32_1(RemapObject *ro)
       //  [0] 00000000gggrrrrr
       //  [1] 00000000bbbbbggg
       unsigned char r, g, b;
-      r = (*src_2 << 3) & 0xf8;
-      g = (*src_2 >> 3) & 0xfc;
-      b = (*src_2 >> 8) & 0xf8;
+      unsigned short s = *src_2++;
+
+      r = (s << 3) & 0xf8;
+      r |= r >> 5;
+      g = (s >> 3) & 0xfc;
+      g |= g >> 6;
+      b = (s >> 8) & 0xf8;
+      b |= b >> 5;
 
       // save color values
       *dst_4++ = r | (g<<8) | (b<<16);
-
-      src_2++;
     }
 
     src += ro->src_scan_len;
