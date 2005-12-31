@@ -777,7 +777,7 @@ static int wildcard_delete(char *fpath, int drive)
     long as I can remember.
 */  
 
-int mfs_lfn(void)
+static int mfs_lfn_(void)
 {
 	char *cwd;
 	char fpath[PATH_MAX];
@@ -1153,4 +1153,16 @@ int mfs_lfn(void)
 		return 0;
 	}
 	return 1; /* finished: back to caller */
+}
+
+int mfs_lfn(void)
+{
+	int carry, ret;
+
+	carry = isset_CF();
+	ret = mfs_lfn_();
+	/* preserve carry if we forward the LFN request */
+	if (ret == 0 && carry)
+		CARRY;
+	return ret;
 }
