@@ -13,6 +13,14 @@ struct memnode {
   int used;
   unsigned char *mem_area;
 };
+
+#define SM_EMPTY_POOL { \
+  NULL,		/* *next */ \
+  0, 		/* size */ \
+  0,		/* used */ \
+  NULL,		/* *mem_area */ \
+}
+
 typedef struct memnode smpool;
 
 extern void *smalloc(struct memnode *mp, size_t size);

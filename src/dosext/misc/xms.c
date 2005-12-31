@@ -315,7 +315,7 @@ umb_query(void)
 
 /* end of stuff from Mach */
 
-static smpool mp;
+static smpool mp = SM_EMPTY_POOL;
 
 void
 xms_reset(void)
