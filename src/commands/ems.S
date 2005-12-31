@@ -312,7 +312,7 @@ NoHimemMsg:
 	.ascii	"Please adjust your config.sys.\r\n"
 	.byte	eom
 XMSMsg:
-	.ascii	"dosemu XMS 3.0 driver installed. (consider using himem.sys instead)"
+	.ascii	"dosemu XMS 3.0 driver installed."
 	.byte	cr,lf,eom
 CantHookMsg:
 	.ascii	"Unable to hook into himem.sys, UMB disabled.\r\n"
