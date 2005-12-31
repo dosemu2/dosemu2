@@ -49,7 +49,8 @@ static int do_set_dosenv (int agrc, char **argv);
 int unix_main(int argc, char **argv)
 {
 
-  if (argc == 1) {
+  if (argc == 1 ||
+      (argc == 2 && !strcmp (argv[1], "/?"))) {
     return usage();
   }
 
@@ -86,14 +87,8 @@ int unix_main(int argc, char **argv)
 
 static int usage (void)
 {
-  com_printf ("Usage: UNIX [FLAG COMMAND]\n");
-  com_printf ("Run Linux commands from DOSEMU\n");
+  com_printf ("Usage: UNIX [FLAG COMMAND]\n\n");
 #if CAN_EXECUTE_DOS
-  com_printf ("UNIX -e [ENVVAR]\n");
-  com_printf ("  Execute the DOS program whose Linux path is given in the Linux environment\n");
-  com_printf ("  variable \"ENVVAR\".\n");
-  com_printf ("  If the Linux path does not exist, interprete as a DOS command\n");
-  com_printf ("  If not given, use the argument to the -E flag of DOSEMU\n\n");
   com_printf ("UNIX -r [ENVVAR]\n");
   com_printf ("  Execute the DOS command given in the Linux environment variable \"ENVVAR\".\n");
   com_printf ("  If not given, use the argument to the -E flag of DOSEMU\n\n");
@@ -101,13 +96,18 @@ static int usage (void)
   com_printf ("  Execute the DOS program whose Linux path is given in the Linux environment\n");
   com_printf ("  variable \"ENVVAR\".");
   com_printf (" If not given, use the argument to the -E flag of DOSEMU\n\n");
+  com_printf ("UNIX -e [ENVVAR]\n");
+  com_printf ("  Invokes \"UNIX -c\" if the argument appears to refer to a");
+  com_printf (" Linux path (ends in\n  .com, .exe or .bat, and exists or");
+  com_printf (" contains slashes) or \"UNIX -r\" otherwise.\n\n");
 #endif
   com_printf ("UNIX -s ENVVAR\n");
   com_printf ("  Set the DOS environment to the Linux environment variable \"ENVVAR\".\n\n");
   com_printf ("UNIX command [arg1 ...]\n");
   com_printf ("  Execute the Linux command with the arguments given.\n\n");
   com_printf ("UNIX\n");
-  com_printf ("  show this help screen");
+  com_printf ("UNIX /?\n");
+  com_printf ("  show this help screen\n");
 
   return (1);
 }
@@ -208,20 +208,106 @@ static int findDrive (char *linux_path_resolved)
   return freeDrive;
 }
 
+static int is_progname_char (unsigned char c)
+{
+  /*
+   * No "." and "/" especially as "blah..exe" or "blah/.exe" are unlikely
+   * programs.
+   * NOTE: ' is always allowed! +,;=[] are only allowed in LFNs.
+   */
+  return c >= 0x20 && !strchr("*?./\\\":|<>,",c);
+}
+
+static int likely_linux_path (const char *linux_path)
+{
+  char linux_path_resolved [PATH_MAX];
+  struct stat s;
+  size_t len = strlen(linux_path);
+
+  j_printf ("likely_linux_path('%s')?\n", linux_path);
+
+  if (len >= 5) {
+    const char *n = linux_path + len - 5;
+
+    if (is_progname_char (*n) &&
+	/* \.(bat|com|exe) */
+	(strncasecmp (n+1, ".bat", 4) == 0 ||
+	 strncasecmp (n+1, ".com", 4) == 0 ||
+	 strncasecmp (n+1, ".exe", 4) == 0)) {
+
+      if (strchr (linux_path, '/')) {
+	j_printf ("\tyes - contains /\n");
+	return 1;
+      }
+
+      if (realpath (linux_path, linux_path_resolved) &&
+	  !stat (linux_path_resolved, &s) && S_ISREG (s.st_mode)) {
+	j_printf ("\tyes - existing file\n");
+	return 1;
+      }
+    }
+  }
+
+  j_printf ("\tno\n");
+  return 0;
+}
+
 /*
  * Given a <linux_path>, change to its corresponding drive and directory
- * in DOS (redirecting a new drive if neccessary).  The DOS command is
+ * in DOS (redirecting a new drive if necessary).  The DOS command and any
+ * DOS options (like "/a/b /c") are returned through <linux_path>.
+ * The DOS options may be passed in dos_opts as well.
+ *
+ * <*CommandStyle> must be EXEC_CHOICE or EXEC_LINUX_PATH on entry.
+ * It will be EXEC_LITERAL or EXEC_LINUX_PATH on exit.  If it becomes
+ * EXEC_LITERAL, <linux_path> will not be modified.
  * returned through <linux_path>.
  *
  * Returns 0 on success, nonzero on failure.
  */
-static int setupDOSCommand (char *linux_path)
+static int setupDOSCommand (int *CommandStyle, char *linux_path, char *dos_opts)
 {
   char linux_path_resolved[PATH_MAX];
   char dos_path [MAX_PATH_LENGTH];
   int drive;
- 
+
   char *b;
+
+  int is_probably_linux_path;
+
+  if (*CommandStyle != EXEC_LINUX_PATH && *CommandStyle != EXEC_CHOICE) {
+     error ("should not be in setupDOSCommand\n");
+     return 1;
+  }
+
+  is_probably_linux_path = likely_linux_path(linux_path);
+
+  if (*CommandStyle == EXEC_CHOICE) {
+     if (is_probably_linux_path) {
+       /*
+        * It _looks like_ a linux path.
+        *
+        * If it doesn't exist, it is probably a typo rather than an
+        * intention to EXEC_LITERAL.  By Stas Sergeev design, realpath()
+        * below will cause the UNIX command - but not DOSEMU - to abort
+        * with an error.  In contrast, EXEC_LITERAL always aborts/quits
+        * DOSEMU after executing a bogus command.
+        */
+       *CommandStyle = EXEC_LINUX_PATH;
+     } else {
+       *CommandStyle = EXEC_LITERAL;
+       return 0;
+     }
+  } else if (*CommandStyle == EXEC_LINUX_PATH) {
+     if (!is_probably_linux_path) {
+       /*
+        * I doubt the program will actually run but we still try since:
+        *
+        * 1. the user said to interpret it as a linux path
+        * 2. our heuristic is not perfect
+        */
+     }
+  }
 
   if (!realpath (linux_path, linux_path_resolved)) {
       com_fprintf (com_stderr, "ERROR: %s: %s\n", strerror(errno), linux_path);
@@ -299,69 +385,89 @@ static int setupDOSCommand (char *linux_path)
 
   /* return the 8.3 EXE name */
   strcpy (linux_path/*arg as return value*/, b);
-  
-  
+
+  j_printf ("DOS cmd='%s'\n", linux_path);
+
+  /* and append any dos options */
+  if (dos_opts && *dos_opts) {
+    strncat (linux_path, dos_opts, PATH_MAX - strlen (linux_path) - 1);
+    linux_path [PATH_MAX - 1] = 0;
+    j_printf ("\tAppended options '%s' to give DOS cmd '%s'\n",
+              dos_opts, linux_path);
+  }
+
   return (0);
 }
 
 static int do_execute_dos (int argc, char **argv, int CommandStyle)
 {
-  char data[PATH_MAX], *ptr1, *ptr2;
-  int ret, terminate, linux_path;
+  char cmd[PATH_MAX];
+  int ret, terminate;
+  char *options = NULL;
+
+
+  /*
+   * Get unprocessed command.
+   */
 
   if (argc == 0) {
-    ret = misc_e6_commandline(data);
+    options = misc_e6_options();
+    ret = misc_e6_commandline(cmd);
   } else {
-    strcpy (data, argv[0]);
-    ret = misc_e6_envvar(data);
+    strcpy (cmd, argv[0]);
+    ret = misc_e6_envvar(cmd);
   }
-  terminate = misc_e6_need_terminate();
-  linux_path = (CommandStyle == EXEC_LINUX_PATH);
 
-  if (! ret) {
-    /* SUCCESSFUL */
-
-    if (CommandStyle == EXEC_CHOICE && (ptr1 = strchr(data, '/')) &&
-	(!(ptr2 = strchr(data, ' ')) || ptr1 < ptr2))
-      linux_path = 1;
-    if (linux_path) {
-      if (setupDOSCommand (data))
-        return (1);
-    }
-#if 0
-    /* FIXTHIS: we must not terminate if the DOS path doesn't exist,
-     * so we should check its existance, but it is difficult. */
-    else {
-      terminate = 0;
-    }
-#endif
-
-    if (*data) {
-#if 0
-      com_printf ("About to Execute : %s\n", data);
-#endif
-      config.quiet = 0;
-      if (com_system (data, terminate)) {
-        /* SYSTEM failed ... */
-        com_fprintf (com_stderr, "SYSTEM failed ....(%d)\n", com_errno);
-        return (1);
-      }
- 
-      return (0);
-    } else {
-      /* empty string */
-      return (1);
-    }
-  }
-  else {
-    /* UNSUCCESSFUL */
+  if (ret) {
     /* empty string, assume we had to exec -E and this wasn't given
      * ( may have 'unix -e' in your autoexec.bat )
      */
     return (1);
   }
-}
+  /*
+   * If linux path (either EXEC_LINUX_PATH or setupDOSCommand() determines
+   * it is), cmd be set to the appropriate DOS command.
+   */
+
+  /* Mutates CommandStyle, cmd. */
+  if ((CommandStyle == EXEC_LINUX_PATH || CommandStyle == EXEC_CHOICE) &&
+      setupDOSCommand (&CommandStyle, cmd, options)) {
+        return (1);
+  }
+
+  /*
+   * Decide whether we need to quit after running the DOS command.
+   */
+
+  terminate = misc_e6_need_terminate();
+#if 0
+   /* FIXTHIS: we must not terminate if the DOS path doesn't exist,
+    * so we should check its existance, but it is difficult. */
+  if (CommandStyle == EXEC_LITERAL /* && DOS path doesn't exist */) {
+    terminate = 0;
+  }
 #endif
+
+  /*
+   * Execute DOS command.
+   */
+
+  if (*cmd == '\0')
+    return (1);
+
+
+  com_printf ("About to Execute : %s\n", cmd);
+
+  if (com_system (cmd, terminate)) {
+    /* SYSTEM failed ... */
+    com_fprintf (com_stderr, "SYSTEM failed ....(%d)\n", com_errno);
+    return (1);
+  }
+
+
+  return (0);
+}
+#endif  /*CAN_EXECUTE_DOS*/
 
 static int do_set_dosenv (int argc, char **argv)
 {

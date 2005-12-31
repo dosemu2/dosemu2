@@ -28,11 +28,17 @@
  * DANG_BEGIN_CHANGELOG
  *
  *	$Log$
+ *	Revision 1.15  2005/12/31 06:23:11  bartoldeman
+ *	Mostly from Clarence: unix.com patches in dosemu-exec-friendly.diff,
+ *	so that "dosemu keen1.exe" works again.
+ *	But do not use heuristics that split options from commands, by making
+ *	quotes of filenames that contain spaces compulsory.
+ *
  *	Revision 1.14  2005/12/18 07:58:44  bartoldeman
  *	Put some basic checks into dos_read/dos_write, and memmove_dos2dos to
  *	avoid touching the protected video memory.
  *	Fixes #1379806 (gw stopped to work under X).
- *
+ *	
  *	Revision 1.13  2005/11/29 18:24:31  stsp
  *	
  *	call_msdos() must switch to real mode before calling DOS, if needed.
@@ -140,6 +146,7 @@
 #define MAX_DOS_COMMAND_LEN  256
 
 static char *misc_dos_command = NULL;
+static char *misc_dos_options = NULL;
 static int need_terminate = 0;
 int com_errno;
 
@@ -192,6 +199,11 @@ int misc_e6_commandline (char *str)
   /* doesn't get this far */
 }
 
+char *misc_e6_options(void)
+{
+  return misc_dos_options;
+}
+
 int misc_e6_need_terminate(void)
 {
   return need_terminate;
@@ -199,15 +211,30 @@ int misc_e6_need_terminate(void)
 
 void misc_e6_store_command (char *str, int terminate)
 {
-  if (strlen(str) > MAX_DOS_COMMAND_LEN) {
+  size_t slen = strlen(str), olen = 0;
+  if (slen > MAX_DOS_COMMAND_LEN) {
     error("DOS command line too long, exiting");
     leavedos(1);
   }
-  misc_dos_command = strdup(str);
-  need_terminate = terminate;
-  if (terminate) config.quiet = 1;
+  if (misc_dos_command == NULL) {
+    misc_dos_command = strdup(str);
+    need_terminate = terminate;
+    if (terminate) config.quiet = 1;
 
-  g_printf ("Storing Command : %s\n", misc_dos_command);
+    g_printf ("Storing Command : %s\n", misc_dos_command);
+    return;
+  }
+  /* any later arguments are collected as DOS options */
+  if (misc_dos_options)
+    olen = strlen(misc_dos_options);
+  misc_dos_options = realloc(misc_dos_options, olen + slen + 2);
+  misc_dos_options[olen] = ' ';
+  memcpy(misc_dos_options + olen + 1, str, slen + 1);
+  if (strlen(misc_dos_command) + olen + slen + 2 > MAX_DOS_COMMAND_LEN) {
+    error("DOS command line too long, exiting");
+    leavedos(1);
+  }
+  g_printf ("Storing Options : %s\n", misc_dos_options);
 }
 
 
