@@ -555,7 +555,7 @@ int get_dos_attr(const char *fname,int mode,boolean_t hidden)
 {
   int attr = 0;
 
-  if (fname) {
+  if (fname && (S_ISREG(mode) || S_ISDIR(mode))) {
     int fd = open(fname, O_RDONLY);
     if (fd != -1) {
       int res = ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &attr);
@@ -607,7 +607,9 @@ int set_dos_attr(char *fpath, int mode, int attr)
 {
   int res, fd, newmode;
 
-  fd = open(fpath, O_RDONLY);
+  fd = -1;
+  if (fpath && (S_ISREG(mode) || S_ISDIR(mode)))
+    fd = open(fpath, O_RDONLY);
   if (fd != -1) {
     res = set_fat_attr(fd, attr);
     if (res && errno != ENOTTY) {
