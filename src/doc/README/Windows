@@ -67,7 +67,7 @@ makes them DOSEMU-compatible too.
 <title>VxD support</title>
 <para>
 By the time of writing this, DOSEMU does not have support
-for Windows ring-0 device drivers (VxD). Fortunately, most of
+for Windows ring-0 device drivers (.vxd, .386). Fortunately, most of
 Windows 3.1 drivers are ring-3 ones (.drv), so you can easily
 install the Sound Blaster drivers, for instance. This is not the
 case with Windows 3.11. Its network drivers are ring-0 ones, so

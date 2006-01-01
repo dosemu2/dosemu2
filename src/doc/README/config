@@ -1098,7 +1098,7 @@ the built-in mouse driver (not your mouse.com) to get it work:
 </para>
 
 <para>
-When using a PS/2 or USB mouse or when having more then 2 serial ports you may
+When using a PS/2 or USB mouse or when having more than 2 serial ports you may
 of course assign _any_ free serialdevice to COM1, COM2. The order doesn't
 matter:
 </para>
