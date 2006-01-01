@@ -11,17 +11,20 @@ This section written by Eric Biederman <email>eric@dosemu.org</email>
 For most dos applications you should be able to use the
 internal mouse with very little setup, and very little trouble.
 </para><para>
-Under X you don't need to do anything, unless you want
+Under X, or in terminal mode, you don't need to do anything, unless you want
 to use the middle button then you need to add to autoexec.bat:
 
 <screen>
 emumouse 3
 </screen>
 
-On the console it takes just a tad bit more work:
+On the console, in text mode, without root, the GPM library can be used,
+and no extra setup is necessary.
+Otherwise, especially with console graphics (sudo/suid/root, the -s switch,
+and $_graphics=(1)), it takes just a tad bit more work:
 </para>
 <para>
-in /etc/dosemu.conf:
+in dosemu.conf:
 
 <screen>
 $_mouse = "mousesystems"
@@ -36,6 +39,20 @@ emumouse 3
 This sets you up to use the gpm mouse repeater if you don't
 use the repeater, you need to set $_mouse and $_mouse_dev to
 different values.
+
+The GPM repeater might be configured to use a different protocol
+than the default.  If you are having problems, check the 'repeat_type' setting
+in your gpm.conf.  These are the mappings from the GPM repeat_type to the
+DOSEMU $_mouse for common settings:
+
+<screen>
+GPM setting      DOSEMU setting
+-------------------------------
+msc (default)    mousesystems
+ms3              microsoft
+raw              select type of your real mouse
+</screen>
+
 </para>
 </sect2>
 
