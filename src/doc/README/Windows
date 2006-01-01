@@ -2,7 +2,7 @@
 <title>Running Windows under DOSEMU</title>
 
 <para>
-DOSEMU can run any 16bit Windows up to 3.1, and have a limited
+DOSEMU can run any 16bit Windows up to 3.1, and has limited
 support for Windows 3.11. You should be able to install and run
 these versions of Windows without any extra work. There are still
 a few caveats however, and if you have some problems, read on.
@@ -11,16 +11,16 @@ a few caveats however, and if you have some problems, read on.
 <sect2>
 <title>Mouse in Windows under DOSEMU</title>
 <para>
-Mouse is known to have a sensitivity issues when you run Windows
-under dosemu. For Windows 3.0 and earlier there is no workaround
-currently. The problem will be fixed in the future dosemu releases.
+The mouse is known to have sensitivity issues when you run Windows
+under DOSEMU. For Windows 3.0 and earlier there is no workaround
+currently. That problem will be fixed in the future DOSEMU releases.
 For Windows 3.1 and 3.11 you can install an alternative mouse driver.
 Get the OS2WIN31.ZIP distribution from somehere.
 One place that distributes it is
 <ulink url="http://www.funet.fi/pub/os2/32bit/win_os2/">
 http://www.funet.fi/pub/os2/32bit/win_os2
 </ulink>
-This archieve contains the file mouse.drv. Replace the mouse.drv
+This archive contains the file mouse.drv. Replace the mouse.drv
 of your WINDOWS\SYSTEM directory with that file and do the following
 adjustments in your win.ini file:
 <screen>
@@ -30,8 +30,8 @@ adjustments in your win.ini file:
      MouseSpeed=0
 </screen>
 Note however, that with this driver you won't be able to run Windows
-under the real DOS environment any more, as that mouse driver only
-works under dosemu and OS/2.
+in real DOS any more, because this mouse driver only
+works under DOSEMU and OS/2.
 </para>
 </sect2>
 
@@ -46,32 +46,32 @@ Trident drivers, or the patched SVGA drivers of Windows 3.11.
 <para>
 The Trident drivers for Windows are in the files tvgaw31a.zip
 and/or tvgaw31b.zip. Search www.winsite.com to get them.
-Unpack the archieve. In Windows setup, install the
+Unpack the archive. In Windows setup, install the
 Trident "800x600 256 color for 512K boards" driver.
 </para>
 
 <para>
-Windows 3.11 comes with the SVGA drivers. You can also download
+Windows 3.11 comes with SVGA drivers. You can also download
 them: search www.winsite.com for svga.exe and install the drivers.
 Then go to
 <ulink url="http://www.japheth.de/dwnload1.html">
 http://www.japheth.de/dwnload1.html
 </ulink>
-and get the SVGAPatch tool. This tool makes the above drivers to
+and get the SVGAPatch tool. This tool causes the above drivers to
 work with most of the video cards in a real DOS environment, and
-makes them dosemu-compatible too.
+makes them DOSEMU-compatible too.
 </para>
 </sect2>
 
 <sect2>
 <title>VxD support</title>
 <para>
-By the time of writing this, dosemu doesn't have the support
+By the time of writing this, DOSEMU does not have support
 for Windows ring-0 device drivers (VxD). Fortunately, most of
-Windows 3.1 drivers are the ring-3 ones (.drv), so you can easily
+Windows 3.1 drivers are ring-3 ones (.drv), so you can easily
 install the Sound Blaster drivers, for instance. This is not the
-case with Windows 3.11. Its network drivers are the ring-0 ones, so
-the native winsock won't work. In order to get the networking
+case with Windows 3.11. Its network drivers are ring-0 ones, so
+the native Winsock does not work. In order to get networking
 operational, you need to get the Trumpet Winsock package. Refer
 to chapter "Using Windows and Winsock" for more info on this.
 </para>
@@ -80,13 +80,13 @@ to chapter "Using Windows and Winsock" for more info on this.
 <sect2>
 <title>DOS shell in Windows</title>
 <para>
-There is probably a little use of a DOS shell under Windows under
-dosemu... But for those who needs it, here are the basic hints.
-DOS shell is supported by DOSEMU only if Windows is running in a
+There is probably little use of a DOS shell under Windows under
+DOSEMU... But for those who need it, here are some basic hints.
+The DOS shell is supported by DOSEMU only if Windows is running in
 Standard mode. The Enhanced mode DOS shell is currently unsupported.
 Note however, that unlike in a real DOS environment, under DOSEMU
-the DOS shell of the Windows in Standard mode allows you to run the
-protected mode apps (in the real DOS environment only the DOS shell
+the DOS shell of the Windows in Standard mode allows you to run
+protected mode applications (in the real DOS environment only the DOS shell
 of the Enhanced mode allows this).
 </para>
 </sect2>

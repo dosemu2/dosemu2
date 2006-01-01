@@ -2,11 +2,18 @@
 <title>Using CDROMS</title>
 
 <sect2>
-<title>The built in driver</title>
+<title>The built-in driver</title>
 
 <para>
 This documents the cdrom extension rucker@astro.uni-bonn.de has
 written for Dosemu.
+</para>
+
+<para>
+An easy way to access files on a CDROM is to mount it in Linux and use
+Lredir to refer to it. However, any low-level access, often used by
+games is impossible that way. For that you need to load some drivers
+in DOS. CDROM image files (ISOs) can be used in a similar fashion.
 </para>
 
 <para>
@@ -30,7 +37,7 @@ To install it:
 
 <para>
  Create a (symbolic) link /dev/cdrom to the device file of your drive
-or use the cdrom statement in /etc/dosemu.conf to define it.
+or use the cdrom statement in dosemu.conf to define it.
 </para>
 </listitem>
 <listitem>
@@ -49,7 +56,7 @@ directly because of security reasons.
 <para>
 
 <screen>
-    devicehigh=c:\emu\cdrom.sys
+    devicehigh=c:\dosemu\cdrom.sys
 </screen>
 
 </para>
@@ -63,6 +70,10 @@ Start Microsoft cdrom extension as follows:
 
 <screen>
     mscdex /d:mscd0001 /l:driveletter
+</screen>
+or
+<screen>
+    shsucdex /d:mscd0001 /l:driveletter
 </screen>
 
 </para>
@@ -100,19 +111,19 @@ Support for up to 4 drives:
 </para>
 
 <para>
-If you have more then one cdrom, you have to use the cdrom statement
-in global.conf multiple times such as
+If you have more then one cdrom, you can use the cdrom statement
+in dosemu.conf like this:
 
 <screen>
-  cdrom { /dev/cdrom }
-  cdrom { /dev/cdrom2 }
+  $_cdrom = "/dev/cdrom /dev/cdrom2 image.iso"
 </screen>
 
-and have multiple instancies of the DOS driver too:
+and have multiple instancies of the DOS driver:
 
 <screen>
   device=cdrom.sys
   device=cdrom.sys 2
+  device=cdrom.sys 3
 </screen>
 
 </para>

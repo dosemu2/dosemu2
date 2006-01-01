@@ -7,7 +7,7 @@ Edited by
 
 Alistair MacDonald
 
-   For DOSEMU v1.2 pl0.0
+   For DOSEMU v1.4 pl0.0
 
    This document is the amalgamation of a series of README files which
    were created to deal with the lack of DOSEMU documentation.
@@ -20,20 +20,21 @@ Alistair MacDonald
         2.1. Format of dosemu.conf and ~/.dosemurc
 
               2.1.1. Disks, boot directories and floppies
-              2.1.2. Controling amount of debug output
+              2.1.2. Controlling amount of debug output
               2.1.3. Basic emulation settings
               2.1.4. Code page and character set
               2.1.5. Terminals
               2.1.6. Keyboard settings
               2.1.7. X Support settings
               2.1.8. Builtin ASPI SCSI Driver
-              2.1.9. COM ports and mices
+              2.1.9. COM ports and mice
               2.1.10. Printers
               2.1.11. Sound
               2.1.12. Joystick
               2.1.13. Networking under DOSEMU
               2.1.14. Settings for enabling direct hardware access
               2.1.15. Video settings ( console only )
+              2.1.16. Time settings
 
    3. Security
    4. Sound
@@ -50,7 +51,7 @@ Alistair MacDonald
    6. Running dosemu as a normal user
    7. Using CDROMS
 
-        7.1. The built in driver
+        7.1. The built-in driver
 
    8. Using X
 
@@ -116,7 +117,7 @@ Alistair MacDonald
 2. Runtime Configuration Options
 
    This section of the document by Hans, <lermen@fgan.de>. Last updated
-   on Sep 27, 2003, by Bart Oldeman.
+   on Jan 1, 2006, by Bart Oldeman.
 
    Most of DOSEMU configuration is done during runtime and per default it
    can use the system wide configuration file dosemu.conf (which is often
@@ -144,12 +145,6 @@ Alistair MacDonald
    string too uses the same syntax as global.conf, hence, if you are
    doing some special stuff (after you got familar with DOSEMU) you may
    need to have a look there.
-
-   In DOSEMU prior to 0.97.5 the private configuration file was called
-   ~/.dosrc (not to be confused with the new ~/.dosemurc). This will work
-   as expected formerly, but is subject to be nolonger supported in the
-   near future. This (old) ~/.dosrc is processed after global.conf and
-   follows (same as -I) the syntax of global.conf (see README-tech.txt).
 
    The first file expected (and interpreted) before any other
    configuration (such as global.conf, dosemu.conf and ~/.dosemurc) is
@@ -196,7 +191,7 @@ Alistair MacDonald
    private DOSEMU lib under $HOME/.dosemu/lib. If this directory is
    existing, DOSEMU will expect all normally under DOSEMU_LIB_DIR within
    that directory. As this would be a security risk, it only will be
-   allowed, if the used DOSEMU binary is non-suid-root. If you realy
+   allowed, if the used DOSEMU binary is non-suid-root. If you really
    trust a user you may additionally give the keyword `unrestricted',
    which will allow this user to execute a suid-root binary even on a
    private lib directory (though, be aware).
@@ -223,7 +218,7 @@ Alistair MacDonald
       all c_all
 
    to allow everybody all weird things. For more details on security
-   issues have a look at README-tech.txt chapter 2.
+   issues have a look at chapter 3.
 
    After the file dosemu.users, the file dosemu.conf (via global.conf,
    which may be built-in) is interpreted, and only during global.conf
@@ -260,10 +255,10 @@ Alistair MacDonald
    or
          $_zzz = "s"
 
-   where `n' ist a numerical or boolean value and `s' is a string. Note
-   that the brackets are important, else the parser won't decide for a
-   number expression. For numers you may have complete expressions ( such
-   as (2*1024) ) and strings may be concatenated such as
+   where `n' is a numerical or boolean value and `s' is a string. Note
+   that the brackets are important, else the parser will not decide for a
+   number expression. For numbers you may have complete expressions (
+   such as (2*1024) ) and strings may be concatenated such as
 
          $_zzz = "This is a string containing '", '"', "' (quotes)"
 
@@ -292,6 +287,7 @@ R
 ge
       $_floppy_a ="threeinch" # or "fiveinch" or empty, if not existing
       $_floppy_b = ""       # dito for B:
+      $_cdrom = "/dev/cdrom" # list of CDROM devices
 
    A hdimage is a file containing a virtual image of a DOS-FAT
    filesystem. Once you have booted it, you (or autoexec.bat) can use
@@ -302,10 +298,9 @@ ge
    F:, and use "SYS F:" at the DOS prompt. The DOSEMU-HOWTO explains how
    to manipulate it using mtools.
 
-   Starting with dosemu-0.99.8, there is a more convenient method
-   available: you just can have a Linux directory containing all what you
-   want to have under your DOS C:. Copy your IO.SYS, MSDOS.SYS or what
-   ever to that directory (e.g. DOSEMU_LIB_DIR/bootdir), set
+   You can also specify a Linux directory containing all what you want to
+   have under your DOS C:. Copy your IO.SYS, MSDOS.SYS or equivalent to
+   that directory (e.g. DOSEMU_LIB_DIR/bootdir), set
           $_hdimage = "bootdir"
 
    and up it goes. Alternatively you can specify an absolute path such as
@@ -363,12 +358,12 @@ ge
 
    In some rare cases you may have problems accessing Lredir'ed drives
    (especially when your DOS application refuses to run on a 'network
-   drive'), For this to overcome you may need to use socalled `partition
+   drive'), For this to overcome you may need to use so-called `partition
    access', use a floppy (or a "vbootfloppy"), or a special-purpose
    hdimage. The odd with partition access is, that you never should have
    those partition mounted in the Linux file system at the same time as
    you use it in DOSEMU (which is quite uncomfortable and dangerous on a
-   multitasking OS such as Linux ). Though global.conf checks for mounted
+   multitasking OS such as Linux ). Though DOSEMU checks for mounted
    partitions, there may be races that are not caught. In addition, when
    your DOSEMU crashes, it may leave some FAT sectors unflushed to the
    disk, hence destroying the partition. Anyway, if you think you need
@@ -388,11 +383,11 @@ ge
    except for `:ro'.
      _________________________________________________________________
 
-2.1.2. Controling amount of debug output
+2.1.2. Controlling amount of debug output
 
-   DOSEMU will help you finding problems, when you enable its debug
+   DOSEMU will help you find problems, when you enable its debug
    messages. These will go into the file, that you defined via the `-o
-   file' or `-O' commandline option (the later prints to stderr). If you
+   file' or `-O' commandline option (the latter prints to stderr). If you
    do not specify any -O or -o switch, then the log output will be
    written to ~/.dosemu/boot.log. You can preset the kind of debug output
    via
@@ -416,7 +411,10 @@ ge
    To let DOSEMU use the Pentium cycle counter (if availabe) to do better
    timing use the below
 
-         $_rdtsc = (on)   # or off
+         $_rdtsc = (off)   # or on
+
+   Note that the RDTSC can be unreliable on SMP systems, and in
+   combination with power management (APM/ACPI).
 
    For the above `rdtsc' feature DOSEMU needs to know the exact CPU
    clock, it normally calibrates it itself, but is you encounter a wrong
@@ -425,13 +423,18 @@ ge
 
    If you have a PCI board you may allow DOSEMU to access the PCI
    configuration space by defining the below
-         $_pci = (on)    # or off
+         $_pci = (on)    # or auto, or off
 
-   NOTE: `$_pci' can not be overwritten by ~/.dosemurc.
+   NOTE: `$_pci' can not be overwritten by ~/.dosemurc. The "on" setting
+   can be very dangerous because it gives DOSEMU complete write access;
+   you need to edit dosemu.users to enable it. In console graphics mode,
+   some video card BIOSes need some PCI configuration space access, which
+   is enabled by the default (auto) setting. This setting is far more
+   restricted and less dangerous.
 
    Starting with dosemu-1.0 there is a flexible way to handle the mapping
    strategy used by DOSEMU, which is needed by video emulation, EMS, DPMI
-   and XMS support and other stuff to map a given page of memory to the
+   and XMS support and other things to map a given page of memory to the
    required virtual DOS address space.
 
    Normally DOSEMU will detect the proper mapping driver for the kernel
@@ -442,33 +445,33 @@ ge
    to force the use of the driver, which uses a temporary file.
 
    If you are using a kernel above 2.3.40, you may use
+         $_mapping= "mapshm"
 
-      $_mapping= "mapshm"
+   which uses a POSIX shared memory object (the default) or
+         $_mapping= "mapashm"
 
-   which uses one big IPC shared memory segment as memory pool and the
-   new extended mremap() functionality for the mapping.
+   which uses anonymous shared memory (in case the above gives problems).
 
    Note, that in case of `mapfile' and `mapshm' the size of the file or
    the segment depend on how much memory you configured for XMS, EMS and
-   DPMI (see below) and that you should take care yourself that you have
-   enough diskspace or have the IPC limits high enough. You can control
-   IPC memory limits with
-         # ipcs -m -l
-
-   and (on kernels above 2.3.x) you can increase the segment limit with
-         # echo "66904064" >/proc/sys/kernel/shmmax
-
-   `66904064' being 64 Mbytes in this example.
+   DPMI (see below). You should take care yourself that you have enough
+   diskspace for 'mapfile'. For 'mapshm' the tmpfs mount option
+   'size=nbytes' controls the amount of space; by default it is half of
+   the (real machine) memory.
 
    Defining the memory layout, which DOS should see:
       $_xms = (8192)          # in Kbyte
       $_ems = (2048)          # in Kbyte
-      $_ems_frame = (0xe000)
+      $_ems_frame = (0xe400)
       $_dpmi = (0x5000)       # in Kbyte
       $_dosmem = (640)        # in Kbyte, < 640
 
    Note that (other as in native DOS) each piece of mem is separate,
-   hence DOS perhaps will show other values for 'extended' memory.
+   hence DOS perhaps will show other values for 'extended' memory. To use
+   EMS memory you must load the supplied ems.sys device driver. For XMS
+   memory you must either use a DOS XMS driver such as himem.sys,
+   himem.exe, fdxms.sys, or fdxxms.sys, or the internal XMS driver via
+   ems.sys.
 
    If you want mixed operation on the filesystem, from which you boot
    DOSEMU (native and via DOSEMU), it may be necessary to have two
@@ -496,55 +499,16 @@ ge
 2.1.4. Code page and character set
 
    To select the character set and code page for use with DOSEMU you have
-         $_term_char_set = "XXX"
-
-   where XXX is one of
-
-   ibm
-          With the kbd_unicode plugin (the default), the text is
-          processed using cp437->cp437 for the display, so the font used
-          must be cp437 (eg cp437.f16 on the console). The text is no
-          longer taken without translation. It never really was but it
-          was close enough it apparently was used that way. When reading
-          characters they are assumed to be in iso-8859-1 from the
-          terminal.
-
-          If the old keyboard code is used, then the text is taken
-          whithout translation. It is to the user to load a proper DOS
-          font (cp437.f16, cp850.f16 or cp852.f16 on the console).
-
-   latin
-          the text is processed using cp437->iso-8859-1 translation, so
-          the font used must be iso-8859-1 (eg iso01.f16 on console);
-          which is the default for unix in western languages countries.
-
-   latin1
-          like latin, but using cp850->iso-8859-1 translation (the
-          difference between cp437 and cp850 is that cp437 uses some
-          chars for drawing boxes while cp850 uses them for accentuated
-          letters)
-
-   latin2
-          like latin1 but uses cp852->iso-8859-2 translation, so
-          translates the default DOS charset of eastern european
-          countries to the default unix charset for those countries.
-
-   The default one is ``latin'' and if the string is empty, then an
-   automatic attempt is made: ``ibm'' for remote console and ``latin''
-   for anything else. Depending on the charset setting the (below
-   described) keyboard layouts and/or the terminal behave may vary. You
-   need to know the correct code page your DOS is configured for in order
-   to get the correct results. For most western european countries
-   'latin' should be the correct setting.
-
          $_external_char_set = "XXX"
 
    where XXX is one of
     "cp437", "cp737", "cp773", "cp775", "cp850", "cp852", "cp857", "cp860",
     "cp861", "cp862", "cp863", "cp864", "cp865", "cp866", "cp869", "cp874",
-    "iso8859-1", "iso8859-2", "iso8859-3", "iso8859-4", "iso8859-5",
-    "iso8859-6", "iso8859-7", "iso8859-8", "iso8859-9", "iso8859-14",
-    "iso8859-15"
+    "cp1125", "cp1251"
+    "iso8859-1", "iso8859-2", "iso8859-3", "iso8859-4", "iso8859-5", "iso8859-6
+",
+    "iso8859-7", "iso8859-8", "iso8859_9", "iso8859-14", "iso8859-15", "koi8-r"
+    "koi8-u", "koi8-ru", "utf8"
 
    The external character set is used to:
 
@@ -554,11 +518,19 @@ ge
        terminal display screen.
      * compute the unicode values of characters pasted into dosemu.
 
+   The default is to use "", which denotes the current locale, and is
+   usually the right setting.
+
+   If you set a DOS external character set, then it is to the user to
+   load a proper DOS font (cp437.f16, cp850.f16 or cp852.f16 on the
+   console).
+
          $_internal_char_set = "XXX"
 
    where XXX is one of:
     "cp437", "cp737", "cp773", "cp775", "cp850", "cp852", "cp857", "cp860",
     "cp861", "cp862", "cp863", "cp864", "cp865", "cp866", "cp869", "cp874"
+    "cp895", "cp1125", "cp1251", "bg-mik"
 
    The internal character set is used to:
 
@@ -569,9 +541,10 @@ ge
 
 2.1.5. Terminals
 
-   This section applies whenever you run DOSEMU remotely or in an xterm.
-   Color terminal support is now built into DOSEMU. Skip this section for
-   now to use terminal defaults, until you get DOSEMU to work.
+   This section applies whenever you run DOSEMU remotely, in an xterm or
+   on the Linux console without graphics. Color terminal support is now
+   built into DOSEMU. Skip this section for now to use terminal defaults,
+   until you get DOSEMU to work.
       $_term_color = (on)   # terminal with color support
       $_term_updfreq = (4)  # time between refreshs (units: 20 == 1 second)
       $_escchar = (30)      # 30 == Ctrl-^, special-sequence prefix
@@ -590,7 +563,7 @@ ge
 2.1.6. Keyboard settings
 
    When running DOSEMU from console (also remote from console) or X you
-   may need to define a proper keyboard layout. Its possible to let
+   may need to define a proper keyboard layout. It is possible to let
    DOSEMU do this work automatically for you (see auto below), however,
    this may fail and you'll end up defining it explicitely. This is done
    either by choosing one on the internal keytables or by loading an
@@ -615,12 +588,11 @@ ge
          $_layout = "load de-latin1"
 
    Note, however, that you have to set
+         $_X_keycode = (on)
 
-      $_X_keycode = (on)
-
-   to use this feature under X, because per default the keytable is
-   forced to be neutral (us). Normally you will have the correct settings
-   of your keyboard given by the X-server.
+   to use this feature under X, because by default the keytable is forced
+   to be neutral (us). Normally you will have the correct settings of
+   your keyboard given by the X-server.
 
    The most comfortable method, however, is to first let DOSEMU set the
    keyboard layout itself. This involves 2 parts and can be done by
@@ -632,13 +604,13 @@ ge
    The second part (which is independent from $_X_keycode) can be set by
          $_layout = "auto"
 
-   DOSEMU then queries the keyboard layout from the kernel (which only
-   does work on console or non-remote X) and generates a new DOSEMU
-   keytable out of the kernel information. This currently seems only to
-   work for latin-1 layouts, the latin-2 type of accents seem not to
-   exist so far in the kernel (linux/keyboard.h). The resulting table can
-   be monitor with DOSEMU 'keytable dump' feature (see README-tech.txt)
-   for details).
+   DOSEMU then queries the keyboard layout from the kernel or X (which
+   only does work on the console or X, but not in remote text terminals)
+   and generates a new DOSEMU keytable out of the kernel information.
+   This currently seems only to work for latin-1 layouts, the latin-2
+   type of accents seem not to exist so far in the kernel
+   (linux/keyboard.h). The resulting table can be monitor with DOSEMU
+   'keytable dump' feature (see README-tech.txt) for details).
 
    When being on console you might wish to use raw keyboard, especially
    together with some games, that don't use the BIOS/DOS to get their
@@ -780,16 +752,18 @@ ge
    guest' driver happily works with the default size of 32k.
      _________________________________________________________________
 
-2.1.9. COM ports and mices
+2.1.9. COM ports and mice
 
    We have simplified the configuration for mice and serial ports and
    check for depencies between them. If all strings in the below example
    are empty, then no mouse and/or COM port is available. Note. that you
    need no mouse.com driver installed in your DOS environment, DOSEMU has
-   the mousedriver builtin. The below example is such a setup
+   the mousedriver builtin. The mouse settings below only apply to DOSEMU
+   in the Linux console; in X and terminals the mouse is detected
+   automatically. The below example is such a setup
 
-      $_com1 = ""           # e.g. "/dev/mouse" or "/dev/cua0"
-      $_com2 = "/dev/modem" # e.g. "/dev/modem" or "/dev/cua1"
+      $_com1 = ""           # e.g. "/dev/mouse" or "/dev/ttyS0"
+      $_com2 = "/dev/modem" # e.g. "/dev/modem" or "/dev/ttyS1"
 
       $_mouse = "microsoft" # one of: microsoft, mousesystems, logitech,
                             # mmseries, mouseman, hitachi, busmouse, ps2
@@ -803,26 +777,26 @@ ge
    change the configuration of your modem software between boots of
    native DOS and Linux)
 
-   However, you may use your favorite DOS mousedriver and directly let it
-   drive COM1 by changing the below variables (rest of variables
+   However, you may use your favorite DOS mouse driver and directly let
+   it drive COM1 by changing the below variables (rest of variables
    unchanged)
 
       $_com1 = "/dev/mouse"
       $_mouse_dev = "com1"
 
-   And finaly, when you have a PS2 mouse on your machine you use the
-   builtin mousedriver (not your mouse.com) to get it work: ( again
+   And finaly, when you have a PS/2 or USB mouse on your machine you use
+   the built-in mouse driver (not your mouse.com) to get it work: ( again
    leaving the rest of variables unchanged)
 
       $_mouse = "ps2"
       $_mouse_dev = "/dev/mouse"
 
-   When using a PS2 mouse or when having more then 2 serial ports you may
-   of course assign _any_ free serialdevice to COM1, COM2. The order
-   doesn't matter:
+   When using a PS/2 or USB mouse or when having more then 2 serial ports
+   you may of course assign _any_ free serialdevice to COM1, COM2. The
+   order doesn't matter:
 
-      $_com1 = "/dev/cua2"
-      $_com2 = "/dev/cua0"
+      $_com1 = "/dev/ttyS2"
+      $_com2 = "/dev/ttyS0"
      _________________________________________________________________
 
 2.1.10. Printers
@@ -830,13 +804,15 @@ ge
    Printer is emulated by piping printer data to your normal Linux
    printer. The belows tells DOSEMU which printers to use. The `timeout'
    tells DOSEMU how long to wait after the last output to LPTx before
-   considering the print job as `done' and to to spool out the data to
-   the printer.
+   considering the print job as `done' and to close it.
 
-    $_printer = "lp"        # list of (/etc/printcap) printer names to appear a
-s
-                            # LPT1 ... LPT3 (not all are needed, empty for none
-)
+    # Print commands to use for LPT1, LPT2 and LPT3.
+    # Default: "lpr -l, lpr -l -P lpt2, lpr -l P lpt3"
+    # Which means: use the default print queue for LPT1, "lpt2" queue for LPT2,
+    # "lpt3" queue for LPT3. "-l" means raw printing mode (no preprocessing).
+
+    $_printer_commands = "lpr -l, lpr -l -P lpt2, lpr -l -P lpt3"
+
     $_printer_timeout = (20)# idle time in seconds before spooling out
      _________________________________________________________________
 
@@ -973,10 +949,8 @@ is,
    Note, `s3' is only an example, you must set the correct video chip
    else it most like will crash your screen.
 
-   The 'svgalib' setting uses svgalib 1.4.2 or greater for determining
-   the correct video chip. It should work with all svgalib drivers,
-   except for "vesa" and "ati", which are dangerous with respect to
-   opening IO-ports.
+   The 'svgalib' setting uses svgalib 1.9.21 or greater for determining
+   the correct video chip.
 
    The 'vmemsize' setting's default of 0 causes DOSEMU to try to
    autodetect the amount of video memory on the graphics card. This
@@ -988,6 +962,53 @@ is,
    and restore modes up to 1024x768x256.
 
    NOTE: `video setting' can not be overwritten by ~/.dosemurc.
+     _________________________________________________________________
+
+2.1.16. Time settings
+
+   By Paul Crawford. This is a short guide to the time modes supported in
+   DOSEMU; you can get a more detailed description of how and why they
+   operate at http://www.sat.dundee.ac.uk/~psc/dosemu_time_advanced.html.
+   There are three modes currently supported using the $_timemode
+   variable:
+      $_timemode = "bios"
+      $_timemode = "pit"
+      $_timemode = "linux"
+
+   Most users will only ever have a need for either BIOS or LINUX mode,
+   and the decision comes down to the two basic characteristics:
+
+     * In BIOS mode, the DOSEMU session begins with the current (local)
+       date & time, and once running it behaves fully like an emulated
+       PC. You can set the date & time using the normal DOS methods as
+       you would expect. However, time keeping accuracy in the long term
+       under DOS was never very good, and under DOSEMU it is typically
+       poorer.
+     * In LINUX mode, the emulated PC always reports the current host
+       time, and so you no longer have the option to set the DOS time
+       (the date can be set, which is odd, as this is kept in DOS and not
+       in the emulator). In this mode you get the long term accuracy of
+       the host, so if you are running NTP or similar, you always get
+       accurate time.
+
+   The PIT mode is an odd compromise, it provides BIOS-like time
+   (settable, decoupled from host time), but with slightly higher
+   accuracy. In summary, if you need accurate time, choose LINUX mode,
+   otherwise if you need time setting capabilities or close 'real' PC
+   emulation, choose BIOS mode.
+
+   A reasonable question for some applications is "how do I get accurate
+   UTC time?", of course, the more general question is about running the
+   emulated DOS session in a different timezone and/or with differing
+   "daylight saving" options to the host computer. This is quite simple
+   in fact, just start DOSEMU with the environment variable TZ set to the
+   required zone, and don't forget to have the corresponding command in
+   the DOS autoexec.bat file (otherwise Microsoft products all assume -8
+   hours PST!). The DOSEMU emulation of file system access is also based
+   on the local timezone it is running in, so you will get consistent
+   file time stamps compared to the emulated time. So in the UTC case,
+   you would start DOSEMU in a shell with TZ=GMT0, and have a line in
+   autoexec.bat with "set TZ=GMT0" before any of your programs are run.
      _________________________________________________________________
 
 3. Security
@@ -1251,10 +1272,15 @@ is,
 
 7. Using CDROMS
 
-7.1. The built in driver
+7.1. The built-in driver
 
    This documents the cdrom extension rucker@astro.uni-bonn.de has
    written for Dosemu.
+
+   An easy way to access files on a CDROM is to mount it in Linux and use
+   Lredir to refer to it. However, any low-level access, often used by
+   games is impossible that way. For that you need to load some drivers
+   in DOS. CDROM image files (ISOs) can be used in a similar fashion.
 
    The driver consists of a server on the Linux side
    (src/dosext/drivers/cdrom.c, accessed via int 0xe6 handle 0x40) and a
@@ -1266,17 +1292,21 @@ is,
    To install it:
 
      * Create a (symbolic) link /dev/cdrom to the device file of your
-       drive or use the cdrom statement in /etc/dosemu.conf to define it.
+       drive or use the cdrom statement in dosemu.conf to define it.
      * Make sure that you have read/write access to the device file of
        your drive, otherwise you won't be able to use the cdrom under
        Dosemu directly because of security reasons.
      * Load cdrom.sys within your config.sys file with e.g.:
 
-        devicehigh=c:\emu\cdrom.sys
+        devicehigh=c:\dosemu\cdrom.sys
 
      * Start Microsoft cdrom extension as follows:
 
         mscdex /d:mscd0001 /l:driveletter
+
+       or
+
+        shsucdex /d:mscd0001 /l:driveletter
 
    To change the cd while Dosemu is running, use the DOS program
    'eject.com'. It is not possible to change the disk, when the drive has
@@ -1298,14 +1328,14 @@ is,
 
    Support for up to 4 drives:
 
-   If you have more then one cdrom, you have to use the cdrom statement
-   in global.conf multiple times such as
-      cdrom { /dev/cdrom }
-      cdrom { /dev/cdrom2 }
+   If you have more then one cdrom, you can use the cdrom statement in
+   dosemu.conf like this:
+         $_cdrom = "/dev/cdrom /dev/cdrom2 image.iso"
 
-   and have multiple instancies of the DOS driver too:
+   and have multiple instancies of the DOS driver:
       device=cdrom.sys
       device=cdrom.sys 2
+      device=cdrom.sys 3
 
    The one and only parameter to the device driver is a digit between 1
    and 4, (if its missing then 1 is assumed) for the DOS devices
@@ -1602,7 +1632,7 @@ is,
 
 9. Running Windows under DOSEMU
 
-   DOSEMU can run any 16bit Windows up to 3.1, and have a limited support
+   DOSEMU can run any 16bit Windows up to 3.1, and has limited support
    for Windows 3.11. You should be able to install and run these versions
    of Windows without any extra work. There are still a few caveats
    however, and if you have some problems, read on.
@@ -1610,23 +1640,23 @@ is,
 
 9.1. Mouse in Windows under DOSEMU
 
-   Mouse is known to have a sensitivity issues when you run Windows under
-   dosemu. For Windows 3.0 and earlier there is no workaround currently.
-   The problem will be fixed in the future dosemu releases. For Windows
-   3.1 and 3.11 you can install an alternative mouse driver. Get the
-   OS2WIN31.ZIP distribution from somehere. One place that distributes it
-   is http://www.funet.fi/pub/os2/32bit/win_os2 This archieve contains
-   the file mouse.drv. Replace the mouse.drv of your WINDOWS\SYSTEM
-   directory with that file and do the following adjustments in your
-   win.ini file:
+   The mouse is known to have sensitivity issues when you run Windows
+   under DOSEMU. For Windows 3.0 and earlier there is no workaround
+   currently. That problem will be fixed in the future DOSEMU releases.
+   For Windows 3.1 and 3.11 you can install an alternative mouse driver.
+   Get the OS2WIN31.ZIP distribution from somehere. One place that
+   distributes it is http://www.funet.fi/pub/os2/32bit/win_os2 This
+   archive contains the file mouse.drv. Replace the mouse.drv of your
+   WINDOWS\SYSTEM directory with that file and do the following
+   adjustments in your win.ini file:
          [windows]
          MouseThreshold1=0
          MouseThreshold2=0
          MouseSpeed=0
 
    Note however, that with this driver you won't be able to run Windows
-   under the real DOS environment any more, as that mouse driver only
-   works under dosemu and OS/2.
+   in real DOS any more, because this mouse driver only works under
+   DOSEMU and OS/2.
      _________________________________________________________________
 
 9.2. Windows 3.x in SVGA modes
@@ -1635,39 +1665,39 @@ is,
    Trident drivers, or the patched SVGA drivers of Windows 3.11.
 
    The Trident drivers for Windows are in the files tvgaw31a.zip and/or
-   tvgaw31b.zip. Search www.winsite.com to get them. Unpack the archieve.
+   tvgaw31b.zip. Search www.winsite.com to get them. Unpack the archive.
    In Windows setup, install the Trident "800x600 256 color for 512K
    boards" driver.
 
-   Windows 3.11 comes with the SVGA drivers. You can also download them:
+   Windows 3.11 comes with SVGA drivers. You can also download them:
    search www.winsite.com for svga.exe and install the drivers. Then go
    to http://www.japheth.de/dwnload1.html and get the SVGAPatch tool.
-   This tool makes the above drivers to work with most of the video cards
-   in a real DOS environment, and makes them dosemu-compatible too.
+   This tool causes the above drivers to work with most of the video
+   cards in a real DOS environment, and makes them DOSEMU-compatible too.
      _________________________________________________________________
 
 9.3. VxD support
 
-   By the time of writing this, dosemu doesn't have the support for
-   Windows ring-0 device drivers (VxD). Fortunately, most of Windows 3.1
-   drivers are the ring-3 ones (.drv), so you can easily install the
-   Sound Blaster drivers, for instance. This is not the case with Windows
-   3.11. Its network drivers are the ring-0 ones, so the native winsock
-   won't work. In order to get the networking operational, you need to
-   get the Trumpet Winsock package. Refer to chapter "Using Windows and
-   Winsock" for more info on this.
+   By the time of writing this, DOSEMU does not have support for Windows
+   ring-0 device drivers (VxD). Fortunately, most of Windows 3.1 drivers
+   are ring-3 ones (.drv), so you can easily install the Sound Blaster
+   drivers, for instance. This is not the case with Windows 3.11. Its
+   network drivers are ring-0 ones, so the native Winsock does not work.
+   In order to get networking operational, you need to get the Trumpet
+   Winsock package. Refer to chapter "Using Windows and Winsock" for more
+   info on this.
      _________________________________________________________________
 
 9.4. DOS shell in Windows
 
-   There is probably a little use of a DOS shell under Windows under
-   dosemu... But for those who needs it, here are the basic hints. DOS
-   shell is supported by DOSEMU only if Windows is running in a Standard
-   mode. The Enhanced mode DOS shell is currently unsupported. Note
-   however, that unlike in a real DOS environment, under DOSEMU the DOS
-   shell of the Windows in Standard mode allows you to run the protected
-   mode apps (in the real DOS environment only the DOS shell of the
-   Enhanced mode allows this).
+   There is probably little use of a DOS shell under Windows under
+   DOSEMU... But for those who need it, here are some basic hints. The
+   DOS shell is supported by DOSEMU only if Windows is running in
+   Standard mode. The Enhanced mode DOS shell is currently unsupported.
+   Note however, that unlike in a real DOS environment, under DOSEMU the
+   DOS shell of the Windows in Standard mode allows you to run protected
+   mode applications (in the real DOS environment only the DOS shell of
+   the Enhanced mode allows this).
      _________________________________________________________________
 
 10. The DOSEMU mouse
@@ -1680,13 +1710,17 @@ is,
    For most dos applications you should be able to use the internal mouse
    with very little setup, and very little trouble.
 
-   Under X you don't need to do anything, unless you want to use the
-   middle button then you need to add to autoexec.bat:
+   Under X, or in terminal mode, you don't need to do anything, unless
+   you want to use the middle button then you need to add to
+   autoexec.bat:
        emumouse 3
 
-   On the console it takes just a tad bit more work:
+   On the console, in text mode, without root, the GPM library can be
+   used, and no extra setup is necessary. Otherwise, especially with
+   console graphics (sudo/suid/root, the -s switch, and $_graphics=(1)),
+   it takes just a tad bit more work:
 
-   in /etc/dosemu.conf:
+   in dosemu.conf:
     $_mouse = "mousesystems"
     $_mouse_dev = "/dev/gpmdata"
 
@@ -1695,6 +1729,15 @@ is,
 
    This sets you up to use the gpm mouse repeater if you don't use the
    repeater, you need to set $_mouse and $_mouse_dev to different values.
+   The GPM repeater might be configured to use a different protocol than
+   the default. If you are having problems, check the 'repeat_type'
+   setting in your gpm.conf. These are the mappings from the GPM
+   repeat_type to the DOSEMU $_mouse for common settings:
+    GPM setting      DOSEMU setting
+    -------------------------------
+    msc (default)    mousesystems
+    ms3              microsoft
+    raw              select type of your real mouse
      _________________________________________________________________
 
 10.2. Problems
