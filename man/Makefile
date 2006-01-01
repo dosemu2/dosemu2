@@ -15,7 +15,9 @@ edit = sed \
         -e 's,@prefix\@,$(prefix),g' \
         -e 's,@datadir\@,$(datadir),g' \
         -e 's,@docdir\@,$(docdir),g' \
-        -e 's,@bindir\@,$(bindir),g'
+        -e 's,@bindir\@,$(bindir),g' \
+        -e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
+        -e 's,@RELEASE_DATE\@,$(RELEASE_DATE),g'
 
 %.1: %.1.in
 	$(edit) $< > $@

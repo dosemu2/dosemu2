@@ -1,5 +1,5 @@
 .\" -*- nroff -*-  (This is for Emacs)
-.TH DOSEMU.BIN 1 "Январь 2003" "Версия 1.1.4.1" "Эмуляция DOS"
+.TH DOSEMU.BIN 1 "@RELEASE_DATE@" "Версия @PACKAGE_VERSION@" "Эмуляция DOS"
 .SH ИМЯ
 dosemu.bin, dosdebug \- запускает DOS и приложения DOS под Linux
 .SH СИНТАКСИС
