@@ -79,11 +79,12 @@ Alistair MacDonald
         10.2. Problems
 
    11. Mouse Garrot
-   12. Running a DOS-application directly from Unix shell
+   12. Running a DOS application directly from Unix shell
 
-        12.1. Using the keystroke and commandline options.
-        12.2. Using an input file
-        12.3. Running DOSEMU within a cron job
+        12.1. Using "unix -e" in autoexec.bat
+        12.2. Using the keystroke facility.
+        12.3. Using an input file
+        12.4. Running DOSEMU within a cron job
 
    13. Commands & Utilities
 
@@ -1884,22 +1885,55 @@ is,
    this way are immune to the efforts of Mouse Garrot.
      _________________________________________________________________
 
-12. Running a DOS-application directly from Unix shell
+12. Running a DOS application directly from Unix shell
 
    This part of the document was written by Hans <lermen@fgan.de>.
+
+   This chapter deals with starting DOS commands directly from Linux. You
+   can use this information to set up icons or menu items in X. Using the
+   keystroke, input and output redirection facilities you can use DOS
+   commands in shell scripts, cron jobs, web services, and so on.
      _________________________________________________________________
 
-12.1. Using the keystroke and commandline options.
+12.1. Using "unix -e" in autoexec.bat
 
-   Make use of the keystroke configure option and the -I commandline
-   option of DOSEMU (>=dosemu-0.66.2) such as
+   The default autoexec.bat file has a statement "unix -e" at the end.
+   This command executes the DOS program or command that was specified on
+   the dosemu command line.
 
-       dosemu.bin -D-a -I 'keystroke "dir > C:\\garbage\rexitemu\r"'
+   For example:
+       dosemu "/home/clarence/games/commander keen/keen1.exe"
 
-   The "..." will be 'typed in' by dosemu exactly as if you had them
+   will automatically:
+
+     * Lredir "/" if the specified program is not available from an
+       already-redirected drive,
+     * "cd" to the correct directory,
+     * execute the program automagically,
+     * and quit DOSEMU when finished, all without any typing in DOS.
+
+   Using "-E" at the command line causes DOSEMU to continue after the DOS
+   program finishes.
+
+   You can also specify a DOS command, such as "dir". A combination with
+   the -dumb command-line option is useful if you want to retrieve the
+   output of the DOS command, such as
+       dosemu -dumb dir > listing
+
+   In this case (using -dumb, but not -E) all the startup messages that
+   DOSEMU and DOS generate are suppressed and you only get the output of
+   "dir". The output file contains DOS end-of-line markers (CRLF).
+     _________________________________________________________________
+
+12.2. Using the keystroke facility.
+
+   Make use of the -input command-line option, such as
+       dosemu -input 'dir > C:\\garbage\rexitemu\r'
+
+   The '...' will be 'typed in' by dosemu exactly as if you had them
    typed at the keyboard. The advantage of this technique is, that all
    DOS applications will accept them, even interactive ones. A '\' is
-   interpreted as in C and leads in ESC-codes. Here a list of of the
+   interpreted as in C and leads in ESC-codes. Here is a list of the
    current implemented ones:
 
     \r     Carriage return == <ENTER>
@@ -1928,63 +1962,53 @@ is,
            This is useful, when the DOS-application flushes the
            keyboard buffer on startup. Your strokes would be discarded,
            if you don't wait.
-
-   When using X, the keystroke feature can be used to directly fire up a
-   DOS application with one click, if you have the right entry in your
-   .fvwmrc
      _________________________________________________________________
 
-12.2. Using an input file
+12.3. Using an input file
 
      * Make a file "FILE" containing all keystrokes you need to boot
        dosemu and to start your dos-application, ... and don't forget to
-       have CRLF for 'ENTER'. FILE may look like this (as on my machine):
+       have CR (literal ^M) for 'ENTER'. FILE may look like this (as on
+       my machine):
 
-         2^M                    <== this chooses point 2 of the boot menu
-         dir > C:\garbage^M     <== this executes 'dir', result to 'garbage'
-         exitemu^M              <== this terminates dosemu
+    2^Mdir > C:\garbage^Mexitemu^M
 
-       (the ^M stands for CR)
-     * execute dosemu on a spare (not used) console, maybe /dev/tty20
-       such like this:
+       which could choose point 2 of the boot menu, execute 'dir' with
+       output to 'garbage', and terminate dosemu, where the ^M stands for
+       CR.
+     * and execute dosemu like this:
 
-       # dosemu.bin -D-a 2>/dev/null <FILE >/dev/tty20
+    dosemu -dumb < FILE
 
-       This will _not_ switch to /dev/tty20, but silently execute dosemu
-       and you will get the '#' prompt back, when dosemu returns.
+   In bash you can also use
+       echo -e 'dir \gt; c:\\garbage\rexitemu\r' | dosemu -dumb
 
-   I tested this with dosemu-0.64.4/Linux-2.0.28 and it works fine.
+   or, when your dos-app does only normal printout (text), then you may
+   even do this
+       echo -e 'dir\rexitemu\r' | dosemu -dumb > FILE.out
 
-   When your dos-app does only normal printout (text), then you may even
-   do this
-
-          # dosemu.bin -D-a 2>/dev/null <FILE >FILE.out
-
-   FILE.out then contains the output from the dos-app, but merged with
-   ESC-sequences from Slang.
+   FILE.out then contains the output from the DOS application, but
+   (unlike the "unix -e" technique, merged with all startup messages.
 
    You may elaborate this technique by writing a script, which gets the
    dos-command to execute from the commandline and generate 'FILE' for
    you.
      _________________________________________________________________
 
-12.3. Running DOSEMU within a cron job
+12.4. Running DOSEMU within a cron job
 
    When you try to use one of the above to start dosemu out of a crontab,
-   then you have to asure, that the process has a proper environement set
+   then you have to asure, that the process has a proper environment set
    up ( especially the TERM and/or TERMCAP variable ).
 
    Normally cron would setup TERM=dumb, this is fine because DOSEMU
    recognizes it and internally sets it's own TERMCAP entry and TERM to
    `dosemu-none'. You may also configure your video to
-          # dosemu.bin ... -I 'video { none }'
+          dosemu ... -dumb
 
-   or have a TERM=none to force the same setting. If you use the wrapper
-   script, there is save way to do the same:
-          # dosemu -dumb
-
-   In all other crontab run cases you may get nasty error messages either
-   from DOSEMU or from Slang.
+   or have a TERM=none to force the same setting. In all other crontab
+   run cases you may get nasty error messages either from DOSEMU or from
+   Slang.
      _________________________________________________________________
 
 13. Commands & Utilities

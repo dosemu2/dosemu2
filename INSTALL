@@ -45,7 +45,7 @@ See section 3 for compiling on x86-64.
 
 You can now start DOSEMU using "dosemu" or "xdosemu". By default, when you
 start it the first time it will ask you if you want to create a FreeDOS C: 
-drive in the directory ~/dosemu/freedos. This is accomplished by creating 
+drive in the directory ~/.dosemu/drive_c. This is accomplished by creating 
 symbolic links to files in the system-wide DOSEMU tree. You can replace 
 those symbolic links by real files if you wish to do so. The boot 
 directory location and other runtime configuration variables are stored 
@@ -53,7 +53,7 @@ in the file ~/.dosemurc. This file overrides the dosemu.conf file which
 is usually either in /etc or /etc/dosemu. By default, most error and debug 
 messages are logged to the file ~/.dosemu/boot.log.
 
-If you do not want to use the FreeDOS C: drive in $HOME/dosemu/freedos, 
+If you do not want to use the FreeDOS C: drive in $HOME/.dosemu/drive_c,
 then you can adjust dosemu.conf or ~/.dosemurc yourself and point 
 $_hdimage to the right boot directory or hdimage (which can be a symbolic
 link). Alternatively you can create symbolic links in ~/.dosemu/drives
@@ -147,10 +147,10 @@ the appropriate action ...
   file is no longer necessary; restricting users via "sudo" is a better
   approach if you want to do that.
   However, some other more specialized settings, such as $_ports, 
-  $_irqpassing and $_hardware_ram, cannot  be used by a normal user in a 
-  default suid installation. For that you need to copy and adjust
-  /etc/dosemu/dosemu.users.example to /etc/dosemu/dosemu.users, which 
-  contains a list of users who are privileged to use these DOSEMU features.
+  $_irqpassing and $_hardware_ram, cannot be used by a normal user in a 
+  default suid installation. For that you need to adjust the file
+  /etc/dosemu/dosemu.users, which contains a list of users who are
+  privileged to use these DOSEMU features.
   Example:
 
     joeuser c_all
@@ -172,7 +172,7 @@ machines, hence, whoever really wants to do it should fiddle with the problems
 himself.
 
 By default, every user has its own copy/instance of DOS 'somewhere' 
-(default is $HOME/dosemu/freedos), which consists of symbolic links 
+(default is $HOME/.dosemu/drive_c), which consists of symbolic links 
 to shared DOS files or is completely private. This way each user has 
 full write access to the C: drive, which is what is normally expected 
 in a DOSish environment.
@@ -206,4 +206,4 @@ this change will have an immediate effect on all users,
 because the user's private instances will have symlinks to the
 commonly used DOS binaries.
 
-			--Bart Oldeman, 2003/09/30
+			--Bart Oldeman, 2006/01/02

@@ -86,12 +86,7 @@ Do simulated keystrokes as given by
 .I keystroke-string
 just after DOS has booted. This can be used to autolaunch applications,
 bypass any needed boot menus or something similar. For details on the format
-of the string look at README.txt. Note, however, that the FreeDos kernel
-eats one keystroke at bootup in order to let you time to type in F8. So in
-this case you always should add a '\\r' at the beginning of this
-keystroke-string. As a side effect it will bypass the 'F8' delay and
-FreeDos will boot faster. Without "-input", a '\\r' is automatically
-passed.
+of the string look at README.txt.
 .TP
 .I -s
 Invoke dosemu via sudo. This is necessary to get access to certain I/O ports
@@ -144,11 +139,7 @@ systemwide configuration file
 .I $HOME/.dosemu/boot.log
 default file for debug and log messages
 .TP
-.I $HOME/dosemu/bin/
-.TP
-.I $HOME/dosemu/freedos/
-.TP
-.I $HOME/dosemu/Xfonts/
+.I $HOME/.dosemu/drive_c/
 default directories of the local per user DOSEMU instance
 .TP   
 .I @bindir@

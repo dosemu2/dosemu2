@@ -339,14 +339,14 @@ else
   fi
   test $LINES   -eq 0 && LINES=24
   test $COLUMNS -eq 0 && COLUMNS=80
-  if [ $LINES -lt 25 ]; then
+  if [ $LINES -lt 25 -a -z "$DUMBTERM" ]; then
       echo "
    Note that DOS needs 25 lines. You might want to enlarge your
    window before continuing.
 "
   fi
   w4l_check
-  if [ $LINES -lt 25 -o -z "$QUIET" -a ! -f $HOME/.dosemu/stamp-dosemu ]; then
+  if [ $LINES -lt 25 -a -z "$DUMBTERM" -o -z "$QUIET" -a ! -f $HOME/.dosemu/stamp-dosemu ]; then
     echo
     echo "   Now type ENTER to start DOSEMU or <Ctrl>C to cancel"
     read dummy

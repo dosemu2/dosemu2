@@ -357,24 +357,19 @@ direct access to a DOS partition through a raw disk device (i.e. /dev/hda,
 /dev/hdb, /dev/sdX).
 .IP 3.
 direct access to an DOS partition through single partition access 
-(i.e. /dev/hda1, /dev/hdb2, /dev/sdxx). You need to run the program
-.B mkpartition
-to enable
-.B DOSEMU
-to access your DOS-partitions with SPA.
+(i.e. /dev/hda1, /dev/hdb2, /dev/sdxx).
 .IP 4.
 access to a Linux filesystem as a "network" drive using the driver emufs.sys
 supplied with
 .B DOSEMU
-in commands/emufs.sys.
-.PP
-This is explained more thoroughly in
-.B QuickStart.
+in commands/emufs.sys or lredir.exe.
 .PP
 Configuration of
 .B DOSEMU's
 hard disk resources is done by editing 
 .B dosemu.conf
+or
+.B .dosemurc
 before running
 .BR DOSEMU .
 Look at @docdir@/README.txt.
@@ -390,7 +385,7 @@ direct access to a physical floppy through a raw disk device (i.e. /dev/fd0,
 /dev/fd1).
 .PP
 This is also explained more thoroughly in
-.B QuickStart.
+.B README.txt.
 .PP
 Configuration of
 .B DOSEMU's
@@ -411,7 +406,7 @@ on the console may wish to investigate the
 and
 .I \-V
 switches, explained more thoroughly in
-.B QuickStart.
+.B README.txt.
 There is also some very brief documentation in the file dosemu.conf,
 which can be edited for your needs.
 .PP
@@ -433,7 +428,7 @@ generate the odd keycodes expected by many DOS programs.
 .SH PRINTING
 The BIOS printer services are emulated through standard UNIX file I/O
 though temporary files which are then periodically spooled by LPR 
-or a different print client, as defined by $_printer in dosemu.conf.
+or a different print client, as defined by $_printer_commands in dosemu.conf.
 
 .SH DEBUG MESSAGES
 Debug messages can be controlled either at the command line or in the
@@ -550,12 +545,6 @@ The XMS memory support in
 conforms to Lotus/Intel/Microsoft/AST extended
 memory specification 3.0.  I have implemented all XMS functions except
 function 0x12 (Reallocate Upper Memory Block).
-.PP
-While I have implemented the UMB functions, they are extremely stupid and 
-will almost always act suboptimally.  The next release of
-.B DOSEMU
-should
-have saner UMB support.
 .PP
 .B DOSEMU
 also supports EMS 4.0 and implements DPMI 0.9 (1.0 partially).

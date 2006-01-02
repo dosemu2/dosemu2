@@ -2,50 +2,81 @@
 <title>Using X</title>
 
 <para>
-Please read all of this for a more complete X information ;-)
+This chapter provides some hints and tips for using DOSEMU in X.
 </para>
 
 <sect2>
-<title>Latest Info</title>
+<title>Basic information</title>
 
 <para>
-From Uwe Bonnes 
-<ulink
-url="mailto:bon@elektron.ikp.physik.th-darmstadt.de"
->&#60;bon@elektron.ikp.physik.th-darmstadt.de&#62;</ulink
->:
+If you start <command>dosemu</command> in X it brings up its own window,
+in which you can
+also execute graphical programs such as games. To force text-only execution
+of DOSEMU in an xterm or other terminal (konsole, gnome-terminal, and so on),
+you need to run <command>dosemu -t</command>.
 </para>
 
 <para>
- xdosemu (dosemu.bin -X) is now a lot more capable.
-In particular it should now understand the keys from the keypad-area (the
-keys the most right on a MF-Keyboard) and numlock and keyevents in the range
-of the latin characters, even when you run xdosemu from a remote X-terminal. 
-
-It also is capable to handle PL4 color modes in addition to 256 color modes,
-so bgidemo from Borland runs fine.
+Use <command>dosemu -w</command> to start DOSEMU in fullscreen mode.
+When running DOSEMU,
+you can flip between fullscreen and windowed mode by pressing
+&lt;Ctrl&gt;&lt;Alt&gt;&lt;F&gt;.
+The graphics window is resizeable.
 </para>
 
+<para>
+Some DOS applications want precise mouse control that is only possible
+if the mouse cursor is trapped in the DOSEMU window. To enable this you
+need to grab the mouse by pressing &lt;Ctrl&gt;&lt;Alt&gt;&lt;Home&gt;.
+Similarly, you can grab the keyboard by pressing
+&lt;Ctrl&gt;&lt;Alt&gt;&lt;K&gt;, or
+&lt;Ctrl&gt;&lt;Alt&gt;&lt;Shift&gt;&lt;K&gt; if your
+window manager already grabs &lt;Ctrl&gt;&lt;Alt&gt;&lt;K&gt;.
+After you grab the keyboard
+all key combinations (including &lt;Alt&gt;&lt;Tab&gt; and so on)
+are passed to DOSEMU.
+In fullscreen mode the mouse and keyboard are both automatically grabbed.
+</para>
+
+<para>
+Use &lt;Ctrl&gt;&lt;Alt&gt;&lt;Pause&gt; to pause and unpause
+the DOSEMU session, which is useful if you want it to sit silently
+in the background when it is eating too much CPU time.
+Press &lt;Ctrl&gt;&lt;Alt&gt;&lt;PgDn&gt; or click the close button
+of the window to exit DOSEMU.
+</para>
+
+<para>
+DOSEMU uses bitmapped internal fonts by default, so it can accurately
+simulate a real VGA card text mode. It is also possible to use X fonts.
+The advantages of these is that they may be easier on the eyes, and
+are faster, in particular if you use DOSEMU remotely. Any native DOS font
+setting utilities do not work, however. To set an X font use the
+provided xmode.com utility, using
+<screen>
+xmode -font vga
+</screen>
+at the DOS prompt or
+<screen>
+$_X_font = "vga"
+</screen>
+in dosemu.conf. The provided fonts are vga, vga8x19, vga11x19, vga10x24,
+vga12x30, vga-cp866, and vga10x20-cp866.
+</para>
+
+<para>
+If the mouse is not grabbed, then you can copy and paste text if the DOSEMU
+window is in text mode. This uses the standard X mechanism: select by
+dragging the left mouse button, and paste by pressing the middle mouse
+button.
+</para>
 </sect2>
 
 <sect2>
-<title> Older information</title>
+<title> More detailed information, hints and tips</title>
 
 <para>
-From Rainer Zimmermann
-<ulink
-url="mailto:zimmerm@mathematik.uni-marburg.de"
->&#60;zimmerm@mathematik.uni-marburg.de&#62;</ulink
->
-</para>
-
-<para>
-Some basic information about DOSEMU's X support.
-Sometimes it's even sort of useable now.
-</para>
-
-<para>
-What you should take care of:
+What you might take care of:
 </para>
 
 <para>
@@ -67,37 +98,15 @@ If backspace and delete do not work, you can try
 <listitem>
 
 <para>
- Make sure DOSEMU has X support compiled in. 
-(X_SUPPORT = 1 in the Makefile)
+ Make sure DOSEMU has X support compiled in. The configure script
+ complains loudly if it does not find X development libraries.
 </para>
 </listitem>
-<listitem>
 
-<para>
- you should have the vga font installed. See README.ncurses.
-</para>
-</listitem>
 <listitem>
-
 <para>
- start DOSEMU with `xdosemu' (or `dosemu.bin -X' when bypassing the wrapper)
-from an X terminal window. 
-Or make a link to 'dosemu.bin' named 'xdos' - when called by that name,
-DOSEMU will automatically assume -X. 
-There is also a new debug flag 'X' for X-related messages.
-To exit xdosemu, use 'exitemu' or select 'Close' aka 'Delete' 
-(better not 'Destroy') from the 'Window' menu. It is also save to use
-&#60;Ctrl&#62;&#60;Alt&#62;&#60;PgDn&#62; within the window to exit DOSEMU.
-Use &#60;Ctrl&#62;&#60;Alt&#62;&#60;Pause&#62 to pause and unpause
-the DOSEMU session, which is useful if you want it to sit silently
-in the background when it is eating too much CPU time.
-</para>
-</listitem>
-<listitem>
-
-<para>
- there are some X-related configuration options for dosemu.conf.
-See ./etc/dosemu.conf for details.
+ There are some X-related configuration options for dosemu.conf.
+See the file itself for details.
 </para>
 </listitem>
 <listitem>
@@ -121,7 +130,7 @@ other than DOSEMU expects.
 
 <para>
  you need the xpm (pixmaps) package. If you're not sure, look for
-a file like /lib/libXpm.so.*
+a file like /usr/X11R6/lib/libXpm.so.*
 </para>
 </listitem>
 <listitem>
@@ -135,7 +144,7 @@ but I can't tell you about others. Twm probaby won't do.
 
 <para>
  copy dosemu.xpm to where you usually keep your pixmap (not bitmap!) 
-files (perhaps /usr/include/X11/pixmaps)
+files (perhaps /usr/share/pixmaps)
 </para>
 </listitem>
 <listitem>
@@ -201,37 +210,17 @@ However, if you think it's a real bug, please tell me.
 </para>
 
 </sect2>
-
 <sect2>
-<title>The appearance of Graphics modes (November 13, 1995)</title>
+<title>The VGA Emulator</title>
 
 <para>
-Erik Mouw 
-<ulink
-url="mailto:J.A.K.Mouw@et.tudelft.nl"
->&#60;J.A.K.Mouw@et.tudelft.nl&#62;</ulink
-> 
-&amp;
-Arjan Filius
-<ulink
-url="mailto:I.A.Filius@et.tudelft.nl"
->&#60;I.A.Filius@et.tudelft.nl&#62;</ulink
-> 
+In X, a VGA card is emulated. The same happens if you use the SDL library
+using <command>dosemu -S</command>. This emulation (vgaemu) enables
+X to run graphics modes.
 </para>
 
 <para>
-We've made some major changes in X.c that enables X to run graphics modes. 
-Unfortunately, this disables the cut-and-paste support, but we think the
-graphics stuff is much more fun (after things have established, we'll put
-the cut-and-paste stuff back). The graphics is done through vgaemu, the VGA
-emulator. Status of the work:
-</para>
-
-<sect3>
-<title>vgaemu</title>
-
-<para>
-
+Some features:
 <itemizedlist>
 <listitem>
 
@@ -255,162 +244,37 @@ nobody will notice ;-)
 <listitem>
 
 <para>
- The attribute controller is partially emulated. (Actually, only reads and
-writes to the ports are emulated)
+ The attribute controller is emulated.
 </para>
 </listitem>
 <listitem>
 
 <para>
- The working modes are 0x13 (320x200x256) and some other 256 color modes.
+ The emulator emulates a basic Trident TVGA8900C graphics card.
+ All standard VGA modes are emulated, most VGA hardware features (mode-X,
+ 320x240 and so on), some Trident extensions, and on
+ top of that many high-resolution VESA 2.0 modes, that were not present
+ in the original Trident card.
+ Some (very few) programs, such as Fast Tracker, play intimately with the
+ VGA hardware and may not work. As vgaemu improves these problems should
+ disappear.
+</para>
+</listitem>
+
+<listitem>
+<para>
+ Nearly full VESA 2.0 support.
 </para>
 </listitem>
 <listitem>
 
 <para>
- To do (in no particular order): font support in graphics modes (8x8, 8x16,
-9x16, etc), text mode support, 16, 4 and 2 color support, better bank
-switching, write the X code out of vgaemu to get it more generic.
+ A VESA compatible video BIOS is mapped at 0xc00000. It is small because
+ it only contains some glue code and the BIOS fonts (8x8, 8x14, 8x16).
 </para>
 </listitem>
 
-</itemizedlist>
-
-</para>
-
-</sect3>
-
-<sect3>
-<title>vesa</title>
-
-<para>
-
-<itemizedlist>
 <listitem>
-
-<para>
- VESA set/get mode, get information and bankswitch functions work.
-</para>
-</listitem>
-<listitem>
-
-<para>
- All VESA 256 color (640x480, 800x600, 1024x768) modes work, but due to bad
-bank switch code in vgaemu they won't display right.
-</para>
-</listitem>
-<listitem>
-
-<para>
- A VESA compatible video BIOS is mapped at 0xc00000. It's very small, but
-in future it's a good place to store the BIOS fonts (8x8, 8x16) in.
-</para>
-</listitem>
-<listitem>
-
-<para>
- To do: implement the other VESA functions.
-</para>
-</listitem>
-
-</itemizedlist>
-
-</para>
-
-</sect3>
-
-<sect3>
-<title>X</title>
-
-<para>
-
-<itemizedlist>
-<listitem>
-
-<para>
- Added own colormap support for the 256 color modes.
-</para>
-</listitem>
-<listitem>
-
-<para>
- Support for vgaemu.
-</para>
-</listitem>
-<listitem>
-
-<para>
- Some cleanups.
-</para>
-</listitem>
-<listitem>
-
-<para>
- To do: remove text support and let vgaemu do the text modes, put back the 
-cut-and-paste stuff, more cleanups.
-</para>
-</listitem>
-<listitem>
-
-<para>
- <emphasis>NOTE:</emphasis> we've developed on X servers with 8 bit pixel depths (XF86_SVGA) so 
-we don't know how our code behaves on other pixel depths. We don't even
-know if it works.
-</para>
-</listitem>
-
-</itemizedlist>
-
-</para>
-
-<para>
-As stated before, this code was written for Linux (tested with 1.2.13 and
-1.3.39) and we don't know if it works under NetBSD. The mmap() of
-/proc/self/mem and mprotect() magic in vgaemu are very (i386) Linux
-specific.
-</para>
-
-<para>
-Erik
-</para>
-
-</sect3>
-
-</sect2>
-
-<sect2>
-<title>The new VGAEmu/X code (July 11, 1997)</title>
-
-<para>
-Steffen Winterfeldt
-<ulink
-url="mailto:wfeldt@suse.de"
->&#60;wfeldt@suse.de&#62;</ulink
->
-</para>
-
-<para>
-I've been working on the X code and the VGA emulation over
-the last few months. This is the outcome so far:
-</para>
-
-<para>
-
-<itemizedlist>
-<listitem>
-
-<para>
- graphics support in X now works on all X servers with color depth &#62;= 8
-</para>
-</listitem>
-<listitem>
-
-<para>
- the graphics window is resizeable
-</para>
-</listitem>
-<listitem>
-
 <para>
  support for hi- and true-color modes (using Trident SVGA mode numbers
 and bank switching)
@@ -419,20 +283,7 @@ and bank switching)
 <listitem>
 
 <para>
- some basic support for mode-X type graphics modes
-(non-chain4 modes as used by e.g. DOOM)
-</para>
-</listitem>
-<listitem>
-
-<para>
- some even more basic support for 16 color modes
-</para>
-</listitem>
-<listitem>
-
-<para>
- nearly full VESA 2.0 support
+ Support for mode-X type graphics modes (non-chain4 modes as used by e.g. DOOM)
 </para>
 </listitem>
 <listitem>
@@ -454,28 +305,19 @@ and bank switching)
 </para>
 </listitem>
 
-</itemizedlist>
-
-</para>
-
+<listitem>
 <para>
-The current implementation supports 4 and 8 bit SVGA modes
-on all types of X display. Hi-color modes are supported only
-on displays matching the exact color depth (15 or 16); true color
-modes are supported only on true color X displays, but always both
-24 bit and 32 bit SVGA modes.
-</para>
-
-<para>
-In addition, the current hi- and true color support does
+The current hi- (16bpp) and true (24/32bpp) color support does
 not allow resizing of the graphics window and gamma correction
 is ignored.
 </para>
+</listitem>
+</itemizedlist>
 
 <para>
 As the typical graphics mode with 320x200x8 will be used often
 with large scalings and modern graphics boards are pretty fast,
-I added something to eat up your CPU time: you can turn on
+Steffen Winterfeldt added something to eat up your CPU time: you can turn on
 the bilinear interpolation. It greatly improves the display
 quality (but is rather slow as I haven't had time yet to implement
 an optimized version - it's plain C for now).
@@ -492,17 +334,7 @@ are used instead in such cases.
 <para>
 If a VGA mode is not supported on your current X display, the graphics
 screen will just remain black. Note that this <emphasis remap="bf">does not</emphasis> mean
-that xdosemu has crashed.
-</para>
-
-<para>
-The VESA support is (or should be) nearly VBE 2.0 compatible. As
-a reference I used several documents including the unofficial VBE 2.0
-specs made available by SciTech Software. I checked this against
-some actual implementations of the VBE 2.0 standard, including
-SciTech's Display Doctor (formerly known as UniVBE).
-Unfortunately implementations and specs disagree at some points.
-In such cases I assumed the actual implementation to be correct.
+that DOSEMU has crashed.
 </para>
 
 <para>
@@ -536,7 +368,6 @@ Modes that are defined but cannot be supported due
 to lack of video memory or because they cannot be
 displayed on your X display, are marked as unsupported
 in the VBE mode list (but are still in it).
-Note that there is currently no support of 4 bit VESA modes.
 </para>
 
 <para>
@@ -549,7 +380,7 @@ be addressed soon (by running an extra update thread).
 
 <para>
 If you really think that this is the cause of your problem, you might
-try to play with veut.max_max_len in env/video/n_X.c, near line 2005.
+try to play with veut.max_max_len in env/video/render.c.
 This variable limits the amount of video memory that is updated
 during one timer interrupt. This way you can dramatically
 reduce the load of screen updates, but at the same rate reduce your
@@ -557,11 +388,10 @@ display quality.
 </para>
 
 <para>
-Gamma correction works in both 4 and 8 bit modes. As the dosemu.conf
-parser doesn't support float values, it must be specified
-as a percentage value: gamma 100 = gamma 1.0. Higher values
+Gamma correction works in both 4 and 8 bit modes. It must be specified
+as a float value, e.g. $_X_gamma=(1.0). Higher values
 give brighter graphics, lower make them darker. Reasonable
-values are within a range of 50 ... 200.
+values are within a range of 0.5 ... 2.0.
 </para>
 
 <para>
@@ -579,35 +409,23 @@ ways. Normally it will have the same size (in pixel) as the VGA graphics
 mode, except for mode 0x13 (320x200, 256 colors), which will be scaled by
 the value of <emphasis>mode13fact</emphasis> (defaults to 2).
 Alternatively, you can directly specify a window size in dosemu.conf via
-<emphasis>winsize</emphasis>. You can still resize the window later.
+<emphasis>$_X_winsize</emphasis>. You can still resize the window later.
 </para>
 
 <para>
-The config option <emphasis>fixed_aspect</emphasis> allows you to fix the aspect ratio
-of the graphics window while resizing it. Alternatively, <emphasis>aspect_43</emphasis>
+The config option <emphasis>$_X_fixed_aspect</emphasis> allows you to fix the aspect ratio
+of the graphics window while resizing it. Alternatively, <emphasis>$_X_aspect_43</emphasis>
 ties the aspect ratio to a value of 4:3. The idea behind this is that, whatever
 the actual resolution of a graphics mode is in DOS, it is displayed on
 a 4:3 monitor. This way you won't run into problems with modes such
 as 640x200 (or even 320x200) which would look somewhat distorted otherwise.
 </para>
 
-</sect2>
-
-<sect2>
-<title>Planar (16 color and mode-X) modes and fonts. (May 2000)</title>
-
 <para>
-All standard vga modes work now. For planar modes, vgaemu has to
-switch to part ial cpu emulation. This can be slow, but expect it to
-improve over time. The mode-X applications work fine as well, since
-the cpu emulation they need is exactly the same as for the planar 16
-color modes. Applications that ask for a 320x240 or other non-standard
-mode, for instance, have this request honoured by vgaemu and should
-work fine as well.
-</para>
-<para>
-Fonts are present in the VESA bios now. They should work fine in all 
-graphics modes.
+For planar modes (for instance, most 16 colour modes, but also certain
+256-colour modes: mode-X), vgaemu has to
+switch to partial cpu emulation. This can be slow, but expect it to
+improve over time.
 </para>
 </sect2>
 

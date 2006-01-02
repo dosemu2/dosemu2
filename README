@@ -66,7 +66,7 @@ You can just execute ./ViewDocs to read the docs.
 	and programmers alike, if they want to look at the internals
 	of DOSEMU and how it works.
 ./man/dosemu.bin.1
-	This is the 'lowlevel' DOSEMU man page. It is now up to date with 1.0.2.
+	This is the 'lowlevel' DOSEMU man page.
 ./man/dosemu.1
 	This is the DOSEMU man page of the wrapper script.
 ./man/mkfatimage16.1
