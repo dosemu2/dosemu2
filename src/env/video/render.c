@@ -323,6 +323,7 @@ static int update_graphics_loop(int update_offset, vga_emu_update_type *veut)
 static int update_graphics_screen(vga_emu_update_type *veut)
 {
   int update_ret;
+  unsigned wrap;
 
   if(vga.reconfig.mem || vga.reconfig.display || vga.reconfig.dac)
     modify_mode(veut);
@@ -335,6 +336,12 @@ static int update_graphics_screen(vga_emu_update_type *veut)
     if (vga.line_compare > vga.height)
       veut->display_end = veut->display_start + vga.scan_len * vga.height;
     dirty_all_video_pages();
+  }
+
+  wrap = 0;
+  if (veut->display_end > vga.mem.wrap) {
+    wrap = veut->display_end - vga.mem.wrap;
+    veut->display_end = vga.mem.wrap;
   }
 
   /*
@@ -351,6 +358,20 @@ static int update_graphics_screen(vga_emu_update_type *veut)
   veut->max_len = veut->max_max_len;
 
   update_ret = update_graphics_loop(0, veut);
+
+  if (wrap > 0) {
+    /* This is for programs such as Commander Keen 4 that set the
+       display_start close to the end of the video memory, and
+       we need to wrap at 0xb0000
+    */
+    veut->display_end = wrap;
+    wrap = veut->display_start;
+    veut->display_start = 0;
+    veut->max_len = veut->max_max_len;
+    update_ret = update_graphics_loop(vga.mem.wrap - wrap, veut);
+    veut->display_start = wrap;
+    veut->display_end += vga.mem.wrap;
+  }
 
   if (vga.line_compare < vga.height) {
           

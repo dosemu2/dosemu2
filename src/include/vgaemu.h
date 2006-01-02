@@ -266,6 +266,7 @@ typedef struct {
 typedef struct {
   unsigned char *base;			/* base address of VGA memory */
   unsigned size;			/* size of memory in bytes */
+  unsigned wrap;			/* wrapping point */
   unsigned pages;			/* dto in pages */
   unsigned lfb_base_page;		/* lfb base page, 0 -> no lfb support */
   unsigned scratch_page;		/* for unmapped areas */
