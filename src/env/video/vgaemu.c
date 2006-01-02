@@ -2753,7 +2753,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
     }
     case CFG_MODE_CONTROL:
     {
-      int oldclass;
+      int oldclass, old_color_bits;
 
       if (vga.color_bits > 8)
 	return;
@@ -2789,6 +2789,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
 	  vga.pixel_size = 4;
 	}
       }
+      old_color_bits = vga.color_bits;
       vga.color_bits = vga.pixel_size;
       vga.inst_emu = (vga.mode_type==PL4 || vga.mode_type==PL2 ||
 	(vga.color_bits == 8 && 
@@ -2798,6 +2799,8 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
 	vgaemu_adj_cfg(CFG_SEQ_ADDR_MODE, 0);
 	vgaemu_adj_cfg(CFG_CRTC_WIDTH, 0);
 	vgaemu_adj_cfg(CFG_CRTC_HEIGHT, 0);
+      } else if (old_color_bits != vga.color_bits) {
+	vgaemu_adj_cfg(CFG_CRTC_WIDTH, 0);
       }
       vga.reconfig.re_init = 1;
       break;
