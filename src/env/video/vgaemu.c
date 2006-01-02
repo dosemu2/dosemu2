@@ -277,6 +277,7 @@
 #include "vgaemu.h"
 #include "priv.h"
 #include "mapping.h"
+#include "utilities.h"
 
 /* table with video mode definitions */
 #include "vgaemu_modelist.h"
@@ -2578,13 +2579,16 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       if(msg || u != u0) vga_msg("vgaemu_adj_cfg: seq.addr_mode = %s\n", txt1[u]);
       if (vga.mode_class == TEXT && vga.width < 2048) {
         int horizontal_display_end = vga.crtc.data[0x1] + 1;
+	int horizontal_blanking_start = vga.crtc.data[0x2] + 1;
 	int multiplier = 9 - (vga.seq.data[1] & 1);
-	int width = horizontal_display_end * multiplier;
+	int width = min(horizontal_display_end, horizontal_blanking_start) *
+	  multiplier;
 	if ((vga.width != width) || (vga.char_width != multiplier)) {
 	  vga.width = width;
 	  vga.char_width = multiplier;
 	  vga.text_width = horizontal_display_end;
 	  vga.reconfig.display = 1;
+	  vga.reconfig.re_init = 1;
 	}
       }
     break;
@@ -2652,7 +2656,8 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       vertical_multiplier = char_height << ((vga.crtc.data[0x9] & 0x80) >> 7);
       /* see VGADOC: CGA is special for reg 9 */
       if(vga.mode_type == CGA) vertical_multiplier = char_height;
-      height = (vertical_display_end +1) / vertical_multiplier;
+      height = (min(vertical_blanking_start, vertical_display_end) + 1) /
+	vertical_multiplier;
       vga_msg("vgaemu_adj_cfg: vertical_total = %d\n", vertical_total);
       vga_msg("vgaemu_adj_cfg: vertical_retrace_start = %d\n", vertical_retrace_start);
       vga_msg("vgaemu_adj_cfg: vertical_retrace_end = %d\n", vertical_retrace_end);
@@ -2685,6 +2690,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
         vga_msg("vgaemu_adj_cfg: text_height=%d height=%d char_height=%d\n",
                 height, vertical_display_end+1, vga.char_height);
         vga.reconfig.display = 1;
+	vga.reconfig.re_init = 1;
       }
       break;
     }
@@ -2705,7 +2711,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       /* everything below is in characters */
       horizontal_total = vga.crtc.data[0x0] +5;
       horizontal_display_end = vga.crtc.data[0x1] + 1;
-      horizontal_blanking_start = vga.crtc.data[0x2];
+      horizontal_blanking_start = vga.crtc.data[0x2] + 1;
       horizontal_blanking_end = vga.crtc.data[0x3] & 0xF;
       horizontal_retrace_start = vga.crtc.data[0x4];
       horizontal_retrace_end = vga.crtc.data[0x5] & 0xF;
@@ -2716,7 +2722,8 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       }
       if (vga.width % multiplier != 0) /* special user defined mode? */
 	return;
-      width = horizontal_display_end * multiplier;
+      width = min(horizontal_display_end, horizontal_blanking_start) *
+	multiplier;
       vga_msg("vgaemu_adj_cfg: horizontal_total = %d\n", horizontal_total);
       vga_msg("vgaemu_adj_cfg: horizontal_retrace_start = %d\n", horizontal_retrace_start);
       vga_msg("vgaemu_adj_cfg: horizontal_retrace_end = %d\n", horizontal_retrace_end);
@@ -2728,8 +2735,9 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       if ((vga.width != width) || (vga.char_width != multiplier)) {
         vga.width = width;
         vga.char_width = (multiplier >= 8) ? multiplier : 8;
-	vga.text_width = horizontal_display_end;
+	vga.text_width = min(horizontal_display_end, horizontal_blanking_start);
         vga.reconfig.display = 1;
+	vga.reconfig.re_init = 1;
       }
       break;
     }
