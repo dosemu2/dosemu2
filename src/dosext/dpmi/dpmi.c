@@ -3346,9 +3346,9 @@ void dpmi_fault(struct sigcontext_struct *scp)
 #endif
 {
 
-#define LWORD32(x,y) {if (DPMI_CLIENT.is_32) _##x y; else _LWORD(x) y;}
-#define _LWECX	   (DPMI_CLIENT.is_32 ^ prefix67 ? _ecx : _LWORD(ecx))
-#define set_LWECX(x) {if (DPMI_CLIENT.is_32 ^ prefix67) _ecx=(x); else _LWORD(ecx) = (x);}
+#define LWORD32(x,y) {if (Segments[_cs >> 3].is_32) _##x y; else _LWORD(x) y;}
+#define _LWECX	   (Segments[_cs >> 3].is_32 ^ prefix67 ? _ecx : _LWORD(ecx))
+#define set_LWECX(x) {if (Segments[_cs >> 3].is_32 ^ prefix67) _ecx=(x); else _LWORD(ecx) = (x);}
 
   us *ssp;
   unsigned char *csp, *lina;
@@ -3445,7 +3445,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	/* trick, because dpmi_fault must return void */
 	_trapno = *csp;
 #ifdef CPUEMU_DIRECT_IO
-	if (InCompiledCode && !DPMI_CLIENT.is_32) {
+       if (InCompiledCode && !Segments[_cs >> 3].is_32) {
 	    prefix66 ^= 1; prefix67 ^= 1; /* since we come from 32-bit code */
 /**/ e_printf("dpmi_fault: adjust prefixes to 66=%d,67=%d\n",
 		prefix66,prefix67);
@@ -3720,7 +3720,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_RSPcall)) {
 	  leave_lpms(scp);
-	  if (DPMI_CLIENT.is_32) {
+	  if (Segments[_ss >> 3].is_32) {
 	    in_dpmi_dos_int = ((int) *((unsigned long *) ssp)), ssp += 2;
 	  } else {
 	    in_dpmi_dos_int = (int) *ssp++;
@@ -3886,7 +3886,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
       if (debug_level('M')>=9)
         D_printf("DPMI: insb\n");
       /* NOTE: insb uses ES, and ES can't be overwritten by prefix */
-      if (DPMI_CLIENT.is_32)
+      if (Segments[_cs >> 3].is_32)
 	_edi += port_rep_inb(_LWORD(edx), (Bit8u *)SEL_ADR(_es,_edi),
 	        _LWORD(eflags)&DF, (is_rep?_LWECX:1));
       else
@@ -3901,7 +3901,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
         D_printf("DPMI: insw\n");
       /* NOTE: insw/d uses ES, and ES can't be overwritten by prefix */
       if (prefix66) {
-	if (DPMI_CLIENT.is_32)
+	if (Segments[_cs >> 3].is_32)
 	  _edi += port_rep_inw(_LWORD(edx), (Bit16u *)SEL_ADR(_es,_edi),
 		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
 	else
@@ -3909,7 +3909,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
       }
       else {
-	if (DPMI_CLIENT.is_32)
+	if (Segments[_cs >> 3].is_32)
 	  _edi += port_rep_ind(_LWORD(edx), (Bit32u *)SEL_ADR(_es,_edi),
 		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
 	else
@@ -3924,7 +3924,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
       if (debug_level('M')>=9)
         D_printf("DPMI: outsb\n");
       if (pref_seg < 0) pref_seg = _ds;
-      if (DPMI_CLIENT.is_32)
+      if (Segments[_cs >> 3].is_32)
 	_esi += port_rep_outb(_LWORD(edx), (Bit8u *)SEL_ADR(pref_seg,_esi),
 	        _LWORD(eflags)&DF, (is_rep?_LWECX:1));
       else
@@ -3939,7 +3939,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
         D_printf("DPMI: outsw\n");
       if (pref_seg < 0) pref_seg = _ds;
       if (prefix66) {
-        if (DPMI_CLIENT.is_32)
+        if (Segments[_cs >> 3].is_32)
 	  _esi += port_rep_outw(_LWORD(edx), (Bit16u *)SEL_ADR(pref_seg,_esi),
 		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
         else
@@ -3947,7 +3947,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
       }
       else {
-        if (DPMI_CLIENT.is_32)
+        if (Segments[_cs >> 3].is_32)
 	  _esi += port_rep_outd(_LWORD(edx), (Bit32u *)SEL_ADR(pref_seg,_esi),
 		_LWORD(eflags)&DF, (is_rep?_LWECX:1));
         else
@@ -3960,8 +3960,8 @@ void dpmi_fault(struct sigcontext_struct *scp)
 
     case 0xe5:			/* inw xx, ind xx */
       if (debug_level('M')>=9)
-        D_printf("DPMI: in%s xx\n", prefix66 ^ DPMI_CLIENT.is_32 ? "d" : "w");
-      if (prefix66 ^ DPMI_CLIENT.is_32) _eax = ind((int) csp[0]);
+        D_printf("DPMI: in%s xx\n", prefix66 ^ Segments[_cs >> 3].is_32 ? "d" : "w");
+      if (prefix66 ^ Segments[_cs >> 3].is_32) _eax = ind((int) csp[0]);
       else _LWORD(eax) = inw((int) csp[0]);
       LWORD32(eip, += 2);
       break;
@@ -3974,8 +3974,8 @@ void dpmi_fault(struct sigcontext_struct *scp)
       break;
     case 0xed:			/* inw dx */
       if (debug_level('M')>=9)
-        D_printf("DPMI: in%s dx\n", prefix66 ^ DPMI_CLIENT.is_32 ? "d" : "w");
-      if (prefix66 ^ DPMI_CLIENT.is_32) _eax = ind(_LWORD(edx));
+        D_printf("DPMI: in%s dx\n", prefix66 ^ Segments[_cs >> 3].is_32 ? "d" : "w");
+      if (prefix66 ^ Segments[_cs >> 3].is_32) _eax = ind(_LWORD(edx));
       else _LWORD(eax) = inw(_LWORD(edx));
       LWORD32(eip,++);
       break;
@@ -3989,7 +3989,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
     case 0xe7:			/* outw xx */
       if (debug_level('M')>=9)
         D_printf("DPMI: outw xx\n");
-      if (prefix66 ^ DPMI_CLIENT.is_32) outd((int)csp[0], _eax);
+      if (prefix66 ^ Segments[_cs >> 3].is_32) outd((int)csp[0], _eax);
       else outw((int)csp[0], _LWORD(eax));
       LWORD32(eip, += 2);
       break;
@@ -4002,7 +4002,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
     case 0xef:			/* outw dx */
       if (debug_level('M')>=9)
         D_printf("DPMI: outw dx\n");
-      if (prefix66 ^ DPMI_CLIENT.is_32) outd(_LWORD(edx), _eax);
+      if (prefix66 ^ Segments[_cs >> 3].is_32) outd(_LWORD(edx), _eax);
       else outw(_LWORD(edx), _LWORD(eax));
       LWORD32(eip, += 1);
       break;
