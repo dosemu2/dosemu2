@@ -720,7 +720,7 @@ static void vga_RAM_to_RAM(unsigned height, unsigned char chr, unsigned count,
   dst = vga.mem.base + 0x20000 + bankofs;
   /* copy count characters of height bytes each to vga_font_mem */
   for(i = chr; i < chr + count; i++) {
-    MEMCPY_2UNIX(dst + i * 32, src + i * height, height);
+    MEMCPY_2UNIX(dst + i * 32, src + (i - chr) * height, height);
     if (height < 32)
       memset(dst + i * 32 + height, 0, 32 - height);
   }
