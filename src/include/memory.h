@@ -223,12 +223,14 @@
 
 /* memcheck memory conflict finder definitions */
 int  memcheck_addtype(unsigned char map_char, char *name);
-void memcheck_reserve(unsigned char map_char, int addr_start, int size);
+void memcheck_reserve(unsigned char map_char, size_t addr_start, size_t size);
 void memcheck_init(void);
 int  memcheck_isfree(int addr_start, int size);
 int  memcheck_findhole(int *start_addr, int min_size, int max_size);
 void memcheck_dump(void);
 void memcheck_type_init(void);
+extern struct system_memory_map *system_memory_map;
+extern size_t system_memory_map_size;
 void *dosaddr_to_unixaddr(void *addr);
 
 /* lowmem_base points to a shared memory image of the area 0--1MB+64K.

@@ -30,7 +30,14 @@
 static unsigned char mem_map[MAX_PAGE];          /* Map of memory contents      */
 static char *mem_names[256];             /* List of id. strings         */
 
-static inline void round_addr(int *addr)
+struct system_memory_map {
+  Bit32u base, hibase, length, hilength, type;
+};
+
+struct system_memory_map *system_memory_map;
+size_t system_memory_map_size;
+
+static inline void round_addr(size_t *addr)
 {
   *addr = (*addr + GRAN_SIZE - 1) / GRAN_SIZE;
   *addr *= GRAN_SIZE;
@@ -54,9 +61,10 @@ int memcheck_addtype(unsigned char map_char, char *name)
   return(0);
 }
 
-void memcheck_reserve(unsigned char map_char, int addr_start, int size)
+void memcheck_reserve(unsigned char map_char, size_t addr_start, size_t size)
 {
   int cntr, addr_end;
+  struct system_memory_map *entry;
 
   c_printf("CONF: reserving %dKb at 0x%5.5X for '%c' (%s)\n", size/1024,
 	   addr_start, map_char, mem_names[map_char]);
@@ -65,7 +73,8 @@ void memcheck_reserve(unsigned char map_char, int addr_start, int size)
   addr_end = addr_start + size;
   round_addr(&addr_end);
 
-  for (cntr = addr_start / GRAN_SIZE; cntr < addr_end / GRAN_SIZE; cntr++) {
+  for (cntr = addr_start / GRAN_SIZE;
+       cntr < addr_end / GRAN_SIZE && cntr < MAX_PAGE; cntr++) {
     if (mem_map[cntr]) {
       if (mem_map[cntr] == map_char) {
 	c_printf("CONF: Possible error.  The memory type '%s' has\
@@ -84,6 +93,18 @@ void memcheck_reserve(unsigned char map_char, int addr_start, int size)
     else
       mem_map[cntr] = map_char;
   }
+  if (config.exitearly)
+    return;
+
+  system_memory_map_size += sizeof(*system_memory_map);
+  system_memory_map = realloc(system_memory_map, system_memory_map_size);
+  entry = system_memory_map +
+    system_memory_map_size / sizeof(*system_memory_map) - 1;
+  entry->base = addr_start;
+  entry->hibase = 0;
+  entry->length = size;
+  entry->hilength = 0;
+  entry->type = 2 - (map_char == 'd' || map_char == 'U' || map_char == 'x');
 }
 
 void memcheck_type_init(void)

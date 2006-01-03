@@ -812,6 +812,21 @@ SeeAlso: AH=8Ah"Phoenix",AX=E802h,AX=E820h,AX=E881h"Phoenix"
 	}
 	NOCARRY;
 	break;
+    } else if (REG(eax) == 0xe820 && REG(edx) == 0x534d4150) {
+	REG(eax) = REG(edx);
+	if (REG(ebx) < system_memory_map_size) {
+	  REG(ecx) = max(REG(ecx), 20L);
+	  if (REG(ebx) + REG(ecx) >= system_memory_map_size)
+	    REG(ecx) = system_memory_map_size - REG(ebx);
+	  MEMCPY_2DOS(MK_FP32(_ES, _DI), (char *)system_memory_map + REG(ebx),
+		      REG(ecx));
+	  REG(ebx) += REG(ecx);
+	} else
+	  REG(ecx) = 0;
+	if (REG(ebx) >= system_memory_map_size)
+	  REG(ebx) = 0;
+	NOCARRY;
+	break;
     }
     /* Fall through !! */
 

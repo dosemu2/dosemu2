@@ -500,7 +500,7 @@ int register_hardware_ram(int type, size_t base, size_t size)
 {
   struct hardware_ram *hw;
 
-  if (!can_do_root_stuff && type) {
+  if (!can_do_root_stuff && type != 'e') {
     dosemu_error("can't use hardware ram in low feature (non-suid root) DOSEMU\n");
     return 0;
   }
@@ -512,8 +512,8 @@ int register_hardware_ram(int type, size_t base, size_t size)
   hw->type = type;
   hw->next = hardware_ram;
   hardware_ram = hw;
-  if ((size_t)base < LOWMEM_SIZE && type == 'h')
-    memcheck_reserve('h', base, size);
+  if ((size_t)base >= LOWMEM_SIZE || type == 'h')
+    memcheck_reserve(type, base, size);
   return 1;
 }
 

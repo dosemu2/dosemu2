@@ -1550,7 +1550,8 @@ int vga_emu_init(int src_modes, ColorSpaceDesc *csd)
 
   if(lfb_base != NULL) {
     vga.mem.lfb_base_page = (unsigned) lfb_base >> 12;
-    register_hardware_ram(0, (size_t)lfb_base, vga.mem.size);
+    memcheck_addtype('e', "VGAEMU LFB");
+    register_hardware_ram('e', (size_t)lfb_base, vga.mem.size);
   }
 
   vga_emu_setup_mode_table();
