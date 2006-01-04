@@ -334,7 +334,6 @@ int mscdex(void)
 		break;
 	case 0x0B:		/* CD-ROM drive check */
 		_AX = 0;
-		printf("%d\n", _CX);
 		for (i = 0; i < 4; i++)
 			if (_CX == cd_drives[i]) {
 				_AX = 1;
@@ -349,7 +348,6 @@ int mscdex(void)
 		for (i = 0; i < 4; i++)
 			if (cd_drives[i] != -1)
 				WRITE_BYTE(buf++, cd_drives[i]);
-		printf("%d\n", READ_BYTE(buf));
 		break;
 	case 0x0F:		/* Get directory entry */
 		CARRY;

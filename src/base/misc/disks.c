@@ -31,6 +31,7 @@
 #include <sys/time.h>
 
 #include "emu.h"
+#include "int.h"
 #include "port.h"
 #include "bios.h"
 #include "disks.h"
@@ -41,6 +42,7 @@
 #include "fatfs.h"
 #include "utilities.h"
 #include "dos2linux.h"
+#include "redirect.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
@@ -1007,8 +1009,12 @@ disk_init(void)
 void disk_reset(void)
 {
   struct disk *dp;
+  int i;
 
   subst_file_ext(NULL);
+  for (i = 0; i < 26; i++)
+    CancelDiskRedirection(i);
+  set_int21_revectored(redir_state = 1);
   for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++)
     if(dp->type == DIR_TYPE) {
       if (dp->fatfs) fatfs_done(dp);
