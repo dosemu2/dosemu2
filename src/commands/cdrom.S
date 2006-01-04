@@ -27,7 +27,7 @@ ConDev:
         .ascii  "MSCD000"	# logical device name
 Index:	.ascii	"1"
 	.word	0		# reserved
-        .byte   0
+        .byte   0		# drive letter
         .byte   1		# number of units supported by driver
         .ascii  "MSCD00"	# signature
 

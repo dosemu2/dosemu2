@@ -952,9 +952,8 @@ static int mfs_lfn_(void)
 			memset(dest, 0, 0x20);
 			*dest = VOLUME_LABEL;
 			dest[0x2c + 8 + 3] = '\0';
-			get_volume_label(dest + 0x2c, dest + 0x2c + 8, drive);
-			d_printf("LFN: get volume label: %s\n", dest + 0x2c);
-			dest[0x130] = '\0';
+			get_volume_label(dest + 0x2c, dest + 0x2c + 8, dest + 0x130, drive);
+			d_printf("LFN: get volume label: %s; %s\n", dest + 0x2c, dest + 0x130);
 			lfndirs[dirhandle] = dir;
 			dir->dir = NULL;
 			_AX = dirhandle;

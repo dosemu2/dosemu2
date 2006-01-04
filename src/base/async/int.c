@@ -451,7 +451,7 @@ int dos_helper(void)
   case DOS_HELPER_CDROM_HELPER:{
       E_printf("CDROM: in 0x40 handler! ax=0x%04x, bx=0x%04x, dx=0x%04x, "
 	       "cx=0x%04x\n", LWORD(eax), LWORD(ebx), LWORD(edx), LWORD(ecx));
-      cdrom_helper();
+      cdrom_helper(NULL, NULL);
       break;
     }
 
@@ -1841,6 +1841,10 @@ static int int2f(void)
   case 0x11:              /* redirector call? */
     if (LO(ax) == 0x23) subst_file_ext(SEG_ADR((char *), ds, si));
     if (mfs_redirector()) return 1;
+    break;
+
+  case 0x15:
+    if (mscdex()) return 1;
     break;
 
   case 0x16:		/* misc PM/Win functions */

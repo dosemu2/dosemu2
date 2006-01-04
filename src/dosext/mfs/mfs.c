@@ -764,7 +764,7 @@ get_unix_path(char *new_path, char *path)
 }
 
 static int
-init_drive(int dd, char *path, char *options)
+init_drive(int dd, char *path, int options)
 {
   struct stat st;
   char *new_path;
@@ -780,7 +780,7 @@ init_drive(int dd, char *path, char *options)
   get_unix_path(new_path, path);
   new_len = strlen(new_path);
   Debug0((dbg_fd, "new_path=%s\n", new_path));
-  Debug0((dbg_fd, "next_aval %d path %s opts %s root %s length %d\n",
+  Debug0((dbg_fd, "next_aval %d path %s opts %d root %s length %d\n",
 	  dd, path, options, new_path, new_len));
 
   /* now a kludge to find the true name of the path */
@@ -805,9 +805,11 @@ init_drive(int dd, char *path, char *options)
   drives[dd].root_len = new_len;
   if (num_drives <= dd)
     num_drives = dd + 1;
-  drives[dd].read_only = (options && (toupper(options[0]) == 'R'));
+  drives[dd].read_only = options;
   Debug0((dbg_fd, "initialised drive %d as %s with access of %s\n", dd, drives[dd].root,
 	  drives[dd].read_only ? "READ_ONLY" : "READ_WRITE"));
+  if (options >= 2 && options <= 5)
+    register_cdrom(dd, options - 1);
 #if 0  
   calculate_drive_pointers (dd);
 #endif
@@ -1553,6 +1555,7 @@ dos_fs_dev(state_t *state)
       char cline[256];
       char *t;
       int i = 0;
+      int opt;
 
       while (*clineptr != '\n' && *clineptr != '\r')
 	cline[i++] = *(clineptr++);
@@ -1563,8 +1566,12 @@ dos_fs_dev(state_t *state)
 	t = strtok(NULL, " \n\r\t");
       }
 
-      if (!init_drive(drive_to_redirect, t,
-		      t ? strtok(NULL, " \n\r\t") : NULL)) {
+      opt = 0;
+      if (t) {
+	char *p = strtok(NULL, " \n\r\t");
+	opt = (p && (toupper(p[0]) == 'R'));
+      }
+      if (!init_drive(drive_to_redirect, t, opt)) {
 	SETWORD(&(state->eax), 0);
 	return (UNCHANGED);
       }
@@ -2378,7 +2385,7 @@ RedirectDisk(int dsk, char *resourceName, int ro_flag)
 
   path_to_ufs(path, 0, &resourceName[strlen(LINUX_RESOURCE)], 1, 0);
 
-  i = init_drive(dsk, path, ro_flag ? "R" : NULL) == 0 ? 4 : 0;
+  i = init_drive(dsk, path, ro_flag) == 0 ? 4 : 0;
 
   if(!i) {
     /* Make drive known to DOS.
@@ -2469,9 +2476,9 @@ RedirectDevice(state_t * state)
   path_to_ufs(path, 0, &resourceName[strlen(LINUX_RESOURCE)], 1, 0);
 
   /* if low bit of CX is set, then set for read only access */
-  Debug0((dbg_fd, "read-only attribute = %d\n",
-	  (int) (state->ecx & 1)));
-  if (init_drive(drive, path, (state->ecx & 1) ? "R" : NULL) == 0) {
+  Debug0((dbg_fd, "read-only/cdrom attribute = %d\n",
+	  (int) (state->ecx & 7)));
+  if (init_drive(drive, path, state->ecx & 7) == 0) {
     SETWORD(&(state->eax), NETWORK_NAME_NOT_FOUND);
     return (FALSE);
   }
@@ -2534,6 +2541,7 @@ CancelDiskRedirection(int dsk)
     cds_flags(cds) = CDS_FLAG_READY;
   }
 
+  unregister_cdrom(dsk);
   return 0;
 }
 
@@ -2598,6 +2606,7 @@ CancelRedirection(state_t * state)
     /* if DBP_pointer is non-NULL, set the drive status to ready */
     cds_flags(cds) = CDS_FLAG_READY;
   }
+  unregister_cdrom(drive);
 
   Debug0((dbg_fd, "CancelRedirection on %s completed\n", deviceName));
   return (TRUE);
@@ -2938,24 +2947,35 @@ static boolean_t find_again(boolean_t firstfind, int drive, char *fpath,
   return (FALSE);
 }
 
-void get_volume_label(char *fname, char *fext, int drive)
+void get_volume_label(char *fname, char *fext, char *lfn, int drive)
 {
   char *label, *root, *p;
+  char cdrom_label[32];
   Debug0((dbg_fd, "DO LABEL!!\n"));
 
-  p = drives[drive].root;
-  label = (char *) malloc(8 + 3 + 1);
-  root = strdup(p);
-  if (root[strlen(root) - 1] == '/' && strlen(root) > 1)
-    root[strlen(root) - 1] = '\0';
+  if (get_volume_label_cdrom(drive, cdrom_label)) {
+    if (lfn)
+      strcpy(lfn, cdrom_label);
+    label = strdup(cdrom_label);
+  } else {
+    p = drives[drive].root;
+    label = (char *) malloc(8 + 3 + 1);
+    root = strdup(p);
+    if (root[strlen(root) - 1] == '/' && strlen(root) > 1)
+      root[strlen(root) - 1] = '\0';
 
-  label[0] = '\0';
+    if (lfn)
+      snprintf(lfn, 260, "%s", root);
 
-  if (strlen(label) + strlen(root) <= 8 + 3) {
-    strcat(label, root);
-  }
-  else {
-    strcat(label, root + strlen(root) - (8 + 3 - strlen(label)));
+    label[0] = '\0';
+
+    if (strlen(label) + strlen(root) <= 8 + 3) {
+      strcat(label, root);
+    }
+    else {
+      strcat(label, root + strlen(root) - (8 + 3 - strlen(label)));
+    }
+    free(root);
   }
   p = label + strlen(label);
   if (p < label + 8 + 3)
@@ -2964,7 +2984,6 @@ void get_volume_label(char *fname, char *fext, int drive)
   memcpy(fname, label, 8);
   memcpy(fext, label + 8, 3);
   free(label);
-  free(root);
 }
 
 static int
@@ -3764,7 +3783,7 @@ dos_fs_redirect(state_t *state)
     if (((attr & (VOLUME_LABEL|DIRECTORY)) == VOLUME_LABEL) &&
 	strncmp(sdb_template_name(sdb), "????????", 8) == 0 &&
 	strncmp(sdb_template_ext(sdb), "???", 3) == 0) {
-      get_volume_label(fname, fext, drive);
+      get_volume_label(fname, fext, NULL, drive);
       memcpy(sdb_file_name(sdb), fname, 8);
       memcpy(sdb_file_ext(sdb), fext, 3);
       sdb_file_attr(sdb) = VOLUME_LABEL;

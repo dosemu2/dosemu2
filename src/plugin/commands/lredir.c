@@ -327,7 +327,9 @@ ShowMyRedirections(void)
 
         /* read attribute is returned in the device parameter */
         if (deviceParam & 0x80) {
-          switch (deviceParam & 0x7f) { /* tej 1/7/95 */
+	  if ((deviceParam & 0x7f) > 1)
+	    printf("CDROM:%d ", (deviceParam & 0x7f) - 1);
+          switch ((deviceParam & 0x7f) != 0) {
             case READ_ONLY_DRIVE_ATTRIBUTE:
               printf("attrib = READ ONLY\n");
               break;
@@ -417,11 +419,12 @@ int lredir_main(int argc, char **argv)
 
     /* tej one parm is either error or HELP/-help etc */
     if (argc == 2) {
-      printf("Usage: LREDIR [drive: LINUX\\FS\\path [R] | HELP]\n");
+      printf("Usage: LREDIR [drive: LINUX\\FS\\path [R] | [C [n]] | HELP]\n");
       printf("Redirect a drive to the Linux file system.\n\n");
       printf("LREDIR X: LINUX\\FS\\tmp\n");
       printf("  Redirect drive X: to /tmp of Linux file system for read/write\n");
       printf("  If R is specified, the drive will be read-only\n");
+      printf("  If C is specified, (read-only) CDROM n is used (n=1 by default)\n");
       printf("  ${home} represents user's home directory\n\n");
       printf("LREDIR DEL drive:\n");
       printf("  delete a drive redirection\n\n");
@@ -447,6 +450,12 @@ int lredir_main(int argc, char **argv)
       if (toupper(argv[3][0]) == 'R') {
         deviceParam = 1;
       }
+      if (toupper(argv[3][0]) == 'C') {
+	int cdrom = 1;
+	if (argc > 4 && argv[4][0] >= '1' && argv[4][0] <= '4')
+	  cdrom = argv[4][0] - '0';
+        deviceParam = 1 + cdrom;
+      }
     }
 
     /* upper-case both strings */
@@ -470,8 +479,11 @@ int lredir_main(int argc, char **argv)
       goto MainExit;
     }
 
-    printf("%s = %s  attrib = ", deviceStr, resourceStr);
-    switch (deviceParam) {
+    printf("%s = %s", deviceStr, resourceStr);
+    if (deviceParam > 1)
+      printf(" CDROM:%d", deviceParam - 1);
+    printf(" attrib = ");
+    switch (deviceParam != 0) {
       case READ_ONLY_DRIVE_ATTRIBUTE:
         printf("READ ONLY\n");
         break;

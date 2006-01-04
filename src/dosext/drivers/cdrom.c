@@ -222,9 +222,8 @@ static void cdrom_reset(void)
 #define MSCD_AUDCHAN_VOLUME2       6
 #define MSCD_AUDCHAN_VOLUME3       8
 
-void cdrom_helper(void)
+void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf)
 {
-   unsigned char *req_buf,*transfer_buf;
    unsigned int Sector_plus_150,Sector;
    struct cdrom_msf cdrom_msf;
    struct cdrom_subchnl cdrom_subchnl;
@@ -326,8 +325,8 @@ void cdrom_helper(void)
                        }
                 }
 
-                req_buf = SEG_ADR((char *), es, di);
-                transfer_buf = SEG_ADR((char *), ds, si);
+                if (req_buf == NULL) req_buf = SEG_ADR((char *), es, di);
+                if (transfer_buf == NULL) transfer_buf = SEG_ADR((char *), ds, si);
 
                 if (*CALC_PTR(req_buf,MSCD_READ_ADRESSING,u_char) == 1) {
                   cdrom_msf.cdmsf_min0   = *CALC_PTR(req_buf,MSCD_READ_STARTSECTOR+2,u_char);
@@ -346,7 +345,7 @@ void cdrom_helper(void)
 		    C_printf("CDROM: lseek failed: %s\n", strerror(errno));
 		    LO(ax) = 1;
 		} else {
-		    if ( (n = read (cdrom_fd, transfer_buf, *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*CD_FRAMESIZE)) < 0) {
+		    if ( (n = dos_read (cdrom_fd, transfer_buf, *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*CD_FRAMESIZE)) < 0) {
 			/* cd must be in drive, reset drive and try again */
 			cdrom_reset();
 			if ((off_t) -1 == lseek (cdrom_fd, Sector*CD_FRAMESIZE, SEEK_SET)) {
@@ -354,7 +353,7 @@ void cdrom_helper(void)
 			    C_printf("CDROM: lseek failed: %s\n", strerror(errno));
 			    LO(ax) = 1;
 			} else
-			    if ( (n = read (cdrom_fd, transfer_buf, *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*CD_FRAMESIZE)) < 0) {
+			    if ( (n = dos_read (cdrom_fd, transfer_buf, *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*CD_FRAMESIZE)) < 0) {
 				HI(ax) = (errno == EFAULT ? 0x0A : 0x0F);
 				C_printf("CDROM: sector read (to %p, len %#x) failed: %s\n",
 					  transfer_buf, *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*CD_FRAMESIZE, strerror(errno));
