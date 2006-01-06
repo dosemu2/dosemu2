@@ -3720,7 +3720,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_RSPcall)) {
 	  leave_lpms(scp);
-	  if (Segments[_ss >> 3].is_32) {
+	  if (DPMI_CLIENT.is_32) {
 	    in_dpmi_dos_int = ((int) *((unsigned long *) ssp)), ssp += 2;
 	  } else {
 	    in_dpmi_dos_int = (int) *ssp++;
