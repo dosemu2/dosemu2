@@ -2487,32 +2487,8 @@ RedirectDevice(state_t * state)
   }
 }
 
-/*****************************
- * CancelDiskRedirection - cancel a drive redirection
- * on entry:
- * on exit:
- *   Returns 0 on success, otherwise some error code.
- * notes:
- *   This function is used internally by DOSEMU, in contrast to
- *   CancelRedirection(), which must be called from DOS.
- *****************************/
-int
-CancelDiskRedirection(int dsk)
+int ResetRedirection(int dsk)
 {
-  char *path;
-  far_t DBPptr;
-  cds_t cds;
-
-  Debug0((dbg_fd, "CancelDiskRedirection on %c:\n", dsk + 'A'));
-
-  cdsfarptr = lol_cdsfarptr(lol);
-  cds_base = (cds_t) Addr_8086(cdsfarptr.segment, cdsfarptr.offset);
-
-  /* see if drive is in range of valid drives */
-  if(dsk < 0 || dsk > lol_last_drive(lol)) return 1;
-
-  cds = drive_cds(dsk);
-
   /* Do we own this drive? */
   if(drives[dsk].root == NULL) return 2;
 
@@ -2521,72 +2497,15 @@ CancelDiskRedirection(int dsk)
   drives[dsk].root = NULL;
   drives[dsk].root_len = 0;
   drives[dsk].read_only = FALSE;
-
-  /* reset information in the CDS for this drive */
-  cds_flags(cds) = 0;		/* default to a "not ready" drive */
-
-  path = cds_current_path(cds);
-  /* set the current path for the drive */
-  path[0] = dsk + 'A';
-  path[1] = ':';
-  path[2] = '\\';
-  path[3] = EOS;
-  cds_rootlen(cds) = CDS_DEFAULT_ROOT_LEN;
-  cds_cur_cluster(cds) = 0;	/* reset us at the root of the drive */
-
-  /* see if there is a physical drive behind this redirection */
-  DBPptr = cds_DBP_pointer(cds);
-  if (DBPptr.offset | DBPptr.segment) {
-    /* if DBP_pointer is non-NULL, set the drive status to ready */
-    cds_flags(cds) = CDS_FLAG_READY;
-  }
-
   unregister_cdrom(dsk);
   return 0;
 }
 
-/*****************************
- * CancelRedirection - cancel a drive redirection
- * on entry:
- *		cds_base should be set
- * on exit:
- * notes:
- *****************************/
-static int
-CancelRedirection(state_t * state)
+static void RemoveRedirection(int drive)
 {
-  char *deviceName;
   char *path;
   far_t DBPptr;
-  int drive;
-  cds_t cds;
-
-  /* first, see if this is one of our current redirections */
-  deviceName = (u_char *) Addr(state, ds, esi);
-
-  Debug0((dbg_fd, "CancelRedirection on %s\n", deviceName));
-  if (deviceName[1] != ':') {
-    /* we only handle drive redirections, pass it through */
-    return (REDIRECT);
-  }
-  drive = toupper(deviceName[0]) - 'A';
-
-  /* see if drive is in range of valid drives */
-  if (drive < 0 || drive > lol_last_drive(lol)) {
-    SETWORD(&(state->eax), DISK_DRIVE_INVALID);
-    return (FALSE);
-  }
-  cds = drive_cds(drive);
-  if (drives[drive].root == NULL) {
-    /* we don't own this drive, pass it through to next redirector */
-    return (REDIRECT);
-  }
-
-  /* first, clean up my information */
-  free(drives[drive].root);
-  drives[drive].root = NULL;
-  drives[drive].root_len = 0;
-  drives[drive].read_only = FALSE;
+  cds_t cds = drive_cds(drive);
 
   /* reset information in the CDS for this drive */
   cds_flags(cds) = 0;		/* default to a "not ready" drive */
@@ -2606,7 +2525,67 @@ CancelRedirection(state_t * state)
     /* if DBP_pointer is non-NULL, set the drive status to ready */
     cds_flags(cds) = CDS_FLAG_READY;
   }
-  unregister_cdrom(drive);
+}
+
+/*****************************
+ * CancelDiskRedirection - cancel a drive redirection
+ * on entry:
+ * on exit:
+ *   Returns 0 on success, otherwise some error code.
+ * notes:
+ *   This function is used internally by DOSEMU, in contrast to
+ *   CancelRedirection(), which must be called from DOS.
+ *****************************/
+int
+CancelDiskRedirection(int dsk)
+{
+  Debug0((dbg_fd, "CancelDiskRedirection on %c:\n", dsk + 'A'));
+
+  cdsfarptr = lol_cdsfarptr(lol);
+  cds_base = (cds_t) Addr_8086(cdsfarptr.segment, cdsfarptr.offset);
+
+  /* see if drive is in range of valid drives */
+  if(dsk < 0 || dsk > lol_last_drive(lol)) return 1;
+
+  if (ResetRedirection(dsk) != 0)
+    return 2;
+  RemoveRedirection(dsk);
+  return 0;
+}
+
+/*****************************
+ * CancelRedirection - cancel a drive redirection
+ * on entry:
+ *		cds_base should be set
+ * on exit:
+ * notes:
+ *****************************/
+static int
+CancelRedirection(state_t * state)
+{
+  char *deviceName;
+  int drive;
+
+  /* first, see if this is one of our current redirections */
+  deviceName = (u_char *) Addr(state, ds, esi);
+
+  Debug0((dbg_fd, "CancelRedirection on %s\n", deviceName));
+  if (deviceName[1] != ':') {
+    /* we only handle drive redirections, pass it through */
+    return (REDIRECT);
+  }
+  drive = toupper(deviceName[0]) - 'A';
+
+  /* see if drive is in range of valid drives */
+  if (drive < 0 || drive > lol_last_drive(lol)) {
+    SETWORD(&(state->eax), DISK_DRIVE_INVALID);
+    return (FALSE);
+  }
+  if (ResetRedirection(drive) != 0)
+    /* we don't own this drive, pass it through to next redirector */
+    return (REDIRECT);
+
+  RemoveRedirection(drive);
 
   Debug0((dbg_fd, "CancelRedirection on %s completed\n", deviceName));
   return (TRUE);

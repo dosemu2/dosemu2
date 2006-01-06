@@ -1013,7 +1013,7 @@ void disk_reset(void)
 
   subst_file_ext(NULL);
   for (i = 0; i < 26; i++)
-    CancelDiskRedirection(i);
+    ResetRedirection(i);
   set_int21_revectored(redir_state = 1);
   for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++)
     if(dp->type == DIR_TYPE) {
