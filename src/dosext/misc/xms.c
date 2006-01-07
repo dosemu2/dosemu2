@@ -601,7 +601,7 @@ ValidHandle(unsigned short h)
 static unsigned char
 xms_query_freemem(int api)
 {
-  unsigned long totalBytes = 0, subtotal;
+  unsigned long totalBytes = 0, subtotal, largest;
   int h;
 
   /* the new XMS api should actually work with the function as it
@@ -610,8 +610,8 @@ xms_query_freemem(int api)
   if (api == NEWXMS)
     x_printf("XMS: new XMS API query_freemem()!\n");
 
-  /* total XMS mem and largest block under DOSEMU will always be the
-   * same, thanks to the wonderful operating environment
+  /* total XMS mem and largest block can be different because of
+   *  fragmentation
    */
 
   totalBytes = 0;
@@ -621,7 +621,13 @@ xms_query_freemem(int api)
   }
 
   subtotal = config.xms_size - (totalBytes / 1024);
+  if (debug_level('x')) {
+    if (smget_free_space(&mp) != subtotal * 1024)
+      x_printf("XMS smalloc mismatch!!!\n");
+  }
   /* total free is max allowable XMS - the number of K already allocated */
+
+  largest = smget_largest_free_area(&mp) / 1024;
 
   if (api == OLDXMS) {
     /* old XMS API uses only AX, while new API uses EAX. make
@@ -631,19 +637,18 @@ xms_query_freemem(int api)
        * know of 64MB of the > 64MB available memory.
        */
 
+    if (largest > 65535)
+      largest = 65535;
     if (subtotal > 65535)
       subtotal = 65535;
-    LWORD(eax) = smget_largest_free_area(&mp);
+    LWORD(eax) = largest;
     LWORD(edx) = subtotal;
-    if (debug_level('x')) {
-      if (smget_free_space(&mp) != subtotal)
-	x_printf("XMS smalloc mismatch!!!\n");
-    }
     x_printf("XMS query free memory(old): %dK %dK\n", LWORD(eax),
 	     LWORD(edx));
   }
   else {
-    REG(eax) = REG(edx) = subtotal;
+    REG(eax) = largest;
+    REG(edx) = subtotal;
     x_printf("XMS query free memory(new): %ldK %ldK\n",
 	     REG(eax), REG(edx));
   }
