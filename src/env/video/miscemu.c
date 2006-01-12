@@ -325,6 +325,7 @@ unsigned char Misc_get_input_status_1()
    */
   static unsigned char hretrace = 0, vretrace = 0, first = 1;
   static hitimer_t t_vretrace = 0;
+  static int flip = 0;
   /* Timings are 'ballpark' guesses and may vary from mode to mode, but
      such accuracy is probably not important... I hope. (--adm) */
   static int vvfreq = 17000;	/* 70 Hz - but the best we'll get with
@@ -361,8 +362,16 @@ unsigned char Misc_get_input_status_1()
       vretrace = 0x09; t_vretrace = t;
     }
     else {
+      /* The timer can't be relied upon for the very short intervals necessary
+	 for horizontal retrace emulation
+	 (such as the old "hretrace = (tdiff%49) > 35;").
+	 The following is a crude switch-on switch-off approach after
+	 10 reads taken from DosBox. It seems to work in most cases,
+         (in particular Commander Keen 4) */
+      flip++;
+      if (flip > 20) flip = 0;
       /* We're in horizontal retrace?  If so, just set DE flag, 0 in VR */
-      hretrace = (tdiff%49) > 35;
+      hretrace = flip > 10;
     }
   }
 
