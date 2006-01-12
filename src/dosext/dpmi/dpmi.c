@@ -3595,12 +3595,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  }
 	  set_IF();
 
-	  if (in_dpmi_dos_int) {
-	    if (debug_level('M') > 3) D_printf("DPMI: returned to RM from hardware "
-		    "interrupt at %p, skip hlt at %04x:%04lx\n",
-		    lina, REG(cs), REG(eip));
-	    pic_iret();
-	  } else {
+	  if (!in_dpmi_dos_int) {
 	    if (debug_level('M') > 3) D_printf("DPMI: returned to PM from hardware "
 		"interrupt at %p\n", lina);
 	    pic_iret_dpmi();

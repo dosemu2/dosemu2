@@ -892,7 +892,11 @@ pic_iret(void)
 /* if we've really come from an irq, cs:ip will point to PIC_SEG:PIC_OFF */
 /* if we haven't come from an irq and cs:ip points as above, we're going to
  * die anyway, since our next instruction is a hlt.
- */ 
+ */
+      if (REG(cs) != PIC_SEG || LWORD(eip) != PIC_OFF)
+        error("pic_iret called from %#04x:%#04x\n", REG(cs), LWORD(eip));
+      if (!pic_icount)
+        r_printf("pic_iret called when pic_icount==0 !!\n");
       pic_resched();
       pic_print(2,"IRET in vm86, loops=", in_dpmi?
       pic_dpmi_count : pic_vm86_count," ");
@@ -1125,8 +1129,8 @@ void pic_init(void)
   port_register_handler(io_device, 0);
 
   hlt_hdlr.name       = "PIC";
-  hlt_hdlr.start_addr = 0x07ff;
-  hlt_hdlr.end_addr   = 0x07ff;
+  hlt_hdlr.start_addr = PIC_ADD - BIOS_HLT_BLK;
+  hlt_hdlr.end_addr = hlt_hdlr.start_addr;
   hlt_hdlr.func       = (emu_hlt_func)pic_iret;
   hlt_register_handler(hlt_hdlr);
 }
