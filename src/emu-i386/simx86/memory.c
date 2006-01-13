@@ -210,7 +210,7 @@ int e_mprotect(caddr_t addr, size_t len)
 	    aend = (caddr_t)((long)(addr+len-1) & PAGE_MASK) + PAGE_SIZE;
 	    if (((aend-abeg)<=PAGE_SIZE) && e_querymprot(abeg)) return 1;
 	}
-	e = mprotect(abeg, aend-abeg, PROT_READ);
+	e = mprotect(abeg, aend-abeg, PROT_READ|PROT_EXEC);
 	if (e>=0) return AddMpMap(abeg, aend, 1);
 	e_printf("MPMAP: %s\n",strerror(errno));
 	return -1;

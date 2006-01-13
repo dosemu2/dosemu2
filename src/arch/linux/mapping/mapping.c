@@ -369,7 +369,7 @@ void close_mapping(int cap)
 
 void *alloc_mapping(int cap, int mapsize, void *target)
 {
-  void *addr, *alias_addr = MAP_FAILED;
+  void *addr;
 
   Q__printf("MAPPING: alloc, cap=%s, source=%p\n", cap, target);
   if (cap & MAPPING_KMEM) {
@@ -388,9 +388,6 @@ void *alloc_mapping(int cap, int mapsize, void *target)
     open_kmem();
     addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd,
 		(size_t)target);
-    if ((size_t)target <= LOWMEM_SIZE)
-      alias_addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd,
-			(size_t)target);
     close_kmem();
     if (addr == MAP_FAILED)
       return addr;
