@@ -112,12 +112,16 @@ void CRTC_init()
   if(j == 15) {
     /* adjust crtc values for vesa modes that fit certain conditions */
     if (vga.width < 2048 && vga.width % vga.char_width == 0)
-      vga.crtc.data[0x1] = vga.width / vga.char_width - 1;
+      vga.crtc.data[0x1] = vga.crtc.data[0x2] =
+	vga.width / vga.char_width - 1;
     if (vga.height <= 1024) {
       int h = vga.height - 1;
-      vga.crtc.data[0x12] = h & 0xff;
-      vga.crtc.data[0x7] &= ~0x42;
-      vga.crtc.data[0x7] |= ((h & 0x100) >> (8 - 1))|((h & 0x200) >> (9 - 6));
+      vga.crtc.data[0x12] = vga.crtc.data[0x15] = h & 0xff;
+      vga.crtc.data[0x7] &= ~0x4a;
+      vga.crtc.data[0x7] |= ((h & 0x100) >> (8 - 1))|((h & 0x200) >> (9 - 6))|
+	(h & 0x100) >> (8 - 3);
+      vga.crtc.data[0x9] &= ~0x20;
+      vga.crtc.data[0x9] |= (h & 0x200) >> (9 - 5);
     }
     if (vga.scan_len < 2048 && vga.color_bits == 8) {
       vga.crtc.data[0x13] = vga.scan_len / 8;
