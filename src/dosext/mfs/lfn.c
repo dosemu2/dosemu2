@@ -947,7 +947,7 @@ static int mfs_lfn_(void)
 		name_ufs_to_dos(dir->pattern, slash);
 		strupperDOS(dir->pattern);
 		if (((_CX & (VOLUME_LABEL|DIRECTORY)) == VOLUME_LABEL) &&
-		    strcmp(slash, "*.*") == 0) {
+		    (strcmp(slash, "*.*") == 0 || strcmp(slash, "*") ==  0)) {
 			dest = (char *)SEGOFF2LINEAR(_ES, _DI);
 			memset(dest, 0, 0x20);
 			*dest = VOLUME_LABEL;
