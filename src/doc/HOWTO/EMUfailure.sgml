@@ -239,18 +239,8 @@ process, while a 32-bit DPMI client that uses a 16-bit data segment for
 the stack is active. This is not the usual case, but unfortunately some
 32-bit DPMI clients are actually using a 16-bit segment for the stack,
 and even the dos4gw extender behaves that way sometimes.
-Intel was contacted to comment on that issue, and their comment follows:
 </para>
 <para>
-" We understand your concern, but at this time we do not have anyone to look
- at this. This part has been out for nearly 20 years and all of the
- designers are currently working on new projects.  We will make a note of
- this and see if somewhere down the road someone in software can take a look
- at this. "
-</para>
-<para>
-The reliable workaround on the dosemu side was not found, but there are some
-hopes that this can be worked around on the kernel's side.
 Programs that are known to be affected by this issue are:
 <itemizedlist>
 <listitem>
@@ -278,24 +268,8 @@ that experience a random crashes due to this CPU bug.
 </para>
 
 <para>
-It appeared that it may be possible to work around this problem by using
-a different DOS extender with the programs that are using the dos4gw
-extender by default.
-The DOS32A extender at 
-<ulink url="http://dos32a.sf.net">
-http://dos32a.sf.net,
-</ulink>
-seems not to trigger the problem.
-It can be used as follows:
-<command>DOS32A progname.exe</command> (at the DOS prompt).
-CauseWay dos extender also seems to help.
-</para>
-
-<para>
-It may be possible in the future to work around this problem by using the CPU
-emulation. It is already possible to run dosemu under a CPU emulator called
-Qemu (http://savannah.nongnu.org/projects/qemu), where this problem doesn't
-exist.
+The reliable work-around was developed and added into linux-2.6.12.
+If you hit that problem, consider upgrading your linux kernel.
 </para>
 
 </sect3>
@@ -382,11 +356,6 @@ even better, help us solving!
 <para>
 Commander Keen 1 wobbles like jelly and the window shakes 
 every time it scrolls.
-</para>
-</listitem>
-<listitem>
-<para>
-Commander Keen 4 has some problems with colours.
 </para>
 </listitem>
 <listitem>
