@@ -39,6 +39,9 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 
+#include "mapping.h"
+#include "dosemu_debug.h"
+#include "smalloc.h"
 #include "emu86.h"
 
 #define CGRAN		4		/* 2^n */
@@ -279,3 +282,34 @@ void mprot_end(void)
 
 /////////////////////////////////////////////////////////////////////////////
 
+/* allocation of generated code container buffer. An estimate is to use
+   8 times the amount of DOS (+DPMI) memory which is normally too much but the
+   address space is usually available.
+   Don't worry about ctrl-alt-del and reset: the code generator cleans up
+   itself enough.
+   We use smalloc() here on a PROT_EXEC mmap, because normal malloc() does
+   not set PROT_EXEC.
+ */
+
+static smpool mp = SM_EMPTY_POOL;
+static void *codegenbuf;
+#define CODEGEN_MEM_MULTIPLIER 8
+
+void InitGenCodeBuf (void)
+{
+	size_t size =  (HMASIZE+LOWMEM_SIZE+(config.dpmi>3)*config.dpmi) *
+	  CODEGEN_MEM_MULTIPLIER;
+	codegenbuf = mmap_mapping(MAPPING_OTHER | MAPPING_SCRATCH, (void *)-1,
+			   size, PROT_READ | PROT_WRITE | PROT_EXEC, 0);
+	sminit(&mp, codegenbuf, size);
+}
+
+void *AllocGenCodeBuf (size_t size)
+{
+	return smalloc(&mp, size);
+}
+
+void FreeGenCodeBuf (void *ptr)
+{
+	smfree(&mp, ptr);
+}

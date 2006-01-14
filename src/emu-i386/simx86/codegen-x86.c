@@ -171,6 +171,7 @@ void InitGen(void)
 {
 	GenCodeBuf = BaseGenBuf = NULL;
 	GenBufSize = 0;
+	InitGenCodeBuf();
 	InitTrees();
 }
 
@@ -2532,7 +2533,7 @@ static void ProduceCode(unsigned char *PC)
 	 *
 	 */
 	mall_req = GenBufSize + nap + 2*sizeof(void *) + 32; // 32 for tail
-	GenCodeBuf = malloc(mall_req);
+	GenCodeBuf = AllocGenCodeBuf(mall_req);
 	/* actual code buffer starts from here */
 	BaseGenBuf = CodePtr = GenCodeBuf + (2*sizeof(void *) + nap);
 	I0->addr = BaseGenBuf;

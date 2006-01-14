@@ -673,6 +673,9 @@ void e_resetpagemarks(caddr_t addr, size_t len);
 void mprot_init(void);
 void mprot_end(void);
 void InvalidateSegs(void);
+void InitGenCodeBuf(void);
+void *AllocGenCodeBuf(size_t size);
+void FreeGenCodeBuf(void *ptr);
 //
 void CollectStat(void);
 //

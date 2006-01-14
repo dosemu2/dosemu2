@@ -376,7 +376,7 @@ void avltr_delete (const long key)
 		pa[k++] = r;
 	    }
 
-	    if (t->mblock) free(t->mblock);
+	    if (t->mblock) FreeGenCodeBuf(t->mblock);
 /* e_printf("<03 node exchange %08lx->%08lx>\n",(long)s,(long)t); */
 	    datacopy(t, s);
 /**/	    if (t->addr==NULL) leavedos(0x8130);
@@ -411,7 +411,7 @@ void avltr_delete (const long key)
 	    leavedos(0x9142);
 	}
 #endif
-  if (p->mblock) free(p->mblock);
+  if (p->mblock) FreeGenCodeBuf(p->mblock);
   Tfree(p);
 
   while (--k) {
@@ -606,7 +606,7 @@ void avltr_destroy(void)
 		  B = B->next;
 		  free(B2);
 	      }
-	      if (p->mblock) free(p->mblock);
+	      if (p->mblock) FreeGenCodeBuf(p->mblock);
 	  }
       }
   }
@@ -932,7 +932,7 @@ TNode *Move2Tree(void)
 	/* ->REPLACE the code of the node found with the latest
 	   compiled version */
 	NodeUnlinker(nG);
-	if (nG->mblock) free(nG->mblock);
+	if (nG->mblock) FreeGenCodeBuf(nG->mblock);
   }
   else {
 #if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
