@@ -456,7 +456,7 @@ boolean set_video_mode(int mode) {
   vga_mode_info *vmi;
   int clear_mem = 1;
   unsigned u;
-  int co, li, text_scanlines, vga_font_height;
+  int co, li, text_scanlines, vga_font_height, orig_mode;
   ioport_t port;
 
   if (config.cardtype == CARD_NONE) {
@@ -470,6 +470,8 @@ boolean set_video_mode(int mode) {
     i10_msg("set_video_mode: undefined video mode\n");
     return 0;
   }
+
+  orig_mode = mode;
 
   if(mode >= 0x80 && mode < 0x100) {
     mode &= 0x7f;
@@ -550,7 +552,7 @@ boolean set_video_mode(int mode) {
   li = vmi->text_height;
   co = vmi->text_width;
 
-  video_mode = mode;
+  video_mode = orig_mode;
 
 #if USE_DUALMON
   /*
