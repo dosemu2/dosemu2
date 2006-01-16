@@ -2933,19 +2933,24 @@ void get_volume_label(char *fname, char *fext, char *lfn, int drive)
   Debug0((dbg_fd, "DO LABEL!!\n"));
 
   if (get_volume_label_cdrom(drive, cdrom_label)) {
-    if (lfn)
+    if (lfn) {
       strcpy(lfn, cdrom_label);
+      return;
+    }
     label = strdup(cdrom_label);
   } else {
     p = drives[drive].root;
-    label = (char *) malloc(8 + 3 + 1);
     root = strdup(p);
     if (root[strlen(root) - 1] == '/' && strlen(root) > 1)
       root[strlen(root) - 1] = '\0';
 
-    if (lfn)
+    if (lfn) {
       snprintf(lfn, 260, "%s", root);
+      free(root);
+      return;
+    }
 
+    label = (char *) malloc(8 + 3 + 1);
     label[0] = '\0';
 
     if (strlen(label) + strlen(root) <= 8 + 3) {
