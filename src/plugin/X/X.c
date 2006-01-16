@@ -2265,6 +2265,8 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
       w_x_res = x_res = vga.text_width * font_width;
       w_y_res = y_res = vga.text_height * font_height;
     } else {
+      font_width = vga.char_width;
+      font_height = vga.char_height;
       x_res = vga.width;
       w_x_res = (x_res <= 320) ? (2 * x_res) : x_res;
       y_res = vga.height;
