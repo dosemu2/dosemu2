@@ -45,6 +45,7 @@
 #endif
 
 #include "emu.h"
+#include "dos2linux.h"
 
 #undef CDROM_DEBUG
 

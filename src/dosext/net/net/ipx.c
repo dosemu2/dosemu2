@@ -898,7 +898,8 @@ int ipx_int7a(void)
       n_printf("IPX: OpenSocket: longevity flag (%#x) not supported\n", LO(ax));
     port = LWORD(edx);
     LO(ax) = IPXOpenSocket(port, &newPort);
-    LWORD(edx) = newPort;
+    if (LO(ax) == 0)
+      LWORD(edx) = newPort;
     break;
   case IPX_CLOSE_SOCKET:
     port = LWORD(edx);
