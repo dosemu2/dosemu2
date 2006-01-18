@@ -836,14 +836,14 @@ disk_init(void)
       if (errno == EROFS) {
         bootdisk.fdesc = open64(bootdisk.dev_name, O_RDONLY, 0);
         if (bootdisk.fdesc < 0) {
-          error("can't open bootdisk %s for read nor write: %s\n", dp->dev_name, strerror(errno));
+          error("can't open bootdisk %s for read nor write: %s\n", bootdisk.dev_name, strerror(errno));
           leavedos(23);
         } else {
           bootdisk.rdonly = 1;
           d_printf("(disk) can't open bootdisk %s for read/write. Readonly did work though\n", bootdisk.dev_name);
         }
       } else {
-        error("can't open bootdisk %s: %s\n", dp->dev_name, strerror(errno));
+        error("can't open bootdisk %s: %s\n", bootdisk.dev_name, strerror(errno));
         leavedos(23);
       }
     }
