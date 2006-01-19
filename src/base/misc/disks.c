@@ -819,7 +819,7 @@ static void floppy_io_write(ioport_t port, Bit8u value)
 void
 disk_init(void)
 {
-  struct disk *dp=NULL;
+  struct disk *dp;
   struct stat stbuf;
 
 #ifdef SILLY_GET_GEOMETRY
