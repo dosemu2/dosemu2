@@ -97,9 +97,13 @@ if [ -f $BPATH_FILE ]; then
   and the boot.log file is in $HOME/.dosemu.
       "
   BOOTDIR=$BOOT_DIR_PATH/freedos
+  rm -f $BPATH_FILE
+  install_dos
+else
+  # This either is the first time this user calls 'dosemu'
+  # or the user cd'ed here and we forced a 'take over'
+  install_dos
 fi
-
-install_dos
 
 get_binary
 

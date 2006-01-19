@@ -11,28 +11,63 @@ SYSTEM_CONF_PATH=NOT_SYSTEM_WIDE
 SYSTEM_XFONTS_PATH=NOT_SYSTEM_WIDE
 SYSTEM_BIN_PATH=NOT_SYSTEM_WIDE
 
-install_from_template () {
-# $BOOT_DIR_PATH = path to install to
-  if [ -z "$PROPRIETARY" ]; then
-    (cd "$BOOT_DIR_PATH"
-      tar -xzf $SYSTEM_INSTALL_PATH/dosemu-bin.tgz
-    )
-    BOOTDIR="$BOOT_DIR_PATH"
-  else
-    BOOTDIR="$PROPRIETARY"
-  fi
+create_symlink () {
   echo "
   Creating symbolic link for bootdirectory as $HOME/.dosemu/drives/c
 "
   mkdir -p $HOME/.dosemu/drives
   rm -f $HOME/.dosemu/drives/c
   ln -sf "$BOOTDIR" $HOME/.dosemu/drives/c
-  if [ -z "$PROPRIETARY" ]; then
-    (cd "$BOOT_DIR_PATH"
-      tar -xzf $SYSTEM_INSTALL_PATH/dosemu-freedos-bin.tgz
-    )
-  else
+}
+
+install_dosemu_freedos () {
+# $BOOT_DIR_PATH = path to install to
+  # We copy the binaries from the directory SYSTEM_INSTALL_PATH
+  # to the users $HOME.
+  if [ "$x" = "3" ]; then
     echo "
+  Please enter the name of the directory for your private DOSEMU-FreeDOS files
+  [ENTER or Ctrl-C abort]
+      "
+    read BOOT_DIR_PATH
+    if [ "$BOOT_DIR_PATH" == "" ]; then
+      exit 1;
+    fi
+    if [ "${BOOT_DIR_PATH#/*}" != "$BOOT_DIR_PATH" ]; then
+      echo "  You gave an absolute path, type ENTER to confirm or Ctrl-C"
+      read x
+    else
+      BOOT_DIR_PATH="$THISDIR/$BOOT_DIR_PATH"
+    fi
+    echo "
+  Ok, will install into $BOOT_DIR_PATH
+  type ENTER to confirm or Ctrl-C to abort"
+    read x
+  else
+    BOOT_DIR_PATH=$HOME/.dosemu/drive_c
+  fi
+  if ! mkdir -p "$BOOT_DIR_PATH" 2>/dev/null; then
+    echo "  unable to create $BOOT_DIR_PATH, giving up"
+    exit 1
+  fi
+  (cd "$BOOT_DIR_PATH"
+    tar -xzf $SYSTEM_INSTALL_PATH/dosemu-bin.tgz
+  )
+  BOOTDIR="$BOOT_DIR_PATH"
+  create_symlink
+  (cd "$BOOT_DIR_PATH"
+    tar -xzf $SYSTEM_INSTALL_PATH/dosemu-freedos-bin.tgz
+  )
+}
+
+install_proprietary () {
+# $BOOT_DIR_PATH = path to install to
+  if [ "$PROPRIETARY" = "" ]; then
+    exit 1;
+  fi
+  BOOTDIR="$PROPRIETARY"
+  create_symlink
+  echo "
   The DOSEMU part of the proprietary installation has been done.
 
   Please make sure that you have a bootable DOS in '$PROPRIETARY'.
@@ -43,19 +78,13 @@ install_from_template () {
 
   Type ENTER to confirm or Ctrl-C to abort
 "
-    read x
-  fi
+  read x
 }
 
 install_dos () {
   if [ -n "$INSTALL" -o \
        -f $BPATH_FILE -o \
       ! -f $HOME/.dosemu/disclaimer ]; then
-
-    # This either is the first time this user calls 'dosemu'
-    # or the user cd'ed here and we forced a 'take over'
-
-    rm -f $BPATH_FILE
 
     # This script was called from a systemwide installation
 
@@ -68,50 +97,50 @@ install_dos () {
       exit 1;
     fi
 
-    if [ -z "$PROPRIETARY" ]; then
+    if [ "$PROPRIETARY" = "$SYSTEM_INSTALL_PATH/freedos" ]; then
+      x=3
+      install_dosemu_freedos
+      return
+    elif [ -n "$PROPRIETARY" ]; then
+      install_proprietary
+      return
+    fi
+
+    if [ ! -f $SYSTEM_CONF_PATH/drives/c/kernel.sys ]; then
+      # FreeDOS was not installed...
       echo "
-  Please enter the name of a directory which contains a bootable DOS
-  [ENTER = the default $SYSTEM_INSTALL_PATH/freedos]
+  FreeDOS is not available to boot DOSEMU.
+  Please enter the name of a Linux directory which contains a bootable DOS
+  [ENTER or Ctrl-C abort to manually install FreeDOS or another DOS]
          "
       read PROPRIETARY
+      install_proprietary
+      return
     fi
 
-    if [ "$PROPRIETARY" = "" -o "$PROPRIETARY" = "$SYSTEM_INSTALL_PATH/freedos" ]; then
-
-      # We copy the binaries from the directory SYSTEM_INSTALL_PATH
-      # to the users $HOME.
+    echo "
+  Please choose one of the following options:
+  1. Use a writable FreeDOS C: drive in ~/.dosemu/drive_c (recommended).
+  2. Use a read-only FreeDOS C: drive in $SYSTEM_INSTALL_PATH/freedos.
+  3. Use a writable FreeDOS C: drive in another directory.
+  4. Use a different DOS than the provided DOSEMU-FreeDOS.
+  [ENTER = the default option 1]
+     "
+    read x
+    if [ "$x" = "2" ]; then
+      # nothing to be done
+      return
+    fi
+    if [ "$x" = "4" ]; then
       echo "
-  Going to install your private DOSEMU-freedos files into the directory
-  $HOME/.dosemu/drive_c
-  Enter an empty string to confirm, a new path (the files will then
-  be installed there instead), or \"none\" (without the quotes) if you
-  don't want a writable C-drive.
-"
-      read BOOT_DIR_PATH
-      if [ "$BOOT_DIR_PATH" != "none" ]; then
-        if [ "$BOOT_DIR_PATH" != "" ]; then
-          if [ "${BOOT_DIR_PATH#/*}" != "$BOOT_DIR_PATH" ]; then
-            echo "  You gave an absolute path, type ENTER to confirm or Ctrl-C"
-            read x
-          else
-            BOOT_DIR_PATH="$THISDIR/$BOOT_DIR_PATH"
-          fi
-          echo "
-  Ok, will install into $BOOT_DIR_PATH
-  type ENTER to confirm or Ctrl-C to abort"
-          read x
-        else
-          BOOT_DIR_PATH=$HOME/.dosemu/drive_c
-        fi
-        if ! mkdir -p "$BOOT_DIR_PATH" 2>/dev/null; then
-          echo "  unable to create $BOOT_DIR_PATH, giving up"
-          exit 1
-        fi
-        install_from_template
-      fi
-    else
-      install_from_template
+  Please enter the name of a directory which contains a bootable DOS
+  [ENTER or Ctrl-C quit]
+         "
+      read PROPRIETARY
+      install_proprietary
+      return
     fi
+    install_dosemu_freedos
   fi
 }
 
