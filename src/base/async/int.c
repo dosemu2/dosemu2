@@ -1757,6 +1757,7 @@ static void dos_post_boot(void)
     first = 0;
     mouse_post_boot();
     int21_post_boot();
+    do_liability_disclaimer_prompt(1);
   }
 }
 

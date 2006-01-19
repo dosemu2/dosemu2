@@ -463,6 +463,7 @@ EXTERN void mouse_helper(struct vm86_regs *);
 EXTERN void cdrom_helper(unsigned char *, unsigned char *);
 EXTERN int mscdex(void);
 EXTERN void boot(void);
+EXTERN void do_liability_disclaimer_prompt(int stage);
 EXTERN int pkt_int(void);
 EXTERN int ipx_int7a(void);
 EXTERN void read_next_scancode_from_queue (void);

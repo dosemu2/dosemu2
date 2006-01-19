@@ -224,13 +224,13 @@ module_init(void)
 }
 
 
-static void do_liability_disclaimer_prompt(void)
+void do_liability_disclaimer_prompt(int dosboot)
 {
   FILE *f;
   char buf[32];
-  char disclaimer_file_name[256];
+  char *disclaimer_file_name;
   static char text[] =
-  "The Linux DOSEMU, Copyright (C) 2005 the 'DOSEMU-Development-Team'.\n"
+  "The Linux DOSEMU, Copyright (C) 2006 the 'DOSEMU-Development-Team'.\n"
   "This program is  distributed  in  the  hope that it will be useful,\n"
   "but  WITHOUT  ANY  WARRANTY;   without even the implied warranty of\n"
   "MERCHANTABILITY  or  FITNESS FOR A PARTICULAR PURPOSE. See the file\n"
@@ -239,13 +239,22 @@ static void do_liability_disclaimer_prompt(void)
   "read the above liability disclaimer and that you accept these conditions.\n"
   "\nEnter 'yes' to confirm/continue: ";
 
-  snprintf(disclaimer_file_name, 256, "%s/disclaimer", LOCALDIR);
-  if (exists_file(disclaimer_file_name)) return;
+  disclaimer_file_name = assemble_path(LOCALDIR, "disclaimer", 0);
+  if (exists_file(disclaimer_file_name)) {
+    free(disclaimer_file_name);
+    return;
+  }
 
-  fputs(text, stdout);
-  fgets(buf, sizeof(buf), stdin);
+  if (dosboot) {
+    /* called from dos_post_boot */
+    com_printf(text);
+    com_dosread(0, buf, sizeof(buf));
+  } else {
+    fputs(text, stdout);
+    fgets(buf, sizeof(buf), stdin);
+  }
   if (strncmp(buf, "yes", 3)) {
-    exit(1);
+    leavedos(1);
   }
 
   /*
@@ -255,10 +264,11 @@ static void do_liability_disclaimer_prompt(void)
    f = fopen(disclaimer_file_name, "w");
    if (!f) {
      fprintf(stderr, "cannot create %s\n", disclaimer_file_name);
-     exit(1);
+     leavedos(1);
    }
    fprintf(f, "%s%s\n", text, buf);
    fclose(f);
+   free(disclaimer_file_name);
 }
 
 
@@ -322,12 +332,6 @@ emulate(int argc, char **argv)
      */
     parse_dosemu_users();
 
-    /*
-     * Do the 'liability disclaimer' stuff we need to avoid problems
-     * with laws in some countries.
-     */
-    do_liability_disclaimer_prompt();
-
     /* the transposal of (config_|stdio_)init allows the addition of -o */
     /* to specify a debug out filename, if you're wondering */
 
@@ -376,6 +380,18 @@ emulate(int argc, char **argv)
     map_hardware_ram();         /* map the direct hardware ram */
     map_video_bios();           /* map (really: copy) the video bios */
     close_kmem();
+
+    /*
+     * Do the 'liability disclaimer' stuff we need to avoid problems
+     * with laws in some countries.
+     *
+     * show it at the beginning only for console root video, or if
+     * we don't use FATFS (can't be sure of dos_post_boot then)
+     * else dos_post_boot in int.c does it.
+     */
+    if (hdisktab[0].type != DIR_TYPE || config.hdiskboot != 1 ||
+	config.console_video)
+	do_liability_disclaimer_prompt(0);
 
     HMA_init();			/* HMA can only be done now after mapping
                                    is initialized*/
