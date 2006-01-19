@@ -61,7 +61,10 @@ fi
 
 
 mkdir -p $TMP
-cp -p ../README.bindist ../COPYING dosemu $TMP
+cp -p ../README.bindist ../COPYING $TMP
+cp -p dosemu.bindist $TMP/dosemu
+tail +9 dosemu >> $TMP/dosemu
+chmod 755 $TMP/dosemu
 ln -sf dosemu $TMP/xdosemu
 
 mkdir -p $TMP/bin

@@ -1,0 +1,127 @@
+#! /bin/sh
+#
+# (C) Copyright 1992, ..., 2006 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
+
+# the below lines get patched, when a systemwide install is done
+SYSTEM_INSTALL_PATH=NOT_SYSTEM_WIDE
+SYSTEM_CONF_PATH=NOT_SYSTEM_WIDE
+SYSTEM_XFONTS_PATH=NOT_SYSTEM_WIDE
+SYSTEM_BIN_PATH=NOT_SYSTEM_WIDE
+
+install_from_template () {
+# $BOOT_DIR_PATH = path to install to
+  if [ -z "$PROPRIETARY" ]; then
+    (cd "$BOOT_DIR_PATH"
+      tar -xzf $SYSTEM_INSTALL_PATH/dosemu-bin.tgz
+    )
+    BOOTDIR="$BOOT_DIR_PATH"
+  else
+    BOOTDIR="$PROPRIETARY"
+  fi
+  echo "
+  Creating symbolic link for bootdirectory as $HOME/.dosemu/drives/c
+"
+  mkdir -p $HOME/.dosemu/drives
+  rm -f $HOME/.dosemu/drives/c
+  ln -sf "$BOOTDIR" $HOME/.dosemu/drives/c
+  if [ -z "$PROPRIETARY" ]; then
+    (cd "$BOOT_DIR_PATH"
+      tar -xzf $SYSTEM_INSTALL_PATH/dosemu-freedos-bin.tgz
+    )
+  else
+    echo "
+  The DOSEMU part of the proprietary installation has been done.
+
+  Please make sure that you have a bootable DOS in '$PROPRIETARY'.
+  Read the documentation for details on what it must contain. 
+  You should also install a symbolic link to or make a copy of the files in
+  $SYSTEM_INSTALL_PATH/commands 
+  in order to make the DOSEMU support commands available within $PROPRIETARY.
+
+  Type ENTER to confirm or Ctrl-C to abort
+"
+    read x
+  fi
+}
+
+install_dos () {
+  if [ -n "$INSTALL" -o \
+       -f $BPATH_FILE -o \
+      ! -f $HOME/.dosemu/disclaimer ]; then
+
+    # This either is the first time this user calls 'dosemu'
+    # or the user cd'ed here and we forced a 'take over'
+
+    rm -f $BPATH_FILE
+
+    # This script was called from a systemwide installation
+
+    if [ ! -d $SYSTEM_INSTALL_PATH ]; then
+      echo "
+  There is something wrong with your systemwide DOSEMU installation:
+  $SYSTEM_INSTALL_PATH is not existing, but was configured to contain
+  the DOSEMU distribution templates.
+"
+      exit 1;
+    fi
+
+    if [ -z "$PROPRIETARY" ]; then
+      echo "
+  Please enter the name of a directory which contains a bootable DOS
+  [ENTER = the default $SYSTEM_INSTALL_PATH/freedos]
+         "
+      read PROPRIETARY
+    fi
+
+    if [ "$PROPRIETARY" = "" -o "$PROPRIETARY" = "$SYSTEM_INSTALL_PATH/freedos" ]; then
+
+      # We copy the binaries from the directory SYSTEM_INSTALL_PATH
+      # to the users $HOME.
+      echo "
+  Going to install your private DOSEMU-freedos files into the directory
+  $HOME/.dosemu/drive_c
+  Enter an empty string to confirm, a new path (the files will then
+  be installed there instead), or \"none\" (without the quotes) if you
+  don't want a writable C-drive.
+"
+      read BOOT_DIR_PATH
+      if [ "$BOOT_DIR_PATH" != "none" ]; then
+        if [ "$BOOT_DIR_PATH" != "" ]; then
+          if [ "${BOOT_DIR_PATH#/*}" != "$BOOT_DIR_PATH" ]; then
+            echo "  You gave an absolute path, type ENTER to confirm or Ctrl-C"
+            read x
+          else
+            BOOT_DIR_PATH="$THISDIR/$BOOT_DIR_PATH"
+          fi
+          echo "
+  Ok, will install into $BOOT_DIR_PATH
+  type ENTER to confirm or Ctrl-C to abort"
+          read x
+        else
+          BOOT_DIR_PATH=$HOME/.dosemu/drive_c
+        fi
+        if ! mkdir -p "$BOOT_DIR_PATH" 2>/dev/null; then
+          echo "  unable to create $BOOT_DIR_PATH, giving up"
+          exit 1
+        fi
+        install_from_template
+      fi
+    else
+      install_from_template
+    fi
+  fi
+}
+
+get_binary() {
+  BINARY=$SYSTEM_BIN_PATH/dosemu.bin
+  if [ -u $BINARY ] ; then
+    # we should not ignore dosemu.conf if suid root
+    IGNORE_DOSEMU_CONF=""
+  fi
+}
+
+# ignore dosemu.conf by default for non-systemwide installations
+IGNORE_DOSEMU_CONF=""
