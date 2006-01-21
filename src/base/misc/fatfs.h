@@ -4,6 +4,9 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
+#ifndef FATFS_H
+#define FATFS_H
+
 #define MAX_DIR_NAME_LEN	256	/* max size of fully qualified path */
 #define MAX_FILE_NAME_LEN	63	/* max size of a file name */
 
@@ -18,7 +21,9 @@ typedef struct {
     unsigned not_real	:1;		/* entry doesn't need a start cluster */
     unsigned this_dir	:1;		/* is "." entry */
     unsigned parent_dir	:1;		/* is ".." entry */
+#if 0
     unsigned faked_sys	:1;		/* is faked by config.emusys */
+#endif
   } is;
   unsigned start, len;			/* start cluster, length in clusters */
   unsigned parent;			/* index of parent object */
@@ -29,19 +34,24 @@ typedef struct {
   unsigned dos_dir_size;		/* size of the dos directory entry */
 } obj_t;
 
+enum { FAT_TYPE_NONE, FAT_TYPE_FAT12, FAT_TYPE_FAT16, FAT_TYPE_FAT32 };
+
 typedef struct {
   char *dir;				/* base directory name */
   unsigned ok;				/* successfully initialized */
 
   unsigned secs_track, heads, reserved_secs, hidden_secs, total_secs;
+  unsigned bytes_per_sect;
   unsigned serial;
   char label[12];
+  unsigned char fat_type;
   unsigned char fat_id;
   unsigned fat_secs;
   unsigned fats;
   unsigned root_secs;
   unsigned root_entries;
   unsigned cluster_secs;
+  unsigned char drive_num;
   unsigned sys_type;			/* see fatfs::scan_dir() */
 
   unsigned got_all_objs;
@@ -60,9 +70,7 @@ typedef struct {
 
 } fatfs_t;
 
-
-void fatfs_init(struct disk *);
-void fatfs_done(struct disk *);
-
 int fatfs_read(fatfs_t *, unsigned char *, unsigned, int);
 int fatfs_write(fatfs_t *, unsigned char *, unsigned, int);
+
+#endif

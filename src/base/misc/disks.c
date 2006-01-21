@@ -392,15 +392,40 @@ hdisk_auto(struct disk *dp)
 
 void dir_auto(struct disk *dp)
 {
+  if (dp->floppy) {
+    switch (dp->default_cmos) {
+      case THREE_INCH_288MFLOP:
+        dp->heads = 2;
+        dp->tracks = 80;
+        dp->sectors = 5760/80/2;
+	break;
+      case THREE_INCH_FLOPPY:
+        dp->heads = 2;
+        dp->tracks = 80;
+        dp->sectors = 2880/80/2;
+	break;
+      case THREE_INCH_720KFLOP:
+        dp->heads = 2;
+        dp->tracks = 80;
+        dp->sectors = 1440/80/2;
+	break;
+      case FIVE_INCH_FLOPPY:
+        dp->heads = 2;
+        dp->tracks = 80;
+        dp->sectors = 2400/80/2;
+	break;
+    }
+    dp->start = 0;
+  } else {
   /*
    * We emulate an entire disk with 1 partition starting at t/h/s 0/1/1.
    * You are free to change the geometry (e.g. to change the partition size).
    */
-  dp->sectors = 63;
-  dp->heads = 255;
-  dp->tracks = 50;
-
-  dp->start = dp->sectors;
+    dp->sectors = 63;
+    dp->heads = 255;
+    dp->tracks = 50;
+    dp->start = dp->sectors;
+  }
 
   d_printf(
     "DIR auto_info disk %s; h=%d, s=%d, t=%d, start=%ld\n",
@@ -427,35 +452,39 @@ void dir_setup(struct disk *dp)
   pi->pre_secs = dp->sectors;
   pi->num_secs = (dp->tracks * dp->heads - 1) * dp->sectors;
 
-  dp->header = -(SECTOR_SIZE * (off64_t) (pi->pre_secs));
+  if (dp->floppy) {
+    dp->header = 0;
+    pi->mbr_size = 0;
+    pi->mbr = NULL;
+  } else {
+    dp->header = -(SECTOR_SIZE * (off64_t) (pi->pre_secs));
+    pi->mbr_size = SECTOR_SIZE;
+    pi->mbr = malloc(pi->mbr_size);
+    mbr = pi->mbr;
 
-  pi->mbr_size = SECTOR_SIZE;
-  pi->mbr = malloc(pi->mbr_size);
-  mbr = pi->mbr;
-
-  memset(mbr, 0, SECTOR_SIZE);
-  /*
-   * mov ax,0fffeh
-   * int 0e6h
-   */
-  mbr[0x00] = 0xb8;
-  mbr[0x01] = 0xfe;
-  mbr[0x02] = 0xff;
-  mbr[0x03] = 0xcd;
-  mbr[0x04] = 0xe6;
-  mbr[PART_INFO_START + 0x00] = PART_BOOT;
-  mbr[PART_INFO_START + 0x01] = pi->beg_head;
-  mbr[PART_INFO_START + 0x02] = pi->beg_sec + ((pi->beg_cyl & 0x300) >> 2);
-  mbr[PART_INFO_START + 0x03] = pi->beg_cyl;
-  mbr[PART_INFO_START + 0x04] = pi->num_secs < 1 << 16 ? 0x04 : 0x06;
-  mbr[PART_INFO_START + 0x05] = pi->end_head;
-  mbr[PART_INFO_START + 0x06] = pi->end_sec + ((pi->end_cyl & 0x300) >> 2);
-  mbr[PART_INFO_START + 0x07] = pi->end_cyl;
-  *(unsigned *) (mbr + PART_INFO_START + 0x08) = pi->pre_secs;
-  *(unsigned *) (mbr + PART_INFO_START + 0x0c) = pi->num_secs;
-  mbr[SECTOR_SIZE - 2] = 0x55;
-  mbr[SECTOR_SIZE - 1] = 0xaa;
-
+    memset(mbr, 0, SECTOR_SIZE);
+    /*
+     * mov ax,0fffeh
+     * int 0e6h
+     */
+    mbr[0x00] = 0xb8;
+    mbr[0x01] = 0xfe;
+    mbr[0x02] = 0xff;
+    mbr[0x03] = 0xcd;
+    mbr[0x04] = 0xe6;
+    mbr[PART_INFO_START + 0x00] = PART_BOOT;
+    mbr[PART_INFO_START + 0x01] = pi->beg_head;
+    mbr[PART_INFO_START + 0x02] = pi->beg_sec + ((pi->beg_cyl & 0x300) >> 2);
+    mbr[PART_INFO_START + 0x03] = pi->beg_cyl;
+    mbr[PART_INFO_START + 0x04] = pi->num_secs < 1 << 16 ? 0x04 : 0x06;
+    mbr[PART_INFO_START + 0x05] = pi->end_head;
+    mbr[PART_INFO_START + 0x06] = pi->end_sec + ((pi->end_cyl & 0x300) >> 2);
+    mbr[PART_INFO_START + 0x07] = pi->end_cyl;
+    *(unsigned *) (mbr + PART_INFO_START + 0x08) = pi->pre_secs;
+    *(unsigned *) (mbr + PART_INFO_START + 0x0c) = pi->num_secs;
+    mbr[SECTOR_SIZE - 2] = 0x55;
+    mbr[SECTOR_SIZE - 1] = 0xaa;
+  }
   d_printf("partition table entry for device %s is:\n", dp->dev_name);
   d_printf(
     "beg head %d, sec %d, cyl %d = end head %d, sec %d, cyl %d\n",
@@ -821,6 +850,7 @@ disk_init(void)
 {
   struct disk *dp;
   struct stat stbuf;
+  int i;
 
 #ifdef SILLY_GET_GEOMETRY
   int s;
@@ -830,10 +860,10 @@ disk_init(void)
 
   disks_initiated = 1;  /* disk_init has been called */
   if (config.bootdisk) {
-    bootdisk.fdesc = open64(bootdisk.dev_name,
+    bootdisk.fdesc = open64(bootdisk.type == DIR_TYPE ? "/dev/null" : bootdisk.dev_name,
 			    bootdisk.rdonly ? O_RDONLY : O_RDWR, 0);
     if (bootdisk.fdesc < 0) {
-      if (errno == EROFS) {
+      if ((errno == EROFS || errno == EACCES) && bootdisk.type != DIR_TYPE) {
         bootdisk.fdesc = open64(bootdisk.dev_name, O_RDONLY, 0);
         if (bootdisk.fdesc < 0) {
           error("can't open bootdisk %s for read nor write: %s\n", bootdisk.dev_name, strerror(errno));
@@ -849,13 +879,24 @@ disk_init(void)
     }
     else bootdisk.rdonly = bootdisk.wantrdonly;
     bootdisk.removeable = 0;
+    bootdisk.floppy = 1;
+    bootdisk.drive_num = 0;
+    bootdisk.serial = 0xB00B00B0;
+    if (bootdisk.type == DIR_TYPE) {
+      disk_fptrs[bootdisk.type].autosense(&bootdisk);
+      disk_fptrs[bootdisk.type].setup(&bootdisk);
+    }
   }
 
   /*
    * Open floppy disks
    */
   ATAPI_buf0[0] = 0;
-  for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
+  for (i = 0; i < FDISKS; i++) {
+    dp = &disktab[i];
+    dp->floppy = 1;
+    dp->drive_num = i;
+    dp->serial = 0xF10031A0 + dp->drive_num;	// sernum must be unique!
     if (stat(dp->dev_name, &stbuf) < 0) {
       error("can't stat %s\n", dp->dev_name);
       leavedos(24);
@@ -875,9 +916,10 @@ disk_init(void)
       continue;
     }
 #endif
-    dp->fdesc = open64(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
+    dp->fdesc = open64(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name,
+	    dp->rdonly ? O_RDONLY : O_RDWR, 0);
     if (dp->fdesc < 0) {
-      if (errno == EROFS || errno == EACCES) {
+      if ((errno == EROFS || errno == EACCES) && bootdisk.type != DIR_TYPE) {
         dp->fdesc = open64(dp->dev_name, O_RDONLY, 0);
         if (dp->fdesc < 0) {
           error("can't open %s for read nor write: %s\n", dp->dev_name, strerror(errno));
@@ -893,6 +935,10 @@ disk_init(void)
       }
     }
     else dp->rdonly = dp->wantrdonly;
+    if (dp->type == DIR_TYPE) {
+      disk_fptrs[dp->type].autosense(dp);
+      disk_fptrs[dp->type].setup(dp);
+    }
   }
 
   if (!FDISKS && use_bootdisk) {
@@ -921,7 +967,11 @@ disk_init(void)
   /*
    * Open hard disks
    */
-  for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
+  for (i = 0; i < HDISKS; i++) {
+    dp = &hdisktab[i];
+    dp->floppy = 0;
+    dp->drive_num = i | 0x80;
+    dp->serial = 0x4ADD1B0A + dp->drive_num;	// sernum must be unique!
     if(dp->type == IMAGE)  {
 	if (dp->dexeflags & DISK_DEXE_RDWR) {
 	  d_printf("IMAGE: dexe, RDWR access allowed for %s\n",dp->dev_name);
@@ -1015,11 +1065,22 @@ void disk_reset(void)
   for (i = 0; i < 26; i++)
     ResetRedirection(i);
   set_int21_revectored(redir_state = 1);
-  for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++)
+  if (config.bootdisk && bootdisk.type == DIR_TYPE) {
+    if (bootdisk.fatfs) fatfs_done(&bootdisk);
+    fatfs_init(&bootdisk);
+  }
+  for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
     if(dp->type == DIR_TYPE) {
       if (dp->fatfs) fatfs_done(dp);
       fatfs_init(dp);
     }
+  }
+  for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
+    if(dp->type == DIR_TYPE) {
+      if (dp->fatfs) fatfs_done(dp);
+      fatfs_init(dp);
+    }
+  }
 }
 
 static int checkdp(struct disk *disk)
@@ -1064,7 +1125,7 @@ int int13(void)
   else
     dp = NULL;
 
-  d_printf("INT13: disk=%#x ah=%#x dp=%p\n", LO(dx), HI(ax), dp);
+  d_printf("INT13: ax=%04x cx=%04x dx=%04x\n", LWORD(eax), LWORD(ecx), LWORD(edx));
 
   /* this is a bad hack to ensure that the cached blocks aren't.
    * Linux only checks disk change on open()
@@ -1098,10 +1159,8 @@ int int13(void)
       track |= (HI(dx) & 0xc0) << 4;
     buffer = SEG_ADR((char *), es, bx);
     number = LO(ax);
-#ifdef X86_EMULATOR
-    e_printf("DISK %d read [h:%d,s:%d,t:%d](%d)->%04x:%04x\n",
+    d_printf("DISK %d read [h:%d,s:%d,t:%d](%d)->%04x:%04x\n",
 	     disk, head, sect, track, number, REG(es), LWORD(ebx));
-#endif
 
     if (checkdp_val || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
@@ -1445,6 +1504,7 @@ int int13(void)
     buffer = (char *)(((unsigned long)diskaddr->buf_seg << 4)+diskaddr->buf_ofs);
     number = diskaddr->blocks;
     diskaddr->blocks = 0;
+    d_printf("DISK read [h:%d,s:%d,t:%d](%d)\n", head, sect, track, number);
 
     if (checkdp(dp) || track >= dp->tracks) {
       error("Sector not found, AH=0x42!\n");
@@ -1636,4 +1696,20 @@ floppy_tick(void)
       d_printf("FLOPPY: flushing after %d ticks\n", ticks);
     ticks = 0;
   }
+}
+
+char *get_fat_dir_by_serial(unsigned long serial)
+{
+  struct disk *dp;
+  if (bootdisk.type == DIR_TYPE && bootdisk.fatfs && bootdisk.serial == serial)
+    return bootdisk.fatfs->dir;
+  for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
+    if(dp->type == DIR_TYPE && dp->fatfs && dp->serial == serial)
+      return dp->fatfs->dir;
+  }
+  for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
+    if(dp->type == DIR_TYPE && dp->fatfs && dp->serial == serial)
+      return dp->fatfs->dir;
+  }
+  return NULL;
 }

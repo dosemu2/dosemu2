@@ -49,7 +49,6 @@
 #include "timers.h"
 #include "cmos.h"
 #include "mouse.h"
-#include "disks.h"
 #include "xms.h"
 #include "ipx.h"		/* TRB - add support for ipx */
 #include "serial.h"

@@ -46,6 +46,34 @@ struct PSP {
 	unsigned char	cmdline[0x100-0x81];	/* 0x81 */
 } __attribute__((packed));
 
+struct DPB {
+	unsigned char drv_num;
+	unsigned char unit_num;
+	unsigned short bytes_per_sect;
+	unsigned char last_sec_in_clust;
+	unsigned char sec_shift;
+	unsigned short reserv_secs;
+	unsigned char num_fats;
+	unsigned short root_ents;
+	unsigned short data_start;
+	unsigned short max_clu;
+	unsigned short sects_per_fat;
+	unsigned short first_dir_off;
+	far_t ddh_ptr;
+	unsigned char media_id;
+	unsigned char accessed;
+	far_t next_DPB;
+	unsigned short first_free_clu;
+	unsigned short fre_clusts;
+} __attribute__((packed));
+
+struct DINFO {
+	unsigned short level;
+	unsigned long serial;
+	unsigned char label[11];
+	unsigned char fs_type[8];
+} __attribute__((packed));
+
 struct param4a {
     unsigned short envframe;
     far_t cmdline;
@@ -148,6 +176,7 @@ extern int sda_cur_drive_off;
 #define psp_parent_psp(psp)		(*(u_short *)&psp[0x16])
 #define psp_handles(psp)		((char *)(FARPTR((far_t *)&psp[0x34])))
 
+#define lol_dpbfarptr(lol)		(*(far_t *)&lol[lol_dpbfarptr_off])
 #define lol_cdsfarptr(lol)		(*(far_t *)&lol[lol_cdsfarptr_off])
 #define lol_last_drive(lol)		(*(u_char *)&lol[lol_last_drive_off])
 #define lol_nuldev(lol)		        (&lol[lol_nuldev_off])
@@ -204,6 +233,7 @@ extern int sda_open_mode_off;
 extern int sda_rename_source_off;
 extern int sda_user_stack_off;
 
+extern int lol_dpbfarptr_off;
 extern int lol_cdsfarptr_off;
 extern int lol_last_drive_off;
 extern int lol_nuldev_off;

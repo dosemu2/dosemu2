@@ -26,7 +26,7 @@ _si             = 0x0c
 _di             = 0x0e
 _bp             = 0x10
 read_cnt        = 0x12
-unused_byte     = 0x13
+drive           = 0x13
 read_tabs       = 0x14
 
 tab	=	boot_ofs + 0x3e
@@ -42,10 +42,12 @@ main:
 	movw	%ax,%es
 	movw	tab,%bp
 	leaw	read_tabs(%bp),%si
+	cmpb	read_cnt(%bp), %al
+	je	main_30
 main_10:
 	decb	read_cnt(%bp)
 	js	main_20
-	movb	$0x80,%dl
+	movb	drive(%bp),%dl
 	movb	$0x42,%ah
 	int	$0x13
 	jb	main_30

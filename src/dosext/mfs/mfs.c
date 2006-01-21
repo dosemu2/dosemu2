@@ -345,6 +345,7 @@ int sda_open_mode_off = 0x23b;
 int sda_rename_source_off = 0x2b8;
 int sda_user_stack_off = 0x250;
 
+int lol_dpbfarptr_off = 0;
 int lol_cdsfarptr_off = 0x16;
 int lol_last_drive_off = 0x21;
 int lol_nuldev_off = 0x22;

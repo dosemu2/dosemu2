@@ -12,6 +12,7 @@
 #define DISKS_H
 
 #include "extern.h"
+#include "fatfs.h"
 #define PART_INFO_START		0x1be	/* offset in MBR for partition table */
 #define PART_INFO_LEN   	0x10	/* size of each partition record */
 #define PART_SIG		0x55aa	/* magic signature */
@@ -59,14 +60,16 @@ struct disk {
   int sectors, heads, tracks;	/* geometry */
   long start;			/* geometry */
   int default_cmos;		/* default CMOS floppy type */
-  disk_t type;			/* type of file: image, partition,
-				   disk */
+  int drive_num;
+  unsigned long serial;		/* serial number */
+  disk_t type;			/* type of file: image, partition, disk */
   loff_t header;		/* compensation for opt. pre-disk header */
-  int fdesc;			/* below are not user settable */
-  int removeable;		/* not user settable */
+  int fdesc;			/* file descriptor */
+  int removeable;		/* real removable drive, can disappear */
+  int floppy;			/* emulating floppy */
   int timeout;			/* seconds between floppy timeouts */
   struct partition part_info;	/* neato partition info */
-  void *fatfs;			/* for FAT file system emulation */
+  fatfs_t *fatfs;		/* for FAT file system emulation */
 };
 
 #if 0
@@ -171,6 +174,11 @@ void partition_setup(struct disk *);
 void dir_setup(struct disk *);
 
 void fdkernel_boot_mimic(void);
+
+void fatfs_init(struct disk *);
+void fatfs_done(struct disk *);
+
+char *get_fat_dir_by_serial(unsigned long serial);
 
 #define floppy_setup	d_nullf
 

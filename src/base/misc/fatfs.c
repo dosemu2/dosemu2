@@ -1,4 +1,4 @@
-/* 
+/*
  * All modifications in this file to the original code are
  * (C) Copyright 1992, ..., 2005 the "DOSEMU-Development-Team".
  *
@@ -17,6 +17,8 @@
  *
  * email: Steffen Winterfeldt <wfeldt@suse.de>
  *
+ * FAT12 support by Stas Sergeev <stsp@users.sourceforge.net>
+ *
  */
 
 
@@ -25,7 +27,7 @@
  * Debug level.
  * 0 - normal / 1 - useful / 2 - too much
  */
-#define DEBUG_FATFS	1
+#define DEBUG_FATFS	2
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -63,6 +65,7 @@
 #include "doshelpers.h"
 #include "cpu-emu.h"
 #include "dos2linux.h"
+#include "utilities.h"
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -85,7 +88,7 @@ static int read_file(fatfs_t *, unsigned, unsigned, unsigned);
 static int read_dir(fatfs_t *, unsigned, unsigned, unsigned);
 static unsigned next_cluster(fatfs_t *, unsigned);
 static void build_boot_blk(fatfs_t *);
-static void make_i1342_blk(unsigned char *, unsigned, unsigned, unsigned, unsigned);
+static void make_i1342_blk(struct ibm_ms_diskaddr_pkt *b, unsigned start, unsigned blks, unsigned seg, unsigned ofs);
 
 static char *bootfile = 0;
 
@@ -118,25 +121,45 @@ void fatfs_init(struct disk *dp)
   f->ffn_obj = 1;			/* this object doesn't exist */
 
   f->dir = dp->dev_name;
-  f->fat_id = 0xf8;
-  f->serial = 0x12345678;
+  if (dp->floppy) {
+    switch (dp->default_cmos) {
+      case THREE_INCH_288MFLOP:
+      case THREE_INCH_FLOPPY:
+        f->fat_id = 0xf0;
+	break;
+      case FIVE_INCH_FLOPPY:
+      case THREE_INCH_720KFLOP:
+        f->fat_id = 0xf9;
+	break;
+    }
+    f->fat_type = FAT_TYPE_FAT12;
+  } else {
+    f->fat_id = 0xf8;
+    f->fat_type = FAT_TYPE_FAT16;
+  }
+  f->serial = dp->serial;
   f->secs_track = dp->sectors;
+  f->bytes_per_sect = SECTOR_SIZE;
   f->heads = dp->heads;
   f->reserved_secs = 1;
   f->hidden_secs = dp->start;
-  f->total_secs = dp->part_info.num_secs;
+  f->total_secs = dp->part_info.num_secs + dp->sectors;
   f->fats = 2;
   for(u = 1; u <= 64; u <<= 1) {
     if(u * 0xfff0u > f->total_secs) break;
   }
   f->cluster_secs = u;
-  f->fat_secs = ((f->total_secs / u + 2) * 2 + 0x1ff) >> 9;
+  f->fat_secs = f->fat_type == FAT_TYPE_FAT12 ? 
+	((f->total_secs / u + 2) * 3 + 0x3ff) >> 10 :
+	((f->total_secs / u + 2) * 2 + 0x1ff) >> 9;
   f->root_secs = 4;
 
   f->root_entries = f->root_secs << 4;
 
   f->last_cluster = (f->total_secs - f->reserved_secs - f->fats * f->fat_secs
                     - f->root_secs) / f->cluster_secs + 1;
+
+  f->drive_num = dp->drive_num;
 
   f->obj = NULL;
   f->objs = f->alloc_objs = 0;
@@ -259,20 +282,51 @@ int read_sec(fatfs_t *f, unsigned pos)
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 int read_fat(fatfs_t *f, unsigned pos)
 {
-  unsigned u, u0 = pos << 8, u1;
+  unsigned epfs, u, u0, u1 = 0, i = 0, nbit = 0, lnb = 0, boffs, bioffs;
 
   fatfs_deb("dir %s, reading fat sector %d\n", f->dir, pos);
 
-  if(f->got_all_objs && u0 >= f->first_free_cluster) {
-    memset(f->sec, 0, 0x200);
-    return 0;
-  }
+  memset(f->sec, 0, 0x200);
 
-  for(u = 0; u < 0x100; u++) {
+  if (f->fat_type == FAT_TYPE_FAT12) {
+    epfs = f->bytes_per_sect * 2 / 3;	// 341
+    boffs = ((f->bytes_per_sect * 2) % 3) * 4;	// 4
+  } else {
+    epfs = f->bytes_per_sect / 2;
+    boffs = 0;
+  }
+  u0 = (pos * epfs + ((pos * boffs) >> 3)) * f->cluster_secs;
+  bioffs = (pos * boffs) & 7;
+  if(f->got_all_objs && u0 >= f->first_free_cluster)
+    return 0;
+
+  for(u = 0;; u++) {
     u1 = next_cluster(f, u + u0);
     fatfs_deb2("cluster %u follows %u\n", u1, u + u0);
-    f->sec[2 * u] = u1;
-    f->sec[2 * u + 1] = u1 >> 8;
+    if (f->fat_type == FAT_TYPE_FAT12) {
+      u1 &= 0xfff;
+      lnb = 12;
+    } else {
+      lnb = 16;
+    }
+    if (bioffs) {
+      fatfs_deb2("... offset %u bits\n", bioffs);
+      u1 >>= bioffs;
+      lnb -= bioffs;
+      bioffs = 0;
+    }
+    f->sec[i] |= (u1 << nbit) & 0xff;
+    i++;
+    u1 >>= 8 - nbit;
+    lnb -= 8 - nbit;
+    nbit = 0;
+    if (i >= SECTOR_SIZE) break;
+    if (!lnb) continue;
+    f->sec[i] |= u1;
+    nbit += lnb;
+    i += nbit >> 3;
+    nbit &= 7;
+    if (i >= SECTOR_SIZE) break;
   }
 
   return 0;
@@ -303,19 +357,13 @@ int read_boot(fatfs_t *f)
 
   if(f->boot_sec) {
     memcpy(b, f->boot_sec, 0x200);
-  }
-  else {
-    memset(b, 0, 0x200);
-    b[0x00] = 0xeb;	/* jmp $ */
-    b[0x01] = 0xfe;
-    b[0x02] = 0x90;
-    b[0x1fe] = 0x55;
-    b[0x1ff] = 0xaa;
+  } else {
+    build_boot_blk(f);
   }
 
   memcpy(b + 0x03, "DOSEMU10", 8);
-  b[0x0b] = 0x00;
-  b[0x0c] = 0x02;
+  b[0x0b] = f->bytes_per_sect;
+  b[0x0c] = f->bytes_per_sect >> 8;
   b[0x0d] = f->cluster_secs;
   b[0x0e] = f->reserved_secs;
   b[0x0f] = f->reserved_secs >> 8;
@@ -349,7 +397,7 @@ int read_boot(fatfs_t *f)
     b[0x22] = f->total_secs >> 16;
     b[0x23] = f->total_secs >> 24;
   }
-  b[0x24] = 0x80;
+  b[0x24] = f->drive_num;
   b[0x25] = 0x00;
   b[0x26] = 0x29;
   b[0x27] = f->serial;
@@ -357,7 +405,10 @@ int read_boot(fatfs_t *f)
   b[0x29] = f->serial >> 16;
   b[0x2a] = f->serial >> 24;
   memcpy(b + 0x2b, f->label, 11);
-  memcpy(b + 0x36, "FAT16   ", 8);
+  if (f->fat_type == FAT_TYPE_FAT12)
+    memcpy(b + 0x36, "FAT12   ", 8);
+  else
+    memcpy(b + 0x36, "FAT16   ", 8);
 
   return 0;
 }
@@ -393,7 +444,12 @@ void make_label(fatfs_t *f)
 
   if(*s == ' ') s++, i--;
 
-  if(i <= 11 && i > 0) memcpy(f->label, s, i);
+  if(i <= 11 && i > 0) {
+    memcpy(f->label, s, i);
+    while ((s = strchr(f->label, '/')))
+      *s = ' ';
+    strupr(f->label);
+  }
 }
 
 
@@ -485,6 +541,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
                     f->boot_sec = NULL;
                   }
                   close(fd);
+	          fatfs_msg("fatfs: boot block taken from boot.blk\n");
                 }
               }
             }
@@ -608,6 +665,7 @@ void scan_dir(fatfs_t *f, unsigned oi)
         if(!stat(f->dir, &sb)) {
           f->obj[u].time = dos_time(&sb.st_mtime);
         }
+	fatfs_deb2("added label \"%s\"\n", f->label);
       }
     }
   }
@@ -665,6 +723,7 @@ void add_object(fatfs_t *f, unsigned parent, char *name)
   struct stat sb;
   obj_t tmp_o = {{0}, 0};
   unsigned u;
+#if 0
   static int first = 1;
   static int exxx = 0;
   static char esys[16] = "";
@@ -690,6 +749,7 @@ void add_object(fatfs_t *f, unsigned parent, char *name)
       exxx -= 1;
     }
   }
+#endif
   if(!(strcmp(name, ".") && strcmp(name, ".."))) return;
 
   if(!(s = full_name(f, parent, name))) {
@@ -762,8 +822,9 @@ unsigned make_dos_entry(fatfs_t *f, obj_t *o, unsigned char **e)
   memset(dos_ent, 0, sizeof dos_ent);
 
   s = o->name;
+#if 0
   if (o->is.faked_sys) s = "config.sys";
-
+#endif
   if(o->is.this_dir) {
     s = ".";
     o = f->obj + o->parent;
@@ -875,7 +936,8 @@ void assign_clusters(fatfs_t *f, unsigned max_clu, unsigned max_obj)
       f->got_all_objs = 1;
       fatfs_msg("assign_clusters: file system full\n");
     }
-    fatfs_deb("assign_clusters: obj %u, start %u, len %u\n", u, f->obj[u].start, f->obj[u].len);
+    fatfs_deb("assign_clusters: obj %u, start %u, len %u (%s)\n",
+	u, f->obj[u].start, f->obj[u].len, f->obj[u].name);
   }
 
   if(u == f->objs) {
@@ -1066,7 +1128,7 @@ void fdkernel_boot_mimic(void)
   close(f);
   LWORD(cs) = LWORD(ds) = LWORD(es) = loadaddress >> 4;
   LWORD(eip) = 0;
-  LWORD(ebx) = 0x80;	/* boot drive */
+  LWORD(ebx) = config.bootdisk ? 0 : 0x80;	/* boot drive */
   LWORD(ss) = 0x1FE0;
   LWORD(esp) = 0x7c00;	/* temp stack */
 }
@@ -1139,9 +1201,11 @@ void build_boot_blk(fatfs_t *f)
   0x0e	/* di */
   0x10	/* bp */
   0x12	/* list entries */
-  0x13	/* unused */
+  0x13	/* drive */
   0x14	/* start of disk_tab list */
 #endif
+
+  d0[0x13] = f->drive_num;
 
   switch(f->sys_type) {
     case 0x03:
@@ -1149,8 +1213,8 @@ void build_boot_blk(fatfs_t *f)
       i = read_data(f, 0);
       if(i || f->sec[0] != 'M' || f->sec[1] != 'Z') {
         /* for IO.SYS, MS-DOS version < 7 */
-        make_i1342_blk(d1 + 0x00, r_o, 1, 0, 0x500);
-        make_i1342_blk(d1 + 0x10, d_o, 4, 0, 0x700);
+        make_i1342_blk((struct ibm_ms_diskaddr_pkt *)(d1 + 0x00), r_o, 1, 0, 0x500);
+        make_i1342_blk((struct ibm_ms_diskaddr_pkt *)(d1 + 0x10), d_o, 4, 0, 0x700);
         d0[0x12] = 2;		/* 2 entries */
 
         d0[0x02] = 0x70;	/* start seg */
@@ -1159,13 +1223,13 @@ void build_boot_blk(fatfs_t *f)
         d0[0x06] = d_o;		/* bx */
         d0[0x07] = d_o >> 8;
         d0[0x09] = 0xf8;	/* ch */
-        d0[0x0a] = 0x80;	/* dl */
+        d0[0x0a] = f->drive_num;	/* dl */
 
         fatfs_msg("made boot block suitable for MS-DOS, version < 7\n");
       }
       else {
         /* for IO.SYS, MS-DOS version >= 7 */
-        make_i1342_blk(d1, d_o, 4, 0, 0x700);
+        make_i1342_blk((struct ibm_ms_diskaddr_pkt *)d1, d_o, 4, 0, 0x700);
         d0[0x12] = 1;		/* 1 entry */
 
         d0[0x01] = 0x02;	/* start ofs */
@@ -1198,21 +1262,21 @@ void build_boot_blk(fatfs_t *f)
 
     case 0x0c:			/* PC-DOS */
       /* for IBMBIO.COM, PC-, DR-, Open-, NOVELL-DOS  */
-      make_i1342_blk(d1, d_o, (f->obj[1].size + 0x1ff) >> 9, 0, 0x700);
+      make_i1342_blk((struct ibm_ms_diskaddr_pkt *)d1, d_o, (f->obj[1].size + 0x1ff) >> 9, 0, 0x700);
       d0[0x12] = 1;		/* 1 entry */
 
       d0[0x02] = 0x70;	/* start seg */
-      d0[0x0a] = 0x80;	/* dl */
+      d0[0x0a] = f->drive_num;	/* dl */
 
       fatfs_msg("made boot block suitable for PC-, DR-, Open-, NOVELL-DOS\n");
       break;
 
     case 0x10:			/* FreeDOS, orig. Patv kernel */
-      make_i1342_blk(d1, d_o, (f->obj[1].size + 0x1ff) >> 9, 0x2000, 0x0);
+      make_i1342_blk((struct ibm_ms_diskaddr_pkt *)d1, d_o, (f->obj[1].size + 0x1ff) >> 9, 0x2000, 0x0);
       d0[0x12] = 1;		/* 1 entry */
 
       d0[0x03] = 0x20;		/* start seg */
-      d0[0x0a] = 0x80;		/* dl */
+      d0[0x0a] = f->drive_num;		/* dl */
 
       fatfs_msg("made boot block suitable for DosC\n");
       break;
@@ -1258,17 +1322,12 @@ void build_boot_blk(fatfs_t *f)
  * Set up disk transfer blocks for int 0x13, ah = 0x42 (0x10 bytes each).
  * Don't forget to zero the buffer before calling make_i1342_blk!
  */
-void make_i1342_blk(unsigned char *b, unsigned start, unsigned len, unsigned seg, unsigned ofs)
+void make_i1342_blk(struct ibm_ms_diskaddr_pkt *b, unsigned start, unsigned blks, unsigned seg, unsigned ofs)
 {
-  b[0x00] = 0x10;
-  b[0x02] = len;
-  b[0x03] = len >> 8;
-  b[0x04] = ofs;
-  b[0x05] = ofs >> 8;
-  b[0x06] = seg;
-  b[0x07] = seg >> 8;
-  b[0x08] = start;
-  b[0x09] = start >> 8;
-  b[0x0a] = start >> 16;
-  b[0x0b] = start >> 24;
+  b->len = 0x10;
+  b->blocks = blks;
+  b->buf_ofs = ofs;
+  b->buf_seg = seg;
+  b->block_lo = start;
+  b->block_hi = 0;
 }
